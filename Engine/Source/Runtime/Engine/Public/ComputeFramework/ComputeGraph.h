@@ -11,6 +11,7 @@ class FComputeKernelResource;
 class FShaderParametersMetadata;
 class ITargetPlatform;
 class UComputeDataInterface;
+class UComputeDataProvider;
 class UComputeKernel;
 
 /** Compute Kernel compilation flags. */
@@ -114,6 +115,12 @@ public:
 
 	/** Get the shader metadata for the nth kernel in the graph. Note that it is valid to return nullptr here. */
 	FShaderParametersMetadata* GetKernelShaderMetadata(int32 Index) const { return ShaderMetadatas[Index]; }
+
+	/** 
+	 * Create UComputeDataProvider objects to match the current UComputeDataInterface objects. 
+	 * The caller is responsible for any further per data provider binding.
+	 */
+	void CreateDataProviders(UObject* InOuter, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
 
 	/**
 	 * Get unique data interface id.

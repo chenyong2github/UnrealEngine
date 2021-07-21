@@ -291,53 +291,7 @@ void FOptimusEditor::CompileEnd(UOptimusDeformer* InDeformer)
 
 void FOptimusEditor::InstallDataProviders()
 {
-	if (ComputeGraphComponent)
-	{
-		ComputeGraphComponent->DataProviders = DeformerObject->CreateDataProviders(ComputeGraphComponent);
-		
-		UpdateDataProviderBindings();
-	}
-}
-
-
-void FOptimusEditor::UpdateDataProviderBindings()
-{
-	if (ComputeGraphComponent)
-	{
-		for (UComputeDataProvider* DataProvider: ComputeGraphComponent->DataProviders)
-		{
-			if (USkeletalMeshReadDataProvider* SkeletalMeshReadDataProvider = Cast<USkeletalMeshReadDataProvider>(DataProvider))
-			{
-				SkeletalMeshReadDataProvider->SkeletalMesh = SkeletalMeshComponent;
-			}
-			else if (USkeletalMeshSkinCacheDataProvider* SkeletalMeshSkinCacheDataProvider = Cast<USkeletalMeshSkinCacheDataProvider>(DataProvider))
-			{
-				SkeletalMeshSkinCacheDataProvider->SkeletalMesh = SkeletalMeshComponent;
-			}
-			else if (USceneDataProvider* SceneDataProvider = Cast<USceneDataProvider>(DataProvider))
-			{
-				SceneDataProvider->SceneComponent = SkeletalMeshComponent;
-			}
-			else if (UTransientBufferDataProvider *TransientBufferDataProvider = Cast<UTransientBufferDataProvider>(DataProvider))
-			{
-				if (SkeletalMeshComponent->MeshObject)
-				{
-					FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshComponent->MeshObject->GetSkeletalMeshRenderData();
-					FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-			
-					TransientBufferDataProvider->NumElements = LodRenderData->GetNumVertices();
-				}
-				else
-				{
-					TransientBufferDataProvider->NumElements = 0;
-				}
-
-				// For retained buffers we will probably want to clear them beforehand to keep up
-				// with the principle of least surprise.
-				TransientBufferDataProvider->bClearBeforeUse = false;
-			}
-		}
-	}
+	UOptimusDataInterfaceHelpers::InitDataProviders(ComputeGraphComponent, SkeletalMeshComponent);
 }
 
 
@@ -544,7 +498,7 @@ void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewS
 
 void FOptimusEditor::HandlePreviewMeshChanged(USkeletalMesh* InOldPreviewMesh, USkeletalMesh* InNewPreviewMesh)
 {
-	UpdateDataProviderBindings();
+	InstallDataProviders();
 }
 
 

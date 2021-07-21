@@ -77,6 +77,15 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 	return true;
 }
 
+void UComputeGraph::CreateDataProviders(UObject* InOuter, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
+{
+	for (UComputeDataInterface* DataInterface : DataInterfaces)
+	{
+		UComputeDataProvider* DataProvider = DataInterface != nullptr ? DataInterface->CreateDataProvider(InOuter) : nullptr;
+		OutProviders.Add(DataProvider);
+	}
+}
+
 void UComputeGraph::UpdateResources()
 {
 	CacheShaderMetadata();
