@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "RigVMTraits.h"
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 typedef TArray<uint8> FRigVMByteArray;
 typedef TArray<FRigVMByteArray> FRigVMNestedByteArray;
 
@@ -457,3 +459,4 @@ private:
 	int32 Size;
 };
 
+#endif

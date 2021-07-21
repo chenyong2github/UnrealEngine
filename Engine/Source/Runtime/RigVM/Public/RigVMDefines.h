@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	RigVMModule.h: Module definitions.
+	RigVMDefines.h: Global defines
 =============================================================================*/
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RigVMDefines.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogRigVM, Log, All);
+#ifndef UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+#define UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED 1
+#endif
