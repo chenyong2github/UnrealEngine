@@ -5,6 +5,9 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionHelpers, Log, All);
+
+
 #if WITH_EDITOR
 
 void FWorldPartitionHelpers::ForEachIntersectingActorDesc(UWorldPartition* WorldPartition, const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate)
@@ -104,6 +107,18 @@ bool FWorldPartitionHelpers::HasExceededMaxMemory()
 
 	// Even if we're not exhausting memory, GC should be run at periodic intervals
 	return bHasExceededMaxMemory || (FPlatformTime::Seconds() - GetLastGCTime()) > 30;
+};
+
+void FWorldPartitionHelpers::DoCollectGarbage()
+{
+	const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
+	CollectGarbage(RF_NoFlags, true);
+	const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();
+
+	UE_LOG(LogWorldPartition, Log, TEXT("GC Performed - Available Physical: %.2fGB, Available Virtual: %.2fGB"),
+		(int64)MemStatsAfter.AvailablePhysical / (1024.0 * 1024.0 * 1024.0),
+		(int64)MemStatsAfter.AvailableVirtual / (1024.0 * 1024.0 * 1024.0)
+	);
 };
 
 #endif // #if WITH_EDITOR

@@ -35,6 +35,7 @@ public:
 	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func);
 
 	static bool HasExceededMaxMemory();
+	static void DoCollectGarbage();
 };
 
 #endif // WITH_EDITOR

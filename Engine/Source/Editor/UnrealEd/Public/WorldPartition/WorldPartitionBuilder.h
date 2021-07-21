@@ -31,8 +31,6 @@ public:
 protected:
 	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
 
-	void DoCollectGarbage() const;
-
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;
 	TSet<FName> DataLayerLabels;
