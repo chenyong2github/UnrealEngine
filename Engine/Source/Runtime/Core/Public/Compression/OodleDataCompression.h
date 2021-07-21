@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
+#include "Misc/CompressionFlags.h"
 
 // OodleDataCompression :
 //	Unreal API for direct access to Oodle Data lossless data compression
@@ -95,6 +96,35 @@ enum class EOodleDataCompressionLevel : int8
 	Optimal3 = 7,
 	Optimal4 = 8,
 };
+
+enum class EOodleDataCompressionCommonUsage : uint8
+{
+	Default = 0,
+	FastRealtimeEncode = 1,
+	SlowerSmallerEncode = 2,
+	SlowestOfflineDistributionEncode = 3
+};
+
+/**
+* Translate legacy CompressionFlags to an EOodleDataCompressionCommonUsage
+*   CompressionFlags is not encouraged for new code; prefer directly calling to Oodle
+*
+* @param	Flags				ECompressionFlags (BiasSpeed,BiasSize,ForPackaging)
+* @return						EOodleDataCompressionCommonUsage
+*/
+EOodleDataCompressionCommonUsage CORE_API GetCommonUsageFromLegacyCompressionFlags(ECompressionFlags Flags);
+
+/**
+* Translate OodleDataCompressionCommonUsage to a Compressor & Level selection
+*   usually prefer the more expressive choice of {Compressor,Level}
+*
+* @param	Usage				Your intended compression use case
+* @param	OutCompressor		Output reference
+* @param	OutLevel			Output reference
+* @return						
+*/
+void CORE_API GetCompressorAndLevelForCommonUsage(EOodleDataCompressionCommonUsage Usage,EOodleDataCompressor & OutCompressor,EOodleDataCompressionLevel & OutLevel);
+
 
 /**
 * What size of compressed output buffer is needed to encode into for OodleDataCompress()

@@ -185,63 +185,100 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 		return FString::Printf(TEXT("C_%s_CL_%s_%s"), *GetCompressorString(), *GetCompressionLevelString(), OODLE_DERIVEDDATA_VER);
 	}
 
-	virtual bool Compress(void* OutCompressedBuffer, int32& OutCompressedSize, const void* InUncompressedBuffer, int32 InUncompressedSize, int32 InCompressionData) override
+	virtual bool Compress(void* OutCompressedBuffer, int32& OutCompressedSize, const void* InUncompressedBuffer, int32 InUncompressedSize, int32 InCompressionData, ECompressionFlags Flags) override
 	{
 		// OutCompressedSize is read-write
 		int32 CompressedBufferSize = OutCompressedSize;
 
 		// CompressedSize should be >= GetCompressedBufferSize(UncompressedSize, CompressionData)
 		check(CompressedBufferSize >= GetCompressedBufferSize(InUncompressedSize, InCompressionData));
-		
-		OO_SINTa Result = 0;
 
-		if ( OodleLZCompressFuncPtr != nullptr )
+		if ( Flags & COMPRESS_ForPackaging )
 		{
-			// encode using func pointer to loaded DLL :
-			Result = (*OodleLZCompressFuncPtr)(Compressor, InUncompressedBuffer, InUncompressedSize, OutCompressedBuffer, CompressionLevel, NULL, NULL, NULL);
+			// Compressing for pak/iostore
+			// use the options from the command line (ProjectPackagingSettings) to choose compression settings
 
-			// NOTE: not using &CompressOptions
-			//	because OodleLZ_CompressOptions_GetDefault has changed from v5
-			//	need to either call that in the DLL func ptr or not use it
-			//	(SSTB == 0 doesn't mean default in old Oodle)
+			OO_SINTa Result = 0;
 
-			#if 0 // DO_CHECK
-			if ( Result > 0 )
+			if ( OodleLZCompressFuncPtr != nullptr )
 			{
-				// verify we can decode data made with DLL-enocder using the current decoder :
+				// encode using func pointer to loaded DLL :
+				Result = (*OodleLZCompressFuncPtr)(Compressor, InUncompressedBuffer, InUncompressedSize, OutCompressedBuffer, CompressionLevel, NULL, NULL, NULL);
 
-				int32 DecodeSpaceSize = InUncompressedSize + 16; // FuzzSafe_Yes so shouldn't need big padding even on Oodle v5
-				void * DecodeSpace = FMemory::Malloc(DecodeSpaceSize);
-				check( DecodeSpace != nullptr );
+				// NOTE: not using &CompressOptions
+				//	because OodleLZ_CompressOptions_GetDefault has changed from v5
+				//	need to either call that in the DLL func ptr or not use it
+				//	(SSTB == 0 doesn't mean default in old Oodle)
 
-				OO_SINTa DecRet = OodleLZ_Decompress(OutCompressedBuffer,Result,DecodeSpace,InUncompressedSize,OodleLZ_FuzzSafe_Yes);
-				check( DecRet == InUncompressedSize );
+				#if 0 // DO_CHECK
+				if ( Result > 0 )
+				{
+					// verify we can decode data made with DLL-enocder using the current decoder :
 
-				int cmp = memcmp(DecodeSpace,InUncompressedBuffer,InUncompressedSize);
-				check( cmp == 0 );
+					int32 DecodeSpaceSize = InUncompressedSize + 16; // FuzzSafe_Yes so shouldn't need big padding even on Oodle v5
+					void * DecodeSpace = FMemory::Malloc(DecodeSpaceSize);
+					check( DecodeSpace != nullptr );
 
-				FMemory::Free(DecodeSpace);
+					OO_SINTa DecRet = OodleLZ_Decompress(OutCompressedBuffer,Result,DecodeSpace,InUncompressedSize,OodleLZ_FuzzSafe_Yes);
+					check( DecRet == InUncompressedSize );
+
+					int cmp = memcmp(DecodeSpace,InUncompressedBuffer,InUncompressedSize);
+					check( cmp == 0 );
+
+					FMemory::Free(DecodeSpace);
+				}
+				#endif
 			}
-			#endif
-		}
-		else
-		{
-			Result = OodleLZ_Compress(Compressor, InUncompressedBuffer, InUncompressedSize, OutCompressedBuffer, CompressionLevel, &CompressionOptions);
-		}
+			else
+			{
+				Result = OodleLZ_Compress(Compressor, InUncompressedBuffer, InUncompressedSize, OutCompressedBuffer, CompressionLevel, &CompressionOptions);
+			}
 
-		// verbose log all compresses :
-		//UE_LOG(OodleDataCompression, Display, TEXT("Oodle Compress : %d -> %d"), UncompressedSize, Result);
+			// verbose log all compresses :
+			//UE_LOG(OodleDataCompression, Display, TEXT("Oodle Compress : %d -> %d"), UncompressedSize, Result);
 		
-		if (Result <= 0)
-		{
-			OutCompressedSize = -1;
-			return false;
+			if (Result <= 0)
+			{
+				OutCompressedSize = -1;
+				return false;
+			}
+			else
+			{
+				OutCompressedSize = (int32) Result;
+				return true;
+			}
 		}
 		else
 		{
-			OutCompressedSize = (int32) Result;
-			return true;
+			// Not for Packaging
+			// in-game or tools compress
+			// interpret the legacy Flags if any
+			// most new users of Oodle should go through OodleDataCompress instead
+			// this supports legacy users
+
+			// Compressor and CompressionLevel are member vars, watch out
+			EOodleDataCompressor CurCompressor;
+			EOodleDataCompressionLevel CurCompressionLevel;
+			EOodleDataCompressionCommonUsage Usage = GetCommonUsageFromLegacyCompressionFlags(Flags);
+			GetCompressorAndLevelForCommonUsage(Usage,CurCompressor,CurCompressionLevel);
+
+			int64 Result = OodleDataCompress(
+							OutCompressedBuffer,CompressedBufferSize,
+							InUncompressedBuffer,InUncompressedSize,
+							CurCompressor,CurCompressionLevel);
+
+			if ( Result <= 0 )
+			{
+				OutCompressedSize = -1;
+				return false;
+			}
+			else
+			{
+				OutCompressedSize = (int32) Result;
+				return true;
+			}
 		}
+	
 	}
 
 	virtual bool Uncompress(void* OutUncompressedBuffer, int32& OutUncompressedSize, const void* InCompressedBuffer, int32 InCompressedSize, int32 CompressionData) override

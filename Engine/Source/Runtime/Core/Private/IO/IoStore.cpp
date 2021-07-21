@@ -1037,7 +1037,8 @@ private:
 					Block->IoBuffer->Data(),
 					CompressedBlockSize,
 					Block->UncompressedData,
-					static_cast<int32>(Block->UncompressedSize));
+					static_cast<int32>(Block->UncompressedSize),
+					COMPRESS_ForPackaging);
 			}
 			if ( !bCompressed )
 			{

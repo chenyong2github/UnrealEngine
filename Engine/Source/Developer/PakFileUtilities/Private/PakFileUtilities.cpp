@@ -96,7 +96,7 @@ public:
 	{
 		// Compress memory block.
 		// Actual size will be stored to CompressedSize.
-		Result = FCompression::CompressMemory(Format, CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize);
+		Result = FCompression::CompressMemory(Format, CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize, COMPRESS_ForPackaging);
 	}
 
 	
