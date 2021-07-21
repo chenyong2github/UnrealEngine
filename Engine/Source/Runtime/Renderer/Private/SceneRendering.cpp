@@ -2355,8 +2355,8 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 
 				if (FilmGrainTexture == GEngine->DefaultFilmGrainTexture)
 				{
-					// Decode Texture2D'/Engine/EngineMaterials/Marcie_Grain_1024_M5_555_A0.Marcie_Grain_1024_M5_555_A0'
-					ViewInfo->FinalPostProcessSettings.FilmGrainDecodeMultiply = (1.0f / 0.18f);
+					// Decode Texture2D'/Engine/EngineResources/FilmGrains/Marcie_Grain_v3_128_M2_000.Marcie_Grain_v3_128_M2_000'
+					ViewInfo->FinalPostProcessSettings.FilmGrainDecodeMultiply = 2.000f;
 					ViewInfo->FinalPostProcessSettings.FilmGrainDecodeAdd = 0.0f;
 				}
 			}
