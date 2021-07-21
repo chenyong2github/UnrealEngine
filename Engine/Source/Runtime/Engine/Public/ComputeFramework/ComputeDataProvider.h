@@ -38,7 +38,7 @@ public:
 	virtual ~FComputeDataProviderRenderProxy() {}
 
 	/** Called on render thread to determine how many dispatches are required to do all work on the associated data provider. */
-	virtual int32 GetInvocationCount() const { return 1; }
+	virtual int32 GetInvocationCount() const { return 0; }
 
 	/** Called on render thread to determine dispatch dimension required to do all work on the associated data provider. */
 	virtual FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const { return FIntVector(1, 1, 1); }
