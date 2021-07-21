@@ -270,7 +270,6 @@ FTimingViewDrawHelper::FTimingViewDrawHelper(const FDrawContext& InDrawContext, 
 	, HoveredEventBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
 	, SelectedEventBorderBrush(FInsightsStyle::Get().GetBrush("SelectedEventBorder"))
 	, BackgroundAreaBrush(WhiteBrush)
-	, IdleAreaBrush(FInsightsStyle::Get().GetBrush("IdleAreaBrush"))
 	, ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f)
 	, InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f)
 	, EdgeColor(0.05f, 0.05f, 0.05f, 1.0f)
@@ -563,8 +562,6 @@ void FTimingViewDrawHelper::DrawContextSwitchMarkers(const FTimingEventsTrackDra
 		}
 
 		// Draw overlay for idle areas.
-		//const FSlateBrush* IdleBrush = IdleAreaBrush;
-		//const FLinearColor IdleColor(1.0f, 1.0f, 1.0f, 0.75f);
 		const FSlateBrush* IdleBrush = WhiteBrush;
 		const FLinearColor IdleColor(0.0f, 0.0f, 0.0f, 0.3f);
 		const int32 Count1 = DrawState.Boxes.Num();

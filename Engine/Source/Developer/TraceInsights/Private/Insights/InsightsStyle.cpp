@@ -59,7 +59,6 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	Style.Set("WhiteBrush", new FSlateColorBrush(FLinearColor::White));
 	Style.Set("SingleBorder", new FSlateBorderBrush(NAME_None, FMargin(1.0f)));
 	Style.Set("DoubleBorder", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
-	Style.Set("DashedBrush", new IMAGE_BRUSH("Old/Window/WindowBackground", FVector2D(74, 74), FLinearColor::White, ESlateBrushTileType::Both));
 
 	Style.Set("EventBorder", new FSlateBorderBrush(NAME_None, FMargin(1.0f)));
 	Style.Set("HoveredEventBorder", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
