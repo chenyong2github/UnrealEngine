@@ -169,16 +169,16 @@ public:
 	FDisplayClusterConfigurationMasterNodePorts();
 
 public:
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 ClusterSync;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 RenderSync;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 ClusterEventsJson;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 ClusterEventsBinary;
 };
 
@@ -235,22 +235,22 @@ public:
 	FDisplayClusterConfigurationNetworkSettings();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", ClampMax = "99", UIMin = "1", UIMax = "99"))
 	int32 ConnectRetriesAmount;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", ClampMax = "5000", UIMin = "1", UIMax = "5000"))
 	int32 ConnectRetryDelay;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "5000", UIMin = "5000"))
 	int32 GameStartBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", UIMin = "1"))
 	int32 FrameStartBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", UIMin = "1"))
 	int32 FrameEndBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", UIMin = "1"))
 	int32 RenderSyncBarrierTimeout;
 };
 
