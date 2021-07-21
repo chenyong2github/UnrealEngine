@@ -78,7 +78,7 @@ namespace HordeServerTests
 			
 			Job1 = await JobService.CreateJobAsync(
 				JobId: new ObjectId("5f283932841e7fdbcafb6ab5"),
-				StreamId: Stream!.Id,
+				Stream: Stream!,
 				TemplateRefId: TemplateRefId1,
 				TemplateHash: Template.Id,
 				Graph: Graph,
@@ -105,7 +105,7 @@ namespace HordeServerTests
 
 			Job2 = await JobService.CreateJobAsync(
 				JobId: new ObjectId("5f69ea1b68423e921b035106"),
-				StreamId: Stream!.Id,
+				Stream: Stream!,
 				TemplateRefId: new TemplateRefId("template-id-1"),
 				TemplateHash: ContentHash.MD5("made-up-template-hash"),
 				Graph: Fg,
