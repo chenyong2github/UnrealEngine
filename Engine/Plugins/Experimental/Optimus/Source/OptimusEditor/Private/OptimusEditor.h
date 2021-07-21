@@ -97,7 +97,6 @@ private:
 	void CompileEnd(UOptimusDeformer* InDeformer);
 
 	void InstallDataProviders();
-	void UpdateDataProviderBindings();
 	void RemoveDataProviders();
 
 	// ----------------------------------------------------------------------------------------

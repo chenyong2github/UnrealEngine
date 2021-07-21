@@ -16,8 +16,6 @@
 #include "OptimusNodePin.h"
 #include "OptimusDeveloperModule.h"
 #include "ComputeFramework/ComputeKernel.h"
-#include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
-#include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "Nodes/OptimusNode_ComputeKernel.h"
 #include "Nodes/OptimusNode_DataInterface.h"
@@ -899,17 +897,6 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	}
 
 	GlobalNotifyDelegate.Broadcast(InNotifyType, InObject);
-}
-
-
-TArray<TObjectPtr<UComputeDataProvider>> UOptimusDeformer::CreateDataProviders(UObject* InOuter) const
-{
-	TArray<TObjectPtr<UComputeDataProvider>> DataProviders;
-	for (UComputeDataInterface *DataInterface: DataInterfaces)
-	{
-		DataProviders.Add(DataInterface->CreateDataProvider(InOuter));
-	}
-	return DataProviders;
 }
 
 
