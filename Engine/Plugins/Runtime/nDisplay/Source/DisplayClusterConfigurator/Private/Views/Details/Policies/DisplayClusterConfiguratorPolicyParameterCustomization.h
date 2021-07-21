@@ -311,7 +311,9 @@ public:
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
 		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle)
+		const TSharedPtr<IPropertyHandle>& InParametersHandle,
+		const FString* InInitialValue = nullptr) :
+	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, InInitialValue)
 	{
 	}
 
@@ -364,6 +366,8 @@ private:
 	mutable TSharedRef<float> CachedScaleX;
 	mutable TSharedRef<float> CachedScaleY;
 	mutable TSharedRef<float> CachedScaleZ;
+
+	static const FString BaseMatrixString;
 };
 
 /**
@@ -408,6 +412,8 @@ private:
 	mutable TSharedRef<float> N;
 	mutable TSharedRef<float> O;
 	mutable TSharedRef<float> P;
+
+	static const FString BaseMatrixString;
 };
 
 /**
@@ -434,6 +440,8 @@ private:
 	mutable TSharedRef<float> CachedRotationYaw;
 	mutable TSharedRef<float> CachedRotationPitch;
 	mutable TSharedRef<float> CachedRotationRoll;
+
+	static const FString BaseRotatorString;
 };
 
 /**
@@ -461,4 +469,6 @@ private:
 	mutable TSharedRef<float> CachedAngleR;
 	mutable TSharedRef<float> CachedAngleT;
 	mutable TSharedRef<float> CachedAngleB;
+
+	static const FString BaseFrustumPlanesString;
 };

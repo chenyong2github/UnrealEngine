@@ -418,11 +418,13 @@ void FPolicyParameterInfoFloatReference::OnValueCommitted(float NewValue, ETextC
 	FormatTextAndUpdateParameter();
 }
 
+const FString FPolicyParameterInfoMatrix::BaseMatrixString = DisplayClusterTypesConverter::template ToString<FMatrix>(FMatrix(FPlane(1.0f, 0.0f, 0.0f, 0.0f), FPlane(0.0f, 1.0f, 0.0f, 0.0f), FPlane(0.0f, 0.0f, 0.0f, 1.0f), FPlane(0.0f, 0.0f, 1.0f, 0.0f)));
+
 FPolicyParameterInfoMatrix::FPolicyParameterInfoMatrix(const FString& InDisplayName, const FString& InKey,
                                                        UDisplayClusterBlueprint* InBlueprint,
                                                        UDisplayClusterConfigurationViewport* InConfigurationViewport,
 														const TSharedPtr<IPropertyHandle>& InParametersHandle):
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, &BaseMatrixString),
 	CachedTranslationX(MakeShared<float>()),
 	CachedTranslationY(MakeShared<float>()),
 	CachedTranslationZ(MakeShared<float>()),
@@ -584,10 +586,12 @@ void FPolicyParameterInfoMatrix::FormatTextAndUpdateParameter()
 	UpdateCustomParameterValueText(MatrixString);
 }
 
+const FString FPolicyParameterInfo4x4Matrix::BaseMatrixString = DisplayClusterTypesConverter::template ToString<FMatrix>(FMatrix(FPlane(1.0f, 0.0f, 0.0f, 0.0f), FPlane(0.0f, 1.0f, 0.0f, 0.0f), FPlane(0.0f, 0.0f, 0.0f, 1.0f), FPlane(0.0f, 0.0f, 1.0f, 0.0f)));
+
 FPolicyParameterInfo4x4Matrix::FPolicyParameterInfo4x4Matrix(const FString& InDisplayName, const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
 	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, &BaseMatrixString),
 	A(MakeShared<float>()), B(MakeShared<float>()), C(MakeShared<float>()), D(MakeShared<float>()), E(MakeShared<float>())
 	, F(MakeShared<float>()), G(MakeShared<float>()), H(MakeShared<float>()), I(MakeShared<float>()), J(MakeShared<float>())
 	, K(MakeShared<float>()), L(MakeShared<float>()), M(MakeShared<float>()), N(MakeShared<float>()), O(MakeShared<float>())
@@ -688,12 +692,13 @@ void FPolicyParameterInfo4x4Matrix::FormatTextAndUpdateParameter()
 	UpdateCustomParameterValueText(MatrixString);
 }
 
+const FString FPolicyParameterInfoRotator::BaseRotatorString = DisplayClusterTypesConverter::template ToString<FRotator>(FRotator::ZeroRotator);
 
 FPolicyParameterInfoRotator::FPolicyParameterInfoRotator(const FString& InDisplayName, const FString& InKey,
                                                          UDisplayClusterBlueprint* InBlueprint,
                                                          UDisplayClusterConfigurationViewport* InConfigurationViewport,
                                                          const TSharedPtr<IPropertyHandle>& InParametersHandle) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, &BaseRotatorString),
 	CachedRotationYaw(MakeShared<float>()),
 	CachedRotationPitch(MakeShared<float>()),
 	CachedRotationRoll(MakeShared<float>())
@@ -747,10 +752,12 @@ void FPolicyParameterInfoRotator::FormatTextAndUpdateParameter()
 	UpdateCustomParameterValueText(RotationString);
 }
 
+const FString FPolicyParameterInfoFrustumAngle::BaseFrustumPlanesString = FString("l=-30, r=30, t=30, b=-30");
+
 FPolicyParameterInfoFrustumAngle::FPolicyParameterInfoFrustumAngle(const FString& InDisplayName, const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
 	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, &BaseFrustumPlanesString),
 	CachedAngleL(MakeShared<float>()),
 	CachedAngleR(MakeShared<float>()),
 	CachedAngleT(MakeShared<float>()),

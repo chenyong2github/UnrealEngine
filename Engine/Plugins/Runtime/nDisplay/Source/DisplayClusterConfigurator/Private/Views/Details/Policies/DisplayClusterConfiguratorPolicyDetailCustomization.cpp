@@ -478,14 +478,14 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 {
 	check(Blueprint);
 	
-	const FString RenderingKey = "ManualRendering";
-	const FString RenderingMono = "Mono";
-	const FString RenderingStereo = "Stereo";
-	const FString RenderingMonoStereo = "Mono & Stereo";
+	const FString RenderingKey = DisplayClusterProjectionStrings::cfg::manual::Rendering;
+	const FString RenderingMono = DisplayClusterProjectionStrings::cfg::manual::RenderingType::Mono;
+	const FString RenderingStereo = DisplayClusterProjectionStrings::cfg::manual::RenderingType::Stereo;
+	const FString RenderingMonoStereo = DisplayClusterProjectionStrings::cfg::manual::RenderingType::MonoStereo;
 
-	const FString FrustumKey = "ManualFrustum";
-	const FString FrustumMatrix = "Matrix";
-	const FString FrustumAngles = "Angles";
+	const FString FrustumKey = DisplayClusterProjectionStrings::cfg::manual::Type;
+	const FString FrustumMatrix = DisplayClusterProjectionStrings::cfg::manual::FrustumType::Matrix;
+	const FString FrustumAngles = DisplayClusterProjectionStrings::cfg::manual::FrustumType::Angles;
 
 	auto RefreshPolicy = [this](const FString& SelectedItem)
 	{
@@ -500,7 +500,8 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		TArray<FString>{RenderingMono, RenderingStereo, RenderingMonoStereo},
+		//TArray<FString>{RenderingMono, RenderingStereo, RenderingMonoStereo}, temporarily disabled MonoStereo, not supported  implementation from projection policy side
+		TArray<FString>{RenderingMono, RenderingStereo},
 		& RenderingMono,
 		bSort);
 	RenderingCombo->SetOnSelectedDelegate(FPolicyParameterInfoCombo::FOnItemSelected::CreateLambda(RefreshPolicy));
