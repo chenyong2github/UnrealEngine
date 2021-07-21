@@ -10,6 +10,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Localization;
 using EpicGames.Core;
+using System.Threading.Tasks;
 
 [Help("Updates the external localization data using the arguments provided.")]
 [Help("UEProjectRoot", "Optional root-path to the project we're gathering for (defaults to CmdEnv.LocalRoot if unset).")]
@@ -270,6 +271,18 @@ class Localize : BuildCommand
 			InitalPOFileHashes = GetPOFileHashes(LocalizationBatches, UEProjectRoot);
 		}
 
+		foreach (var LocalizationTask in LocalizationTasks)
+		{
+			if (LocalizationTask.LocProvider != null)
+			{
+				foreach (var ProjectInfo in LocalizationTask.ProjectInfos)
+				{
+					Task SetupTask = LocalizationTask.LocProvider.InitializeProjectWithLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ImportInfo);
+					SetupTask.Wait();
+				}
+			}
+		}
+
 		// Download the latest translations from our localization provider
 		if (LocalizationStepNames.Contains("Download"))
 		{
@@ -279,7 +292,8 @@ class Localize : BuildCommand
 				{
 					foreach (var ProjectInfo in LocalizationTask.ProjectInfos)
 					{
-						LocalizationTask.LocProvider.DownloadProjectFromLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ImportInfo);
+						Task DownloadTask = LocalizationTask.LocProvider.DownloadProjectFromLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ImportInfo);
+						DownloadTask.Wait();
 					}
 				}
 			}
@@ -389,7 +403,8 @@ class Localize : BuildCommand
 						{
 							// Recalculate the split platform paths before doing the upload, as the export may have changed them
 							ProjectInfo.ExportInfo.CalculateSplitPlatformNames(LocalizationTask.RootLocalizationTargetDirectory);
-							LocalizationTask.LocProvider.UploadProjectToLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ExportInfo);
+							Task UploadTask = LocalizationTask.LocProvider.UploadProjectToLocalizationProvider(ProjectInfo.ProjectName, ProjectInfo.ExportInfo);
+							UploadTask.Wait();
 						}
 						else
 						{

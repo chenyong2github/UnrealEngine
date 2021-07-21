@@ -11,6 +11,7 @@ using System.Security.Cryptography;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Localization;
+using System.Threading.Tasks;
 
 namespace EpicGames.XLocLocalization
 {
@@ -58,7 +59,7 @@ namespace EpicGames.XLocLocalization
 			Config = new XLocConfig();
 		}
 
-		public override void DownloadProjectFromLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
+		public async override Task DownloadProjectFromLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
 		{
 			var XLocApiClient = CreateXLocApiClient();
 
@@ -86,6 +87,8 @@ namespace EpicGames.XLocLocalization
 			{
 				XLocApiClient.Close();
 			}
+
+			await Task.CompletedTask;
 		}
 
 		private void DownloadLatestPOFile(XLocApiClient XLocApiClient, string AuthToken, string Culture, string Platform, ProjectImportExportInfo ProjectImportInfo)
@@ -229,7 +232,7 @@ namespace EpicGames.XLocLocalization
 			}
 		}
 
-		public override void UploadProjectToLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectExportInfo)
+		public async override Task UploadProjectToLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectExportInfo)
 		{
 			var XLocApiClient = CreateXLocApiClient();
 			var TransferServiceClient = CreateTransferServiceClient();
@@ -267,6 +270,8 @@ namespace EpicGames.XLocLocalization
 				XLocApiClient.Close();
 				TransferServiceClient.Close();
 			}
+
+			await Task.CompletedTask;
 		}
 
 		private void UploadLatestPOFile(TransferServiceClient TransferServiceClient, string AuthToken, string Culture, string Platform, ProjectImportExportInfo ProjectExportInfo)

@@ -5,6 +5,7 @@ using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using System.Threading.Tasks;
 
 namespace EpicGames.Localization
 {
@@ -133,14 +134,19 @@ namespace EpicGames.Localization
 			throw new AutomationException("Unimplemented GetLocalizationProviderId.");
 		}
 
-		public virtual void DownloadProjectFromLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
+		public async virtual Task InitializeProjectWithLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
 		{
-			throw new AutomationException("Unimplemented DownloadProjectFromLocalizationProvider.");
+			await Task.CompletedTask;
 		}
 
-		public virtual void UploadProjectToLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectExportInfo)
+		public async virtual Task DownloadProjectFromLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
 		{
-			throw new AutomationException("Unimplemented UploadProjectToLocalizationProvider.");
+			await Task.FromException(new NotImplementedException());
+		}
+
+		public async virtual Task UploadProjectToLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectExportInfo)
+		{
+			await Task.FromException(new NotImplementedException());
 		}
 
 		public static LocalizationProvider GetLocalizationProvider(string InLocalizationProviderId, LocalizationProvider.LocalizationProviderArgs InLocalizationProviderArgs)
