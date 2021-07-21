@@ -481,7 +481,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 					MinValue = FMath::Min(MinValue, Value);
 
 					FCurveKey NewKey;
-					NewKey.NormalizedValue = Value;
+					NewKey.Value = Value;
 					NewKey.FinalKeyPositionSeconds = EvalTime;
 
 					PrecomputedCurve.Add(NewKey);
@@ -501,13 +501,46 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 			FrameNumber = FMath::Min(FrameNumber, UpperBoundFrame);
 		}
 
-		// Normalize
+		TOptional<float> SpecifiedMinValue;
+		TOptional<float> SpecifiedMaxValue;
+		
+		FString KeyAreaName = ThisKeyArea.Get()->GetName().ToString();
+		if (Sequencer->GetSequencerSettings()->HasKeyAreaCurveExtents(KeyAreaName))
+		{
+			float CurveMin = 0.f;
+			float CurveMax = 0.f;
+			Sequencer->GetSequencerSettings()->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax);
+			SpecifiedMinValue = CurveMin;
+			SpecifiedMaxValue = CurveMax;
+		}
+
+		if (SpecifiedMinValue.IsSet())
+		{
+			MinValue = SpecifiedMinValue.GetValue();
+		}
+
+		if (SpecifiedMaxValue.IsSet())
+		{
+			MaxValue = SpecifiedMaxValue.GetValue();
+		}
+
+		// Normalize or clamp
 		if (PrecomputedCurve.Num() > 0)
 		{
 			float DiffValue = MaxValue - MinValue;
 			for (FCurveKey& CurveKey : PrecomputedCurve)
 			{
-				CurveKey.NormalizedValue = (CurveKey.NormalizedValue - MinValue)/DiffValue;
+				if (SpecifiedMaxValue.IsSet())
+				{
+					CurveKey.Value = FMath::Min(CurveKey.Value, SpecifiedMaxValue.GetValue());
+				}
+
+				if (SpecifiedMinValue.IsSet())
+				{
+					CurveKey.Value = FMath::Max(CurveKey.Value, SpecifiedMinValue.GetValue());
+				}
+
+				CurveKey.Value = (CurveKey.Value - MinValue)/DiffValue;
 			}
 		}
 	}
@@ -529,7 +562,7 @@ void FKeyRenderer::FKeyDrawBatch::DrawCurve(FSequencer* Sequencer, FSequencerSec
 	{		
 		CurvePoints.Add(
 		FVector2D(TimeToPixelConverter.SecondsToPixel(CurveKey.FinalKeyPositionSeconds),
-				(1.0f - CurveKey.NormalizedValue) * KeyGeometry.GetLocalSize().Y ) );
+				(1.0f - CurveKey.Value) * KeyGeometry.GetLocalSize().Y ) );
 	}
 
 	const float CurveThickness = 1.f;

@@ -274,6 +274,15 @@ public:
 	/** Set whether to show channel colors */
 	void SetShowChannelColors(bool bInShowChannelColors);
 
+	/** @return Whether the given channel has curve extents */
+	bool HasKeyAreaCurveExtents(const FString& ChannelName) const;
+	/** @ Remove curve extents for the given channel */
+	void RemoveKeyAreaCurveExtents(const FString& ChannelName);
+	/** @return Get the key area curve extents for the given channel */
+	void GetKeyAreaCurveExtents(const FString& ChannelName, float& InMin, float& InMax) const;
+	/** Set the key area curve extents for the given channel */
+	void SetKeyAreaCurveExtents(const FString& ChannelName, float InMin, float InMax);
+
 	/** @return The key area height when showing curves */
 	float GetKeyAreaHeightWithCurves() const;
 	/** Set the key area height when showing curves */
@@ -501,6 +510,10 @@ protected:
 	/** Enable or disable displaying channel bar colors for vector properties. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bShowChannelColors;
+
+	/** The key area curve extents, stored per channel name */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	FString KeyAreaCurveExtents;
 
 	/** The key area height when showing curves */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)

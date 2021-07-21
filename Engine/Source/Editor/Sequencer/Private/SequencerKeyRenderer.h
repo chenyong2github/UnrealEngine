@@ -181,8 +181,8 @@ private:
 
 	struct FCurveKey
 	{
-		/** Normalized key value */
-		float NormalizedValue;
+		/** Key value */
+		float Value;
 
 		/** The time in seconds that this key should be drawn - represents the average time for overlapping keys */
 		double FinalKeyPositionSeconds;

@@ -552,6 +552,78 @@ void USequencerSettings::SetShowChannelColors(bool InbShowChannelColors)
 	}
 }
 
+bool USequencerSettings::HasKeyAreaCurveExtents(const FString& ChannelName) const
+{
+	TArray<FString> ChannelsArray;
+	KeyAreaCurveExtents.ParseIntoArray(ChannelsArray, TEXT(":"));
+
+	for (int32 ChannelIndex = 0; ChannelIndex < ChannelsArray.Num(); ++ChannelIndex)
+	{
+		TArray<FString> ExtentsArray;
+		ChannelsArray[ChannelIndex].ParseIntoArray(ExtentsArray, TEXT(","));	
+
+		if (ExtentsArray.Num() == 3 && ExtentsArray[0] == ChannelName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void USequencerSettings::RemoveKeyAreaCurveExtents(const FString& ChannelName)
+{
+	TArray<FString> ChannelsArray;
+	KeyAreaCurveExtents.ParseIntoArray(ChannelsArray, TEXT(":"));
+
+	FString NewKeyAreaCurveExtents;
+	for (int32 ChannelIndex = 0; ChannelIndex < ChannelsArray.Num(); ++ChannelIndex)
+	{
+		TArray<FString> ExtentsArray;
+		ChannelsArray[ChannelIndex].ParseIntoArray(ExtentsArray, TEXT(","));	
+
+		if (ExtentsArray.Num() == 3 && ExtentsArray[0] == ChannelName)
+		{
+			continue;
+		}
+
+		NewKeyAreaCurveExtents.Append(TEXT(":"));
+		NewKeyAreaCurveExtents.Append(ChannelsArray[ChannelIndex]);
+	}
+
+	KeyAreaCurveExtents = NewKeyAreaCurveExtents;
+	SaveConfig();
+}
+
+void USequencerSettings::SetKeyAreaCurveExtents(const FString& ChannelName, float InMin, float InMax)
+{
+	RemoveKeyAreaCurveExtents(ChannelName);
+
+	FString NewChannelExtents = FString::Printf(TEXT("%s,%0.3f,%0.3f"), *ChannelName, InMin, InMax);
+	KeyAreaCurveExtents.Append(TEXT(":"));
+	KeyAreaCurveExtents.Append(NewChannelExtents);
+
+	SaveConfig();
+}
+
+void USequencerSettings::GetKeyAreaCurveExtents(const FString& ChannelName, float& InMin, float& InMax) const
+{
+	TArray<FString> ChannelsArray;
+	KeyAreaCurveExtents.ParseIntoArray(ChannelsArray, TEXT(":"));
+
+	for (int32 ChannelIndex = 0; ChannelIndex < ChannelsArray.Num(); ++ChannelIndex)
+	{
+		TArray<FString> ExtentsArray;
+		ChannelsArray[ChannelIndex].ParseIntoArray(ExtentsArray, TEXT(","));	
+
+		if (ExtentsArray.Num() == 3 && ExtentsArray[0] == ChannelName)
+		{
+			InMin = FCString::Atof(*ExtentsArray[1]);
+			InMax = FCString::Atof(*ExtentsArray[2]);
+			return;
+		}
+	}
+}
+
 float USequencerSettings::GetKeyAreaHeightWithCurves() const
 {
 	return KeyAreaHeightWithCurves;
