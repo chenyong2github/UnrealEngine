@@ -615,14 +615,15 @@ namespace ChaosTest
 		{
 			FAABBTreeDirtyGridCVars::DirtyElementMaxCellCapacity = 7;
 			TUniquePtr<TBox<FReal, 3>> Box;
-			auto Boxes = BuildBoxes(Box, 100, FVec3(40, 40, 1), FVec3(-2000, -2000, -50));
+			FVec3 LargeOffset(10000000, 10000000, 10000000); // Test for floating point precision errors at large world offsets
+			auto Boxes = BuildBoxes(Box, 100, FVec3(40, 40, 1), FVec3(-2000, -2000, -50) + LargeOffset);
 
 			for (float Angle = 0.0; Angle < 2 * PI; Angle += (10.0f / 360.0f) * 2.0f * PI)
 			{
 
 				FVec3 Direction{ FMath::Cos(Angle), FMath::Sin(Angle), 0 };
 				// With the grid
-				FVisitor VisitorGrid(FVec3(53, 27, 0), Direction, 0, *Boxes);
+				FVisitor VisitorGrid(FVec3(53, 27, 0) + LargeOffset, Direction, 0, *Boxes);
 				VisitorGrid.HalfExtents = FVec3(102, 20, 2);
 				{
 					FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 100;
@@ -641,7 +642,7 @@ namespace ChaosTest
 				}
 
 				// Without the grid
-				FVisitor VisitorNoGrid(FVec3(53, 27, 0), Direction, 0, *Boxes);
+				FVisitor VisitorNoGrid(FVec3(53, 27, 0) + LargeOffset, Direction, 0, *Boxes);
 				VisitorNoGrid.HalfExtents = FVec3(102, 20, 2);
 				{
 					FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 0;
