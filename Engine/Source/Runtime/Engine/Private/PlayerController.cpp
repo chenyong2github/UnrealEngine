@@ -136,6 +136,8 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	bIsLocalPlayerController = false;
 	bDisableHaptics = false;
 
+	bEnableStreamingSource = true;
+
 	ClickEventKeys.Add(EKeys::LeftMouseButton);
 
 	if (RootComponent)
