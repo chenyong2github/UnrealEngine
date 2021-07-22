@@ -948,13 +948,7 @@ void MainCS(
 			}
 		}
 		
-		#if COMPILER_DXC == 1 // shader compiler bug
-			uint2x2 bKOSignInt = uint2x2(bKOSign);
-			uint2 KOSignVector = uint2(1, SUB_PIXEL_GRID_SIZE);
-			uint2 SubpixelId = dpv_interleave_registers(dot(dpv_lo(bKOSignInt), KOSignVector), dot(dpv_hi(bKOSignInt), KOSignVector));
-		#else
-			uint2 SubpixelId = dpv_dot(uint2x2(bKOSign), uint2(1, SUB_PIXEL_GRID_SIZE));
-		#endif
+		uint2 SubpixelId = dpv_dot(uint2x2(bKOSign), uint2(1, SUB_PIXEL_GRID_SIZE));
 
 		taa_subpixel_payload2 SubpixelShift = taa_subpixel_payload2(SubpixelId) * taa_subpixel_payload(SUB_PIXEL_BIT_COUNT);
 

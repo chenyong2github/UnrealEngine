@@ -293,15 +293,6 @@ DEFINE_DPV_FUNCTION_FOR_ALL_VECTORS(DEFINE_DPV_FUNCTION_VECTOR)
 	__DPV_MULTI_SCALAR(TYPE) dpv_dot(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) a, __DPV_VECTOR(TYPE, COMPONENTS) b) { \
 		return dpv_interleave_registers(dot(dpv_lo(a), b), dot(dpv_hi(a), b)); \
 	} \
-	__DPV_MULTI_SCALAR(TYPE) dpv_length2(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
-		return dpv_dot(v, v); \
-	} \
-	__DPV_MULTI_SCALAR(TYPE) dpv_length(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
-		return sqrt(dpv_length2(v)); \
-	} \
-	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_normalize(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
-		return dpv_scale(v, rsqrt(dpv_length2(v))); \
-	} \
 	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_clamp(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) x, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) min, __DPV_MULTI_VECTOR(TYPE, COMPONENTS) max) { \
 		__DPV_MULTI_VECTOR(TYPE, COMPONENTS) r; \
 		UNROLL_N(COMPONENTS) for (uint c = 0; c < COMPONENTS; c++) { \
@@ -342,6 +333,28 @@ DEFINE_DPV_FUNCTION_FOR_ALL_VECTORS(DEFINE_DPV_FUNCTION_VECTOR)
 			r[c] = max(a[c], b[c]); \
 		} \
 		return r; \
+	} \
+
+DEFINE_DPV_FUNCTION_FOR_ALL_VECTORS(DEFINE_DPV_FUNCTION_VECTOR)
+#undef DEFINE_DPV_FUNCTION_VECTOR
+
+
+/* per vector vectorial operations
+ *
+ * Example:
+ *		half3x2 WorldPositionDelta = ...;
+ * 
+ *		half2 Distance = dpv_length(WorldPositionDelta);
+ */
+#define DEFINE_DPV_FUNCTION_VECTOR(TYPE, COMPONENTS) \
+	__DPV_MULTI_SCALAR(TYPE) dpv_length2(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
+		return dpv_dot(v, v); \
+	} \
+	__DPV_MULTI_SCALAR(TYPE) dpv_length(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
+		return sqrt(dpv_length2(v)); \
+	} \
+	__DPV_MULTI_VECTOR(TYPE, COMPONENTS) dpv_normalize(__DPV_MULTI_VECTOR(TYPE, COMPONENTS) v) { \
+		return dpv_scale(v, rsqrt(dpv_length2(v))); \
 	} \
 
 
