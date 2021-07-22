@@ -624,40 +624,15 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 	for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 	{
 		FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[NaniteMeshPassIndex];
-		const TArray<FNaniteCommandInfo>& NanitePassCommandInfo = NaniteCommandInfos[NaniteMeshPassIndex];
+		TArray<FNaniteCommandInfo>& NanitePassCommandInfo = NaniteCommandInfos[NaniteMeshPassIndex];
 
 		for (int32 CommandIndex = 0; CommandIndex < NanitePassCommandInfo.Num(); ++CommandIndex)
 		{
 			const FNaniteCommandInfo& CommandInfo = NanitePassCommandInfo[CommandIndex];
-
-			if (CommandInfo.GetStateBucketId() != INDEX_NONE)
-			{
-				FGraphicsMinimalPipelineStateId CachedPipelineId;
-				{
-					FNaniteMaterialCommandsLock Lock(NaniteMaterials, SLT_ReadOnly);
-
-					const FMeshDrawCommand& MeshDrawCommand = NaniteMaterials.GetCommand(CommandInfo.GetStateBucketId());
-					CachedPipelineId = MeshDrawCommand.CachedPipelineId;
-
-					FMeshDrawCommandCount& StateBucketCount = NaniteMaterials.GetPayload(CommandInfo.GetStateBucketId());
-					check(StateBucketCount.Num > 0);
-
-					--StateBucketCount.Num;
-					if (StateBucketCount.Num == 0)
-					{
-						Lock.AcquireWriteAccess();
-						if (StateBucketCount.Num == 0)
-						{
-							NaniteMaterials.RemoveById(CommandInfo.GetStateBucketId());
-						}
-					}
-				}
-
-				FGraphicsMinimalPipelineStateId::RemovePersistentId(CachedPipelineId);
-			}
+			NaniteMaterials.Unregister(CommandInfo);
 		}
 
-		NaniteCommandInfos[NaniteMeshPassIndex].Reset();
+		NanitePassCommandInfo.Reset();
 		NaniteMaterialIds[NaniteMeshPassIndex].Reset();
 	}
 
@@ -1428,7 +1403,7 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 
 	const bool bNeedsStaticMeshUpdate = !bReAddToDrawLists;
 
-	for (int Index = 0; Index < SceneInfos.Num(); Index++)
+	for (int32 Index = 0; Index < SceneInfos.Num(); Index++)
 	{
 		FPrimitiveSceneInfo* SceneInfo = SceneInfos[Index];
 		Scene->PrimitivesNeedingStaticMeshUpdate[SceneInfo->PackedIndex] = bNeedsStaticMeshUpdate;

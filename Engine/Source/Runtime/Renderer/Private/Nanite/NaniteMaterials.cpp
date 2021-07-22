@@ -1281,6 +1281,70 @@ void FNaniteMaterialCommands::Release()
 	HitProxyTableDataBuffer.Release();
 }
 
+FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command)
+{
+	const FCommandHash CommandHash = ComputeCommandHash(Command);
+
+	FCommandId CommandId;
+	{
+		FNaniteMaterialCommandsLock Lock(*this, SLT_ReadOnly);
+
+		CommandId = FindIdByHash(CommandHash, Command);
+		if (!CommandId.IsValid())
+		{
+			Lock.AcquireWriteAccess();
+			CommandId = FindOrAddIdByHash(CommandHash, Command);
+
+		#if MESH_DRAW_COMMAND_DEBUG_DATA
+			FMeshDrawCommandCount& DrawCount = GetPayload(CommandId);
+			if (DrawCount.Num == 0)
+			{
+				// When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
+				Command.ClearDebugPrimitiveSceneProxy();
+			}
+		#endif
+		}
+
+		FMeshDrawCommandCount& DrawCount = GetPayload(CommandId);
+		++DrawCount.Num;
+	}
+
+	FNaniteCommandInfo CommandInfo;
+	CommandInfo.SetStateBucketId(CommandId.GetIndex());
+	return CommandInfo;
+}
+
+void FNaniteMaterialCommands::Unregister(const FNaniteCommandInfo& CommandInfo)
+{
+	if (CommandInfo.GetStateBucketId() == INDEX_NONE)
+	{
+		return;
+	}
+
+	FGraphicsMinimalPipelineStateId CachedPipelineId;
+	{
+		FNaniteMaterialCommandsLock Lock(*this, SLT_ReadOnly);
+
+		const FMeshDrawCommand& MeshDrawCommand = GetCommand(CommandInfo.GetStateBucketId());
+		CachedPipelineId = MeshDrawCommand.CachedPipelineId;
+
+		FMeshDrawCommandCount& StateBucketCount = GetPayload(CommandInfo.GetStateBucketId());
+		check(StateBucketCount.Num > 0);
+
+		--StateBucketCount.Num;
+		if (StateBucketCount.Num == 0)
+		{
+			Lock.AcquireWriteAccess();
+			if (StateBucketCount.Num == 0)
+			{
+				RemoveById(CommandInfo.GetStateBucketId());
+			}
+		}
+	}
+
+	FGraphicsMinimalPipelineStateId::RemovePersistentId(CachedPipelineId);
+}
+
 void FNaniteMaterialCommands::UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
