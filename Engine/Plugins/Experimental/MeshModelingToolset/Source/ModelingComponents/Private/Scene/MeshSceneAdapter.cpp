@@ -31,6 +31,12 @@
 using namespace UE::Geometry;
 
 
+static TAutoConsoleVariable<int32> CVarMeshSceneAdapterDisableMultiThreading(
+	TEXT("geometry.MeshSceneAdapter.SingleThreaded"),
+	0,
+	TEXT("Determines whether or not to use multi-threading in MeshSceneAdapter.\n"));
+
+
 /** 
  * Compute the bounds of the vertices of Mesh, under 3D transformation TransformFunc
  * @return computed bounding box
@@ -244,6 +250,10 @@ public:
 	bool bUseDistanceShellForWinding = false;
 	// unsigned distance isovalue that defines inside
 	double WindingShellThickness = 0.0;
+	// if true, do winding query before testing shell thickness. This is necessary in cases where the
+	// shell thickness is very small (eg slightly thickening a relatively thick object). Then the thickness
+	// query would only create a shell instead of a full solid
+	bool bRequiresWindingQueryFallback = false;
 
 	TUniquePtr<TMeshAABBTree3<FDynamicMesh3>> AABBTree;
 	TUniquePtr<TFastWindingTree<FDynamicMesh3>> FWNTree;
@@ -257,7 +267,7 @@ public:
 				TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_DMesh_AABBTree);
 				AABBTree = MakeUnique<TMeshAABBTree3<FDynamicMesh3>>(&Mesh, true);
 			}
-			if (bUseDistanceShellForWinding == false)
+			if (bUseDistanceShellForWinding == false || bRequiresWindingQueryFallback)
 			{
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_DMesh_FWNTree);
@@ -296,6 +306,17 @@ public:
 	{
 		if (bUseDistanceShellForWinding)
 		{
+			if (bRequiresWindingQueryFallback)
+			{
+				double WindingNumber = bHasBakedTransform ?
+					FWNTree->FastWindingNumber(P) :
+					FWNTree->FastWindingNumber(LocalToWorldTransform.InverseTransformPosition(P));
+				if (WindingNumber > 0.99)
+				{
+					return 1.0;
+				}
+			}
+
 			if (bHasBakedTransform || bHasBakedScale)
 			{
 				FVector3d UseP = (bHasBakedTransform) ? P : LocalToWorldTransform.InverseTransformPosition(P);
@@ -365,6 +386,58 @@ public:
 
 };
 
+
+
+/**
+ * Utility function for handling static mesh material queries
+ */
+static int32 GetStaticMeshMaterialIndexFromSlotName(UStaticMesh* StaticMesh, FName MaterialSlotName, bool bFallbackToSlot0OnFailure)
+{
+	const TArray<FStaticMaterial>& StaticMaterials = StaticMesh->GetStaticMaterials();
+	int32 NumMaterials = StaticMaterials.Num();
+
+	// search primary slot names first
+	for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
+	{
+		const FStaticMaterial& StaticMaterial = StaticMaterials[MaterialIndex];
+		if (StaticMaterial.MaterialSlotName == MaterialSlotName)
+		{
+			return MaterialIndex;
+		}
+	}
+
+	// sometimes we are given the ImportedSlotName
+	for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
+	{
+		const FStaticMaterial& StaticMaterial = StaticMaterials[MaterialIndex];
+		if (StaticMaterial.ImportedMaterialSlotName == MaterialSlotName)
+		{
+			return MaterialIndex;
+		}
+	}
+
+	return (bFallbackToSlot0OnFailure && NumMaterials > 0) ? 0 : INDEX_NONE;
+}
+
+
+
+static UMaterialInterface* GetStaticMeshMaterialFromSlotName(UStaticMesh* StaticMesh, FName MaterialSlotName, bool bFallbackToSlot0OnFailure)
+{
+	int32 MaterialIndex = GetStaticMeshMaterialIndexFromSlotName(StaticMesh, MaterialSlotName, bFallbackToSlot0OnFailure);
+	if (MaterialIndex > INDEX_NONE)
+	{
+		UMaterialInterface* MaterialInterface = StaticMesh->GetMaterial(MaterialIndex);
+		return (MaterialInterface != nullptr) ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface);
+	}
+	else
+	{
+		return UMaterial::GetDefaultMaterial(MD_Surface);
+	}
+}
+
+
+
+
 /**
  * Mesh adapter to filter out all mesh sections that are using materials for which the material domain isn't "Surface"
  * This excludes decals for example.
@@ -382,17 +455,15 @@ public:
 
 		for (FPolygonGroupID PolygonGroupID : MeshIn->PolygonGroups().GetElementIDs())
 		{
-			bool bValidPolyGroup = false;
+			// Try to find correct material index for the slot name in the MeshDescription. 
+			// Sometimes this data is wrong, in that case fall back to slot 0
+			FName MaterialSlotName = MaterialSlotNames[PolygonGroupID];
+			int32 MaterialIndex = GetStaticMeshMaterialIndexFromSlotName(StaticMeshIn, MaterialSlotName, true);
 
-			int32 MaterialIndex = StaticMeshIn->GetMaterialIndex(MaterialSlotNames[PolygonGroupID]);
-			if (MaterialIndex > INDEX_NONE)
-			{
-				UMaterialInterface* MaterialInterface = StaticMeshIn->GetMaterial(MaterialIndex);
-				if (MaterialInterface && MaterialInterface->GetMaterial())
-				{
-					bValidPolyGroup = MaterialInterface->GetMaterial()->MaterialDomain == EMaterialDomain::MD_Surface;
-				}
-			}
+			UMaterialInterface* MaterialInterface = GetStaticMeshMaterialFromSlotName(StaticMeshIn, MaterialSlotName, true);
+			bool bValidPolyGroup = (MaterialInterface != nullptr)
+				&& (MaterialInterface->GetMaterial() != nullptr)
+				&& (MaterialInterface->GetMaterial()->MaterialDomain == EMaterialDomain::MD_Surface);
 
 			if (bValidPolyGroup)
 			{
@@ -851,8 +922,8 @@ void ConstructUniqueScalesMapping(
 
 void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions& BuildOptions)
 {
-	EParallelForFlags ParallelFlags = EParallelForFlags::Unbalanced;
-	//EParallelForFlags ParallelFlags = EParallelForFlags::ForceSingleThread;
+	EParallelForFlags ParallelFlags = (CVarMeshSceneAdapterDisableMultiThreading.GetValueOnAnyThread() != 0) ?
+		EParallelForFlags::ForceSingleThread : EParallelForFlags::Unbalanced;
 
 	// initial list of spatial wrappers that need to be built
 	TArray<FSpatialWrapperInfo*> ToBuild;
@@ -1200,6 +1271,7 @@ void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions&
 			{
 				NewInstancedMesh->bUseDistanceShellForWinding = true;
 				NewInstancedMesh->WindingShellThickness = 0.5 * (BuildOptions.DesiredMinThickness - Submesh.ComputedThickness);
+				NewInstancedMesh->bRequiresWindingQueryFallback = (NewInstancedMesh->WindingShellThickness < 0.6*BuildOptions.DesiredMinThickness);
 			}
 
 			TSharedPtr<FSpatialWrapperInfo> NewWrapperInfo = MakeShared<FSpatialWrapperInfo>();
@@ -1288,7 +1360,7 @@ void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions&
 		{
 			return A.NewUniqueTris > B.NewUniqueTris;
 		});
-		for (int32 k = 0; k < 20; ++k)
+		for (int32 k = 0; k < FMath::Min(Stats.Num(), 20); ++k)
 		{
 			const FProcessedSourceMeshStats& Stat = Stats[k];
 			FString NewSubmeshesStats;

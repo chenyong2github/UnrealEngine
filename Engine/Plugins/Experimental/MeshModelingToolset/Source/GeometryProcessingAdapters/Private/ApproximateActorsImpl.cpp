@@ -11,11 +11,15 @@
 #include "Implicit/Solidify.h"
 #include "Implicit/Morphology.h"
 #include "Operations/RemoveOccludedTriangles.h"
+#include "Operations/MeshPlaneCut.h"
+#include "ConstrainedDelaunay2.h"
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 #include "Parameterization/MeshUVPacking.h"
 #include "MeshQueries.h"
 #include "ProjectionTargets.h"
 #include "Selections/MeshFaceSelection.h"
+#include "Generators/RectangleMeshGenerator.h"
+#include "Parameterization/DynamicMeshUVEditor.h"
 
 #include "AssetUtils/CreateStaticMeshUtil.h"
 #include "AssetUtils/CreateTexture2DUtil.h"
@@ -401,8 +405,19 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 	// avoid insane memory usage
 	if (VoxelDimTarget > Options.ClampVoxelDimension)
 	{
-		UE_LOG(LogApproximateActors, Warning, TEXT("FApproximateActorsImpl - very large voxel size %d clamped to %d"), VoxelDimTarget, Options.ClampVoxelDimension);
+		UE_LOG(LogApproximateActors, Warning, TEXT("very large voxel size %d clamped to %d"), VoxelDimTarget, Options.ClampVoxelDimension);
 		VoxelDimTarget = Options.ClampVoxelDimension;
+	}
+
+	// make ground plane
+	FVector3d GroundPlaneOrigin;
+	FPlane3d GroundClipPlane;
+	bool bHaveGroundClipPlane = false;
+	if (Options.GroundPlanePolicy == IGeometryProcessing_ApproximateActors::EGroundPlanePolicy::FixedZHeightGroundPlane)
+	{
+		GroundPlaneOrigin = FVector3d(SceneBounds.Center().X, SceneBounds.Center().Y, Options.GroundPlaneZHeight);
+		GroundClipPlane = FPlane3d(FVector3d::UnitZ(), GroundPlaneOrigin);
+		bHaveGroundClipPlane = true;
 	}
 
 	Progress.EnterProgressFrame(1.f, LOCTEXT("SolidifyMesh", "Approximating Mesh..."));
@@ -450,6 +465,8 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			UE_LOG(LogApproximateActors, Warning, TEXT("Morphology mesh has %d triangles"), CurResultMesh->TriangleCount());
 		}
 	}
+
+	// TODO: try doing base clipping here to speed up simplification? slight risk of introducing border issues...
 
 	// if mesh has no triangles, something has gone wrong
 	if (CurResultMesh == nullptr || CurResultMesh->TriangleCount() == 0)
@@ -539,10 +556,29 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 		NoTransforms.Add(FTransform3d::Identity());
 		TArray<FDynamicMeshAABBTree3*> Spatials;
 		Spatials.Add(&CurResultMeshSpatial);
+
+		FAxisAlignedBox3d Bounds = CurResultMesh->GetBounds();
+
+		FDynamicMesh3 BasePlaneOccluderMesh;
+		FDynamicMeshAABBTree3 BasePlaneOccluderSpatial;
+		if (Options.bAddDownwardFacesOccluder)
+		{
+			FRectangleMeshGenerator RectGen;
+			RectGen.Origin = Bounds.Center();
+			RectGen.Origin.Z = Bounds.Min.Z - 1.0;
+			RectGen.Normal = FVector3f::UnitZ();
+			RectGen.Width = RectGen.Height = 10.0 * Bounds.MaxDim();
+			BasePlaneOccluderMesh.Copy(&RectGen.Generate());
+			BasePlaneOccluderSpatial.SetMesh(&BasePlaneOccluderMesh, true);
+			NoTransforms.Add(FTransform3d::Identity());
+			Spatials.Add(&BasePlaneOccluderSpatial);
+		}
+
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Compute);
 			Remover.Select(NoTransforms, Spatials, {}, NoTransforms);
 		}
+		int32 NumRemoved = 0;
 		if (Remover.RemovedT.Num() > 0)
 		{
 			FMeshFaceSelection Selection(CurResultMesh);
@@ -551,20 +587,61 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 				Selection.Select(Remover.RemovedT);
 				Selection.ExpandToOneRingNeighbours(1);
 				Selection.ContractBorderByOneRingNeighbours(2);
+
+				// select any tris w/ all verts below clip plane
+				if (Options.GroundPlaneClippingPolicy == IGeometryProcessing_ApproximateActors::EGroundPlaneClippingPolicy::DiscardFullyHiddenFaces)
+				{
+					if (bHaveGroundClipPlane)
+					{
+						for (int32 tid : CurResultMesh->TriangleIndicesItr())
+						{
+							FVector3d A, B, C;
+							CurResultMesh->GetTriVertices(tid, A, B, C);
+							if (GroundClipPlane.WhichSide(A) <= 0 && GroundClipPlane.WhichSide(B) <= 0 && GroundClipPlane.WhichSide(C) <= 0)
+							{
+								Selection.Select(tid);
+							}
+						}
+					}
+					else
+					{
+						UE_LOG(LogApproximateActors, Warning, TEXT("DiscardFullyHiddenFaces Ground Plane Clipping Policy ignored because no Ground Clip Plane is set"));
+					}
+				}
 			}
 			FDynamicMeshEditor Editor(CurResultMesh);
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Delete);
-				Editor.RemoveTriangles(Selection.AsArray(), true);
+				TArray SelectionArray(Selection.AsArray());
+				NumRemoved = SelectionArray.Num();
+				Editor.RemoveTriangles(SelectionArray, true);
 			}
 		}
 
 		if (Options.bVerbose)
 		{
-			UE_LOG(LogApproximateActors, Warning, TEXT("Occlusion-Filtered mesh has %d triangles"), CurResultMesh->TriangleCount());
+			UE_LOG(LogApproximateActors, Warning, TEXT("Occlusion-Filtered mesh has %d triangles (removed %d)"), CurResultMesh->TriangleCount(), NumRemoved);
 		}
 	}
 
+
+	if (Options.GroundPlaneClippingPolicy == IGeometryProcessing_ApproximateActors::EGroundPlaneClippingPolicy::CutFaces ||
+		Options.GroundPlaneClippingPolicy == IGeometryProcessing_ApproximateActors::EGroundPlaneClippingPolicy::CutFacesAndFill)
+	{
+		if (bHaveGroundClipPlane)
+		{
+			FMeshPlaneCut PlaneCut(CurResultMesh, GroundPlaneOrigin, -GroundClipPlane.Normal);
+			PlaneCut.Cut();
+			if (Options.GroundPlaneClippingPolicy == IGeometryProcessing_ApproximateActors::EGroundPlaneClippingPolicy::CutFacesAndFill)
+			{
+				PlaneCut.HoleFill(ConstrainedDelaunayTriangulate<double>, true);
+			}
+		}
+		else
+		{
+			UE_LOG(LogApproximateActors, Warning, TEXT("Ground Plane Cut/Fill Policy ignored because no Ground Clip Plane is set"));
+		}
+	}
 
 
 	// re-enable attributes
@@ -598,34 +675,72 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 	Progress.EnterProgressFrame(1.f, LOCTEXT("ComputingUVs", "Computing UVs..."));
 
 	// compute UVs
+	bool bHaveValidUVs = true;
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UVInputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	*UVInputMesh = MoveTemp(*CurResultMesh);
 	FParameterizeMeshOp ParameterizeMeshOp;
-	ParameterizeMeshOp.Stretch = 0.1;
+	ParameterizeMeshOp.Stretch = Options.UVAtlasStretchTarget;
 	ParameterizeMeshOp.NumCharts = 0;
 	ParameterizeMeshOp.InputMesh = UVInputMesh;
-	ParameterizeMeshOp.Method = UE::Geometry::EParamOpBackend::UVAtlas;
+	ParameterizeMeshOp.Method = UE::Geometry::EParamOpBackend::XAtlas;
+	if (Options.UVPolicy == IGeometryProcessing_ApproximateActors::EUVGenerationPolicy::PreferUVAtlas)
+	{
+		ParameterizeMeshOp.Method = UE::Geometry::EParamOpBackend::UVAtlas;
+	}
 	FProgressCancel UVProgressCancel;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_GenerateUVs);
 		ParameterizeMeshOp.CalculateResult(&UVProgressCancel);
 	}
 
-	TUniquePtr<FDynamicMesh3> FinalMesh = ParameterizeMeshOp.ExtractResult();
+	TUniquePtr<FDynamicMesh3> FinalMesh;
+
+	FGeometryResult UVResultInfo = ParameterizeMeshOp.GetResultInfo();
+	if (! UVResultInfo.HasResult())
+	{
+		UE_LOG(LogApproximateActors, Warning, TEXT("UV Auto-Generation Failed for target path %s"), *Options.BasePackagePath);
+		bHaveValidUVs = false;
+		FinalMesh = MakeUnique<FDynamicMesh3>(MoveTemp(*UVInputMesh));
+	}
+	else
+	{
+		FinalMesh = ParameterizeMeshOp.ExtractResult();
+	}
+
+	// if UVs failed, fall back to box projection
+	if (!bHaveValidUVs)
+	{
+		FDynamicMeshUVEditor UVEditor(FinalMesh.Get(), 0, true);
+		TArray<int32> AllTriangles;
+		for (int32 tid : FinalMesh->TriangleIndicesItr())
+		{
+			AllTriangles.Add(tid);
+		}
+		UVEditor.SetTriangleUVsFromBoxProjection(AllTriangles, [&](const FVector3d& P) { return P; },
+												 FFrame3d(FinalMesh->GetBounds().Center()), FVector3d::One());
+		bHaveValidUVs = true;
+	}
+
 
 	Progress.EnterProgressFrame(1.f, LOCTEXT("PackingUVs", "Packing UVs..."));
 
 	// repack UVs
-	FDynamicMeshUVOverlay* RepackUVLayer = FinalMesh->Attributes()->PrimaryUV();
-	RepackUVLayer->SplitBowties();
-	FDynamicMeshUVPacker Packer(RepackUVLayer);
-	Packer.TextureResolution = Options.TextureImageSize / 4;		// maybe too conservative? We don't have gutter control currently.
-	Packer.GutterSize = 1.0;		// not clear this works
-	Packer.bAllowFlips = false;
+	if (bHaveValidUVs)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_PackUVs);
-		bool bOK = Packer.StandardPack();
-		ensure(bOK);
+		FDynamicMeshUVOverlay* RepackUVLayer = FinalMesh->Attributes()->PrimaryUV();
+		RepackUVLayer->SplitBowties();
+		FDynamicMeshUVPacker Packer(RepackUVLayer);
+		Packer.TextureResolution = Options.TextureImageSize / 4;		// maybe too conservative? We don't have gutter control currently.
+		Packer.GutterSize = 1.0;		// not clear this works
+		Packer.bAllowFlips = false;
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_PackUVs);
+			bool bPackingOK = Packer.StandardPack();
+			if (!bPackingOK)
+			{
+				UE_LOG(LogApproximateActors, Warning, TEXT("UV Packing Failed for target path %s"), *Options.BasePackagePath);
+			}
+		}
 	}
 
 	Progress.EnterProgressFrame(1.f, LOCTEXT("ComputingTangents", "Computing Tangents..."));
@@ -705,6 +820,8 @@ IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::Construc
 
 	Options.bAutoThickenThinParts = UseSettings.bAttemptAutoThickening;
 	Options.AutoThickenThicknessMeters = UseSettings.TargetMinThicknessMultiplier * UseSettings.ApproximationAccuracy;
+	Options.bIgnoreTinyParts = UseSettings.bIgnoreTinyParts;
+	Options.TinyPartMaxDimensionMeters = UseSettings.TinyPartSizeMultiplier * UseSettings.ApproximationAccuracy;
 
 	Options.BaseCappingPolicy = IGeometryProcessing_ApproximateActors::EBaseCappingPolicy::NoBaseCapping;
 	if (UseSettings.BaseCapping == EMeshApproximationBaseCappingType::ConvexPolygon)
@@ -721,8 +838,36 @@ IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::Construc
 	Options.bApplyMorphology = UseSettings.bFillGaps;
 	Options.MorphologyDistanceMeters = UseSettings.GapDistance;
 
+	if (UseSettings.GroundClipping == EMeshApproximationGroundPlaneClippingPolicy::NoGroundClipping)
+	{
+		Options.GroundPlanePolicy = EGroundPlanePolicy::NoGroundPlane;
+		Options.GroundPlaneClippingPolicy = IGeometryProcessing_ApproximateActors::EGroundPlaneClippingPolicy::NoClipping;
+	}
+	else if (UseSettings.GroundClipping == EMeshApproximationGroundPlaneClippingPolicy::DiscardWithZPlane)
+	{
+		Options.GroundPlanePolicy = EGroundPlanePolicy::FixedZHeightGroundPlane;
+		Options.GroundPlaneZHeight = UseSettings.GroundClippingZHeight;
+		Options.GroundPlaneClippingPolicy = IGeometryProcessing_ApproximateActors::EGroundPlaneClippingPolicy::DiscardFullyHiddenFaces;
+	}
+	else if (UseSettings.GroundClipping == EMeshApproximationGroundPlaneClippingPolicy::CutWithZPlane)
+	{
+		Options.GroundPlanePolicy = EGroundPlanePolicy::FixedZHeightGroundPlane;
+		Options.GroundPlaneZHeight = UseSettings.GroundClippingZHeight;
+		Options.GroundPlaneClippingPolicy = IGeometryProcessing_ApproximateActors::EGroundPlaneClippingPolicy::CutFaces;
+	}
+	else if (UseSettings.GroundClipping == EMeshApproximationGroundPlaneClippingPolicy::CutAndFillWithZPlane)
+	{
+		Options.GroundPlanePolicy = EGroundPlanePolicy::FixedZHeightGroundPlane;
+		Options.GroundPlaneZHeight = UseSettings.GroundClippingZHeight;
+		Options.GroundPlaneClippingPolicy = IGeometryProcessing_ApproximateActors::EGroundPlaneClippingPolicy::CutFacesAndFill;
+	}
+
+
+
 	Options.OcclusionPolicy = (UseSettings.OcclusionMethod == EOccludedGeometryFilteringPolicy::VisibilityBasedFiltering) ?
 		IGeometryProcessing_ApproximateActors::EOcclusionPolicy::VisibilityBased : IGeometryProcessing_ApproximateActors::EOcclusionPolicy::None;
+	Options.bAddDownwardFacesOccluder = UseSettings.bOccludeFromBottom;
+
 	Options.FixedTriangleCount = UseSettings.TargetTriCount;
 	if (UseSettings.SimplifyMethod == EMeshApproximationSimplificationPolicy::TrianglesPerArea)
 	{
@@ -738,6 +883,9 @@ IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::Construc
 	{
 		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::FixedTriangleCount;
 	}
+
+	Options.UVPolicy = (UseSettings.UVGenerationMethod == EMeshApproximationUVGenerationPolicy::PreferUVAtlas) ?
+		IGeometryProcessing_ApproximateActors::EUVGenerationPolicy::PreferUVAtlas : IGeometryProcessing_ApproximateActors::EUVGenerationPolicy::PreferXAtlas;
 
 	Options.bCalculateHardNormals = UseSettings.bEstimateHardNormals;
 	Options.HardNormalsAngleDeg = FMath::Clamp(UseSettings.HardNormalAngle, 0.001f, 89.99f);
@@ -813,8 +961,8 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 	SceneBuildOptions.bThickenThinMeshes = Options.bAutoThickenThinParts;
 	SceneBuildOptions.DesiredMinThickness = Options.AutoThickenThicknessMeters * 100.0;		// convert to cm (UE Units)
 	// filter out objects smaller than 10% of voxel size
-	SceneBuildOptions.bFilterTinyObjects = true;
-	SceneBuildOptions.TinyObjectBoxMaxDimension = ApproxAccuracy * 0.1;
+	SceneBuildOptions.bFilterTinyObjects = Options.bIgnoreTinyParts;
+	SceneBuildOptions.TinyObjectBoxMaxDimension = Options.TinyPartMaxDimensionMeters;
 	SceneBuildOptions.bPrintDebugMessages = Options.bVerbose;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_BuildScene);
@@ -1043,6 +1191,10 @@ UStaticMesh* FApproximateActorsImpl::EmitGeneratedMeshAsset(
 	if (Material)
 	{
 		MeshAssetOptions.AssetMaterials.Add(Material);
+	}
+	else
+	{
+		MeshAssetOptions.AssetMaterials.Add(UMaterial::GetDefaultMaterial(MD_Surface));
 	}
 	FStaticMeshResults MeshAssetOutputs;
 	ECreateStaticMeshResult ResultCode = UE::AssetUtils::CreateStaticMeshAsset(MeshAssetOptions, MeshAssetOutputs);
