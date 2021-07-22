@@ -355,9 +355,8 @@ class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByRadiosityCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
@@ -483,8 +482,7 @@ static void RadianceCacheMarkUsedProbes(
 	const FRDGBufferRef CardTraceBlockAllocator,
 	const FRDGBufferRef CardTraceBlockData,
 	const FRDGBufferRef TraceBlocksIndirectArgsBuffer,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 {
 	FMarkRadianceProbesUsedByRadiosityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByRadiosityCS::FParameters>();
 
@@ -498,8 +496,7 @@ static void RadianceCacheMarkUsedProbes(
 	PassParameters->RadiosityAtlasSize = RadiosityAtlasSize;
 	PassParameters->IndirectArgs = TraceBlocksIndirectArgsBuffer;
 
-	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-	PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
+	PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
 	auto ComputeShader = View.ShaderMap->GetShader< FMarkRadianceProbesUsedByRadiosityCS >(0);
 
 	FComputeShaderUtils::AddPass(
@@ -612,8 +609,7 @@ void RenderRadiosityComputeScatter(
 		Callback.AddLambda([RadiosityAtlasSize, &LumenSceneData, &CardTraceBlockAllocator, &CardTraceBlockData, &TraceBlocksIndirectArgsBuffer](
 			FRDGBuilder& GraphBuilder, 
 			const FViewInfo& View, 
-			const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters, 
-			FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+			const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 			{
 				RadianceCacheMarkUsedProbes(
 					GraphBuilder,
@@ -623,8 +619,7 @@ void RenderRadiosityComputeScatter(
 					CardTraceBlockAllocator,
 					CardTraceBlockData,
 					TraceBlocksIndirectArgsBuffer,
-					RadianceCacheParameters,
-					RadianceProbeIndirectionTextureUAV);
+					RadianceCacheMarkParameters);
 			});
 
 		RenderRadianceCache(

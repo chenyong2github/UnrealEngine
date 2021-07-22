@@ -9,10 +9,12 @@
 #include "RHIDefinitions.h"
 #include "RendererInterface.h"
 #include "ShaderParameterMacros.h"
+#include "LumenRadianceCacheInterpolation.h"
 
 class FLumenTranslucencyGIVolume
 {
 public:
+	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheInterpolationParameters;
 	FRDGTextureRef Texture0        = nullptr;
 	FRDGTextureRef Texture1        = nullptr;
 	FRDGTextureRef HistoryTexture0 = nullptr;
@@ -23,6 +25,7 @@ public:
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenTranslucencyLightingParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheInterpolationParameters)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyGIVolume0)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyGIVolume1)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyGIVolumeHistory0)

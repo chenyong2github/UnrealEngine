@@ -132,7 +132,7 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 
 		// Radiance cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -166,7 +166,7 @@ class FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS : public FLum
 
 		// Radiance cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -271,9 +271,9 @@ void RenderHardwareRayTracingScreenProbe(
 		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 
 		// Radiance cache arguments
-		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
-		SetupRGSRadianceCacheParameters(RadianceCacheParameters, RGSRadianceCacheParameters);
-		PassParameters->RGSRadianceCacheParameters = CreateUniformBufferImmediate(RGSRadianceCacheParameters, UniformBuffer_SingleFrame);
+		FRGSRadianceCacheParameters* RGSRadianceCacheParameters = GraphBuilder.AllocParameters<FRGSRadianceCacheParameters>();
+		RGSRadianceCacheParameters->InterpolationParameters = RadianceCacheParameters;
+		PassParameters->RGSRadianceCacheParameters = GraphBuilder.CreateUniformBuffer(RGSRadianceCacheParameters);
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 
@@ -334,9 +334,9 @@ void RenderHardwareRayTracingScreenProbe(
 		PassParameters->MaxTranslucentSkipCount = CVarLumenScreenProbeGatherHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		// Radiance cache arguments
-		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
-		SetupRGSRadianceCacheParameters(RadianceCacheParameters, RGSRadianceCacheParameters);
-		PassParameters->RGSRadianceCacheParameters = CreateUniformBufferImmediate(RGSRadianceCacheParameters, UniformBuffer_SingleFrame);
+		FRGSRadianceCacheParameters* RGSRadianceCacheParameters = GraphBuilder.AllocParameters<FRGSRadianceCacheParameters>();
+		RGSRadianceCacheParameters->InterpolationParameters = RadianceCacheParameters;
+		PassParameters->RGSRadianceCacheParameters = GraphBuilder.CreateUniformBuffer(RGSRadianceCacheParameters);
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 

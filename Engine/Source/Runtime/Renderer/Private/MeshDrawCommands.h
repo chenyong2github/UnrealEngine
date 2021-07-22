@@ -180,7 +180,7 @@ public:
 	 */
 	void BuildRenderingCommands(
 		FRDGBuilder& GraphBuilder,
-		FGPUScene& GPUScene,
+		const FGPUScene& GPUScene,
 		FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
 
 	/**

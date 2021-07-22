@@ -36,16 +36,8 @@ namespace Lumen
 // Hack for RGS to access array declaration:
 // Workaround for error "subscripted value is not an array, matrix, or vector" in DXC when SHADER_PARAMETER_ARRAY is used in RGS
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGSRadianceCacheParameters, )
-	SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapTMin, [LumenRadianceCache::MaxClipmaps])
-	SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapSamplingJitter, [LumenRadianceCache::MaxClipmaps])
-	SHADER_PARAMETER_ARRAY(float, WorldPositionToRadianceProbeCoordScale, [LumenRadianceCache::MaxClipmaps])
-	SHADER_PARAMETER_ARRAY(FVector3f, WorldPositionToRadianceProbeCoordBias, [LumenRadianceCache::MaxClipmaps])
-	SHADER_PARAMETER_ARRAY(float, RadianceProbeCoordToWorldPositionScale, [LumenRadianceCache::MaxClipmaps])
-	SHADER_PARAMETER_ARRAY(FVector3f, RadianceProbeCoordToWorldPositionBias, [LumenRadianceCache::MaxClipmaps])
+	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, InterpolationParameters)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-void SetupRGSRadianceCacheParameters(const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	FRGSRadianceCacheParameters& RGSRadianceCacheParameters);
 
 class FLumenHardwareRayTracingRGS : public FGlobalShader
 {

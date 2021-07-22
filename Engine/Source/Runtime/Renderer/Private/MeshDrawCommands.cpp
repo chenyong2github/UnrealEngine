@@ -1311,7 +1311,7 @@ public:
 
 void FParallelMeshDrawCommandPass::BuildRenderingCommands(
 	FRDGBuilder& GraphBuilder,
-	FGPUScene& GPUScene,
+	const FGPUScene& GPUScene,
 	FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
 {
 	if (TaskContext.InstanceCullingContext.IsEnabled())

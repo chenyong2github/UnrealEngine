@@ -14,7 +14,7 @@
 #include "../SphericalGaussian.ush"
 #include "../FastMath.ush"
 #include "../ClearCoatCommon.ush"
-#include "LumenRadianceCacheCommon.ush"
+#include "LumenRadianceCacheMarkCommon.ush"
 #include "../TextureSampling.ush"
 
 #ifndef THREADGROUP_SIZE
@@ -384,9 +384,9 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 
 		if (SceneDepth > 0)
 		{
-			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
+			uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition);
 
-			if (ClipmapIndex < NumRadianceProbeClipmaps)
+			if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 			{
 				//@todo - cull by screen size
 				//@todo - cull probes too small for voxel tracing and too large for max trace distance
@@ -450,7 +450,7 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 		// If AABB is withing the same interpolated probes
 		if (all(MinAABBProbe.ProbeMinCoord == MaxAABBProbe.ProbeMinCoord) && MinAABBProbe.ClipmapIndex == MaxAABBProbe.ClipmapIndex)
 		{
-			if (IsClipmapIndexValid(MinAABBProbe.ClipmapIndex))
+			if (IsValidRadianceCacheClipmapForMark(MinAABBProbe.ClipmapIndex))
 			{
 				MarkPositionUsedInIndirectionTexture(MinAABB, MinAABBProbe.ClipmapIndex);
 			}
@@ -470,7 +470,7 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 			if (MinAABBProbe.ClipmapIndex == MaxAABBProbe.ClipmapIndex)
 			{
 				const uint ClipmapIndex = MinAABBProbe.ClipmapIndex;
-				if (IsClipmapIndexValid(ClipmapIndex))
+				if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 				{
 					MarkPositionUsedInIndirectionTexture(P0, ClipmapIndex);
 					MarkPositionUsedInIndirectionTexture(P1, ClipmapIndex);
@@ -485,22 +485,22 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 			else
 			{
 				// If AABB is crossing clipmap boundary
-				const uint ClipmapIndex0 = GetRadianceProbeClipmap(P0); if (IsClipmapIndexValid(ClipmapIndex0)) { MarkPositionUsedInIndirectionTexture(P0, ClipmapIndex0); }
-				const uint ClipmapIndex1 = GetRadianceProbeClipmap(P1); if (IsClipmapIndexValid(ClipmapIndex1)) { MarkPositionUsedInIndirectionTexture(P1, ClipmapIndex1); }
-				const uint ClipmapIndex2 = GetRadianceProbeClipmap(P2); if (IsClipmapIndexValid(ClipmapIndex2)) { MarkPositionUsedInIndirectionTexture(P2, ClipmapIndex2); }
-				const uint ClipmapIndex3 = GetRadianceProbeClipmap(P3); if (IsClipmapIndexValid(ClipmapIndex3)) { MarkPositionUsedInIndirectionTexture(P3, ClipmapIndex3); }
-				const uint ClipmapIndex4 = GetRadianceProbeClipmap(P4); if (IsClipmapIndexValid(ClipmapIndex4)) { MarkPositionUsedInIndirectionTexture(P4, ClipmapIndex4); }
-				const uint ClipmapIndex5 = GetRadianceProbeClipmap(P5); if (IsClipmapIndexValid(ClipmapIndex5)) { MarkPositionUsedInIndirectionTexture(P5, ClipmapIndex5); }
-				const uint ClipmapIndex6 = GetRadianceProbeClipmap(P6); if (IsClipmapIndexValid(ClipmapIndex6)) { MarkPositionUsedInIndirectionTexture(P6, ClipmapIndex6); }
-				const uint ClipmapIndex7 = GetRadianceProbeClipmap(P7); if (IsClipmapIndexValid(ClipmapIndex7)) { MarkPositionUsedInIndirectionTexture(P7, ClipmapIndex7); }
+				const uint ClipmapIndex0 = GetRadianceProbeClipmapForMark(P0); if (IsValidRadianceCacheClipmapForMark(ClipmapIndex0)) { MarkPositionUsedInIndirectionTexture(P0, ClipmapIndex0); }
+				const uint ClipmapIndex1 = GetRadianceProbeClipmapForMark(P1); if (IsValidRadianceCacheClipmapForMark(ClipmapIndex1)) { MarkPositionUsedInIndirectionTexture(P1, ClipmapIndex1); }
+				const uint ClipmapIndex2 = GetRadianceProbeClipmapForMark(P2); if (IsValidRadianceCacheClipmapForMark(ClipmapIndex2)) { MarkPositionUsedInIndirectionTexture(P2, ClipmapIndex2); }
+				const uint ClipmapIndex3 = GetRadianceProbeClipmapForMark(P3); if (IsValidRadianceCacheClipmapForMark(ClipmapIndex3)) { MarkPositionUsedInIndirectionTexture(P3, ClipmapIndex3); }
+				const uint ClipmapIndex4 = GetRadianceProbeClipmapForMark(P4); if (IsValidRadianceCacheClipmapForMark(ClipmapIndex4)) { MarkPositionUsedInIndirectionTexture(P4, ClipmapIndex4); }
+				const uint ClipmapIndex5 = GetRadianceProbeClipmapForMark(P5); if (IsValidRadianceCacheClipmapForMark(ClipmapIndex5)) { MarkPositionUsedInIndirectionTexture(P5, ClipmapIndex5); }
+				const uint ClipmapIndex6 = GetRadianceProbeClipmapForMark(P6); if (IsValidRadianceCacheClipmapForMark(ClipmapIndex6)) { MarkPositionUsedInIndirectionTexture(P6, ClipmapIndex6); }
+				const uint ClipmapIndex7 = GetRadianceProbeClipmapForMark(P7); if (IsValidRadianceCacheClipmapForMark(ClipmapIndex7)) { MarkPositionUsedInIndirectionTexture(P7, ClipmapIndex7); }
 			}
 		}
 	}
 	#else // HAIRSTRANDS_MARK_USED_METHOD == MARK_PROBE_FAST
 	{
 		const float3 P0 = GetWorldPositionFromScreenUV((PixelCoords + float2(0.5f, 0.5f)) * HairStrandsInvResolution, SceneDepth);
-		const uint ClipmapIndex = GetRadianceProbeClipmap(P0);
-		if (ClipmapIndex < NumRadianceProbeClipmaps)
+		const uint ClipmapIndex = GetRadianceProbeClipmapForMark(P0);
+		if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 		{
 			MarkPositionUsedInIndirectionTexture(P0, ClipmapIndex);
 		}

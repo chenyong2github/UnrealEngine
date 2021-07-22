@@ -2,72 +2,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
-#include "RenderGraphResources.h"
+#include "LumenRadianceCacheInterpolation.h"
 
-class FViewInfo;
-class FRadianceCacheState;
 class FLumenCardTracingInputs;
 class FSceneTextureParameters;
 class FScreenProbeParameters;
 
 namespace LumenRadianceCache
 {
-	class FRadianceCacheInterpolationParameters;
+	BEGIN_SHADER_PARAMETER_STRUCT(FRadianceCacheMarkParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
+		SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapTMinForMark, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(float, WorldPositionToRadianceProbeCoordScaleForMark, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector3f, WorldPositionToRadianceProbeCoordBiasForMark, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(float, RadianceProbeCoordToWorldPositionScaleForMark, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector3f, RadianceProbeCoordToWorldPositionBiasForMark, [MaxClipmaps])
+		SHADER_PARAMETER(uint32, RadianceProbeClipmapResolutionForMark)
+		SHADER_PARAMETER(uint32, NumRadianceProbeClipmapsForMark)
+	END_SHADER_PARAMETER_STRUCT()
 }
 
-DECLARE_MULTICAST_DELEGATE_FourParams(FMarkUsedRadianceCacheProbes, FRDGBuilder&, const FViewInfo&, const LumenRadianceCache::FRadianceCacheInterpolationParameters&, FRDGTextureUAVRef);
-
-namespace LumenRadianceCache
-{
-	// Must match RadianceCacheCommon.ush
-	static constexpr int32 MaxClipmaps = 6;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FRadianceCacheInputs, )
-		SHADER_PARAMETER(float, ReprojectionRadiusScale)
-		SHADER_PARAMETER(float, ClipmapWorldExtent)
-		SHADER_PARAMETER(float, ClipmapDistributionBase)
-		SHADER_PARAMETER(FIntPoint, ProbeAtlasResolutionInProbes)
-		SHADER_PARAMETER(uint32, RadianceProbeClipmapResolution)
-		SHADER_PARAMETER(uint32, NumRadianceProbeClipmaps)
-		SHADER_PARAMETER(uint32, RadianceProbeResolution)
-		SHADER_PARAMETER(uint32, FinalProbeResolution)
-		SHADER_PARAMETER(uint32, FinalRadianceAtlasMaxMip)
-		SHADER_PARAMETER(uint32, CalculateIrradiance)
-		SHADER_PARAMETER(uint32, IrradianceProbeResolution)
-		SHADER_PARAMETER(uint32, OcclusionProbeResolution)
-		SHADER_PARAMETER(uint32, NumProbeTracesBudget)
-	END_SHADER_PARAMETER_STRUCT()
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FRadianceCacheInterpolationParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FRadianceCacheInputs, RadianceCacheInputs)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, RadianceProbeIndirectionTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadianceCacheFinalRadianceAtlas)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadianceCacheFinalIrradianceAtlas)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadianceCacheProbeOcclusionAtlas)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadianceCacheDepthAtlas)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, ProbeWorldOffset)
-		SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapTMin, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapSamplingJitter, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(float, WorldPositionToRadianceProbeCoordScale, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(FVector3f, WorldPositionToRadianceProbeCoordBias, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(float, RadianceProbeCoordToWorldPositionScale, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(FVector3f, RadianceProbeCoordToWorldPositionBias, [MaxClipmaps])
-		SHADER_PARAMETER(FVector2D, InvProbeFinalRadianceAtlasResolution)
-		SHADER_PARAMETER(FVector2D, InvProbeFinalIrradianceAtlasResolution)
-		SHADER_PARAMETER(FVector2D, InvProbeDepthAtlasResolution)
-		SHADER_PARAMETER(uint32, OverrideCacheOcclusionLighting)
-		SHADER_PARAMETER(uint32, ShowBlackRadianceCacheLighting)
-	END_SHADER_PARAMETER_STRUCT()
-
-	void GetInterpolationParameters(
-		const FViewInfo& View, 
-		FRDGBuilder& GraphBuilder, 
-		const FRadianceCacheState& RadianceCacheState,
-		const LumenRadianceCache::FRadianceCacheInputs& RadianceCacheInputs,
-		FRadianceCacheInterpolationParameters& OutParameters);
-};
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FMarkUsedRadianceCacheProbes, FRDGBuilder&, const FViewInfo&, const LumenRadianceCache::FRadianceCacheMarkParameters&);
 
 extern void RenderRadianceCache(
 	FRDGBuilder& GraphBuilder, 

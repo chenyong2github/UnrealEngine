@@ -167,7 +167,6 @@ void SplatRadianceCacheIntoAtlasCS(
 			}
 		}
 
-#if RADIANCE_CACHE_STORE_DEPTHS
 		float HitDistance = Data.a;
 
 		for (uint Y = 0; Y < UpsampleFactor; Y++)
@@ -175,7 +174,6 @@ void SplatRadianceCacheIntoAtlasCS(
 		{
 			RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = HitDistance;
 		}
-#endif
 	}
 	else
 	{
@@ -204,7 +202,6 @@ void SplatRadianceCacheIntoAtlasCS(
 			ProbeAtlasBaseCoord += WriteTileSize * TraceTileCoord + GroupThreadId.xy;
 			RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord] = Lighting / (float)(DownsampleFactor * DownsampleFactor);
 
-#if RADIANCE_CACHE_STORE_DEPTHS
 			float HitDistance = MaxHalfFloat;
 
 			for (uint Y = 0; Y < DownsampleFactor; Y++)
@@ -215,7 +212,6 @@ void SplatRadianceCacheIntoAtlasCS(
 			}
 
 			RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord] = HitDistance;
-#endif
 		}
 	}
 }

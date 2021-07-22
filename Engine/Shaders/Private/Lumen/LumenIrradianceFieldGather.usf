@@ -4,6 +4,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
 #include "../SceneTextureParameters.ush"
+#include "LumenRadianceCacheMarkCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "../ClearCoatCommon.ush"
 #include "../ReflectionEnvironmentShared.ush"
@@ -54,9 +55,9 @@ void MarkRadianceProbesUsedByGBufferCS(
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
-	uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
+	uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition);
 
-	if (ClipmapIndex < NumRadianceProbeClipmaps)
+	if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 	{
 		MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
 	}

@@ -94,8 +94,7 @@ class FLumenRadianceCacheHardwareRayTracingRGS : public FLumenHardwareRayTracing
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 
-		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, ProbeTraceTileData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceTileAllocator)
@@ -257,11 +256,9 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 
 		SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, DiffuseConeHalfAngle);
 
-		// Radiance cache arguments
-		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
-		SetupRGSRadianceCacheParameters(RadianceCacheParameters, RGSRadianceCacheParameters);
-		PassParameters->RGSRadianceCacheParameters = CreateUniformBufferImmediate(RGSRadianceCacheParameters, UniformBuffer_SingleFrame);
+		FRGSRadianceCacheParameters* RGSRadianceCacheParameters = GraphBuilder.AllocParameters<FRGSRadianceCacheParameters>();
+		RGSRadianceCacheParameters->InterpolationParameters = RadianceCacheParameters;
+		PassParameters->RGSRadianceCacheParameters = GraphBuilder.CreateUniformBuffer(RGSRadianceCacheParameters);
 		PassParameters->ProbeTraceData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceData, PF_A32B32G32R32F));
 		PassParameters->ProbeTraceTileData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceTileData, PF_R32G32_UINT));
 		PassParameters->ProbeTraceTileAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceTileAllocator, PF_R32_UINT));

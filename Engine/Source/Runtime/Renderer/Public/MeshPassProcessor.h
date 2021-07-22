@@ -46,6 +46,7 @@ namespace EMeshPass
 		MobileBasePassCSM,  /** Mobile base pass with CSM shading enabled */
 		VirtualTexture,
 		LumenCardCapture,
+		LumenTranslucencyRadianceCacheMark,
 		DitheredLODFadingOutMaskPass, /** A mini depth pass used to mark pixels with dithered LOD fading out. Currently only used by ray tracing shadows. */
 
 #if WITH_EDITOR
@@ -86,6 +87,7 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 	case EMeshPass::MobileBasePassCSM: return TEXT("MobileBasePassCSM");
 	case EMeshPass::VirtualTexture: return TEXT("VirtualTexture");
 	case EMeshPass::LumenCardCapture: return TEXT("LumenCardCapture");
+	case EMeshPass::LumenTranslucencyRadianceCacheMark: return TEXT("LumenTranslucencyRadianceCacheMark");
 	case EMeshPass::DitheredLODFadingOutMaskPass: return TEXT("DitheredLODFadingOutMaskPass");
 #if WITH_EDITOR
 	case EMeshPass::HitProxy: return TEXT("HitProxy");
@@ -96,9 +98,9 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
 	}
 
 #if WITH_EDITOR
-	static_assert(EMeshPass::Num == 22 + 4, "Need to update switch(MeshPass) after changing EMeshPass");
+	static_assert(EMeshPass::Num == 23 + 4, "Need to update switch(MeshPass) after changing EMeshPass");
 #else
-	static_assert(EMeshPass::Num == 22, "Need to update switch(MeshPass) after changing EMeshPass");
+	static_assert(EMeshPass::Num == 23, "Need to update switch(MeshPass) after changing EMeshPass");
 #endif
 
 	checkf(0, TEXT("Missing case for EMeshPass %u"), (uint32)MeshPass);

@@ -13,6 +13,7 @@
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
+#include "LumenRadianceCacheMarkCommon.ush"
 #include "LumenRadianceCacheTracingCommon.ush"
 #include "LumenScreenProbeCommon.ush"
 #include "LumenScreenProbeImportanceSamplingShared.ush"
@@ -63,8 +64,6 @@ void MarkRadianceProbesUsedByVisualizeCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy;
-	
 	// For visualize mode, generate probes around the camera position
 	uint ClipmapIndex = GetRadianceProbeClipmap(View.WorldCameraOrigin);
 	MarkPositionUsedInIndirectionTexture(View.WorldCameraOrigin, ClipmapIndex);
@@ -883,10 +882,7 @@ void TraceFromProbesCS(
 			FConeTraceResult TraceResult = TraceForProbeTexel(TraceInput);
 
 			SharedTraceRadiance[GroupThreadId.y][GroupThreadId.x] = TraceResult.Lighting;
-
-			#if RADIANCE_CACHE_STORE_DEPTHS
-				SharedTraceHitDistance[GroupThreadId.y][GroupThreadId.x] = TraceResult.OpaqueHitDistance;
-			#endif
+			SharedTraceHitDistance[GroupThreadId.y][GroupThreadId.x] = TraceResult.OpaqueHitDistance;
 		}
 
 		GroupMemoryBarrierWithGroupSync();
@@ -910,17 +906,15 @@ void TraceFromProbesCS(
 				}
 			}
 
-			#if RADIANCE_CACHE_STORE_DEPTHS
-				float HitDistance = min(SharedTraceHitDistance[GroupThreadId.y][GroupThreadId.x], MaxHalfFloat);
+			float HitDistance = min(SharedTraceHitDistance[GroupThreadId.y][GroupThreadId.x], MaxHalfFloat);
 
-				for (uint Y = 0; Y < UpsampleFactor; Y++)
+			for (uint Y = 0; Y < UpsampleFactor; Y++)
+			{
+				for (uint X = 0; X < UpsampleFactor; X++)
 				{
-					for (uint X = 0; X < UpsampleFactor; X++)
-					{
-						RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = HitDistance;
-					}
+					RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = HitDistance;
 				}
-			#endif
+			}
 		}
 		else
 		{
@@ -944,19 +938,17 @@ void TraceFromProbesCS(
 				ProbeAtlasBaseCoord += WriteTileSize * TraceTileCoord + GroupThreadId.xy;
 				RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord] = Lighting / (float)(DownsampleFactor * DownsampleFactor);
 
-				#if RADIANCE_CACHE_STORE_DEPTHS
-					float HitDistance = MaxHalfFloat;
+				float HitDistance = MaxHalfFloat;
 
-					for (uint Y = 0; Y < DownsampleFactor; Y++)
+				for (uint Y = 0; Y < DownsampleFactor; Y++)
+				{
+					for (uint X = 0; X < DownsampleFactor; X++)
 					{
-						for (uint X = 0; X < DownsampleFactor; X++)
-						{
-							HitDistance = min(HitDistance, SharedTraceHitDistance[GroupThreadId.y * DownsampleFactor + Y][GroupThreadId.x * DownsampleFactor + X]);
-						}
+						HitDistance = min(HitDistance, SharedTraceHitDistance[GroupThreadId.y * DownsampleFactor + Y][GroupThreadId.x * DownsampleFactor + X]);
 					}
+				}
 
-					RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord] = HitDistance;
-				#endif
+				RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord] = HitDistance;
 			}
 		}
 	}

@@ -382,6 +382,24 @@ bool ViewFrustumIntersectSphere(float3 SphereOrigin, float SphereRadius)
 	return true;
 }
 
+bool ViewFrustumIntersectAABB(float3 BoxCenter, float3 BoxExtent)
+{
+	for (uint PlaneIndex = 0; PlaneIndex < NumConvexHullPlanes; PlaneIndex++)
+	{
+		float4 PlaneData = ViewFrustumConvexHull[PlaneIndex];
+
+		float PlaneDistance = dot(PlaneData.xyz, BoxCenter) - PlaneData.w;
+		float ProjectedExtent = dot(BoxExtent, abs(PlaneData.xyz));
+
+		if (PlaneDistance > ProjectedExtent)
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
 float ApproximateConeConeIntersection(float ArcLength0, float ArcLength1, float AngleBetweenCones)
 {
 	float AngleDifference = abs(ArcLength0 - ArcLength1);
