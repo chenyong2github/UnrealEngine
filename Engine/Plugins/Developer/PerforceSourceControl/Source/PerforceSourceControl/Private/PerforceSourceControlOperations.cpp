@@ -2820,8 +2820,11 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 				Parameters.Add(TargetFilePath);
 
 				TOptional<FSharedBuffer> FileData = FSharedBuffer();
-				InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("print"), Parameters, Records, FileData, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
 
+				InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, FileData, InCommand.ResultInfo.ErrorMessages, 
+																		FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
+																		InCommand.bConnectionDropped, Operation->ShouldLogToStdOutput(), true);
+				
 				if (InCommand.bCommandSuccessful)
 				{
 					Operation->AddFileData(TargetFilePath, FileData.GetValue());
@@ -2848,7 +2851,11 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 				Parameters.Add(TEXT("-q")); // Do not print the header, we only want the actual file contents
 				Parameters.Add(TargetFilePath);
 
-				InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("print"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+				TOptional<FSharedBuffer> NullBuffer;
+
+				InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, NullBuffer, InCommand.ResultInfo.ErrorMessages, 
+																		FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
+																		InCommand.bConnectionDropped, Operation->ShouldLogToStdOutput(), true);
 
 				if (InCommand.bCommandSuccessful)
 				{

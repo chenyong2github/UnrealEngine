@@ -12,6 +12,32 @@
 
 namespace UE::Virtualization
 {
+/**
+ * Fill in the given string builder with the human readable message of the current system
+ * code, followed by the code value itself. 
+ * In the system value is currently 0, then we assume that it was cleared before this was 
+ * able to be called and write that the error is unknown instead of assuming that the 
+ * operation was a success.
+ */
+void GetFormattedSystemError(FStringBuilderBase& SystemErrorMessage)
+{
+	SystemErrorMessage.Reset();
+
+	const uint32 SystemError = FPlatformMisc::GetLastError();
+	// If we have a system error we can give a more informative error message but don't output it if the error is zero as 
+	// this can lead to very confusing error messages.
+	if (SystemError != 0)
+	{
+		TCHAR SystemErrorMsg[MAX_SPRINTF] = { 0 };
+		FPlatformMisc::GetSystemErrorMessage(SystemErrorMsg, sizeof(SystemErrorMsg), SystemError);
+
+		SystemErrorMessage.Appendf(TEXT("'%s' (%d)"), SystemErrorMsg, SystemError);
+	}
+	else
+	{
+		SystemErrorMessage << TEXT("'unknown reason' (0)");
+	}
+}
 
 /**
  * A basic backend based on the file system. This can be used to access/store virtualization
@@ -73,23 +99,35 @@ private:
 		TStringBuilder<512> FilePath;
 		CreateFilePath(Id, FilePath);
 
-		{
-			// TODO: Should we write to a temp file and then move it once it has written?
-			TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(FilePath.ToString()));
-			if (FileAr == nullptr)
-			{
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to push payload '%s' to '%s'"), *GetDebugString(), *Id.ToString(), FilePath.ToString());
-				return EPushResult::Failed;
-			}
+		// TODO: Should we write to a temp file and then move it once it has written?
+		TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(FilePath.ToString()));
 
-			for (const FSharedBuffer& Buffer : Payload.GetCompressed().GetSegments())
-			{
-				// Const cast because FArchive requires a non-const pointer!
-				FileAr->Serialize(const_cast<void*>(Buffer.GetData()), static_cast<int64>(Buffer.GetSize()));
-			}
+		if (FileAr == nullptr)
+		{
+			TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
+			GetFormattedSystemError(SystemErrorMsg);
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' to '%s' due to system error: %s"), *GetDebugString(), *Id.ToString(), FilePath.ToString(), SystemErrorMsg.ToString());
+
+			return EPushResult::Failed;
 		}
 
-		return EPushResult::Success;
+		for (const FSharedBuffer& Buffer : Payload.GetCompressed().GetSegments())
+		{
+			// Const cast because FArchive requires a non-const pointer!
+			FileAr->Serialize(const_cast<void*>(Buffer.GetData()), static_cast<int64>(Buffer.GetSize()));
+		}
+
+		if (FileAr->Close())
+		{
+			return EPushResult::Success;
+		}
+		else
+		{
+			// TODO: If we were first saving to a tmp file we could avoid the need to delete the 
+			// potentially corrupt output file.
+			IFileManager::Get().Delete(FilePath.ToString()); 
+			return EPushResult::Failed;
+		}	
 	}
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override
@@ -109,19 +147,10 @@ private:
 		TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileReader(FilePath.ToString()));
 		if (FileAr == nullptr)
 		{
-			const uint32 SystemError = FPlatformMisc::GetLastError();
-			// If we have a system error we can give a more informative error message but don't output it if the error is zero as 
-			// this can lead to very confusing error messages.
-			if (SystemError != 0)
-			{
-				TCHAR SystemErrorMsg[2048] = { 0 };
-				FPlatformMisc::GetSystemErrorMessage(SystemErrorMsg, sizeof(SystemErrorMsg), SystemError);
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' file '%s' due to system error: '%s' (%d))"), *GetDebugString(), *Id.ToString(), FilePath.ToString(), SystemErrorMsg, SystemError);
-			}
-			else
-			{
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from '%s' (reason unknown)"), *GetDebugString(), *Id.ToString(), FilePath.ToString());
-			}
+			TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
+			GetFormattedSystemError(SystemErrorMsg);
+
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from file '%s' due to system error: %s"), *GetDebugString(), *Id.ToString(), FilePath.ToString(), SystemErrorMsg.ToString());
 		
 			return FCompressedBuffer();
 		}
