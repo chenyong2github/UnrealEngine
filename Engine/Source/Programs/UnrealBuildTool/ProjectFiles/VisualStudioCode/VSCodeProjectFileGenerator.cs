@@ -1282,9 +1282,15 @@ namespace UnrealBuildTool
 						OutFile.AddField("type", "cppvsdbg");
 						OutFile.AddField("visualizerFile", MakeUnquotedPathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Extras", "VisualStudioDebugging", "Unreal.natvis"), EPathType.Absolute));
 					}
-					else
+					else if (HostPlatform == UnrealTargetPlatform.Linux)
 					{
 						OutFile.AddField("type", "cppdbg");
+						OutFile.AddField("visualizerFile", MakeUnquotedPathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Extras", "VisualStudioDebugging", "Unreal.natvis"), EPathType.Absolute));
+						OutFile.AddField("showDisplayString", true);
+					}
+					else
+					{
+						OutFile.AddField("type", "lldb");
 					}
 				}
 				OutFile.EndObject();
