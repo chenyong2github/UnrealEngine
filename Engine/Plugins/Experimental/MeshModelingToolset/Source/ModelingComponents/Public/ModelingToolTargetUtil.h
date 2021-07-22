@@ -144,14 +144,6 @@ MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshUpdate(
  */
 MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshUVUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh);
 
-
-/**
- * Update the Vertex Colors of the ToolTarget's mesh based on the provided UpdatedMesh.
- * @return EDynamicMeshUpdateResult::Ok on success, or Ok_ForcedFullUpdate if any dependent mesh topology was modified
- */
-MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshColorUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh);
-
-
 /**
  * FCreateMeshObjectParams::TypeHint is used by the ModelingObjectsCreationAPI to suggest what type of mesh object to create
  * inside various Tools. This should often be derived from the input mesh object type (eg if you plane-cut a Volume, the output

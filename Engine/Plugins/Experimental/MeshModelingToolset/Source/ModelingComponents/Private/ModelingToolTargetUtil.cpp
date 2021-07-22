@@ -322,37 +322,6 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUVUpda
 }
 
 
-UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshColorUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh)
-{
-	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
-	if (!ensure(MeshDescriptionCommitter))
-	{
-		return EDynamicMeshUpdateResult::Failed;
-	}
-
-	EDynamicMeshUpdateResult Result = EDynamicMeshUpdateResult::Failed;
-	MeshDescriptionCommitter->CommitMeshDescription([UpdatedMesh, &Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-	{
-		FMeshDescription* MeshDescription = CommitParams.MeshDescriptionOut;
-
-		const bool bVerticesOnly = false;
-		const bool bAttributesOnly = true;
-		if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(UpdatedMesh, MeshDescription, bVerticesOnly, bAttributesOnly))
-		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.UpdateVertexColors(UpdatedMesh, *MeshDescription);
-			Result = EDynamicMeshUpdateResult::Ok;
-		}
-		else
-		{
-			// must have been duplicate tris in the mesh description; we can't count on 1-to-1 mapping of TriangleIDs.  Just convert 
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(UpdatedMesh, *MeshDescription);
-			Result = EDynamicMeshUpdateResult::Ok_ForcedFullUpdate;
-		}
-	});
-	return Result;
-}
 
 
 bool UE::ToolTarget::ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, FCreateMeshObjectParams& DerivedParamsOut)
