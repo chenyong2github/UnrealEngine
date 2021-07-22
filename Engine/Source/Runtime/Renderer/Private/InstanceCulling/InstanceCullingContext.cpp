@@ -617,9 +617,7 @@ void FInstanceCullingContext::BuildRenderingCommandsDeferred(
 
 bool FInstanceCullingContext::AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene)
 {
-	static IConsoleVariable* CVarRDGDrain = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RDG.Drain"));
-	check(CVarRDGDrain);
-	return GPUScene.IsEnabled() && !!GAllowBatchedBuildRenderingCommands && !FRDGBuilder::IsImmediateMode() && !CVarRDGDrain->GetInt();
+	return GPUScene.IsEnabled() && !!GAllowBatchedBuildRenderingCommands && !FRDGBuilder::IsImmediateMode() && !FRDGBuilder::IsDrainEnabled();
 }
 
 

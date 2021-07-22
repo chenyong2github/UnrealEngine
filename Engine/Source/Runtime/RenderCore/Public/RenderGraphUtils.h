@@ -807,6 +807,7 @@ FORCEINLINE void AddPass(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, Execut
 }
 
 template <typename ExecuteLambdaType>
+UE_DEPRECATED(5.0, "AddPass without an RDG_EVENT_NAME is deprecated. Use the named version instead.")
 FORCEINLINE void AddPass(FRDGBuilder& GraphBuilder, ExecuteLambdaType&& ExecuteLambda)
 {
 	AddPass(GraphBuilder, {}, MoveTemp(ExecuteLambda));
@@ -821,6 +822,7 @@ FORCEINLINE void AddPassIfDebug(FRDGBuilder& GraphBuilder, FRDGEventName&& Name,
 }
 
 template <typename ExecuteLambdaType>
+UE_DEPRECATED(5.0, "AddPassIfDebug without an RDG_EVENT_NAME is deprecated. Use the named version instead.")
 FORCEINLINE void AddPassIfDebug(FRDGBuilder& GraphBuilder, ExecuteLambdaType&& ExecuteLambda)
 {
 	AddPassIfDebug(GraphBuilder, {}, MoveTemp(ExecuteLambda));
@@ -834,63 +836,69 @@ FORCEINLINE void AddSetCurrentStatPass(FRDGBuilder& GraphBuilder, TStatId StatId
 
 FORCEINLINE void AddDispatchToRHIThreadPass(FRDGBuilder& GraphBuilder)
 {
-	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("DispatchToRHI"), [](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	});
 }
 
+UE_DEPRECATED(5.0, "AddBeginUAVOverlapPass is deprecated.")
 FORCEINLINE void AddBeginUAVOverlapPass(FRDGBuilder& GraphBuilder)
 {
-	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("BeginUAVOverlap"), [](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.BeginUAVOverlap();
 	});
 }
 
+UE_DEPRECATED(5.0, "AddEndUAVOverlapPass is deprecated.")
 FORCEINLINE void AddEndUAVOverlapPass(FRDGBuilder& GraphBuilder)
 {
-	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("EndUAVOverlap"), [](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.EndUAVOverlap();
 	});
 }
 
+UE_DEPRECATED(5.0, "AddBeginUAVOverlapPass is deprecated.")
 FORCEINLINE void AddBeginUAVOverlapPass(FRDGBuilder& GraphBuilder, FRHIUnorderedAccessView* UAV)
 {
-	AddPass(GraphBuilder, [UAV](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("BeginUAVOverlap"), [UAV](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.BeginUAVOverlap(UAV);
 	});
 }
 
+UE_DEPRECATED(5.0, "AddEndUAVOverlapPass is deprecated.")
 FORCEINLINE void AddEndUAVOverlapPass(FRDGBuilder& GraphBuilder, FRHIUnorderedAccessView* UAV)
 {
-	AddPass(GraphBuilder, [UAV](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("EndUAVOverlap"), [UAV](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.EndUAVOverlap(UAV);
 	});
 }
 
+UE_DEPRECATED(5.0, "AddBeginUAVOverlapPass is deprecated.")
 FORCEINLINE void AddBeginUAVOverlapPass(FRDGBuilder& GraphBuilder, TArrayView<FRHIUnorderedAccessView*> UAVs)
 {
 	uint32 AllocSize = UAVs.Num() * sizeof(FRHIUnorderedAccessView*);
 	FRHIUnorderedAccessView** LocalUAVs = (FRHIUnorderedAccessView**)GraphBuilder.Alloc(AllocSize, alignof(FRHIUnorderedAccessView*));
 	FMemory::Memcpy(LocalUAVs, UAVs.GetData(), AllocSize);
 	TArrayView<FRHIUnorderedAccessView*> LocalView(LocalUAVs, UAVs.Num());
-	AddPass(GraphBuilder, [LocalView](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("BeginUAVOverlap"), [LocalView](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.BeginUAVOverlap(LocalView);
 	});
 }
 
+UE_DEPRECATED(5.0, "AddEndUAVOverlapPass is deprecated.")
 FORCEINLINE void AddEndUAVOverlapPass(FRDGBuilder& GraphBuilder, TArrayView<FRHIUnorderedAccessView*> UAVs)
 {
 	uint32 AllocSize = UAVs.Num() * sizeof(FRHIUnorderedAccessView*);
 	FRHIUnorderedAccessView** LocalUAVs = (FRHIUnorderedAccessView**)GraphBuilder.Alloc(AllocSize, alignof(FRHIUnorderedAccessView*));
 	FMemory::Memcpy(LocalUAVs, UAVs.GetData(), AllocSize);
 	TArrayView<FRHIUnorderedAccessView*> LocalView(LocalUAVs, UAVs.Num());
-	AddPass(GraphBuilder, [LocalView](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("EndUAVOverlap"), [LocalView](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.EndUAVOverlap(LocalView);
 	});

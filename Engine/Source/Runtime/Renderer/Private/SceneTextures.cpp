@@ -680,6 +680,11 @@ FSceneTextures& FMinimalSceneTextures::Create(FRDGBuilder& GraphBuilder, const F
 
 			SceneTextures.Color.Resolve = GraphBuilder.CreateTexture(Desc, SceneColorName);
 		}
+
+		if (FRDGBuilder::IsDrainEnabled())
+		{
+			SceneTextures.Color.Resolve->SetNonTransient();
+		}
 	}
 
 	// Custom Depth
@@ -779,6 +784,14 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 		{
 			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, GetGBufferFFormat(), FClearValueBinding({ 0.5f, 0.5f, 0.5f, 0.5f }), TexCreate_RenderTargetable | TexCreate_ShaderResource | FlagsToAdd | GFastVRamConfig.GBufferF);
 			SceneTextures.GBufferF = GraphBuilder.CreateTexture(Desc, TEXT("GBufferF"));
+		}
+
+		// Lighting features may require GBuffer history.
+		if (FRDGBuilder::IsDrainEnabled())
+		{
+			SceneTextures.GBufferA->SetNonTransient();
+			SceneTextures.GBufferB->SetNonTransient();
+			SceneTextures.GBufferC->SetNonTransient();
 		}
 	}
 
@@ -931,7 +944,7 @@ void FSceneTextureExtracts::QueueExtractions(FRDGBuilder& GraphBuilder, const FS
 	// We want these textures in a SRV Compute | Raster state.
 	const ERDGPassFlags PassFlags = ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::Compute | ERDGPassFlags::NeverCull;
 
-	GraphBuilder.AddPass({}, PassParameters, PassFlags,
+	GraphBuilder.AddPass(RDG_EVENT_NAME("ExtractUniformBuffer"), PassParameters, PassFlags,
 		[this, PassParameters, ShadingPath = SceneTextures.Config.ShadingPath](FRHICommandList&)
 	{
 		if (ShadingPath == EShadingPath::Deferred)

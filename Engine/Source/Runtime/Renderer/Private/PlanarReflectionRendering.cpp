@@ -347,7 +347,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 				SCOPED_DRAW_EVENT(RHICmdList, UpdatePlanarReflectionContent_RenderThread);
 #endif
 
-				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PlanarReflection"));
+				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PlanarReflection"), ERDGBuilderFlags::AllowParallelExecute);
 
 				// Reflection view late update
 				if (SceneRenderer->Views.Num() > 1)

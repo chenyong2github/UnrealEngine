@@ -238,12 +238,23 @@ inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferIniti
 inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERHIAccess AccessFinal)
 {
 	QueueTextureExtraction(Texture, OutTexturePtr);
+
+	if (Texture->bTransient)
+	{
+		return;
+	}
+
 	SetTextureAccessFinal(Texture, AccessFinal);
 }
 
 inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr)
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExtractTexture(Texture, OutTexturePtr));
+
+	if (Texture->bTransient)
+	{
+		return;
+	}
 
 	Texture->ReferenceCount++;
 	Texture->bExtracted = true;

@@ -373,13 +373,6 @@ protected:
 			/** If set, dispatches to the RHI thread before executing this pass. */
 			uint32 bDispatchAfterExecute : 1;
 
-			/** If set, marks the begin / end of a span of passes executed in parallel in a task. */
-			uint32 bParallelExecuteBegin : 1;
-			uint32 bParallelExecuteEnd : 1;
-
-			/** If set, marks that a pass is executing in parallel. */
-			uint32 bParallelExecute : 1;
-
 			/** If set, the pass should set its command list stat. */
 			uint32 bSetCommandListStat : 1;
 
@@ -389,7 +382,22 @@ protected:
 			/** Whether this pass allocated a texture through the pool. */
 			IF_RDG_ENABLE_DEBUG(uint32 bFirstTextureAllocated : 1);
 		};
-		uint32 PackedBits = 0;
+		uint32 PackedBits1 = 0;
+	};
+
+	union
+	{
+		// Task-specific bits which are written in a task in parallel with reads from the other set.
+		struct
+		{
+			/** If set, marks the begin / end of a span of passes executed in parallel in a task. */
+			uint32 bParallelExecuteBegin : 1;
+			uint32 bParallelExecuteEnd : 1;
+
+			/** If set, marks that a pass is executing in parallel. */
+			uint32 bParallelExecute : 1;
+		};
+		uint32 PacketBits2 = 0;
 	};
 
 	/** Handle of the latest cross-pipeline producer and earliest cross-pipeline consumer. */
