@@ -1844,6 +1844,10 @@ FString FStatsUtils::DebugPrint(FStatMessage const& Item)
 		{
 			Result = FString::Printf(TEXT("%.3fms"), FPlatformTime::ToMilliseconds64(Item.GetValue_int64()));
 		}
+		if (Item.NameAndInfo.GetFlag(EStatMetaFlags::IsMemory))
+		{
+			Result = FString::Printf(TEXT("%.3fMB"), Item.GetValue_int64() / 1024.f / 1024.f);
+		}
 		else
 		{
 			Result = FString::Printf(TEXT("%llu"), Item.GetValue_int64());
