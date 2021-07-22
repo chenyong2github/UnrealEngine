@@ -790,20 +790,20 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 
 		// Getting both left and right components of resolution for mips.
 		{
-			FString MipLevelStringWidth = SequenceDir.RightChop(Index + 1);
-			FString MipLevelStringHeight = SequenceDir.LeftChop(SequenceDir.Len() - Index);
-			MipLevelHeight = FCString::Atoi(*MipLevelStringWidth);
-			int32 IndexLeft = MipLevelStringHeight.Len() - 1;
+			FString MipLevelStringHeight = SequenceDir.RightChop(Index + 1);
+			FString MipLevelStringWidth = SequenceDir.LeftChop(SequenceDir.Len() - Index);
+			MipLevelHeight = FCString::Atoi(*MipLevelStringHeight);
+			int32 IndexLeft = MipLevelStringWidth.Len() - 1;
 			for (; IndexLeft > 0; IndexLeft--)
 			{
-				FString TempChop = MipLevelStringHeight.RightChop(IndexLeft);
+				FString TempChop = MipLevelStringWidth.RightChop(IndexLeft);
 				if (!FCString::IsNumeric(*TempChop))
 				{
 					break;
 				}
 			}
-			MipLevelStringHeight = MipLevelStringHeight.RightChop(IndexLeft + 1);
-			MipLevelWidth = FCString::Atoi(*MipLevelStringHeight);
+			MipLevelStringWidth = MipLevelStringWidth.RightChop(IndexLeft + 1);
+			MipLevelWidth = FCString::Atoi(*MipLevelStringWidth);
 		}
 
 		while (MipLevelWidth > 1 && MipLevelHeight > 1)
