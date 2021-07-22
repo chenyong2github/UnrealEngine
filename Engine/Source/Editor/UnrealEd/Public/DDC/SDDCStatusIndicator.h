@@ -20,13 +20,18 @@ class UNREALED_API SDDCStatusIndicator : public SCompoundWidget
 
 private:
 	EActiveTimerReturnType UpdateBusyIndicator(double InCurrentTime, float InDeltaTime);
-	double GetDDCTime(bool bGet) const;
 	EActiveTimerReturnType UpdateWarnings(double InCurrentTime, float InDeltaTime);
+	FText GetInformationText() const;
 
 	double LastDDCGetTime = 0;
 	double LastDDCPutTime = 0;
 
+	bool bGetActive = false;
+	bool bPutActive = false;
+	bool bBusy = false;
+
 	FCurveSequence BusyPulseSequence;
 	FCurveSequence FadeGetSequence;
 	FCurveSequence FadePutSequence;
+	
 };

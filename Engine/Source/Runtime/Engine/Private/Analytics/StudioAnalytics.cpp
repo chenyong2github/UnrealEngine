@@ -18,7 +18,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Templates/SharedPointer.h"
 #include "HAL/PlatformProcess.h"
-#include "ProfilingDebugging/CookStats.h"
+#include "DerivedDataCacheUsageStats.h"
 
 bool FStudioAnalytics::bInitialized = false;
 volatile double FStudioAnalytics::TimeEstimation = 0;
@@ -166,151 +166,66 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 		FStudioAnalytics::GetProvider().RecordEvent(TEXT("Performance.Loading"), Attributes);
 
 #if ENABLE_COOK_STATS
-		//// Sends each DDC stat to the studio analytics system.
-		//auto SendDDCStatsToAnalytics = [&Attributes](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
-		//{
-		//	// We'reonly interested in DDC Summary stats
-		//	if (StatName.Contains("DDC.Summary"))
-		//	{
-		//		for (const auto& Attr : StatAttributes)
-		//		{
-		//			FString FormattedAttrName = StatName + "." + Attr.Key;
-		//			Attributes.Emplace(FormattedAttrName, Attr.Value);
-		//		}		
-		//	}
-		//};
 
-		//// Grab the DDC stats
-		//FCookStatsManager::LogCookStats(SendDDCStatsToAnalytics);
+		TArray<FDerivedDataCacheResourceStat> DDCResourceStats;
 
-		/** Used for custom logging of DDC Resource usage stats. */
-		struct FDDCResourceUsageStat
+		// Grab the latest resource stats
+		GatherDerivedDataCacheResourceStats(DDCResourceStats);
+
+		FDerivedDataCacheResourceStat DDCResourceStatsTotal(TEXT("Total"));
+
+		// Accumulate Totals
+		for (const FDerivedDataCacheResourceStat& Stat : DDCResourceStats)
 		{
-		public:
-			FDDCResourceUsageStat(FString InAssetType, double InTotalTimeSec, bool bIsGameThreadTime, double InSizeMB, int64 InAssetsBuilt) : AssetType(MoveTemp(InAssetType)), TotalTimeSec(InTotalTimeSec), GameThreadTimeSec(bIsGameThreadTime ? InTotalTimeSec : 0.0), SizeMB(InSizeMB), AssetsBuilt(InAssetsBuilt) {}
-			void Accumulate(const FDDCResourceUsageStat& OtherStat)
-			{
-				TotalTimeSec += OtherStat.TotalTimeSec;
-				GameThreadTimeSec += OtherStat.GameThreadTimeSec;
-				SizeMB += OtherStat.SizeMB;
-				AssetsBuilt += OtherStat.AssetsBuilt;
-			}
-			FString AssetType;
-			double TotalTimeSec;
-			double GameThreadTimeSec;
-			double SizeMB;
-			int64 AssetsBuilt;
-		};
+			DDCResourceStatsTotal.Accumulate(Stat);
+		}
 
-		/** Used for custom TSet comparison of DDC Resource usage stats. */
-		struct FDDCResourceUsageStatKeyFuncs : BaseKeyFuncs<FDDCResourceUsageStat, FString, false>
+		DDCResourceStats.Emplace(DDCResourceStatsTotal);
+
+		for (const FDerivedDataCacheResourceStat& Stat : DDCResourceStats)
 		{
-			static const FString& GetSetKey(const FDDCResourceUsageStat& Element) { return Element.AssetType; }
-			static bool Matches(const FString& A, const FString& B) { return A == B; }
-			static uint32 GetKeyHash(const FString& Key) { return GetTypeHash(Key); }
-		};
+			const FString BaseName = TEXT("DDC.Resource.") + Stat.AssetType;
 
-		// instead of printing the usage stats generically, we capture them so we can log a subset of them in an easy-to-read way.
-		TSet<FDDCResourceUsageStat, FDDCResourceUsageStatKeyFuncs> DDCResourceUsageStats;
-		TArray<FCookStatsManager::StringKeyValue> DDCSummaryStats;
-
-		int64 TotalAssetsBuilt = 0;
-		double TotalAssetTimeSec = 0.0;
-		double TotalAssetSizeMB = 0.0;
-		
-		/** this functor will take a collected cooker stat and log it out using some custom formatting based on known stats that are collected.. */
-		auto LogStatsFunc = [&DDCResourceUsageStats, &DDCSummaryStats, &TotalAssetsBuilt, &TotalAssetTimeSec, &TotalAssetSizeMB]
-		(const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
-		{
-			if (StatName.EndsWith(TEXT(".Usage"), ESearchCase::IgnoreCase))
 			{
-				// Anything that ends in .Usage is assumed to be an instance of FCookStats.FDDCResourceUsageStats. We'll log that using custom formatting.
-				FString AssetType = StatName;
-				AssetType.RemoveFromEnd(TEXT(".Usage"), ESearchCase::IgnoreCase);
-				// See if the asset has a subtype (found via the "Node" parameter")
-				const FCookStatsManager::StringKeyValue* AssetSubType = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("Node"); });
-				if (AssetSubType && AssetSubType->Value.Len() > 0)
-				{
-					AssetType += FString::Printf(TEXT(" (%s)"), *AssetSubType->Value);
-				}
-				// Pull the Time and Size attributes and AddOrAccumulate them into the set of stats. Ugly string/container manipulation code courtesy of UE4/C++.
-				const FCookStatsManager::StringKeyValue* AssetTimeSecAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("TimeSec"); });
-				double AssetTimeSec = 0.0;
-				if (AssetTimeSecAttr)
-				{
-					LexFromString(AssetTimeSec, *AssetTimeSecAttr->Value);
-				}
-				const FCookStatsManager::StringKeyValue* AssetSizeMBAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("MB"); });
-				double AssetSizeMB = 0.0;
-				if (AssetSizeMBAttr)
-				{
-					LexFromString(AssetSizeMB, *AssetSizeMBAttr->Value);
-				}
-				const FCookStatsManager::StringKeyValue* ThreadNameAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("ThreadName"); });
-				bool bIsGameThreadTime = ThreadNameAttr != nullptr && ThreadNameAttr->Value == TEXT("GameThread");
-
-				const FCookStatsManager::StringKeyValue* HitOrMissAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("HitOrMiss"); });
-				bool bWasMiss = HitOrMissAttr != nullptr && HitOrMissAttr->Value == TEXT("Miss");
-				int64 AssetsBuilt = 0;
-				if (bWasMiss)
-				{
-					const FCookStatsManager::StringKeyValue* CountAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("Count"); });
-					if (CountAttr)
-					{
-						LexFromString(AssetsBuilt, *CountAttr->Value);
-					}
-				}
-
-				TotalAssetsBuilt++;
-				TotalAssetTimeSec += AssetTimeSec;
-				TotalAssetSizeMB += AssetSizeMB;
-
-				FDDCResourceUsageStat Stat(AssetType, AssetTimeSec, bIsGameThreadTime, AssetSizeMB, AssetsBuilt);
-				FDDCResourceUsageStat* ExistingStat = DDCResourceUsageStats.Find(Stat.AssetType);
-				if (ExistingStat)
-				{
-					ExistingStat->Accumulate(Stat);
-				}
-				else
-				{
-					DDCResourceUsageStats.Add(Stat);
-				}
-			}
-			else if (StatName == TEXT("DDC.Summary"))
-			{
-				DDCSummaryStats.Append(StatAttributes);
-			}
-		};
-
-		// Grab the DDC stats
-		FCookStatsManager::LogCookStats(LogStatsFunc);
-
-		for (const FDDCResourceUsageStat& Stat : DDCResourceUsageStats)
-		{
-			{
-				FString AttrName = "DDC.Resource." + Stat.AssetType + ".Built";
-				Attributes.Emplace(AttrName, Stat.AssetsBuilt);
+				FString AttrName = BaseName + TEXT(".BuildCount");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildCount);
 			}
 			
 			{
-				FString AttrName = "DDC.Resource." + Stat.AssetType + ".TimeSec";
-				Attributes.Emplace(AttrName, Stat.TotalTimeSec);
+				FString AttrName = BaseName + TEXT(".BuildTimeSec");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildTimeSec);
 			}
 
 			{
-				FString AttrName = "DDC.Resource." + Stat.AssetType + ".SizeMB";
-				Attributes.Emplace(AttrName, Stat.SizeMB);
+				FString AttrName = BaseName + TEXT(".BuildSizeMB");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildSizeMB);
+			}
+
+			{
+				FString AttrName = BaseName + TEXT(".LoadCount");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadCount);
+			}
+
+			{
+				FString AttrName = BaseName + TEXT(".LoadTimeSec");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadTimeSec);
+			}
+
+			{
+				FString AttrName = BaseName + TEXT(".LoadSizeMB");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadSizeMB);
 			}
 		}
 
-		Attributes.Emplace(TEXT("DDC.Resource.TotalAssetsBuilt"), TotalAssetsBuilt);
-		Attributes.Emplace(TEXT("DDC.Resource.TotalAssetTimeSec"), TotalAssetTimeSec);
-		Attributes.Emplace(TEXT("DDC.Resource.TotalAssetSizeMB"), TotalAssetSizeMB);
+		TArray<FDerivedDataCacheSummaryStat> DDCSummaryStats;
+
+		// Grab the summary stats
+		GatherDerivedDataCacheSummaryStats(DDCSummaryStats);
 		
-		for (const FCookStatsManager::StringKeyValue& Attr : DDCSummaryStats)
+		for (const FDerivedDataCacheSummaryStat& Stat : DDCSummaryStats)
 		{
-			FString FormattedAttrName = "DDC.Summary." + Attr.Key;
-			Attributes.Emplace(FormattedAttrName, Attr.Value);
+			FString FormattedAttrName = "DDC.Summary." + Stat.Key;
+			Attributes.Emplace(FormattedAttrName, Stat.Value);
 		}
 		
 		FStudioAnalytics::GetProvider().RecordEvent(TEXT("Core.Loading"), Attributes);

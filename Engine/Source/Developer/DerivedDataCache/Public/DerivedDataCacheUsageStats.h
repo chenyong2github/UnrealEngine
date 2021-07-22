@@ -171,3 +171,60 @@ protected:
 	const FDerivedDataBackendInterface* BackendInterface;
 	FString CacheName;
 };
+
+struct FDerivedDataCacheResourceStat
+{
+public:
+	FDerivedDataCacheResourceStat(FString InAssetType = TEXT("None"), bool bIsGameThreadTime = 0.0, double InLoadTimeSec = 0.0, double InLoadSizeMB = 0.0, int64 InAssetsLoaded = 0, double InBuildTimeSec = 0.0, double InBuildSizeMB = 0.0, int64 InAssetsBuilt = 0) :
+		AssetType(MoveTemp(InAssetType)),
+		LoadTimeSec(InLoadTimeSec),
+		LoadSizeMB(InLoadSizeMB),
+		LoadCount(InAssetsLoaded),
+		BuildTimeSec(InBuildTimeSec),
+		BuildSizeMB(InBuildSizeMB),
+		BuildCount(InAssetsBuilt),
+		GameThreadTimeSec(bIsGameThreadTime ? InLoadTimeSec + InBuildTimeSec : 0.0)
+	{}
+
+	void Accumulate(const FDerivedDataCacheResourceStat& OtherStat)
+	{
+		GameThreadTimeSec += OtherStat.GameThreadTimeSec;
+
+		LoadCount += OtherStat.LoadCount;
+		LoadTimeSec += OtherStat.LoadTimeSec;
+		LoadSizeMB += OtherStat.LoadSizeMB;
+
+		BuildCount += OtherStat.BuildCount;
+		BuildTimeSec += OtherStat.BuildTimeSec;
+		BuildSizeMB += OtherStat.BuildSizeMB;
+	}
+
+	FString AssetType;
+
+	double LoadTimeSec;
+	double LoadSizeMB;
+	int64 LoadCount;
+
+	double BuildTimeSec;
+	double BuildSizeMB;
+	int64 BuildCount;
+
+	double GameThreadTimeSec;
+};
+
+struct FDerivedDataCacheResourceStatKeyFuncs : BaseKeyFuncs<FDerivedDataCacheResourceStat, FString, false>
+{
+	static const FString& GetSetKey(const FDerivedDataCacheResourceStat& Element) { return Element.AssetType; }
+	static bool Matches(const FString& A, const FString& B) { return A == B; }
+	static uint32 GetKeyHash(const FString& Key) { return GetTypeHash(Key); }
+};
+
+DERIVEDDATACACHE_API void GatherDerivedDataCacheResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats);
+
+#if ENABLE_COOK_STATS
+
+using FDerivedDataCacheSummaryStat = FCookStatsManager::StringKeyValue;
+DERIVEDDATACACHE_API void GatherDerivedDataCacheSummaryStats(TArray<FDerivedDataCacheSummaryStat>& DDCSummaryStats);
+
+#endif
+

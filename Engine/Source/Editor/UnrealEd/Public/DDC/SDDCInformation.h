@@ -18,10 +18,23 @@ class UNREALED_API SDDCInformation : public SCompoundWidget
 
 	void Construct(const FArguments& InArgs);
 
-private:
-	FText GetSimpleCacheInformation() const;
-	TSharedRef<SWidget> GetComplexDataGrid();
-	EActiveTimerReturnType UpdateComplexDataGrid(double InCurrentTime, float InDeltaTime);
+	static double GetDDCTimeSeconds(bool bGet, bool bLocal);
+	static double GetDDCSizeBytes(bool bGet, bool bLocal);
+	static bool	GetDDCHasLocalBackend();
+	static bool	GetDDCHasRemoteBackend();
+	static bool	GetShowDetailedInformation();
 
-	SVerticalBox::FSlot* GridSlot = nullptr;
+private:
+
+	TSharedRef<SWidget> GetAssetGrid();
+	TSharedRef<SWidget> GetSummaryGrid();
+	TSharedRef<SWidget> GetCacheGrid();
+
+	EActiveTimerReturnType UpdateGridPanels(double InCurrentTime, float InDeltaTime);
+
+	SVerticalBox::FSlot* SummaryGridSlot = nullptr;
+	SVerticalBox::FSlot* AssetGridSlot = nullptr;
+	SVerticalBox::FSlot* CacheGridSlot = nullptr;
+
+
 };

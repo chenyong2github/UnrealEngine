@@ -118,6 +118,7 @@ public class UnrealEd : ModuleRules
 				"SubobjectDataInterface",
 				"SubobjectEditor",
 				"PhysicsUtilities",
+				"DerivedDataCache",
 			}
 		);
 
@@ -206,6 +207,7 @@ public class UnrealEd : ModuleRules
 				"MaterialBaking",
 				"CookOnTheFly",
 				"BazelExecutor",
+				"DerivedDataCache",
 			}
 		);
 
