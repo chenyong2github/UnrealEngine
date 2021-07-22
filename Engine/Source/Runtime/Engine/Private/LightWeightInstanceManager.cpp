@@ -70,7 +70,7 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 		return Actors[Handle.GetInstanceIndex()];
 	}
 	// if we're pointing at an invalid index we can't return an actor
-	if (ValidIndices.Num() >= Handle.GetInstanceIndex() || ValidIndices[Handle.GetInstanceIndex()] == false)
+	if (ValidIndices.Num() <= Handle.GetInstanceIndex() || ValidIndices[Handle.GetInstanceIndex()] == false)
 	{
 		return nullptr;
 	}
@@ -135,7 +135,7 @@ FActorInstanceHandle ALightWeightInstanceManager::ConvertActorToLightWeightInsta
 		}
 
 		// Update our handle
-		ReturnHandle.ManagerIndex = FLightWeightInstanceSubsystem::Get().GetManagerIndex(this);
+		ReturnHandle.Manager = this;
 		ReturnHandle.InstanceIndex = Idx;
 		ReturnHandle.InstanceUID = InActor->GetWorld()->LWILastAssignedUID++;
 

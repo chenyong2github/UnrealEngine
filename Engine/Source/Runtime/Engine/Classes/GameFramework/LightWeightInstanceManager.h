@@ -241,5 +241,5 @@ protected:
 	//
 protected:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
-#endif
+#endif // WITH_EDITOR
 };
