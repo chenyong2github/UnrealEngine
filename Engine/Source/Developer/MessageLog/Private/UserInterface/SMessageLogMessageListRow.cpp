@@ -11,6 +11,7 @@
 #include "Misc/UObjectToken.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Internationalization/Regex.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SMessageLogMessageListRow"
 
@@ -22,7 +23,7 @@ TSharedRef<SWidget> SMessageLogMessageListRow::CreateHyperlink(const TSharedRef<
 	return SNew(SHyperlink)
 		.Text(InMessageToken->ToText())
 		.ToolTipText(InToolTip)
-		.TextStyle(FEditorStyle::Get(), "MessageLog")
+		.TextStyle(FAppStyle::Get(), "MessageLog")
 		.OnNavigate(this, &SMessageLogMessageListRow::HandleHyperlinkNavigate, InMessageToken);
 }
 
@@ -96,8 +97,16 @@ TSharedRef<SWidget> SMessageLogMessageListRow::GenerateWidget()
 			[
 				(SeverityImageName == NAME_None)
 				? SNullWidget::NullWidget
-				: static_cast<TSharedRef<SWidget>>(SNew(SImage)
-				.Image(FEditorStyle::GetBrush(SeverityImageName)))
+				: static_cast<TSharedRef<SWidget>>(
+					SNew(SBox)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.WidthOverride(16)
+					.HeightOverride(16)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush(SeverityImageName))
+					])
 			]
 		]
 
@@ -117,7 +126,7 @@ TSharedRef<SWidget> SMessageLogMessageListRow::GenerateWidget()
 		!HasLinks
 		? SNullWidget::NullWidget
 		: static_cast<TSharedRef<SWidget>>(SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 		.Padding(FMargin(0.0f, 1.0f, 10.0f, 1.0f))
 		[
 			LinkBox
@@ -147,13 +156,13 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush(ImageToken->GetImageName()))
+						.Image(FAppStyle::Get().GetBrush(ImageToken->GetImageName()))
 					];
 			}
 			else
 			{
 				RowContent = SNew(SImage)
-					.Image(FEditorStyle::GetBrush(ImageToken->GetImageName()));
+					.Image(FAppStyle::Get().GetBrush(ImageToken->GetImageName()));
 			}
 		}
 	}
@@ -214,7 +223,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 		RowContent = SNew(SHyperlink)
 			.Text(InMessageToken->ToText())
 			.ToolTipText(ActionToken->GetActionDescription())
-			.TextStyle(FEditorStyle::Get(), "MessageLog")
+			.TextStyle(FAppStyle::Get(), "MessageLog")
 			.OnNavigate(this, &SMessageLogMessageListRow::HandleActionHyperlinkNavigate, ActionToken);
 
 		TokenContentVisbility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateRaw(this, &SMessageLogMessageListRow::GetActionLinkVisibility, ActionToken));
@@ -265,8 +274,8 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 				MessageString.RightChopInline(FileAndLineRegexMatcher.GetMatchEnding(), false);
 
 				SourceLink = SNew(SHyperlink)
-					.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
-					.TextStyle(FEditorStyle::Get(), "MessageLog")
+					.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
+					.TextStyle(FAppStyle::Get(), "MessageLog")
 					.OnNavigate_Lambda([=] { FSlateApplication::Get().GotoLineInSource(FileName, LineNumber); })
 					.Text(FText::FromString(FileAndLineRegexMatcher.GetCaptureGroup(0)));
 			}
@@ -280,11 +289,11 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(0)
+			.Padding(FMargin(0.f, 4.f))
 			[
 				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "Log.Normal")
 				.Text(FText::FromString(MessageString))
+				.ColorAndOpacity(FStyleColors::Foreground)
 			];
 		}
 	}
@@ -304,7 +313,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 			DocumentationToken->GetPreviewExcerptLink(),
 			DocumentationToken->GetPreviewExcerptName())
 			)
-			.TextStyle(FEditorStyle::Get(), "MessageLog")
+			.TextStyle(FAppStyle::Get(), "MessageLog")
 			.OnNavigate(this, &SMessageLogMessageListRow::HandleDocsHyperlinkNavigate, DocumentationToken->GetDocumentationLink());
 	}
 		break;
@@ -317,7 +326,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 		RowContent = SNew(SHyperlink)
 			.Text(LOCTEXT("TutorialLabel", "Tutorial"))
 			.ToolTipText(LOCTEXT("TutorialTokenToolTip", "Click to open tutorial"))
-			.TextStyle(FEditorStyle::Get(), "MessageLog")
+			.TextStyle(FAppStyle::Get(), "MessageLog")
 			.OnNavigate(this, &SMessageLogMessageListRow::HandleTutorialHyperlinkNavigate, TutorialToken->GetTutorialAssetName());
 	}
 		break;
@@ -342,7 +351,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 					? SNullWidget::NullWidget
 					: static_cast<TSharedRef<SWidget>>(SNew(SImage)
 					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FEditorStyle::GetBrush(IconBrushName)))
+					.Image(FAppStyle::Get().GetBrush(IconBrushName)))
 				]
 
 				+ SHorizontalBox::Slot()

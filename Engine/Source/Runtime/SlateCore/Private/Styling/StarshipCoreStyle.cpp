@@ -380,6 +380,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Icons.Link", new IMAGE_BRUSH_SVG("Starship/Common/Linked", Icon16x16));
 		Style->Set("Icons.Unlink", new IMAGE_BRUSH_SVG("Starship/Common/Unlinked", Icon16x16));
 
+		Style->Set("Icons.BulletPoint", new IMAGE_BRUSH_SVG("Starship/Common/bullet-point", Icon8x8));
 	}
 
 	// Tool panels
@@ -574,6 +575,10 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Splitter", FSplitterStyle()
 			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Background))
 			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Secondary))
+		);
+		Style->Set("SplitterPanel", FSplitterStyle()
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Panel))
+			.SetHandleHighlightBrush(FSlateColorBrush(FLinearColor(FColor(96, 96, 96))))
 		);
 	}
 

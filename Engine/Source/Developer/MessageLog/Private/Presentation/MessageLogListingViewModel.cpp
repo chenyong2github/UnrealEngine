@@ -34,11 +34,11 @@ void FMessageLogListingViewModel::Initialize()
 	MessageLogListingModel->OnChanged().AddSP(this, &FMessageLogListingViewModel::OnChanged);
 
 	// Create our filters
-	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("CriticalErrors", "Critical Errors"), FSlateIcon("EditorStyle", "MessageLog.Error"))));
-	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("Errors", "Errors"), FSlateIcon("EditorStyle", "MessageLog.Error"))));
-	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("PerformanceWarnings", "Performance Warnings"), FSlateIcon("EditorStyle", "MessageLog.Warning"))));
-	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("Warnings", "Warnings"), FSlateIcon("EditorStyle", "MessageLog.Warning"))));
-	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("Info", "Info"), FSlateIcon("EditorStyle", "MessageLog.Note"))));
+	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("CriticalErrors", "Critical Errors"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ErrorWithColor"))));
+	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("Errors", "Errors"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ErrorWithColor"))));
+	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("PerformanceWarnings", "Performance Warnings"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.WarningWithColor"))));
+	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("Warnings", "Warnings"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.WarningWithColor"))));
+	MessageFilters.Add(MakeShareable(new FMessageFilter(LOCTEXT("Info", "Info"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.BulletPoint"))));
 
 	for( auto It = MessageFilters.CreateConstIterator(); It; ++It)
 	{
