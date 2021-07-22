@@ -35,7 +35,7 @@ protected:
 
 	void RemoveInstanceFromRendering(int32 DataIndex);
 
-	void PostRemoveInstanceFromRendering(int32 RenderingIndex);
+	void PostRemoveInstanceFromRendering();
 
 	// sets the parameters on the instanced static mesh component
 	virtual void SetInstancedStaticMeshParams();
@@ -68,6 +68,9 @@ protected:
 	virtual void DuplicateLWIInstances(TArrayView<const int32> DataIndices, TArray<int32>& OutNewDataIndices);
 	void GetLWIDataIndices(TArrayView<const FSMInstanceId> InstanceIds, TArray<int32>& OutDataIndices) const;
 
+	virtual int32 ConvertInternalIndexToHandleIndex(int32 InternalIndex) const override;
+	virtual int32 ConvertHandleIndexToInternalIndex(int32 HandleIndex) const override;
+
 protected:
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = Debug, ReplicatedUsing = OnRep_StaticMesh)
@@ -87,4 +90,7 @@ protected:
 	TArray<int32> RenderingIndicesToDataIndices;
 	UPROPERTY(Replicated)
 	TArray<int32> DataIndicesToRenderingIndices;
+
+	// Data indices that we are going to delete later in the frame, we impose a small delay to group deletions to avoid cases where we might try to delete the same index multiple times in a frame.
+	TArray<int32> DataIndicesToBeDeleted;
 };

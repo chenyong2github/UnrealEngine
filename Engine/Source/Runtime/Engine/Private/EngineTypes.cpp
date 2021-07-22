@@ -241,6 +241,7 @@ FActorInstanceHandle::FActorInstanceHandle()
 	: Actor(nullptr)
 	, ManagerIndex(INDEX_NONE)
 	, InstanceIndex(INDEX_NONE)
+	, InstanceUID(0)
 {
 	// do nothing
 }
@@ -252,7 +253,14 @@ FActorInstanceHandle::FActorInstanceHandle(AActor* InActor)
 {
 	if (InActor)
 	{
-		if (ALightWeightInstanceManager* LWIManager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(InActor->StaticClass(), InActor->GetLevel()))
+#if WITH_EDITOR
+		// use the first layer the actor is in if it's in multiple layers
+		TArray<const UDataLayer*> DataLayers = InActor->GetDataLayerObjects();
+		const UDataLayer* Layer = DataLayers.Num() > 0 ? DataLayers[0] : nullptr;
+#else
+		const UDataLayer* Layer = nullptr;
+#endif // WITH_EDITOR
+		if (ALightWeightInstanceManager* LWIManager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(InActor->StaticClass(), Layer))
 		{
 			InstanceIndex = LWIManager->FindIndexForActor(InActor);
 			if (InstanceIndex != INDEX_NONE)
@@ -277,11 +285,16 @@ FActorInstanceHandle::FActorInstanceHandle(int32 InManagerIndex, int32 InInstanc
 		{
 			Actor = *FoundActor;
 		}
+
+		UWorld* World = Manager->GetWorld();
+		ensure(World);
+		InstanceUID = World->LWILastAssignedUID++;
 	}
 	else
 	{
 		ManagerIndex = INDEX_NONE;
 		InstanceIndex = INDEX_NONE;
+		InstanceUID = 0;
 	}
 }
 
@@ -289,6 +302,7 @@ FActorInstanceHandle::FActorInstanceHandle(ALightWeightInstanceManager* Manager,
 	: Actor(nullptr)
 	, ManagerIndex(INDEX_NONE)
 	, InstanceIndex(InInstanceIndex)
+	, InstanceUID(0)
 {
 	if (ensure(Manager))
 	{
@@ -300,6 +314,10 @@ FActorInstanceHandle::FActorInstanceHandle(ALightWeightInstanceManager* Manager,
 
 		ManagerIndex = FLightWeightInstanceSubsystem::Get().GetManagerIndex(Manager);
 		ensure(ManagerIndex != INDEX_NONE);
+
+		UWorld* World = Manager->GetWorld();
+		ensure(World);
+		InstanceUID = World->LWILastAssignedUID++;
 	}
 }
 
@@ -308,6 +326,7 @@ FActorInstanceHandle::FActorInstanceHandle(const FActorInstanceHandle& Other)
 	Actor = Other.Actor;
 	ManagerIndex = Other.ManagerIndex;
 	InstanceIndex = Other.InstanceIndex;
+	InstanceUID = Other.InstanceUID;
 }
 
 bool FActorInstanceHandle::IsValid() const
@@ -398,21 +417,6 @@ FTransform FActorInstanceHandle::GetTransform() const
 	}
 
 	return FTransform();
-}
-
-ULevel* FActorInstanceHandle::GetLevel() const
-{
-	if (IsActorValid())
-	{
-		return Actor->GetLevel();
-	}
-
-	return nullptr;
-}
-
-bool FActorInstanceHandle::IsInLevel(ULevel* Level) const
-{
-	return Level && Level == GetLevel();
 }
 
 FName FActorInstanceHandle::GetFName() const
@@ -536,7 +540,16 @@ bool FActorInstanceHandle::operator==(const AActor* OtherActor) const
 	}
 
 	// we don't have an actor so see if we can look up an instance associated with OtherActor and see if we refer to the same instance
-	if (ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(OtherActor->StaticClass(), OtherActor->GetLevel()))
+
+#if WITH_EDITOR
+	// use the first layer the actor is in if it's in multiple layers
+	TArray<const UDataLayer*> DataLayers = OtherActor->GetDataLayerObjects();
+	const UDataLayer* Layer = DataLayers.Num() > 0 ? DataLayers[0] : nullptr;
+#else
+	const UDataLayer* Layer = nullptr;
+#endif // WITH_EDITOR
+
+	if (ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindLightWeightInstanceManager(OtherActor->StaticClass(), Layer))
 	{
 		if (FLightWeightInstanceSubsystem::Get().GetManagerIndex(Manager) != ManagerIndex)
 		{

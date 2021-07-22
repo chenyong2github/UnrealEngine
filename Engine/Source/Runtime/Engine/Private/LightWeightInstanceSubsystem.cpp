@@ -3,6 +3,7 @@
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 
 DEFINE_LOG_CATEGORY(LogLightWeightInstance);
 
@@ -40,9 +41,21 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 	{
 		for (ALightWeightInstanceManager* LWInstance : LWInstanceManagers)
 		{
-			if (Handle.Actor->GetClass() == LWInstance->GetRepresentedClass() && Handle.Actor->GetLevel() == LWInstance->GetLevel())
+			if (Handle.Actor->GetClass() == LWInstance->GetRepresentedClass())
 			{
-				return LWInstance;
+#if WITH_EDITOR
+				// make sure the data layers match
+				TArray<const UDataLayer*> ManagerLayers = LWInstance->GetDataLayerObjects();
+				const UDataLayer* ManagerLayer = ManagerLayers.Num() > 0 ? ManagerLayers[0] : nullptr;
+
+				TArray<const UDataLayer*> ActorLayers = LWInstance->GetDataLayerObjects();
+				const UDataLayer* ActorLayer = ActorLayers.Num() > 0 ? ActorLayers[0] : nullptr;
+
+				if (ManagerLayer == ActorLayer)
+#endif // WITH_EDITOR
+				{
+					return LWInstance;
+				}
 			}
 		}
 	}
@@ -50,9 +63,9 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 	return nullptr;
 }
 
-ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass* ActorClass, ULevel* Level) const
+ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass* ActorClass, const UDataLayer* Layer) const
 {
-	if (ActorClass == nullptr || Level == nullptr)
+	if (ActorClass == nullptr)
 	{
 		return nullptr;
 	}
@@ -60,28 +73,38 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 	// see if we already have a match
 	for (ALightWeightInstanceManager* Instance : LWInstanceManagers)
 	{
-		if (Instance->GetRepresentedClass() == ActorClass && Instance->GetLevel() == Level)
+		if (Instance->GetRepresentedClass() == ActorClass)
 		{
-			return Instance;
+#if WITH_EDITOR
+			if (!Layer || (Instance->SupportsDataLayer() && Instance->ContainsDataLayer(Layer)))
+#endif // WITH_EDITOR
+			{
+				return Instance;
+			}
 		}
 	}
 
 	return nullptr;
 }
 
-ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeightInstanceManager(UClass* ActorClass, ULevel* Level)
+ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayer* Layer, UWorld* World)
 {
-	if (ActorClass == nullptr || Level == nullptr)
+	if (ActorClass == nullptr || World == nullptr)
 	{
 		return nullptr;
 	}
 	
 	// see if we already have a match
-	for (ALightWeightInstanceManager* Instance : LWInstanceManagers)
+	for (ALightWeightInstanceManager* InstanceManager : LWInstanceManagers)
 	{
-		if (Instance->GetRepresentedClass() == ActorClass && Instance->GetLevel() == Level)
+		if (InstanceManager->GetRepresentedClass() == ActorClass)
 		{
-			return Instance;
+#if WITH_EDITOR
+			if (!Layer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(Layer)))
+#endif // WITH_EDITOR
+			{
+				return InstanceManager;
+			}
 		}
 	}
 
@@ -95,17 +118,25 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 	}
 
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.OverrideLevel = Level;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.ObjectFlags = RF_Transactional;
 
-	ALightWeightInstanceManager* NewInstance = Level->GetWorld()->SpawnActor<ALightWeightInstanceManager>(BestMatchingClass, FTransform::Identity, SpawnParams);
-	ULevel* InstanceLvl = NewInstance->GetLevel();
-	NewInstance->SetRepresentedClass(ActorClass);
+	ALightWeightInstanceManager* NewInstanceManager = World->SpawnActor<ALightWeightInstanceManager>(BestMatchingClass, FTransform::Identity, SpawnParams);
+	NewInstanceManager->SetRepresentedClass(ActorClass);
 
-	check(LWInstanceManagers.Find(NewInstance) != INDEX_NONE);
+#if WITH_EDITOR
+	// Add the new manager to the layer
+	if (Layer)
+	{
+		ensure(NewInstanceManager->IsValidForDataLayer());
 
-	return NewInstance;
+		NewInstanceManager->AddDataLayer(Layer);
+	}
+#endif // WITH_EDITOR
+
+	check(LWInstanceManagers.Find(NewInstanceManager) != INDEX_NONE);
+
+	return NewInstanceManager;
 }
 
 UClass* FLightWeightInstanceSubsystem::FindBestInstanceManagerClass(const UClass* InActorClass)
@@ -266,16 +297,24 @@ bool FLightWeightInstanceSubsystem::IsInLevel(const FActorInstanceHandle& Handle
 	return false;
 }
 
-FActorInstanceHandle FLightWeightInstanceSubsystem::CreateNewLightWeightInstance(UClass* InActorClass, FLWIData* InitData, ULevel* InLevel)
+FActorInstanceHandle FLightWeightInstanceSubsystem::CreateNewLightWeightInstance(UClass* InActorClass, FLWIData* InitData, UDataLayer* InLayer, UWorld* World)
 {
-	// Get or create a light weight instance for this class and level
-	if (ALightWeightInstanceManager* LWIManager = FindOrAddLightWeightInstanceManager(InActorClass, InLevel))
+	// Get or create a light weight instance for this class and data layer
+	if (ALightWeightInstanceManager* LWIManager = FindOrAddLightWeightInstanceManager(InActorClass, InLayer, World))
 	{
 		// create an instance with the given data
 		int32 InstanceIdx = LWIManager->AddNewInstance(InitData);
-
+		InstanceIdx = LWIManager->ConvertInternalIndexToHandleIndex(InstanceIdx);
 		return FActorInstanceHandle(LWIManager, InstanceIdx);
 	}
 
 	return FActorInstanceHandle();
+}
+
+void FLightWeightInstanceSubsystem::DeleteInstance(const FActorInstanceHandle& Handle)
+{
+	if (ALightWeightInstanceManager* LWIManager = FindLightWeightInstanceManager(Handle))
+	{
+		LWIManager->RemoveInstance(Handle.GetInstanceIndex());
+	}
 }

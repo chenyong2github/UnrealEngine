@@ -69,6 +69,11 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 	{
 		return Actors[Handle.GetInstanceIndex()];
 	}
+	// if we're pointing at an invalid index we can't return an actor
+	if (ValidIndices.Num() >= Handle.GetInstanceIndex() || ValidIndices[Handle.GetInstanceIndex()] == false)
+	{
+		return nullptr;
+	}
 
 	FActorSpawnParameters SpawnParams;
 	SetSpawnParameters(SpawnParams);
@@ -122,6 +127,7 @@ FActorInstanceHandle ALightWeightInstanceManager::ConvertActorToLightWeightInsta
 		if (Idx == INDEX_NONE)
 		{
 			Idx = AddNewInstance(Data);
+			Idx = ConvertInternalIndexToHandleIndex(Idx);
 		}
 		else
 		{
@@ -131,6 +137,7 @@ FActorInstanceHandle ALightWeightInstanceManager::ConvertActorToLightWeightInsta
 		// Update our handle
 		ReturnHandle.ManagerIndex = FLightWeightInstanceSubsystem::Get().GetManagerIndex(this);
 		ReturnHandle.InstanceIndex = Idx;
+		ReturnHandle.InstanceUID = InActor->GetWorld()->LWILastAssignedUID++;
 
 		// cleanup
 		InActor->Destroy();

@@ -2081,9 +2081,6 @@ struct ENGINE_API FActorInstanceHandle
 	FRotator GetRotation() const;
 	FTransform GetTransform() const;
 
-	ULevel* GetLevel() const;
-	bool IsInLevel(ULevel* InLevel) const;
-
 	FName GetFName() const;
 	FString GetName() const;
 
@@ -2118,6 +2115,8 @@ struct ENGINE_API FActorInstanceHandle
 
 	friend ENGINE_API FArchive& operator<<(FArchive& Ar, FActorInstanceHandle& Handle);
 
+	uint32 GetInstanceUID() const { return InstanceUID; }
+
 private:
 	/**
 	 * helper functions that let us treat the actor pointer as a UObject in templated functions
@@ -2138,6 +2137,9 @@ private:
 
 	/** Identifies the instance within the manager */
 	int32 InstanceIndex;
+
+	/** Unique identifier for instances represented by the handle */
+	uint32 InstanceUID;
 };
 
 template <typename T>
