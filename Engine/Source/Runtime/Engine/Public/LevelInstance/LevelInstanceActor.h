@@ -25,9 +25,14 @@ class ENGINE_API ALevelInstance : public AActor
 	GENERATED_UCLASS_BODY()
 
 protected:
+#if WITH_EDITORONLY_DATA
 	/** Level LevelInstance */
 	UPROPERTY(EditAnywhere, Category = LevelInstance, meta = (NoCreate))
 	TSoftObjectPtr<UWorld> WorldAsset;
+#endif
+
+	UPROPERTY()
+	TSoftObjectPtr<UWorld> CookedWorldAsset;
 
 public:
 
@@ -40,7 +45,7 @@ public:
 	void UnloadLevelInstance();
 	virtual bool SupportsLoading() const;
 	bool IsLevelInstancePathValid() const;
-	const TSoftObjectPtr<UWorld>& GetWorldAsset() const { return WorldAsset; }
+	const TSoftObjectPtr<UWorld>& GetWorldAsset() const;
 	class ULevelInstanceSubsystem* GetLevelInstanceSubsystem() const;
 	
 	const FLevelInstanceID& GetLevelInstanceID() const;
