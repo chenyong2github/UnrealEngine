@@ -2223,8 +2223,8 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 {
 	// Now we write all the bulkdata that is supposed to be at the end of the package
 	// and fix up the offset
-	const int64 StartOfBulkDataArea = Linker->Tell();
-	Linker->Summary.BulkDataStartOffset = StartOfBulkDataArea;
+	IPackageStoreWriter* PackageStoreWriter = SavePackageContext != nullptr ? SavePackageContext->PackageStoreWriter : nullptr;
+	Linker->Summary.BulkDataStartOffset = Linker->Tell();
 
 	if (Linker->BulkDataToAppend.Num() == 0)
 	{
@@ -2267,9 +2267,12 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 	} CookerUseSeparateSegments;
 	const bool bSeparateSegmentsEnabled = CookerUseSeparateSegments.bEnable && Linker->IsCooking();
 
-	if (bSeparateSegmentsEnabled)
+	if (PackageStoreWriter || bSeparateSegmentsEnabled)
 	{
 		BulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+	}
+	if (bSeparateSegmentsEnabled)
+	{
 		OptionalBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
 		MappedBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
 	}
@@ -2277,6 +2280,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 
 	bool bAlignBulkData = false;
 	bool bUseFileRegions = false;
+	bool bOneBulkPerRegion = false;
 	int64 BulkDataAlignment = 0;
 
 	if (TargetPlatform)
@@ -2285,6 +2289,12 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 		bUseFileRegions = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata);
 		BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
 	}
+	else if (PackageStoreWriter)
+	{
+		bUseFileRegions = true;
+		bOneBulkPerRegion = true;
+	}
+
 	if (bRequestSaveByReference)
 	{
 		const TCHAR* FailureReason = nullptr;
@@ -2335,11 +2345,12 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 			EndOfPackage,
 			SeparateSegment,
 			Reference,
+			SeparateArchiveAtEndOfPackage,
 		};
 		ESaveLocation SaveLocation = ESaveLocation::Invalid;
-		if (SaveLocation == ESaveLocation::Invalid && bRequestSaveByReference)
+		auto CanSaveByReference = [](FUntypedBulkData* BulkData)
 		{
-			if (BulkData->GetBulkDataOffsetInFile() != INDEX_NONE &&
+			return BulkData->GetBulkDataOffsetInFile() != INDEX_NONE &&
 				// We don't support yet loading from a separate file
 				!BulkData->IsInSeparateFile() &&
 				// It is possible to have a BulkData marked as optional without putting it into a separate file, and we
@@ -2351,17 +2362,21 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 				// Inline or end-of-package-file data can only be loaded from the workspace domain package file if the
 				// archive used by the bulk data was actually from the package file; BULKDATA_LazyLoadable is set by
 				// Serialize iff that is the case										
-				(BulkData->GetBulkDataFlags() & BULKDATA_LazyLoadable) 
-				)
-			{
-				SaveLocation = ESaveLocation::Reference;
-			}
+				(BulkData->GetBulkDataFlags() & BULKDATA_LazyLoadable);
+		};
+		if (bRequestSaveByReference && CanSaveByReference(BulkData))
+		{
+			SaveLocation = ESaveLocation::Reference;
 		}
-		if (SaveLocation == ESaveLocation::Invalid && bSeparateSegmentsEnabled)
+		else if (bSeparateSegmentsEnabled)
 		{
 			SaveLocation = ESaveLocation::SeparateSegment;
 		}
-		if (SaveLocation == ESaveLocation::Invalid)
+		else if (PackageStoreWriter)
+		{
+			SaveLocation = ESaveLocation::SeparateArchiveAtEndOfPackage;
+		}
+		else
 		{
 			SaveLocation = ESaveLocation::EndOfPackage;
 		}
@@ -2411,6 +2426,13 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 					TargetRegions = &BulkArchive->FileRegions;
 				}
 			}
+			else if (SaveLocation == ESaveLocation::SeparateArchiveAtEndOfPackage)
+			{
+				BulkDataFlags |= BULKDATA_NoOffsetFixUp;
+				TargetArchive = BulkArchive.Get();
+				TargetRegions = &BulkArchive->FileRegions;
+			}
+
 			check(TargetArchive && TargetRegions);
 
 			// Pad archive for proper alignment for memory mapping
@@ -2447,11 +2469,25 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 			BulkData->SerializeBulkData(*TargetArchive, BulkData->Lock(LOCK_READ_ONLY), static_cast<EBulkDataFlags>(BulkDataFlags));
 			BulkData->Unlock();
 			const int64 BulkEndOffset = TargetArchive->Tell();
-
-			BulkDataOffsetInFile = (BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0 ? BulkStartOffset - StartOfBulkDataArea : BulkStartOffset;
+			if (SaveLocation == ESaveLocation::SeparateArchiveAtEndOfPackage)
+			{
+				// BulkDatas will be read from a CompositeArchive that holds an exports segment followed by a bulkdata segment.
+				// We record offsets in the bulkdata segment relative to the beginning of the CompositeArchive.
+				// We have to do this to distinguish them from inline bulkdatas in the exports segment
+				check((BulkDataFlags& BULKDATA_NoOffsetFixUp) != 0); // offset fixups are not supported with this SaveLocation
+				BulkDataOffsetInFile = BulkStartOffset + Linker->Summary.BulkDataStartOffset;
+			}
+			else if ((BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0)
+			{
+				BulkDataOffsetInFile = BulkStartOffset - Linker->Summary.BulkDataStartOffset;
+			}
+			else
+			{
+				BulkDataOffsetInFile = BulkStartOffset;
+			}
 			BulkDataSizeOnDisk = BulkEndOffset - BulkStartOffset;
 
-			if (bUseFileRegions && BulkDataStorageInfo.BulkDataFileRegionType != EFileRegionType::None && BulkDataSizeOnDisk > 0)
+			if ((bOneBulkPerRegion || (bUseFileRegions && BulkDataStorageInfo.BulkDataFileRegionType != EFileRegionType::None)) && BulkDataSizeOnDisk > 0)
 			{
 				TargetRegions->Add(FFileRegion(BulkStartOffset, BulkDataSizeOnDisk, BulkDataStorageInfo.BulkDataFileRegionType));
 			}
@@ -2472,19 +2508,16 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 		if (Linker->bUpdatingLoadedPath)
 		{
 			BulkData->SetFlagsFromDiskWrittenValues(static_cast<EBulkDataFlags>(BulkDataFlags), BulkDataOffsetInFile,
-				BulkDataSizeOnDisk, StartOfBulkDataArea);
+				BulkDataSizeOnDisk, Linker->Summary.BulkDataStartOffset);
 		}
 #endif
 	}
 
 	if (BulkArchive)
 	{
-		check(OptionalBulkArchive);
-		check(MappedBulkArchive);
-
 		const bool bWriteBulkToDisk = !bDiffing;
 
-		if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr && bWriteBulkToDisk)
+		if (PackageStoreWriter && bWriteBulkToDisk)
 		{
 			auto AddSizeAndConvertToIoBuffer = [&TotalPackageSizeUncompressed](FLargeMemoryWriter* Writer)
 			{
@@ -2503,28 +2536,28 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::BulkData);
 				BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Standard;
 				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataDefault));
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
+				PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
 			}
-			if (OptionalBulkArchive->TotalSize())
+			if (OptionalBulkArchive && OptionalBulkArchive->TotalSize())
 			{
 				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::OptionalBulkData);
 				BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Optional;
 				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataOptional));
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
+				PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
 			}
-			if (MappedBulkArchive->TotalSize())
+			if (MappedBulkArchive && MappedBulkArchive->TotalSize())
 			{
 				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::MemoryMappedBulkData);
 				BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Mmap;
 				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataMemoryMapped));
-				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
+				PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
 			}
 		}
 		else
 		{
 			auto WriteBulkData = [&](FLargeMemoryWriterWithRegions* Archive, const TCHAR* BulkFileExtension)
 			{
-				if (const int64 DataSize = Archive->TotalSize())
+				if (const int64 DataSize = Archive ? Archive->TotalSize() : 0)
 				{
 					TotalPackageSizeUncompressed += DataSize;
 

@@ -1771,6 +1771,8 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 		ResetLoadersForSave(SaveContext.GetPackage(), SaveContext.GetFilename());
 	}
 
+	FSavePackageContext* SavePackageContext = SaveContext.GetSavePackageContext();
+	IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
 	if (SaveContext.IsSaveAsync())
 	{
 		FString PathToSave = SaveContext.GetFilename();
@@ -1821,8 +1823,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 
 			checkf(SaveContext.IsCooking() == false || SaveContext.AdditionalPackageFiles.IsEmpty(), TEXT("Saving additional output files during cooking is not currently supported! (%s)"), *PathToSave);
 
-			FSavePackageContext* SavePackageContext = SaveContext.GetSavePackageContext();
-			if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr && SaveContext.IsCooking())
+			if (PackageStoreWriter)
 			{
 				FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), DataSize);
 
@@ -1847,7 +1848,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
 				PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
 
-				SavePackageContext->PackageStoreWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
+				PackageStoreWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
 			}
 			else
 			{
@@ -1874,9 +1875,15 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 			}
 			SaveContext.CloseLinkerArchives();
 		}
+		else
+		{
+			checkf(!PackageStoreWriter, TEXT("PackageStoreWriter is not currently supported when diffing."));
+		}
 	}
 	else
 	{
+		checkf(!PackageStoreWriter, TEXT("PackageStoreWriter is not currently supported with synchronous writes."));
+
 		// Destroy archives used for saving, closing file handle.
 		if (SaveContext.CloseLinkerArchives() == false)
 		{
