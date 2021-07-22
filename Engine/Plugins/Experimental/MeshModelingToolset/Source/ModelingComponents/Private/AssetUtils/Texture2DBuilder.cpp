@@ -16,7 +16,7 @@ bool FTexture2DBuilder::Initialize(ETextureType BuildTypeIn, FImageDimensions Di
 }
 
 
-bool FTexture2DBuilder::InitializeOver(UTexture2D* ExistingTexture, ETextureType BuildTypeIn, FImageDimensions DimensionsIn)
+bool FTexture2DBuilder::InitializeAndReplaceExistingTexture(UTexture2D* ExistingTexture, ETextureType BuildTypeIn, FImageDimensions DimensionsIn)
 {
 	// adapted from UTexture2D::CreateTransient
 
