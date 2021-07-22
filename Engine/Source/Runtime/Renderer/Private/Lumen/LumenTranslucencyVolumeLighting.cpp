@@ -131,11 +131,34 @@ FAutoConsoleVariableRef CVarTranslucencyVoxelTraceStartDistanceScale(
 
 const static uint32 MaxTranslucencyVolumeConeDirections = 64;
 
+FRDGTextureRef OrDefault3dTextureIfNull(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture)
+{
+	return Texture ? Texture : GSystemTextures.GetVolumetricBlackDummy(GraphBuilder);
+}
+
 FLumenTranslucencyLightingParameters GetLumenTranslucencyLightingParameters(FRDGBuilder& GraphBuilder, const FLumenTranslucencyGIVolume& LumenTranslucencyGIVolume)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	FLumenTranslucencyLightingParameters Parameters;
+	Parameters.RadianceCacheInterpolationParameters = LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters;
+
+	if (!LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters.RadianceCacheFinalRadianceAtlas)
+	{
+		Parameters.RadianceCacheInterpolationParameters.RadianceCacheInputs.FinalProbeResolution = 0;
+	}
+
+	Parameters.RadianceCacheInterpolationParameters.RadianceProbeIndirectionTexture = OrDefault3dTextureIfNull(GraphBuilder, Parameters.RadianceCacheInterpolationParameters.RadianceProbeIndirectionTexture);
+	Parameters.RadianceCacheInterpolationParameters.RadianceCacheFinalRadianceAtlas = OrDefault3dTextureIfNull(GraphBuilder, Parameters.RadianceCacheInterpolationParameters.RadianceCacheFinalRadianceAtlas);
+	Parameters.RadianceCacheInterpolationParameters.RadianceCacheFinalIrradianceAtlas = OrDefault3dTextureIfNull(GraphBuilder, Parameters.RadianceCacheInterpolationParameters.RadianceCacheFinalIrradianceAtlas);
+	Parameters.RadianceCacheInterpolationParameters.RadianceCacheProbeOcclusionAtlas = OrDefault3dTextureIfNull(GraphBuilder, Parameters.RadianceCacheInterpolationParameters.RadianceCacheProbeOcclusionAtlas);
+	Parameters.RadianceCacheInterpolationParameters.RadianceCacheDepthAtlas = OrDefault3dTextureIfNull(GraphBuilder, Parameters.RadianceCacheInterpolationParameters.RadianceCacheDepthAtlas);
+	
+	if (!Parameters.RadianceCacheInterpolationParameters.ProbeWorldOffset)
+	{
+		Parameters.RadianceCacheInterpolationParameters.ProbeWorldOffset = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4))));
+	}
+
 	Parameters.TranslucencyGIVolume0            = LumenTranslucencyGIVolume.Texture0        ? LumenTranslucencyGIVolume.Texture0        : SystemTextures.VolumetricBlack;
 	Parameters.TranslucencyGIVolume1            = LumenTranslucencyGIVolume.Texture1        ? LumenTranslucencyGIVolume.Texture1        : SystemTextures.VolumetricBlack;
 	Parameters.TranslucencyGIVolumeHistory0     = LumenTranslucencyGIVolume.HistoryTexture0 ? LumenTranslucencyGIVolume.HistoryTexture0 : SystemTextures.VolumetricBlack;

@@ -504,7 +504,7 @@ private:
 		const FSceneTextures& SceneTextures,
 		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 		FRDGTextureRef LightingChannelsTexture,
-		const FViewInfo& View,
+		FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		bool& bLumenUseDenoiserComposite,
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters);

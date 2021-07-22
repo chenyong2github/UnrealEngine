@@ -4,6 +4,8 @@
 	LumenTranslucencyShared.usf
 =============================================================================*/
 
+#include "LumenRadianceCacheInterpolation.ush"
+
 // Temp version GUID to force rebuild of shaders using the FLumenTranslucencyLightingParameters
 // uniform buffer, until versioning of uniform buffer structs works properly.
 // GUID = 62C0F6D1-F9BB-46A8-9E0C-9E72345B722A
@@ -52,3 +54,4 @@ FTwoBandSHVectorRGB GetTranslucencyGIVolumeLighting(float3 WorldPosition, float4
 	TranslucentLighting.B.V.yzw = DirectionalLightingVector.rgb * NormalizedAmbientColor.b;
 	return TranslucentLighting;
 }
+

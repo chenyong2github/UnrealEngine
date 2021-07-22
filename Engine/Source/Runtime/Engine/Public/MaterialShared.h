@@ -3198,6 +3198,7 @@ struct FMaterialShaderParameters
 			uint64 bIsUsedWithLidarPointCloud : 1;
 			uint64 bIsUsedWithVirtualHeightfieldMesh : 1;
 			uint64 bIsStencilTestEnabled : 1;
+			uint64 bIsTranslucencySurface : 1;
 		};
 	};
 
@@ -3260,6 +3261,7 @@ struct FMaterialShaderParameters
 		bIsUsedWithLidarPointCloud = InMaterial->IsUsedWithLidarPointCloud();
 		bIsUsedWithVirtualHeightfieldMesh = InMaterial->IsUsedWithVirtualHeightfieldMesh();
 		bIsStencilTestEnabled = InMaterial->IsStencilTestEnabled();
+		bIsTranslucencySurface = InMaterial->GetTranslucencyLightingMode() == ETranslucencyLightingMode::TLM_Surface || InMaterial->GetTranslucencyLightingMode() == ETranslucencyLightingMode::TLM_SurfacePerPixelLighting;
 	}
 };
 

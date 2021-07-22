@@ -165,6 +165,31 @@ namespace LumenRadianceCache
 		FRDGBufferRef ProbeWorldOffset = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeWorldOffset);
 		OutParameters.ProbeWorldOffset = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeWorldOffset, PF_A32B32G32R32F));
 	}
+
+	FRadianceCacheMarkParameters GetMarkParameters(
+		FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV, 
+		const FRadianceCacheState& RadianceCacheState, 
+		const LumenRadianceCache::FRadianceCacheInputs& RadianceCacheInputs)
+	{
+		FRadianceCacheMarkParameters MarkParameters;
+		MarkParameters.RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
+
+		for (int32 ClipmapIndex = 0; ClipmapIndex < RadianceCacheState.Clipmaps.Num(); ++ClipmapIndex)
+		{
+			const FRadianceCacheClipmap& Clipmap = RadianceCacheState.Clipmaps[ClipmapIndex];
+
+			MarkParameters.RadianceProbeClipmapTMinForMark[ClipmapIndex] = Clipmap.ProbeTMin;
+			MarkParameters.WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] = Clipmap.WorldPositionToProbeCoordScale;
+			MarkParameters.WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex] = Clipmap.WorldPositionToProbeCoordBias;
+			MarkParameters.RadianceProbeCoordToWorldPositionScaleForMark[ClipmapIndex] = Clipmap.ProbeCoordToWorldCenterScale;
+			MarkParameters.RadianceProbeCoordToWorldPositionBiasForMark[ClipmapIndex] = Clipmap.ProbeCoordToWorldCenterBias;
+		}
+
+		MarkParameters.RadianceProbeClipmapResolutionForMark = RadianceCacheInputs.RadianceProbeClipmapResolution;
+		MarkParameters.NumRadianceProbeClipmapsForMark = RadianceCacheInputs.NumRadianceProbeClipmaps;
+
+		return MarkParameters;
+	}
 };
 
 class FClearProbeFreeList : public FGlobalShader
@@ -1004,6 +1029,11 @@ void RenderRadianceCache(
 				bResizedHistoryState = true;
 			}
 
+			if (GRadianceCacheForceFullUpdate)
+			{
+				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(FinalIrradianceAtlas)), FLinearColor::Black);
+			}
+
 			const FIntPoint ProbeOcclusionAtlasSize(RadianceCacheInputs.ProbeAtlasResolutionInProbes * (RadianceCacheInputs.OcclusionProbeResolution + 2 * (1 << RadianceCacheInputs.FinalRadianceAtlasMaxMip)));
 
 			if (RadianceCacheState.ProbeOcclusionAtlas.IsValid()
@@ -1046,6 +1076,11 @@ void RenderRadianceCache(
 
 				FinalRadianceAtlas = GraphBuilder.CreateTexture(FinalRadianceAtlasDesc, TEXT("Lumen.RadianceCache.FinalRadianceAtlas"));
 				bResizedHistoryState = true;
+			}
+
+			if (GRadianceCacheForceFullUpdate)
+			{
+				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(FinalRadianceAtlas)), FLinearColor::Black);
 			}
 		}
 
@@ -1101,8 +1136,10 @@ void RenderRadianceCache(
 				GroupSize);
 		}
 
+		LumenRadianceCache::FRadianceCacheMarkParameters RadianceCacheMarkParameters = LumenRadianceCache::GetMarkParameters(RadianceProbeIndirectionTextureUAV, RadianceCacheState, RadianceCacheInputs);
+
 		// Mark indirection entries around positions that will be sampled by dependent features as used
-		MarkUsedRadianceCacheProbes.Broadcast(GraphBuilder, View, RadianceCacheParameters, RadianceProbeIndirectionTextureUAV);
+		MarkUsedRadianceCacheProbes.Broadcast(GraphBuilder, View, RadianceCacheMarkParameters);
 
 		const bool bPersistentCache = !GRadianceCacheForceFullUpdate 
 			&& View.ViewState 

@@ -148,10 +148,9 @@ class FMarkRadianceProbesUsedByGBufferCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByGBufferCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
-		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -218,14 +217,12 @@ static void IrradianceFieldMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 {
 	FMarkRadianceProbesUsedByGBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByGBufferCS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-	PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
+	PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
 
 	auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByGBufferCS>(0);
 
@@ -257,15 +254,13 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 	Callbacks.AddLambda([&SceneTextures](
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-		FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+		const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 		{
 			IrradianceFieldMarkUsedProbes(
 				GraphBuilder,
 				View,
 				SceneTextures,
-				RadianceCacheParameters,
-				RadianceProbeIndirectionTextureUAV);
+				RadianceCacheMarkParameters);
 		});
 
 	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
