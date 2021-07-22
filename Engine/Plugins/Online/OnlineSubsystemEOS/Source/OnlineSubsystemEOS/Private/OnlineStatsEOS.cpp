@@ -30,7 +30,8 @@ struct FStatNameBuffer
 void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const FUniqueNetIdRef StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate)
 {
 	UE_LOG_ONLINE_STATS(Warning, TEXT("QueryStats() without a list of stats names to query is not supported"));
-	Delegate.ExecuteIfBound(FOnlineError(EOnlineErrorResult::NotImplemented), TSharedPtr<const FOnlineStatsUserStats>());
+	const TSharedPtr<const FOnlineStatsUserStats> Result = MakeShared<const FOnlineStatsUserStats>(StatsUser);
+	Delegate.ExecuteIfBound(FOnlineError(EOnlineErrorResult::NotImplemented), Result);
 }
 
 struct FQueryStatsOptions :
