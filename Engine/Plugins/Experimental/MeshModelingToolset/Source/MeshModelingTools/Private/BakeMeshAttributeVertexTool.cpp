@@ -18,8 +18,8 @@
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 #include "AssetUtils/Texture2DUtil.h"
@@ -37,8 +37,8 @@ const FToolTargetTypeRequirements& UBakeMeshAttributeVertexToolBuilder::GetTarge
 {
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMeshDescriptionProvider::StaticClass(),
+		UMeshDescriptionCommitter::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass(),
-		UStaticMeshBackedTarget::StaticClass(), // currently only supports StaticMesh targets
 		UMaterialProvider::StaticClass()
 	});
 	return TypeRequirements;
@@ -399,7 +399,13 @@ void UBakeMeshAttributeVertexTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("BakeMeshAttributeVertexToolTransactionName",
 			                                               "Bake Mesh Attribute Vertex"));
-			UE::ToolTarget::CommitDynamicMeshColorUpdate(Targets[0], PreviewMesh->GetMesh());
+			FConversionToMeshDescriptionOptions ConvertOptions;
+			ConvertOptions.SetToVertexColorsOnly();
+			UE::ToolTarget::CommitDynamicMeshUpdate(
+				Targets[0],
+				*PreviewMesh->GetMesh(),
+				false, // bHaveModifiedTopology
+				ConvertOptions);
 			GetToolManager()->EndUndoTransaction();
 		}
 
