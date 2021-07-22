@@ -17,8 +17,8 @@ class IModuleProvider;
 class FCallstacksProvider : public ICallstacksProvider
 {
 public:
-						FCallstacksProvider(IAnalysisSession& Session);
-	virtual				~FCallstacksProvider() {}
+	explicit FCallstacksProvider(IAnalysisSession& Session);
+	virtual ~FCallstacksProvider() {}
 
 	const FCallstack*	GetCallstack(uint64 CallstackId) const override;
 	void				GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const override;

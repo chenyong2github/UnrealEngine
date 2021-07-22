@@ -30,7 +30,8 @@ class FBookmarkProvider
 public:
 	static const FName ProviderName;
 
-	FBookmarkProvider(IAnalysisSession& Session);
+	explicit FBookmarkProvider(IAnalysisSession& Session);
+	virtual ~FBookmarkProvider() {}
 
 	FBookmarkSpec& GetSpec(uint64 BookmarkPoint);
 	virtual uint64 GetBookmarkCount() const override { return Bookmarks.Num(); }

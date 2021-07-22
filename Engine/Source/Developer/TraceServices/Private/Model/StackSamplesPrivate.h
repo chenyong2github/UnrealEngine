@@ -14,8 +14,9 @@ class FStackSampleProvider
 {
 public:
 	static const FName ProviderName;
-	FStackSampleProvider(IAnalysisSession& Session);
-	~FStackSampleProvider();
+
+	explicit FStackSampleProvider(IAnalysisSession& Session);
+	virtual ~FStackSampleProvider();
 
 	const TPagedArray<FStackSample>* GetStackSamples(uint32 ThreadId) const override;
 

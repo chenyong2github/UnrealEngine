@@ -41,7 +41,8 @@ public:
 
 	static const FName ProviderName;
 
-	FLogProvider(IAnalysisSession& Session);
+	explicit FLogProvider(IAnalysisSession& Session);
+	virtual ~FLogProvider() {}
 
 	FLogCategoryInfo& GetCategory(uint64 CategoryPointer);
 	FLogMessageSpec& GetMessageSpec(uint64 LogPoint);

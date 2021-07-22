@@ -226,7 +226,7 @@ class FCounterProvider
 public:
 	static const FName ProviderName;
 
-	FCounterProvider(IAnalysisSession& Session, IFrameProvider& FrameProvider);
+	explicit FCounterProvider(IAnalysisSession& Session, IFrameProvider& FrameProvider);
 	virtual ~FCounterProvider();
 	virtual uint64 GetCounterCount() const override { return Counters.Num(); }
 	virtual void EnumerateCounters(TFunctionRef<void(uint32, const ICounter&)> Callback) const override;

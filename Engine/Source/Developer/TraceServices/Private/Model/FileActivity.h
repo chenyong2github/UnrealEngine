@@ -28,7 +28,9 @@ public:
 	};
 	typedef TIntervalTimeline<FFileActivity*, FTimelineSettings> TimelineInternal;
 
-	FFileActivityProvider(IAnalysisSession& Session);
+	explicit FFileActivityProvider(IAnalysisSession& Session);
+	virtual ~FFileActivityProvider() {}
+
 	virtual void EnumerateFileActivity(TFunctionRef<bool(const FFileInfo&, const Timeline&)> Callback) const override;
 	virtual const ITable<FFileActivity>& GetFileActivityTable() const override;
 	uint32 GetFileIndex(const TCHAR* Path);

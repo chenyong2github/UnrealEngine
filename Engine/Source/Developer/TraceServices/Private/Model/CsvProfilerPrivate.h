@@ -20,7 +20,7 @@ class FCsvProfilerProvider
 	: public ICsvProfilerProvider
 {
 public:
-	FCsvProfilerProvider(IAnalysisSession& InSession);
+	explicit FCsvProfilerProvider(IAnalysisSession& InSession);
 	virtual ~FCsvProfilerProvider();
 	virtual const IUntypedTable& GetTable(uint32 CaptureIndex) const override { return Captures[CaptureIndex]->Table; }
 	virtual void EnumerateCaptures(TFunctionRef<void(const FCaptureInfo&)> Callback) const override;

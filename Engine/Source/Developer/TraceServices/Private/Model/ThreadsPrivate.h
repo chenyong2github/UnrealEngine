@@ -16,8 +16,10 @@ class FThreadProvider
 {
 public:
 	static const FName ProviderName;
-	FThreadProvider(IAnalysisSession& Session);
-	~FThreadProvider();
+
+	explicit FThreadProvider(IAnalysisSession& Session);
+	virtual ~FThreadProvider();
+
 	void AddGameThread(uint32 Id);
 	void AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority);
 	void SetThreadPriority(uint32 Id, EThreadPriority Priority);

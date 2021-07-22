@@ -199,7 +199,7 @@ private:
 	static constexpr double DefaultTimelineSampleGranularity = 0.0001; // 0.1ms
 
 public:
-	FAllocationsProvider(IAnalysisSession& InSession);
+	explicit FAllocationsProvider(IAnalysisSession& InSession);
 	virtual ~FAllocationsProvider();
 
 	static FName GetName();

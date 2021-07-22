@@ -14,8 +14,9 @@ class FContextSwitchProvider
 {
 public:
 	static const FName ProviderName;
-	FContextSwitchProvider(IAnalysisSession& Session);
-	~FContextSwitchProvider();
+
+	explicit FContextSwitchProvider(IAnalysisSession& Session);
+	virtual ~FContextSwitchProvider();
 
 	int32 GetCoreNumber(uint32 ThreadId, double Time) const override;
 	const void EnumerateContextSwitches(uint32 ThreadId, double StartTime, double EndTime, ContextSwitchCallback Callback) const override;

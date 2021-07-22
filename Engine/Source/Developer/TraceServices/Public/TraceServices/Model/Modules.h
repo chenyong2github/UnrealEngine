@@ -80,7 +80,9 @@ public:
 		uint32 SymbolsResolved;
 		uint32 SymbolsFailed;
 	};
-	
+
+	virtual ~IModuleProvider() = default;
+
 	/** Queries the name of the symbol at address. This function returns immedately, 
 	 * but the lookup is async. See \ref FResolvedSymbol for details. It assumed that 
 	 * all calls to this function happens before analysis has ended.

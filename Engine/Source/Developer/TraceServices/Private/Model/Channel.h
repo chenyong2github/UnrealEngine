@@ -15,6 +15,8 @@ public:
 	static const FName ProviderName;
 
 	FChannelProvider();
+	virtual ~FChannelProvider() {}
+
 	void AnnounceChannel(const TCHAR* ChannelName, uint32 Id, bool bReadOnly);
 	void UpdateChannel(uint32 Id, bool bEnabled);
 

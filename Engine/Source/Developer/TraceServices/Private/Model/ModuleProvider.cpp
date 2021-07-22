@@ -53,8 +53,8 @@ template<typename SymbolResolverType>
 class TModuleProvider : public IModuleAnalysisProvider
 {
 public:
-								TModuleProvider(IAnalysisSession& Session);
-	virtual 					~TModuleProvider() override;
+	explicit TModuleProvider(IAnalysisSession& Session);
+	virtual ~TModuleProvider();
 
 	//Query interface
 	const FResolvedSymbol*		GetSymbol(uint64 Address) override;
