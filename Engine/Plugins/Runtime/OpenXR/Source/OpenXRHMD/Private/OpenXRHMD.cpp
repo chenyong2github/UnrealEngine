@@ -720,15 +720,15 @@ bool FOpenXRHMDPlugin::InitInstance()
 		return false;
 	}
 
-	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-	{
-		Module->PostCreateInstance(Instance);
-	}
-
 	if (!InitOpenXRCore(Instance))
 	{
 		UE_LOG(LogHMD, Log, TEXT("Failed to initialize core functions. Please check that you have a valid OpenXR runtime installed."));
 		return false;
+	}
+
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		Module->PostCreateInstance(Instance);
 	}
 
 	return true;
