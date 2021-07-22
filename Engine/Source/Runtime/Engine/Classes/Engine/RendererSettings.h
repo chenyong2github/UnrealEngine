@@ -152,6 +152,7 @@ namespace EFixedFoveationLevels
 		Low = 1 UMETA(DisplayName = "Low"),
 		Medium = 2 UMETA(DisplayName = "Medium"),
 		High = 3 UMETA(DisplayName = "High"),
+		HighTop = 4 UMETA(DisplayName = "High Top"),
 	};
 }
 
@@ -476,9 +477,14 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	FVector TranslucentSortAxis;
 
 	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
-		ConsoleVariable = "vr.VRS.HMDFixedFoveationLevel", DisplayName = "HMD Fixed Foveation Level (experimental)",
+		ConsoleVariable = "vr.VRS.HMDFixedFoveationLevel", DisplayName = "HMD Fixed Foveation Level (Experimental)",
 		ToolTip = "Set the level of fixed-foveation to apply when generating the Variable Rate Shading attachment. This feature is currently experimental.\nThis can yield some fairly significant performance benefits on GPUs that support Tier 2 VRS.\nLower settings will result in almost no discernible artifacting on most HMDs; higher settings will show some artifacts towards the edges of the view."))
-		TEnumAsByte<EFixedFoveationLevels::Type> HMDFixedFoveationLevel;
+	TEnumAsByte<EFixedFoveationLevels::Type> HMDFixedFoveationLevel;
+
+	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
+		ConsoleVariable = "vr.VRS.HMDFixedFoveationDynamic", DisplayName = "Dynamic Fixed Foveation (Oculus Quest/Quest 2 Only)",
+		ToolTip = "Allows fixed foveation level to adjust dynamically based on GPU utilization.\nLevel will range between none at the minimum, and the currently selected foveation level at the maximum."))
+	uint32 bHMDFixedFoveationDynamic:1;
 
 	UPROPERTY(config, EditAnywhere, Category=Postprocessing, meta=(
 		ConsoleVariable="r.CustomDepth",DisplayName="Custom Depth-Stencil Pass",
