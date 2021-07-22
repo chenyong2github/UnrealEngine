@@ -4,6 +4,9 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#endif // WITH_EDITOR
 
 ALightWeightInstanceStaticMeshManager::ALightWeightInstanceStaticMeshManager(const FObjectInitializer& ObjectInitializer)
 {
@@ -90,34 +93,59 @@ void ALightWeightInstanceStaticMeshManager::RemoveInstanceFromRendering(int32 Da
 {
 	if (IsIndexValid(DataIndex))
 	{
-		const int32 RenderingIndex = DataIndicesToRenderingIndices[DataIndex];
+		if (DataIndicesToBeDeleted.IsEmpty())
+		{
+			// We can't remove the indices right away because we could have a situation where we receive multiple requests to convert an instance to an actor in the same frame	
+#if WITH_EDITOR
+			if (GEditor)
+			{
+				GEditor->GetTimerManager()->SetTimerForNextTick([this]() { PostRemoveInstanceFromRendering(); });
+			}
+			else
+#endif // WITH_EDITOR
+			{
+				GetWorld()->GetTimerManager().SetTimerForNextTick([this]() { PostRemoveInstanceFromRendering(); });
+			}
+		}
 
+		DataIndicesToBeDeleted.AddUnique(DataIndex);
+	}
+}
+
+void ALightWeightInstanceStaticMeshManager::PostRemoveInstanceFromRendering()
+{
+	TArray<int32> RenderingIndicesToBeDeleted;
+	for (int32 DataIndex : DataIndicesToBeDeleted)
+	{
+		RenderingIndicesToBeDeleted.Add(DataIndicesToRenderingIndices[DataIndex]);
+	}
+
+	RenderingIndicesToBeDeleted.Sort();
+	int32 Count = RenderingIndicesToBeDeleted.Num();
+	for (int32 Idx = Count-1; Idx >= 0; Idx--)
+	{
+		int32 RenderingIndex = RenderingIndicesToBeDeleted[Idx];
 		if (RenderingIndex != INDEX_NONE)
 		{
 			if (InstancedStaticMeshComponent)
 			{
 				InstancedStaticMeshComponent->RemoveInstance(RenderingIndex);
 			}
+			RenderingIndicesToDataIndices.RemoveAtSwap(RenderingIndex);
 
-			// We can't remove the indices right away because we could have a situation where we receive multiple requests to convert an instance to an actor in the same frame			
-			GetWorld()->GetTimerManager().SetTimerForNextTick([this, RenderingIndex]() { PostRemoveInstanceFromRendering(RenderingIndex); });
+			// fix up the other side of the map to match the change we just made
+			// if we removed the last element than nothing was moved so we're done
+			if (RenderingIndex < RenderingIndicesToDataIndices.Num())
+			{
+				// find the data index that corresponds with the changed rendering index
+				const int32 ShiftedDataIndex = RenderingIndicesToDataIndices[RenderingIndex];
+
+				DataIndicesToRenderingIndices[ShiftedDataIndex] = RenderingIndex;
+			}
 		}
 	}
-}
 
-void ALightWeightInstanceStaticMeshManager::PostRemoveInstanceFromRendering(int32 RenderingIndex)
-{
-	RenderingIndicesToDataIndices.RemoveAtSwap(RenderingIndex);
-
-	// fix up the other side of the map to match the change we just made
-	// if we removed the last element than nothing was moved so we're done
-	if (RenderingIndex < RenderingIndicesToDataIndices.Num())
-	{
-		// find the data index that corresponds with the changed rendering index
-		const int32 ShiftedDataIndex = RenderingIndicesToDataIndices[RenderingIndex];
-
-		DataIndicesToRenderingIndices[ShiftedDataIndex] = RenderingIndex;
-	}
+	DataIndicesToBeDeleted.Reset();
 }
 
 void ALightWeightInstanceStaticMeshManager::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -348,4 +376,14 @@ void ALightWeightInstanceStaticMeshManager::GetLWIDataIndices(TArrayView<const F
 			OutDataIndices.Add(RenderingIndicesToDataIndices[InstanceId.InstanceIndex]);
 		}
 	}
+}
+
+int32 ALightWeightInstanceStaticMeshManager::ConvertInternalIndexToHandleIndex(int32 InInternalIndex) const
+{
+	return DataIndicesToRenderingIndices[InInternalIndex];
+}
+
+int32 ALightWeightInstanceStaticMeshManager::ConvertHandleIndexToInternalIndex(int32 InHandleIndex) const
+{
+	return RenderingIndicesToDataIndices[InHandleIndex];
 }

@@ -16,7 +16,7 @@ public:
 
 	// Returns a handle to a new light weight instance that represents an object of type ActorClass
 	UFUNCTION(BlueprintCallable, Category = "Light Weight Instance")
-	static FActorInstanceHandle CreateNewLightWeightInstance(UClass* ActorClass, FTransform Transform, ULevel* Level);
+	static FActorInstanceHandle CreateNewLightWeightInstance(UClass* ActorClass, FTransform Transform, UDataLayer* Layer, UWorld* World);
 
 	// Returns a handle to the light weight representation and destroys Actor if successful; Returns a handle to Actor otherwise
 	UFUNCTION(BlueprintCallable, Category = "Light Weight Instance")

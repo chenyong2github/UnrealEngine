@@ -7,6 +7,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/Commands/UICommandList.h"
 #include "GameFramework/Actor.h"
+#include "DataLayer/DataLayerEditorSubsystem.h"
 #endif
 #include "GameFramework/LightWeightInstanceManager.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"
@@ -106,10 +107,17 @@ void FLightWeightInstancesEditorModule::ConvertActorsToLWIsUIAction(const TArray
 		UE_LOG(LogLWIEditor, Log, TEXT("Unable to convert unspecified actors to light weight instances"));
 		return;
 	}
-	ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindOrAddLightWeightInstanceManager(InActors[0]->GetClass(), InActors[0]->GetLevel());
-	check(Manager);
+	
 	for (AActor* Actor : InActors)
 	{
+		// use the first layer the actor is in if it's in multiple layers
+		TArray<const UDataLayer*> DataLayers = Actor->GetDataLayerObjects();
+		const UDataLayer* Layer = DataLayers.Num() > 0 ? DataLayers[0] : nullptr;
+
+		ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindOrAddLightWeightInstanceManager(Actor->GetClass(), Layer, Actor->GetWorld());
+		check(Manager);
+		UDataLayerEditorSubsystem::Get()->OnActorDataLayersChanged().Broadcast(Manager);
+
 		Manager->ConvertActorToLightWeightInstance(Actor);
 	}
 }

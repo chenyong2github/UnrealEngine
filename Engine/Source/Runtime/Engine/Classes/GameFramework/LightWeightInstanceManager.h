@@ -172,6 +172,10 @@ protected:
 	// Gets the class that implements interfaces for light weight instances owned by this manager
 	virtual UClass* GetInterfaceClass() const;
 
+	// Helper functions for converting between our internal storage indices and the indices used by external bookkeeping
+	virtual int32 ConvertInternalIndexToHandleIndex(int32 InInternalIndex) const { return InInternalIndex; }
+	virtual int32 ConvertHandleIndexToInternalIndex(int32 InHandleIndex) const { return InHandleIndex; }
+
 	//
 	// Data and replication functions
 	//

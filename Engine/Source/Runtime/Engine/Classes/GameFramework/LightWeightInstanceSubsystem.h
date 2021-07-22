@@ -38,11 +38,11 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 	ALightWeightInstanceManager* FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const;
 
 	// Returns the instance manager that handles actors of type ActorClass in level Level
-	ALightWeightInstanceManager* FindLightWeightInstanceManager(UClass* ActorClass, ULevel* Level) const;
+	ALightWeightInstanceManager* FindLightWeightInstanceManager(UClass* ActorClass, const UDataLayer* Layer) const;
 
 	// Returns the instance manager that handles instances of type Class that live in Level
 	UFUNCTION(Server, Unreliable)
-	ALightWeightInstanceManager* FindOrAddLightWeightInstanceManager(UClass* ActorClass, ULevel* Level);
+	ALightWeightInstanceManager* FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayer* Layer, UWorld* World);
 
 	// Returns the actor specified by Handle. This may require loading and creating the actor object.
 	AActor* FetchActor(const FActorInstanceHandle& Handle);
@@ -63,7 +63,10 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 	bool IsInLevel(const FActorInstanceHandle& Handle, const ULevel* InLevel);
 
 	// Returns a handle to a new light weight instance that represents an object of type ActorClass
-	FActorInstanceHandle CreateNewLightWeightInstance(UClass* ActorClass, FLWIData* InitData, ULevel* Level);
+	FActorInstanceHandle CreateNewLightWeightInstance(UClass* ActorClass, FLWIData* InitData, UDataLayer* Layer, UWorld* World);
+
+	// deletes the instance identified by Handle
+	void DeleteInstance(const FActorInstanceHandle& Handle);
 
 	// Returns true if the handle can return an object that implements the interface U
 	template<typename U>
@@ -90,7 +93,7 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 	}
 
 protected:
-	// Returns the class of the insance manager best suited to support instances of type ActorClass
+	// Returns the class of the instance manager best suited to support instances of type ActorClass
 	UClass* FindBestInstanceManagerClass(const UClass* ActorClass);
 
 	// Returns the index associated with Manager

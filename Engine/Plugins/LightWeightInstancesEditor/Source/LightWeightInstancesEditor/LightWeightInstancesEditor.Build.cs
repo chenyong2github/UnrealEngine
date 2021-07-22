@@ -41,8 +41,14 @@ public class LightWeightInstancesEditor : ModuleRules
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
-		
-		
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.Add("DataLayerEditor");
+		}
+
+
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
