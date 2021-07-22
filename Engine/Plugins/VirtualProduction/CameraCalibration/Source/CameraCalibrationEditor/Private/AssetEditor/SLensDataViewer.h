@@ -16,13 +16,13 @@ class FLensDataListItem;
 class FLensDataCategoryItem;
 class FCameraCalibrationCurveEditor;
 class SCameraCalibrationCurveEditorPanel;
-
+class FCameraCalibrationStepsController;
+class FCameraCalibrationTimeSliderController;
 
 /** Widget used to display data from the LensFile */
 class SLensDataViewer : public SCompoundWidget, public FSelfRegisteringEditorUndoClient
 {
 public:
-
 	SLATE_BEGIN_ARGS(SLensDataViewer)
 	{}
 
@@ -31,7 +31,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, ULensFile* InLensFile);
+	void Construct(const FArguments& InArgs, ULensFile* InLensFile, const TSharedRef<FCameraCalibrationStepsController>& InCalibrationStepsController);
 
 	/** Get the currently selected data category. */
 	TSharedPtr<FLensDataCategoryItem> GetDataCategorySelection() const;
@@ -91,6 +91,9 @@ private:
 	/** Refreshes curve editor */
 	void RefreshCurve() const;
 
+	/** Refreshes time slider controller */
+	void RefreshTimeSlider() const;
+
 	/** Callbacked when user clicks AddPoint from the dialog */
 	void OnLensDataPointAdded();
 
@@ -102,7 +105,7 @@ private:
 
 	/** Used to keep same selected data point when rebuilding tree */
 	void UpdateDataSelection(const TSharedPtr<FLensDataListItem>& PreviousSelection);
-	
+
 private:
 	
 	/** Data category TreeView */
@@ -137,4 +140,7 @@ private:
 
 	/** Evaluated FIZ for the current frame */
 	TAttribute<FCachedFIZData> CachedFIZ;
+
+	/** Weak reference to Time Slider Controller */
+	TWeakPtr<FCameraCalibrationTimeSliderController> TimeSliderControllerWeakPtr;
 };

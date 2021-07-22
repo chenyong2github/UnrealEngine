@@ -192,6 +192,16 @@ bool FDistortionTable::DoesZoomPointExists(float InFocus, float InZoom, float In
 	return false;
 }
 
+const FBaseFocusPoint* FDistortionTable::GetBaseFocusPoint(int32 InIndex) const
+{
+	if (FocusPoints.IsValidIndex(InIndex))
+	{
+		return &FocusPoints[InIndex];
+	}
+
+	return nullptr;
+}
+
 TMap<ELensDataCategory, FLinkPointMetadata> FDistortionTable::GetLinkedCategories() const
 {
 	static TMap<ELensDataCategory, FLinkPointMetadata> LinkedToCategories =

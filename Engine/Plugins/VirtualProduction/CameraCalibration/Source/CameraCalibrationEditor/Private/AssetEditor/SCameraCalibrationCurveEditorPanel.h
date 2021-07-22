@@ -7,6 +7,8 @@
 #include "Widgets/Layout/SBox.h"
 
 class FCurveEditor;
+class FCameraCalibrationStepsController;
+class ITimeSliderController;
 
 /**
  * Camera Calibration Curve editor widget that reflects the state of an FCurveEditor
@@ -17,7 +19,7 @@ public:
 	SLATE_BEGIN_ARGS( SCameraCalibrationCurveEditorPanel ) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor);
+	void Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor, TWeakPtr<ITimeSliderController> InTimeSliderControllerWeakPtr);
 	
 	/**
 	 * Copied from SCurveEditorPanel in order to have custom order and custom buttons in toolbar

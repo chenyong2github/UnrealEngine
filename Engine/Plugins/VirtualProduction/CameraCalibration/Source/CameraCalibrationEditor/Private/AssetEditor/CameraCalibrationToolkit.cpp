@@ -53,7 +53,7 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 
 	LensEvaluationWidget = SNew(SLensEvaluation, CalibrationStepsController, InLensFile);
 	CalibrationStepsTab = CalibrationStepsController->BuildUI();
-	LensEditorTab = SNew(SLensFilePanel, LensFile)
+	LensEditorTab = SNew(SLensFilePanel, LensFile, CalibrationStepsController.ToSharedRef())
 		.CachedFIZData(TAttribute<FCachedFIZData>::Create(TAttribute<FCachedFIZData>::FGetter::CreateSP(LensEvaluationWidget.ToSharedRef(), &SLensEvaluation::GetLastEvaluatedData)));
 		
 	TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout("CameraCalibrationToolLayout_v0.8")

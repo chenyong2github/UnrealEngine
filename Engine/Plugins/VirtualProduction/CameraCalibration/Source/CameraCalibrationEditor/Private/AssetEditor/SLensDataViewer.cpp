@@ -5,14 +5,19 @@
 #include "SCameraCalibrationCurveEditorPanel.h"
 
 #include "CameraCalibrationCurveEditor.h"
+#include "CameraCalibrationSettings.h"
+#include "CameraCalibrationStepsController.h"
+#include "CameraCalibrationTimeSliderController.h"
+#include "CurveEditorSettings.h"
 #include "ICurveEditorModule.h"
 #include "ISinglePropertyView.h"
 #include "LensFile.h"
+#include "LiveLinkCameraController.h"
 #include "RichCurveEditorModel.h"
+#include "SLensDataAddPointDialog.h"
 #include "SLensDataCategoryListItem.h"
 #include "SLensDataListItem.h"
-#include "SLensDataAddPointDialog.h"
-#include "CameraCalibrationSettings.h"
+
 #include "Curves/LensDataCurveModel.h"
 #include "Curves/LensDistortionParametersCurveModel.h"
 #include "Curves/LensEncodersCurveModel.h"
@@ -68,29 +73,79 @@ namespace LensDataUtils
 	}
 }
 
-void SLensDataViewer::Construct(const FArguments& InArgs, ULensFile* InLensFile)
+/**
+ * Custom curve bounds based on live input
+ */
+class FCameraCalibrationCurveEditorBounds : public ICurveEditorBounds
 {
-	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
+public:
+	FCameraCalibrationCurveEditorBounds(TSharedPtr<ITimeSliderController> InExternalTimeSliderController)
+		: TimeSliderControllerWeakPtr(InExternalTimeSliderController)
+	{}
 
+	virtual void GetInputBounds(double& OutMin, double& OutMax) const override
+	{
+		if (const TSharedPtr<ITimeSliderController> ExternalTimeSliderController = TimeSliderControllerWeakPtr.Pin())
+		{
+			const FAnimatedRange ViewRange = ExternalTimeSliderController->GetViewRange();
+			OutMin = ViewRange.GetLowerBoundValue();
+			OutMax = ViewRange.GetUpperBoundValue();
+		}
+	}
+
+	virtual void SetInputBounds(double InMin, double InMax) override
+	{
+		if (const TSharedPtr<ITimeSliderController> ExternalTimeSliderController = TimeSliderControllerWeakPtr.Pin())
+		{
+			ExternalTimeSliderController->SetViewRange(InMin, InMax, EViewRangeInterpolation::Immediate);
+		}
+	}
+
+	TWeakPtr<ITimeSliderController> TimeSliderControllerWeakPtr;
+};
+
+void SLensDataViewer::Construct(const FArguments& InArgs, ULensFile* InLensFile, const TSharedRef<FCameraCalibrationStepsController>& InCalibrationStepsController)
+{
+	const UCameraCalibrationEditorSettings* EditorSettings = GetDefault<UCameraCalibrationEditorSettings>();
+	
+	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
+		
 	//Setup curve editor
 	CurveEditor = MakeShared<FCameraCalibrationCurveEditor>();
-	FCurveEditorInitParams InitParams;
+	const FCurveEditorInitParams InitParams;
 	CurveEditor->InitCurveEditor(InitParams);
 	CurveEditor->GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}");
+	
+	TUniquePtr<ICurveEditorBounds> EditorBounds;
+
+	// We need to keep Time Slider outside the scope in order to be valid whe it passed to CurveEditorPanel
+	TSharedPtr<FCameraCalibrationTimeSliderController> TimeSliderController;
+	if (EditorSettings->bEnableTimeSlider)
+	{
+		TimeSliderController = MakeShared<FCameraCalibrationTimeSliderController>(InCalibrationStepsController, InLensFile);
+		TimeSliderControllerWeakPtr = TimeSliderController;
+		EditorBounds = MakeUnique<FCameraCalibrationCurveEditorBounds>(TimeSliderController);
+	}
+	else
+	{
+		EditorBounds = MakeUnique<FStaticCurveEditorBounds>();
+		EditorBounds->SetInputBounds(0.05, 1.05);
+	}
+	CurveEditor->SetBounds(MoveTemp(EditorBounds));
+
+	// Set zoom as mouse zoom by default
+	check(CurveEditor->GetSettings()); // Should be valid all the time
+	CurveEditor->GetSettings()->SetZoomPosition(ECurveEditorZoomPosition::MousePosition);
 
 	// Set Delegates
 	CurveEditor->OnAddDataPointDelegate.BindSP(this, &SLensDataViewer::OnAddDataPointHandler);
-
-	TUniquePtr<ICurveEditorBounds> EditorBounds = MakeUnique<FStaticCurveEditorBounds>();
-	EditorBounds->SetInputBounds(0.05, 1.05);
-	CurveEditor->SetBounds(MoveTemp(EditorBounds));
 
 	// Snap only Y axis
 	FCurveEditorAxisSnap SnapYAxisOnly = CurveEditor->GetAxisSnap();
 	SnapYAxisOnly.RestrictedAxisList = EAxisList::Type::Y;
 	CurveEditor->SetAxisSnap(SnapYAxisOnly);
 
-	CurvePanel = SNew(SCameraCalibrationCurveEditorPanel, CurveEditor.ToSharedRef());
+	CurvePanel = SNew(SCameraCalibrationCurveEditorPanel, CurveEditor.ToSharedRef(), TimeSliderController);
 	CurveEditor->ZoomToFit();
 
 	CachedFIZ = InArgs._CachedFIZData;
@@ -179,6 +234,8 @@ void SLensDataViewer::OnGetDataEntryChildren(TSharedPtr<FLensDataListItem> Item,
 void SLensDataViewer::OnDataEntrySelectionChanged(TSharedPtr<FLensDataListItem> Node, ESelectInfo::Type SelectInfo)
 {
 	RefreshCurve();
+
+	RefreshTimeSlider();
 }
 
 void SLensDataViewer::PostUndo(bool bSuccess)
@@ -590,6 +647,35 @@ void SLensDataViewer::RefreshCurve() const
 		NewCurve->SetColor(EditorSettings->CategoryColor.GetColorForCategory(CategoryItem->Category));
 		const FCurveModelID CurveId = CurveEditor->AddCurve(MoveTemp(NewCurve));
 		CurveEditor->PinCurve(CurveId);
+	}
+}
+
+void SLensDataViewer::RefreshTimeSlider() const
+{
+	const TSharedPtr<FLensDataCategoryItem> CategoryItem = GetDataCategorySelection();
+	const TSharedPtr<FLensDataListItem> CurrentDataItem = GetSelectedDataEntry();
+	const TSharedPtr<FCameraCalibrationTimeSliderController> TimeSliderController = TimeSliderControllerWeakPtr.Pin();
+	if (!TimeSliderController.IsValid())
+	{
+		return;
+	}
+	if (!CurrentDataItem.IsValid() || !CategoryItem.IsValid())
+	{
+		TimeSliderController->ResetSelection();
+		return;
+	}
+
+	const bool bHasParameterIndex = CategoryItem->Category == ELensDataCategory::ImageCenter || CategoryItem->Category == ELensDataCategory::NodalOffset;
+	const int32 ParameterIndex = CategoryItem->GetParameterIndex();
+
+	// Reset selection if no selection of the curve for ImageCenter or NodalOffset
+	if (bHasParameterIndex && ParameterIndex == INDEX_NONE)
+	{
+		TimeSliderController->ResetSelection();
+	}
+	else
+	{
+		TimeSliderController->UpdateSelection(CurrentDataItem->Category, CurrentDataItem->GetFocus());
 	}
 }
 

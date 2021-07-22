@@ -105,6 +105,9 @@ public:
 	/** Get number of Focus points for this data table */
 	virtual int32 GetFocusPointNum() const PURE_VIRTUAL(FBaseLensTable::GetFocusPointNum, return INDEX_NONE; );
 
+	/** Get the base focus point by given index */
+	virtual const FBaseFocusPoint* GetBaseFocusPoint(int32 InIndex) const PURE_VIRTUAL(FBaseLensTable::GetBaseFocusPoint, return nullptr; );
+
 	/** Get Struct class of this Data Table */
 	virtual UScriptStruct* GetScriptStruct() const PURE_VIRTUAL(FBaseLensTable::GetFocusPointNum, return nullptr; );
 
@@ -143,6 +146,14 @@ public:
 	 * @return true if linkage exists
 	 */
 	bool HasLinkedZoomValues(const float InFocus, const float InZoomPoint, float InputTolerance = KINDA_SMALL_NUMBER) const;
+
+	/**
+	 * Whether given value fit between Focus Point Neighbors
+	 * @param InFocusPoint given focus point
+	 * @param InFocusValueToEvaluate value to evaluate between focus point neighbors
+	 * @return true if value fit between neighbors
+	 */
+	bool IsFocusBetweenNeighbor(const float InFocusPoint, const float InFocusValueToEvaluate) const;
 
 	/** Get the pointer to owner lens file */
 	ULensFile* GetLensFile() const { return LensFile.Get(); }
