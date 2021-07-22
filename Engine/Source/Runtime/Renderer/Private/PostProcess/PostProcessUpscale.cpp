@@ -166,10 +166,16 @@ EUpscaleMethod GetUpscaleMethod()
 	return static_cast<EUpscaleMethod>(FMath::Clamp(Value, 0, static_cast<int32>(EUpscaleMethod::Gaussian)));
 }
 
-FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FUpscaleInputs& Inputs)
+// static
+FScreenPassTexture ISpatialUpscaler::AddDefaultUpscalePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FInputs& Inputs,
+	EUpscaleMethod Method,
+	FPaniniProjectionConfig PaniniConfig)
 {
 	check(Inputs.SceneColor.IsValid());
-	check(Inputs.Method != EUpscaleMethod::MAX);
+	check(Method != EUpscaleMethod::MAX);
 	check(Inputs.Stage != EUpscaleStage::MAX);
 
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
@@ -201,7 +207,6 @@ FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
 	const FScreenPassTextureViewport OutputViewport(Output);
 
-	FPaniniProjectionConfig PaniniConfig = Inputs.PaniniConfig;
 	PaniniConfig.Sanitize();
 
 	const bool bUsePaniniProjection = PaniniConfig.IsEnabled();
@@ -220,7 +225,7 @@ FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	PassParameters->View = View.ViewUniformBuffer;
 
 	FUpscalePS::FPermutationDomain PixelPermutationVector;
-	PixelPermutationVector.Set<FUpscalePS::FMethodDimension>(Inputs.Method);
+	PixelPermutationVector.Set<FUpscalePS::FMethodDimension>(Method);
 	TShaderMapRef<FUpscalePS> PixelShader(View.ShaderMap, PixelPermutationVector);
 
 	const TCHAR* const StageNames[] = { TEXT("PrimaryToSecondary"), TEXT("PrimaryToOutput"), TEXT("SecondaryToOutput") };
@@ -228,7 +233,7 @@ FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	const TCHAR* StageName = StageNames[static_cast<uint32>(Inputs.Stage)];
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("Upscale(%s Method=%d) %dx%d -> %dx%d", StageName, int32(Inputs.Method), Inputs.SceneColor.ViewRect.Width(), Inputs.SceneColor.ViewRect.Height(), Output.ViewRect.Width(), Output.ViewRect.Height()),
+		RDG_EVENT_NAME("Upscale(%s Method=%d) %dx%d -> %dx%d", StageName, int32(Method), Inputs.SceneColor.ViewRect.Width(), Inputs.SceneColor.ViewRect.Height(), Output.ViewRect.Width(), Output.ViewRect.Height()),
 		PassParameters,
 		ERDGPassFlags::Raster,
 		[&View, bUsePaniniProjection, PixelShader, PassParameters, InputViewport, OutputViewport](FRHICommandList& RHICmdList)

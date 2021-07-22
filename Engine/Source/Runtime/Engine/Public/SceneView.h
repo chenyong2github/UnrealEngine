@@ -27,6 +27,7 @@ class ISceneViewExtension;
 class FSceneViewFamily;
 class FVolumetricFogViewResources;
 class FIESLightProfileResource;
+class ISpatialUpscaler;
 class ITemporalUpscaler;
 
 // Projection data for a FSceneView
@@ -1406,13 +1407,29 @@ struct FDisplayInternalsData
 //////////////////////////////////////////////////////////////////////////
 
 
+/**
+ * Generic plugin extension that have a lifetime of the FSceneViewFamily
+ */
+class ENGINE_API ISceneViewFamilyExtention
+{
+protected:
+	/** 
+	 * Called by the destructor of the view family.
+	 * Can be called on game or rendering thread.
+	 */
+	virtual ~ISceneViewFamilyExtention() {};
+
+	friend class FSceneViewFamily;
+};
+
+
 /*
  * Game thread and render thread interface that takes care of a FSceneViewFamily's screen percentage.
  *
  * The renderer reserves the right to delete and replace the view family's screen percentage interface
  * for testing purposes with the r.Test.OverrideScreenPercentageInterface CVar.
  */
-class ENGINE_API ISceneViewFamilyScreenPercentage
+class ENGINE_API ISceneViewFamilyScreenPercentage : ISceneViewFamilyExtention
 {
 public:
 	// Sets the minimal and max screen percentage.
@@ -1435,12 +1452,6 @@ public:
 #endif
 
 protected:
-	/** 
-	 * Called by the destructor of the view family.
-	 * Can be called on game or rendering thread.
-	 */
-	virtual ~ISceneViewFamilyScreenPercentage() {};
-
 	/** 
 	 * Method to know the maximum value that can be returned by GetPrimaryResolutionFraction_RenderThread().
 	 * Can be called on game or rendering thread. This should return >= 1 if screen percentage show flag is disabled.
@@ -1763,6 +1774,8 @@ public:
 	{
 		check(ScreenPercentageInterface == nullptr);
 		check(TemporalUpscalerInterface == nullptr);
+		check(PrimarySpatialUpscalerInterface == nullptr);
+		check(SecondarySpatialUpscalerInterface == nullptr);
 	}
 
 
@@ -1778,11 +1791,37 @@ public:
 		return TemporalUpscalerInterface;
 	}
 
+	FORCEINLINE void SetPrimarySpatialUpscalerInterface(ISpatialUpscaler* InSpatialUpscalerInterface)
+	{
+		check(InSpatialUpscalerInterface);
+		checkf(PrimarySpatialUpscalerInterface == nullptr, TEXT("View family already had a primary spatial upscaler assigned."));
+		PrimarySpatialUpscalerInterface = InSpatialUpscalerInterface;
+	}
+
+	FORCEINLINE const ISpatialUpscaler* GetPrimarySpatialUpscalerInterface() const
+	{
+		return PrimarySpatialUpscalerInterface;
+	}
+
+	FORCEINLINE void SetSecondarySpatialUpscalerInterface(ISpatialUpscaler* InSpatialUpscalerInterface)
+	{
+		check(InSpatialUpscalerInterface);
+		checkf(SecondarySpatialUpscalerInterface == nullptr, TEXT("View family already had a secondary spatial upscaler assigned."));
+		SecondarySpatialUpscalerInterface = InSpatialUpscalerInterface;
+	}
+
+	FORCEINLINE const ISpatialUpscaler* GetSecondarySpatialUpscalerInterface() const
+	{
+		return SecondarySpatialUpscalerInterface;
+	}
+
 private:
 	/** Interface to handle screen percentage of the views of the family. */
 	ISceneViewFamilyScreenPercentage* ScreenPercentageInterface;
 
 	const ITemporalUpscaler* TemporalUpscalerInterface;
+	ISpatialUpscaler* PrimarySpatialUpscalerInterface;
+	ISpatialUpscaler* SecondarySpatialUpscalerInterface;
 
 	/** whether the translucency are allowed to render after DOF, if not they will be rendered in standard translucency. */
 	bool bAllowTranslucencyAfterDOF;
