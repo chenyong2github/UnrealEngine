@@ -142,9 +142,12 @@ public:
 	TArray<T*> GetElementsInDetailsView() const
 	{
 		TArray<T*> Elements;
-		for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+		for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 		{
-			Elements.Add(Cast<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>()));
+			if(ObjectBeingCustomized.IsValid())
+			{
+				Elements.Add(Cast<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>()));
+			}
 		}
 		return Elements;
 	}
@@ -155,9 +158,12 @@ public:
 		TArray<T*> Elements;
 		if(HierarchyBeingCustomized)
 		{
-			for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+			for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 			{
-				Elements.Add(HierarchyBeingCustomized->Find<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetKey()));
+				if(ObjectBeingCustomized.IsValid())
+				{
+					Elements.Add(HierarchyBeingCustomized->Find<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetKey()));
+				}
 			}
 		}
 		return Elements;
@@ -172,7 +178,7 @@ protected:
 
 	UControlRigBlueprint* BlueprintBeingCustomized;
 	URigHierarchy* HierarchyBeingCustomized;
-	TArray<UDetailsViewWrapperObject*> ObjectsBeingCustomized;
+	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> ObjectsBeingCustomized;
 };
 
 class FRigTransformElementDetails : public FRigBaseElementDetails

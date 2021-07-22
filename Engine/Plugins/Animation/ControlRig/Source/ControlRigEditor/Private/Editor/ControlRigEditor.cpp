@@ -1342,6 +1342,7 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 				UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(
 					NodeDetailStruct, StructInstance->GetStructMemory(), UnitNode);
 				WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
+				WrapperObject->AddToRoot();
 				
 				FilteredObjects.Add(WrapperObject);
 				continue;
@@ -1424,6 +1425,7 @@ void FControlRigEditor::SetDetailViewForRigElements()
 
 		UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(Element->GetElementStruct(), (uint8*)Element, Hierarchy);
 		WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
+		WrapperObject->AddToRoot();
 
 		Objects.Add(WrapperObject);
 	}

@@ -762,7 +762,11 @@ void FRigBaseElementDetails::CustomizeChildren(TSharedRef<class IPropertyHandle>
 FRigElementKey FRigBaseElementDetails::GetElementKey() const
 {
 	check(ObjectsBeingCustomized.Num() == 1);
-	return ObjectsBeingCustomized[0]->GetContent<FRigBaseElement>()->GetKey(); 
+	if(ObjectsBeingCustomized[0].IsValid())
+	{
+		return ObjectsBeingCustomized[0]->GetContent<FRigBaseElement>()->GetKey(); 
+	}
+	return FRigElementKey();
 }
 
 FText FRigBaseElementDetails::GetName() const
@@ -820,22 +824,28 @@ bool FRigBaseElementDetails::IsSetupModeEnabled() const
 TArray<FRigElementKey> FRigBaseElementDetails::GetElementKeys() const
 {
 	TArray<FRigElementKey> Keys;
-	for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
-		Keys.Add(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetKey());
+		if(ObjectBeingCustomized.IsValid())
+		{
+			Keys.Add(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetKey());
+		}
 	}
 	return Keys;
 }
 
 bool FRigBaseElementDetails::IsAnyControlOfType(ERigControlType InType) const
 {
-	for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
-		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+		if(ObjectBeingCustomized.IsValid())
 		{
-			if(ControlElement->Settings.ControlType == InType)
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
 			{
-				return true;
+				if(ControlElement->Settings.ControlType == InType)
+				{
+					return true;
+				}
 			}
 		}
 	}
@@ -844,13 +854,16 @@ bool FRigBaseElementDetails::IsAnyControlOfType(ERigControlType InType) const
 
 bool FRigBaseElementDetails::IsAnyControlNotOfType(ERigControlType InType) const
 {
-	for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
-		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+		if(ObjectBeingCustomized.IsValid())
 		{
-			if(ControlElement->Settings.ControlType != InType)
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
 			{
-				return true;
+				if(ControlElement->Settings.ControlType != InType)
+				{
+					return true;
+				}
 			}
 		}
 	}
@@ -909,11 +922,14 @@ void FRigTransformElementDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 
 bool FRigTransformElementDetails::IsCurrentLocalEnabled() const
 {
-	for(UDetailsViewWrapperObject* WrapperObject : ObjectsBeingCustomized)
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
-		if(ObjectsBeingCustomized[0]->GetContent<FRigBaseElement>()->GetType() == ERigElementType::Control)
+		if(ObjectBeingCustomized.IsValid())
 		{
-			return false;
+			if(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetType() == ERigElementType::Control)
+			{
+				return false;
+			}
 		}
 	}
 	return true;
@@ -1656,11 +1672,14 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 	}
 
 	TArray<FRigControlElement*> ControlElements;
-	for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
-		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+		if(ObjectBeingCustomized.IsValid())
 		{
-			ControlElements.Add(ControlElement);
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+			{
+				ControlElements.Add(ControlElement);
+			}
 		}
 	}
 
@@ -1785,13 +1804,16 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 
 bool FRigControlElementDetails::IsGizmoEnabled() const
 {
-	for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
-		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+		if(ObjectBeingCustomized.IsValid())
 		{
-			if(ControlElement->Settings.bGizmoEnabled)
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
 			{
-				return true;
+				if(ControlElement->Settings.bGizmoEnabled)
+				{
+					return true;
+				}
 			}
 		}
 	}
@@ -1800,23 +1822,26 @@ bool FRigControlElementDetails::IsGizmoEnabled() const
 
 bool FRigControlElementDetails::IsEnabled(ERigControlValueType InValueType) const
 {
-	for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
 	{
-		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
+		if(ObjectBeingCustomized.IsValid())
 		{
-			switch (InValueType)
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ObjectBeingCustomized->GetContent<FRigBaseElement>()))
 			{
-				case ERigControlValueType::Minimum:
-				case ERigControlValueType::Maximum:
+				switch (InValueType)
 				{
-					if(ControlElement->Settings.bLimitTranslation || ControlElement->Settings.bLimitRotation || ControlElement->Settings.bLimitScale)
+					case ERigControlValueType::Minimum:
+					case ERigControlValueType::Maximum:
 					{
-						return true;
+						if(ControlElement->Settings.bLimitTranslation || ControlElement->Settings.bLimitRotation || ControlElement->Settings.bLimitScale)
+						{
+							return true;
+						}
 					}
-				}
-				default:
-				{
-					break;
+					default:
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -1840,15 +1865,18 @@ FText FRigControlElementDetails::GetDisplayName() const
 
 	for(int32 ObjectIndex = 0; ObjectIndex < ObjectsBeingCustomized.Num(); ObjectIndex++)
 	{
-		UDetailsViewWrapperObject* ObjectBeingCustomized = ObjectsBeingCustomized[ObjectIndex];
-		const FRigControlElement* ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
-		if(ObjectIndex == 0)
+		TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized = ObjectsBeingCustomized[ObjectIndex];
+		if(ObjectBeingCustomized.IsValid())
 		{
-			DisplayName = ControlElement->Settings.DisplayName;
-		}
-		else if(DisplayName != ControlElement->Settings.DisplayName)
-		{
-			return ControlRigDetailsMultipleValues;
+			const FRigControlElement* ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+			if(ObjectIndex == 0)
+			{
+				DisplayName = ControlElement->Settings.DisplayName;
+			}
+			else if(DisplayName != ControlElement->Settings.DisplayName)
+			{
+				return ControlRigDetailsMultipleValues;
+			}
 		}
 	}
 
@@ -1865,15 +1893,18 @@ void FRigControlElementDetails::SetDisplayName(const FText& InNewText, ETextComm
 	
 	for(int32 ObjectIndex = 0; ObjectIndex < ObjectsBeingCustomized.Num(); ObjectIndex++)
 	{
-		UDetailsViewWrapperObject* ObjectBeingCustomized = ObjectsBeingCustomized[ObjectIndex];
-		FRigControlElement* ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
-
-		FRigControlSettings Settings = ControlElement->Settings;
-		Settings.DisplayName = DisplayName;
-
-		if(GetHierarchy())
+		TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized = ObjectsBeingCustomized[ObjectIndex];
+		if(ObjectBeingCustomized.IsValid())
 		{
-			GetHierarchy()->SetControlSettings(ControlElement->GetKey(), Settings);
+			FRigControlElement* ControlElement = ObjectBeingCustomized->GetContent<FRigControlElement>();
+
+			FRigControlSettings Settings = ControlElement->Settings;
+			Settings.DisplayName = DisplayName;
+
+			if(GetHierarchy())
+			{
+				GetHierarchy()->SetControlSettings(ControlElement->GetKey(), Settings);
+			}
 		}
 	}
 }
