@@ -71,6 +71,20 @@ public:
 	void SetNumUVChannels(int32 NumUVChannels);
 	int32 GetSelectedChannelIndex(bool bForceToZeroOnFailure = true);
 
+	UFUNCTION(CallInEditor, Category = UVChannel, meta = (DisplayName = "Add UV Channel"))
+	void AddUVChannel()
+	{
+		ChangeNumUVChannels(1);
+	}
+
+	UFUNCTION(CallInEditor, Category = UVChannel, meta = (DisplayName = "Delete UV Channel"))
+	void DeleteUVChannel()
+	{
+		ChangeNumUVChannels(-1);
+	}
+
+	void ChangeNumUVChannels(int32 Delta);
+
 	/** Whether to layout UVs (to ensure unique texels for each face), or just use the existing UVs */
 	UPROPERTY(EditAnywhere, Category = Atlas, meta = (DisplayName = "Do UV Layout"))
 	bool bDoUVLayout = true;
@@ -188,6 +202,9 @@ public:
 	const TSharedPtr<FUICommandInfo>& GetUICommandInfo() const;
 
 	virtual TArray<FFractureToolContext> GetFractureToolContexts() const override;
+
+	// Update number of UV channels for selected geometry collections
+	void UpdateUVChannels(int32 TargetNumUVChannels);
 
 
 protected:
