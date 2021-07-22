@@ -671,19 +671,32 @@ public:
 };
 
 /**
- * Operation used to download a file from the source control server
+ * Operation used to download a file from the source control server directly rather
+ * than sync it. This should not change the state of anything locally on the client.
  */
 class FDownloadFile : public FSourceControlOperationBase
 {
 public:
+	enum class EVerbosity
+	{
+		/** No logging when the command is run. */
+		None,
+		/** Log the full cmdline when the command is run. */
+		Full
+	};
+
 	/** 
 	 * This constructor will download the files and keep them in memory, 
 	 * which can then be accessed by calling XXX.
 	 */
 	FDownloadFile() = default;
+
+	FDownloadFile( EVerbosity InVerbosity)
+		: Verbosity(InVerbosity)
+	{}
 	
 	/** This constructor will download the files to the given directory */
-	SOURCECONTROL_API FDownloadFile(FStringView InTargetDirectory);
+	SOURCECONTROL_API FDownloadFile(FStringView InTargetDirectory, EVerbosity InVerbosity);
 
 	// ISourceControlOperation interface
 	virtual FName GetName() const override
@@ -724,7 +737,13 @@ public:
 			return FSharedBuffer();
 		}
 	}
+
+	bool ShouldLogToStdOutput() const
+	{
+		return Verbosity == EVerbosity::Full;
+	}
 private:
+	EVerbosity Verbosity = EVerbosity::Full;
 
 	FString TargetDirectory;
 	TMap<FString, FSharedBuffer> FileDataMap;

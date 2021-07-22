@@ -6,8 +6,9 @@
 #include "ISourceControlModule.h"
 #include "Misc/Paths.h"
 
-FDownloadFile::FDownloadFile(FStringView InTargetDirectory)
-	: TargetDirectory(InTargetDirectory)
+FDownloadFile::FDownloadFile(FStringView InTargetDirectory, EVerbosity InVerbosity)
+	: Verbosity(InVerbosity)
+	, TargetDirectory(InTargetDirectory)
 {
 	FPaths::NormalizeDirectoryName(TargetDirectory);
 

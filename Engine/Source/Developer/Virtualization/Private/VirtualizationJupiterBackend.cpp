@@ -1545,13 +1545,21 @@ private:
 				ResponseCode = Request->GetResponseCode();
 
 				// Request was successful, make sure we got all the expected data.
-				if (ResponseCode == 200)
+				if (FRequest::IsSuccessfulResponse(ResponseCode))
 				{
 					if (!Response.FromJson(Request->GetResponseAsJsonObject()))
 					{
-						UE_LOG(LogVirtualization, Error, TEXT("No valid response to http GET found, when accessing payload '%s'"), *Id.ToString());
+						UE_LOG(LogVirtualization, Error, TEXT("Failed to parser the header infomation about payload '%s'"), *Id.ToString());
 						return FCompressedBuffer();
 					}
+				}
+				else if (ResponseCode == 400)
+				{
+					// Response 400 indicates that the payload does not exist in Jupiter. Note that it is faster to just make the request
+					// and check for the response rather than call ::DoesPayloadExist prior to requesting the json header because this way 
+					// we will only make a single request if the payload exists or not.
+					UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugString(), *Id.ToString());
+					return FCompressedBuffer();
 				}
 				else if(!ShouldRetryOnError(ResponseCode))
 				{
