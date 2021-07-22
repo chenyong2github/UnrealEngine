@@ -38,6 +38,20 @@ public:
 		CollisionMesh
 	};
 
+	enum class EGroundPlanePolicy
+	{
+		NoGroundPlane = 0,
+		FixedZHeightGroundPlane = 1
+	};
+
+	enum class EGroundPlaneClippingPolicy
+	{
+		NoClipping = 0,
+		DiscardFullyHiddenFaces = 1,
+		CutFaces = 2,
+		CutFacesAndFill = 3
+	};
+
 	enum class EBaseCappingPolicy
 	{
 		NoBaseCapping = 0,
@@ -56,6 +70,12 @@ public:
 		FixedTriangleCount = 0,
 		TrianglesPerUnitSqMeter = 1,
 		GeometricTolerance = 2
+	};
+
+	enum class EUVGenerationPolicy : uint8
+	{
+		PreferUVAtlas = 0,
+		PreferXAtlas = 1
 	};
 
 	enum class ETextureSizePolicy : uint8
@@ -82,6 +102,9 @@ public:
 		bool bAutoThickenThinParts = false;
 		double AutoThickenThicknessMeters = 0.1;
 
+		bool bIgnoreTinyParts = false;
+		double TinyPartMaxDimensionMeters = 0.1;
+
 		EBaseCappingPolicy BaseCappingPolicy = EBaseCappingPolicy::NoBaseCapping;
 		double BaseThicknessOverrideMeters = 0.0;		// use this thickness for Solid. If zero, use AutoThickenThickness if bAutoThickenThinParts=true, otherwise use WorldSpaceApproximationAccuracyMeters
 		double BaseHeightOverrideMeters = 0.0;		// consider this height from MinZ as "base" region. If zero, use 2.0*WorldSpaceApproximationAccuracyMeters
@@ -100,12 +123,22 @@ public:
 		double MorphologyDistanceMeters = 0.1;
 
 		EOcclusionPolicy OcclusionPolicy = EOcclusionPolicy::VisibilityBased;
+		bool bAddDownwardFacesOccluder = true;
+
 		ESimplificationPolicy MeshSimplificationPolicy = ESimplificationPolicy::FixedTriangleCount;
 		int32 FixedTriangleCount = 5000;
 		double SimplificationTargetMetric = 0.1;		// interpretation varies depending on MeshSimplificationPolicy
 
+		EGroundPlanePolicy GroundPlanePolicy = EGroundPlanePolicy::NoGroundPlane;
+		double GroundPlaneZHeight = 0.0;
+		
+		EGroundPlaneClippingPolicy GroundPlaneClippingPolicy = EGroundPlaneClippingPolicy::NoClipping;
+
 		bool bCalculateHardNormals = true;
 		double HardNormalsAngleDeg = 60.0;
+
+		EUVGenerationPolicy UVPolicy = EUVGenerationPolicy::PreferXAtlas;
+		double UVAtlasStretchTarget = 0.1;
 
 		//
 		// Material approximation settings
