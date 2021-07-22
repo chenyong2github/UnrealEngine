@@ -81,14 +81,15 @@ enum class EParsedInterface
 enum class ECreateEngineTypesPhase : uint8
 {
 	Phase1,				// Create the Class, ScriptStruct, and Enum types
-	Phase2,				// Create the functions and properties
+	Phase2,				// Create the functions
+	Phase3,				// Create the properties and do final initialization
 	MAX_Phases,
 };
 
 enum class EPostParseFinalizePhase : uint8
 {
-	PreCreateEngineTypes,
-	PostCreateEngineTypes,
+	Phase1,				// Flag propagation for structures and property finalization
+	Phase2,				// All other finalization requirements
 	MAX_Phases,
 };
 
@@ -1237,6 +1238,8 @@ protected:
 		}
 	}
 #endif
+
+	virtual void CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase) override;
 
 	/**
 	 * Perform any post parsing finalization and validation

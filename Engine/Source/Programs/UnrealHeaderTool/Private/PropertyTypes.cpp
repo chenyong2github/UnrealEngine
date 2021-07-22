@@ -132,6 +132,74 @@ namespace
 		}
 	};
 
+	class FEnumLookup
+	{
+	public:
+		FEnumLookup()
+		{
+			GTypeDefinitionInfoMap.ForAllTypesByName([this](FUnrealTypeDefinitionInfo& TypeDef) 
+				{
+					if (FUnrealEnumDefinitionInfo* EnumDef = UHTCast<FUnrealEnumDefinitionInfo>(TypeDef))
+					{
+						for (const TPair<FName, int64>& Kvp : EnumDef->GetEnums())
+						{
+							EnumValueMap.Add(Kvp.Key, FEnumAndValue{ EnumDef, Kvp.Value });
+						}
+					}
+				}
+			);
+		}
+
+		// This code emulates UEnum::LookupEnumNameSlow.  There are some cases where the Value check for INDEX_NONE is 
+		// rejecting matches.
+		FUnrealEnumDefinitionInfo* Find(const TCHAR* EnumValueName)
+		{
+			const FEnumAndValue* Value = FindEnumAndValue(EnumValueName);
+			if (Value != nullptr && Value->Value != INDEX_NONE)
+			{
+				return Value->Enum;
+			}
+
+			FString TestShortName = FString(TEXT("::")) + EnumValueName;
+			return GTypeDefinitionInfoMap.Find<FUnrealEnumDefinitionInfo>([&TestShortName](FUnrealEnumDefinitionInfo& EnumDef)
+				{
+					for (const TPair<FName, int64>& NameAndValue : EnumDef.GetEnums())
+					{
+						if (NameAndValue.Key.ToString().Contains(TestShortName))
+						{
+							return true;
+						}
+					}
+					return false;
+				});
+		}
+
+	private:
+		struct FEnumAndValue
+		{
+			FUnrealEnumDefinitionInfo* Enum;
+			int64 Value;
+		};
+
+		const FEnumAndValue* FindEnumAndValue(const TCHAR* EnumValueName)
+		{
+			FName Key(EnumValueName, FNAME_Find);
+			if (Key == NAME_None)
+			{
+				return nullptr;
+			}
+			return EnumValueMap.Find(Key);
+		}
+
+		TMap<FName, FEnumAndValue> EnumValueMap;
+	};
+
+	FEnumLookup& GetEnumLookup()
+	{
+		static FEnumLookup EnumLookup;
+		return EnumLookup;
+	}
+
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
 	//----------------------------------------------------------------------------------------------------------------------------------------------------------
 	// Field class bootstrap system
@@ -629,13 +697,14 @@ struct FPropertyTypeTraitsInt : public FPropertyTypeTraitsNumericBase
 
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		PropDef.SetUnsized(VarProperty.IntType == EIntType::Unsized);
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FIntProperty* Result = new FIntProperty(Scope, Name, ObjectFlags);
-		PropDef.SetUnsized(VarProperty.IntType == EIntType::Unsized);
 		return Result;
 	}
 
@@ -725,13 +794,13 @@ struct FPropertyTypeTraitsUInt32 : public FPropertyTypeTraitsNumericBase
 {
 	static void CreateProperty(FUnrealPropertyDefinitionInfo& PropDef)
 	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		PropDef.SetUnsized(VarProperty.IntType == EIntType::Unsized);
 	}
 
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
-		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		FUInt32Property* Result = new FUInt32Property(Scope, Name, ObjectFlags);
-		PropDef.SetUnsized(VarProperty.IntType == EIntType::Unsized);
 		return Result;
 	}
 
@@ -2442,16 +2511,8 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 
 	static FPropertyFlagsChanges PostParseFinalize(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
 	{
-		return PostParseFinalizeHelper<false>(PropDef, AddedFlags);
-	}
-
-	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
-	{
-
 		if (PropDef.GetArrayDimensions())
 		{
-			UEnum* Enum = nullptr;
-
 			FString Temp = PropDef.GetArrayDimensions();
 
 			bool bAgain;
@@ -2496,21 +2557,29 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 				}
 			} while (bAgain);
 
-			UEnum::LookupEnumNameSlow(*Temp, &Enum);
-
-			if (!Enum)
+			if (Temp.Len() > 0 && !FChar::IsDigit(Temp[0]))
 			{
-				// If the enum wasn't declared in this scope, then try to find it anywhere we can
-				Enum = FEngineAPI::FindObject<UEnum>(ANY_PACKAGE, PropDef.GetArrayDimensions());
-			}
+				FUnrealEnumDefinitionInfo* EnumDef = GetEnumLookup().Find(*Temp);
 
-			if (Enum)
-			{
-				// set the ArraySizeEnum if applicable
-				PropDef.GetPropertyBase().MetaData.Add(NAME_ArraySizeEnum, Enum->GetPathName());
+				if (!EnumDef)
+				{
+					// If the enum wasn't declared in this scope, then try to find it anywhere we can
+					EnumDef = GTypeDefinitionInfoMap.FindByName<FUnrealEnumDefinitionInfo>(PropDef.GetArrayDimensions());
+				}
+
+				if (EnumDef)
+				{
+					// set the ArraySizeEnum if applicable
+					PropDef.GetPropertyBase().MetaData.Add(NAME_ArraySizeEnum, EnumDef->GetPathName());
+				}
 			}
 		}
 
+		return PostParseFinalizeHelper<false>(PropDef, AddedFlags);
+	}
+
+	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
+	{
 		FProperty* Property = CreateEngineTypeHelper<false>(PropDef, Scope, Name, ObjectFlags);
 		Property->ArrayDim = 2;
 		return Property;

@@ -5607,6 +5607,11 @@ void FNativeClassHeaderGenerator::GenerateSourceFiles(
 	{
 		GeneratedCPP.AddExportTaskRef(ExportSourceTasks);
 	}
+
+	// This is strange, but flushing the log can take a long time.  Without an explicit flush, we were getting a long stall in the UE_LOG message
+	// during the detection of script plugins.  By doing it here, the flush should easily complete during code generation.
+	GLog->FlushThreadedLogs();
+
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(ExportSourceTasks);
 #else
 	for (FGeneratedCPP& GeneratedCPP : GeneratedCPPs)
@@ -6112,6 +6117,11 @@ void FNativeClassHeaderGenerator::ExportUpdatedHeaders(FString&& PackageName, TA
 /** Get all script plugins based on ini setting */
 void GetScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins)
 {
+	if (!GManifest.IsGameTarget)
+	{
+		UE_LOG(LogCompile, Log, TEXT("Script generator plugins only enabled in game targets."));
+	}
+
 	ScriptPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IScriptGeneratorPluginInterface>(TEXT("ScriptGenerator"));
 	UE_LOG(LogCompile, Log, TEXT("Found %d script generator plugins."), ScriptPlugins.Num());
 
@@ -6740,7 +6750,7 @@ void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 #endif
 }
 
-void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
+void PostParseFinalize(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 {
 	// Until we fix the issue with types not having sources, we need to do this
 	TArray<FUnrealTypeDefinitionInfo*> NoSourceTypeDefs;
@@ -6752,47 +6762,24 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 		}
 	});
 
-	for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
+	auto PostParseFinalize = [&PackageDefs, &NoSourceTypeDefs](EPostParseFinalizePhase Phase)
 	{
-		TypeDef->PostParseFinalize(EPostParseFinalizePhase::PreCreateEngineTypes);
-	}
-
-	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
-	{
-		FResults::Try([PackageDef]()
+		for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
 		{
-			PackageDef->PostParseFinalize(EPostParseFinalizePhase::PreCreateEngineTypes);
-		});
-	}
+			TypeDef->PostParseFinalize(Phase);
+		}
 
-	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
-	{
-		FResults::Try([PackageDef]()
+		for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 		{
-			PackageDef->CreateUObjectEngineTypes(ECreateEngineTypesPhase::Phase1);
-		});
-	}
+			FResults::Try([PackageDef, Phase]()
+				{
+					PackageDef->PostParseFinalize(Phase);
+				});
+		}
+	};
 
-	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
-	{
-		FResults::Try([PackageDef]()
-		{
-			PackageDef->CreateUObjectEngineTypes(ECreateEngineTypesPhase::Phase2);
-		});
-	}
-
-	for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
-	{
-		TypeDef->PostParseFinalize(EPostParseFinalizePhase::PostCreateEngineTypes);
-	}
-
-	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
-	{
-		FResults::Try([PackageDef]()
-		{
-			PackageDef->PostParseFinalize(EPostParseFinalizePhase::PostCreateEngineTypes);
-		});
-	}
+	PostParseFinalize(EPostParseFinalizePhase::Phase1);
+	PostParseFinalize(EPostParseFinalizePhase::Phase2);
 	FResults::WaitForErrorTasks();
 
 	for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
@@ -6802,6 +6789,33 @@ void PrepareTypesForExport(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 			check(ObjectDef->GetObject());
 		}
 	}
+}
+
+void CreateEngineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
+{
+	auto CreateEngineTypes = [&PackageDefs](ECreateEngineTypesPhase Phase)
+	{
+		for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
+		{
+			FResults::Try([PackageDef, Phase]()
+				{
+					PackageDef->CreateUObjectEngineTypes(Phase);
+				});
+		}
+
+		for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
+		{
+			FResults::Try([PackageDef, Phase]()
+				{
+					PackageDef->CreateUObjectEngineTypes(Phase);
+				});
+		}
+	};
+
+	CreateEngineTypes(ECreateEngineTypesPhase::Phase1);
+	CreateEngineTypes(ECreateEngineTypesPhase::Phase2);
+	CreateEngineTypes(ECreateEngineTypesPhase::Phase3);
+	FResults::WaitForErrorTasks();
 }
 
 void Export(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, TArray<FUnrealSourceFile*>& OrderedSourceFiles)
@@ -6855,19 +6869,8 @@ void ExportClassTreeToScriptPlugins(const TMap<UClass*, FUnrealSourceFile*>& Sou
 	}
 }
 
-void ExportToScriptPlugins(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, FString& ExternalDependencies)
+void ExportToScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins, TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, FString& ExternalDependencies)
 {
-	TArray<IScriptGeneratorPluginInterface*> ScriptPlugins;
-	// Can only export scripts for game targets
-	if (GManifest.IsGameTarget)
-	{
-		GetScriptPlugins(ScriptPlugins);
-	}
-	if (ScriptPlugins.Num() == 0)
-	{
-		return;
-	}
-
 	TMap<UClass*, FUnrealSourceFile*> SourceFileLookup;
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 	{
@@ -6921,10 +6924,8 @@ void ExportToScriptPlugins(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, F
 	return;
 }
 
-void ExportToScriptPlugins(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
+void WriteExternalDependencies(const FString& ExternalDependencies)
 {
-	FString ExternalDependencies;
-	ExportToScriptPlugins(PackageDefs, ExternalDependencies);
 	FFileHelper::SaveStringToFile(ExternalDependencies, *GManifest.ExternalDependenciesFile);
 }
 
@@ -6988,16 +6989,22 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 		GEngineClasses.Add(ClassDefRef);
 	}
 
+	FString ExternalDependencies;
+	TArray<IScriptGeneratorPluginInterface*> ScriptPlugins;
+
 	double TotalPreparseTime = FResults::TimedTry([&PackageDefs, &ModuleInfoPath]() { PreparseSources(PackageDefs, ModuleInfoPath); });
 	double TotalDefineTypesTime = FResults::TimedTry([&PackageDefs]() { DefineTypes(PackageDefs); });
 	double TotalResolveParentsTime = FResults::TimedTry([&PackageDefs]() { ResolveParents(PackageDefs); });
 	double TotalPrepareTypesForParsingTime = FResults::TimedTry([&PackageDefs]() { PrepareTypesForParsing(PackageDefs); });
 	double TotalTopologicalSortTime = FResults::TimedTry([&OrderedSourceFiles]() { TopologicalSort(OrderedSourceFiles); });
 	double TotalParseTime = FResults::TimedTry([&OrderedSourceFiles]() { ParseSourceFiles(OrderedSourceFiles); });
-	double TotalPrepareTypesForExportTime = FResults::TimedTry([&PackageDefs]() { PrepareTypesForExport(PackageDefs); });
+	double TotalPostParseFinalizeTime = FResults::TimedTry([&PackageDefs]() { PostParseFinalize(PackageDefs); });
 	TotalTopologicalSortTime += FResults::TimedTry([&OrderedSourceFiles]() { TopologicalSort(OrderedSourceFiles); }); // Sort again to include new dependencies
 	double TotalCodeGenTime = FResults::TimedTry([&PackageDefs, &OrderedSourceFiles]() { Export(PackageDefs, OrderedSourceFiles); });
-	double TotalPluginTime = FResults::TimedTry([&PackageDefs]() { ExportToScriptPlugins(PackageDefs); });
+	double TotalCheckForScriptPluginsTime = FResults::TimedTry([&ScriptPlugins]() { GetScriptPlugins(ScriptPlugins); });
+	double TotalCreateEngineTypesTime = ScriptPlugins.IsEmpty() ? 0.0 : FResults::TimedTry([&PackageDefs]() { CreateEngineTypes(PackageDefs); });
+	double TotalPluginTime = ScriptPlugins.IsEmpty() ? 0.0 : FResults::TimedTry([&ScriptPlugins, &PackageDefs, &ExternalDependencies]() { ExportToScriptPlugins(ScriptPlugins, PackageDefs, ExternalDependencies); });
+	double TotalWriteExternalDependenciesTime = FResults::TimedTry([&ExternalDependencies]() { WriteExternalDependencies(ExternalDependencies); });
 	double TotalSummaryTime = FResults::TimedTry([&PackageDefs]() { GenerateSummary(PackageDefs); });
 
 	// Finish all async file tasks before stopping the clock
@@ -7011,7 +7018,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	{
 		NumSources += Module.PublicUObjectClassesHeaders.Num() + Module.PublicUObjectHeaders.Num() + Module.PrivateUObjectHeaders.Num();
 	}
-	
 	UE_LOG(LogCompile, Log, TEXT("Preparing %d modules took %.3f seconds"), GManifest.Modules.Num(), TotalPrepareModuleTime);
 	UE_LOG(LogCompile, Log, TEXT("Preparsing %d sources took %.3f seconds"), NumSources, TotalPreparseTime);
 	UE_LOG(LogCompile, Log, TEXT("Defining types took %.3f seconds"), TotalDefineTypesTime);
@@ -7019,11 +7025,14 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	UE_LOG(LogCompile, Log, TEXT("Preparing types for parsing took %.3f seconds"), TotalPrepareTypesForParsingTime);
 	UE_LOG(LogCompile, Log, TEXT("Sorting files by dependencies took %.3f seconds"), TotalTopologicalSortTime);
 	UE_LOG(LogCompile, Log, TEXT("Parsing took %.3f seconds"), TotalParseTime);
-	UE_LOG(LogCompile, Log, TEXT("Preparing types for export took %.3f seconds"), TotalPrepareTypesForExportTime);
+	UE_LOG(LogCompile, Log, TEXT("Post parse finalization took %.3f seconds"), TotalPostParseFinalizeTime);
 	UE_LOG(LogCompile, Log, TEXT("Code generation took %.3f seconds"), TotalCodeGenTime);
+	UE_LOG(LogCompile, Log, TEXT("Check for script plugins took % .3f seconds"), TotalCheckForScriptPluginsTime);
+	UE_LOG(LogCompile, Log, TEXT("Create engine types took % .3f seconds"), TotalCreateEngineTypesTime);
 	UE_LOG(LogCompile, Log, TEXT("ScriptPlugin overhead was %.3f seconds"), TotalPluginTime);
+	UE_LOG(LogCompile, Log, TEXT("Write external dependencies overhead was %.3f seconds"), TotalWriteExternalDependenciesTime);
 	UE_LOG(LogCompile, Log, TEXT("Summary generation took %.3f seconds"), TotalSummaryTime);
-	UE_LOG(LogCompile, Log, TEXT("Macroize time was %.3f seconds"), GMacroizeTime);
+	UE_LOG(LogCompile, Log, TEXT("Macroize time was %.3f CPU seconds"), GMacroizeTime);
 
 	FUnrealHeaderToolStats& Stats = FUnrealHeaderToolStats::Get();
 	for (const TPair<FName, double>& Pair : Stats.Counters)
