@@ -306,10 +306,16 @@ FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
 	TEXT(" 2: enables the transient allocator for resources with FastVRAM flag only"),
 	ECVF_RenderThreadSafe);
 
-int32 GRDGParallelExecutePassMin = 0;
-FAutoConsoleVariableRef CVarRDGParallelExecute(
+int32 GRDGParallelExecutePassMin = 1;
+FAutoConsoleVariableRef CVarRDGParallelExecutePassMin(
 	TEXT("r.RDG.ParallelExecutePassMin"), GRDGParallelExecutePassMin,
 	TEXT("The minimum span of contiguous passes eligible for parallel execution for the span to be offloaded to a task."),
+	ECVF_RenderThreadSafe);
+
+int32 GRDGParallelExecutePassMax = 32;
+FAutoConsoleVariableRef CVarRDGParallelExecutePassMax(
+	TEXT("r.RDG.ParallelExecutePassMax"), GRDGParallelExecutePassMax,
+	TEXT("The maximum span of contiguous passes eligible for parallel execution for the span to be offloaded to a task."),
 	ECVF_RenderThreadSafe);
 
 // Fix for random GPU crashes on draw indirects on multiple IHVs. Force all indirect arg buffers as non transient (see UE-115982)
@@ -325,6 +331,43 @@ FAutoConsoleVariableRef CVarRDGDrain(
 	TEXT("RDG will perform drain operations when requested.")
 	TEXT(" 0: disables draining, all work is deferred until FRDGBuilder::Execute; (default)")
 	TEXT(" 1: enables execution of the RDG subgraph when FRDGBuilder::Drain is called."),
+	ECVF_RenderThreadSafe);
+
+int32 GRDGParallelExecuteStress = 0;
+FAutoConsoleVariableRef CVarRDGDebugParallelExecute(
+	TEXT("r.RDG.ParallelExecuteStress"),
+	GRDGParallelExecuteStress,
+	TEXT("Stress tests the parallel execution path by launching one task per pass. Render pass merging is also disabled."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* Variable)
+	{
+		static int32 GRDGMergeRenderPassesHistory = GRDGMergeRenderPasses;
+		static int32 GRDGParallelExecutePassMinHistory = GRDGParallelExecutePassMin;
+		static int32 GRDGParallelExecutePassMaxHistory = GRDGParallelExecutePassMax;
+
+		const int32 CurrentValue = Variable->GetInt();
+
+		if (GRDGParallelExecuteStress == CurrentValue)
+		{
+			return;
+		}
+
+		if (CurrentValue)
+		{
+			GRDGMergeRenderPassesHistory = GRDGMergeRenderPasses;
+			GRDGParallelExecutePassMinHistory = GRDGParallelExecutePassMin;
+			GRDGParallelExecutePassMaxHistory = GRDGParallelExecutePassMax;
+
+			GRDGMergeRenderPasses = 0;
+			GRDGParallelExecutePassMin = 1;
+			GRDGParallelExecutePassMax = 1;
+		}
+		else
+		{
+			GRDGMergeRenderPasses = GRDGMergeRenderPassesHistory;
+			GRDGParallelExecutePassMin = GRDGParallelExecutePassMinHistory;
+			GRDGParallelExecutePassMax = GRDGParallelExecutePassMaxHistory;
+		}
+	}),
 	ECVF_RenderThreadSafe);
 
 #if CSV_PROFILER

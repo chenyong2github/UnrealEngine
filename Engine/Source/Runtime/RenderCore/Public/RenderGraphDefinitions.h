@@ -73,6 +73,15 @@
 
 /** ENUMS */
 
+enum class ERDGBuilderFlags
+{
+	None = 0,
+
+	/** Allows the builder to parallelize execution of passes. Without this flag, all passes execute on the render thread. */
+	AllowParallelExecute = 1 << 0
+};
+ENUM_CLASS_FLAGS(ERDGBuilderFlags);
+
 /** Flags to annotate a pass with when calling AddPass. */
 enum class ERDGPassFlags : uint8
 {

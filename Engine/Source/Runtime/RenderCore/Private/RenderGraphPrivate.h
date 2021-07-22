@@ -110,6 +110,7 @@ extern int32 GRDGTransientAllocator;
 extern int32 GRDGTransientIndirectArgBuffers;
 extern int32 GRDGDrain;
 extern int32 GRDGParallelExecutePassMin;
+extern int32 GRDGParallelExecutePassMax;
 
 #if CSV_PROFILER
 extern int32 GRDGVerboseCSVStats;

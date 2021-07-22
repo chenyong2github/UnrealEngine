@@ -23,7 +23,7 @@ class RENDERCORE_API FRDGBuilder
 	: FRDGAllocatorScope
 {
 public:
-	FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName InName = {});
+	FRDGBuilder(FRHICommandListImmediate& RHICmdList, FRDGEventName Name = {}, ERDGBuilderFlags Flags = ERDGBuilderFlags::None);
 	FRDGBuilder(const FRDGBuilder&) = delete;
 	~FRDGBuilder();
 
@@ -274,6 +274,9 @@ public:
 	/** Whether RDG is running in immediate mode. */
 	static bool IsImmediateMode();
 
+	/** Whether RDG will actually perform a drain when Drain() is called. */
+	static bool IsDrainEnabled();
+
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
 
@@ -515,10 +518,14 @@ private:
 		TArray<FRDGPass*, FRDGArrayAllocator> Passes;
 		FGraphEventRef Event;
 		FRHICommandList* RHICmdList{};
+		int8 bInitialized = 0;
 	};
 
 	TArray<FParallelPassSet, FRDGArrayAllocator> ParallelPassSets;
-	FGraphEventArray ParallelPassEvents;
+	uint32 ParallelPassSetsOffset = 0;
+
+	/** Array of all active parallel execute tasks. */
+	FGraphEventArray ParallelExecuteEvents;
 
 	/** Array of all pooled references held during execution. */
 	FRDGPooledTextureArray ActivePooledTextures;
@@ -608,6 +615,10 @@ private:
 	void EndResourceRHI(FRDGPassHandle, FRDGTexture* Texture, uint32 ReferenceCount);
 	void EndResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer, uint32 ReferenceCount);
 
+	void SetupParallelExecute();
+	void DispatchParallelExecute(IRHICommandContext* RHICmdContext);
+
+	void SetupBufferUploads();
 	void SubmitBufferUploads();
 	void BeginFlushResourcesRHI();
 	void EndFlushResourcesRHI();
