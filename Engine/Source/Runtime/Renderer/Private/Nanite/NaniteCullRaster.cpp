@@ -1500,7 +1500,7 @@ void AddPass_Rasterize(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: Rasterize") : RDG_EVENT_NAME("Post Pass: Rasterize"),
 			RasterPassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-			[VertexShader, PixelShader, RasterPassParameters, ViewRect, bUsePrimitiveShader, bMainPass](FRHICommandListImmediate& RHICmdList)
+			[VertexShader, PixelShader, RasterPassParameters, ViewRect, bUsePrimitiveShader, bMainPass](FRHICommandList& RHICmdList)
 		{
 			FRHIRenderPassInfo RPInfo;
 			RPInfo.ResolveParameters.DestRect.X1 = ViewRect.Min.X;
@@ -1823,7 +1823,7 @@ void CullRasterize(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::CullRasterize");
 
-	AddPassIfDebug(GraphBuilder, [](FRHICommandList&)
+	AddPassIfDebug(GraphBuilder, [](FRHICommandListImmediate&)
 	{
 		check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
 	});
