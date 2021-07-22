@@ -1257,19 +1257,19 @@ struct CONTROLRIG_API FRigMirrorSettings
 	}
 
 	// the axis to mirror against
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TEnumAsByte<EAxis::Type> MirrorAxis;
 
 	// the axis to flip for rotations
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TEnumAsByte<EAxis::Type> AxisToFlip;
 
 	// the string to replace all occurences of with New Name
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FString OldName;
 
 	// the string to replace all occurences of Old Name with
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FString NewName;
 
 	FTransform MirrorTransform(const FTransform& InTransform) const;

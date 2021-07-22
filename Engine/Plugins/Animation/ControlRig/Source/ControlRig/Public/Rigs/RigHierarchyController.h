@@ -321,13 +321,15 @@ public:
 	 * @param bReplaceExistingElements If set to true existing items will be replaced / updated with the content in the buffer
 	 * @param bSelectNewElements If set to true the new elements will be selected
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
 	TArray<FRigElementKey> ImportFromText(
 		FString InContent,
 		bool bReplaceExistingElements = false,
 		bool bSelectNewElements = true,
-		bool bSetupUndo = false);
+		bool bSetupUndo = false,
+		bool bPrintPythonCommands = false);
 
 	/**
 	* Imports the content of a RigHierachyContainer (the hierarchy v1 pre 5.0)
@@ -408,10 +410,11 @@ public:
 	 * @param InKeys The keys of the elements to duplicate
 	 * @param bSelectNewElements If set to true the new elements will be selected
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return The keys of the 4d items
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    TArray<FRigElementKey> DuplicateElements(TArray<FRigElementKey> InKeys, bool bSelectNewElements = true, bool bSetupUndo = false);
+    TArray<FRigElementKey> DuplicateElements(TArray<FRigElementKey> InKeys, bool bSelectNewElements = true, bool bSetupUndo = false, bool bPrintPythonCommands = false);
 
 	/**
 	 * Mirrors the given elements
@@ -419,10 +422,11 @@ public:
 	 * @param InSettings The settings to use for the mirror operation
 	 * @param bSelectNewElements If set to true the new elements will be selected
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return The keys of the mirrored items
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    TArray<FRigElementKey> MirrorElements(TArray<FRigElementKey> InKeys, FRigMirrorSettings InSettings, bool bSelectNewElements = true, bool bSetupUndo = false);
+    TArray<FRigElementKey> MirrorElements(TArray<FRigElementKey> InKeys, FRigMirrorSettings InSettings, bool bSelectNewElements = true, bool bSetupUndo = false, bool bPrintPythonCommands = false);
 
 	/**
 	 * Returns the modified event, which can be used to 
