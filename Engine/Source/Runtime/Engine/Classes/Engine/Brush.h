@@ -113,6 +113,14 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, Instanced, Category=BrushBuilder)
 	TObjectPtr<class UBrushBuilder> BrushBuilder;
+	
+	/** If true, display the brush with a shaded volume */
+	UPROPERTY(Transient, EditAnywhere, Category=BrushSettings)
+	uint32 bDisplayShadedVolume:1;
+
+	/** Value used to set the opacity for the shaded volume, between 0-1 */
+	UPROPERTY(Transient, EditAnywhere, Category=BrushSettings, meta=(ClampMin=0.0, ClampMax=1.0))
+	float ShadedVolumeOpacityValue = 0.25f;
 #endif
 
 	/** Flag set when we are in a manipulation (scaling, translation, brush builder param change etc.) */
