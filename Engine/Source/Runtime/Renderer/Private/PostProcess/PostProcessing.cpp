@@ -473,7 +473,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	PassSequence.SetEnabled(EPass::HMDDistortion, EngineShowFlags.StereoRendering && EngineShowFlags.HMDDistortion);
 	PassSequence.SetEnabled(EPass::HighResolutionScreenshotMask, IsHighResolutionScreenshotMaskEnabled(View));
 	PassSequence.SetEnabled(EPass::PrimaryUpscale, PaniniConfig.IsEnabled() || (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && PrimaryViewRect.Size() != View.GetSecondaryViewRectSize()));
-	PassSequence.SetEnabled(EPass::SecondaryUpscale, View.RequiresSecondaryUpscale());
+	PassSequence.SetEnabled(EPass::SecondaryUpscale, View.RequiresSecondaryUpscale() || View.Family->GetSecondarySpatialUpscalerInterface() != nullptr);
 
 	const auto GetPostProcessMaterialInputs = [&](FScreenPassTexture InSceneColor)
 	{ 
@@ -1177,27 +1177,66 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 	if (PassSequence.IsEnabled(EPass::PrimaryUpscale))
 	{
-		FUpscaleInputs PassInputs;
+		ISpatialUpscaler::FInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::PrimaryUpscale, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = SceneColor;
-		PassInputs.Method = GetUpscaleMethod();
 		PassInputs.Stage = PassSequence.IsEnabled(EPass::SecondaryUpscale) ? EUpscaleStage::PrimaryToSecondary : EUpscaleStage::PrimaryToOutput;
 
-		// Panini projection is handled by the primary upscale pass.
-		PassInputs.PaniniConfig = PaniniConfig;
+		if (const ISpatialUpscaler* CustomUpscaler = View.Family->GetPrimarySpatialUpscalerInterface())
+		{
+			RDG_EVENT_SCOPE(
+				GraphBuilder,
+				"ThirdParty PrimaryUpscale %s %dx%d -> %dx%d",
+				CustomUpscaler->GetDebugName(),
+				SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height(),
+				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
 
-		SceneColor = AddUpscalePass(GraphBuilder, View, PassInputs);
+			SceneColor = CustomUpscaler->AddPasses(GraphBuilder, View, PassInputs);
+
+			if (PassSequence.IsLastPass(EPass::PrimaryUpscale))
+			{
+				check(SceneColor == ViewFamilyOutput);
+			}
+			else
+			{
+				check(SceneColor.ViewRect.Size() == View.GetSecondaryViewRectSize());
+			}
+		}
+		else
+		{
+			EUpscaleMethod Method = GetUpscaleMethod();
+
+			SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, Method, PaniniConfig);
+		}
 	}
 
 	if (PassSequence.IsEnabled(EPass::SecondaryUpscale))
 	{
-		FUpscaleInputs PassInputs;
+		ISpatialUpscaler::FInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::SecondaryUpscale, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = SceneColor;
-		PassInputs.Method = View.Family->SecondaryScreenPercentageMethod == ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation ? EUpscaleMethod::SmoothStep : EUpscaleMethod::Nearest;
 		PassInputs.Stage = EUpscaleStage::SecondaryToOutput;
+		
+		if (const ISpatialUpscaler* CustomUpscaler = View.Family->GetSecondarySpatialUpscalerInterface())
+		{
+			RDG_EVENT_SCOPE(
+				GraphBuilder,
+				"ThirdParty SecondaryUpscale %s %dx%d -> %dx%d",
+				CustomUpscaler->GetDebugName(),
+				SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height(),
+				View.UnscaledViewRect.Width(), View.UnscaledViewRect.Height());
 
-		SceneColor = AddUpscalePass(GraphBuilder, View, PassInputs);
+			SceneColor = CustomUpscaler->AddPasses(GraphBuilder, View, PassInputs);
+			check(SceneColor == ViewFamilyOutput);
+		}
+		else
+		{
+			EUpscaleMethod Method = View.Family->SecondaryScreenPercentageMethod == ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation
+				? EUpscaleMethod::SmoothStep
+				: EUpscaleMethod::Nearest;
+
+			SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, Method, FPaniniProjectionConfig());
+		}
 	}
 }
 
@@ -1250,7 +1289,7 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 	PassSequence.SetEnabled(EPass::TonemapAfter, bTonemapAfter);
 	PassSequence.SetEnabled(EPass::SelectionOutline, GIsEditor);
 	PassSequence.SetEnabled(EPass::PrimaryUpscale, View.ViewRect.Size() != View.GetSecondaryViewRectSize() && View.PrimaryScreenPercentageMethod != EPrimaryScreenPercentageMethod::TemporalUpscale);
-	PassSequence.SetEnabled(EPass::SecondaryUpscale, View.RequiresSecondaryUpscale());
+	PassSequence.SetEnabled(EPass::SecondaryUpscale, View.RequiresSecondaryUpscale() || View.Family->GetSecondarySpatialUpscalerInterface() != nullptr);
 	PassSequence.Finalize();
 
 	if (bTonemapBefore)
@@ -1369,24 +1408,66 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 
 	if (PassSequence.IsEnabled(EPass::PrimaryUpscale))
 	{
-		FUpscaleInputs PassInputs;
+		ISpatialUpscaler::FInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::PrimaryUpscale, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = SceneColor;
-		PassInputs.Method = GetUpscaleMethod();
 		PassInputs.Stage = PassSequence.IsEnabled(EPass::SecondaryUpscale) ? EUpscaleStage::PrimaryToSecondary : EUpscaleStage::PrimaryToOutput;
 
-		SceneColor = AddUpscalePass(GraphBuilder, View, PassInputs);
+		if (const ISpatialUpscaler* CustomUpscaler = View.Family->GetPrimarySpatialUpscalerInterface())
+		{
+			RDG_EVENT_SCOPE(
+				GraphBuilder,
+				"ThirdParty PrimaryUpscale %s %dx%d -> %dx%d",
+				CustomUpscaler->GetDebugName(),
+				SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height(),
+				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
+
+			SceneColor = CustomUpscaler->AddPasses(GraphBuilder, View, PassInputs);
+
+			if (PassSequence.IsLastPass(EPass::PrimaryUpscale))
+			{
+				check(SceneColor == ViewFamilyOutput);
+			}
+			else
+			{
+				check(SceneColor.ViewRect.Size() == View.GetSecondaryViewRectSize());
+			}
+		}
+		else
+		{
+			EUpscaleMethod Method = GetUpscaleMethod();
+
+			SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, Method, FPaniniProjectionConfig());
+		}
 	}
 
 	if (PassSequence.IsEnabled(EPass::SecondaryUpscale))
 	{
-		FUpscaleInputs PassInputs;
+		ISpatialUpscaler::FInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::SecondaryUpscale, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = SceneColor;
-		PassInputs.Method = View.Family->SecondaryScreenPercentageMethod == ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation ? EUpscaleMethod::SmoothStep : EUpscaleMethod::Nearest;
 		PassInputs.Stage = EUpscaleStage::SecondaryToOutput;
 
-		SceneColor = AddUpscalePass(GraphBuilder, View, PassInputs);
+		if (const ISpatialUpscaler* CustomUpscaler = View.Family->GetSecondarySpatialUpscalerInterface())
+		{
+			RDG_EVENT_SCOPE(
+				GraphBuilder,
+				"ThirdParty SecondaryUpscale %s %dx%d -> %dx%d",
+				CustomUpscaler->GetDebugName(),
+				SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height(),
+				View.UnscaledViewRect.Width(), View.UnscaledViewRect.Height());
+
+			SceneColor = CustomUpscaler->AddPasses(GraphBuilder, View, PassInputs);
+			check(SceneColor == ViewFamilyOutput);
+		}
+		else
+		{
+			EUpscaleMethod Method = View.Family->SecondaryScreenPercentageMethod == ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation
+				? EUpscaleMethod::SmoothStep
+				: EUpscaleMethod::Nearest;
+
+			SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, Method, FPaniniProjectionConfig());
+		}
 	}
 }
 
@@ -2153,15 +2234,36 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	// Apply ScreenPercentage
 	if (PassSequence.IsEnabled(EPass::PrimaryUpscale))
 	{
-		FUpscaleInputs PassInputs;
+		ISpatialUpscaler::FInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::PrimaryUpscale, PassInputs.OverrideOutput);
-		PassInputs.Method = EUpscaleMethod::Bilinear;
 		PassInputs.Stage = EUpscaleStage::PrimaryToOutput;
 		PassInputs.SceneColor = SceneColor;
-		PassInputs.PaniniConfig = PaniniConfig;
 		PassInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
-		SceneColor = AddUpscalePass(GraphBuilder, View, PassInputs);
+		if (const ISpatialUpscaler* CustomUpscaler = View.Family->GetPrimarySpatialUpscalerInterface())
+		{
+			RDG_EVENT_SCOPE(
+				GraphBuilder,
+				"ThirdParty PrimaryUpscale %s %dx%d -> %dx%d",
+				CustomUpscaler->GetDebugName(),
+				SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height(),
+				View.UnscaledViewRect.Width(), View.UnscaledViewRect.Height());
+
+			SceneColor = CustomUpscaler->AddPasses(GraphBuilder, View, PassInputs);
+
+			if (PassSequence.IsLastPass(EPass::PrimaryUpscale))
+			{
+				check(SceneColor == ViewFamilyOutput);
+			}
+			else
+			{
+				check(SceneColor.ViewRect.Size() == View.UnscaledViewRect.Size());
+			}
+		}
+		else
+		{
+			SceneColor = ISpatialUpscaler::AddDefaultUpscalePass(GraphBuilder, View, PassInputs, EUpscaleMethod::Bilinear, PaniniConfig);
+		}
 	}
 
 	if (PassSequence.IsEnabled(EPass::Visualize))

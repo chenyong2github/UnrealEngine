@@ -24,6 +24,7 @@
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "PostProcess/TemporalAA.h"
+#include "PostProcess/PostProcessUpscale.h"
 #include "PostProcess/PostProcessing.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "LegacyScreenPercentageDriver.h"
@@ -2367,11 +2368,25 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 	ensureMsgf(!(ViewFamily.EngineShowFlags.ScreenPercentage && !ViewFamily.SupportsScreenPercentage()),
 		TEXT("Screen percentage is not supported, but show flag was incorectly set to true."));
 
-	// Fork the view family.
+	// Fork the plugin interfaces of the view family.
 	{
-		check(InViewFamily->ScreenPercentageInterface);
-		ViewFamily.ScreenPercentageInterface = nullptr;
-		ViewFamily.SetScreenPercentageInterface(InViewFamily->ScreenPercentageInterface->Fork_GameThread(ViewFamily));
+		{
+			check(InViewFamily->ScreenPercentageInterface);
+			ViewFamily.ScreenPercentageInterface = nullptr;
+			ViewFamily.SetScreenPercentageInterface(InViewFamily->ScreenPercentageInterface->Fork_GameThread(ViewFamily));
+		}
+
+		if (ViewFamily.PrimarySpatialUpscalerInterface)
+		{
+			ViewFamily.PrimarySpatialUpscalerInterface = nullptr;
+			ViewFamily.SetPrimarySpatialUpscalerInterface(InViewFamily->PrimarySpatialUpscalerInterface->Fork_GameThread(ViewFamily));
+		}
+
+		if (ViewFamily.SecondarySpatialUpscalerInterface)
+		{
+			ViewFamily.SecondarySpatialUpscalerInterface = nullptr;
+			ViewFamily.SetSecondarySpatialUpscalerInterface(InViewFamily->SecondarySpatialUpscalerInterface->Fork_GameThread(ViewFamily));
+		}
 	}
 
 	#if !UE_BUILD_SHIPPING
@@ -3996,6 +4011,10 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 		ViewFamily->ViewExtensions.Add(GetRendererViewExtension());
 	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	// Force the spatial upscaler to be set no earlier than ISceneViewExtension::BeginRenderViewFamily();
+	check(ViewFamily->GetPrimarySpatialUpscalerInterface() == nullptr);
+	check(ViewFamily->GetSecondarySpatialUpscalerInterface() == nullptr);
 
 	for (int ViewExt = 0; ViewExt < ViewFamily->ViewExtensions.Num(); ViewExt++)
 	{
