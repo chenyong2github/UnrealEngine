@@ -1013,7 +1013,7 @@ void InternalAddHairRBFInterpolationPass(
 	FHairStrandsDeformedRootResource* DeformedRootResources)
 {
 	const uint32 VertexCount = RestResources ? RestResources->GetVertexCount() : 0;
-	if (!RestResources || !DeformedResources || !RestRootResources || !DeformedRootResources || VertexCount == 0 || MeshLODIndex >= RestRootResources->LODs.Num())
+	if (!RestResources || !DeformedResources || !RestRootResources || !DeformedRootResources || VertexCount == 0 || MeshLODIndex >= RestRootResources->LODs.Num() || MeshLODIndex < 0)
 	{
 		return;
 	}
