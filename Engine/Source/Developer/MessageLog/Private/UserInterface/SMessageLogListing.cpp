@@ -14,6 +14,7 @@
 #include "UserInterface/SMessageLogMessageListRow.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Styling/StyleColors.h"
 
 
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
@@ -45,12 +46,12 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 	[
 		SNew(SBorder)
 		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-		.Padding(0)
+		.Padding(15.0f)
 		[
 			SAssignNew(VerticalBox, SVerticalBox)
 			+ SVerticalBox::Slot()
 			.FillHeight(1.0f)
-			.Padding(2.0f)
+			.Padding(0.f)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -89,7 +90,7 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 	{
 		VerticalBox->AddSlot()
 			.AutoHeight()
-			.Padding(6.0f)
+			.Padding(FMargin(6, 6, 0, 0))
 			[
 				SAssignNew(HorizontalBox, SHorizontalBox)
 			];
@@ -101,14 +102,13 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 				.HAlign(HAlign_Left)
 				[
 					SNew(SComboButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-					.ForegroundColor(FSlateColor::UseForeground())
-					.ContentPadding(2)
+					.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
+					.ForegroundColor(FStyleColors::White)
 					.OnGetMenuContent(this, &SMessageLogListing::OnGetFilterMenuContent)
 					.ButtonContent()
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("Show", "Show"))
+						.Text(LOCTEXT("Show", "SHOW"))
 						.ToolTipText(LOCTEXT("ShowToolTip", "Only show messages of the selected types"))
 					]
 				];
@@ -121,10 +121,10 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 				SNew(SComboButton)
 				.IsEnabled(this, &SMessageLogListing::IsPageWidgetEnabled)
 				.Visibility(this, &SMessageLogListing::GetPageWidgetVisibility)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.ContentPadding(2)
+				.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
+				.ForegroundColor(FStyleColors::White)
 				.OnGetMenuContent(this, &SMessageLogListing::OnGetPageMenuContent)
+				.ButtonColorAndOpacity(FStyleColors::White)
 				.ButtonContent()
 				[
 					SNew(STextBlock)
@@ -142,12 +142,12 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 				.OnClicked(this, &SMessageLogListing::OnClear)
 				.IsEnabled(this, &SMessageLogListing::IsClearWidgetEnabled)
 				.Visibility(this, &SMessageLogListing::GetClearWidgetVisibility)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.ContentPadding(2)
+				.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
+				.ForegroundColor(FStyleColors::White)
+				.ContentPadding(FMargin(6.5, 2))
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("ClearMessageLog", "Clear"))
+					.Text(LOCTEXT("ClearMessageLog", "CLEAR"))
 					.ToolTipText(LOCTEXT("ClearMessageLog_ToolTip", "Clear the messages in this log"))
 				]
 			];
@@ -367,8 +367,15 @@ TSharedRef<ITableRow> SMessageLogListing::MakeShowWidget(TSharedRef<FMessageFilt
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot().AutoWidth()
 				[
-					SNew(SImage)
-					.Image(Selection->GetIcon().GetIcon())
+					SNew(SBox)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.WidthOverride(16)
+					.HeightOverride(16)
+					[
+						SNew(SImage)
+						.Image(Selection->GetIcon().GetIcon())
+					]
 				]
 				+SHorizontalBox::Slot().AutoWidth()
 				[
@@ -398,7 +405,7 @@ FText SMessageLogListing::OnGetPageMenuLabel() const
 	}
 	else
 	{
-		return LOCTEXT("PageMenuLabel", "Page");
+		return LOCTEXT("PageMenuLabel", "PAGE");
 	}
 }
 

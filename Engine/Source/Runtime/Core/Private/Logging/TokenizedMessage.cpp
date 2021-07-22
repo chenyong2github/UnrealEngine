@@ -81,19 +81,19 @@ FName FTokenizedMessage::GetSeverityIconName(EMessageSeverity::Type InSeverity)
 	switch (InSeverity)
 	{
 	case EMessageSeverity::CriticalError:		
-		SeverityIconName = "MessageLog.Error";		
+		SeverityIconName = "Icons.ErrorWithColor";		
 		break;
 	case EMessageSeverity::Error:				
-		SeverityIconName = "MessageLog.Error";		
+		SeverityIconName = "Icons.ErrorWithColor";		
 		break;
 	case EMessageSeverity::PerformanceWarning:	
-		SeverityIconName = "MessageLog.Warning";	
+		SeverityIconName = "Icons.WarningWithColor";	
 		break;
 	case EMessageSeverity::Warning:				
-		SeverityIconName = "MessageLog.Warning";	
+		SeverityIconName = "Icons.WarningWithColor";	
 		break;
 	case EMessageSeverity::Info:				
-		SeverityIconName = "MessageLog.Note";		
+		SeverityIconName = "Icons.BulletPoint";		
 		break;
 	default:		
 		/* No icon for this type */						
