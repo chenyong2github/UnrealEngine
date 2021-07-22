@@ -80,6 +80,22 @@ struct FTypeDefinitionInfoMap
 		}
 	}
 
+	template <typename Type, typename Lambda>
+	Type* Find(Lambda&& InLambda)
+	{
+		for (const TPair<FName, TSharedRef<FUnrealTypeDefinitionInfo>>& KVP : DefinitionsByName)
+		{
+			if (Type* TypeDef = UHTCast<Type>(*KVP.Value))
+			{
+				if (InLambda(*TypeDef))
+				{
+					return TypeDef;
+				}
+			}
+		}
+		return nullptr;
+	}
+
 private:
 	TMap<FName, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByName;
 };

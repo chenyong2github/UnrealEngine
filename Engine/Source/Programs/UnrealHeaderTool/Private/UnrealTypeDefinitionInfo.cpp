@@ -563,11 +563,11 @@ void FUnrealPropertyDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 {
 	switch (Phase)
 	{
-	case EPostParseFinalizePhase::PreCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase1:
 		FPropertyTraits::PostParseFinalize(*this);
 		break;
 
-	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase2:
 
 		// Due to structures not being fully parsed at parse time, we have to do blueprint checks here
 		if (HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable) && GetPropertyBase().IsMulticastDelegateOrMulticastDelegateStaticArray())
@@ -622,12 +622,28 @@ void FUnrealPropertyDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 			}
 		}
 
-		//@TODO: The creation of engine type should be part of the engine type creation system
+		TypePackageName = GetTypePackageNameHelper(*this);
+		break;
+	}
+}
+
+void FUnrealPropertyDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineTypesPhase Phase)
+{
+	FUnrealTypeDefinitionInfo::CreateUObjectEngineTypesInternal(Phase);
+
+	switch (Phase)
+	{
+	case ECreateEngineTypesPhase::Phase1:
+		break;
+
+	case ECreateEngineTypesPhase::Phase2:
+		break;
+
+	case ECreateEngineTypesPhase::Phase3:
 		if (GetPropertySafe() == nullptr)
 		{
 			FPropertyTraits::CreateEngineType(SharedThis(this));
 		}
-		TypePackageName = GetTypePackageNameHelper(*this);
 		break;
 	}
 }
@@ -1236,10 +1252,10 @@ void FUnrealPackageDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizeP
 
 	switch (Phase)
 	{
-	case EPostParseFinalizePhase::PreCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase1:
 		break;
 
-	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase2:
 	{
 		UPackage* Package = GetPackage();
 
@@ -1276,10 +1292,10 @@ void FUnrealFieldDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 
 	switch (Phase)
 	{
-	case EPostParseFinalizePhase::PreCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase1:
 		break;
 
-	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase2:
 	{
 		const FString& ClassName = GetEngineClassName(true);
 		const FString& PackageShortName = GetPackageDef().GetShortUpperName();
@@ -1694,6 +1710,9 @@ void FUnrealEnumDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineTy
 
 	case ECreateEngineTypesPhase::Phase2:
 		break;
+
+	case ECreateEngineTypesPhase::Phase3:
+		break;
 	}
 }
 
@@ -1771,6 +1790,23 @@ void FUnrealStructDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngine
 			FunctionDef->CreateUObjectEngineTypes(Phase);
 		}
 		break;
+
+	case ECreateEngineTypesPhase::Phase3:
+		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : Properties)
+		{
+			PropertyDef->CreateUObjectEngineTypes(Phase);
+		}
+
+		GetStruct()->Bind();
+
+		// Internals will assert of we are relinking an intrinsic 
+		bool bRelinkExistingProperties = true;
+		if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(this))
+		{
+			bRelinkExistingProperties = !ClassDef->HasAnyClassFlags(CLASS_Intrinsic);
+		}
+		GetStruct()->StaticLink(bRelinkExistingProperties);
+		break;
 	}
 }
 
@@ -1803,23 +1839,11 @@ void FUnrealStructDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePh
 
 	switch (Phase)
 	{
-	case EPostParseFinalizePhase::PreCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase1:
 		break;
 
-	case EPostParseFinalizePhase::PostCreateEngineTypes:
-	{
-
-		GetStruct()->Bind();
-
-		// Internals will assert of we are relinking an intrinsic 
-		bool bRelinkExistingProperties = true;
-		if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(this))
-		{
-			bRelinkExistingProperties = !ClassDef->HasAnyClassFlags(CLASS_Intrinsic);
-		}
-		GetStruct()->StaticLink(bRelinkExistingProperties);
+	case EPostParseFinalizePhase::Phase2:
 		break;
-	}
 	}
 }
 
@@ -1916,6 +1940,9 @@ void FUnrealScriptStructDefinitionInfo::CreateUObjectEngineTypesInternal(ECreate
 
 	case ECreateEngineTypesPhase::Phase2:
 		break;
+
+	case ECreateEngineTypesPhase::Phase3:
+		break;
 	}
 }
 
@@ -1925,7 +1952,7 @@ void FUnrealScriptStructDefinitionInfo::PostParseFinalizeInternal(EPostParseFina
 
 	switch (Phase)
 	{
-	case EPostParseFinalizePhase::PreCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase1:
 		// Collect the instanced reference state for the structure and propagate it to any
 		// property that references the structure.
 		if (FUnrealScriptStructDefinitionInfo* Base = GetSuperScriptStruct())
@@ -1949,7 +1976,7 @@ void FUnrealScriptStructDefinitionInfo::PostParseFinalizeInternal(EPostParseFina
 		}
 		break;
 
-	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase2:
 		break;
 	}
 }
@@ -2141,7 +2168,66 @@ void FUnrealClassDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineT
 	}
 
 	case ECreateEngineTypesPhase::Phase2:
+	{
+
+		// Initialize the class object
+		UClass* Class = GetClass();
+
+		// Clear the property size
+		Class->PropertiesSize = 0;
+
+		// Make the visible to the package
+		Class->ClearFlags(RF_Transient);
+		check(Class->HasAnyFlags(RF_Public));
+		check(Class->HasAnyFlags(RF_Standalone));
+
+		// Finalize all of the children introduced in this class
+		for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : GetFunctions())
+		{
+			UFunction* Function = FunctionDef->GetFunction();
+			Class->AddFunctionToFunctionMap(Function, Function->GetFName());
+		}
+
+
+		if (!HasAnyClassFlags(CLASS_Native))
+		{
+			//Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
+		}
+		else if (!HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic))
+		{
+			//Class->UnMark(OBJECTMARK_TagImp);
+			//Class->Mark(OBJECTMARK_TagExp);
+		}
+
+		// This needs to be done outside of parallel blocks because it will modify UClass memory.
+		// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
+		// they will see the memory has already been set up, and just return the parent pointer.
+		Class->SetUpUhtReplicationData();
 		break;
+	}
+
+	case ECreateEngineTypesPhase::Phase3:
+	{
+
+		// Initialize the class object
+		UClass* Class = GetClass();
+
+		if (!HasAnyClassFlags(CLASS_Native))
+		{
+			//Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
+		}
+		else if (!HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic))
+		{
+			//Class->UnMark(OBJECTMARK_TagImp);
+			//Class->Mark(OBJECTMARK_TagExp);
+		}
+
+		// This needs to be done outside of parallel blocks because it will modify UClass memory.
+		// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
+		// they will see the memory has already been set up, and just return the parent pointer.
+		Class->SetUpUhtReplicationData();
+		break;
+	}
 	}
 }
 
@@ -2151,10 +2237,10 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 
 	switch (Phase)
 	{
-	case EPostParseFinalizePhase::PreCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase1:
 		break;
 
-	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase2:
 	{
 
 		// Pick up any newly set flags from the super class (i.e. HasInstancedReference)
@@ -2199,39 +2285,13 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 			}
 		}
 
-		// Initialize the class object
-		UClass* Class = GetClass();
-
-		// Clear the property size
-		Class->PropertiesSize = 0;
-
-		// Make the visible to the package
-		Class->ClearFlags(RF_Transient);
-		check(Class->HasAnyFlags(RF_Public));
-		check(Class->HasAnyFlags(RF_Standalone));
-
-		// Finalize all of the children introduced in this class
-		for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : GetFunctions())
-		{
-			UFunction* Function = FunctionDef->GetFunction();
-			Class->AddFunctionToFunctionMap(Function, Function->GetFName());
-		}
-
 		if (!HasAnyClassFlags(CLASS_Native))
 		{
-			//Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
 		}
 		else if (!HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic))
 		{
 			GetPackageDef().SetWriteClassesH(true);
-			//Class->UnMark(OBJECTMARK_TagImp);
-			//Class->Mark(OBJECTMARK_TagExp);
 		}
-
-		// This needs to be done outside of parallel blocks because it will modify UClass memory.
-		// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
-		// they will see the memory has already been set up, and just return the parent pointer.
-		Class->SetUpUhtReplicationData();
 		break;
 	}
 	}
@@ -2906,6 +2966,18 @@ void FUnrealFunctionDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngi
 		Function->Bind();
 		break;
 	}
+
+	case ECreateEngineTypesPhase::Phase3:
+	{
+		// The following code is only performed on functions in a class.  
+		if (UHTCast<FUnrealClassDefinitionInfo>(GetOuter()) != nullptr)
+		{
+			UFunction* Function = GetFunction();
+			Function->StaticLink(true);
+			Function->ParmsSize = 0;
+		}
+		break;
+	}
 	}
 }
 
@@ -2916,10 +2988,10 @@ void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 
 	switch (Phase)
 	{
-	case EPostParseFinalizePhase::PreCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase1:
 		break;
 
-	case EPostParseFinalizePhase::PostCreateEngineTypes:
+	case EPostParseFinalizePhase::Phase2:
 	{
 
 		// Due to structures that might not be fully parsed at parse time, do blueprint validation here
@@ -2942,17 +3014,9 @@ void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 			}
 		}
 
-		UFunction* Function = GetFunction();
-
 		// The following code is only performed on functions in a class.  
 		if (UHTCast<FUnrealClassDefinitionInfo>(GetOuter()) != nullptr)
 		{
-
-			Function->StaticLink(true);
-
-			// Compute the function parameter size, propagate some flags to the outer function, and save the return offset
-			// Must be done in a second phase, as StaticLink resets various fields again!
-			Function->ParmsSize = 0;
 			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
 			{
 				if (PropertyDef->HasSpecificPropertyFlags(CPF_ReturnParm | CPF_OutParm, CPF_OutParm))
