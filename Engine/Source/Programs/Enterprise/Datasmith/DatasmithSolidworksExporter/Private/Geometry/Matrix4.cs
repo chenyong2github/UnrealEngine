@@ -27,8 +27,9 @@ namespace SolidworksDatasmith.Geometry
         // Fields
         // -----------------------------------------------------------------------------
 
-        public static Func<float, float> Sin = angle => (float)Math.Sin(angle * Math.PI / 180f);
-        public static Func<float, float> Cos = angle => (float)Math.Cos(angle * Math.PI / 180f);
+        private static Func<float, float> Sin = AngleDegrees => (float)Math.Sin(AngleDegrees * Utility.Deg2Rad);
+        private static Func<float, float> Cos = AngleDegrees => (float)Math.Cos(AngleDegrees * Utility.Deg2Rad);
+
         public const int Size4x4 = 16;
         public const int Size4x3 = 12;
 
@@ -111,34 +112,34 @@ namespace SolidworksDatasmith.Geometry
             });
         }
 
-        public static Matrix4 FromRotationX(float angle)
+        public static Matrix4 FromRotationX(float AngleDegrees)
         {
             return new Matrix4(new float[Size4x4]
             {
                 1f, 0f, 0f, 0f,
-                0f, Cos(angle), -Sin(angle), 0f,
-                0f, Sin(angle), Cos(angle), 0f,
+                0f, Cos(AngleDegrees), -Sin(AngleDegrees), 0f,
+                0f, Sin(AngleDegrees), Cos(AngleDegrees), 0f,
                 0f, 0f, 0f, 1f
             });
         }
 
-        public static Matrix4 FromRotationY(float angle)
+        public static Matrix4 FromRotationY(float AngleDegrees)
         {
             return new Matrix4(new float[Size4x4]
             {
-                Cos(angle), 0f, Sin(angle), 0f,
+                Cos(AngleDegrees), 0f, Sin(AngleDegrees), 0f,
                 0f, 1f, 0f, 0f,
-                -Sin(angle), 0f, Cos(angle), 0f,
+                -Sin(AngleDegrees), 0f, Cos(AngleDegrees), 0f,
                 0f, 0f, 0f, 1f
             });
         }
 
-        public static Matrix4 FromRotationZ(float angle)
+        public static Matrix4 FromRotationZ(float AngleDegrees)
         {
             return new Matrix4(new float[Size4x4]
             {
-                Cos(angle), -Sin(angle), 0f, 0f,
-                Sin(angle), Cos(angle), 0f, 0f,
+                Cos(AngleDegrees), -Sin(AngleDegrees), 0f, 0f,
+                Sin(AngleDegrees), Cos(AngleDegrees), 0f, 0f,
                 0f, 0f, 1f, 0f,
                 0f, 0f, 0f, 1f
             });
@@ -255,19 +256,19 @@ namespace SolidworksDatasmith.Geometry
             _m[11] = vec.z;
         }
 
-        public static Matrix4 FromRotationAxisAngle(Vec3 axis, float angle)
+        public static Matrix4 FromRotationAxisAngle(Vec3 Axis, float AngleDegrees)
         {
             Matrix4 m = new Matrix4();
-            m.SetRotationAxisAngle(axis, angle);
+            m.SetRotationAxisAngle(Axis, AngleDegrees);
             return m;
         }
 
-        public void SetRotationAxisAngle(Vec3 axis, float angle)
+        public void SetRotationAxisAngle(Vec3 Axis, float AngleDegrees)
         {
-            Vec3 v = axis.Normalized();
+            Vec3 v = Axis.Normalized();
 
-            float cosA = Cos(angle);
-            float sinA = Sin(angle);
+            float cosA = Cos(AngleDegrees);
+            float sinA = Sin(AngleDegrees);
             float oneMinusCosA = 1f - cosA;
 
             _m[0] = ((v.x * v.x) * oneMinusCosA) + cosA;
