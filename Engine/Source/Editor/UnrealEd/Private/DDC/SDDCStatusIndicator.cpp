@@ -2,7 +2,9 @@
 
 #include "DDC/SDDCStatusIndicator.h"
 #include "DDC/SDDCInformation.h"
+#include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataBackendInterface.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"
@@ -25,10 +27,7 @@
 #define LOCTEXT_NAMESPACE "SDDCStatusIndicator"
 
 void SDDCStatusIndicator::Construct(const FArguments& InArgs)
-{
-	FDerivedDataCacheInterface* DDC = GetDerivedDataCache();
-	const FString DDCGraphName = FName::NameToDisplayString(FString(DDC->GetGraphName()), false);
-	const FText DDCLabel = FText::FromString(DDC->IsDefaultGraph() ? TEXT("DDC") : DDCGraphName);
+{	
 	/*FDerivedDataCacheInterface::FOnDDCNotification& DDCNotificationEvent = GetDerivedDataCacheRef().GetDDCNotificationEvent();
 
 	if (bSubscribe)
@@ -48,6 +47,17 @@ void SDDCStatusIndicator::Construct(const FArguments& InArgs)
 	[
 		SNew(SHorizontalBox)
 		.ToolTip(SNew(SToolTip)[SNew(SDDCInformation)])
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0,0,3,0)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+			.ColorAndOpacity_Lambda([this] { return bBusy? FLinearColor::Green.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(BusyPulseSequence.GetLerp(), 1))) : FSlateColor::UseSubduedForeground(); })
+		]
+
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
@@ -62,7 +72,7 @@ void SDDCStatusIndicator::Construct(const FArguments& InArgs)
 			[
 				SNew(SImage)
 				.Image(FAppStyle::Get().GetBrush("Icons.ArrowUp"))
-				.ColorAndOpacity_Lambda([this] { return FLinearColor::Red.CopyWithNewOpacity(FadePutSequence.GetLerp()); })
+				.ColorAndOpacity_Lambda([this] { return bPutActive ? FLinearColor::Green.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(FadePutSequence.GetLerp(), 1))) : FSlateColor::UseSubduedForeground(); })
 			]
 
 			+ SOverlay::Slot()
@@ -72,7 +82,7 @@ void SDDCStatusIndicator::Construct(const FArguments& InArgs)
 			[
 				SNew(SImage)
 				.Image(FAppStyle::Get().GetBrush("Icons.ArrowDown"))
-				.ColorAndOpacity_Lambda([this] { return FLinearColor::Green.CopyWithNewOpacity(FadeGetSequence.GetLerp()); })
+				.ColorAndOpacity_Lambda([this] { return bGetActive ? FLinearColor::Green.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(FadeGetSequence.GetLerp(), 1))) : FSlateColor::UseSubduedForeground(); })
 			]
 		]
 
@@ -82,10 +92,20 @@ void SDDCStatusIndicator::Construct(const FArguments& InArgs)
 		.Padding(0,0,3,0)
 		[
 			SNew(SImage)
-			.Image(FAppStyle::Get().GetBrush("Icons.Server"))
+			.Image(FAppStyle::Get().GetBrush("Icons.Local"))
 			.ColorAndOpacity_Lambda([this] {
-				return FStyleColors::Foreground.GetSpecifiedColor().CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(BusyPulseSequence.GetLerp(), 1)));
-			})
+			return SDDCInformation::GetDDCHasLocalBackend() ? FStyleColors::AccentBlue : FSlateColor::UseSubduedForeground(); })
+		]
+
+		+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 3, 0)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Cloud"))
+			.ColorAndOpacity_Lambda([this] { 
+			return SDDCInformation::GetDDCHasRemoteBackend()? FStyleColors::AccentBlue : FSlateColor::UseSubduedForeground(); })
 		]
 
 		+ SHorizontalBox::Slot()
@@ -94,12 +114,12 @@ void SDDCStatusIndicator::Construct(const FArguments& InArgs)
 		.Padding(0, 0, 10, 0)
 		[
 			SNew(STextBlock)
-			.Text(DDCLabel)
+			.Text_Lambda([this] { return GetInformationText(); })
 		]
 	];
 
-	LastDDCGetTime = GetDDCTime(true);
-	LastDDCPutTime = GetDDCTime(false);
+	LastDDCGetTime = SDDCInformation::GetDDCTimeSeconds(true, false);
+	LastDDCPutTime = SDDCInformation::GetDDCTimeSeconds(false, false);
 	RegisterActiveTimer(0.5f, FWidgetActiveTimerDelegate::CreateSP(this, &SDDCStatusIndicator::UpdateBusyIndicator));
 	RegisterActiveTimer(5.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SDDCStatusIndicator::UpdateWarnings));
 }
@@ -109,13 +129,17 @@ EActiveTimerReturnType SDDCStatusIndicator::UpdateBusyIndicator(double InCurrent
 	const double OldLastDDCGetTime = LastDDCGetTime;
 	const double OldLastDDCPutTime = LastDDCPutTime;
 
-	LastDDCGetTime = GetDDCTime(true);
-	LastDDCPutTime = GetDDCTime(false);
+	LastDDCGetTime = SDDCInformation::GetDDCTimeSeconds(true, false);
+	LastDDCPutTime = SDDCInformation::GetDDCTimeSeconds(false, false);
 
-	FadeGetSequence.PlayRelative(this->AsShared(), OldLastDDCGetTime != LastDDCGetTime);
-	FadePutSequence.PlayRelative(this->AsShared(), OldLastDDCPutTime != LastDDCPutTime);
+	bGetActive = OldLastDDCGetTime != LastDDCGetTime;
+	bPutActive = OldLastDDCPutTime != LastDDCPutTime;
+	bBusy = GetDerivedDataCache()->AnyAsyncRequestsRemaining();
 
-	if (GetDerivedDataCache()->AnyAsyncRequestsRemaining())
+	FadeGetSequence.PlayRelative(this->AsShared(), bGetActive);
+	FadePutSequence.PlayRelative(this->AsShared(), bPutActive);
+
+	if (bBusy)
 	{
 		if (!BusyPulseSequence.IsPlaying())
 		{
@@ -129,38 +153,6 @@ EActiveTimerReturnType SDDCStatusIndicator::UpdateBusyIndicator(double InCurrent
 	}
 
 	return EActiveTimerReturnType::Continue;
-}
-
-double SDDCStatusIndicator::GetDDCTime(bool bGet) const
-{
-	int64 TotalCycles = 0;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	for (const auto& KVP : RootUsage->Stats)
-	{
-		const FDerivedDataCacheUsageStats& Stats = KVP.Value;
-		
-		if (bGet)
-		{
-			TotalCycles +=
-				(Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles) +
-				Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Cycles));
-		}
-		else
-		{
-			TotalCycles +=
-				(Stats.PrefetchStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles) +
-				Stats.PrefetchStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Cycles));
-
-			TotalCycles +=
-				(Stats.PutStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles) +
-				Stats.PutStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Cycles));
-		}
-	}
-
-	return TotalCycles * FPlatformTime::GetSecondsPerCycle();
 }
 
 EActiveTimerReturnType SDDCStatusIndicator::UpdateWarnings(double InCurrentTime, float InDeltaTime)
@@ -231,6 +223,15 @@ EActiveTimerReturnType SDDCStatusIndicator::UpdateWarnings(double InCurrentTime,
 	}
 
 	return EActiveTimerReturnType::Stop;
+}
+
+
+FText SDDCStatusIndicator::GetInformationText() const
+{
+	FDerivedDataCacheInterface* DDC = GetDerivedDataCache();
+	const FString DDCGraphName = FName::NameToDisplayString(FString(DDC->GetGraphName()), false);
+	const FText DDCLabel = FText::FromString(DDC->IsDefaultGraph() ? TEXT("DDC") : DDCGraphName);
+	return DDCLabel;
 }
 
 #undef LOCTEXT_NAMESPACE
