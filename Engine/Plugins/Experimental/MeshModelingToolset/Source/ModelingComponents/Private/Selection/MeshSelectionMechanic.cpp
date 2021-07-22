@@ -5,6 +5,7 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "Drawing/LineSetComponent.h"
+#include "Drawing/PointSetComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "InteractiveToolManager.h"
 #include "Polyline3.h"
@@ -31,6 +32,11 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	LineSet = NewObject<ULineSetComponent>();
 	LineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
+
+	PointSet = NewObject<UPointSetComponent>();
+	PointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial(
+		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
+
 }
 
 void UMeshSelectionMechanic::SetWorld(UWorld* World)
@@ -56,6 +62,17 @@ void UMeshSelectionMechanic::SetWorld(UWorld* World)
 	else
 	{
 		LineSet->RegisterComponent();
+	}
+
+	PointSet->Rename(nullptr, PreviewGeometryActor); // Changes the "outer"
+	PointSet->AttachToComponent(LineSet, FAttachmentTransformRules::KeepWorldTransform);
+	if (PointSet->IsRegistered())
+	{
+		PointSet->ReregisterComponent();
+	}
+	else
+	{
+		PointSet->RegisterComponent();
 	}
 }
 
@@ -108,6 +125,7 @@ void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection
 void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransform)
 {
 	LineSet->Clear();
+	PointSet->Clear();
 	PreviewGeometryActor->SetActorTransform(StartTransform);
 
 	// For us to end up with the StartTransform, we have to invert it, but only after applying
@@ -147,6 +165,17 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 					LineColor, LineThickness, DepthBias);
 		}
 	}
+	else if (CurrentSelection.Type == FDynamicMeshSelection::EType::Vertex)
+	{
+		PointSet->ReservePoints(CurrentSelection.SelectedIDs.Num());
+		for (int32 Vid : CurrentSelection.SelectedIDs)
+		{
+			FRenderablePoint PointToRender(TransformToApply(CurrentSelection.Mesh->GetVertex(Vid)),
+				                           PointColor,
+				                           PointThickness);
+			PointSet->AddPoint(PointToRender);
+		}
+	}
 }
 
 void UMeshSelectionMechanic::UpdateCentroid()
@@ -170,6 +199,14 @@ void UMeshSelectionMechanic::UpdateCentroid()
 		for (int32 Tid : CurrentSelection.SelectedIDs)
 		{
 			CurrentSelectionCentroid += CurrentSelection.Mesh->GetTriCentroid(Tid);
+		}
+		CurrentSelectionCentroid /= CurrentSelection.SelectedIDs.Num();
+	}
+	if (CurrentSelection.Type == FDynamicMeshSelection::EType::Vertex)
+	{
+		for (int32 Vid : CurrentSelection.SelectedIDs)
+		{
+			CurrentSelectionCentroid += CurrentSelection.Mesh->GetVertex(Vid);
 		}
 		CurrentSelectionCentroid /= CurrentSelection.SelectedIDs.Num();
 	}
@@ -213,7 +250,10 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 
 	if (!InMultiSelectMode() ||
 		(SelectionMode == EMeshSelectionMechanicMode::Component && CurrentSelection.Type != FDynamicMeshSelection::EType::Triangle) ||
-		(SelectionMode == EMeshSelectionMechanicMode::Edge && CurrentSelection.Type != FDynamicMeshSelection::EType::Edge) ) 
+		(SelectionMode == EMeshSelectionMechanicMode::Edge && CurrentSelection.Type != FDynamicMeshSelection::EType::Edge) ||
+		(SelectionMode == EMeshSelectionMechanicMode::Vertex && CurrentSelection.Type != FDynamicMeshSelection::EType::Vertex) || 
+		(SelectionMode == EMeshSelectionMechanicMode::Triangle && CurrentSelection.Type != FDynamicMeshSelection::EType::Triangle) || 
+		(SelectionMode == EMeshSelectionMechanicMode::Mesh && CurrentSelection.Type != FDynamicMeshSelection::EType::Triangle) )
 	{ // If we're not enabling multiselect, or our desired mode doesn't match our current selection type, clear the existing selection
 		CurrentSelection.SelectedIDs.Empty();
 		CurrentSelection.Mesh = nullptr;
@@ -285,6 +325,47 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 				CurrentSelection.SelectedIDs.Add(Result.ID);
 				CurrentSelection.Type = FDynamicMeshSelection::EType::Edge;
 			}
+		}
+		else if (SelectionMode == EMeshSelectionMechanicMode::Vertex)
+		{
+			// TODO: Improve this to handle super narrow, sliver triangles better, where testing near vertices can be difficult.
+
+			// Try to snap to one of the vertices
+			FIndex3i Vids = CurrentSelection.Mesh->GetTriangle(HitTid);
+
+			FGeometrySet3 GeometrySet;
+			for (int i = 0; i < 3; ++i)
+			{
+				GeometrySet.AddPoint(Vids[i], CurrentSelection.Mesh->GetTriVertex(HitTid, i));
+			}
+			FGeometrySet3::FNearest Result;
+			if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Result,
+				[this](const FVector3d& Position1, const FVector3d& Position2) {
+					return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
+						Position1, Position2,
+						ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
+			{
+				// Since we've already handled multiselect and not holding vertices above, this should be safe.	
+				// But just to be sure, we'll toss in a check to validate everything.
+				ensure((InMultiSelectMode() && CurrentSelection.Type == FDynamicMeshSelection::EType::Vertex) || CurrentSelection.SelectedIDs.IsEmpty());
+				CurrentSelection.SelectedIDs.Add(Result.ID);
+				CurrentSelection.Type = FDynamicMeshSelection::EType::Vertex;
+			}
+		}
+		else if (SelectionMode == EMeshSelectionMechanicMode::Triangle)
+		{
+			ensure((InMultiSelectMode() && CurrentSelection.Type == FDynamicMeshSelection::EType::Triangle) || CurrentSelection.SelectedIDs.IsEmpty());
+			CurrentSelection.SelectedIDs.Add(HitTid);
+			CurrentSelection.Type = FDynamicMeshSelection::EType::Triangle;
+		}
+		else if (SelectionMode == EMeshSelectionMechanicMode::Mesh)
+		{
+			ensure((InMultiSelectMode() && CurrentSelection.Type == FDynamicMeshSelection::EType::Triangle) || CurrentSelection.SelectedIDs.IsEmpty());
+			for (int32 Tid : CurrentSelection.Mesh->TriangleIndicesItr())
+			{
+				CurrentSelection.SelectedIDs.Add( Tid );
+			}
+			CurrentSelection.Type = FDynamicMeshSelection::EType::Triangle;
 		}
 	}
 

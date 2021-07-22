@@ -15,6 +15,7 @@
 #include "MeshSelectionMechanic.generated.h"
 
 class ULineSetComponent;
+class UPointSetComponent;
 class APreviewGeometryActor;
 
 enum class EMeshSelectionMechanicMode
@@ -23,7 +24,12 @@ enum class EMeshSelectionMechanicMode
 	
 	// Not yet fully implemented for UV mesh purposes, since 
 	// we need to be able to select occluded edges
-	Edge
+	Edge,
+	Vertex,
+	Triangle,
+
+	// TODO: This might be good to rename later. And determine how it might interact with multi-mesh selection?
+	Mesh
 };
 
 UCLASS()
@@ -95,6 +101,9 @@ protected:
 	UPROPERTY()
 	TObjectPtr<ULineSetComponent> LineSet = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UPointSetComponent> PointSet = nullptr;
+
 
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> MeshSpatials;
 	TArray<FTransform> MeshTransforms;
@@ -103,11 +112,13 @@ protected:
 	FViewCameraState CameraState;
 
 	FColor LineColor = FColor::Yellow;
+	FColor PointColor = FColor::Yellow;
 
 	bool bShiftToggle = false;
 	static const int32 ShiftModifierID = 1;
 
 	float LineThickness = 3;
+	float PointThickness = 6;
 	float DepthBias = 0.3;
 
 	FVector3d CurrentSelectionCentroid;
