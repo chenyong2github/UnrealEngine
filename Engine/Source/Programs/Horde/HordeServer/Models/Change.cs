@@ -6,6 +6,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
@@ -19,6 +20,7 @@ namespace HordeServer.Models
 	/// <summary>
 	/// Summary information for a change
 	/// </summary>
+	[DebuggerDisplay("{Number}: {Description}")]
 	public class ChangeSummary
 	{
 		/// <summary>
@@ -32,6 +34,11 @@ namespace HordeServer.Models
 		public string Author { get; set; }
 
 		/// <summary>
+		/// The base path for modified files
+		/// </summary>
+		public string Path { get; set; }
+
+		/// <summary>
 		/// Abbreviated changelist description
 		/// </summary>
 		public string Description { get; set; }
@@ -41,11 +48,13 @@ namespace HordeServer.Models
 		/// </summary>
 		/// <param name="Number">Changelist number</param>
 		/// <param name="Author">Author of the change</param>
+		/// <param name="Path">Base path for modified files</param>
 		/// <param name="Description">Changelist description</param>
-		public ChangeSummary(int Number, string Author, string Description)
+		public ChangeSummary(int Number, string Author, string Path, string Description)
 		{
 			this.Number = Number;
 			this.Author = Author;
+			this.Path = Path;
 			this.Description = Description;
 		}
 	}
@@ -70,6 +79,7 @@ namespace HordeServer.Models
 	/// <summary>
 	/// Information about a commit
 	/// </summary>
+	[DebuggerDisplay("{Number}: {Description}")]
 	public class ChangeDetails
 	{
 		/// <summary>
@@ -106,6 +116,11 @@ namespace HordeServer.Models
 		public string Author { get; set; }
 
 		/// <summary>
+		/// The base path for modified files
+		/// </summary>
+		public string Path { get; set; }
+
+		/// <summary>
 		/// The description text
 		/// </summary>
 		public string Description { get; set; }
@@ -116,11 +131,17 @@ namespace HordeServer.Models
 		public List<string> Files { get; set; }
 
 		/// <summary>
+		/// Date that the change was submitted
+		/// </summary>
+		public DateTime Date { get; set; }
+
+		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
 		private ChangeDetails()
 		{
 			Author = null!;
+			Path = null!;
 			Description = null!;
 			Files = null!;
 		}
@@ -130,14 +151,18 @@ namespace HordeServer.Models
 		/// </summary>
 		/// <param name="Number">Changelist number</param>
 		/// <param name="Author">Author of the change</param>
+		/// <param name="Path">Base path for modified files</param>
 		/// <param name="Description">Changelist description</param>
 		/// <param name="Files">List of files modified, relative to the stream base</param>
-		public ChangeDetails(int Number, string Author, string Description, List<string> Files)
+		/// <param name="Date">Date that the change was submitted</param>
+		public ChangeDetails(int Number, string Author, string Path, string Description, List<string> Files, DateTime Date)
 		{
 			this.Number = Number;
 			this.Author = Author;
+			this.Path = Path;
 			this.Description = Description;
 			this.Files = Files;
+			this.Date = Date;
 		}
 
 		/// <summary>

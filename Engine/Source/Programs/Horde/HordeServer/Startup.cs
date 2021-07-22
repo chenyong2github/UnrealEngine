@@ -75,6 +75,8 @@ using Amazon.S3;
 using Amazon.Runtime;
 using HordeServer.Storage.Backends;
 using HordeServer.Storage.Services;
+using HordeServer.Commits.Impl;
+using HordeServer.Commits;
 
 namespace HordeServer
 {
@@ -296,6 +298,7 @@ namespace HordeServer
 
 			Services.AddSingleton<IAgentCollection, AgentCollection>();
 			Services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
+			Services.AddSingleton<ICommitCollection, CommitCollection>();
 			Services.AddSingleton<ICounterCollection, CounterCollection>();
 			Services.AddSingleton<IGraphCollection, GraphCollection>();
 			Services.AddSingleton<IIssueCollection, IssueCollection>();
@@ -366,6 +369,7 @@ namespace HordeServer
 				}
 				return new NoOpDogStatsd();
 			});
+			Services.AddSingleton<CommitService>();
 			Services.AddSingleton<IClock, Clock>();
 			Services.AddSingleton<IDowntimeService, DowntimeService>();
 			Services.AddSingleton<IIssueService, IssueService>();
@@ -502,6 +506,7 @@ namespace HordeServer
 
 			Services.AddHostedService(Provider => Provider.GetRequiredService<AgentService>());
 			Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleService>());
+			Services.AddHostedService(Provider => Provider.GetRequiredService<CommitService>());
 			Services.AddHostedService(Provider => Provider.GetRequiredService<ConsistencyService>());
 			Services.AddHostedService(Provider => (DowntimeService)Provider.GetRequiredService<IDowntimeService>());
 			Services.AddHostedService(Provider => Provider.GetRequiredService<JobTaskSource>());

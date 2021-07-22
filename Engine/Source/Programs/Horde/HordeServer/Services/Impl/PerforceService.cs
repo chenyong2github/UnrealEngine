@@ -17,9 +17,23 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Diagnostics.CodeAnalysis;
 using HordeServer.Utilities;
+using System.Reflection;
 
 namespace HordeServer.Services
 {
+	static class PerforceExtensions
+	{
+		static FieldInfo Field = typeof(P4.Changelist).GetField("_baseForm", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+		public static string GetPath(this P4.Changelist Changelist)
+		{
+			P4.FormBase? FormBase = Field.GetValue(Changelist) as P4.FormBase;
+			object? PathValue = null;
+			FormBase?.TryGetValue("path", out PathValue);
+			return (PathValue as string) ?? "//...";
+		}
+	}
+
 	/// <summary>
 	/// P4API implementation of the Perforce service
 	/// </summary>
@@ -461,6 +475,99 @@ namespace HordeServer.Services
 			P4.LogFile.LogMessage(LogLevel, category, Message);
 		}
 
+		class StreamView : IStreamView
+		{
+			P4.P4MapApi MapApi;
+
+			public StreamView(P4.P4MapApi MapApi)
+			{
+				this.MapApi = MapApi;
+			}
+
+			public void Dispose()
+			{
+				MapApi.Dispose();
+			}
+
+			public bool TryGetStreamPath(string DepotPath, out string StreamPath)
+			{
+				StreamPath = MapApi.Translate(DepotPath, P4.P4MapApi.Direction.LeftRight);
+				return StreamPath != null;
+			}
+		}
+
+		/// <inheritdoc/>
+		public async Task<IStreamView> GetStreamViewAsync(string ClusterName, string StreamName)
+		{
+			PerforceCluster Cluster = await GetClusterAsync(ClusterName);
+			using (P4.Repository Repository = await GetConnection(Cluster, NoClient: true))
+			{
+				P4.Stream Stream = Repository.GetStream(StreamName, new P4.StreamCmdOptions(P4.StreamCmdFlags.View, null, null));
+
+				P4.P4MapApi? MapApi = null;
+				try
+				{
+					MapApi = new P4.P4MapApi(Repository.Server.Metadata.UnicodeEnabled);
+					foreach (P4.MapEntry Entry in Stream.View)
+					{
+						P4.P4MapApi.Type MapType;
+						switch (Entry.Type)
+						{
+							case P4.MapType.Include:
+								MapType = P4.P4MapApi.Type.Include;
+								break;
+							case P4.MapType.Exclude:
+								MapType = P4.P4MapApi.Type.Exclude;
+								break;
+							case P4.MapType.Overlay:
+								MapType = P4.P4MapApi.Type.Overlay;
+								break;
+							default:
+								throw new Exception($"Invalid map type: {Entry.Type}");
+						}
+						MapApi.Insert(Entry.Left.ToString(), Entry.Right.ToString(), MapType);
+					}
+
+					StreamView View = new StreamView(MapApi);
+					MapApi = null;
+					return View;
+				}
+				finally
+				{
+					MapApi?.Dispose();
+				}
+			}
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int MaxResults)
+		{
+			PerforceCluster Cluster = await GetClusterAsync(ClusterName);
+			using (P4.Repository Repository = await GetConnection(Cluster, NoClient: true))
+			{
+				P4.ChangesCmdOptions Options = new P4.ChangesCmdOptions(P4.ChangesCmdFlags.IncludeTime | P4.ChangesCmdFlags.FullDescription, null, MaxResults, P4.ChangeListStatus.Submitted, null);
+
+				IList<P4.Changelist> Changelists;
+				if (MinChange == null)
+				{
+					Changelists = Repository.GetChangelists(Options);
+				}
+				else
+				{
+					Changelists = Repository.GetChangelists(Options, new P4.FileSpec(new P4.DepotPath($"//...@>={MinChange.Value}"), null, null, null));
+				}
+
+				List<ChangeSummary> Changes = new List<ChangeSummary>();
+				if (Changelists != null)
+				{
+					foreach (P4.Changelist Changelist in Changelists)
+					{
+						Changes.Add(new ChangeSummary(Changelist.Id, Changelist.OwnerName, Changelist.GetPath(), Changelist.Description));
+					}
+				}
+				return Changes;
+			}
+		}
 
 		/// <inheritdoc/>
 		public async Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser)
@@ -483,11 +590,60 @@ namespace HordeServer.Services
 				{
 					foreach (P4.Changelist Changelist in Changelists)
 					{
-						Changes.Add(new ChangeSummary(Changelist.Id, Changelist.OwnerName, Changelist.Description));
+						Changes.Add(new ChangeSummary(Changelist.Id, Changelist.OwnerName, Changelist.GetPath(), Changelist.Description));
 					}
 				}
 
 				return Changes;
+			}
+		}
+
+		/// <inheritdoc/>
+		public async Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, int ChangeNumber)
+		{
+			PerforceCluster Cluster = await GetClusterAsync(ClusterName);
+			using (P4.Repository Repository = await GetConnection(Cluster, NoClient: true))
+			{
+				List<ChangeDetails> Results = new List<ChangeDetails>();
+
+				List<string> Args = new List<string> { "-s", "-S", $"{ChangeNumber}" };
+
+				using (P4.P4Command Command = new P4.P4Command(Repository, "describe", true, Args.ToArray()))
+				{
+					P4.P4CommandResult Result = Command.Run();
+
+					if (!Result.Success || Result.TaggedOutput == null || Result.TaggedOutput.Count == 0)
+					{
+						throw new Exception("Unable to get changes");
+					}
+
+					List<P4.Changelist> Changelists = new List<P4.Changelist>() { };
+
+					bool DSTMismatch = false;
+					string Offset = string.Empty;
+
+					P4.Server Server = Repository.Server;
+					if (Server != null && Server.Metadata != null)
+					{
+						Offset = Server.Metadata.DateTimeOffset;
+						DSTMismatch = P4.FormBase.DSTMismatch(Server.Metadata);
+					}
+
+					P4.TaggedObject TaggedObject = Result.TaggedOutput[0];
+					{
+						List<string> Files = new List<string>();
+
+						P4.Changelist Change = new P4.Changelist();
+						Change.FromChangeCmdTaggedOutput(TaggedObject, true, Offset, DSTMismatch);
+
+						foreach (P4.FileMetaData DescribeFile in Change.Files)
+						{
+							Files.Add(DescribeFile.DepotPath.Path);
+						}
+
+						return new ChangeDetails(Change.Id, Change.OwnerName, Change.GetPath(), Change.Description, Files, Change.ModifiedDate);
+					}
+				}
 			}
 		}
 
@@ -557,7 +713,7 @@ namespace HordeServer.Services
 
 						}
 
-						Results.Add(new ChangeDetails(Change.Id, Change.OwnerName, Change.Description, Files));
+						Results.Add(new ChangeDetails(Change.Id, Change.OwnerName, Change.GetPath(), Change.Description, Files, Change.ModifiedDate));
 					}
 
 				}

@@ -26,7 +26,7 @@ namespace HordeServer.Utilities
 		SingletonDocument<State> StateAccessor;
 		TimeSpan PollInterval;
 		TimeSpan ElectionTimeout;
-		Task BackgroundTask;
+		Task? BackgroundTask;
 		CancellationTokenSource CancellationTokenSource;
 		Func<CancellationToken, Task<DateTime>> TickAsync;
 		bool ReadOnlyMode;
@@ -76,7 +76,38 @@ namespace HordeServer.Utilities
 			this.Logger = Logger;
 
 			CancellationTokenSource = new CancellationTokenSource();
-			BackgroundTask = Task.Run(() => RunAsync(CancellationTokenSource.Token));
+		}
+
+		/// <summary>
+		/// Start ticking the callback
+		/// </summary>
+		/// <returns></returns>
+		public void Start()
+		{
+			if (BackgroundTask == null)
+			{
+				BackgroundTask = Task.Run(() => RunAsync(CancellationTokenSource.Token));
+			}
+		}
+
+		/// <summary>
+		/// Stop ticking the callback
+		/// </summary>
+		/// <returns></returns>
+		public async Task StopAsync()
+		{
+			if (BackgroundTask != null)
+			{
+				CancellationTokenSource.Cancel();
+				try
+				{
+					await BackgroundTask;
+					BackgroundTask = null!;
+				}
+				catch (OperationCanceledException)
+				{
+				}
+			}
 		}
 
 		/// <inheritdoc/>
@@ -88,14 +119,7 @@ namespace HordeServer.Utilities
 		/// <inheritdoc/>
 		public async ValueTask DisposeAsync()
 		{
-			CancellationTokenSource.Cancel();
-			try
-			{
-				await BackgroundTask;
-			}
-			catch(OperationCanceledException)
-			{
-			}
+			await StopAsync();
 			CancellationTokenSource.Dispose();
 		}
 
