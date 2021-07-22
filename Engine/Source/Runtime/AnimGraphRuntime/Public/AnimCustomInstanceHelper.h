@@ -272,6 +272,7 @@ public:
 				}
 
 				AnimInstance->UpdateAnimation(0.0f, false);
+				AnimInstance->RecalcRequiredBones();
 			}
 
 			// Update space bases to reset it back to ref pose

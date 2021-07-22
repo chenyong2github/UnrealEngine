@@ -11,13 +11,18 @@ void FControlRigLayerInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 
 	FAnimInstanceProxy::Initialize(InAnimInstance);
 
+	InitializationCounter.Increment();
 	UpdateCounter.Reset();
+	EvaluationCounter.Reset();
+	CachedBonesCounter.Reset();
 }
 
 void FControlRigLayerInstanceProxy::CacheBones()
 {
 	if (bBoneCachesInvalidated)
 	{
+		CachedBonesCounter.Increment();
+		
 		FAnimationCacheBonesContext Context(this);
 		check(CurrentRoot);
 		CurrentRoot->CacheBones_AnyThread(Context);
@@ -28,6 +33,8 @@ void FControlRigLayerInstanceProxy::CacheBones()
 
 bool FControlRigLayerInstanceProxy::Evaluate(FPoseContext& Output)
 {
+	EvaluationCounter.Increment();
+	
 	check(CurrentRoot);
 	CurrentRoot->Evaluate_AnyThread(Output);
 	return true;
@@ -292,6 +299,27 @@ void FControlRigLayerInstanceProxy::ResetCounter(FAnimInstanceProxy* InAnimInsta
 {
 	FAnimInstanceProxy::ResetCounterInputProxy(InAnimInstanceProxy);
 }
+
+void FControlRigLayerInstanceProxy::SynchronizeProxyInitializationCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy)
+{
+	FAnimInstanceProxy::SynchronizeInitializationCounter(Proxy, SyncProxy);
+}
+
+void FControlRigLayerInstanceProxy::SynchronizeProxyCacheBonesCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy)
+{
+	FAnimInstanceProxy::SynchronizeCacheBonesCounter(Proxy, SyncProxy);
+}
+
+void FControlRigLayerInstanceProxy::SynchronizeProxyUpdateCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy)
+{
+	FAnimInstanceProxy::SynchronizeUpdateCounter(Proxy, SyncProxy);
+}
+
+void FControlRigLayerInstanceProxy::SynchronizeProxyEvaluationCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy)
+{
+	FAnimInstanceProxy::SynchronizeEvaluationCounter(Proxy, SyncProxy);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void FAnimNode_ControlRigInputPose::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
@@ -300,6 +328,7 @@ void FAnimNode_ControlRigInputPose::Initialize_AnyThread(const FAnimationInitial
 		FAnimationInitializeContext InputContext(InputProxy);
 		if (InputPose.GetLinkNode())
 		{
+			FControlRigLayerInstanceProxy::SynchronizeProxyInitializationCounter(InputProxy, Context.AnimInstanceProxy);
 			InputPose.Initialize(InputContext);
 		}
  		else 
@@ -316,6 +345,7 @@ void FAnimNode_ControlRigInputPose::CacheBones_AnyThread(const FAnimationCacheBo
 		FAnimationCacheBonesContext InputContext(InputProxy);
 		if (InputPose.GetLinkNode())
 		{
+			FControlRigLayerInstanceProxy::SynchronizeProxyCacheBonesCounter(InputProxy, Context.AnimInstanceProxy);
 			InputPose.CacheBones(InputContext);
 		}
 		else
@@ -332,6 +362,7 @@ void FAnimNode_ControlRigInputPose::Update_AnyThread(const FAnimationUpdateConte
 		FAnimationUpdateContext InputContext = Context.WithOtherProxy(InputProxy);
 		if (InputPose.GetLinkNode())
 		{
+			FControlRigLayerInstanceProxy::SynchronizeProxyUpdateCounter(InputProxy, Context.AnimInstanceProxy);
 			InputPose.Update(InputContext);
 		}
 		else
@@ -354,6 +385,7 @@ void FAnimNode_ControlRigInputPose::Evaluate_AnyThread(FPoseContext& Output)
 			// if no linked node, just use Evaluate of proxy
 			if (InputPose.GetLinkNode())
 			{
+				FControlRigLayerInstanceProxy::SynchronizeProxyEvaluationCounter(InputProxy, Output.AnimInstanceProxy);
 				InputPose.Evaluate(InputContext);
 			}
 			else
