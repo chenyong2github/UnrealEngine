@@ -3,6 +3,7 @@
 #include "Sampling/MeshMapBaker.h"
 #include "Sampling/MeshBakerCommon.h"
 #include "Image/ImageOccupancyMap.h"
+#include "Image/ImageTile.h"
 #include "Spatial/DenseGrid2.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -171,30 +172,74 @@ void FMeshMapBaker::Bake()
 	});
 
 	// Setup image tiling
-	FImageTiling Tiles(Dimensions, TileSize, TileSize, 0);
+	FImageTiling Tiles(Dimensions, TileSize, TileSize);
 	const int32 NumBakers = Bakers.Num();
 	const int32 NumResults = BakeResults.Num();
 	ParallelFor(Tiles.Num(), [this, &Tiles, &NumBakers, &NumResults](int32 TileIdx)
 	{
-		FImageDimensions Tile = Tiles.GetTile(TileIdx);
+		const FImageTile Tile = Tiles.GetTile(TileIdx);
 
 		FImageOccupancyMap OccupancyMap;
 		OccupancyMap.GutterSize = GutterSize;
-		OccupancyMap.Initialize(Tile, Multisampling);
+		OccupancyMap.Initialize(Dimensions, Tile, Multisampling);
 		OccupancyMap.ComputeFromUVSpaceMesh(FlatMesh, [this](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); });
 
 		FMeshMapTileBuffer TileBuffer(Tile, BakeSampleBufferSize);
 
 		// Calculate interior texels
-		for (FVector2i Texel(0,0); Texel.Y < Tile.GetHeight(); ++Texel.Y)
+		for (FVector2i TileCoords(0,0); TileCoords.Y < Tile.GetHeight(); ++TileCoords.Y)
 		{
-			for (Texel.X = 0; Texel.X < Tile.GetWidth(); ++Texel.X)
+			for (TileCoords.X = 0; TileCoords.X < Tile.GetWidth(); ++TileCoords.X)
 			{
 				if (CancelF())
 				{
 					return;
 				}
-				BakePixel(TileBuffer, OccupancyMap, Tile, Texel);
+
+				const int64 TilePixelLinearIdx = Tile.GetIndex(TileCoords);
+				if (OccupancyMap.TexelNumSamples(TilePixelLinearIdx) == 0)
+				{
+					continue;
+				}
+
+				float* PixelBuffer = TileBuffer.GetPixel(TilePixelLinearIdx);
+				float& PixelWeight = TileBuffer.GetPixelWeight(TilePixelLinearIdx);
+
+				const FVector2i ImageCoords = Tile.GetSourceCoords(TileCoords);
+				const int32 NumSamples = OccupancyMap.Multisampler.Num();
+				const int32 NumEvaluatorAdd = BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add].Num();
+				for (int32 SampleIdx = 0; SampleIdx < NumSamples; ++SampleIdx)
+				{
+					const int64 LinearIdx = TilePixelLinearIdx * OccupancyMap.Multisampler.Num() + SampleIdx;
+					if (!OccupancyMap.IsInterior(LinearIdx))
+					{
+						PixelWeight += NumEvaluatorAdd > 0;
+						for (int32 Idx : BakeAccumulateLists[(int32) FMeshMapEvaluator::EAccumulateMode::Add] )
+						{
+							const int32 NumData = BakeContexts[Idx].DataLayout.Num();
+							for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
+							{
+								const int32 ResultIdx = BakeOffsets[Idx] + DataIdx;
+								const int32 Offset = BakeSampleOffsets[ResultIdx];
+								const int32 Stride = (int32) BakeContexts[Idx].DataLayout[DataIdx];
+								for (int32 BufIdx = 0; BufIdx < Stride; ++BufIdx)
+								{
+									PixelBuffer[Offset + BufIdx] += BakeDefaults[Offset + BufIdx];
+								}
+							}
+						}
+					}
+					else
+					{
+						const FVector2d UVPosition = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
+						const int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
+
+						FMeshMapEvaluator::FCorrespondenceSample Sample;
+						DetailMeshSampler.SampleUV(UVTriangleID, UVPosition, Sample);
+
+						BakeSample(TileBuffer, Sample, Tile, TileCoords, ImageCoords, 1.0f);
+					}
+				}
 			}
 		}
 
@@ -212,7 +257,8 @@ void FMeshMapBaker::Bake()
 				const float& PixelWeight = TileBuffer.GetPixelWeight(PixelLinearIdx);
 				if (PixelWeight > 0.0)
 				{
-					const int64 ImageLinearIdx = Tile.GetSourceIndex(Texel);
+					const FVector2i ImageCoords = Tile.GetSourceCoords(Texel);
+					const int64 ImageLinearIdx = Dimensions.GetIndex(ImageCoords);
 					float* PixelBuffer = TileBuffer.GetPixel(PixelLinearIdx);
 					const float OneOverPixelWeight = 1.0f / PixelWeight;
 
@@ -262,55 +308,7 @@ void FMeshMapBaker::Bake()
 	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 }
 
-void FMeshMapBaker::BakePixel(FMeshMapTileBuffer& TileBuffer, FImageOccupancyMap& OccupancyMap, const FImageDimensions& Tile, const FVector2i& TileCoords)
-{
-	if (OccupancyMap.TexelNumSamples(Tile.GetIndex(TileCoords)) == 0)
-	{
-		return;
-	}
-
-	const int64 TilePixelLinearIdx = Tile.GetIndex(TileCoords);
-	float* PixelBuffer = TileBuffer.GetPixel(TilePixelLinearIdx);
-	float& PixelWeight = TileBuffer.GetPixelWeight(TilePixelLinearIdx);
-
-	const FVector2i ImageCoords = Tile.GetSourceCoords(TileCoords.X, TileCoords.Y);
-	const int32 NumSamples = OccupancyMap.Multisampler.Num();
-	const int32 NumEvaluatorAdd = BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add].Num();
-	for (int32 SampleIdx = 0; SampleIdx < NumSamples; ++SampleIdx)
-	{
-		const int64 LinearIdx = TilePixelLinearIdx * OccupancyMap.Multisampler.Num() + SampleIdx;
-		if (!OccupancyMap.IsInterior(LinearIdx))
-		{
-			PixelWeight += NumEvaluatorAdd > 0;
-			for (int32 Idx : BakeAccumulateLists[(int32) FMeshMapEvaluator::EAccumulateMode::Add] )
-			{
-				const int32 NumData = BakeContexts[Idx].DataLayout.Num();
-				for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
-				{
-					const int32 ResultIdx = BakeOffsets[Idx] + DataIdx;
-					const int32 Offset = BakeSampleOffsets[ResultIdx];
-					const int32 Stride = (int32) BakeContexts[Idx].DataLayout[DataIdx];
-					for (int32 BufIdx = 0; BufIdx < Stride; ++BufIdx)
-					{
-						PixelBuffer[Offset + BufIdx] += BakeDefaults[Offset + BufIdx];
-					}
-				}
-			}
-		}
-		else
-		{
-			const FVector2d UVPosition = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
-			const int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
-
-			FMeshMapEvaluator::FCorrespondenceSample Sample;
-			DetailMeshSampler.SampleUV(UVTriangleID, UVPosition, Sample);
-
-			BakeSample(TileBuffer, Sample, Tile, TileCoords, ImageCoords, 1.0f);
-		}
-	}
-}
-
-void FMeshMapBaker::BakeSample(FMeshMapTileBuffer& TileBuffer, const FMeshMapEvaluator::FCorrespondenceSample& Sample, const FImageDimensions& Tile,
+void FMeshMapBaker::BakeSample(FMeshMapTileBuffer& TileBuffer, const FMeshMapEvaluator::FCorrespondenceSample& Sample, const FImageTile& Tile,
 	const FVector2i& TileCoords, const FVector2i& ImageCoords, const float& SampleWeight)
 {
 	const int64 TilePixelLinearIdx = Tile.GetIndex(TileCoords);

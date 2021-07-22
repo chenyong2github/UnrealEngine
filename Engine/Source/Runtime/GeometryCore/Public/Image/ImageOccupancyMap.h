@@ -5,6 +5,7 @@
 #include "Templates/Tuple.h"
 #include "VectorTypes.h"
 #include "Image/ImageDimensions.h"
+#include "Image/ImageTile.h"
 #include "Spatial/MeshAABBTree3.h"
 #include "Sampling/GridSampler.h"
 
@@ -30,6 +31,7 @@ class FImageOccupancyMap
 public:
 	/** Image Dimensions */
 	FImageDimensions Dimensions;
+	FImageTile Tile;
 
 	/** Width of the gutter. This is actually multiplied by the diagonal length of a texel, so
 	    the gutter is generally larger than this number of pixels */
@@ -64,6 +66,15 @@ public:
 	{
 		check(DimensionsIn.IsSquare()); // are we sure it works otherwise?
 		Dimensions = DimensionsIn;
+		Tile = FImageTile(FVector2i(0,0), FVector2i(Dimensions.GetWidth(), Dimensions.GetHeight()));
+		Multisampler = FGridSampler(Multisampling);
+	}
+
+	void Initialize(FImageDimensions DimensionsIn, const FImageTile& TileIn, int32 Multisampling = 1)
+	{
+		check(DimensionsIn.IsSquare());
+		Dimensions = DimensionsIn;
+		Tile = TileIn;
 		Multisampler = FGridSampler(Multisampling);
 	}
 
@@ -95,8 +106,8 @@ public:
 		// make flat mesh
 		TMeshAABBTree3<MeshType> FlatSpatial(&UVSpaceMesh, true);
 
-		const int32 LinearImageSize = Dimensions.Num();
-		const int32 LinearSampleSize = Dimensions.Num() * Multisampler.Num();
+		const int32 LinearImageSize = Tile.Num();
+		const int32 LinearSampleSize = Tile.Num() * Multisampler.Num();
 		TexelType.Init(EmptyTexel, LinearSampleSize);
 		TexelInteriorSamples.Init(0, LinearImageSize);
 		TexelQueryUV.Init(FVector2f::Zero(), LinearSampleSize);
@@ -111,13 +122,13 @@ public:
 		// find interior texels
 		TAtomic<int64> TotalGutterCounter = 0;
 		TArray< TArray64<TTuple<int64, int64>> > GutterTexelsPerScanline;
-		GutterTexelsPerScanline.SetNum(Dimensions.GetHeight());
+		GutterTexelsPerScanline.SetNum(Tile.GetHeight());
 
-		ParallelFor(Dimensions.GetHeight(),
+		ParallelFor(Tile.GetHeight(),
 					[this, &UVSpaceMesh, &GetTriangleIDFunc, &FlatSpatial, TexelDiag, &QueryOptions, &TexelSize, &TotalGutterCounter, &GutterTexelsPerScanline]
 		(int32 ImgY)
 		{
-			for (int32 ImgX = 0; ImgX < Dimensions.GetWidth(); ++ImgX)
+			for (int32 ImgX = 0; ImgX < Tile.GetWidth(); ++ImgX)
 			{
 				// With multiple samples, a texel may contain multiple gutter samples.
 				// Since we copy nearest interior texel over top our gutter texels, we
@@ -128,10 +139,12 @@ public:
 				TTuple<int64, int64> GutterNearestTexel;
 				for (int32 Sample = 0; Sample < Multisampler.Num(); ++Sample)
 				{
-					const int64 TexelLinearIdx = Dimensions.GetIndex(ImgX, ImgY);
+					const FVector2i SourceCoords = Tile.GetSourceCoords(ImgX, ImgY);
+					const int64 SourceTexelLinearIdx = Dimensions.GetIndex(SourceCoords.X, SourceCoords.Y);
+					const int64 TexelLinearIdx = Tile.GetIndex(ImgX, ImgY);
 					const int64 SampleLinearIdx = TexelLinearIdx * Multisampler.Num() + Sample;
 					const FVector2d SampleUV = Multisampler.Sample(Sample);
-					FVector2d UVPoint = Dimensions.GetTexelUV(TexelLinearIdx);
+					FVector2d UVPoint = Dimensions.GetTexelUV(SourceTexelLinearIdx);
 					UVPoint = UVPoint - 0.5 * TexelSize + SampleUV * TexelSize;
 					const FVector3d UVPoint3d(UVPoint.X, UVPoint.Y, 0);
 
@@ -174,23 +187,14 @@ public:
 							// To avoid artifacts with mipmapping the gutter texels store the nearest
 							// interior texel and a post pass copies those nearest interior texel values
 							// to each gutter pixel.
-							//
-							// The gutter pixel structure stores pixel indices to copy in the source
-							// image's linear index.
-							//
-							// For tiled images:
-							//    NearestCoords are in source space --> GetSource().GetIndex() will return source linear index.
-							//    ImgX, ImgY are in local tile space --> GetSourceIndex() will return source linear index.
-							const int64 NearestLinearIdx = Dimensions.IsTile() ? Dimensions.GetSourceDimensions().GetIndex(NearestCoords) : Dimensions.GetIndex(NearestCoords);
-							const int32 LinearSourceIdx = Dimensions.IsTile() ? Dimensions.GetSourceIndex(FVector2i(ImgX, ImgY)) : TexelLinearIdx;
-
-							GutterNearestTexel = TTuple<int64, int64>(LinearSourceIdx, NearestLinearIdx);
+							const int64 NearestLinearIdx = Dimensions.GetIndex(NearestCoords);
+							GutterNearestTexel = TTuple<int64, int64>(SourceTexelLinearIdx, NearestLinearIdx);
 						}
 					}
-					if (bIsGutterTexel)
-					{
-						GutterTexelsPerScanline[ImgY].Add(GutterNearestTexel);
-					}
+				}
+				if (bIsGutterTexel)
+				{
+					GutterTexelsPerScanline[ImgY].Add(GutterNearestTexel);
 				}
 			}
 

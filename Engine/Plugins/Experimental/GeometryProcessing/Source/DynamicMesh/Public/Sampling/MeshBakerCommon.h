@@ -4,7 +4,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
-#include "Image/ImageDimensions.h"
+#include "Image/ImageTile.h"
 
 namespace UE
 {
@@ -35,7 +35,7 @@ bool GetDetailMeshTrianglePoint_Nearest(
 class FMeshMapTileBuffer
 {
 public:
-	FMeshMapTileBuffer(const FImageDimensions& TileIn, const int32 PixelSizeIn)
+	FMeshMapTileBuffer(const FImageTile& TileIn, const int32 PixelSizeIn)
 		: Tile(TileIn)
 		, PixelSize(PixelSizeIn + 1) // + 1 for accumulated pixel weight.
 	{
@@ -60,7 +60,7 @@ public:
 	}
 
 private:
-	const FImageDimensions Tile;
+	const FImageTile Tile;
 	const int32 PixelSize;
 	float* Buffer;
 };
