@@ -5,6 +5,7 @@
 #include "Compression/CompressedBuffer.h"
 #include "HAL/CriticalSection.h"
 #include "Logging/LogMacros.h"
+#include "Templates/UniquePtr.h"
 #include "Virtualization/PayloadId.h"
 
 // TODO: Do we want to keep this header public for UE5 release? If the only interaction should be
@@ -45,7 +46,6 @@
 
 namespace UE::Virtualization
 {
-
 class IVirtualizationBackend;
 class IVirtualizationBackendFactory;
 
@@ -66,11 +66,23 @@ struct FPayloadActivityInfo
 	FActivity Push;
 };
 
+/** Describes the type of storage to use for a given action */
+enum EStorageType
+{
+	/** Store in the local cache backends, this can be called from any thread */
+	Local = 0,
+	/** Store in the persistent backends, this can only be called from the game thread due to limitations with ISourceControlModule. */
+	Persistent
+};
+
 /** This is used as a wrapper around the various potential back end implementations. 
 	The calling code shouldn't need to care about which back ends are actually in use. */
 class COREUOBJECT_API FVirtualizationManager
 {
 public:
+	using FRegistedFactories = TMap<FName, IVirtualizationBackendFactory*>;
+	using FBackendArray = TArray<IVirtualizationBackend*>;
+
 	/** Singleton access */
 	static FVirtualizationManager& Get();
 
@@ -79,17 +91,19 @@ public:
 
 	/** Poll to see if content virtualization is enabled or not. */
 	bool IsEnabled() const;
-
+	
 	/** 
 	 * Push a payload to the virtualization backends.
 	 * 
-	 * @param	Id The identifier of the payload being pushed.
-	 * @param	Payload The payload itself in FCompressedBuffer form, it is assumed
-	 *			that if the buffer is to be compressed that it will have been done
-	 *			by the caller.
+	 * @param	Id			The identifier of the payload being pushed.
+	 * @param	Payload		The payload itself in FCompressedBuffer form, it is 
+	 *						assumed that if the buffer is to be compressed that
+	 *						it will have been done by the caller.
+	 * @param	StorageType	The type of storage to push the payload to, see EStorageType
+	 *						for details.
 	 * @return	True if at least one backend now contains the payload, otherwise false.
 	 */
-	bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload);
+	bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType);
 
 	/** 
 	 * Pull a payload from the virtualization backends.
@@ -107,19 +121,22 @@ public:
 	FPayloadActivityInfo GetPayloadActivityInfo() const;
 
 private:
-
+	
 	void ApplySettingsFromConfigFiles(const FConfigFile& PlatformEngineIni);
 	void ApplySettingsFromCmdline();
 
 	void ApplyDebugSettingsFromConfigFiles(const FConfigFile& PlatformEngineIni);
 
 	void MountBackends();
-	bool CreateBackend(const TCHAR* GraphName, const FString& ConfigEntryName, TMap<FName, IVirtualizationBackendFactory*>& FactoryLookupTable);
+	void ParseHierarchy(const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
+	bool CreateBackend(const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
 
-	void AddBackend(class IVirtualizationBackend* Backend);
+	void AddBackend(TUniquePtr<IVirtualizationBackend> Backend, FBackendArray& PushArray);
 
-	bool TryPushDataToBackend(class IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
-	FCompressedBuffer PullDataFromBackend(class IVirtualizationBackend& Backend, const FPayloadId& Id);
+	void CachePayload(const FPayloadId& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource);
+
+	bool TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
+	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id);
 
 	/** Are payloads allowed to be virtualized. Defaults to true. */
 	bool bEnablePayloadPushing;
@@ -150,14 +167,20 @@ private:
 	/** The critical section used to force single threaded access if bForceSingleThreaded is true */
 	FCriticalSection ForceSingleThreadedCS;
 
-	/** Collection of all the instantiated backends */
-	TArray<IVirtualizationBackend*> AllBackendsArray;
+	/** All of the backends that were mounted during graph creation */
+	TArray<TUniquePtr<IVirtualizationBackend>> AllBackends;
 
-	/** Collection of all the instantiated backends that support pull operations*/
-	TArray<IVirtualizationBackend*> PullEnabledBackendsArray;
+	/** Backends used for caching operations (must support push operations). */
+	FBackendArray LocalCachableBackends; 
 
-	/** Collection of all the instantiated backends that support push operations*/
-	TArray<IVirtualizationBackend*> PushEnabledBackendsArray;
+	/** Backends used for persistent storage operations (must support push operations). */
+	FBackendArray PersistentStorageBackends; 
+
+	/** 
+	 * The hierarchy of backends to pull from, this is assumed to be ordered from fastest to slowest
+	 * and can contain a mixture of local cacheable and persistent backends 
+	 */
+	FBackendArray PullEnabledBackends;
 };
 
 } // namespace UE::Virtualization
