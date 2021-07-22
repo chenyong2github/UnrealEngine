@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"   // required for GEOMETRYCORE_API macro
+#include "Logging/LogMacros.h"
 
 //
 // The following are convenience macros that can be used to predeclare types in the UE::Geometry::
@@ -31,3 +32,5 @@ namespace UE
 		};
 	}
 }
+
+GEOMETRYCORE_API DECLARE_LOG_CATEGORY_EXTERN(LogGeometry, Log, All);

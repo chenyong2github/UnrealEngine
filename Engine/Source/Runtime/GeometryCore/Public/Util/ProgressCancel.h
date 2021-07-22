@@ -9,6 +9,157 @@
 #include "Internationalization/Text.h"
 #include "Misc/DateTime.h"
 
+
+class FProgressCancel;
+
+
+namespace UE
+{
+namespace Geometry
+{
+
+
+/**
+ * FGeometryError represents an error code/message emitted by a geometry operation.
+ * The intention of Errors is that they are fatal, IE if an operation emits Errors then
+ * it did not complete successfully. If that is not the case, use a FGeometryWarning instead.
+ */
+struct FGeometryError
+{
+	int32 ErrorCode = 0;
+	FText Message;
+	FDateTime Timestamp;
+	TArray<unsigned char> CustomData;
+
+	FGeometryError() 
+	{ 
+		Timestamp = FDateTime::Now();
+	}
+
+	FGeometryError(int32 Code, const FText& MessageIn) : ErrorCode(Code), Message(MessageIn) 
+	{
+		Timestamp = FDateTime::Now();
+	}
+};
+
+/**
+ * FGeometryWarning represents a warning code/message emitted by a geometry operation.
+ * The intention of Warnings is that they are non-fatal, IE an operation might successfully
+ * complete but still emit Warnings
+ */
+struct FGeometryWarning
+{
+	int32 WarningCode = 0;
+	FText Message;
+	FDateTime Timestamp;
+	TArray<unsigned char> CustomData;
+
+
+	FGeometryWarning()
+	{
+		Timestamp = FDateTime::Now();
+	}
+
+	FGeometryWarning(int32 Code, const FText& MessageIn) : WarningCode(Code), Message(MessageIn)
+	{
+		Timestamp = FDateTime::Now();
+	}
+};
+
+
+/**
+ * EGeometryResultType is a generic result-code for use by geometry operations.
+ */
+enum class EGeometryResultType
+{
+	/** The Geometry Operation successfully completed */
+	Success = 0,
+	/** The Geometry Operation is in progress (this is intended for use in cases where there is a background computation that can be queried for incremental status/etc) */
+	InProgress = 1,
+	/** The Geometry Operation was Cancelled and did not complete */
+	Cancelled = 2,
+	/** The Geometry Operation completed but was not fully successful (eg some sub-computation failed and was gracefully handled, etc) */
+	PartialResult = 3,
+	/** The Geometry Operation failed and no valid result was produced */
+	Failure = 4
+};
+
+
+/**
+ * FGeometryResult represents a combined "success/failure/etc" state for a geometry operation
+ * along with a set of Error and Warning codes/messages. 
+ */
+struct FGeometryResult
+{
+	EGeometryResultType Result;
+	TArray<FGeometryError> Errors;
+	TArray<FGeometryWarning> Warnings;
+
+
+	FGeometryResult()
+	{
+		Result = EGeometryResultType::Success;
+	}
+
+	FGeometryResult(EGeometryResultType ResultType) 
+	{
+		Result = ResultType;
+	}
+
+	void UpdateResultType(EGeometryResultType NewType)
+	{
+		Result = NewType;
+	}
+
+	void SetFailed() { Result = EGeometryResultType::Failure; }
+	void SetCancelled() { Result = EGeometryResultType::Cancelled; }
+
+	void SetSuccess() { Result = EGeometryResultType::Success; }
+
+	/**
+	 * Set to Success/Failure based on bSuccess, or Cancelled if the (optional) FProgressCancel indicates that it was Cancelled
+	 */
+	inline void SetSuccess(bool bSuccess, FProgressCancel* Progress = nullptr );
+
+	/**
+	 * Append an Error to the result
+	 */
+	void AddError(FGeometryError Error) 
+	{ 
+		Errors.Add(Error); 
+	}
+	
+	/**
+	 * Append a Warning to the result
+	 */
+	void AddWarning(FGeometryWarning Warning)
+	{ 
+		Warnings.Add(Warning); 
+	}
+
+	/**
+	 * @return true if the geometry operation failed
+	 */
+	bool HasFailed() const { return Result == EGeometryResultType::Failure; }
+
+	/**
+	 * @return true if the geometry operation has some result (ie was a Success or returned a PartialResult)
+	 */
+	bool HasResult() const { return Result == EGeometryResultType::Success || Result == EGeometryResultType::PartialResult; }
+
+	static FGeometryResult Failed() { return FGeometryResult(EGeometryResultType::Failure); }
+	static FGeometryResult Cancelled() { return FGeometryResult(EGeometryResultType::Cancelled); }
+};
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE
+
+
+
+
+
 /**
  * FProgressCancel is an obejct that is intended to be passed to long-running
  * computes to do two things:
@@ -69,3 +220,18 @@ public:
 
 	TArray<FMessageInfo> Warnings;
 };
+
+
+
+
+void UE::Geometry::FGeometryResult::SetSuccess(bool bSuccess, FProgressCancel* Progress)
+{
+	if (Progress && Progress->Cancelled())
+	{
+		Result = EGeometryResultType::Cancelled;
+	}
+	else
+	{
+		Result = (bSuccess) ? EGeometryResultType::Success : EGeometryResultType::Failure;
+	}
+}

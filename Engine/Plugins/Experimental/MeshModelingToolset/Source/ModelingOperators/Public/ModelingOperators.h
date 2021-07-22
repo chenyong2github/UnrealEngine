@@ -22,6 +22,7 @@ class FDynamicMeshOperator
 protected:
 	TUniquePtr<FDynamicMesh3> ResultMesh;
 	FTransform3d ResultTransform;
+	FGeometryResult ResultInfo;
 
 public:
 	FDynamicMeshOperator()
@@ -41,6 +42,13 @@ public:
 		ResultTransform = Transform;
 	}
 
+	/**
+	 * Set the output information
+	 */
+	virtual void SetResultInfo(const FGeometryResult& Info)
+	{
+		ResultInfo = Info;
+	}
 
 	/**
 	 * @return ownership of the internal mesh that CalculateResult() produced
@@ -56,6 +64,14 @@ public:
 	const FTransform3d& GetResultTransform() const
 	{
 		return ResultTransform;
+	}
+
+	/**
+	 * @return the result information returned by CalculateResult()
+	 */
+	const FGeometryResult& GetResultInfo() const
+	{
+		return ResultInfo;
 	}
 
 	/**
