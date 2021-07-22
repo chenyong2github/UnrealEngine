@@ -17,6 +17,7 @@
 
 
 RWTexture2D<UNORM float3> RWScreenBentNormal;
+float SlopeCompareToleranceScale;
 
 Texture2D FurthestHZBTexture;
 #define FurthestHZBTextureSampler GlobalPointClampedSampler
@@ -83,7 +84,7 @@ void ScreenSpaceBentNormalCS(
 						WorldPosition + View.PreViewTranslation, RayDirection,
 						/* WorldTMax = */ TraceDistance,
 						/* SceneDepth = */ SceneDepth,
-						/* SlopeCompareToleranceScale */ 2.0f * DepthThresholdScale,
+						/* SlopeCompareToleranceScale */ SlopeCompareToleranceScale * DepthThresholdScale,
 						/* bExtendRayToScreenBorder = */ false,
 						/* out */ bRayWasClipped);
 
