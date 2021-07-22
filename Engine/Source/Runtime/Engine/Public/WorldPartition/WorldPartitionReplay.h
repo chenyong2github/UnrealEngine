@@ -38,7 +38,7 @@ struct FWorldPartitionReplaySample
 /**
  * Actor used to record world partition replay data (streaming sources for now)
  */
-UCLASS(notplaceable)
+UCLASS(notplaceable, transient)
 class ENGINE_API AWorldPartitionReplay : public AActor
 {
 	GENERATED_UCLASS_BODY()
