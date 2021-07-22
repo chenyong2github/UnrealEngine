@@ -426,7 +426,7 @@ void DrawBasePass(
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->VisBuffer64				= VisBuffer64;
-		PassParameters->MaterialDepthTable		= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+		PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
 
 		uint32 DispatchGroupSize = 0;
 
@@ -696,7 +696,7 @@ void EmitDepthTargets(
 		PassParameters->SceneStencil			= SceneStencilUAV;
 		PassParameters->MaterialHTile			= MaterialHTileUAV;
 		PassParameters->MaterialDepth			= MaterialDepthUAV;
-		PassParameters->MaterialDepthTable		= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+		PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
 
 		FDepthExportCS::FPermutationDomain PermutationVectorCS;
 		PermutationVectorCS.Set<FDepthExportCS::FVelocityExportDim>(bEmitVelocity);
@@ -827,7 +827,7 @@ void EmitDepthTargets(
 			PassParameters->DummyZero = 0u;
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
 			PassParameters->ClusterPageHeaders			= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
-			PassParameters->MaterialDepthTable			= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+			PassParameters->MaterialDepthTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
 			PassParameters->SOAStrides					= SOAStrides;
 			PassParameters->View						= View.ViewUniformBuffer;
 			PassParameters->NaniteMask					= NaniteMask;
@@ -989,7 +989,7 @@ void DrawLumenMeshCapturePass(
 
 		PassParameters->PS.VisBuffer64 = RasterContext.VisBuffer64;
 
-		PassParameters->PS.MaterialDepthTable = Scene.MaterialTables[ENaniteMeshPass::LumenCardCapture].GetDepthTableSRV();
+		PassParameters->PS.MaterialDepthTable = Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture].GetDepthTableSRV();
 
 		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthAtlasTexture,
@@ -1262,18 +1262,18 @@ void DrawLumenMeshCapturePass(
 
 } // namespace Nanite
 
-FNaniteMaterialTables::FNaniteMaterialTables(uint32 InMaxMaterials)
+FNaniteMaterialCommands::FNaniteMaterialCommands(uint32 InMaxMaterials)
 : MaxMaterials(InMaxMaterials)
 {
 	check(MaxMaterials > 0);
 }
 
-FNaniteMaterialTables::~FNaniteMaterialTables()
+FNaniteMaterialCommands::~FNaniteMaterialCommands()
 {
 	Release();
 }
 
-void FNaniteMaterialTables::Release()
+void FNaniteMaterialCommands::Release()
 {
 	DepthTableUploadBuffer.Release();
 	DepthTableDataBuffer.Release();
@@ -1281,7 +1281,7 @@ void FNaniteMaterialTables::Release()
 	HitProxyTableDataBuffer.Release();
 }
 
-void FNaniteMaterialTables::UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives)
+void FNaniteMaterialCommands::UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -1315,7 +1315,7 @@ void FNaniteMaterialTables::UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 
 	});
 }
 
-void FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 InNumPrimitiveUpdates)
+void FNaniteMaterialCommands::Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 InNumPrimitiveUpdates)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -1341,7 +1341,7 @@ void FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 N
 	}
 }
 
-void* FNaniteMaterialTables::GetDepthTablePtr(uint32 PrimitiveIndex, uint32 EntryCount)
+void* FNaniteMaterialCommands::GetDepthTablePtr(uint32 PrimitiveIndex, uint32 EntryCount)
 {
 	++NumDepthTableUpdates;
 	const uint32 BaseIndex = PrimitiveIndex * MaxMaterials;
@@ -1349,7 +1349,7 @@ void* FNaniteMaterialTables::GetDepthTablePtr(uint32 PrimitiveIndex, uint32 Entr
 }
 
 #if WITH_EDITOR
-void* FNaniteMaterialTables::GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount)
+void* FNaniteMaterialCommands::GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount)
 {
 	++NumHitProxyTableUpdates;
 	const uint32 BaseIndex = PrimitiveIndex * MaxMaterials;
@@ -1357,7 +1357,7 @@ void* FNaniteMaterialTables::GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 E
 }
 #endif
 
-void FNaniteMaterialTables::Finish(FRHICommandListImmediate& RHICmdList)
+void FNaniteMaterialCommands::Finish(FRHICommandListImmediate& RHICmdList)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -1400,12 +1400,4 @@ void FNaniteMaterialTables::Finish(FRHICommandListImmediate& RHICmdList)
 	NumHitProxyTableUpdates = 0;
 #endif
 	NumPrimitiveUpdates = 0;
-}
-
-FNaniteMaterialCommands::FNaniteMaterialCommands()
-{
-}
-
-FNaniteMaterialCommands::~FNaniteMaterialCommands()
-{
 }

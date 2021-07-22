@@ -2799,9 +2799,6 @@ public:
 
 	FLumenSceneData* LumenSceneData;
 
-	/** Nanite material tables for depth and hit proxy IDs. */
-	FNaniteMaterialTables MaterialTables[ENaniteMeshPass::Num];
-
 	/** Map from light id to the cached shadowmap data for that light. */
 	TMap<int32, TArray<FCachedShadowMapData>> CachedShadowMaps;
 	
