@@ -11,7 +11,7 @@ class FParallelCommandListBindings;
 class FNaniteDrawListContext : public FMeshPassDrawListContext
 {
 public:
-	FNaniteDrawListContext(FRWLock& InNaniteDrawCommandLock, FStateBucketMap& InNaniteDrawCommands);
+	FNaniteDrawListContext(FNaniteMaterialCommands& InMaterialCommands);
 
 	virtual FMeshDrawCommand& AddCommand(FMeshDrawCommand& Initializer, uint32 NumElements) override final;
 
@@ -36,8 +36,7 @@ public:
 	}
 
 private:
-	FRWLock* NaniteDrawCommandLock;
-	FStateBucketMap* NaniteDrawCommands;
+	FNaniteMaterialCommands& MaterialCommands;
 	FNaniteCommandInfo CommandInfo;
 	FMeshDrawCommand MeshDrawCommandForStateBucketing;
 };

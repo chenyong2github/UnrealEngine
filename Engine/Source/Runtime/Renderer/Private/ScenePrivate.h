@@ -2611,9 +2611,9 @@ public:
 	/** This method is meant to be used when transitioning to and from path traced rendering since shader bindings must be updated in the cached commands. */
 	void RefreshRayTracingMeshCommandCache(FRHICommandListImmediate& RHICmdList, ERayTracingMeshCommandsMode Mode);
 #endif
-	/** Nanite state buckets. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
-	FRWLock NaniteDrawCommandLock[ENaniteMeshPass::Num];
-	FStateBucketMap NaniteDrawCommands[ENaniteMeshPass::Num];
+
+	/** Nanite material commands. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
+	FNaniteMaterialCommands NaniteMaterials[ENaniteMeshPass::Num];
 
 	/**
 	 * The following arrays are densely packed primitive data needed by various

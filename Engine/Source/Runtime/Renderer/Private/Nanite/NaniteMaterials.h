@@ -177,13 +177,82 @@ private:
 
 class FNaniteMaterialCommands
 {
+	friend class FNaniteMaterialCommandsLock;
+
+public:
+	typedef Experimental::FHashType FCommandHash;
+	typedef Experimental::FHashElementId FCommandId;
+
 public:
 	FNaniteMaterialCommands();
 	~FNaniteMaterialCommands();
 
+	inline const FCommandHash ComputeCommandHash(const FMeshDrawCommand& DrawCommand) const
+	{
+		return StateBuckets.ComputeHash(DrawCommand);
+	}
+
+	inline const FCommandId FindIdByHash(const FCommandHash CommandHash, const FMeshDrawCommand& DrawCommand) const
+	{
+		return StateBuckets.FindIdByHash(CommandHash, DrawCommand);
+	}
+
+	inline const FCommandId FindIdByCommand(const FMeshDrawCommand& DrawCommand) const
+	{
+		const FCommandHash CommandHash = ComputeCommandHash(DrawCommand);
+		return FindIdByHash(CommandHash, DrawCommand);
+	}
+
+	inline const FCommandId FindOrAddIdByHash(const FCommandHash HashValue, const FMeshDrawCommand& DrawCommand)
+	{
+		return StateBuckets.FindOrAddIdByHash(HashValue, DrawCommand, FMeshDrawCommandCount());
+	}
+
+	inline void RemoveById(const FCommandId Id)
+	{
+		StateBuckets.RemoveByElementId(Id);
+	}
+
+	inline const FMeshDrawCommand& GetCommand(const FCommandId Id) const
+	{
+		return StateBuckets.GetByElementId(Id).Key;
+	}
+
+	inline const FMeshDrawCommandCount& GetPayload(const FCommandId Id) const
+	{
+		return StateBuckets.GetByElementId(Id).Value;
+	}
+
+	inline FMeshDrawCommandCount& GetPayload(const FCommandId Id)
+	{
+		return StateBuckets.GetByElementId(Id).Value;
+	}
+
+	inline const FStateBucketMap& GetCommands() const
+	{
+		return StateBuckets;
+	}
+
 private:
 	FRWLock ReadWriteLock;
 	FStateBucketMap StateBuckets;
+};
+
+class FNaniteMaterialCommandsLock : public FRWScopeLock
+{
+public:
+	explicit FNaniteMaterialCommandsLock(FNaniteMaterialCommands& InMaterialCommands, FRWScopeLockType InLockType)
+	: FRWScopeLock(InMaterialCommands.ReadWriteLock, InLockType)
+	{
+	}
+
+	inline void AcquireWriteAccess()
+	{
+		ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+	}
+
+private:
+	UE_NONCOPYABLE(FNaniteMaterialCommandsLock);
 };
 
 extern bool UseComputeDepthExport();
