@@ -243,8 +243,7 @@ void LumenCardBlendAlbedoPS(
 	out float4 OutColor0 : SV_Target0,
 	out float4 OutColor1 : SV_Target1)
 {
-	float3 AlbedoSqr = Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	float3 DiffuseColor = AlbedoSqr * AlbedoSqr;
+	float3 DiffuseColor = DecodeSurfaceCacheAlbedo(Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz);
 
 	if (DiffuseReflectivityOverride > 0.0f)
 	{
