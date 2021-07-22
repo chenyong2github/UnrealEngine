@@ -377,7 +377,7 @@ public:
 	// Renames a node in the graph
 	// This causes a NodeRenamed modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RenameNode(URigVMNode* InNode, const FName& InNewName, bool bSetupUndoRedo = true);
+	bool RenameNode(URigVMNode* InNode, const FName& InNewName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Selects a single node in the graph.
 	// This causes a NodeSelected / NodeDeselected modified event.
@@ -615,6 +615,10 @@ public:
 	// Removes a function from a function library graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool RemoveFunctionFromLibrary(const FName& InFunctionName, bool bSetupUndoRedo = true);
+
+	// Renames a function in the function library
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RenameFunction(const FName& InOldFunctionName, const FName& InNewFunctionName, bool bSetupUndoRedo = true);
 
 	// Add a local variable to the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
