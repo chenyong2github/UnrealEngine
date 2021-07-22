@@ -1905,6 +1905,117 @@ FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString
 	return Result;
 }
 
+bool UControlRigBlueprint::RemoveMemberVariable(const FName& InName)
+{
+	const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, InName);
+	if (VarIndex == INDEX_NONE)
+	{
+		return false;
+	}
+	
+	FBlueprintEditorUtils::RemoveMemberVariable(this, InName);
+	return true;
+}
+
+bool UControlRigBlueprint::RenameMemberVariable(const FName& InOldName, const FName& InNewName)
+{
+	int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, InOldName);
+	if (VarIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, InNewName);
+	if (VarIndex != INDEX_NONE)
+	{
+		return false;
+	}
+	
+	FBlueprintEditorUtils::RenameMemberVariable(this, InOldName, InNewName);
+	return true;
+}
+
+bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const FString& InCPPType, bool bIsPublic,
+	bool bIsReadOnly, FString InDefaultValue)
+{
+	int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, InName);
+	if (VarIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	FRigVMExternalVariable Variable;
+	Variable.Name = InName;
+	Variable.bIsPublic = bIsPublic;
+	Variable.bIsReadOnly = bIsReadOnly;
+
+	FString CPPType = InCPPType;
+	if (CPPType.StartsWith(TEXT("TMap<")))
+	{
+		UE_LOG(LogControlRigDeveloper, Warning, TEXT("TMap Variables are not supported."));
+		return false;
+	}
+
+	Variable.bIsArray = RigVMUtilities::IsArrayType(CPPType);
+	if (Variable.bIsArray)
+	{
+		CPPType = CPPType.RightChop(7).LeftChop(1);
+	}
+
+	if (CPPType == TEXT("bool"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(bool);
+	}
+	else if (CPPType == TEXT("float"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(float);
+	}
+	else if (CPPType == TEXT("double"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(double);
+	}
+	else if (CPPType == TEXT("int32"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(int32);
+	}
+	else if (CPPType == TEXT("FString"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(FString);
+	}
+	else if (CPPType == TEXT("FName"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(FName);
+	}
+	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPType))
+	{
+		Variable.TypeName = *ScriptStruct->GetStructCPPName();
+		Variable.TypeObject = ScriptStruct;
+		Variable.Size = ScriptStruct->GetStructureSize();
+	}
+	else if (UEnum* Enum= URigVMPin::FindObjectFromCPPTypeObjectPath<UEnum>(CPPType))
+	{
+		Variable.TypeName = *Enum->CppType;
+		Variable.TypeObject = Enum;
+		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
+	}
+
+	FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(Variable);
+	if (!PinType.PinCategory.IsValid())
+	{
+		return false;
+	}
+
+	FBlueprintEditorUtils::ChangeMemberVariableType(this, InName, PinType);
+
+	return true;
+}
+
 FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 {
 	TUniquePtr<FControlValueScope> ValueScope;
@@ -3394,6 +3505,25 @@ void UControlRigBlueprint::OnPostVariableChange(UBlueprint* InBlueprint)
 
 void UControlRigBlueprint::OnVariableAdded(const FName& InVarName)
 {
+	FBPVariableDescription Variable;
+	for (FBPVariableDescription& NewVariable : NewVariables)
+	{
+		if (NewVariable.VarName == InVarName)
+		{
+			Variable = NewVariable;
+			break;
+		}
+	}
+
+	FRigVMExternalVariable ExternalVariable = UControlRig::GetExternalVariableFromDescription(Variable);
+
+	RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.add_member_variable('%s', '%s', %s, %s, '%s')"),
+			*InVarName.ToString(),
+			*ExternalVariable.TypeName.ToString(),
+			(ExternalVariable.bIsPublic) ? TEXT("False") : TEXT("True"), 
+			(ExternalVariable.bIsReadOnly) ? TEXT("True") : TEXT("False"), 
+			*Variable.DefaultValue)); 
+	
 	BroadcastExternalVariablesChangedEvent();
 }
 
@@ -3404,9 +3534,13 @@ void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
 	{
 		if (URigVMController* Controller = GetOrCreateController(Graph))
 		{
-			Controller->OnExternalVariableRemoved(InVarName, true, true);
+			Controller->OnExternalVariableRemoved(InVarName, true);
 		}
 	}
+
+	RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.remove_member_variable('%s')"),
+			*InVarName.ToString()));
+	
 	BroadcastExternalVariablesChangedEvent();
 }
 
@@ -3417,9 +3551,14 @@ void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FN
 	{
 		if (URigVMController* Controller = GetOrCreateController(Graph))
 		{
-			Controller->OnExternalVariableRenamed(InOldVarName, InNewVarName, true, true);
+			Controller->OnExternalVariableRenamed(InOldVarName, InNewVarName, true);
 		}
 	}
+
+	RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.rename_member_variable('%s', '%s')"),
+			*InOldVarName.ToString(),
+			*InNewVarName.ToString()));
+	
 	BroadcastExternalVariablesChangedEvent();
 }
 
@@ -3439,14 +3578,42 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 			FRigVMExternalVariable NewVariable = UControlRig::GetExternalVariableFromPinType(InVarName, InNewPinType);
 			if (NewVariable.IsValid(true)) // allow nullptr
 			{
-				Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, bSetupUndoRedo, true);
+				Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, bSetupUndoRedo);
 			}
 			else
 			{
-				Controller->OnExternalVariableRemoved(InVarName, bSetupUndoRedo, true);
+				Controller->OnExternalVariableRemoved(InVarName, bSetupUndoRedo);
 			}
 		}
 	}
+
+	FRigVMExternalVariable NewVariable = UControlRig::GetExternalVariableFromPinType(InVarName, InNewPinType);
+	FString PinType = NewVariable.TypeName.ToString();
+	if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(NewVariable.TypeObject))
+	{
+		for (auto Var : NewVariables)
+		{
+			if (Var.VarName == InVarName)
+			{
+				PinType = ScriptStruct->GetName();
+			}
+		}
+	}
+	else if (UEnum* Enum = Cast<UEnum>(NewVariable.TypeObject))
+	{
+		for (auto Var : NewVariables)
+		{
+			if (Var.VarName == InVarName)
+			{
+				PinType = Enum->GetName();
+			}
+		}
+	}
+
+	RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.change_member_variable_type('%s', '%s')"),
+		*InVarName.ToString(),
+		*PinType));
+
 	BroadcastExternalVariablesChangedEvent();
 }
 

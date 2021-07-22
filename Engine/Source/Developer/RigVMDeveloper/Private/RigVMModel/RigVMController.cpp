@@ -1005,7 +1005,7 @@ void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName&
 	}
 }
 
-void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bSetupUndoRedo, bool bPrintPythonCommand)
+void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
 	{
@@ -1090,16 +1090,9 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 	{
 		CloseUndoBracket();
 	}
-
-	if (bPrintPythonCommand)
-	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').on_external_variable_removed('%s')"),
-				*GetGraph()->GetGraphName(),
-				*InVarName.ToString()));
-	}
 }
 
-void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bSetupUndoRedo, bool bPrintPythonCommand)
+void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
 	{
@@ -1187,17 +1180,9 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 	{
 		CloseUndoBracket();
 	}
-
-	if (bPrintPythonCommand)
-	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').on_external_variable_renamed('%s', '%s')"),
-				*GetGraph()->GetGraphName(),
-				*InOldVarName.ToString(),
-				*InNewVarName.ToString()));
-	}
 }
 
-void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bPrintPythonCommand)
+void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
 	{
@@ -1282,16 +1267,6 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 	if (bSetupUndoRedo)
 	{
 		CloseUndoBracket();
-	}
-	
-	if (bPrintPythonCommand)
-	{
-		//OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').on_external_variable_type_changed_from_object_path('%s', '%s', '%s')"),
-				*GetGraph()->GetGraphName(),
-				*InVarName.ToString(),
-				*InCPPType,
-				*InCPPTypeObject->GetPathName()));
 	}
 }
 
