@@ -2592,7 +2592,9 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	SecondaryViewFraction(1.0f),
 	SecondaryScreenPercentageMethod(ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation),
 	ScreenPercentageInterface(nullptr),
-	TemporalUpscalerInterface(nullptr)
+	TemporalUpscalerInterface(nullptr),
+	PrimarySpatialUpscalerInterface(nullptr),
+	SecondarySpatialUpscalerInterface(nullptr)
 {
 	// If we do not pass a valid scene pointer then SetWorldTimes must be called to initialized with valid times.
 	ensure(CVS.bTimesSet);
@@ -2667,6 +2669,18 @@ FSceneViewFamily::~FSceneViewFamily()
 	if (ScreenPercentageInterface)
 	{
 		delete ScreenPercentageInterface;
+	}
+
+	if (PrimarySpatialUpscalerInterface)
+	{
+		// ISpatialUpscaler* is only defined in renderer's private header because no backward compatibility is provided between major version.
+		delete reinterpret_cast<ISceneViewFamilyExtention*>(PrimarySpatialUpscalerInterface);
+	}
+
+	if (SecondarySpatialUpscalerInterface)
+	{
+		// ISpatialUpscaler* is only defined in renderer's private header because no backward compatibility is provided between major version.
+		delete reinterpret_cast<ISceneViewFamilyExtention*>(SecondarySpatialUpscalerInterface);
 	}
 }
 
