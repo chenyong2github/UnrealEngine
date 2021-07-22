@@ -50,6 +50,7 @@ enum EEngineNetworkVersionHistory
 	HISTORY_REPLAY_DORMANCY = 16,					// Bump version to support dormancy properly in replays
 	HISTORY_ENUM_SERIALIZATION_COMPAT = 17,			// Bump version to include enum bits required for serialization into compat checksums, as well as unify enum and byte property enum serialization
 	HISTORY_SUBOBJECT_OUTER_CHAIN = 18,				// Bump version to support subobject outer chains matching on client and server
+	HISTORY_HITRESULT_INSTANCEHANDLE = 19,			// Bump version to support FHitResult change of Actor to HitObjectHandle. This change was made in CL 14369221 but a net version wasn't added at the time.
 	// New history items go above here.
 
 	HISTORY_ENGINENETVERSION_PLUS_ONE,
