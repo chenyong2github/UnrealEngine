@@ -174,11 +174,10 @@
 					</ForEach>
 				</Node>
 				<Property Name="BaselineGraphNodes" Value="$(BaselineGraphNodes);$(BaselineNodeName)"/>
+
+				<Label Category="Test" Name="$(Project) Iteration Profile $(Platform)" Requires="$(RunNodeName)"/>
 			</Agent>
 
-			<!-- Graph nodes that really tie the room together -->
-			<Label Category="Test" Name="$(Project) Iteration Profile $(Platform)" Requires="Prerequisites Agent $(Platform);Automated Test Agent $(Project) $(Platform)"/>
-			
 		</ForEach> <!-- Projects -->
 
 	</ForEach> <!-- Platforms -->
