@@ -3864,7 +3864,7 @@ struct ENGINE_API FComponentReference
 	FName ComponentProperty;
 
 	/** Path to the component from its owner actor */
-	UPROPERTY(meta = (SaveToComponentInstanceDataCache))
+	UPROPERTY(EditDefaultsOnly, Category=Component, meta =(EditCondition="false", EditConditionHides))
 	FString PathToComponent;
 
 	/** Allows direct setting of first component to constraint. */
