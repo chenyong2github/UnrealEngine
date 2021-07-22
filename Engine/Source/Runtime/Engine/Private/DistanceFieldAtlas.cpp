@@ -741,13 +741,15 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		if (Task->StaticMesh)
 		{
 			Task->GeneratedVolumeData->bAsyncBuilding = false;
-			FDistanceFieldVolumeData* OldVolumeData = Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData;
+
+			FStaticMeshRenderData* RenderData = Task->StaticMesh->GetRenderData();
+			FDistanceFieldVolumeData* OldVolumeData = RenderData->LODResources[0].DistanceFieldData;
 
 			// Assign the new volume data, this is safe because the render thread makes a copy of the pointer at scene proxy creation time.
-			Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
+			RenderData->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
 
 			// Renderstates are not initialized between UStaticMesh::PreEditChange() and UStaticMesh::PostEditChange()
-			if (Task->StaticMesh->GetRenderData()->IsInitialized())
+			if (RenderData->IsInitialized())
 			{
 				for (UStaticMeshComponent* Component : ObjectCacheScope.GetContext().GetStaticMeshComponents(Task->StaticMesh))
 				{
@@ -758,11 +760,21 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 				}
 			}
 
-
 			if (OldVolumeData)
 			{
 				// Rendering thread may still be referencing the old one, use the deferred cleanup interface to delete it next frame when it is safe
 				BeginCleanup(OldVolumeData);
+			}
+
+			// Need also to update platform render data if it's being cached
+			FStaticMeshRenderData* PlatformRenderData = RenderData->NextCachedRenderData.Get();
+			while (PlatformRenderData)
+			{
+				if (PlatformRenderData->LODResources[0].DistanceFieldData)
+				{
+					*PlatformRenderData->LODResources[0].DistanceFieldData = *Task->GeneratedVolumeData;
+				}
+				PlatformRenderData = PlatformRenderData->NextCachedRenderData.Get();
 			}
 
 			{

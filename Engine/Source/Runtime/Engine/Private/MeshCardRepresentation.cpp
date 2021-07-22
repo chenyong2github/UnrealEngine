@@ -621,13 +621,14 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg UProperty or serialized)
 		if (Task->StaticMesh && Task->bSuccess)
 		{
-			FCardRepresentationData* OldCardData = Task->StaticMesh->GetRenderData()->LODResources[0].CardRepresentationData;
+			FStaticMeshRenderData* RenderData = Task->StaticMesh->GetRenderData();
+			FCardRepresentationData* OldCardData = RenderData->LODResources[0].CardRepresentationData;
 
 			// Assign the new data, this is safe because the render threads makes a copy of the pointer at scene proxy creation time.
-			Task->StaticMesh->GetRenderData()->LODResources[0].CardRepresentationData = Task->GeneratedCardRepresentation;
+			RenderData->LODResources[0].CardRepresentationData = Task->GeneratedCardRepresentation;
 
 			// Any already created render state needs to be dirtied
-			if (Task->StaticMesh->GetRenderData()->IsInitialized())
+			if (RenderData->IsInitialized())
 			{
 				for (UStaticMeshComponent* Component : ObjectCacheScope.GetContext().GetStaticMeshComponents(Task->StaticMesh))
 				{
@@ -640,6 +641,17 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 
 			// Rendering thread may still be referencing the old one, use the deferred cleanup interface to delete it next frame when it is safe
 			BeginCleanup(OldCardData);
+
+			// Need also to update platform render data if it's being cached
+			FStaticMeshRenderData* PlatformRenderData = RenderData->NextCachedRenderData.Get();
+			while (PlatformRenderData)
+			{
+				if (PlatformRenderData->LODResources[0].CardRepresentationData)
+				{
+					*PlatformRenderData->LODResources[0].CardRepresentationData = *Task->GeneratedCardRepresentation;
+				}
+				PlatformRenderData = PlatformRenderData->NextCachedRenderData.Get();
+			}
 
 			{
 				TArray<uint8> DerivedData;
