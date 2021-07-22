@@ -376,6 +376,7 @@ namespace HordeServer.Services
 					NewEntry.LastUpdateTime = ExistingEntry.LastUpdateTime;
 				}
 			}
+			ServerList.Servers = NewEntries;
 		}
 
 		async Task UpdateLeaseCounts(IEnumerable<PerforceServerEntry> NewServerEntries)
