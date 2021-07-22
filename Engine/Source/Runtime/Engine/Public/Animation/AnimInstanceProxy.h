@@ -964,6 +964,10 @@ protected:
 	static void EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output);
 	static void ResetCounterInputProxy(FAnimInstanceProxy* InputProxy);
 
+	static void SynchronizeInitializationCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy);
+	static void SynchronizeCacheBonesCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy);
+	static void SynchronizeUpdateCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy);
+	static void SynchronizeEvaluationCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy);
 private:
 	/** Evaluate the slot when there are blend spaces involved in any of the active anim montages. */
 	void SlotEvaluatePoseWithBlendProfiles(const FName& SlotNodeName, const FAnimationPoseData& SourceAnimationPoseData, float InSourceWeight, FAnimationPoseData& OutBlendedAnimationPoseData, float InBlendWeight);

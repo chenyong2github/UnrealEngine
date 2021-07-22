@@ -3257,4 +3257,36 @@ void FAnimInstanceProxy::ResetCounterInputProxy(FAnimInstanceProxy* InputProxy)
 	}
 }
 
+void FAnimInstanceProxy::SynchronizeInitializationCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy)
+{
+	if (Proxy && SyncProxy)
+	{
+		Proxy->InitializationCounter.SynchronizeWith(SyncProxy->InitializationCounter);
+	}
+}
+
+void FAnimInstanceProxy::SynchronizeCacheBonesCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy)
+{
+	if (Proxy && SyncProxy)
+	{
+		Proxy->CachedBonesCounter.SynchronizeWith(SyncProxy->CachedBonesCounter);
+	}
+}
+
+void FAnimInstanceProxy::SynchronizeUpdateCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy)
+{
+	if (Proxy && SyncProxy)
+	{
+		Proxy->UpdateCounter.SynchronizeWith(SyncProxy->UpdateCounter);
+	}
+}
+
+void FAnimInstanceProxy::SynchronizeEvaluationCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy)
+{
+	if (Proxy && SyncProxy)
+	{
+		Proxy->EvaluationCounter.SynchronizeWith(SyncProxy->EvaluationCounter);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

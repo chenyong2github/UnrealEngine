@@ -135,4 +135,9 @@ protected:
 	static void EvaluateCustomProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output);
 	/** reset internal Counters of given animinstance proxy */
 	static void ResetCounter(FAnimInstanceProxy* InAnimInstanceProxy);
+	
+	static void SynchronizeProxyInitializationCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy);
+	static void SynchronizeProxyCacheBonesCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy);
+	static void SynchronizeProxyUpdateCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy);
+	static void SynchronizeProxyEvaluationCounter(FAnimInstanceProxy* Proxy, FAnimInstanceProxy* SyncProxy);
 };
