@@ -785,15 +785,35 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 	{
 		// Loop over all mip levels.
 		FString BaseMipDir = FPaths::GetPath(SequenceDir);
-		FString MipLevelString = SequenceDir.RightChop(Index + 1);
-		int32 MipLevel = FCString::Atoi(*MipLevelString);
-		while (MipLevel > 1)
+		int32 MipLevelWidth = 0;
+		int32 MipLevelHeight = 0;
+
+		// Getting both left and right components of resolution for mips.
+		{
+			FString MipLevelStringWidth = SequenceDir.RightChop(Index + 1);
+			FString MipLevelStringHeight = SequenceDir.LeftChop(SequenceDir.Len() - Index);
+			MipLevelHeight = FCString::Atoi(*MipLevelStringWidth);
+			int32 IndexLeft = MipLevelStringHeight.Len() - 1;
+			for (; IndexLeft > 0; IndexLeft--)
+			{
+				FString TempChop = MipLevelStringHeight.RightChop(IndexLeft);
+				if (!FCString::IsNumeric(*TempChop))
+				{
+					break;
+				}
+			}
+			MipLevelStringHeight = MipLevelStringHeight.RightChop(IndexLeft + 1);
+			MipLevelWidth = FCString::Atoi(*MipLevelStringHeight);
+		}
+
+		while (MipLevelWidth > 1 && MipLevelHeight > 1)
 		{
 			// Next level down.
-			MipLevel /= 2;
+			MipLevelWidth /= 2;
+			MipLevelHeight /= 2;
 
 			// Try and find files for this mip level.
-			FString MipDir = FPaths::Combine(BaseMipDir, FString::Printf(TEXT("%dx%d"), MipLevel, MipLevel));
+			FString MipDir = FPaths::Combine(BaseMipDir, FString::Printf(TEXT("%dx%d"), MipLevelWidth, MipLevelHeight));
 			TArray<FString> MipFiles;
 			FindFiles(MipDir, MipFiles);
 
