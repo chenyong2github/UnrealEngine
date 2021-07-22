@@ -1967,7 +1967,7 @@ void SRigHierarchy::HandleDuplicateItem()
 			check(Controller);
 
 			const TArray<FRigElementKey> KeysToDuplicate = GetSelectedKeys();
-			Controller->DuplicateElements(KeysToDuplicate, true, true);
+			Controller->DuplicateElements(KeysToDuplicate, true, true, true);
 		}
 
 		ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
@@ -2021,7 +2021,7 @@ void SRigHierarchy::HandleMirrorItem()
 
 				const TArray<FRigElementKey> KeysToMirror = GetSelectedKeys();
 				const TArray<FRigElementKey> KeysToDuplicate = GetSelectedKeys();
-				Controller->MirrorElements(KeysToDuplicate, Settings, true, true);
+				Controller->MirrorElements(KeysToDuplicate, Settings, true, true, true);
 			}
 			ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
 		}
@@ -2145,7 +2145,7 @@ void SRigHierarchy::HandlePasteItems()
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 
-		Controller->ImportFromText(Content, false, true, true);
+		Controller->ImportFromText(Content, false, true, true, true);
 	}
 
 	//ControlRigBlueprint->PropagateHierarchyFromBPToInstances();

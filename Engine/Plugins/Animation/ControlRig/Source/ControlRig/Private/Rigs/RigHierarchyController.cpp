@@ -894,7 +894,7 @@ public:
 	}
 };
 
-TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent, bool bReplaceExistingElements, bool bSelectNewElements, bool bSetupUndo)
+TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent, bool bReplaceExistingElements, bool bSelectNewElements, bool bSetupUndo, bool bPrintPythonCommands)
 {
 	TArray<FRigElementKey> PastedKeys;
 	if(!IsValid())
@@ -1083,6 +1083,18 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 	{
 		SetSelection(PastedKeys);
 	}
+
+#if WITH_EDITOR
+	if (bPrintPythonCommands)
+	{
+		FString PythonContent = InContent.Replace(TEXT("\\\""), TEXT("\\\\\""));
+		
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.import_from_text('%s', %s, %s)"),
+			*PythonContent,
+			(bReplaceExistingElements) ? TEXT("True") : TEXT("False"),
+			(bSelectNewElements) ? TEXT("True") : TEXT("False")));
+	}
+#endif
 
 	return PastedKeys;
 }
@@ -2213,13 +2225,35 @@ bool URigHierarchyController::SetParent(FRigElementKey InChild, FRigElementKey I
 	return bParentSet;
 }
 
-TArray<FRigElementKey> URigHierarchyController::DuplicateElements(TArray<FRigElementKey> InKeys, bool bSelectNewElements, bool bSetupUndo)
+TArray<FRigElementKey> URigHierarchyController::DuplicateElements(TArray<FRigElementKey> InKeys, bool bSelectNewElements, bool bSetupUndo, bool bPrintPythonCommands)
 {
 	const FString Content = ExportToText(InKeys);
-	return ImportFromText(Content, false, bSelectNewElements, bSetupUndo);
+	TArray<FRigElementKey> Result = ImportFromText(Content, false, bSelectNewElements, bSetupUndo);
+
+#if WITH_EDITOR
+	if (!Result.IsEmpty() && bPrintPythonCommands)
+	{
+		FString ArrayStr = TEXT("[");
+		for (auto It = InKeys.CreateConstIterator(); It; ++It)
+		{
+			ArrayStr += It->ToPythonString();
+			if (It.GetIndex() < InKeys.Num() - 1)
+			{
+				ArrayStr += TEXT(", ");
+			}
+		}
+		ArrayStr += TEXT("]");		
+		
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.duplicate_elements(%s, %s)"),
+			*ArrayStr,
+			(bSelectNewElements) ? TEXT("True") : TEXT("False")));
+	}
+#endif
+
+	return Result;
 }
 
-TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElementKey> InKeys, FRigMirrorSettings InSettings, bool bSelectNewElements, bool bSetupUndo)
+TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElementKey> InKeys, FRigMirrorSettings InSettings, bool bSelectNewElements, bool bSetupUndo, bool bPrintPythonCommands)
 {
 	TArray<FRigElementKey> OriginalKeys = Hierarchy->SortKeys(InKeys);
 	TArray<FRigElementKey> DuplicatedKeys = DuplicateElements(OriginalKeys, bSelectNewElements, bSetupUndo);
@@ -2311,6 +2345,30 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 		}
 	}
 
+#if WITH_EDITOR
+	if (!DuplicatedKeys.IsEmpty() && bPrintPythonCommands)
+	{
+		FString ArrayStr = TEXT("[");
+		for (auto It = InKeys.CreateConstIterator(); It; ++It)
+		{
+			ArrayStr += It->ToPythonString();
+			if (It.GetIndex() < InKeys.Num() - 1)
+			{
+				ArrayStr += TEXT(", ");
+			}
+		}
+		ArrayStr += TEXT("]");
+
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.mirror_elements(%s, unreal.RigMirrorSettings(unreal.AxisType.%s, unreal.AxisType.%s, '%s', '%s'), %s)"),
+			*ArrayStr,
+			(InSettings.MirrorAxis.GetValue() == EAxis::X) ? TEXT("X") : (InSettings.MirrorAxis.GetValue() == EAxis::Y) ? TEXT("Y") : TEXT("Z"),
+			(InSettings.AxisToFlip.GetValue() == EAxis::X) ? TEXT("X") : (InSettings.AxisToFlip.GetValue() == EAxis::Y) ? TEXT("Y") : TEXT("Z"),
+			*InSettings.OldName,
+			*InSettings.NewName,
+			(bSelectNewElements) ? TEXT("True") : TEXT("False")));
+	}
+#endif
+	
 	return DuplicatedKeys;
 }
 
