@@ -18,6 +18,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/CollisionProfile.h"
+#include "Misc/NetworkVersion.h"
 #include "BodySetupEnums.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsSettings.h"
@@ -130,7 +131,17 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 	}
 
 	Ar << PhysMaterial;
-	Ar << HitObjectHandle;
+
+	if (Ar.IsLoading() && Ar.EngineNetVer() < HISTORY_HITRESULT_INSTANCEHANDLE)
+	{
+		AActor* HitActor = nullptr;
+		Ar << HitActor;
+		HitObjectHandle = HitActor;
+	}
+	else
+	{
+		Ar << HitObjectHandle;
+	}
 	Ar << Component;
 	Ar << BoneName;
 	if (!bInvalidFaceIndex)
