@@ -60,12 +60,9 @@ const ALightWeightInstanceManager* FLightWeightInstanceSubsystem::GetManagerAt(i
 
 ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const
 {
-	if (Handle.ManagerIndex != INDEX_NONE)
+	if (Handle.Manager.IsValid())
 	{
-		if (ensure(Handle.ManagerIndex < LWInstanceManagers.Num()))
-		{
-			return LWInstanceManagers[Handle.ManagerIndex];
-		}
+		return Handle.Manager.Get();
 	}
 
 	if (Handle.Actor.IsValid())

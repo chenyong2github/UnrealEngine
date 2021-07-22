@@ -2066,7 +2066,6 @@ struct ENGINE_API FActorInstanceHandle
 	FActorInstanceHandle();
 
 	explicit FActorInstanceHandle(AActor* InActor);
-	explicit FActorInstanceHandle(int32 InManagerIndex, int32 InInstanceIndex);
 	explicit FActorInstanceHandle(class ALightWeightInstanceManager* Manager, int32 InInstanceIndex);
 
 	FActorInstanceHandle(const FActorInstanceHandle& Other);
@@ -2133,7 +2132,7 @@ private:
 	mutable TWeakObjectPtr<AActor> Actor;
 
 	/** Identifies the light weight instance manager to use */
-	int32 ManagerIndex;
+	TWeakObjectPtr<ALightWeightInstanceManager> Manager;
 
 	/** Identifies the instance within the manager */
 	int32 InstanceIndex;
