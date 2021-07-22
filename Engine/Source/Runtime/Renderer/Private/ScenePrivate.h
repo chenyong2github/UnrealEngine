@@ -53,7 +53,7 @@
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "RayTracing/RayTracingScene.h"
 #endif
-#include "Nanite/NaniteRender.h"
+#include "Nanite/Nanite.h"
 #include "Lumen/LumenViewState.h"
 #include "VolumetricRenderTargetViewStateData.h"
 #include "GPUScene.h"

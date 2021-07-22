@@ -32,7 +32,7 @@
 #include "MeshDrawCommands.h"
 #include "ShaderDebug.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
-#include "Nanite/NaniteRender.h"
+#include "Nanite/Nanite.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "HairStrands/HairStrandsData.h"

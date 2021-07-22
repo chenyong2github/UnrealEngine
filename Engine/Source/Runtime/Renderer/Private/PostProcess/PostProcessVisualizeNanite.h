@@ -3,6 +3,6 @@
 #pragma once
 
 #include "ScreenPass.h"
-#include "Nanite/NaniteRender.h"
+#include "Nanite/Nanite.h"
 
 void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture Output, const Nanite::FRasterResults& RasterResults);

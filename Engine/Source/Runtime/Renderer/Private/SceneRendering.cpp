@@ -67,7 +67,7 @@
 #include "RayTracing/RayTracingScene.h"
 #include "FXSystem.h"
 #include "Lumen/Lumen.h"
-#include "Nanite/NaniteRender.h"
+#include "Nanite/Nanite.h"
 #include "DistanceFieldLightingShared.h"
 
 /*-----------------------------------------------------------------------------

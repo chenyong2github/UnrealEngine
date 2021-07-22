@@ -14,7 +14,7 @@
 #include "MeshCardRepresentation.h"
 #include "GPUScene.h"
 #include "Rendering/NaniteResources.h"
-#include "Nanite/NaniteRender.h"
+#include "Nanite/Nanite.h"
 #include "PixelShaderUtils.h"
 #include "Lumen.h"
 #include "LumenMeshCards.h"
