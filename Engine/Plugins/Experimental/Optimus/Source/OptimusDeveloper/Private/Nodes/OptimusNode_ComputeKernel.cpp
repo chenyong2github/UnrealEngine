@@ -768,7 +768,7 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 		ShaderSource.Declarations += TEXT("// Parameters and resource read/write functions\n");
 		ShaderSource.Declarations += FString::Join(Declarations, TEXT("\n"));
 	}
-	ShaderSource.Declarations += "// Resource Indexing\n";
+	ShaderSource.Declarations += "\n// Resource Indexing\n";
 	ShaderSource.Declarations += "uint Index;	// From SV_DispatchThreadID.x\n";
 }
 
@@ -803,13 +803,13 @@ FString UOptimusNode_ComputeKernel::GetWrappedShaderSource() const
 
 	const bool bHasKernelKeyword = Source.Contains(TEXT("KERNEL"));
 	
-	const FString KernelFunc = FString::Printf(TEXT("[numthreads(%d,1,1)] void %s(uint3 DTid : SV_DispatchThreadID)"), ThreadCount, *KernelName);
+	const FString KernelFunc = FString::Printf(TEXT("[numthreads(%d,1,1)]\nvoid %s(uint3 DTid : SV_DispatchThreadID)"), ThreadCount, *KernelName);
 	
 	if (bHasKernelKeyword)
 	{
 		Source.ReplaceInline(TEXT("KERNEL"), TEXT("void __kernel_func(uint Index)"));
 
-		return FString::Printf(TEXT("%s\n\n%s { __kernel_func(DTid.x); }\n"), *Source, *KernelFunc);
+		return FString::Printf(TEXT("#line 1 \"%s\"\n%s\n\n%s\n{\n    __kernel_func(DTid.x); \n}\n"), *GetName(), *Source, *KernelFunc);
 	}
 	else
 	{
