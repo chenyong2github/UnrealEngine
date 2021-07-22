@@ -96,19 +96,3 @@ public:
 private:
 	static TArray<UClass*> CachedClasses;
 };
-
-
-UCLASS(Blueprintable, Const)
-class OPTIMUSCORE_API UOptimusDataInterfaceHelpers : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	/**
-	 * Create and auto initialize the set of data providers for a graph.
-	 * Initialization is very hard coded.
-	 * FIXME: Better to have some kind of factory pattern here. Some providers will need custom set up on the caller side.
-	 */ 
-	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
-	static void InitDataProviders(UComputeGraphComponent* ComputeGraphComponent, USkeletalMeshComponent* SkeletalMeshComponent);
-};

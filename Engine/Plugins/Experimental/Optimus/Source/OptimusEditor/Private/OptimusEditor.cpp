@@ -291,7 +291,7 @@ void FOptimusEditor::CompileEnd(UOptimusDeformer* InDeformer)
 
 void FOptimusEditor::InstallDataProviders()
 {
-	UOptimusDataInterfaceHelpers::InitDataProviders(ComputeGraphComponent, SkeletalMeshComponent);
+	ComputeGraphComponent->CreateDataProviders(true);
 }
 
 
