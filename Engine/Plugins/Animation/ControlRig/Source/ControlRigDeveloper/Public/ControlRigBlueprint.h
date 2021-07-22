@@ -335,6 +335,15 @@ public:
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = "Variables")
 	FName AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false, FString InDefaultValue = TEXT(""));
+
+	UFUNCTION(BlueprintCallable, Category = "Variables")
+	bool RemoveMemberVariable(const FName& InName);
+
+	UFUNCTION(BlueprintCallable, Category = "Variables")
+	bool RenameMemberVariable(const FName& InOldName, const FName& InNewName);
+
+	UFUNCTION(BlueprintCallable, Category = "Variables")
+	bool ChangeMemberVariableType(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false, FString InDefaultValue = TEXT(""));
 #endif
 
 #if WITH_EDITORONLY_DATA
