@@ -110,7 +110,7 @@ public:
 	/**
 	 * Create a new UTexture2D 'over' an existing UTexture2D, with the given BuildType and Dimensions
 	 */
-	bool InitializeOver(UTexture2D* ExistingTexture, ETextureType BuildTypeIn, FImageDimensions DimensionsIn);
+	bool InitializeAndReplaceExistingTexture(UTexture2D* ExistingTexture, ETextureType BuildTypeIn, FImageDimensions DimensionsIn);
 
 
 	/**

@@ -217,7 +217,7 @@ bool UFractureToolAutoUV::SaveGeneratedTexture(UE::Geometry::TImageBuilder<FVect
 			if (UTexture2D* OldTexture = Cast<UTexture2D>(OldObject))
 			{
 				FTexture2DBuilder TextureBuilder;
-				TextureBuilder.InitializeOver(OldTexture, FTexture2DBuilder::ETextureType::Color, ImageBuilder.GetDimensions());
+				TextureBuilder.InitializeAndReplaceExistingTexture(OldTexture, FTexture2DBuilder::ETextureType::Color, ImageBuilder.GetDimensions());
 				TextureBuilder.Copy(ImageBuilder);
 				TextureBuilder.Commit(false);
 				GeneratedTexture = TextureBuilder.GetTexture2D();
