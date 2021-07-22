@@ -151,9 +151,18 @@ void ALevelInstance::UnloadLevelInstance()
 	}
 }
 
+const TSoftObjectPtr<UWorld>& ALevelInstance::GetWorldAsset() const
+{
+#if WITH_EDITORONLY_DATA
+	return WorldAsset;
+#else
+	return CookedWorldAsset;
+#endif
+}
+
 bool ALevelInstance::IsLevelInstancePathValid() const
 {
-	return WorldAsset.GetUniqueID().IsValid();
+	return GetWorldAsset().GetUniqueID().IsValid();
 }
 
 bool ALevelInstance::HasValidLevelInstanceID() const
@@ -232,6 +241,13 @@ void ALevelInstance::PostLoad()
 	}
 #endif
 		
+#if WITH_EDITORONLY_DATA
+	if (IsRunningCookCommandlet() && SupportsLoading())
+	{
+		CookedWorldAsset = WorldAsset;
+	}
+#endif
+
 	OnLevelInstanceActorPostLoad.Broadcast(this);
 }
 
@@ -309,7 +325,7 @@ void ALevelInstance::PostEditUndoInternal()
 
 FString ALevelInstance::GetWorldAssetPackage() const
 {
-	return WorldAsset.GetUniqueID().GetLongPackageName();
+	return GetWorldAsset().GetUniqueID().GetLongPackageName();
 }
 
 void ALevelInstance::PreEditChange(FProperty* PropertyThatWillChange)
