@@ -36,6 +36,22 @@ DECLARE_CYCLE_STAT(TEXT("ImgMedia Loader Release Cache"), STAT_ImgMedia_LoaderRe
 
 constexpr int32 FImgMediaLoader::MAX_MIPMAP_LEVELS;
 
+namespace ImgMediaLoader
+{
+	void CheckAndUpdateImgDimensions(FIntPoint& InOutSequenceDim, const FIntPoint& InNewDim)
+	{
+		if (InOutSequenceDim != InNewDim)
+		{
+			// This means that image sequence has inconsistent dimension and user needs to be made aware.
+			UE_LOG(LogImgMedia, Warning, TEXT("Image sequence has inconsistent dimensions. The original sequence dimension (%d%d) is changed to the new dimension (%d%d)."),
+				InOutSequenceDim.X, InOutSequenceDim.Y, InNewDim.X, InNewDim.Y);
+
+			InOutSequenceDim = InNewDim;
+		}
+	}
+	
+}
+
 /* FImgMediaLoader structors
  *****************************************************************************/
 
@@ -149,7 +165,9 @@ TSharedPtr<FImgMediaTextureSample, ESPMode::ThreadSafe> FImgMediaLoader::GetFram
 	const FTimespan NextStartTime = FrameNumberToTime(FrameIndex + 1);
 
 	auto Sample = MakeShared<FImgMediaTextureSample, ESPMode::ThreadSafe>();
-	
+
+	ImgMediaLoader::CheckAndUpdateImgDimensions(SequenceDim, Frame->Get()->Info.Dim);
+
 	if (!Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameStartTime, 0), NextStartTime - FrameStartTime, GetNumMipLevels()))
 	{
 		return nullptr;
@@ -399,6 +417,9 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 					// We are clear to return it as new result... Make a sample & initialize it...
 					auto Sample = MakeShared<FImgMediaTextureSample, ESPMode::ThreadSafe>();
 					auto Duration = Frame->Get()->Info.FrameRate.AsInterval();
+
+					ImgMediaLoader::CheckAndUpdateImgDimensions(SequenceDim, Frame->Get()->Info.Dim);
+
 					if (Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameNumberToTime(MaxIdx), QueuedSampleFetch.CurrentSequenceIndex), FTimespan::FromSeconds(Duration), GetNumMipLevels()))
 					{
 						OutSample = Sample;
