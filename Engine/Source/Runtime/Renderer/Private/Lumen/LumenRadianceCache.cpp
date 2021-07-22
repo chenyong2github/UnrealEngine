@@ -1295,7 +1295,7 @@ void RenderRadianceCache(
 				PassParameters->RWProbeFreeListAllocator = bPersistentCache ? ProbeFreeListAllocatorUAV : nullptr;
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->ProbeFreeList = bPersistentCache ? GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeFreeList, PF_R32_UINT)) : nullptr;
-				PassParameters->FrameNumber = View.ViewState->GetFrameIndex();
+				PassParameters->FrameNumber = View.ViewState ? View.ViewState->GetFrameIndex() : View.Family->FrameNumber;
 				PassParameters->ProbesUpdateEveryNFrames = GRadianceCacheProbesUpdateEveryNFrames;
 				PassParameters->MaxNumProbes = MaxNumProbes;
 				PassParameters->RadianceCacheParameters = RadianceCacheParameters;
