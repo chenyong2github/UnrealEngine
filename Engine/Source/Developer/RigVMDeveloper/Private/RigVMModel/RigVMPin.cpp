@@ -876,7 +876,11 @@ bool URigVMPin::IsOrphanPin() const
 			return RootPin->IsOrphanPin();
 		}
 	}
-	return GetNode()->OrphanedPins.Contains(this); 
+	if(URigVMNode* Node = GetNode())
+	{
+		return Node->OrphanedPins.Contains(this);
+	}
+	return false;
 }
 
 void URigVMPin::UpdateCPPTypeObjectIfRequired() const
