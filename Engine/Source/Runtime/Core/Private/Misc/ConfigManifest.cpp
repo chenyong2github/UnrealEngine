@@ -149,9 +149,9 @@ void MigrateToAgnosticIni(const TCHAR* SrcIniName, const TCHAR* DstIniName)
 	const FString OldIni = ProjectSpecificIniPath(SrcIniName);
 	const FString NewIni = ProjectAgnosticIniPath(DstIniName);
 
-	if (FPaths::FileExists(*OldIni))
+	if (FPaths::FileExists(OldIni))
 	{
-		if (!FPaths::FileExists(*NewIni))
+		if (!FPaths::FileExists(NewIni))
 		{
 			IFileManager::Get().Move(*NewIni, *OldIni);
 		}

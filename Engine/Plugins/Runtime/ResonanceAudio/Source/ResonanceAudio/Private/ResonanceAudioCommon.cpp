@@ -42,7 +42,7 @@ namespace ResonanceAudio
 
 		UE_LOG(LogResonanceAudio, Log, TEXT("Attempting to load %s"), *DynamicLibraryToLoad);
 
-		if (FPaths::FileExists(*DynamicLibraryToLoad))
+		if (FPaths::FileExists(DynamicLibraryToLoad))
 		{
 			DynamicLibraryHandle = FPlatformProcess::GetDllHandle(*DynamicLibraryToLoad);
 		}

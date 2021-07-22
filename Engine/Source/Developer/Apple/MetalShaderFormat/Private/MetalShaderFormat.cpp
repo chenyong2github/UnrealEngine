@@ -695,7 +695,7 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::DoMacNat
 			MetalFrontendBinaryCommand[AppleSDKMac] = ToolchainBase / TEXT("macos") / TEXT("bin") / MetalFrontendBinary;
 			MetalFrontendBinaryCommand[AppleSDKMobile] = ToolchainBase / TEXT("ios") / TEXT("bin") / MetalFrontendBinary;
 
-			const bool bIsFrontendPresent = FPaths::FileExists(*MetalFrontendBinaryCommand[AppleSDKMac]) && FPaths::FileExists(*MetalFrontendBinaryCommand[AppleSDKMobile]);
+			const bool bIsFrontendPresent = FPaths::FileExists(MetalFrontendBinaryCommand[AppleSDKMac]) && FPaths::FileExists(MetalFrontendBinaryCommand[AppleSDKMobile]);
 			if (!bIsFrontendPresent)
 			{
 				UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Missing Metal frontend in %s."), *ToolchainBase);
@@ -708,10 +708,10 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::DoMacNat
 			MetalLibBinaryCommand[AppleSDKMac] = ToolchainBase / TEXT("macos") / TEXT("bin") / MetalLibraryBinary;
 			MetalLibBinaryCommand[AppleSDKMobile] = ToolchainBase / TEXT("ios") / TEXT("bin") / MetalLibraryBinary;
 
-			if (!FPaths::FileExists(*MetalArBinaryCommand[AppleSDKMac]) ||
-				!FPaths::FileExists(*MetalArBinaryCommand[AppleSDKMobile]) ||
-				!FPaths::FileExists(*MetalLibBinaryCommand[AppleSDKMac]) ||
-				!FPaths::FileExists(*MetalLibBinaryCommand[AppleSDKMobile]))
+			if (!FPaths::FileExists(MetalArBinaryCommand[AppleSDKMac]) ||
+				!FPaths::FileExists(MetalArBinaryCommand[AppleSDKMobile]) ||
+				!FPaths::FileExists(MetalLibBinaryCommand[AppleSDKMac]) ||
+				!FPaths::FileExists(MetalLibBinaryCommand[AppleSDKMobile]))
 			{
 				UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Missing toolchain binaries in %s."), *ToolchainBase);
 				return EMetalToolchainStatus::ToolchainNotFound;
@@ -757,7 +757,7 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::DoWindow
 	MetalFrontendBinaryCommand[AppleSDKMac] = ToolchainBase / TEXT("macos") / TEXT("bin") / MetalFrontendBinary;
 	MetalFrontendBinaryCommand[AppleSDKMobile] = ToolchainBase / TEXT("ios") / TEXT("bin") / MetalFrontendBinary;
 
-	bool bUseLocalMetalToolchain = FPaths::FileExists(*MetalFrontendBinaryCommand[AppleSDKMac]) && FPaths::FileExists(*MetalFrontendBinaryCommand[AppleSDKMobile]);
+	bool bUseLocalMetalToolchain = FPaths::FileExists(MetalFrontendBinaryCommand[AppleSDKMac]) && FPaths::FileExists(MetalFrontendBinaryCommand[AppleSDKMobile]);
 	if (!bUseLocalMetalToolchain)
 	{
 #if CHECK_METAL_COMPILER_TOOLCHAIN_SETUP
@@ -773,10 +773,10 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::DoWindow
 	MetalLibBinaryCommand[AppleSDKMac] = ToolchainBase / TEXT("macos") / TEXT("bin") / MetalLibraryBinary;
 	MetalLibBinaryCommand[AppleSDKMobile] = ToolchainBase / TEXT("ios") / TEXT("bin") / MetalLibraryBinary;
 
-	if (!FPaths::FileExists(*MetalArBinaryCommand[AppleSDKMac]) ||
-		!FPaths::FileExists(*MetalArBinaryCommand[AppleSDKMobile]) ||
-		!FPaths::FileExists(*MetalLibBinaryCommand[AppleSDKMac]) ||
-		!FPaths::FileExists(*MetalLibBinaryCommand[AppleSDKMobile]))
+	if (!FPaths::FileExists(MetalArBinaryCommand[AppleSDKMac]) ||
+		!FPaths::FileExists(MetalArBinaryCommand[AppleSDKMobile]) ||
+		!FPaths::FileExists(MetalLibBinaryCommand[AppleSDKMac]) ||
+		!FPaths::FileExists(MetalLibBinaryCommand[AppleSDKMobile]))
 	{
 #if CHECK_METAL_COMPILER_TOOLCHAIN_SETUP
 		UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Missing toolchain binaries."))

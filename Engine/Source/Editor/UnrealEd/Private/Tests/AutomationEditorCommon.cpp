@@ -400,7 +400,7 @@ void FAutomationEditorCommonUtils::CreateArrayFromFile(const FString& InFileLoca
 {
 	FString RawData;
 
-	if (FPaths::FileExists(*InFileLocation))
+	if (FPaths::FileExists(InFileLocation))
 	{
 		UE_LOG(LogEditorAutomationTests, VeryVerbose, TEXT("Loading and parsing the data from '%s' into an array."), *InFileLocation);
 		FFileHelper::LoadFileToString(RawData, *InFileLocation);

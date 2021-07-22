@@ -222,7 +222,7 @@ bool FModuleManager::IsModuleUpToDate(const FName InModuleName) const
 
 	for (const TPair<FName, FString>& Pair : ModulePathMap)
 	{
-		if (!FPaths::FileExists(*Pair.Value))
+		if (!FPaths::FileExists(Pair.Value))
 		{
 			return false;
 		}

@@ -13,8 +13,8 @@
 LAUNCHERSERVICES_API bool HasPromotedTarget(const TCHAR* BaseDir, const TCHAR* TargetName, const TCHAR* Platform, EBuildConfiguration Configuration, const TCHAR* Architecture)
 {
 	// Get the path to the receipt, and check it exists
-	FString ReceiptPath = FTargetReceipt::GetDefaultPath(BaseDir, TargetName, Platform, Configuration, Architecture);
-	if (!FPaths::FileExists(*ReceiptPath))
+	const FString ReceiptPath = FTargetReceipt::GetDefaultPath(BaseDir, TargetName, Platform, Configuration, Architecture);
+	if (!FPaths::FileExists(ReceiptPath))
 	{
 		UE_LOG(LogLauncherProfile, Log, TEXT("Unable to use promoted target - %s does not exist."), *ReceiptPath);
 		return false;

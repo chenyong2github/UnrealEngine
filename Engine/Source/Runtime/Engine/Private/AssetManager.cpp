@@ -2318,8 +2318,8 @@ bool UAssetManager::OnAssetRegistryAvailableAfterInitialization(FName InName, FA
 		
 		{
 			TArray<uint8> Bytes;
-			FString Filename = FPaths::ProjectDir() / (TEXT("AssetRegistry") + InName.ToString()) + TEXT(".bin");
-			if (FPaths::FileExists(*Filename) && FFileHelper::LoadFileToArray(Bytes, *Filename))
+			const FString Filename = FPaths::ProjectDir() / (TEXT("AssetRegistry") + InName.ToString()) + TEXT(".bin");
+			if (FPaths::FileExists(Filename) && FFileHelper::LoadFileToArray(Bytes, *Filename))
 			{
 				bLoaded = true;
 				FMemoryReader Ar(Bytes);

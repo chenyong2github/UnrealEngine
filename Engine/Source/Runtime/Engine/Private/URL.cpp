@@ -463,7 +463,7 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 			FText MapNameError;
 			bool bFoundMap = false;
 
-			if (FPaths::FileExists(*URLStr) && FPackageName::TryConvertFilenameToLongPackageName(URLStr, MapFullName))
+			if (FPaths::FileExists(URLStr) && FPackageName::TryConvertFilenameToLongPackageName(URLStr, MapFullName))
 			{
 				Map = MapFullName;
 				bFoundMap = true;

@@ -58,7 +58,7 @@ static FString GetLicensePath()
 	IAndroidDeviceDetection* DeviceDetection = AndroidDeviceDetection.GetAndroidDeviceDetection();
 	FString ADBPath = DeviceDetection->GetADBPath();
 
-	if (!FPaths::FileExists(*ADBPath))
+	if (!FPaths::FileExists(ADBPath))
 	{
 		return TEXT("");
 	}
