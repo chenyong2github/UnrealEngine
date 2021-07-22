@@ -444,7 +444,7 @@ static void RenderOpaqueFX(
 		// Add a pass which extracts the RHI handle from the scene textures UB and sends it to the FX system.
 		FRenderOpaqueFXPassParameters* ExtractUBPassParameters = GraphBuilder.AllocParameters<FRenderOpaqueFXPassParameters>();
 		ExtractUBPassParameters->SceneTextures = SceneTexturesUniformBuffer;
-		GraphBuilder.AddPass({}, ExtractUBPassParameters, UBPassFlags, [ExtractUBPassParameters, FXSystem](FRHICommandListImmediate&)
+		GraphBuilder.AddPass(RDG_EVENT_NAME("SetSceneTexturesUniformBuffer"), ExtractUBPassParameters, UBPassFlags, [ExtractUBPassParameters, FXSystem](FRHICommandListImmediate&)
 		{
 			FXSystem->SetSceneTexturesUniformBuffer(ExtractUBPassParameters->SceneTextures->GetRHIRef());
 		});
@@ -452,7 +452,7 @@ static void RenderOpaqueFX(
 		FXSystem->PostRenderOpaque(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
 
 		// Clear the scene textures UB pointer on the FX system. Use the same pass parameters to extend resource lifetimes.
-		GraphBuilder.AddPass({}, ExtractUBPassParameters, UBPassFlags, [FXSystem](FRHICommandListImmediate&)
+		GraphBuilder.AddPass(RDG_EVENT_NAME("UnsetSceneTexturesUniformBuffer"), ExtractUBPassParameters, UBPassFlags, [FXSystem](FRHICommandListImmediate&)
 		{
 			FXSystem->SetSceneTexturesUniformBuffer(nullptr);
 		});
@@ -1408,10 +1408,10 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	// top level BVH
 	if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
 	{
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
-			{
-				Scene->GetGPUSkinCache()->CommitRayTracingGeometryUpdates(RHICmdList);
-			});
+		AddPass(GraphBuilder, RDG_EVENT_NAME("CommitRayTracingGeometryUpdates"), [this](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->GetGPUSkinCache()->CommitRayTracingGeometryUpdates(RHICmdList);
+		});
 	}
 
 	GRayTracingGeometryManager.ProcessBuildRequests(GraphBuilder.RHICmdList);
@@ -1434,7 +1434,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	if (bRayTracingAsyncBuild && GRHISupportsRayTracingAsyncBuildAccelerationStructure)
 	{
-		AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("BuildAccelerationStructure"), [this](FRHICommandList& RHICmdList)
 		{
 			check(RayTracingDynamicGeometryUpdateEndTransition == nullptr);
 			const FRHITransition* RayTracingDynamicGeometryUpdateBeginTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::Graphics, ERHIPipeline::AsyncCompute));
@@ -1511,7 +1511,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		}
 	}
 
-	AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("EndUpdate"), [this](FRHICommandListImmediate& RHICmdList)
 	{
 		Scene->GetRayTracingDynamicGeometryCollection()->EndUpdate(RHICmdList);
 	});
@@ -1521,7 +1521,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views, FRayTracingScene &RayTracingScene)
 {
-	AddPass(GraphBuilder, [Views, &RayTracingScene](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("ReleaseRayTracingResources"), [Views, &RayTracingScene](FRHICommandListImmediate& RHICmdList)
 	{
 		if (RayTracingScene.IsCreated())
 		{
@@ -2126,7 +2126,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	AddPass(GraphBuilder, [this](FRHICommandList& InRHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUSkinCacheTransitions"), [this](FRHICommandList& InRHICmdList)
 	{
 		RunGPUSkinCacheTransition(InRHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
 	});
@@ -3136,8 +3136,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			// Keep scene color and depth for next frame screen space ray tracing.
 			FSceneViewState* ViewState = View.ViewState;
-			ViewState->PrevFrameViewInfo.DepthBuffer = GraphBuilder.ConvertToExternalTexture(SceneTextures.Depth.Resolve);
-			ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput = GraphBuilder.ConvertToExternalTexture(SceneTextures.Color.Resolve);
+			GraphBuilder.QueueTextureExtraction(SceneTextures.Depth.Resolve, &ViewState->PrevFrameViewInfo.DepthBuffer);
+			GraphBuilder.QueueTextureExtraction(SceneTextures.Color.Resolve, &ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput);
 		}
 	}
 

@@ -1038,7 +1038,7 @@ namespace VirtualHeightfieldMesh
 			TransitionInfos.Add(FRHITransitionInfo(InstanceBufferUAV, bToWrite ? ERHIAccess::SRVMask : ERHIAccess::UAVMask, bToWrite ? ERHIAccess::UAVMask : ERHIAccess::SRVMask));
 		}
 
-		AddPass(GraphBuilder, [bToWrite, OverlapUAVs, TransitionInfos](FRHICommandListImmediate& InRHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionAllDrawBuffers"), [bToWrite, OverlapUAVs, TransitionInfos](FRHICommandList& InRHICmdList)
 		{
 			if (!bToWrite)
 			{

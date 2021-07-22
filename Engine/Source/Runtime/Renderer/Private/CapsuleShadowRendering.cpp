@@ -677,7 +677,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 
 			AllocateCapsuleTileIntersectionCountsBuffer(GroupSize, View.ViewState);
 			int32 NumCapsuleShapeData = CapsuleShapeData.Num();
-			AddPass(GraphBuilder, [&View, &LightSceneInfo, CapsuleShapeData = MoveTemp(CapsuleShapeData)](FRHICommandListImmediate& RHICmdList)
+			AddPass(GraphBuilder, RDG_EVENT_NAME("UploadCapsuleShapes"), [&View, &LightSceneInfo, CapsuleShapeData = MoveTemp(CapsuleShapeData)](FRHICommandListImmediate& RHICmdList)
 			{
 				static_assert(sizeof(FCapsuleShape) == sizeof(FVector4) * 2, "FCapsuleShape has padding");
 				const int32 DataSize = CapsuleShapeData.Num() * CapsuleShapeData.GetTypeSize();
@@ -1070,7 +1070,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 
 			FRWBuffer& ComputedLightDirectionData = View.ViewState->IndirectShadowVolumetricLightmapDerivedLightDirection;
 
-			AddPass(GraphBuilder, [&ComputedLightDirectionData](FRHIComputeCommandList& RHICmdList)
+			AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionLightDirectionUAV"), [&ComputedLightDirectionData](FRHIComputeCommandList& RHICmdList)
 			{
 				RHICmdList.Transition(FRHITransitionInfo(ComputedLightDirectionData.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			});
@@ -1093,7 +1093,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 				PassParameters,
 				FIntVector(GroupSize, 1, 1));
 
-			AddPass(GraphBuilder, [&ComputedLightDirectionData](FRHIComputeCommandList& RHICmdList)
+			AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionLightDirectionUAV"), [&ComputedLightDirectionData](FRHIComputeCommandList& RHICmdList)
 			{
 				RHICmdList.Transition(FRHITransitionInfo(ComputedLightDirectionData.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 			});
@@ -1188,7 +1188,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& Gr
 
 			AllocateCapsuleTileIntersectionCountsBuffer(GroupSize, View.ViewState);
 
-			AddPass(GraphBuilder, [&View](FRHIComputeCommandList& RHICmdList)
+			AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionTileIntersectionCountsUAV"), [&View](FRHIComputeCommandList& RHICmdList)
 			{
 				RHICmdList.Transition(FRHITransitionInfo(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 				RHICmdList.ClearUAVUint(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, FUintVector4(0, 0, 0, 0));

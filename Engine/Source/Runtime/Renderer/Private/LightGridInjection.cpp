@@ -682,7 +682,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 			UAVTransitions.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		}
 
-		AddPass(GraphBuilder, [&UAVTransitions](FRHIComputeCommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionToUAV"), [&UAVTransitions](FRHIComputeCommandList& RHICmdList)
 		{
 			RHICmdList.Transition(MakeArrayView(UAVTransitions.GetData(), UAVTransitions.Num()));
 		});
@@ -758,7 +758,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 			}
 			else
 			{
-				AddPass(GraphBuilder, [&View](FRHICommandList& RHICmdList)
+				AddPass(GraphBuilder, RDG_EVENT_NAME("ClearUAVInt"), [&View](FRHICommandList& RHICmdList)
 				{
 					RHICmdList.ClearUAVUint(View.ForwardLightingResources->NumCulledLightsGrid.UAV, FUintVector4(0, 0, 0, 0));
 				});
@@ -772,7 +772,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 			SRVTransitions.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 
-		AddPass(GraphBuilder, [&SRVTransitions](FRHIComputeCommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionToSRV"), [&SRVTransitions](FRHIComputeCommandList& RHICmdList)
 		{
 			RHICmdList.Transition(MakeArrayView(SRVTransitions.GetData(), SRVTransitions.Num()));
 		});

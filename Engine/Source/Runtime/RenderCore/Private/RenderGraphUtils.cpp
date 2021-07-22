@@ -826,7 +826,7 @@ FRDGWaitForTasksScope::~FRDGWaitForTasksScope()
 {
 	if (bCondition)
 	{
-		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("WaitForTasks"), [](FRHICommandListImmediate& RHICmdList)
 		{
 			if (IsRunningRHIInSeparateThread())
 			{

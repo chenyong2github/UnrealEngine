@@ -1810,10 +1810,9 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 
 	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::EndAsyncUpdate);
-	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::Streaming");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
 
-	AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("Nanite::Streaming"), [this](FRHICommandListImmediate& RHICmdList)
 	{
 		check(AsyncState.bUpdateActive);
 

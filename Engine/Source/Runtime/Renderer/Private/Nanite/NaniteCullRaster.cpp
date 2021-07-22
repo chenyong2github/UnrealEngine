@@ -1823,7 +1823,7 @@ void CullRasterize(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::CullRasterize");
 
-	AddPassIfDebug(GraphBuilder, [](FRHICommandListImmediate&)
+	AddPassIfDebug(GraphBuilder, RDG_EVENT_NAME("CheckIsAsyncUpdateInProgress"), [](FRHICommandListImmediate&)
 	{
 		check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
 	});

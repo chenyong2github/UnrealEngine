@@ -769,7 +769,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 						RangeCount == 1
 					);
 
-					AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+					AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionObjectBuffers"), [this](FRHICommandListImmediate& RHICmdList)
 					{
 						RHICmdList.Transition({
 							FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
@@ -893,7 +893,7 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 					DistanceFieldSceneData.UploadHeightFieldDataBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("HeighFieldObjectDataUploadBuffer"));
 					DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("HeighFieldObjectBoundsUploadBuffer"));
 
-					AddPass(GraphBuilder, [this, &DistanceFieldSceneData, &ObjectBuffers](FRHICommandListImmediate& RHICmdList)
+					AddPass(GraphBuilder, RDG_EVENT_NAME("UploadHeightFieldObjects"), [this, &DistanceFieldSceneData, &ObjectBuffers](FRHICommandListImmediate& RHICmdList)
 					{
 						for (int32 Index : DistanceFieldSceneData.IndicesToUpdateInHeightFieldObjectBuffers)
 						{
@@ -1010,11 +1010,6 @@ void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool b
 
 	if (bShouldPrepareDistanceFieldScene)
 	{
-		auto DispatchToRHIThreadPass = [](FRHICommandListImmediate& RHICmdList)
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-		};
-
 		TArray<FDistanceFieldAssetMipId> DistanceFieldAssetAdds;
 		TArray<FSetElementId> DistanceFieldAssetRemoves;
 		Scene->DistanceFieldSceneData.UpdateDistanceFieldObjectBuffers(GraphBuilder, Scene, UpdateTrackingBounds, DistanceFieldAssetAdds, DistanceFieldAssetRemoves);
@@ -1023,7 +1018,7 @@ void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool b
 
 		if (bSplitDispatch)
 		{
-			AddPass(GraphBuilder, DispatchToRHIThreadPass);
+			GraphBuilder.AddDispatchHint();
 		}
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -1048,7 +1043,7 @@ void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool b
 		}
 		if (!bSplitDispatch)
 		{
-			AddPass(GraphBuilder, DispatchToRHIThreadPass);
+			GraphBuilder.AddDispatchHint();
 		}
 	}
 }

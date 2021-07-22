@@ -1030,7 +1030,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 			}
 		}
 
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("UploadAssetData"), [this](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.Transition({
 				FRHITransitionInfo(AssetDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)

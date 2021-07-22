@@ -1593,7 +1593,7 @@ bool FGPUScene::BeginReadWriteAccess(FRDGBuilder& GraphBuilder)
 	if (IsEnabled())
 	{
 		// TODO: Remove this when everything is properly RDG'd
-		AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionInstanceSceneDataBuffer"), [this](FRHICommandList& RHICmdList)
 		{
 			FRHITransitionInfo 	Transitions[2] =
 			{
@@ -1630,7 +1630,7 @@ void FGPUScene::EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAc
 	if (IsEnabled())
 	{
 		// TODO: Remove this when everything is properly RDG'd
-		AddPass(GraphBuilder, [this, FinalAccessState](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionInstanceSceneDataBuffer"), [this, FinalAccessState](FRHICommandList& RHICmdList)
 		{
 			FRHITransitionInfo 	Transitions[2] =
 			{

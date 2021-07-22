@@ -881,21 +881,22 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		auto* PassParameters = GraphBuilder.AllocParameters<FPostBasePassViewExtensionParameters>();
 		PassParameters->RenderTargets = BasePassRenderTargets;
 		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, ESceneTextureSetupMode::None);
-		for (auto& ViewExtension : ViewFamily.ViewExtensions)
+
+		GraphBuilder.AddPass(
+			{},
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[this](FRHICommandListImmediate& RHICmdList)
 		{
-			for (FViewInfo& View : Views)
+			for (auto& ViewExtension : ViewFamily.ViewExtensions)
 			{
-				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-				GraphBuilder.AddPass(
-					{},
-					PassParameters,
-					ERDGPassFlags::Raster,
-					[&ViewExtension, &View](FRHICommandListImmediate& RHICmdList)
+				for (FViewInfo& View : Views)
 				{
+					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 					ViewExtension->PostRenderBasePass_RenderThread(RHICmdList, View);
-				});
+				}
 			}
-		}
+		});
 	}
 
 	if (bRequiresFarZQuadClear)

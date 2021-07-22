@@ -42,7 +42,7 @@ bool FSceneViewExtensionBase::IsActiveThisFrame(const FSceneViewExtensionContext
 
 void ISceneViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
-	AddPass(GraphBuilder, [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("PreRenderViewFamily_RenderThread"), [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
 	{
 		PreRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
 	});
@@ -50,7 +50,7 @@ void ISceneViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBui
 
 void ISceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
-	AddPass(GraphBuilder, [this, &InView](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("PreRenderView_RenderThread"), [this, &InView](FRHICommandListImmediate& RHICmdList)
 	{
 		PreRenderView_RenderThread(RHICmdList, InView);
 	});
@@ -58,7 +58,7 @@ void ISceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, 
 
 void ISceneViewExtension::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
-	AddPass(GraphBuilder, [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("PostRenderViewFamily_RenderThread"), [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
 	{
 		PostRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
 	});
@@ -66,7 +66,7 @@ void ISceneViewExtension::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBu
 
 void ISceneViewExtension::PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
-	AddPass(GraphBuilder, [this, &InView](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("PostRenderView_RenderThread"), [this, &InView](FRHICommandListImmediate& RHICmdList)
 	{
 		PostRenderView_RenderThread(RHICmdList, InView);
 	});
