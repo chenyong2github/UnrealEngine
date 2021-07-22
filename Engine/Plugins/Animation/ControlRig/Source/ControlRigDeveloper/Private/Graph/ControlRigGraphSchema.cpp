@@ -949,7 +949,7 @@ bool UControlRigGraphSchema::TryDeleteGraph(UEdGraph* GraphToDelete) const
 							}
 						}
 						
-						return Controller->RemoveNode(LibraryNode);
+						return Controller->RemoveNode(LibraryNode, true, false, true);
 					}
 				}
 			}
@@ -976,7 +976,7 @@ bool UControlRigGraphSchema::TryRenameGraph(UEdGraph* GraphToRename, const FName
 				{
 					if (URigVMController* Controller = RigBlueprint->GetOrCreateController(LibraryNode->GetGraph()))
 					{
-						Controller->RenameNode(LibraryNode, InNewName);
+						Controller->RenameNode(LibraryNode, InNewName, true, true);
 						return true;
 					}
 				}
