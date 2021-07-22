@@ -9,7 +9,6 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "BlueprintTypePromotion.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 
 UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -71,28 +70,6 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	if (GConfig->GetBool(*ClassConfigKey, TEXT("bSaveOnCompile"), bOldSaveOnCompileVal, GEditorPerProjectIni) && bOldSaveOnCompileVal)
 	{
 		SaveOnCompile = SoC_SuccessOnly;
-	}
-
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().OnAssetRenamed().AddUObject(this, &UBlueprintEditorSettings::OnAssetRenamed);
-	AssetRegistryModule.Get().OnInMemoryAssetDeleted().AddUObject(this, &UBlueprintEditorSettings::OnAssetRemoved);
-}
-
-void UBlueprintEditorSettings::OnAssetRenamed(FAssetData const& AssetInfo, const FString& InOldName)
-{
-	FPerBlueprintSettings Temp;
-	if(PerBlueprintSettings.RemoveAndCopyValue(InOldName, Temp))
-	{
-		PerBlueprintSettings.Add(AssetInfo.ObjectPath.ToString(), Temp);
-		SaveConfig();
-	}
-}
-
-void UBlueprintEditorSettings::OnAssetRemoved(UObject* Object)
-{
-	if(UBlueprint* Blueprint = Cast<UBlueprint>(Object))
-	{
-		FKismetDebugUtilities::ClearBreakpoints(Blueprint);
 	}
 }
 

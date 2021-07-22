@@ -69,7 +69,7 @@
 #include "K2Node_SetFieldsInStruct.h"
 #include "K2Node_Knot.h"
 #include "Engine/LevelScriptBlueprint.h"
-#include "Kismet2/Breakpoint.h"
+#include "Engine/Breakpoint.h"
 #include "ScopedTransaction.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -3956,38 +3956,39 @@ bool FBlueprintEditor::CanOpenBlueprintDebugger() const
 
 bool FBlueprintEditor::HasAnyBreakpoints() const
 {
-	const UBlueprint* Blueprint = GetBlueprintObj();
-	if(!Blueprint)
-	{
-		return false;
-	}
-	return FKismetDebugUtilities::BlueprintHasBreakpoints(Blueprint);
+	return GetBlueprintObj() && GetBlueprintObj()->Breakpoints.Num() > 0;
 }
 
 bool FBlueprintEditor::HasAnyEnabledBreakpoints() const
 {
 	if (!IsEditingSingleBlueprint()) {return false;}
 
-	return FKismetDebugUtilities::FindBreakpointByPredicate(
-		GetBlueprintObj(),
-		[](const FBreakpoint& Breakpoint)
+	for (TArray<UBreakpoint*>::TIterator BreakpointIt(GetBlueprintObj()->Breakpoints); BreakpointIt; ++BreakpointIt)
+	{
+		UBreakpoint* BP = *BreakpointIt;
+		if (BP->IsEnabledByUser())
 		{
-			return Breakpoint.IsEnabledByUser();
+			return true;
 		}
-	) != nullptr;
+	}
+
+	return false;
 }
 
 bool FBlueprintEditor::HasAnyDisabledBreakpoints() const
 {
 	if (!IsEditingSingleBlueprint()) {return false;}
 
-	return FKismetDebugUtilities::FindBreakpointByPredicate(
-		GetBlueprintObj(),
-		[](const FBreakpoint& Breakpoint)
+	for (TArray<UBreakpoint*>::TIterator BreakpointIt(GetBlueprintObj()->Breakpoints); BreakpointIt; ++BreakpointIt)
+	{
+		UBreakpoint* BP = *BreakpointIt;
+		if (!BP->IsEnabledByUser())
 		{
-			return !Breakpoint.IsEnabledByUser();
+			return true;
 		}
-	) != nullptr;
+	}
+
+	return false;
 }
 
 bool FBlueprintEditor::HasAnyWatches() const
@@ -5122,16 +5123,20 @@ void FBlueprintEditor::OnToggleBreakpoint()
 		UK2Node* SelectedNode = Cast<UK2Node>(*NodeIt);
 		if ((SelectedNode != nullptr) && SelectedNode->CanPlaceBreakpoints())
 		{
-			FBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(SelectedNode, GetBlueprintObj());
+			UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode);
 			if (ExistingBreakpoint == nullptr)
 			{
 				// Add a breakpoint on this node if there isn't one there already
-				FKismetDebugUtilities::CreateBreakpoint(GetBlueprintObj(), SelectedNode, /* bIsEnabled = */ true);
+				UBreakpoint* NewBreakpoint = NewObject<UBreakpoint>(GetBlueprintObj());
+				FKismetDebugUtilities::SetBreakpointEnabled(NewBreakpoint, true);
+				FKismetDebugUtilities::SetBreakpointLocation(NewBreakpoint, SelectedNode);
+				GetBlueprintObj()->Breakpoints.Add(NewBreakpoint);
+				GetBlueprintObj()->MarkPackageDirty();
 			}
 			else
 			{
 				// Remove the breakpoint if it was present
-				FKismetDebugUtilities::RemoveBreakpointFromNode(SelectedNode, GetBlueprintObj());
+				FKismetDebugUtilities::StartDeletingBreakpoint(ExistingBreakpoint, GetBlueprintObj());
 			}
 		}
 	}
@@ -5161,10 +5166,15 @@ void FBlueprintEditor::OnAddBreakpoint()
 		if ((SelectedNode != nullptr) && SelectedNode->CanPlaceBreakpoints())
 		{
 			// Add a breakpoint on this node if there isn't one there already
-			const FBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(SelectedNode, GetBlueprintObj());
+			UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode);
 			if (ExistingBreakpoint == nullptr)
 			{
-				FKismetDebugUtilities::CreateBreakpoint(GetBlueprintObj(), SelectedNode, /* bIsEnabled = */ true);
+				// Add a new breakpoint
+				UBreakpoint* NewBreakpoint = NewObject<UBreakpoint>(GetBlueprintObj());
+				FKismetDebugUtilities::SetBreakpointEnabled(NewBreakpoint, true);
+				FKismetDebugUtilities::SetBreakpointLocation(NewBreakpoint, SelectedNode);
+				GetBlueprintObj()->Breakpoints.Add(NewBreakpoint);
+				GetBlueprintObj()->MarkPackageDirty();
 			}
 		}
 	}
@@ -5179,7 +5189,7 @@ bool FBlueprintEditor::CanAddBreakpoint() const
 		UK2Node* SelectedNode = Cast<UK2Node>(*NodeIt);
 		if ((SelectedNode != nullptr) && SelectedNode->CanPlaceBreakpoints())
 		{
-			FBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(SelectedNode, GetBlueprintObj());
+			UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode);
 			if (ExistingBreakpoint == nullptr)
 			{
 				return true;
@@ -5197,8 +5207,12 @@ void FBlueprintEditor::OnRemoveBreakpoint()
 	{
 		UEdGraphNode* SelectedNode = CastChecked<UEdGraphNode>(*NodeIt);
 
-		// Remove the breakpoint
-		FKismetDebugUtilities::RemoveBreakpointFromNode(SelectedNode, GetBlueprintObj());
+		// Remove any pre-existing breakpoint on this node
+		if (UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode))
+		{
+			// Remove the breakpoint
+			FKismetDebugUtilities::StartDeletingBreakpoint(ExistingBreakpoint, GetBlueprintObj());
+		}
 	}
 }
 
@@ -5209,7 +5223,7 @@ bool FBlueprintEditor::CanRemoveBreakpoint() const
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
 		UEdGraphNode* SelectedNode = CastChecked<UEdGraphNode>(*NodeIt);
-		if (FKismetDebugUtilities::FindBreakpointForNode(SelectedNode, GetBlueprintObj()))
+		if (UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode))
 		{
 			return true;
 		}
@@ -5225,7 +5239,10 @@ void FBlueprintEditor::OnDisableBreakpoint()
 	{
 		UEdGraphNode* SelectedNode = CastChecked<UEdGraphNode>(*NodeIt);
 
-		FKismetDebugUtilities::SetBreakpointEnabled(SelectedNode, GetBlueprintObj(), false);
+		if (UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode))
+		{
+			FKismetDebugUtilities::SetBreakpointEnabled(ExistingBreakpoint, false);
+		}
 	}
 }
 
@@ -5236,7 +5253,7 @@ bool FBlueprintEditor::CanDisableBreakpoint() const
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
 		UEdGraphNode* SelectedNode = CastChecked<UEdGraphNode>(*NodeIt);
-		if (FBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(SelectedNode, GetBlueprintObj()))
+		if (UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode))
 		{
 			if (ExistingBreakpoint->IsEnabledByUser())
 			{
@@ -5255,7 +5272,10 @@ void FBlueprintEditor::OnEnableBreakpoint()
 	{
 		UEdGraphNode* SelectedNode = CastChecked<UEdGraphNode>(*NodeIt);
 
-		FKismetDebugUtilities::SetBreakpointEnabled(SelectedNode, GetBlueprintObj(), true);
+		if (UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode))
+		{
+			FKismetDebugUtilities::SetBreakpointEnabled(ExistingBreakpoint, true);
+		}
 	}
 }
 
@@ -5266,7 +5286,7 @@ bool FBlueprintEditor::CanEnableBreakpoint() const
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 	{
 		UEdGraphNode* SelectedNode = CastChecked<UEdGraphNode>(*NodeIt);
-		if (FBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(SelectedNode, GetBlueprintObj()))
+		if (UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprintObj(), SelectedNode))
 		{
 			if (!ExistingBreakpoint->IsEnabledByUser())
 			{

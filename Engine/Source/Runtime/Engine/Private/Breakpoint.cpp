@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Kismet2/Breakpoint.h"
+
+#include "Engine/Breakpoint.h"
 #if WITH_EDITOR
 #include "EdGraph/EdGraphNode.h"
 #endif
 
-FBreakpoint::FBreakpoint()
+UBreakpoint::UBreakpoint(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	bEnabled = false;
 	bStepOnce = false;
@@ -13,7 +15,7 @@ FBreakpoint::FBreakpoint()
 	bStepOnce_RemoveAfterHit = false;
 }
 
-FText FBreakpoint::GetLocationDescription() const
+FText UBreakpoint::GetLocationDescription() const
 {
 #if WITH_EDITORONLY_DATA
 	if (Node != NULL)
