@@ -44,46 +44,15 @@ void FNaniteDrawListContext::FinalizeCommand(
 	FMeshDrawCommand& MeshDrawCommand
 )
 {
-	// ensureMsgf(!EnumHasAnyFlags(Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex), TEXT("Nanite does not support WPO materials!"));
 	FGraphicsMinimalPipelineStateId PipelineId;
 	PipelineId = FGraphicsMinimalPipelineStateId::GetPersistentId(PipelineState);
-
 	MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineId, ShadersForDebugging);
-
-	check(UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel));
-
-	FNaniteMaterialCommands::FCommandId CommandId;
-	const FNaniteMaterialCommands::FCommandHash CommandHash = MaterialCommands.ComputeCommandHash(MeshDrawCommand);
-	{
-		FNaniteMaterialCommandsLock Lock(MaterialCommands, SLT_ReadOnly);
-
-	#if UE_BUILD_DEBUG
-		FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
-		check(MeshDrawCommandDebug.ShaderBindings.GetDynamicInstancingHash() == MeshDrawCommand.ShaderBindings.GetDynamicInstancingHash());
-		check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
-	#endif
-		
-		CommandId = MaterialCommands.FindIdByHash(CommandHash, MeshDrawCommand);
-		if (!CommandId.IsValid())
-		{
-			Lock.AcquireWriteAccess();
-			CommandId = MaterialCommands.FindOrAddIdByHash(CommandHash, MeshDrawCommand);
-
-		#if MESH_DRAW_COMMAND_DEBUG_DATA
-			FMeshDrawCommandCount& DrawCount = MaterialCommands.GetPayload(CommandId);
-			if (DrawCount.Num == 0)
-			{
-				// When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
-				MeshDrawCommand.ClearDebugPrimitiveSceneProxy();
-			}
-		#endif
-		}
-		
-		FMeshDrawCommandCount& DrawCount = MaterialCommands.GetPayload(CommandId);
-		DrawCount.Num++;
-	}
-
-	CommandInfo.SetStateBucketId(CommandId.GetIndex());
+#if UE_BUILD_DEBUG
+	FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
+	check(MeshDrawCommandDebug.ShaderBindings.GetDynamicInstancingHash() == MeshDrawCommand.ShaderBindings.GetDynamicInstancingHash());
+	check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
+#endif
+	CommandInfo = MaterialCommands.Register(MeshDrawCommand);
 }
 
 void SubmitNaniteMaterialPassCommand(

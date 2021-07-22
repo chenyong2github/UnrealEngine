@@ -155,6 +155,9 @@ public:
 
 	void Release();
 
+	FNaniteCommandInfo Register(FMeshDrawCommand& Command);
+	void Unregister(const FNaniteCommandInfo& CommandInfo);
+
 	inline const FCommandHash ComputeCommandHash(const FMeshDrawCommand& DrawCommand) const
 	{
 		return StateBuckets.ComputeHash(DrawCommand);
