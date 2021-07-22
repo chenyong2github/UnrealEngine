@@ -705,6 +705,16 @@ void FLumenSceneData::UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCar
 		FLumenMeshCards& MeshCardsInstance = MeshCards[MeshCardsIndex];
 		MeshCardsInstance.SetTransform(LocalToWorld);
 		MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
+
+		for (uint32 LocalCardIndex = 0; LocalCardIndex < MeshCardsInstance.NumCards; ++LocalCardIndex)
+		{
+			const uint32 CardIndex = MeshCardsInstance.FirstCardIndex + LocalCardIndex;
+			FLumenCard& Card = Cards[CardIndex];
+
+			Card.SetTransform(LocalToWorld, Card.LocalOBB);
+
+			CardIndicesToUpdateInBuffer.Add(CardIndex);
+		}
 	}
 }
 
