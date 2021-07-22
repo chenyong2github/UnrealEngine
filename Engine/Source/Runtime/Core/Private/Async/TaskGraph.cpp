@@ -2141,9 +2141,34 @@ private:
 		}
 		else if (LowLevelTasks::FScheduler::Get().IsWorkerThread() || LowLevelTasks::FReserveScheduler::Get().IsWorkerThread())
 		{
+			// a worker thread gets blocked, involve a reserve worker to utilise an idle core
+			bool bSuccess = false; // has a reserve worker helped?
+			if (!GDisableReserveWorkers)
+			{
+				if (LowLevelTasks::DoReserveWorkUntil([Index(0), Tasks]() mutable
+				{
+					while (Index < Tasks.Num())
+					{
+						if (!Tasks[Index]->IsComplete())
+						{
+							return false;
+						}
+						Index++;
+					}
+					return true;
+				}))
+				{
+					// a reserve worker was woken up to help with the tasks.
+					// stall this thread on an event while we wait
+					FScopedEvent Event;
+					TriggerEventWhenTasksComplete(Event.Get(), Tasks, CurrentThreadIfKnown);
+					bSuccess = true;
+				}
+			}
+			
 			// for latency reason, worker thread aren't tackling other tasks while waiting if we have reserve workers, 
-			// reserve worker don't have that liberty as they have no backup of their own
-			if (GDisableReserveWorkers || LowLevelTasks::FReserveScheduler::Get().IsWorkerThread())
+			// otherwise worker threads help with task execution while they wait
+			if(!bSuccess)
 			{
 				LowLevelTasks::BusyWaitUntil([Index(0), &Tasks]() mutable
 				{
@@ -2157,25 +2182,6 @@ private:
 					}
 					return true;
 				});
-			}
-			else
-			{
-				LowLevelTasks::DoReserveWorkUntil([Index(0), Tasks]() mutable
-				{
-					while (Index < Tasks.Num())
-					{
-						if (!Tasks[Index]->IsComplete())
-						{
-							return false;
-						}
-						Index++;
-					}
-					return true;
-				});
-
-				// We will just stall this thread on an event while we wait
-				FScopedEvent Event;
-				TriggerEventWhenTasksComplete(Event.Get(), Tasks, CurrentThreadIfKnown);
 			}
 		}
 		else
