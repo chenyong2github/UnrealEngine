@@ -398,7 +398,7 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 					else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EReadable))
 					{
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
-						if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ShadingRateSource))
+						if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ShadingRateSource) && GRHISupportsPipelineVariableRateShading)
 						{
 							State |= D3D12_RESOURCE_STATE_SHADING_RATE_SOURCE;
 						}
