@@ -676,12 +676,12 @@ void BuildMetalShaderOutput(
 					UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("Failed to write Metal shader out to %s\nShaderText:\n%s"), *SaveFile, *MetalCode);
 				}
 				bSuccess = IFileManager::Get().Move(*MetalFileName, *SaveFile, false, false, true, true);
-				if (!bSuccess && !FPaths::FileExists(*MetalFileName))
+				if (!bSuccess && !FPaths::FileExists(MetalFileName))
 				{
 					UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("Failed to move %s to %s"), *SaveFile, *MetalFileName);
 				}
 
-				if (FPaths::FileExists(*SaveFile))
+				if (FPaths::FileExists(SaveFile))
 				{
 					IFileManager::Get().Delete(*SaveFile);
 				}
@@ -1593,7 +1593,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 
 			FFileHelper::SaveStringToFile(M_Script, *LocalScriptFilePath);
 
-			if (!FPaths::FileExists(*LocalScriptFilePath))
+			if (!FPaths::FileExists(LocalScriptFilePath))
 			{
 				UE_LOG(LogMetalShaderCompiler, Error, TEXT("Failed to create metal-ar .M script at %s"), *LocalScriptFilePath);
 				return false;
@@ -1601,7 +1601,7 @@ bool FinalizeLibrary_Metal(FName const& Format, FString const& WorkingDir, FStri
 
 			FPaths::MakePlatformFilename(LocalScriptFilePath);
 			bool bSuccess = Toolchain->ExecMetalAr(SDK, *LocalScriptFilePath, &ReturnCode, &Results, &Errors);
-			bArchiveFileValid = FPaths::FileExists(*LocalArchivePath);
+			bArchiveFileValid = FPaths::FileExists(LocalArchivePath);
 					
 			if (ReturnCode != 0 || !bArchiveFileValid)
 			{

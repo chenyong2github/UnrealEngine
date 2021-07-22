@@ -5111,9 +5111,9 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		FString InputDir = FPaths::GetPath(*NonOptionArguments[0]);
 
 		TArray<FString> InputPakFiles;
-		if (FPaths::FileExists(*NonOptionArguments[0]))
+		if (FPaths::FileExists(NonOptionArguments[0]))
 		{
-			InputPakFiles.Add(*NonOptionArguments[0]);
+			InputPakFiles.Add(NonOptionArguments[0]);
 		}
 		else
 		{

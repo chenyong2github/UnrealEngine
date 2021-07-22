@@ -131,7 +131,7 @@ private:
 			OutStdErr = &DefaultError;
 		}
 
-		if (FPaths::FileExists(*ADBPath))
+		if (FPaths::FileExists(ADBPath))
 		{
 			FPlatformProcess::ExecProcess(*ADBPath, *CommandLine, &ReturnCode, OutStdOut, OutStdErr);
 
@@ -688,7 +688,7 @@ public:
 			ADBPath = FPaths::Combine(*AndroidDirectory, SDKRelativeExePath);
 
 			// if it doesn't exist then just clear the path as we might set it later
-			if (!FPaths::FileExists(*ADBPath))
+			if (!FPaths::FileExists(ADBPath))
 			{
 				ADBPath.Empty();
 			}

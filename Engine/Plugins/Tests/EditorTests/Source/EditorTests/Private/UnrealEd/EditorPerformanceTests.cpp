@@ -65,7 +65,7 @@ void EditorPerfDump(EditorPerfCaptureParameters& EditorPerfStats)
 	//Get the map load time (in seconds) from the text file that is created when the load map latent command is ran.
 	EditorPerfStats.MapLoadTime = 0;
 	FString MapLoadTimeFileLocation = FPaths::Combine(*DataFileLocation, TEXT("RAWMapLoadTime.txt"));
-	if (FPaths::FileExists(*MapLoadTimeFileLocation))
+	if (FPaths::FileExists(MapLoadTimeFileLocation))
 	{
 		TArray<FString> SavedMapLoadTimes;
 		FAutomationEditorCommonUtils::CreateArrayFromFile(MapLoadTimeFileLocation, SavedMapLoadTimes);
@@ -109,7 +109,7 @@ void EditorPerfDump(EditorPerfCaptureParameters& EditorPerfStats)
 	FTimespan TestRunDuration = (EditorPerfStats.TimeStamp.Last().GetTicks() - EditorPerfStats.TimeStamp[0].GetTicks()) + ETimespan::TicksPerSecond;
 
 	//The performance csv file will be created if it didn't exist prior to the start of this test.
-	if (!FPaths::FileExists(*PerfCSVFilePath))
+	if (!FPaths::FileExists(PerfCSVFilePath))
 	{
 		FArchive* FinalCSVArchive = IFileManager::Get().CreateFileWriter(*PerfCSVFilePath);
 		if ( FAutomationEditorCommonUtils::IsArchiveWriteable(PerfCSVFilePath, FinalCSVArchive))

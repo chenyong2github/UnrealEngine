@@ -315,7 +315,7 @@ static bool CompareAndCheckDesktopFile(const TCHAR* DesktopFileName, const TCHAR
 		DesktopFileExecPath = Matcher.GetCaptureGroup(1);
 	}
 
-	if (DesktopFileExecPath.Compare("bash") != 0 && !FPaths::FileExists(*DesktopFileExecPath))
+	if (DesktopFileExecPath.Compare("bash") != 0 && !FPaths::FileExists(DesktopFileExecPath))
 	{
 		return false;
 	}

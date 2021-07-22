@@ -646,7 +646,7 @@ bool FPluginUtils::ValidateNewPluginNameAndLocation(const FString& PluginName, c
 		{
 			const FString PluginFilePath = FPluginUtils::GetPluginFilePath(PluginLocation, PluginName);
 
-			if (!PluginFilePath.IsEmpty() && FPaths::FileExists(*PluginFilePath))
+			if (!PluginFilePath.IsEmpty() && FPaths::FileExists(PluginFilePath))
 			{
 				if (FailReason)
 				{

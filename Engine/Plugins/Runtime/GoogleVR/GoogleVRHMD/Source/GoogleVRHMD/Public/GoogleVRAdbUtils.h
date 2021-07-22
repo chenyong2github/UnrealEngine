@@ -54,7 +54,7 @@ inline void GetAdbPath(FString& OutAdbPath)
 #endif
 
 		// if it doesn't exist then just clear the path as we might set it later
-		if (!FPaths::FileExists(*OutAdbPath))
+		if (!FPaths::FileExists(OutAdbPath))
 		{
 			OutAdbPath.Empty();
 		}

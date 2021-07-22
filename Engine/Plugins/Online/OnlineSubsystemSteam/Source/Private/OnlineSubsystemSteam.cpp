@@ -174,7 +174,7 @@ static void DeleteSteamAppIdFromDisk()
 	const FString SteamAppIdFilename = GetSteamAppIdFilename();
 	// Turn off sandbox temporarily to make sure file is where it's always expected
 	FScopeSandboxContext ScopedSandbox(false);
-	if (FPaths::FileExists(*SteamAppIdFilename))
+	if (FPaths::FileExists(SteamAppIdFilename))
 	{
 		bool bSuccessfullyDeleted = IFileManager::Get().Delete(*SteamAppIdFilename);
 	}

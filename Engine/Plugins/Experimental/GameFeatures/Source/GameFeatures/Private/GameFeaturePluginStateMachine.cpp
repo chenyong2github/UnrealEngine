@@ -223,7 +223,7 @@ struct FGameFeaturePluginState_CheckingStatus : public FGameFeaturePluginState
 
 		if (StateProperties.GetPluginProtocol() == EGameFeaturePluginProtocol::File)
 		{
-			bIsAvailable = FPaths::FileExists(*StateProperties.PluginInstalledFilename);
+			bIsAvailable = FPaths::FileExists(StateProperties.PluginInstalledFilename);
 		}
 		else if (StateProperties.GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle)
 		{

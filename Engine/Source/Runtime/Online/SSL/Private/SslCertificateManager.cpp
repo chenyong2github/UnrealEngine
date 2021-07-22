@@ -318,7 +318,7 @@ void FSslCertificateManager::BuildRootCertificateArray()
 	FString OverrideCertificateBundlePath;
 	if (GConfig->GetString(TEXT("SSL"), TEXT("OverrideCertificateBundlePath"), OverrideCertificateBundlePath, GEngineIni) && OverrideCertificateBundlePath.Len() > 0)
 	{
-		if (FPaths::FileExists(*(OverrideCertificateBundlePath)))
+		if (FPaths::FileExists(OverrideCertificateBundlePath))
 		{
 			CertificateBundlePath = OverrideCertificateBundlePath;
 		}
@@ -328,17 +328,21 @@ void FSslCertificateManager::BuildRootCertificateArray()
 	if (CertificateBundlePath.IsEmpty())
 	{
 		const FString PerPlatformBundlePath = FString::Printf(TEXT("Certificates/%s/cacert.pem"), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
-		if (FPaths::FileExists(*(FPaths::ProjectContentDir() + PerPlatformBundlePath)))
+
+		const FString SearchPaths[]
 		{
-			CertificateBundlePath = FPaths::ProjectContentDir() + PerPlatformBundlePath;
-		}
-		else if (FPaths::FileExists(*(FPaths::ProjectContentDir() + TEXT("Certificates/cacert.pem"))))
+			FPaths::ProjectContentDir() + PerPlatformBundlePath,
+			FPaths::ProjectContentDir() + TEXT("Certificates/cacert.pem"),
+			FPaths::EngineContentDir() + TEXT("Certificates/ThirdParty/cacert.pem")
+		};
+
+		for (const FString& SearchPath : SearchPaths)
 		{
-			CertificateBundlePath = FPaths::ProjectContentDir() + TEXT("Certificates/cacert.pem");
-		}
-		else if (FPaths::FileExists(*(FPaths::EngineContentDir() + TEXT("Certificates/ThirdParty/cacert.pem"))))
-		{
-			CertificateBundlePath = FPaths::EngineContentDir() + TEXT("Certificates/ThirdParty/cacert.pem");
+			if (FPaths::FileExists(SearchPath))
+			{
+				CertificateBundlePath = SearchPath;
+				break;
+			}
 		}
 	}
 

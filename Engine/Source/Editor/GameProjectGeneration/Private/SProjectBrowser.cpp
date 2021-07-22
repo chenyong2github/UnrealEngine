@@ -574,11 +574,11 @@ static TSharedPtr<FSlateDynamicImageBrush> GetThumbnailForProject(const FString&
 	const FString ThumbnailPNGFile = FPaths::GetBaseFilename(ProjectFilename, false) + TEXT(".png");
 	const FString AutoScreenShotPNGFile = FPaths::Combine(*FPaths::GetPath(ProjectFilename), TEXT("Saved"), TEXT("AutoScreenshot.png"));
 	FString PNGFileToUse;
-	if (FPaths::FileExists(*ThumbnailPNGFile))
+	if (FPaths::FileExists(ThumbnailPNGFile))
 	{
 		PNGFileToUse = ThumbnailPNGFile;
 	}
-	else if (FPaths::FileExists(*AutoScreenShotPNGFile))
+	else if (FPaths::FileExists(AutoScreenShotPNGFile))
 	{
 		PNGFileToUse = AutoScreenShotPNGFile;
 	}
