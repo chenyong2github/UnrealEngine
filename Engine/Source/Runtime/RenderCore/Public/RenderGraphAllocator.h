@@ -14,7 +14,7 @@ public:
 	/** Allocates raw memory. */
 	FORCEINLINE void* Alloc(uint32 SizeInBytes, uint32 AlignInBytes)
 	{
-		return MemStack.Alloc(SizeInBytes, AlignInBytes);
+		return GetContext().MemStack.Alloc(SizeInBytes, AlignInBytes);
 	}
 
 	/** Allocates an uninitialized type without destructor tracking. */
@@ -28,9 +28,10 @@ public:
 	template <typename T, typename... TArgs>
 	FORCEINLINE T* Alloc(TArgs&&... Args)
 	{
-		TTrackedAlloc<T>* TrackedAlloc = new(MemStack) TTrackedAlloc<T>(Forward<TArgs&&>(Args)...);
+		FContext& LocalContext = GetContext();
+		TTrackedAlloc<T>* TrackedAlloc = new(LocalContext.MemStack) TTrackedAlloc<T>(Forward<TArgs&&>(Args)...);
 		check(TrackedAlloc);
-		TrackedAllocs.Add(TrackedAlloc);
+		LocalContext.TrackedAllocs.Add(TrackedAlloc);
 		return &TrackedAlloc->Alloc;
 	}
 
@@ -38,12 +39,12 @@ public:
 	template <typename T, typename... TArgs>
 	FORCEINLINE T* AllocNoDestruct(TArgs&&... Args)
 	{
-		return new (MemStack) T(Forward<TArgs&&>(Args)...);
+		return new (GetContext().MemStack) T(Forward<TArgs&&>(Args)...);
 	}
 
 	FORCEINLINE int32 GetByteCount() const
 	{
-		return MemStack.GetByteCount();
+		return Context.MemStack.GetByteCount() + ContextForTasks.MemStack.GetByteCount();
 	}
 
 private:
@@ -67,8 +68,21 @@ private:
 		T Alloc;
 	};
 
-	FMemStackBase MemStack;
-	TArray<FTrackedAlloc*> TrackedAllocs;
+	struct FContext
+	{
+		FMemStackBase MemStack;
+		TArray<FTrackedAlloc*> TrackedAllocs;
+
+		void ReleaseAll();
+	};
+
+	FContext Context;
+	FContext ContextForTasks;
+
+	FORCEINLINE FContext& GetContext()
+	{
+		return FTaskTagScope::IsCurrentTag(ETaskTag::ERenderingThread) ? Context : ContextForTasks;
+	}
 
 	template <uint32>
 	friend class TRDGArrayAllocator;

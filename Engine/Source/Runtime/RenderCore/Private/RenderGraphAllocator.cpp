@@ -11,17 +11,23 @@ FRDGAllocator& FRDGAllocator::Get()
 
 FRDGAllocator::~FRDGAllocator()
 {
-	check(MemStack.IsEmpty());
+	check(Context.MemStack.IsEmpty() && ContextForTasks.MemStack.IsEmpty());
 }
 
-void FRDGAllocator::ReleaseAll()
+void FRDGAllocator::FContext::ReleaseAll()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGAllocator::ReleaseAll);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGAllocator_Clear, GRDGVerboseCSVStats != 0);
 	for (int32 Index = TrackedAllocs.Num() - 1; Index >= 0; --Index)
 	{
 		TrackedAllocs[Index]->~FTrackedAlloc();
 	}
 	TrackedAllocs.Reset();
 	MemStack.Flush();
+}
+
+void FRDGAllocator::ReleaseAll()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGAllocator::ReleaseAll);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGAllocator_Clear, GRDGVerboseCSVStats != 0);
+	Context.ReleaseAll();
+	ContextForTasks.ReleaseAll();
 }
