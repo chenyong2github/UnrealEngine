@@ -22,6 +22,7 @@ class ICsvProfilerProvider
 	: public IProvider
 {
 public:
+	virtual ~ICsvProfilerProvider() = default;
 	virtual void EnumerateCaptures(TFunctionRef<void(const FCaptureInfo&)> Callback) const = 0;
 	virtual const IUntypedTable& GetTable(uint32 CaptureId) const = 0;
 };

@@ -123,6 +123,8 @@ public:
 	typedef UPTRINT FQueryHandle;
 
 public:
+	virtual ~IAllocationsProvider() = default;
+
 	virtual void BeginEdit() const = 0;
 	virtual void EndEdit() const = 0;
 	virtual void BeginRead() const = 0;

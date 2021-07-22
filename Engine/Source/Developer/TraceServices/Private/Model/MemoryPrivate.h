@@ -11,7 +11,7 @@ namespace TraceServices
 class FMemoryProvider : public IMemoryProvider
 {
 public:
-	FMemoryProvider(IAnalysisSession& Session);
+	explicit FMemoryProvider(IAnalysisSession& Session);
 	virtual ~FMemoryProvider() {}
 
 	void AddEventSpec(FMemoryTagId Tag, const TCHAR* Name, FMemoryTagId ParentTag);

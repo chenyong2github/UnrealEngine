@@ -17,6 +17,7 @@ namespace TraceServices
 	{
 	public:
 		explicit FTasksProvider(IAnalysisSession& Session);
+		virtual ~FTasksProvider() {}
 
 		void Init(uint32 Version);
 
@@ -98,4 +99,4 @@ namespace TraceServices
 		IEditableCounter* RunningTasksCounter;
 		IEditableCounter* ExecutionTimeCounter;
 	};
-}
+} // namespace TraceServices

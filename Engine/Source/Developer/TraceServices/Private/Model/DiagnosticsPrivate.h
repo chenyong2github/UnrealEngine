@@ -10,7 +10,7 @@ namespace TraceServices
 class FDiagnosticsProvider : public IDiagnosticsProvider
 {
 public:
-	FDiagnosticsProvider(IAnalysisSession& Session);
+	explicit FDiagnosticsProvider(IAnalysisSession& Session);
 	virtual ~FDiagnosticsProvider() {}
 
 public:

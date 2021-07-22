@@ -15,7 +15,8 @@ class FFrameProvider
 public:
 	static const FName ProviderName;
 
-	FFrameProvider(IAnalysisSession& Session);
+	explicit FFrameProvider(IAnalysisSession& Session);
+	virtual ~FFrameProvider() {}
 
 	virtual uint64 GetFrameCount(ETraceFrameType FrameType) const override;
 	virtual void EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const override;

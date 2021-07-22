@@ -164,6 +164,8 @@ struct FNetProfilerAggregatedStats
 class INetProfilerProvider : public IProvider
 {
 public:
+	virtual ~INetProfilerProvider() = default;
+
 	// Return the version reported in the trace
 	// A return value of 0 indicates no network trace data
 	virtual uint32 GetNetTraceVersion() const = 0;
