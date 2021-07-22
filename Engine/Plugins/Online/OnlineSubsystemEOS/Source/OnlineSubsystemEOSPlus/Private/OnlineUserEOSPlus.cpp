@@ -757,8 +757,20 @@ FString FOnlineUserEOSPlus::GetPlayerNickname(int32 LocalUserNum) const
 
 FString FOnlineUserEOSPlus::GetPlayerNickname(const FUniqueNetId& UserId) const
 {
-	// Do we wrap this and map or pass through or aggregate and pass through?
-	return BaseIdentityInterface->GetPlayerNickname(UserId);
+	FString Result;
+
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+	if (NetIdPlus.IsValid())
+	{
+		// Do we wrap this and map or pass through or aggregate and pass through?
+		Result = BaseIdentityInterface->GetPlayerNickname(*NetIdPlus->GetBaseNetId());
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetPlayerNickname] User not found (%s)"), *UserId.ToString());
+	}
+
+	return Result;
 }
 
 FString FOnlineUserEOSPlus::GetAuthToken(int32 LocalUserNum) const
