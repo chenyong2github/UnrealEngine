@@ -8,6 +8,7 @@
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionReplay.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -90,62 +91,73 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 
 	const FTransform WorldToLocal = WorldPartition->GetInstanceTransform().Inverse();
 
-#if WITH_EDITOR
-	// We are in the SIE
-	if (GEnableSimulationStreamingSource && UWorldPartition::IsSimulating())
+#if !UE_BUILD_SHIPPING
+	bool bUseReplaySources = false;
+	if (AWorldPartitionReplay* Replay = WorldPartition->Replay)
 	{
-		// Transform to Local
-		const FVector ViewLocation = GCurrentLevelEditingViewportClient->GetViewLocation();
-		const FRotator ViewRotation = GCurrentLevelEditingViewportClient->GetViewRotation();
-		const FVector ViewLocationLocal = WorldToLocal.TransformPosition(ViewLocation);
-		const FRotator ViewRotationLocal = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
-		static const FName NAME_SIE(TEXT("SIE"));
-		StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocationLocal, ViewRotationLocal, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/false));
+		bUseReplaySources = Replay->GetReplayStreamingSources(StreamingSources);
 	}
-	else
+
+	if (!bUseReplaySources)
 #endif
 	{
-		UWorld* World = WorldPartition->GetWorld();
-		const ENetMode NetMode = World->GetNetMode();
-		if(NetMode == NM_Standalone || NetMode == NM_Client)
+#if WITH_EDITOR
+		// We are in the SIE
+		if (GEnableSimulationStreamingSource && UWorldPartition::IsSimulating())
 		{
-			const int32 NumPlayers = GEngine->GetNumGamePlayers(World);
-			for (int32 PlayerIndex = 0; PlayerIndex < NumPlayers; ++PlayerIndex)
+			// Transform to Local
+			const FVector ViewLocation = GCurrentLevelEditingViewportClient->GetViewLocation();
+			const FRotator ViewRotation = GCurrentLevelEditingViewportClient->GetViewRotation();
+			const FVector ViewLocationLocal = WorldToLocal.TransformPosition(ViewLocation);
+			const FRotator ViewRotationLocal = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
+			static const FName NAME_SIE(TEXT("SIE"));
+			StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocationLocal, ViewRotationLocal, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/false));
+		}
+		else
+#endif
+		{
+			UWorld* World = WorldPartition->GetWorld();
+			const ENetMode NetMode = World->GetNetMode();
+			if (NetMode == NM_Standalone || NetMode == NM_Client || AWorldPartitionReplay::IsEnabled(World))
 			{
-				ULocalPlayer* Player = GEngine->GetGamePlayer(World, PlayerIndex);
-				if (Player && Player->PlayerController && Player->PlayerController->IsStreamingSourceEnabled())
+				const int32 NumPlayers = GEngine->GetNumGamePlayers(World);
+				for (int32 PlayerIndex = 0; PlayerIndex < NumPlayers; ++PlayerIndex)
 				{
-					FVector ViewLocation;
-					FRotator ViewRotation;
-					Player->PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
-					
-					// Transform to Local
-					ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
-					ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
-					StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/true));
+					ULocalPlayer* Player = GEngine->GetGamePlayer(World, PlayerIndex);
+					if (Player && Player->PlayerController && Player->PlayerController->IsStreamingSourceEnabled())
+					{
+						FVector ViewLocation;
+						FRotator ViewRotation;
+						Player->PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+						// Transform to Local
+						ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
+						ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
+						StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/true));
+					}
 				}
 			}
 		}
-	}
-
-	for (IWorldPartitionStreamingSourceProvider* StreamingSourceProvider : WorldPartition->StreamingSourceProviders)
-	{
-		FWorldPartitionStreamingSource StreamingSource;
-		if (StreamingSourceProvider->GetStreamingSource(StreamingSource))
+	
+		for (IWorldPartitionStreamingSourceProvider* StreamingSourceProvider : WorldPartition->StreamingSourceProviders)
 		{
-			// Transform to Local
-			StreamingSource.Location = WorldToLocal.TransformPosition(StreamingSource.Location);
-			StreamingSource.Rotation = WorldToLocal.TransformRotation(StreamingSource.Rotation.Quaternion()).Rotator();
-			// If none is provided, default Streaming Source provider's priority to be less than those based on player controllers
-			if (StreamingSource.Priority == EStreamingSourcePriority::Default)
+			FWorldPartitionStreamingSource StreamingSource;
+			if (StreamingSourceProvider->GetStreamingSource(StreamingSource))
 			{
-				StreamingSource.Priority = EStreamingSourcePriority::Low;
-			}
+				// Transform to Local
+				StreamingSource.Location = WorldToLocal.TransformPosition(StreamingSource.Location);
+				StreamingSource.Rotation = WorldToLocal.TransformRotation(StreamingSource.Rotation.Quaternion()).Rotator();
+				// If none is provided, default Streaming Source provider's priority to be less than those based on player controllers
+				if (StreamingSource.Priority == EStreamingSourcePriority::Default)
+				{
+					StreamingSource.Priority = EStreamingSourcePriority::Low;
+				}
 
-			StreamingSources.Add(StreamingSource);
+				StreamingSources.Add(StreamingSource);
+			}
 		}
 	}
-
+		
 	// Update streaming sources velocity
 	const float CurrentTime = WorldPartition->GetWorld()->GetTimeSeconds();
 	TSet<FName, DefaultKeyFuncs<FName>, TInlineSetAllocator<8>> ValidStreamingSources;
@@ -204,7 +216,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	check(LoadStreamingCells.IsEmpty());
 
 	const ENetMode NetMode = World->GetNetMode();
-	if(NetMode == NM_Standalone || NetMode == NM_Client)
+	if (NetMode == NM_Standalone || NetMode == NM_Client || AWorldPartitionReplay::IsEnabled(World))
 	{
 		// Early out if nothing loaded and no streaming source
 		if ((StreamingSources.Num() == 0) && (ActivatedCells.Num() == 0) && (LoadedCells.Num() == 0))

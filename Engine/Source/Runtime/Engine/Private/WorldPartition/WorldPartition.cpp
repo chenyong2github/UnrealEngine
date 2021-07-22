@@ -11,6 +11,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "WorldPartition/WorldPartitionReplay.h"
 #include "Algo/Accumulate.h"
 #include "Algo/Transform.h"
 #include "Engine/World.h"
@@ -238,6 +239,9 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, InitState(EWorldPartitionInitState::Uninitialized)
 	, InstanceTransform(FTransform::Identity)
 	, StreamingPolicy(nullptr)
+#if !UE_BUILD_SHIPPING
+	, Replay(nullptr)
+#endif
 {
 	static bool bRegisteredDelegate = false;
 	if (!bRegisteredDelegate)
@@ -363,6 +367,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	RegisterDelegates();
 
+	AWorldPartitionReplay::Initialize(World);
+	
 #if WITH_EDITOR
 	bool bEditorOnly = !World->IsGameWorld();
 	if (bEditorOnly)
