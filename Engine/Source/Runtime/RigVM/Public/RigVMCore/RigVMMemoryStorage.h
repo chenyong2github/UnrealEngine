@@ -8,6 +8,7 @@
 #include "RigVMStatistics.h"
 #include "RigVMArray.h"
 #include "RigVMMemoryCommon.h"
+#include "EdGraph/EdGraphNode.h"
 #include "RigVMMemoryStorage.generated.h"
 
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
@@ -22,6 +23,16 @@ public:
 	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle()
 		: Ptr(nullptr)
 	{}
+
+	FORCEINLINE_DEBUGGABLE uint8* GetData()
+	{
+		return Ptr;
+	}
+
+	FORCEINLINE_DEBUGGABLE const uint8* GetData() const
+	{
+		return Ptr;
+	}
 
 private:
 	
@@ -48,7 +59,7 @@ public:
 		const FProperty* Property;
 		FString CPPType;
 		UObject* CPPTypeObject;
-		EPinContainerType ContainerType;
+		TArray<EPinContainerType> Containers;
 		FString DefaultValue;
 		
 		FPropertyDescription(const FProperty* InProperty, const FString& InDefaultValue, const FName& InName = NAME_None);
@@ -57,16 +68,13 @@ public:
 		static FName SanitizeName(const FName& InName);
 		void SanitizeName();
 
-		bool HasContainer() const { return ContainerType != EPinContainerType::None; }
-		bool IsArray() const { return ContainerType == EPinContainerType::Array; }
-		bool IsMap() const { return ContainerType == EPinContainerType::Map; }
-		bool IsSet() const { return ContainerType == EPinContainerType::Set; }
+		int32 NumContainers() const { return Containers.Num(); }
+		bool HasContainer() const { return NumContainers() > 0; }
+		bool IsArray(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Array; }
+		bool IsMap(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Map; }
+		bool IsSet(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Set; }
 
 		FString GetBaseCPPType() const;
-		FString GetArrayElementCPPType() const;
-		FString GetSetElementCPPType() const;
-		FString GetMapKeyCPPType() const;
-		FString GetMapValueCPPType() const;
 
 		static const FString ArrayPrefix;
 		static const FString MapPrefix;
@@ -77,6 +85,7 @@ public:
 	static UClass* GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType);
 	static UClass* CreateStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType, const TArray<FPropertyDescription>& InProperties);
 	static URigVMMemoryStorage* CreateStorage(UObject* InOuter, ERigVMMemoryType InMemoryType);
+	static FProperty* AddProperty(UClass* InClass, const FPropertyDescription& InProperty, bool bPurge = false, bool bLink = true, FField** LinkToProperty = nullptr);
 
 	//////////////////////////////////////////////////////////////////////////////
 	/// Memory Access
