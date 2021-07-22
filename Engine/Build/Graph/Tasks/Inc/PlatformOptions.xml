@@ -182,7 +182,6 @@
 
 <Do If="'$(TargetConfigurations)' == ''" >
 	<Property Name="TargetConfigurations" Value="$(DefaultTargetConfigurations)" />
-	<Property Name="TargetConfigurations" Value="Development" If="'$(TargetConfigurations)' == ''" />
 </Do>
 
 <Do If="'$(PackageConfigurations)' == ''" >	
@@ -208,5 +207,8 @@
 		<Property Name="TargetConfigurations" Value="$(TargetConfigurations)+$(PackageConfiguration)" />
 	</Do>
 </ForEach>
+
+<!-- If there were no configurations specified, then default to Development for all targets -->
+<Property Name="TargetConfigurations" Value="Development" If="'$(TargetConfigurations)' == ''" />
 
 </BuildGraph>
