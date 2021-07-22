@@ -4,6 +4,7 @@
 
 #include "Elements/Framework/TypedElementData.h"
 #include "Elements/SMInstance/SMInstanceManager.h"
+#include "UObject/Object.h"
 
 struct FTypedElementHandle;
 
@@ -16,6 +17,15 @@ struct ENGINE_API FSMInstanceElementData
 
 	FSMInstanceElementId InstanceElementId;
 };
+
+template <>
+inline FString GetTypedElementDebugId<FSMInstanceElementData>(const FSMInstanceElementData& InElementData)
+{
+	UObject* Object = (UObject*)InElementData.InstanceElementId.ISMComponent;
+	return Object
+		? Object->GetFullName()
+		: TEXT("null");
+}
 
 namespace SMInstanceElementDataUtil
 {

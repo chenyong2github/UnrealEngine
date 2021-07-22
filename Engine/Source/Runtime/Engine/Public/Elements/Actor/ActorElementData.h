@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementData.h"
+#include "UObject/Object.h"
 
 class AActor;
 struct FTypedElementHandle;
@@ -16,6 +17,15 @@ struct ENGINE_API FActorElementData
 
 	AActor* Actor = nullptr;
 };
+
+template <>
+inline FString GetTypedElementDebugId<FActorElementData>(const FActorElementData& InElementData)
+{
+	UObject* Object = (UObject*)InElementData.Actor;
+	return Object
+		? Object->GetFullName()
+		: TEXT("null");
+}
 
 namespace ActorElementDataUtil
 {

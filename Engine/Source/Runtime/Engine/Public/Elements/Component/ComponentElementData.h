@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementData.h"
+#include "UObject/Object.h"
 
 class UActorComponent;
 struct FTypedElementHandle;
@@ -16,6 +17,15 @@ struct ENGINE_API FComponentElementData
 
 	UActorComponent* Component = nullptr;
 };
+
+template <>
+inline FString GetTypedElementDebugId<FComponentElementData>(const FComponentElementData& InElementData)
+{
+	UObject* Object = (UObject*)InElementData.Component;
+	return Object
+		? Object->GetFullName()
+		: TEXT("null");
+}
 
 namespace ComponentElementDataUtil
 {
