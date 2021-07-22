@@ -264,10 +264,10 @@ namespace UnrealBuildTool
 						peStream: AssemblyStream,
 						pdbStream: PdbStream,
 						options: EmitOptions);
+					LogDiagnostics(Result.Diagnostics);
 
 					if (!Result.Success)
 					{
-						LogDiagnostics(Result.Diagnostics);
 						return null;
 					}
 				}
