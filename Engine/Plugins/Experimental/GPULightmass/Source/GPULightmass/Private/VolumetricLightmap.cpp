@@ -540,13 +540,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->SHCoefficients1G = AccumulationBrickData.SHCoefficients[3].UAV;
 					PassParameters->SHCoefficients0B = AccumulationBrickData.SHCoefficients[4].UAV;
 					PassParameters->SHCoefficients1B = AccumulationBrickData.SHCoefficients[5].UAV;
-					PassParameters->OutAmbientVector = VolumetricLightmapData.BrickData.AmbientVector.UAV;
-					PassParameters->OutSHCoefficients0R = VolumetricLightmapData.BrickData.SHCoefficients[0].UAV;
-					PassParameters->OutSHCoefficients1R = VolumetricLightmapData.BrickData.SHCoefficients[1].UAV;
-					PassParameters->OutSHCoefficients0G = VolumetricLightmapData.BrickData.SHCoefficients[2].UAV;
-					PassParameters->OutSHCoefficients1G = VolumetricLightmapData.BrickData.SHCoefficients[3].UAV;
-					PassParameters->OutSHCoefficients0B = VolumetricLightmapData.BrickData.SHCoefficients[4].UAV;
-					PassParameters->OutSHCoefficients1B = VolumetricLightmapData.BrickData.SHCoefficients[5].UAV;
+					PassParameters->DirectionalLightShadowing = AccumulationBrickData.DirectionalLightShadowing.UAV;
 					PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 					PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 
@@ -556,6 +550,25 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 					PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
+
+					TArray<FLightShaderConstants> OptionalStationaryDirectionalLightShadowing;
+					for (FDirectionalLightRenderState& DirectionalLight : Scene->LightSceneRenderState.DirectionalLights.Elements)
+					{
+						if (DirectionalLight.bStationary)
+						{
+							OptionalStationaryDirectionalLightShadowing.Add(DirectionalLight.GetLightShaderParameters());
+							break;
+						}
+					}
+					if (OptionalStationaryDirectionalLightShadowing.Num() == 0)
+					{
+						OptionalStationaryDirectionalLightShadowing.AddZeroed();
+					}
+					PassParameters->LightShaderParametersArray = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("OptionalStationaryDirectionalLightShadowing"), sizeof(FLightShaderConstants),
+						OptionalStationaryDirectionalLightShadowing.Num(), 
+						OptionalStationaryDirectionalLightShadowing.GetData(),
+						sizeof(FLightShaderConstants) * OptionalStationaryDirectionalLightShadowing.Num()
+					)));
 
 					FSceneRenderState* SceneRenderState = Scene; // capture member variable
 					GraphBuilder.AddPass(
@@ -608,6 +621,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				PassParameters->SHCoefficients1G = AccumulationBrickData.SHCoefficients[3].Texture;
 				PassParameters->SHCoefficients0B = AccumulationBrickData.SHCoefficients[4].Texture;
 				PassParameters->SHCoefficients1B = AccumulationBrickData.SHCoefficients[5].Texture;
+				PassParameters->DirectionalLightShadowing = AccumulationBrickData.DirectionalLightShadowing.Texture;
 				PassParameters->OutAmbientVector = VolumetricLightmapData.BrickData.AmbientVector.UAV;
 				PassParameters->OutSHCoefficients0R = VolumetricLightmapData.BrickData.SHCoefficients[0].UAV;
 				PassParameters->OutSHCoefficients1R = VolumetricLightmapData.BrickData.SHCoefficients[1].UAV;
@@ -615,6 +629,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				PassParameters->OutSHCoefficients1G = VolumetricLightmapData.BrickData.SHCoefficients[3].UAV;
 				PassParameters->OutSHCoefficients0B = VolumetricLightmapData.BrickData.SHCoefficients[4].UAV;
 				PassParameters->OutSHCoefficients1B = VolumetricLightmapData.BrickData.SHCoefficients[5].UAV;
+				PassParameters->OutDirectionalLightShadowing = VolumetricLightmapData.BrickData.DirectionalLightShadowing.UAV;
 
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("FinalizeBrickResults"), ComputeShader, PassParameters, FIntVector(BricksToCalcThisFrame, 1, 1));
 
@@ -659,6 +674,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->OutSHCoefficients1G = VolumetricLightmapData.BrickData.SHCoefficients[3].UAV;
 					PassParameters->OutSHCoefficients0B = VolumetricLightmapData.BrickData.SHCoefficients[4].UAV;
 					PassParameters->OutSHCoefficients1B = VolumetricLightmapData.BrickData.SHCoefficients[5].UAV;
+					PassParameters->OutDirectionalLightShadowing = VolumetricLightmapData.BrickData.DirectionalLightShadowing.UAV;
 
 					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("VolumetricLightmapStitching %d bricks", BricksToCalcThisFrame), ComputeShader, PassParameters, FIntVector(BricksToCalcThisFrame, 1, 1));
 

@@ -28,6 +28,7 @@ MapBuildData.cpp
 #include "Factories/TextureFactory.h"
 #endif
 #include "Engine/TextureCube.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 
 DECLARE_MEMORY_STAT(TEXT("Stationary Light Static Shadowmap"),STAT_StationaryLightBuildData,STATGROUP_MapBuildData);
 DECLARE_MEMORY_STAT(TEXT("Reflection Captures"),STAT_ReflectionCaptureBuildData,STATGROUP_MapBuildData);
@@ -76,15 +77,11 @@ void UWorld::PropagateLightingScenarioChange()
 		}
 	}
 
-	for (FActorIterator It(this); It; ++It)
+	for (USceneComponent* Component : TObjectRange<USceneComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
 	{
-		TInlineComponentArray<USceneComponent*> Components;
-		(*It)->GetComponents(Components);
-
-		for (int32 ComponentIndex = 0; ComponentIndex < Components.Num(); ComponentIndex++)
+		if (Component->GetWorld() == this)
 		{
-			USceneComponent* CurrentComponent = Components[ComponentIndex];
-			CurrentComponent->PropagateLightingScenarioChange();
+			Component->PropagateLightingScenarioChange();
 		}
 	}
 
@@ -915,6 +912,8 @@ void UMapBuildDataRegistry::InitializeClusterRenderingResources(ERHIFeatureLevel
 
 void UMapBuildDataRegistry::ReleaseResources(const TSet<FGuid>* ResourcesToKeep)
 {
+	CleanupTransientOverrideMapBuildData();
+
 	for (TMap<FGuid, FPrecomputedVolumetricLightmapData*>::TIterator It(LevelPrecomputedVolumetricLightmapBuildData); It; ++It)
 	{
 		if (!ResourcesToKeep || !ResourcesToKeep->Contains(It.Key()))
@@ -963,6 +962,17 @@ void UMapBuildDataRegistry::EmptyLevelData(const TSet<FGuid>* ResourcesToKeep)
 	}
 
 	LightmapResourceClusters.Empty();
+}
+
+void UMapBuildDataRegistry::CleanupTransientOverrideMapBuildData()
+{
+	for (UHierarchicalInstancedStaticMeshComponent* Component : TObjectRange<UHierarchicalInstancedStaticMeshComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+	{
+		for (auto& LOD : Component->LODData)
+		{
+			LOD.OverrideMapBuildData.Reset();
+		}
+	}
 }
 
 FUObjectAnnotationSparse<FMeshMapBuildLegacyData, true> GComponentsWithLegacyLightmaps;

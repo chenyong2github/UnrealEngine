@@ -925,12 +925,134 @@ RWTexture3D<float4> SHCoefficients0G;
 RWTexture3D<float4> SHCoefficients1G;
 RWTexture3D<float4> SHCoefficients0B;
 RWTexture3D<float4> SHCoefficients1B;
+RWTexture3D<UNORM float> DirectionalLightShadowing;
 
 uint MortonEncode3(uint3 Pixel)
 {
 	uint Morton = MortonCode3(Pixel.x & 0xFF) | (MortonCode3(Pixel.y & 0xFF) << 1) | (MortonCode3(Pixel.z & 0xFF) << 1);
 	return Morton;
 }
+
+// Must match C++
+struct FLightShaderConstants
+{
+	float3 Position;
+	float  InvRadius;
+	float3 Color;
+	float  FalloffExponent;
+	float3 Direction;
+	float  SpecularScale;
+	float3 Tangent;
+	float  SourceRadius;
+	float2 SpotAngles;
+	float  SoftSourceRadius;
+	float  SourceLength;
+	float  RectLightBarnCosAngle;
+	float  RectLightBarnLength;
+	
+	void FillLightShaderParameters(inout FLightShaderParameters LightShaderParameters)
+	{
+		LightShaderParameters.Position = Position;
+		LightShaderParameters.InvRadius = InvRadius;
+		LightShaderParameters.Color = Color;
+		LightShaderParameters.FalloffExponent = FalloffExponent;
+		LightShaderParameters.Direction = Direction;
+		LightShaderParameters.SpecularScale = SpecularScale;
+		LightShaderParameters.Tangent = Tangent;
+		LightShaderParameters.SourceRadius = SourceRadius;
+		LightShaderParameters.SpotAngles = SpotAngles;
+		LightShaderParameters.SoftSourceRadius = SoftSourceRadius;
+		LightShaderParameters.SourceLength = SourceLength;
+		LightShaderParameters.RectLightBarnCosAngle = RectLightBarnCosAngle;
+		LightShaderParameters.RectLightBarnLength = RectLightBarnLength;
+	}
+};
+
+#define LIGHT_TYPE_DIRECTIONAL		0 
+#define LIGHT_TYPE_POINT			1 
+#define LIGHT_TYPE_SPOT				2 
+#define LIGHT_TYPE_RECT				3 
+#define LIGHT_TYPE_MAX				4 
+
+bool GenerateOcclusionRay(
+	int LightType,
+	FLightShaderParameters LightParameters,
+	float3 WorldPosition,
+	float3 WorldNormal,
+	float2 RandSample,
+	inout float3 RayOrigin,
+	inout float3 RayDirection,
+	inout float RayTMin,
+	inout float RayTMax
+)
+{
+	if (LightType == LIGHT_TYPE_DIRECTIONAL)
+	{
+		GenerateDirectionalLightOcclusionRay(
+			LightParameters,
+			WorldPosition, WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ RayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax);
+	}
+	else if (LightType == LIGHT_TYPE_POINT)
+	{
+		if (LightParameters.SourceRadius == 0)
+		{
+			return GeneratePointLightOcclusionRay(
+				LightParameters,
+				WorldPosition, WorldNormal,
+				RandSample,
+				/* out */ RayOrigin,
+				/* out */ RayDirection,
+				/* out */ RayTMin,
+				/* out */ RayTMax);
+		}
+		else
+		{
+			float RayPdf;
+			return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
+				LightParameters,
+				WorldPosition, WorldNormal,
+				RandSample,
+				/* out */ RayOrigin,
+				/* out */ RayDirection,
+				/* out */ RayTMin,
+				/* out */ RayTMax,
+				/* out */ RayPdf);
+		}
+	}
+	else if (LightType == LIGHT_TYPE_SPOT)
+	{
+		return GenerateSpotLightOcclusionRay(
+			LightParameters,
+			WorldPosition, WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ RayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax);
+	}
+	else if (LightType == LIGHT_TYPE_RECT)
+	{
+		float RayPdf = 0.0;
+		return GenerateRectLightOcclusionRay(
+			LightParameters,
+			WorldPosition, WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ RayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax,
+			/* out */ RayPdf);
+	}
+
+	return true;
+}
+
+StructuredBuffer<FLightShaderConstants> LightShaderParametersArray;
 
 [shader("raygeneration")]
 void VolumetricLightmapPathTracingMainRG()
@@ -1073,133 +1195,52 @@ void VolumetricLightmapPathTracingMainRG()
 		
 		AmbientVector[VoxelPos].w = asfloat(SampleCount + 1);
 	}
-}
-
-// Must match C++
-struct FLightShaderConstants
-{
-	float3 Position;
-	float  InvRadius;
-	float3 Color;
-	float  FalloffExponent;
-	float3 Direction;
-	float  SpecularScale;
-	float3 Tangent;
-	float  SourceRadius;
-	float2 SpotAngles;
-	float  SoftSourceRadius;
-	float  SourceLength;
-	float  RectLightBarnCosAngle;
-	float  RectLightBarnLength;
 	
-	void FillLightShaderParameters(inout FLightShaderParameters LightShaderParameters)
+	// 32 samples for single sample stationary directional light shadowing
+	if (FrameNumber < 32 && length(LightShaderParametersArray[0].Direction) > 0)
 	{
-		LightShaderParameters.Position = Position;
-		LightShaderParameters.InvRadius = InvRadius;
-		LightShaderParameters.Color = Color;
-		LightShaderParameters.FalloffExponent = FalloffExponent;
-		LightShaderParameters.Direction = Direction;
-		LightShaderParameters.SpecularScale = SpecularScale;
-		LightShaderParameters.Tangent = Tangent;
-		LightShaderParameters.SourceRadius = SourceRadius;
-		LightShaderParameters.SpotAngles = SpotAngles;
-		LightShaderParameters.SoftSourceRadius = SoftSourceRadius;
-		LightShaderParameters.SourceLength = SourceLength;
-		LightShaderParameters.RectLightBarnCosAngle = RectLightBarnCosAngle;
-		LightShaderParameters.RectLightBarnLength = RectLightBarnLength;
+		FLightShaderParameters LightParameters;
+		LightShaderParametersArray[0].FillLightShaderParameters(LightParameters);
+
+		float2 RandSample = float2(
+			Halton(StrongIntegerHash(Seed) + FrameNumber, 5), 
+			Halton(StrongIntegerHash(Seed) + FrameNumber, 7)
+		);
+		
+		RayDesc Ray;
+		bool bIsValidRay = GenerateOcclusionRay(
+			LIGHT_TYPE_DIRECTIONAL,
+			LightParameters,
+			WorldPosition, ShadingNormal,
+			RandSample,
+			/* out */ Ray.Origin,
+			/* out */ Ray.Direction,
+			/* out */ Ray.TMin,
+			/* out */ Ray.TMax);
+			
+		Ray.Origin += Ray.Direction * 0.01f;
+			
+		if (bIsValidRay)
+		{
+			uint RayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+	
+			FMinimalPayload MinimalPayload = TraceVisibilityRay(
+				TLAS,
+				RayFlags,
+				RAY_TRACING_MASK_SHADOW,
+				uint2(0, 0),
+				Ray);
+			
+			DirectionalLightShadowing[VoxelPos] += (MinimalPayload.IsMiss() ? 1 : 0) / 32.0f;
+		}
 	}
-};
+}
 
 Buffer<int> LightTypeArray;
 Buffer<int> ChannelIndexArray;
 Buffer<int> LightSampleIndexArray;
-StructuredBuffer<FLightShaderConstants> LightShaderParametersArray;
 RWTexture2D<float4> ShadowMask;
 RWTexture2D<float4> ShadowMaskSampleCount;
-
-#define LIGHT_TYPE_DIRECTIONAL		0 
-#define LIGHT_TYPE_POINT			1 
-#define LIGHT_TYPE_SPOT				2 
-#define LIGHT_TYPE_RECT				3 
-#define LIGHT_TYPE_MAX				4 
-
-bool GenerateOcclusionRay(
-	int LightType,
-	FLightShaderParameters LightParameters,
-	float3 WorldPosition,
-	float3 WorldNormal,
-	float2 RandSample,
-	inout float3 RayOrigin,
-	inout float3 RayDirection,
-	inout float RayTMin,
-	inout float RayTMax
-)
-{
-	if (LightType == LIGHT_TYPE_DIRECTIONAL)
-	{
-		GenerateDirectionalLightOcclusionRay(
-			LightParameters,
-			WorldPosition, WorldNormal,
-			RandSample,
-			/* out */ RayOrigin,
-			/* out */ RayDirection,
-			/* out */ RayTMin,
-			/* out */ RayTMax);
-	}
-	else if (LightType == LIGHT_TYPE_POINT)
-	{
-		if (LightParameters.SourceRadius == 0)
-		{
-			return GeneratePointLightOcclusionRay(
-				LightParameters,
-				WorldPosition, WorldNormal,
-				RandSample,
-				/* out */ RayOrigin,
-				/* out */ RayDirection,
-				/* out */ RayTMin,
-				/* out */ RayTMax);
-		}
-		else
-		{
-			float RayPdf;
-			return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
-				LightParameters,
-				WorldPosition, WorldNormal,
-				RandSample,
-				/* out */ RayOrigin,
-				/* out */ RayDirection,
-				/* out */ RayTMin,
-				/* out */ RayTMax,
-				/* out */ RayPdf);
-		}
-	}
-	else if (LightType == LIGHT_TYPE_SPOT)
-	{
-		return GenerateSpotLightOcclusionRay(
-			LightParameters,
-			WorldPosition, WorldNormal,
-			RandSample,
-			/* out */ RayOrigin,
-			/* out */ RayDirection,
-			/* out */ RayTMin,
-			/* out */ RayTMax);
-	}
-	else if (LightType == LIGHT_TYPE_RECT)
-	{
-		float RayPdf = 0.0;
-		return GenerateRectLightOcclusionRay(
-			LightParameters,
-			WorldPosition, WorldNormal,
-			RandSample,
-			/* out */ RayOrigin,
-			/* out */ RayDirection,
-			/* out */ RayTMin,
-			/* out */ RayTMax,
-			/* out */ RayPdf);
-	}
-
-	return true;
-}
 
 [shader("raygeneration")]
 void StationaryLightShadowTracingMainRG()
