@@ -779,8 +779,9 @@ void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenS
 
 				if (bVisible)
 				{
-					uint32 CardHash = HashCombine(GetTypeHash(Card.WorldOBB.Origin), GetTypeHash(Card.WorldOBB.Extent));
-					CardHash = HashCombine(CardHash, GetTypeHash(Card.WorldOBB.AxisZ));
+					uint32 CardHash = HashCombine(GetTypeHash(Card.LocalOBB.Origin), GetTypeHash(Card.LocalOBB.Extent));
+					CardHash = HashCombine(CardHash, GetTypeHash(Card.LocalOBB.AxisZ));
+					CardHash = HashCombine(CardHash, GetTypeHash(CardIndex));
 
 					const uint8 DepthPriority = SDPG_World;
 					const uint8 CardHue = CardHash & 0xFF;
