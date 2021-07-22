@@ -47,7 +47,10 @@ UENUM()
 enum class EUVSelectToolSelectionMode : uint8
 {
 	Island,
-	Edge
+	Edge,
+	Vertex,
+	Triangle,
+	Mesh
 };
 
 UCLASS()
@@ -111,6 +114,8 @@ protected:
 	virtual void ApplyGizmoTransform();
 	virtual void UpdateGizmo();
 	virtual void UpdateLivePreviewLines();
+
+	void ConfigureSelectionModeFromControls();
 
 	UWorld* TargetWorld;
 

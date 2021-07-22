@@ -65,9 +65,7 @@ void UUVSelectTool::Setup()
 	SelectionMechanic->SetWorld(Targets[0]->UnwrapPreview->GetWorld());
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UUVSelectTool::OnSelectionChanged);
 
-	SelectionMechanic->SelectionMode =
-		Settings->SelectionMode == EUVSelectToolSelectionMode::Island ? EMeshSelectionMechanicMode::Component
-		: EMeshSelectionMechanicMode::Edge;
+	ConfigureSelectionModeFromControls();
 
 	// Retrieve cached AABB tree storage, or else set it up
 	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
@@ -170,9 +168,7 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UUVSelectTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	SelectionMechanic->SelectionMode =
-		Settings->SelectionMode == EUVSelectToolSelectionMode::Island ? EMeshSelectionMechanicMode::Component
-		: EMeshSelectionMechanicMode::Edge;
+	ConfigureSelectionModeFromControls();
 }
 
 void UUVSelectTool::UpdateGizmo()
@@ -192,6 +188,31 @@ void UUVSelectTool::UpdateGizmo()
 	}
 
 	TransformGizmo->SetVisibility(bGizmoEnabled && !SelectionMechanic->GetCurrentSelection().IsEmpty());
+}
+
+void UUVSelectTool::ConfigureSelectionModeFromControls()
+{
+	switch (Settings->SelectionMode)
+	{
+	case EUVSelectToolSelectionMode::Island:
+		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Component;
+		break;
+	case EUVSelectToolSelectionMode::Edge:
+		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Edge;
+		break;
+	case EUVSelectToolSelectionMode::Vertex:
+		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Vertex;
+		break;
+	case EUVSelectToolSelectionMode::Triangle:
+		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Triangle;
+		break;
+	case EUVSelectToolSelectionMode::Mesh:
+		SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Mesh;
+		break;
+	default:
+		ensure(false);
+		break;
+	}
 }
 
 void UUVSelectTool::OnSelectionChanged()
@@ -280,6 +301,29 @@ void UUVSelectTool::OnSelectionChanged()
 				}
 			}
 		}
+		else if (Selection.Type == FDynamicMeshSelection::EType::Vertex)
+		{
+			for (int32 Vid : Selection.SelectedIDs)
+			{
+				if (!VidSet.Contains(Vid))
+				{
+					VidSet.Add(Vid);
+					MovingVids.Add(Vid);
+				}
+
+				TArray<int> TidOneRing;
+				Selection.Mesh->GetVertexOneRingTriangles(Vid, TidOneRing);
+				for (int32 Tid : TidOneRing)
+				{
+					if (!TidSet.Contains(Tid))
+					{
+						TidSet.Add(Tid);
+						SelectedTids.Add(Tid);
+					}
+				}
+
+			}
+		}
 		else
 		{
 			check(false);
@@ -300,7 +344,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 	{
 		FTransform MeshTransform = Targets[SelectionTargetIndex]->AppliedPreview->PreviewMesh->GetTransform();
 		const FDynamicMesh3* LivePreviewMesh = Targets[SelectionTargetIndex]->AppliedCanonical.Get();
-
+		
 		for (int32 Eid : BoundaryEids)
 		{
 			FVector3d Vert1, Vert2;
@@ -311,6 +355,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 				MeshTransform.TransformPosition(Vert2), 
 				FColor::Yellow, 2, 1.5);
 		}
+		
 	}
 }
 
