@@ -32,8 +32,9 @@ VCPKG_FEATURE_FLAGS=manifests
 # deduce vcpkg nomenclature for this system
 if [ `uname` == "Linux" ]; then
 	VCPKG_SYSTEM=Linux
-elif [ `uname` == "Darwin" ]; then
-	VCPKG_SYSTEM=Mac
+else
+	echo Error: Linux libraries can only be built on Linux.
+	exit 1
 fi
 
 echo
