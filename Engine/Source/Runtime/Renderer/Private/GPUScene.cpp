@@ -774,7 +774,7 @@ FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSc
 		{
 			for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 			{
-				Scene->MaterialTables[NaniteMeshPassIndex].UpdateBufferState(GraphBuilder, Scene->Primitives.Num());
+				Scene->NaniteMaterials[NaniteMeshPassIndex].UpdateBufferState(GraphBuilder, Scene->Primitives.Num());
 			}
 		}
 	}
@@ -821,7 +821,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 			{
 				for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 				{
-					Scene->MaterialTables[NaniteMeshPassIndex].Begin(RHICmdList, Scene->Primitives.Num(), NumPrimitiveDataUploads);
+					Scene->NaniteMaterials[NaniteMeshPassIndex].Begin(RHICmdList, Scene->Primitives.Num(), NumPrimitiveDataUploads);
 				}
 			}
 		}
@@ -830,7 +830,6 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 		int32 NumInstanceSceneDataUploads = 0;
 
 		static FCriticalSection PrimitiveUploadBufferCS;
-		static FCriticalSection MaterialTableUploadCS;
 
 		FParallelUpdateRanges ParallelRanges;
 
@@ -883,28 +882,28 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						// Update material depth and hit proxy ID remapping tables.
 						for (int32 NaniteMeshPass = 0; NaniteMeshPass < ENaniteMeshPass::Num; ++NaniteMeshPass)
 						{
-							FNaniteMaterialTables& PassMaterialTables = Scene->MaterialTables[NaniteMeshPass];
+							FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[NaniteMeshPass];
+
 							const TArray<uint32>& PassMaterialIds = PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPass];
 							const TArray<Nanite::FSceneProxyBase::FMaterialSection>& PassMaterials = NaniteSceneProxy->GetMaterialSections();
 							check(PassMaterials.Num() == PassMaterialIds.Num());
 
-							if (bThreaded)
-							{
-								MaterialTableUploadCS.Lock();
-							}
-
 							const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
 							check(TableEntryCount >= uint32(PassMaterials.Num()));
-
-							void* DepthTable = PassMaterialTables.GetDepthTablePtr(UploadInfo.PrimitiveID, TableEntryCount);
 						#if WITH_EDITOR
 							const uint32 HitProxyEntryCount = (NaniteMeshPass == ENaniteMeshPass::BasePass) ? TableEntryCount : NANITE_MAX_MATERIALS;
-							void* HitProxyTable = PassMaterialTables.GetHitProxyTablePtr(UploadInfo.PrimitiveID, HitProxyEntryCount);
 						#endif
 
-							if (bThreaded)
+							void* DepthTable = nullptr;
+						#if WITH_EDITOR
+							void* HitProxyTable = nullptr;
+						#endif
 							{
-								MaterialTableUploadCS.Unlock();
+								FNaniteMaterialCommandsLock NaniteLock(NaniteMaterials, SLT_Write);
+								DepthTable = NaniteMaterials.GetDepthTablePtr(UploadInfo.PrimitiveID, TableEntryCount);
+							#if WITH_EDITOR
+								HitProxyTable = NaniteMaterials.GetHitProxyTablePtr(UploadInfo.PrimitiveID, HitProxyEntryCount);
+							#endif
 							}
 
 							uint32* DepthEntry = static_cast<uint32*>(DepthTable);
@@ -996,7 +995,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 			{
 				for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 				{
-					Scene->MaterialTables[NaniteMeshPassIndex].Finish(RHICmdList);
+					Scene->NaniteMaterials[NaniteMeshPassIndex].Finish(RHICmdList);
 				}
 			}
 		}

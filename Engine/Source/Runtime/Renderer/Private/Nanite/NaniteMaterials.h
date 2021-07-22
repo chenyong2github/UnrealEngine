@@ -141,40 +141,6 @@ private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, NaniteUniformBuffer);
 };
 
-class FNaniteMaterialTables
-{
-public:
-	FNaniteMaterialTables(uint32 MaxMaterials = NANITE_MAX_MATERIALS);
-	~FNaniteMaterialTables();
-
-	void Release();
-
-	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives);
-
-	void Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
-	void* GetDepthTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
-#if WITH_EDITOR
-	void* GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
-#endif
-	void Finish(FRHICommandListImmediate& RHICmdList);
-
-	FRHIShaderResourceView* GetDepthTableSRV() const { return DepthTableDataBuffer.SRV; }
-#if WITH_EDITOR
-	FRHIShaderResourceView* GetHitProxyTableSRV() const { return HitProxyTableDataBuffer.SRV; }
-#endif
-
-private:
-	uint32 MaxMaterials = 0;
-	uint32 NumPrimitiveUpdates = 0;
-	uint32 NumDepthTableUpdates = 0;
-	uint32 NumHitProxyTableUpdates = 0;
-
-	FScatterUploadBuffer DepthTableUploadBuffer;
-	FRWByteAddressBuffer DepthTableDataBuffer;
-	FScatterUploadBuffer HitProxyTableUploadBuffer;
-	FRWByteAddressBuffer HitProxyTableDataBuffer;
-};
-
 class FNaniteMaterialCommands
 {
 	friend class FNaniteMaterialCommandsLock;
@@ -184,8 +150,10 @@ public:
 	typedef Experimental::FHashElementId FCommandId;
 
 public:
-	FNaniteMaterialCommands();
+	FNaniteMaterialCommands(uint32 MaxMaterials = NANITE_MAX_MATERIALS);
 	~FNaniteMaterialCommands();
+
+	void Release();
 
 	inline const FCommandHash ComputeCommandHash(const FMeshDrawCommand& DrawCommand) const
 	{
@@ -233,9 +201,33 @@ public:
 		return StateBuckets;
 	}
 
+	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives);
+
+	void Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
+	void* GetDepthTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
+#if WITH_EDITOR
+	void* GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
+#endif
+	void Finish(FRHICommandListImmediate& RHICmdList);
+
+	FRHIShaderResourceView* GetDepthTableSRV() const { return DepthTableDataBuffer.SRV; }
+#if WITH_EDITOR
+	FRHIShaderResourceView* GetHitProxyTableSRV() const { return HitProxyTableDataBuffer.SRV; }
+#endif
+
 private:
 	FRWLock ReadWriteLock;
 	FStateBucketMap StateBuckets;
+
+	uint32 MaxMaterials = 0;
+	uint32 NumPrimitiveUpdates = 0;
+	uint32 NumDepthTableUpdates = 0;
+	uint32 NumHitProxyTableUpdates = 0;
+
+	FScatterUploadBuffer DepthTableUploadBuffer;
+	FRWByteAddressBuffer DepthTableDataBuffer;
+	FScatterUploadBuffer HitProxyTableUploadBuffer;
+	FRWByteAddressBuffer HitProxyTableDataBuffer;
 };
 
 class FNaniteMaterialCommandsLock : public FRWScopeLock

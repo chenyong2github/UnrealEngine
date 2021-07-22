@@ -206,7 +206,7 @@ void AddVisualizationPasses(
 				PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 				PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 				PassParameters->VisBuffer64				= VisBuffer64;
-				PassParameters->MaterialDepthTable		= Scene->MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+				PassParameters->MaterialDepthTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
 				PassParameters->MaterialComplexity		= MaterialComplexityUAV;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FMaterialComplexityCS>();
@@ -291,9 +291,9 @@ void AddVisualizationPasses(
 				PassParameters->NaniteMask = NaniteMask;
 				PassParameters->SceneDepth = SceneTextures.Depth.Target;
 				PassParameters->MaterialComplexity = MaterialComplexity ? MaterialComplexity : SystemTextures.Black;
-				PassParameters->MaterialDepthTable = Scene->MaterialTables[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+				PassParameters->MaterialDepthTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
 			#if WITH_EDITOR
-				PassParameters->MaterialHitProxyTable = Scene->MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
+				PassParameters->MaterialHitProxyTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 			#else
 				// TODO: Permutation with hit proxy support to keep this clean?
 				// For now, bind a valid SRV

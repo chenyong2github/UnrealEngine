@@ -125,7 +125,7 @@ void DrawHitProxies(
 		PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->VisBuffer64 = VisBuffer64;
-		PassParameters->MaterialHitProxyTable = Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
+		PassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 
 		PassParameters->RenderTargets[0]			= FRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
@@ -176,7 +176,7 @@ void GetEditorSelectionPassParameters(
 	OutPassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 	OutPassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64				= VisBuffer64;
-	OutPassParameters->MaterialHitProxyTable	= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
+	OutPassParameters->MaterialHitProxyTable	= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	OutPassParameters->OutputToInputScale		= FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Scale;
 	OutPassParameters->OutputToInputBias		= FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Bias;
 }
@@ -246,7 +246,7 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	OutPassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
 	OutPassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64 = VisBuffer64;
-	OutPassParameters->MaterialHitProxyTable = Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
+	OutPassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	OutPassParameters->OutputToInputScale = FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Scale;
 	OutPassParameters->OutputToInputBias = FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Bias;
 }
