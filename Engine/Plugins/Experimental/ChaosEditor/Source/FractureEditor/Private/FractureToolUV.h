@@ -38,7 +38,8 @@ enum class ETargetMaterialIDs
 {
 	OddIDs,
 	OddAndSelectedIDs,
-	SelectedIDs
+	SelectedIDs,
+	AllIDs
 };
 
 /** Settings specifically related to the one-time destructive fracturing of a mesh **/

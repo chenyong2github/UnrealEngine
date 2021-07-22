@@ -109,14 +109,18 @@ namespace UE { namespace PlanarCut {
 
 
 namespace {
-	inline bool IsTriActive(bool bIsVisible, int32 MaterialID, const TSet<int32>& InsideMaterials, bool bActivateInsideTriangles, bool bOddMaterialAreInside)
+	inline bool IsTriActive(bool bIsVisible, int32 MaterialID, const TSet<int32>& InsideMaterials, bool bActivateInsideTriangles, EUseMaterials MaterialsPattern)
 	{
-		if (!bIsVisible)
+		if (!bIsVisible) // never select invisible triangles
 		{
 			return false;
 		}
 
-		if (bOddMaterialAreInside && ((MaterialID % 2) == 1) == bActivateInsideTriangles)
+		if (MaterialsPattern == EUseMaterials::AllMaterials && bActivateInsideTriangles)
+		{
+			return true;
+		}
+		if (MaterialsPattern == EUseMaterials::OddMaterials && ((MaterialID % 2) == 1) == bActivateInsideTriangles)
 		{
 			return true;
 		}
@@ -134,8 +138,7 @@ namespace {
  * @return number of active triangles
  */
 int32 SetActiveTriangles(FGeometryCollection* Collection, TArray<bool>& ActiveTrianglesOut,
-	bool bActivateInsideTriangles,
-	bool bOddMaterialAreInside, TArrayView<int32> WhichMaterialsAreInside)
+	bool bActivateInsideTriangles, EUseMaterials MaterialsPattern, TArrayView<int32> WhichMaterialsAreInside)
 {
 	TSet<int32> InsideMaterials;
 	for (int32 MatID : WhichMaterialsAreInside)
@@ -147,7 +150,7 @@ int32 SetActiveTriangles(FGeometryCollection* Collection, TArray<bool>& ActiveTr
 	int32 NumTriangles = 0;
 	for (int TID = 0; TID < Collection->Indices.Num(); TID++)
 	{
-		bool bIsActive = IsTriActive(Collection->Visible[TID], Collection->MaterialID[TID], InsideMaterials, bActivateInsideTriangles, bOddMaterialAreInside);
+		bool bIsActive = IsTriActive(Collection->Visible[TID], Collection->MaterialID[TID], InsideMaterials, bActivateInsideTriangles, MaterialsPattern);
 		if (bIsActive)
 		{
 			ActiveTrianglesOut[TID] = true;
@@ -374,13 +377,13 @@ bool UVLayout(
 	FGeometryCollection& Collection,
 	int32 UVRes,
 	float GutterSize,
-	bool bOnlyOddMaterials,
+	EUseMaterials MaterialsPattern,
 	TArrayView<int32> WhichMaterials,
 	bool bRecreateUVsForDegenerateIslands
 )
 {
 	TArray<bool> ActiveTriangles;
-	int32 NumActive = SetActiveTriangles(&Collection, ActiveTriangles, true, bOnlyOddMaterials, WhichMaterials);
+	int32 NumActive = SetActiveTriangles(&Collection, ActiveTriangles, true, MaterialsPattern, WhichMaterials);
 	FGeomMesh UVMesh(TargetUVLayer, &Collection, ActiveTriangles, NumActive);
 
 	TArray<TArray<int32>> UVIslands;
@@ -505,12 +508,12 @@ void TextureInternalSurfaces(
 	FIndex4i BakeAttributes,
 	const FTextureAttributeSettings& AttributeSettings,
 	TImageBuilder<FVector4f>& TextureOut,
-	bool bOnlyOddMaterials,
+	EUseMaterials MaterialsPattern,
 	TArrayView<int32> WhichMaterials
 )
 {
 	TArray<bool> ToTextureTriangles;
-	int32 NumTextureTris = SetActiveTriangles(&Collection, ToTextureTriangles, true, bOnlyOddMaterials, WhichMaterials);
+	int32 NumTextureTris = SetActiveTriangles(&Collection, ToTextureTriangles, true, MaterialsPattern, WhichMaterials);
 	FGeomFlatUVMesh UVMesh(TargetUVLayer, &Collection, ToTextureTriangles, NumTextureTris);
 
 	FImageOccupancyMap OccupancyMap;
@@ -522,7 +525,7 @@ void TextureInternalSurfaces(
 
 	// Outside triangles are identified by odd material ID
 	TArray<bool> OutsideTriangles;
-	int32 NumOutsideTris = SetActiveTriangles(&Collection, OutsideTriangles, false, true, {});
+	int32 NumOutsideTris = SetActiveTriangles(&Collection, OutsideTriangles, false, EUseMaterials::OddMaterials, {});
 	FGeomMesh OutsideMesh(ToTextureMesh, OutsideTriangles, NumOutsideTris);
 	TMeshAABBTree3<FGeomMesh> OutsideSpatial(&OutsideMesh);
 
@@ -567,7 +570,7 @@ void TextureInternalSurfaces(
 			{
 				bool bIsTextureTri = IsTriActive(
 					AugmentedDynamicMesh::GetVisibility(Mesh, TID), 
-					Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, bOnlyOddMaterials);
+					Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, MaterialsPattern);
 				if (!bIsTextureTri)
 				{
 					UV->UnsetTriangle(TID);

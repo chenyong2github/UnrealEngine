@@ -289,11 +289,15 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 
 		int32 UVLayer = AutoUVSettings->GetSelectedChannelIndex();
 
+		UE::PlanarCut::EUseMaterials UseMaterialIDs =
+			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::SelectedIDs ? UE::PlanarCut::EUseMaterials::NoDefaultMaterials :
+			(AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::AllIDs ? UE::PlanarCut::EUseMaterials::AllMaterials : UE::PlanarCut::EUseMaterials::OddMaterials);
+
 		if (AutoUVSettings->bDoUVLayout)
 		{
 			UVTask.EnterProgressFrame(1, LOCTEXT("LayOutUVIslands", "Laying out UV islands"));
 			if (!UE::PlanarCut::UVLayout(UVLayer, Collection, OutputRes, AutoUVSettings->GutterSize,
-				AutoUVSettings->TargetMaterialIDs != ETargetMaterialIDs::SelectedIDs,
+				UseMaterialIDs,
 				AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs))
 			{
 				// failed to do layout
@@ -343,7 +347,7 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		AttribSettings.Curvature_MaxValue = AutoUVSettings->MaxCurvature;
 		AttribSettings.ClearGutterChannel = 3; // default clear the gutters for the alpha channel, so it shows more clearly the island boundaries
 		UE::PlanarCut::TextureInternalSurfaces(UVLayer, Collection, FMath::CeilToInt(AutoUVSettings->GutterSize), Attributes, AttribSettings, ImageBuilder,
-			AutoUVSettings->TargetMaterialIDs != ETargetMaterialIDs::SelectedIDs, 
+			UseMaterialIDs,
 			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs: AutoUVSettings->MaterialIDs);
 
 		UVTask.EnterProgressFrame(1, LOCTEXT("SavingTexture", "Saving result"));

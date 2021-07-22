@@ -8,6 +8,13 @@
 
 namespace UE { namespace PlanarCut {
 
+enum class EUseMaterials
+{
+	AllMaterials,		// Include all materials
+	OddMaterials,		// Include materials w/ odd IDs (+ any manually selected materials)
+	NoDefaultMaterials	// No default materials; Only use manually selected materials
+};
+
 /**
  * Make a UV atlas of non-overlapping UV charts for a geometry collection
  *
@@ -15,7 +22,7 @@ namespace UE { namespace PlanarCut {
  * @param Collection		The collection to be atlas'd
  * @param UVRes				Target resolution for the atlas
  * @param GutterSize		Space to leave between UV islands, in pixels at the target resolution
- * @param bOddMaterials		If true, consider odd-numbered material IDs for UV island layout
+ * @param MaterialsPattern	Which pattern of material IDs to automatically consider for UV island layout
  * @param WhichMaterials	If non-empty, consider listed material IDs for UV island layout
  * @param bRecreateUVsForDegenerateIslands If true, detect and fix islands that don't have proper UVs (i.e. UVs all zero or otherwise collapsed to a point)
  */
@@ -24,7 +31,7 @@ bool PLANARCUT_API UVLayout(
 	FGeometryCollection& Collection,
 	int32 UVRes = 1024,
 	float GutterSize = 1,
-	bool bOddMaterials = true,
+	EUseMaterials MaterialsPattern = EUseMaterials::OddMaterials,
 	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
 	bool bRecreateUVsForDegenerateIslands = true
 );
@@ -75,7 +82,7 @@ struct FTextureAttributeSettings
  * @param BakeAttributes	Which attributes to bake into which color channel
  * @param AttributeSettings	Settings for the BakeAttributes
  * @param TextureOut		Texture to write to
- * @param bOddMaterials		If true, apply texture to odd-numbered material IDs
+ * @param MaterialsPattern	Which pattern of material IDs to apply texture to
  * @param WhichMaterials	If non-empty, apply texture to the listed material IDs
  */
 void PLANARCUT_API TextureInternalSurfaces(
@@ -85,7 +92,7 @@ void PLANARCUT_API TextureInternalSurfaces(
 	UE::Geometry::FIndex4i BakeAttributes,
 	const FTextureAttributeSettings& AttributeSettings,
 	UE::Geometry::TImageBuilder<FVector4f>& TextureOut,
-	bool bOddMaterials = true,
+	EUseMaterials MaterialsPattern = EUseMaterials::OddMaterials,
 	TArrayView<int32> WhichMaterials = TArrayView<int32>()
 );
 
