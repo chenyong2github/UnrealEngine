@@ -35,5 +35,5 @@ public:
 	/** Gather modifications to the compilation environment always required when including this data provider. */
 	virtual void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const {}
 
-	virtual UComputeDataProvider* CreateDataProvider(UObject *InOuter) const PURE_VIRTUAL(UComputeDataInterface::CreateDataProvider, return nullptr; )
+	virtual UComputeDataProvider* CreateDataProvider(UObject *InOuter, bool bSetDefaultBindings) const PURE_VIRTUAL(UComputeDataInterface::CreateDataProvider, return nullptr; )
 };

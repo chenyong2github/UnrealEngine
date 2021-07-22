@@ -10,12 +10,10 @@
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
-
 FString USkeletalMeshSkinCacheDataInterface::GetDisplayName() const
 {
 	return TEXT("Write Skeletal Mesh");
 }
-
 
 TArray<FOptimusCDIPinDefinition> USkeletalMeshSkinCacheDataInterface::GetPinDefinitions() const
 {
@@ -26,7 +24,6 @@ TArray<FOptimusCDIPinDefinition> USkeletalMeshSkinCacheDataInterface::GetPinDefi
 
 	return Defs;
 }
-
 
 void USkeletalMeshSkinCacheDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
@@ -40,7 +37,6 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedInputs(TArray<FShaderFunct
 		OutFunctions.Add(Fn);
 	}
 }
-
 
 void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
@@ -101,10 +97,19 @@ void USkeletalMeshSkinCacheDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkinCacheWrite.ush\"\n");
 }
 
-
-UComputeDataProvider* USkeletalMeshSkinCacheDataInterface::CreateDataProvider(UObject* InOuter) const
+UComputeDataProvider* USkeletalMeshSkinCacheDataInterface::CreateDataProvider(UObject* InOuter, bool bSetDefaultBindings) const
 {
-	return NewObject<USkeletalMeshSkinCacheDataProvider>(InOuter);
+	USkeletalMeshSkinCacheDataProvider* Provider = NewObject<USkeletalMeshSkinCacheDataProvider>(InOuter);
+	if (bSetDefaultBindings)
+	{
+		UActorComponent* Component = Cast<UActorComponent>(InOuter);
+		if (Component != nullptr)
+		{
+			UActorComponent* SkeletalMesh = Component->GetOwner()->GetComponentByClass(USkeletalMeshComponent::StaticClass());
+			Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(SkeletalMesh);
+		}
+	}
+	return Provider;
 }
 
 
@@ -112,6 +117,7 @@ FComputeDataProviderRenderProxy* USkeletalMeshSkinCacheDataProvider::GetRenderPr
 {
 	return new FSkeletalMeshSkinCacheDataProviderProxy(SkeletalMesh);
 }
+
 
 FSkeletalMeshSkinCacheDataProviderProxy::FSkeletalMeshSkinCacheDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {

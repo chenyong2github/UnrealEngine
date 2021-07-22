@@ -27,7 +27,7 @@ public:
 	void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
-	UComputeDataProvider* CreateDataProvider(UObject *InOuter) const override;
+	UComputeDataProvider* CreateDataProvider(UObject *InOuter, bool bSetDefaultBindings) const override;
 	//~ End UComputeDataInterface Interface
 };
 
