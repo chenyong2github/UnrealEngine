@@ -842,7 +842,8 @@ void FVirtualizedUntypedBulkData::PushData()
 		// serialization, we need a better way to save the results of 'RecompressForSerialization'
 		RecompressForSerialization(PayloadToPush, Flags);
 
-		if (VirtualizationManager.PushData(PayloadContentId, PayloadToPush))
+		// TODO: We could make this a config option?
+		if (VirtualizationManager.PushData(PayloadContentId, PayloadToPush, EStorageType::Local))
 		{
 			EnumAddFlags(Flags, EFlags::IsVirtualized);
 			EnumRemoveFlags(Flags, EFlags::ReferencesLegacyFile | EFlags::LegacyFileIsCompressed);

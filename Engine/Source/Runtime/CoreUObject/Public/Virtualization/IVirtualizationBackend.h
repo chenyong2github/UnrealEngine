@@ -6,6 +6,7 @@
 #include "Containers/StringView.h"
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
+#include "Templates/UniquePtr.h"
 
 namespace UE::Virtualization
 {
@@ -126,7 +127,7 @@ public:
 	 * @param ConfigName	The name given to the back end in the config ini file
 	 * @return A new backend instance
 	 */
-	virtual IVirtualizationBackend* CreateInstance(FStringView ConfigName) = 0;
+	virtual TUniquePtr<IVirtualizationBackend> CreateInstance(FStringView ConfigName) = 0;
 
 	/** Returns the name used to identify the type in config ini files */
 	virtual FName GetName() = 0;
@@ -148,7 +149,7 @@ public:
 		BackendClass##Factory() { IModularFeatures::Get().RegisterModularFeature(FName("VirtualizationBackendFactory"), this); }\
 		virtual ~BackendClass##Factory() { IModularFeatures::Get().UnregisterModularFeature(FName("VirtualizationBackendFactory"), this); } \
 	private: \
-		virtual IVirtualizationBackend* CreateInstance(FStringView ConfigName) override { return new BackendClass(ConfigName); } \
+		virtual TUniquePtr<IVirtualizationBackend> CreateInstance(FStringView ConfigName) override { return MakeUnique<BackendClass>(ConfigName); } \
 		virtual FName GetName() override { return FName(#ConfigName); } \
 	}; \
 	static BackendClass##Factory BackendClass##Factory##Instance;

@@ -50,9 +50,9 @@ private:
 };
 
 /* Utility function for building up a lookup table of all available IBackendFactory interfaces*/
-TMap<FName, IVirtualizationBackendFactory*> FindBackendFactories()
+FVirtualizationManager::FRegistedFactories FindBackendFactories()
 {
-	TMap<FName, IVirtualizationBackendFactory*> BackendFactories;
+	FVirtualizationManager::FRegistedFactories BackendFactories;
 
 	TArray<IVirtualizationBackendFactory*> FactoriesArray = IModularFeatures::Get().GetModularFeatureImplementations<IVirtualizationBackendFactory>(FName("VirtualizationBackendFactory"));
 	for (IVirtualizationBackendFactory* FactoryInterface : FactoriesArray)
@@ -215,25 +215,22 @@ FVirtualizationManager::FVirtualizationManager()
 FVirtualizationManager::~FVirtualizationManager()
 {
 	UE_LOG(LogVirtualization, Log, TEXT("Destroying backends"));
+	
+	LocalCachableBackends.Empty();
+	PersistentStorageBackends.Empty();
+	PullEnabledBackends.Empty();
 
-	for (IVirtualizationBackend* Backend : AllBackendsArray)
-	{
-		delete Backend;
-	}
-
-	AllBackendsArray.Empty();
-	PullEnabledBackendsArray.Empty();
-	PushEnabledBackendsArray.Empty();
+	AllBackends.Empty(); // This will delete all backends and beyond this point all references to them are invalid
 
 	UE_LOG(LogVirtualization, Log, TEXT("Virtualization manager destroyed"));
 }
 
 bool FVirtualizationManager::IsEnabled() const
 {
-	return !PushEnabledBackendsArray.IsEmpty();
+	return !AllBackends.IsEmpty();
 }
 
-bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload)
+bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::PushData);
 
@@ -247,7 +244,7 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 	FConditionalScopeLock _(&ForceSingleThreadedCS, bForceSingleThreaded);
 
 	// Early out if there are no backends or if the pushing of payloads has been disabled
-	if (PushEnabledBackendsArray.IsEmpty() || bEnablePayloadPushing == false)
+	if (!IsEnabled() || bEnablePayloadPushing == false)
 	{
 		return false;
 	}
@@ -274,8 +271,11 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 	// TODO: Note that all push operations are currently synchronous, probably 
 	// should change to async at some point, although this makes handling failed
 	// pushed much more difficult.
+
 	bool bWasPayloadPushed = false;
-	for (IVirtualizationBackend* Backend : PushEnabledBackendsArray)
+	FBackendArray& Backends = StorageType == EStorageType::Local ? LocalCachableBackends : PersistentStorageBackends;
+
+	for (IVirtualizationBackend* Backend : Backends)
 	{
 		const EPushResult Result = TryPushDataToBackend(*Backend, Id, Payload) ? EPushResult::Success : EPushResult::Failed;
 
@@ -313,7 +313,7 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 		return FCompressedBuffer();
 	}
 
-	if (PullEnabledBackendsArray.IsEmpty())
+	if (PullEnabledBackends.IsEmpty())
 	{
 		// TODO: See below, should errors here be fatal?
 		UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled as there are no backends mounted!'"), *Id.ToString());
@@ -328,13 +328,12 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 
 	FConditionalScopeLock _(&ForceSingleThreadedCS, bForceSingleThreaded);
 
-	// TODO: Once a payload is found, other backends should probably be notified 
-	// (a local cache might want to replicate the data for example)
-	for (IVirtualizationBackend* Backend : PullEnabledBackendsArray)
+	for (IVirtualizationBackend* Backend : PullEnabledBackends)
 	{
 		FCompressedBuffer Payload = PullDataFromBackend(*Backend, Id);
 		if (Payload)
 		{
+			CachePayload(Id, Payload, Backend);
 			return Payload;
 		}
 	}
@@ -462,14 +461,21 @@ void FVirtualizationManager::MountBackends()
 {
 	UE_LOG(LogVirtualization, Log, TEXT("Mounting virtualization backends..."));
 
-	TMap<FName, IVirtualizationBackendFactory*> FactoryLookupTable = FindBackendFactories();
+	const FRegistedFactories FactoryLookupTable = FindBackendFactories();
 	UE_LOG(LogVirtualization, Verbose, TEXT("Found %d backend factories"), FactoryLookupTable.Num());
 
 	const TCHAR* GraphName = *BackendGraphName;
-	const TCHAR* HierarchyKey = TEXT("Hierarchy");
 
 	UE_LOG(LogVirtualization, Log, TEXT("Using backend graph: '%s'"), GraphName);
 
+	// It is important to parse the local storage hierarchy first so those backends will show up before the
+	// persistent storage backends in 'PullEnabledBackends'.
+	ParseHierarchy(GraphName, TEXT("LocalStorageHierarchy"), FactoryLookupTable, LocalCachableBackends);
+	ParseHierarchy(GraphName, TEXT("PersistentStorageHierarchy"), FactoryLookupTable, PersistentStorageBackends);
+}
+
+void FVirtualizationManager::ParseHierarchy(const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray)
+{
 	FString HierarchyData;
 	if (!GConfig->GetString(GraphName, HierarchyKey, HierarchyData, GEngineIni))
 	{
@@ -483,15 +489,15 @@ void FVirtualizationManager::MountBackends()
 
 	TArray<FString> Entries = ParseEntries(HierarchyData);
 
-	UE_LOG(LogVirtualization, Log, TEXT("The backend graph hierarchy has %d entries"), Entries.Num());
+	UE_LOG(LogVirtualization, Log, TEXT("The backend graph hierarchy '%s' has %d entries"), HierarchyKey, Entries.Num());
 
 	for (const FString& Entry : Entries)
 	{
-		CreateBackend(GraphName, Entry, FactoryLookupTable);
+		CreateBackend(GraphName, Entry, FactoryLookupTable, PushArray);
 	}
 }
 
-bool FVirtualizationManager::CreateBackend(const TCHAR* GraphName, const FString& ConfigEntryName, TMap<FName, IVirtualizationBackendFactory*>& FactoryLookupTable)
+bool FVirtualizationManager::CreateBackend(const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray)
 {
 	// All failures in this method are considered fatal, however it still returns true/false in case we decide
 	// to be more forgiving in the future.
@@ -511,11 +517,11 @@ bool FVirtualizationManager::CreateBackend(const TCHAR* GraphName, const FString
 		FString Cmdine = BackendData.RightChop(BackendData.Find(BackendType) + BackendType.Len());
 		Cmdine.RemoveFromEnd(TEXT(")"));
 
-		IVirtualizationBackendFactory** FactoryPtr = FactoryLookupTable.Find(FName(BackendType));
+		UE::Virtualization::IVirtualizationBackendFactory* const* FactoryPtr = FactoryLookupTable.Find(FName(BackendType));
 		if (FactoryPtr != nullptr && *FactoryPtr != nullptr)
 		{
 			IVirtualizationBackendFactory* Factory = *FactoryPtr;
-			IVirtualizationBackend* Backend = Factory->CreateInstance(ConfigEntryName);
+			TUniquePtr<IVirtualizationBackend> Backend = Factory->CreateInstance(ConfigEntryName);
 
 			if (Backend == nullptr)
 			{
@@ -526,12 +532,11 @@ bool FVirtualizationManager::CreateBackend(const TCHAR* GraphName, const FString
 			
 			if (Backend->Initialize(Cmdine))
 			{
-				AddBackend(Backend);
+				AddBackend(MoveTemp(Backend), PushArray);
 			}
 			else
 			{
 				UE_LOG(LogVirtualization, Fatal, TEXT("Backend '%s' reported errors when initializing"), *ConfigEntryName);
-				delete Backend;
 				return false;
 			}
 		}
@@ -550,25 +555,49 @@ bool FVirtualizationManager::CreateBackend(const TCHAR* GraphName, const FString
 	return true;
 }
 
-void FVirtualizationManager::AddBackend(IVirtualizationBackend* Backend)
+void FVirtualizationManager::AddBackend(TUniquePtr<IVirtualizationBackend> Backend, FBackendArray& PushArray)
 {
-	checkf(!AllBackendsArray.Contains(Backend), TEXT("Adding the same virtualization backend (%s) multiple times!"), *Backend->GetDebugString());
+	checkf(!AllBackends.Contains(Backend), TEXT("Adding the same virtualization backend (%s) multiple times!"), *Backend->GetDebugString());
 
-	AllBackendsArray.Add(Backend);
+	// Move ownership of the backend to AllBackends
+	AllBackends.Add(MoveTemp(Backend));
 
-	if (Backend->SupportsPullOperations())
+	// Get a reference pointer to use in the other backend arrays
+	IVirtualizationBackend* BackendRef = AllBackends.Last().Get();
+
+	if (BackendRef->SupportsPullOperations())
 	{
-		PullEnabledBackendsArray.Add(Backend);
+		PullEnabledBackends.Add(BackendRef);
 	}
 
-	if (Backend->SupportsPushOperations())
+	if (BackendRef->SupportsPushOperations())
 	{
-		PushEnabledBackendsArray.Add(Backend);
+		PushArray.Add(BackendRef);
 	}
 
-	COOK_STAT(Profiling::CreateStats(*Backend));
+	COOK_STAT(Profiling::CreateStats(*BackendRef));
 
-	UE_LOG(LogVirtualization, Log, TEXT("Mounted backend: %s"), *Backend->GetDebugString());
+	UE_LOG(LogVirtualization, Log, TEXT("Mounted backend: %s"), *BackendRef->GetDebugString());
+}
+
+void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::CachePayload);
+
+	// We start caching at the first (assumed to be fastest) local cache backend. 
+	for (IVirtualizationBackend* BackendToCache : LocalCachableBackends)
+	{
+		if (BackendToCache == BackendSource)
+		{
+			return; // No point going past BackendSource
+		}
+
+		EPushResult Result = BackendToCache->PushData(Id, Payload);
+		UE_CLOG(Result == EPushResult::Failed, LogVirtualization, Warning,
+			TEXT("Failed to cache payload '%s' to backend '%s'"),
+			*Id.ToString(),
+			*BackendToCache->GetDebugString());
+	}
 }
 
 bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload)
