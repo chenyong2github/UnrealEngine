@@ -77,11 +77,11 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 	return true;
 }
 
-void UComputeGraph::CreateDataProviders(UObject* InOuter, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
+void UComputeGraph::CreateDataProviders(UObject* InOuter, bool bSetDefaultBindings, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
 {
 	for (UComputeDataInterface* DataInterface : DataInterfaces)
 	{
-		UComputeDataProvider* DataProvider = DataInterface != nullptr ? DataInterface->CreateDataProvider(InOuter) : nullptr;
+		UComputeDataProvider* DataProvider = DataInterface != nullptr ? DataInterface->CreateDataProvider(InOuter, bSetDefaultBindings) : nullptr;
 		OutProviders.Add(DataProvider);
 	}
 }

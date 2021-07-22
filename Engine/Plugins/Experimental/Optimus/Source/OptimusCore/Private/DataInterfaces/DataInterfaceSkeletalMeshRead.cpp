@@ -11,12 +11,10 @@
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
-
 FString USkeletalMeshReadDataInterface::GetDisplayName() const
 {
 	return TEXT("Read Skeletal Mesh");
 }
-
 
 TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitions() const
 {
@@ -30,7 +28,6 @@ TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitio
 	Defs.Add({"BoneWeight", "ReadBoneWeight", {"ReadNumVertices", "ReadNumVertexBones"}, "Vertex"});
 	return Defs;
 }
-
 
 void USkeletalMeshReadDataInterface::GetPermutations(FComputeKernelPermutationSet& OutPermutationSet) const
 {
@@ -277,10 +274,19 @@ void USkeletalMeshReadDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkeletalMeshRead.ush\"\n");
 }
 
-
-UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject* InOuter) const
+UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject* InOuter, bool bSetDefaultBindings) const
 {
-	return NewObject<USkeletalMeshReadDataProvider>(InOuter);
+	USkeletalMeshReadDataProvider* Provider = NewObject<USkeletalMeshReadDataProvider>(InOuter);
+	if (bSetDefaultBindings)
+	{
+		UActorComponent* Component = Cast<UActorComponent>(InOuter);
+		if (Component != nullptr)
+		{
+			UActorComponent* SkeletalMesh = Component->GetOwner()->GetComponentByClass(USkeletalMeshComponent::StaticClass());
+			Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(SkeletalMesh);
+		}
+	}
+	return Provider;
 }
 
 
@@ -288,6 +294,7 @@ FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
 {
 	return new FSkeletalMeshReadDataProviderProxy(SkeletalMesh);
 }
+
 
 FSkeletalMeshReadDataProviderProxy::FSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {

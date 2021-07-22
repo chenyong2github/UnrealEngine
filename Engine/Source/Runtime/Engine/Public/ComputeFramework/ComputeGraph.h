@@ -118,9 +118,10 @@ public:
 
 	/** 
 	 * Create UComputeDataProvider objects to match the current UComputeDataInterface objects. 
-	 * The caller is responsible for any further per data provider binding.
+	 * If bSetDefaultBindings is true then we attempt to setup bindings.
+	 * The caller is responsible for any data provider binding not handled by the default behavior.
 	 */
-	void CreateDataProviders(UObject* InOuter, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
+	void CreateDataProviders(UObject* InOuter, bool bSetDefaultBindings, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
 
 	/**
 	 * Get unique data interface id.

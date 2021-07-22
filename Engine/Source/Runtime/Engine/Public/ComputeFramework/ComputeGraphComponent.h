@@ -28,12 +28,12 @@ public:
 	UPROPERTY(Transient)
 	TArray< TObjectPtr<UComputeDataProvider> > DataProviders;
 
-	/** 
-	 * Set a Data Provider object to be available on the next graph execution. 
-	 * todo[CF]: Can we automate the setup of data providers from information in the graph and other metadata?
+	/**
+	 * Create the Data Provider objects for the current ComputeGraph.
+	 * @param bSetDefaultBindings Attempt to automate setup of the Data Provider objectss based on the current Actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Compute")
-	void SetDataProvider(int32 Index, UComputeDataProvider* DataProvider);
+	void CreateDataProviders(bool bSetDefaultBindings);
 
 	/** Queue the graph for execution at the next render update. */
 	UFUNCTION(BlueprintCallable, Category = "Compute")

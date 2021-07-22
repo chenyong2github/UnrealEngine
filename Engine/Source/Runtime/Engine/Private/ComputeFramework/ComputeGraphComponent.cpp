@@ -17,13 +17,13 @@ UComputeGraphComponent::UComputeGraphComponent()
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 }
 
-void UComputeGraphComponent::SetDataProvider(int32 Index, UComputeDataProvider* DataProvider)
+void UComputeGraphComponent::CreateDataProviders(bool bSetDefaultBindings)
 {
-	if (DataProviders.Num() <= Index)
+	DataProviders.Reset();
+	if (ComputeGraph != nullptr)
 	{
-		DataProviders.SetNumZeroed(Index + 1);
+		ComputeGraph->CreateDataProviders(this, bSetDefaultBindings, DataProviders);
 	}
-	DataProviders[Index] = DataProvider;
 }
 
 void UComputeGraphComponent::QueueExecute()

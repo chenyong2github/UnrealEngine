@@ -9,12 +9,10 @@
 #include "SceneInterface.h"
 #include "ShaderParameterMetadataBuilder.h"
 
-
 FString USceneDataInterface::GetDisplayName() const
 {
 	return TEXT("Scene Data");
 }
-
 
 TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
 {
@@ -23,7 +21,6 @@ TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
 	Defs.Add({"FrameNumber", "ReadFrameNumber", "Global"});
 	return Defs;
 }
-
 
 void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
@@ -66,10 +63,19 @@ void USceneDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceScene.ush\"\n");
 }
 
-
-UComputeDataProvider* USceneDataInterface::CreateDataProvider(UObject* InOuter) const
+UComputeDataProvider* USceneDataInterface::CreateDataProvider(UObject* InOuter, bool bSetDefaultBindings) const
 {
-	return NewObject<USceneDataProvider>(InOuter);
+	USceneDataProvider* Provider = NewObject<USceneDataProvider>(InOuter);
+	if (bSetDefaultBindings)
+	{
+		UActorComponent* Component = Cast<UActorComponent>(InOuter);
+		if (Component != nullptr)
+		{
+			UActorComponent* SceneComponent = Component->GetOwner()->GetComponentByClass(USceneComponent::StaticClass());
+			Provider->SceneComponent = Cast<USceneComponent>(SceneComponent);
+		}
+	}
+	return Provider;
 }
 
 
@@ -77,6 +83,7 @@ FComputeDataProviderRenderProxy* USceneDataProvider::GetRenderProxy()
 {
 	return new FSceneDataProviderProxy(SceneComponent);
 }
+
 
 FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent)
 {

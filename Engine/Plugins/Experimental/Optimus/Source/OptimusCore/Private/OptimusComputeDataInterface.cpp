@@ -47,7 +47,7 @@ void UOptimusDataInterfaceHelpers::InitDataProviders(UComputeGraphComponent* Com
 	}
 
 	ComputeGraphComponent->DataProviders.Reset();
-	ComputeGraphComponent->ComputeGraph->CreateDataProviders(ComputeGraphComponent, ComputeGraphComponent->DataProviders);
+	ComputeGraphComponent->ComputeGraph->CreateDataProviders(ComputeGraphComponent, false, ComputeGraphComponent->DataProviders);
 
 	for (UComputeDataProvider* DataProvider : ComputeGraphComponent->DataProviders)
 	{
