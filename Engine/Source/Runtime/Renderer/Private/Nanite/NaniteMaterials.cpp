@@ -898,9 +898,14 @@ struct FLumenMeshCaptureMaterialPassIndex
 
 struct FLumenMeshCaptureMaterialPass
 {
-	int32 CommandStateBucketId = -1;
+	int32 CommandStateBucketId = INDEX_NONE;
 	uint32 ViewIndexBufferOffset = 0;
 	TArray<uint16, TInlineAllocator<256>> ViewIndices;
+
+	inline float GetMaterialDepth() const
+	{
+		return FNaniteCommandInfo::GetDepthId(CommandStateBucketId);
+	}
 };
 
 void DrawLumenMeshCapturePass(
@@ -1198,17 +1203,17 @@ void DrawLumenMeshCapturePass(
 				FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 				FMeshDrawCommandStateCache StateCache;
 
+				const FNaniteMaterialCommands& LumenMaterialCommands = Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture];
 				for (const FLumenMeshCaptureMaterialPass& MaterialPass : MaterialPassArray)
 				{
 					// One instance per card page
 					const uint32 InstanceFactor = MaterialPass.ViewIndices.Num();
 					const uint32 InstanceBaseOffset = MaterialPass.ViewIndexBufferOffset;
 
-					Experimental::FHashElementId SetId(MaterialPass.CommandStateBucketId);
-					const FMeshDrawCommand& MeshDrawCommand = Scene.NaniteDrawCommands[ENaniteMeshPass::LumenCardCapture].GetByElementId(SetId).Key;
+					FNaniteMaterialCommands::FCommandId CommandId(MaterialPass.CommandStateBucketId);
+					const FMeshDrawCommand& MeshDrawCommand = LumenMaterialCommands.GetCommand(CommandId);
+					const float MaterialDepth = MaterialPass.GetMaterialDepth();
 
-					const int32 DrawIdx = MaterialPass.CommandStateBucketId;
-					const float MaterialDepth = FNaniteCommandInfo::GetDepthId(DrawIdx);
 					SubmitNaniteMaterialPassCommand(
 						MeshDrawCommand,
 						MaterialDepth,

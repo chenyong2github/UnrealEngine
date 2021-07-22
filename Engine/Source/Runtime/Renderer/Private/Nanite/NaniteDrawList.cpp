@@ -15,13 +15,8 @@ static FAutoConsoleVariableRef CVarNaniteMaterialSortMode(
 	ECVF_RenderThreadSafe
 );
 
-FNaniteDrawListContext::FNaniteDrawListContext
-(
-	FRWLock& InNaniteDrawCommandLock,
-	FStateBucketMap& InNaniteDrawCommands
-) 
-: NaniteDrawCommandLock(&InNaniteDrawCommandLock)
-, NaniteDrawCommands(&InNaniteDrawCommands)
+FNaniteDrawListContext::FNaniteDrawListContext(FNaniteMaterialCommands& InMaterialCommands)
+: MaterialCommands(InMaterialCommands)
 {
 }
 
@@ -57,10 +52,10 @@ void FNaniteDrawListContext::FinalizeCommand(
 
 	check(UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel));
 
-	Experimental::FHashElementId SetId;
-	auto hash = NaniteDrawCommands->ComputeHash(MeshDrawCommand);
+	FNaniteMaterialCommands::FCommandId CommandId;
+	const FNaniteMaterialCommands::FCommandHash CommandHash = MaterialCommands.ComputeCommandHash(MeshDrawCommand);
 	{
-		FRWScopeLock Lock(*NaniteDrawCommandLock, SLT_ReadOnly);
+		FNaniteMaterialCommandsLock Lock(MaterialCommands, SLT_ReadOnly);
 
 	#if UE_BUILD_DEBUG
 		FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
@@ -68,27 +63,27 @@ void FNaniteDrawListContext::FinalizeCommand(
 		check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
 	#endif
 		
-		SetId = NaniteDrawCommands->FindIdByHash(hash, MeshDrawCommand);
-		
-		if (!SetId.IsValid())
+		CommandId = MaterialCommands.FindIdByHash(CommandHash, MeshDrawCommand);
+		if (!CommandId.IsValid())
 		{
-			Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-			SetId = NaniteDrawCommands->FindOrAddIdByHash(hash, MeshDrawCommand, FMeshDrawCommandCount());
+			Lock.AcquireWriteAccess();
+			CommandId = MaterialCommands.FindOrAddIdByHash(CommandHash, MeshDrawCommand);
 
 		#if MESH_DRAW_COMMAND_DEBUG_DATA
-			FMeshDrawCommandCount& DrawCount = NaniteDrawCommands->GetByElementId(SetId).Value;
+			FMeshDrawCommandCount& DrawCount = MaterialCommands.GetPayload(CommandId);
 			if (DrawCount.Num == 0)
 			{
-				MeshDrawCommand.ClearDebugPrimitiveSceneProxy(); //When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
+				// When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
+				MeshDrawCommand.ClearDebugPrimitiveSceneProxy();
 			}
 		#endif
 		}
 		
-		FMeshDrawCommandCount& DrawCount = NaniteDrawCommands->GetByElementId(SetId).Value;
+		FMeshDrawCommandCount& DrawCount = MaterialCommands.GetPayload(CommandId);
 		DrawCount.Num++;
 	}
 
-	CommandInfo.SetStateBucketId(SetId.GetIndex());
+	CommandInfo.SetStateBucketId(CommandId.GetIndex());
 }
 
 void SubmitNaniteMaterialPassCommand(
@@ -432,26 +427,27 @@ public:
 
 static void BuildNaniteMaterialPassCommands(
 	FRHICommandListImmediate& RHICmdList,
-	const FStateBucketMap& NaniteDrawCommands,
+	const FNaniteMaterialCommands& MaterialCommands,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildNaniteMaterialPassCommands);
 
-	OutNaniteMaterialPassCommands.Reset(NaniteDrawCommands.Num());
+	const FStateBucketMap& BucketMap = MaterialCommands.GetCommands();
+	OutNaniteMaterialPassCommands.Reset(BucketMap.Num());
 
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 
 	// Pull into local here so another thread can't change the sort values mid-iteration.
 	const int32 MaterialSortMode = GNaniteMaterialSortMode;
 
-	for (auto& Command : NaniteDrawCommands)
+	for (auto& Command : BucketMap)
 	{
 		FNaniteMaterialPassCommand PassCommand(Command.Key);
 
-		Experimental::FHashElementId SetId = NaniteDrawCommands.FindId(Command.Key);
+		const FNaniteMaterialCommands::FCommandId CommandId = MaterialCommands.FindIdByCommand(Command.Key);
 
-		int32 DrawIdx = SetId.GetIndex();
-		PassCommand.MaterialDepth = FNaniteCommandInfo::GetDepthId(DrawIdx);
+		const int32 MaterialId = CommandId.GetIndex();
+		PassCommand.MaterialDepth = FNaniteCommandInfo::GetDepthId(MaterialId);
 
 		if (MaterialSortMode == 2 && GRHISupportsPipelineStateSortKey)
 		{
@@ -494,7 +490,7 @@ void DrawNaniteMaterialPasses(
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& MaterialPassCommands
 )
 {
-	BuildNaniteMaterialPassCommands(RHICmdListImmediate, Scene.NaniteDrawCommands[ENaniteMeshPass::BasePass], MaterialPassCommands);
+	BuildNaniteMaterialPassCommands(RHICmdListImmediate, Scene.NaniteMaterials[ENaniteMeshPass::BasePass], MaterialPassCommands);
 
 	if (MaterialPassCommands.Num())
 	{

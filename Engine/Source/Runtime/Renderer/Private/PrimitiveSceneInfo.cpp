@@ -565,7 +565,7 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 
 		for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
 		{
-			FNaniteDrawListContext NaniteDrawListContext(Scene->NaniteDrawCommandLock[MeshPass], Scene->NaniteDrawCommands[MeshPass]);
+			FNaniteDrawListContext NaniteDrawListContext(Scene->NaniteMaterials[MeshPass]);
 
 			FMeshPassProcessor* NaniteMeshProcessor = nullptr;
 			switch (MeshPass)
@@ -581,7 +581,7 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 			default:
 				check(false);
 			}
-			check(NaniteMeshProcessor);
+			checkSlow(NaniteMeshProcessor);
 
 			int32 StaticMeshesCount = PrimitiveSceneInfo->StaticMeshes.Num();
 			for (int32 MeshIndex = 0; MeshIndex < StaticMeshesCount; ++MeshIndex)
@@ -623,31 +623,32 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 
 	for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 	{
-		int32 NaniteCommandInfosCount = NaniteCommandInfos[NaniteMeshPassIndex].Num();
-		for (int32 CommandIndex = 0; CommandIndex < NaniteCommandInfosCount; ++CommandIndex)
+		FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[NaniteMeshPassIndex];
+		const TArray<FNaniteCommandInfo>& NanitePassCommandInfo = NaniteCommandInfos[NaniteMeshPassIndex];
+
+		for (int32 CommandIndex = 0; CommandIndex < NanitePassCommandInfo.Num(); ++CommandIndex)
 		{
-			const FNaniteCommandInfo& CommandInfo = NaniteCommandInfos[NaniteMeshPassIndex][CommandIndex];
+			const FNaniteCommandInfo& CommandInfo = NanitePassCommandInfo[CommandIndex];
 
 			if (CommandInfo.GetStateBucketId() != INDEX_NONE)
 			{
 				FGraphicsMinimalPipelineStateId CachedPipelineId;
 				{
-					FRWScopeLock Lock(Scene->NaniteDrawCommandLock[NaniteMeshPassIndex], SLT_ReadOnly);
+					FNaniteMaterialCommandsLock Lock(NaniteMaterials, SLT_ReadOnly);
 
-					auto& Element = Scene->NaniteDrawCommands[NaniteMeshPassIndex].GetByElementId(CommandInfo.GetStateBucketId());
-					CachedPipelineId = Element.Key.CachedPipelineId;
+					const FMeshDrawCommand& MeshDrawCommand = NaniteMaterials.GetCommand(CommandInfo.GetStateBucketId());
+					CachedPipelineId = MeshDrawCommand.CachedPipelineId;
 
-					FMeshDrawCommandCount& StateBucketCount = Element.Value;
+					FMeshDrawCommandCount& StateBucketCount = NaniteMaterials.GetPayload(CommandInfo.GetStateBucketId());
 					check(StateBucketCount.Num > 0);
 
-					StateBucketCount.Num--;
-
+					--StateBucketCount.Num;
 					if (StateBucketCount.Num == 0)
 					{
-						Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+						Lock.AcquireWriteAccess();
 						if (StateBucketCount.Num == 0)
 						{
-							Scene->NaniteDrawCommands[NaniteMeshPassIndex].RemoveByElementId(CommandInfo.GetStateBucketId());
+							NaniteMaterials.RemoveById(CommandInfo.GetStateBucketId());
 						}
 					}
 				}
@@ -656,12 +657,12 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 			}
 		}
 
-		NaniteCommandInfos[NaniteMeshPassIndex].Empty();
-		NaniteMaterialIds[NaniteMeshPassIndex].Empty();
+		NaniteCommandInfos[NaniteMeshPassIndex].Reset();
+		NaniteMaterialIds[NaniteMeshPassIndex].Reset();
 	}
 
 #if WITH_EDITOR
-	NaniteHitProxyIds.Empty();
+	NaniteHitProxyIds.Reset();
 #endif
 }
 
