@@ -9,6 +9,37 @@ DEFINE_LOG_CATEGORY(LogLightWeightInstance);
 
 TSharedPtr<FLightWeightInstanceSubsystem> FLightWeightInstanceSubsystem::LWISubsystem;
 
+FLightWeightInstanceSubsystem::FLightWeightInstanceSubsystem()
+{
+#if WITH_EDITOR
+	if (GEngine)
+	{
+		OnLevelActorAddedHandle = GEngine->OnLevelActorAdded().AddLambda([this](AActor* Actor)
+			{
+				if (ALightWeightInstanceManager* LWIManager = Cast<ALightWeightInstanceManager>(Actor))
+				{
+					FLightWeightInstanceSubsystem::Get().LWInstanceManagers.AddUnique(LWIManager);
+				}
+			});
+		OnLevelActorDeletedHandle = GEngine->OnLevelActorDeleted().AddLambda([this](AActor* Actor)
+			{
+				if (ALightWeightInstanceManager* LWIManager = Cast<ALightWeightInstanceManager>(Actor))
+				{
+					FLightWeightInstanceSubsystem::Get().LWInstanceManagers.Remove(LWIManager);
+				}
+			});
+	}
+#endif // WITH_EDITOR
+}
+
+FLightWeightInstanceSubsystem::~FLightWeightInstanceSubsystem()
+{
+#if WITH_EDITOR
+	GEngine->OnLevelActorAdded().Remove(OnLevelActorAddedHandle);
+	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedHandle);
+#endif // WITH_EDITOR
+}
+
 int32 FLightWeightInstanceSubsystem::GetManagerIndex(const ALightWeightInstanceManager* Manager) const
 {
 	for (int32 Idx = 0; Idx < LWInstanceManagers.Num(); ++Idx)

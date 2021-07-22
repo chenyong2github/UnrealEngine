@@ -21,7 +21,6 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogLightWeightInstance, Log, Warning);
 
 struct ENGINE_API FLightWeightInstanceSubsystem
 {
-
 	friend struct FActorInstanceHandle;
 	friend class ALightWeightInstanceManager;
 
@@ -33,6 +32,9 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 		}
 		return *LWISubsystem;
 	}
+
+	FLightWeightInstanceSubsystem();
+	~FLightWeightInstanceSubsystem();
 
 	// Returns the instance manager that handles the given handle
 	ALightWeightInstanceManager* FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const;
@@ -109,4 +111,11 @@ private:
 	// TODO: preallocate the size of this based on a config variable
 	UPROPERTY()
 	TArray<ALightWeightInstanceManager*> LWInstanceManagers;
+
+
+#ifdef WITH_EDITOR
+private:
+	FDelegateHandle OnLevelActorAddedHandle;
+	FDelegateHandle OnLevelActorDeletedHandle;
+#endif // WITH_EDITOR
 };
