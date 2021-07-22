@@ -180,6 +180,12 @@ static bool D3D12RHI_ShouldCreateWithWarp()
 	return bCreateWithWarp;
 }
 
+static bool D3D12RHI_AllowSoftwareFallback()
+{
+	static bool bAllowSoftwareRendering = FParse::Param(FCommandLine::Get(), TEXT("AllowSoftwareRendering"));
+	return bAllowSoftwareRendering;
+}
+
 static bool D3D12RHI_ShouldAllowAsyncResourceCreation()
 {
 	static bool bAllowAsyncResourceCreation = !FParse::Param(FCommandLine::Get(), TEXT("nod3dasync"));
