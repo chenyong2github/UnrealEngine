@@ -26,6 +26,16 @@
 #define UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(ELEMENT_DATA_TYPE)						\
 	FTypedHandleTypeId ELEMENT_DATA_TYPE::Private_RegisteredTypeId = 0;
 
+/**
+ * Templated util to get the low-level debug ID for an element data instance.
+ * Specialize this to provide exta/custom data for your element data type.
+ */
+template <typename ElementDataType>
+inline FString GetTypedElementDebugId(const ElementDataType& InElementData)
+{
+	return FString();
+}
+
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 /**
  * Debugging information used to locate reference leaks.
@@ -263,7 +273,7 @@ public:
 		if (LocalRefCount > 1)
 		{
 			LogReferences();
-			UE_LOG(LogCore, Fatal, TEXT("Element is still externally referenced when being destroyed! Ref-count: %d; see above for reference information (if available)."), LocalRefCount);
+			UE_LOG(LogCore, Fatal, TEXT("Element '%s' is still externally referenced when being destroyed! Ref-count: %d; see above for reference information (if available)."), *GetDebugId(), LocalRefCount);
 		}
 #endif	// DO_CHECK
 	}
@@ -271,6 +281,11 @@ public:
 	virtual const void* GetUntypedData() const
 	{
 		return nullptr;
+	}
+
+	virtual FString GetDebugId() const
+	{
+		return FString::Printf(TEXT("ID: %d"), Id.GetElementId());
 	}
 
 private:
@@ -309,6 +324,14 @@ public:
 	virtual const void* GetUntypedData() const override
 	{
 		return &Data;
+	}
+
+	virtual FString GetDebugId() const override
+	{
+		const FString ElementDebugId = GetTypedElementDebugId(Data);
+		return ElementDebugId.IsEmpty()
+			? FTypedElementInternalData::GetDebugId()
+			: FString::Printf(TEXT("%s - %s"), *ElementDebugId, *FTypedElementInternalData::GetDebugId());
 	}
 
 private:

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementData.h"
+#include "UObject/Object.h"
 
-class UObject;
 struct FTypedElementHandle;
 
 /**
@@ -16,6 +16,15 @@ struct ENGINE_API FObjectElementData
 
 	UObject* Object = nullptr;
 };
+
+template <>
+inline FString GetTypedElementDebugId<FObjectElementData>(const FObjectElementData& InElementData)
+{
+	UObject* Object = InElementData.Object;
+	return Object
+		? Object->GetFullName()
+		: TEXT("null");
+}
 
 namespace ObjectElementDataUtil
 {
