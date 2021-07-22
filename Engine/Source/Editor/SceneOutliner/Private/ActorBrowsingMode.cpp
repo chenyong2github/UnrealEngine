@@ -1223,7 +1223,8 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 					if (RootComp && RootComp->GetAttachParent())
 					{
 						AActor* OldParent = RootComp->GetAttachParent()->GetOwner();
-						OldParent->Modify();
+						// Attachment is persisted on the child so modify both actors for Undo/Redo but do not mark the Parent package dirty
+						OldParent->Modify(/*bAlwaysMarkDirty=*/false);
 						RootComp->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 
 						DragActor->SetFolderPath_Recursively(OldParent->GetFolderPath());
@@ -1351,7 +1352,8 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 				{
 					if (AActor* OldParentActor = RootComp->GetAttachParent()->GetOwner())
 					{
-						OldParentActor->Modify();
+						// Attachment is persisted on the child so modify both actors for Undo/Redo but do not mark the Parent package dirty
+						OldParentActor->Modify(/*bAlwaysMarkDirty=*/false);
 					}
 					RootComp->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 				}
