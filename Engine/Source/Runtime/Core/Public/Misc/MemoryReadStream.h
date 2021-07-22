@@ -18,6 +18,7 @@ public:
 	virtual const void* Read(int64& OutSize, int64 InOffset, int64 InSize) = 0;
 	virtual int64 GetSize() = 0;
 	virtual void CopyTo(void* Buffer, int64 InOffset, int64 InSize);
+	virtual void EnsureReadNonBlocking() {};		// Incur any potential wait such that future Read() or CopyTo() calls are wait and thread switch free.
 
 	FORCEINLINE uint32 AddRef() const { return uint32(NumRefs.Increment()); }
 

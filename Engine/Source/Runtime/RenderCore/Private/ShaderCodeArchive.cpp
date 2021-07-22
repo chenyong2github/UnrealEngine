@@ -771,11 +771,14 @@ void FShaderCodeArchive::Teardown()
 
 void FShaderCodeArchive::OnShaderPreloadFinished(int32 ShaderIndex, const IMemoryReadStreamRef& PreloadData)
 {
-	FWriteScopeLock Lock(ShaderPreloadLock);
 	const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[ShaderIndex];
-	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
-	PreloadData->CopyTo(ShaderPreloadEntry.Code, 0, ShaderEntry.Size);
-	ShaderPreloadEntry.PreloadEvent.SafeRelease();
+	PreloadData->EnsureReadNonBlocking();		// Ensure data is ready before taking the lock
+	{
+		FWriteScopeLock Lock(ShaderPreloadLock);
+		FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+		PreloadData->CopyTo(ShaderPreloadEntry.Code, 0, ShaderEntry.Size);
+		ShaderPreloadEntry.PreloadEvent.SafeRelease();
+	}
 }
 
 struct FPreloadShaderTask

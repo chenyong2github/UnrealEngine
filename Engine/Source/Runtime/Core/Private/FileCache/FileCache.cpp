@@ -478,6 +478,15 @@ public:
 		return ResultData + InOffset;
 	}
 
+	virtual void EnsureReadNonBlocking() override
+	{
+		if (Request)
+		{
+			check(!Memory);
+			Request->WaitCompletion();
+		}
+	}
+
 	virtual int64 GetSize() override
 	{
 		return Size;
