@@ -161,12 +161,9 @@ TArray<FFractureToolContext> UFractureToolAutoUV::GetFractureToolContexts() cons
 }
 
 
-bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bAllowReplace)
+bool UFractureToolAutoUV::SaveGeneratedTexture(UE::Geometry::TImageBuilder<FVector4f>& ImageBuilder, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bAllowReplace)
 {
 	check(RelativeToAsset);
-	check(GeneratedTexture);
-	check(GeneratedTexture->GetOuter() == GetTransientPackage());
-	check(GeneratedTexture->Source.IsValid());	// texture needs to have valid source data to be savd
 
 	// find path to reference asset
 	UPackage* AssetOuterPackage = CastChecked<UPackage>(RelativeToAsset->GetOuter());
@@ -207,28 +204,62 @@ bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FSt
 	}
 
 	FString NewAssetPath = FPaths::Combine(PackageFolderPath, ObjectBaseName);
+
+	UTexture2D* GeneratedTexture = nullptr;
+	bool bNeedsNewPackage = true;
 	if (bAllowReplace)
 	{
 		// Modifying the static mesh in place. Delete existing asset so that we can have a clean duplicate
 		bool bNewAssetExists = UEditorAssetLibrary::DoesAssetExist(NewAssetPath);
 		if (bNewAssetExists)
 		{
-			bool bDeleteOK = UEditorAssetLibrary::DeleteAsset(NewAssetPath);
-			ensure(bDeleteOK);
+			UObject* OldObject = UEditorAssetLibrary::LoadAsset(NewAssetPath);
+			if (UTexture2D* OldTexture = Cast<UTexture2D>(OldObject))
+			{
+				FTexture2DBuilder TextureBuilder;
+				TextureBuilder.InitializeOver(OldTexture, FTexture2DBuilder::ETextureType::Color, ImageBuilder.GetDimensions());
+				TextureBuilder.Copy(ImageBuilder);
+				TextureBuilder.Commit(false);
+				GeneratedTexture = TextureBuilder.GetTexture2D();
+				FTexture2DBuilder::CopyPlatformDataToSourceData(GeneratedTexture, FTexture2DBuilder::ETextureType::Color);
+				bNeedsNewPackage = false;
+			}
+			else // old asset was wrong type; delete to replace
+			{
+				bool bDeleteOK = UEditorAssetLibrary::DeleteAsset(NewAssetPath);
+				ensure(bDeleteOK);
+			}
 		}
 	}
+	if (!GeneratedTexture)
+	{
+		FTexture2DBuilder TextureBuilder;
+		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, ImageBuilder.GetDimensions());
+		TextureBuilder.Copy(ImageBuilder);
+		TextureBuilder.Commit(false);
+		GeneratedTexture = TextureBuilder.GetTexture2D();
+		FTexture2DBuilder::CopyPlatformDataToSourceData(GeneratedTexture, FTexture2DBuilder::ETextureType::Color);
+	}
+	AutoUVSettings->Result = GeneratedTexture;
+	check(GeneratedTexture);
+	check(GeneratedTexture->Source.IsValid());	// texture needs to have valid source data to be savd
 
-	// create new package
-	FString UniqueAssetName;
-	FString UniquePackageName;
+	if (bNeedsNewPackage)
+	{
+		check(GeneratedTexture->GetOuter() == GetTransientPackage());
 
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetToolsModule.Get().CreateUniqueAssetName(NewAssetPath, TEXT(""), UniquePackageName, UniqueAssetName);
+		// create new package
+		FString UniqueAssetName;
+		FString UniquePackageName;
 
-	UPackage* AssetPackage = CreatePackage(*UniquePackageName);
+		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		AssetToolsModule.Get().CreateUniqueAssetName(NewAssetPath, TEXT(""), UniquePackageName, UniqueAssetName);
 
-	// move texture from Transient package to real package
-	GeneratedTexture->Rename(*UniqueAssetName, AssetPackage, REN_None);
+		UPackage* AssetPackage = CreatePackage(*UniquePackageName);
+
+		// move texture from Transient package to real package
+		GeneratedTexture->Rename(*UniqueAssetName, AssetPackage, REN_None);
+	}
 	// remove transient flag, add public/standalone/transactional
 	GeneratedTexture->ClearFlags(RF_Transient);
 	GeneratedTexture->SetFlags(RF_Public | RF_Standalone | RF_Transactional);
@@ -272,9 +303,8 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 
 		UVTask.EnterProgressFrame(1, LOCTEXT("TexturingSurfaces", "Texturing internal surfaces"));
 
-		FTexture2DBuilder TextureBuilder;
+		
 		FImageDimensions Dimensions(OutputRes, OutputRes);
-		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, Dimensions);
 
 		UE::Geometry::TImageBuilder<FVector4f> ImageBuilder;
 		ImageBuilder.SetDimensions(Dimensions);
@@ -318,20 +348,15 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 
 		UVTask.EnterProgressFrame(1, LOCTEXT("SavingTexture", "Saving result"));
 
-		TextureBuilder.Copy(ImageBuilder);
-		TextureBuilder.Commit(false);
-		AutoUVSettings->Result = TextureBuilder.GetTexture2D();
-
 		// choose default texture name based on corresponding geometry collection name
 		FString BaseName = FractureContext.GetFracturedGeometryCollection()->GetName();
-		FTexture2DBuilder::CopyPlatformDataToSourceData(AutoUVSettings->Result, FTexture2DBuilder::ETextureType::Color);
 		FString Suffix = "_AutoUV";
 		if (AutoUVSettings->BakeTextureType == ETextureType::SpatialGradients)
 		{
 			Suffix = "_AutoUV_Spatial";
 		}
 		Suffix = FPaths::MakeValidFileName(Suffix);
-		SaveGeneratedTexture(AutoUVSettings->Result, FString::Printf(TEXT("%s%s"), *BaseName, *Suffix), FractureContext.GetFracturedGeometryCollection(), AutoUVSettings->bPromptToSave, AutoUVSettings->bReplaceExisting);
+		SaveGeneratedTexture(ImageBuilder, FString::Printf(TEXT("%s%s"), *BaseName, *Suffix), FractureContext.GetFracturedGeometryCollection(), AutoUVSettings->bPromptToSave, AutoUVSettings->bReplaceExisting);
 	}
 
 	return INDEX_NONE;

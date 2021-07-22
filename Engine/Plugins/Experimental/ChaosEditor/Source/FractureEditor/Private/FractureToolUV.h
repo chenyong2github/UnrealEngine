@@ -5,6 +5,8 @@
 #include "FractureTool.h"
 #include "GeometryCollection/GeometryCollection.h"
 
+#include "Image/ImageBuilder.h"
+
 #include "FractureToolUV.generated.h"
 
 class FFractureToolContext;
@@ -191,5 +193,5 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureAutoUVSettings> AutoUVSettings;
 
-	bool SaveGeneratedTexture(UTexture2D* GeneratedTexture, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bAllowReplace);
+	bool SaveGeneratedTexture(UE::Geometry::TImageBuilder<FVector4f>& ImageBuilder, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bAllowReplace);
 };

@@ -9,18 +9,70 @@ using namespace UE::Geometry;
 
 bool FTexture2DBuilder::Initialize(ETextureType BuildTypeIn, FImageDimensions DimensionsIn)
 {
+	// create new texture
+	EPixelFormat UsePixelFormat = (BuildTypeIn == ETextureType::EmissiveHDR) ? PF_FloatRGBA : PF_B8G8R8A8;
+	UTexture2D* TransientTexture = UTexture2D::CreateTransient((int32)DimensionsIn.GetWidth(), (int32)DimensionsIn.GetHeight(), UsePixelFormat);
+	return InitializeInternal(BuildTypeIn, DimensionsIn, TransientTexture);
+}
+
+
+bool FTexture2DBuilder::InitializeOver(UTexture2D* ExistingTexture, ETextureType BuildTypeIn, FImageDimensions DimensionsIn)
+{
+	// adapted from UTexture2D::CreateTransient
+
+	// create new texture
+	EPixelFormat InFormat = (BuildTypeIn == ETextureType::EmissiveHDR) ? PF_FloatRGBA : PF_B8G8R8A8;
+
+	int32 InSizeX = (int32)DimensionsIn.GetWidth(), InSizeY = (int32)DimensionsIn.GetHeight();
+
+	UTexture2D* NewTexture = nullptr;
+	if (ensureMsgf(InSizeX > 0 && InSizeY > 0 &&
+		(InSizeX % GPixelFormats[InFormat].BlockSizeX) == 0 &&
+		(InSizeY % GPixelFormats[InFormat].BlockSizeY) == 0, TEXT("Invalid size and/or pixel format for new texture")))
+	{
+		NewTexture = NewObject<UTexture2D>(
+			ExistingTexture->GetOuter(),
+			ExistingTexture->GetFName(),
+			ExistingTexture->GetFlags()
+			);
+
+		NewTexture->SetPlatformData(new FTexturePlatformData());
+		NewTexture->GetPlatformData()->SizeX = InSizeX;
+		NewTexture->GetPlatformData()->SizeY = InSizeY;
+		NewTexture->GetPlatformData()->PixelFormat = InFormat;
+
+		// Allocate first mipmap.
+		int32 NumBlocksX = InSizeX / GPixelFormats[InFormat].BlockSizeX;
+		int32 NumBlocksY = InSizeY / GPixelFormats[InFormat].BlockSizeY;
+		FTexture2DMipMap* Mip = new FTexture2DMipMap();
+		NewTexture->GetPlatformData()->Mips.Add(Mip);
+		Mip->SizeX = InSizeX;
+		Mip->SizeY = InSizeY;
+		Mip->BulkData.Lock(LOCK_READ_WRITE);
+		Mip->BulkData.Realloc(NumBlocksX * NumBlocksY * GPixelFormats[InFormat].BlockBytes);
+		Mip->BulkData.Unlock();
+	}
+	else
+	{
+		return false;
+	}
+
+	return InitializeInternal(BuildTypeIn, DimensionsIn, NewTexture);
+}
+
+
+bool FTexture2DBuilder::InitializeInternal(ETextureType BuildTypeIn, FImageDimensions DimensionsIn, UTexture2D* CreatedTextureIn)
+{
 	check(DimensionsIn.IsSquare());
 	BuildType = BuildTypeIn;
 	Dimensions = DimensionsIn;
 
-	// create new texture
-	EPixelFormat UsePixelFormat = (BuildTypeIn == ETextureType::EmissiveHDR) ? PF_FloatRGBA : PF_B8G8R8A8;
-	RawTexture2D = UTexture2D::CreateTransient((int32)Dimensions.GetWidth(), (int32)Dimensions.GetHeight(), UsePixelFormat);
+	RawTexture2D = CreatedTextureIn;
 	if (RawTexture2D == nullptr)
 	{
 		return false;
 	}
-	CurrentPixelFormat = UsePixelFormat;
+	CurrentPixelFormat = CreatedTextureIn->GetPixelFormat();
 
 	if (BuildType == ETextureType::ColorLinear 
 		|| BuildType == ETextureType::Roughness 

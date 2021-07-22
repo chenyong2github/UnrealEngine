@@ -108,6 +108,12 @@ public:
 
 
 	/**
+	 * Create a new UTexture2D 'over' an existing UTexture2D, with the given BuildType and Dimensions
+	 */
+	bool InitializeOver(UTexture2D* ExistingTexture, ETextureType BuildTypeIn, FImageDimensions DimensionsIn);
+
+
+	/**
 	 * Lock the Mip 0 buffer for editing
 	 * @return true if lock was successfull. Will return false if already locked.
 	 */
@@ -330,6 +336,8 @@ public:
 		return TexBuilder.GetTexture2D();
 	}
 
+private:
+	bool InitializeInternal(ETextureType BuildTypeIn, FImageDimensions DimensionsIn, UTexture2D* CreatedTextureIn);
 };
 
 
