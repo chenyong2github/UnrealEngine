@@ -309,6 +309,12 @@ float3 DecodeSurfaceCacheNormal(FLumenCardData Card, float2 EncodedNormal)
 	return mul(Card.WorldToLocalRotation, CardSpaceNormal);
 }
 
+// Return decoded albedo
+float3 DecodeSurfaceCacheAlbedo(float3 EncodedAlbedo)
+{
+	return EncodedAlbedo * EncodedAlbedo;
+}
+
 bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3 ConeAxis, float ConeAngleCos, float ConeAngleSin)
 {
 	float3 U = ConeVertex - (SphereCenterAndRadius.w / ConeAngleSin) * ConeAxis;
