@@ -1642,7 +1642,7 @@ inline FRHIPooledRenderQuery::FRHIPooledRenderQuery(FRHIRenderQueryPool* InQuery
 	: Query(MoveTemp(InQuery))
 	, QueryPool(InQueryPool)
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 }
 
 inline void FRHIPooledRenderQuery::ReleaseQuery()

@@ -174,7 +174,7 @@ public:
 
 	FRealtimeGPUProfilerQuery Begin(FRHIGPUMask InGPUMask, const FName& NewName, const FName& NewStatName)
 	{
-		check(IsInRenderingThread());
+		check(IsInParallelRenderingThread());
 		check(!bInsideQuery && StartQuery.IsValid());
 #if DO_CHECK || USING_CODE_ANALYSIS
 		bInsideQuery = true;
@@ -192,7 +192,7 @@ public:
 
 	FRealtimeGPUProfilerQuery End()
 	{
-		check(IsInRenderingThread());
+		check(IsInParallelRenderingThread());
 		check(bInsideQuery && EndQuery.IsValid());
 #if DO_CHECK || USING_CODE_ANALYSIS
 		bInsideQuery = false;
@@ -934,7 +934,7 @@ void FRealtimeGPUProfiler::EndFrame(FRHICommandListImmediate& RHICmdList)
 
 FRealtimeGPUProfilerQuery FRealtimeGPUProfiler::PushEvent(FRHIGPUMask GPUMask, const FName& Name, const FName& StatName)
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 	if (bStatGatheringPaused || !bInBeginEndBlock)
 	{
 		return {};
@@ -949,7 +949,7 @@ FRealtimeGPUProfilerQuery FRealtimeGPUProfiler::PushEvent(FRHIGPUMask GPUMask, c
 
 FRealtimeGPUProfilerQuery FRealtimeGPUProfiler::PopEvent()
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 	if (bStatGatheringPaused || !bInBeginEndBlock)
 	{
 		return {};
