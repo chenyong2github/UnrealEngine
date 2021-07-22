@@ -4442,6 +4442,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 
 					// Compress the temporarily file to destination.
+					IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
 					if (bSaveAsync)
 					{	
 						FString NewPathToSave = NewPath;
@@ -4487,50 +4488,52 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							FLargeMemoryWriter* Writer = static_cast<FLargeMemoryWriter*>(Linker->Saver);
 							const int64 DataSize = Writer->TotalSize();
 
-							if (IsEventDrivenLoaderEnabledInCookedBuilds() && Linker->IsCooking())
+							if (PackageStoreWriter)
 							{
 								checkf(AdditionalOutputFiles.IsEmpty(), TEXT("Saving additional output files during cooking is not supported!"));
 
 								if (!(SaveFlags & SAVE_DiffCallstack))  // Avoid double counting the package size if SAVE_DiffCallstack flag is set and DiffSettings.bSaveForDiff == true.
 									TotalPackageSizeUncompressed += DataSize;
 
-								if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr)
+								FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), DataSize);
+
+								if (bComputeHash)
 								{
-									FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), DataSize);
-
-									if (bComputeHash)
+									FIoBuffer InnerBuffer(IoBuffer.Data(), IoBuffer.DataSize(), IoBuffer);
+									SavePackageUtilities::IncrementOutstandingAsyncWrites();
+									AsyncWriteAndHashSequence.AddWork([InnerBuffer = MoveTemp(InnerBuffer)](FMD5& State)
 									{
-										FIoBuffer InnerBuffer(IoBuffer.Data(), IoBuffer.DataSize(), IoBuffer);
-										SavePackageUtilities::IncrementOutstandingAsyncWrites();
-										AsyncWriteAndHashSequence.AddWork([InnerBuffer = MoveTemp(InnerBuffer)](FMD5& State)
-										{
-											State.Update(InnerBuffer.Data(), InnerBuffer.DataSize());
-											SavePackageUtilities::DecrementOutstandingAsyncWrites();
-										});
-									}
-
-									const int32 HeaderSize = Linker->Summary.TotalHeaderSize;
-
-									IPackageStoreWriter::FPackageInfo PackageInfo;
-									PackageInfo.PackageName		= InOuter->GetFName();
-									PackageInfo.LooseFilePath	= Filename;
-									PackageInfo.HeaderSize		= HeaderSize;
-
-									FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
-									PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
-
-									SavePackageContext->PackageStoreWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
+										State.Update(InnerBuffer.Data(), InnerBuffer.DataSize());
+										SavePackageUtilities::DecrementOutstandingAsyncWrites();
+									});
 								}
-								else
-								{		
-									EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::WriteFileToDisk);
-									if (bComputeHash)
-									{
-										WriteOptions |= EAsyncWriteOptions::ComputeHash;
-									}
 
-									SavePackageUtilities::AsyncWriteFileWithSplitExports(AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *NewPathToSave, WriteOptions, Linker->FileRegions);
+								const int32 HeaderSize = Linker->Summary.TotalHeaderSize;
+
+								IPackageStoreWriter::FPackageInfo PackageInfo;
+								PackageInfo.PackageName = InOuter->GetFName();
+								PackageInfo.LooseFilePath = Filename;
+								PackageInfo.HeaderSize = HeaderSize;
+
+								FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
+								PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
+
+								PackageStoreWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
+							}
+							else if (IsEventDrivenLoaderEnabledInCookedBuilds() && Linker->IsCooking())
+							{
+								checkf(AdditionalOutputFiles.IsEmpty(), TEXT("Saving additional output files during cooking is not supported!"));
+
+								if (!(SaveFlags & SAVE_DiffCallstack))  // Avoid double counting the package size if SAVE_DiffCallstack flag is set and DiffSettings.bSaveForDiff == true.
+									TotalPackageSizeUncompressed += DataSize;
+
+								EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::WriteFileToDisk);
+								if (bComputeHash)
+								{
+									WriteOptions |= EAsyncWriteOptions::ComputeHash;
 								}
+
+								SavePackageUtilities::AsyncWriteFileWithSplitExports(AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *NewPathToSave, WriteOptions, Linker->FileRegions);
 							}
 							else
 							{
@@ -4554,6 +4557,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								}	
 							}
 						}
+#if WITH_EDITOR
+						else
+						{
+							checkf(!PackageStoreWriter, TEXT("PackageStoreWriter is not currently supported when diffing."));
+						}
+#endif
 						Linker->CloseAndDestroySaver();
 
 						delete StructuredArchive;
@@ -4563,6 +4572,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					// Move the temporary file.
 					else
 					{
+						checkf(!PackageStoreWriter, TEXT("PackageStoreWriter is not currently supported with synchronous writes."));
 						checkf(TempFilename.IsSet(), TEXT("The package should've been saved to a tmp file first!"));
 
 						// When saving in text format we will have two temp files, so we need to manually delete the non-textbased one
