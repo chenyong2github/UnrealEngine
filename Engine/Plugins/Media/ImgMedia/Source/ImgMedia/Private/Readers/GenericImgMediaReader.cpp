@@ -99,32 +99,67 @@ bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImg
 		return false;
 	}
 
-	const FString& ImagePath = Loader->GetImagePath(FrameId, MipLevel);
+	int32 NumMipLevels = Loader->GetNumMipLevels();
+	FIntPoint Dim = Loader->GetSequenceDim();
+	
+	// Do we already have our buffer?
+	void* Buffer = OutFrame->Data.Get();
 
-	TArray64<uint8> InputBuffer;
-	TSharedPtr<IImageWrapper> ImageWrapper = LoadImage(ImagePath, ImageWrapperModule, InputBuffer, OutFrame->Info);
-
-	if (!ImageWrapper.IsValid())
+	// Loop over all mips.
+	for (int32 CurrentMipLevel = 0; CurrentMipLevel < NumMipLevels; ++CurrentMipLevel)
 	{
-		UE_LOG(LogImgMedia, Warning, TEXT("FGenericImgMediaReader: Failed to load image %s"), *ImagePath);
-		return false;
+		// Do we want to read in this mip?
+		bool IsThisLevelPresent = (OutFrame->MipMapsPresent & (1 << CurrentMipLevel)) != 0;
+		bool ReadThisMip = (Buffer == nullptr) ||
+			((CurrentMipLevel >= MipLevel) && (IsThisLevelPresent == false));
+		if (ReadThisMip)
+		{
+			// Load image.
+			const FString& ImagePath = Loader->GetImagePath(FrameId, CurrentMipLevel);
+
+			TArray64<uint8> InputBuffer;
+			FImgMediaFrameInfo Info;
+			TSharedPtr<IImageWrapper> ImageWrapper = LoadImage(ImagePath, ImageWrapperModule, InputBuffer, Info);
+
+			if (!ImageWrapper.IsValid())
+			{
+				UE_LOG(LogImgMedia, Warning, TEXT("FGenericImgMediaReader: Failed to load image %s"), *ImagePath);
+				return false;
+			}
+
+			TArray64<uint8> RawData;
+			if (!ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
+			{
+				UE_LOG(LogImgMedia, Warning, TEXT("FGenericImgMediaReader: Failed to get image data for %s"), *ImagePath);
+				return false;
+			}
+
+			const int64 RawNum = RawData.Num();
+			// Create buffer for data.
+			if (Buffer == nullptr)
+			{
+				int64 AllocSize = RawNum;
+				// Need more space for mips.
+				if (NumMipLevels > 1)
+				{
+					AllocSize = (AllocSize * 4) / 3;
+				}
+				Buffer = FMemory::Malloc(AllocSize);
+				OutFrame->Info = Info;
+				OutFrame->Data = MakeShareable(Buffer, [](void* ObjectToDelete) { FMemory::Free(ObjectToDelete); });
+				OutFrame->Format = EMediaTextureSampleFormat::CharBGRA;
+				OutFrame->Stride = OutFrame->Info.Dim.X * 4;
+			}
+
+			// Copy data to our buffer
+			FMemory::Memcpy(Buffer, RawData.GetData(), RawNum);
+			OutFrame->MipMapsPresent |= 1 << CurrentMipLevel;
+		}
+
+		// Next level.
+		Buffer = (void*)((uint8*)Buffer + Dim.X * Dim.Y * 4);
+		Dim /= 2;
 	}
-
-	TArray64<uint8> RawData;
-	if (!ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
-	{
-		UE_LOG(LogImgMedia, Warning, TEXT("FGenericImgMediaReader: Failed to get image data for %s"), *ImagePath);
-		return false;
-	}
-
-	const int64 RawNum = RawData.Num();
-	void* Buffer = FMemory::Malloc(RawNum);
-	FMemory::Memcpy(Buffer, RawData.GetData(), RawNum);
-
-	OutFrame->Data = MakeShareable(Buffer, [](void* ObjectToDelete) { FMemory::Free(ObjectToDelete); });
-	OutFrame->Format = EMediaTextureSampleFormat::CharBGRA;
-	OutFrame->Stride = OutFrame->Info.Dim.X * 4;
-	OutFrame->MipMapsPresent = 1 << MipLevel;
 
 	return true;
 }
