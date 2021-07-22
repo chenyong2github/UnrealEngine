@@ -2,6 +2,9 @@
 vcpkg/
 vcpkg-*/
 
+# Ignore Mac files
+.DS_Store
+
 # Ignore Win64 packages except custom triplet cross-compiled folders
 Win64/x64-windows-static-*/*/
 !Win64/x64-windows-static-*/*_x64-windows-static-*/
@@ -11,6 +14,10 @@ Linux/x86_64-unknown-linux-gnu/*/
 !Linux/x86_64-unknown-linux-gnu/*_x86_64-unknown-linux-gnu/
 LinuxAArch64/aarch64-unknown-linux-gnueabi/*/
 !LinuxAArch64/aarch64-unknown-linux-gnueabi/*_aarch64-unknown-linux-gnueabi/
+
+# Ignore Mac packages except custom triplet cross-compiled folders
+Mac/x64-darwin/*/
+!Mac/x64-darwin/*_x64-darwin/
 
 # Ignore vcpkg_installed (combined libs & headers for all packages)
 **/vcpkg_installed/
