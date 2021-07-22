@@ -947,6 +947,12 @@ void FUVPacker::GetIslandStats(IUVMeshView* Mesh, const TArray<int32>& Island, F
 		FIndex3i Triangle3D = Mesh->GetTriangle(tid);
 		FIndex3i TriangleUV = Mesh->GetUVTriangle(tid);
 
+		// skip invalid UV-triangles
+		if (TriangleUV.A < 0 || TriangleUV.B < 0 || TriangleUV.C < 0)
+		{
+			continue;
+		}
+
 		FVector3d Positions[3];
 		FVector2d UVs[3];
 

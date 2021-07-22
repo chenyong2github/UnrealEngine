@@ -81,7 +81,19 @@ protected:
 		
 	};
 
-	bool ComputeUVs(FDynamicMesh3& InOutMesh,  TFunction<bool(float)>& Interrupter);
+	FGeometryResult NewResultInfo;
+
+	bool ComputeUVs_UVAtlas(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter);
+	bool ComputeUVs_XAtlas(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter);
+
+	void CopyNewUVsToMesh(
+		FDynamicMesh3& Mesh,
+		const FLinearMesh& LinearMesh,
+		const FDynamicMesh3& FlippedMesh,
+		const TArray<FVector2D>& UVVertexBuffer,
+		const TArray<int32>& UVIndexBuffer,
+		const TArray<int32>& VertexRemapArray,
+		bool bReverseOrientation);
 };
 
 } // end namespace UE::Geometry
