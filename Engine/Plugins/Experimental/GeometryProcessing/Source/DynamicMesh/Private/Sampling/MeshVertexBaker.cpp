@@ -170,7 +170,7 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 	const int NumBakers = Baker->Bakers.Num();
 	ParallelFor(NumTiles, [&Baker, &Tiles, &TileWidth, &NumBakers, &SampleSurface](const int32 TileIdx)
 	{
-		const FImageDimensions Tile = Tiles.GetTile(TileIdx);
+		const FImageTile Tile = Tiles.GetTile(TileIdx);
 		const int Width = Tile.GetWidth();
 		for (int32 Idx = 0; Idx < Width; ++Idx)
 		{

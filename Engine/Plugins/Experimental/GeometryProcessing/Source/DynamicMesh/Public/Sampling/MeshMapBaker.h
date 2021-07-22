@@ -15,6 +15,7 @@ namespace Geometry
 {
 
 class FImageOccupancyMap;
+class FImageTile;
 class FMeshMapTileBuffer;
 
 class DYNAMICMESH_API FMeshMapBaker : public FMeshBaseBaker
@@ -60,12 +61,14 @@ public:
 	int32 GetMultisampling() const { return Multisampling; }
 
 protected:
-	/** Evaluate samples for this tile pixel. */
-	void BakePixel(FMeshMapTileBuffer& TileBuffer, FImageOccupancyMap& OccupancyMap, const FImageDimensions& Tile, const FVector2i& TileCoords);
-
 	/** Evaluate this sample. */
-	void BakeSample(FMeshMapTileBuffer& TileBuffer, const FMeshMapEvaluator::FCorrespondenceSample& Sample, const FImageDimensions& Tile,
-		const FVector2i& TileCoords, const FVector2i& ImageCoords, const float& SampleWeight);
+	void BakeSample(
+		FMeshMapTileBuffer& TileBuffer,
+		const FMeshMapEvaluator::FCorrespondenceSample& Sample,
+		const FImageTile& Tile,
+		const FVector2i& TileCoords,
+		const FVector2i& ImageCoords,
+		const float& SampleWeight);
 
 	/** Initialize evaluation contexts and precompute data for bake evaluation. */
 	void InitBake();
