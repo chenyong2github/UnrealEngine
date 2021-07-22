@@ -19,6 +19,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+using P4 = Perforce.P4;
+
 namespace HordeServer.Services
 {
 	/// <summary>
@@ -38,10 +40,32 @@ namespace HordeServer.Services
 	}
 
 	/// <summary>
+	/// Interface for a Perforce stream view
+	/// </summary>
+	public interface IStreamView : IDisposable
+	{
+		/// <summary>
+		/// Maps a depot path into the stream
+		/// </summary>
+		/// <param name="DepotPath">The depot path</param>
+		/// <param name="StreamPath">The resulting stream path</param>
+		/// <returns></returns>
+		bool TryGetStreamPath(string DepotPath, [NotNullWhen(true)] out string? StreamPath);
+	}
+
+	/// <summary>
 	/// Wrapper around Perforce functionality. Can use a local p4.exe client for development purposes, or a separate HordePerforceBridge instance over REST for deployments.
 	/// </summary>
 	public interface IPerforceService
 	{
+		/// <summary>
+		/// Gets the definition of a stream
+		/// </summary>
+		/// <param name="ClusterName"></param>
+		/// <param name="StreamName">The stream name</param>
+		/// <returns></returns>
+		public Task<IStreamView> GetStreamViewAsync(string ClusterName, string StreamName);
+
 		/// <summary>
 		/// Create a new changelist by submitting the given file
 		/// </summary>
@@ -69,6 +93,15 @@ namespace HordeServer.Services
 		public Task<PerforceUserInfo?> GetUserInfoAsync(string ClusterName, string UserName);
 
 		/// <summary>
+		/// Finds changes submitted to a depot Gets the latest change for a particular stream
+		/// </summary>
+		/// <param name="ClusterName">Name of the Perforce cluster</param>
+		/// <param name="MinChange">The minimum changelist number</param>
+		/// <param name="MaxResults"></param>
+		/// <returns>Changelist information</returns>
+		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int MaxResults);
+
+		/// <summary>
 		/// Gets the latest change for a particular stream
 		/// </summary>
 		/// <param name="ClusterName">Name of the Perforce cluster</param>
@@ -79,6 +112,14 @@ namespace HordeServer.Services
 		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
 		/// <returns>Latest changelist number</returns>
 		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser);
+
+		/// <summary>
+		/// Gets the latest change for a particular stream
+		/// </summary>
+		/// <param name="ClusterName">Name of the Perforce cluster</param>
+		/// <param name="ChangeNumber">Change numbers to query</param>
+		/// <returns>Commit details</returns>
+		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, int ChangeNumber);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream

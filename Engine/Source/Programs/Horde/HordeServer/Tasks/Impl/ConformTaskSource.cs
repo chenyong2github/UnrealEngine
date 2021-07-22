@@ -33,7 +33,7 @@ namespace HordeServer.Tasks.Impl
 		PerforceLoadBalancer PerforceLoadBalancer;
 		ILogFileService LogService;
 		ILogger Logger;
-		ElectedTick? TickConformList;
+		ElectedTick TickConformList;
 
 		/// <summary>
 		/// Constructor
@@ -53,32 +53,26 @@ namespace HordeServer.Tasks.Impl
 			this.PerforceLoadBalancer = PerforceLoadBalancer;
 			this.LogService = LogService;
 			this.Logger = Logger;
+			this.TickConformList = new ElectedTick(DatabaseService, new ObjectId("60afc5cf555a9a76aff0a50c"), CleanConformListAsync, TimeSpan.FromMinutes(0.0), Logger);
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			TickConformList?.Dispose();
+			TickConformList.Dispose();
 		}
 
 		/// <inheritdoc/>
 		public Task StartAsync(CancellationToken CancellationToken)
 		{
-			if (TickConformList == null)
-			{
-				TickConformList = new ElectedTick(DatabaseService, new ObjectId("60afc5cf555a9a76aff0a50c"), CleanConformListAsync, TimeSpan.FromMinutes(0.0), Logger);
-			}
+			TickConformList.Start();
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
 		public async Task StopAsync(CancellationToken CancellationToken)
 		{
-			if (TickConformList != null)
-			{
-				await TickConformList.DisposeAsync();
-				TickConformList = null;
-			}
+			await TickConformList.StopAsync();
 		}
 
 		/// <summary>

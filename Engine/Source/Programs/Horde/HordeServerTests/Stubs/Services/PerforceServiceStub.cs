@@ -31,7 +31,7 @@ namespace HordeServerTests.Stubs.Services
 				StreamChanges = new SortedDictionary<int, ChangeDetails>(new ChangeComparer());
 				Changes[StreamName] = StreamChanges;
 			}
-			StreamChanges.Add(Number, new ChangeDetails(Number, Author, Description, Files.ToList()));
+			StreamChanges.Add(Number, new ChangeDetails(Number, Author, null!, Description, Files.ToList(), DateTime.Now));
 		}
 
 		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int NumResults, string? ImpersonateUser)
@@ -49,7 +49,7 @@ namespace HordeServerTests.Stubs.Services
 					}
 					if (!MaxChange.HasValue || Details.Number <= MaxChange.Value)
 					{
-						Results.Add(new ChangeSummary(Details.Number, Details.Author, Details.Description));
+						Results.Add(new ChangeSummary(Details.Number, Details.Author, "//...", Details.Description));
 					}
 					if (NumResults > 0 && Results.Count >= NumResults)
 					{
@@ -103,7 +103,7 @@ namespace HordeServerTests.Stubs.Services
 
 		public Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string Path)
 		{
-			ChangeDetails NewChange = new ChangeDetails(Changes[StreamName].First().Key + 1, "", "", new List<string> { Path });
+			ChangeDetails NewChange = new ChangeDetails(Changes[StreamName].First().Key + 1, "", null!, "", new List<string> { Path }, DateTime.Now);
 			Changes[StreamName].Add(NewChange.Number, NewChange);
 			return Task.FromResult(NewChange.Number);
 		}
@@ -136,6 +136,21 @@ namespace HordeServerTests.Stubs.Services
 		public Task UpdateChangelistDescription(string ClusterName, int Change, string Description)
 		{
 			return Task.CompletedTask;
+		}
+
+		public Task<IStreamView> GetStreamViewAsync(string ClusterName, string StreamName)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int MaxResults)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, int ChangeNumber)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }
