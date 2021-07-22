@@ -12,6 +12,14 @@
 #include "ShaderParameterStruct.h"
 #include "PixelShaderUtils.h"
 
+float GLumenScreenBentNormalSlopeCompareToleranceScale = 2.0f;
+FAutoConsoleVariableRef CVarLumenScreenBentNormalSlopeCompareToleranceScale(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal.SlopeCompareToleranceScale"),
+	GLumenScreenBentNormalSlopeCompareToleranceScale,
+	TEXT("Scales the slope threshold that screen space traces use to determine whether there was a hit."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 class FScreenSpaceBentNormalCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenSpaceBentNormalCS)
@@ -24,6 +32,7 @@ class FScreenSpaceBentNormalCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, LightingChannelsTexture)
 		SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
+		SHADER_PARAMETER(float, SlopeCompareToleranceScale)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
@@ -95,6 +104,7 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 
 		PassParameters->FurthestHZBTexture = View.HZB;
 		PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->SlopeCompareToleranceScale = GLumenScreenBentNormalSlopeCompareToleranceScale;
 
 		FScreenSpaceBentNormalCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenSpaceBentNormalCS::FNumPixelRays >(NumPixelRays);
