@@ -6619,6 +6619,7 @@ bool UEngine::HandleMemReportDeferredCommand( const TCHAR* Cmd, FOutputDevice& A
 	FSlowHeartBeatScope HeartBeatSuspend;
 
 	const bool bPerformSlowCommands = FParse::Param( Cmd, TEXT("FULL") );
+	const bool bPerformGPUCommands = FParse::Param( Cmd, TEXT("GPU") );
 	const bool bLogOutputToFile = !FParse::Param( Cmd, TEXT("LOG") );
 	const bool bCSV = FParse::Param(Cmd, TEXT("CSV"));
 	FString InFileName;
