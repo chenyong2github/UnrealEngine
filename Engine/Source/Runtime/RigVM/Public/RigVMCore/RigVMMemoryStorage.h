@@ -54,7 +54,7 @@ public:
 		FPropertyDescription(const FProperty* InProperty, const FString& InDefaultValue, const FName& InName = NAME_None);
 		FPropertyDescription(const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue);
 
-		static FName SanitizedName(const FName& InName);
+		static FName SanitizeName(const FName& InName);
 		void SanitizeName();
 
 		bool HasContainer() const { return ContainerType != EPinContainerType::None; }
@@ -82,10 +82,32 @@ public:
 	/// Memory Access
 	//////////////////////////////////////////////////////////////////////////////
 
+	const TArray<const FProperty*>& GetProperties() const;
+	int32 GetPropertyIndex(const FProperty* InProperty) const;
+	int32 GetPropertyIndexByName(const FName& InName) const;
+	const FProperty* FindPropertyByName(const FName& InName) const;
+
+	template<typename T>
+	T* ContainerPtrToValuePtr(int32 InPropertyIndex)
+	{
+		const TArray<const FProperty*>& Properties = GetProperties();
+		if(Properties.IsValidIndex(InPropertyIndex))
+		{
+			return Properties[InPropertyIndex]->ContainerPtrToValuePtr<T>(this);
+		}
+		return nullptr;
+	}
+
+	template<typename T>
+	T* ContainerPtrToValuePtrByName(const FName& InName)
+	{
+		const int32 PropertyIndex = GetPropertyIndexByName(InName);
+		return ContainerPtrToValuePtr<T>(PropertyIndex);
+	}
+
 protected:
 
-	void RefreshCache();
-	TArray<uint8*> Cache;
+	TArray<const FProperty*> CachedProperties;
 
 private:
 	
