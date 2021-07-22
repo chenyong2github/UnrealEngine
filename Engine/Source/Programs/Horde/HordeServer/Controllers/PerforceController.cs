@@ -57,7 +57,7 @@ namespace HordeServer.Controllers
 			List<object> Responses = new List<object>();
 			foreach (IPerforceServer Server in Servers)
 			{
-				Responses.Add(new { Server.ServerAndPort, Server.BaseServerAndPort, Server.Cluster, Server.NumLeases, Server.Status, Server.Detail });
+				Responses.Add(new { Server.ServerAndPort, Server.BaseServerAndPort, Server.Cluster, Server.NumLeases, Server.Status, Server.Detail, Server.LastUpdateTime });
 			}
 			return Responses;
 		}
