@@ -756,18 +756,21 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	auto PollOcclusionQueriesAndDispatchToRHIThreadPass = [](FRHICommandListImmediate& InRHICmdList)
+	const auto PollOcclusionQueries = [](FRDGBuilder& GraphBuilder)
 	{
-		FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
-		InRHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		AddPass(GraphBuilder, RDG_EVENT_NAME("PollOcclusionQueries"), [](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.PollOcclusionQueries();
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		});
 	};
 
-	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
+	PollOcclusionQueries(GraphBuilder);
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Shadows));
 	RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 
-	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
+	PollOcclusionQueries(GraphBuilder);
 
 	// Custom depth
 	// bShouldRenderCustomDepth has been initialized in InitViews on mobile platform
@@ -880,7 +883,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	RenderFinish(GraphBuilder, ViewFamilyTexture);
 
-	AddPass(GraphBuilder, PollOcclusionQueriesAndDispatchToRHIThreadPass);
+	PollOcclusionQueries(GraphBuilder);
 }
 
 void FMobileSceneRenderer::BuildInstanceCullingDrawParams(FRDGBuilder& GraphBuilder, FViewInfo& View, FMobileRenderPassParameters* PassParameters)
@@ -1508,7 +1511,7 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRDGBuilder& Gra
 	}
 	CachedView = &View;
 
-	AddPass(GraphBuilder, [this, &View](FRHICommandList&)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("UpdateDirectionalLightUniformBuffers"), [this, &View](FRHICommandListImmediate&)
 	{
 		const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 		// Fill in the other entries based on the lights

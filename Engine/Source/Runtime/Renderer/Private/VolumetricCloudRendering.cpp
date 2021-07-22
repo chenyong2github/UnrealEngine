@@ -1364,7 +1364,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 
 	auto CleanUpCloudDataPass = [&Views = Views](FRDGBuilder& GraphBuilder)
 	{
-		AddPass(GraphBuilder, [&Views](FRHICommandList&)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("CleanUpCloudData"), [&Views](FRHICommandListImmediate&)
 		{
 			CleanUpCloudDataFunction(Views);
 		});

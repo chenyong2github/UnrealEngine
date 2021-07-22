@@ -175,7 +175,7 @@ static void AddBeginTranslucencyTimerPass(FRDGBuilder& GraphBuilder, const FView
 #if STATS
 	if (View.ViewState)
 	{
-		AddPass(GraphBuilder, [&View](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("BeginTimer"), [&View](FRHICommandListImmediate& RHICmdList)
 		{
 			View.ViewState->TranslucencyTimer.Begin(RHICmdList);
 		});
@@ -188,7 +188,7 @@ static void AddEndTranslucencyTimerPass(FRDGBuilder& GraphBuilder, const FViewIn
 #if STATS
 	if (View.ViewState)
 	{
-		AddPass(GraphBuilder, [&View](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("EndTimer"), [&View](FRHICommandListImmediate& RHICmdList)
 		{
 			View.ViewState->TranslucencyTimer.End(RHICmdList);
 		});
@@ -209,7 +209,7 @@ static void AddBeginSeparateTranslucencyTimerPass(FRDGBuilder& GraphBuilder, con
 {
 	if (HasSeparateTranslucencyTimer(View))
 	{
-		AddPass(GraphBuilder, [&View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("BeginTimer"), [&View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
 		{
 			switch(TranslucencyPass)
 			{
@@ -233,7 +233,7 @@ static void AddEndSeparateTranslucencyTimerPass(FRDGBuilder& GraphBuilder, const
 {
 	if (HasSeparateTranslucencyTimer(View))
 	{
-		AddPass(GraphBuilder, [&View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("EndTimer"), [&View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
 		{
 			switch(TranslucencyPass)
 			{

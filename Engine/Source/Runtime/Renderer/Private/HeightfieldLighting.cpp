@@ -392,7 +392,7 @@ void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& Vie
 		return;
 	}
 
-	AddPass(GraphBuilder, [this, Scene, &View, NumPrimitives](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("SetupVisibleHeightfields"), [this, Scene, &View, NumPrimitives](FRHICommandListImmediate& RHICmdList)
 	{
 		const float MaxDistanceSquared = FMath::Square(GetMaxAOViewDistance() + GetGHeightfieldBounceDistance());
 		float LocalToWorldScale = 1;
@@ -842,7 +842,7 @@ void FHeightfieldLightingViewInfo::ClearShadowing(FRDGBuilder& GraphBuilder, con
 		&& LightSceneInfo.Proxy->CastsDynamicShadow())
 	{
 		// TODO(RDG): Port this to RDG.
-		AddPass(GraphBuilder, [this, &View, &LightSceneInfo](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("ClearShadowing"), [this, &View, &LightSceneInfo](FRHICommandList& RHICmdList)
 		{
 			FSceneViewState* ViewState = (FSceneViewState*)View.State;
 			const FHeightfieldLightingAtlas& Atlas = *ViewState->HeightfieldLightingAtlas;

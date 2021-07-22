@@ -805,7 +805,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	auto RenderCubeFaces_DiffuseIrradiance = [&](TRefCountPtr<IPooledRenderTarget>& SourceCubemap)
 	{
 		// ComputeDiffuseIrradiance using N uniform samples
-		AddPass(GraphBuilder, [SkyIrradianceEnvironmentMap = SkyIrradianceEnvironmentMap.Buffer](FRHIComputeCommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionToUAV"), [SkyIrradianceEnvironmentMap = SkyIrradianceEnvironmentMap.Buffer](FRHIComputeCommandList& RHICmdList)
 		{
 			RHICmdList.Transition({ SkyIrradianceEnvironmentMap, ERHIAccess::Unknown, ERHIAccess::UAVCompute });
 		});
@@ -833,7 +833,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		const FIntVector NumGroups = FIntVector(1, 1, 1);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ComputeSkyEnvMapDiffuseIrradianceCS"), ComputeShader, PassParameters, NumGroups);
 
-		AddPass(GraphBuilder, [SkyIrradianceEnvironmentMap = SkyIrradianceEnvironmentMap.Buffer](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionToSRV"), [SkyIrradianceEnvironmentMap = SkyIrradianceEnvironmentMap.Buffer](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.Transition({ SkyIrradianceEnvironmentMap, ERHIAccess::UAVCompute, ERHIAccess::SRVMask });
 		});

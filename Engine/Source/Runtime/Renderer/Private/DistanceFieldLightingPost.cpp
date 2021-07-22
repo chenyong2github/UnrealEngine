@@ -523,7 +523,7 @@ void UpdateHistory(
 	{
 #if WITH_MGPU
 		RDG_GPU_STAT_SCOPE(GraphBuilder, AFRWaitForDistanceFieldAOHistory);
-		AddPass(GraphBuilder, [&View](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("WaitForTemporalEffect"), [&View](FRHICommandList& RHICmdList)
 		{
 			static const FName NameForTemporalEffect("DistanceFieldAOHistory");
 			RHICmdList.WaitForTemporalEffect(FName(NameForTemporalEffect, View.ViewState->UniqueID));

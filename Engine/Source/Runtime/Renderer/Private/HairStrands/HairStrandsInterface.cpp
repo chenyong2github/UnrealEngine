@@ -385,7 +385,7 @@ void TransitBufferToReadable(FRDGBuilder& GraphBuilder, FBufferTransitionQueue& 
 {
 	if (BuffersToTransit.Num())
 	{
-		AddPass(GraphBuilder, [LocalBuffersToTransit = MoveTemp(BuffersToTransit)](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionToSRV"), [LocalBuffersToTransit = MoveTemp(BuffersToTransit)](FRHICommandList& RHICmdList)
 		{
 			FMemMark Mark(FMemStack::Get());
 			TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;

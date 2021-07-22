@@ -645,7 +645,7 @@ void EmitCubemapShadow(
 		RDG_EVENT_NAME("Emit Cubemap Shadow"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, VertexShader, GeometryShader, PixelShader, ViewRect, CubemapFaceIndex](FRHICommandListImmediate& RHICmdList)
+		[PassParameters, VertexShader, GeometryShader, PixelShader, ViewRect, CubemapFaceIndex](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 						

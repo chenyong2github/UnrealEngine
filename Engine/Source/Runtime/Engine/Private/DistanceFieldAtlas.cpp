@@ -1117,7 +1117,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFe
 
 	if (PendingUploads.Num())
 	{
-		AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionAtlasUAV"), [this](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			RHICmdList.BeginUAVOverlap(AtlasUAVRHI);
@@ -1158,7 +1158,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFe
 			}
 		}
 
-		AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionAtlasUAV"), [this](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.EndUAVOverlap(AtlasUAVRHI);
 			RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));

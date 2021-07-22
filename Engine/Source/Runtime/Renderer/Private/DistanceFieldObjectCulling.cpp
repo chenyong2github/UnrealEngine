@@ -407,7 +407,7 @@ void BuildTileObjectLists(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildTileList");
 
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, Scene->GetFeatureLevel());
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer = FSceneTextures::Get(GraphBuilder).UniformBuffer;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

@@ -389,7 +389,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 		RDG_EVENT_NAME("Local Lights LightFunctions"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, &View, &Scene = Scene](FRHICommandListImmediate& RHICmdList)
+		[PassParameters, &View, &Scene = Scene](FRHICommandList& RHICmdList)
 		{
 			uint32 AtlasTextureWidth = View.VolumetricFogResources.TransientLightFunctionTextureAtlas->GetAtlasTextureWidth();
 			uint32 LightFunctionResolution = GetVolumetricFogLightFunctionResolution();

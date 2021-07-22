@@ -2657,7 +2657,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 			}
 		}
 
-		AddPass(GraphBuilder, [LocalParams = MoveTemp(Params)](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransferTextures"), [LocalParams = MoveTemp(Params)](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.TransferTextures(LocalParams);
 		});
@@ -2758,7 +2758,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	AddPass(GraphBuilder, [this](FRHICommandList&)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("DestroyRaytracingScene"), [this](FRHICommandListImmediate&)
 	{
 		Scene->DestroyRayTracingScene();
 	});

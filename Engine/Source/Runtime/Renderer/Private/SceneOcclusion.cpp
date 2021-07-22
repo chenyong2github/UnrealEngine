@@ -1108,7 +1108,7 @@ void FHZBOcclusionTester::Submit(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 	// Transfer memory GPU -> CPU
 	AddCopyToResolveTargetPass(GraphBuilder, ResultsTextureGPU, GraphBuilder.RegisterExternalTexture(ResultsTextureCPU), FResolveParams());
 
-	AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("WriteGPUFence"), [this](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.WriteGPUFence(Fence);
 	});
@@ -1492,7 +1492,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 	{
 		// Hint to the RHI to submit commands up to this point to the GPU if possible.  Can help avoid CPU stalls next frame waiting
 		// for these query results on some platforms.
-		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("SubmitCommands"), [](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SubmitCommandsHint();
 		});
@@ -1548,7 +1548,7 @@ void FSceneRenderer::FenceOcclusionTests(FRDGBuilder& GraphBuilder)
 {
 	if (IsRunningRHIInSeparateThread())
 	{
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("FenceOcclusionTests"), [this](FRHICommandListImmediate& RHICmdList)
 		{
 			FenceOcclusionTestsInternal(RHICmdList);
 		});
