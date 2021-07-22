@@ -19,7 +19,7 @@
 #include "GPUScene.h"
 #include "Async/ParallelFor.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
-#include "Nanite/NaniteRender.h"
+#include "Nanite/Nanite.h"
 #include "Rendering/NaniteResources.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "NaniteSceneProxy.h"

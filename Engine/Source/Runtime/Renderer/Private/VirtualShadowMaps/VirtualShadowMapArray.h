@@ -4,7 +4,7 @@
 =============================================================================*/
 #pragma once
 
-#include "../Nanite/NaniteRender.h"
+#include "../Nanite/Nanite.h"
 #include "../MeshDrawCommands.h"
 #include "SceneTypes.h"
 

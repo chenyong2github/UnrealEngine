@@ -7,7 +7,7 @@
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
 #endif
 
-// Must match ERasterTechnique in NaniteRender.h
+// Must match ERasterTechnique in NaniteCullRaster.h
 #define RASTER_TECHNIQUE_FALLBACK	0
 #define RASTER_TECHNIQUE_PLATFORM	1
 #define RASTER_TECHNIQUE_NVIDIA		2

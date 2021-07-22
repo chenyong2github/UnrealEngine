@@ -2314,6 +2314,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					// Emit velocity with depth if not writing it in base pass.
 					FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
 
+					const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
+
 					Nanite::EmitDepthTargets(
 						GraphBuilder,
 						*Scene,
@@ -2326,7 +2328,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						VelocityBuffer,
 						RasterResults.MaterialDepth,
 						RasterResults.NaniteMask,
-						bNeedsPrePass
+						bNeedsPrePass,
+						bEmitStencilMask
 					);
 				}
 
@@ -2567,6 +2570,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					// Emit velocity with depth if not writing it in base pass.
 					FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
 
+					const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
+
 					Nanite::EmitDepthTargets(
 						GraphBuilder,
 						*Scene,
@@ -2579,7 +2584,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						VelocityBuffer,
 						RasterResults.MaterialDepth,
 						RasterResults.NaniteMask,
-						bNeedsPrePass
+						bNeedsPrePass,
+						bEmitStencilMask
 					);
 				}
 
