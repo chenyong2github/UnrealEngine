@@ -31,7 +31,7 @@ FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCacheDownsampleFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenTranslucencyRadianceCacheReprojectionRadiusScale = 4;
+float GLumenTranslucencyRadianceCacheReprojectionRadiusScale = 10;
 FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCacheReprojectionRadiusScale(
 	TEXT("r.Lumen.TranslucencyRadianceCache.ReprojectionRadiusScale"),
 	GLumenTranslucencyRadianceCacheReprojectionRadiusScale,
@@ -262,6 +262,8 @@ void LumenTranslucencyRadianceCacheMarkUsedProbes(
 	}
 
 	View.ParallelMeshDrawCommandPasses[MeshPass].BuildRenderingCommands(GraphBuilder, SceneRenderer.Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
+	RDG_EVENT_SCOPE(GraphBuilder, "TranslucentSurfacesMarkPass");
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("LumenTranslucencyRadianceCacheMark"),
