@@ -71,7 +71,6 @@ namespace HordeServer.Commits.Impl
 			this.StateDocument = new SingletonDocument<ReplicationState>(DatabaseService);
 			this.Logger = Logger;
 			this.Ticker = new ElectedTick(DatabaseService, new ObjectId("60f866c49e7268f71803b6e0"), TickReplicationAsync, TimeSpan.FromSeconds(30.0), Logger);
-			TickReplicationAsync(default).Wait();
 		}
 
 		/// <inheritdoc/>

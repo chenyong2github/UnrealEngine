@@ -123,7 +123,7 @@ namespace HordeServer.Utilities
 		/// <param name="Singleton"></param>
 		/// <param name="UpdateAction"></param>
 		/// <returns></returns>
-		public static async Task UpdateAsync<T>(this ISingletonDocument<T> Singleton, Action<T> UpdateAction) where T : SingletonBase, new()
+		public static async Task<T> UpdateAsync<T>(this ISingletonDocument<T> Singleton, Action<T> UpdateAction) where T : SingletonBase, new()
 		{
 			for (; ; )
 			{
@@ -132,7 +132,7 @@ namespace HordeServer.Utilities
 
 				if (await Singleton.TryUpdateAsync(Value))
 				{
-					break;
+					return Value;
 				}
 			}
 		}
