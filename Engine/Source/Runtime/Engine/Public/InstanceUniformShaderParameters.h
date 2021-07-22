@@ -145,5 +145,4 @@ struct FInstanceSceneShaderData
 	);
 };
 
-ENGINE_API const FPrimitiveInstance& GetDummyPrimitiveInstance();
 ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData();

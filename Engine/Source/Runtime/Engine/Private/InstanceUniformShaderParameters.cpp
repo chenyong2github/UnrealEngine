@@ -99,22 +99,14 @@ void FInstanceSceneShaderData::Setup(
 	Data[9]    = *(const  FVector4*)&LightMapShadowMapUVBias;
 }
 
-static FPrimitiveInstance DummyInstance =
-	ConstructPrimitiveInstance(
-		FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
-		NANITE_INVALID_HIERARCHY_OFFSET,
-		0u /* Instance Flags */
-	);
-
-ENGINE_API const FPrimitiveInstance& GetDummyPrimitiveInstance()
-{
-	return DummyInstance;
-}
-
 ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 {
 	static FInstanceSceneShaderData DummyShaderData = FInstanceSceneShaderData(
-		GetDummyPrimitiveInstance(),
+		ConstructPrimitiveInstance(
+			FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
+			NANITE_INVALID_HIERARCHY_OFFSET,
+			0u /* Instance Flags */
+		),
 		0xFFFFFFFFu, /* Primitive Id */
 		FRenderTransform::Identity, /* Primitive LocalToWorld */
 		FRenderTransform::Identity,  /* Primitive PrevLocalToWorld */
