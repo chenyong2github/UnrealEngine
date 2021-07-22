@@ -1229,6 +1229,19 @@ int32 FGeometryCollection::NumUVLayers() const
 	return MinUVLayers;
 }
 
+bool FGeometryCollection::SetNumUVLayers(int32 NumLayers)
+{
+	if (NumLayers < 1 || NumLayers >= GeometryCollectionUV::MAX_NUM_UV_CHANNELS)
+	{
+		return false;
+	}
+
+	for (int32 VertIdx = 0; VertIdx < NumElements(FGeometryCollection::VerticesGroup); ++VertIdx)
+	{
+		UVs[VertIdx].SetNum(NumLayers);
+	}
+	return true;
+}
 
 FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder)
 {

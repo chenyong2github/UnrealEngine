@@ -49,6 +49,16 @@ int32 UFractureAutoUVSettings::GetSelectedChannelIndex(bool bForceToZeroOnFailur
 	return FoundIndex;
 }
 
+void UFractureAutoUVSettings::ChangeNumUVChannels(int32 Delta)
+{
+	int32 Target = UVChannelNamesList.Num() + Delta;
+	if (Target > 0 && Target < GeometryCollectionUV::MAX_NUM_UV_CHANNELS)
+	{
+		UFractureToolAutoUV* AutoUVTool = Cast<UFractureToolAutoUV>(OwnerTool.Get());
+		AutoUVTool->UpdateUVChannels(Target);
+	}
+}
+
 
 UFractureToolAutoUV::UFractureToolAutoUV(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -97,6 +107,11 @@ TArray<UObject*> UFractureToolAutoUV::GetSettingsObjects() const
 
 void UFractureToolAutoUV::FractureContextChanged()
 {
+	UpdateUVChannels(-1);
+}
+
+void UFractureToolAutoUV::UpdateUVChannels(int32 TargetNumUVChannels)
+{
 	int32 MinUVChannels = GeometryCollectionUV::MAX_NUM_UV_CHANNELS;
 
 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
@@ -107,8 +122,23 @@ void UFractureToolAutoUV::FractureContextChanged()
 		MinUVChannels = FMath::Min(MinUVChannels, NumChannels);
 	}
 
-	AutoUVSettings->SetNumUVChannels(MinUVChannels);
+	if (TargetNumUVChannels > -1 && TargetNumUVChannels != MinUVChannels)
+	{
+		bool bIsIncreasing = TargetNumUVChannels > MinUVChannels;
+		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+		{
+			int32 NumChannels = GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection()->NumUVLayers();
+			// not if num channels is decreasing, all channels will be >= min channels so we apply the size change to all
+			// but if we're increasing the number of channels, some geometry collections may have more channels already and we leave those alone
+			if (NumChannels < TargetNumUVChannels || !bIsIncreasing)
+			{
+				GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection()->SetNumUVLayers(TargetNumUVChannels);
+			}
+		}
+		MinUVChannels = TargetNumUVChannels;
+	}
 
+	AutoUVSettings->SetNumUVChannels(MinUVChannels);
 }
 
 void UFractureToolAutoUV::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
