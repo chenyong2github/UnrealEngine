@@ -18,8 +18,6 @@ UOculusHMDRuntimeSettings::UOculusHMDRuntimeSettings(const FObjectInitializer& O
 	bCompositesDepth = DefaultSettings.Flags.bCompositeDepth;
 	bHQDistortion = DefaultSettings.Flags.bHQDistortion;
 	bChromaCorrection = DefaultSettings.Flags.bChromaAbCorrectionEnabled;
-	FFRLevel = DefaultSettings.FFRLevel;
-	FFRDynamic = DefaultSettings.FFRDynamic;
 	CPULevel = DefaultSettings.CPULevel;
 	GPULevel = DefaultSettings.GPULevel;
 	PixelDensityMin = DefaultSettings.PixelDensityMin;
@@ -38,8 +36,6 @@ UOculusHMDRuntimeSettings::UOculusHMDRuntimeSettings(const FObjectInitializer& O
 	bCompositesDepth = false;
 	bHQDistortion = false;
 	bChromaCorrection = false;
-	FFRLevel = EFixedFoveatedRenderingLevel::EFixedFoveatedRenderingLevel_Off;
-	FFRDynamic = false;
 	CPULevel = 2;
 	GPULevel = 3;
 	PixelDensityMin = 0.5f;

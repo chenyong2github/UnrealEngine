@@ -62,14 +62,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Mobile)
 	int GPULevel;
 
-	/** Default Fixed Foveated Rendering level for Oculus Quest */
-	UPROPERTY(config, EditAnywhere, Category = Mobile)
-	EFixedFoveatedRenderingLevel FFRLevel;
-
-	/** Whether FFR adjusts its level dynamically or not */
-	UPROPERTY(config, EditAnywhere, Category = Mobile)
-	bool FFRDynamic;
-
 	/** Compensates in the compositor for chromatic aberration, at a higher GPU cost but without the color fringes on the sides of the lenses */
 	UPROPERTY(config, EditAnywhere, Category = Mobile)
 	bool bChromaCorrection;

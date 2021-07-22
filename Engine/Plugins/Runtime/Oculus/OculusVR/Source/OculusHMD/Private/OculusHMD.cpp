@@ -29,6 +29,7 @@
 #include "DynamicResolutionState.h"
 #include "DynamicResolutionProxy.h"
 #include "OculusHMDRuntimeSettings.h"
+#include "Engine/RendererSettings.h"
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidJNI.h"
@@ -3576,13 +3577,20 @@ namespace OculusHMD
 		Settings->Flags.bHQDistortion = HMDSettings->bHQDistortion;
 		Settings->Flags.bChromaAbCorrectionEnabled = HMDSettings->bChromaCorrection;
 		Settings->Flags.bRecenterHMDWithController = HMDSettings->bRecenterHMDWithController;
-		Settings->FFRLevel = HMDSettings->FFRLevel;
-		Settings->FFRDynamic = HMDSettings->FFRDynamic;
 		Settings->CPULevel = HMDSettings->CPULevel;
 		Settings->GPULevel = HMDSettings->GPULevel;
 		Settings->PixelDensityMin = HMDSettings->PixelDensityMin;
 		Settings->PixelDensityMax = HMDSettings->PixelDensityMax;
 		Settings->bPhaseSync = HMDSettings->bPhaseSync;
+
+		// Set FFR level and dynamic from rendering settings
+		UEnum* FFREnum = StaticEnum<EFixedFoveatedRenderingLevel>();
+		int32 VRSValue = IConsoleManager::Get().FindConsoleVariable(TEXT("vr.VRS.HMDFixedFoveationLevel"))->GetInt();
+		if (FFREnum->IsValidEnumValue(VRSValue))
+		{
+			Settings->FFRLevel = static_cast<EFixedFoveatedRenderingLevel>(VRSValue);
+		}
+		Settings->FFRDynamic = IConsoleManager::Get().FindConsoleVariable(TEXT("vr.VRS.HMDFixedFoveationDynamic"))->GetBool();
 	}
 
 	/// @endcond

@@ -37,8 +37,16 @@ static TAutoConsoleVariable<int> CVarHMDFixedFoveationLevel(
 	TEXT(" 0: Disabled (default);\n")
 	TEXT(" 1: Low;\n")
 	TEXT(" 2: Medium;\n")
-	TEXT(" 3: High;\n"),
-	// @todo: 4 - Dynamic (adjusts based on framerate)
+	TEXT(" 3: High;\n")
+	TEXT(" 4: High Top;\n"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarHMDFixedFoveationDynamic(
+	TEXT("vr.VRS.HMDFixedFoveationDynamic"),
+	0,
+	TEXT("Whether fixed-foveation level should adjust based on GPU utilization (Currently OculusVR only)\n")
+	TEXT(" 0: Disabled (default);\n")
+	TEXT(" 1: Enabled\n"),
 	ECVF_RenderThreadSafe);
 
 TGlobalResource<FVariableRateShadingImageManager> GVRSImageManager;
@@ -108,7 +116,10 @@ struct FVRSImageGenerationParameters
 	float HMDFixedFoveationFullRateCutoff = 1.0f;
 	float HMDFixedFoveationHalfRateCutoff = 1.0f;
 	float HMDEyeTrackedFoveationFullRateCutoff = 1.0f;
-	float HMDEYeTrackedFoveationHalfRateCutoff = 1.0f;
+	float HMDEyeTrackedFoveationHalfRateCutoff = 1.0f;
+
+	float HMDFixedFoveationCenterX = 0.5f;
+	float HMDFixedFoveationCenterY = 0.5f;
 
 	bool bGenerateFixedFoveation = false;
 	bool bGenerateEyeTrackedFoveation = false;
@@ -129,8 +140,10 @@ uint64 FVariableRateShadingImageManager::CalculateVRSImageHash(const FVRSImageGe
 		Hash = HashCombine(Hash, GetTypeHash(GenerationParamsIn.HMDFixedFoveationHalfRateCutoff));
 		Hash = HashCombine(Hash, GetTypeHash(GenerationParamsIn.HMDEyeTrackedFoveationOrigin));
 		Hash = HashCombine(Hash, GetTypeHash(GenerationParamsIn.HMDEyeTrackedFoveationFullRateCutoff));
-		Hash = HashCombine(Hash, GetTypeHash(GenerationParamsIn.HMDEYeTrackedFoveationHalfRateCutoff));
+		Hash = HashCombine(Hash, GetTypeHash(GenerationParamsIn.HMDEyeTrackedFoveationHalfRateCutoff));
 		Hash = HashCombine(Hash, GetTypeHash(GenerationParamsIn.bInstancedStereo));
+		Hash = HashCombine(Hash, GetTypeHash(GenerationParamsIn.HMDFixedFoveationCenterX));
+		Hash = HashCombine(Hash, GetTypeHash(GenerationParamsIn.HMDFixedFoveationCenterY));
 	}
 
 	return Hash;
@@ -282,7 +295,7 @@ TRefCountPtr<IPooledRenderTarget> FVariableRateShadingImageManager::RenderShadin
 	PassParameters->FixedFoveationFullRateCutoffSquared = VRSImageGenParamsIn.HMDFixedFoveationFullRateCutoff * VRSImageGenParamsIn.HMDFixedFoveationFullRateCutoff;
 	PassParameters->FixedFoveationHalfRateCutoffSquared = VRSImageGenParamsIn.HMDFixedFoveationHalfRateCutoff * VRSImageGenParamsIn.HMDFixedFoveationHalfRateCutoff;
 
-	PassParameters->LeftEyeCenterPixelXY = FVector2D(AttachmentSize.X / 2, AttachmentSize.Y / 2);
+	PassParameters->LeftEyeCenterPixelXY = FVector2D(AttachmentSize.X * VRSImageGenParamsIn.HMDFixedFoveationCenterX, AttachmentSize.Y * VRSImageGenParamsIn.HMDFixedFoveationCenterY);
 	PassParameters->RightEyeCenterPixelXY = PassParameters->LeftEyeCenterPixelXY;
 
 	// If instanced (side-by-side) stereo, there's two "center" points, so adjust both eyes
@@ -380,21 +393,27 @@ void FVariableRateShadingImageManager::Tick()
 
 void FVariableRateShadingImageManager::UpdateFixedFoveationParameters(FVRSImageGenerationParameters& VRSImageGenParamsInOut)
 {
-	static const float FIXED_FOVEATION_FULL_RATE_CUTOFFS[] = { 1.0f, 0.7f, 0.50f, 0.35f };
-	static const float FIXED_FOVEATION_HALF_RATE_CUTOFFS[] = { 1.0f, 0.9f, 0.75f, 0.45f };
 
-	int Level = FMath::Clamp(CVarHMDFixedFoveationLevel.GetValueOnAnyThread(), 0, 3);
+	// Numbers here are currently pretty arbitrary... should eventually be chosen based on headset specific characteristics
+	static const float FIXED_FOVEATION_FULL_RATE_CUTOFFS[] = { 1.0f, 0.7f, 0.50f, 0.35f, 0.35f };
+	static const float FIXED_FOVEATION_HALF_RATE_CUTOFFS[] = { 1.0f, 0.9f, 0.75f, 0.55f, 0.55f };
+	static const float FIXED_FOVEATION_CENTER_X[] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
+	static const float FIXED_FOVEATION_CENTER_Y[] = { 0.5f, 0.5f, 0.5f, 0.5f, 0.42f };
+	
+	int Level = FMath::Clamp(CVarHMDFixedFoveationLevel.GetValueOnAnyThread(), 0, 4);
 
 	VRSImageGenParamsInOut.bGenerateFixedFoveation = Level ? true : false;
 	VRSImageGenParamsInOut.HMDFixedFoveationFullRateCutoff = FIXED_FOVEATION_FULL_RATE_CUTOFFS[Level];
 	VRSImageGenParamsInOut.HMDFixedFoveationHalfRateCutoff = FIXED_FOVEATION_HALF_RATE_CUTOFFS[Level];
+	VRSImageGenParamsInOut.HMDFixedFoveationCenterX = FIXED_FOVEATION_CENTER_X[Level];
+	VRSImageGenParamsInOut.HMDFixedFoveationCenterY = FIXED_FOVEATION_CENTER_Y[Level];
 }
 
 void FVariableRateShadingImageManager::UpdateEyeTrackedFoveationParameters(FVRSImageGenerationParameters& VRSImageGenParamsInOut, const FSceneViewFamily& ViewFamily)
 {
 	VRSImageGenParamsInOut.bGenerateEyeTrackedFoveation = false;
 	VRSImageGenParamsInOut.HMDEyeTrackedFoveationFullRateCutoff = 1.0f;
-	VRSImageGenParamsInOut.HMDEYeTrackedFoveationHalfRateCutoff = 1.0f;
+	VRSImageGenParamsInOut.HMDEyeTrackedFoveationHalfRateCutoff = 1.0f;
 
 	auto EyeTracker = GEngine->EyeTrackingDevice;
 	if (!EyeTracker.IsValid())
