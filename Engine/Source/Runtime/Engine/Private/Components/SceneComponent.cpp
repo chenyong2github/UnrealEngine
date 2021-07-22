@@ -2173,7 +2173,8 @@ void USceneComponent::DetachFromComponent(const FDetachmentTransformRules& Detac
 		if (DetachmentRules.bCallModify && !HasAnyFlags(RF_Transient))
 		{
 			Modify();
-			GetAttachParent()->Modify();
+			// Attachment is persisted on the child so modify both actors for Undo/Redo but do not mark the Parent package dirty
+			GetAttachParent()->Modify(/*bAlwaysMarkDirty=*/false);
 		}
 
 		PrimaryComponentTick.RemovePrerequisite(GetAttachParent(), GetAttachParent()->PrimaryComponentTick); // no longer required to tick after the attachment
