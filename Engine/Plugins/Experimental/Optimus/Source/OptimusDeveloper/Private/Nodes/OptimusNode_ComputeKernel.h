@@ -126,7 +126,7 @@ public:
 	FString KernelName = "MyKernel";
 
 	UPROPERTY(EditAnywhere, Category = KernelConfiguration, meta=(Min=1))
-	int32 ThreadCount = 128;
+	int32 ThreadCount = 64;
 
 	// HACK: Replace with contexts gathered from supported DataInterfaces.
 	UPROPERTY(EditAnywhere, Category = KernelConfiguration)
