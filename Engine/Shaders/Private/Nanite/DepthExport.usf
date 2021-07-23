@@ -35,8 +35,8 @@ RWTexture2D<uint>			SceneStencil;
 RWStructuredBuffer<uint>	MaterialHTile;
 RWTexture2D<float>			MaterialDepth;
 
+ByteAddressBuffer			MaterialSlotTable;
 ByteAddressBuffer			MaterialDepthTable;
-ByteAddressBuffer			MaterialDepthTable2;
 ByteAddressBuffer			MaterialHitProxyTable;
 
 uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth, uint PlatformConfig)
@@ -98,7 +98,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 			FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 			const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
+			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable);
 			const float NaniteDepth = asfloat(DepthInt);
 
 			if (NaniteDepth >= SceneDepthValue)

@@ -889,9 +889,9 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						{
 							FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[NaniteMeshPass];
 
-							const TArray<uint32>& PassMaterialIds = PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPass];
+							const TArray<uint32>& PassMaterialSlots = PrimitiveSceneInfo->NaniteMaterialSlots[NaniteMeshPass];
 							const TArray<Nanite::FSceneProxyBase::FMaterialSection>& PassMaterials = NaniteSceneProxy->GetMaterialSections();
-							check(PassMaterials.Num() == PassMaterialIds.Num());
+							check(PassMaterials.Num() == PassMaterialSlots.Num());
 
 							const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
 							check(TableEntryCount >= uint32(PassMaterials.Num()));
@@ -899,22 +899,22 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 							const uint32 HitProxyEntryCount = (NaniteMeshPass == ENaniteMeshPass::BasePass) ? TableEntryCount : NANITE_MAX_MATERIALS;
 						#endif
 
-							void* DepthTable = nullptr;
+							void* MaterialSlotRange = nullptr;
 						#if WITH_EDITOR
 							void* HitProxyTable = nullptr;
 						#endif
 							{
 								FNaniteMaterialCommandsLock NaniteLock(NaniteMaterials, SLT_Write);
-								DepthTable = NaniteMaterials.GetDepthTablePtr(UploadInfo.PrimitiveID, TableEntryCount);
+								MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, TableEntryCount);
 							#if WITH_EDITOR
 								HitProxyTable = NaniteMaterials.GetHitProxyTablePtr(UploadInfo.PrimitiveID, HitProxyEntryCount);
 							#endif
 							}
 
-							uint32* DepthEntry = static_cast<uint32*>(DepthTable);
-							for (int32 Entry = 0; Entry < PassMaterialIds.Num(); ++Entry)
+							uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
+							for (int32 Entry = 0; Entry < PassMaterialSlots.Num(); ++Entry)
 							{
-								DepthEntry[PassMaterials[Entry].MaterialIndex] = PassMaterialIds[Entry];
+								MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry];
 							}
 
 						#if WITH_EDITOR

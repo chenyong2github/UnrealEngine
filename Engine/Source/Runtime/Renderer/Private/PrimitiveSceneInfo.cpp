@@ -530,25 +530,20 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 		for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 		{
 			check(PrimitiveSceneInfo->NaniteCommandInfos[NaniteMeshPassIndex].Num() == 0);
-			check(PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex].Num() == 0);
 
-			PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex].SetNum(MaterialSections.Num());
+			TArray<uint32>& MaterialSlots = PrimitiveSceneInfo->NaniteMaterialSlots[NaniteMeshPassIndex];
+			check(MaterialSlots.Num() == 0);
+
+			MaterialSlots.SetNumUninitialized(MaterialSections.Num());
+			FMemory::Memset(MaterialSlots.GetData(), 0xFF, MaterialSlots.Num() * MaterialSlots.GetTypeSize());
 		}
 
-#if WITH_EDITOR
+	#if WITH_EDITOR
 		check(PrimitiveSceneInfo->NaniteHitProxyIds.Num() == 0);
 		PrimitiveSceneInfo->NaniteHitProxyIds.SetNum(MaterialSections.Num());
-#endif
+	#endif
 
-		for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
-		{
-			for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
-			{
-				PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex][SectionIndex] = INDEX_NONE;
-			}
-		}
-
-#if WITH_EDITOR
+	#if WITH_EDITOR
 		for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
 		{
 			if (MaterialSections[SectionIndex].HitProxy)
@@ -557,11 +552,10 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 			}
 			else
 			{
-				// TODO: Is this valid? SME seems to have null proxies, but normal editor doesn't
 				PrimitiveSceneInfo->NaniteHitProxyIds[SectionIndex] = INDEX_NONE;
 			}
 		}
-#endif
+	#endif
 
 		for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
 		{
@@ -596,12 +590,14 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 
 					FNaniteCommandInfo CommandInfo = NaniteDrawListContext.GetCommandInfoAndReset();
 					PrimitiveSceneInfo->NaniteCommandInfos[MeshPass].Add(CommandInfo);
-					const uint32 MaterialDepthId = CommandInfo.GetMaterialId();
+
+					const int32 MaterialSlot = CommandInfo.GetMaterialSlot();
+					check(MaterialSlot != INDEX_NONE);
 
 					const uint32 SectionIndex = Mesh.SegmentIndex;
-					check(SectionIndex < uint32(PrimitiveSceneInfo->NaniteMaterialIds[MeshPass].Num()));
-					check(PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] == INDEX_NONE || PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] == MaterialDepthId);
-					PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] = MaterialDepthId;
+					check(SectionIndex < uint32(PrimitiveSceneInfo->NaniteMaterialSlots[MeshPass].Num()));
+					check(PrimitiveSceneInfo->NaniteMaterialSlots[MeshPass][SectionIndex] == INDEX_NONE || PrimitiveSceneInfo->NaniteMaterialSlots[MeshPass][SectionIndex] == MaterialSlot);
+					PrimitiveSceneInfo->NaniteMaterialSlots[MeshPass][SectionIndex] = MaterialSlot;
 				}
 			}
 
@@ -633,7 +629,7 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 		}
 
 		NanitePassCommandInfo.Reset();
-		NaniteMaterialIds[NaniteMeshPassIndex].Reset();
+		NaniteMaterialSlots[NaniteMeshPassIndex].Reset();
 	}
 
 #if WITH_EDITOR
@@ -646,15 +642,16 @@ void FScene::RefreshRayTracingMeshCommandCache(FRHICommandListImmediate& RHICmdL
 {
 	if (Mode != CachedRayTracingMeshCommandsMode)
 	{
-		// remember if were using path tracing or not when caching the commands
+		// Remember if were using path tracing or not when caching the commands
 		CachedRayTracingMeshCommandsMode = Mode;
-		// get rid of all existing cached commands
+
+		// Get rid of all existing cached commands
 		CachedRayTracingMeshCommands.Empty(CachedRayTracingMeshCommands.Num());
-		// re-cache all current primitives
+
+		// Re-cache all current primitives
 		FPrimitiveSceneInfo::CacheRayTracingPrimitives(RHICmdList, this, Primitives);
 	}
 }
-
 
 // TODO: Remove RHICmdList argument? It does not appear to be used
 void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)

@@ -14,8 +14,8 @@
 // MATERIAL_CULLING_METHOD 4: cull individual tiles   (64bit mask)
 
 Texture2D<UlongType> VisBuffer64;
+ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
-ByteAddressBuffer MaterialDepthTable2;
 
 // .xy = min, .zw = max
 uint4 ViewRect;
@@ -43,7 +43,7 @@ void ClassifyMaterials(uint3 PixelPos : SV_DispatchThreadID)
 			const FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
 			const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
+			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable);
 			MaterialDepthValue = asfloat(MaterialDepthId);
 		}
 
@@ -125,7 +125,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupIndex : 
 					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 					FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-					const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
+					const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable);
 
 				#if MATERIAL_CULLING_METHOD == 3
 					InterlockedMin(TileMinMax.x, MaterialDepthId);

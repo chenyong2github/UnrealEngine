@@ -94,8 +94,8 @@ class FNaniteVisualizeCS : public FNaniteShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NaniteMask)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialComplexity)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable2)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -116,8 +116,8 @@ public:
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialComplexity)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable2)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -208,8 +208,8 @@ void AddVisualizationPasses(
 				PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 				PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 				PassParameters->VisBuffer64				= VisBuffer64;
-				PassParameters->MaterialDepthTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
-				PassParameters->MaterialDepthTable2		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
+				PassParameters->MaterialSlotTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+				PassParameters->MaterialDepthTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 				PassParameters->MaterialComplexity		= MaterialComplexityUAV;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FMaterialComplexityCS>();
@@ -294,14 +294,14 @@ void AddVisualizationPasses(
 				PassParameters->NaniteMask = NaniteMask;
 				PassParameters->SceneDepth = SceneTextures.Depth.Target;
 				PassParameters->MaterialComplexity = MaterialComplexity ? MaterialComplexity : SystemTextures.Black;
-				PassParameters->MaterialDepthTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
-				PassParameters->MaterialDepthTable2 = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
+				PassParameters->MaterialSlotTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+				PassParameters->MaterialDepthTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 			#if WITH_EDITOR
 				PassParameters->MaterialHitProxyTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 			#else
 				// TODO: Permutation with hit proxy support to keep this clean?
 				// For now, bind a valid SRV
-				PassParameters->MaterialHitProxyTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+				PassParameters->MaterialHitProxyTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 			#endif
 				PassParameters->DebugOutput = GraphBuilder.CreateUAV(Visualization.ModeOutput);
 
@@ -377,14 +377,14 @@ void DrawVisualization(
 		PassParameters->DbgBuffer32				= DbgBuffer32;
 		PassParameters->NaniteMask				= NaniteMask;
 		PassParameters->SceneDepth				= SceneDepth;
-		PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
-		PassParameters->MaterialDepthTable2		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
+		PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+		PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 	#if WITH_EDITOR
 		PassParameters->MaterialHitProxyTable	= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	#else
 		// TODO: Permutation with hit proxy support to keep this clean?
 		// For now, bind a valid SRV
-		PassParameters->MaterialHitProxyTable	= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+		PassParameters->MaterialHitProxyTable	= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 	#endif
 		PassParameters->DebugOutput				= GraphBuilder.CreateUAV(DebugOutput);
 

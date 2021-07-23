@@ -16,8 +16,8 @@ Texture2D<uint>			DbgBuffer32;
 Texture2D<uint>			NaniteMask;
 Texture2D<float>		SceneDepth;
 Texture2D<uint>			MaterialComplexity;
+ByteAddressBuffer		MaterialSlotTable;
 ByteAddressBuffer		MaterialDepthTable;
-ByteAddressBuffer		MaterialDepthTable2;
 ByteAddressBuffer		MaterialHitProxyTable;
 
 int4					VisualizeConfig;
@@ -225,7 +225,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == VISUALIZE_MATERIAL_DEPTH)
 		{
-			Result = IntToColor(GetMaterialDepthId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable));
+			Result = IntToColor(GetMaterialDepthId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable));
 		}
 		else if (VisualizeMode == VISUALIZE_MATERIAL_COMPLEXITY)
 		{
