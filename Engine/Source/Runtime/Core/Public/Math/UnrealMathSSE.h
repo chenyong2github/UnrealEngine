@@ -168,9 +168,13 @@ typedef VectorRegister2Double VectorRegister2d;
 
 // LWC: Alias VectorRegister to correct precision based on LWC
 #if !UE_LARGE_WORLD_COORDINATES_DISABLED
-typedef VectorRegister4Double VectorRegister4;
+	typedef VectorRegister4Double VectorRegister4;
+	#define VectorZeroVectorRegister() VectorZeroDouble()
+	#define VectorOneVectorRegister() VectorOneDouble()
 #else
-typedef VectorRegister4Float VectorRegister4;
+	typedef VectorRegister4Float VectorRegister4;
+	#define VectorZeroVectorRegister() VectorZeroFloat()
+	#define VectorOneVectorRegister() VectorOneFloat()
 #endif
 
 // Backwards compatibility

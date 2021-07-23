@@ -134,9 +134,13 @@ struct alignas(alignof(VectorRegister4Double)) AlignedDouble4
 
 // LWC: Alias AlignedRegister4 to correct precision based on LWC
 #if !UE_LARGE_WORLD_COORDINATES_DISABLED
-typedef AlignedDouble4 AlignedRegister4;
+	typedef AlignedDouble4 AlignedRegister4;
+	#define VectorZeroVectorRegister() VectorZeroDouble()
+	#define VectorOneVectorRegister() VectorOneDouble()
 #else
-typedef AlignedFloat4 AlignedRegister4;
+	typedef AlignedFloat4 AlignedRegister4;
+	#define VectorZeroVectorRegister() VectorZeroFloat()
+	#define VectorOneVectorRegister() VectorOneFloat()
 #endif
 
 

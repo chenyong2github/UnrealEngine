@@ -91,8 +91,12 @@ struct alignas(16) VectorRegister4Double
 // LWC: Alias VectorRegister to correct precision based on LWC
 #if !UE_LARGE_WORLD_COORDINATES_DISABLED
 	typedef VectorRegister4Double VectorRegister;
+	#define VectorZeroVectorRegister() VectorZeroDouble()
+	#define VectorOneVectorRegister() VectorOneDouble()
 #else
 	typedef VectorRegister4Float VectorRegister;
+	#define VectorZeroVectorRegister() VectorZeroFloat()
+	#define VectorOneVectorRegister() VectorOneFloat()
 #endif
 
 // Forward declarations
