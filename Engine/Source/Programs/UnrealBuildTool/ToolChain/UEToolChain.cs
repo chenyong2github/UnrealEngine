@@ -600,7 +600,19 @@ namespace UnrealBuildTool
 
 				if (CompileEnvironment.Configuration == CppConfiguration.Debug)
 				{
-					Arguments.Add("-g -O0");
+					if (CompileEnvironment.Platform == UnrealTargetPlatform.Mac)
+					{
+						// Turn off debug symbols on Mac due to dsym generation issue
+						Arguments.Add("-O0");
+						// Ideally we would be able to turn on symbols and specify the dwarf version, but that does
+						// does not seem to be working currently, ie:
+						//    Arguments.Add("-g -O0 --dwarf-version=2");
+
+					}
+					else
+					{
+						Arguments.Add("-g -O0");
+					}
 				}
 				else
 				{
