@@ -621,8 +621,6 @@ void FUnrealPropertyDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 				}
 			}
 		}
-
-		TypePackageName = GetTypePackageNameHelper(*this);
 		break;
 	}
 }
@@ -646,6 +644,12 @@ void FUnrealPropertyDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngi
 		}
 		break;
 	}
+}
+
+void FUnrealPropertyDefinitionInfo::ConcurrentPostParseFinalize()
+{
+	FUnrealTypeDefinitionInfo::ConcurrentPostParseFinalize();
+	TypePackageName = GetTypePackageNameHelper(*this);
 }
 
 bool FUnrealPropertyDefinitionInfo::IsDynamic() const
@@ -1296,26 +1300,30 @@ void FUnrealFieldDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 		break;
 
 	case EPostParseFinalizePhase::Phase2:
-	{
-		const FString& ClassName = GetEngineClassName(true);
-		const FString& PackageShortName = GetPackageDef().GetShortUpperName();
-
-		FUHTStringBuilder Out;
-		GenerateSingletonName(Out, this, false);
-		ExternDecl[0].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
-		SingletonName[0] = Out;
-		SingletonNameChopped[0] = SingletonName[0].LeftChop(2);
-
-		Out.Reset();
-		GenerateSingletonName(Out, this, true);
-		ExternDecl[1].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
-		SingletonName[1] = Out;
-		SingletonNameChopped[1] = SingletonName[1].LeftChop(2);
-
-		TypePackageName = GetTypePackageNameHelper(*this);
 		break;
 	}
-	}
+}
+
+void FUnrealFieldDefinitionInfo::ConcurrentPostParseFinalize()
+{
+	FUnrealTypeDefinitionInfo::ConcurrentPostParseFinalize();
+
+	const FString& ClassName = GetEngineClassName(true);
+	const FString& PackageShortName = GetPackageDef().GetShortUpperName();
+
+	FUHTStringBuilder Out;
+	GenerateSingletonName(Out, this, false);
+	ExternDecl[0].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
+	SingletonName[0] = Out;
+	SingletonNameChopped[0] = SingletonName[0].LeftChop(2);
+
+	Out.Reset();
+	GenerateSingletonName(Out, this, true);
+	ExternDecl[1].Appendf(TEXT("\t%s_API U%s* %s;\r\n"), *PackageShortName, *ClassName, *Out);
+	SingletonName[1] = Out;
+	SingletonNameChopped[1] = SingletonName[1].LeftChop(2);
+
+	TypePackageName = GetTypePackageNameHelper(*this);
 }
 
 FText FUnrealFieldDefinitionInfo::GetToolTipText(bool bShortTooltip) const
@@ -1785,14 +1793,14 @@ void FUnrealStructDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngine
 		break;
 
 	case ECreateEngineTypesPhase::Phase2:
-		for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : Functions)
+		for (TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : Functions)
 		{
 			FunctionDef->CreateUObjectEngineTypes(Phase);
 		}
 		break;
 
 	case ECreateEngineTypesPhase::Phase3:
-		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : Properties)
+		for (TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : Properties)
 		{
 			PropertyDef->CreateUObjectEngineTypes(Phase);
 		}
@@ -1827,12 +1835,12 @@ void FUnrealStructDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePh
 		}
 	}
 
-	for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : Functions)
+	for (TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : Functions)
 	{
 		FunctionDef->PostParseFinalize(Phase);
 	}
 
-	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : Properties)
+	for (TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : Properties)
 	{
 		PropertyDef->PostParseFinalize(Phase);
 	}
@@ -1847,9 +1855,23 @@ void FUnrealStructDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePh
 	}
 }
 
+void FUnrealStructDefinitionInfo::ConcurrentPostParseFinalize()
+{
+	FUnrealFieldDefinitionInfo::ConcurrentPostParseFinalize();
+	for (TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : Functions)
+	{
+		FunctionDef->ConcurrentPostParseFinalize();
+	}
+
+	for (TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : Properties)
+	{
+		PropertyDef->ConcurrentPostParseFinalize();
+	}
+}
+
 void FUnrealStructDefinitionInfo::CreatePropertyEngineTypes()
 {
-	for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : Properties)
+	for (TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : Properties)
 	{
 		if (PropertyDef->GetPropertySafe() == nullptr)
 		{

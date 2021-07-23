@@ -141,9 +141,18 @@ namespace
 				{
 					if (FUnrealEnumDefinitionInfo* EnumDef = UHTCast<FUnrealEnumDefinitionInfo>(TypeDef))
 					{
+						bool bAddShortNames = EnumDef->GetCppForm() == UEnum::ECppForm::EnumClass || EnumDef->GetCppForm() == UEnum::ECppForm::Namespaced;
+						FString CheckName = EnumDef->GetNameCPP() + TEXT("::");
 						for (const TPair<FName, int64>& Kvp : EnumDef->GetEnums())
 						{
-							EnumValueMap.Add(Kvp.Key, FEnumAndValue{ EnumDef, Kvp.Value });
+							FullEnumValueMap.Add(Kvp.Key, FEnumAndValue{ EnumDef, Kvp.Value });
+							if (bAddShortNames)
+							{
+								FString EnumName = Kvp.Key.ToString();
+								check(EnumName.StartsWith(CheckName, ESearchCase::CaseSensitive));
+								EnumName.RightChopInline(CheckName.Len());
+								ShortEnumValueMap.Add(FName(EnumName), EnumDef);
+							}
 						}
 					}
 				}
@@ -154,24 +163,26 @@ namespace
 		// rejecting matches.
 		FUnrealEnumDefinitionInfo* Find(const TCHAR* EnumValueName)
 		{
-			const FEnumAndValue* Value = FindEnumAndValue(EnumValueName);
+			FName Key(EnumValueName, FNAME_Find);
+			if (Key == NAME_None)
+			{
+				return nullptr;
+			}
+
+			// If we can find the full name and it has an index, then use this enum
+			const FEnumAndValue* Value = FullEnumValueMap.Find(Key);
 			if (Value != nullptr && Value->Value != INDEX_NONE)
 			{
 				return Value->Enum;
 			}
 
-			FString TestShortName = FString(TEXT("::")) + EnumValueName;
-			return GTypeDefinitionInfoMap.Find<FUnrealEnumDefinitionInfo>([&TestShortName](FUnrealEnumDefinitionInfo& EnumDef)
-				{
-					for (const TPair<FName, int64>& NameAndValue : EnumDef.GetEnums())
-					{
-						if (NameAndValue.Key.ToString().Contains(TestShortName))
-						{
-							return true;
-						}
-					}
-					return false;
-				});
+			// If the enum name already has a ::, then we can't do a short name search
+			if (FCString::Strifind(EnumValueName, TEXT("::"), false) != nullptr)
+			{
+				return nullptr;
+			}
+
+			return ShortEnumValueMap.FindRef(Key);
 		}
 
 	private:
@@ -181,17 +192,8 @@ namespace
 			int64 Value;
 		};
 
-		const FEnumAndValue* FindEnumAndValue(const TCHAR* EnumValueName)
-		{
-			FName Key(EnumValueName, FNAME_Find);
-			if (Key == NAME_None)
-			{
-				return nullptr;
-			}
-			return EnumValueMap.Find(Key);
-		}
-
-		TMap<FName, FEnumAndValue> EnumValueMap;
+		TMap<FName, FEnumAndValue> FullEnumValueMap;
+		TMap<FName, FUnrealEnumDefinitionInfo*> ShortEnumValueMap;
 	};
 
 	FEnumLookup& GetEnumLookup()

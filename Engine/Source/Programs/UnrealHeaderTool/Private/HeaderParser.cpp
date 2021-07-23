@@ -7295,6 +7295,12 @@ void FHeaderParser::ParseHeader()
 		ClassDef->AsClassChecked().SetClassFlags(CLASS_Parsed);
 	}
 
+	// Perform any final concurrent finalization
+	for (const TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : SourceFile.GetDefinedTypes())
+	{
+		TypeDef->ConcurrentPostParseFinalize();
+	}
+
 	// Remember stats about this file
 	SourceFile.SetLinesParsed(LinesParsed);
 	SourceFile.SetStatementsParsed(StatementsParsed);
