@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <Configuration Condition=" '$(Configuration)' == '' ">Development</Configuration>
@@ -44,15 +44,11 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <Prefer32Bit>false</Prefer32Bit>
 	<OutputPath>..\..\..\Binaries\DotNET\UnrealBuildTool</OutputPath>
-    <DocumentationFile>..\..\..\Binaries\DotNET\UnrealBuildTool.xml</DocumentationFile>
-    <NoWarn>
-    </NoWarn>
-    <!-- The mono compiler used to ship on Mac is only compatible with version 6 -->
-    <LangVersion>6</LangVersion>
+    <DocumentationFile>..\..\..\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\..\..\Binaries\DotNET\UnrealBuildTool</OutputPath>
-    <DocumentationFile>..\..\..\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.XML</DocumentationFile>
+    <DocumentationFile>..\..\..\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
   </PropertyGroup>
@@ -72,8 +68,6 @@
       </PropertyGroup>
     </When>
   </Choose>
-
-
 
   <ItemGroup>
     <Compile Include="..\DotNETCommon\MetaData.cs">
