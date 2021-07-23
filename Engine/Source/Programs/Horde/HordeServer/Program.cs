@@ -73,15 +73,15 @@ namespace HordeServer
 					string RequestPath = Value.ToString();
 					if (RequestPath.Equals("/Horde.HordeRpc/QueryServerStateV2", StringComparison.OrdinalIgnoreCase))
 					{
-						return false;
+						return true;
 					}
 					if (RequestPath.Equals("/Horde.HordeRpc/UpdateSession", StringComparison.OrdinalIgnoreCase))
 					{
-						return false;
+						return true;
 					}
 				}
 			}
-			return true;
+			return false;
 		}
 	}
 
