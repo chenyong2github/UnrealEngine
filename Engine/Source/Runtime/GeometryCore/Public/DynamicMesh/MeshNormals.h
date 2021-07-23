@@ -112,6 +112,13 @@ public:
 	 */
 	static void QuickComputeVertexNormals(FDynamicMesh3& Mesh, bool bInvert = false);
 
+
+	/**
+	 * Apply rounds of explicit uniform-weighted normal smoothing to the VertexNormals attribute of the given Mesh.
+	 */
+	static void SmoothVertexNormals(FDynamicMesh3& Mesh, int32 SmoothingRounds, double SmoothingAlpha);
+
+
 	/**
 	 * Compute per-vertex normals for the vertices of a set of triangles of a Mesh
 	 * @param bWeightByArea weight neighbor triangles by area

@@ -42,14 +42,13 @@ public:
 
 	EUVProjectionMethod ProjectionMethod = EUVProjectionMethod::Box;
 	FOrientedBox3d ProjectionBox;
+	int32 MinRegionSize = 2;
 	float CylinderSplitAngle = 45.0f;
 
 	// ExpMap parameters for modifying normals
 	double BlendWeight = 0.0;
 	int32 SmoothingRounds = 0;
 	double SmoothingAlpha = 0.5;
-
-	float CylinderProjectToTopOrBottomAngleThreshold = 45.0f;
 
 	// position to use as UV origin
 	FVector2f UVOrigin = FVector2f(0.5f,0.5f);

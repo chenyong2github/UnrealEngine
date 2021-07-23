@@ -75,12 +75,12 @@ void FUVProjectionOp::CalculateResult_Box(FProgressCancel* Progress)
 			Triangles.Add(tid);
 		}
 		UVEditor.SetTriangleUVsFromBoxProjection(Triangles, [&](const FVector3d P) { return MeshToProjectionSpace.TransformPosition(P); },
-			ProjectionBox.Frame, 2*ProjectionBox.Extents, &EditResult);
+			ProjectionBox.Frame, 2*ProjectionBox.Extents, MinRegionSize, &EditResult);
 	}
 	else
 	{
 		UVEditor.SetTriangleUVsFromBoxProjection(*TriangleROI, [&](const FVector3d P) { return MeshToProjectionSpace.TransformPosition(P); },
-			ProjectionBox.Frame, 2*ProjectionBox.Extents, &EditResult);
+			ProjectionBox.Frame, 2*ProjectionBox.Extents, MinRegionSize, &EditResult);
 		//FCompactMaps CompactMaps;
 		//UVEditor.GetOverlay()->CompactInPlace(CompactMaps);
 	}
