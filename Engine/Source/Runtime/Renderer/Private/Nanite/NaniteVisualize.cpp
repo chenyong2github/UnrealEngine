@@ -95,6 +95,7 @@ class FNaniteVisualizeCS : public FNaniteShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialComplexity)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable2)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -116,6 +117,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialComplexity)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable2)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -207,6 +209,7 @@ void AddVisualizationPasses(
 				PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 				PassParameters->VisBuffer64				= VisBuffer64;
 				PassParameters->MaterialDepthTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+				PassParameters->MaterialDepthTable2		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 				PassParameters->MaterialComplexity		= MaterialComplexityUAV;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FMaterialComplexityCS>();
@@ -292,6 +295,7 @@ void AddVisualizationPasses(
 				PassParameters->SceneDepth = SceneTextures.Depth.Target;
 				PassParameters->MaterialComplexity = MaterialComplexity ? MaterialComplexity : SystemTextures.Black;
 				PassParameters->MaterialDepthTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+				PassParameters->MaterialDepthTable2 = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 			#if WITH_EDITOR
 				PassParameters->MaterialHitProxyTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 			#else
@@ -374,6 +378,7 @@ void DrawVisualization(
 		PassParameters->NaniteMask				= NaniteMask;
 		PassParameters->SceneDepth				= SceneDepth;
 		PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+		PassParameters->MaterialDepthTable2		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 	#if WITH_EDITOR
 		PassParameters->MaterialHitProxyTable	= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	#else

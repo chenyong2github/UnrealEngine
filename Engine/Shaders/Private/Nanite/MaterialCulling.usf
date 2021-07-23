@@ -15,6 +15,7 @@
 
 Texture2D<UlongType> VisBuffer64;
 ByteAddressBuffer MaterialDepthTable;
+ByteAddressBuffer MaterialDepthTable2;
 
 // .xy = min, .zw = max
 uint4 ViewRect;

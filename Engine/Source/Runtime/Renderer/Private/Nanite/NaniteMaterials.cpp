@@ -96,6 +96,7 @@ class FEmitMaterialDepthPS : public FNaniteShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable2)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -227,6 +228,7 @@ class FDepthExportCS : public FNaniteShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTextureMetadata, MaterialHTile)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, MaterialDepth)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable2)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FDepthExportCS, "/Engine/Private/Nanite/DepthExport.usf", "DepthExport", SF_Compute);
@@ -252,6 +254,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, MaterialRange)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VisibleMaterials)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable2)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -427,6 +430,7 @@ void DrawBasePass(
 		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+		PassParameters->MaterialDepthTable2		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 
 		uint32 DispatchGroupSize = 0;
 
@@ -697,6 +701,7 @@ void EmitDepthTargets(
 		PassParameters->MaterialHTile			= MaterialHTileUAV;
 		PassParameters->MaterialDepth			= MaterialDepthUAV;
 		PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+		PassParameters->MaterialDepthTable2		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 
 		FDepthExportCS::FPermutationDomain PermutationVectorCS;
 		PermutationVectorCS.Set<FDepthExportCS::FVelocityExportDim>(bEmitVelocity);
@@ -828,6 +833,7 @@ void EmitDepthTargets(
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
 			PassParameters->ClusterPageHeaders			= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 			PassParameters->MaterialDepthTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetDepthTableSRV();
+			PassParameters->MaterialDepthTable2			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 			PassParameters->SOAStrides					= SOAStrides;
 			PassParameters->View						= View.ViewUniformBuffer;
 			PassParameters->NaniteMask					= NaniteMask;
@@ -989,7 +995,8 @@ void DrawLumenMeshCapturePass(
 
 		PassParameters->PS.VisBuffer64 = RasterContext.VisBuffer64;
 
-		PassParameters->PS.MaterialDepthTable = Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture].GetDepthTableSRV();
+		PassParameters->PS.MaterialDepthTable	= Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture].GetDepthTableSRV();
+		PassParameters->PS.MaterialDepthTable2	= Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture].GetMaterialDepthSRV();
 
 		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthAtlasTexture,
@@ -1279,6 +1286,12 @@ void FNaniteMaterialCommands::Release()
 	DepthTableDataBuffer.Release();
 	HitProxyTableUploadBuffer.Release();
 	HitProxyTableDataBuffer.Release();
+
+	MaterialDepthUploadBuffer.Release();
+	MaterialDepthDataBuffer.Release();
+
+	//MaterialArgumentUploadBuffer.Release();
+	//MaterialArgumentDataBuffer.Release();
 }
 
 FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command)
@@ -1290,23 +1303,44 @@ FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command)
 		FNaniteMaterialCommandsLock Lock(*this, SLT_ReadOnly);
 
 		CommandId = FindIdByHash(CommandHash, Command);
-		if (!CommandId.IsValid())
+		if (CommandId.IsValid())
 		{
-			Lock.AcquireWriteAccess();
-			CommandId = FindOrAddIdByHash(CommandHash, Command);
-
-		#if MESH_DRAW_COMMAND_DEBUG_DATA
-			FMeshDrawCommandCount& DrawCount = GetPayload(CommandId);
-			if (DrawCount.Num == 0)
-			{
-				// When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
-				Command.ClearDebugPrimitiveSceneProxy();
-			}
-		#endif
+			FNaniteMaterialEntry& MaterialEntry = GetPayload(CommandId);
+			check(MaterialEntry.MaterialSlot != INDEX_NONE);
+			++MaterialEntry.ReferenceCount;
 		}
+		else
+		{
+			// Multiple threads can reach this lock, and attempt to add a missing entry.
+			// We need to handle the case where the first thread releases the lock, and the
+			// other threads here actually fetch a (now added) entry with a non-zero ref count.
+			Lock.AcquireWriteAccess();
 
-		FMeshDrawCommandCount& DrawCount = GetPayload(CommandId);
-		++DrawCount.Num;
+			CommandId = FindOrAddIdByHash(CommandHash, Command);
+			FNaniteMaterialEntry& MaterialEntry = GetPayload(CommandId);
+
+			if (MaterialEntry.ReferenceCount == 0)
+			{
+				check(MaterialEntry.MaterialSlot == INDEX_NONE);
+				MaterialEntry.MaterialSlot = MaterialSlotAllocator.Allocate(1);
+				MaterialEntry.bNeedUpload = true;
+
+				++NumMaterialSlotUpdates;
+
+			#if MESH_DRAW_COMMAND_DEBUG_DATA
+				// When using state buckets, multiple PrimitiveSceneProxies can use the same 
+				// MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
+				Command.ClearDebugPrimitiveSceneProxy();
+			#endif
+			}
+			else
+			{
+				check(MaterialEntry.bNeedUpload);
+				check(MaterialEntry.MaterialSlot != INDEX_NONE);
+			}
+
+			++MaterialEntry.ReferenceCount;
+		}
 	}
 
 	FNaniteCommandInfo CommandInfo;
@@ -1328,15 +1362,22 @@ void FNaniteMaterialCommands::Unregister(const FNaniteCommandInfo& CommandInfo)
 		const FMeshDrawCommand& MeshDrawCommand = GetCommand(CommandInfo.GetStateBucketId());
 		CachedPipelineId = MeshDrawCommand.CachedPipelineId;
 
-		FMeshDrawCommandCount& StateBucketCount = GetPayload(CommandInfo.GetStateBucketId());
-		check(StateBucketCount.Num > 0);
+		FNaniteMaterialEntry& MaterialEntry = GetPayload(CommandInfo.GetStateBucketId());
+		check(MaterialEntry.ReferenceCount > 0);
+		check(MaterialEntry.MaterialSlot != INDEX_NONE);
 
-		--StateBucketCount.Num;
-		if (StateBucketCount.Num == 0)
+		--MaterialEntry.ReferenceCount;
+		if (MaterialEntry.ReferenceCount == 0)
 		{
 			Lock.AcquireWriteAccess();
-			if (StateBucketCount.Num == 0)
+			if (MaterialEntry.ReferenceCount == 0)
 			{
+				check(MaterialEntry.MaterialSlot != INDEX_NONE);
+				MaterialSlotAllocator.Free(MaterialEntry.MaterialSlot, 1);
+
+				MaterialEntry.MaterialSlot = INDEX_NONE;
+				MaterialEntry.bNeedUpload = false;
+
 				RemoveById(CommandInfo.GetStateBucketId());
 			}
 		}
@@ -1359,20 +1400,34 @@ void FNaniteMaterialCommands::UpdateBufferState(FRDGBuilder& GraphBuilder, uint3
 
 	TArray<FRHITransitionInfo, TInlineAllocator<2>> UAVs;
 
-	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
+	const uint32 NumMaterialSlots = MaterialSlotAllocator.GetMaxSize();
 
-	if (ResizeResourceIfNeeded(GraphBuilder, DepthTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.DepthTableDataBuffer")))
+	const uint32 SizeReserveOld = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
+	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumMaterialSlots, 256u));
+
+	if (ResizeResourceIfNeeded(GraphBuilder, DepthTableDataBuffer, SizeReserveOld * sizeof(uint32), TEXT("Nanite.DepthTableDataBuffer")))
 	{
 		UAVs.Add(FRHITransitionInfo(DepthTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
+
 #if WITH_EDITOR
-	if (ResizeResourceIfNeeded(GraphBuilder, HitProxyTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.HitProxyTableDataBuffer")))
+	if (ResizeResourceIfNeeded(GraphBuilder, HitProxyTableDataBuffer, SizeReserveOld * sizeof(uint32), TEXT("Nanite.HitProxyTableDataBuffer")))
 	{
 		UAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
-#endif // WITH_EDITOR
+#endif
 
-	GraphBuilder.AddPass(RDG_EVENT_NAME("NaniteMaterialTables.UpdateBufferState-Transition"), ERDGPassFlags::None,
+	if (ResizeResourceIfNeeded(GraphBuilder, MaterialDepthDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.MaterialDepthDataBuffer")))
+	{
+		UAVs.Add(FRHITransitionInfo(MaterialDepthDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask)); // TODO: Correct? Not UAVMask?
+	}
+
+	//if (ResizeResourceIfNeeded(GraphBuilder, MaterialArgumentDataBuffer, SizeReserve * NANITE_DRAW_INDIRECT_ARG_COUNT * sizeof(uint32), TEXT("Nanite.MaterialArgumentDataBuffer")))
+	//{
+	//	UAVs.Add(FRHITransitionInfo(MaterialArgumentDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask)); // TODO: Correct? Not UAVMask?
+	//}
+
+	GraphBuilder.AddPass(RDG_EVENT_NAME("NaniteMaterialCommands.UpdateBufferState-Transition"), ERDGPassFlags::None,
 		[LocalUAVs = MoveTemp(UAVs)](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.Transition(LocalUAVs);
@@ -1387,21 +1442,49 @@ void FNaniteMaterialCommands::Begin(FRHICommandListImmediate& RHICmdList, uint32
 
 	check(NumPrimitiveUpdates == 0);
 	check(NumDepthTableUpdates == 0);
-	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
+
+	const uint32 NumMaterialSlots = MaterialSlotAllocator.GetMaxSize();
+
+	const uint32 SizeReserveOld = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
+	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumMaterialSlots, 256u));
+
 #if WITH_EDITOR
 	check(NumHitProxyTableUpdates == 0);
-
-	check(HitProxyTableDataBuffer.NumBytes == SizeReserve * sizeof(uint32));
+	check(HitProxyTableDataBuffer.NumBytes == SizeReserveOld * sizeof(uint32));
 #endif
-	check(DepthTableDataBuffer.NumBytes == SizeReserve * sizeof(uint32));
+	check(DepthTableDataBuffer.NumBytes == SizeReserveOld * sizeof(uint32));
+	check(MaterialDepthDataBuffer.NumBytes == SizeReserve * sizeof(uint32));
+	//check(MaterialArgumentDataBuffer.NumBytes == SizeReserve * NANITE_DRAW_INDIRECT_ARG_COUNT * sizeof(uint32));
 
 	NumPrimitiveUpdates = InNumPrimitiveUpdates;
 	if (NumPrimitiveUpdates > 0)
 	{
 		DepthTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.DepthTableUploadBuffer"));
-#if WITH_EDITOR
+	#if WITH_EDITOR
 		HitProxyTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.HitProxyTableUploadBuffer"));
-#endif
+	#endif
+	}
+
+	if (NumMaterialSlotUpdates > 0)
+	{
+		MaterialDepthUploadBuffer.Init(NumMaterialSlotUpdates, sizeof(uint32), false, TEXT("Nanite.MaterialDepthUploadBuffer"));
+		//MaterialArgumentUploadBuffer.Init(NumMaterialSlotUpdates, sizeof(uint32) * NANITE_DRAW_INDIRECT_ARG_COUNT, false, TEXT("Nanite.MaterialArgumentUploadBuffer"));
+
+		for (auto& Command : EntryMap)
+		{
+			FNaniteMaterialEntry& MaterialEntry = Command.Value;
+			if (MaterialEntry.bNeedUpload)
+			{
+				check(MaterialEntry.MaterialSlot != INDEX_NONE);
+				*static_cast<uint32*>(MaterialDepthUploadBuffer.Add_GetRef(MaterialEntry.MaterialSlot)) = MaterialEntry.MaterialId;
+				//uint32* DrawArguments = static_cast<uint32*>(MaterialArgumentUploadBuffer.Add_GetRef(MaterialEntry.MaterialSlot, 4));
+				//DrawArguments[0] = 0; // VertexCountPerInstance
+				//DrawArguments[1] = 0; // InstanceCount
+				//DrawArguments[2] = 0; // StartVertexLocation
+				//DrawArguments[3] = 0; // StartInstanceLocation
+				MaterialEntry.bNeedUpload = false;
+			}
+		}
 	}
 }
 
@@ -1431,25 +1514,45 @@ void FNaniteMaterialCommands::Finish(FRHICommandListImmediate& RHICmdList)
 	check(NumHitProxyTableUpdates <= NumPrimitiveUpdates);
 #endif
 	check(NumDepthTableUpdates <= NumPrimitiveUpdates);
-	if (NumPrimitiveUpdates == 0)
+
+	if (NumPrimitiveUpdates == 0 && NumMaterialSlotUpdates == 0)
 	{
 		return;
 	}
 
-	SCOPED_DRAW_EVENTF(RHICmdList, UpdateMaterialTables, TEXT("UpdateMaterialTables PrimitivesToUpdate = %u"), NumPrimitiveUpdates);
+	SCOPED_DRAW_EVENTF(RHICmdList, UpdateMaterialTables, TEXT("UpdateNaniteMaterials PrimitiveUpdate = %u, MaterialUpdate = %u"), NumPrimitiveUpdates, NumMaterialSlotUpdates);
 
-	TArray<FRHITransitionInfo, TInlineAllocator<2>> UploadUAVs;
-	UploadUAVs.Add(FRHITransitionInfo(DepthTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-#if WITH_EDITOR
-	UploadUAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-#endif
+	TArray<FRHITransitionInfo, TInlineAllocator<3>> UploadUAVs;
+
+	if (NumPrimitiveUpdates > 0)
+	{
+		UploadUAVs.Add(FRHITransitionInfo(DepthTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	#if WITH_EDITOR
+		UploadUAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	#endif
+	}
+
+	if (NumMaterialSlotUpdates > 0)
+	{
+		UploadUAVs.Add(FRHITransitionInfo(MaterialDepthDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		//UploadUAVs.Add(FRHITransitionInfo(MaterialArgumentDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	}
 
 	RHICmdList.Transition(UploadUAVs);
 
-	DepthTableUploadBuffer.ResourceUploadTo(RHICmdList, DepthTableDataBuffer, false);
-#if WITH_EDITOR
-	HitProxyTableUploadBuffer.ResourceUploadTo(RHICmdList, HitProxyTableDataBuffer, false);
-#endif
+	if (NumPrimitiveUpdates > 0)
+	{
+		DepthTableUploadBuffer.ResourceUploadTo(RHICmdList, DepthTableDataBuffer, false);
+	#if WITH_EDITOR
+		HitProxyTableUploadBuffer.ResourceUploadTo(RHICmdList, HitProxyTableDataBuffer, false);
+	#endif
+	}
+
+	if (NumMaterialSlotUpdates > 0)
+	{
+		MaterialDepthUploadBuffer.ResourceUploadTo(RHICmdList, MaterialDepthDataBuffer, false);
+		//MaterialArgumentUploadBuffer.ResourceUploadTo(RHICmdList, MaterialArgumentDataBuffer, false);
+	}
 
 	for (FRHITransitionInfo& Info : UploadUAVs)
 	{
@@ -1464,4 +1567,5 @@ void FNaniteMaterialCommands::Finish(FRHICommandListImmediate& RHICmdList)
 	NumHitProxyTableUpdates = 0;
 #endif
 	NumPrimitiveUpdates = 0;
+	NumMaterialSlotUpdates = 0;
 }
