@@ -441,6 +441,9 @@ public:
 	/** Get the runs currently that are current selected, some of which may be only partially selected */
 	TArray<TSharedRef<const IRun>> GetSelectedRuns() const;
 
+	/** Get the interaction position of the cursor (where to insert, delete, etc, text from/to) */
+	FTextLocation GetCursorLocation() const;
+
 	/** Get the horizontal scroll bar widget */
 	TSharedPtr<const SScrollBar> GetHScrollBar() const;
 

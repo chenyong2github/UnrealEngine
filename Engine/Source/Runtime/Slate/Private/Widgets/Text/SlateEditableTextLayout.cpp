@@ -2841,6 +2841,11 @@ TArray<TSharedRef<const IRun>> FSlateEditableTextLayout::GetSelectedRuns() const
 	return Runs;
 }
 
+FTextLocation FSlateEditableTextLayout::GetCursorLocation() const
+{
+	return CursorInfo.GetCursorInteractionLocation();
+}
+
 FTextLocation FSlateEditableTextLayout::TranslatedLocation(const FTextLocation& Location, int8 Direction) const
 {
 	check(Direction != 0);

@@ -29,6 +29,22 @@ enum class EAssetEditorOpenLocation : uint8
 	LastDockedWindowOrContentBrowser
 };
 
+UENUM()
+enum class ELogCategoryColorizationMode : uint8
+{
+	/** Do not colorize based on log categories */
+	None,
+
+	/** Colorize the entire log line, but not warnings or errors */
+	ColorizeWholeLine,
+
+	/** Colorize only the category name (including on warnings and errors) */
+	ColorizeCategoryOnly,
+
+	/** Colorize the background of the category name (including on warnings and errors) */
+	ColorizeCategoryAsBadge
+};
+
 /**
  * Implements the Editor style settings.
  */
@@ -141,13 +157,17 @@ public:
 	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Log Font Size", ConfigRestartRequired=true))
 	int32 LogFontSize;
 
-	/** The display mode for timestamps in the output log window*/
+	/** The display mode for timestamps in the output log window */
 	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName = "Output Log Window Timestamp Mode"))
 	TEnumAsByte<ELogTimes::Type> LogTimestampMode;
 
 	/** Should warnings and errors in the Output Log during "Play in Editor" be promoted to the message log? */
 	UPROPERTY(EditAnywhere, config, Category="Output Log")
 	bool bPromoteOutputLogWarningsDuringPIE;
+
+	/** How should categories be colorized in the output log? */
+	UPROPERTY(EditAnywhere, config, Category = "Output Log")
+	ELogCategoryColorizationMode CategoryColorizationMode;
 
 	/**
 	 * If checked pressing the console command shortcut will cycle between focusing the status bar console, opening the output log drawer, and back to the previous focus target. 

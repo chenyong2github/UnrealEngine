@@ -28,20 +28,14 @@ struct FOutputLogMessage
 {
 	TSharedRef<FString> Message;
 	ELogVerbosity::Type Verbosity;
+	int8 CategoryStartIndex;
 	FName Category;
 	FName Style;
 
-	FOutputLogMessage(const TSharedRef<FString>& NewMessage, FName NewCategory, FName NewStyle = NAME_None)
-		: Message(NewMessage)
-		, Verbosity(ELogVerbosity::Log)
-		, Category(NewCategory)
-		, Style(NewStyle)
-	{
-	}
-
-	FOutputLogMessage(const TSharedRef<FString>& NewMessage, ELogVerbosity::Type NewVerbosity, FName NewCategory, FName NewStyle = NAME_None)
+	FOutputLogMessage(const TSharedRef<FString>& NewMessage, ELogVerbosity::Type NewVerbosity, FName NewCategory, FName NewStyle, int32 InCategoryStartIndex)
 		: Message(NewMessage)
 		, Verbosity(NewVerbosity)
+		, CategoryStartIndex((int8)InCategoryStartIndex)
 		, Category(NewCategory)
 		, Style(NewStyle)
 	{
@@ -351,6 +345,14 @@ public:
 	*/
 	void OnClearLog();
 
+	/** Called when a category is selected to be highlighted */
+	void OnHighlightCategory(FName NewCategoryToHighlight);
+
+	/** Called when the editor style settings are modified */
+	void HandleSettingChanged(FName ChangedSettingName);
+
+	void RefreshAllPreservingLocation();
+
 	/**
 	 * Called to determine whether delete all is currently a valid command
 	 */
@@ -465,6 +467,8 @@ protected:
 	/** Visible messages filter */
 	FOutputLogFilter Filter;
 
+	FDelegateHandle SettingsWatchHandle;
+
 	bool bIsInDrawer = false;
 };
 
@@ -492,11 +496,23 @@ public:
 
 	void MarkMessagesCacheAsDirty();
 
+	FName GetCategoryForLocation(const FTextLocation Location) const;
+
+	FTextLocation GetTextLocationAt(const FVector2D& Relative) const;
+
+	FName GetCategoryToHighlight() const { return CategoryToHighlight; }
+
+	void SetCategoryToHighlight(FName InCategory) { CategoryToHighlight = InCategory; }
+
 protected:
 
 	FOutputLogTextLayoutMarshaller(TArray< TSharedPtr<FOutputLogMessage> > InMessages, FOutputLogFilter* InFilter);
 
 	void AppendPendingMessagesToTextLayout();
+
+	TMap<FName, float> CategoryHueMap;
+
+	float GetCategoryHue(FName CategoryName);
 
 	/** All log messages to show in the text box */
 	TArray< TSharedPtr<FOutputLogMessage> > Messages;
@@ -512,6 +528,8 @@ protected:
 
 	/** Visible messages filter */
 	FOutputLogFilter* Filter;
+
+	FName CategoryToHighlight;
 
 	FTextLayout* TextLayout;
 };
