@@ -1285,17 +1285,27 @@ private:
 		}
 	}
 
+	// Above result value
+	enum class OpResult : uint8
+	{
+		Ok = 0,			// Op finished succesfully
+		Error = 1,		// Error during op
+		NotFound = 2,	// Key was not found
+		Exists = 3		// Used to indicate head op success
+	};
+
 	// Searches for potentially multiple key requests that are satisfied the given cache key result
 	// Search strategy is exhaustive forward search from the last found entry.  If the results come in ordered the same as the requests,
 	//  and there are no duplicates, the search will be somewhat efficient (still has to do exhaustive searching looking for duplicates).
 	//  If the results are unordered or there are duplicates, search will become more inefficient.
 	struct FRequestSearchHelper
 	{
-		FRequestSearchHelper(TArrayView<FQueuedBatchEntry> InRequests, const FUTF8ToTCHAR& InCacheKey, int32 InEntryIdx, int32 InKeyIdx)
+		FRequestSearchHelper(TArrayView<FQueuedBatchEntry> InRequests, const FUTF8ToTCHAR& InCacheKey, int32 InEntryIdx, int32 InKeyIdx, OpResult InRequestResult)
 			: Requests(InRequests)
 			, CacheKey(InCacheKey)
 			, StartEntryIdx(InEntryIdx)
 			, StartKeyIdx(InKeyIdx)
+			, RequestResult(InRequestResult)
 		{}
 
 		bool FindNext(int32& EntryIdx, int32& KeyIdx)
@@ -1304,7 +1314,12 @@ private:
 			int32 CurrentKeyIdx = KeyIdx;
 			do
 			{
-				if (FCString::Stricmp(Requests[CurrentEntryIdx].CacheKeys[CurrentKeyIdx], CacheKey.Get()) == 0)
+				// Do not match a get request with a head response code (i.e. Exists) 
+				// or a head request with a get response code (i.e. Ok)
+				// if the response code is an error or not found they can be matched to both head or get request it doesn't matter
+				if (((Requests[CurrentEntryIdx].Verb == FHttpRequest::Get) ^ (RequestResult == OpResult::Exists)) &&
+					((Requests[CurrentEntryIdx].Verb == FHttpRequest::Head) ^ (RequestResult == OpResult::Ok)) &&
+					FCString::Stricmp(Requests[CurrentEntryIdx].CacheKeys[CurrentKeyIdx], CacheKey.Get()) == 0)
 				{
 					EntryIdx = CurrentEntryIdx;
 					KeyIdx = CurrentKeyIdx;
@@ -1330,6 +1345,7 @@ private:
 		const FUTF8ToTCHAR& CacheKey;
 		int32 StartEntryIdx;
 		int32 StartKeyIdx;
+		OpResult RequestResult;
 	};
 
 	/**
@@ -1343,15 +1359,6 @@ private:
 	{
 		// The expected data stream is structured accordingly
 		// {"JPTR"} {PayloadCount:uint32} {{"JPEE"} {Name:cstr} {Result:uint8} {Hash:IoHash} {Size:uint64} {Payload...}} ...
-
-		// Above result value
-		enum OpResult : uint8
-		{
-			Ok = 0,			// Op finished succesfully
-			Error = 1,		// Error during op
-			NotFound = 2,	// Key was not found
-			Exists = 3		// Used to indicate head op success
-		};
 
 		const TCHAR ResponseErrorMessage[] = TEXT("Malformed response from server.");
 		const ANSICHAR* ProtocolMagic = "JPTR";
@@ -1385,13 +1392,18 @@ private:
 			Response += FCStringAnsi::Strlen(PayloadNameA) + 1; //String and zero termination
 			const ANSICHAR* CacheKeyA = FCStringAnsi::Strrchr(PayloadNameA, '.') + 1; // "namespace.bucket.cachekey"
 
+			// Result of the operation is used to match to the appropriate request (i.e. get or head)
+			OpResult PayloadResult = static_cast<OpResult>(*Response);
+			Response += sizeof(uint8);
+
+			const uint8* ResponseRewindMark = Response;
+
 			// Find the payload among the requests.  Payloads may be returned in any order and if the same cache key was part of two requests,
 			// a single payload may satisfy multiple cache keys in multiple requests.
 			FUTF8ToTCHAR CacheKey(CacheKeyA);
-			FRequestSearchHelper RequestSearch(Requests, CacheKey, EntryIdx, KeyIdx);
+			FRequestSearchHelper RequestSearch(Requests, CacheKey, EntryIdx, KeyIdx, PayloadResult);
 			bool bFoundAny = false;
 
-			const uint8* ResponseRewindMark = Response;
 			while (RequestSearch.FindNext(EntryIdx, KeyIdx))
 			{
 				Response = ResponseRewindMark;
@@ -1400,13 +1412,8 @@ private:
 				FQueuedBatchEntry& RequestOp = Requests[EntryIdx];
 				TBitArray<>& bSuccess = *RequestOp.bSuccess;
 
-				// Result of the operation
-				uint8 PayloadResult = *Response;
-				Response += sizeof(uint8);
-
 				switch (PayloadResult)
 				{
-				
 				case OpResult::Ok:
 					{
 						// Payload hash of the following payload data
@@ -1429,13 +1436,14 @@ private:
 							{
 								Response += PayloadSize;
 							}
-							else
+							// Head requests will explicitly have no associcated OutData array
+							else //if (RequestOp.OutDatas.IsValidIndex(KeyIdx))
 							{
 								TArray<uint8>* OutData = RequestOp.OutDatas[KeyIdx];
 
 								OutData->Append(Response, PayloadSize);
 								Response += PayloadSize;
-								// Verify the recieved and parsed payload
+								// Verify the received and parsed payload
 								if (VerifyPayload(PayloadHash, *OutData))
 								{
 									TRACE_COUNTER_ADD(HttpDDC_GetHit, int64(1));
