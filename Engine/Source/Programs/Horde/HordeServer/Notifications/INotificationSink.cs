@@ -73,19 +73,12 @@ namespace HordeServer.Notifications
 		/// <summary>
 		/// Notification that a stream has failed to update
 		/// </summary>
-		/// <param name="Stream"></param>
 		/// <param name="ErrorMessage"></param>
+		/// <param name="FileName"></param>
 		/// <param name="Change"></param>
 		/// <param name="Author"></param>
 		/// <param name="Description"></param>
 		/// <returns></returns>
-		Task NotifyStreamUpdateFailedAsync(IStream Stream, string ErrorMessage, int Change, IUser? Author = null, string? Description = null);
-
-		/// <summary>
-		/// Notification that a stream has failed to update
-		/// </summary>
-		/// <param name="File"></param>
-		/// <returns></returns>
-		Task NotifyStreamUpdateFailedAsync(FileSummary File);
+		Task NotifyConfigUpdateFailureAsync(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null);
 	}
 }

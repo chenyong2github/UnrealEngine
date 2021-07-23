@@ -344,7 +344,7 @@ namespace HordeServer.Services
 					}
 					else
 					{
-						NotificationService.NotifyUpdateStreamFailure(File);
+						NotificationService.NotifyConfigUpdateFailure(File.Error, File.DepotPath);
 					}
 				}
 			}
@@ -366,6 +366,29 @@ namespace HordeServer.Services
 			catch (Exception Ex)
 			{
 				Logger.LogError(Ex, "Unable to read data from {ConfigPath}: {Message}", ConfigPath, Ex.Message);
+
+				string FileName = ConfigPath.AbsolutePath;
+				int Change = -1;
+				string? Author = null;
+				string? Description = null;
+
+				if (ConfigPath.Scheme == PerforceScheme)
+				{
+					try
+					{
+						List<FileSummary> Files = await PerforceService.FindFilesAsync(ConfigPath.Host, new[] { FileName });
+						Change = Files[0].Change;
+
+						ChangeDetails Details = await PerforceService.GetChangeDetailsAsync(ConfigPath.Host, Change);
+						(Author, Description) = (Details.Author, Details.Description); 
+					}
+					catch (Exception Ex2)
+					{
+						Logger.LogError(Ex2, "Unable to identify change that last modified {ConfigPath} from Perforce", ConfigPath);
+					}
+				}
+
+				NotificationService.NotifyConfigUpdateFailure(Ex.Message, FileName, Change, Author, Description);
 				return null;
 			}
 		}
