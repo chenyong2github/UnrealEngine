@@ -302,6 +302,9 @@ protected:
 	/** If true, the swap chain transition has been moved to occur at the latest possible time. */
 	uint8 bSwapChainAlreadyMoved : 1;
 
+	/** If true, the resource is access through at least one UAV. */
+	uint8 bUAVAccessed : 1;
+
 	FRDGPassHandle FirstPass;
 	FRDGPassHandle LastPass;
 

@@ -2127,9 +2127,25 @@ void FRDGBuilder::SubmitBufferUploads()
 	{
 		if (UploadedBuffer.Data && UploadedBuffer.DataSize)
 		{
-			void* DestPtr = RHICmdList.LockBuffer(UploadedBuffer.Buffer->GetRHI(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
-			FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
-			RHICmdList.UnlockBuffer(UploadedBuffer.Buffer->GetRHI());
+#if PLATFORM_NEEDS_GPU_UAV_RESOURCE_INIT_WORKAROUND
+			if (UploadedBuffer.Buffer->bUAVAccessed)
+			{
+				FRHIResourceCreateInfo CreateInfo(UploadedBuffer.Buffer->Name);
+				FBufferRHIRef TempBuffer = RHICreateVertexBuffer(UploadedBuffer.DataSize, BUF_Static | BUF_ShaderResource, CreateInfo);
+				void* DestPtr = RHICmdList.LockBuffer(TempBuffer, 0, UploadedBuffer.DataSize, RLM_WriteOnly);
+				FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
+				RHICmdList.UnlockBuffer(TempBuffer);
+				RHICmdList.Transition(FRHITransitionInfo(TempBuffer, ERHIAccess::Unknown, ERHIAccess::CopySrc | ERHIAccess::SRVMask));
+				RHICmdList.Transition(FRHITransitionInfo(UploadedBuffer.Buffer->GetRHI(), ERHIAccess::Unknown, ERHIAccess::CopyDest | ERHIAccess::UAVMask));
+				RHICmdList.CopyBufferRegion(UploadedBuffer.Buffer->GetRHI(), 0, TempBuffer, 0, UploadedBuffer.DataSize);
+			}
+			else
+#endif
+			{
+				void* DestPtr = RHICmdList.LockBuffer(UploadedBuffer.Buffer->GetRHI(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
+				FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
+				RHICmdList.UnlockBuffer(UploadedBuffer.Buffer->GetRHI());
+			}
 		}
 	}
 	UploadedBuffers.Reset();

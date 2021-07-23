@@ -89,6 +89,7 @@ inline FRDGTextureUAVRef FRDGBuilder::CreateUAV(const FRDGTextureUAVDesc& Desc, 
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUAV(Desc));
 	FRDGTextureUAVRef UAV = Views.Allocate<FRDGTextureUAV>(Allocator, Desc.Texture->Name, Desc, InFlags);
+	Desc.Texture->bUAVAccessed = true;
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUAV(UAV));
 	return UAV;
 }
@@ -97,6 +98,7 @@ inline FRDGBufferUAVRef FRDGBuilder::CreateUAV(const FRDGBufferUAVDesc& Desc, ER
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUAV(Desc));
 	FRDGBufferUAVRef UAV = Views.Allocate<FRDGBufferUAV>(Allocator, Desc.Buffer->Name, Desc, InFlags);
+	Desc.Buffer->bUAVAccessed = true;
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateUAV(UAV));
 	return UAV;
 }
