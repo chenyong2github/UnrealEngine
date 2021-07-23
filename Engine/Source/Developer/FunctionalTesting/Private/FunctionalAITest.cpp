@@ -477,71 +477,57 @@ void FAITestSpawnSet::ForEachSpawnInfo(TFunctionRef<void(const FAITestSpawnInfoB
 
 void AFunctionalAITest::ForEachSpawnSet(TFunctionRef<void(const FAITestSpawnSetBase&)> Predicate) const
 {
-	for (const FInstancedStruct& Instance : SpawningSets)
+	for (int32 Index = 0; Index < SpawnSets.Num(); ++Index)
 	{
-		Predicate(Instance.Get<FAITestSpawnSetBase>());
+		Predicate(SpawnSets[Index]);
 	}
 }
 
 void AFunctionalAITest::ForEachSpawnSet(TFunctionRef<void(FAITestSpawnSetBase&)> Predicate)
 {
-	for (FInstancedStruct& SetInstance : SpawningSets)
+	for (int32 Index = 0; Index < SpawnSets.Num(); ++Index)
 	{
-		Predicate(SetInstance.GetMutable<FAITestSpawnSetBase>());
+		Predicate(SpawnSets[Index]);
 	}
 }
 
 void AFunctionalAITest::RemoveSpawnSetIfPredicate(TFunctionRef<bool(FAITestSpawnSetBase&)> Predicate)
 {
 	bool bRemovedEntry = false;
-	for (int32 Index = SpawningSets.Num() - 1; Index >= 0; --Index)
+	for (int32 Index = SpawnSets.Num() - 1; Index >= 0; --Index)
 	{
-		if (Predicate(SpawningSets[Index].GetMutable<FAITestSpawnSetBase>()))
+		if (Predicate(SpawnSets[Index]))
 		{
-			SpawningSets.RemoveAt(Index, 1, false);
+			SpawnSets.RemoveAt(Index, 1, false);
 			bRemovedEntry = true;
 		}
 	}
 
 	if (bRemovedEntry)
 	{
-		SpawningSets.Shrink();
+		SpawnSets.Shrink();
 	}
 }
 
 const FAITestSpawnSetBase* AFunctionalAITest::GetSpawnSet(const int32 SpawnSetIndex) const
 {
-	if (SpawningSets.IsValidIndex(SpawnSetIndex))
+	if (SpawnSets.IsValidIndex(SpawnSetIndex))
 	{
-		return SpawningSets[SpawnSetIndex].GetPtr<FAITestSpawnSetBase>();
+		return &SpawnSets[SpawnSetIndex];
 	}
 	return nullptr;
 }
 
 FAITestSpawnSetBase* AFunctionalAITest::GetSpawnSet(const int32 SpawnSetIndex)
 {
-	if (SpawningSets.IsValidIndex(SpawnSetIndex))
+	if (SpawnSets.IsValidIndex(SpawnSetIndex))
 	{
-		return SpawningSets[SpawnSetIndex].GetMutablePtr<FAITestSpawnSetBase>();
+		return &SpawnSets[SpawnSetIndex];
 	}
 	return nullptr;
 }
 
 bool AFunctionalAITest::IsValidSpawnSetIndex(const int32 Index) const
 {
-	return SpawningSets.IsValidIndex(Index);
-}
-
-void AFunctionalAITest::PostLoad()
-{
-	Super::PostLoad();
-	if (SpawnSets.Num() > 0)
-	{
-		for (FAITestSpawnSet& Element : SpawnSets)
-		{
-			SpawningSets.Add(FInstancedStruct::Make(Element));
-		}
-		SpawnSets.Empty();
-		MarkPackageDirty();
-	}
+	return SpawnSets.IsValidIndex(Index);
 }
