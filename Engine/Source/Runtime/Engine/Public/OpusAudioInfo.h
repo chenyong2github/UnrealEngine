@@ -34,4 +34,7 @@ public:
 protected:
 	/** Wrapper around Opus-specific decoding state and APIs */
 	FOpusDecoderWrapper*	OpusDecoderWrapper;
+
+	/** Copied from the header. Opus only need 16 bits */
+	uint16 SampleRate;
 };

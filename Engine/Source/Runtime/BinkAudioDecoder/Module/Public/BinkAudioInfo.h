@@ -27,7 +27,8 @@ public:
 protected:
 
 	// copied from header during ParseHeader
-	uint32 MaxCompSpaceNeeded; 
+	uint32 MaxCompSpaceNeeded;
+	uint32 SampleRate;
 
 	struct BinkAudioDecoder* Decoder = 0;
 	uint8* RawMemory = 0;

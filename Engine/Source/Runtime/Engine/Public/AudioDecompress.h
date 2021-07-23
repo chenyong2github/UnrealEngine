@@ -290,8 +290,6 @@ protected:
 	uint32 AudioDataOffset;
 	/** The chunk index where the actual audio data starts. */
 	uint32 AudioDataChunkIndex;
-	/** Sample rate of the source file */
-	uint16 SampleRate;
 	/** The total sample count of the source file. */
 	uint32 TrueSampleCount;
 	/** How many samples we've currently read in the source file. */
