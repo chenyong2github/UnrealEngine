@@ -90,7 +90,7 @@ void UMotionTrailTool::Setup()
 	//TransformGizmo = GetToolManager()->GetPairedGizmoManager()->Create3AxisTransformGizmo(this, UMotionTrailTool::TrailKeyTransformGizmoInstanceIdentifier);
 
 	FString GizmoIdentifier = TEXT("PivotToolGizmoIdentifier");
-	ETransformGizmoSubElements Elements = ETransformGizmoSubElements::TranslateAllAxes;
+	ETransformGizmoSubElements Elements = ETransformGizmoSubElements::StandardTranslateRotate;
 	TransformGizmo = GizmoManager->CreateCustomTransformGizmo(Elements, this, UMotionTrailTool::TrailKeyTransformGizmoInstanceIdentifier);
 
 	TransformProxy->OnTransformChanged.AddUObject(this, &UMotionTrailTool::GizmoTransformChanged);
@@ -293,11 +293,12 @@ void UMotionTrailTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform 
 	}
 	GizmoTransform = Transform;
 	FTransform Diff = Transform.GetRelativeTransform(StartDragTransform);
+	FVector LocationDiff = GizmoTransform.GetLocation() - StartDragTransform.GetLocation();
 	for (const TUniquePtr<UE::SequencerAnimTools::FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
 	{
 		FVector WidgetLocation = Transform.GetLocation();
 		FVector Location;
-		bool bIsHandled = TrailHierarchy->ApplyDelta(Diff.GetTranslation(), Diff.GetRotation().Rotator(), WidgetLocation);
+		bool bIsHandled = TrailHierarchy->ApplyDelta(LocationDiff, Diff.GetRotation().Rotator(), WidgetLocation);
 		if (bIsHandled)
 		{
 			bManipulatorMadeChange = true;

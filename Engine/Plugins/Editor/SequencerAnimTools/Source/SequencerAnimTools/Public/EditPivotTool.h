@@ -42,13 +42,22 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
-struct FControlRigSelectionDuringDrag
+struct FSelectionDuringDrag
 {
 	ULevelSequence* LevelSequence;
 	FFrameNumber CurrentFrame;
+	FTransform CurrentTransform;
+
+};
+struct FControlRigSelectionDuringDrag : public FSelectionDuringDrag
+{
 	UControlRig* ControlRig;
 	FName ControlName;
-	FTransform CurrentTransform;
+};
+
+struct FActorSelectonDuringDrag : public FSelectionDuringDrag
+{
+	AActor* Actor;
 };
 
 struct FControlRigMappings
@@ -57,6 +66,24 @@ struct FControlRigMappings
 	TMap<FName, FTransform> PivotTransforms;
 };
 
+struct FActorMappings
+{
+	TWeakObjectPtr<AActor> Actor;
+	FTransform PivotTransform;
+};
+
+struct FSavedMappings
+{
+	TMap<TWeakObjectPtr<UControlRig>, FControlRigMappings> ControlRigMappings;
+	TMap<TWeakObjectPtr<AActor>, FActorMappings> ActorMappings;
+};
+
+struct FLastSelectedObjects
+{
+	TArray<FControlRigMappings> LastSelectedControlRigs;
+	TArray<FActorMappings> LastSelectedActors;
+
+};
 class FEditPivotCommands : public TCommands<FEditPivotCommands>
 {
 public:
@@ -83,8 +110,9 @@ public:
 	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands;
 };
 
-/**
 
+/**
+Pivot tool class
  */
 UCLASS()
 class  USequencerPivotTool : public UMultiSelectionTool, public IClickBehaviorTarget  , public IBaseSequencerAnimTool
@@ -125,6 +153,7 @@ protected:
 
 protected:
 	bool bShiftPressedWhenStarted = false;
+	bool bCtrlPressedWhenStarted = false;
 	int32 CtrlModifierId = 1;
 	UWorld* TargetWorld = nullptr;		// target World we will raycast into
 	UInteractiveGizmoManager* GizmoManager = nullptr; //gizmo man
@@ -134,11 +163,13 @@ protected:
 	bool bManipulatorMadeChange = false;
 	int32 TransactionIndex = -1;
 	TArray<FControlRigSelectionDuringDrag> ControlRigDrags;
+	TArray<FActorSelectonDuringDrag> ActorDrags;
 
 	//since we are selection based we can cache this
 	ULevelSequence* LevelSequence;
-	TArray<UControlRig*> ControlRigs;
+	TArray<TWeakObjectPtr<UControlRig>> ControlRigs;
 	TWeakPtr<ISequencer> SequencerPtr;
+	TArray<TWeakObjectPtr<AActor>> Actors;
 
 	FTransform GizmoTransform = FTransform::Identity;
 	bool bPickingPivotLocation = false; //mauy remove
@@ -157,16 +188,21 @@ protected:
 	//Handle Selection and Pivot Location
 	void SavePivotTransforms();
 	void SaveLastSelected();
-	void RemoveControlRigDelegates();
+
+	// selection delegates
+	void DeactivateMe();
+	void RemoveDelegates();
 	void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected);
+	void OnEditorSelectionChanged(UObject* NewSelection);
+	FDelegateHandle OnEditorSelectionChangedHandle;
 
 private:
 	TSharedPtr<FUICommandList> CommandBindings;
 	void ResetPivot();
 
 public:
-	static TMap<TWeakObjectPtr<UControlRig>, FControlRigMappings> SavedPivotLocations;
-	static TArray<FControlRigMappings> LastSelectedObjects;
+	static FSavedMappings SavedPivotLocations;
+	static FLastSelectedObjects LastSelectedObjects;
 };
 
 
