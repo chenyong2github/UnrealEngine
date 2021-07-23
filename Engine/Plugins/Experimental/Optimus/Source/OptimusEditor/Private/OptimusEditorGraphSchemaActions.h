@@ -6,6 +6,7 @@
 #include "Templates/SubclassOf.h"
 
 #include "OptimusComputeDataInterface.h"
+#include "OptimusDataType.h"
 
 #include "OptimusEditorGraphSchemaActions.generated.h"
 
@@ -40,6 +41,25 @@ struct FOptimusGraphSchemaAction_NewNode :
 	TSubclassOf<UOptimusNode> NodeClass;
 
 	static FName StaticGetTypeId() { static FName Type("FOptimusDeformerGraphSchemaAction_NewNode"); return Type; }
+	FName GetTypeId() const override { return StaticGetTypeId(); }
+
+	// FEdGraphSchemaAction overrides
+	UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+};
+
+USTRUCT()
+struct FOptimusGraphSchemaAction_NewConstantValueNode : 
+	public FEdGraphSchemaAction
+{
+	GENERATED_BODY()
+
+	// Inherit the base class's constructors
+	using FEdGraphSchemaAction::FEdGraphSchemaAction;
+
+	UPROPERTY()
+	FOptimusDataTypeRef DataType;
+
+	static FName StaticGetTypeId() { static FName Type("FOptimusGraphSchemaAction_NewConstantValueNode"); return Type; }
 	FName GetTypeId() const override { return StaticGetTypeId(); }
 
 	// FEdGraphSchemaAction overrides

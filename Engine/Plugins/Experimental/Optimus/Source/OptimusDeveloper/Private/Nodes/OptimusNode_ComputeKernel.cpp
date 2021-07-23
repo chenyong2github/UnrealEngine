@@ -36,6 +36,9 @@ static FString GetShaderParamDefaultValueString(
 	FString FundamentalDefaultValue;
 	switch(ValueType.Type)
 	{
+	case EShaderFundamentalType::None:
+		checkNoEntry();
+		break;
 	case EShaderFundamentalType::Bool:
 		FundamentalDefaultValue = TEXT("false");
 		break;
@@ -96,13 +99,15 @@ static FString GetShaderParamPinValueString(
 
 UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 	UObject *InKernelSourceOuter,
-	const TMap<const UOptimusNode *, UOptimusComputeDataInterface *>& InNodeDataInterfaceMap,
-	TMap<const UOptimusNodePin*, UOptimusComputeDataInterface *>& InLinkDataInterfaceMap,
+	const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
+	const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
+	const TSet<const UOptimusNode *>& InValueNodeSet,
+	FOptimus_KernelParameterBindingList& OutParameterBindings,
 	FOptimus_InterfaceBindingMap& OutInputDataBindings,
 	FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const
 {
-	// FIXME: Add parameter map for unconnected parameters.
+	// TODO: This function is too big. Split up.
 	
 	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter, FName(*(KernelName + TEXT("_Src"))));
 
@@ -141,16 +146,16 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 		{
 			if (Context != EOptimusResourceContext::Global)
 			{
-				FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
-				IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName));
-			}
+			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
+			IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName));
+		}
 		}
 		return IndexNames;
 	};
 	
 	// Wrap functions for unconnected resource pins (or value pins) that return default values
 	// (for reads) or do nothing (for writes).
-	TArray<FString> StubWrapFunctions;
+	TArray<FString> GeneratedFunctions;
 
 	for (const UOptimusNodePin* Pin: GetPins())
 	{
@@ -188,7 +193,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 
 					DataFunctionName = ReadFunctions[DataInterfaceFuncIndex].Name;
 				}
-				else if(ensure(InNodeDataInterfaceMap.Contains(ConnectedNode)))
+				else if(InNodeDataInterfaceMap.Contains(ConnectedNode))
 				{
 					// FIXME: Sub-pin read support.
 					DataInterface = InNodeDataInterfaceMap[ConnectedNode];
@@ -202,11 +207,32 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					DataInterface->GetSupportedInputs(ReadFunctions);
 					DataInterfaceFuncIndex = ReadFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
 				}
-				else
+				else if (ensure(InValueNodeSet.Contains(ConnectedNode)))
 				{
-					continue;
+					FString ParameterName = TEXT("__") + Pin->GetName(); 
+					
+					FOptimus_KernelParameterBinding Binding;
+					Binding.ValueNode = ConnectedNode;
+					Binding.ParameterName = ParameterName;
+					Binding.ValueType = Pin->GetDataType()->ShaderValueType;
+
+					OutParameterBindings.Add(Binding);
+
+					FShaderParamTypeDefinition ParameterDefinition;
+					ParameterDefinition.Name = Binding.ParameterName;
+					ParameterDefinition.ValueType = Binding.ValueType;
+					ParameterDefinition.ResetTypeDeclaration();
+
+					KernelSource->InputParams.Add(ParameterDefinition);
+
+					GeneratedFunctions.Add(
+						FString::Printf(TEXT("%s Read%s() { return %s; }"),
+							*Binding.ValueType->ToString(), *Pin->GetName(), *Binding.ParameterName));
 				}
 
+				// If we are connected from a data interface, set the input binding up now.
+				if (DataInterface)
+				{
 				// The shader function definition that exposes the function that we use to
 				// read values to input into the kernel.
 				FShaderFunctionDefinition FuncDef;
@@ -228,15 +254,16 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					{
 						if (Contexts[Count] != EOptimusResourceContext::Global)
 						{
-							FuncDef.ParamTypes.Add(IndexParamDef);
-						}
+						FuncDef.ParamTypes.Add(IndexParamDef);
 					}
+				}
 				}
 
 				FString WrapFunctionName = FString::Printf(TEXT("Read%s"), *Pin->GetName());
 				OutInputDataBindings.Add(KernelSource->ExternalInputs.Num(), {DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
 				
 				KernelSource->ExternalInputs.Emplace(FuncDef);
+			}
 			}
 			else
 			{
@@ -265,7 +292,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					OptionalParamStr = *FString::Join(StubIndexes, TEXT(", "));
 				}
 
-				StubWrapFunctions.Add(
+				GeneratedFunctions.Add(
 					FString::Printf(TEXT("%s Read%s(%s) { return %s; }"),
 						*ValueType->ToString(), *Pin->GetName(), *OptionalParamStr, *ValueStr));
 			}
@@ -365,7 +392,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					}
 					
 					// Add a wrapper function that calls all the write functions in one shot.
-					StubWrapFunctions.Add(
+					GeneratedFunctions.Add(
 						FString::Printf(TEXT("void Write%s(%s, %s Value)\n{\n%s;\n}"),
 							*Pin->GetName(), *FString::Join(IndexParamNames, TEXT(", ")), *ValueType->ToString(), *FString::Join(WrapFunctionNameCalls, TEXT(";\n"))));
 				}
@@ -381,7 +408,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					StubIndexes.Add(*FString::Printf(TEXT("uint %s"), *IndexName));
 				}
 				
-				StubWrapFunctions.Add(
+				GeneratedFunctions.Add(
 					FString::Printf(TEXT("void Write%s(%s, %s) { }"),
 						*Pin->GetName(), *FString::Join(StubIndexes, TEXT(", ")), *ValueType->ToString()));
 			}
@@ -395,7 +422,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 	CookedSource =
 		"#include \"/Engine/Private/Common.ush\"\n"
 		"#include \"/Engine/Private/ComputeKernelCommon.ush\"\n\n";
-	CookedSource += FString::Join(StubWrapFunctions, TEXT("\n"));
+	CookedSource += FString::Join(GeneratedFunctions, TEXT("\n"));
 	CookedSource += "\n\n";
 	CookedSource += WrappedSource;
 	
@@ -724,9 +751,9 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 		{
 			if (Context != EOptimusResourceContext::Global)
 			{
-				FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
-				Indexes.Add(FString::Printf(TEXT("uint %sIndex"), *ContextName));
-			}
+			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
+			Indexes.Add(FString::Printf(TEXT("uint %sIndex"), *ContextName));
+		}
 		}
 		
 		Declarations.Add(FString::Printf(TEXT("%s Read%s(%s);"),

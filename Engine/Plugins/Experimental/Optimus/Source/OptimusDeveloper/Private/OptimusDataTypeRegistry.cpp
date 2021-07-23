@@ -484,10 +484,8 @@ void FOptimusDataTypeRegistry::UnregisterAllTypes()
 }
 
 
-FProperty* FOptimusDataTypeRegistry::CreateProperty(
-	FName InTypeName, 
-	UStruct* InScope, 
-	FName InName
+FOptimusDataTypeRegistry::PropertyCreateFuncT FOptimusDataTypeRegistry::FindPropertyCreateFunc(
+	FName InTypeName
 	) const
 {
 	const FTypeInfo* InfoPtr = RegisteredTypes.Find(InTypeName);
@@ -497,10 +495,5 @@ FProperty* FOptimusDataTypeRegistry::CreateProperty(
 		return nullptr;
 	}
 
-	if (!InfoPtr->PropertyCreateFunc)
-	{
-		return nullptr;
-	}
-
-	return InfoPtr->PropertyCreateFunc(InScope, InName);
+	return InfoPtr->PropertyCreateFunc;
 }

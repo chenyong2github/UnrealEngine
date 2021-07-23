@@ -21,7 +21,10 @@ const FName UOptimusNode::CategoryName::DataProviders("Data Providers");
 const FName UOptimusNode::CategoryName::Deformers("Deformers");
 const FName UOptimusNode::CategoryName::Resources("Resources");
 const FName UOptimusNode::CategoryName::Variables("Variables");
+const FName UOptimusNode::CategoryName::Values("Values");
 
+// NOTE: There really should be a central place for these. Magic strings are _bad_.
+const FName UOptimusNode::PropertyMeta::Category("Category");
 const FName UOptimusNode::PropertyMeta::Input("Input");
 const FName UOptimusNode::PropertyMeta::Output("Output");
 const FName UOptimusNode::PropertyMeta::Resource("Resource");

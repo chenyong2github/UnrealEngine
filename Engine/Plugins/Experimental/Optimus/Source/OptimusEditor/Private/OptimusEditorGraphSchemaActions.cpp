@@ -40,6 +40,33 @@ UEdGraphNode* FOptimusGraphSchemaAction_NewNode::PerformAction(
 }
 
 
+UEdGraphNode* FOptimusGraphSchemaAction_NewConstantValueNode::PerformAction(
+	UEdGraph* InParentGraph,
+	UEdGraphPin* InFromPin,
+	const FVector2D InLocation,
+	bool bInSelectNewNode
+	)
+{
+	UOptimusEditorGraph* Graph = Cast<UOptimusEditorGraph>(InParentGraph);
+	
+	if (ensure(Graph != nullptr) && ensure(DataType.IsValid()))
+	{
+		UOptimusNode* ModelNode = Graph->GetModelGraph()->AddValueNode(DataType, InLocation);
+
+		// FIXME: Automatic connection from the given pin.
+
+		UOptimusEditorGraphNode* GraphNode = Graph->FindGraphNodeFromModelNode(ModelNode);
+		if (GraphNode && bInSelectNewNode)
+		{
+			Graph->SelectNodeSet({GraphNode});
+		}
+		return GraphNode;
+	}
+
+	return nullptr;
+}
+
+
 UEdGraphNode* FOptimusGraphSchemaAction_NewDataInterfaceNode::PerformAction(
 	UEdGraph* InParentGraph,
 	UEdGraphPin* InFromPin,

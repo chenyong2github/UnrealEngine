@@ -217,6 +217,12 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex) const
 		UComputeKernelSource* KernelSource = KernelInvocations[KernelIndex]->KernelSource;
 		if (KernelSource != nullptr)
 		{
+			// Add shader parameters
+			for (const FShaderParamTypeDefinition& ParamDef: KernelSource->InputParams)
+			{
+				HLSL += FString::Printf(TEXT("%s %s;\n"), *ParamDef.ValueType->ToString(), *ParamDef.Name);
+			}
+			
 			TArray<int32> RelevantEdgeIndices;
 			TArray<int32> DataProviderIndices;
 			for (int32 GraphEdgeIndex = 0; GraphEdgeIndex < GraphEdges.Num(); ++GraphEdgeIndex)

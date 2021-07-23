@@ -23,12 +23,18 @@ void FComputeGraphProxy::Initialize(UComputeGraph* ComputeGraph)
 
 		if (Kernel != nullptr && KernelResource != nullptr && ShaderMetadata != nullptr)
 		{
+			TMap<int32, TArray<uint8>> KernelBindings;
+		
+			ComputeGraph->GetKernelBindings(KernelIndex, KernelBindings);
+			
 			FKernelInvocation KernelInvocation = {
 				Kernel->GetFName(),
 				FName("InvocationName"),
 				FIntVector(32, 1, 1), // todo[CF]: read group size from kernel (or possibly apply it through defines)
 				ShaderMetadata,
-				KernelResource };
+				KernelBindings,
+				KernelResource
+				};
 
 			KernelInvocations.Emplace(KernelInvocation);
 		}
@@ -74,6 +80,7 @@ void FComputeGraphScheduler::EnqueueForExecution(const FComputeGraphProxy* Compu
 					Invocation.InvocationName,
 					DispatchDim,
 					Invocation.ShaderMetadata,
+					Invocation.ShaderParamBindings,
 					Invocation.Kernel->GetShader(),
 					SubInvocationIndex };
 
@@ -149,11 +156,36 @@ void FComputeGraphScheduler::ExecuteBatches(
 				void* RawBuffer = GraphBuilder.Alloc(Compute.ShaderParamMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
 				FMemory::Memzero(RawBuffer, Compute.ShaderParamMetadata->GetSize());
 
+				uint8* ParamBuffer = static_cast<uint8*>(RawBuffer);
+				const TArray<FShaderParametersMetadata::FMember>& ParamMembers = Compute.ShaderParamMetadata->GetMembers();
+
+				// Copy in the shader parameter bindings first.
+				for (const TPair<int32, TArray<uint8>>& Binding: Compute.ShaderParamBindings)
+				{
+					const FShaderParametersMetadata::FMember& Member = ParamMembers[Binding.Key];
+					const TArray<uint8>& ParamValue = Binding.Value;
+
+					SIZE_T ParamSize;
+					if (const FShaderParametersMetadata *StructMetaData = Member.GetStructMetadata())
+					{
+						// TODO: Rows/Columns/ElemCount?
+						ParamSize = StructMetaData->GetSize();
+					}
+					else
+					{
+						ParamSize = Member.GetMemberSize();
+					}
+
+					if (ensure(ParamSize == ParamValue.Num()))
+					{
+						FMemory::Memcpy(&ParamBuffer[Member.GetOffset()], ParamValue.GetData(), ParamSize);
+					}
+				}				
+
+				// Then all the data interface bindings.
 				FComputeDataProviderRenderProxy::FBindings& Bindings = AllBindings[Compute.SubInvocationIndex];
 
 				bool bBindFailed = false;
-				uint8* ParamBuffer = static_cast<uint8*>(RawBuffer);
-				TArray<FShaderParametersMetadata::FMember> ParamMembers = Compute.ShaderParamMetadata->GetMembers();
 				for (auto& Member : ParamMembers)
 				{
 					switch (Member.GetBaseType())
@@ -161,21 +193,30 @@ void FComputeGraphScheduler::ExecuteBatches(
 					case EUniformBufferBaseType::UBMT_INT32:
 						{
 							int32* ParamValue = Bindings.ParamsInt.Find(Member.GetName());
-							*reinterpret_cast<int32*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
+							if (ParamValue)
+							{
+								*reinterpret_cast<int32*>(&ParamBuffer[Member.GetOffset()]) = *ParamValue;
+							}
 						}
 						break;
 
 					case EUniformBufferBaseType::UBMT_UINT32:
 						{
 							uint32* ParamValue = Bindings.ParamsUint.Find(Member.GetName());
-							*reinterpret_cast<uint32*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
+							if (ParamValue)
+							{
+								*reinterpret_cast<uint32*>(&ParamBuffer[Member.GetOffset()]) = *ParamValue;
+							}
 						}
 					break;
 
 					case EUniformBufferBaseType::UBMT_FLOAT32:
 						{
 							float* ParamValue = Bindings.ParamsFloat.Find(Member.GetName());
-							*reinterpret_cast<float*>(&ParamBuffer[Member.GetOffset()]) = ParamValue != nullptr ? *ParamValue : 0;
+							if (ParamValue)
+							{
+								*reinterpret_cast<float*>(&ParamBuffer[Member.GetOffset()]) = *ParamValue;
+							}
 						}
 						break;
 
@@ -185,10 +226,6 @@ void FComputeGraphScheduler::ExecuteBatches(
 							if (ParamValue != nullptr)
 							{
 								FMemory::Memcpy(&ParamBuffer[Member.GetOffset()], ParamValue->GetData(), Member.GetStructMetadata()->GetSize());
-							}
-							else
-							{
-								bBindFailed = true;
 							}
 						}
 						break;

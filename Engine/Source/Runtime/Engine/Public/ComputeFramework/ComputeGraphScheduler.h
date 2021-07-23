@@ -29,6 +29,7 @@ public:
 		FName InvocationName;
 		FIntVector GroupDim;
 		FShaderParametersMetadata const* ShaderMetadata = nullptr;
+		TMap<int32, TArray<uint8>> ShaderParamBindings;
 		FComputeKernelResource const* Kernel = nullptr;
 	};
 
@@ -60,6 +61,7 @@ private:
 		FName InvocationName;
 		FIntVector DispatchDim;
 		const FShaderParametersMetadata* ShaderParamMetadata = nullptr;
+		TMap<int32, TArray<uint8>> ShaderParamBindings;
 		TShaderRef<FComputeKernelShader> Shader;
 		int32 SubInvocationIndex = 0;
 	};

@@ -21,6 +21,7 @@
 #include "Nodes/OptimusNode_DataInterface.h"
 
 #include "RenderingThread.h"
+#include "Nodes/OptimusNode_ConstantValue.h"
 #include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
@@ -588,6 +589,7 @@ bool UOptimusDeformer::Compile()
 	GraphEdges.Reset();
 	CompilingKernelToGraph.Reset();
 	CompilingKernelToNode.Reset();
+	AllParameterBindings.Reset();
 
 	TArray<const UOptimusNode *> ConnectedNodes;
 	CollectNodes(UpdateGraph, TerminalNodes, ConnectedNodes);
@@ -597,27 +599,26 @@ bool UOptimusDeformer::Compile()
 	Algo::Reverse(ConnectedNodes.GetData(), ConnectedNodes.Num());
 
 	// Find all data interface nodes and create their data interfaces.
-	TMap<const UOptimusNode *, UOptimusComputeDataInterface *> NodeDataInterfaceMap;
+	FOptimus_NodeToDataInterfaceMap NodeDataInterfaceMap;
 
 	// Find all resource links from one compute kernel directly to another. The pin here is
 	// the output pin from a kernel node that connects to another. We don't map from input pins
 	// because a resource output may be used multiple times, but only written into once.
-	TMap<const UOptimusNodePin*, UOptimusComputeDataInterface *> LinkDataInterfaceMap;
+	FOptimus_PinToDataInterfaceMap LinkDataInterfaceMap;
 
+	// Find all value nodes (constant and variable) 
+	TSet<const UOptimusNode *> ValueNodeSet; 
+	
 	for (const UOptimusNode* Node: ConnectedNodes)
 	{
-		const UOptimusNode_DataInterface* DataInterfaceNode = Cast<const UOptimusNode_DataInterface>(Node);
-
-		if (DataInterfaceNode)
+		if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<const UOptimusNode_DataInterface>(Node))
 		{
 			UOptimusComputeDataInterface* DataInterface =
 				NewObject<UOptimusComputeDataInterface>(this, DataInterfaceNode->GetDataInterfaceClass());
 
 			NodeDataInterfaceMap.Add(Node, DataInterface);
 		}
-
-		const UOptimusNode_ComputeKernel* KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node);
-		if (KernelNode)
+		else if (const UOptimusNode_ComputeKernel* KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node))
 		{
 			for (const UOptimusNodePin* Pin: KernelNode->GetPins())
 			{
@@ -635,21 +636,24 @@ bool UOptimusDeformer::Compile()
 								NewObject<UTransientBufferDataInterface>(this);
 
 							TransientBufferDI->ValueType = Pin->GetDataType()->ShaderValueType;
-							TransientBufferDI->TestString = TEXT("Wtfbbq");
 							LinkDataInterfaceMap.Add(Pin, TransientBufferDI);
 						}
 					}
 				}
-			}	
+			}
+		}
+		// TBD: Add common base class for variable and value nodes that expose a virtual for evaluating the value
+		// and getting the value type.
+		else if (const UOptimusNode_ConstantValue* ValueNode = Cast<const UOptimusNode_ConstantValue>(Node))
+		{
+			ValueNodeSet.Add(ValueNode);
 		}
 	}
-
-	// TODO: Find all kernel-kernel connections and create a raw data interface for them. 
 
 	// Loop through all kernels, create a kernel source, and create a compute kernel for it.
 	struct FKernelWithDataBindings
 	{
-		int32 KernelIndex;
+		int32 KernelNodeIndex;
 		UComputeKernel *Kernel;
 		FOptimus_InterfaceBindingMap InputDataBindings;
 		FOptimus_InterfaceBindingMap OutputDataBindings;
@@ -660,22 +664,17 @@ bool UOptimusDeformer::Compile()
 	{
 		if (const UOptimusNode_ComputeKernel *KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node))
 		{
+			FOptimus_KernelParameterBindingList KernelParameterBindings;
 			FKernelWithDataBindings BoundKernel;
 
-			BoundKernel.KernelIndex = -1;
-			for (int32 KernelIndex = 0; KernelIndex < UpdateGraph->Nodes.Num(); ++KernelIndex)
-			{
-				if (UpdateGraph->Nodes[KernelIndex] == Node)
-				{
-					BoundKernel.KernelIndex = KernelIndex;
-					break;
-				}
-			}
-
+			BoundKernel.KernelNodeIndex = UpdateGraph->Nodes.IndexOfByKey(Node);
 			BoundKernel.Kernel = NewObject<UComputeKernel>(this, *KernelNode->KernelName);
-			
+
 			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(
-				BoundKernel.Kernel, NodeDataInterfaceMap, LinkDataInterfaceMap, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings);
+				BoundKernel.Kernel,
+				NodeDataInterfaceMap, LinkDataInterfaceMap, ValueNodeSet,
+				KernelParameterBindings, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings
+				);
 			if (!KernelSource)
 			{
 				CompileResultsDelegate.Broadcast(UpdateGraph, KernelNode, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
@@ -689,6 +688,16 @@ bool UOptimusDeformer::Compile()
 			}
 			
 			BoundKernel.Kernel->KernelSource = KernelSource;
+
+			for (int32 ParameterIndex = 0; ParameterIndex < KernelParameterBindings.Num(); ParameterIndex++)
+			{
+				const FOptimus_KernelParameterBinding& Binding = KernelParameterBindings[ParameterIndex];
+				FOptimus_ShaderParameterBinding ShaderParameterBinding;
+				ShaderParameterBinding.ValueNode = Binding.ValueNode;
+				ShaderParameterBinding.KernelIndex = BoundKernels.Num();
+				ShaderParameterBinding.ParameterIndex = ParameterIndex;
+				AllParameterBindings.Add(ShaderParameterBinding);
+			}
 
 			BoundKernels.Add(BoundKernel);
 		}
@@ -709,7 +718,7 @@ bool UOptimusDeformer::Compile()
 		KernelInvocations.Add(BoundKernel.Kernel);
 		
 		CompilingKernelToGraph.Add(UpdateGraphIndex);
-		CompilingKernelToNode.Add(BoundKernel.KernelIndex);
+		CompilingKernelToNode.Add(BoundKernel.KernelNodeIndex);
 	}
 
 	// Create the graph edges.
@@ -897,6 +906,24 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	}
 
 	GlobalNotifyDelegate.Broadcast(InNotifyType, InObject);
+}
+
+
+void UOptimusDeformer::GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const
+{
+	for (const FOptimus_ShaderParameterBinding& Binding: AllParameterBindings)
+	{
+		if (Binding.KernelIndex == InKernelIndex)
+		{
+			const UOptimusNode_ConstantValue *ValueNode = Cast<const UOptimusNode_ConstantValue>(Binding.ValueNode);
+
+			TArray<uint8> ValueData = ValueNode->GetShaderValue();
+			if (!ValueData.IsEmpty())
+			{
+				OutBindings.Emplace(Binding.ParameterIndex, MoveTemp(ValueData));
+			}
+		}
+	}
 }
 
 

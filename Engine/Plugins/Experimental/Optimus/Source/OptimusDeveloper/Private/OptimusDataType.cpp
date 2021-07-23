@@ -40,5 +40,21 @@ FProperty* FOptimusDataType::CreateProperty(
 	FName InName
 	) const
 {
-	return FOptimusDataTypeRegistry::Get().CreateProperty(TypeName, InScope, InName);
+	const FOptimusDataTypeRegistry::PropertyCreateFuncT PropertyCreateFunc =
+		FOptimusDataTypeRegistry::Get().FindPropertyCreateFunc(TypeName);
+
+	if (PropertyCreateFunc)
+	{
+		return PropertyCreateFunc(InScope, InName);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+
+bool FOptimusDataType::CanCreateProperty() const
+{
+	return static_cast<bool>(FOptimusDataTypeRegistry::Get().FindPropertyCreateFunc(TypeName));
 }

@@ -62,6 +62,8 @@ private:
 	
 };
 
+// Maps the data interface's data binding index to the function we would like to have present
+// during kernel compilation to read/write values from/to that data interface's resource.
 struct FOptimus_InterfaceBinding
 {
 	UOptimusComputeDataInterface* DataInterface;
@@ -69,6 +71,27 @@ struct FOptimus_InterfaceBinding
 	FString BindingFunctionName;
 };
 using FOptimus_InterfaceBindingMap = TMap<int32 /* Kernel Index */, FOptimus_InterfaceBinding>;
+
+// A map that goes from a value/variable node to a compute shader input parameter.
+struct FOptimus_KernelParameterBinding
+{
+	const UOptimusNode* ValueNode;
+	
+	// The name of the shader parameter 
+	FString ParameterName;
+	
+	// The value type of the parameter
+	FShaderValueTypeHandle ValueType;
+};
+using FOptimus_KernelParameterBindingList = TArray<FOptimus_KernelParameterBinding>;
+
+// Maps from a data interface node to the data interface that it represents.
+using FOptimus_NodeToDataInterfaceMap =  TMap<const UOptimusNode*, UOptimusComputeDataInterface*>;
+
+// Maps from an output pin to the transient data interface, used to store intermediate results,
+// that it represents.
+using FOptimus_PinToDataInterfaceMap = TMap<const UOptimusNodePin*, UOptimusComputeDataInterface*>;
+
 
 USTRUCT()
 struct FOptimus_ShaderBinding
@@ -116,8 +139,10 @@ public:
 
 	UOptimusKernelSource* CreateComputeKernel(
 		UObject* InKernelSourceOuter,
-		const TMap<const UOptimusNode *, UOptimusComputeDataInterface *>& InNodeDataInterfaceMap,
-		TMap<const UOptimusNodePin*, UOptimusComputeDataInterface *>& InLinkDataInterfaceMap,
+		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
+		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
+		const TSet<const UOptimusNode *>& InValueNodeSet,
+		FOptimus_KernelParameterBindingList& OutParameterBindings,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 		) const;
@@ -146,7 +171,7 @@ public:
 
 	UPROPERTY(Transient)
 	TArray<FOptimusSourceLocation> ErrorLocations;
-		
+
 #if defined(WITH_EDITOR)
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
