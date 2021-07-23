@@ -472,6 +472,10 @@ bool TDynamicMeshOverlay<RealType,ElementSize>::IsSeamEdge(int eid, bool* bIsNon
 	{
 		*bIsNonIntersecting = false;
 	}
+	if (ParentMesh->IsEdge(eid) == false)
+	{
+		return false;
+	}
 
 	FIndex2i et = ParentMesh->GetEdgeT(eid);
 	if (et.B == FDynamicMesh3::InvalidID)
@@ -560,6 +564,11 @@ bool TDynamicMeshOverlay<RealType,ElementSize>::IsSeamEdge(int eid, bool* bIsNon
 template<typename RealType, int ElementSize>
 bool TDynamicMeshOverlay<RealType, ElementSize>::IsSeamEndEdge(int eid) const
 {
+	if (ParentMesh->IsEdge(eid) == false)
+	{
+		return false;
+	}
+
 	FIndex2i et = ParentMesh->GetEdgeT(eid);
 	if (et.B == FDynamicMesh3::InvalidID)
 	{

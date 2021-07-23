@@ -16,6 +16,7 @@
 #include "Parameterization/MeshLocalParam.h"
 #include "Parameterization/MeshUVPacking.h"
 #include "Solvers/MeshParameterizationSolvers.h"
+#include "Parameterization/MeshRegionGraph.h"
 
 #include "Async/ParallelFor.h"
 
@@ -246,7 +247,7 @@ bool FDynamicMeshUVEditor::EstimateGeodesicCenterFrameVertex(const FDynamicMesh3
 }
 
 
-bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangles, FUVEditResult* Result)
+bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangles, const FExpMapOptions& Options, FUVEditResult* Result)
 {
 	if (ensure(UVOverlay) == false) return false;
 	if (Triangles.Num() == 0) return false;
@@ -256,6 +257,12 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangl
 	FDynamicSubmesh3 SubmeshCalc(Mesh, Triangles, (int)EMeshComponents::None, false);
 	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
 	FMeshNormals::QuickComputeVertexNormals(Submesh);
+
+	if (Options.NormalSmoothingRounds > 0)
+	{
+		FMeshNormals::SmoothVertexNormals(Submesh, Options.NormalSmoothingRounds, Options.NormalSmoothingAlpha);
+	}
+
 
 	FFrame3d SeedFrame;
 	int32 FrameVertexID;
@@ -330,32 +337,7 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(
 	MeshTransforms::ApplyTransform(Submesh, PointTransform, [&](const FVector3f& V) { return V;});
 	FMeshNormals::QuickComputeVertexNormals(Submesh);
 
-	NormalSmoothingRounds = FMath::Clamp(NormalSmoothingRounds, 0, 500);
-	NormalSmoothingAlpha = FMathd::Clamp(NormalSmoothingAlpha, 0.0, 1.0);
-	if (NormalSmoothingRounds > 0 && NormalSmoothingAlpha > 0)
-	{
-		int32 NumV = Submesh.MaxVertexID();
-		TArray<FVector3d> SmoothedNormals;
-		SmoothedNormals.SetNum(NumV);
-		for (int32 ri = 0; ri < NormalSmoothingRounds; ++ri)
-		{
-			SmoothedNormals.Init(FVector3d::Zero(), NumV);
-			for (int32 vid : Submesh.VertexIndicesItr())
-			{
-				FVector3d SmoothedNormal = FVector3d::Zero();
-				UE::Geometry::FMeshWeights::CotanWeightsBlendSafe(Submesh, vid, [&](int32 nbrvid, double Weight)
-				{
-					SmoothedNormal += Weight * (FVector3d)Submesh.GetVertexNormal(nbrvid);
-				});
-				SmoothedNormal.Normalize();
-				SmoothedNormals[vid] = Lerp((FVector3d)Submesh.GetVertexNormal(vid), SmoothedNormal, NormalSmoothingAlpha);
-			}
-			for (int32 vid : Submesh.VertexIndicesItr())
-			{
-				Submesh.SetVertexNormal(vid, (FVector3f)SmoothedNormals[vid]);
-			}
-		}
-	}
+	FMeshNormals::SmoothVertexNormals(Submesh, NormalSmoothingRounds, NormalSmoothingAlpha);
 
 	FDynamicMeshAABBTree3 Spatial(&Submesh, true);
 	double NearDistSqr;
@@ -780,6 +762,7 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromBoxProjection(
 	TFunctionRef<FVector3d(const FVector3d&)> PointTransform, 
 	const FFrame3d& BoxFrame, 
 	const FVector3d& BoxDimensions, 
+	int32 MinIslandTriCount,
 	FUVEditResult* Result)
 {
 	if (ensure(UVOverlay) == false) return;
@@ -805,22 +788,61 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromBoxProjection(
 	double ScaleZ = (FMathd::Abs(BoxDimensions.Z) > FMathf::ZeroTolerance) ? (1.0 / BoxDimensions.Z) : 1.0;
 	FVector3d Scale(ScaleX, ScaleY, ScaleZ);
 
+	// compute assignments to the available planes based on face normals
 	TArray<FVector3d> TriNormals;
 	TArray<FIndex2i> TriangleBoxPlaneAssignments;
 	TriNormals.SetNum(NumTriangles);
 	TriangleBoxPlaneAssignments.SetNum(NumTriangles);
+	TArray<int32> IndexMap;
+	IndexMap.SetNum(Mesh->MaxTriangleID());
 	ParallelFor(NumTriangles, [&](int32 i)
 	{
 		int32 tid = Triangles[i];
 		TriNormals[i] = GetTriNormal(tid);
-		FVector3d N = BoxFrame.ToFrameVector(TriNormals[i]);
-		N *= Scale;
-		FVector3d NAbs(FMathd::Abs(N.X), FMathd::Abs(N.Y), FMathd::Abs(N.Z));
+		FVector3d ScaledNormal = BoxFrame.ToFrameVector(TriNormals[i]);
+		ScaledNormal *= Scale;
+		FVector3d NAbs(FMathd::Abs(ScaledNormal.X), FMathd::Abs(ScaledNormal.Y), FMathd::Abs(ScaledNormal.Z));
 		int MajorAxis = NAbs[0] > NAbs[1] ? (NAbs[0] > NAbs[2] ? 0 : 2) : (NAbs[1] > NAbs[2] ? 1 : 2);
-		double MajorAxisSign = FMathd::Sign(N[MajorAxis]);
+		double MajorAxisSign = FMathd::Sign(ScaledNormal[MajorAxis]);
 		int Bucket = (MajorAxisSign > 0) ? (MajorAxis+3) : MajorAxis;
 		TriangleBoxPlaneAssignments[i] = FIndex2i(MajorAxis, Bucket);
+		IndexMap[tid] = i;
 	});
+
+
+	// Optimize face assignments. Small regions are grouped with larger neighbour regions.
+	if (MinIslandTriCount > 1)
+	{
+		FMeshConnectedComponents Components(Mesh);
+		Components.FindConnectedTriangles(Triangles, [&](int32 t1, int32 t2) { return TriangleBoxPlaneAssignments[IndexMap[t1]] == TriangleBoxPlaneAssignments[IndexMap[t2]]; });
+		FMeshRegionGraph RegionGraph;
+		RegionGraph.BuildFromComponents(*Mesh, Components, [&](int32 ComponentIdx) { int32 tid = Components[ComponentIdx].Indices[0]; return TriangleBoxPlaneAssignments[IndexMap[tid]].A; });
+		// todo: similarity measure should probably take normals into account
+		bool bMerged = RegionGraph.MergeSmallRegions(MinIslandTriCount-1, 
+			[&](int32 A, int32 B) { return RegionGraph.GetRegionTriCount(A) > RegionGraph.GetRegionTriCount(B); });
+		bool bSwapped = RegionGraph.OptimizeBorders();
+		if (bMerged || bSwapped)
+		{
+			int32 N = RegionGraph.MaxRegionIndex();
+			for (int32 k = 0; k < N; ++k)
+			{
+				if (RegionGraph.IsRegion(k))
+				{
+					int32 MajorAxis = RegionGraph.GetExternalID(k);
+					const TArray<int32>& Tris = RegionGraph.GetRegionTris(k);
+					for (int32 tid : Tris)
+					{
+						int32 i = IndexMap[tid];
+						FVector3d ScaledNormal = BoxFrame.ToFrameVector(TriNormals[i]) * Scale;
+						double MajorAxisSign = FMathd::Sign(ScaledNormal[MajorAxis]);
+						int Bucket = (MajorAxisSign > 0) ? (MajorAxis + 3) : MajorAxis;
+						TriangleBoxPlaneAssignments[i] = FIndex2i(MajorAxis, Bucket);
+					}
+				}
+			}
+		}
+	}
+
 
 	auto ProjAxis = [](const FVector3d& P, int Axis1, int Axis2, float Axis1Scale, float Axis2Scale)
 	{

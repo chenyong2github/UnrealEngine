@@ -86,12 +86,30 @@ public:
 	 */
 	void SetTriangleUVsFromPlanarProjection(const TArray<int32>& Triangles, TFunctionRef<FVector3d(const FVector3d&)> PointTransform, const FFrame3d& ProjectionFrame, const FVector2d& Dimensions, FUVEditResult* Result = nullptr);
 
+
+	/**
+	 * FExpMapOptions provides additional control over ExpMap UV generation below
+	 */
+	struct FExpMapOptions
+	{
+		/** Number of rounds of explicit uniform normal smoothing to apply to mesh normals */
+		int32 NormalSmoothingRounds;
+		/** Alpha for smoothing, valid range is 0-1 */
+		double NormalSmoothingAlpha;
+
+		FExpMapOptions()
+		{
+			NormalSmoothingRounds = 0;
+			NormalSmoothingAlpha = 0.25f;
+		}
+	};
+
 	/**
 	 * Create new UV island for given Triangles, and set UVs for that island using Discrete Exponential Map.
 	 * ExpMap center-point is calculated by finding maximum (Dijkstra-approximated) geodesic distance from border of island.
 	 * @warning computes a single ExpMap, so input triangle set must be connected, however this is not verified internally
 	 */
-	bool SetTriangleUVsFromExpMap(const TArray<int32>& Triangles, FUVEditResult* Result = nullptr);
+	bool SetTriangleUVsFromExpMap(const TArray<int32>& Triangles, const FExpMapOptions& Options = FExpMapOptions(), FUVEditResult* Result = nullptr);
 
 
 	/**
@@ -138,8 +156,9 @@ public:
 	 * Set UVs by box projection. Triangles will be grouped to "best" box face
 	 * PointTransform is applied to points before projectiong onto ProjectionFrame X/Y axes
 	 * Projected U/V coordinates are divided by Dimensions.X/Y
+	 * @param MinIslandTriCount Any UV island with fewer triangles than this count will be merged into a neighbouring island
 	 */
-	void SetTriangleUVsFromBoxProjection(const TArray<int32>& Triangles, TFunctionRef<FVector3d(const FVector3d&)> PointTransform, const FFrame3d& BoxFrame, const FVector3d& BoxDimensions, FUVEditResult* Result = nullptr);
+	void SetTriangleUVsFromBoxProjection(const TArray<int32>& Triangles, TFunctionRef<FVector3d(const FVector3d&)> PointTransform, const FFrame3d& BoxFrame, const FVector3d& BoxDimensions, int32 MinIslandTriCount = 2, FUVEditResult* Result = nullptr);
 
 
 	/**

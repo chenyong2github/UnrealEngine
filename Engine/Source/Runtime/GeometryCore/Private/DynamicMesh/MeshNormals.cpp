@@ -325,6 +325,46 @@ void FMeshNormals::QuickComputeVertexNormals(FDynamicMesh3& Mesh, bool bInvert)
 }
 
 
+void FMeshNormals::SmoothVertexNormals(FDynamicMesh3& Mesh, int32 SmoothingRounds, double SmoothingAlpha)
+{
+	SmoothingRounds = FMath::Clamp(SmoothingRounds, 0, 500);
+	SmoothingAlpha = FMathd::Clamp(SmoothingAlpha, 0.0, 1.0);
+	if (SmoothingRounds > 0 && SmoothingAlpha > 0)
+	{
+		int32 NumV = Mesh.MaxVertexID();
+		TArray<FVector3d> SmoothedNormals;
+		SmoothedNormals.SetNum(NumV);
+		for (int32 ri = 0; ri < SmoothingRounds; ++ri)
+		{
+			SmoothedNormals.Init(FVector3d::Zero(), NumV);
+
+			// compute
+			ParallelFor(NumV, [&](int32 vid)
+			{
+				if (Mesh.IsVertex(vid))
+				{
+					FVector3d SmoothedNormal = FVector3d::Zero();
+					Mesh.EnumerateVertexVertices(vid, [&](int32 nbrvid)
+					{
+						SmoothedNormal += (FVector3d)Mesh.GetVertexNormal(nbrvid);
+					});
+					SmoothedNormals[vid] = Lerp((FVector3d)Mesh.GetVertexNormal(vid), SmoothedNormal, SmoothingAlpha);
+					Normalize(SmoothedNormals[vid]);
+				}
+			});
+
+			// update
+			for (int32 vid : Mesh.VertexIndicesItr())
+			{
+				Mesh.SetVertexNormal(vid, (FVector3f)SmoothedNormals[vid]);
+			}
+		}
+	}
+}
+
+
+
+
 void FMeshNormals::QuickComputeVertexNormalsForTriangles(FDynamicMesh3& Mesh, const TArray<int32>& Triangles, bool bWeightByArea, bool bWeightByAngle, bool bInvert)
 {
 	if (Mesh.HasVertexNormals() == false)
