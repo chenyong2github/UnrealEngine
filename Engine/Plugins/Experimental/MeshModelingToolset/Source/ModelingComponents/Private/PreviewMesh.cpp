@@ -172,6 +172,17 @@ void UPreviewMesh::DisableSecondaryTriangleBuffers()
 	DynamicMeshComponent->DisableSecondaryTriangleBuffers();
 }
 
+void UPreviewMesh::SetSecondaryBuffersVisibility(bool bSecondaryVisibility)
+{
+	check(DynamicMeshComponent);
+	DynamicMeshComponent->SetSecondaryBuffersVisibility(bSecondaryVisibility);
+}
+
+void UPreviewMesh::FastNotifySecondaryTrianglesChanged()
+{
+	check(DynamicMeshComponent);
+	DynamicMeshComponent->FastNotifySecondaryTrianglesChanged();
+}
 
 void UPreviewMesh::SetTangentsMode(EDynamicMeshComponentTangentsMode TangentsType)
 {

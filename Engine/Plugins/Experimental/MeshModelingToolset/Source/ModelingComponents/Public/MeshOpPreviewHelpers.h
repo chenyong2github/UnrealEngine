@@ -220,6 +220,11 @@ protected:
 	// state flag, if true then we have valid result
 	bool bResultValid = false;
 
+	// Stored status of last compute, mainly so that we know when we should
+	// show the "busy" material.
+	UE::Geometry::EBackgroundComputeTaskStatus LastComputeStatus = 
+		UE::Geometry::EBackgroundComputeTaskStatus::NotComputing;
+
 	bool bVisible = true;
 
 	// Used for partial/fast updates of the preview mesh render proxy.

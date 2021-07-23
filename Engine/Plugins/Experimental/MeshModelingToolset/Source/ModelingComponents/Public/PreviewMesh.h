@@ -170,7 +170,16 @@ public:
 	 */
 	void DisableSecondaryTriangleBuffers();
 
+	/**
+	 * Show/Hide the secondary triangle buffers.
+	 */
+	void SetSecondaryBuffersVisibility(bool bSecondaryVisibility);
 
+	/** 
+	 * Call this after updating the secondary triangle sorting.
+	 * This function will update the existing buffers if possible, without rebuilding entire RenderProxy.
+	 */
+	void FastNotifySecondaryTrianglesChanged();
 
 	/**
 	 * Set the tangents mode for the underlying component, if available. 
