@@ -110,4 +110,31 @@ namespace HordeServer.Collections
 		/// <returns>Async task</returns>
 		Task DeleteAsync(StreamId StreamId);
 	}
+
+	static class StreamCollectionExtensions
+	{
+		/// <summary>
+		/// Creates or replaces a stream configuration
+		/// </summary>
+		/// <param name="StreamCollection">The stream collection</param>
+		/// <param name="Id">Unique id for the new stream</param>
+		/// <param name="Stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
+		/// <param name="ConfigPath">Path to the config file</param>
+		/// <param name="Revision">The config file revision</param>
+		/// <param name="ProjectId">The project id</param>
+		/// <param name="Config">The stream configuration</param>
+		/// <returns></returns>
+		public static async Task<IStream> CreateOrReplaceAsync(this IStreamCollection StreamCollection, StreamId Id, IStream? Stream, string ConfigPath, string Revision, ProjectId ProjectId, StreamConfig Config)
+		{
+			for (; ; )
+			{
+				Stream = await StreamCollection.TryCreateOrReplaceAsync(Id, Stream, ConfigPath, Revision, ProjectId, Config);
+				if (Stream != null)
+				{
+					return Stream;
+				}
+				Stream = await StreamCollection.GetAsync(Id);
+			}
+		}
+	}
 }
