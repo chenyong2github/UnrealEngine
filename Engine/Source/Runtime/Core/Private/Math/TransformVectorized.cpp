@@ -113,8 +113,8 @@ FTransform FTransform::GetRelativeTransformReverse(const FTransform& Other) cons
 	VectorRegister VScale3D = VectorMultiply(Other.Scale3D, VSafeScale3D);
 	
 	// Rotation = Q(B) * Q(A)(-1)	
-	VectorRegister VInverseRot = VectorQuaternionInverse(Rotation);
-	VectorRegister VRotation = VectorQuaternionMultiply2(Other.Rotation, VInverseRot );
+	VectorRegister4Float VInverseRot = VectorQuaternionInverse(Rotation);
+	VectorRegister4Float VRotation = VectorQuaternionMultiply2(Other.Rotation, VInverseRot );
 	
 	// RotatedTranslation
 	VectorRegister VR = VectorQuaternionRotateVector(VRotation, Translation);
@@ -124,7 +124,7 @@ FTransform FTransform::GetRelativeTransformReverse(const FTransform& Other) cons
 
 	Result.Scale3D = VScale3D;	
 	Result.Translation = VTranslation;
-	Result.Rotation = MakeVectorRegisterFloatFromDouble(VRotation);
+	Result.Rotation = VRotation;
 		
 	Result.DiagnosticCheckNaN_All(); 
 
@@ -165,14 +165,14 @@ void FTransform::SetToRelativeTransform(const FTransform& ParentTransform)
 	VectorRegister VQTranslation = VectorSet_W0(VectorSubtract(Translation, ParentTransform.Translation));
 
 	// Inverse RotatedTranslation
-	VectorRegister VInverseParentRot = VectorQuaternionInverse(ParentTransform.Rotation);
+	VectorRegister4Float VInverseParentRot = VectorQuaternionInverse(ParentTransform.Rotation);
 	VectorRegister VR = VectorQuaternionRotateVector(VInverseParentRot, VQTranslation);
 
 	// Translation = 1/S(B)
 	Translation = VectorMultiply(VR, VSafeScale3D);
 
 	// Rotation = Q(B)(-1) * Q(A)	
-	Rotation = MakeVectorRegisterFloatFromDouble(VectorQuaternionMultiply2(VInverseParentRot, Rotation ));
+	Rotation = VectorQuaternionMultiply2(VInverseParentRot, Rotation);
 
 	DiagnosticCheckNaN_All(); 
 
@@ -227,18 +227,18 @@ FTransform FTransform::GetRelativeTransform(const FTransform& Other) const
 		VectorRegister VQTranslation = VectorSet_W0(VectorSubtract(Translation, Other.Translation));
 
 		// Inverse RotatedTranslation
-		VectorRegister VInverseRot = VectorQuaternionInverse(Other.Rotation);
+		VectorRegister4Float VInverseRot = VectorQuaternionInverse(Other.Rotation);
 		VectorRegister VR = VectorQuaternionRotateVector(VInverseRot, VQTranslation);
 
 		//Translation = 1/S(B)
 		VectorRegister VTranslation = VectorMultiply(VR, VSafeScale3D);
 
 		// Rotation = Q(B)(-1) * Q(A)	
-		VectorRegister VRotation = VectorQuaternionMultiply2(VInverseRot, Rotation);
+		VectorRegister4Float VRotation = VectorQuaternionMultiply2(VInverseRot, Rotation);
 
 		Result.Scale3D = VScale3D;
 		Result.Translation = VTranslation;
-		Result.Rotation = MakeVectorRegisterFloatFromDouble(VRotation);
+		Result.Rotation = VRotation;
 
 		Result.DiagnosticCheckNaN_All();
 #if DEBUG_INVERSE_TRANSFORM
