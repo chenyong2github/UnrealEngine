@@ -7,30 +7,29 @@ import { displayTimeZone } from "./timeUtils";
 
 export function getIssueStatus(issue: GetIssueResponse, showResolveTime?:boolean): string {
 
-	let text = "";	
+	let text = "";		
 
 	if (issue.resolvedAt) {
 
-		if (!showResolveTime) {
+		let resolvedText = "Resolved";
 
-			if (!issue.fixChange) {
-				return `Resolved`;
-			}
-			return `Resolved in CL ${issue.fixChange}`;			
+		if (issue.fixChange) {
+			resolvedText += ` in CL ${issue.fixChange}`;
+		}
+
+		resolvedText += ` by ${issue.resolvedBy ?? "Horde" }`;
+
+		if (!showResolveTime) {
+			return resolvedText;
 		}
 
 		const displayTime = moment(issue.resolvedAt).tz(displayTimeZone());
 
 		const format = dashboard.display24HourClock ? "MMM Do, HH:mm z" : "MMM Do, h:mma z";
 
-		let text = `Resolved at ${displayTime.format(format)}`;
+		resolvedText += ` on ${displayTime.format(format)}`;
 
-		if (issue.fixChange) {
-			text += ` in CL ${issue.fixChange}`;
-		}
-
-		return text;
-
+		return resolvedText;
 	}
 
 	if (!issue.ownerId) {
