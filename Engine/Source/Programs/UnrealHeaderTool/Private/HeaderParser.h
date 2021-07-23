@@ -419,6 +419,7 @@ protected:
 	 * Parses a variable or return value declaration and determines the variable type and property flags.
 	 *
 	 * @param   Scope                     struct to create the property in
+	 * @param   bOuterTypeDeprecated	  true if the type containing the variable/property has been deprecated
 	 * @param   VarProperty               will be filled in with type and property flag data for the property declaration that was parsed
 	 * @param   Disallow                  contains a mask of variable modifiers that are disallowed in this context
 	 * @param   OuterPropertyType         only specified when compiling the inner properties for arrays or maps.
@@ -429,6 +430,7 @@ protected:
 	 */
 	void GetVarType(
 		FScope*							Scope,
+		bool							bOuterTypeDeprecated, 
 		FPropertyBase&                  VarProperty,
 		EPropertyFlags                  Disallow,
 		EUHTPropertyType				OuterPropertyType,
@@ -532,7 +534,7 @@ protected:
 	void InitScriptLocation( FScriptLocation& Retry );
 	void ReturnToLocation( const FScriptLocation& Retry, bool Binary=1, bool Text=1 );
 
-	void ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase& VarProperty, EUHTPropertyType OuterPropertyType, EPropertyFlags OuterPropertyFlags);
+	void ValidatePropertyIsDeprecatedIfNecessary(bool bOuterTypeDeprecated, const FPropertyBase& VarProperty, EUHTPropertyType OuterPropertyType, EPropertyFlags OuterPropertyFlags);
 
 	// Cache of ScriptStructs that have been validated for Net Replication and RPC
 	TSet<FUnrealScriptStructDefinitionInfo*> ScriptStructsValidForNet;
