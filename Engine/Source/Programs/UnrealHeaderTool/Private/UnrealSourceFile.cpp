@@ -57,7 +57,9 @@ const FString& FUnrealSourceFile::GetFileId() const
 			while (StdFilename.RemoveFromStart(TEXT("../")));
 		}
 
-		FStringOutputDevice Out;
+		// Always prefix the file ID to avoid the issue where directories starting with number would generate an invalid file id.
+		// Source code should use the CURRENT_FILE_ID macro to access this generated file id.
+		FStringOutputDevice Out(TEXT("FID_"));
 
 		for (TCHAR Char : StdFilename)
 		{
