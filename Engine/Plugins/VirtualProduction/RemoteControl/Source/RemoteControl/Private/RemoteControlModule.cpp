@@ -4,6 +4,8 @@
 #include "IRemoteControlModule.h"
 #include "IStructDeserializerBackend.h"
 #include "IStructSerializerBackend.h"
+#include "Components/LightComponent.h"
+#include "RCPropertyUtilities.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlInterceptionHelpers.h"
 #include "RemoteControlInterceptionProcessor.h"
@@ -50,8 +52,6 @@ namespace RemoteControlUtil
 	const FName NAME_BlueprintGetter(TEXT("BlueprintGetter"));
 	const FName NAME_BlueprintSetter(TEXT("BlueprintSetter"));
 	const FName NAME_AllowPrivateAccess(TEXT("AllowPrivateAccess"));
-
-	TMap<TWeakFieldPtr<FProperty>, TWeakObjectPtr<UFunction>> CachedSetterFunctions;
 
 	bool CompareFunctionName(const FString& FunctionName, const FString& ScriptName)
 	{
@@ -187,8 +187,6 @@ namespace RemoteControlUtil
 
 namespace RemoteControlSetterUtils
 {
-	static TMap<TWeakFieldPtr<FProperty>, TWeakObjectPtr<UFunction>> CachedSetterFunctions;
-
 	struct FConvertToFunctionCallArgs
 	{
 		FConvertToFunctionCallArgs(const FRCObjectReference& InObjectReference, IStructDeserializerBackend& InReaderBackend, FRCCall& OutCall)
@@ -201,85 +199,6 @@ namespace RemoteControlSetterUtils
 		IStructDeserializerBackend& ReaderBackend;
 		FRCCall& Call;
 	};
-
-	UFunction* FindSetterFunction(FProperty* Property)
-	{
-		// UStruct properties cannot have setters.
-		if (!ensure(Property) || !Property->GetOwnerClass())
-		{
-			return nullptr;
-		}
-
-		// Check if the property setter is already cached.
-		TWeakObjectPtr<UFunction> SetterPtr = CachedSetterFunctions.FindRef(Property);
-		if (SetterPtr.IsValid())
-		{
-			return SetterPtr.Get();
-		}
-
-		UFunction* SetterFunction = nullptr;
-#if WITH_EDITOR
-		const FString& SetterName = Property->GetMetaData(*RemoteControlUtil::NAME_BlueprintSetter.ToString());
-		if (!SetterName.IsEmpty())
-		{
-			SetterFunction = Property->GetOwnerClass()->FindFunctionByName(*SetterName);
-		}
-#endif
-
-		FString PropertyName = Property->GetName();
-		if (Property->IsA<FBoolProperty>())
-		{
-			PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
-		}
-
-		static const TArray<FString> SetterPrefixes = {
-			FString("Set"),
-			FString("K2_Set")
-		};
-
-		for (const FString& Prefix : SetterPrefixes)
-		{
-			FName SetterFunctionName = FName(Prefix + PropertyName);
-			SetterFunction = Property->GetOwnerClass()->FindFunctionByName(SetterFunctionName);
-			if (SetterFunction)
-			{
-				break;
-			}
-		}
-
-		if (SetterFunction)
-		{
-			CachedSetterFunctions.Add(Property, SetterFunction);
-		}
-
-		return SetterFunction;
-	}
-
-	FProperty* FindSetterArgument(UFunction* SetterFunction, FProperty* PropertyToModify)
-	{
-		FProperty* SetterArgument = nullptr;
-
-		if (!ensure(SetterFunction))
-		{
-			return nullptr;
-		}
-
-		// Check if the first parameter for the setter function matches the parameter value.
-		for (TFieldIterator<FProperty> PropertyIt(SetterFunction); PropertyIt; ++PropertyIt)
-		{
-			if (PropertyIt->HasAnyPropertyFlags(CPF_Parm) && !PropertyIt->HasAnyPropertyFlags(CPF_ReturnParm))
-			{
-				if (PropertyIt->SameType(PropertyToModify))
-				{
-					SetterArgument = *PropertyIt;
-				}
-
-				break;
-			}
-		}
-
-		return SetterArgument;
-	}
 
 	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InFunction, FStructOnScope&& InFunctionArguments, FRCInterceptionPayload& OutPayload)
 	{
@@ -313,7 +232,7 @@ namespace RemoteControlSetterUtils
 		TOptional<FStructOnScope> OptionalArgsOnScope;
 
 		bool bSuccess = false;
-		if (FProperty* SetterArgument = FindSetterArgument(InSetterFunction, InOutArgs.ObjectReference.Property.Get()))
+		if (FProperty* SetterArgument = RemoteControlPropertyUtilities::FindSetterArgument(InSetterFunction, InOutArgs.ObjectReference.Property.Get()))
 		{
 			FStructOnScope ArgsOnScope{InSetterFunction};
 
@@ -375,7 +294,7 @@ namespace RemoteControlSetterUtils
 			return false;
 		}
 
-		if (UFunction* SetterFunction = FindSetterFunction(InOutArgs.ObjectReference.Property.Get()))
+		if (UFunction* SetterFunction = RemoteControlPropertyUtilities::FindSetterFunction(InOutArgs.ObjectReference.Property.Get(), InOutArgs.ObjectReference.Object->GetClass()))
 		{
 			return ConvertModificationToFunctionCall(InOutArgs, SetterFunction);
 		}
@@ -391,7 +310,7 @@ namespace RemoteControlSetterUtils
 			return false;
 		}
 
-		if (UFunction* SetterFunction = FindSetterFunction(InArgs.ObjectReference.Property.Get()))
+		if (UFunction* SetterFunction = RemoteControlPropertyUtilities::FindSetterFunction(InArgs.ObjectReference.Property.Get(), InArgs.ObjectReference.Object->GetClass()))
 		{
 			return ConvertModificationToFunctionCall(InArgs, SetterFunction, OutPayload);
 		}
@@ -928,6 +847,19 @@ public:
 					{
 						SnapshotTransactionBuffer(ObjectAccess.Object.Get());
 					}
+
+					// Update the world lighting if we're modifying a color.
+					if (ObjectAccess.IsValid() && ObjectAccess.Property->GetOwnerClass()->IsChildOf(ULightComponentBase::StaticClass()))
+					{
+						UWorld* World = ObjectAccess.Object->GetWorld();
+						if (World && World->Scene)
+						{
+							if (ObjectAccess.Object->IsA<ULightComponent>())
+							{
+								World->Scene->UpdateLightColorAndBrightness(Cast<ULightComponent>(ObjectAccess.Object.Get()));
+							}
+						}
+					}
 				}
 				else
 				{
@@ -1139,10 +1071,10 @@ public:
 		DefaultMetadataInitializers.Remove(MetadataKey);
 	}
 
-	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property) const override
+	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property, UClass* OwnerClass = nullptr) const override
 	{
 		constexpr bool bInGameOrPackage = true;
-		return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlSetterUtils::FindSetterFunction(Property));
+		return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlPropertyUtilities::FindSetterFunction(Property, OwnerClass));
 	}
 
 private:
@@ -1254,15 +1186,7 @@ private:
 			return false;
 		}
 
-#if WITH_EDITOR
-		if (GEditor)
-		{
-			// Don't attempt finding a setter for a property if we are running inside the editor.
-			return false;
-		}
-#endif
-
-		return !!RemoteControlSetterUtils::FindSetterFunction(Property);
+		return !!RemoteControlPropertyUtilities::FindSetterFunction(Property, Object->GetClass());
 	}
 
 #if WITH_EDITOR

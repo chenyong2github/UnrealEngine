@@ -238,7 +238,7 @@ void FRemoteControlProperty::EnableEditCondition()
 
 bool FRemoteControlProperty::IsEditableInPackaged() const
 {
-	return bIsEditableInPackaged || IRemoteControlModule::Get().PropertySupportsRawModificationWithoutEditor(GetProperty());
+	return bIsEditableInPackaged || IRemoteControlModule::Get().PropertySupportsRawModificationWithoutEditor(GetProperty(), GetSupportedBindingClass());
 }
 
 bool FRemoteControlProperty::Serialize(FArchive& Ar)

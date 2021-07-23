@@ -914,19 +914,22 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 	bool bSuccess = true;
 
-	// Notify the handler before the change to ensure that the notification triggered by PostEditChange is ignored by the handler 
-	// if the client does not want remote change notifications.
-	if (ActingClientId.IsValid())
-	{
-		WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, Preset->GetFName(), RemoteControlProperty->GetId());
-	}
-
 	RemoteControlProperty->EnableEditCondition();
 
 	for (UObject* Object : RemoteControlProperty->GetBoundObjects())
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
+		// Notify the handler before the change to ensure that the notification triggered by PostEditChange is ignored by the handler 
+		// if the client does not want remote change notifications.
+		if (ActingClientId.IsValid())
+		{
+			// Don't manually trigger a property change modification if this request gets converted to a function call.
+			if (ObjectRef.IsValid() && !RemoteControlPropertyUtilities::FindSetterFunction(ObjectRef.Property.Get(), ObjectRef.Object->GetClass()))
+			{
+				WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, Preset->GetFName(), RemoteControlProperty->GetId());
+			}
+		}
 		if (SetPropertyRequest.ResetToDefault)
 		{
 			// set interception flag as an extra argument {}

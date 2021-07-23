@@ -339,5 +339,5 @@ public:
 	/**
 	 * Returns whether the property can be modified through SetObjectProperties when running without an editor.
 	 */
-	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property) const = 0;
+	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property, UClass* OwnerClass = nullptr) const = 0;
 };

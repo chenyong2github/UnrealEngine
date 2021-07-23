@@ -17,6 +17,10 @@
 
 namespace RemoteControlPropertyUtilities
 {
+	static TMap<TWeakFieldPtr<FProperty>, TWeakObjectPtr<UFunction>> CachedSetterFunctions;
+	static const FName NAME_BlueprintGetter(TEXT("BlueprintGetter"));
+	static const FName NAME_BlueprintSetter(TEXT("BlueprintSetter"));
+
 	/** Container that can hold either a PropertyHandle, or Property/Data pair. Similar to FFieldVariant */
 	class FRCPropertyVariant
 	{
@@ -408,5 +412,105 @@ namespace RemoteControlPropertyUtilities
 		FOREACH_CAST_PROPERTY(Property, Serialize<CastPropertyType>(InSrc, OutDst))
 
 		return true;
+	}
+
+	static FProperty* FindSetterArgument(UFunction* SetterFunction, FProperty* PropertyToModify)
+	{
+		FProperty* SetterArgument = nullptr;
+
+		if (!ensure(SetterFunction))
+		{
+			return nullptr;
+		}
+
+		// Check if the first parameter for the setter function matches the parameter value.
+		for (TFieldIterator<FProperty> PropertyIt(SetterFunction); PropertyIt; ++PropertyIt)
+		{
+			if (PropertyIt->HasAnyPropertyFlags(CPF_Parm) && !PropertyIt->HasAnyPropertyFlags(CPF_ReturnParm))
+			{
+				if (PropertyIt->SameType(PropertyToModify))
+				{
+					SetterArgument = *PropertyIt;
+				}
+
+				break;
+			}
+		}
+
+		return SetterArgument;
+	}
+
+	static UFunction* FindSetterFunctionInternal(FProperty* Property, UClass* OwnerClass)
+	{
+		// Check if the property setter is already cached.
+		TWeakObjectPtr<UFunction> SetterPtr = CachedSetterFunctions.FindRef(Property);
+		if (SetterPtr.IsValid())
+		{
+			return SetterPtr.Get();
+		}
+
+		UFunction* SetterFunction = nullptr;
+#if WITH_EDITOR
+		const FString& SetterName = Property->GetMetaData(*NAME_BlueprintSetter.ToString());
+		if (!SetterName.IsEmpty())
+		{
+			SetterFunction = OwnerClass->FindFunctionByName(*SetterName);
+		}
+#endif
+
+		FString PropertyName = Property->GetName();
+		if (Property->IsA<FBoolProperty>())
+		{
+			PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
+		}
+
+		static const TArray<FString> SetterPrefixes = {
+			FString("Set"),
+			FString("K2_Set")
+		};
+
+		for (const FString& Prefix : SetterPrefixes)
+		{
+			FName SetterFunctionName = FName(Prefix + PropertyName);
+			SetterFunction = OwnerClass->FindFunctionByName(SetterFunctionName);
+			if (SetterFunction)
+			{
+				break;
+			}
+		}
+
+		if (SetterFunction && FindSetterArgument(SetterFunction, Property))
+		{
+			CachedSetterFunctions.Add(Property, SetterFunction);
+		}
+		else
+		{
+			// Arguments are not compatible so don't use this setter.
+			SetterFunction = nullptr;
+		}
+
+		return SetterFunction;
+	}
+
+	static UFunction* FindSetterFunction(FProperty* Property, UClass* OwnerClass = nullptr)
+	{
+		// UStruct properties cannot have setters.
+		if (!ensure(Property) || !Property->GetOwnerClass())
+		{
+			return nullptr;
+		}
+
+		UFunction* SetterFunction = nullptr;
+		if (OwnerClass && OwnerClass != Property->GetOwnerClass())
+		{
+			SetterFunction = FindSetterFunctionInternal(Property, OwnerClass);
+		}
+		
+		if (!SetterFunction)
+		{
+			SetterFunction = FindSetterFunctionInternal(Property, Property->GetOwnerClass());
+		}
+		
+		return SetterFunction;
 	}
 }
