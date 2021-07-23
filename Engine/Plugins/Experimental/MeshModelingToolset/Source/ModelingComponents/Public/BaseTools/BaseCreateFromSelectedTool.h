@@ -83,10 +83,6 @@ public:
 	/** Show UI to allow changing translation, rotation and scale of input meshes */
 	UPROPERTY(EditAnywhere, Category = Transform)
 	bool bShowTransformUI = true;
-
-	/** Snap the cut plane to the world grid */
-	UPROPERTY(EditAnywhere, Category = Transform, meta = (EditCondition = "bShowTransformUI == true"))
-	bool bSnapToWorldGrid = false;
 };
 
 

@@ -364,7 +364,7 @@ public:
 	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in PositionSnapFunction)
 	 */
 	UPROPERTY()
-	bool bSnapToWorldGrid = false;
+	bool bSnapToWorldGrid = true;
 
 	/**
 	 * Optional grid size which overrides the Context Grid
@@ -386,7 +386,7 @@ public:
 	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in RotationSnapFunction)
 	 */
 	UPROPERTY()
-	bool bSnapToWorldRotGrid = false;
+	bool bSnapToWorldRotGrid = true;
 
 	/**
 	 * Whether to use the World/Local coordinate system provided by the context via the ContextyQueriesAPI.

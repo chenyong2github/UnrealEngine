@@ -106,15 +106,6 @@ public:
 	bool bApplyToInstances = true;
 
 
-	/** Snap to World Space grid during translation with World Axes */
-	UPROPERTY(EditAnywhere, Category = Snapping)
-	bool bSnapToGrid = false;
-
-	/** Snap to fixed rotation angles during axis rotation */
-	UPROPERTY(EditAnywhere, Category = Snapping)
-	bool bSnapToRotation = false;
-
-
 	/** When true, the Gizmo can be moved independently without affecting objects. This allows the Gizmo to be repositioned before transforming. */
 	UPROPERTY(EditAnywhere, Category = Pivot, meta = (TransientToolProperty, EditCondition = "TransformMode != ETransformMeshesTransformMode::PerObjectGizmo") )
 	bool bSetPivotMode = false;
@@ -214,6 +205,4 @@ protected:
 	int ActiveSnapDragIndex = -1;
 
 	void OnParametersUpdated();
-
-	void OnSnappingSettingsUpdated();
 };

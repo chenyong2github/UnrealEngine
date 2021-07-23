@@ -927,7 +927,8 @@ bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector
 	}
 
 	// only snap to world grid when using world axes
-	if (GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() != EToolContextCoordinateSystem::World)
+	EToolContextCoordinateSystem CoordSystem = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
+	if (CoordSystem != EToolContextCoordinateSystem::World)
 	{
 		return false;
 	}

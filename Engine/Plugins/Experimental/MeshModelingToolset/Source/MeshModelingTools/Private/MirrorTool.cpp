@@ -163,9 +163,6 @@ void UMirrorTool::OnTick(float DeltaTime)
 
 	if (PlaneMechanic != nullptr)
 	{
-		// Update snapping behavior based on modifier key.
-		PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid ^ bSnappingToggle);
-
 		PlaneMechanic->Tick(DeltaTime);
 	}
 	
@@ -187,7 +184,7 @@ void UMirrorTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Mirror"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartMirrorTool", "Mirror one or more meshes across a plane. Grid snapping behavior is swapped while the shift key is down. The plane can be set by using the preset buttons, moving the gizmo, or ctrl+clicking on a spot on the original mesh."),
+		LOCTEXT("OnStartMirrorTool", "Mirror one or more meshes across a plane. The plane can be set by using the preset buttons, moving the gizmo, or ctrl+clicking on a spot on the original mesh."),
 		EToolMessageLevel::UserNotification);
 
 	// Set up the properties
@@ -275,12 +272,6 @@ void UMirrorTool::Setup()
 		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
 		PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(TargetComponent->GetOwnerComponent());
 	}
-
-
-	// Add modifier button for snapping
-	UKeyAsModifierInputBehavior* SnapToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
-	SnapToggleBehavior->Initialize(this, SnappingToggleModifierId, FInputDeviceState::IsShiftKeyDown);
-	AddInputBehavior(SnapToggleBehavior);
 
 	// Start the preview calculations
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
@@ -562,10 +553,6 @@ void UMirrorTool::ApplyAction(EMirrorToolAction ActionType)
 
 void UMirrorTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
 {
-	if (ModifierID == SnappingToggleModifierId)
-	{
-		bSnappingToggle = bIsOn;
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

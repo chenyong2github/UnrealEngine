@@ -2674,8 +2674,6 @@ void UDynamicMeshSculptTool::UpdateFixedPlaneGizmoVisibility(bool bVisible)
 			PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
 			PlaneTransformGizmo->ReinitializeGizmoTransform(FTransform(GizmoProperties->Rotation, GizmoProperties->Position));
 		}
-
-		PlaneTransformGizmo->bSnapToWorldGrid = GizmoProperties->bSnapToGrid;
 	}
 }
 

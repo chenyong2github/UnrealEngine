@@ -69,14 +69,6 @@ public:
 	UPlaneCutToolProperties()
 	{}
 
-	/** Snap the cut plane to the world grid */
-	UPROPERTY(EditAnywhere, Category = Snapping)
-	bool bSnapToWorldGrid = false;
-
-	/** Snap rotation of the cut plane to the world grid */
-	UPROPERTY(EditAnywhere, Category = Snapping)
-	bool bSnapRotationToWorldGrid = false;
-
 	/** If true, both halves of the cut are computed */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bKeepBothHalves = false;
@@ -129,7 +121,7 @@ public:
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UPlaneCutTool : public UMultiSelectionTool, public IModifierToggleBehaviorTarget
+class MESHMODELINGTOOLS_API UPlaneCutTool : public UMultiSelectionTool
 {
 	GENERATED_BODY()
 
@@ -158,10 +150,6 @@ public:
 #endif
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
-
-	// IClickSequenceBehaviorTarget implementation
-	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
-
 
 protected:
 
@@ -210,10 +198,6 @@ protected:
 	UWorld* TargetWorld;
 
 	FViewCameraState CameraState;
-
-	// flags used to identify modifier keys/buttons
-	static const int SnappingModifier = 1;
-	bool bSnappingToggle = false;		// toggled by hotkey (shift)
 
 	EPlaneCutToolActions PendingAction = EPlaneCutToolActions::NoAction;
 

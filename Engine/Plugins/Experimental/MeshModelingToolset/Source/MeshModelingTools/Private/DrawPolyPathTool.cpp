@@ -381,7 +381,6 @@ void UDrawPolyPathTool::OnTick(float DeltaTime)
 {
 	if (PlaneMechanic != nullptr)
 	{
-		PlaneMechanic->SetEnableGridSnaping(TransformProps->bSnapToWorldGrid);
 		PlaneMechanic->Tick(DeltaTime);
 	}
 }

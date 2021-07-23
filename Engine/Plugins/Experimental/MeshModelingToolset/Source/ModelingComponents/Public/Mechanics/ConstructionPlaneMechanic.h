@@ -56,10 +56,6 @@ public:
 	 */
 	void SetPlaneWithoutBroadcast(const UE::Geometry::FFrame3d& Plane);
 
-	void SetEnableGridSnaping(bool bEnable);
-
-	void SetEnableGridRotationSnapping(bool bEnableRotationSnapping);
-
 	void UpdateClickPriority(FInputCapturePriority NewPriority);
 
 public:
@@ -77,9 +73,6 @@ public:
 	TUniquePtr<FSelectClickedAction> SetPlaneCtrlClickBehaviorTarget;
 
 protected:
-	bool bEnableSnapToWorldGrid = false;
-	bool bEnableSnapToWorldRotGrid = false;
-
 	UPROPERTY()
 	TObjectPtr<USingleClickInputBehavior> ClickToSetPlaneBehavior;
 

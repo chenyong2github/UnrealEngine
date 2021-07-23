@@ -92,8 +92,6 @@ void UTransformMeshesTool::Setup()
 	TransformProps->WatchProperty(TransformProps->TransformMode, [this](ETransformMeshesTransformMode NewMode) { UpdateTransformMode(NewMode); });
 	TransformProps->WatchProperty(TransformProps->bApplyToInstances, [this](bool bNewValue) { UpdateTransformMode(TransformProps->TransformMode); });
 	TransformProps->WatchProperty(TransformProps->bSetPivotMode, [this](bool bNewValue) { UpdateSetPivotModes(bNewValue); });
-	TransformProps->WatchProperty(TransformProps->bSnapToGrid, [this](bool bNewValue) { OnSnappingSettingsUpdated(); });
-	TransformProps->WatchProperty(TransformProps->bSnapToRotation, [this](bool bNewValue) { OnSnappingSettingsUpdated(); });
 	
 	// determine if we have any ISMCs
 	TransformProps->bHaveInstances = false;
@@ -212,8 +210,6 @@ void UTransformMeshesTool::UpdateTransformMode(ETransformMeshesTransformMode New
 			SetActiveGizmos_PerObject();
 			break;
 	}
-
-	OnSnappingSettingsUpdated();
 
 	CurTransformMode = NewMode;
 }
@@ -501,15 +497,6 @@ void UTransformMeshesTool::OnTerminateDragSequence()
 	ActiveSnapDragIndex = -1;
 }
 
-
-void UTransformMeshesTool::OnSnappingSettingsUpdated()
-{
-	for (FTransformMeshesTarget& Target : ActiveGizmos)
-	{
-		Target.TransformGizmo->bSnapToWorldGrid = TransformProps->bSnapToGrid;
-		Target.TransformGizmo->bSnapToWorldRotGrid = TransformProps->bSnapToRotation;
-	}
-}
 
 
 #undef LOCTEXT_NAMESPACE

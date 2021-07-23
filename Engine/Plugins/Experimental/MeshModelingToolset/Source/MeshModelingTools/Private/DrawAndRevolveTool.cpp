@@ -188,7 +188,6 @@ void UDrawAndRevolveTool::Setup()
 		}
 		UpdateRevolutionAxis();
 		});
-	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
 
 	ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
 	ControlPointsMechanic->SetInteractiveInitialization(true);
@@ -294,7 +293,6 @@ void UDrawAndRevolveTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 	PlaneMechanic->SetPlaneWithoutBroadcast(ProfileDrawPlane);
 	UpdateRevolutionAxis();
 
-	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
 	ControlPointsMechanic->SetSnappingEnabled(Settings->bEnableSnapping);
 
 	if (Preview)
