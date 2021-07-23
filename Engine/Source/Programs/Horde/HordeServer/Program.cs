@@ -25,6 +25,7 @@ using MongoDB.Driver;
 using Serilog;
 using Serilog.Configuration;
 using Serilog.Events;
+using Serilog.Filters;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.SystemConsole.Themes;
 
@@ -51,6 +52,36 @@ namespace HordeServer
 				}
 				return SinkConfig.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: Theme, restrictedToMinimumLevel: LogEventLevel.Debug);
 			}
+		}
+
+		public static LoggerConfiguration WithHordeConfig(this LoggerConfiguration Configuration, ServerSettings Settings)
+		{
+			if (!Settings.LogSessionRequests)
+			{
+				Configuration = Configuration.Filter.ByExcluding(IsSessionLogEvent);
+			}
+			return Configuration;
+		}
+
+		static bool IsSessionLogEvent(LogEvent Event)
+		{
+			if (Event.Level <= LogEventLevel.Information)
+			{
+				LogEventPropertyValue? Value;
+				if (Event.Properties.TryGetValue("RequestPath", out Value))
+				{
+					string RequestPath = Value.ToString();
+					if (RequestPath.Equals("/Horde.HordeRpc/QueryServerStateV2", StringComparison.OrdinalIgnoreCase))
+					{
+						return false;
+					}
+					if (RequestPath.Equals("/Horde.HordeRpc/UpdateSession", StringComparison.OrdinalIgnoreCase))
+					{
+						return false;
+					}
+				}
+			}
+			return true;
 		}
 	}
 
@@ -101,6 +132,7 @@ namespace HordeServer
 			}
 
 			Serilog.Log.Logger = new LoggerConfiguration()
+				.WithHordeConfig(HordeSettings)
 				.Enrich.FromLogContext()
 				.WriteTo.Console(HordeSettings)
 				.WriteTo.File(Path.Combine(LogDir.FullName, "Log.txt"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception} [{SourceContext}]", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)

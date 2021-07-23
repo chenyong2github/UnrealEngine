@@ -319,6 +319,11 @@ namespace HordeServer
 		public bool LogJsonToStdOut { get; set; } = false;
 
 		/// <summary>
+		/// Whether to log requests to the UpdateSession and QueryServerState RPC endpoints
+		/// </summary>
+		public bool LogSessionRequests { get; set; } = false;
+
+		/// <summary>
 		/// Which fleet manager service to use
 		/// </summary>
 		public FleetManagerType FleetManager { get; set; } = FleetManagerType.None;
