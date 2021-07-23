@@ -33,7 +33,7 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "TargetPlatform",
                     "DesktopPlatform",
-                    "JSON",
+                    "Json",
                     "Slate",
                     "SlateCore",
                     "InputCore",

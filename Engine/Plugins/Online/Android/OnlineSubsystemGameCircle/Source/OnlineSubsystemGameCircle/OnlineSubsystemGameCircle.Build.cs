@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
 				"Engine",
 				"Sockets",
 				"OnlineSubsystem",
-				"Http",
+				"HTTP",
 				"GameCircleRuntimeSettings",
 				"Launch"
 				}

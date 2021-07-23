@@ -19,7 +19,7 @@ public class MovieRenderPipelineCore : ModuleRules
 				"NonRealtimeAudioRenderer",
 				"Sockets", 
 				"Networking",
-				"Http",
+				"HTTP",
 				"DeveloperSettings",
 				"CinematicCamera"
 

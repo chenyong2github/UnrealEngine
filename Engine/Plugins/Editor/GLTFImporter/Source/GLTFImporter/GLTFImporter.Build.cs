@@ -38,7 +38,7 @@ namespace UnrealBuildTool.Rules
                     "MaterialEditor",
                     "Slate",
                     "SlateCore",
-                    "Mainframe",
+                    "MainFrame",
                     "InputCore",
                     "EditorStyle",
 					"GLTFCore",

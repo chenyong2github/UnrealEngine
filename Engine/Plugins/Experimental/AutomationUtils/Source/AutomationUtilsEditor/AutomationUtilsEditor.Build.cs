@@ -15,8 +15,8 @@ namespace UnrealBuildTool.Rules
 					"ScreenshotTools",
 					"DesktopPlatform",
 					"AutomationMessages",
-					"JSON",
-					"JSONUtilities"
+					"Json",
+					"JsonUtilities"
 				}
 			);
 		}

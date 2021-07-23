@@ -20,8 +20,8 @@ public class USDMultiUser : ModuleRules
 				"Engine",
 				"UnrealUSDWrapper",
 				"USDClasses",
-				"UsdStage",
-				"UsdUtilities",
+				"USDStage",
+				"USDUtilities",
 			}
 		);
 	}
