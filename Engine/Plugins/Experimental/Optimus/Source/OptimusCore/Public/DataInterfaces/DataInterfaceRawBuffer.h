@@ -39,7 +39,8 @@ public:
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const override;
-	UComputeDataProvider* CreateDataProvider(UObject *InOuter, bool bSetDefaultBindings) const override;
+	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
+	UComputeDataProvider* CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const override;
 	//~ End UComputeDataInterface Interface
 
 	void Serialize(FArchive& Ar) override

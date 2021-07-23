@@ -34,6 +34,8 @@ public:
 	virtual void GetHLSL(FString& OutHLSL) const {}
 	/** Gather modifications to the compilation environment always required when including this data provider. */
 	virtual void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const {}
-
-	virtual UComputeDataProvider* CreateDataProvider(UObject *InOuter, bool bSetDefaultBindings) const PURE_VIRTUAL(UComputeDataInterface::CreateDataProvider, return nullptr; )
+	/** Get types of UObject required to instantiate a UComputeDataProvider from this interface. */
+	virtual void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const {}
+	/** Instantiate an associated UComputeDataProvider. InSourceObjects provides an optional array of objects to set on the provider. */
+	virtual UComputeDataProvider* CreateDataProvider(UObject *InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const { return nullptr; }
 };

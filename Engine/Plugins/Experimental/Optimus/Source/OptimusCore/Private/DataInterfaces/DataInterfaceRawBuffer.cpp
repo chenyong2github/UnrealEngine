@@ -130,28 +130,29 @@ void UTransientBufferDataInterface::ModifyCompilationEnvironment(FShaderCompiler
 {
 }
 
-UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject* InOuter, bool bSetDefaultBindings) const
+void UTransientBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+{
+	// Default setup with an assumption that we want to size to match a USkeletalMeshComponent.
+	// That's a massive generalization of course...
+	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
+}
+
+UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const
 {
 	UTransientBufferDataProvider *Provider = NewObject<UTransientBufferDataProvider>(InOuter);
 	Provider->ElementStride = ValueType->GetResourceElementSize();
 
-	if (bSetDefaultBindings)
+	if (InSourceObjects.Num() == 1)
 	{
-		// Default setup with an assumption that we want to size to match a USkeletalMeshComponent.
-		// That's a massive generalization of course...
 		Provider->NumElements = 0;
 		Provider->bClearBeforeUse = false;
 
-		UActorComponent* Component = Cast<UActorComponent>(InOuter);
-		if (Component != nullptr)
+		USkeletalMeshComponent* SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
+		if (SkeletalMesh && SkeletalMesh->MeshObject)
 		{
-			USkeletalMeshComponent* SkeletalMesh = Cast<USkeletalMeshComponent>(Component->GetOwner()->GetComponentByClass(USkeletalMeshComponent::StaticClass()));
-			if (SkeletalMesh && SkeletalMesh->MeshObject)
-			{
-				FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMesh->MeshObject->GetSkeletalMeshRenderData();
-				FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-				Provider->NumElements = LodRenderData->GetNumVertices();
-			}
+			FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMesh->MeshObject->GetSkeletalMeshRenderData();
+			FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+			Provider->NumElements = LodRenderData->GetNumVertices();
 		}
 	}
 
