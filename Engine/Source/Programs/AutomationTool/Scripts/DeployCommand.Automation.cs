@@ -7,65 +7,68 @@ using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
 
-public partial class Project : CommandUtils
+namespace AutomationScripts
 {
-	public static void Deploy(ProjectParams Params)
+	public partial class Project : CommandUtils
 	{
-		Params.ValidateAndLog();
-		if (!Params.Deploy)
+		public static void Deploy(ProjectParams Params)
 		{
-			return;
-		}
-
-		LogInformation("********** DEPLOY COMMAND STARTED **********");
-		
-		if (!Params.NoClient)
-		{
-			var DeployContextList = CreateDeploymentContext(Params, false, false);
-			foreach ( var SC in DeployContextList )
+			Params.ValidateAndLog();
+			if (!Params.Deploy)
 			{
-				if (SC.StageTargetPlatform.DeployViaUFE)
+				return;
+			}
+
+			LogInformation("********** DEPLOY COMMAND STARTED **********");
+
+			if (!Params.NoClient)
+			{
+				var DeployContextList = CreateDeploymentContext(Params, false, false);
+				foreach (var SC in DeployContextList)
 				{
-					string ClientCmdLine = "-run=Deploy ";
-					ClientCmdLine += "-Device=" + string.Join("+", Params.Devices) + " ";
-					ClientCmdLine += "-Targetplatform=" + SC.StageTargetPlatform.PlatformType.ToString() + " ";
-					ClientCmdLine += "-SourceDir=\"" + CombinePaths(Params.BaseStageDirectory, SC.StageTargetPlatform.PlatformType.ToString()) + "\" ";
-					string ClientApp = CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries/Win64/UnrealFrontend.exe");
-
-					LogInformation("Deploying via UFE:");
-					LogInformation("\tClientCmdLine: " + ClientCmdLine + "");
-
-					//@todo UAT: Consolidate running of external applications like UFE (See 'RunProjectCommand' for other instances)
-					PushDir(Path.GetDirectoryName(ClientApp));
-					// Always start client process and don't wait for exit.
-					IProcessResult ClientProcess = Run(ClientApp, ClientCmdLine, null, ERunOptions.NoWaitForExit);
-					PopDir();
-					if (ClientProcess != null)
+					if (SC.StageTargetPlatform.DeployViaUFE)
 					{
-						do
+						string ClientCmdLine = "-run=Deploy ";
+						ClientCmdLine += "-Device=" + string.Join("+", Params.Devices) + " ";
+						ClientCmdLine += "-Targetplatform=" + SC.StageTargetPlatform.PlatformType.ToString() + " ";
+						ClientCmdLine += "-SourceDir=\"" + CombinePaths(Params.BaseStageDirectory, SC.StageTargetPlatform.PlatformType.ToString()) + "\" ";
+						string ClientApp = CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries/Win64/UnrealFrontend.exe");
+
+						LogInformation("Deploying via UFE:");
+						LogInformation("\tClientCmdLine: " + ClientCmdLine + "");
+
+						//@todo UAT: Consolidate running of external applications like UFE (See 'RunProjectCommand' for other instances)
+						PushDir(Path.GetDirectoryName(ClientApp));
+						// Always start client process and don't wait for exit.
+						IProcessResult ClientProcess = Run(ClientApp, ClientCmdLine, null, ERunOptions.NoWaitForExit);
+						PopDir();
+						if (ClientProcess != null)
 						{
-							Thread.Sleep(100);
+							do
+							{
+								Thread.Sleep(100);
+							}
+							while (ClientProcess.HasExited == false);
 						}
-						while (ClientProcess.HasExited == false);
+					}
+					else
+					{
+						SC.StageTargetPlatform.Deploy(Params, SC);
 					}
 				}
-				else
+			}
+			if (Params.DedicatedServer)
+			{
+				ProjectParams ServerParams = new ProjectParams(Params);
+				ServerParams.Devices = new ParamList<string>(ServerParams.ServerDevice);
+				var DeployContextList = CreateDeploymentContext(ServerParams, true, false);
+				foreach (var SC in DeployContextList)
 				{
-					SC.StageTargetPlatform.Deploy(Params, SC);
+					SC.StageTargetPlatform.Deploy(ServerParams, SC);
 				}
 			}
-		}
-		if (Params.DedicatedServer)
-		{
-			ProjectParams ServerParams = new ProjectParams(Params);
-			ServerParams.Devices = new ParamList<string>(ServerParams.ServerDevice);
-			var DeployContextList = CreateDeploymentContext(ServerParams, true, false);
-			foreach ( var SC in DeployContextList )
-			{
-				SC.StageTargetPlatform.Deploy(ServerParams, SC);
-			}
-		}
 
-		LogInformation("********** DEPLOY COMMAND COMPLETED **********");
+			LogInformation("********** DEPLOY COMMAND COMPLETED **********");
+		}
 	}
 }

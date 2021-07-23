@@ -11,6 +11,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
+using AutomationScripts;
 
 /// Lumin platform behaves more like Linux than Android as there's no Android
 /// system running on it. It's just the bare OS with non-Java additions.

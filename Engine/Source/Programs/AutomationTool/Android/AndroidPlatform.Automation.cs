@@ -13,6 +13,8 @@ using Ionic.Zip;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Text.RegularExpressions;
+using AutomationScripts;
+
 public class AndroidPlatform : Platform
 {
 	// Maximum allowed OBB size (1 GiB, 2 GiB or 4 GiB based on project settings)
