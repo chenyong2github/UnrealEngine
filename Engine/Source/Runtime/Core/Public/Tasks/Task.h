@@ -30,7 +30,7 @@ namespace UE { namespace Tasks
 		friend class TPrerequisites;
 
 		template<typename TaskCollectionType>
-		friend bool Private::TryRetractAndExecute(TaskCollectionType&& Tasks);
+		friend bool Private::TryRetractAndExecute(TaskCollectionType&& Tasks, FTimespan Timeout);
 
 	protected:
 		TTaskBase() = default;
@@ -51,23 +51,12 @@ namespace UE { namespace Tasks
 			return !IsValid() || Pimpl->IsCompleted();
 		}
 
-		// waits for task's completion, with optional timeout
+		// waits for task's completion, with optional timeout. Tries to retract the task and execute it in-place, if failed - blocks until the task 
+		// is completed by another thread. If timeout is zero, tries to retract the task and returns immedially after that.
 		// @return true if the task is completed
 		bool Wait(FTimespan Timeout = FTimespan::MaxValue())
 		{
-			if (!IsValid() || IsCompleted())
-			{
-				return true;
-			}
-
-			// "zero timeout" - just check if the task is completed
-			if (Timeout == FTimespan::Zero())
-			{
-				return false;
-			}
-
-			// waiting with timeout can't do retraction, otherwise timeout value is unreliable
-			if (Timeout == FTimespan::MaxValue() && Pimpl->TryRetractAndExecute())
+			if (!IsValid() || Pimpl->TryRetractAndExecute())
 			{
 				return true;
 			}
@@ -242,10 +231,11 @@ namespace UE { namespace Tasks
 
 	// wait for multiple tasks, with optional timeout
 	template<typename TaskCollectionType>
-	bool Wait(TaskCollectionType&& Tasks, FTimespan Timeout = FTimespan::MaxValue())
+	bool Wait(TaskCollectionType&& Tasks, FTimespan InTimeout = FTimespan::MaxValue())
 	{
-		// waiting with timeout can't do retraction, otherwise timeout value is unreliable
-		if (Timeout == FTimespan::MaxValue() && Private::TryRetractAndExecute(Tasks))
+		FTimeout Timeout{ InTimeout };
+
+		if (Private::TryRetractAndExecute(Tasks, InTimeout))
 		{
 			return true;
 		}
@@ -264,17 +254,29 @@ namespace UE { namespace Tasks
 			return true;
 		}
 
-		return CompletionEvent->Wait(Timeout);
+		return CompletionEvent->Wait(Timeout.GetRemainingTime());
 	}
 
 	// wait for multiple tasks while executing other tasks
 	template<typename TaskCollectionType>
-	void BusyWait(TaskCollectionType&& Tasks)
+	bool BusyWait(TaskCollectionType&& Tasks, FTimespan TimeoutValue = FTimespan::MaxValue())
 	{
+		FTimeout Timeout{ TimeoutValue };
+
+		if (Private::TryRetractAndExecute(Tasks, TimeoutValue))
+		{
+			return true;
+		}
+
 		for (auto& Task : Tasks)
 		{
-			Task.BusyWait();
+			if (Timeout || (!Task.BusyWait(Timeout.GetRemainingTime())))
+			{
+				return false;
+			}
 		}
+
+		return true;
 	}
 
 	using FTask = TTask<void>;
