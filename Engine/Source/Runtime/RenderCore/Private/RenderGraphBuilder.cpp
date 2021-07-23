@@ -1731,7 +1731,7 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 					Pass->CPUScopeOps.Execute();
 				#endif
 
-					if (Pass->bParallelExecuteEnd)
+					if (Pass->bParallelExecuteBegin)
 					{
 						FParallelPassSet& ParallelPassSet = ParallelPassSets[Pass->ParallelPassSetIndex];
 
@@ -1740,6 +1740,11 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 
 						check(ParallelPassSet.Event != nullptr && ParallelPassSet.RHICmdList != nullptr);
 						RHICmdList.QueueRenderThreadCommandListSubmit(ParallelPassSet.Event, ParallelPassSet.RHICmdList);
+
+						if (ParallelPassSet.bDispatchAfterExecute && IsRunningRHIInSeparateThread())
+						{
+							RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+						}
 					}
 
 					continue;
@@ -2158,6 +2163,7 @@ void FRDGBuilder::SetupParallelExecute()
 
 	TArray<FRDGPass*, TInlineAllocator<64, FRDGArrayAllocator>> ParallelPassCandidates;
 	int32 MergedRenderPassCandidates = 0;
+	bool bDispatchAfterExecute = false;
 
 	const auto FlushParallelPassCandidates = [&]()
 	{
@@ -2207,21 +2213,22 @@ void FRDGBuilder::SetupParallelExecute()
 		{
 			FRDGPass* PassBegin = ParallelPassCandidates[PassBeginIndex];
 			PassBegin->bParallelExecuteBegin = 1;
+			PassBegin->ParallelPassSetIndex = ParallelPassSets.Num();
 
 			FRDGPass* PassEnd = ParallelPassCandidates[PassEndIndex - 1];
 			PassEnd->bParallelExecuteEnd = 1;
-			PassEnd->ParallelPassSetIndex = ParallelPassSets.Num();
 
 			for (int32 PassIndex = PassBeginIndex; PassIndex < PassEndIndex; ++PassIndex)
 			{
 				ParallelPassCandidates[PassIndex]->bParallelExecute = 1;
 			}
 
-			ParallelPassSets.Emplace(ParallelPassCandidates.GetData() + PassBeginIndex, ParallelPassCandidateCount);
+			ParallelPassSets.Emplace(ParallelPassCandidates.GetData() + PassBeginIndex, ParallelPassCandidateCount, bDispatchAfterExecute);
 		}
 
 		ParallelPassCandidates.Reset();
 		MergedRenderPassCandidates = 0;
+		bDispatchAfterExecute = false;
 	};
 
 	ParallelPassSets.Reserve(32);
@@ -2240,6 +2247,11 @@ void FRDGBuilder::SetupParallelExecute()
 
 		if (Pass->Pipeline == ERHIPipeline::AsyncCompute)
 		{
+			if (Pass->bAsyncComputeEnd)
+			{
+				FlushParallelPassCandidates();
+			}
+
 			continue;
 		}
 
@@ -2250,6 +2262,7 @@ void FRDGBuilder::SetupParallelExecute()
 		}
 
 		ParallelPassCandidates.Emplace(Pass);
+		bDispatchAfterExecute |= Pass->bDispatchAfterExecute;
 
 		// Don't count merged render passes for the maximum pass threshold. This avoids the case where
 		// a large merged render pass span could end up forcing it back onto the render thread, since
@@ -2478,19 +2491,17 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdList
 		FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListAsyncCompute);
 	}
 
+	if (!Pass->bParallelExecute && Pass->bDispatchAfterExecute && IsRunningRHIInSeparateThread())
+	{
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
+
 	if (!bParallelExecuteEnabled)
 	{
 		if (GRDGDebugFlushGPU && !GRDGAsyncCompute)
 		{
 			RHICmdList.SubmitCommandsAndFlushGPU();
 			RHICmdList.BlockUntilGPUIdle();
-		}
-
-		if (Pass->bDispatchAfterExecute && IsRunningRHIInSeparateThread())
-		{
-			RHICmdList.SubmitCommandsHint();
-			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GetRenderThread_Local());
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 		}
 	}
 }

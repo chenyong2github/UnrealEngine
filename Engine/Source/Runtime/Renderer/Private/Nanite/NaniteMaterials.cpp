@@ -1428,7 +1428,7 @@ void FNaniteMaterialCommands::UpdateBufferState(FRDGBuilder& GraphBuilder, uint3
 	//}
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("NaniteMaterialCommands.UpdateBufferState-Transition"), ERDGPassFlags::None,
-		[LocalUAVs = MoveTemp(UAVs)](FRHICommandListImmediate& RHICmdList)
+		[LocalUAVs = MoveTemp(UAVs)](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.Transition(LocalUAVs);
 	});

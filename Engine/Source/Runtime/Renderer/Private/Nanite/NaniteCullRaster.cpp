@@ -45,7 +45,7 @@ static_assert(1 + NUM_CULLING_FLAG_BITS + MAX_INSTANCES_BITS <= 32, "FCandidateN
 static_assert(1 + MAX_NODES_PER_PRIMITIVE_BITS + MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 32, "FCandidateNode.y fields don't fit in 32bits");
 static_assert(1 + MAX_BVH_NODES_PER_GROUP <= 32, "FCandidateNode.z fields don't fit in 32bits");
 
-int32 GNaniteAsyncRasterization = 0; // @todo: Disabled because GPUScene/Nanite resource transitions are not correct for async compute rasterization
+int32 GNaniteAsyncRasterization = 1;
 static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
 	TEXT("r.Nanite.AsyncRasterization"),
 	GNaniteAsyncRasterization,

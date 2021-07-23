@@ -1099,6 +1099,43 @@ void FRHICommandListExecutor::WaitOnRHIThreadFence(FGraphEventRef& Fence)
 	}
 }
 
+void FRHICommandListExecutor::Transition(TArrayView<const FRHITransitionInfo> Infos, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines)
+{
+	check(IsInRenderingThread());
+
+	FRHIAsyncComputeCommandListImmediate& RHICmdListAsyncCompute = GetImmediateAsyncComputeCommandList();
+
+	if (!RHICmdListAsyncCompute.IsAsyncCompute())
+	{
+		checkf(SrcPipelines != ERHIPipeline::AsyncCompute, TEXT("Async compute is disabled. Cannot transition from it."));
+		checkf(DstPipelines != ERHIPipeline::AsyncCompute, TEXT("Async compute is disabled. Cannot transition to it."));
+
+		EnumRemoveFlags(SrcPipelines, ERHIPipeline::AsyncCompute);
+		EnumRemoveFlags(DstPipelines, ERHIPipeline::AsyncCompute);
+	}
+
+	TRHIPipelineArray<FRHIComputeCommandList*> CommandLists;
+	CommandLists[ERHIPipeline::Graphics]     = &GetImmediateCommandList();
+	CommandLists[ERHIPipeline::AsyncCompute] = &RHICmdListAsyncCompute;
+
+	const FRHITransition* Transition = RHICreateTransition({ SrcPipelines, DstPipelines, ERHITransitionCreateFlags::None, Infos });
+
+	EnumerateRHIPipelines(SrcPipelines, [&](ERHIPipeline Pipeline)
+	{
+		CommandLists[Pipeline]->BeginTransition(Transition);
+	});
+
+	EnumerateRHIPipelines(DstPipelines, [&](ERHIPipeline Pipeline)
+	{
+		CommandLists[Pipeline]->EndTransition(Transition);
+	});
+
+	if (EnumHasAnyFlags(SrcPipelines | DstPipelines, ERHIPipeline::AsyncCompute))
+	{
+		FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListAsyncCompute);
+	}
+}
+
 FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 	: Root(nullptr)
 	, CommandLink(nullptr)
@@ -1672,11 +1709,6 @@ void FRHICommandListBase::QueueRenderThreadCommandListSubmit(FGraphEventRef& Ren
 	// before the sub-list executed.
 	ALLOC_COMMAND(FRHICommandSetGPUMask)(GPUMask);
 #endif
-
-	if (IsRunningRHIInSeparateThread())
-	{
-		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-	}
 }
 
 void FRHICommandListBase::AddDispatchPrerequisite(const FGraphEventRef& Prereq)
