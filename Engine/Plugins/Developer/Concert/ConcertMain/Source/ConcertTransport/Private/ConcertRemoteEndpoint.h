@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericPlatform/GenericPlatformMath.h"
 #include "IConcertEndpoint.h"
 #include "IMessageContext.h"
 #include "IConcertTransportLogger.h"
@@ -62,7 +63,7 @@ public:
 	 * Handle an acknowledgment received from this remote endpoint
 	 */
 	void HandleAcknowledgement(const FConcertMessageContext& Context);
-	
+
 	/**
 	 * Handle a response to a request made to this remote endpoint
 	 */
@@ -76,6 +77,11 @@ public:
 
 	/** Get the Timespan before the remote end point consider us timed out */
 	FTimespan GetEndpointTimeoutSpan() const { return EndpointTimeoutSpan; }
+
+	void UpdateLastMessageReceivedTime(const FDateTime& Now)
+	{
+		LastReceivedMessageTime = FGenericPlatformMath::Max<FDateTime>(LastReceivedMessageTime, Now);
+	}
 
 	/** Get the time of last message received from this endpoint. */
 	FDateTime GetLastReceivedMessageTime() const { return LastReceivedMessageTime; }
@@ -94,7 +100,7 @@ public:
 
 	/** Get the next message to handle from the queued list, if any. */
 	TSharedPtr<FConcertMessageCapturedContext> GetNextMessageToReceive(const FDateTime& UtcNow);
-	
+
 private:
 	/** */
 	void TimeoutAllMessages();
@@ -124,7 +130,7 @@ private:
 
 	/** Map of reliable messages that are pending receipt because they arrived out-of-order ((channel id + message order index) -> data) */
 	TMap<FChannelIdAndOrderIndex, TSharedPtr<FConcertMessageCapturedContext>> QueuedOutOfOrderMessagesToReceive;
-	
+
 	/** Array of messages that are pending receipt */
 	TArray<TSharedPtr<FConcertMessageCapturedContext>> QueuedMessagesToReceive;
 
