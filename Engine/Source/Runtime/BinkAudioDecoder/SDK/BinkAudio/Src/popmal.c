@@ -44,7 +44,6 @@ RADDEFFUNC void RADLINK pushmalloc(void* base, void * ptr,U64 amt)
     RR_BREAK();
   }
 
-#ifndef SEPARATEMALLOCS
   {
     U64 last,next;
 
@@ -55,7 +54,6 @@ RADDEFFUNC void RADLINK pushmalloc(void* base, void * ptr,U64 amt)
     // make sure the up 32 separate mallocs use distinct sets
     amt+=(((32+last-next)&31)*32);
   }
-#endif
 
   p->pushtot+=amt;
   p->pushamt[p->pushcur]=amt;
@@ -76,90 +74,7 @@ RADDEFFUNC U64 RADLINK popmalloctotal( void* base )
   return( p->pushtot );
 }
 
-#ifdef SEPARATEMALLOCS
-
-#ifdef __RADFINAL__
-#error "You have separate mallocs turned on!"
-#endif
-
-#ifdef RADUSETM3
-RADDEFFUNC void * RADLINK popmalloci(void* base, U64 amt, char const * info, U32 line)
-#else
-RADDEFFUNC void * RADLINK popmalloc(void* base, U64 amt)
-#endif
-{
-  void * ptr;
-  UINTa * table;
-  U32 i;
-  PM * p = (PM *)base;
-  U32 extra;
-
-  extra = sizeof(UINTa)+sizeof(void*)+sizeof(void*)+sizeof(UINTa);
-  if ( p )
-    extra += ( p->pushcur * sizeof(void*) );
-  extra = (extra+15) & ~15;
-
-  ptr=radmalloc(amt+extra);
-  table = (UINTa *)ptr;
-  table[ 0 ] = 1;
-  table[ 1 ] = (UINTa)table;
-
-  ptr = ( (U8 *) ptr ) + extra;
-  ((UINTa*)ptr)[-1] = 0x97537531;
-  ((UINTa*)ptr)[-2] = (UINTa)table;
-
-  if ( p )
-  {
-    table[ 0 ] = 1 + p->pushcur;
-    p->pushtot=0;
-    for(i=0;i<p->pushcur;i++)
-    {
-      void * np;
-#ifdef RADUSETM3
-      np=radmalloci(p->pushamt[i]&~1,info,line);
-#else
-      np=radmalloc(p->pushamt[i]&~1);
-#endif
-
-      if ( p->pushamt[i]&1 )
-        (*(void**)(((U8*)ptr)+((UINTa)p->pushptr[i])))=np;
-      else
-        (*(p->pushptr[i]))=np;
-
-      table[ i + 1 ] = (UINTa)np;
-    }
-    table[ i + 1 ] = (UINTa)table;
-    p->pushcur=0;
-  }
-  return(ptr);
-}
-
-RADDEFFUNC void RADLINK popfree(void * ptr)
-{
-  UINTa * table;
-  UINTa i, n;
-  if ( ((UINTa*)ptr)[-1] != 0x97537531 )
-  {
-     RR_BREAK();
-     return;
-  }
-  ((UINTa*)ptr)[-1] = 0;
-  table = ((UINTa**)ptr)[-2];
-  n = table[0];
-  table[0]=0;
-  for(i=0;i<n;i++)
-  {
-    radfree( (void*)table[i+1] );
-  }
-}
-
-#else
-
-#ifdef RADUSETM3
-RADDEFFUNC void * RADLINK popmalloci(void* base, U64 amt, char const * info, U32 line)
-#else
 RADDEFFUNC void * RADLINK popmalloc(void* base, U64 amt, void* (*allocator)(UINTa bytes))
-#endif
 {
   PM * p = (PM *)base;
   void * ptr;
@@ -171,11 +86,7 @@ RADDEFFUNC void * RADLINK popmalloc(void* base, U64 amt, void* (*allocator)(UINT
     return allocator( (UINTa)amt );
   }
 
-#ifdef RADUSETM3
-  ptr=radmalloci(p->pushtot+amt,info,line);
-#else
   ptr=allocator((UINTa)(p->pushtot+amt));
-#endif
   
   p->pushtot=0;
   if (ptr) {
@@ -197,6 +108,3 @@ RADDEFFUNC void * RADLINK popmalloc(void* base, U64 amt, void* (*allocator)(UINT
   p->pushcur=0;
   return(ptr);
 }
-
-#endif
-

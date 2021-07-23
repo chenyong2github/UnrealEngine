@@ -6,9 +6,14 @@
 #include "rrCore.h"
 #endif
 
-#ifndef __RADMATHH__
-//#include "radmath.h"
+#ifdef WRAP_PUBLICS
+#define rfmerge3(name,add) name##add
+#define rfmerge2(name,add) rfmerge3(name,add)
+#define rfmerge(name)      rfmerge2(name,WRAP_PUBLICS)
+#define VarBitsCopy                          rfmerge(VarBitsCopy)
+#define VarBitsLens                          rfmerge(VarBitsLens)
 #endif
+
 
 // variable bit macros
 #if defined(__RADX86__)
