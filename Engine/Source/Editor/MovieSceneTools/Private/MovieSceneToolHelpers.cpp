@@ -1695,7 +1695,7 @@ void SetChannelValue(FMovieSceneFloatChannel* Channel, FMovieSceneBoolChannel *B
 //if two channel go to X Y
 //if three channel to to x y z
 // if 9 due full
-static bool ImportFBXTransformToChannels(FString NodeName, FFrameNumber StartFrame, FFrameRate FrameRate, FFBXNodeAndChannels& NodeAndChannels,
+static bool ImportFBXTransformToChannels(FString NodeName, const UMovieSceneUserImportFBXSettings* ImportFBXSettings,UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,  FFrameNumber StartFrame, FFrameRate FrameRate, FFBXNodeAndChannels& NodeAndChannels,
 	 UnFbx::FFbxCurvesAPI& CurveAPI)
 {
 
@@ -1704,8 +1704,6 @@ static bool ImportFBXTransformToChannels(FString NodeName, FFrameNumber StartFra
 	TArray<FMovieSceneByteChannel*>& EnumChannels = NodeAndChannels.EnumChannels;
 	TArray<FMovieSceneIntegerChannel*>& IntegerChannels = NodeAndChannels.IntegerChannels;
 
-	const UMovieSceneUserImportFBXSettings* ImportFBXSettings = GetDefault<UMovieSceneUserImportFBXSettings>();
-	UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings = GetMutableDefault<UMovieSceneUserImportFBXControlRigSettings>();
 
 	// Look for transforms explicitly
 	FRichCurve Translation[3];
@@ -2359,7 +2357,7 @@ bool MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(UMovieScene* MovieSc
 						FrameToInsertOrReplace,
 						StartFrame, EndFrame);
 
-					ImportFBXTransformToChannels(NodeName, FrameToInsertOrReplace, FrameRate, NodeAndChannel, CurveAPI);
+					ImportFBXTransformToChannels(NodeName, CurrentImportFBXSettings, ImportFBXControlRigSettings, FrameToInsertOrReplace, FrameRate, NodeAndChannel, CurveAPI);
 				}
 			}
 		}
