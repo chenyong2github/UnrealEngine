@@ -40,6 +40,7 @@
 #include "Components/NamedSlotInterface.h"
 #include "K2Node_Variable.h"
 
+#include "Engine/UserInterfaceSettings.h"
 #include "Input/HittestGrid.h"
 #include "Interfaces/ISlateRHIRendererModule.h"
 #include "Interfaces/ISlate3DRenderer.h"
@@ -1929,4 +1930,94 @@ int32 FWidgetBlueprintEditorUtils::UpdateHittestGrid(FHittestGrid& HitTestGrid, 
 	return MaxLayerId;
 }
 
+TTuple<FVector2D, FVector2D> FWidgetBlueprintEditorUtils::GetWidgetPreviewAreaAndSize(UUserWidget* UserWidget, FVector2D DesiredSize, FVector2D PreviewSize)
+{
+	FVector2D Size(PreviewSize.X, PreviewSize.Y);
+	FVector2D Area(PreviewSize.X, PreviewSize.Y);
+
+	if (UserWidget)
+	{
+		switch (UserWidget->DesignSizeMode)
+		{
+		case EDesignPreviewSizeMode::Custom:
+			Area = UserWidget->DesignTimeSize;
+			// If the custom size is 0 in some dimension, use the desired size instead.
+			if (Area.X == 0)
+			{
+				Area.X = DesiredSize.X;
+			}
+			if (Area.Y == 0)
+			{
+				Area.Y = DesiredSize.Y;
+			}
+			Size = Area;
+			break;
+		case EDesignPreviewSizeMode::CustomOnScreen:
+			Size = UserWidget->DesignTimeSize;
+
+			// If the custom size is 0 in some dimension, use the desired size instead.
+			if (Size.X == 0)
+			{
+				Size.X = DesiredSize.X;
+			}
+			if (Size.Y == 0)
+			{
+				Size.Y = DesiredSize.Y;
+			}
+			return TTuple<FVector2D, FVector2D>(Area, Size);
+		case EDesignPreviewSizeMode::Desired:
+			Area = DesiredSize;
+			// Fall through to DesiredOnScreen
+		case EDesignPreviewSizeMode::DesiredOnScreen:
+			Size = DesiredSize;
+			return TTuple<FVector2D, FVector2D>(Area, Size);
+		case EDesignPreviewSizeMode::FillScreen:
+			break;
+		}
+	}
+	return TTuple<FVector2D, FVector2D>(Area, Size);
+}
+
+float FWidgetBlueprintEditorUtils::GetWidgetPreviewDPIScale(UUserWidget* UserWidget, FVector2D PreviewSize)
+{
+	// If the user is using a custom size then we disable the DPI scaling logic.
+	if (UserWidget)
+	{
+		if (UserWidget->DesignSizeMode == EDesignPreviewSizeMode::Custom ||
+			UserWidget->DesignSizeMode == EDesignPreviewSizeMode::Desired)
+		{
+			return 1.0f;
+		}
+	}
+
+	return GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass())->GetDPIScaleBasedOnSize(FIntPoint(PreviewSize.X, PreviewSize.Y));
+}
+
+
+FVector2D FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(FVector2D DesiredSize, UUserWidget* UserWidget)
+{
+
+	checkf(DesiredSize.X > 0.f && DesiredSize.Y > 0.f, TEXT("The size should have been previously checked to be > 0."));
+
+	FVector2D FinalSize(0.f,0.f);
+	int32 PreviewWidth;
+	const TCHAR* ConfigSectionName = TEXT("UMGEditor.Designer");
+	GConfig->GetInt(ConfigSectionName, TEXT("PreviewWidth"), PreviewWidth, GEditorPerProjectIni);
+	int32 PreviewHeight;
+	GConfig->GetInt(ConfigSectionName, TEXT("PreviewHeight"), PreviewHeight, GEditorPerProjectIni);
+
+	FVector2D PreviewSize(PreviewWidth, PreviewHeight);
+
+	TTuple<FVector2D, FVector2D> AreaAndSize = GetWidgetPreviewAreaAndSize(UserWidget, DesiredSize, PreviewSize);
+
+	float DPIScale = GetWidgetPreviewDPIScale(UserWidget, PreviewSize);
+
+	if (ensure(DPIScale > 0.f))
+	{
+		FinalSize = AreaAndSize.Get<1>() / DPIScale;
+	}
+
+	return FinalSize;
+
+}
 #undef LOCTEXT_NAMESPACE

@@ -14,13 +14,13 @@ UCLASS()
 class UMGEDITOR_API UWidgetBlueprintThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_BODY()
-		
+
 	//~ Begin UThumbnailRenderer Object
 	bool CanVisualizeAsset(UObject* Object) override;
 	void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily) override;
 
 private:
-	TTuple<FVector2D, FVector2D> GetScaledSizeAndOffset(float ImgWidth, float ImgHeight, float ThumbnailWidth, float ThumbnailHeight) const;
+	TTuple<float, FVector2D> GetScaleAndOffset(FVector2D DesiredSize, FVector2D WidgetSize) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget2D;
