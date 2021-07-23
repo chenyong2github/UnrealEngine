@@ -142,8 +142,6 @@ private:
 
 	const FSlateBrush* GetPreviewBackground() const;
 
-	void GetPreviewAreaAndSize(FVector2D& Area, FVector2D& Size) const;
-
 	/** Gets the DPI scale that would be applied given the current preview width and height */
 	float GetPreviewDPIScale() const;
 

@@ -1065,32 +1065,32 @@ ETransformMode::Type SDesignerView::GetTransformMode() const
 
 FOptionalSize SDesignerView::GetPreviewAreaWidth() const
 {
-	FVector2D Area, Size;
-	GetPreviewAreaAndSize(Area, Size);
+	TTuple<FVector2D, FVector2D> AreaAndSize = FWidgetBlueprintEditorUtils::GetWidgetPreviewAreaAndSize(GetDefaultWidget(), CachedPreviewDesiredSize, FVector2D(PreviewWidth, PreviewHeight));
+	FVector2D Area = AreaAndSize.Get<0>();
 
 	return Area.X;
 }
 
 FOptionalSize SDesignerView::GetPreviewAreaHeight() const
 {
-	FVector2D Area, Size;
-	GetPreviewAreaAndSize(Area, Size);
+	TTuple<FVector2D, FVector2D> AreaAndSize = FWidgetBlueprintEditorUtils::GetWidgetPreviewAreaAndSize(GetDefaultWidget(), CachedPreviewDesiredSize, FVector2D(PreviewWidth, PreviewHeight));
+	FVector2D Area = AreaAndSize.Get<0>();;
 
 	return Area.Y;
 }
 
 FOptionalSize SDesignerView::GetPreviewSizeWidth() const
 {
-	FVector2D Area, Size;
-	GetPreviewAreaAndSize(Area, Size);
+	TTuple<FVector2D, FVector2D> AreaAndSize = FWidgetBlueprintEditorUtils::GetWidgetPreviewAreaAndSize(GetDefaultWidget(), CachedPreviewDesiredSize, FVector2D(PreviewWidth, PreviewHeight));
+	FVector2D Size = AreaAndSize.Get<1>();
 
 	return Size.X;
 }
 
 FOptionalSize SDesignerView::GetPreviewSizeHeight() const
 {
-	FVector2D Area, Size;
-	GetPreviewAreaAndSize(Area, Size);
+	TTuple<FVector2D, FVector2D> AreaAndSize = FWidgetBlueprintEditorUtils::GetWidgetPreviewAreaAndSize(GetDefaultWidget(), CachedPreviewDesiredSize, FVector2D(PreviewWidth, PreviewHeight));
+	FVector2D Size = AreaAndSize.Get<1>();
 
 	return Size.Y;
 }
@@ -1191,66 +1191,9 @@ const FSlateBrush* SDesignerView::GetPreviewBackground() const
 	return nullptr;
 }
 
-void SDesignerView::GetPreviewAreaAndSize(FVector2D& Area, FVector2D& Size) const
-{
-	Area = FVector2D(PreviewWidth, PreviewHeight);
-	Size = FVector2D(PreviewWidth, PreviewHeight);
-
-	if ( UUserWidget* DefaultWidget = GetDefaultWidget() )
-	{
-		switch ( DefaultWidget->DesignSizeMode )
-		{
-		case EDesignPreviewSizeMode::Custom:
-			Area = DefaultWidget->DesignTimeSize;
-			// If the custom size is 0 in some dimension, use the desired size instead.
-			if (Area.X == 0)
-			{
-				Area.X = CachedPreviewDesiredSize.X;
-			}
-			if (Area.Y == 0)
-			{
-				Area.Y = CachedPreviewDesiredSize.Y;
-			}
-			Size = Area;
-			break;
-		case EDesignPreviewSizeMode::CustomOnScreen:
-			Size = DefaultWidget->DesignTimeSize;
-
-			// If the custom size is 0 in some dimension, use the desired size instead.
-			if (Size.X == 0)
-			{
-				Size.X = CachedPreviewDesiredSize.X;
-			}
-			if (Size.Y == 0)
-			{
-				Size.Y = CachedPreviewDesiredSize.Y;
-			}
-			return;
-		case EDesignPreviewSizeMode::Desired:
-			Area = CachedPreviewDesiredSize;
-			// Fall through to DesiredOnScreen
-		case EDesignPreviewSizeMode::DesiredOnScreen:
-			Size = CachedPreviewDesiredSize;
-			return;
-		case EDesignPreviewSizeMode::FillScreen:
-			break;
-		}
-	}
-}
-
 float SDesignerView::GetPreviewDPIScale() const
 {
-	// If the user is using a custom size then we disable the DPI scaling logic.
-	if ( UUserWidget* DefaultWidget = GetDefaultWidget() )
-	{
-		if ( DefaultWidget->DesignSizeMode == EDesignPreviewSizeMode::Custom || 
-			 DefaultWidget->DesignSizeMode == EDesignPreviewSizeMode::Desired )
-		{
-			return 1.0f;
-		}
-	}
-
-	return GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass())->GetDPIScaleBasedOnSize(FIntPoint(PreviewWidth, PreviewHeight));
+	return FWidgetBlueprintEditorUtils::GetWidgetPreviewDPIScale(GetDefaultWidget(), FVector2D(PreviewWidth,PreviewHeight));
 }
 
 FSlateRect SDesignerView::ComputeAreaBounds() const
