@@ -11,8 +11,9 @@
 #include "Stats/StatsMisc.h"
 #include "Async/ParallelFor.h"
 
-#define OLD_MAGIC 123
-#define CURRENT_MAGIC 124
+#define V1_MAGIC 123
+#define V2_MAGIC 124
+#define V3_MAGIC 125 // Introduction of ImportedVertexNumbers
 
 #define MAX_CHUNK_VERTICES	1024u
 #define CHUNK_MAX_TRIANGLES	2048u
@@ -507,6 +508,7 @@ void FCodecV1Encoder::WriteCodedStreamDescription()
 	WriteBits(VertexInfo.bHasUV0 ? 1 : 0, 1);
 	WriteBits(VertexInfo.bHasColor0 ? 1 : 0, 1);
 	WriteBits(VertexInfo.bHasMotionVectors ? 1 : 0, 1);
+	WriteBits(VertexInfo.bHasImportedVertexNumbers ? 1 : 0, 1);
 
 	WriteBits(VertexInfo.bConstantUV0 ? 1 : 0, 1);
 	WriteBits(VertexInfo.bConstantColor0 ? 1 : 0, 1);
@@ -584,6 +586,7 @@ bool FCodecV1Encoder::EncodeFrameData(FMemoryWriter& Writer, const FGeometryCach
 	const TArray<FPackedNormal>& TangentsX = MeshData.TangentsX;
 	const TArray<FPackedNormal>& TangentsZ = MeshData.TangentsZ;
 	const TArray<FColor>& Colors = MeshData.Colors;
+	const TArray<uint32>& ImportedVertexNumbers = MeshData.ImportedVertexNumbers;
 
 	const TArray<uint32>& Indices = MeshData.Indices;
 	const TArray<FVector3f>& MotionVectors = MeshData.MotionVectors;	
@@ -633,6 +636,12 @@ bool FCodecV1Encoder::EncodeFrameData(FMemoryWriter& Writer, const FGeometryCach
 		if (NumChunkVertices > 0)
 		{
 			EncodePositionStream(&Positions[VertexOffset], Positions.GetTypeSize(), NumChunkVertices, Statistics.Vertices);
+
+			if (VertexInfo.bHasImportedVertexNumbers)
+			{
+				EncodeIndexStream(&ImportedVertexNumbers[VertexOffset], ImportedVertexNumbers.GetTypeSize(), NumChunkVertices, Statistics.ImportedVertexNumbers);
+			}
+
 			if (VertexInfo.bHasColor0)
 			{
 				EncodeColorStream(&Colors[VertexOffset], Colors.GetTypeSize(), NumChunkVertices, Statistics.Colors);
@@ -662,7 +671,7 @@ bool FCodecV1Encoder::EncodeFrameData(FMemoryWriter& Writer, const FGeometryCach
 	{
 		// Write out bitstream
 		FCodedFrameHeader Header = { 0 };
-		Header.Magic = CURRENT_MAGIC;
+		Header.Magic = V3_MAGIC;
 		Header.VertexCount = (uint32)Positions.Num();
 		Header.IndexCount = (uint32)Indices.Num();
 		uint32 PayloadSize = BitWriter.GetNumBytes();
@@ -677,6 +686,7 @@ bool FCodecV1Encoder::EncodeFrameData(FMemoryWriter& Writer, const FGeometryCach
 	// Gather stats for all streams
 	const uint32 TotalRawSize =
 		sizeof(uint32) * Indices.Num()	// Indices
+		+ sizeof(uint32) * ImportedVertexNumbers.Num()	// Imported vertex numbers
 		+ sizeof(FVector3f) * Positions.Num() // Vertices
 		+ sizeof(FColor) * Colors.Num() // Colors
 		+ sizeof(FPackedNormal) * TangentsX.Num() // TangentX
@@ -753,6 +763,7 @@ void FCodecV1Encoder::SetupTables()
 	// Most tables store 32-bit integers stored with a bit-length;raw value scheme. Some store specific symbols.
 	EncodingContext.ResidualIndicesTable.Initialize(HuffmanTableInt32SymbolCount);
 	EncodingContext.ResidualVertexPosTable.Initialize(HuffmanTableInt32SymbolCount);
+	EncodingContext.ResidualImportedVertexNumbersTable.Initialize(HuffmanTableInt32SymbolCount);
 	EncodingContext.ResidualColorTable.Initialize(HuffmanTableInt32SymbolCount);
 	EncodingContext.ResidualNormalTangentXTable.Initialize(HuffmanTableInt8SymbolCount);
 	EncodingContext.ResidualNormalTangentZTable.Initialize(HuffmanTableInt8SymbolCount);
@@ -767,9 +778,17 @@ void FCodecV1Encoder::SetPrepass(bool bPrepass)
 
 	// When bPrepass is set to true, the tables gather statistics about the data they encounter and do not write 
 	// any output bits.When set to false, they build the internal symbol representations and will write bits.
-	if ( !VertexInfo.bConstantIndices)
-		EncodingContext.ResidualIndicesTable.SetPrepass(bPrepass);	
+	if (!VertexInfo.bConstantIndices)
+	{
+		EncodingContext.ResidualIndicesTable.SetPrepass(bPrepass);
+	}
+
 	EncodingContext.ResidualVertexPosTable.SetPrepass(bPrepass);
+
+	if (VertexInfo.bHasImportedVertexNumbers)
+	{
+		EncodingContext.ResidualImportedVertexNumbersTable.SetPrepass(bPrepass);
+	}
 	if (VertexInfo.bHasColor0)
 	{
 		EncodingContext.ResidualColorTable.SetPrepass(bPrepass);
@@ -802,9 +821,17 @@ void FCodecV1Encoder::WriteTables()
 	FHuffmanBitStreamWriter& Writer = *EncodingContext.Writer;	
 	const FGeometryCacheVertexInfo& VertexInfo = EncodingContext.MeshData->VertexInfo;
 
-	if ( !VertexInfo.bConstantIndices)
-		EncodingContext.ResidualIndicesTable.Serialize(Writer);	
+	if (!VertexInfo.bConstantIndices)
+	{
+		EncodingContext.ResidualIndicesTable.Serialize(Writer);
+	}
+
 	EncodingContext.ResidualVertexPosTable.Serialize(Writer);
+
+	if (VertexInfo.bHasImportedVertexNumbers)
+	{
+		EncodingContext.ResidualImportedVertexNumbersTable.Serialize(Writer);
+	}
 	if (VertexInfo.bHasColor0)
 	{
 		EncodingContext.ResidualColorTable.Serialize(Writer);
@@ -990,9 +1017,16 @@ void FCodecV1Decoder::SetupAndReadTables(FHuffmanBitStreamReader& Reader)
 	const FGeometryCacheVertexInfo& VertexInfo = DecodingContext.MeshData->VertexInfo;
 		
 	if (!VertexInfo.bConstantIndices)
-		DecodingContext.ResidualIndicesTable.Initialize(Reader);	
+	{
+		DecodingContext.ResidualIndicesTable.Initialize(Reader);
+	}
+
 	DecodingContext.ResidualVertexPosTable.Initialize(Reader);
-	
+
+	if (VertexInfo.bHasImportedVertexNumbers)
+	{
+		DecodingContext.ResidualImportedVertexNumbersTable.Initialize(Reader);
+	}
 	if (VertexInfo.bHasColor0)
 	{
 		DecodingContext.ResidualColorTable.Initialize(Reader);		
@@ -1017,7 +1051,7 @@ void FCodecV1Decoder::SetupAndReadTables(FHuffmanBitStreamReader& Reader)
 	// Add additional tables here
 }
 
-void FCodecV1Decoder::ReadCodedStreamDescription(FHuffmanBitStreamReader& Reader)
+void FCodecV1Decoder::ReadCodedStreamDescription(FHuffmanBitStreamReader& Reader, uint32 Version)
 {	
 	FGeometryCacheVertexInfo& VertexInfo = DecodingContext.MeshData->VertexInfo;
 	
@@ -1027,6 +1061,10 @@ void FCodecV1Decoder::ReadCodedStreamDescription(FHuffmanBitStreamReader& Reader
 	VertexInfo.bHasUV0 = (ReadBits(Reader, 1) == 1);
 	VertexInfo.bHasColor0 = (ReadBits(Reader, 1) == 1);
 	VertexInfo.bHasMotionVectors = (ReadBits(Reader, 1) == 1);
+	if (Version >= V3_MAGIC)
+	{
+		VertexInfo.bHasImportedVertexNumbers = (ReadBits(Reader, 1) == 1);
+	}
 
 	VertexInfo.bConstantUV0 = (ReadBits(Reader, 1) == 1);
 	VertexInfo.bConstantColor0 = (ReadBits(Reader, 1) == 1);
@@ -1049,6 +1087,7 @@ void FCodecV1Decoder::InitLUT()
 DECLARE_CYCLE_STAT(TEXT("FCodecV1Decoder"), STAT_CodecV1Decoder, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("SetupAndReadTables"), STAT_SetupAndReadTables, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("DecodeIndexStream"), STAT_DecodeIndexStream, STATGROUP_GeometryCache);
+DECLARE_CYCLE_STAT(TEXT("DecodeImportedVertexNumbersStream"), STAT_DecodeImportedVertexNumbersStream, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("DecodePositionStream"), STAT_DecodePositionStream, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("DecodeColorStream"), STAT_DecodeColorStream, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("DecodeTangentXStream"), STAT_DecodeTangentXStream, STATGROUP_GeometryCache);
@@ -1065,7 +1104,7 @@ bool FCodecV1Decoder::DecodeFrameData(FBufferReader& Reader, FGeometryCacheMeshD
 	FCodedFrameHeader Header;
 	Reader.Serialize(&Header, sizeof(Header));
 
-	if (Header.Magic != OLD_MAGIC && Header.Magic != CURRENT_MAGIC)
+	if (Header.Magic != V1_MAGIC && Header.Magic != V2_MAGIC && Header.Magic != V3_MAGIC)
 	{
 		UE_LOG(LogGeoCaStreamingCodecV1, Error, TEXT("Incompatible bitstream found"));
 		return false;
@@ -1082,7 +1121,7 @@ bool FCodecV1Decoder::DecodeFrameData(FBufferReader& Reader, FGeometryCacheMeshD
 	TArray<uint32> ChunkOffsets;
 
 	bool IsChunked = false;
-	if (Header.Magic == OLD_MAGIC)
+	if (Header.Magic == V1_MAGIC)
 	{
 		// Compatibility with old files. Just treat everything as one big chunk
 		IsChunked = false;
@@ -1090,6 +1129,7 @@ bool FCodecV1Decoder::DecodeFrameData(FBufferReader& Reader, FGeometryCacheMeshD
 	}
 	else
 	{
+		check(Header.Magic == V2_MAGIC || Header.Magic == V3_MAGIC);
 		IsChunked = true;
 		Reader << ChunkOffsets;
 		NumChunks = ChunkOffsets.Num();
@@ -1105,7 +1145,7 @@ bool FCodecV1Decoder::DecodeFrameData(FBufferReader& Reader, FGeometryCacheMeshD
 	FHuffmanBitStreamReader BitReader(Bytes.GetData(), Bytes.Num());
 	
 	// Read which vertex attributes are in the bit stream
-	ReadCodedStreamDescription(BitReader);
+	ReadCodedStreamDescription(BitReader, Header.Magic);
 
 	// Restore entropy coding contexts
 	{
@@ -1124,6 +1164,12 @@ bool FCodecV1Decoder::DecodeFrameData(FBufferReader& Reader, FGeometryCacheMeshD
 		OutMeshData.Positions.Empty(Header.VertexCount);
 		OutMeshData.Positions.AddUninitialized(Header.VertexCount);
 
+		OutMeshData.ImportedVertexNumbers.Empty(Header.VertexCount);
+		if (OutMeshData.VertexInfo.bHasImportedVertexNumbers)
+		{
+			OutMeshData.ImportedVertexNumbers.AddUninitialized(Header.VertexCount);
+		}
+
 		OutMeshData.Colors.Empty(Header.VertexCount);
 		if (OutMeshData.VertexInfo.bHasColor0)
 		{
@@ -1132,8 +1178,7 @@ bool FCodecV1Decoder::DecodeFrameData(FBufferReader& Reader, FGeometryCacheMeshD
 		else
 		{
 			OutMeshData.Colors.AddZeroed(Header.VertexCount);
-		}
-		
+		}	
 		
 		OutMeshData.TangentsX.Empty(Header.VertexCount);
 		if (OutMeshData.VertexInfo.bHasTangentX)
@@ -1212,6 +1257,12 @@ bool FCodecV1Decoder::DecodeFrameData(FBufferReader& Reader, FGeometryCacheMeshD
 			{
 				SCOPE_CYCLE_COUNTER(STAT_DecodePositionStream);
 				DecodePositionStream(ChunkReader, &OutMeshData.Positions[VertexOffset], OutMeshData.Positions.GetTypeSize(), NumChunkVertices);
+			}
+
+			if (OutMeshData.VertexInfo.bHasImportedVertexNumbers)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_DecodeImportedVertexNumbersStream);
+				DecodeIndexStream(ChunkReader, &OutMeshData.ImportedVertexNumbers[VertexOffset], OutMeshData.ImportedVertexNumbers.GetTypeSize(), NumChunkVertices);
 			}
 
 			if (OutMeshData.VertexInfo.bHasColor0)

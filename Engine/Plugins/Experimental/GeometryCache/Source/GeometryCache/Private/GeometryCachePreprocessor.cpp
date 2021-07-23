@@ -298,8 +298,15 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 
 		const bool bHasTangentsX = OldMesh.TangentsX.Num() > 0;
 		const bool bHasTangentsZ = OldMesh.TangentsZ.Num() > 0;
+		const bool bHasImportedVertexNumbers = OldMesh.ImportedVertexNumbers.Num() > 0;
 
 		NewMesh.Positions.SetNumUninitialized(NewVerticesReordered.Num());
+
+		if (bHasImportedVertexNumbers)
+		{
+			NewMesh.ImportedVertexNumbers.SetNumUninitialized(NewVerticesReordered.Num());
+		}
+
 		if (bHasTangentsX)
 		{
 			NewMesh.TangentsX.SetNumUninitialized(NewVerticesReordered.Num());
@@ -329,6 +336,10 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 		for (int32 i = 0; i < NewMesh.Positions.Num(); i++)
 		{
 			NewMesh.Positions[i] = OldMesh.Positions[NewVerticesReordered[i]];
+			if (bHasImportedVertexNumbers)
+			{
+				NewMesh.ImportedVertexNumbers[i] = OldMesh.ImportedVertexNumbers[NewVerticesReordered[i]];
+			}
 			if (bHasTangentsX)
 			{
 				NewMesh.TangentsX[i] = OldMesh.TangentsX[NewVerticesReordered[i]];

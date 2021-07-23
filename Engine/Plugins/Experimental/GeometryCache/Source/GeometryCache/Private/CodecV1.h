@@ -87,6 +87,7 @@ struct FCodecV1DecodingContext
 	/** Huffman tables */
 	FHuffmanDecodeTable ResidualIndicesTable;	
 	FHuffmanDecodeTable ResidualVertexPosTable;
+	FHuffmanDecodeTable ResidualImportedVertexNumbersTable;
 	FHuffmanDecodeTable ResidualColorTable;
 	FHuffmanDecodeTable ResidualNormalTangentXTable;
 	FHuffmanDecodeTable ResidualNormalTangentZTable;
@@ -130,6 +131,7 @@ struct FCodecV1EncodingContext
 	/** Huffman tables */
 	FHuffmanEncodeTable ResidualIndicesTable;
 	FHuffmanEncodeTable ResidualVertexPosTable;
+	FHuffmanEncodeTable ResidualImportedVertexNumbersTable;
 	FHuffmanEncodeTable ResidualColorTable;
 	FHuffmanEncodeTable ResidualColorSkipTable;
 	FHuffmanEncodeTable ResidualNormalTangentXTable;
@@ -270,6 +272,7 @@ private:
 		
 		FStreamEncodingStatistics Indices;
 		FStreamEncodingStatistics Vertices;		
+		FStreamEncodingStatistics ImportedVertexNumbers;
 		FStreamEncodingStatistics Colors;
 		FStreamEncodingStatistics TangentX;
 		FStreamEncodingStatistics TangentY;
@@ -341,7 +344,7 @@ private:
 	}
 
 	/** Read info on the available streams from a bit stream */
-	void ReadCodedStreamDescription(FHuffmanBitStreamReader& Reader);
+	void ReadCodedStreamDescription(FHuffmanBitStreamReader& Reader, uint32 Version);
 
 	/** Any context information to decode a frame in a sequence of frames, such as any Huffman tables used. */
 	FCodecV1DecodingContext DecodingContext;	

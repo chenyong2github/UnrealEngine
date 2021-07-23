@@ -262,6 +262,7 @@ struct FAbcGeometryCacheSettings
 
 	FAbcGeometryCacheSettings()
 	:	bFlattenTracks(true),
+		bStoreImportedVertexNumbers(false),
 		bApplyConstantTopologyOptimizations(false),
 		bCalculateMotionVectorsDuringImport_DEPRECATED(false),
 		MotionVectors(EAbcGeometryCacheMotionVectorsImport::NoMotionVectors),
@@ -273,6 +274,11 @@ struct FAbcGeometryCacheSettings
 	// Whether or not to merge all vertex animation into one track
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GeometryCache)
 	bool bFlattenTracks;
+
+	/** Store the imported vertex numbers. This lets you know the vertex numbers inside the DCC.
+	  * The values of each vertex number will range from 0 to 7 for a cube. Even if the number of positions might be 24. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GeometryCache, AdvancedDisplay)
+	bool bStoreImportedVertexNumbers;
 
 	/** Force the preprocessor to only do optimization once instead of when the preprocessor decides. This may lead to some problems with certain meshes but makes sure motion
 	    blur always works if the topology is constant. */
