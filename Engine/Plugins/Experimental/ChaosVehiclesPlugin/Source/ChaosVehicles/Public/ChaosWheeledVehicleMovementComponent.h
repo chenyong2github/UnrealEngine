@@ -333,11 +333,6 @@ struct FVehicleTransmissionConfig
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup)
 	float TransmissionEfficiency;
 
-	/** Value of engineRevs/maxEngineRevs that is high enough to increment gear*/
-	//UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Setup, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
-	//float NeutralGearUpRatio;
-
-
 	const Chaos::FSimpleTransmissionConfig& GetPhysicsTransmissionConfig()
 	{
 		FillTransmissionSetup();
