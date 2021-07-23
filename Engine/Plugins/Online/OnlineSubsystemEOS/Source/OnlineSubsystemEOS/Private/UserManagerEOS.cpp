@@ -1049,8 +1049,8 @@ bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId&
 {
 	bool bResult = false;
 
-	char EpicIdStr[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH];
-	int32 EpicIdStrSize = EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH;
+	char EpicIdStr[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH+1];
+	int32 EpicIdStrSize = sizeof(EpicIdStr);
 
 	EOS_Connect_GetProductUserIdMappingOptions Options = { };
 	Options.ApiVersion = EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST;
@@ -1487,7 +1487,7 @@ void FUserManagerEOS::FriendStatusChanged(const EOS_Friends_OnFriendsUpdateInfo*
 
 void FUserManagerEOS::AddFriend(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId)
 {
-	const FString& NetId = MakeStringFromEpicAccountId(EpicAccountId);
+	const FString NetId = LexToString(EpicAccountId);
 	FUniqueNetIdEOSRef FriendNetId = FUniqueNetIdEOS::Create(NetId);
 	FOnlineFriendEOSRef FriendRef = MakeShareable(new FOnlineFriendEOS(FriendNetId));
 	LocalUserNumToFriendsListMap[LocalUserNum]->Add(NetId, FriendRef);
@@ -1547,8 +1547,8 @@ void FUserManagerEOS::UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountI
 		return;
 	}
 
-	const FString AccountIdStr = MakeStringFromEpicAccountId(AccountId);
-	const FString UserIdStr = MakeStringFromProductUserId(UserId);
+	const FString AccountIdStr = LexToString(AccountId);
+	const FString UserIdStr = LexToString(UserId);
 
 	// Get the unique net id and rebuild the string for it
 	IAttributeAccessInterfaceRef AttrAccess = NetIdStringToAttributeAccessMap[PrevNetIdStr];
@@ -2482,7 +2482,7 @@ bool FUserManagerEOS::QueryUserIdMapping(const FUniqueNetId& UserId, const FStri
 		bool bWasSuccessful = Result == EOS_EResult::EOS_Success;
 		if (bWasSuccessful)
 		{
-			const FString& NetIdStr = MakeStringFromEpicAccountId(Data->TargetUserId);
+			const FString NetIdStr = LexToString(Data->TargetUserId);
 			FUniqueNetIdEOSPtr LocalUserId = UserNumToNetIdMap[DefaultLocalUser];
 			if (!EpicAccountIdToOnlineUserMap.Contains(Data->TargetUserId))
 			{
@@ -2516,7 +2516,7 @@ struct FQueryByStringIdsOptions :
 		PointerArray.AddZeroed(InNumStringIds);
 		for (int32 Index = 0; Index < PointerArray.Num(); Index++)
 		{
-			PointerArray[Index] = new char[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH];
+			PointerArray[Index] = new char[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH+1];
 		}
 		ApiVersion = EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_API_LATEST;
 		AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
@@ -2545,7 +2545,7 @@ struct FGetAccountMappingOptions :
 		AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
 		TargetExternalUserId = AccountId;
 	}
-	char AccountId[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH];
+	char AccountId[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH+1];
 };
 
 typedef TEOSCallback<EOS_Connect_OnQueryExternalAccountMappingsCallback, EOS_Connect_QueryExternalAccountMappingsCallbackInfo> FQueryByStringIdsCallback;
@@ -2573,7 +2573,7 @@ bool FUserManagerEOS::QueryExternalIdMappings(const FUniqueNetId& UserId, const 
 		// Build an options up per batch
 		for (uint32 ProcessedCount = 0; ProcessedCount < AmountToProcess; ProcessedCount++, QueryStart++)
 		{
-			FCStringAnsi::Strncpy(Options.PointerArray[ProcessedCount], TCHAR_TO_UTF8(*ExternalIds[ProcessedCount]), EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH);
+			FCStringAnsi::Strncpy(Options.PointerArray[ProcessedCount], TCHAR_TO_UTF8(*ExternalIds[ProcessedCount]), EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH+1);
 			BatchIds.Add(ExternalIds[ProcessedCount]);
 		}
 		FQueryByStringIdsCallback* CallbackObj = new FQueryByStringIdsCallback();
@@ -2597,7 +2597,7 @@ bool FUserManagerEOS::QueryExternalIdMappings(const FUniqueNetId& UserId, const 
 				// Get the product id for each epic account passed in
 				for (const FString& StringId : BatchIds)
 				{
-					FCStringAnsi::Strncpy(Options.AccountId, TCHAR_TO_UTF8(*StringId), EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH);
+					FCStringAnsi::Strncpy(Options.AccountId, TCHAR_TO_UTF8(*StringId), EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH+1);
 					EOS_ProductUserId ProductUserId = EOS_Connect_GetExternalAccountMapping(EOSSubsystem->ConnectHandle, &Options);
 					if (EOS_ProductUserId_IsValid(ProductUserId) == EOS_TRUE)
 					{

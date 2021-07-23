@@ -77,18 +77,6 @@ namespace
 			return TEXT("Unknown");
 		}
 	}
-
-	FString ProductUserIdToString(EOS_ProductUserId value)
-	{
-		char Buffer[EOS_PRODUCTUSERID_MAX_LENGTH];
-		int32_t BufferLength = sizeof(Buffer);
-		if (EOS_EResult::EOS_Success == EOS_ProductUserId_ToString(value, Buffer, &BufferLength))
-		{
-			return UTF8_TO_TCHAR(Buffer);
-		}
-
-		return FString();
-	}
 }
 
 static TAutoConsoleVariable<bool> CVarFakeAudioInputEnabled(
@@ -1717,7 +1705,7 @@ void FEOSVoiceChatUser::OnBlockParticipant(const EOS_RTC_BlockParticipantCallbac
 	check(IsInitialized());
 
 	const FString ChannelName = UTF8_TO_TCHAR(CallbackInfo->RoomName);
-	FString PlayerName = ProductUserIdToString(CallbackInfo->ParticipantId);
+	const FString PlayerName = LexToString(CallbackInfo->ParticipantId);
 
 	if (CallbackInfo->ResultCode == EOS_EResult::EOS_Success)
 	{
@@ -1752,8 +1740,8 @@ void FEOSVoiceChatUser::OnUpdateReceivingAudio(const EOS_RTCAudio_UpdateReceivin
 {
 	check(IsInitialized());
 
-	FString ChannelName = UTF8_TO_TCHAR(CallbackInfo->RoomName);
-	FString PlayerName = ProductUserIdToString(CallbackInfo->ParticipantId);
+	const FString ChannelName = UTF8_TO_TCHAR(CallbackInfo->RoomName);
+	const FString PlayerName = LexToString(CallbackInfo->ParticipantId);
 	const EOS_EResult& ResultCode = CallbackInfo->ResultCode;
 
 	if (ResultCode == EOS_EResult::EOS_Success)
@@ -1958,8 +1946,8 @@ void FEOSVoiceChatUser::OnChannelParticipantStatusChanged(const EOS_RTC_Particip
 {
 	check(LoginSession.State == ELoginState::LoggedIn);
 
-	FString ChannelName = UTF8_TO_TCHAR(CallbackInfo->RoomName);
-	FString PlayerName = ProductUserIdToString(CallbackInfo->ParticipantId);
+	const FString ChannelName = UTF8_TO_TCHAR(CallbackInfo->RoomName);
+	const FString PlayerName = LexToString(CallbackInfo->ParticipantId);
 
 	if (CallbackInfo->ParticipantStatus == EOS_ERTCParticipantStatus::EOS_RTCPS_Joined)
 	{
@@ -2032,8 +2020,8 @@ void FEOSVoiceChatUser::OnChannelParticipantAudioUpdated(const EOS_RTCAudio_Part
 {
 	check(LoginSession.State == ELoginState::LoggedIn);
 
-	FString ChannelName = UTF8_TO_TCHAR(CallbackInfo->RoomName);
-	FString PlayerName = ProductUserIdToString(CallbackInfo->ParticipantId);
+	const FString ChannelName = UTF8_TO_TCHAR(CallbackInfo->RoomName);
+	const FString PlayerName = LexToString(CallbackInfo->ParticipantId);
 
 	const bool bTalking = CallbackInfo->bSpeaking == EOS_TRUE;
 	const EOS_ERTCAudioStatus AudioStatus = CallbackInfo->AudioStatus;

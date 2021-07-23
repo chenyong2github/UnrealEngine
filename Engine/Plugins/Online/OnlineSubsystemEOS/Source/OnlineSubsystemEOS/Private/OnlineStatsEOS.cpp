@@ -192,11 +192,7 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 			}
 			else
 			{
-				char ProductIdString[EOS_PRODUCTUSERID_MAX_LENGTH];
-				ProductIdString[0] = '\0';
-				int32_t BufferSize = EOS_PRODUCTUSERID_MAX_LENGTH;
-				EOS_ProductUserId_ToString(Data->TargetUserId, ProductIdString, &BufferSize);
-				UE_LOG_ONLINE_STATS(Error, TEXT("EOS_Stats_QueryStats() for user (%s) failed with EOS result code (%s)"), ANSI_TO_TCHAR(ProductIdString), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+				UE_LOG_ONLINE_STATS(Error, TEXT("EOS_Stats_QueryStats() for user (%s) failed with EOS result code (%s)"), *LexToString(Data->TargetUserId), *LexToString(Data->ResultCode));
 			}
 			if (StatsQueryContext->NumPlayerReads <= 0)
 			{
