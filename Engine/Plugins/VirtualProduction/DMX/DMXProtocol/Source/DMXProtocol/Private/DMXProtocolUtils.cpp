@@ -61,9 +61,9 @@ FString FDMXProtocolUtils::GenerateUniqueNameFromExisting(const TSet<FString>& I
 		int32 CountLength = Count > 0 ? (int32)FGenericPlatformMath::LogX(10.0f, Count) + 2 : 2;
 
 		// If the length of the final string will be too long, cut off the end so we can fit the number
-		if (CountLength + BaseName.Len() > NAME_SIZE)
+		if (CountLength + BaseName.Len() >= NAME_SIZE)
 		{
-			BaseName = BaseName.Left(NAME_SIZE - CountLength);
+			BaseName = BaseName.Left(NAME_SIZE - CountLength - 1);
 		}
 
 		FinalName = FString::Printf(TEXT("%s_%d"), *BaseName, Count);

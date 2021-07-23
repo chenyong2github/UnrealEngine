@@ -1828,10 +1828,10 @@ bool USubobjectDataSubsystem::IsValidRename(const FSubobjectDataHandle& Handle, 
 				OutErrorMessage = LOCTEXT("RenameFailed_EngineReservedName", "This name is reserved for engine use.");
 				return false;
 			}
-			else if (NewTextStr.Len() > NAME_SIZE)
+			else if (NewTextStr.Len() >= NAME_SIZE)
 			{
 				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("CharCount"), NAME_SIZE);
+				Arguments.Add(TEXT("CharCount"), NAME_SIZE - 1);
 				OutErrorMessage = FText::Format(LOCTEXT("ComponentRenameFailed_TooLong", "Component name must be less than {CharCount} characters long."), Arguments);
 				return false;
 			}
