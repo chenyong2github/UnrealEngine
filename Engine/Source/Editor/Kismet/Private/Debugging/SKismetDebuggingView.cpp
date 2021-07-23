@@ -18,7 +18,7 @@
 #include "Editor.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "K2Node.h"
-#include "Engine/Breakpoint.h"
+#include "Kismet2/Breakpoint.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "Debugging/KismetDebugCommands.h"
@@ -66,18 +66,17 @@ TSharedRef<SWidget> FDebugLineItem::GenerateValueWidget()
 
 UBlueprint* FDebugLineItem::GetBlueprintForObject(UObject* ParentObject)
 {
-	UBlueprint* ParentBlueprint = NULL;
-
-	if (ParentObject != NULL)
+	if(ParentObject == nullptr)
 	{
-		ParentBlueprint = Cast<UBlueprint>(ParentObject);
-		if (ParentBlueprint == NULL)
-		{
-			ParentBlueprint = Cast<UBlueprint>(ParentObject->GetClass()->ClassGeneratedBy);
-		}
+		return nullptr;
 	}
-
-	return ParentBlueprint;
+	if(UBlueprint* ParentBlueprint = Cast<UBlueprint>(ParentObject))
+	{
+		return ParentBlueprint;
+	}
+	
+	// recursively walk up ownership heirrarchy until we find the blueprint
+	return GetBlueprintForObject(ParentObject->GetOuter());
 }
 
 UBlueprintGeneratedClass* FDebugLineItem::GetClassForObject(UObject* ParentObject)
@@ -403,37 +402,37 @@ void FWatchLineItem::OnNavigateToWatchLocation( )
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FBreakpointLineItem
+// FBlueprintBreakpointLineItem
 
-struct FBreakpointLineItem : public FDebugLineItem
+struct FBlueprintBreakpointLineItem : public FDebugLineItem
 {
 protected:
-	TWeakObjectPtr< UObject > ParentObjectRef;
-	TWeakObjectPtr< UBreakpoint > BreakpointRef;
+	TWeakObjectPtr<UObject> ParentObjectRef;
+	TSoftObjectPtr<UEdGraphNode> BreakpointNode;
 public:
-	FBreakpointLineItem(UBreakpoint* BreakpointToWatch, UObject* ParentObject)
+	FBlueprintBreakpointLineItem(TSoftObjectPtr<UEdGraphNode> BreakpointToWatch, UObject* ParentObject)
 		: FDebugLineItem(DLT_Breakpoint)
 	{
-		BreakpointRef = BreakpointToWatch;
+		BreakpointNode = BreakpointToWatch;
 		ParentObjectRef = ParentObject;
 	}
 
 	virtual bool Compare(const FDebugLineItem* BaseOther) const override
 	{
-		FBreakpointLineItem* Other = (FBreakpointLineItem*)BaseOther;
+		FBlueprintBreakpointLineItem* Other = (FBlueprintBreakpointLineItem*)BaseOther;
 		return (ParentObjectRef.Get() == Other->ParentObjectRef.Get()) &&
-			(BreakpointRef.Get() == Other->BreakpointRef.Get());
+			(BreakpointNode == Other->BreakpointNode);
 	}
 
 	virtual FDebugLineItem* Duplicate() const override
 	{
-		return new FBreakpointLineItem(BreakpointRef.Get(), ParentObjectRef.Get());
+		return new FBlueprintBreakpointLineItem(BreakpointNode, ParentObjectRef.Get());
 	}	
 
 	virtual void MakeMenu(class FMenuBuilder& MenuBuilder) override
 	{
-		UBreakpoint* Breakpoint = BreakpointRef.Get();
-		UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
+		FBlueprintBreakpoint* Breakpoint = GetBreakpoint();
+		const UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
 
 		// By default, we don't allow actions to execute when in debug mode. 
 		// Create an empty action to always allow execution for these commands (they are allowed in debug mode)
@@ -444,7 +443,9 @@ public:
 			const bool bNewEnabledState = !Breakpoint->IsEnabledByUser();
 
 			FUIAction ToggleThisBreakpoint(
-				FExecuteAction::CreateStatic( &FDebuggingActionCallbacks::SetBreakpointEnabled, Breakpoint, bNewEnabledState ),
+				FExecuteAction::CreateStatic(
+					&FDebuggingActionCallbacks::SetBreakpointEnabled, BreakpointNode, ParentBlueprint, bNewEnabledState
+					),
 				AlwaysAllowExecute
 				);
 
@@ -471,7 +472,7 @@ public:
 		if ((Breakpoint != NULL) && (ParentBlueprint != NULL))
 		{
 			FUIAction ClearThisBreakpoint(
-				FExecuteAction::CreateStatic( &FDebuggingActionCallbacks::ClearBreakpoint, Breakpoint, ParentBlueprint ),
+				FExecuteAction::CreateStatic( &FDebuggingActionCallbacks::ClearBreakpoint, BreakpointNode, ParentBlueprint ),
 				AlwaysAllowExecute
 				);
 
@@ -483,6 +484,18 @@ public:
 		}
 	}
 protected:
+	FBlueprintBreakpoint* GetBreakpoint() const
+	{
+		if(UEdGraphNode* Node = BreakpointNode.Get())
+		{
+			if(const UBlueprint* Blueprint = GetBlueprintForObject(Node))
+			{
+				return FKismetDebugUtilities::FindBreakpointForNode(Node, Blueprint);
+			}
+		}
+		return nullptr;
+	}
+	
 	virtual TSharedRef<SWidget> GenerateNameWidget() override
 	{
 		return SNew(SHorizontalBox)
@@ -491,14 +504,14 @@ protected:
 			.AutoWidth()
 			[
 				SNew(SButton)
-				. OnClicked(this, &FBreakpointLineItem::OnUserToggledEnabled)
+				. OnClicked(this, &FBlueprintBreakpointLineItem::OnUserToggledEnabled)
 				. ToolTipText(LOCTEXT("ToggleBreakpointButton_ToolTip", "Toggle this breakpoint"))
 				. ButtonStyle( FEditorStyle::Get(), "NoBorder" )
 				. ContentPadding(0.0f)
 				[
 					SNew(SImage)
-					. Image(this, &FBreakpointLineItem::GetStatusImage)
-					. ToolTipText(this, &FBreakpointLineItem::GetStatusTooltip)
+					. Image(this, &FBlueprintBreakpointLineItem::GetStatusImage)
+					. ToolTipText(this, &FBlueprintBreakpointLineItem::GetStatusTooltip)
 				]
 			]
 
@@ -508,9 +521,9 @@ protected:
 			[
 				SNew(SHyperlink)
 				. Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
-				. Text(this, &FBreakpointLineItem::GetLocationDescription)
+				. Text(this, &FBlueprintBreakpointLineItem::GetLocationDescription)
 				. ToolTipText( LOCTEXT("NavBreakpointLoc", "Navigate to the breakpoint location") )
-				. OnNavigate(this, &FBreakpointLineItem::OnNavigateToBreakpointLocation)
+				. OnNavigate(this, &FBlueprintBreakpointLineItem::OnNavigateToBreakpointLocation)
 			];
 	}
 	
@@ -524,39 +537,39 @@ protected:
 	FText GetStatusTooltip() const;
 };
 
-FText FBreakpointLineItem::GetLocationDescription() const
+FText FBlueprintBreakpointLineItem::GetLocationDescription() const
 {
-	if (UBreakpoint* MyBreakpoint = BreakpointRef.Get())
+	if (FBlueprintBreakpoint* MyBreakpoint = GetBreakpoint())
 	{
 		return MyBreakpoint->GetLocationDescription();
 	}
 	return FText::GetEmpty();
 }
 
-FReply FBreakpointLineItem::OnUserToggledEnabled()
+FReply FBlueprintBreakpointLineItem::OnUserToggledEnabled()
 {
-	if (UBreakpoint* MyBreakpoint = BreakpointRef.Get())
+	if (FBlueprintBreakpoint* MyBreakpoint = GetBreakpoint())
 	{
-		FKismetDebugUtilities::SetBreakpointEnabled(MyBreakpoint, !MyBreakpoint->IsEnabledByUser());
+		FKismetDebugUtilities::SetBreakpointEnabled(*MyBreakpoint, !MyBreakpoint->IsEnabledByUser());
 	}
 	return FReply::Handled();
 }
 
-void FBreakpointLineItem::OnNavigateToBreakpointLocation()
+void FBlueprintBreakpointLineItem::OnNavigateToBreakpointLocation()
 {
-	if (UBreakpoint* MyBreakpoint = BreakpointRef.Get())
+	if (FBlueprintBreakpoint* MyBreakpoint = GetBreakpoint())
 	{
 		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(MyBreakpoint->GetLocation());
 	}
 }
 
-const FSlateBrush* FBreakpointLineItem::GetStatusImage() const
+const FSlateBrush* FBlueprintBreakpointLineItem::GetStatusImage() const
 {
-	if (UBreakpoint* MyBreakpoint = BreakpointRef.Get())
+	if (FBlueprintBreakpoint* MyBreakpoint = GetBreakpoint())
 	{
 		if (MyBreakpoint->IsEnabledByUser())
 		{
-			return FEditorStyle::GetBrush(FKismetDebugUtilities::IsBreakpointValid(MyBreakpoint) ? TEXT("Kismet.Breakpoint.EnabledAndValid") : TEXT("Kismet.Breakpoint.EnabledAndInvalid"));
+			return FEditorStyle::GetBrush(FKismetDebugUtilities::IsBreakpointValid(*MyBreakpoint) ? TEXT("Kismet.Breakpoint.EnabledAndValid") : TEXT("Kismet.Breakpoint.EnabledAndInvalid"));
 		}
 		else
 		{
@@ -567,11 +580,11 @@ const FSlateBrush* FBreakpointLineItem::GetStatusImage() const
 	return FEditorStyle::GetDefaultBrush();
 }
 
-FText FBreakpointLineItem::GetStatusTooltip() const
+FText FBlueprintBreakpointLineItem::GetStatusTooltip() const
 {
-	if (UBreakpoint* MyBreakpoint = BreakpointRef.Get())
+	if (FBlueprintBreakpoint* MyBreakpoint = GetBreakpoint())
 	{
-		if (!FKismetDebugUtilities::IsBreakpointValid(MyBreakpoint))
+		if (!FKismetDebugUtilities::IsBreakpointValid(*MyBreakpoint))
 		{
 			return LOCTEXT("Breakpoint_NoHit", "This breakpoint will not be hit because its node generated no code");
 		}
@@ -625,12 +638,13 @@ public:
 				}
 
 				// Create children for each breakpoint
-				for (int32 BreakpointIndex = 0; BreakpointIndex < ParentBP->Breakpoints.Num(); ++BreakpointIndex)
-				{
-					UBreakpoint* Breakpoint = ParentBP->Breakpoints[BreakpointIndex];
-
-					EnsureChildIsAdded(ChildrenMirrors, OutChildren, FBreakpointLineItem(Breakpoint, ParentObject));
-				}
+				FKismetDebugUtilities::ForeachBreakpoint(
+					ParentBP,
+					[this, &OutChildren, ParentObject](FBlueprintBreakpoint& Breakpoint)
+					{
+						EnsureChildIsAdded(ChildrenMirrors, OutChildren, FBlueprintBreakpointLineItem(Breakpoint.GetLocation(), ParentObject));
+					}
+				);
 
 				// Make sure there is something there, to let the user know if there is nothing
 				if (OutChildren.Num() == 0)
@@ -651,12 +665,13 @@ public:
 					}
 
 					// Create children for each breakpoint
-					for (int32 BreakpointIndex = 0; BreakpointIndex < ParentBP->Breakpoints.Num(); ++BreakpointIndex)
-					{
-						UBreakpoint* Breakpoint = ParentBP->Breakpoints[BreakpointIndex];
-
-						EnsureChildIsAdded(ChildrenMirrors, OutChildren, FBreakpointLineItem(Breakpoint, ParentObject));
-					}
+					FKismetDebugUtilities::ForeachBreakpoint(
+						ParentBP,
+						[this, &OutChildren, ParentObject](FBlueprintBreakpoint& Breakpoint)
+						{
+							EnsureChildIsAdded(ChildrenMirrors, OutChildren, FBlueprintBreakpointLineItem(Breakpoint.GetLocation(), ParentObject));
+						}
+					);
 				}
 
 				// It could also have active latent behaviors
@@ -717,7 +732,7 @@ protected:
 	{
 		if (UBlueprint* BP = Cast<UBlueprint>(ObjectRef.Get()))
 		{
-			if (BP->WatchedPins.Num() > 0)
+			if (FKismetDebugUtilities::BlueprintHasBreakpoints(BP))
 			{
 				FUIAction ClearAllWatches(
 					FExecuteAction::CreateStatic( &FDebuggingActionCallbacks::ClearWatches, BP )
@@ -728,10 +743,7 @@ protected:
 					LOCTEXT("ClearWatches_ToolTip", "Clear all watches in this blueprint"),
 					FSlateIcon(),
 					ClearAllWatches);
-			}
-
-			if (BP->Breakpoints.Num() > 0)
-			{
+			
 				FUIAction ClearAllBreakpoints(
 					FExecuteAction::CreateStatic( &FDebuggingActionCallbacks::ClearBreakpoints, BP )
 					);
@@ -1061,7 +1073,7 @@ EVisibility SKismetDebuggingView::IsDebuggerVisible() const
 bool SKismetDebuggingView::CanDisableAllBreakpoints() const
 {
 	const UBlueprint* BlueprintObj = BlueprintToWatchPtr.Get();
-	return BlueprintObj && BlueprintObj->Breakpoints.Num() > 0;
+	return BlueprintObj && FKismetDebugUtilities::BlueprintHasBreakpoints(BlueprintObj);
 }
 
 FReply SKismetDebuggingView::OnDisableAllBreakpointsClicked()
