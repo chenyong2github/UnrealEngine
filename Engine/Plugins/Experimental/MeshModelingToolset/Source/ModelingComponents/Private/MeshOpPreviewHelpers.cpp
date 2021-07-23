@@ -108,10 +108,10 @@ void UMeshOpPreviewWithBackgroundCompute::Tick(float DeltaTime)
 
 void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 {
-	EBackgroundComputeTaskStatus Status = BackgroundCompute ? BackgroundCompute->CheckStatus()
+	LastComputeStatus = BackgroundCompute ? BackgroundCompute->CheckStatus()
 		: EBackgroundComputeTaskStatus::NotComputing;
 
-	if (Status == EBackgroundComputeTaskStatus::NewResultAvailable)
+	if (LastComputeStatus == EBackgroundComputeTaskStatus::NewResultAvailable)
 	{
 		TUniquePtr<FDynamicMeshOperator> MeshOp = BackgroundCompute->ExtractResult();
 		OnOpCompleted.Broadcast(MeshOp.Get());
@@ -203,6 +203,7 @@ void UMeshOpPreviewWithBackgroundCompute::SetIsMeshTopologyConstant(bool bOn, EM
 
 bool UMeshOpPreviewWithBackgroundCompute::IsUsingWorkingMaterial()
 {
-	bool bIsLongDelay = BackgroundCompute && BackgroundCompute->GetElapsedComputeTime() > SecondsBeforeWorkingMaterial;
-	return !(bResultValid || WorkingMaterial == nullptr || bIsLongDelay == false);
+	return WorkingMaterial && BackgroundCompute 
+		&& LastComputeStatus == EBackgroundComputeTaskStatus::InProgress
+		&& BackgroundCompute->GetElapsedComputeTime() > SecondsBeforeWorkingMaterial;
 }
