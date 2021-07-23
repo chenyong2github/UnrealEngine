@@ -941,8 +941,16 @@ public:
 
 	void ReleasePreloadedPackageShaderMap(int32 ShaderMapIndex)
 	{
-		FRWScopeLock Locker(ResourceLock, SLT_Write);
-		Resources[ShaderMapIndex]->Release();
+		FShaderMapResource_SharedCode* Resource = nullptr;
+		{
+			FRWScopeLock Locker(ResourceLock, SLT_Write);
+			Resource = Resources[ShaderMapIndex];
+		}
+
+		if (Resource)
+		{
+			Resource->Release();
+		}
 	}
 
 public:
