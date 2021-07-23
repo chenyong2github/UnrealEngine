@@ -22,6 +22,7 @@
 #include "HierarchicalDerivedDataBackend.h"
 #include "DerivedDataLimitKeyLengthWrapper.h"
 #include "DerivedDataBackendCorruptionWrapper.h"
+#include "DerivedDataBackendThrottleWrapper.h"
 #include "DerivedDataBackendVerifyWrapper.h"
 #include "DerivedDataUtilsInterface.h"
 #include "Misc/EngineBuildSettings.h"
@@ -245,6 +246,21 @@ public:
 				else if (NodeType == TEXT("Zen"))
 				{
 					ParsedNode = ParseZenCache(NodeName, *Entry);
+				}
+				
+				if (ParsedNode)
+				{
+					// Add a throttling layer if parameters are found
+					uint32 LatencyMS = 0;
+					FParse::Value(*Entry, TEXT("LatencyMS="), LatencyMS);
+
+					uint32 MaxBytesPerSecond = 0;
+					FParse::Value(*Entry, TEXT("MaxBytesPerSecond="), MaxBytesPerSecond);
+
+					if (LatencyMS != 0 || MaxBytesPerSecond != 0)
+					{
+						ParsedNode = new FDerivedDataBackendThrottleWrapper(ParsedNode, LatencyMS, MaxBytesPerSecond, *Entry);
+					}
 				}
 			}
 		}
