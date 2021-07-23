@@ -810,8 +810,15 @@ void FGroupTopology::GetAllVertexGroups(int32 VertexID, TArray<int32>& GroupsOut
 
 
 FTriangleGroupTopology::FTriangleGroupTopology(const FDynamicMesh3* Mesh, bool bAutoBuild) 
-	: FGroupTopology(Mesh, bAutoBuild)
+	: FGroupTopology(Mesh, false)
 {
+	// Note that we can't rely on the call to RebuildTopology in the base class constructor
+	// because virtual function call resolution is not active in constructors (so it would
+	// call the base class RebuildTopology)
+	if (bAutoBuild)
+	{
+		RebuildTopology();
+	}
 }
 
 

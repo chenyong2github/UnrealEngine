@@ -288,8 +288,16 @@ protected:
 	{
 	public:
 		FBasicTopology(const UE::Geometry::FDynamicMesh3* Mesh, bool bAutoBuild) :
-			FGroupTopology(Mesh, bAutoBuild)
-		{}
+			FGroupTopology(Mesh, false)
+		{
+			if (bAutoBuild)
+			{
+				// Virtual func resolution doesn't work in constructors. Though we're not currently
+				// overriding RebuildTopology, let's do the proper thing in case we get copy-pasted
+				// somewhere where we do.
+				RebuildTopology();
+			}
+		}
 
 		int GetGroupID(int TriangleID) const override
 		{

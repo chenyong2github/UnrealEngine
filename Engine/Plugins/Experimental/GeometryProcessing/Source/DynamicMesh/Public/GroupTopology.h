@@ -108,6 +108,11 @@ struct DYNAMICMESH_API FGroupTopologySelection
 			&& Contains(Selection);
 	}
 
+	bool operator!=(const FGroupTopologySelection& Selection) const
+	{
+		return !(*this == Selection);
+	}
+
 	inline bool IsSelectedTriangle(const FDynamicMesh3* Mesh, const FGroupTopology* Topology, int32 TriangleID) const;
 
 
@@ -433,6 +438,7 @@ FIndex2i FGroupTopology::MakeEdgeID(int Group1, int Group2) const
 	return (Group1 < Group2) ? FIndex2i(Group1, Group2) : FIndex2i(Group2, Group1);
 }
 
+// Defined here instead of the class declaration because it requires FGroupTopology to be defined.
 bool FGroupTopologySelection::IsSelectedTriangle(const FDynamicMesh3* Mesh, const FGroupTopology* Topology, int32 TriangleID) const
 {
 	int GroupID = Topology->GetGroupID(TriangleID);
