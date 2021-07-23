@@ -48,6 +48,7 @@ DEFINE_STAT(STAT_TextureMemoryCube);
 DEFINE_STAT(STAT_UniformBufferMemory);
 DEFINE_STAT(STAT_IndexBufferMemory);
 DEFINE_STAT(STAT_VertexBufferMemory);
+DEFINE_STAT(STAT_RTAccelerationStructureMemory);
 DEFINE_STAT(STAT_StructuredBufferMemory);
 DEFINE_STAT(STAT_PixelBufferMemory);
 
