@@ -234,7 +234,10 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 		TUniquePtr<FDynamicMesh3> CurrentMesh = DynamicMesh->ExtractMesh();
 		TSharedPtr<FDynamicMesh3> CurrentMeshShared(CurrentMesh.Release());
 
-		DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh) { EditMesh = UpdatedMesh; });
+		DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+		{ 
+			EditMesh.CompactCopy(UpdatedMesh);
+		});
 
 		TSharedPtr<FDynamicMesh3> NewMeshShared = MakeShared<FDynamicMesh3>();
 		DynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { *NewMeshShared = ReadMesh; });

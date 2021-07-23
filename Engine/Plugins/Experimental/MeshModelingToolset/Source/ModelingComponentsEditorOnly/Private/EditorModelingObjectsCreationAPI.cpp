@@ -201,7 +201,12 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateDynamicMeshActo
 
 	if (CreateMeshParams.MeshType == ECreateMeshObjectSourceMeshType::DynamicMesh)
 	{
-		NewComponent->SetMesh(MoveTemp(CreateMeshParams.DynamicMesh.GetValue()));
+		FDynamicMesh3 SetMesh = MoveTemp(CreateMeshParams.DynamicMesh.GetValue());
+		if (SetMesh.IsCompact() == false)
+		{
+			SetMesh.CompactInPlace();
+		}
+		NewComponent->SetMesh(MoveTemp(SetMesh));
 		NewComponent->NotifyMeshUpdated();
 	}
 	else if (CreateMeshParams.MeshType == ECreateMeshObjectSourceMeshType::MeshDescription)
