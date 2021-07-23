@@ -27,7 +27,8 @@
 #include "AutomationTelemetry.h"
 
 #if WITH_EDITOR
-#include "UnrealEd.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
 #include "Logging/MessageLog.h"
 #endif
 #include "Async/ParallelFor.h"
