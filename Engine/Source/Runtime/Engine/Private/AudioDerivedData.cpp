@@ -1168,6 +1168,14 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 		QualityInfo.bStreaming = SoundWave->IsStreaming(CompressionOverrides ? *CompressionOverrides : FPlatformAudioCookOverrides());
 		QualityInfo.DebugName = SoundWave->GetFullName();
 
+		static const FName NAME_BINKA(TEXT("BINKA"));
+		if (WaveSampleRate > 48000 &&
+			FormatName == NAME_BINKA)
+		{
+			// We have to do this here because we don't know the name of the wave inside the codec.
+			UE_LOG(LogAudioDerivedData, Warning, TEXT("[%s] High sample rate wave (%d) with Bink Audio - perf waste - high frequencies are discarded by Bink Audio (like most perceptual codecs)."), *SoundWave->GetFullName(), WaveSampleRate);
+		}
+
 		// Cook the data.
 		if(Format.Cook(FormatName, Input, QualityInfo, Output))
 		{
@@ -1380,6 +1388,15 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 			QualityInfo.SampleDataSize = SampleDataSize;
 			QualityInfo.bStreaming = SoundWave->IsStreaming(CompressionOverrides ? *CompressionOverrides : FPlatformAudioCookOverrides());
 			QualityInfo.DebugName = SoundWave->GetFullName();
+
+			static const FName NAME_BINKA(TEXT("BINKA"));
+			if (WaveSampleRate > 48000 &&
+				FormatName == NAME_BINKA)
+			{
+				// We have to do this here because we don't know the name of the wave inside the codec.
+				UE_LOG(LogAudioDerivedData, Warning, TEXT("[%s] High sample rate wave (%d) with Bink Audio - perf waste - high frequencies are discarded by Bink Audio (like most perceptual codecs)."), *SoundWave->GetFullName(), WaveSampleRate);
+			}
+
 			//@todo tighten up the checking for empty results here
 			if(Format.CookSurround(FormatName, SourceBuffers, QualityInfo, Output))
 			{

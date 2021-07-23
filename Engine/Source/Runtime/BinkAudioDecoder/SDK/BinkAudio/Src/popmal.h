@@ -10,6 +10,19 @@
 
 #define PushMallocBytesForXPtrs( X ) ( ( X * sizeof(void*) ) + ( X * sizeof(U64) ) + 64 )
 
+
+#ifdef WRAP_PUBLICS
+#define rfmerge3(name,add) name##add
+#define rfmerge2(name,add) rfmerge3(name,add)
+#define rfmerge(name)      rfmerge2(name,WRAP_PUBLICS)
+#define pushmallocinit                    rfmerge(pushmallocinit)
+#define pushmalloc                        rfmerge(pushmalloc)
+#define pushmalloco                       rfmerge(pushmalloco)
+#define popmalloctotal                    rfmerge(popmalloctotal)
+#define popmalloc                         rfmerge(popmalloc)
+#endif
+
+
 RADDEFFUNC void RADLINK pushmallocinit(void * base,U32 num_ptrs);
 RADDEFFUNC void RADLINK pushmalloc( void * base, void  * ptr, U64 amt );
 
@@ -18,19 +31,8 @@ RADDEFFUNC void RADLINK pushmalloco(void* base, void * ptr,U64 amt);
 
 RADDEFFUNC U64 RADLINK popmalloctotal( void * base );
 
-#ifdef RADUSETM3
-  #define popmalloc( base,b ) popmalloci( base, b, __FILE__, __LINE__ )
-  RADDEFFUNC void  * RADLINK popmalloci( void * base, U64 amt, char const * info, U32 line );
-#else
-  RADDEFFUNC void  * RADLINK popmalloc( void * base, U64 amt, void* (*allocator)(UINTa bytes));
-#endif
+RADDEFFUNC void  * RADLINK popmalloc( void * base, U64 amt, void* (*allocator)(UINTa bytes));
 
-//#define SEPARATEMALLOCS
-
-#ifdef SEPARATEMALLOCS
-RADDEFFUNC void RADLINK popfree(void  * ptr);
-#else
 #define popfree(ptr, memfree) memfree(ptr)
-#endif
 
-#endif
+#endif //  __POPMALH__

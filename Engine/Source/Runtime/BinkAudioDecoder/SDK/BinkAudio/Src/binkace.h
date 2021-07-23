@@ -9,6 +9,16 @@
 
 #define AUDIOFLOAT F32
 
+#ifdef WRAP_PUBLICS
+#define rfmerge3(name,add) name##add
+#define rfmerge2(name,add) rfmerge3(name,add)
+#define rfmerge(name)      rfmerge2(name,WRAP_PUBLICS)
+#define BinkAudioCompressOpen                          rfmerge(BinkAudioCompressOpen)
+#define BinkAudioCompressLock                          rfmerge(BinkAudioCompressLock)
+#define BinkAudioCompressUnlock                        rfmerge(BinkAudioCompressUnlock)
+#define BinkAudioCompressClose                         rfmerge(BinkAudioCompressClose)
+#endif
+
 //===========================================
 //  encoding API
 //===========================================

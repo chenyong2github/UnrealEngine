@@ -4,13 +4,13 @@
 #include "binka_ue_decode.h"
 
 // Amount of memory to pass to DecompressOpen
-uint32_t UEBinkAudioDecompressMemory(uint32_t rate, uint32_t chans)
+static uint32_t UEBinkAudioDecompressMemory(uint32_t rate, uint32_t chans)
 {
     return BinkAudioDecompressMemory(rate, chans, 0);
 }
 
 // open and initialize a decompression stream
-uint32_t UEBinkAudioDecompressOpen(void * BinkAudioDecoderMemory, uint32_t rate, uint32_t chans, bool interleave_output, bool is_bink_audio_2)
+static uint32_t UEBinkAudioDecompressOpen(void * BinkAudioDecoderMemory, uint32_t rate, uint32_t chans, bool interleave_output, bool is_bink_audio_2)
 {
     uint32_t flags = 0;
     if (is_bink_audio_2)
@@ -21,7 +21,7 @@ uint32_t UEBinkAudioDecompressOpen(void * BinkAudioDecoderMemory, uint32_t rate,
 }
 
 //do the decompression - supports linear or ringbuffers (outptr==outstart on non-ring), will clamp, if no room
-uint32_t UEBinkAudioDecompress(void * BinkAudioDecoderMemory, uint8_t* OutputBuffer, uint32_t OutputBufferLen, uint8_t const** InputBuffer, uint8_t const* InputBufferEnd)
+static uint32_t UEBinkAudioDecompress(void * BinkAudioDecoderMemory, uint8_t* OutputBuffer, uint32_t OutputBufferLen, uint8_t const** InputBuffer, uint8_t const* InputBufferEnd)
 {
     BINKAC_OUT_RINGBUF out;
     BINKAC_IN in;
@@ -45,7 +45,7 @@ uint32_t UEBinkAudioDecompress(void * BinkAudioDecoderMemory, uint8_t* OutputBuf
 }
 
 // resets the start flag to prevent blending in the last decoded frame.
-void UEBinkAudioDecompressResetStartFrame(void * BinkAudioDecoderMemory)
+static void UEBinkAudioDecompressResetStartFrame(void * BinkAudioDecoderMemory)
 {
     BinkAudioDecompressResetStartFrame(BinkAudioDecoderMemory);
 }

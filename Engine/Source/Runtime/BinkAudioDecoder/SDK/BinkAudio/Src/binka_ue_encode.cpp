@@ -354,7 +354,7 @@ uint8_t UECompressBinkAudio(
     BinkAudioFileHeader Header;
     Header.tag = 'UEBA';
     Header.channels = (U8)WavChannels;
-    Header.rate = (U16)WavRate;
+    Header.rate = WavRate;
     Header.sample_count = SamplesPerChannel;
     Header.max_comp_space_needed = (U16)MaxBlockSize;
     Header.flags = 1;

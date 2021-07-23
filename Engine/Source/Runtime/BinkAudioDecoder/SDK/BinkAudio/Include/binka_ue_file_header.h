@@ -12,7 +12,8 @@ struct BinkAudioFileHeader
     uint32 tag; // UEBA
     uint8 version;
     uint8 channels;
-    uint16 rate;
+    uint16 PADDING; // unused atm.
+    uint32 rate;
     uint32 sample_count;
 
     // the max for a bink audio block - includes all streams, but does _not_ include

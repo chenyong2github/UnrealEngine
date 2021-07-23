@@ -54,6 +54,17 @@
 
 #elif defined( __RADX86__ )
 
+#ifdef WRAP_PUBLICS
+#define rfmerge3(name,add) name##add
+#define rfmerge2(name,add) rfmerge3(name,add)
+#define rfmerge(name)      rfmerge2(name,WRAP_PUBLICS)
+#define cpu_features_to_use             rfmerge(cpu_features_to_use)
+#define cpu_features_avail              rfmerge(cpu_features_avail)
+#define CPU_check                       rfmerge(CPU_check)
+#define CPU_clear                       rfmerge(CPU_clear)
+#endif
+
+
 RADDECLAREDATA S32 cpu_features_to_use;
 RADDECLAREDATA S32 cpu_features_avail;
 
