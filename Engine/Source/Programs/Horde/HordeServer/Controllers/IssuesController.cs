@@ -399,7 +399,7 @@ namespace HordeServer.Controllers
 			ObjectId? NewOwnerId = null;
 			if (Request.OwnerId != null)
 			{
-				NewOwnerId = new ObjectId(Request.OwnerId);
+				NewOwnerId = Request.OwnerId.Length == 0 ? ObjectId.Empty : new ObjectId(Request.OwnerId);
 			}
 
 			ObjectId? NewNominatedById = null;

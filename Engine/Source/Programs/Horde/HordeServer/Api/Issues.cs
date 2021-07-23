@@ -521,7 +521,7 @@ namespace HordeServer.Api
 		public string? Summary { get; set; }
 
 		/// <summary>
-		/// New user id for owner of the issue
+		/// New user id for owner of the issue, can be cleared by passing empty string
 		/// </summary>
 		public string? OwnerId { get; set; }
 
