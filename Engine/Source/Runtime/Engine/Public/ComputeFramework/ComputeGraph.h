@@ -95,6 +95,9 @@ public:
 	UComputeGraph(FVTableHelper& Helper);
 	virtual ~UComputeGraph();
 
+	/** Retrieves a kernel's parameter bindings, if any */
+	virtual void GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const {}
+
 	/** Called each time that a single kernel shader compilation is completed. */
 	virtual void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) {}
 

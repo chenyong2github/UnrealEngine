@@ -97,6 +97,11 @@ protected:
 	/** A helper function to create a property, using the property creator function */
 	FProperty* CreateProperty(FName InTypeName, UStruct* InScope, FName InName) const;
 
+	/** A helper function to return a property create function. The function can be unbound
+	 *  and that should be checked prior to calling
+	 */
+	PropertyCreateFuncT FindPropertyCreateFunc(FName InTypeName) const;
+
 private:
 	FOptimusDataTypeRegistry() = default;
 
@@ -109,7 +114,7 @@ private:
 	struct FTypeInfo
 	{
 		FOptimusDataTypeHandle Handle;
-		TFunction<FProperty *(UStruct *InScope, FName InName)> PropertyCreateFunc;
+		PropertyCreateFuncT PropertyCreateFunc;
 	};
 
 	TMap<FName /* TypeName */, FTypeInfo> RegisteredTypes;

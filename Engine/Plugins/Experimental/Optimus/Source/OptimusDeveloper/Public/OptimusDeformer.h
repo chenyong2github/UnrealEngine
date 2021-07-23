@@ -19,6 +19,22 @@ class UOptimusDeformer;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
 
+USTRUCT()
+struct FOptimus_ShaderParameterBinding
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	TObjectPtr<const UOptimusNode> ValueNode;
+	
+	UPROPERTY()
+	int32 KernelIndex;
+	
+	UPROPERTY()
+	int32 ParameterIndex;
+};
+
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 
@@ -163,6 +179,7 @@ public:
 	FOptimusGraphCompileResultsDelegate& GetCompileResultsDelegate() { return CompileResultsDelegate; }
 
 	/// UComputeGraph overrides
+	void GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const override;
 	void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) override;
 
 	/// IInterface_PreviewMeshProvider overrides
@@ -214,17 +231,29 @@ private:
 	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject);
 
 	UPROPERTY()
-	TArray<UOptimusNodeGraph*> Graphs;
+	TArray<TObjectPtr<UOptimusNodeGraph>> Graphs;
 
 	UPROPERTY()
-	TArray<UOptimusVariableDescription *> VariableDescriptions;
+	TArray<TObjectPtr<UOptimusVariableDescription>> VariableDescriptions;
 
 	UPROPERTY()
-	TArray<UOptimusResourceDescription *> ResourceDescriptions;
+	TArray<TObjectPtr<UOptimusResourceDescription>> ResourceDescriptions;
 
 	UPROPERTY(transient)
-	UOptimusActionStack *ActionStack;
+	TObjectPtr<UOptimusActionStack> ActionStack;
 
+	// Lookup into Graphs array from the UComputeGraph kernel index. 
+	UPROPERTY()
+	TArray<int32> CompilingKernelToGraph;
+	// Lookup into UOptimusNodeGraph::Nodes array from the UComputeGraph kernel index. 
+	UPROPERTY()
+	TArray<int32> CompilingKernelToNode;
+
+	// List of parameter bindings and which value nodes they map to.
+	UPROPERTY()
+	TArray<FOptimus_ShaderParameterBinding> AllParameterBindings;
+
+	
 	FOptimusGlobalNotifyDelegate GlobalNotifyDelegate;
 
 	FOptimusCompileBegin CompileBeginDelegate;
@@ -233,8 +262,4 @@ private:
 
 	FOptimusGraphCompileResultsDelegate CompileResultsDelegate;
 
-	// Lookup into Graphs array from the UComputeGraph kernel index. 
-	TArray<int32> CompilingKernelToGraph;
-	// Lookup into UOptimusNodeGraph::Nodes array from the UComputeGraph kernel index. 
-	TArray<int32> CompilingKernelToNode;
 };

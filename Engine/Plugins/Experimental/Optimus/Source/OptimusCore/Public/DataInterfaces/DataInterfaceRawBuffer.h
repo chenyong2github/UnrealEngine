@@ -53,9 +53,6 @@ public:
 	}
 
 	UPROPERTY()
-	FString TestString;
-	
-	UPROPERTY()
 	FShaderValueTypeHandle ValueType;
 
 private:

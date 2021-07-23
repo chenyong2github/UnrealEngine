@@ -46,6 +46,9 @@ struct FOptimusDataType
 	// EOptimusDataTypeUsageFLags::Variable. Otherwise it returns a nullptr.
 	OPTIMUSDEVELOPER_API FProperty* CreateProperty(UStruct *InScope, FName InName) const;
 
+	// Returns true if the data type can create a FProperty object to represent it.
+	OPTIMUSDEVELOPER_API bool CanCreateProperty() const;
+
 	UPROPERTY()
 	FName TypeName;
 

@@ -3,9 +3,9 @@
 #pragma once
 
 #include "OptimusCoreNotify.h"
+#include "OptimusDataType.h"
 
 #include "CoreMinimal.h"
-#include "Templates/SubclassOf.h"
 
 #include "OptimusNodeGraph.generated.h"
 
@@ -40,7 +40,7 @@ public:
 	FString GetGraphPath() const;
 
 	/// Returns the graph collection that owns this particular graph.
-	IOptimusNodeGraphCollectionOwner *GetOwnerCollection() const;
+	IOptimusNodeGraphCollectionOwner* GetOwnerCollection() const;
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	EOptimusNodeGraphType GetGraphType() const { return GraphType; }
@@ -61,6 +61,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	UOptimusNode* AddNode(
 		const TSubclassOf<UOptimusNode> InNodeClass,
+		const FVector2D& InPosition
+	);
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* AddValueNode(
+		FOptimusDataTypeRef InDataTypeRef,
 		const FVector2D& InPosition
 	);
 
@@ -173,6 +179,14 @@ protected:
 	EOptimusNodeGraphType GraphType;
 
 private:
+#if defined(WITH_EDITOR)
+	UOptimusNode* AddNodeInternal(
+		const TSubclassOf<UOptimusNode> InNodeClass,
+		const FVector2D& InPosition,
+		TFunction<void(UOptimusNode*)> InNodeConfigFunc
+	);
+#endif
+	
 	void RemoveLinkByIndex(int32 LinkIndex);
 
 	/// Returns the indexes of all links that connect to the node. If a direction is specified

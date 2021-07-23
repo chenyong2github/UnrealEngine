@@ -42,10 +42,12 @@ public:
 		OPTIMUSDEVELOPER_API static const FName Deformers;
 		OPTIMUSDEVELOPER_API static const FName Resources;
 		OPTIMUSDEVELOPER_API static const FName Variables;
+		OPTIMUSDEVELOPER_API static const FName Values;
 	};
 
 	struct PropertyMeta
 	{
+		static const FName Category;
 		static const FName Input;
 		static const FName Output;
 		static const FName Resource;

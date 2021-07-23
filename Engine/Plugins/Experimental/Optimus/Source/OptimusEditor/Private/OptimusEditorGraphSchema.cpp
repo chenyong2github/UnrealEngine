@@ -52,8 +52,8 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 			continue;
 		}
 
-		FText NodeName = Node->GetDisplayName();
-		FText NodeCategory = FText::FromName(Node->GetNodeCategory());
+		const FText NodeName = Node->GetDisplayName();
+		const FText NodeCategory = FText::FromName(Node->GetNodeCategory());
 
 		TSharedPtr< FOptimusGraphSchemaAction_NewNode> Action(
 			new FOptimusGraphSchemaAction_NewNode(
@@ -67,6 +67,27 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 		IoActionBuilder.AddAction(Action);
 	}
 
+	// Constant Value Nodes
+	for (FOptimusDataTypeHandle DataTypeHandle: FOptimusDataTypeRegistry::Get().GetAllTypes())
+	{
+		if (DataTypeHandle->CanCreateProperty())
+		{
+			const FText NodeName = FText::FromName(DataTypeHandle->TypeName);
+			const FText NodeCategory = FText::FromName(UOptimusNode::CategoryName::Values);
+			
+			TSharedPtr< FOptimusGraphSchemaAction_NewConstantValueNode> Action(
+				new FOptimusGraphSchemaAction_NewConstantValueNode(
+					NodeCategory,
+					NodeName,
+					/* Tooltip */{}, 0, /* Keywords */{}
+			));
+
+			Action->DataType = DataTypeHandle;
+
+			IoActionBuilder.AddAction(Action);
+		}
+	}
+
 	// Data Interface Nodes
 	for (UClass* Class : UOptimusComputeDataInterface::GetAllComputeDataInterfaceClasses())
 	{
@@ -76,10 +97,10 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 			continue;
 		}
 
-		FText NodeName = FText::FromString(DataInterface->GetDisplayName());
+		const FText NodeName = FText::FromString(DataInterface->GetDisplayName());
 
 		// FIXME: Get from interface
-		FText NodeCategory = FText::FromName(UOptimusNode::CategoryName::DataProviders);
+		const FText NodeCategory = FText::FromName(UOptimusNode::CategoryName::DataProviders);
 
 		TSharedPtr< FOptimusGraphSchemaAction_NewDataInterfaceNode> Action(
 			new FOptimusGraphSchemaAction_NewDataInterfaceNode(
