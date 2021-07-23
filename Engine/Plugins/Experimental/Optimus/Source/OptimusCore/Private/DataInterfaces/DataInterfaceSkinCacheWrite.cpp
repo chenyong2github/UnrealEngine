@@ -97,18 +97,20 @@ void USkeletalMeshSkinCacheDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkinCacheWrite.ush\"\n");
 }
 
-UComputeDataProvider* USkeletalMeshSkinCacheDataInterface::CreateDataProvider(UObject* InOuter, bool bSetDefaultBindings) const
+void USkeletalMeshSkinCacheDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+{
+	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
+}
+
+UComputeDataProvider* USkeletalMeshSkinCacheDataInterface::CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const
 {
 	USkeletalMeshSkinCacheDataProvider* Provider = NewObject<USkeletalMeshSkinCacheDataProvider>(InOuter);
-	if (bSetDefaultBindings)
+
+	if (InSourceObjects.Num() == 1)
 	{
-		UActorComponent* Component = Cast<UActorComponent>(InOuter);
-		if (Component != nullptr)
-		{
-			UActorComponent* SkeletalMesh = Component->GetOwner()->GetComponentByClass(USkeletalMeshComponent::StaticClass());
-			Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(SkeletalMesh);
-		}
+		Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
 	}
+
 	return Provider;
 }
 

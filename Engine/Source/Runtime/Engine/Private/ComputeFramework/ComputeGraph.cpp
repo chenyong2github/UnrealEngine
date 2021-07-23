@@ -2,11 +2,13 @@
 
 #include "ComputeFramework/ComputeGraph.h"
 
+#include "Components/ActorComponent.h"
 #include "ComputeFramework/ComputeDataInterface.h"
 #include "ComputeFramework/ComputeFramework.h"
 #include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeKernelShared.h"
 #include "ComputeFramework/ComputeKernelSource.h"
+#include "GameFramework/Actor.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "ShaderParameterMetadataBuilder.h"
 
@@ -79,9 +81,32 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 
 void UComputeGraph::CreateDataProviders(UObject* InOuter, bool bSetDefaultBindings, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
 {
+	// If we want default bindings then get any associated Actor and look for objects of the requested type.
+	UActorComponent* Component = Cast<UActorComponent>(InOuter);
+	AActor* Actor = bSetDefaultBindings && Component != nullptr ? Component->GetOwner() : nullptr;
+
+	// Iterate DataInterfaces and add a provider for each one.
+	OutProviders.Reserve(DataInterfaces.Num());
 	for (UComputeDataInterface* DataInterface : DataInterfaces)
 	{
-		UComputeDataProvider* DataProvider = DataInterface != nullptr ? DataInterface->CreateDataProvider(InOuter, bSetDefaultBindings) : nullptr;
+		UComputeDataProvider* DataProvider = nullptr;
+		if (DataInterface != nullptr)
+		{
+			TArray<TObjectPtr<UObject>, TInlineAllocator<8>> Bindings;
+			
+			if (Actor != nullptr)
+			{
+				TArray<UClass*> SourceTypes;
+				DataInterface->GetSourceTypes(SourceTypes);
+				Bindings.Reserve(SourceTypes.Num());
+				for (UClass* SourceType : SourceTypes)
+				{
+					Bindings.Add(Actor->GetComponentByClass(SourceType));
+				}
+			}
+
+			DataProvider = DataInterface->CreateDataProvider(InOuter, Bindings);
+		}
 		OutProviders.Add(DataProvider);
 	}
 }

@@ -274,18 +274,20 @@ void USkeletalMeshReadDataInterface::GetHLSL(FString& OutHLSL) const
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceSkeletalMeshRead.ush\"\n");
 }
 
-UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject* InOuter, bool bSetDefaultBindings) const
+void USkeletalMeshReadDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+{
+	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
+}
+
+UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const
 {
 	USkeletalMeshReadDataProvider* Provider = NewObject<USkeletalMeshReadDataProvider>(InOuter);
-	if (bSetDefaultBindings)
+
+	if (InSourceObjects.Num() == 1)
 	{
-		UActorComponent* Component = Cast<UActorComponent>(InOuter);
-		if (Component != nullptr)
-		{
-			UActorComponent* SkeletalMesh = Component->GetOwner()->GetComponentByClass(USkeletalMeshComponent::StaticClass());
-			Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(SkeletalMesh);
-		}
+		Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
 	}
+
 	return Provider;
 }
 
