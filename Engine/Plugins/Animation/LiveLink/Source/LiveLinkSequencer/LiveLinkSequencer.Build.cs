@@ -6,17 +6,18 @@ namespace UnrealBuildTool.Rules
 	{
 		public LiveLinkSequencer(ReadOnlyTargetRules Target) : base(Target)
         {
-			PrivateDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
 					"CoreUObject",
+					"DeveloperSettings",
 					"Engine",
-					"LevelSequence",
+					"LiveLinkComponents",
 					"LiveLinkInterface",
+					"LiveLinkMovieScene",
 					"MovieScene",
-					"SerializedRecorderInterface",
-				    "TakeTrackRecorders",
+					"TakeTrackRecorders",
 				}
 			);
 
@@ -25,13 +26,14 @@ namespace UnrealBuildTool.Rules
 				{
 					"HeadMountedDisplay",
 					"EditorStyle",
+					"LevelSequence",
 					"LiveLink",
-					"LiveLinkMovieScene",
 					"MovieSceneTools",
 					"MovieSceneTracks",
 					"Projects",
 					"Sequencer",
 					"SequenceRecorder",
+					"SerializedRecorderInterface",
 					"Slate",
 					"SlateCore",
 					"TakesCore",
