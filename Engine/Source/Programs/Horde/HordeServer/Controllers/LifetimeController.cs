@@ -38,10 +38,10 @@ namespace HordeServer.Controllers
 		public Task<ActionResult> K8sReadinessProbe()
 		{
 			// Disabled for now
-			bool IsRunning = true;//!LifetimeService.IsStopping;
+			bool IsRunning = !LifetimeService.IsStopping;
 			bool IsMongoDBHealthy = true; //await LifetimeService.IsMongoDbConnectionHealthy();
 			bool IsRedisHealthy = true; //await LifetimeService.IsRedisConnectionHealthy();
-			int StatusCode = IsRunning && IsMongoDBHealthy && IsRedisHealthy ? 200 : 500;
+			int StatusCode = IsRunning && IsMongoDBHealthy && IsRedisHealthy ? 200 : 503;
 
 			string Content = $"IsRunning={IsRunning}\n";
 			Content += $"IsMongoDBHealthy={IsMongoDBHealthy}\n";
