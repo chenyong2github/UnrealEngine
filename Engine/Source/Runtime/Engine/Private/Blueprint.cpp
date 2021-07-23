@@ -16,6 +16,7 @@
 #include "Misc/SecureHash.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "EdGraph/EdGraph.h"
+#include "Engine/Breakpoint.h"
 #include "Components/TimelineComponent.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/TextProperty.h"
@@ -44,14 +45,8 @@
 #include "BlueprintAssetHandler.h"
 #include "Blueprint/BlueprintExtension.h"
 #include "UObject/TextProperty.h"
-#include "Kismet2/Breakpoint.h"
 #endif
-
 #include "Engine/InheritableComponentHandler.h"
-
-#if WITH_EDITORONLY_DATA
-#include "Kismet2/KismetDebugUtilities.h"
-#endif
 
 DEFINE_LOG_CATEGORY(LogBlueprint);
 
@@ -705,17 +700,17 @@ void UBlueprint::PostLoad()
 	// Purge any NULL graphs
 	FBlueprintEditorUtils::PurgeNullGraphs(this);
 
-#if WITH_EDITOR
 	// Remove stale breakpoints
-	FKismetDebugUtilities::RemoveBreakpointsByPredicate(
-		this,
-		[this](const FBlueprintBreakpoint& Breakpoint)
+	for (int32 i = 0; i < Breakpoints.Num(); ++i)
+	{
+		UBreakpoint* Breakpoint = Breakpoints[i];
+		const UEdGraphNode* const Location = Breakpoint ? Breakpoint->GetLocation() : nullptr;
+		if (!Location || !Location->IsIn(this))
 		{
-			const UEdGraphNode* const Location = Breakpoint.GetLocation();
-			return !Location || !Location->IsIn(this);
+			Breakpoints.RemoveAt(i);
+			--i;
 		}
-	);
-# endif
+	}
 
 	// Make sure we have an SCS and ensure it's transactional
 	if( FBlueprintEditorUtils::SupportsConstructionScript(this) )

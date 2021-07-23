@@ -80,7 +80,7 @@
 #include "K2Node_CustomEvent.h"
 #include "EdGraphUtilities.h"
 #include "Kismet2/KismetDebugUtilities.h"
-#include "Kismet2/Breakpoint.h"
+#include "Engine/Breakpoint.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -1989,7 +1989,11 @@ namespace BuildPromotionTestHelper
 			if (BlueprintObject)
 			{
 				//Add a breakpoint
-				FKismetDebugUtilities::CreateBreakpoint(BlueprintObject, PrintNode, /* bIsEnabled = */ true);
+				UBreakpoint* NewBreakpoint = NewObject<UBreakpoint>(BlueprintObject);
+				FKismetDebugUtilities::SetBreakpointEnabled(NewBreakpoint, true);
+				FKismetDebugUtilities::SetBreakpointLocation(NewBreakpoint, PrintNode);
+				BlueprintObject->Breakpoints.Add(NewBreakpoint);
+				BlueprintObject->MarkPackageDirty();
 
 				Test->AddInfo(TEXT("Set a breakpoint on the PrintString node"));
 				EditorBuildPromotionTestUtils::StartPIE(true);
