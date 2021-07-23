@@ -216,7 +216,7 @@ namespace HordeServer.Services
 			if (await Reader.MoveNext())
 			{
 				QueryServerStateRequest Request = Reader.Current;
-				Logger.LogInformation("Start server query for client {Name}", Request.Name);
+				Logger.LogDebug("Start server query for client {Name}", Request.Name);
 
 				try
 				{
