@@ -13,6 +13,7 @@ using Grpc.Core;
 using Grpc.Core.Interceptors;
 using HordeServer.Utilities;
 using StackExchange.Redis;
+using System.Diagnostics;
 
 namespace HordeServer.Services
 {
@@ -27,9 +28,19 @@ namespace HordeServer.Services
 		ILogger<LifetimeService> Logger;
 
 		/// <summary>
+		/// Task which waits for a period of time and sets the stopping task
+		/// </summary>
+		Task WaitAndTriggerStoppingTask = Task.CompletedTask;
+
+		/// <summary>
 		/// Task source for the server stopping
 		/// </summary>
 		TaskCompletionSource<bool> StoppingTaskCompletionSource;
+
+		/// <summary>
+		/// Task source for the server stopping
+		/// </summary>
+		TaskCompletionSource<bool> PreStoppingTaskCompletionSource;
 
 		/// <summary>
 		/// Registration token for the stopping event
@@ -79,6 +90,7 @@ namespace HordeServer.Services
 			this.RequestTrackerService = RequestTrackerService;
 			this.Logger = Logger;
 			this.StoppingTaskCompletionSource = new TaskCompletionSource<bool>();
+			this.PreStoppingTaskCompletionSource = new TaskCompletionSource<bool>();
 			this.Registration = Lifetime.ApplicationStopping.Register(ApplicationStopping);
 		}
 
@@ -93,10 +105,11 @@ namespace HordeServer.Services
 		/// </summary>
 		void ApplicationStopping()
 		{
-			if (StoppingTaskCompletionSource.TrySetResult(true))
+			if (PreStoppingTaskCompletionSource.TrySetResult(true))
 			{
-				IsStopping = true;
-				Logger.LogInformation("Server is stopping");
+				Logger.LogInformation("Setting pre-stop event");
+				IsPreStopping = true;
+				WaitAndTriggerStoppingTask = Task.Run(() => ExecStoppingTask());
 				/*
 				Logger.LogInformation("App is stopping. Waiting an initial {InitialDelay} secs before waiting on any requests...", (int)InitialStoppingDelay.TotalSeconds);
 				Thread.Sleep(InitialStoppingDelay);
@@ -122,13 +135,24 @@ namespace HordeServer.Services
 			}
 		}
 
+		async Task ExecStoppingTask()
+		{
+			await Task.Delay(TimeSpan.FromSeconds(15.0));
+
+			Logger.LogInformation("Setting stopping event");
+			IsStopping = true;
+			StoppingTaskCompletionSource.TrySetResult(true);
+		}
+
 		/// <summary>
 		/// Returns true if the server is stopping
 		/// </summary>
-		public bool IsStopping
-		{
-			get; private set;
-		}
+		public bool IsStopping { get; private set; }
+
+		/// <summary>
+		/// Returns true if the server is stopping, but may not be removed from the load balancer yet
+		/// </summary>
+		public bool IsPreStopping { get; private set; }
 
 		/// <summary>
 		/// Gets an awaitable task for the server stopping
