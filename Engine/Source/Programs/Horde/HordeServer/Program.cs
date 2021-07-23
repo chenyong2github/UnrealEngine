@@ -67,17 +67,32 @@ namespace HordeServer
 		{
 			if (Event.Level <= LogEventLevel.Information)
 			{
-				LogEventPropertyValue? Value;
-				if (Event.Properties.TryGetValue("RequestPath", out Value))
+				LogEventPropertyValue? PropertyValue;
+				if (Event.Properties.TryGetValue("RequestPath", out PropertyValue))
 				{
-					string RequestPath = Value.ToString();
-					if (RequestPath.Equals("/Horde.HordeRpc/QueryServerStateV2", StringComparison.OrdinalIgnoreCase))
+					ScalarValue? ScalarPropertyValue = PropertyValue as ScalarValue;
+					if (ScalarPropertyValue != null)
 					{
-						return true;
-					}
-					if (RequestPath.Equals("/Horde.HordeRpc/UpdateSession", StringComparison.OrdinalIgnoreCase))
-					{
-						return true;
+						string? RequestPath = ScalarPropertyValue.Value as string;
+						if (RequestPath != null)
+						{
+							if (RequestPath.Equals("/Horde.HordeRpc/QueryServerStateV2", StringComparison.OrdinalIgnoreCase))
+							{
+								return true;
+							}
+							if (RequestPath.Equals("/Horde.HordeRpc/UpdateSession", StringComparison.OrdinalIgnoreCase))
+							{
+								return true;
+							}
+							if (RequestPath.Equals("/Horde.HordeRpc/CreateEvents", StringComparison.OrdinalIgnoreCase))
+							{
+								return true;
+							}
+							if (RequestPath.Equals("/Horde.HordeRpc/WriteOutput", StringComparison.OrdinalIgnoreCase))
+							{
+								return true;
+							}
+						}
 					}
 				}
 			}
