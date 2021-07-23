@@ -117,13 +117,16 @@ namespace HordeServer.Services
 				if (CachedGlobalConfig == null || Revision != CachedGlobalConfigRevision)
 				{
 					Logger.LogInformation("Caching global config from {Revision}", Revision);
-					CachedGlobalConfig = await ReadDataAsync<GlobalConfig>(ConfigPath);
-					if (CachedGlobalConfig == null)
+					try
 					{
-						Logger.LogWarning("Unable to update any projects or streams due to invalid global config.");
+						CachedGlobalConfig = await ReadDataAsync<GlobalConfig>(ConfigPath);
+						CachedGlobalConfigRevision = Revision;
+					}
+					catch (Exception Ex)
+					{
+						await SendFailureNotificationAsync(Ex, ConfigPath);
 						return;
 					}
-					CachedGlobalConfigRevision = Revision;
 				}
 				GlobalConfig = CachedGlobalConfig;
 
@@ -182,16 +185,20 @@ namespace HordeServer.Services
 				if (Update || !PrevCachedProjectConfigs.TryGetValue(ProjectRef.Id, out ProjectConfig))
 				{
 					Logger.LogInformation("Caching configuration for project {ProjectId} ({Revision})", ProjectRef.Id, Revision);
-					ProjectConfig = await ReadDataAsync<ProjectConfig>(ProjectPath);
-					if (ProjectConfig == null)
+					try
 					{
+						ProjectConfig = await ReadDataAsync<ProjectConfig>(ProjectPath);
+						if (Update)
+						{
+							Logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", ProjectRef.Id, Revision);
+							await ProjectService.Collection.AddOrUpdateAsync(ProjectRef.Id, ProjectPath.ToString(), Revision, Idx, ProjectConfig);
+						}
+					}
+					catch (Exception Ex)
+					{
+						await SendFailureNotificationAsync(Ex, ProjectPath);
 						SkipProjectIds.Add(ProjectRef.Id);
 						continue;
-					}
-					if (Update)
-					{
-						Logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", ProjectRef.Id, Revision);
-						await ProjectService.Collection.AddOrUpdateAsync(ProjectRef.Id, ProjectPath.ToString(), Revision, Idx, ProjectConfig);
 					}
 				}
 
@@ -220,8 +227,16 @@ namespace HordeServer.Services
 					if (Revision != CurrentRevision)
 					{
 						Logger.LogInformation("Updating logo for project {ProjectId} ({Revision})", ProjectId, Revision);
-						await ProjectService.Collection.SetLogoAsync(ProjectId, Path.ToString(), Revision, GetMimeTypeFromPath(Path), await ReadDataAsync(Path));
-						CachedLogoRevisions[ProjectId] = Revision;
+						try
+						{
+							await ProjectService.Collection.SetLogoAsync(ProjectId, Path.ToString(), Revision, GetMimeTypeFromPath(Path), await ReadDataAsync(Path));
+							CachedLogoRevisions[ProjectId] = Revision;
+						}
+						catch (Exception Ex)
+						{
+							await SendFailureNotificationAsync(Ex, Path);
+							continue;
+						}
 					}
 				}
 			}
@@ -240,21 +255,15 @@ namespace HordeServer.Services
 					if (Stream == null || Stream.ConfigPath != StreamPath.ToString() || Stream.ConfigRevision != Revision)
 					{
 						Logger.LogInformation("Updating configuration for stream {StreamRef} ({Revision})", StreamRef.Id, Revision);
-
-						StreamConfig? StreamConfig = await ReadDataAsync<StreamConfig>(StreamPath);
-						if (StreamConfig != null)
+						try
 						{
-							for (; ; )
-							{
-								Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamRef.Id, Stream, StreamPath.ToString(), Revision, ProjectId, StreamConfig);
-
-								if (Stream != null)
-								{
-									break;
-								}
-
-								Stream = await StreamService.GetStreamAsync(StreamRef.Id);
-							}
+							StreamConfig StreamConfig = await ReadDataAsync<StreamConfig>(StreamPath);
+							Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamRef.Id, Stream, StreamPath.ToString(), Revision, ProjectId, StreamConfig);
+						}
+						catch (Exception Ex)
+						{
+							await SendFailureNotificationAsync(Ex, StreamPath);
+							continue;
 						}
 					}
 				}
@@ -352,45 +361,14 @@ namespace HordeServer.Services
 			return Revisions;
 		}
 
-		async Task<T?> ReadDataAsync<T>(Uri ConfigPath) where T : class
+		async Task<T> ReadDataAsync<T>(Uri ConfigPath) where T : class
 		{
-			try
-			{
-				byte[] Data = await ReadDataAsync(ConfigPath);
+			byte[] Data = await ReadDataAsync(ConfigPath);
 
-				JsonSerializerOptions Options = new JsonSerializerOptions();
-				Startup.ConfigureJsonSerializer(Options);
+			JsonSerializerOptions Options = new JsonSerializerOptions();
+			Startup.ConfigureJsonSerializer(Options);
 
-				return JsonSerializer.Deserialize<T>(Data, Options);
-			}
-			catch (Exception Ex)
-			{
-				Logger.LogError(Ex, "Unable to read data from {ConfigPath}: {Message}", ConfigPath, Ex.Message);
-
-				string FileName = ConfigPath.AbsolutePath;
-				int Change = -1;
-				string? Author = null;
-				string? Description = null;
-
-				if (ConfigPath.Scheme == PerforceScheme)
-				{
-					try
-					{
-						List<FileSummary> Files = await PerforceService.FindFilesAsync(ConfigPath.Host, new[] { FileName });
-						Change = Files[0].Change;
-
-						ChangeDetails Details = await PerforceService.GetChangeDetailsAsync(ConfigPath.Host, Change);
-						(Author, Description) = (Details.Author, Details.Description); 
-					}
-					catch (Exception Ex2)
-					{
-						Logger.LogError(Ex2, "Unable to identify change that last modified {ConfigPath} from Perforce", ConfigPath);
-					}
-				}
-
-				NotificationService.NotifyConfigUpdateFailure(Ex.Message, FileName, Change, Author, Description);
-				return null;
-			}
+			return JsonSerializer.Deserialize<T>(Data, Options);
 		}
 
 		Task<byte[]> ReadDataAsync(Uri ConfigPath)
@@ -404,6 +382,34 @@ namespace HordeServer.Services
 				default:
 					throw new Exception($"Invalid config path: {ConfigPath}");
 			}
+		}
+
+		async Task SendFailureNotificationAsync(Exception Ex, Uri ConfigPath)
+		{
+			Logger.LogError(Ex, "Unable to read data from {ConfigPath}: {Message}", ConfigPath, Ex.Message);
+
+			string FileName = ConfigPath.AbsolutePath;
+			int Change = -1;
+			string? Author = null;
+			string? Description = null;
+
+			if (ConfigPath.Scheme == PerforceScheme)
+			{
+				try
+				{
+					List<FileSummary> Files = await PerforceService.FindFilesAsync(ConfigPath.Host, new[] { FileName });
+					Change = Files[0].Change;
+
+					ChangeDetails Details = await PerforceService.GetChangeDetailsAsync(ConfigPath.Host, Change);
+					(Author, Description) = (Details.Author, Details.Description);
+				}
+				catch (Exception Ex2)
+				{
+					Logger.LogError(Ex2, "Unable to identify change that last modified {ConfigPath} from Perforce", ConfigPath);
+				}
+			}
+
+			NotificationService.NotifyConfigUpdateFailure(Ex.Message, FileName, Change, Author, Description);
 		}
 
 		/// <inheritdoc/>
