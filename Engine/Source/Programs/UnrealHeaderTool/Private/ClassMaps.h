@@ -96,6 +96,11 @@ struct FTypeDefinitionInfoMap
 		return nullptr;
 	}
 
+	void Reset()
+	{
+		DefinitionsByName.Reset();
+	}
+
 private:
 	TMap<FName, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByName;
 };
@@ -120,6 +125,12 @@ struct FUnrealSourceFiles : public FFreezableContainer
 	{
 		check(bFrozen);
 		return AllSourceFiles;
+	}
+
+	void Reset()
+	{
+		AllSourceFiles.Reset();
+		SourceFilesByString.Reset();
 	}
 
 private:

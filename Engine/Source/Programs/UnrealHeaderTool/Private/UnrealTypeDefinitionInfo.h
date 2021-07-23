@@ -427,6 +427,11 @@ public:
 	void PostParseFinalize(EPostParseFinalizePhase Phase);
 
 	/**
+	 * Perform any post parsing finalization that can happen specific to the containing source file
+	 */
+	virtual void ConcurrentPostParseFinalize() {}
+
+	/**
 	 * Return the compilation scope associated with this object
 	 */
 	virtual TSharedRef<FScope> GetScope();
@@ -1227,6 +1232,11 @@ public:
 	/** Linked list of properties referencing a specific field */
 	FUnrealPropertyDefinitionInfo* NextReferencingProperty = nullptr;
 
+	/**
+	 * Perform any post parsing finalization that can happen specific to the containing source file
+	 */
+	virtual void ConcurrentPostParseFinalize() override;
+
 protected:
 #if UHT_ENABLE_ENGINE_TYPE_CHECKS
 	virtual void CheckFindMetaData(const FName& Key, const FString* ValuePtr) const
@@ -1805,6 +1815,11 @@ public:
 		}
 	}
 
+	/**
+	 * Perform any post parsing finalization that can happen specific to the containing source file
+	 */
+	virtual void ConcurrentPostParseFinalize() override;
+
 protected:
 	/**
 	 * Perform any post parsing finalization and validation
@@ -2295,6 +2310,11 @@ public:
 	{
 		return Declarations;
 	}
+
+	/**
+	 * Perform any post parsing finalization that can happen specific to the containing source file
+	 */
+	virtual void ConcurrentPostParseFinalize() override;
 
 protected:
 	explicit FUnrealStructDefinitionInfo(UObject* Object)
