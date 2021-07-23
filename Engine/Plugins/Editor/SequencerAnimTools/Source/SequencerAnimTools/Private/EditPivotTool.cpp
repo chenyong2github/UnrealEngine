@@ -44,10 +44,10 @@ void FEditPivotCommands::RegisterCommands()
 }
 
 
-TMap<TWeakObjectPtr<UControlRig>, FControlRigMappings> USequencerPivotTool::SavedPivotLocations;
-TArray<FControlRigMappings> USequencerPivotTool::LastSelectedObjects;
+FSavedMappings USequencerPivotTool::SavedPivotLocations;
+FLastSelectedObjects USequencerPivotTool::LastSelectedObjects;
 
-static void GetControlRigsAndSequencer(TArray<UControlRig*>& ControlRigs, TWeakPtr<ISequencer>& SequencerPtr, ULevelSequence** LevelSequence)
+static void GetControlRigsAndSequencer(TArray<TWeakObjectPtr<UControlRig>>& ControlRigs, TWeakPtr<ISequencer>& SequencerPtr, ULevelSequence** LevelSequence)
 {
 	*LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
 	if (*LevelSequence)
@@ -57,7 +57,12 @@ static void GetControlRigsAndSequencer(TArray<UControlRig*>& ControlRigs, TWeakP
 		SequencerPtr = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
 		if (SequencerPtr.IsValid())
 		{
-			ControlRigs = UControlRigSequencerEditorLibrary::GetVisibleControlRigs();
+			TArray<UControlRig*> TempControlRigs;
+			TempControlRigs = UControlRigSequencerEditorLibrary::GetVisibleControlRigs();
+			for (UControlRig* ControlRig : TempControlRigs)
+			{
+				ControlRigs.Add(ControlRig);
+			}
 		}
 	}
 }
@@ -65,23 +70,29 @@ bool USequencerPivotToolBuilder::CanBuildTool(const FToolBuilderState& SceneStat
 {
 	//only start if we have anything selected  or we selected somethign last time
 	//which will then get selected later once the tool starts.
-	if (USequencerPivotTool::LastSelectedObjects.Num() > 0)
+	if (USequencerPivotTool::LastSelectedObjects.LastSelectedControlRigs.Num() > 0 || USequencerPivotTool::LastSelectedObjects.LastSelectedActors.Num() > 0)
 	{
 		return true;
 	}
 	ULevelSequence* LevelSequence;
-	TArray<UControlRig*> ControlRigs;
+	TArray<TWeakObjectPtr<UControlRig>> ControlRigs;
 	TWeakPtr<ISequencer> SequencerPtr;
 	GetControlRigsAndSequencer(ControlRigs, SequencerPtr, &LevelSequence);
 
-	for (UControlRig* ControlRig : ControlRigs)
+	for (TWeakObjectPtr<UControlRig> ControlRig : ControlRigs)
 	{
-		if (ControlRig && ControlRig->CurrentControlSelection().Num() > 0)
+		if (ControlRig.IsValid() && ControlRig->CurrentControlSelection().Num() > 0)
 		{
 			return true;
 		}
 	}
-	
+
+	TArray<AActor*> SelectedActors;
+	GEditor->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+	if (SelectedActors.Num() > 0)
+	{
+		return true;
+	}
 	
 	return false;
 }
@@ -122,6 +133,12 @@ void USequencerPivotTool::Setup()
 	//when entered we check to see if shift is pressed this can change where we set the pivot on start or reset
 	FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
 	bShiftPressedWhenStarted = KeyState.IsShiftDown();
+	bCtrlPressedWhenStarted = KeyState.IsControlDown();
+	if (bCtrlPressedWhenStarted)
+	{
+		bShiftPressedWhenStarted = false; //for now turn off shift which means we pivot from the last if control is also presseed
+	}
+
 
 	UInteractiveTool::Setup();
 
@@ -140,14 +157,29 @@ void USequencerPivotTool::Setup()
 	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
 
 	GetControlRigsAndSequencer(ControlRigs, SequencerPtr, &LevelSequence);
+
+	TArray<AActor*> SelectedActors;
+	GEditor->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+	Actors.SetNum(0);
+	for (AActor* Actor : SelectedActors)
+	{
+		Actors.Add(Actor);
+	}
+
 	UpdateTransformAndSelectionOnEntering();
 	UpdateGizmoTransform();
 	UpdateGizmoVisibility();
 	//we get delegates last since we may select something above
-	for (UControlRig* ControlRig : ControlRigs)
+	for (TWeakObjectPtr<UControlRig>& ControlRig : ControlRigs)
 	{
-		ControlRig->ControlSelected().AddUObject(this,&USequencerPivotTool::HandleControlSelected);
+		if (ControlRig.IsValid())
+		{
+			ControlRig->ControlSelected().AddUObject(this, &USequencerPivotTool::HandleControlSelected);
+		}
 	}
+
+	OnEditorSelectionChangedHandle = USelection::SelectionChangedEvent.AddUObject(this, &USequencerPivotTool::OnEditorSelectionChanged);
+
 	SaveLastSelected();
 
 	CommandBindings = MakeShareable(new FUICommandList);
@@ -163,26 +195,44 @@ void USequencerPivotTool::Setup()
 
 }
 
+
 void USequencerPivotTool::ResetPivot()
 {
 	SetGizmoBasedOnSelection(false);
 	UpdateGizmoTransform();
+	SavePivotTransforms();
 }
 
 //Last selected is really the ones that were selected when you entered the tool
 //we use this in case nothing was selected when the tool is active so that we instead select it.
 void USequencerPivotTool::SaveLastSelected()
 {
-	LastSelectedObjects.SetNum(0);
-	for (UControlRig* ControlRig : ControlRigs)
+
+	LastSelectedObjects.LastSelectedControlRigs.SetNum(0);
+	LastSelectedObjects.LastSelectedActors.SetNum(0);
+
+	for (TWeakObjectPtr<UControlRig>& ControlRig : ControlRigs)
 	{
-		TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
-		for (const FName& Name : SelectedControls)
+		if (ControlRig.IsValid())
 		{
-			FControlRigMappings Mapping;
-			Mapping.ControlRig = ControlRig;
-			Mapping.PivotTransforms.Add(Name, GizmoTransform);
-			LastSelectedObjects.Add(Mapping);
+			TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
+			for (const FName& Name : SelectedControls)
+			{
+				FControlRigMappings Mapping;
+				Mapping.ControlRig = ControlRig;
+				Mapping.PivotTransforms.Add(Name, GizmoTransform);
+				LastSelectedObjects.LastSelectedControlRigs.Add(Mapping);
+			}
+		}
+	}
+	for (TWeakObjectPtr<AActor>& Actor : Actors)
+	{
+		if (Actor.IsValid())
+		{
+			FActorMappings Mapping;
+			Mapping.Actor = Actor;
+			Mapping.PivotTransform = GizmoTransform;
+			LastSelectedObjects.LastSelectedActors.Add(Mapping);
 		}
 	}
 }
@@ -192,11 +242,11 @@ void USequencerPivotTool::SaveLastSelected()
 void USequencerPivotTool::UpdateTransformAndSelectionOnEntering()
 {
 	//if shift was pressed when we started we don't use saved, this will move pivot to last object
-	bool bhaveSomethingSelected = SetGizmoBasedOnSelection(!bShiftPressedWhenStarted);
-	//okay nothing selected we select the last thing selec
+	bool bhaveSomethingSelected = SetGizmoBasedOnSelection(!bShiftPressedWhenStarted && !bCtrlPressedWhenStarted);
+	//okay nothing selected we select the last thing selected
 	if (bhaveSomethingSelected == false)
 	{
-		for (FControlRigMappings& Mappings : LastSelectedObjects)
+		for (FControlRigMappings& Mappings : LastSelectedObjects.LastSelectedControlRigs)
 		{
 			if (Mappings.ControlRig.IsValid())
 			{
@@ -206,7 +256,14 @@ void USequencerPivotTool::UpdateTransformAndSelectionOnEntering()
 				}
 			}
 		}
-		SetGizmoBasedOnSelection(!bShiftPressedWhenStarted);
+		for (FActorMappings& ActorMappings : LastSelectedObjects.LastSelectedActors)
+		{
+			if (ActorMappings.Actor.IsValid())
+			{
+				GEditor->SelectActor(ActorMappings.Actor.Get(), true, true);
+			}
+		}
+		SetGizmoBasedOnSelection(!bShiftPressedWhenStarted && !bCtrlPressedWhenStarted);
 	}
 }
 
@@ -234,9 +291,15 @@ bool USequencerPivotTool::SetGizmoBasedOnSelection(bool bUseSaved)
 	const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
 
 	bool bHaveSomethingSelected = false;
-	for (UControlRig* ControlRig : ControlRigs)
+	FVector AverageLocation(0.0f);
+	int NumLocations = 0;
+	for (TWeakObjectPtr<UControlRig>& ControlRig : ControlRigs)
 	{
-		FControlRigMappings* Mappings = SavedPivotLocations.Find(ControlRig);
+		if (ControlRig.IsValid() == false)
+		{
+			continue;
+		}
+		FControlRigMappings* Mappings = SavedPivotLocations.ControlRigMappings.Find(ControlRig);
 		TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
 
 		for (const FName& Name : SelectedControls)
@@ -253,10 +316,36 @@ bool USequencerPivotTool::SetGizmoBasedOnSelection(bool bUseSaved)
 			}
 			if (bHasSavedPivot == false)
 			{
-				GizmoTransform = UControlRigSequencerEditorLibrary::GetControlRigWorldTransform(LevelSequence, ControlRig, Name, FrameTime.RoundToFrame(),
+				GizmoTransform = UControlRigSequencerEditorLibrary::GetControlRigWorldTransform(LevelSequence, ControlRig.Get(), Name, FrameTime.RoundToFrame(),
 					ESequenceTimeUnit::TickResolution);
+				AverageLocation += GizmoTransform.GetLocation();
+				NumLocations++;
 			}
 		}
+	}
+	//now do actors, to do need to do them in order somehow if using bUseSaved.... (shift is pressed) and we have multiple
+
+	TArray<AActor*> SelectedActors;
+	GEditor->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+	for (AActor* SelectedActor : SelectedActors)
+	{
+		FActorMappings* Mappings = SavedPivotLocations.ActorMappings.Find(SelectedActor);
+		if (bUseSaved && Mappings)
+		{
+			GizmoTransform = Mappings->PivotTransform;
+		}
+		else
+		{
+			GizmoTransform = UControlRigSequencerEditorLibrary::GetActorWorldTransform(LevelSequence,SelectedActor, FrameTime.RoundToFrame(),
+				ESequenceTimeUnit::TickResolution);
+			AverageLocation += GizmoTransform.GetLocation();
+			NumLocations++;
+		}
+	}
+	if (bCtrlPressedWhenStarted && NumLocations > 1)
+	{
+		AverageLocation /= (float)(NumLocations);
+		GizmoTransform.SetLocation(AverageLocation);
 	}
 	GizmoTransform.SetScale3D(FVector(1.0f, 1.0f, 1.0f));
 	GizmoTransform.SetRotation(FQuat::Identity);
@@ -265,34 +354,113 @@ bool USequencerPivotTool::SetGizmoBasedOnSelection(bool bUseSaved)
 void USequencerPivotTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	GizmoManager->DestroyAllGizmosByOwner(this);
-	RemoveControlRigDelegates();
+	RemoveDelegates();
+}
+
+void USequencerPivotTool::DeactivateMe()
+{
+	//if in undo make sure we have lost selection else leave alone
+	bool bDeactivate = true;
+	if (GIsTransacting)
+	{
+		bDeactivate = false;
+		for (FControlRigMappings& Mappings : LastSelectedObjects.LastSelectedControlRigs)
+		{
+			if (Mappings.ControlRig.IsValid())
+			{
+				for (TPair<FName, FTransform>& Pair : Mappings.PivotTransforms)
+				{
+
+					if (Mappings.ControlRig->IsControlSelected(Pair.Key) == false)
+					{
+						bDeactivate = true;
+						break;
+					}
+				}
+			}
+			else
+			{
+				bDeactivate = true;
+				break;
+			}
+			
+		}
+
+		if(bDeactivate == false)
+		{ 
+			TArray<AActor*> SelectedActors;
+			GEditor->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+
+			for (FActorMappings& ActorMappings : LastSelectedObjects.LastSelectedActors)
+			{
+				
+				if (ActorMappings.Actor.IsValid())
+				{
+					if (SelectedActors.Contains(ActorMappings.Actor.Get()) == false)
+					{
+						bDeactivate = true;
+						break;
+					}
+				}
+				else
+				{
+					bDeactivate = true;
+					break;
+				}
+			}
+		}
+	}
+	if (bDeactivate)
+	{
+		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
+		{
+			TSharedPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule->GetLevelEditorInstance().Pin();
+
+			if (LevelEditorPtr.IsValid())
+			{
+				FString ActiveToolName = LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->GetActiveToolName(EToolSide::Left);
+				if (ActiveToolName == TEXT("SequencerPivotTool"))
+				{
+					LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->DeactivateTool(EToolSide::Left, EToolShutdownType::Completed);
+				}
+			}
+		}
+	}
+
+}
+
+void USequencerPivotTool::OnEditorSelectionChanged(UObject* NewSelection)
+{
+	DeactivateMe();
+	/** Later may need to keep track of ordering
+	USelection* Selection = Cast<USelection>(NewSelection);
+	if (!Selection)
+	{
+		return;
+	}
+
+	TArray<UObject*> SelectedActors;
+	Selection->GetSelectedObjects(AActor::StaticClass(), SelectedActors);
+	*/
 }
 
 void USequencerPivotTool::HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected)
 {
-
-	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
-	{
-		TSharedPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule->GetLevelEditorInstance().Pin();
-
-		if (LevelEditorPtr.IsValid())
-		{
-			FString ActiveToolName = LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->GetActiveToolName(EToolSide::Left);
-			if (ActiveToolName == TEXT("SequencerPivotTool"))
-			{
-				LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->DeactivateTool(EToolSide::Left, EToolShutdownType::Completed);
-			}
-		}
-	}
-	
+	DeactivateMe();
 }
 
-void USequencerPivotTool::RemoveControlRigDelegates()
+void USequencerPivotTool::RemoveDelegates()
 {
-	for (UControlRig* ControlRig : ControlRigs)
+	for (TWeakObjectPtr<UControlRig>& ControlRig : ControlRigs)
 	{
-		ControlRig->ControlSelected().RemoveAll(this);
+		if (ControlRig.IsValid())
+		{
+			ControlRig->ControlSelected().RemoveAll(this);
+		}
 	}
+
+	USelection::SelectionChangedEvent.Remove(OnEditorSelectionChangedHandle);
+	OnEditorSelectionChangedHandle.Reset();
 }
 
 
@@ -308,26 +476,49 @@ void USequencerPivotTool::GizmoTransformStarted(UTransformProxy* Proxy)
 		const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
 		const FFrameNumber FrameNumber = FrameTime.RoundToFrame();
 
-		for (UControlRig* ControlRig : ControlRigs)
+		for (TWeakObjectPtr<UControlRig>& ControlRig : ControlRigs)
 		{
+			if (ControlRig.IsValid() == false)
+			{
+				continue;
+			}
 			TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
 			if (SelectedControls.Num() > 0)
 			{
 				ControlRig->Modify();
 				for (const FName& Name : SelectedControls)
 				{
-					FTransform Transform = UControlRigSequencerEditorLibrary::GetControlRigWorldTransform(LevelSequence, ControlRig, Name, FrameNumber,
+					FTransform Transform = UControlRigSequencerEditorLibrary::GetControlRigWorldTransform(LevelSequence, ControlRig.Get(), Name, FrameNumber,
 						ESequenceTimeUnit::TickResolution);
 
 					FControlRigSelectionDuringDrag ControlDrag;
 					ControlDrag.LevelSequence = LevelSequence;
 					ControlDrag.ControlName = Name;
-					ControlDrag.ControlRig = ControlRig;
+					ControlDrag.ControlRig = ControlRig.Get();
 					ControlDrag.CurrentFrame = FrameNumber;
 					ControlDrag.CurrentTransform = Transform;
 					ControlRigDrags.Add(ControlDrag);
 				}
 			}
+		}
+
+		for (TWeakObjectPtr<AActor>& Actor : Actors)
+		{
+			if (Actor.IsValid() == false)
+			{
+				continue;
+			}
+			//Actor->Modify? Need something for undo.
+
+			FTransform Transform = UControlRigSequencerEditorLibrary::GetActorWorldTransform(LevelSequence, Actor.Get(), FrameNumber,
+				ESequenceTimeUnit::TickResolution);
+
+			FActorSelectonDuringDrag ActorDrag;
+			ActorDrag.LevelSequence = LevelSequence;
+			ActorDrag.Actor = Actor.Get();
+			ActorDrag.CurrentFrame = FrameNumber;
+			ActorDrag.CurrentTransform = Transform;
+			ActorDrags.Add(ActorDrag);
 		}
 	}
 
@@ -343,23 +534,66 @@ void USequencerPivotTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransfo
 	{
 		return;
 	}
+	bManipulatorMadeChange = true;
+
 	GizmoTransform = Transform;
 	FTransform Diff = Transform.GetRelativeTransform(StartDragTransform);
 	if (Diff.GetRotation().IsIdentity(1e-4f) == false)
 	{
 		const bool bSetKey = false;
-		bManipulatorMadeChange = true;
+		int32 Index = 0;
 		for (FControlRigSelectionDuringDrag& ControlDrag : ControlRigDrags)
 		{
-			FVector LocDiff = ControlDrag.CurrentTransform.GetLocation() - Transform.GetLocation();
-			if (LocDiff.IsNearlyZero(1e-4f) == false)
+			
+			if (!bShiftPressedWhenStarted || Index != (ControlRigDrags.Num() - 1))
 			{
-				FVector RotatedDiff = Diff.GetRotation().RotateVector(LocDiff);
-				FVector NewLocation = Transform.GetLocation() + RotatedDiff;
-				ControlDrag.CurrentTransform.SetLocation(NewLocation);
-				UControlRigSequencerEditorLibrary::SetControlRigWorldTransform(ControlDrag.LevelSequence, ControlDrag.ControlRig, ControlDrag.ControlName, 
-					ControlDrag.CurrentFrame,ControlDrag.CurrentTransform, ESequenceTimeUnit::TickResolution, bSetKey);
+				FVector LocDiff = ControlDrag.CurrentTransform.GetLocation() - Transform.GetLocation();
+				if (LocDiff.IsNearlyZero(1e-4f) == false)
+				{
+					LocDiff = StartDragTransform.InverseTransformPosition(ControlDrag.CurrentTransform.GetLocation());
+					FVector RotatedDiff = Diff.GetRotation().RotateVector(LocDiff);
+					FVector NewLocation = StartDragTransform.TransformPosition(RotatedDiff);
+					ControlDrag.CurrentTransform.SetLocation(NewLocation);
+					UControlRigSequencerEditorLibrary::SetControlRigWorldTransform(ControlDrag.LevelSequence, ControlDrag.ControlRig, ControlDrag.ControlName,
+						ControlDrag.CurrentFrame, ControlDrag.CurrentTransform, ESequenceTimeUnit::TickResolution, bSetKey);
+				}
 			}
+			else //last one with shift we keep locked!
+			{
+				UControlRigSequencerEditorLibrary::SetControlRigWorldTransform(ControlDrag.LevelSequence, ControlDrag.ControlRig, ControlDrag.ControlName,
+					ControlDrag.CurrentFrame, ControlDrag.CurrentTransform, ESequenceTimeUnit::TickResolution, bSetKey);
+			}
+			
+			++Index;
+		}
+
+		Index = 0;
+		for (FActorSelectonDuringDrag& ActorDrag : ActorDrags)
+		{
+			if (!bShiftPressedWhenStarted || Index != (ActorDrags.Num() - 1))
+			{
+				FVector LocDiff = ActorDrag.CurrentTransform.GetLocation() - Transform.GetLocation();
+				if (LocDiff.IsNearlyZero(1e-4f) == false)
+				{
+					LocDiff = StartDragTransform.InverseTransformPosition(ActorDrag.CurrentTransform.GetLocation());
+					FVector RotatedDiff = Diff.GetRotation().RotateVector(LocDiff);
+					FVector NewLocation = StartDragTransform.TransformPosition(RotatedDiff);
+					ActorDrag.CurrentTransform.SetLocation(NewLocation);
+
+					if (USceneComponent* RootComponent = ActorDrag.Actor->GetRootComponent())
+					{
+						RootComponent->SetWorldLocation(NewLocation);
+					}
+				}
+			}
+			else //last one with shift we keep locked!
+			{
+				if (USceneComponent* RootComponent = ActorDrag.Actor->GetRootComponent())
+				{
+					RootComponent->SetWorldLocation(ActorDrag.CurrentTransform.GetLocation());
+				}
+			}
+			++Index;
 		}
 	}
 	
@@ -387,15 +621,22 @@ void USequencerPivotTool::GizmoTransformEnded(UTransformProxy* Proxy)
 
 void USequencerPivotTool::SavePivotTransforms()
 {
-	for (FControlRigMappings& LastObject : LastSelectedObjects)
+	for (FControlRigMappings& LastObject : LastSelectedObjects.LastSelectedControlRigs)
 	{
-		FControlRigMappings& Mappings = SavedPivotLocations.FindOrAdd(LastObject.ControlRig);
+		FControlRigMappings& Mappings = SavedPivotLocations.ControlRigMappings.FindOrAdd(LastObject.ControlRig);
 		Mappings.ControlRig = LastObject.ControlRig;
 		for (TPair<FName, FTransform>& Pair : LastObject.PivotTransforms)
 		{
 			FTransform& Transform = Mappings.PivotTransforms.FindOrAdd(Pair.Key);
 			Transform = GizmoTransform;
 		}
+	}
+
+	for (FActorMappings& LastObject : LastSelectedObjects.LastSelectedActors)
+	{
+		FActorMappings& Mappings = SavedPivotLocations.ActorMappings.FindOrAdd(LastObject.Actor);
+		Mappings.Actor = LastObject.Actor;
+		Mappings.PivotTransform = GizmoTransform;
 	}
 }
 

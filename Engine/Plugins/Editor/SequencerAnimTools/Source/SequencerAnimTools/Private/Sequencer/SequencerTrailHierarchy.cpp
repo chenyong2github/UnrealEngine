@@ -743,6 +743,7 @@ void FSequencerTrailHierarchy::RegisterControlRigDelegates(USkeletalMeshComponen
 			}
 
 			//check to see if the seleced control rig is sill selected
+			TArray<FGuid> TrailsToRemove;
 			for (TPair<UControlRig*, TMap<FName, FGuid>>& CompMapPair : ControlsTracked)
 			{
 				UControlRig* TrackedControlRig = CompMapPair.Key;
@@ -750,11 +751,15 @@ void FSequencerTrailHierarchy::RegisterControlRigDelegates(USkeletalMeshComponen
 				{
 					if (TrackedControlRig->IsControlSelected(NameGuid.Key) == false)
 					{
-						const FGuid TrailGuid = NameGuid.Value;
-						VisibilityManager.ControlSelected.Remove(TrailGuid);
-						RemoveTrailIfNotAlwaysVisible(TrailGuid);
+						FGuid TrailGuid = NameGuid.Value;
+						TrailsToRemove.Add(TrailGuid);
 					}
 				}
+			}
+			for (const FGuid TrailGuid: TrailsToRemove)
+			{
+				VisibilityManager.ControlSelected.Remove(TrailGuid);
+				RemoveTrailIfNotAlwaysVisible(TrailGuid);
 			}
 		}
 
