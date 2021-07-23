@@ -40,9 +40,16 @@ echo === Running vcpkg in manifest mode ===
 ${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM}/vcpkg install \
 	--overlay-ports=$DIR/overlay-ports \
 	--overlay-triplets=$DIR/overlay-triplets \
-	--x-manifest-root=$DIR/Mac/x64-darwin \
-	--x-packages-root=$DIR/Mac/x64-darwin \
-	--triplet=x64-darwin
+	--x-manifest-root=$DIR/Mac/x86_64-osx \
+	--x-packages-root=$DIR/Mac/x86_64-osx \
+	--triplet=x86_64-osx
+
+echo
+echo === Replacing symlinks with actual files ===
+for f in $(find $DIR/Mac -type l);
+do
+	rsync `realpath $f` $f
+done
 
 echo
 echo === Reconciling $VCPKG_SYSTEM artifacts ===
