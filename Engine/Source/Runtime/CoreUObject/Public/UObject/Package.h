@@ -7,7 +7,6 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "IO/PackageId.h"
-#include "UObject/LinkerSave.h"
 #include "Misc/Guid.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
