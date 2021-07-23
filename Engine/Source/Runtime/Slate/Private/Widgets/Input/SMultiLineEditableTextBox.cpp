@@ -533,6 +533,11 @@ TArray<TSharedRef<const IRun>> SMultiLineEditableTextBox::GetSelectedRuns() cons
 	return EditableText->GetSelectedRuns();
 }
 
+FTextLocation SMultiLineEditableTextBox::GetCursorLocation() const
+{
+	return EditableText->GetCursorLocation();
+}
+
 TSharedPtr<const SScrollBar> SMultiLineEditableTextBox::GetHScrollBar() const
 {
 	return EditableText->GetHScrollBar();

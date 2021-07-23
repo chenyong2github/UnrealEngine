@@ -27,9 +27,10 @@ struct CORE_API FOutputDeviceHelper
 	 * @param Message Optional message text. If nullptr, only the date/time/category/verbosity prefix will be returned
 	 * @param LogTime Time format
 	 * @param Time Time in seconds
+	 * @param OutCategoryIndex (if non-null) The index of the category within the return string is written here, or INDEX_NONE if the category is suppressed
 	 * @returns Formatted log line
 	 */
-	static FString FormatLogLine(ELogVerbosity::Type Verbosity, const class FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, const double Time = -1.0);
+	static FString FormatLogLine(ELogVerbosity::Type Verbosity, const class FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, const double Time = -1.0, int32* OutCategoryIndex = nullptr);
 
 	/**
 	 * Formats, casts to ANSI char and serializes a message to archive. Optimized for small number of allocations and Serialize calls

@@ -30,8 +30,94 @@
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "OutputLogModule.h"
+#include "Widgets/Text/SlateEditableTextTypes.h"
 
 #define LOCTEXT_NAMESPACE "SOutputLog"
+
+class FCategoryLineHighlighter : public ISlateLineHighlighter
+{
+public:
+	static TSharedRef<FCategoryLineHighlighter> Create()
+	{
+		return MakeShareable(new FCategoryLineHighlighter());
+	}
+
+	virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
+	{
+		const FVector2D Location(Line.Offset.X + OffsetX, Line.Offset.Y);
+
+		// If we've not been set to an explicit color, calculate a suitable one from the linked color
+		FLinearColor SelectionBackgroundColorAndOpacity = DefaultStyle.SelectedBackgroundColor.GetColor(InWidgetStyle);// *InWidgetStyle.GetColorAndOpacityTint();
+		SelectionBackgroundColorAndOpacity.A *= 0.2f;
+
+		// The block size and offset values are pre-scaled, so we need to account for that when converting the block offsets into paint geometry
+		const float InverseScale = Inverse(AllottedGeometry.Scale);
+
+		if (Width > 0.0f)
+		{
+			// Draw the actual highlight rectangle
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				++LayerId,
+				AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, FVector2D(Width, FMath::Max(Line.Size.Y, Line.TextHeight))), FSlateLayoutTransform(TransformPoint(InverseScale, Location))),
+				&DefaultStyle.HighlightShape,
+				bParentEnabled /*&& bHasKeyboardFocus*/ ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
+				SelectionBackgroundColorAndOpacity
+			);
+		}
+
+		return LayerId;
+	}
+
+protected:
+	FCategoryLineHighlighter()
+	{
+	}
+};
+
+
+class FCategoryBadgeHighlighter : public ISlateLineHighlighter
+{
+public:
+	static TSharedRef<FCategoryBadgeHighlighter> Create(const FLinearColor& InBadgeColor)
+	{
+		return MakeShareable(new FCategoryBadgeHighlighter(InBadgeColor));
+	}
+
+	virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
+	{
+		const FVector2D Location(Line.Offset.X + OffsetX, Line.Offset.Y);
+
+		// The block size and offset values are pre-scaled, so we need to account for that when converting the block offsets into paint geometry
+		const float InverseScale = Inverse(AllottedGeometry.Scale);
+
+		if (Width > 0.0f)
+		{
+			// Draw the actual highlight rectangle
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				++LayerId,
+				AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, FVector2D(Width, FMath::Max(Line.Size.Y, Line.TextHeight))), FSlateLayoutTransform(TransformPoint(InverseScale, Location))),
+				&DefaultStyle.HighlightShape,
+				bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
+				BadgeColor
+			);
+		}
+
+		return LayerId;
+	}
+
+protected:
+	FLinearColor BadgeColor;
+
+	FCategoryBadgeHighlighter(const FLinearColor& InBadgeColor)
+		: BadgeColor(InBadgeColor)
+	{
+	}
+};
+
+
+
 /** Expression context to test the given messages against the current text filter */
 class FLogFilter_TextFilterExpressionContextOutputLog : public ITextFilterExpressionContext
 {
@@ -714,6 +800,21 @@ bool FOutputLogTextLayoutMarshaller::SubmitPendingMessages()
 	return false;
 }
 
+float FOutputLogTextLayoutMarshaller::GetCategoryHue(FName CategoryName)
+{
+	if (float* pResult = CategoryHueMap.Find(CategoryName))
+	{
+		return *pResult;
+	}
+	else
+	{
+		FRandomStream RNG(GetTypeHash(CategoryName));
+		const float Hue = RNG.FRandRange(0.0f, 360.0f);
+		CategoryHueMap.Add(CategoryName, Hue);
+		return Hue;
+	}
+}
+
 void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 {
 	const int32 CurrentMessagesCount = Messages.Num();
@@ -740,14 +841,29 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 		MakeDirty();
 	}
 
+	const ELogCategoryColorizationMode CategoryColorizationMode = GetDefault<UEditorStyleSettings>()->CategoryColorizationMode;
+
 	TArray<FTextLayout::FNewLineData> LinesToAdd;
 	LinesToAdd.Reserve(NumPendingMessages);
+	TArray<FTextLineHighlight> Highlights;
 
 	int32 NumAddedMessages = 0;
+
+	auto ComputeCategoryColor = [this](const FTextBlockStyle& OriginalStyle, const FName MessageCategory)
+	{
+		FTextBlockStyle Result = OriginalStyle;
+
+		FLinearColor HSV = OriginalStyle.ColorAndOpacity.GetSpecifiedColor().LinearRGBToHSV();
+		HSV.R = GetCategoryHue(MessageCategory);
+		HSV.G = FMath::Max(0.4f, HSV.G);
+		Result.ColorAndOpacity = HSV.HSVToLinearRGB();
+		return Result;
+	};
 
 	for (int32 MessageIndex = NextPendingMessageIndex; MessageIndex < CurrentMessagesCount; ++MessageIndex)
 	{
 		const TSharedPtr<FOutputLogMessage> Message = Messages[MessageIndex];
+		const int32 LineIndex = TextLayout->GetLineModels().Num() + NumAddedMessages;
 
 		Filter->AddAvailableLogCategory(Message->Category);
 		if (!Filter->IsMessageAllowed(Message))
@@ -762,7 +878,67 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 		TSharedRef<FString> LineText = Message->Message;
 
 		TArray<TSharedRef<IRun>> Runs;
-		Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle));
+
+		switch (CategoryColorizationMode)
+		{
+		case ELogCategoryColorizationMode::None:
+			Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle));
+			break;
+		case ELogCategoryColorizationMode::ColorizeWholeLine:
+			{
+				const bool bUseCategoryColor = (Message->Verbosity > ELogVerbosity::Warning);
+				Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, bUseCategoryColor ? ComputeCategoryColor(MessageTextStyle, Message->Category) : MessageTextStyle));
+			}
+			break;
+		case ELogCategoryColorizationMode::ColorizeCategoryOnly:
+			{
+				if (Message->CategoryStartIndex >= 0)
+				{
+					const int32 CategoryStartIndex = Message->CategoryStartIndex;
+					const int32 CategoryStopIndex = CategoryStartIndex + (int32)Message->Category.GetStringLength() + 1;
+					if (CategoryStartIndex > 0)
+					{
+						Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle, FTextRange(0, CategoryStartIndex)));
+					}
+					Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, ComputeCategoryColor(MessageTextStyle, Message->Category), FTextRange(CategoryStartIndex, CategoryStopIndex)));
+					Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle, FTextRange(CategoryStopIndex, LineText->Len())));
+				}
+				else
+				{
+					Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle));
+				}
+			}
+			break;
+		case ELogCategoryColorizationMode::ColorizeCategoryAsBadge:
+			{
+				if (Message->CategoryStartIndex >= 0)
+				{
+					const int32 CategoryStartIndex = Message->CategoryStartIndex;
+					const int32 CategoryStopIndex = CategoryStartIndex + (int32)Message->Category.GetStringLength();
+
+					FTextBlockStyle BadgeStyle = ComputeCategoryColor(MessageTextStyle, Message->Category);
+					Highlights.Emplace(LineIndex, FTextRange(CategoryStartIndex, CategoryStopIndex), /*Zorder=*/ -20, FCategoryBadgeHighlighter::Create(BadgeStyle.ColorAndOpacity.GetSpecifiedColor()));
+					BadgeStyle.ColorAndOpacity = FLinearColor::Black;
+
+					if (CategoryStartIndex > 0)
+					{
+						Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle, FTextRange(0, CategoryStartIndex)));
+					}
+					Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, BadgeStyle, FTextRange(CategoryStartIndex, CategoryStopIndex)));
+					Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle, FTextRange(CategoryStopIndex, LineText->Len())));
+				}
+				else
+				{
+					Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle));
+				}
+			}
+			break;
+		}
+
+		if (Message->Category.IsValid() && (Message->Category == CategoryToHighlight))
+		{
+			Highlights.Emplace(LineIndex, FTextRange(0, LineText->Len()), /*Zorder=*/ -5, FCategoryLineHighlighter::Create());
+		}
 
 		LinesToAdd.Emplace(MoveTemp(LineText), MoveTemp(Runs));
 	}
@@ -774,6 +950,11 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 	}
 
 	TextLayout->AddLines(LinesToAdd);
+
+	for (const FTextLineHighlight& Highlight : Highlights)
+	{
+		TextLayout->AddLineHighlight(Highlight);
+	}
 }
 
 void FOutputLogTextLayoutMarshaller::ClearMessages()
@@ -832,6 +1013,21 @@ int32 FOutputLogTextLayoutMarshaller::GetNumFilteredMessages()
 void FOutputLogTextLayoutMarshaller::MarkMessagesCacheAsDirty()
 {
 	bNumMessagesCacheDirty = true;
+}
+
+FName FOutputLogTextLayoutMarshaller::GetCategoryForLocation(const FTextLocation Location) const
+{
+	if (Messages.IsValidIndex(Location.GetLineIndex()))
+	{
+		return Messages[Location.GetLineIndex()]->Category;
+	}
+
+	return NAME_None;
+}
+
+FTextLocation FOutputLogTextLayoutMarshaller::GetTextLocationAt(const FVector2D& Relative) const
+{
+	return TextLayout ? TextLayout->GetTextLocationAt(Relative) : FTextLocation(INDEX_NONE, INDEX_NONE);
 }
 
 FOutputLogTextLayoutMarshaller::FOutputLogTextLayoutMarshaller(TArray< TSharedPtr<FOutputLogMessage> > InMessages, FOutputLogFilter* InFilter)
@@ -976,6 +1172,10 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bIsDrawerOutputLog)
 	// Remove itself on crash (crashmalloc has limited memory and echoing logs here at that point is useless).
 	FCoreDelegates::OnHandleSystemError.AddRaw(this, &SOutputLog::OnCrash);
 
+	// Listen for style changes
+	UEditorStyleSettings* Settings = GetMutableDefault<UEditorStyleSettings>();
+	SettingsWatchHandle = Settings->OnSettingChanged().AddRaw(this, &SOutputLog::HandleSettingChanged);
+	
 	bIsUserScrolled = false;
 	RequestForceScroll();
 }
@@ -988,6 +1188,12 @@ SOutputLog::~SOutputLog()
 		GLog->RemoveOutputDevice(this);
 	}
 	FCoreDelegates::OnHandleSystemError.RemoveAll(this);
+
+	if (UObjectInitialized() && !GExitPurge)
+	{
+		UEditorStyleSettings* Settings = GetMutableDefault<UEditorStyleSettings>();
+		Settings->OnSettingChanged().Remove(SettingsWatchHandle);
+	}
 }
 
 void SOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -1012,6 +1218,11 @@ void SOutputLog::OnCrash()
 	}
 }
 
+static const FName NAME_StyleLogCommand(TEXT("Log.Command"));
+static const FName NAME_StyleLogError(TEXT("Log.Error"));
+static const FName NAME_StyleLogWarning(TEXT("Log.Warning"));
+static const FName NAME_StyleLogNormal(TEXT("Log.Normal"));
+
 bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category, TArray< TSharedPtr<FOutputLogMessage> >& OutMessages )
 {
 	if (Verbosity == ELogVerbosity::SetColor)
@@ -1021,24 +1232,24 @@ bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosit
 	}
 	else
 	{
-		// Get the style for this message. When piping output from child processes (eg. when cooking through the editor), we want to highlight messages
+		// Get the style for this message. When piping output from child processes (e.g., when cooking through the editor), we want to highlight messages
 		// according to their original verbosity, so also check for "Error:" and "Warning:" substrings. This is consistent with how the build system processes logs.
 		FName Style;
 		if (Category == NAME_Cmd)
 		{
-			Style = FName(TEXT("Log.Command"));
+			Style = NAME_StyleLogCommand;
 		}
 		else if (Verbosity == ELogVerbosity::Error || FCString::Stristr(V, TEXT("Error:")) != nullptr)
 		{
-			Style = FName(TEXT("Log.Error"));
+			Style = NAME_StyleLogError;
 		}
 		else if (Verbosity == ELogVerbosity::Warning || FCString::Stristr(V, TEXT("Warning:")) != nullptr)
 		{
-			Style = FName(TEXT("Log.Warning"));
+			Style = NAME_StyleLogWarning;
 		}
 		else
 		{
-			Style = FName(TEXT("Log.Normal"));
+			Style = NAME_StyleLogNormal;
 		}
 
 		// Determine how to format timestamps
@@ -1071,19 +1282,20 @@ bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosit
 					int32 HardWrapLineLen = 0;
 					if (bIsFirstLineInMessage)
 					{
-						FString MessagePrefix = FOutputDeviceHelper::FormatLogLine(Verbosity, Category, nullptr, LogTimestampMode);
+						int32 CategoryStartIndex;
+						const FString MessagePrefix = FOutputDeviceHelper::FormatLogLine(Verbosity, Category, nullptr, LogTimestampMode, -1.0, /*out*/ &CategoryStartIndex);
 						
 						HardWrapLineLen = FMath::Min(HardWrapLen - MessagePrefix.Len(), Line.Len() - CurrentStartIndex);
-						FString HardWrapLine = Line.Mid(CurrentStartIndex, HardWrapLineLen);
+						const FString HardWrapLine = Line.Mid(CurrentStartIndex, HardWrapLineLen);
 
-						OutMessages.Add(MakeShared<FOutputLogMessage>(MakeShared<FString>(MessagePrefix + HardWrapLine), Verbosity, Category, Style));
+						OutMessages.Add(MakeShared<FOutputLogMessage>(MakeShared<FString>(MessagePrefix + HardWrapLine), Verbosity, Category, Style, CategoryStartIndex));
 					}
 					else
 					{
 						HardWrapLineLen = FMath::Min(HardWrapLen, Line.Len() - CurrentStartIndex);
 						FString HardWrapLine = Line.Mid(CurrentStartIndex, HardWrapLineLen);
-
-						OutMessages.Add(MakeShared<FOutputLogMessage>(MakeShared<FString>(MoveTemp(HardWrapLine)), Verbosity, Category, Style));
+						
+						OutMessages.Add(MakeShared<FOutputLogMessage>(MakeShared<FString>(MoveTemp(HardWrapLine)), Verbosity, Category, Style, INDEX_NONE));
 					}
 
 					bIsFirstLineInMessage = false;
@@ -1114,6 +1326,49 @@ void SOutputLog::ExtendTextBoxMenu(FMenuBuilder& Builder)
 		FSlateIcon(), 
 		ClearOutputLogAction
 		);
+
+	const FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
+	const FVector2D RelativeCursorPos = MessagesTextBox->GetTickSpaceGeometry().AbsoluteToLocal(CursorPos);
+	const FTextLocation CursorTextLocation = MessagesTextMarshaller->GetTextLocationAt(RelativeCursorPos);
+
+	if (CursorTextLocation.IsValid())
+	{
+		const FName CategoryName = MessagesTextMarshaller->GetCategoryForLocation(CursorTextLocation);
+
+		if (CategoryName.IsValid())
+		{
+			Builder.BeginSection(NAME_None, FText::Format(LOCTEXT("CategoryActionsSectionHeading", "Category {0}"), FText::FromName(CategoryName)));
+
+			if (CategoryName == MessagesTextMarshaller->GetCategoryToHighlight())
+			{
+				FUIAction StopHighlightingCategoryAction(
+					FExecuteAction::CreateRaw(this, &SOutputLog::OnHighlightCategory, FName())
+				);
+
+				Builder.AddMenuEntry(
+					LOCTEXT("StopHighlightCategoryAction", "Remove category highlights"),
+					LOCTEXT("StopHighlightCategoryActionTooltip", "Stop highlighting all messages for this category"),
+					FSlateIcon(),
+					StopHighlightingCategoryAction
+				);
+			}
+			else
+			{
+				FUIAction HighlightCategoryAction(
+					FExecuteAction::CreateRaw(this, &SOutputLog::OnHighlightCategory, CategoryName)
+				);
+
+				Builder.AddMenuEntry(
+					FText::Format(LOCTEXT("HighlightCategoryAction", "Highlight category {0}"), FText::FromName(CategoryName)),
+					LOCTEXT("HighlightCategoryActionTooltip", "Highlights all messages for this category"),
+					FSlateIcon(),
+					HighlightCategoryAction
+				);
+			}
+
+			Builder.EndSection();
+		}
+	}
 }
 
 void SOutputLog::OnClearLog()
@@ -1124,6 +1379,33 @@ void SOutputLog::OnClearLog()
 	MessagesTextMarshaller->ClearMessages();
 	MessagesTextBox->Refresh();
 	bIsUserScrolled = false;
+}
+
+void SOutputLog::OnHighlightCategory(FName NewCategoryToHighlight)
+{
+	MessagesTextMarshaller->SetCategoryToHighlight(NewCategoryToHighlight);
+
+	RefreshAllPreservingLocation();
+}
+
+void SOutputLog::HandleSettingChanged(FName ChangedSettingName)
+{
+	RefreshAllPreservingLocation();
+}
+
+void SOutputLog::RefreshAllPreservingLocation()
+{
+	const FTextLocation LastCursorTextLocation = MessagesTextBox->GetCursorLocation();
+
+	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
+	MessagesTextMarshaller->MakeDirty();
+	MessagesTextBox->Refresh();
+
+	//@TODO: Without this, the window will scroll if the last 'normally clicked location' is not on screen
+	// (even with the right-click set cursor pos fix, the refresh will scroll you back to the top of the screen
+	// until you left click, or to where you last left clicked otherwise if off screen; spooky...)
+	// Ideally we could read the current location or fix the bug where a refresh causes a scroll
+	MessagesTextBox->GoTo(LastCursorTextLocation);
 }
 
 void SOutputLog::OnUserScrolled(float ScrollOffset)

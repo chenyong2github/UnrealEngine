@@ -7,7 +7,7 @@
 #include "Misc/App.h"
 #include "CoreGlobals.h"
 
-FString FOutputDeviceHelper::FormatLogLine( ELogVerbosity::Type Verbosity, const class FName& Category, const TCHAR* Message /*= nullptr*/, ELogTimes::Type LogTime /*= ELogTimes::None*/, const double Time /*= -1.0*/ )
+FString FOutputDeviceHelper::FormatLogLine( ELogVerbosity::Type Verbosity, const class FName& Category, const TCHAR* Message /*= nullptr*/, ELogTimes::Type LogTime /*= ELogTimes::None*/, const double Time /*= -1.0*/, int32* OutCategoryIndex)
 {
 	const bool bShowCategory = GPrintLogCategory && Category != NAME_None;
 	FString Format;
@@ -16,7 +16,7 @@ FString FOutputDeviceHelper::FormatLogLine( ELogVerbosity::Type Verbosity, const
 	{
 		case ELogTimes::SinceGStartTime:
 		{																	
-			const double RealTime = Time == -1.0f ? FPlatformTime::Seconds() - GStartTime : Time;
+			const double RealTime = (Time < 0.0) ? (FPlatformTime::Seconds() - GStartTime) : Time;
 			Format = FString::Printf( TEXT( "[%07.2f][%3llu]" ), RealTime, GFrameCounter % 1000);
 			break;
 		}
@@ -36,6 +36,11 @@ FString FOutputDeviceHelper::FormatLogLine( ELogVerbosity::Type Verbosity, const
 		default:
 			break;
 	}	
+
+	if (OutCategoryIndex != nullptr)
+	{
+		*OutCategoryIndex = bShowCategory ? Format.Len() : INDEX_NONE;
+	}
 
 	if (bShowCategory)
 	{
