@@ -1379,8 +1379,12 @@ void NiagaraEmitterInstanceBatcher::ExecuteTicks(FRHICommandList& RHICmdList, FR
 					ComputeContext->MainDataSet->CurrentData = CurrentData;
 					CurrentData->SwapGPU(FinalSimStageDataBuffer);
 
+					// Mark data as ready for anyone who picks up the buffer on the next frame
+					CurrentData->SetGPUDataReadyStage(ENiagaraGpuComputeTickStage::First);
+
 					ComputeContext->SetTranslucentDataToRender(nullptr);
 					ComputeContext->SetDataToRender(CurrentData);
+
 #if WITH_MGPU
 					AddTemporalEffectBuffers(CurrentData);
 #endif // WITH_MGPU

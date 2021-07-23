@@ -228,7 +228,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// GPU Data
 	/** Location in the frame where GPU data will be ready, for CPU this is always the first group, for GPU is depends on the features used as to which phase. */
-	ENiagaraGpuComputeTickStage::Type GPUDataReadyStage;
+	ENiagaraGpuComputeTickStage::Type GPUDataReadyStage = ENiagaraGpuComputeTickStage::First;
 	/** The buffer offset where the instance count is accumulated. */
 	uint32 GPUInstanceCountBufferOffset;
 	/** GPU Buffer containing floating point values for GPU simulations. */
