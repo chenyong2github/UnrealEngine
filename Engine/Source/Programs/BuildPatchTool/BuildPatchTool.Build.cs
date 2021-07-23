@@ -19,7 +19,7 @@ public class BuildPatchTool : ModuleRules
 				"CoreUObject",
 				"BuildPatchServices",
 				"Projects",
-				"Http",
+				"HTTP",
 				// The below items are not strictly needed by BPT, but core appears to need them during initialization
 				"PakFile",
 				"SandboxFile",

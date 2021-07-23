@@ -26,7 +26,7 @@ public class OnlineSubsystemIOS : ModuleRules
                 "Engine", 
                 "Sockets",
 				"OnlineSubsystem", 
-                "Http",
+                "HTTP",
                 "IOSPlatformFeatures",
             }
             );

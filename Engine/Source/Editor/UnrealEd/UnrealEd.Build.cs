@@ -93,7 +93,7 @@ public class UnrealEd : ModuleRules
 				"UnrealEdMessages",
 				"GameplayDebugger",
 				"BlueprintGraph",
-				"Http",
+				"HTTP",
 				"UnrealAudio",
 				"FunctionalTesting",
 				"AutomationController",

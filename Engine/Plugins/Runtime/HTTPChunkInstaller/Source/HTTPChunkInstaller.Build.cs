@@ -13,7 +13,7 @@ public class HTTPChunkInstaller : ModuleRules
                 "Core",
 				"ApplicationCore",
                 "Engine",
-                "Http",
+                "HTTP",
                 "Json",
                 "PakFile",
             }

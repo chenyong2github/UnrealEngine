@@ -31,7 +31,7 @@ public class OnlineSubsystemGooglePlay : ModuleRules
                 "Engine", 
                 "Sockets",
 				"OnlineSubsystem", 
-                "Http",
+                "HTTP",
 				"AndroidRuntimeSettings",
 				"Launch",
 				"GpgCppSDK"

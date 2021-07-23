@@ -33,7 +33,7 @@ namespace UnrealBuildTool.Rules
                     "UnrealEd",
                     "Slate",
                     "SlateCore",
-                    "Mainframe",
+                    "MainFrame",
                     "InputCore",
                     "EditorStyle",
                     "MaterialEditor",
