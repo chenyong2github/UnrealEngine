@@ -118,7 +118,6 @@ public class UnrealEd : ModuleRules
 				"SubobjectDataInterface",
 				"SubobjectEditor",
 				"PhysicsUtilities",
-				"DerivedDataCache",
 			}
 		);
 
