@@ -2,7 +2,7 @@
 
 #include "EdGraphSchema_K2.h"
 #include "BlueprintCompilationManager.h"
-#include "Kismet2/Breakpoint.h"
+#include "Engine/Breakpoint.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/Interface.h"
 #include "UObject/UnrealType.h"
@@ -4551,11 +4551,10 @@ void UEdGraphSchema_K2::HandleGraphBeingDeleted(UEdGraph& GraphBeingRemoved) con
 		Blueprint->LastEditedDocuments.RemoveAll([&GraphBeingRemoved](const FEditedDocumentInfo& TestDoc) { return TestDoc.EditedObjectPath.ResolveObject() == &GraphBeingRemoved; });
 
 		// Remove any BPs that reference a node in this graph:
-		FKismetDebugUtilities::RemoveBreakpointsByPredicate(
-			Blueprint,
-			[&GraphBeingRemoved](const FBlueprintBreakpoint& Breakpoint)
+		Blueprint->Breakpoints.RemoveAll(
+			[&GraphBeingRemoved](UBreakpoint* Breakpoint)
 			{
-				return (Breakpoint.GetLocation() && Breakpoint.GetLocation()->IsIn(&GraphBeingRemoved));
+				return !Breakpoint || (Breakpoint->GetLocation() && Breakpoint->GetLocation()->IsIn(&GraphBeingRemoved));
 			}
 		);
 	}

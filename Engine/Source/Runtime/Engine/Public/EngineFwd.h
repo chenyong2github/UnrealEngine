@@ -40,6 +40,7 @@ class UBlendSpace;
 class UBlueprint;
 class UBlueprintGeneratedClass;
 class UBodySetup;
+class UBreakpoint;
 class UCameraComponent;
 class UCanvas;
 class UChannel;
