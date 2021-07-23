@@ -12,8 +12,8 @@ Texture2D TestDiffuseTexture;
 Texture2D TestNormalTexture;
 SamplerState MaterialSampler;
 
+ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
-ByteAddressBuffer MaterialDepthTable2;
 ByteAddressBuffer MaterialHitProxyTable;
 
 uint DummyZero; // TODO: Remove me
@@ -73,7 +73,7 @@ void EmitMaterialDepthPS(
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster );
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
+		const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable);
 		OutDepth = asfloat(MaterialDepthId | DummyZero); // Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to OutDepth in a buffer load instruction.
 	}
 	else

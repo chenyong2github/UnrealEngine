@@ -292,7 +292,7 @@ public:
 	TArray<class FStaticMeshBatch> StaticMeshes;
 
 	TArray<FNaniteCommandInfo> NaniteCommandInfos[ENaniteMeshPass::Num];
-	TArray<uint32> NaniteMaterialIds[ENaniteMeshPass::Num];
+	TArray<uint32> NaniteMaterialSlots[ENaniteMeshPass::Num];
 #if WITH_EDITOR
 	TArray<uint32> NaniteHitProxyIds;
 #endif

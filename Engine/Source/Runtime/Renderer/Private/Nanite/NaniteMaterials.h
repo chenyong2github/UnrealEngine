@@ -31,26 +31,36 @@ public:
 
 	explicit FNaniteCommandInfo() = default;
 
-	void SetStateBucketId(int32 InStateBucketId)
+	inline void SetStateBucketId(int32 InStateBucketId)
 	{
 		check(InStateBucketId < MAX_STATE_BUCKET_ID);
 		StateBucketId = InStateBucketId;
 	}
 
-	int32 GetStateBucketId() const
+	inline int32 GetStateBucketId() const
 	{
 		check(StateBucketId < MAX_STATE_BUCKET_ID);
 		return StateBucketId;
 	}
 
-	void Reset()
+	inline void Reset()
 	{
 		StateBucketId = INDEX_NONE;
 	}
 
-	uint32 GetMaterialId() const
+	inline uint32 GetMaterialId() const
 	{
 		return GetMaterialId(GetStateBucketId());
+	}
+
+	inline void SetMaterialSlot(int32 InMaterialSlot)
+	{
+		MaterialSlot = InMaterialSlot;
+	}
+
+	inline int32 GetMaterialSlot() const
+	{
+		return MaterialSlot;
 	}
 
 	static uint32 GetMaterialId(int32 StateBucketId)
@@ -67,6 +77,8 @@ public:
 private:
 	// Stores the index into FScene::NaniteDrawCommands of the corresponding FMeshDrawCommand
 	int32 StateBucketId = INDEX_NONE;
+
+	int32 MaterialSlot = INDEX_NONE;
 };
 
 struct FNaniteMaterialPassCommand
@@ -253,17 +265,17 @@ public:
 	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives);
 
 	void Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
-	void* GetDepthTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
+	void* GetMaterialSlotPtr(uint32 PrimitiveIndex, uint32 EntryCount);
 #if WITH_EDITOR
 	void* GetHitProxyTablePtr(uint32 PrimitiveIndex, uint32 EntryCount);
 #endif
 	void Finish(FRHICommandListImmediate& RHICmdList);
 
-	FRHIShaderResourceView* GetDepthTableSRV() const { return DepthTableDataBuffer.SRV; }
 #if WITH_EDITOR
 	FRHIShaderResourceView* GetHitProxyTableSRV() const { return HitProxyTableDataBuffer.SRV; }
 #endif
 
+	FRHIShaderResourceView* GetMaterialSlotSRV() const { return MaterialSlotDataBuffer.SRV; }
 	FRHIShaderResourceView* GetMaterialDepthSRV() const { return MaterialDepthDataBuffer.SRV; }
 	//FRHIShaderResourceView* GetMaterialArgumentSRV() const { return MaterialArgumentDataBuffer.SRV; }
 
@@ -273,13 +285,13 @@ private:
 
 	uint32 MaxMaterials = 0;
 	uint32 NumPrimitiveUpdates = 0;
-	uint32 NumDepthTableUpdates = 0;
 	uint32 NumHitProxyTableUpdates = 0;
 	uint32 NumMaterialSlotUpdates = 0;
+	uint32 NumMaterialDepthUpdates = 0;
 
 	// Old
-	FScatterUploadBuffer DepthTableUploadBuffer;
-	FRWByteAddressBuffer DepthTableDataBuffer;
+	FScatterUploadBuffer MaterialSlotUploadBuffer;
+	FRWByteAddressBuffer MaterialSlotDataBuffer;
 	FScatterUploadBuffer HitProxyTableUploadBuffer;
 	FRWByteAddressBuffer HitProxyTableDataBuffer;
 

@@ -214,10 +214,12 @@ uint GetMaterialDepthId(
 	FCluster InCluster,
 	uint InPrimitiveIndex,
 	uint InTriIndex,
+	ByteAddressBuffer InMaterialSlotTable,
 	ByteAddressBuffer InMaterialDepthTable)
 {
 	const uint RelativeMaterialIndex = GetRelativeMaterialIndex(InCluster, InTriIndex);
-	const uint MaterialDepthId = RemapMaterialIndexToId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialDepthTable);
+	const uint MaterialSlot = RemapMaterialIndexToId(InPrimitiveIndex, RelativeMaterialIndex, InMaterialSlotTable);
+	const uint MaterialDepthId = InMaterialDepthTable.Load(MaterialSlot * 4);
 	return MaterialDepthId;
 }
 
