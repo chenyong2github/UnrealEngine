@@ -1030,22 +1030,24 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 void WriteRasterizerArgsSWHW(RWBuffer<uint> RasterizerArgsSWHW, uint NumClustersSW, uint NumClustersHW)
 {
 
-	RasterizerArgsSWHW[0] = NumClustersSW;
-	RasterizerArgsSWHW[1] = 1;
-	RasterizerArgsSWHW[2] = 1;
-	RasterizerArgsSWHW[3] = 0;
+	RasterizerArgsSWHW[0] = NumClustersSW;					// SW: ThreadGroupCountX
+	RasterizerArgsSWHW[1] = 1;								// SW: ThreadGroupCountY
+	RasterizerArgsSWHW[2] = 1;								// SW: ThreadGroupCountZ
+	RasterizerArgsSWHW[3] = 0;								// padding
 
 	if (RenderFlags & RENDER_FLAG_PRIMITIVE_SHADER)
 	{
-		RasterizerArgsSWHW[4] = NumClustersHW;				// VertexCountPerInstance
-		RasterizerArgsSWHW[5] = 1;							// InstanceCount
+		RasterizerArgsSWHW[4] = NumClustersHW;				// HW: VertexCountPerInstance
+		RasterizerArgsSWHW[5] = 1;							// HW: InstanceCount
 	}
 	else
 	{
-		RasterizerArgsSWHW[4] = MAX_CLUSTER_TRIANGLES * 3;	// VertexCountPerInstance
-		RasterizerArgsSWHW[5] = NumClustersHW;				// InstanceCount
+		RasterizerArgsSWHW[4] = MAX_CLUSTER_TRIANGLES * 3;	// HW: VertexCountPerInstance
+		RasterizerArgsSWHW[5] = NumClustersHW;				// HW: InstanceCount
 	}
 
+	RasterizerArgsSWHW[6] = 0;								// HW: StartVertexLocation
+	RasterizerArgsSWHW[7] = 0;								// HW: StartInstanceLocation
 }
 
 // Make sure the indirect args we give to the rasterizer are not out of bounds and that the SW/HW ranges are not overlapping.
