@@ -2537,7 +2537,7 @@ void FNativeClassHeaderGenerator::ExportInterfaceCallFunctions(FOutputDevice& Ou
 		// code to populate Parms struct
 		for (FUnrealPropertyDefinitionInfo* ParamDef : Parameters.Parms)
 		{
-			const FString ParamName = ParamDef->GetName();
+			const FString ParamName = ParamDef->GetNameWithDeprecated();
 			OutCpp.Logf(TEXT("\t\t\tParms.%s=%s;") LINE_TERMINATOR, *ParamName, *ParamName);
 		}
 
@@ -2548,7 +2548,7 @@ void FNativeClassHeaderGenerator::ExportInterfaceCallFunctions(FOutputDevice& Ou
 		{
 			if(ParamDef->HasAllPropertyFlags(CPF_OutParm) && !ParamDef->HasAnyPropertyFlags(CPF_ConstParm|CPF_ReturnParm))
 			{
-				const FString ParamName = ParamDef->GetName();
+				const FString ParamName = ParamDef->GetNameWithDeprecated();
 				OutCpp.Logf(TEXT("\t\t\t%s=Parms.%s;") LINE_TERMINATOR, *ParamName, *ParamName);
 			}
 		}
@@ -4081,7 +4081,7 @@ void WriteEventFunctionPrologue(FOutputDevice& Output, int32 Indent, const FParm
 	// Declare a parameter struct for this event/delegate and assign the struct members using the values passed into the event/delegate call.
 	for (FUnrealPropertyDefinitionInfo* PropDef : Parameters.Parms)
 	{
-		const FString PropertyName = PropDef->GetName();
+		const FString PropertyName = PropDef->GetNameWithDeprecated();
 		if (PropDef->IsStaticArray())
 		{
 			Output.Logf(TEXT("%sFMemory::Memcpy(Parms.%s,%s,sizeof(Parms.%s));\r\n"), FCString::Tab(Indent + 1), *PropertyName, *PropertyName, *PropertyName);
@@ -4106,7 +4106,7 @@ void WriteEventFunctionEpilogue(FOutputDevice& Output, int32 Indent, const FParm
 	{
 		if (PropDef->HasSpecificPropertyFlags(CPF_OutParm | CPF_ConstParm, CPF_OutParm))
 		{
-			const FString PropertyName = PropDef->GetName();
+			const FString PropertyName = PropDef->GetNameWithDeprecated();
 			if (PropDef->IsStaticArray())
 			{
 				Output.Logf(TEXT("%sFMemory::Memcpy(&%s,&Parms.%s,sizeof(%s));\r\n"), FCString::Tab(Indent + 1), *PropertyName, *PropertyName, *PropertyName);
