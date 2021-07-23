@@ -18,6 +18,12 @@ struct FLumenMeshCaptureMaterialPass;
 class  FLumenCardPassUniformParameters;
 class  FCardPageRenderData;
 
+// VertexCountPerInstance
+// InstanceCount
+// StartVertexLocation
+// StartInstanceLocation
+#define NANITE_DRAW_INDIRECT_ARG_COUNT 4
+
 class FNaniteCommandInfo
 {
 public:
@@ -141,6 +147,46 @@ private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, NaniteUniformBuffer);
 };
 
+struct FNaniteMaterialEntry
+{
+	FNaniteMaterialEntry()
+	: ReferenceCount(0)
+	, MaterialId(0)
+	, MaterialSlot(INDEX_NONE)
+	, bNeedUpload(false)
+	{
+	}
+
+	FNaniteMaterialEntry(FNaniteMaterialEntry&& Other)
+	: ReferenceCount(Other.ReferenceCount.load())
+	, MaterialId(Other.MaterialId)
+	, MaterialSlot(Other.MaterialSlot)
+	, bNeedUpload(false)
+	{
+		checkSlow(!Other.bNeedUpload);
+	}
+
+	std::atomic<uint32> ReferenceCount;
+	uint32 MaterialId;
+	int32 MaterialSlot;
+	bool bNeedUpload;
+};
+
+struct FNaniteMaterialEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FMeshDrawCommand, FNaniteMaterialEntry, false>
+{
+	static inline bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return A.MatchesForDynamicInstancing(B);
+	}
+
+	static inline uint32 GetKeyHash(KeyInitType Key)
+	{
+		return Key.GetDynamicInstancingHash();
+	}
+};
+
+using FNaniteMaterialEntryMap = Experimental::TRobinHoodHashMap<FMeshDrawCommand, FNaniteMaterialEntry, FNaniteMaterialEntryKeyFuncs>;
+
 class FNaniteMaterialCommands
 {
 	friend class FNaniteMaterialCommandsLock;
@@ -160,12 +206,12 @@ public:
 
 	inline const FCommandHash ComputeCommandHash(const FMeshDrawCommand& DrawCommand) const
 	{
-		return StateBuckets.ComputeHash(DrawCommand);
+		return EntryMap.ComputeHash(DrawCommand);
 	}
 
 	inline const FCommandId FindIdByHash(const FCommandHash CommandHash, const FMeshDrawCommand& DrawCommand) const
 	{
-		return StateBuckets.FindIdByHash(CommandHash, DrawCommand);
+		return EntryMap.FindIdByHash(CommandHash, DrawCommand);
 	}
 
 	inline const FCommandId FindIdByCommand(const FMeshDrawCommand& DrawCommand) const
@@ -176,32 +222,32 @@ public:
 
 	inline const FCommandId FindOrAddIdByHash(const FCommandHash HashValue, const FMeshDrawCommand& DrawCommand)
 	{
-		return StateBuckets.FindOrAddIdByHash(HashValue, DrawCommand, FMeshDrawCommandCount());
+		return EntryMap.FindOrAddIdByHash(HashValue, DrawCommand, FNaniteMaterialEntry());
 	}
 
 	inline void RemoveById(const FCommandId Id)
 	{
-		StateBuckets.RemoveByElementId(Id);
+		EntryMap.RemoveByElementId(Id);
 	}
 
 	inline const FMeshDrawCommand& GetCommand(const FCommandId Id) const
 	{
-		return StateBuckets.GetByElementId(Id).Key;
+		return EntryMap.GetByElementId(Id).Key;
 	}
 
-	inline const FMeshDrawCommandCount& GetPayload(const FCommandId Id) const
+	inline const FNaniteMaterialEntry& GetPayload(const FCommandId Id) const
 	{
-		return StateBuckets.GetByElementId(Id).Value;
+		return EntryMap.GetByElementId(Id).Value;
 	}
 
-	inline FMeshDrawCommandCount& GetPayload(const FCommandId Id)
+	inline FNaniteMaterialEntry& GetPayload(const FCommandId Id)
 	{
-		return StateBuckets.GetByElementId(Id).Value;
+		return EntryMap.GetByElementId(Id).Value;
 	}
 
-	inline const FStateBucketMap& GetCommands() const
+	inline const FNaniteMaterialEntryMap& GetCommands() const
 	{
-		return StateBuckets;
+		return EntryMap;
 	}
 
 	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives);
@@ -218,19 +264,33 @@ public:
 	FRHIShaderResourceView* GetHitProxyTableSRV() const { return HitProxyTableDataBuffer.SRV; }
 #endif
 
+	FRHIShaderResourceView* GetMaterialDepthSRV() const { return MaterialDepthDataBuffer.SRV; }
+	//FRHIShaderResourceView* GetMaterialArgumentSRV() const { return MaterialArgumentDataBuffer.SRV; }
+
 private:
 	FRWLock ReadWriteLock;
-	FStateBucketMap StateBuckets;
+	FNaniteMaterialEntryMap EntryMap;
 
 	uint32 MaxMaterials = 0;
 	uint32 NumPrimitiveUpdates = 0;
 	uint32 NumDepthTableUpdates = 0;
 	uint32 NumHitProxyTableUpdates = 0;
+	uint32 NumMaterialSlotUpdates = 0;
 
+	// Old
 	FScatterUploadBuffer DepthTableUploadBuffer;
 	FRWByteAddressBuffer DepthTableDataBuffer;
 	FScatterUploadBuffer HitProxyTableUploadBuffer;
 	FRWByteAddressBuffer HitProxyTableDataBuffer;
+
+	// New
+	FGrowOnlySpanAllocator	MaterialSlotAllocator;
+
+	FScatterUploadBuffer	MaterialDepthUploadBuffer; // 1 uint per slot (Depth Value)
+	FRWByteAddressBuffer	MaterialDepthDataBuffer;
+
+	//FScatterUploadBuffer	MaterialArgumentUploadBuffer; // 4 uints per slot (NANITE_DRAW_INDIRECT_ARG_COUNT)
+	//FRWByteAddressBuffer	MaterialArgumentDataBuffer;
 };
 
 class FNaniteMaterialCommandsLock : public FRWScopeLock

@@ -17,6 +17,7 @@ Texture2D<uint>			NaniteMask;
 Texture2D<float>		SceneDepth;
 Texture2D<uint>			MaterialComplexity;
 ByteAddressBuffer		MaterialDepthTable;
+ByteAddressBuffer		MaterialDepthTable2;
 ByteAddressBuffer		MaterialHitProxyTable;
 
 int4					VisualizeConfig;

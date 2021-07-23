@@ -401,7 +401,7 @@ static void BuildNaniteMaterialPassCommands(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildNaniteMaterialPassCommands);
 
-	const FStateBucketMap& BucketMap = MaterialCommands.GetCommands();
+	const FNaniteMaterialEntryMap& BucketMap = MaterialCommands.GetCommands();
 	OutNaniteMaterialPassCommands.Reset(BucketMap.Num());
 
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;

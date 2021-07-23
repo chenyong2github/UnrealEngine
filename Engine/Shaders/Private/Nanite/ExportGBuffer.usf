@@ -13,6 +13,7 @@ Texture2D TestNormalTexture;
 SamplerState MaterialSampler;
 
 ByteAddressBuffer MaterialDepthTable;
+ByteAddressBuffer MaterialDepthTable2;
 ByteAddressBuffer MaterialHitProxyTable;
 
 uint DummyZero; // TODO: Remove me

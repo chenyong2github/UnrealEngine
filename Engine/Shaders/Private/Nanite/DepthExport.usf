@@ -36,6 +36,7 @@ RWStructuredBuffer<uint>	MaterialHTile;
 RWTexture2D<float>			MaterialDepth;
 
 ByteAddressBuffer			MaterialDepthTable;
+ByteAddressBuffer			MaterialDepthTable2;
 ByteAddressBuffer			MaterialHitProxyTable;
 
 uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth, uint PlatformConfig)

@@ -9,6 +9,7 @@
 
 Texture2D<UlongType> VisBuffer64;
 ByteAddressBuffer MaterialDepthTable;
+ByteAddressBuffer MaterialDepthTable2;
 RWTexture2D<uint> MaterialComplexity;
 
 // .xy = min, .zw = max
