@@ -10,7 +10,6 @@
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
-#include "OptimusTestGraphAssetActions.h"
 #include "SOptimusEditorGraphExplorer.h"
 #include "OptimusDetailsCustomization.h"
 
@@ -32,10 +31,6 @@ void FOptimusEditorModule::StartupModule()
 	TSharedRef<IAssetTypeActions> OptimusDeformerAssetAction = MakeShared<FOptimusDeformerAssetActions>();
 	AssetTools.RegisterAssetTypeActions(OptimusDeformerAssetAction);
 	RegisteredAssetTypeActions.Add(OptimusDeformerAssetAction);
-
-	TSharedRef<IAssetTypeActions> OptimusTestGraphAssetAction = MakeShared<FOptimusTestGraphAssetActions>();
-	AssetTools.RegisterAssetTypeActions(OptimusTestGraphAssetAction);
-	RegisteredAssetTypeActions.Add(OptimusTestGraphAssetAction);
 
 	FOptimusEditorCommands::Register();
 	FOptimusEditorGraphExplorerCommands::Register();
