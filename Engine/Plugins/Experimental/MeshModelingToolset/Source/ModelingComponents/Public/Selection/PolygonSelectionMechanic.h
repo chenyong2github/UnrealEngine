@@ -129,6 +129,11 @@ public:
 	void DisableBehaviors(UInteractiveTool* ParentToolIn);
 
 	/**
+	 * Enable/disable the mechanic without permanently removing behaviors or shutting it down.
+	 */
+	void SetIsEnabled(bool bOn);
+
+	/**
 	 * Sets the base priority so that tools can make sure that their own behaviors are higher
 	 * priority. The mechanic will not use any priority value higher than this, but it may use
 	 * lower if it needs to stagger the priorities of behaviors it uses.
@@ -189,6 +194,8 @@ public:
 	 */
 	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, FGroupTopologySelection& OutSelection, bool bUseOrthoSettings = false);
 	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, bool bUseOrthoSettings = false);
+
+	TSharedPtr<FGroupTopologySelector, ESPMode::ThreadSafe> GetTopologySelector() { return TopoSelector; }
 
 	//
 	// Hover API
@@ -306,6 +313,8 @@ protected:
 	virtual void OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle);
 	virtual void OnDragRectangleFinished();
 
+	virtual void UpdateMarqueeEnabled();
+
 public:
 	/** 
 	 * OnSelectionChanged is broadcast whenever the selection is modified (including by FChanges, which
@@ -320,6 +329,8 @@ public:
 	TObjectPtr<UPolygonSelectionMechanicProperties> Properties;
 
 protected:
+	bool bIsEnabled = true;
+
 	const FDynamicMesh3* Mesh;
 	const FGroupTopology* Topology;
 	TFunction<FDynamicMeshAABBTree3*()> GetSpatialFunc;
@@ -350,7 +361,7 @@ protected:
 
 	FTransform3d TargetTransform;
 
-	FGroupTopologySelector TopoSelector;
+	TSharedPtr<FGroupTopologySelector, ESPMode::ThreadSafe> TopoSelector;
 
 	/**
 	 * Get the topology selector settings to use given the current selection settings.
