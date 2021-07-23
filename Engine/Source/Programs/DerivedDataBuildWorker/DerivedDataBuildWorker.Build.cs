@@ -76,6 +76,6 @@ public class DerivedDataBuildWorker : ModuleRules
 		}
 
 		// This needs to match the version defined in TargetReceiptBuildWorkerFactory.cpp
-		AdditionalPropertiesForReceipt.Add("DerivedDataBuildWorkerReceiptVersion", "a547b2fa-e2f9-47c6-80c8-df688fb99f34");
+		AdditionalPropertiesForReceipt.Add("DerivedDataBuildWorkerReceiptVersion", "dab5352e-a5a7-4793-a7a3-1d4acad6aff2");
 	}
 }
