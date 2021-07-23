@@ -44,6 +44,7 @@ struct FGeometryCacheVertexInfo
 	bool bHasUV0;
 	bool bHasColor0;
 	bool bHasMotionVectors;
+	bool bHasImportedVertexNumbers;
 
 	bool bConstantUV0;
 	bool bConstantColor0;
@@ -56,6 +57,7 @@ struct FGeometryCacheVertexInfo
 		bHasUV0 = false;
 		bHasColor0 = false;
 		bHasMotionVectors = false;
+		bHasImportedVertexNumbers = false;
 		bConstantUV0 = false;
 		bConstantColor0 = false;
 		bConstantIndices = false;
@@ -81,6 +83,7 @@ struct FGeometryCacheVertexInfo
 		Ar << Mesh.bHasUV0;
 		Ar << Mesh.bHasColor0;
 		Ar << Mesh.bHasMotionVectors;
+		Ar << Mesh.bHasImportedVertexNumbers;
 
 		Ar << Mesh.bConstantUV0;
 		Ar << Mesh.bConstantColor0;
@@ -104,6 +107,7 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 		TangentsX.Empty();
 		TangentsZ.Empty();
 		Colors.Empty();
+		ImportedVertexNumbers.Empty();
 
 		MotionVectors.Empty();
 		BatchesInfo.Empty();
@@ -117,6 +121,9 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 	TArray<FPackedNormal> TangentsZ;
 	TArray<FColor> Colors;
 
+	/** The original imported vertex numbers, as they come from the DCC. One for each vertex position. */
+	TArray<uint32> ImportedVertexNumbers;
+
 	/** Motion vector for each vertex. The number of motion vectors should be zero (= no motion vectors) or identical to the number of vertices. */
 	TArray<FVector3f> MotionVectors;
 	/** Array of per-batch info structs*/
@@ -124,7 +131,7 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 	/** Bounding box for this sample in the track */
 	FBox BoundingBox;
 	/** Indices for this sample, used for drawing the mesh */
-	TArray<uint32> Indices;
+	TArray<uint32> Indices;	
 	/** Info on the vertex attributes */
 	FGeometryCacheVertexInfo VertexInfo;
 		
@@ -133,7 +140,7 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 
 	/** Serialization for const FVertexAnimationSample. */
 	friend FArchive& operator<<(FArchive& Ar, const FGeometryCacheMeshData& Mesh)
-		{
+	{
 		check(Ar.IsSaving());
 		return (Ar << const_cast<FGeometryCacheMeshData&>(Mesh));
 	}
@@ -147,7 +154,6 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 		CumulativeResourceSize.AddUnknownMemoryBytes(TangentsZ.Num() * sizeof(FPackedNormal));
 		CumulativeResourceSize.AddUnknownMemoryBytes(Colors.Num() * sizeof(FColor));
 
-
 		CumulativeResourceSize.AddUnknownMemoryBytes(MotionVectors.Num() * sizeof(FVector3f));
 		CumulativeResourceSize.AddUnknownMemoryBytes(BatchesInfo.Num() * sizeof(FGeometryCacheMeshBatchInfo));
 
@@ -160,6 +166,7 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 		CumulativeResourceSize.AddUnknownMemoryBytes(sizeof(BatchesInfo));
 		CumulativeResourceSize.AddUnknownMemoryBytes(sizeof(BoundingBox));
 		CumulativeResourceSize.AddUnknownMemoryBytes(Indices.Num() * sizeof(uint32));
+		CumulativeResourceSize.AddUnknownMemoryBytes(ImportedVertexNumbers.Num() * sizeof(uint32));
 		CumulativeResourceSize.AddUnknownMemoryBytes(sizeof(Indices));
 		CumulativeResourceSize.AddUnknownMemoryBytes(sizeof(VertexInfo));
 	}

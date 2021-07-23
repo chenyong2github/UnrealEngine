@@ -401,10 +401,11 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 					const bool bUseVelocitiesAsMotionVectors = (ImportSettings->GeometryCacheSettings.MotionVectors == EAbcGeometryCacheMotionVectorsImport::ImportAbcVelocitiesAsMotionVectors);
 					FGeometryCacheMeshData MeshData;
 					bool bConstantTopology = true;
+					const bool bStoreImportedVertexNumbers = ImportSettings->GeometryCacheSettings.bStoreImportedVertexNumbers;
 
 					AbcImporterUtilities::MergePolyMeshesToMeshData(FrameIndex, ImportSettings->SamplingSettings.FrameStart, AbcFile->GetSecondsPerFrame(), bUseVelocitiesAsMotionVectors,
 						PolyMeshes, UniqueFaceSetNames,
-						MeshData, PreviousNumVertices, bConstantTopology);
+						MeshData, PreviousNumVertices, bConstantTopology, bStoreImportedVertexNumbers);
 					
 					Tracks[0]->AddMeshSample(MeshData, PolyMeshes[0]->GetTimeForFrameIndex(FrameIndex) - InAbcFile->GetImportTimeOffset(), bConstantTopology);
 					
@@ -488,9 +489,10 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 							if (bVisible)
 							{
 								const bool bUseVelocitiesAsMotionVectors = ( ImportSettings->GeometryCacheSettings.MotionVectors == EAbcGeometryCacheMotionVectorsImport::ImportAbcVelocitiesAsMotionVectors );
+								const bool bStoreImportedVertexData = ImportSettings->GeometryCacheSettings.bStoreImportedVertexNumbers;
 								const FAbcMeshSample* Sample = PolyMesh->GetSample(FrameIndex);
 								FGeometryCacheMeshData MeshData;
-								AbcImporterUtilities::GeometryCacheDataForMeshSample(MeshData, Sample, MaterialOffsets[TrackIndex], AbcFile->GetSecondsPerFrame(), bUseVelocitiesAsMotionVectors);
+								AbcImporterUtilities::GeometryCacheDataForMeshSample(MeshData, Sample, MaterialOffsets[TrackIndex], AbcFile->GetSecondsPerFrame(), bUseVelocitiesAsMotionVectors, bStoreImportedVertexData);
 								Track->AddMeshSample(MeshData, FrameTime, PolyMesh->bConstantTopology);
 							}
 

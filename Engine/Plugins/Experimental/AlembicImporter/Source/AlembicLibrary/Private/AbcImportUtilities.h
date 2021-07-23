@@ -330,7 +330,7 @@ namespace AbcImporterUtilities
 	bool IsObjectVisibilityConstant(const Alembic::Abc::IObject& Object);
 
 	/** Generates and populates a FGeometryCacheMeshData instance from and for the given mesh sample */
-	void GeometryCacheDataForMeshSample(FGeometryCacheMeshData &OutMeshData, const FAbcMeshSample* MeshSample, const uint32 MaterialOffset, const float SecondsPerFrame, const bool bUseVelocitiesAsMotionVectors);
+	void GeometryCacheDataForMeshSample(FGeometryCacheMeshData &OutMeshData, const FAbcMeshSample* MeshSample, const uint32 MaterialOffset, const float SecondsPerFrame, const bool bUseVelocitiesAsMotionVectors, const bool bStoreImportedVertexNumbers);
 
 	/**
 	 * Merges the given PolyMeshes at the given FrameIndex into a GeometryCacheMeshData
@@ -344,10 +344,11 @@ namespace AbcImporterUtilities
 	 * @param MeshData				The GeometryCacheMeshData where to output the merged PolyMeshes
 	 * @param PreviousNumVertices	The number of vertices in the merged PolyMeshes, used to determine if its topology is constant between 2 frames
 	 * @param bConstantTopology		Flag to indicate if the merged PolyMeshes has constant topology
+	 * @param bStoreImportedVertexNumbers Set to true when we want to store the original dcc vertex numbers for each vertex.
 	 */
 	void MergePolyMeshesToMeshData(int32 FrameIndex, int32 FrameStart, float SecondsPerFrame, bool bUseVelocitiesAsMotionVectors,
 		const TArray<FAbcPolyMesh*>& PolyMeshes, const TArray<FString>& UniqueFaceSetNames,
-		FGeometryCacheMeshData& MeshData, int32& PreviousNumVertices, bool& bConstantTopology);
+		FGeometryCacheMeshData& MeshData, int32& PreviousNumVertices, bool& bConstantTopology, bool bStoreImportedVertexNumbers);
 
 	/** Retrieves a material from an AbcFile according to the given name and resaves it into the parent package */
 	UMaterialInterface* RetrieveMaterial(FAbcFile& AbcFile, const FString& MaterialName, UObject* InParent, EObjectFlags Flags);

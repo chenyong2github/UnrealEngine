@@ -40,6 +40,7 @@ FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh)
 			Mesh.TangentsX.SetNumUninitialized(NumVertices);
 			Mesh.TangentsZ.SetNumUninitialized(NumVertices);
 			Mesh.Colors.SetNumUninitialized(NumVertices);
+			Mesh.ImportedVertexNumbers.SetNumUninitialized(NumVertices);
 
 			if (Mesh.VertexInfo.bHasMotionVectors)
 			{
@@ -58,11 +59,12 @@ FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh)
 			Ar.Serialize(&Mesh.TangentsX[0], Mesh.TangentsX.Num() * Mesh.TangentsX.GetTypeSize());
 			Ar.Serialize(&Mesh.TangentsZ[0], Mesh.TangentsZ.Num() * Mesh.TangentsZ.GetTypeSize());
 			Ar.Serialize(&Mesh.Colors[0], Mesh.Colors.Num() * Mesh.Colors.GetTypeSize());/**/
+			Ar.Serialize(&Mesh.ImportedVertexNumbers, Mesh.ImportedVertexNumbers.Num() * Mesh.ImportedVertexNumbers.GetTypeSize());
 		  
 			if (Mesh.VertexInfo.bHasMotionVectors)
 			{
 				Ar.Serialize(&Mesh.MotionVectors[0], Mesh.MotionVectors.Num()*Mesh.MotionVectors.GetTypeSize());
-			}			
+			}
 		}
 	}
 

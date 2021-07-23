@@ -1507,7 +1507,7 @@ void AbcImporterUtilities::ApplyConversion(TArray<FMatrix>& InOutMatrices, const
 }
 
 void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData &OutMeshData, const FAbcMeshSample* MeshSample,
-	const uint32 MaterialOffset, const float SecondsPerFrame, const bool bUseVelocitiesAsMotionVectors)
+	const uint32 MaterialOffset, const float SecondsPerFrame, const bool bUseVelocitiesAsMotionVectors, const bool bStoreImportedVertexNumbers)
 {
 	OutMeshData.BoundingBox = FBox(MeshSample->Vertices);
 
@@ -1516,12 +1516,14 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 	const int32 NumNormals = MeshSample->Normals.Num();
 	const bool bHasTangents = MeshSample->TangentX.Num() == NumNormals && MeshSample->TangentY.Num() == NumNormals;
 	const bool bHasVelocities = bUseVelocitiesAsMotionVectors && (MeshSample->Velocities.Num() > 0);
+	const bool bHasImportedVertexNumbers = (NumNormals > 0) && bStoreImportedVertexNumbers;
 
 	OutMeshData.VertexInfo.bHasColor0 = true;
 	OutMeshData.VertexInfo.bHasTangentX = bHasTangents;
 	OutMeshData.VertexInfo.bHasTangentZ = NumNormals > 0;
 	OutMeshData.VertexInfo.bHasUV0 = true;
 	OutMeshData.VertexInfo.bHasMotionVectors = bHasVelocities;
+	OutMeshData.VertexInfo.bHasImportedVertexNumbers = bHasImportedVertexNumbers;
 
 	uint32 NumMaterials = MaterialOffset;
 
@@ -1547,6 +1549,11 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 	OutMeshData.TextureCoordinates.AddZeroed(NumNormals);
 	OutMeshData.Colors.AddZeroed(NumNormals);
 
+	if (bHasImportedVertexNumbers)
+	{
+		OutMeshData.ImportedVertexNumbers.AddZeroed(NumNormals);
+	}
+
 	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 	{
 		const int32 SectionIndex = MeshSample->MaterialIndices[TriangleIndex];
@@ -1558,6 +1565,11 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 			const int32 Index = MeshSample->Indices[CornerIndex];
 
 			OutMeshData.Positions[CornerIndex] = MeshSample->Vertices[Index];
+
+			if (bHasImportedVertexNumbers)
+			{
+				OutMeshData.ImportedVertexNumbers[CornerIndex] = Index;
+			}
 
 			if (bHasVelocities)
 			{
@@ -1610,7 +1622,7 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 
 void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 FrameStart, float SecondsPerFrame, bool bUseVelocitiesAsMotionVectors,
 	const TArray<FAbcPolyMesh*>& PolyMeshes, const TArray<FString>& UniqueFaceSetNames,
-	FGeometryCacheMeshData& MeshData, int32& PreviousNumVertices, bool& bConstantTopology)
+	FGeometryCacheMeshData& MeshData, int32& PreviousNumVertices, bool& bConstantTopology, bool bStoreImportedVertexNumbers)
 {
 	FAbcMeshSample MergedSample;
 
@@ -1658,7 +1670,7 @@ void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 Fra
 	MergedSample.NumMaterials = UniqueFaceSetNames.Num();
 
 	// Generate the mesh data for this sample
-	AbcImporterUtilities::GeometryCacheDataForMeshSample(MeshData, &MergedSample, 0, SecondsPerFrame, bUseVelocitiesAsMotionVectors);
+	AbcImporterUtilities::GeometryCacheDataForMeshSample(MeshData, &MergedSample, 0, SecondsPerFrame, bUseVelocitiesAsMotionVectors, bStoreImportedVertexNumbers);
 }
 
 UMaterialInterface* AbcImporterUtilities::RetrieveMaterial(FAbcFile& AbcFile, const FString& MaterialName, UObject* InParent, EObjectFlags Flags)
