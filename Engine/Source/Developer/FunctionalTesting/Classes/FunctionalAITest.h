@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
-#include "InstancedStruct.h"
 #include "GameFramework/Pawn.h"
 #include "FunctionalTest.h"
 #include "GenericTeamAgentInterface.h"
@@ -24,7 +23,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FFunctionalTestAISpawned, AAIContro
 *	Base struct defining where & when to spawn. Used within a FAITestSpawnSetBase class.
 */
 USTRUCT(BlueprintType)
-struct FUNCTIONALAITESTING_API FAITestSpawnInfoBase
+struct FUNCTIONALTESTING_API FAITestSpawnInfoBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -75,7 +74,7 @@ struct TStructOpsTypeTraits<FAITestSpawnInfoBase> : public TStructOpsTypeTraitsB
 *	Generic AI Test Spawn Info used in FAITestSpawnSet within a generic AFunctionalAITest test.
 */
 USTRUCT(BlueprintType)
-struct FUNCTIONALAITESTING_API FAITestSpawnInfo : public FAITestSpawnInfoBase
+struct FUNCTIONALTESTING_API FAITestSpawnInfo : public FAITestSpawnInfoBase
 {
 	GENERATED_BODY()
 
@@ -236,7 +235,7 @@ protected:
 *	You can derive from this base class to create a test with a different type of SpawnSets.
 */
 UCLASS(Abstract, BlueprintType)
-class FUNCTIONALAITESTING_API AFunctionalAITestBase : public AFunctionalTest
+class FUNCTIONALTESTING_API AFunctionalAITestBase : public AFunctionalTest
 {
 	GENERATED_BODY()
 
@@ -361,7 +360,7 @@ protected:
 *	Functional AI Test using a regular FAITestSpawnSet as a default SpawnSet class type.
 */
 UCLASS(Blueprintable)
-class FUNCTIONALAITESTING_API AFunctionalAITest : public AFunctionalAITestBase
+class FUNCTIONALTESTING_API AFunctionalAITest : public AFunctionalAITestBase
 {
 	GENERATED_BODY()
 
@@ -385,13 +384,6 @@ public:
 	virtual bool IsValidSpawnSetIndex(const int32 Index) const override;
 
 protected:
-	virtual void PostLoad() override;
-
-	UPROPERTY(EditAnywhere, Category = AITest, meta = (BaseStruct = "AITestSpawnSetBase", ExcludeBaseStruct))
-	TArray<FInstancedStruct> SpawningSets;
-
-private:
-	UE_DEPRECATED_FORGAME(5.0, "Use SpawningSets instead")
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AITest)
 	TArray<FAITestSpawnSet> SpawnSets;
 };
