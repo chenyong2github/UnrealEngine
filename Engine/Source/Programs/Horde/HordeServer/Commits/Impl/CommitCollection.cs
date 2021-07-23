@@ -87,7 +87,7 @@ namespace HordeServer.Commits.Impl
 
 			if (!DatabaseService.ReadOnlyMode)
 			{
-				Commits.Indexes.CreateOne(new CreateIndexModel<Commit>(Builders<Commit>.IndexKeys.Ascending(x => x.StreamId).Descending(x => x.Change)));
+				Commits.Indexes.CreateOne(new CreateIndexModel<Commit>(Builders<Commit>.IndexKeys.Ascending(x => x.StreamId).Descending(x => x.Change), new CreateIndexOptions { Unique = true }));
 			}
 		}
 
