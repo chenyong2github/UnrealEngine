@@ -2,6 +2,7 @@
 
 #include "TargetReceiptBuildWorker.h"
 
+#include "Compression/OodleDataCompression.h"
 #include "DerivedDataBuildWorker.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/FileManager.h"
@@ -18,7 +19,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogTargetReceiptBuildWorker, Log, All);
 
 // This needs to match the version exported in DerivedDataBuildWorker.Build.cs 
-const FGuid FTargetReceiptBuildWorker::WorkerReceiptVersion(TEXT("a547b2fa-e2f9-47c6-80c8-df688fb99f34"));
+const FGuid FTargetReceiptBuildWorker::WorkerReceiptVersion(TEXT("dab5352e-a5a7-4793-a7a3-1d4acad6aff2"));
 
 FTargetReceiptBuildWorker::FWorkerPath::FWorkerPath(FStringView InLocalPathRoot, FStringView InLocalPathSuffix, FStringView InRemotePathRoot, FStringView InRemotePathSuffix)
 {
@@ -110,7 +111,11 @@ public:
 							Ar->Serialize(MutableBuffer.GetData(), TotalSize);
 							if (Ar->Close())
 							{
-								FileDataBuffers.Emplace(FCompressedBuffer::Compress(NAME_None, MutableBuffer.MoveToShared()));
+								FileDataBuffers.Emplace(FCompressedBuffer::Compress(
+										MutableBuffer.MoveToShared(),
+										FOodleDataCompression::ECompressor::NotSet,
+										FOodleDataCompression::ECompressionLevel::None
+									));
 							}
 						}
 					}

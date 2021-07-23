@@ -290,7 +290,7 @@ void FBuildWorkerProgram::BuildComplete(FBuildActionCompleteParams&& Params) con
 		}
 	}
 
-	const FString OutputPath = FPaths::ChangeExtension(FString(Output.GetName()), TEXT("uddbo"));
+	const FString OutputPath = FPaths::ChangeExtension(FString(Output.GetName()), TEXT("output"));
 	if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*OutputPath, FILEWRITE_Silent)})
 	{
 		FCbWriter OutputWriter;

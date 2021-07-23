@@ -42,7 +42,6 @@ public:
 	FRemoteBuildWorkerExecutor()
 	: GlobalExecutionTimeoutSeconds(-1)
 	, Salt(TEXT("807c6a49-0657-49f3-b498-fd457213c0a7"))
-	, BaseDirectoryPath(TEXT("Engine/Binaries/Win64"))
 	, RemoteExecutor(nullptr)
 	, ContentAddressableStorage(nullptr)
 	, bEnabled(false)
@@ -158,6 +157,7 @@ public:
 		TMultiMap<FDigest, FVariantIndex> DigestFilesystemIndex;
 		TMap<FStringView, int32> PathToDirectoryIndex;
 		TMap<int32, FString> FileIndexToInputKey;
+		FString BaseDirectoryPath;
 
 		// Unique items in the tree
 		FCommand Command;
@@ -307,7 +307,10 @@ public:
 
 		// This base directory must be created as worker executables (even those that don't exist in this directory) will attempt to change directories into it during startup.
 		int32 BaseDirectoryIndex = INDEX_NONE;
-		GetOrAddMerkleTreeDirectory(State, BaseDirectoryPath, BaseDirectoryIndex);
+		TStringBuilder<128> BaseDirectoryPathBuilder;
+		FPathViews::Append(BaseDirectoryPathBuilder, TEXT("Engine/Binaries/"), State.BuildWorker.GetHostPlatform());
+		State.BaseDirectoryPath = BaseDirectoryPathBuilder.ToString();
+		GetOrAddMerkleTreeDirectory(State, State.BaseDirectoryPath, BaseDirectoryIndex);
 
 		FCbWriter BuildActionWriter;
 		State.BuildAction.Save(BuildActionWriter);
@@ -316,7 +319,7 @@ public:
 		State.BuildActionContentBytes = FCompositeBuffer(UncompressedBuildActionContentBytes.MoveToShared());
 		State.BuildActionDigest.Hash = FIoHash::HashBuffer(State.BuildActionContentBytes);
 		State.BuildActionDigest.SizeBytes = State.BuildActionContentBytes.GetSize();
-		AddMerkleTreeFile(State, TEXT("build.uddba"), State.BuildActionDigest.Hash, State.BuildActionDigest.SizeBytes, false, EFileType::BuildAction, State.BuildActionContentBytes);
+		AddMerkleTreeFile(State, TEXT("Build.action"), State.BuildActionDigest.Hash, State.BuildActionDigest.SizeBytes, false, EFileType::BuildAction, State.BuildActionContentBytes);
 
 
 		if (!State.PathToDirectoryIndex.IsEmpty())
@@ -327,9 +330,9 @@ public:
 		}
 
 		State.Command.OutputPaths.Add("Outputs");
-		State.Command.OutputPaths.Add("build.uddbo");
+		State.Command.OutputPaths.Add("Build.output");
 		State.Command.Arguments.Add(FString(State.BuildWorker.GetPath()));
-		State.Command.Arguments.Add("-b=build.uddba");
+		State.Command.Arguments.Add("-Build=Build.action");
 		State.BuildWorker.IterateEnvironment([&State] (FStringView Name, FStringView Value)
 			{
 				FCommand::FEnvironmentVariable& EnvVar = State.Command.EnvironmentVariables.AddDefaulted_GetRef();
@@ -546,7 +549,7 @@ public:
 		TOptional<FDigest> BuildOutputDigest;
 		for (const FOutputFile& ExecuteOutputFile : State.ExecuteResponse.Result.OutputFiles)
 		{
-			if (ExecuteOutputFile.Path == TEXT("build.uddbo"))
+			if (ExecuteOutputFile.Path == TEXT("Build.output"))
 			{
 				BuildOutputDigest = ExecuteOutputFile.Digest;
 				break;
@@ -725,7 +728,7 @@ public:
 
 	TConstArrayView<FStringView> GetHostPlatforms() const final
 	{
-		static constexpr FStringView HostPlatforms[]{TEXT("Win64"_SV)};
+		static constexpr FStringView HostPlatforms[]{TEXT("Win64"_SV), TEXT("Linux"_SV), TEXT("Mac"_SV)};
 		return HostPlatforms;
 	}
 
@@ -880,7 +883,6 @@ private:
 	FString InstanceName;
 	int GlobalExecutionTimeoutSeconds;
 	const FStringView Salt;
-	const FString BaseDirectoryPath;
 	IRemoteExecutor* RemoteExecutor;
 	IContentAddressableStorage* ContentAddressableStorage;
 	bool bEnabled;
