@@ -35,6 +35,7 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bQueuedForUpload(0)
 	, bSwapChain(0)
 	, bSwapChainAlreadyMoved(0)
+	, bUAVAccessed(0)
 {}
 
 bool FRDGProducerState::IsDependencyRequired(FRDGProducerState LastProducer, ERHIPipeline LastPipeline, FRDGProducerState NextState, ERHIPipeline NextPipeline)
