@@ -223,3 +223,10 @@ struct FConcertKeepAlive : public FConcertMessageData
 {
 	GENERATED_BODY()
 };
+
+/** Force the endpoint to resend pending packages.*/
+USTRUCT()
+struct FConcertSendResendPending
+{
+	GENERATED_BODY()
+};

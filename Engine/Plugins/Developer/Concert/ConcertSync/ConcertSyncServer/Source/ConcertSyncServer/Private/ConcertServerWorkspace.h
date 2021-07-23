@@ -97,6 +97,9 @@ private:
 	/** Invoked when the cient corresponding to the specified endpoint exits a "Play" mode such as PIE or SIE. */
 	void HandleEndPlaySessions(const FGuid& InEndpointId);
 
+	/** A special event sent from the client to enable / disable additional logging on the server. */
+	void HandleServerLoggingEvent(const FConcertSessionContext& Context, const FConcertServerLogging& Event);
+
 	/** Returns the package name being played (PIE/SIE) by the specified client endpoint if that endpoint is in such play mode, otherwise, returns an empty name. */
 	FName FindPlaySession(const FGuid& InEndpointId);
 

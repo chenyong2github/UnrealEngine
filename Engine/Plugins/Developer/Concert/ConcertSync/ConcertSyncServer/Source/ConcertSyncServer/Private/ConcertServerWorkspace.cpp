@@ -11,6 +11,7 @@
 #include "ConcertTransactionEvents.h"
 #include "ConcertServerDataStore.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertUtil.h"
 #include "Serialization/MemoryReader.h"
 #include "Algo/Transform.h"
 
@@ -61,6 +62,7 @@ void FConcertServerWorkspace::BindSession(const TSharedRef<FConcertSyncServerLiv
 	LiveSession->GetSession().RegisterCustomRequestHandler<FConcertResourceLockRequest, FConcertResourceLockResponse>(this, &FConcertServerWorkspace::HandleResourceLockRequest);
 	LiveSession->GetSession().RegisterCustomRequestHandler<FConcertSyncEventRequest, FConcertSyncEventResponse>(this, &FConcertServerWorkspace::HandleSyncEventRequest);
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertIgnoreActivityStateChangedEvent>(this, &FConcertServerWorkspace::HandleIgnoredActivityStateChanged);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertServerLogging>(this, &FConcertServerWorkspace::HandleServerLoggingEvent);
 }
 
 void FConcertServerWorkspace::UnbindSession()
@@ -114,6 +116,12 @@ void FConcertServerWorkspace::HandleTick(IConcertServerSession& InSession, float
 	}
 
 	LiveSession->GetSessionDatabase().UpdateAsynchronousTasks();
+}
+
+
+void FConcertServerWorkspace::HandleServerLoggingEvent(const FConcertSessionContext& Context, const FConcertServerLogging& InEvent)
+{
+	ConcertUtil::SetVerboseLogging(InEvent.bLoggingEnabled);
 }
 
 void FConcertServerWorkspace::HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo)

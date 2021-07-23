@@ -101,6 +101,12 @@ public:
 	/** Get the next message to handle from the queued list, if any. */
 	TSharedPtr<FConcertMessageCapturedContext> GetNextMessageToReceive(const FDateTime& UtcNow);
 
+	/** Forces the resend pending messages flag to be set for this endpoint. This if for debugging use only. */
+	void MarkForResend()
+	{
+		bNeedResendPendingMessages = true;
+	}
+
 private:
 	/** */
 	void TimeoutAllMessages();

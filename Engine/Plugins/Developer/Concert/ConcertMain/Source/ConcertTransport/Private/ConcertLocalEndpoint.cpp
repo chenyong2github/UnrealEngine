@@ -478,14 +478,31 @@ void FConcertLocalEndpoint::HandleInboundMessages(const FDateTime& UtcNow)
 			ProcessEndpointDiscovery(ConcertContext, Context->GetSender());
 		}
 
+		if (MessageTypeInfo->IsChildOf(FConcertSendResendPending::StaticStruct()))
+		{
+			ForcePendingResend();
+			continue;
+		}
+
 		// Special reliable handshake message handling, process then discard
 		if (MessageTypeInfo->IsChildOf(FConcertReliableHandshakeData::StaticStruct()))
 		{
 			ProcessReliableHandshake(ConcertContext);
-			return;
+			continue;
 		}
 
 		QueueReceivedMessage(ConcertContext);
+	}
+}
+
+void FConcertLocalEndpoint::ForcePendingResend()
+{
+	FScopeLock RemoteEndpointsLock(&RemoteEndpointsCS);
+	for (auto It = RemoteEndpoints.CreateIterator(); It; ++It)
+	{
+		FConcertRemoteEndpointPtr RemoteEndpoint = It->Value;
+		check(RemoteEndpoint.IsValid());
+		RemoteEndpoint->MarkForResend();
 	}
 }
 

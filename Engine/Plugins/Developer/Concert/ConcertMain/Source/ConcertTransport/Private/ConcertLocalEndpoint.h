@@ -136,6 +136,9 @@ private:
 	/** Updates the last receive time for a KeepAlive message. */
 	void ProcessKeepAliveMessage(const TSharedPtr<IMessageContext, ESPMode::ThreadSafe>& Context, const FDateTime& UtcNow);
 
+	/** Force pending resend on endpoints */
+	void ForcePendingResend();
+
 	/** This context of this endpoint */
 	FConcertEndpointContext EndpointContext;
 
@@ -174,6 +177,6 @@ private:
 	/** Holds the endpoint settings */
 	FConcertEndpointSettings Settings;
 
-	/** Holds the Transport Logger, if any */
+	/** Holds the Transport Logger, if any. */
 	FConcertTransportLoggerWrapper Logger;
 };

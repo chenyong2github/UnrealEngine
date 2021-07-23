@@ -2,14 +2,18 @@
 
 #include "ConcertLogger.h"
 #include "ConcertMessages.h"
+#include "HAL/IConsoleManager.h"
 #include "IConcertMessages.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertUtil.h"
 
+#include "Logging/LogVerbosity.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/FileManager.h"
 #include "Containers/Ticker.h"
+#include "Templates/SharedPointerInternals.h"
 #include "UObject/UnrealType.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/PropertyPortFlags.h"
@@ -24,7 +28,8 @@ FString PayloadToString(const FStructOnScope& InPayload)
 	if (InPayload.GetStruct() && InPayload.GetStructMemory())
 	{
 		check(InPayload.GetStruct()->IsA<UScriptStruct>());
-		((UScriptStruct*)InPayload.GetStruct())->ExportText(Result, InPayload.GetStructMemory(), InPayload.GetStructMemory(), nullptr, PPF_None, nullptr);
+		UScriptStruct* InStruct = (UScriptStruct*)InPayload.GetStruct();
+		InStruct->ExportText(Result, InPayload.GetStructMemory(), InPayload.GetStructMemory(), nullptr, PPF_None, nullptr);
 	}
 	return Result;
 }
@@ -32,10 +37,15 @@ FString PayloadToString(const FStructOnScope& InPayload)
 FString SerializedPayloadToString(const FConcertSessionSerializedPayload& InPayload)
 {
 	FStructOnScope TempPayload;
-	if (InPayload.GetPayload(TempPayload))
+	if (InPayload.PayloadSize < 512 && InPayload.GetPayload(TempPayload))
 	{
 		return PayloadToString(TempPayload);
 	}
+	else if (InPayload.PayloadSize >= 512)
+	{
+		return TEXT("Payload string disabled. Payload is too large!");
+	}
+
 	return FString();
 }
 
@@ -153,9 +163,113 @@ const TCHAR* ReliableHandshakeStateToString(const EConcertReliableHandshakeState
 
 }
 
+struct FActiveLoggers
+{
+	FActiveLoggers() :
+		 EnableLoggingCommand(TEXT("Concert.EnableLogging"), TEXT("Enable Additional Logging for Concert."),
+							  FConsoleCommandDelegate::CreateRaw(this, &FActiveLoggers::EnableLogging)),
+		 DisableLoggingCommand(TEXT("Concert.DisableLogging"), TEXT("Disable Additional Logging for Concert."),
+							   FConsoleCommandDelegate::CreateRaw(this, &FActiveLoggers::DisableLogging)),
+		 ChangeConcertVerbosityCommand(TEXT("Concert.SetLoggingLevel"), TEXT("Change the logging level for Concert loggers."),
+									   FConsoleCommandWithArgsDelegate::CreateRaw(this, &FActiveLoggers::ChangeVerbosity))
+	{
+	}
+
+	/** Enable additional concert logging. */
+	void EnableLogging()
+	{
+		for (TWeakPtr<FConcertLogger, ESPMode::ThreadSafe>& Logger : Loggers)
+		{
+			if (TSharedPtr<FConcertLogger, ESPMode::ThreadSafe> LoggerPtr = Logger.Pin())
+			{
+				if (!LoggerPtr->IsLogging())
+				{
+					LoggerPtr->StartLogging();
+				}
+			}
+		}
+	}
+
+	/** Disable additional concert logging. */
+	void DisableLogging()
+	{
+		for (TWeakPtr<FConcertLogger, ESPMode::ThreadSafe>& Logger : Loggers)
+		{
+			if (TSharedPtr<FConcertLogger, ESPMode::ThreadSafe> LoggerPtr = Logger.Pin())
+			{
+				if (LoggerPtr->IsLogging())
+				{
+					LoggerPtr->StopLogging();
+				}
+			}
+		}
+	}
+
+	void ChangeVerbosity(const TArray<FString>& Args)
+	{
+		if ( Args.Num() < 1 )
+		{
+			UE_LOG(LogConcert, Log, TEXT("Usage: Concert.ChangeLogVerbosity VerbosityLevel"));
+			return;
+		}
+		if ( Args[0] == TEXT("VeryVerbose") )
+		{
+			LogConcert.SetVerbosity(ELogVerbosity::VeryVerbose);
+			LogConcertDebug.SetVerbosity(ELogVerbosity::VeryVerbose);
+		}
+		else if (Args[0] == TEXT("Verbose") )
+		{
+			LogConcert.SetVerbosity(ELogVerbosity::Verbose);
+			LogConcertDebug.SetVerbosity(ELogVerbosity::Verbose);
+		}
+		else if (Args[0] == TEXT("Default") )
+		{
+			LogConcert.SetVerbosity(ELogVerbosity::Log);
+			LogConcertDebug.SetVerbosity(ELogVerbosity::Log);
+		}
+	}
+
+	/** Console command to turn on logger. */
+	FAutoConsoleCommand EnableLoggingCommand;
+
+	/** Console command to turn off logger. */
+	FAutoConsoleCommand DisableLoggingCommand;
+
+	/** Console command to change concert verbosity. */
+	FAutoConsoleCommand ChangeConcertVerbosityCommand;
+
+	/** List of active loggers */
+	TArray<TWeakPtr<FConcertLogger,ESPMode::ThreadSafe>> Loggers;
+};
+
+FActiveLoggers& GetActiveLoggers()
+{
+	static FActiveLoggers ActiveLoggers;
+	return ActiveLoggers;
+}
+
 IConcertTransportLoggerRef FConcertLogger::CreateLogger(const FConcertEndpointContext& InOwnerContext)
 {
-	return MakeShared<FConcertLogger, ESPMode::ThreadSafe>(InOwnerContext);
+	FActiveLoggers& ActiveLoggers = GetActiveLoggers();
+	TSharedPtr<FConcertLogger, ESPMode::ThreadSafe> SharedLogger = MakeShared<FConcertLogger, ESPMode::ThreadSafe>(InOwnerContext);
+	ActiveLoggers.Loggers.Add(SharedLogger);
+	return SharedLogger.ToSharedRef();
+}
+
+
+void FConcertLogger::SetVerboseLogging(bool bInState)
+{
+	FActiveLoggers& ActiveLoggers = GetActiveLoggers();
+	if (bInState)
+	{
+		ActiveLoggers.EnableLogging();
+		ActiveLoggers.ChangeVerbosity({TEXT("VeryVerbose")});
+	}
+	else
+	{
+		ActiveLoggers.DisableLogging();
+		ActiveLoggers.ChangeVerbosity({TEXT("Default")});
+	}
 }
 
 FConcertLogger::FConcertLogger(const FConcertEndpointContext& InOwnerContext)
