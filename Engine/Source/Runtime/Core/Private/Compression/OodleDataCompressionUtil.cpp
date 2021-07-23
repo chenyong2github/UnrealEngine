@@ -42,6 +42,20 @@ namespace FOodleDataCompressionUtil
 		return true;
 	}
 
+	bool CORE_API FCompressedArray::DecompressToExistingBuffer(void* InDestinationBuffer) const
+	{
+		int32 DecompressedSize, CompressedSize;
+		if (PeekSizes(CompressedSize, DecompressedSize) == false)
+		{
+			return false;
+		}
+
+		// If we have a valid header, then if we don't have the actual data, it's corrupted data.
+		check(CompressedTArrayHeaderSize + CompressedSize <= Num());
+
+		return FOodleDataCompression::Decompress(InDestinationBuffer, DecompressedSize, GetData() + CompressedTArrayHeaderSize, CompressedSize);
+	}
+
 	bool CORE_API FCompressedArray::DecompressToAllocatedBuffer(void*& OutDestinationBuffer, int32& OutDestinationBufferSize) const
 	{
 		int32 DecompressedSize, CompressedSize;
