@@ -6,30 +6,73 @@ using System.IO;
 
 public class Flite : ModuleRules
 {
+	protected virtual string FliteVersion
+	{
+		get
+		{
+			return "Flite-e0a3d25";
+		}
+	}
+	protected virtual string FliteLibRootPath
+    {
+        get
+        {
+			return ModuleDirectory;
+        }
+    }
+
+	protected virtual string FliteIncludePath
+	{
+		get 
+		{ 
+			return Path.Combine(ModuleDirectory, FliteVersion, "include"); 
+		}
+	}
+
+	protected virtual string PlatformName
+	{
+		get
+		{
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
+				return "Linux";
+			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
+			{
+				return "Android";
+			}
+			else
+			{
+				return Target.Platform.ToString();
+			}
+		}
+	}
+
+	protected virtual string FliteLibPath
+	{
+		get
+		{
+			// We check for null as child classes could override platform name to be null 
+			return Path.Combine(FliteLibRootPath, "lib", PlatformName ?? ".");
+		}
+	}
+
+	protected virtual bool bUseDebugLibs
+	{
+		get { return Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT; }
+	}
+
 	public Flite(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		string FlitePath = Path.Combine(ModuleDirectory, "Flite-e0a3d25");
-		string FliteBinaryPath = Path.Combine(ModuleDirectory, "lib");
+		PublicIncludePaths.Add(FliteIncludePath);
 
-		PublicIncludePaths.AddRange(
-			new string[]
-			{
-				Path.Combine(FlitePath, "include")
-			}
-		);
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			// Only VS2019 supported as of now
 			string VSVersion = "VS2019";
-			bool bUseDebugLibs = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT;
-			PublicAdditionalLibraries.AddRange(
-				new string[]
-				{
-					Path.Combine(FliteBinaryPath, "Win64", VSVersion , bUseDebugLibs ? "Debug" : "Release", "libFlite.lib")
-				}
-			);
+			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath, VSVersion, bUseDebugLibs ? "Debug" : "Release", "libFlite.lib"));
 		}
 	}
 }

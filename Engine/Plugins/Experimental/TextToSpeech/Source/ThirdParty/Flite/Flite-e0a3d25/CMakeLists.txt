@@ -22,7 +22,13 @@ endif()
 # This creates a pdb per object library. We set these variables to have them output to a single .pdb file located where teh .lib files will be generated
 set(FLITE_COMPILE_PDB_NAME  "libFlite")
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${FLITE_BIN_ROOT})
-	
+
+# we don't need the networking functionality of Flite so we'll disable sockets
+add_definitions(-DCST_NO_SOCKETS)
+
+# we prevent cmake from apending lib to the satart of static libraries to ensure naming parity across platforms
+set(CMAKE_STATIC_LIBRARY_PREFIX "")
+
 add_subdirectory(src)
 add_subdirectory(lang)
 
