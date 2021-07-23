@@ -690,6 +690,11 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 		}
 
 #endif // DO_CHECK
+
+		FRHICommandListExecutor::Transition({
+			FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
+			FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask)
+		}, ERHIPipeline::Graphics, ERHIPipeline::All);
 	});
 }
 

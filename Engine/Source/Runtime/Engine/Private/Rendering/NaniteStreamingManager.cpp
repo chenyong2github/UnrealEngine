@@ -1874,12 +1874,12 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 		// Transition resource back to read
 		if (AsyncState.bBuffersTransitionedToWrite)
 		{
-			RHICmdList.Transition(
+			FRHICommandListExecutor::Transition(
 			{
 				FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::SRVMask),
 				FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
 				FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
-			});
+			}, ERHIPipeline::Graphics, ERHIPipeline::All);
 
 			AsyncState.bBuffersTransitionedToWrite = false;
 		}

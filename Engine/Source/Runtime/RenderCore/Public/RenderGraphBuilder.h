@@ -511,14 +511,16 @@ private:
 	struct FParallelPassSet
 	{
 		FParallelPassSet() = default;
-		FParallelPassSet(FRDGPass* const* InPasses, int32 InPassCount)
+		FParallelPassSet(FRDGPass* const* InPasses, int32 InPassCount, bool bInDispatchAfterExecute)
 			: Passes(InPasses, InPassCount)
+			, bDispatchAfterExecute(bInDispatchAfterExecute)
 		{}
 
 		TArray<FRDGPass*, FRDGArrayAllocator> Passes;
 		FGraphEventRef Event;
 		FRHICommandList* RHICmdList{};
 		int8 bInitialized = 0;
+		bool bDispatchAfterExecute = false;
 	};
 
 	TArray<FParallelPassSet, FRDGArrayAllocator> ParallelPassSets;

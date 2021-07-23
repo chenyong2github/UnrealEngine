@@ -5096,6 +5096,12 @@ public:
 
 	static void WaitOnRHIThreadFence(FGraphEventRef& Fence);
 
+	/** Performs an immediate transition with the option of broadcasting to multiple pipelines.
+	 *	Uses both the immediate and async compute immediate command lists. Falls back to graphics-only if
+	 *  async compute is not supported.
+	 */
+	static void Transition(TArrayView<const FRHITransitionInfo> Infos, ERHIPipeline SrcPipeliness, ERHIPipeline DstPipelines);
+
 	FORCEINLINE_DEBUGGABLE bool Bypass()
 	{
 #if CAN_TOGGLE_COMMAND_LIST_BYPASS
