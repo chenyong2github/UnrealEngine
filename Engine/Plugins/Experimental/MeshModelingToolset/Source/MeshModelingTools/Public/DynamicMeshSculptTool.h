@@ -199,13 +199,9 @@ public:
 	UPROPERTY( meta = (TransientToolProperty) )
 	bool bPropertySetEnabled = true;
 
-	/** Toggle whether Work Plane Positioing Gizmo is visible */
+	/** Toggle whether Work Plane Positioning Gizmo is visible */
 	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
 	bool bShowGizmo = true;
-
-	/** Toggle whether Work Plane snaps to grid when using Gizmo */
-	UPROPERTY(EditAnywhere, Category = TargetPlane, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
-	bool bSnapToGrid = true;
 
 	UPROPERTY(EditAnywhere, Category = TargetPlane, AdvancedDisplay, meta = (HideEditConditionToggle, EditCondition = "bPropertySetEnabled == true"))
 	FVector Position = FVector::ZeroVector;

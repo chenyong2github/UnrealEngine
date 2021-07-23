@@ -202,7 +202,6 @@ void UMeshSpaceDeformerTool::Setup()
 	TransformProxy->SetTransform(GizmoFrame.ToFTransform());
 	TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GetToolManager(),
 		ETransformGizmoSubElements::StandardTranslateRotate, this);
-	TransformGizmo->bSnapToWorldGrid = Settings->bSnapToWorldGrid;
 
 	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
 
@@ -358,8 +357,6 @@ void  UMeshSpaceDeformerTool::OnPropertyModified(UObject* PropertySet, FProperty
 	ForwardIntervalSource->Value = GetModifierGizmoValue();
 
 	UpdatePreview();
-
-	TransformGizmo->bSnapToWorldGrid = Settings->bSnapToWorldGrid;
 
 	OriginalMeshPreview->SetVisible(Settings->bShowOriginalMesh);
 }

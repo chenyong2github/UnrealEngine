@@ -23,7 +23,6 @@ void UAxisAngleGizmo::Setup()
 
 	// Add default mouse input behavior
 	MouseBehavior = NewObject<UClickDragInputBehavior>();
-	MouseBehavior->Modifiers.RegisterModifier(SnapAngleModifierID, FInputDeviceState::IsShiftKeyDown);
 	MouseBehavior->Initialize(this);
 	MouseBehavior->SetDefaultPriority(FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY));
 	AddInputBehavior(MouseBehavior);
@@ -43,10 +42,6 @@ void UAxisAngleGizmo::Setup()
 
 void UAxisAngleGizmo::OnUpdateModifierState(int ModifierID, bool bIsOn)
 {
-	if (ModifierID == SnapAngleModifierID)
-	{
-		bEnableSnapAngleModifier = bIsOn;
-	}
 }
 
 
@@ -151,11 +146,6 @@ void UAxisAngleGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 			RotationOrigin, RotationAxis, RotationPlaneX, RotationPlaneY);
 
 		DeltaAngle = InteractionCurAngle - InteractionStartAngle;
-		if (bEnableSnapAngleModifier)
-		{
-			DeltaAngle = GizmoMath::SnapToIncrement(DeltaAngle, 3.14159f / 4.0f);				// hardcoded 45-degree snap
-		}
-		
 	}
 
 	float NewAngle = InitialTargetAngle + DeltaAngle;

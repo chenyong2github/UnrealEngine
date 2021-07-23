@@ -130,9 +130,5 @@ protected:
 	// The angle of the closest axis in the plane of the angle gizmo (will be 0, pi/2, pi, or 3pi/2).
 	// Used for snapping the nearest axis to a ray cast point when using CustomDestinationRayCaster.
 	float ClosestAxisStartAngle;
-
-	static const int SnapAngleModifierID = 1;		// identifier we associate with the shift key
-	bool bEnableSnapAngleModifier = false;			// flag we use to keep track of modifier state
-
 };
 

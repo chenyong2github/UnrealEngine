@@ -158,11 +158,6 @@ void UBaseCreateFromSelectedTool::SetWorld(UWorld* World)
 
 void UBaseCreateFromSelectedTool::OnTick(float DeltaTime)
 {
-	for (UTransformGizmo* Gizmo : TransformGizmos)
-	{
-		Gizmo->bSnapToWorldGrid = TransformProperties->bSnapToWorldGrid;
-	}
-
 	Preview->Tick(DeltaTime);
 }
 
@@ -314,7 +309,6 @@ void UBaseCreateFromSelectedTool::OnPropertyModified(UObject* PropertySet, FProp
 	}
 	else if (Property && 
 		(  PropertySet == HandleSourcesProperties
-		|| Property->GetFName() == GET_MEMBER_NAME_CHECKED(UTransformInputsToolProperties, bSnapToWorldGrid)
 		))
 	{
 		// nothing

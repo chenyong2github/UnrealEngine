@@ -65,10 +65,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (
 		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
 	float AxisPitch = 0;
-
-	/** Determines whether the axis control widget snaps to world grid (only relevant if world coordinate mode is active in viewport) .*/
-	UPROPERTY(EditAnywhere, Category = RevolutionAxis)
-	bool bSnapToWorldGrid = false;
 };
 
 /** 

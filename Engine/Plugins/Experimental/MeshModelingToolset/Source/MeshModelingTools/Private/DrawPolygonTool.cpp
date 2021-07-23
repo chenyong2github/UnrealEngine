@@ -236,11 +236,6 @@ void UDrawPolygonTool::ApplyUndoPoints(const TArray<FVector3d>& ClickPointsIn, c
 
 void UDrawPolygonTool::OnTick(float DeltaTime)
 {
-	if (PlaneTransformGizmo != nullptr)
-	{
-		PlaneTransformGizmo->bSnapToWorldGrid =
-			SnapProperties->bEnableSnapping && SnapProperties->bSnapToWorldGrid && bIgnoreSnappingToggle == false;
-	}
 }
 
 

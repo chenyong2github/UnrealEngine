@@ -137,10 +137,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "SelectedOperationType == ENonlinearOperationType::Bend", EditConditionHides))
 	bool bDrawVisualization = true;
 
-	/** Snap the deformer gizmo to the world grid */
-	UPROPERTY(EditAnywhere, Category = Gizmo)
-	bool bSnapToWorldGrid = false;
-
 	/** When true, Ctrl+click not only moves the gizmo to the clicked location, but also aligns the Z axis with the normal at that point. */
 	UPROPERTY(EditAnywhere, Category = Gizmo)
 	bool bAlignToNormalOnCtrlClick = false;

@@ -42,10 +42,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
 	bool bConnectOpenProfileToAxis = true;
 	
-	/** Determines whether plane control widget snaps to world grid (only relevant if world coordinate mode is active in viewport) .*/
-	UPROPERTY(EditAnywhere, Category = DrawPlane)
-	bool bSnapToWorldGrid = false;
-
 	/** Sets the draw plane origin. The revolution axis is the X axis in the plane. */
 	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (
 		EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle))

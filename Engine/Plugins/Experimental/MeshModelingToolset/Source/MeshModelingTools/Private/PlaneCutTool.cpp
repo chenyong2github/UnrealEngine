@@ -9,8 +9,6 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshTriangleAttribute.h"
 #include "DynamicMeshEditor.h"
-#include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
-#include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 #include "Selection/SelectClickedAction.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
@@ -91,11 +89,6 @@ void UPlaneCutTool::SetWorld(UWorld* World)
 void UPlaneCutTool::Setup()
 {
 	UInteractiveTool::Setup();
-
-	// add modifier button for snapping
-	UKeyAsModifierInputBehavior* SnapToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
-	SnapToggleBehavior->Initialize(this, SnappingModifier, FInputDeviceState::IsShiftKeyDown);
-	AddInputBehavior(SnapToggleBehavior);
 
 	// hide input StaticMeshComponents
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
@@ -180,7 +173,7 @@ void UPlaneCutTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Plane Cut"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartPlaneCutTool", "Press 'T' or use the Cut button to cut the mesh without leaving the tool.  Press 'R' to flip the plane direction.  Hold 'Shift' to toggle grid snapping."),
+		LOCTEXT("OnStartPlaneCutTool", "Press 'T' or use the Cut button to cut the mesh without leaving the tool.  Press 'R' to flip the plane direction."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -353,8 +346,6 @@ void UPlaneCutTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UPlaneCutTool::OnTick(float DeltaTime)
 {
 	PlaneMechanic->Tick(DeltaTime);
-	PlaneMechanic->SetEnableGridSnaping(BasicProperties->bSnapToWorldGrid ^ bSnappingToggle);
-	PlaneMechanic->SetEnableGridRotationSnapping(BasicProperties->bSnapRotationToWorldGrid ^ bSnappingToggle);
 
 	if (PendingAction != EPlaneCutToolActions::NoAction)
 	{
@@ -403,13 +394,6 @@ void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property
 }
 
 
-void UPlaneCutTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
-{
-	if (ModifierID == SnappingModifier)
-	{
-		bSnappingToggle = bIsOn;
-	}
-}
 
 
 void UPlaneCutTool::InvalidatePreviews()

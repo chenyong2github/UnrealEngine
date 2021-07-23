@@ -217,15 +217,18 @@ public:
 	{
 		if ((Request.TargetTypes & ESceneSnapQueryTargetType::Grid) != ESceneSnapQueryTargetType::None)
 		{
-			FRotator Rotator ( Request.DeltaRotation );
-			FRotator RotGrid = Request.RotGridSize.Get(GEditor->GetRotGridSize());
-			Rotator = Rotator.GridSnap( RotGrid );
+			if (GetDefault<ULevelEditorViewportSettings>()->RotGridEnabled != 0)
+			{
+				FRotator Rotator(Request.DeltaRotation);
+				FRotator RotGrid = Request.RotGridSize.Get(GEditor->GetRotGridSize());
+				Rotator = Rotator.GridSnap(RotGrid);
 
-			FSceneSnapQueryResult SnapResult;
-			SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
-			SnapResult.DeltaRotation = Rotator.Quaternion();
-			Results.Add(SnapResult);
-			return true;
+				FSceneSnapQueryResult SnapResult;
+				SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
+				SnapResult.DeltaRotation = Rotator.Quaternion();
+				Results.Add(SnapResult);
+				return true;
+			}
 		}
 		return false;
 	}
@@ -236,18 +239,21 @@ public:
 
 		if ((Request.TargetTypes & ESceneSnapQueryTargetType::Grid) != ESceneSnapQueryTargetType::None)
 		{
-			FSceneSnapQueryResult SnapResult;
-			SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
+			if (GetDefault<ULevelEditorViewportSettings>()->GridEnabled != 0)
+			{
+				FSceneSnapQueryResult SnapResult;
+				SnapResult.TargetType = ESceneSnapQueryTargetType::Grid;
 
-			float SnapSize = GEditor->GetGridSize();
-			FVector GridSize = Request.GridSize.Get(FVector(SnapSize, SnapSize, SnapSize));
+				float SnapSize = GEditor->GetGridSize();
+				FVector GridSize = Request.GridSize.Get(FVector(SnapSize, SnapSize, SnapSize));
 
-			SnapResult.Position.X = SnapToIncrement(Request.Position.X, GridSize.X);
-			SnapResult.Position.Y = SnapToIncrement(Request.Position.Y, GridSize.Y);
-			SnapResult.Position.Z = SnapToIncrement(Request.Position.Z, GridSize.Z);
+				SnapResult.Position.X = SnapToIncrement(Request.Position.X, GridSize.X);
+				SnapResult.Position.Y = SnapToIncrement(Request.Position.Y, GridSize.Y);
+				SnapResult.Position.Z = SnapToIncrement(Request.Position.Z, GridSize.Z);
 
-			Results.Add(SnapResult);
-			FoundResultCount++;
+				Results.Add(SnapResult);
+				FoundResultCount++;
+			}
 		}
 
 		//

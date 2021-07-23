@@ -94,10 +94,6 @@ public:
 		EditCondition = "bWeldVerticesOnMirrorPlane && OperationMode == EMirrorOperationMode::MirrorAndAppend", EditConditionHides))
 	bool bAllowBowtieVertexCreation = false;
 
-	/** Snap the mirror plane to the world grid. */
-	UPROPERTY(EditAnywhere, Category = RepositionOptions)
-	bool bSnapToWorldGrid = true;
-
 	/** What Ctrl + clicking does to the mirror plane. */
 	UPROPERTY(EditAnywhere, Category = RepositionOptions)
 	EMirrorCtrlClickBehavior CtrlClickBehavior = EMirrorCtrlClickBehavior::Reposition;
@@ -234,10 +230,6 @@ protected:
 	FVector3d MirrorPlaneNormal = FVector3d::UnitZ();
 
 	UWorld* TargetWorld;
-
-	// flags used to identify modifier keys/buttons
-	static const int SnappingToggleModifierId = 1;
-	bool bSnappingToggle = false;		// toggled by hotkey (shift)
 
 	UPROPERTY()
 	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic;

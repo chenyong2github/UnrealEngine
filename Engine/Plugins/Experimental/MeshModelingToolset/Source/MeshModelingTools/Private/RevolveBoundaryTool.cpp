@@ -109,8 +109,6 @@ void URevolveBoundaryTool::Setup()
 		UpdateRevolutionAxis();
 		});
 
-	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
-
 	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Revolve Boundary"));
@@ -343,7 +341,6 @@ void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* P
 	UpdateRevolutionAxis();
 
 	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
-	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
 
 	if (Preview)
 	{
