@@ -23,11 +23,11 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
 #include "PlatformHttp.h"
-#include "UnrealEd.h"
 
 #include "AutomationTelemetry.h"
 
 #if WITH_EDITOR
+#include "UnrealEd.h"
 #include "Logging/MessageLog.h"
 #endif
 #include "Async/ParallelFor.h"
