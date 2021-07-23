@@ -109,38 +109,19 @@ namespace UE { namespace TasksTests
 			verify(Event.BusyWait(FTimespan::Zero()));
 		}
 
-		{	// postpone execution so waiting kicks in first
-			std::atomic<int32> Counter{ 0 };
-			FTask Task = Launch(UE_SOURCE_LOCATION, [&Counter] { ++Counter; FPlatformProcess::Sleep(0.1f); });
-
-			ensure(!Task.Wait(FTimespan::Zero()));
-			Task.Wait();
-			check(Counter == 1);
-		}
-
-		{	// postpone execution so busy waiting kicks in first
-			std::atomic<int32> Counter{ 0 };
-			FTask Task = Launch(UE_SOURCE_LOCATION, [&Counter] { ++Counter; FPlatformProcess::Sleep(0.1f); });
-
-			ensure(!Task.BusyWait(FTimespan::Zero()));
-			Task.BusyWait();
-			check(Counter == 1);
-		}
-
-		{	// same but using `FTaskEvent`
+		{	// same but using busy-waiting
 			FTaskEvent Event{ UE_SOURCE_LOCATION };
-			FTask Task = Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); });
-			ensure(!Task.Wait(FTimespan::FromMilliseconds(100)));
-			Event.Trigger();
-			Task.Wait();
-		}
+			check(!Event.IsCompleted());
 
-		{	// same but using busy-wait and `FTaskEvent`
-			FTaskEvent Event{ UE_SOURCE_LOCATION };
-			FTask Task = Launch(UE_SOURCE_LOCATION, [&Event] { Event.BusyWait(); });
-			ensure(!Task.BusyWait(FTimespan::FromMilliseconds(100)));
+			// check that waiting blocks
+			FTask Task = Launch(UE_SOURCE_LOCATION, [Event]() mutable { Event.BusyWait(); });
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
+
 			Event.Trigger();
-			Task.BusyWait();
+			check(Event.IsCompleted());
+			verify(Event.Wait(FTimespan::Zero()));
+			verify(Event.BusyWait(FTimespan::Zero()));
 		}
 
 		{	// basic use-case, postpone waiting so the task is executed first
@@ -547,7 +528,8 @@ namespace UE { namespace TasksTests
 			FTaskEvent Prereq{ UE_SOURCE_LOCATION };
 
 			FTask Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereq) };
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Prereq.Trigger();
 			Task.Wait();
@@ -557,7 +539,8 @@ namespace UE { namespace TasksTests
 			FTaskEvent Prereq{ UE_SOURCE_LOCATION };
 
 			FTask Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereq, ETaskPriority::Normal) };
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Prereq.Trigger();
 			Task.Wait();
@@ -567,7 +550,8 @@ namespace UE { namespace TasksTests
 			FTaskEvent Event{ UE_SOURCE_LOCATION };
 			FTask Prereq{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
 			FTask Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereq) };
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Event.Trigger();
 			Task.Wait();
@@ -594,10 +578,12 @@ namespace UE { namespace TasksTests
 			FTask Prereq2{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
 
 			TTask<void> Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Prereq1, Prereq2)) };
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Prereq1.Trigger();
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Event.Trigger();
 			Task.Wait();
@@ -610,10 +596,12 @@ namespace UE { namespace TasksTests
 			TArray<TTask<void>> Prereqs{ Prereq1, Prereq2 }; // to check if a random iterable container works as a prerequisite collection
 
 			TTask<void> Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereqs, ETaskPriority::Normal) };
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Prereq1.Trigger();
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Event.Trigger();
 			Task.Wait();
@@ -624,7 +612,8 @@ namespace UE { namespace TasksTests
 			FTaskEvent Prereq{ UE_SOURCE_LOCATION };
 
 			FTask Task1{ Pipe.Launch(UE_SOURCE_LOCATION, [] {}, Prereq) };
-			verify(!Task1.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task1.IsCompleted());
 
 			FTask Task2{ Pipe.Launch(UE_SOURCE_LOCATION, [] {}) };
 			Task2.Wait();
@@ -640,10 +629,13 @@ namespace UE { namespace TasksTests
 			FTask Prereq2{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
 
 			FTask Task{ Pipe.Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Prereq1, Prereq2)) };
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Prereq1.Trigger();
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
+
 			Event.Trigger();
 			Task.Wait();
 		}
@@ -655,10 +647,13 @@ namespace UE { namespace TasksTests
 			FTask Prereq2{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
 
 			FTask Task{ Pipe.Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Prereq1, Prereq2), ETaskPriority::Normal) };
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
 
 			Prereq1.Trigger();
-			verify(!Task.Wait(FTimespan::FromMilliseconds(10)));
+			FPlatformProcess::Sleep(0.1f);
+			check(!Task.IsCompleted());
+
 			Event.Trigger();
 			Task.Wait();
 		}

@@ -51,26 +51,21 @@ namespace UE { namespace Tasks
 			
 			// initialises the task but doesn't launches it
 			template<typename TaskBodyType, typename DeleterType>
-			void Init(const TCHAR* DebugName, TaskBodyType&& TaskBody, DeleterType&& Deleter, LowLevelTasks::ETaskPriority Priority)
+			void Init(const TCHAR* DebugName, TaskBodyType&& InTaskBody, DeleterType&& Deleter, LowLevelTasks::ETaskPriority Priority)
 			{
-				// to not store a copy of `TaskBody` that is stored inside `LowLevelTask` anyway, and to implement task retraction
-				// (see `Wait()` method), we have to use LowLevelTask's "Continuation" parameter instead of "Runnable". This way we can make
-				// the scheduler immediately execute retracted task.
-				LowLevelTask.Init(DebugName, Priority, 
-					[] {}, // Runnable
-					[
-						this, 
-						TaskBody = Forward<TaskBodyType>(TaskBody), 
-						// releasing scheduler's task reference can cause task's automatic destruction and so must be done after the task is 
-						// flagged as completed. The task is flagged as completed after the continuation is executed but before its destroyed.
-						// `Deleter` is captured by value and is destroyed along with the continuation, calling the given functor 
-						// on destruction
-						Deleter = Forward<DeleterType>(Deleter)
-					]() mutable
-					{
-						Execute(MoveTemp(TaskBody));
+				TaskBody = Forward<TaskBodyType>(InTaskBody);
 
-					} // Continuation
+				LowLevelTask.Init(DebugName, Priority,
+					[
+						this,
+						// releasing scheduler's task reference can cause task's automatic destruction and so must be done after the low-level task
+						// task is flagged as completed. The task is flagged as completed after the continuation is executed but before its destroyed.
+						// `Deleter` is captured by value and is destroyed along with the continuation, calling the given functor on destruction
+						Deleter = Forward<DeleterType>(Deleter)
+					]
+					{
+						TryExecute();
+					}
 				);
 			}
 
@@ -162,11 +157,17 @@ namespace UE { namespace Tasks
 				return Subsequents.IsClosed();
 			}
 
-			FORCENOINLINE bool TryRetractAndExecute()
+			bool TryRetractAndExecute()
 			{
-				bool bUnlocked = NumLocks.load(std::memory_order_acquire) == (GetPipe() == nullptr ? 1 : 0);
-				// TryCancel() will try to cancel the task (if it's not being executed yet) and execute it
-				return bUnlocked && LowLevelTask.TryCancel() && IsCompleted();
+				bool bIsLocked = NumLocks.load(std::memory_order_acquire) != (GetPipe() == nullptr ? 1 : 0);
+				// try to execute before cancelling the low-level task as successful cancellation can release the last reference and destroy the task
+				if (!bIsLocked && TryExecute())
+				{
+					LowLevelTask.TryCancel();
+					return true;
+				}
+
+				return false;
 			}
 
 			// waits until the task is completed while executing other tasks
@@ -175,10 +176,16 @@ namespace UE { namespace Tasks
 				// we try to retract the task from the scheduler, if it's execution hasn't started yet, to execute it immediately. This makes
 				// the task skip waiting in the scheduler's queue.
 				// we can't retract it right here because it can be not scheduled yet (e.g. when it's blocked by a pipe), so we need to wait for this
-				// `!IsReady()` here means "the task is scheduled". The task can be completed w/o being scheduled at all (e.g. if it has 
-				// an empty body) so we need to check for this too
+				// `!IsReady()` here means "the task is scheduled"
 				LowLevelTasks::BusyWaitUntil([this] { return !LowLevelTask.IsReady(); });
-				LowLevelTask.TryCancel(); //This will try to cancel the task and run it's continuation (thereby executing the workload) 
+
+				// try to execute before cancelling the low-level task as successful cancellation can release the last reference and destroy the task
+				if (TryExecute())
+				{
+					LowLevelTask.TryCancel();
+					return;
+				}
+
 				LowLevelTasks::BusyWaitUntil([this] { return IsCompleted(); });
 			}
 
@@ -193,7 +200,13 @@ namespace UE { namespace Tasks
 					return false;
 				}
 
-				LowLevelTask.TryCancel(); //This will try to cancel the task and run it's continuation (thereby executing the workload) 
+				// try to execute before cancelling the low-level task as successful cancellation can release the last reference and destroy the task
+				if (TryExecute())
+				{
+					LowLevelTask.TryCancel();
+					return true;
+				}
+
 				LowLevelTasks::BusyWaitUntil([this, Timeout] { return IsCompleted() || Timeout; });
 				return IsCompleted();
 			}
@@ -211,7 +224,13 @@ namespace UE { namespace Tasks
 					return false;
 				}
 
-				LowLevelTask.TryCancel(); //This will try to cancel the task and run it's continuation (thereby executing the workload) 
+				// try to execute before cancelling the low-level task as successful cancellation can release the last reference and destroy the task
+				if (TryExecute())
+				{
+					LowLevelTask.TryCancel();
+					return true;
+				}
+
 				LowLevelTasks::BusyWaitUntil(
 					[this, Condition = Forward<ConditionType>(Condition)] { return IsCompleted() || Condition(); }
 				);
@@ -250,9 +269,10 @@ namespace UE { namespace Tasks
 				// "inline" tasks are not scheduled but executed as soon as they are unlocked
 				if (LowLevelTask.GetPriority() == InlineTaskPriority)
 				{
-					// the task is not scheduled yet, so successful retraction is guaranted
-					verify(LowLevelTask.TryCancel()); // this will cancel the task for the scheduler and execute LowLevelTask's continuation, 
-					// which is actually task execution
+					// execute before cancelling the low-level task as successful cancellation can release the last reference and destroy the task
+					// the low-level task wasn't scheduled, so successful execution and low-level task cancellation is guaranted
+					verify(TryExecute());
+					verify(LowLevelTask.TryCancel());
 					return true;
 				}
 
@@ -260,19 +280,26 @@ namespace UE { namespace Tasks
 				return LowLevelTasks::TryLaunch(LowLevelTask);
 			}
 
-			template<typename TaskBodyType>
-			void Execute(TaskBodyType&& TaskBody)
+			// execute the task body if the execution wasn't started yet
+			bool TryExecute()
 			{
+				if (!bAvailableForExecution.exchange(false, std::memory_order_relaxed))
+				{
+					return false; // too late, execution already started, e.g. by task retraction
+				}
+
 				TaskTrace::Started(GetTraceId());
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
 					StartPipeExecution();
-					Invoke(TaskBody);
+					TaskBody();
 					FinishPipeExecution();
 				}
 				TaskTrace::Finished(GetTraceId());
 
 				Close();
+
+				return true;
 			}
 
 			// checks if the task is ready to be launched by trying to push it into the pipe.
@@ -316,6 +343,8 @@ namespace UE { namespace Tasks
 
 		private:
 			LowLevelTasks::FTask LowLevelTask;
+			TUniqueFunction<void()> TaskBody;
+			std::atomic<bool> bAvailableForExecution{ true };
 
 			// the number of times that the task should be unlocked before it can be scheduled
 			// initial count is 1 for launching the task (it can't be scheduled before it's launched) and 1 for a potential blocked pipe
@@ -331,16 +360,24 @@ namespace UE { namespace Tasks
 		};
 
 		template<typename TaskCollectionType>
-		bool TryRetractAndExecute(TaskCollectionType&& Tasks)
+		bool TryRetractAndExecute(TaskCollectionType&& Tasks, FTimespan InTimeout = FTimespan::MaxValue())
 		{
+			FTimeout Timeout{ InTimeout };
 			bool bResult = true;
+
 			for (auto& Task : Tasks)
 			{
 				if (!Task.Pimpl->TryRetractAndExecute())
 				{
 					bResult = false;
 				}
+
+				if (Timeout)
+				{
+					return false;
+				}
 			}
+
 			return bResult;
 		}
 
