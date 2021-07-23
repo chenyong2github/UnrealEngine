@@ -81,169 +81,6 @@ void UTakeRecorderSources::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	}
 }
 
-void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> InSources, ULevelSequence* InMasterSequence, const FTimecode& Timecode, FManifestSerializer* InManifestSerializer)
-{
-	TArray<UTakeRecorderSource*> NewSources;
-
-	// Optionally create a folder in the Sequencer UI that will contain this source. We don't want sub-sequences to have folders
-	// created for their sources as you would end up with a Subscene with one item in it hidden inside of a folder, so instead
-	// only the master sequence gets folders created.
-	const bool bCreateSequencerFolders = true;
-	for (UTakeRecorderSource* Source : InSources)
-	{
-		if (Source->bEnabled)
-		{
-			ULevelSequence* TargetSequence = InMasterSequence;
-			FMovieSceneSequenceID TargetSequenceID = MovieSceneSequenceID::Root;
-
-			// The Sequencer Take system is built around swapping out sub-sequences. If they want to use this system, we create a sub-sequence
-			// for the Source and tell it to write into this sub-sequence instead of the master sequence. We then keep track of which Source
-			// is using which sub-sequence so that we can push the correct sequence for all points of the Source's recording lifecycle.
-			if (Settings.bRecordSourcesIntoSubSequences && Source->SupportsSubscenes())
-			{
-				const FString& SubSequenceTrackName = ObjectTools::SanitizeObjectName(Source->GetSubsceneTrackName(InMasterSequence));
-				const FString& SubSequenceAssetName = ObjectTools::SanitizeObjectName(Source->GetSubsceneAssetName(InMasterSequence));
-
-				TargetSequence = CreateSubSequenceForSource(InMasterSequence, SubSequenceTrackName, SubSequenceAssetName);
-				TargetSequence->GetMovieScene()->TimecodeSource = Timecode;
-
-				// If there's already a Subscene Track for our sub-sequence we need to remove that track before create a new one. No data is lost in this process as the
-				// sequence that the subscene points to has been copied by CreateSubSequenceForSource so a new track pointed to the new subsequence includes all the old data.
-				const FString SequenceName = FPaths::GetBaseFilename(TargetSequence->GetPathName());
-				UMovieSceneSubTrack* SubsceneTrack = nullptr;
-
-				for (UMovieSceneTrack* Track : InMasterSequence->GetMovieScene()->GetMasterTracks())
-				{
-					if (Track->IsA<UMovieSceneSubTrack>())
-					{
-						if (Track->GetDisplayName().ToString() == SubSequenceTrackName)
-						{
-							SubsceneTrack = CastChecked<UMovieSceneSubTrack>(Track);
-							SubsceneTrack->RemoveAllAnimationData();
-						}
-					}
-				}
-
-				// We need to add the new subsequence to the master sequence immediately so that it shows up in the UI and you can tell that things
-				// are being recorded, otherwise they don't show up until recording stops and then it magically pops in.
-				if (!SubsceneTrack)
-				{
-					SubsceneTrack = CastChecked<UMovieSceneSubTrack>(InMasterSequence->GetMovieScene()->AddMasterTrack(UMovieSceneSubTrack::StaticClass()));
-				}
-
-				// Track should not be transactional during the recording process
-				SubsceneTrack->ClearFlags(RF_Transactional);
-
-				// We create a new sub track for every Source so that we can name the Subtrack after the Source instead of just the sections within it.
-				SubsceneTrack->SetDisplayName(FText::FromString(Source->GetSubsceneTrackName(InMasterSequence)));
-				SubsceneTrack->SetColorTint(Source->TrackTint);
-
-				// When we create the Subscene Track we'll make sure a folder is created for it to sort into and add the new Subscene Track as a child of it.
-				if (bCreateSequencerFolders)
-				{
-					UMovieSceneFolder* Folder = AddFolderForSource(Source, InMasterSequence->GetMovieScene());
-					Folder->AddChildMasterTrack(SubsceneTrack);
-				}
-
-				// We initialize the sequence to start at the current time.
-				// We'll have to update these sections each frame as the recording progresses so they appear to get longer like normal
-				// tracks do as we record into them.
-				FFrameNumber RecordStartFrame = Settings.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Timecode.ToFrameNumber(TargetLevelSequenceDisplayRate)), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution).FloorToFrame() : InMasterSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
-				UMovieSceneSubSection* NewSubSection = SubsceneTrack->AddSequence(TargetSequence, RecordStartFrame, 0);
-				SetSectionStartTimecode(NewSubSection, Timecode, TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution);
-
-				// Section should not be transactional during the recording process
-				NewSubSection->ClearFlags(RF_Transactional);
-
-				NewSubSection->SetRowIndex(SubsceneTrack->GetMaxRowIndex() + 1);
-				SubsceneTrack->FixRowIndices();
-
-				TargetSequenceID = NewSubSection->GetSequenceID();
-
-				ActiveSubSections.Add(NewSubSection);
-				if (InManifestSerializer)
-				{
-					FName SerializedType("SubSequence");
-					FManifestProperty  ManifestProperty(SubSequenceAssetName, SerializedType, FGuid());
-					InManifestSerializer->WriteFrameData(InManifestSerializer->FramesWritten, ManifestProperty);
-
-					FString AssetPath = InManifestSerializer->GetLocalCaptureDir();
-
-					IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-					if (!PlatformFile.DirectoryExists(*AssetPath))
-					{
-						PlatformFile.CreateDirectory(*AssetPath);
-					}
-
-					AssetPath = AssetPath / SubSequenceAssetName;
-					if (!PlatformFile.DirectoryExists(*AssetPath))
-					{
-						PlatformFile.CreateDirectory(*AssetPath);
-					}
-
-					TSharedPtr<FManifestSerializer> NewManifestSerializer = MakeShared<FManifestSerializer>();
-					CreatedManifestSerializers.Add(NewManifestSerializer);
-					InManifestSerializer = NewManifestSerializer.Get();
-
-					InManifestSerializer->SetLocalCaptureDir(AssetPath);
-
-					FManifestFileHeader Header(SubSequenceAssetName, SerializedType, FGuid());
-					FText Error;
-					FString FileName = FString::Printf(TEXT("%s_%s"), *(SerializedType.ToString()), *(SubSequenceAssetName));
-
-					if (!InManifestSerializer->OpenForWrite(FileName, Header, Error))
-					{
-						UE_LOG(SubSequenceSerialization, Warning, TEXT("Error Opening Sequence Sequencer File: Subject '%s' Error '%s'"), *(SubSequenceAssetName), *(Error.ToString()));
-					}
-				}
-			}
-
-			// Update our mappings of which sources use which sub-sequence.
-			SourceSubSequenceMap.FindOrAdd(Source) = TargetSequence;
-			Source->TimecodeSource = Timecode;
-			for (UTakeRecorderSource* NewlyAddedSource : Source->PreRecording(TargetSequence, TargetSequenceID, InMasterSequence, InManifestSerializer))
-			{
-				// Add it to our classes list of sources 
-				Sources.Add(NewlyAddedSource);
-
-				// And then track it separately so we can recursively call PreRecording 
-				NewSources.Add(NewlyAddedSource);
-			}
-
-			// We need to wait until PreRecording is called on a source before asking it to place itself in a folder
-			// so that the Source has had a chance to create any required sections that will go in the folder.
-			if (!Settings.bRecordSourcesIntoSubSequences && bCreateSequencerFolders)
-			{
-				UMovieSceneFolder* Folder = AddFolderForSource(Source, InMasterSequence->GetMovieScene());
-
-				// Different sources can create different kinds of tracks so we allow each source to decide how it gets
-				// represented inside the folder.
-				Source->AddContentsToFolder(Folder);
-			}
-		}
-	}
-
-	if (NewSources.Num())
-	{
-		// We don't want to nestle sub-sequences recursively so we always pass the Master Sequence and not the sequence
-		// created for a new source.
-		StartRecordingRecursive(NewSources, InMasterSequence, Timecode, InManifestSerializer);
-		SourcesSerialNumber++;
-
-		FQualifiedFrameTime QualifiedSequenceTime = GetCurrentRecordingFrameTime();
-		for (auto NewSource : NewSources)
-		{
-			if (NewSource->bEnabled)
-			{
-				ULevelSequence* SourceSequence = SourceSubSequenceMap[NewSource];
-				FFrameNumber FrameNumber = QualifiedSequenceTime.ConvertTo(SourceSequence->GetMovieScene()->GetTickResolution()).FloorToFrame();
-				NewSource->StartRecording(Timecode, FrameNumber, SourceSubSequenceMap[NewSource]);
-			}
-		}
-	}
-}
-
-
 void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> InSources, ULevelSequence* InMasterSequence, TArray<UTakeRecorderSource*>& NewSourcesOut, FManifestSerializer* InManifestSerializer)
 {
 
@@ -396,9 +233,9 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 	}
 }
 
-void UTakeRecorderSources::StartRecordingPreRecordedSources(const FTimecode& CurrentTimecode)
+void UTakeRecorderSources::StartRecordingPreRecordedSources(const FQualifiedFrameTime& CurrentFrameTime)
 {
-	StartRecordingTheseSources(PreRecordedSources, CurrentTimecode);
+	StartRecordingTheseSources(PreRecordedSources, CurrentFrameTime);
 	PreRecordedSources.Reset(0);
 }
 
@@ -409,7 +246,7 @@ void UTakeRecorderSources::PreRecordSources(TArray<UTakeRecorderSource *> InSour
 }
 
 
-void UTakeRecorderSources::StartRecordingSource(TArray<UTakeRecorderSource *> InSources, const FTimecode& CurrentTimecode)
+void UTakeRecorderSources::StartRecordingSource(TArray<UTakeRecorderSource *> InSources, const FQualifiedFrameTime& CurrentFrameTime)
 {
 	// This calls PreRecording recursively on every source so that all sources that get added by another source
 	// have had PreRecording called.
@@ -419,17 +256,23 @@ void UTakeRecorderSources::StartRecordingSource(TArray<UTakeRecorderSource *> In
 	{
 		InSources.Append(NewSources);
 	}
-	StartRecordingTheseSources(InSources, CurrentTimecode);
+	StartRecordingTheseSources(InSources, CurrentFrameTime);
 }
 
-void UTakeRecorderSources::StartRecordingTheseSources(const TArray<UTakeRecorderSource *>& InSources, const FTimecode& CurrentTimecode)
+
+void UTakeRecorderSources::StartRecordingSource(TArray<UTakeRecorderSource *> InSources, const FTimecode& CurrentTimecode)
 {
-	FQualifiedFrameTime QualifiedSequenceTime = GetCurrentRecordingFrameTime();
+	StartRecordingSource(InSources, FQualifiedFrameTime(CurrentTimecode, TargetLevelSequenceDisplayRate)); 
+}
+
+void UTakeRecorderSources::StartRecordingTheseSources(const TArray<UTakeRecorderSource *>& InSources, const FQualifiedFrameTime& CurrentFrameTime)
+{
+	FTimecode CurrentTimecode = FTimecode::FromFrameNumber(FFrameRate::TransformTime(CurrentFrameTime.Time, TargetLevelSequenceTickResolution, TargetLevelSequenceDisplayRate).FloorToFrame(), TargetLevelSequenceDisplayRate);
+
 	for (auto Source : InSources)
 	{
 		if (Source->bEnabled)
 		{
-			ULevelSequence* SourceSequence = SourceSubSequenceMap[Source];
 			if (Settings.bRecordSourcesIntoSubSequences && Source->SupportsSubscenes()) //Set Timcode on MovieScene if we created a sub scene for it
 			{
 				for (UMovieSceneSubSection* ActiveSubSection : ActiveSubSections)
@@ -437,25 +280,23 @@ void UTakeRecorderSources::StartRecordingTheseSources(const TArray<UTakeRecorder
 					// Set timecode source and start time if it hasn't been set
 					if (ActiveSubSection->TimecodeSource.Timecode == FTimecode())
 					{
-						SetSectionStartTimecode(ActiveSubSection, CurrentTimecode, TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution);
+						SetSectionStartTimecode(ActiveSubSection, CurrentTimecode, CurrentFrameTime);
 					}
 				}
 			}
-			FFrameNumber FrameNumber = QualifiedSequenceTime.ConvertTo(SourceSequence->GetMovieScene()->GetTickResolution()).FloorToFrame();
-			Source->TimecodeSource = CurrentTimecode;
 
-			Source->StartRecording(CurrentTimecode, FrameNumber, SourceSubSequenceMap[Source]);
+			Source->StartRecording(CurrentTimecode, CurrentFrameTime.Time.FloorToFrame(), SourceSubSequenceMap[Source]);
 		}
 	}
 }
 
-void UTakeRecorderSources::SetSectionStartTimecode(UMovieSceneSubSection* SubSection, const FTimecode& Timecode, FFrameRate FrameRate, FFrameRate TickResolution)
+void UTakeRecorderSources::SetSectionStartTimecode(UMovieSceneSubSection* SubSection, const FTimecode& Timecode, const FQualifiedFrameTime& CurrentFrameTime)
 {
-	FFrameNumber RecordStartFrame = Settings.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Timecode.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : GetCurrentRecordingFrameTime().ConvertTo(TickResolution).FloorToFrame();
 	SubSection->TimecodeSource = FMovieSceneTimecodeSource(Timecode);
 
 	// Ensure we're expanded to at least the next frame so that we don't set the start past the end
 	// when we set the first frame.
+	FFrameNumber RecordStartFrame = CurrentFrameTime.Time.FloorToFrame(); 		
 	SubSection->ExpandToFrame(RecordStartFrame + FFrameNumber(1));
 	SubSection->SetStartFrame(TRangeBound<FFrameNumber>::Inclusive(RecordStartFrame));
 
@@ -473,42 +314,44 @@ void UTakeRecorderSources::SetCachedAssets(class ULevelSequence* InSequence, FMa
 	RecordedTimes.Empty();
 }
 
-void UTakeRecorderSources::PreRecording(class ULevelSequence* InSequence, FManifestSerializer* InManifestSerializer)
+void UTakeRecorderSources::PreRecording(class ULevelSequence* InSequence, const FQualifiedFrameTime& InCurrentFrameTime, FManifestSerializer* InManifestSerializer)
 {
+	CachedFrameTime = InCurrentFrameTime;
 	SetCachedAssets(InSequence, InManifestSerializer);
 	PreRecordSources(Sources);
 }
 
-void UTakeRecorderSources::StartRecording(class ULevelSequence* InSequence, const FTimecode& InTimecodeSource, FManifestSerializer* InManifestSerializer)
+void UTakeRecorderSources::StartRecording(class ULevelSequence* InSequence, const FQualifiedFrameTime& InCurrentFrameTime, FManifestSerializer* InManifestSerializer)
 {
+	CachedFrameTime = InCurrentFrameTime;
 	bIsRecording = true;
-	TimeSinceRecordingStarted = 0.f;
 	TargetLevelSequenceTickResolution = InSequence->GetMovieScene()->GetTickResolution();
 	TargetLevelSequenceDisplayRate = InSequence->GetMovieScene()->GetDisplayRate();
 
-	UE_LOG(LogTakesCore, Log, TEXT("StartRecording: %s"), *InTimecodeSource.ToString());
+	FTimecode CurrentTimecode = FTimecode::FromFrameNumber(FFrameRate::TransformTime(InCurrentFrameTime.Time, TargetLevelSequenceTickResolution, TargetLevelSequenceDisplayRate).FloorToFrame(), TargetLevelSequenceDisplayRate);
 
-	InSequence->GetMovieScene()->TimecodeSource = InTimecodeSource;
-	StartRecordingTimecodeSource = InTimecodeSource;
-	StartRecordingPreRecordedSources(InTimecodeSource);
+	UE_LOG(LogTakesCore, Log, TEXT("StartRecording: %s"), *CurrentTimecode.ToString());
+
+	InSequence->GetMovieScene()->TimecodeSource = CurrentTimecode;
+	StartRecordingPreRecordedSources(InCurrentFrameTime);
 }
 
-FFrameTime UTakeRecorderSources::AdvanceTime(float DeltaTime)
+FFrameTime UTakeRecorderSources::AdvanceTime(const FQualifiedFrameTime& CurrentFrameTime, float DeltaTime)
 {
-	FQualifiedFrameTime FrameTime = GetCurrentRecordingFrameTime();
-	//Time in seconds since recording started. Used when there is no Timecode Sync (e.g. in case it get's lost or dropped).
-	TimeSinceRecordingStarted += DeltaTime;
-	return FrameTime.ConvertTo(TargetLevelSequenceTickResolution);
+	CachedFrameTime = CurrentFrameTime;
+	return CurrentFrameTime.ConvertTo(TargetLevelSequenceTickResolution);
 }
 
-FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence, const FTimecode& InTimecodeSource, float DeltaTime)
+FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence, const FQualifiedFrameTime& CurrentFrameTime, float DeltaTime)
 {
+	CachedFrameTime = CurrentFrameTime;
+
+	FTimecode Timecode = FTimecode::FromFrameNumber(FFrameRate::TransformTime(CurrentFrameTime.Time, TargetLevelSequenceTickResolution, TargetLevelSequenceDisplayRate).FloorToFrame(), TargetLevelSequenceDisplayRate);
+
 #if !NO_LOGGING
-	UE_LOG(LogTakesCore, VeryVerbose, TEXT("TickRecording: %s"), *InTimecodeSource.ToString());
+	UE_LOG(LogTakesCore, VeryVerbose, TEXT("TickRecording: %s"), *Timecode.ToString());
 #endif
 
-	FQualifiedFrameTime FrameTime = GetCurrentRecordingFrameTime();
-	FQualifiedFrameTime SourceFrameTime(FrameTime);
 	bool bTimeIncremented = DeltaTime > 0.0f;
 
 	if (bTimeIncremented) //only record if time incremented, may not with timecode providers with low frame rates
@@ -517,50 +360,27 @@ FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence,
 		{
 			if (Sources[SourceIndex]->bEnabled)
 			{
-				Sources[SourceIndex]->TickRecording(SourceFrameTime);
+				Sources[SourceIndex]->TickRecording(CurrentFrameTime);
 			}
 		}
 	}
 
 	{
-		const FFrameNumber StartFrameNumber = StartRecordingTimecodeSource.ToFrameNumber(TargetLevelSequenceDisplayRate);
-		FFrameTime StartTime = FFrameRate::TransformTime(FFrameTime(StartFrameNumber), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution);
-		const FFrameTime CurrentFrameTimeSinceStart = TargetLevelSequenceTickResolution.AsFrameTime(TimeSinceRecordingStarted);
-		FQualifiedFrameTime CurrentFrameTime = FQualifiedFrameTime(StartTime + CurrentFrameTimeSinceStart, TargetLevelSequenceTickResolution);
-
-		FFrameTime KeyTime = FFrameRate::TransformTime(CurrentFrameTime.Time, TargetLevelSequenceTickResolution, TargetLevelSequenceDisplayRate);
-		FTimecode Timecode = FTimecode::FromFrameNumber(KeyTime.FrameNumber, TargetLevelSequenceDisplayRate);
-		RecordedTimes.Add(TPair<FQualifiedFrameTime, FTimecode>(FrameTime, Timecode));
+		RecordedTimes.Add(TPair<FQualifiedFrameTime, FTimecode>(CurrentFrameTime, Timecode));
 	}
-
-	//Time in seconds since recording started. Used when there is no Timecode Sync (e.g. in case it get's lost or dropped).
-	TimeSinceRecordingStarted += DeltaTime;
-
 
 	// If we're recording into sub-sections we want to update their range every frame so they appear to
 	// animate as their contents are filled. We can't check against the size of all sections (not all
 	// source types have data in their sections until the end) and if you're partially re-recording
 	// a track it would size to the existing content which would skip the animation as well.
 
-	FFrameNumber EndFrame = Settings.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InTimecodeSource.ToFrameNumber(TargetLevelSequenceDisplayRate)), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution).CeilToFrame() : FrameTime.ConvertTo(TargetLevelSequenceTickResolution).CeilToFrame();
+	FFrameNumber EndFrame = CurrentFrameTime.Time.CeilToFrame();
 	for (UMovieSceneSubSection* SubSection : ActiveSubSections)
 	{
 		// Subsections will have been created to start at the time that they appeared, so we just need to expand their range to this recording time
 		SubSection->ExpandToFrame(EndFrame);
 	}
-	return FrameTime.ConvertTo(TargetLevelSequenceTickResolution);
-}
-
-//We now always just use TimeSinceRecordingStarted instead of possibly using timecode to determine our time since
-//That can give us a higher resolution
-FQualifiedFrameTime UTakeRecorderSources::GetCurrentRecordingFrameTime() const
-{
-	const FFrameNumber StartFrameNumber = StartRecordingTimecodeSource.ToFrameNumber(TargetLevelSequenceDisplayRate);
-	FFrameTime StartTime = Settings.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(StartFrameNumber), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution) : CachedLevelSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
-
-	const FFrameTime CurrentFrameTimeSinceStart = TargetLevelSequenceTickResolution.AsFrameTime(TimeSinceRecordingStarted);
-	FQualifiedFrameTime FrameTime = FQualifiedFrameTime(StartTime + CurrentFrameTimeSinceStart, TargetLevelSequenceTickResolution);
-	return FrameTime;
+	return CurrentFrameTime.ConvertTo(TargetLevelSequenceTickResolution);
 }
 
 void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence)
@@ -568,7 +388,6 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence)
 	UE_LOG(LogTakesCore, Log, TEXT("StopRecording"));
 
 	bIsRecording = false;
-	TimeSinceRecordingStarted = 0.f;
 
 	for (auto Source : Sources)
 	{

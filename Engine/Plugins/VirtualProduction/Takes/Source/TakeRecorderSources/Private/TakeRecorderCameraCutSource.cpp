@@ -82,7 +82,7 @@ void UTakeRecorderCameraCutSource::TickRecording(const FQualifiedFrameTime& Curr
 
 		// This has to be called after setting the Target and propagating the change event so that it has a chance to know what to record
 		// about the actor.
-		OwningSources->StartRecordingSource(TArray<UTakeRecorderSource*>({ ActorSource }), FApp::GetTimecode());
+		OwningSources->StartRecordingSource(TArray<UTakeRecorderSource*>({ ActorSource }), CurrentTime);
 
 		NewActorSources.Add(ActorSource);
 	}

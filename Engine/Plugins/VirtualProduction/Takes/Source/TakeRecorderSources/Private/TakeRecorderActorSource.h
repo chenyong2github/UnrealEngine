@@ -175,7 +175,7 @@ protected:
 	* This is called when recording starts to generate the Section Recorders for the actor and all components that it currently has,
 	* as well as again during runtime for any newly added components.
 	*/
-	void CreateSectionRecordersRecursive(UObject* ObjectToRecord, UActorRecorderPropertyMap* PropertyMap);
+	void CreateSectionRecordersRecursive(UObject* ObjectToRecord, UActorRecorderPropertyMap* PropertyMap, TArray<UObject*>& TraversedObjects);
 
 	/** Update our cached properties for what will be recorded. Done here so the UI doesn't have to iterate through map every frame. */
 	void UpdateCachedNumberOfRecordedProperties();
