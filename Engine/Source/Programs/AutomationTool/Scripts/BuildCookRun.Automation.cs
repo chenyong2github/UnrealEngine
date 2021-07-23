@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Reflection;
 using AutomationTool;
+using AutomationScripts;
 using UnrealBuildTool;
 using EpicGames.Core;
 

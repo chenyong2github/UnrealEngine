@@ -9,29 +9,32 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 
-public partial class Project : CommandUtils
+namespace AutomationScripts
 {
-	public static void GetFile(ProjectParams Params)
+	public partial class Project : CommandUtils
 	{
-		Params.ValidateAndLog();
-		if (string.IsNullOrEmpty(Params.GetFile))
+		public static void GetFile(ProjectParams Params)
 		{
-			return;
+			Params.ValidateAndLog();
+			if (string.IsNullOrEmpty(Params.GetFile))
+			{
+				return;
+			}
+
+			LogInformation("********** GETFILE COMMAND STARTED **********");
+
+			var FileName = Path.GetFileName(Params.GetFile);
+			var LocalFile = CombinePaths(CmdEnv.EngineSavedFolder, FileName);
+
+			var SC = CreateDeploymentContext(Params, false);
+			if (SC.Count == 0)
+			{
+				throw new AutomationException("Failed to create deployment context");
+			}
+
+			SC[0].StageTargetPlatform.GetTargetFile(Params.GetFile, LocalFile, Params);
+
+			LogInformation("********** GETFILE COMMAND COMPLETED **********");
 		}
-
-		LogInformation("********** GETFILE COMMAND STARTED **********");
-
-		var FileName = Path.GetFileName(Params.GetFile);
-		var LocalFile = CombinePaths(CmdEnv.EngineSavedFolder, FileName);
-
-		var SC = CreateDeploymentContext(Params, false);
-		if (SC.Count == 0)
-		{
-			throw new AutomationException("Failed to create deployment context");
-		}
-
-		SC[0].StageTargetPlatform.GetTargetFile(Params.GetFile, LocalFile, Params);
-
-		LogInformation("********** GETFILE COMMAND COMPLETED **********");
 	}
 }

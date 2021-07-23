@@ -7,36 +7,39 @@ using System.Reflection;
 using AutomationTool;
 using UnrealBuildTool;
 
-public partial class Project : CommandUtils
+namespace AutomationScripts
 {
-	public static void Package(ProjectParams Params, int WorkingCL=-1)
+	public partial class Project : CommandUtils
 	{
-		if ((!Params.SkipStage || Params.Package) && !Params.SkipPackage)
+		public static void Package(ProjectParams Params, int WorkingCL = -1)
 		{
-			Params.ValidateAndLog();
-			List<DeploymentContext> DeployContextList = new List<DeploymentContext>();
-			if (!Params.NoClient)
+			if ((!Params.SkipStage || Params.Package) && !Params.SkipPackage)
 			{
-				DeployContextList.AddRange(CreateDeploymentContext(Params, false, false));
-			}
-			if (Params.DedicatedServer)
-			{
-				DeployContextList.AddRange(CreateDeploymentContext(Params, true, false));
-			}
-
-			if (DeployContextList.Count > 0 )
-			{
-				LogInformation("********** PACKAGE COMMAND STARTED **********");
-
-				foreach (var SC in DeployContextList)
+				Params.ValidateAndLog();
+				List<DeploymentContext> DeployContextList = new List<DeploymentContext>();
+				if (!Params.NoClient)
 				{
-					if (Params.Package || (SC.StageTargetPlatform.RequiresPackageToDeploy && Params.Deploy))
-					{
-						SC.StageTargetPlatform.Package(Params, SC, WorkingCL);
-					}
+					DeployContextList.AddRange(CreateDeploymentContext(Params, false, false));
+				}
+				if (Params.DedicatedServer)
+				{
+					DeployContextList.AddRange(CreateDeploymentContext(Params, true, false));
 				}
 
-				LogInformation("********** PACKAGE COMMAND COMPLETED **********");
+				if (DeployContextList.Count > 0)
+				{
+					LogInformation("********** PACKAGE COMMAND STARTED **********");
+
+					foreach (var SC in DeployContextList)
+					{
+						if (Params.Package || (SC.StageTargetPlatform.RequiresPackageToDeploy && Params.Deploy))
+						{
+							SC.StageTargetPlatform.Package(Params, SC, WorkingCL);
+						}
+					}
+
+					LogInformation("********** PACKAGE COMMAND COMPLETED **********");
+				}
 			}
 		}
 	}
