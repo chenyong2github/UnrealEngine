@@ -874,9 +874,9 @@ namespace HordeServer.Notifications.Impl
 		#region Stream updates
 
 		/// <inheritdoc/>
-		public async Task NotifyStreamUpdateFailedAsync(IStream Stream, string ErrorMessage, int Change, IUser? Author = null, string? Description = null)
+		public async Task NotifyConfigUpdateFailureAsync(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null)
 		{
-			Logger.LogInformation("Sending stream update failure notification for {Stream} ({StreamId})", Stream.Name, Stream.Id);
+			Logger.LogInformation("Sending config update failure notification for {FileName}", FileName);
 
 			string? SlackUserId = null;
 			if (Author != null)
@@ -886,40 +886,39 @@ namespace HordeServer.Notifications.Impl
 
 			if (SlackUserId != null)
 			{
-				await SendStreamUpdateFailureMessageAsync(SlackUserId, Stream, ErrorMessage, Change, SlackUserId, Description);
+				await SendConfigUpdateFailureMessageAsync(SlackUserId, ErrorMessage, FileName, Change, SlackUserId, Description);
 			}
 			if (Settings.UpdateStreamsNotificationChannel != null)
 			{
-				await SendStreamUpdateFailureMessageAsync($"#{Settings.UpdateStreamsNotificationChannel}", Stream, ErrorMessage, Change, SlackUserId, Description);
+				await SendConfigUpdateFailureMessageAsync($"#{Settings.UpdateStreamsNotificationChannel}", ErrorMessage, FileName, Change, SlackUserId, Description);
 			}
 		}
 
-		private Task SendStreamUpdateFailureMessageAsync(string Recipient, IStream Stream, string ErrorMessage, int Change, string? Author = null, string? Description = null)
+		private Task SendConfigUpdateFailureMessageAsync(string Recipient, string ErrorMessage, string FileName, int? Change = null, string? Author = null, string? Description = null)
 		{
 			Color OutcomeColor = BlockKitAttachmentColors.Error;
 			BlockKitAttachment Attachment = new BlockKitAttachment();
 			Attachment.Color = OutcomeColor;
-			Attachment.FallbackText = $"{Stream.Name} ({Stream.Id}) - Update Failure";
+			Attachment.FallbackText = $"Update Failure: {FileName}";
 
-			Attachment.Blocks.Add(new HeaderBlock($"Stream Update Failure :rip:", false, true));
+			Attachment.Blocks.Add(new HeaderBlock($"Config Update Failure :rip:", false, true));
 
-			Attachment.Blocks.Add(new SectionBlock($"Horde was unable to update {Stream.Name} ({Stream.Id})"));
+			Attachment.Blocks.Add(new SectionBlock($"Horde was unable to update {FileName}"));
 			Attachment.Blocks.Add(new SectionBlock($"```{ErrorMessage}```"));
-			if (Author != null)
+			if (Change != null)
 			{
-				Attachment.Blocks.Add(new SectionBlock($"Possibly due to CL: {Change} by <@{Author}>"));
-			}
-			else
-			{
-				Attachment.Blocks.Add(new SectionBlock($"Possibly due to CL: {Change} - (Could not determine author from P4 user)"));
-			}
-			if (Description != null)
-			{
-				Attachment.Blocks.Add(new SectionBlock($"```{Description}```"));
-			}
-			else
-			{
-				Attachment.Blocks.Add(new SectionBlock($"```Could not determine description of change from P4```"));
+				if (Author != null)
+				{
+					Attachment.Blocks.Add(new SectionBlock($"Possibly due to CL: {Change.Value} by <@{Author}>"));
+				}
+				else
+				{
+					Attachment.Blocks.Add(new SectionBlock($"Possibly due to CL: {Change.Value} - (Could not determine author from P4 user)"));
+				}
+				if (Description != null)
+				{
+					Attachment.Blocks.Add(new SectionBlock($"```{Description}```"));
+				}
 			}
 
 			return SendMessageAsync(Recipient, Attachments: new[] { Attachment });

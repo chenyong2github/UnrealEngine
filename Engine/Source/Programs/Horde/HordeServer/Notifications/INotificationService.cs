@@ -56,18 +56,12 @@ namespace HordeServer.Notifications
 		/// <summary>
 		/// Notify slack channel about a stream update failure
 		/// </summary>
-		/// <param name="Stream">The stream</param>
 		/// <param name="ErrorMessage">Error message passed back</param>
+		/// <param name="FileName"></param>
 		/// <param name="Change">Latest change number of the file</param>
 		/// <param name="Author">Author of the change, if found from p4 service</param>
 		/// <param name="Description">Description of the change, if found from p4 service</param>
-		void NotifyUpdateStreamFailure(IStream Stream, string ErrorMessage, int Change, string? Author, string? Description);
-
-		/// <summary>
-		/// Notify slack channel about a stream update failure in relation to a file
-		/// </summary>
-		/// <param name="File">The file</param>
-		void NotifyUpdateStreamFailure(FileSummary File);
+		void NotifyConfigUpdateFailure(string ErrorMessage, string FileName, int? Change = null, string? Author = null, string? Description = null);
 
 		/// <summary>
 		/// Sends a notification to a user regarding a build health issue.
