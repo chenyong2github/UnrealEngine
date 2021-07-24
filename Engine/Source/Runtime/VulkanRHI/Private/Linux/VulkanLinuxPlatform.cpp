@@ -179,6 +179,10 @@ void FVulkanLinuxPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<con
 	OutExtensions.Add(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
 #endif
 
+#if VULKAN_SUPPORTS_RENDERPASS2
+	OutExtensions.Add(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+#endif
+
 	if (GGPUCrashDebuggingEnabled)
 	{
 #if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
