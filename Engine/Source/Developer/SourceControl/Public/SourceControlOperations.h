@@ -238,12 +238,25 @@ public:
 		return bForce;
 	}
 
+	void SetLastSyncedFlag(const bool bInLastSynced)
+	{
+		bLastSynced = bInLastSynced;
+	}
+
+	bool IsLastSyncedFlagSet() const
+	{
+		return bLastSynced;
+	}
+
 protected:
 	/** Revision to sync to */
 	FString Revision;
 
-	/** Flag abstracting if the operation aim to sync to head */
+	/** Flag abstracting if the operation aims to sync to head */
 	bool bHeadRevision = false;
+
+	/** Flag abstracting if the operation aims to force sync to last synced revision */
+	bool bLastSynced = false;
 
 	/** Forces operation, even if the file is already at the wanted revision. */
 	bool bForce = false;

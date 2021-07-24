@@ -791,6 +791,8 @@ bool FPerforceSyncWorker::Execute(FPerforceSourceControlCommand& InCommand)
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+
 		TSharedRef<FSync, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FSync>(InCommand.Operation);
 		TArray<FString> Parameters;
 
@@ -812,6 +814,22 @@ bool FPerforceSyncWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			if (Operation->IsHeadRevisionFlagSet())
 			{
 				FileName += TEXT("#head");
+			}
+			else if (Operation->IsLastSyncedFlagSet())
+			{
+				TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(FileName);
+
+				if (State->LocalRevNumber == ISourceControlState::INVALID_REVISION)
+				{
+					const FString ErrorMsg = FString::Format(TEXT("Cached state of {0} is missing. Please refresh and try again."), {FileName});
+					
+					InCommand.ResultInfo.ErrorMessages.Add(FText::FromString(ErrorMsg));
+					InCommand.bCommandSuccessful = false;
+					
+					return InCommand.bCommandSuccessful;
+				}
+
+				FileName += FString::Format(TEXT("#{0}"), { State->LocalRevNumber });
 			}
 			else if (!Revision.IsEmpty())
 			{
