@@ -460,8 +460,9 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chr
 	if (InChromakeyMarkers.bEnable && InChromakeyMarkers.MarkerTileRGBA != nullptr)
 	{
 		InOutCameraSettings.ChromakeyMarkersColor = InChromakeyMarkers.MarkerColor;
-		InOutCameraSettings.ChromakeyMarkersScale = InChromakeyMarkers.MarkerTileScale;
+		InOutCameraSettings.ChromakeyMarkersScale = InChromakeyMarkers.MarkerSizeScale;
 		InOutCameraSettings.ChromakeyMarkersDistance = InChromakeyMarkers.MarkerTileDistance;
+		InOutCameraSettings.ChromakeyMarkersOffset = InChromakeyMarkers.MarkerTileOffset;
 
 		// Assign texture RHI ref
 		FTextureResource* MarkersResource = InChromakeyMarkers.MarkerTileRGBA->Resource;

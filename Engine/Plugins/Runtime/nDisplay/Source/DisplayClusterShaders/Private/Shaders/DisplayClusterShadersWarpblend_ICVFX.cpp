@@ -193,6 +193,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 
 	SHADER_PARAMETER(float, ChromakeyMarkerScale)
 	SHADER_PARAMETER(float, ChromakeyMarkerDistance)
+	SHADER_PARAMETER(FVector2D, ChromakeyMarkerOffset)
 END_SHADER_PARAMETER_STRUCT()
 
 class FIcvfxWarpVS : public FGlobalShader
@@ -603,6 +604,7 @@ public:
 
 			RenderPassData.PSParameters.ChromakeyMarkerScale    = Camera.ChromakeyMarkersScale;
 			RenderPassData.PSParameters.ChromakeyMarkerDistance = Camera.ChromakeyMarkersDistance;
+			RenderPassData.PSParameters.ChromakeyMarkerOffset   = Camera.ChromakeyMarkersOffset;
 
 			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderChromakeyMarker>(true);
 			return true;

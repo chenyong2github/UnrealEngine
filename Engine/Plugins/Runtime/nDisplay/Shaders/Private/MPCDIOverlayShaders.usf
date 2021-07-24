@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MPCDIUtils.ush"
 
+static const float DefaultChromakeyTileMultiplier = 10.0;
 
 OutputVS IcvfxWarpVS(InputVS IN)
 {
@@ -51,15 +52,29 @@ float3 ComposeIcvfxOverlay(float3 OutColor, float2 OverlayUV)
 	return FinalColor;
 }
 
+float2 TileUV(float2 InUV, float InScale)
+{
+    return frac(InUV * InScale);
+}
+
 float4 GetChromakeyMarkerColor(float2 InMarkersUV)
 {
-	float2 ChromakeyMarkerScaledUV = frac(InMarkersUV * ChromakeyMarkerScale) * (1+ChromakeyMarkerDistance);
-	float2 ChromakeyMarkerUV = saturate(ChromakeyMarkerScaledUV);
+	// Tile scale is inversely proprotional to the distance
+	float TileScale = DefaultChromakeyTileMultiplier / ChromakeyMarkerDistance;
+	
+	// Invert vertical axis for more intuitive controls
+	ChromakeyMarkerOffset.y = -ChromakeyMarkerOffset.y;
 
-	float4 ChromakeyMarkerTextureColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV);
+	float2 ChromakeyMarkerUV = TileUV(InMarkersUV - ChromakeyMarkerOffset/TileScale, TileScale);
 
-	// Support markers distance feature:
-	if(ChromakeyMarkerScaledUV.x > 1 || ChromakeyMarkerScaledUV.y > 1)
+	// Scale individual tile from its center, and independently from the distance
+	float2 HalfTile = float2(0.5, 0.5);
+	ChromakeyMarkerUV -= HalfTile;
+	ChromakeyMarkerUV *= ChromakeyMarkerDistance / ChromakeyMarkerScale;
+	float4 ChromakeyMarkerTextureColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV + HalfTile);
+
+	// Anything outside scaled UV bounds is untextured
+	if(any(abs(ChromakeyMarkerUV) > HalfTile))
 	{
 		return float4(ChromakeyMarkerColor.xyz, 0);
 	}

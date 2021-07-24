@@ -164,11 +164,16 @@ public:
 	UTexture2D* MarkerTileRGBA = nullptr;
 
 	// Scale markers UV source
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", ClampMin = "1", UIMin = "1"))
-	float MarkerTileScale = 1;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", ClampMin = "0", UIMin = "0"))
-	float MarkerTileDistance = 0;
+	float MarkerSizeScale = 1;
+
+	// Distance (or spacing) between tile markers
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", ClampMin = "0", UIMin = "0"))
+	float MarkerTileDistance = 1;
+
+	// 2D tile marker offset (normalized to the tile distance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	FVector2D MarkerTileOffset;
 };
 
 USTRUCT(Blueprintable)
