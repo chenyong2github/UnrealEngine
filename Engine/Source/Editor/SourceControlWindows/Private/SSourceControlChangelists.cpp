@@ -757,28 +757,20 @@ void SSourceControlChangelistsWidget::OnRevert()
 		SourceControlProvider.Execute(RevertOperation, SelectedChangelist, SelectedControlledFiles);
 	}
 
-	// Reverts selected Uncontrolled Files
-	if (!SelectedUncontrolledFiles.IsEmpty())
-	{
-		auto ForceSyncOperation = ISourceControlOperation::Create<FSync>();
-		ForceSyncOperation->SetForce(true);
-		ForceSyncOperation->SetHeadRevisionFlag(true);
-		SourceControlProvider.Execute(ForceSyncOperation, SelectedUncontrolledFiles);
-
-		FUncontrolledChangelistsModule::Get().UpdateStatus();
-	}
-
 	FUncontrolledChangelistStatePtr SelectedUncontrolledChangelist = GetCurrentUncontrolledChangelistState();
 
 	// Reverts the selected Uncontrolled Changelist
 	if (SelectedUncontrolledChangelist.IsValid())
 	{
-		SelectedUncontrolledFiles.Reset();
 		Algo::Transform(SelectedUncontrolledChangelist->GetFilesStates(), SelectedUncontrolledFiles, [](const FSourceControlStateRef& State) { return State->GetFilename(); });
+	}
 
+	// Reverts selected Uncontrolled Files
+	if (!SelectedUncontrolledFiles.IsEmpty())
+	{
 		auto ForceSyncOperation = ISourceControlOperation::Create<FSync>();
 		ForceSyncOperation->SetForce(true);
-		ForceSyncOperation->SetHeadRevisionFlag(true);
+		ForceSyncOperation->SetLastSyncedFlag(true);
 		SourceControlProvider.Execute(ForceSyncOperation, SelectedUncontrolledFiles);
 
 		FUncontrolledChangelistsModule::Get().UpdateStatus();
