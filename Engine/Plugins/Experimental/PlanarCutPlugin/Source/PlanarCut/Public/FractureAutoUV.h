@@ -16,6 +16,23 @@ enum class EUseMaterials
 };
 
 /**
+ * Box project UVs
+ *
+ * @param TargetUVLayer		Which UV layer to update
+ * @param Collection		The collection to be box projected
+ * @param BoxDimensions		Scale of projection box
+ * @param MaterialsPattern	Which pattern of material IDs to automatically consider for UV island layout
+ * @param WhichMaterials	If non-empty, consider listed material IDs for UV island layout
+ */
+bool PLANARCUT_API BoxProjectUVs(
+	int32 TargetUVLayer,
+	FGeometryCollection& Collection,
+	const FVector3d& BoxDimensions,
+	EUseMaterials MaterialsPattern = EUseMaterials::OddMaterials,
+	TArrayView<int32> WhichMaterials = TArrayView<int32>()
+);
+
+/**
  * Make a UV atlas of non-overlapping UV charts for a geometry collection
  *
  * @param TargetUVLayer		Which UV layer to update with new UV coordinates

@@ -85,6 +85,9 @@ public:
 
 	void ChangeNumUVChannels(int32 Delta);
 
+	UFUNCTION(CallInEditor, Category = UVIslands, meta = (DisplayName = "Box Project UVs"))
+	void BoxProjectUVs();
+
 	/** Whether to layout UVs (to ensure unique texels for each face), or just use the existing UVs */
 	UPROPERTY(EditAnywhere, Category = Atlas, meta = (DisplayName = "Do UV Layout"))
 	bool bDoUVLayout = true;
@@ -205,6 +208,9 @@ public:
 
 	// Update number of UV channels for selected geometry collections
 	void UpdateUVChannels(int32 TargetNumUVChannels);
+
+	// Create new UV islands via box projection for the selected geometry collections
+	void BoxProjectUVs();
 
 
 protected:

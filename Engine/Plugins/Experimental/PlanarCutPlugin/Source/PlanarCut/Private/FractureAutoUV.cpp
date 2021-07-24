@@ -13,6 +13,7 @@
 #include "MeshWeights.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Sampling/MeshImageBakingCache.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 
 #include "Implicit/Solidify.h"
 
@@ -369,7 +370,85 @@ struct FGeomFlatUVMesh
 };
 
 
+bool BoxProjectUVs(
+	int32 TargetUVLayer,
+	FGeometryCollection& Collection,
+	const FVector3d& BoxDimensions,
+	EUseMaterials MaterialsPattern,
+	TArrayView<int32> WhichMaterials
+)
+{
+	TArray<int32> TransformIndices;
+	for (int32 GeomIdx = 0; GeomIdx < Collection.TransformIndex.Num(); GeomIdx++)
+	{
+		TransformIndices.Add(Collection.TransformIndex[GeomIdx]);
+	}
+	FDynamicMeshCollection CollectionMeshes(&Collection, TransformIndices, FTransform::Identity, false);
+	TSet<int32> TargetMaterials;
+	for (int32 MatID : WhichMaterials)
+	{
+		TargetMaterials.Add(MatID);
+	}
 
+	int32 NumUVLayers = Collection.NumUVLayers();
+	if (TargetUVLayer >= NumUVLayers)
+	{
+		return false;
+	}
+
+	for (int MeshIdx = 0; MeshIdx < CollectionMeshes.Meshes.Num(); MeshIdx++)
+	{
+		int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
+		FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
+
+		// TODO: Apply this coincident edge merge once 
+		//FMergeCoincidentMeshEdges EdgeWelder(&Mesh);
+		//EdgeWelder.Apply();
+
+		FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
+		AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, NumUVLayers, 0);
+		TArray<int32> TargetTris;
+		for (int TID : Mesh.TriangleIndicesItr())
+		{
+			bool bIsTextureTri = IsTriActive(
+				AugmentedDynamicMesh::GetVisibility(Mesh, TID),
+				Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, MaterialsPattern);
+			if (bIsTextureTri)
+			{
+				TargetTris.Add(TID);
+			}
+		}
+		if (TargetTris.Num() == 0)
+		{
+			continue;
+		}
+
+		FDynamicMeshUVEditor UVEd(&Mesh, TargetUVLayer, false);
+		FFrame3d BoxFrame; // defaults to origin / no rotation
+		UVEd.SetTriangleUVsFromBoxProjection(TargetTris, [](const FVector3d& Pos) { return Pos; }, BoxFrame, BoxDimensions);
+
+		Mesh.CompactInPlace();
+
+		// transfer work back to custom UV data of AugmentedDynamicMeshes
+		FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(TargetUVLayer);
+
+		for (int ElID : UVOverlay->ElementIndicesItr())
+		{
+			FVector2f UV = UVOverlay->GetElement(ElID);
+			int VID = UVOverlay->GetParentVertex(ElID);
+			checkSlow(VID > -1);
+			if (VID > -1)
+			{
+				AugmentedDynamicMesh::SetUV(Mesh, VID, UV, TargetUVLayer);
+			}
+		}
+		
+	}
+
+	CollectionMeshes.UpdateAllCollections(Collection);
+
+	return true;
+}
 
 
 bool UVLayout(
