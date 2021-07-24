@@ -365,7 +365,15 @@ static void GetDepthStencilStageAndAccessFlags(ERHIAccess DepthAccess, ERHIAcces
 
 	Layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
-	if (EnumHasAnyFlags(DepthAccess, ERHIAccess::DSVWrite))
+	if (EnumHasAnyFlags(DepthAccess, ERHIAccess::CopySrc))
+	{
+		Layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	}
+	else if (EnumHasAnyFlags(DepthAccess, ERHIAccess::CopyDest))
+	{
+		Layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	}
+	else if (EnumHasAnyFlags(DepthAccess, ERHIAccess::DSVWrite))
 	{
 		if (EnumHasAnyFlags(StencilAccess, ERHIAccess::DSVWrite))
 		{
@@ -429,6 +437,20 @@ static void GetDepthStencilStageAndAccessFlags(ERHIAccess DepthAccess, ERHIAcces
 		StageFlags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 		AccessFlags |= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 		ProcessedRHIFlags |= (uint32)ERHIAccess::UAVCompute;
+	}
+
+	if (EnumHasAnyFlags(CombinedAccess, ERHIAccess::CopySrc))
+	{
+		StageFlags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+		AccessFlags |= VK_ACCESS_TRANSFER_READ_BIT;
+		ProcessedRHIFlags |= (uint32)ERHIAccess::CopySrc;
+	}
+
+	if (EnumHasAnyFlags(CombinedAccess, ERHIAccess::CopyDest))
+	{
+		StageFlags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+		AccessFlags |= VK_ACCESS_TRANSFER_WRITE_BIT;
+		ProcessedRHIFlags |= (uint32)ERHIAccess::CopyDest;
 	}
 
 	uint32 RemainingFlags = (uint32)CombinedAccess & (~ProcessedRHIFlags);
