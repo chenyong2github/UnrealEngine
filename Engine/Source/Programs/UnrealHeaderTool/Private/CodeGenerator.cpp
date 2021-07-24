@@ -2132,11 +2132,16 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		GeneratedClassRegisterFunctionText.Logf(TEXT("\t};\r\n"));
 		GeneratedClassRegisterFunctionText.Log(*StaticDefinitions);
 
+		if (!bIsDynamic)
+		{
+			GeneratedClassRegisterFunctionText.Logf(TEXT("\textern FClassRegistrationInfo& Z_Registration_Info_UClass_%s();\r\n"), *ClassNameCPP);
+		}
+
 		GeneratedClassRegisterFunctionText.Logf(TEXT("\tUClass* %s\r\n"), *SingletonName);
 		GeneratedClassRegisterFunctionText.Logf(TEXT("\t{\r\n"));
 		if (!bIsDynamic)
 		{
-			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tstatic UClass*& OuterClass = %s::StaticRegistrationInfo().OuterSingleton;\r\n"), *ClassNameCPP);
+			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tstatic UClass*& OuterClass = Z_Registration_Info_UClass_%s().OuterSingleton;\r\n"), *ClassNameCPP);
 			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tif (!OuterClass)\r\n"));
 		}
 		else
