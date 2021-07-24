@@ -480,7 +480,7 @@ public:
 
 	/** Whether or not this section is locked. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void SetIsLocked(bool bInIsLocked) { if (TryModify()) { bIsLocked = bInIsLocked; } }
+	void SetIsLocked(bool bInIsLocked) { Modify(); bIsLocked = bInIsLocked; }
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	bool IsLocked() const { return bIsLocked; }
 
