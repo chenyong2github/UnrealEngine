@@ -1068,7 +1068,10 @@ void UTakeRecorder::Stop()
 		// Restore the playback range to what it was before recording.
 		if (Parameters.TakeRecorderMode == ETakeRecorderMode::RecordIntoSequence)
 		{
-			MovieScene->SetPlaybackRange(CachedPlaybackRange);
+			if (MovieScene)
+			{
+				MovieScene->SetPlaybackRange(CachedPlaybackRange);
+			}
 		}
 		else
 		{
