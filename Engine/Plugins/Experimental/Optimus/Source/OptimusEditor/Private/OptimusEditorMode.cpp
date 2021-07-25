@@ -29,6 +29,11 @@ FOptimusEditorMode::FOptimusEditorMode(TSharedRef<FOptimusEditor> InEditorApp) :
 
 	FPersonaViewportArgs ViewportArgs(InEditorApp->GetPersonaToolkit()->GetPreviewScene());
 	ViewportArgs.ContextName = TEXT("OptimusEditor.Viewport");
+	ViewportArgs.bShowStats = true;
+	ViewportArgs.bShowPlaySpeedMenu = false;
+	ViewportArgs.bShowTimeline = true;
+	ViewportArgs.bShowTurnTable = false;
+	ViewportArgs.bAlwaysShowTransformToolbar = true;
 	ViewportArgs.OnViewportCreated = FOnViewportCreated::CreateSP(InEditorApp, &FOptimusEditor::HandleViewportCreated);
 
 	PersonaModule.RegisterPersonaViewportTabFactories(TabFactories, InEditorApp, ViewportArgs);

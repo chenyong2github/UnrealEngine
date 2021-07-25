@@ -17,6 +17,7 @@ struct HActor;
 struct FViewportClick;
 class FEditorCameraController;
 class ISkeletonTreeItem;
+class IEditableSkeleton;
 
 // called when animation asset has been changed
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAnimChangedMulticaster, UAnimationAsset*);
@@ -308,5 +309,10 @@ public:
 
 	/** Returns the persona selection component (or nullptr) */
 	virtual UPersonaSelectionComponent* GetSelectionComponent() = 0;
+
+	/** Replaces the current editable skeleton. This is not a safe operation unless you're working
+	 * detached from other Persona components (eg. skeleton list).
+	 */
+	virtual void SetEditableSkeleton(TSharedPtr<IEditableSkeleton> InEditableSkeleton) = 0;
 };
 

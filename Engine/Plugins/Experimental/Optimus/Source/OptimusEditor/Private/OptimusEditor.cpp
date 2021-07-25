@@ -33,11 +33,8 @@
 #include "SkeletalRenderPublic.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "ComputeFramework/ComputeGraphComponent.h"
-#include "DataInterfaces/DataInterfaceRawBuffer.h"
-#include "DataInterfaces/DataInterfaceScene.h"
-#include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
-#include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
 #include "Engine/StaticMeshActor.h"
+#include "ISkeletonEditorModule.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
@@ -159,7 +156,7 @@ void FOptimusEditor::Construct(
 
 	if (PersonaToolkit->GetPreviewMesh())
 	{
-		InstallDataProviders();
+		HandlePreviewMeshChanged(nullptr, PersonaToolkit->GetPreviewMesh());
 	}
 }
 
@@ -227,6 +224,20 @@ FString FOptimusEditor::GetWorldCentricTabPrefix() const
 FLinearColor FOptimusEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor(0.2f, 0.2f, 0.6f, 0.5f);
+}
+
+
+void FOptimusEditor::OnClose()
+{
+	UPersonaSelectionComponent* SelectionComponent = PersonaToolkit->GetPreviewScene()->GetSelectionComponent();
+
+	if (SelectionComponent)
+	{
+		SelectionComponent->OnUpdateCapsules().Unbind();
+		SelectionComponent->GetWorld()->RemoveActor(SelectionComponent->GetOwner(), true);
+	}
+
+	IOptimusEditor::OnClose();
 }
 
 
@@ -484,21 +495,123 @@ void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewS
 	{
 		SkeletalMeshComponent->SetMobility(EComponentMobility::Static);
 	}
+	SkeletalMeshComponent->bSelectable = false;
+	SkeletalMeshComponent->MarkRenderStateDirty();
+
 	InPreviewScene->AddComponent(SkeletalMeshComponent, FTransform::Identity);
 	InPreviewScene->SetPreviewMeshComponent(SkeletalMeshComponent);
 
+	InPreviewScene->SetAllowMeshHitProxies(false);
+	InPreviewScene->SetAdditionalMeshesSelectable(false);
+	
 	// Create the compute graph component that will drive the deformation.
 	ComputeGraphComponent = NewObject<UComputeGraphComponent>(Actor);
 	ComputeGraphComponent->ComputeGraph = DeformerObject;
 	ComputeGraphComponent->PrimaryComponentTick.SetTickFunctionEnable(true);
 
 	InPreviewScene->AddComponent(ComputeGraphComponent, FTransform::Identity);
+
+	UPersonaSelectionComponent* SelectionComponent = InPreviewScene->GetSelectionComponent();
+
+	// make sure the selection component ticks after the skeletal mesh comp
+	SelectionComponent->AddTickPrerequisiteComponent(SkeletalMeshComponent);
+
+	SelectionComponent->OnUpdateCapsules().BindLambda([this](UPersonaSelectionComponent*, const TArray<int32>& InIndices, TArray<FPersonaSelectionCapsule>& OutCapsules)
+	{
+		const FReferenceSkeleton& ReferenceSkeleton = SkeletalMeshComponent->GetReferenceSkeleton();
+		TArray<FTransform> ComponentSpaceTransforms = SkeletalMeshComponent->GetComponentSpaceTransforms();
+			
+		for(int32 Index = 0; Index < InIndices.Num(); Index++)
+		{
+			const int32 CapsuleIndex = InIndices[Index];
+			check(CapsuleInfos.IsValidIndex(CapsuleIndex));
+
+			const FCapsuleInfo& CapsuleInfo = CapsuleInfos[CapsuleIndex];
+			
+			OutCapsules[CapsuleIndex].Name = CapsuleInfo.Name;
+			if(!ComponentSpaceTransforms.IsValidIndex(CapsuleInfo.Index))
+			{
+				break;
+			}
+
+			const FVector& BonePosition = ComponentSpaceTransforms[CapsuleInfo.Index].GetLocation();
+
+			FVector Start, End;
+				
+			const int32 ParentIndex = ReferenceSkeleton.GetParentIndex(CapsuleInfo.Index);
+			if(ComponentSpaceTransforms.IsValidIndex(ParentIndex))
+			{
+				Start = ComponentSpaceTransforms[ParentIndex].GetLocation();
+				End = BonePosition;
+			}
+			else
+			{
+				Start = FVector::ZeroVector;
+				End = BonePosition;
+			}
+
+			UPersonaSelectionComponent::ComputeCapsuleFromBonePositions(Start, End, 100.f, 1.f, OutCapsules[CapsuleIndex]);
+		}
+	});
+
+	// setup the capsules in the preview scene
+	SelectionComponent->OnClicked().BindLambda([PreviewScene=InPreviewScene] (UPersonaSelectionComponent*, int32 InCapsuleIndex, const FPersonaSelectionCapsule& InCapsule)
+	{
+		PreviewScene->DeselectAll();
+		PreviewScene->SetSelectedBone(InCapsule.Name, ESelectInfo::OnMouseClick);
+	});
 }
 
 
-void FOptimusEditor::HandlePreviewMeshChanged(USkeletalMesh* InOldPreviewMesh, USkeletalMesh* InNewPreviewMesh)
+void FOptimusEditor::HandlePreviewMeshChanged(
+	USkeletalMesh* InOldPreviewMesh,
+	USkeletalMesh* InNewPreviewMesh
+	)
 {
 	InstallDataProviders();
+
+	USkeleton* Skeleton = InNewPreviewMesh ? InNewPreviewMesh->GetSkeleton() : nullptr;
+
+	if (Skeleton)
+	{
+		ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::LoadModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
+		EditableSkeleton = SkeletonEditorModule.CreateEditableSkeleton(Skeleton);
+	}
+	else
+	{
+		EditableSkeleton.Reset();
+	}
+	GetPersonaToolkit()->GetPreviewScene()->SetEditableSkeleton(EditableSkeleton);
+	
+	// Either set up a new capsule list from the skeleton, or, if the preview mesh was removed
+	// clear the capsule list.
+	UpdateCapsules(Skeleton);
+}
+
+
+void FOptimusEditor::UpdateCapsules(const USkeleton* InSkeleton)
+{
+	UPersonaSelectionComponent* SelectionComponent = PersonaToolkit->GetPreviewScene()->GetSelectionComponent();
+	check(SelectionComponent != nullptr);
+	
+	SelectionComponent->Reset();
+	CapsuleInfos.Reset();
+
+	if (InSkeleton)
+	{
+		// Setup the capsules for selecting bones in the viewport. For deformers, we ignore
+		// sockets and virtual bones (for now).
+		const FReferenceSkeleton& ReferenceSkeleton = InSkeleton->GetReferenceSkeleton();
+		for(int32 Index = 0; Index < ReferenceSkeleton.GetNum(); Index++)
+		{
+			FCapsuleInfo Info;
+			Info.Name = ReferenceSkeleton.GetBoneName(Index);
+			Info.Index = Index;
+			CapsuleInfos.Add(Info);
+
+			SelectionComponent->Add();
+		}
+	}
 }
 
 
@@ -518,6 +631,7 @@ void FOptimusEditor::HandleViewportCreated(
 	
 	// ViewportWidget->GetViewportClient().SetAdvancedShowFlagsForScene(false);
 }
+
 
 
 void FOptimusEditor::CreateWidgets()
