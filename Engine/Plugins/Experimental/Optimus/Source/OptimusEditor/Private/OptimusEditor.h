@@ -7,6 +7,7 @@
 #include "Misc/NotifyHook.h"
 
 
+class IEditableSkeleton;
 class FUICommandList;
 class IMessageLogListing;
 class IOptimusNodeGraphCollectionOwner;
@@ -36,7 +37,7 @@ class FOptimusEditor :
 {
 public:
 	FOptimusEditor();
-	~FOptimusEditor();
+	~FOptimusEditor() override;
 
 	void Construct(
 		const EToolkitMode::Type InMode,
@@ -76,6 +77,10 @@ public:
 	FText GetBaseToolkitName() const override;			
 	FString GetWorldCentricTabPrefix() const override;	
 	FLinearColor GetWorldCentricTabColorScale() const override;
+
+	//~ Begin FAssetEditorToolkit Interface.
+	void OnClose() override;
+	//~ End FAssetEditorToolkit Interface.
 	
 	// --
 	bool SetEditGraph(UOptimusNodeGraph *InNodeGraph);
@@ -141,6 +146,7 @@ public:
 	TSharedPtr<SWidget> GetCompilerResultsWidget() const { return CompilerResultsWidget; }
 
 private:
+	void UpdateCapsules(const USkeleton* InSkeleton);
 	void CreateWidgets();
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 	FGraphAppearanceInfo GetGraphAppearance() const;
@@ -177,6 +183,19 @@ private:
 	// Compute Graph Component and data providers.
 	UComputeGraphComponent* ComputeGraphComponent = nullptr;
 	UDebugSkelMeshComponent* SkeletalMeshComponent = nullptr;
+
+	// An editability wrapper around USkeleton. Used by the Persona viewport for picking
+	// and manipulation.
+	TSharedPtr<IEditableSkeleton> EditableSkeleton;
 	
+	// Bone selection data
+	struct FCapsuleInfo
+	{
+		FName Name;
+		int32 Index;
+	};
+
+	TArray<FCapsuleInfo> CapsuleInfos;
+
 	FOnRefreshEvent RefreshEvent;
 };

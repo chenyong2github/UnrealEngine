@@ -157,23 +157,27 @@ void FSkeletalMeshSkinCacheDataProviderProxy::GetBindings(int32 InvocationIndex,
 {
 	const int32 SectionIdx = InvocationIndex;
 
-	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
-
- 	FRWBuffer* OutputPositionBuffer = GPUSkinCache->GetPositionBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
-	FRWBuffer* OutputTangentBuffer = GPUSkinCache->GetTangentBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
-	if (!ensure(OutputPositionBuffer != nullptr && OutputTangentBuffer != nullptr))
-	{
-		return;
-	}
-
 	FSkinCacheWriteDataInterfaceParameters Parameters;
 	FMemory::Memset(&Parameters, 0, sizeof(FSkinCacheWriteDataInterfaceParameters));
-	Parameters.NumVertices = RenderSection.GetNumVertices();
-	Parameters.OutputStreamStart = RenderSection.GetVertexBufferIndex();
-	Parameters.PositionBufferUAV = OutputPositionBuffer->UAV;
-	Parameters.TangentBufferUAV = OutputTangentBuffer->UAV;
+
+	if (SkeletalMeshObject)
+	{
+		FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
+		FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
+
+		FRWBuffer* OutputPositionBuffer = GPUSkinCache->GetPositionBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
+		FRWBuffer* OutputTangentBuffer = GPUSkinCache->GetTangentBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
+		if (!ensure(OutputPositionBuffer != nullptr && OutputTangentBuffer != nullptr))
+		{
+			return;
+		}
+
+		Parameters.NumVertices = RenderSection.GetNumVertices();
+		Parameters.OutputStreamStart = RenderSection.GetVertexBufferIndex();
+		Parameters.PositionBufferUAV = OutputPositionBuffer->UAV;
+		Parameters.TangentBufferUAV = OutputTangentBuffer->UAV;
+	}
 
 	TArray<uint8> ParamData;
 	ParamData.SetNum(sizeof(FSkinCacheWriteDataInterfaceParameters));

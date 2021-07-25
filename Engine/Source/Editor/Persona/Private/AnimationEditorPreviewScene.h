@@ -325,6 +325,11 @@ public:
 
 	virtual UPersonaSelectionComponent* GetSelectionComponent() override;
 
+	virtual void SetEditableSkeleton(TSharedPtr<IEditableSkeleton> InEditableSkeleton) override
+	{
+		EditableSkeletonPtr = InEditableSkeleton;
+	}
+
 private:
 	/** Set preview mesh internal use only. The mesh should be verified by now. */
 	void SetPreviewMeshInternal(USkeletalMesh* NewPreviewMesh);
