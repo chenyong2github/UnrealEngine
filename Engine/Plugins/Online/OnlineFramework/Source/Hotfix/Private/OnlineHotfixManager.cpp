@@ -873,16 +873,7 @@ FString UOnlineHotfixManager::BuildConfigCacheKey(const FString& IniName)
 {
 	const FString IniNameNoExtension = FPaths::GetBaseFilename(IniName);
 
-	// Known ini files such as Engine, Game, etc.. are referred to as just the name with no extension within the config system.
-	if (GConfig->IsKnownConfigName(FName(*IniNameNoExtension, FNAME_Find)))
-	{
-		return IniNameNoExtension;
-	}
-	else
-	{
-		// Non-known ini files are looked up using their full path.
-		return GConfig->GetDestIniFilename(*IniNameNoExtension, nullptr, *FPaths::GeneratedConfigDir());
-	}
+	return GConfig->GetConfigFilename(*IniNameNoExtension);
 }
 
 FConfigFile* UOnlineHotfixManager::GetConfigFile(const FString& IniName)

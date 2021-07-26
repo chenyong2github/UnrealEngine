@@ -568,8 +568,11 @@ public:
 	/** Checks the command line for any overridden config file settings */
 	CORE_API static bool OverrideFileFromCommandline(FString& Filename);
 
-	/** Appends a new INI file to the SourceIniHierarchy and combines it */
-	CORE_API void AddDynamicLayerToHeirarchy(const FString& Filename);
+	/** Appends a new INI file to the SourceIniHierarchy and combines it with the current contents */
+	CORE_API void AddDynamicLayerToHierarchy(const FString& Filename);
+
+	UE_DEPRECATED(5.0, "Call AddDynamicLayerToHierarchy. You also may need to call GetConfigFilename to get the right FConfigFile")
+	CORE_API void AddDynamicLayerToHeirarchy(const FString& Filename) { AddDynamicLayerToHierarchy(Filename); }
 
 	friend FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile);
 private:
@@ -698,8 +701,22 @@ public:
 	*/
 	virtual void Parse1ToNSectionOfNames(const TCHAR* Section, const TCHAR* KeyOne, const TCHAR* KeyN, TMap<FName, TArray<FName> >& OutMap, const FString& Filename);
 
-	/** Finds Config file based on the final, generated ini name */
-	FConfigFile* FindConfigFile( const FString& Filename );
+	/**
+	 * Finds the in-memory config file for a config cache filename.
+	 *
+	 * @param A known key like GEngineIni, or the return value of GetConfigFilename
+	 *
+	 * @return The existing config file or null if it does not exist in memory
+	 */
+	FConfigFile* FindConfigFile(const FString& Filename);
+
+	/**
+	 * Finds, loads, or creates the in-memory config file for a config cache filename.
+	 * 
+	 * @param A known key like GEngineIni, or the return value of GetConfigFilename
+	 * 
+	 * @return A new or existing config file
+	 */
 	FConfigFile* Find(const FString& InFilename);
 
 	/**
@@ -709,7 +726,7 @@ public:
 	 */
 	bool ContainsConfigFile(const FConfigFile* ConfigFile) const;
 
-	UE_DEPRECATED(5.0, "CreateIfNotFound is deprecated, please use the overload without this parameter")
+	UE_DEPRECATED(5.0, "CreateIfNotFound is deprecated, please use the overload without this parameter or FindConfigFile")
 	FConfigFile* Find(const FString& Filename, bool CreateIfNotFound);
 
 	/** Finds Config file that matches the base name such as "Engine" */
@@ -748,6 +765,16 @@ public:
 	bool RemoveKey( const TCHAR* Section, const TCHAR* Key, const FString& Filename );
 	bool EmptySection( const TCHAR* Section, const FString& Filename );
 	bool EmptySectionsMatchingString( const TCHAR* SectionString, const FString& Filename );
+
+	/**
+	 * For a base ini name, gets the config cache filename key that is used by other functions like Find.
+	 * This will be the base name for known configs like Engine and the destination filename for others.
+	 *
+	 * @param IniBaseName Base name of the .ini (Engine, Game, CustomSystem)
+	 *
+	 * @return Filename key used by other cache functions
+	 */
+	FString GetConfigFilename(const TCHAR* BaseIniName);
 
 	/**
 	 * Retrieve a list of all of the config files stored in the cache
