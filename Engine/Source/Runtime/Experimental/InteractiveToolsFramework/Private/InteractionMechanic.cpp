@@ -46,3 +46,12 @@ void UInteractionMechanic::AddToolPropertySource(UInteractiveToolPropertySet* Pr
 		ParentTool->AddToolPropertySource(PropertySet);
 	}
 }
+
+bool UInteractionMechanic::SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled)
+{
+	if (ParentTool.IsValid())
+	{
+		return ParentTool->SetToolPropertySourceEnabled(PropertySet, bEnabled);
+	}
+	return false;
+}

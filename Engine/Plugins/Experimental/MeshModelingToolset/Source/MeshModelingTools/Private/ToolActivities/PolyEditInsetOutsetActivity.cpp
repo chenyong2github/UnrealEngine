@@ -1,0 +1,239 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "ToolActivities/PolyEditInsetOutsetActivity.h"
+
+#include "BaseBehaviors/SingleClickBehavior.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
+#include "ContextObjectStore.h"
+#include "Drawing/PolyEditPreviewMesh.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "EditMeshPolygonsTool.h"
+#include "InteractiveToolManager.h"
+#include "Mechanics/SpatialCurveDistanceMechanic.h"
+#include "MeshBoundaryLoops.h"
+#include "MeshOpPreviewHelpers.h"
+#include "Operations/InsetMeshRegion.h"
+#include "Selection/PolygonSelectionMechanic.h"
+#include "ToolActivities/PolyEditActivityContext.h"
+#include "ToolActivities/PolyEditActivityUtil.h"
+#include "ToolSceneQueriesUtil.h"
+
+using namespace UE::Geometry;
+
+#define LOCTEXT_NAMESPACE "UPolyEditInsetOutsetActivity"
+
+void UPolyEditInsetOutsetActivity::Setup(UInteractiveTool* ParentToolIn)
+{
+	Super::Setup(ParentToolIn);
+
+	InsetProperties = NewObject<UPolyEditInsetOutsetProperties>();
+	InsetProperties->RestoreProperties(ParentTool.Get());
+	AddToolPropertySource(InsetProperties);
+	SetToolPropertySourceEnabled(InsetProperties, false);
+
+	// Register ourselves to receive clicks and hover
+	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
+	ClickBehavior->Initialize(this);
+	ParentTool->AddInputBehavior(ClickBehavior);
+	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>();
+	HoverBehavior->Initialize(this);
+	ParentTool->AddInputBehavior(HoverBehavior);
+
+	ActivityContext = ParentTool->GetToolManager()->GetContextObjectStore()->FindContext<UPolyEditActivityContext>();
+}
+
+void UPolyEditInsetOutsetActivity::Shutdown(EToolShutdownType ShutdownType)
+{
+	Clear();
+	InsetProperties->SaveProperties(ParentTool.Get());
+
+	InsetProperties = nullptr;
+	ParentTool = nullptr;
+	ActivityContext = nullptr;
+}
+
+bool UPolyEditInsetOutsetActivity::CanStart() const
+{
+	if (!ActivityContext)
+	{
+		return false;
+	}
+	const FGroupTopologySelection& Selection = ActivityContext->SelectionMechanic->GetActiveSelection();
+	return !Selection.SelectedGroupIDs.IsEmpty();
+}
+
+EToolActivityStartResult UPolyEditInsetOutsetActivity::Start()
+{
+	if (!CanStart())
+	{
+		return EToolActivityStartResult::FailedStart;
+	}
+
+	Clear();
+	BeginInset();
+	bIsRunning = true;
+
+	ActivityContext->EmitActivityStart(LOCTEXT("BeginInsetOutsetActivity", "Begin Inset/Outset"));
+
+	return EToolActivityStartResult::Running;
+}
+
+bool UPolyEditInsetOutsetActivity::CanAccept() const
+{
+	return false;
+}
+
+EToolActivityEndResult UPolyEditInsetOutsetActivity::End(EToolShutdownType)
+{
+	Clear();
+	EToolActivityEndResult ToReturn = bIsRunning ? EToolActivityEndResult::Cancelled 
+		: EToolActivityEndResult::ErrorDuringEnd;
+	bIsRunning = false;
+	return ToReturn;
+}
+
+void UPolyEditInsetOutsetActivity::BeginInset()
+{
+	const FGroupTopologySelection& ActiveSelection = ActivityContext->SelectionMechanic->GetActiveSelection();
+	TArray<int32> ActiveTriangleSelection;
+	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
+
+	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+
+	EditPreview = PolyEditActivityUtil::CreatePolyEditPreviewMesh(*ParentTool, *ActivityContext);
+	EditPreview->InitializeInsetType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldTransform);
+
+	// Hide the selected triangles (that are being replaced by the inset/outset portion)
+	ActivityContext->Preview->PreviewMesh->SetSecondaryBuffersVisibility(false);
+
+	// make infinite-extent hit-test mesh
+	FDynamicMesh3 InsetHitTargetMesh;
+	EditPreview->MakeInsetTypeTargetMesh(InsetHitTargetMesh);
+
+	CurveDistMechanic = NewObject<USpatialCurveDistanceMechanic>(this);
+	CurveDistMechanic->Setup(ParentTool.Get());
+	CurveDistMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
+	{
+		return ActivityContext->CommonProperties->bSnapToWorldGrid
+			&& ToolSceneQueriesUtil::FindWorldGridSnapPoint(ParentTool.Get(), WorldPos, SnapPos);
+	};
+	CurveDistMechanic->CurrentDistance = 1.0f;  // initialize to something non-zero...prob should be based on polygon bounds maybe?
+
+	FMeshBoundaryLoops Loops(&InsetHitTargetMesh);
+	TArray<FVector3d> LoopVertices;
+	Loops.Loops[0].GetVertices(LoopVertices);
+	CurveDistMechanic->InitializePolyLoop(LoopVertices, FTransform3d::Identity());
+
+	SetToolPropertySourceEnabled(InsetProperties, true);
+
+	float BoundsMaxDim = ActivityContext->CurrentMesh->GetBounds().MaxDim();
+	if (BoundsMaxDim > 0)
+	{
+		UVScaleFactor = 1.0 / BoundsMaxDim;
+	}
+
+	bPreviewUpdatePending = true;
+}
+
+void UPolyEditInsetOutsetActivity::ApplyInset()
+{
+	check(CurveDistMechanic != nullptr && EditPreview != nullptr);
+
+	const FGroupTopologySelection& ActiveSelection = ActivityContext->SelectionMechanic->GetActiveSelection();
+	TArray<int32> ActiveTriangleSelection;
+	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
+
+	FInsetMeshRegion Inset(ActivityContext->CurrentMesh.Get());
+	Inset.UVScaleFactor = UVScaleFactor;
+	Inset.Triangles = ActiveTriangleSelection;
+	Inset.InsetDistance = (InsetProperties->bOutset) ? -CurveDistMechanic->CurrentDistance
+		: CurveDistMechanic->CurrentDistance;
+	Inset.bReproject = (InsetProperties->bOutset) ? false : InsetProperties->bReproject;
+	Inset.Softness = InsetProperties->Softness;
+	Inset.bSolveRegionInteriors = !InsetProperties->bBoundaryOnly;
+	Inset.AreaCorrection = InsetProperties->AreaScale;
+
+	Inset.ChangeTracker = MakeUnique<FDynamicMeshChangeTracker>(ActivityContext->CurrentMesh.Get());
+	Inset.ChangeTracker->BeginChange();
+	Inset.Apply();
+
+	FMeshNormals::QuickComputeVertexNormalsForTriangles(*ActivityContext->CurrentMesh, Inset.AllModifiedTriangles);
+
+	// Emit undo (also updates relevant structures)
+	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshInsetOutsetChange", "Inset/Outset"),
+		Inset.ChangeTracker->EndChange(), ActiveSelection, true);
+
+	// End activity
+	Clear();
+	bIsRunning = false;
+	Cast<IToolActivityHost>(ParentTool)->NotifyActivitySelfEnded(this);
+}
+
+void UPolyEditInsetOutsetActivity::Clear()
+{
+	if (EditPreview != nullptr)
+	{
+		EditPreview->Disconnect();
+		EditPreview = nullptr;
+	}
+
+	ActivityContext->Preview->PreviewMesh->SetSecondaryBuffersVisibility(true);
+
+	CurveDistMechanic = nullptr;
+	SetToolPropertySourceEnabled(InsetProperties, false);
+}
+
+void UPolyEditInsetOutsetActivity::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	if (CurveDistMechanic != nullptr)
+	{
+		CurveDistMechanic->Render(RenderAPI);
+	}
+}
+
+void UPolyEditInsetOutsetActivity::Tick(float DeltaTime)
+{
+	if (EditPreview && bPreviewUpdatePending)
+	{
+		double Sign = InsetProperties->bOutset ? -1.0 : 1.0;
+		bool bReproject = (InsetProperties->bOutset) ? false : InsetProperties->bReproject;
+		double Softness = InsetProperties->Softness;
+		bool bBoundaryOnly = InsetProperties->bBoundaryOnly;
+		double AreaCorrection = InsetProperties->AreaScale;
+		EditPreview->UpdateInsetType(Sign * CurveDistMechanic->CurrentDistance,
+			bReproject, Softness, AreaCorrection, bBoundaryOnly);
+
+		bPreviewUpdatePending = false;
+	}
+}
+
+FInputRayHit UPolyEditInsetOutsetActivity::IsHitByClick(const FInputDeviceRay& ClickPos)
+{
+	FInputRayHit OutHit;
+	OutHit.bHit = bIsRunning;
+	return OutHit;
+}
+
+void UPolyEditInsetOutsetActivity::OnClicked(const FInputDeviceRay& ClickPos)
+{
+	if (bIsRunning)
+	{
+		ApplyInset();
+	}
+}
+
+FInputRayHit UPolyEditInsetOutsetActivity::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	FInputRayHit OutHit;
+	OutHit.bHit = bIsRunning;
+	return OutHit;
+}
+
+bool UPolyEditInsetOutsetActivity::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	CurveDistMechanic->UpdateCurrentDistance(DevicePos.WorldRay);
+	bPreviewUpdatePending = true;
+	return bIsRunning;
+}
+
+#undef LOCTEXT_NAMESPACE

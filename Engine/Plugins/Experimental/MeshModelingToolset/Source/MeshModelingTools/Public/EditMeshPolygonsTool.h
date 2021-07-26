@@ -3,44 +3,53 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "BaseTools/MeshSurfacePointTool.h"
-#include "Components/DynamicMeshComponent.h"
+
+#include "Changes/MeshVertexChange.h" // IMeshVertexCommandChangeTarget
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
-#include "ToolDataVisualizer.h"
-#include "Transforms/QuickAxisTranslater.h"
-#include "Transforms/QuickAxisRotator.h"
-#include "Changes/MeshVertexChange.h"
-#include "GroupTopology.h"
-#include "Spatial/GeometrySet3.h"
-#include "Selection/GroupTopologySelector.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h" // FDynamicMeshChange for TUniquePtr
+#include "InteractiveToolActivity.h" // IToolActivityHost
+#include "InteractiveToolBuilder.h"
 #include "Operations/GroupTopologyDeformer.h"
-#include "ModelingOperators/Public/ModelingTaskTypes.h"
-#include "Transforms/MultiTransformer.h"
-#include "Selection/PolygonSelectionMechanic.h"
-#include "Mechanics/PlaneDistanceFromHitMechanic.h"
-#include "Mechanics/SpatialCurveDistanceMechanic.h"
-#include "Mechanics/CollectSurfacePathMechanic.h"
-#include "Drawing/PolyEditPreviewMesh.h"
+#include "SingleSelectionTool.h"
+
+#include "GeometryBase.h"
+
 #include "EditMeshPolygonsTool.generated.h"
 
-class FMeshVertexChangeBuilder;
+PREDECLARE_GEOMETRY(class FGroupTopology);
+PREDECLARE_GEOMETRY(struct FGroupTopologySelection);
+
 class UDragAlignmentMechanic;
 class UGroupTopologyStorableSelection;
+class UMeshOpPreviewWithBackgroundCompute; 
+class FMeshVertexChangeBuilder;
+class UPolyEditInsertEdgeActivity;
+class UPolyEditInsertEdgeLoopActivity;
+class UPolyEditExtrudeActivity;
+class UPolyEditInsetOutsetActivity;
+class UPolyEditCutFacesActivity;
+class UPolyEditPlanarProjectionUVActivity;
+class UPolygonSelectionMechanic;
+class UTransformGizmo;	
+class UTransformProxy;
+
 
 /**
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UEditMeshPolygonsToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 public:
 	bool bTriangleMode = false;
 
-	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-};
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
+protected:
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+};
 
 
 UENUM()
@@ -83,19 +92,18 @@ public:
 };
 
 
-
-
-
-
 UENUM()
 enum class EEditMeshPolygonsToolActions
 {
 	NoAction,
-	PlaneCut,
+	CancelCurrent,
 	Extrude,
-	Offset,
-	Inset,
-	Outset,
+	InsetOutset,
+	InsertEdge,
+	InsertEdgeLoop,
+	Complete,
+
+	PlaneCut,
 	Merge,
 	Delete,
 	CutFaces,
@@ -118,10 +126,7 @@ enum class EEditMeshPolygonsToolActions
 	SplitSingleEdge,
 	FlipSingleEdge,
 	CollapseSingleEdge
-
 };
-
-
 
 UCLASS()
 class MESHMODELINGTOOLS_API UEditMeshPolygonsActionModeToolBuilder : public UEditMeshPolygonsToolBuilder
@@ -130,11 +135,8 @@ class MESHMODELINGTOOLS_API UEditMeshPolygonsActionModeToolBuilder : public UEdi
 public:
 	EEditMeshPolygonsToolActions StartupAction = EEditMeshPolygonsToolActions::Extrude;
 
-	virtual void InitializeNewTool(UMeshSurfacePointTool* Tool, const FToolBuilderState& SceneState) const override;
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
-
-
-
 
 UENUM()
 enum class EEditMeshPolygonsToolSelectionMode
@@ -154,13 +156,8 @@ class MESHMODELINGTOOLS_API UEditMeshPolygonsSelectionModeToolBuilder : public U
 public:
 	EEditMeshPolygonsToolSelectionMode SelectionMode = EEditMeshPolygonsToolSelectionMode::Faces;
 
-	virtual void InitializeNewTool(UMeshSurfacePointTool* Tool, const FToolBuilderState& SceneState) const override;
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
-
-
-
-
-
 
 
 
@@ -178,7 +175,7 @@ public:
 };
 
 
-
+/** PolyEdit Actions */
 UCLASS()
 class MESHMODELINGTOOLS_API UEditMeshPolygonsToolActions : public UEditMeshPolygonsToolActionPropertySet
 {
@@ -188,17 +185,9 @@ public:
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Extrude", DisplayPriority = 1))
 	void Extrude() { PostAction(EEditMeshPolygonsToolActions::Extrude); }
 
-	/** Offset the current set of selected faces. Click in viewport to confirm offset distance. */
-	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Offset", DisplayPriority = 2))
-	void Offset() { PostAction(EEditMeshPolygonsToolActions::Offset); }
-
-	/** Inset the current set of selected faces. Click in viewport to confirm inset distance. */
-	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Inset", DisplayPriority = 3))
-	void Inset() { PostAction(EEditMeshPolygonsToolActions::Inset);	}
-
-	/** Outset the current set of selected faces. Click in viewport to confirm outset distance. */
-	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Outset", DisplayPriority = 3))
-	void Outset() { PostAction(EEditMeshPolygonsToolActions::Outset); }
+	/** Inset/Outset the current set of selected faces. Click in viewport to confirm inset/outset distance. */
+	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Inset/Outset", DisplayPriority = 3))
+	void InsetOutset() { PostAction(EEditMeshPolygonsToolActions::InsetOutset);	}
 
 	/** Merge the current set of selected faces into a single face. */
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Merge", DisplayPriority = 4))
@@ -249,17 +238,9 @@ public:
 	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Extrude", DisplayPriority = 1))
 	void Extrude() { PostAction(EEditMeshPolygonsToolActions::Extrude); }
 
-	/** Offset the current set of selected faces. Click in viewport to confirm offset distance. */
-	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Offset", DisplayPriority = 2))
-	void Offset() { PostAction(EEditMeshPolygonsToolActions::Offset); }
-
 	/** Inset the current set of selected faces. Click in viewport to confirm inset distance. */
-	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Inset", DisplayPriority = 3))
-	void Inset() { PostAction(EEditMeshPolygonsToolActions::Inset);	}
-
-	/** Outset the current set of selected faces. Click in viewport to confirm outset distance. */
-	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Outset", DisplayPriority = 3))
-	void Outset() { PostAction(EEditMeshPolygonsToolActions::Outset); }
+	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Inset/Outset", DisplayPriority = 3))
+	void InsetOutset() { PostAction(EEditMeshPolygonsToolActions::InsetOutset);	}
 
 	/** Delete the current set of selected faces */
 	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Delete", DisplayPriority = 4))
@@ -318,15 +299,23 @@ class MESHMODELINGTOOLS_API UEditMeshPolygonsToolEdgeActions : public UEditMeshP
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Weld", DisplayPriority = 1))
+	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "InsertEdgeLoop", DisplayPriority = 1))
+	void InsertEdgeLoop() { PostAction(EEditMeshPolygonsToolActions::InsertEdgeLoop); }
+
+	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Insert Edge", DisplayPriority = 2))
+	void InsertEdge() { PostAction(EEditMeshPolygonsToolActions::InsertEdge); }
+
+	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Weld", DisplayPriority = 3))
 	void Weld() { PostAction(EEditMeshPolygonsToolActions::WeldEdges); }
 
-	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Straighten", DisplayPriority = 1))
+	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Straighten", DisplayPriority = 4))
 	void Straighten() { PostAction(EEditMeshPolygonsToolActions::StraightenEdge); }
 
 	/** Fill the adjacent hole for any selected boundary edges */
-	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Fill Hole", DisplayPriority = 1))
+	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Fill Hole", DisplayPriority = 5))
 	void FillHole()	{ PostAction(EEditMeshPolygonsToolActions::FillHole); }
+
+	
 };
 
 
@@ -354,137 +343,18 @@ public:
 };
 
 
-
-
-UENUM()
-enum class EPolyEditExtrudeDirection
-{
-	SelectionNormal,
-	WorldX,
-	WorldY,
-	WorldZ,
-	LocalX,
-	LocalY,
-	LocalZ
-};
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UPolyEditExtrudeProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = Extrude)
-	EPolyEditExtrudeDirection Direction = EPolyEditExtrudeDirection::SelectionNormal;
-
-	/** Controls whether extruding an entire patch should create a solid or an open shell */
-	UPROPERTY(EditAnywhere, Category = Extrude)
-	bool bShellsToSolids = true;
-};
-
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UPolyEditOffsetProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	/** Offset by averaged face normals instead of per-vertex normals */
-	UPROPERTY(EditAnywhere, Category = Offset)
-	bool bUseFaceNormals = false;
-};
-
-
-
 /**
- * Settings for Inset operation
+ * TODO: This is currently a separate action set so that we can show/hide it depending on whether
+ * we have an activity running. We should have a cleaner alternative.
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UPolyEditInsetProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UEditMeshPolygonsToolCancelAction : public UEditMeshPolygonsToolActionPropertySet
 {
 	GENERATED_BODY()
-
 public:
-	/** Determines whether vertices in inset region should be projected back onto input surface */
-	UPROPERTY(EditAnywhere, Category = Inset)
-	bool bReproject = true;
-
-	/** Amount of smoothing applied to inset boundary */
-	UPROPERTY(EditAnywhere, Category = Inset, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
-	float Softness = 0.5;
-
-	/** Controls whether inset operation will move interior vertices as well as border vertices */
-	UPROPERTY(EditAnywhere, Category = Inset, AdvancedDisplay)
-	bool bBoundaryOnly = false;
-
-	/** Tweak area scaling when solving for interior vertices */
-	UPROPERTY(EditAnywhere, Category = Inset, AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
-	float AreaScale = true;
+	UFUNCTION(CallInEditor, Category = CurrentOperation, meta = (DisplayName = "Cancel", DisplayPriority = 1))
+	void Done() { PostAction(EEditMeshPolygonsToolActions::CancelCurrent); }
 };
-
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UPolyEditOutsetProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	/** Amount of smoothing applied to outset boundary */
-	UPROPERTY(EditAnywhere, Category = Inset, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
-	float Softness = 0.5;
-
-	/** Controls whether outset operation will move interior vertices as well as border vertices */
-	UPROPERTY(EditAnywhere, Category = Inset, AdvancedDisplay)
-	bool bBoundaryOnly = false;
-
-	/** Tweak area scaling when solving for interior vertices */
-	UPROPERTY(EditAnywhere, Category = Inset, AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
-	float AreaScale = true;
-};
-
-
-
-
-
-
-UENUM()
-enum class EPolyEditCutPlaneOrientation
-{
-	FaceNormals,
-	ViewDirection
-};
-
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UPolyEditCutProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = Cut)
-	EPolyEditCutPlaneOrientation Orientation = EPolyEditCutPlaneOrientation::FaceNormals;
-
-	UPROPERTY(EditAnywhere, Category = Cut)
-	bool bSnapToVertices = true;
-};
-
-
-
-
-UCLASS()
-class MESHMODELINGTOOLS_API UPolyEditSetUVProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = PlanarProjectUV)
-	bool bShowMaterial = false;
-};
-
 
 
 
@@ -492,12 +362,11 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public UMeshSurfacePointTool, public IClickBehaviorTarget
+class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public USingleSelectionTool, public IToolActivityHost, public IMeshVertexCommandChangeTarget
 {
 	GENERATED_BODY()
-	using FTransform3d = UE::Geometry::FTransform3d;
 	using FFrame3d = UE::Geometry::FFrame3d;
-	using FAxisAlignedBox3d = UE::Geometry::FAxisAlignedBox3d;
+
 public:
 	UEditMeshPolygonsTool();
 
@@ -513,6 +382,8 @@ public:
 		StoredToolSelection = StoredToolSelectionIn; 
 	}
 
+	virtual void SetWorld(UWorld* World) { this->TargetWorld = World; }
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -523,28 +394,21 @@ public:
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
 
-	// UMeshSurfacePointTool API
-	virtual bool HitTest(const FRay& Ray, FHitResult& OutHit) override;
-	virtual void OnBeginDrag(const FRay& Ray) override;
-	virtual void OnUpdateDrag(const FRay& Ray) override;
-	virtual void OnEndDrag(const FRay& Ray) override;
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
-	virtual void OnEndHover() override;
-
-	// IClickDragBehaviorTarget API
-	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
-
-	// IClickBehaviorTarget API
-	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
-	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
-
 	// IInteractiveToolCameraFocusAPI implementation
 	virtual FBox GetWorldSpaceFocusBox() override;
 	virtual bool GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut) override;
 
+	// IToolActivityHost
+	virtual void NotifyActivitySelfEnded(UInteractiveToolActivity* Activity) override;
+
+	// IMeshVertexCommandChangeTarget
+	virtual void ApplyChange(const FMeshVertexChange* Change, bool bRevert) override;
+
 public:
 
 	virtual void RequestAction(EEditMeshPolygonsToolActions ActionType);
+
+	void SetActionButtonsVisibility(bool bVisible);
 
 protected:
 	// If bTriangleMode = true, then we use a per-triangle FTriangleGroupTopology instead of polygroup topology.
@@ -552,93 +416,95 @@ protected:
 	// This is a fundamental mode switch, must be set before ::Setup() is called!
 	bool bTriangleMode;		
 
-	UPROPERTY()
-	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent = nullptr;
+	TObjectPtr<UWorld> TargetWorld = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UPolyEditCommonProperties> CommonProps;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UEditMeshPolygonsToolActions> EditActions;
-	UPROPERTY()
-	TObjectPtr<UEditMeshPolygonsToolActions_Triangles> EditActions_Triangles;
+	TObjectPtr<UPolyEditCommonProperties> CommonProps = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UEditMeshPolygonsToolEdgeActions> EditEdgeActions;
+	TObjectPtr<UEditMeshPolygonsToolActions> EditActions = nullptr;
 	UPROPERTY()
-	TObjectPtr<UEditMeshPolygonsToolEdgeActions_Triangles> EditEdgeActions_Triangles;
+	TObjectPtr<UEditMeshPolygonsToolActions_Triangles> EditActions_Triangles = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UEditMeshPolygonsToolUVActions> EditUVActions;
+	TObjectPtr<UEditMeshPolygonsToolEdgeActions> EditEdgeActions = nullptr;
+	UPROPERTY()
+	TObjectPtr<UEditMeshPolygonsToolEdgeActions_Triangles> EditEdgeActions_Triangles = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UPolyEditExtrudeProperties> ExtrudeProperties;
+	TObjectPtr<UEditMeshPolygonsToolUVActions> EditUVActions = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UPolyEditOffsetProperties> OffsetProperties;
+	TObjectPtr<UEditMeshPolygonsToolCancelAction> CancelAction = nullptr;
 
+	/**
+	 * Activity objects that handle multi-interaction operations
+	 */
 	UPROPERTY()
-	TObjectPtr<UPolyEditInsetProperties> InsetProperties;
-
+	TObjectPtr<UPolyEditExtrudeActivity> ExtrudeActivity = nullptr;
 	UPROPERTY()
-	TObjectPtr<UPolyEditOutsetProperties> OutsetProperties;
-
+	TObjectPtr<UPolyEditInsetOutsetActivity> InsetOutsetActivity = nullptr;
 	UPROPERTY()
-	TObjectPtr<UPolyEditCutProperties> CutProperties;
-
+	TObjectPtr<UPolyEditCutFacesActivity> CutFacesActivity = nullptr;
 	UPROPERTY()
-	TObjectPtr<UPolyEditSetUVProperties> SetUVProperties;
+	TObjectPtr<UPolyEditPlanarProjectionUVActivity> PlanarProjectionUVActivity = nullptr;
+	UPROPERTY()
+	TObjectPtr<UPolyEditInsertEdgeActivity> InsertEdgeActivity = nullptr;
+	UPROPERTY()
+	TObjectPtr<UPolyEditInsertEdgeLoopActivity> InsertEdgeLoopActivity = nullptr;
 
+	/**
+	 * Points to one of the activities when it is active
+	 */
+	TObjectPtr<UInteractiveToolActivity> CurrentActivity = nullptr;
+
+	TSharedPtr<UE::Geometry::FDynamicMesh3> CurrentMesh;
+	TSharedPtr<UE::Geometry::FGroupTopology> Topology;
+	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3> MeshSpatial;
 
 	UPROPERTY()
 	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic;
 
 	UPROPERTY()
-	TObjectPtr<const UGroupTopologyStorableSelection> StoredToolSelection = nullptr;
-	bool IsStoredToolSelectionUsable(const UGroupTopologyStorableSelection* StoredSelection);
+	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<const UGroupTopologyStorableSelection> StoredToolSelection = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
+
+	FText DefaultMessage;
+
+	bool IsStoredToolSelectionUsable(const UGroupTopologyStorableSelection* StoredSelection);
 	bool bSelectionStateDirty = false;
 	void OnSelectionModifiedEvent();
 
-	UPROPERTY()
-	TObjectPtr<UMultiTransformer> MultiTransformer = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
-
-	void OnMultiTransformerTransformBegin();
-	void OnMultiTransformerTransformUpdate();
-	void OnMultiTransformerTransformEnd();
-	void UpdateMultiTransformerFrame(const FFrame3d* UseFrame = nullptr);
+	void OnBeginGizmoTransform(UTransformProxy* Proxy);
+	void OnEndGizmoTransform(UTransformProxy* Proxy);
+	void OnGizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform);
+	void UpdateGizmoFrame(const FFrame3d* UseFrame = nullptr);
 	FFrame3d LastGeometryFrame;
 	FFrame3d LastTransformerFrame;
 	FFrame3d LockedTransfomerFrame;
+	bool bInGizmoDrag = false;
 
-	// realtime visualization
-	void OnDynamicMeshComponentChanged();
-	FDelegateHandle OnDynamicMeshComponentChangedHandle;
-
-
-	// camera state at last render
 	UE::Geometry::FTransform3d WorldTransform;
-	FViewCameraState CameraState;
-
-	// True for the duration of UI click+drag
-	bool bInDrag;
 
 	FFrame3d InitialGizmoFrame;
 	FVector3d InitialGizmoScale;
-	void CacheUpdate_Gizmo();
 	bool bGizmoUpdatePending = false;
 	FFrame3d LastUpdateGizmoFrame;
 	FVector3d LastUpdateGizmoScale;
 	bool bLastUpdateUsedWorldFrame = false;
 	void ComputeUpdate_Gizmo();
 
-	TUniquePtr<FGroupTopology> Topology;
-	void PrecomputeTopology();
-
-	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
 	UE::Geometry::FDynamicMeshAABBTree3& GetSpatial();
 	bool bSpatialDirty;
 
@@ -647,36 +513,23 @@ protected:
 
 	EEditMeshPolygonsToolActions PendingAction = EEditMeshPolygonsToolActions::NoAction;
 
-	enum class ECurrentToolMode
-	{
-		TransformSelection,
-		ExtrudeSelection,
-		OffsetSelection,
-		InsetSelection,
-		OutsetSelection,
-		CutSelection,
-		SetUVs
-	};
-	ECurrentToolMode CurrentToolMode = ECurrentToolMode::TransformSelection;
-	int32 CurrentOperationTimestamp = 1;
-	bool CheckInOperation(int32 Timestamp) const { return CurrentOperationTimestamp == Timestamp; }
+	int32 ActivityTimestamp = 1;
 
-	void BeginExtrude(bool bIsNormalOffset);
-	void ApplyExtrude(bool bIsOffset);
-	void RestartExtrude();
-	FVector3d GetExtrudeDirection() const;
+	void StartActivity(TObjectPtr<UInteractiveToolActivity> Activity);
+	void EndCurrentActivity();
+	void SetActionButtonPanelsVisible(bool bVisible);
 
-	void BeginInset(bool bOutset);
-	void ApplyInset(bool bOutset);
+	// Emit an undoable change to CurrentMesh and update related structures (preview, spatial, etc)
+	void EmitCurrentMeshChangeAndUpdate(const FText& TransactionLabel,
+		TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn,
+		const UE::Geometry::FGroupTopologySelection& OutputSelection,
+		bool bTopologyChanged);
 
-	void BeginCutFaces();
-	void ApplyCutFaces();
+	// Emit an undoable start of an activity
+	void EmitActivityStart(const FText& TransactionLabel);
 
-	void BeginSetUVs();
-	void UpdateSetUVS();
-	void ApplySetUVs();
+	void UpdateGizmoVisibility();
 
-	void ApplyPlaneCut();
 	void ApplyMerge();
 	void ApplyDelete();
 	void ApplyRecalcNormals();
@@ -699,7 +552,7 @@ protected:
 	FFrame3d ActiveSelectionFrameLocal;
 	FFrame3d ActiveSelectionFrameWorld;
 	TArray<int32> ActiveTriangleSelection;
-	FAxisAlignedBox3d ActiveSelectionBounds;
+	UE::Geometry::FAxisAlignedBox3d ActiveSelectionBounds;
 
 	struct FSelectedEdge
 	{
@@ -708,11 +561,6 @@ protected:
 	};
 	TArray<FSelectedEdge> ActiveEdgeSelection;
 
-	bool bPreviewUpdatePending = false;
-
-	UPROPERTY()
-	TObjectPtr<UPolyEditPreviewMesh> EditPreview;
-
 	enum class EPreviewMaterialType
 	{
 		SourceMaterials, PreviewMaterial, UVMaterial
@@ -720,47 +568,30 @@ protected:
 	void UpdateEditPreviewMaterials(EPreviewMaterialType MaterialType);
 	EPreviewMaterialType CurrentPreviewMaterial;
 
-	UPROPERTY()
-	TObjectPtr<UPlaneDistanceFromHitMechanic> ExtrudeHeightMechanic = nullptr;
-	UPROPERTY()
-	TObjectPtr<USpatialCurveDistanceMechanic> CurveDistMechanic = nullptr;
-	UPROPERTY()
-	TObjectPtr<UCollectSurfacePathMechanic> SurfacePathMechanic = nullptr;
 
 	//
 	// data for current drag
 	//
-
 	UE::Geometry::FGroupTopologyDeformer LinearDeformer;
-	void UpdateDeformerFromSelection(const FGroupTopologySelection& Selection);
-
-
+	void UpdateDeformerFromSelection(const UE::Geometry::FGroupTopologySelection& Selection);
 
 	FMeshVertexChangeBuilder* ActiveVertexChange;
-	void BeginChange();
-	void EndChange();
-	void UpdateChangeFromROI(bool bFinal);
+	void UpdateDeformerChangeFromROI(bool bFinal);
+	void BeginDeformerChange();
+	void EndDeformerChange();
 
 	bool BeginMeshFaceEditChange();
-	bool BeginMeshFaceEditChangeWithPreview();
-	void CompleteMeshEditChange(const FText& TransactionLabel, TUniquePtr<FToolCommandChange> EditChange, const FGroupTopologySelection& OutputSelection);
-	void CancelMeshEditChange();
 
 	bool BeginMeshEdgeEditChange();
 	bool BeginMeshBoundaryEdgeEditChange(bool bOnlySimple);
 	bool BeginMeshEdgeEditChange(TFunctionRef<bool(int32)> GroupEdgeIDFilterFunc);
 
-	void AfterTopologyEdit();
+	void UpdateFromCurrentMesh(bool bGroupTopologyModified);
 	int32 ModifiedTopologyCounter = 0;
 	bool bWasTopologyEdited = false;
 
-	void SetActionButtonPanelsVisible(bool bVisible);
-
-	friend class FEditPolygonsTopologyPreEditChange;
-	friend class FEditPolygonsTopologyPostEditChange;
-	friend class FBeginInteractivePolyEditChange;
-
-
+	friend class FEditMeshPolygonsToolMeshChange;
+	friend class FPolyEditActivityStartChange;
 
 	// custom setup support
 	friend class UEditMeshPolygonsSelectionModeToolBuilder;
@@ -770,41 +601,46 @@ protected:
 };
 
 
-
-
-
-class MESHMODELINGTOOLS_API FEditPolygonsTopologyPreEditChange : public FToolCommandChange
+/**
+ * Wraps a FDynamicMeshChange so that it can be expired and so that other data
+ * structures in the tool can be updated.
+ */
+class MESHMODELINGTOOLS_API FEditMeshPolygonsToolMeshChange : public FToolCommandChange
 {
 public:
+	FEditMeshPolygonsToolMeshChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn, bool bGroupTopologyModified)
+		: MeshChange(MoveTemp(MeshChangeIn))
+		, bGroupTopologyModified(bGroupTopologyModified)
+	{};
+
 	virtual void Apply(UObject* Object) override;
 	virtual void Revert(UObject* Object) override;
 	virtual FString ToString() const override;
+
+protected:
+	TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChange;
+	bool bGroupTopologyModified;
 };
 
-class MESHMODELINGTOOLS_API FEditPolygonsTopologyPostEditChange : public FToolCommandChange
-{
-public:
-	virtual void Apply(UObject* Object) override;
-	virtual void Revert(UObject* Object) override;
-	virtual FString ToString() const override;
-};
 
 
 /**
- * FBeginInteractivePolyEditChange is used to cancel out of an active action on Undo. No action is taken on Redo
+ * FPolyEditActivityStartChange is used to cancel out of an active action on Undo. 
  * No action is taken on Redo, ie we do not re-start the Tool on Redo.
  */
-class MESHMODELINGTOOLS_API FBeginInteractivePolyEditChange : public FToolCommandChange
+class MESHMODELINGTOOLS_API FPolyEditActivityStartChange : public FToolCommandChange
 {
 public:
-	bool bHaveDoneUndo = false;
-	int32 OperationTimestamp = 0;
-	FBeginInteractivePolyEditChange(int32 CurrentTimestamp)
+	FPolyEditActivityStartChange(int32 ActivityTimestampIn)
 	{
-		OperationTimestamp = CurrentTimestamp;
+		ActivityTimestamp = ActivityTimestampIn;
 	}
 	virtual void Apply(UObject* Object) override {}
 	virtual void Revert(UObject* Object) override;
 	virtual bool HasExpired(UObject* Object) const override;
 	virtual FString ToString() const override;
+
+protected:
+	bool bHaveDoneUndo = false;
+	int32 ActivityTimestamp = 0;
 };

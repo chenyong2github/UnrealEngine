@@ -35,8 +35,6 @@ public:
 	TSharedPtr<FUICommandInfo> BeginSculptMeshTool;
 	TSharedPtr<FUICommandInfo> BeginPolyEditTool;
 	TSharedPtr<FUICommandInfo> BeginSubdividePolyTool;
-	TSharedPtr<FUICommandInfo> BeginGroupEdgeInsertionTool;
-	TSharedPtr<FUICommandInfo> BeginEdgeLoopInsertionTool;
 	TSharedPtr<FUICommandInfo> BeginTriEditTool;
 	TSharedPtr<FUICommandInfo> BeginPolyDeformTool;
 	TSharedPtr<FUICommandInfo> BeginSmoothMeshTool;
@@ -120,9 +118,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_RingSelect;
 
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Extrude;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Offset;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Inset;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Outset;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_InsetOutset;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_CutFaces;
 
 
