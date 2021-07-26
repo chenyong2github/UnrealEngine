@@ -2927,7 +2927,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderFog);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFog);
-		RenderFog(GraphBuilder, SceneTextures, LightShaftOcclusionTexture);
+		const FIntPoint LightShaftOcclusionTextureValidExtent = GetDownscaledExtent(SceneTextures.Config.Extent, GetLightShaftDownsampleFactor());
+		RenderFog(GraphBuilder, SceneTextures, LightShaftOcclusionTexture, LightShaftOcclusionTextureValidExtent);
 	}
 
 	// After the height fog, Draw volumetric clouds (having fog applied on them already) when using per pixel tracing,

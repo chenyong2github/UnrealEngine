@@ -16,6 +16,7 @@ float bOnlyOnRenderedOpaque;
 float bUseLinearDepthTexture;
 
 float4 LinearDepthTextureMinMaxUV;
+float4 OcclusionTextureMinMaxUV;
 
 Texture2D OcclusionTexture;
 SamplerState OcclusionSampler;
@@ -64,7 +65,8 @@ void ExponentialPixelMain(
 	float4 HeightFogInscatteringAndOpacity = CalculateHeightFog(WorldPositionRelativeToCamera);
 
 	float4 FogInscatteringAndOpacity = CombineVolumetricFog(HeightFogInscatteringAndOpacity, VolumeUV, 0);
-	float LightShaftMask = Texture2DSample(OcclusionTexture, OcclusionSampler, TexCoord).x;
+	float2 OcclusionTexCoord = clamp(TexCoord, OcclusionTextureMinMaxUV.xy, OcclusionTextureMinMaxUV.zw);
+	float LightShaftMask = Texture2DSample(OcclusionTexture, OcclusionSampler, OcclusionTexCoord).x;
 	FogInscatteringAndOpacity.rgb *= LightShaftMask;
 
 	FogInscatteringAndOpacity.rgb *= View.PreExposure;
