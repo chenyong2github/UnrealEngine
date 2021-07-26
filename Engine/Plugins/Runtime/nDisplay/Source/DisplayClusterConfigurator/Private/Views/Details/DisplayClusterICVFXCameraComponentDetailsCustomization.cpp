@@ -185,13 +185,13 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGrading.bEnableInnerFrustumColorGrading);
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGrading.bEnableInnerFrustumAllNodesColorGrading);
 
 		RENAME_NESTED_CONDITIONAL_PROPERTY(NestedPropertyHelper,
 			UDisplayClusterICVFXCameraComponent,
 			CameraSettings.AllNodesColorGrading,
 			LOCTEXT("AllNodesColorGradingLabel", "All Nodes"),
-			CameraSettings.AllNodesColorGrading.bEnableInnerFrustumColorGrading)
+			CameraSettings.AllNodesColorGrading.bEnableInnerFrustumAllNodesColorGrading)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGrading);
 	END_CATEGORY();
 
