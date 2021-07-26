@@ -597,7 +597,12 @@ void FMemAllocTable::AddDefaultColumns()
 									break;
 								}
 
-								FStringView IgnoreSymbols[] = { TEXT("FMemory::"_SV), TEXT("FMallocWrapper::"_SV) };
+								FStringView IgnoreSymbols[] =
+								{
+									TEXT("FMemory::"_SV),
+									TEXT("FMallocWrapper::"_SV),
+									TEXT("FMallocPoisonProxy::"_SV),
+								};
 
 								bool bMatchIgnoreSymbol = false;
 								for (uint32 IgnoreSymbolsIndex = 0; IgnoreSymbolsIndex < UE_ARRAY_COUNT(IgnoreSymbols); ++IgnoreSymbolsIndex)
