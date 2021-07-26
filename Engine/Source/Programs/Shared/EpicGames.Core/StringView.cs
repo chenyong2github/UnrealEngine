@@ -95,9 +95,7 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public override int GetHashCode()
 		{
-#pragma warning disable RS1024 // Compare symbols correctly
-			return string.GetHashCode(Memory.Span);
-#pragma warning restore RS1024 // Compare symbols correctly
+			return String.GetHashCode(Memory.Span);
 		}
 
 		/// <inheritdoc/>
@@ -163,9 +161,7 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public int GetHashCode(StringView obj)
 		{
-#pragma warning disable RS1024 // Compare symbols correctly
-			return string.GetHashCode(obj.Span);
-#pragma warning restore RS1024 // Compare symbols correctly
+			return String.GetHashCode(obj.Span);
 		}
 
 		/// <inheritdoc/>

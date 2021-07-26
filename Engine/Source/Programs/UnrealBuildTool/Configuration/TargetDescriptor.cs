@@ -449,7 +449,11 @@ namespace UnrealBuildTool
 
 		public override int GetHashCode()
 		{
-			return HashCode.Combine(ProjectFile?.FullName, Name, Platform, Configuration, Architecture, AdditionalArguments);
+			return String.GetHashCode(ProjectFile?.FullName) + 
+				Name.GetHashCode() + 
+				Platform.GetHashCode() + 
+				Configuration.GetHashCode() + 
+				Architecture.GetHashCode();
 		}
 
 		public override bool Equals(object? Obj) 
@@ -462,8 +466,7 @@ namespace UnrealBuildTool
 					Name == Other.Name &&
 					Platform == Other.Platform &&
 					Configuration == Other.Configuration &&
-					Architecture == Other.Architecture &&
-					AdditionalArguments == Other.AdditionalArguments;
+					Architecture == Other.Architecture;
 			}
 			return false;
 		}
