@@ -148,6 +148,7 @@ public:
 	FDisplayClusterConfigurationICVFX_ChromakeyMarkers()
 		// Default chromakey marker color is (0,64,0)
 		: MarkerColor(0,0.25f,0)
+		, MarkerTileOffset(0)
 	{ }
 
 public:
