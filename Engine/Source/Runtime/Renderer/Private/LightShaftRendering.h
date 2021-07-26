@@ -25,3 +25,6 @@ extern bool ShouldRenderLightShafts(const FSceneViewFamily& ViewFamily);
 
 // Returns whether the light proxy is eligible for light shaft rendering. Assumes light shafts are enabled.
 extern bool ShouldRenderLightShaftsForLight(const FViewInfo& View, const FLightSceneProxy& LightSceneProxy);
+
+// Returns the current downsample factor for the light shaft render target.
+extern int32 GetLightShaftDownsampleFactor();

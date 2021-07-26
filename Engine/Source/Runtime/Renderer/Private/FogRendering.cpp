@@ -59,6 +59,7 @@ struct FHeightFogRenderingParameters
 	FIntRect ViewRect;
 	float LinearDepthReadScale = 1.0f;
 	FVector4 LinearDepthMinMaxUV;
+	FVector4 LightShaftOcclusionMinMaxUV;
 };
 
 void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FFogUniformParameters& OutParameters)
@@ -204,6 +205,7 @@ public:
 		bUseLinearDepthTexture.Bind(Initializer.ParameterMap, TEXT("bUseLinearDepthTexture"));
 		UpsampleJitterMultiplier.Bind(Initializer.ParameterMap, TEXT("UpsampleJitterMultiplier"));
 		LinearDepthTextureMinMaxUV.Bind(Initializer.ParameterMap, TEXT("LinearDepthTextureMinMaxUV"));
+		LightShaftOcclusionMinMaxUV.Bind(Initializer.ParameterMap, TEXT("OcclusionTextureMinMaxUV"));
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FHeightFogRenderingParameters& Params, FRHIUniformBuffer* FogUniformBuffer)
@@ -241,6 +243,7 @@ public:
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), LinearDepthTextureMinMaxUV, Params.LinearDepthMinMaxUV);
 		extern int32 GVolumetricFogGridPixelSize;
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UpsampleJitterMultiplier, CVarUpsampleJitterMultiplier.GetValueOnRenderThread() * GVolumetricFogGridPixelSize);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), LightShaftOcclusionMinMaxUV, Params.LightShaftOcclusionMinMaxUV);
 	}
 
 private:
@@ -252,6 +255,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, bUseLinearDepthTexture);
 	LAYOUT_FIELD(FShaderParameter, UpsampleJitterMultiplier);
 	LAYOUT_FIELD(FShaderParameter, LinearDepthTextureMinMaxUV);
+	LAYOUT_FIELD(FShaderParameter, LightShaftOcclusionMinMaxUV);
 };
 
 IMPLEMENT_SHADER_TYPE(template<>,TExponentialHeightFogPS<EHeightFogFeature::HeightFog>,TEXT("/Engine/Private/HeightFogPixelShader.usf"), TEXT("ExponentialPixelMain"),SF_Pixel)
@@ -491,7 +495,7 @@ END_SHADER_PARAMETER_STRUCT()
 void FDeferredShadingSceneRenderer::RenderFog(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	FRDGTextureRef LightShaftOcclusionTexture)
+	FRDGTextureRef LightShaftOcclusionTexture, const FIntPoint& LightShaftOcclusionTextureExtent)
 {
 	if (Scene->ExponentialFogs.Num() > 0 
 		// Fog must be done in the base pass for MSAA to work
@@ -519,13 +523,23 @@ void FDeferredShadingSceneRenderer::RenderFog(
 				PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 
-				GraphBuilder.AddPass(RDG_EVENT_NAME("Fog"), PassParameters, ERDGPassFlags::Raster, [this, &View, bShouldRenderVolumetricFog, LightShaftOcclusionTexture, FogUniformBuffer](FRHICommandList& RHICmdList)
+				GraphBuilder.AddPass(RDG_EVENT_NAME("Fog"), PassParameters, ERDGPassFlags::Raster, [this, &View, bShouldRenderVolumetricFog, LightShaftOcclusionTexture, LightShaftOcclusionTextureExtent, FogUniformBuffer](FRHICommandList& RHICmdList)
 				{
 					FHeightFogRenderingParameters Parameters;
 					Parameters.ViewRect = View.ViewRect;
 					if (LightShaftOcclusionTexture)
 					{
 						Parameters.LightShaftOcclusionRHI = LightShaftOcclusionTexture->GetRHI();
+
+						{
+							const float InvLightShaftOcclusionTextureExtentX = 1.0f / LightShaftOcclusionTextureExtent.X;
+							const float InvLightShaftOcclusionTextureExtentY = 1.0f / LightShaftOcclusionTextureExtent.Y;
+							Parameters.LightShaftOcclusionMinMaxUV = FVector4(
+								0.5f * InvLightShaftOcclusionTextureExtentX,
+								0.5f * InvLightShaftOcclusionTextureExtentY,
+								(LightShaftOcclusionTextureExtent.X - 0.5f) * InvLightShaftOcclusionTextureExtentX,
+								(LightShaftOcclusionTextureExtent.Y - 0.5f) * InvLightShaftOcclusionTextureExtentY);
+						}
 					}
 					RenderViewFog(RHICmdList, View, bShouldRenderVolumetricFog, Parameters, FogUniformBuffer->GetRHI());
 				});
