@@ -58,5 +58,8 @@ public class ShaderCompileWorkerTarget : TargetRules
 
 		// Disable external profiling in ShaderCompiler to improve startup time
 		GlobalDefinitions.Add("UE_EXTERNAL_PROFILING_ENABLED=0");
+
+		// This removes another thread being created even when -nocrashreports is specified
+		GlobalDefinitions.Add("NOINITCRASHREPORTER=1");
 	}
 }
