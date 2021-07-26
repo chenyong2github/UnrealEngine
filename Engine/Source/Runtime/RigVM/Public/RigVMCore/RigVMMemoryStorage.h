@@ -182,6 +182,14 @@ public:
 		return GetData<T>(PropertyIndex, InPropertyPath);
 	}
 
+	static bool CopyProperty(
+		URigVMMemoryStorage* InTargetStorage,
+		int32 InTargetPropertyIndex,
+		const FRigVMPropertyPath& InTargetPropertyPath,
+		URigVMMemoryStorage* InSourceStorage,
+		int32 InSourcePropertyIndex,
+		const FRigVMPropertyPath& InSourcePropertyPath);
+
 protected:
 
 	static FProperty* AddProperty(UClass* InClass, const FPropertyDescription& InProperty, bool bPurge = false, bool bLink = true, FField** LinkToProperty = nullptr);

@@ -251,6 +251,71 @@ URigVMMemoryStorage* URigVMMemoryStorage::CreateStorage(UObject* InOuter, ERigVM
 	return NewObject<URigVMMemoryStorage>(InOuter, Class, NAME_None, RF_Public | RF_Transactional);
 }
 
+bool URigVMMemoryStorage::CopyProperty(
+	URigVMMemoryStorage* InTargetStorage,
+	int32 InTargetPropertyIndex,
+	const FRigVMPropertyPath& InTargetPropertyPath,
+	URigVMMemoryStorage* InSourceStorage,
+	int32 InSourcePropertyIndex,
+	const FRigVMPropertyPath& InSourcePropertyPath)
+{
+	check(InTargetStorage != nullptr);
+	check(InSourceStorage != nullptr);
+
+	const FProperty* TargetProperty = InTargetStorage->GetProperties()[InTargetPropertyIndex];
+	const FProperty* SourceProperty = InSourceStorage->GetProperties()[InSourcePropertyIndex];
+	uint8* TargetPtr = TargetProperty->ContainerPtrToValuePtr<uint8>(InTargetStorage);
+	uint8* SourcePtr = SourceProperty->ContainerPtrToValuePtr<uint8>(InSourceStorage);
+
+	auto TraversePropertyPath = [](const FProperty*& Property, uint8*& MemoryPtr, const FRigVMPropertyPath& PropertyPath)
+	{
+		if(PropertyPath.IsEmpty())
+		{
+			return;
+		}
+
+		MemoryPtr = PropertyPath.GetData<uint8>(MemoryPtr);
+
+		const FRigVMPropertyPathSegment& LastSegment = PropertyPath[PropertyPath.Num() - 1];
+		switch(LastSegment.Type)
+		{
+			case ERigVMPropertyPathSegmentType::ArrayElement:
+			{
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(LastSegment.Property);
+				Property = ArrayProperty->Inner;
+				break;
+			}
+			case ERigVMPropertyPathSegmentType::MapValue:
+			{
+				const FMapProperty* MapProperty = CastFieldChecked<FMapProperty>(LastSegment.Property);
+				Property = MapProperty->ValueProp;
+				break;
+			}
+			case ERigVMPropertyPathSegmentType::StructMember:
+			{
+				Property = LastSegment.Property;
+				break;
+			}
+			default:
+			{
+				checkNoEntry();
+				break;
+			}
+		}
+	};
+
+	TraversePropertyPath(TargetProperty, TargetPtr, InTargetPropertyPath);
+	TraversePropertyPath(SourceProperty, SourcePtr, InSourcePropertyPath);
+	
+	if(!TargetProperty->SameType(SourceProperty))
+	{
+		return false;
+	}
+
+	TargetProperty->CopyCompleteValue(TargetPtr, SourcePtr);
+	return true;
+}
+
 FProperty* URigVMMemoryStorage::AddProperty(UClass* InClass, const FPropertyDescription& InProperty, bool bPurge, bool bLink, FField** LinkToProperty)
 {
 	UClass *SuperClass = URigVMMemoryStorage::StaticClass();
@@ -287,7 +352,7 @@ FProperty* URigVMMemoryStorage::AddProperty(UClass* InClass, const FPropertyDesc
 	else
 	{
 		FFieldVariant PropertyOwner = InClass;
-		FProperty** KeyPropertyPtr = nullptr;
+		// FProperty** KeyPropertyPtr = nullptr;
 		FProperty** ValuePropertyPtr = &Result;
 
 		for(EPinContainerType Container : InProperty.Containers)
@@ -307,7 +372,7 @@ FProperty* URigVMMemoryStorage::AddProperty(UClass* InClass, const FPropertyDesc
 					checkNoEntry(); // this is not implemented yet
 					FMapProperty* MapProperty = new FMapProperty(PropertyOwner, InProperty.Name, RF_Public);
 					*ValuePropertyPtr = MapProperty;
-					KeyPropertyPtr = &MapProperty->KeyProp;
+					// KeyPropertyPtr = &MapProperty->KeyProp;
 					ValuePropertyPtr = &MapProperty->ValueProp;
 					PropertyOwner = MapProperty;
 					break;

@@ -30,6 +30,7 @@ public:
 	FORCEINLINE const FString& ToString() const { return Path; }
 	FORCEINLINE int32 Num() const { return Segments.Num(); }
 	FORCEINLINE bool IsValid() const { return Num() > 0; }
+	FORCEINLINE bool IsEmpty() const { return Num() == 0; }
 	FORCEINLINE const FRigVMPropertyPathSegment& operator[](int32 InIndex) const { return Segments[InIndex]; }
 
 	FORCEINLINE bool operator ==(const FRigVMPropertyPath& Other) const
@@ -59,6 +60,8 @@ public:
 	{
 		return (T*)GetData_Internal(InPtr);
 	}
+
+	static FRigVMPropertyPath Empty;
 
 private:
 
