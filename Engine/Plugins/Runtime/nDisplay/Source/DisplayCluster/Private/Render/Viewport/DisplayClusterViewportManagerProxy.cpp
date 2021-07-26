@@ -242,7 +242,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 					if (bShouldApplyWarpBlend)
 					{
 						// Support warp blend logic
-						if (ViewportProxy->GetPostRenderSettings_RenderThread().Override.IsEnabled())
+						if (ViewportProxy->GetPostRenderSettings_RenderThread().Replace.IsEnabled())
 						{
 							// When used override texture, disable warp blend
 							bShouldApplyWarpBlend = false;

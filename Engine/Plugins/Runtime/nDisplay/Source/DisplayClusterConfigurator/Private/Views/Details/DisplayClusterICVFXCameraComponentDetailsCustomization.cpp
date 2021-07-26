@@ -185,18 +185,24 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory)
-		RENAME_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGrading, LOCTEXT("AllNodesColorGrading", "All Nodes"))
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGrading)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGrading.bEnableInnerFrustumColorGrading);
+
+		RENAME_NESTED_CONDITIONAL_PROPERTY(NestedPropertyHelper,
+			UDisplayClusterICVFXCameraComponent,
+			CameraSettings.AllNodesColorGrading,
+			LOCTEXT("AllNodesColorGradingLabel", "All Nodes"),
+			CameraSettings.AllNodesColorGrading.bEnableInnerFrustumColorGrading)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGrading);
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OverrideCategory)
-		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndOverrideEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Override.bAllowOverride);
-		CREATE_NESTED_PROPERTY_EDITCONDITION_3ARG(TextureRegionEditCondition,     NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Override.bAllowOverride, CameraSettings.RenderSettings.Override.bShouldUseTextureRegion);
+		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndOverrideEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Replace.bAllowReplace);
+		CREATE_NESTED_PROPERTY_EDITCONDITION_3ARG(TextureRegionEditCondition,     NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Replace.bAllowReplace, CameraSettings.RenderSettings.Replace.bShouldUseTextureRegion);
 
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.bAllowOverride, LOCTEXT("bAllowOverrideLabel", "Enable Inner Frustum Override"), CameraEnabledEditCondition)
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.SourceTexture, CameraAndOverrideEditCondition)
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.bShouldUseTextureRegion, CameraAndOverrideEditCondition)
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.TextureRegion, TextureRegionEditCondition)
+		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Replace.bAllowReplace, LOCTEXT("bAllowReplaceLabel", "Enable Inner Frustum Texture Replacement"), CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Replace.SourceTexture, CameraAndOverrideEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Replace.bShouldUseTextureRegion, CameraAndOverrideEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Replace.TextureRegion, TextureRegionEditCondition)
 	END_CATEGORY();
 }
 

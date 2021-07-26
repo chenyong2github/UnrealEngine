@@ -339,7 +339,7 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 	OverscanRendering.Update(*this, RenderTargetRect);
 
 	// Support override feature
-	bool bDisableRender = PostRenderSettings.Override.IsEnabled();
+	bool bDisableRender = PostRenderSettings.Replace.IsEnabled();
 	
 	
 	//Add new contexts

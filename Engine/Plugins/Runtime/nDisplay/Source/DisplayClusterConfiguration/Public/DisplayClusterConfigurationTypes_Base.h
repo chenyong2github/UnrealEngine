@@ -9,6 +9,64 @@
 
 #include "DisplayClusterConfigurationTypes_Base.generated.h"
 
+/**
+ * Texture Replace Crop Origin parameter container
+ */
+USTRUCT(Blueprintable)
+struct DISPLAYCLUSTERCONFIGURATION_API FTextureCropOrigin
+{
+	GENERATED_BODY()
+
+public:
+	// Replace texture origin X location, in pixels
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "X"))
+	int32 X;
+
+	// Replace texture origin Y position, in pixels
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Y"))
+	int32 Y;
+};
+
+/**
+ * Texture Replace Crop Size parameter container
+ */
+USTRUCT(Blueprintable)
+struct DISPLAYCLUSTERCONFIGURATION_API FTextureCropSize
+{
+	GENERATED_BODY()
+
+public:
+	// Replace texture crop width, in pixels
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "W"))
+	int32 W;
+
+	// Replace texture crop height, in pixels
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "H"))
+	int32 H;
+};
+
+/**
+ * Texture Replace Crop parameters container
+ */
+USTRUCT(Blueprintable)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterReplaceTextureCropRectangle
+{
+	GENERATED_BODY()
+
+public:
+	FIntRect ToRect() const;
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Texture Crop Origin"))
+	FTextureCropOrigin Origin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Texture Crop Size"))
+	FTextureCropSize Size;
+};
+
+/**
+ * All configuration UObjects should inherit from this class.
+ */
 USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationRectangle
 {

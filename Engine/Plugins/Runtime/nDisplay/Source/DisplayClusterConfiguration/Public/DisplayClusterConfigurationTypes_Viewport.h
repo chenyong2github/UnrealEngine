@@ -93,8 +93,8 @@ public:
 	FDisplayClusterConfigurationViewport_CustomPostprocess CustomPostprocess;
 
 	// Override viewport render from source texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override")
-	FDisplayClusterConfigurationPostRender_Override Override;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture Replacement")
+	FDisplayClusterConfigurationPostRender_Override Replace;
 
 	// Add postprocess blur to viewport
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", AdvancedDisplay)

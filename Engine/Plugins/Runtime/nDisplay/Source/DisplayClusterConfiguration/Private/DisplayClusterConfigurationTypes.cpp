@@ -29,6 +29,11 @@
 	SAVE_MAP_TO_ARRAY(Map, OutObjects); \
 	
 
+FIntRect FDisplayClusterReplaceTextureCropRectangle::ToRect() const
+{
+	return FIntRect(FIntPoint(Origin.X, Origin.Y), FIntPoint(Origin.X + Size.W, Origin.Y + Size.H));
+}
+
 FIntRect FDisplayClusterConfigurationRectangle::ToRect() const
 {
 	return FIntRect(FIntPoint(X, Y), FIntPoint(X + W, Y + H));

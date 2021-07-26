@@ -245,7 +245,12 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 		END_CATEGORY();
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ColorGradingCategory)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.EntireClusterColorGrading);
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading);
+			RENAME_NESTED_CONDITIONAL_PROPERTY(NestedPropertyHelper,
+				ADisplayClusterRootActor,
+				CurrentConfigData->StageSettings.EntireClusterColorGrading.ColorGradingSettings,
+				LOCTEXT("EntireClusterColorGradingLabel", "Entire Cluster"),
+				CurrentConfigData->StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.PerViewportColorGrading);
 		END_CATEGORY();
 

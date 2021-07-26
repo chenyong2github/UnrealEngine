@@ -112,9 +112,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Use Custom Chromakey"))
 	bool bEnable = false;
 
-	// Debug: override the texture of the camera viewport from this chromakey RTT
+	// Replace the texture of the camera viewport from this chromakey RTT
 	UPROPERTY(BlueprintReadWrite,Category = NDisplay, meta = (EditCondition = "bEnable"))
-	bool bOverrideCameraViewport = false;
+	bool bReplaceCameraViewport = false;
 
 	// Performance: Use custom size (low-res) for chromakey RTT frame. Default size same as camera frame
 	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
@@ -124,9 +124,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Custom Chromakey Content"))
 	FDisplayClusterConfigurationICVFX_VisibilityList ShowOnlyList;
 
-	// Override viewport render from source texture
+	// Replace viewport render from source texture
 	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
-	FDisplayClusterConfigurationPostRender_Override Override;
+	FDisplayClusterConfigurationPostRender_Override Replace;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Post Process Blur"))
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
@@ -212,13 +212,13 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Lightca
 	GENERATED_BODY()
 
 public:
-	// Debug: override the texture of the target viewport from this lightcard RTT
+	// override the texture of the target viewport from this lightcard RTT
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
-	bool bOverrideViewport = false;
+	bool bReplaceViewport = false;
 
 	// Override viewport render from source texture
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
-	FDisplayClusterConfigurationPostRender_Override Override;
+	FDisplayClusterConfigurationPostRender_Override Replace;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
@@ -314,9 +314,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	bool bUseCameraComponentPostprocess = true;
 
-	// Override viewport render from source texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
-	FDisplayClusterConfigurationPostRender_Override Override;
+	// Replace viewport render from source texture
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mipmapping"))
+	FDisplayClusterConfigurationPostRender_Override Replace;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
@@ -335,19 +335,19 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraM
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (DisplayName = "Enable Settings Override"))
-	bool bOverrideEnable = false;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (DisplayName = "Enable Settings Replace"))
+	bool bReplaceEnable = false;
 
 	/** Strength of motion blur, 0:off, should be renamed to intensity */
-	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "1.0", editcondition = "bOverrideEnable", DisplayName = "Amount"))
+	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "1.0", editcondition = "bReplaceEnable", DisplayName = "Amount"))
 	float MotionBlurAmount = 1;
 
 	/** max distortion caused by motion blur, in percent of the screen width, 0:off */
-	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "100.0", editcondition = "bOverrideEnable", DisplayName = "Max"))
+	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "100.0", editcondition = "bReplaceEnable", DisplayName = "Max"))
 	float MotionBlurMax = 50;
 
 	/** The minimum projected screen radius for a primitive to be drawn in the velocity pass, percentage of screen width. smaller numbers cause more draw calls, default: 4% */
-	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", UIMax = "100.0", editcondition = "bOverrideEnable", DisplayName = "Per Object Size"))
+	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", UIMax = "100.0", editcondition = "bReplaceEnable", DisplayName = "Per Object Size"))
 	float MotionBlurPerObjectSize = 4;
 };
 
@@ -363,8 +363,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	float TranslationScale = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Motion Blur Settings Override"))
-	FDisplayClusterConfigurationICVFX_CameraMotionBlurOverridePPS OverrideMotionBlurPPS;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Motion Blur Settings"))
+	FDisplayClusterConfigurationICVFX_CameraMotionBlurOverridePPS MotionBlurPPS;
 };
 
 USTRUCT(BlueprintType)
@@ -434,7 +434,7 @@ public:
 
 	// Inner Frustum Color Grading look configuration
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "All Nodes Color Grading", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))
-		FDisplayClusterConfigurationViewport_AllNodesColorGrading AllNodesColorGrading;
+	FDisplayClusterConfigurationViewport_AllNodesColorGrading AllNodesColorGrading;
 
 	// Define special per-node Inner Frustum Color Grading
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Per-Node Color Grading", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))

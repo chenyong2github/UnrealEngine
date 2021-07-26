@@ -22,20 +22,20 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Ov
 
 public:
 	// Disable default render, and resolve SourceTexture to viewport
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
-	bool bAllowOverride = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Enable Viewport Texture Replacement"))
+	bool bAllowReplace = false;
 
 	// This texture resolved to target
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAllowOverride"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAllowReplace"))
 	UTexture2D* SourceTexture = nullptr;
 
 	// Use TextureRegion rect on SourceTexture to resolve
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Use Texture Crop", EditCondition = "bAllowOverride"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Use Texture Crop", EditCondition = "bAllowReplace"))
 	bool bShouldUseTextureRegion = false;
 
 	// Resolve this region from OverrideTexture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Texture Crop", EditCondition = "bAllowOverride && bShouldUseTextureRegion"))
-	FDisplayClusterConfigurationRectangle TextureRegion;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Texture Crop", EditCondition = "bAllowReplace && bShouldUseTextureRegion"))
+	FDisplayClusterReplaceTextureCropRectangle TextureRegion;
 };
 
 USTRUCT(Blueprintable)

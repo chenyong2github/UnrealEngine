@@ -32,15 +32,9 @@ static bool ImplUpdatePerViewportColorGrading(FDisplayClusterViewport& DstViewpo
 	// Check and apply the overall cluster post process settings
 	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
 
-	// enable entire cluster
-	bool bUseEntireClusterPostProcess = true;
-
-	// if entire cluster is disabled or disable per specific viewport - disable entire component too
-	if (!StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading || !PerViewportColorGrading.bIsEntireClusterEnabled)
-	{
-		bUseEntireClusterPostProcess = false;
-	}
-
+	// enable entire cluster only when global settings is on
+	bool bUseEntireClusterPostProcess = StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading & PerViewportColorGrading.bIsEntireClusterEnabled;
+	
 	FDisplayClusterConfigurationViewport_CustomPostprocessSettings FinalPerViewportColorGrading;
 	FinalPerViewportColorGrading.bIsEnabled = true;
 	FinalPerViewportColorGrading.bIsOneFrame = true;
@@ -96,10 +90,12 @@ static bool ImplUpdateIncameraPerNodeColorGrading(FDisplayClusterViewport& DstVi
 	FinalPerNodeColorGrading.bIsOneFrame = true;
 	FinalPerNodeColorGrading.BlendWeight = 1;
 
+	const bool bIncludeUseEntireClusterPostProcess = StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading & PerNodeColorGrading.bEntireClusterColorGrading;
+	const bool bIncludeAllNodesColorGrading = AllNodesColorGrading.bEnableEntireClusterColorGrading & PerNodeColorGrading.bAllNodesColorGrading;
 
-	if (PerNodeColorGrading.bEntireClusterPostProcess)
+	if (bIncludeUseEntireClusterPostProcess)
 	{
-		if (PerNodeColorGrading.bAllNodesPostProcess)
+		if (bIncludeAllNodesColorGrading)
 		{
 			// all three options are enabled - cluster + all + node
 			FDisplayClusterViewportConfigurationHelpers_Postprocess::PerNodeBlendPostProcessSettings(FinalPerNodeColorGrading.PostProcessSettings, StageSettings.EntireClusterColorGrading.ColorGradingSettings, AllNodesColorGrading.ColorGradingSettings, PerNodeColorGrading.ColorGradingSettings);
@@ -122,7 +118,7 @@ static bool ImplUpdateIncameraPerNodeColorGrading(FDisplayClusterViewport& DstVi
 		// entire cluster settings disabled, only all nodes cases
 		FinalPerNodeColorGrading.BlendWeight = AllNodesColorGrading.ColorGradingSettings.BlendWeight;
 
-		if (PerNodeColorGrading.bAllNodesPostProcess)
+		if (bIncludeAllNodesColorGrading)
 		{
 			// all nodes + node
 			FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(FinalPerNodeColorGrading.PostProcessSettings, AllNodesColorGrading.ColorGradingSettings, PerNodeColorGrading.ColorGradingSettings);
@@ -150,7 +146,10 @@ static bool ImplUpdateIncameraAllNodesColorGrading(FDisplayClusterViewport& DstV
 
 	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
 
-	if (AllNodesColorGrading.bEnableEntireClusterColorGrading)
+	// enable entire cluster only when global settings is on
+	const bool bEnableEntireClusterColorGrading = StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading & AllNodesColorGrading.bEnableEntireClusterColorGrading;
+
+	if (bEnableEntireClusterColorGrading)
 	{
 		FinalAllNodesColorGrading.BlendWeight = StageSettings.EntireClusterColorGrading.ColorGradingSettings.BlendWeight;
 		
@@ -264,8 +263,8 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCameraPostPr
 		CameraPPS.PostProcessSettings = DesiredView.PostProcessSettings;
 	}
 
-	const FDisplayClusterConfigurationICVFX_CameraMotionBlurOverridePPS& OverrideMotionBlurPPS = CameraSettings.CameraMotionBlur.OverrideMotionBlurPPS;
-	if (OverrideMotionBlurPPS.bOverrideEnable)
+	const FDisplayClusterConfigurationICVFX_CameraMotionBlurOverridePPS& OverrideMotionBlurPPS = CameraSettings.CameraMotionBlur.MotionBlurPPS;
+	if (OverrideMotionBlurPPS.bReplaceEnable)
 	{
 		// Send camera postprocess to override
 		CameraPPS.bIsEnabled = true;

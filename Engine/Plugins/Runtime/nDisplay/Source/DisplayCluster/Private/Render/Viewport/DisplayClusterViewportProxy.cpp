@@ -118,13 +118,13 @@ bool FDisplayClusterViewportProxy::GetResources_RenderThread(const EDisplayClust
 				//Support Override:
 				if (Contexts[ContextIt].bDisableRender)
 				{
-					if (!PostRenderSettings.Override.TextureRHI.IsValid())
+					if (!PostRenderSettings.Replace.TextureRHI.IsValid())
 					{
 						OutResources.Empty();
 						return false;
 					}
 
-					OutResources[ContextIt] = PostRenderSettings.Override.TextureRHI->GetTexture2D();
+					OutResources[ContextIt] = PostRenderSettings.Replace.TextureRHI->GetTexture2D();
 				}
 				else
 				{
@@ -216,7 +216,7 @@ bool FDisplayClusterViewportProxy::GetResourcesWithRects_RenderThread(const EDis
 			if (Contexts[ContextIt].bDisableRender)
 			{
 				// Get image from Override
-				OutResourceRects[ContextIt] = PostRenderSettings.Override.Rect;
+				OutResourceRects[ContextIt] = PostRenderSettings.Replace.Rect;
 			}
 			else
 			{

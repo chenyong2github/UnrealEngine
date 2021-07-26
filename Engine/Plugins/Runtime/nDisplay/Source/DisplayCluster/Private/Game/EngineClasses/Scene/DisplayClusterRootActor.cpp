@@ -630,7 +630,7 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 		{
 			if (ViewportItem.Value)
 			{
-				ViewportItem.Value->RenderSettings.Override.bAllowOverride = bReplace;
+				ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
 			}
 		}
 	}
@@ -647,7 +647,7 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 			{
 				if (ViewportItem.Value)
 				{
-					ViewportItem.Value->RenderSettings.Override.bAllowOverride = bReplace;
+					ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
 				}
 			}
 		}

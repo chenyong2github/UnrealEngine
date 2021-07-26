@@ -235,7 +235,7 @@ bool FDisplayClusterViewportConfigurationHelpers_ICVFX::IsCameraUsed(UDisplayClu
 		return false;
 	}
 
-	if (CameraSettings.RenderSettings.Override.bAllowOverride && CameraSettings.RenderSettings.Override.SourceTexture == nullptr)
+	if (CameraSettings.RenderSettings.Replace.bAllowReplace && CameraSettings.RenderSettings.Replace.SourceTexture == nullptr)
 	{
 		// RenderSettings.Override require source texture
 		return false;
@@ -348,7 +348,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 	// Apply postprocess for camera
 	FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCameraPostProcessSettings(DstViewport, RootActor, InCameraComponent);
 
-	FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Override(DstViewport, CameraSettings.RenderSettings.Override);
+	FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Override(DstViewport, CameraSettings.RenderSettings.Replace);
 	FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_PostprocessBlur(DstViewport, CameraSettings.RenderSettings.PostprocessBlur);
 	FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_GenerateMips(DstViewport, CameraSettings.RenderSettings.GenerateMips);
 
@@ -384,12 +384,12 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportS
 	// UDisplayClusterConfigurationICVFX_ChromakeyRenderSettings
 	const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings& InRenderSettings = ChromakeySettings.ChromakeyRenderTexture;
 	{
-		FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Override(DstViewport, InRenderSettings.Override);
+		FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Override(DstViewport, InRenderSettings.Replace);
 		FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_PostprocessBlur(DstViewport, InRenderSettings.PostprocessBlur);
 		FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_GenerateMips(DstViewport, InRenderSettings.GenerateMips);
 
 		// Update visibility settings only for rendered viewports
-		if (!DstViewport.PostRenderSettings.Override.IsEnabled())
+		if (!DstViewport.PostRenderSettings.Replace.IsEnabled())
 		{
 			check(FDisplayClusterViewportConfigurationHelpers_Visibility::IsValid(InRenderSettings.ShowOnlyList));
 
@@ -414,7 +414,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportS
 	}
 
 	// Debug: override the texture of the target viewport from this chromakeyRTT
-	if (ChromakeySettings.ChromakeyRenderTexture.bOverrideCameraViewport)
+	if (ChromakeySettings.ChromakeyRenderTexture.bReplaceCameraViewport)
 	{
 		InCameraViewport.RenderSettings.OverrideViewportId = DstViewport.GetId();
 		InCameraViewport.RenderSettings.bSkipRendering = true;
@@ -427,7 +427,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chr
 	{
 		if (InChromakeySettings.ChromakeyRenderTexture.bEnable)
 		{
-			if (InChromakeySettings.ChromakeyRenderTexture.bOverrideCameraViewport)
+			if (InChromakeySettings.ChromakeyRenderTexture.bReplaceCameraViewport)
 			{
 				InOutCameraSettings.ChromakeySource = EDisplayClusterShaderParametersICVFX_ChromakeySource::Disabled;
 				return;
@@ -481,9 +481,9 @@ bool FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseLightcard(con
 		return false;
 	}
 
-	if (InLightcardSettings.RenderSettings.Override.bAllowOverride)
+	if (InLightcardSettings.RenderSettings.Replace.bAllowReplace)
 	{
-		if (InLightcardSettings.RenderSettings.Override.SourceTexture == nullptr)
+		if (InLightcardSettings.RenderSettings.Replace.SourceTexture == nullptr)
 		{
 			// LightcardSettings.Override require source texture.
 			return false;
@@ -538,12 +538,12 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 
 	const FDisplayClusterConfigurationICVFX_LightcardRenderSettings& InRenderSettings = LightcardSettings.RenderSettings;
 	{
-		FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Override(DstViewport, InRenderSettings.Override);
+		FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Override(DstViewport, InRenderSettings.Replace);
 		FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_PostprocessBlur(DstViewport, InRenderSettings.PostprocessBlur);
 		FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_GenerateMips(DstViewport, InRenderSettings.GenerateMips);
 
 		// Update visibility settings only for rendered viewports
-		if (!DstViewport.PostRenderSettings.Override.IsEnabled())
+		if (!DstViewport.PostRenderSettings.Replace.IsEnabled())
 		{
 			check(FDisplayClusterViewportConfigurationHelpers_Visibility::IsValid(LightcardSettings.ShowOnlyList));
 
@@ -572,7 +572,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 		};
 	}
 	// Debug: override the texture of the target viewport from this lightcard RTT
-	if (InRenderSettings.bOverrideViewport)
+	if (InRenderSettings.bReplaceViewport)
 	{
 		BaseViewport.RenderSettings.OverrideViewportId = DstViewport.GetId();
 		BaseViewport.RenderSettings.bSkipRendering = true;
