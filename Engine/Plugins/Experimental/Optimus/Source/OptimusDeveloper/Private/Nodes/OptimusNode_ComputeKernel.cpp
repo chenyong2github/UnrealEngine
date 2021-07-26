@@ -325,7 +325,15 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					TArray<FShaderFunctionDefinition> WriteFunctions;
 					DataInterface->GetSupportedOutputs(WriteFunctions);
 
-					WriteConnectionDefs.Add({DataInterface, WriteFunctions[UTransientBufferDataInterface::WriteValueOutputIndex].Name, TEXT("Transient")});
+					// This is a horrible hack for detecting interlocked writes
+					// TODO: Either express this via the kernel metadata or add full support for buffer data interface in graph editor.
+					int32 WriteValueOutputIndex = UTransientBufferDataInterface::WriteValueOutputIndex;
+					if (Pin->GetName().Contains(TEXT("Interlocked")) && WriteFunctions.Num() > WriteValueOutputIndex + 1)
+					{
+						++WriteValueOutputIndex;
+					}
+
+					WriteConnectionDefs.Add({DataInterface, WriteFunctions[WriteValueOutputIndex].Name, TEXT("Transient")});
 				}
 				
 				for (const UOptimusNodePin* ConnectedPin: ConnectedPins)
