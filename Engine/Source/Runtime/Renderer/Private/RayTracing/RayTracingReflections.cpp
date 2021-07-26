@@ -728,7 +728,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 					RDG_EVENT_NAME("ReflectionRayTracingGatherMaterials %dx%d", TileAlignedResolution.X, TileAlignedResolution.Y),
 					PassParameters,
 					ERDGPassFlags::Compute,
-					[PassParameters, this, &View, RayGenShader, TileAlignedResolution](FRHICommandList& RHICmdList)
+					[PassParameters, this, &View, RayGenShader, TileAlignedResolution](FRHIRayTracingCommandList& RHICmdList)
 				{
 					FRayTracingPipelineState* Pipeline = View.RayTracingMaterialGatherPipeline;
 
@@ -756,7 +756,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 						RDG_EVENT_NAME("ReflectionRayTracing(spp=%d) %dx%d", Options.SamplesPerPixel, RayTracingResolution.X, RayTracingResolution.Y),
 						PassParameters,
 						ERDGPassFlags::Compute,
-						[PassParameters, this, &View, RayGenShader, RayTracingResolution, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHICommandList& RHICmdList)
+						[PassParameters, this, &View, RayGenShader, RayTracingResolution, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHIRayTracingCommandList& RHICmdList)
 					{
 						FRayTracingShaderBindingsWriter GlobalResources;
 						SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
@@ -799,7 +799,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 								RDG_EVENT_NAME("ReflectionRayTracing(spp=%d) %dx%d", Options.SamplesPerPixel, DispatchSizeX, DispatchSizeY),
 								TilePassParameters,
 								ERDGPassFlags::Compute,
-								[TilePassParameters, this, &View, RayGenShader, DispatchSizeX, DispatchSizeY, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHICommandList& RHICmdList)
+								[TilePassParameters, this, &View, RayGenShader, DispatchSizeX, DispatchSizeY, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHIRayTracingCommandList& RHICmdList)
 							{
 								FRayTracingShaderBindingsWriter GlobalResources;
 								SetShaderParameters(GlobalResources, RayGenShader, *TilePassParameters);

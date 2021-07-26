@@ -10,7 +10,6 @@
 #include "RenderGraphUtils.h"
 #include "PipelineStateCache.h"
 
-
 /** All utils for ray generation shaders. */
 struct RENDERCORE_API FRayGenShaderUtils
 {
@@ -29,7 +28,7 @@ struct RENDERCORE_API FRayGenShaderUtils
 			Forward<FRDGEventName>(PassName),
 			Parameters,
 			ERDGPassFlags::Compute,
-			[RayGenerationShader, Parameters, Resolution](FRHICommandList& RHICmdList)
+			[RayGenerationShader, Parameters, Resolution](FRHIRayTracingCommandList& RHICmdList)
 		{
 			FRayTracingShaderBindingsWriter GlobalResources;
 			SetShaderParameters(GlobalResources, RayGenerationShader, *Parameters);

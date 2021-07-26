@@ -641,7 +641,7 @@ void RenderDirectLightIntoLumenCards(
 		RDG_EVENT_NAME("%s %s", *LightName, bDynamicallyShadowed ? TEXT("Shadowmap") : TEXT("")),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, LightSceneInfo, VertexShader, PixelShader, GlobalShaderMap = View.ShaderMap, LightFunctionMaterialProxy, &Material, &View, CardIndirectArgOffset](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, LightSceneInfo, VertexShader, PixelShader, GlobalShaderMap = View.ShaderMap, LightFunctionMaterialProxy, &Material, &View, CardIndirectArgOffset](FRHICommandList& RHICmdList)
 		{
 			DrawQuadsToAtlas(
 				MaxAtlasSize,

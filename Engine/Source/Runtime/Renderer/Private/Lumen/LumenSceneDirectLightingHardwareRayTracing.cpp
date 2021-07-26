@@ -437,7 +437,7 @@ void RenderLumenHardwareRayTracingDirectLighting(
 			RDG_EVENT_NAME("LumenDirectLightingHardwareRayTracingRGS (%d) %ux%u ", Lights.Num(), DispatchResolution.X, DispatchResolution.Y),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHICommandList& RHICmdList)
+			[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
