@@ -23,21 +23,59 @@ public:
 
 	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle()
 		: Ptr(nullptr)
+		, Property(nullptr) 
+		, PropertyPath(nullptr)
 	{}
 
-	FORCEINLINE_DEBUGGABLE uint8* GetData()
+	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle(uint8* InPtr, const FProperty* InProperty,  const FRigVMPropertyPath* InPropertyPath = nullptr)
+		: Ptr(InPtr)
+		, Property(InProperty)
+		, PropertyPath(InPropertyPath)
 	{
-		return Ptr;
+		if(PropertyPath)
+		{
+			if(PropertyPath->IsDirect())
+			{
+				Ptr = PropertyPath->GetData<uint8>(Ptr);
+				PropertyPath = nullptr;
+			}
+		}
 	}
 
-	FORCEINLINE_DEBUGGABLE const uint8* GetData() const
+	FORCEINLINE uint8* GetData(bool bFollowPropertyPath = false)
 	{
-		return Ptr;
+		return GetData_Internal(bFollowPropertyPath);
+	}
+
+	FORCEINLINE const uint8* GetData(bool bFollowPropertyPath = false) const
+	{
+		return GetData_Internal(bFollowPropertyPath);
+	}
+
+	FORCEINLINE const FProperty* GetProperty() const
+	{
+		return Property;
+	}
+
+	FORCEINLINE const FRigVMPropertyPath* GetPropertyPath() const
+	{
+		return PropertyPath;
 	}
 
 private:
+
+	FORCEINLINE uint8* GetData_Internal(bool bFollowPropertyPath = false) const
+	{
+		if(bFollowPropertyPath && PropertyPath != nullptr)
+		{
+			return PropertyPath->GetData<uint8>(Ptr);
+		}
+		return Ptr;
+	}
 	
 	uint8* Ptr;
+	const FProperty* Property;
+	const FRigVMPropertyPath* PropertyPath;
 
 	friend class URigVM;
 };
@@ -182,18 +220,34 @@ public:
 		return GetData<T>(PropertyIndex, InPropertyPath);
 	}
 
+	FString GetDataAsString(int32 InPropertyIndex);
+	
+	FORCEINLINE FString GetDataAsStringByName(const FName& InName)
+	{
+		const int32 PropertyIndex = GetPropertyIndexByName(InName);
+		return GetDataAsString(PropertyIndex);
+	}
+
+	bool SetDataFromString(int32 InPropertyIndex, const FString& InValue);
+
+	FORCEINLINE bool SetDataFromStringByName(const FName& InName, const FString& InValue)
+	{
+		const int32 PropertyIndex = GetPropertyIndexByName(InName);
+		return SetDataFromString(PropertyIndex, InValue);
+	}
+
 	static bool CopyProperty(
 		const FProperty* InTargetProperty,
 		uint8* InTargetPtr,
 		const FProperty* InSourceProperty,
-		uint8* InSourcePtr);
+		const uint8* InSourcePtr);
 
 	static bool CopyProperty(
 		const FProperty* InTargetProperty,
 		uint8* InTargetPtr,
 		const FRigVMPropertyPath& InTargetPropertyPath,
 		const FProperty* InSourceProperty,
-		uint8* InSourcePtr,
+		const uint8* InSourcePtr,
 		const FRigVMPropertyPath& InSourcePropertyPath);
 
 	static bool CopyProperty(
@@ -203,6 +257,14 @@ public:
 		URigVMMemoryStorage* InSourceStorage,
 		int32 InSourcePropertyIndex,
 		const FRigVMPropertyPath& InSourcePropertyPath);
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
+	static bool CopyProperty(
+		FRigVMMemoryHandle& TargetHandle,
+		FRigVMMemoryHandle& SourceHandle);
+	
+#endif
 
 protected:
 

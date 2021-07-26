@@ -32,6 +32,7 @@ public:
 	FORCEINLINE bool IsValid() const { return Num() > 0; }
 	FORCEINLINE bool IsEmpty() const { return Num() == 0; }
 	FORCEINLINE const FRigVMPropertyPathSegment& operator[](int32 InIndex) const { return Segments[InIndex]; }
+	bool IsDirect() const;
 
 	FORCEINLINE bool operator ==(const FRigVMPropertyPath& Other) const
 	{

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMMemoryStorage.h"
+#include "RigVMModule.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -251,11 +252,54 @@ URigVMMemoryStorage* URigVMMemoryStorage::CreateStorage(UObject* InOuter, ERigVM
 	return NewObject<URigVMMemoryStorage>(InOuter, Class, NAME_None, RF_Public | RF_Transactional);
 }
 
+FString URigVMMemoryStorage::GetDataAsString(int32 InPropertyIndex)
+{
+	check(IsValidIndex(InPropertyIndex));
+	const uint8* Data = GetData<uint8>(InPropertyIndex);
+
+	FString Value;
+	GetProperties()[InPropertyIndex]->ExportTextItem(Value, Data, nullptr, nullptr, PPF_None);
+	return Value;
+}
+
+class FRigVMMemoryStorageImportErrorContext : public FOutputDevice
+{
+public:
+
+	int32 NumErrors;
+
+	FRigVMMemoryStorageImportErrorContext()
+		: FOutputDevice()
+		, NumErrors(0)
+	{
+	}
+
+	FORCEINLINE_DEBUGGABLE void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+	{
+#if WITH_EDITOR
+		UE_LOG(LogRigVM, Display, TEXT("Skipping Importing To MemoryStorage: %s"), V);
+#else
+		UE_LOG(LogRigVM, Error, TEXT("Error Importing To MemoryStorage: %s"), V);
+#endif
+		NumErrors++;
+	}
+};
+
+bool URigVMMemoryStorage::SetDataFromString(int32 InPropertyIndex, const FString& InValue)
+{
+	check(IsValidIndex(InPropertyIndex));
+	uint8* Data = GetData<uint8>(InPropertyIndex);
+	
+	FRigVMMemoryStorageImportErrorContext ErrorPipe;
+	GetProperties()[InPropertyIndex]->ImportText(*InValue, Data, EPropertyPortFlags::PPF_None, nullptr, &ErrorPipe);
+	return ErrorPipe.NumErrors == 0;
+}
+
 bool URigVMMemoryStorage::CopyProperty(
 	const FProperty* InTargetProperty,
 	uint8* InTargetPtr,
 	const FProperty* InSourceProperty,
-	uint8* InSourcePtr)
+	const uint8* InSourcePtr)
 {
 	check(InTargetProperty != nullptr);
 	check(InSourceProperty != nullptr);
@@ -276,7 +320,7 @@ bool URigVMMemoryStorage::CopyProperty(
 	uint8* InTargetPtr,
 	const FRigVMPropertyPath& InTargetPropertyPath,
 	const FProperty* InSourceProperty,
-	uint8* InSourcePtr,
+	const uint8* InSourcePtr,
 	const FRigVMPropertyPath& InSourcePropertyPath)
 {
 	check(InTargetProperty != nullptr);
@@ -321,10 +365,11 @@ bool URigVMMemoryStorage::CopyProperty(
 		}
 	};
 
+	uint8* SourcePtr = (uint8*)InSourcePtr;
 	TraversePropertyPath(InTargetProperty, InTargetPtr, InTargetPropertyPath);
-	TraversePropertyPath(InSourceProperty, InSourcePtr, InSourcePropertyPath);
+	TraversePropertyPath(InSourceProperty, SourcePtr, InSourcePropertyPath);
 
-	return CopyProperty(InTargetProperty, InTargetPtr, InSourceProperty, InSourcePtr);
+	return CopyProperty(InTargetProperty, InTargetPtr, InSourceProperty, SourcePtr);
 }
 
 bool URigVMMemoryStorage::CopyProperty(
@@ -345,6 +390,21 @@ bool URigVMMemoryStorage::CopyProperty(
 
 	return CopyProperty(TargetProperty, TargetPtr, InTargetPropertyPath, SourceProperty, SourcePtr, InSourcePropertyPath);
 }
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+bool URigVMMemoryStorage::CopyProperty(
+	FRigVMMemoryHandle& TargetHandle,
+	FRigVMMemoryHandle& SourceHandle)
+{
+	return CopyProperty(
+		TargetHandle.GetProperty(),
+		TargetHandle.GetData(true),
+		SourceHandle.GetProperty(),
+		SourceHandle.GetData(true));
+}
+
+#endif
 
 FProperty* URigVMMemoryStorage::AddProperty(UClass* InClass, const FPropertyDescription& InProperty, bool bPurge, bool bLink, FField** LinkToProperty)
 {

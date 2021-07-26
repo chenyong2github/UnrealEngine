@@ -122,6 +122,26 @@ FRigVMPropertyPath::FRigVMPropertyPath(const FRigVMPropertyPath& InOther)
 {
 }
 
+bool FRigVMPropertyPath::IsDirect() const
+{
+	for(const FRigVMPropertyPathSegment& Segment : Segments)
+	{
+		switch(Segment.Type)
+		{
+			case ERigVMPropertyPathSegmentType::ArrayElement:
+			case ERigVMPropertyPathSegmentType::MapValue:
+			{
+				return true;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+	return false;
+}
+
 uint8* FRigVMPropertyPath::GetData_Internal(uint8* InPtr) const
 {
 	for(const FRigVMPropertyPathSegment& Segment : Segments)
