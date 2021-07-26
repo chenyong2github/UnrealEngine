@@ -7,7 +7,7 @@ using UnrealBuildTool;
 
 public class TextureFormatOodle : ModuleRules
 {
-	protected virtual string OodleVersion { get { return "2.9.2"; } }
+	protected virtual string OodleVersion { get { return "2.9.3"; } }
 
 	// Platform Extensions need to override these
 	protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
