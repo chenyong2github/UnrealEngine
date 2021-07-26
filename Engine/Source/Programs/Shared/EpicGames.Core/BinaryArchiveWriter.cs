@@ -29,9 +29,7 @@ namespace EpicGames.Core
 
 			int IEqualityComparer<object>.GetHashCode(object X)
 			{
-#pragma warning disable RS1024 // Compare symbols correctly (https://github.com/dotnet/roslyn/issues/49386)
 				return RuntimeHelpers.GetHashCode(X);
-#pragma warning restore RS1024 // Compare symbols correctly
 			}
 		}
 

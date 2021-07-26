@@ -28,7 +28,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Blake3" Version="0.3.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="3.10.0" />
     <PackageReference Include="System.Memory" Version="4.5.4" />
   </ItemGroup>
   <ItemGroup>

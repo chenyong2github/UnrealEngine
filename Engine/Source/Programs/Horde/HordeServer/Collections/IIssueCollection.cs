@@ -127,9 +127,7 @@ namespace HordeServer.Collections
 		/// <returns>The hashcode value</returns>
 		public override int GetHashCode()
 		{
-#pragma warning disable RS1024 // Compare symbols correctly
 			int Result = string.GetHashCode(Type, StringComparison.Ordinal);
-#pragma warning restore RS1024 // Compare symbols correctly
 			foreach (string Key in Keys)
 			{
 				Result = HashCode.Combine(Result, Key);
