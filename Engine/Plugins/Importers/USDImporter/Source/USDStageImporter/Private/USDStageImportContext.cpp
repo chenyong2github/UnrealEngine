@@ -25,6 +25,8 @@ FUsdStageImportContext::FUsdStageImportContext()
 	ImportedAsset = nullptr;
 	AssetCache = nullptr;
 	OriginalMetersPerUnit = 0.01f;
+	TargetSceneActorTargetTransform = FTransform::Identity;
+	TargetSceneActorAttachParent = nullptr;
 }
 
 bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePath, const FString& InInitialPackagePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport, bool bAllowActorImport)

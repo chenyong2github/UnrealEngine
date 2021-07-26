@@ -24,6 +24,13 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 
 	UWorld* World;
 
+	/**
+	 * Whenever we spawn the scene actor, it should have this local transform and be attached to this parent.
+	 * We use this so that Actions->Import can spawn the scene actor exactly where the original stage actor was
+	 */
+	FTransform TargetSceneActorTargetTransform;
+	USceneComponent* TargetSceneActorAttachParent;
+
 	/** Spawned actor that contains the imported scene as a child hierarchy */
 	UPROPERTY()
 	AActor* SceneActor;
