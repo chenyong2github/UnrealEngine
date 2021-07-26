@@ -24,15 +24,28 @@ public class OnlineSubsystemUtils : ModuleRules
             PrivateIncludePaths.Add(RuntimePath + "Windows/XAudio2/Private");
         }
 
+        if (Target.bCompileAgainstEngine)
+        {
+            PublicDependencyModuleNames.AddRange(
+                new string[] {
+                    "Engine"
+				}
+            );
 
-		PrivateDependencyModuleNames.AddRange(
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"Voice",
+					"AudioMixer"
+				}
+			);
+        }
+
+        PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"ImageCore",
 				"Sockets",
-				"Voice",
 				"PacketHandler",
 				"Json",
-				"AudioMixer",
 				"SignalProcessing",
 				"AudioMixerCore",
 				"DeveloperSettings"
@@ -44,8 +57,7 @@ public class OnlineSubsystemUtils : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"NetCore",
-				"Engine"
+				"NetCore"
 			}
 		);
 
