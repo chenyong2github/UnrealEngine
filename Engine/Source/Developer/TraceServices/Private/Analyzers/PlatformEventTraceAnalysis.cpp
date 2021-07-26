@@ -8,11 +8,11 @@ namespace TraceServices
 {
 
 FPlatformEventTraceAnalyzer::FPlatformEventTraceAnalyzer(IAnalysisSession& InSession,
-														 FContextSwitchProvider& ContextSwitchProvider,
-														 FStackSampleProvider& StackSampleProvider)
+														 FContextSwitchesProvider& InContextSwitchesProvider,
+														 FStackSamplesProvider& InStackSamplesProvider)
 	: Session(InSession)
-	, ContextSwitchProvider(ContextSwitchProvider)
-	, StackSampleProvider(StackSampleProvider)
+	, ContextSwitchesProvider(InContextSwitchesProvider)
+	, StackSamplesProvider(InStackSamplesProvider)
 {
 }
 
@@ -38,7 +38,7 @@ bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FO
 		double End = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("EndTime"));
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		uint32 CoreNumber = EventData.GetValue<uint8>("CoreNumber");
-		ContextSwitchProvider.Add(ThreadId, Start, End, CoreNumber);
+		ContextSwitchesProvider.Add(ThreadId, Start, End, CoreNumber);
 
 		Session.UpdateDurationSeconds(End);
 
@@ -50,7 +50,7 @@ bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FO
 		double Time = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Time"));
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		const TArrayReader<uint64>& Addresses = EventData.GetArray<uint64>("Addresses");
-		StackSampleProvider.Add(ThreadId, Time, Addresses.Num(), Addresses.GetData());
+		StackSamplesProvider.Add(ThreadId, Time, Addresses.Num(), Addresses.GetData());
 
 		Session.UpdateDurationSeconds(Time);
 
@@ -65,7 +65,7 @@ bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FO
 void FPlatformEventTraceAnalyzer::OnThreadInfo(const FThreadInfo& ThreadInfo)
 {
 	FAnalysisSessionEditScope _(Session);
-	ContextSwitchProvider.AddThreadInfo(ThreadInfo.GetId(), ThreadInfo.GetSystemId());
+	ContextSwitchesProvider.AddThreadInfo(ThreadInfo.GetId(), ThreadInfo.GetSystemId());
 }
 
 } // namespace TraceServices

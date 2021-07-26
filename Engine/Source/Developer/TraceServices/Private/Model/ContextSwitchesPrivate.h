@@ -9,31 +9,49 @@
 namespace TraceServices
 {
 
-class FContextSwitchProvider
-	: public IContextSwitchProvider
+class FContextSwitchesProvider
+	: public IContextSwitchesProvider
 {
 public:
 	static const FName ProviderName;
 
-	explicit FContextSwitchProvider(IAnalysisSession& Session);
-	virtual ~FContextSwitchProvider();
-
-	int32 GetCoreNumber(uint32 ThreadId, double Time) const override;
-	const void EnumerateContextSwitches(uint32 ThreadId, double StartTime, double EndTime, ContextSwitchCallback Callback) const override;
-
-	void Add(uint32 ThreadId, double Start, double End, uint32 CoreNumber);
-	void AddThreadInfo(uint32 TraceThreadId, uint32 SystemThreadId);
+	explicit FContextSwitchesProvider(IAnalysisSession& Session);
+	virtual ~FContextSwitchesProvider();
 
 	virtual bool HasData() const override;
+	bool GetSystemThreadId(uint32 ThreadId, uint32& OutSystemThreadId) const override;
+	bool GetThreadId(uint32 SystemThreadId, uint32& OutThreadId) const override;
+	bool GetSystemThreadId(uint32 CoreNumber, double Time, uint32& OutSystemThreadId) const override;
+	bool GetThreadId(uint32 CoreNumber, double Time, uint32& OutThreadId) const override;
+	bool GetCoreNumber(uint32 ThreadId, double Time, uint32& OutCoreNumber) const override;
+	uint64 GetThreadsSerial() const override { return uint64(Threads.Num()); }
+	uint64 GetCpuCoresSerial() const override { return uint64(NumCpuCores); }
+	uint32 GetNumCpuCoresWithEvents() const { return NumCpuCores; }
+	uint32 GetExclusiveMaxCpuCoreNumber() const { return CpuCores.Num(); }
+	void EnumerateCpuCores(CpuCoreCallback Callback) const override;
+	void EnumerateContextSwitches(uint32 ThreadId, double StartTime, double EndTime, ContextSwitchCallback Callback) const override;
+	void EnumerateCpuCoreEvents(uint32 CoreNumber, double StartTime, double EndTime, CpuCoreEventCallback Callback) const override;
+
+	void Add(uint32 SystemThreadId, double Start, double End, uint32 CoreNumber);
+	void AddThreadInfo(uint32 ThreadId, uint32 SystemThreadId);
 
 private:
 	const TPagedArray<FContextSwitch>* GetContextSwitches(uint32 ThreadId) const;
 
 	IAnalysisSession& Session;
+
+	// (Trace) Thread Id -> System Thread Id
+	TMap<uint32, uint32> TraceToSystemThreadIdMap;
+
+	// System Thread Id -> (Trace) Thread Id
+	TMap<uint32, uint32> SystemToTraceThreadIdMap;
+
 	// System Thread Id -> PagedArray
 	TMap<uint32, TPagedArray<FContextSwitch>*> Threads;
-	// Trace Thread Id -> System Thread Id
-	TMap<uint32, uint32> ThreadIdMap;
+
+	// [Core Number] -> PagedArray; some can be nullptr
+	TArray<TPagedArray<FCpuCoreEvent>*> CpuCores;
+	uint32 NumCpuCores;
 };
 
 } // namespace TraceServices

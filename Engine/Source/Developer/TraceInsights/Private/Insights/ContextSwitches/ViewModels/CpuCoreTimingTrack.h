@@ -18,44 +18,38 @@ class FContextSwitchesSharedState;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FContextSwitchesTimingTrack : public FTimingEventsTrack
+class FCpuCoreTimingTrack : public FTimingEventsTrack
 {
-	INSIGHTS_DECLARE_RTTI(FContextSwitchesTimingTrack, FTimingEventsTrack)
+	INSIGHTS_DECLARE_RTTI(FCpuCoreTimingTrack, FTimingEventsTrack)
 
 public:
-	explicit FContextSwitchesTimingTrack(FContextSwitchesSharedState& InSharedState, const FString& InName, uint32 InTimelineIndex, uint32 InThreadId)
+	explicit FCpuCoreTimingTrack(FContextSwitchesSharedState& InSharedState, const FString& InName, uint32 InCoreNumber)
 		: FTimingEventsTrack(InName)
 		, SharedState(InSharedState)
-		, TimelineIndex(InTimelineIndex)
-		, ThreadId(InThreadId)
+		, CoreNumber(InCoreNumber)
 	{
 	}
 
-	virtual ~FContextSwitchesTimingTrack() {}
+	virtual ~FCpuCoreTimingTrack() {}
 
-	uint32 GetTimelineIndex() const { return TimelineIndex; }
-	uint32 GetThreadId() const { return ThreadId; }
+	uint32 GetCoreNumber() const { return CoreNumber; }
 
 	virtual void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 	virtual void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
 
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
-	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 
 protected:
 	virtual const TSharedPtr<const ITimingEvent> GetEvent(double InTime, double SecondsPerPixel, int32 Depth) const override;
 
-	void DrawLineEvents(const ITimingTrackDrawContext& Context, const float OffsetY = 1.0f) const;
-
 private:
 	FContextSwitchesSharedState& SharedState;
 
-	uint32 TimelineIndex;
-	uint32 ThreadId;
+	uint32 CoreNumber;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-} //namespace Insights
+} // namespace Insights

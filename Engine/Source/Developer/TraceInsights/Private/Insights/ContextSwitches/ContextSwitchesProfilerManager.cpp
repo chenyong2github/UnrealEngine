@@ -3,15 +3,12 @@
 #include "ContextSwitchesProfilerManager.h"
 
 #include "Features/IModularFeatures.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Modules/ModuleManager.h"
-#include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/ContextSwitches.h"
 
-#include "Insights/ContextSwitches/ViewModels/ContextSwitchesTimingTrack.h"
-#include "Insights/InsightsStyle.h"
+#include "Insights/ContextSwitches/ViewModels/ContextSwitchesSharedState.h"
 #include "Insights/TimingProfilerManager.h"
-#include "Insights/ViewModels/ThreadTimingTrack.h"
-#include "Insights/ViewModels/ThreadTrackEvent.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
 
@@ -137,7 +134,7 @@ bool FContextSwitchesProfilerManager::Tick(float DeltaTime)
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			const TraceServices::IContextSwitchProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchProvider(*Session.Get());
+			const TraceServices::IContextSwitchesProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchesProvider(*Session.Get());
 			if (ContextSwitchesProvider && ContextSwitchesProvider->HasData())
 			{
 				TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();

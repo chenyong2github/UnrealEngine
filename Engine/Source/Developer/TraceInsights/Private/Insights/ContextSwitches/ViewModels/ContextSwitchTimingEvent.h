@@ -17,11 +17,22 @@ public:
 	FContextSwitchTimingEvent(const TSharedRef<const FBaseTimingTrack> InTrack, double InStartTime, double InEndTime, uint32 InDepth);
 	virtual ~FContextSwitchTimingEvent() {}
 
-	void SetCoreNumber(uint32 InCoreNumber) { CoreNumber = InCoreNumber; }
-	uint32 GetCoreNumber() const { return CoreNumber; }
+	void SetCoreNumber(uint32 InCoreNumber) { SetType((uint64)InCoreNumber); }
+	uint32 GetCoreNumber() const { return (uint32)GetType(); }
+};
 
-private:
-	uint32 CoreNumber = 0;
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FCpuCoreTimingEvent : public FTimingEvent
+{
+	INSIGHTS_DECLARE_RTTI(FCpuCoreTimingEvent, FTimingEvent)
+
+public:
+	FCpuCoreTimingEvent(const TSharedRef<const FBaseTimingTrack> InTrack, double InStartTime, double InEndTime, uint32 InDepth);
+	virtual ~FCpuCoreTimingEvent() {}
+
+	void SetSystemThreadId(uint32 InSystemThreadId) { SetType((uint64)InSystemThreadId); }
+	uint32 GetSystemThreadId() const { return (uint32)GetType(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
