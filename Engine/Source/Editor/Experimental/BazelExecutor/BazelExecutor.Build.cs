@@ -11,7 +11,7 @@ namespace UnrealBuildTool.Rules
 		{
 			if (!IsVcPackageSupported)
 			{
-				// Grpc is currently only supported for Win64, Linux, & LinuxAArch64, set to external to prevent compiling for any other platform
+				// Grpc is currently only supported for Win64, Linux, LinuxAArch64, & Mac, set to external to prevent compiling for any other platform
 				Type = ModuleType.External;
 				PrecompileForTargets = PrecompileTargetsType.None;
 				return;

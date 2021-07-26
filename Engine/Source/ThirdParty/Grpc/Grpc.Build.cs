@@ -15,6 +15,11 @@ public class Grpc : ModuleRules
 		{
 			return;
 		}
+		if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			// Required for c-ares
+			PublicSystemLibraries.Add("resolv");
+		}
 
 		PublicDependencyModuleNames.Add("OpenSSL");
 		PublicDependencyModuleNames.Add("zlib");

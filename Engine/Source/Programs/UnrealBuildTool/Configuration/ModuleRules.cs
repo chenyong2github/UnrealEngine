@@ -1491,7 +1491,8 @@ namespace UnrealBuildTool
 			{
 				return Target.Platform == UnrealTargetPlatform.Win64 ||
 					Target.Platform == UnrealTargetPlatform.Linux ||
-					Target.Platform == UnrealTargetPlatform.LinuxArm64;
+					Target.Platform == UnrealTargetPlatform.LinuxArm64 ||
+					Target.Platform == UnrealTargetPlatform.Mac;
 			}
 		}
 
@@ -1532,6 +1533,11 @@ namespace UnrealBuildTool
 				Architecture = "aarch64";
 				Platform = "unknown-linux-gnueabi";
 			}
+			else if (Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				Architecture = "x86_64";
+				Platform = "osx";
+			}
 
 			if (string.IsNullOrEmpty(TargetPlatform) || string.IsNullOrEmpty(Platform) || string.IsNullOrEmpty(Architecture))
 			{
@@ -1563,7 +1569,7 @@ namespace UnrealBuildTool
 			{
 				LibraryExtension = ".lib";
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxArm64)
+			else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxArm64 || Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				LibraryExtension = ".a";
 			}
@@ -1571,7 +1577,7 @@ namespace UnrealBuildTool
 			foreach (string Library in Libraries)
 			{
 				string LibraryPath = Path.Combine(VcPackageRoot, "lib", $"{Library}{LibraryExtension}");
-				if ((Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxArm64) && !Library.StartsWith("lib"))
+				if ((Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxArm64 || Target.Platform == UnrealTargetPlatform.Mac) && !Library.StartsWith("lib"))
 				{
 					LibraryPath = Path.Combine(VcPackageRoot, "lib", $"lib{Library}{LibraryExtension}");
 				}
