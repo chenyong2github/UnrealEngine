@@ -183,6 +183,20 @@ public:
 	}
 
 	static bool CopyProperty(
+		const FProperty* InTargetProperty,
+		uint8* InTargetPtr,
+		const FProperty* InSourceProperty,
+		uint8* InSourcePtr);
+
+	static bool CopyProperty(
+		const FProperty* InTargetProperty,
+		uint8* InTargetPtr,
+		const FRigVMPropertyPath& InTargetPropertyPath,
+		const FProperty* InSourceProperty,
+		uint8* InSourcePtr,
+		const FRigVMPropertyPath& InSourcePropertyPath);
+
+	static bool CopyProperty(
 		URigVMMemoryStorage* InTargetStorage,
 		int32 InTargetPropertyIndex,
 		const FRigVMPropertyPath& InTargetPropertyPath,

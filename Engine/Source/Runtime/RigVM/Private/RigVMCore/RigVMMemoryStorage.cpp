@@ -252,6 +252,82 @@ URigVMMemoryStorage* URigVMMemoryStorage::CreateStorage(UObject* InOuter, ERigVM
 }
 
 bool URigVMMemoryStorage::CopyProperty(
+	const FProperty* InTargetProperty,
+	uint8* InTargetPtr,
+	const FProperty* InSourceProperty,
+	uint8* InSourcePtr)
+{
+	check(InTargetProperty != nullptr);
+	check(InSourceProperty != nullptr);
+	check(InTargetPtr != nullptr);
+	check(InSourcePtr != nullptr);
+
+	if(!InTargetProperty->SameType(InSourceProperty))
+	{
+		return false;
+	}
+
+	InTargetProperty->CopyCompleteValue(InTargetPtr, InSourcePtr);
+	return true;
+}
+
+bool URigVMMemoryStorage::CopyProperty(
+	const FProperty* InTargetProperty,
+	uint8* InTargetPtr,
+	const FRigVMPropertyPath& InTargetPropertyPath,
+	const FProperty* InSourceProperty,
+	uint8* InSourcePtr,
+	const FRigVMPropertyPath& InSourcePropertyPath)
+{
+	check(InTargetProperty != nullptr);
+	check(InSourceProperty != nullptr);
+	check(InTargetPtr != nullptr);
+	check(InSourcePtr != nullptr);
+
+	auto TraversePropertyPath = [](const FProperty*& Property, uint8*& MemoryPtr, const FRigVMPropertyPath& PropertyPath)
+	{
+		if(PropertyPath.IsEmpty())
+		{
+			return;
+		}
+
+		MemoryPtr = PropertyPath.GetData<uint8>(MemoryPtr);
+
+		const FRigVMPropertyPathSegment& LastSegment = PropertyPath[PropertyPath.Num() - 1];
+		switch(LastSegment.Type)
+		{
+		case ERigVMPropertyPathSegmentType::ArrayElement:
+			{
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(LastSegment.Property);
+				Property = ArrayProperty->Inner;
+				break;
+			}
+		case ERigVMPropertyPathSegmentType::MapValue:
+			{
+				const FMapProperty* MapProperty = CastFieldChecked<FMapProperty>(LastSegment.Property);
+				Property = MapProperty->ValueProp;
+				break;
+			}
+		case ERigVMPropertyPathSegmentType::StructMember:
+			{
+				Property = LastSegment.Property;
+				break;
+			}
+		default:
+			{
+				checkNoEntry();
+				break;
+			}
+		}
+	};
+
+	TraversePropertyPath(InTargetProperty, InTargetPtr, InTargetPropertyPath);
+	TraversePropertyPath(InSourceProperty, InSourcePtr, InSourcePropertyPath);
+
+	return CopyProperty(InTargetProperty, InTargetPtr, InSourceProperty, InSourcePtr);
+}
+
+bool URigVMMemoryStorage::CopyProperty(
 	URigVMMemoryStorage* InTargetStorage,
 	int32 InTargetPropertyIndex,
 	const FRigVMPropertyPath& InTargetPropertyPath,
@@ -267,53 +343,7 @@ bool URigVMMemoryStorage::CopyProperty(
 	uint8* TargetPtr = TargetProperty->ContainerPtrToValuePtr<uint8>(InTargetStorage);
 	uint8* SourcePtr = SourceProperty->ContainerPtrToValuePtr<uint8>(InSourceStorage);
 
-	auto TraversePropertyPath = [](const FProperty*& Property, uint8*& MemoryPtr, const FRigVMPropertyPath& PropertyPath)
-	{
-		if(PropertyPath.IsEmpty())
-		{
-			return;
-		}
-
-		MemoryPtr = PropertyPath.GetData<uint8>(MemoryPtr);
-
-		const FRigVMPropertyPathSegment& LastSegment = PropertyPath[PropertyPath.Num() - 1];
-		switch(LastSegment.Type)
-		{
-			case ERigVMPropertyPathSegmentType::ArrayElement:
-			{
-				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(LastSegment.Property);
-				Property = ArrayProperty->Inner;
-				break;
-			}
-			case ERigVMPropertyPathSegmentType::MapValue:
-			{
-				const FMapProperty* MapProperty = CastFieldChecked<FMapProperty>(LastSegment.Property);
-				Property = MapProperty->ValueProp;
-				break;
-			}
-			case ERigVMPropertyPathSegmentType::StructMember:
-			{
-				Property = LastSegment.Property;
-				break;
-			}
-			default:
-			{
-				checkNoEntry();
-				break;
-			}
-		}
-	};
-
-	TraversePropertyPath(TargetProperty, TargetPtr, InTargetPropertyPath);
-	TraversePropertyPath(SourceProperty, SourcePtr, InSourcePropertyPath);
-	
-	if(!TargetProperty->SameType(SourceProperty))
-	{
-		return false;
-	}
-
-	TargetProperty->CopyCompleteValue(TargetPtr, SourcePtr);
-	return true;
+	return CopyProperty(TargetProperty, TargetPtr, InTargetPropertyPath, SourceProperty, SourcePtr, InSourcePropertyPath);
 }
 
 FProperty* URigVMMemoryStorage::AddProperty(UClass* InClass, const FPropertyDescription& InProperty, bool bPurge, bool bLink, FField** LinkToProperty)
