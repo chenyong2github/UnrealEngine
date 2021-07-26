@@ -82,6 +82,7 @@ private:
 	// parameter name option function
 	FText GetParameterNameText() const;
 	void OnParameterNameCommited(const FText& InText, ETextCommit::Type InCommitType);
+	bool OnVerifyParameterNameChanged(const FText& InLabel, FText& OutErrorMessage);
 
 	// default value option functions
 	bool GetDefaultOptionEnabled() const;
