@@ -1657,7 +1657,7 @@ inline void FRHIPooledRenderQuery::ReleaseQuery()
 
 inline FRHIPooledRenderQuery::~FRHIPooledRenderQuery()
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 	ReleaseQuery();
 }
 
