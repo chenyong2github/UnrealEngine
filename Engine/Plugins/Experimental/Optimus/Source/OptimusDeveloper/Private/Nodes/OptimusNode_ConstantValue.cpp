@@ -72,42 +72,25 @@ FOptimusDataTypeRef UOptimusNode_ConstantValue::GetDataType() const
 
 TArray<uint8> UOptimusNode_ConstantValue::GetShaderValue() const
 {
-	TArray<uint8> ValueResult;
-
 	// FIXME: Check for value node chaining.
-	// TODO: Move FProperty value conversion to type registry.
 
 	const UOptimusNodePin *ValuePin = FindPinFromPath({TEXT("Value")});
 	if (ensure(ValuePin))
 	{
 		const FProperty *ValueProperty = ValuePin->GetPropertyFromPin();
-		if (ensure(ValueProperty))
+		FOptimusDataTypeRef DataType = GetDataType();
+		if (ensure(ValueProperty) && ensure(DataType.IsValid()))
 		{
-			const void* ValueData = ValueProperty->ContainerPtrToValuePtr<uint8>(this);
-			
-			if (const FBoolProperty *BoolProperty = CastField<FBoolProperty>(ValueProperty))
+			const uint8* ValueData = ValueProperty->ContainerPtrToValuePtr<uint8>(this);
+
+			TArray<uint8> ValueResult;
+			ValueData = DataType->ConvertPropertyValueToShader(ValueData, ValueResult);
+			if (ValueData)
 			{
-				ValueResult.SetNumUninitialized(4);
-				*reinterpret_cast<int32 *>(ValueResult.GetData()) = BoolProperty->GetPropertyValue(ValueData) ? 1 : 0; 
+				return ValueResult;
 			}
-			else if (const FIntProperty *Int32Property = CastField<FIntProperty>(ValueProperty))
-			{
-				ValueResult.SetNumUninitialized(4);
-				*reinterpret_cast<int32 *>(ValueResult.GetData()) = Int32Property->GetPropertyValue(ValueData); 
-			}
-			else if (const FUInt32Property *UInt32Property = CastField<FUInt32Property>(ValueProperty))
-			{
-				ValueResult.SetNumUninitialized(4);
-				*reinterpret_cast<uint32 *>(ValueResult.GetData()) = UInt32Property->GetPropertyValue(ValueData); 
-			}
-			else if (const FFloatProperty *FloatProperty = CastField<FFloatProperty>(ValueProperty))
-			{
-				ValueResult.SetNumUninitialized(4);
-				*reinterpret_cast<float *>(ValueResult.GetData()) = FloatProperty->GetPropertyValue(ValueData); 
-			}
-			// ....
 		}
 	}
 	
-	return ValueResult;
+	return {};
 }

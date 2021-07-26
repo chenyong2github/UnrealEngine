@@ -54,6 +54,24 @@ FProperty* FOptimusDataType::CreateProperty(
 }
 
 
+const uint8* FOptimusDataType::ConvertPropertyValueToShader(
+	const uint8* InValue,
+	TArray<uint8>& OutConvertedValue
+	) const
+{
+	const FOptimusDataTypeRegistry::PropertyValueConvertFuncT PropertyConversionFunc =
+		FOptimusDataTypeRegistry::Get().FindPropertyValueConvertFunc(TypeName);
+	if (PropertyConversionFunc)
+	{
+		return PropertyConversionFunc(InValue, OutConvertedValue);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+
 bool FOptimusDataType::CanCreateProperty() const
 {
 	return static_cast<bool>(FOptimusDataTypeRegistry::Get().FindPropertyCreateFunc(TypeName));

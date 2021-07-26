@@ -46,11 +46,23 @@ struct FOptimusDataType
 	// EOptimusDataTypeUsageFLags::Variable. Otherwise it returns a nullptr.
 	OPTIMUSDEVELOPER_API FProperty* CreateProperty(UStruct *InScope, FName InName) const;
 
+	// Convert an FProperty value to a value compatible with the shader parameter data layout.
+	// The InValue parameter should point at the memory location governed by the FProperty for
+	// this data type, and OutConvertedValue is an array to store the bytes for the converted
+	// value. If the function failed, a nullptr is returned and the state of the OutConvertedValue
+	// is undefined. Upon success, the return value is a pointer to the value following the
+	// converted input value, and the converted output value array will have been grown to
+	// accommodate the newly converted value.
+	OPTIMUSDEVELOPER_API const uint8 *ConvertPropertyValueToShader(const uint8 *InValue, TArray<uint8>& OutConvertedValue) const;
+
 	// Returns true if the data type can create a FProperty object to represent it.
 	OPTIMUSDEVELOPER_API bool CanCreateProperty() const;
 
 	UPROPERTY()
 	FName TypeName;
+
+	UPROPERTY()
+	FText DisplayName;
 
 	// Shader value type that goes with this Optimus pin type.
 	UPROPERTY()
