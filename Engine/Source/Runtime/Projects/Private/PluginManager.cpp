@@ -625,11 +625,7 @@ bool FPluginManager::IntegratePluginsIntoConfig(FConfigCacheIni& ConfigSystem, c
 			IFileManager::Get().FindFiles(PluginConfigs, *PluginConfigDir, TEXT("ini"));
 			for (const FString& ConfigFile : PluginConfigs)
 			{
-				// Optionally strip Default and Base from source filename, old behavior would create a new misnamed file which allowed redirects to work
-				// But, it's better to just apply it to the config actually desired by the user
 				FString BaseConfigFile = *FPaths::GetBaseFilename(ConfigFile);
-				BaseConfigFile.RemoveFromStart(TEXT("Base"));
-				BaseConfigFile.RemoveFromStart(TEXT("Default"));
 
 				// Use GetConfigFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
 				FString PluginConfigFilename = ConfigSystem.GetConfigFilename(*BaseConfigFile);
@@ -1035,11 +1031,13 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				IFileManager::Get().FindFiles(PluginConfigs, *PluginConfigDir, TEXT("ini"));
 				for (const FString& ConfigFile : PluginConfigs)
 				{
-					// Optionally strip Default and Base from source filename, old behavior would create a new misnamed file which allowed redirects to work
-					// But, it's better to just apply it to the config actually desired by the user
 					FString BaseConfigFile = *FPaths::GetBaseFilename(ConfigFile);					
-					BaseConfigFile.RemoveFromStart(TEXT("Base"));
-					BaseConfigFile.RemoveFromStart(TEXT("Default"));
+
+					if (BaseConfigFile == Plugin.Name)
+					{
+						// We just handles this, skip it
+						continue;
+					}
 
 					// Build the config system key for the overridden config
 					PluginConfigFilename = GConfig->GetConfigFilename(*BaseConfigFile);

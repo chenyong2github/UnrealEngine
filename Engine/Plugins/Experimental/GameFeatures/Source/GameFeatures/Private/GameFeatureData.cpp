@@ -106,18 +106,10 @@ void UGameFeatureData::InitializeHierarchicalPluginIniFiles(const FString& Plugi
 		FConfigFile TempConfig;
 		if (FConfigCacheIni::LoadExternalIniFile(TempConfig, *PluginIniName, *EngineConfigDir, *PluginConfigDir, bIsBaseIniName, nullptr, bForceReloadFromDisk, bWriteDestIni) && (TempConfig.Num() > 0))
 		{
-			FString IniFile;
-			if (IniName.Equals(TEXT("Input")))
-			{
-				IniFile = GInputIni;
-			}
-			else
-			{
-				IniFile = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()), *IniName);
-			}
+			// Need to get the in-memory config filename, the on disk one is likely not up to date
+			FString IniFile = GConfig->GetConfigFilename(*IniName);
 
-			FPaths::MakeStandardFilename(IniFile);
-			if (FConfigFile* ExistingConfig = GConfig->Find(IniFile))
+			if (FConfigFile* ExistingConfig = GConfig->FindConfigFile(IniFile))
 			{
 				// @todo: Might want to consider modifying the engine level's API here to allow for a combination that yields affected
 				// sections and/or optionally just does the reload itself. This route is less efficient than it needs to be, resulting in parsing twice, 
