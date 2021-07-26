@@ -318,7 +318,7 @@ void RenderLumenHardwareRayTracingReflections(
 			RDG_EVENT_NAME("LumenReflectionHardwareRayTracingDeferredMaterialRGS %ux%u", DeferredMaterialBufferResolution.X, DeferredMaterialBufferResolution.Y),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, DeferredMaterialBufferResolution](FRHICommandList& RHICmdList)
+			[PassParameters, &View, RayGenerationShader, DeferredMaterialBufferResolution](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
@@ -381,7 +381,7 @@ void RenderLumenHardwareRayTracingReflections(
 			RDG_EVENT_NAME("LumenReflectionHardwareRayTracingRGS %ux%u LightingMode=%s, DeferredMaterial=%u", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(PermutationSettings.LightingMode), PermutationSettings.bUseDeferredMaterial),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, DispatchResolution, PermutationSettings](FRHICommandList& RHICmdList)
+			[PassParameters, &View, RayGenerationShader, DispatchResolution, PermutationSettings](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);

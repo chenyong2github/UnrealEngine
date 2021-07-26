@@ -167,7 +167,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 		RDG_EVENT_NAME("RayTracingPrimaryRays %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 		PassParameters,
 		ERDGPassFlags::Compute,
-		[PassParameters, this, &View, RayGenShader, RayTracingResolution](FRHICommandList& RHICmdList)
+		[PassParameters, this, &View, RayGenShader, RayTracingResolution](FRHIRayTracingCommandList& RHICmdList)
 	{
 		FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 

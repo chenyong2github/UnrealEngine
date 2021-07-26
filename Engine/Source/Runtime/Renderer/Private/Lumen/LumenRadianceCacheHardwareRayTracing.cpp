@@ -282,7 +282,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 			RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(LightingMode)),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, DispatchResolution, bUseMinimalPayload](FRHICommandList& RHICmdList)
+			[PassParameters, &View, RayGenerationShader, DispatchResolution, bUseMinimalPayload](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);

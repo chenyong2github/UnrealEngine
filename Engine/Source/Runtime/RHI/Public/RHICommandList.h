@@ -5141,6 +5141,9 @@ extern RHI_API FRHICommandListExecutor GRHICommandList;
 
 extern RHI_API FAutoConsoleTaskPriority CPrio_SceneRenderingTask;
 
+/** Used to separate which command list is used for ray tracing operations. */
+using FRHIRayTracingCommandList = FRHICommandListImmediate;
+
 class FRenderTask
 {
 public:

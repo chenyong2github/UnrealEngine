@@ -578,7 +578,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 			RDG_EVENT_NAME("RayTracingDeferredReflectionsGather %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 			&PassParameters,
 			ERDGPassFlags::Compute,
-		[&PassParameters, this, &View, TileAlignedNumRays, RayGenShader](FRHICommandList& RHICmdList)
+		[&PassParameters, this, &View, TileAlignedNumRays, RayGenShader](FRHIRayTracingCommandList& RHICmdList)
 		{
 			FRayTracingPipelineState* Pipeline = View.RayTracingMaterialGatherPipeline;
 
@@ -616,7 +616,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 			RDG_EVENT_NAME("RayTracingDeferredReflectionsShade %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 			&PassParameters,
 			ERDGPassFlags::Compute,
-		[&PassParameters, &View, TileAlignedNumRays, RayGenShader](FRHICommandList& RHICmdList)
+		[&PassParameters, &View, TileAlignedNumRays, RayGenShader](FRHIRayTracingCommandList& RHICmdList)
 		{
 			FRayTracingShaderBindingsWriter GlobalResources;
 			SetShaderParameters(GlobalResources, RayGenShader, PassParameters);

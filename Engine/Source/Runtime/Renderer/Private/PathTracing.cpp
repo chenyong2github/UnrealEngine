@@ -1476,7 +1476,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 					: RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, View.ViewState->PathTracingSampleIndex, MaxSPP, PassParameters->SceneLightCount),
 				PassParameters,
 				ERDGPassFlags::Compute,
-				[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeY, &View](FRHICommandList& RHICmdList)
+				[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeY, &View](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 			

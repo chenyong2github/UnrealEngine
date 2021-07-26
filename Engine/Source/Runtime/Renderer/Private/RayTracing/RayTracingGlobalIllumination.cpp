@@ -995,7 +995,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 			RDG_EVENT_NAME("GatherPoints %d%d", GatherPointsResolution.X, GatherPointsResolution.Y),
 			GatherPassParameters,
 			ERDGPassFlags::Compute,
-			[GatherPassParameters, this, &View, RayGenerationShader, GatherPointsResolution](FRHICommandList& RHICmdList)
+			[GatherPassParameters, this, &View, RayGenerationShader, GatherPointsResolution](FRHIRayTracingCommandList& RHICmdList)
 		{
 			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 			FRayTracingShaderBindingsWriter GlobalResources;
@@ -1038,7 +1038,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 				RDG_EVENT_NAME("GlobalIlluminationRayTracingGatherMaterials %dx%d", TileAlignedResolution.X, TileAlignedResolution.Y),
 				GatherPassParameters,
 				ERDGPassFlags::Compute,
-				[GatherPassParameters, this, &View, RayGenerationShader, TileAlignedResolution](FRHICommandList& RHICmdList)
+				[GatherPassParameters, this, &View, RayGenerationShader, TileAlignedResolution](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRayTracingPipelineState* Pipeline = View.RayTracingMaterialGatherPipeline;
 
@@ -1077,7 +1077,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 				RDG_EVENT_NAME("GlobalIlluminationRayTracingShadeMaterials %d", DeferredMaterialBufferNumElements),
 				GatherPassParameters,
 				ERDGPassFlags::Compute,
-				[GatherPassParameters, this, &View, RayGenerationShader, DeferredMaterialBufferNumElements](FRHICommandList& RHICmdList)
+				[GatherPassParameters, this, &View, RayGenerationShader, DeferredMaterialBufferNumElements](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 				FRayTracingShaderBindingsWriter GlobalResources;
@@ -1193,7 +1193,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 		RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 		PassParameters,
 		ERDGPassFlags::Compute,
-		[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
+		[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHIRayTracingCommandList& RHICmdList)
 	{
 		FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 
@@ -1280,7 +1280,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 			RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
+			[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHIRayTracingCommandList& RHICmdList)
 		{
 			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 
@@ -1316,7 +1316,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 					RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d (tile %dx%d)", DispatchSizeX, DispatchSizeY, X, Y),
 					TilePassParameters,
 					ERDGPassFlags::Compute,
-					[TilePassParameters, this, &View, RayGenerationShader, DispatchSizeX, DispatchSizeY](FRHICommandList& RHICmdList)
+					[TilePassParameters, this, &View, RayGenerationShader, DispatchSizeX, DispatchSizeY](FRHIRayTracingCommandList& RHICmdList)
 				{
 					FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 

@@ -591,7 +591,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 						RDG_EVENT_NAME("VolumetricLightmapPathTracing %d bricks %d rays", BricksToCalcThisFrame, BricksToCalcThisFrame * (BrickSize + 1) * (BrickSize + 1) * (BrickSize + 1)),
 						PassParameters,
 						ERDGPassFlags::Compute,
-						[PassParameters, RayGenShader, SceneRenderState, BricksToCalcThisFrame](FRHICommandList& RHICmdList)
+						[PassParameters, RayGenShader, SceneRenderState, BricksToCalcThisFrame](FRHIRayTracingCommandList& RHICmdList)
 					{
 						FRayTracingShaderBindingsWriter GlobalResources;
 						SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
