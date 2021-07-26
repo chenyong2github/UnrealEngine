@@ -7,15 +7,20 @@
 //////////////////////////////////////////////////////////////////////////
 // FDebuggingActionCallbacks
 
+struct FBlueprintBreakpoint;
+class UBlueprint;
+class UEdGraphNode;
+class UEdGraphPin;
+
 class FDebuggingActionCallbacks
 {
 public:
-	static void ClearWatches(class UBlueprint* Blueprint);
-	static void ClearWatch(class UEdGraphPin* WatchedPin);
-	static void ClearBreakpoints(class UBlueprint* OwnerBlueprint);
-	static void ClearBreakpoint(class UBreakpoint* Breakpoint, class UBlueprint* OwnerBlueprint);
-	static void SetBreakpointEnabled(class UBreakpoint* Breakpoint, bool bEnabled);
-	static void SetEnabledOnAllBreakpoints(class UBlueprint* OwnerBlueprint, bool bShouldBeEnabled);
+	static void ClearWatches(UBlueprint* Blueprint);
+	static void ClearWatch(UEdGraphPin* WatchedPin);
+	static void ClearBreakpoints(UBlueprint* OwnerBlueprint);
+	static void ClearBreakpoint(TSoftObjectPtr<UEdGraphNode> BreakpointNode, const UBlueprint* OwnerBlueprint);
+	static void SetBreakpointEnabled(TSoftObjectPtr<UEdGraphNode> BreakpointNode, const UBlueprint* BreakpointBlueprint, bool bEnabled);
+	static void SetEnabledOnAllBreakpoints(const UBlueprint* OwnerBlueprint, bool bShouldBeEnabled);
 };
 
 //////////////////////////////////////////////////////////////////////////

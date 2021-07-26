@@ -82,6 +82,14 @@ namespace EKismetCompileType
 	};
 };
 
+/** Breakpoints have been moved to Engine/Source/Editor/UnrealEd/Public/Kismet2/Breakpoint.h,
+*   renamed to FBlueprintBreakpoint, and are now UStructs */
+UCLASS(deprecated)
+class UDEPRECATED_Breakpoint : public UObject
+{
+	GENERATED_BODY()
+};
+
 /** Compile modes. */
 UENUM()
 enum class EBlueprintCompileMode : uint8
@@ -630,9 +638,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	TArray<FBPEditorBookmarkNode> BookmarkNodes;
 
-	/** Persistent debugging options */
 	UPROPERTY()
-	TArray<TObjectPtr<class UBreakpoint>> Breakpoints;
+	TArray<TObjectPtr<class UDEPRECATED_Breakpoint>> Breakpoints_DEPRECATED;
 
 	UPROPERTY()
 	TArray<FEdGraphPinReference> WatchedPins;

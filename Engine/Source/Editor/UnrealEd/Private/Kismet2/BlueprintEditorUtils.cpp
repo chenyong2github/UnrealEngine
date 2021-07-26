@@ -2859,10 +2859,7 @@ void FBlueprintEditorUtils::RemoveNode(UBlueprint* Blueprint, UEdGraphNode* Node
 	if (Blueprint != nullptr)
 	{
 		// Remove any breakpoints set on the node
-		if (UBreakpoint* Breakpoint = FKismetDebugUtilities::FindBreakpointForNode(Blueprint, Node))
-		{
-			FKismetDebugUtilities::StartDeletingBreakpoint(Breakpoint, Blueprint);
-		}
+		FKismetDebugUtilities::RemoveBreakpointFromNode(Node, Blueprint);
 
 		// Remove any watches set on the node's pins
 		for (int32 PinIndex = 0; PinIndex < Node->Pins.Num(); ++PinIndex)
