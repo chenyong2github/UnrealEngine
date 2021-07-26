@@ -8,15 +8,15 @@
 namespace TraceServices
 {
 
-const FName FStackSampleProvider::ProviderName = "StackSampleProvider";
+const FName FStackSamplesProvider::ProviderName = "StackSamplesProvider";
 
-FStackSampleProvider::FStackSampleProvider(IAnalysisSession& InSession)
+FStackSamplesProvider::FStackSamplesProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 	, AddressValues(Session.GetLinearAllocator(), 4096)
 {
 }
 
-FStackSampleProvider::~FStackSampleProvider()
+FStackSamplesProvider::~FStackSamplesProvider()
 {
 	for (const auto& ThreadSamples : Threads)
 	{
@@ -24,7 +24,7 @@ FStackSampleProvider::~FStackSampleProvider()
 	}
 }
 
-const TPagedArray<FStackSample>* FStackSampleProvider::GetStackSamples(uint32 ThreadId) const
+const TPagedArray<FStackSample>* FStackSamplesProvider::GetStackSamples(uint32 ThreadId) const
 {
 	Session.ReadAccessCheck();
 
@@ -32,7 +32,7 @@ const TPagedArray<FStackSample>* FStackSampleProvider::GetStackSamples(uint32 Th
 	return StackSamples ? *StackSamples : nullptr;
 }
 
-void FStackSampleProvider::Add(uint32 ThreadId, double Time, uint32 Count, const uint64* Addresses)
+void FStackSamplesProvider::Add(uint32 ThreadId, double Time, uint32 Count, const uint64* Addresses)
 {
 	Session.WriteAccessCheck();
 
@@ -72,9 +72,9 @@ void FStackSampleProvider::Add(uint32 ThreadId, double Time, uint32 Count, const
 	StackSample.Addresses = &AddressValues.Last() - Count;
 }
 
-const IStackSampleProvider& ReadStackSampleProvider(const IAnalysisSession& Session)
+const IStackSamplesProvider& ReadStackSamplesProvider(const IAnalysisSession& Session)
 {
-	return *Session.ReadProvider<IStackSampleProvider>(FStackSampleProvider::ProviderName);
+	return *Session.ReadProvider<IStackSamplesProvider>(FStackSamplesProvider::ProviderName);
 }
 
 } // namespace TraceServices

@@ -21,12 +21,12 @@ void FPlatformEventsModule::OnAnalysisBegin(IAnalysisSession& InSession)
 {
 	FAnalysisSession& Session = static_cast<FAnalysisSession&>(InSession);
 
-	FContextSwitchProvider* ContextSwitchProvider = new FContextSwitchProvider(Session);
-	FStackSampleProvider* StackSampleProvider = new FStackSampleProvider(Session);
+	FContextSwitchesProvider* ContextSwitchesProvider = new FContextSwitchesProvider(Session);
+	FStackSamplesProvider* StackSamplesProvider = new FStackSamplesProvider(Session);
 	
-	Session.AddProvider(FContextSwitchProvider::ProviderName, ContextSwitchProvider);
-	Session.AddProvider(FStackSampleProvider::ProviderName, StackSampleProvider);
-	Session.AddAnalyzer(new FPlatformEventTraceAnalyzer(Session, *ContextSwitchProvider, *StackSampleProvider));
+	Session.AddProvider(FContextSwitchesProvider::ProviderName, ContextSwitchesProvider);
+	Session.AddProvider(FStackSamplesProvider::ProviderName, StackSamplesProvider);
+	Session.AddAnalyzer(new FPlatformEventTraceAnalyzer(Session, *ContextSwitchesProvider, *StackSamplesProvider));
 }
 
 } // namespace TraceServices

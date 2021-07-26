@@ -4,13 +4,15 @@
 
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
-#include "Framework/Commands/UICommandList.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
 #include "Insights/IUnrealInsightsModule.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FThreadTrackEvent;
+class FUICommandList;
 
 namespace Insights
 {
@@ -74,5 +76,7 @@ private:
 	/** Shared state for Context Switches tracks */
 	TSharedPtr<FContextSwitchesSharedState> ContextSwitchesSharedState;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights

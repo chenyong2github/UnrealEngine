@@ -15,14 +15,14 @@ struct FStackSample
 	uint64* Addresses;
 };
 
-class IStackSampleProvider
+class IStackSamplesProvider
 	: public IProvider
 {
 public:
-	virtual ~IStackSampleProvider() = default;
+	virtual ~IStackSamplesProvider() = default;
 	virtual const TPagedArray<FStackSample>* GetStackSamples(uint32 ThreadId) const = 0;
 };
 
-TRACESERVICES_API const IStackSampleProvider& ReadStackSampleProvider(const IAnalysisSession& Session);
+TRACESERVICES_API const IStackSamplesProvider& ReadStackSamplesProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

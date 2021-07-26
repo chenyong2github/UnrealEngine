@@ -270,7 +270,7 @@ void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, cons
 {
 	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 
-	if (Context.GetEventFilter().IsValid() || HasCustomFilter())
+	if ((Context.GetEventFilter().IsValid() && Context.GetEventFilter()->FilterTrack(*this)) || HasCustomFilter())
 	{
 		Helper.DrawFadedEvents(GetDrawState(), *this, OffsetY, 0.1f);
 
@@ -399,36 +399,44 @@ const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(float InPosX, 
 	if (DY >= 0 && DY < TrackLanesHeight)
 	{
 		const int32 Depth = DY / (Layout.EventH + Layout.EventDY);
-
-		auto EventFilter = [Depth](double, double, uint32 EventDepth)
-		{
-			return EventDepth == Depth;
-		};
-
 		const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
+		const double TimeAtPosX = Viewport.SlateUnitsToTime(InPosX);
 
-		const double StartTime0 = Viewport.SlateUnitsToTime(InPosX);
-		const double EndTime0 = StartTime0;
-		TSharedPtr<const ITimingEvent> FoundEvent = SearchEvent(FTimingEventSearchParameters(StartTime0, EndTime0, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
-
-		if (!FoundEvent.IsValid())
-		{
-			const double StartTime = StartTime0;
-			const double EndTime = StartTime0 + SecondsPerPixel; // +1px
-			FoundEvent = SearchEvent(FTimingEventSearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
-		}
-
-		if (!FoundEvent.IsValid())
-		{
-			const double StartTime = StartTime0 - SecondsPerPixel; // -1px
-			const double EndTime = StartTime0 + 2.0 * SecondsPerPixel; // +2px
-			FoundEvent = SearchEvent(FTimingEventSearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
-		}
-
-		return FoundEvent;
+		return GetEvent(TimeAtPosX, SecondsPerPixel, Depth);
 	}
 
 	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(double InTime, double SecondsPerPixel, int32 Depth) const
+{
+	const double StartTime0 = InTime;
+	const double EndTime0 = InTime;
+
+	auto EventFilter = [Depth](double, double, uint32 EventDepth)
+	{
+		return EventDepth == Depth;
+	};
+
+	TSharedPtr<const ITimingEvent> FoundEvent = SearchEvent(FTimingEventSearchParameters(InTime, InTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
+
+	if (!FoundEvent.IsValid())
+	{
+		const double StartTime = InTime;
+		const double EndTime = InTime + SecondsPerPixel; // +1px
+		FoundEvent = SearchEvent(FTimingEventSearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
+	}
+
+	if (!FoundEvent.IsValid())
+	{
+		const double StartTime = InTime - SecondsPerPixel; // -1px
+		const double EndTime = InTime + 2.0 * SecondsPerPixel; // +2px
+		FoundEvent = SearchEvent(FTimingEventSearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
+	}
+
+	return FoundEvent;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -439,6 +447,8 @@ TSharedPtr<ITimingEventFilter> FTimingEventsTrack::GetFilterByEvent(const TShare
 	{
 		const FTimingEvent& Event = InTimingEvent->As<FTimingEvent>();
 		TSharedRef<FTimingEventFilter> EventFilterRef = MakeShared<FTimingEventFilterByEventType>(Event.GetType());
+		EventFilterRef->SetFilterByTrackTypeName(true);
+		EventFilterRef->SetTrackTypeName(GetTypeName());
 		return EventFilterRef;
 	}
 	return nullptr;

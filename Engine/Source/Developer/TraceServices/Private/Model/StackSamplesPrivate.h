@@ -9,14 +9,14 @@
 namespace TraceServices
 {
 
-class FStackSampleProvider
-	: public IStackSampleProvider
+class FStackSamplesProvider
+	: public IStackSamplesProvider
 {
 public:
 	static const FName ProviderName;
 
-	explicit FStackSampleProvider(IAnalysisSession& Session);
-	virtual ~FStackSampleProvider();
+	explicit FStackSamplesProvider(IAnalysisSession& Session);
+	virtual ~FStackSamplesProvider();
 
 	const TPagedArray<FStackSample>* GetStackSamples(uint32 ThreadId) const override;
 

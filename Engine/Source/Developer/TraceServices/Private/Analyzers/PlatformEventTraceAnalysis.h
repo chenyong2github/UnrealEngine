@@ -9,16 +9,16 @@ namespace TraceServices
 {
 
 class IAnalysisSession;
-class FContextSwitchProvider;
-class FStackSampleProvider;
+class FContextSwitchesProvider;
+class FStackSamplesProvider;
 
 class FPlatformEventTraceAnalyzer
 	: public UE::Trace::IAnalyzer
 {
 public:
 	FPlatformEventTraceAnalyzer(IAnalysisSession& Session,
-								FContextSwitchProvider& ContextSwitchProvider,
-								FStackSampleProvider& StackSampleProvider);
+								FContextSwitchesProvider& ContextSwitchesProvider,
+								FStackSamplesProvider& StackSamplesProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 	virtual void OnThreadInfo(const FThreadInfo& ThreadInfo) override;
@@ -31,8 +31,8 @@ private:
 	};
 
 	IAnalysisSession& Session;
-	FContextSwitchProvider& ContextSwitchProvider;
-	FStackSampleProvider& StackSampleProvider;
+	FContextSwitchesProvider& ContextSwitchesProvider;
+	FStackSamplesProvider& StackSamplesProvider;
 };
 
 } // namespace TraceServices

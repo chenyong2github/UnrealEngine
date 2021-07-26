@@ -3824,6 +3824,8 @@ void STimingView::ToggleEventFilterByEventType(const uint64 EventType)
 	else
 	{
 		TSharedRef<FTimingEventFilterByEventType> NewEventFilter = MakeShared<FTimingEventFilterByEventType>(EventType);
+		NewEventFilter->SetFilterByTrackTypeName(true);
+		NewEventFilter->SetTrackTypeName(FThreadTimingTrack::GetStaticTypeName());
 		SetEventFilter(NewEventFilter); // set new filter
 	}
 }
