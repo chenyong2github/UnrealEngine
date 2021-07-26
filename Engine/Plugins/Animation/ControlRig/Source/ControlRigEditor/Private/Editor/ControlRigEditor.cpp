@@ -5354,8 +5354,8 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 				case ERigControlType::Rotator:
 				{
 					FRotator Rotator = ControlValue.Get<FRotator>();
-					FRigControlValue QuatValue = FRigControlValue::Make<FQuat>(FQuat(Rotator));
-					NewDefaultValue = QuatValue.ToString<FQuat>();
+					FRigControlValue RotatorValue = FRigControlValue::Make<FRotator>(Rotator);
+					NewDefaultValue = RotatorValue.ToString<FRotator>();
 					break;
 				}
 				case ERigControlType::Transform:
