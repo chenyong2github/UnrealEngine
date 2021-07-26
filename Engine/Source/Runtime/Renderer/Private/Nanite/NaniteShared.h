@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "ShaderParameterMacros.h"
-#include "RenderGraphResources.h"
+#include "GlobalShader.h"
 #include "UnifiedBuffer.h"
+#include "RenderGraphResources.h"
+#include "RenderGraphUtils.h"
 #include "Rendering/NaniteResources.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNanite, Warning, All);
