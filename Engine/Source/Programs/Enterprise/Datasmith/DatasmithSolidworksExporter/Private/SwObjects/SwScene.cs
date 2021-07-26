@@ -760,6 +760,8 @@ namespace SolidworksDatasmith.SwObjects
 					target.ComponentTransform.Add(node.ComponentName, nodeConfig.RelativeTransform);
 				if (!node.VisibilitySame)
 					target.ComponentVisibility.Add(node.ComponentName, nodeConfig.Visible);
+				if (!node.SuppressionSame)
+					target.ComponentVisibility.Add(node.ComponentName, !nodeConfig.Suppressed);
 				if (!node.MaterialSame)
 				{
 					SwMaterial material = nodeConfig.GetMaterial();
@@ -1213,13 +1215,17 @@ namespace SolidworksDatasmith.SwObjects
 
 		public void SendModelDocMetadataToProcessor(ModelDoc2 modeldoc2, string docname, MetadataCommand.MetadataType metadatatype)
 		{
-			MetadataCommand mc = new MetadataCommand(metadatatype);
-			if (mc != null)
+			try
 			{
-				mc.MetadataOwnerName = docname;
-				SwMetaDataManager.AddDocumentMetadataToCommand(modeldoc2, mc);
-				Processor.AddCommand(mc);
+				MetadataCommand mc = new MetadataCommand(metadatatype);
+				if (mc != null)
+				{
+					mc.MetadataOwnerName = docname;
+					SwMetaDataManager.AddDocumentMetadataToCommand(modeldoc2, mc);
+					Processor.AddCommand(mc);
+				}
 			}
+			catch(Exception){ }
 		}
 
 		public void DeleteComponent(string itemName)

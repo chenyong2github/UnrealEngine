@@ -100,8 +100,15 @@ namespace SolidworksDatasmith.SwObjects
 					doc2 = null;
 				}
 				else
+				{
 					LoadBodies();
-				SwSingleton.CurrentScene.CollectMaterials(Doc as ModelDoc2);
+				}
+
+				try
+				{
+					SwSingleton.CurrentScene.CollectMaterials(Doc as ModelDoc2);
+				}
+				catch(Exception){}
 
 				PartCommand cmd = new PartCommand();
 				cmd.PathName = PathName;
