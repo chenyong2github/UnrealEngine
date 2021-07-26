@@ -130,8 +130,8 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="DirectoriesToDelete">Recevies an array of directories to delete</param>
 		public void Refresh(bool bRemoveUntracked, out FileInfo[] FilesToDelete, out DirectoryInfo[] DirectoriesToDelete)
 		{
-			ConcurrentBag<FileInfo> ConcurrentFilesToDelete = new ConcurrentBag<FileInfo>();
-			ConcurrentBag<DirectoryInfo> ConcurrentDirectoriesToDelete = new ConcurrentBag<DirectoryInfo>();
+			ConcurrentQueue<FileInfo> ConcurrentFilesToDelete = new ConcurrentQueue<FileInfo>();
+			ConcurrentQueue<DirectoryInfo> ConcurrentDirectoriesToDelete = new ConcurrentQueue<DirectoryInfo>();
 			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 			{
 				Queue.Enqueue(() => Refresh(new DirectoryInfo(GetFullName()), bRemoveUntracked, ConcurrentFilesToDelete, ConcurrentDirectoriesToDelete, Queue));
@@ -148,7 +148,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="FilesToDelete"></param>
 		/// <param name="DirectoriesToDelete"></param>
 		/// <param name="Queue"></param>
-		void Refresh(DirectoryInfo Info, bool bRemoveUntracked, ConcurrentBag<FileInfo> FilesToDelete, ConcurrentBag<DirectoryInfo> DirectoriesToDelete, ThreadPoolWorkQueue Queue)
+		void Refresh(DirectoryInfo Info, bool bRemoveUntracked, ConcurrentQueue<FileInfo> FilesToDelete, ConcurrentQueue<DirectoryInfo> DirectoriesToDelete, ThreadPoolWorkQueue Queue)
 		{
 			// Recurse through subdirectories
 			Dictionary<Utf8String, WorkspaceDirectoryInfo> NewNameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(NameToSubDirectory.Count, NameToSubDirectory.Comparer);
@@ -162,7 +162,7 @@ namespace EpicGames.Perforce.Managed
 				}
 				else if (bRemoveUntracked)
 				{
-					DirectoriesToDelete.Add(SubDirectoryInfo);
+					DirectoriesToDelete.Enqueue(SubDirectoryInfo);
 				}
 			}
 			NameToSubDirectory = NewNameToSubDirectory;
@@ -180,14 +180,14 @@ namespace EpicGames.Perforce.Managed
 					}
 					else
 					{
-						FilesToDelete.Add(File);
+						FilesToDelete.Enqueue(File);
 					}
 				}
 				else
 				{
 					if (bRemoveUntracked)
 					{
-						FilesToDelete.Add(File);
+						FilesToDelete.Enqueue(File);
 					}
 				}
 			}
@@ -211,7 +211,7 @@ namespace EpicGames.Perforce.Managed
 		/// <returns></returns>
 		public string[] FindDifferences()
 		{
-			ConcurrentBag<string> Paths = new ConcurrentBag<string>();
+			ConcurrentQueue<string> Paths = new ConcurrentQueue<string>();
 			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 			{
 				Queue.Enqueue(() => FindDifferences(new DirectoryInfo(GetFullName()), "/", Paths, Queue));
@@ -226,7 +226,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="Path"></param>
 		/// <param name="Paths"></param>
 		/// <param name="Queue"></param>
-		void FindDifferences(DirectoryInfo Directory, string Path, ConcurrentBag<string> Paths, ThreadPoolWorkQueue Queue)
+		void FindDifferences(DirectoryInfo Directory, string Path, ConcurrentQueue<string> Paths, ThreadPoolWorkQueue Queue)
 		{
 			// Recurse through subdirectories
 			HashSet<Utf8String> RemainingSubDirectoryNames = new HashSet<Utf8String>(NameToSubDirectory.Keys);
@@ -239,11 +239,11 @@ namespace EpicGames.Perforce.Managed
 					Queue.Enqueue(() => StagedSubDirectory.FindDifferences(SubDirectory, String.Format("{0}{1}/", Path, SubDirectory.Name), Paths, Queue));
 					continue;
 				}
-				Paths.Add(String.Format("+{0}{1}/...", Path, SubDirectory.Name));
+				Paths.Enqueue(String.Format("+{0}{1}/...", Path, SubDirectory.Name));
 			}
 			foreach (Utf8String RemainingSubDirectoryName in RemainingSubDirectoryNames)
 			{
-				Paths.Add(String.Format("-{0}{1}/...", Path, RemainingSubDirectoryName));
+				Paths.Enqueue(String.Format("-{0}{1}/...", Path, RemainingSubDirectoryName));
 			}
 
 			// Search through files
@@ -253,11 +253,11 @@ namespace EpicGames.Perforce.Managed
 				WorkspaceFileInfo? StagedFile;
 				if (!NameToFile.TryGetValue(File.Name, out StagedFile))
 				{
-					Paths.Add(String.Format("+{0}{1}", Path, File.Name));
+					Paths.Enqueue(String.Format("+{0}{1}", Path, File.Name));
 				}
 				else if (!StagedFile.MatchesAttributes(File))
 				{
-					Paths.Add(String.Format("!{0}{1}", Path, File.Name));
+					Paths.Enqueue(String.Format("!{0}{1}", Path, File.Name));
 					RemainingFileNames.Remove(File.Name);
 				}
 				else
@@ -267,7 +267,7 @@ namespace EpicGames.Perforce.Managed
 			}
 			foreach (Utf8String RemainingFileName in RemainingFileNames)
 			{
-				Paths.Add(String.Format("-{0}{1}", Path, RemainingFileName));
+				Paths.Enqueue(String.Format("-{0}{1}", Path, RemainingFileName));
 			}
 		}
 

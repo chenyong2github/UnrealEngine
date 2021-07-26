@@ -56,8 +56,8 @@ namespace EpicGames.Perforce.Managed
 		public WorkspaceDirectoryInfo NewWorkspaceRootDir;
 		public StreamSnapshot StreamSnapshot;
 		public ConcurrentDictionary<CachedFileInfo, WorkspaceFileToMove> FilesToMove = new ConcurrentDictionary<CachedFileInfo, WorkspaceFileToMove>();
-		public ConcurrentBag<WorkspaceFileToCopy> FilesToCopy = new ConcurrentBag<WorkspaceFileToCopy>();
-		public ConcurrentBag<WorkspaceFileToSync> FilesToSync = new ConcurrentBag<WorkspaceFileToSync>();
+		public ConcurrentQueue<WorkspaceFileToCopy> FilesToCopy = new ConcurrentQueue<WorkspaceFileToCopy>();
+		public ConcurrentQueue<WorkspaceFileToSync> FilesToSync = new ConcurrentQueue<WorkspaceFileToSync>();
 
 		Dictionary<FileContentId, CachedFileInfo> ContentIdToTrackedFile;
 		Dictionary<FileContentId, WorkspaceFileInfo> ContentIdToWorkspaceFile = new Dictionary<FileContentId, WorkspaceFileInfo>();
@@ -164,7 +164,7 @@ namespace EpicGames.Perforce.Managed
 				}
 				else
 				{
-					FilesToCopy.Add(new WorkspaceFileToCopy(StreamFile, FilesToMove[TrackedFile].WorkspaceFile, WorkspaceFile));
+					FilesToCopy.Enqueue(new WorkspaceFileToCopy(StreamFile, FilesToMove[TrackedFile].WorkspaceFile, WorkspaceFile));
 				}
 			}
 			else
@@ -172,11 +172,11 @@ namespace EpicGames.Perforce.Managed
 				WorkspaceFileInfo? SourceWorkspaceFile;
 				if(ContentIdToWorkspaceFile.TryGetValue(StreamFile.ContentId, out SourceWorkspaceFile))
 				{
-					FilesToCopy.Add(new WorkspaceFileToCopy(StreamFile, SourceWorkspaceFile, WorkspaceFile));
+					FilesToCopy.Enqueue(new WorkspaceFileToCopy(StreamFile, SourceWorkspaceFile, WorkspaceFile));
 				}
 				else
 				{
-					FilesToSync.Add(new WorkspaceFileToSync(StreamFile, WorkspaceFile));
+					FilesToSync.Enqueue(new WorkspaceFileToSync(StreamFile, WorkspaceFile));
 				}
 			}
 		}

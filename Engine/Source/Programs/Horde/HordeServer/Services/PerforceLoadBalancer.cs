@@ -331,7 +331,7 @@ namespace HordeServer.Services
 			Globals Globals = await DatabaseService.GetGlobalsAsync();
 
 			// Set of new server entries
-			ConcurrentBag<PerforceServerEntry> NewServers = new ConcurrentBag<PerforceServerEntry>();
+			List<PerforceServerEntry> NewServers = new List<PerforceServerEntry>();
 
 			// Update the state of all the valid servers
 			foreach (PerforceCluster Cluster in Globals.PerforceClusters)
@@ -441,7 +441,7 @@ namespace HordeServer.Services
 			}
 		}
 
-		async Task UpdateServerAsync(PerforceCluster Cluster, PerforceServer Server, ConcurrentBag<PerforceServerEntry> NewServers)
+		async Task UpdateServerAsync(PerforceCluster Cluster, PerforceServer Server, List<PerforceServerEntry> NewServers)
 		{
 			string InitialHostName = Server.ServerAndPort;
 			int Port = 1666;

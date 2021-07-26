@@ -2023,7 +2023,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="FileToMove">Information about the file to move</param>
 		/// <param name="FilesToSync">List of files to be synced. If the move fails, the file will be added to this list of files to sync.</param>
-		void MoveFileFromCache(WorkspaceFileToMove FileToMove, ConcurrentBag<WorkspaceFileToSync> FilesToSync)
+		void MoveFileFromCache(WorkspaceFileToMove FileToMove, ConcurrentQueue<WorkspaceFileToSync> FilesToSync)
 		{
 			try
 			{
@@ -2032,7 +2032,7 @@ namespace EpicGames.Perforce.Managed
 			catch(Exception Ex)
 			{
 				Logger.LogWarning(Ex, "warning: Unable to move {CacheFile} from cache to {WorkspaceFile}. Syncing instead.", FileToMove.TrackedFile.GetLocation(), FileToMove.WorkspaceFile.GetLocation());
-				FilesToSync.Add(new WorkspaceFileToSync(FileToMove.StreamFile, FileToMove.WorkspaceFile));
+				FilesToSync.Enqueue(new WorkspaceFileToSync(FileToMove.StreamFile, FileToMove.WorkspaceFile));
 				bRequiresRepair = true;
 			}
 		}
@@ -2042,7 +2042,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="FileToCopy">Information about the file to move</param>
 		/// <param name="FilesToSync">List of files to be synced. If the move fails, the file will be added to this list of files to sync.</param>
-		void CopyFileWithinWorkspace(WorkspaceFileToCopy FileToCopy, ConcurrentBag<WorkspaceFileToSync> FilesToSync)
+		void CopyFileWithinWorkspace(WorkspaceFileToCopy FileToCopy, ConcurrentQueue<WorkspaceFileToSync> FilesToSync)
 		{
 			try
 			{
@@ -2052,7 +2052,7 @@ namespace EpicGames.Perforce.Managed
 			catch(Exception Ex)
 			{
 				Logger.LogWarning(Ex, "warning: Unable to copy {SourceFile} to {TargetFile}. Syncing instead.", FileToCopy.SourceWorkspaceFile.GetLocation(), FileToCopy.TargetWorkspaceFile.GetLocation());
-				FilesToSync.Add(new WorkspaceFileToSync(FileToCopy.StreamFile, FileToCopy.TargetWorkspaceFile));
+				FilesToSync.Enqueue(new WorkspaceFileToSync(FileToCopy.StreamFile, FileToCopy.TargetWorkspaceFile));
 				bRequiresRepair = true;
 			}
 		}
