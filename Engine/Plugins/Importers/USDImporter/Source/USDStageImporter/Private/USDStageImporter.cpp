@@ -185,6 +185,13 @@ namespace UsdStageImporterImpl
 			RootComponent->RegisterComponent();
 		}
 
+		if ( ImportContext.TargetSceneActorAttachParent )
+		{
+			RootComponent->AttachToComponent( ImportContext.TargetSceneActorAttachParent, FAttachmentTransformRules::KeepRelativeTransform );
+		}
+
+		Actor->SetActorTransform( ImportContext.TargetSceneActorTargetTransform );
+
 		ImportContext.SceneActor = Actor;
 	}
 
