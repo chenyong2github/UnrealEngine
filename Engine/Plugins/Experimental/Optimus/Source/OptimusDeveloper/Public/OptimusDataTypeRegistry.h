@@ -17,6 +17,14 @@ class FOptimusDataTypeRegistry
 public:
 	using PropertyCreateFuncT = TFunction<FProperty *(UStruct *InScope, FName InName)>;
 
+	/** Defines a pointer to a function that takes a const uint8 pointer that points to the
+	  * property value, and adds entries to the OutShaderValue and fills them with a value
+	  * converted that matches what a shader parameter structure expects (e.g. bool is
+	  * converted to a 32-bit integer). The pointer returned is a pointer to the value after
+	  * the converted from value.
+	  */
+	using PropertyValueConvertFuncT = TFunction<const uint8 *(const uint8* InRawValue, TArray<uint8>& OutShaderValue)>;
+
 	~FOptimusDataTypeRegistry();
 
 	/** Get the singleton registry object */
@@ -25,8 +33,10 @@ public:
 	// Register a POD type that has corresponding types on both the UE and HLSL side.
 	OPTIMUSDEVELOPER_API bool RegisterType(
 		const FFieldClass &InFieldType,
+		const FText& InDisplayName,
 	    FShaderValueTypeHandle InShaderValueType,
 		PropertyCreateFuncT InPropertyCreateFunc,
+		PropertyValueConvertFuncT InPropertyValueConvertFunc,
 	    FName InPinCategory,
 	    TOptional<FLinearColor> InPinColor,
 	    EOptimusDataTypeUsageFlags InUsageFlags
@@ -52,6 +62,7 @@ public:
 	// Presence of the EOptimusDataTypeFlags::UseInVariable results in an error.
 	OPTIMUSDEVELOPER_API bool RegisterType(
 		FName InTypeName,
+		const FText& InDisplayName,
 	    FShaderValueTypeHandle InShaderValueType,
 	    FName InPinCategory,
 	    UObject* InPinSubCategory,
@@ -94,27 +105,31 @@ protected:
 	/** Call during module shutdown to release memory */
 	static void UnregisterAllTypes();
 
-	/** A helper function to create a property, using the property creator function */
-	FProperty* CreateProperty(FName InTypeName, UStruct* InScope, FName InName) const;
-
 	/** A helper function to return a property create function. The function can be unbound
 	 *  and that should be checked prior to calling
 	 */
 	PropertyCreateFuncT FindPropertyCreateFunc(FName InTypeName) const;
 
+	/** A helper function to return a property create function. The function can be unbound
+	*  and that should be checked prior to calling
+	*/
+	PropertyValueConvertFuncT FindPropertyValueConvertFunc(FName InTypeName) const;
+
 private:
 	FOptimusDataTypeRegistry() = default;
 
 	bool RegisterType(
-		FName InTypeName, 
+		FName InTypeName,
 		TFunction<void(FOptimusDataType &)> InFillFunc,
-	    PropertyCreateFuncT InPropertyCreateFunc = {}
+	    PropertyCreateFuncT InPropertyCreateFunc = {},
+	    PropertyValueConvertFuncT InPropertyValueConvertFunc = {}
 		);
 
 	struct FTypeInfo
 	{
 		FOptimusDataTypeHandle Handle;
 		PropertyCreateFuncT PropertyCreateFunc;
+		PropertyValueConvertFuncT PropertyValueConvertFunc;
 	};
 
 	TMap<FName /* TypeName */, FTypeInfo> RegisteredTypes;
