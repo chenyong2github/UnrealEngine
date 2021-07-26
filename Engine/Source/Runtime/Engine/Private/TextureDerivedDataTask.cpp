@@ -48,6 +48,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/BulkDataRegistry.h"
+#include "Templates/CheckValueCast.h"
 #include "TextureDerivedDataBuildUtils.h"
 #include "VT/VirtualTextureChunkDDCCache.h"
 #include "VT/VirtualTextureDataBuilder.h"
@@ -287,7 +288,7 @@ public:
 		{
 			Source.OperateOnLoadedBulkData([&Buffer](const FSharedBuffer& BulkDataBuffer)
 			{
-				Buffer = FCompressedBuffer::Compress(NAME_Default, BulkDataBuffer);
+				Buffer = FCompressedBuffer::Compress(BulkDataBuffer);
 			});
 		}
 		return Buffer;
@@ -391,29 +392,32 @@ void FTextureCacheDerivedDataWorker::ConsumeBuildFunctionOutput(const UE::Derive
 				break;
 			}
 
-			TStringBuilder<32> PayloadName;
-			PayloadName << "Mip" << MipIndex;
-
-			FPayloadId MipPayloadId = FPayloadId::FromName(*PayloadName);
+			FPayloadId MipPayloadId = FPayloadId::FromName(WriteToString<8>(TEXT("Mip"), MipIndex));
 			const FPayload& MipPayload = BuildOutput.GetPayload(MipPayloadId);
 			if (MipPayload.IsNull())
 			{
 				UE_LOG(LogTexture, Warning, TEXT("Texture build function missing Mip%d output payload when building %s derived data for %s"), MipIndex, *BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *Texture.GetPathName());
 				return;
 			}
+
 			FSharedBuffer MipData = MipPayload.GetData().Decompress();
-			TArrayView<const uint8> MipDataView((const uint8*)MipData.GetData(), MipData.GetSize());
-			GetDerivedDataCacheRef().Put(*Mip.DerivedDataKey, MipDataView, TexturePath, bReplaceExistingDDC);
+
+			{
+				TArray<uint8> MipDataCopy;
+				FMemoryWriter MipWriter(MipDataCopy, /*bIsPersistent=*/ true);
+				int32 MipSize = TCheckValueCast<int32>(MipData.GetSize());
+				MipWriter << MipSize;
+				MipWriter.Serialize(const_cast<void*>(MipData.GetData()), MipSize);
+				GetDerivedDataCacheRef().Put(*Mip.DerivedDataKey, MipDataCopy, TexturePath, bReplaceExistingDDC);
+			}
 
 			if (bInlineMips && (MipIndex >= (int32)BuildSettingsPerLayer[0].LODBiasWithCinematicMips))
 			{
-				int32 MipSize = 0;
-				FMemoryReaderView Ar(MipDataView, /*bIsPersistent=*/ true);
-				Ar << MipSize;
+				const uint64 MipSize = MipData.GetSize();
 
 				Mip.BulkData.Lock(LOCK_READ_WRITE);
-				void* MipAllocData = Mip.BulkData.Realloc(MipSize);
-				Ar.Serialize(MipAllocData, MipSize);
+				void* MipAllocData = Mip.BulkData.Realloc(int64(MipSize));
+				MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipData);
 				Mip.BulkData.Unlock();
 				Mip.DerivedDataKey.Empty();
 			}
@@ -1218,14 +1222,11 @@ private:
 				if (bInlineMips && MipIndex >= FirstMipToLoad)
 				{
 					FSharedBuffer MipData = MipPayload.GetData().Decompress();
-					FMemoryReaderView Ar(MipData, /*bIsPersistent=*/ true);
-
-					int32 MipSize = 0;
-					Ar << MipSize;
+					const uint64 MipSize = MipData.GetSize();
 
 					Mip.BulkData.Lock(LOCK_READ_WRITE);
-					void* MipAllocData = Mip.BulkData.Realloc(MipSize);
-					Ar.Serialize(MipAllocData, MipSize);
+					void* MipAllocData = Mip.BulkData.Realloc(int64(MipSize));
+					MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipData);
 					Mip.BulkData.Unlock();
 					Mip.DerivedDataKey.Empty();
 				}
