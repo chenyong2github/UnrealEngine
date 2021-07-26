@@ -24,6 +24,36 @@ FRigUnit_ControlRigSplineFromPoints_Execute()
 	}
 }
 
+FRigUnit_SetSplinePoints_Execute()
+{
+	if (!Spline.SplineData.IsValid())
+	{
+		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline."));
+		return;
+	}
+	
+	if (Points.Num() != Spline.SplineData->ControlPoints.Num())
+	{
+		UE_LOG(LogControlRig, Error, TEXT("Number of input points does not match the number of point in the spline."));
+		return;
+	}
+
+	switch (Context.State)
+	{
+		case EControlRigState::Init:
+		case EControlRigState::Update:
+		{
+			Spline.SetControlPoints(Points, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment);
+			break;
+		}
+		default:
+		{
+			checkNoEntry(); // Execute is only defined for Init and Update
+			break;
+		}
+	}
+}
+
 FRigUnit_PositionFromControlRigSpline_Execute()
 {
 	switch (Context.State)

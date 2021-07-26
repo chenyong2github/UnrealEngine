@@ -41,6 +41,27 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 	FControlRigSpline Spline;
 };
 
+USTRUCT(meta = (DisplayName = "Set Spline Points", Category = "Control Rig"))
+struct CONTROLRIGSPLINE_API FRigUnit_SetSplinePoints : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SetSplinePoints()
+	{
+		
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	TArray<FVector> Points;
+
+	UPROPERTY(meta = (Input, Output))
+	FControlRigSpline Spline;
+};
+
 USTRUCT(meta = (DisplayName = "Position From Spline", Keywords="Point From Spline", Category = "Control Rig"))
 struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
