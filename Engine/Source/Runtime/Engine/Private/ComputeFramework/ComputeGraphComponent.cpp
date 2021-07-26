@@ -70,6 +70,13 @@ void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
 		ComputeDataProviderProxies.Add(ProviderProxy);
 	}
 
+	// Don't submit work if we don't have all of the expected bindings.
+	if (!ensure(ComputeGraph->ValidateBindings(ComputeDataProviderProxies)))
+	{
+		// todo[CF]: We should have a default fallback for all cases where we can't submit work.
+		return;
+	}
+
 	ENQUEUE_RENDER_COMMAND(ComputeFrameworkEnqueueExecutionCommand)(
 		[ComputeGraphScheduler, ComputeGraphProxy, DataProviderProxies = MoveTemp(ComputeDataProviderProxies)](FRHICommandListImmediate& RHICmdList)
 		{
