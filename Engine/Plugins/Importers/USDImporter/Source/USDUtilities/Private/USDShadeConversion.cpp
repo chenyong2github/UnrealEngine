@@ -200,10 +200,12 @@ namespace UE
 
 				FScopedUnrealAllocs UEAllocs;
 
+				FName TextureName = MakeUniqueObjectName( Outer, UTexture::StaticClass(), *FPaths::GetBaseFilename( ResolvedTexturePath ) );
+
 				return Cast<UTexture>(TextureFactory->FactoryCreateBinary(
 					UTexture::StaticClass(),
 					Outer,
-					NAME_None,
+					TextureName,
 					ObjectFlags,
 					nullptr,
 					*TextureExtension,
@@ -967,7 +969,8 @@ namespace UE
 						// Not inside an USDZ archive, just a regular texture
 						else
 						{
-							Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), Outer, NAME_None, ObjectFlags, ResolvedTexturePath, TEXT( "" ), bOutCancelled ) );
+							FName TextureName = MakeUniqueObjectName( Outer, UTexture::StaticClass(), *FPaths::GetBaseFilename( ResolvedTexturePath ) );
+							Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), Outer, TextureName, ObjectFlags, ResolvedTexturePath, TEXT(""), bOutCancelled));
 						}
 
 						if ( Texture )

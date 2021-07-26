@@ -45,10 +45,11 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 		if ( UMaterialInterface* MasterMaterial = Cast< UMaterialInterface >( FSoftObjectPath( MaterialPath ).TryLoad() ) )
 		{
+			FName InstanceName = MakeUniqueObjectName( GetTransientPackage(), UMaterialInstance::StaticClass(), *FPaths::GetBaseFilename( PrimPath.GetString() ) );
 			if ( GIsEditor ) // Also have to prevent Standalone game from going with MaterialInstanceConstants
 			{
 #if WITH_EDITOR
-				if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), NAME_None, Context->ObjectFlags ) )
+				if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), InstanceName, Context->ObjectFlags ) )
 				{
 					NewMaterial->SetParentEditorOnly( MasterMaterial );
 
@@ -70,7 +71,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				}
 #endif // WITH_EDITOR
 			}
-			else if ( UMaterialInstanceDynamic* NewMaterial = UMaterialInstanceDynamic::Create( MasterMaterial, GetTransientPackage() ) )
+			else if ( UMaterialInstanceDynamic* NewMaterial = UMaterialInstanceDynamic::Create( MasterMaterial, GetTransientPackage(), InstanceName ) )
 			{
 				TMap<FString, int32> Unused;
 				TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) : Unused;

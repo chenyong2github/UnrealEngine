@@ -2053,7 +2053,9 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	TArray<FSkeletalMeshImportData>& LODIndexToSkeletalMeshImportData,
 	const TArray<SkeletalMeshImportData::FBone>& InSkeletonBones,
 	UsdUtils::FBlendShapeMap& InBlendShapesByPath,
-	EObjectFlags ObjectFlags
+	EObjectFlags ObjectFlags,
+	const FName& MeshName,
+	const FName& SkeletonName
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::GetSkeletalMeshFromImportData );
@@ -2066,7 +2068,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	// A SkeletalMesh could be retrieved for re-use and updated for animations
 	// For now, create a new USkeletalMesh
 	// Note: Remember to initialize UsedMorphTargetNames with existing morph targets, whenever the SkeletalMesh is reused
-	USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(GetTransientPackage(), NAME_None, ObjectFlags | EObjectFlags::RF_Public);
+	USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(GetTransientPackage(), MeshName, ObjectFlags | EObjectFlags::RF_Public);
 
 	// Process reference skeleton from import data
 	int32 SkeletalDepth = 0;
@@ -2172,7 +2174,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	SkeletalMesh->CalculateInvRefMatrices();
 
 	// Generate a Skeleton and associate it to the SkeletalMesh
-	USkeleton* Skeleton = NewObject<USkeleton>(GetTransientPackage(), NAME_None, ObjectFlags | EObjectFlags::RF_Public );
+	USkeleton* Skeleton = NewObject<USkeleton>( GetTransientPackage(), SkeletonName, ObjectFlags | EObjectFlags::RF_Public );
 	Skeleton->MergeAllBonesToBoneTree(SkeletalMesh);
 	Skeleton->SetPreviewMesh(SkeletalMesh);
 	SkeletalMesh->SetSkeleton(Skeleton);

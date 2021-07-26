@@ -168,9 +168,11 @@ namespace UsdToUnreal
 	 * @param InSkeletonBones - Bones to use for the reference skeleton (skeleton data on each LODIndexToSkeletalMeshImportData will be ignored).
 	 * @param BlendShapesByPath - Blend shapes to convert to morph targets
 	 * @param ObjectFlags - Flags to use when creating the USkeletalMesh and corresponding USkeleton
+	 * @param MeshName - Name to use for the new USkeletalMesh asset
+	 * @param SkeletonName - Name to use for the new USkeleton asset
 	 * @return Newly created USkeletalMesh, or nullptr in case of failure
 	 */
-	USDUTILITIES_API USkeletalMesh* GetSkeletalMeshFromImportData( TArray<FSkeletalMeshImportData>& LODIndexToSkeletalMeshImportData, const TArray<SkeletalMeshImportData::FBone>& InSkeletonBones, UsdUtils::FBlendShapeMap& InBlendShapesByPath, EObjectFlags ObjectFlags );
+	USDUTILITIES_API USkeletalMesh* GetSkeletalMeshFromImportData( TArray<FSkeletalMeshImportData>& LODIndexToSkeletalMeshImportData, const TArray<SkeletalMeshImportData::FBone>& InSkeletonBones, UsdUtils::FBlendShapeMap& InBlendShapesByPath, EObjectFlags ObjectFlags, const FName& MeshName = NAME_None, const FName& SkeletonName = NAME_None );
 }
 
 namespace UnrealToUsd
