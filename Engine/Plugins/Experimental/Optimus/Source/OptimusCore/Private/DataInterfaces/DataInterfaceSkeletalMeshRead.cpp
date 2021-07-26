@@ -294,26 +294,22 @@ UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject
 
 FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
 {
-	return new FSkeletalMeshReadDataProviderProxy(SkeletalMesh);
+	// todo[CF]: Support some fallback path for no skeletal mesh being set?
+	const bool bValid = SkeletalMesh != nullptr && SkeletalMesh->MeshObject != nullptr && SkeletalMesh->GetScene() != nullptr;
+	return bValid ? new FSkeletalMeshReadDataProviderProxy(SkeletalMesh) : nullptr;
 }
 
 
 FSkeletalMeshReadDataProviderProxy::FSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {
-	SkeletalMeshObject = SkeletalMeshComponent != nullptr ? SkeletalMeshComponent->MeshObject : nullptr;
+	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
 	
 	// todo[CF]: Remove GPUSkinCache access for this provider. It's only used as a hack to get latest bone matrices.
-	FSceneInterface* Scene = SkeletalMeshComponent != nullptr ? SkeletalMeshComponent->GetScene() : nullptr;
-	GPUSkinCache = Scene != nullptr ? Scene->GetGPUSkinCache() : nullptr;
+	GPUSkinCache = SkeletalMeshComponent->GetScene()->GetGPUSkinCache();
 }
 
 int32 FSkeletalMeshReadDataProviderProxy::GetInvocationCount() const
 {
-	if (SkeletalMeshObject == nullptr || GPUSkinCache == nullptr)
-	{
-		return 0;
-	}
-
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
 	return LodRenderData->RenderSections.Num();
@@ -344,48 +340,44 @@ void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHA
 	FSkeletalMeshReadDataInterfaceParameters Parameters;
 	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
 
-	if (SkeletalMeshObject)
-	{
-		FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-		FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
 
-		FRHIShaderResourceView* IndexBufferSRV = LodRenderData->MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
-		FRHIShaderResourceView* MeshVertexBufferSRV = LodRenderData->StaticVertexBuffers.PositionVertexBuffer.GetSRV();
-		FRHIShaderResourceView* MeshTangentBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTangentsSRV();
-		FRHIShaderResourceView* MeshUVBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
+	FRHIShaderResourceView* IndexBufferSRV = LodRenderData->MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
+	FRHIShaderResourceView* MeshVertexBufferSRV = LodRenderData->StaticVertexBuffers.PositionVertexBuffer.GetSRV();
+	FRHIShaderResourceView* MeshTangentBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTangentsSRV();
+	FRHIShaderResourceView* MeshUVBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
 
-		FSkinWeightVertexBuffer const* WeightBuffer = LodRenderData->GetSkinWeightVertexBuffer();
-		FRHIShaderResourceView* SkinWeightBufferSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
-		const bool bUnlimitedBoneInfluences = FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences();
-		FRHIShaderResourceView* InputWeightLookupStreamSRV = bUnlimitedBoneInfluences ? WeightBuffer->GetLookupVertexBuffer()->GetSRV() : nullptr;
+	FSkinWeightVertexBuffer const* WeightBuffer = LodRenderData->GetSkinWeightVertexBuffer();
+	FRHIShaderResourceView* SkinWeightBufferSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
+	const bool bUnlimitedBoneInfluences = FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences();
+	FRHIShaderResourceView* InputWeightLookupStreamSRV = bUnlimitedBoneInfluences ? WeightBuffer->GetLookupVertexBuffer()->GetSRV() : nullptr;
 		
-		const TArray<FMatrix44f>& RefToLocals = SkeletalMeshObject->GetReferenceToLocalMatrices();
-		FRHIShaderResourceView* BoneBufferSRV = GPUSkinCache->GetBoneBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
+	const TArray<FMatrix44f>& RefToLocals = SkeletalMeshObject->GetReferenceToLocalMatrices();
+	FRHIShaderResourceView* BoneBufferSRV = GPUSkinCache->GetBoneBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
 
-		FRHIShaderResourceView* DuplicatedIndicesIndicesSRV = RenderSection.DuplicatedVerticesBuffer.LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV;
-		FRHIShaderResourceView* DuplicatedIndicesSRV = RenderSection.DuplicatedVerticesBuffer.DuplicatedVerticesIndexBuffer.VertexBufferSRV;
+	FRHIShaderResourceView* DuplicatedIndicesIndicesSRV = RenderSection.DuplicatedVerticesBuffer.LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV;
+	FRHIShaderResourceView* DuplicatedIndicesSRV = RenderSection.DuplicatedVerticesBuffer.DuplicatedVerticesIndexBuffer.VertexBufferSRV;
 
-
-		Parameters.NumVertices = RenderSection.NumVertices;
-		Parameters.NumTriangles = RenderSection.NumTriangles;
-		Parameters.NumTexCoords = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-		Parameters.IndexBufferStart = RenderSection.BaseIndex;
-		Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
-		Parameters.InputWeightStart = (WeightBuffer->GetConstantInfluencesVertexStride() * RenderSection.GetVertexBufferIndex()) / sizeof(float);
-		Parameters.InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
-		Parameters.InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
-		Parameters.IndexBuffer = IndexBufferSRV;
-		Parameters.PositionInputBuffer = MeshVertexBufferSRV;
-		Parameters.TangentInputBuffer = MeshTangentBufferSRV;
-		Parameters.UVInputBuffer = MeshUVBufferSRV;
-		Parameters.BoneMatrices = BoneBufferSRV;
-		Parameters.InputWeightStream = SkinWeightBufferSRV;
-		Parameters.InputWeightLookupStream = InputWeightLookupStreamSRV;
-		//Parameters.MorphBuffer = ;
-		Parameters.DuplicatedIndicesIndices = DuplicatedIndicesIndicesSRV;
-		Parameters.DuplicatedIndices = DuplicatedIndicesSRV;
-	}
+	Parameters.NumVertices = RenderSection.NumVertices;
+	Parameters.NumTriangles = RenderSection.NumTriangles;
+	Parameters.NumTexCoords = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	Parameters.IndexBufferStart = RenderSection.BaseIndex;
+	Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
+	Parameters.InputWeightStart = (WeightBuffer->GetConstantInfluencesVertexStride() * RenderSection.GetVertexBufferIndex()) / sizeof(float);
+	Parameters.InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
+	Parameters.InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
+	Parameters.IndexBuffer = IndexBufferSRV;
+	Parameters.PositionInputBuffer = MeshVertexBufferSRV;
+	Parameters.TangentInputBuffer = MeshTangentBufferSRV;
+	Parameters.UVInputBuffer = MeshUVBufferSRV;
+	Parameters.BoneMatrices = BoneBufferSRV;
+	Parameters.InputWeightStream = SkinWeightBufferSRV;
+	Parameters.InputWeightLookupStream = InputWeightLookupStreamSRV;
+	//Parameters.MorphBuffer = ;
+	Parameters.DuplicatedIndicesIndices = DuplicatedIndicesIndicesSRV;
+	Parameters.DuplicatedIndices = DuplicatedIndicesSRV;
 
 	TArray<uint8> ParamData;
 	ParamData.SetNum(sizeof(Parameters));

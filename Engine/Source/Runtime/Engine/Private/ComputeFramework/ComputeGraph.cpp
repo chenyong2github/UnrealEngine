@@ -79,6 +79,22 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 	return true;
 }
 
+bool UComputeGraph::ValidateBindings(TArrayView< FComputeDataProviderRenderProxy* > DataProviderProxies) const
+{
+	if (DataInterfaces.Num() != DataProviderProxies.Num())
+	{
+		return false;
+	}
+	for (int32 Index = 0; Index < DataInterfaces.Num(); ++Index)
+	{
+		if (DataInterfaces[Index] != nullptr && DataProviderProxies[Index] == nullptr)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 void UComputeGraph::CreateDataProviders(UObject* InOuter, bool bSetDefaultBindings, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
 {
 	// If we want default bindings then get any associated Actor and look for objects of the requested type.

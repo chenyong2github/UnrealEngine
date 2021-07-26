@@ -7,6 +7,7 @@
 #include "ComputeGraph.generated.h"
 
 class FArchive;
+class FComputeDataProviderRenderProxy;
 class FComputeKernelResource;
 class FShaderParametersMetadata;
 class ITargetPlatform;
@@ -125,6 +126,9 @@ public:
 	 * The caller is responsible for any data provider binding not handled by the default behavior.
 	 */
 	void CreateDataProviders(UObject* InOuter, bool bSetDefaultBindings, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
+
+	/** Returns true if there is a valid DataProviderProxies entry for each of our DataInterfaces. */
+	bool ValidateBindings(TArrayView< FComputeDataProviderRenderProxy* > DataProviderProxies) const;
 
 	/**
 	 * Get unique data interface id.
