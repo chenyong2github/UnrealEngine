@@ -8,6 +8,7 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
+#include "DerivedDataPayloadPrivate.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
@@ -200,16 +201,16 @@ void FCacheRecordBuilderInternal::SetMeta(FCbObject&& InMeta)
 
 FPayloadId FCacheRecordBuilderInternal::SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id)
 {
-	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(NAME_Default, Buffer);
-	const FPayloadId ValueId = GetOrCreatePayloadId(Id, CompressedBuffer);
-	return SetValue(FPayload(ValueId, MoveTemp(CompressedBuffer)));
+	FCompressedBuffer Compressed = FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel);
+	const FPayloadId ValueId = GetOrCreatePayloadId(Id, Compressed);
+	return SetValue(FPayload(ValueId, MoveTemp(Compressed)));
 }
 
 FPayloadId FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id)
 {
-	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(NAME_Default, Buffer);
-	const FPayloadId ValueId = GetOrCreatePayloadId(Id, CompressedBuffer);
-	return SetValue(FPayload(ValueId, MoveTemp(CompressedBuffer)));
+	FCompressedBuffer Compressed = FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel);
+	const FPayloadId ValueId = GetOrCreatePayloadId(Id, Compressed);
+	return SetValue(FPayload(ValueId, MoveTemp(Compressed)));
 }
 
 FPayloadId FCacheRecordBuilderInternal::SetValue(const FPayload& Payload)
@@ -228,16 +229,16 @@ FPayloadId FCacheRecordBuilderInternal::SetValue(const FPayload& Payload)
 
 FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id)
 {
-	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(NAME_Default, Buffer);
-	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, CompressedBuffer);
-	return AddAttachment(FPayload(AttachmentId, MoveTemp(CompressedBuffer)));
+	FCompressedBuffer Compressed = FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel);
+	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, Compressed);
+	return AddAttachment(FPayload(AttachmentId, MoveTemp(Compressed)));
 }
 
 FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id)
 {
-	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(NAME_Default, Buffer);
-	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, CompressedBuffer);
-	return AddAttachment(FPayload(AttachmentId, MoveTemp(CompressedBuffer)));
+	FCompressedBuffer Compressed = FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel);
+	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, Compressed);
+	return AddAttachment(FPayload(AttachmentId, MoveTemp(Compressed)));
 }
 
 FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FPayload& Payload)
