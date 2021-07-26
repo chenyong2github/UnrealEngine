@@ -199,16 +199,15 @@ struct TCastImpl<From, To, ECastType::InterfaceToUObject>
 {
 	FORCEINLINE static To* DoCast( From* Src )
 	{
-		To* Result = nullptr;
 		if (Src)
 		{
 			UObject* Obj = Src->_getUObject();
-			if (Obj->IsA<To>())
+			if (Obj && Obj->IsA<To>())
 			{
-				Result = (To*)Obj;
+				return (To*)Obj;
 			}
 		}
-		return Result;
+		return nullptr;
 	}
 
 	FORCEINLINE static To* DoCastCheckedWithoutTypeCheck( From* Src )
@@ -258,12 +257,26 @@ struct TCastImpl<From, To, ECastType::InterfaceToInterface>
 {
 	FORCEINLINE static To* DoCast( From* Src )
 	{
-		return Src ? (To*)Src->_getUObject()->GetInterfaceAddress(To::UClassType::StaticClass()) : nullptr;
+		if (Src)
+		{
+			if (UObject* Obj = Src->_getUObject())
+			{
+				return (To*)Obj->GetInterfaceAddress(To::UClassType::StaticClass());
+			}
+		}
+		return nullptr;
 	}
 
 	FORCEINLINE static To* DoCastCheckedWithoutTypeCheck( From* Src )
 	{
-		return Src ? (To*)Src->_getUObject()->GetInterfaceAddress(To::UClassType::StaticClass()) : nullptr;
+		if (Src)
+		{
+			if (UObject* Obj = Src->_getUObject())
+			{
+				return (To*)Obj->GetInterfaceAddress(To::UClassType::StaticClass());
+			}
+		}
+		return nullptr;
 	}
 };
 

@@ -2874,7 +2874,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 			{
 				// Note: This used to be declared as a pure virtual function, but it was changed here in order to allow the Blueprint nativization process
 				// to detect C++ interface classes that explicitly declare pure virtual functions via type traits. This code will no longer trigger that check.
-				InterfaceBoilerplate.Logf(TEXT("\tvirtual UObject* _getUObject() const { check(0 && \"Missing required implementation.\"); return nullptr; }\r\n"));
+				InterfaceBoilerplate.Logf(TEXT("\tvirtual UObject* _getUObject() const { return nullptr; }\r\n"));
 			}
 
 			if (ClassHasReplicatedProperties(ClassDef))
