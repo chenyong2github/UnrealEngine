@@ -64,6 +64,7 @@ enum class EMeshGroupPaintInteractionType : uint8
 {
 	Brush,
 	Fill,
+	GroupFill,
 	PolyLasso,
 
 	LastValue UMETA(Hidden)
@@ -125,17 +126,17 @@ public:
 
 	/** Relative size of brush */
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Brush Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0", 
-		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::Brush"))
+		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType != EMeshGroupPaintInteractionType::PolyLasso"))
 	float BrushSize;
 
 	/** When Volumetric, all faces inside the brush sphere are selected, otherwise only connected faces are selected */
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Brush Area Mode",
-		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::Brush"))
+		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType != EMeshGroupPaintInteractionType::PolyLasso"))
 	EMeshGroupPaintBrushAreaType BrushAreaMode = EMeshGroupPaintBrushAreaType::Connected;
 
 	/** Allow the Brush to hit the back-side of the mesh */
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Hit Back Faces",
-		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::Brush"))
+		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType != EMeshGroupPaintInteractionType::PolyLasso"))
 	bool bHitBackFaces = true;
 
 	/** The group that will be assigned to triangles */
@@ -154,23 +155,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = ActionType)
 	bool bOnlyEraseCurrent = false;
 
-	
-	/** Control which triangles can be affected by the current operation based on visibility */
-	UPROPERTY(EditAnywhere, Category = Filters)
-	EMeshGroupPaintVisibilityType VisibilityFilter = EMeshGroupPaintVisibilityType::None;
-
 	/** The Region affected by the current operation will be bounded by edge angles larger than this threshold */
-	UPROPERTY(EditAnywhere, Category = Filters, meta = (UIMin = "0.0", UIMax = "180.0",
-		EditCondition = "bVolumetric == false"))
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (UIMin = "0.0", UIMax = "180.0", EditCondition = "SubToolType != EMeshGroupPaintInteractionType::PolyLasso && BrushAreaMode == EMeshGroupPaintBrushAreaType::Connected"))
 	float AngleThreshold = 180.0f;
 
 	/** The Region affected by the current operation will be bounded by UV borders/seams */
-	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "bVolumetric == false"))
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "SubToolType != EMeshGroupPaintInteractionType::PolyLasso && BrushAreaMode == EMeshGroupPaintBrushAreaType::Connected"))
 	bool bUVSeams = false;
 
 	/** The Region affected by the current operation will be bounded by Hard Normal edges/seams */
-	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "bVolumetric == false"))
+	UPROPERTY(EditAnywhere, Category = Filters, meta = (EditCondition = "SubToolType != EMeshGroupPaintInteractionType::PolyLasso && BrushAreaMode == EMeshGroupPaintBrushAreaType::Connected"))
 	bool bNormalSeams = false;
+
+	/** Control which triangles can be affected by the current operation based on visibility. Applied after all other filters. */
+	UPROPERTY(EditAnywhere, Category = Filters)
+	EMeshGroupPaintVisibilityType VisibilityFilter = EMeshGroupPaintVisibilityType::None;
 
 
 	/** Number of vertices in a triangle the Lasso must hit to be counted as "inside" */

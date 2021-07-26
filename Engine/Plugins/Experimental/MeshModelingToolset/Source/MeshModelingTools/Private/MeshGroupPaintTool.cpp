@@ -313,7 +313,8 @@ void UMeshGroupPaintTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 bool UMeshGroupPaintTool::IsInBrushSubMode() const
 {
 	return FilterProperties->SubToolType == EMeshGroupPaintInteractionType::Brush
-		|| FilterProperties->SubToolType == EMeshGroupPaintInteractionType::Fill;
+		|| FilterProperties->SubToolType == EMeshGroupPaintInteractionType::Fill
+		|| FilterProperties->SubToolType == EMeshGroupPaintInteractionType::GroupFill;
 }
 
 
@@ -386,7 +387,32 @@ void UMeshGroupPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 		TriangleROI.Add(CenterTID);
 	}
 
+	FVector3d CenterNormal = Mesh->IsTriangle(CenterTID) ? TriNormals[CenterTID] : FVector3d::One();		// One so that normal check always passes
+
+	bool bUseAngleThreshold = (FilterProperties->AngleThreshold < 180.0f);
+	double DotAngleThreshold = FMathd::Cos(FilterProperties->AngleThreshold * FMathd::DegToRad);
+	bool bStopAtUVSeams = FilterProperties->bUVSeams;
+	bool bStopAtNormalSeams = FilterProperties->bNormalSeams;
+
+
+	auto CheckEdgeCriteria = [&](int32 t1, int32 t2) -> bool
+	{
+		if (bUseAngleThreshold == false || CenterNormal.Dot(TriNormals[t2]) > DotAngleThreshold)
+		{
+			int32 eid = Mesh->FindEdgeFromTriPair(t1, t2);
+			if (bStopAtUVSeams == false || UVSeamEdges[eid] == false)
+			{
+				if (bStopAtNormalSeams == false || NormalSeamEdges[eid] == false)
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+
 	bool bFill = (FilterProperties->SubToolType == EMeshGroupPaintInteractionType::Fill);
+	bool bGroupFill = (FilterProperties->SubToolType == EMeshGroupPaintInteractionType::GroupFill);
 
 	if (FilterProperties->BrushAreaMode == EMeshGroupPaintBrushAreaType::Volumetric)
 	{
@@ -398,54 +424,43 @@ void UMeshGroupPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 				TriangleROI.Add(TriIdx);
 			}
 		});
-
-		if (bFill)
-		{
-			TArray<int32> StartROI;
-			for (int32 tid : TriangleROI)
-			{
-				StartROI.Add(tid);
-			}
-			FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, TriangleROI, &TempROIBuffer,
-				[&](int t1, int t2)
-			{
-				return true;
-			});
-		}
 	}
 	else
 	{
 		if (Mesh->IsTriangle(CenterTID))
 		{
-			FVector3d CenterNormal = TriNormals[CenterTID];
-			bool bUseAngleThreshold = (FilterProperties->AngleThreshold < 180.0f);
-			double DotAngleThreshold = FMathd::Cos(FilterProperties->AngleThreshold * FMathd::DegToRad);
-
-			bool bStopAtUVSeams = FilterProperties->bUVSeams;
-			bool bStopAtNormalSeams = FilterProperties->bNormalSeams;
-
 			TArray<int32> StartROI;
 			StartROI.Add(CenterTID);
 			FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, TriangleROI, &TempROIBuffer,
 				[&](int t1, int t2) 
 			{ 
-				if (bFill || (Mesh->GetTriCentroid(t2) - BrushPos).SquaredLength() < RadiusSqr)
+				if ((Mesh->GetTriCentroid(t2) - BrushPos).SquaredLength() < RadiusSqr)
 				{
-					if (bUseAngleThreshold == false || CenterNormal.Dot(TriNormals[t2]) > DotAngleThreshold)
-					{
-						int32 eid = Mesh->FindEdgeFromTriPair(t1, t2);
-						if (bStopAtUVSeams == false || UVSeamEdges[eid] == false)
-						{
-							if (bStopAtNormalSeams == false || NormalSeamEdges[eid] == false)
-							{
-								return true;
-							}
-						}
-					}
+					return CheckEdgeCriteria(t1, t2);
 				}
 				return false;
 			});
 		}
+	}
+
+	if (bFill || bGroupFill)
+	{
+		TArray<int32> StartROI;
+		TSet<int32> FillGroups;
+		for (int32 tid : TriangleROI)
+		{
+			StartROI.Add(tid);
+			FillGroups.Add(ActiveGroupSet->GetGroup(tid));
+		}
+		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, TriangleROI, &TempROIBuffer,
+			[&](int t1, int t2)
+		{
+			if (bFill || (bGroupFill && FillGroups.Contains(ActiveGroupSet->GetGroup(t2))))
+			{
+				return CheckEdgeCriteria(t1, t2);
+			}
+			return false;
+		});
 	}
 
 
