@@ -2056,8 +2056,14 @@ FSHAHash UsdUtils::HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMater
 		UsdShadeConversionImpl::HashShadeInput( ShadeInput, HashState );
 	}
 
-	FSHAHash OutHash;
+	bool bValue = false;
+	if ( pxr::UsdAttribute Attr = UsdShadeMaterial.GetPrim().GetAttribute( UnrealIdentifiers::WorldSpaceNormals ) )
+	{
+		Attr.Get<bool>( &bValue );
+	}
+	HashState.Update( reinterpret_cast< uint8* >( &bValue ), sizeof( bValue ) );
 
+	FSHAHash OutHash;
 	HashState.Final();
 	HashState.GetHash( &OutHash.Hash[0] );
 
