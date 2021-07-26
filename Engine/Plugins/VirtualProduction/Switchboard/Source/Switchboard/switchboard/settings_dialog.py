@@ -371,7 +371,7 @@ class SettingsDialog(QtCore.QObject):
 
         combo.currentTextChanged.connect(lambda text, setting=setting: setting.update_value(text))
 
-    _str_attr_path_filters = { 'ndisplay_cfg_file': 'nDisplay Config (*.cfg;*.ndisplay;*.uasset)' }
+    _str_attr_path_filters = { 'ndisplay_cfg_file': 'nDisplay Config (*.ndisplay;*.uasset)' }
     def path_filter_for_setting(self, setting):
         return self._str_attr_path_filters.get(setting.attr_name)
 
