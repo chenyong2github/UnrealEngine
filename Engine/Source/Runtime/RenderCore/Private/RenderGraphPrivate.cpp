@@ -306,15 +306,38 @@ FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
 	TEXT(" 2: enables the transient allocator for resources with FastVRAM flag only"),
 	ECVF_RenderThreadSafe);
 
+int32 GRDGParallelExecute = 1;
+FAutoConsoleVariableRef CVarRDGParallelExecute(
+	TEXT("r.RDG.ParallelExecute"), GRDGParallelExecute,
+	TEXT("Whether to enable parallel execution of passes when supported.")
+	TEXT(" 0: off;")
+	TEXT(" 1: on (default)"),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* Variable)
+	{
+		if (Variable->GetInt())
+		{
+			if (GRDGParallelExecutePassMax <= 1)
+			{
+				GRDGParallelExecutePassMax = 1;
+			}
+
+			if (GRDGParallelExecutePassMin < GRDGParallelExecutePassMax)
+			{
+				GRDGParallelExecutePassMin = GRDGParallelExecutePassMax;
+			}
+		}
+	}),
+	ECVF_RenderThreadSafe);
+
 int32 GRDGParallelExecutePassMin = 1;
 FAutoConsoleVariableRef CVarRDGParallelExecutePassMin(
-	TEXT("r.RDG.ParallelExecutePassMin"), GRDGParallelExecutePassMin,
+	TEXT("r.RDG.ParallelExecute.PassMin"), GRDGParallelExecutePassMin,
 	TEXT("The minimum span of contiguous passes eligible for parallel execution for the span to be offloaded to a task."),
 	ECVF_RenderThreadSafe);
 
 int32 GRDGParallelExecutePassMax = 32;
 FAutoConsoleVariableRef CVarRDGParallelExecutePassMax(
-	TEXT("r.RDG.ParallelExecutePassMax"), GRDGParallelExecutePassMax,
+	TEXT("r.RDG.ParallelExecute.PassMax"), GRDGParallelExecutePassMax,
 	TEXT("The maximum span of contiguous passes eligible for parallel execution for the span to be offloaded to a task."),
 	ECVF_RenderThreadSafe);
 
