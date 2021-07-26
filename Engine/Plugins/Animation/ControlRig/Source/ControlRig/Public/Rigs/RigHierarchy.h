@@ -1912,7 +1912,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromVector2D(FVector2D InValue)
 	{
-		return FRigControlValue::Make<FVector2D>(InValue);
+		return FRigControlValue::Make<FVector3f>(FVector3f(InValue.X, InValue.Y, 0.f));
 	}
 
 	/**
@@ -1923,7 +1923,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	static FORCEINLINE FVector2D GetVector2DFromControlValue(FRigControlValue InValue)
 	{
-		return InValue.Get<FVector2D>();
+		const FVector3f Vector = InValue.Get<FVector3f>();
+		return FVector2D(Vector.X, Vector.Y);
 	}
 
 	/**
@@ -1934,7 +1935,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromVector(FVector InValue)
 	{
-		return FRigControlValue::Make<FVector>(InValue);
+		return FRigControlValue::Make<FVector3f>(InValue);
 	}
 
 	/**
@@ -1945,7 +1946,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	static FORCEINLINE FVector GetVectorFromControlValue(FRigControlValue InValue)
 	{
-		return InValue.Get<FVector>();
+		return InValue.Get<FVector3f>();
 	}
 
 	/**
@@ -1956,7 +1957,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromRotator(FRotator InValue)
 	{
-		return FRigControlValue::Make<FRotator>(InValue);
+		return FRigControlValue::Make<FVector3f>(InValue.Vector());
 	}
 
 	/**
@@ -1967,7 +1968,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	static FORCEINLINE FRotator GetRotatorFromControlValue(FRigControlValue InValue)
 	{
-		return InValue.Get<FRotator>();
+		return FRotator::MakeFromEuler(InValue.Get<FVector3f>());
 	}
 
 	/**
@@ -1978,7 +1979,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromTransform(FTransform InValue)
 	{
-		return FRigControlValue::Make<FTransform>(InValue);
+		return FRigControlValue::Make<FRigControlValue::FTransform_Float>(InValue);
 	}
 
 	/**
@@ -1989,7 +1990,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	static FORCEINLINE FTransform GetTransformFromControlValue(FRigControlValue InValue)
 	{
-		return InValue.Get<FTransform>();
+		return InValue.Get<FRigControlValue::FTransform_Float>().ToTransform();
 	}
 
 	/**
@@ -2000,7 +2001,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromEulerTransform(FEulerTransform InValue)
 	{
-		return FRigControlValue::Make<FEulerTransform>(InValue);
+		return FRigControlValue::Make<FRigControlValue::FEulerTransform_Float>(InValue);
 	}
 
 	/**
@@ -2011,7 +2012,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	static FORCEINLINE FEulerTransform GetEulerTransformFromControlValue(FRigControlValue InValue)
 	{
-		return InValue.Get<FEulerTransform>();
+		return InValue.Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
 	}
 
 	/**
@@ -2022,7 +2023,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromTransformNoScale(FTransformNoScale InValue)
 	{
-		return FRigControlValue::Make<FTransformNoScale>(InValue);
+		return FRigControlValue::Make<FRigControlValue::FTransformNoScale_Float>(InValue);
 	}
 
 	/**
@@ -2033,7 +2034,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	static FORCEINLINE FTransformNoScale GetTransformNoScaleFromControlValue(FRigControlValue InValue)
 	{
-		return InValue.Get<FTransformNoScale>();
+		return InValue.Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
 	}
 
 private:
@@ -2452,6 +2453,23 @@ protected:
 	friend class UControlRig;
 	friend class FControlRigEditor;
 };
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+
+template<>
+FORCEINLINE_DEBUGGABLE FVector2D URigHierarchy::GetControlValue(FRigControlElement* InControlElement, ERigControlValueType InValueType) const
+{
+	const FVector3f Value = GetControlValue(InControlElement, InValueType).Get<FVector3f>();
+	return FVector2D(Value.X, Value.Y);
+}
+
+template<>
+FORCEINLINE_DEBUGGABLE void URigHierarchy::SetControlValue(int32 InElementIndex, const FVector2D& InValue, ERigControlValueType InValueType, bool bSetupUndo) const
+{
+	return SetControlValue(InElementIndex, FRigControlValue::Make<FVector3f>(FVector3f(InValue.X, InValue.Y, 0.f)), InValueType, bSetupUndo);
+}
+
+#endif
 
 #if WITH_EDITOR
 

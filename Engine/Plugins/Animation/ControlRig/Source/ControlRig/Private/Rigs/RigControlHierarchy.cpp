@@ -78,7 +78,7 @@ void FRigControlHierarchy::PostLoad()
 			FRigControlValue& Value = Control.GetValue((ERigControlValueType)ValueType);
 			if (!Value.IsValid())
 			{
-				Value.GetRef<FTransform>() = Value.Storage_DEPRECATED;
+				Value.GetRef<FRigControlValue::FTransform_Float>() = Value.Storage_DEPRECATED;
 			}
 		}
 	}
