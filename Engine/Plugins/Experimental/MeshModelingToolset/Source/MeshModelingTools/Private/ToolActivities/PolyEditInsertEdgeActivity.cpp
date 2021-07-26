@@ -1,55 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GroupEdgeInsertionTool.h"
+#include "ToolActivities/PolyEditInsertEdgeActivity.h"
 
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
+#include "ContextObjectStore.h"
 #include "CuttingOps/GroupEdgeInsertionOp.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
-#include "DynamicMeshToMeshDescription.h"
 #include "InteractiveToolManager.h"
-#include "MeshDescriptionToDynamicMesh.h"
-#include "ToolBuilderUtil.h"
-#include "ToolSceneQueriesUtil.h"
-#include "ToolSetupUtil.h"
-
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "MeshOpPreviewHelpers.h"
+#include "Selection/PolygonSelectionMechanic.h"
+#include "ToolActivities/PolyEditActivityContext.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-#define LOCTEXT_NAMESPACE "UGroupEdgeInsertionTool"
+#define LOCTEXT_NAMESPACE "UPolyEditInsertEdgeActivity"
 
-bool GetSharedBoundary(const FGroupTopology& Topology,
-	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint, int32 StartTopologyID, bool bStartIsCorner,
-	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, int32 EndTopologyID, bool bEndIsCorner,
-	int32& GroupIDOut, int32& BoundaryIndexOut);
-bool DoesBoundaryContainPoint(const FGroupTopology& Topology,
-	const FGroupTopology::FGroupBoundary& Boundary, int32 PointTopologyID, bool bPointIsCorner);
-
-USingleSelectionMeshEditingTool* UGroupEdgeInsertionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
+namespace PolyEditInsertEdgeActivityLocals
 {
-	return NewObject<UGroupEdgeInsertionTool>(SceneState.ToolManager);
+	bool GetSharedBoundary(const FGroupTopology& Topology,
+		const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint, int32 StartTopologyID, bool bStartIsCorner,
+		const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, int32 EndTopologyID, bool bEndIsCorner,
+		int32& GroupIDOut, int32& BoundaryIndexOut);
+	bool DoesBoundaryContainPoint(const FGroupTopology& Topology,
+		const FGroupTopology::FGroupBoundary& Boundary, int32 PointTopologyID, bool bPointIsCorner);
 }
 
-TUniquePtr<FDynamicMeshOperator> UGroupEdgeInsertionOperatorFactory::MakeNewOperator()
+TUniquePtr<FDynamicMeshOperator> UPolyEditInsertEdgeActivity::MakeNewOperator()
 {
 	TUniquePtr<FGroupEdgeInsertionOp> Op = MakeUnique<FGroupEdgeInsertionOp>();
 
-	Op->OriginalMesh = Tool->CurrentMesh;
-	Op->OriginalTopology = Tool->CurrentTopology;
-	Op->SetTransform(Cast<IPrimitiveComponentBackedTarget>(Tool->Target)->GetWorldTransform());
+	Op->OriginalMesh = ActivityContext->CurrentMesh;
+	Op->OriginalTopology = ActivityContext->CurrentTopology;
+	Op->SetTransform(TargetTransform);
 
-	if (Tool->bShowingBaseMesh)
-	{
-		Op->bShowingBaseMesh = true;
-		return Op; // No inputs necessary- just showing the base mesh.
-	}
-
-	if (Tool->Settings->InsertionMode == EGroupEdgeInsertionMode::PlaneCut)
+	if (Settings->InsertionMode == EGroupEdgeInsertionMode::PlaneCut)
 	{
 		Op->Mode = FGroupEdgeInserter::EInsertionMode::PlaneCut;
 	}
@@ -58,51 +44,26 @@ TUniquePtr<FDynamicMeshOperator> UGroupEdgeInsertionOperatorFactory::MakeNewOper
 		Op->Mode = FGroupEdgeInserter::EInsertionMode::Retriangulate;
 	}
 
-	Op->VertexTolerance = Tool->Settings->VertexTolerance;
+	Op->VertexTolerance = Settings->VertexTolerance;
 
-	Op->StartPoint = Tool->StartPoint;
-	Op->EndPoint = Tool->EndPoint;
-	Op->CommonGroupID = Tool->CommonGroupID;
-	Op->CommonBoundaryIndex = Tool->CommonBoundaryIndex;
+	Op->StartPoint = StartPoint;
+	Op->EndPoint = EndPoint;
+	Op->CommonGroupID = CommonGroupID;
+	Op->CommonBoundaryIndex = CommonBoundaryIndex;
 
 	return Op;
 }
 
-void UGroupEdgeInsertionTool::Setup()
+void UPolyEditInsertEdgeActivity::Setup(UInteractiveTool* ParentToolIn)
 {
-	USingleSelectionTool::Setup();
-
-	if (!Target)
-	{
-		return;
-	}
-
-	SetToolDisplayName(LOCTEXT("ToolName", "Insert PolyEdge"));
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("GroupEdgeInsertionToolDescription", "Click two points on the boundary of a face to insert a new edge between the points and split the face."),
-		EToolMessageLevel::UserNotification);
-
-	// Initialize the mesh that we'll be operating on
-	CurrentMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
-	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *CurrentMesh);
-	CurrentTopology = MakeShared<FGroupTopology, ESPMode::ThreadSafe>(CurrentMesh.Get(), true);
-	MeshSpatial.SetMesh(CurrentMesh.Get(), true);
+	Super::Setup(ParentToolIn);
 
 	// Set up properties
 	Settings = NewObject<UGroupEdgeInsertionProperties>(this);
-	Settings->RestoreProperties(this);
+	Settings->RestoreProperties(ParentTool.Get());
 	AddToolPropertySource(Settings);
-
-	// Register ourselves to receive clicks and hover
-	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
-	ClickBehavior->Initialize(this);
-	AddInputBehavior(ClickBehavior);
-	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>();
-	HoverBehavior->Initialize(this);
-	AddInputBehavior(HoverBehavior);
-
-	SetupPreview();
+	SetToolPropertySourceEnabled(Settings, false);
+	Settings->GetOnModified().AddUObject(this, &UPolyEditInsertEdgeActivity::OnPropertyModified);
 
 	// These draw the group edges and the loops to be inserted
 	ExistingEdgesRenderer.LineColor = FLinearColor::Red;
@@ -113,35 +74,103 @@ void UGroupEdgeInsertionTool::Setup()
 	PreviewEdgeRenderer.PointSize = 8.0;
 	PreviewEdgeRenderer.bDepthTested = false;
 
-	// Set up the topology selector, which we use to select the endpoints
-	TopologySelector.Initialize(CurrentMesh.Get(), CurrentTopology.Get());
-	TopologySelector.SetSpatialSource([this]() {return &MeshSpatial; });
-	TopologySelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2, double TolScale) {
-		UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-		return ToolSceneQueriesUtil::PointSnapQuery(CameraState, Transform.TransformPosition(Position1), Transform.TransformPosition(Position2),
-			ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * TolScale);
-	};
+	// Set up the topology selector settings
 	TopologySelectorSettings.bEnableEdgeHits = true;
 	TopologySelectorSettings.bEnableCornerHits = true;
 	TopologySelectorSettings.bEnableFaceHits = false;
+
+	// Set up our input routing
+	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
+	ClickBehavior->Initialize(this);
+	ParentTool->AddInputBehavior(ClickBehavior);
+	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>();
+	HoverBehavior->Initialize(this);
+	ParentTool->AddInputBehavior(HoverBehavior);
+
+	ActivityContext = ParentTool->GetToolManager()->GetContextObjectStore()->FindContext<UPolyEditActivityContext>();
+
+	TopologySelector = ActivityContext->SelectionMechanic->GetTopologySelector();
 }
 
-void UGroupEdgeInsertionTool::SetupPreview()
+void UPolyEditInsertEdgeActivity::Shutdown(EToolShutdownType ShutdownType)
 {
-	UGroupEdgeInsertionOperatorFactory* OpFactory = NewObject<UGroupEdgeInsertionOperatorFactory>();
-	OpFactory->Tool = this;
+	if (bIsRunning)
+	{
+		End(ShutdownType);
+	}
 
-	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory);
-	Preview->Setup(TargetWorld, OpFactory);
-	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	Settings->SaveProperties(ParentTool.Get());
+	Settings->GetOnModified().Clear();
 
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
-	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+	TopologySelector.Reset();
+	Settings = nullptr;
+	ActivityContext = nullptr;
+
+	Super::Shutdown(ShutdownType);
+}
+
+EToolActivityStartResult UPolyEditInsertEdgeActivity::Start()
+{
+	ParentTool->GetToolManager()->DisplayMessage(
+		LOCTEXT("InsertEdgeActivityDescription", "Click two points on the boundary of a face to "
+			"insert a new edge between the points and split the face."),
+		EToolMessageLevel::UserNotification);
+
+	SetToolPropertySourceEnabled(Settings, true);
+
+	// We don't use selection, so clear it if necessary (have to issue an undo/redo event)
+	if (!ActivityContext->SelectionMechanic->GetActiveSelection().IsEmpty())
+	{
+		ActivityContext->SelectionMechanic->BeginChange();
+		ActivityContext->SelectionMechanic->ClearSelection();
+		ParentTool->GetToolManager()->EmitObjectChange(ActivityContext->SelectionMechanic,
+			ActivityContext->SelectionMechanic->EndChange(), LOCTEXT("ClearSelection", "Clear Selection"));
+	}
+
+	TargetTransform = ActivityContext->Preview->PreviewMesh->GetTransform();
+
+	SetupPreview();
+
+	ToolState = EState::GettingStart;
+	bLastComputeSucceeded = false;
+
+	bIsRunning = true;
+
+	// Emit activity start transaction
+	ActivityContext->EmitActivityStart(LOCTEXT("BeginInsertEdgeActivity", "Begin Insert Edge"));
+
+	return EToolActivityStartResult::Running;
+}
+
+EToolActivityEndResult UPolyEditInsertEdgeActivity::End(EToolShutdownType ShutdownType)
+{
+	if (!bIsRunning)
+	{
+		return EToolActivityEndResult::ErrorDuringEnd;
+	}
+
+	SetToolPropertySourceEnabled(Settings, false);
+	Settings->GetOnModified().Clear();
+
+	ActivityContext->Preview->OnOpCompleted.RemoveAll(this);
+	ActivityContext->Preview->OnMeshUpdated.RemoveAll(this);
+	ActivityContext->Preview->ClearOpFactory();
+
+	LatestOpTopologyResult.Reset();
+	LatestOpChangedTids.Reset();
+
+	bIsRunning = false;
+
+	return CanAccept() ? EToolActivityEndResult::Completed : EToolActivityEndResult::Cancelled;
+}
+
+void UPolyEditInsertEdgeActivity::SetupPreview()
+{
+	ActivityContext->Preview->ChangeOpFactory(this);
 
 	// Whenever we get a new result from the op, we need to extract the preview edges so that
 	// we can draw them if we want to.
-	Preview->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator* UncastOp) {
+	ActivityContext->Preview->OnOpCompleted.AddWeakLambda(this, [this](const FDynamicMeshOperator* UncastOp) {
 		const FGroupEdgeInsertionOp* Op = static_cast<const FGroupEdgeInsertionOp*>(UncastOp);
 
 		bLastComputeSucceeded = Op->bSucceeded;
@@ -155,109 +184,74 @@ void UGroupEdgeInsertionTool::SetupPreview()
 			LatestOpTopologyResult = Op->ResultTopology;
 			LatestOpChangedTids = Op->ChangedTids;
 		}
-		else
-		{
-			// Don't show the broken preview, since we wouldn't accept it on click.
-			Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
-		}
-		});
+	});
 
-	Preview->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator*) {
+	// In case of failure, we want to hide the broken preview, since we wouldn't accept it on
+	// a click. Note that this can't be fired OnOpCompleted because the preview is updated
+	// with the op result after that callback, which would undo the reset. The preview edge
+	// extraction can't be lumped in here because it needs the op rather than the preview object.
+	ActivityContext->Preview->OnMeshUpdated.AddWeakLambda(this, [this](UMeshOpPreviewWithBackgroundCompute*) {
 		if (!bLastComputeSucceeded)
 		{
-			// Don't show the broken preview, since we wouldn't accept it on click.
-			Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
+			ActivityContext->Preview->PreviewMesh->UpdatePreview(ActivityContext->CurrentMesh.Get());
 		}
-		});
-
-	// Set initial preview to unprocessed mesh, so that things don't disappear initially
-	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
-	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
-	Preview->PreviewMesh->EnableWireframe(Settings->bWireframe);
-	Preview->SetVisibility(true);
-	ClearPreview();
-
-	TargetComponent->SetOwnerVisibility(false);
+	});
 }
 
-void UGroupEdgeInsertionTool::Shutdown(EToolShutdownType ShutdownType)
+bool UPolyEditInsertEdgeActivity::CanStart() const
 {
-	// Set visibility before committing so that it doesn't get saved as false.
-	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
+	return true;
+}
 
-	if (ShutdownType == EToolShutdownType::Accept)
+void UPolyEditInsertEdgeActivity::Tick(float DeltaTime)
+{
+	if (ToolState == EState::WaitingForInsertComplete && ActivityContext->Preview->HaveValidResult())
 	{
-		GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupEdgeInsertionToolTransactionName", "Group Edge Insert Tool"));
-		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		if (bLastComputeSucceeded)
 		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(CurrentMesh.Get(), *CommitParams.MeshDescriptionOut);
-		});
-		GetToolManager()->EndUndoTransaction();
+			FDynamicMeshChangeTracker ChangeTracker(ActivityContext->CurrentMesh.Get());
+			ChangeTracker.BeginChange();
+			ChangeTracker.SaveTriangles(*LatestOpChangedTids, true /*bSaveVertices*/);
+
+			// Update current mesh
+			ActivityContext->CurrentMesh->Copy(*ActivityContext->Preview->PreviewMesh->GetMesh(), 
+				true, true, true, true);
+			
+			*ActivityContext->CurrentTopology = *LatestOpTopologyResult;
+			ActivityContext->CurrentTopology->RetargetOnClonedMesh(ActivityContext->CurrentMesh.Get());
+			
+			// Emit transaction
+			FGroupTopologySelection EmptySelection;
+			ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("EdgeInsertionTransactionName", "Edge Insertion"),
+				ChangeTracker.EndChange(), EmptySelection, true);
+
+			ToolState = EState::GettingStart;
+		}
+		else
+		{
+			ToolState = EState::GettingEnd;
+		}
+
+		PreviewEdges.Reset();
 	}
 
-	Settings->SaveProperties(this);
-	Preview->Shutdown();
-	CurrentMesh.Reset();
-	CurrentTopology.Reset();
-	ExpireChanges();
 }
 
-void UGroupEdgeInsertionTool::OnTick(float DeltaTime)
+void UPolyEditInsertEdgeActivity::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	if (Preview)
-	{
-		Preview->Tick(DeltaTime);
-
-		if (ToolState == EToolState::WaitingForInsertComplete && Preview->HaveValidResult())
-		{
-			if (bLastComputeSucceeded)
-			{
-				FDynamicMeshChangeTracker ChangeTracker(CurrentMesh.Get());
-				ChangeTracker.BeginChange();
-				ChangeTracker.SaveTriangles(*LatestOpChangedTids, true /*bSaveVertices*/);
-
-				// Update current mesh and topology
-				CurrentMesh->Copy(*Preview->PreviewMesh->GetMesh(), true, true, true, true);
-				*CurrentTopology = *LatestOpTopologyResult;
-				CurrentTopology->RetargetOnClonedMesh(CurrentMesh.Get());
-				MeshSpatial.Build();
-				TopologySelector.Invalidate(true, true);
-
-				// Emit transaction
-				GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupEdgeInsertionTransactionName", "Group Edge Insertion"));
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FGroupEdgeInsertionChange>(ChangeTracker.EndChange(), CurrentChangeStamp),
-					LOCTEXT("GroupEdgeInsertion", "GroupEdge Insertion"));
-				GetToolManager()->EndUndoTransaction();
-
-				ToolState = EToolState::GettingStart;
-			}
-			else
-			{
-				ToolState = EToolState::GettingEnd;
-			}
-
-			PreviewEdges.Reset();
-		}
-	}
-}
-
-void UGroupEdgeInsertionTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
+	ParentTool->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 
 	// Draw the existing group edges
 	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
 	ExistingEdgesRenderer.BeginFrame(RenderAPI, RenderCameraState);
-	ExistingEdgesRenderer.SetTransform(Preview->PreviewMesh->GetTransform());
+	ExistingEdgesRenderer.SetTransform(TargetTransform);
 
-	for (const FGroupTopology::FGroupEdge& Edge : CurrentTopology->Edges)
+	for (const FGroupTopology::FGroupEdge& Edge : ActivityContext->CurrentTopology->Edges)
 	{
 		FVector3d A, B;
 		for (int32 eid : Edge.Span.Edges)
 		{
-			CurrentMesh->GetEdgeV(eid, A, B);
+			ActivityContext->CurrentMesh->GetEdgeV(eid, A, B);
 			ExistingEdgesRenderer.DrawLine(A, B);
 		}
 	}
@@ -265,7 +259,7 @@ void UGroupEdgeInsertionTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	// Draw the preview edges and points
 	PreviewEdgeRenderer.BeginFrame(RenderAPI, RenderCameraState);
-	PreviewEdgeRenderer.SetTransform(Preview->PreviewMesh->GetTransform());
+	PreviewEdgeRenderer.SetTransform(TargetTransform);
 	for (const TPair<FVector3d, FVector3d>& EdgeVerts : PreviewEdges)
 	{
 		PreviewEdgeRenderer.DrawLine(EdgeVerts.Key, EdgeVerts.Value);
@@ -277,24 +271,23 @@ void UGroupEdgeInsertionTool::Render(IToolsContextRenderAPI* RenderAPI)
 	PreviewEdgeRenderer.EndFrame();
 }
 
-void UGroupEdgeInsertionTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+bool UPolyEditInsertEdgeActivity::CanAccept() const
 {
-	PreviewEdges.Reset();
-	Preview->PreviewMesh->EnableWireframe(Settings->bWireframe);
-	Preview->InvalidateResult();
+	return ToolState != EState::WaitingForInsertComplete;
 }
 
-void UGroupEdgeInsertionTool::ClearPreview(bool bClearDrawnElements, bool bForce)
+void UPolyEditInsertEdgeActivity::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	// We don't seem to have a way to cancel the background op on a mesh without shutting down
-	// the entire preview, hence us clearing the preview this way. When we know that the op is
-	// not running, we can instead use UpdatePreview() to reset the mesh to the original mesh.
+	PreviewEdges.Reset();
+	ActivityContext->Preview->InvalidateResult();
+}
 
-	if (!bShowingBaseMesh || bForce)
-	{
-		bShowingBaseMesh = true;
-		Preview->InvalidateResult();
-	}
+void UPolyEditInsertEdgeActivity::ClearPreview(bool bClearDrawnElements)
+{
+	ActivityContext->Preview->CancelCompute();
+	ActivityContext->Preview->PreviewMesh->UpdatePreview(ActivityContext->CurrentMesh.Get());
+	bShowingBaseMesh = true;
+
 	if (bClearDrawnElements)
 	{
 		PreviewEdges.Reset();
@@ -302,10 +295,27 @@ void UGroupEdgeInsertionTool::ClearPreview(bool bClearDrawnElements, bool bForce
 	}
 }
 
-void UGroupEdgeInsertionTool::ConditionallyUpdatePreview(
-	const FGroupEdgeInserter::FGroupEdgeSplitPoint& NewEndPoint, int32 NewEndTopologyID, bool bNewEndIsCorner, 
+/** 
+ * Update the preview unless we've already computed one with the same parameters (such as when snapping to
+ * the same vertex despite moving the mouse).
+ */
+void UPolyEditInsertEdgeActivity::ConditionallyUpdatePreview(
+	const FGroupEdgeInserter::FGroupEdgeSplitPoint& NewEndPoint, int32 NewEndTopologyID, bool bNewEndIsCorner,
 	int32 NewCommonGroupID, int32 NewBoundaryIndex)
 {
+	//if (InputGroupEdgeID != NewGroupID
+	//	|| (NewInteractiveInputLength && Settings->PositionMode != EEdgeLoopPositioningMode::Even
+	//		&& *NewInteractiveInputLength != InteractiveInputLength))
+	//{
+	//	InputGroupEdgeID = NewGroupID;
+	//	if (NewInteractiveInputLength)
+	//	{
+	//		InteractiveInputLength = *NewInteractiveInputLength;
+	//	}
+	//	PreviewEdges.Reset();
+	//	ActivityContext->Preview->InvalidateResult();
+	//}
+
 	if (bShowingBaseMesh 
 		|| bEndIsCorner != bNewEndIsCorner || EndTopologyID != NewEndTopologyID
 		|| EndPoint.bIsVertex != NewEndPoint.bIsVertex || EndPoint.ElementID != NewEndPoint.ElementID
@@ -332,19 +342,28 @@ void UGroupEdgeInsertionTool::ConditionallyUpdatePreview(
 
 		bShowingBaseMesh = false;
 		PreviewEdges.Reset();
-		Preview->InvalidateResult();
+		ActivityContext->Preview->InvalidateResult();
 	}
 }
 
-FInputRayHit UGroupEdgeInsertionTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+FInputRayHit UPolyEditInsertEdgeActivity::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
 {
 	FInputRayHit Hit;
+
+	// Early out if the activity is not running. This is actually important because the behavior is
+	// always in the behavior list while the tool is running (we don't have a way to add/remove at
+	// will).
+	if (!bIsRunning)
+	{
+		return Hit; // Hit.bHit is false
+	}
+
 	switch (ToolState)
 	{
-	case EToolState::WaitingForInsertComplete:
+	case EState::WaitingForInsertComplete:
 		break; // Keep hit invalid
 
-	case EToolState::GettingStart:
+	case EState::GettingStart:
 	{
 		PreviewPoints.Reset();
 		FVector3d RayPoint;
@@ -352,8 +371,9 @@ FInputRayHit UGroupEdgeInsertionTool::BeginHoverSequenceHitTest(const FInputDevi
 		{
 			Hit = FInputRayHit(PressPos.WorldRay.GetParameter((FVector)RayPoint));
 		}
+		break;
 	}
-	case EToolState::GettingEnd:
+	case EState::GettingEnd:
 	{
 		FVector3d RayPoint;
 		FRay3d LocalRay;
@@ -368,25 +388,28 @@ FInputRayHit UGroupEdgeInsertionTool::BeginHoverSequenceHitTest(const FInputDevi
 			// rays that are close enough to snap.
 			double RayT = 0;
 			int32 Tid = FDynamicMesh3::InvalidID;
-			if (MeshSpatial.FindNearestHitTriangle(LocalRay, RayT, Tid))
+			if (ActivityContext->MeshSpatial->FindNearestHitTriangle(LocalRay, RayT, Tid))
 			{
 				Hit = FInputRayHit(RayT);
 			}
 		}
+		break;
 	}
 	}
 
 	return Hit;
 }
 
-bool UGroupEdgeInsertionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
+bool UPolyEditInsertEdgeActivity::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
+	using namespace PolyEditInsertEdgeActivityLocals;
+
 	switch (ToolState)
 	{
-	case EToolState::WaitingForInsertComplete:
+	case EState::WaitingForInsertComplete:
 		return false; // Do nothing.
 
-	case EToolState::GettingStart:
+	case EState::GettingStart:
 	{
 		// Update start variables and show a preview of a point if it's on an edge or corner
 		PreviewPoints.Reset();
@@ -398,7 +421,7 @@ bool UGroupEdgeInsertionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 		}
 		return false;
 	}
-	case EToolState::GettingEnd:
+	case EState::GettingEnd:
 	{
 		check(PreviewPoints.Num() > 0);
 		PreviewPoints.SetNum(1); // Keep the first element, which is the start point
@@ -414,7 +437,7 @@ bool UGroupEdgeInsertionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 		{
 			// See if the point is not on the same vertex/edge but is on the same boundary
 			if (!(SnappedPoint.bIsVertex == StartPoint.bIsVertex && SnappedPoint.ElementID == StartPoint.ElementID)
-				&& GetSharedBoundary(*CurrentTopology, StartPoint, StartTopologyID, bStartIsCorner,
+				&& GetSharedBoundary(*ActivityContext->CurrentTopology, StartPoint, StartTopologyID, bStartIsCorner,
 					SnappedPoint, PointTopologyID, bPointIsCorner, GroupID, BoundaryIndex))
 			{
 				ConditionallyUpdatePreview(SnappedPoint, PointTopologyID, bPointIsCorner, GroupID, BoundaryIndex);
@@ -436,7 +459,7 @@ bool UGroupEdgeInsertionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 		PreviewEdges.Reset();
 		double RayT = 0;
 		int32 Tid = FDynamicMesh3::InvalidID;
-		if (MeshSpatial.FindNearestHitTriangle(LocalRay, RayT, Tid))
+		if (ActivityContext->MeshSpatial->FindNearestHitTriangle(LocalRay, RayT, Tid))
 		{
 			PreviewEdges.Emplace(PreviewPoints[0], LocalRay.PointAt(RayT));
 			return true;
@@ -449,15 +472,15 @@ bool UGroupEdgeInsertionTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	return false;
 }
 
-void UGroupEdgeInsertionTool::OnEndHover()
+void UPolyEditInsertEdgeActivity::OnEndHover()
 {
 	switch (ToolState)
 	{
-	case EToolState::WaitingForInsertComplete:
-	case EToolState::GettingStart:
+	case EState::WaitingForInsertComplete:
+	case EState::GettingStart:
 		ClearPreview(true);
 		break;
-	case EToolState::GettingEnd:
+	case EState::GettingEnd:
 		// Keep the first preview point.
 		ClearPreview(false);
 		PreviewPoints.SetNum(1);
@@ -465,17 +488,24 @@ void UGroupEdgeInsertionTool::OnEndHover()
 	}
 }
 
-FInputRayHit UGroupEdgeInsertionTool::IsHitByClick(const FInputDeviceRay& ClickPos)
+FInputRayHit UPolyEditInsertEdgeActivity::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
 	FInputRayHit Hit;
+
+	// Early out if the activity is not running. 
+	if (!bIsRunning)
+	{
+		return Hit; // Hit.bHit is false
+	}
+
 	switch (ToolState)
 	{
-	case EToolState::WaitingForInsertComplete:
+	case EState::WaitingForInsertComplete:
 		break; // Keep hit invalid
 
 	// Same requirement for the other two cases: the click should go on an edge
-	case EToolState::GettingStart:
-	case EToolState::GettingEnd:
+	case EState::GettingStart:
+	case EState::GettingEnd:
 	{
 		FVector3d RayPoint;
 		if (TopologyHitTest(ClickPos.WorldRay, RayPoint))
@@ -488,14 +518,16 @@ FInputRayHit UGroupEdgeInsertionTool::IsHitByClick(const FInputDeviceRay& ClickP
 	return Hit;
 }
 
-void UGroupEdgeInsertionTool::OnClicked(const FInputDeviceRay& ClickPos)
+void UPolyEditInsertEdgeActivity::OnClicked(const FInputDeviceRay& ClickPos)
 {
+	using namespace PolyEditInsertEdgeActivityLocals;
+
 	switch (ToolState)
 	{
-	case EToolState::WaitingForInsertComplete:
+	case EState::WaitingForInsertComplete:
 		break; // Do nothing
 
-	case EToolState::GettingStart:
+	case EState::GettingStart:
 	{
 		// Update start variables and switch state if successful
 		FVector3d PreviewPoint;
@@ -503,16 +535,16 @@ void UGroupEdgeInsertionTool::OnClicked(const FInputDeviceRay& ClickPos)
 		{
 			PreviewPoints.Reset();
 			PreviewPoints.Add(PreviewPoint);
-			ToolState = EToolState::GettingEnd;
+			ToolState = EState::GettingEnd;
 
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupEdgeStartTransactionName", "Group Edge Start"));
-			GetToolManager()->EmitObjectChange(this, MakeUnique<FGroupEdgeInsertionFirstPointChange>(CurrentChangeStamp), 
+			ParentTool->GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupEdgeStartTransactionName", "Group Edge Start"));
+			ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FGroupEdgeInsertionFirstPointChange>(CurrentChangeStamp),
 				LOCTEXT("GroupEdgeStart", "Group Edge Start"));
-			GetToolManager()->EndUndoTransaction();
+			ParentTool->GetToolManager()->EndUndoTransaction();
 		}
 		break;
 	}
-	case EToolState::GettingEnd:
+	case EState::GettingEnd:
 	{
 		// Don't update the end variables right away so that we can check if they actually changed (they
 		// won't when we snap to the same corner as before).
@@ -524,11 +556,11 @@ void UGroupEdgeInsertionTool::OnClicked(const FInputDeviceRay& ClickPos)
 		{
 			// See if the point is not on the same vertex/edge but is on the same boundary
 			if (!(SnappedPoint.bIsVertex == StartPoint.bIsVertex && SnappedPoint.ElementID == StartPoint.ElementID) 
-				&& GetSharedBoundary(*CurrentTopology, StartPoint, StartTopologyID, bStartIsCorner,
+				&& GetSharedBoundary(*ActivityContext->CurrentTopology, StartPoint, StartTopologyID, bStartIsCorner,
 					SnappedPoint, PointTopologyID, bPointIsCorner, GroupID, BoundaryIndex))
 			{
 				ConditionallyUpdatePreview(SnappedPoint, PointTopologyID, bPointIsCorner, GroupID, BoundaryIndex);
-				ToolState = EToolState::WaitingForInsertComplete;
+				ToolState = EState::WaitingForInsertComplete;
 			}
 			else
 			{
@@ -540,12 +572,11 @@ void UGroupEdgeInsertionTool::OnClicked(const FInputDeviceRay& ClickPos)
 	}
 }
 
-bool UGroupEdgeInsertionTool::TopologyHitTest(const FRay& WorldRay, 
+bool UPolyEditInsertEdgeActivity::TopologyHitTest(const FRay& WorldRay,
 	FVector3d& RayPositionOut, FRay3d* LocalRayOut)
 {
-	FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FRay3d LocalRay(LocalToWorld.InverseTransformPosition((FVector3d)WorldRay.Origin),
-		LocalToWorld.InverseTransformVector((FVector3d)WorldRay.Direction), false);
+	FRay3d LocalRay((FVector3d)TargetTransform.InverseTransformPosition(WorldRay.Origin),
+		(FVector3d)TargetTransform.InverseTransformVector(WorldRay.Direction), false);
 
 	if (LocalRayOut)
 	{
@@ -554,16 +585,16 @@ bool UGroupEdgeInsertionTool::TopologyHitTest(const FRay& WorldRay,
 
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;
-	if (TopologySelector.FindSelectedElement(TopologySelectorSettings,
+	if (TopologySelector->FindSelectedElement(TopologySelectorSettings,
 		LocalRay, Selection, Position, Normal))
 	{
-		RayPositionOut =  LocalToWorld.TransformPosition(Position);
+		RayPositionOut = TargetTransform.TransformPosition(Position);
 		return true;
 	}
 	return false;
 }
 
-bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay, 
+bool UPolyEditInsertEdgeActivity::GetHoveredItem(const FRay& WorldRay,
 	FGroupEdgeInserter::FGroupEdgeSplitPoint& PointOut, 
 	int32& TopologyElementIDOut, bool& bIsCornerOut, FVector3d& PositionOut,
 	FRay3d* LocalRayOut)
@@ -572,9 +603,8 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 	PointOut.ElementID = FDynamicMesh3::InvalidID;
 
 	// Cast the ray to see what we hit.
-	FTransform3d LocalToWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
-	FRay3d LocalRay(LocalToWorld.InverseTransformPosition((FVector3d)WorldRay.Origin),
-		LocalToWorld.InverseTransformVector((FVector3d)WorldRay.Direction), false);
+	FRay3d LocalRay((FVector3d)TargetTransform.InverseTransformPosition(WorldRay.Origin),
+		(FVector3d)TargetTransform.InverseTransformVector(WorldRay.Direction), false);
 	if (LocalRayOut)
 	{
 		*LocalRayOut = LocalRay;
@@ -582,7 +612,7 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;
 	int32 EdgeSegmentID;
-	if (!TopologySelector.FindSelectedElement(
+	if (!TopologySelector->FindSelectedElement(
 		TopologySelectorSettings, LocalRay, Selection, Position, Normal, &EdgeSegmentID))
 	{
 		return false; // Didn't hit anything
@@ -593,11 +623,11 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 		TopologyElementIDOut = Selection.GetASelectedCornerID();
 		bIsCornerOut = true;
 		PointOut.bIsVertex = true;
-		PointOut.ElementID = CurrentTopology->GetCornerVertexID(TopologyElementIDOut);
+		PointOut.ElementID = ActivityContext->CurrentTopology->GetCornerVertexID(TopologyElementIDOut);
 		// We can't initialize the tangent yet because the tangent of a corner will
 		// depend on which boundary it is a part of.
 
-		PositionOut = CurrentMesh->GetVertex(PointOut.ElementID);
+		PositionOut = ActivityContext->CurrentMesh->GetVertex(PointOut.ElementID);
 	}
 	else 
 	{
@@ -607,13 +637,13 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 		TopologyElementIDOut = Selection.GetASelectedEdgeID();
 		bIsCornerOut = false;
 
-		const FGroupTopology::FGroupEdge& GroupEdge = CurrentTopology->Edges[TopologyElementIDOut];
+		const FGroupTopology::FGroupEdge& GroupEdge = ActivityContext->CurrentTopology->Edges[TopologyElementIDOut];
 
 		int32 Eid = GroupEdge.Span.Edges[EdgeSegmentID];
 		int32 StartVid = GroupEdge.Span.Vertices[EdgeSegmentID];
 		int32 EndVid = GroupEdge.Span.Vertices[EdgeSegmentID + 1];
-		FVector3d StartVert = CurrentMesh->GetVertex(StartVid);
-		FVector3d EndVert = CurrentMesh->GetVertex(EndVid);
+		FVector3d StartVert = ActivityContext->CurrentMesh->GetVertex(StartVid);
+		FVector3d EndVert = ActivityContext->CurrentMesh->GetVertex(EndVid);
 		FVector3d EdgeVector = EndVert - StartVert;
 		double EdgeLength = EdgeVector.Length();
 		check(EdgeLength > 0);
@@ -633,7 +663,8 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 			if (EdgeSegmentID > 0)
 			{
 				// Average with previous normalized edge vector
-				PointOut.Tangent += UE::Geometry::Normalized(StartVert - CurrentMesh->GetVertex(GroupEdge.Span.Vertices[EdgeSegmentID - 1]));
+				PointOut.Tangent += 
+					UE::Geometry::Normalized(StartVert - ActivityContext->CurrentMesh->GetVertex(GroupEdge.Span.Vertices[EdgeSegmentID - 1]));
 				UE::Geometry::Normalize(PointOut.Tangent);
 			}
 		}
@@ -643,7 +674,8 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 			PointOut.ElementID = EndVid;
 			if (EdgeSegmentID + 2 < GroupEdge.Span.Vertices.Num())
 			{
-				PointOut.Tangent += UE::Geometry::Normalized(CurrentMesh->GetVertex(GroupEdge.Span.Vertices[EdgeSegmentID + 2]) - EndVert);
+				PointOut.Tangent += UE::Geometry::Normalized(
+					ActivityContext->CurrentMesh->GetVertex(GroupEdge.Span.Vertices[EdgeSegmentID + 2]) - EndVert);
 				UE::Geometry::Normalize(PointOut.Tangent);
 			}
 		}
@@ -652,7 +684,7 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 			PointOut.bIsVertex = false;
 			PointOut.ElementID = Eid;
 			PointOut.EdgeTValue = DistDownEdge / EdgeLength;
-			if (CurrentMesh->GetEdgeV(Eid).A != StartVid)
+			if (ActivityContext->CurrentMesh->GetEdgeV(Eid).A != StartVid)
 			{
 				PointOut.EdgeTValue = 1 - PointOut.EdgeTValue;
 			}
@@ -661,40 +693,39 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 	return true;
 }
 
-
-void UGroupEdgeInsertionTool::GetCornerTangent(int32 CornerID, int32 GroupID, int32 BoundaryIndex, FVector3d& TangentOut)
+void UPolyEditInsertEdgeActivity::GetCornerTangent(int32 CornerID, int32 GroupID, int32 BoundaryIndex, FVector3d& TangentOut)
 {
 	TangentOut = FVector3d::Zero();
 
-	int32 CornerVid = CurrentTopology->GetCornerVertexID(CornerID);
+	int32 CornerVid = ActivityContext->CurrentTopology->GetCornerVertexID(CornerID);
 	check(CornerVid != FDynamicMesh3::InvalidID);
 
-	const FGroupTopology::FGroup* Group = CurrentTopology->FindGroupByID(GroupID);
+	const FGroupTopology::FGroup* Group = ActivityContext->CurrentTopology->FindGroupByID(GroupID);
 	check(Group && BoundaryIndex >= 0 && BoundaryIndex < Group->Boundaries.Num());
 
 	const FGroupTopology::FGroupBoundary& Boundary = Group->Boundaries[BoundaryIndex];
 	TArray<FVector3d> AdjacentPoints;
 	for (int32 GroupEdgeID : Boundary.GroupEdges)
 	{
-		TArray<int32> Vertices = CurrentTopology->Edges[GroupEdgeID].Span.Vertices;
+		TArray<int32> Vertices = ActivityContext->CurrentTopology->Edges[GroupEdgeID].Span.Vertices;
 		if (Vertices[0] == CornerVid)
 		{
-			AdjacentPoints.Add(CurrentMesh->GetVertex(Vertices[1]));
+			AdjacentPoints.Add(ActivityContext->CurrentMesh->GetVertex(Vertices[1]));
 		}
 		else if (Vertices.Last() == CornerVid)
 		{
-			AdjacentPoints.Add(CurrentMesh->GetVertex(Vertices[Vertices.Num()-2]));
+			AdjacentPoints.Add(ActivityContext->CurrentMesh->GetVertex(Vertices[Vertices.Num()-2]));
 		}
 	}
 	check(AdjacentPoints.Num() == 2);
 
-	FVector3d CornerPosition = CurrentMesh->GetVertex(CornerVid);
+	FVector3d CornerPosition = ActivityContext->CurrentMesh->GetVertex(CornerVid);
 	TangentOut = UE::Geometry::Normalized(CornerPosition - AdjacentPoints[0]);
 	TangentOut += UE::Geometry::Normalized(AdjacentPoints[1] - CornerPosition);
 	UE::Geometry::Normalize(TangentOut);
 }
 
-bool GetSharedBoundary(const FGroupTopology& Topology,
+bool PolyEditInsertEdgeActivityLocals::GetSharedBoundary(const FGroupTopology& Topology,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint, int32 StartTopologyID, bool bStartIsCorner,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, int32 EndTopologyID, bool bEndIsCorner,
 	int32& GroupIDOut, int32& BoundaryIndexOut)
@@ -717,7 +748,7 @@ bool GetSharedBoundary(const FGroupTopology& Topology,
 	GroupIDOut = FDynamicMesh3::InvalidID;
 	BoundaryIndexOut = FDynamicMesh3::InvalidID;
 
-	TArray<TPair<int32,int32>> CandidateGroupIDsAndBoundaryIndices;
+	TArray<TPair<int32, int32>> CandidateGroupIDsAndBoundaryIndices;
 	if (bStartIsCorner)
 	{
 		// Go through all neighboring groups and their boundaries to find a shared one.
@@ -794,7 +825,7 @@ bool GetSharedBoundary(const FGroupTopology& Topology,
 	return true;
 }
 
-bool DoesBoundaryContainPoint(const FGroupTopology& Topology,
+bool PolyEditInsertEdgeActivityLocals::DoesBoundaryContainPoint(const FGroupTopology& Topology,
 	const FGroupTopology::FGroupBoundary& Boundary, int32 PointTopologyID, bool bPointIsCorner)
 {
 	for (int32 GroupEdgeID : Boundary.GroupEdges)
@@ -814,39 +845,16 @@ bool DoesBoundaryContainPoint(const FGroupTopology& Topology,
 	return false;
 }
 
-
-// Undo/redo support
-
 void FGroupEdgeInsertionFirstPointChange::Revert(UObject* Object)
 {
-	UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
+	UPolyEditInsertEdgeActivity* Activity = Cast<UPolyEditInsertEdgeActivity>(Object);
 
-	check(Tool->ToolState == UGroupEdgeInsertionTool::EToolState::GettingEnd);
-	Tool->ToolState = UGroupEdgeInsertionTool::EToolState::GettingStart;
+	check(Activity->ToolState == UPolyEditInsertEdgeActivity::EState::GettingEnd);
+	Activity->ToolState = UPolyEditInsertEdgeActivity::EState::GettingStart;
 
-	Tool->ClearPreview();
+	Activity->ClearPreview();
 
 	bHaveDoneUndo = true;
-}
-
-void FGroupEdgeInsertionChange::Apply(UObject* Object)
-{
-	UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
-	MeshChange->Apply(Tool->CurrentMesh.Get(), false);
-	Tool->MeshSpatial.Build();
-	Tool->TopologySelector.Invalidate(true, true);
-	Tool->CurrentTopology->RebuildTopology();
-	Tool->ClearPreview(true, true);
-}
-
-void FGroupEdgeInsertionChange::Revert(UObject* Object)
-{
-	UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
-	MeshChange->Apply(Tool->CurrentMesh.Get(), true);
-	Tool->MeshSpatial.Build();
-	Tool->TopologySelector.Invalidate(true, true);
-	Tool->CurrentTopology->RebuildTopology();
-	Tool->ClearPreview(true, true);
 }
 
 #undef LOCTEXT_NAMESPACE

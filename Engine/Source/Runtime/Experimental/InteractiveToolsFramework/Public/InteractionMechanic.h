@@ -55,5 +55,8 @@ protected:
 	 * @param PropertySet Property Set object to add
 	 */
 	virtual void AddToolPropertySource(UInteractiveToolPropertySet* PropertySet);
+
+	/** Enable/Disable a PropertySet object for the parent tool. */
+	virtual bool SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled);
 };
 

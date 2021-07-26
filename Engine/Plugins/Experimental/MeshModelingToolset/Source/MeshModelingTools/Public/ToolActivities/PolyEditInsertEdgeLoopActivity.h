@@ -7,26 +7,18 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "ModelingOperators.h" //IDynamicMeshOperatorFactory
 #include "InteractiveTool.h" //UInteractiveToolPropertySet
+#include "InteractiveToolActivity.h"
 #include "InteractiveToolBuilder.h" //UInteractiveToolBuilder
 #include "InteractiveToolChange.h" //FToolCommandChange
 #include "MeshOpPreviewHelpers.h" //FDynamicMeshOpResult
 #include "Selection/GroupTopologySelector.h"
 #include "SingleSelectionTool.h"
 #include "ToolDataVisualizer.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
 
-#include "EdgeLoopInsertionTool.generated.h"
+#include "PolyEditInsertEdgeLoopActivity.generated.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMeshChange);
-
-UCLASS()
-class MESHMODELINGTOOLS_API UEdgeLoopInsertionToolBuilder : public USingleSelectionMeshEditingToolBuilder
-{
-	GENERATED_BODY()
-
-public:
-	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-};
+class UPolyEditActivityContext;
 
 UENUM()
 enum class EEdgeLoopPositioningMode
@@ -37,15 +29,15 @@ enum class EEdgeLoopPositioningMode
 	/** Edge loops will fall at the same length proportion at each edge they intersect (e.g., a quarter way down). */
 	ProportionOffset,
 
-	/** Edge loops will fall a constant distance away from the start of each edge they intersect 
+	/** Edge loops will fall a constant distance away from the start of each edge they intersect
 	 (e.g., 20 units down). Clamps to end if edge is too short. */
-	DistanceOffset
+	 DistanceOffset
 };
 
 UENUM()
 enum class EEdgeLoopInsertionMode
 {
-	/** Existing groups will be deleted and new triangles will be created for the new groups. 
+	/** Existing groups will be deleted and new triangles will be created for the new groups.
 	 Keeps topology simple but breaks non-planar groups. */
 	Retriangulate,
 
@@ -68,7 +60,7 @@ public:
 	EEdgeLoopInsertionMode InsertionMode = EEdgeLoopInsertionMode::Retriangulate;
 
 	/** How many loops to insert at a time. Only used with "even" positioning mode. */
-	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "500", 
+	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "500",
 		EditCondition = "PositionMode == EEdgeLoopPositioningMode::Even", EditConditionHides))
 	int32 NumLoops = 1;
 
@@ -90,9 +82,6 @@ public:
 		EditCondition = "PositionMode == EEdgeLoopPositioningMode::DistanceOffset", EditConditionHides))
 	bool bFlipOffsetDirection = false;
 
-	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop)
-	bool bWireframe = true;
-
 	/** When true, non-quad-like groups that stop the loop will be highlighted, with X's marking the corners. */
 	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop)
 	bool bHighlightProblemGroups = true;
@@ -102,42 +91,38 @@ public:
 	double VertexTolerance = 0.001;
 };
 
+/** Interactive activity for inserting (group) edge loops into a mesh. */
 UCLASS()
-class MESHMODELINGTOOLS_API UEdgeLoopInsertionOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
-{
-	GENERATED_BODY()
-
-public:
-	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
-
-	UPROPERTY()
-	TObjectPtr<UEdgeLoopInsertionTool> Tool;
-};
-
-/** Tool for inserting (group) edge loops into a mesh. */
-UCLASS()
-class MESHMODELINGTOOLS_API UEdgeLoopInsertionTool : public USingleSelectionMeshEditingTool, public IHoverBehaviorTarget, public IClickBehaviorTarget
+class MESHMODELINGTOOLS_API UPolyEditInsertEdgeLoopActivity : public UInteractiveToolActivity, 
+	public UE::Geometry::IDynamicMeshOperatorFactory,
+	public IHoverBehaviorTarget, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
 public:
 
-	friend class UEdgeLoopInsertionOperatorFactory;
 	friend class FEdgeLoopInsertionChange;
 
-	UEdgeLoopInsertionTool() {};
+	UPolyEditInsertEdgeLoopActivity() {};
 
-	virtual void Setup() override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property);
+
+	// IInteractiveToolActivity
+	virtual void Setup(UInteractiveTool* ParentTool) override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
-	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override { return true; }
+	virtual bool CanStart() const override;
+	virtual EToolActivityStartResult Start() override;
+	virtual bool IsRunning() const override { return bIsRunning; }
 	virtual bool CanAccept() const override;
+	virtual EToolActivityEndResult End(EToolShutdownType) override;
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void Tick(float DeltaTime) override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	// IDynamicMeshOperatorFactory
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
+
+	// IClickBehaviorTarget
+	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
+	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 
 	// IHoverBehaviorTarget
 	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
@@ -145,19 +130,17 @@ public:
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 	virtual void OnEndHover() override;
 
-	// IClickBehaviorTarget
-	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
-	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
-
 protected:
+	UPROPERTY()
+	UEdgeLoopInsertionProperties* Settings = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UEdgeLoopInsertionProperties> Settings = nullptr;
+	UPolyEditActivityContext* ActivityContext;
 
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
-	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> CurrentTopology;
-	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
-	FGroupTopologySelector TopologySelector;
+	bool bIsRunning = false;
+
+	FTransform TargetTransform;
+	TSharedPtr<FGroupTopologySelector, ESPMode::ThreadSafe> TopologySelector;
 
 	TArray<TPair<FVector3d, FVector3d>> PreviewEdges;
 
@@ -167,10 +150,7 @@ protected:
 
 	FViewCameraState CameraState;
 
-	UPROPERTY()
-	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
-
-	FToolDataVisualizer ExistingEdgesRenderer;
+	//FToolDataVisualizer ExistingEdgesRenderer;
 	FToolDataVisualizer PreviewEdgeRenderer;
 	FToolDataVisualizer ProblemTopologyRenderer;
 	FGroupTopologySelector::FSelectionSettings TopologySelectorSettings;
@@ -188,9 +168,6 @@ protected:
 	int32 InputGroupEdgeID = FDynamicMesh3::InvalidID;
 	double InteractiveInputLength = 0;
 
-	// Lets us reset the preview to the original mesh using the op
-	bool bShowingBaseMesh = false;
-
 	// On valid clicks, we wait to finish the background op and apply it before taking more input.
 	// Gets reset OnTick when the result is ready.
 	bool bWaitingForInsertionCompletion = false;
@@ -199,46 +176,4 @@ protected:
 	bool bLastComputeSucceeded = false;
 	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> LatestOpTopologyResult;
 	TSharedPtr<TSet<int32>, ESPMode::ThreadSafe> LatestOpChangedTids;
-
-	// Used to expire undo/redo changes on op shutdown.
-	int32 CurrentChangeStamp = 0;
-
-	/** 
-	 * Expires the tool-associated changes in the undo/redo stack. The ComponentTarget
-	 * changes will stay (we want this).
-	 */
-	inline void ExpireChanges()
-	{
-		++CurrentChangeStamp;
-	}
-
-
-};
-
-/**
- * Wraps a FDynamicMeshChange so that it can be expired and so that other data
- * structures in the tool can be updated.
- */
-class MESHMODELINGTOOLS_API FEdgeLoopInsertionChange : public FToolCommandChange
-{
-public:
-	FEdgeLoopInsertionChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn, int32 CurrentChangeStamp)
-		: MeshChange(MoveTemp(MeshChangeIn))
-		, ChangeStamp(CurrentChangeStamp)
-	{};
-
-	virtual void Apply(UObject* Object) override;
-	virtual void Revert(UObject* Object) override;
-	virtual bool HasExpired(UObject* Object) const override
-	{
-		return Cast<UEdgeLoopInsertionTool>(Object)->CurrentChangeStamp != ChangeStamp;
-	}
-	virtual FString ToString() const override
-	{
-		return TEXT("FEdgeLoopInsertionChange");
-	}
-
-protected:
-	TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChange;
-	int32 ChangeStamp;
 };

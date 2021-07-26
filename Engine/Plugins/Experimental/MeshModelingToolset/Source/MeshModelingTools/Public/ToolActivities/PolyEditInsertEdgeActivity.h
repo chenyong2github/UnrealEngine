@@ -7,6 +7,7 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "ModelingOperators.h" //IDynamicMeshOperatorFactory
 #include "InteractiveTool.h" //UInteractiveToolPropertySet
+#include "InteractiveToolActivity.h"
 #include "InteractiveToolBuilder.h" //UInteractiveToolBuilder
 #include "InteractiveToolChange.h" //FToolCommandChange
 #include "MeshOpPreviewHelpers.h" //FDynamicMeshOpResult
@@ -14,23 +15,11 @@
 #include "Selection/GroupTopologySelector.h"
 #include "SingleSelectionTool.h"
 #include "ToolDataVisualizer.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
 
-#include "GroupEdgeInsertionTool.generated.h"
+#include "PolyEditInsertEdgeActivity.generated.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMeshChange);
-
-using UE::Geometry::FGroupEdgeInserter;
-using UE::Geometry::FDynamicMesh3;
-
-UCLASS()
-class MESHMODELINGTOOLS_API UGroupEdgeInsertionToolBuilder : public USingleSelectionMeshEditingToolBuilder
-{
-	GENERATED_BODY()
-
-public:
-	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-};
+class UPolyEditActivityContext;
 
 UENUM()
 enum class EGroupEdgeInsertionMode
@@ -57,55 +46,54 @@ public:
 	bool bWireframe = true;
 
 	/** How close a new loop edge needs to pass next to an existing vertex to use that vertex rather than creating a new one (used for plane cut). */
-	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = InsertEdge, AdvancedDisplay)
 	double VertexTolerance = 0.001;
 };
 
+/** Interactive activity for inserting a group edge into a mesh. */
 UCLASS()
-class MESHMODELINGTOOLS_API UGroupEdgeInsertionOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UPolyEditInsertEdgeActivity : public UInteractiveToolActivity, 
+	public UE::Geometry::IDynamicMeshOperatorFactory, 
+	public IHoverBehaviorTarget, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
 
-public:
-	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
+	using FGroupEdgeInserter = UE::Geometry::FGroupEdgeInserter;
+	using FDynamicMesh3 = UE::Geometry::FDynamicMesh3;
+	using FRay3d = UE::Geometry::FRay3d;
 
-	UPROPERTY()
-	TObjectPtr<UGroupEdgeInsertionTool> Tool;
-};
-
-/** Tool for inserting group edges into polygons of the mesh. */
-UCLASS()
-class MESHMODELINGTOOLS_API UGroupEdgeInsertionTool : public USingleSelectionMeshEditingTool, public IHoverBehaviorTarget, public IClickBehaviorTarget
-{
-	GENERATED_BODY()
-
-	enum class EToolState
+	enum class EState
 	{
 		GettingStart,
 		GettingEnd,
 		WaitingForInsertComplete
 	};
 
-	using FRay3d = UE::Geometry::FRay3d;
 public:
 
-	friend class UGroupEdgeInsertionOperatorFactory;
 	friend class FGroupEdgeInsertionFirstPointChange;
-	friend class FGroupEdgeInsertionChange;
 
-	UGroupEdgeInsertionTool() {};
+	UPolyEditInsertEdgeActivity() {};
 
-	virtual void Setup() override;
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property);
+
+	// IInteractiveToolActivity
+	virtual void Setup(UInteractiveTool* ParentTool) override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void OnTick(float DeltaTime) override;
+	virtual bool CanStart() const override;
+	virtual EToolActivityStartResult Start() override;
+	virtual bool IsRunning() const override { return bIsRunning; }
+	virtual bool CanAccept() const override;
+	virtual EToolActivityEndResult End(EToolShutdownType) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void Tick(float DeltaTime) override;
 
-	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override { return true; }
+	// IDynamicMeshOperatorFactory
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	// IClickBehaviorTarget
+	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
+	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
 
 	// IHoverBehaviorTarget
 	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
@@ -113,22 +101,17 @@ public:
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 	virtual void OnEndHover() override;
 
-	// IClickBehaviorTarget
-	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
-	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
-
 protected:
-
 	UPROPERTY()
 	TObjectPtr<UGroupEdgeInsertionProperties> Settings = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
+	UPolyEditActivityContext* ActivityContext;
 
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
-	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> CurrentTopology;
-	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
-	FGroupTopologySelector TopologySelector;
+	bool bIsRunning = false;
+
+	FTransform TargetTransform;
+	TSharedPtr<FGroupTopologySelector, ESPMode::ThreadSafe> TopologySelector;
 
 	TArray<TPair<FVector3d, FVector3d>> PreviewEdges;
 	TArray<FVector3d> PreviewPoints;
@@ -154,7 +137,7 @@ protected:
 
 
 	// State control:
-	EToolState ToolState = EToolState::GettingStart;
+	EState ToolState = EState::GettingStart;
 
 	bool bShowingBaseMesh = false;
 	bool bLastComputeSucceeded = false;
@@ -172,7 +155,7 @@ protected:
 	void ConditionallyUpdatePreview(const FGroupEdgeInserter::FGroupEdgeSplitPoint& NewEndPoint, 
 		int32 NewEndTopologyID, bool bNewEndIsCorner, int32 NewCommonGroupID, int32 NewBoundaryIndex);
 
-	void ClearPreview(bool bClearDrawnElements = true, bool bForce = false);
+	void ClearPreview(bool bClearDrawnElements = true);
 
 	void GetCornerTangent(int32 CornerID, int32 GroupID, int32 BoundaryIndex, FVector3d& TangentOut);
 
@@ -196,13 +179,13 @@ public:
 		: ChangeStamp(CurrentChangeStamp)
 	{};
 
-	virtual void Apply(UObject* Object) override {}; 
+	virtual void Apply(UObject* Object) override {};
 	virtual void Revert(UObject* Object) override;
 	virtual bool HasExpired(UObject* Object) const override
 	{
-		UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
-		return bHaveDoneUndo || Tool->CurrentChangeStamp != ChangeStamp 
-			|| Tool->ToolState != UGroupEdgeInsertionTool::EToolState::GettingEnd;
+		UPolyEditInsertEdgeActivity* Activity = Cast<UPolyEditInsertEdgeActivity>(Object);
+		return bHaveDoneUndo || Activity->CurrentChangeStamp != ChangeStamp
+			|| Activity->ToolState != UPolyEditInsertEdgeActivity::EState::GettingEnd;
 		// TODO: this is a bit of a hack in that we should probably have a separate stamp
 		// for expiring these instead of letting the tool state help (they expire after
 		// each new insertion unlike the other changes, which expire on tool close).
@@ -215,32 +198,4 @@ public:
 protected:
 	int32 ChangeStamp;
 	bool bHaveDoneUndo = false;
-};
-
-/**
- * Wraps a FDynamicMeshChange so that it can be expired and so that other data
- * structures in the tool can be updated.
- */
-class MESHMODELINGTOOLS_API FGroupEdgeInsertionChange : public FToolCommandChange
-{
-public:
-	FGroupEdgeInsertionChange(TUniquePtr<FDynamicMeshChange> MeshChangeIn, int32 CurrentChangeStamp)
-		: MeshChange(MoveTemp(MeshChangeIn))
-		, ChangeStamp(CurrentChangeStamp)
-	{};
-
-	virtual void Apply(UObject* Object) override;
-	virtual void Revert(UObject* Object) override;
-	virtual bool HasExpired(UObject* Object) const override
-	{
-		return Cast<UGroupEdgeInsertionTool>(Object)->CurrentChangeStamp != ChangeStamp;
-	}
-	virtual FString ToString() const override
-	{
-		return TEXT("FGroupEdgeInsertionChange");
-	}
-
-protected:
-	TUniquePtr<FDynamicMeshChange> MeshChange;
-	int32 ChangeStamp;
 };

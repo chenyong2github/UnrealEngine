@@ -614,8 +614,6 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyDeformTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginGroupEdgeInsertionTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginEdgeLoopInsertionTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshBooleanTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginCutMeshWithMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSubdividePolyTool);
@@ -675,13 +673,8 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_RingSelect);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Extrude);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Offset);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Inset);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Outset);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_InsetOutset);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_CutFaces);
-		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(Commands.BeginGroupEdgeInsertionTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginEdgeLoopInsertionTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSubdividePolyTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
