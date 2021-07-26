@@ -23,7 +23,7 @@
 #include "WatchPointViewer.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "UnrealEdGlobals.h"
-#include "Engine/Breakpoint.h"
+#include "Kismet2/Breakpoint.h"
 #include "ActorEditorUtils.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node.h"
@@ -40,6 +40,7 @@
 #include "AnimGraphNode_Base.h"
 #include "UObject/UnrealType.h"
 #include "AnimationGraphSchema.h"
+#include "BlueprintEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDebugging"
 
@@ -662,12 +663,12 @@ void FKismetDebugUtilities::AttemptToBreakExecution(UBlueprint* BlueprintObj, co
 		// Find the breakpoint object for the node, assuming we hit one
 		if (Info.GetType() == EBlueprintExceptionType::Breakpoint)
 		{
-			UBreakpoint* Breakpoint = FKismetDebugUtilities::FindBreakpointForNode(BlueprintObj, NodeStoppedAt);
+			FBlueprintBreakpoint* Breakpoint = FindBreakpointForNode(NodeStoppedAt, BlueprintObj);
 
 			if (Breakpoint != NULL)
 			{
 				Data.MostRecentBreakpointInstructionPointer = NodeStoppedAt;
-				FKismetDebugUtilities::UpdateBreakpointStateWhenHit(Breakpoint, BlueprintObj);
+				UpdateBreakpointStateWhenHit(NodeStoppedAt, BlueprintObj);
 					
 				//@TODO: K2: DEBUGGING: Debug print text can go eventually
 				UE_LOG(LogBlueprintDebug, Warning, TEXT("Hit breakpoint on node '%s', from offset %d"), *(NodeStoppedAt->GetDescriptiveCompiledName()), DebugOpcodeOffset);
@@ -784,20 +785,55 @@ bool FKismetDebugUtilities::IsSingleStepping()
 		|| Data.TargetGraphStackDepth != INDEX_NONE; 
 }
 
+TArray<FBlueprintBreakpoint>* FKismetDebugUtilities::GetBreakpoints(const UBlueprint* Blueprint)
+{
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	check(Settings);
+	
+	FPerBlueprintSettings* Found = Settings->PerBlueprintSettings.Find(Blueprint->GetPathName());
+	if(Found)
+	{
+		check(!Found->Breakpoints.IsEmpty());
+		return &Found->Breakpoints;
+	}
+	return nullptr;
+}
+
+void FKismetDebugUtilities::SaveBreakpoints()
+{
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	check(Settings);
+	Settings->SaveConfig();
+}
+
+void FKismetDebugUtilities::CleanupBreakpoints(const UBlueprint* Blueprint)
+{
+	RemoveBreakpointsByPredicate(
+		Blueprint,
+		[Blueprint](const FBlueprintBreakpoint& Breakpoint)
+		{
+			if (Breakpoint.GetLocation() == nullptr)
+			{
+				UE_LOG(LogBlueprintDebug, Display, TEXT("Encountered a blueprint breakpoint in %s without an associated node. The blueprint breakpoint has been removed"), *Blueprint->GetPathName());
+				return true;
+			}
+			return false;
+		}
+	);
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Breakpoint
 
 // Is the node a valid breakpoint target? (i.e., the node is impure and ended up generating code)
-bool FKismetDebugUtilities::IsBreakpointValid(UBreakpoint* Breakpoint)
+bool FKismetDebugUtilities::IsBreakpointValid(const FBlueprintBreakpoint& Breakpoint)
 {
-	check(Breakpoint);
-
 	// Breakpoints on impure nodes in a macro graph are always considered valid
-	UBlueprint* Blueprint = Cast<UBlueprint>(Breakpoint->GetOuter());
-	if (Blueprint && Blueprint->BlueprintType == BPTYPE_MacroLibrary)
+	UK2Node* K2Node = Cast<UK2Node>(Breakpoint.GetLocation());
+	if (K2Node)
 	{
-		UK2Node* K2Node = Cast<UK2Node>(Breakpoint->Node);
-		if (K2Node)
+		UBlueprint* Blueprint = Cast<UBlueprint>(K2Node->GetOuter()->GetOuter());
+		if (Blueprint && Blueprint->BlueprintType == BPTYPE_MacroLibrary)
 		{
 			return K2Node->IsA<UK2Node_MacroInstance>()
 				|| (!K2Node->IsNodePure() && !K2Node->IsA<UK2Node_Tunnel>());
@@ -805,88 +841,103 @@ bool FKismetDebugUtilities::IsBreakpointValid(UBreakpoint* Breakpoint)
 	}
 
 	TArray<uint8*> InstallSites;
-	FKismetDebugUtilities::GetBreakpointInstallationSites(Breakpoint, InstallSites);
+	GetBreakpointInstallationSites(Breakpoint, InstallSites);
 	return InstallSites.Num() > 0;
 }
 
 // Set the node that the breakpoint should focus on
-void FKismetDebugUtilities::SetBreakpointLocation(UBreakpoint* Breakpoint, UEdGraphNode* NewNode)
+void FKismetDebugUtilities::SetBreakpointLocation(FBlueprintBreakpoint& Breakpoint, UEdGraphNode* NewNode)
 {
-	if (NewNode != Breakpoint->Node)
+	if (NewNode != Breakpoint.Node)
 	{
 		// Uninstall it from the old site if needed
-		FKismetDebugUtilities::SetBreakpointInternal(Breakpoint, false);
+		SetBreakpointInternal(Breakpoint, false);
 
 		// Make the new site accurate
-		Breakpoint->Node = NewNode;
-		FKismetDebugUtilities::SetBreakpointInternal(Breakpoint, Breakpoint->bEnabled);
+		Breakpoint.Node = NewNode;
+		SetBreakpointInternal(Breakpoint, Breakpoint.bEnabled);
 	}
 }
 
-// Set or clear the enabled flag for the breakpoint
-void FKismetDebugUtilities::SetBreakpointEnabled(UBreakpoint* Breakpoint, bool bIsEnabled)
+void FKismetDebugUtilities::SetBreakpointEnabled(FBlueprintBreakpoint& Breakpoint, bool bIsEnabled)
 {
-	if (Breakpoint->bStepOnce && !bIsEnabled)
+	if (Breakpoint.bStepOnce && !bIsEnabled)
 	{
 		// Want to be disabled, but the single-stepping is keeping it enabled
 		bIsEnabled = true;
-		Breakpoint->bStepOnce_WasPreviouslyDisabled = true;
+		Breakpoint.bStepOnce_WasPreviouslyDisabled = true;
 	}
 
-	Breakpoint->bEnabled = bIsEnabled;
-	FKismetDebugUtilities::SetBreakpointInternal(Breakpoint, Breakpoint->bEnabled);
+	Breakpoint.bEnabled = bIsEnabled;
+	SetBreakpointInternal(Breakpoint, Breakpoint.bEnabled);
+	SaveBreakpoints();
+}
+
+// Set or clear the enabled flag for the breakpoint
+void FKismetDebugUtilities::SetBreakpointEnabled(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint, bool bIsEnabled)
+{
+	if(FBlueprintBreakpoint* Breakpoint = FindBreakpointForNode(OwnerNode, OwnerBlueprint))
+	{
+		SetBreakpointEnabled(*Breakpoint, bIsEnabled);
+	}
 }
 
 // Sets this breakpoint up as a single-step breakpoint (will disable or delete itself after one go if the breakpoint wasn't already enabled)
-void FKismetDebugUtilities::SetBreakpointEnabledForSingleStep(UBreakpoint* Breakpoint, bool bDeleteAfterStep)
+void FKismetDebugUtilities::SetBreakpointEnabledForSingleStep(FBlueprintBreakpoint& Breakpoint, bool bDeleteAfterStep)
 {
-	Breakpoint->bStepOnce = true;
-	Breakpoint->bStepOnce_RemoveAfterHit = bDeleteAfterStep;
-	Breakpoint->bStepOnce_WasPreviouslyDisabled = !Breakpoint->bEnabled;
+	Breakpoint.bStepOnce = true;
+	Breakpoint.bStepOnce_RemoveAfterHit = bDeleteAfterStep;
+	Breakpoint.bStepOnce_WasPreviouslyDisabled = !Breakpoint.bEnabled;
 
-	FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, true);
+	SetBreakpointEnabled(Breakpoint, true);
 }
 
-void FKismetDebugUtilities::ReapplyBreakpoint(UBreakpoint* Breakpoint)
+void FKismetDebugUtilities::ReapplyBreakpoint(FBlueprintBreakpoint& Breakpoint)
 {
-	FKismetDebugUtilities::SetBreakpointInternal(Breakpoint, Breakpoint->IsEnabled());
+	SetBreakpointInternal(Breakpoint, Breakpoint.IsEnabled());
 }
 
-void FKismetDebugUtilities::StartDeletingBreakpoint(UBreakpoint* Breakpoint, UBlueprint* OwnerBlueprint)
+void FKismetDebugUtilities::RemoveBreakpointFromNode(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint)
 {
 #if WITH_EDITORONLY_DATA
-	checkSlow(OwnerBlueprint->Breakpoints.Contains(Breakpoint));
-	OwnerBlueprint->Breakpoints.Remove(Breakpoint);
-	OwnerBlueprint->MarkPackageDirty();
-
-	FKismetDebugUtilities::SetBreakpointLocation(Breakpoint, NULL);
+	RemoveBreakpointsByPredicate(
+		OwnerBlueprint,
+		[OwnerNode](const FBlueprintBreakpoint& Breakpoint)
+		{
+			return Breakpoint.GetLocation() == OwnerNode;
+		}
+	);
+	SaveBreakpoints();
 #endif	//#if WITH_EDITORONLY_DATA
 }
 
 // Update the internal state of the breakpoint when it got hit
-void FKismetDebugUtilities::UpdateBreakpointStateWhenHit(UBreakpoint* Breakpoint, UBlueprint* OwnerBlueprint)
+void FKismetDebugUtilities::UpdateBreakpointStateWhenHit(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint)
 {
-	// Handle single-step breakpoints
-	if (Breakpoint->bStepOnce)
+	if (FBlueprintBreakpoint* Breakpoint = FindBreakpointForNode(OwnerNode, OwnerBlueprint))
 	{
-		Breakpoint->bStepOnce = false;
+		// Handle single-step breakpoints
+		if (Breakpoint->bStepOnce)
+		{
+			Breakpoint->bStepOnce = false;
 
-		if (Breakpoint->bStepOnce_RemoveAfterHit)
-		{
-			FKismetDebugUtilities::StartDeletingBreakpoint(Breakpoint, OwnerBlueprint);
-		}
-		else if (Breakpoint->bStepOnce_WasPreviouslyDisabled)
-		{
-			FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, false);
+			if (Breakpoint->bStepOnce_RemoveAfterHit)
+			{
+				RemoveBreakpointFromNode(Breakpoint->GetLocation(), OwnerBlueprint);
+			}
+			else if (Breakpoint->bStepOnce_WasPreviouslyDisabled)
+			{
+				SetBreakpointEnabled(*Breakpoint, false);
+			}
 		}
 	}
 }
 
 // Install/uninstall the breakpoint into/from the script code for the generated class that contains the node
-void FKismetDebugUtilities::SetBreakpointInternal(UBreakpoint* Breakpoint, bool bShouldBeEnabled)
+void FKismetDebugUtilities::SetBreakpointInternal(FBlueprintBreakpoint& Breakpoint, bool bShouldBeEnabled)
 {
 	TArray<uint8*> InstallSites;
-	FKismetDebugUtilities::GetBreakpointInstallationSites(Breakpoint, InstallSites);
+	GetBreakpointInstallationSites(Breakpoint, InstallSites);
 
 	for (int i = 0; i < InstallSites.Num(); ++i)
 	{
@@ -898,21 +949,21 @@ void FKismetDebugUtilities::SetBreakpointInternal(UBreakpoint* Breakpoint, bool 
 }
 
 // Returns the installation site(s); don't cache these pointers!
-void FKismetDebugUtilities::GetBreakpointInstallationSites(UBreakpoint* Breakpoint, TArray<uint8*>& InstallSites)
+void FKismetDebugUtilities::GetBreakpointInstallationSites(const FBlueprintBreakpoint& Breakpoint, TArray<uint8*>& InstallSites)
 {
 	InstallSites.Empty();
 
 #if WITH_EDITORONLY_DATA
-	if (Breakpoint->Node != NULL)
+	if (Breakpoint.Node != NULL)
 	{
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(Breakpoint->Node);
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(Breakpoint.GetLocation());
 
 		if ((Blueprint != NULL) && (Blueprint->GeneratedClass != NULL))
 		{
 			if (UBlueprintGeneratedClass* Class = Cast<UBlueprintGeneratedClass>(*Blueprint->GeneratedClass))
 			{
 				// Find the insertion point from the debugging data
-				Class->GetDebugData().FindBreakpointInjectionSites(Breakpoint->Node, InstallSites);
+				Class->GetDebugData().FindBreakpointInjectionSites(Breakpoint.GetLocation(), InstallSites);
 			}
 		}
 	}
@@ -967,54 +1018,118 @@ void FKismetDebugUtilities::GetValidBreakpointLocations(const UK2Node_MacroInsta
 	}
 }
 
-// Finds a breakpoint for a given node if it exists, or returns NULL
-UBreakpoint* FKismetDebugUtilities::FindBreakpointForNode(UBlueprint* Blueprint, const UEdGraphNode* Node, bool bCheckSubLocations)
+void FKismetDebugUtilities::CreateBreakpoint(const UBlueprint* Blueprint, UEdGraphNode* Node, bool bIsEnabled)
 {
-	// iterate backwards so we can remove invalid breakpoints as we go
-	for (int32 Index = Blueprint->Breakpoints.Num()-1; Index >= 0; --Index)
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	check(Settings);
+	FPerBlueprintSettings &BlueprintSettings = Settings->PerBlueprintSettings.FindOrAdd(Blueprint->GetPathName());
+
+	// ensure that this node doesn't already contain a breakpoint
+	checkSlow(!BlueprintSettings.Breakpoints.ContainsByPredicate(
+		[Node](const FBlueprintBreakpoint& Other)
+		{
+			return Other.Node == Node;
+		}
+	));
+	
+	BlueprintSettings.Breakpoints.Emplace();
+	SetBreakpointEnabled(BlueprintSettings.Breakpoints.Top(), bIsEnabled);
+	SetBreakpointLocation(BlueprintSettings.Breakpoints.Top(), Node);
+	SaveBreakpoints();
+}
+
+void FKismetDebugUtilities::ForeachBreakpoint(const UBlueprint* Blueprint,
+	const TFunctionRef<void(FBlueprintBreakpoint&)> Task)
+{
+	if(TArray<FBlueprintBreakpoint>* Breakpoints = GetBreakpoints(Blueprint))
 	{
-		UBreakpoint* Breakpoint = Blueprint->Breakpoints[Index];
-		if (Breakpoint == nullptr)
+		for(FBlueprintBreakpoint& Breakpoint : *Breakpoints)
 		{
-			Blueprint->Breakpoints.RemoveAtSwap(Index);
-			Blueprint->MarkPackageDirty();
-			UE_LOG(LogBlueprintDebug, Warning, TEXT("Encountered an invalid blueprint breakpoint in %s (this should not happen... if you know how your blueprint got in this state, then please notify the Engine-Blueprints team)"), *Blueprint->GetPathName());
-			continue;
+			Task(Breakpoint);
 		}
+	}
+}
 
-		const UEdGraphNode* BreakpointLocation = Breakpoint->GetLocation();
-		if (BreakpointLocation == nullptr)
+void FKismetDebugUtilities::RemoveBreakpointsByPredicate(const UBlueprint* Blueprint,
+                                                         const TFunctionRef<bool(const FBlueprintBreakpoint&)> Predicate)
+{
+	if(TArray<FBlueprintBreakpoint>* Breakpoints = GetBreakpoints(Blueprint))
+	{
+		// notify the debugger of the breakpoints being removed
+		for(FBlueprintBreakpoint& Breakpoint : *Breakpoints)
 		{
-			Blueprint->Breakpoints.RemoveAtSwap(Index);
-			Blueprint->MarkPackageDirty();
-			UE_LOG(LogBlueprintDebug, Display, TEXT("Encountered a blueprint breakpoint in %s without an associated node. The blueprint breakpoint has been removed"), *Blueprint->GetPathName());
-			continue;
-		}
-
-		// Return this breakpoint if the location matches the given node
-		if (BreakpointLocation == Node)
-		{
-			return Breakpoint;
-		}
-		else if (bCheckSubLocations)
-		{
-			// If this breakpoint is set on a macro instance node, check the set of valid breakpoint locations. If we find a
-			// match in the returned set, return the breakpoint that's set on the macro instance node. This allows breakpoints
-			// to be set and hit on macro instance nodes contained in a macro graph that will be expanded during compile.
-			const UK2Node_MacroInstance* MacroInstanceNode = Cast<UK2Node_MacroInstance>(BreakpointLocation);
-			if (MacroInstanceNode)
+			if(Predicate(Breakpoint))
 			{
-				TArray<const UEdGraphNode*> ValidBreakpointLocations;
-				GetValidBreakpointLocations(MacroInstanceNode, ValidBreakpointLocations);
-				if (ValidBreakpointLocations.Contains(Node))
-				{
-					return Breakpoint;
-				}
+				SetBreakpointLocation(Breakpoint, nullptr);
+			}
+		}
+
+		// remove the breakpoints from the data
+		if(Breakpoints->RemoveAllSwap(Predicate, false))
+		{
+			if(Breakpoints->IsEmpty())
+			{
+				// keeps the ini file clean by removing empty arrays
+				ClearBreakpoints(Blueprint);
+			}
+			SaveBreakpoints();
+		}
+	}
+}
+
+FBlueprintBreakpoint* FKismetDebugUtilities::FindBreakpointByPredicate(const UBlueprint* Blueprint,
+                                                              const TFunctionRef<bool(const FBlueprintBreakpoint&)> Predicate)
+{
+	if(TArray<FBlueprintBreakpoint>* Breakpoints = GetBreakpoints(Blueprint))
+	{
+		for(FBlueprintBreakpoint& Breakpoint : *Breakpoints)
+		{
+			if(Predicate(Breakpoint))
+			{
+				return &Breakpoint;
 			}
 		}
 	}
+	return nullptr;
+}
 
-	return NULL;
+// Finds a breakpoint for a given node if it exists, or returns NULL
+FBlueprintBreakpoint* FKismetDebugUtilities::FindBreakpointForNode(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint,
+                                                          bool bCheckSubLocations)
+{
+	// remove expired data from deleted nodes and such
+	CleanupBreakpoints(OwnerBlueprint);
+
+	// find breakpoint
+	return FindBreakpointByPredicate(
+		OwnerBlueprint,
+		[OwnerNode, bCheckSubLocations](const FBlueprintBreakpoint &Breakpoint)
+		{
+			UEdGraphNode* BreakpointLoaction = Breakpoint.GetLocation();
+			// Return this breakpoint if the location matches the given node
+			if (BreakpointLoaction == OwnerNode)
+			{
+				return true;
+			}
+			if (bCheckSubLocations)
+			{
+				// If this breakpoint is set on a macro instance node, check the set of valid breakpoint locations. If we find a
+				// match in the returned set, return the breakpoint that's set on the macro instance node. This allows breakpoints
+				// to be set and hit on macro instance nodes contained in a macro graph that will be expanded during compile.
+				const UK2Node_MacroInstance* MacroInstanceNode = Cast<UK2Node_MacroInstance>(BreakpointLoaction);
+				if (MacroInstanceNode)
+				{
+					TArray<const UEdGraphNode*> ValidBreakpointLocations;
+					GetValidBreakpointLocations(MacroInstanceNode, ValidBreakpointLocations);
+					if (ValidBreakpointLocations.Contains(OwnerNode))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+	);
 }
 
 bool FKismetDebugUtilities::HasDebuggingData(const UBlueprint* Blueprint)
@@ -1024,6 +1139,11 @@ bool FKismetDebugUtilities::HasDebuggingData(const UBlueprint* Blueprint)
 
 //////////////////////////////////////////////////////////////////////////
 // Blueprint utils
+
+bool FKismetDebugUtilities::BlueprintHasBreakpoints(const UBlueprint* Blueprint)
+{
+	return GetBreakpoints(Blueprint) != nullptr;
+}
 
 // Looks thru the debugging data for any class variables associated with the node
 FProperty* FKismetDebugUtilities::FindClassPropertyForPin(UBlueprint* Blueprint, const UEdGraphPin* Pin)
@@ -1057,16 +1177,27 @@ FProperty* FKismetDebugUtilities::FindClassPropertyForNode(UBlueprint* Blueprint
 }
 
 
-void FKismetDebugUtilities::ClearBreakpoints(UBlueprint* Blueprint)
+void FKismetDebugUtilities::ClearBreakpoints(const UBlueprint* Blueprint)
 {
-	for (int32 BreakpointIndex = 0; BreakpointIndex < Blueprint->Breakpoints.Num(); ++BreakpointIndex)
-	{
-		UBreakpoint* Breakpoint = Blueprint->Breakpoints[BreakpointIndex];
-		FKismetDebugUtilities::SetBreakpointLocation(Breakpoint, NULL);
-	}
+	ClearBreakpointsForPath(Blueprint->GetPathName());
+}
 
-	Blueprint->Breakpoints.Empty();
-	Blueprint->MarkPackageDirty();
+
+void FKismetDebugUtilities::ClearBreakpointsForPath(const FString& BlueprintPath)
+{
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	check(Settings);
+
+	FPerBlueprintSettings Collection;
+	if (Settings->PerBlueprintSettings.RemoveAndCopyValue(BlueprintPath, Collection))
+	{
+		for(FBlueprintBreakpoint& Breakpoint : Collection.Breakpoints)
+		{
+			// notify debugger that the breakpont has been removed
+			SetBreakpointLocation(Breakpoint, nullptr);	
+		}
+		SaveBreakpoints();
+	}
 }
 
 FKismetDebugUtilities::FOnWatchedPinsListChanged FKismetDebugUtilities::WatchedPinsListChangedEvent;

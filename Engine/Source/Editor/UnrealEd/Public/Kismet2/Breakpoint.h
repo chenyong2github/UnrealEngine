@@ -3,43 +3,41 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Breakpoint.generated.h"
 
 class UEdGraphNode;
 
-UCLASS()
-class ENGINE_API UBreakpoint
-	: public UObject
+USTRUCT()
+struct UNREALED_API FBlueprintBreakpoint
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 private:
 	// Is the breakpoint currently enabled?
-	UPROPERTY(transient)
-	uint32 bEnabled:1;
+	UPROPERTY()
+	uint8 bEnabled:1;
 
 	// Node that the breakpoint is placed on
 	UPROPERTY()
-	TObjectPtr<class UEdGraphNode> Node;
+	TSoftObjectPtr<class UEdGraphNode> Node = nullptr;
 
 	// Is this breakpoint auto-generated, and should be removed when next hit?
 	UPROPERTY()
-	uint32 bStepOnce:1;
+	uint8 bStepOnce:1;
 
 	UPROPERTY()
-	uint32 bStepOnce_WasPreviouslyDisabled:1;
+	uint8 bStepOnce_WasPreviouslyDisabled:1;
 
 	UPROPERTY()
-	uint32 bStepOnce_RemoveAfterHit:1;
+	uint8 bStepOnce_RemoveAfterHit:1;
 
 public:
+	FBlueprintBreakpoint();
 
 	/** Get the target node for the breakpoint */
 	UEdGraphNode* GetLocation() const
 	{
-		return Node;
+		return Node.Get();
 	}
 
 	/** @returns true if the breakpoint should be enabled when debugging */
@@ -54,8 +52,14 @@ public:
 		return bEnabled && !(bStepOnce && bStepOnce_WasPreviouslyDisabled);
 	}
 
+	bool operator==(const FBlueprintBreakpoint& Other) const
+	{
+		return Node == Other.Node;
+	}
+
 	/** Gets a string that describes the location */
 	FText GetLocationDescription() const;
 
 	friend class FKismetDebugUtilities;
 };
+

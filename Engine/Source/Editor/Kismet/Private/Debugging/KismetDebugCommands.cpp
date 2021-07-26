@@ -3,6 +3,7 @@
 
 #include "Debugging/KismetDebugCommands.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/Breakpoint.h"
 #include "Kismet2/KismetDebugUtilities.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -27,21 +28,23 @@ void FDebuggingActionCallbacks::ClearBreakpoints(UBlueprint* OwnerBlueprint)
 	FKismetDebugUtilities::ClearBreakpoints(OwnerBlueprint);
 }
 
-void FDebuggingActionCallbacks::ClearBreakpoint(UBreakpoint* Breakpoint, UBlueprint* OwnerBlueprint)
+void FDebuggingActionCallbacks::ClearBreakpoint(TSoftObjectPtr<UEdGraphNode> BreakpointNode, const UBlueprint* OwnerBlueprint)
 {
-	FKismetDebugUtilities::StartDeletingBreakpoint(Breakpoint, OwnerBlueprint);
+	FKismetDebugUtilities::RemoveBreakpointFromNode(BreakpointNode.Get(), OwnerBlueprint);
 }
 
-void FDebuggingActionCallbacks::SetBreakpointEnabled(UBreakpoint* Breakpoint, bool bEnabled)
+void FDebuggingActionCallbacks::SetBreakpointEnabled(TSoftObjectPtr<UEdGraphNode> BreakpointNode, const UBlueprint* BreakpointBlueprint, bool bEnabled)
 {
-	FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, bEnabled);
+	FKismetDebugUtilities::SetBreakpointEnabled(BreakpointNode.Get(), BreakpointBlueprint, bEnabled);
 }
 
-void FDebuggingActionCallbacks::SetEnabledOnAllBreakpoints(UBlueprint* OwnerBlueprint, bool bShouldBeEnabled)
+void FDebuggingActionCallbacks::SetEnabledOnAllBreakpoints(const UBlueprint* OwnerBlueprint, bool bShouldBeEnabled)
 {
-	for (TArray<UBreakpoint*>::TIterator BreakpointIt(OwnerBlueprint->Breakpoints); BreakpointIt; ++BreakpointIt)
-	{
-		UBreakpoint* BP = *BreakpointIt;
-		FKismetDebugUtilities::SetBreakpointEnabled(BP, bShouldBeEnabled);
-	}
+	FKismetDebugUtilities::ForeachBreakpoint(
+		OwnerBlueprint,
+		[bShouldBeEnabled](FBlueprintBreakpoint& Breakpoint)
+		{
+			FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, bShouldBeEnabled);
+		}
+	);
 }
