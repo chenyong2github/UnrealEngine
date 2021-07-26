@@ -917,10 +917,14 @@ void UOptimusDeformer::GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray
 		{
 			const UOptimusNode_ConstantValue *ValueNode = Cast<const UOptimusNode_ConstantValue>(Binding.ValueNode);
 
-			TArray<uint8> ValueData = ValueNode->GetShaderValue();
-			if (!ValueData.IsEmpty())
+			// This may happen if the node has been GC'd.
+			if (ValueNode)
 			{
-				OutBindings.Emplace(Binding.ParameterIndex, MoveTemp(ValueData));
+				TArray<uint8> ValueData = ValueNode->GetShaderValue();
+				if (!ValueData.IsEmpty())
+				{
+					OutBindings.Emplace(Binding.ParameterIndex, MoveTemp(ValueData));
+				}
 			}
 		}
 	}
