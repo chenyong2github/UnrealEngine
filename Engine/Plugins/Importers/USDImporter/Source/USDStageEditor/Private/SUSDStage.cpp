@@ -102,7 +102,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	OnViewportSelectionChangedHandle = USelection::SelectionChangedEvent.AddRaw( this, &SUsdStage::OnViewportSelectionChanged );
 
 	IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-	ViewModel.UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
+	ViewModel.UsdStageActor = UsdStageModule.FindUsdStageActor( GWorld );
 
 	bUpdatingViewportSelection = false;
 
