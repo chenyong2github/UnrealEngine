@@ -17,8 +17,8 @@ namespace EpicGames.Perforce.Managed
 		public WorkspaceDirectoryInfo NewWorkspaceRootDir;
 		public StreamSnapshot StreamSnapshot;
 		public ConcurrentDictionary<FileContentId, WorkspaceFileInfo> FilesToMove = new ConcurrentDictionary<FileContentId, WorkspaceFileInfo>();
-		public ConcurrentBag<WorkspaceFileInfo> FilesToDelete = new ConcurrentBag<WorkspaceFileInfo>();
-		public ConcurrentBag<WorkspaceDirectoryInfo> DirectoriesToDelete = new ConcurrentBag<WorkspaceDirectoryInfo>();
+		public ConcurrentQueue<WorkspaceFileInfo> FilesToDelete = new ConcurrentQueue<WorkspaceFileInfo>();
+		public ConcurrentQueue<WorkspaceDirectoryInfo> DirectoriesToDelete = new ConcurrentQueue<WorkspaceDirectoryInfo>();
 
 		public RemoveTransaction(WorkspaceDirectoryInfo WorkspaceRootDir, StreamSnapshot StreamSnapshot, Dictionary<FileContentId, CachedFileInfo> ContentIdToTrackedFile)
 		{
@@ -74,7 +74,7 @@ namespace EpicGames.Perforce.Managed
 
 		void RemoveDirectory(WorkspaceDirectoryInfo WorkspaceDir, ThreadPoolWorkQueue Queue)
 		{
-			DirectoriesToDelete.Add(WorkspaceDir);
+			DirectoriesToDelete.Enqueue(WorkspaceDir);
 
 			foreach(WorkspaceDirectoryInfo WorkspaceSubDir in WorkspaceDir.NameToSubDirectory.Values)
 			{
@@ -90,7 +90,7 @@ namespace EpicGames.Perforce.Managed
 		{
 			if(ContentIdToTrackedFile.ContainsKey(WorkspaceFile.ContentId) || !FilesToMove.TryAdd(WorkspaceFile.ContentId, WorkspaceFile))
 			{
-				FilesToDelete.Add(WorkspaceFile);
+				FilesToDelete.Enqueue(WorkspaceFile);
 			}
 		}
 	}
