@@ -133,8 +133,8 @@ void GizmoMath::RayCylinderIntersection(
 	// adapted from GeometricTools GTEngine
 	// https://www.geometrictools.com/GTE/Mathematics/IntrRay3Cylinder3.h and
 	// https://www.geometrictools.com/GTE/Mathematics/IntrLine3Cylinder3.h 
-	// (Engine/Plugins/Experimental/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrRay3Cylinder3.h and
-	//  Engine/Plugins/Experimental/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrLine3Cylinder3.h)	
+	// (Engine/Plugins/Runtime/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrRay3Cylinder3.h and
+	//  Engine/Plugins/Runtime/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrLine3Cylinder3.h)	
 
 	// The cylinder axis is a line.  The origin of the cylinder is chosen to be
 	// the line origin.  The cylinder wall is at a distance R units from the axis.
@@ -369,8 +369,8 @@ void GizmoMath::RayConeIntersection(
 	// adapted from GeometricTools GTEngine
 	// https://www.geometrictools.com/GTE/Mathematics/IntrRay3Cone3.h and
 	// https://www.geometrictools.com/GTE/Mathematics/IntrLine3Cone3.h 
-	// (Engine/Plugins/Experimental/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrRay3Cone3.h and
-	//  Engine/Plugins/Experimental/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrLine3Cone3.h)	
+	// (Engine/Plugins/Runtime/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrRay3Cone3.h and
+	//  Engine/Plugins/Runtime/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrLine3Cone3.h)	
 
 	// The cone has vertex V, unit-length axis direction D, angle theta in
 	// (0,pi/2), and height h in (0,+infinity).  The line is P + t*U, where U
@@ -557,7 +557,7 @@ void GizmoMath::IntervalIntervalIntersection(
 {
 	// adapted from GeometricTools GTEngine
 	// https://www.geometrictools.com/GTE/Mathematics/IntrIntervals.h 
-	// (Engine/Plugins/Experimental/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrIntervals.h)
+	// (Engine/Plugins/Runtime/GeometryProcessing/Source/GeometryAlgorithms/Private/ThirdParty/GTEngine/Mathematics/GteIntrIntervals.h)
 	// Determines the intersection between two floating point intervals in which
 	// the input intervals' values are sorted in increasing order.
 	// Used by RayConeIntersection.
