@@ -507,9 +507,7 @@ class DevicenDisplay(DeviceUnreal):
         friendly_name = f'-StageFriendlyName={self.name.replace(" ", "_")}'
 
         # Unattended mode
-        unattended = ''
-        if DevicenDisplay.csettings['ndisplay_unattended'].get_value(self.name):
-            unattended = '-unattended -ini:EditorSettings:[/Script/UnrealEd.CrashReportsPrivacySettings]:bSendUnattendedBugReports=False'
+        unattended = '-unattended' if DevicenDisplay.csettings['ndisplay_unattended'].get_value() else ''
 
         # fill in fixed arguments
         args = [
@@ -539,7 +537,7 @@ class DevicenDisplay(DeviceUnreal):
             f'Log={self.name}.log',            # log file
             f'{ini_engine}',                   # Engine ini injections
             f'{ini_game}',                     # Game ini injections
-            f'{unattended}',                   # -unattended, bSendUnattendedBugReports=False
+            f'{unattended}',                   # -unattended
         ]
 
         # fill in ExecCmds
