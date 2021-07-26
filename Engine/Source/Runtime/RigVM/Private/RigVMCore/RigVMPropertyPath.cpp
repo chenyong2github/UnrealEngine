@@ -4,6 +4,8 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FRigVMPropertyPath FRigVMPropertyPath::Empty;
+
 FRigVMPropertyPath::FRigVMPropertyPath()
 : Path()
 , Segments()
@@ -154,3 +156,4 @@ uint8* FRigVMPropertyPath::GetData_Internal(uint8* InPtr) const
 
 	return InPtr;
 }
+
