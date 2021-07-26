@@ -842,6 +842,13 @@ namespace EpicGames.Core
 				StdOutRead.Dispose();
 				StdOutRead = null;
 			}
+
+			StdIn?.Dispose();
+			StdOut?.Dispose();
+			StdOutText?.Dispose();
+			StdErr?.Dispose();
+			StdErrText?.Dispose();
+
 			if (AccountingProcessGroup != null) 
 			{
 				AccountingProcessGroup.Dispose();
