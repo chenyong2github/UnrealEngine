@@ -1291,7 +1291,7 @@ void FConfigFile::OverrideFromCommandline(FConfigFile* File, const FString& File
 }
 
 
-void FConfigFile::AddDynamicLayerToHeirarchy(const FString& Filename)
+void FConfigFile::AddDynamicLayerToHierarchy(const FString& Filename)
 {
 	FString ConfigContent;
 	if (!FFileHelper::LoadFileToString(ConfigContent, *Filename))
@@ -2782,6 +2782,21 @@ bool FConfigCacheIni::EmptySectionsMatchingString( const TCHAR* SectionString, c
 		bAreFileOperationsDisabled = bSaveOpsDisabled;
 	}
 	return bEmptied;
+}
+
+FString FConfigCacheIni::GetConfigFilename(const TCHAR* BaseIniName)
+{
+	// Known ini files such as Engine, Game, etc.. are referred to as just the name with no extension within the config system.
+	if (IsKnownConfigName(FName(BaseIniName, FNAME_Find)))
+	{
+		return FString(BaseIniName);
+	}
+	else
+	{
+		// Non-known ini files are looked up using their full path
+		// This always uses the default platform as non-known files are not valid for other platforms
+		return GetDestIniFilename(BaseIniName, nullptr, *FPaths::GeneratedConfigDir());
+	}
 }
 
 /**

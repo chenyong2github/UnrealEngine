@@ -625,14 +625,20 @@ bool FPluginManager::IntegratePluginsIntoConfig(FConfigCacheIni& ConfigSystem, c
 			IFileManager::Get().FindFiles(PluginConfigs, *PluginConfigDir, TEXT("ini"));
 			for (const FString& ConfigFile : PluginConfigs)
 			{
-				// Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
-				FString PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), PlatformName, *FPaths::GeneratedConfigDir());
+				// Optionally strip Default and Base from source filename, old behavior would create a new misnamed file which allowed redirects to work
+				// But, it's better to just apply it to the config actually desired by the user
+				FString BaseConfigFile = *FPaths::GetBaseFilename(ConfigFile);
+				BaseConfigFile.RemoveFromStart(TEXT("Base"));
+				BaseConfigFile.RemoveFromStart(TEXT("Default"));
+
+				// Use GetConfigFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
+				FString PluginConfigFilename = ConfigSystem.GetConfigFilename(*BaseConfigFile);
 				FConfigFile* FoundConfig = ConfigSystem.FindConfigFile(PluginConfigFilename);
 				if (FoundConfig != nullptr)
 				{
 					UE_LOG(LogPluginManager, Log, TEXT("Found config from plugin[%s] %s"), *Plugin.GetName(), *PluginConfigFilename);
 
-					FoundConfig->AddDynamicLayerToHeirarchy(FPaths::Combine(PluginConfigDir, ConfigFile));
+					FoundConfig->AddDynamicLayerToHierarchy(FPaths::Combine(PluginConfigDir, ConfigFile));
 				}
 			}
 
@@ -1009,8 +1015,8 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					SourceConfigDir = PluginConfigDir;
 				}
 
-				FString PluginConfigFilename = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), *PlatformName, *Plugin.Name);
-				FPaths::MakeStandardFilename(PluginConfigFilename); // This needs to match what we do in ConfigCacheIni.cpp's GetDestIniFilename method. Otherwise, the hash results will differ and the plugin's version will be overwritten later.
+				// Build the config system key for PluginName.ini
+				FString PluginConfigFilename = GConfig->GetConfigFilename(*Plugin.Name);
 				{
 					FScopeLock Locker(&ConfigCS);
 
@@ -1029,30 +1035,23 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				IFileManager::Get().FindFiles(PluginConfigs, *PluginConfigDir, TEXT("ini"));
 				for (const FString& ConfigFile : PluginConfigs)
 				{
-					// Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
-					PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlatformName, *FPaths::GeneratedConfigDir());
+					// Optionally strip Default and Base from source filename, old behavior would create a new misnamed file which allowed redirects to work
+					// But, it's better to just apply it to the config actually desired by the user
+					FString BaseConfigFile = *FPaths::GetBaseFilename(ConfigFile);					
+					BaseConfigFile.RemoveFromStart(TEXT("Base"));
+					BaseConfigFile.RemoveFromStart(TEXT("Default"));
+
+					// Build the config system key for the overridden config
+					PluginConfigFilename = GConfig->GetConfigFilename(*BaseConfigFile);
 					{
 						FScopeLock Locker(&ConfigCS);
-						FConfigFile* FoundConfig = GConfig->Find(PluginConfigFilename);
-						if (FoundConfig != nullptr)
-						{
-						    if (GConfig->IsKnownConfigName(*PluginConfigFilename))
-						    {
-							    FoundConfig = GConfig->FindConfigFile(PluginConfigFilename);
-						    }
-						    // if it's not a known type, generate it final name
-						    else
-						    {
-							    // Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
-							    PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlatformName, *FPaths::GeneratedConfigDir());
-							    FoundConfig = GConfig->FindConfigFile(PluginConfigFilename);
-						    }
-						}
+						FConfigFile* FoundConfig = GConfig->FindConfigFile(PluginConfigFilename);
+
 						if (FoundConfig != nullptr)
 						{
 							UE_LOG(LogPluginManager, Log, TEXT("Found config from plugin[%s] %s"), *Plugin.GetName(), *PluginConfigFilename);
 
-							FoundConfig->AddDynamicLayerToHeirarchy(FPaths::Combine(PluginConfigDir, ConfigFile));
+							FoundConfig->AddDynamicLayerToHierarchy(FPaths::Combine(PluginConfigDir, ConfigFile));
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 							// Don't allow plugins to stomp command line overrides, so re-apply them
