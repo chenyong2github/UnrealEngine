@@ -74,6 +74,11 @@ bool FSubobjectData::CanDuplicate() const
 
 bool FSubobjectData::CanCopy() const
 {
+	if (IsInstancedInheritedComponent())
+	{
+		return FComponentEditorUtils::CanCopyComponent(GetComponentTemplate()) && !SceneRootHasDefaultName();
+	}
+	
 	return FComponentEditorUtils::CanCopyComponent(GetComponentTemplate());
 }
 
@@ -110,7 +115,7 @@ bool FSubobjectData::CanRename() const
 	// is on an instance in the level
 	if(GetSCSNode() != nullptr && !IsInheritedSCSNode())
 	{
-		return !IsInstancedInheritedComponent();
+		return !IsInstancedInheritedComponent() && !SceneRootHasDefaultName();
 	}
 	
 	return !IsInheritedComponent() && !IsDefaultSceneRoot() && !IsChildActorSubtreeObject();
@@ -926,6 +931,20 @@ bool FSubobjectData::IsDefaultSceneRoot() const
 
 	// Nothing else can be a DefaultSceneRoot
 	return false;
+}
+
+bool FSubobjectData::SceneRootHasDefaultName() const
+{
+	const UActorComponent* Template = GetComponentTemplate();
+	const FName TemplateName = Template ? Template->GetFName() : NAME_None;
+
+	// Only the first default scene root can be attached to an actor, so this will 
+	// rule out false positives of other subobjects that may have been named the same thing
+	// or if the first default scene root was duplicated
+	const FSubobjectData* ParentData = GetParentHandle().GetData();
+	const bool bIsAttachedToActor = ParentData ? ParentData->IsActor() : false;
+
+	return bIsAttachedToActor && TemplateName.ToString().StartsWith(USceneComponent::GetDefaultSceneRootVariableName().ToString());
 }
 
 bool FSubobjectData::IsComponent() const
