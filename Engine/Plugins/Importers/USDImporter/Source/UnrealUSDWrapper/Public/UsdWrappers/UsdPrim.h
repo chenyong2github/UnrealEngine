@@ -47,7 +47,7 @@ namespace UE
 		bool operator==( const FUsdPrim& Other ) const;
 		bool operator!=( const FUsdPrim& Other ) const;
 
-		operator bool() const;
+		explicit operator bool() const;
 
 	// Auto conversion from/to pxr::UsdPrim
 	public:

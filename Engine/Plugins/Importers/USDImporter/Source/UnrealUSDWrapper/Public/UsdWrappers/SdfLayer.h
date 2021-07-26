@@ -60,7 +60,7 @@ namespace UE
 		bool operator==( const FSdfLayer& Other ) const;
 		bool operator!=( const FSdfLayer& Other ) const;
 
-		operator bool() const;
+		explicit operator bool() const;
 
 	// Auto conversion from/to pxr::SdfLayerRefPtr
 	public:

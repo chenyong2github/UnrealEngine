@@ -50,7 +50,10 @@ namespace UE
 
 		~FUsdStage();
 
-		operator bool() const;
+		explicit operator bool() const;
+
+		bool operator==( const FUsdStage& Other ) const;
+		bool operator!=( const FUsdStage& Other ) const;
 
 	// Auto conversion from/to pxr::UsdStageRefPtr
 	public:

@@ -85,6 +85,20 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	bool FUsdStage::operator==( const FUsdStage& Other ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdStageRefPtr.Get() == Other.Impl->PxrUsdStageRefPtr.Get();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdStage::operator!=( const FUsdStage& Other ) const
+	{
+		return !( *this == Other );
+	}
+
 	FUsdStage::~FUsdStage()
 	{
 		FScopedUnrealAllocs UnrealAllocs;
