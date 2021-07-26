@@ -759,7 +759,7 @@ namespace UsdSkelRootTranslatorImpl
 				if ( !SkeletalMesh )
 				{
 					bIsNew = true;
-					SkeletalMesh = UsdToUnreal::GetSkeletalMeshFromImportData( LODIndexToSkeletalMeshImportData, SkeletonBones, NewBlendShapes, Context->ObjectFlags );
+					SkeletalMesh = UsdToUnreal::GetSkeletalMeshFromImportData( LODIndexToSkeletalMeshImportData, SkeletonBones, NewBlendShapes, Context->ObjectFlags, *FPaths::GetBaseFilename( SkelRootPath ) );
 				}
 
 				if ( SkeletalMesh )
@@ -851,8 +851,6 @@ namespace UsdSkelRootTranslatorImpl
 						if ( !AnimSequence || AnimSequence->GetSkeleton() != SkeletalMesh->GetSkeleton() )
 						{
 							FScopedUnrealAllocs UEAllocs;
-
-							pxr::UsdPrim SkelAnimPrim = AnimQuery.GetPrim();
 
 							// The UAnimSequence can't be created with the RF_Transactional flag, or else it will be serialized without
 							// Bone/CurveCompressionSettings. Undoing that transaction would call UAnimSequence::Serialize with nullptr values for both, which crashes.
