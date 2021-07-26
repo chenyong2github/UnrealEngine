@@ -19,13 +19,21 @@ FString USkeletalMeshReadDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
+
+	Defs.Add({ "NumVertices", "ReadNumVertices", "Global" });
+	Defs.Add({ "NumTriangles", "ReadNumTriangles", "Global" });
+
 	Defs.Add({"Position", "ReadPosition", "ReadNumVertices", "Vertex"});
 	Defs.Add({"TangentX", "ReadTangentX", "ReadNumVertices", "Vertex"});
-	Defs.Add({"TangentZ", "ReadTangentZ", "ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentZ", "ReadTangentZ", "ReadNumVertices", "Vertex" });
+	Defs.Add({"UV0", "ReadUV0", "ReadNumVertices", "Vertex" });
 	Defs.Add({"BindMatrix", "ReadBlendMatrix", "ReadNumVertices", "Vertex"});
 
 	Defs.Add({"BoneMatrix", "ReadBoneMatrix", {"ReadNumVertices", "ReadNumVertexBones"}, "Vertex"});
 	Defs.Add({"BoneWeight", "ReadBoneWeight", {"ReadNumVertices", "ReadNumVertexBones"}, "Vertex"});
+	
+	Defs.Add({ "IndexBuffer", "ReadIndexBuffer", "ReadNumTriangles", "Triangle" });
+
 	return Defs;
 }
 
@@ -111,7 +119,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadUV");
+		Fn.Name = TEXT("ReadUV0");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 2);
@@ -119,9 +127,6 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		FShaderParamTypeDefinition Param0 = {};
 		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = {};
-		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
 	{

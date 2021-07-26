@@ -57,9 +57,9 @@ DI_IMPL_READ(ReadTangentZ, float4, uint VertexIndex)
 	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex + 1]);
 }
 
-DI_IMPL_READ(ReadUV, float2, uint VertexIndex, uint TexCoordIndex)
+DI_IMPL_READ(ReadUV0, float2, uint VertexIndex)
 {
-	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * DI_LOCAL(NumTexCoords) + TexCoordIndex;
+	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * DI_LOCAL(NumTexCoords);
 	return DI_LOCAL(UVInputBuffer)[BufferIndex];
 }
 
