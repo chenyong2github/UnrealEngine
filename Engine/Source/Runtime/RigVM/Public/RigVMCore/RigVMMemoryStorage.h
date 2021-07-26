@@ -9,6 +9,7 @@
 #include "RigVMArray.h"
 #include "RigVMMemoryCommon.h"
 #include "EdGraph/EdGraphNode.h"
+#include "RigVMPropertyPath.h"
 #include "RigVMMemoryStorage.generated.h"
 
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
@@ -85,19 +86,73 @@ public:
 	static UClass* GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType);
 	static UClass* CreateStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType, const TArray<FPropertyDescription>& InProperties);
 	static URigVMMemoryStorage* CreateStorage(UObject* InOuter, ERigVMMemoryType InMemoryType);
-	static FProperty* AddProperty(UClass* InClass, const FPropertyDescription& InProperty, bool bPurge = false, bool bLink = true, FField** LinkToProperty = nullptr);
 
 	//////////////////////////////////////////////////////////////////////////////
 	/// Memory Access
 	//////////////////////////////////////////////////////////////////////////////
 
+	FORCEINLINE int32 Num() const
+	{
+		return GetProperties().Num();
+	}
+
+	FORCEINLINE bool IsValidIndex(int32 InIndex) const
+	{
+		return GetProperties().IsValidIndex(InIndex);
+	}
+	
 	const TArray<const FProperty*>& GetProperties() const;
+
 	int32 GetPropertyIndex(const FProperty* InProperty) const;
+
 	int32 GetPropertyIndexByName(const FName& InName) const;
+
 	const FProperty* FindPropertyByName(const FName& InName) const;
+	
+	FORCEINLINE bool IsArray(int32 InPropertyIndex) const
+	{
+		return GetProperties()[InPropertyIndex]->IsA<FArrayProperty>();
+	}
+	
+	FORCEINLINE bool IsArrayByName(const FName& InName) const
+	{
+		if(const FProperty* Property = FindPropertyByName(InName))
+		{
+			return Property->IsA<FArrayProperty>();
+		}
+		return false;
+	}
+	
+	FORCEINLINE bool IsMap(int32 InPropertyIndex) const
+	{
+		return GetProperties()[InPropertyIndex]->IsA<FMapProperty>();
+	}
+	
+	FORCEINLINE bool IsMapByName(const FName& InName) const
+	{
+		if(const FProperty* Property = FindPropertyByName(InName))
+		{
+			return Property->IsA<FMapProperty>();
+		}
+		return false;
+	}
+	
+	FORCEINLINE bool IsSet(int32 InPropertyIndex) const
+	{
+		return GetProperties()[InPropertyIndex]->IsA<FSetProperty>();
+	}
+	
+	FORCEINLINE bool IsSetByName(const FName& InName) const
+	{
+		if(const FProperty* Property = FindPropertyByName(InName))
+		{
+			return Property->IsA<FSetProperty>();
+		}
+		return false;
+	}
 
 	template<typename T>
-	T* ContainerPtrToValuePtr(int32 InPropertyIndex)
+	FORCEINLINE T* GetData(int32 InPropertyIndex)
 	{
 		const TArray<const FProperty*>& Properties = GetProperties();
 		if(Properties.IsValidIndex(InPropertyIndex))
@@ -108,13 +163,28 @@ public:
 	}
 
 	template<typename T>
-	T* ContainerPtrToValuePtrByName(const FName& InName)
+	FORCEINLINE T* GetDataByName(const FName& InName)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
-		return ContainerPtrToValuePtr<T>(PropertyIndex);
+		return GetData<T>(PropertyIndex);
+	}
+
+	template<typename T>
+	FORCEINLINE T* GetData(int32 InPropertyIndex, const FRigVMPropertyPath& InPropertyPath)
+	{
+		return InPropertyPath.GetData<T>(GetData<uint8>(InPropertyIndex));
+	}
+
+	template<typename T>
+	FORCEINLINE T* GetDataByName(const FName& InName, const FRigVMPropertyPath& InPropertyPath)
+	{
+		const int32 PropertyIndex = GetPropertyIndexByName(InName);
+		return GetData<T>(PropertyIndex, InPropertyPath);
 	}
 
 protected:
+
+	static FProperty* AddProperty(UClass* InClass, const FPropertyDescription& InProperty, bool bPurge = false, bool bLink = true, FField** LinkToProperty = nullptr);
 
 	TArray<const FProperty*> CachedProperties;
 
