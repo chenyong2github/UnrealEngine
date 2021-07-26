@@ -902,6 +902,20 @@ void UChaosVehicleMovementComponent::SetParked(bool bParked)
 	bParkEnabled = bParked;
 }
 
+void UChaosVehicleMovementComponent::SetSleeping(bool bEnableSleep)
+{
+	if (bEnableSleep)
+	{
+		PutAllEnabledRigidBodiesToSleep();
+		VehicleState.bSleeping = true;
+	}
+	else
+	{
+		WakeAllEnabledRigidBodies();
+		VehicleState.bSleeping = false;
+	}
+}
+
 void UChaosVehicleMovementComponent::SetChangeUpInput(bool bNewGearUp)
 {
 	bRawGearUpInput = bNewGearUp;
@@ -1237,7 +1251,7 @@ void UChaosVehicleMovementComponent::ProcessSleeping(const FControlInputs& Contr
 		{
 			VehicleState.bSleeping = false;
 			VehicleState.SleepCounter = 0;
-			TargetInstance->WakeInstance();
+			SetSleeping(false);
 		}
 		else if (!VehicleState.bSleeping && !bControlInputPressed && VehicleState.bAllWheelsOnGround && (VehicleState.VehicleUpAxis.Z > SleepSlopeLimit))
 		{
@@ -1251,7 +1265,7 @@ void UChaosVehicleMovementComponent::ProcessSleeping(const FControlInputs& Contr
 				else
 				{
 					VehicleState.bSleeping = true;
-					TargetInstance->PutInstanceToSleep();
+					SetSleeping(true);
 				}
 			}
 		}
@@ -1869,6 +1883,41 @@ void UChaosVehicleMovementComponent::SetBaseSnapshot(const FBaseSnapshotData& Sn
 		TargetInstance->SetBodyTransform(SnapshotIn.Transform, ETeleportType::TeleportPhysics);
 	}
 }
+
+void UChaosVehicleMovementComponent::WakeAllEnabledRigidBodies()
+{
+	if (USkeletalMeshComponent* Mesh = GetSkeletalMesh())
+	{
+		for (int32 i = 0; i < Mesh->Bodies.Num(); i++)
+		{
+			FBodyInstance* BI = Mesh->Bodies[i];
+			check(BI);
+
+			if (!BI->IsPhysicsDisabled() && BI->IsNonKinematic())
+			{
+				BI->WakeInstance();
+			}
+		}
+	}
+}
+
+void UChaosVehicleMovementComponent::PutAllEnabledRigidBodiesToSleep()
+{
+	if (USkeletalMeshComponent* Mesh = GetSkeletalMesh())
+	{
+		for (int32 i = 0; i < Mesh->Bodies.Num(); i++)
+		{
+			FBodyInstance* BI = Mesh->Bodies[i];
+			check(BI);
+
+			if (!BI->IsPhysicsDisabled() && BI->IsNonKinematic())
+			{
+				BI->PutInstanceToSleep();
+			}
+		}
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
 
