@@ -10,8 +10,8 @@
 #include "OptimusNodeGraph.h"
 #include "Misc/DefaultValueHelper.h"
 
-#include "UObject/Package.h"
 
+#define LOCTEXT_NAMESPACE "OptimusDeformer"
 
 UOptimusNodePin* UOptimusNodePin::GetParentPin()
 {
@@ -90,7 +90,18 @@ FText UOptimusNodePin::GetDisplayName() const
 
 FText UOptimusNodePin::GetTooltipText() const
 {
-	return FText::FromString("Who farted, y'all?");
+	// FIXME: We probably want a specialized widget for this in SOptimusEditorGraphNode::MakeTableRowWidget
+	if (StorageType == EOptimusNodePinStorageType::Value)
+	{
+		return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_Value", "Name:\t{0}\nType:\t{1} ({2})\nStorage:\tValue"),
+			FText::FromString(GetName()), DataType->DisplayName, FText::FromString(DataType->ShaderValueType->ToString()) );
+	}
+	else
+	{
+		return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_Resource", "Name:\t{0}\nType:\t{1} ({2})\nStorage:\tResource\nContext:\t{3}\nDimensions:\t{4}"),
+			FText::FromString(GetName()), DataType->DisplayName, FText::FromString(DataType->ShaderValueType->ToString()),
+			FText::FromName(ResourceContext), FText::AsNumber(ResourceDimensionality));
+	}
 }
 
 
@@ -509,3 +520,5 @@ UOptimusActionStack* UOptimusNodePin::GetActionStack() const
 {
 	return GetNode()->GetActionStack();
 }
+
+#undef LOCTEXT_NAMESPACE
