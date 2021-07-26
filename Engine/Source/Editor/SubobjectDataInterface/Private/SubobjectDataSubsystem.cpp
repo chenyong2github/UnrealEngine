@@ -2048,8 +2048,13 @@ void USubobjectDataSubsystem::PasteSubobjects(const FSubobjectDataHandle& PasteT
 					// Only scene components can be attached to when pasting
 					if (SelectedData && SelectedData->IsSceneComponent() && SelectedData->HasParent())
 					{
-						TargetParentHandle = SelectedData->GetParentHandle();
-						break;
+						const FSubobjectData* ParentData = SelectedData->GetParentHandle().GetData();
+						// The parent data can only be used if it's a scene component (not an actor or non-scene component)
+						if (ParentData && ParentData->IsSceneComponent())
+						{
+							TargetParentHandle = SelectedData->GetParentHandle();
+							break;
+						}
 					}
 				}
 			}
