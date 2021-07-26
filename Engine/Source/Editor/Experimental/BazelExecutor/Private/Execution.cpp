@@ -81,20 +81,20 @@ bool FExecution::Execute(const FExecuteRequest& Request, FExecuteResponse& Respo
 				break;
 			}
 			ProtoConverter::FromProto(ProtoResponse, Response);
-			if ((grpc::StatusCode)ProtoResponse.status().code() != grpc::StatusCode::OK) {
-
+			if (!Response.Status.Ok())
+			{
 				if ((Response.Status.Code == EStatusCode::RESOURCE_EXHAUSTED) ||
 					(Response.Status.Code == EStatusCode::UNAVAILABLE))
 				{
 					UE_LOG(LogBazelExecutor, Display, TEXT("Execute: %s Info: %s"),
 						UTF8_TO_TCHAR(Operation.name().c_str()),
-						UTF8_TO_TCHAR(ProtoResponse.status().message().c_str()));
+						*Response.Status.Message);
 				}
 				else
 				{
 					UE_LOG(LogBazelExecutor, Error, TEXT("Execute: %s Error: %s"),
 						UTF8_TO_TCHAR(Operation.name().c_str()),
-						UTF8_TO_TCHAR(ProtoResponse.status().message().c_str()));
+						*Response.Status.Message);
 				}
 				break;
 			}
@@ -181,14 +181,25 @@ TFuture<FExecuteResponse> FExecution::ExecuteAsync(const FExecuteRequest& Reques
 			return;
 		}
 
-		if ((grpc::StatusCode)ProtoResponse.status().code() != grpc::StatusCode::OK) {
-			UE_LOG(LogBazelExecutor, Error, TEXT("ExecuteAsync: %s Error: %s"),
-				UTF8_TO_TCHAR(Operation.name().c_str()),
-				UTF8_TO_TCHAR(ProtoResponse.status().message().c_str()));
-		}
-
 		FExecuteResponse Response;
 		ProtoConverter::FromProto(ProtoResponse, Response);
+		if (!Response.Status.Ok())
+		{
+			if ((Response.Status.Code == EStatusCode::RESOURCE_EXHAUSTED) ||
+				(Response.Status.Code == EStatusCode::UNAVAILABLE))
+			{
+				UE_LOG(LogBazelExecutor, Display, TEXT("ExecuteAsync: %s Info: %s"),
+					UTF8_TO_TCHAR(Operation.name().c_str()),
+					*Response.Status.Message);
+			}
+			else
+			{
+				UE_LOG(LogBazelExecutor, Error, TEXT("ExecuteAsync: %s Error: %s"),
+					UTF8_TO_TCHAR(Operation.name().c_str()),
+					*Response.Status.Message);
+			}
+		}
+
 		ReturnPromise->EmplaceValue(MoveTemp(Response));
 	};
 
