@@ -54,6 +54,7 @@ private:
 
 	void AddPayload(const FPayload& Payload) final;
 	void AddPayload(const FPayloadId& Id, const FCompressedBuffer& Buffer) final;
+	void AddPayload(const FPayloadId& Id, const FCompositeBuffer& Buffer) final;
 	void AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer) final;
 	void AddPayload(const FPayloadId& Id, const FCbObject& Object) final;
 

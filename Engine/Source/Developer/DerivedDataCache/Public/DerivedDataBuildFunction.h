@@ -93,6 +93,7 @@ public:
 	/** Adds a payload to the build output. Must have a non-null buffer and a unique ID. */
 	virtual void AddPayload(const FPayload& Payload) = 0;
 	virtual void AddPayload(const FPayloadId& Id, const FCompressedBuffer& Buffer) = 0;
+	virtual void AddPayload(const FPayloadId& Id, const FCompositeBuffer& Buffer) = 0;
 	virtual void AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer) = 0;
 	virtual void AddPayload(const FPayloadId& Id, const FCbObject& Object) = 0;
 

@@ -7,6 +7,7 @@
 #include "DerivedDataBuildPolicy.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataPayloadPrivate.h"
 #include "Hash/Blake3.h"
 #include "Misc/StringBuilder.h"
 #include "UObject/NameTypes.h"
@@ -95,14 +96,20 @@ void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCompressedBuffer&
 	AddPayload(FPayload(Id, Buffer));
 }
 
+void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCompositeBuffer& Buffer)
+{
+	AddPayload(FPayload(Id, FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel)));
+}
+
 void FBuildJobContext::AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer)
 {
-	AddPayload(FPayload(Id, FCompressedBuffer::Compress(NAME_Default, Buffer)));
+	AddPayload(FPayload(Id, FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel)));
 }
 
 void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCbObject& Object)
 {
-	AddPayload(FPayload(Id, FCompressedBuffer::Compress(NAME_Default, Object.GetBuffer())));
+	const FCompositeBuffer& Buffer = Object.GetBuffer();
+	AddPayload(FPayload(Id, FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel)));
 }
 
 void FBuildJobContext::BeginAsyncBuild()
