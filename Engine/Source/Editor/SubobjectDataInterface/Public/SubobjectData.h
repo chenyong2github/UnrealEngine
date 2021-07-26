@@ -126,6 +126,8 @@ public:
 	virtual bool IsSceneComponent() const;
 	virtual bool IsRootComponent() const;
 	virtual bool IsDefaultSceneRoot() const;
+	/** Returns true if the component template's FName starts with USceneComponent::GetDefaultSceneRootVariableName */
+	bool SceneRootHasDefaultName() const;
 	/* Returns true if this subobject is a component. */
 	virtual bool IsComponent() const;
 	virtual bool IsChildActor() const;
