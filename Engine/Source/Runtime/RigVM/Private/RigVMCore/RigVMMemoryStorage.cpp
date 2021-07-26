@@ -395,6 +395,7 @@ FProperty* URigVMMemoryStorage::AddProperty(UClass* InClass, const FPropertyDesc
 			}
 		}
 
+		Result->SetPropertyFlags(CPF_Edit);
 		(*LinkToProperty) = Result;
 	}
 
@@ -406,6 +407,16 @@ FProperty* URigVMMemoryStorage::AddProperty(UClass* InClass, const FPropertyDesc
 
 		// Similar to FConfigPropertyHelperDetails::CustomizeDetails, this is required for GC to work properly
 		InClass->AssembleReferenceTokenStream();
+
+		URigVMMemoryStorage* CDO = Cast<URigVMMemoryStorage>(InClass->GetDefaultObject(true));
+		CDO->CachedProperties.Add(Result);
+		
+		const FString& DefaultValue = InProperty.DefaultValue;
+		if(!DefaultValue.IsEmpty())
+		{
+			uint8* ValuePtr = Result->ContainerPtrToValuePtr<uint8>(CDO);
+			Result->ImportText(*DefaultValue, ValuePtr, EPropertyPortFlags::PPF_None, nullptr);
+		}		
 	};
 	
 	return Result;
