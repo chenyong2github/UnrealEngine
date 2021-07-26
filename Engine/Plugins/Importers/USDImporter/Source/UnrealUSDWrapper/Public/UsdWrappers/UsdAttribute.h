@@ -46,7 +46,7 @@ namespace UE
 		bool operator==( const FUsdAttribute& Other ) const;
 		bool operator!=( const FUsdAttribute& Other ) const;
 
-		operator bool() const;
+		explicit operator bool() const;
 
 	// Auto conversion from/to pxr::UsdAttribute
 	public:

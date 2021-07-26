@@ -203,7 +203,7 @@ struct FUsdStageActorImpl
 			if ( const AUsdStageActor* Actor = Cast<const AUsdStageActor>( Instance ) )
 			{
 				const UE::FUsdStage& OtherStage = Actor->GetUsdStage();
-				if ( OtherStage && RootLayer == OtherStage )
+				if ( OtherStage && Stage == OtherStage )
 				{
 					// Some other actor is still using our stage, so don't close it
 					return;

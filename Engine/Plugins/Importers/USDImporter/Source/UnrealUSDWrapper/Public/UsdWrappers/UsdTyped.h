@@ -45,7 +45,7 @@ namespace UE
 
 		~FUsdTyped();
 
-		operator bool() const;
+		explicit operator bool() const;
 
 	// Auto conversion from/to pxr::UsdTyped
 	public:
