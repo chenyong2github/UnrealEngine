@@ -978,6 +978,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	void SetParked(bool bParked);
 
+	/** Set the vehicle sleeping (bEnableSleep=true) or wake it up (bEnableSleep=false) */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void SetSleeping(bool bEnableSleep);
+
 	/** Set the user input for gear up */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetChangeUpInput(bool bNewGearUp);
@@ -1332,6 +1336,10 @@ private:
 		PAerodynamicsSetup.DownforceCoefficient = this->DownforceCoefficient;
 		PAerodynamicsSetup.AreaMetresSquared = Chaos::Cm2ToM2(this->DragArea);
 	}
+
+	void WakeAllEnabledRigidBodies();
+	void PutAllEnabledRigidBodiesToSleep();
+
 	Chaos::FSimpleAerodynamicsConfig PAerodynamicsSetup;
 	int32 TargetGear;
 
