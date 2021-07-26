@@ -519,6 +519,11 @@ static void CollectNodes(
 						VisitedNodes.Add(NextNode);
 						OutCollectedNodes.Add(NextNode);
 					}
+					else
+					{
+						OutCollectedNodes.RemoveSingle(NextNode);
+						OutCollectedNodes.Add(NextNode);
+					}
 				}
 			}
 		}	

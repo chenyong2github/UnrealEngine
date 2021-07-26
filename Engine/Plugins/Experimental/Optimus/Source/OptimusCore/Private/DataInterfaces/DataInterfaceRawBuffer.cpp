@@ -144,15 +144,16 @@ UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject*
 
 	if (InSourceObjects.Num() == 1)
 	{
-		Provider->NumElements = 0;
-		Provider->bClearBeforeUse = false;
+		// todo[CF]: Clear before use needs to be set according to context. For now we default to clearing.
+		//Provider->bClearBeforeUse = false;
 
 		USkeletalMeshComponent* SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
 		if (SkeletalMesh && SkeletalMesh->MeshObject)
 		{
 			FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMesh->MeshObject->GetSkeletalMeshRenderData();
 			FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-			Provider->NumElements = LodRenderData->GetNumVertices();
+			// todo[CF]: Over allocating here until the logic for correct buffer size is handled.
+			Provider->NumElements = LodRenderData->GetNumVertices() * 8;
 		}
 	}
 
