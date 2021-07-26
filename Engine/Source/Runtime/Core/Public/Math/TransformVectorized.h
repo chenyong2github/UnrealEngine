@@ -74,7 +74,7 @@ public:
 		if (VectorContainsNaNOrInfinite(Rotation))
 		{
 			logOrEnsureNanError(TEXT("FTransform Vectorized Rotation contains NaN"));
-//			const_cast<FTransform*>(this)->Rotation = VectorSet_W1( VectorZeroVectorRegister() );
+			const_cast<FTransform*>(this)->Rotation = VectorSet_W1( VectorZeroFloat() );
 		}
 	}
 
