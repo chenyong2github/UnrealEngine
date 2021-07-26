@@ -283,6 +283,8 @@ void UBakeMeshAttributeMapsTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+	InitializeEmptyMaps();
+
 	// create dynamic mesh component to use for live preview
 	// TODO: convert to UPreviewMesh
 	AActor* ParentActor = UE::ToolTarget::GetTargetActor(Targets[0]);
@@ -315,6 +317,9 @@ void UBakeMeshAttributeMapsTool::Setup()
 	if (Material != nullptr)
 	{
 		PreviewMaterial = UMaterialInstanceDynamic::Create(Material, GetToolManager());
+		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
+		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
+		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
 		DynamicMeshComponent->SetOverrideRenderMaterial(PreviewMaterial);
 	}
 	UMaterial* BentNormalMaterial = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/BakeBentNormalPreviewMaterial"));
@@ -414,7 +419,6 @@ void UBakeMeshAttributeMapsTool::Setup()
 	VisualizationProps->RestoreProperties(this);
 	AddToolPropertySource(VisualizationProps);
 
-	InitializeEmptyMaps();
 	UpdateOnModeChange();
 
 	bInputsDirty = true;
@@ -431,7 +435,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 
 bool UBakeMeshAttributeMapsTool::CanAccept() const
 {
-	bool bCanAccept = Compute ? Compute->HaveValidResult() : false;
+	bool bCanAccept = Compute ? Compute->HaveValidResult() && Settings->MapTypes != (int) EBakeMapType::None : false;
 	if (bCanAccept)
 	{
 		// Allow Accept if all non-None types have valid results.

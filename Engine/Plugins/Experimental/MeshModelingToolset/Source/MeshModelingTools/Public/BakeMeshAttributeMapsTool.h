@@ -107,7 +107,7 @@ class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsToolProperties : public UInter
 public:
 	/** The map types to generate */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(Bitmask, BitmaskEnum=EBakeMapType))
-	int32 MapTypes = (int32) EBakeMapType::TangentSpaceNormalMap;
+	int32 MapTypes = (int32) EBakeMapType::None;
 
 	/** The map type index to preview */
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(ArrayClamp="Result"))
