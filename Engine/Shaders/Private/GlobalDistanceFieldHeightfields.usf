@@ -12,7 +12,7 @@
 #define GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM (GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X * GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X)
 
 RWStructuredBuffer<uint> RWMarkedHeightfieldPageBuffer;
-RWTexture3D<float> RWPageAtlasTexture;
+RWTexture3D<UNORM float> RWPageAtlasTexture;
 
 StructuredBuffer<uint> MarkedHeightfieldPageBuffer;
 StructuredBuffer<uint> PageUpdateTileBuffer;
