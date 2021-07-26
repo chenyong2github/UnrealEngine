@@ -7,6 +7,8 @@
 #include "HAL/RunnableThread.h"
 #include "Misc/SingleThreadRunnable.h"
 
+#include <mutex>
+
 namespace grpc
 {
 	class ClientContext;
@@ -60,6 +62,7 @@ private:
 	bool Running;
 	TMap<void*, FQueuedItem> QueuedItems;
 	TUniquePtr<grpc::CompletionQueue> CompletionQueue;
+	std::mutex QueuedItemsMutex;
 
 	void ProcessNext(void* Tag, bool Ok);
 
