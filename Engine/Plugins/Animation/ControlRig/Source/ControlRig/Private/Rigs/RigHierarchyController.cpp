@@ -708,7 +708,10 @@ USkeleton* URigHierarchyController::GetSkeletonFromAssetPath(const FString& InAs
 TArray<FRigElementKey> URigHierarchyController::ImportCurves(USkeleton* InSkeleton, FName InNameSpace,
                                                              bool bSelectCurves, bool bSetupUndo, bool bPrintPythonCommand)
 {
-	check(InSkeleton);
+	if (InSkeleton == nullptr)
+	{
+		return TArray<FRigElementKey>();
+	}
 
 	TArray<FRigElementKey> Keys;
 	if(!IsValid())
