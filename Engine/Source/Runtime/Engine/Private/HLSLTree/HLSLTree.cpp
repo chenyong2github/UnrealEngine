@@ -307,7 +307,7 @@ const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FExpres
 		}
 	}
 
-	return &Entry->Value;
+	return Entry ? &Entry->Value : nullptr;
 }
 
 const UE::HLSLTree::FEmitValue* UE::HLSLTree::FEmitContext::AcquireValue(FFunctionCall* FunctionCall, int32 OutputIndex)
