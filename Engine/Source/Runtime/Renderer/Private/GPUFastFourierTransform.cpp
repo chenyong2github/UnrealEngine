@@ -749,6 +749,10 @@ namespace GPUFFT
 			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_COMPLEX_FFT"), 1);
 			OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), PowRadixSignalLength);
+			if (PowRadixSignalLength > 8)
+			{
+				OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
+			}
 		}
 
 		/** Default constructor **/
@@ -786,6 +790,10 @@ namespace GPUFFT
 			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_TWO_FOR_ONE_FFT"), 1);
 			OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), PowRadixSignalLength);
+			if (PowRadixSignalLength > 8)
+			{
+				OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
+			}
 		}
 
 		/** Default constructor **/
@@ -936,6 +944,10 @@ namespace GPUFFT
 			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_CONVOLUTION_WITH_TEXTURE"), 1);
 			OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), PowRadixSignalLength);
+			if (PowRadixSignalLength > 8)
+			{
+				OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
+			}
 		}
 
 		/** Default constructor **/

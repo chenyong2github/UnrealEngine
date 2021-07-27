@@ -14,7 +14,11 @@ GPUFastFourierTransform.usf: Core Fast Fourier Transform Code
 // SCAN_LINE_LENGTH
 
 // Map get the RADIX and NUMTHREADSX as a function of SCAN_LINE_LENGTH
-  
+
+#if MIXED_RADIX == 1 && SCAN_LINE_LENGTH > 8
+	#define RADIX 8
+#else
+
 #if SCAN_LINE_LENGTH == 2
 	#define RADIX  2
 #endif
@@ -63,6 +67,7 @@ GPUFastFourierTransform.usf: Core Fast Fourier Transform Code
 	#define RADIX 8
 #endif
 
+#endif
 
 // NB: This is only needed for the not group shared stuff below.
 // Need to make that work and re-factor to fix this.
