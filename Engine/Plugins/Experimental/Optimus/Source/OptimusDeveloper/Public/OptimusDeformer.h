@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "ComputeFramework/ComputeGraph.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
+#include "Logging/TokenizedMessage.h"
 
 #include "OptimusDeformer.generated.h"
 
@@ -18,6 +19,9 @@ class UOptimusActionStack;
 class UOptimusDeformer;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
+class UOptimusNode_ComputeKernel;
+enum class EOptimusDiagnosticLevel : uint8;
+
 
 USTRUCT()
 struct FOptimus_ShaderParameterBinding
@@ -37,9 +41,7 @@ struct FOptimus_ShaderParameterBinding
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
-
-// TODO: Possibly convert params to a single structure and extend with more info as required.
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOptimusGraphCompileResultsDelegate, UOptimusNodeGraph const*, UOptimusNode const*, FString const&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, const TSharedRef<FTokenizedMessage>&);
 
 UCLASS()
 class OPTIMUSDEVELOPER_API UOptimusDeformer :
@@ -176,7 +178,7 @@ public:
 	/** Returns a multicast delegate that can be subscribed to listen for the end of compilation but before shader compilation is complete. */
 	FOptimusCompileEnd& GetCompileEndDelegate() { return CompileEndDelegate; }
 	/** Returns a multicast delegate that can be subscribed to listen compilation results. Note that the shader compilation results are async and can be returned after the CompileEnd delegate. */
-	FOptimusGraphCompileResultsDelegate& GetCompileResultsDelegate() { return CompileResultsDelegate; }
+	FOptimusGraphCompileMessageDelegate& GetCompileMessageDelegate() { return CompileMessageDelegate; }
 
 	/// UComputeGraph overrides
 	void GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const override;
@@ -230,6 +232,8 @@ private:
 	
 	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject);
 
+	EOptimusDiagnosticLevel ProcessCompilationMessage(UOptimusNode_ComputeKernel* InKernelNode, const FString& InMessage);
+
 	UPROPERTY()
 	TArray<TObjectPtr<UOptimusNodeGraph>> Graphs;
 
@@ -260,6 +264,6 @@ private:
 	
 	FOptimusCompileEnd CompileEndDelegate;
 
-	FOptimusGraphCompileResultsDelegate CompileResultsDelegate;
+	FOptimusGraphCompileMessageDelegate CompileMessageDelegate;
 
 };

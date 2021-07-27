@@ -3,6 +3,7 @@
 #include "OptimusEditorTabSummoners.h"
 
 #include "GraphEditor.h"
+#include "MessageLogModule.h"
 #include "OptimusEditor.h"
 #include "SOptimusEditorGraphExplorer.h"
 #include "SOptimusNodePalette.h"
@@ -105,8 +106,9 @@ FOptimusEditorCompilerOutputTabSummoner::FOptimusEditorCompilerOutputTabSummoner
 
 TSharedRef<SWidget> FOptimusEditorCompilerOutputTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	// FIXME: Move to own widget.
-	return EditorPtr.Pin()->GetCompilerResultsWidget().ToSharedRef();
+	// -- Compiler results
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	return MessageLogModule.CreateLogListingWidget(EditorPtr.Pin()->GetMessageLog());
 }
 
 

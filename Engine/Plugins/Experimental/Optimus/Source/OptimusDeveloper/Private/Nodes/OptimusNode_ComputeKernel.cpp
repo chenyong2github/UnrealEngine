@@ -146,9 +146,9 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 		{
 			if (Context != EOptimusResourceContext::Global)
 			{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
-			IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName));
-		}
+				FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
+				IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName));
+			}
 		}
 		return IndexNames;
 	};
@@ -233,37 +233,35 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				// If we are connected from a data interface, set the input binding up now.
 				if (DataInterface)
 				{
-				// The shader function definition that exposes the function that we use to
-				// read values to input into the kernel.
-				FShaderFunctionDefinition FuncDef;
-				FuncDef.Name = DataFunctionName;
-				FuncDef.bHasReturnType = true;
-				
-				FShaderParamTypeDefinition ParamDef;
-				CopyValueType(ValueType, ParamDef);
-				FuncDef.ParamTypes.Emplace(ParamDef);
+					// The shader function definition that exposes the function that we use to
+					// read values to input into the kernel.
+					FShaderFunctionDefinition FuncDef;
+					FuncDef.Name = DataFunctionName;
+					FuncDef.bHasReturnType = true;
+					
+					FShaderParamTypeDefinition ParamDef;
+					CopyValueType(ValueType, ParamDef);
+					FuncDef.ParamTypes.Emplace(ParamDef);
 
-				// FIXME: Value connections from value nodes.
-
-				// For resources we need the index parameter.
-				if (Pin->GetStorageType() == EOptimusNodePinStorageType::Resource)
-				{
-					TArray<EOptimusResourceContext> Contexts = GetContextsForBinding(Pin, InputBindings);
-
-					for (int32 Count = 0; Count < Contexts.Num(); Count++)
+					// For resources we need the index parameter.
+					if (Pin->GetStorageType() == EOptimusNodePinStorageType::Resource)
 					{
-						if (Contexts[Count] != EOptimusResourceContext::Global)
-						{
-						FuncDef.ParamTypes.Add(IndexParamDef);
-					}
-				}
-				}
+						TArray<EOptimusResourceContext> Contexts = GetContextsForBinding(Pin, InputBindings);
 
-				FString WrapFunctionName = FString::Printf(TEXT("Read%s"), *Pin->GetName());
-				OutInputDataBindings.Add(KernelSource->ExternalInputs.Num(), {DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
-				
-				KernelSource->ExternalInputs.Emplace(FuncDef);
-			}
+						for (int32 Count = 0; Count < Contexts.Num(); Count++)
+						{
+							if (Contexts[Count] != EOptimusResourceContext::Global)
+							{
+								FuncDef.ParamTypes.Add(IndexParamDef);
+							}
+						}
+					}
+
+					FString WrapFunctionName = FString::Printf(TEXT("Read%s"), *Pin->GetName());
+					OutInputDataBindings.Add(KernelSource->ExternalInputs.Num(), {DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
+					
+					KernelSource->ExternalInputs.Emplace(FuncDef);
+				}
 			}
 			else
 			{
@@ -446,6 +444,8 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 	FPropertyChangedEvent& PropertyChangedEvent
 	)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
 	static const FName ParametersName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_ComputeKernel, Parameters);
 	static const FName InputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_ComputeKernel, InputBindings);
 	static const FName OutputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_ComputeKernel, OutputBindings);
@@ -844,27 +844,23 @@ FString UOptimusNode_ComputeKernel::GetWrappedShaderSource() const
 	{
 		Source.ReplaceInline(TEXT("KERNEL"), TEXT("void __kernel_func(uint Index)"));
 
-		return FString::Printf(TEXT("#line 1 \"%s\"\n%s\n\n%s\n{\n    __kernel_func(DTid.x); \n}\n"), *GetName(), *Source, *KernelFunc);
+		return FString::Printf(
+			TEXT(
+				"#line 1 \"%s\"\n"
+				"%s\n\n"
+				"%s { __kernel_func(DTid.x); }\n"
+				), *GetName(), *Source, *KernelFunc);
 	}
 	else
 	{
-		TArray<FString> Lines;
-		Source.ParseIntoArray(Lines, TEXT("\n"), false);
-		
-		for (FString& Line: Lines)
-		{
-			Line.InsertAt(0, TEXT("    "));
-		}
-	
-		// FIXME: Handle presence of KERNEL {} keyword
 		return FString::Printf(
 		TEXT(
 			"%s\n"
 			"{\n"
-			"   uint Index = DTid.x;\n"
+			"uint Index = DTid.x;\n"
 			"#line 1 \"%s\"\n"
 			"%s\n"
 			"}\n"
-			), *KernelFunc, *GetName(), *FString::Join(Lines, TEXT("\n")));
+			), *KernelFunc, *GetName(), *Source);
 	}
 }

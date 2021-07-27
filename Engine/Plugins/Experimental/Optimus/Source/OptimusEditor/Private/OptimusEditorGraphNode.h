@@ -28,6 +28,8 @@ public:
 	void SynchronizeGraphPinValueWithModelPin(const UOptimusNodePin* InModelPin);
 	void SynchronizeGraphPinTypeWithModelPin(const UOptimusNodePin* InModelPin);
 
+	void SyncDiagnosticStateWithModelNode();
+	
 	// UEdGraphNode overrides
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 

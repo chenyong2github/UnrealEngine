@@ -169,9 +169,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = ShaderSource)
 	FOptimusType_ShaderText ShaderSource;
 
-	UPROPERTY(Transient)
-	TArray<FOptimusSourceLocation> ErrorLocations;
-
 #if defined(WITH_EDITOR)
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

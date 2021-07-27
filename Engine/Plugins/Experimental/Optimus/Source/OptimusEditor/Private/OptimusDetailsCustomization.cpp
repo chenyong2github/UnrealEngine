@@ -157,7 +157,16 @@ void FOptimusType_ShaderTextCustomization::CustomizeHeader(
 {
 	DeclarationsProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, Declarations));
 	ShaderTextProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, ShaderText));
+	DiagnosticsProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, Diagnostics));
 
+	// Make sure the diagnostics are updated to reflect the error highlighting.
+	UpdateDiagnostics();
+
+	// Watch any changes to the diagnostics array and act on it. It's a giant hammer, but
+	// it's the best we have.
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &FOptimusType_ShaderTextCustomization::OnPropertyChanged);
+	InPropertyHandle->GetOuterObjects(InspectedObjects);
+	
 	HorizontalScrollbar =
 	    SNew(SScrollBar)
 	        .AlwaysShowScrollbar(true)
@@ -273,6 +282,32 @@ FText FOptimusType_ShaderTextCustomization::GetShaderText() const
 void FOptimusType_ShaderTextCustomization::OnShaderTextChanged(const FText& InText)
 {
 	ShaderTextProperty->SetValue(InText.ToString());
+}
+
+
+void FOptimusType_ShaderTextCustomization::UpdateDiagnostics()
+{
+	TArray<const void *> RawData;
+	DiagnosticsProperty->AccessRawData(RawData);
+	if (ensure(RawData.Num() > 0))
+	{
+		const TArray<FOptimusType_CompilerDiagnostic>* DiagnosticsPtr = static_cast<const TArray<FOptimusType_CompilerDiagnostic>*>(RawData[0]);
+		SyntaxHighlighterMain->SetCompilerMessages(*DiagnosticsPtr);
+
+		if (ShaderEditor)
+		{
+			ShaderEditor->Refresh();
+		}
+	}	
+}
+
+
+void FOptimusType_ShaderTextCustomization::OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InChangedEvent)
+{
+	if (InspectedObjects.Contains(InObject) && InChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FOptimusType_ShaderText, Diagnostics))
+	{
+		UpdateDiagnostics();
+	}
 }
 
 

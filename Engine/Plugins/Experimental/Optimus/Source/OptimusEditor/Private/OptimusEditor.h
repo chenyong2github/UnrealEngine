@@ -59,6 +59,8 @@ public:
 	{
 		return PersonaToolkit.ToSharedRef();
 	}
+
+	TSharedRef<IMessageLogListing> GetMessageLog() const;
 	
 	FText GetGraphCollectionRootName() const;
 
@@ -101,6 +103,9 @@ private:
 	void CompileBegin(UOptimusDeformer* InDeformer);
 	void CompileEnd(UOptimusDeformer* InDeformer);
 
+	// Called for every compilation result. There may be multiple calls for each Compile.
+	void OnCompileMessage(const TSharedRef<FTokenizedMessage>& InMessage);
+	
 	void InstallDataProviders();
 	void RemoveDataProviders();
 
@@ -143,10 +148,11 @@ public:
 	
 	// KILL ME
 	TSharedPtr<SGraphEditor> GetGraphEditorWidget() const { return GraphEditorWidget; }
-	TSharedPtr<SWidget> GetCompilerResultsWidget() const { return CompilerResultsWidget; }
 
 private:
 	void UpdateCapsules(const USkeleton* InSkeleton);
+	void CreateMessageLog();
+	void HandleMessageTokenClicked(const TSharedRef<class IMessageToken>& InMessageToken);
 	void CreateWidgets();
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 	FGraphAppearanceInfo GetGraphAppearance() const;
@@ -158,9 +164,6 @@ private:
 
 	// Called when the inspector has changed a value.
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
-
-	// Called for every compilation result. There may be multiple calls for each Compile.
-	void OnCompileResults(UOptimusNodeGraph const* InGraph, UOptimusNode const* InNode, FString const& InMessage);
 
 private:
 	// Persona toolkit for the skelmesh preview
