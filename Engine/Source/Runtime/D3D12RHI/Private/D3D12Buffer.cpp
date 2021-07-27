@@ -406,7 +406,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	// Don't track transient buffer stats here
 	if (!BufferOut->ResourceLocation.IsTransient())
 	{
-		UpdateBufferStats(GetBufferStats(InUsage), BufferOut->ResourceLocation.GetSize());
+		UpdateBufferStats((EBufferUsageFlags)InUsage, BufferOut->ResourceLocation.GetSize());
 	}
 
 	return BufferOut;
