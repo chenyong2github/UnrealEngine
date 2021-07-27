@@ -37,7 +37,6 @@ public:
 	FVector4 DiffuseIndirectHistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> DiffuseIndirectHistoryRT[4];
 	TRefCountPtr<IPooledRenderTarget> RoughSpecularIndirectHistoryRT;
-	TRefCountPtr<IPooledRenderTarget> DownsampledDepthHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> HistoryConvergenceStateRT;
 	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 	FIntRect ImportanceSamplingHistoryViewRect;
@@ -62,7 +61,6 @@ public:
 		}
 		
 		RoughSpecularIndirectHistoryRT.SafeRelease();
-		DownsampledDepthHistoryRT.SafeRelease();
 		HistoryConvergenceStateRT.SafeRelease();
 		OctahedralSolidAngleTextureRT.SafeRelease();
 		ImportanceSamplingHistoryScreenProbeSceneDepth.SafeRelease();

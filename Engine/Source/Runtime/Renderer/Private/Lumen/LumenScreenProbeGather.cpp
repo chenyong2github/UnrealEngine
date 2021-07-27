@@ -810,7 +810,6 @@ void UpdateHistoryScreenProbeGather(
 		TRefCountPtr<IPooledRenderTarget>* RoughSpecularIndirectHistoryState = &ScreenProbeGatherState.RoughSpecularIndirectHistoryRT;
 		FIntRect* DiffuseIndirectHistoryViewRect = &ScreenProbeGatherState.DiffuseIndirectHistoryViewRect;
 		FVector4* DiffuseIndirectHistoryScreenPositionScaleBias = &ScreenProbeGatherState.DiffuseIndirectHistoryScreenPositionScaleBias;
-		TRefCountPtr<IPooledRenderTarget>* DepthHistoryState = &ScreenProbeGatherState.DownsampledDepthHistoryRT;
 		TRefCountPtr<IPooledRenderTarget>* HistoryConvergenceState = &ScreenProbeGatherState.HistoryConvergenceStateRT;
 
 		ensureMsgf(SceneTextures.Velocity->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
@@ -841,7 +840,7 @@ void UpdateHistoryScreenProbeGather(
 
 			{
 				FRDGTextureRef OldRoughSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*RoughSpecularIndirectHistoryState);
-				FRDGTextureRef OldDepthHistory = GraphBuilder.RegisterExternalTexture(*DepthHistoryState);
+				FRDGTextureRef OldDepthHistory = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer);
 				FRDGTextureRef OldHistoryConvergence = GraphBuilder.RegisterExternalTexture(*HistoryConvergenceState);
 
 				FScreenProbeTemporalReprojectionDepthRejectionPS::FPermutationDomain PermutationVector;
@@ -898,11 +897,13 @@ void UpdateHistoryScreenProbeGather(
 					nullptr,
 					TStaticDepthStencilState<true, CF_Always>::GetRHI());
 
-				// Queue updating the view state's render target reference with the new history
-				GraphBuilder.QueueTextureExtraction(NewDiffuseIndirect, &ScreenProbeGatherState.DiffuseIndirectHistoryRT[0]);
-				GraphBuilder.QueueTextureExtraction(NewRoughSpecularIndirect, RoughSpecularIndirectHistoryState);
-				GraphBuilder.QueueTextureExtraction(NewDepthHistory, DepthHistoryState);
-				GraphBuilder.QueueTextureExtraction(NewHistoryConvergence, HistoryConvergenceState);
+				if (!View.bStatePrevViewInfoIsReadOnly)
+				{
+					// Queue updating the view state's render target reference with the new history
+					GraphBuilder.QueueTextureExtraction(NewDiffuseIndirect, &ScreenProbeGatherState.DiffuseIndirectHistoryRT[0]);
+					GraphBuilder.QueueTextureExtraction(NewRoughSpecularIndirect, RoughSpecularIndirectHistoryState);
+					GraphBuilder.QueueTextureExtraction(NewHistoryConvergence, HistoryConvergenceState);
+				}
 			}
 
 			RoughSpecularIndirect = NewRoughSpecularIndirect;
@@ -910,38 +911,21 @@ void UpdateHistoryScreenProbeGather(
 		}
 		else
 		{
-			// Tossed the history for one frame, seed next frame's history with this frame's output
-
+			if (!View.bStatePrevViewInfoIsReadOnly)
 			{
-				auto PixelShader = View.ShaderMap->GetShader<FCopyDepthPS>();
-
-				FCopyDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyDepthPS::FParameters>();
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(NewDepthHistory, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
-				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-	
-				FPixelShaderUtils::AddFullscreenPass(
-					GraphBuilder,
-					View.ShaderMap,
-					RDG_EVENT_NAME("CopyDepth"),
-					PixelShader,
-					PassParameters,
-					NewHistoryViewRect,
-					nullptr,
-					nullptr,
-					TStaticDepthStencilState<true, CF_Always>::GetRHI());
+				// Queue updating the view state's render target reference with the new values
+				GraphBuilder.QueueTextureExtraction(DiffuseIndirect, &ScreenProbeGatherState.DiffuseIndirectHistoryRT[0]);
+				GraphBuilder.QueueTextureExtraction(RoughSpecularIndirect, RoughSpecularIndirectHistoryState);
+				*HistoryConvergenceState = GSystemTextures.BlackDummy;
 			}
-
-			// Queue updating the view state's render target reference with the new values
-			GraphBuilder.QueueTextureExtraction(DiffuseIndirect, &ScreenProbeGatherState.DiffuseIndirectHistoryRT[0]);
-			GraphBuilder.QueueTextureExtraction(RoughSpecularIndirect, RoughSpecularIndirectHistoryState);
-			GraphBuilder.QueueTextureExtraction(NewDepthHistory, DepthHistoryState);
-			*HistoryConvergenceState = GSystemTextures.BlackDummy;
 		}
 
-		*DiffuseIndirectHistoryViewRect = NewHistoryViewRect;
-		*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
-		ScreenProbeGatherState.LumenGatherCvars = GLumenGatherCvars;
+		if (!View.bStatePrevViewInfoIsReadOnly)
+		{
+			*DiffuseIndirectHistoryViewRect = NewHistoryViewRect;
+			*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
+			ScreenProbeGatherState.LumenGatherCvars = GLumenGatherCvars;
+		}
 	}
 	else
 	{
