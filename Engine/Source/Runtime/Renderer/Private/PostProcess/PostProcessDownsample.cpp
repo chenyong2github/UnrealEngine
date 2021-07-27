@@ -125,7 +125,7 @@ FScreenPassTexture AddDownsamplePass(
 		Desc.Extent = FIntPoint::DivideAndRoundUp(Desc.Extent, 2);
 		Desc.Extent.X = FMath::Max(1, Desc.Extent.X);
 		Desc.Extent.Y = FMath::Max(1, Desc.Extent.Y);
-		Desc.Flags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
+		Desc.Flags &= ~(TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_Presentable);
 		Desc.Flags |= bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable;
 		Desc.Flags |= GFastVRamConfig.Downsample;
 		Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 0));
