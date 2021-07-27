@@ -7,6 +7,9 @@
 		{
 			"Name": "SunPosition",
 			"Enabled": true
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "DataPrepEditor",
@@ -23,6 +26,9 @@
 		{
 			"Name": "PythonScriptPlugin",
 			"Enabled": true
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		},
 		{
 			"Name": "HDRIBackdrop",
@@ -59,16 +65,12 @@
 		},
 		{
 			"Name": "MagicLeapMedia",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Lumin"
-			]
+			"Enabled": false
 		},
 		{
 			"Name": "MagicLeap",
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
-				"Lumin",
 				"Mac",
 				"Win64"
 			]
@@ -82,10 +84,7 @@
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
 				"Win32",
-				"Win64",
-				"Linux",
-				"Android",
-				"HoloLens"
+				"Win64"
 			]
 		},
 		{
@@ -93,8 +92,7 @@
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
 				"Win32",
-				"Win64",
-				"Android"
+				"Win64"
 			]
 		},
 		{
@@ -102,9 +100,12 @@
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
 				"Win32",
-				"Win64",
-				"Linux"
+				"Win64"
 			]
 		}
+	],
+	"TargetPlatforms": [
+		"TVOS",
+		"WindowsNoEditor"
 	]
 }

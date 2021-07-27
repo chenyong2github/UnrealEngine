@@ -122,8 +122,7 @@
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
 				"Win32",
-				"Win64",
-				"Linux"
+				"Win64"
 			]
 		}
 	]
