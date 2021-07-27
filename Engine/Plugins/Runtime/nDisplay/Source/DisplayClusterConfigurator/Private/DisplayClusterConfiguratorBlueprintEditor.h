@@ -35,7 +35,7 @@ public:
 	virtual void InitDisplayClusterBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UDisplayClusterBlueprint* Blueprint);
 
 	//~ Begin IDisplayClusterConfiguratorBlueprintEditor Interface
-	virtual const TArray<UObject*>& GetSelectedObjects() const override;
+	virtual TArray<UObject*> GetSelectedObjects() const override;
 	virtual bool IsObjectSelected(UObject* Obj) const override;
 	//~ End IDisplayClusterConfiguratorBlueprintEditor Interface
 
@@ -235,7 +235,7 @@ private:
 	/** Delegate which is raised when the cluster configuration is changed. */
 	FOnClusterChanged OnClusterChanged;
 
-	TArray<UObject*> SelectedObjects;
+	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
 	/** The currently loaded blueprint. */
 	TWeakObjectPtr<UDisplayClusterBlueprint> LoadedBlueprint;

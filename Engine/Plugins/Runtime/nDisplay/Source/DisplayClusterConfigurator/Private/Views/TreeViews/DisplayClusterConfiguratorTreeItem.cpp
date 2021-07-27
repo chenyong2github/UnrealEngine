@@ -99,7 +99,7 @@ bool FDisplayClusterConfiguratorTreeItem::IsChildOfRecursive(const TSharedRef<ID
 
 bool FDisplayClusterConfiguratorTreeItem::IsSelected()
 {
-	const TArray<UObject*>& SelectedObjects = ToolkitPtr.Pin()->GetSelectedObjects();
+	TArray<UObject*> SelectedObjects = ToolkitPtr.Pin()->GetSelectedObjects();
 
 	UObject* const* SelectedObject = SelectedObjects.FindByPredicate([this](const UObject* InObject)
 	{

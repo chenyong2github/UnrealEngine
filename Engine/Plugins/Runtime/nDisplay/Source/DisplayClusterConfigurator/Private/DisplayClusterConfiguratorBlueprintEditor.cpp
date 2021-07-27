@@ -273,9 +273,20 @@ void FDisplayClusterConfiguratorBlueprintEditor::UnregisterOnClusterChanged(FDel
 	OnClusterChanged.Remove(DelegateHandle);
 }
 
-const TArray<UObject*>& FDisplayClusterConfiguratorBlueprintEditor::GetSelectedObjects() const
+TArray<UObject*> FDisplayClusterConfiguratorBlueprintEditor::GetSelectedObjects() const
 {
-	return SelectedObjects;
+	TArray<UObject*> OutSelectedObjects;
+	OutSelectedObjects.Reserve(SelectedObjects.Num());
+
+	for (const TWeakObjectPtr<UObject>& SelectedObject : SelectedObjects)
+	{
+		if (SelectedObject.IsValid())
+		{
+			OutSelectedObjects.Add(SelectedObject.Get());
+		}
+	}
+
+	return OutSelectedObjects;
 }
 
 bool FDisplayClusterConfiguratorBlueprintEditor::IsObjectSelected(UObject* Obj) const
@@ -285,7 +296,11 @@ bool FDisplayClusterConfiguratorBlueprintEditor::IsObjectSelected(UObject* Obj) 
 
 void FDisplayClusterConfiguratorBlueprintEditor::SelectObjects(TArray<UObject*>& InSelectedObjects, bool bFullRefresh)
 {
-	SelectedObjects = InSelectedObjects;
+	SelectedObjects.Empty();
+	for (UObject* SelectedObject : InSelectedObjects)
+	{
+		SelectedObjects.Add(TWeakObjectPtr<UObject>(SelectedObject));
+	}
 
 	// Clear old tree view selections and update the details panel.
 	
@@ -871,19 +886,24 @@ void FDisplayClusterConfiguratorBlueprintEditor::ExtendToolbar()
 
 void FDisplayClusterConfiguratorBlueprintEditor::OnPostCompiled(UBlueprint* InBlueprint)
 {
-	TArray<UObject*> PrevSelectedObjects = SelectedObjects;
+	TArray<TWeakObjectPtr<UObject>> PrevSelectedObjects = SelectedObjects;
 	OnConfigReloaded.Broadcast();
 
 	UDisplayClusterConfigurationData* CurrentConfigData = GetConfig();
 	check(CurrentConfigData);
 	
 	TArray<UObject*> NewObjects;
-	for (UObject* Object : SelectedObjects)
+	for (const TWeakObjectPtr<UObject>& Object : SelectedObjects)
 	{
+		if (!Object.IsValid())
+		{
+			continue;
+		}
+
 		if (Object->GetPackage() != GetTransientPackage())
 		{
 			// Object wasn't trashed, okay to re-add.
-			NewObjects.Add(Object);
+			NewObjects.Add(Object.Get());
 			continue;
 		}
 		
