@@ -175,7 +175,8 @@ FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InP
 		TArray<FString> Commands = GetAddBonePythonCommands(NewElement);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 #endif
@@ -226,7 +227,8 @@ FRigElementKey URigHierarchyController::AddNull(FName InName, FRigElementKey InP
 		TArray<FString> Commands = GetAddNullPythonCommands(NewElement);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 #endif
@@ -284,7 +286,8 @@ FRigElementKey URigHierarchyController::AddControl(
 		TArray<FString> Commands = GetAddControlPythonCommands(NewElement);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 #endif
@@ -322,7 +325,8 @@ FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bo
 		TArray<FString> Commands = GetAddCurvePythonCommands(NewElement);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 #endif
@@ -364,7 +368,8 @@ FRigElementKey URigHierarchyController::AddRigidBody(FName InName, FRigElementKe
 		TArray<FString> Commands = GetAddRigidBodyPythonCommands(NewElement);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 #endif
@@ -648,7 +653,8 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(USkeleton* InSkeleto
 	{
 		if (bPrintPythonCommand)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.import_bones_from_asset('%s', '%s', %s, %s, %s)"),
+			RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("hierarchy_controller.import_bones_from_asset('%s', '%s', %s, %s, %s)"),
 				*InSkeleton->GetPathName(),
 				*InNameSpace.ToString(),
 				(bReplaceExistingBones) ? TEXT("True") : TEXT("False"),
@@ -753,7 +759,8 @@ TArray<FRigElementKey> URigHierarchyController::ImportCurves(USkeleton* InSkelet
 	{
 		if (bPrintPythonCommand)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.import_curves_from_asset('%s', '%s', %s)"),
+			RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("hierarchy_controller.import_curves_from_asset('%s', '%s', %s)"),
 				*InSkeleton->GetPathName(),
 				*InNameSpace.ToString(),
 				(bSelectCurves) ? TEXT("True") : TEXT("False")));
@@ -1092,7 +1099,8 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 	{
 		FString PythonContent = InContent.Replace(TEXT("\\\""), TEXT("\\\\\""));
 		
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.import_from_text('%s', %s, %s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy_controller.import_from_text('%s', %s, %s)"),
 			*PythonContent,
 			(bReplaceExistingElements) ? TEXT("True") : TEXT("False"),
 			(bSelectNewElements) ? TEXT("True") : TEXT("False")));
@@ -1567,7 +1575,8 @@ bool URigHierarchyController::RemoveElement(FRigElementKey InElement, bool bSetu
 
 	if (bRemoved && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.remove_element(%s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy_controller.remove_element(%s)"),
 			*InElement.ToPythonString()));
 	}
 #endif
@@ -1718,7 +1727,8 @@ FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, 
 
 	if (bRenamed && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.rename_element(%s, '%s')"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("hierarchy_controller.rename_element(%s, '%s')"),
 			*InElement.ToPythonString(),
 			*InName.ToString()));
 	}
@@ -1973,7 +1983,8 @@ bool URigHierarchyController::RemoveParent(FRigElementKey InChild, FRigElementKe
 
 	if (bRemoved && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.remove_parent(%s, %s, %s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy_controller.remove_parent(%s, %s, %s)"),
 			*InChild.ToPythonString(),
 			*InParent.ToPythonString(),
 			(bMaintainGlobalTransform) ? TEXT("True") : TEXT("False")));
@@ -2144,7 +2155,8 @@ bool URigHierarchyController::RemoveAllParents(FRigElementKey InChild, bool bMai
 	
 	if (bRemoved && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.remove_all_parents(%s, %s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy_controller.remove_all_parents(%s, %s)"),
 			*InChild.ToPythonString(),
 			(bMaintainGlobalTransform) ? TEXT("True") : TEXT("False")));
 	}
@@ -2218,7 +2230,8 @@ bool URigHierarchyController::SetParent(FRigElementKey InChild, FRigElementKey I
 
 	if (bParentSet && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.set_parent(%s, %s, %s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy_controller.set_parent(%s, %s, %s)"),
 			*InChild.ToPythonString(),
 			*InParent.ToPythonString(),
 			(bMaintainGlobalTransform) ? TEXT("True") : TEXT("False")));
@@ -2247,7 +2260,8 @@ TArray<FRigElementKey> URigHierarchyController::DuplicateElements(TArray<FRigEle
 		}
 		ArrayStr += TEXT("]");		
 		
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.duplicate_elements(%s, %s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy_controller.duplicate_elements(%s, %s)"),
 			*ArrayStr,
 			(bSelectNewElements) ? TEXT("True") : TEXT("False")));
 	}
@@ -2362,7 +2376,8 @@ TArray<FRigElementKey> URigHierarchyController::MirrorElements(TArray<FRigElemen
 		}
 		ArrayStr += TEXT("]");
 
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.mirror_elements(%s, unreal.RigMirrorSettings(unreal.AxisType.%s, unreal.AxisType.%s, '%s', '%s'), %s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy_controller.mirror_elements(%s, unreal.RigMirrorSettings(unreal.AxisType.%s, unreal.AxisType.%s, '%s', '%s'), %s)"),
 			*ArrayStr,
 			(InSettings.MirrorAxis.GetValue() == EAxis::X) ? TEXT("X") : (InSettings.MirrorAxis.GetValue() == EAxis::Y) ? TEXT("Y") : TEXT("Z"),
 			(InSettings.AxisToFlip.GetValue() == EAxis::X) ? TEXT("X") : (InSettings.AxisToFlip.GetValue() == EAxis::Y) ? TEXT("Y") : TEXT("Z"),

@@ -45,6 +45,12 @@ public:
 	virtual void NewPage( const FText& Title ) = 0;
 
 	/** 
+	* Switches the current page to the one specified by the title.
+	* @param	Title	the title of the page to switch to
+	*/
+	virtual void SwitchToPage( const FText& Title ) = 0;
+
+	/** 
 	 * Notify the user if there are any messages on the current page for this log.
 	 * If there are no messages present, this call does nothing.
 	 * @param	Message			The message to display in the notification.

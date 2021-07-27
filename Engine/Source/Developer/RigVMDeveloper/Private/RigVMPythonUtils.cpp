@@ -64,7 +64,7 @@ FString RigVMPythonUtils::LinearColorToPythonString(const FLinearColor& Color)
 }
 
 #if WITH_EDITOR
-void RigVMPythonUtils::Print(const FString& InMessage)
+void RigVMPythonUtils::Print(const FString& BlueprintTitle, const FString& InMessage)
 {
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 
@@ -78,10 +78,10 @@ void RigVMPythonUtils::Print(const FString& InMessage)
 		MessageLogModule.RegisterLogListing("ControlRigPythonLog", LOCTEXT("ControlRigPythonLog", "Control Rig Python Log"), InitOptions);
 	}
 	TSharedRef<IMessageLogListing> PythonLog = MessageLogModule.GetLogListing( TEXT("ControlRigPythonLog") );
+	PythonLog->SwitchToPage(FText::FromString(BlueprintTitle));
 
 	TSharedRef<FTokenizedMessage> Token = FTokenizedMessage::Create(EMessageSeverity::Info, FText::FromString(InMessage));
-	PythonLog->AddMessage(Token, false);			
-	
+	PythonLog->AddMessage(Token, false);
 }
 
 #endif

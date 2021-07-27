@@ -56,6 +56,7 @@ public:
 	virtual const TArray< TSharedRef< class FMessageFilter> >& GetMessageFilters() const override;
 	virtual void ExecuteToken( const TSharedRef<class IMessageToken>& Token ) const override;
 	virtual void NewPage( const FText& Title ) override;
+	virtual void SwitchToPage( const FText& Title ) override;
 	virtual void NotifyIfAnyMessages( const FText& Message, EMessageSeverity::Type SeverityFilter = EMessageSeverity::Info, bool bForce = false ) override;
 	virtual void Open() override;
 	virtual int32 NumMessages( EMessageSeverity::Type SeverityFilter ) override;

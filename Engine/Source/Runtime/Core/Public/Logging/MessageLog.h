@@ -87,6 +87,13 @@ public:
 	 */
 	CORE_API void NewPage( const FText& InLabel );
 
+	/**
+	* Switches the current page to the one specified by the label.
+	* This call will cause a flush so that the logs state is properly reflected.
+	* @param	InLabel		The label for the page.
+	*/
+	CORE_API void SwitchToPage( const FText& InLabel );
+
 	/** Should we mirror message log messages from this instance to the output log during flush? */
 	CORE_API FMessageLog& SuppressLoggingToOutputLog(bool bShouldSuppress = true);
 

@@ -81,6 +81,15 @@ public:
 	 */
 	void NewPage( const FText& InTitle, uint32 InMaxPages );
 
+	/**
+	* Switches the current page to the one specified by the title. If the page does not exist, creates a new page.
+	* @param	InTitle		The title of the page to search for, or create
+	* @param	InMaxPages	The maximum number of pages we keep around. If the count is exceeded, 
+	*						we discard the oldest page.
+	* @returns true if the page has changed (either switched or created a new one).
+	*/
+	bool SwitchToPage( const FText& InTitle, uint32 InMaxPages  );
+
 	/** Get the number of pages contained in this log */
 	uint32 NumPages() const;
 

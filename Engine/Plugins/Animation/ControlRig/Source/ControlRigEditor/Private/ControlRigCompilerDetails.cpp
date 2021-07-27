@@ -182,7 +182,7 @@ FReply FRigVMCompileSettingsDetails::OnRunPythonContextClicked()
 
 		for (FString& Command : PyCommands)
 		{
-			RigVMPythonUtils::Print(Command);
+			RigVMPythonUtils::Print(BlueprintBeingCustomized->GetFName().ToString(), Command);
 		
 			// Run the Python commands
 			IPythonScriptPlugin::Get()->ExecPythonCommand(*Command);

@@ -277,6 +277,18 @@ void FMessageLogListingViewModel::NewPage( const FText& Title )
 	RefreshFilteredMessages();
 }
 
+void FMessageLogListingViewModel::SwitchToPage(const FText& Title)
+{
+	// we should take this as a suggestion we want to show pages!
+	bShowPages = true;
+
+	// switch page & refresh
+	MessageLogListingModel->SwitchToPage( Title, MaxPageCount );
+	
+	// reset so we always display the current page when we switch
+	SetCurrentPageIndex(0);
+}
+
 void FMessageLogListingViewModel::NotifyIfAnyMessages( const FText& Message, EMessageSeverity::Type SeverityFilter, bool bForce )
 {
 	// Note we use page 0 in this function, as that is the page that will

@@ -3517,7 +3517,8 @@ void UControlRigBlueprint::OnVariableAdded(const FName& InVarName)
 
 	FRigVMExternalVariable ExternalVariable = UControlRig::GetExternalVariableFromDescription(Variable);
 
-	RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.add_member_variable('%s', '%s', %s, %s, '%s')"),
+	RigVMPythonUtils::Print(GetFName().ToString(),
+		FString::Printf(TEXT("blueprint.add_member_variable('%s', '%s', %s, %s, '%s')"),
 			*InVarName.ToString(),
 			*ExternalVariable.TypeName.ToString(),
 			(ExternalVariable.bIsPublic) ? TEXT("False") : TEXT("True"), 
@@ -3538,7 +3539,8 @@ void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
 		}
 	}
 
-	RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.remove_member_variable('%s')"),
+	RigVMPythonUtils::Print(GetFName().ToString(),
+		FString::Printf(TEXT("blueprint.remove_member_variable('%s')"),
 			*InVarName.ToString()));
 	
 	BroadcastExternalVariablesChangedEvent();
@@ -3555,7 +3557,8 @@ void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FN
 		}
 	}
 
-	RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.rename_member_variable('%s', '%s')"),
+	RigVMPythonUtils::Print(GetFName().ToString(),
+		FString::Printf(TEXT("blueprint.rename_member_variable('%s', '%s')"),
 			*InOldVarName.ToString(),
 			*InNewVarName.ToString()));
 	
@@ -3610,7 +3613,8 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 		}
 	}
 
-	RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.change_member_variable_type('%s', '%s')"),
+	RigVMPythonUtils::Print(GetFName().ToString(),
+		FString::Printf(TEXT("blueprint.change_member_variable_type('%s', '%s')"),
 		*InVarName.ToString(),
 		*PinType));
 
