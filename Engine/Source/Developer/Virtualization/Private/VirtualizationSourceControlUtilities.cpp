@@ -37,7 +37,7 @@ bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFile(const FPackag
 
 	// We only allow the perforce source control system as we have not adequately tested the others!
 	const FName SourceControlName = ISourceControlModule::Get().GetProvider().GetName();
-	if (SourceControlName != FName("Perforce"))
+	if (SourceControlName != TEXT("Perforce"))
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("Attempting to sync a .upayload for '%s' but source control is '%s' and only Perforce is currently supported!"), *PackagePath.GetDebugName(), *SourceControlName.ToString());
 		return false;
