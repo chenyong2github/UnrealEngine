@@ -498,6 +498,8 @@ public:
 	{
 		if (IsValid())
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ShrinkBuffers);
+
 			TRACE_PLATFORMFILE_BEGIN_REOPEN(Handle);
 			HANDLE NewFileHandle = ReOpenFile(Handle, DesiredAccess, ShareMode, Flags);
 			TRACE_PLATFORMFILE_END_REOPEN(NewFileHandle);
