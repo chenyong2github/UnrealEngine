@@ -35,6 +35,7 @@
 #include "ComputeFramework/ComputeGraphComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "ISkeletonEditorModule.h"
+#include "Misc/UObjectToken.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
@@ -54,7 +55,7 @@ FOptimusEditor::~FOptimusEditor()
 	{
 		DeformerObject->GetCompileBeginDelegate().RemoveAll(this);
 		DeformerObject->GetCompileEndDelegate().RemoveAll(this);
-		DeformerObject->GetCompileResultsDelegate().RemoveAll(this);
+		DeformerObject->GetCompileMessageDelegate().RemoveAll(this);
 		DeformerObject->GetNotifyDelegate().RemoveAll(this);
 	}
 }
@@ -104,6 +105,10 @@ void FOptimusEditor::Construct(
 	// Set the default editor mode. This creates the editor layout and tabs.
 	AddApplicationMode(FOptimusEditorMode::ModeId,MakeShareable(new FOptimusEditorMode(SharedThis(this))));
 
+	// Create the compiler output log. This is used by our compilation message receiver
+	// and the output widget so needs to exist before we set the mode.
+	CreateMessageLog();
+
 	CreateWidgets();
 
 	SetCurrentMode(FOptimusEditorMode::ModeId);
@@ -148,11 +153,11 @@ void FOptimusEditor::Construct(
 		);
 
 	// Make sure we get told when the deformer changes.
-	DeformerObject->GetNotifyDelegate().AddRaw(this, &FOptimusEditor::OnDeformerModified);
+	DeformerObject->GetNotifyDelegate().AddSP(this, &FOptimusEditor::OnDeformerModified);
 
-	DeformerObject->GetCompileBeginDelegate().AddRaw(this, &FOptimusEditor::CompileBegin);
-	DeformerObject->GetCompileEndDelegate().AddRaw(this, &FOptimusEditor::CompileEnd);
-	DeformerObject->GetCompileResultsDelegate().AddRaw(this, &FOptimusEditor::OnCompileResults);
+	DeformerObject->GetCompileBeginDelegate().AddSP(this, &FOptimusEditor::CompileBegin);
+	DeformerObject->GetCompileEndDelegate().AddSP(this, &FOptimusEditor::CompileEnd);
+	DeformerObject->GetCompileMessageDelegate().AddSP(this, &FOptimusEditor::OnCompileMessage);
 
 	if (PersonaToolkit->GetPreviewMesh())
 	{
@@ -173,6 +178,12 @@ UOptimusDeformer* FOptimusEditor::GetDeformer() const
 }
 
 
+TSharedRef<IMessageLogListing> FOptimusEditor::GetMessageLog() const
+{
+	return CompilerResultsListing.ToSharedRef();
+}
+
+
 FText FOptimusEditor::GetGraphCollectionRootName() const
 {
 	return FText::FromName(DeformerObject->GetFName());
@@ -187,6 +198,7 @@ UOptimusActionStack* FOptimusEditor::GetActionStack() const
 
 void FOptimusEditor::InspectObject(UObject* InObject)
 {
+	// FIXME: This should take us to the correct graph as well.
 	PropertyDetailsWidget->SetObject(InObject, /*bForceRefresh=*/true);
 
 	// Bring the node details tab into the open.
@@ -297,6 +309,12 @@ void FOptimusEditor::CompileBegin(UOptimusDeformer* InDeformer)
 void FOptimusEditor::CompileEnd(UOptimusDeformer* InDeformer)
 {
 	InstallDataProviders();
+}
+
+
+void FOptimusEditor::OnCompileMessage(const TSharedRef<FTokenizedMessage>& InMessage)
+{
+	CompilerResultsListing->AddMessage(InMessage);
 }
 
 
@@ -615,6 +633,50 @@ void FOptimusEditor::UpdateCapsules(const USkeleton* InSkeleton)
 }
 
 
+void FOptimusEditor::CreateMessageLog()
+{
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	const FName LogName("LogComputeKernelShaderCompiler");
+	if (MessageLogModule.IsRegisteredLogListing(LogName))
+	{
+		CompilerResultsListing = MessageLogModule.GetLogListing(LogName);
+	}
+	else
+	{
+		FMessageLogInitializationOptions LogInitOptions;
+		LogInitOptions.bShowInLogWindow = false;
+		CompilerResultsListing = MessageLogModule.CreateLogListing(LogName, LogInitOptions);
+	}
+
+	CompilerResultsListing->OnMessageTokenClicked().AddSP(this, &FOptimusEditor::HandleMessageTokenClicked);
+}
+
+
+void FOptimusEditor::HandleMessageTokenClicked(const TSharedRef<IMessageToken>& InMessageToken)
+{
+	if (InMessageToken->GetType() == EMessageToken::Object)
+	{
+		const TSharedRef<FUObjectToken> ObjectToken = StaticCastSharedRef<FUObjectToken>(InMessageToken);
+
+		UOptimusNode *Node = Cast<UOptimusNode>(ObjectToken->GetObject().Get());
+		if (Node)
+		{
+			// Make sure we switch to the right graph too.
+			if (Node->GetOwningGraph() != EditorGraph->NodeGraph)
+			{
+				SetEditGraph(Node->GetOwningGraph());
+			}
+
+			// Highlight the selection in the graph.
+			UOptimusEditorGraphNode* GraphNode = EditorGraph->FindGraphNodeFromModelNode(Node);
+			EditorGraph->SetSelectedNodes({GraphNode});
+			
+			InspectObject(Node);
+		}
+	}
+}
+
+
 void FOptimusEditor::HandleDetailsCreated(
 	const TSharedRef<IDetailsView>& InDetailsView
 	)
@@ -628,8 +690,6 @@ void FOptimusEditor::HandleViewportCreated(
 	)
 {
 	ViewportWidget = InPersonaViewport;
-	
-	// ViewportWidget->GetViewportClient().SetAdvancedShowFlagsForScene(false);
 }
 
 
@@ -639,21 +699,6 @@ void FOptimusEditor::CreateWidgets()
 	// -- Graph editor
 	GraphEditorWidget = CreateGraphEditorWidget();
 	GraphEditorWidget->SetViewLocation(FVector2D::ZeroVector, 1);
-
-	// -- Compiler results
-	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-	const FName LogName("LogComputeKernelShaderCompiler");
-	if (MessageLogModule.IsRegisteredLogListing(LogName))
-	{
-		CompilerResultsListing = MessageLogModule.GetLogListing(LogName);
-	}
-	else
-	{
-		FMessageLogInitializationOptions LogInitOptions;
-		LogInitOptions.bShowInLogWindow = false;
-		CompilerResultsListing = MessageLogModule.CreateLogListing(LogName, LogInitOptions);
-	}
-	CompilerResultsWidget = MessageLogModule.CreateLogListingWidget(CompilerResultsListing.ToSharedRef());
 }
 
 
@@ -863,13 +908,6 @@ void FOptimusEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& P
 			}
 		}
 	}
-}
-
-void FOptimusEditor::OnCompileResults(UOptimusNodeGraph const* InGraph, UOptimusNode const* InNode, FString const& InMessage)
-{
-	// TODO: Support warning/error/other message types.
-	// TODO: Create Optimus tokenized messages that can init UI operations when messages are clicked.
-	CompilerResultsListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::FromString(InMessage)));
 }
 
 #undef LOCTEXT_NAMESPACE

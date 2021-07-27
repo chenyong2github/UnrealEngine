@@ -69,6 +69,7 @@ private:
 
 	TSharedPtr<IPropertyHandle> DeclarationsProperty;
 	TSharedPtr<IPropertyHandle> ShaderTextProperty;
+	TSharedPtr<IPropertyHandle> DiagnosticsProperty;
 
 	TSharedPtr<SScrollBar> HorizontalScrollbar;
 	TSharedPtr<SScrollBar> VerticalScrollbar;
@@ -80,5 +81,10 @@ private:
 
 	void OnShaderTextChanged(const FText &InText);
 
+	void UpdateDiagnostics();
+	void OnPropertyChanged(UObject *InObject, FPropertyChangedEvent& InChangedEvent);
+
 	FReply OnShaderTextKeyChar(const FGeometry& MyGeometry,const FCharacterEvent& InCharacterEvent);
+
+	TArray<UObject *> InspectedObjects;
 };

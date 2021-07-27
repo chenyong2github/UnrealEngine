@@ -44,6 +44,8 @@ void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 				CreateGraphPinFromModelPin(ModelPin, EGPD_Output);
 			}
 		}
+
+		SyncDiagnosticStateWithModelNode();
 	}
 }
 
@@ -189,6 +191,28 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 	GraphPin->PinType = PinType;
 
 	Cast<UOptimusEditorGraph>(GetGraph())->RefreshVisualNode(this);
+}
+
+
+void UOptimusEditorGraphNode::SyncDiagnosticStateWithModelNode()
+{
+	const EOptimusDiagnosticLevel DiagnosticLevel = ModelNode->GetDiagnosticLevel();
+	switch(DiagnosticLevel)
+	{
+	case EOptimusDiagnosticLevel::Ignore:
+	case EOptimusDiagnosticLevel::Info:
+		bHasCompilerMessage = false;
+		ErrorType = EMessageSeverity::Info;
+		break;
+	case EOptimusDiagnosticLevel::Warning:
+		bHasCompilerMessage = true;
+		ErrorType = EMessageSeverity::Warning;
+		break;
+	case EOptimusDiagnosticLevel::Error:
+		bHasCompilerMessage = true;
+		ErrorType = EMessageSeverity::Error;
+		break;
+	}
 }
 
 

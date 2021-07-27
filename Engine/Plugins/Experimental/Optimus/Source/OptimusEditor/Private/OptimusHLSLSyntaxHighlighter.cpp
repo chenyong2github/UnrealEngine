@@ -8,6 +8,7 @@
 #include "Misc/ExpressionParserTypes.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Text/SlateTextUnderlineLineHighlighter.h"
 
 // NOTE: Since FSyntaxTokenizer matches on a first-token-encountered basis, it's important that
 // tokens with the same prefix are ordered by longest-prefix-first. Ideally FSyntaxTokenizer 
@@ -248,14 +249,15 @@ FOptimusHLSLSyntaxHighlighter::~FOptimusHLSLSyntaxHighlighter()
 
 }
 
-void FOptimusHLSLSyntaxHighlighter::SetErrorLocations(const TArray<FOptimusSourceLocation> &InErrorLocations)
+void FOptimusHLSLSyntaxHighlighter::SetCompilerMessages(const TArray<FOptimusType_CompilerDiagnostic> &InCompilerMessages)
 {
-	ErrorLocations.Reset();
+	CompilerMessages.Reset();
 
-	for (const FOptimusSourceLocation& Location: InErrorLocations)
+	for (const FOptimusType_CompilerDiagnostic& Message: InCompilerMessages)
 	{
-		ErrorLocations.Add(Location.Line, Location);
-	}	
+		CompilerMessages.Add(Message.Line - 1, Message);
+	}
+	MakeDirty();
 }
 
 
@@ -276,14 +278,17 @@ void FOptimusHLSLSyntaxHighlighter::ParseTokens(
 
 	TArray<FTextLayout::FNewLineData> LinesToAdd;
 	LinesToAdd.Reserve(TokenizedLines.Num());
+	
+	TArray<FTextLineHighlight> LineHighlightsToAdd;
+	TSharedPtr<FSlateTextUnderlineLineHighlighter> UnderlineLineHighlighter;
+	FTextBlockStyle ErrorTextStyle = SyntaxTextStyle.ErrorTextStyle;
+	UnderlineLineHighlighter = FSlateTextUnderlineLineHighlighter::Create(ErrorTextStyle.UnderlineBrush, ErrorTextStyle.Font, ErrorTextStyle.ColorAndOpacity, ErrorTextStyle.ShadowOffset, ErrorTextStyle.ShadowColorAndOpacity);	
 
 	// Parse the tokens, generating the styled runs for each line
 	EParseState ParseState = EParseState::None;
 	int32 LineNo = 0;
 	for(const FSyntaxTokenizer::FTokenizedLine& TokenizedLine : TokenizedLines)
 	{
-		LineNo++;
-		
 		TSharedRef<FString> ModelString = MakeShareable(new FString());
 		TArray< TSharedRef< IRun > > Runs;
 
@@ -291,6 +296,9 @@ void FOptimusHLSLSyntaxHighlighter::ParseTokens(
 		{
 			ParseState = EParseState::None;
 		}
+
+		TArray<const FOptimusType_CompilerDiagnostic *> Diagnostics;
+		CompilerMessages.MultiFindPointer(LineNo, Diagnostics);
 
 		for(const FSyntaxTokenizer::FToken& Token : TokenizedLine.Tokens)
 		{
@@ -318,7 +326,7 @@ void FOptimusHLSLSyntaxHighlighter::ParseTokens(
 					else if(ParseState == EParseState::LookingForString && TokenText == TEXT("\""))
 					{
 						RunInfo.Name = TEXT("SyntaxHighlight.HLSL.Normal");
-						TextBlockStyle = SyntaxTextStyle.StringTextStyle;
+						TextBlockStyle = SyntaxTextStyle.NormalTextStyle;
 						ParseState = EParseState::None;
 					}
 					else if(ParseState == EParseState::None && TokenText == TEXT("\'"))
@@ -331,7 +339,7 @@ void FOptimusHLSLSyntaxHighlighter::ParseTokens(
 					else if(ParseState == EParseState::LookingForCharacter && TokenText == TEXT("\'"))
 					{
 						RunInfo.Name = TEXT("SyntaxHighlight.HLSL.Normal");
-						TextBlockStyle = SyntaxTextStyle.StringTextStyle;
+						TextBlockStyle = SyntaxTextStyle.NormalTextStyle;
 						ParseState = EParseState::None;
 					}
 					else if(ParseState == EParseState::None && TokenText.StartsWith(TEXT("#")))
@@ -398,14 +406,6 @@ void FOptimusHLSLSyntaxHighlighter::ParseTokens(
 					}
 				}
 
-				if (ErrorLocations.Find(LineNo))
-				{
-					// TODO: Use the detailed locations.
-					RunInfo.Name = TEXT("SyntaxHighlight.HLSL.Error");
-					TextBlockStyle = SyntaxTextStyle.ErrorTextStyle;
-				}
-				
-
 				TSharedRef< ISlateRun > Run = FSlateTextRun::Create(RunInfo, ModelString, TextBlockStyle, ModelRange);
 				Runs.Add(Run);
 			}
@@ -416,11 +416,31 @@ void FOptimusHLSLSyntaxHighlighter::ParseTokens(
 				Runs.Add(Run);
 			}
 		}
+		
+		for (const FOptimusType_CompilerDiagnostic *Diagnostic: Diagnostics)
+		{
+			// ColumnStart/ColumnEnd are 1-based, closed interval. FTextRange is 0 based, half-closed interval. 
+			FTextRange UnderlineRange(Diagnostic->ColumnStart - 1, Diagnostic->ColumnEnd);
+
+			// The highlighting lines have to match the runs and not exceed their bounds, so we chop them up. 
+			for (TSharedRef< IRun > Run: Runs)
+			{
+				FTextRange ChoppedRange(Run->GetTextRange().Intersect(UnderlineRange));
+
+				if (!ChoppedRange.IsEmpty())
+				{
+					LineHighlightsToAdd.Add(FTextLineHighlight(LineNo, UnderlineRange, FSlateTextUnderlineLineHighlighter::DefaultZIndex, UnderlineLineHighlighter.ToSharedRef()));
+				}
+			}
+		}
 
 		LinesToAdd.Emplace(MoveTemp(ModelString), MoveTemp(Runs));
+
+		LineNo++;
 	}
 
 	TargetTextLayout.AddLines(LinesToAdd);
+	TargetTextLayout.SetLineHighlights(LineHighlightsToAdd);
 }
 
 FOptimusHLSLSyntaxHighlighter::FOptimusHLSLSyntaxHighlighter(

@@ -30,9 +30,11 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 			.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
 			.SetHighlightShape(BOX_BRUSH("UI/TextBlockHighlightShape", FMargin(3.f / 8.f)));
 
-		// new IMAGE_BRUSH("Old/White", Icon8x8, FLinearColor::White, ESlateBrushTileType::Both);
+		const FVector2D Icon8x8(8.0f, 8.0f);
 		const FTextBlockStyle ErrorText = FTextBlockStyle(NormalText)
+			.SetUnderlineBrush(IMAGE_BRUSH("White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
 			.SetColorAndOpacity(FLinearColor::Red);
+			// ;
 		
 		Set("TextEditor.NormalText", NormalText);
 

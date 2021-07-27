@@ -3,23 +3,44 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "OptimusDiagnostic.h"
 
 #include "OptimusType_ShaderText.generated.h"
 
 USTRUCT()
-struct FOptimusSourceLocation
+struct FOptimusType_CompilerDiagnostic
 {
 	GENERATED_BODY()
 	
-	FOptimusSourceLocation() = default;
-	FOptimusSourceLocation(const FOptimusSourceLocation&) = default;
-	FOptimusSourceLocation& operator=(const FOptimusSourceLocation&) = default;
+	FOptimusType_CompilerDiagnostic() = default;
+	FOptimusType_CompilerDiagnostic(const FOptimusType_CompilerDiagnostic&) = default;
+	FOptimusType_CompilerDiagnostic& operator=(const FOptimusType_CompilerDiagnostic&) = default;
 
-	explicit FOptimusSourceLocation(const int32 InLine) : Line(InLine) {}
+	explicit FOptimusType_CompilerDiagnostic(
+			EOptimusDiagnosticLevel InLevel,
+			FString InDiagnostic,
+			const int32 InLine) :
+		Level(InLevel),
+		Diagnostic(InDiagnostic),
+		Line(InLine)
+	{ }
 
-	explicit FOptimusSourceLocation(const int32 InLine, const int32 InColumnStart, const int32 InColumnEnd) :
-        Line(InLine), ColumnStart(InColumnStart), ColumnEnd(InColumnEnd) {}
+	explicit FOptimusType_CompilerDiagnostic(
+			EOptimusDiagnosticLevel InLevel,
+			FString InDiagnostic,
+			const int32 InLine,
+			const int32 InColumnStart,
+			const int32 InColumnEnd) :
+		Level(InLevel),
+		Diagnostic(InDiagnostic),
+		Line(InLine), ColumnStart(InColumnStart), ColumnEnd(InColumnEnd)
+	{ }
+
+	// The severity of the issue.
+	EOptimusDiagnosticLevel Level = EOptimusDiagnosticLevel::Ignore;
+
+	// The actual diagnostic message
+	FString Diagnostic;
 	
 	// Line location in source
 	int32 Line = INDEX_NONE;
@@ -42,4 +63,7 @@ struct OPTIMUSDEVELOPER_API FOptimusType_ShaderText
 	
 	UPROPERTY(EditAnywhere, Category=ShaderText)
 	FString ShaderText;
+
+	UPROPERTY(VisibleAnywhere, Category=ShaderText)
+	TArray<FOptimusType_CompilerDiagnostic> Diagnostics;
 };

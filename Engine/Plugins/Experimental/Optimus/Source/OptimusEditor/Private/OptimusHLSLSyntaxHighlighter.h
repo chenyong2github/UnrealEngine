@@ -67,7 +67,7 @@ public:
 
 	static TSharedRef< FOptimusHLSLSyntaxHighlighter > Create(const FSyntaxTextStyle& InSyntaxTextStyle);
 
-	void SetErrorLocations(const TArray<FOptimusSourceLocation> &InErrorLocations);
+	void SetCompilerMessages(const TArray<FOptimusType_CompilerDiagnostic> &InCompilerMessages);
 
 
 	virtual ~FOptimusHLSLSyntaxHighlighter();
@@ -84,5 +84,5 @@ protected:
 	/** String representing tabs */
 	FString TabString;
 
-	TMultiMap<int32 /*Line*/, FOptimusSourceLocation> ErrorLocations;
+	TMultiMap<int32 /*Line*/, FOptimusType_CompilerDiagnostic> CompilerMessages;
 };

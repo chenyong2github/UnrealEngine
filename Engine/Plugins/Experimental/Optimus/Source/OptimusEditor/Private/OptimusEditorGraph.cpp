@@ -217,6 +217,16 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		    break;
 		}
 
+		case EOptimusGraphNotifyType::NodeDiagnosticLevelChanged:
+		{
+			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
+			UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelNode);
+
+			GraphNode->SyncDiagnosticStateWithModelNode();
+
+			break;
+		}
+
 	    case EOptimusGraphNotifyType::PinAdded:
 		{
 		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);

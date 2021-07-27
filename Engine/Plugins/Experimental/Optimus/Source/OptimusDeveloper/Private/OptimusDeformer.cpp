@@ -19,6 +19,7 @@
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "Nodes/OptimusNode_ComputeKernel.h"
 #include "Nodes/OptimusNode_DataInterface.h"
+#include "Misc/UObjectToken.h"
 
 #include "RenderingThread.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
@@ -548,7 +549,10 @@ bool UOptimusDeformer::Compile()
 	}
 	if (!UpdateGraph)
 	{
-		CompileResultsDelegate.Broadcast(nullptr, nullptr, TEXT("No update graph found. Compilation aborted."));
+		CompileBeginDelegate.Broadcast(this);
+		CompileMessageDelegate.Broadcast(
+			FTokenizedMessage::Create(EMessageSeverity::CriticalError, LOCTEXT("NoGraphFound", "No update graph found. Compilation aborted.")));
+		CompileEndDelegate.Broadcast(this);
 		return false;
 	}
 	
@@ -579,7 +583,10 @@ bool UOptimusDeformer::Compile()
 
 	if (TerminalNodes.IsEmpty())
 	{
-		CompileResultsDelegate.Broadcast(UpdateGraph, nullptr, TEXT("No data interface terminal nodes found. Compilation aborted."));
+		CompileBeginDelegate.Broadcast(this);
+		CompileMessageDelegate.Broadcast(
+			FTokenizedMessage::Create(EMessageSeverity::CriticalError, LOCTEXT("NoDataInterfaceFound", "No data interface terminal nodes found. Compilation aborted.")));
+		CompileEndDelegate.Broadcast(this);
 		return false;
 	}
 
@@ -682,13 +689,21 @@ bool UOptimusDeformer::Compile()
 				);
 			if (!KernelSource)
 			{
-				CompileResultsDelegate.Broadcast(UpdateGraph, KernelNode, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
+				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError,
+					LOCTEXT("CantCreateKernel", "Unable to create compute kernel from kernel node. Compilation aborted."));
+				Message->AddToken(FUObjectToken::Create(Node));
+				CompileMessageDelegate.Broadcast(Message);
+				CompileEndDelegate.Broadcast(this);
 				return false;
 			}
 
 			if (BoundKernel.InputDataBindings.IsEmpty() || BoundKernel.OutputDataBindings.IsEmpty())
 			{
-				CompileResultsDelegate.Broadcast(UpdateGraph, KernelNode, TEXT("Kernel has either no input or output bindings. Compilation aborted."));
+				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError,
+					LOCTEXT("KernelHasNoBindings", "Kernel has either no input or output bindings. Compilation aborted."));
+				Message->AddToken(FUObjectToken::Create(Node));
+				CompileMessageDelegate.Broadcast(Message);
+				CompileEndDelegate.Broadcast(this);
 				return false;
 			}
 			
@@ -809,18 +824,81 @@ void UOptimusDeformer::OnKernelCompilationComplete(int32 InKernelIndex, const TA
 			UOptimusNodeGraph const* Graph = Graphs[GraphIndex];
 			if (ensure(Graph != nullptr && NodeIndex < Graph->Nodes.Num()))
 			{
-				UOptimusNode* Node = Graph->Nodes[NodeIndex];
-				if (ensure(Cast<const UOptimusNode_ComputeKernel>(Node) != nullptr))
-				{				
+				UOptimusNode_ComputeKernel* KernelNode = Cast<UOptimusNode_ComputeKernel>(Graph->Nodes[NodeIndex]);
+				if (ensure(KernelNode != nullptr))
+				{
+					KernelNode->ShaderSource.Diagnostics.Reset();
+
+					EOptimusDiagnosticLevel NodeLevel = EOptimusDiagnosticLevel::Ignore;
+					
 					// This is a compute kernel as expected so broadcast the compile errors.
 					for (FString const& CompileError : InCompileErrors)
 					{
-						CompileResultsDelegate.Broadcast(Graph, Node, CompileError);
+						const EOptimusDiagnosticLevel MessageLevel = ProcessCompilationMessage(KernelNode, CompileError);
+						if (MessageLevel > NodeLevel)
+						{
+							NodeLevel = MessageLevel;
+						}
+					}
+
+					KernelNode->SetDiagnosticLevel(NodeLevel);
+					FProperty* DiagnosticsProperty = FOptimusType_ShaderText::StaticStruct()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(FOptimusType_ShaderText, Diagnostics));
+					if (DiagnosticsProperty)
+					{
+						FPropertyChangedEvent PropertyChangedEvent(DiagnosticsProperty, EPropertyChangeType::ValueSet, {KernelNode});
+						KernelNode->PostEditChangeProperty(PropertyChangedEvent);
 					}
 				}
 			}
 		}
 	}
+}
+
+
+EOptimusDiagnosticLevel UOptimusDeformer::ProcessCompilationMessage(UOptimusNode_ComputeKernel* InKernelNode, const FString& InMessage)
+{
+	// "/Engine/Generated/ComputeFramework/Kernel_LinearBlendSkinning.usf(19,39-63):  error X3013: 'DI000_ReadNumVertices': no matching 1 parameter function"	
+	// "OptimusNode_ComputeKernel_2(1,42):  error X3004: undeclared identifier 'a'"
+
+	// TODO: Parsing diagnostics rightfully belongs at the shader compiler level, especially if
+	// the shader compiler is rewriting.
+	static const FRegexPattern MessagePattern(TEXT(R"(^\s*(.*?)\((\d+),(\d+)(-(\d+))?\):\s*(error|warning)\s+[A-Z0-9]+:\s*(.*)$)"));
+
+	FRegexMatcher Matcher(MessagePattern, InMessage);
+	if (!Matcher.FindNext())
+	{
+		UE_LOG(LogOptimusDeveloper, Warning, TEXT("Cannot parse message from shader compiler: [%s]"), *InMessage);
+		return EOptimusDiagnosticLevel::Ignore;
+	}
+
+	// FString NodeName = Matcher.GetCaptureGroup(1);
+	const int32 LineNumber = FCString::Atoi(*Matcher.GetCaptureGroup(2));
+	const int32 ColumnStart = FCString::Atoi(*Matcher.GetCaptureGroup(3));
+	const FString ColumnEndStr = Matcher.GetCaptureGroup(5);
+	const int32 ColumnEnd = ColumnEndStr.IsEmpty() ? ColumnStart : FCString::Atoi(*ColumnEndStr);
+	const FString SeverityStr = Matcher.GetCaptureGroup(6);
+	const FString MessageStr = Matcher.GetCaptureGroup(7);
+
+	EMessageSeverity::Type Severity = EMessageSeverity::Error; 
+	EOptimusDiagnosticLevel Level = EOptimusDiagnosticLevel::Error;
+	if (SeverityStr == TEXT("warning"))
+	{
+		Level = EOptimusDiagnosticLevel::Warning;
+		Severity = EMessageSeverity::Warning;
+	}
+
+	FOptimusType_CompilerDiagnostic Diagnostic(Level, MessageStr, LineNumber, ColumnStart, ColumnEnd);
+	InKernelNode->ShaderSource.Diagnostics.Add(Diagnostic);
+
+	// Set a dummy lambda for token activation because the default behavior for FUObjectToken is
+	// to pop up the asset browser :-/
+	static auto DummyActivation = [](const TSharedRef<class IMessageToken>&) {};
+	FString DiagnosticStr = FString::Printf(TEXT("%s (line %d)"), *MessageStr, LineNumber);
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(Severity, FText::FromString(DiagnosticStr));
+	Message->AddToken(FUObjectToken::Create(InKernelNode)->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(DummyActivation)));
+	CompileMessageDelegate.Broadcast(Message);
+
+	return Level;
 }
 
 

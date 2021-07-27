@@ -424,6 +424,36 @@ TSharedPtr<SGraphPin> SOptimusEditorGraphNode::GetHoveredPin(const FGeometry& My
 }
 
 
+void SOptimusEditorGraphNode::RefreshErrorInfo()
+{
+	if (GraphNode)
+	{
+		if (CachedErrorType != GraphNode->ErrorType)
+		{
+			SGraphNode::RefreshErrorInfo();
+			CachedErrorType = GraphNode->ErrorType;
+		}
+	}
+}
+
+
+void SOptimusEditorGraphNode::Tick(
+	const FGeometry& AllottedGeometry,
+	const double InCurrentTime,
+	const float InDeltaTime
+	)
+{
+	SGraphNode::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	
+	if (GraphNode)
+	{
+		// GraphNode->NodeWidth = (int32)AllottedGeometry.Size.X;
+		// GraphNode->NodeHeight = (int32)AllottedGeometry.Size.Y;
+		RefreshErrorInfo();
+	}
+}
+
+
 UOptimusEditorGraphNode* SOptimusEditorGraphNode::GetEditorGraphNode() const
 {
 	return Cast<UOptimusEditorGraphNode>(GraphNode);

@@ -39,6 +39,7 @@ enum class EOptimusGraphNotifyType
 	NodeRemoved,			/// A node has been removed (Subject == UOptimusNode)
 	NodeDisplayNameChanged,	/// A node's display name has changed (Subject == UOptimusNode)
 	NodePositionChanged,	/// A node's position in the graph has changed (Subject == UOptimusNode)
+	NodeDiagnosticLevelChanged,	/// A node's error stat has changed (Subject == UOptimusNode)
 
 	LinkAdded,				/// A link between nodes has been added (Subject == UOptimusNodeLink)
 	LinkRemoved,			/// A link between nodes has been removed (Subject == UOptimusNodeLink)

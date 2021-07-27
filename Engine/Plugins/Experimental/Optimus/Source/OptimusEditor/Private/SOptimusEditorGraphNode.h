@@ -29,6 +29,8 @@ public:
 	void EndUserInteraction() const override;
 	void AddPin( const TSharedRef<SGraphPin>& PinToAdd ) override;
 	TSharedPtr<SGraphPin> GetHoveredPin(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const override;
+	void RefreshErrorInfo() override;
+	void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 	UOptimusEditorGraphNode *GetEditorGraphNode() const;
@@ -57,4 +59,8 @@ private:
 	// pin hovering.
 	TArray<TSharedRef<SWidget>> HoverWidgetLabels;
 	TArray<TSharedRef<SGraphPin>> HoverWidgetPins;
+
+	// Cached error type to compare against the UEdGraphNode to see if we need to refresh
+	// our error state.
+	int32 CachedErrorType = -1;
 };

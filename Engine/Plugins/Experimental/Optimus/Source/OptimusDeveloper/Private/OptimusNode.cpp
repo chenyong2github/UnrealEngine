@@ -7,13 +7,12 @@
 #include "OptimusDeveloperModule.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
+#include "OptimusDiagnostic.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 
 #include "Algo/Reverse.h"
 #include "UObject/UObjectIterator.h"
-#include "Misc/StringBuilder.h"
-#include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
 
@@ -125,6 +124,16 @@ FString UOptimusNode::GetNodePath() const
 UOptimusNodeGraph* UOptimusNode::GetOwningGraph() const
 {
 	return Cast<UOptimusNodeGraph>(GetOuter());
+}
+
+
+void UOptimusNode::SetDiagnosticLevel(EOptimusDiagnosticLevel InDiagnosticLevel)
+{
+	if (DiagnosticLevel != InDiagnosticLevel)
+	{
+		DiagnosticLevel = InDiagnosticLevel;
+		Notify(EOptimusGraphNotifyType::NodeDiagnosticLevelChanged);
+	}
 }
 
 

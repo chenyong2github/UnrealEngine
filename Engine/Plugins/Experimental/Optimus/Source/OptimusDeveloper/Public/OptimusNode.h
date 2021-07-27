@@ -3,10 +3,10 @@
 #pragma once
 
 #include "OptimusCoreNotify.h"
+#include "OptimusDiagnostic.h"
 
 #include "UObject/Object.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 
 #include "OptimusNode.generated.h"
 
@@ -101,7 +101,10 @@ public:
 
 	const TArray<UOptimusNodePin*>& GetPins() const { return Pins; }
 
-
+	/// Returns the node's diagnostic level (e.g. error state). For a node, only None, Warning
+	/// Error are relevant.
+	EOptimusDiagnosticLevel GetDiagnosticLevel() const { return DiagnosticLevel; }
+	
 	/// Find the pin associated with the given dot-separated pin path.
 	/// @param InPinPath The path of the pin.
 	/// @return The pin object, if found, otherwise nullptr.
@@ -143,6 +146,7 @@ public:
 protected:
 	friend class UOptimusNodeGraph;
 	friend class UOptimusNodePin;
+	friend class UOptimusDeformer;
 
 	// Return the action stack for this node.
 	UOptimusActionStack* GetActionStack() const;
@@ -188,6 +192,9 @@ protected:
 	void SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded);
 	bool GetPinExpanded(const UOptimusNodePin* InPin) const;
 
+	// Set the current error state
+	void SetDiagnosticLevel(EOptimusDiagnosticLevel InDiagnosticLevel);
+	
 private:
 	void IncrementRevision();
 	
@@ -215,6 +222,9 @@ private:
 
 	UPROPERTY()
 	TSet<FName> ExpandedPins;
+
+	UPROPERTY()
+	EOptimusDiagnosticLevel DiagnosticLevel = EOptimusDiagnosticLevel::Ignore;
 
 	// The revision number. Incremented each time Modify is called. Can be used to check
 	// if the object is now different and may need to be involved in updating the compute graph.
