@@ -2326,7 +2326,7 @@ bool URigVMController::CanImportNodesFromText(const FString& InText)
 	return Factory.CanCreateObjectsFromText(InText);
 }
 
-TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool bSetupUndoRedo)
+TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool bSetupUndoRedo, bool bPrintPythonCommands)
 {
 	TArray<FName> NodeNames;
 	if (!IsValidGraph())
@@ -2473,6 +2473,19 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 	{
 		CloseUndoBracket();
 	}
+	
+#if WITH_EDITOR
+	if (bPrintPythonCommands && !NodeNames.IsEmpty())
+	{
+		FString PythonContent = InText.Replace(TEXT("\\\""), TEXT("\\\\\""));
+		PythonContent = InText.Replace(TEXT("'"), TEXT("\\'"));
+		PythonContent = PythonContent.Replace(TEXT("\r\n"), TEXT("\\r\\n'\r\n'"));
+		
+		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').import_nodes_from_text('%s')"),
+			*GetGraph()->GetGraphName(),
+			*PythonContent));
+	}
+#endif
 
 	return NodeNames;
 }

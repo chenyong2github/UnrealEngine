@@ -227,7 +227,7 @@ bool UControlRigBlueprint::TryImportGraphFromText(const FString& InClipboardText
             })
         );
 		
-		TArray<FName> ImportedNodeNames = FunctionLibraryController->ImportNodesFromText(InClipboardText, true);
+		TArray<FName> ImportedNodeNames = FunctionLibraryController->ImportNodesFromText(InClipboardText, true, true);
 		if (ImportedNodeNames.Num() == 0)
 		{
 			return false;

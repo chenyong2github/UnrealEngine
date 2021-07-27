@@ -68,15 +68,15 @@ void RigVMPythonUtils::Print(const FString& InMessage)
 {
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 
-	if (!MessageLogModule.IsRegisteredLogListing("RigVMPythonLog"))
+	if (!MessageLogModule.IsRegisteredLogListing("ControlRigPythonLog"))
 	{
 		FMessageLogInitializationOptions InitOptions;
 		InitOptions.bShowFilters = true;
 		InitOptions.bShowPages = true;
 		InitOptions.bAllowClear = true;
-		MessageLogModule.RegisterLogListing("RigVMPythonLog", LOCTEXT("RigVMPythonLog", "RigVM Python Log"), InitOptions);
+		MessageLogModule.RegisterLogListing("ControlRigPythonLog", LOCTEXT("ControlRigPythonLog", "Control Rig Python Log"), InitOptions);
 	}
-	TSharedRef<IMessageLogListing> PythonLog = MessageLogModule.GetLogListing( TEXT("RigVMPythonLog") );
+	TSharedRef<IMessageLogListing> PythonLog = MessageLogModule.GetLogListing( TEXT("ControlRigPythonLog") );
 
 	TSharedRef<FTokenizedMessage> Token = FTokenizedMessage::Create(EMessageSeverity::Info, FText::FromString(InMessage));
 	PythonLog->AddMessage(Token, false);			
