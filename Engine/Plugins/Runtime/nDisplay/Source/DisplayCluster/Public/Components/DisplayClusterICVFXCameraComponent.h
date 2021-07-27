@@ -16,7 +16,7 @@ struct FMinimalViewInfo;
 class UCameraComponent;
 
 /**
- * ICVFX camera with configuration
+ * nDisplay in-camera VFX camera representation
  */
 UCLASS(ClassGroup = (DisplayCluster), meta = (DisplayName="ICVFX Camera"))
 class DISPLAYCLUSTER_API UDisplayClusterICVFXCameraComponent

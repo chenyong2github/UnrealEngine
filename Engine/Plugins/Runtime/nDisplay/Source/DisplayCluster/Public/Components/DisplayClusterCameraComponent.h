@@ -22,7 +22,7 @@ enum class EDisplayClusterEyeStereoOffset : uint8
 
 
 /**
- * nDisplay camera component
+ * 3D point in space used to render nDisplay viewports from
  */
 UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay View Origin"))
 class DISPLAYCLUSTER_API UDisplayClusterCameraComponent

@@ -30,10 +30,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	TArray<TSoftObjectPtr<AActor>> Actors;
 
-	//@todo change link, now by names
 	// Reference to RootActor components by names
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = NDisplay)
-	TArray<FString> RootActorComponentNames;
+	TArray<FString> RootActorComponentNames; //@todo change link, now by names
 };
 
 USTRUCT(Blueprintable)
@@ -241,7 +240,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Light Cards"))
 	bool bEnable = true;
 
-	// Global lighcard rendering mode
+	// Global lightcard rendering mode
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Blending Mode", EditCondition = "bEnable"))
 	EDisplayClusterConfigurationICVFX_LightcardRenderMode Blendingmode = EDisplayClusterConfigurationICVFX_LightcardRenderMode::Under;
 
@@ -249,7 +248,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_VisibilityList ShowOnlyList;
 
-	// Configure global render settings for this viewports
+	// Configure global render settings for this viewport
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_LightcardRenderSettings RenderSettings;
 
@@ -417,7 +416,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_CameraMotionBlur CameraMotionBlur;
 
-	// Configure global render settings for this viewports
+	// Configure global render settings for this viewport
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_CameraRenderSettings RenderSettings;
 

@@ -9,7 +9,7 @@
 
 
 /**
- * Simple projection screen component
+ * Simple projection policy screen component
  */
 UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Screen"))
 class DISPLAYCLUSTER_API UDisplayClusterScreenComponent

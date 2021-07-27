@@ -787,6 +787,7 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::AddRenderSyncPoli
 		.OnSelectionChanged(this, &FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnRenderSyncPolicySelected)
 		.ContentPadding(2)
 		.MaxListHeight(200.0f)
+		.ToolTipText(LOCTEXT("RenderSyncPolicyToolTip", "Specify your nDisplay Render Sync Policy"))
 		.Content()
 		[
 			SNew(STextBlock)
@@ -1125,6 +1126,7 @@ void FDisplayClusterConfiguratorInputSyncPolicyCustomization::AddInputSyncPolicy
 		.OnSelectionChanged(this, &FDisplayClusterConfiguratorInputSyncPolicyCustomization::OnInputSyncPolicySelected)
 		.ContentPadding(2)
 		.MaxListHeight(200.0f)
+		.ToolTipText(LOCTEXT("InputSyncPolicyTooltip", "Specify your nDisplay Input Sync Policy"))
 		.Content()
 		[
 			SNew(STextBlock)
