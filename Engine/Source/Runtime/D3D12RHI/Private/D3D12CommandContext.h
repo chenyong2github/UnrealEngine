@@ -193,6 +193,8 @@ public:
 	virtual void FlushTextureCache() {};
 #endif
 
+	bool bIsDoingQuery = false;
+
 	uint32 numDraws;
 	uint32 numDispatches;
 	uint32 numClears;
@@ -202,9 +204,14 @@ public:
 	uint32 numInitialResourceCopies;
 	uint32 otherWorkCounter;
 
+	uint32 GetTotalWorkCount() const
+	{
+		return numDraws + numDispatches + numClears + numBarriers + numPendingBarriers + numCopies + numInitialResourceCopies + otherWorkCounter;
+	}
+
 	bool HasDoneWork() const
 	{
-		return (numDraws + numDispatches + numClears + numBarriers + numPendingBarriers + numCopies + numInitialResourceCopies + otherWorkCounter) > 0;
+		return GetTotalWorkCount() > 0;
 	}
 
 	/** Constant buffers for Set*ShaderParameter calls. */

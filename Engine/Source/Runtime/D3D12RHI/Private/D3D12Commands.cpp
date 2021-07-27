@@ -70,10 +70,6 @@ inline void ValidateBoundUniformBuffer(FD3D12UniformBuffer * InUniformBuffer, TR
 #endif
 }
 
-#if EXECUTE_DEBUG_COMMAND_LISTS
-bool GIsDoingQuery = false;
-#endif
-
 #if !defined(D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS)
 	#define D3D12_PLATFORM_SUPPORTS_RESOLVE_SHADERS 1
 #endif
@@ -147,6 +143,8 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 
 	numDispatches++;
 	CommandListHandle->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+	
+	ConditionalFlushCommandList();
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
@@ -191,6 +189,8 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 		0
 		);
 	CommandListHandle.UpdateResidency(Location.GetResource());
+	
+	ConditionalFlushCommandList();
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
@@ -665,6 +665,8 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, F
 		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestOffset, pSourceResource->GetResource(), Offset + SourceOffset, NumBytes);
 		CommandListHandle.UpdateResidency(pDestResource);
 		CommandListHandle.UpdateResidency(pSourceResource);
+
+		ConditionalFlushCommandList();
 	}
 }
 
@@ -1447,9 +1449,7 @@ void FD3D12CommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 
 	GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType)->BeginQuery(*this, Query);
 
-#if EXECUTE_DEBUG_COMMAND_LISTS
-	GIsDoingQuery = true;
-#endif
+	bIsDoingQuery = true;
 }
 
 void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
@@ -1480,9 +1480,7 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 	// Query data isn't ready until it has been resolved.
 	ensure(Query->bResultIsCached == false && Query->bResolved == false);
 
-#if EXECUTE_DEBUG_COMMAND_LISTS
-	GIsDoingQuery = false;
-#endif
+	bIsDoingQuery = false;
 }
 
 void FD3D12CommandContext::RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
@@ -1839,6 +1837,8 @@ void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPr
 	StateCache.ApplyState<D3D12PT_Graphics>();
 	CommandListHandle->DrawInstanced(VertexCount, NumInstances, BaseVertexIndex, 0);
 
+	ConditionalFlushCommandList();
+
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
 #endif
@@ -1878,6 +1878,8 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRH
 		);
 
 	CommandListHandle.UpdateResidency(Location.GetResource());
+
+	ConditionalFlushCommandList();
 
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
@@ -1928,6 +1930,8 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 
 	CommandListHandle.UpdateResidency(Location.GetResource());
 
+	ConditionalFlushCommandList();
+
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
 #endif
@@ -1965,6 +1969,8 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
 	CommandListHandle->DrawIndexedInstanced(IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance);
+
+	ConditionalFlushCommandList();
 
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
@@ -2012,6 +2018,8 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 
 	CommandListHandle.UpdateResidency(Location.GetResource());
 
+	ConditionalFlushCommandList();
+
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
 #endif
@@ -2033,6 +2041,8 @@ void FD3D12CommandContext::RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint3
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
 	CommandListHandle.GraphicsCommandList6()->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+
+	ConditionalFlushCommandList();
 
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
@@ -2073,6 +2083,8 @@ void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuf
 	);
 
 	CommandListHandle.UpdateResidency(Location.GetResource());
+
+	ConditionalFlushCommandList();
 
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
@@ -2196,6 +2208,8 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool* bClearColorArray, int32 NumClea
 			CommandListHandle->ClearDepthStencilView(DepthStencilView->GetView(), (D3D12_CLEAR_FLAGS)ClearFlags, Depth, Stencil, ClearRectCount, pClearRects);
 			CommandListHandle.UpdateResidency(DepthStencilView->GetResource());
 		}
+
+		ConditionalFlushCommandList();
 	}
 
 	if (IsDefaultContext())
