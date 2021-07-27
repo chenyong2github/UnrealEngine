@@ -11,6 +11,7 @@
 class AActor;
 class UWorldPartition;
 class UHLODLayer;
+class UHLODBuilderSettings;
 class AWorldPartitionHLOD;
 
 struct ENGINE_API FHLODCreationContext
@@ -60,4 +61,12 @@ public:
 	 * @return An hash that represent the content used to build this HLOD.
 	 */
 	virtual uint32 BuildHLOD(AWorldPartitionHLOD* InHLODActor) = 0;
+
+	/**
+	 * Create the HLOD builder settings for the provided HLOD layer object. The type of settings created will depend on the HLOD layer type.
+	 *
+	 * @param 	InHLODLayer		The HLOD layer for which we'll create a setting object
+	 * @return A newly created UHLODBuilderSettings object, outered to the provided HLOD layer.
+	 */
+	virtual UHLODBuilderSettings* CreateHLODBuilderSettings(UHLODLayer* InHLODLayer) = 0;
 };

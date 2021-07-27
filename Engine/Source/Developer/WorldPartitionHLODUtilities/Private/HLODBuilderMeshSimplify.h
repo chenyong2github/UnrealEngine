@@ -2,13 +2,40 @@
 
 #pragma once
 
-#include "HLODBuilder.h"
+#include "WorldPartition/HLOD/HLODBuilder.h"
+#include "Engine/MeshMerging.h"
+
+#include "HLODBuilderMeshSimplify.generated.h"
+
+class UMaterial;
+
+
+UCLASS(Blueprintable, Config = Engine, PerObjectConfig)
+class UHLODBuilderMeshSimplifySettings : public UHLODBuilderSettings
+{
+	GENERATED_UCLASS_BODY()
+
+	virtual uint32 GetCRC() const override;
+
+	/** Simplified mesh generation settings */
+	UPROPERTY(EditAnywhere, Config, Category = HLOD)
+	FMeshProxySettings MeshSimplifySettings;
+
+	/** Material that will be used by the generated HLOD static mesh */
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = HLOD)
+	TSoftObjectPtr<UMaterial> HLODMaterial;
+};
+
 
 /**
  * Build a simplified mesh using geometry from the provided actors
  */
-class FHLODBuilder_MeshSimplify : public FHLODBuilder
+UCLASS()
+class UHLODBuilderMeshSimplify : public UHLODBuilder
 {
+	GENERATED_UCLASS_BODY()
+
 public:
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override;
+	virtual UHLODBuilderSettings* CreateSettings(UHLODLayer* InHLODLayer) const override;
+	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const override;
 };

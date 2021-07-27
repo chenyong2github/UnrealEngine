@@ -9,10 +9,9 @@
 #include "UObject/Object.h"
 
 #include "EngineDefines.h"
-
-#if WITH_EDITOR
 #include "Engine/MeshMerging.h"
-#endif
+
+#include "WorldPartition/HLOD/HLODBuilder.h"
 
 #include "HLODLayer.generated.h"
 
@@ -25,10 +24,11 @@ class FWorldPartitionActorDescView;
 UENUM()
 enum class EHLODLayerType : uint8
 {
-	Instancing = 0			UMETA(DisplayName = "Instancing"),
-	MeshMerge = 1			UMETA(DisplayName = "Merged Mesh"),
-	MeshSimplify = 2		UMETA(DisplayName = "Simplified Mesh"),
-	MeshApproximate = 3		UMETA(DisplayName = "Approximated Mesh"),
+	Instancing				UMETA(DisplayName = "Instancing"),
+	MeshMerge				UMETA(DisplayName = "Merged Mesh"),
+	MeshSimplify			UMETA(DisplayName = "Simplified Mesh"),
+	MeshApproximate			UMETA(DisplayName = "Approximated Mesh"),
+	Custom					UMETA(DisplayName = "Custom"),
 };
 
 UCLASS(Blueprintable, Config=Engine, PerObjectConfig)
@@ -41,16 +41,12 @@ public:
 	static UHLODLayer* GetHLODLayer(const AActor* InActor);
 	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition);
 	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDescView& InActorDescView, const UWorldPartition* InWorldPartition);
-
-	uint32 GetCRC() const;
 #endif
 
 #if WITH_EDITORONLY_DATA
 	EHLODLayerType GetLayerType() const { return LayerType; }
-	const FMeshMergingSettings& GetMeshMergeSettings() const { return MeshMergeSettings; }
-	const FMeshProxySettings& GetMeshSimplifySettings() const { return MeshSimplifySettings; }
-	const FMeshApproximationSettings& GetMeshApproximationSettings() const { return MeshApproximationSettings; }
-	const TSoftObjectPtr<UMaterial>& GetHLODMaterial() const { return HLODMaterial; }
+	const TSubclassOf<UHLODBuilder> GetHLODBuilderClass() const { return HLODBuilderClass; }
+	const UHLODBuilderSettings* GetHLODBuilderSettings() const { return HLODBuilderSettings; }
 	FName GetRuntimeGrid(uint32 InHLODLevel) const;
 	int32 GetCellSize() const { return bAlwaysLoaded ? 0 : CellSize; }
 	float GetLoadingRange() const { return bAlwaysLoaded ? WORLD_MAX : LoadingRange; }
@@ -60,27 +56,26 @@ public:
 	static FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, float InLoadingRange);
 #endif
 
+#if WITH_EDITOR
+private:
+	//~ Begin UObject Interface.
+	virtual void PostLoad() override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	//~ End UObject Interface.
+#endif
+
 #if WITH_EDITORONLY_DATA
 private:
 	/** Type of HLOD generation to use */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD)
 	EHLODLayerType LayerType;
 
-	/** Merged mesh generation settings - Used when this layer is of type EHLODLayerType::MeshMerge */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshMerge"))
-	FMeshMergingSettings MeshMergeSettings;
+	/** HLODBuilder class */
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::Custom"))
+	TSubclassOf<UHLODBuilder> HLODBuilderClass;
 
-	/** Simplified mesh generation settings - Used when this layer is of type EHLODLayerType::MeshSimplify */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshSimplify"))
-	FMeshProxySettings MeshSimplifySettings;
-
-	/** Mesh approximation settings - Used when this layer is of type EHLODLayerType::MeshApproximation */
-	UPROPERTY(EditAnywhere, Config, Category = HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshApproximate"))
-	FMeshApproximationSettings MeshApproximationSettings;
-
-	/** Material that will be used by the generated HLOD static mesh */
-	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshMerge || LayerType == EHLODLayerType::MeshSimplify"))
-	TSoftObjectPtr<UMaterial> HLODMaterial;
+	UPROPERTY(VisibleAnywhere, Export, NoClear, Category=HLOD, meta = (EditInline, NoResetToDefault))
+	UHLODBuilderSettings* HLODBuilderSettings;
 
 	/** Whether HLOD actors generated for this layer will be always loaded */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD)
@@ -97,5 +92,15 @@ private:
 	/** HLOD Layer to assign to the generated HLOD actors */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))
 	TSoftObjectPtr<UHLODLayer> ParentLayer;
+
+public:
+	UPROPERTY()
+	FMeshMergingSettings MeshMergeSettings_DEPRECATED;
+	UPROPERTY()
+	FMeshProxySettings MeshSimplifySettings_DEPRECATED;
+	UPROPERTY()
+	FMeshApproximationSettings MeshApproximationSettings_DEPRECATED;
+	UPROPERTY()
+	TSoftObjectPtr<UMaterial> HLODMaterial_DEPRECATED;
 #endif
 };

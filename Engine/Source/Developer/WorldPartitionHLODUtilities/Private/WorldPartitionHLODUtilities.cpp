@@ -7,8 +7,9 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/HLOD/HLODActor.h"
-#include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "WorldPartition/HLOD/HLODBuilder.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
 
 #include "ISMPartition/ISMComponentDescriptor.h"
 
@@ -17,13 +18,13 @@
 
 #include "Engine/StaticMesh.h"
 #include "Engine/HLODProxy.h"
+#include "Serialization/ArchiveCrc32.h"
 #include "Materials/Material.h"
 #include "AssetCompilingManager.h"
 
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
-#include "HLODBuilder.h"
 #include "HLODBuilderInstancing.h"
 #include "HLODBuilderMeshMerge.h"
 #include "HLODBuilderMeshSimplify.h"
@@ -69,6 +70,24 @@ static bool LoadSubActors(AWorldPartitionHLOD* InHLODActor, TArray<FWorldPartiti
 	return !bIsDirty;
 }
 
+static uint32 GetCRC(const UHLODLayer* InHLODLayer)
+{
+	UHLODLayer& HLODLayer= *const_cast<UHLODLayer*>(InHLODLayer);
+
+	uint32 CRC;
+
+	CRC = GetTypeHash(HLODLayer.GetLayerType());
+	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - LayerType = %d"), CRC);
+
+	CRC = HashCombine(HLODLayer.GetHLODBuilderSettings()->GetCRC(), CRC);
+	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLODBuilderSettings = %d"), CRC);
+
+	CRC = HashCombine(HLODLayer.GetCellSize(), CRC);
+	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - CellSize = %d"), CRC);
+
+	return CRC;
+}
+
 static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<FWorldPartitionReference>& InActors)
 {
 	FArchiveCrc32 Ar;
@@ -78,13 +97,13 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<FWo
 	Ar << HLODBaseKey;
 
 	// HLOD Layer
-	uint32 HLODLayerHash = InHLODActor->GetSubActorsHLODLayer()->GetCRC();
+	uint32 HLODLayerHash = GetCRC(InHLODActor->GetSubActorsHLODLayer());
 	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - HLODLayer (%s) = %x"), *InHLODActor->GetSubActorsHLODLayer()->GetName(), HLODLayerHash);
 	Ar << HLODLayerHash;
 
 	// We get the CRC of each component
 	TArray<uint32> ComponentsCRCs;
-	for (UPrimitiveComponent* Component : FHLODBuilder::GatherPrimitiveComponents(InActors))
+	for (UPrimitiveComponent* Component : UHLODBuilder::GatherPrimitiveComponents(InActors))
 	{
 		if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 		{
@@ -293,6 +312,54 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 	return HLODActors;
 }
 
+static TSubclassOf<UHLODBuilder> GetHLODBuilderClassForLayer(const UHLODLayer* InHLODLayer)
+{
+	EHLODLayerType HLODLayerType = InHLODLayer->GetLayerType();
+	switch (HLODLayerType)
+	{
+	case EHLODLayerType::Instancing:
+		return UHLODBuilderInstancing::StaticClass();
+		break;
+
+	case EHLODLayerType::MeshMerge:
+		return UHLODBuilderMeshMerge::StaticClass();
+		break;
+
+	case EHLODLayerType::MeshSimplify:
+		return UHLODBuilderMeshSimplify::StaticClass();
+		break;
+
+	case EHLODLayerType::MeshApproximate:
+		return UHLODBuilderMeshApproximate::StaticClass();
+		break;
+
+	case EHLODLayerType::Custom:
+		return InHLODLayer->GetHLODBuilderClass();
+		break;
+
+	default:
+		checkf(false, TEXT("Unsupported type"));
+		return nullptr;
+	}
+}
+
+UHLODBuilderSettings* FWorldPartitionHLODUtilities::CreateHLODBuilderSettings(UHLODLayer* InHLODLayer)
+{
+	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClassForLayer(InHLODLayer);
+	if (!HLODBuilderClass)
+	{
+		return NewObject<UHLODBuilderSettings>(InHLODLayer, UHLODBuilderSettings::StaticClass());
+	}
+
+	UHLODBuilderSettings* HLODBuilderSettings = HLODBuilderClass->GetDefaultObject<UHLODBuilder>()->CreateSettings(InHLODLayer);
+	if (!ensure(HLODBuilderSettings))
+	{
+		return NewObject<UHLODBuilderSettings>(InHLODLayer, UHLODBuilderSettings::StaticClass());
+	}
+
+	return HLODBuilderSettings;
+}
+
 uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 {
 	TArray<FWorldPartitionReference> SubActors;
@@ -311,44 +378,27 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 		return OldHLODHash;
 	}
 
-	TUniquePtr<FHLODBuilder> HLODBuilder = nullptr;
-	
 	const UHLODLayer* HLODLayer = InHLODActor->GetSubActorsHLODLayer();
-	EHLODLayerType HLODLevelType = HLODLayer->GetLayerType();
-	switch (HLODLevelType)
+	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClassForLayer(HLODLayer);
+
+	if (HLODBuilderClass)
 	{
-	case EHLODLayerType::Instancing:
-		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_Instancing());
-		break;
-
-	case EHLODLayerType::MeshMerge:
-		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshMerge());
-		break;
-
-	case EHLODLayerType::MeshSimplify:
-		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshSimplify());
-		break;
-
-	case EHLODLayerType::MeshApproximate:
-		HLODBuilder = TUniquePtr<FHLODBuilder>(new FHLODBuilder_MeshApproximate());
-		break;
-
-	default:
-		checkf(false, TEXT("Unsupported type"));
-	}
-
-	if (ensure(HLODBuilder))
-	{
-		if (HLODBuilder->RequiresCompiledAssets())
+		UHLODBuilder* HLODBuilder = NewObject<UHLODBuilder>(GetTransientPackage(), HLODBuilderClass);
+		if (ensure(HLODBuilder))
 		{
-			// Wait for compilation to finish
-			FAssetCompilingManager::Get().FinishAllCompilation();
-		}
+			HLODBuilder->AddToRoot();
+			if (HLODBuilder->RequiresCompiledAssets())
+			{
+				// Wait for compilation to finish
+				FAssetCompilingManager::Get().FinishAllCompilation();
+			}
 
-		HLODBuilder->Build(InHLODActor, HLODLayer, SubActors);
-	}
+			HLODBuilder->Build(InHLODActor, HLODLayer, SubActors);
+			HLODBuilder->RemoveFromRoot();
+		}
 			
-	InHLODActor->MarkPackageDirty();
+		InHLODActor->MarkPackageDirty();
+	}
 
 	return NewHLODHash;
 }

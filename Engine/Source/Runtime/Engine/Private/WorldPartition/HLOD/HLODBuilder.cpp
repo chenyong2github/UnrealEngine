@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HLODBuilder.h"
+#include "WorldPartition/HLOD/HLODBuilder.h"
 
 #include "Engine/StaticMesh.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -13,7 +13,34 @@
 DEFINE_LOG_CATEGORY(LogHLODBuilder);
 
 
-void FHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<FWorldPartitionReference>& InSubActors)
+UHLODBuilder::UHLODBuilder(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+UHLODBuilderSettings::UHLODBuilderSettings(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+#if WITH_EDITOR
+
+UHLODBuilderSettings* UHLODBuilder::CreateSettings(UHLODLayer* InHLODLayer) const
+{
+	return NewObject<UHLODBuilderSettings>(InHLODLayer);
+}
+
+bool UHLODBuilder::RequiresCompiledAssets() const
+{
+	return true;
+}
+
+TArray<UPrimitiveComponent*> UHLODBuilder::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
+{
+	return TArray<UPrimitiveComponent*>();
+}
+
+void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<FWorldPartitionReference>& InSubActors)
 {
 	TArray<UPrimitiveComponent*> SubComponents = GatherPrimitiveComponents(InSubActors);
 	if (SubComponents.IsEmpty())
@@ -42,7 +69,7 @@ void FHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InH
 	}
 }
 
-TArray<UPrimitiveComponent*> FHLODBuilder::GatherPrimitiveComponents(const TArray<FWorldPartitionReference>& InActors)
+TArray<UPrimitiveComponent*> UHLODBuilder::GatherPrimitiveComponents(const TArray<FWorldPartitionReference>& InActors)
 {
 	TArray<UPrimitiveComponent*> PrimitiveComponents;
 
@@ -105,7 +132,7 @@ TArray<UPrimitiveComponent*> FHLODBuilder::GatherPrimitiveComponents(const TArra
 	return PrimitiveComponents;
 }
 
-void FHLODBuilder::DisableCollisions(UPrimitiveComponent* Component)
+void UHLODBuilder::DisableCollisions(UPrimitiveComponent* Component)
 {
 	Component->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	Component->SetGenerateOverlapEvents(false);
@@ -114,3 +141,5 @@ void FHLODBuilder::DisableCollisions(UPrimitiveComponent* Component)
 	Component->SetCanEverAffectNavigation(false);
 	Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
+
+#endif // WITH_EDITOR

@@ -8,15 +8,17 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 
 #if WITH_EDITOR
-#include "Algo/Copy.h"
-#include "UObject/ConstructorHelpers.h"
-#include "Materials/Material.h"
-#include "Engine/HLODProxy.h"
 #include "Serialization/ArchiveCrc32.h"
+
+#include "Engine/World.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
+
+#include "Modules/ModuleManager.h"
+#include "IWorldPartitionHLODUtilities.h"
+#include "WorldPartitionHLODUtilitiesModule.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);
@@ -28,60 +30,9 @@ UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	, LoadingRange(12800)
 #endif
 {
-#if WITH_EDITORONLY_DATA
-	if (!IsTemplate())
-	{
-		HLODMaterial = GEngine->DefaultHLODFlattenMaterial;
-	}
-#endif
 }
 
 #if WITH_EDITOR
-
-uint32 UHLODLayer::GetCRC() const
-{
-	UHLODLayer& This = *const_cast<UHLODLayer*>(this);
-
-	FArchiveCrc32 Ar;
-
-	Ar << This.LayerType;
-	UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - LayerType = %d"), Ar.GetCrc());
-
-	if (LayerType == EHLODLayerType::MeshMerge)
-	{
-		Ar << This.MeshMergeSettings;
-		UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - MeshMergeSettings = %d"), Ar.GetCrc());
-	}
-	else if (LayerType == EHLODLayerType::MeshSimplify)
-	{
-		Ar << This.MeshSimplifySettings;
-		UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - MeshSimplifySettings = %d"), Ar.GetCrc());
-	}
-	else if (LayerType == EHLODLayerType::MeshApproximate)
-	{
-		Ar << This.MeshApproximationSettings;
-		UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - MeshApproximationSettings = %d"), Ar.GetCrc());
-	}
-
-	Ar << This.CellSize;
-	UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - CellSize = %d"), Ar.GetCrc());
-
-	uint32 Hash = Ar.GetCrc();
-
-	const bool bUseHLODMaterial = LayerType != EHLODLayerType::Instancing;
-	if (bUseHLODMaterial && !HLODMaterial.IsNull())
-	{
-		UMaterialInterface* Material = HLODMaterial.LoadSynchronous();
-		if (Material)
-		{
-			uint32 MaterialCRC = UHLODProxy::GetCRC(Material);
-			UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - Material = %d"), MaterialCRC);
-			Hash = HashCombine(Hash, MaterialCRC);
-		}
-	}
-
-	return Hash;
-}
 
 UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 {
@@ -127,6 +78,35 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDescView& InActor
 UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition)
 {
 	return GetHLODLayer(FWorldPartitionActorDescView(&InActorDesc), InWorldPartition);
+}
+
+void UHLODLayer::PostLoad()
+{
+	Super::PostLoad();
+
+	if (HLODBuilderSettings == nullptr)
+	{
+		IWorldPartitionHLODUtilities* WPHLODUtilities = FModuleManager::Get().LoadModuleChecked<IWorldPartitionHLODUtilitiesModule>("WorldPartitionHLODUtilities").GetUtilities();
+		if (WPHLODUtilities)
+		{
+			HLODBuilderSettings = WPHLODUtilities->CreateHLODBuilderSettings(this);
+		}
+	}
+}
+
+void UHLODLayer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : FName();
+
+	IWorldPartitionHLODUtilities* WPHLODUtilities = FModuleManager::Get().LoadModuleChecked<IWorldPartitionHLODUtilitiesModule>("WorldPartitionHLODUtilities").GetUtilities();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UHLODLayer, LayerType) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UHLODLayer, HLODBuilderClass))
+	{
+		HLODBuilderSettings = WPHLODUtilities->CreateHLODBuilderSettings(this);
+	}
 }
 
 #endif // WITH_EDITOR
