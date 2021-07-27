@@ -109,6 +109,7 @@ extern int32 GRDGMergeRenderPasses;
 extern int32 GRDGTransientAllocator;
 extern int32 GRDGTransientIndirectArgBuffers;
 extern int32 GRDGDrain;
+extern int32 GRDGParallelExecute;
 extern int32 GRDGParallelExecutePassMin;
 extern int32 GRDGParallelExecutePassMax;
 
@@ -197,7 +198,7 @@ FORCEINLINE bool IsRenderPassMergeEnabled()
 
 FORCEINLINE bool IsParallelExecuteEnabled()
 {
-	return GRDGParallelExecutePassMin > 0
+	return GRDGParallelExecute > 0
 		&& !GRHICommandList.Bypass()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
