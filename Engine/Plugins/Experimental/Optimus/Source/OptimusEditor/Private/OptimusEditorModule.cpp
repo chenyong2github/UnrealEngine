@@ -12,6 +12,7 @@
 #include "OptimusEditorStyle.h"
 #include "SOptimusEditorGraphExplorer.h"
 #include "OptimusDetailsCustomization.h"
+#include "OptimusComputeComponentBroker.h"
 
 #include "Types/OptimusType_ShaderText.h"
 
@@ -19,6 +20,7 @@
 #include "AssetToolsModule.h"
 #include "EdGraphUtilities.h"
 #include "PropertyEditorModule.h"
+#include "ComputeFramework/ComputeGraphComponent.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
@@ -32,6 +34,9 @@ void FOptimusEditorModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(OptimusDeformerAssetAction);
 	RegisteredAssetTypeActions.Add(OptimusDeformerAssetAction);
 
+	ComputeGraphComponentBroker = MakeShareable(new FOptimusComputeComponentBroker);
+	FComponentAssetBrokerage::RegisterBroker(ComputeGraphComponentBroker, UComputeGraphComponent::StaticClass(), true, true);
+	
 	FOptimusEditorCommands::Register();
 	FOptimusEditorGraphExplorerCommands::Register();
 	FOptimusEditorStyle::Register();
@@ -55,6 +60,8 @@ void FOptimusEditorModule::ShutdownModule()
 	FOptimusEditorStyle::Unregister();
 	FOptimusEditorGraphExplorerCommands::Unregister();
 	FOptimusEditorCommands::Unregister();
+	
+	FComponentAssetBrokerage::UnregisterBroker(ComputeGraphComponentBroker);
 
 	if (FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools"))
 	{
