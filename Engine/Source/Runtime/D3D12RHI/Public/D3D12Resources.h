@@ -848,8 +848,8 @@ public:
 
 	void Swap(FD3D12BaseShaderResource& Other)
 	{
-		// assume RHI thread when swapping listeners and resources unless RHI thread is disabled
-		check(IsInRHIThread() || IsInRenderingThread());
+		// assume RHI thread when swapping listeners and resources
+		check(!IsRunningRHIInSeparateThread() || IsInRHIThread());
 
 		::Swap(Parent, Other.Parent);
 		ResourceLocation.Swap(Other.ResourceLocation);
@@ -891,27 +891,7 @@ public:
 	}
 };
 
-extern void UpdateBufferStats(FName Name, int64 RequestedSize);
-
-inline FName GetBufferStats(uint32 Usage)
-{
-	if (Usage & BUF_VertexBuffer)
-	{
-		return GET_STATFNAME(STAT_VertexBufferMemory);
-	}
-	else if (Usage & BUF_IndexBuffer)
-	{
-		return GET_STATFNAME(STAT_IndexBufferMemory);
-	}
-	else if (Usage & BUF_AccelerationStructure)
-	{
-		return GET_STATFNAME(STAT_RTAccelerationStructureMemory);
-	}
-	else
-	{
-		return GET_STATFNAME(STAT_StructuredBufferMemory);
-	}
-}
+extern void UpdateBufferStats(EBufferUsageFlags UsageFlags, int64 RequestedSize);
 
 /** Uniform buffer resource class. */
 class FD3D12UniformBuffer : public FRHIUniformBuffer, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12UniformBuffer>
@@ -966,7 +946,7 @@ public:
 		bool bTransient = ResourceLocation.IsTransient();
 		if (!bTransient)
 		{
-			UpdateBufferStats(GetBufferStats(GetUsage()), -BufferSize);
+			UpdateBufferStats((EBufferUsageFlags)GetUsage(), -BufferSize);
 		}
 	}
 

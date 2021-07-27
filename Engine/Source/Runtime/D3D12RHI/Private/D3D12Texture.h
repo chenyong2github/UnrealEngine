@@ -620,8 +620,10 @@ class FD3D12TextureStats
 public:
 
 	static bool ShouldCountAsTextureMemory(D3D12_RESOURCE_FLAGS MiscFlags);
+
 	// @param b3D true:3D, false:2D or cube map
-	static TStatId GetD3D12StatEnum(D3D12_RESOURCE_FLAGS MiscFlags, bool bCubeMap, bool b3D);
+	static TStatId GetRHIStatEnum(D3D12_RESOURCE_FLAGS MiscFlags, bool bCubeMap, bool b3D);
+	static TStatId GetD3D12StatEnum(D3D12_RESOURCE_FLAGS MiscFlags);
 
 	// Note: This function can be called from many different threads
 	// @param TextureSize >0 to allocate, <0 to deallocate

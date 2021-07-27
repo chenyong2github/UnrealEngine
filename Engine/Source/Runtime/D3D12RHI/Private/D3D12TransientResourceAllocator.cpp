@@ -2,6 +2,7 @@
 
 #include "D3D12RHIPrivate.h"
 #include "D3D12TransientResourceAllocator.h"
+#include "D3D12Stats.h"
 
 D3D12_RESOURCE_STATES GetInitialResourceState(const D3D12_RESOURCE_DESC& InDesc)
 {
@@ -88,11 +89,19 @@ FD3D12TransientHeap::FD3D12TransientHeap(const FRHITransientHeapInitializer& Ini
 	Heap->BeginTrackingResidency(Desc.SizeInBytes);
 
 	BaseGPUVirtualAddress = Heap->GetGPUVirtualAddress();
+
+	INC_MEMORY_STAT_BY(STAT_D3D12TransientHeaps, Desc.SizeInBytes);
 }
 
 FD3D12TransientHeap::~FD3D12TransientHeap()
 {
 	LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
+
+	if (Heap)
+	{
+		D3D12_HEAP_DESC Desc = Heap->GetHeapDesc();
+		DEC_MEMORY_STAT_BY(STAT_D3D12TransientHeaps, Desc.SizeInBytes);
+	}
 }
 
 TUniquePtr<FD3D12TransientResourceSystem> FD3D12TransientResourceSystem::Create(FD3D12Adapter* ParentAdapter, FRHIGPUMask VisibleNodeMask)

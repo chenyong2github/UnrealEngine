@@ -281,22 +281,46 @@ float FD3D12EventNode::GetTiming()
 	return Result;
 }
 
-void UpdateBufferStats(FName Name, int64 RequestedSize)
+inline FName GetRHIBufferStats(EBufferUsageFlags Usage)
 {
-	INC_MEMORY_STAT_BY_FName(Name, RequestedSize);
+	if (Usage & BUF_VertexBuffer)
+	{
+		return GET_STATFNAME(STAT_VertexBufferMemory);
+	}
+	else if (Usage & BUF_IndexBuffer)
+	{
+		return GET_STATFNAME(STAT_IndexBufferMemory);
+	}
+	else if (Usage & BUF_AccelerationStructure)
+	{
+		return GET_STATFNAME(STAT_RTAccelerationStructureMemory);
+	}
+	else
+	{
+		return GET_STATFNAME(STAT_StructuredBufferMemory);
+	}
+}
 
-#if PLATFORM_WINDOWS
-	// this is a work-around on Windows. Due to the fact that there is no way
-	// to hook the actual d3d allocations it is very difficult to track memory
-	// in the normal way. The problem is that some buffers are allocated from
-	// the allocators and some are allocated from the device. Ideally this
-	// tracking would be moved to where the actual d3d resource is created and
-	// released and the tracking could be re-enabled in the buddy allocator.
-	// The problem is that the releasing of resources happens in a generic way
-	// (see FD3D12ResourceLocation) 
-	LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, RequestedSize, ELLMTracker::Default, ELLMAllocType::None);
-	LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, RequestedSize, ELLMTracker::Platform, ELLMAllocType::None);
-#endif
+static FName GetD3D12BufferStat(EBufferUsageFlags InUsageFlags)
+{
+	if (EnumHasAnyFlags(InUsageFlags, BUF_UnorderedAccess))
+	{
+		return GET_STATFNAME(STAT_D3D12UAVBuffers);
+	}
+	else if (EnumHasAnyFlags(InUsageFlags, BUF_AccelerationStructure))
+	{
+		return GET_STATFNAME(STAT_D3D12RTBuffers);
+	}
+	else
+	{
+		return GET_STATFNAME(STAT_D3D12Buffer);
+	}
+}
+
+void UpdateBufferStats(EBufferUsageFlags InUsageFlags, int64 RequestedSize)
+{
+	INC_MEMORY_STAT_BY_FName(GetRHIBufferStats(InUsageFlags), RequestedSize);
+	INC_MEMORY_STAT_BY_FName(GetD3D12BufferStat(InUsageFlags), RequestedSize);
 }
 
 #if NV_AFTERMATH
