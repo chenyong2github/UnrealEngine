@@ -151,15 +151,9 @@ private:
 	}
 };
 
-IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FConcurrentCachedDataProbablyExistsBatch, TEXT(".ConcurrentCachedDataProbablyExistsBatch"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-bool FConcurrentCachedDataProbablyExistsBatch::RunTest(const FString& Parameters)
+// Helper function to create a number of dummy cache keys for testing
+TArray<FString> CreateTestCacheKeys(UE::DerivedData::Backends::FHttpDerivedDataBackend* InTestBackend, uint32 InNumKeys)
 {
-	UE::DerivedData::Backends::FHttpDerivedDataBackend* TestBackend = GetTestBackend();
-
-	const int32  ThreadCount = 64;
-	const double Duration = 10;
-	const uint32 KeysInBatch = 4;
-
 	TArray<FString> Keys;
 	TArray<uint8> KeyContents;
 	KeyContents.Add(42);
@@ -171,12 +165,25 @@ bool FConcurrentCachedDataProbablyExistsBatch::RunTest(const FString& Parameters
 	HashState.GetHash(Hash);
 	const FString HashString = BytesToHex(Hash, FSHA1::DigestSize);
 
-	for (uint32 KeyIndex = 0; KeyIndex < KeysInBatch; ++KeyIndex)
+	for (uint32 KeyIndex = 0; KeyIndex < InNumKeys; ++KeyIndex)
 	{
 		FString NewKey = FString::Printf(TEXT("__AutoTest_Dummy_%u__%s"), KeyIndex, *HashString);
 		Keys.Add(NewKey);
-		TestBackend->PutCachedData(*NewKey, KeyContents, false);
+		InTestBackend->PutCachedData(*NewKey, KeyContents, false);
 	}
+	return Keys;
+}
+
+IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FConcurrentCachedDataProbablyExistsBatch, TEXT(".FConcurrentCachedDataProbablyExistsBatch"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FConcurrentCachedDataProbablyExistsBatch::RunTest(const FString& Parameters)
+{
+	UE::DerivedData::Backends::FHttpDerivedDataBackend* TestBackend = GetTestBackend();
+
+	const int32 ThreadCount = 64;
+	const double Duration = 10;
+	const uint32 KeysInBatch = 4;
+
+	TArray<FString> Keys = CreateTestCacheKeys(TestBackend, KeysInBatch);
 
 	std::atomic<uint32> MismatchedResults = 0;
 
@@ -196,6 +203,46 @@ bool FConcurrentCachedDataProbablyExistsBatch::RunTest(const FString& Parameters
 
 	TestEqual(TEXT("Concurrent calls to CachedDataProbablyExistsBatch for a batch of keys that were put are not reliably found"), MismatchedResults, 0);
 
+	return true;
+}
+
+// This test validate that batch requests wont mismatch head and get request for the same keys in the same batch
+IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FConcurrentExistsAndGetForSameKeyBatch, TEXT(".FConcurrentExistsAndGetForSameKeyBatch"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FConcurrentExistsAndGetForSameKeyBatch::RunTest(const FString& Parameters)
+{
+	UE::DerivedData::Backends::FHttpDerivedDataBackend* TestBackend = GetTestBackend();
+
+	const int32 ParallelTasks = 32;
+	const uint32 Iterations = 20;
+	const uint32 KeysInBatch = 4;
+
+	TArray<FString> Keys = CreateTestCacheKeys(TestBackend, KeysInBatch);
+	// Add some non valid keys by just using guids
+	for (int32 Index = 0; Index < KeysInBatch; ++Index)
+	{
+		Keys.Add(FGuid::NewGuid().ToString());
+	}
+	
+	ParallelFor(ParallelTasks,
+		[&](int32 TaskIndex)
+		{
+			for (uint32 Iteration = 0; Iteration < Iterations; ++Iteration)
+			{
+				for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+				{
+					if ((Iteration % 2) ^ (KeyIndex % 2))
+					{
+						TestBackend->CachedDataProbablyExists(*Keys[KeyIndex]);
+					}
+					else
+					{
+						TArray<uint8> OutData;
+						TestBackend->GetCachedData(*Keys[KeyIndex], OutData);
+					}
+				}
+			}
+		}
+	);
 	return true;
 }
 
