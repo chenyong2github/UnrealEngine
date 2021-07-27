@@ -61,7 +61,7 @@ namespace HairTransition
 		Flags |= ERDGPassFlags::NeverCull;
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairTransitionToSRVPass(%s)", Flags == ERDGPassFlags::Raster ? TEXT("Raster") : TEXT("Compute")),
+			RDG_EVENT_NAME("HairStrands::TransitionToSRVPass(%s)", Flags == ERDGPassFlags::Raster ? TEXT("Raster") : TEXT("Compute")),
 			Parameters,
 			Flags,
 			[Parameters](FRHICommandList& RHICmdList)
@@ -176,7 +176,7 @@ static void AddTransferPositionPass(
 	TShaderMapRef<FTransferVelocityPassCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("TransferPositionForVelocity"),
+		RDG_EVENT_NAME("HairStrands::TransferPositionForVelocity"),
 		ComputeShader,
 		Parameters,
 		FIntVector(DispatchCountX, DispatchCountY, 1));
@@ -284,7 +284,7 @@ static void AddGroomCacheUpdatePass(
 	TShaderMapRef<FGroomCacheUpdatePassCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("GroomCacheUpdate"),
+		RDG_EVENT_NAME("HairStrands::GroomCacheUpdate"),
 		ComputeShader,
 		Parameters,
 		DispatchCount);
@@ -432,7 +432,7 @@ static void AddDeformSimHairStrandsPass(
 	TShaderMapRef<FDeformGuideCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("DeformSimHairStrands"),
+		RDG_EVENT_NAME("HairStrands::DeformSimHairStrands"),
 		ComputeShader,
 		Parameters,
 		FIntVector(DispatchCountX, DispatchCountY, 1));
@@ -479,11 +479,11 @@ class FHairInterpolationCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairInterpolationCS, FGlobalShader);
 
 	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
-	class FDebug : SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 2);
+	class FDebug : SHADER_PERMUTATION_BOOL("PERMUTATION_DEBUG");
 	class FDynamicGeometry : SHADER_PERMUTATION_INT("PERMUTATION_DYNAMIC_GEOMETRY", 5);
-	class FSimulation : SHADER_PERMUTATION_INT("PERMUTATION_SIMULATION", 2);
-	class FSingleGuide : SHADER_PERMUTATION_INT("PERMUTATION_USE_SINGLE_GUIDE", 2);
-	class FCulling : SHADER_PERMUTATION_INT("PERMUTATION_CULLING", 2);
+	class FSimulation : SHADER_PERMUTATION_BOOL("PERMUTATION_SIMULATION");
+	class FSingleGuide : SHADER_PERMUTATION_BOOL("PERMUTATION_USE_SINGLE_GUIDE");
+	class FCulling : SHADER_PERMUTATION_BOOL("PERMUTATION_CULLING");
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry, FSimulation, FSingleGuide, FCulling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -493,7 +493,6 @@ class FHairInterpolationCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairDebugMode)
 		SHADER_PARAMETER(FVector3f, InRenderHairPositionOffset)
 		SHADER_PARAMETER(FVector3f, InSimHairPositionOffset)
-		SHADER_PARAMETER(FIntPoint, HairStrandsCullIndex)
 		SHADER_PARAMETER(uint32,  HairStrandsVF_bIsCullingEnable)
 		SHADER_PARAMETER(FMatrix44f, LocalToWorldMatrix)
 
@@ -509,9 +508,9 @@ class FHairInterpolationCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, Interpolation0Buffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, Interpolation1Buffer)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, AttributeBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SimAttributeBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutRenderAttributeBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, AttributeBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, SimAttributeBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, OutRenderAttributeBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, RestPosition0Buffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, RestPosition1Buffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, RestPosition2Buffer)
@@ -617,7 +616,6 @@ static void AddHairStrandsInterpolationPass(
 		Parameters->Interpolation1Buffer = Interpolation1Buffer;
 	}
 	Parameters->OutRenderDeformedPositionBuffer = OutRenderPositionBuffer.UAV;
-	Parameters->HairStrandsCullIndex = FIntPoint(-1, -1);
 	Parameters->VertexCount = VertexCount;
 	Parameters->InRenderHairPositionOffset = InRenderHairWorldOffset;
 	Parameters->InSimHairPositionOffset =  InSimHairWorldOffset;
@@ -651,33 +649,20 @@ static void AddHairStrandsInterpolationPass(
 	Parameters->LocalToWorldMatrix = Instance->LocalToWorld.ToMatrixWithScale();
 
 	// Debug rendering
+	// 1: Patch attributes for displaying guides influences onto the render strands
+	// 2: Show the visible cluster
 	Parameters->HairDebugMode = 0;
 	{
-		const FHairCullInfo Info = GetHairStrandsCullInfo();
-		const bool bCullingEnable = Info.CullMode != EHairCullMode::None && bIsVertexToCurveBuffersValid_Ren;
-
+		// Patch Attribute0 (RooUV/NormalizedLength/Seed)
 		if (bPatchedAttributeBuffer && OutRenderAttributeBuffer)
 		{
 			Parameters->HairDebugMode = 1;
 			check(SimAttributeBuffer != nullptr);
 			check(OutRenderAttributeBuffer != nullptr);
 		}
-		else if (GStrandHairInterpolationDebug > 0)
-		{
-			Parameters->HairDebugMode = 4;
-		}
 		else if (GetHairStrandsDebugStrandsMode() == EHairStrandsDebugMode::RenderVisCluster)
 		{
-			Parameters->HairDebugMode = 3;
-		}
-		else if (bCullingEnable)
-		{
 			Parameters->HairDebugMode = 2;
-			
-			if (Info.CullMode == EHairCullMode::Sim)
-				Parameters->HairStrandsCullIndex.Y = Info.ExplicitIndex >= 0 ? Info.ExplicitIndex : FMath::Clamp(uint32(Info.NormalizedIndex * SimRestRootResources->BulkData.RootCount), 0u, SimRestRootResources->BulkData.RootCount - 1);
-			if (Info.CullMode == EHairCullMode::Render)
-				Parameters->HairStrandsCullIndex.X = Info.ExplicitIndex >= 0 ? Info.ExplicitIndex : FMath::Clamp(uint32(Info.NormalizedIndex * RenRestRootResources->BulkData.RootCount), 0u, RenRestRootResources->BulkData.RootCount - 1);
 		}
 
 		if (Parameters->HairDebugMode > 0 && OutRenderAttributeBuffer)
@@ -686,6 +671,14 @@ static void AddHairStrandsInterpolationPass(
 			Parameters->OutRenderAttributeBuffer = OutRenderAttributeBuffer->UAV;
 		}
 	}
+
+	// Only needed if DEBUG_ENABLE is manually enabledin HairStrandsInterpolation.usf. This is for manual debug purpose only
+	#if 0
+	if (ShaderDrawData && ShaderDrawData->IsValid())
+	{
+		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
+	}
+	#endif
 
 	const bool bSupportDynamicMesh = 
 		bIsVertexToCurveBuffersValid_Ren &&
@@ -736,11 +729,6 @@ static void AddHairStrandsInterpolationPass(
 		}
 	}
 
-	if (ShaderDrawData)
-	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
-	}
-
 	const bool bHasLocalDeformation = Instance->Guides.bIsSimulationEnable || bSupportGlobalInterpolation;
 	const bool bCullingEnable		= InstanceGeometryType == EHairGeometryType::Strands && CullingData.bCullingResultAvailable;
 	Parameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
@@ -764,11 +752,11 @@ static void AddHairStrandsInterpolationPass(
 
 	FHairInterpolationCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairInterpolationCS::FGroupSize>(GroupSize);
-	PermutationVector.Set<FHairInterpolationCS::FDebug>(Parameters->HairDebugMode > 0 ? 1 : 0);
+	PermutationVector.Set<FHairInterpolationCS::FDebug>(Parameters->HairDebugMode > 0);
 	PermutationVector.Set<FHairInterpolationCS::FDynamicGeometry>(DynamicGeometryType);
-	PermutationVector.Set<FHairInterpolationCS::FSimulation>(bHasLocalDeformation ? 1 : 0);
-	PermutationVector.Set<FHairInterpolationCS::FSingleGuide>(bUseSingleGuide ? 1 : 0);
-	PermutationVector.Set<FHairInterpolationCS::FCulling>(bCullingEnable ? 1 : 0);
+	PermutationVector.Set<FHairInterpolationCS::FSimulation>(bHasLocalDeformation);
+	PermutationVector.Set<FHairInterpolationCS::FSingleGuide>(bUseSingleGuide);
+	PermutationVector.Set<FHairInterpolationCS::FCulling>(bCullingEnable);
 
 	TShaderMapRef<FHairInterpolationCS> ComputeShader(ShaderMap, PermutationVector);
 
@@ -781,7 +769,7 @@ static void AddHairStrandsInterpolationPass(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsInterpolation(culling=on)"),
+			RDG_EVENT_NAME("HairStrands::Interpolation(culling=on)"),
 			ComputeShader, 
 			Parameters,
 			CullingData.HairStrandsVF_CullingIndirectBuffer.Buffer,
@@ -791,7 +779,7 @@ static void AddHairStrandsInterpolationPass(
 	{
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsInterpolation(culling=off)"),
+			RDG_EVENT_NAME("HairStrands::Interpolation(culling=off)"),
 			ComputeShader,
 			Parameters,
 			DispatchCount);
@@ -936,7 +924,7 @@ static void AddHairClusterAABBPass(
 	{
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsClusterAABB(%s)", TEXT("Cluster,Group"), TEXT("Group Only")),
+			RDG_EVENT_NAME("HairStrands::ClusterAABB(%s)", TEXT("Cluster,Group"), TEXT("Group Only")),
 			ComputeShader,
 			Parameters,
 			Parameters->IndirectArgsBuffer, 0);
@@ -945,7 +933,7 @@ static void AddHairClusterAABBPass(
 	{
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsClusterAABB(%s)", TEXT("Cluster,Group"), TEXT("Group Only")),
+			RDG_EVENT_NAME("HairStrands::ClusterAABB(%s)", TEXT("Cluster,Group"), TEXT("Group Only")),
 			ComputeShader,
 			Parameters,
 			FIntVector(1,1,1));
@@ -1074,7 +1062,7 @@ static void AddHairCardsDeformationPass(
 	const int32 DispatchCountX = FMath::DivideAndRoundUp(Parameters->CardsVertexCount, GroupSize);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairCardsDeformation"),
+		RDG_EVENT_NAME("HairStrands::CardsDeformation"),
 		ComputeShader,
 		Parameters,
 		FIntVector(DispatchCountX,1,1));
@@ -1144,7 +1132,7 @@ void AddHairTangentPass(
 		
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsTangent(culling=on)"),
+			RDG_EVENT_NAME("HairStrands::Tangent(culling=on)"),
 			ComputeShader,
 			Parameters,
 			DrawIndirectRasterComputeBuffer.Buffer, 0);
@@ -1153,7 +1141,7 @@ void AddHairTangentPass(
 	{
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsTangent(culling=off)"),
+			RDG_EVENT_NAME("HairStrands::Tangent(culling=off)"),
 			ComputeShader,
 			Parameters,
 			DispatchCount);
@@ -1237,7 +1225,7 @@ static void AddGenerateRaytracingGeometryPass(
 	TShaderMapRef<FHairRaytracingGeometryCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsRaytracingGeometry"),
+		RDG_EVENT_NAME("HairStrands::GenerateRaytracingGeometry"),
 		ComputeShader,
 		Parameters,
 		DispatchCount);
@@ -1293,7 +1281,7 @@ static void AddClearClusterAABBPass(
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsClearClusterAABB(%s)", UpdateType == EHairAABBUpdateType::UpdateClusterAABB ? TEXT("Cluster,Group") : TEXT("Group Only")),
+		RDG_EVENT_NAME("HairStrands::ClearClusterAABB(%s)", UpdateType == EHairAABBUpdateType::UpdateClusterAABB ? TEXT("Cluster,Group") : TEXT("Group Only")),
 		ComputeShader,
 		Parameters,
 		DispatchCount);
@@ -1509,7 +1497,7 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PositionBuffer,			Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
 		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PrevPositionBuffer,		Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::EFrameType::Previous));
 		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.TangentBuffer,			Instance->Strands.DeformedResource->TangentBuffer);
-		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.Attribute0Buffer,			/*bDebugModePatchedAttributeBuffer ? Instance->Strands.DebugAttributeBuffer : */Instance->Strands.RestResource->Attribute0Buffer); // TODO
+		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.Attribute0Buffer,			bDebugModePatchedAttributeBuffer ? Instance->Strands.DebugAttributeBuffer : Instance->Strands.RestResource->Attribute0Buffer); // TODO
 		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.Attribute1Buffer,			Instance->Strands.RestResource->Attribute1Buffer);
 		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.MaterialBuffer,			Instance->Strands.RestResource->MaterialBuffer);
 		CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutVFInput.Strands.PositionOffsetBuffer,		Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
@@ -1829,7 +1817,7 @@ void ComputeHairStrandsInterpolation(
 						Raytracing_PositionBuffer.UAV);
 
 					GraphBuilder.AddPass(
-						RDG_EVENT_NAME("HairUpdateBLAS(Strands)"),
+						RDG_EVENT_NAME("HairStrands::UpdateBLAS(Strands)"),
 						ERDGPassFlags::NeverCull,
 					[Instance, bNeedUpdate](FRHICommandList& RHICmdList)
 					{
@@ -1955,7 +1943,7 @@ void ComputeHairStrandsInterpolation(
 				if (bNeedBuild || bNeedUpdate)
 				{
 					GraphBuilder.AddPass(
-						RDG_EVENT_NAME("HairUpdateBLAS(Cards)"),
+						RDG_EVENT_NAME("HairStrands::UpdateBLAS(Cards)"),
 						ERDGPassFlags::NeverCull,
 						[Instance, HairLODIndex, bNeedUpdate](FRHICommandListImmediate& RHICmdList)
 					{
@@ -2018,7 +2006,7 @@ void ComputeHairStrandsInterpolation(
 				if (bNeedBuid || bNeedUpdate)
 				{
 					GraphBuilder.AddPass(
-						RDG_EVENT_NAME("HairUpdateBLAS(Meshes)"),
+						RDG_EVENT_NAME("HairStrands::UpdateBLAS(Meshes)"),
 						ERDGPassFlags::NeverCull,
 						[Instance, HairLODIndex, bNeedUpdate](FRHICommandListImmediate& RHICmdList)
 					{

@@ -65,14 +65,6 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxel_ForceMipLevel(TEXT("r.HairSt
 static int32 GHairVirtualVoxel_DebugTraversalType = 0;
 static FAutoConsoleVariableRef CVarHairVirtualVoxel_DebugTraversalType(TEXT("r.HairStrands.Voxelization.Virtual.DebugTraversalType"), GHairVirtualVoxel_DebugTraversalType, TEXT("Traversal mode (0:linear, 1:mip) for debug voxel visualization."));
 
-static int32 GHairStrandsCull = 0;
-static int32 GHairStrandsCullIndex = -1;
-static int32 GHairStrandsUpdateCullIndex = 0;
-static float GHairStrandsCullNormalizedIndex = -1;
-static FAutoConsoleVariableRef CVarHairStrandsCull			(TEXT("r.HairStrands.Cull"), GHairStrandsCull, TEXT("Cull hair strands (0:disabled, 1: render cull, 2: sim cull)."));
-static FAutoConsoleVariableRef CVarHairStrandsCullIndex		(TEXT("r.HairStrands.Cull.Index"), GHairStrandsCullIndex, TEXT("Hair strands index to be kept. Other will be culled."));
-static FAutoConsoleVariableRef CVarHairStrandsUpdateCullIndex(TEXT("r.HairStrands.Cull.Update"), GHairStrandsUpdateCullIndex, TEXT("Update the guide index to be kept using mouse position for fast selection."));
-
 static bool IsDebugDrawAndDebugPrintEnabled(const FViewInfo& View)
 {
 	return ShaderDrawDebug::IsEnabled(View) && ShaderPrint::IsEnabled(View);
@@ -96,15 +88,6 @@ void SetHairScreenLODInfo(bool bEnable)
 		ShaderPrint::SetFontSize(8);
 	}
 	GHairStrandsClusterDebug = bEnable ? 4 : 1;
-}
-
-FHairCullInfo GetHairStrandsCullInfo()
-{
-	FHairCullInfo Out;
-	Out.CullMode		= GHairStrandsCull == 1 ? EHairCullMode::Render : (GHairStrandsCull == 2 ? EHairCullMode::Sim : EHairCullMode::None);
-	Out.ExplicitIndex	= GHairStrandsCullIndex >= 0 ? GHairStrandsCullIndex : -1;
-	Out.NormalizedIndex = GHairStrandsCullNormalizedIndex;
-	return Out;
 }
 
 FHairStrandsDebugData::Data FHairStrandsDebugData::CreateData(FRDGBuilder& GraphBuilder)
@@ -1043,13 +1026,6 @@ static void InternalRenderHairStrandsDebugInfo(
 	const float ColumnWidth = 200;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsDebug");
-
-	if (GHairStrandsUpdateCullIndex)
-	{
-		const float TotalPixelCount = View.ViewRect.Width() * View.ViewRect.Height();
-		const float Index = View.CursorPos.X + View.CursorPos.Y * View.ViewRect.Width();
-		GHairStrandsCullNormalizedIndex = Index / TotalPixelCount;
-	}
 
 	// Only render debug information for the main view
 	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
