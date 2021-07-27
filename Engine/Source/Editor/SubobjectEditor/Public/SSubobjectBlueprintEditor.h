@@ -9,19 +9,26 @@
 */
 class SUBOBJECTEDITOR_API SSubobjectBlueprintEditor final : public SSubobjectEditor
 {
+public:
+	DECLARE_DELEGATE_OneParam(FOnHighlightPropertyInDetailsView, const class FPropertyPath&);
+
 private:	
 	SLATE_BEGIN_ARGS(SSubobjectBlueprintEditor)
         : _ObjectContext(nullptr)
 		, _PreviewActor(nullptr)
         , _AllowEditing(true)
+		, _HideComponentClassCombo(false)
         , _OnSelectionUpdated()
+		, _OnHighlightPropertyInDetailsView()
 		{}
 
 		SLATE_ATTRIBUTE(UObject*, ObjectContext)
 		SLATE_ATTRIBUTE(AActor*, PreviewActor)
 	    SLATE_ATTRIBUTE(bool, AllowEditing)
+		SLATE_ATTRIBUTE(bool, HideComponentClassCombo)
 	    SLATE_EVENT(FOnSelectionUpdated, OnSelectionUpdated)
 	    SLATE_EVENT(FOnItemDoubleClicked, OnItemDoubleClicked)
+		SLATE_EVENT(FOnHighlightPropertyInDetailsView, OnHighlightPropertyInDetailsView)
 	    
 	SLATE_END_ARGS()
 	
@@ -58,6 +65,9 @@ public:
 
 public:
 
+	/** Delegate to invoke when the given property should be highlighted in the details view (e.g. diff). */
+	FOnHighlightPropertyInDetailsView OnHighlightPropertyInDetailsView;
+	
 	/**
 	* Fills out an events section in ui.
 	* @param Menu								the menu to add the events section into
@@ -68,6 +78,14 @@ public:
 	*/
 	static void BuildMenuEventsSection(FMenuBuilder& Menu, UBlueprint* Blueprint, UClass* SelectedClass, FCanExecuteAction CanExecuteActionDelegate, FGetSelectedObjectsDelegate GetSelectedObjectsDelegate);
 
+	/**
+	* Highlight a tree node and, optionally, a property with in it
+	*
+	* @param TreeNodeName		Name of the treenode to be highlighted
+	* @param Property	The name of the property to be highlighted in the details view
+	*/
+	void HighlightTreeNode(FName TreeNodeName, const class FPropertyPath& Property);
+	
 protected:
 
 	/**

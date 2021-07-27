@@ -9,6 +9,7 @@
 #include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
 #include "SCSEditorExtensionContext.h"	// #TODO_BH Rename this to subobject (this one will break VK, for sure)
 #include "ToolMenus.h"
+#include "PropertyPath.h"
 
 #include "Styling/SlateIconFinder.h"
 #include "SlateOptMacros.h"
@@ -42,7 +43,9 @@ void SSubobjectBlueprintEditor::Construct(const FArguments& InArgs)
 	PreviewActor = InArgs._PreviewActor;
 	OnSelectionUpdated = InArgs._OnSelectionUpdated;
 	OnItemDoubleClicked = InArgs._OnItemDoubleClicked;
+	OnHighlightPropertyInDetailsView = InArgs._OnHighlightPropertyInDetailsView;
 	AllowEditing = InArgs._AllowEditing;
+	HideComponentClassCombo = InArgs._HideComponentClassCombo;
 	bAllowTreeUpdates = true;
 	
 	CreateCommandList();
@@ -750,6 +753,50 @@ void SSubobjectBlueprintEditor::BuildMenuEventsSection(FMenuBuilder& Menu, UBlue
 		Menu.AddMenuEntry( ItemIter->Label, ItemIter->ToolTip, FSlateIcon(), ItemIter->UIAction );
 	}
 	Menu.EndSection();
+}
+
+void SSubobjectBlueprintEditor::HighlightTreeNode(FName TreeNodeName, const FPropertyPath& Property)
+{
+	// If there are no nodes then there is nothing to do!
+	if (RootNodes.Num() == 0)
+	{
+		return;
+	}
+
+	// Find the tree node that matches up with the given property FName
+	FSubobjectEditorTreeNodePtrType FoundNode = nullptr;
+
+	TSet<FSubobjectEditorTreeNodePtrType> VisitedNodes;
+	DepthFirstTraversal(RootNodes[0], VisitedNodes,
+		[&FoundNode, TreeNodeName](
+		const FSubobjectEditorTreeNodePtrType& CurNodePtr)
+		{
+			if (CurNodePtr->GetDataHandle().IsValid())
+			{
+				if (CurNodePtr->GetDataHandle().GetSharedDataPtr()->GetVariableName() == TreeNodeName)
+				{
+					FoundNode = CurNodePtr;
+				}
+			}
+		}
+	);
+
+
+	// If it was found, then select it and broadcast the delegate to let the diff panel know
+	if (FoundNode)
+	{
+		SelectNode(FoundNode->AsShared(), false);
+
+		if (Property != FPropertyPath())
+		{
+			// Invoke the delegate to highlight the property
+			OnHighlightPropertyInDetailsView.ExecuteIfBound(Property);
+		}
+
+		return;
+	}
+
+	ClearSelection();
 }
 
 void SSubobjectBlueprintEditor::CreateEventsForSelection(UBlueprint* Blueprint, FName EventName, FGetSelectedObjectsDelegate GetSelectedObjectsDelegate)
