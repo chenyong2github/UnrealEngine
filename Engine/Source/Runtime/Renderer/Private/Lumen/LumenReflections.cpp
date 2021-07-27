@@ -553,10 +553,7 @@ void UpdateHistoryReflections(
 		FIntRect* HistoryViewRect = &ReflectionTemporalState.HistoryViewRect;
 		FVector4* HistoryScreenPositionScaleBias = &ReflectionTemporalState.HistoryScreenPositionScaleBias;
 
-		//@todo - pull out previous frame depth to a common location for the whole renderer
-		FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
-		TRefCountPtr<IPooledRenderTarget>* DepthHistoryState = &ScreenProbeGatherState.DownsampledDepthHistoryRT;
-		FRDGTextureRef OldDepthHistory = DepthHistoryState ? GraphBuilder.RegisterExternalTexture(*DepthHistoryState) : SceneTextures.Depth.Target;
+		FRDGTextureRef OldDepthHistory = View.PrevViewInfo.DepthBuffer ? GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer) : SceneTextures.Depth.Target;
 
 		{
 			FRDGTextureRef OldSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*SpecularIndirectHistoryState);
@@ -626,7 +623,7 @@ void UpdateHistoryReflections(
 			0);
 	}
 
-	if (View.ViewState)
+	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
 	{
 		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
 		ReflectionTemporalState.HistoryViewRect = View.ViewRect;

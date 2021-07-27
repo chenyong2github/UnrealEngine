@@ -3118,7 +3118,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		const FViewInfo& View = Views[ViewIndex];
 
 		if (((View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::ScreenSpace && ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
-			|| GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+			|| GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen
+			|| GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen)
 			&& !View.bStatePrevViewInfoIsReadOnly)
 		{
 			// Keep scene color and depth for next frame screen space ray tracing.
