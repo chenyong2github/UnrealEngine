@@ -80,6 +80,17 @@ void MainPS(
 
 	if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 	{
-		MarkPositionUsedInIndirectionTexture(MaterialParameters.AbsoluteWorldPosition, ClipmapIndex);
+		float MaxDepth = 1000000.0f;
+#define CULL_TO_HZB 1
+#if CULL_TO_HZB
+		float2 HZBScreenUV = SvPosition.xy * View.ViewSizeAndInvSize.zw * LumenTranslucencyRadianceCacheMarkPass.ViewportUVToHZBBufferUV;
+
+		MaxDepth = ConvertFromDeviceZ(LumenTranslucencyRadianceCacheMarkPass.FurthestHZBTexture.SampleLevel(GlobalPointClampedSampler, HZBScreenUV, LumenTranslucencyRadianceCacheMarkPass.HZBMipLevel).x);
+#endif
+
+		if (MaterialParameters.ScreenPosition.w < MaxDepth)
+		{
+			MarkPositionUsedInIndirectionTexture(MaterialParameters.AbsoluteWorldPosition, ClipmapIndex);
+		}
 	}
 }
