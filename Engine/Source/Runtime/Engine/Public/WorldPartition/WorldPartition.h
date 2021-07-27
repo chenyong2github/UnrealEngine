@@ -121,12 +121,6 @@ private:
 
 	static void WorldPartitionOnLevelRemovedFromWorld(class ULevel* Level, UWorld* InWorld);
 
-	// UWorldPartitionSubsystem interface+
-	friend class UWorldPartitionSubsystem;
-
-	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
-	// UActorPartitionSubsystem interface-
-
 public:
 	//~ Begin UObject Interface
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
@@ -177,6 +171,8 @@ public:
 	void UpdateStreamingState();
 	class ULevel* GetPreferredLoadedLevelToAddToWorld() const;
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
+
+	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 
 	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
