@@ -295,6 +295,20 @@ bool URigVMMemoryStorage::SetDataFromString(int32 InPropertyIndex, const FString
 	return ErrorPipe.NumErrors == 0;
 }
 
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+FRigVMMemoryHandle URigVMMemoryStorage::GetHandle(int32 InPropertyIndex, const FRigVMPropertyPath* InPropertyPath)
+{
+	check(IsValidIndex(InPropertyIndex));
+
+	const FProperty* Property = GetProperties()[InPropertyIndex];
+	uint8* Data = GetData<uint8>(InPropertyIndex);
+
+	return FRigVMMemoryHandle(Data, Property, InPropertyPath);
+}
+
+#endif
+
 bool URigVMMemoryStorage::CopyProperty(
 	const FProperty* InTargetProperty,
 	uint8* InTargetPtr,

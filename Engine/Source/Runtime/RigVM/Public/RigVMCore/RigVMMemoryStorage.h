@@ -236,6 +236,18 @@ public:
 		return SetDataFromString(PropertyIndex, InValue);
 	}
 
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
+	FRigVMMemoryHandle GetHandle(int32 InPropertyIndex, const FRigVMPropertyPath* InPropertyPath = nullptr);
+
+	FORCEINLINE FRigVMMemoryHandle GetHandleByName(const FName& InName, const FRigVMPropertyPath* InPropertyPath = nullptr)
+	{
+		const int32 PropertyIndex = GetPropertyIndexByName(InName);
+		return GetHandle(PropertyIndex, InPropertyPath);
+	}
+	
+#endif
+	
 	static bool CopyProperty(
 		const FProperty* InTargetProperty,
 		uint8* InTargetPtr,
