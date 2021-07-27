@@ -106,6 +106,12 @@ public:
 	/** Get whether we should show pages or not */
 	bool GetShowPages() const;
 
+	/** Set whether we should scroll to the bottom when messages are added */
+	void SetScrollToBottom(bool bInScrollToBottom);
+
+	/** Get whether we should scroll to the bottom when messages are added */
+	bool GetScrollToBottom() const;
+
 	/** Set whether we should show allow the user to clear the log. */
 	void SetAllowClear(bool bInAllowClear);
 
@@ -157,6 +163,7 @@ private:
 		, bShowPages( InitializationOptions.bShowPages )
 		, bAllowClear( InitializationOptions.bAllowClear )
 		, bDiscardDuplicates( InitializationOptions.bDiscardDuplicates )
+		, bScrollToBottom( InitializationOptions.bScrollToBottom )
 		, MaxPageCount( InitializationOptions.MaxPageCount )
 		, bShowInLogWindow( InitializationOptions.bShowInLogWindow )
 		, CurrentPageIndex( 0 )
@@ -196,6 +203,9 @@ private:
 
 	/** Whether to check for duplicate messages & discard them */
 	bool bDiscardDuplicates;
+
+	/** Whether to scroll to the bottom when messages are added */
+	bool bScrollToBottom;
 
 	/** The limit on the number of displayed pages for this listing */
 	uint32 MaxPageCount;

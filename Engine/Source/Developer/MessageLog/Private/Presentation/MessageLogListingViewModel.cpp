@@ -396,6 +396,16 @@ bool FMessageLogListingViewModel::GetShowPages() const
 	return bShowPages;
 }
 
+void FMessageLogListingViewModel::SetScrollToBottom(bool bInScrollToBottom)
+{
+	bScrollToBottom = bInScrollToBottom;
+}
+
+bool FMessageLogListingViewModel::GetScrollToBottom() const
+{
+	return bScrollToBottom;
+}
+
 void FMessageLogListingViewModel::SetAllowClear(bool bInAllowClear)
 {
 	bAllowClear = bInAllowClear;

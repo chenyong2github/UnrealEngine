@@ -197,9 +197,16 @@ void SMessageLogListing::OnSelectionChanged()
 void SMessageLogListing::RefreshVisibility()
 {
 	const TArray< TSharedRef<FTokenizedMessage> >& Messages = MessageLogListingViewModel->GetFilteredMessages();
-	if(Messages.Num() > 0)
+	if (Messages.Num() > 0)
 	{
-		ScrollToMessage( Messages[0] );
+		if (MessageLogListingViewModel->GetScrollToBottom())
+		{
+			ScrollToMessage( Messages.Last() );
+		}
+		else
+		{
+			ScrollToMessage( Messages[0] );
+		}
 	}
 	
 	MessageListView->RequestListRefresh();
