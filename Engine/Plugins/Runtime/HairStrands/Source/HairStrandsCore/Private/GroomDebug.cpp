@@ -671,6 +671,11 @@ static void AddDrawDebugCardsGuidesPass(
 	const bool bDeformed, 
 	const bool bRen)
 {
+	if (!ShaderDrawDebug::IsSupported(View.GetShaderPlatform()))
+	{
+		return;
+	}
+
 	// Force shader debug to be enabled
 	if (!ShaderDrawDebug::IsEnabled())
 	{

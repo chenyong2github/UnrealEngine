@@ -7,9 +7,15 @@
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 
+#if COMPILER_METAL || COMPILER_VULKAN
+#define ALLOW_DEBUG_RENDERING 0
+#else
+#define ALLOW_DEBUG_RENDERING 1
+#endif
+
 #define DEBUG_ENABLE 0
 
-#if DEBUG_ENABLE
+#if DEBUG_ENABLE && ALLOW_DEBUG_RENDERING
 #include "../ShaderDrawDebug.ush"
 #include "../ColorMap.ush"
 #endif
@@ -28,22 +34,11 @@
 
 #if SHADER_HAIRINTERPOLATION
 
-#if COMPILER_METAL || COMPILER_VULKAN
-#define ALLOW_DEBUG_RENDERING 0
-#else
-#define ALLOW_DEBUG_RENDERING 1
-#endif
-
-#if PERMUTATION_DEBUG == 1 && ALLOW_DEBUG_RENDERING
-#include "../ShaderDrawDebug.ush" 
-#endif
-
 uint VertexCount;
 uint DispatchCountX;
 uint HairDebugMode;
 float3 InRenderHairPositionOffset;
 float3 InSimHairPositionOffset;
-int2 HairStrandsCullIndex;
 float4x4 LocalToWorldMatrix;
 
 Buffer<uint4>  RenderRestPosePositionBuffer;
@@ -209,7 +204,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		uint3  GuideVertexIndices = 0;
 		float3 GuideVertexLerps = 0;
 		float3 GuideVertexWeights = 0;
-		#if PERMUTATION_SIMULATION == 1 || PERMUTATION_DEBUG == 1 || PERMUTATION_DEBUG == 2 
+		#if PERMUTATION_SIMULATION == 1 || PERMUTATION_DEBUG == 1
 		{
 
 		  #if PERMUTATION_USE_SINGLE_GUIDE == 1
@@ -320,24 +315,23 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			WorldVertexPosition = ControlPoint;
 
-			#if PERMUTATION_DEBUG == 1 && ALLOW_DEBUG_RENDERING
+			#if DEBUG_ENABLE
+			// Debug drawing which is manually enabled, then 
 			{
-				const bool bDebugEnabled = HairDebugMode == 4;
 				const float4 RestColor = float4(0, 1, 0, 1);
 				const float4 DeformedColor = float4(1, 0, 0, 1);
-				if (bDebugEnabled && VertexIndex==0)
+				if (VertexIndex==0)
 				{	
 					AddCross(InRenderHairPositionOffset, 1.2, RestColor);
 					AddCross(OutRenHairPositionOffset, 1, DeformedColor);
 				}
 			
-				if (bDebugEnabled && VertexIndex >= 0 && VertexIndex < 64)
+				if (VertexIndex >= 0 && VertexIndex < 64)
 				{
 					AddReferential(RestControlPoint, float3(0, 0, 1));
 					AddReferential(WorldVertexPosition, float3(0, 0, 1));
 				}
 
-				if (bDebugEnabled)
 				{
 					const uint ControlPointType = asuint(PackedRestPosition.w) & 0x3;
 					const bool bIsRoot = ControlPointType == 1;
@@ -503,39 +497,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			OutRenderAttributeBuffer[VertexIndex] = GuideAttribute;
 		}
 
-		// Cull hair strands or clusters which are not matching the provided index
 		if (HairDebugMode == 2)
-		{
-		#if 0
-			bool bIsValid = false;
-			if (HairStrandsCullIndex.y >= 0)
-			{
-
-				for (uint K = 0; K < 3; ++K)
-				{
-					const uint GuideIndex = GuideVertexIndices[K];
-					const uint RootIndex = SimVertexToRootIndexBuffer[GuideIndex];
-					if (uint(HairStrandsCullIndex.y) == RootIndex)
-					{
-						bIsValid = true;
-						break;
-					}
-				}
-			}
-			else if (HairStrandsCullIndex.x >= 0)
-			{
-				const uint RootIndex = RenVertexToRootIndexBuffer[VertexIndex];
-				bIsValid = uint(HairStrandsCullIndex.x) == RootIndex;
-			}
-
-			if (!bIsValid)
-			{
-				OutRenderDeformedPositionBuffer[VertexIndex] = float4(float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY), 2);
-			}
-		#endif		
-		}
-
-		if (HairDebugMode == 3)
 		{
 			const uint ClusterId = VertexToClusterIdBuffer[VertexIndex];
 			const uint ClusterIdLo8bits = ClusterId & 0xFF;

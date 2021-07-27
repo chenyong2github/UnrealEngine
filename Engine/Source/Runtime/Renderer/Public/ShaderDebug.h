@@ -13,6 +13,7 @@ struct FShaderDrawDebugData
 	FIntPoint CursorPosition;
 	FRDGBufferRef Buffer = nullptr;
 	FRDGBufferRef IndirectBuffer = nullptr;
+	bool IsValid() const { return Buffer != nullptr && IndirectBuffer != nullptr; }
 };
 
 namespace ShaderDrawDebug 

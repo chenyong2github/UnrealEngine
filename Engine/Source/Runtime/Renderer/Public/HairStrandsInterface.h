@@ -382,21 +382,6 @@ RENDERER_API bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPla
 RENDERER_API bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform = EShaderPlatform::SP_NumPlatforms);
 RENDERER_API void SetHairStrandsEnabled(bool In);
 
-// Return strands & guide indices to be preserved, while all others strands/guides should be culled
-enum class EHairCullMode : uint8
-{
-	None,
-	Render,
-	Sim
-};
-struct FHairCullInfo
-{
-	int32 ExplicitIndex = -1; 
-	float NormalizedIndex = 0; // [0,1]
-	EHairCullMode CullMode = EHairCullMode::None;
-};
-RENDERER_API FHairCullInfo GetHairStrandsCullInfo();
-
 RENDERER_API bool IsHairRayTracingEnabled();
 
 // Return true if hair simulation is enabled.
