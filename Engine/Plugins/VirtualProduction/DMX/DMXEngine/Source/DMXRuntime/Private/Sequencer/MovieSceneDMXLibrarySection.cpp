@@ -99,9 +99,9 @@ void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*
 		int32 NumXCells = Mode.FixtureMatrixConfig.XCells;
 		int32 NumYCells = Mode.FixtureMatrixConfig.YCells;
 
-		for (int32 IdxCellX = 0; IdxCellX < NumXCells; IdxCellX++)
+		for (int32 IdxCellY = 0; IdxCellY < NumYCells; IdxCellY++)
 		{
-			for (int32 IdxCellY = 0; IdxCellY < NumYCells; IdxCellY++)
+			for (int32 IdxCellX = 0; IdxCellX < NumXCells; IdxCellX++)
 			{
 				FIntPoint CellCoordinates = FIntPoint(IdxCellX, IdxCellY);
 
@@ -350,10 +350,10 @@ void UMovieSceneDMXLibrarySection::Serialize(FArchive& Ar)
 					{
 						UE_LOG(LogDMXRuntime, Error, TEXT("Found Fixture Patch being used in a dynamically created 4.26 DMX Sequence, e.g. a level sequence player in a blueprint. This caused a issues in 4.26, the sequence would not play."));
 						UE_LOG(LogDMXRuntime, Error, TEXT("To restore functionality, please follow these steps:"));
-						UE_LOG(LogDMXRuntime, Error, TEXT("1. Remove the blueprint that uses the sequence player from the level andd save the level."));
-						UE_LOG(LogDMXRuntime, Error, TEXT("2. Restart the engine:		This message should no longer appear. Resave your sequence."));
+						UE_LOG(LogDMXRuntime, Error, TEXT("1. Remove the blueprint that uses the sequence player from the level and save the level."));
+						UE_LOG(LogDMXRuntime, Error, TEXT("2. Restart the engine: This message should no longer appear and dmx tracks should show in the sequence. Resave your sequence."));
 						UE_LOG(LogDMXRuntime, Error, TEXT("3. Restart the engine again. Now add the blueprint back to the level, save the level."));
-						UE_LOG(LogDMXRuntime, Error, TEXT("From hereon the sequence should play fine. These steps will not be required with newly recorded sequences from 4.27 on. We appologize for the inconveniences."));
+						UE_LOG(LogDMXRuntime, Error, TEXT("From hereon the sequence should play fine. These steps will not be required with newly recorded sequences from 4.27 on. Appologies for the inconveniences."));
 					}
 				}
 			}

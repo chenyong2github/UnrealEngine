@@ -51,7 +51,7 @@ public:
 
 	FORCEINLINE bool IsCellChannel() const { return bCellChannel; }
 
-	FORCEINLINE int32 GetCellIndex() const { return CellIndex; }
+	FORCEINLINE FIntPoint GetCellCoordinate() const { return CellCoordinate; }
 
 private: 
 	/** Raw ptr to the fixture patch of the channel, not guaranteed to remain valid */
@@ -69,8 +69,8 @@ private:
 	/** True if the channel is a matrix cell channel */
 	bool bCellChannel;
 
-	/** The cell index, INDEX_NONE if !bCellChannel */
-	int32 CellIndex;
+	/** The cell coordinate */
+	FIntPoint CellCoordinate;
 };
 
 
