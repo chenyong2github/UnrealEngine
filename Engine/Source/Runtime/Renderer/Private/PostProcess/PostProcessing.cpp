@@ -149,7 +149,7 @@ class FComposeSeparateTranslucencyPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FComposeSeparateTranslucencyPS);
 	SHADER_USE_PARAMETER_STRUCT(FComposeSeparateTranslucencyPS, FGlobalShader);
 
-	class FNearestDepthNeighborUpsampling : SHADER_PERMUTATION_INT("PERMUTATION_NEARESTDEPTHNEIGHBOR", 2);
+	class FNearestDepthNeighborUpsampling : SHADER_PERMUTATION_BOOL("PERMUTATION_NEARESTDEPTHNEIGHBOR");
 	using FPermutationDomain = TShaderPermutationDomain<FNearestDepthNeighborUpsampling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -181,37 +181,81 @@ IMPLEMENT_GLOBAL_SHADER(FComposeSeparateTranslucencyPS, "/Engine/Private/Compose
 
 extern bool GetUseTranslucencyNearestDepthNeighborUpsample(float DownsampleScale);
 
-FRDGTextureRef AddPostDOFTranslucencyCompositionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& SceneColor, const FScreenPassTexture& SceneDepth, const FSeparateTranslucencyTextures& SeparateTranslucencyTextures)
+FRDGTextureRef AddTranslucencyCompositionPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FScreenPassTexture& SceneColor,
+	const FScreenPassTexture& SceneDepth,
+	const FSeparateTranslucencyTextures& SeparateTranslucencyTextures,
+	bool bPostMotionBlur,
+	bool bApplyModulateOnly)
 {
-	// if nothing is rendered into the separate translucency, then just return the existing Scenecolor
-	if (!SeparateTranslucencyTextures.IsColorValid() && !SeparateTranslucencyTextures.IsColorModulateValid())
+	FRDGTextureRef SeparateModulationTexture;
+	FRDGTextureRef SeparateTranslucencyTexture;
+
+	if (bPostMotionBlur)
 	{
-		return SceneColor.Texture;
+		check(!bApplyModulateOnly);
+
+		// if nothing is rendered into the separate translucency, then just return the existing Scenecolor
+		if (!SeparateTranslucencyTextures.IsPostMotionBlurColorValid())
+		{
+			return SceneColor.Texture;
+		}
+
+		SeparateTranslucencyTexture = SeparateTranslucencyTextures.GetPostMotionBlurColorForRead(GraphBuilder);
+		SeparateModulationTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+	}
+	else
+	{
+		// if nothing is rendered into the separate translucency, then just return the existing Scenecolor
+		if (!SeparateTranslucencyTextures.IsColorValid() && !SeparateTranslucencyTextures.IsColorModulateValid())
+		{
+			return SceneColor.Texture;
+		}
+
+		SeparateTranslucencyTexture = SeparateTranslucencyTextures.GetColorForRead(GraphBuilder);
+		SeparateModulationTexture = SeparateTranslucencyTextures.GetColorModulateForRead(GraphBuilder);
+
+		if (bApplyModulateOnly)
+		{
+			if (!SeparateTranslucencyTextures.IsColorModulateValid())
+			{
+				return SceneColor.Texture;
+			}
+
+			SeparateTranslucencyTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
+		}
+	}
+	
+	FRDGTextureRef NewSceneColor;
+	{
+		FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
+		OutputDesc.Reset();
+
+		if (OutputDesc.Format == PF_FloatRGBA && !IsPostProcessingWithAlphaChannelSupported())
+		{
+			OutputDesc.Format = PF_FloatRGB;
+		}
+
+		NewSceneColor = GraphBuilder.CreateTexture(
+			OutputDesc,
+			bPostMotionBlur ? TEXT("PostMotionBlurTranslucency.SceneColor") : TEXT("PostDOFTranslucency.SceneColor"));
 	}
 
-	FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
-	OutputDesc.Reset();
-
-	if (OutputDesc.Format == PF_FloatRGBA && !IsPostProcessingWithAlphaChannelSupported())
-	{
-		OutputDesc.Format = PF_FloatRGB;
-	}
-
-	FRDGTextureRef NewSceneColor = GraphBuilder.CreateTexture(OutputDesc, TEXT("PostDOFTranslucency.SceneColor"));
-	FRDGTextureRef SeparateTranslucency = SeparateTranslucencyTextures.GetColorForRead(GraphBuilder);	
-
-	const FIntRect SceneColorRect = SceneColor.ViewRect;
-	const FVector2D SceneColorSize(SceneColorRect.Size());
+	const FVector2D SceneColorSize(SceneColor.ViewRect.Size());
 	const FVector2D SceneColorSizeInv = FVector2D(1.0f, 1.0f) / SceneColorSize;	
-	const FVector2D SceneColorExtent(OutputDesc.Extent);
+	const FVector2D SceneColorExtent(NewSceneColor->Desc.Extent);
 	const FVector2D SceneColorExtentInv = FVector2D(1.0f, 1.0f) / SceneColorExtent;
 	
 	const FIntRect SeparateTranslucencyRect = SeparateTranslucencyTextures.GetDimensions().GetViewport(View.ViewRect).Rect;
 	const FVector2D SeparateTranslucencySize(SeparateTranslucencyRect.Size());
-	const FVector2D SeparateTranslucencyExtent(SeparateTranslucency->Desc.Extent);
+	const FVector2D SeparateTranslucencyExtent((bApplyModulateOnly ? SeparateModulationTexture : SeparateTranslucencyTexture)->Desc.Extent);
 	const FVector2D SeparateTranslucencyExtentInv = FVector2D(1.0f, 1.0f) / SeparateTranslucencyExtent;
 	
 	const bool bScaleSeparateTranslucency = SeparateTranslucencySize != SceneColorSize;
+	const float DownsampleScale = SeparateTranslucencySize.X / SceneColorExtent.X;
+	const bool DepthUpscampling = !bPostMotionBlur && GetUseTranslucencyNearestDepthNeighborUpsample(DownsampleScale) ? 1 : 0;
 
 	FComposeSeparateTranslucencyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeSeparateTranslucencyPS::FParameters>();
 	PassParameters->ScreenPosToSceneColorUV = SceneColorSizeInv * SceneColorSize * SceneColorExtentInv;
@@ -220,97 +264,37 @@ FRDGTextureRef AddPostDOFTranslucencyCompositionPass(FRDGBuilder& GraphBuilder, 
 	PassParameters->SeparateTranslucencyExtentInverse = SeparateTranslucencyExtentInv;
 	PassParameters->SceneColor = SceneColor.Texture;
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
-	PassParameters->SeparateTranslucency = SeparateTranslucency;
+	PassParameters->SeparateTranslucency = SeparateTranslucencyTexture;
 	PassParameters->SeparateTranslucencySampler = bScaleSeparateTranslucency ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
-	PassParameters->SeparateModulation = SeparateTranslucencyTextures.GetColorModulateForRead(GraphBuilder);
+	PassParameters->SeparateModulation = SeparateModulationTexture;
 	PassParameters->SeparateModulationSampler = bScaleSeparateTranslucency ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(NewSceneColor, ERenderTargetLoadAction::ENoAction);
 
-	PassParameters->LowResDepthTexture = SeparateTranslucencyTextures.GetDepthForRead(GraphBuilder);
-	PassParameters->LowResDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
-	PassParameters->FullResDepthTexture = SceneDepth.Texture;
-	PassParameters->FullResDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	if (DepthUpscampling)
+	{
+		PassParameters->LowResDepthTexture = SeparateTranslucencyTextures.GetDepthForRead(GraphBuilder);
+		PassParameters->LowResDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->FullResDepthTexture = SceneDepth.Texture;
+		PassParameters->FullResDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	}
 
 	FComposeSeparateTranslucencyPS::FPermutationDomain PermutationVector;
-	const float DownsampleScale = SeparateTranslucencySize.X / SceneColorExtent.X;
-	PermutationVector.Set<FComposeSeparateTranslucencyPS::FNearestDepthNeighborUpsampling>(GetUseTranslucencyNearestDepthNeighborUpsample(DownsampleScale) ? 1 : 0);
+	PermutationVector.Set<FComposeSeparateTranslucencyPS::FNearestDepthNeighborUpsampling>(DepthUpscampling);
 
 	TShaderMapRef<FComposeSeparateTranslucencyPS> PixelShader(View.ShaderMap, PermutationVector);
 	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder,
 		View.ShaderMap,
 		RDG_EVENT_NAME(
-			"ComposePostDOFTranslucency%s %dx%d",
+			"ComposeTranslucency(%s%s%s) %dx%d",
+			bPostMotionBlur ? TEXT("PostMB") : TEXT("PostDOF"),
+			bApplyModulateOnly ? TEXT(" ModulateOnly") : TEXT(""),
 			bScaleSeparateTranslucency ? TEXT(" Rescale") : TEXT(""),
-			SceneColorRect.Width(), SceneColorRect.Height()),
+			SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height()),
 		PixelShader,
 		PassParameters,
-		SceneColorRect);
-
-	return NewSceneColor;
-}
-
-FRDGTextureRef AddPostMotionBlurTranslucencyCompositionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& SceneColor, const FSeparateTranslucencyTextures& SeparateTranslucencyTextures)
-{
-	// if nothing is rendered into the separate translucency, then just return the existing Scenecolor
-	if (!SeparateTranslucencyTextures.IsPostMotionBlurColorValid())
-	{
-		return SceneColor.Texture;
-	}
-
-	FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
-	OutputDesc.Reset();
-
-	if (OutputDesc.Format == PF_FloatRGBA && !IsPostProcessingWithAlphaChannelSupported())
-	{
-		OutputDesc.Format = PF_FloatRGB;
-	}
-
-	FRDGTextureRef NewSceneColor = GraphBuilder.CreateTexture(OutputDesc, TEXT("PostMotionBlurTranslucency.SceneColor"));
-	FRDGTextureRef SeparateTranslucency = SeparateTranslucencyTextures.GetPostMotionBlurColorForRead(GraphBuilder);
-
-	const FIntRect SceneColorRect = SceneColor.ViewRect;
-	const FVector2D SceneColorSize(SceneColorRect.Size());
-	const FVector2D SceneColorSizeInv = FVector2D(1.0f, 1.0f) / SceneColorSize;
-	const FVector2D SceneColorExtent(OutputDesc.Extent);
-	const FVector2D SceneColorExtentInv = FVector2D(1.0f, 1.0f) / SceneColorExtent;
-
-	const FIntRect SeparateTranslucencyRect = SeparateTranslucencyTextures.GetDimensions().GetViewport(View.ViewRect).Rect;
-	const FVector2D SeparateTranslucencySize(SeparateTranslucencyRect.Size());
-	const FVector2D SeparateTranslucencyExtent(SeparateTranslucency->Desc.Extent);
-	const FVector2D SeparateTranslucencyExtentInv = FVector2D(1.0f, 1.0f) / SeparateTranslucencyExtent;
-
-	const bool bScaleSeparateTranslucency = SeparateTranslucencySize != SceneColorSize;
-
-	FComposeSeparateTranslucencyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeSeparateTranslucencyPS::FParameters>();
-	PassParameters->ScreenPosToSceneColorUV = SceneColorSizeInv * SceneColorSize * SceneColorExtentInv;
-	PassParameters->ScreenPosToSeparateTranslucencyUV = SceneColorSizeInv * SeparateTranslucencySize * SeparateTranslucencyExtentInv;
-	PassParameters->SeparateTranslucencyUVMax = (SeparateTranslucencySize - FVector2D(0.5f, 0.5f)) * SeparateTranslucencyExtentInv;
-	PassParameters->SeparateTranslucencyExtentInverse = SeparateTranslucencyExtentInv;
-	PassParameters->SceneColor = SceneColor.Texture;
-	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
-	PassParameters->SeparateTranslucency = SeparateTranslucency;
-	PassParameters->SeparateTranslucencySampler = bScaleSeparateTranslucency ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
-	PassParameters->SeparateModulation = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
-	PassParameters->SeparateModulationSampler = TStaticSamplerState<SF_Point>::GetRHI();
-	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(NewSceneColor, ERenderTargetLoadAction::ENoAction);
-
-	FComposeSeparateTranslucencyPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FComposeSeparateTranslucencyPS::FNearestDepthNeighborUpsampling>(false);
-
-	TShaderMapRef<FComposeSeparateTranslucencyPS> PixelShader(View.ShaderMap, PermutationVector);
-	FPixelShaderUtils::AddFullscreenPass(
-		GraphBuilder,
-		View.ShaderMap,
-		RDG_EVENT_NAME(
-			"ComposePostMotionBlurTranslucency%s %dx%d",
-			bScaleSeparateTranslucency ? TEXT(" Rescale") : TEXT(""),
-			SceneColorRect.Width(), SceneColorRect.Height()),
-		PixelShader,
-		PassParameters,
-		SceneColorRect);
+		SceneColor.ViewRect);
 
 	return NewSceneColor;
 }
@@ -590,14 +574,14 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		// Diaphragm Depth of Field
 		{
-			FRDGTextureRef LocalSceneColorTexture = SceneColor.Texture;
+			FRDGTextureRef InputSceneColorTexture = SceneColor.Texture;
 
 			if (bDepthOfFieldEnabled)
 			{
 				FSeparateTranslucencyDimensions DummyTranslucencyDimensions;
 				FSeparateTranslucencyTextures DummyTranslucency(DummyTranslucencyDimensions);
 
-				LocalSceneColorTexture = DiaphragmDOF::AddPasses(
+				SceneColor.Texture = DiaphragmDOF::AddPasses(
 					GraphBuilder,
 					SceneTextureParameters,
 					View,
@@ -606,12 +590,17 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 
 			// DOF passes were not added, therefore need to compose Separate translucency manually.
-			if (LocalSceneColorTexture == SceneColor.Texture && !bComposeSeparateTranslucencyInTSR)
+			if (SceneColor.Texture == InputSceneColorTexture || bComposeSeparateTranslucencyInTSR)
 			{
-				LocalSceneColorTexture = AddPostDOFTranslucencyCompositionPass(GraphBuilder, View, SceneColor, SceneDepth, *Inputs.SeparateTranslucencyTextures);
+				SceneColor.Texture = AddTranslucencyCompositionPass(
+					GraphBuilder,
+					View,
+					SceneColor,
+					SceneDepth,
+					*Inputs.SeparateTranslucencyTextures,
+					/* bPostMotionBlur = */ false,
+					/* bApplyModulateOnly = */ bComposeSeparateTranslucencyInTSR);
 			}
-
-			SceneColor.Texture = LocalSceneColorTexture;
 
 			if (GetHairStrandsComposition() == EHairStrandsCompositionType::AfterSeparateTranslucent)
 			{
@@ -736,7 +725,15 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		else
 		{
 			// Compose Post-MotionBlur translucency
-			SceneColor.Texture = AddPostMotionBlurTranslucencyCompositionPass(GraphBuilder, View, SceneColor, *Inputs.SeparateTranslucencyTextures);
+
+			SceneColor.Texture = AddTranslucencyCompositionPass(
+				GraphBuilder,
+				View,
+				SceneColor,
+				SceneDepth,
+				*Inputs.SeparateTranslucencyTextures,
+				/* bPostMotionBlur = */ true,
+				/* bApplyModulateOnly = */ false);
 		}
 
 		SceneColor = AddAfterPass(EPass::MotionBlur, SceneColor);
@@ -958,8 +955,22 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		PassSequence.Finalize();
 
 		// Compose separate translucency passes
-		SceneColor.Texture = AddPostDOFTranslucencyCompositionPass(GraphBuilder, View, SceneColor, SceneDepth, *Inputs.SeparateTranslucencyTextures);
-		SceneColor.Texture = AddPostMotionBlurTranslucencyCompositionPass(GraphBuilder, View, SceneColor, *Inputs.SeparateTranslucencyTextures);
+		SceneColor.Texture = AddTranslucencyCompositionPass(
+			GraphBuilder,
+			View,
+			SceneColor,
+			SceneDepth,
+			*Inputs.SeparateTranslucencyTextures,
+			/* bPostMotionBlur = */ false,
+			/* bApplyModulateOnly = */ false);
+		SceneColor.Texture = AddTranslucencyCompositionPass(
+			GraphBuilder,
+			View,
+			SceneColor,
+			SceneDepth,
+			*Inputs.SeparateTranslucencyTextures,
+			/* bPostMotionBlur = */ true,
+			/* bApplyModulateOnly = */ false);
 
 		SceneColorBeforeTonemap = SceneColor;
 

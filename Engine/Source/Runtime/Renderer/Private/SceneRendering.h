@@ -892,6 +892,7 @@ struct FTSRHistory
 	TRefCountPtr<IPooledRenderTarget> HighFrequency;
 	TRefCountPtr<IPooledRenderTarget> Metadata;
 	TRefCountPtr<IPooledRenderTarget> Translucency;
+	TRefCountPtr<IPooledRenderTarget> TranslucencyAlpha;
 
 	// Non-filterable output resolution
 	TRefCountPtr<IPooledRenderTarget> SubpixelDetails;

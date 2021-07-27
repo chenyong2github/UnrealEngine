@@ -50,6 +50,11 @@ TAutoConsoleVariable<int32> CVarTSREnableAntiInterference(
 	TEXT("Enable heuristic to detect geometric interference between input pixel grid alignement and structured geometry."),
 	ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<float> CVarTSRTranslucencyHighlightLuminance(
+	TEXT("r.TSR.Translucency.HighlightLuminance"), -1.0f,
+	TEXT("Sets the liminance at which translucency is considered an highlights (default=-1.0)."),
+	ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<int32> CVarTSRTranslucencyPreviousFrameRejection(
 	TEXT("r.TSR.Translucency.PreviousFrameRejection"), 0,
 	TEXT("Enable heuristic to reject Separate translucency based on previous frame translucency."),
@@ -102,6 +107,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Metadata)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SubpixelDetails)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Translucency)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TranslucencyAlpha)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, )
@@ -110,6 +116,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Metadata)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SubpixelDetails)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Translucency)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TranslucencyAlpha)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTSRPrevHistoryParameters, )
@@ -128,6 +135,7 @@ FTSRHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTSRHistoryTextures&
 	if (Textures.Translucency)
 	{
 		UAVs.Translucency = GraphBuilder.CreateUAV(Textures.Translucency);
+		UAVs.TranslucencyAlpha = GraphBuilder.CreateUAV(Textures.TranslucencyAlpha);
 	}
 	return UAVs;
 }
@@ -235,6 +243,7 @@ class FTSRCompareTranslucencyCS : public FTSRShader
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, TranslucencyInfo)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevTranslucencyInfo)
 		SHADER_PARAMETER(float, PrevTranslucencyPreExposureCorrection)
+		SHADER_PARAMETER(float, TranslucencyHighlightLuminance)
 
 		SHADER_PARAMETER(FScreenTransform, InputPixelPosToScreenPos)
 		SHADER_PARAMETER(FScreenTransform, ScreenPosToPrevTranslucencyTextureUV)
@@ -734,6 +743,7 @@ void AddTemporalSuperResolutionPasses(
 		DummyHistory.HighFrequency = BlackDummy;
 		DummyHistory.Metadata = BlackDummy;
 		DummyHistory.Translucency = BlackDummy;
+		DummyHistory.TranslucencyAlpha = WhiteDummy;
 
 		DummyHistory.SubpixelDetails = BlackUintDummy;
 	}
@@ -746,7 +756,8 @@ void AddTemporalSuperResolutionPasses(
 		PrevHistory.LowFrequency = GraphBuilder.RegisterExternalTexture(InputHistory.LowFrequency);
 		PrevHistory.HighFrequency = GraphBuilder.RegisterExternalTexture(InputHistory.HighFrequency);
 		PrevHistory.Metadata = GraphBuilder.RegisterExternalTexture(InputHistory.Metadata);
-		PrevHistory.Translucency = InputHistory.Translucency.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.Translucency) : BlackDummy;
+		PrevHistory.Translucency = InputHistory.Translucency.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.Translucency) : DummyHistory.Translucency;
+		PrevHistory.TranslucencyAlpha = InputHistory.TranslucencyAlpha.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.TranslucencyAlpha) : DummyHistory.TranslucencyAlpha;
 
 		// Register non-filterable history
 		PrevHistory.SubpixelDetails = GraphBuilder.RegisterExternalTexture(InputHistory.SubpixelDetails);
@@ -800,8 +811,11 @@ void AddTemporalSuperResolutionPasses(
 
 		if (bAccumulateSeparateTranslucency)
 		{
-			Desc.Format = PF_FloatRGBA;
+			Desc.Format = (CVarTSRR11G11B10History.GetValueOnRenderThread() != 0) ? PF_FloatR11G11B10 : PF_FloatRGBA;
 			History.Translucency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Translucency"));
+
+			Desc.Format = PF_R8;
+			History.TranslucencyAlpha = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.TranslucencyAlpha"));
 		}
 
 		Desc.Format = PF_R16_UINT;
@@ -957,6 +971,7 @@ void AddTemporalSuperResolutionPasses(
 			InputExtent, InputRect));
 		PassParameters->PrevTranslucencyInfo = GetScreenPassTextureViewportParameters(PrevTranslucencyViewport);
 		PassParameters->PrevTranslucencyPreExposureCorrection = PrevHistoryParameters.HistoryPreExposureCorrection;
+		PassParameters->TranslucencyHighlightLuminance = CVarTSRTranslucencyHighlightLuminance.GetValueOnRenderThread();
 
 		PassParameters->InputPixelPosToScreenPos = (FScreenTransform::Identity + 0.5) * CommonParameters.InputInfo.ViewportSizeInverse * FScreenTransform::ViewportUVToScreenPos;
 		PassParameters->ScreenPosToPrevTranslucencyTextureUV = FScreenTransform::ChangeTextureBasisFromTo(
@@ -1369,6 +1384,7 @@ void AddTemporalSuperResolutionPasses(
 		if (bAccumulateSeparateTranslucency)
 		{
 			GraphBuilder.QueueTextureExtraction(History.Translucency, &OutputHistory.Translucency);
+			GraphBuilder.QueueTextureExtraction(History.TranslucencyAlpha, &OutputHistory.TranslucencyAlpha);
 		}
 
 		// Extract non-filterable history
