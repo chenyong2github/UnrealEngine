@@ -943,7 +943,23 @@ void SDMXPixelMappingDesignerView::HandleDragEnterFromDetailsOrPalette(const TSh
 
 				if (Target && PixelMapping->RootComponent)
 				{
-					const TArray<UDMXPixelMappingBaseComponent*> NewComponents = ToolkitPtr->CreateComponentsFromTemplates(PixelMapping->GetRootComponent(), Target, TemplateDragDropOp->GetTemplates());
+					TArray<UDMXPixelMappingBaseComponent*> NewComponents;
+					if (TemplateDragDropOp->GetDraggedComponents().Num() == 0)
+					{
+						// Create new components if they were first dragged in
+						NewComponents = ToolkitPtr->CreateComponentsFromTemplates(PixelMapping->GetRootComponent(), Target, TemplateDragDropOp->GetTemplates());
+					}
+					else
+					{
+						// Use the existing components if the components are reentering
+						for (const TWeakObjectPtr<UDMXPixelMappingBaseComponent>& BaseComponent : TemplateDragDropOp->GetDraggedComponents())
+						{
+							if (BaseComponent.IsValid())
+							{
+								NewComponents.Add(BaseComponent.Get());
+							}
+						}
+					}
 					
 					// Build an array of all new componets for dragging
 					TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> DraggedComponents;

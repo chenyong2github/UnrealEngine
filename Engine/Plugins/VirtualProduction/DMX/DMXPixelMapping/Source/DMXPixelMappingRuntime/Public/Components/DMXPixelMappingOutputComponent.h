@@ -199,10 +199,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
 	float PositionY;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (ClampMin = 0, UIMin = 0, EditCondition = "!bLockInDesigner"))
 	float SizeX;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (ClampMin = 0, UIMin = 0, EditCondition = "!bLockInDesigner"))
 	float SizeY;
 
 protected:

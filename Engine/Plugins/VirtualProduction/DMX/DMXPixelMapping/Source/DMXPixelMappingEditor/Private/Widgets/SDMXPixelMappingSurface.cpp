@@ -32,6 +32,11 @@ struct FFixedZoomLevelsContainerDesignSurface : public FZoomLevelsContainer
 {
 	FFixedZoomLevelsContainerDesignSurface()
 	{
+		ZoomLevels.Add(FZoomLevelEntry(0.025f, FText::FromString("-15"), EGraphRenderingLOD::LowestDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.050f, FText::FromString("-14"), EGraphRenderingLOD::LowestDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.075f, FText::FromString("-13"), EGraphRenderingLOD::LowestDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.100f, FText::FromString("-12"), EGraphRenderingLOD::LowestDetail));
+		ZoomLevels.Add(FZoomLevelEntry(0.125f, FText::FromString("-11"), EGraphRenderingLOD::LowestDetail));
 		ZoomLevels.Add(FZoomLevelEntry(0.150f, FText::FromString("-10"), EGraphRenderingLOD::LowestDetail));
 		ZoomLevels.Add(FZoomLevelEntry(0.175f, FText::FromString("-9"), EGraphRenderingLOD::LowestDetail));
 		ZoomLevels.Add(FZoomLevelEntry(0.200f, FText::FromString("-8"), EGraphRenderingLOD::LowestDetail));
@@ -63,6 +68,16 @@ struct FFixedZoomLevelsContainerDesignSurface : public FZoomLevelsContainer
 		ZoomLevels.Add(FZoomLevelEntry(11.000f, FText::FromString("+18"), EGraphRenderingLOD::FullyZoomedIn));
 		ZoomLevels.Add(FZoomLevelEntry(12.000f, FText::FromString("+19"), EGraphRenderingLOD::FullyZoomedIn));
 		ZoomLevels.Add(FZoomLevelEntry(13.000f, FText::FromString("+20"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(14.000f, FText::FromString("+21"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(15.000f, FText::FromString("+22"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(16.000f, FText::FromString("+23"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(17.000f, FText::FromString("+24"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(18.000f, FText::FromString("+25"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(19.000f, FText::FromString("+26"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(20.000f, FText::FromString("+27"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(21.000f, FText::FromString("+28"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(22.000f, FText::FromString("+29"), EGraphRenderingLOD::FullyZoomedIn));
+		ZoomLevels.Add(FZoomLevelEntry(23.000f, FText::FromString("+30"), EGraphRenderingLOD::FullyZoomedIn));
 	}
 
 	float GetZoomAmount(int32 InZoomLevel) const override

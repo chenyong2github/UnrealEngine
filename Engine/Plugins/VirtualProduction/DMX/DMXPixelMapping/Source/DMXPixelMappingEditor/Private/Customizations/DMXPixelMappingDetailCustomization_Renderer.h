@@ -31,9 +31,18 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
-	EVisibility IsSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const;
+	/** Called before the renderer type property changed */
+	void OnRendererTypePropertyPreChange();
 
-	EVisibility IsNotSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const;
+	/** Called when the renderer type property changed */
+	void OnRendererTypePropertyChanged();
+
+	/** Called when the input texture property changed */
+	void OnInputTexturePropertyChanged();
+
+	bool IsSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const;
+
+	bool IsNotSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const;
 
 	EVisibility GetInputTextureWarning() const;
 
@@ -47,17 +56,19 @@ private:
 	/** Visibility for non ui material warning */
 	EVisibility GetMaterialWarningVisibility() const;
 
-protected:
-	/** Weak reference to the DMX editor */
-	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
+	/** Resets the size of the renderer component depending on current renderer type and the resource object */
+	void ResetSize();
 
-private:
+	/** Previously selected renderer type */
+	EDMXPixelMappingRendererType PreviousRendererType;
+	
 	TSharedPtr<IPropertyHandle> RendererTypePropertyHandle;
 	TSharedPtr<IPropertyHandle> InputTexturePropertyHandle;
 	TSharedPtr<IPropertyHandle> InputMaterialPropertyHandle;
 	TSharedPtr<IPropertyHandle> InputWidgetPropertyHandle;
-	TSharedPtr<IPropertyHandle> SizeXPropertyHandle;
-	TSharedPtr<IPropertyHandle> SizeYPropertyHandle;
 
 	TWeakObjectPtr<UDMXPixelMappingRendererComponent> RendererComponent;
+
+	/** Weak reference to the DMX editor */
+	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 };

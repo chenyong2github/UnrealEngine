@@ -2,12 +2,13 @@
 
 #include "Components/DMXPixelMappingRendererComponent.h"
 
+#include "DMXPixelMappingRuntimeObjectVersion.h"
+#include "DMXPixelMappingTypes.h"
+#include "IDMXPixelMappingRendererModule.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
-#include "DMXPixelMappingTypes.h"
-#include "IDMXPixelMappingRendererModule.h"
 #include "Library/DMXEntityFixtureType.h"
 
 #include "Blueprint/UserWidget.h"
@@ -45,6 +46,11 @@ UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
 	SizeY = 100.f;
 
 	Brightness = 1.0f;
+
+#if WITH_EDITOR
+	// Default to lock in designer, since for new renderers, the texture is the default
+	bLockInDesigner = true;
+#endif
 }
 
 UDMXPixelMappingRendererComponent::~UDMXPixelMappingRendererComponent()
@@ -62,6 +68,35 @@ const FName& UDMXPixelMappingRendererComponent::GetNamePrefix()
 {
 	static FName NamePrefix = TEXT("Renderer");
 	return NamePrefix;
+}
+
+void UDMXPixelMappingRendererComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FDMXPixelMappingRuntimeObjectVersion::GUID);
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FDMXPixelMappingRuntimeObjectVersion::GUID) < FDMXPixelMappingRuntimeObjectVersion::LockRendererComponentsThatUseTextureInDesigner)
+		{
+			if (RendererType == EDMXPixelMappingRendererType::Texture)
+			{
+#if WITH_EDITOR
+				bLockInDesigner = true;
+#endif
+				// Refresh the size of the texture if that is used as input
+				if (InputTexture)
+				{
+					if (const FTextureResource* TextureResource = InputTexture->GetResource())
+					{
+						// Set to the texture size
+						const FVector2D NewSize = FVector2D(TextureResource->GetSizeX(), TextureResource->GetSizeY());
+						SetSize(NewSize);
+					}
+				}
+			}
+		}
+	}
 }
 
 void UDMXPixelMappingRendererComponent::PostLoad()
@@ -104,6 +139,18 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 
 		ResizeMaterialRenderTarget(SizeX, SizeY);
 	} 
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, RendererType))
+	{
+		if (RendererType == EDMXPixelMappingRendererType::Texture)
+		{
+			// Prevent the size from being edited via its edit condition
+			bLockInDesigner = true;
+		}
+		else
+		{
+			bLockInDesigner = false;
+		}
+	}
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputWidget))
 	{
 		if (InputWidget && UserWidget && InputWidget->GetClass() != UserWidget->GetClass())
@@ -308,6 +355,12 @@ void UDMXPixelMappingRendererComponent::RenderAndSendDMX()
 	SendDMX();
 }
 
+void UDMXPixelMappingRendererComponent::SetSize(const FVector2D& NewSize)
+{
+	SizeX = NewSize.X;
+	SizeY = NewSize.Y;
+}
+
 FIntPoint UDMXPixelMappingRendererComponent::GetPixelPosition(int32 InPosition) const
 {
 	const int32 YRows = InPosition / MaxDownsampleBufferTargetSize.X;
@@ -384,6 +437,30 @@ void UDMXPixelMappingRendererComponent::Initialize()
 	{
 		PixelMappingRenderer = IDMXPixelMappingRendererModule::Get().CreateRenderer();
 	}
+
+#if WITH_EDITOR
+	// Before 4.27 the 'bLockInDesigner' edit condition for size did not exist, apply it here where needed
+	if (RendererType == EDMXPixelMappingRendererType::Texture)
+	{
+		// Prevent the size from being edited via its edit condition
+		bLockInDesigner = true;
+
+		// Refresh the size of the texture in case it changed externally
+		if (InputTexture)
+		{
+			if (const FTextureResource* TextureResource = InputTexture->GetResource())
+			{
+				// Set to the texture size
+				const FVector2D NewSize = FVector2D(TextureResource->GetSizeX(), TextureResource->GetSizeY());
+				SetSize(NewSize);
+			}
+		}
+	}
+	else
+	{
+		bLockInDesigner = false;
+	}
+#endif
 }
 
 UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::CreateRenderTarget(const FName& InBaseName)

@@ -19,6 +19,9 @@ struct FDMXPixelMappingRuntimeObjectVersion
 		// Update DMXPixelMappingBaseComponent to store the parent as a weak ptr
 		UseWeakPtrForPixelMappingComponentParent,
 
+		// Update DMXPixelMappingRendererComponent to lock those components that use a texture in designer to trigger the edit condition of the size property
+		LockRendererComponentsThatUseTextureInDesigner,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

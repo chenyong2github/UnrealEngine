@@ -7,11 +7,12 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Engine/Texture.h"
+#include "Layout/Visibility.h"
+#include "Materials/Material.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Layout/Visibility.h"
-#include "Materials/Material.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_Renderer"
 
@@ -80,12 +81,20 @@ void FDMXPixelMappingDetailCustomization_Renderer::CustomizeDetails(IDetailLayou
 	InputTexturePropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputTexture));
 	InputMaterialPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputMaterial));
 	InputWidgetPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputWidget));
-	SizeXPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, SizeX));
-	SizeYPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, SizeY));
+
+	// Bind property changes
+	FSimpleDelegate OnRendererTypePropertyPreChangeDelegate = FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_Renderer::OnRendererTypePropertyPreChange);
+	RendererTypePropertyHandle->SetOnPropertyValuePreChange(OnRendererTypePropertyPreChangeDelegate);
+
+	FSimpleDelegate OnRendererTypePropertyChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_Renderer::OnRendererTypePropertyChanged);
+	RendererTypePropertyHandle->SetOnPropertyValueChanged(OnRendererTypePropertyChangedDelegate);
+
+	FSimpleDelegate OnInputTexturePropertyChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_Renderer::OnInputTexturePropertyChanged);
+	RendererTypePropertyHandle->SetOnPropertyValueChanged(OnInputTexturePropertyChangedDelegate);
 
 	// Hide properties
-	TSharedRef<IPropertyHandle> PositionXPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, PositionX));
-	TSharedRef<IPropertyHandle> PositionYPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, PositionY));
+	TSharedRef<IPropertyHandle> PositionXPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX), UDMXPixelMappingOutputComponent::StaticClass());
+	TSharedRef<IPropertyHandle> PositionYPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY), UDMXPixelMappingOutputComponent::StaticClass());
 	TSharedRef<IPropertyHandle> IsLockInDesignerPropertyHandle = DetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetLockInDesignerPropertyName(), UDMXPixelMappingOutputComponent::StaticClass());
 	TSharedRef<IPropertyHandle> IsVisibleInDesignerPropertyHandle = DetailLayout.GetProperty(UDMXPixelMappingOutputComponent::GetVisibleInDesignerPropertyName(), UDMXPixelMappingOutputComponent::StaticClass());
 	TSharedRef<IPropertyHandle> PixelBlendingPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, CellBlendingQuality), UDMXPixelMappingOutputComponent::StaticClass());
@@ -105,84 +114,98 @@ void FDMXPixelMappingDetailCustomization_Renderer::CustomizeDetails(IDetailLayou
 	{
 		RendererComponent = Cast<UDMXPixelMappingRendererComponent>(OuterObjects[0]);
 
-		// Add Warning InputTexture Row
-		AddInputTextureWarning(RenderSettingsSettingsCategory);
+		if (RendererComponent.IsValid())
+		{
+			// Remember the selected renderer type
+			PreviousRendererType = RendererComponent->RendererType;
 
-		// Add non UI Material Warning
-		AddMaterialWarning(RenderSettingsSettingsCategory);
+			// Add Warning InputTexture Row
+			AddInputTextureWarning(RenderSettingsSettingsCategory);
 
-		// Retister properties
-		RenderSettingsSettingsCategory.AddProperty(InputTexturePropertyHandle)
-			.Visibility(
-				TAttribute<EVisibility>::Create(
-					TAttribute<EVisibility>::FGetter::CreateSP(
-						this,
-						&FDMXPixelMappingDetailCustomization_Renderer::IsSelectedRendererType,
-						EDMXPixelMappingRendererType::Texture
-					)));
+			// Add non UI Material Warning
+			AddMaterialWarning(RenderSettingsSettingsCategory);
 
-		RenderSettingsSettingsCategory.AddProperty(InputMaterialPropertyHandle)
-			.Visibility(
-				TAttribute<EVisibility>::Create(
-					TAttribute<EVisibility>::FGetter::CreateSP(
-						this,
-						&FDMXPixelMappingDetailCustomization_Renderer::IsSelectedRendererType,
-						EDMXPixelMappingRendererType::Material
-					)));
+			// Retister properties
+			RenderSettingsSettingsCategory.AddProperty(InputTexturePropertyHandle)
+				.Visibility(
+					TAttribute<EVisibility>::Create(
+						TAttribute<EVisibility>::FGetter::CreateLambda([this]
+							{
+								return IsSelectedRendererType(EDMXPixelMappingRendererType::Texture) ? EVisibility::Visible : EVisibility::Hidden;
+							}
+						)));
 
-		RenderSettingsSettingsCategory.AddProperty(InputWidgetPropertyHandle)
-			.Visibility(
-				TAttribute<EVisibility>::Create(
-					TAttribute<EVisibility>::FGetter::CreateSP(
-						this,
-						&FDMXPixelMappingDetailCustomization_Renderer::IsSelectedRendererType,
-						EDMXPixelMappingRendererType::UMG
-					)));
+			RenderSettingsSettingsCategory.AddProperty(InputMaterialPropertyHandle)
+				.Visibility(
+					TAttribute<EVisibility>::Create(
+						TAttribute<EVisibility>::FGetter::CreateLambda([this]
+							{
+								return IsSelectedRendererType(EDMXPixelMappingRendererType::Material) ? EVisibility::Visible : EVisibility::Hidden;
+							}
+						)));
 
-		RenderSettingsSettingsCategory.AddProperty(SizeXPropertyHandle)
-			.Visibility(
-				TAttribute<EVisibility>::Create(
-					TAttribute<EVisibility>::FGetter::CreateSP(
-						this,
-						&FDMXPixelMappingDetailCustomization_Renderer::IsNotSelectedRendererType,
-						EDMXPixelMappingRendererType::Texture
-					)));
+			RenderSettingsSettingsCategory.AddProperty(InputWidgetPropertyHandle)
+				.Visibility(
+					TAttribute<EVisibility>::Create(
+						TAttribute<EVisibility>::FGetter::CreateLambda([this]
+							{
+								return IsSelectedRendererType(EDMXPixelMappingRendererType::UMG) ? EVisibility::Visible : EVisibility::Hidden;
+							}
+						)));
 
-		RenderSettingsSettingsCategory.AddProperty(SizeYPropertyHandle)
-			.Visibility(
-				TAttribute<EVisibility>::Create(
-					TAttribute<EVisibility>::FGetter::CreateSP(
-						this,
-						&FDMXPixelMappingDetailCustomization_Renderer::IsNotSelectedRendererType,
-						EDMXPixelMappingRendererType::Texture
-					)));
+		}
 	}
 }
 
-EVisibility FDMXPixelMappingDetailCustomization_Renderer::IsSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const
+void FDMXPixelMappingDetailCustomization_Renderer::OnRendererTypePropertyPreChange()
+{
+	if (UDMXPixelMappingRendererComponent* Component = RendererComponent.Get())
+	{
+		PreviousRendererType = Component->RendererType;
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_Renderer::OnRendererTypePropertyChanged()
+{
+	if (UDMXPixelMappingRendererComponent* Component = RendererComponent.Get())
+	{
+		if (Component->RendererType != PreviousRendererType)
+		{
+			PreviousRendererType = Component->RendererType;
+			ResetSize();
+		}
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_Renderer::OnInputTexturePropertyChanged()
+{
+	ResetSize();
+}
+
+bool FDMXPixelMappingDetailCustomization_Renderer::IsSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const
 {
 	if (UDMXPixelMappingRendererComponent* Component = RendererComponent.Get())
 	{
 		if (Component->RendererType == PropertyRendererType)
 		{
-			return EVisibility::Visible;
+			return true;
 		}
 	}
 
-	return EVisibility::Collapsed;
+	return false;
 }
 
-EVisibility FDMXPixelMappingDetailCustomization_Renderer::IsNotSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const
+bool FDMXPixelMappingDetailCustomization_Renderer::IsNotSelectedRendererType(EDMXPixelMappingRendererType PropertyRendererType) const
 {
 	if (UDMXPixelMappingRendererComponent* Component = RendererComponent.Get())
 	{
 		if (Component->RendererType != PropertyRendererType)
 		{
-			return EVisibility::Visible;
+			return true;
 		}
 	}
 
-	return EVisibility::Collapsed;
+	return false;
 }
 
 void FDMXPixelMappingDetailCustomization_Renderer::AddInputTextureWarning(IDetailCategoryBuilder& InCategory)
@@ -263,6 +286,43 @@ FText FDMXPixelMappingDetailCustomization_Renderer::GetInputTextureWarningText()
 	}
 
 	return FText();
+}
+
+void FDMXPixelMappingDetailCustomization_Renderer::ResetSize()
+{
+	// Set a new size depending on the selected type
+	if (UDMXPixelMappingRendererComponent* Component = RendererComponent.Get())
+	{
+		if (Component->RendererType == EDMXPixelMappingRendererType::Texture)
+		{
+			if (const UTexture* InputTexture = Component->InputTexture)
+			{
+				if (const FTextureResource* TextureResource = InputTexture->GetResource())
+				{
+					// Set to the texture size
+					const FVector2D NewSize = FVector2D(TextureResource->GetSizeX(), TextureResource->GetSizeY());
+					Component->SetSize(NewSize);
+					return;
+				}
+			}
+
+			// Reset to default size
+			const FVector2D DefaultSize = FVector2D(100.f, 100.f);
+			Component->SetSize(DefaultSize);
+		}
+		else if (Component->RendererType == EDMXPixelMappingRendererType::Material)
+		{
+			// Reset to default size
+			const FVector2D DefaultSize = FVector2D(100.f, 100.f);
+			Component->SetSize(DefaultSize);
+		}
+		else if (Component->RendererType == EDMXPixelMappingRendererType::UMG)
+		{
+			// Reset to default size
+			const FVector2D DefaultSize = FVector2D(1024.f, 768.f);
+			Component->SetSize(DefaultSize);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

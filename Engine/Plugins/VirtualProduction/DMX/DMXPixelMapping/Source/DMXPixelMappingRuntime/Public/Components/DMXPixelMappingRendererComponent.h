@@ -34,6 +34,7 @@ public:
 	~UDMXPixelMappingRendererComponent();
 
 	//~ Begin UObject implementation
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 
@@ -49,6 +50,10 @@ public:
 	virtual void Render() final;
 	virtual void RenderAndSendDMX() final;
 	//~ End UDMXPixelMappingBaseComponent implementation
+			
+	// ~Begin UDMXPixelMappingOutputComponent interface
+	virtual void SetSize(const FVector2D& NewSize) override;
+	// ~End UDMXPixelMappingOutputComponent interface
 
 #if WITH_EDITOR
 	/** Render all downsample pixel for editor preview texture */

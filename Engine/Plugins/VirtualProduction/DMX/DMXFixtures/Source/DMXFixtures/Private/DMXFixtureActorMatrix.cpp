@@ -218,9 +218,16 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 				for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
 				{
 					if (DMXComponent->bIsEnabled && DMXComponent->bUsingMatrixData)
-					{
+					{	
 						// set current cell reference
-						DMXComponent->SetCurrentCell(CellIndex);
+						if (bIgnorePixelMappingDistributionOfFixturePatch)
+						{
+							DMXComponent->SetCurrentCell(Cells[CellIndex].CellID - 1);
+						}
+						else
+						{
+							DMXComponent->SetCurrentCell(CellIndex);
+						}
 
 						if (UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
 						{
