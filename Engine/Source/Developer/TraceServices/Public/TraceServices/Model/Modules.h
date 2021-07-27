@@ -95,4 +95,7 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TRACESERVICES_API FName GetModuleProviderName();
+TRACESERVICES_API const IModuleProvider* ReadModuleProvider(const IAnalysisSession& Session);
+
 } // namespace TraceServices

@@ -202,8 +202,6 @@ public:
 	explicit FAllocationsProvider(IAnalysisSession& InSession);
 	virtual ~FAllocationsProvider();
 
-	static FName GetName();
-
 	virtual void BeginEdit() const override { Lock.BeginWrite(); }
 	virtual void EndEdit() const override { Lock.EndWrite(); }
 	void EditAccessCheck() const { return Lock.WriteAccessCheck(); }

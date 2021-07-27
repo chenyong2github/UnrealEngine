@@ -6,10 +6,11 @@
 namespace TraceServices
 {
 
-FDiagnosticsAnalyzer::FDiagnosticsAnalyzer(IAnalysisSession& InSession)
+FDiagnosticsAnalyzer::FDiagnosticsAnalyzer(IAnalysisSession& InSession, FDiagnosticsProvider* InProvider)
 	: Session(InSession)
+	, Provider(InProvider)
 {
-	Provider = Session.EditProvider<FDiagnosticsProvider>(FDiagnosticsProvider::ProviderName);
+	check(Provider != nullptr);
 }
 
 FDiagnosticsAnalyzer::~FDiagnosticsAnalyzer()

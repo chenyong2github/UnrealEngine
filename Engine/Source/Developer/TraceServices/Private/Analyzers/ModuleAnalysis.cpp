@@ -57,7 +57,7 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 					Provider = CreateModuleProvider(Session, SymbolFormat);
 					if (Provider)
 					{
-						Session.AddProvider(TEXT("ModuleProvider"), Provider);
+						Session.AddProvider(GetModuleProviderName(), Provider);
 					}
 				}
 			}

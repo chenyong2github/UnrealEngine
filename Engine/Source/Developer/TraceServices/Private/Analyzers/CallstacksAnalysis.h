@@ -16,16 +16,17 @@ class FCallstacksAnalyzer
 	: public UE::Trace::IAnalyzer
 {
 public:
-					FCallstacksAnalyzer(IAnalysisSession& Session, FCallstacksProvider* Provider);
-	virtual void	OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool 	OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
+	FCallstacksAnalyzer(IAnalysisSession& Session, FCallstacksProvider* Provider);
+	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
+	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
-	enum Routes 
+	enum Routes
 	{
 		RouteId_Callstack,
 	};
 
+	IAnalysisSession& Session;
 	FCallstacksProvider* Provider;
 };
 

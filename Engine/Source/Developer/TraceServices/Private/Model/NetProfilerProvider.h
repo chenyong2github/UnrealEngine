@@ -48,8 +48,6 @@ class FNetProfilerProvider
 	: public INetProfilerProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FNetProfilerProvider(IAnalysisSession& InSession);
 	virtual ~FNetProfilerProvider();
 

@@ -208,18 +208,19 @@ void SPacketView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		if (Session.IsValid())
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-			const uint32 NewConnectionChangeCount = NetProfilerProvider.GetConnectionChangeCount();
-			if (NewConnectionChangeCount != ConnectionChangeCount)
+			const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+			if (NetProfilerProvider)
 			{
-				ConnectionChangeCount = NewConnectionChangeCount;
-				bIsStateDirty = true;
-
-				if (bIsAutoZoomEnabled)
+				const uint32 NewConnectionChangeCount = NetProfilerProvider->GetConnectionChangeCount();
+				if (NewConnectionChangeCount != ConnectionChangeCount)
 				{
-					bAutoZoom = true;
+					ConnectionChangeCount = NewConnectionChangeCount;
+					bIsStateDirty = true;
+
+					if (bIsAutoZoomEnabled)
+					{
+						bAutoZoom = true;
+					}
 				}
 			}
 		}
@@ -313,11 +314,10 @@ void SPacketView::UpdateState()
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-		if (IsConnectionValid(NetProfilerProvider, GameInstanceIndex, ConnectionIndex, ConnectionMode))
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider && IsConnectionValid(*NetProfilerProvider, GameInstanceIndex, ConnectionIndex, ConnectionMode))
 		{
-			const uint32 NumPackets = NetProfilerProvider.GetPacketCount(ConnectionIndex, ConnectionMode);
+			const uint32 NumPackets = NetProfilerProvider->GetPacketCount(ConnectionIndex, ConnectionMode);
 
 			ViewportX.SetMinMaxInterval(0, NumPackets);
 
@@ -332,7 +332,7 @@ void SPacketView::UpdateState()
 				if (PacketStartIndex <= PacketEndIndex)
 				{
 					int32 PacketIndex = PacketStartIndex;
-					NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [this, &Builder, &PacketIndex, &Filter, &NetProfilerProvider](const TraceServices::FNetProfilerPacket& Packet)
+					NetProfilerProvider->EnumeratePackets(ConnectionIndex, ConnectionMode, PacketStartIndex, PacketEndIndex, [this, &Builder, &PacketIndex, &Filter, NetProfilerProvider](const TraceServices::FNetProfilerPacket& Packet)
 					{
 						FNetworkPacketAggregatedSample* SamplePtr = Builder.AddPacket(PacketIndex++, Packet);
 
@@ -349,7 +349,7 @@ void SPacketView::UpdateState()
 
 								const uint32 StartPos = 0;
 								const uint32 EndPos = Packet.ContentSizeInBits;
-								NetProfilerProvider.EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &Filter, &NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
+								NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &Filter, NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
 								{
 									if (!bFilterMatch)
 									{
@@ -363,7 +363,7 @@ void SPacketView::UpdateState()
 											uint32 NetId = uint32(-1);
 											if (Event.ObjectInstanceIndex != 0)
 											{
-												NetProfilerProvider.ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const TraceServices::FNetProfilerObjectInstance& ObjectInstance)
+												NetProfilerProvider->ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const TraceServices::FNetProfilerObjectInstance& ObjectInstance)
 												{
 													NetId = ObjectInstance.NetId;
 												});
@@ -453,14 +453,13 @@ FNetworkPacketSampleRef SPacketView::GetSample(const int32 InPacketIndex)
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-		if (IsConnectionValid(NetProfilerProvider, GameInstanceIndex, ConnectionIndex, ConnectionMode))
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider && IsConnectionValid(*NetProfilerProvider, GameInstanceIndex, ConnectionIndex, ConnectionMode))
 		{
-			const uint32 NumPackets = NetProfilerProvider.GetPacketCount(ConnectionIndex, ConnectionMode);
+			const uint32 NumPackets = NetProfilerProvider->GetPacketCount(ConnectionIndex, ConnectionMode);
 			if (InPacketIndex >= 0 && InPacketIndex < static_cast<int32>(NumPackets))
 			{
-				NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, InPacketIndex, InPacketIndex, [InPacketIndex, &SampleRef](const TraceServices::FNetProfilerPacket& Packet)
+				NetProfilerProvider->EnumeratePackets(ConnectionIndex, ConnectionMode, InPacketIndex, InPacketIndex, [InPacketIndex, &SampleRef](const TraceServices::FNetProfilerPacket& Packet)
 				{
 					SampleRef.Sample = MakeShared<FNetworkPacketAggregatedSample>();
 					SampleRef.Sample->AddPacket(InPacketIndex, Packet);
@@ -1361,12 +1360,14 @@ void SPacketView::SelectPacketBySequenceNumber(const uint32 InSequenceNumber)
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-		const int32 PacketId = NetProfilerProvider.FindPacketIndexFromPacketSequence(ConnectionIndex, ConnectionMode, InSequenceNumber);
-		if (PacketId != -1)
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider)
 		{
-			SetSelectedPacket(PacketId);
+			const int32 PacketId = NetProfilerProvider->FindPacketIndexFromPacketSequence(ConnectionIndex, ConnectionMode, InSequenceNumber);
+			if (PacketId != -1)
+			{
+				SetSelectedPacket(PacketId);
+			}
 		}
 	}
 }

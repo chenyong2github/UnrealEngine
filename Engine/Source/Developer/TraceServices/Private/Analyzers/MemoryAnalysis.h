@@ -17,7 +17,7 @@ class FMemoryAnalyzer
 	: public UE::Trace::IAnalyzer
 {
 public:
-	FMemoryAnalyzer(IAnalysisSession& Session);
+	FMemoryAnalyzer(IAnalysisSession& Session, FMemoryProvider* InProvider);
 	~FMemoryAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
@@ -30,8 +30,8 @@ private:
 		RouteId_TagValue,
 	};
 
-	FMemoryProvider* Provider;
 	IAnalysisSession& Session;
+	FMemoryProvider* Provider;
 	uint64 Sample = 0;
 };
 

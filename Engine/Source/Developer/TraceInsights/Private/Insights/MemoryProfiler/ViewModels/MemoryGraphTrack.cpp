@@ -308,30 +308,32 @@ void FMemoryGraphTrack::PreUpdateMemTagSeries(FMemoryGraphSeries& Series, const 
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-		// Compute Min/Max values.
-		const TraceServices::IMemoryProvider& MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
-		const uint64 TotalSampleCount = MemoryProvider.GetTagSampleCount(Series.GetTrackerId(), Series.GetTagId());
-		if (TotalSampleCount > 0)
+		const TraceServices::IMemoryProvider* MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
+		if (MemoryProvider)
 		{
-			double MinValue = +std::numeric_limits<double>::infinity();
-			double MaxValue = -std::numeric_limits<double>::infinity();
-
-			MemoryProvider.EnumerateTagSamples(Series.GetTrackerId(), Series.GetTagId(), Viewport.GetStartTime(), Viewport.GetEndTime(), true,
-				[&MinValue, &MaxValue](double Time, double Duration, const TraceServices::FMemoryTagSample& Sample)
+			const uint64 TotalSampleCount = MemoryProvider->GetTagSampleCount(Series.GetTrackerId(), Series.GetTagId());
+			if (TotalSampleCount > 0)
 			{
-				const double Value = static_cast<double>(Sample.Value);
-				if (Value < MinValue)
-				{
-					MinValue = Value;
-				}
-				if (Value > MaxValue)
-				{
-					MaxValue = Value;
-				}
-			});
+				double MinValue = +std::numeric_limits<double>::infinity();
+				double MaxValue = -std::numeric_limits<double>::infinity();
 
-			Series.SetValueRange(MinValue, MaxValue);
+				// Compute Min/Max values.
+				MemoryProvider->EnumerateTagSamples(Series.GetTrackerId(), Series.GetTagId(), Viewport.GetStartTime(), Viewport.GetEndTime(), true,
+					[&MinValue, &MaxValue](double Time, double Duration, const TraceServices::FMemoryTagSample& Sample)
+				{
+					const double Value = static_cast<double>(Sample.Value);
+					if (Value < MinValue)
+					{
+						MinValue = Value;
+					}
+					if (Value > MaxValue)
+					{
+						MaxValue = Value;
+					}
+				});
+
+				Series.SetValueRange(MinValue, MaxValue);
+			}
 		}
 	}
 }
@@ -347,25 +349,27 @@ void FMemoryGraphTrack::UpdateMemTagSeries(FMemoryGraphSeries& Series, const FTi
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const TraceServices::IMemoryProvider& MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
-
-		const uint64 TotalSampleCount = MemoryProvider.GetTagSampleCount(Series.GetTrackerId(), Series.GetTagId());
-
-		if (TotalSampleCount > 0)
+		const TraceServices::IMemoryProvider* MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
+		if (MemoryProvider)
 		{
-			const float TopY = 4.0f;
-			const float BottomY = GetHeight() - 4.0f;
+			const uint64 TotalSampleCount = MemoryProvider->GetTagSampleCount(Series.GetTrackerId(), Series.GetTagId());
 
-			if (Series.IsAutoZoomEnabled() && TopY < BottomY)
+			if (TotalSampleCount > 0)
 			{
-				Series.UpdateAutoZoom(TopY, BottomY, Series.GetMinValue(), Series.GetMaxValue());
+				const float TopY = 4.0f;
+				const float BottomY = GetHeight() - 4.0f;
+
+				if (Series.IsAutoZoomEnabled() && TopY < BottomY)
+				{
+					Series.UpdateAutoZoom(TopY, BottomY, Series.GetMinValue(), Series.GetMaxValue());
+				}
+
+				MemoryProvider->EnumerateTagSamples(Series.GetTrackerId(), Series.GetTagId(), Viewport.GetStartTime(), Viewport.GetEndTime(), true,
+					[this, &Builder](double Time, double Duration, const TraceServices::FMemoryTagSample& Sample)
+				{
+					Builder.AddEvent(Time, Duration, static_cast<double>(Sample.Value));
+				});
 			}
-
-			MemoryProvider.EnumerateTagSamples(Series.GetTrackerId(), Series.GetTagId(), Viewport.GetStartTime(), Viewport.GetEndTime(), true,
-				[this, &Builder](double Time, double Duration, const TraceServices::FMemoryTagSample& Sample)
-			{
-				Builder.AddEvent(Time, Duration, static_cast<double>(Sample.Value));
-			});
 		}
 	}
 }

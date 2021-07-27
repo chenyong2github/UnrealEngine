@@ -285,11 +285,11 @@ void SSessionInfoWindow::Tick(const FGeometry& AllottedGeometry, const double In
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::IDiagnosticsProvider& DiagnosticsProvider = TraceServices::ReadDiagnosticsProvider(*Session.Get());
+		const TraceServices::IDiagnosticsProvider* DiagnosticsProvider = TraceServices::ReadDiagnosticsProvider(*Session.Get());
 
-		if (DiagnosticsProvider.IsSessionInfoAvailable())
+		if (DiagnosticsProvider && DiagnosticsProvider->IsSessionInfoAvailable())
 		{
-			TraceServices::FSessionInfo SessionInfo = DiagnosticsProvider.GetSessionInfo();
+			TraceServices::FSessionInfo SessionInfo = DiagnosticsProvider->GetSessionInfo();
 			PlatformText = FText::FromString(SessionInfo.Platform);
 			AppNameText = FText::FromString(SessionInfo.AppName);
 			BranchText = FText::FromString(SessionInfo.Branch);

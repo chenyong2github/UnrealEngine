@@ -14,8 +14,6 @@ public:
 	virtual ~FDiagnosticsProvider() {}
 
 public:
-	static FName ProviderName;
-
 	void SetSessionInfo(const FSessionInfo& InSessionInfo);
 	virtual const FSessionInfo& GetSessionInfo() const override;
 	virtual bool IsSessionInfoAvailable() const override;

@@ -5,8 +5,6 @@
 namespace TraceServices
 {
 
-FName FMemoryProvider::ProviderName(TEXT("MemoryProvider"));
-
 FMemoryProvider::FMemoryProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 	, TagsSerial(0)
@@ -215,9 +213,15 @@ void FMemoryProvider::EnumerateTagSamples(FMemoryTrackerId TrackerId, FMemoryTag
 	}
 }
 
-const IMemoryProvider& ReadMemoryProvider(const IAnalysisSession& Session)
+FName GetMemoryProviderName()
 {
-	return *Session.ReadProvider<IMemoryProvider>(FMemoryProvider::ProviderName);
+	static FName Name(TEXT("MemoryProvider"));
+	return Name;
+}
+
+const IMemoryProvider* ReadMemoryProvider(const IAnalysisSession& Session)
+{
+	return Session.ReadProvider<IMemoryProvider>(GetMemoryProviderName());
 }
 
 } // namespace TraceServices

@@ -263,6 +263,21 @@ IModuleAnalysisProvider* CreateModuleProvider(IAnalysisSession& InSession, const
 	return Provider;
 }
 
+/////////////////////////////////////////////////////////////////////
+FName GetModuleProviderName()
+{
+	static FName Name(TEXT("ModuleProvider"));
+	return Name;
+}
+
+/////////////////////////////////////////////////////////////////////
+const IModuleProvider* ReadModuleProvider(const IAnalysisSession& Session)
+{
+	return Session.ReadProvider<IModuleProvider>(GetModuleProviderName());
+}
+
+/////////////////////////////////////////////////////////////////////
+
 } // namespace TraceServices
 
 #undef USE_SYMSLIB
