@@ -451,14 +451,14 @@ void AllocateDistanceFieldCulledObjectBuffers(
 	if (PrimitiveType == DFPT_SignedDistanceField)
 	{
 		NumBoundsElementsScale = 1;
-		ObjectDataStride = TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride;
-		ObjectBoxBoundsStride = TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride;
+		ObjectDataStride = GDistanceFieldCulledObjectDataStride;
+		ObjectBoxBoundsStride = GDistanceFieldCulledObjectBoxBoundsStride;
 	}
 	else
 	{
 		NumBoundsElementsScale = 2;
-		ObjectDataStride = TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride;
-		ObjectBoxBoundsStride = TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride;
+		ObjectDataStride = GHeightFieldCulledObjectDataStride;
+		ObjectBoxBoundsStride = GHeightFieldCulledObjectBoxBoundsStride;
 	}
 
 	FRDGBufferRef Bounds = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), MaxObjects * NumBoundsElementsScale), TEXT("FDistanceFieldCulledObjectBuffers_Bounds"));
@@ -827,10 +827,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 
 			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * TranslatedWorldToClipInnerMatrix;
 
-			FDistanceFieldObjectBufferParameters ObjectBufferParameters;
-			ObjectBufferParameters.SceneObjectBounds = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-			ObjectBufferParameters.SceneObjectData = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-			ObjectBufferParameters.NumSceneObjects = Scene->DistanceFieldSceneData.NumObjectsInBuffer;
+			FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 
 			FLightTileIntersectionParameters LightTileIntersectionParameters;
 			FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;

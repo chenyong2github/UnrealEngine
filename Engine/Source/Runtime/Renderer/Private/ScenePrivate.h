@@ -1060,15 +1060,6 @@ public:
 	FRadianceCacheState RadianceCacheState;
 	FRadianceCacheState RadiosityRadianceCacheState;
 
-	FBufferRHIRef IndirectShadowCapsuleShapesVertexBuffer;
-	FShaderResourceViewRHIRef IndirectShadowCapsuleShapesSRV;
-	FBufferRHIRef IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer;
-	FShaderResourceViewRHIRef IndirectShadowMeshDistanceFieldCasterIndicesSRV;
-	FBufferRHIRef IndirectShadowLightDirectionVertexBuffer;
-	FShaderResourceViewRHIRef IndirectShadowLightDirectionSRV;
-	FRWBuffer IndirectShadowVolumetricLightmapDerivedLightDirection;
-	FRWBuffer CapsuleTileIntersectionCountsBuffer;
-
 	/** Timestamp queries around separate translucency, used for auto-downsampling. */
 	FRenderQueryPoolRHIRef TimerQueryPool;
 	FLatentGPUTimer TranslucencyTimer;

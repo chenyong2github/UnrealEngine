@@ -650,15 +650,6 @@ private:
 		TArrayView<const FProjectedShadowInfo* const> CapsuleShadows,
 		bool bProjectingForForwardShading) const;
 
-	/** Sets up ViewState buffers for rendering capsule shadows. */
-	void SetupIndirectCapsuleShadows(
-		FRDGBuilder& GraphBuilder, 
-		const FViewInfo& View, 
-		int32& NumCapsuleShapes, 
-		int32& NumMeshesWithCapsules, 
-		int32& NumMeshDistanceFieldCasters,
-		FRHIShaderResourceView*& IndirectShadowLightDirectionSRV) const;
-
 	/** Renders indirect shadows from capsules modulated onto scene color. */
 	void RenderIndirectCapsuleShadows(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures) const;
 

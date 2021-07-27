@@ -89,10 +89,6 @@ template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDa
 template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectBoundsStride = GDistanceFieldObjectBoundsStride;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = GHeightFieldObjectDataStride;
 template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectBoundsStride = GHeightFieldObjectBoundsStride;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = GDistanceFieldCulledObjectDataStride;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_SignedDistanceField>::ObjectBoxBoundsStride = GDistanceFieldCulledObjectBoxBoundsStride;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectDataStride = GHeightFieldCulledObjectDataStride;
-template<> int32 TDistanceFieldCulledObjectBuffers<DFPT_HeightField>::ObjectBoxBoundsStride = GHeightFieldCulledObjectBoxBoundsStride;
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
 void TDistanceFieldObjectBuffers<PrimitiveType>::Initialize()
