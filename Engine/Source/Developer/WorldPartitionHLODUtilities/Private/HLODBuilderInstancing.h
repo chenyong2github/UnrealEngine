@@ -2,15 +2,20 @@
 
 #pragma once
 
-#include "HLODBuilder.h"
+#include "WorldPartition/HLOD/HLODBuilder.h"
+#include "HLODBuilderInstancing.generated.h"
+
 
 /**
  * Build a AWorldPartitionHLOD whose components are ISMC
  */
-class FHLODBuilder_Instancing : public FHLODBuilder
+UCLASS()
+class UHLODBuilderInstancing : public UHLODBuilder
 {
+	 GENERATED_UCLASS_BODY()
+
 public:
 	virtual bool RequiresCompiledAssets() const override { return false; }
 
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override;
+	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const override;
 };

@@ -16,10 +16,69 @@
 #include "IGeometryProcessingInterfacesModule.h"
 #include "GeometryProcessingInterfaces/ApproximateActors.h"
 
+#include "Materials/Material.h"
+#include "Engine/HLODProxy.h"
+#include "Serialization/ArchiveCrc32.h"
+
 #include "HLODBuilderInstancing.h"
 
 
-TArray<UPrimitiveComponent*> FHLODBuilder_MeshApproximate::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents)
+UHLODBuilderMeshApproximate::UHLODBuilderMeshApproximate(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+UHLODBuilderMeshApproximateSettings::UHLODBuilderMeshApproximateSettings(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	if (!IsTemplate())
+	{
+		HLODMaterial = GEngine->DefaultHLODFlattenMaterial;
+	}
+#endif
+}
+
+uint32 UHLODBuilderMeshApproximateSettings::GetCRC() const
+{
+	UHLODBuilderMeshApproximateSettings& This = *const_cast<UHLODBuilderMeshApproximateSettings*>(this);
+
+	FArchiveCrc32 Ar;
+
+	Ar << This.MeshApproximationSettings;
+	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - MeshApproximationSettings = %d"), Ar.GetCrc());
+
+	uint32 Hash = Ar.GetCrc();
+
+	if (!HLODMaterial.IsNull())
+	{
+		UMaterialInterface* Material = HLODMaterial.LoadSynchronous();
+		if (Material)
+		{
+			uint32 MaterialCRC = UHLODProxy::GetCRC(Material);
+			UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - Material = %d"), MaterialCRC);
+			Hash = HashCombine(Hash, MaterialCRC);
+		}
+	}
+
+	return Hash;
+}
+
+UHLODBuilderSettings* UHLODBuilderMeshApproximate::CreateSettings(UHLODLayer* InHLODLayer) const 
+{
+	UHLODBuilderMeshApproximateSettings* HLODBuilderSettings = NewObject<UHLODBuilderMeshApproximateSettings>(InHLODLayer);
+
+	// If previous settings object is null, this means we have an older version of the object. Populate with the deprecated settings.
+	if (InHLODLayer->GetHLODBuilderSettings() == nullptr)
+	{
+		HLODBuilderSettings->MeshApproximationSettings = InHLODLayer->MeshApproximationSettings_DEPRECATED;
+		HLODBuilderSettings->HLODMaterial = InHLODLayer->HLODMaterial_DEPRECATED;
+	}
+
+	return HLODBuilderSettings;
+}
+
+TArray<UPrimitiveComponent*> UHLODBuilderMeshApproximate::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_MeshApproximate::CreateComponents);
 
@@ -56,7 +115,9 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshApproximate::CreateComponents(AWor
 	// Construct options for ApproximateActors operation
 	//
 
-	const FMeshApproximationSettings& UseSettings = InHLODLayer->GetMeshApproximationSettings();
+	const UHLODBuilderMeshApproximateSettings* MeshApproximateSettings = CastChecked<UHLODBuilderMeshApproximateSettings>(InHLODLayer->GetHLODBuilderSettings());
+	const FMeshApproximationSettings& UseSettings = MeshApproximateSettings->MeshApproximationSettings;
+	UMaterial* HLODMaterial = MeshApproximateSettings->HLODMaterial.LoadSynchronous();
 
 	IGeometryProcessing_ApproximateActors::FOptions Options = ApproxActorsAPI->ConstructOptions(UseSettings);
 	Options.BasePackagePath = InHLODActor->GetPackage()->GetName();
@@ -64,7 +125,7 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshApproximate::CreateComponents(AWor
 	Options.bCreatePhysicsBody = false;
 
 	// Material baking settings
-	Options.BakeMaterial = GEngine->DefaultHLODFlattenMaterial;
+	Options.BakeMaterial = HLODMaterial;
 	Options.BaseColorTexParamName = FName("BaseColorTexture");
 	Options.NormalTexParamName = FName("NormalTexture");
 	Options.MetallicTexParamName = FName("MetallicTexture");
@@ -178,8 +239,8 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshApproximate::CreateComponents(AWor
 	// Batch instances
 	if (InstancedComponents.Num())
 	{
-		FHLODBuilder_Instancing InstancingHLODBuilder;
-		Components.Append(InstancingHLODBuilder.CreateComponents(InHLODActor, nullptr, InstancedComponents));
+		UHLODBuilderInstancing* InstancingHLODBuilder = NewObject<UHLODBuilderInstancing>();
+		Components.Append(InstancingHLODBuilder->CreateComponents(InHLODActor, nullptr, InstancedComponents));
 	}
 
 	return Components;

@@ -2,13 +2,40 @@
 
 #pragma once
 
-#include "HLODBuilder.h"
+#include "WorldPartition/HLOD/HLODBuilder.h"
+#include "Engine/MeshMerging.h"
+
+#include "HLODBuilderMeshApproximate.generated.h"
+
+class UMaterial;
+
+
+UCLASS(Blueprintable, Config = Engine, PerObjectConfig)
+class UHLODBuilderMeshApproximateSettings : public UHLODBuilderSettings
+{
+	GENERATED_UCLASS_BODY()
+
+	virtual uint32 GetCRC() const override;
+
+	/** Mesh approximation settings */
+	UPROPERTY(EditAnywhere, Config, Category = HLOD, meta=(EditInline))
+	FMeshApproximationSettings MeshApproximationSettings;
+
+	/** Material that will be used by the generated HLOD static mesh */
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = HLOD)
+	TSoftObjectPtr<UMaterial> HLODMaterial;
+};
+
 
 /**
  * Build an approximated mesh using geometry from the provided actors
  */
-class FHLODBuilder_MeshApproximate : public FHLODBuilder
+UCLASS()
+class UHLODBuilderMeshApproximate : public UHLODBuilder
 {
+	GENERATED_UCLASS_BODY()
+
 public:
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override;
+	virtual UHLODBuilderSettings* CreateSettings(UHLODLayer* InHLODLayer) const override;
+	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const override;
 };
