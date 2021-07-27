@@ -228,6 +228,7 @@ struct FProbeResult
 {
 	float HitT;
 	float3 WorldNormal;
+	float3 WorldGeoNormal;
 	int FrontFace;
 
 	bool IsMiss() { return HitT <= 0; }
@@ -236,9 +237,9 @@ struct FProbeResult
 FProbeResult TraceProbeRay(RayDesc Ray, uint2 PixelCoord)
 {
 	// Trace a short ray to see if we escaped the surface
-	// TODO: figure out a way to only hit the object we started on (or handle blocking geometry)
 	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload((FRayCone)0, PixelCoord, true);
-	// TODO: payload flag to skip shading (we only care about the normal)
+	// TODO: use smaller payload + flag to skip shading work? (only want smooth+geo normals)
+	//       however supporting blockers would require some shading ...
 	const uint RayFlags = 0;
 	const uint MissShaderIndex = 0;
 	TraceRay(
@@ -255,12 +256,30 @@ FProbeResult TraceProbeRay(RayDesc Ray, uint2 PixelCoord)
 	{
 		return (FProbeResult)0;
 	}
-
+	FPathTracingPayload Payload = UnpackPathTracingPayload(PackedPayload, Ray);
 	FProbeResult Result;
 	Result.HitT = PackedPayload.HitT;
-	Result.WorldNormal = PackedPayload.GetWorldNormal();
-	Result.FrontFace = PackedPayload.IsFrontFace();
+	Result.WorldNormal = Payload.WorldNormal;
+	Result.WorldGeoNormal = Payload.WorldGeoNormal;
+	Result.FrontFace = Payload.IsFrontFace();
 	return Result;
+}
+
+void ApplyRayBias(inout RayDesc Ray, float HitT, float3 Normal, bool ShadowTerminatorFix = false)
+{
+#if 1
+	// Take maximum of position or hit distance to determine "radius" of hit avoidance
+	const float RefValue = max(max(abs(Ray.Origin.x), abs(Ray.Origin.y)), max(abs(Ray.Origin.z), HitT));
+	const uint UlpRadius = 16; // number of floating point ulps to skip around an intersection
+	const float RelativeOffset = asfloat(asuint(RefValue) + UlpRadius) - RefValue;
+	const float ShadowOffset = 0.1; // 1mm
+	const float BaseOffset = 0.001; // 0.01mm (avoid precision issues very close to the origin where ulps become tiny)
+	// for shadow rays, push out the point a bit more so we can reduce shadow terminator issues from poor tesselations
+	// other rays are less likely to arrive at grazing angles, so don't need the extra offset
+	Ray.Origin += max(ShadowTerminatorFix ? ShadowOffset : BaseOffset, RelativeOffset) * Normal;
+#else
+	ApplyPositionBias(Ray.Origin, Ray.Direction, Normal, MaxNormalBias);
+#endif
 }
 
 bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3 PathThroughput, inout RandomSequence RandSequence, uint2 PixelCoord, bool SimplifySSS)
@@ -308,12 +327,21 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	Ray.Origin = Payload.WorldPos;
 	Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, Payload.WorldNormal);
 	Ray.TMin = 0;
-	ApplyPositionBias(Ray, -Payload.WorldNormal, MaxNormalBias);
+	ApplyRayBias(Ray, Payload.HitT, -Payload.WorldGeoNormal);
+
+    // Use the technique mentioned in "A Hero Beneath the Surface" (Section 6.3.2)
+	// https://jo.dreggn.org/home/2021_spectral_imaging.pdf
+	// This allows multiple overlapping meshes to be treated as a single "volume" by discarding internal hits until we have
+	// crossed the appropriate number of interfaces
+#define SSS_USE_INTERFACE_COUNTING 1
+
+	int InterfaceCounter = Payload.IsFrontFace() ? +1 : -1;
 
 	// Use the technique detailed in the Hyperion paper (Section 4.4.2)
 	// https://media.disneyanimation.com/uploads/production/publication_asset/177/asset/a.pdf
 	// This avoids overly bright thin regions by applying a bit of internal reflection when the boundary is hit
 #define SSS_USE_TIR 1
+
 
 #if SSS_USE_TIR
 	const float3 Albedo = 1 - exp(SSSColor * (-11.43 + SSSColor * (15.38 - 13.91 * SSSColor)));
@@ -360,60 +388,81 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 			float RescaleRand = min((RandSample.z - ColorChannelCdf.y) / ColorChannelPdf.z, OneMinusEpsilon);
 			Ray.TMax = -log(1 - RescaleRand) * SSSRadius.z;
 		}
-
-		FProbeResult ProbeResult = TraceProbeRay(Ray, PixelCoord);
-		if (ProbeResult.IsMiss())
+		for (;;)
 		{
-			// we didn't hit anything, so scatter randomly in the volume and keep tracing
-			RandSample = RandomSequence_GenerateSample3D(RandSequence);
-			Ray.Origin += Ray.TMax * Ray.Direction;
-			Ray.Direction = UniformSampleSphere(RandSample.xy).xyz;
-			// account for transmittance and scattering up to this point
-			float3 Transmittance = exp(-Ray.TMax * SigmaT);
-			PathThroughput *= SigmaS * Transmittance;
-			// account for transmittance pdf (which is the balance heuristic combination of transmittance sampling in each color channel)
-			float3 TransmittancePdf = SigmaT * Transmittance;
-			PathThroughput /= dot(TransmittancePdf, ColorChannelPdf);
-
-			// NOTE: phase function cancels out since it is being perfectly importance sampled
-		}
-		else
-		{
-			// account for transmittance and scattering up to this point
-			float3 Transmittance = exp(-ProbeResult.HitT * SigmaT);
-			PathThroughput *= Transmittance;
-			// account for transmittance pdf (which is the balance heuristic combination of transmittance sampling in each color channel)
-			float3 TransmittancePdf = Transmittance; // integral of pdf from HitT to infinity
-			PathThroughput /= dot(Transmittance, ColorChannelPdf);
-
-			// our short ray hit the geomtry - decide if we should exit or not
-#if SSS_USE_TIR
-			RandSample = RandomSequence_GenerateSample2D(RandSequence).xxy;
-			float3 WorldNormal = ProbeResult.WorldNormal;
-			float CosTheta = abs(dot(Ray.Direction, WorldNormal));
-			float Fresnel = FresnelReflectance(CosTheta, 1.0 / 1.4);
-			if (RandSample.x < Fresnel)
+			FProbeResult ProbeResult = TraceProbeRay(Ray, PixelCoord);
+			if (ProbeResult.IsMiss())
 			{
-				// internal reflection occured -- reflect and keep tracing
-				// NOTE: weight and probability cancel out, so no throughput adjustment is needed
-				Ray.Origin += ProbeResult.HitT * Ray.Direction;
-				Ray.Direction = reflect(Ray.Direction, WorldNormal);
-				ApplyPositionBias(Ray, WorldNormal, MaxNormalBias);
-				continue;
+				// we didn't hit anything, so scatter randomly in the volume and keep tracing
+				RandSample = RandomSequence_GenerateSample3D(RandSequence);
+				Ray.Origin += Ray.TMax * Ray.Direction;
+				Ray.Direction = UniformSampleSphere(RandSample.xy).xyz;
+				Ray.TMin = 0;
+				// account for transmittance and scattering up to this point
+				float3 Transmittance = exp(-Ray.TMax * SigmaT);
+				PathThroughput *= SigmaS * Transmittance;
+				// account for transmittance pdf (which is the balance heuristic combination of transmittance sampling in each color channel)
+				float3 TransmittancePdf = SigmaT * Transmittance;
+				PathThroughput /= dot(TransmittancePdf, ColorChannelPdf);
+
+				// NOTE: phase function cancels out since it is being perfectly importance sampled
+
+				// exit the Interface counting loop and keep scattering
+				break;
 			}
+#if SSS_USE_INTERFACE_COUNTING
+			// update counter
+			InterfaceCounter += ProbeResult.FrontFace ? +1 : -1;
+			if (InterfaceCounter != 0)
+			{
+				// we have not yet crossed the right number of interfaces, so ignore the current hit and try the segment again
+				Ray.TMin = asfloat(asuint(ProbeResult.HitT) + 1);
+			}
+			else
 #endif
-			// we hit the boundary! overwrite the current payload and exit the walk with a diffuse scattering event
-			Payload.WorldPos = Ray.Origin + ProbeResult.HitT * Ray.Direction;
-			Payload.WorldNormal = ProbeResult.WorldNormal;
-			// make sure normal is pointed outward from the object so we capture illumination from the exterior
-			if (ProbeResult.FrontFace != Payload.IsFrontFace())
 			{
-				Payload.WorldNormal *= -1.0;
+				// account for transmittance and scattering up to this point
+				float3 Transmittance = exp(-ProbeResult.HitT * SigmaT);
+				PathThroughput *= Transmittance;
+				// account for transmittance pdf (which is the balance heuristic combination of transmittance sampling in each color channel)
+				float3 TransmittancePdf = Transmittance; // integral of pdf from HitT to infinity
+				PathThroughput /= dot(Transmittance, ColorChannelPdf);
+
+				// our short ray hit the geomtry - decide if we should exit or not
+#if SSS_USE_TIR
+				RandSample = RandomSequence_GenerateSample2D(RandSequence).xxy;
+				float3 WorldNormal = ProbeResult.WorldNormal;
+				float CosTheta = abs(dot(Ray.Direction, WorldNormal));
+				float Fresnel = FresnelReflectance(CosTheta, 1.0 / 1.4);
+				if (RandSample.x < Fresnel)
+				{
+					// internal reflection occured -- reflect and keep tracing
+					// NOTE: weight and probability cancel out, so no throughput adjustment is needed
+					Ray.Origin += ProbeResult.HitT * Ray.Direction;
+					Ray.Direction = reflect(Ray.Direction, WorldNormal);
+					Ray.TMin = 0;
+					ApplyRayBias(Ray, ProbeResult.HitT, ProbeResult.WorldGeoNormal);
+					// Reset interface counter as if we had just entered the model (taking into account that we are seeing it from the opposite side now)
+					InterfaceCounter = ProbeResult.FrontFace ? -1 : +1;
+					// exit from the interface counting loop and keep scattering
+					break;
+				}
+#endif
+				// we hit the boundary! overwrite the current payload and exit the walk with a diffuse scattering event
+				Payload.WorldPos = Ray.Origin + ProbeResult.HitT * Ray.Direction;
+				Payload.WorldNormal = ProbeResult.WorldNormal;
+				Payload.WorldGeoNormal = ProbeResult.WorldGeoNormal;
+				// make sure normal is pointed outward from the object so we capture illumination from the exterior
+				if (ProbeResult.FrontFace != Payload.IsFrontFace())
+				{
+					Payload.WorldNormal *= -1.0;
+					Payload.WorldGeoNormal *= -1.0;
+				}
+				Payload.ShadingModelID = SHADINGMODELID_NUM; // invalid value so that we get diffuse shading
+				Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
+				Payload.BaseColor = 1;
+				return true;
 			}
-			Payload.ShadingModelID = SHADINGMODELID_NUM; // invalid value so that we get diffuse shading
-			Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
-			Payload.BaseColor = 1;
-			return true;
 		}
 	}
 	// we scattered a bunch of times and never hit anything -- give up
@@ -553,6 +602,24 @@ FPathState CreatePathState(uint2 DispatchIdx, uint2 DispatchDim)
 	return Output;
 }
 
+float3 AdjustShadingNormal(float3 ShadingNormal, float3 GeoNormal, float3 RayDirection)
+{
+	// Clip shading normal in a view dependent way such that the reflection stays above the geometric normal
+	// This introduces a bit of view-dependency to the shading normal but fixes dark artifacts around grazing angles
+
+	float3 D = RayDirection;
+	float3 R = reflect(D, ShadingNormal);
+
+	// https://iquilezles.org/www/articles/dontflip/dontflip.htm
+	float k = dot(R, GeoNormal);
+	if (k < 0.0)
+	{
+		return normalize(normalize(R - k * GeoNormal) - D);
+	}
+	return ShadingNormal;
+}
+
+
 bool PathTracingKernel(inout FPathState PathState, int Bounce)
 {
 	// This array will hold a CDF for light picking
@@ -592,6 +659,9 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		// we didn't hit anything selectable for further shading, we are done
 		return false;
 	}
+
+	// fix dark edges in reflections from shading normals
+	Payload.WorldNormal = AdjustShadingNormal(Payload.WorldNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
 
 	// As soon as the path is blurry enough, we can get away with diffuse sampling only
 	const bool bSimplifySSS = PathState.PathRoughness >= 0.15;
@@ -669,14 +739,14 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				if (CastsShadow(LightId))
 				{
 					// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
-					const float SignedPositionBias = IsTransmissiveMaterial ? sign(dot(Payload.WorldNormal, LightSample.Direction)) : 1.0;
+					const float SignedPositionBias = IsTransmissiveMaterial ? sign(dot(Payload.WorldGeoNormal, LightSample.Direction)) : 1.0;
 
 					RayDesc LightRay;
 					LightRay.Origin = WorldPos;
 					LightRay.TMin = 0;
 					LightRay.Direction = LightSample.Direction;
 					LightRay.TMax = LightSample.Distance;
-					ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, MaxNormalBias);
+					ApplyRayBias(LightRay, Payload.HitT, SignedPositionBias * Payload.WorldGeoNormal, true);
 
 					float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
 
@@ -755,7 +825,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	PathState.Ray.Direction = MaterialSample.Direction;
 	PathState.Ray.TMin = 0;
 	PathState.Ray.TMax = POSITIVE_INFINITY;
-	ApplyPositionBias(PathState.Ray, MaterialSample.PositionBiasSign * Payload.WorldNormal, MaxNormalBias);
+	ApplyRayBias(PathState.Ray, Payload.HitT, MaterialSample.PositionBiasSign * Payload.WorldGeoNormal);
 
 	if (ApproximateCaustics)
 	{
