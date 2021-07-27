@@ -11,16 +11,16 @@ TAutoConsoleVariable<int32> CVarHalfResFFTBloom(
 	0,
 	TEXT("Experimental half-resolution FFT Bloom convolution. \n")
 	TEXT(" 0: Standard full resolution convolution bloom.")
-	TEXT(" 1: Half-resolution convolution that excludes the center of the kernel.\n"),
+	TEXT(" 1: Half-resolution convolution that excludes the center of the kernel.\n")
+	TEXT(" 2: Quarter-resolution convolution that excludes the center of the kernel.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static bool DoesPlatformSupportFFTBloom(EShaderPlatform Platform)
 {
-	// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Platform) && IsPCPlatform(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsFFTBloom(Platform);
 }
 
-class FFFTShader : public FGlobalShader
+class FFFTBloomShader : public FGlobalShader
 {
 public:
 	// Determine the number of threads used per scanline when writing the physical space kernel
@@ -31,17 +31,17 @@ public:
 		return DoesPlatformSupportFFTBloom(Parameters.Platform);
 	}
 
-	FFFTShader() = default;
-	FFFTShader(const CompiledShaderInitializerType& Initializer)
+	FFFTBloomShader() = default;
+	FFFTBloomShader(const CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{}
 };
 
-class FResizeAndCenterTextureCS : public FFFTShader
+class FResizeAndCenterTextureCS : public FFFTBloomShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FResizeAndCenterTextureCS);
-	SHADER_USE_PARAMETER_STRUCT(FResizeAndCenterTextureCS, FFFTShader);
+	SHADER_USE_PARAMETER_STRUCT(FResizeAndCenterTextureCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
@@ -55,7 +55,7 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FFFTBloomShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("INCLUDE_RESIZE_AND_CENTER"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADS_PER_GROUP"), ThreadsPerGroup);
 	}
@@ -63,11 +63,11 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FResizeAndCenterTextureCS, "/Engine/Private/PostProcessFFTBloom.usf", "ResizeAndCenterTextureCS", SF_Compute);
 
-class FCaptureKernelWeightsCS : public FFFTShader
+class FCaptureKernelWeightsCS : public FFFTBloomShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FCaptureKernelWeightsCS);
-	SHADER_USE_PARAMETER_STRUCT(FCaptureKernelWeightsCS, FFFTShader);
+	SHADER_USE_PARAMETER_STRUCT(FCaptureKernelWeightsCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_TEXTURE(Texture2D, HalfResSrcTexture)
@@ -80,18 +80,18 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FFFTBloomShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("INCLUDE_CAPTURE_KERNEL_WEIGHTS"), 1);
 	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FCaptureKernelWeightsCS, "/Engine/Private/PostProcessFFTBloom.usf", "CaptureKernelWeightsCS", SF_Compute);
 
-class FBlendLowResCS : public FFFTShader
+class FBlendLowResCS : public FFFTBloomShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FBlendLowResCS);
-	SHADER_USE_PARAMETER_STRUCT(FBlendLowResCS, FFFTShader);
+	SHADER_USE_PARAMETER_STRUCT(FBlendLowResCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
@@ -106,7 +106,7 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FFFTBloomShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("INCLUDE_BLEND_LOW_RES"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADS_PER_GROUP"), ThreadsPerGroup);
 	}
@@ -114,11 +114,11 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FBlendLowResCS, "/Engine/Private/PostProcessFFTBloom.usf", "BlendLowResCS", SF_Compute);
 
-class FPassThroughCS : public FFFTShader
+class FPassThroughCS : public FFFTBloomShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FPassThroughCS);
-	SHADER_USE_PARAMETER_STRUCT(FPassThroughCS, FFFTShader);
+	SHADER_USE_PARAMETER_STRUCT(FPassThroughCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
@@ -129,7 +129,7 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FFFTBloomShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("INCLUDE_PASSTHROUGH"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADS_PER_GROUP"), ThreadsPerGroup);
 	}
@@ -140,7 +140,12 @@ IMPLEMENT_GLOBAL_SHADER(FPassThroughCS, "/Engine/Private/PostProcessFFTBloom.usf
 
 bool IsFFTBloomHalfResolutionEnabled()
 {
-	return CVarHalfResFFTBloom.GetValueOnRenderThread() == 1;
+	return CVarHalfResFFTBloom.GetValueOnRenderThread() != 0;
+}
+
+bool IsFFTBloomQuarterResolutionEnabled()
+{
+	return CVarHalfResFFTBloom.GetValueOnRenderThread() == 2;
 }
 
 bool IsFFTBloomPhysicalKernelReady(const FViewInfo& View)

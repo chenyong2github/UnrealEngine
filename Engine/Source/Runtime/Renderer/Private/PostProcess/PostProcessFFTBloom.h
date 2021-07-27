@@ -17,4 +17,6 @@ struct FFFTBloomInputs
 	FIntRect HalfResolutionViewRect;
 };
 
+bool IsFFTBloomQuarterResolutionEnabled();
+
 FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs);
