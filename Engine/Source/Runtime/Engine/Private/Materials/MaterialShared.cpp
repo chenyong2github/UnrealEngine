@@ -3822,6 +3822,45 @@ void FMaterial::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, FStab
 #endif
 }
 
+#if WITH_EDITOR
+void FMaterial::GetShaderTypes(EShaderPlatform Platform, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
+{
+	const FMaterialShaderParameters MaterialParameters(this);
+	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(Platform, GetCurrentShaderPermutationFlags(), MaterialParameters);
+
+	for (const FMeshMaterialShaderMapLayout& MeshLayout : Layout.MeshShaderMaps)
+	{
+		FDebugShaderTypeInfo debugInfo;
+		debugInfo.VFType = MeshLayout.VertexFactoryType;
+
+		for (const FShaderLayoutEntry& Shader : MeshLayout.Shaders)
+		{
+			if (ShouldCache(Platform, Shader.ShaderType, MeshLayout.VertexFactoryType))
+			{
+				debugInfo.ShaderTypes.Add(Shader.ShaderType);
+			}
+		}
+
+		for (const FShaderPipelineType* Pipeline : MeshLayout.ShaderPipelines)
+		{
+			if (ShouldCachePipeline(Platform, Pipeline, MeshLayout.VertexFactoryType))
+			{
+				FDebugShaderPipelineInfo pipelineInfo;
+				pipelineInfo.Pipeline = Pipeline;
+
+				for (const FShaderType* Type : Pipeline->GetStages())
+				{
+					pipelineInfo.ShaderTypes.Add((FShaderType*)Type);
+				}
+
+				debugInfo.Pipelines.Add(pipelineInfo);
+			}
+		}
+
+		OutShaderInfo.Add(debugInfo);
+	}
+}
+#endif
 
 FMaterialUpdateContext::FMaterialUpdateContext(uint32 Options, EShaderPlatform InShaderPlatform)
 {

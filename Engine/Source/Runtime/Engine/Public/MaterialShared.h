@@ -672,6 +672,19 @@ public:
 	LAYOUT_BITFIELD(uint8, bUsesAnisotropy, 1);
 };
 
+struct FDebugShaderPipelineInfo
+{
+	const FShaderPipelineType* Pipeline = nullptr;
+	TArray<FShaderType*> ShaderTypes;
+};
+
+struct FDebugShaderTypeInfo
+{
+	FVertexFactoryType* VFType = nullptr;
+	TArray<FShaderType*> ShaderTypes;
+	TArray<FDebugShaderPipelineInfo> Pipelines;
+};
+
 /** 
  * Usage options for a shader map.
  * The purpose of EMaterialShaderMapUsage is to allow creating a unique yet deterministic (no appCreateGuid) Id,
@@ -1945,6 +1958,18 @@ public:
 
 	void DumpDebugInfo();
 	void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, struct FStableShaderKeyAndValue& SaveKeyVal); // arg is non-const, we modify it as we go
+
+#if WITH_EDITOR
+/**
+*	Gathers a list of shader types sorted by vertex factory types that should be cached for this material.  Avoids doing expensive material
+*	and shader compilation to acquire this information.
+*
+*	@param	Platform		The shader platform to get info for.
+*	@param	OutShaderInfo	Array of results sorted by vertex factory type, and shader type.
+*
+*/
+	void GetShaderTypes(EShaderPlatform Platform, TArray<FDebugShaderTypeInfo>& OutShaderInfo);
+#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 	/** 

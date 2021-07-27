@@ -3074,6 +3074,16 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 
 void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform)
 {
+	TArray<FMaterialResource*> NewResourcesToCache;	// only new resources need to have CacheShaders() called on them, whereas OutCachedMaterialResources may already contain resources for another shader platform
+	GetNewResources(ShaderPlatform, NewResourcesToCache);
+
+	CacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
+
+	OutCachedMaterialResources.Append(NewResourcesToCache);
+}
+
+void UMaterial::GetNewResources(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& NewResourcesToCache)
+{
 	ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 
 	TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> > QualityLevelsUsed;
@@ -3082,7 +3092,6 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 	const UShaderPlatformQualitySettings* MaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(ShaderPlatform);
 	bool bNeedDefaultQuality = false;
 
-	TArray<FMaterialResource*> NewResourcesToCache;	// only new resources need to have CacheShaders() called on them, whereas OutCachedMaterialResources may already contain resources for another shader platform
 	for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
 	{
 		// Add all quality levels actually used
@@ -3109,10 +3118,6 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 		NewResource->SetMaterial(this, nullptr, (ERHIFeatureLevel::Type)TargetFeatureLevel);
 		NewResourcesToCache.Add(NewResource);
 	}
-
-	CacheShadersForResources(ShaderPlatform, NewResourcesToCache, EMaterialShaderPrecompileMode::Background, TargetPlatform);
-
-	OutCachedMaterialResources.Append(NewResourcesToCache);
 }
 
 void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
@@ -4362,6 +4367,21 @@ void UMaterial::SaveShaderStableKeysInner(const class ITargetPlatform* TP, const
 #endif
 }
 
+#if WITH_EDITOR
+void UMaterial::GetShaderTypes(EShaderPlatform ShaderPlatform, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
+{
+	TArray<FMaterialResource*> NewResourcesToCache;
+	GetNewResources(ShaderPlatform, NewResourcesToCache);
+
+	for (FMaterialResource* Resource : NewResourcesToCache)
+	{
+		Resource->GetShaderTypes(ShaderPlatform, OutShaderInfo);
+		delete Resource;
+	}
+
+	NewResourcesToCache.Empty();
+}
+#endif // WITH_EDITOR
 
 void UMaterial::PropagateDataToMaterialProxy()
 {
