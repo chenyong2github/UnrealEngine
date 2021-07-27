@@ -911,6 +911,11 @@ namespace UnrealBuildTool
 		public List<string> PublicIncludePaths = new List<string>();
 
 		/// <summary>
+		/// (This setting is currently not need as we discover all files from the 'Internal' folder) List of all paths to include files that are exposed to other internal modules
+		/// </summary>
+		public List<string> InternalncludePaths = new List<string>();
+
+		/// <summary>
 		/// List of all paths to this module's internal include files, not exposed to other modules (at least one include to the 'Private' path, more if we want to avoid relative paths)
 		/// </summary>
 		public List<string> PrivateIncludePaths = new List<string>();

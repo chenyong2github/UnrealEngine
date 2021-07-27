@@ -78,6 +78,11 @@ namespace UnrealBuildTool
 		public readonly HashSet<DirectoryReference> PublicIncludePaths;
 
 		/// <summary>
+		/// Set of all internal include paths
+		/// </summary>
+		public readonly HashSet<DirectoryReference> InternalIncludePaths;
+
+		/// <summary>
 		/// Nested public include paths which used to be added automatically, but are now only added for modules with bNestedPublicIncludePaths set.
 		/// </summary>
 		public readonly HashSet<DirectoryReference> LegacyPublicIncludePaths = new HashSet<DirectoryReference>();
@@ -182,6 +187,7 @@ namespace UnrealBuildTool
 			HashSet<string> PublicPreBuildLibraries = HashSetFromOptionalEnumerableStringParameter(Rules.PublicPreBuildLibraries);
 			PublicDefinitions = HashSetFromOptionalEnumerableStringParameter(Rules.PublicDefinitions);
 			PublicIncludePaths = CreateDirectoryHashSet(Rules.PublicIncludePaths);
+			InternalIncludePaths = CreateDirectoryHashSet(Rules.InternalncludePaths);
 			PublicSystemIncludePaths = CreateDirectoryHashSet(Rules.PublicSystemIncludePaths);
 			PublicSystemLibraryPaths = CreateDirectoryHashSet(Rules.PublicSystemLibraryPaths);
 			HashSet<string> PublicAdditionalLibraries = HashSetFromOptionalEnumerableStringParameter(Rules.PublicAdditionalLibraries.Union(PublicPreBuildLibraries));
@@ -425,7 +431,11 @@ namespace UnrealBuildTool
 			{
 				Directories.Add(PublicIncludePath);
 			}
-			foreach(DirectoryReference PrivateIncludePath in PrivateIncludePaths)
+			foreach (DirectoryReference InternalIncludePath in InternalIncludePaths)
+			{
+				Directories.Add(InternalIncludePath);
+			}
+			foreach (DirectoryReference PrivateIncludePath in PrivateIncludePaths)
 			{
 				Directories.Add(PrivateIncludePath);
 			}
@@ -518,6 +528,7 @@ namespace UnrealBuildTool
 		/// Sets up the environment for compiling any module that includes the public interface of this module.
 		/// </summary>
 		public virtual void AddModuleToCompileEnvironment(
+			UEBuildModule? SourceModule,
 			UEBuildBinary? SourceBinary,
 			HashSet<DirectoryReference> IncludePaths,
 			HashSet<DirectoryReference> SystemIncludePaths,
@@ -533,15 +544,21 @@ namespace UnrealBuildTool
 
 			// Add this module's public include paths and definitions.
 			AddIncludePaths(IncludePaths, PublicIncludePaths);
-			if(bLegacyPublicIncludePaths)
+			if (bLegacyPublicIncludePaths)
 			{
 				AddIncludePaths(IncludePaths, LegacyPublicIncludePaths);
 			}
 			SystemIncludePaths.UnionWith(PublicSystemIncludePaths);
 			Definitions.AddRange(PublicDefinitions);
 
+			// Add this module's internal include paths, only if the scope contains the same as the SourceModule's scope
+			if (SourceModule != null && Rules.Context.Scope.Contains(SourceModule.Rules.Context.Scope))
+			{
+				AddIncludePaths(IncludePaths, InternalIncludePaths);
+			}
+
 			// Add the import or export declaration for the module
-			if(Rules.Type == ModuleRules.ModuleType.CPlusPlus)
+			if (Rules.Type == ModuleRules.ModuleType.CPlusPlus)
 			{
 				if(Rules.Target.LinkType == TargetLinkType.Monolithic)
 				{
@@ -611,7 +628,7 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				Module.AddModuleToCompileEnvironment(Binary, IncludePaths, SystemIncludePaths, ModuleInterfacePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bWithLegacyPublicIncludePaths);
+				Module.AddModuleToCompileEnvironment(this, Binary, IncludePaths, SystemIncludePaths, ModuleInterfacePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bWithLegacyPublicIncludePaths);
 			}
 		}
 
@@ -1078,6 +1095,7 @@ namespace UnrealBuildTool
 
 			ExportJsonStringArray(Writer, "PublicSystemIncludePaths", PublicSystemIncludePaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicIncludePaths", PublicIncludePaths.Select(x => x.FullName));
+			ExportJsonStringArray(Writer, "InternalIncludePaths", PublicIncludePaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PrivateIncludePaths", PrivateIncludePaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicLibraries", PublicLibraries.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicSystemLibraries", PublicSystemLibraries);
