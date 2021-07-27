@@ -31,10 +31,7 @@ FRigUnit_SetTransform_Execute()
 			{
 				CachedIndex.Reset();
 
-				if (ExecuteContext.EventName == FRigUnit_InverseExecution::EventName)
-				{
-					return;
-				}
+				return;
 			}
 			case EControlRigState::Update:
 			{
