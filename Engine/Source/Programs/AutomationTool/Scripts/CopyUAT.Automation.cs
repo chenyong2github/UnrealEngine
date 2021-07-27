@@ -30,7 +30,7 @@ public class CopyUAT : BuildCommand
 		Build.AddUBTFilesToBuildProducts();
 
 		// Get a list of all the input files
-		List<FileReference> SourceFiles = new List<FileReference>();
+		HashSet<FileReference> SourceFiles = new HashSet<FileReference>();
 		foreach(string BuildProductFile in Build.BuildProductFiles)
 		{
 			FileReference SourceFile = new FileReference(BuildProductFile);
