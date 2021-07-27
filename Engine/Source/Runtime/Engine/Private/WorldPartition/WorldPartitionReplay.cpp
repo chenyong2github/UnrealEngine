@@ -66,9 +66,17 @@ AWorldPartitionReplay::AWorldPartitionReplay(const FObjectInitializer& ObjectIni
 	bAlwaysRelevant = true;
 	bReplicates = true;
 	NetDriverName = NAME_DemoNetDriver;
+	bReplayRewindable = true;
 #if WITH_EDITORONLY_DATA
 	bListedInSceneOutliner = false;
 #endif
+}
+
+void AWorldPartitionReplay::RewindForReplay()
+{
+	Super::RewindForReplay();
+
+	ReplaySamples.Empty();
 }
 
 void AWorldPartitionReplay::Initialize(UWorld* World)
