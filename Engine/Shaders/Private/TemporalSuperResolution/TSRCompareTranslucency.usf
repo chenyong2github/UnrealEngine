@@ -49,6 +49,8 @@ float2 PrevTranslucencyInfo_UVViewportBilinearMin;
 float2 PrevTranslucencyInfo_UVViewportBilinearMax;
 float PrevTranslucencyPreExposureCorrection;
 
+float TranslucencyHighlightLuminance;
+
 FScreenTransform InputPixelPosToScreenPos;
 FScreenTransform ScreenPosToPrevTranslucencyTextureUV;
 
@@ -66,6 +68,27 @@ taa_half4 TransformToComparisonColorSpace(taa_half4 Color)
 	return taa_half4(RGBToYCoCg(Color.rgb), Color.a);
 }
 
+taa_half MeasureTranslucencyRejectionFactor(
+	taa_half4 PrevTranslucency,
+	taa_half4 Translucency,
+	taa_half4 TranslucencyMin,
+	taa_half4 TranslucencyMax)
+{
+	taa_half IsHighlight = saturate(PrevTranslucency.x - taa_half(TranslucencyHighlightLuminance));
+
+	taa_half4 ClampedPrevTranslucency = clamp(PrevTranslucency, TranslucencyMin, TranslucencyMax);
+	
+	taa_half BackbufferQuantizationError = 0.0; //MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevTranslucency[0], Translucency[0]));
+
+	taa_half Rejection = MeasureRejectionFactor(
+		PrevTranslucency.xyz, ClampedPrevTranslucency.xyz,
+		Translucency.xyz, TranslucencyMin.xyz, TranslucencyMax.xyz,
+		BackbufferQuantizationError);
+
+	Rejection = lerp(1.0, Rejection, IsHighlight);
+
+	return Rejection;
+}
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -126,10 +149,18 @@ void MainCS(
 			}
 			else
 			{
+				#if CONFIG_KERNEL
+					Translucency += TranslucencyColor;
+				#endif
+
 				TranslucencyMin = min(TranslucencyMin, TranslucencyColor);
 				TranslucencyMax = max(TranslucencyMax, TranslucencyColor);
 			}
 		}
+
+		#if CONFIG_KERNEL
+			Translucency *= rcp(taa_half(CONFIG_SAMPLES));
+		#endif
 	}
 
 	// Sample previous frame's translucency
@@ -176,10 +207,18 @@ void MainCS(
 			}
 			else
 			{
+				#if CONFIG_KERNEL
+					PrevTranslucency += PrevTranslucencyColor;
+				#endif
+
 				PrevTranslucencyMin = min(PrevTranslucencyMin, PrevTranslucencyColor);
 				PrevTranslucencyMax = max(PrevTranslucencyMax, PrevTranslucencyColor);
 			}
 		}
+
+		#if CONFIG_KERNEL
+			PrevTranslucency *= rcp(taa_half(CONFIG_SAMPLES));
+		#endif
 
 		PrevTranslucency *= PrevTranslucencyPreExposureCorrection;
 		PrevTranslucencyMin *= PrevTranslucencyPreExposureCorrection;
@@ -189,20 +228,19 @@ void MainCS(
 	taa_half Rejection = 1.0;
 	#if 1
 	{
-		taa_half4 ClampedPrevTranslucency = clamp(PrevTranslucency, TranslucencyMin, TranslucencyMax);
-		taa_half4 ClampedTranslucency = clamp(Translucency, PrevTranslucencyMin, PrevTranslucencyMax);
-
 		// TODO: reject with alpha too? Might not need since translucency is premultiplied RGBA 
-		taa_half ForwardRejection = MeasureRejectionFactor(
-			PrevTranslucency.xyz, ClampedPrevTranslucency.xyz,
-			Translucency.xyz, TranslucencyMin.xyz, TranslucencyMax.xyz,
-			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevTranslucency[0], ClampedPrevTranslucency[0])));
+		taa_half ForwardRejection = MeasureTranslucencyRejectionFactor(
+			PrevTranslucency,
+			Translucency,
+			TranslucencyMin,
+			TranslucencyMax);
 		
-		taa_half BackwardRejection = MeasureRejectionFactor(
-			Translucency.xyz, ClampedTranslucency.xyz,
-			PrevTranslucency.xyz, PrevTranslucencyMin.xyz, PrevTranslucencyMax.xyz,
-			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(Translucency[0], ClampedTranslucency[0])));
-		
+		taa_half BackwardRejection = MeasureTranslucencyRejectionFactor(
+			Translucency,
+			PrevTranslucency,
+			PrevTranslucencyMin,
+			PrevTranslucencyMax);
+
 		Rejection = min(ForwardRejection, BackwardRejection);
 	}
 	#endif

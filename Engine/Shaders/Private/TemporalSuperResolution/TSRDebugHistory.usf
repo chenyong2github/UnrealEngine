@@ -99,7 +99,7 @@ void MainCS(
 		Debug.b = SubpixelId;
 	}
 
-	#if DEBUG_OUTPUT
+	#if DEBUG_OUTPUT && 0
 	if (all(DispatchThreadId < HistoryInfo_ViewportMax * SUB_PIXEL_GRID_SIZE))
 	{
 		DebugOutput[DispatchThreadId] = Debug;
