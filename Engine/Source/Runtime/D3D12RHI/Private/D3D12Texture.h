@@ -112,7 +112,7 @@ public:
 
 	void SetMemorySize(int64 InMemorySize)
 	{
-		check(InMemorySize > 0);
+		check(InMemorySize >= 0);
 		MemorySize = InMemorySize;
 	}
 
