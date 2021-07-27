@@ -8,6 +8,7 @@
 #include "MetasoundAudioFormats.h"
 #include "MetasoundEngineArchetypes.h"
 #include "MetasoundEngineEnvironment.h"
+#include "MetasoundEnvironment.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
@@ -19,7 +20,7 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundReceiveNode.h"
 #include "MetasoundTrigger.h"
-#include "MetasoundEnvironment.h"
+#include "MetasoundUObjectRegistry.h"
 #include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITORONLY_DATA
@@ -36,22 +37,10 @@ UMetaSound::UMetaSound(const FObjectInitializer& ObjectInitializer)
 }
 
 #if WITH_EDITOR
-void UMetaSound::PreSave(FObjectPreSaveContext SaveContext)
-{
-	Super::PreSave(SaveContext);
-
-	// TODO: Enable Composition
-	// RegisterGraphWithFrontend();
-}
-
 void UMetaSound::PostEditUndo()
 {
 	Super::PostEditUndo();
-
-	if (Graph)
-	{
-		Graph->Synchronize();
-	}
+	Metasound::PostAssetUndo(*this);
 }
 
 void UMetaSound::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
@@ -59,8 +48,25 @@ void UMetaSound::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 	Super::PostEditChangeProperty(InEvent);
 	Metasound::PostEditChangeProperty(*this, InEvent);
 }
-
 #endif // WITHEDITOR
+
+void UMetaSound::BeginDestroy()
+{
+	UnregisterGraphWithFrontend();
+	Super::BeginDestroy();
+}
+
+void UMetaSound::PreSave(FObjectPreSaveContext InSaveContext)
+{
+	Super::PreSave(InSaveContext);
+	Metasound::PreSaveAsset(*this);
+}
+
+void UMetaSound::Serialize(FArchive& InArchive)
+{
+	Super::Serialize(InArchive);
+	Metasound::SerializeToArchive(*this, InArchive);
+}
 
 #if WITH_EDITORONLY_DATA
 UEdGraph* UMetaSound::GetGraph()

@@ -201,7 +201,7 @@ namespace Metasound
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateOutputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext)
 	{
-		check(InClass.Metadata.Type == EMetasoundFrontendClassType::Output);
+		check(InClass.Metadata.GetType() == EMetasoundFrontendClassType::Output);
 		check(InNode.ClassID == InClass.ID);
 
 		if (ensure(InNode.Interface.Outputs.Num() == 1))
@@ -232,7 +232,7 @@ namespace Metasound
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext)
 	{
-		check(InClass.Metadata.Type == EMetasoundFrontendClassType::External);
+		check(InClass.Metadata.GetType() == EMetasoundFrontendClassType::External);
 		check(InNode.ClassID == InClass.ID);
 
 		const FNodeInitData InitData = FrontendGraphPrivate::CreateNodeInitData(InNode);
@@ -359,7 +359,7 @@ namespace Metasound
 
 			if (ensure(nullptr != NodeClass))
 			{
-				switch (NodeClass->Metadata.Type)
+				switch (NodeClass->Metadata.GetType())
 				{
 					case EMetasoundFrontendClassType::Input:
 					{
@@ -620,9 +620,9 @@ namespace Metasound
 		// All dependencies are external dependencies in a flat graph
 		auto IsClassExternal = [&](const FMetasoundFrontendClass& InDesc) 
 		{ 
-			bool bIsExternal = (InDesc.Metadata.Type == EMetasoundFrontendClassType::External) ||
-				(InDesc.Metadata.Type == EMetasoundFrontendClassType::Input) ||
-				(InDesc.Metadata.Type == EMetasoundFrontendClassType::Output);
+			bool bIsExternal = (InDesc.Metadata.GetType() == EMetasoundFrontendClassType::External) ||
+				(InDesc.Metadata.GetType() == EMetasoundFrontendClassType::Input) ||
+				(InDesc.Metadata.GetType() == EMetasoundFrontendClassType::Output);
 			return bIsExternal;
 		};
 		const bool bIsEveryDependencyExternal = Algo::AllOf(InDependencies, IsClassExternal);
@@ -696,7 +696,7 @@ namespace Metasound
 
 	TUniquePtr<FFrontendGraph> FFrontendGraphBuilder::CreateGraph(FBuildContext& InContext, const FMetasoundFrontendGraphClass& InGraphClass)
 	{
-		const FString GraphName = InGraphClass.Metadata.ClassName.GetFullName().ToString();
+		const FString GraphName = InGraphClass.Metadata.GetClassName().GetFullName().ToString();
 
 		FBuildGraphContext BuildGraphContext
 		{
@@ -746,7 +746,7 @@ namespace Metasound
 			TSharedPtr<const INode> Subgraph(CreateGraph(Context, *FrontendSubgraphPtr).Release());
 			if (!Subgraph.IsValid())
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create subgraph [SubgraphName: %s]"), *FrontendSubgraphPtr->Metadata.ClassName.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create subgraph [SubgraphName: %s]"), *FrontendSubgraphPtr->Metadata.GetClassName().ToString());
 			}
 			else
 			{

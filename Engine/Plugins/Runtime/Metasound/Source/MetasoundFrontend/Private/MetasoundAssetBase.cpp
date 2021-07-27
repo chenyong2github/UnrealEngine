@@ -7,6 +7,7 @@
 #include "HAL/FileManager.h"
 #include "Internationalization/Text.h"
 #include "IStructSerializerBackend.h"
+#include "Logging/LogMacros.h"
 #include "MetasoundArchetype.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
@@ -37,6 +38,28 @@ namespace Metasound
 		const FName RegistryOutputTypes = "RegistryOutputTypes";
 #endif // WITH_EDITORONLY_DATA
 	} // namespace AssetTags
+
+	namespace AssetBasePrivate
+	{
+		void DepthFirstTraversal(const FMetasoundAssetBase& InInitAsset, TFunctionRef<TSet<const FMetasoundAssetBase*>(const FMetasoundAssetBase&)> InVisitFunction)
+		{
+			// Non recursive depth first traversal.
+			TArray<const FMetasoundAssetBase*> Stack({ &InInitAsset });
+			TSet<const FMetasoundAssetBase*> Visited;
+
+			while (!Stack.IsEmpty())
+			{
+				const FMetasoundAssetBase* CurrentNode = Stack.Pop();
+				if (!Visited.Contains(CurrentNode))
+				{
+					TArray<const FMetasoundAssetBase*> Children = InVisitFunction(*CurrentNode).Array();
+					Stack.Append(Children);
+
+					Visited.Add(CurrentNode);
+				}
+			}
+		}
+	} // namespace AssetBasePrivate
 } // namespace Metasound
 
 const FString FMetasoundAssetBase::FileExtension(TEXT(".metasound"));
@@ -65,7 +88,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 		{
 			// Copy frontend class to preserve original document.
 			FrontendClass = Document.RootGraph;
-			FrontendClass.Metadata.Type = EMetasoundFrontendClassType::External;
+			FrontendClass.Metadata.SetType(EMetasoundFrontendClassType::External);
 			ClassInfo = FNodeClassInfo(Document.RootGraph, InAssetPath);
 		}
 
@@ -101,6 +124,11 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 			return MakeUnique<FNodeRegistryEntry>(Name, Document, ClassInfo.AssetPath);
 		}
 
+		virtual bool IsNative() const override
+		{
+			return false;
+		}
+
 	private:
 		
 		FString Name;
@@ -109,45 +137,38 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 		FNodeClassInfo ClassInfo;
 	};
 
-	FNodeClassInfo ClassInfo = GetAssetClassInfo();
-	FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
+	UnregisterGraphWithFrontend();
 
-	if (NodeRegistryKey::IsValid(RegistryKey))
-	{
-		// Unregister prior version if it exists.
-		if (bHasRegistered)
-		{
-			ensure(FMetasoundFrontendRegistryContainer::Get()->UnregisterNode(RegistryKey));
-		}
-	}
-
+	FNodeClassInfo AssetClassInfo = GetAssetClassInfo();
 	if (const FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 	{
-		RegistryKey = FMetasoundFrontendRegistryContainer::Get()->RegisterNode(MakeUnique<FNodeRegistryEntry>(AssetName, *Doc, ClassInfo.AssetPath));
+		RegistryKey = FMetasoundFrontendRegistryContainer::Get()->RegisterNode(MakeUnique<FNodeRegistryEntry>(AssetName, *Doc, AssetClassInfo.AssetPath));
+	}
+	else
+	{
+		RegistryKey = FNodeRegistryKey();
 	}
 
 	if (NodeRegistryKey::IsValid(RegistryKey))
 	{
-		bHasRegistered = true;
-
 #if WITH_EDITORONLY_DATA
 		// Refresh Asset Registry Info if successfully registered with Frontend
-		FConstGraphHandle GraphHandle = GetDocumentHandle()->GetRootGraph();
-		const FMetasoundFrontendClassMetadata& ClassFrontendMetadata = GraphHandle->GetGraphMetadata();
-		ClassInfo.AssetClassID = FGuid(ClassFrontendMetadata.ClassName.Name.ToString());
-		FNodeClassName ClassName = ClassFrontendMetadata.ClassName.ToNodeClassName();
+		const FMetasoundFrontendGraphClass& DocumentClassGraph = GetDocumentHandle()->GetRootGraphClass();
+		const FMetasoundFrontendClassMetadata& DocumentClassMetadata = DocumentClassGraph.Metadata;
+		AssetClassInfo.AssetClassID = FGuid(DocumentClassMetadata.GetClassName().Name.ToString());
+		FNodeClassName ClassName = DocumentClassMetadata.GetClassName().ToNodeClassName();
 		FMetasoundFrontendClass GraphClass;
-		ensure(ISearchEngine::Get().FindClassWithMajorVersion(ClassName, ClassFrontendMetadata.Version.Major, GraphClass));
+		ensure(ISearchEngine::Get().FindClassWithMajorVersion(ClassName, DocumentClassMetadata.GetVersion().Major, GraphClass));
 
-		ClassInfo.Version = ClassFrontendMetadata.Version;
+		AssetClassInfo.Version = DocumentClassMetadata.GetVersion();
 
-		ClassInfo.InputTypes.Reset();
-		Algo::Transform(GraphClass.Interface.Inputs, ClassInfo.InputTypes, [] (const FMetasoundFrontendClassInput& Input) { return Input.TypeName; });
+		AssetClassInfo.InputTypes.Reset();
+		Algo::Transform(GraphClass.Interface.Inputs, AssetClassInfo.InputTypes, [] (const FMetasoundFrontendClassInput& Input) { return Input.TypeName; });
 
-		ClassInfo.OutputTypes.Reset();
-		Algo::Transform(GraphClass.Interface.Outputs, ClassInfo.OutputTypes, [](const FMetasoundFrontendClassOutput& Output) { return Output.TypeName; });
+		AssetClassInfo.OutputTypes.Reset();
+		Algo::Transform(GraphClass.Interface.Outputs, AssetClassInfo.OutputTypes, [](const FMetasoundFrontendClassOutput& Output) { return Output.TypeName; });
 
-		SetRegistryAssetClassInfo(MoveTemp(ClassInfo));
+		SetRegistryAssetClassInfo(MoveTemp(AssetClassInfo));
 #endif // WITH_EDITORONLY_DATA
 	}
 	else
@@ -156,15 +177,34 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 	}
 }
 
+void FMetasoundAssetBase::UnregisterGraphWithFrontend()
+{
+	using namespace Metasound::Frontend;
+
+	if (!NodeRegistryKey::IsValid(RegistryKey))
+	{
+		return;
+	}
+
+	const UObject* OwningAsset = GetOwningAsset();
+	if (!ensureAlways(OwningAsset))
+	{
+		return;
+	}
+
+	ensureAlways(FMetasoundFrontendRegistryContainer::Get()->UnregisterNode(RegistryKey));
+	RegistryKey = FNodeRegistryKey();
+}
+
 void FMetasoundAssetBase::SetMetadata(FMetasoundFrontendClassMetadata& InMetadata)
 {
 	FMetasoundFrontendDocument& Doc = GetDocumentChecked();
 	Doc.RootGraph.Metadata = InMetadata;
 
-	if (Doc.RootGraph.Metadata.Type != EMetasoundFrontendClassType::Graph)
+	if (Doc.RootGraph.Metadata.GetType() != EMetasoundFrontendClassType::Graph)
 	{
 		UE_LOG(LogMetaSound, Display, TEXT("Forcing class type to EMetasoundFrontendClassType::Graph on root graph metadata"));
-		Doc.RootGraph.Metadata.Type = EMetasoundFrontendClassType::Graph;
+		Doc.RootGraph.Metadata.SetType(EMetasoundFrontendClassType::Graph);
 	}
 
 	MarkMetasoundDocumentDirty();
@@ -242,7 +282,36 @@ void FMetasoundAssetBase::ConformDocumentToArchetype()
 	}
 }
 
-bool FMetasoundAssetBase::VersionAsset(bool bInMarkDirty)
+bool FMetasoundAssetBase::AutoUpdate(const IMetaSoundAssetInterface& InAssetInterface, bool bInMarkDirty, bool bInUpdateReferencedAssets)
+{
+	using namespace Metasound::Frontend;
+
+	bool bDidEdit = false;
+
+	if (bInUpdateReferencedAssets)
+	{
+		const TSet<FSoftObjectPath>& ReferencedAssets = GetReferencedAssets();
+		for (const FSoftObjectPath& ReferencedAsset : ReferencedAssets)
+		{
+			FMetasoundAssetBase* ReferencedMetaSound = InAssetInterface.TryLoadAsset(ReferencedAsset);
+			if (ReferencedMetaSound)
+			{
+				bDidEdit |= FAutoUpdateRootGraph(*ReferencedMetaSound, InAssetInterface).Transform(ReferencedMetaSound->GetDocumentHandle());
+			}
+		}
+	}
+
+	bDidEdit |= FAutoUpdateRootGraph(*this, InAssetInterface).Transform(GetDocumentHandle());
+
+	if (bDidEdit && bInMarkDirty)
+	{
+		MarkMetasoundDocumentDirty();
+	}
+
+	return bDidEdit;
+}
+
+bool FMetasoundAssetBase::VersionAsset(const IMetaSoundAssetInterface& InAssetInterface, bool bInMarkDirty, bool bInVersionReferencedAssets)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -255,24 +324,36 @@ bool FMetasoundAssetBase::VersionAsset(bool bInMarkDirty)
 		AssetPath = OwningAsset->GetPathName();
 	}
 
+	bool bDidEdit = false;
+
+	if (bInVersionReferencedAssets)
+	{
+		const TSet<FSoftObjectPath>& ReferencedAssets = GetReferencedAssets();
+		for (const FSoftObjectPath& ReferencedAsset : ReferencedAssets)
+		{
+			FMetasoundAssetBase* ReferencedMetaSound = InAssetInterface.TryLoadAsset(ReferencedAsset);
+			if (ensure(ReferencedMetaSound))
+			{
+				bDidEdit |= ReferencedMetaSound->VersionAsset(InAssetInterface, bInMarkDirty);
+			}
+		}
+	}
+
 	FDocumentHandle DocumentHandle = GetDocumentHandle();
 
-	const bool bDidUpdateDocumentVersion = FVersionDocument(AssetName, AssetPath).Transform(DocumentHandle);
-	bool bDidMatchRootGraphToArchetype = false;
+	bDidEdit |= FVersionDocument(AssetName, AssetPath).Transform(DocumentHandle);
 	if (FMetasoundFrontendDocument* Doc = GetDocument().Get())
 	{
 		FMetasoundFrontendVersion ArchetypeVerison = GetPreferredArchetypeVersion(*Doc);
-		bDidMatchRootGraphToArchetype = FMatchRootGraphToArchetype(ArchetypeVerison).Transform(DocumentHandle);
+		bDidEdit |= FMatchRootGraphToArchetype(ArchetypeVerison).Transform(DocumentHandle);
 	}
 
-	const bool bDidUpdate = bDidUpdateDocumentVersion || bDidMatchRootGraphToArchetype;
-
-	if (bInMarkDirty && bDidUpdate)
+	if (bDidEdit && bInMarkDirty)
 	{
 		MarkMetasoundDocumentDirty();
 	}
 
-	return bDidUpdate;
+	return bDidEdit;
 }
 
 bool FMetasoundAssetBase::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const
@@ -358,6 +439,68 @@ bool FMetasoundAssetBase::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID,
 	return true;
 }
 
+void FMetasoundAssetBase::RebuildReferencedAssets(const IMetaSoundAssetInterface& InAssetInterface)
+{
+	using namespace Metasound::Frontend;
+
+	TSet<FSoftObjectPath>& ReferencedAssets = GetReferencedAssets();
+	ReferencedAssets.Reset();
+
+	GetRootGraphHandle()->IterateConstNodes([AssetInterface = &InAssetInterface, RefAssets = &ReferencedAssets](FConstNodeHandle NodeHandle)
+	{
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
+		const FNodeRegistryKey LocalRegistryKey = NodeRegistryKey::CreateKey(Metadata);
+		if (const FSoftObjectPath* Path = AssetInterface->FindObjectPathFromKey(LocalRegistryKey))
+		{
+			if (Path->IsValid())
+			{
+				RefAssets->Add(*Path);
+			}
+		}
+	}, EMetasoundFrontendClassType::External);
+}
+
+bool FMetasoundAssetBase::ContainReferenceLoop(const IMetaSoundAssetInterface& IMetaSoundAssetInterface) const
+{
+	return false;
+}
+
+bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath, const IMetaSoundAssetInterface& InAssetInterface) const
+{
+	const FMetasoundAssetBase* ReferenceAsset = InAssetInterface.TryLoadAsset(InReferencePath);
+	if (!ensureAlways(ReferenceAsset))
+	{
+		return false;
+	}
+
+	bool bCausesLoop = false;
+	const FMetasoundAssetBase* Parent = this;
+	Metasound::AssetBasePrivate::DepthFirstTraversal(*ReferenceAsset, [&](const FMetasoundAssetBase& ChildAsset)
+	{
+		TSet<const FMetasoundAssetBase*> Children;
+
+		if (Parent == &ChildAsset)
+		{
+			bCausesLoop = true;
+			return Children;
+		}
+
+		for (const FSoftObjectPath& Path : ChildAsset.GetReferencedAssets())
+		{
+			const FMetasoundAssetBase* ChildReference = InAssetInterface.TryLoadAsset(Path);
+			if (ensureAlways(ChildReference))
+			{
+				Children.Add(ChildReference);
+			}
+		}
+		return Children;
+	});
+
+	return bCausesLoop;
+}
+
 Metasound::FSendAddress FMetasoundAssetBase::CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const
 {
 	using namespace Metasound;
@@ -377,6 +520,10 @@ void FMetasoundAssetBase::ConvertFromPreset()
 	FMetasoundFrontendGraphStyle Style = GraphHandle->GetGraphStyle();
 	Style.bIsGraphEditable = true;
 	GraphHandle->SetGraphStyle(Style);
+
+	FMetasoundFrontendClassMetadata Metadata = GraphHandle->GetGraphMetadata();
+	Metadata.SetAutoUpdateManagesInterface(false);
+	GraphHandle->SetGraphMetadata(Metadata);
 }
 
 TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSendInfos(uint64 InInstanceID) const

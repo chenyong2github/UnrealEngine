@@ -149,6 +149,8 @@ namespace Metasound
 			const FMetasoundFrontendNodeStyle& GetNodeStyle() const override { static const FMetasoundFrontendNodeStyle Invalid; return Invalid; }
 			void SetNodeStyle(const FMetasoundFrontendNodeStyle& InNodeStyle) { };
 
+			FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) override { return FInvalidNodeController::GetInvalid(); }
+
 			bool CanAddInput(const FString& InVertexName) const override { return false; }
 			FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return FInvalidInputController::GetInvalid(); }
 			bool RemoveInput(FGuid InVertexID) override { return false; }
@@ -170,6 +172,10 @@ namespace Metasound
 			const FText& GetDescription() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
 
 			bool IsRequired() const override { return false; }
+
+			bool CanAutoUpdate() const override { return false; }
+			FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const override { return FMetasoundFrontendVersionNumber::GetInvalid(); }
+			FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const override { return FMetasoundFrontendVersionNumber::GetInvalid(); }
 
 			TSharedRef<IGraphController> AsGraph() override;
 			TSharedRef<const IGraphController> AsGraph() const override;
@@ -237,6 +243,8 @@ namespace Metasound
 
 			const FMetasoundFrontendGraphStyle& GetGraphStyle() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendGraphStyle>(); }
 			void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override { }
+
+			void ClearGraph() override { };
 
 			void IterateConstNodes(TUniqueFunction<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType /* = EMetasoundFrontendClassType::Invalid */) const override { }
 			void IterateNodes(TUniqueFunction<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType /* = EMetasoundFrontendClassType::Invalid */) override { }
@@ -308,6 +316,14 @@ namespace Metasound
 
 			TSharedRef<IDocumentController> GetOwningDocument() override;
 			TSharedRef<const IDocumentController> GetOwningDocument() const override;
+
+			void UpdateInterfaceChangeID() override { }
+
+			FNodeHandle AddInputNode(const FMetasoundFrontendClassInput& InClassInput, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName) override { return INodeController::GetInvalidHandle(); }
+			FNodeHandle AddInputNode(const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName) override { return INodeController::GetInvalidHandle(); }
+			FNodeHandle AddOutputNode(const FMetasoundFrontendClassOutput& InClassOutput, const FText* InDisplayName) override { return INodeController::GetInvalidHandle(); }
+			FNodeHandle AddOutputNode(const FName InTypeName, const FText& InToolTip, const FText* InDisplayName) override { return INodeController::GetInvalidHandle(); }
+
 		protected:
 			FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
 			FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }
@@ -331,9 +347,8 @@ namespace Metasound
 
 				bool IsValid() const override { return false; }
 
-				TArray<FMetasoundFrontendClass> GetDependencies() const override { return TArray<FMetasoundFrontendClass>(); }
-				TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const override { return TArray<FMetasoundFrontendGraphClass>(); }
-				TArray<FMetasoundFrontendClass> GetClasses() const override { return TArray<FMetasoundFrontendClass>(); }
+				const TArray<FMetasoundFrontendClass>& GetDependencies() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<TArray<FMetasoundFrontendClass>>(); }
+				const TArray<FMetasoundFrontendGraphClass>& GetSubgraphs() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<TArray<FMetasoundFrontendGraphClass>>(); }
 				const FMetasoundFrontendGraphClass& GetRootGraphClass() const override
 				{
 					return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendGraphClass>();
@@ -349,12 +364,13 @@ namespace Metasound
 				FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override{ return FConstClassAccessPtr(); }
 				FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override { return FInvalidGraphController::GetInvalid(); }
 
-				virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const override { return FMetasoundFrontendVersion::GetInvalid(); }
-				virtual void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) override {}
+				const FMetasoundFrontendVersion& GetArchetypeVersion() const override { return FMetasoundFrontendVersion::GetInvalid(); }
+				void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) override { }
 
 				void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override { }
 				const FMetasoundFrontendDocumentMetadata& GetMetadata() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendDocumentMetadata>(); }
 
+				const FMetasoundFrontendClass* SynchronizeDependency(const FNodeRegistryKey& InKey) override { return nullptr; }
 				void SynchronizeDependencies() override { }
 
 				TArray<FGraphHandle> GetSubgraphHandles() override { return TArray<FGraphHandle>(); }

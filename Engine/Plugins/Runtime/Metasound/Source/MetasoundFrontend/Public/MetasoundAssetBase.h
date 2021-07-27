@@ -6,14 +6,19 @@
 #include "MetasoundAccessPtr.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendDocumentAccessPtr.h"
 #include "MetasoundGraph.h"
 #include "MetasoundInstanceTransmitter.h"
 #include "MetasoundLog.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 
+// Forward Declarations
+class FMetasoundAssetBase;
 class UEdGraph;
+
 
 namespace Metasound
 {
@@ -32,10 +37,20 @@ namespace Metasound
 	} // namespace AssetTags
 } // namespace Metasound
 
+class METASOUNDFRONTEND_API IMetaSoundAssetInterface
+{
+public:
+	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
+	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
+
+	// Attempts to load an FMetasoundAssetBase from the given path, or returns it if its already loaded
+	virtual FMetasoundAssetBase* TryLoadAsset(const FSoftObjectPath& InObjectPath) const = 0;
+};
+
 /** FMetasoundAssetBase is intended to be a mix-in subclass for UObjects which utilize
  * Metasound assets.  It provides consistent access to FMetasoundFrontendDocuments, control
  * over the FMetasoundFrontendArchetype of the FMetasoundFrontendDocument.  It also enables the UObject
- * to be utilized by a host of other engine tools built to support Metasounds.
+ * to be utilized by a host of other engine tools built to support MetaSounds.
  */
 class METASOUNDFRONTEND_API FMetasoundAssetBase
 {
@@ -69,6 +84,9 @@ public:
 	// Registers the root graph of the given asset with the MetaSound Frontend.
 	void RegisterGraphWithFrontend();
 
+	// Unregisters the root graph of the given asset with the MetaSound Frontend.
+	void UnregisterGraphWithFrontend();
+
 	bool CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const;
 
 	// Sets/overwrites the root class metadata
@@ -93,7 +111,16 @@ public:
 	// Gets the asset class info.
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const = 0;
 
+
+	virtual TSet<FSoftObjectPath>& GetReferencedAssets() = 0;
+	virtual const TSet<FSoftObjectPath>& GetReferencedAssets() const = 0;
+
 	void ConvertFromPreset();
+
+	void RebuildReferencedAssets(const IMetaSoundAssetInterface& InAssetInterface);
+
+	bool AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath, const IMetaSoundAssetInterface& InAssetInterface) const;
+	bool ContainReferenceLoop(const IMetaSoundAssetInterface& IMetaSoundAssetInterface) const;
 
 	// Imports data from a JSON string directly
 	bool ImportFromJSON(const FString& InJSON);
@@ -121,9 +148,11 @@ public:
 	// This must be called on UObject::PostLoad, as well as in this asset's UFactory, to fix up the root document based on the most recent version of the archetype.
 	void ConformDocumentToArchetype();
 
-	bool VersionAsset(bool bInMarkDirty = true);
+	bool AutoUpdate(const IMetaSoundAssetInterface& InAssetInterface, bool bInMarkDirty, bool bInUpdateReferencedAssets = true);
 
-	// Calls the outermost package and marks it dirty. 
+	bool VersionAsset(const IMetaSoundAssetInterface& InAssetInterface, bool bInMarkDirty, bool bInVersionReferencedAssets = true);
+
+	// Calls the outermost package and marks it dirty.
 	bool MarkMetasoundDocumentDirty() const;
 
 protected:
@@ -152,9 +181,8 @@ protected:
 	// Returns the owning asset responsible for transactions applied to metasound
 	virtual const UObject* GetOwningAsset() const = 0;
 
-
 private:
-	bool bHasRegistered = false;
+	Metasound::Frontend::FNodeRegistryKey RegistryKey;
 
 	bool GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const;
 	TArray<FString> GetTransmittableInputVertexNames() const;

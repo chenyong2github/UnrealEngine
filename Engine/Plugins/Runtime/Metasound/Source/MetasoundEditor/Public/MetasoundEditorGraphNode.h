@@ -11,6 +11,7 @@
 #include "MetasoundFrontendRegistries.h"
 #include "Misc/Guid.h"
 #include "Sound/SoundWave.h"
+#include "Textures/SlateIcon.h"
 #include "UObject/ObjectMacros.h"
 
 #include "MetasoundEditorGraphNode.generated.h"
@@ -62,17 +63,16 @@ public:
 	// End of UEdGraphNode interface
 
 	// UObject interface
-	virtual void PostLoad() override;
+	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
 
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& InEvent) override;
+	virtual void PostLoad() override;
 	virtual void PostEditUndo() override;
-#endif // WITH_EDITOR
 
 	virtual void PostEditImport() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	// End of UObject interface
+
+	virtual FSlateIcon GetNodeTitleIcon() const { return FSlateIcon(); }
 
 	virtual bool CanAddInputPin() const
 	{
@@ -117,6 +117,8 @@ public:
 	virtual bool CanUserDeleteNode() const override;
 
 protected:
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FSlateIcon GetNodeTitleIcon() const override;
 	virtual void SetNodeID(FGuid InNodeID) override;
 
 	friend class Metasound::Editor::FGraphBuilder;
@@ -134,18 +136,31 @@ protected:
 	UPROPERTY()
 	FGuid NodeID;
 
+	// Whether or not the referenced class is natively defined
+	// (false if defined in another asset). Cached from node
+	// implementation for fast access when validated.
+	UPROPERTY(Transient)
+	bool bIsClassNative = false;
+
 public:
+	virtual void PostLoad() override;
+
 	virtual FMetasoundFrontendClassName GetClassName() const override { return ClassName; }
 	virtual FGuid GetNodeID() const override { return NodeID; }
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FSlateIcon GetNodeTitleIcon() const override;
 
-	FMetasoundFrontendVersionNumber GetMajorUpdateAvailable() const;
-	FMetasoundFrontendVersionNumber GetMinorUpdateAvailable() const;
+	FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const;
+	FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const;
+	bool CanAutoUpdate() const;
 
 	// Attempts to replace this node with a new one of the same class and given version number.
 	// If this node is already of the given version, returns itself. If update fails, returns this node.
 	UMetasoundEditorGraphExternalNode* UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages);
 
-	bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult);
+	// Validates node and returns whether or not the node is valid.
+	bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult, bool bClearUpgradeMessage = true);
+
 
 protected:
 	// Refreshes all Pin Metadata from the associated Frontend node's default class interface.

@@ -20,15 +20,14 @@ namespace Metasound
 			T* MetaSoundObject = NewObject<T>(InParent, InName, InFlags);
 			check(MetaSoundObject);
 
+			FGraphBuilder::InitMetaSound(*MetaSoundObject, UKismetSystemLibrary::GetPlatformUserName());
+
 			if (InReferencedMetaSoundObject)
 			{
-				FGraphBuilder::InitMetaSound(*MetaSoundObject, UKismetSystemLibrary::GetPlatformUserName(), false /* bConformToArchetype */);
 				FGraphBuilder::InitMetaSoundPreset(*InReferencedMetaSoundObject, *MetaSoundObject);
 			}
-			else
-			{
-				FGraphBuilder::InitMetaSound(*MetaSoundObject, UKismetSystemLibrary::GetPlatformUserName());
-			}
+
+			FGraphBuilder::SynchronizeGraph(*MetaSoundObject);
 
 			return MetaSoundObject;
 		}

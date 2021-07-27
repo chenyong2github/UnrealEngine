@@ -77,9 +77,14 @@ namespace Metasound
 				return FrontendClass;
 			}
 
-			virtual TUniquePtr<INodeRegistryEntry> Clone() const 
+			virtual TUniquePtr<INodeRegistryEntry> Clone() const override
 			{
 				return MakeUnique<FNodeRegistryEntry>(*this);
+			}
+
+			virtual bool IsNative() const override
+			{
+				return true;
 			}
 
 		private:

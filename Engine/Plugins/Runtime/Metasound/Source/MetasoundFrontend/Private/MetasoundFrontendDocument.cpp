@@ -2,6 +2,7 @@
 
 #include "MetasoundFrontendDocument.h"
 
+#include "Algo/Transform.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundLog.h"
@@ -9,6 +10,18 @@
 namespace Metasound
 {
 	const FGuid FrontendInvalidID = FGuid();
+
+	namespace Frontend
+	{
+		namespace DisplayStyle
+		{
+			namespace NodeLayout
+			{
+				const FVector2D DefaultOffsetX { 300.0f, 0.0f };
+				const FVector2D DefaultOffsetY { 0.0f, 80.0f };
+			} // namespace NodeLayout
+		} // namespace DisplayStyle
+	} // namespace Frontend
 }
 
 FMetasoundFrontendNodeInterface::FMetasoundFrontendNodeInterface(const FMetasoundFrontendClassInterface& InClassInterface)
@@ -35,7 +48,7 @@ FMetasoundFrontendNodeInterface::FMetasoundFrontendNodeInterface(const FMetasoun
 
 FMetasoundFrontendNode::FMetasoundFrontendNode(const FMetasoundFrontendClass& InClass)
 : ClassID(InClass.ID)
-, Name(InClass.Metadata.ClassName.Name.ToString())
+, Name(InClass.Metadata.GetClassName().Name.ToString())
 , Interface(InClass.Interface)
 {
 
@@ -62,7 +75,7 @@ bool FMetasoundFrontendVertex::IsFunctionalEquivalent(const FMetasoundFrontendVe
 	return (InLHS.Name == InRHS.Name) && (InLHS.TypeName == InRHS.TypeName);
 }
 
-bool FMetasoundFrontendClassVertex::IsFunctionalEquivalent(const FMetasoundFrontendClassVertex& InLHS, const FMetasoundFrontendClassVertex& InRHS) 
+bool FMetasoundFrontendClassVertex::IsFunctionalEquivalent(const FMetasoundFrontendClassVertex& InLHS, const FMetasoundFrontendClassVertex& InRHS)
 {
 	return FMetasoundFrontendVertex::IsFunctionalEquivalent(InLHS, InRHS);
 }
@@ -99,9 +112,14 @@ bool operator==(const FMetasoundFrontendClassName& InLHS, const FMetasoundFronte
 	return (InLHS.Namespace == InRHS.Namespace) && (InLHS.Name == InRHS.Name) && (InLHS.Variant == InRHS.Variant);
 }
 
+bool operator!=(const FMetasoundFrontendClassName& InLHS, const FMetasoundFrontendClassName& InRHS)
+{
+	return !(InLHS == InRHS);
+}
+
 FMetasoundFrontendClassMetadata::FMetasoundFrontendClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata)
 : ClassName(InNodeClassMetadata.ClassName)
-, Version{InNodeClassMetadata.MajorVersion, InNodeClassMetadata.MinorVersion}
+, Version{ InNodeClassMetadata.MajorVersion, InNodeClassMetadata.MinorVersion }
 , Type(EMetasoundFrontendClassType::External)
 , DisplayName(InNodeClassMetadata.DisplayName)
 , Description(InNodeClassMetadata.Description)
@@ -130,13 +148,12 @@ FMetasoundFrontendClassVariable::FMetasoundFrontendClassVariable(const FMetasoun
 
 FMetasoundFrontendGraphClass::FMetasoundFrontendGraphClass()
 {
-	Metadata.Type = EMetasoundFrontendClassType::Graph;
+	Metadata.SetType(EMetasoundFrontendClassType::Graph);
 }
 
 FMetasoundFrontendDocument::FMetasoundFrontendDocument()
 {
 	RootGraph.ID = FGuid::NewGuid();
-	RootGraph.Metadata.Type = EMetasoundFrontendClassType::Graph;
+	RootGraph.Metadata.SetType(EMetasoundFrontendClassType::Graph);
 	ArchetypeVersion = FMetasoundFrontendVersion::GetInvalid();
 }
-

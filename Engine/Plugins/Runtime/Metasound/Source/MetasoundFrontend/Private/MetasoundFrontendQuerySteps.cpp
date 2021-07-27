@@ -140,7 +140,7 @@ namespace Metasound
 
 	bool FFilterClassesByClassName::Filter(const FFrontendQueryEntry& InEntry) const 
 	{
-		return InEntry.Value.Get<FMetasoundFrontendClass>().Metadata.ClassName == ClassName;
+		return InEntry.Value.Get<FMetasoundFrontendClass>().Metadata.GetClassName() == ClassName;
 	}
 
 	FFilterClassesByClassID::FFilterClassesByClassID(const FGuid InClassID)
@@ -156,7 +156,7 @@ namespace Metasound
 	FFrontendQueryEntry::FKey FMapToFullClassName::Map(const FFrontendQueryEntry& InEntry) const
 	{
 		const FMetasoundFrontendClass& FrontendClass = InEntry.Value.Get<FMetasoundFrontendClass>();
-		return FFrontendQueryEntry::FKey(FrontendClass.Metadata.ClassName.GetFullName());
+		return FFrontendQueryEntry::FKey(FrontendClass.Metadata.GetClassName().GetFullName());
 	}
 
 	void FReduceClassesToHighestVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const
@@ -166,7 +166,7 @@ namespace Metasound
 
 		for (FFrontendQueryEntry* Entry : InEntries)
 		{
-			const int32 EntryMajorVersion = Entry->Value.Get<FMetasoundFrontendClass>().Metadata.Version.Major;
+			const int32 EntryMajorVersion = Entry->Value.Get<FMetasoundFrontendClass>().Metadata.GetVersion().Major;
 
 			if (!HighestVersionEntry || HighestMajorVersion < EntryMajorVersion)
 			{
@@ -190,7 +190,7 @@ namespace Metasound
 	{
 		for (FFrontendQueryEntry* Entry : InEntries)
 		{
-			const int32 EntryMajorVersion = Entry->Value.Get<FMetasoundFrontendClass>().Metadata.Version.Major;
+			const int32 EntryMajorVersion = Entry->Value.Get<FMetasoundFrontendClass>().Metadata.GetVersion().Major;
 			if (MajorVersion == EntryMajorVersion)
 			{
 				OutResult.Add(*Entry);
@@ -201,8 +201,8 @@ namespace Metasound
 
 	bool FSortClassesByVersion::Sort(const FFrontendQueryEntry& InEntryLHS, const FFrontendQueryEntry& InEntryRHS) const
 	{
-		const FMetasoundFrontendVersionNumber& VersionLHS = InEntryLHS.Value.Get<FMetasoundFrontendClass>().Metadata.Version;
-		const FMetasoundFrontendVersionNumber& VersionRHS = InEntryRHS.Value.Get<FMetasoundFrontendClass>().Metadata.Version;
+		const FMetasoundFrontendVersionNumber& VersionLHS = InEntryLHS.Value.Get<FMetasoundFrontendClass>().Metadata.GetVersion();
+		const FMetasoundFrontendVersionNumber& VersionRHS = InEntryRHS.Value.Get<FMetasoundFrontendClass>().Metadata.GetVersion();
 		return VersionLHS > VersionRHS;
 	}
 }

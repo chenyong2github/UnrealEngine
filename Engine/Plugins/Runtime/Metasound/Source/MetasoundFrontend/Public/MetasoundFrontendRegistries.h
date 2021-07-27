@@ -150,6 +150,9 @@ namespace Metasound
 
 			/** Clone this registry entry. */
 			virtual TUniquePtr<INodeRegistryEntry> Clone() const = 0;
+
+			/** Whether or not the node is natively defined */
+			virtual bool IsNative() const = 0;
 		};
 
 		/** FDataTypeRegsitryInfo contains runtime inspectable behavior of a registered
@@ -493,6 +496,9 @@ public:
 
 	/** Returns true if the provided registry key corresponds to a valid registered node. */
 	virtual bool IsNodeRegistered(const FNodeRegistryKey& InKey) const = 0;
+
+	/** Returns true if the provided registry key corresponds to a valid registered node that is natively defined. */
+	virtual bool IsNodeNative(const FNodeRegistryKey& InKey) const = 0;
 
 	// Iterates class types in registry.  If InClassType is set to a valid class type (optional), only iterates classes of the given type
 	virtual void IterateRegistry(Metasound::FIterateMetasoundFrontendClassFunction InIterFunc, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) const = 0;

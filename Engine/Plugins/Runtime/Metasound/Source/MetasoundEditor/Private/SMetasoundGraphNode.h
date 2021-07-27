@@ -41,6 +41,8 @@ protected:
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
 	virtual void SetDefaultTitleAreaWidget(TSharedRef<SOverlay> DefaultTitleAreaWidget) override;
 
+	FLinearColor GetNodeTitleColorOverride() const;
+
 	FName GetLiteralDataType() const;
 	UMetasoundEditorGraphNode& GetMetasoundNode();
 	const UMetasoundEditorGraphNode& GetMetasoundNode() const;
@@ -48,4 +50,7 @@ protected:
 public:
 	static void ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral& Literal);
 	static TSharedRef<SWidget> CreateTriggerSimulationWidget(UMetasoundEditorGraphInputLiteral& Literal);
+
+private:
+	FText GetPinTooltip(UEdGraphPin* InPin) const;
 };

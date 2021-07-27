@@ -71,6 +71,7 @@ namespace Metasound
 			virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
 			double GetPlayTime() const;
+			TSharedPtr<SGraphEditor> GetGraphEditor() const;
 
 			/** Edits the specified Metasound object */
 			void InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
@@ -103,12 +104,15 @@ namespace Metasound
 			/** Whether pasting the currently selected nodes is permissible */
 			bool CanPasteNodes();
 
-			/* Duplicates the selected node(s) in the graph */
+			/** Duplicates the selected node(s) in the graph */
 			void DuplicateNodes();
 
-			/* Pastes node(s) from the clipboard to the graph */
+			/** Pastes node(s) from the clipboard to the graph */
 			void PasteNodes(const FVector2D* InLocation = nullptr);
 			void PasteNodes(const FVector2D* InLocation, const FText& InTransactionText);
+
+			/** Forces all UX pertaining to the root graph's interface to be refreshed. */
+			void RefreshInterface();
 
 			/* Whether the displayed graph is marked as editable */
 			bool IsGraphEditable() const;

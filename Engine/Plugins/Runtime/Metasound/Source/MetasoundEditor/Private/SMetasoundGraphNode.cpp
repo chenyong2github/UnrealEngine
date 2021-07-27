@@ -37,6 +37,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SGraphPinComboBox.h"
 #include "SMetasoundEnumPin.h"
 #include "UObject/ScriptInterface.h"
@@ -146,73 +147,94 @@ TSharedPtr<SGraphPin> SMetasoundGraphNode::CreatePinWidget(UEdGraphPin* InPin) c
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
+	TSharedPtr<SGraphPin> PinWidget;
+
 	if (const UMetasoundEditorGraphSchema* GraphSchema = Cast<const UMetasoundEditorGraphSchema>(InPin->GetSchema()))
 	{
 		// Don't show default value field for container types
 		if (InPin->PinType.ContainerType != EPinContainerType::None)
 		{
-			return SNew(SGraphPin, InPin);
+			PinWidget = SNew(SGraphPin, InPin)
+				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
-		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
+		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
 		{
-			return SNew(SGraphPin, InPin);
+			PinWidget = SNew(SGraphPin, InPin)
+				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
-		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryBoolean)
+		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryBoolean)
 		{
-			return SNew(SGraphPinBool, InPin);
+			PinWidget = SNew(SGraphPinBool, InPin)
+				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
-		//if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryDouble)
+		//else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryDouble)
 		//{
-		//	return SNew(SGraphPinNum<double>, InPin);
+		//	PinWidget = SNew(SGraphPinNum<double>, InPin)
+		//		.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		//}
 
-		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
+		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
 		{
-			return SNew(SGraphPinNum<float>, InPin);
+			PinWidget = SNew(SGraphPinNum<float>, InPin)
+				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
-		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt32)
+		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt32)
 		{
 			if (SMetasoundEnumPin::FindEnumInterfaceFromPin(InPin))
 			{
-				return SNew(SMetasoundEnumPin, InPin);
+				PinWidget = SNew(SMetasoundEnumPin, InPin)
+					.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 			}
-			return SNew(SGraphPinInteger, InPin);
+			else
+			{
+				PinWidget = SNew(SGraphPinInteger, InPin)
+					.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
+			}
 		}
 
 		//if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt64)
 		//{
-		//	return SNew(SGraphPinNum<int64>, InPin);
+		//	PinWidget = SNew(SGraphPinNum<int64>, InPin)
+		//		.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		//}
 
-		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryObject)
+		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryObject)
 		{
-			return SNew(SGraphPinObject, InPin);
+			PinWidget = SNew(SGraphPinObject, InPin)
+				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
-		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryString)
+		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryString)
 		{
-			return SNew(SGraphPinString, InPin);
+			PinWidget = SNew(SGraphPinString, InPin)
+				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
-		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
+		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
 		{
-			TSharedPtr<SGraphPin> TriggerPin = SNew(SGraphPin, InPin);
+			PinWidget = SNew(SGraphPin, InPin)
+				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 
 			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 			{
 				const FSlateBrush* PinConnectedBrush = MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.TriggerPin.Connected"));
 				const FSlateBrush* PinDisconnectedBrush = MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.TriggerPin.Disconnected"));
-				TriggerPin->SetCustomPinIcon(PinConnectedBrush, PinDisconnectedBrush);
+				PinWidget->SetCustomPinIcon(PinConnectedBrush, PinDisconnectedBrush);
 			}
-			return TriggerPin;
 		}
 	}
 
-	return SNew(SGraphPin, InPin);
+	if (!PinWidget.IsValid())
+	{
+		PinWidget = SNew(SGraphPin, InPin)
+			.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
+	}
+
+	return PinWidget;
 }
 
 void SMetasoundGraphNode::CreateStandardPinWidget(UEdGraphPin* InPin)
@@ -243,6 +265,23 @@ void SMetasoundGraphNode::CreateStandardPinWidget(UEdGraphPin* InPin)
 	}
 }
 
+FText SMetasoundGraphNode::GetPinTooltip(UEdGraphPin* InPin) const
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (InPin->Direction == EGPD_Input)
+	{
+		FConstInputHandle InputHandle = FGraphBuilder::GetConstInputHandleFromPin(InPin);
+		return InputHandle->GetTooltip();
+	}
+	else
+	{
+		FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(InPin);
+		return OutputHandle->GetTooltip();
+	}
+}
+
 TSharedRef<SWidget> SMetasoundGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
 {
 	Metasound::Frontend::FNodeHandle NodeHandle = GetMetasoundNode().GetNodeHandle();
@@ -251,7 +290,58 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle
 		return SNullWidget::NullWidget;
 	}
 
-	return SGraphNode::CreateTitleWidget(NodeTitle);
+	TSharedPtr<SHorizontalBox> TitleBoxWidget = SNew(SHorizontalBox);
+
+	FSlateIcon NodeIcon = GetMetasoundNode().GetNodeTitleIcon();
+	if (const FSlateBrush* IconBrush = NodeIcon.GetIcon())
+	{
+		if (IconBrush != FStyleDefaults::GetNoBrush())
+		{
+			TSharedPtr<SImage> Image;
+			TitleBoxWidget->AddSlot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				[
+					SAssignNew(Image, SImage)
+				]
+			];
+			Image->SetColorAndOpacity(TAttribute<FSlateColor>::CreateLambda([this]() { return FSlateColor(GetNodeTitleColorOverride()); }));
+			Image->SetImage(IconBrush);
+		}
+	}
+
+	TitleBoxWidget->AddSlot()
+	.AutoWidth()
+	[
+		SGraphNode::CreateTitleWidget(NodeTitle)
+	];
+
+	InlineEditableText->SetColorAndOpacity(TAttribute<FLinearColor>::Create(TAttribute<FLinearColor>::FGetter::CreateSP(this, &SMetasoundGraphNode::GetNodeTitleColorOverride)));
+
+	return TitleBoxWidget.ToSharedRef();
+}
+
+FLinearColor SMetasoundGraphNode::GetNodeTitleColorOverride() const
+{
+	FLinearColor ReturnTitleColor = GraphNode->IsDeprecated() ? FLinearColor::Red : GetNodeObj()->GetNodeTitleColor();
+
+	if (!GraphNode->IsNodeEnabled() || GraphNode->IsDisplayAsDisabledForced() || GraphNode->IsNodeUnrelated())
+	{
+		ReturnTitleColor *= FLinearColor(0.5f, 0.5f, 0.5f, 0.4f);
+	}
+	else
+	{
+		ReturnTitleColor.A = FadeCurve.GetLerp();
+	}
+
+	return ReturnTitleColor;
 }
 
 void SMetasoundGraphNode::SetDefaultTitleAreaWidget(TSharedRef<SOverlay> DefaultTitleAreaWidget)
@@ -315,6 +405,7 @@ void SMetasoundGraphNode::SetDefaultTitleAreaWidget(TSharedRef<SOverlay> Default
 				.Size(FVector2D(20,20))
 			]
 		];
+
 	}
 	else
 	{

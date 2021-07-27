@@ -13,7 +13,7 @@
 
 /** The subsystem in charge of the MetaSound asset registry */
 UCLASS()
-class METASOUNDENGINE_API UMetaSoundAssetSubsystem : public UEngineSubsystem
+class METASOUNDENGINE_API UMetaSoundAssetSubsystem : public UEngineSubsystem, public IMetaSoundAssetInterface
 {
 	GENERATED_BODY()
 
@@ -27,12 +27,23 @@ public:
 		return *GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
 	}
 
-	void AddOrUpdateAsset(const FAssetData& InAssetData);
-	void RemoveAsset(const FAssetData& InAssetData);
+	void AddOrUpdateAsset(UObject& InObject, bool bInRegisterWithFrontend = true);
+	void AddOrUpdateAsset(const FAssetData& InAssetData, bool bInRegisterWithFrontend = true);
+	void RemoveAsset(UObject& InObject, bool bInUnregisterWithFrontend = true);
+	void RemoveAsset(const FAssetData& InAssetData, bool bInUnregisterWithFrontend = true);
+	void RenameAsset(const FAssetData& InAssetData, bool bInReregisterWithFrontend = true);
+	void SynchronizeAssetClassName(const FAssetData& InAssetData);
+
+	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
+	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
+	virtual FMetasoundAssetBase* TryLoadAsset(const FSoftObjectPath& InObjectPath) const override;
 
 protected:
 	void PostEngineInit();
 	void PostInitAssetScan();
+
+private:
+	TMap<Metasound::Frontend::FNodeRegistryKey, FSoftObjectPath> PathMap;
 };
 
 namespace Metasound

@@ -11,6 +11,7 @@
 #include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/ScriptInterface.h"
 
 #include "MetasoundEditorGraph.generated.h"
@@ -64,6 +65,7 @@ public:
 	bool IsRequired() const;
 	TArray<UMetasoundEditorGraphNode*> GetNodes() const;
 	void SetDataType(FName InNewType);
+	void SetDescription(const FText& InDescription);
 	void SetDisplayName(const FText& InNewName);
 
 	virtual EMetasoundFrontendClassType GetClassType() const { return EMetasoundFrontendClassType::Invalid; }
@@ -95,9 +97,7 @@ public:
 	{
 	}
 
-#if WITH_EDITORONLY_DATA
 	virtual void PostEditUndo() override;
-#endif // WITH_EDITORONLY_DATA
 };
 
 UCLASS()
@@ -119,9 +119,9 @@ public:
 	void OnDataTypeChanged() override;
 	void OnLiteralChanged(bool bPostTransaction = true);
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	virtual void PostEditUndo() override;
-#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITOR
 };
 
 UCLASS()
@@ -158,11 +158,14 @@ public:
 	void SetPreviewID(uint32 InPreviewID);
 	bool IsPreviewing() const;
 
-	virtual void Synchronize();
+	virtual bool Synchronize() override;
+	virtual bool Validate(bool bInAutoUpdate) override;
 
-	bool Validate(Metasound::Editor::FGraphValidationResults& OutResults);
+	virtual void RegisterGraphWithFrontend() override;
 
 private:
+	bool ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults, bool bClearUpgradeMessaging = true);
+
 	// Preview ID is the Unique ID provided by the UObject that implements
 	// a sound's ParameterInterface when a sound begins playing.
 	uint32 PreviewID = INDEX_NONE;
@@ -186,4 +189,5 @@ public:
 
 	friend class UMetaSoundFactory;
 	friend class UMetaSoundSourceFactory;
+	friend class Metasound::Editor::FGraphBuilder;
 };

@@ -20,6 +20,18 @@ namespace Metasound
 	struct FLiteral;
 
 	extern const FGuid METASOUNDFRONTEND_API FrontendInvalidID;
+
+	namespace Frontend
+	{
+		namespace DisplayStyle
+		{
+			namespace NodeLayout
+			{
+				extern const FVector2D METASOUNDFRONTEND_API DefaultOffsetX;
+				extern const FVector2D METASOUNDFRONTEND_API DefaultOffsetY;
+			} // namespace NodeLayout
+		} // namespace DisplayStyle
+	} // namespace Frontend
 } // namespace Metasound
 
 
@@ -396,6 +408,7 @@ struct FMetasoundFrontendGraphStyle
 {
 	GENERATED_BODY()
 
+	// Whether or not the graph is editable by a user
 	UPROPERTY()
 	bool bIsGraphEditable = true;
 
@@ -651,10 +664,11 @@ struct FMetasoundFrontendInterfaceStyle
 
 
 USTRUCT()
-struct FMetasoundFrontendClassInterface
+struct METASOUNDFRONTEND_API FMetasoundFrontendClassInterface
 {
 	GENERATED_BODY()
 
+private:
 	// Style info for inputs.
 	UPROPERTY()
 	FMetasoundFrontendInterfaceStyle InputStyle;
@@ -663,17 +677,59 @@ struct FMetasoundFrontendClassInterface
 	UPROPERTY()
 	FMetasoundFrontendInterfaceStyle OutputStyle;
 
+public:
 	// Description of class inputs.
-	UPROPERTY(EditAnywhere, Category = CustomView)
+	UPROPERTY(VisibleAnywhere, Category = CustomView)
 	TArray<FMetasoundFrontendClassInput> Inputs;
 
 	// Description of class outputs.
-	UPROPERTY(EditAnywhere, Category = CustomView)
+	UPROPERTY(VisibleAnywhere, Category = CustomView)
 	TArray<FMetasoundFrontendClassOutput> Outputs;
 
 	// Description of class environment variables.
-	UPROPERTY(EditAnywhere, Category = CustomView)
+	UPROPERTY(VisibleAnywhere, Category = CustomView)
 	TArray<FMetasoundFrontendClassEnvironmentVariable> Environment;
+
+private:
+	UPROPERTY()
+	FGuid ChangeID;
+
+public:
+	const FMetasoundFrontendInterfaceStyle& GetInputStyle() const
+	{
+		return InputStyle;
+	}
+
+	void SetInputStyle(const FMetasoundFrontendInterfaceStyle& InInputStyle)
+	{
+		InputStyle = InInputStyle;
+		ChangeID = FGuid::NewGuid();
+	}
+
+	const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const
+	{
+		return OutputStyle;
+	}
+
+	void SetOutputStyle(const FMetasoundFrontendInterfaceStyle& InOutputStyle)
+	{
+		OutputStyle = InOutputStyle;
+		ChangeID = FGuid::NewGuid();
+	}
+
+	const FGuid& GetChangeID() const
+	{
+		return ChangeID;
+	}
+
+	// TODO: This is unfortunately required to be manually managed and executed anytime the input/output/environment arrays
+	// are mutated due to the design of the controller system obscuring away read/write permissions
+	// when querying.  Need to add accessors and refactor so that this isn't as error prone and
+	// remove manual execution at the call sites when mutating aforementioned UPROPERTIES.
+	void UpdateChangeID()
+	{
+		ChangeID = FGuid::NewGuid();
+	}
 };
 
 
@@ -717,6 +773,8 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 	FString ToString() const;
 
 	METASOUNDFRONTEND_API friend bool operator==(const FMetasoundFrontendClassName& InLHS, const FMetasoundFrontendClassName& InRHS);
+
+	METASOUNDFRONTEND_API friend bool operator!=(const FMetasoundFrontendClassName& InLHS, const FMetasoundFrontendClassName& InRHS);
 };
 
 
@@ -726,35 +784,185 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata
 	GENERATED_BODY()
 
 	FMetasoundFrontendClassMetadata() = default;
-
 	FMetasoundFrontendClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata);
 
-	UPROPERTY(EditAnywhere, Category = Metasound)
-	FMetasoundFrontendClassName ClassName;
+	private:
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		FMetasoundFrontendClassName ClassName;
 
-	UPROPERTY(EditAnywhere, Category = Metasound)
-	FMetasoundFrontendVersionNumber Version;
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		FMetasoundFrontendVersionNumber Version;
 
-	UPROPERTY(VisibleAnywhere, Category = Metasound)
-	EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
 
-	UPROPERTY(EditAnywhere, Category = Metasound)
-	FText DisplayName;
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		FText DisplayName;
 
-	UPROPERTY(EditAnywhere, Category = Metasound)
-	FText Description;
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		FText Description;
 
-	UPROPERTY(EditAnywhere, Category = Metasound)
-	FText PromptIfMissing;
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		FText PromptIfMissing;
 
-	UPROPERTY(EditAnywhere, Category = Metasound)
-	FText Author;
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		FText Author;
 
-	UPROPERTY(EditAnywhere, Category = Metasound)
-	TArray<FName> Keywords;
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		TArray<FName> Keywords;
 
-	UPROPERTY(EditAnywhere, Category = Metasound)
-	TArray<FText> CategoryHierarchy;
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		TArray<FText> CategoryHierarchy;
+
+		// If true, auto-update will manage (add and remove)
+		// inputs/outputs associated with internally connected
+		// nodes when the interface of the given node is auto-updated.
+		UPROPERTY()
+		bool bAutoUpdateManagesInterface = false;
+
+		// ID used to identify if any of the above have been modified,
+		// to determine if the parent class should be auto-updated.
+		UPROPERTY()
+		FGuid ChangeID;
+
+	public:
+		static FName GetAuthorPropertyName()
+		{
+			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author);
+		}
+
+		static FName GetClassNamePropertyName()
+		{
+			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, ClassName);
+		}
+
+		static FName GetDescriptionPropertyName()
+		{
+			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Description);
+		}
+
+		static FName GetVersionPropertyName()
+		{
+			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Version);
+		}
+
+		const FMetasoundFrontendClassName& GetClassName() const
+		{
+			return ClassName;
+		}
+
+		bool GetAutoUpdateManagesInterface() const
+		{
+			return bAutoUpdateManagesInterface;
+		}
+
+		void SetClassName(const FMetasoundFrontendClassName& InClassName)
+		{
+			ClassName = InClassName;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		EMetasoundFrontendClassType GetType() const
+		{
+			return Type;
+		}
+
+		void SetAutoUpdateManagesInterface(bool bInAutoUpdateManagesInterface)
+		{
+			bAutoUpdateManagesInterface = bInAutoUpdateManagesInterface;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		void SetType(const EMetasoundFrontendClassType InType)
+		{
+			Type = InType;
+			// TODO: Type is modified while querying and swapped between
+			// to be external, so don't modify the ChangeID in this case.
+			// External/Internal should probably be a separate field.
+			// ChangeID = FGuid::NewGuid();
+		}
+
+		const FMetasoundFrontendVersionNumber& GetVersion() const
+		{
+			return Version;
+		}
+
+		void SetVersion(const FMetasoundFrontendVersionNumber& InVersion)
+		{
+			Version = InVersion;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		const FText& GetDisplayName() const
+		{
+			return DisplayName;
+		}
+
+		void SetDisplayName(const FText& InDisplayName)
+		{
+			DisplayName = InDisplayName;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		const FText& GetDescription() const
+		{
+			return Description;
+		}
+
+		void SetDescription(const FText& InDescription)
+		{
+			Description = InDescription;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		const FText& GetPromptIfMissing() const
+		{
+			return PromptIfMissing;
+		}
+
+		void SetPromptIfMissing(const FText& InPromptIfMissing)
+		{
+			PromptIfMissing = InPromptIfMissing;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		const FText& GetAuthor() const
+		{
+			return Author;
+		}
+
+		void SetAuthor(const FText& InAuthor)
+		{
+			Author = InAuthor;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		const TArray<FName>& GetKeywords() const
+		{
+			return Keywords;
+		}
+
+		void SetKeywords(const TArray<FName>& InKeywords)
+		{
+			Keywords = InKeywords;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		const TArray<FText>& GetCategoryHierarchy() const
+		{
+			return CategoryHierarchy;
+		}
+
+		void SetCategoryHierarchy(const TArray<FText>& InCategoryHierarchy)
+		{
+			CategoryHierarchy = InCategoryHierarchy;
+			ChangeID = FGuid::NewGuid();
+		}
+
+		const FGuid& GetChangeID() const
+		{
+			return ChangeID;
+		}
 };
 
 USTRUCT()
@@ -764,6 +972,9 @@ struct FMetasoundFrontendClassStyle
 
 	UPROPERTY()
 	FMetasoundFrontendClassStyleDisplay Display;
+
+	UPROPERTY()
+	bool bIsUserGenerated = false;
 };
 
 USTRUCT()
@@ -812,7 +1023,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendGraphClass : public FMetasoundFro
 
 	UPROPERTY()
 	FMetasoundFrontendGraph Graph;
-
 };
 
 USTRUCT()
@@ -829,6 +1039,9 @@ USTRUCT()
 struct FMetasoundFrontendArchetypeInterface
 {
 	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid TransactionID;
 
 	UPROPERTY()
 	TArray<FMetasoundFrontendClassVertex> Inputs;
@@ -884,5 +1097,3 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 	UPROPERTY()
 	TArray<FMetasoundFrontendClass> Dependencies;
 };
-
-
