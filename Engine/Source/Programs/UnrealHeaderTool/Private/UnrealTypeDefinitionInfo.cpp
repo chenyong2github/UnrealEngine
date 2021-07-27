@@ -2268,7 +2268,15 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 		// Pick up any newly set flags from the super class (i.e. HasInstancedReference)
 		if (FUnrealClassDefinitionInfo* SuperClassDef = GetSuperClass())
 		{
-			SetClassFlags(SuperClassDef->GetClassFlags() & CLASS_ScriptInherit);
+			if ((InheritClassFlags & CLASS_NotPlaceable) == 0)
+			{
+				if (!SuperClassDef->HasAnyClassFlags(CLASS_NotPlaceable))
+				{
+					Throwf(TEXT("The 'placeable' specifier is only allowed on classes which have a base class that's marked as not placeable. Classes are assumed to be placeable by default."));
+				}
+			}
+
+			SetClassFlags(SuperClassDef->GetClassFlags() & InheritClassFlags);
 		}
 
 		// Check to see if we have any instances referenced
@@ -2401,12 +2409,12 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 			// Class cannot be constructed from the New button in editinline
 			ParsedClassFlags &= ~CLASS_EditInlineNew;
+			InheritClassFlags &= ~CLASS_EditInlineNew;
 			break;
 
 		case EClassMetadataSpecifier::Placeable:
-
-			bWantsToBePlaceable = true;
 			ParsedClassFlags &= ~CLASS_NotPlaceable;
+			InheritClassFlags &= ~CLASS_NotPlaceable;
 			break;
 
 		case EClassMetadataSpecifier::DefaultToInstanced:
@@ -2477,6 +2485,7 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 			// this child of a transient class is not transient - remove the transient flag
 			ParsedClassFlags &= ~CLASS_Transient;
+			InheritClassFlags &= ~CLASS_Transient;
 			break;
 
 		case EClassMetadataSpecifier::CustomConstructor:
@@ -2612,6 +2621,7 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 
 			// Class' properties should be shown categorized in the editor.
 			ParsedClassFlags &= ~CLASS_CollapseCategories;
+			InheritClassFlags &= ~CLASS_CollapseCategories;
 			break;
 
 		case EClassMetadataSpecifier::AdvancedClassDisplay:
@@ -2720,16 +2730,6 @@ void FUnrealClassDefinitionInfo::MergeClassCategories()
 
 void FUnrealClassDefinitionInfo::MergeAndValidateClassFlags(const FString& DeclaredClassName)
 {
-	if (bWantsToBePlaceable)
-	{
-		if (!HasAnyClassFlags(CLASS_NotPlaceable))
-		{
-			Throwf(TEXT("The 'placeable' specifier is only allowed on classes which have a base class that's marked as not placeable. Classes are assumed to be placeable by default."));
-		}
-		ClearClassFlags(CLASS_NotPlaceable);
-		bWantsToBePlaceable = false; // Reset this flag after it's been merged
-	}
-
 	// Now merge all remaining flags/properties
 	SetClassFlags(ParsedClassFlags);
 	SetClassConfigName(FName(*ConfigName));

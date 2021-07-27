@@ -5201,7 +5201,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& De
 			}
 
 			// Propagate the inheritable ClassFlags
-			ClassDef->SetClassFlags(BaseClassDef->GetClassFlags() & CLASS_ScriptInherit);
+			ClassDef->SetClassFlags(BaseClassDef->GetClassFlags() & ClassDef->GetInheritClassFlags());
 		}
 	}
 	return *ClassDef;
@@ -8405,7 +8405,7 @@ void FHeaderParser::ResetClassData()
 
 	if (FUnrealClassDefinitionInfo* SuperClassDef = CurrentClassDef.GetSuperClass())
 	{
-		CurrentClassDef.SetClassFlags(SuperClassDef->GetClassFlags() & CLASS_ScriptInherit);
+		CurrentClassDef.SetClassFlags(SuperClassDef->GetClassFlags() & CurrentClassDef.GetInheritClassFlags());
 		CurrentClassDef.SetClassConfigName(SuperClassDef->GetClassConfigName());
 
 		check(SuperClassDef->GetClassWithin());
