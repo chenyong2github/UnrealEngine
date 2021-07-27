@@ -1934,10 +1934,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(Scene->GPUScene.IsEnabled());
 
-	bool bDoInitViewsAfterPrepass = false;
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-		bDoInitViewsAfterPrepass = InitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager);
+		InitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager);
 	}
 
 	// Compute & commit the final state of the entire dependency topology of the renderer.
@@ -2012,11 +2011,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 			// This sets up a deferred context that is used by all subsequent culling passes until it is either flushed by RDG execute or explicitly closed
 			InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
-		}
-
-		if (!bDoInitViewsAfterPrepass)
-		{
-			PrepareDistanceFieldScene(GraphBuilder, false);
 		}
 
 		if (Views.Num() > 0)
@@ -2096,13 +2090,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		DynamicIndexBufferForInitViews.Commit();
 		DynamicVertexBufferForInitViews.Commit();
 		DynamicReadBufferForInitViews.Commit();
-
-		if (!bDoInitViewsAfterPrepass)
-		{
-			DynamicVertexBufferForInitShadows.Commit();
-			DynamicIndexBufferForInitShadows.Commit();
-			DynamicReadBufferForInitShadows.Commit();
-		}
 	}
 
 	// Strata initialisation is always run even when not enabled.
@@ -2209,7 +2196,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	if (bDoInitViewsAfterPrepass)
 	{
 		GraphBuilder.Drain();
 
