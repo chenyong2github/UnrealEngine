@@ -38,7 +38,14 @@ USingleSelectionMeshEditingTool* UConvertToPolygonsToolBuilder::CreateNewTool(co
 class FConvertToPolygonsOp : public  FDynamicMeshOperator
 {
 public:
-	FConvertToPolygonsOp() : FDynamicMeshOperator() {}
+	// parameters set by the tool
+	EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
+	double AngleTolerance = 0.1f;
+	int32 NumPoints = 10;
+	FFindPolygonsAlgorithm::EWeightingType WeightingType = FFindPolygonsAlgorithm::EWeightingType::None;
+	FVector3d WeightingCoeffs = FVector3d::One();
+	int32 MinGroupSize = 2;
+	bool bCalculateNormals = false;
 
 	virtual void CalculateResult(FProgressCancel* Progress) override
 	{
@@ -56,6 +63,7 @@ public:
 		}
 
 		Polygons = FFindPolygonsAlgorithm(ResultMesh.Get());
+		Polygons.MinGroupSize = MinGroupSize;
 
 		switch (ConversionMode)
 		{
@@ -73,6 +81,11 @@ public:
 		{
 			double DotTolerance = 1.0 - FMathd::Cos(AngleTolerance * FMathd::DegToRad);
 			Polygons.FindPolygonsFromFaceNormals(DotTolerance);
+			break;
+		}
+		case EConvertToPolygonsMode::FromFurthestPointSampling:
+		{
+			Polygons.FindPolygonsFromFurthestPointSampling(NumPoints, WeightingType, WeightingCoeffs);
 			break;
 		}
 		default:
@@ -113,11 +126,6 @@ public:
 	
 	FFindPolygonsAlgorithm Polygons;
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
-
-	// parameters set by the tool
-	EConvertToPolygonsMode ConversionMode;
-	double AngleTolerance;
-	bool bCalculateNormals;
 };
 
 TUniquePtr<FDynamicMeshOperator> UConvertToPolygonsOperatorFactory::MakeNewOperator()
@@ -201,15 +209,13 @@ void UConvertToPolygonsTool::Setup()
 	// updates the triangle color visualization
 	UpdateVisualization();
 
-	Settings->WatchProperty(Settings->ConversionMode,
-							[this](EConvertToPolygonsMode NewMode)
-							{ OnSettingsModified(); });
-	Settings->WatchProperty(Settings->bShowGroupColors,
-							[this](bool bNewValue) 
-							{ UpdateVisualization(); });
-	Settings->WatchProperty(Settings->AngleTolerance,
-							[this](float value)
-							{ OnSettingsModified(); });
+	Settings->WatchProperty(Settings->ConversionMode, [this](EConvertToPolygonsMode) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->bShowGroupColors, [this](bool) { UpdateVisualization(); });
+	Settings->WatchProperty(Settings->AngleTolerance, [this](float) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->NumPoints, [this](int32) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->bNormalWeighted, [this](bool) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->NormalWeighting, [this](float) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->MinGroupSize, [this](int32) { OnSettingsModified(); });
 	
 
 	GetToolManager()->DisplayMessage(
@@ -222,6 +228,10 @@ void UConvertToPolygonsTool::UpdateOpParameters(FConvertToPolygonsOp& ConvertToP
 	ConvertToPolygonsOp.bCalculateNormals = Settings->bCalculateNormals;
 	ConvertToPolygonsOp.ConversionMode    = Settings->ConversionMode;
 	ConvertToPolygonsOp.AngleTolerance    = Settings->AngleTolerance;
+	ConvertToPolygonsOp.NumPoints = Settings->NumPoints;
+	ConvertToPolygonsOp.WeightingType = (Settings->bNormalWeighted) ? FFindPolygonsAlgorithm::EWeightingType::NormalDeviation : FFindPolygonsAlgorithm::EWeightingType::None;
+	ConvertToPolygonsOp.WeightingCoeffs = FVector3d(Settings->NormalWeighting, 1.0, 1.0);
+	ConvertToPolygonsOp.MinGroupSize = Settings->MinGroupSize;
 	ConvertToPolygonsOp.OriginalMesh = OriginalDynamicMesh;
 	
 	FTransform LocalToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);

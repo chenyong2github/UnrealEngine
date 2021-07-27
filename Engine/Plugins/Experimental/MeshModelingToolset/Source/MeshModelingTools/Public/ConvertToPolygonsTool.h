@@ -37,7 +37,9 @@ enum class EConvertToPolygonsMode
 	/** Create PolyGroups based on UV Islands */
 	FromUVIslands  UMETA(DisplayName = "From UV Islands"),
 	/** Create Polygroups based on Connected Triangles */
-	FromConnectedTris UMETA(DisplayName = "From Connected Tris")
+	FromConnectedTris UMETA(DisplayName = "From Connected Tris"),
+	/** Create Polygroups based on Connected Triangles */
+	FromFurthestPointSampling UMETA(DisplayName = "Furthest Point Sampling")
 };
 
 
@@ -50,15 +52,34 @@ class MESHMODELINGTOOLS_API UConvertToPolygonsToolProperties : public UInteracti
 public:
 	/** Strategy to use to group triangles */
 	UPROPERTY(EditAnywhere, Category = PolyGroups)
-	EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
+		EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FromFurthestPointSampling;
+	//EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
 
 	/** Tolerance for planarity */
 	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (UIMin = "0.001", UIMax = "20.0", ClampMin = "0.0", ClampMax = "90.0", EditCondition = "ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation", EditConditionHides))
 	float AngleTolerance = 0.1f;
 
+	/** Furthest-Point Sample count, approximately this number of polygroups will be generated */
+	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "10000", EditCondition = "ConversionMode == EConvertToPolygonsMode::FromFurthestPointSampling", EditConditionHides))
+	int32 NumPoints = 100;
+
+	/** If true, region-growing in Sampling modes will be controlled by face normals, resulting in regions with borders that are more-aligned with curvature ridges */
+	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (EditCondition = "ConversionMode == EConvertToPolygonsMode::FromFurthestPointSampling", EditConditionHides))
+	bool bNormalWeighted = true;
+
+	/** This parameter modulates the effect of normal weighting during region-growing */
+	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.01", ClampMax = "100.0", EditCondition = "ConversionMode == EConvertToPolygonsMode::FromFurthestPointSampling", EditConditionHides))
+	float NormalWeighting = 1.0f;
+
+
+	/** group filtering */
+	UPROPERTY(EditAnywhere, Category = Filtering, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "10000"))
+	int32 MinGroupSize = 2;
+
+
 	/** If true, normals are recomputed per-group, with hard edges at group boundaries */
-	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (EditCondition = "ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation", EditConditionHides))
-	bool bCalculateNormals = true;
+	UPROPERTY(EditAnywhere, Category = Output)
+	bool bCalculateNormals = false;
 	
 	/** Display each group with a different auto-generated color */
 	UPROPERTY(EditAnywhere, Category = Display)

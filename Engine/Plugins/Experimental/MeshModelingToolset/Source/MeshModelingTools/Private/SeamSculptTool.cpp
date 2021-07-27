@@ -218,8 +218,8 @@ void USeamSculptTool::UpdateCurrentDrawPath()
 
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
 	TMeshDijkstra<FDynamicMesh3> PathFinder(Mesh);
-	TArray<FVector2d> SeedPoints;
-	SeedPoints.Add(FVector2d(DrawPathStartVertex, 0));
+	TArray<TMeshDijkstra<FDynamicMesh3>::FSeedPoint> SeedPoints;
+	SeedPoints.Add({ DrawPathStartVertex, DrawPathStartVertex, 0 });
 	if ( PathFinder.ComputeToTargetPoint(SeedPoints, CurrentSnapVertex) )
 	{
 		PathFinder.FindPathToNearestSeed(CurrentSnapVertex, CurDrawPath);

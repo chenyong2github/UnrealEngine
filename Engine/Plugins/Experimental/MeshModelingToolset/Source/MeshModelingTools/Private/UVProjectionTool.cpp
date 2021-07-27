@@ -419,7 +419,7 @@ void UUVProjectionTool::OnMeshUpdated(UMeshOpPreviewWithBackgroundCompute* Previ
 	{
 		EdgeRenderer->CreateOrUpdateLineSet(TEXT("UVSeams"), UseMesh->MaxEdgeID(), [&](int32 eid, TArray<FRenderableLine>& LinesOut) {
 			FIndex2i EdgeT = UseMesh->GetEdgeT(eid);
-			if (TriangleROISet.Contains(EdgeT.A) && TriangleROISet.Contains(EdgeT.B) && UVOverlay->IsSeamEdge(eid))
+			if (UseMesh->IsEdge(eid) && TriangleROISet.Contains(EdgeT.A) && TriangleROISet.Contains(EdgeT.B) && UVOverlay->IsSeamEdge(eid))
 			{
 				AppendSeamEdge(eid, LinesOut);
 			}
@@ -428,7 +428,7 @@ void UUVProjectionTool::OnMeshUpdated(UMeshOpPreviewWithBackgroundCompute* Previ
 	else
 	{
 		EdgeRenderer->CreateOrUpdateLineSet(TEXT("UVSeams"), UseMesh->MaxEdgeID(), [&](int32 eid, TArray<FRenderableLine>& LinesOut) {
-			if (UVOverlay->IsSeamEdge(eid))
+			if (UseMesh->IsEdge(eid) && UVOverlay->IsSeamEdge(eid))
 			{
 				AppendSeamEdge(eid, LinesOut);
 			}
