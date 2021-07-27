@@ -17,6 +17,7 @@ static float GLOBAL_UNITS = 100.0f; // (1.0f = meters), (100.0f = centimeters)
 
 // A long tail ease out function. Input range, 0-1. 
 FORCEINLINE static float QuarticEaseOut(const float& Input){ return (FMath::Pow(Input-1.0f, 4.0f) * -1.0f) + 1.0f; };
+FORCEINLINE static float CircularEaseOut(const float& Input){ return FMath::Sqrt(1.0f - FMath::Pow(Input - 1.0f, 2.0f)); };
 // An ease out function. Input range, 0-1.
 FORCEINLINE static float SquaredEaseOut(const float& Input){ return (FMath::Pow(Input-1.0f, 2.0f) * -1.0f) + 1.0f; };
 
@@ -39,6 +40,7 @@ struct FEffector
 	FRigidBody* ParentSubRoot = nullptr;
 	float DistanceToSubRootInInputPose;
 	float DistToRootAlongBones;
+	float DistToRootStraightLine;
 
 	float TransformAlpha;
 	float StrengthAlpha;

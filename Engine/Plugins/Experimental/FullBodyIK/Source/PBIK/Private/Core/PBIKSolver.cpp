@@ -50,6 +50,8 @@ namespace PBIK
 			DistanceToSubRootInInputPose = (ParentSubRootPosition - Bone->Position).Size();
 		}
 
+		DistToRootStraightLine = (PositionOrig - SolverRoot.Position).Size();
+
 		// update distances to root (along bones)
 		{
 			if (Bone->bIsSolverRoot)
@@ -117,7 +119,7 @@ namespace PBIK
 		float DeltaSquash = DistanceToSubRootInInputPose - DistToParentSubRoot;
 		DeltaSquash = DeltaSquash > ScaledDistOrig ? ScaledDistOrig : DeltaSquash;
 		float SquashPercent = DeltaSquash / ScaledDistOrig;
-		PBIK::QuarticEaseOut(SquashPercent);
+		SquashPercent = PBIK::CircularEaseOut(SquashPercent);
 		if (SquashPercent < 0.0001f)
 		{
 			return; // limb not squashed enough
@@ -242,8 +244,8 @@ void FPBIKSolver::PullRootTowardsEffectors()
 	for (FEffector& Effector : Effectors)
 	{
 		const float DistToRootStraightLine = (Effector.Position - SolverRoot->Position).Size();
-		const float Delta = DistToRootStraightLine - Effector.DistToRootAlongBones;
-		if (Delta < 0.0f)
+		const float Delta = DistToRootStraightLine - Effector.DistToRootStraightLine;//Effector.DistToRootAlongBones;
+		if (Delta < SMALL_NUMBER)
 		{
 			continue; // only pull
 		}
