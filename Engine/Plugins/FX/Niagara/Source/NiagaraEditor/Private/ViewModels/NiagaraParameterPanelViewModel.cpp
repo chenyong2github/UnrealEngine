@@ -1824,7 +1824,10 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRenamedExternally(
 
 					if (!bFound)
 					{
-						EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->HandleVariableRenamed(InOldVar, InNewVar, true);
+						if (const FNiagaraParameterPanelItem* FoundItemPtr = CachedViewedItems.FindByPredicate([&InOldVar](const FNiagaraParameterPanelItem& Item) { return Item.GetVariable() == InOldVar; }))
+						{
+							RenameParameter(*FoundItemPtr, InNewVar.GetName());
+						}
 					}
 				}
 			}
@@ -1861,7 +1864,10 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRenamedExternally(
 
 		if (!bFound)
 		{
-			SystemViewModel->GetSystem().HandleVariableRenamed(InOldVar, InNewVar, true);
+			if (const FNiagaraParameterPanelItem* FoundItemPtr = CachedViewedItems.FindByPredicate([&InOldVar](const FNiagaraParameterPanelItem& Item) { return Item.GetVariable() == InOldVar; }))
+			{
+				RenameParameter(*FoundItemPtr, InNewVar.GetName());
+			}
 		}
 	}
 
