@@ -541,6 +541,56 @@ void Butterfly(bool bIsForward, inout Complex Local[RADIX], uint ThreadIdx, uint
 	}
 }
 
+void ButterflyRadix4(bool bIsForward, inout Complex Local[RADIX], uint ThreadIdx, uint Length)
+{
+
+	float AngleEven = TWO_PI * float(ThreadIdx) / float(Length * RADIX);
+	float AngleOdd = TWO_PI * float(ThreadIdx+Length) / float(Length * RADIX);
+	if (!bIsForward)
+	{
+		AngleEven *= -1;
+		AngleOdd *= -1;
+	}
+
+		
+	Complex TwiddleIncEven;
+	sincos(AngleEven, TwiddleIncEven.y, TwiddleIncEven.x);
+	Complex TwiddleIncOdd;
+	sincos(AngleOdd, TwiddleIncOdd.y, TwiddleIncOdd.x);
+	Complex TwiddleEven = TwiddleIncEven;
+	Complex TwiddleOdd = TwiddleIncOdd;
+	for (uint r = 2; r < RADIX; r+=2)
+	{
+		Local[r] = ComplexMult(TwiddleEven, Local[r]);
+		TwiddleEven = ComplexMult(TwiddleEven, TwiddleIncEven);
+		Local[r+1] = ComplexMult(TwiddleOdd, Local[r+1]);
+		TwiddleOdd = ComplexMult(TwiddleOdd, TwiddleIncOdd);
+	}
+}
+
+void ButterflyRadix2(bool bIsForward, inout Complex Local[RADIX], uint ThreadIdx, uint Length)
+{
+
+	float AngleStart = TWO_PI * float(ThreadIdx) / float(Length * RADIX);
+	float AngleInc = TWO_PI * float(Length) / float(Length * RADIX);
+	if (!bIsForward)
+	{
+		AngleStart *= -1;
+		AngleInc *= -1;
+	}
+
+		
+	Complex TwiddleInc;
+	sincos(AngleInc, TwiddleInc.y, TwiddleInc.x);
+	Complex Twiddle;
+	sincos(AngleStart, Twiddle.y, Twiddle.x);
+	for (uint r = 4; r < RADIX; ++r)
+	{
+		Local[r] = ComplexMult(Twiddle, Local[r]);
+		Twiddle = ComplexMult(Twiddle, TwiddleInc);
+	}
+}
+
 // Performs a single pass Stockham FFT using group shared memory.
 void GroupSharedFFT(in const bool bIsForward, inout Complex Local[RADIX], in const uint ArrayLength, in const uint ThreadIdx)
 {
@@ -605,11 +655,27 @@ void GroupSharedFFT(in const bool bIsForward, inout Complex Local[RADIX], in con
 		TransposeData(Local, IdxD, Ns, IdxS, NumCols);
 	}
 	
+#if MIXED_RADIX == 0 || SCAN_LINE_LENGTH == 4096 || SCAN_LINE_LENGTH == 512 || SCAN_LINE_LENGTH == 64 || SCAN_LINE_LENGTH <= 8
 	Butterfly(bIsForward, Local, ThreadIdx, Ns);
 
 	// Transform these RADIX values.
 
 	RadixFFT(bIsForward, Local);
+#elif SCAN_LINE_LENGTH == 2048 || SCAN_LINE_LENGTH == 256 || SCAN_LINE_LENGTH == 32
+	ButterflyRadix4(bIsForward, Local, ThreadIdx, NumCols);
+	
+	Radix4FFT(bIsForward, Local[0], Local[2], Local[4], Local[6]);
+	Radix4FFT(bIsForward, Local[1], Local[3], Local[5], Local[7]);
+#elif SCAN_LINE_LENGTH == 1024 || SCAN_LINE_LENGTH == 128 || SCAN_LINE_LENGTH == 16
+	ButterflyRadix2(bIsForward, Local, ThreadIdx, NumCols);
+	
+	Radix2FFT(bIsForward, Local[0], Local[4]);
+	Radix2FFT(bIsForward, Local[1], Local[5]);
+	Radix2FFT(bIsForward, Local[2], Local[6]);
+	Radix2FFT(bIsForward, Local[3], Local[7]);
+#else
+	#error Unknown SCAN_LINE_LENGTH
+#endif
 	
 	// not needed for the simple case
 	
