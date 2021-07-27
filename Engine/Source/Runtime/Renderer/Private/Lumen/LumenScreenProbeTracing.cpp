@@ -122,6 +122,7 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, LightingChannelsTexture)
 		SHADER_PARAMETER(FVector2D, HZBBaseTexelSize)
 		SHADER_PARAMETER(FVector4, HZBUVToScreenUVScaleBias)
+		SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
 		SHADER_PARAMETER(float, UncertainTraceRelativeDepthThreshold)
 		SHADER_PARAMETER(float, NumThicknessStepsToDetermineCertainty)
@@ -604,6 +605,7 @@ void TraceScreenProbes(
 		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
 		PassParameters->LightingChannelsTexture = LightingChannelsTexture;
 		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
+		PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
 		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold;
 		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;

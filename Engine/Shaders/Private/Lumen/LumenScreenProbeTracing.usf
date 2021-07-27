@@ -47,6 +47,7 @@ Texture2D ColorTexture;
 float4 HZBUvFactorAndInvFactor;
 float4 ColorBufferScaleBias;
 float2 ReducedColorUVMax;
+float PrevSceneColorPreExposureCorrection;
 float MaxHierarchicalScreenTraceIterations;
 float UncertainTraceRelativeDepthThreshold;
 float NumThicknessStepsToDetermineCertainty;
@@ -240,7 +241,7 @@ void ScreenProbeTraceScreenTexturesCS(
 					float2 ReducedColorUV = HitUVz.xy * ColorBufferScaleBias.xy + ColorBufferScaleBias.zw;
 					ReducedColorUV = min(ReducedColorUV, ReducedColorUVMax);
 
-					float3 Lighting = ColorTexture.SampleLevel(ColorTextureSampler, ReducedColorUV, Level).rgb;
+					float3 Lighting = ColorTexture.SampleLevel(ColorTextureSampler, ReducedColorUV, Level).rgb * PrevSceneColorPreExposureCorrection;
 					
 					#if DEBUG_VISUALIZE_TRACE_TYPES
 						RWTraceRadiance[TraceCoord] = float3(.5f, 0, 0) * View.PreExposure;
