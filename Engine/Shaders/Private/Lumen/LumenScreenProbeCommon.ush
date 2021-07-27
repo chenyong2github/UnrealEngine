@@ -181,6 +181,7 @@ float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float De
 
 		if (bIsDynamicPixel)
 		{
+			// Note: overwriting velocity, this only works if DeviceZ matches what's in the depth buffer
 			Velocity = DecodeVelocityFromTexture(EncodedVelocity);
 		}
 
