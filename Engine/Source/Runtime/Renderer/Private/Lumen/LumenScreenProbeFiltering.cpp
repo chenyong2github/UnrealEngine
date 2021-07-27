@@ -154,7 +154,7 @@ class FScreenProbeConvertToSphericalHarmonicCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float3>, RWScreenProbeRadianceSHAmbient)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<unorm float3>, RWScreenProbeRadianceSHDirectional)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, RWScreenProbeRadianceSHDirectional)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadiance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)

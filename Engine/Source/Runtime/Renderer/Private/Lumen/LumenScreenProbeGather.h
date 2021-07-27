@@ -82,7 +82,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeGatherParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadiance)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadianceWithBorder)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, ScreenProbeRadianceSHAmbient)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, ScreenProbeRadianceSHDirectional)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ScreenProbeRadianceSHDirectional)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, ScreenProbeMoving)
 END_SHADER_PARAMETER_STRUCT()
 
