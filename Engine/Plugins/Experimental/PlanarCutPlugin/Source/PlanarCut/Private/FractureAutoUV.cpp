@@ -401,12 +401,14 @@ bool BoxProjectUVs(
 		int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
 		FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
 
-		// TODO: Apply this coincident edge merge once 
-		//FMergeCoincidentMeshEdges EdgeWelder(&Mesh);
-		//EdgeWelder.Apply();
-
 		FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);
+		AugmentedDynamicMesh::InitializeOverlayToPerVertexTangents(Mesh);
 		AugmentedDynamicMesh::InitializeOverlayToPerVertexUVs(Mesh, NumUVLayers, 0);
+
+		// Apply coincident edge merge so that projection can re-determine the UV islands without having to keep existing seams
+		FMergeCoincidentMeshEdges EdgeWelder(&Mesh);
+		EdgeWelder.Apply();
+
 		TArray<int32> TargetTris;
 		for (int TID : Mesh.TriangleIndicesItr())
 		{
@@ -429,20 +431,8 @@ bool BoxProjectUVs(
 
 		Mesh.CompactInPlace();
 
-		// transfer work back to custom UV data of AugmentedDynamicMeshes
-		FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(TargetUVLayer);
-
-		for (int ElID : UVOverlay->ElementIndicesItr())
-		{
-			FVector2f UV = UVOverlay->GetElement(ElID);
-			int VID = UVOverlay->GetParentVertex(ElID);
-			checkSlow(VID > -1);
-			if (VID > -1)
-			{
-				AugmentedDynamicMesh::SetUV(Mesh, VID, UV, TargetUVLayer);
-			}
-		}
-		
+		// Re-split vertices with different UVs/normals/tangents and transfer attributes back (required because we weld edges above)
+		AugmentedDynamicMesh::SplitOverlayAttributesToPerVertex(Mesh, true, true);
 	}
 
 	CollectionMeshes.UpdateAllCollections(Collection);
