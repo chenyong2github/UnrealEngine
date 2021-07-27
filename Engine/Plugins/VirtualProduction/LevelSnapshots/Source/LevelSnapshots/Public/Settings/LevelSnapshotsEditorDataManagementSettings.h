@@ -24,7 +24,9 @@ public:
 	void SanitizeAllProjectSettingsPaths(const bool bSkipForwardSlash);
 	
 	static FFormatNamedArguments GetFormatNamedArguments(const FString& InWorldName);
-	static FText ParseTokensInText(const FText& InTextToParse, const FString& InWorldName);
+
+	UFUNCTION(BlueprintCallable, Category = "Level Snapshots")
+	static FText ParseLevelSnapshotsTokensInText(const FText& InTextToParse, const FString& InWorldName);
 
 	bool IsNameOverridden() const;
 

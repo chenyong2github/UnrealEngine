@@ -303,10 +303,10 @@ void FLevelSnapshotsEditorModule::TakeAndSaveSnapshot(const FText& InDescription
 	DataManagementSettings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
 	DataManagementSettings->SanitizeAllProjectSettingsPaths(true);
 
-	const FText& NewSnapshotDir = ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(
+	const FText& NewSnapshotDir = ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(
 		FText::FromString(
 			FPaths::Combine(DataManagementSettings->RootLevelSnapshotSaveDir.Path, DataManagementSettings->LevelSnapshotSaveDir)), World->GetName());
-	const FText& NewSnapshotName = ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(FText::FromString(
+	const FText& NewSnapshotName = ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(FText::FromString(
 		bShouldUseOverrides && DataManagementSettings->IsNameOverridden() ?
 		DataManagementSettings->GetNameOverride() : DataManagementSettings->DefaultLevelSnapshotName), World->GetName());
 

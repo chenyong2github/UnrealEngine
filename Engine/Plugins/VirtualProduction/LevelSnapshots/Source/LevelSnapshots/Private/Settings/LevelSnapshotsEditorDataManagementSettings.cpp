@@ -78,7 +78,7 @@ FFormatNamedArguments ULevelSnapshotsEditorDataManagementSettings::GetFormatName
 	return FormatArguments;
 }
 
-FText ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(const FText& InTextToParse, const FString& InWorldName)
+FText ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(const FText& InTextToParse, const FString& InWorldName)
 {
 	const FFormatNamedArguments& FormatArguments = GetFormatNamedArguments(InWorldName);
 

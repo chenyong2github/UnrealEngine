@@ -242,7 +242,7 @@ FText SLevelSnapshotsEditorCreationForm::GetNameOverrideText() const
 		return FText::FromString(DataManagementSettingsObjectPtr.Get()->GetNameOverride());
 	}
 
-	return 	ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(FText::FromString(
+	return 	ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(FText::FromString(
 		DataManagementSettingsObjectPtr.Get()->GetNameOverride()), World->GetName());
 }
 
