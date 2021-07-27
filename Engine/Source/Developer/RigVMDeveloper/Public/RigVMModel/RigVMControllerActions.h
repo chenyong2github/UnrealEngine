@@ -71,7 +71,7 @@ private:
 	FRigVMActionWrapper& operator = (const FRigVMActionWrapper& Other) = delete;
 
 	UScriptStruct* ScriptStruct;
-	FRigVMByteArray Data;
+	TArray<uint8> Data;
 };
 
 /**

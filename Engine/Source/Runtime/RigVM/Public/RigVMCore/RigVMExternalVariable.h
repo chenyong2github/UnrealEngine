@@ -14,6 +14,9 @@ struct RIGVM_API FRigVMExternalVariable
 {
 	FORCEINLINE FRigVMExternalVariable()
 		: Name(NAME_None)
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+		, Property(nullptr)
+#endif
 		, TypeName(NAME_None)
 		, TypeObject(nullptr)
 		, bIsArray(false)
@@ -21,8 +24,58 @@ struct RIGVM_API FRigVMExternalVariable
 		, bIsReadOnly(false)
 		, Size(0)
 		, Memory(nullptr)
-		
 	{
+	}
+
+	FORCEINLINE static void GetTypeFromProperty(const FProperty* InProperty, FName& OutTypeName, UObject*& OutTypeObject)
+	{
+		if (CastField<FBoolProperty>(InProperty))
+		{
+			OutTypeName = TEXT("bool");
+		}
+		else if (CastField<FIntProperty>(InProperty))
+		{
+			OutTypeName = TEXT("int32");
+		}
+		else if (CastField<FFloatProperty>(InProperty))
+		{
+			OutTypeName = TEXT("float");
+		}
+		else if (CastField<FDoubleProperty>(InProperty))
+		{
+			OutTypeName = TEXT("double");
+		}
+		else if (CastField<FStrProperty>(InProperty))
+		{
+			OutTypeName = TEXT("FString");
+		}
+		else if (CastField<FNameProperty>(InProperty))
+		{
+			OutTypeName = TEXT("FName");
+		}
+		else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))
+		{
+			OutTypeName = EnumProperty->GetEnum()->GetFName();
+			OutTypeObject = EnumProperty->GetEnum();
+		}
+		else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(InProperty))
+		{
+			if (UEnum* BytePropertyEnum = ByteProperty->Enum)
+			{
+				OutTypeName = BytePropertyEnum->GetFName();
+				OutTypeObject = BytePropertyEnum;
+			}
+		}
+		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+		{
+			OutTypeName = *StructProperty->Struct->GetStructCPPName();
+			OutTypeObject = StructProperty->Struct;
+		}
+		else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
+		{
+			OutTypeName = *ObjectProperty->PropertyClass->GetName();
+			OutTypeObject = ObjectProperty->PropertyClass;
+		}
 	}
 
 	FORCEINLINE static FRigVMExternalVariable Make(FProperty* InProperty, UObject* InContainer)
@@ -33,6 +86,9 @@ struct RIGVM_API FRigVMExternalVariable
 
 		FRigVMExternalVariable ExternalVariable;
 		ExternalVariable.Name = InProperty->GetFName();
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+		ExternalVariable.Property = Property;
+#endif
 		ExternalVariable.bIsPublic = !InProperty->HasAllPropertyFlags(CPF_DisableEditOnInstance);
 		ExternalVariable.bIsReadOnly = InProperty->HasAllPropertyFlags(CPF_BlueprintReadOnly);
 
@@ -51,54 +107,7 @@ struct RIGVM_API FRigVMExternalVariable
 		}
 
 		ExternalVariable.Size = Property->GetSize();
-
-		if (CastField<FBoolProperty>(Property))
-		{
-			ExternalVariable.TypeName = TEXT("bool");
-		}
-		else if (CastField<FIntProperty>(Property))
-		{
-			ExternalVariable.TypeName = TEXT("int32");
-		}
-		else if (CastField<FFloatProperty>(Property))
-		{
-			ExternalVariable.TypeName = TEXT("float");
-		}
-		else if (CastField<FDoubleProperty>(Property))
-		{
-			ExternalVariable.TypeName = TEXT("double");
-		}
-		else if (CastField<FStrProperty>(Property))
-		{
-			ExternalVariable.TypeName = TEXT("FString");
-		}
-		else if (CastField<FNameProperty>(Property))
-		{
-			ExternalVariable.TypeName = TEXT("FName");
-		}
-		else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
-		{
-			ExternalVariable.TypeName = EnumProperty->GetEnum()->GetFName();
-			ExternalVariable.TypeObject = EnumProperty->GetEnum();
-		}
-		else if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
-		{
-			if (UEnum* BytePropertyEnum = ByteProperty->Enum)
-			{
-				ExternalVariable.TypeName = BytePropertyEnum->GetFName();
-				ExternalVariable.TypeObject = BytePropertyEnum;
-			}
-		}
-		else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
-		{
-			ExternalVariable.TypeName = *StructProperty->Struct->GetStructCPPName();
-			ExternalVariable.TypeObject = StructProperty->Struct;
-		}
-		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
-		{
-			ExternalVariable.TypeName = *ObjectProperty->PropertyClass->GetName();
-			ExternalVariable.TypeObject = ObjectProperty->PropertyClass;
-		}
+		GetTypeFromProperty(Property, ExternalVariable.TypeName, ExternalVariable.TypeObject);
 
 		return ExternalVariable;
 	}
@@ -484,6 +493,9 @@ struct RIGVM_API FRigVMExternalVariable
 	}
 
 	FName Name;
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	const FProperty* Property;
+#endif
 	FName TypeName;
 	UObject* TypeObject;
 	bool bIsArray;

@@ -166,6 +166,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Change texture bulkdatas to have unique guids
 		VirtualizedBulkDataHaveUniqueGuids,
 
+		// Introduce RigVM Memory Class Object
+		RigVMMemoryStorageObject,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -1884,7 +1884,6 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 	URigVM* TempVM = NewObject<URigVM>(GetTransientPackage());
 	
 	URigVMCompiler* TempCompiler = NewObject<URigVMCompiler>(GetTransientPackage());
-	TempCompiler->Settings.ConsolidateWorkRegisters = false;
 	TempCompiler->Settings.SetupNodeInstructionIndex = false;
 	TempCompiler->Settings.IsPreprocessorPhase = true;
 	TempCompiler->Settings.EnablePinWatches = false;
@@ -1892,12 +1891,26 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 	TempCompiler->Compile(InGraph, InController, TempVM, InExternalVariables, InRigVMUserData, &Operands, TempAST);
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	FRigVMMemoryContainer* Memory[] = { TempVM->WorkMemoryPtr, TempVM->LiteralMemoryPtr, TempVM->DebugMemoryPtr };
-
 	for (const FRigVMUserDataArray& RigVMUserData : InRigVMUserData)
 	{
 		TempVM->Execute(FRigVMMemoryContainerPtrArray(Memory, 3), RigVMUserData);
 	}
+
+#else
+
+	TArray<URigVMMemoryStorage*> Memory;
+	Memory.Add(TempVM->GetWorkMemory());
+	Memory.Add(TempVM->GetLiteralMemory());
+	Memory.Add(TempVM->GetDebugMemory());
+	for (const FRigVMUserDataArray& RigVMUserData : InRigVMUserData)
+	{
+		TempVM->Execute(Memory, RigVMUserData);
+	}
+
+#endif
 
 	// copy the values out of the temp VM and set them on the cached value
 	for (const FRigVMASTProxy& PinToComputeProxy : PinsToCompute)
@@ -1921,15 +1934,30 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 		FString PinHash = URigVMCompiler::GetPinHash(RootPin, RootVarExpr, false);
 		const FRigVMOperand& Operand = Operands.FindChecked(PinHash);
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+		
 		TArray<FString> DefaultValues = TempVM->GetWorkMemory().GetRegisterValueAsString(Operand, RootPin->GetCPPType(), RootPin->GetCPPTypeObject());
+
+#else
+
+		FString DefaultValue = TempVM->GetWorkMemory()->GetDataAsString(Operand.GetRegisterIndex());
+		if(DefaultValue.IsEmpty())
+		{
+			continue;
+		}
+
+#endif
 
 		// FString TempDefaultValue = FString::Printf(TEXT("(%s)"), *FString::Join(DefaultValues, TEXT(",")));
 		// UE_LOG(LogRigVMDeveloper, Display, TEXT("Computed constant value '%s' = '%s'"), *PinHash, *TempDefaultValue);
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		if (DefaultValues.Num() == 0)
 		{
 			continue;
 		}
+#endif
 
 		TArray<FString> SegmentNames;
 		if (!URigVMPin::SplitPinPath(PinToCompute->GetSegmentPath(), SegmentNames))
@@ -1937,11 +1965,13 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 			SegmentNames.Add(PinToCompute->GetName());
 		}
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		FString DefaultValue = DefaultValues[0];
 		if (RootPin->IsArray())
 		{
 			DefaultValue = FString::Printf(TEXT("(%s)"), *FString::Join(DefaultValues, TEXT(",")));
 		}
+#endif
 
 		URigVMPin* PinForDefaultValue = RootPin;
 		while (PinForDefaultValue != PinToCompute && SegmentNames.Num() > 0)

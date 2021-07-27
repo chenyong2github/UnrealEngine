@@ -25,6 +25,8 @@ public class UnrealHeaderTool : ModuleRules
 				"Runtime/Launch/Private",
 				"Runtime/RHI/Public",
 				"Programs/UnrealHeaderTool/Private",
+				// For RigVM Defines
+				"Runtime/RigVM/Public",
 			});
 		
 		bEnableExceptions = true;

@@ -43,6 +43,6 @@ FRigUnit_DebugLineStripItemSpace_Execute()
 	}
 	else
 	{
-		Context.DrawInterface->DrawLineStrip(WorldOffset, Points, Color, Thickness);
+		Context.DrawInterface->DrawLineStrip(WorldOffset, TArrayView<const FVector>(Points.GetData(), Points.Num()), Color, Thickness);
 	}
 }

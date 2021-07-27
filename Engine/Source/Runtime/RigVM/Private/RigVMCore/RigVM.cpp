@@ -63,10 +63,17 @@ UScriptStruct* FRigVMParameter::GetScriptStruct() const
 }
 
 URigVM::URigVM()
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
     : WorkMemoryPtr(&WorkMemoryStorage)
     , LiteralMemoryPtr(&LiteralMemoryStorage)
     , DebugMemoryPtr(&DebugMemoryStorage)
-    , ByteCodePtr(&ByteCodeStorage)
+	, WorkMemoryStorageObject(nullptr)
+#else
+	: WorkMemoryStorageObject(nullptr)
+#endif
+	, LiteralMemoryStorageObject(nullptr)
+	, DebugMemoryStorageObject(nullptr)
+	, ByteCodePtr(&ByteCodeStorage)
 #if WITH_EDITOR
 	, DebugInfo(nullptr)
 	, HaltedAtBreakpoint(nullptr)
@@ -80,9 +87,11 @@ URigVM::URigVM()
 	, ExecutingThreadId(INDEX_NONE)
 	, DeferredVMToCopy(nullptr)
 {
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	GetWorkMemory().SetMemoryType(ERigVMMemoryType::Work);
 	GetLiteralMemory().SetMemoryType(ERigVMMemoryType::Literal);
 	GetDebugMemory().SetMemoryType(ERigVMMemoryType::Debug);
+#endif
 }
 
 URigVM::~URigVM()
@@ -125,8 +134,21 @@ void URigVM::Save(FArchive& Ar)
 {
 	CopyDeferredVMIfRequired();
 
+	int32 RigVMUClassBasedStorageDefine = UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED;
+	Ar << RigVMUClassBasedStorageDefine;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	Ar << WorkMemoryStorage;
 	Ar << LiteralMemoryStorage;
+
+#else
+
+	WorkMemoryStorageObject->Serialize(Ar);
+	LiteralMemoryStorageObject->Serialize(Ar);
+	
+#endif
+	
 	Ar << FunctionNamesStorage;
 	Ar << ByteCodeStorage;
 	Ar << Parameters;
@@ -136,21 +158,71 @@ void URigVM::Load(FArchive& Ar)
 {
 	Reset();
 
-	Ar << WorkMemoryStorage;
-	Ar << LiteralMemoryStorage;
-	Ar << FunctionNamesStorage;
-	Ar << ByteCodeStorage;
-	Ar << Parameters;
+	int32 RigVMUClassBasedStorageDefine = 1;
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::RigVMMemoryStorageObject)
+	{
+		Ar << RigVMUClassBasedStorageDefine;
+	}
 
-	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
+	if(RigVMUClassBasedStorageDefine == 1)
+	{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+		FRigVMMemoryContainer WorkMemoryStorage;
+		FRigVMMemoryContainer LiteralMemoryStorage;
+#endif
+		
+		Ar << WorkMemoryStorage;
+		Ar << LiteralMemoryStorage;
+		Ar << FunctionNamesStorage;
+		Ar << ByteCodeStorage;
+		Ar << Parameters;
+		
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
+		{
+			Reset();
+			return;
+		}
+	}
+
+	if(RigVMUClassBasedStorageDefine != UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED)
 	{
 		Reset();
 		return;
 	}
 
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+	if(WorkMemoryStorageObject == nullptr)
+	{
+		UClass* StorageClass = URigVMMemoryStorage::GetStorageClass(GetOutermost(), ERigVMMemoryType::Work);
+		WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, StorageClass, NAME_None, RF_Public | RF_Transactional);
+	}
+	if(LiteralMemoryStorageObject == nullptr)
+	{
+		UClass* StorageClass = URigVMMemoryStorage::GetStorageClass(GetOutermost(), ERigVMMemoryType::Literal);
+		LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, StorageClass, NAME_None, RF_Public | RF_Transactional);
+	}
+	if(DebugMemoryStorageObject == nullptr)
+	{
+		DebugMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, NAME_None, RF_Public | RF_Transactional);
+	}
+
+	WorkMemoryStorageObject->Serialize(Ar);
+	LiteralMemoryStorageObject->Serialize(Ar);
+
+	Ar << FunctionNamesStorage;
+	Ar << ByteCodeStorage;
+	Ar << Parameters;
+
+#endif
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	if (WorkMemoryStorage.bEncounteredErrorDuringLoad ||
 		LiteralMemoryStorage.bEncounteredErrorDuringLoad ||
 		!ValidateAllOperandsDuringLoad())
+#else
+	if (!ValidateAllOperandsDuringLoad())
+#endif
 	{
 		Reset();
 	}
@@ -177,8 +249,22 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 	// check all operands on all ops for validity
 	bool bAllOperandsValid = true;
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	FRigVMMemoryContainer* LocalMemory[] = { &WorkMemoryStorage, &LiteralMemoryStorage, &DebugMemoryStorage };
+	
+#else
+
+	TArray<URigVMMemoryStorage*> LocalMemory = { GetWorkMemory(), GetLiteralMemory(), GetDebugMemory() };
+	TArray<FRigVMPropertyPath>& LocalPropertyPaths = PropertyPaths;
+	
+#endif
+	
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	auto CheckOperandValidity = [LocalMemory, &bAllOperandsValid](const FRigVMOperand& InOperand) -> bool
+#else
+	auto CheckOperandValidity = [LocalMemory, &bAllOperandsValid, &LocalPropertyPaths](const FRigVMOperand& InOperand) -> bool
+#endif
 	{
 		if(InOperand.GetContainerIndex() < 0 || InOperand.GetContainerIndex() >= (int32)ERigVMMemoryType::Invalid)
 		{
@@ -187,11 +273,19 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 		}
 
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		const FRigVMMemoryContainer* MemoryForOperand = LocalMemory[InOperand.GetContainerIndex()];
+#else
+		const URigVMMemoryStorage* MemoryForOperand = LocalMemory[InOperand.GetContainerIndex()];
+#endif
 
 		if(InOperand.GetMemoryType() != ERigVMMemoryType::External)
 		{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			if(!MemoryForOperand->Registers.IsValidIndex(InOperand.GetRegisterIndex()))
+#else
+			if(!MemoryForOperand->IsValidIndex(InOperand.GetRegisterIndex()))
+#endif
 			{
 				bAllOperandsValid = false;
 				return false;
@@ -200,7 +294,11 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 
 		if(InOperand.GetRegisterOffset() != INDEX_NONE)
 		{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			if(!MemoryForOperand->RegisterOffsets.IsValidIndex(InOperand.GetRegisterOffset()))
+#else
+			if(!LocalPropertyPaths.IsValidIndex(InOperand.GetRegisterOffset()))
+#endif
 			{
 				bAllOperandsValid = false;
 				return false;
@@ -347,9 +445,11 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 
 void URigVM::Reset()
 {
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	WorkMemoryStorage.Reset();
 	LiteralMemoryStorage.Reset();
 	DebugMemoryStorage.Reset();
+#endif
 	FunctionNamesStorage.Reset();
 	FunctionsStorage.Reset();
 	ByteCodeStorage.Reset();
@@ -358,12 +458,18 @@ void URigVM::Reset()
 	ParametersNameMap.Reset();
 	DeferredVMToCopy = nullptr;
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	WorkMemoryPtr = &WorkMemoryStorage;
 	LiteralMemoryPtr = &LiteralMemoryStorage;
 	DebugMemoryPtr = &DebugMemoryStorage;
+#endif
 	FunctionNamesPtr = &FunctionNamesStorage;
 	FunctionsPtr = &FunctionsStorage;
 	ByteCodePtr = &ByteCodeStorage;
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	PropertyPaths.Reset();
+#endif
 
 	InvalidateCachedMemory();
 	
@@ -372,9 +478,11 @@ void URigVM::Reset()
 
 void URigVM::Empty()
 {
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	WorkMemoryStorage.Empty();
 	LiteralMemoryStorage.Empty();
 	DebugMemoryStorage.Empty();
+#endif
 	FunctionNamesStorage.Empty();
 	FunctionsStorage.Empty();
 	ByteCodeStorage.Empty();
@@ -383,6 +491,10 @@ void URigVM::Empty()
 	ParametersNameMap.Empty();
 	DeferredVMToCopy = nullptr;
 	ExternalVariables.Empty();
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	PropertyPaths.Empty();
+#endif
 
 	InvalidateCachedMemory();
 
@@ -407,6 +519,8 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 	
 	Reset();
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	if(InVM->WorkMemoryPtr == &InVM->WorkMemoryStorage)
 	{
 		WorkMemoryStorage = InVM->WorkMemoryStorage;
@@ -440,6 +554,46 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 	{
 		DebugMemoryPtr = InVM->DebugMemoryPtr;
 	}
+	
+#else
+
+	auto CopyMemoryStorage = [](URigVMMemoryStorage*& TargetMemory, URigVMMemoryStorage* SourceMemory, UObject* Outer)
+	{
+		if(SourceMemory != nullptr)
+		{
+			if(TargetMemory == nullptr)
+			{
+				TargetMemory = NewObject<URigVMMemoryStorage>(Outer, SourceMemory->GetClass());
+			}
+
+			check(TargetMemory->GetClass() == SourceMemory->GetClass());
+
+			for(int32 PropertyIndex = 0; PropertyIndex < TargetMemory->Num(); PropertyIndex++)
+			{
+				URigVMMemoryStorage::CopyProperty(
+					TargetMemory,
+					PropertyIndex,
+					FRigVMPropertyPath::Empty,
+					SourceMemory,
+					PropertyIndex,
+					FRigVMPropertyPath::Empty
+				);
+			}
+		}
+		else if(TargetMemory != nullptr)
+		{
+			TargetMemory->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			TargetMemory->MarkPendingKill();
+			TargetMemory = nullptr;
+		}
+	};
+
+	CopyMemoryStorage(WorkMemoryStorageObject, InVM->WorkMemoryStorageObject, this);
+	CopyMemoryStorage(LiteralMemoryStorageObject, InVM->LiteralMemoryStorageObject, this);
+	CopyMemoryStorage(DebugMemoryStorageObject, InVM->DebugMemoryStorageObject, this);
+	PropertyPaths = InVM->PropertyPaths;
+	
+#endif
 
 	if(InVM->FunctionNamesPtr == &InVM->FunctionNamesStorage && !bReferenceByteCode)
 	{
@@ -508,6 +662,34 @@ FString URigVM::GetRigVMFunctionName(int32 InFunctionIndex) const
 	return GetFunctionNames()[InFunctionIndex].ToString();
 }
 
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType) const
+{
+	switch(InMemoryType)
+	{
+		case ERigVMMemoryType::Literal:
+		{
+			return GetLiteralMemory();
+		}
+		case ERigVMMemoryType::Work:
+		{
+			return GetWorkMemory();
+		}
+		case ERigVMMemoryType::Debug:
+		{
+			return GetDebugMemory();
+		}
+		default:
+		{
+			break;
+		}
+	}
+	return nullptr;
+}
+
+#endif
+
 const FRigVMInstructionArray& URigVM::GetInstructions()
 {
 	RefreshInstructionsIfRequired();
@@ -534,6 +716,7 @@ TArray<FName> URigVM::GetEntryNames() const
 }
 
 #if WITH_EDITOR
+
 bool URigVM::ResumeExecution()
 {
 	HaltedAtBreakpoint = nullptr;
@@ -551,7 +734,11 @@ bool URigVM::ResumeExecution()
 	return false;
 }
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 bool URigVM::ResumeExecution(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments, const FName& InEntryName)
+#else
+bool URigVM::ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName)
+#endif
 {
 	ResumeExecution();
 	return Execute(Memory, AdditionalArguments, InEntryName);
@@ -635,7 +822,11 @@ void URigVM::CopyDeferredVMIfRequired()
 	}
 }
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 void URigVM::CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory)
+#else
+void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMemory)
+#endif
 {
 	ensureMsgf(ExecutingThreadId == FPlatformTLS::GetCurrentThreadId(), TEXT("RigVM::CacheMemoryHandlesIfRequired from multiple threads (%d and %d)"), ExecutingThreadId, (int32)FPlatformTLS::GetCurrentThreadId());
 
@@ -780,10 +971,12 @@ void URigVM::CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory
 				CacheSingleMemoryHandle(Op.Source);
 				CacheSingleMemoryHandle(Op.Target);
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				if (UScriptStruct* ScriptStruct = GetScriptStructForCopyOp(Op))
 				{
 					CachedMemoryHandles.Add(FRigVMMemoryHandle((uint8*)ScriptStruct));
 				}
+#endif
 
 				InstructionIndex++;
 				break;
@@ -883,8 +1076,10 @@ void URigVM::RebuildByteCodeOnLoad()
 				NewCopyOp = GetCopyOpForOperands(OldCopyOp.Source, OldCopyOp.Target);
 				check(OldCopyOp.Source == NewCopyOp.Source);
 				check(OldCopyOp.Target == NewCopyOp.Target);
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				//check(OldCopyOp.NumBytes == NewCopyOp.NumBytes);
 				check(OldCopyOp.RegisterType == NewCopyOp.RegisterType);
+#endif
 				break;
 			}
 			default:
@@ -1063,7 +1258,11 @@ bool URigVM::ShouldHaltAtInstruction(const uint16 InstructionIndex)
 }
 #endif
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments)
+#else
+bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments)
+#endif
 {
 	if (ExecutingThreadId != INDEX_NONE)
 	{
@@ -1080,11 +1279,20 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 		return true;
 	}
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr, DebugMemoryPtr };
 	if (Memory.Num() == 0)
 	{
 		Memory = FRigVMMemoryContainerPtrArray(LocalMemory, 3);
 	}
+#else
+	TArray<URigVMMemoryStorage*> LocalMemory;
+	if (Memory.Num() == 0)
+	{
+		LocalMemory = GetLocalMemoryArray();
+		Memory = LocalMemory;
+	}
+#endif
 
 	CacheMemoryHandlesIfRequired(Memory);
 	FRigVMByteCode& ByteCode = GetByteCode();
@@ -1180,6 +1388,8 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 
 				// find out the largest slice count
 				int32 MaxSliceCount = 1;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				for (const FRigVMMemoryHandle& OpHandle : OpHandles)
 				{
 					if (OpHandle.Type == FRigVMMemoryHandle::Dynamic)
@@ -1197,6 +1407,9 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 						}
 					}
 				}
+#else
+				// todo Deal with slice counts
+#endif
 
 				Context.BeginSlice(MaxSliceCount);
 				for (int32 SliceIndex = 0; SliceIndex < MaxSliceCount; SliceIndex++)
@@ -1220,6 +1433,8 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 
 				FRigVMMemoryHandle& SourceHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
 				FRigVMMemoryHandle& TargetHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				void* SourcePtr = SourceHandle;
 				void* TargetPtr = TargetHandle;
 
@@ -1325,6 +1540,11 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 						break;
 					}
 				}
+#else
+
+				URigVMMemoryStorage::CopyProperty(TargetHandle, SourceHandle);
+
+#endif
 				break;
 			}
 			case ERigVMOpCode::Increment:
@@ -1356,7 +1576,11 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 	return true;
 }
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments, const FName& InEntryName)
+#else
+bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName)
+#endif
 {
 	if (ExecutingThreadId != INDEX_NONE)
 	{
@@ -1374,12 +1598,21 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 	}
 
 	// changes to the layout of memory array should be reflected in GetContainerIndex()
-	FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr, DebugMemoryPtr }; 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	FRigVMMemoryContainer* LocalMemory[] = { WorkMemoryPtr, LiteralMemoryPtr, DebugMemoryPtr };
 	if (Memory.Num() == 0)
 	{
 		Memory = FRigVMMemoryContainerPtrArray(LocalMemory, 3);
 	}
-
+#else
+	TArray<URigVMMemoryStorage*> LocalMemory;
+	if (Memory.Num() == 0)
+	{
+		LocalMemory = GetLocalMemoryArray();
+		Memory = LocalMemory;
+	}
+#endif
+	
 	CacheMemoryHandlesIfRequired(Memory);
 	FRigVMByteCode& ByteCode = GetByteCode();
 	TArray<FRigVMFunctionPtr>& Functions = GetFunctions();
@@ -1510,6 +1743,8 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 				(*Functions[Op.FunctionIndex])(Context, Handles);
 
 #if WITH_EDITOR
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				if(DebugMemoryPtr->Num() > 0)
 				{
 					const FRigVMOperandArray Operands = ByteCode.GetOperandsForExecuteOp(Instruction);
@@ -1523,6 +1758,17 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 						CopyOperandForDebuggingIfNeeded(Operands[OperandIndex++], Handles[HandleIndex]);
 					}
 				}
+#else
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMOperandArray Operands = ByteCode.GetOperandsForExecuteOp(Instruction);
+					for(int32 OperandIndex = 0, HandleIndex = 0; OperandIndex < Operands.Num() && HandleIndex < Handles.Num(); HandleIndex++)
+					{
+						CopyOperandForDebuggingIfNeeded(Operands[OperandIndex++], Handles[HandleIndex]);
+					}
+				}
+#endif
+
 #endif
 
 				Context.InstructionIndex++;
@@ -1532,7 +1778,11 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			{
 				*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData()) = 0;
 #if WITH_EDITOR
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				if(DebugMemoryPtr->Num() > 0)
+#else
+				if(DebugMemoryStorageObject->Num() > 0)
+#endif
 				{
 					const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
 					CopyOperandForDebuggingIfNeeded(Op.Arg, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]);
@@ -1560,6 +1810,8 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 
 				FRigVMMemoryHandle& SourceHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
 				FRigVMMemoryHandle& TargetHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				void* SourcePtr = SourceHandle;
 				void* TargetPtr = TargetHandle;
 
@@ -1665,14 +1917,24 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 						break;
 					}
 				}
-
+					
+#else
+					
+				URigVMMemoryStorage::CopyProperty(TargetHandle, SourceHandle);
+					
+#endif
+					
 #if WITH_EDITOR
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				if(DebugMemoryPtr->Num() > 0)
+#else
+				if(DebugMemoryStorageObject->Num() > 0)
+#endif
 				{
 					CopyOperandForDebuggingIfNeeded(Op.Source, SourceHandle);
 				}
 #endif
-
+					
 				Context.InstructionIndex++;
 				break;
 			}
@@ -1680,7 +1942,11 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			{
 				(*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData()))++;
 #if WITH_EDITOR
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				if(DebugMemoryPtr->Num() > 0)
+#else
+				if(DebugMemoryStorageObject->Num() > 0)
+#endif
 				{
 					const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
 					CopyOperandForDebuggingIfNeeded(Op.Arg, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]);
@@ -1693,7 +1959,11 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			{
 				(*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]].GetData()))--;
 #if WITH_EDITOR
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				if(DebugMemoryPtr->Num() > 0)
+#else
+				if(DebugMemoryStorageObject->Num() > 0)
+#endif
 				{
 					const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
 					CopyOperandForDebuggingIfNeeded(Op.Arg, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]);
@@ -1706,6 +1976,9 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			case ERigVMOpCode::NotEquals:
 			{
 				const FRigVMComparisonOp& Op = ByteCode.GetOpAt<FRigVMComparisonOp>(Instruction);
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 				const FRigVMRegister& RegisterA = (*Memory[Op.A.GetContainerIndex()])[Op.A.GetRegisterIndex()];
 				const FRigVMRegister& RegisterB = (*Memory[Op.B.GetContainerIndex()])[Op.B.GetRegisterIndex()];
 				const uint16 BytesA = RegisterA.GetNumBytesPerSlice();
@@ -1771,6 +2044,14 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 				{
 					Result = !Result;
 				}
+
+#else
+
+				FRigVMMemoryHandle& HandleA = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
+				FRigVMMemoryHandle& HandleB = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
+				const bool Result = HandleA.GetProperty()->Identical(HandleA.GetData(true), HandleB.GetData(true));
+					
+#endif				
 
 				*((bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]+2].GetData()) = Result;
 				Context.InstructionIndex++;
@@ -1890,7 +2171,11 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 
 bool URigVM::Execute(const FName& InEntryName)
 {
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	return Execute(FRigVMMemoryContainerPtrArray(), FRigVMFixedArray<void*>(), InEntryName);
+#else
+	return Execute(TArray<URigVMMemoryStorage*>(), TArrayView<void*>(), InEntryName);
+#endif
 }
 
 FRigVMExternalVariable URigVM::GetExternalVariableByName(const FName& InExternalVariableName)
@@ -1904,6 +2189,8 @@ FRigVMExternalVariable URigVM::GetExternalVariableByName(const FName& InExternal
 	}
 	return FRigVMExternalVariable();
 }
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 void URigVM::SetRegisterValueFromString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject, const TArray<FString>& InDefaultValues)
 {
@@ -1921,6 +2208,20 @@ void URigVM::SetRegisterValueFromString(const FRigVMOperand& InOperand, const FS
 	}
 }
 
+#else
+
+void URigVM::SetPropertyValueFromString(const FRigVMOperand& InOperand, const FString& InDefaultValue)
+{
+	URigVMMemoryStorage* Memory = GetMemoryByType(InOperand.GetMemoryType());
+	if(Memory == nullptr)
+	{
+		return;
+	}
+
+	Memory->SetDataFromString(InOperand.GetRegisterIndex(), InDefaultValue);
+}
+
+#endif
 
 #if WITH_EDITOR
 
@@ -2185,6 +2486,8 @@ FString URigVM::DumpByteCodeAsText(const TArray<int32>& InInstructionOrder, bool
 
 FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FString(const FString& RegisterName, const FString& RegisterOffsetName)> FormatFunction) const
 {
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	const FRigVMMemoryContainer* MemoryPtr = nullptr;
 
 	if (InOperand.GetMemoryType() == ERigVMMemoryType::Literal)
@@ -2225,6 +2528,26 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FStrin
 		OperandLabel = FString::Printf(TEXT("%s.%s"), *OperandLabel, *RegisterOffsetName);
 	}
 
+#else
+
+	URigVMMemoryStorage* Memory = GetMemoryByType(InOperand.GetMemoryType());
+	if(Memory == nullptr)
+	{
+		return FString();
+	}
+
+	check(Memory->IsValidIndex(InOperand.GetRegisterIndex()));
+	
+	const FString RegisterName = Memory->GetProperties()[InOperand.GetRegisterIndex()]->GetName();
+	const FString RegisterOffsetName =
+		InOperand.GetRegisterOffset() != INDEX_NONE ?
+		PropertyPaths[InOperand.GetRegisterOffset()].ToString() :
+		FString();
+	
+	FString OperandLabel = RegisterName;
+	
+#endif
+	
 	// caller can provide an alternative format to override the default format(optional)
 	if (FormatFunction)
 	{
@@ -2239,6 +2562,7 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FStrin
 void URigVM::ClearDebugMemory()
 {
 #if WITH_EDITOR
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	FRigVMMemoryContainer* DebugMemory = CachedMemory[GetContainerIndex(ERigVMMemoryType::Debug)];
 	if (DebugMemory)
 	{ 
@@ -2247,12 +2571,26 @@ void URigVM::ClearDebugMemory()
 			ensure(DebugMemory->GetRegister(RegisterIndex).IsDynamic());
 			DebugMemory->Destroy(RegisterIndex);
 		}	
-	} 
+	}
+#else
+
+	for(int32 PropertyIndex = 0; PropertyIndex < GetDebugMemory()->Num(); PropertyIndex++)
+	{
+		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(GetDebugMemory()->GetProperties()[PropertyIndex]))
+		{
+			FScriptArrayHelper ArrayHelper(ArrayProperty, GetDebugMemory()->GetData<uint8>(PropertyIndex));
+			ArrayHelper.EmptyValues();
+		}
+	}
+	
+#endif
 #endif
 }
 
 void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecute)
 {
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	if (InArg.GetMemoryType() == ERigVMMemoryType::External)
 	{
 		ensure(ExternalVariables.IsValidIndex(InArg.GetRegisterIndex()));
@@ -2282,11 +2620,43 @@ void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecut
 			CachedMemoryHandles.Add(FRigVMMemoryHandle((uint8*)ElementsForArray, sizeof(uint16), FRigVMMemoryHandle::FType::ArraySize));
 		}
 	}
+	
+#else
+
+	const FRigVMPropertyPath* PropertyPath = nullptr;
+	if(InArg.GetRegisterOffset())
+	{
+		check(PropertyPaths.IsValidIndex(InArg.GetRegisterOffset()));
+		PropertyPath = &PropertyPaths[InArg.GetRegisterOffset()];
+	}
+
+	if (InArg.GetMemoryType() == ERigVMMemoryType::External)
+	{
+		check(ExternalVariables.IsValidIndex(InArg.GetRegisterIndex()));
+
+		FRigVMExternalVariable& ExternalVariable = ExternalVariables[InArg.GetRegisterIndex()];
+		check(ExternalVariable.IsValid(false));
+
+		const FRigVMMemoryHandle Handle(ExternalVariable.Memory, ExternalVariable.Property, PropertyPath);
+		CachedMemoryHandles.Add(Handle);
+		return;
+	}
+
+	URigVMMemoryStorage* Memory = GetMemoryByType(InArg.GetMemoryType());
+	uint8* Data = Memory->GetData<uint8>(InArg.GetRegisterIndex());
+	const FProperty* Property = Memory->GetProperties()[InArg.GetRegisterIndex()];
+	const FRigVMMemoryHandle Handle(Data, Property, PropertyPath);
+	CachedMemoryHandles.Add(Handle);
+
+#endif
 }
 
 void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand)
 {
 #if WITH_EDITOR
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	check(InArg.IsValid());
 	check(InArg.GetRegisterOffset() == INDEX_NONE);
 	check(InDebugOperand.IsValid());
@@ -2395,9 +2765,45 @@ void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigV
 		}
 	}
 
+#else
+
+	URigVMMemoryStorage* TargetMemory = GetDebugMemory();
+	if(TargetMemory == nullptr)
+	{
+		return;
+	}
+	const FProperty* TargetProperty = TargetMemory->GetProperties()[InDebugOperand.GetRegisterIndex()];
+	uint8* TargetPtr = TargetMemory->GetData<uint8>(InDebugOperand.GetRegisterIndex());
+
+	// since debug properties are always arrays, we need to divert to the last array element's memory
+	const FArrayProperty* TargetArrayProperty = CastField<FArrayProperty>(TargetProperty);
+	if(TargetArrayProperty == nullptr)
+	{
+		return;
+	}
+
+	// add an element to the end for debug watching
+	FScriptArrayHelper ArrayHelper(TargetArrayProperty, TargetPtr);
+	const int32 AddedIndex = ArrayHelper.AddValue();
+	TargetPtr = ArrayHelper.GetRawPtr(AddedIndex);
+	TargetProperty = TargetArrayProperty->Inner;
+
+	URigVMMemoryStorage* SourceMemory = GetMemoryByType(InArg.GetMemoryType());
+	if(SourceMemory == nullptr)
+	{
+		return;
+	}
+	const FProperty* SourceProperty = SourceMemory->GetProperties()[InArg.GetRegisterIndex()];
+	const uint8* SourcePtr = SourceMemory->GetData<uint8>(InArg.GetRegisterIndex());
+
+	URigVMMemoryStorage::CopyProperty(TargetProperty, TargetPtr, SourceProperty, SourcePtr);
+	
+#endif
 	
 #endif
 }
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 FRigVMCopyOp URigVM::GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
 {
@@ -2427,6 +2833,17 @@ FRigVMCopyOp URigVM::GetCopyOpForOperands(const FRigVMOperand& InSource, const F
 
 	return FRigVMCopyOp(InSource, InTarget, TargetCopyInfo.NumBytesToCopy, TargetCopyInfo.RegisterType, CopyType);
 }
+
+#else
+
+FRigVMCopyOp URigVM::GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
+{
+	return FRigVMCopyOp(InSource, InTarget);
+}
+
+#endif
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 URigVM::FCopyInfoForOperand URigVM::GetCopyInfoForOperand(const FRigVMOperand& InOperand)
 {
@@ -2512,3 +2929,4 @@ UScriptStruct* URigVM::GetScripStructForOperand(const FRigVMOperand& InOperand) 
 	return CachedMemory[InOperand.GetContainerIndex()]->GetScriptStruct(InOperand.GetRegisterIndex());
 }
 
+#endif

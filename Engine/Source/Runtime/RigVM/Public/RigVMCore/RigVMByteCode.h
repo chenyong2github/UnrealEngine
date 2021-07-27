@@ -94,7 +94,7 @@ enum class ERigVMOpCode : uint8
 	JumpAbsoluteIf, // jump to an absolute instruction index based on a condition register
 	JumpForwardIf, // jump forwards given a relative instruction index offset based on a condition register
 	JumpBackwardIf, // jump backwards given a relative instruction index offset based on a condition register
-	ChangeType, // change the type of a register
+	ChangeType, // change the type of a register (deprecated)
 	Exit, // exit the execution loop
 	BeginBlock, // begins a new memory slice / block
 	EndBlock, // ends the last memory slice / block
@@ -238,33 +238,41 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 	: FRigVMBaseOp(ERigVMOpCode::Copy)
 	, Source()
 	, Target()
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	, NumBytes(0)
 	, RegisterType(ERigVMRegisterType::Invalid)
 	, CopyType(ERigVMCopyType::Default)
+#endif
 	{
 	}
 
 	FRigVMCopyOp(
 		FRigVMOperand InSource,
-		FRigVMOperand InTarget,
-		uint16 InNumBytes,
+		FRigVMOperand InTarget
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+		, uint16 InNumBytes,
 		ERigVMRegisterType InRegisterType,
 		ERigVMCopyType InCopyType
+#endif
 	)
 		: FRigVMBaseOp(ERigVMOpCode::Copy)
 		, Source(InSource)
 		, Target(InTarget)
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		, NumBytes(InNumBytes)
 		, RegisterType(InRegisterType)
 		, CopyType(InCopyType)
+#endif
 	{
 	}
 
 	FRigVMOperand Source;
 	FRigVMOperand Target;
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	uint16 NumBytes;
 	ERigVMRegisterType RegisterType;
 	ERigVMCopyType CopyType;
+#endif
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMCopyOp& P)
@@ -390,6 +398,8 @@ struct RIGVM_API FRigVMChangeTypeOp : public FRigVMUnaryOp
 {
 	GENERATED_USTRUCT_BODY()
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	FRigVMChangeTypeOp()
 		: FRigVMUnaryOp()
 		, Type(ERigVMRegisterType::Invalid)
@@ -412,6 +422,8 @@ struct RIGVM_API FRigVMChangeTypeOp : public FRigVMUnaryOp
 	uint16 ElementSize;
 	uint16 ElementCount;
 	uint16 SliceCount;
+
+#endif
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMChangeTypeOp& P)
@@ -565,7 +577,11 @@ public:
 	uint64 AddTrueOp(const FRigVMOperand& InArg);
 
 	// adds a copy operator to copy the content of a source argument to a target argument
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	uint64 AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType, ERigVMCopyType InCopyType);
+#else
+	uint64 AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget);
+#endif
 
 	// adds a copy operator to copy the content of a source argument to a target argument
 	uint64 AddCopyOp(const FRigVMCopyOp& InCopyOp);
@@ -588,8 +604,12 @@ public:
 	// adds an absolute, forward or backward jump operator based on a condition argument
 	uint64 AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex, const FRigVMOperand& InConditionArg, bool bJumpWhenConditionIs = false);
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	// adds a change-type operator to reuse a register for a smaller or same size type
 	uint64 AddChangeTypeOp(FRigVMOperand InArg, ERigVMRegisterType InType, uint16 InElementSize, uint16 InElementCount, uint16 InSliceCount = 1);
+
+#endif
 
 	// adds an exit operator to exit the execution loop
 	uint64 AddExitOp();

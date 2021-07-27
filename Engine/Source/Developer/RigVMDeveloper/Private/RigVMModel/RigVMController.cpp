@@ -6097,6 +6097,7 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		FRigVMExternalVariable ExternalVariable = GetVariableByName(*VariableName);
 		if (ExternalVariable.IsValid(true))
 		{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			FRigVMRegisterOffset RegisterOffset;
 			if (!SegmentPath.IsEmpty())
 			{
@@ -6106,6 +6107,12 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 			{
 				return false;
 			}
+#else
+			if (!InPin->CanBeBoundToVariable(ExternalVariable, SegmentPath))
+			{
+				return false;
+			}
+#endif
 		}
 		else
 		{

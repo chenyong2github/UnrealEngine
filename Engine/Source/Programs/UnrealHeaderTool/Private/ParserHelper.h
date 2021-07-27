@@ -12,6 +12,7 @@
 #include "UnrealHeaderToolGlobals.h"
 #include "Templates/UniqueObj.h"
 #include "Templates/UniquePtr.h"
+#include "RigVMDefines.h"
 
 class UEnum;
 class UScriptStruct;
@@ -482,7 +483,9 @@ struct FRigVMParameter
 		, bInput(false)
 		, bOutput(false)
 		, bSingleton(false)
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		, ArraySize()
+#endif
 		, Getter()
 		, CastName()
 		, CastType()
@@ -497,7 +500,9 @@ struct FRigVMParameter
 	bool bInput;
 	bool bOutput;
 	bool bSingleton;
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	FString ArraySize;
+#endif
 	FString Getter;
 	FString CastName;
 	FString CastType;
@@ -587,6 +592,8 @@ struct FRigVMParameter
 		return BaseType().Equals(TEXT("TArray"));
 	}
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	bool IsDynamic() const
 	{
 		return ArraySize.IsEmpty() && !bInput && !bOutput && !bSingleton;
@@ -596,6 +603,8 @@ struct FRigVMParameter
 	{
 		return IsArray() && IsDynamic();
 	}
+
+#endif
 
 	bool RequiresCast() const
 	{

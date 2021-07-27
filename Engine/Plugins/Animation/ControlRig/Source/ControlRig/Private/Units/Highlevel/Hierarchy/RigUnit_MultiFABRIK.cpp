@@ -84,7 +84,7 @@ namespace MultiFABRIK
 	}
 
 	// Forward Evaluator
-	void SolveForwardRecursively(FRigUnit_MultiFABRIK_ChainGroup& InOutCurrentGroup, TArray<FRigUnit_MultiFABRIK_BoneWorkingData>& InBoneTree, const FRigVMFixedArray<FRigUnit_MultiFABRIK_EndEffector>& InEffectors, float InPrecision)
+	void SolveForwardRecursively(FRigUnit_MultiFABRIK_ChainGroup& InOutCurrentGroup, TArray<FRigUnit_MultiFABRIK_BoneWorkingData>& InBoneTree, const TArrayView<const FRigUnit_MultiFABRIK_EndEffector>& InEffectors, float InPrecision)
 	{
 		const int32 ChildNum = InOutCurrentGroup.Children.Num();
 		// solve child first, and then follow
@@ -419,11 +419,13 @@ FRigUnit_MultiFABRIK_Execute()
 			FVector RootLocation = BoneTree[0].Location;
 			// now iterate 
 			// we start from end to root group prioritizing getting to effector
+
+			const TArrayView<const FRigUnit_MultiFABRIK_EndEffector> EffectorsView(Effectors.GetData(), Effectors.Num());
 			for (int32 IterIndex = 0; IterIndex < MaxIterations; ++IterIndex)
 			{
 				// update transform first
 				MultiFABRIK::UpdateTransfomRecusively(ChainGroup, BoneTree);
-				MultiFABRIK::SolveForwardRecursively(ChainGroup, BoneTree, Effectors, Precision);
+				MultiFABRIK::SolveForwardRecursively(ChainGroup, BoneTree, EffectorsView, Precision);
 
 				// root position can change while forward reaching
 				BoneTree[0].Location = RootLocation;

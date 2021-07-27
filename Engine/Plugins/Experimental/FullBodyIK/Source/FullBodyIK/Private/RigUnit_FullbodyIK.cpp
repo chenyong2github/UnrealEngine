@@ -79,7 +79,7 @@ static void AddToEffectorTarget(int32 EffectorIndex, const FRigElementKey& Effec
 	}
 }
 
-static void AddEffectors(URigHierarchy* Hierarchy, const FRigElementKey& Root, const TArray<FFBIKEndEffector>& Effectors,
+static void AddEffectors(URigHierarchy* Hierarchy, const FRigElementKey& Root, const TArrayView<const FFBIKEndEffector>& Effectors,
 	TArray<FFBIKLinkData>& LinkData, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, TArray<int32>& EffectorLinkIndices, 
 	TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices, TMap<FRigElementKey, int32>& HierarchyToLinkDataMap, const FSolverInput& SolverProperty)
 {
@@ -208,7 +208,8 @@ FRigUnit_FullbodyIK_Execute()
 		HierarchyToLinkDataMap.Reset();
 
 		// verify the chain
-		AddEffectors(Hierarchy, Root, Effectors, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
+		const TArrayView<const FFBIKEndEffector> EffectorsView(Effectors.GetData(), Effectors.Num());
+		AddEffectors(Hierarchy, Root, EffectorsView, LinkData, EffectorTargets, EffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
 	}
 
 	if (Context.State == EControlRigState::Update)
@@ -222,7 +223,8 @@ FRigUnit_FullbodyIK_Execute()
 			{
 				DECLARE_SCOPE_HIERARCHICAL_COUNTER(TEXT("Build Constraint"))
 				//Build constraints
-				FBIKConstraintLib::BuildConstraints(Constraints, InternalConstraints, Hierarchy, LinkData, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
+				const TArrayView<const FFBIKConstraintOption> ConstraintsView(Constraints.GetData(), Constraints.Num());
+				FBIKConstraintLib::BuildConstraints(ConstraintsView, InternalConstraints, Hierarchy, LinkData, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
 			}
 
 			// during only editor and update
