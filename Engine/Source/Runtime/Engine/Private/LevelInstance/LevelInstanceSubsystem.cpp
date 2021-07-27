@@ -946,7 +946,7 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 			}
 
 			// Skip some actor types
-			if (!Actor->IsA<ALevelBounds>() && !Actor->IsA<ABrush>() && !Actor->IsA<AWorldSettings>() && !Actor->IsA<ALevelInstanceEditorInstanceActor>())
+			if (!Actor->IsA<ALevelBounds>() && (Actor != Actor->GetLevel()->GetDefaultBrush()) && !Actor->IsA<AWorldSettings>() && !Actor->IsA<ALevelInstanceEditorInstanceActor>())
 			{
 				if (CanMoveActorToLevel(Actor))
 				{
