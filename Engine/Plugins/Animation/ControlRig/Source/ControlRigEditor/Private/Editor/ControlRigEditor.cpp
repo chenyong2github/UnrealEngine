@@ -1929,6 +1929,17 @@ bool FControlRigEditor::TransactionObjectAffectsBlueprint(UObject* InTransactedO
 	return FBlueprintEditor::TransactionObjectAffectsBlueprint(InTransactedObject);
 }
 
+bool FControlRigEditor::CanAddNewLocalVariable() const
+{
+	const URigVMGraph* Graph = GetFocusedModel();
+	const URigVMGraph* ParentGraph = Graph->GetParentGraph();				
+	if (ParentGraph && ParentGraph->IsA<URigVMFunctionLibrary>())
+	{
+		return true;
+	}
+	return false;
+}
+
 void FControlRigEditor::OnAddNewLocalVariable()
 {
 	if (!CanAddNewLocalVariable())
@@ -2411,9 +2422,17 @@ bool FControlRigEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
 		case NodeSectionID::GRAPH:
 		case NodeSectionID::VARIABLE:
 		case NodeSectionID::FUNCTION:
-		case NodeSectionID::LOCAL_VARIABLE:
 		{
 			return true;
+		}
+		case NodeSectionID::LOCAL_VARIABLE:
+		{
+			const URigVMGraph* Graph = GetFocusedModel();
+			const URigVMGraph* ParentGraph = Graph->GetParentGraph();				
+			if (ParentGraph && ParentGraph->IsA<URigVMFunctionLibrary>())
+			{
+				return true;
+			}
 		}
 		default:
 		{
