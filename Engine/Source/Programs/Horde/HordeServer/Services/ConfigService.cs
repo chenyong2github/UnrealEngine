@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using HordeServer.Api;
+using HordeServer.Collections;
 using HordeServer.Controllers;
 using HordeServer.Models;
 using HordeServer.Notifications;
@@ -262,7 +263,7 @@ namespace HordeServer.Services
 						try
 						{
 							StreamConfig StreamConfig = await ReadDataAsync<StreamConfig>(StreamPath);
-							Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamRef.Id, Stream, StreamPath.ToString(), Revision, ProjectId, StreamConfig);
+							Stream = await StreamService.StreamCollection.CreateOrReplaceAsync(StreamRef.Id, Stream, StreamPath.ToString(), Revision, ProjectId, StreamConfig);
 						}
 						catch (Exception Ex)
 						{
