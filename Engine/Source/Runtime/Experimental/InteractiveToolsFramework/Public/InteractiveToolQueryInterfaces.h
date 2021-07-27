@@ -65,3 +65,66 @@ public:
 
 
 };
+
+
+
+
+
+
+
+// UInterface for IInteractiveToolNestedAcceptCancelAPI
+UINTERFACE(MinimalAPI)
+class UInteractiveToolNestedAcceptCancelAPI : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * IInteractiveToolNestedAcceptCancelAPI provides an API for a Tool to publish
+ * intent and ability to Accept or Cancel sub-operations. For example in a Tool
+ * that has an editable active Selection, we might want the Escape hotkey to
+ * Clear any active selection, and then on a second press, to Cancel the Tool. 
+ * This API allows a Tool to say "I can consume a Cancel action", and similarly
+ * for Accept (although this is much less common).
+ */
+class IInteractiveToolNestedAcceptCancelAPI
+{
+	GENERATED_BODY()
+public:
+
+	/**
+	 * @return true if the implementor of this API may be able to consume a Cancel action
+	 */
+	virtual bool SupportsNestedCancelCommand() { return false; }
+
+	/**
+	 * @return true if the implementor of this API can currently consume a Cancel action
+	 */
+	virtual bool CanCurrentlyNestedCancel() { return false; }
+
+	/**
+	 * Called by Editor levels to tell the implementor (eg Tool) to execute a nested Cancel action
+	 * @return true if the implementor consumed the Cancel action
+	 */
+	virtual bool ExecuteNestedCancelCommand() { return false; }
+
+
+
+	/**
+	 * @return true if the implementor of this API may be able to consume an Accept action
+	 */
+	virtual bool SupportsNestedAcceptCommand() { return false; }
+
+	/**
+	 * @return true if the implementor of this API can currently consume an Accept action
+	 */
+	virtual bool CanCurrentlyNestedAccept() { return false; }
+
+	/**
+	 * Called by Editor levels to tell the implementor (eg Tool) to execute a nested Accept action
+	 * @return true if the implementor consumed the Accept action
+	 */
+	virtual bool ExecuteNestedAcceptCommand() { return false; }
+
+
+};

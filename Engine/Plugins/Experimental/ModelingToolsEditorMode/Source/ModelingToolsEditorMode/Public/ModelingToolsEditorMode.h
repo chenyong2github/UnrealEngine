@@ -70,6 +70,9 @@ protected:
 	void ModelingModeShortcutRequested(EModelingModeActionCommands Command);
 	void FocusCameraAtCursorHotkey();
 
+	void AcceptActiveToolActionOrTool();
+	void CancelActiveToolActionOrTool();
+
 	void ConfigureRealTimeViewportsOverride(bool bEnable);
 
 	// analytics tracking

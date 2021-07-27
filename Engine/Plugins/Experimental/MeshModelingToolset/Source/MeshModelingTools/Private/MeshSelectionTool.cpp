@@ -723,6 +723,27 @@ FBox UMeshSelectionTool::GetWorldSpaceFocusBox()
 
 
 
+bool UMeshSelectionTool::SupportsNestedCancelCommand()
+{
+	return true;
+}
+
+bool UMeshSelectionTool::CanCurrentlyNestedCancel()
+{
+	return Selection && (Selection->Faces.Num() > 0);
+}
+
+bool UMeshSelectionTool::ExecuteNestedCancelCommand()
+{
+	if (CanCurrentlyNestedCancel())
+	{
+		ClearSelection();
+		return true;
+	}
+	return false;
+}
+
+
 
 void UMeshSelectionTool::OnRegionHighlightUpdated()
 {

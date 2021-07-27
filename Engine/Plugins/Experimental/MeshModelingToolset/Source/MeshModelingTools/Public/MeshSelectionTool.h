@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMeshBrushTool.h"
+#include "InteractiveToolQueryInterfaces.h"
 #include "SelectionSet.h"
 #include "Changes/MeshSelectionChange.h"
 #include "DynamicMesh/DynamicMeshOctree3.h"
@@ -276,7 +277,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UMeshSelectionTool : public UDynamicMeshBrushTool
+class MESHMODELINGTOOLS_API UMeshSelectionTool : public UDynamicMeshBrushTool, public IInteractiveToolNestedAcceptCancelAPI
 {
 	GENERATED_BODY()
 
@@ -305,6 +306,11 @@ public:
 
 	// IInteractiveToolCameraFocusAPI implementation
 	virtual FBox GetWorldSpaceFocusBox() override;
+
+	// IInteractiveToolCancelAPI
+	virtual bool SupportsNestedCancelCommand() override;
+	virtual bool CanCurrentlyNestedCancel() override;
+	virtual bool ExecuteNestedCancelCommand() override;
 
 public:
 
