@@ -764,18 +764,38 @@ public:
 			&& ObjectAccess.Property.IsValid()
 			&& ObjectAccess.PropertyPathInfo.IsResolved())
 		{
-			UObject* Object = ObjectAccess.Object.Get();
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
+			FRCObjectReference MutableObjectReference = ObjectAccess;
 
 #if WITH_EDITOR
-			const bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+			const bool bGenerateTransaction = MutableObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
 			if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
 			{
+				FString ObjectPath = MutableObjectReference.Object->GetPathName();
+
 				// If we have a change that hasn't yet generated a post edit change property, do that before handling the next change.
-				if (OngoingModification && GetTypeHash(*OngoingModification) != GetTypeHash(ObjectAccess))
+				if (OngoingModification && GetTypeHash(*OngoingModification) != GetTypeHash(MutableObjectReference))
 				{
 					constexpr bool bForcePostEditChange = true;
 					TestOrFinalizeOngoingChange(true);
+				}
+
+				// This step is necessary because the object might get recreated by a PostEditChange called in TestOrFinalizeOngoingChange.
+				if (!MutableObjectReference.Object.IsValid())
+				{
+					MutableObjectReference.Object = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath);
+					if (MutableObjectReference.Object.IsValid() && MutableObjectReference.PropertyPathInfo.IsResolved())
+					{
+						// Update ContainerAddress as well if the path was resolved.
+						if (MutableObjectReference.PropertyPathInfo.Resolve(MutableObjectReference.Object.Get()))
+						{
+							MutableObjectReference.ContainerAdress = MutableObjectReference.PropertyPathInfo.GetResolvedData().ContainerAddress;
+						}
+					}
+					else
+					{
+						return false;
+					}
 				}
 
 				// Only create the transaction if we have no ongoing change.
@@ -786,10 +806,10 @@ public:
 						GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
 
 						// Call modify since it's not called by PreEditChange until the end of the ongoing change.
-						ObjectAccess.Object.Get()->Modify();
-
+						MutableObjectReference.Object->Modify();
 					}
 				}
+
 			}
 			else 
 			{
@@ -799,40 +819,40 @@ public:
 				}
 
 				FEditPropertyChain PreEditChain;
-				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
-				Object->PreEditChange(PreEditChain);
+				MutableObjectReference.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+				MutableObjectReference.Object->PreEditChange(PreEditChain);
 				
 			}
 #endif
 
 			FStructDeserializerPolicies Policies;
-			if (ObjectAccess.Property.IsValid())
+			if (MutableObjectReference.Property.IsValid())
 			{
-				Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
+				Policies.PropertyFilter = [&MutableObjectReference](const FProperty* CurrentProp, const FProperty* ParentProp)
 				{
-					return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
+					return CurrentProp == MutableObjectReference.Property || ParentProp != nullptr;
 				};
 			}
 			else
 			{
-				bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
-				Policies.PropertyFilter = [&ObjectAccess, bObjectInGame](const FProperty* CurrentProp, const FProperty* ParentProp)
+				bool bObjectInGame = !GIsEditor || MutableObjectReference.Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
+				Policies.PropertyFilter = [&MutableObjectReference, bObjectInGame](const FProperty* CurrentProp, const FProperty* ParentProp)
 				{
-					return RemoteControlUtil::IsPropertyAllowed(CurrentProp, ObjectAccess.Access, bObjectInGame) || ParentProp != nullptr;
+					return RemoteControlUtil::IsPropertyAllowed(CurrentProp, MutableObjectReference.Access, bObjectInGame) || ParentProp != nullptr;
 				};
 			}
 
 			//Serialize the element if we're looking for a member or serialize the full object if not
 			bool bSuccess = false;
-			if (ObjectAccess.PropertyPathInfo.IsResolved())
+			if (MutableObjectReference.PropertyPathInfo.IsResolved())
 			{
-				const FRCFieldPathSegment& LastSegment = ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1);
+				const FRCFieldPathSegment& LastSegment = MutableObjectReference.PropertyPathInfo.GetFieldSegment(MutableObjectReference.PropertyPathInfo.GetSegmentCount() - 1);
 				int32 Index = LastSegment.ArrayIndex != INDEX_NONE ? LastSegment.ArrayIndex : LastSegment.ResolvedData.MapIndex;
-				bSuccess = FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
+				bSuccess = FStructDeserializer::DeserializeElement(MutableObjectReference.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
 			}
 			else
 			{
-				bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
+				bSuccess = FStructDeserializer::Deserialize(MutableObjectReference.ContainerAdress, *ContainerType, Backend, Policies);
 			}
 
 #if WITH_EDITOR
@@ -840,30 +860,30 @@ public:
 			{
 				// If we have modified the same object and property in the last frames,
 				// update the triggered flag and snapshot the object to the transaction buffer.
-				if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(ObjectAccess))
+				if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(MutableObjectReference))
 				{
 					OngoingModification->bWasTriggeredSinceLastPass = true;
 					if (OngoingModification->bHasStartedTransaction)
 					{
-						SnapshotTransactionBuffer(ObjectAccess.Object.Get());
+						SnapshotTransactionBuffer(MutableObjectReference.Object.Get());
 					}
 
 					// Update the world lighting if we're modifying a color.
-					if (ObjectAccess.IsValid() && ObjectAccess.Property->GetOwnerClass()->IsChildOf(ULightComponentBase::StaticClass()))
+					if (MutableObjectReference.IsValid() && MutableObjectReference.Property->GetOwnerClass()->IsChildOf(ULightComponentBase::StaticClass()))
 					{
-						UWorld* World = ObjectAccess.Object->GetWorld();
+						UWorld* World = MutableObjectReference.Object->GetWorld();
 						if (World && World->Scene)
 						{
-							if (ObjectAccess.Object->IsA<ULightComponent>())
+							if (MutableObjectReference.Object->IsA<ULightComponent>())
 							{
-								World->Scene->UpdateLightColorAndBrightness(Cast<ULightComponent>(ObjectAccess.Object.Get()));
+								World->Scene->UpdateLightColorAndBrightness(Cast<ULightComponent>(MutableObjectReference.Object.Get()));
 							}
 						}
 					}
 				}
 				else
 				{
-					OngoingModification = ObjectAccess;
+					OngoingModification = MutableObjectReference;
 					OngoingModification->bHasStartedTransaction = bGenerateTransaction;
 				}
 			}
@@ -874,8 +894,8 @@ public:
 					GEditor->EndTransaction();
 				}
 
-				FPropertyChangedEvent PropertyEvent(ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent());
-				Object->PostEditChangeProperty(PropertyEvent);
+				FPropertyChangedEvent PropertyEvent(MutableObjectReference.PropertyPathInfo.ToPropertyChangedEvent());
+				MutableObjectReference.Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif
 			return bSuccess;

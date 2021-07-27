@@ -107,6 +107,30 @@ void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPro
 			Registry->Refresh(InObject);
 		}
 
+		if (Preset)
+		{
+			// If the modified property is a parent of an exposed property, re-enable the edit condition.
+			// This is useful in case we re-add an array element which contains a nested property that is exposed.
+			for (TWeakPtr<FRemoteControlProperty> WeakProp : Preset->GetExposedEntities<FRemoteControlProperty>())
+			{
+				if (TSharedPtr<FRemoteControlProperty> RCProp = WeakProp.Pin())
+				{
+					if (RCProp->FieldPathInfo.IsResolved() && InObject && InObject->GetClass()->IsChildOf(RCProp->GetSupportedBindingClass()))
+					{
+						for (int32 SegmentIndex = 0; SegmentIndex < RCProp->FieldPathInfo.GetSegmentCount(); SegmentIndex++)
+						{
+							FProperty* ResolvedField = RCProp->FieldPathInfo.GetFieldSegment(SegmentIndex).ResolvedData.Field;
+							if (ResolvedField == InChangeEvent.MemberProperty || ResolvedField == InChangeEvent.Property)
+							{
+								RCProp->EnableEditCondition();
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
 		for (const TPair <FGuid, TSharedPtr<SRCPanelTreeNode>>& Node : FieldWidgetMap)
 		{
 			Node.Value->Refresh();
