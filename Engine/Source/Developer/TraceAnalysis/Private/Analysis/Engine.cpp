@@ -788,7 +788,7 @@ FAnalysisEngine::~FAnalysisEngine()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FAnalysisEngine::Begin()
+void FAnalysisEngine::OnTransportEstablished()
 {
 	// Call out to all registered analyzers to have them register event interest
 	struct : IAnalyzer::FInterfaceBuilder
@@ -894,6 +894,11 @@ void FAnalysisEngine::Begin()
 		}
 		break;
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisEngine::Begin()
+{
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1397,7 +1402,7 @@ bool FAnalysisEngine::OnData(FStreamReader& Reader)
 			return false;
 		}
 
-		Begin();
+		OnTransportEstablished();
 	}
 
 	Transport->SetReader(Reader);

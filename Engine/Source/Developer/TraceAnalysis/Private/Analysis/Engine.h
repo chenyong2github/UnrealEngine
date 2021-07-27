@@ -63,6 +63,7 @@ public:
 						FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers);
 						~FAnalysisEngine();
 	bool				OnData(FStreamReader& Reader);
+	void				Begin();
 	void				End();
 
 private:
@@ -85,7 +86,7 @@ private:
 		};
 	};
 
-	void				Begin();
+	void				OnTransportEstablished();
 	virtual bool		OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	void				OnNewTrace(const FOnEventContext& Context);
