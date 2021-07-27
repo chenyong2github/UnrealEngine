@@ -3055,6 +3055,14 @@ public:
 	}
 
 	/**
+	 * Get the flags we inherit from base classes
+	 */
+	EClassFlags GetInheritClassFlags() const
+	{
+		return InheritClassFlags;
+	}
+
+	/**
 	 * Return the meta data from the preparse phase
 	 */
 	TMap<FName, FString>& GetParsedMetaData()
@@ -3396,6 +3404,7 @@ private:
 	FString ConfigName;
 	EClassFlags ClassFlags = CLASS_None; // Current class flags
 	EClassFlags ParsedClassFlags = CLASS_None; // Class flags from the preparse phase
+	EClassFlags InheritClassFlags = CLASS_ScriptInherit; // Flags to inherit from the super class
 	EClassFlags InitialEngineClassFlags = CLASS_None; // Class flags from a preexisting UObject
 	EClassCastFlags ClassCastFlags = CASTCLASS_None;
 	FUnrealClassDefinitionInfo* ClassWithin = nullptr;
@@ -3432,7 +3441,6 @@ private:
 	bool bCustomVTableHelperConstructorDeclared = false;
 
 	bool bIsInterface = false;
-	bool bWantsToBePlaceable = false;
 };
 
 template <typename To>
