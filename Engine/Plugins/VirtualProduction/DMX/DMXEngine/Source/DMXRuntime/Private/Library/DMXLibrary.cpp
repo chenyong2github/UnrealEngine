@@ -672,6 +672,8 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 			}
 		}
 
+		// Save the changes and print a log message
+		ProtocolSettings->SaveConfig();		
 		UE_LOG(LogDMXRuntime, Log, TEXT("Upgraded DMX Library '%s'. Controllers were replaced with Ports in Project Settings -> Plugins -> DMX. Please verify the library and project settings, and resave the library."), *GetName());
 
 		// Apply the changes to the port manager

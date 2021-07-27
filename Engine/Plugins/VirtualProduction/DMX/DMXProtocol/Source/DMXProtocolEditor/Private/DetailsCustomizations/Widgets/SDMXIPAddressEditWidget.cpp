@@ -7,120 +7,56 @@
 #include "DMXProtocolUtils.h"
 
 #include "EditorStyleSet.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 
 void SDMXIPAddressEditWidget::Construct(const FArguments& InArgs)
 {
-	OnIPAddressSelected = InArgs._OnIPAddressSelected;
+	OnIPAddressSelectedDelegate = InArgs._OnIPAddressSelected;
 
-	ChildSlot
-	[
-		SAssignNew(LocalAdapterAddressComboBox, SDMXLocalAdapterAddressComboBox)
-		.OnLocalAdapterAddressSelected(this, &SDMXIPAddressEditWidget::OnIpAddressSelectedInChild)
-	];
-
-	const FString& InitialValue = InArgs._InitialValue;
-
-	// Set the initial value to the local adapter address combo box if it exists
-	const TArray<TSharedPtr<FString>>& LocalAdapterAddresses = LocalAdapterAddressComboBox->GetLocalAdapterAddresses();
-	const int32 InitialValueIndex = LocalAdapterAddresses.IndexOfByPredicate([&InitialValue](const TSharedPtr<FString>& LocalAdapterAddress) {
-		return *LocalAdapterAddress == InitialValue;
-		});
-
-	if (InitialValueIndex != INDEX_NONE)
-	{
-		LocalAdapterAddressComboBox->Select(LocalAdapterAddresses[InitialValueIndex]);
-	}
-	else if (LocalAdapterAddresses.Num() > 0)
-	{
-		LocalAdapterAddressComboBox->Select(LocalAdapterAddresses[0]);
-	}
-}
-
-TSharedPtr<FString> SDMXIPAddressEditWidget::GetSelectedIPAddress() const
-{
-	check(LocalAdapterAddressComboBox.IsValid());
-
-	return LocalAdapterAddressComboBox->GetSelectedLocalAdapterAddress();
-}
-
-void SDMXIPAddressEditWidget::OnIpAddressSelectedInChild()
-{
-	OnIPAddressSelected.ExecuteIfBound();
-}
-
-
-//////////////////////////////////////
-// SDMXLocalAdapterAddressComboBox
-
-void SDMXLocalAdapterAddressComboBox::Construct(const FArguments& InArgs)
-{
-	OnLocalAdapterAddressSelected = InArgs._OnLocalAdapterAddressSelected;
-
-	InitializeLocalAdapterAddresses();
-
-	const TSharedPtr<FString>* InitiallySelectedItemPtr = LocalAdapterAddressSource.FindByPredicate([&InArgs](const TSharedPtr<FString>& Item) {
-			return *Item == InArgs._InitialSelection;
-		});
-
-	const TSharedPtr<FString> InitiallySelectedItem = InitiallySelectedItemPtr ? *InitiallySelectedItemPtr : nullptr;
-	const FString InitiallySelectedString = InitiallySelectedItem.IsValid() ? *InitiallySelectedItem : TEXT("Network adapters changed");
+	LocalAdapterAddressSource = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
 
 	ChildSlot
 	[
 		SAssignNew(LocalAdapterAddressComboBox, SComboBox<TSharedPtr<FString>>)
 		.OptionsSource(&LocalAdapterAddressSource)
-		.OnGenerateWidget(this, &SDMXLocalAdapterAddressComboBox::GenerateLocalAdapterAddressComboBoxEntry)
-		.InitiallySelectedItem(InitiallySelectedItem)
-		.OnSelectionChanged(this, &SDMXLocalAdapterAddressComboBox::HandleLocalAdapterAddressSelectionChanged)
+		.OnGenerateWidget(this, &SDMXIPAddressEditWidget::GenerateLocalAdapterAddressComboBoxEntry)
+		.OnSelectionChanged(this, &SDMXIPAddressEditWidget::OnIpAddressSelected)
 		.Content()
 		[
-			SAssignNew(LocalAdapterAddressTextBlock, STextBlock)
+			SAssignNew(IPAddressEditableTextBlock, SEditableTextBox)
 			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.Text(FText::FromString(InitiallySelectedString))
+			.Text(FText::FromString(InArgs._InitialValue))
+			.OnTextCommitted(this, &SDMXIPAddressEditWidget::OnIPAddressEntered)
 		]
 	];
 }
 
-void SDMXLocalAdapterAddressComboBox::Select(const TSharedPtr<FString>& LocalAdapterAddress)
+FString SDMXIPAddressEditWidget::GetSelectedIPAddress() const
 {
-	check(LocalAdapterAddress.IsValid());
-	check(LocalAdapterAddressSource.Contains(LocalAdapterAddress));
-
-	LocalAdapterAddressComboBox->SetSelectedItem(LocalAdapterAddress);
+	return IPAddressEditableTextBlock->GetText().ToString();
 }
 
-TSharedRef<FString> SDMXLocalAdapterAddressComboBox::GetSelectedLocalAdapterAddress() const
+void SDMXIPAddressEditWidget::OnIpAddressSelected(TSharedPtr<FString> InAddress, ESelectInfo::Type InType)
 {
-	check(LocalAdapterAddressComboBox.IsValid());
-	TSharedPtr<FString> SelectedItem = LocalAdapterAddressComboBox->GetSelectedItem();
-	if (SelectedItem.IsValid())
+	TSharedPtr<FString> SelectedIPAddress = LocalAdapterAddressComboBox->GetSelectedItem();
+	if (SelectedIPAddress.IsValid())
 	{
-		return SelectedItem.ToSharedRef();
+		IPAddressEditableTextBlock->SetText(FText::FromString(*SelectedIPAddress));
+		OnIPAddressSelectedDelegate.ExecuteIfBound();
 	}
-
-	return MakeShared<FString>(TEXT("No network adapter avaialable"));
 }
 
-void SDMXLocalAdapterAddressComboBox::InitializeLocalAdapterAddresses()
+void SDMXIPAddressEditWidget::OnIPAddressEntered(const FText&, ETextCommit::Type)
 {
-	LocalAdapterAddressSource = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
+	OnIPAddressSelectedDelegate.ExecuteIfBound();
 }
-	
-TSharedRef<SWidget> SDMXLocalAdapterAddressComboBox::GenerateLocalAdapterAddressComboBoxEntry(TSharedPtr<FString> InAddress)
+
+TSharedRef<SWidget> SDMXIPAddressEditWidget::GenerateLocalAdapterAddressComboBoxEntry(TSharedPtr<FString> InAddress)
 {
 	return
 		SNew(STextBlock)
 		.Text(FText::FromString(*InAddress))
 		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
-}
-
-void SDMXLocalAdapterAddressComboBox::HandleLocalAdapterAddressSelectionChanged(TSharedPtr<FString> InAddress, ESelectInfo::Type InType)
-{
-	check(LocalAdapterAddressTextBlock.IsValid());
-	LocalAdapterAddressTextBlock->SetText(FText::FromString(*InAddress));
-
-	OnLocalAdapterAddressSelected.ExecuteIfBound();
 }

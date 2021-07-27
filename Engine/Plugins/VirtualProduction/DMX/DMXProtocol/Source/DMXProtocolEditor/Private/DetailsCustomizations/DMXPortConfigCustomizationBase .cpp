@@ -169,6 +169,31 @@ EDMXCommunicationType FDMXPortConfigCustomizationBase::GetCommunicationType() co
 
 FString FDMXPortConfigCustomizationBase::GetIPAddress() const
 {
+	FGuid PortGuid = GetPortGuid();
+	if (PortGuid.IsValid())
+	{
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+		checkf(ProtocolSettings, TEXT("Unexpected protocol settings not available when its details are customized"));
+
+		const FDMXInputPortConfig* InputPortConfigPtr = ProtocolSettings->InputPortConfigs.FindByPredicate([&PortGuid](const FDMXInputPortConfig& InputPortConfig)
+			{
+				return InputPortConfig.GetPortGuid() == PortGuid;
+			});
+		if (InputPortConfigPtr)
+		{
+			return InputPortConfigPtr->GetDeviceAddress();
+		}
+
+		const FDMXOutputPortConfig* OutputPortConfigPtr = ProtocolSettings->OutputPortConfigs.FindByPredicate([&PortGuid](const FDMXOutputPortConfig& OutputPortConfig)
+			{
+				return OutputPortConfig.GetPortGuid() == PortGuid;
+			});
+		if (OutputPortConfigPtr)
+		{
+			return OutputPortConfigPtr->GetDeviceAddress();
+		}
+	}
+
 	FString IPAddress;
 	ensure(DeviceAddressHandle->GetValue(IPAddress) == FPropertyAccess::Success);
 
@@ -296,12 +321,12 @@ void FDMXPortConfigCustomizationBase::OnCommunicationTypeSelected()
 
 void FDMXPortConfigCustomizationBase::OnIPAddressSelected()
 {
-	TSharedPtr<FString> SelectedIP = IPAddressEditWidget->GetSelectedIPAddress();
+	FString SelectedIP = IPAddressEditWidget->GetSelectedIPAddress();
 
 	const FScopedTransaction Transaction(LOCTEXT("CommunicationTypeSelected", "DMX: Selected IP Address"));
 	
 	DeviceAddressHandle->NotifyPreChange();
-	ensure(DeviceAddressHandle->SetValue(*SelectedIP) == FPropertyAccess::Success);	
+	ensure(DeviceAddressHandle->SetValue(SelectedIP) == FPropertyAccess::Success);	
 	DeviceAddressHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
