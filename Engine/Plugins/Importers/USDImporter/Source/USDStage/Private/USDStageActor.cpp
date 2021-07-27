@@ -1617,6 +1617,10 @@ void AUsdStageActor::ReloadAnimations()
 		// We need to guarantee we'll record our change of LevelSequence into the transaction, as Init() will create a new one
 		Modify();
 
+		// Make sure our PrimsToAnimate and the LevelSequenceHelper are kept in sync, because we'll use PrimsToAnimate to
+		// check whether we need to call LevelSequenceHelper::AddPrim within AUsdStageActor::ExpandPrim
+		PrimsToAnimate.Reset();
+
 		LevelSequence = LevelSequenceHelper.Init( UsdStage );
 		LevelSequenceHelper.BindToUsdStageActor( this );
 
