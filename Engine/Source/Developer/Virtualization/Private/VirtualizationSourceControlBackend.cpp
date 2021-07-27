@@ -48,24 +48,23 @@ public:
 			return false;
 		}
 
-		const ISourceControlModule& SSCModule = ISourceControlModule::Get();
-
-		// We require source control the be enabled 
-		if (!SSCModule.IsEnabled())
-		{
-			UE_LOG(LogVirtualization, Error, TEXT("Attempting to initialize FSourceControlBackend but source control is disabled!"));
-			return false;
-		}
-
-		ISourceControlProvider& SCCProvider = SSCModule.GetProvider();
+		ISourceControlModule& SSCModule = ISourceControlModule::Get();
 
 		// We require perforce as the source control provider as it is currently the only one that has the virtualization functionality implemented
-		const FName SourceControlName = SCCProvider.GetName();
-		if (SourceControlName != FName("Perforce"))
+		const FName SourceControlName = SSCModule.GetProvider().GetName();
+		if (SourceControlName.IsNone())
+		{
+			// No source control provider is set so we can try to set it to "Perforce"
+			// Note this call will fatal error if "Perforce" is not a valid option
+			SSCModule.SetProvider(FName("Perforce"));
+		}
+		else if (SourceControlName != TEXT("Perforce"))
 		{
 			UE_LOG(LogVirtualization, Error, TEXT("Attempting to initialize FSourceControlBackend but source control is '%s' and only Perforce is currently supported!"), *SourceControlName.ToString());
 			return false;
 		}
+
+		ISourceControlProvider& SCCProvider = SSCModule.GetProvider();
 
 		if (!SCCProvider.IsAvailable())
 		{
