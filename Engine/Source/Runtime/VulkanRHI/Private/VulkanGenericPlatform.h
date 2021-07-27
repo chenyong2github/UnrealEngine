@@ -126,4 +126,11 @@ public:
 
 	// Return VK_FALSE if platform wants to suppress the given debug report from the validation layers, VK_TRUE to print it.
 	static VkBool32 DebugReportFunction(VkDebugReportFlagsEXT MsgFlags, VkDebugReportObjectTypeEXT ObjType, uint64_t SrcObject, size_t Location, int32 MsgCode, const ANSICHAR* LayerPrefix, const ANSICHAR* Msg, void* UserData) { return VK_TRUE; }
+
+	static VkFormat GetPlatform5551Format(VkFormat& OutFallbackFormat0, VkFormat& OutFallbackFormat1)
+	{
+		OutFallbackFormat0 = VK_FORMAT_R5G5B5A1_UNORM_PACK16;
+		OutFallbackFormat1 = VK_FORMAT_B8G8R8A8_UNORM;
+		return VK_FORMAT_A1R5G5B5_UNORM_PACK16;
+	};
 };

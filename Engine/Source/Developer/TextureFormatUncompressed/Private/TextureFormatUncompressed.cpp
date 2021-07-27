@@ -37,8 +37,10 @@ class FUncompressedTextureBuildFunction final : public FTextureBuildFunction
 	op(XGXR8) \
 	op(RGBA8) \
 	op(POTERROR) \
-	op(R16F)
-
+	op(R16F) \
+	op(R5G6B5) \
+	op(A1RGB555) \
+	op(RGB555A1)
 #define DECL_FORMAT_NAME(FormatName) static FName GTextureFormatName##FormatName = FName(TEXT(#FormatName));
 ENUM_SUPPORTED_FORMATS(DECL_FORMAT_NAME);
 #undef DECL_FORMAT_NAME
@@ -132,6 +134,14 @@ class FTextureFormatUncompressed : public ITextureFormat
 		else if (BuildSettings.TextureFormatName == GTextureFormatNamePOTERROR)
 		{
 			return PF_B8G8R8A8;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameR5G6B5)
+		{
+			return PF_R5G6B5_UNORM;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameA1RGB555 || BuildSettings.TextureFormatName == GTextureFormatNameRGB555A1)
+		{
+			return PF_B5G5R5A1_UNORM;
 		}
 
 		UE_LOG(LogTextureFormatUncompressed, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatUncompressed::GetPixelFormatForImage()"), *BuildSettings.TextureFormatName.ToString());
@@ -317,6 +327,51 @@ class FTextureFormatUncompressed : public ITextureFormat
 			}
 
 			
+			return true;
+		}
+		else if (BuildSettings.TextureFormatName == GTextureFormatNameR5G6B5 || BuildSettings.TextureFormatName == GTextureFormatNameRGB555A1 || BuildSettings.TextureFormatName == GTextureFormatNameA1RGB555)
+		{
+			FImage Image;
+			InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetGammaSpace());
+
+			OutCompressedImage.SizeX = Image.SizeX;
+			OutCompressedImage.SizeY = Image.SizeY;
+			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
+
+			// swizzle each texel
+			uint64 NumTexels = (uint64)Image.SizeX * Image.SizeY * Image.NumSlices;
+			OutCompressedImage.RawData.Empty(NumTexels * 2);
+			OutCompressedImage.RawData.AddUninitialized(NumTexels * 2);
+			const FColor* FirstColor = (&Image.AsBGRA8()[0]);
+			const FColor* LastColor = FirstColor + NumTexels;
+			uint16* Dest = (uint16*)OutCompressedImage.RawData.GetData();
+
+			if(BuildSettings.TextureFormatName == GTextureFormatNameR5G6B5)
+			{
+				for (const FColor* Color = FirstColor; Color < LastColor; ++Color)
+				{
+					uint16 BGR565 = (uint16(Color->R >> 3) << 11) | (uint16(Color->G >> 2) << 5) | uint16(Color->B >> 3);
+					*Dest++ = BGR565;
+				}
+			}
+			else if(BuildSettings.TextureFormatName == GTextureFormatNameA1RGB555)
+			{
+				for (const FColor* Color = FirstColor; Color < LastColor; ++Color)
+				{
+					//most rhi supports alpha on the highest bit
+					uint16 BGR555A1 = (uint16(Color->A >> 7) << 15) | (uint16(Color->R >> 3) << 10) | (uint16(Color->G >> 3) << 5) | uint16(Color->B >> 3);
+					*Dest++ = BGR555A1;
+				}
+			}
+			else
+			{
+				for (const FColor* Color = FirstColor; Color < LastColor; ++Color)
+				{
+					//OpenGL GL_RGB5_A1 only supports alpha on the lowest bit
+					uint16 BGR555A1 = (uint16(Color->R >> 3) << 11) | (uint16(Color->G >> 3) << 6) | (uint16(Color->B >> 3) << 1) | uint16(Color->A >> 7);
+					*Dest++ = BGR555A1;
+				}
+			}
 			return true;
 		}
 

@@ -300,6 +300,8 @@ return TSuper::SupportsFeature(Feature);
 		return TextureFormatName;
 	}
 
+	virtual bool SupportsLQCompressionTextureFormat() const override { return false; };
+
 	virtual const UTextureLODSettings& GetTextureLODSettings() const override
 	{
 		return *TextureLODSettings;

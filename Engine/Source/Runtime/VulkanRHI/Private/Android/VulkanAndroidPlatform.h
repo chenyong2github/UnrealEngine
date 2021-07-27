@@ -129,6 +129,12 @@ public:
 
 	static void DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator);
 
+	static VkFormat GetPlatform5551FormatWithFallback(VkFormat& OutFallbackFormat0, VkFormat& OutFallbackFormat1) 
+	{ 
+		OutFallbackFormat0 = VK_FORMAT_A1R5G5B5_UNORM_PACK16; 
+		OutFallbackFormat1 = VK_FORMAT_B8G8R8A8_UNORM;
+		return VK_FORMAT_R5G5B5A1_UNORM_PACK16; 
+	};
 protected:
 	static void* VulkanLib;
 	static bool bAttemptedLoad;
