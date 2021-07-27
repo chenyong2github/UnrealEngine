@@ -35,8 +35,11 @@ FLightWeightInstanceSubsystem::FLightWeightInstanceSubsystem()
 FLightWeightInstanceSubsystem::~FLightWeightInstanceSubsystem()
 {
 #if WITH_EDITOR
-	GEngine->OnLevelActorAdded().Remove(OnLevelActorAddedHandle);
-	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedHandle);
+	if (GEngine)
+	{
+		GEngine->OnLevelActorAdded().Remove(OnLevelActorAddedHandle);
+		GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedHandle);
+	}
 #endif // WITH_EDITOR
 }
 
