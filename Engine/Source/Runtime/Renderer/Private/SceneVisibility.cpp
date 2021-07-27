@@ -151,14 +151,6 @@ static FAutoConsoleVariableRef CVarILCUpdatePrimitivesTask(
 	ECVF_RenderThreadSafe
 	);
 
-static int32 GDoInitViewsLightingAfterPrepass = 0;
-static FAutoConsoleVariableRef CVarDoInitViewsLightingAfterPrepass(
-	TEXT("r.DoInitViewsLightingAfterPrepass"),
-	GDoInitViewsLightingAfterPrepass,
-	TEXT("Delays the lighting part of InitViews until after the prepass. This improves the threading throughput and gets the prepass to the GPU ASAP. Experimental options; has an unknown race."),
-	ECVF_RenderThreadSafe
-	);
-
 static int32 GFramesNotOcclusionTestedToExpandBBoxes = 5;
 static FAutoConsoleVariableRef CVarFramesNotOcclusionTestedToExpandBBoxes(
 	TEXT("r.GFramesNotOcclusionTestedToExpandBBoxes"),
@@ -4533,7 +4525,7 @@ void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBu
  * Initialize scene's views.
  * Check visibility, build visible mesh commands, etc.
  */
-bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
+void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViews, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
@@ -4598,13 +4590,6 @@ bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 		AverageViewPosition += View.ViewMatrices.GetViewOrigin() / Views.Num();
 	}
 
-	bool bDoInitViewAftersPrepass = !!GDoInitViewsLightingAfterPrepass;
-
-	if (!bDoInitViewAftersPrepass)
-	{
-		InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
-	}
-
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_InitViews_InitRHIResources);
 		// initialize per-view uniform buffer.
@@ -4651,8 +4636,6 @@ bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_InitViews_OnStartRender);
 		OnStartRender(RHICmdList);
 	}
-
-	return bDoInitViewAftersPrepass;
 }
 
 void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate& RHICmdList)
