@@ -1864,7 +1864,7 @@ void ComputeHairStrandsInterpolation(
 		if (bIsCardsValid)
 		{
 			const bool bValidGuide = Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation;
-			const bool bHasSkinning = Instance->BindingType == EHairBindingType::Skinning;
+			const bool bHasSkinning = Instance->BindingType == EHairBindingType::Skinning && MeshLODIndex >= 0;
 			const bool bNeedDeformation = bValidGuide || bHasSkinning;
 
 			FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[HairLODIndex];
