@@ -23,6 +23,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/SecureHash.h"
+#include "Experimental/Containers/FAAArrayQueue.h"
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/CountersTrace.h"
@@ -45,6 +46,7 @@
 #endif
 
 #define UE_HTTPDDC_BACKEND_WAIT_INTERVAL 0.01f
+#define UE_HTTPDDC_BACKEND_WAIT_INTERVAL_MS ((uint32)(UE_HTTPDDC_BACKEND_WAIT_INTERVAL*1000))
 #define UE_HTTPDDC_HTTP_REQUEST_TIMEOUT_SECONDS 30L
 #define UE_HTTPDDC_HTTP_REQUEST_TIMOUT_ENABLED 1
 #define UE_HTTPDDC_HTTP_DEBUG 0
@@ -788,6 +790,41 @@ struct FRequestPool
 		return nullptr;
 	}
 
+	class FWaiter : public FThreadSafeRefCountedObject
+	{
+	public:
+		std::atomic<FHttpRequest*> Request{ nullptr };
+
+		FWaiter(FRequestPool* InPool)
+			: Event(FPlatformProcess::GetSynchEventFromPool(true))
+			, Pool(InPool)
+		{
+		}
+		
+		bool Wait(uint32 TimeMS)
+		{
+			return Event->Wait(TimeMS);
+		}
+
+		void Trigger()
+		{
+			Event->Trigger();
+		}
+	private:
+		~FWaiter()
+		{
+			FPlatformProcess::ReturnSynchEventToPool(Event);
+
+			if (Request)
+			{
+				Pool->ReleaseRequestToPool(Request.exchange(nullptr));
+			}
+		}
+
+		FEvent* Event;
+		FRequestPool* Pool;
+	};
+
 	/**
 	 * Block until a request is free. Once a request has been returned it is 
 	 * "owned by the caller and need to release it to the pool when work has been completed.
@@ -796,14 +833,36 @@ struct FRequestPool
 	FHttpRequest* WaitForFreeRequest()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_WaitForConnPool);
-		FHttpRequest* Request = nullptr;
-		while (true)
+
+		FHttpRequest* Request = GetFreeRequest();
+		if (Request == nullptr)
 		{
-			Request = GetFreeRequest();
-			if (Request != nullptr)
-				break;
-			FPlatformProcess::Sleep(UE_HTTPDDC_BACKEND_WAIT_INTERVAL);
+			// Make it a fair by allowing each thread to register itself in a FIFO
+			// so that the first thread to start waiting is the first one to get a request.
+			FWaiter* Waiter = new FWaiter(this);
+			Waiter->AddRef(); // One ref for the thread that will dequeue
+			Waiter->AddRef(); // One ref for us
+
+			Waiters.enqueue(Waiter);
+
+			while (!Waiter->Wait(UE_HTTPDDC_BACKEND_WAIT_INTERVAL_MS))
+			{
+				// While waiting, allow us to check if a race occurred and a request has been freed
+				// between the time we checked for free requests and the time we queued ourself as a Waiter.
+				if ((Request = GetFreeRequest()) != nullptr)
+				{
+					// We abandon the FWaiter, it will be freed by the next dequeue
+					// and if it has a request, it will be queued back to the pool.
+					Waiter->Release();
+					return Request;
+				}
+			}
+
+			Request = Waiter->Request.exchange(nullptr);
+			Request->Reset();
+			Waiter->Release();
 		}
+		check(Request);
 		return Request;
 	}
 
@@ -817,6 +876,18 @@ struct FRequestPool
 		{
 			if (Pool[i].Request == Request)
 			{
+				// If only 1 user is remaining, we can give it to a waiter
+				// instead of releasing it back to the pool.
+				if (Pool[i].Usage == 1u)
+				{
+					if (FWaiter* Waiter = Waiters.dequeue())
+					{
+						Waiter->Request = Request;
+						Waiter->Trigger();
+						Waiter->Release();
+						return;
+					}
+				}
 				
 				Pool[i].Usage--;
 				return;
@@ -835,7 +906,6 @@ struct FRequestPool
 		{
 			if (Pool[i].Request == Request)
 			{
-
 				Pool[i].Usage = Users;
 				return;
 			}
@@ -852,6 +922,7 @@ private:
 	};
 
 	TArray<FEntry> Pool;
+	FAAArrayQueue<FWaiter> Waiters;
 
 	FRequestPool() = delete;
 };
@@ -1210,7 +1281,10 @@ private:
 			else
 			{
 				// Wait until "driver" has done query
-				Batch.Complete->Wait(~0);
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(WaitForMasterOfBatch);
+					Batch.Complete->Wait(~0);
+				}
 
 				// Store away request and signal we are done
 				Request = Batch.Request;
