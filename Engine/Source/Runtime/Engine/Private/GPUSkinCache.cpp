@@ -762,14 +762,16 @@ IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<42>, TEXT("/Engine/Private/Gpu
 IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<50>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_0, SkinType_2, MultipleClothInfluences_1 
 IMPLEMENT_SHADER_TYPE(template<>, TGPUSkinCacheCS<54>, TEXT("/Engine/Private/GpuSkinCacheComputeShader.usf"), TEXT("SkinCacheUpdateBatchCS"), SF_Compute);  // 16bit_1, BoneInfluenceType_1, SkinType_2, MultipleClothInfluences_1 
 
-FGPUSkinCache::FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit)
+FGPUSkinCache::FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit, UWorld* InWorld)
 	: UsedMemoryInBytes(0)
 	, ExtraRequiredMemory(0)
 	, FlushCounter(0)
 	, bRequiresMemoryLimit(bInRequiresMemoryLimit)
 	, CurrentStagingBufferIndex(0)
 	, FeatureLevel(InFeatureLevel)
+	, World(InWorld)
 {
+	check(World);
 }
 
 FGPUSkinCache::~FGPUSkinCache()
@@ -1886,29 +1888,6 @@ void FGPUSkinCache::Release(FGPUSkinCacheEntry*& SkinCacheEntry)
 	}
 }
 
-void FGPUSkinCache::SetVertexStreams(FGPUSkinCacheEntry* Entry, int32 Section, FRHICommandList& RHICmdList,
-	FRHIVertexShader* ShaderRHI, const FGPUSkinPassthroughVertexFactory* VertexFactory,
-	uint32 BaseVertexIndex, FShaderResourceParameter GPUSkinCachePreviousPositionBuffer)
-{
-	INC_DWORD_STAT(STAT_GPUSkinCache_NumSetVertexStreams);
-	check(Entry);
-	check(Entry->IsSectionValid(Section));
-
-	FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->DispatchData[Section];
-
-	//UE_LOG(LogSkinCache, Warning, TEXT("*** SetVertexStreams E %p All %p Sec %d(%p) LOD %d"), Entry, Entry->DispatchData[Section].Allocation, Section, Entry->DispatchData[Section].Section, Entry->LOD);
-	RHICmdList.SetStreamSource(VertexFactory->GetPositionStreamIndex(), DispatchData.GetPositionRWBuffer()->Buffer.Buffer, 0);
-	if (VertexFactory->GetTangentStreamIndex() > -1 && DispatchData.GetTangentRWBuffer())
-	{
-		RHICmdList.SetStreamSource(VertexFactory->GetTangentStreamIndex(), DispatchData.GetTangentRWBuffer()->Buffer.Buffer, 0);
-	}
-
-	if (ShaderRHI && GPUSkinCachePreviousPositionBuffer.IsBound())
-	{
-		RHICmdList.SetShaderResourceViewParameter(ShaderRHI, GPUSkinCachePreviousPositionBuffer.GetBaseIndex(), DispatchData.GetPreviousPositionRWBuffer()->Buffer.SRV);
-	}
-}
-
 void FGPUSkinCache::GetShaderBindings(
 	FGPUSkinCacheEntry* Entry, 
 	int32 Section,
@@ -1923,6 +1902,7 @@ void FGPUSkinCache::GetShaderBindings(
 	INC_DWORD_STAT(STAT_GPUSkinCache_NumSetVertexStreams);
 	check(Entry);
 	check(Entry->IsSectionValid(Section));
+	check(Entry->SkinCache);
 
 	FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->DispatchData[Section];
 
@@ -1936,7 +1916,10 @@ void FGPUSkinCache::GetShaderBindings(
 	}
 
 	ShaderBindings.Add(GPUSkinCachePositionBuffer, DispatchData.GetPositionRWBuffer()->Buffer.SRV);
-	ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, DispatchData.GetPreviousPositionRWBuffer()->Buffer.SRV);
+
+	// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
+	const bool bWorldPaused = Entry->SkinCache->IsWorldPaused();
+	ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, bWorldPaused ? DispatchData.GetPositionRWBuffer()->Buffer.SRV : DispatchData.GetPreviousPositionRWBuffer()->Buffer.SRV);
 }
 
 void FGPUSkinCache::PrepareUpdateSkinning(FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber, TArray<FSkinCacheRWBuffer*>* OverlappedUAVs)

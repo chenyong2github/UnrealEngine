@@ -153,7 +153,7 @@ public:
 	};
 
 	FGPUSkinCache() = delete;
-	ENGINE_API FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit);
+	ENGINE_API FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit, UWorld* InWorld);
 	ENGINE_API ~FGPUSkinCache();
 
 	ENGINE_API FCachedGeometry GetCachedGeometry(uint32 ComponentId) const;
@@ -178,10 +178,6 @@ public:
 		int32 LOD,
 		FGPUSkinCacheEntry*& InOutEntry
 		);
-
-	static void SetVertexStreams(FGPUSkinCacheEntry* Entry, int32 Section, FRHICommandList& RHICmdList,
-		class FRHIVertexShader* ShaderRHI, const FGPUSkinPassthroughVertexFactory* VertexFactory,
-		uint32 BaseVertexIndex, FShaderResourceParameter PreviousStreamBuffer);
 
 	static void GetShaderBindings(
 		FGPUSkinCacheEntry* Entry,
@@ -453,6 +449,7 @@ public:
 	bool IsBatchingDispatch() const { return bShouldBatchDispatches; }
 
 	inline ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
+	inline bool IsWorldPaused() const { return World ? World->IsPaused() : false; }
 
 protected:
 	void MakeBufferTransitions(FRHICommandListImmediate& RHICmdList, TArray<FSkinCacheRWBuffer*>& Buffers, ERHIAccess ToState);
@@ -502,6 +499,7 @@ protected:
 	int32 CurrentStagingBufferIndex;
 
 	ERHIFeatureLevel::Type FeatureLevel;
+	UWorld* World;
 
 	static void CVarSinkFunction();
 	static FAutoConsoleVariableSink CVarSink;

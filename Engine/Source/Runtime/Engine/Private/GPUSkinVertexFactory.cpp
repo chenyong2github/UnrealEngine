@@ -698,7 +698,9 @@ public:
 				// todo: Maybe a check for PreviousData!=CurrentData would save some performance (when objects don't have velocty yet) but removing the bool also might save performance
 				bLocalPerBoneMotionBlur = true;
 
-				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(true).VertexBufferSRV;
+				// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
+				const bool bWorldPaused = Scene->GetWorld() ? Scene->GetWorld()->IsPaused() : false;
+				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(bWorldPaused ? false : true).VertexBufferSRV;
 				ShaderBindings.Add(PreviousBoneMatrices, PreviousData);
 			}
 		}
