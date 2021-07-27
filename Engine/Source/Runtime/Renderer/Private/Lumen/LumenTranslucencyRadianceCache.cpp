@@ -19,15 +19,15 @@ int32 GLumenTranslucencyRadianceCache = 1;
 FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCache(
 	TEXT("r.Lumen.TranslucencyRadianceCache.Enable"),
 	GLumenTranslucencyRadianceCache,
-	TEXT(""),
+	TEXT("Whether to use the Radiance Cache to provide Lumen Reflections on Translucent Surfaces."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenTranslucencyRadianceCacheDownsampleFactor = 4;
 FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCacheDownsampleFactor(
-	TEXT("r.Lumen.TranslucencyRadianceCache.DownsampleFactor"),
+	TEXT("r.Lumen.TranslucencyRadianceCache.MarkDownsampleFactor"),
 	GLumenTranslucencyRadianceCacheDownsampleFactor,
-	TEXT(""),
+	TEXT("Downsample factor for marking translucent surfaces in the Lumen Radiance Cache.  Too low of factors will cause incorrect Radiance Cache coverage.  Should be a power of 2."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -35,13 +35,16 @@ float GLumenTranslucencyRadianceCacheReprojectionRadiusScale = 10;
 FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCacheReprojectionRadiusScale(
 	TEXT("r.Lumen.TranslucencyRadianceCache.ReprojectionRadiusScale"),
 	GLumenTranslucencyRadianceCacheReprojectionRadiusScale,
-	TEXT(""),
+	TEXT("Larger values treat the Radiance Cache lighting as more distant."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenTranslucencyRadianceCacheMarkPassUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
+	SHADER_PARAMETER(FVector2D, ViewportUVToHZBBufferUV)
+	SHADER_PARAMETER(float, HZBMipLevel)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FLumenTranslucencyRadianceCacheMarkPassUniformParameters, "LumenTranslucencyRadianceCacheMarkPass", SceneTextures);
@@ -190,8 +193,8 @@ FMeshPassProcessor* CreateLumenTranslucencyRadianceCacheMarkPassProcessor(const 
 
 	FMeshPassProcessorRenderState PassState;
 
-	// Test against depth
-	PassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Greater>::GetRHI());
+	// We use HZB tests in the shader instead of hardware depth testing
+	PassState.SetDepthStencilState(TStaticDepthStencilState<false>::GetRHI());
 
 	PassState.SetBlendState(TStaticBlendState<>::GetRHI());
 
@@ -218,6 +221,7 @@ void LumenTranslucencyRadianceCacheMarkUsedProbes(
 
 	const EMeshPass::Type MeshPass = EMeshPass::LumenTranslucencyRadianceCacheMark;
 	const float ViewportScale = 1.0f / GLumenTranslucencyRadianceCacheDownsampleFactor;
+	FIntRect DownsampledViewRect = GetScaledRect(View.ViewRect, ViewportScale);
 
 	View.BeginRenderView();
 
@@ -233,7 +237,7 @@ void LumenTranslucencyRadianceCacheMarkUsedProbes(
 		View.SetupViewRectUniformBufferParameters(
 			DownsampledTranslucencyViewParameters,
 			SceneTextures.Config.Extent,
-			GetScaledRect(View.ViewRect, ViewportScale),
+			DownsampledViewRect,
 			ViewMatrices,
 			PrevViewMatrices);
 
@@ -258,6 +262,13 @@ void LumenTranslucencyRadianceCacheMarkUsedProbes(
 		FLumenTranslucencyRadianceCacheMarkPassUniformParameters& MarkPassParameters = *GraphBuilder.AllocParameters<FLumenTranslucencyRadianceCacheMarkPassUniformParameters>();
 		SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::All, MarkPassParameters.SceneTextures);
 		MarkPassParameters.RadianceCacheMarkParameters = RadianceCacheMarkParameters;
+
+		MarkPassParameters.FurthestHZBTexture = View.HZB;
+		MarkPassParameters.ViewportUVToHZBBufferUV = FVector2D(
+				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
+				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
+		MarkPassParameters.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2((float)GLumenTranslucencyRadianceCacheDownsampleFactor) - 1, 0.0f);
+
 		PassParameters->MarkPass = GraphBuilder.CreateUniformBuffer(&MarkPassParameters);
 	}
 
