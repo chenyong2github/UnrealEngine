@@ -10,7 +10,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "Hal/CriticalSection.h"
+#include "HAL/CriticalSection.h"
 #include "Misc/Guid.h"
 #include "ReferenceSkeleton.h"
 #include "Animation/PreviewAssetAttachComponent.h"
