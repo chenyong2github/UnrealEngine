@@ -135,9 +135,8 @@ void InternalTraceScreen(
 		{
 			if (abs(MipLevel - BaseMipLevel) < .1f)
 			{
-				// Snap the hit UV to the center of the texel for the SceneColor lookup
-				//@todo - rederive Z
-				RayScreenUV = float3(.5f * (HZBTileMin.xy + HZBTileMax.xy), RayTileHit.z);
+				RayScreenUV = RayStartScreenUV + (RayEndScreenUV - RayStartScreenUV) * TileIntersections.x;
+				
 				bHit = true;
 				float IntersectionDepth = ConvertFromDeviceZ(TileZ);
 				float RayTileEnterZ = RayStartScreenUV.z + (RayEndScreenUV.z - RayStartScreenUV.z) * TileIntersections.x;

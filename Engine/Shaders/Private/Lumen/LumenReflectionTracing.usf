@@ -120,7 +120,6 @@ void ReflectionTraceScreenTexturesCS(
 				|| PrevScreenPositionScaleBias.x < .000001f)
 			{
 				bHit = false;
-				HitDistance = 0;
 			}
 
 			if (bHit)
