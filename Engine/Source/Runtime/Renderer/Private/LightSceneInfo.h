@@ -197,9 +197,6 @@ public:
 	/** The identifier for the primitive in Scene->PrimitiveOctree. */
 	FOctreeElementId2 OctreeId;
 
-	mutable FBufferRHIRef ShadowCapsuleShapesVertexBuffer;
-	mutable FShaderResourceViewRHIRef ShadowCapsuleShapesSRV;
-
 	/** Persistent shadow state used for HZB occlusion culling. */
 	TMap<FPersistentShadowStateKey, FPersistentShadowState> PrevPersistentShadows;
 	TMap<FPersistentShadowStateKey, FPersistentShadowState> PersistentShadows;
@@ -342,9 +339,6 @@ public:
 	{
 		return (uint32)LightSceneInfo->Id;
 	}
-
-	// FRenderResource interface.
-	virtual void ReleaseRHI();
 
 	// Update the mobile movable point light uniform buffer before it is used for mobile base pass rendering.
 	void ConditionalUpdateMobileMovablePointLightUniformBuffer(const class FSceneRenderer* SceneRenderer);

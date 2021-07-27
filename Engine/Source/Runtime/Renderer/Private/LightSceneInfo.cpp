@@ -243,12 +243,6 @@ FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionStaticPrimitiv
 	return DynamicInteractionStaticPrimitiveList;
 }
 
-void FLightSceneInfo::ReleaseRHI()
-{
-	ShadowCapsuleShapesVertexBuffer.SafeRelease();
-	ShadowCapsuleShapesSRV.SafeRelease();
-}
-
 void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(const FSceneRenderer* SceneRenderer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FLightSceneProxy_UpdateMobileMovablePointLightUniformBuffer);

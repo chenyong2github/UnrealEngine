@@ -29,6 +29,13 @@
 #define LIGHT_SOURCE_FROM_CAPSULE 1
 #define LIGHT_SOURCE_FROM_RECEIVER 2
 
+struct FCapsuleShape
+{
+	float3 Center;
+	float Radius;
+	float3 Orientation;
+	float Length;
+};
 
 // SUPPORT_CAPSULE_SHAPES
 
@@ -40,7 +47,7 @@
 	groupshared uint IntersectingShapeIndices[MAX_INTERSECTING_SHAPES * 2];
 
 	uint NumShadowCapsules;
-	Buffer<float4> ShadowCapsuleShapes;
+	StructuredBuffer<FCapsuleShape> ShadowCapsuleShapes;
 
 
 // SUPPORT_MESH_DISTANCE_FIELDS
@@ -53,11 +60,11 @@
 	groupshared uint IntersectingMeshDistanceFieldIndices[MAX_INTERSECTING_DISTANCE_FIELDS * 2];
 
 	uint NumMeshDistanceFieldCasters;
-	Buffer<uint> MeshDistanceFieldCasterIndices;
+	StructuredBuffer<uint> MeshDistanceFieldCasterIndices;
 
 
 #if LIGHT_SOURCE_MODE == LIGHT_SOURCE_FROM_CAPSULE
-Buffer<float4> LightDirectionData;
+StructuredBuffer<float4> LightDirectionData;
 
 void DecodeLightDirectionW(float LightDirectionW, out float LightAngle, out float MinVisibility)
 {
@@ -87,7 +94,7 @@ float CapsuleSkyAngleScale;
 float CapsuleMinSkyAngle;
 uint NumLightDirectionData;
 
-RWBuffer<float4> RWComputedLightDirectionData;
+RWStructuredBuffer<float4> RWComputedLightDirectionData;
 
 [numthreads(THREADGROUP_SIZEX, 1, 1)]
 void ComputeLightDirectionFromVolumetricLightmapCS(
@@ -440,10 +447,11 @@ uint CullCapsuleShapesToTile(
 			float ConeAngleSin1 = ConeAngleSin0;
 
 		#endif
+		
+		FCapsuleShape CapsuleShape = ShadowCapsuleShapes[ShapeIndex];
 
-		float4 SphereCenterAndRadius = ShadowCapsuleShapes[ShapeIndex * 2];
-		float3 TransformedSphereCenter = SphereCenterAndRadius.xyz;
-		float TransformedSphereRadius = SphereCenterAndRadius.w;
+		float3 TransformedSphereCenter = CapsuleShape.Center;
+		float TransformedSphereRadius = CapsuleShape.Radius;
 		float3 TransformedTileBoundingSphereCenter0 = TileCullingData0.BoundingSphere.xyz;
 		float3 TransformedTileBoundingSphereCenter1 = TileCullingData1.BoundingSphere.xyz;
 
@@ -453,30 +461,26 @@ uint CullCapsuleShapesToTile(
 		#endif
 
 		#if USE_SCALED_SPHERE_INTERSECTION
-			
-			float4 CapsuleCenterAndRadius = SphereCenterAndRadius;
-			float4 CapsuleOrientationAndLength = ShadowCapsuleShapes[ShapeIndex * 2 + 1];
-
 			float3 CapsuleSpaceX;
 			float3 CapsuleSpaceY;
-			float3 CapsuleSpaceZ = CapsuleOrientationAndLength.xyz;
+			float3 CapsuleSpaceZ = CapsuleShape.Orientation;
 			GenerateCoordinateSystem(CapsuleSpaceZ, CapsuleSpaceX, CapsuleSpaceY);
 
 			// Scale required along the capsule's axis to turn it into a sphere (assuming it was originally a scaled sphere instead of a capsule)
-			float CapsuleZScale = CapsuleCenterAndRadius.w / (.5f * CapsuleOrientationAndLength.w + CapsuleCenterAndRadius.w);
+			float CapsuleZScale = CapsuleShape.Radius / (.5f * CapsuleShape.Length + CapsuleShape.Radius);
 			CapsuleSpaceZ *= CapsuleZScale;
 
 			// The capsule is centered at 0 in the scaled sphere space
 			TransformedSphereCenter = 0;
 
 			// After scaling along the capsule axis it will become a sphere with the original radius
-			TransformedSphereRadius = SphereCenterAndRadius.w;
+			TransformedSphereRadius = CapsuleShape.Radius;
 
 			// Transform the sphere center and cone axis into the scaled sphere space
-			float3 CapsuleCenterToTileCenter0 = TileCullingData0.BoundingSphere.xyz - CapsuleCenterAndRadius.xyz;
+			float3 CapsuleCenterToTileCenter0 = TileCullingData0.BoundingSphere.xyz - CapsuleShape.Center;
 			TransformedTileBoundingSphereCenter0 = float3(dot(CapsuleCenterToTileCenter0, CapsuleSpaceX), dot(CapsuleCenterToTileCenter0, CapsuleSpaceY), dot(CapsuleCenterToTileCenter0, CapsuleSpaceZ));
 			
-			float3 CapsuleCenterToTileCenter1 = TileCullingData1.BoundingSphere.xyz - CapsuleCenterAndRadius.xyz;
+			float3 CapsuleCenterToTileCenter1 = TileCullingData1.BoundingSphere.xyz - CapsuleShape.Center;
 			TransformedTileBoundingSphereCenter1 = float3(dot(CapsuleCenterToTileCenter1, CapsuleSpaceX), dot(CapsuleCenterToTileCenter1, CapsuleSpaceY), dot(CapsuleCenterToTileCenter1, CapsuleSpaceZ));
 
 			#if LIGHT_SOURCE_MODE != LIGHT_SOURCE_FROM_RECEIVER
@@ -484,13 +488,9 @@ uint CullCapsuleShapesToTile(
 				TransformedConeAxis0 = normalize(float3(dot(ConeAxis0, CapsuleSpaceX), dot(ConeAxis0, CapsuleSpaceY), dot(ConeAxis0, CapsuleSpaceZ)));
 				TransformedConeAxis1 = normalize(float3(dot(ConeAxis1, CapsuleSpaceX), dot(ConeAxis1, CapsuleSpaceY), dot(ConeAxis1, CapsuleSpaceZ)));
 			#endif
-
 		#else
-
-			float CapsuleLength = ShadowCapsuleShapes[ShapeIndex * 2 + 1].w;
-
 			// Add half capsule length to bounding sphere
-			TransformedSphereRadius = SphereCenterAndRadius.w + .5f * CapsuleLength;
+			TransformedSphereRadius = CapsuleShape.Radius + .5f * CapsuleShape.Length;
 		#endif
 
 		BRANCH
@@ -609,30 +609,29 @@ float ShadowConeTraceAgainstCulledCapsuleShapes(
 			UnitRayDirection = float3(0, 0, 1);
 			LightAngle = .3f;
 		#endif
+			
+		FCapsuleShape CapsuleShape = ShadowCapsuleShapes[ObjectIndex];
 
-		float4 CapsuleCenterAndRadius = ShadowCapsuleShapes[ObjectIndex * 2];
-		ApplyFadeToCapsuleRadius(CapsuleCenterAndRadius.w, UnitRayDirection);
-
-		float4 CapsuleOrientationAndLength = ShadowCapsuleShapes[ObjectIndex * 2 + 1];
+		ApplyFadeToCapsuleRadius(CapsuleShape.Radius, UnitRayDirection);
 
 		float DistanceToShadowSphere;
 		float3 UnitVectorToShadowSphere;
 		float3 UnitRayDirectionInCorrectSpace = UnitRayDirection;
 
 		BRANCH
-		if (CapsuleOrientationAndLength.w > 0)
+		if (CapsuleShape.Length > 0)
 		{
 #if USE_SCALED_SPHERE_INTERSECTION
 
 			float3 CapsuleSpaceX;
 			float3 CapsuleSpaceY;
-			float3 CapsuleSpaceZ = CapsuleOrientationAndLength.xyz;
+			float3 CapsuleSpaceZ = CapsuleShape.Orientation;
 			GenerateCoordinateSystem(CapsuleSpaceZ, CapsuleSpaceX, CapsuleSpaceY);
 
-			float CapsuleZScale = CapsuleCenterAndRadius.w / (.5f * CapsuleOrientationAndLength.w + CapsuleCenterAndRadius.w);
+			float CapsuleZScale = CapsuleShape.Radius / (.5f * CapsuleShape.Length + CapsuleShape.Radius);
 			CapsuleSpaceZ *= CapsuleZScale;
 
-			float3 CapsuleCenterToRayStart = WorldRayStart - CapsuleCenterAndRadius.xyz;
+			float3 CapsuleCenterToRayStart = WorldRayStart - CapsuleShape.Center;
 			float3 CapsuleSpaceRayStart = float3(dot(CapsuleCenterToRayStart, CapsuleSpaceX), dot(CapsuleCenterToRayStart, CapsuleSpaceY), dot(CapsuleCenterToRayStart, CapsuleSpaceZ));
 
 			float3 CapsuleSpaceRayDirection = float3(dot(UnitRayDirection, CapsuleSpaceX), dot(UnitRayDirection, CapsuleSpaceY), dot(UnitRayDirection, CapsuleSpaceZ));
@@ -641,10 +640,10 @@ float ShadowConeTraceAgainstCulledCapsuleShapes(
 			UnitVectorToShadowSphere = -CapsuleSpaceRayStart / DistanceToShadowSphere;
 			UnitRayDirectionInCorrectSpace = normalize(CapsuleSpaceRayDirection);
 #else
-			float3 VectorToCapsuleCenter = CapsuleCenterAndRadius.xyz - WorldRayStart;
+			float3 VectorToCapsuleCenter = CapsuleShape.Center - WorldRayStart;
 
 			// Closest point on line segment to ray
-			float3 L01 = CapsuleOrientationAndLength.xyz * CapsuleOrientationAndLength.w;
+			float3 L01 = CapsuleShape.Orientation * CapsuleShape.Length;
 			float3 L0 = VectorToCapsuleCenter - 0.5 * L01;
 			float3 L1 = VectorToCapsuleCenter + 0.5 * L01;
 
@@ -653,7 +652,7 @@ float ShadowConeTraceAgainstCulledCapsuleShapes(
 			// Vector that spans L01 perpendicular to the ray
 			float3 PerpendicularSpanningVector = CapsuleOrientationProjectedOntoRay * UnitRayDirection - L01;
 			// Length of PerpendicularSpanningVector using the right triangle formed by L01 and UnitRayDirection * CapsuleOrientationProjectedOntoRay
-			float PerpendicularDistance = Square(CapsuleOrientationAndLength.w) - CapsuleOrientationProjectedOntoRay * CapsuleOrientationProjectedOntoRay;
+			float PerpendicularDistance = Square(CapsuleShape.Length) - CapsuleOrientationProjectedOntoRay * CapsuleOrientationProjectedOntoRay;
 			// Project the vector to a capsule endpoint onto the perpendicular spanning vector, normalized
 			float t = saturate(dot(L0, PerpendicularSpanningVector) / PerpendicularDistance);
 			// Compute the vector to the shadow sphere which best approximates the capsule's shadowing 
@@ -671,17 +670,17 @@ float ShadowConeTraceAgainstCulledCapsuleShapes(
 		}
 		else
 		{
-			DistanceToShadowSphere = length(CapsuleCenterAndRadius.xyz - WorldRayStart);
-			UnitVectorToShadowSphere = (CapsuleCenterAndRadius.xyz - WorldRayStart) / DistanceToShadowSphere;
+			DistanceToShadowSphere = length(CapsuleShape.Center - WorldRayStart);
+			UnitVectorToShadowSphere = (CapsuleShape.Center - WorldRayStart) / DistanceToShadowSphere;
 		}
 
 		float AngleBetween = acosFast(dot(UnitVectorToShadowSphere, UnitRayDirectionInCorrectSpace));
-		float IntersectionArea = SphericalCapIntersectionAreaFast(LightAngle, atanFastPos(CapsuleCenterAndRadius.w / DistanceToShadowSphere), AngleBetween);
+		float IntersectionArea = SphericalCapIntersectionAreaFast(LightAngle, atanFastPos(CapsuleShape.Radius / DistanceToShadowSphere), AngleBetween);
 		#if POINT_LIGHT
 			// SphericalCapIntersectionAreaFast does not take the relative distance of the two sphere caps into account, which can cause shadows to be cast on the opposite direction
 			// Here we compare DistanceToShadowSphere and LightVectorLength to determine whether a shadow should be cast
 			// To prevent discontinuity, we use the ratio of the distance difference to the capsule's radius as a smooth factor
-			IntersectionArea = lerp(IntersectionArea, 0, saturate((DistanceToShadowSphere - LightVectorLength + CapsuleCenterAndRadius.w) / CapsuleCenterAndRadius.w));
+			IntersectionArea = lerp(IntersectionArea, 0, saturate((DistanceToShadowSphere - LightVectorLength + CapsuleShape.Radius) / CapsuleShape.Radius));
 		#endif
 		float ConeConeIntersection = 1 - saturate(IntersectionArea / AreaOfLight);
 		float DistanceFadeAlpha = saturate(DistanceToShadowSphere * InvMaxOcclusionDistance * 3 - 2);
@@ -974,7 +973,7 @@ RWTexture2D<float2> RWShadowFactors;
 float MaxOcclusionDistance;
 
 uint2 TileDimensions;
-RWBuffer<uint> RWTileIntersectionCounts;
+RWStructuredBuffer<uint> RWTileIntersectionCounts;
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void CapsuleShadowingCS(
@@ -1134,7 +1133,7 @@ void CapsuleShadowingCS(
 #endif
 }
 
-Buffer<uint> TileIntersectionCounts;
+StructuredBuffer<uint> TileIntersectionCounts;
 
 // Size of a tile in NDC
 float2 TileSize;
