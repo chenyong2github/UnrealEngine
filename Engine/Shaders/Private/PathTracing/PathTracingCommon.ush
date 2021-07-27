@@ -7,6 +7,7 @@
 #pragma once
 
 #include "../RayTracing/RayTracingCommon.ush"
+#include "../OctahedralCommon.ush"
 
 // These flags are analogous to RAY_TRACING_PAYLOAD_* flags. There are currently 6 bits available
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE                   (1 << 0) // Indicates that ray has hit the front face of a primitive. Set by closest hit shader.
@@ -15,6 +16,27 @@
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_PATHTRACER_VISIBILITY         (1 << 1) // Indicates that this is a path tracer visibility ray (which supports material evaluation for transparent shadows and fake caustics)
 
 
+#define PATH_TRACING_PAYLOAD_NORMAL_BITS  24
+
+uint PayloadEncodeUnitVector(float3 Normal)
+{
+	const int BITS = PATH_TRACING_PAYLOAD_NORMAL_BITS;
+	const float Scale = float((1u << (BITS / 2)) - 2); // largest representable even number (so we can encode 0)
+	float2 OctF = UnitVectorToOctahedron(Normal);
+	int2 Oct = int2(round(OctF * Scale));
+	return Oct.x + (1u << (BITS / 2)) * Oct.y;
+}
+
+float3 PayloadDecodeUnitVector(uint Encoded)
+{
+	const int BITS = PATH_TRACING_PAYLOAD_NORMAL_BITS;
+	const uint Mask = (1u << (BITS / 2)) - 1;
+	const float Scale = float((1u << (BITS / 2)) - 2);
+
+	int2 Oct = int2(Encoded & Mask, (Encoded >> (BITS / 2)) & Mask);
+	float2 OctF = saturate(float2(Oct) / Scale);
+	return OctahedronToUnitVector(OctF);
+}
 
 // This payload structure is what we transport between RGS/CHS/AHS programs
 struct FPackedPathTracingPayload : FMinimalPayload
@@ -30,17 +52,6 @@ struct FPackedPathTracingPayload : FMinimalPayload
 
 	FRayCone GetRayCone() { return UnpackRayCone(PackedRayCone); }
 
-	float3 GetWorldNormal()
-	{
-		float3 Result;
-		Result.x = f16tof32(PackedData[1] >> 16);
-		Result.y = f16tof32(PackedData[2]);
-		Result.z = f16tof32(PackedData[2] >> 16);
-		return Result;
-	}
-
-	uint GetShadingModelID() { return (PackedData[7] >> 16) & 0xF; }
-	uint GetBlendingMode() { return (PackedData[7] >> 20) & 0x7; }
 	uint GetFlags() { return (PackedData[7] >> 23) & 0x3F; }
 	void SetFlag(uint Flag) { PackedData[7] |= Flag << 23; }
 	uint GetPrimitiveLightingChannelMask() { return (PackedData[7] >> 29) & 0x7; }
@@ -88,6 +99,7 @@ struct FPathTracingPayload : FMinimalPayload
 {
 	FRayCone RayCone;
 	float3 Radiance;
+	float3 WorldGeoNormal;
 	float3 WorldNormal;
 	float3 BaseColor;
 	float3 DiffuseColor;
@@ -182,9 +194,11 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 	Output.PackedData[0] |= f32tof16(Input.Radiance.y) << 16;
 	Output.PackedData[1] = f32tof16(Input.Radiance.z);
 
-	Output.PackedData[1] |= f32tof16(Input.WorldNormal.x) << 16;
-	Output.PackedData[2] = f32tof16(Input.WorldNormal.y);
-	Output.PackedData[2] |= f32tof16(Input.WorldNormal.z) << 16;
+	uint ShdNormal = PayloadEncodeUnitVector(Input.WorldNormal);
+	uint GeoNormal = PayloadEncodeUnitVector(Input.WorldGeoNormal);
+	Output.PackedData[1] |= ShdNormal << 16; // pack low 16 bits
+	Output.PackedData[2] = ShdNormal >> 16;  // pack upper 8 bits
+	Output.PackedData[2] |= GeoNormal << 8;  // pack all 24 bits
 
 	Output.PackedData[3] = f32tof16(Input.BaseColor.x);
 	Output.PackedData[3] |= f32tof16(Input.BaseColor.y) << 16;
@@ -229,9 +243,8 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, Ra
 	Output.Radiance.x = f16tof32(Input.PackedData[0]);
 	Output.Radiance.y = f16tof32(Input.PackedData[0] >> 16);
 	Output.Radiance.z = f16tof32(Input.PackedData[1]);
-	Output.WorldNormal.x = f16tof32(Input.PackedData[1] >> 16);
-	Output.WorldNormal.y = f16tof32(Input.PackedData[2]);
-	Output.WorldNormal.z = f16tof32(Input.PackedData[2] >> 16);
+	Output.WorldNormal = PayloadDecodeUnitVector((Input.PackedData[1] >> 16) | ((Input.PackedData[2] & 0xFF) << 16));
+	Output.WorldGeoNormal = PayloadDecodeUnitVector(Input.PackedData[2] >> 8);
 	Output.BaseColor.x = f16tof32(Input.PackedData[3]);
 	Output.BaseColor.y = f16tof32(Input.PackedData[3] >> 16);
 	Output.BaseColor.z = f16tof32(Input.PackedData[4]);
@@ -241,8 +254,8 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, Ra
 	Output.Roughness = f16tof32(Input.PackedData[6]);
 	Output.Anisotropy = f16tof32(Input.PackedData[6] >> 16);
 	Output.Ior = f16tof32(Input.PackedData[7]);
-	Output.ShadingModelID = Input.GetShadingModelID();
-	Output.BlendingMode = Input.GetBlendingMode();
+	Output.ShadingModelID = (Input.PackedData[7] >> 16) & 0xF;
+	Output.BlendingMode = (Input.PackedData[7] >> 20) & 0x7;
 	Output.Flags = Input.GetFlags();
 	Output.PrimitiveLightingChannelMask = Input.GetPrimitiveLightingChannelMask();
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants)
+void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants, out float3 FaceNormal)
 {
 	FVertexFactoryRayTracingInterpolants Interpolated = (FVertexFactoryRayTracingInterpolants)0;
 
@@ -32,16 +32,16 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 
 	Interpolants = VertexFactoryAssignInterpolants(Interpolated);
 
-#if (NUM_TEX_COORD_INTERPOLATORS || USE_PARTICLE_SUBUVS) && !VERTEX_FACTORY_MODIFIES_INTERPOLATION
-	float2 TA = TexCoords[1] - TexCoords[0];
-	float2 TB = TexCoords[2] - TexCoords[0];
-	float UvArea = abs((TA.x * TB.y) - (TA.y * TB.x));
-
 	float3 PA = WorldPositions[1] - WorldPositions[0];
 	float3 PB = WorldPositions[2] - WorldPositions[0];
 	float3 Unnormalized = cross(PB, PA);
 	float InvWorldArea = rsqrt(dot(Unnormalized, Unnormalized));
-	float3 FaceNormal = Unnormalized * InvWorldArea;
+	FaceNormal = Unnormalized * InvWorldArea;
+
+#if (NUM_TEX_COORD_INTERPOLATORS || USE_PARTICLE_SUBUVS) && !VERTEX_FACTORY_MODIFIES_INTERPOLATION
+	float2 TA = TexCoords[1] - TexCoords[0];
+	float2 TB = TexCoords[2] - TexCoords[0];
+	float UvArea = abs((TA.x * TB.y) - (TA.y * TB.x));
 
 	float RayConeCapArea = RayCone.Width * RayCone.Width * (1.0f / (2.0f * PI));
 	float3 RayDir = WorldRayDirection();
@@ -50,4 +50,11 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 	GlobalRayCone_TexArea = (UvArea * InvWorldArea * RayConeCapArea) / max(RaySlope * RaySlope, SmallValue);
 	GlobalRayCone_TexArea = max(GlobalRayCone_TexArea, SmallValue);
 #endif
+}
+
+// simplified call when Geometric Normal is not needed
+void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	float3 GeoNormal = 0; // unused
+	CalcInterpolants(RayCone, Attributes, Interpolants, GeoNormal);
 }
