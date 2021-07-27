@@ -29,6 +29,9 @@ UClass* UOptimusNode_ConstantValueGeneratorClass::GetClassForType(UObject* InPac
 		TypeClass->SetSuperStruct(ParentClass);
 		TypeClass->PropertyLink = ParentClass->PropertyLink;
 
+		// Nodes of this type should not be listed in the node palette.
+		TypeClass->ClassFlags |= CLASS_NotPlaceable;
+
 		// Stash the data type so that the node can return it later.
 		TypeClass->DataType = InDataType;
 
