@@ -306,7 +306,7 @@ bool URigVMMemoryStorage::CopyProperty(
 	check(InTargetPtr != nullptr);
 	check(InSourcePtr != nullptr);
 
-	if(!InTargetProperty->SameType(InSourceProperty))
+	if(!ensure(InTargetProperty->SameType(InSourceProperty)))
 	{
 		return false;
 	}
