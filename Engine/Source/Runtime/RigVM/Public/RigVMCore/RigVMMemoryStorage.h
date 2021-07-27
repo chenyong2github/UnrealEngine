@@ -100,13 +100,22 @@ public:
 		UObject* CPPTypeObject;
 		TArray<EPinContainerType> Containers;
 		FString DefaultValue;
-		
+
+		FPropertyDescription()
+			: Name(NAME_None)
+			, Property(nullptr)
+			, CPPType()
+			, CPPTypeObject(nullptr)
+			, Containers()
+			, DefaultValue()
+		{}
 		FPropertyDescription(const FProperty* InProperty, const FString& InDefaultValue, const FName& InName = NAME_None);
 		FPropertyDescription(const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue);
 
 		static FName SanitizeName(const FName& InName);
 		void SanitizeName();
 
+		bool IsValid() const { return !Name.IsNone(); }
 		int32 NumContainers() const { return Containers.Num(); }
 		bool HasContainer() const { return NumContainers() > 0; }
 		bool IsArray(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Array; }

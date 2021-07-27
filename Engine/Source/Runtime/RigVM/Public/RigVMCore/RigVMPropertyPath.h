@@ -37,22 +37,22 @@ public:
 
 	FORCEINLINE bool operator ==(const FRigVMPropertyPath& Other) const
 	{
-		return ToString() == Other.ToString();
+		return GetTypeHash(this) == GetTypeHash(Other);
 	}
 
 	FORCEINLINE bool operator !=(const FRigVMPropertyPath& Other) const
 	{
-		return ToString() != Other.ToString();
+		return GetTypeHash(this) != GetTypeHash(Other);
 	}
 
 	FORCEINLINE bool operator >(const FRigVMPropertyPath& Other) const
 	{
-		return ToString() > Other.ToString();
+		return GetTypeHash(this) > GetTypeHash(Other);
 	}
 
 	FORCEINLINE bool operator <(const FRigVMPropertyPath& Other) const
 	{
-		return ToString() < Other.ToString();
+		return GetTypeHash(this) < GetTypeHash(Other);
 	}
 
 	uint8* GetData_Internal(uint8* InPtr) const;
@@ -61,6 +61,19 @@ public:
 	FORCEINLINE T* GetData(uint8* InPtr) const
 	{
 		return (T*)GetData_Internal(InPtr);
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMPropertyPath& InPropertyPath)
+	{
+		if(InPropertyPath.IsEmpty())
+		{
+			return 0;
+		}
+		
+		return HashCombine(
+			GetTypeHash(InPropertyPath[0].Property),
+			GetTypeHash(InPropertyPath.ToString())
+		);
 	}
 
 	static FRigVMPropertyPath Empty;
