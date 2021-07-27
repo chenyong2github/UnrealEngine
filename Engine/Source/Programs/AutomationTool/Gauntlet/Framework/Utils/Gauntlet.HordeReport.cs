@@ -56,6 +56,27 @@ namespace Gauntlet
 				return string.Empty;
 			}
 		}
+		/// <summary>
+		/// Default Job Step Horde link if running under Horde agent, otherwise return an empty string
+		/// </summary>
+		public static string DefaultHordeJobStepLink
+		{
+			get
+			{
+				string HordeJobStepId = Environment.GetEnvironmentVariable("UE_HORDE_STEPID");
+				string HordeJobLink = DefaultHordeJobLink;
+				if (!string.IsNullOrEmpty(HordeJobStepId))
+				{
+					return string.Format("{0}?step={1}", HordeJobLink, HordeJobStepId);
+				}
+				else if(!string.IsNullOrEmpty(HordeJobLink))
+				{
+					return HordeJobLink;
+				}
+
+				return string.Empty;
+			}
+		}		
 
 		public abstract class BaseHordeReport : BaseTestReport
 		{
