@@ -1317,7 +1317,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 				const bool bHasPrevTransform = InComponent->GetInstancePrevTransform(InInstanceIndex, InstancePrevTransform);
 				if (ensure(bHasPrevTransform)) // Should always be true here
 				{
-					DynamicData.PrevLocalToPrimitive = InstanceTransform.ToMatrixWithScale();
+					DynamicData.PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
 				}
 				else
 				{
