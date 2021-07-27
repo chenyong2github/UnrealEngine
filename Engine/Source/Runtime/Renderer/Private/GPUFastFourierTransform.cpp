@@ -6,6 +6,11 @@
 #include "RenderTargetPool.h" // used for on-the-fly acquisition of 
 #include "ShaderCompilerCore.h"
 
+bool ShouldCompileGPUFFT(EShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsFFTBloom(Platform);
+}
+
 uint32 GPUFFT::MaxScanLineLength() 
 {
 	return 4096;
@@ -165,7 +170,21 @@ namespace GPUFFT
 namespace GPUFFT
 {
 
-	class FReorderFFTPassCS : public FGlobalShader
+	class FFFTShader : public FGlobalShader
+	{
+	public:
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return ShouldCompileGPUFFT(Parameters.Platform);
+		}
+
+		FFFTShader() = default;
+		FFFTShader(const CompiledShaderInitializerType& Initializer)
+			: FGlobalShader(Initializer)
+		{}
+	};
+
+	class FReorderFFTPassCS : public FFFTShader
 	{
 		// NB:  the following is actually "public:" 
 		// due to text in the DECLARE_SHADER_TYPE Macro 
@@ -179,7 +198,7 @@ namespace GPUFFT
 		FReorderFFTPassCS() {};
 
 		FReorderFFTPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
+			: FFFTShader(Initializer)
 		{
 			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
 
@@ -196,12 +215,6 @@ namespace GPUFFT
 		// Used by IMPLEMENT_SHADER_TYPE2
 		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
 		static const TCHAR* GetFunctionName() { return TEXT("ReorderFFTPassCS"); }
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
@@ -254,7 +267,7 @@ namespace GPUFFT
 	};
 
 
-	class FGroupShardSubFFTPassCS : public FGlobalShader
+	class FGroupShardSubFFTPassCS : public FFFTShader
 	{
 		// NB:  the following is actually "public:" 
 		// due to text in the DECLARE_SHADER_TYPE Macro 
@@ -268,7 +281,7 @@ namespace GPUFFT
 		FGroupShardSubFFTPassCS() {};
 
 		FGroupShardSubFFTPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
+			: FFFTShader(Initializer)
 		{
 			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
 
@@ -287,12 +300,6 @@ namespace GPUFFT
 		
 		static uint32 SubPassLength() { return 2048;}
 		static uint32 Radix() { return 2; }
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
@@ -344,7 +351,7 @@ namespace GPUFFT
 		LAYOUT_FIELD(FShaderParameter, NumSubRegions);
 	};
 
-	class FComplexFFTPassCS : public FGlobalShader
+	class FComplexFFTPassCS : public FFFTShader
 	{
 	// NB:  the following is actually "public:" 
 	// due to text in the DECLARE_SHADER_TYPE Macro 
@@ -358,7 +365,7 @@ namespace GPUFFT
 		FComplexFFTPassCS() {};
 
 		FComplexFFTPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
+			: FFFTShader(Initializer)
 		{
 			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
 
@@ -375,12 +382,6 @@ namespace GPUFFT
 		// Used by IMPLEMENT_SHADER_TYPE2
 		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
 		static const TCHAR* GetFunctionName()   { return TEXT("ComplexFFTPassCS"); }
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
@@ -433,7 +434,7 @@ namespace GPUFFT
 	};
 
 
-	class FPackTwoForOneFFTPassCS : public FGlobalShader
+	class FPackTwoForOneFFTPassCS : public FFFTShader
 	{
 		// NB:  the following is actually "public:" 
 		// due to text in the DECLARE_SHADER_TYPE Macro 
@@ -447,7 +448,7 @@ namespace GPUFFT
 		FPackTwoForOneFFTPassCS() {};
 
 		FPackTwoForOneFFTPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
+			: FFFTShader(Initializer)
 		{
 			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
 
@@ -461,12 +462,6 @@ namespace GPUFFT
 		// Used by IMPLEMENT_SHADER_TYPE2
 		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
 		static const TCHAR* GetFunctionName() { return TEXT("PackTwoForOneFFTPassCS"); }
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
@@ -506,7 +501,7 @@ namespace GPUFFT
 	};
 
 
-	class FCopyWindowCS : public FGlobalShader
+	class FCopyWindowCS : public FFFTShader
 	{
 		// NB:  the following is actually "public:" 
 		// due to text in the DECLARE_SHADER_TYPE Macro 
@@ -517,7 +512,7 @@ namespace GPUFFT
 		FCopyWindowCS() {};
 
 		FCopyWindowCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
+			: FFFTShader(Initializer)
 		{
 			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
 
@@ -536,15 +531,9 @@ namespace GPUFFT
 		static uint32 XThreadCount() { return 1; }
 		static uint32 YThreadCount() { return 32; }
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
-
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			OutEnvironment.SetDefine(TEXT("INCLUDE_COPY_WINDOW"), 1);
 			OutEnvironment.SetDefine(TEXT("X_THREAD_COUNT"), XThreadCount());
 			OutEnvironment.SetDefine(TEXT("Y_THREAD_COUNT"), YThreadCount());
@@ -580,7 +569,7 @@ namespace GPUFFT
 		LAYOUT_FIELD(FShaderParameter, PreFilter);
 	};
 
-	class FComplexMultiplyImagesCS : public FGlobalShader
+	class FComplexMultiplyImagesCS : public FFFTShader
 	{
 		// NB:  the following is actually "public:" 
 		// due to text in the DECLARE_SHADER_TYPE Macro 
@@ -591,7 +580,7 @@ namespace GPUFFT
 		FComplexMultiplyImagesCS() {};
 
 		FComplexMultiplyImagesCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
+			: FFFTShader(Initializer)
 		{
 			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
 
@@ -606,13 +595,6 @@ namespace GPUFFT
 		// Used by IMPLEMENT_SHADER_TYPE2
 		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
 		static const TCHAR* GetFunctionName() { return TEXT("ComplexMultiplyImagesCS"); }
-
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
@@ -653,7 +635,7 @@ namespace GPUFFT
 		LAYOUT_FIELD(FShaderParameter, DataLayout);
 	};
 
-	class FGSComplexTransformBaseCS : public FGlobalShader
+	class FGSComplexTransformBaseCS : public FFFTShader
 	{
 		DECLARE_INLINE_TYPE_LAYOUT(FGSComplexTransformBaseCS, NonVirtual);
 	public:
@@ -664,7 +646,7 @@ namespace GPUFFT
 		FGSComplexTransformBaseCS() {};
 
 		FGSComplexTransformBaseCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
+			: FFFTShader(Initializer)
 		{
 			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
 		
@@ -737,13 +719,6 @@ namespace GPUFFT
 		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
 		static const TCHAR* GetFunctionName()   { return TEXT("GroupSharedComplexFFTCS"); }
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
-
-
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
 			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -778,13 +753,6 @@ namespace GPUFFT
 		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
 		static const TCHAR* GetFunctionName()   { return TEXT("GroupSharedTwoForOneFFTCS"); }
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
-
-
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
 			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -809,7 +777,7 @@ namespace GPUFFT
 	/**
 	* Base class used for 1d convolution.  
 	*/
-	class FGSConvolutionBaseCS : public FGlobalShader
+	class FGSConvolutionBaseCS : public FFFTShader
 	{
 		DECLARE_INLINE_TYPE_LAYOUT(FGSConvolutionBaseCS, NonVirtual);
 	public:
@@ -817,7 +785,7 @@ namespace GPUFFT
 		FGSConvolutionBaseCS() {};
 
 		FGSConvolutionBaseCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
+			: FFFTShader(Initializer)
 		{
 			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
 
@@ -929,15 +897,6 @@ namespace GPUFFT
 		// NB:  the following is actually "public:" 
 		// due to text in the DECLARE_SHADER_TYPE Macro 
 		DECLARE_SHADER_TYPE(TGSConvolutionWithTexturerCS, Global);
-
-
-
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			// @todo MetalMRT: Metal MRT can't cope with the threadgroup storage requirements for these shaders right now
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsMetalMRTPlatform(Parameters.Platform) && IsPCPlatform(Parameters.Platform);
-		}
-
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{

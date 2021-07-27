@@ -199,7 +199,15 @@ FBloomOutputs AddBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, con
 		if (bFFTBloomEnabled)
 		{
 			FScreenPassTexture FullResolution = Inputs.SceneColor;
-			FScreenPassTexture HalfResolution = Inputs.SceneDownsampleChain->GetFirstTexture();
+			FScreenPassTexture HalfResolution;
+			if (IsFFTBloomQuarterResolutionEnabled())
+			{
+				HalfResolution = Inputs.SceneDownsampleChain->GetTexture(1);
+			}
+			else
+			{
+				HalfResolution = Inputs.SceneDownsampleChain->GetFirstTexture();
+			}
 
 			FFFTBloomInputs PassInputs;
 			PassInputs.FullResolutionTexture = FullResolution.Texture;
