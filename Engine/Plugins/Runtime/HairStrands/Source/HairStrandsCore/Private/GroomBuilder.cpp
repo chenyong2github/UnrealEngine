@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2n");
+	return TEXT("2o");
 }
 
 namespace FHairStrandsDecimation
@@ -1608,6 +1608,12 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 			{
 				// Fall back to strand width if there was no vertex width
 				VertexWidth = StrandWidth;
+			}
+
+			// If the curve is a guide, and its width is 0, force to a constant width to insure the guides can be correctly rendered/displayed for debug purpose
+			if (bIsGuide && VertexWidth == 0.f)
+			{
+				VertexWidth = 0.01f;
 			}
 
 			CurrentHairStrandsDatas->StrandsPoints.PointsRadius.Add(VertexWidth * 0.5f);
