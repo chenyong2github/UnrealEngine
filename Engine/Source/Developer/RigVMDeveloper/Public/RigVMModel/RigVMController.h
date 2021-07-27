@@ -325,7 +325,7 @@ public:
 
 	// Exports the given nodes as text
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	TArray<FName> ImportNodesFromText(const FString& InText, bool bSetupUndoRedo = true);
+	TArray<FName> ImportNodesFromText(const FString& InText, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
 
 	// Copies a function declaration into this graph's local function library
 	UFUNCTION(BlueprintCallable, Category = RigVMController)

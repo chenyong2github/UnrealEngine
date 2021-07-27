@@ -2166,7 +2166,7 @@ void FControlRigEditor::PasteNodes()
 		})
 	);
 	
-	TArray<FName> NodeNames = GetFocusedController()->ImportNodesFromText(TextToImport);
+	TArray<FName> NodeNames = GetFocusedController()->ImportNodesFromText(TextToImport, true, true);
 
 	if (NodeNames.Num() > 0)
 	{
