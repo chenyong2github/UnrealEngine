@@ -800,28 +800,67 @@ void UModelingToolsEditorMode::BindCommands()
 	// These aren't activated by buttons but have default chords that bind the keypresses to the action.
 	CommandList->MapAction(
 		ToolManagerCommands.AcceptOrCompleteActiveTool,
-		FExecuteAction::CreateLambda([this]() {
-			const EToolShutdownType ShutdownType = ToolsContext->CanAcceptActiveTool() ? EToolShutdownType::Accept : EToolShutdownType::Completed;
-			ToolsContext->EndTool(ShutdownType);
-			}),
+		FExecuteAction::CreateLambda([this]() { AcceptActiveToolActionOrTool(); }),
 		FCanExecuteAction::CreateLambda([this]() {
 				return ToolsContext->CanAcceptActiveTool() || ToolsContext->CanCompleteActiveTool();
 			}),
 		FGetActionCheckState(),
 		FIsActionButtonVisible(),
 		EUIActionRepeatMode::RepeatDisabled);
+
 	CommandList->MapAction(
 		ToolManagerCommands.CancelOrCompleteActiveTool,
-		FExecuteAction::CreateLambda([this]() {
-			const EToolShutdownType ShutdownType = ToolsContext->CanCancelActiveTool() ? EToolShutdownType::Cancel : EToolShutdownType::Completed;
-			ToolsContext->EndTool(ShutdownType);
-			}),
+		FExecuteAction::CreateLambda([this]() { CancelActiveToolActionOrTool(); }),
 		FCanExecuteAction::CreateLambda([this]() {
 				return ToolsContext->CanCompleteActiveTool() || ToolsContext->CanCancelActiveTool();
 			}),
 		FGetActionCheckState(),
 		FIsActionButtonVisible(),
 		EUIActionRepeatMode::RepeatDisabled);
+}
+
+
+void UModelingToolsEditorMode::AcceptActiveToolActionOrTool()
+{
+	// if we have an active Tool that implements 
+	if (GetToolManager()->HasAnyActiveTool())
+	{
+		UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+		IInteractiveToolNestedAcceptCancelAPI* CancelAPI = Cast<IInteractiveToolNestedAcceptCancelAPI>(Tool);
+		if (CancelAPI && CancelAPI->SupportsNestedAcceptCommand() && CancelAPI->CanCurrentlyNestedAccept())
+		{
+			bool bAccepted = CancelAPI->ExecuteNestedAcceptCommand();
+			if (bAccepted)
+			{
+				return;
+			}
+		}
+	}
+
+	const EToolShutdownType ShutdownType = ToolsContext->CanAcceptActiveTool() ? EToolShutdownType::Accept : EToolShutdownType::Completed;
+	ToolsContext->EndTool(ShutdownType);
+}
+
+
+void UModelingToolsEditorMode::CancelActiveToolActionOrTool()
+{
+	// if we have an active Tool that implements 
+	if (GetToolManager()->HasAnyActiveTool())
+	{
+		UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+		IInteractiveToolNestedAcceptCancelAPI* CancelAPI = Cast<IInteractiveToolNestedAcceptCancelAPI>(Tool);
+		if (CancelAPI && CancelAPI->SupportsNestedCancelCommand() && CancelAPI->CanCurrentlyNestedCancel())
+		{
+			bool bCancelled = CancelAPI->ExecuteNestedCancelCommand();
+			if (bCancelled)
+			{
+				return;
+			}
+		}
+	}
+
+	const EToolShutdownType ShutdownType = ToolsContext->CanCancelActiveTool() ? EToolShutdownType::Cancel : EToolShutdownType::Completed;
+	ToolsContext->EndTool(ShutdownType);
 }
 
 void UModelingToolsEditorMode::ModelingModeShortcutRequested(EModelingModeActionCommands Command)
