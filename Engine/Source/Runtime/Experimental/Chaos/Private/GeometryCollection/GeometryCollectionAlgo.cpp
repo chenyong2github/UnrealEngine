@@ -839,13 +839,43 @@ namespace GeometryCollectionAlgo
 		// fix face/vertex counts and vertex->transform (bone) map
 		for (int32 GeometryIdx = 0; GeometryIdx < NumGeometries; GeometryIdx++)
 		{
+			int32 TransformIdx = GeometryCollection->TransformIndex[GeometryIdx];
 			GeometryCollection->FaceCount[GeometryIdx] = FaceCounts[GeometryIdx];
 			GeometryCollection->VertexCount[GeometryIdx] = VertexCounts[GeometryIdx];
 			int32 VertexStart = GeometryCollection->VertexStart[GeometryIdx];
 			int32 VertexEnd = VertexStart + GeometryCollection->VertexCount[GeometryIdx];
 			for (int32 VertexIdx = VertexStart; VertexIdx < VertexEnd; VertexIdx++)
 			{
-				GeometryCollection->BoneMap[VertexIdx] = GeometryCollection->TransformIndex[GeometryIdx];
+				GeometryCollection->BoneMap[VertexIdx] = TransformIdx;
+			}
+		}
+		for (int32 GeometryIdx = 0; GeometryIdx < NumGeometries; GeometryIdx++)
+		{
+			int32 TransformIdx = GeometryCollection->TransformIndex[GeometryIdx];
+			// the vertex remapping can leave faces that still refer to 'deleted' vertices
+			// these faces are then pointing to vertices that aren't in the same geometry
+			// the intent is that all resized geometry will be re-written by the caller, afterwards
+			// but leaving these broken faces is dangerous and prevents validation in the meantime
+			// so we 'fix' them by writing a degenerate (but w/in geo) face in these cases
+			int32 FaceStart = GeometryCollection->FaceStart[GeometryIdx];
+			int32 FaceEnd = FaceStart + GeometryCollection->FaceCount[GeometryIdx];
+			int32 VertexStart = GeometryCollection->VertexStart[GeometryIdx];
+			FIntVector ReplacementFace(VertexStart, VertexStart, VertexStart);
+			for (int32 FaceIdx = FaceStart; FaceIdx < FaceEnd; FaceIdx++)
+			{
+				FIntVector& Face = GeometryCollection->Indices[FaceIdx];
+				bool bFaceUsesDeletedVertex = false;
+				for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+				{
+					int32 VertIdx = Face[SubIdx];
+					bFaceUsesDeletedVertex |=
+						(GeometryCollection->BoneMap[VertIdx] != TransformIdx) |
+						(VertIdx >= NewNumVertices);
+				}
+				if (bFaceUsesDeletedVertex)
+				{
+					Face = ReplacementFace;
+				}
 			}
 		}
 

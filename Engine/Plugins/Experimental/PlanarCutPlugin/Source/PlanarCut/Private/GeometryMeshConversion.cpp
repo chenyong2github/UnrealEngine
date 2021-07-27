@@ -100,6 +100,22 @@ namespace AugmentedDynamicMesh
 		}
 	}
 
+	int32 NumEnabledUVChannels(FDynamicMesh3& Mesh)
+	{
+		if (!Mesh.Attributes())
+		{
+			return 0;
+		}
+		for (int32 UVIdx = 0; UVIdx < MAX_NUM_UV_CHANNELS; UVIdx++)
+		{
+			if (!Mesh.Attributes()->HasAttachedAttribute(UVChannelNames[UVIdx]))
+			{
+				return UVIdx;
+			}
+		}
+		return MAX_NUM_UV_CHANNELS;
+	}
+
 	void Augment(FDynamicMesh3& Mesh, int32 NumUVChannels)
 	{
 		Mesh.EnableVertexColors(FVector3f(1, 1, 1));
@@ -233,6 +249,137 @@ namespace AugmentedDynamicMesh
 		FVector3f Normal = Mesh.GetVertexNormal(VID);
 		Us->GetValue(VID, U);
 		Vs->GetValue(VID, V);
+	}
+
+	template<typename FOverlay>
+	void SplitOverlayHelper(UE::Geometry::FDynamicMesh3& Mesh, FOverlay* Overlay)
+	{
+		TArray<int32> ContigTris, ContigGroupLens;
+		TArray<int32> ToSplitTris;
+		TArray<bool> GroupIsLoop;
+
+		auto GetEID = [&Mesh, &Overlay](int32 VID, int32 TID) -> int32
+		{
+			FIndex3i Tri = Mesh.GetTriangle(TID);
+			int32 SubIdx = Tri.IndexOf(VID);
+			check(SubIdx >= 0);
+			return Overlay->GetTriangle(TID)[SubIdx];
+		};
+
+		for (int32 VID = 0, OrigMax = Mesh.MaxVertexID(); VID < OrigMax; VID++)
+		{
+			if (!Mesh.IsVertex(VID))
+			{
+				continue;
+			}
+			Mesh.GetVtxContiguousTriangles(VID, ContigTris, ContigGroupLens, GroupIsLoop);
+			int32 TriStartIdx = 0;
+			for (int32 GroupIdx = 0; GroupIdx < ContigGroupLens.Num(); GroupIdx++)
+			{
+				int32 GroupLen = ContigGroupLens[GroupIdx];
+				bool bIsLoop = GroupIsLoop[GroupIdx];
+				checkSlow(TriStartIdx < ContigTris.Num());
+				int32 TID0 = ContigTris[TriStartIdx];
+				int32 EID0 = GetEID(VID, TID0);
+				int32 LastEID = EID0;
+				bool bPastEID0 = false;
+				ToSplitTris.Reset();
+				for (int32 Idx = TriStartIdx + 1, EndIdx = TriStartIdx + GroupLen; Idx < EndIdx; Idx++)
+				{
+					int32 TID = ContigTris[Idx];
+					int32 EID = GetEID(VID, TID);
+					if (EID != LastEID)
+					{
+						if (ToSplitTris.Num() > 0)
+						{
+							FDynamicMesh3::FVertexSplitInfo SplitInfo;
+							Mesh.SplitVertex(VID, ToSplitTris, SplitInfo);
+							ToSplitTris.Reset();
+						}
+						LastEID = EID;
+						bPastEID0 = true;
+					}
+					if (bPastEID0)
+					{
+						ToSplitTris.Add(TID);
+					}
+				}
+				if (bPastEID0 && ToSplitTris.Num() > 0 && (!bIsLoop || LastEID != EID0))
+				{
+					// one final group at the end
+					FDynamicMesh3::FVertexSplitInfo SplitInfo;
+					Mesh.SplitVertex(VID, ToSplitTris, SplitInfo);
+				}
+				TriStartIdx += GroupLen;
+			}
+		}
+	}
+
+	void SplitOverlayAttributesToPerVertex(UE::Geometry::FDynamicMesh3& Mesh, bool bSplitUVs, bool bSplitNormalsTangents)
+	{
+		if (!ensure(Mesh.HasAttributes()))
+		{
+			return;
+		}
+
+		int32 NumUVLayers = FMath::Min(NumEnabledUVChannels(Mesh), Mesh.Attributes()->NumUVLayers());
+		if (bSplitUVs)
+		{
+			for (int32 LayerIdx = 0; LayerIdx < NumUVLayers; LayerIdx++)
+			{
+				FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(LayerIdx);
+				SplitOverlayHelper<FDynamicMeshUVOverlay>(Mesh, UVOverlay);
+			}
+		}
+
+		if (bSplitNormalsTangents)
+		{
+			for (int32 LayerIdx = 0; LayerIdx < Mesh.Attributes()->NumNormalLayers(); LayerIdx++)
+			{
+				SplitOverlayHelper<FDynamicMeshNormalOverlay>(Mesh, Mesh.Attributes()->GetNormalLayer(0));
+			}
+		}
+
+		FDynamicMeshEditor Editor(&Mesh);
+		FDynamicMeshEditResult EditResult;
+		Editor.SplitBowties(EditResult);
+
+		// copy back attributes
+		for (int32 LayerIdx = 0; LayerIdx < NumUVLayers; LayerIdx++)
+		{
+			FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(LayerIdx);
+			TDynamicMeshVertexAttribute<float, 2>* UVs =
+				static_cast<TDynamicMeshVertexAttribute<float, 2>*>(Mesh.Attributes()->GetAttachedAttribute(UVChannelNames[LayerIdx]));
+			for (int32 EID : UVOverlay->ElementIndicesItr())
+			{
+				UVs->SetValue(UVOverlay->GetParentVertex(EID), UVOverlay->GetElement(EID));
+			}
+		}
+		if (Mesh.Attributes()->NumNormalLayers() > 0)
+		{
+			FDynamicMeshNormalOverlay* Overlay = Mesh.Attributes()->GetNormalLayer(0);
+			for (int32 EID : Overlay->ElementIndicesItr())
+			{
+				Mesh.SetVertexNormal(Overlay->GetParentVertex(EID), Overlay->GetElement(EID));
+			}
+		}
+		if (Mesh.Attributes()->HasTangentSpace())
+		{
+			TDynamicMeshVertexAttribute<float, 3>* Us =
+				static_cast<TDynamicMeshVertexAttribute<float, 3>*>(Mesh.Attributes()->GetAttachedAttribute(TangentUAttribName));
+			TDynamicMeshVertexAttribute<float, 3>* Vs =
+				static_cast<TDynamicMeshVertexAttribute<float, 3>*>(Mesh.Attributes()->GetAttachedAttribute(TangentVAttribName));
+			TDynamicMeshVertexAttribute<float, 3>* Tangents[] = { Us, Vs };
+			for (int Idx = 1; Idx < 3; Idx++)
+			{
+				FDynamicMeshNormalOverlay* Overlay = Mesh.Attributes()->GetNormalLayer(Idx);
+				TDynamicMeshVertexAttribute<float, 3>* Tangent = Tangents[Idx - 1];
+				for (int32 EID : Overlay->ElementIndicesItr())
+				{
+					Tangent->SetValue(Overlay->GetParentVertex(EID), Overlay->GetElement(EID));
+				}
+			}
+		}
 	}
 
 	void InitializeOverlayToPerVertexUVs(FDynamicMesh3& Mesh, int32 NumUVLayers, int32 FirstUVLayer)
@@ -2214,7 +2361,8 @@ bool FDynamicMeshCollection::UpdateCollection(const FTransform& ToCollection, FD
 	int32 OldVertexCount = Output.VertexCount[GeometryIdx];
 	int32 OldTriangleCount = Output.FaceCount[GeometryIdx];
 
-	int32 UVLayerCount = Output.NumUVLayers();
+	int32 UVLayerCount = AugmentedDynamicMesh::NumEnabledUVChannels(Mesh);
+	Output.SetNumUVLayers(UVLayerCount);
 
 	int32 NewVertexCount = Mesh.VertexCount();
 	int32 NewTriangleCount = Mesh.TriangleCount();
