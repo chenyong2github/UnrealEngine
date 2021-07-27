@@ -272,6 +272,9 @@ void FRDGUserValidation::ValidateCreateTexture(const FRDGTextureDesc& Desc, cons
 		TEXT("Failed to create texture %s with pixel format %s because it is not supported."), Name, GPixelFormats[Desc.Format].Name);
 	checkf(Desc.IsValid(), TEXT("Texture %s was created with an invalid descriptor."), Name);
 
+	// Can't create back buffer textures
+	checkf(!EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Presentable), TEXT("Illegal to create texture %s with presentable flag."), Name);
+
 	const bool bCanHaveUAV = EnumHasAnyFlags(Desc.Flags, TexCreate_UAV);
 	const bool bIsMSAA = Desc.NumSamples > 1;
 
