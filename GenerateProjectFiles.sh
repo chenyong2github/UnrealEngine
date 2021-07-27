@@ -25,6 +25,7 @@ if [ "$(uname)" = "Darwin" ]; then
 else
 	# assume (GNU/)Linux
 	cd Engine/Build/BatchFiles/Linux
+	bash ./GenerateLLDBInit.sh
 	bash ./GenerateGDBInit.sh
 	bash ./GenerateProjectFiles.sh "$@"
 fi
