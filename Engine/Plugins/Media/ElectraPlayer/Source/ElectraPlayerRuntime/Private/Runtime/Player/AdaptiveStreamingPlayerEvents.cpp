@@ -62,6 +62,10 @@ void FAdaptiveStreamingPlayer::DispatchBufferUtilizationEvent(EStreamType Buffer
 	{
 		MultiStreamBufferAud.GetStats(bufStats);
 	}
+	else if (BufferType == EStreamType::Subtitle)
+	{
+		MultiStreamBufferTxt.GetStats(bufStats);
+	}
 
 	stats.MaxDurationInSeconds = bufStats.MaxDuration.GetAsSeconds();
 	stats.DurationInUse 	   = bufStats.PushedDuration.GetAsSeconds();

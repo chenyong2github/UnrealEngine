@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"Json",
 					"ElectraBase",
 					"ElectraCDM",
+					"ElectraSubtitles",
 					"XmlParser"
 				});
 			if (Target.bCompileAgainstEngine)

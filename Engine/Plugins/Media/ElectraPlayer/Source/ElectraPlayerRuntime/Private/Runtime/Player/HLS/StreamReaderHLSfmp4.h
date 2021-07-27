@@ -23,10 +23,12 @@ public:
 	virtual uint32 GetPlaybackSequenceID() const override;
 
 	virtual void SetExecutionDelay(const FTimeValue& ExecutionDelay) override;
+	virtual FTimeValue GetExecuteAtUTCTime() const override;
 
 	virtual EStreamType GetType() const override;
 
-	virtual void GetDependentStreams(TArray<FDependentStreams>& OutDependentStreams) const override;
+	virtual void GetDependentStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutDependentStreams) const override;
+	virtual void GetRequestedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutRequestedStreams) override;
 	virtual void GetEndedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutAlreadyEndedStreams) override;
 
 	//! Returns the first PTS value as indicated by the media timeline. This should correspond to the actual absolute PTS of the sample.

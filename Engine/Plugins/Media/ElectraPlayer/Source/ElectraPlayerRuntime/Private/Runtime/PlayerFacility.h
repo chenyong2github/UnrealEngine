@@ -41,6 +41,7 @@ namespace Electra
 			EntityCache,
 			DRM,
 			H265Decoder,
+			SubtitleDecoder,
 			LastEntry = 255
 		};
 
@@ -104,6 +105,8 @@ namespace Electra
 					return TEXT("DRM");
 				case EFacility::H265Decoder:
 					return TEXT("H.265 decoder");
+				case EFacility::SubtitleDecoder:
+					return TEXT("Subtitle decoder");
 			}
 			return TEXT("???");
 		}

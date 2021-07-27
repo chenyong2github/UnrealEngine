@@ -14,6 +14,8 @@ class IAudioDecoderOutput;
 using IAudioDecoderOutputPtr = TSharedPtr<IAudioDecoderOutput, ESPMode::ThreadSafe>;
 class IMetaDataDecoderOutput;
 using IMetaDataDecoderOutputPtr = TSharedPtr<IMetaDataDecoderOutput, ESPMode::ThreadSafe>;
+class ISubtitleDecoderOutput;
+using ISubtitleDecoderOutputPtr = TSharedPtr<ISubtitleDecoderOutput, ESPMode::ThreadSafe>;
 
 // ---------------------------------------------------------------------------------------------
 
@@ -66,8 +68,10 @@ public:
 	virtual void SendMediaEvent(EPlayerEvent Event) = 0;
 	virtual void OnVideoFlush() = 0;
 	virtual void OnAudioFlush() = 0;
+	virtual void OnSubtitleFlush() = 0;
 	virtual void PresentVideoFrame(const FVideoDecoderOutputPtr& InVideoFrame) = 0;
 	virtual void PresentAudioFrame(const IAudioDecoderOutputPtr& InAudioFrame) = 0;
+	virtual void PresentSubtitleSample(const ISubtitleDecoderOutputPtr& InSubtitleSample) = 0;
 	virtual void PresentMetadataSample(const IMetaDataDecoderOutputPtr& InMetadataSample) = 0;
 	virtual bool CanReceiveVideoSamples(int32 NumFrames) = 0;
 	virtual bool CanReceiveAudioSamples(int32 NumFrames) = 0;
@@ -114,6 +118,7 @@ public:
 	{
 		TOptional<FTimespan>		TimeOffset;
 		FStreamSelectionAttributes	InitialAudioTrackAttributes;
+		FStreamSelectionAttributes	InitialSubtitleTrackAttributes;
 		TOptional<int32>			MaxVerticalStreamResolution;
 		TOptional<int32>			MaxBandwidthForStreaming;
 		bool						bDoNotPreload = false;

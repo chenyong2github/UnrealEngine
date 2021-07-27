@@ -55,16 +55,20 @@ namespace Electra
 
 		virtual void SetExecutionDelay(const FTimeValue& ExecutionDelay) = 0;
 
+		virtual FTimeValue GetExecuteAtUTCTime() const = 0;
+
 		virtual EStreamType GetType() const = 0;
 
-		struct FDependentStreams
-		{
-			EStreamType		StreamType;
-		};
 		/**
-		 * Returns a list of dependent stream types.
+		 * Returns a list of dependent streams.
 		 */
-		virtual void GetDependentStreams(TArray<FDependentStreams>& OutDependentStreams) const = 0;
+		virtual void GetDependentStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutDependentStreams) const = 0;
+
+		/**
+		 * Returns a list of requested streams. This must be the initial request that has a list of
+		 * all the segments of the streams selected for playback.
+		 */
+		virtual void GetRequestedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutRequestedStreams) = 0;
 
 		/**
 		 * Returns a list of streams, primary or dependent, that are already at EOS in this request.

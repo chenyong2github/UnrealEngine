@@ -62,12 +62,32 @@ void FStreamSegmentRequestMP4::SetExecutionDelay(const FTimeValue& ExecutionDela
 	// No op for mp4.
 }
 
-void FStreamSegmentRequestMP4::GetDependentStreams(TArray<FDependentStreams>& OutDependentStreams) const
+FTimeValue FStreamSegmentRequestMP4::GetExecuteAtUTCTime() const
+{
+	// Right now.
+	return FTimeValue::GetInvalid();
+}
+
+void FStreamSegmentRequestMP4::GetDependentStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutDependentStreams) const
 {
 	// Those are not "real" dependent streams in that they are multiplexed and do not need to be fetched from
 	// a different source. This merely indicates the types of non-primary streams we will be demuxing.
-	OutDependentStreams = DependentStreams;
+	for(int32 i=0; i<DependentStreamTypes.Num(); ++i)
+	{
+		FStreamSegmentRequestMP4* DepReq = new FStreamSegmentRequestMP4(*this);
+		DepReq->PrimaryStreamType = DependentStreamTypes[i];
+		DepReq->DependentStreamTypes.Empty();
+		TSharedPtrTS<IStreamSegment> p(DepReq);
+		OutDependentStreams.Push(p);
+	}
 }
+
+void FStreamSegmentRequestMP4::GetRequestedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutRequestedStreams)
+{
+	OutRequestedStreams.Empty();
+	OutRequestedStreams.Emplace(SharedThis(this));
+}
+
 
 void FStreamSegmentRequestMP4::GetEndedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutAlreadyEndedStreams)
 {
@@ -75,11 +95,11 @@ void FStreamSegmentRequestMP4::GetEndedStreams(TArray<TSharedPtrTS<IStreamSegmen
 	if (bAllTracksAtEOS)
 	{
 		OutAlreadyEndedStreams.Push(SharedThis(this));
-		for(int32 i=0; i<DependentStreams.Num(); ++i)
+		for(int32 i=0; i<DependentStreamTypes.Num(); ++i)
 		{
 			FStreamSegmentRequestMP4* DepReq = new FStreamSegmentRequestMP4;
 			// Only need to set the stream type here.
-			DepReq->PrimaryStreamType = DependentStreams[i].StreamType;
+			DepReq->PrimaryStreamType = DependentStreamTypes[i];
 			TSharedPtrTS<IStreamSegment> p(DepReq);
 			OutAlreadyEndedStreams.Push(p);
 		}

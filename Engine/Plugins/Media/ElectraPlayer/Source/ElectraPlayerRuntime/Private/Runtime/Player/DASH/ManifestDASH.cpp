@@ -177,6 +177,7 @@ private:
 
 	FString ActiveVideoRepresentationID;
 	FString ActiveAudioRepresentationID;
+	FString ActiveSubtitleRepresentationID;
 
 	TSharedPtrTS<FBufferSourceInfo> SourceBufferInfoVideo;
 	TSharedPtrTS<FBufferSourceInfo> SourceBufferInfoAudio;
@@ -479,6 +480,10 @@ void FDASHPlayPeriod::SetStreamPreferences(EStreamType ForStreamType, const FStr
 	{
 		AudioStreamPreferences = StreamAttributes;
 	}
+	else if (ForStreamType == EStreamType::Subtitle)
+	{
+		SubtitleStreamPreferences = StreamAttributes;
+	}
 }
 
 IManifest::IPlayPeriod::EReadyState FDASHPlayPeriod::GetReadyState()
@@ -560,7 +565,7 @@ TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdapt
 				AS = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, SelectedTypeIndex));
 			}
 		}
-		else if (StreamType == EStreamType::Audio)
+		else if (StreamType == EStreamType::Audio || StreamType == EStreamType::Subtitle)
 		{
 			// Check for a matching language.
 			// For now we ignore the track kind.
@@ -587,14 +592,14 @@ TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdapt
 			// Matching language not found. Is there an explicit index given?
 			if (!AS.IsValid())
 			{
-				if (Attributes.OverrideIndex.IsSet() && Attributes.OverrideIndex.GetValue() < NumAdaptationSets)
+				if (Attributes.OverrideIndex.IsSet() && Attributes.OverrideIndex.GetValue() >= 0 && Attributes.OverrideIndex.GetValue() < NumAdaptationSets)
 				{
 					SelectedTypeIndex = Attributes.OverrideIndex.GetValue();
 					AS = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, SelectedTypeIndex));
 				}
 			}
-			// Still nothing? Use the first one.
-			if (!AS.IsValid())
+			// Still nothing? Use the first one, except for subtitles that need to be explicitly selected.
+			if (!AS.IsValid() && StreamType != EStreamType::Subtitle)
 			{
 				Selection.Empty();
 				for(int32 i=0; i<NumAdaptationSets; ++i)
@@ -707,6 +712,29 @@ void FDASHPlayPeriod::Load()
 			}
 		}
 
+		TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> SubtitleAS = SelectAdaptationSetByAttributes(SourceBufferInfoSubtitles, Period, EStreamType::Subtitle, SubtitleStreamPreferences);
+		if (SubtitleAS.IsValid())
+		{
+			ActiveSubtitleAdaptationSetID = SubtitleAS->GetUniqueIdentifier();
+
+			// Add encryption schemes, if any.
+			if (SubtitleAS->GetIsSwitchGroup())
+			{
+				for(auto &SwitchedID : SubtitleAS->GetSwitchToSetIDs())
+				{
+					TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> SwitchedAS = Period->GetAdaptationSetByUniqueID(SwitchedID);
+					if (SwitchedAS.IsValid())
+					{
+						ContentProtections.Append(SwitchedAS->GetPossibleContentProtections());
+					}
+				}
+			}
+			else
+			{
+				ContentProtections.Append(SubtitleAS->GetPossibleContentProtections());
+			}
+		}
+
 		// Prepare the DRM system for decryption.
 		if (PrepareDRM(ContentProtections))
 		{
@@ -746,6 +774,13 @@ void FDASHPlayPeriod::PrepareForPlay()
 		{
 			TSharedPtrTS<IPlaybackAssetRepresentation> AudioRepr = GetRepresentationFromAdaptationByPriorityAndMaxBandwidth(AudioAS, 256 * 1000, EStreamType::Audio);
 			ActiveAudioRepresentationID = AudioRepr->GetUniqueIdentifier();
+		}
+
+		TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> SubtitleAS = Period->GetAdaptationSetByUniqueID(ActiveSubtitleAdaptationSetID);
+		if (SubtitleAS.IsValid())
+		{
+			TSharedPtrTS<IPlaybackAssetRepresentation> SubtitleRepr = GetRepresentationFromAdaptationByPriorityAndMaxBandwidth(SubtitleAS, 256 * 1000, EStreamType::Subtitle);
+			ActiveSubtitleRepresentationID = SubtitleRepr->GetUniqueIdentifier();
 		}
 
 		// Emit all <EventStream> events of the period to the AEMS event handler.
@@ -858,6 +893,10 @@ void FDASHPlayPeriod::SelectStream(const FString& AdaptationSetID, const FString
 	{
 		ActiveAudioRepresentationID = RepresentationID;
 	}
+	else if (AdaptationSetID == ActiveSubtitleAdaptationSetID)
+	{
+		ActiveSubtitleRepresentationID = RepresentationID;
+	}
 	else
 	{
 		LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("ABR tried to activate a stream from an inactive AdaptationSet!")));
@@ -933,6 +972,10 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 	if (!ActiveAudioRepresentationID.IsEmpty())
 	{
 		ActiveSelection.Emplace(FSelectedStream({EStreamType::Audio, ActiveAudioRepresentationID, ActiveAudioAdaptationSetID}));
+	}
+	if (!ActiveSubtitleRepresentationID.IsEmpty())
+	{
+		ActiveSelection.Emplace(FSelectedStream({EStreamType::Subtitle, ActiveSubtitleRepresentationID, ActiveSubtitleAdaptationSetID}));
 	}
 
 	bool bDidAdjustStartTime = false;
@@ -1137,6 +1180,10 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		case EStreamType::Audio:
 			ActiveAdaptationSetIDByType = ActiveAudioAdaptationSetID;
 			ActiveRepresentationIDByType = ActiveAudioRepresentationID;
+			break;
+		case EStreamType::Subtitle:
+			ActiveAdaptationSetIDByType = ActiveSubtitleAdaptationSetID;
+			ActiveRepresentationIDByType = ActiveSubtitleRepresentationID;
 			break;
 		default:
 			break;

@@ -19,7 +19,8 @@ class IAudioDecoderOutput;
 using IAudioDecoderOutputPtr = TSharedPtr<IAudioDecoderOutput, ESPMode::ThreadSafe>;
 class IMetaDataDecoderOutput;
 using IMetaDataDecoderOutputPtr = TSharedPtr<IMetaDataDecoderOutput, ESPMode::ThreadSafe>;
-
+class ISubtitleDecoderOutput;
+using ISubtitleDecoderOutputPtr = TSharedPtr<ISubtitleDecoderOutput, ESPMode::ThreadSafe>;
 
 namespace Electra
 {
@@ -52,6 +53,8 @@ public:
 	void OnVideoFlush();
 	void OnAudioDecoded(const IAudioDecoderOutputPtr& DecoderOutput);
 	void OnAudioFlush();
+	void OnSubtitleDecoded(ISubtitleDecoderOutputPtr DecoderOutput);
+	void OnSubtitleFlush();
 
 	void OnVideoRenderingStarted();
 	void OnVideoRenderingStopped();
@@ -134,6 +137,26 @@ private:
 		{ EventReceivedDelegate.ExecuteIfBound(InEvent, InDispatchMode); }
 		FOnMediaPlayerEventReceivedDelegate EventReceivedDelegate;
 	};
+
+	DECLARE_DELEGATE_OneParam(FOnMediaPlayerSubtitleReceivedDelegate, ISubtitleDecoderOutputPtr);
+	DECLARE_DELEGATE(FOnMediaPlayerSubtitleFlushDelegate);
+	class FSubtitleEventReceiver : public IAdaptiveStreamingPlayerSubtitleReceiver
+	{
+	public:
+		virtual ~FSubtitleEventReceiver() = default;
+		FOnMediaPlayerSubtitleReceivedDelegate& GetSubtitleReceivedDelegate()
+		{ return SubtitleReceivedDelegate; }
+		FOnMediaPlayerSubtitleFlushDelegate& GetSubtitleFlushDelegate()
+		{ return SubtitleFlushDelegate; }
+	private:
+		virtual void OnMediaPlayerSubtitleReceived(ISubtitleDecoderOutputPtr Subtitle) override
+		{ SubtitleReceivedDelegate.ExecuteIfBound(Subtitle); }
+		virtual void OnMediaPlayerFlushSubtitles() override
+		{ SubtitleFlushDelegate.ExecuteIfBound(); }		 
+		FOnMediaPlayerSubtitleReceivedDelegate SubtitleReceivedDelegate;
+		FOnMediaPlayerSubtitleFlushDelegate SubtitleFlushDelegate;
+	};
+
 
 
 	struct FPlayerMetricEventBase
@@ -254,6 +277,7 @@ private:
 
 	bool PresentVideoFrame(const FVideoDecoderOutputPtr& InVideoFrame);
 	bool PresentAudioFrame(const IAudioDecoderOutputPtr& DecoderOutput);
+	bool PresentSubtitle(const ISubtitleDecoderOutputPtr& DecoderOutput);
 
 	void PlatformNotifyOfOptionChange();
 
@@ -330,10 +354,13 @@ private:
 	// Contains number of audio tracks available to expose it later.
 	int32											NumTracksAudio;
 	int32											NumTracksVideo;
+	int32											NumTracksSubtitle;
 	int32											SelectedQuality;
 	int32											SelectedVideoTrackIndex;
 	mutable int32									SelectedAudioTrackIndex;
+	mutable int32									SelectedSubtitleTrackIndex;
 	mutable bool									bAudioTrackIndexDirty;
+	mutable bool									bSubtitleTrackIndexDirty;
 
 	bool											bInitialSeekPerformed;
 
@@ -364,6 +391,8 @@ private:
 	TQueue<IElectraPlayerAdapterDelegate::EPlayerEvent>	DeferredEvents;
 	TQueue<TSharedPtrTS<FPlayerMetricEventBase>>	DeferredPlayerEvents;
 	TSharedPtrTS<FAEMSEventReceiver>				MediaPlayerEventReceiver;
+	TSharedPtrTS<FSubtitleEventReceiver>			MediaPlayerSubtitleReceiver;
+
 
 	/** The URL of the currently opened media. */
 	FString											MediaUrl;

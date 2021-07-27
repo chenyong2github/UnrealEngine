@@ -11,6 +11,7 @@
 #include "StreamTypes.h"
 #include "AdaptiveStreamingPlayerMetrics.h"
 #include "AdaptiveStreamingPlayerEvents.h"
+#include "AdaptiveStreamingPlayerSubtitles.h"
 #include "AdaptiveStreamingPlayerResourceRequest.h"
 
 class IOptionPointerValueContainer;
@@ -55,6 +56,11 @@ public:
 	virtual void AddAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) = 0;
 	virtual void RemoveAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) = 0;
 
+	//-------------------------------------------------------------------------
+	// Subtitle receiver
+	//
+	virtual void AddSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) = 0;
+	virtual void RemoveSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) = 0;
 
 	//-------------------------------------------------------------------------
 	// Initializes the player. Options may be passed in to affect behaviour.
@@ -184,7 +190,7 @@ public:
 	//! This selection will explicitly override the initial stream attributes set by SetInitialStreamAttributes() and be applied automatically for upcoming periods.
 	virtual void SelectTrackByAttributes(EStreamType StreamType, const FStreamSelectionAttributes& Attributes) = 0;
 
-	//! Deselect track. The stream will continue to stream to allow for immediate selection/activation but no data will be fed to the decoder.
+	//! Deselect track. The stream may continue to stream to allow for immediate selection/activation but no data will be fed to the decoder.
 	virtual void DeselectTrack(EStreamType StreamType) = 0;
 
 	//! Returns true if the track stream of the specified type has beed deselected through DeselectTrack().

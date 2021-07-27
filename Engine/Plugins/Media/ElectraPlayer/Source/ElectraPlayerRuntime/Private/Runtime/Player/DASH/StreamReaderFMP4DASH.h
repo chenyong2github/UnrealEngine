@@ -23,11 +23,12 @@ public:
 	virtual uint32 GetPlaybackSequenceID() const override;
 
 	virtual void SetExecutionDelay(const FTimeValue& ExecutionDelay) override;
+	virtual FTimeValue GetExecuteAtUTCTime() const override;
 
 	virtual EStreamType GetType() const override;
 
-	virtual void GetDependentStreams(TArray<FDependentStreams>& OutDependentStreams) const override;
-
+	virtual void GetDependentStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutDependentStreams) const override;
+	virtual void GetRequestedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutRequestedStreams) override;
 	virtual void GetEndedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutAlreadyEndedStreams) override;
 
 	//! Returns the first PTS value as indicated by the media timeline. This should correspond to the actual absolute PTS of the sample.
@@ -125,6 +126,7 @@ private:
 		TSharedPtrTS<FStreamSegmentRequestFMP4DASH>				CurrentRequest;
 		FMediaSemaphore											WorkSignal;
 		FMediaEvent												IsIdleSignal;
+		bool													bRunOnThreadPool = false;
 		volatile bool											bTerminate = false;
 		volatile bool											bWasStarted = false;
 		volatile bool											bRequestCanceled = false;
@@ -156,6 +158,7 @@ private:
 		void Cancel(bool bSilent);
 		void SignalWork();
 		void WorkerThread();
+		void RunInThreadPool();
 		void HandleRequest();
 
 		FErrorDetail GetInitSegment(TSharedPtrTS<const IParserISO14496_12>& OutMP4InitSegment, const TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& InRequest);
@@ -180,9 +183,7 @@ private:
 		virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
 	};
 
-	// Currently set to use 2 handlers, one for video and one for audio. This could become a pool of n if we need to stream
-	// multiple dependent segments, keeping a pool of available and active handlers to cycle between.
-	FStreamHandler						StreamHandlers[2];		// 0 = video (MEDIAstreamType_Video), 1 = audio (MEDIAstreamType_Audio)
+	FStreamHandler						StreamHandlers[3];		// 0 = video, 1 = audio, 2 = subtitle 
 	IPlayerSessionServices*				PlayerSessionService = nullptr;
 	bool								bIsStarted = false;
 	FErrorDetail						ErrorDetail;

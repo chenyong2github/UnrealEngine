@@ -229,6 +229,7 @@ public:
 
 		int32 GetSelectionPriority() const { return SelectionPriority; }
 
+		bool IsSideloadedSubtitle() const { return bIsSideloadedSubtitle; }
 
 		//----------------------------------------------
 		// Methods from IPlaybackAssetRepresentation
@@ -288,6 +289,8 @@ public:
 		int64 SegmentIndexRangeStart = 0;
 		int64 SegmentIndexRangeSize = 0;
 		TSharedPtrTS<FMPDLoadRequestDASH> PendingSegmentIndexLoadRequest;
+		//
+		bool bIsSideloadedSubtitle = false;
 	};
 
 	class FAdaptationSet : public IPlaybackAssetAdaptationSet
@@ -418,10 +421,14 @@ public:
 				{
 					InOutMetadata.Kind = TEXT("metadata");
 				}
-				// TODO: ID and language (complicated by the CEA services)
-				check(!"need to add ID and language handling");
-				InOutMetadata.ID = TEXT("CC1");
-				InOutMetadata.Language = TEXT("en");
+				// ID and language for CEA services
+				if (bIsCEAService)
+				{
+					// TODO
+					check(!"need to add ID and language handling");
+					InOutMetadata.ID = TEXT("CC1");
+					InOutMetadata.Language = TEXT("en");
+				}
 			}
 		}
 

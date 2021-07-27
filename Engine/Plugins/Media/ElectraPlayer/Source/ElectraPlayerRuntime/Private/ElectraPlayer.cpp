@@ -182,10 +182,13 @@ void FElectraPlayer::ClearToDefaultState()
 
 	NumTracksAudio = 0;
 	NumTracksVideo = 0;
+	NumTracksSubtitle = 0;
 	SelectedQuality = 0;
 	SelectedVideoTrackIndex = -1;
 	SelectedAudioTrackIndex = -1;
+	SelectedSubtitleTrackIndex = -1;
 	bAudioTrackIndexDirty = true;
+	bSubtitleTrackIndexDirty = true;
 	bInitialSeekPerformed = false;
 	LastPresentedFrameDimension = FIntPoint::ZeroValue;
 	DeferredPlayerEvents.Empty();
@@ -224,8 +227,9 @@ bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict& PlayerOp
 	// Create a new empty player structure. This contains the actual player instance, its associated renderers and sample queues.
 	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> NewPlayer = MakeShared<FInternalPlayerImpl, ESPMode::ThreadSafe>();
 
-	// Get a writable copy of the URL so we can override it for debugging.
+	// Get a writable copy of the URL so we can sanitize it if necessary.
 	MediaUrl = Url;
+	MediaUrl.TrimStartAndEndInline();
 	UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] IMediaPlayer::Open(%s)"), this, NewPlayer.Get(), *SanitizeMessage(MediaUrl));
 
 	// Create the renderers so we can pass them to the internal player.
@@ -242,6 +246,12 @@ bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict& PlayerOp
 	NewPlayer->AdaptivePlayer->AddMetricsReceiver(this);
 	NewPlayer->AdaptivePlayer->SetStaticResourceProviderCallback(StaticResourceProvider);
 	NewPlayer->AdaptivePlayer->SetVideoDecoderResourceDelegate(VideoDecoderResourceDelegate);
+
+	// Create the subtitle receiver and register it with the player.
+	MediaPlayerSubtitleReceiver = MakeSharedTS<FSubtitleEventReceiver>();
+	MediaPlayerSubtitleReceiver->GetSubtitleReceivedDelegate().BindRaw(this, &FElectraPlayer::OnSubtitleDecoded);
+	MediaPlayerSubtitleReceiver->GetSubtitleFlushDelegate().BindRaw(this, &FElectraPlayer::OnSubtitleFlush);
+	NewPlayer->AdaptivePlayer->AddSubtitleReceiver(MediaPlayerSubtitleReceiver);
 
 	// Create a new media player event receiver and register it to receive all non player internal events as soon as they are received.
 	MediaPlayerEventReceiver = MakeSharedTS<FAEMSEventReceiver>();
@@ -343,6 +353,14 @@ void FElectraPlayer::CloseInternal(bool bKillAfterClose)
 			MediaPlayerEventReceiver->GetEventReceivedDelegate().Unbind();
 			Player->AdaptivePlayer->RemoveAEMSReceiver(MediaPlayerEventReceiver, TEXT("*"), TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
 			MediaPlayerEventReceiver.Reset();
+		}
+
+		if (MediaPlayerSubtitleReceiver.IsValid())
+		{
+			Player->AdaptivePlayer->RemoveSubtitleReceiver(MediaPlayerSubtitleReceiver);
+			MediaPlayerSubtitleReceiver->GetSubtitleReceivedDelegate().Unbind();
+			MediaPlayerSubtitleReceiver->GetSubtitleFlushDelegate().Unbind();
+			MediaPlayerSubtitleReceiver.Reset();
 		}
 
 		// Unregister ourselves as the provider for static resources.
@@ -584,6 +602,32 @@ void FElectraPlayer::OnAudioFlush()
 	}
 }
 
+void FElectraPlayer::OnSubtitleDecoded(ISubtitleDecoderOutputPtr DecoderOutput)
+{
+	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> Player = CurrentPlayer;
+	if (Player.IsValid())
+	{
+		if (State != EPlayerState::Closed)
+		{
+			PresentSubtitle(DecoderOutput);
+		}
+	}
+}
+
+void FElectraPlayer::OnSubtitleFlush()
+{
+	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> Player = CurrentPlayer;
+	if (Player.IsValid())
+	{
+		TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
+		if (PinnedAdapterDelegate.IsValid())
+		{
+			PinnedAdapterDelegate->OnSubtitleFlush();
+		}
+	}
+}
+
+
 void FElectraPlayer::OnVideoRenderingStarted()
 {
 	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> Player = CurrentPlayer;
@@ -651,6 +695,17 @@ bool FElectraPlayer::PresentAudioFrame(const IAudioDecoderOutputPtr& DecoderOutp
 	if (PinnedAdapterDelegate.IsValid())
 	{
 		PinnedAdapterDelegate->PresentAudioFrame(DecoderOutput);
+	}
+	return true;
+}
+
+
+bool FElectraPlayer::PresentSubtitle(const ISubtitleDecoderOutputPtr& DecoderOutput)
+{
+	TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
+	if (PinnedAdapterDelegate.IsValid())
+	{
+		PinnedAdapterDelegate->PresentSubtitleSample(DecoderOutput);
 	}
 	return true;
 }
@@ -944,6 +999,10 @@ TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> FElectraPlayer::GetTrac
 		{
 			LockedPlayer->AdaptivePlayer->GetTrackMetadata(TrackMetaData, Electra::EStreamType::Audio);
 		}
+		else if (TrackType == EPlayerTrackType::Subtitle)
+		{
+			LockedPlayer->AdaptivePlayer->GetTrackMetadata(TrackMetaData, Electra::EStreamType::Subtitle);
+		}
 		if (TrackIndex >= 0 && TrackIndex < TrackMetaData.Num())
 		{
 			return MakeShared<Electra::FTrackMetadata, ESPMode::ThreadSafe>(TrackMetaData[TrackIndex]);
@@ -1003,6 +1062,10 @@ int32 FElectraPlayer::GetNumTracks(EPlayerTrackType TrackType) const
 	{
 		return NumTracksVideo;
 	}
+	else if (TrackType == EPlayerTrackType::Subtitle)
+	{
+		return NumTracksSubtitle;
+	}
 	// TODO: Implement missing track types.
 
 	return 0;
@@ -1012,7 +1075,8 @@ int32 FElectraPlayer::GetNumTrackFormats(EPlayerTrackType TrackType, int32 Track
 {
 	// Right now we only have a single format per track
 	if ((TrackType == EPlayerTrackType::Video && NumTracksVideo != 0) ||
-		(TrackType == EPlayerTrackType::Audio && NumTracksAudio != 0))
+		(TrackType == EPlayerTrackType::Audio && NumTracksAudio != 0) ||
+		(TrackType == EPlayerTrackType::Subtitle && NumTracksSubtitle != 0))
 	{
 		return 1;
 	}
@@ -1026,17 +1090,17 @@ int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 	{
 		return SelectedVideoTrackIndex;
 	}
+	/*
+		To reduce the overhead of this function we check for the track the underlying player has
+		actually selected only when we were told the tracks changed.
+
+		It is possible that the underlying player changes the track automatically as playback progresses.
+		For instance, when playing a DASH stream consisting of several periods the player needs to re-select
+		the audio stream when transitioning from one period into the next, which may change the index of
+		the selected track.
+	*/
 	else if (TrackType == EPlayerTrackType::Audio)
 	{
-		/*
-			To reduce the overhead of this function we check for the track the underlying player has
-			actually selected only when we were told the tracks changed.
-
-			It is possible that the underlying player changes the track automatically as playback progresses.
-			For instance, when playing a DASH stream consisting of several periods the player needs to re-select
-			the audio stream when transitioning from one period into the next, which may change the index of
-			the selected track.
-		*/
 		if (bAudioTrackIndexDirty)
 		{
 			if (NumTracksAudio == 0)
@@ -1068,6 +1132,39 @@ int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 		}
 		return SelectedAudioTrackIndex;
 	}
+	else if (TrackType == EPlayerTrackType::Subtitle)
+	{
+		if (bSubtitleTrackIndexDirty)
+		{
+			if (NumTracksSubtitle == 0)
+			{
+				SelectedSubtitleTrackIndex = -1;
+			}
+			else
+			{
+				TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+				if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+				{
+					if (LockedPlayer->AdaptivePlayer->IsTrackDeselected(Electra::EStreamType::Subtitle))
+					{
+						SelectedSubtitleTrackIndex = -1;
+						bSubtitleTrackIndexDirty = false;
+					}
+					else
+					{
+						Electra::FStreamSelectionAttributes Attributes;
+						LockedPlayer->AdaptivePlayer->GetSelectedTrackAttributes(Attributes, Electra::EStreamType::Subtitle);
+						if (Attributes.OverrideIndex.IsSet())
+						{
+							SelectedSubtitleTrackIndex = Attributes.OverrideIndex.GetValue();
+							bSubtitleTrackIndexDirty = false;
+						}
+					}
+				}
+			}
+		}
+		return SelectedSubtitleTrackIndex;
+	}
 	return -1;
 }
 
@@ -1078,11 +1175,32 @@ FText FElectraPlayer::GetTrackDisplayName(EPlayerTrackType TrackType, int32 Trac
 	{
 		if (TrackType == EPlayerTrackType::Video)
 		{
+			if (!Meta->Label.IsEmpty())
+			{
+				return FText::FromString(FString::Printf(TEXT("%s, ID=%s"), *Meta->Label, *Meta->ID));
+			}
 			return FText::FromString(FString::Printf(TEXT("Video Track ID %s"), *Meta->ID));
 		}
 		else if (TrackType == EPlayerTrackType::Audio)
 		{
+			if (!Meta->Label.IsEmpty())
+			{
+				return FText::FromString(FString::Printf(TEXT("%s, ID=%s"), *Meta->Label, *Meta->ID));
+			}
 			return FText::FromString(FString::Printf(TEXT("Audio Track ID %s"), *Meta->ID));
+		}
+		else if (TrackType == EPlayerTrackType::Subtitle)
+		{
+			FString Name;
+			if (!Meta->Label.IsEmpty())
+			{
+				Name = FString::Printf(TEXT("%s (%s), ID=%s"), *Meta->Label, *Meta->HighestBandwidthCodec.GetCodecSpecifierRFC6381(), *Meta->ID);
+			}
+			else
+			{
+				Name = FString::Printf(TEXT("Subtitle Track ID %s (%s)"), *Meta->ID, *Meta->HighestBandwidthCodec.GetCodecSpecifierRFC6381());
+			}
+			return FText::FromString(Name);
 		}
 	}
 	return FText();
@@ -1184,6 +1302,57 @@ bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 			if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 			{
 				LockedPlayer->AdaptivePlayer->DeselectTrack(Electra::EStreamType::Audio);
+			}
+			return true;
+		}
+	}
+	else if (TrackType == EPlayerTrackType::Subtitle)
+	{
+		// Select a track or deselect?
+		if (TrackIndex >= 0)
+		{
+			// Check if the track index exists by checking the presence of the track metadata.
+			// If for some reason the index is not valid the selection will not be changed.
+			TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Subtitle, TrackIndex);
+			if (Meta.IsValid())
+			{
+				// Switch only when the track index has changed.
+				if (GetSelectedTrack(TrackType) != TrackIndex)
+				{
+					Electra::FStreamSelectionAttributes SubtitleAttributes;
+					SubtitleAttributes.OverrideIndex = TrackIndex;
+
+					PlaystartOptions.InitialSubtitleTrackAttributes.TrackIndexOverride = TrackIndex;
+					if (!Meta->Kind.IsEmpty())
+					{
+						SubtitleAttributes.Kind = Meta->Kind;
+						PlaystartOptions.InitialSubtitleTrackAttributes.Kind = Meta->Kind;
+					}
+					if (!Meta->Language.IsEmpty())
+					{
+						SubtitleAttributes.Language_ISO639 = Meta->Language;
+						PlaystartOptions.InitialSubtitleTrackAttributes.Language_ISO639 = Meta->Language;
+					}
+					TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+					if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+					{
+						LockedPlayer->AdaptivePlayer->SelectTrackByAttributes(Electra::EStreamType::Subtitle, SubtitleAttributes);
+					}
+
+					SelectedSubtitleTrackIndex = TrackIndex;
+				}
+				return true;
+			}
+		}
+		else
+		{
+			// Deselect subtitle track.
+			PlaystartOptions.InitialSubtitleTrackAttributes.TrackIndexOverride = -1;
+			SelectedSubtitleTrackIndex = -1;
+			TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+			if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+			{
+				LockedPlayer->AdaptivePlayer->DeselectTrack(Electra::EStreamType::Subtitle);
 			}
 			return true;
 		}
@@ -1522,12 +1691,23 @@ void FElectraPlayer::HandlePlayerEventReceivedPlaylists()
 	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(AudioStreamMetaData, Electra::EStreamType::Audio);
 	NumTracksAudio = AudioStreamMetaData.Num();
 
+	TArray<Electra::FTrackMetadata> SubtitleStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(SubtitleStreamMetaData, Electra::EStreamType::Subtitle);
+	NumTracksSubtitle = SubtitleStreamMetaData.Num();
+
 	// Set the initial audio track selection attributes.
 	Electra::FStreamSelectionAttributes InitialAudioAttributes;
 	InitialAudioAttributes.Kind = PlaystartOptions.InitialAudioTrackAttributes.Kind;
 	InitialAudioAttributes.Language_ISO639 = PlaystartOptions.InitialAudioTrackAttributes.Language_ISO639;
 	InitialAudioAttributes.OverrideIndex = PlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride;
 	CurrentPlayer->AdaptivePlayer->SetInitialStreamAttributes(Electra::EStreamType::Audio, InitialAudioAttributes);
+
+	// Set the initial subtitle track selection attributes.
+	Electra::FStreamSelectionAttributes InitialSubtitleAttributes;
+	InitialSubtitleAttributes.Kind = PlaystartOptions.InitialSubtitleTrackAttributes.Kind;
+	InitialSubtitleAttributes.Language_ISO639 = PlaystartOptions.InitialSubtitleTrackAttributes.Language_ISO639;
+	InitialSubtitleAttributes.OverrideIndex = PlaystartOptions.InitialSubtitleTrackAttributes.TrackIndexOverride;
+	CurrentPlayer->AdaptivePlayer->SetInitialStreamAttributes(Electra::EStreamType::Subtitle, InitialSubtitleAttributes);
 
 	// Trigger preloading unless forbidden.
 	if (PlaystartOptions.bDoNotPreload == false)
@@ -1555,7 +1735,13 @@ void FElectraPlayer::HandlePlayerEventTracksChanged()
 	TArray<Electra::FTrackMetadata> AudioStreamMetaData;
 	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(AudioStreamMetaData, Electra::EStreamType::Audio);
 	NumTracksAudio = AudioStreamMetaData.Num();
+
+	TArray<Electra::FTrackMetadata> SubtitleStreamMetaData;
+	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(SubtitleStreamMetaData, Electra::EStreamType::Subtitle);
+	NumTracksSubtitle = SubtitleStreamMetaData.Num();
+
 	bAudioTrackIndexDirty = true;
+	bSubtitleTrackIndexDirty = true;
 
 	/*
 	Note: Do not send TracksChanged here since this would trigger a re-selecting of the default tracks.

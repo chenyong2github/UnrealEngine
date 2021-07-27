@@ -200,6 +200,10 @@ void FManifestMP4Internal::FPlayPeriodMP4::SetStreamPreferences(EStreamType ForS
 	{
 		AudioPreferences = StreamAttributes;
 	}
+	else if (ForStreamType == EStreamType::Subtitle)
+	{
+		SubtitlePreferences = StreamAttributes;
+	}
 }
 
 
@@ -342,7 +346,7 @@ TSharedPtrTS<FTrackMetadata> FManifestMP4Internal::FPlayPeriodMP4::SelectMetadat
 		TArray<FTrackMetadata> Metadata;
 		Asset->GetMetaData(Metadata, StreamType);
 		// Is there a fixed index to be used?
-		if (InAttributes.OverrideIndex.IsSet() && InAttributes.OverrideIndex.GetValue() < Metadata.Num())
+		if (InAttributes.OverrideIndex.IsSet() && InAttributes.OverrideIndex.GetValue() >= 0 && InAttributes.OverrideIndex.GetValue() < Metadata.Num())
 		{
 			// Use this.
 			return MakeSharedTS<FTrackMetadata>(Metadata[InAttributes.OverrideIndex.GetValue()]);
@@ -578,6 +582,9 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 					case EStreamType::Audio:
 						AudioAdaptationSets.Add(AdaptationSet);
 						break;
+					case EStreamType::Subtitle:
+						SubtitleAdaptationSets.Add(AdaptationSet);
+						break;
 					default:
 						break;
 				}
@@ -705,6 +712,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					FTimeFraction TrackDuration = Track->GetDuration();
 					if (TrackDuration.IsValid() && FTimeValue().SetFromTimeFraction(TrackDuration) <= StartPosition.Time && (SearchType == ESearchType::After || SearchType == ESearchType::StrictlyAfter || SearchType == ESearchType::Closest))
 					{
+						firstTimestamp.SetFromTimeFraction(TrackDuration);
 						err = UEMEDIA_ERROR_END_OF_STREAM;
 					}
 					else
@@ -729,6 +737,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					}
 					else
 					{
+						firstTimestamp.SetFromTimeFraction(Track->GetDuration());
 						err = UEMEDIA_ERROR_END_OF_STREAM;
 					}
 				}
@@ -754,7 +763,11 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					// FIXME: this may need to add all additional tracks at some point if their individual IDs matter
 					if (AudioAdaptationSets.Num())
 					{
-						req->DependentStreams.AddDefaulted_GetRef().StreamType = EStreamType::Audio;
+						req->DependentStreamTypes.Add(EStreamType::Audio);
+					}
+					if (SubtitleAdaptationSets.Num())
+					{
+						req->DependentStreamTypes.Add(EStreamType::Subtitle);
 					}
 
 					LimitSegmentDownloadSize(OutSegment, nullptr);
@@ -769,7 +782,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 						TSharedPtrTS<FStreamSegmentRequestMP4> req(new FStreamSegmentRequestMP4);
 						OutSegment = req;
 						req->MediaAsset 			= SharedThis(this);
-						req->FirstPTS   			= FTimeValue::GetZero();
+						req->FirstPTS   			= firstTimestamp;
 						req->PrimaryStreamType  	= EStreamType::Video;
 						req->Bitrate				= Repr->GetBitrate();
 						req->bStartingOnMOOF		= false;
@@ -777,7 +790,6 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 						req->bIsFirstSegment		= false;
 						req->bIsLastSegment			= true;
 						req->bAllTracksAtEOS		= true;
-						//req->DependentStreams.PushBack().StreamType = EStreamType::Audio;
 						return IManifest::FResult(IManifest::FResult::EType::Found);
 					}
 				}
@@ -825,6 +837,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					FTimeFraction TrackDuration = Track->GetDuration();
 					if (TrackDuration.IsValid() && FTimeValue().SetFromTimeFraction(TrackDuration) <= StartPosition.Time && (SearchType == ESearchType::After || SearchType == ESearchType::StrictlyAfter || SearchType == ESearchType::Closest))
 					{
+						firstTimestamp.SetFromTimeFraction(TrackDuration);
 						err = UEMEDIA_ERROR_END_OF_STREAM;
 					}
 					else
@@ -849,6 +862,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					}
 					else
 					{
+						firstTimestamp.SetFromTimeFraction(Track->GetDuration());
 						err = UEMEDIA_ERROR_END_OF_STREAM;
 					}
 				}
@@ -875,7 +889,11 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					// (if it exists) in case the video will loop back to a point where there is video.
 					if (VideoAdaptationSets.Num())
 					{
-						req->DependentStreams.AddDefaulted_GetRef().StreamType = EStreamType::Video;
+						req->DependentStreamTypes.Add(EStreamType::Video);
+					}
+					if (SubtitleAdaptationSets.Num())
+					{
+						req->DependentStreamTypes.Add(EStreamType::Subtitle);
 					}
 
 					// FIXME: there may be subtitle tracks here we need to add as dependent streams.
@@ -889,7 +907,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					TSharedPtrTS<FStreamSegmentRequestMP4> req(new FStreamSegmentRequestMP4);
 					OutSegment = req;
 					req->MediaAsset 			= SharedThis(this);
-					req->FirstPTS   			= FTimeValue::GetZero();
+					req->FirstPTS   			= firstTimestamp;
 					req->PrimaryStreamType  	= EStreamType::Audio;
 					req->Bitrate				= Repr->GetBitrate();
 					req->bStartingOnMOOF		= false;
@@ -900,7 +918,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					// But if there is a video track we add it as a dependent stream that is also at EOS.
 					if (VideoAdaptationSets.Num())
 					{
-						req->DependentStreams.AddDefaulted_GetRef().StreamType = EStreamType::Video;
+						req->DependentStreamTypes.Add(EStreamType::Video);
 					}
 					return IManifest::FResult(IManifest::FResult::EType::Found);
 				}

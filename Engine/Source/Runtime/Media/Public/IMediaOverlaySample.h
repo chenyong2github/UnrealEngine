@@ -80,6 +80,13 @@ public:
 	 */
 	virtual EMediaOverlaySampleType GetType() const = 0;
 
+	/**
+	 * Get the GUID identifying the derived type that may implement additional,
+	 * type specific methods. If the GUID matches a type known type it is safe
+	 * to static cast this class to the derived type.
+	 */
+	virtual FGuid GetGUID() const { return FGuid(); }
+
 public:
 
 	/** Virtual destructor. */

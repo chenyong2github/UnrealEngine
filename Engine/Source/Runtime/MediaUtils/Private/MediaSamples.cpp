@@ -140,6 +140,14 @@ uint32 FMediaSamples::PurgeOutdatedVideoSamples(const FMediaTimeStamp & Referenc
 }
 
 /**
+ * Remove any subtitle samples from the queue that have no chance of being displayed anymore
+ */
+uint32 FMediaSamples::PurgeOutdatedSubtitleSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed)
+{
+	return SubtitleSampleQueue.PurgeOutdatedSamples(ReferenceTime, bReversed);
+}
+
+/**
  * Check if can receive more video samples
  */
 bool FMediaSamples::CanReceiveVideoSamples(uint32 Num) const

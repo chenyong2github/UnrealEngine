@@ -11,6 +11,7 @@
 #include "SynchronizedClock.h"
 
 #include "Demuxer/ParserISO14496-12.h"
+#include "Decoder/SubtitleDecoder.h"
 
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
 #include "Player/PlayerStreamReader.h"
@@ -192,6 +193,7 @@ struct FPlaybackState
 	bool									bIsPaused;
 	TArray<FTrackMetadata>					VideoTracks;
 	TArray<FTrackMetadata>					AudioTracks;
+	TArray<FTrackMetadata>					SubtitleTracks;
 	TArray<FTimespan>						SeekablePositions;
 
 
@@ -323,7 +325,7 @@ struct FPlaybackState
 		bIsPlaying = bInIsPlaying;
 	}
 
-	bool SetTrackMetadata(const TArray<FTrackMetadata> &InVideoTracks, const TArray<FTrackMetadata>& InAudioTracks)
+	bool SetTrackMetadata(const TArray<FTrackMetadata> &InVideoTracks, const TArray<FTrackMetadata>& InAudioTracks, const TArray<FTrackMetadata>& InSubtitleTracks)
 	{
 		FMediaCriticalSection::ScopedLock lock(Lock);
 
@@ -343,16 +345,18 @@ struct FPlaybackState
 			return true;
 		};
 
-		bool bChanged = ChangedTrackMetadata(VideoTracks, InVideoTracks) || ChangedTrackMetadata(AudioTracks, InAudioTracks);
+		bool bChanged = ChangedTrackMetadata(VideoTracks, InVideoTracks) || ChangedTrackMetadata(AudioTracks, InAudioTracks) || ChangedTrackMetadata(SubtitleTracks, InSubtitleTracks);
 		VideoTracks = InVideoTracks;
 		AudioTracks = InAudioTracks;
+		SubtitleTracks = InSubtitleTracks;
 		return bChanged;
 	}
-	void GetTrackMetadata(TArray<FTrackMetadata> &OutVideoTracks, TArray<FTrackMetadata>& OutAudioTracks) const
+	void GetTrackMetadata(TArray<FTrackMetadata> &OutVideoTracks, TArray<FTrackMetadata>& OutAudioTracks, TArray<FTrackMetadata>& OutSubtitleTracks) const
 	{
 		FMediaCriticalSection::ScopedLock lock(Lock);
 		OutVideoTracks = VideoTracks;
 		OutAudioTracks = AudioTracks;
+		OutSubtitleTracks = SubtitleTracks;
 	}
 
 	void SetLoopState(const FPlayerLoopState& InLoopState)
@@ -714,6 +718,9 @@ public:
 	virtual void AddAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
 	virtual void RemoveAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
 
+	virtual void AddSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) override;
+	virtual void RemoveSubtitleReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver> InReceiver) override;
+
 	virtual void Initialize(const FParamDict& Options) override;
 
 	virtual void SetInitialStreamAttributes(EStreamType StreamType, const FStreamSelectionAttributes& InitialSelection) override;
@@ -780,6 +787,7 @@ private:
 
 	// Methods from IPlayerStreamFilter
 	virtual bool CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const override;
+	virtual bool CanDecodeSubtitle(const FString& MimeType, const FString& Codec) const override;
 
 
 	enum class EPlayerState
@@ -896,7 +904,7 @@ private:
 	};
 
 	struct FVideoDecoder : public IAccessUnitBufferListener, public IDecoderOutputBufferListener
-		{
+	{
 		void Close()
 		{
 			if (Decoder)
@@ -936,10 +944,10 @@ private:
 		bool							bDrainingForCodecChange = false;
 		bool							bDrainingForCodecChangeDone = false;
 		bool							bApplyNewLimits = false;
-		};
+	};
 
 	struct FAudioDecoder : public IAccessUnitBufferListener, public IDecoderOutputBufferListener
-		{
+	{
 		FAudioDecoder()
 			: Parent(nullptr)
 			, Decoder(nullptr)
@@ -981,8 +989,60 @@ private:
 		FStreamCodecInformation			CurrentCodecInfo;
 		FAdaptiveStreamingPlayer*		Parent;
 		IAudioDecoderAAC*				Decoder;
-		};
+	};
 
+	struct FSubtitleDecoder
+	{
+		void Close()
+		{
+			if (Decoder)
+			{
+				Stop();
+				Decoder->Close();
+				Decoder->GetDecodedSubtitleReceiveDelegate().Unbind();
+				Decoder->GetDecodedSubtitleFlushDelegate().Unbind();
+				delete Decoder;
+				Decoder = nullptr;
+			}
+		}
+		void Flush()
+		{
+			if (Decoder)
+			{
+				Decoder->AUdataFlushEverything();
+			}
+		}
+		
+		void Start(bool bInitialState=true)
+		{
+			if (bInitialState != bIsRunning)
+			{
+				if (Decoder)
+				{
+					Decoder->Start();
+				}
+				bIsRunning = bInitialState;
+			}
+		}
+		
+		void Stop()
+		{
+			if (bIsRunning)
+			{
+				if (Decoder)
+				{
+					Decoder->Stop();
+				}
+				bIsRunning = false;
+			}
+		}
+
+		FStreamCodecInformation			CurrentCodecInfo;
+		ISubtitleDecoder*				Decoder = nullptr;
+		bool							bIsRunning = false;
+		bool							bDrainingForCodecChange = false;
+		bool							bDrainingForCodecChangeDone = false;
+	};
 
 	class FWorkerThreadMessages
 	{
@@ -1388,6 +1448,19 @@ private:
 	};
 
 
+	struct FInternalStreamSelectionAttributes : public FStreamSelectionAttributes
+	{
+		bool IsDeselected() const
+		{ return !bIsSelected; }
+		void Select()
+		{ bIsSelected = true; }
+		void Deselect()
+		{ bIsSelected = false; }
+	private:
+		bool bIsSelected = true;
+	};
+
+
 	void InternalLoadManifest(const FString& URL, const FString& MimeType);
 	void InternalCancelLoadManifest();
 	void InternalCloseManifestReader();
@@ -1400,6 +1473,9 @@ private:
 
 	void AudioDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats);
 	void AudioDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats& currentReadyStats);
+
+	void OnDecodedSubtitleReceived(ISubtitleDecoderOutputPtr Subtitle);
+	void OnFlushSubtitleReceivers();
 
 	void StartWorkerThread();
 	void StopWorkerThread();
@@ -1437,8 +1513,10 @@ private:
 	void HandleSessionMessage(TSharedPtrTS<IPlayerMessage> SessionMessage);
 	void HandlePlayStateChanges();
 	void HandlePendingMediaSegmentRequests();
+	void CancelPendingMediaSegmentRequests(EStreamType StreamType);
 	void HandleDeselectedBuffers();
 	void HandleDecoderChanges();
+	void HandleSubtitleDecoder();
 	void HandleMetadataChanges();
 	void HandleAEMSEvents();
 
@@ -1446,7 +1524,7 @@ private:
 
 	void CheckForErrors();
 
-	void FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder);
+	void FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder, bool bHandleUnderrun);
 
 	bool InternalStartAt(const FSeekParam& NewPosition);
 	void InternalPause();
@@ -1456,6 +1534,7 @@ private:
 	void InternalClose();
 	void InternalSetLoop(const FLoopParam& LoopParam);
 	void InternalSetPlaybackEnded();
+	void InternalDeselectStream(EStreamType StreamType);
 
 	void DispatchEvent(TSharedPtrTS<FMetricEvent> Event);
 	void DispatchEventAndWait(TSharedPtrTS<FMetricEvent> Event);
@@ -1521,9 +1600,9 @@ private:
 	FStreamSelectionAttributes											StreamSelectionAttributesAud;
 	FStreamSelectionAttributes											StreamSelectionAttributesTxt;
 
-	FStreamSelectionAttributes											SelectedStreamAttributesVid;
-	FStreamSelectionAttributes											SelectedStreamAttributesAud;
-	FStreamSelectionAttributes											SelectedStreamAttributesTxt;
+	FInternalStreamSelectionAttributes									SelectedStreamAttributesVid;
+	FInternalStreamSelectionAttributes									SelectedStreamAttributesAud;
+	FInternalStreamSelectionAttributes									SelectedStreamAttributesTxt;
 
 	TSharedPtrTS<FStreamSelectionAttributes>							PendingTrackSelectionVid;
 	TSharedPtrTS<FStreamSelectionAttributes>							PendingTrackSelectionAud;
@@ -1575,6 +1654,7 @@ private:
 	TSharedPtrTS<FPendingStartRequest>									PendingStartRequest;
 	TSharedPtrTS<IStreamSegment>										PendingFirstSegmentRequest;
 	TQueue<FPendingSegmentRequest>										NextPendingSegmentRequests;
+	TQueue<TSharedPtrTS<IStreamSegment>>								ReadyWaitingSegmentRequests;
 	TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>				CompletedSegmentRequests;
 	bool																bFirstSegmentRequestIsForLooping;
 
@@ -1584,6 +1664,10 @@ private:
 	FAudioRenderer														AudioRender;
 	FVideoDecoder														VideoDecoder;
 	FAudioDecoder														AudioDecoder;
+	FSubtitleDecoder													SubtitleDecoder;
+	FCriticalSection													SubtitleReceiversCriticalSection;
+	TArray<TWeakPtrTS<IAdaptiveStreamingPlayerSubtitleReceiver>>		SubtitleReceivers;
+
 
 	FMediaCriticalSection												MetricListenerCriticalSection;
 	TArray<IAdaptiveStreamingPlayerMetrics*, TInlineAllocator<4>>		MetricListeners;

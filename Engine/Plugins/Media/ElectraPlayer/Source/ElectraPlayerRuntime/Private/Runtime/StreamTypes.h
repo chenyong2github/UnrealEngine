@@ -54,6 +54,9 @@ namespace Electra
 			EAC3,
 			// --- Subtitle / Caption ---
 			WebVTT = 200,
+			TTML,
+			TX3G,
+			OtherSubtitle
 		};
 
 		EStreamType GetStreamType() const
@@ -61,6 +64,10 @@ namespace Electra
 			return StreamType;
 		}
 
+		void SetMimeType(const FString& InMimeType)
+		{
+			MimeType = InMimeType;
+		}
 		FString GetMimeType() const;
 		FString GetMimeTypeWithCodec() const;
 		FString GetMimeTypeWithCodecAndFeatures() const;
@@ -111,6 +118,9 @@ namespace Electra
 			switch (GetCodec())
 			{
 				case ECodec::WebVTT:
+				case ECodec::TTML:
+				case ECodec::TX3G:
+				case ECodec::OtherSubtitle:
 					return true;
 				default:
 					return false;
@@ -181,6 +191,40 @@ namespace Electra
 		void SetResolution(const FResolution& InResolution)
 		{
 			Resolution = InResolution;
+		}
+
+
+		struct FTranslation
+		{
+			FTranslation(int32 x = 0, int32 y = 0)
+				: Left(x)
+				, Top(y)
+			{
+			}
+			void Clear()
+			{
+				Left = Top = 0;
+			}
+			int32 GetX() const
+			{
+				return Left;
+			}
+			int32 GetY() const
+			{
+				return Top;
+			}
+			int32 Left;
+			int32 Top;
+		};
+
+		const FTranslation& GetTranslation() const
+		{
+			return Translation;
+		}
+
+		void SetTranslation(const FTranslation& InTranslation)
+		{
+			Translation = InTranslation;
 		}
 
 
@@ -419,9 +463,11 @@ namespace Electra
 		{
 			StreamType = EStreamType::Unsupported;
 			CodecSpecifier.Empty();
+			MimeType.Empty();
 			Codec = ECodec::Unknown;
 			Resolution.Clear();
 			Crop.Clear();
+			Translation.Clear();
 			AspectRatio.Clear();
 			FrameRate = FTimeFraction::GetInvalid();
 			ProfileLevel.Clear();
@@ -506,9 +552,11 @@ namespace Electra
 
 		EStreamType		StreamType;
 		FString			CodecSpecifier;				//!< Codec specifier as per RFC 6381
+		FString			MimeType;					//!< Explicitly set mime type if it cannot be inferred.
 		ECodec			Codec;
 		FResolution		Resolution;					//!< Resolution, if this is a video stream
 		FCrop			Crop;						//!< Cropping, if this is a video stream
+		FTranslation	Translation;				//!< Top-left corner offset for subtitles
 		FAspectRatio	AspectRatio;				//!< Aspect ratio, if this is a video stream
 		FTimeFraction	FrameRate;					//!< Frame rate, if this is a video stream
 		FProfileLevel	ProfileLevel;
@@ -599,7 +647,9 @@ namespace Electra
 		// of the tracks as they are found. If the index is invalid the selection rules for kind and language are applied.
 		TOptional<int32> OverrideIndex;
 
-		bool IsCompatibleWith(const FStreamSelectionAttributes& Other)
+		virtual ~FStreamSelectionAttributes() = default;
+
+		virtual bool IsCompatibleWith(const FStreamSelectionAttributes& Other)
 		{
 			FString Kind1 = Kind.IsSet() ? Kind.GetValue() : FString();
 			FString Kind2 = Other.Kind.IsSet() ? Other.Kind.GetValue() : FString();
@@ -614,13 +664,13 @@ namespace Electra
 			return false;
 		}
 
-		void Reset()
+		virtual void Reset()
 		{
 			Kind.Reset();
 			Language_ISO639.Reset();
 			OverrideIndex.Reset();
 		}
-		void UpdateWith(const FString& InKind, const FString& InLanguage, int32 InOverrideIndex)
+		virtual void UpdateWith(const FString& InKind, const FString& InLanguage, int32 InOverrideIndex)
 		{
 			Reset();
 			if (!InKind.IsEmpty())
@@ -636,7 +686,7 @@ namespace Electra
 				OverrideIndex = InOverrideIndex;
 			}
 		}
-		void UpdateIfOverrideSet(const FString& InKind, const FString& InLanguage)
+		virtual void UpdateIfOverrideSet(const FString& InKind, const FString& InLanguage)
 		{
 			if (OverrideIndex.IsSet())
 			{
@@ -645,7 +695,7 @@ namespace Electra
 				Language_ISO639 = InLanguage;
 			}
 		}
-		void ClearOverrideIndex()
+		virtual void ClearOverrideIndex()
 		{
 			OverrideIndex.Reset();
 		}

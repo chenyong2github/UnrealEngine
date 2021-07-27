@@ -10,6 +10,10 @@ namespace Electra
 
 	FString FStreamCodecInformation::GetMimeType() const
 	{
+		if (!MimeType.IsEmpty())
+		{
+			return MimeType;
+		}
 		switch(GetCodec())
 		{
 			case ECodec::H264:
@@ -21,6 +25,9 @@ namespace Electra
 			case ECodec::EAC3:
 				return FString(TEXT("audio/mp4"));
 			case ECodec::WebVTT:
+			case ECodec::TTML:
+			case ECodec::TX3G:
+			case ECodec::OtherSubtitle:
 				return FString(TEXT("application/mp4"));
 			default:
 				return FString(TEXT("application/octet-stream"));
@@ -212,8 +219,21 @@ namespace Electra
 			StreamType = EStreamType::Subtitle;
 			CodecSpecifier = CodecOTI;
 			Codec = ECodec::WebVTT;
-			// Presently not supported.
-			return false;
+			return true;
+		}
+		else if (CodecOTI.Equals(TEXT("stpp")))		// this is indicating one of the many TTML variants, should be IMSC1, SMPTE-TT, EBU-TT
+		{
+			StreamType = EStreamType::Subtitle;
+			CodecSpecifier = CodecOTI;
+			Codec = ECodec::TTML;
+			return true;
+		}
+		else if (CodecOTI.Equals(TEXT("tx3g")))
+		{
+			StreamType = EStreamType::Subtitle;
+			CodecSpecifier = CodecOTI;
+			Codec = ECodec::TX3G;
+			return true;
 		}
 		else
 		{

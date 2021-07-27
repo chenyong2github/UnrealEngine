@@ -243,9 +243,11 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 
 			TArray<FTrackMetadata> VideoTrackMetadata;
 			TArray<FTrackMetadata> AudioTrackMetadata;
+			TArray<FTrackMetadata> SubtitleTrackMetadata;
 			NewPresentation->GetTrackMetadata(VideoTrackMetadata, EStreamType::Video);
 			NewPresentation->GetTrackMetadata(AudioTrackMetadata, EStreamType::Audio);
-			PlaybackState.SetTrackMetadata(VideoTrackMetadata, AudioTrackMetadata);
+			NewPresentation->GetTrackMetadata(SubtitleTrackMetadata, EStreamType::Subtitle);
+			PlaybackState.SetTrackMetadata(VideoTrackMetadata, AudioTrackMetadata, SubtitleTrackMetadata);
 			PlaybackState.SetHaveMetadata(true);
 
 			Manifest = NewPresentation;

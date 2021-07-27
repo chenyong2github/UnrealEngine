@@ -263,6 +263,11 @@ namespace Electra
 		return LastPoppedPTS;
 	}
 
+	FTimeValue FMultiTrackAccessUnitBuffer::GetLastPoppedDTS()
+	{
+		FMediaCriticalSection::ScopedLock lock(AccessLock);
+		return LastPoppedDTS;
+	}
 
 	TSharedPtrTS<FAccessUnitBuffer> FMultiTrackAccessUnitBuffer::GetSelectedTrackBuffer()
 	{
@@ -485,8 +490,11 @@ namespace Electra
 				// Did we just pop from a different buffer than last time?
 				if (LastPoppedBufferInfo != ActiveOutputBufferInfo)
 				{
-					// FIXME: We may need to discard everything that is not tagged as a sync sample to ensure proper stream switching.
-					OutAU->bTrackChangeDiscontinuity = true;
+					if (LastPoppedBufferInfo)
+					{
+						// FIXME: We may need to discard everything that is not tagged as a sync sample to ensure proper stream switching.
+						OutAU->bTrackChangeDiscontinuity = true;
+					}
 
 					// Remember from which buffer we popped.
 					LastPoppedBufferInfo = ActiveOutputBufferInfo;
