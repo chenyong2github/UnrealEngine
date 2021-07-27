@@ -48,7 +48,7 @@ void FModelingToolsEditorModeStyle::Initialize()
 	}
 
 	StyleSet = MakeShareable(new FSlateStyleSet(GetStyleSetName()));
-	StyleSet->SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Experimental/ModelingToolsEditorMode/Content"));
+	StyleSet->SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Editor/ModelingToolsEditorMode/Content"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	const FTextBlockStyle& NormalText = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
