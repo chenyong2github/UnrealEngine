@@ -48,6 +48,7 @@ public:
 	static bool IsEnabled(UWorld* World);
 
 	virtual void BeginPlay() override;
+	virtual void RewindForReplay() override;
 	virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 		
 	bool IsEnabled() const { return bEnabled; }
