@@ -235,8 +235,11 @@ bool FNetworkingProfilerManager::Tick(float DeltaTime)
 				AvailabilityCheck.Disable();
 			}
 
-			const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-			NetTraceVersion = NetProfilerProvider.GetNetTraceVersion();
+			const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+			if (NetProfilerProvider)
+			{
+				NetTraceVersion = NetProfilerProvider->GetNetTraceVersion();
+			}
 		}
 		else
 		{

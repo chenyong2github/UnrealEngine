@@ -11,7 +11,6 @@ FCountersAnalyzer::FCountersAnalyzer(IAnalysisSession& InSession, ICounterProvid
 	: Session(InSession)
 	, CounterProvider(InCounterProvider)
 {
-
 }
 
 void FCountersAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)

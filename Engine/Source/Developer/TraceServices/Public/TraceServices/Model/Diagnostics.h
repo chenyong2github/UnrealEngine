@@ -30,6 +30,7 @@ public:
 	virtual const FSessionInfo& GetSessionInfo() const = 0;
 };
 
-TRACESERVICES_API const IDiagnosticsProvider& ReadDiagnosticsProvider(const IAnalysisSession& Session);
+TRACESERVICES_API FName GetDiagnosticsProviderName();
+TRACESERVICES_API const IDiagnosticsProvider* ReadDiagnosticsProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

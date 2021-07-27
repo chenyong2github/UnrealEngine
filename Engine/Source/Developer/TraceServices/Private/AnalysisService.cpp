@@ -236,17 +236,8 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 	FCounterProvider* CounterProvider = new FCounterProvider(*Session, *FrameProvider);
 	Session->AddProvider(FCounterProvider::ProviderName, CounterProvider);
 
-	FNetProfilerProvider* NetProfilerProvider = new FNetProfilerProvider(*Session);
-	Session->AddProvider(FNetProfilerProvider::ProviderName, NetProfilerProvider);
-
 	FChannelProvider* ChannelProvider = new FChannelProvider();
 	Session->AddProvider(FChannelProvider::ProviderName, ChannelProvider);
-
-	FMemoryProvider* MemoryProvider = new FMemoryProvider(*Session);
-	Session->AddProvider(FMemoryProvider::ProviderName, MemoryProvider);
-
-	FDiagnosticsProvider* DiagnosticsProvider = new FDiagnosticsProvider(*Session);
-	Session->AddProvider(FDiagnosticsProvider::ProviderName, DiagnosticsProvider);
 
 	Session->AddAnalyzer(new FMiscTraceAnalyzer(*Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider, *ChannelProvider));
 	Session->AddAnalyzer(new FLogTraceAnalyzer(*Session, *LogProvider));

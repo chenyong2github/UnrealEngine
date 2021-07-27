@@ -705,12 +705,14 @@ void SPacketContentView::EnableFilterEventType(const uint32 InEventTypeIndex)
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-		NetProfilerProvider.ReadEventType(InEventTypeIndex, [&EventName](const TraceServices::FNetProfilerEventType& EventType)
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider)
 		{
-			EventName = FText::FromString(EventType.Name);
-		});
+			NetProfilerProvider->ReadEventType(InEventTypeIndex, [&EventName](const TraceServices::FNetProfilerEventType& EventType)
+			{
+				EventName = FText::FromString(EventType.Name);
+			});
+		}
 	}
 
 	bFilterByEventType = true;
@@ -729,12 +731,14 @@ uint32 SPacketContentView::GetPacketSequence(int32 InPacketIndex) const
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-		NetProfilerProvider.EnumeratePackets(ConnectionIndex, ConnectionMode, InPacketIndex, InPacketIndex, [&NewSequenceNumber](const TraceServices::FNetProfilerPacket& Packet)
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider)
 		{
-			NewSequenceNumber = Packet.SequenceNumber;
-		});
+			NetProfilerProvider->EnumeratePackets(ConnectionIndex, ConnectionMode, InPacketIndex, InPacketIndex, [&NewSequenceNumber](const TraceServices::FNetProfilerPacket& Packet)
+			{
+				NewSequenceNumber = Packet.SequenceNumber;
+			});
+		}
 	}
 
 	return NewSequenceNumber;
@@ -765,39 +769,41 @@ void SPacketContentView::UpdateState()
 		if (Session.IsValid())
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-			const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
-
-			//const int64 StartPos = static_cast<int64>(FMath::FloorToDouble(ViewportX.GetValueAtOffset(0.0f)));
-			//const int64 EndPos = static_cast<int64>(FMath::CeilToDouble(ViewportX.GetValueAtOffset(ViewportX.GetSize())));
-			const uint32 StartPos = 0;
-			const uint32 EndPos = PacketBitSize;
-			NetProfilerProvider.EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [this, &Builder, &FilteredDrawStateBuilder, &NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
+			const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+			if (NetProfilerProvider)
 			{
-				const TCHAR* Name = nullptr;
-				NetProfilerProvider.ReadName(Event.NameIndex, [&Name](const TraceServices::FNetProfilerName& NetProfilerName)
-				{
-					Name = NetProfilerName.Name;
-				});
+				const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-				uint32 NetId = 0;
-				if (Event.ObjectInstanceIndex != 0)
+				//const int64 StartPos = static_cast<int64>(FMath::FloorToDouble(ViewportX.GetValueAtOffset(0.0f)));
+				//const int64 EndPos = static_cast<int64>(FMath::CeilToDouble(ViewportX.GetValueAtOffset(ViewportX.GetSize())));
+				const uint32 StartPos = 0;
+				const uint32 EndPos = PacketBitSize;
+				NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [this, &Builder, &FilteredDrawStateBuilder, NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
 				{
-					NetProfilerProvider.ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const TraceServices::FNetProfilerObjectInstance& ObjectInstance)
+					const TCHAR* Name = nullptr;
+					NetProfilerProvider->ReadName(Event.NameIndex, [&Name](const TraceServices::FNetProfilerName& NetProfilerName)
 					{
-						NetId = ObjectInstance.NetId;
+						Name = NetProfilerName.Name;
 					});
-				}
 
-				Builder.AddEvent(Event, Name, NetId);
+					uint32 NetId = 0;
+					if (Event.ObjectInstanceIndex != 0)
+					{
+						NetProfilerProvider->ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const TraceServices::FNetProfilerObjectInstance& ObjectInstance)
+						{
+							NetId = ObjectInstance.NetId;
+						});
+					}
 
-				if ((!bFilterByEventType || FilterEventTypeIndex == Event.EventTypeIndex) &&
-					(!bFilterByNetId || (Event.ObjectInstanceIndex != 0 && FilterNetId == NetId)))
-				{
-					FilteredDrawStateBuilder.AddEvent(Event, Name, NetId);
-				}
-			});
+					Builder.AddEvent(Event, Name, NetId);
+
+					if ((!bFilterByEventType || FilterEventTypeIndex == Event.EventTypeIndex) &&
+						(!bFilterByNetId || (Event.ObjectInstanceIndex != 0 && FilterNetId == NetId)))
+					{
+						FilteredDrawStateBuilder.AddEvent(Event, Name, NetId);
+					}
+				});
+			}
 		}
 
 		Builder.Flush();
@@ -836,24 +842,26 @@ void SPacketContentView::UpdateHoveredEvent()
 		if (Session.IsValid())
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-			NetProfilerProvider.ReadEventType(Event.EventTypeIndex, [&EventType](const TraceServices::FNetProfilerEventType& InEventType)
+			const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+			if (NetProfilerProvider)
 			{
-				EventType = InEventType;
-			});
-
-			NetProfilerProvider.ReadName(EventType.NameIndex, [&Name](const TraceServices::FNetProfilerName& NetProfilerName)
-			{
-				Name = NetProfilerName.Name;
-			});
-
-			if (Event.ObjectInstanceIndex != 0)
-			{
-				NetProfilerProvider.ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&ObjectInstance](const TraceServices::FNetProfilerObjectInstance& InObjectInstance)
+				NetProfilerProvider->ReadEventType(Event.EventTypeIndex, [&EventType](const TraceServices::FNetProfilerEventType& InEventType)
 				{
-					ObjectInstance = InObjectInstance;
+					EventType = InEventType;
 				});
+
+				NetProfilerProvider->ReadName(EventType.NameIndex, [&Name](const TraceServices::FNetProfilerName& NetProfilerName)
+				{
+					Name = NetProfilerName.Name;
+				});
+
+				if (Event.ObjectInstanceIndex != 0)
+				{
+					NetProfilerProvider->ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&ObjectInstance](const TraceServices::FNetProfilerObjectInstance& InObjectInstance)
+					{
+						ObjectInstance = InObjectInstance;
+					});
+				}
 			}
 		}
 

@@ -8,9 +8,11 @@ namespace TraceServices
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-FCallstacksAnalyzer::FCallstacksAnalyzer(IAnalysisSession& Session, FCallstacksProvider* InProvider)
-	: Provider(InProvider)
+FCallstacksAnalyzer::FCallstacksAnalyzer(IAnalysisSession& InSession, FCallstacksProvider* InProvider)
+	: Session(InSession)
+	, Provider(InProvider)
 {
+	check(Provider != nullptr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,7 +21,6 @@ void FCallstacksAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	FInterfaceBuilder& Builder = Context.InterfaceBuilder;
 	Builder.RouteEvent(RouteId_Callstack, "Memory", "CallstackSpec");
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FCallstacksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)

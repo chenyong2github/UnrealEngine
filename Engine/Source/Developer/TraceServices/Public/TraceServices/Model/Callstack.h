@@ -12,8 +12,8 @@ namespace TraceServices
 /////////////////////////////////////////////////////////////////////
 struct TRACESERVICES_API FStackFrame
 {
-	uint64					Addr;
-	const FResolvedSymbol*	Symbol;
+	uint64 Addr;
+	const FResolvedSymbol* Symbol;
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -21,11 +21,11 @@ struct TRACESERVICES_API FCallstack
 {
 	FCallstack(const FStackFrame* FirstEntry, uint8 FrameCount);
 	/** Get the number of stack frames in callstack. */
-	uint32			Num() const;
+	uint32 Num() const;
 	/** Gets the address at a given stack depth. */
-	uint64			Addr(uint8 Depth) const;
+	uint64 Addr(uint8 Depth) const;
 	/** Gets the cached symbol name at a given stack depth. */
-	const TCHAR*	Name(uint8 Depth) const;
+	const TCHAR* Name(uint8 Depth) const;
 	/** Gets the entire frame at given depth */
 	const FStackFrame* Frame(uint8 Depth) const;
 
@@ -46,22 +46,27 @@ class ICallstacksProvider
 	: public IProvider
 {
 public:
-	virtual				~ICallstacksProvider() = default;
+	virtual ~ICallstacksProvider() = default;
 
 	/**
 	  * Queries a callstack id.
-	  * @param CallstackId		Callstack id to query
-	  * @return					Callstack information. If id is not found a callstack with zero stack depth is returned.
+	  * @param CallstackId Callstack id to query
+	  * @return Callstack information. If id is not found a callstack with zero stack depth is returned.
 	  */
-	virtual const FCallstack*	GetCallstack(uint64 CallstackId) const = 0;
+	virtual const FCallstack* GetCallstack(uint64 CallstackId) const = 0;
 
 	/**
 	  * Queries a set of callstack ids.
-	  * @param CallstackIds		List of callstack ids to query
-	  * @param OutCallstacks	Output list of callstacks. Caller is responsible for allocating space according to CallstackIds length.
+	  * @param CallstackIds List of callstack ids to query
+	  * @param OutCallstacks Output list of callstacks. Caller is responsible for allocating space according to CallstackIds length.
 	  */
-	virtual void				GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const = 0;
+	virtual void GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const = 0;
 };
+
+/////////////////////////////////////////////////////////////////////
+
+TRACESERVICES_API FName GetCallstacksProviderName();
+TRACESERVICES_API const ICallstacksProvider* ReadCallstacksProvider(const IAnalysisSession& Session);
 
 /////////////////////////////////////////////////////////////////////
 inline FCallstack::FCallstack(const FStackFrame* InFirstFrame, uint8 InFrameCount)

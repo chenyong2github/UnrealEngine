@@ -166,6 +166,7 @@ public:
 	virtual const TCHAR* GetTagName(int32 Tag) const = 0;
 };
 
+TRACESERVICES_API FName GetAllocationsProviderName();
 TRACESERVICES_API const IAllocationsProvider* ReadAllocationsProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

@@ -111,6 +111,7 @@ public:
 	virtual void EnumerateTagSamples(FMemoryTrackerId Tracker, FMemoryTagId Tag, double StartTime, double EndTime, bool bIncludeRangeNeighbours, TFunctionRef<void(double Time, double Duration, const FMemoryTagSample&)> Callback) const = 0;
 };
 
-TRACESERVICES_API const IMemoryProvider& ReadMemoryProvider(const IAnalysisSession& Session);
+TRACESERVICES_API FName GetMemoryProviderName();
+TRACESERVICES_API const IMemoryProvider* ReadMemoryProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

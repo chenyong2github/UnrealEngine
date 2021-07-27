@@ -6,11 +6,11 @@
 namespace TraceServices
 {
 
-FMemoryAnalyzer::FMemoryAnalyzer(IAnalysisSession& InSession)
-	: Provider(nullptr)
-	, Session(InSession)
+FMemoryAnalyzer::FMemoryAnalyzer(IAnalysisSession& InSession, FMemoryProvider* InProvider)
+	: Session(InSession)
+	, Provider(InProvider)
 {
-	Provider = Session.EditProvider<FMemoryProvider>(FMemoryProvider::ProviderName);
+	check(Provider != nullptr);
 }
 
 FMemoryAnalyzer::~FMemoryAnalyzer()

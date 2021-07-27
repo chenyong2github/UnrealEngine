@@ -30,12 +30,13 @@ class IModule
 	: public IModularFeature
 {
 public:
+	virtual bool ShouldBeEnabledByDefault() const { return true; }
 	virtual void GetModuleInfo(FModuleInfo& OutModuleInfo) = 0;
 	virtual void OnAnalysisBegin(IAnalysisSession& Session) = 0;
-	virtual void GetLoggers(TArray<const TCHAR*>& OutLoggers) = 0;
-	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) = 0;
-	virtual const TCHAR* GetCommandLineArgument() = 0;
-	virtual bool ShouldBeEnabledByDefault() const { return true; }
+	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) {}
+
+	virtual void GetLoggers(TArray<const TCHAR*>& OutLoggers) {}
+	virtual const TCHAR* GetCommandLineArgument() { return nullptr; }
 };
 
 class IModuleService

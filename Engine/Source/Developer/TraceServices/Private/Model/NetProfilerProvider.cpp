@@ -8,8 +8,6 @@
 namespace TraceServices
 {
 
-const FName FNetProfilerProvider::ProviderName("NetProfilerProvider");
-
 const TCHAR* LexToString(const ENetProfilerChannelCloseReason Value)
 {
 	switch (Value)
@@ -371,13 +369,6 @@ uint32 FNetProfilerProvider::GetObjectsChangeCount(uint32 GameInstanceIndex) con
 	return GameInstance.ObjectsChangeCount;
 }
 
-const INetProfilerProvider& ReadNetProfilerProvider(const IAnalysisSession& Session)
-{
-	Session.ReadAccessCheck();
-
-	return *Session.ReadProvider<INetProfilerProvider>(FNetProfilerProvider::ProviderName);
-}
-
 int32 FNetProfilerProvider::FindPacketIndexFromPacketSequence(uint32 ConnectionIndex, ENetProfilerConnectionMode Mode, uint32 SequenceNumber) const
 {
 	Session.ReadAccessCheck();
@@ -676,6 +667,17 @@ ITable<FNetProfilerAggregatedStats>* FNetProfilerProvider::CreateAggregation(uin
 		Row.AverageInclusive = (uint64)((double)KV.Value.TotalInclusive / KV.Value.InstanceCount);
 	}
 	return Table;
+}
+
+FName GetNetProfilerProviderName()
+{
+	static FName Name(TEXT("NetProfilerProvider"));
+	return Name;
+}
+
+const INetProfilerProvider* ReadNetProfilerProvider(const IAnalysisSession& Session)
+{
+	return Session.ReadProvider<INetProfilerProvider>(GetNetProfilerProviderName());
 }
 
 } // namespace TraceServices

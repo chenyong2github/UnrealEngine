@@ -55,7 +55,7 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 	// created so EditProvider() may return a null pointer.
 	if (!ModuleProvider)
 	{
-		ModuleProvider = Session.EditProvider<IModuleProvider>(FName("ModuleProvider"));
+		ModuleProvider = Session.EditProvider<IModuleProvider>(GetModuleProviderName());
 	}
 
 	// Make sure all the frames fit on one page by appending dummy entries.
@@ -117,10 +117,15 @@ void FCallstacksProvider::GetCallstacks(const TArrayView<uint64>& CallstackIds, 
 }
 
 /////////////////////////////////////////////////////////////////////
-FName FCallstacksProvider::GetName() const
+FName GetCallstacksProviderName()
 {
 	static FName Name(TEXT("CallstacksProvider"));
 	return Name;
+}
+
+const ICallstacksProvider* ReadCallstacksProvider(const IAnalysisSession& Session)
+{
+	return Session.ReadProvider<ICallstacksProvider>(GetCallstacksProviderName());
 }
 
 } // namespace TraceServices

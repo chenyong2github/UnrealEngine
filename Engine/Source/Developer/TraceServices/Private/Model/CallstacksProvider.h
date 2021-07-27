@@ -23,7 +23,6 @@ public:
 	const FCallstack*	GetCallstack(uint64 CallstackId) const override;
 	void				GetCallstacks(const TArrayView<uint64>& CallstackIds, FCallstack const** OutCallstacks) const override;
 	void				AddCallstack(uint64 CallstackId, const uint64* Frames, uint8 FrameCount);
-	FName				GetName() const;
 
 private:
 	enum

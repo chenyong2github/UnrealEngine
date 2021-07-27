@@ -1574,32 +1574,33 @@ void SNetStatsView::RebuildTree(bool bResync)
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-
-		NetProfilerProvider.ReadEventTypes([this, &bResync, &NetProfilerProvider](const TraceServices::FNetProfilerEventType* NetEvents, uint64 InNetEventCount)
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider)
 		{
-			const uint32 NetEventCount = static_cast<uint32>(InNetEventCount);
-			if (NetEventCount != NetEventNodes.Num())
+			NetProfilerProvider->ReadEventTypes([this, &bResync, NetProfilerProvider](const TraceServices::FNetProfilerEventType* NetEvents, uint64 InNetEventCount)
 			{
-				NetEventNodes.Empty(NetEventCount);
-				for (uint32 Index = 0; Index < NetEventCount; ++Index)
+				const uint32 NetEventCount = static_cast<uint32>(InNetEventCount);
+				if (NetEventCount != NetEventNodes.Num())
 				{
-					const TraceServices::FNetProfilerEventType& NetEvent = NetEvents[Index];
-					ensure(NetEvent.EventTypeIndex == Index);
-					const TCHAR* NamePtr = nullptr;
-					NetProfilerProvider.ReadName(NetEvent.NameIndex, [&NamePtr](const TraceServices::FNetProfilerName& InName)
+					NetEventNodes.Empty(NetEventCount);
+					for (uint32 Index = 0; Index < NetEventCount; ++Index)
 					{
-						NamePtr = InName.Name;
-					});
-					const FName Name(NamePtr);
-					const ENetEventNodeType Type = ENetEventNodeType::NetEvent;
-					FNetEventNodePtr NetEventNodePtr = MakeShared<FNetEventNode>(NetEvent.EventTypeIndex, Name, Type, NetEvent.Level);
-					NetEventNodes.Add(NetEventNodePtr);
+						const TraceServices::FNetProfilerEventType& NetEvent = NetEvents[Index];
+						ensure(NetEvent.EventTypeIndex == Index);
+						const TCHAR* NamePtr = nullptr;
+						NetProfilerProvider->ReadName(NetEvent.NameIndex, [&NamePtr](const TraceServices::FNetProfilerName& InName)
+						{
+							NamePtr = InName.Name;
+						});
+						const FName Name(NamePtr);
+						const ENetEventNodeType Type = ENetEventNodeType::NetEvent;
+						FNetEventNodePtr NetEventNodePtr = MakeShared<FNetEventNode>(NetEvent.EventTypeIndex, Name, Type, NetEvent.Level);
+						NetEventNodes.Add(NetEventNodePtr);
+					}
+					ensure(NetEventNodes.Num() == NetEventCount);
 				}
-				ensure(NetEventNodes.Num() == NetEventCount);
-			}
-		});
+			});
+		}
 	}
 	SyncStopwatch.Stop();
 
@@ -1700,9 +1701,12 @@ void SNetStatsView::UpdateStatsInternal()
 		AggregationStopwatch.Start();
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-			// CreateAggregation requires [PacketStartIndex, PacketEndIndex] as inclusive interval and [StartPos, EndPos) as exclusive interval.
-			AggregationResultTable.Reset(NetProfilerProvider.CreateAggregation(ConnectionIndex, ConnectionMode, StatsPacketStartIndex, StatsPacketEndIndex - 1, StatsStartPosition, StatsEndPosition));
+			const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+			if (NetProfilerProvider)
+			{
+				// CreateAggregation requires [PacketStartIndex, PacketEndIndex] as inclusive interval and [StartPos, EndPos) as exclusive interval.
+				AggregationResultTable.Reset(NetProfilerProvider->CreateAggregation(ConnectionIndex, ConnectionMode, StatsPacketStartIndex, StatsPacketEndIndex - 1, StatsStartPosition, StatsEndPosition));
+			}
 		}
 		AggregationStopwatch.Stop();
 

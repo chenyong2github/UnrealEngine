@@ -25,7 +25,7 @@
 
 // Use optimized path for the last alloc.
 // If enabled, caches the last added alloc, as there is a high chance to be freed in the next "free" event.
-// ~10% to ~30% of all allocs are expected to have an "event distance" == 1 event ("free" event follows the "alloc" event imediatelly)
+// ~10% to ~30% of all allocs are expected to have an "event distance" == 1 event ("free" event follows the "alloc" event immediately)
 #define INSIGHTS_USE_LAST_ALLOC 1
 
 #define INSIGHTS_VALIDATE_ALLOC_EVENTS 0
@@ -673,14 +673,6 @@ FAllocationsProvider::~FAllocationsProvider()
 		delete SbTree;
 		SbTree = nullptr;
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FName FAllocationsProvider::GetName()
-{
-	static FName Name(TEXT("AllocationsProvider"));
-	return Name;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1335,9 +1327,17 @@ const IAllocationsProvider::FQueryStatus FAllocationsProvider::PollQuery(FQueryH
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FName GetAllocationsProviderName()
+{
+	static FName Name(TEXT("AllocationsProvider"));
+	return Name;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const IAllocationsProvider* ReadAllocationsProvider(const IAnalysisSession& Session)
 {
-	return Session.ReadProvider<IAllocationsProvider>(FAllocationsProvider::GetName());
+	return Session.ReadProvider<IAllocationsProvider>(GetAllocationsProviderName());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

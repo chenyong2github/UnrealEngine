@@ -494,8 +494,11 @@ void SNetworkingProfilerWindow::Tick(const FGeometry& AllottedGeometry, const do
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-		GameInstanceCount = NetProfilerProvider.GetGameInstanceCount();
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider)
+		{
+			GameInstanceCount = NetProfilerProvider->GetGameInstanceCount();
+		}
 	}
 
 	if (GameInstanceCount != AvailableGameInstances.Num())
@@ -507,8 +510,11 @@ void SNetworkingProfilerWindow::Tick(const FGeometry& AllottedGeometry, const do
 	if (Session.IsValid() && SelectedGameInstance.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-		ConnectionCount = NetProfilerProvider.GetConnectionCount(SelectedGameInstance->GetIndex());
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider)
+		{
+			ConnectionCount = NetProfilerProvider->GetConnectionCount(SelectedGameInstance->GetIndex());
+		}
 	}
 
 	if (ConnectionCount != AvailableConnections.Num())
@@ -527,11 +533,14 @@ void SNetworkingProfilerWindow::UpdateAvailableGameInstances()
 	if (Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-		NetProfilerProvider.ReadGameInstances([this](const TraceServices::FNetProfilerGameInstance& GameInstance)
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider)
 		{
-			AvailableGameInstances.Add(MakeShared<FGameInstanceItem>(GameInstance));
-		});
+			NetProfilerProvider->ReadGameInstances([this](const TraceServices::FNetProfilerGameInstance& GameInstance)
+			{
+				AvailableGameInstances.Add(MakeShared<FGameInstanceItem>(GameInstance));
+			});
+		}
 	}
 
 	if (GameInstanceComboBox.IsValid())
@@ -552,11 +561,14 @@ void SNetworkingProfilerWindow::UpdateAvailableConnections()
 	if (Session.IsValid() && SelectedGameInstance.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-		const TraceServices::INetProfilerProvider& NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
-		NetProfilerProvider.ReadConnections(SelectedGameInstance->GetIndex(), [this](const TraceServices::FNetProfilerConnection& Connection)
+		const TraceServices::INetProfilerProvider* NetProfilerProvider = TraceServices::ReadNetProfilerProvider(*Session.Get());
+		if (NetProfilerProvider)
 		{
-			AvailableConnections.Add(MakeShared<FConnectionItem>(Connection));
-		});
+			NetProfilerProvider->ReadConnections(SelectedGameInstance->GetIndex(), [this](const TraceServices::FNetProfilerConnection& Connection)
+			{
+				AvailableConnections.Add(MakeShared<FConnectionItem>(Connection));
+			});
+		}
 	}
 
 	if (ConnectionComboBox.IsValid())

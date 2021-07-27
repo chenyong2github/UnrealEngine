@@ -258,11 +258,14 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 				AvailabilityCheck.Disable();
 			}
 
-			const TraceServices::IMemoryProvider& MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
-			uint32 TagCount = MemoryProvider.GetTagCount();
-			if (TagCount > 0)
+			const TraceServices::IMemoryProvider* MemoryProvider = TraceServices::ReadMemoryProvider(*Session.Get());
+			if (MemoryProvider)
 			{
-				bShouldBeAvailable = true;
+				uint32 TagCount = MemoryProvider->GetTagCount();
+				if (TagCount > 0)
+				{
+					bShouldBeAvailable = true;
+				}
 			}
 
 			const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());

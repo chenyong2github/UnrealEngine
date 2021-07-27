@@ -22,20 +22,26 @@ void FMemoryModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session);
-	Session.AddProvider(AllocationsProvider->GetName(), AllocationsProvider);
-	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider));
+	// LLM Tag Stats
+	FMemoryProvider* MemoryProvider = new FMemoryProvider(Session);
+	Session.AddProvider(GetMemoryProviderName(), MemoryProvider);
+	Session.AddAnalyzer(new FMemoryAnalyzer(Session, MemoryProvider));
 
+	// Module
 	Session.AddAnalyzer(new FModuleAnalyzer(Session));
-	
+
+	// Callstack
 	FCallstacksProvider* CallstacksProvider = new FCallstacksProvider(Session);
-	Session.AddProvider(CallstacksProvider->GetName(), CallstacksProvider);
+	Session.AddProvider(GetCallstacksProviderName(), CallstacksProvider);
 	Session.AddAnalyzer(new FCallstacksAnalyzer(Session, CallstacksProvider));
 
-	Session.AddAnalyzer(new FMemoryAnalyzer(Session));
+	// Allocations
+	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session);
+	Session.AddProvider(GetAllocationsProviderName(), AllocationsProvider);
+	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider));
 }
 
-void FMemoryModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
+void FMemoryModule::GetLoggers(TArray<const TCHAR*>& OutLoggers)
 {
 	OutLoggers.Add(TEXT("Memory"));
 }
