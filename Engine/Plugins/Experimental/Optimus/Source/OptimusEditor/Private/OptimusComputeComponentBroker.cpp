@@ -1,4 +1,6 @@
-﻿#include "OptimusComputeComponentBroker.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "OptimusComputeComponentBroker.h"
 
 #include "ComputeFramework/ComputeGraphComponent.h"
 #include "ComputeFramework/ComputeGraph.h"
