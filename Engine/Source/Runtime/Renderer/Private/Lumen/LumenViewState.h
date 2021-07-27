@@ -77,7 +77,8 @@ public:
 	FIntRect HistoryViewRect;
 	FVector4 HistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> SpecularIndirectHistoryRT;
-	
+	TRefCountPtr<IPooledRenderTarget> ResolveVarianceHistoryRT;
+
 	FReflectionTemporalState()
 	{
 		HistoryViewRect = FIntRect(0, 0, 0, 0);
@@ -87,6 +88,7 @@ public:
 	void SafeRelease()
 	{
 		SpecularIndirectHistoryRT.SafeRelease();
+		ResolveVarianceHistoryRT.SafeRelease();
 	}
 };
 

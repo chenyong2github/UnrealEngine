@@ -146,6 +146,46 @@ FAutoConsoleVariableRef CVarLumenReflectionScreenSpaceReconstructionRoughnessSca
 	ECVF_RenderThreadSafe
 	);
 
+int32 GLumenReflectionBilateralFilter = 1;
+FAutoConsoleVariableRef CVarLumenReflectionBilateralFilter(
+	TEXT("r.Lumen.Reflections.BilateralFilter"),
+	GLumenReflectionBilateralFilter,
+	TEXT("Whether to do a bilateral filter as a last step in denoising Lumen Reflections."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
+float GLumenReflectionBilateralFilterSpatialKernelRadius = .002f;
+FAutoConsoleVariableRef CVarLumenReflectionBilateralFilterSpatialKernelRadius(
+	TEXT("r.Lumen.Reflections.BilateralFilter.SpatialKernelRadius"),
+	GLumenReflectionBilateralFilterSpatialKernelRadius,
+	TEXT("Spatial kernel radius, as a fraction of the viewport size"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
+int32 GLumenReflectionBilateralFilterNumSamples = 4;
+FAutoConsoleVariableRef CVarLumenReflectionBilateralFilterNumSamples(
+	TEXT("r.Lumen.Reflections.BilateralFilter.NumSamples"),
+	GLumenReflectionBilateralFilterNumSamples,
+	TEXT("Number of bilateral filter samples."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
+float GLumenReflectionBilateralFilterDepthWeightScale = 10000.0f;
+FAutoConsoleVariableRef CVarLumenReflectionBilateralFilterDepthWeightScale(
+	TEXT("r.Lumen.Reflections.BilateralFilter.DepthWeightScale"),
+	GLumenReflectionBilateralFilterDepthWeightScale,
+	TEXT("Scales the depth weight of the bilateral filter"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
+float GLumenReflectionBilateralFilterNormalAngleThresholdScale = 1.0f;
+FAutoConsoleVariableRef CVarLumenReflectionBilateralFilterNormalAngleThresholdScale(
+	TEXT("r.Lumen.Reflections.BilateralFilter.NormalAngleThresholdScale"),
+	GLumenReflectionBilateralFilterNormalAngleThresholdScale,
+	TEXT("Scales the Normal angle threshold of the bilateral filter"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
 class FReflectionClearTileIndirectArgsCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FReflectionClearTileIndirectArgsCS)
@@ -271,6 +311,7 @@ class FReflectionResolveCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWSpecularIndirect)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWResolveVariance)
 		SHADER_PARAMETER(float, MaxRoughnessToTrace)
 		SHADER_PARAMETER(float, InvRoughnessFadeLength)
 		SHADER_PARAMETER(uint32, NumSpatialReconstructionSamples)
@@ -287,19 +328,9 @@ class FReflectionResolveCS : public FGlobalShader
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
-	static int32 GetGroupSize() 
-	{
-		return 8;
-	}
-
 	class FSpatialReconstruction : SHADER_PERMUTATION_BOOL("USE_SPATIAL_RECONSTRUCTION");
-	using FPermutationDomain = TShaderPermutationDomain<FSpatialReconstruction>;
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
+	class FBilateralFilter : SHADER_PERMUTATION_BOOL("USE_BILATERAL_FILTER");
+	using FPermutationDomain = TShaderPermutationDomain<FSpatialReconstruction, FBilateralFilter>;
 };
 
 IMPLEMENT_GLOBAL_SHADER(FReflectionResolveCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionResolveCS", SF_Compute);
@@ -312,9 +343,13 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWSpecularIndirect)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWResolveVariance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SpecularIndirectHistory)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthHistory)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVariance)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVarianceHistory)
 		SHADER_PARAMETER(float,HistoryDistanceThreshold)
 		SHADER_PARAMETER(float,HistoryWeight)
 		SHADER_PARAMETER(float,PrevInvPreExposure)
@@ -327,7 +362,8 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FBilateralFilter : SHADER_PERMUTATION_BOOL("USE_BILATERAL_FILTER");
+	using FPermutationDomain = TShaderPermutationDomain<FBilateralFilter>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -343,6 +379,35 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FReflectionTemporalReprojectionCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionTemporalReprojectionCS", SF_Compute);
 
 
+class FReflectionBilateralFilterCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FReflectionBilateralFilterCS)
+	SHADER_USE_PARAMETER_STRUCT(FReflectionBilateralFilterCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWSpecularIndirect)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, SpecularIndirect)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVariance)
+		SHADER_PARAMETER(float, MaxRoughnessToTrace)
+		SHADER_PARAMETER(float, BilateralFilterSpatialKernelRadius)
+		SHADER_PARAMETER(uint32, BilateralFilterNumSamples)
+		SHADER_PARAMETER(float, BilateralFilterDepthWeightScale)
+		SHADER_PARAMETER(float, BilateralFilterNormalAngleThresholdScale)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FReflectionBilateralFilterCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionBilateralFilterCS", SF_Compute);
+
+
 class FReflectionPassthroughCopyCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FReflectionPassthroughCopyCS)
@@ -350,12 +415,15 @@ class FReflectionPassthroughCopyCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWSpecularIndirect)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWResolveVariance)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVariance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflections)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FBilateralFilter : SHADER_PERMUTATION_BOOL("USE_BILATERAL_FILTER");
+	using FPermutationDomain = TShaderPermutationDomain<FBilateralFilter>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -458,34 +526,49 @@ void UpdateHistoryReflections(
 	const FSceneTextures& SceneTextures,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	FRDGTextureRef ResolvedReflections,
-	FRDGTextureRef FinalSpecularIndirect)
+	FRDGTextureRef ResolveVariance,
+	FRDGTextureRef FinalSpecularIndirect,
+	FRDGTextureRef AccumulatedResolveVariance)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 	FRDGTextureRef VelocityTexture = GetIfProduced(SceneTextures.Velocity, SystemTextures.Black);
+	const bool bUseBilaterialFilter = GLumenReflectionBilateralFilter != 0;
+		 
 
 	if (GLumenReflectionTemporalFilter
 		&& View.ViewState
 		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT
+		&& (!bUseBilaterialFilter || View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT)
 		&& !View.bCameraCut 
 		&& !View.bPrevTransformsReset
 		// If the scene render targets reallocate, toss the history so we don't read uninitialized data
-		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT->GetDesc().Extent == SceneTextures.Config.Extent)
+		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT->GetDesc().Extent == SceneTextures.Config.Extent
+		&& (!bUseBilaterialFilter || View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT->GetDesc().Extent == SceneTextures.Config.Extent))
 	{
 		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
 		TRefCountPtr<IPooledRenderTarget>* SpecularIndirectHistoryState = &ReflectionTemporalState.SpecularIndirectHistoryRT;
+		TRefCountPtr<IPooledRenderTarget>* ResolveVarianceHistoryState = &ReflectionTemporalState.ResolveVarianceHistoryRT;
 		FIntRect* HistoryViewRect = &ReflectionTemporalState.HistoryViewRect;
 		FVector4* HistoryScreenPositionScaleBias = &ReflectionTemporalState.HistoryScreenPositionScaleBias;
 
+		//@todo - pull out previous frame depth to a common location for the whole renderer
+		FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
+		TRefCountPtr<IPooledRenderTarget>* DepthHistoryState = &ScreenProbeGatherState.DownsampledDepthHistoryRT;
+		FRDGTextureRef OldDepthHistory = DepthHistoryState ? GraphBuilder.RegisterExternalTexture(*DepthHistoryState) : SceneTextures.Depth.Target;
+
 		{
 			FRDGTextureRef OldSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*SpecularIndirectHistoryState);
+			FRDGTextureRef ResolveVarianceHistory = GraphBuilder.RegisterExternalTexture(*ResolveVarianceHistoryState);
 
 			FReflectionTemporalReprojectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTemporalReprojectionCS::FParameters>();
 			PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FinalSpecularIndirect);
+			PassParameters->RWResolveVariance = GraphBuilder.CreateUAV(AccumulatedResolveVariance);
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 			PassParameters->SpecularIndirectHistory = OldSpecularIndirectHistory;
+			PassParameters->DepthHistory = OldDepthHistory;
 			PassParameters->HistoryDistanceThreshold = GLumenReflectionHistoryDistanceThreshold;
 			PassParameters->HistoryWeight = GLumenReflectionHistoryWeight;
 			PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
@@ -503,9 +586,12 @@ void UpdateHistoryReflections(
 			PassParameters->VelocityTexture = VelocityTexture;
 			PassParameters->VelocityTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 			PassParameters->ResolvedReflections = ResolvedReflections;
+			PassParameters->ResolveVariance = ResolveVariance;
+			PassParameters->ResolveVarianceHistory = ResolveVarianceHistory;
 			PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 
 			FReflectionTemporalReprojectionCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FReflectionTemporalReprojectionCS::FBilateralFilter >(bUseBilaterialFilter);
 			auto ComputeShader = View.ShaderMap->GetShader<FReflectionTemporalReprojectionCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
@@ -521,11 +607,14 @@ void UpdateHistoryReflections(
 	{
 		FReflectionPassthroughCopyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionPassthroughCopyCS::FParameters>();
 		PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FinalSpecularIndirect);
+		PassParameters->RWResolveVariance = GraphBuilder.CreateUAV(AccumulatedResolveVariance);
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ResolvedReflections = ResolvedReflections;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
+		PassParameters->ResolveVariance = ResolveVariance;
 
 		FReflectionPassthroughCopyCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set< FReflectionPassthroughCopyCS::FBilateralFilter >(bUseBilaterialFilter);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionPassthroughCopyCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -545,6 +634,11 @@ void UpdateHistoryReflections(
 
 		// Queue updating the view state's render target reference with the new values
 		GraphBuilder.QueueTextureExtraction(FinalSpecularIndirect, &ReflectionTemporalState.SpecularIndirectHistoryRT);
+
+		if (bUseBilaterialFilter)
+		{
+			GraphBuilder.QueueTextureExtraction(AccumulatedResolveVariance, &ReflectionTemporalState.ResolveVarianceHistoryRT);
+		}
 	}
 }
 
@@ -633,11 +727,15 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	FRDGTextureDesc SpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef ResolvedSpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("Lumen.Reflections.ResolvedSpecularIndirect"));
 
+	FRDGTextureDesc ResolveVarianceDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+	FRDGTextureRef ResolveVariance = GraphBuilder.CreateTexture(ResolveVarianceDesc, TEXT("Lumen.Reflections.ResolveVariance"));
+
 	const int32 NumReconstructionSamples = FMath::Clamp(FMath::RoundToInt(View.FinalPostProcessSettings.LumenReflectionQuality * GLumenReflectionScreenSpaceReconstructionNumSamples), GLumenReflectionScreenSpaceReconstructionNumSamples, 64);
 
 	{
 		FReflectionResolveCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionResolveCS::FParameters>();
 		PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolvedSpecularIndirect));
+		PassParameters->RWResolveVariance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolveVariance));
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 		PassParameters->InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
 		PassParameters->NumSpatialReconstructionSamples = NumReconstructionSamples;
@@ -650,6 +748,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 
 		FReflectionResolveCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FReflectionResolveCS::FSpatialReconstruction >(GLumenReflectionScreenSpaceReconstruction != 0);
+		PermutationVector.Set< FReflectionResolveCS::FBilateralFilter >(GLumenReflectionBilateralFilter != 0);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionResolveCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -662,6 +761,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	}
 
 	FRDGTextureRef SpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("Lumen.Reflections.SpecularIndirect"));
+	FRDGTextureRef AccumulatedResolveVariance = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("Lumen.Reflections.AccumulatedResolveVariance"));
 
 	//@todo - only clear tiles not written to by history pass
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SpecularIndirect)), FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -672,7 +772,38 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		SceneTextures,
 		ReflectionTileParameters,
 		ResolvedSpecularIndirect,
-		SpecularIndirect);
+		ResolveVariance,
+		SpecularIndirect,
+		AccumulatedResolveVariance);
+
+	if (GLumenReflectionBilateralFilter)
+	{
+		FReflectionBilateralFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionBilateralFilterCS::FParameters>();
+		PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolvedSpecularIndirect));
+		PassParameters->SpecularIndirect = SpecularIndirect;
+		PassParameters->ResolveVariance = AccumulatedResolveVariance;
+		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
+		PassParameters->BilateralFilterSpatialKernelRadius = GLumenReflectionBilateralFilterSpatialKernelRadius;
+		PassParameters->BilateralFilterNumSamples = GLumenReflectionBilateralFilterNumSamples;
+		PassParameters->BilateralFilterDepthWeightScale = GLumenReflectionBilateralFilterDepthWeightScale;
+		PassParameters->BilateralFilterNormalAngleThresholdScale = GLumenReflectionBilateralFilterNormalAngleThresholdScale;
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
+		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
+
+		auto ComputeShader = View.ShaderMap->GetShader<FReflectionBilateralFilterCS>(0);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("BilateralFilter"),
+			ComputeShader,
+			PassParameters,
+			ReflectionTileParameters.ResolveIndirectArgs,
+			0);
+
+		SpecularIndirect = ResolvedSpecularIndirect;
+	}
 
 	return SpecularIndirect;
 }

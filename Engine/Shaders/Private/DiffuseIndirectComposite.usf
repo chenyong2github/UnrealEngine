@@ -116,7 +116,16 @@ float3 CombineRoughSpecular(FGBufferData GBuffer, float NoV, float3 RayTracedRef
 	}
 	else
 	{
-		Lighting = lerp(RoughReflections, RayTracedReflections, saturate((MaxRoughnessToTrace - GBuffer.Roughness) * InvRoughnessFadeLength));
+		float FadeAlpha = saturate((MaxRoughnessToTrace - GBuffer.Roughness) * InvRoughnessFadeLength);
+
+		Lighting = RoughReflections * (1 - FadeAlpha);
+
+		// Must branch as RayTracedReflections can be uninitialized where not needed and contain NaN
+		if (FadeAlpha > 0.0f)
+		{
+			Lighting += RayTracedReflections * FadeAlpha;
+		}
+	
 		Lighting *= EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 	}
 	return Lighting;
@@ -156,135 +165,139 @@ void MainPS(
 	// Apply diffuse indirect.
 	#if DIM_APPLY_DIFFUSE_INDIRECT
 	{
-		float3 DiffuseIndirectLighting = 0;
-		float3 RoughSpecularIndirectLighting = 0;
-		float3 SpecularIndirectLighting = 0;
+		FDirectLighting IndirectLighting = (FDirectLighting)0;
 
-		#if DIM_APPLY_DIFFUSE_INDIRECT == 4
-			DiffuseIndirectLighting = DiffuseIndirect_Textures_0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
-			RoughSpecularIndirectLighting = DiffuseIndirect_Textures_1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
-			SpecularIndirectLighting = DiffuseIndirect_Textures_2.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
-		#else
+		if (GBuffer.ShadingModelID != SHADINGMODELID_UNLIT)
 		{
-			// Sample the output of the denoiser.
-			FSSDKernelConfig KernelConfig = CreateKernelConfig();
-				
-			#if DEBUG_OUTPUT
-			{
-				KernelConfig.DebugPixelPosition = uint2(SvPosition.xy);
-				KernelConfig.DebugEventCounter = 0;
-			}
-			#endif
-
-			// Compile time.
-			KernelConfig.bSampleKernelCenter = true;
-			KernelConfig.BufferLayout = CONFIG_SIGNAL_INPUT_LAYOUT;
-			KernelConfig.bUnroll = true;
-
-			#if DIM_UPSCALE_DIFFUSE_INDIRECT
-			{
-				KernelConfig.SampleSet = SAMPLE_SET_2X2_BILINEAR;
-				KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_REF_METADATA_ONLY;
-				KernelConfig.WorldBluringDistanceMultiplier = 16.0;
-				
-				KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(3);
-				
-				// SGPRs
-				KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize * float4(0.5, 0.5, 2.0, 2.0);
-				KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
-			}
-			#else
-			{
-				KernelConfig.SampleSet = SAMPLE_SET_1X1;
-				KernelConfig.bNormalizeSample = true;
-				
-				// SGPRs
-				KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
-				KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
-			}
-			#endif
-
-			// VGPRs
-			KernelConfig.BufferUV = SceneBufferUV; 
-			{
-				KernelConfig.CompressedRefSceneMetadata = GBufferDataToCompressedSceneMetadata(GBuffer);
-				KernelConfig.RefBufferUV = SceneBufferUV;
-				KernelConfig.RefSceneMetadataLayout = METADATA_BUFFER_LAYOUT_DISABLED;
-			}
-			KernelConfig.HammersleySeed = Rand3DPCG16(int3(SvPosition.xy, View.StateFrameIndexMod8)).xy;
-				
-			FSSDSignalAccumulatorArray UncompressedAccumulators = CreateSignalAccumulatorArray();
-			FSSDCompressedSignalAccumulatorArray CompressedAccumulators = CompressAccumulatorArray(
-				UncompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
-
-			AccumulateKernel(
-				KernelConfig,
-				DiffuseIndirect_Textures_0,
-				DiffuseIndirect_Textures_1,
-				DiffuseIndirect_Textures_2,
-				DiffuseIndirect_Textures_3,
-				/* inout */ UncompressedAccumulators,
-				/* inout */ CompressedAccumulators);
-
-			//PassDebugOutput[uint2(SvPosition.xy)] = float4(UncompressedAccumulators.Array[0].Moment1.SampleCount, 0, 0, 0);
-
-			FSSDSignalSample Sample;
-			#if DIM_UPSCALE_DIFFUSE_INDIRECT
-				Sample = NormalizeToOneSample(UncompressedAccumulators.Array[0].Moment1);
-			#else
-				Sample = UncompressedAccumulators.Array[0].Moment1;
-			#endif
-				
-			#if DIM_APPLY_DIFFUSE_INDIRECT == 1 || DIM_APPLY_DIFFUSE_INDIRECT == 3
-			{
-				DiffuseIndirectLighting = Sample.SceneColor.rgb;
-			}
-			#elif DIM_APPLY_DIFFUSE_INDIRECT == 2
-			{
-				DiffuseIndirectLighting = UncompressedAccumulators.Array[0].Moment1.ColorArray[0];
-				SpecularIndirectLighting = UncompressedAccumulators.Array[0].Moment1.ColorArray[1];
-			}
-			#else
-				#error Unimplemented
-			#endif
-		}
-		#endif
-
-		float3 DiffuseColor = bVisualizeDiffuseIndirect ? float3(.18f, .18f, .18f) : GBuffer.DiffuseColor;
-		float3 SpecularColor = GBuffer.SpecularColor;
-
-		#if DIM_APPLY_DIFFUSE_INDIRECT == 4
-			RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
-		#endif
-
-		#if DIM_APPLY_DIFFUSE_INDIRECT == 2 || DIM_APPLY_DIFFUSE_INDIRECT == 4
-			float DiffuseIndirectAO = 1;
-		#else
-			float DiffuseIndirectAO = lerp(1, FinalAmbientOcclusion, ApplyAOToDynamicDiffuseIndirect);
-		#endif
-
-		FDirectLighting IndirectLighting;
-		if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
-		{
-			IndirectLighting.Diffuse = 0;
-			IndirectLighting.Specular = 0;
-
-			// Evaluate the hair BSDF for a imaginary reflected direction, and uses it a measure of the directional albedo
-			const float3 L = normalize(V - N * dot(V, N));
-			FHairTransmittanceData TransmittanceData = EvaluateDualScattering(GBuffer, V, L.xyz);
-			float3 f_s = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
-			IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseIndirectAO * f_s;			
-		}
-		else
-		{
-			IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseColor * DiffuseIndirectAO;
-			IndirectLighting.Transmission = 0;
+			float3 DiffuseIndirectLighting = 0;
+			float3 RoughSpecularIndirectLighting = 0;
+			float3 SpecularIndirectLighting = 0;
 
 			#if DIM_APPLY_DIFFUSE_INDIRECT == 4
-				IndirectLighting.Specular = CombineRoughSpecular(GBuffer, NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
+				DiffuseIndirectLighting = DiffuseIndirect_Textures_0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+				RoughSpecularIndirectLighting = DiffuseIndirect_Textures_1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+				SpecularIndirectLighting = DiffuseIndirect_Textures_2.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
 			#else
-				IndirectLighting.Specular = SpecularIndirectLighting * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
+			{
+				// Sample the output of the denoiser.
+				FSSDKernelConfig KernelConfig = CreateKernelConfig();
+				
+				#if DEBUG_OUTPUT
+				{
+					KernelConfig.DebugPixelPosition = uint2(SvPosition.xy);
+					KernelConfig.DebugEventCounter = 0;
+				}
+				#endif
+
+				// Compile time.
+				KernelConfig.bSampleKernelCenter = true;
+				KernelConfig.BufferLayout = CONFIG_SIGNAL_INPUT_LAYOUT;
+				KernelConfig.bUnroll = true;
+
+				#if DIM_UPSCALE_DIFFUSE_INDIRECT
+				{
+					KernelConfig.SampleSet = SAMPLE_SET_2X2_BILINEAR;
+					KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_REF_METADATA_ONLY;
+					KernelConfig.WorldBluringDistanceMultiplier = 16.0;
+				
+					KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(3);
+				
+					// SGPRs
+					KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize * float4(0.5, 0.5, 2.0, 2.0);
+					KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
+				}
+				#else
+				{
+					KernelConfig.SampleSet = SAMPLE_SET_1X1;
+					KernelConfig.bNormalizeSample = true;
+				
+					// SGPRs
+					KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
+					KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
+				}
+				#endif
+
+				// VGPRs
+				KernelConfig.BufferUV = SceneBufferUV; 
+				{
+					KernelConfig.CompressedRefSceneMetadata = GBufferDataToCompressedSceneMetadata(GBuffer);
+					KernelConfig.RefBufferUV = SceneBufferUV;
+					KernelConfig.RefSceneMetadataLayout = METADATA_BUFFER_LAYOUT_DISABLED;
+				}
+				KernelConfig.HammersleySeed = Rand3DPCG16(int3(SvPosition.xy, View.StateFrameIndexMod8)).xy;
+				
+				FSSDSignalAccumulatorArray UncompressedAccumulators = CreateSignalAccumulatorArray();
+				FSSDCompressedSignalAccumulatorArray CompressedAccumulators = CompressAccumulatorArray(
+					UncompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
+
+				AccumulateKernel(
+					KernelConfig,
+					DiffuseIndirect_Textures_0,
+					DiffuseIndirect_Textures_1,
+					DiffuseIndirect_Textures_2,
+					DiffuseIndirect_Textures_3,
+					/* inout */ UncompressedAccumulators,
+					/* inout */ CompressedAccumulators);
+
+				//PassDebugOutput[uint2(SvPosition.xy)] = float4(UncompressedAccumulators.Array[0].Moment1.SampleCount, 0, 0, 0);
+
+				FSSDSignalSample Sample;
+				#if DIM_UPSCALE_DIFFUSE_INDIRECT
+					Sample = NormalizeToOneSample(UncompressedAccumulators.Array[0].Moment1);
+				#else
+					Sample = UncompressedAccumulators.Array[0].Moment1;
+				#endif
+				
+				#if DIM_APPLY_DIFFUSE_INDIRECT == 1 || DIM_APPLY_DIFFUSE_INDIRECT == 3
+				{
+					DiffuseIndirectLighting = Sample.SceneColor.rgb;
+				}
+				#elif DIM_APPLY_DIFFUSE_INDIRECT == 2
+				{
+					DiffuseIndirectLighting = UncompressedAccumulators.Array[0].Moment1.ColorArray[0];
+					SpecularIndirectLighting = UncompressedAccumulators.Array[0].Moment1.ColorArray[1];
+				}
+				#else
+					#error Unimplemented
+				#endif
+			}
 			#endif
+
+			float3 DiffuseColor = bVisualizeDiffuseIndirect ? float3(.18f, .18f, .18f) : GBuffer.DiffuseColor;
+			float3 SpecularColor = GBuffer.SpecularColor;
+
+			#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+				RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
+			#endif
+
+			#if DIM_APPLY_DIFFUSE_INDIRECT == 2 || DIM_APPLY_DIFFUSE_INDIRECT == 4
+				float DiffuseIndirectAO = 1;
+			#else
+				float DiffuseIndirectAO = lerp(1, FinalAmbientOcclusion, ApplyAOToDynamicDiffuseIndirect);
+			#endif
+
+			if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
+			{
+				IndirectLighting.Diffuse = 0;
+				IndirectLighting.Specular = 0;
+
+				// Evaluate the hair BSDF for a imaginary reflected direction, and uses it a measure of the directional albedo
+				const float3 L = normalize(V - N * dot(V, N));
+				FHairTransmittanceData TransmittanceData = EvaluateDualScattering(GBuffer, V, L.xyz);
+				float3 f_s = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
+				IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseIndirectAO * f_s;			
+			}
+			else
+			{
+				IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseColor * DiffuseIndirectAO;
+				IndirectLighting.Transmission = 0;
+
+				#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+					IndirectLighting.Specular = CombineRoughSpecular(GBuffer, NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
+				#else
+					IndirectLighting.Specular = SpecularIndirectLighting * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
+				#endif
+			}
 		}
 
 		const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(GBuffer.ShadingModelID);

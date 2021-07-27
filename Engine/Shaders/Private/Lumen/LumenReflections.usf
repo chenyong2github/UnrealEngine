@@ -10,6 +10,7 @@
 #include "../Random.ush"
 #include "LumenReflectionCommon.ush"
 #include "../ClearCoatCommon.ush"
+#include "../FastMath.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 0
@@ -168,6 +169,7 @@ void ReflectionGenerateRaysCS(
 
 
 RWTexture2D<float4> RWSpecularIndirect;
+RWTexture2D<float> RWResolveVariance;
 
 uint NumSpatialReconstructionSamples;
 float SpatialReconstructionKernelRadius;
@@ -179,7 +181,8 @@ float Luma(float3 Color)
 	return dot(Color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
-#define TONEMAP_DURING_RESOLVE 1
+// Loses bright interesting features
+#define TONEMAP_DURING_RESOLVE 0
 
 float3 TonemapLighting(float3 Lighting)
 {
@@ -209,6 +212,7 @@ void ReflectionResolveCS(
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 
 	float3 ReflectionLighting = 0;
+	float ResolveVariance = 0;
 	float DepthForReprojection = SceneDepth;
 
 	const bool bUseCenterSample = ReflectionDownsampleFactor == 1;
@@ -235,6 +239,9 @@ void ReflectionResolveCS(
 				float4 ScenePlane = float4(GBufferData.WorldNormal, dot(WorldPosition, GBufferData.WorldNormal));
 
 				float TotalWeight = 0;
+				float Mean = 0;
+				float S = 0;
+
 				float a2 = Pow4(clamp(TopLayerRoughness * SpatialReconstructionRoughnessScale, 0.0f, 1.0f));
 				uint2 RandomSeed = Rand3DPCG16(int3(ScreenCoord, View.StateFrameIndex % 8)).xy;
 
@@ -248,8 +255,18 @@ void ReflectionResolveCS(
 
 					if (bUseCenterSample)
 					{
-						ReflectionLighting = TonemapLighting(TraceRadiance[ReflectionScreenCoord]);
-						TotalWeight = 1.0f;
+						float3 TonemappedSampleRadiance = TonemapLighting(TraceRadiance[ReflectionScreenCoord]);
+						ReflectionLighting = TonemappedSampleRadiance;
+						float Weight = 1.0f;
+						TotalWeight += Weight;
+
+						#if USE_BILATERAL_FILTER
+							//https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Weighted_incremental_algorithm
+							float LumaSampleRadiance = Luma(TonemappedSampleRadiance);
+							float OldMean = Mean;
+							Mean += Weight / TotalWeight * (LumaSampleRadiance - OldMean);
+							S += Weight * (LumaSampleRadiance - OldMean) * (LumaSampleRadiance - Mean);
+						#endif
 					}
 				}
 
@@ -292,14 +309,22 @@ void ReflectionResolveCS(
 							float Weight = NewPDF / RayData.PDF;
 							float ClampedWeight = max(1e-6, Weight);
 
-							ReflectionLighting += TonemapLighting(TraceRadiance[NeighborTracingCoord]) * ClampedWeight;
+							float3 TonemappedSampleRadiance = TonemapLighting(TraceRadiance[NeighborTracingCoord]);
+							ReflectionLighting += TonemappedSampleRadiance * ClampedWeight;
+
+							TotalWeight += ClampedWeight;
+
+							#if USE_BILATERAL_FILTER
+								float LumaSampleRadiance = Luma(TonemappedSampleRadiance);
+								float OldMean = Mean;
+								Mean += ClampedWeight / TotalWeight * (LumaSampleRadiance - OldMean);
+								S += ClampedWeight * (LumaSampleRadiance - OldMean) * (LumaSampleRadiance - Mean);
+							#endif
 
 							if (Weight > .001f)
 							{
 								ClosestHitDepth = min(ClosestHitDepth, TraceHitDistance);
 							}
-							
-							TotalWeight += ClampedWeight;
 						}
 					}
 				}
@@ -308,6 +333,7 @@ void ReflectionResolveCS(
 				{
 					float InvTotalWeight = 1.0f / TotalWeight;
 					ReflectionLighting = InverseTonemapLighting(ReflectionLighting * InvTotalWeight);
+					ResolveVariance = S / TotalWeight;
 				}
 			}
 #else
@@ -324,10 +350,20 @@ void ReflectionResolveCS(
 
 	//@todo - hit depth in separate render target so neighborhood lookup doesn't read it
 	RWSpecularIndirect[ScreenCoord] = float4(ReflectionLighting, ConvertToDeviceZ(DepthForReprojection));
+
+	#if USE_BILATERAL_FILTER
+		RWResolveVariance[ScreenCoord] = ResolveVariance;
+	#endif
 }
 
 Texture2D ResolvedReflections;
 Texture2D SpecularIndirectHistory;
+Texture2D DepthHistory;
+
+Texture2D<float> ResolveVariance;
+Texture2D ResolveVarianceHistory;
+
+float HistoryDistanceThreshold;
 
 float HistoryWeight;
 
@@ -405,32 +441,39 @@ FNeighborStatistics GetNeighborStatistics(
 	return Result;
 }
 
-float2 GetReprojectedScreenUV(float2 ScreenPosition, float DeviceZ, float4 EncodedVelocity)
+float3 GetHistoryScreenPosition(float2 ScreenPosition, float DeviceZ, float ReprojectDeviceZ, float4 EncodedVelocity)
 {
-	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
-	float4 ThisClip = float4(HistoryScreenPosition, 1);
-	float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
-	float3 PrevScreen = PrevClip.xyz / PrevClip.w;
-	float3 Velocity = HistoryScreenPosition - PrevScreen;
-	bool bIsDynamicPixel = EncodedVelocity.x > 0.0;
+	float3 HistoryScreenPosition = float3(ScreenPosition, ReprojectDeviceZ);
+	bool bIsDynamicPixel = false;
 
-	if (bIsDynamicPixel)
 	{
-		Velocity = DecodeVelocityFromTexture(EncodedVelocity);
+		float4 ThisClip = float4(HistoryScreenPosition, 1);
+		//float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); //<=== doesn't contain AA offsets
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClipWithAA);
+		
+		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
+		float3 Velocity = HistoryScreenPosition - PrevScreen;
+		bIsDynamicPixel = EncodedVelocity.x > 0.0;
+
+		if (bIsDynamicPixel)
+		{
+			float4 ReferencePrevClip = mul(float4(ScreenPosition, DeviceZ, 1), View.ClipToPrevClipWithAA);
+			Velocity += DecodeVelocityFromTexture(EncodedVelocity) - (float3(ScreenPosition, DeviceZ) - ReferencePrevClip.xyz / ReferencePrevClip.w);
+		}
+
+		HistoryScreenPosition -= Velocity;
 	}
 
-	HistoryScreenPosition -= Velocity;
-
-	float2 HistoryScreenUV = HistoryScreenPosition.xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
-
-	return HistoryScreenUV;
+	return HistoryScreenPosition;
 }
+
 
 bool IsValidHistoryUV(float2 UV)
 {
 	return !(any(UV > HistoryUVMinMax.zw) || any(UV < HistoryUVMinMax.xy));
 }
 
+const static float DisocclusionVariance = .2f;
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionTemporalReprojectionCS(
@@ -441,30 +484,30 @@ void ReflectionTemporalReprojectionCS(
 	float2 ScreenUV = (ReflectionScreenCoord + .5f) * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-	float4 NewSpecularAndDepth = Texture2DSampleLevel(ResolvedReflections, GlobalBilinearClampedSampler, ScreenUV, 0);
+	float4 NewSpecularAndDepth = ResolvedReflections[ReflectionScreenCoord];
 
-	float DeviceZ1 = NewSpecularAndDepth.w;
-	float DeviceZ2 = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, GlobalPointClampedSampler, ScreenUV, 0).r;
+	float ReflectionHitDeviceZ = NewSpecularAndDepth.w;
+	float DeviceZ = SceneTexturesStruct.SceneDepthTexture[ReflectionScreenCoord].x;
 
-	float4 EncodedVelocity = VelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
+	float4 EncodedVelocity = VelocityTexture[ReflectionScreenCoord];
+	float2 HistoryScreenUVFromReflectionHit = GetHistoryScreenPosition(ScreenPosition, DeviceZ, ReflectionHitDeviceZ, EncodedVelocity).xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
+	float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition, DeviceZ, DeviceZ, EncodedVelocity);
+	float2 HistoryScreenUV = HistoryScreenPosition.xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
 
-	float2 HistoryScreenUV1 = GetReprojectedScreenUV(ScreenPosition, DeviceZ1, EncodedVelocity);
-	float2 HistoryScreenUV2 = GetReprojectedScreenUV(ScreenPosition, DeviceZ2, EncodedVelocity);
-
-	float3 HistorySpecularIndirect1 = Texture2DSampleLevel(SpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV1, 0).xyz * PrevInvPreExposure * View.PreExposure;
-	float3 HistorySpecularIndirect2 = Texture2DSampleLevel(SpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV2, 0).xyz * PrevInvPreExposure * View.PreExposure;
+	float3 HistorySpecularIndirectFromReflectionHit = Texture2DSampleLevel(SpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUVFromReflectionHit, 0).xyz * PrevInvPreExposure * View.PreExposure;
+	float3 HistorySpecularIndirectFromSceneDepth = Texture2DSampleLevel(SpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
 
 	uint2 MinScreenCoord = uint2(0, 0);
 	uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);
 	FNeighborStatistics Neighborhood = GetNeighborStatistics(ReflectionScreenCoord, MinScreenCoord, MaxScreenCoord, NewSpecularAndDepth.xyz);
 
 	const float InvalidHistoryErrorThreshold = 1e6;
-	float Error1 = IsValidHistoryUV(HistoryScreenUV1) ? abs(Luma(HistorySpecularIndirect1) - Luma(Neighborhood.Mean)) : InvalidHistoryErrorThreshold;
-	float Error2 = IsValidHistoryUV(HistoryScreenUV2) ? abs(Luma(HistorySpecularIndirect2) - Luma(Neighborhood.Mean)) : InvalidHistoryErrorThreshold;
+	float ErrorFromReflectionHit = IsValidHistoryUV(HistoryScreenUVFromReflectionHit) ? abs(Luma(HistorySpecularIndirectFromReflectionHit) - Luma(Neighborhood.Mean)) : InvalidHistoryErrorThreshold;
+	float ErrorFromSceneDepthReprojection = IsValidHistoryUV(HistoryScreenUV) ? abs(Luma(HistorySpecularIndirectFromSceneDepth) - Luma(Neighborhood.Mean)) : InvalidHistoryErrorThreshold;
 
-	float3 HistorySpecularIndirect = Error1 < Error2 
-		? HistorySpecularIndirect1 
-		: HistorySpecularIndirect2;
+	float3 HistorySpecularIndirect = ErrorFromReflectionHit < ErrorFromSceneDepthReprojection 
+		? HistorySpecularIndirectFromReflectionHit 
+		: HistorySpecularIndirectFromSceneDepth;
 
 #define REPROJECTION_USE_STANDARD_DEVIATION_CLAMP 1
 #if REPROJECTION_USE_STANDARD_DEVIATION_CLAMP
@@ -476,13 +519,153 @@ void ReflectionTemporalReprojectionCS(
 #endif
 
 	HistorySpecularIndirect = clamp(HistorySpecularIndirect, HistoryClampMin, HistoryClampMax);
+	
+	bool bDepthRejectedHistoryForPositionOnSurface = false;
 
-	float EffectiveHistoryWeight = min(Error1, Error2) < InvalidHistoryErrorThreshold ? HistoryWeight : 0;
+#define REPROJECTION_DEPTH_REJECTION 1
+#if REPROJECTION_DEPTH_REJECTION
+	{
+		// Calculate the expected depth of the pixel last frame
+		// This uses velocity depth to correctly handle moving objects, see FVelocityRendering::GetFormat
+		float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
+
+		// Lookup the actual depth at the same screen position last frame
+		float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x);
+
+		float Noise = InterleavedGradientNoise(ReflectionScreenCoord.xy, View.StateFrameIndexMod8);
+		float RelativeHistoryDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise) / 1000.0f;
+
+		{
+			FGBufferData GBufferData = GetGBufferData(ScreenUV);
+			float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+			float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+			float3 V = normalize(-TranslatedWorldPosition);
+			// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
+			// This also introduces some ghosting, needs a better solution
+			RelativeHistoryDistanceThreshold /= clamp(saturate(dot(V, GBufferData.WorldNormal)), .1f, 1.0f); 
+		}
+
+		float DistanceToHistoryValue = abs(HistoryDepth - PrevSceneDepth);
+
+		bDepthRejectedHistoryForPositionOnSurface = DistanceToHistoryValue / PrevSceneDepth > RelativeHistoryDistanceThreshold;
+	}
+#endif
+
+	float EffectiveHistoryWeight = min(ErrorFromReflectionHit, ErrorFromSceneDepthReprojection) < InvalidHistoryErrorThreshold ? HistoryWeight : 0;
+
+	if (bDepthRejectedHistoryForPositionOnSurface)
+	{
+		EffectiveHistoryWeight = 0.0f;
+	}
+
 	float3 OutReflections = lerp(NewSpecularAndDepth.rgb, HistorySpecularIndirect.rgb, EffectiveHistoryWeight);
-
 	OutReflections = -min(-OutReflections, 0.0f);
 
 	RWSpecularIndirect[ReflectionScreenCoord] = float4(OutReflections, 0);
+
+#if USE_BILATERAL_FILTER
+	float VarianceHistoryWeight = IsValidHistoryUV(HistoryScreenUVFromReflectionHit) ? .9f : 0;
+	float NewResolveVariance = ResolveVariance[ReflectionScreenCoord];
+
+	if (bDepthRejectedHistoryForPositionOnSurface)
+	{
+		VarianceHistoryWeight = 0.0f;
+		NewResolveVariance = DisocclusionVariance;
+	}
+
+	float ResolveVarianceHistoryValue = VarianceHistoryWeight > 0.0f ? Texture2DSampleLevel(ResolveVarianceHistory, GlobalBilinearClampedSampler, HistoryScreenUVFromReflectionHit, 0).x : 0;
+	RWResolveVariance[ReflectionScreenCoord] = max(lerp(NewResolveVariance, ResolveVarianceHistoryValue, VarianceHistoryWeight), 0);
+#endif
+}
+
+Texture2D<float3> SpecularIndirect;
+
+float BilateralFilterSpatialKernelRadius;
+uint BilateralFilterNumSamples;
+float BilateralFilterDepthWeightScale;
+float BilateralFilterNormalAngleThresholdScale;
+
+[numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
+void ReflectionBilateralFilterCS(
+	uint GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenCoord = GetReflectionResolveScreenCoord(GroupId, GroupThreadId);
+	float2 ScreenUV = (ScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
+	float SceneDepth = CalcSceneDepth(ScreenUV);
+
+	float3 OutReflections = 0;
+
+	if (SceneDepth < 1000000.0f)
+	{
+		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
+		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
+
+		float TopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(GBufferData));
+
+		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
+		{
+			OutReflections = SpecularIndirect[ScreenCoord];
+
+			float VarianceFromSpatialResolve = ResolveVariance[ScreenCoord];
+
+			bool bDisocclusionBlur = VarianceFromSpatialResolve > .5f * DisocclusionVariance;
+			float MinKernelRadius = 0.0f;
+			float MaxKernelRadius = BilateralFilterSpatialKernelRadius * View.ViewSizeAndInvSize.x * (bDisocclusionBlur ? 2.0f : 1.0f);
+			float KernelRadius = lerp(MinKernelRadius, MaxKernelRadius, saturate(TopLayerRoughness * 8));
+
+			if (KernelRadius >= .5f && VarianceFromSpatialResolve > .04f)
+			{
+				float TotalWeight = 1.0f;
+				float GuassianNormalize = 2.0f / (KernelRadius * KernelRadius);
+				float InvSpecularLobeAngleThreshold = 1.0f / (lerp(.0001f * PI, PI, GBufferData.Roughness * GBufferData.Roughness) * BilateralFilterNormalAngleThresholdScale);
+				uint2 RandomSeed = Rand3DPCG16(int3(ScreenCoord, View.StateFrameIndex % 8)).xy;
+
+				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+				float4 ScenePlane = float4(GBufferData.WorldNormal, dot(WorldPosition, GBufferData.WorldNormal));
+
+				uint NumBilateralFilterSamples = bDisocclusionBlur ? BilateralFilterNumSamples * 2 : BilateralFilterNumSamples;
+
+				for (uint SampleIndex = 0; SampleIndex < NumBilateralFilterSamples; SampleIndex++)
+				{
+					float2 Offset = (Hammersley16(SampleIndex, NumBilateralFilterSamples, RandomSeed) - .5f) * 2 * KernelRadius;
+					int2 NeighborScreenCoord = (int2)(ScreenCoord + Offset);
+
+					if (all(NeighborScreenCoord >= int2(0, 0) && NeighborScreenCoord < (int2)View.ViewSizeAndInvSize.xy))
+					{
+						float2 NeighborScreenUV = (NeighborScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
+						FGBufferData NeighborGBufferData = GetScreenSpaceData(NeighborScreenUV).GBuffer;
+						float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborGBufferData.Depth);
+						float NeighborTopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(NeighborGBufferData));
+
+						// Avoid reading from unprocessed tiles
+						if (NeedRayTracedReflections(NeighborTopLayerRoughness, NeighborGBufferData.ShadingModelID))
+						{
+							float PlaneDistance = abs(dot(float4(NeighborWorldPosition, -1), ScenePlane));
+							float RelativeDepthDifference = PlaneDistance / SceneDepth;
+							float DepthWeight = exp2(-BilateralFilterDepthWeightScale * (RelativeDepthDifference * RelativeDepthDifference));
+							float SpatialWeight = exp2(-GuassianNormalize * dot(Offset, Offset));
+							float AngleBetweenNormals = acosFast(saturate(dot(ScenePlane.xyz, NeighborGBufferData.WorldNormal)));
+							float NormalWeight = 1.0f - saturate(AngleBetweenNormals * InvSpecularLobeAngleThreshold);
+
+							float SampleWeight = SpatialWeight * DepthWeight * NormalWeight;
+							OutReflections += SpecularIndirect[NeighborScreenCoord] * SampleWeight;
+							TotalWeight += SampleWeight;
+						}
+					}
+				}
+
+				OutReflections /= TotalWeight;
+
+				if (NumBilateralFilterSamples == 8)
+				{
+					//OutReflections.r = 1;
+				}
+			}
+		}
+	}
+
+	RWSpecularIndirect[ScreenCoord] = float4(OutReflections, 0);
 }
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
@@ -495,4 +678,8 @@ void ReflectionPassthroughCopyCS(
 	float4 NewSpecularAndDepth = Texture2DSampleLevel(ResolvedReflections, GlobalBilinearClampedSampler, ScreenUV, 0);
 
 	RWSpecularIndirect[ReflectionScreenCoord] = float4(NewSpecularAndDepth.xyz, 0);
+
+#if USE_BILATERAL_FILTER
+	RWResolveVariance[ReflectionScreenCoord] = ResolveVariance[ReflectionScreenCoord];
+#endif
 }
