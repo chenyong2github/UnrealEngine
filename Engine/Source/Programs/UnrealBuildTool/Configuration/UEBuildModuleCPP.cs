@@ -245,6 +245,13 @@ namespace UnrealBuildTool
 					EnumerateLegacyIncludePaths(DirectoryItem.GetItemByDirectoryReference(PublicDirectory), ExcludeNames, LegacyPublicIncludePaths);
 				}
 
+				// Add the 'internal' directory, if it exists
+				DirectoryReference InternalDirectory = DirectoryReference.Combine(ModuleDir, "Internal");
+				if (DirectoryLookupCache.DirectoryExists(InternalDirectory))
+				{
+					InternalIncludePaths.Add(InternalDirectory);
+				}
+
 				// Add the base private directory for this module
 				DirectoryReference PrivateDirectory = DirectoryReference.Combine(ModuleDir, "Private");
 				if (DirectoryLookupCache.DirectoryExists(PrivateDirectory))
@@ -284,6 +291,7 @@ namespace UnrealBuildTool
 		/// Sets up the environment for compiling any module that includes the public interface of this module.
 		/// </summary>
 		public override void AddModuleToCompileEnvironment(
+			UEBuildModule? SourceModule,
 			UEBuildBinary? SourceBinary,
 			HashSet<DirectoryReference> IncludePaths,
 			HashSet<DirectoryReference> SystemIncludePaths,
@@ -314,7 +322,7 @@ namespace UnrealBuildTool
 
 			ModuleInterfacePaths.Add(UEToolChain.GetModuleInterfaceDir(IntermediateDirectory));
 
-			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, ModuleInterfacePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bLegacyPublicIncludePaths);
+			base.AddModuleToCompileEnvironment(SourceModule, SourceBinary, IncludePaths, SystemIncludePaths, ModuleInterfacePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bLegacyPublicIncludePaths);
 		}
 
 		// UEBuildModule interface.
@@ -1444,7 +1452,7 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.ModuleInterfacePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, CompileEnvironment.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
+				Module.AddModuleToCompileEnvironment(this, null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.ModuleInterfacePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, CompileEnvironment.AdditionalPrerequisites, Rules.bLegacyPublicIncludePaths);
 			}
 			return CompileEnvironment;
 		}

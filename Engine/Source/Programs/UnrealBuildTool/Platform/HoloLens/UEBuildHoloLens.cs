@@ -509,6 +509,7 @@ namespace UnrealBuildTool
 				// The HoloLensSDK module handles proper paths and libs for HoloLens.
 				// However, the D3D11RHI module will include the DX11 module.
 				Rules.PublicIncludePaths.Clear();
+				Rules.InternalncludePaths.Clear();
 				Rules.PublicSystemLibraryPaths.Clear();
 				Rules.PublicSystemLibraries.Clear();
 				Rules.PublicAdditionalLibraries.Clear();
