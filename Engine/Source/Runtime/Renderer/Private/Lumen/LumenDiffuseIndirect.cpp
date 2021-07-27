@@ -97,7 +97,7 @@ FAutoConsoleVariableRef CVarDiffuseCardTraceEndDistanceFromCamera(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenMaxTraceDistance = 10000.0f;
+float GLumenMaxTraceDistance = 20000.0f;
 FAutoConsoleVariableRef CVarLumenMaxTraceDistance(
 	TEXT("r.Lumen.MaxTraceDistance"),
 	GLumenMaxTraceDistance,
