@@ -57,20 +57,37 @@ void FStreamSegmentRequestHLSfmp4::SetExecutionDelay(const FTimeValue& Execution
 	// No-op for HLS.
 }
 
+FTimeValue FStreamSegmentRequestHLSfmp4::GetExecuteAtUTCTime() const
+{
+	// Right now.
+	return FTimeValue::GetInvalid();
+}
+
+
 EStreamType FStreamSegmentRequestHLSfmp4::GetType() const
 {
 	return StreamType;
 }
 
-void FStreamSegmentRequestHLSfmp4::GetDependentStreams(TArray<FDependentStreams>& OutDependentStreams) const
+void FStreamSegmentRequestHLSfmp4::GetDependentStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutDependentStreams) const
 {
 	OutDependentStreams.Empty();
-	for(int32 i=0; i<DependentStreams.Num(); ++i)
+	for(auto& Stream : DependentStreams)
 	{
-		FDependentStreams& depStr = OutDependentStreams.AddDefaulted_GetRef();
-		depStr.StreamType = DependentStreams[i]->GetType();
+		OutDependentStreams.Emplace(Stream);
 	}
 }
+
+void FStreamSegmentRequestHLSfmp4::GetRequestedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutRequestedStreams)
+{
+	OutRequestedStreams.Empty();
+	OutRequestedStreams.Push(SharedThis(this));
+	for(auto& Stream : DependentStreams)
+	{
+		OutRequestedStreams.Emplace(Stream);
+	}
+}
+
 
 void FStreamSegmentRequestHLSfmp4::GetEndedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutAlreadyEndedStreams)
 {
@@ -179,6 +196,9 @@ IStreamReader::EAddResult FStreamReaderHLSfmp4::AddRequest(uint32 CurrentPlaybac
 {
 	TSharedPtrTS<FStreamSegmentRequestHLSfmp4> Request = StaticCastSharedPtr<FStreamSegmentRequestHLSfmp4>(InRequest);
 
+	// Dependent streams will be added individually. Anything that is still set here must be ignored from this point forth.
+	Request->DependentStreams.Empty();
+
 	// Video and audio only for now.
 	if (Request->GetType() != EStreamType::Video && Request->GetType() != EStreamType::Audio)
 	{
@@ -186,22 +206,8 @@ IStreamReader::EAddResult FStreamReaderHLSfmp4::AddRequest(uint32 CurrentPlaybac
 		ErrorDetail.SetMessage(FString::Printf(TEXT("Request is not video or audio")));
 		return IStreamReader::EAddResult::Error;
 	}
-	// Only initial requests are allowed to have a dependent stream for now.
-	if (Request->DependentStreams.Num() && !Request->bIsInitialStartRequest)
-	{
-		check(!"no good");
-		ErrorDetail.SetMessage(FString::Printf(TEXT("Dependent streams only allowed for initial request")));
-		return IStreamReader::EAddResult::Error;
-	}
-	// Also, there may only be one dependent stream.
-	if (Request->DependentStreams.Num() > 1)
-	{
-		check(!"no good");
-		ErrorDetail.SetMessage(FString::Printf(TEXT("Only one dependent streams allowed")));
-		return IStreamReader::EAddResult::Error;
-	}
 
-	// Get the handler for the main request.
+	// Get the handler for the request.
 	FStreamHandler* Handler = nullptr;
 	switch(Request->GetType())
 	{
@@ -228,52 +234,6 @@ IStreamReader::EAddResult FStreamReaderHLSfmp4::AddRequest(uint32 CurrentPlaybac
 		return IStreamReader::EAddResult::TryAgainLater;
 	}
 
-// TODO: make this work with more than just one request (asserted above) if necessary
-	if (Request->DependentStreams.Num())
-	{
-		TSharedPtrTS<FStreamSegmentRequestHLSfmp4> Request2 = Request->DependentStreams[0];
-		FStreamHandler* Handler2 = nullptr;
-		switch(Request2->GetType())
-		{
-			case  EStreamType::Video:
-				Handler2 = &StreamHandlers[0];
-				break;
-			case  EStreamType::Audio:
-				Handler2 = &StreamHandlers[1];
-				break;
-			default:
-				check(!"Whoops");
-				break;
-		}
-		if (!Handler2)
-		{
-			check(!"no good");
-			ErrorDetail.SetMessage(FString::Printf(TEXT("No handler for stream type")));
-			return IStreamReader::EAddResult::Error;
-		}
-		// Is the handler busy?
-		if (Handler2->CurrentRequest.IsValid())
-		{
-			check(!"why is the handler busy??");
-			return IStreamReader::EAddResult::TryAgainLater;
-		}
-
-		Request->DependentStreams.Empty();
-		Request2->SetPlaybackSequenceID(CurrentPlaybackSequenceID);
-		// Only add the request if this is not an EOD segment.
-		if (!Request2->bIsEOSSegment)
-		{
-			if (!Handler2->bWasStarted)
-			{
-				Handler2->ThreadStart(Electra::MakeDelegate(Handler2, &FStreamHandler::WorkerThread));
-				Handler2->bWasStarted = true;
-			}
-			Handler2->bRequestCanceled = false;
-			Handler2->bSilentCancellation = false;
-			Handler2->CurrentRequest = Request2;
-			Handler2->SignalWork();
-		}
-	}
 	Request->SetPlaybackSequenceID(CurrentPlaybackSequenceID);
 	// Only add the request if this is not an EOD segment.
 	if (!Request->bIsEOSSegment)

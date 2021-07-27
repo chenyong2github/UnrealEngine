@@ -15,6 +15,8 @@ namespace Electra
 		virtual ~IPlayerStreamFilter() = default;
 
 		virtual bool CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const = 0;
+
+		virtual bool CanDecodeSubtitle(const FString& MimeType, const FString& Codec) const = 0;
 	};
 
 

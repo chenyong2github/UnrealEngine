@@ -162,8 +162,10 @@ private:
 		void SendMediaEvent(EPlayerEvent Event) override;
 		void OnVideoFlush() override;
 		void OnAudioFlush() override;
+		void OnSubtitleFlush() override;
 		void PresentVideoFrame(const FVideoDecoderOutputPtr& InVideoFrame) override;
 		void PresentAudioFrame(const IAudioDecoderOutputPtr& InAudioFrame) override;
+		void PresentSubtitleSample(const ISubtitleDecoderOutputPtr& InSubtitleSample) override;
 		void PresentMetadataSample(const IMetaDataDecoderOutputPtr& InMetadataSample) override;
 		bool CanReceiveVideoSamples(int32 NumFrames) override;
 		bool CanReceiveAudioSamples(int32 NumFrames) override;

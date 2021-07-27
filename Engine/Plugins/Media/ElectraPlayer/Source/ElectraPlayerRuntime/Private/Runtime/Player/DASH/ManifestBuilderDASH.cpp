@@ -94,6 +94,11 @@ namespace
 	};
 
     const TCHAR* const Scheme_urn_mpeg_dash_mp4protection_2011 = TEXT("urn:mpeg:dash:mp4protection:2011");
+
+	// Recognized subtitle mime types
+    const TCHAR* const SubtitleMimeType_SideloadedTTML = TEXT("application/ttml+xml");
+    const TCHAR* const SubtitleMimeType_SideloadedVTT = TEXT("text/vtt");
+    const TCHAR* const SubtitleMimeType_Streamed = TEXT("application/mp4");
 }
 
 
@@ -1241,6 +1246,8 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_FManifestDASHInternal_Build);
 		CSV_SCOPED_TIMING_STAT(ElectraPlayer, FManifestDASHInternal_Build);
 
+		IPlayerStreamFilter* StreamFilter = PlayerSessionServices->GetStreamFilter();
+
 		Period->AdaptationSets.Empty();
 		const TArray<TSharedPtrTS<FDashMPD_AdaptationSetType>>& MPDAdaptationSets = MPDPeriod->GetAdaptationSets();
 		int32 nAdapt=0, nAdaptMax=MPDAdaptationSets.Num();
@@ -1403,14 +1410,8 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 					// If not then there needs to be one on the AdaptationSet. However, this will specify the highest profile and level
 					// necessary to decode any and all representations and is thus potentially too restrictive.
 					MPDCodecs = MPDAdaptationSet->GetCodecs();
-					// Need to have a codec now.
-					if (MPDCodecs.Num() == 0)
-					{
-						LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("Neither @codecs found on Representation or AdaptationSet level, ignoring this Representation.")));
-						continue;
-					}
 				}
-				// Parse each of the codecs. There *should* be only one since we are not considering multiplexed streams (ContentComponent / SubRepresentation).
+				// There *should* be only one codec since we are not considering multiplexed streams (ContentComponent / SubRepresentation).
 				if (MPDCodecs.Num() > 1)
 				{
 					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("More than one codec found for Representation, using only first codec.")));
@@ -1419,6 +1420,48 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 
 				TSharedPtrTS<FRepresentation> Representation = MakeSharedTS<FRepresentation>();
 				Representation->Representation = MPDRepresentation;
+
+				// Before checking for supported codecs we need to check if this is probably a subtitle representation.
+				// These can come in several flavors and several TTML profiles for which checking just the codec is not
+				// likely to cover all cases.
+				FString MimeType = MPDRepresentation->GetMimeType();
+				if (MimeType.IsEmpty())
+				{
+					MimeType = MPDAdaptationSet->GetMimeType();
+				}
+				// Mime type is mandatory on representation or adaptation set level. So if there is none we may ignore this representation as it's an authoring error.
+				if (MimeType.IsEmpty())
+				{
+					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("Could not mandatory Representation@mimeType or the enclosing AdaptationSet. Ignoring this Representation.")));
+					continue;
+				}
+				// Sadly we cannot rely on either @contentType or a Role to be set.
+				if (MimeType.Equals(SubtitleMimeType_Streamed))
+				{
+					// application/mp4 needs to have @codecs set.
+				}
+				else if (MimeType.Equals(SubtitleMimeType_SideloadedTTML))
+				{
+					if (MPDCodecs.Num() == 0)
+					{
+						MPDCodecs.Emplace(TEXT("stpp"));
+					}
+					Representation->bIsSideloadedSubtitle = true;
+				}
+				else if (MimeType.Equals(SubtitleMimeType_SideloadedVTT))
+				{
+					if (MPDCodecs.Num() == 0)
+					{
+						MPDCodecs.Emplace(TEXT("wvtt"));
+					}
+					Representation->bIsSideloadedSubtitle = true;
+				}
+
+				if (MPDCodecs.Num() == 0)
+				{
+					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("Neither @codecs found on Representation or AdaptationSet level, ignoring this Representation.")));
+					continue;
+				}
 				if (!Representation->CodecInfo.ParseFromRFC6381(MPDCodecs[0]))
 				{
 					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("Could not parse Representation@codecs \"%s\", possibly unsupported codec. Ignoring this Representation."), *MPDCodecs[0]));
@@ -1463,6 +1506,13 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 					else if (MPDAdaptationSet->GetSAR().IsValid())
 					{
 						Representation->CodecInfo.SetAspectRatio(FStreamCodecInformation::FAspectRatio(MPDAdaptationSet->GetSAR().GetNumerator(), MPDAdaptationSet->GetSAR().GetDenominator()));
+					}
+
+					// Can be used?
+					if (StreamFilter && !StreamFilter->CanDecodeStream(Representation->CodecInfo))
+					{
+						LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Video representation \"%s\" in Period \"%s\" rejected by application."), *MPDRepresentation->GetID(), *Period->GetID()));
+						continue;
 					}
 
 					// Update the video codec in the adaptation set with that of the highest bandwidth.
@@ -1532,6 +1582,13 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 						}
 					}
 
+					// Can be used?
+					if (StreamFilter && !StreamFilter->CanDecodeStream(Representation->CodecInfo))
+					{
+						LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Audio representation \"%s\" in Period \"%s\" rejected by application."), *MPDRepresentation->GetID(), *Period->GetID()));
+						continue;
+					}
+
 					// Update the audio codec in the adaptation set with that of the highest bandwidth.
 					if (MPDRepresentation->GetBandwidth() > AdaptationSet->MaxBandwidth)
 					{
@@ -1541,26 +1598,40 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 				}
 				else if (Representation->CodecInfo.IsSubtitleCodec())
 				{
-					// ...
+					// There is a possibility that the MPD uses "video/mp4" instead of "application/mp4".
+					if (MimeType.Equals(TEXT("video/mp4")))
+					{
+						MimeType = SubtitleMimeType_Streamed;
+					}
+					// Override the mime type. This is needed for sideloaded subtitles.
+					Representation->CodecInfo.SetMimeType(MimeType);
 
-					if (MPDRepresentation->GetBandwidth() > AdaptationSet->MaxBandwidth)
+					// Can be used?
+					// For sideloaded subtitles we only need the mime type while for regular subtitles we need the codec.
+					FString CodecMimeType, CodecName;
+					if (Representation->IsSideloadedSubtitle())
+					{
+						CodecMimeType = Representation->GetCodecInformation().GetMimeType();
+					}
+					else
+					{
+						CodecName = Representation->GetCodecInformation().GetCodecSpecifierRFC6381();
+					}
+					if (StreamFilter && !StreamFilter->CanDecodeSubtitle(CodecMimeType, CodecName))
+					{
+						LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Subtitle representation \"%s\" in Period \"%s\" cannot be decoded, ignoring."), *MPDRepresentation->GetID(), *Period->GetID()));
+						continue;
+					}
+
+					if (Representation->bIsSideloadedSubtitle || MPDRepresentation->GetBandwidth() > AdaptationSet->MaxBandwidth)
 					{
 						AdaptationSet->MaxBandwidth = (int32) MPDRepresentation->GetBandwidth();
+						AdaptationSet->Codec = Representation->CodecInfo;
 					}
-					AdaptationSet->Codec = Representation->CodecInfo;
 				}
 				else
 				{
-					// ... ?
-				}
-
-				// Let the player decide if this representation can actually be used.
-				bool bCanDecodeStream = true;
-				IPlayerStreamFilter* StreamFilter = PlayerSessionServices->GetStreamFilter();
-				if (StreamFilter && !StreamFilter->CanDecodeStream(Representation->CodecInfo))
-				{
-					// Skip it then.
-					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Representation \"%s\" in Period \"%s\" rejected by application."), *MPDRepresentation->GetID(), *Period->GetID()));
+					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Verbose, FString::Printf(TEXT("Unknown type of representation \"%s\" in Period \"%s\", ignoring."), *MPDRepresentation->GetID(), *Period->GetID()));
 					continue;
 				}
 

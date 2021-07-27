@@ -16,6 +16,7 @@
 #include "Player/DASH/PlayerEventDASH_Internal.h"
 #include "Player/DRM/DRMManager.h"
 #include "Utilities/Utilities.h"
+#include "Async/Async.h"
 
 #define INTERNAL_ERROR_INIT_SEGMENT_DOWNLOAD_ERROR					1
 #define INTERNAL_ERROR_INIT_SEGMENT_PARSE_ERROR						2
@@ -49,19 +50,37 @@ void FStreamSegmentRequestFMP4DASH::SetExecutionDelay(const FTimeValue& Executio
 	DownloadDelayTime = ExecutionDelay;
 }
 
+FTimeValue FStreamSegmentRequestFMP4DASH::GetExecuteAtUTCTime() const
+{
+	FTimeValue When = ASAST;
+	if (DownloadDelayTime.IsValid())
+	{
+		When += DownloadDelayTime;
+	}
+	return When;
+}
+
 
 EStreamType FStreamSegmentRequestFMP4DASH::GetType() const
 {
 	return StreamType;
 }
 
-void FStreamSegmentRequestFMP4DASH::GetDependentStreams(TArray<FDependentStreams>& OutDependentStreams) const
+void FStreamSegmentRequestFMP4DASH::GetDependentStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutDependentStreams) const
 {
 	OutDependentStreams.Empty();
-	for(int32 i=0; i<DependentStreams.Num(); ++i)
+	for(auto& Stream : DependentStreams)
 	{
-		FDependentStreams& depStr = OutDependentStreams.AddDefaulted_GetRef();
-		depStr.StreamType = DependentStreams[i]->GetType();
+		OutDependentStreams.Emplace(Stream);
+	}
+}
+
+void FStreamSegmentRequestFMP4DASH::GetRequestedStreams(TArray<TSharedPtrTS<IStreamSegment>>& OutRequestedStreams)
+{
+	OutRequestedStreams.Empty();
+	for(auto& Stream : DependentStreams)
+	{
+		OutRequestedStreams.Emplace(Stream);
 	}
 }
 
@@ -139,7 +158,15 @@ UEMediaError FStreamReaderFMP4DASH::Create(IPlayerSessionServices* InPlayerSessi
 		StreamHandlers[i].bHasErrored   	   = false;
 		StreamHandlers[i].IsIdleSignal.Signal();
 
-		StreamHandlers[i].ThreadSetName(i==0?"ElectraPlayer::fmp4 Video":"ElectraPlayer::fmp4 Audio");
+		// Subtitles get fetched running on the thread pool.
+		if (i == 2)
+		{
+			StreamHandlers[i].bRunOnThreadPool = true;
+		}
+
+		StreamHandlers[i].ThreadSetName(i==0 ? "ElectraPlayer::fmp4 Video" : 
+										i==1 ? "ElectraPlayer::fmp4 Audio" :
+											   "ElectraPlayer::fmp4 Subtitle");
 	}
 	return UEMEDIA_ERROR_OK;
 }
@@ -159,7 +186,11 @@ void FStreamReaderFMP4DASH::Close()
 		// Wait until they finished.
 		for(int32 i=0; i<FMEDIA_STATIC_ARRAY_COUNT(StreamHandlers); ++i)
 		{
-			if (StreamHandlers[i].bWasStarted)
+			if (StreamHandlers[i].bRunOnThreadPool)
+			{
+				StreamHandlers[i].IsIdleSignal.Wait();
+			}
+			else if (StreamHandlers[i].bWasStarted)
 			{
 				StreamHandlers[i].ThreadWaitDone();
 				StreamHandlers[i].ThreadReset();
@@ -174,27 +205,12 @@ IStreamReader::EAddResult FStreamReaderFMP4DASH::AddRequest(uint32 CurrentPlayba
 
 	if (Request->bIsInitialStartRequest)
 	{
-		for(int32 i=0; i<Request->DependentStreams.Num(); ++i)
-		{
-			EAddResult Result = AddRequest(CurrentPlaybackSequenceID, Request->DependentStreams[i]);
-			if (Result != IStreamReader::EAddResult::Added)
-			{
-				return Result;
-			}
-		}
+		PostError(PlayerSessionService, TEXT("Initial start request segments cannot be enqueued!"), 0);
+		return IStreamReader::EAddResult::Error;
 	}
 	else
 	{
-		// Video and audio only for now.
-		if (Request->GetType() != EStreamType::Video && Request->GetType() != EStreamType::Audio)
-		{
-			ErrorDetail.SetMessage(FString::Printf(TEXT("Request is not for video or audio")));
-			return IStreamReader::EAddResult::Error;
-		}
-	
 		// Get the handler for the main request.
-		// TODO: We could have a pool of handlers or create a handler on demand if necessary.
-		//       Alternatively think about adding a local queue but be wary about request cancellation.
 		FStreamHandler* Handler = nullptr;
 		switch(Request->GetType())
 		{
@@ -203,6 +219,9 @@ IStreamReader::EAddResult FStreamReaderFMP4DASH::AddRequest(uint32 CurrentPlayba
 				break;
 			case EStreamType::Audio:
 				Handler = &StreamHandlers[1];
+				break;
+			case EStreamType::Subtitle:
+				Handler = &StreamHandlers[2];
 				break;
 			default:
 				break;
@@ -221,10 +240,21 @@ IStreamReader::EAddResult FStreamReaderFMP4DASH::AddRequest(uint32 CurrentPlayba
 		}
 
 		Request->SetPlaybackSequenceID(CurrentPlaybackSequenceID);
-		if (!Handler->bWasStarted)
+		if (Handler->bRunOnThreadPool)
 		{
-			Handler->ThreadStart(Electra::MakeDelegate(Handler, &FStreamHandler::WorkerThread));
-			Handler->bWasStarted = true;
+			Handler->IsIdleSignal.Reset();
+			Async(EAsyncExecution::ThreadPool, [Handler]()
+			{
+				Handler->RunInThreadPool();
+			});
+		}
+		else
+		{
+			if (!Handler->bWasStarted)
+			{
+				Handler->ThreadStart(Electra::MakeDelegate(Handler, &FStreamHandler::WorkerThread));
+				Handler->bWasStarted = true;
+			}
 		}
 
 		Handler->bRequestCanceled = false;
@@ -244,6 +274,10 @@ void FStreamReaderFMP4DASH::CancelRequest(EStreamType StreamType, bool bSilent)
 	else if (StreamType == EStreamType::Audio)
 	{
 		StreamHandlers[1].Cancel(bSilent);
+	}
+	else if (StreamType == EStreamType::Subtitle)
+	{
+		StreamHandlers[2].Cancel(bSilent);
 	}
 }
 
@@ -267,6 +301,7 @@ FStreamReaderFMP4DASH::FStreamHandler::FStreamHandler()
 FStreamReaderFMP4DASH::FStreamHandler::~FStreamHandler()
 {
 	// NOTE: The thread will have been terminated by the enclosing FStreamReaderFMP4DASH's Close() method!
+	//       Also, this may have run on the thread pool instead of a dedicated worker thread.
 }
 
 void FStreamReaderFMP4DASH::FStreamHandler::Cancel(bool bSilent)
@@ -310,6 +345,34 @@ void FStreamReaderFMP4DASH::FStreamHandler::WorkerThread()
 	}
 	StreamSelector.Reset();
 }
+
+void FStreamReaderFMP4DASH::FStreamHandler::RunInThreadPool()
+{
+	LLM_SCOPE(ELLMTag::ElectraPlayer);
+
+	StreamSelector = PlayerSessionService->GetStreamSelector();
+	check(StreamSelector.IsValid());
+	WorkSignal.Obtain();
+	if (!bTerminate)
+	{
+		if (CurrentRequest.IsValid())
+		{
+			if (!bRequestCanceled)
+			{
+				HandleRequest();
+			}
+			else
+			{
+				CurrentRequest.Reset();
+			}
+		}
+		bRequestCanceled = false;
+		bSilentCancellation = false;
+	}
+	StreamSelector.Reset();
+	IsIdleSignal.Signal();
+}
+
 
 
 void FStreamReaderFMP4DASH::FStreamHandler::LogMessage(IInfoLog::ELevel Level, const FString& Message)
@@ -666,35 +729,6 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 	{
 		CurrentRequest.Reset();
 		return;
-	}
-
-	// Does this request have an availability window?
-	if (Request->ASAST.IsValid())
-	{
-		FTimeValue Now = PlayerSessionService->GetSynchronizedUTCTime()->GetTime();
-		FTimeValue When = Request->ASAST;
-		if (Request->DownloadDelayTime.IsValid())
-		{
-			When += Request->DownloadDelayTime;
-		}
-		// Availability start time not reached yet?
-		while(Now < When)
-		{
-			if (HasReadBeenAborted())
-			{
-				CurrentRequest.Reset();
-				return;
-			}
-			const int64 SleepIntervalMS = 100;
-			FMediaRunnable::SleepMilliseconds((uint32) Utils::Max(Utils::Min((When - Now).GetAsMilliseconds(), SleepIntervalMS), (int64)0));
-			Now = PlayerSessionService->GetSynchronizedUTCTime()->GetTime();
-		}
-
-		// Already expired?
-		if (Now > Request->SAET)
-		{
-			// TODO:
-		}
 	}
 
 	// Clear internal work variables.

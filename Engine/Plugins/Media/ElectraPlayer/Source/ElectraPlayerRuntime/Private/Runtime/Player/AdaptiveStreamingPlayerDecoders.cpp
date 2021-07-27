@@ -3,12 +3,164 @@
 #include "PlayerCore.h"
 #include "Player/AdaptiveStreamingPlayerInternal.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"
+#include "Decoder/SubtitleDecoder.h"
 #include "Utilities/Utilities.h"
 #include "ParameterDictionary.h"
 
 
 namespace Electra
 {
+
+// AU memory
+void* FAdaptiveStreamingPlayer::AUAllocate(IAccessUnitMemoryProvider::EDataType type, SIZE_T NumBytes, SIZE_T Alignment)
+{
+	if (Alignment)
+	{
+		return FMemory::Malloc(NumBytes, Alignment);
+	}
+	return FMemory::Malloc(NumBytes);
+}
+
+void FAdaptiveStreamingPlayer::AUDeallocate(IAccessUnitMemoryProvider::EDataType type, void* Address)
+{
+	FMemory::Free(Address);
+}
+
+IPlayerStreamFilter* FAdaptiveStreamingPlayer::GetStreamFilter()
+{
+	return this;
+}
+
+const FCodecSelectionPriorities& FAdaptiveStreamingPlayer::GetCodecSelectionPriorities(EStreamType ForStream)
+{
+	switch(ForStream)
+	{
+		case EStreamType::Video:
+		{
+			return CodecPrioritiesVideo;
+		}
+		case EStreamType::Audio:
+		{
+			return CodecPrioritiesAudio;
+		}
+		case EStreamType::Subtitle:
+		{
+			return CodecPrioritiesSubtitles;
+		}
+		default:
+		{
+			static FCodecSelectionPriorities Dummy;
+			return Dummy;
+		}
+	}
+}
+
+
+
+bool FAdaptiveStreamingPlayer::CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const
+{
+	auto IsCodecPrefixExcluded = [](const FString& InCodec, const TArray<FString>& InExcludedPrefixes) -> bool
+	{
+		for(auto &Prefix : InExcludedPrefixes)
+		{
+			if (InCodec.StartsWith(Prefix, ESearchCase::IgnoreCase))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+
+	if (InStreamCodecInfo.IsVideoCodec())
+	{
+		// Check against user specified codec prefix exclusions
+		if (IsCodecPrefixExcluded(InStreamCodecInfo.GetCodecSpecifierRFC6381(), ExcludedVideoDecoderPrefixes))
+		{
+			return false;
+		}
+
+		double Rate = InStreamCodecInfo.GetFrameRate().IsValid() ? InStreamCodecInfo.GetFrameRate().GetAsDouble() : 30.0;
+		if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H264)
+		{
+			const AdaptiveStreamingPlayerConfig::FConfiguration::FVideoDecoderLimit* DecoderLimit = &PlayerConfig.H264LimitUpto30fps;
+			if (Rate > 31.0)
+			{
+				DecoderLimit = &PlayerConfig.H264LimitAbove30fps;
+			}
+			// Check against user configured resolution limit
+			if (DecoderLimit->MaxResolution.Height && InStreamCodecInfo.GetResolution().Height > DecoderLimit->MaxResolution.Height)
+			{
+				return false;
+			}
+
+			// Check against video decoder capabilities.
+			IVideoDecoderH264::FStreamDecodeCapability StreamParam, Capability;
+			StreamParam.Width = InStreamCodecInfo.GetResolution().Width;
+			StreamParam.Height = InStreamCodecInfo.GetResolution().Height;
+			StreamParam.Profile = InStreamCodecInfo.GetProfile();
+			StreamParam.Level = InStreamCodecInfo.GetProfileLevel();
+			StreamParam.FPS = Rate;
+			if (IVideoDecoderH264::GetStreamDecodeCapability(Capability, StreamParam))
+			{
+				if (Capability.DecoderSupportType == IVideoDecoderH264::FStreamDecodeCapability::ESupported::NotSupported)
+				{
+					return false;
+				}
+			}
+		}
+		else if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H265)
+		{
+			#if ELECTRA_PLATFORM_HAS_H265_DECODER
+				// Check against video decoder capabilities.
+				IVideoDecoderH265::FStreamDecodeCapability StreamParam, Capability;
+				StreamParam.Width = InStreamCodecInfo.GetResolution().Width;
+				StreamParam.Height = InStreamCodecInfo.GetResolution().Height;
+				StreamParam.Tier = InStreamCodecInfo.GetProfileTier();
+				StreamParam.CompatibilityFlags = InStreamCodecInfo.GetProfileCompatibilityFlags();
+				StreamParam.Profile = InStreamCodecInfo.GetProfile();
+				StreamParam.Level = InStreamCodecInfo.GetProfileLevel();
+				StreamParam.ConstraintFlags = InStreamCodecInfo.GetProfileConstraints();
+				StreamParam.FPS = Rate;
+				if (IVideoDecoderH265::GetStreamDecodeCapability(Capability, StreamParam))
+				{
+					if (Capability.DecoderSupportType == IVideoDecoderH265::FStreamDecodeCapability::ESupported::NotSupported)
+					{
+						return false;
+					}
+				}
+			#else
+				return false;
+			#endif
+		}
+	}
+	else if (InStreamCodecInfo.IsAudioCodec())
+	{
+		// Check against user specified codec prefix exclusions
+		if (IsCodecPrefixExcluded(InStreamCodecInfo.GetCodecSpecifierRFC6381(), ExcludedAudioDecoderPrefixes))
+		{
+			return false;
+		}
+	}
+	else if (InStreamCodecInfo.IsSubtitleCodec())
+	{
+		// Check against user specified codec prefix exclusions
+		if (IsCodecPrefixExcluded(InStreamCodecInfo.GetCodecSpecifierRFC6381(), ExcludedSubtitleDecoderPrefixes))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+bool FAdaptiveStreamingPlayer::CanDecodeSubtitle(const FString& MimeType, const FString& Codec) const
+{
+	return ISubtitleDecoder::IsSupported(MimeType, Codec);
+}
+
+
 
 
 bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight)
@@ -321,6 +473,45 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 		}
 		return 0;
 	}
+	else if (type == EStreamType::Subtitle)
+	{
+		if (SubtitleDecoder.Decoder == nullptr)
+		{
+			FAccessUnit* AccessUnit = nullptr;
+			bool bOk = MultiStreamBufferTxt.PeekAndAddRef(AccessUnit);
+			if (AccessUnit)
+			{
+				SubtitleDecoder.CurrentCodecInfo.Clear();
+				if (AccessUnit->AUCodecData.IsValid())
+				{
+					SubtitleDecoder.CurrentCodecInfo = AccessUnit->AUCodecData->ParsedInfo;
+				}
+				FAccessUnit::Release(AccessUnit);
+
+				// Create subtitle decoder for this type of AU.
+				SubtitleDecoder.Decoder = ISubtitleDecoder::Create(AccessUnit);
+				if (SubtitleDecoder.Decoder)
+				{
+					SubtitleDecoder.Decoder->SetPlayerSessionServices(this);
+					SubtitleDecoder.Decoder->GetDecodedSubtitleReceiveDelegate().BindRaw(this, &FAdaptiveStreamingPlayer::OnDecodedSubtitleReceived);
+					SubtitleDecoder.Decoder->GetDecodedSubtitleFlushDelegate().BindRaw(this, &FAdaptiveStreamingPlayer::OnFlushSubtitleReceivers);
+					SubtitleDecoder.Decoder->Open();
+					// Start the decoder, if decoding is currently running.
+					SubtitleDecoder.Start(DecoderState == EDecoderState::eDecoder_Running);
+				}
+				else
+				{
+					FErrorDetail err;
+					err.SetFacility(Facility::EFacility::Player);
+					err.SetMessage("Unsupported subtitle codec");
+					err.SetCode(INTERR_UNSUPPORTED_CODEC);
+					PostError(err);
+					return -1;
+				}
+			}
+		}
+		return 0;
+	}
 	return -1;
 }
 
@@ -342,6 +533,7 @@ NOTE: We do not clear out the renderers from the decoder. On their way down the 
 */
 	AudioDecoder.Close();
 	VideoDecoder.Close();
+	SubtitleDecoder.Close();
 }
 
 
@@ -359,7 +551,43 @@ void FAdaptiveStreamingPlayer::HandleDecoderChanges()
 	}
 	CreateDecoder(EStreamType::Video);
 	CreateDecoder(EStreamType::Audio);
+	CreateDecoder(EStreamType::Subtitle);
 }
+
+
+void FAdaptiveStreamingPlayer::HandleSubtitleDecoder()
+{
+	// Feeds access units from the subtitle buffer to the subtitle decoder.
+	// Since this is very small and sparse data the decoder does not run in a dedicated thread like
+	// the video and audio decoders do.
+	if (SubtitleDecoder.Decoder && !MultiStreamBufferTxt.IsDeselected())
+	{
+		FAccessUnit* PeekedAU = nullptr;
+		MultiStreamBufferTxt.PeekAndAddRef(PeekedAU);
+		FTimeValue NextPTS = PeekedAU ? PeekedAU->PTS - SubtitleDecoder.Decoder->GetStreamedDeliveryTimeOffset() : FTimeValue::GetInvalid();
+		FAccessUnit::Release(PeekedAU);
+		FTimeValue CurrentPos = GetCurrentPlayTime();
+		if (NextPTS.IsValid() && CurrentPos >= NextPTS)
+		{
+			FeedDecoder(EStreamType::Subtitle, MultiStreamBufferTxt, SubtitleDecoder.Decoder, false);
+		}
+
+		if (CurrentPos.IsValid() && RenderClock->IsRunning())
+		{
+			FTimeValue LocalPos;
+			for(int32 i=0, iMax=ActivePeriods.Num(); i<iMax; ++i)
+			{
+				if (CurrentPos >= ActivePeriods[i].TimeRange.Start && ((i+1 == iMax) || CurrentPos < ActivePeriods[i+1].TimeRange.Start))
+				{
+					LocalPos = CurrentPos - ActivePeriods[i].TimeRange.Start;
+					break;
+				}
+			}
+			SubtitleDecoder.Decoder->UpdatePlaybackPosition(CurrentPos, LocalPos);
+		}
+	}
+}
+
 
 
 void FAdaptiveStreamingPlayer::VideoDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats &currentInputBufferStats)
@@ -372,7 +600,7 @@ void FAdaptiveStreamingPlayer::VideoDecoderInputNeeded(const IAccessUnitBufferLi
 		EDecoderState decState = DecoderState;
 		if (decState == EDecoderState::eDecoder_Running)
 		{
-			FeedDecoder(EStreamType::Video, MultiStreamBufferVid, VideoDecoder.Decoder);
+			FeedDecoder(EStreamType::Video, MultiStreamBufferVid, VideoDecoder.Decoder, true);
 		}
 	}
 }
@@ -393,7 +621,7 @@ void FAdaptiveStreamingPlayer::AudioDecoderInputNeeded(const IAccessUnitBufferLi
 	EDecoderState decState = DecoderState;
 	if (decState == EDecoderState::eDecoder_Running)
 	{
-		FeedDecoder(EStreamType::Audio, MultiStreamBufferAud, AudioDecoder.Decoder);
+		FeedDecoder(EStreamType::Audio, MultiStreamBufferAud, AudioDecoder.Decoder, true);
 	}
 }
 
@@ -415,8 +643,9 @@ void FAdaptiveStreamingPlayer::AudioDecoderOutputReady(const IDecoderOutputBuffe
  * @param Type
  * @param FromMultistreamBuffer
  * @param Decoder
+ * @param bHandleUnderrun
  */
-void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder)
+void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder, bool bHandleUnderrun)
 {
 	// Lock the AU buffer for the duration of this function to ensure this can never clash with a Flush() call
 	// since we are checking size, eod state and subsequently popping an AU, for which the buffer must stay consistent inbetween!
@@ -443,6 +672,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 		case EStreamType::Subtitle:
 			pStats = &TextBufferStats;
 			pAvailability = &DataAvailabilityStateTxt;
+			CurrentCodecInfo = &SubtitleDecoder.CurrentCodecInfo;
 			break;
 		default:
 			checkNoEntry();
@@ -453,7 +683,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 	if (!FromMultistreamBuffer.IsDeselected())
 	{
 		// Check for buffer underrun.
-		if (!bRebufferPending && CurrentState == EPlayerState::eState_Playing && StreamState == EStreamState::eStream_Running && PipelineState == EPipelineState::ePipeline_Running)
+		if (bHandleUnderrun && !bRebufferPending && CurrentState == EPlayerState::eState_Playing && StreamState == EStreamState::eStream_Running && PipelineState == EPipelineState::ePipeline_Running)
 		{
 			bool bEODSet = FromMultistreamBuffer.IsEODFlagSet();
 			if (!bEODSet && FromMultistreamBuffer.Num() == 0)
@@ -504,7 +734,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 			}
 			else
 			{
-				// release peeked and actually pop it
+				// Release peeked AU and actually pop it
 				FAccessUnit* AccessUnit = nullptr;
 				FromMultistreamBuffer.Pop(AccessUnit);
 				check(PeekedAU == AccessUnit);

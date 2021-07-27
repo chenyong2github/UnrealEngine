@@ -12,6 +12,7 @@
 #include "Utilities/ISO639-Map.h"
 #include "InfoLog.h"
 #include "Player/PlayerSessionServices.h"
+#include "Decoder/SubtitleDecoder.h"
 
 #if UE_BUILD_DEBUG
 #define MEDIA_DEBUG_HAS_BOX_NAMES 1
@@ -54,6 +55,7 @@ namespace Electra
 		FMP4BoxReader(IParserISO14496_12::IReader* InDataReader, IParserISO14496_12::IBoxCallback* InBoxParseCallback)
 			: DataReader(InDataReader)
 			, BoxParseCallback(InBoxParseCallback)
+			, DataDuplicationBuffer(nullptr)
 		{
 			check(DataReader);
 		}
@@ -79,6 +81,10 @@ namespace Electra
 			int64 NumRead = DataReader->ReadData(&Temp, sizeof(T));
 			if (NumRead == sizeof(T))
 			{
+				if (DataDuplicationBuffer)
+				{
+					DataDuplicationBuffer->Append((const uint8*)&Temp, sizeof(T));
+				}
 				value = Utils::ValueFromBigEndian(Temp);
 				return UEMEDIA_ERROR_OK;
 			}
@@ -136,7 +142,22 @@ namespace Electra
 			{
 				return UEMEDIA_ERROR_OK;
 			}
-			int64 NumRead = DataReader->ReadData(Buffer, NumBytes);
+
+			int64 NumRead = 0;
+			if (!Buffer && DataDuplicationBuffer)
+			{
+				int32 BufferSizeNow = DataDuplicationBuffer->Num();
+				DataDuplicationBuffer->AddUninitialized((int32)NumBytes);
+				NumRead = DataReader->ReadData(DataDuplicationBuffer->GetData() + BufferSizeNow, NumBytes);
+			}
+			else
+			{
+				NumRead = DataReader->ReadData(Buffer, NumBytes);
+				if (NumRead == NumBytes && DataDuplicationBuffer)
+				{
+					DataDuplicationBuffer->Append((const uint8*)Buffer, (int32)NumBytes);
+				}
+			}
 			if (NumRead == NumBytes)
 			{
 				return UEMEDIA_ERROR_OK;
@@ -171,12 +192,36 @@ namespace Electra
 		}
 
 
+		void SetDataDuplicationBuffer(TArray<uint8>* InDataDuplicationBuffer)
+		{
+			DataDuplicationBuffer = InDataDuplicationBuffer;
+		}
+
+		class ScopedDataDuplication : private TMediaNoncopyable<ScopedDataDuplication>
+		{
+		public:
+			explicit ScopedDataDuplication(FMP4BoxReader* InBoxReader, TArray<uint8>& DuplicationBuffer)
+				: BoxReader(InBoxReader)
+			{
+				BoxReader->SetDataDuplicationBuffer(&DuplicationBuffer);
+			}
+			~ScopedDataDuplication()
+			{
+				BoxReader->SetDataDuplicationBuffer(nullptr);
+			}
+		private:
+			ScopedDataDuplication();
+			FMP4BoxReader* BoxReader;
+		};
+
 	private:
 		FMP4BoxReader() = delete;
 		FMP4BoxReader(const FMP4BoxReader&) = delete;
 
-		IParserISO14496_12::IReader* DataReader;
-		IParserISO14496_12::IBoxCallback* BoxParseCallback;
+		IParserISO14496_12::IReader* DataReader = nullptr;
+		IParserISO14496_12::IBoxCallback* BoxParseCallback = nullptr;
+
+		TArray<uint8>* DataDuplicationBuffer = nullptr;
 	};
 
 
@@ -666,6 +711,7 @@ private:
 		static const IParserISO14496_12::FBoxType kSample_mp4a = MAKE_BOX_ATOM('m', 'p', '4', 'a');
 		static const IParserISO14496_12::FBoxType kSample_stpp = MAKE_BOX_ATOM('s', 't', 'p', 'p');
 		static const IParserISO14496_12::FBoxType kSample_sbtt = MAKE_BOX_ATOM('s', 'b', 't', 't');
+		static const IParserISO14496_12::FBoxType kSample_tx3g = MAKE_BOX_ATOM('t', 'x', '3', 'g');
 		static const IParserISO14496_12::FBoxType kSample_enca = MAKE_BOX_ATOM('e', 'n', 'c', 'a');
 		static const IParserISO14496_12::FBoxType kSample_encv = MAKE_BOX_ATOM('e', 'n', 'c', 'v');
 
@@ -1107,6 +1153,27 @@ private:
 			return TrackID;
 		}
 
+		const double* GetMatrix() const
+		{
+			return Matrix;
+		}
+
+		double GetMatrixValue(int32 Index) const
+		{
+			return (Index >= 0 && Index < 9) ? Matrix[Index] : 0.0;
+		}
+
+		uint16 GetWidth() const
+		{
+			return Width >> 16;
+		}
+
+		uint16 GetHeight() const
+		{
+			return Height >> 16;
+		}
+
+
 	private:
 		FMP4BoxTKHD() = delete;
 		FMP4BoxTKHD(const FMP4BoxTKHD&) = delete;
@@ -1144,10 +1211,22 @@ private:
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(AlternateGroup));			// alternate_group
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));				// volume
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));				// reserved
-			// Skip matrix
-			for(int32 i = 0; i < 9; ++i)
+			// Matrix
+			for(int32 i=0; i<9; ++i)
 			{
+				/*
+					"All the values in a matrix are stored as 16.16 fixed‐point values, except for u, v and w, which are stored
+					as 2.30 fixed‐point values. The values in the matrix are stored in the order {a,b,u, c,d,v, x,y,w}."
+				*/
 				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));
+				if (i == 2 || i ==5 || i == 8)
+				{
+					Matrix[i] = (int32)Value32 / 1073741824.0;
+				}
+				else
+				{
+					Matrix[i] = (int32)Value32 / 65536.0;
+				}
 			}
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Width));					// width (16.16 fixed point). If flags & 8 then indicates aspect ratio.
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Height));					// height (16.16 fixed point). If flags & 8 then indicates aspect ratio.
@@ -1167,6 +1246,7 @@ private:
 		uint32		Height;
 		int16		Layer;
 		int16		AlternateGroup;
+		double		Matrix[9];
 	};
 
 
@@ -1936,6 +2016,233 @@ private:
 
 
 	/**
+	 * Plain Text sample entry (12.5.3 - Sample Entry)
+	 */
+	class FMP4BoxPlainTextSampleEntry : public FMP4BoxSampleEntry
+	{
+	public:
+		FMP4BoxPlainTextSampleEntry(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox, int32 InSTSDBoxVersion)
+			: FMP4BoxSampleEntry(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, STSDBoxVersion(InSTSDBoxVersion)
+		{
+		}
+
+		virtual ~FMP4BoxPlainTextSampleEntry()
+		{
+		}
+
+	private:
+		FMP4BoxPlainTextSampleEntry() = delete;
+		FMP4BoxPlainTextSampleEntry(const FMP4BoxPlainTextSampleEntry&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxSampleEntry::ReadAndParseAttributes(ParseInfo));
+
+			// There can now be additional boxes following
+			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			if (BytesRemaining)
+			{
+				// Now that there are additional boxes we ourselves are no longer a leaf box.
+				bIsLeafBox = false;
+				// This will read all the boxes in here and add them as children.
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this));
+			}
+
+			return Error;
+		}
+
+		int32		STSDBoxVersion;
+	};
+
+
+	/**
+	 * 3GPP / TX3G Text sample entry (ETSI TS 126 245 V11.0.0 - 5.16 Sample Description Format)
+	 */
+	class FMP4BoxTX3GSampleEntry : public FMP4BoxSampleEntry
+	{
+	public:
+		FMP4BoxTX3GSampleEntry(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox, int32 InSTSDBoxVersion)
+			: FMP4BoxSampleEntry(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, STSDBoxVersion(InSTSDBoxVersion)
+		{
+		}
+
+		virtual ~FMP4BoxTX3GSampleEntry()
+		{
+		}
+
+		struct FBoxRecord
+		{
+			int16 Top = 0;
+			int16 Left = 0;
+			int16 Bottom = 0;
+			int16 Right = 0;
+		};
+
+		struct FStyleRecord
+		{
+			uint16 StartChar = 0;
+			uint16 EndChar = 0;
+			uint16 FontID = 0;
+			uint8 FaceStyleFlags = 0;
+			uint8 FontSize = 0;
+			uint8 TextColorRGBA[4] { 0 };
+		};
+
+		struct FFontRecord
+		{
+			uint16 FontID = 0;
+			FString FontName;
+		};
+
+		const TArray<uint8> GetRawBoxData() const
+		{
+			return BoxData;
+		}
+
+		int32 GetTranslationX() const
+		{
+			return TranslationX;
+		}
+
+		int32 GetTranslationY() const
+		{
+			return TranslationY;
+		}
+
+		uint16 GetWidth() const
+		{
+			return Width;
+		}
+
+		uint16 GetHeight() const
+		{
+			return Height;
+		}
+
+		uint32 GetTimescale() const
+		{
+			return Timescale;
+		}
+
+	private:
+		FMP4BoxTX3GSampleEntry() = delete;
+		FMP4BoxTX3GSampleEntry(const FMP4BoxTX3GSampleEntry&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+
+			// Duplicate all the data we are reading into a buffer that we need to provide to the subtitle plugin.
+			FMP4BoxReader::ScopedDataDuplication DuplicateBoxData(ParseInfo->Reader(), BoxData);
+
+			RETURN_IF_ERROR(FMP4BoxSampleEntry::ReadAndParseAttributes(ParseInfo));
+
+			const FMP4BoxTKHD* TKHD = ParseInfo->GetCurrentTrackBox() ? static_cast<const FMP4BoxTKHD*>(ParseInfo->GetCurrentTrackBox()->GetBoxPath(FMP4Box::kBox_tkhd)) : nullptr;
+			if (TKHD)
+			{
+				Width = TKHD->GetWidth();
+				Height = TKHD->GetHeight();
+				// Translation must not be using fractional digits and can thus be treated like integers.
+				TranslationX = (int32) TKHD->GetMatrixValue(6);
+				TranslationY = (int32) TKHD->GetMatrixValue(7);
+			}
+
+			const FMP4BoxMDHD* MDHD = ParseInfo->GetCurrentTrackBox() ? static_cast<const FMP4BoxMDHD*>(ParseInfo->GetCurrentTrackBox()->FindBox(FMP4Box::kBox_mdhd)) : nullptr;
+			if (MDHD)
+			{
+				Timescale = MDHD->GetTimescale();
+			}
+
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(DisplayFlags));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(HorizontalJustification));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(VerticalJustification));
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(BackgroundColorRGBA, 4));
+
+			// BoxRecord
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(BoxRecord.Top));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(BoxRecord.Left));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(BoxRecord.Bottom));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(BoxRecord.Right));
+
+			// Style record
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(StyleRecord.StartChar));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(StyleRecord.EndChar));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(StyleRecord.FontID));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(StyleRecord.FaceStyleFlags));
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(StyleRecord.FontSize));
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(StyleRecord.TextColorRGBA, 4));
+
+			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			// The font table is stored in a box. Not sure if there can be more than one though.
+			// We skip over the box itself and parse it in place. Any additional boxes we ignore.
+			if (BytesRemaining < 10)
+			{
+				UE_LOG(LogElectraMP4Parser, Error, TEXT("ERROR: ElectraPlayer/FMP4BoxTX3GSampleEntry::ReadAndParseAttributes(): Not enough data for the 'ftab' box"));
+				return UEMEDIA_ERROR_FORMAT_ERROR;
+			}
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, 8));
+
+			// FontTableBox
+			uint16 EntryCount;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(EntryCount));
+			FontRecords.Reserve(EntryCount);
+			for(int32 nEntry=0; nEntry<EntryCount; ++nEntry)
+			{
+				FFontRecord& fr = FontRecords.AddDefaulted_GetRef();
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(fr.FontID));
+				uint8 FontNameLength;
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(FontNameLength));
+				if (FontNameLength)
+				{
+					uint8 FontName[256] {0};
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(FontName, FontNameLength));
+					if (FontNameLength >= 2 && ((FontName[0] == 0xff && FontName[1] == 0xfe) || (FontName[0] == 0xfe && FontName[1] == 0xff)))
+					{
+						UE_LOG(LogElectraMP4Parser, Error, TEXT("ERROR: ElectraPlayer/FMP4BoxTX3GSampleEntry::ReadAndParseAttributes(): Font name uses UTF16 which is not supported"));
+						return UEMEDIA_ERROR_FORMAT_ERROR;
+					}
+					FUTF8ToTCHAR cnv((const ANSICHAR*)FontName, FontNameLength);
+					fr.FontName = FString(cnv.Length(), cnv.Get());
+				}
+			}
+
+			// There could now be additional boxes following
+			BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			if (BytesRemaining)
+			{
+				// Now that there are additional boxes we ourselves are no longer a leaf box.
+				bIsLeafBox = false;
+				// This will read all the boxes in here and add them as children.
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this));
+			}
+
+			return Error;
+		}
+
+		TArray<uint8>		BoxData;
+
+		int32				STSDBoxVersion;
+		uint32				Timescale = 0;
+		uint16				Width = 0;
+		uint16				Height = 0;
+		int32				TranslationX = 0;
+		int32				TranslationY = 0;
+		uint32				DisplayFlags = 0;
+		int8				HorizontalJustification = 0;
+		int8				VerticalJustification = 0;
+		uint8				BackgroundColorRGBA[4] {0};
+		FBoxRecord			BoxRecord;
+		FStyleRecord		StyleRecord;
+		TArray<FFontRecord>	FontRecords;
+	};
+
+
+	/**
 	 * AVC Decoder Configuration box (ISO/IEC 14496-15:2014 - 5.4.2.1.2)
 	 */
 	class FMP4BoxAVCC : public FMP4BoxBasic
@@ -2489,6 +2796,7 @@ private:
 			{
 				ESTVideo,
 				ESTAudio,
+				ESTSubtitles,
 				ESTIgnored
 			};
 			EExpectedSampleType ExpectedSampleType = EExpectedSampleType::ESTIgnored;
@@ -2505,6 +2813,8 @@ private:
 						break;
 					case FMP4Box::kBox_nmhd:
 					case FMP4Box::kBox_sthd:
+						ExpectedSampleType = EExpectedSampleType::ESTSubtitles;
+						break;
 					case FMP4Box::kBox_gmhd:
 					default:
 						ExpectedSampleType = EExpectedSampleType::ESTIgnored;
@@ -2531,7 +2841,7 @@ private:
 			// Check if this is a supported sample format.
 			bIsSupportedFormat = ExpectedSampleType != EExpectedSampleType::ESTIgnored;
 
-			for(uint32 i = 0; i < EntryCount; ++i)
+			for(uint32 i=0; i<EntryCount; ++i)
 			{
 				IParserISO14496_12::FBoxType	ChildBoxType;
 				int64							ChildBoxSize;
@@ -2552,6 +2862,16 @@ private:
 						break;
 					case EExpectedSampleType::ESTAudio:
 						NextBox = new FMP4BoxAudioSampleEntry(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true, Version);
+						break;
+					case EExpectedSampleType::ESTSubtitles:
+						if (ChildBoxType == FMP4Box::kSample_tx3g)
+						{
+							NextBox = new FMP4BoxTX3GSampleEntry(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true, Version);
+						}
+						else
+						{
+							NextBox = new FMP4BoxIgnored(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true);
+						}
 						break;
 						/*
 						// Subtitles, captions and subpictures (bitmap subtitles) are ignored for now.
@@ -4871,6 +5191,7 @@ private:
 			MPEG::FAVCDecoderConfigurationRecord	CodecSpecificDataAVC;
 			MPEG::FHEVCDecoderConfigurationRecord	CodecSpecificDataHEVC;
 			MPEG::FESDescriptor						CodecSpecificDataMP4A;
+			TArray<uint8>							CodecSpecificDataRAW;
 			FBitrateInfo							BitrateInfo;
 		};
 
@@ -4943,6 +5264,7 @@ private:
 		UEMediaError ParseAVC1SampleType(FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseHVC1SampleType(FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseMP4ASampleType(FTrack* Track, const FMP4Box* SampleBox);
+		UEMediaError ParseTX3GSampleType(FTrack* Track, const FMP4Box* SampleBox);
 
 		FMP4ParseInfo* ParsedData;
 
@@ -5041,6 +5363,10 @@ private:
 			{
 				return CodecSpecificDataMP4A.GetCodecSpecificData();
 			}
+			case FStreamCodecInformation::ECodec::TX3G:
+			{
+				return CodecSpecificDataRAW;
+			}
 			default:
 			{
 				break;
@@ -5065,6 +5391,10 @@ private:
 			case FStreamCodecInformation::ECodec::AAC:
 			{
 				return CodecSpecificDataMP4A.GetRawData();
+			}
+			case FStreamCodecInformation::ECodec::TX3G:
+			{
+				return CodecSpecificDataRAW;
 			}
 			default:
 			{
@@ -6051,6 +6381,26 @@ private:
 		return UEMEDIA_ERROR_FORMAT_ERROR;
 	}
 
+	UEMediaError FParserISO14496_12::ParseTX3GSampleType(FTrack* Track, const FMP4Box* SampleBox)
+	{
+		// Need to check if there is a subtitle decoder capable of decoding this.
+		if (ISubtitleDecoder::IsSupported(TEXT(""), TEXT("tx3g")))
+		{
+			const FMP4BoxTX3GSampleEntry* SubtitleSampleEntry = static_cast<const FMP4BoxTX3GSampleEntry*>(Track->STSDBox->GetChildBox(0));
+
+			Track->CodecSpecificDataRAW = SubtitleSampleEntry->GetRawBoxData();
+			Track->CodecInformation.SetStreamType(EStreamType::Subtitle);
+			Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::TX3G);
+			Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
+			Track->CodecInformation.SetCodecSpecifierRFC6381(TEXT("tx3g"));
+			Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(SubtitleSampleEntry->GetWidth(), SubtitleSampleEntry->GetHeight()));
+			Track->CodecInformation.SetTranslation(FStreamCodecInformation::FTranslation(SubtitleSampleEntry->GetTranslationX(), SubtitleSampleEntry->GetTranslationY()));
+			Track->CodecInformation.SetFrameRate(FTimeFraction(1, SubtitleSampleEntry->GetTimescale()));
+			return UEMEDIA_ERROR_OK;
+		}
+		return UEMEDIA_ERROR_NOT_SUPPORTED;
+	}
+
 	UEMediaError FParserISO14496_12::PrepareTracks(TSharedPtrTS<const IParserISO14496_12> OptionalMP4InitSegment)
 	{
 		delete ParsedTrackInfo;
@@ -6368,6 +6718,19 @@ private:
 							}
 							case FMP4Box::kSample_stpp:
 							{
+								break;
+							}
+							case FMP4Box::kSample_tx3g:
+							{
+								UEMediaError Error = ParseTX3GSampleType(Track.Get(), STSDFirstChildBox);
+								if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
+								{
+									bIsSupported = false;
+								}
+								else if (Error != UEMEDIA_ERROR_OK)
+								{
+									return Error;
+								}
 								break;
 							}
 							default:

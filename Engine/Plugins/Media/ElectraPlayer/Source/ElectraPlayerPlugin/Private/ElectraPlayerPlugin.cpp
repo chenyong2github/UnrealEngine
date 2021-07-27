@@ -10,7 +10,9 @@
 #include "IElectraPlayerRuntimeModule.h"
 #include "IElectraPlayerPluginModule.h"
 #include "IElectraMetadataSample.h"
+#include "IElectraSubtitleSample.h"
 
+#include "MediaSubtitleDecoderOutput.h"
 #include "MediaMetaDataDecoderOutput.h"
 
 using namespace Electra;
@@ -167,6 +169,47 @@ public:
 
 //-----------------------------------------------------------------------------
 
+class FElectraSubtitleSample : public IElectraSubtitleSample
+{
+public:
+	virtual FGuid GetGUID() const override
+	{ 
+		return IElectraSubtitleSample::GetSampleTypeGUID(); 
+	}
+
+	virtual FMediaTimeStamp GetTime() const override
+	{ 
+		FDecoderTimeStamp ts = Subtitle->GetTime(); 
+		return FMediaTimeStamp(ts.Time, ts.SequenceIndex);
+	}
+	
+	virtual FTimespan GetDuration() const override
+	{
+		return Subtitle->GetDuration();
+	}
+
+	virtual TOptional<FVector2D> GetPosition() const override
+	{
+		return TOptional<FVector2D>();
+	}
+	
+	virtual FText GetText() const override
+	{
+		FUTF8ToTCHAR cnv((const ANSICHAR*)Subtitle->GetData().GetData(), Subtitle->GetData().Num());
+		FString UTF8Text(cnv.Length(), cnv.Get());
+		return FText::FromString(UTF8Text);
+	}
+	
+	virtual EMediaOverlaySampleType GetType() const override
+	{
+		return EMediaOverlaySampleType::Subtitle;
+	}
+
+	ISubtitleDecoderOutputPtr Subtitle;
+};
+
+//-----------------------------------------------------------------------------
+
 
 Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOptions(EOptionType Type, const Electra::FVariantValue & Param)
 {
@@ -284,6 +327,19 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::OnAudioFlush()
 }
 
 
+void FElectraPlayerPlugin::FPlayerAdapterDelegate::OnSubtitleFlush()
+{
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
+	{
+		TRange<FTimespan> AllTime(FTimespan::MinValue(), FTimespan::MaxValue());
+		TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe> FlushSample;
+		while (PinnedHost->GetSamples().FetchSubtitle(AllTime, FlushSample))
+		{ }
+	}
+}
+
+
 void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentVideoFrame(const FVideoDecoderOutputPtr & InVideoFrame)
 {
 	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
@@ -304,6 +360,17 @@ void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentAudioFrame(const IAudi
 		TSharedRef<FElectraPlayerAudioSample, ESPMode::ThreadSafe> AudioSample = PinnedHost->OutputAudioPool.AcquireShared();
 		AudioSample->Initialize(InAudioFrame);
 		PinnedHost->MediaSamples->AddAudio(AudioSample);
+	}
+}
+
+void FElectraPlayerPlugin::FPlayerAdapterDelegate::PresentSubtitleSample(const ISubtitleDecoderOutputPtr& InSubtitleSample)
+{
+	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
+	if (PinnedHost.IsValid())
+	{
+		TSharedRef<FElectraSubtitleSample, ESPMode::ThreadSafe> SubtitleSample = MakeShared<FElectraSubtitleSample, ESPMode::ThreadSafe>();
+		SubtitleSample->Subtitle = InSubtitleSample;
+		PinnedHost->MediaSamples->AddSubtitle(SubtitleSample);
 	}
 }
 
@@ -416,12 +483,19 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 	{
 		LocalPlaystartOptions.TimeOffset = InPlayerOptions->SeekTime;
 		LocalPlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride = InPlayerOptions->Tracks.Audio;
+		LocalPlaystartOptions.InitialSubtitleTrackAttributes.TrackIndexOverride = InPlayerOptions->Tracks.Subtitle;
 	}
 	FString InitialAudioLanguage = Options->GetMediaOption(TEXT("InitialAudioLanguage"), FString());
 	if (InitialAudioLanguage.Len())
 	{
 		LocalPlaystartOptions.InitialAudioTrackAttributes.Language_ISO639 = InitialAudioLanguage;
 		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Asking for initial audio language \"%s\""), this, *InitialAudioLanguage);
+	}
+	FString InitialSubtitleLanguage = Options->GetMediaOption(TEXT("InitialSubtitleLanguage"), FString());
+	if (InitialSubtitleLanguage.Len())
+	{
+		LocalPlaystartOptions.InitialSubtitleTrackAttributes.Language_ISO639 = InitialSubtitleLanguage;
+		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Asking for initial subtitle language \"%s\""), this, *InitialSubtitleLanguage);
 	}
 	bool bNoPreloading = Options->GetMediaOption(TEXT("ElectraNoPreloading"), (bool)false);
 	if (bNoPreloading)

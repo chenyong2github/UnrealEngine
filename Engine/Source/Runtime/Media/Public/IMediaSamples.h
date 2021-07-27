@@ -122,6 +122,7 @@ public:
 	virtual bool PeekVideoSampleTime(FMediaTimeStamp & TimeStamp) = 0;
 
 	virtual uint32 PurgeOutdatedVideoSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed) { return 0; };
+	virtual uint32 PurgeOutdatedSubtitleSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed) { return 0; };
 
 	virtual bool CanReceiveVideoSamples(uint32 Num) const { return true; }
 	virtual bool CanReceiveAudioSamples(uint32 Num) const { return true; }

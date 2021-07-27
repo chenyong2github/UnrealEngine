@@ -172,6 +172,8 @@ public:
 					return VideoAdaptationSets.Num();
 				case EStreamType::Audio:
 					return AudioAdaptationSets.Num();
+				case EStreamType::Subtitle:
+					return SubtitleAdaptationSets.Num();
 				default:
 					return 0;
 			}
@@ -184,6 +186,8 @@ public:
 					return AdaptationSetIndex < VideoAdaptationSets.Num() ? VideoAdaptationSets[AdaptationSetIndex] : TSharedPtrTS<IPlaybackAssetAdaptationSet>();
 				case EStreamType::Audio:
 					return AdaptationSetIndex < AudioAdaptationSets.Num() ? AudioAdaptationSets[AdaptationSetIndex] : TSharedPtrTS<IPlaybackAssetAdaptationSet>();
+				case EStreamType::Subtitle:
+					return AdaptationSetIndex < SubtitleAdaptationSets.Num() ? SubtitleAdaptationSets[AdaptationSetIndex] : TSharedPtrTS<IPlaybackAssetAdaptationSet>();
 				default:
 					return 0;
 			}
@@ -247,6 +251,7 @@ public:
 		TSharedPtrTS<IParserISO14496_12>				MoovBoxParser;
 		TArray<TSharedPtrTS<FAdaptationSetMP4>>			VideoAdaptationSets;
 		TArray<TSharedPtrTS<FAdaptationSetMP4>>			AudioAdaptationSets;
+		TArray<TSharedPtrTS<FAdaptationSetMP4>>			SubtitleAdaptationSets;
 	};
 
 

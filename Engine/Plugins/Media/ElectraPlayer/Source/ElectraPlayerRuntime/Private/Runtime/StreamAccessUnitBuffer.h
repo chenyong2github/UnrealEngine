@@ -597,6 +597,7 @@ namespace Electra
 		void Flush();
 		void GetStats(FAccessUnitBufferInfo& OutStats);
 		bool IsDeselected();
+		FTimeValue GetLastPoppedDTS();
 		FTimeValue GetLastPoppedPTS();
 		TSharedPtrTS<FBufferSourceInfo> GetActiveOutputBufferInfo() const
 		{ return ActiveOutputBufferInfo; }

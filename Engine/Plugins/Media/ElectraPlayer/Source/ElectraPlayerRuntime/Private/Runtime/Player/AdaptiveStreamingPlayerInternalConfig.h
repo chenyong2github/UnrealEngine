@@ -32,6 +32,11 @@ namespace Electra
 				StreamBufferConfigAudio.MaxDataSize = 2 << 20;
 				StreamBufferConfigAudio.MaxDuration.SetFromSeconds(20.0);
 
+				// Subtitle streams tend to be sparse and each AU could potentially have
+				// a huge duration, so we need to ignore durations altogether.
+				StreamBufferConfigText.MaxDataSize = 8 << 20;
+				StreamBufferConfigText.MaxDuration.SetToPositiveInfinity();
+
 				bHoldLastFrameDuringSeek = true;
 
 				InitialBufferMinTimeAvailBeforePlayback = 5.0;
