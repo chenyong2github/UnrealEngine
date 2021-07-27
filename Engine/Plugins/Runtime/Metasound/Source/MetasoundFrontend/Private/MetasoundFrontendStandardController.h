@@ -325,11 +325,10 @@ namespace Metasound
 			// Connection controls.
 			bool ConnectWithConverterNode(IOutputController& InController, const FConverterNodeInfo& InNodeClassName) override;
 
-
 		private:
-
 			FConstClassInputAccessPtr OwningGraphClassInputPtr;
 		};
+
 
 		/** FBaseNodeController provides common functionality for multiple derived
 		 * node controllers.
@@ -375,6 +374,11 @@ namespace Metasound
 
 			const FMetasoundFrontendNodeStyle& GetNodeStyle() const override;
 			void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) override;
+
+			bool CanAutoUpdate() const override;
+			FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) override;
+			FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const override;
+			FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const override;
 
 			const FString& GetNodeName() const override;
 
@@ -492,7 +496,7 @@ namespace Metasound
 			virtual FOutputHandle CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const = 0;
 		};
 
-		/** FNodeController represents a external or subgraph node. */
+		/** Represents an external node (defined in either code or by an asset's root graph). */
 		class FNodeController : public FBaseNodeController
 		{
 			using FRegistry = FMetasoundFrontendRegistryContainer;
@@ -732,6 +736,8 @@ namespace Metasound
 			TArray<FNodeHandle> GetInputNodes() override;
 			TArray<FConstNodeHandle> GetConstInputNodes() const override;
 
+			void ClearGraph() override;
+
 			void IterateNodes(TUniqueFunction<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType) override;
 			void IterateConstNodes(TUniqueFunction<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType) const override;
 
@@ -755,6 +761,8 @@ namespace Metasound
 
 			FNodeHandle AddOutputVertex(const FMetasoundFrontendClassOutput& InDescription) override;
 			bool RemoveOutputVertex(const FString& InName) override;
+
+			void UpdateInterfaceChangeID() override;
 
 			// This can be used to determine what kind of property editor we should use for the data type of a given input.
 			// Will return Invalid if the input couldn't be found, or if the input doesn't support any kind of literals.
@@ -811,6 +819,11 @@ namespace Metasound
 
 			FDocumentHandle GetOwningDocument() override;
 			FConstDocumentHandle GetOwningDocument() const override;
+
+			FNodeHandle AddInputNode(const FMetasoundFrontendClassInput& InClassInput, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName) override;
+			FNodeHandle AddInputNode(const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName) override;
+			FNodeHandle AddOutputNode(const FMetasoundFrontendClassOutput& InClassOutput, const FText* InDisplayName) override;
+			FNodeHandle AddOutputNode(const FName InTypeName, const FText& InToolTip, const FText* InDisplayName) override;
 
 		protected:
 
@@ -906,9 +919,8 @@ namespace Metasound
 
 			bool IsValid() const override;
 
-			TArray<FMetasoundFrontendClass> GetDependencies() const override;
-			TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const override;
-			TArray<FMetasoundFrontendClass> GetClasses() const override;
+			const TArray<FMetasoundFrontendClass>& GetDependencies() const override;
+			const TArray<FMetasoundFrontendGraphClass>& GetSubgraphs() const override;
 			const FMetasoundFrontendGraphClass& GetRootGraphClass() const override;
 
 			FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const override;
@@ -921,14 +933,15 @@ namespace Metasound
 			FConstClassAccessPtr FindOrAddClass(const FNodeRegistryKey& InKey) override;
 			FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override;
 
-			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override;
+			FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override;
 
-			virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const override;
-			virtual void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) override;
+			const FMetasoundFrontendVersion& GetArchetypeVersion() const override;
+			void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) override;
 
 			void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override;
 			const FMetasoundFrontendDocumentMetadata& GetMetadata() const override;
 
+			const FMetasoundFrontendClass* SynchronizeDependency(const FNodeRegistryKey& InKey) override;
 			void SynchronizeDependencies() override;
 
 			FGraphHandle GetRootGraph() override;

@@ -53,26 +53,10 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 }
 
 #if WITH_EDITOR
-
-void UMetaSoundSource::PreSave(FObjectPreSaveContext SaveContext)
-{
-	Super::PreSave(SaveContext);
-
-	// TODO: Move these to be run anytime the interface changes or
-	// the node is versioned
-
-	//  TODO: Enable Composition
-	// RegisterGraphWithFrontend();
-}
-
 void UMetaSoundSource::PostEditUndo()
 {
 	Super::PostEditUndo();
-
-	if (Graph)
-	{
-		Graph->Synchronize();
-	}
+	Metasound::PostAssetUndo(*this);
 }
 
 void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
@@ -119,6 +103,24 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 	}
 }
 #endif // WITH_EDITOR
+
+void UMetaSoundSource::BeginDestroy()
+{
+	UnregisterGraphWithFrontend();
+	Super::BeginDestroy();
+}
+
+void UMetaSoundSource::PreSave(FObjectPreSaveContext InSaveContext)
+{
+	Super::PreSave(InSaveContext);
+	Metasound::PreSaveAsset(*this);
+}
+
+void UMetaSoundSource::Serialize(FArchive& InArchive)
+{
+	Super::Serialize(InArchive);
+	Metasound::SerializeToArchive(*this, InArchive);
+}
 
 #if WITH_EDITORONLY_DATA
 UEdGraph* UMetaSoundSource::GetGraph()
@@ -220,16 +222,6 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	{
 		UE_LOG(LogMetaSound, Error, TEXT("Cannot create sound generator. Null Metasound document in UMetaSoundSource [Name:%s]"), *GetName());
 		return ISoundGeneratorPtr(nullptr);
-	}
-
-	// Check version and attempt to version up if out-of-date
-	if (VersionAsset(false /* bMarkDirty */))
-	{
-		const FMetasoundFrontendDocumentMetadata& Metadata = GetDocumentHandle()->GetMetadata();
-		UE_LOG(LogMetaSound, Display,
-			TEXT("Dynamically versioned UMetaSoundSource asset [Name:%s] to %s (Resave to avoid update at runtime)."),
-			*GetName(),
-			*Metadata.Version.Number.ToString());
 	}
 
 	// Inject receive nodes for unused transmittable inputs. Perform edits on a copy

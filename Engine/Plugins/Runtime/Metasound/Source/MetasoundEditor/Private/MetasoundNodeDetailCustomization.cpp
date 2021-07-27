@@ -462,7 +462,7 @@ namespace Metasound
 		{
 		}
 
-		void FMetasoundVariableDataTypeSelector::AddDataTypeSelector(IDetailLayoutBuilder& InDetailLayout, const FText& InRowName, TWeakObjectPtr<UMetasoundEditorGraphVariable> InGraphVariable, bool bIsRequired)
+		void FMetasoundVariableDataTypeSelector::AddDataTypeSelector(IDetailLayoutBuilder& InDetailLayout, const FText& InRowName, TWeakObjectPtr<UMetasoundEditorGraphVariable> InGraphVariable, bool bIsEnabled)
 		{
 			DetailLayoutBuilder = &InDetailLayout;
 
@@ -524,7 +524,7 @@ namespace Metasound
 			});
 
 			CategoryBuilder.AddCustomRow(InRowName)
-			.IsEnabled(!bIsRequired)
+			.IsEnabled(bIsEnabled)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -546,7 +546,7 @@ namespace Metasound
 					{
 						OnBaseDataTypeChanged(InGraphVariable, ItemSelected, SelectInfo);
 					})
-					.IsEnabled(!bIsRequired)
+					.IsEnabled(bIsEnabled)
 				]
 				+ SHorizontalBox::Slot()
 				.FillWidth(0.40f)
@@ -598,15 +598,16 @@ namespace Metasound
 			IDetailCategoryBuilder& CategoryBuilder = DetailLayout.EditCategory("General");
 
 			const bool bIsRequired = IsRequired();
+			const bool bIsGraphEditable = IsGraphEditable();
 			DisplayNameEditableTextBox = SNew(SEditableTextBox)
 				.Text(this, &FMetasoundInputDetailCustomization::GetDisplayName)
 				.OnTextChanged(this, &FMetasoundInputDetailCustomization::OnDisplayNameChanged)
 				.OnTextCommitted(this, &FMetasoundInputDetailCustomization::OnDisplayNameCommitted)
-				.IsReadOnly(bIsRequired)
+				.IsReadOnly(bIsRequired || !bIsGraphEditable)
 				.Font(IDetailLayoutBuilder::GetDetailFont());
 
 			CategoryBuilder.AddCustomRow(VariableCustomizationPrivate::InputNameText)
-			.EditCondition(!bIsRequired, nullptr)
+			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -630,7 +631,7 @@ namespace Metasound
 			];
 
 			CategoryBuilder.AddCustomRow(VariableCustomizationPrivate::NodeTooltipText)
-			.EditCondition(!bIsRequired, nullptr)
+			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -642,29 +643,29 @@ namespace Metasound
 				SNew(SMultiLineEditableTextBox)
 				.Text(this, &FMetasoundInputDetailCustomization::GetTooltip)
 				.OnTextCommitted(this, &FMetasoundInputDetailCustomization::OnTooltipCommitted)
-				.IsReadOnly(bIsRequired)
+				.IsReadOnly(bIsRequired || !bIsGraphEditable)
 				.ModiferKeyForNewLine(EModifierKey::Shift)
 				.RevertTextOnEscape(true)
 				.WrapTextAt(VariableCustomizationPrivate::DetailsTitleMaxWidth - VariableCustomizationPrivate::DetailsTitleWrapPadding)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 
-			AddDataTypeSelector(DetailLayout, VariableCustomizationPrivate::DataTypeNameText, GraphVariable, bIsRequired);
+			AddDataTypeSelector(DetailLayout, VariableCustomizationPrivate::DataTypeNameText, GraphVariable, !bIsRequired && bIsGraphEditable);
 
-			CategoryBuilder.AddCustomRow(LOCTEXT("InputPrivate", "Private"))
-			.Visibility(TAttribute<EVisibility>(EVisibility::Hidden))
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("InputPrivate", "Private"))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			]
-			.ValueContent()
-			[
-				SNew(SCheckBox)
-				.IsChecked(this, &FMetasoundInputDetailCustomization::OnGetPrivateCheckboxState)
-				.OnCheckStateChanged(this, &FMetasoundInputDetailCustomization::OnPrivateChanged)
-			];
+// 			CategoryBuilder.AddCustomRow(LOCTEXT("InputPrivate", "Private"))
+// 			.Visibility(TAttribute<EVisibility>(EVisibility::Hidden))
+// 			.NameContent()
+// 			[
+// 				SNew(STextBlock)
+// 				.Text(LOCTEXT("InputPrivate", "Private"))
+// 				.Font(IDetailLayoutBuilder::GetDetailFont())
+// 			]
+// 			.ValueContent()
+// 			[
+// 				SNew(SCheckBox)
+// 				.IsChecked(this, &FMetasoundInputDetailCustomization::OnGetPrivateCheckboxState)
+// 				.OnCheckStateChanged(this, &FMetasoundInputDetailCustomization::OnPrivateChanged)
+// 			];
 
 			FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
 			const TArray<FOutputHandle>& Outputs = NodeHandle->GetOutputs();
@@ -879,15 +880,16 @@ namespace Metasound
 			IDetailCategoryBuilder& CategoryBuilder = DetailLayout.EditCategory("General");
 
 			const bool bIsRequired = IsRequired();
+			const bool bIsGraphEditable = IsGraphEditable();
 			DisplayNameEditableTextBox = SNew(SEditableTextBox)
 				.Text(this, &FMetasoundOutputDetailCustomization::GetDisplayName)
 				.OnTextChanged(this, &FMetasoundOutputDetailCustomization::OnDisplayNameChanged)
 				.OnTextCommitted(this, &FMetasoundOutputDetailCustomization::OnDisplayNameCommitted)
-				.IsReadOnly(bIsRequired)
+				.IsReadOnly(bIsRequired || !bIsGraphEditable)
 				.Font(IDetailLayoutBuilder::GetDetailFont());
 
 			CategoryBuilder.AddCustomRow(VariableCustomizationPrivate::OutputNameText)
-			.EditCondition(!bIsRequired, nullptr)
+			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -910,7 +912,7 @@ namespace Metasound
 			];
 
 			CategoryBuilder.AddCustomRow(VariableCustomizationPrivate::NodeTooltipText)
-			.EditCondition(!bIsRequired, nullptr)
+			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -922,29 +924,29 @@ namespace Metasound
 				SNew(SMultiLineEditableTextBox)
 				.Text(this, &FMetasoundOutputDetailCustomization::GetTooltip)
 				.OnTextCommitted(this, &FMetasoundOutputDetailCustomization::OnTooltipCommitted)
-				.IsReadOnly(bIsRequired)
+				.IsReadOnly(bIsRequired || !bIsGraphEditable)
 				.ModiferKeyForNewLine(EModifierKey::Shift)
 				.RevertTextOnEscape(true)
 				.WrapTextAt(VariableCustomizationPrivate::DetailsTitleMaxWidth - VariableCustomizationPrivate::DetailsTitleWrapPadding)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 
-			AddDataTypeSelector(DetailLayout, VariableCustomizationPrivate::DataTypeNameText, GraphVariable, bIsRequired);
+			AddDataTypeSelector(DetailLayout, VariableCustomizationPrivate::DataTypeNameText, GraphVariable, !bIsRequired && bIsGraphEditable);
 
-			CategoryBuilder.AddCustomRow(LOCTEXT("OutputPrivate", "Private"))
-			.Visibility(TAttribute<EVisibility>(EVisibility::Hidden))
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("OutputPrivate", "Private"))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			]
-			.ValueContent()
-			[
-				SNew(SCheckBox)
-				.IsChecked(this, &FMetasoundOutputDetailCustomization::OnGetPrivateCheckboxState)
-				.OnCheckStateChanged(this, &FMetasoundOutputDetailCustomization::OnPrivateChanged)
-			];
+// 			CategoryBuilder.AddCustomRow(LOCTEXT("OutputPrivate", "Private"))
+// 			.Visibility(TAttribute<EVisibility>(EVisibility::Hidden))
+// 			.NameContent()
+// 			[
+// 				SNew(STextBlock)
+// 				.Text(LOCTEXT("OutputPrivate", "Private"))
+// 				.Font(IDetailLayoutBuilder::GetDetailFont())
+// 			]
+// 			.ValueContent()
+// 			[
+// 				SNew(SCheckBox)
+// 				.IsChecked(this, &FMetasoundOutputDetailCustomization::OnGetPrivateCheckboxState)
+// 				.OnCheckStateChanged(this, &FMetasoundOutputDetailCustomization::OnPrivateChanged)
+// 			];
 		}
 
 		void FMetasoundOutputDetailCustomization::SetDefaultPropertyMetaData(TSharedRef<IPropertyHandle> InDefaultPropertyHandle) const

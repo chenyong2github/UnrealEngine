@@ -66,6 +66,22 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor TriggerPinTypeColor;
 
+	/** Native node class title color */
+	UPROPERTY(EditAnywhere, config, Category = NodeTitleColors)
+	FLinearColor NativeNodeTitleColor;
+
+	/** Title color for references to MetaSound assets */
+	UPROPERTY(EditAnywhere, config, Category = NodeTitleColors)
+	FLinearColor AssetReferenceNodeTitleColor;
+
+	/** Input node title color */
+	UPROPERTY(EditAnywhere, config, Category = NodeTitleColors)
+	FLinearColor InputNodeTitleColor;
+
+	/** Output node title color */
+	UPROPERTY(EditAnywhere, config, Category = NodeTitleColors)
+	FLinearColor OutputNodeTitleColor;
+
 	/** Determines which details view to show in Metasounds Editor */
 	UPROPERTY(Transient)
 	EMetasoundActiveDetailView DetailView = EMetasoundActiveDetailView::Metasound;

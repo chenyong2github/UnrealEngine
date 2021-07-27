@@ -37,11 +37,32 @@ TArray<UMetasoundEditorGraphNode*> UMetasoundEditorGraphVariable::GetNodes() con
 	return Nodes;
 }
 
+void UMetasoundEditorGraphVariable::SetDescription(const FText& InDescription)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const FText TransactionLabel = FText::Format(LOCTEXT("SetVariableTooltipFormat", "Set MetaSound {0}'s ToolTip"), GetVariableLabel());
+	const FScopedTransaction Transaction(TransactionLabel);
+
+	Modify();
+	if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(GetOuter()))
+	{
+		UObject& MetaSound = Graph->GetMetasoundChecked();
+		MetaSound.Modify();
+
+		FNodeHandle NodeHandle = GetNodeHandle();
+		NodeHandle->SetDescription(InDescription);
+
+		FGraphBuilder::RegisterGraphWithFrontend(MetaSound);
+	}
+}
+
 void UMetasoundEditorGraphVariable::SetDisplayName(const FText& InNewName)
 {
 	using namespace Metasound::Frontend;
 
-	const FText TransactionLabel = FText::Format(LOCTEXT("Rename Variable", "Rename Metasound {0}"), GetVariableLabel());
+	const FText TransactionLabel = FText::Format(LOCTEXT("SetVariableDisplayNameFormat", "Rename Metasound {0}"), GetVariableLabel());
 	const FScopedTransaction Transaction(TransactionLabel);
 
 	Modify();
@@ -98,7 +119,7 @@ void UMetasoundEditorGraphVariable::SetDataType(FName InNewType)
 		return;
 	}
 
-	ClassName = NewNodeHandle->GetClassMetadata().ClassName;
+	ClassName = NewNodeHandle->GetClassMetadata().GetClassName();
 	NodeID = NewNodeHandle->GetID();
 	TypeName = InNewType;
 
@@ -116,6 +137,8 @@ void UMetasoundEditorGraphVariable::SetDataType(FName InNewType)
 	// Notify now that the node has a new ID (doing so before creating & syncing Frontend Node &
 	// EdGraph variable can result in refreshing editors while in a desync'ed state)
 	NameChanged.Broadcast(NodeID);
+
+	FGraphBuilder::RegisterGraphWithFrontend(Metasound);
 }
 
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphVariable::GetNodeHandle() const
@@ -181,7 +204,6 @@ bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewName, FText& Out
 	return bIsNameValid;
 }
 
-#if WITH_EDITORONLY_DATA
 void UMetasoundEditorGraphInputLiteral::PostEditUndo()
 {
 	Super::PostEditUndo();
@@ -191,7 +213,6 @@ void UMetasoundEditorGraphInputLiteral::PostEditUndo()
 		Input->OnLiteralChanged(false /* bPostTransaction */);
 	}
 }
-#endif // WITH_EDITORONLY_DATA
 
 void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
 {
@@ -222,6 +243,10 @@ void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
 
 	const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeName);
 	GraphHandle->SetDefaultInput(VertexID, Literal->GetDefault());
+
+	// Disabled as internal call to validation to all other open graphs
+	// is expensive and can be spammed by dragging values 
+// 	Metasound::Editor::FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
 }
 
 void UMetasoundEditorGraphInput::UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioParameterInterface>& InParamInterface) const
@@ -255,7 +280,6 @@ const FText& UMetasoundEditorGraphInput::GetVariableLabel() const
 	return Label;
 }
 
-#if WITH_EDITORONLY_DATA
 void UMetasoundEditorGraphInput::PostEditUndo()
 {
 	Super::PostEditUndo();
@@ -265,13 +289,17 @@ void UMetasoundEditorGraphInput::PostEditUndo()
 		if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(GetOuter()))
 		{
 			MetasoundGraph->RemoveVariable(*CastChecked<UMetasoundEditorGraphVariable>(this));
+
+			if (UObject* Object = MetasoundGraph->GetMetasound())
+			{
+				Metasound::Editor::FGraphBuilder::RegisterGraphWithFrontend(*Object);
+			}
 		}
 		return;
 	}
 
 	OnLiteralChanged(false /* bPostTransaction */);
 }
-#endif // WITH_EDITORONLY_DATA
 
 void UMetasoundEditorGraphInput::OnLiteralChanged(bool bPostTransaction)
 {
@@ -346,6 +374,11 @@ UMetasoundEditorGraphInputNode* UMetasoundEditorGraph::CreateInputNode(Metasound
 		return nullptr;
 	}
 
+	if (!ensure(InNodeHandle->GetClassMetadata().GetType() == EMetasoundFrontendClassType::Input))
+	{
+		return nullptr;
+	}
+
 	UEdGraphNode* NewEdGraphNode = CreateNode(UMetasoundEditorGraphInputNode::StaticClass(), bInSelectNewNode);
 	UMetasoundEditorGraphInputNode* NewInputNode = CastChecked<UMetasoundEditorGraphInputNode>(NewEdGraphNode);
 	if (ensure(NewInputNode))
@@ -391,12 +424,38 @@ UObject& UMetasoundEditorGraph::GetMetasoundChecked() const
 	return *ParentMetasound;
 }
 
-void UMetasoundEditorGraph::Synchronize()
+void UMetasoundEditorGraph::RegisterGraphWithFrontend()
 {
+	using namespace Metasound::Editor;
+
 	if (UObject* ParentMetasound = GetOuter())
 	{
-		Metasound::Editor::FGraphBuilder::SynchronizeGraph(*ParentMetasound);
+		FGraphBuilder::RegisterGraphWithFrontend(*ParentMetasound);
 	}
+}
+
+bool UMetasoundEditorGraph::Synchronize()
+{
+	using namespace Metasound::Editor;
+
+	if (UObject* ParentMetasound = GetOuter())
+	{
+		return FGraphBuilder::SynchronizeGraph(*ParentMetasound);
+	}
+
+	return false;
+}
+
+bool UMetasoundEditorGraph::Validate(bool bInAutoUpdate)
+{
+	using namespace Metasound::Editor;
+
+	if (UObject* ParentMetasound = GetOuter())
+	{
+		return FGraphBuilder::ValidateGraph(*ParentMetasound, bInAutoUpdate);
+	}
+
+	return false;
 }
 
 UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindInput(FGuid InNodeID) const
@@ -420,10 +479,10 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindOrAddInput(Metasound::Fro
 
 	ensure(InNodeHandle->GetNumInputs() == 1);
 	InNodeHandle->IterateConstInputs([InGraph = &Graph, InTypeName = &TypeName, InVertexID = &VertexID](FConstInputHandle InputHandle)
-		{
-			*InTypeName = InputHandle->GetDataType();
-			*InVertexID = (*InGraph)->GetVertexIDForInputVertex(InputHandle->GetName());
-		});
+	{
+		*InTypeName = InputHandle->GetDataType();
+		*InVertexID = (*InGraph)->GetVertexIDForInputVertex(InputHandle->GetName());
+	});
 
 	const FGuid NodeID = InNodeHandle->GetID();
 	if (TObjectPtr<UMetasoundEditorGraphInput> Input = FindInput(NodeID))
@@ -435,7 +494,7 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindOrAddInput(Metasound::Fro
 	if (UMetasoundEditorGraphInput* NewInput = NewObject<UMetasoundEditorGraphInput>(this, FName(), RF_Transactional))
 	{
 		NewInput->NodeID = NodeID;
-		NewInput->ClassName = InNodeHandle->GetClassMetadata().ClassName;
+		NewInput->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
 		NewInput->TypeName = TypeName;
 
 		FMetasoundFrontendLiteral DefaultLiteral = Graph->GetDefaultInput(VertexID);
@@ -490,9 +549,10 @@ UMetasoundEditorGraphOutput* UMetasoundEditorGraph::FindOrAddOutput(Metasound::F
 	if (UMetasoundEditorGraphOutput* NewOutput = NewObject<UMetasoundEditorGraphOutput>(this, FName(), RF_Transactional))
 	{
 		NewOutput->NodeID = NodeID;
-		NewOutput->ClassName = InNodeHandle->GetClassMetadata().ClassName;
+		NewOutput->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
 		NewOutput->TypeName = TypeName;
 		Outputs.Add(NewOutput);
+
 		return NewOutput;
 	}
 
@@ -573,24 +633,29 @@ bool UMetasoundEditorGraph::RemoveVariable(UMetasoundEditorGraphVariable& InVari
 {
 	if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(&InVariable))
 	{
-		return Inputs.Remove(Input) > 0;
+		if (!Inputs.Remove(Input))
+		{
+			return false;
+		}
 	}
-
-	if (UMetasoundEditorGraphOutput* Output = Cast<UMetasoundEditorGraphOutput>(&InVariable))
+	else if (UMetasoundEditorGraphOutput* Output = Cast<UMetasoundEditorGraphOutput>(&InVariable))
 	{
-		return Outputs.Remove(Output) > 0;
+		if (!Outputs.Remove(Output))
+		{
+			return false;
+		}
 	}
 
-	return false;
+	return true;
 }
 
-bool UMetasoundEditorGraph::Validate(Metasound::Editor::FGraphValidationResults& OutResults)
+bool UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults, bool bClearUpgradeMessaging)
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
 	bool bMarkDirty = false;
-	bool bIsValid = false;
+	bool bIsValid = true;
 
 	OutResults = FGraphValidationResults();
 
@@ -599,7 +664,7 @@ bool UMetasoundEditorGraph::Validate(Metasound::Editor::FGraphValidationResults&
 	for (UMetasoundEditorGraphExternalNode* ExternalNode : ExternalNodes)
 	{
 		FGraphNodeValidationResult NodeResult(*ExternalNode);
-		bIsValid |= ExternalNode->Validate(NodeResult);
+		bIsValid &= ExternalNode->Validate(NodeResult, bClearUpgradeMessaging);
 		bMarkDirty |= NodeResult.bIsDirty;
 		OutResults.NodeResults.Add(NodeResult);
 	}

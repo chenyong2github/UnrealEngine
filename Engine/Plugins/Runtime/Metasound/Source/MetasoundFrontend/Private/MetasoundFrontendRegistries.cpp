@@ -208,6 +208,11 @@ namespace Metasound
 					return MakeUnique<FInputNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
 				}
 
+				virtual bool IsNative() const override
+				{
+					return true;
+				}
+
 			private:
 				
 				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
@@ -269,6 +274,11 @@ namespace Metasound
 						return MakeUnique<FOutputNodeRegistryEntry>(DataTypeEntry->Clone());
 					}
 					return MakeUnique<FOutputNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
+				}
+
+				virtual bool IsNative() const override
+				{
+					return true;
 				}
 
 			private:
@@ -334,6 +344,11 @@ namespace Metasound
 					return MakeUnique<FVariableNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
 				}
 
+				virtual bool IsNative() const override
+				{
+					return true;
+				}
+
 			private:
 				
 				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
@@ -380,6 +395,7 @@ namespace Metasound
 				virtual FNodeRegistryKey RegisterNode(TUniquePtr<Metasound::Frontend::INodeRegistryEntry>&&) override;
 				virtual bool UnregisterNode(const FNodeRegistryKey& InKey) override;
 				virtual bool IsNodeRegistered(const FNodeRegistryKey& InKey) const override;
+				virtual bool IsNodeNative(const FNodeRegistryKey& InKey) const override;
 
 				bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo) override;
 
@@ -806,7 +822,6 @@ namespace Metasound
 				return false;
 			}
 
-
 			bool FRegistryContainerImpl::RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo)
 			{
 				if (!ConverterNodeRegistry.Contains(InNodeKey))
@@ -831,6 +846,16 @@ namespace Metasound
 			bool FRegistryContainerImpl::IsNodeRegistered(const FNodeRegistryKey& InKey) const
 			{
 				return RegisteredNodes.Contains(InKey);
+			}
+
+			bool FRegistryContainerImpl::IsNodeNative(const FNodeRegistryKey& InKey) const
+			{
+				if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
+				{
+					return Entry->IsNative();
+				}
+
+				return false;
 			}
 
 			TArray<FName> FRegistryContainerImpl::GetAllValidDataTypes()
@@ -1020,11 +1045,11 @@ namespace Metasound
 
 			bool IsEqual(const FMetasoundFrontendClassMetadata& InLHS, const FMetasoundFrontendClassMetadata& InRHS)
 			{
-				if (InLHS.ClassName == InRHS.ClassName)
+				if (InLHS.GetClassName() == InRHS.GetClassName())
 				{
-					if (InLHS.Type == InRHS.Type)
+					if (InLHS.GetType() == InRHS.GetType())
 					{
-						if (InLHS.Version == InRHS.Version)
+						if (InLHS.GetVersion() == InRHS.GetVersion())
 						{
 							return true;
 						}
@@ -1035,11 +1060,11 @@ namespace Metasound
 
 			bool IsEqual(const FNodeClassInfo& InLHS, const FMetasoundFrontendClassMetadata& InRHS)
 			{
-				if (InLHS.ClassName == InRHS.ClassName)
+				if (InLHS.ClassName == InRHS.GetClassName())
 				{
-					if (InLHS.Type == InRHS.Type)
+					if (InLHS.Type == InRHS.GetType())
 					{
-						if (InLHS.Version == InRHS.Version)
+						if (InLHS.Version == InRHS.GetVersion())
 						{
 							return true;
 						}
@@ -1055,7 +1080,7 @@ namespace Metasound
 
 			FNodeRegistryKey CreateKey(const FMetasoundFrontendClassMetadata& InNodeMetadata)
 			{
-				return CreateKey(InNodeMetadata.Type, InNodeMetadata.ClassName.GetFullName().ToString(), InNodeMetadata.Version.Major, InNodeMetadata.Version.Minor);
+				return CreateKey(InNodeMetadata.GetType(), InNodeMetadata.GetClassName().GetFullName().ToString(), InNodeMetadata.GetVersion().Major, InNodeMetadata.GetVersion().Minor);
 			}
 
 			FNodeRegistryKey CreateKey(const FNodeClassInfo& InClassInfo)
@@ -1070,18 +1095,18 @@ namespace Metasound
 		}
 
 		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendClassMetadata& InMetadata)
-			: ClassName(InMetadata.ClassName)
-			, Type(InMetadata.Type)
-			, Version(InMetadata.Version)
+			: ClassName(InMetadata.GetClassName())
+			, Type(InMetadata.GetType())
+			, Version(InMetadata.GetVersion())
 		{
 		}
 
 		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendGraphClass& InClass, FName InAssetPath)
-			: ClassName(InClass.Metadata.ClassName)
+			: ClassName(InClass.Metadata.GetClassName())
 			, Type(EMetasoundFrontendClassType::External) // Overridden as it is considered the same as an external class in the registry
 			, AssetClassID(FGuid(ClassName.Name.ToString()))
 			, AssetPath(InAssetPath)
-			, Version(InClass.Metadata.Version)
+			, Version(InClass.Metadata.GetVersion())
 		{
 			ensure(!AssetPath.IsNone());
 

@@ -42,6 +42,8 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/UObjectGlobals.h"
+#include "Animation/Skeleton.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEditor);
 
@@ -102,6 +104,11 @@ namespace Metasound
 					Set("MetasoundEditor.Graph.TriggerPin.Connected", new IMAGE_BRUSH(TEXT("Graph/pin_trigger_connected"), Icon15x11));
 					Set("MetasoundEditor.Graph.TriggerPin.Disconnected", new IMAGE_BRUSH(TEXT("Graph/pin_trigger_disconnected"), Icon15x11));
 
+					Set("MetasoundEditor.Graph.Node.Class.Native", new IMAGE_BRUSH_SVG(TEXT("Icons/native_node"), FVector2D(8.0f, 16.0f)));
+					Set("MetasoundEditor.Graph.Node.Class.Graph", new IMAGE_BRUSH_SVG(TEXT("Icons/graph_node"), Icon16));
+					Set("MetasoundEditor.Graph.Node.Class.Input", new IMAGE_BRUSH_SVG(TEXT("Icons/input_node"), FVector2D(16.0f, 13.0f)));
+					Set("MetasoundEditor.Graph.Node.Class.Output", new IMAGE_BRUSH_SVG(TEXT("Icons/output_node"), FVector2D(16.0f, 13.0f)));
+
 					Set("MetasoundEditor.Graph.Node.Math.Add", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_add_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Divide", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_divide_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Modulo", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_modulo_40x.png")), Icon40x40));
@@ -146,7 +153,52 @@ namespace Metasound
 
 				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
 				{
-					UMetaSoundAssetSubsystem::Get().AddOrUpdateAsset(InAssetData);
+					// Use the editor version of UnregisterWithFrontend so it refreshes any open MetaSound editors
+					UMetaSoundAssetSubsystem::Get().AddOrUpdateAsset(InAssetData, false /* bUnregisterWithFrontend */);
+					if (UObject* AssetObject = InAssetData.GetAsset())
+					{
+						FGraphBuilder::RegisterGraphWithFrontend(*AssetObject);
+					}
+				}
+			}
+
+			void OnPackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
+			{
+				using namespace Metasound;
+				using namespace Metasound::Editor;
+				using namespace Metasound::Frontend;
+
+				if (!InPackageReloadedEvent)
+				{
+					return;
+				}
+
+				if (InPackageReloadPhase != EPackageReloadPhase::OnPackageFixup)
+				{
+					return;
+				}
+
+				for (const TPair<UObject*, UObject*>& Pair : InPackageReloadedEvent->GetRepointedObjects())
+				{
+					if (UObject* Obj = Pair.Key)
+					{
+						if (IsMetaSoundAssetClass(Obj->GetClass()->GetFName()))
+						{
+							// Use the editor version of UnregisterWithFrontend so it refreshes any open MetaSound editors
+							UMetaSoundAssetSubsystem::Get().RemoveAsset(*Pair.Key, false /* bUnregisterWithFrontend */);
+							FGraphBuilder::UnregisterGraphWithFrontend(*Pair.Key);
+						}
+					}
+
+					if (UObject* Obj = Pair.Value)
+					{
+						if (IsMetaSoundAssetClass(Obj->GetClass()->GetFName()))
+						{
+							// Use the editor version of RegisterWithFrontend so it refreshes any open MetaSound editors
+							UMetaSoundAssetSubsystem::Get().AddOrUpdateAsset(*Pair.Value, false /* bRegisterWithFrontend */);
+							FGraphBuilder::RegisterGraphWithFrontend(*Pair.Value);
+						}
+					}
 				}
 			}
 
@@ -161,27 +213,32 @@ namespace Metasound
 				AssetRegistryModule.Get().OnAssetUpdated().AddRaw(this, &FModule::AddOrUpdateClassRegistryAsset);
 				AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FModule::RemoveAssetFromClassRegistry);
 				AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FModule::RenameAssetInClassRegistry);
+
+				FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FModule::OnPackageReloaded);
 			}
 
 			void RemoveAssetFromClassRegistry(const FAssetData& InAssetData)
 			{
-				using namespace Metasound;
-				using namespace Metasound::Frontend;
-
 				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
 				{
-					UMetaSoundAssetSubsystem::Get().RemoveAsset(InAssetData);
+					// Use the editor version of UnregisterWithFrontend so it refreshes any open MetaSound editors
+					UMetaSoundAssetSubsystem::Get().RemoveAsset(InAssetData, false /* bUnregisterWithFrontend */);
+					if (UObject* AssetObject = InAssetData.GetAsset())
+					{
+						FGraphBuilder::UnregisterGraphWithFrontend(*AssetObject);
+					}
 				}
 			}
 
 			void RenameAssetInClassRegistry(const FAssetData& InAssetData, const FString& InOldObjectPath)
 			{
-				using namespace Metasound;
-				using namespace Metasound::Frontend;
-
 				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
 				{
-					UMetaSoundAssetSubsystem::Get().AddOrUpdateAsset(InAssetData);
+					UMetaSoundAssetSubsystem::Get().RenameAsset(InAssetData, false /* bReregisterWithFrontend */);
+					if (UObject* AssetObject = InAssetData.GetAsset())
+					{
+						FGraphBuilder::RegisterGraphWithFrontend(*AssetObject);
+					}
 				}
 			}
 
@@ -325,6 +382,8 @@ namespace Metasound
 					AssetRegistryModule->Get().OnAssetUpdated().RemoveAll(this);
 					AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
 					AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+
+					FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
 				}
 			}
 
@@ -361,6 +420,7 @@ namespace Metasound
 
 			virtual bool IsMetaSoundAssetClass(const FName InClassName) const override
 			{
+				// TODO: Move to IMetasoundUObjectRegistry (overload IsRegisteredClass to take in class name?)
 				return MetaSoundClassNames.Contains(InClassName);
 			}
 
@@ -369,8 +429,7 @@ namespace Metasound
 				// Register Metasound asset type actions
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolName).Get();
 
-				// TODO: Enable Composition
-				//AddAssetAction<FAssetTypeActions_MetaSound>(AssetTools, AssetActions);
+				AddAssetAction<FAssetTypeActions_MetaSound>(AssetTools, AssetActions);
 				AddAssetAction<FAssetTypeActions_MetaSoundSource>(AssetTools, AssetActions);
 
 				FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -428,10 +487,9 @@ namespace Metasound
 				MetaSoundClassNames.Add(UMetaSound::StaticClass()->GetFName());
 				MetaSoundClassNames.Add(UMetaSoundSource::StaticClass()->GetFName());
 
-				//  TODO: Enable Composition
-				//FAssetTypeActions_MetaSound::RegisterMenuActions();
-				//FAssetTypeActions_MetaSoundSource::RegisterMenuActions();
-				// InitializeAssetClassRegistry();
+				FAssetTypeActions_MetaSound::RegisterMenuActions();
+				FAssetTypeActions_MetaSoundSource::RegisterMenuActions();
+				InitializeAssetClassRegistry();
 			}
 
 			virtual void ShutdownModule() override
@@ -467,8 +525,7 @@ namespace Metasound
 					GraphPanelPinFactory.Reset();
 				}
 
-				//  TODO: Enable Composition
-				// ShutdownAssetClassRegistry();
+				ShutdownAssetClassRegistry();
 
 				AssetActions.Reset();
 				DataTypeInfo.Reset();

@@ -157,10 +157,21 @@ namespace Metasound
 
 				if (GraphVariable.IsValid())
 				{
-					return GraphVariable->GetNodeHandle()->GetDisplayName();
+					return GraphVariable->GetConstNodeHandle()->GetDisplayName();
 				}
 
 				return FText::GetEmpty();
+			}
+
+			bool IsGraphEditable() const
+			{
+				if (GraphVariable.IsValid())
+				{
+					Metasound::Frontend::FConstNodeHandle NodeHandle = GraphVariable->GetConstNodeHandle();
+					return NodeHandle->GetOwningGraph()->GetGraphStyle().bIsGraphEditable;
+				}
+
+				return false;
 			}
 
 			bool IsRequired() const
@@ -179,17 +190,7 @@ namespace Metasound
 
 				if (GraphVariable.IsValid())
 				{
-					const FText TransactionLabel = FText::Format(LOCTEXT("SetTooltip", "Set the MetaSound {0}'s tooltip"), VariableLabel);
-					const FScopedTransaction Transaction(TransactionLabel);
-
-					GraphVariable->Modify();
-					if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(GraphVariable->GetOuter()))
-					{
-						Graph->GetMetasoundChecked().Modify();
-					}
-
-					FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
-					NodeHandle->SetDescription(InNewText);
+					GraphVariable->SetDescription(InNewText);
 				}
 			}
 

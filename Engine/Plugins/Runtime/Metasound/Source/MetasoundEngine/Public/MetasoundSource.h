@@ -42,6 +42,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendDocument RootMetasoundDocument;
 
+	UPROPERTY()
+	TSet<FSoftObjectPath> ReferencedAssets;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UMetasoundEditorGraphBase* Graph;
@@ -101,7 +104,6 @@ public:
 #endif // #if WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 	virtual void PostEditUndo() override;
 
 	virtual bool GetRedrawThumbnail() const override
@@ -120,6 +122,20 @@ public:
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
+
+	virtual void BeginDestroy() override;
+	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
+	virtual void Serialize(FArchive& Ar) override;
+
+	virtual TSet<FSoftObjectPath>& GetReferencedAssets() override
+	{
+		return ReferencedAssets;
+	}
+
+	virtual const TSet<FSoftObjectPath>& GetReferencedAssets() const override
+	{
+		return ReferencedAssets;
+	}
 
 	// Returns Asset Metadata associated with this MetaSoundSource
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;

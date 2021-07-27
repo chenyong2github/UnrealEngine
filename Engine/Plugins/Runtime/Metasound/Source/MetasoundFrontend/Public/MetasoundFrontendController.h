@@ -335,6 +335,19 @@ namespace Metasound
 			/** Returns true if node is required to satisfy the document archetype. */
 			virtual bool IsRequired() const = 0;
 
+			/** Returns the highest minor version number available from the class registry that shares this node's name & major version. */
+			virtual FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const = 0;
+
+			/** Returns the highest version number available from the class registry that shares this node's name. */
+			virtual FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const = 0;
+
+			/**
+			  * Replaces this node with a new node of the provided version number, and attempts to 
+			  * rebuild edges where possible with matching vertex names that share the same DataType.
+			  * Returns a node handle to the new node.  If operation fails, returns a handle to this node.
+			  */
+			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) = 0;
+
 			/** Returns an input with the given id.
 			 *
 			 * If the input does not exist, an invalid handle is returned.
@@ -383,6 +396,11 @@ namespace Metasound
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const = 0;
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const = 0;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const = 0;
+
+			/** Returns whether the node is eligible for auto-updating (i.e.
+			  * has undergone minor revision or the interface has changed, but
+			  * no higher major revision is available.) */
+			virtual bool CanAutoUpdate() const = 0;
 
 			/** Description of the given node. */
 			virtual const FText& GetDescription() const = 0;
@@ -475,6 +493,9 @@ namespace Metasound
 
 			/** Returns all input nodes in the graph. */
 			virtual TArray<FConstNodeHandle> GetConstInputNodes() const = 0;
+
+			/** Clears the graph, its associated interface, and synchronizes removed dependencies with the owning graph. */
+			virtual void ClearGraph() = 0;
 
 			/** Iterate over all input nodes with the given function. If ClassType is specified, only iterate over given type. */
 			virtual void IterateNodes(TUniqueFunction<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) = 0;
@@ -603,6 +624,13 @@ namespace Metasound
 			/** Set the description for the output with the given name. */
 			virtual void SetOutputDescription(const FString& InName, const FText& InDescription) = 0;
 
+			/**
+			  * Updates the ChangeID for the class interface, which signals AutoUpdate to
+			  * attempt to patch class references at runtime even if the graph class has not
+			  * been versioned. TODO: Remove this once underlying architecture no longer requires it.
+			  */
+			virtual void UpdateInterfaceChangeID() = 0;
+
 			/** Clear the current literal for a given input.
 			 *
 			 * @return True on success, false on failure.
@@ -666,6 +694,18 @@ namespace Metasound
 
 			/** Returns a handle to the document owning this graph. */
 			virtual FConstDocumentHandle GetOwningDocument() const = 0;
+
+			/** Creates an input node */
+			virtual FNodeHandle AddInputNode(const FMetasoundFrontendClassInput& InClassInput, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName) = 0;
+
+			/** Creates an input node */
+			virtual FNodeHandle AddInputNode(const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName) = 0;
+
+			/** Creates an output node */
+			virtual FNodeHandle AddOutputNode(const FMetasoundFrontendClassOutput& InClassOutput, const FText* InDisplayName) = 0;
+
+			/** Creates an output node */
+			virtual FNodeHandle AddOutputNode(const FName InTypeName, const FText& InToolTip, const FText* InDisplayName) = 0;
 		};
 
 		/* An IDocumentController provides methods for querying and manipulating a Metasound document. */
@@ -693,9 +733,8 @@ namespace Metasound
 			// TODO: perhaps functions returning access pointers could be removed from main interface and only exist in FDocumentController.
 			
 			/** Returns an array of all class dependencies for this document. */
-			virtual TArray<FMetasoundFrontendClass> GetDependencies() const = 0;
-			virtual TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const = 0;
-			virtual TArray<FMetasoundFrontendClass> GetClasses() const = 0;
+			virtual const TArray<FMetasoundFrontendClass>& GetDependencies() const = 0;
+			virtual const TArray<FMetasoundFrontendGraphClass>& GetSubgraphs() const = 0;
 			virtual const FMetasoundFrontendGraphClass& GetRootGraphClass() const = 0;
 
 			virtual FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const = 0;
@@ -749,8 +788,14 @@ namespace Metasound
 			virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const = 0;
 			virtual void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) = 0;
 
+			/** Updates dependency with given registry key if found with that in the active registry
+			  *
+			  * @return True if found (and subsequently updated), false if not found.
+			  */
+			virtual const FMetasoundFrontendClass* SynchronizeDependency(const FNodeRegistryKey& InKey) = 0;
+
 			/** Removes all dependencies which are no longer referenced by any graphs within this document
-			  * and updates dependency Metadata where necessary with that found in the registry.  */
+			  */
 			virtual void SynchronizeDependencies() = 0;
 
 			/** Returns an array of all subgraphs for this document. */

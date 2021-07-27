@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "MetasoundAssetBase.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -66,6 +67,50 @@ namespace Metasound
 			FMetasoundFrontendVersion ArchetypeVersion;
 		};
 
+		class METASOUNDFRONTEND_API FRebuildPresetRootGraph : public IDocumentTransform
+		{
+		public:
+			FRebuildPresetRootGraph(FConstDocumentHandle InReferencedDocument)
+				: ReferencedDocument(InReferencedDocument)
+			{
+			}
+
+			bool Transform(FDocumentHandle InDocument) const override;
+
+		private:
+			FConstDocumentHandle ReferencedDocument;
+		};
+
+		class METASOUNDFRONTEND_API FAutoUpdateRootGraph : public IDocumentTransform
+		{
+		public:
+			FAutoUpdateRootGraph(FMetasoundAssetBase& InAsset, const IMetaSoundAssetInterface& InAssetInterface)
+				: Asset(&InAsset)
+				, AssetInterface(&InAssetInterface)
+			{
+			}
+
+			bool Transform(FDocumentHandle InDocument) const override;
+
+		private:
+			FMetasoundAssetBase* Asset = nullptr;
+			const IMetaSoundAssetInterface* AssetInterface = nullptr;
+		};
+
+		class METASOUNDFRONTEND_API FSynchronizeAssetClassName : public IDocumentTransform
+		{
+		public:
+			FSynchronizeAssetClassName(FName InAssetName)
+				: AssetName(InAssetName)
+			{
+			}
+
+			bool Transform(FDocumentHandle InDocument) const override;
+
+		private:
+			FName AssetName;
+		};
+
 		/** Base class for versioning a document. */
 		class METASOUNDFRONTEND_API FVersionDocument : public IDocumentTransform
 		{
@@ -75,7 +120,7 @@ namespace Metasound
 		public:
 			static FMetasoundFrontendVersionNumber GetMaxVersion()
 			{
-				return FMetasoundFrontendVersionNumber { 1, 4 };
+				return FMetasoundFrontendVersionNumber { 1, 5 };
 			}
 
 			FVersionDocument(FName InName, const FString& InPath);

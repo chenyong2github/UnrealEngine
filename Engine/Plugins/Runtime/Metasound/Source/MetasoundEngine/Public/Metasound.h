@@ -9,12 +9,29 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
+#include "MetasoundUObjectRegistry.h"
+#include "Serialization/Archive.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Algo/Transform.h"
 #endif // WITH_EDITORONLY_DATA
 
 #include "Metasound.generated.h"
+
+
+UCLASS()
+class METASOUNDENGINE_API UMetasoundEditorGraphBase : public UEdGraph
+{
+	GENERATED_BODY()
+
+public:
+	virtual bool IsEditorOnly() const override { return true; }
+	virtual bool NeedsLoadForEditorGame() const override { return false; }
+
+	virtual bool Synchronize() { return false; }
+	virtual bool Validate(bool bInAutoUpdate) { return false; }
+	virtual void RegisterGraphWithFrontend() { }
+};
 
 
 namespace Metasound
@@ -24,11 +41,53 @@ namespace Metasound
 		static float BlockRate = 100.f;
 	} // namespace ConsoleVariables
 
+#if WITH_EDITOR
 	template <typename TMetaSoundObject>
 	void PostEditChangeProperty(TMetaSoundObject& InMetaSound, FPropertyChangedEvent& InEvent)
 	{
-		// TODO: Update registry info here if interface has changed,
-		// potentially enabling removal of PreSave registration
+	}
+
+	template <typename TMetaSoundObject>
+	void PostAssetUndo(TMetaSoundObject& InMetaSound)
+	{
+		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
+		{
+			if (MetaSoundGraph->Validate(false /* bAutoUpdate */))
+			{
+				MetaSoundGraph->RegisterGraphWithFrontend();
+			}
+		}
+	}
+#endif // WITH_EDITOR
+
+	template <typename TMetaSoundObject>
+	void PreSaveAsset(TMetaSoundObject& InMetaSound)
+	{
+#if WITH_EDITORONLY_DATA
+		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
+		{
+			const bool bAutoUpdate = false;
+			const bool bIsValid = MetaSoundGraph->Validate(bAutoUpdate /* bAutoUpdate */);
+			if (bIsValid)
+			{
+				MetaSoundGraph->RegisterGraphWithFrontend();
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
+	}
+
+	template <typename TMetaSoundObject>
+	void SerializeToArchive(TMetaSoundObject& InMetaSound, FArchive& InArchive)
+	{
+		if (InArchive.IsLoading())
+		{
+			const bool bUpdateReferences = false;
+			const bool bMarkDirty = false;
+
+			UMetaSoundAssetSubsystem& AssetSubsystem = UMetaSoundAssetSubsystem::Get();
+			InMetaSound.VersionAsset(AssetSubsystem, bMarkDirty, bUpdateReferences);
+			InMetaSound.AutoUpdate(AssetSubsystem, bMarkDirty, bUpdateReferences);
+		}
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -72,18 +131,6 @@ namespace Metasound
 #endif // WITH_EDITORONLY_DATA
 } // namespace Metasound
 
-UCLASS()
-class METASOUNDENGINE_API UMetasoundEditorGraphBase : public UEdGraph
-{
-	GENERATED_BODY()
-
-public:
-	virtual bool IsEditorOnly() const override { return true; }
-	virtual bool NeedsLoadForEditorGame() const override { return false; }
-
-	virtual void Synchronize() { }
-};
-
 
 /**
  * This asset type is used for Metasound assets that can only be used as nodes in other Metasound graphs.
@@ -105,6 +152,9 @@ protected:
 
 public:
 	UMetaSound(const FObjectInitializer& ObjectInitializer);
+
+	UPROPERTY()
+	TSet<FSoftObjectPath> ReferencedAssets;
 
 	UPROPERTY(AssetRegistrySearchable)
 	FGuid AssetClassID;
@@ -153,10 +203,23 @@ public:
 #endif // #if WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
+
+	virtual void BeginDestroy() override;
+	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
+	virtual void Serialize(FArchive& InArchive) override;
+
+	virtual TSet<FSoftObjectPath>& GetReferencedAssets() override
+	{
+		return ReferencedAssets;
+	}
+
+	virtual const TSet<FSoftObjectPath>& GetReferencedAssets() const override
+	{
+		return ReferencedAssets;
+	}
 
 	// Returns Asset Metadata associated with this MetaSound
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;

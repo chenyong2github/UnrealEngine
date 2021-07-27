@@ -36,7 +36,7 @@ namespace Metasound
 			FMetasoundFrontendClass ClassDescription;
 
 			ClassDescription.Metadata = FMetasoundFrontendClassMetadata(InNodeMetadata);
-			ClassDescription.Metadata.Type = ClassType;
+			ClassDescription.Metadata.SetType(ClassType);
 
 			FMetasoundFrontendClassStyleDisplay DisplayStyle(InNodeMetadata.DisplayStyle);
 			ClassDescription.Style = FMetasoundFrontendClassStyle
@@ -46,10 +46,8 @@ namespace Metasound
 
 			FMetasoundFrontendClassInterface& ClassInterface = ClassDescription.Interface;
 
-			// External metasounds aren't dependent on any other nodes by definition, so all we need to do
-			// is populate the Input and Output sets.
 			const FInputVertexInterface& InputInterface = InNodeMetadata.DefaultInterface.GetInputInterface();
-			TArray<int>& InputSortOrder = ClassInterface.InputStyle.DefaultSortOrder;
+			FMetasoundFrontendInterfaceStyle InputStyle;
 			for (auto& InputTuple : InputInterface)
 			{
 				FMetasoundFrontendClassInput ClassInput;
@@ -75,13 +73,14 @@ namespace Metasound
 				{
 					OrderIndex += InputInterface.Num();
 				}
-				InputSortOrder.Add(OrderIndex);
+				InputStyle.DefaultSortOrder.Add(OrderIndex);
 
 				ClassInterface.Inputs.Add(ClassInput);
 			}
+			ClassInterface.SetInputStyle(InputStyle);
 
 			const FOutputVertexInterface& OutputInterface = InNodeMetadata.DefaultInterface.GetOutputInterface();
-			TArray<int32>& OutputSortOrder = ClassInterface.InputStyle.DefaultSortOrder;
+			FMetasoundFrontendInterfaceStyle OutputStyle;
 			for (auto& OutputTuple : OutputInterface)
 			{
 				FMetasoundFrontendClassOutput ClassOutput;
@@ -101,10 +100,11 @@ namespace Metasound
 				{
 					OrderIndex += OutputInterface.Num();
 				}
-				ClassInterface.OutputStyle.DefaultSortOrder.Add(OrderIndex);
+				OutputStyle.DefaultSortOrder.Add(OrderIndex);
 
-				ClassDescription.Interface.Outputs.Add(ClassOutput);
+				ClassInterface.Outputs.Add(ClassOutput);
 			}
+			ClassInterface.SetOutputStyle(OutputStyle);
 
 			for (auto& EnvTuple : InNodeMetadata.DefaultInterface.GetEnvironmentInterface())
 			{
@@ -115,7 +115,7 @@ namespace Metasound
 				EnvVar.Metadata.Description = EnvTuple.Value.GetDescription();
 				EnvVar.bIsRequired = true;
 
-				ClassDescription.Interface.Environment.Add(EnvVar);
+				ClassInterface.Environment.Add(EnvVar);
 			}
 
 			return ClassDescription;
