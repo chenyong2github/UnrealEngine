@@ -510,7 +510,13 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint TextureID, FRHITextur
 
 	// Use a texture stage that's not likely to be used for draws, to avoid waiting
 	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, TextureID, 0, NumMips);
-
+#if !PLATFORM_ANDROID
+	if(GLFormat.InternalFormat[0] == GL_RGB5_A1)
+	{
+		glTexParameteri(Target, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
+		glTexParameteri(Target, GL_TEXTURE_SWIZZLE_B, GL_RED);
+	}
+#endif
 	if (NumSamples == 1 && !TileMemDepth)
 	{
 		if (Target == GL_TEXTURE_EXTERNAL_OES || !FMath::IsPowerOfTwo(SizeX) || !FMath::IsPowerOfTwo(SizeY))

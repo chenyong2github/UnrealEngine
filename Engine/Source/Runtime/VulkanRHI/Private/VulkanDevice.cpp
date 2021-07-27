@@ -629,7 +629,12 @@ void FVulkanDevice::SetupFormats()
 	MapFormatSupport(PF_R5G6B5_UNORM, VK_FORMAT_R5G6B5_UNORM_PACK16);
 	SetComponentMapping(PF_R5G6B5_UNORM, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
 
-	MapFormatSupport(PF_B5G5R5A1_UNORM, VK_FORMAT_A1R5G5B5_UNORM_PACK16);
+	VkFormat Vulkan5551Format, FallbackFormat0, FallbackFormat1;
+	Vulkan5551Format = FVulkanPlatform::GetPlatform5551Format(FallbackFormat0, FallbackFormat1);
+
+	//use rgb555a1 on Android in order to match OpenGL GL_RGB5_A1
+	MapFormatSupportWithFallback(PF_B5G5R5A1_UNORM, Vulkan5551Format, { FallbackFormat0,  FallbackFormat1 });
+
 	SetComponentMapping(PF_B5G5R5A1_UNORM, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
 
 	MapFormatSupport(PF_R8G8B8A8, VK_FORMAT_R8G8B8A8_UNORM);

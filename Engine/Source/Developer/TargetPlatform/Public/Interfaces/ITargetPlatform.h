@@ -540,7 +540,10 @@ public:
 		int32 SourceFormat,
 		bool bAllowCompression, bool bNoAlpha,
 		bool bSupportDX11TextureFormats, int32 TextureCompressionSettings) const = 0;
-
+	
+	//whether R5G6B5 and B5G5R5A1 is supported
+	virtual bool SupportsLQCompressionTextureFormat() const = 0;
+	
 	/**
 	 * Gets the format to use for a particular piece of audio.
 	 *

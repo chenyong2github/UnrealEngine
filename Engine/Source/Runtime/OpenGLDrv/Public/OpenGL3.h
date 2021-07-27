@@ -771,6 +771,7 @@ struct FOpenGL3 : public FOpenGLBase
 
 	static FORCEINLINE bool IsAndroidGLESCompatibilityModeEnabled() { return bAndroidGLESCompatibilityMode; }
 
+	static GLenum GetPlatfrom5551Format() { return GL_UNSIGNED_SHORT_1_5_5_5_REV; }
 protected:
 	static GLsizei NextTextureName;
 	static GLuint TextureNamesCache[OPENGL_NAME_CACHE_SIZE];

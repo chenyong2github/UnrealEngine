@@ -66,7 +66,10 @@ namespace AndroidTexFormat
 	static FName NameVU8(TEXT("VU8"));
 	static FName NameRGBA16F(TEXT("RGBA16F"));
 	static FName NameR16F(TEXT("R16F"));
-
+	static FName NameR5G6B5(TEXT("R5G6B5"));
+	static FName NameA1RGB555(TEXT("A1RGB555"));
+	//A1RGB555 is mapped to RGB555A1, because OpenGL GL_RGB5_A1 only supports alpha on the lowest bit
+	static FName NameRGB555A1(TEXT("RGB555A1"));
 	// Error "formats" (uncompressed)
 	static FName NamePOTERROR(TEXT("POTERROR"));
 }
@@ -348,6 +351,7 @@ public:
 			{ { FName(TEXT("BC6H")) },		{ FName(TEXT("ASTC_RGB")) } },
 			{ { FName(TEXT("BC7")) },		{ FName(TEXT("ASTC_RGBAuto")) } },
 			{ { FName(TEXT("AutoDXT")) },	{ FName(TEXT("ASTC_RGBAuto")) } },
+			{ { AndroidTexFormat::NameA1RGB555 },	{ AndroidTexFormat::NameRGB555A1 } },
 		};
 
 		// Supported in ES3.2 with ASTC

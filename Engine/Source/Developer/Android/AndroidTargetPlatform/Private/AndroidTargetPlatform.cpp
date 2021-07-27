@@ -460,6 +460,10 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* InTexture, TArra
 			{
 				FormatPerLayer[LayerIndex] = AndroidTexFormat::NameBGRA8;
 			}
+			else if (LayerFormatSettings.CompressionSettings == TC_LQ)
+			{
+				FormatPerLayer[LayerIndex] = LayerFormatSettings.CompressionNoAlpha ? AndroidTexFormat::NameR5G6B5 : AndroidTexFormat::NameRGB555A1;
+			}
 			else if (LayerFormatSettings.CompressionSettings == TC_EncodedReflectionCapture && !LayerFormatSettings.CompressionNone)
 			{
 				FormatPerLayer[LayerIndex] = AndroidTexFormat::NameETC2_RGBA;

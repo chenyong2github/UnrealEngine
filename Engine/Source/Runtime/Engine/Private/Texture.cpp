@@ -1890,6 +1890,9 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	static FName NameR16F(TEXT("R16F"));
 	static FName NameBC6H(TEXT("BC6H"));
 	static FName NameBC7(TEXT("BC7"));
+	static FName NameR5G6B5(TEXT("R5G6B5"));
+	static FName NameA1RGB555(TEXT("A1RGB555"));
+	
 
 	check(TargetPlatform);
 
@@ -1955,6 +1958,18 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		else
 		{
 			TextureFormatName = NameBGRA8;
+		}
+	}
+	else if (FormatSettings.CompressionSettings == TC_LQ)
+	{
+		bool bLQCompressionSupported = TargetPlatform->SupportsLQCompressionTextureFormat();
+		if(bLQCompressionSupported)
+		{
+			TextureFormatName = FormatSettings.CompressionNoAlpha ? NameR5G6B5 : NameA1RGB555;
+		}
+		else
+		{
+			TextureFormatName = FormatSettings.CompressionNoAlpha ? NameDXT1 : NameDXT5;
 		}
 	}
 	else if (FormatSettings.CompressionSettings == TC_HDR)

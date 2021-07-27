@@ -90,6 +90,9 @@ public:
 	{
 		return FName();
 	}
+
+	virtual bool SupportsLQCompressionTextureFormat() const override { return true; };
+
 #endif //WITH_ENGINE
 
 	virtual bool PackageBuild( const FString& InPackgeDirectory ) override
