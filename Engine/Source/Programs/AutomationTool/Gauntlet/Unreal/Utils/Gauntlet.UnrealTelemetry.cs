@@ -194,7 +194,7 @@ namespace Gauntlet
 			if (CSVMappingStrings.Count > 0)
 			{
 				CSVMapping = new Dictionary<string, string>();
-				foreach(string StringLine in CSVMappingStrings)
+				foreach (string StringLine in CSVMappingStrings)
 				{
 					var SplitLine = StringLine.Split(":");
 					if (SplitLine.Length != 2)
@@ -248,14 +248,14 @@ namespace Gauntlet
 
 			if (string.IsNullOrEmpty(JobLink))
 			{
-				JobLink = HordeReport.DefaultHordeJobLink;
+				JobLink = HordeReport.DefaultHordeJobStepLink;
 			}
 			Context.SetProperty("JobLink", JobLink);
 
 			// Create a report
 			HordeReport.SimpleTestReport Report = new HordeReport.SimpleTestReport();
 
-			if(Report is ITelemetryReport TelemetryReport)
+			if (Report is ITelemetryReport TelemetryReport)
 			{
 				// Parse CSV
 				if (!string.IsNullOrEmpty(CSVDirectory))
