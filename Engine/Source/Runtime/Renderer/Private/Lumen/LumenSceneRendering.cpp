@@ -1105,7 +1105,7 @@ public:
 				{
 					const FLumenCard& LumenCard = LumenCards[CardIndex];
 
-					const float ViewerDistance = FMath::Max(FMath::Sqrt(LumenCard.WorldOBB.ComputeSquaredDistanceToPoint(ViewOrigin)), 1.0f);
+					const float ViewerDistance = FMath::Max(FMath::Sqrt(LumenCard.WorldOBB.ComputeSquaredDistanceToPoint(ViewOrigin)), 100.0f);
 
 					// Compute resolution based on its largest extent
 					float MaxExtent = FMath::Max(LumenCard.WorldOBB.Extent.X, LumenCard.WorldOBB.Extent.Y);

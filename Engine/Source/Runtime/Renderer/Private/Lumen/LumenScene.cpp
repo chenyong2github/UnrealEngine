@@ -1337,6 +1337,8 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 		{
 			++NumMeshCards;
 		}
+
+		PrimitiveGroupsAllocatedMemory += PrimitiveGroup.Primitives.GetAllocatedSize();
 	}
 
 	FLumenSurfaceCacheAllocator::FStats AllocatorStats;
@@ -1370,7 +1372,7 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	}
 
 	UE_LOG(LogRenderer, Log, TEXT("*** CPU Memory ***"));
-	UE_LOG(LogRenderer, Log, TEXT("  Primitive groups allocated memory: %.3fMb"), PrimitiveGroups.GetAllocatedSize() / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  Primitive groups allocated memory: %.3fMb"), PrimitiveGroupsAllocatedMemory / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  Cards allocated memory: %.3fMb"), Cards.GetAllocatedSize() / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  MeshCards allocated memory: %.3fMb"), MeshCards.GetAllocatedSize() / (1024.0f * 1024.0f));
 
