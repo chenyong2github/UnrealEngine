@@ -252,3 +252,15 @@ void DIGBuffer_DecodeSceneColor(in float2 ScreenUV, in bool bApplyViewportOffset
 #endif
 }
 
+void DIGBuffer_DecodeShadingModelID(in float2 ScreenUV, in bool bApplyViewportOffset, out bool IsValid, out int OutValue)
+{
+#if NDIGBUFFER_HAS_GBUFFER
+	ScreenUV = DIGBuffer_ApplyViewportOffset(ScreenUV, bApplyViewportOffset);
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.ShadingModelID;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
