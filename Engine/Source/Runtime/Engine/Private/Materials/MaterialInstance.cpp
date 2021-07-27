@@ -4837,6 +4837,38 @@ void UMaterialInstance::SaveShaderStableKeysInner(const class ITargetPlatform* T
 }
 
 #if WITH_EDITOR
+void UMaterialInstance::GetShaderTypes(EShaderPlatform Platform, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
+{
+	if (bHasStaticPermutationResource)
+	{
+		check(IsA(UMaterialInstanceConstant::StaticClass()));
+		UMaterial* BaseMaterial = GetMaterial();
+
+		uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
+		const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+
+		TArray<FMaterialResource*> ResourcesToCache;
+		while (FeatureLevelsToCompile != 0)
+		{
+			const ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FBitSet::GetAndClearNextBit(FeatureLevelsToCompile);
+			const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
+
+			// Only cache shaders for the quality level that will actually be used to render
+			// In cooked build, there is no shader compilation but this is still needed to
+			// register the loaded shadermap
+			FMaterialResource* CurrentResource = FindOrCreateMaterialResource(StaticPermutationMaterialResources, BaseMaterial, this, FeatureLevel, ActiveQualityLevel);
+			check(CurrentResource);
+		}
+
+		for (FMaterialResource* CurrentResource : StaticPermutationMaterialResources)
+		{
+			CurrentResource->GetShaderTypes(Platform, OutShaderInfo);
+		}
+	}
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
 void UMaterialInstance::BeginAllowCachingStaticParameterValues()
 {
 	++AllowCachingStaticParameterValuesCounter;

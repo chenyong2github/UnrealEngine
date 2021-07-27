@@ -727,6 +727,18 @@ public:
 	ENGINE_API virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal) override;
 
 #if WITH_EDITOR
+	/**
+	*	Gathers a list of shader types sorted by vertex factory types that should be cached for this material.  Avoids doing expensive material
+	*	and shader compilation to acquire this information.
+	*
+	*	@param	Platform		The shader platform to get info for.
+	*	@param	OutShaderInfo	Array of results sorted by vertex factory type, and shader type.
+	*
+	*/
+	ENGINE_API virtual void GetShaderTypes(EShaderPlatform Platform, TArray<FDebugShaderTypeInfo>& OutShaderInfo) override;
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
 	void BeginAllowCachingStaticParameterValues();
 	void EndAllowCachingStaticParameterValues();
 	void AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& OutIds) const;
