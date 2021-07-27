@@ -1210,6 +1210,13 @@ FMenuAndSearchBoxWidgets FNiagaraSystemToolkitParameterPanelViewModel::GetParame
 	const bool bRequestRename = true;
 	const bool bSkipSubscribedLibraries = false;
 
+	// Collect names of all parameters the System already owns to cull from the parameter add menu.
+	TSet<FName> AdditionalCulledParameterNames;
+	for (UNiagaraScriptVariable* EditorOnlyScriptVar : SystemViewModel->GetEditorOnlyParametersAdapter()->GetParameters())
+	{
+		AdditionalCulledParameterNames.Add(EditorOnlyScriptVar->Variable.GetName());
+	}
+
 	TSharedPtr<SNiagaraAddParameterFromPanelMenu> MenuWidget = SAssignNew(ParameterMenuWidget, SNiagaraAddParameterFromPanelMenu)
 		.Graphs(GetEditableGraphsConst())
 		.AvailableParameterDefinitions(SystemViewModel->GetAvailableParameterDefinitions(bSkipSubscribedLibraries))
@@ -1221,7 +1228,8 @@ FMenuAndSearchBoxWidgets FNiagaraSystemToolkitParameterPanelViewModel::GetParame
 		.NamespaceId(Category.NamespaceMetaData.GetGuid())
 		.ShowNamespaceCategory(false)
 		.ShowGraphParameters(false)
-		.AutoExpandMenu(true);
+		.AutoExpandMenu(true)
+		.AdditionalCulledParameterNames(AdditionalCulledParameterNames);
 
 	ParameterMenuSearchBoxWidget = MenuWidget->GetSearchBox();
 	FMenuAndSearchBoxWidgets MenuAndSearchBoxWidgets;
@@ -1314,6 +1322,13 @@ TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParam
 	const bool bIsParameterRead = true;
 	FGuid NamespaceId;
 
+	// Collect names of all parameters the assignment node already assigns to cull from the parameter add menu.
+	TSet<FName> AdditionalCulledParameterNames;
+	for (const FNiagaraVariable& AssignmentTargetVar : AssignmentNode->GetAssignmentTargets())
+	{
+		AdditionalCulledParameterNames.Add(AssignmentTargetVar.GetName());
+	}
+
 	TSharedRef<SNiagaraAddParameterFromPanelMenu> MenuWidget = SNew(SNiagaraAddParameterFromPanelMenu)
 		.Graphs(InGraphs)
 		.AvailableParameterDefinitions(SystemViewModel->GetAvailableParameterDefinitions(bSkipSubscribedLibraries))
@@ -1326,7 +1341,8 @@ TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParam
 		.NamespaceId(FNiagaraEditorUtilities::GetNamespaceIdForUsage(FNiagaraStackGraphUtilities::GetOutputNodeUsage(*AssignmentNode)))
 		.ShowNamespaceCategory(false)
 		.ShowGraphParameters(false)
-		.AutoExpandMenu(false);
+		.AutoExpandMenu(false)
+		.AdditionalCulledParameterNames(AdditionalCulledParameterNames);
 
 	AddButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
 	return MenuWidget;
@@ -2368,7 +2384,8 @@ FMenuAndSearchBoxWidgets FNiagaraScriptToolkitParameterPanelViewModel::GetParame
 		.NamespaceId(Category.NamespaceMetaData.GetGuid())
 		.ShowNamespaceCategory(false)
 		.ShowGraphParameters(false)
-		.AutoExpandMenu(false);
+		.AutoExpandMenu(false)
+		.CullParameterActionsAlreadyInGraph(true);
 
 	ParameterMenuSearchBoxWidget = MenuWidget->GetSearchBox();
 	FMenuAndSearchBoxWidgets MenuAndSearchBoxWidgets;

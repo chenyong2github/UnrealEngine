@@ -70,6 +70,8 @@ public:
 		, _AutoExpandMenu(false)
 		, _IsParameterRead(true)
 		, _ForceCollectEngineNamespaceParameterActions(false)
+		, _CullParameterActionsAlreadyInGraph(false)
+		, _AdditionalCulledParameterNames(TSet<FName>())
 	{}
 		//~ Begin Required Events
 		SLATE_EVENT(FOnAddParameter, OnAddParameter)
@@ -89,6 +91,8 @@ public:
 		SLATE_ARGUMENT(bool, AutoExpandMenu)
 		SLATE_ARGUMENT(bool, IsParameterRead)
 		SLATE_ARGUMENT(bool, ForceCollectEngineNamespaceParameterActions)
+		SLATE_ARGUMENT(bool, CullParameterActionsAlreadyInGraph)
+		SLATE_ARGUMENT(TSet<FName>, AdditionalCulledParameterNames)
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs);
@@ -139,6 +143,8 @@ private:
 	bool bIsParameterReadNode;
 	bool bOnlyShowParametersInNamespaceId;
 	bool bForceCollectEngineNamespaceParameterActions;
+	bool bCullParameterActionsAlreadyInGraph;
+	TSet<FName> AdditionalCulledParameterNames;
 };
 
 class SNiagaraAddParameterFromPinMenu : public SNiagaraParameterMenu

@@ -129,6 +129,8 @@ void SNiagaraAddParameterFromPanelMenu::Construct(const FArguments& InArgs)
 	this->bShowGraphParameters = InArgs._ShowGraphParameters;
 	this->bIsParameterReadNode = InArgs._IsParameterRead;
 	this->bForceCollectEngineNamespaceParameterActions = InArgs._ForceCollectEngineNamespaceParameterActions;
+	this->bCullParameterActionsAlreadyInGraph = InArgs._CullParameterActionsAlreadyInGraph;
+	this->AdditionalCulledParameterNames = InArgs._AdditionalCulledParameterNames;
 	this->bOnlyShowParametersInNamespaceId = NamespaceId.IsValid();
 
 	SNiagaraParameterMenu::FArguments SuperArgs;
@@ -289,6 +291,8 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 
 	TSet<FGuid> ExistingGraphParameterIds;
 	TSet<FName> VisitedParameterNames;
+	// Append additional culled parameter names to visited parameter names so that we preemptively cull any parameters that are name matching.
+	VisitedParameterNames.Append(AdditionalCulledParameterNames);
 	TArray<FGuid> ExcludedNamespaceIds;
 	// If this is a write node, exclude any read-only vars.
 	if (!bIsParameterReadNode)
@@ -336,10 +340,14 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 			}
 		}
 
-		const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& VariableToScriptVariableMap = Graph->GetAllMetaData();
-		for (auto It = VariableToScriptVariableMap.CreateConstIterator(); It; ++It)
-		{
-			ExistingGraphParameterIds.Add(It.Value()->Metadata.GetVariableGuid());
+		// If culling parameter actions that match existing parameters in the graph, collect all IDs for parameters visited in the graph.
+		if(bCullParameterActionsAlreadyInGraph)
+		{ 
+			const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& VariableToScriptVariableMap = Graph->GetAllMetaData();
+			for (auto It = VariableToScriptVariableMap.CreateConstIterator(); It; ++It)
+			{
+				ExistingGraphParameterIds.Add(It.Value()->Metadata.GetVariableGuid());
+			}
 		}
 	}
 
@@ -383,7 +391,6 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	// Collect "add existing graph parameter" actions
 	if (bShowGraphParameters)
 	{
-		TSet<FGuid> VisitedParameterIds;
 		for (const UNiagaraGraph* Graph : Graphs)
 		{
 			TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ParameterEntries = Graph->GetParameterReferenceMap();
@@ -402,11 +409,11 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 						continue;
 					}
 					// Check that we do not add a duplicate entry.
-					const FGuid& ScriptVarId = ScriptVar->Metadata.GetVariableGuid();
-					if (VisitedParameterIds.Contains(ScriptVarId) == false)
+					const FName& ParameterName = Parameter.GetName();
+					if (VisitedParameterNames.Contains(ParameterName) == false)
 					{
 						// The script variable is not a duplicate, add an entry for it.
-						VisitedParameterIds.Add(ScriptVarId);
+						VisitedParameterNames.Add(ParameterName);
 						FNiagaraVariable MutableParameter = FNiagaraVariable(Parameter);
 						const FText Category = bShowNamespaceCategory ? GetNamespaceCategoryText(NamespaceId) : LOCTEXT("NiagaraAddExistingParameterMenu", "Add Existing Parameter");
 						const FText DisplayName = FText::FromName(Parameter.GetName());
@@ -464,7 +471,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 
 			// Check that we do not add a duplicate entry.
 			const FGuid& ScriptVarId = ScriptVar->Metadata.GetVariableGuid();
-			if (ExistingGraphParameterIds.Contains(ScriptVarId))
+			if (bCullParameterActionsAlreadyInGraph && ExistingGraphParameterIds.Contains(ScriptVarId))
 			{
 				continue;
 			}

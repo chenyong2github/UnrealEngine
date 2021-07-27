@@ -1310,7 +1310,13 @@ UNiagaraScriptVariable* UNiagaraGraph::AddParameter(const UNiagaraScriptVariable
 		Modify();
 		UNiagaraScriptVariable* NewScriptVariable = CastChecked<UNiagaraScriptVariable>(StaticDuplicateObject(InScriptVar, this, FName()));
 		NewScriptVariable->SetFlags(RF_Transactional);
-		NewScriptVariable->Metadata.CreateNewGuid();
+		// If the incoming script variable is linked to a parameter definition, do not make a new ID.
+		// The parameter ID is associated with the linked definition.
+		// Vice-Versa if the new parameter is not linked to a parameter definition, create a new ID so that it is distinct for this graph.
+		if (NewScriptVariable->GetIsSubscribedToParameterDefinitions() == false)
+		{
+			NewScriptVariable->Metadata.CreateNewGuid();
+		}
 		FNiagaraGraphParameterReferenceCollection NewReferenceCollection = FNiagaraGraphParameterReferenceCollection(true /*bCreated*/);
 		NewReferenceCollection.Graph = this;
 		ParameterToReferencesMap.Add(NewScriptVariable->Variable, NewReferenceCollection);
