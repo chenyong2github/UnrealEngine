@@ -491,6 +491,8 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 		RHICmdList.TransitionResource(ResolveParams.DestAccessFinal, DestTextureRHI);
 	}
 
+	ConditionalFlushCommandList();
+
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 

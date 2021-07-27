@@ -249,6 +249,7 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 				Context.CommandListHandle.FlushResourceBarriers();
 				Context.CommandListHandle->ClearUnorderedAccessViewUint(GPUHandle, CPUHandle, Resource, *reinterpret_cast<const UINT(*)[4]>(ClearValues), 0, nullptr);
 				Context.CommandListHandle.UpdateResidency(UnorderedAccessView->GetResource());
+				Context.ConditionalFlushCommandList();
 
 				if (Context.IsDefaultContext())
 				{

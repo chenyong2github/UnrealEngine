@@ -792,6 +792,8 @@ void FD3D12DynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* De
 		Context.CommandListHandle.UpdateResidency(pDestResource);
 		Context.CommandListHandle.UpdateResidency(pSourceResource);
 
+		Context.ConditionalFlushCommandList();
+
 		DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 
 		Device->RegisterGPUWork(1);
@@ -828,6 +830,8 @@ void FD3D12CommandContext::RHICopyBufferRegion(FRHIBuffer* DestBufferRHI, uint64
 	CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + DstOffset, pSourceResource->GetResource(), SourceBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + SrcOffset, NumBytes);
 	CommandListHandle.UpdateResidency(pDestResource);
 	CommandListHandle.UpdateResidency(pSourceResource);
+
+	ConditionalFlushCommandList();
 
 	Device->RegisterGPUWork(1);
 }
@@ -968,5 +972,7 @@ void FD3D12CommandContext::RHICopyBufferRegions(const TArrayView<const FCopyBuff
 
 	TransitionResources(CommandListHandle, SrcBuffers, EBatchCopyState::FinalizeSource);
 	TransitionResources(CommandListHandle, DstBuffers, EBatchCopyState::FinalizeDest);
+	
+	ConditionalFlushCommandList();
 }
 #endif // D3D12_RHI_RAYTRACING

@@ -813,6 +813,8 @@ void FD3D12PoolAllocator::FlushPendingCopyOps(FD3D12CommandContext& InCommandCon
 		}
 	}
 
+	InCommandContext.ConditionalFlushCommandList();
+
 	PendingCopyOps.Empty(PendingCopyOps.Num());
 }
 
