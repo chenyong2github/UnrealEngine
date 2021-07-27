@@ -34,8 +34,9 @@ FAnalysisProcessor::FImpl::~FImpl()
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FAnalysisProcessor::FImpl::Run()
 {
-	FStreamBuffer Buffer;
+	AnalysisEngine.Begin();
 
+	FStreamBuffer Buffer;
 	while (!StopEvent->Wait(0, true))
 	{
 		UnpausedEvent->Wait();
