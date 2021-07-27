@@ -34,6 +34,19 @@ public:
 	 */
 	TUniqueFunction<FVector3d(int32)> GetPositionFunc;
 
+	/**
+	 * If enabled, when computing local point-pair distances, GetWeightedDistanceFunc() will be called with the 
+	 * Euclidean distance to allow for alternative metrics
+	 */
+	bool bEnableDistanceWeighting = false;
+
+	/**
+	 * Called when computing pairwise point distances between neighbours FromVID and ToVID, to allow for alternative distance metrics.
+	 * SeedVID is the seed point that FromVID's value was propagated from (ie point reached by gradient walk)
+	 * EuclideanDistance is the distance between the two input points
+	 */
+	TUniqueFunction<double(int32 FromVID, int32 ToVID, int32 SeedVID, double EuclideanDistance)> GetWeightedDistanceFunc;
+
 
 	/**
 	 * Construct TMeshDijkstra for the given PointSet. We will hold a reference to this
@@ -50,7 +63,12 @@ public:
 		MaxGraphDistancePointID = -1;
 
 		GetPositionFunc = [this](int32 PointID) { return  PointSet->GetVertex(PointID); };
+		bEnableDistanceWeighting = false;
+		GetWeightedDistanceFunc = [](int32, int32, int32, double Distance) { return Distance; };
 	}
+
+	/** @return distance value that indicates invalid or uncomputed distance */
+	static double InvalidDistance() { return TNumericLimits<double>::Max(); };
 
 	/**
 	 * Reset internal data structures but keep allocated memory
@@ -65,31 +83,48 @@ public:
 	}
 
 
+	/**
+	 *  FSeedPoint defines a seed point passed to the various compute methods below
+	 */
+	struct FSeedPoint
+	{
+		/** Client-defined integer ID for this seed point (not used internally) */
+		int32 ExternalID = -1;
+		/** Point ID for this seed point, must be a valid point ID in the input PointSet */
+		int32 PointID = 0;
+		/** Initial distance for this seed point */
+		double StartDistance = 0;
+	};
+
 
 	/**
-	 * Computes outwards from seed points to all points that are less/equal to ComputeToMaxDistance from the seed.
-	 * @param SeedPointsIn seed points defined as 2D vector tuples, will be interpreted as (seed_point_vertex_id, seed_distance)
-	 * @param ComputeToMaxDistance target radius for parameterization, will not set UVs on points with graph-distance larger than this
+	 * Computes graph distances outwards from seed points to all points that are less/equal to ComputeToMaxDistance from the seed.
+	 * @param SeedPointsIn seed points used to initialize computation, ie geodesics propagate out from this point set
+	 * @param ComputeToMaxDistance target graph-distance radius, will not compute/set distances on points with graph-distance larger than this
 	 */
-	void ComputeToMaxDistance(const TArray<FVector2d>& SeedPointsIn, double ComputeToMaxDistanceIn)
+	void ComputeToMaxDistance(const TArray<FSeedPoint>& SeedPointsIn, double ComputeToMaxDistanceIn)
 	{
-		SeedPoints = SeedPointsIn;
 		MaxGraphDistance = 0.0f;
 		MaxGraphDistancePointID = -1;
 
-		for (const FVector2d& SeedPoint : SeedPoints )
+		SeedPoints.Reset();
+		for (const FSeedPoint& SeedPoint : SeedPointsIn)
 		{
-			int32 PointID = (int32)SeedPoint.X;
-			if (Queue.Contains(PointID) == false)
+			int32 NewIndex = SeedPoints.Num();
+			SeedPoints.Add(SeedPoint);
+
+			int32 PointID = SeedPoint.PointID;
+			if (ensure(Queue.Contains(PointID) == false))
 			{
 				FGraphNode* Node = GetNodeForPointSetID(PointID, true);
-				Node->GraphDistance = SeedPoint.Y;
+				Node->GraphDistance = SeedPoint.StartDistance;
 				Node->bFrozen = true;
+				Node->SeedPointID = NewIndex;
 				Queue.Insert(PointID, Node->GraphDistance);
 			}
 		}
 
-		while (Queue.GetCount() > 0) 
+		while (Queue.GetCount() > 0)
 		{
 			int32 NextID = Queue.Dequeue();
 			FGraphNode* Node = GetNodeForPointSetID(NextID, false);
@@ -110,26 +145,49 @@ public:
 
 
 	/**
-	 * Computes outwards from seed points to TargetPointID, or stop when all points are further than ComputeToMaxDistance from the seed
-	 * @param SeedPointsIn seed points defined as 2D vector tuples, will be interpreted as (seed_point_vertex_id, seed_distance)
-	 * @param TargetPointID
-	 * @param ComputeToMaxDistance target radius for parameterization, will not set UVs on points with graph-distance larger than this
-	 * @return true if TargetPointID was reached
+	 * Computes graph distances outwards from seed points to all points that are less/equal to ComputeToMaxDistance from the seed.
+	 * @param SeedPointsIn 2D tuples that define seed points as (PointID, InitialDistance) pairs
+	 * @param ComputeToMaxDistance target graph-distance radius, will not compute/set distances on points with graph-distance larger than this
 	 */
-	bool ComputeToTargetPoint(const TArray<FVector2d>& SeedPointsIn, int32 TargetPointID,  double ComputeToMaxDistanceIn = TNumericLimits<double>::Max())
+	void ComputeToMaxDistance(const TArray<FVector2d>& SeedPointsIn, double ComputeToMaxDistanceIn)
 	{
-		SeedPoints = SeedPointsIn;
+		TArray<FSeedPoint> ConvertedSeedPoints;
+		int32 N = SeedPointsIn.Num();
+		ConvertedSeedPoints.SetNum(SeedPointsIn.Num());
+		for (int32 k = 0; k < N; ++k)
+		{
+			ConvertedSeedPoints[k] = FSeedPoint{ -1, (int)SeedPointsIn[k].X, SeedPointsIn[k].Y };
+		}
+		ComputeToMaxDistance(ConvertedSeedPoints, ComputeToMaxDistanceIn);
+	}
+
+
+
+	 /**
+	  * Computes graph distances outwards from seed points to all points that are less/equal to ComputeToMaxDistance from the seed, or until TargetPointID is reached.
+	  * This is useful for finding shortest paths between two points
+	  * @param SeedPointsIn seed points used to initialize computation, ie geodesics propagate out from this point set
+	  * @param TargetPointID the target point, computation stops when this point is reached
+	  * @param ComputeToMaxDistance target graph-distance radius, will not compute/set distances on points with graph-distance larger than this
+	  */
+	bool ComputeToTargetPoint(const TArray<FSeedPoint>& SeedPointsIn, int32 TargetPointID, double ComputeToMaxDistanceIn = TNumericLimits<double>::Max())
+	{
 		MaxGraphDistance = 0.0f;
 		MaxGraphDistancePointID = -1;
 
-		for (const FVector2d& SeedPoint : SeedPoints)
+		SeedPoints.Reset();
+		for (const FSeedPoint& SeedPoint : SeedPointsIn)
 		{
-			int32 PointID = (int32)SeedPoint.X;
-			if (Queue.Contains(PointID) == false)
+			int32 NewIndex = SeedPoints.Num();
+			SeedPoints.Add(SeedPoint);
+
+			int32 PointID = SeedPoint.PointID;
+			if (ensure(Queue.Contains(PointID) == false))
 			{
 				FGraphNode* Node = GetNodeForPointSetID(PointID, true);
-				Node->GraphDistance = SeedPoint.Y;
+				Node->GraphDistance = SeedPoint.StartDistance;
 				Node->bFrozen = true;
+				Node->SeedPointID = NewIndex;
 				Queue.Insert(PointID, Node->GraphDistance);
 			}
 		}
@@ -182,6 +240,21 @@ public:
 
 
 	/**
+	 * @return the ExternalID of the SeedPoint that is closest to PointID, or -1 if PointID does not have a valid graph distance
+	 */
+	int32 GetSeedExternalIDForPointSetID(int32 PointID)
+	{
+		const FGraphNode* Node = GetNodeForPointSetID(PointID);
+		if (Node == nullptr || Node->bFrozen == false)
+		{
+			return -1;
+		}
+		int32 SeedIndex = Node->SeedPointID;
+		return SeedPoints[SeedIndex].ExternalID;
+	}
+
+
+	/**
 	 * @return true if the distance for index PointID was calculated
 	 */
 	bool HasDistance(int32 PointID) const
@@ -197,24 +270,8 @@ public:
 	double GetDistance(int32 PointID) const
 	{
 		const FGraphNode* Node = GetNodeForPointSetID(PointID);
-		return (Node != nullptr && Node->bFrozen) ? Node->GraphDistance : InvalidValue();
+		return (Node != nullptr && Node->bFrozen) ? Node->GraphDistance : InvalidDistance();
 	}
-
-	
-	//bool GetInterpTriDistance(const FIndex3i Triangle, const FVector3d& BaryCoords, double& DistanceOut) const
-	//{
-	//	const FGraphNode* NodeA = GetNodeForPointSetID(Triangle.A);
-	//	const FGraphNode* NodeB = GetNodeForPointSetID(Triangle.B);
-	//	const FGraphNode* NodeC = GetNodeForPointSetID(Triangle.C);
-	//	if (NodeA == nullptr || NodeA.bFrozen == false || NodeB == nullptr || NodeB.bFrozen == false || NodeC == nullptr || NodeC.bFrozen == false)
-	//	{
-	//		DistanceOut = InvalidValue();
-	//		return false;
-	//	}
-
-	//	DistanceOut = BaryCoords.X*NodeA->GraphDistance + BaryCoords.Y*NodeB->GraphDistance + BaryCoords.Z*NodeC->GraphDistance;
-	//	return true;
-	//}
 
 	/**
 	 * Find path from a point to the nearest seed point
@@ -261,6 +318,7 @@ private:
 	{
 		int32 PointID;
 		int32 ParentPointID;
+		int32 SeedPointID;
 		double GraphDistance;
 		bool bFrozen;
 	};
@@ -273,9 +331,7 @@ private:
 	// queue of nodes to process (for dijkstra front propagation)
 	FIndexPriorityQueue Queue;
 
-	static double InvalidValue() { return TNumericLimits<double>::Max(); };
-
-	TArray<FVector2d> SeedPoints;
+	TArray<FSeedPoint> SeedPoints;
 
 	// max distances encountered during last compute
 	double MaxGraphDistance;
@@ -330,13 +386,21 @@ private:
 				continue;
 			}
 
-			double NbrDist = ParentDist + Distance(ParentPos, GetPositionFunc(NbrPointID));
+			double LocalDist = Distance(ParentPos, GetPositionFunc(NbrPointID));
+			if (bEnableDistanceWeighting)
+			{
+				int SeedPointID = SeedPoints[Parent->SeedPointID].PointID;
+				LocalDist = GetWeightedDistanceFunc(Parent->PointID, NbrPointID, SeedPointID, LocalDist);
+			}
+			double NbrDist = ParentDist + LocalDist;
+
 			if (Queue.Contains(NbrPointID))
 			{
 				if (NbrDist < NbrNode->GraphDistance)
 				{
 					NbrNode->ParentPointID = Parent->PointID;
 					NbrNode->GraphDistance = NbrDist;
+					NbrNode->SeedPointID = Parent->SeedPointID;
 					Queue.Update(NbrPointID, NbrNode->GraphDistance);
 				}
 			}
@@ -344,6 +408,7 @@ private:
 			{
 				NbrNode->ParentPointID = Parent->PointID;
 				NbrNode->GraphDistance = NbrDist;
+				NbrNode->SeedPointID = Parent->SeedPointID;
 				Queue.Insert(NbrPointID, NbrNode->GraphDistance);
 			}
 		}
