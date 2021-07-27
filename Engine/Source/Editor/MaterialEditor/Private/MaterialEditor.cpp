@@ -6191,8 +6191,8 @@ void FMaterialEditor::RefreshExpressionPreview(UMaterialExpression* MaterialExpr
 			{
 				// we need to make sure the rendering thread isn't drawing this tile
 				//SCOPED_SUSPEND_RENDERING_THREAD(true);
+				ExpressionPreviews.RemoveAt(PreviewIndex);
 				FMaterial::DeferredDelete(ExpressionPreview);
-				ExpressionPreviews.RemoveAt( PreviewIndex );
 				MaterialExpression->bNeedToUpdatePreview = false;
 
 				if (bRecompile)
