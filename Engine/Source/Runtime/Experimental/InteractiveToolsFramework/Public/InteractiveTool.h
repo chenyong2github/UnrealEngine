@@ -562,7 +562,7 @@ protected:
 	/**
 	 * Override this function to register the set of Actions this Tool supports, using FInteractiveToolActionSet::RegisterAction.
 	 * Note that for the actions to be triggered, you will also need to add corresponding registration per tool
-	 *  -- see Engine\Plugins\Experimental\ModelingToolsEditorMode\Source\ModelingToolsEditorMode\Public\ModelingToolsActions.h for examples
+	 *  -- see Engine\Plugins\Editor\ModelingToolsEditorMode\Source\ModelingToolsEditorMode\Public\ModelingToolsActions.h for examples
 	 */
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet);
 
