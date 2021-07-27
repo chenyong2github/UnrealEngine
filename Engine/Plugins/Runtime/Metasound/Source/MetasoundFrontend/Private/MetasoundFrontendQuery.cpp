@@ -220,8 +220,8 @@ namespace Metasound
 				return Increment(InOutResult);
 			}
 
-			virtual void Reset() override 
-			{ 
+			virtual void Reset() override
+			{
 				if (Source.IsValid())
 				{
 					Source->Reset();
@@ -446,7 +446,7 @@ namespace Metasound
 				EResultModificationState ResultState = EResultModificationState::Unmodified;
 
 				if (Step.IsValid())
-				{ 	
+				{
 					if (InIncremental.GetSelection().Num() > 0)
 					{
 						TSet<FKey> NewKeys;
@@ -483,7 +483,7 @@ namespace Metasound
 				EResultModificationState ResultState = EResultModificationState::Unmodified;
 
 				if (Step.IsValid())
-				{ 	
+				{
 					if (InOutResult.GetSelection().Num() > 0)
 					{
 						TArray<FFrontendQueryEntry*> SortedSelection = GetSortedSelection(InOutResult.GetSelection());
@@ -1247,24 +1247,24 @@ namespace Metasound
 			{
 				FFrontendQueryStep& Step = *Steps[StepIndex];
 
-				IncrementalResultState = Step.Increment(IncrementalResult);
-
-				const bool bMergeIncrementalResults = Step.IsMergeRequiredForIncremental() && (EResultModificationState::Modified == IncrementalResultState);
-
+				const bool bMergeIncrementalResults = Step.IsMergeRequiredForIncremental();
 				if (bMergeIncrementalResults)
 				{
 					const bool bIsResultCacheEmpty = StepResultCache[StepIndex].GetSelection().Num() == 0;
-
 					if (bIsResultCacheEmpty)
 					{
-						// If the prior result for this step is empty, we can continue
-						// using the incremental path.
-						StepResultCache[StepIndex] = IncrementalResult;
+						// If the prior result for this step is empty, continue using the incremental path.
+						IncrementalResultState = Step.Increment(IncrementalResult);
+						if (EResultModificationState::Modified == IncrementalResultState)
+						{
+							StepResultCache[StepIndex] = IncrementalResult;
+						}
 					}
 					else
 					{
 						Step.Merge(IncrementalResult, StepResultCache[StepIndex]);
 
+						IncrementalResultState = Step.Execute(StepResultCache[StepIndex]);
 						*Result = StepResultCache[StepIndex];
 
 						// After results are merged, downstream steps can no longer 
@@ -1273,6 +1273,10 @@ namespace Metasound
 						ExecuteSteps(StepIndex + 1);
 						return;
 					}
+				}
+				else
+				{
+					IncrementalResultState = Step.Increment(IncrementalResult);
 				}
 			}
 		}
