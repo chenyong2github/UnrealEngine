@@ -194,7 +194,7 @@ FMeshPassProcessor* CreateLumenTranslucencyRadianceCacheMarkPassProcessor(const 
 	FMeshPassProcessorRenderState PassState;
 
 	// We use HZB tests in the shader instead of hardware depth testing
-	PassState.SetDepthStencilState(TStaticDepthStencilState<false>::GetRHI());
+	PassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
 	PassState.SetBlendState(TStaticBlendState<>::GetRHI());
 
