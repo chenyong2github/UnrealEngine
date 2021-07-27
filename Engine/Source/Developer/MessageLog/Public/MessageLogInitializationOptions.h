@@ -16,6 +16,7 @@ struct FMessageLogInitializationOptions
 		, bDiscardDuplicates(false)
 		, MaxPageCount(20)
 		, bShowInLogWindow(true)
+		, bScrollToBottom(false)
 	{}
 
 	/** Whether to show the filters menu */
@@ -42,4 +43,7 @@ struct FMessageLogInitializationOptions
 
 	/** Whether to show this log in the main log window */
 	bool bShowInLogWindow;
+
+	/** Whether to scroll to the bottom of the window when messages are added */
+	bool bScrollToBottom;
 };

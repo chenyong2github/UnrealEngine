@@ -74,6 +74,7 @@ void RigVMPythonUtils::Print(const FString& InMessage)
 		InitOptions.bShowFilters = true;
 		InitOptions.bShowPages = true;
 		InitOptions.bAllowClear = true;
+		InitOptions.bScrollToBottom = true;
 		MessageLogModule.RegisterLogListing("ControlRigPythonLog", LOCTEXT("ControlRigPythonLog", "Control Rig Python Log"), InitOptions);
 	}
 	TSharedRef<IMessageLogListing> PythonLog = MessageLogModule.GetLogListing( TEXT("ControlRigPythonLog") );
