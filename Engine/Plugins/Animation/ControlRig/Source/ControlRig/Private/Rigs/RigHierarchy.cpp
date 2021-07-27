@@ -1478,7 +1478,8 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 			}
 		}
 
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy.%s(%s, %s, %s, %s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy.%s(%s, %s, %s, %s)"),
 			*MethodName,
 			*InTransformElement->GetKey().ToPythonString(),
 			*RigVMPythonUtils::TransformToPythonString(InTransform),
@@ -1586,7 +1587,8 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 	if (bPrintPythonCommands)
 	{
 		//FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bAffectChildren = true, bool bSetupUndo = false, bool bPrintPythonCommands = false)
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy.set_control_offset_transform(%s, %s, %s, %s)"),
+		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("hierarchy.set_control_offset_transform(%s, %s, %s, %s)"),
 			*InControlElement->GetKey().ToPythonString(),
 			*RigVMPythonUtils::TransformToPythonString(InTransform),
 			(ERigTransformType::IsInitial(InTransformType)) ? TEXT("True") : TEXT("False"),

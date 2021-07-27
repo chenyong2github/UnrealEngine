@@ -15,7 +15,7 @@ namespace RigVMPythonUtils
 	RIGVMDEVELOPER_API FString LinearColorToPythonString(const FLinearColor& Color);
 	
 #if WITH_EDITOR
-	RIGVMDEVELOPER_API void Print(const FString& InMessage);
+	RIGVMDEVELOPER_API void Print(const FString& BlueprintTitle, const FString& InMessage);
 
 #endif
 }

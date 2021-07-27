@@ -725,7 +725,8 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 
@@ -911,7 +912,8 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+								FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 
@@ -1505,7 +1507,8 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+								FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 
@@ -1582,7 +1585,8 @@ URigVMCommentNode* URigVMController::AddCommentNode(const FString& InCommentText
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+								FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 
@@ -1634,12 +1638,13 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnLink(URigVMLink* InLink, bo
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_reroute_node_on_link_path('%s', %s, %s, '%s')"),
-				*GetGraph()->GetGraphName(),
-				*InLink->GetPinPathRepresentation(),
-				(bShowAsFullNode) ? TEXT("True") : TEXT("False"),
-				*RigVMPythonUtils::Vector2DToPythonString(Node->GetPosition()),
-				*Node->GetName()));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_reroute_node_on_link_path('%s', %s, %s, '%s')"),
+											*GetGraph()->GetGraphName(),
+											*InLink->GetPinPathRepresentation(),
+											(bShowAsFullNode) ? TEXT("True") : TEXT("False"),
+											*RigVMPythonUtils::Vector2DToPythonString(Node->GetPosition()),
+											*Node->GetName()));
 	}
 
 	return Node;
@@ -1750,13 +1755,14 @@ URigVMRerouteNode* URigVMController::AddRerouteNodeOnPin(const FString& InPinPat
 	if (bPrintPythonCommand)
 	{
 		// AddRerouteNodeOnPin(const FString& InPinPath, bool bAsInput, bool bShowAsFullNode, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_reroute_node_on_pin('%s', %s, %s, %s '%s')"),
-				*GetGraph()->GetGraphName(),
-				*InPinPath,
-				(bAsInput) ? TEXT("True") : TEXT("False"),
-				(bShowAsFullNode) ? TEXT("True") : TEXT("False"),
-				*RigVMPythonUtils::Vector2DToPythonString(Node->GetPosition()),
-				*Node->GetName()));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_reroute_node_on_pin('%s', %s, %s, %s '%s')"),
+											*GetGraph()->GetGraphName(),
+											*InPinPath,
+											(bAsInput) ? TEXT("True") : TEXT("False"),
+											(bShowAsFullNode) ? TEXT("True") : TEXT("False"),
+											*RigVMPythonUtils::Vector2DToPythonString(Node->GetPosition()),
+											*Node->GetName()));
 	}
 
 	return Node;
@@ -1956,15 +1962,16 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_injected_node_from_struct_path('%s', %s, '%s', '%s', '%s', '%s', '%s')"),
-				*GetGraph()->GetGraphName(),
-				*InPinPath,
-				(bAsInput) ? TEXT("True") : TEXT("False"),
-				*InScriptStruct->GetPathName(),
-				*InMethodName.ToString(),
-				*InInputPinName.ToString(),
-				*InOutputPinName.ToString(),
-				*InNodeName));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_injected_node_from_struct_path('%s', %s, '%s', '%s', '%s', '%s', '%s')"),
+											*GetGraph()->GetGraphName(),
+											*InPinPath,
+											(bAsInput) ? TEXT("True") : TEXT("False"),
+											*InScriptStruct->GetPathName(),
+											*InMethodName.ToString(),
+											*InInputPinName.ToString(),
+											*InOutputPinName.ToString(),
+											*InNodeName));
 	}
 
 	return InjectionInfo;
@@ -2111,9 +2118,10 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').eject_node_from_pin('%s')"),
-				*GetGraph()->GetGraphName(),
-				*InPinPath));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').eject_node_from_pin('%s')"),
+											*GetGraph()->GetGraphName(),
+											*InPinPath));
 	}
 
 	return EjectedNode;
@@ -2711,10 +2719,11 @@ TMap<URigVMLibraryNode*, URigVMLibraryNode*> URigVMController::LocalizeFunctions
 		}
 		FunctionNames += TEXT("]");
 		
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').localize_functions(%s, %s)"),
-				*GetGraph()->GetGraphName(),
-				*FunctionNames,
-				(bLocalizeDependentPrivateFunctions) ? TEXT("True") : TEXT("False")));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').localize_functions(%s, %s)"),
+											*GetGraph()->GetGraphName(),
+											*FunctionNames,
+											(bLocalizeDependentPrivateFunctions) ? TEXT("True") : TEXT("False")));
 	}
 
 	return LocalizedFunctions;
@@ -2769,10 +2778,11 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<FName>& InNodeN
 		}
 		ArrayStr += TEXT("]");
 		
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').collapse_nodes(%s, '%s')"),
-				*GetGraph()->GetGraphName(),
-				*ArrayStr,
-				*InCollapseNodeName));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').collapse_nodes(%s, '%s')"),
+											*GetGraph()->GetGraphName(),
+											*ArrayStr,
+											*InCollapseNodeName));
 	}
 
 	return Node;
@@ -2806,9 +2816,10 @@ TArray<URigVMNode*> URigVMController::ExpandLibraryNode(const FName& InNodeName,
 
 	if (!Nodes.IsEmpty() && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').expand_library_node('%s')"),
-				*GetGraph()->GetGraphName(),
-				*InNodeName.ToString()));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').expand_library_node('%s')"),
+											*GetGraph()->GetGraphName(),
+											*InNodeName.ToString()));
 	}
 
 	return Nodes;
@@ -3934,9 +3945,10 @@ FName URigVMController::PromoteCollapseNodeToFunctionReferenceNode(const FName& 
 	{
 		if (bPrintPythonCommand)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').promote_collapse_node_to_function_reference_node('%s')"),
-					*GetGraph()->GetGraphName(),
-					*InNodeName.ToString()));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+								FString::Printf(TEXT("blueprint.get_controller_by_name('%s').promote_collapse_node_to_function_reference_node('%s')"),
+													*GetGraph()->GetGraphName(),
+													*InNodeName.ToString()));
 		}
 		
 		return Result->GetFName();
@@ -4345,14 +4357,16 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 	{
 		if (Graph->IsA<URigVMFunctionLibrary>())
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("library_controller.remove_function_from_library('%s')"),
-				*InNode->GetFName().ToString()));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+								FString::Printf(TEXT("library_controller.remove_function_from_library('%s')"),
+												*InNode->GetFName().ToString()));
 		}
 		else
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_node_by_name('%s')"),
-				*GetGraph()->GetGraphName(),
-				*InNode->GetNodePath()));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+								FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_node_by_name('%s')"),
+												*GetGraph()->GetGraphName(),
+												*InNode->GetNodePath()));
 		}
 	}
 
@@ -4457,9 +4471,10 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 
 	if (GetGraph()->IsA<URigVMFunctionLibrary>())
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("library_controller.rename_function('%s', '%s')"),
-			*OldName,
-			*InNewName.ToString()));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("library_controller.rename_function('%s', '%s')"),
+										*OldName,
+										*InNewName.ToString()));
 	}
 
 	return true;
@@ -4608,9 +4623,10 @@ bool URigVMController::SetNodeSelection(const TArray<FName>& InNodeNames, bool b
 		}
 		ArrayStr += TEXT("]");
 		
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_selection(%s)"),
-				*GetGraph()->GetGraphName(),
-				*ArrayStr));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_selection(%s)"),
+											*GetGraph()->GetGraphName(),
+											*ArrayStr));
 	}
 
 	return bSelectedSomething;
@@ -4646,10 +4662,11 @@ bool URigVMController::SetNodePosition(URigVMNode* InNode, const FVector2D& InPo
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_position_by_name('%s', %s)"),
-				*GetGraph()->GetGraphName(),
-				*InNode->GetNodePath(),
-				*RigVMPythonUtils::Vector2DToPythonString(InPosition)));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_position_by_name('%s', %s)"),
+											*GetGraph()->GetGraphName(),
+											*InNode->GetNodePath(),
+											*RigVMPythonUtils::Vector2DToPythonString(InPosition)));
 	}
 
 	return true;
@@ -4700,10 +4717,11 @@ bool URigVMController::SetNodeSize(URigVMNode* InNode, const FVector2D& InSize, 
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_size_by_name('%s', %s)"),
-				*GetGraph()->GetGraphName(),
-				*InNode->GetNodePath(),
-				*RigVMPythonUtils::Vector2DToPythonString(InSize)));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_size_by_name('%s', %s)"),
+											*GetGraph()->GetGraphName(),
+											*InNode->GetNodePath(),
+											*RigVMPythonUtils::Vector2DToPythonString(InSize)));
 	}
 
 	return true;
@@ -4765,10 +4783,11 @@ bool URigVMController::SetNodeColor(URigVMNode* InNode, const FLinearColor& InCo
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_color_by_name('%s', %s)"),
-				*GetGraph()->GetGraphName(),
-				*InNode->GetNodePath(),
-				*RigVMPythonUtils::LinearColorToPythonString(InColor)));
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_color_by_name('%s', %s)"),
+											*GetGraph()->GetGraphName(),
+											*InNode->GetNodePath(),
+											*RigVMPythonUtils::LinearColorToPythonString(InColor)));
 	}
 
 	return true;
@@ -4818,7 +4837,8 @@ bool URigVMController::SetNodeCategory(URigVMCollapseNode* InNode, const FString
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_category_by_name('%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_category_by_name('%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InNode->GetNodePath(),
 				*InCategory));
@@ -4871,7 +4891,8 @@ bool URigVMController::SetNodeKeywords(URigVMCollapseNode* InNode, const FString
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_keywords_by_name('%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_keywords_by_name('%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InNode->GetNodePath(),
 				*InKeywords));
@@ -4924,7 +4945,8 @@ bool URigVMController::SetNodeDescription(URigVMCollapseNode* InNode, const FStr
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_description_by_name('%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_description_by_name('%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InNode->GetNodePath(),
 				*InDescription));
@@ -4979,7 +5001,8 @@ bool URigVMController::SetCommentText(URigVMNode* InNode, const FString& InComme
 
 		if (bPrintPythonCommand)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_comment_text_by_name('%s', '%s')"),
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_comment_text_by_name('%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*CommentNode->GetNodePath(),
 				*InCommentText));
@@ -5247,7 +5270,8 @@ bool URigVMController::SetPinExpansion(const FString& InPinPath, bool bIsExpande
 	const bool bSuccess = SetPinExpansion(Pin, bIsExpanded, bSetupUndoRedo);
 	if (bSuccess && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_pin_expansion('%s', %s)"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_pin_expansion('%s', %s)"),
 			*GetGraph()->GetGraphName(),
 			*InPinPath,
 			(bIsExpanded) ? TEXT("True") : TEXT("False")));
@@ -5434,7 +5458,8 @@ bool URigVMController::SetPinDefaultValue(const FString& InPinPath, const FStrin
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_pin_default_value('%s', '%s', %s)"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_pin_default_value('%s', '%s', %s)"),
 			*GetGraph()->GetGraphName(),
 			*InPinPath,
 			*InDefaultValue,
@@ -5578,7 +5603,8 @@ bool URigVMController::ResetPinDefaultValue(const FString& InPinPath, bool bSetu
 	const bool bSuccess = ResetPinDefaultValue(Pin, bSetupUndoRedo);
 	if (bSuccess && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').reset_pin_default_value('%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').reset_pin_default_value('%s')"),
 			*GetGraph()->GetGraphName(),
 			*InPinPath));
 	}
@@ -5716,7 +5742,8 @@ FString URigVMController::InsertArrayPin(const FString& InArrayPinPath, int32 In
 	{
 		if (bPrintPythonCommand)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').insert_array_pin('%s', %d, '%s')"),
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+				FString::Printf(TEXT("blueprint.get_controller_by_name('%s').insert_array_pin('%s', %d, '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InArrayPinPath,
 				InIndex,
@@ -5870,7 +5897,8 @@ bool URigVMController::RemoveArrayPin(const FString& InArrayElementPinPath, bool
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_array_pin('%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_array_pin('%s')"),
 			*GetGraph()->GetGraphName(),
 			*InArrayElementPinPath));
 	}
@@ -6026,7 +6054,8 @@ bool URigVMController::BindPinToVariable(const FString& InPinPath, const FString
 	const bool bSuccess = BindPinToVariable(Pin, InNewBoundVariablePath, bSetupUndoRedo);
 	if (bSuccess && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').bind_pin_to_variable('%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').bind_pin_to_variable('%s', '%s')"),
 			*GetGraph()->GetGraphName(),
 			*InPinPath,
 			*InNewBoundVariablePath));
@@ -6245,7 +6274,8 @@ bool URigVMController::PromotePinToVariable(const FString& InPinPath, bool bCrea
 	const bool bSuccess = PromotePinToVariable(Pin, bCreateVariableNode, InNodePosition, bSetupUndoRedo);
 	if (bSuccess && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').promote_pin_to_variable('%s', %s, %s)"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').promote_pin_to_variable('%s', %s, %s)"),
 			*GetGraph()->GetGraphName(),
 			*InPinPath,
 			(bCreateVariableNode) ? TEXT("True") : TEXT("False"),
@@ -6374,7 +6404,8 @@ bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& In
 	const bool bSuccess = AddLink(OutputPin, InputPin, bSetupUndoRedo);
 	if (bSuccess && bPrintPythonCommand)
 	{		
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_link('%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_link('%s', '%s')"),
 			*GetGraph()->GetGraphName(),
 			*OutputPin->GetPinPath(),
 			*InputPin->GetPinPath()));
@@ -6514,7 +6545,8 @@ bool URigVMController::BreakLink(const FString& InOutputPinPath, const FString& 
 	const bool bSuccess = BreakLink(OutputPin, InputPin, bSetupUndoRedo);
 	if (bSuccess && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').break_link('%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').break_link('%s', '%s')"),
 			*GetGraph()->GetGraphName(),
 			*OutputPin->GetPinPath(),
 			*InputPin->GetPinPath()));
@@ -6609,7 +6641,8 @@ bool URigVMController::BreakAllLinks(const FString& InPinPath, bool bAsInput, bo
 	const bool bSuccess = BreakAllLinks(Pin, bAsInput, bSetupUndoRedo);
 	if (bSuccess && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').break_all_links('%s', %s)"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').break_all_links('%s', %s)"),
 			*GetGraph()->GetGraphName(),
 			*Pin->GetPinPath(),
 			bAsInput ? TEXT("True") : TEXT("False")));
@@ -6801,7 +6834,8 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 		}
 		
 		//AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_exposed_pin('%s', %s, '%s', '%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_exposed_pin('%s', %s, '%s', '%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InPinName.ToString(),
 				*DirectionStr,
@@ -6887,7 +6921,8 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 
 	if (bSuccessfullyRemovedPin && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_exposed_pin('%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_exposed_pin('%s')"),
 				*GetGraph()->GetGraphName(),
 				*InPinName.ToString()));
 	}
@@ -7035,7 +7070,8 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').rename_exposed_pin('%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').rename_exposed_pin('%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InOldPinName.ToString(),
 				*InNewPinName.ToString()));
@@ -7146,7 +7182,8 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').change_exposed_pin_type('%s', '%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').change_exposed_pin_type('%s', '%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InPinName.ToString(),
 				*InCPPType,
@@ -7218,7 +7255,8 @@ bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewInd
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_exposed_pin_index('%s', %d)"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_exposed_pin_index('%s', %d)"),
 				*GetGraph()->GetGraphName(),
 				*InPinName.ToString(),
 				InNewIndex));
@@ -7308,7 +7346,8 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 	{
 		if (InFunctionDefinition->GetLibrary() == GetGraph()->GetDefaultFunctionLibrary())
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_function_reference_node(library.find_function('%s'), %s, '%s')"),
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_function_reference_node(library.find_function('%s'), %s, '%s')"),
 						*GetGraph()->GetGraphName(),
 						*InFunctionDefinition->GetName(),
 						*RigVMPythonUtils::Vector2DToPythonString(InNodePosition),
@@ -7316,9 +7355,11 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 		}
 		else
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("function_blueprint = unreal.load_object(name = '%s', outer = None)"),
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("function_blueprint = unreal.load_object(name = '%s', outer = None)"),
 				*InFunctionDefinition->GetLibrary()->GetOuter()->GetPathName()));
-			RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_function_reference_node(function_blueprint.get_local_function_library().find_function('%s'), %s, '%s')"),
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_function_reference_node(function_blueprint.get_local_function_library().find_function('%s'), %s, '%s')"),
 						*GetGraph()->GetGraphName(),
 						*InFunctionDefinition->GetName(),
 						*RigVMPythonUtils::Vector2DToPythonString(InFunctionDefinition->GetPosition()), 
@@ -7485,7 +7526,8 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 	if (bPrintPythonCommand)
 	{
 		//AddFunctionToLibrary(const FName& InFunctionName, bool bMutable, const FVector2D& InNodePosition, bool bSetupUndoRedo, bool bPrintPythonCommand)
-		RigVMPythonUtils::Print(FString::Printf(TEXT("library_controller.add_function_to_library('%s', %s, %s)"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("library_controller.add_function_to_library('%s', %s, %s)"),
 				*InFunctionName.ToString(),
 				(bMutable) ? TEXT("True") : TEXT("False"),
 				*RigVMPythonUtils::Vector2DToPythonString(InNodePosition)));
@@ -7587,7 +7629,8 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& I
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_local_variable_from_object_path('%s', '%s', '%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_local_variable_from_object_path('%s', '%s', '%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*NewVariable.Name.ToString(),
 				*NewVariable.CPPType,
@@ -7688,7 +7731,8 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 
 		if (bPrintPythonCommand)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_local_variable('%s')"),
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_local_variable('%s')"),
 					*GetGraph()->GetGraphName(),
 					*InVariableName.ToString()));
 		}
@@ -7784,7 +7828,8 @@ bool URigVMController::RenameLocalVariable(const FName& InVariableName, const FN
 
 	if (bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').rename_local_variable('%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').rename_local_variable('%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InVariableName.ToString(),
 				*InNewVariableName.ToString()));
@@ -7875,7 +7920,8 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 	if (bPrintPythonCommand)
 	{
 		//bool URigVMController::SetLocalVariableType(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bPrintPythonCommand)
-		RigVMPythonUtils::Print(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_local_variable_type_from_object_path('%s', '%s', '%s')"),
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_local_variable_type_from_object_path('%s', '%s', '%s')"),
 				*GetGraph()->GetGraphName(),
 				*InVariableName.ToString(),
 				*InCPPType,
@@ -8316,7 +8362,8 @@ URigVMBranchNode* URigVMController::AddBranchNode(const FVector2D& InPosition, c
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 
@@ -8421,7 +8468,8 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 
@@ -8505,7 +8553,8 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 
@@ -8581,7 +8630,8 @@ URigVMPrototypeNode* URigVMController::AddPrototypeNode(const FName& InNotation,
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 
@@ -8645,7 +8695,8 @@ URigVMEnumNode* URigVMController::AddEnumNode(const FName& InCPPTypeObjectPath, 
 		TArray<FString> Commands = GetAddNodePythonCommands(Node);
 		for (const FString& Command : Commands)
 		{
-			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+			RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
 

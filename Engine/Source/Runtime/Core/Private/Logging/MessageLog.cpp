@@ -39,6 +39,13 @@ public:
 		FMsg::Logf(__FILE__, __LINE__, LogName, ELogVerbosity::Log, TEXT("%s"), *FText::Format(LOCTEXT("BasicMessageLog_NewPage", "New Page: {PageTitle}"), Arguments).ToString());
 	}
 
+	virtual void SwitchToPage( const FText& Title) override
+	{
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("PageTitle"), Title);
+		FMsg::Logf(__FILE__, __LINE__, LogName, ELogVerbosity::Log, TEXT("%s"), *FText::Format(LOCTEXT("BasicMessageLog_SwitchToPage", "Switch To Page: {PageTitle}"), Arguments).ToString());
+	}
+
 	virtual void NotifyIfAnyMessages( const FText& Message, EMessageSeverity::Type SeverityFilter, bool bForce ) override
 	{
 		FFormatNamedArguments Arguments;
@@ -182,6 +189,12 @@ void FMessageLog::NewPage( const FText& InLabel )
 {
 	Flush();
 	MessageLog->NewPage(InLabel);
+}
+
+void FMessageLog::SwitchToPage(const FText& InLabel)
+{
+	Flush();
+	MessageLog->SwitchToPage(InLabel);
 }
 
 FMessageLog& FMessageLog::SuppressLoggingToOutputLog(bool bShouldSuppress)

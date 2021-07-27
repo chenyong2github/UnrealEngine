@@ -118,6 +118,33 @@ void FMessageLogListingModel::NewPage( const FText& InTitle, uint32 InMaxPages )
 	}
 }
 
+bool FMessageLogListingModel::SwitchToPage(const FText& InTitle, uint32 InMaxPages )
+{
+	if (CurrentPage().Title.CompareTo(InTitle) == 0)
+	{
+		return false;
+	}
+	
+	for (TDoubleLinkedList<FPage>::TIterator it = begin(Pages); it != end(Pages); ++it)
+	{
+		if (it.GetNode()->GetValue().Title.CompareTo(InTitle) == 0)
+		{
+			TDoubleLinkedList<FPage>::TDoubleLinkedListNode* SelectedNode = it.GetNode();
+			Pages.RemoveNode(SelectedNode, false);
+			Pages.AddHead(SelectedNode);
+
+			// invalidate cache as all indices will change
+			CachedPage = nullptr;
+			return true;
+		}
+	}
+
+	// If the page does not exist yet, create a new one
+	NewPage(InTitle, InMaxPages);
+
+	return true;
+}
+
 uint32 FMessageLogListingModel::NumPages() const
 {
 	return Pages.Num();
