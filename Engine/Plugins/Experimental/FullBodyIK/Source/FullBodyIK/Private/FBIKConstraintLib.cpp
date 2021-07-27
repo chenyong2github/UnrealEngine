@@ -40,7 +40,7 @@ namespace FBIKConstraintLib
 	}
 
 	// for now allow linkdata to be modified here
-	void BuildConstraints(const TArray<FFBIKConstraintOption>& Constraints, TArray<ConstraintType>& OutConstraints,
+	void BuildConstraints(const TArrayView<const FFBIKConstraintOption>& Constraints, TArray<ConstraintType>& OutConstraints,
 		const URigHierarchy* Hierarchy, TArray<FFBIKLinkData>& InOutLinkData, const TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices,
 		const TMap<FRigElementKey, int32>& HierarchyToLinkDataMap)
 	{

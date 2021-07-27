@@ -19,7 +19,7 @@ void FControlRigDrawInterface::DrawPoint(const FTransform& WorldOffset, const FV
 	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawPoints(const FTransform& WorldOffset, const FRigVMFixedArray<FVector>& Points, float Size, const FLinearColor& Color)
+void FControlRigDrawInterface::DrawPoints(const FTransform& WorldOffset, const TArrayView<const FVector>& Points, float Size, const FLinearColor& Color)
 {
 	if (!IsEnabled())
 	{
@@ -44,7 +44,7 @@ void FControlRigDrawInterface::DrawLine(const FTransform& WorldOffset, const FVe
 	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const FRigVMFixedArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const TArrayView<const FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
 	if (!IsEnabled())
 	{
@@ -56,7 +56,7 @@ void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const FR
 	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawLineStrip(const FTransform& WorldOffset, const FRigVMFixedArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawLineStrip(const FTransform& WorldOffset, const TArrayView<const FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
 	if (!IsEnabled())
 	{
@@ -121,7 +121,7 @@ void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FTr
 	DrawLine(WorldOffset, Transform.GetLocation(), Transform.TransformPosition(FVector(0.f, 0.f, Size)), FLinearColor::Blue, Thickness);
 }
 
-void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FRigVMFixedArray<FTransform>& Transforms, float Size, float Thickness)
+void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const TArrayView<const FTransform>& Transforms, float Size, float Thickness)
 {
 	if (!IsEnabled())
 	{
@@ -177,7 +177,7 @@ void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FTr
 	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FRigVMFixedArray<FTransform>& Transforms,
+void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const TArrayView<const FTransform>& Transforms,
 	const FLinearColor& InColor, float Size, float Thickness)
 {
 	if (!IsEnabled())

@@ -59,6 +59,7 @@ FRigUnit_TransformConstraintPerItem_Execute()
 						);
 
 
+					const TArrayView<const FConstraintTarget> TargetsView(Targets.GetData(), Targets.Num());
 					for (int32 TargetIndex = 0; TargetIndex < TargetNum; ++TargetIndex)
 					{
 						// talk to Rob about the implication of support both of this
@@ -68,23 +69,23 @@ FRigUnit_TransformConstraintPerItem_Execute()
 
 						if (bTranslationFilterValid && bRotationFilterValid && bScaleFilterValid)
 						{
-							AddConstraintData(Targets, ETransformConstraintType::Parent, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
+							AddConstraintData(TargetsView, ETransformConstraintType::Parent, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
 						}
 						else
 						{
 							if (bTranslationFilterValid)
 							{
-								AddConstraintData(Targets, ETransformConstraintType::Translation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
+								AddConstraintData(TargetsView, ETransformConstraintType::Translation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
 							}
 
 							if (bRotationFilterValid)
 							{
-								AddConstraintData(Targets, ETransformConstraintType::Rotation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
+								AddConstraintData(TargetsView, ETransformConstraintType::Rotation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
 							}
 
 							if (bScaleFilterValid)
 							{
-								AddConstraintData(Targets, ETransformConstraintType::Scale, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
+								AddConstraintData(TargetsView, ETransformConstraintType::Scale, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
 							}
 						}
 					}
@@ -146,7 +147,7 @@ FRigUnit_TransformConstraintPerItem_Execute()
 	}
 }
 
-void FRigUnit_TransformConstraintPerItem::AddConstraintData(const FRigVMFixedArray<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets)
+void FRigUnit_TransformConstraintPerItem::AddConstraintData(const TArrayView<const FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets)
 {
 	const FConstraintTarget& Target = Targets[TargetIndex];
 

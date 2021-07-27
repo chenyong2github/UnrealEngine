@@ -107,11 +107,12 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatBase :
 	FRigUnit_MathRBFInterpolateQuatWorkData WorkData;
 
 protected:
+	
 	template<typename T>
 	static void GetInterpolatedWeights(
 		EControlRigState State,
 		FRigUnit_MathRBFInterpolateQuatWorkData& WorkData,
-		const FRigVMFixedArray<T>& Targets,
+		const TArrayView<const T>& Targets,
 		const FQuat& Input,
 		ERBFQuatDistanceType DistanceFunction,
 		ERBFKernelType SmoothingFunction,
@@ -121,7 +122,7 @@ protected:
 		TArray<float, TMemStackAllocator<>>& Weights
 	);
 
-	static uint64 HashTargets(const FRigVMFixedArray<FQuat>& Targets);
+	static uint64 HashTargets(const TArrayView<const FQuat>& Targets);
 };
 
 USTRUCT(meta = (Abstract, Keywords = "RBF,Interpolate,Vector"))
@@ -153,7 +154,7 @@ protected:
 	static void GetInterpolatedWeights(
 		EControlRigState State,
 		FRigUnit_MathRBFInterpolateVectorWorkData& WorkData,
-		const FRigVMFixedArray<T>& Targets,
+		const TArrayView<const T>& Targets,
 		const FVector& Input,
 		ERBFVectorDistanceType DistanceFunction,
 		ERBFKernelType SmoothingFunction,
@@ -162,7 +163,7 @@ protected:
 		TArray<float, TMemStackAllocator<>>& Weights
 	);
 
-	static uint64 HashTargets(const FRigVMFixedArray<FVector>& Targets);
+	static uint64 HashTargets(const TArrayView<const FVector>& Targets);
 };
 
 // The actual unit implementation declarations.

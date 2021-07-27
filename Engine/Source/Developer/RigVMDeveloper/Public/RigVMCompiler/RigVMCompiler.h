@@ -38,9 +38,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FRigVMCompileSettings)
 	bool EnablePinWatches;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = FRigVMCompileSettings)
-	bool ConsolidateWorkRegisters;
-
 	UPROPERTY(Transient)
 	bool IsPreprocessorPhase;
 
@@ -53,7 +50,6 @@ public:
 	static FRigVMCompileSettings Fast()
 	{
 		FRigVMCompileSettings Settings;
-		Settings.ConsolidateWorkRegisters = false;
 		Settings.EnablePinWatches = true;
 		Settings.IsPreprocessorPhase = false;
 		Settings.ASTSettings = FRigVMParserASTSettings::Fast();
@@ -63,7 +59,6 @@ public:
 	static FRigVMCompileSettings Optimized()
 	{
 		FRigVMCompileSettings Settings;
-		Settings.ConsolidateWorkRegisters = false;
 		Settings.EnablePinWatches = false;
 		Settings.IsPreprocessorPhase = false;
 		Settings.ASTSettings = FRigVMParserASTSettings::Optimized();
@@ -94,14 +89,25 @@ public:
 	TArray<const FRigVMExprAST*> ExprToSkip;
 	TMap<FString, int32> ProcessedLinks;
 	TArray<TSharedPtr<FStructOnScope>> DefaultStructs;
-	TMap<int32, int32> RegisterRefCount;
-	TArray<TPair<FName, int32>> RefCountSteps;
 	TMap<int32, FRigVMOperand> IntegerLiterals;
 	FRigVMOperand ComparisonOperand;
 
-	int32 IncRefRegister(int32 InRegister, int32 InIncrement = 1);
-	int32 DecRefRegister(int32 InRegister, int32 InDecrement = 1);
-	void RecordRefCountStep(int32  InRegister, int32 InRefCount);
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	struct FPropertyPathDescription
+	{
+		FRigVMOperand OriginalOperand;
+		FString SegmentPath;
+	};
+	
+	TArray<FPropertyPathDescription> PropertyPathDescriptions;
+	TMap<ERigVMMemoryType, TArray<URigVMMemoryStorage::FPropertyDescription>> PropertyDescriptions;
+
+	FRigVMOperand AddProperty(ERigVMMemoryType InMemoryType, const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue = FString());
+	FRigVMOperand FindProperty(ERigVMMemoryType InMemoryType, const FName& InName);
+	URigVMMemoryStorage::FPropertyDescription GetProperty(const FRigVMOperand& InOperand);
+	int32 FindPropertyPath(const FString& InSegmentPath) const;
+	
+#endif
 };
 
 UCLASS(BlueprintType)

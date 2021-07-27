@@ -1056,13 +1056,21 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 {
 	if (VM)
 	{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		FRigVMMemoryContainer* LocalMemory[] = { VM->WorkMemoryPtr, VM->LiteralMemoryPtr, VM->DebugMemoryPtr };
+#else
+		TArray<URigVMMemoryStorage*> LocalMemory = VM->GetLocalMemoryArray();
+#endif
 		TArray<void*> AdditionalArguments;
 		AdditionalArguments.Add(&InOutContext);
 
 		if (InOutContext.State == EControlRigState::Init)
 		{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			VM->Initialize(FRigVMMemoryContainerPtrArray(LocalMemory, 3), AdditionalArguments);
+#else
+			VM->Initialize(LocalMemory, AdditionalArguments);
+#endif
 		}
 		else
 		{
@@ -1079,7 +1087,12 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 				}
 			}
 #endif
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			VM->Execute(FRigVMMemoryContainerPtrArray(LocalMemory, 3), AdditionalArguments, InEventName);
+#else
+			VM->Execute(LocalMemory, AdditionalArguments, InEventName);
+#endif
 		}
 	}
 }

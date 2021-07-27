@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "RigVMMemory.h"
+#include "RigVMMemoryStorage.h"
 #include "RigVMExecuteContext.h"
 #include "RigVMRegistry.h"
 #include "RigVMByteCode.h"
+#include "RigVMMemoryDeprecated.h"
 #include "RigVMStatistics.h"
 #if WITH_EDITOR
 #include "RigVMDebugInfo.h"
@@ -158,12 +160,20 @@ public:
 	void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false);
 
 	// Initializes all execute ops and their memory.
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	bool Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments);
+#else
+	bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments);
+#endif
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	bool Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+#else
+	bool Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+#endif
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
@@ -180,26 +190,67 @@ public:
 	UFUNCTION()
 	FString GetRigVMFunctionName(int32 InFunctionIndex) const;
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	// The default mutable work memory
-	UPROPERTY()
 	FRigVMMemoryContainer WorkMemoryStorage;
 	FRigVMMemoryContainer* WorkMemoryPtr;
 	FORCEINLINE FRigVMMemoryContainer& GetWorkMemory() { return *WorkMemoryPtr; }
 	FORCEINLINE const FRigVMMemoryContainer& GetWorkMemory() const { return *WorkMemoryPtr; }
 
 	// The default const literal memory
-	UPROPERTY()
 	FRigVMMemoryContainer LiteralMemoryStorage;
 	FRigVMMemoryContainer* LiteralMemoryPtr;
 	FORCEINLINE FRigVMMemoryContainer& GetLiteralMemory() { return *LiteralMemoryPtr; }
 	FORCEINLINE const FRigVMMemoryContainer& GetLiteralMemory() const { return *LiteralMemoryPtr; }
 
 	// The default debug watch memory
-	UPROPERTY()
 	FRigVMMemoryContainer DebugMemoryStorage;
 	FRigVMMemoryContainer* DebugMemoryPtr;
 	FORCEINLINE FRigVMMemoryContainer& GetDebugMemory() { return *DebugMemoryPtr; }
 	FORCEINLINE const FRigVMMemoryContainer& GetDebugMemory() const { return *DebugMemoryPtr; }
+
+#else
+
+	// Returns a memory storage by type
+	URigVMMemoryStorage* GetMemoryByType(ERigVMMemoryType InMemoryType) const;
+	
+	// The default mutable work memory
+	FORCEINLINE URigVMMemoryStorage* GetWorkMemory() const { return WorkMemoryStorageObject; }
+
+	// The default const literal memory
+	FORCEINLINE URigVMMemoryStorage* GetLiteralMemory() const { return LiteralMemoryStorageObject; }
+
+	// The default debug watch memory
+	FORCEINLINE URigVMMemoryStorage* GetDebugMemory() const { return DebugMemoryStorageObject; }
+
+	// returns all memory storages as an array
+	FORCEINLINE TArray<URigVMMemoryStorage*> GetLocalMemoryArray() const
+	{
+		check(GetWorkMemory());
+		check(GetLiteralMemory());
+		check(GetDebugMemory());
+		
+		TArray<URigVMMemoryStorage*> LocalMemory;
+		LocalMemory.Add(GetWorkMemory());
+		LocalMemory.Add(GetLiteralMemory());
+		LocalMemory.Add(GetDebugMemory());
+		
+		return LocalMemory;
+	}
+
+#endif
+
+	UPROPERTY()
+	URigVMMemoryStorage* WorkMemoryStorageObject;
+
+	UPROPERTY()
+	URigVMMemoryStorage* LiteralMemoryStorageObject;
+
+	UPROPERTY()
+	URigVMMemoryStorage* DebugMemoryStorageObject;
+
+	TArray<FRigVMPropertyPath> PropertyPaths;
 
 	// The byte code of the VM
 	UPROPERTY()
@@ -240,7 +291,11 @@ public:
 
 	FORCEINLINE const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	bool ResumeExecution(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+#else
+	bool ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+#endif
 
 	bool ResumeExecution();
 #endif
@@ -250,6 +305,8 @@ public:
 
 	// Returns a parameter given it's name
 	FRigVMParameter GetParameterByName(const FName& InParameterName);
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	// Adds a new input / output to the VM
 	template<class T>
@@ -265,21 +322,20 @@ public:
 			RegisterIndex = WorkMemoryPtr->Add<T>(WorkMemoryPtr->SupportsNames() ? InName : NAME_None, DefaultValues[0], 1);
 		}
 		else
-	{
+		{
 			RegisterIndex = WorkMemoryPtr->AddFixedArray<T>(WorkMemoryPtr->SupportsNames() ? InName : NAME_None, FRigVMFixedArray<T>(DefaultValues), 1);
-	}
+		}
 
 		if (RegisterIndex == INDEX_NONE)
-	{
+		{
 			return FRigVMParameter();
-	}
+		}
 
 		FName Name = WorkMemoryPtr->SupportsNames() ? GetWorkMemory()[RegisterIndex].Name : InName;
 
 		FRigVMParameter Parameter(InParameterType, Name, RegisterIndex, InCPPType, GetWorkMemory().GetScriptStruct(RegisterIndex));
 		ParametersNameMap.Add(Parameter.Name, Parameters.Add(Parameter));
 		return Parameter;
-
 	}
 
 	// Adds a new input / output to the VM
@@ -290,7 +346,7 @@ public:
 		DefaultValues.Add(DefaultValue);
 		return AddParameter(InParameterType, InName, InCPPType, DefaultValues);
 	}
-
+	
 	// Retrieve the array size of the parameter
 	int32 GetParameterArraySize(const FRigVMParameter& InParameter) const
 	{
@@ -304,20 +360,38 @@ public:
 	}
 
 	// Retrieve the array size of the parameter
-	UFUNCTION(BlueprintCallable, Category = RigVM)
 	int32 GetParameterArraySize(const FName& InParameterName) const
 	{
 		int32 ParameterIndex = ParametersNameMap.FindChecked(InParameterName);
 		return GetParameterArraySize(ParameterIndex);
 	}
 
+#endif
+	
 	// Retrieve the value of a parameter
 	template<class T>
 	T GetParameterValue(const FRigVMParameter& InParameter, int32 InArrayIndex = 0, T DefaultValue = T{})
 	{
 		if (InParameter.GetRegisterIndex() != INDEX_NONE)
 		{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			return WorkMemoryPtr->GetFixedArray<T>(InParameter.GetRegisterIndex())[InArrayIndex];
+#else
+			if(GetWorkMemory()->IsArray(InParameter.GetRegisterIndex()))
+			{
+				TArray<T>& Storage = *GetWorkMemory()->GetData<TArray<T>>(InParameter.GetRegisterIndex());
+				if(Storage.IsValidIndex(InArrayIndex))
+				{
+					return Storage[InArrayIndex];
+				}
+			}
+			else
+			{
+				return *GetWorkMemory()->GetData<T>(InParameter.GetRegisterIndex());
+			}
+			
+			return *GetWorkMemory()->GetData<T>(InParameter.GetRegisterIndex());
+#endif
 		}
 		return DefaultValue;
 	}
@@ -343,7 +417,23 @@ public:
 	{
 		if (InParameter.GetRegisterIndex() != INDEX_NONE)
 		{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			WorkMemoryPtr->GetFixedArray<T>(InParameter.GetRegisterIndex())[InArrayIndex] = InNewValue;
+#else
+			if(GetWorkMemory()->IsArray(InParameter.GetRegisterIndex()))
+			{
+				TArray<T>& Storage = *GetWorkMemory()->GetData<TArray<T>>(InParameter.GetRegisterIndex());
+				if(Storage.IsValidIndex(InArrayIndex))
+				{
+					Storage[InArrayIndex] = InNewValue;
+				}
+			}
+			else
+			{
+				T& Storage = *GetWorkMemory()->GetData<T>(InParameter.GetRegisterIndex());
+				Storage = InNewValue;
+			}
+#endif
 		}
 	}
 
@@ -512,15 +602,21 @@ public:
 		return AddExternalVariable(FRigVMExternalVariable::Make(InExternalVariableName, InValue));
 	}
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	void SetRegisterValueFromString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject, const TArray<FString>& InDefaultValues);
+#else
+	void SetPropertyValueFromString(const FRigVMOperand& InOperand, const FString& InDefaultValue);
+#endif
 
 	// returns the statistics information
 	FRigVMStatistics GetStatistics() const
 	{
 		FRigVMStatistics Statistics;
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		Statistics.LiteralMemory = LiteralMemoryPtr->GetStatistics();
 		Statistics.WorkMemory = WorkMemoryPtr->GetStatistics();
 		Statistics.DebugMemory = DebugMemoryPtr->GetStatistics();
+#endif
 		Statistics.ByteCode = ByteCodePtr->GetStatistics();
 		Statistics.BytesForCaching = FirstHandleForInstruction.GetAllocatedSize() + CachedMemoryHandles.GetAllocatedSize();
 		Statistics.BytesForCDO =
@@ -563,7 +659,11 @@ private:
 	void ResolveFunctionsIfRequired();
 	void RefreshInstructionsIfRequired();
 	void InvalidateCachedMemory();
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	void CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory);
+#else
+	void CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMemory);
+#endif
 	void RebuildByteCodeOnLoad();
 
 	UPROPERTY(transient)
@@ -601,7 +701,11 @@ private:
 	TArray<uint32> FirstHandleForInstruction;
 	TArray<FRigVMMemoryHandle> CachedMemoryHandles;
 	// changes to the layout of cached memory array should be reflected in GetContainerIndex()
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	TArray<FRigVMMemoryContainer*> CachedMemory;
+#else
+	TArray<URigVMMemoryStorage*> CachedMemory;
+#endif
 	TArray<FRigVMExternalVariable> ExternalVariables;
 
 	// this function should be kept in sync with FRigVMOperand::GetContainerIndex()
@@ -653,6 +757,7 @@ private:
 
 	void CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand);
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	struct FCopyInfoForOperand
 	{
 		FCopyInfoForOperand()
@@ -671,11 +776,14 @@ private:
 		uint16 NumBytesToCopy;
 		uint16 ElementSize;
 	};
+#endif
 
 	FRigVMCopyOp GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget);
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED	
 	FCopyInfoForOperand GetCopyInfoForOperand(const FRigVMOperand& InOperand);
 	UScriptStruct* GetScriptStructForCopyOp(const FRigVMCopyOp& InCopyOp) const;
 	UScriptStruct* GetScripStructForOperand(const FRigVMOperand& InOperand) const;
+#endif
 	
 	TMap<FRigVMOperand, TArray<FRigVMOperand>> OperandToDebugRegisters;
 

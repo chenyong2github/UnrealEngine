@@ -2,7 +2,7 @@
 
 #include "ControlRigSplineTypes.h"
 
-void FControlRigSpline::SetControlPoints(const TArray<FVector>& InPoints, const ESplineType SplineMode, const int32 SamplesPerSegment)
+void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode, const int32 SamplesPerSegment)
 {
 	const int32 ControlPointsCount = InPoints.Num();
 	if (ControlPointsCount < 4)

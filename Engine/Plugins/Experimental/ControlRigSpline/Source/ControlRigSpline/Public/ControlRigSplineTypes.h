@@ -73,7 +73,7 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	* @param InPoints	The control points to set.
 	* @param forceRebuild	If true, will build the spline from scratch.
 	*/
-	void SetControlPoints(const TArray<FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const int32 SamplesPerSegment = 16);
+	void SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const int32 SamplesPerSegment = 16);
 
 	/**
 	* Populates OutPoints and returns the number of control points in the spline.

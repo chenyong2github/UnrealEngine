@@ -13,7 +13,8 @@ FRigUnit_ControlRigSplineFromPoints_Execute()
 		case EControlRigState::Init:
 		case EControlRigState::Update:
 		{
-			Spline.SetControlPoints(Points, SplineMode, SamplesPerSegment);
+			const TArrayView<const FVector> PointsView(Points.GetData(), Points.Num());
+			Spline.SetControlPoints(PointsView, SplineMode, SamplesPerSegment);
 			break;
 		}
 		default:
@@ -43,7 +44,8 @@ FRigUnit_SetSplinePoints_Execute()
 		case EControlRigState::Init:
 		case EControlRigState::Update:
 		{
-			Spline.SetControlPoints(Points, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment);
+			const TArrayView<const FVector> PointsView(Points.GetData(), Points.Num());
+			Spline.SetControlPoints(PointsView, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment);
 			break;
 		}
 		default:

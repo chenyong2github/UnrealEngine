@@ -872,9 +872,15 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 						FString PinHash = URigVMCompiler::GetPinHash(ModelPin, nullptr, true);
 						if (const FRigVMOperand* WatchOperand = RigBlueprint->PinToOperandMap.Find(PinHash))
 						{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 							FRigVMMemoryContainer& Memory = ActiveObject->GetVM()->GetDebugMemory();
-
 							TArray<FString> DefaultValues = Memory.GetRegisterValueAsString(*WatchOperand, ModelPin->GetCPPType(), ModelPin->GetCPPTypeObject());
+#else
+							URigVMMemoryStorage* Memory = ActiveObject->GetVM()->GetDebugMemory();
+							FString DebugValue = Memory->GetDataAsString(WatchOperand->GetRegisterIndex());
+							TArray<FString> DefaultValues = URigVMPin::SplitDefaultValue(DebugValue);
+#endif
+							
 							if (DefaultValues.Num() == 1)
 							{
 								WatchText = DefaultValues[0];

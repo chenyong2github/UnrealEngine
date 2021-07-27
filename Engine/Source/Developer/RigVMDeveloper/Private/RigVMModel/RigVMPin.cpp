@@ -749,7 +749,11 @@ bool URigVMPin::IsBoundToVariable(const URigVMPin::FPinOverride& InOverride) con
 	return !GetBoundVariablePath(InOverride).IsEmpty();
 }
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset) const
+#else
+bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FString& InSegmentPath) const
+#endif
 {
 	if (!InExternalVariable.IsValid(true))
 	{
@@ -769,7 +773,11 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 
 	// check type validity
 	// in the future we need to allow arrays as well
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	if (IsArray() && InOffset.IsValid())
+#else
+	if (IsArray() && !InSegmentPath.IsEmpty())
+#endif
 	{
 		return false;
 	}
@@ -778,14 +786,49 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 		return false;
 	}
 
-	FString ExternalCPPType = InExternalVariable.TypeName.ToString();
+	FName ExternalCPPType = InExternalVariable.TypeName;
 	UObject* ExternalCPPTypeObject = InExternalVariable.TypeObject;
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	if (InOffset.IsValid())
 	{
-		ExternalCPPType = InOffset.GetCPPType().ToString();
+		ExternalCPPType = InOffset.GetCPPType();
 		ExternalCPPTypeObject = InOffset.GetScriptStruct();
 	}
+#else
+	if(!InSegmentPath.IsEmpty())
+	{
+		const FProperty* Property = InExternalVariable.Property;
+		if(Property == nullptr)
+		{
+			return false;
+		}
+
+		TArray<FString> Segments;
+		SplitPinPath(InSegmentPath, Segments);
+
+		while(!Segments.IsEmpty())
+		{
+			if(const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+			{
+				const FString FirstSegment = Segments[0];
+				Segments.RemoveAt(0);
+
+				Property = StructProperty->Struct->FindPropertyByName(*FirstSegment);
+				if(Property == nullptr)
+				{
+					return false;
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		FRigVMExternalVariable::GetTypeFromProperty(Property, ExternalCPPType, ExternalCPPTypeObject);
+	}
+#endif
 
 	if (GetCPPTypeObject() != nullptr)
 	{
@@ -796,8 +839,8 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 	}
 	else
 	{
-		FString CPPBaseType = IsArray() ? GetArrayElementCppType() : GetCPPType();
-		if (CPPBaseType != ExternalCPPType)
+		const FString CPPBaseType = IsArray() ? GetArrayElementCppType() : GetCPPType();
+		if (CPPBaseType != ExternalCPPType.ToString())
 		{
 			return false;
 		}
