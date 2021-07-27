@@ -17,8 +17,6 @@ namespace UnrealBuildTool.Rules
 				return;
 			}
 
-			bUseUnity = false;
-
 			PrivateDefinitions.Add("GPR_FORBID_UNREACHABLE_CODE=0");
 
 			PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Generated"));
