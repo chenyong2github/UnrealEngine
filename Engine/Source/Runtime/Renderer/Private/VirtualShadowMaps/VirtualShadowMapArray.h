@@ -174,9 +174,7 @@ public:
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
 
 	void ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture);
-	void MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder, const TArray<uint32, SceneRenderingAllocator> &VirtualShadowMapFlags);
 
-	//
 	void BuildPageAllocations(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
@@ -224,18 +222,19 @@ public:
 
 	FVirtualShadowMapUniformParameters UniformParameters;
 
+	// Physical page pool shadow data
+	// NOTE: The underlying texture is owned by FVirtualShadowMapCacheManager.
+	// We just import and maintain a copy of the RDG reference for this frame here.
+	FRDGTextureRef PhysicalPagePoolRDG = nullptr;
+
 	// Buffer that serves as the page table for all virtual shadow maps
 	FRDGBufferRef PageTableRDG = nullptr;
-	// Large physical texture of depth format, say 4096^2 or whatever we think is enough texels to go around
-	FRDGTextureRef PhysicalPagePoolRDG = nullptr;
 		
 	// Buffer that stores flags (uints) marking each page that needs to be rendered and cache status, for all virtual shadow maps.
 	// Flag values defined in PageAccessCommon.ush: VSM_ALLOCATED_FLAG | VSM_INVALID_FLAG
 	FRDGBufferRef PageFlagsRDG = nullptr;
 	// HPageFlags is a hierarchy over the PageFlags for quick query
 	FRDGBufferRef HPageFlagsRDG = nullptr;
-
-	FRDGBufferRef AllocatedPagesOffsetRDG = nullptr;
 
 	static constexpr uint32 NumStats = 5;
 	// 0 - allocated pages

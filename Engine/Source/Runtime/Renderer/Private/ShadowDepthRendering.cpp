@@ -1730,8 +1730,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 			](bool bShouldClampToNearPlane, const FString &VirtualFilterName)
 			{
 				TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
-				TArray<uint32, SceneRenderingAllocator> VirtualShadowMapFlags;
-				VirtualShadowMapFlags.AddZeroed(VirtualShadowMapArray.ShadowMaps.Num());
 
 				// Add any clipmaps first to the ortho rendering pass
 				if (bShouldClampToNearPlane)
@@ -1754,8 +1752,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 						for (int32 ClipmapLevelIndex = 0; ClipmapLevelIndex < Clipmap->GetLevelCount(); ++ClipmapLevelIndex)
 						{
+							FVirtualShadowMap* VirtualShadowMap = Clipmap->GetVirtualShadowMap(ClipmapLevelIndex);
+
 							Nanite::FPackedViewParams Params = BaseParams;
-							Params.TargetLayerIndex = Clipmap->GetVirtualShadowMap(ClipmapLevelIndex)->ID;
+							Params.TargetLayerIndex = VirtualShadowMap->ID;
 							Params.ViewMatrices = Clipmap->GetViewMatrices(ClipmapLevelIndex);
 							Params.PrevTargetLayerIndex = INDEX_NONE;
 							Params.PrevViewMatrices = Params.ViewMatrices;
@@ -1789,7 +1789,12 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
 							VirtualShadowViews.Add(View);
-							VirtualShadowMapFlags[Params.TargetLayerIndex] = 1;
+
+							// Mark that we rendered to this VSM for caching purposes
+							if (VirtualShadowMap->VirtualShadowMapCacheEntry)
+							{
+								VirtualShadowMap->VirtualShadowMapCacheEntry->MarkRendered();
+							}		
 						}
 					}
 				}
@@ -1810,8 +1815,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
 						for( int32 i = 0; i < NumMaps; i++ )
 						{
+							FVirtualShadowMap* VirtualShadowMap = ProjectedShadowInfo->VirtualShadowMaps[i];
+
 							Nanite::FPackedViewParams Params = BaseParams;
-							Params.TargetLayerIndex = ProjectedShadowInfo->VirtualShadowMaps[i]->ID;
+							Params.TargetLayerIndex = VirtualShadowMap->ID;
 							Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(i, true);
 							Params.PrevTargetLayerIndex = INDEX_NONE;
 							Params.PrevViewMatrices = Params.ViewMatrices;
@@ -1840,7 +1847,12 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						
 							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
 							VirtualShadowViews.Add(View);
-							VirtualShadowMapFlags[ProjectedShadowInfo->VirtualShadowMaps[i]->ID] = 1;
+
+							// Mark that we rendered to this VSM for caching purposes
+							if (VirtualShadowMap->VirtualShadowMapCacheEntry)
+							{
+								VirtualShadowMap->VirtualShadowMapCacheEntry->MarkRendered();
+							}							
 						}
 					}
 				}
@@ -1849,9 +1861,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 				{
 					int32 NumPrimaryViews = VirtualShadowViews.Num();
 					VirtualShadowMapArray.CreateMipViews( VirtualShadowViews );
-
-					// Update page state for all virtual shadow maps included in this call, it is a bit crap but...
-					VirtualShadowMapArray.MarkPhysicalPagesRendered(GraphBuilder, VirtualShadowMapFlags);
 
 					Nanite::FRasterState RasterState;
 					if (bShouldClampToNearPlane)

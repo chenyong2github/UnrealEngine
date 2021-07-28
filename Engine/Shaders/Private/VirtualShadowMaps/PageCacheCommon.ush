@@ -5,31 +5,26 @@ PageCacheCommon.ush:
 =============================================================================*/
 #pragma once
 
+// Set to indicate being allocated
+#define VSM_PHYSICAL_PAGE_FLAG_ALLOCATED 0x1
+// Set to indicate reuse from previous frame(s)
+#define VSM_PHYSICAL_PAGE_FLAG_CACHED    0x2
+
 struct FPhysicalPageMetaData
 {
-	uint State;
-	// Counter that is incremented each time a page is copied.
+	uint Flags;	// VSM_PHYSICAL_PAGE_FLAG_*
 	uint Age;
 };
 
 struct FShadowMapCacheData
 {
-	// XY offset in pages to the location of the previous frame's page table.
-	int2 SmPageOffset;
-	// ID of the corresponding virtual SM in the chached data 
-	int VirtualShadowMapId;
-	int Padding;
+	// ID of the corresponding virtual shadow map from the previous frame, or INDEX_NONE if
+	// there wasn't one.
+	int PrevVirtualShadowMapId;
 };
 
-struct FCachedPageInfo
-{
-	uint2 PhysPageAddress;
-};
-
-#if HAS_CACHE_DATA
 StructuredBuffer<FShadowMapCacheData> ShadowMapCacheData;
 StructuredBuffer<uint> PrevPageFlags;
 StructuredBuffer<uint> PrevPageTable;
 StructuredBuffer<FPhysicalPageMetaData> PrevPhysicalPageMetaData;
 StructuredBuffer<uint> PrevDynamicCasterPageFlags;
-#endif // HAS_CACHE_DATA

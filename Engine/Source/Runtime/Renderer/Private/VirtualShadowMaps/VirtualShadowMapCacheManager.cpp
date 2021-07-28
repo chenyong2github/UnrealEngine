@@ -43,8 +43,6 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 		//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) due to light movement"), VirtualShadowMapId);
 	}
 
-#if 0
-	// Disable cache panning for directional lights (debug)
 	if (bCacheValid)
 	{
 		bCacheValid = bCacheValid && PageSpaceLocation.X == PrevPageSpaceLocation.X;
@@ -55,7 +53,6 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 			//	VirtualShadowMapId, PageSpaceLocation.X, PageSpaceLocation.Y, PrevPageSpaceLocation.X, PrevPageSpaceLocation.Y);
 		}
 	}
-#endif
 
 	// Invalidate if the new Z radius strayed too close/outside the guardband of the cached shadow map
 	if (bCacheValid)
@@ -82,16 +79,19 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	}
 		
 	PrevPageSpaceLocation = CurrentPageSpaceLocation;
+	bPrevRendered = bCurrentRendered;
 	
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	CurrentPageSpaceLocation = PageSpaceLocation;
+	bCurrentRendered = false;
 }
 
 void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FWholeSceneProjectedShadowInitializer &InCacheValidKey)
 {
 	// Swap previous frame data over.
-	PrevPageSpaceLocation = CurrentPageSpaceLocation;
+	PrevPageSpaceLocation = FIntPoint(0, 0);		// Not used for local lights
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
+	bPrevRendered = bCurrentRendered;
 
 	// Check cache validity based of shadow setup
 	if (!LocalCacheValidKey.IsCachedShadowValid(InCacheValidKey))
@@ -102,18 +102,55 @@ void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FW
 	LocalCacheValidKey = InCacheValidKey;
 
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
-	PrevPageSpaceLocation = CurrentPageSpaceLocation = FIntPoint(0, 0);
+	CurrentPageSpaceLocation = FIntPoint(0, 0);		// Not used for local lights
+	bCurrentRendered = false;
 }
 
 
-TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateCacheEntry(int32 LightSceneId, int32 CascadeIndex)
+TRefCountPtr<IPooledRenderTarget> FVirtualShadowMapArrayCacheManager::SetPhysicalPoolSize(FRDGBuilder& GraphBuilder, FIntPoint RequestedSize)
+{
+	if (!PhysicalPagePool || PhysicalPagePool->GetDesc().Extent != RequestedSize)
+	{
+		FPooledRenderTargetDesc Desc2D = FPooledRenderTargetDesc::Create2DDesc(
+			RequestedSize,
+			PF_R32_UINT,
+			FClearValueBinding::None,
+			TexCreate_None,
+			TexCreate_ShaderResource | TexCreate_UAV,
+			false);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc2D, PhysicalPagePool, TEXT("Shadow.Virtual.PhysicalPagePool"));
+
+		Invalidate();
+		UE_LOG(LogRenderer, Display, TEXT("Recreating Shadow.Virtual.PhysicalPagePool. This will also drop any cached pages."));
+	}
+
+	return PhysicalPagePool;
+}
+
+void FVirtualShadowMapArrayCacheManager::FreePhysicalPool()
+{
+	if (PhysicalPagePool)
+	{
+		PhysicalPagePool = nullptr;
+		Invalidate();
+	}
+}
+
+void FVirtualShadowMapArrayCacheManager::Invalidate()
+{
+	// Clear the cache
+	PrevCacheEntries.Empty();
+	CacheEntries.Reset();
+}
+
+TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateCacheEntry(int32 LightSceneId, int32 Index)
 {
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() == 0)
 	{
 		return nullptr;
 	}
 
-	const FIntPoint Key(LightSceneId, CascadeIndex);
+	const FIntPoint Key(LightSceneId, Index);
 
 	if (TSharedPtr<FVirtualShadowMapCacheEntry> *VirtualShadowMapCacheEntry = CacheEntries.Find(Key))
 	{
@@ -163,7 +200,10 @@ public:
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualSmCopyStatsCS, "/Engine/Private/VirtualShadowMaps/CopyStats.usf", "CopyStatsCS", SF_Compute);
 
-void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, FVirtualShadowMapArray &VirtualShadowMapArray, FRDGBuilder& GraphBuilder)
+void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
+	FRDGBuilder& GraphBuilder,	
+	FVirtualShadowMapArray &VirtualShadowMapArray,
+	bool bEnableCaching)
 {
 	// Drop all refs.
 	PrevBuffers = FVirtualShadowMapArrayFrameData();
@@ -187,8 +227,6 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, F
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevBuffers.PageFlags);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.HPageFlagsRDG, &PrevBuffers.HPageFlags);
 		
-			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolRDG, &PrevBuffers.PhysicalPagePool);
-
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevBuffers.PhysicalPageMetaData);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevBuffers.DynamicCasterPageFlags);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevBuffers.ShadowMapProjectionDataBuffer);
@@ -209,12 +247,20 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, F
 	}
 	CacheEntries.Reset();
 
-	// Drop any references embedded in the uniform parameters this frame.
+	// Drop any temp references embedded in the uniform parameters this frame.
 	// We'll reestablish them when we reimport the extracted resources next frame
 	PrevUniformParameters.ProjectionData = nullptr;
 	PrevUniformParameters.PageTable = nullptr;
 	PrevUniformParameters.PhysicalPagePool = nullptr;
 
+	if (VirtualShadowMapArray.IsEnabled())
+	{
+		ExtractStats(GraphBuilder, VirtualShadowMapArray);
+	}
+}
+
+void FVirtualShadowMapArrayCacheManager::ExtractStats(FRDGBuilder& GraphBuilder, FVirtualShadowMapArray &VirtualShadowMapArray)
+{
 	FRDGBufferRef AccumulatedStatsBufferRDG = nullptr;
 
 	// Note: stats accumulation thing is here because it needs to persist over frames.
@@ -331,12 +377,12 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, F
 	}
 }
 
+
 bool FVirtualShadowMapArrayCacheManager::IsValid()
 {
 	return CVarCacheVirtualSMs.GetValueOnRenderThread() != 0
 		&& PrevBuffers.PageTable
 		&& PrevBuffers.PageFlags
-		&& PrevBuffers.PhysicalPagePool
 		&& PrevBuffers.PhysicalPageMetaData
 		&& PrevBuffers.DynamicCasterPageFlags;
 }

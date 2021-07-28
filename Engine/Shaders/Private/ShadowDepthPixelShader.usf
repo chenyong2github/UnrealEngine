@@ -105,7 +105,7 @@ void Main(
 
 	if( Page.bThisLODValid )
 	{
-		uint2 pAddress = Page.PageIndex * VSM_PAGE_SIZE + (vAddress & VSM_PAGE_SIZE_MASK);
+		uint2 pAddress = Page.PhysicalAddress * VSM_PAGE_SIZE + (vAddress & VSM_PAGE_SIZE_MASK);
 
 		InterlockedMax( PassStruct.OutDepthBuffer[ pAddress ], asuint( DeviceZ ) );
 	}

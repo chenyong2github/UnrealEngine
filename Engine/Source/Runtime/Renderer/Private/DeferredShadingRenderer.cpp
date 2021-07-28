@@ -2687,16 +2687,19 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (VirtualShadowMapArray.IsEnabled())
 	{
 		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder);
-
 		if (Views.Num() > 0)
 		{
 			VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
 		}
+	}
 
-		if (Scene->VirtualShadowMapArrayCacheManager)
-		{
-			Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(ViewFamily.EngineShowFlags.VirtualShadowMapCaching, VirtualShadowMapArray, GraphBuilder);
-		}
+	if (Scene->VirtualShadowMapArrayCacheManager)
+	{
+		// Do this even if VSMs are disabled this frame to clean up any previously extracted data
+		Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(
+			GraphBuilder,				
+			VirtualShadowMapArray,
+			ViewFamily.EngineShowFlags.VirtualShadowMapCaching);
 	}
 
 	// If not all depth is written during the prepass, kick off async compute cloud after basepass
