@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Trace/Analyzer.h"
+#include "Containers/ArrayView.h"
 #include "Containers/UnrealString.h"
 
 namespace TraceServices {
@@ -19,6 +20,20 @@ inline FString LegacyAttachmentString(
 		Out = FString(
 				Context.EventData.GetAttachmentSize() / sizeof(AttachedCharType),
 				(const AttachedCharType*)(Context.EventData.GetAttachment()));
+	}
+	return Out;
+}
+
+inline TArrayView<const uint8> LegacyAttachmentArray(
+	const ANSICHAR* FieldName,
+	const UE::Trace::IAnalyzer::FOnEventContext& Context)
+{
+	TArrayView<const uint8> Out = Context.EventData.GetArrayView<uint8>(FieldName);
+	if (Out.GetData() == nullptr)
+	{
+		Out = TArrayView<const uint8>(
+			Context.EventData.GetAttachment(),
+			Context.EventData.GetAttachmentSize());
 	}
 	return Out;
 }
