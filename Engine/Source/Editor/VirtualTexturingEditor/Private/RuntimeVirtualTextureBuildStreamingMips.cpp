@@ -30,7 +30,8 @@ namespace
 
 			for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 			{
-				check(InLayerFormats[Layer] == PF_G16 || InLayerFormats[Layer] == PF_B8G8R8A8 || InLayerFormats[Layer] == PF_DXT1 || InLayerFormats[Layer] == PF_DXT5 || InLayerFormats[Layer] == PF_BC5);
+				check(InLayerFormats[Layer] == PF_G16 || InLayerFormats[Layer] == PF_B8G8R8A8 || InLayerFormats[Layer] == PF_DXT1 || InLayerFormats[Layer] == PF_DXT5 || InLayerFormats[Layer] == PF_BC5
+					|| InLayerFormats[Layer] == PF_R5G6B5_UNORM || InLayerFormats[Layer] == PF_B5G5R5A1_UNORM);
 				LayerFormats[Layer] = InLayerFormats[Layer] == PF_G16 ? PF_G16 : PF_B8G8R8A8;
 				LayerOffsets[Layer] = TotalSizeBytes;
 				TotalSizeBytes += CalculateImageBytes(InTileSize, InTileSize, 0, LayerFormats[Layer]) * InNumTilesX * InNumTilesY;

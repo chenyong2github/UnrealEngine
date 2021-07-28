@@ -3549,10 +3549,12 @@ public:
 			FName(TEXT("TVirtualTextureVSBaseColor")),
 			FName(TEXT("TVirtualTextureVSBaseColorNormal")),
 			FName(TEXT("TVirtualTextureVSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTextureVSBaseColorNormalRoughness")),
 			FName(TEXT("TVirtualTextureVSWorldHeight")),
 			FName(TEXT("TVirtualTexturePSBaseColor")),
 			FName(TEXT("TVirtualTexturePSBaseColorNormal")),
 			FName(TEXT("TVirtualTexturePSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTexturePSBaseColorNormalRoughness")),
 			FName(TEXT("TVirtualTexturePSWorldHeight")),
 		};
 		return AllowedShaderTypes;
@@ -3772,10 +3774,12 @@ public:
 			FName(TEXT("TVirtualTextureVSBaseColor")),
 			FName(TEXT("TVirtualTextureVSBaseColorNormal")),
 			FName(TEXT("TVirtualTextureVSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTextureVSBaseColorNormalRoughness")),
 			FName(TEXT("TVirtualTextureVSWorldHeight")),
 			FName(TEXT("TVirtualTexturePSBaseColor")),
 			FName(TEXT("TVirtualTexturePSBaseColorNormal")),
 			FName(TEXT("TVirtualTexturePSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTexturePSBaseColorNormalRoughness")),
 			FName(TEXT("TVirtualTexturePSWorldHeight")),
 		};
 		return ShaderTypes;

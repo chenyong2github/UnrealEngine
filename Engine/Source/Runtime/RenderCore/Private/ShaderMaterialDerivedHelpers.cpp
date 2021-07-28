@@ -109,6 +109,11 @@ FShaderMaterialDerivedDefines RENDERCORE_API CalculateDerivedMaterialParameters(
 			{
 				Dst.PIXELSHADEROUTPUT_MRT0 = 1;
 			}
+			else if (Mat.OUT_BASECOLOR_NORMAL_ROUGHNESS)
+			{
+				Dst.PIXELSHADEROUTPUT_MRT0 = 1;
+				Dst.PIXELSHADEROUTPUT_MRT1 = 1;
+			}
 			else if (Mat.OUT_BASECOLOR_NORMAL_SPECULAR)
 			{
 				Dst.PIXELSHADEROUTPUT_MRT0 = 1;

@@ -164,6 +164,7 @@ struct FShaderMaterialPropertyDefines
 	uint8 MATERIALDOMAIN_UI : 1;
 
 	uint8 OUT_BASECOLOR : 1;
+	uint8 OUT_BASECOLOR_NORMAL_ROUGHNESS : 1;
 	uint8 OUT_BASECOLOR_NORMAL_SPECULAR : 1;
 	uint8 OUT_WORLDHEIGHT : 1;
 

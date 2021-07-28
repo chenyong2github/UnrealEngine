@@ -3,6 +3,7 @@
 // Material shader for runtime virtual texture
 
 #include "Common.ush"
+#include "GammaCorrectionCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
@@ -91,6 +92,12 @@ void FPixelShaderInOut_MainPS(
 
 #if defined(OUT_BASECOLOR)
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
+#elif defined(OUT_BASECOLOR_NORMAL_ROUGHNESS)
+	float3 PackedNormal = PackNormal(Normal);
+	//store basecolor in srgb space to improve image quality
+	Out.MRT[0] = float4(LinearToSrgb(BaseColor), 1.0) * Opacity;
+	//not enough channels for sign of normal  z
+	Out.MRT[1] = float4(PackedNormal.x, Roughness, PackedNormal.y, 1.0) * Opacity;
 #elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
 	float3 PackedNormal = PackNormal(Normal);
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;

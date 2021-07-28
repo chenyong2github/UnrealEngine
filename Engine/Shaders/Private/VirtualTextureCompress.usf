@@ -135,6 +135,36 @@ void CompressBaseColorNormalSpecularCS(
 
 }
 
+/** Compress base color, normal, roughness to BC1 & BC3. */
+[numthreads(8, 8, 1)]
+void CompressBaseColorNormalRoughnessCS(
+	uint3 ThreadId : SV_DispatchThreadID
+)
+{
+	uint2 SamplePos = ThreadId.xy * 4;
+	if (any(SamplePos >= DestRect.zw))
+		return;
+
+	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
+
+	float3 BlockBaseColor[16];
+	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, TexelUVSize, BlockBaseColor);
+
+	float3 BlockNormalXRougnnessY[16];
+	const float BlockNormalZ[16]={ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 
+								   1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+	ReadBlockRGB(RenderTexture1, TextureSampler2, SampleUV, TexelUVSize, BlockNormalXRougnnessY);
+#if ETC_PROFILE
+	OutCompressTexture0_u2[ThreadId.xy + DestRect.xy] = PackRG32(CompressBlock_ETC2_RGB(BlockBaseColor));
+	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGBA(BlockNormalXRougnnessY, BlockNormalZ);
+#else
+	OutCompressTexture0_u2[ThreadId.xy + DestRect.xy] = PackRG32(CompressBC1Block_SRGB(BlockBaseColor));
+	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockNormalXRougnnessY, BlockNormalZ);
+#endif
+
+}
+
 /** Copy path used when we disable texture compression, because we need to keep the same final channel layout. */
 void CopyBaseColorNormalSpecularPS(
 	in float4 InPosition : SV_POSITION, 

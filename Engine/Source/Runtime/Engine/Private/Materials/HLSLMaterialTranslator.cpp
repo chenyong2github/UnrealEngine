@@ -6422,7 +6422,16 @@ int32 FHLSLMaterialTranslator::VirtualTextureUnpack(int32 CodeIndex0, int32 Code
 		FString	SampleCode(TEXT("VirtualTextureUnpackHeight(%s, %s)"));
 		return CodeIndex0 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float, *SampleCode, *GetParameterCode(CodeIndex0), *GetParameterCode(P0));
 	}
-
+	else if (UnpackType == EVirtualTextureUnpackType::NormalBGR565)
+	{
+		FString	SampleCode(TEXT("VirtualTextureUnpackNormalBGR565(%s)"));
+		return CodeIndex0 == INDEX_NONE || CodeIndex1 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex1));
+	}
+	if (UnpackType == EVirtualTextureUnpackType::BaseColorSRGB)
+	{
+		FString	SampleCode(TEXT("VirtualTextureUnpackBaseColorSRGB(%s)"));
+		return CodeIndex0 == INDEX_NONE ? INDEX_NONE : AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex0));
+	}
 	return CodeIndex0;
 }
 

@@ -208,6 +208,7 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderMaterialPropertyDefin
 	FETCH_COMPILE_BOOL(MATERIALDOMAIN_UI);
 
 	FETCH_COMPILE_BOOL(OUT_BASECOLOR);
+	FETCH_COMPILE_BOOL(OUT_BASECOLOR_NORMAL_ROUGHNESS);
 	FETCH_COMPILE_BOOL(OUT_BASECOLOR_NORMAL_SPECULAR);
 	FETCH_COMPILE_BOOL(OUT_WORLDHEIGHT);
 
@@ -1844,6 +1845,11 @@ void FShaderCompileUtilities::ApplyDerivedDefines(FShaderCompilerEnvironment& Ou
 		if (MaterialDefines.OUT_BASECOLOR)
 		{
 			bTargetUsage[0] = 1;
+		}
+		else if (MaterialDefines.OUT_BASECOLOR_NORMAL_ROUGHNESS)
+		{
+			bTargetUsage[0] = 1;
+			bTargetUsage[1] = 1;
 		}
 		else if (MaterialDefines.OUT_BASECOLOR_NORMAL_SPECULAR)
 		{

@@ -37,8 +37,14 @@ protected:
 	ERuntimeVirtualTextureMaterialType MaterialType = ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular;
 
 	/** Enable storing the virtual texture in GPU supported compression formats. Using uncompressed is only recommended for debugging and quality comparisons. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (DisplayName = "Enable BC texture compression"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (DisplayName = "Enable texture compression"))
 	bool bCompressTextures = true;
+
+	/**
+	* Use low quality textures (RGB565/RGB555A1) to replace runtime compression
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Performance, meta = (DisplayName = "Use Low Quality Compression", editcondition = "MaterialType == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Roughness && bCompressTextures == true"))
+	bool bUseLowQualityCompression = false;
 
 	/** Enable clear before rendering a page of the virtual texture. Disabling this can be an optimization if you know that the texture will always be fully covered by rendering.  */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable clear before render"))
@@ -115,6 +121,7 @@ public:
 	/** Public getter for virtual texture removed low mips */
 	int32 GetRemoveLowMips() const { return FMath::Clamp(RemoveLowMips, 0, 5); }
 
+	bool GetLQCompression() const { return bUseLowQualityCompression; }
 	/** Public getter for texture LOD Group */
 	TEnumAsByte<enum TextureGroup> GetLODGroup() const { return LODGroup; }
 

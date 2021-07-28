@@ -81,6 +81,7 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRDGBuilder& GraphBuilder)
 	{
 		RenderPageBatchDesc.Targets[LayerIndex].Texture = Tiles[0].Targets[LayerIndex].TextureRHI != nullptr ? Tiles[0].Targets[LayerIndex].TextureRHI->GetTexture2D() : nullptr;
 		RenderPageBatchDesc.Targets[LayerIndex].UAV = Tiles[0].Targets[LayerIndex].UnorderedAccessViewRHI;
+		RenderPageBatchDesc.Targets[LayerIndex].PooledRenderTarget = Tiles[0].Targets[LayerIndex].PooledRenderTarget;
 	}
 
 	int32 BatchSize = 0;
@@ -128,6 +129,7 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRDGBuilder& GraphBuilder)
 			{
 				RenderPageBatchDesc.Targets[LayerIndex].Texture = Tiles[0].Targets[LayerIndex].TextureRHI != nullptr ? Tiles[0].Targets[LayerIndex].TextureRHI->GetTexture2D() : nullptr;
 				RenderPageBatchDesc.Targets[LayerIndex].UAV = Tiles[0].Targets[LayerIndex].UnorderedAccessViewRHI;
+				RenderPageBatchDesc.Targets[LayerIndex].PooledRenderTarget = Tiles[0].Targets[LayerIndex].PooledRenderTarget;
 			}
 		}
 	}

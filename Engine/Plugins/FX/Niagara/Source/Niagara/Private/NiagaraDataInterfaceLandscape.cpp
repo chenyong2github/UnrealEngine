@@ -991,7 +991,7 @@ void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance
 						InstanceData.HeightVirtualTextureIndex = TextureIt;
 					}
 					break;
-
+				case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Roughness:
 				case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 				case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_YCoCg:
 				case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular_Mask_YCoCg:
@@ -1091,6 +1091,7 @@ private:
 		None = 0,
 		BC3BC3,
 		BC5BC1,
+		B5G6R5
 	};
 
 public:
@@ -1221,6 +1222,15 @@ public:
 
 		switch (ProxyData.NormalVirtualTextureMode)
 		{
+			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Roughness:
+				PhysicalTextureSrv[0] = NormalAllocatedTexture->GetPhysicalTextureSRV(0, false);
+				NormalAllocatedTexture->GetPackedUniform(&NormalVirtualTextureUniforms[0], 0);
+
+				PhysicalTextureSrv[1] = NormalAllocatedTexture->GetPhysicalTextureSRV(1, false);
+				NormalAllocatedTexture->GetPackedUniform(&NormalVirtualTextureUniforms[1], 1);
+
+				SetShaderValue(RHICmdList, ComputeShaderRHI, NormalVirtualTextureUnpackModeParam, ENormalUnpackType::B5G6R5);
+				break;
 			case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 				PhysicalTextureSrv[0] = NormalAllocatedTexture->GetPhysicalTextureSRV(0, false);
 				NormalAllocatedTexture->GetPackedUniform(&NormalVirtualTextureUniforms[0], 0);
