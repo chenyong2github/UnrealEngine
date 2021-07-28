@@ -6,7 +6,6 @@
 #include "HAL/RunnableThread.h"
 #include "StreamReader.h"
 #include "Templates/UnrealTemplate.h"
-#include "Trace/Analysis.h"
 #include "Trace/DataStream.h"
 
 namespace UE {
