@@ -53,6 +53,16 @@ enum class ENestAllowFlags
 
 ENUM_CLASS_FLAGS(ENestAllowFlags)
 
+/** Options for GetVarType method */
+enum class EGetVarTypeOptions
+{
+	None = 0,
+	OuterTypeDeprecated = 1,	// Containing type has been deprecated
+	NoAutoConst = 2,			// Don't automatically mark properties as CPF_Const
+};
+
+ENUM_CLASS_FLAGS(EGetVarTypeOptions)
+
 namespace EDelegateSpecifierAction
 {
 	enum Type
@@ -309,7 +319,7 @@ protected:
 	bool IsBitfieldProperty(ELayoutMacroType LayoutMacroType);
 
 	// Parse the parameter list of a function or delegate declaration
-	void ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDef, bool bExpectCommaBeforeName = false, TMap<FName, FString>* MetaData = NULL);
+	void ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDef, bool bExpectCommaBeforeName = false, TMap<FName, FString>* MetaData = NULL, EGetVarTypeOptions Options = EGetVarTypeOptions::None);
 
 public:
 	// Throws if a specifier value wasn't provided
@@ -420,7 +430,7 @@ protected:
 	 * Parses a variable or return value declaration and determines the variable type and property flags.
 	 *
 	 * @param   Scope                     struct to create the property in
-	 * @param   bOuterTypeDeprecated	  true if the type containing the variable/property has been deprecated
+	 * @param   Options					  options to control how the variable type is parsed
 	 * @param   VarProperty               will be filled in with type and property flag data for the property declaration that was parsed
 	 * @param   Disallow                  contains a mask of variable modifiers that are disallowed in this context
 	 * @param   OuterPropertyType         only specified when compiling the inner properties for arrays or maps.
@@ -431,7 +441,7 @@ protected:
 	 */
 	void GetVarType(
 		FScope*							Scope,
-		bool							bOuterTypeDeprecated, 
+		EGetVarTypeOptions				Options,
 		FPropertyBase&                  VarProperty,
 		EPropertyFlags                  Disallow,
 		EUHTPropertyType				OuterPropertyType,
