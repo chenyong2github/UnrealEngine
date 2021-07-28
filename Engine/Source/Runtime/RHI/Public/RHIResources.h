@@ -1061,22 +1061,22 @@ public:
 	FRHIBuffer() : FRHIResource(RRT_Buffer) {}
 
 	/** Initialization constructor. */
-	FRHIBuffer(uint32 InSize, uint32 InUsage, uint32 InStride)
+	FRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, uint32 InStride)
 		: FRHIResource(RRT_Buffer)
 		, Size(InSize)
-		, Usage(InUsage)
 		, Stride(InStride)
+		, Usage(InUsage)
 	{
 	}
-
-	/** @return The stride in bytes of the buffer. */
-	uint32 GetStride() const { return Stride; }
 
 	/** @return The number of bytes in the buffer. */
 	uint32 GetSize() const { return Size; }
 
+	/** @return The stride in bytes of the buffer. */
+	uint32 GetStride() const { return Stride; }
+
 	/** @return The usage flags used to create the buffer. */
-	uint32 GetUsage() const { return Usage; }
+	EBufferUsageFlags GetUsage() const { return Usage; }
 
 	void SetName(const FName& InName) { BufferName = InName; }
 
@@ -1091,20 +1091,21 @@ protected:
 	}
 
 	// Used by RHI implementations that may adjust internal usage flags during object construction.
-	void SetUsage(uint32 InUsage)
+	void SetUsage(EBufferUsageFlags InUsage)
 	{
 		Usage = InUsage;
 	}
 
 	void ReleaseUnderlyingResource()
 	{
-		Stride = Size = Usage = 0;
+		Stride = Size = 0;
+		Usage = EBufferUsageFlags::None;
 	}
 
 private:
 	uint32 Size{};
-	uint32 Usage{};
 	uint32 Stride{};
+	EBufferUsageFlags Usage{};
 	FName BufferName;
 };
 
@@ -3483,7 +3484,10 @@ struct FRHIBufferSRVCreateInfo
 	explicit FRHIBufferSRVCreateInfo(EPixelFormat InFormat)
 		: Format(InFormat)
 	{
-		BytesPerElement = GPixelFormats[Format].BlockBytes;
+		if (InFormat != PF_Unknown)
+		{
+			BytesPerElement = GPixelFormats[Format].BlockBytes;
+		}
 	}
 
 	FORCEINLINE bool operator==(const FRHIBufferSRVCreateInfo& Other)const

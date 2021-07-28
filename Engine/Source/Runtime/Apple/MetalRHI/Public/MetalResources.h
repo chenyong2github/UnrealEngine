@@ -379,15 +379,13 @@ public:
 -(instancetype)initWithBytes:(void const*)Data length:(uint32)Size;
 @end
 
-enum EMetalBufferUsage
+enum class EMetalBufferUsage
 {
-	EMetalBufferUsage_GPUOnly = 0x80000000,
-	EMetalBufferUsage_LinearTex = 0x40000000,
-
-	EMetalBufferUsageMask	= 0xF,
-	EMetalBufferUsageShift	= 0x1C,
-	EMetalBufferUsageFlags	= (EMetalBufferUsageMask << EMetalBufferUsageShift)
+	None = 0,
+	GPUOnly = 1 << 0,
+	LinearTex = 1 << 1,
 };
+ENUM_CLASS_FLAGS(EMetalBufferUsage);
 
 class FMetalLinearTextureDescriptor
 {
@@ -456,13 +454,13 @@ public:
 		LinearTextureMap Views;
 	};
 	
-	FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InType);
+	FMetalRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, ERHIResourceType InType);
 	virtual ~FMetalRHIBuffer();
 	
 	/**
 	 * Initialize the buffer contents from the render-thread.
 	 */
-	void Init_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
+	void Init_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
 	
 	/**
 	 * Get a linear texture for given format.
@@ -506,6 +504,11 @@ public:
 		return nil;
 	}
 	
+	EMetalBufferUsage GetMetalUsage() const
+	{
+		return MetalUsage;
+	}
+	
 	void AdvanceBackingIndex()
 	{
 		CurrentIndex = (CurrentIndex + 1) % NumberOfBuffers;
@@ -544,7 +547,10 @@ public:
 	uint32 Size;
 	
 	// Buffer usage.
-	uint32 Usage;
+	EBufferUsageFlags Usage;
+	
+	// Metal buffer usage.
+	EMetalBufferUsage MetalUsage;
 	
 	// Storage mode
 	mtlpp::StorageMode Mode;
@@ -580,7 +586,7 @@ private:
 class FMetalResourceMultiBuffer : public FRHIBuffer, public FMetalRHIBuffer
 {
 public:
-	FMetalResourceMultiBuffer(uint32 InSize, uint32 InUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType ResourceType);
+	FMetalResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType ResourceType);
 	virtual ~FMetalResourceMultiBuffer();
 
 	void Swap(FMetalResourceMultiBuffer& Other);

@@ -61,10 +61,10 @@ static FORCEINLINE void UpdateVulkanBufferStats(uint64_t Size, VkBufferUsageFlag
 }
 
 #if VULKAN_RHI_RAYTRACING
-FVulkanAccelerationStructureBuffer::FVulkanAccelerationStructureBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo)
+FVulkanAccelerationStructureBuffer::FVulkanAccelerationStructureBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo)
 	: FRHIBuffer(InSize, InUEUsage, InStride)
 {
-	check(InUEUsage & BUF_AccelerationStructure);
+	check(EnumHasAnyFlags(InUEUsage, BUF_AccelerationStructure));
 	if (InSize == 0)
 	{
 		return;
@@ -85,40 +85,39 @@ FVulkanAccelerationStructureBuffer::~FVulkanAccelerationStructureBuffer()
 }
 #endif // VULKAN_RHI_RAYTRACING
 
-FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList)
+FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList)
 	: FRHIBuffer(InSize, InUEUsage, InStride)
 	, VulkanRHI::FDeviceChild(InDevice)
-	, UEUsage(InUEUsage)
 	, BufferUsageFlags(0)
 	, NumBuffers(0)
 	, DynamicBufferIndex(0)
 {
 	VULKAN_TRACK_OBJECT_CREATE(FVulkanResourceMultiBuffer, this);
 
-	if ((InUEUsage & BUF_VertexBuffer) != 0)
+	if (EnumHasAnyFlags(InUEUsage, BUF_VertexBuffer))
 	{
 		BufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	}
-	if ((InUEUsage & BUF_IndexBuffer) != 0)
+	if (EnumHasAnyFlags(InUEUsage, BUF_IndexBuffer))
 	{
 		BufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 	}
-	if ((InUEUsage & BUF_StructuredBuffer) != 0)
+	if (EnumHasAnyFlags(InUEUsage, BUF_StructuredBuffer))
 	{
 		BufferUsageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	}
 
 	if (InSize > 0)
 	{
-		const bool bStatic = (InUEUsage & BUF_Static) != 0;
-		const bool bDynamic = (InUEUsage & BUF_Dynamic) != 0;
-		const bool bVolatile = (InUEUsage & BUF_Volatile) != 0;
-		const bool bShaderResource = (InUEUsage & BUF_ShaderResource) != 0;
+		const bool bStatic = EnumHasAnyFlags(InUEUsage, BUF_Static);
+		const bool bDynamic = EnumHasAnyFlags(InUEUsage, BUF_Dynamic);
+		const bool bVolatile = EnumHasAnyFlags(InUEUsage, BUF_Volatile);
+		const bool bShaderResource = EnumHasAnyFlags(InUEUsage, BUF_ShaderResource);
 		const bool bIsUniformBuffer = (BufferUsageFlags & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) != 0;
-		const bool bUAV = (InUEUsage & BUF_UnorderedAccess) != 0;
-		const bool bIndirect = (InUEUsage & BUF_DrawIndirect) == BUF_DrawIndirect;
-		const bool bCPUReadable = (UEUsage & BUF_KeepCPUAccessible) != 0;
-		const bool bCopySource = (UEUsage & BUF_SourceCopy) != 0;
+		const bool bUAV = EnumHasAnyFlags(InUEUsage, BUF_UnorderedAccess);
+		const bool bIndirect = EnumHasAllFlags(InUEUsage, BUF_DrawIndirect);
+		const bool bCPUReadable = EnumHasAnyFlags(InUEUsage, BUF_KeepCPUAccessible);
+		const bool bCopySource = EnumHasAnyFlags(InUEUsage, BUF_SourceCopy);
 
 		BufferUsageFlags |= bVolatile ? 0 : VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		BufferUsageFlags |= (bShaderResource && !bIsUniformBuffer) ? VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT : 0;
@@ -203,12 +202,12 @@ void* FVulkanResourceMultiBuffer::Lock(bool bFromRenderingThread, EResourceLockM
 {
 	void* Data = nullptr;
 
-	const bool bStatic = (UEUsage & BUF_Static) != 0;
-	const bool bDynamic = (UEUsage & BUF_Dynamic) != 0;
-	const bool bVolatile = (UEUsage & BUF_Volatile) != 0;
-	const bool bCPUReadable = (UEUsage & BUF_KeepCPUAccessible) != 0;
-	const bool bUAV = (UEUsage & BUF_UnorderedAccess) != 0;
-	const bool bSR = (UEUsage & BUF_ShaderResource) != 0;
+	const bool bStatic = EnumHasAnyFlags(GetUsage(), BUF_Static);
+	const bool bDynamic = EnumHasAnyFlags(GetUsage(), BUF_Dynamic);
+	const bool bVolatile = EnumHasAnyFlags(GetUsage(), BUF_Volatile);
+	const bool bCPUReadable = EnumHasAnyFlags(GetUsage(), BUF_KeepCPUAccessible);
+	const bool bUAV = EnumHasAnyFlags(GetUsage(), BUF_UnorderedAccess);
+	const bool bSR = EnumHasAnyFlags(GetUsage(), BUF_ShaderResource);
 
 	if (bVolatile)
 	{
@@ -379,11 +378,11 @@ struct FRHICommandMultiBufferUnlock final : public FRHICommand<FRHICommandMultiB
 
 void FVulkanResourceMultiBuffer::Unlock(bool bFromRenderingThread)
 {
-	const bool bStatic = (UEUsage & BUF_Static) != 0;
-	const bool bDynamic = (UEUsage & BUF_Dynamic) != 0;
-	const bool bVolatile = (UEUsage & BUF_Volatile) != 0;
-	const bool bCPUReadable = (UEUsage & BUF_KeepCPUAccessible) != 0;
-	const bool bSR = (UEUsage & BUF_ShaderResource) != 0;
+	const bool bStatic = EnumHasAnyFlags(GetUsage(), BUF_Static);
+	const bool bDynamic = EnumHasAnyFlags(GetUsage(), BUF_Dynamic);
+	const bool bVolatile = EnumHasAnyFlags(GetUsage(), BUF_Volatile);
+	const bool bCPUReadable = EnumHasAnyFlags(GetUsage(), BUF_KeepCPUAccessible);
+	const bool bSR = EnumHasAnyFlags(GetUsage(), BUF_ShaderResource);
 
 	if (bVolatile)
 	{
@@ -441,7 +440,6 @@ void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
 	// FDeviceChild
 	::Swap(Device, Other.Device);
 	
-	::Swap(UEUsage, Other.UEUsage);
 	::Swap(BufferUsageFlags, Other.BufferUsageFlags);
 	::Swap(NumBuffers, Other.NumBuffers);
 	::Swap(DynamicBufferIndex, Other.DynamicBufferIndex);
@@ -463,7 +461,7 @@ FBufferRHIRef FVulkanDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags 
 
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FVulkanResourceMultiBuffer(nullptr, 0, 0, 0, CreateInfo, nullptr);
+		return new FVulkanResourceMultiBuffer(nullptr, 0, BUF_None, 0, CreateInfo, nullptr);
 	}
 	return new FVulkanResourceMultiBuffer(Device, Size, Usage, Stride, CreateInfo, nullptr);
 }
@@ -506,7 +504,7 @@ void FVulkanDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuff
 	if (!SrcBuffer)
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("RHITransferBufferUnderlyingResource"));
-		TRefCountPtr<FVulkanResourceMultiBuffer> DeletionProxy = new FVulkanResourceMultiBuffer(Dest->GetParent(), 0, 0, 0, CreateInfo, nullptr);
+		TRefCountPtr<FVulkanResourceMultiBuffer> DeletionProxy = new FVulkanResourceMultiBuffer(Dest->GetParent(), 0, BUF_None, 0, CreateInfo, nullptr);
 		Dest->Swap(*DeletionProxy);
 	}
 	else

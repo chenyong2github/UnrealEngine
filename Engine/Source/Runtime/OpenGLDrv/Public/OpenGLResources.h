@@ -409,7 +409,7 @@ public:
 		, RealSize(0)
 	{ }
 
-	TOpenGLBuffer(GLenum InType, uint32 InStride, uint32 InSize, uint32 InUsage,
+	TOpenGLBuffer(GLenum InType, uint32 InStride, uint32 InSize, EBufferUsageFlags InUsage,
 		const void *InData, bool bStreamedDraw = false, GLuint ResourceToUse = 0, uint32 ResourceSize = 0)
 	: BaseType(InStride,InSize,InUsage)
 	, Resource(0)
@@ -750,7 +750,7 @@ public:
 				}
 				check(bLockBufferWasAllocated);
 
-				if ((this->GetUsage() & BUF_Volatile) != 0)
+				if (EnumHasAnyFlags(this->GetUsage(), BUF_Volatile))
 				{
 					ReleaseCachedBuffer(); // Safegard
 
@@ -784,7 +784,7 @@ public:
 		ModificationCount++;
 	}
 
-	bool IsDynamic() const { return (this->GetUsage() & BUF_AnyDynamic) != 0; }
+	bool IsDynamic() const { return EnumHasAnyFlags(this->GetUsage(), BUF_AnyDynamic); }
 	bool IsLocked() const { return bIsLocked; }
 	bool IsLockReadOnly() const { return bIsLockReadOnly; }
 	void* GetLockedBuffer() const { return LockBuffer; }
@@ -831,7 +831,7 @@ private:
 class FOpenGLBasePixelBuffer : public FRefCountedObject
 {
 public:
-	FOpenGLBasePixelBuffer(uint32 InStride,uint32 InSize,uint32 InUsage)
+	FOpenGLBasePixelBuffer(uint32 InStride,uint32 InSize, EBufferUsageFlags InUsage)
 	: Size(InSize)
 	, Usage(InUsage)
 	{}
@@ -841,7 +841,7 @@ public:
 		return true;
 	}
 	uint32 GetSize() const { return Size; }
-	uint32 GetUsage() const { return Usage; }
+	EBufferUsageFlags GetUsage() const { return Usage; }
 
 	static FORCEINLINE bool GLSupportsType()
 	{
@@ -855,7 +855,7 @@ public:
 
 private:
 	uint32 Size;
-	uint32 Usage;
+	EBufferUsageFlags Usage;
 };
 
 class FOpenGLBaseBuffer : public FRHIBuffer
@@ -864,7 +864,7 @@ public:
 	FOpenGLBaseBuffer()
 	{}
 
-	FOpenGLBaseBuffer(uint32 InStride, uint32 InSize, uint32 InUsage): FRHIBuffer(InSize, InUsage, InStride)
+	FOpenGLBaseBuffer(uint32 InStride, uint32 InSize, EBufferUsageFlags InUsage): FRHIBuffer(InSize, InUsage, InStride)
 	{
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, InSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);

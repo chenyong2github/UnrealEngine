@@ -1391,78 +1391,87 @@ enum EVRSImageDataType : uint8
 /**
  *	Resource usage flags - for vertex and index buffers.
  */
-enum EBufferUsageFlags
+enum class EBufferUsageFlags : uint32
 {
-	BUF_None					= 0x0000,
-	
-
-	// Mutually exclusive write-frequency flags
+	None                    = 0,
 
 	/** The buffer will be written to once. */
-	BUF_Static					= 0x0001, 
+	Static                  = 1 << 0,
 
-	/** 
-	 * The buffer will be written to occasionally, GPU read only, CPU write only.  The data lifetime is until the next update, or the buffer is destroyed.
-	 */
-	BUF_Dynamic					= 0x0002, 
+	/** The buffer will be written to occasionally, GPU read only, CPU write only.  The data lifetime is until the next update, or the buffer is destroyed. */
+	Dynamic                 = 1 << 1,
 
 	/** The buffer's data will have a lifetime of one frame.  It MUST be written to each frame, or a new one created each frame. */
-	BUF_Volatile				= 0x0004, 
+	Volatile                = 1 << 2,
 
-	// Mutually exclusive bind flags.
-	BUF_UnorderedAccess			= 0x0008, // Allows an unordered access view to be created for the buffer.
+	/** Allows an unordered access view to be created for the buffer. */
+	UnorderedAccess         = 1 << 3,
 
 	/** Create a byte address buffer, which is basically a structured buffer with a uint32 type. */
-	BUF_ByteAddressBuffer		= 0x0020,
+	ByteAddressBuffer       = 1 << 4,
 
 	/** Buffer that the GPU will use as a source for a copy. */
-	BUF_SourceCopy				= 0x0040,
+	SourceCopy              = 1 << 5,
 
 	/** Create a buffer that can be bound as a stream output target. */
-	BUF_StreamOutput			= 0x0080,
+	StreamOutput            = 1 << 6,
 
 	/** Create a buffer which contains the arguments used by DispatchIndirect or DrawIndirect. */
-	BUF_DrawIndirect			= 0x0100,
+	DrawIndirect            = 1 << 7,
 
 	/** 
 	 * Create a buffer that can be bound as a shader resource. 
 	 * This is only needed for buffer types which wouldn't ordinarily be used as a shader resource, like a vertex buffer.
 	 */
-	BUF_ShaderResource			= 0x0200,
+	ShaderResource          = 1 << 8,
 
-	/**
-	 * Request that this buffer is directly CPU accessible
-	 * (@todo josh: this is probably temporary and will go away in a few months)
-	 */
-	BUF_KeepCPUAccessible		= 0x0400,
-
-	// Unused
-	//BUF_ZeroStride			= 0x0800,
+	/** Request that this buffer is directly CPU accessible. */
+	KeepCPUAccessible       = 1 << 9,
 
 	/** Buffer should go in fast vram (hint only). Requires BUF_Transient */
-	BUF_FastVRAM				= 0x1000,
+	FastVRAM                = 1 << 10,
 
 	/** Buffer should be allocated from transient memory. */
-	BUF_Transient				= 0x2000,
+	Transient               = 1 << 11,
 
 	/** Create a buffer that can be shared with an external RHI or process. */
-	BUF_Shared					= 0x4000,
+	Shared                  = 1 << 12,
 
 	/**
 	 * Buffer contains opaque ray tracing acceleration structure data.
 	 * Resources with this flag can't be bound directly to any shader stage and only can be used with ray tracing APIs.
 	 * This flag is mutually exclusive with all other buffer flags except BUF_Static.
 	*/
-	BUF_AccelerationStructure	= 0x8000,
+	AccelerationStructure   = 1 << 13,
 
-	BUF_VertexBuffer			= 0x10000,
-	BUF_IndexBuffer				= 0x20000,
-	BUF_StructuredBuffer		= 0x40000,
+	VertexBuffer            = 1 << 14,
+	IndexBuffer             = 1 << 15,
+	StructuredBuffer        = 1 << 16,
 
 	// Helper bit-masks
-	BUF_AnyDynamic = (BUF_Dynamic | BUF_Volatile),
+	AnyDynamic = (Dynamic | Volatile),
 };
 ENUM_CLASS_FLAGS(EBufferUsageFlags);
+
+#define BUF_None                   EBufferUsageFlags::None
+#define BUF_Static                 EBufferUsageFlags::Static
+#define BUF_Dynamic                EBufferUsageFlags::Dynamic
+#define BUF_Volatile               EBufferUsageFlags::Volatile
+#define BUF_UnorderedAccess        EBufferUsageFlags::UnorderedAccess
+#define BUF_ByteAddressBuffer      EBufferUsageFlags::ByteAddressBuffer
+#define BUF_SourceCopy             EBufferUsageFlags::SourceCopy
+#define BUF_StreamOutput           EBufferUsageFlags::StreamOutput
+#define BUF_DrawIndirect           EBufferUsageFlags::DrawIndirect
+#define BUF_ShaderResource         EBufferUsageFlags::ShaderResource
+#define BUF_KeepCPUAccessible      EBufferUsageFlags::KeepCPUAccessible
+#define BUF_FastVRAM               EBufferUsageFlags::FastVRAM
+#define BUF_Transient              EBufferUsageFlags::Transient
+#define BUF_Shared                 EBufferUsageFlags::Shared
+#define BUF_AccelerationStructure  EBufferUsageFlags::AccelerationStructure
+#define BUF_VertexBuffer           EBufferUsageFlags::VertexBuffer
+#define BUF_IndexBuffer            EBufferUsageFlags::IndexBuffer
+#define BUF_StructuredBuffer       EBufferUsageFlags::StructuredBuffer
+#define BUF_AnyDynamic             EBufferUsageFlags::AnyDynamic
 
 enum class EGpuVendorId
 {

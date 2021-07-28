@@ -193,11 +193,11 @@ FBufferRHIRef FOpenGLDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags 
 	}
 
 	GLenum BufferType = GL_ARRAY_BUFFER;
-	if (Usage & BUF_StructuredBuffer)
+	if (EnumHasAnyFlags(Usage, BUF_StructuredBuffer))
 	{
 		BufferType = GL_SHADER_STORAGE_BUFFER;
 	}
-	else if (Usage & BUF_IndexBuffer)
+	else if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
 	{
 		BufferType = GL_ELEMENT_ARRAY_BUFFER;
 	}

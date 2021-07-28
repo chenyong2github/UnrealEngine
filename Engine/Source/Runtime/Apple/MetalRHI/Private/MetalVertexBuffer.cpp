@@ -23,7 +23,7 @@ DECLARE_MEMORY_STAT(TEXT("Used Device Buffer Memory"), STAT_MetalDeviceBufferMem
 #define METAL_INC_DWORD_STAT_BY(Type, Name, Size, Usage) \
 	switch(Type)	{ \
 		case RRT_UniformBuffer: INC_DWORD_STAT_BY(STAT_MetalUniform##Name, Size); break; \
-        case RRT_Buffer: if (Usage & BUF_IndexBuffer){ INC_DWORD_STAT_BY(STAT_MetalIndex##Name, Size); } else { INC_DWORD_STAT_BY(STAT_MetalVertex##Name, Size); } break; \
+        case RRT_Buffer: if (EnumHasAnyFlags(Usage, BUF_IndexBuffer)){ INC_DWORD_STAT_BY(STAT_MetalIndex##Name, Size); } else { INC_DWORD_STAT_BY(STAT_MetalVertex##Name, Size); } break; \
 		default: break; \
 	}
 #else
@@ -79,23 +79,23 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalBufferData)
 }
 @end
 
-static uint32 MetalBufferUsage(uint32 InUsage)
+static EMetalBufferUsage MetalBufferUsage(EBufferUsageFlags InUsage)
 {
-	uint32 Usage = InUsage;
+	EMetalBufferUsage Usage = EMetalBufferUsage::None;
 
-	if (InUsage & BUF_VertexBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_VertexBuffer))
 	{
-		Usage |= EMetalBufferUsage_LinearTex;
+		Usage |= EMetalBufferUsage::LinearTex;
 	}
 
-	if (InUsage & BUF_IndexBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_IndexBuffer))
 	{
-		Usage |= (EMetalBufferUsage_GPUOnly | EMetalBufferUsage_LinearTex);
+		Usage |= (EMetalBufferUsage::GPUOnly | EMetalBufferUsage::LinearTex);
 	}
 
-	if (InUsage & BUF_StructuredBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer))
 	{
-		Usage |= EMetalBufferUsage_GPUOnly;
+		Usage |= EMetalBufferUsage::GPUOnly;
 	}
 
 	return Usage;
@@ -113,11 +113,11 @@ static bool CanUsePrivateMemory()
 
 bool FMetalRHIBuffer::UsePrivateMemory() const
 {
-	return (FMetalCommandQueue::SupportsFeature(EMetalFeaturesEfficientBufferBlits) && (Usage & (BUF_Dynamic|BUF_Static)))
-	|| (FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs) && (Usage & (BUF_ShaderResource|BUF_UnorderedAccess)));
+	return (FMetalCommandQueue::SupportsFeature(EMetalFeaturesEfficientBufferBlits) && EnumHasAnyFlags(Usage, BUF_Dynamic|BUF_Static))
+	|| (FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs) && EnumHasAnyFlags(Usage, BUF_ShaderResource|BUF_UnorderedAccess));
 }
 
-FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InType)
+FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, ERHIResourceType InType)
 : Data(nullptr)
 , LastLockFrame(0)
 , CurrentIndex(0)
@@ -127,19 +127,20 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType
 , LockSize(0)
 , Size(InSize)
 , Usage(InUsage)
+, MetalUsage(InMetalUsage)
 , Mode(BUFFER_STORAGE_MODE)
 , Type(InType)
 {
 	// No life-time usage information? Enforce Dynamic.
-	if((Usage & (BUF_Static | BUF_Dynamic | BUF_Volatile)) == 0)
+	if(!EnumHasAnyFlags(Usage, BUF_Static | BUF_Dynamic | BUF_Volatile))
 	{
 		Usage |= BUF_Dynamic;
 	}
 	
-	const bool bIsStatic = (Usage & BUF_Static) != 0;
-	const bool bIsDynamic = (Usage & BUF_Dynamic) != 0;
-	const bool bIsVolatile = (Usage & BUF_Volatile) != 0;
-	const bool bWantsView = (Usage & (BUF_ShaderResource | BUF_UnorderedAccess)) != 0;
+	const bool bIsStatic = EnumHasAnyFlags(Usage, BUF_Static);
+	const bool bIsDynamic = EnumHasAnyFlags(Usage, BUF_Dynamic);
+	const bool bIsVolatile = EnumHasAnyFlags(Usage, BUF_Volatile);
+	const bool bWantsView = EnumHasAnyFlags(Usage, BUF_ShaderResource | BUF_UnorderedAccess);
 	
 	check(bIsStatic ^ bIsDynamic ^ bIsVolatile);
 
@@ -152,7 +153,7 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType
 		
 		// Temporary buffers less than the buffer page size - currently 4Kb - is better off going through the set*Bytes API if available.
 		// These can't be used for shader resources or UAVs if we want to use the 'Linear Texture' code path
-		if (!(InUsage & (BUF_UnorderedAccess|BUF_ShaderResource|EMetalBufferUsage_GPUOnly)) && (InUsage & BUF_Volatile) && InSize < MetalBufferPageSize && (InSize < MetalBufferBytesSize))
+		if (!EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && !EnumHasAnyFlags(MetalUsage, EMetalBufferUsage::GPUOnly) && EnumHasAnyFlags(InUsage, BUF_Volatile) && InSize < MetalBufferPageSize && (InSize < MetalBufferBytesSize))
 		{
 			Data = [[FMetalBufferData alloc] initWithSize:InSize];
 			METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize, Usage);
@@ -166,9 +167,9 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType
 #endif
 			uint32 AllocSize = Size;
 			
-			if ((InUsage & EMetalBufferUsage_LinearTex) && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesTextureBuffers))
+			if (EnumHasAnyFlags(MetalUsage, EMetalBufferUsage::LinearTex) && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesTextureBuffers))
 			{
-				if (InUsage & BUF_UnorderedAccess)
+				if (EnumHasAnyFlags(InUsage, BUF_UnorderedAccess))
 				{
 					// Padding for write flushing when not using linear texture bindings for buffers
 					AllocSize = Align(AllocSize + 512, 1024);
@@ -335,7 +336,7 @@ void FMetalRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTex
 {
 	check(MetalIsSafeToUseRHIThreadResources());
 	
-	const bool bWantsView = ((Usage & (BUF_ShaderResource | BUF_UnorderedAccess)) != 0);
+	const bool bWantsView = EnumHasAnyFlags(Usage, BUF_ShaderResource | BUF_UnorderedAccess);
 	check(bWantsView);
 	{
 		FMetalBufferAndViews& CurrentBacking = GetCurrentBackingInternal();
@@ -350,11 +351,11 @@ void FMetalRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTex
 		
 		mtlpp::TextureDescriptor Desc;
 		NSUInteger TexUsage = mtlpp::TextureUsage::Unknown;
-		if (Usage & BUF_ShaderResource)
+		if (EnumHasAnyFlags(Usage, BUF_ShaderResource))
 		{
 			TexUsage |= mtlpp::TextureUsage::ShaderRead;
 		}
-		if (Usage & BUF_UnorderedAccess)
+		if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess))
 		{
 			TexUsage |= mtlpp::TextureUsage::ShaderWrite;
 		}
@@ -484,7 +485,7 @@ struct FMetalRHICommandCreateLinearTexture : public FRHICommand<FMetalRHICommand
 
 void FMetalRHIBuffer::CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InParent, const FMetalLinearTextureDescriptor* InLinearTextureDescriptor)
 {
-	if ((Usage & (BUF_UnorderedAccess|BUF_ShaderResource)) && GMetalBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
+	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GMetalBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
 	{
 		if (IsRunningRHIInSeparateThread() && !IsInRHIThread() && !FRHICommandListExecutor::GetImmediateCommandList().Bypass())
 		{
@@ -510,7 +511,7 @@ void FMetalRHIBuffer::CreateLinearTexture(EPixelFormat InFormat, FRHIResource* I
 ns::AutoReleased<FMetalTexture> FMetalRHIBuffer::GetLinearTexture(EPixelFormat InFormat, const FMetalLinearTextureDescriptor* InLinearTextureDescriptor)
 {
 	ns::AutoReleased<FMetalTexture> Texture;
-	if ((Usage & (BUF_UnorderedAccess|BUF_ShaderResource)) && GMetalBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
+	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GMetalBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
 	{
 		LinearTextureMapKey MapKey = (InLinearTextureDescriptor != nullptr) ? LinearTextureMapKey(InFormat, *InLinearTextureDescriptor) : LinearTextureMapKey(InFormat, FMetalLinearTextureDescriptor());
 
@@ -546,9 +547,9 @@ void* FMetalRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode InLockMode, u
 //	check(LastLockFrame == 0 || LastLockFrame != GetMetalDeviceContext().GetFrameNumberRHIThread());
 	
 	const bool bWriteLock = InLockMode == RLM_WriteOnly;
-	const bool bIsStatic = (Usage & BUF_Static) != 0;
-	const bool bIsDynamic = (Usage & BUF_Dynamic) != 0;
-	const bool bIsVolatile = (Usage & BUF_Volatile) != 0;
+	const bool bIsStatic = EnumHasAnyFlags(Usage, BUF_Static);
+	const bool bIsDynamic = EnumHasAnyFlags(Usage, BUF_Dynamic);
+	const bool bIsVolatile = EnumHasAnyFlags(Usage, BUF_Volatile);
 	
 	void* ReturnPointer = nullptr;
 	
@@ -701,12 +702,12 @@ void FMetalRHIBuffer::Unlock()
 	LastLockFrame = GetMetalDeviceContext().GetFrameNumberRHIThread();
 }
 
-FMetalResourceMultiBuffer::FMetalResourceMultiBuffer(uint32 InSize, uint32 InUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType Type)
-	: FRHIBuffer(InSize, InUsage & ~EMetalBufferUsageFlags, InStride)
-	, FMetalRHIBuffer(InSize, InUsage, Type)
+FMetalResourceMultiBuffer::FMetalResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType Type)
+	: FRHIBuffer(InSize, InUsage, InStride)
+	, FMetalRHIBuffer(InSize, InUsage, InMetalUsage, Type)
 	, IndexType((InStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32)
 {
-	if (InUsage & BUF_StructuredBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer))
 	{
 		check((InSize % InStride) == 0);
 
@@ -740,11 +741,11 @@ FBufferRHIRef FMetalDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags U
 	@autoreleasepool {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FMetalResourceMultiBuffer(0, MetalBufferUsage(0), 0, nullptr, RRT_Buffer);
+		return new FMetalResourceMultiBuffer(0, BUF_None, MetalBufferUsage(BUF_None), 0, nullptr, RRT_Buffer);
 	}
 	
 	// make the RHI object, which will allocate memory
-	FMetalResourceMultiBuffer* Buffer = new FMetalResourceMultiBuffer(Size, MetalBufferUsage(Usage), 0, nullptr, RRT_Buffer);
+	FMetalResourceMultiBuffer* Buffer = new FMetalResourceMultiBuffer(Size, Usage, MetalBufferUsage(Usage), 0, nullptr, RRT_Buffer);
 
 	if (CreateInfo.ResourceArray)
 	{
@@ -848,7 +849,7 @@ void FMetalDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffe
 		FMetalResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
 		if (!SrcBuffer)
 		{
-			TRefCountPtr<FMetalResourceMultiBuffer> DeletionProxy = new FMetalResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetStride(), nullptr, Dest->Type);
+			TRefCountPtr<FMetalResourceMultiBuffer> DeletionProxy = new FMetalResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetMetalUsage(), Dest->GetStride(), nullptr, Dest->Type);
 			Dest->Swap(*DeletionProxy);
 		}
 		else
@@ -859,7 +860,7 @@ void FMetalDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffe
 	}
 }
 
-void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
+void FMetalRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSize, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
 {
 	if (CreateInfo.ResourceArray)
 	{
@@ -917,11 +918,11 @@ FBufferRHIRef FMetalDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListI
 	@autoreleasepool {
 		if (CreateInfo.bWithoutNativeResource)
 		{
-			return new FMetalResourceMultiBuffer(0, MetalBufferUsage(0), 0, nullptr, RRT_Buffer);
+			return new FMetalResourceMultiBuffer(0, BUF_None, MetalBufferUsage(BUF_None), 0, nullptr, RRT_Buffer);
 		}
 		
 		// make the RHI object, which will allocate memory
-		TRefCountPtr<FMetalResourceMultiBuffer> Buffer = new FMetalResourceMultiBuffer(Size, MetalBufferUsage(Usage), Stride, nullptr, RRT_Buffer);
+		TRefCountPtr<FMetalResourceMultiBuffer> Buffer = new FMetalResourceMultiBuffer(Size, Usage, MetalBufferUsage(Usage), Stride, nullptr, RRT_Buffer);
 		
 		Buffer->Init_RenderThread(RHICmdList, Size, Usage, CreateInfo, Buffer);
 		

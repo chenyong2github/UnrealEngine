@@ -150,8 +150,7 @@ void FD3D12Buffer::UploadResourceData(class FRHICommandListImmediate* RHICmdList
 	uint32 BufferSize = GetSize();
 	check(BufferSize == InResourceArray->GetResourceDataSize());
 
-	const bool bIsDynamic = (GetUsage() & BUF_AnyDynamic) ? true : false;
-	if (bIsDynamic)
+	if (EnumHasAnyFlags(GetUsage(), BUF_AnyDynamic))
 	{
 		// Copy directly in mapped data
 		void* MappedUploadData = ResourceLocation.GetMappedBaseAddress(); 
@@ -286,7 +285,7 @@ FD3D12SyncPoint FD3D12Buffer::UploadResourceDataViaCopyQueue(FResourceArrayInter
 void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	const D3D12_RESOURCE_DESC& InDesc,
 	uint32 Size,
-	uint32 InUsage,
+	EBufferUsageFlags InUsage,
 	ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState,
 	uint32 Alignment,
@@ -301,9 +300,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
 	check(Size > 0);
 
-	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;
-
-	if (bIsDynamic)
+	if (EnumHasAnyFlags(InUsage, BUF_AnyDynamic))
 	{
 		check(ResourceAllocator == nullptr);
 		check(InResourceStateMode != ED3D12ResourceStateMode::MultiState);
@@ -319,7 +316,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 		}
 		else
 		{
-			Device->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, (EBufferUsageFlags)InUsage, InResourceStateMode, InCreateState, ResourceLocation, Alignment, InDebugName);
+			Device->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, InUsage, InResourceStateMode, InCreateState, ResourceLocation, Alignment, InDebugName);
 		}
 		ResourceLocation.SetOwner(Buffer);
 		check(ResourceLocation.GetSize() == Size);
@@ -331,7 +328,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	uint32 Alignment,
 	uint32 Stride,
 	uint32 Size,
-	uint32 InUsage,
+	EBufferUsageFlags InUsage,
 	ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState,
 	bool bHasInitialData,
@@ -347,8 +344,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 
 	FD3D12Buffer* BufferOut = nullptr;
 
-	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;		
-	if (bIsDynamic)
+	if (EnumHasAnyFlags(InUsage, BUF_AnyDynamic))
 	{
 		const uint32 FirstGPUIndex = InGPUMask.GetFirstIndex();
 
@@ -463,7 +459,7 @@ void FD3D12Buffer::GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, E
 {
 	ResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(InSize);
 
-	if (InUsage & BUF_UnorderedAccess)
+	if (EnumHasAnyFlags(InUsage, BUF_UnorderedAccess))
 	{
 		ResourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
@@ -475,19 +471,18 @@ void FD3D12Buffer::GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, E
 		}
 	}
 
-	if ((InUsage & BUF_ShaderResource) == 0)
+	if (!EnumHasAnyFlags(InUsage, BUF_ShaderResource))
 	{
 		ResourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	}
 
-	if (InUsage & BUF_DrawIndirect)
+	if (EnumHasAnyFlags(InUsage, BUF_DrawIndirect))
 	{
 		ResourceDesc.Flags |= D3D12RHI_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER;
 	}
 
 	// Structured buffers, non-ByteAddress buffers, need to be aligned to their stride to ensure that they can be addressed correctly with element based offsets.
-	Alignment = (InStride > 0) && (((InUsage & BUF_StructuredBuffer) != 0) || ((InUsage & (BUF_ByteAddressBuffer | BUF_DrawIndirect)) == 0)) ? InStride : 4;
-
+	Alignment = (InStride > 0) && (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer) || !EnumHasAnyFlags(InUsage, BUF_ByteAddressBuffer | BUF_DrawIndirect)) ? InStride : 4;
 }
 
 FBufferRHIRef FD3D12DynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
@@ -523,7 +518,7 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate
 		? ED3D12ResourceStateMode::SingleState 
 		: ED3D12ResourceStateMode::Default;
 
-	const bool bIsDynamic = (Usage & BUF_AnyDynamic) ? true : false;
+	const bool bIsDynamic = EnumHasAnyFlags(Usage, BUF_AnyDynamic);
 	D3D12_HEAP_TYPE HeapType = bIsDynamic ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT;
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(Desc, HeapType);
 
@@ -557,7 +552,7 @@ FRHIBuffer* FD3D12DynamicRHI::CreateBuffer(const FRHIBufferCreateInfo& CreateInf
 	return CreateD3D12Buffer(nullptr, CreateInfo.Size, CreateInfo.Usage, CreateInfo.Stride, InitialState, ResourceCreateInfo, TransientMode, ResourceAllocator);
 }
 
-void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferSize, uint32 BufferUsage, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferSize, EBufferUsageFlags BufferUsage, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12LockBufferTime);
 
@@ -567,12 +562,10 @@ void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12B
 	check(LockedData.bLocked == false);
 	FD3D12Adapter& Adapter = GetAdapter();
 
-	// Determine whether the buffer is dynamic or not.
-	const bool bIsDynamic = (BufferUsage & BUF_AnyDynamic) ? true : false;
-
 	void* Data = nullptr;
 
-	if (bIsDynamic)
+	// Determine whether the buffer is dynamic or not.
+	if (EnumHasAnyFlags(BufferUsage, BUF_AnyDynamic))
 	{
 		check(LockMode == RLM_WriteOnly || LockMode == RLM_WriteOnly_NoOverwrite);
 
@@ -679,7 +672,7 @@ void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12B
 	return Data;
 }
 
-void FD3D12DynamicRHI::UnlockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferUsage)
+void FD3D12DynamicRHI::UnlockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, EBufferUsageFlags BufferUsage)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12UnlockBufferTime);
 
@@ -687,9 +680,7 @@ void FD3D12DynamicRHI::UnlockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12
 	check(LockedData.bLocked == true);
 
 	// Determine whether the buffer is dynamic or not.
-	const bool bIsDynamic = (BufferUsage & BUF_AnyDynamic) != 0;
-
-	if (bIsDynamic)
+	if (EnumHasAnyFlags(BufferUsage, BUF_AnyDynamic))
 	{
 		// If the Buffer is dynamic, its upload heap memory can always stay mapped. Don't do anything.
 	}

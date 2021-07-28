@@ -376,7 +376,7 @@ void* FValidationRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, 
 {
 	using namespace RHIValidation;
 
-	if ((Buffer->GetUsage() & BUF_Volatile) == 0 && LockMode == RLM_WriteOnly)
+	if (!EnumHasAnyFlags(Buffer->GetUsage(), BUF_Volatile) && LockMode == RLM_WriteOnly)
 	{
 		bool bIsInsideRenderPass;
 		if (RHICmdList.IsTopOfPipe())

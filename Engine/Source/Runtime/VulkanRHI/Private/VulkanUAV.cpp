@@ -386,7 +386,7 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FRHITex
 
 FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI)
 {
-	if (BufferRHI && BufferRHI->GetUsage() & (BUF_VertexBuffer | BUF_StructuredBuffer))
+	if (BufferRHI && EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_VertexBuffer | BUF_StructuredBuffer))
 	{
 		FVulkanResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
 		FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, Buffer);
@@ -398,7 +398,7 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FRHIBuf
 		{
 			return new FVulkanShaderResourceView(Device, nullptr, nullptr, 0, PF_R16_UINT);
 		}
-		check(BufferRHI->GetUsage() & BUF_IndexBuffer);
+		check(EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_IndexBuffer));
 		check(BufferRHI->GetStride() == 2 || BufferRHI->GetStride() == 4);
 		FVulkanResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
 		EPixelFormat Format = (BufferRHI->GetStride() == 4) ? PF_R32_UINT : PF_R16_UINT;
@@ -501,7 +501,7 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 	if (UnorderedAccessView->SourceBuffer)
 	{
 		TRefCountPtr<FVulkanResourceMultiBuffer> Buffer = UnorderedAccessView->SourceBuffer;
-		bool bIsByteAddressBuffer = Buffer->GetUsage() & BUF_ByteAddressBuffer;
+		bool bIsByteAddressBuffer = EnumHasAnyFlags(Buffer->GetUsage(), BUF_ByteAddressBuffer);
 
 		// Byte address buffers only use the first component, so use vkCmdBufferFill
 		if (UnorderedAccessView->BufferViewFormat == PF_Unknown || bIsByteAddressBuffer)

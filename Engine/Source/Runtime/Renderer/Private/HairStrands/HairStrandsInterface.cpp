@@ -226,27 +226,13 @@ bool IsHairStrandsSimulationEnable()
 void ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBufferRef& InBuffer, FRDGExternalBuffer& OutBuffer, EPixelFormat Format)
 {
 	OutBuffer.Buffer = GraphBuilder.ConvertToExternalBuffer(InBuffer);
-	if (Format != PF_Unknown)
+	if (EnumHasAnyFlags(InBuffer->Desc.Usage, BUF_ShaderResource))
 	{
-		if (InBuffer->Desc.Usage & BUF_ShaderResource)
-		{
-			OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer, Format));
-		}
-		if (InBuffer->Desc.Usage & BUF_UnorderedAccess)
-		{
-			OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer, Format));
-		}
+		OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer, Format));
 	}
-	else
+	if (EnumHasAnyFlags(InBuffer->Desc.Usage, BUF_UnorderedAccess))
 	{
-		if (InBuffer->Desc.Usage & BUF_ShaderResource)
-		{
-			OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer));
-		}
-		if (InBuffer->Desc.Usage & BUF_UnorderedAccess)
-		{
-			OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer));
-		}
+		OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer, Format));
 	}
 	OutBuffer.Format = Format;
 }

@@ -283,15 +283,15 @@ float FD3D12EventNode::GetTiming()
 
 inline FName GetRHIBufferStats(EBufferUsageFlags Usage)
 {
-	if (Usage & BUF_VertexBuffer)
+	if (EnumHasAnyFlags(Usage, BUF_VertexBuffer))
 	{
 		return GET_STATFNAME(STAT_VertexBufferMemory);
 	}
-	else if (Usage & BUF_IndexBuffer)
+	else if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
 	{
 		return GET_STATFNAME(STAT_IndexBufferMemory);
 	}
-	else if (Usage & BUF_AccelerationStructure)
+	else if (EnumHasAnyFlags(Usage, BUF_AccelerationStructure))
 	{
 		return GET_STATFNAME(STAT_RTAccelerationStructureMemory);
 	}

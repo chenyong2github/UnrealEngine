@@ -11,9 +11,9 @@
 
 struct FMetalPooledBufferArgs
 {
-    FMetalPooledBufferArgs() : Device(nil), Size(0), Flags(0), Storage(mtlpp::StorageMode::Shared), CpuCacheMode(mtlpp::CpuCacheMode::DefaultCache) {}
+    FMetalPooledBufferArgs() : Device(nil), Size(0), Flags(BUF_None), Storage(mtlpp::StorageMode::Shared), CpuCacheMode(mtlpp::CpuCacheMode::DefaultCache) {}
 	
-    FMetalPooledBufferArgs(mtlpp::Device InDevice, uint32 InSize, uint32 InFlags, mtlpp::StorageMode InStorage, mtlpp::CpuCacheMode InCpuCacheMode = mtlpp::CpuCacheMode::DefaultCache)
+    FMetalPooledBufferArgs(mtlpp::Device InDevice, uint32 InSize, EBufferUsageFlags InFlags, mtlpp::StorageMode InStorage, mtlpp::CpuCacheMode InCpuCacheMode = mtlpp::CpuCacheMode::DefaultCache)
 	: Device(InDevice)
 	, Size(InSize)
     , Flags(InFlags)
@@ -24,7 +24,7 @@ struct FMetalPooledBufferArgs
 	
 	mtlpp::Device Device;
 	uint32 Size;
-    uint32 Flags;
+	EBufferUsageFlags Flags;
 	mtlpp::StorageMode Storage;
 	mtlpp::CpuCacheMode CpuCacheMode;
 };
@@ -428,7 +428,7 @@ public:
 	
 	void Init(FMetalCommandQueue& Queue);
 	
-    FMetalBuffer CreateBuffer(uint32 Size, uint32 Alignment, uint32 Flags, mtlpp::ResourceOptions Options, bool bForceUnique = false);
+    FMetalBuffer CreateBuffer(uint32 Size, uint32 Alignment, EBufferUsageFlags Flags, mtlpp::ResourceOptions Options, bool bForceUnique = false);
 	FMetalTexture CreateTexture(mtlpp::TextureDescriptor Desc, FMetalSurface* Surface);
 	
 	void ReleaseBuffer(FMetalBuffer& Buffer);

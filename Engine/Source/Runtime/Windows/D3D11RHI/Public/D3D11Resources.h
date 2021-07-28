@@ -633,7 +633,7 @@ public:
 
 	FD3D11Buffer() = default;
 
-	FD3D11Buffer(ID3D11Buffer* InResource, uint32 InSize, uint32 InUsage, uint32 InStride)
+	FD3D11Buffer(ID3D11Buffer* InResource, uint32 InSize, EBufferUsageFlags InUsage, uint32 InStride)
 	: FRHIBuffer(InSize, InUsage, InStride)
 	, Resource(InResource)
 	{

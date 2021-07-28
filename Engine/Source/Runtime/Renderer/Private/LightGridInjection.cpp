@@ -629,7 +629,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 				TEXT("Attempt to allocate large FRWBuffer (not supported by Metal): View.ForwardLightingResources->NumCulledLightsGrid %u Bytes, LightGridSize %dx%dx%d, NumCulledGridPrimitiveTypes %d, MaxNumCells %d, NumCulledLightsGridStride %d, View Resolution %dx%d"),
 				MaxNumCells * NumCulledLightsGridStride * sizeof(uint32), MaxLightGridSizeXY.X, MaxLightGridSizeXY.Y, GLightGridSizeZ, NumCulledGridPrimitiveTypes, MaxNumCells, NumCulledLightsGridStride, View.ViewRect.Size().X, View.ViewRect.Size().Y);
 
-			View.ForwardLightingResources->NumCulledLightsGrid.Initialize(TEXT("NumCulledLightsGrid"), sizeof(uint32), MaxNumCells * NumCulledLightsGridStride, PF_R32_UINT, 0);
+			View.ForwardLightingResources->NumCulledLightsGrid.Initialize(TEXT("NumCulledLightsGrid"), sizeof(uint32), MaxNumCells * NumCulledLightsGridStride, PF_R32_UINT);
 		}
 
 		if (View.ForwardLightingResources->CulledLightDataGrid.NumBytes != MaxNumCells * GMaxCulledLightsPerCell * LightIndexTypeSize)
@@ -638,7 +638,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 				TEXT("Attempt to allocate large FRWBuffer (not supported by Metal): View.ForwardLightingResources->CulledLightDataGrid %u Bytes, LightGridSize %dx%dx%d, NumCulledGridPrimitiveTypes %d, MaxNumCells %d, GMaxCulledLightsPerCell %d, View Resolution %dx%d"),
 				MaxNumCells * GMaxCulledLightsPerCell * sizeof(FLightIndexType), MaxLightGridSizeXY.X, MaxLightGridSizeXY.Y, GLightGridSizeZ, NumCulledGridPrimitiveTypes, MaxNumCells, GMaxCulledLightsPerCell, View.ViewRect.Size().X, View.ViewRect.Size().Y);
 
-			View.ForwardLightingResources->CulledLightDataGrid.Initialize(TEXT("CulledLightDataGrid"), LightIndexTypeSize, MaxNumCells * GMaxCulledLightsPerCell, LightIndexTypeSize == sizeof(uint16) ? PF_R16_UINT : PF_R32_UINT, 0);
+			View.ForwardLightingResources->CulledLightDataGrid.Initialize(TEXT("CulledLightDataGrid"), LightIndexTypeSize, MaxNumCells * GMaxCulledLightsPerCell, LightIndexTypeSize == sizeof(uint16) ? PF_R16_UINT : PF_R32_UINT);
 		}
 
 		const bool bShouldCacheTemporaryBuffers = View.ViewState != nullptr;

@@ -928,13 +928,13 @@ class FD3D12Buffer : public FRHIBuffer, public FD3D12BaseShaderResource, public 
 {
 public:
 	FD3D12Buffer()
-		: FRHIBuffer(0, 0, 0)
+		: FRHIBuffer(0, BUF_None, 0)
 		, FD3D12BaseShaderResource(nullptr)
 		, LockedData(nullptr)
 	{
 	}
 
-	FD3D12Buffer(FD3D12Device* InParent, uint32 InSize, uint32 InUsage, uint32 InStride)
+	FD3D12Buffer(FD3D12Device* InParent, uint32 InSize, EBufferUsageFlags InUsage, uint32 InStride)
 		: FRHIBuffer(InSize, InUsage, InStride)
 		, FD3D12BaseShaderResource(InParent)
 		, LockedData(InParent)
