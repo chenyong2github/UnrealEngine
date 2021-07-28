@@ -88,6 +88,25 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 			}
 		}
 	}
+	else if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionY))
+		{
+			if (ComponentWidget.IsValid())
+			{
+				ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
+			}
+		}
+		else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeY))
+		{
+			if (ComponentWidget.IsValid())
+			{
+				ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+			}
+		}
+	}
 }
 #endif // WITH_EDITOR
 
@@ -427,9 +446,9 @@ const FVector2D UDMXPixelMappingScreenComponent::GetScreenPixelSize() const
 void UDMXPixelMappingScreenComponent::ForEachPixel(ForEachPixelCallback InCallback)
 {
 	int32 IndexXY = 0;
-	for (int32 NumXIndex = 0; NumXIndex < NumXCells; ++NumXIndex)
+	for (int32 NumYIndex = 0; NumYIndex < NumYCells; ++NumYIndex)
 	{
-		for (int32 NumYIndex = 0; NumYIndex < NumYCells; ++NumYIndex)
+		for (int32 NumXIndex = 0; NumXIndex < NumXCells; ++NumXIndex)
 		{
 			InCallback(IndexXY, NumXIndex, NumYIndex);
 			IndexXY++;
