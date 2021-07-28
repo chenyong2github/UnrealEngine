@@ -3019,7 +3019,7 @@ void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 		// Due to structures that might not be fully parsed at parse time, do blueprint validation here
 		if (GetFunctionType() == EFunctionType::Function && HasAnyFunctionFlags(FUNC_BlueprintCallable | FUNC_BlueprintEvent))
 		{
-			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+			for (TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : GetProperties())
 			{
 				if (PropertyDef->IsStaticArray())
 				{
@@ -3036,10 +3036,34 @@ void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 			}
 		}
 
+		// Do a more generic validation of the arguments
+		// 
+		// This code is technically incorrect but here for compatibility reasons.  Container types (TObjectPtr, TArray, etc...) should have the 
+		// const on the inside of the template arguments but it places the const on the outside which isn't correct.  This needs to be addressed
+		// in any updates to the type parser.  See EGetVarTypeOptions::NoAutoConst for the parser side of the problem.
+		for (TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : GetProperties())
+		{
+			FPropertyBase& PropertyBase = PropertyDef->GetPropertyBase();
+			if (FUnrealClassDefinitionInfo* ClassDef = UHTCast<FUnrealClassDefinitionInfo>(PropertyBase.TypeDef))
+			{
+				if (ClassDef->HasAnyClassFlags(CLASS_Const) && !PropertyDef->HasAnyPropertyFlags(CPF_ConstParm))
+				{
+					if (PropertyDef->HasAnyPropertyFlags(CPF_ReturnParm))
+					{
+						LogError(TEXT("Return value must be 'const' since '%s' is marked 'const'"), *ClassDef->GetNameCPP());
+					}
+					else
+					{
+						LogError(TEXT("Argument '%s' must be 'const' since '%s' is marked 'const'"), *PropertyDef->GetName(), *ClassDef->GetNameCPP());
+					}
+				}
+			}
+		}
+
 		// The following code is only performed on functions in a class.  
 		if (UHTCast<FUnrealClassDefinitionInfo>(GetOuter()) != nullptr)
 		{
-			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+			for (TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : GetProperties())
 			{
 				if (PropertyDef->HasSpecificPropertyFlags(CPF_ReturnParm | CPF_OutParm, CPF_OutParm))
 				{
@@ -3048,8 +3072,7 @@ void FUnrealFunctionDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 
 				if (PropertyDef->IsStructOrStructStaticArray())
 				{
-					FUnrealScriptStructDefinitionInfo& StructDef = UHTCastChecked<FUnrealScriptStructDefinitionInfo>(PropertyDef->GetPropertyBase().ClassDef);
-					if (StructDef.HasDefaults())
+					if (PropertyDef->GetPropertyBase().ScriptStructDef->HasDefaults())
 					{
 						SetFunctionFlags(FUNC_HasDefaults);
 					}
