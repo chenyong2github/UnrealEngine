@@ -86,9 +86,10 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	case RouteId_EventBatch:
 	case RouteId_EndCapture:
 	{
-		TotalEventSize += EventData.GetAttachmentSize();
-		uint32 BufferSize = EventData.GetAttachmentSize();
-		const uint8* BufferPtr = EventData.GetAttachment();
+		TArrayView<const uint8> DataView = FTraceAnalyzerUtils::LegacyAttachmentArray("Data", Context);
+		TotalEventSize += DataView.Num();
+		uint32 BufferSize = DataView.Num();
+		const uint8* BufferPtr = DataView.GetData();
 		uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 		if (uint64 LastCycle = ProcessBuffer(Context.EventTime, ThreadId, BufferPtr, BufferSize))
 		{
