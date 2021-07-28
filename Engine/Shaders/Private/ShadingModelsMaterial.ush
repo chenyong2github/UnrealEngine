@@ -65,7 +65,7 @@ void SetGBufferForShadingModel(
 
 			// Average roughness for dual specular.
 			uint SubsurfaceProfileUInt = uint(SubsurfaceProfile * 255.0f + 0.5f);
-			float MaterialRoughnessToAverage = ActualSSProfilesTexture.Load(int3(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileUInt, 0)).w * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
+			float MaterialRoughnessToAverage = GetSubsurfaceProfileTexture(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileUInt).w * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
 
 			// Smooth blend out dual specular when opacity is low, we have the extra SSSS_OPACITY_THRESHOLD_EPS so that we fade out by the time we
 			// get to 0.01, as opposed to 0.0.

@@ -10,6 +10,13 @@
 #define MobileSceneTextures MobileBasePass.SceneTextures
 #define EyeAdaptationStruct MobileBasePass
 
+#define ActualSSProfilesTexture MobileBasePass.SSProfilesTexture
+#define SSProfilesSampler MobileBasePass.SSProfilesSampler
+
+#define SSProfilesPreIntegratedTexture MobileBasePass.SSProfilesPreIntegratedTexture
+#define SSProfilesPreIntegratedSampler MobileBasePass.SSProfilesPreIntegratedSampler
+#define SSProfilesTextureSizeAndInvSize MobileBasePass.SSProfilesTextureSizeAndInvSize
+
 #ifndef MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF
 #define MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF 0
 #endif
@@ -653,6 +660,14 @@ void Main(
 	// 0..1, SubsurfaceProfileId = int(x * 255)
 	float SubsurfaceProfile = 0;
 
+#if (MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE) && MOBILE_SHADINGMODEL_SUPPORT
+	half4 SubsurfaceData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+
+	SubsurfaceColor = SubsurfaceData.rgb * ResolvedView.DiffuseOverrideParameter.w + ResolvedView.DiffuseOverrideParameter.xyz;
+
+	SubsurfaceProfile = SubsurfaceData.a;
+#endif
+
 #if APPLY_AO
 	half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, SvPositionToBufferUV(SvPosition));
 
@@ -709,6 +724,18 @@ void Main(
 	GBuffer.BaseColor *= TopMaterialCoverage;
 #endif
 
+#if MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE && MOBILE_SHADINGMODEL_SUPPORT
+	if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+	{
+		#if MATERIAL_SUBSURFACE_PROFILE_USE_CURVATURE
+			GBuffer.CustomData.g = GetMaterialCustomData0(MaterialParameters);
+		#else
+			GBuffer.CustomData.g = CalculateCurvature(GBuffer.WorldNormal, MaterialParameters.AbsoluteWorldPosition);
+		#endif
+
+		GBuffer.CustomData.g = max(saturate(GBuffer.CustomData.g), 0.001f);
+	}
+#endif
 	InitShadingModelContext(ShadingModelContext, GBuffer, MaterialParameters.CameraVector);
 	float3 DiffuseDir = MaterialParameters.WorldNormal;
 
@@ -745,6 +772,13 @@ void Main(
 	half IndirectIrradiance;
 	half3 IndirectColor;
 	half3 DiffuseColorForIndirect = ShadingModelContext.DiffuseColor;
+
+#if (MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN) && MOBILE_SHADINGMODEL_SUPPORT
+	if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+	{
+		DiffuseColorForIndirect += ShadingModelContext.SubsurfaceColor;
+	}
+#endif
 
 	// Apply MaterialAO since we don't have the DiffuseIndirectComposite pass on mobile deferred.
 	ComputeIndirect(LightmapVTPageTableResult, Interpolants, DiffuseDir, DiffuseColorForIndirect, MaterialAO, IndirectIrradiance, MobileLightAccumulator);
@@ -951,6 +985,9 @@ void Main(
 		ShadingModelContext.WaterDiffuseIndirectLuminance += SkyDiffuseLighting;
 	#endif
 		half3 DiffuseColorForSky = ShadingModelContext.DiffuseColor;
+	#if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN
+		DiffuseColorForSky += ShadingModelContext.SubsurfaceColor;
+	#endif
 		MobileLightAccumulator_Add(MobileLightAccumulator, SkyDiffuseLighting, 0.0f, half3(ResolvedView.SkyLightColor.rgb) * DiffuseColorForSky * MaterialAO);
 	#if MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP
 	}

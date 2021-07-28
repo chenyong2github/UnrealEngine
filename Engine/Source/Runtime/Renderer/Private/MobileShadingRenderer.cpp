@@ -692,6 +692,10 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
+
+	// Force the subsurface profile texture to be updated.
+	UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);
+
 	FRDGSystemTextures::Create(GraphBuilder);
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(Scene->GPUScene.IsEnabled());

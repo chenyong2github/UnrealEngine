@@ -379,6 +379,8 @@ protected:
 	
 	uint32 bEnableExecutionFlow : 1;
 
+	uint32 bUsesCurvature : 1;
+
 	/** Tracks the texture coordinates used by this material. */
 	TBitArray<> AllocatedUserTexCoords;
 	/** Tracks the texture coordinates used by the vertex shader in this material. */

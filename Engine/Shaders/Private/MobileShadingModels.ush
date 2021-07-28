@@ -8,6 +8,7 @@
 #include "ShadowFilteringCommon.ush"
 #include "DeferredShadingCommon.ush"
 #include "HairBsdf.ush"
+#include "BurleyNormalizedSSSCommon.ush"
 
 #ifndef FEATURE_GATHER4
 #define FEATURE_GATHER4 1
@@ -87,6 +88,16 @@ struct FMobileShadingModelContext
 #if MOBILE_SHADINGMODEL_SUPPORT
 	half ClearCoat;
 	half ClearCoatRoughness;
+
+	// If we don't use this shading model the color should be black (don't generate shader code for unused data, don't do indirectlighting cache lighting with this color).
+	half3 SubsurfaceColor;
+
+	uint SubsurfaceProfileInt;
+	half  Curvature;
+	
+	half Lobe0Roughness;
+	half Lobe1Roughness;
+	half LobeMix;
 #endif
 };
 
@@ -103,6 +114,38 @@ half3 GetEnvBRDF(half3 SpecularColor, half Roughness, half NoV)
 	return EnvBRDFApprox(SpecularColor, Roughness, NoV);
 #endif
 }
+
+#if MOBILE_SHADINGMODEL_SUPPORT
+half CalculateCurvature(half3 WorldNormal, float3 WorldPosition)
+{
+#if 0
+	half DeltaNormal = length(abs(DDX(WorldNormal)) + abs(DDY(WorldNormal)));
+	half DeltaPosition = length(abs(DDX(WorldPosition)) + abs(DDY(WorldPosition))) * BURLEY_CM_2_MM;
+	half CurvatureApprox = DeltaNormal / DeltaPosition;
+#else
+	half3 dNdx = ddx(WorldNormal);
+	half3 dNdy = ddy(WorldNormal);
+	half x = dot(dNdx, dNdx);
+	half y = dot(dNdy, dNdy);
+	half CurvatureApprox = pow(max(x, y), ResolvedView.NormalCurvatureToRoughnessScaleBias.z);
+#endif
+	return CurvatureApprox;
+}
+
+void GetProfileDualSpecular(uint SubsurfaceProfileInt, out half2 AverageToRoughness, out half LobeMix)
+{
+	half4 Data = GetSubsurfaceProfileTexture(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileInt);
+	AverageToRoughness = Data.xy * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
+	LobeMix = Data.z;
+}
+
+half4 GetSSProfilePreIntegratedValue(uint SubsurfaceProfileInt, half NoL, half Curvature)
+{
+	float3 UV = float3((NoL * .5 + .5), Curvature, SubsurfaceProfileInt);
+
+	return Texture2DArraySampleLevel(SSProfilesPreIntegratedTexture, SSProfilesPreIntegratedSampler, UV, 0);
+}
+#endif
 
 void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContext, inout FGBufferData GBuffer, half3 CameraVector)
 {
@@ -152,6 +195,24 @@ void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContex
 		half Specular = lerp(GBuffer.Specular, RefractionScale, ShadingModelContext.ClearCoat);
 		half DielectricSpecular = 0.08 * Specular;
 		ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * GBuffer.Metallic) + GBuffer.BaseColor * GBuffer.Metallic;	// 2 mad
+	}
+	else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+	{
+		ShadingModelContext.SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBuffer);
+				
+		ShadingModelContext.Curvature = GBuffer.CustomData.g;
+
+		half2 AverageToRoughness;
+		GetProfileDualSpecular(ShadingModelContext.SubsurfaceProfileInt, AverageToRoughness, ShadingModelContext.LobeMix);
+
+		half AverageRoughness = GBuffer.Roughness;
+		ShadingModelContext.Lobe0Roughness = max(saturate(AverageRoughness * AverageToRoughness.x), 0.02f);
+		ShadingModelContext.Lobe1Roughness = saturate(AverageRoughness * AverageToRoughness.y);
+
+		// Smoothly lerp to default single GGX lobe as Opacity approaches 0
+		half RoughnessLerpFactor = saturate(ShadingModelContext.Opacity * 10.0f);
+		ShadingModelContext.Lobe0Roughness = lerp(1.0f, ShadingModelContext.Lobe0Roughness, RoughnessLerpFactor);
+		ShadingModelContext.Lobe1Roughness = lerp(1.0f, ShadingModelContext.Lobe1Roughness, RoughnessLerpFactor);
 	}
 #endif
 
@@ -278,6 +339,59 @@ FMobileDirectLighting MobileHairBxDF(FMobileShadingModelContext ShadingModelCont
 
 	return Lighting;
 }
+
+FMobileDirectLighting MobileSubsurfaceBxDF(FMobileShadingModelContext ShadingModelContext, FGBufferData GBuffer, half NoL, half NoH, half VoH, half3 V, half3 L, half Shadow)
+{
+	FMobileDirectLighting Lighting;
+
+	Lighting = MobileDefaultLitBxDF(ShadingModelContext, GBuffer, NoL, NoH, VoH, V, L, Shadow);
+	
+	half InScatter = pow(saturate(dot(L, -V)), 12) * lerp(3, .1f, ShadingModelContext.Opacity);
+
+	half NormalContribution = saturate(NoH * ShadingModelContext.Opacity + 1 - ShadingModelContext.Opacity);
+	half BackScatter = GBuffer.GBufferAO * NormalContribution / (PI * 2);
+
+	// lerp to never exceed 1 (energy conserving)
+	half3 Transmission = lerp(BackScatter, 1, InScatter) * ShadingModelContext.SubsurfaceColor * PI; // multiply PI since the LightColor is divided by PI in C++
+
+	Lighting.Diffuse += Transmission * Shadow;
+
+	return Lighting;
+}
+
+FMobileDirectLighting MobilePreintegratedSkinBxDF(FMobileShadingModelContext ShadingModelContext, FGBufferData GBuffer, half NoL, half NoH, half VoH, half3 V, half3 L, half Shadow)
+{
+	FMobileDirectLighting Lighting;
+
+	Lighting = MobileDefaultLitBxDF(ShadingModelContext, GBuffer, NoL, NoH, VoH, V, L, Shadow);
+
+	half3 PreintegratedBRDF = Texture2DSampleLevel(View.PreIntegratedBRDF, View.PreIntegratedBRDFSampler, float2(saturate(NoL * .5 + .5), 1 - ShadingModelContext.Opacity), 0).rgb;
+	half3 Transmission = PreintegratedBRDF * ShadingModelContext.SubsurfaceColor * PI; // multiply PI since the LightColor is divided by PI in C++
+
+	Lighting.Diffuse += Transmission * Shadow;
+
+	return Lighting;
+}
+
+FMobileDirectLighting MobileSubsurfaceProfileBxDF(FMobileShadingModelContext ShadingModelContext, FGBufferData GBuffer, half NoL, half NoH, half VoH, half3 V, half3 L, half Shadow)
+{
+	FMobileDirectLighting Lighting;
+
+	half UnClampedNoL = dot(GBuffer.WorldNormal, L);
+
+	half ShadowFactor = 1 - sqrt(Shadow);
+
+	// Rotate the world normal based on the shadow value, it's just a experimental value 
+	half UnClampedRotatedNoL = max(UnClampedNoL - max(2.0f * UnClampedNoL, 0.4f) * ShadowFactor, -1.0f);
+
+	half4 BurleyDiffuse = GetSSProfilePreIntegratedValue(ShadingModelContext.SubsurfaceProfileInt, UnClampedRotatedNoL, ShadingModelContext.Curvature);
+
+	Lighting.Diffuse = BurleyDiffuse.rgb * ShadingModelContext.DiffuseColor;
+
+	Lighting.Specular = Shadow * NoL * MobileDualSpecularGGX(GBuffer.Roughness, ShadingModelContext.Lobe0Roughness, ShadingModelContext.Lobe1Roughness, ShadingModelContext.LobeMix, ShadingModelContext.EnvBrdf, ShadingModelContext.SpecularColor, ShadingModelContext.NoV, NoH, NoL, VoH);
+
+	return Lighting;
+}
 #endif
 
 FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingModelContext, FGBufferData GBuffer, half NoL, half NoH, half VoH, half3 V, half3 L, half Shadow = 1.0f)
@@ -290,6 +404,18 @@ FMobileDirectLighting MobileIntegrateBxDF(FMobileShadingModelContext ShadingMode
 	else if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 	{
 		return MobileHairBxDF(ShadingModelContext, GBuffer, NoL, NoH, VoH, V, L, Shadow);
+	}
+	else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE)
+	{
+		return MobileSubsurfaceBxDF(ShadingModelContext, GBuffer, NoL, NoH, VoH, V, L, Shadow);
+	}
+	else if (GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+	{
+		return MobilePreintegratedSkinBxDF(ShadingModelContext, GBuffer, NoL, NoH, VoH, V, L, Shadow);
+	}
+	else if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+	{
+		return MobileSubsurfaceProfileBxDF(ShadingModelContext, GBuffer, NoL, NoH, VoH, V, L, Shadow);
 	}
 #endif
 

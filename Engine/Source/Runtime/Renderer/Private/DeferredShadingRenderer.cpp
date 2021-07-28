@@ -1881,7 +1881,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 
 		// Force the subsurface profile texture to be updated.
-		UpdateSubsurfaceProfileTexture(GraphBuilder.RHICmdList);
+		UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);
 	}
 
 	const FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(ViewFamily);

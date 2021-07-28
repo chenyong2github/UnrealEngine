@@ -13,7 +13,9 @@
 #define BSSS_DMFP_OFFSET                        (BSSS_SURFACEALBEDO_OFFSET+1)
 #define SSSS_TRANSMISSION_OFFSET				(BSSS_DMFP_OFFSET+1)
 #define SSSS_BOUNDARY_COLOR_BLEED_OFFSET		(SSSS_TRANSMISSION_OFFSET+1)
-#define SSSS_DUAL_SPECULAR_OFFSET				(SSSS_BOUNDARY_COLOR_BLEED_OFFSET+1)
+#define SSSS_APPROXIMATE_SURFACEALBEDO_OFFSET	(SSSS_BOUNDARY_COLOR_BLEED_OFFSET+1)
+#define SSSS_APPROXIMATE_DMFP_OFFSET			(SSSS_APPROXIMATE_SURFACEALBEDO_OFFSET+1)
+#define SSSS_DUAL_SPECULAR_OFFSET				(SSSS_APPROXIMATE_DMFP_OFFSET+1)
 #define SSSS_KERNEL0_OFFSET						(SSSS_DUAL_SPECULAR_OFFSET+1)
 #define SSSS_KERNEL0_SIZE						13
 #define SSSS_KERNEL1_OFFSET						(SSSS_KERNEL0_OFFSET + SSSS_KERNEL0_SIZE)
@@ -39,5 +41,22 @@ Texture2D SSProfilesTexture;
 // Rename to allow the base pass to intercept with a value from its pass uniform buffer
 #ifndef ActualSSProfilesTexture
 #define ActualSSProfilesTexture SSProfilesTexture
+
+	Texture2DArray SSProfilesPreIntegratedTexture;
+	SamplerState SSProfilesPreIntegratedSampler;
+	#if COMPILER_GLSL_ES3_1
+	SamplerState SSProfilesSampler;
+	float4 SSProfilesTextureSizeAndInvSize;
+	#endif
+
 #endif
+
+half4 GetSubsurfaceProfileTexture(uint SampleIndex, uint SubsurfaceProfileInt)
+{
+#if COMPILER_GLSL_ES3_1 // Force to use a point sampler for Texture2D.Load on OpenGLES platform
+	return ActualSSProfilesTexture.SampleLevel(SSProfilesSampler, (uint2(SampleIndex, SubsurfaceProfileInt) + float2(0.5f, 0.5f)) * SSProfilesTextureSizeAndInvSize.zw, 0);
+#else
+	return ActualSSProfilesTexture.Load(int3(SampleIndex, SubsurfaceProfileInt, 0));
+#endif 
+}
 

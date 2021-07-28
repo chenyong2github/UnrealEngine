@@ -23,19 +23,19 @@ struct FSubsurfaceProfileStruct
 	* Controls how far light goes into the subsurface in the Red, Green and Blue channel. It is scaled by Mean Free path distance.
 	*/
 	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.001", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel, editcondition = "bEnableBurley"))
-		FLinearColor MeanFreePathColor; //MeanFreePathLength;
+	FLinearColor MeanFreePathColor; //MeanFreePathLength;
 	
 	/**
 	* Subsurface mean free path distance in world/unreal units (cm)
 	*/
 	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BluePrintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0", editcondition = "bEnableBurley"))
-		float MeanFreePathDistance;
+	float MeanFreePathDistance;
 
 	/**
 	* Control the scale of world/unreal units (cm)
 	*/
 	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0", editcondition = "bEnableBurley"))
-		float WorldUnitScale;
+	float WorldUnitScale;
 
 	/**
 	* Effective only when Burley subsurface scattering is enabled in cmd.
@@ -91,7 +91,7 @@ struct FSubsurfaceProfileStruct
 	* Transmission tint control. It is multiplied on the transmission results. Works only when Burley is enabled.
 	*/
 	UPROPERTY(Category = "Transmission", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.001", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel))
-		FLinearColor TransmissionTintColor;
+	FLinearColor TransmissionTintColor;
 
 	// constructor
 	FSubsurfaceProfileStruct()
@@ -192,6 +192,8 @@ public:
 	struct IPooledRenderTarget* GetTexture(FRHICommandListImmediate& RHICmdList);
 	struct IPooledRenderTarget* GetTexture();
 
+	struct IPooledRenderTarget* GetSSProfilesPreIntegratedTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform);
+
 	//~ Begin FRenderResource Interface.
 	/**
 	* Release textures when device is lost/destroyed.
@@ -245,10 +247,13 @@ static const int32 SUBSURFACE_KERNEL_SIZE = 3;
 extern ENGINE_API TGlobalResource<FSubsurfaceProfileTexture> GSubsurfaceProfileTextureObject;
 
 // Initializes or updates the contents of the subsurface profile texture.
-ENGINE_API void UpdateSubsurfaceProfileTexture(FRHICommandListImmediate& RHICmdList);
+ENGINE_API void UpdateSubsurfaceProfileTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform);
 
 // Returns the subsurface profile texture if it exists, or null.
 ENGINE_API FRHITexture* GetSubsurfaceProfileTexture();
 
 // Returns the subsurface profile texture if it exists, or black.
 ENGINE_API FRHITexture* GetSubsurfaceProfileTextureWithFallback();
+
+// Returns the Preintegrated texture if it exists, or black.
+ENGINE_API FRHITexture* GetSSProfilesPreIntegratedTextureWithFallback();

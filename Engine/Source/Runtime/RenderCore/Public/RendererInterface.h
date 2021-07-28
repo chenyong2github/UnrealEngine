@@ -107,6 +107,48 @@ public:
 	}
 
 	/**
+ * Factory function to create 2D array texture description
+ * @param InFlags bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV
+ */
+	static FPooledRenderTargetDesc Create2DArrayDesc(
+		FIntPoint InExtent,
+		EPixelFormat InFormat,
+		const FClearValueBinding& InClearValue,
+		ETextureCreateFlags InFlags,
+		ETextureCreateFlags InTargetableFlags,
+		bool bInForceSeparateTargetAndShaderResource,
+		uint32 InArraySize,
+		uint16 InNumMips = 1,
+		bool InAutowritable = true,
+		bool InCreateRTWriteMask = false,
+		bool InCreateFmask = false)
+	{
+		check(InExtent.X);
+		check(InExtent.Y);
+
+		FPooledRenderTargetDesc NewDesc;
+		NewDesc.ClearValue = InClearValue;
+		NewDesc.Extent = InExtent;
+		NewDesc.Depth = 0;
+		NewDesc.ArraySize = InArraySize;
+		NewDesc.bIsArray = true;
+		NewDesc.bIsCubemap = false;
+		NewDesc.NumMips = InNumMips;
+		NewDesc.NumSamples = 1;
+		NewDesc.Format = InFormat;
+		NewDesc.Flags = InFlags;
+		NewDesc.TargetableFlags = InTargetableFlags;
+		NewDesc.bForceSeparateTargetAndShaderResource = bInForceSeparateTargetAndShaderResource;
+		NewDesc.DebugName = TEXT("UnknownTexture2DArray");
+		NewDesc.AutoWritable = InAutowritable;
+		NewDesc.bCreateRenderTargetWriteMask = InCreateRTWriteMask;
+		NewDesc.bCreateRenderTargetFmask = InCreateFmask;
+		check(NewDesc.Is2DTexture());
+
+		return NewDesc;
+	}
+
+	/**
 	 * Factory function to create 3D texture description
 	 * @param InFlags bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV
 	 */
