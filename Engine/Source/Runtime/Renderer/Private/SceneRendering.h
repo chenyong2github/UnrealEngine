@@ -2485,16 +2485,16 @@ struct FFastVramConfig
 	ETextureCreateFlags ShadowCSM;
 
 	// Buffers
-	uint32 DistanceFieldCulledObjectBuffers;
-	uint32 DistanceFieldTileIntersectionResources;
-	uint32 DistanceFieldAOScreenGridResources;
-	uint32 ForwardLightingCullingResources;
-	uint32 GlobalDistanceFieldCullGridBuffers;
+	EBufferUsageFlags DistanceFieldCulledObjectBuffers;
+	EBufferUsageFlags DistanceFieldTileIntersectionResources;
+	EBufferUsageFlags DistanceFieldAOScreenGridResources;
+	EBufferUsageFlags ForwardLightingCullingResources;
+	EBufferUsageFlags GlobalDistanceFieldCullGridBuffers;
 	bool bDirty;
 
 private:
 	bool UpdateTextureFlagFromCVar(TAutoConsoleVariable<int32>& CVar, ETextureCreateFlags& InOutValue);
-	bool UpdateBufferFlagFromCVar(TAutoConsoleVariable<int32>& CVar, uint32& InOutValue);
+	bool UpdateBufferFlagFromCVar(TAutoConsoleVariable<int32>& CVar, EBufferUsageFlags& InOutValue);
 };
 
 extern FFastVramConfig GFastVRamConfig;

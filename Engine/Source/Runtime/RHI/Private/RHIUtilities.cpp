@@ -564,16 +564,16 @@ RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bI
 {
 	// Default reading state is different per buffer type
 	ERHIAccess DefaultReadingState = ERHIAccess::Unknown;
-	if (InUsage & BUF_IndexBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_IndexBuffer))
 	{
 		DefaultReadingState = ERHIAccess::VertexOrIndexBuffer;
 	}
-	if (InUsage & BUF_VertexBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_VertexBuffer))
 	{
 		// Could be vertex buffer or normal DataBuffer
 		DefaultReadingState = DefaultReadingState | ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask;
 	}
-	if (InUsage & BUF_StructuredBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer))
 	{
 		DefaultReadingState = DefaultReadingState | ERHIAccess::SRVMask;
 	}
@@ -589,11 +589,11 @@ RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, bool bI
 	}
 	else
 	{
-		if (InUsage & BUF_UnorderedAccess)
+		if (EnumHasAnyFlags(InUsage, BUF_UnorderedAccess))
 		{
 			ResourceState = ERHIAccess::UAVMask;
 		}
-		else if (InUsage & BUF_ShaderResource)
+		else if (EnumHasAnyFlags(InUsage, BUF_ShaderResource))
 		{
 			ResourceState = DefaultReadingState | ERHIAccess::SRVMask;
 		}

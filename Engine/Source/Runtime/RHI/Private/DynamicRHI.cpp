@@ -578,7 +578,7 @@ FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuf
 FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, uint32 InStartOffsetBytes, uint32 InNumElements)
 	: BufferInitializer({ InBuffer, InStartOffsetBytes, InNumElements, PF_Unknown }), Type(EType::StructuredBufferSRV)
 {
-	const uint32 Stride = (InBuffer->GetUsage() & BUF_AccelerationStructure) 
+	const uint32 Stride = EnumHasAnyFlags(InBuffer->GetUsage(), BUF_AccelerationStructure) 
 		? 1 // Acceleration structure buffers don't have a stride as they are opaque and not indexable
 		: InBuffer->GetStride();
 
@@ -601,16 +601,16 @@ void FShaderResourceViewInitializer::InitType()
 {
 	if (BufferInitializer.Buffer)
 	{
-		uint32 Usage = BufferInitializer.Buffer->GetUsage();
-		if (Usage & BUF_VertexBuffer)
+		EBufferUsageFlags Usage = BufferInitializer.Buffer->GetUsage();
+		if (EnumHasAnyFlags(Usage, BUF_VertexBuffer))
 		{
 			Type = EType::VertexBufferSRV;
 		}
-		else if (Usage & BUF_IndexBuffer)
+		else if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
 		{
 			Type = EType::IndexBufferSRV;
 		}
-		else if (Usage & BUF_AccelerationStructure)
+		else if (EnumHasAnyFlags(Usage, BUF_AccelerationStructure))
 		{
 			Type = EType::AccelerationStructureSRV;
 		}

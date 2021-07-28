@@ -34,8 +34,8 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 
 	FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
 
-	const uint32 BufferUsage = Buffer->GetUsage();
-	const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
+	const EBufferUsageFlags BufferUsage = Buffer->GetUsage();
+	const bool bByteAccessBuffer = EnumHasAnyFlags(BufferUsage, BUF_ByteAddressBuffer);
 	const bool bStructuredBuffer = !bByteAccessBuffer;
 	check(bByteAccessBuffer != bStructuredBuffer); // You can't have a structured buffer that allows raw views
 
@@ -51,7 +51,7 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
 		EffectiveStride = 4;
 	}
-	else if (BufferUsage & BUF_DrawIndirect)
+	else if (EnumHasAnyFlags(BufferUsage, BUF_DrawIndirect))
 	{
 		UAVDesc.Format  = DXGI_FORMAT_R32_UINT;
 		EffectiveStride = 4;
@@ -131,7 +131,7 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
 	uint32 EffectiveStride;
-	if (Buffer->GetUsage() & BUF_ByteAddressBuffer)
+	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_ByteAddressBuffer))
 	{
 		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
@@ -307,7 +307,7 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_Render
 	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
 	// TODO: we have to stall the RHI thread when creating SRVs of dynamic buffers because they get renamed.
 	// perhaps we could do a deferred operation?
-	if (Buffer->GetUsage() & BUF_AnyDynamic)
+	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_AnyDynamic))
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
 		return RHICreateUnorderedAccessView(BufferRHI, bUseUAVCounter, bAppendBuffer);
@@ -331,7 +331,7 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_Render
 
 	// TODO: we have to stall the RHI thread when creating SRVs of dynamic buffers because they get renamed.
 	// perhaps we could do a deferred operation?
-	if (Buffer->GetUsage() & BUF_AnyDynamic)
+	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_AnyDynamic))
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
 		return RHICreateUnorderedAccessView(BufferRHI, Format);

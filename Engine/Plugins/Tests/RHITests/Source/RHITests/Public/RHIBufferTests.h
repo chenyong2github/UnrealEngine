@@ -108,9 +108,9 @@ class FRHIBufferTests
 	}
 
 	template <typename ValueType, uint32 NumTestBytes>
-	static bool RunTest_UAVClear_StructuredBuffer(FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 BufferSize, uint32 InExtraUsage, const ValueType& ClearValue, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&), const uint8(&TestValue)[NumTestBytes])
+	static bool RunTest_UAVClear_StructuredBuffer(FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 BufferSize, EBufferUsageFlags InExtraUsage, const ValueType& ClearValue, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&), const uint8(&TestValue)[NumTestBytes])
 	{
-		FString TestName = FString::Printf(TEXT("RunTest_UAVClear_StructuredBuffer, Stride: %d, Size: %d, ByteAddress: %d"), Stride, BufferSize, (InExtraUsage & BUF_ByteAddressBuffer) ? 1 : 0);
+		FString TestName = FString::Printf(TEXT("RunTest_UAVClear_StructuredBuffer, Stride: %d, Size: %d, ByteAddress: %d"), Stride, BufferSize, EnumHasAnyFlags(InExtraUsage, BUF_ByteAddressBuffer) ? 1 : 0);
 
 		check(NumTestBytes == Stride);
 
@@ -129,7 +129,7 @@ class FRHIBufferTests
 	static bool RunTest_UAVClear_StructuredBuffer(FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 BufferSize, const ValueType& ClearValue, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&), const uint8(&TestValue)[NumTestBytes])
 	{
 		return
-			RunTest_UAVClear_StructuredBuffer(RHICmdList, Stride, BufferSize, 0, ClearValue, ClearPtr, TestValue) &&
+			RunTest_UAVClear_StructuredBuffer(RHICmdList, Stride, BufferSize, BUF_None, ClearValue, ClearPtr, TestValue) &&
 			RunTest_UAVClear_StructuredBuffer(RHICmdList, Stride, BufferSize, BUF_ByteAddressBuffer, ClearValue, ClearPtr, TestValue);
 	}
 

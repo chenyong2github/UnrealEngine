@@ -150,9 +150,9 @@ FUnorderedAccessViewRHIRef FAGXDynamicRHI::RHICreateUnorderedAccessView(FRHIBuff
 	FAGXResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
 	
 	FAGXShaderResourceView* SRV = new FAGXShaderResourceView;
-	SRV->SourceVertexBuffer = (BufferRHI->GetUsage() & BUF_VertexBuffer) ? Buffer : nullptr;
+	SRV->SourceVertexBuffer = EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_VertexBuffer) ? Buffer : nullptr;
 	SRV->TextureView = nullptr;
-	SRV->SourceIndexBuffer = (BufferRHI->GetUsage() & BUF_IndexBuffer) ? Buffer : nullptr;
+	SRV->SourceIndexBuffer = EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_IndexBuffer) ? Buffer : nullptr;
 	SRV->SourceStructuredBuffer = nullptr;
 	SRV->Format = Format;
 	{
@@ -453,7 +453,7 @@ void FAGXRHICommandContext::ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* Uno
 	switch (Type)
 	{
 		case EAGXRHIClearUAVType::VertexBuffer:
-			check(0 != (UnorderedAccessView->SourceView->SourceVertexBuffer->GetUsage() & BUF_ByteAddressBuffer));
+			check(EnumHasAnyFlags(UnorderedAccessView->SourceView->SourceVertexBuffer->GetUsage(), BUF_ByteAddressBuffer));
 			Buffer = UnorderedAccessView->SourceView->SourceVertexBuffer->GetCurrentBuffer();
 			Size = UnorderedAccessView->SourceView->SourceVertexBuffer->GetSize();
 			break;
@@ -532,7 +532,7 @@ void FAGXRHICommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FAGXRHIC
 		if (UnorderedAccessView->SourceView->SourceVertexBuffer)
 		{
 #if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-			if (UnorderedAccessView->SourceView->SourceVertexBuffer->GetUsage() & BUF_ByteAddressBuffer)
+			if (EnumHasAnyFlags(UnorderedAccessView->SourceView->SourceVertexBuffer->GetUsage(), BUF_ByteAddressBuffer))
 			{
 				ClearUAVWithBlitEncoder(UnorderedAccessView, EAGXRHIClearUAVType::VertexBuffer, *(const uint32*)ClearValue);
 			}

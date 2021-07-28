@@ -26,48 +26,48 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags U
 	// Describe the buffer.
 	D3D11_BUFFER_DESC Desc = { Size };
 
-	if (Usage & BUF_AnyDynamic)
+	if (EnumHasAnyFlags(Usage, BUF_AnyDynamic))
 	{
 		Desc.Usage = D3D11_USAGE_DYNAMIC;
 		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	}
 
-	if (Usage & BUF_VertexBuffer)
+	if (EnumHasAnyFlags(Usage, BUF_VertexBuffer))
 	{
 		Desc.BindFlags |= D3D11_BIND_VERTEX_BUFFER;
 	}
 
-	if (Usage & BUF_IndexBuffer)
+	if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
 	{
 		Desc.BindFlags |= D3D11_BIND_INDEX_BUFFER;
 	}
 
-	if (Usage & BUF_ByteAddressBuffer)
+	if (EnumHasAnyFlags(Usage, BUF_ByteAddressBuffer))
 	{
 		Desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
 	}
-	else if (Usage & BUF_StructuredBuffer)
+	else if (EnumHasAnyFlags(Usage, BUF_StructuredBuffer))
 	{
 		Desc.StructureByteStride = Stride;
 		Desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 	}
 
-	if (Usage & BUF_ShaderResource)
+	if (EnumHasAnyFlags(Usage, BUF_ShaderResource))
 	{
 		Desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 	}
 
-	if (Usage & BUF_UnorderedAccess)
+	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess))
 	{
 		Desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 	}
 
-	if (Usage & BUF_DrawIndirect)
+	if (EnumHasAnyFlags(Usage, BUF_DrawIndirect))
 	{
 		Desc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
 	}
 
-	if (Usage & BUF_Shared)
+	if (EnumHasAnyFlags(Usage, BUF_Shared))
 	{
 		if (GCVarUseSharedKeyedMutex->GetInt() != 0)
 		{

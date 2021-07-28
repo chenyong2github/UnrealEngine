@@ -22,7 +22,7 @@ static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(FD3D12
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 
-	if (VertexBuffer->GetUsage() & BUF_ByteAddressBuffer)
+	if (EnumHasAnyFlags(VertexBuffer->GetUsage(), BUF_ByteAddressBuffer))
 	{
 		SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 		SRVDesc.Buffer.Flags |= D3D12_BUFFER_SRV_FLAG_RAW;
@@ -42,7 +42,7 @@ static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(FD3D12
 
 static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetIndexBufferSRVDesc(FD3D12Buffer* IndexBuffer, uint32 StartOffsetBytes, uint32 NumElements)
 {
-	const uint32 Usage = IndexBuffer->GetUsage();
+	const EBufferUsageFlags Usage = IndexBuffer->GetUsage();
 	const uint32 Width = IndexBuffer->GetSize();
 	const uint32 CreationStride = IndexBuffer->GetStride();
 	uint32 MaxElements = Width / CreationStride;
@@ -53,7 +53,7 @@ static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetIndexBufferSRVDesc(FD3D12B
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
 	SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	if (Usage & BUF_ByteAddressBuffer)
+	if (EnumHasAnyFlags(Usage, BUF_ByteAddressBuffer))
 	{
 		check(CreationStride == 4u);
 		SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -74,7 +74,7 @@ static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetIndexBufferSRVDesc(FD3D12B
 	else
 	{
 		// Null underlying D3D12 resource should only be the case for dynamic resources
-		check(Usage & BUF_AnyDynamic);
+		check(EnumHasAnyFlags(Usage, BUF_AnyDynamic));
 	}
 	return SRVDesc;
 }
@@ -238,7 +238,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					
 					uint32 Stride = GPixelFormats[Desc.Format].BlockBytes;
 					FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-					if (ShouldDeferBufferLockOperation(&RHICmdList) && (Buffer->GetUsage() & BUF_AnyDynamic))
+					if (ShouldDeferBufferLockOperation(&RHICmdList) && EnumHasAnyFlags(Buffer->GetUsage(), BUF_AnyDynamic))
 					{
 						// We have to defer the SRV initialization to the RHI thread if the buffer is dynamic (and RHI threading is enabled), as dynamic buffers can be renamed.
 						// Also insert an RHI thread fence to prevent parallel translate tasks running until this command has completed.
@@ -279,8 +279,6 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					const uint64 Offset = Location.GetOffsetFromBaseOfResource();
 					const D3D12_RESOURCE_DESC& BufferDesc = Location.GetResource()->GetDesc();
 
-					const uint32 BufferUsage = StructuredBuffer->GetUsage();
-					const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
 					// Create a Shader Resource View
 					D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
 					SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -291,7 +289,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					StartOffsetBytes = FMath::Min<uint32>(StartOffsetBytes, Location.GetSize());
 					uint32 StartElement = StartOffsetBytes / Stride;
 
-					if (bByteAccessBuffer)
+					if (EnumHasAnyFlags(StructuredBuffer->GetUsage(), BUF_ByteAddressBuffer))
 					{
 						SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 						SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -320,7 +318,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 						FD3D12ShaderResourceView* ShaderResourceView = new FD3D12ShaderResourceView(Buffer->GetParentDevice());
 
 						FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-						if (ShouldDeferBufferLockOperation(&RHICmdList) && (Buffer->GetUsage() & BUF_AnyDynamic))
+						if (ShouldDeferBufferLockOperation(&RHICmdList) && EnumHasAnyFlags(Buffer->GetUsage(), BUF_AnyDynamic))
 						{
 							// We have to defer the SRV initialization to the RHI thread if the buffer is dynamic (and RHI threading is enabled), as dynamic buffers can be renamed.
 							// Also insert an RHI thread fence to prevent parallel translate tasks running until this command has completed.

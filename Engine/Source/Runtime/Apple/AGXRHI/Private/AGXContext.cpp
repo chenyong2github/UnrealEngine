@@ -821,7 +821,7 @@ FAGXBuffer FAGXDeviceContext::CreatePooledBuffer(FAGXPooledBufferArgs const& Arg
 	
 	uint32 RequestedBufferOffsetAlignment = BufferOffsetAlignment;
 	
-	if((Args.Flags & (BUF_UnorderedAccess | BUF_ShaderResource)) != 0)
+	if(EnumHasAnyFlags(Args.Flags, BUF_UnorderedAccess | BUF_ShaderResource))
 	{
 		// Buffer backed linear textures have specific align requirements
 		// We don't know upfront the pixel format that may be requested for an SRV so we can't use minimumLinearTextureAlignmentForPixelFormat:

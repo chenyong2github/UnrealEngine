@@ -25,7 +25,7 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	}
 
 	//The buffer will always be a shader resource, but they can be static/dynamic depending of the usage
-	uint32 Usage = BUF_ShaderResource | (bDynamicUsage ? BUF_Dynamic : BUF_Static);
+	const EBufferUsageFlags Usage = BUF_ShaderResource | (bDynamicUsage ? BUF_Dynamic : BUF_Static);
 	NumAllocatedVertices = InNumVertices;
 
 	uint32 PositionSize = NumAllocatedVertices * sizeof(FVector3f);

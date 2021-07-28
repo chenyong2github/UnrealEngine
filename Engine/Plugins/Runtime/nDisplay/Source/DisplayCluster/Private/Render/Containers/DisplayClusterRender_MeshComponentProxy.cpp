@@ -204,7 +204,7 @@ void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHIComman
 	NumTriangles = InMeshData->NumTriangles;
 	NumVertices = InMeshData->NumVertices;
 
-	uint32 Usage = BUF_ShaderResource | BUF_Static;
+	const EBufferUsageFlags Usage = BUF_ShaderResource | BUF_Static;
 
 	// Create Vertex buffer RHI:
 	{

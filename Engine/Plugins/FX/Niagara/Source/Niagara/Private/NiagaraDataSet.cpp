@@ -729,7 +729,7 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 
 void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumInstances, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName)
 {
-	static constexpr uint32 GPUBufferFlags = BUF_Static | BUF_SourceCopy;
+	static constexpr EBufferUsageFlags GPUBufferFlags = BUF_Static | BUF_SourceCopy;
 
 	CheckUsage(false);
 	checkSlow(Owner->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);

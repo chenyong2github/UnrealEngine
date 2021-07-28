@@ -79,17 +79,17 @@ FBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_Internal()
 	{
 		FResourceArrayInterface* ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
+		const EBufferUsageFlags BufferFlags = BUF_Static | BUF_ShaderResource;
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSkeletalMeshVertexClothBuffer"), ResourceArray);
 		CreateInfo.bWithoutNativeResource = !VertexData;
 
 		if (bRenderThread)
 		{
-			return RHICreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+			return RHICreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
 		}
 		else
 		{
-			return RHIAsyncCreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
 		}
 	}
 	return nullptr;

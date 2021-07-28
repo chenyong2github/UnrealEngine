@@ -23,7 +23,7 @@ DECLARE_MEMORY_STAT(TEXT("Used Device Buffer Memory"), STAT_AGXDeviceBufferMemor
 #define METAL_INC_DWORD_STAT_BY(Type, Name, Size, Usage) \
 	switch(Type)	{ \
 		case RRT_UniformBuffer: INC_DWORD_STAT_BY(STAT_AGXUniform##Name, Size); break; \
-        case RRT_Buffer: if (Usage & BUF_IndexBuffer){ INC_DWORD_STAT_BY(STAT_AGXIndex##Name, Size); } else { INC_DWORD_STAT_BY(STAT_AGXVertex##Name, Size); } break; \
+        case RRT_Buffer: if (EnumHasAnyFlags(Usage, BUF_IndexBuffer)){ INC_DWORD_STAT_BY(STAT_AGXIndex##Name, Size); } else { INC_DWORD_STAT_BY(STAT_AGXVertex##Name, Size); } break; \
 		default: break; \
 	}
 #else
@@ -79,23 +79,23 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FAGXBufferData)
 }
 @end
 
-static uint32 MetalBufferUsage(uint32 InUsage)
+static EAGXBufferUsage AGXBufferUsage(EBufferUsageFlags InUsage)
 {
-	uint32 Usage = InUsage;
+	EAGXBufferUsage Usage = EAGXBufferUsage::None;
 
-	if (InUsage & BUF_VertexBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_VertexBuffer))
 	{
-		Usage |= EAGXBufferUsage_LinearTex;
+		Usage |= EAGXBufferUsage::LinearTex;
 	}
 
-	if (InUsage & BUF_IndexBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_IndexBuffer))
 	{
-		Usage |= (EAGXBufferUsage_GPUOnly | EAGXBufferUsage_LinearTex);
+		Usage |= (EAGXBufferUsage::GPUOnly | EAGXBufferUsage::LinearTex);
 	}
 
-	if (InUsage & BUF_StructuredBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer))
 	{
-		Usage |= EAGXBufferUsage_GPUOnly;
+		Usage |= EAGXBufferUsage::GPUOnly;
 	}
 
 	return Usage;
@@ -113,11 +113,11 @@ static bool CanUsePrivateMemory()
 
 bool FAGXRHIBuffer::UsePrivateMemory() const
 {
-	return (FAGXCommandQueue::SupportsFeature(EAGXFeaturesEfficientBufferBlits) && (Usage & (BUF_Dynamic|BUF_Static)))
-	|| (FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs) && (Usage & (BUF_ShaderResource|BUF_UnorderedAccess)));
+	return (FAGXCommandQueue::SupportsFeature(EAGXFeaturesEfficientBufferBlits) && EnumHasAnyFlags(Usage, BUF_Dynamic|BUF_Static))
+	|| (FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs) && EnumHasAnyFlags(Usage, BUF_ShaderResource|BUF_UnorderedAccess));
 }
 
-FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InType)
+FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBufferUsage InAgxUsage, ERHIResourceType InType)
 : Data(nullptr)
 , LastLockFrame(0)
 , CurrentIndex(0)
@@ -127,19 +127,20 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InT
 , LockSize(0)
 , Size(InSize)
 , Usage(InUsage)
+, AgxUsage(InAgxUsage)
 , Mode(BUFFER_STORAGE_MODE)
 , Type(InType)
 {
 	// No life-time usage information? Enforce Dynamic.
-	if((Usage & (BUF_Static | BUF_Dynamic | BUF_Volatile)) == 0)
+	if(!EnumHasAnyFlags(Usage, BUF_Static | BUF_Dynamic | BUF_Volatile))
 	{
 		Usage |= BUF_Dynamic;
 	}
 	
-	const bool bIsStatic = (Usage & BUF_Static) != 0;
-	const bool bIsDynamic = (Usage & BUF_Dynamic) != 0;
-	const bool bIsVolatile = (Usage & BUF_Volatile) != 0;
-	const bool bWantsView = (Usage & (BUF_ShaderResource | BUF_UnorderedAccess)) != 0;
+	const bool bIsStatic = EnumHasAnyFlags(Usage, BUF_Static);
+	const bool bIsDynamic = EnumHasAnyFlags(Usage, BUF_Dynamic);
+	const bool bIsVolatile = EnumHasAnyFlags(Usage, BUF_Volatile);
+	const bool bWantsView = EnumHasAnyFlags(Usage, BUF_ShaderResource | BUF_UnorderedAccess);
 	
 	check(bIsStatic ^ bIsDynamic ^ bIsVolatile);
 
@@ -152,7 +153,7 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InT
 		
 		// Temporary buffers less than the buffer page size - currently 4Kb - is better off going through the set*Bytes API if available.
 		// These can't be used for shader resources or UAVs if we want to use the 'Linear Texture' code path
-		if (!(InUsage & (BUF_UnorderedAccess|BUF_ShaderResource|EAGXBufferUsage_GPUOnly)) && (InUsage & BUF_Volatile) && InSize < AGXBufferPageSize && (InSize < AGXBufferBytesSize))
+		if (!(EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) || EnumHasAnyFlags(InAgxUsage, EAGXBufferUsage::GPUOnly)) && EnumHasAnyFlags(Usage, BUF_Volatile) && InSize < AGXBufferPageSize && (InSize < AGXBufferBytesSize))
 		{
 			Data = [[FAGXBufferData alloc] initWithSize:InSize];
 			METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize, Usage);
@@ -161,9 +162,9 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InT
 		{
 			uint32 AllocSize = Size;
 			
-			if ((InUsage & EAGXBufferUsage_LinearTex) && !FAGXCommandQueue::SupportsFeature(EAGXFeaturesTextureBuffers))
+			if (EnumHasAnyFlags(AgxUsage, EAGXBufferUsage::LinearTex) && !FAGXCommandQueue::SupportsFeature(EAGXFeaturesTextureBuffers))
 			{
-				if (InUsage & BUF_UnorderedAccess)
+				if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess))
 				{
 					// Padding for write flushing when not using linear texture bindings for buffers
 					AllocSize = Align(AllocSize + 512, 1024);
@@ -330,7 +331,7 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 {
 	check(MetalIsSafeToUseRHIThreadResources());
 	
-	const bool bWantsView = ((Usage & (BUF_ShaderResource | BUF_UnorderedAccess)) != 0);
+	const bool bWantsView = EnumHasAnyFlags(Usage, BUF_ShaderResource | BUF_UnorderedAccess);
 	check(bWantsView);
 	{
 		FAGXBufferAndViews& CurrentBacking = GetCurrentBackingInternal();
@@ -345,11 +346,11 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 		
 		mtlpp::TextureDescriptor Desc;
 		NSUInteger TexUsage = mtlpp::TextureUsage::Unknown;
-		if (Usage & BUF_ShaderResource)
+		if (EnumHasAnyFlags(Usage, BUF_ShaderResource))
 		{
 			TexUsage |= mtlpp::TextureUsage::ShaderRead;
 		}
-		if (Usage & BUF_UnorderedAccess)
+		if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess))
 		{
 			TexUsage |= mtlpp::TextureUsage::ShaderWrite;
 		}
@@ -479,7 +480,7 @@ struct FAGXRHICommandCreateLinearTexture : public FRHICommand<FAGXRHICommandCrea
 
 void FAGXRHIBuffer::CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InParent, const FAGXLinearTextureDescriptor* InLinearTextureDescriptor)
 {
-	if ((Usage & (BUF_UnorderedAccess|BUF_ShaderResource)) && GAGXBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
+	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GAGXBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
 	{
 		if (IsRunningRHIInSeparateThread() && !IsInRHIThread() && !FRHICommandListExecutor::GetImmediateCommandList().Bypass())
 		{
@@ -505,7 +506,7 @@ void FAGXRHIBuffer::CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InP
 ns::AutoReleased<FAGXTexture> FAGXRHIBuffer::GetLinearTexture(EPixelFormat InFormat, const FAGXLinearTextureDescriptor* InLinearTextureDescriptor)
 {
 	ns::AutoReleased<FAGXTexture> Texture;
-	if ((Usage & (BUF_UnorderedAccess|BUF_ShaderResource)) && GAGXBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
+	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GAGXBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
 	{
 		LinearTextureMapKey MapKey = (InLinearTextureDescriptor != nullptr) ? LinearTextureMapKey(InFormat, *InLinearTextureDescriptor) : LinearTextureMapKey(InFormat, FAGXLinearTextureDescriptor());
 
@@ -536,9 +537,9 @@ void* FAGXRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode InLockMode, uin
 //	check(LastLockFrame == 0 || LastLockFrame != GetAGXDeviceContext().GetFrameNumberRHIThread());
 	
 	const bool bWriteLock = InLockMode == RLM_WriteOnly;
-	const bool bIsStatic = (Usage & BUF_Static) != 0;
-	const bool bIsDynamic = (Usage & BUF_Dynamic) != 0;
-	const bool bIsVolatile = (Usage & BUF_Volatile) != 0;
+	const bool bIsStatic = EnumHasAnyFlags(Usage, BUF_Static);
+	const bool bIsDynamic = EnumHasAnyFlags(Usage, BUF_Dynamic);
+	const bool bIsVolatile = EnumHasAnyFlags(Usage, BUF_Volatile);
 	
 	void* ReturnPointer = nullptr;
 	
@@ -691,12 +692,12 @@ void FAGXRHIBuffer::Unlock()
 	LastLockFrame = GetAGXDeviceContext().GetFrameNumberRHIThread();
 }
 
-FAGXResourceMultiBuffer::FAGXResourceMultiBuffer(uint32 InSize, uint32 InUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType Type)
-	: FRHIBuffer(InSize, InUsage & ~EAGXBufferUsageFlags, InStride)
-	, FAGXRHIBuffer(InSize, InUsage, Type)
+FAGXResourceMultiBuffer::FAGXResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBufferUsage InAgxUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType Type)
+	: FRHIBuffer(InSize, InUsage, InStride)
+	, FAGXRHIBuffer(InSize, InUsage, InAgxUsage, Type)
 	, IndexType((InStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32)
 {
-	if (InUsage & BUF_StructuredBuffer)
+	if (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer))
 	{
 		check((InSize % InStride) == 0);
 
@@ -730,11 +731,11 @@ FBufferRHIRef FAGXDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usa
 	@autoreleasepool {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FAGXResourceMultiBuffer(0, MetalBufferUsage(0), 0, nullptr, RRT_Buffer);
+		return new FAGXResourceMultiBuffer(0, BUF_None, AGXBufferUsage(BUF_None), 0, nullptr, RRT_Buffer);
 	}
 	
 	// make the RHI object, which will allocate memory
-	FAGXResourceMultiBuffer* Buffer = new FAGXResourceMultiBuffer(Size, MetalBufferUsage(Usage), 0, nullptr, RRT_Buffer);
+	FAGXResourceMultiBuffer* Buffer = new FAGXResourceMultiBuffer(Size, Usage, AGXBufferUsage(Usage), 0, nullptr, RRT_Buffer);
 
 	if (CreateInfo.ResourceArray)
 	{
@@ -838,7 +839,7 @@ void FAGXDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer,
 		FAGXResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
 		if (!SrcBuffer)
 		{
-			TRefCountPtr<FAGXResourceMultiBuffer> DeletionProxy = new FAGXResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetStride(), nullptr, Dest->Type);
+			TRefCountPtr<FAGXResourceMultiBuffer> DeletionProxy = new FAGXResourceMultiBuffer(0, Dest->GetUsage(), Dest->GetAgxUsage(), Dest->GetStride(), nullptr, Dest->Type);
 			Dest->Swap(*DeletionProxy);
 		}
 		else
@@ -849,7 +850,7 @@ void FAGXDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer,
 	}
 }
 
-void FAGXRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSize, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
+void FAGXRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSize, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource)
 {
 	if (CreateInfo.ResourceArray)
 	{
@@ -907,11 +908,11 @@ FBufferRHIRef FAGXDynamicRHI::CreateBuffer_RenderThread(class FRHICommandListImm
 	@autoreleasepool {
 		if (CreateInfo.bWithoutNativeResource)
 		{
-			return new FAGXResourceMultiBuffer(0, MetalBufferUsage(0), 0, nullptr, RRT_Buffer);
+			return new FAGXResourceMultiBuffer(0, BUF_None, AGXBufferUsage(BUF_None), 0, nullptr, RRT_Buffer);
 		}
 		
 		// make the RHI object, which will allocate memory
-		TRefCountPtr<FAGXResourceMultiBuffer> Buffer = new FAGXResourceMultiBuffer(Size, MetalBufferUsage(Usage), Stride, nullptr, RRT_Buffer);
+		TRefCountPtr<FAGXResourceMultiBuffer> Buffer = new FAGXResourceMultiBuffer(Size, Usage, AGXBufferUsage(Usage), Stride, nullptr, RRT_Buffer);
 		
 		Buffer->Init_RenderThread(RHICmdList, Size, Usage, CreateInfo, Buffer);
 		

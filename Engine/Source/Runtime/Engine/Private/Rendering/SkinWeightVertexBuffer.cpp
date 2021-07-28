@@ -184,17 +184,17 @@ FBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Internal()
 		// Create the vertex buffer.
 		FResourceArrayInterface* ResourceArray = LookupData ? LookupData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
+		const EBufferUsageFlags BufferFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSkinWeightLookupVertexBuffer"), ResourceArray);
 		CreateInfo.bWithoutNativeResource = !LookupData;
 
 		if (bRenderThread)
 		{
-			return RHICreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+			return RHICreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
 		}
 		else
 		{
-			return RHIAsyncCreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
 		}
 	}
 	return nullptr;
@@ -394,18 +394,18 @@ FBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Internal()
 		// Create the vertex buffer.
 		FResourceArrayInterface* ResourceArray = WeightData ? WeightData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
+		const EBufferUsageFlags BufferFlags = BUF_Static | BUF_ShaderResource | BUF_SourceCopy;
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSkinWeightDataVertexBuffer"), ResourceArray);
 		CreateInfo.bWithoutNativeResource = !WeightData;
 
 		// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
 		if (bRenderThread)
 		{
-			return RHICreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+			return RHICreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
 		}
 		else
 		{
-			return RHIAsyncCreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BufferFlags, CreateInfo);
 		}
 	}
 	return nullptr;

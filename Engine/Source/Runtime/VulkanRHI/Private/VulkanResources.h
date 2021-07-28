@@ -1034,7 +1034,7 @@ protected:
 class FVulkanAccelerationStructureBuffer : public FRHIBuffer
 {
 public:
-	FVulkanAccelerationStructureBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo);
+	FVulkanAccelerationStructureBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo);
 	virtual ~FVulkanAccelerationStructureBuffer();
 
 	inline VkBuffer GetBuffer() const
@@ -1053,7 +1053,7 @@ class FVulkanResourceMultiBuffer : public FRHIBuffer, public FVulkanEvictable, p
 	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation);
 
 public:
-	FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList = nullptr);
+	FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList = nullptr);
 	virtual ~FVulkanResourceMultiBuffer();
 
 	inline const VulkanRHI::FVulkanAllocation& GetCurrentAllocation() const
@@ -1109,15 +1109,9 @@ public:
 		return Current.Alloc.Size - (Current.Offset - Current.Alloc.Offset);
 	}
 
-
 	inline VkBufferUsageFlags GetBufferUsageFlags() const
 	{
 		return BufferUsageFlags;
-	}
-
-	inline uint32 GetUEUsage() const
-	{
-		return UEUsage;
 	}
 
 	inline VkIndexType GetIndexType() const
@@ -1139,7 +1133,6 @@ public:
 
 
 protected:
-	uint32 UEUsage;
 	VkBufferUsageFlags BufferUsageFlags;
 	uint32 NumBuffers;
 	uint32 DynamicBufferIndex;

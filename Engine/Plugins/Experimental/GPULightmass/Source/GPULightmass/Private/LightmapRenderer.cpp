@@ -2059,7 +2059,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 						}
 
 						FRWBuffer TilePositionsBuffer;
-						TilePositionsBuffer.Initialize(TEXT("TilePositionsBufferForClear"), TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num(), PF_R32G32_UINT, 0, &TilePositionsToClear);
+						TilePositionsBuffer.Initialize(TEXT("TilePositionsBufferForClear"), TilePositionsToClear.GetTypeSize(), TilePositionsToClear.Num(), PF_R32G32_UINT, BUF_None, &TilePositionsToClear);
 
 						FMultiTileClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FMultiTileClearCS::FParameters>();
 						Parameters->NumTiles = TilePositionsToClear.Num();

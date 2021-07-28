@@ -360,13 +360,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWBufferStructured>(FRHICommandList&
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		Buffer.Initialize(DebugName, 16, NumBytes / 16);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
-		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		NewBuffer.Initialize(DebugName, 16, NumBytes / 16);
 
 		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
@@ -390,13 +390,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWByteAddressBuffer>(FRHICommandList
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, NumBytes, 0);
+		Buffer.Initialize(DebugName, NumBytes);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWByteAddressBuffer NewBuffer;
-		NewBuffer.Initialize(DebugName, NumBytes, 0);
+		NewBuffer.Initialize(DebugName, NumBytes);
 
 		RHICmdList.Transition({
 			FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
@@ -423,13 +423,13 @@ RENDERCORE_API bool ResizeResourceSOAIfNeeded<FRWBufferStructured>(FRHICommandLi
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		Buffer.Initialize(DebugName, 16, NumBytes / 16);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
-		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		NewBuffer.Initialize(DebugName, 16, NumBytes / 16);
 
 		RHICmdList.Transition({
 			FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
@@ -463,14 +463,14 @@ RENDERCORE_API bool ResizeResourceSOAIfNeeded(FRDGBuilder& GraphBuilder, FRWBuff
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		Buffer.Initialize(DebugName, 16, NumBytes / 16);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
 		FRWBufferStructured OldBuffer = Buffer;
-		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		NewBuffer.Initialize(DebugName, 16, NumBytes / 16);
 		AddPass(GraphBuilder, RDG_EVENT_NAME("ResizeResourceSOAIfNeeded"), 
 			[OldBuffer, NewBuffer, NumBytes, NumArrays](FRHICommandListImmediate& RHICmdList)
 		{
@@ -523,13 +523,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferS
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		Buffer.Initialize(DebugName, 16, NumBytes / 16);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
-		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
+		NewBuffer.Initialize(DebugName, 16, NumBytes / 16);
 
 		AddCopyBufferPass(GraphBuilder, NewBuffer, Buffer);
 
@@ -547,13 +547,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWByteAdd
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, NumBytes, 0);
+		Buffer.Initialize(DebugName, NumBytes);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWByteAddressBuffer NewBuffer;
-		NewBuffer.Initialize(DebugName, NumBytes, 0);
+		NewBuffer.Initialize(DebugName, NumBytes);
 
 		AddCopyBufferPass(GraphBuilder, NewBuffer, Buffer);
 
@@ -575,7 +575,7 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 	NumBytesPerElement = InNumBytesPerElement;
 	bFloat4Buffer = bInFloat4Buffer;
 
-	const uint32 Usage = bInFloat4Buffer ? 0 : BUF_ByteAddressBuffer;
+	const EBufferUsageFlags Usage = bInFloat4Buffer ? BUF_None : BUF_ByteAddressBuffer;
 	const uint32 TypeSize = bInFloat4Buffer ? 16 : 4;
 
 	uint32 ScatterBytes = NumElements * sizeof( uint32 );

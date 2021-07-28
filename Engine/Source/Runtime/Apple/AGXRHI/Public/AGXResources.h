@@ -379,15 +379,13 @@ public:
 -(instancetype)initWithBytes:(void const*)Data length:(uint32)Size;
 @end
 
-enum EAGXBufferUsage
+enum class EAGXBufferUsage
 {
-	EAGXBufferUsage_GPUOnly = 0x80000000,
-	EAGXBufferUsage_LinearTex = 0x40000000,
-
-	EAGXBufferUsageMask	= 0xF,
-	EAGXBufferUsageShift	= 0x1C,
-	EAGXBufferUsageFlags	= (EAGXBufferUsageMask << EAGXBufferUsageShift)
+	None = 0,
+	GPUOnly = 1 << 0,
+	LinearTex = 1 << 1,
 };
+ENUM_CLASS_FLAGS(EAGXBufferUsage);
 
 class FAGXLinearTextureDescriptor
 {
@@ -456,13 +454,13 @@ public:
 		LinearTextureMap Views;
 	};
 	
-	FAGXRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InType);
+	FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBufferUsage InAgxUsage, ERHIResourceType InType);
 	virtual ~FAGXRHIBuffer();
 	
 	/**
 	 * Initialize the buffer contents from the render-thread.
 	 */
-	void Init_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
+	void Init_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
 	
 	/**
 	 * Get a linear texture for given format.
@@ -506,6 +504,11 @@ public:
 		return nil;
 	}
 	
+	EAGXBufferUsage GetAgxUsage() const
+	{
+		return AgxUsage;
+	}
+	
 	void AdvanceBackingIndex()
 	{
 		CurrentIndex = (CurrentIndex + 1) % NumberOfBuffers;
@@ -544,7 +547,10 @@ public:
 	uint32 Size;
 	
 	// Buffer usage.
-	uint32 Usage;
+	EBufferUsageFlags Usage;
+	
+	// Agx buffer usage.
+	EAGXBufferUsage AgxUsage;
 	
 	// Storage mode
 	mtlpp::StorageMode Mode;
@@ -580,7 +586,7 @@ private:
 class FAGXResourceMultiBuffer : public FRHIBuffer, public FAGXRHIBuffer
 {
 public:
-	FAGXResourceMultiBuffer(uint32 InSize, uint32 InUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType ResourceType);
+	FAGXResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBufferUsage InAgxUsage, uint32 InStride, FResourceArrayInterface* ResourceArray, ERHIResourceType ResourceType);
 	virtual ~FAGXResourceMultiBuffer();
 
 	void Swap(FAGXResourceMultiBuffer& Other);

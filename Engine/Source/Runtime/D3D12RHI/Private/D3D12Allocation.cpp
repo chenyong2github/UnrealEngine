@@ -1204,7 +1204,7 @@ void FD3D12DefaultBufferPool::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, c
 		check(InCreateState == D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
 #if D3D12_RHI_RAYTRACING
-	else if (InUsage & BUF_AccelerationStructure)
+	else if (EnumHasAnyFlags(InUsage, BUF_AccelerationStructure))
 	{
 		// RayTracing acceleration structures must be created in a particular state and may never transition out of it.
 		check(InResourceStateMode == ED3D12ResourceStateMode::SingleState);
@@ -1363,7 +1363,7 @@ D3D12_RESOURCE_STATES FD3D12DefaultBufferAllocator::GetDefaultInitialResourceSta
 		return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 	}
 #if D3D12_RHI_RAYTRACING
-	else if (InBufferFlags & BUF_AccelerationStructure)
+	else if (EnumHasAnyFlags(InBufferFlags, BUF_AccelerationStructure))
 	{
 		check(InHeapType == D3D12_HEAP_TYPE_DEFAULT);
 		return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
