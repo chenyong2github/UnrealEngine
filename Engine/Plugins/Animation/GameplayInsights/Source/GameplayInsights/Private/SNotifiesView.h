@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IGameplayInsightsDebugView.h"
-#include "IGameplayInsightsDebugViewCreator.h"
 #include "SPropertiesDebugViewBase.h"
 
 namespace TraceServices { class IAnalysisSession; }
@@ -16,11 +14,12 @@ public:
 	virtual FName GetName() const override;
 };
 
-class FNotifiesViewCreator : public ICreateGameplayInsightsDebugView
+class FNotifiesViewCreator : public IRewindDebuggerViewCreator
 {
 	public:
+		virtual FName GetTargetTypeName() const;
 		virtual FName GetName() const override;
 		virtual FText GetTitle() const override;
 		virtual FSlateIcon GetIcon() const override;
-		virtual TSharedPtr<IGameplayInsightsDebugView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
+		virtual TSharedPtr<IRewindDebuggerView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
 };

@@ -13,7 +13,7 @@
 
 class IRewindDebugger;
 
-class REWINDDEBUGGER_API IRewindDebuggerExtension : public IModularFeature
+class REWINDDEBUGGERINTERFACE_API IRewindDebuggerExtension : public IModularFeature
 {
 public:
 	static const FName ModularFeatureName;

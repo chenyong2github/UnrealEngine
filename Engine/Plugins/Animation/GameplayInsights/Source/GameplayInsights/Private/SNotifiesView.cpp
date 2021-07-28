@@ -112,6 +112,12 @@ FName SNotifiesView::GetName() const
 	return NotifiesName;
 }
 
+FName FNotifiesViewCreator::GetTargetTypeName() const
+{
+	static FName TargetTypeName = "AnimInstance";
+	return TargetTypeName;
+}
+
 FName FNotifiesViewCreator::GetName() const
 {
 	return NotifiesName;
@@ -131,7 +137,7 @@ FSlateIcon FNotifiesViewCreator::GetIcon() const
 #endif
 }
 
-TSharedPtr<IGameplayInsightsDebugView> FNotifiesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
+TSharedPtr<IRewindDebuggerView> FNotifiesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
 {
 	return SNew(SNotifiesView, ObjectId, CurrentTime, AnalysisSession);
 }

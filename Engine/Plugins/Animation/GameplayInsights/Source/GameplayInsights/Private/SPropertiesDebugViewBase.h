@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IGameplayInsightsDebugView.h"
-#include "IGameplayInsightsDebugViewCreator.h"
+#include "IRewindDebuggerView.h"
+#include "IRewindDebuggerViewCreator.h"
 #include "SVariantValueView.h"
 
 namespace TraceServices { class IAnalysisSession; }
 
-class SPropertiesDebugViewBase : public IGameplayInsightsDebugView
+class SPropertiesDebugViewBase : public IRewindDebuggerView
 {
 	SLATE_BEGIN_ARGS(SPropertiesDebugViewBase) {}
 	SLATE_END_ARGS()

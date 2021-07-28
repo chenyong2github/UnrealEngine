@@ -43,6 +43,11 @@ void SAnimationCurvesView::GetVariantsAtFrame(const TraceServices::FFrame& InFra
 	}
 }
 
+FName FAnimationCurvesViewCreator::GetTargetTypeName() const
+{
+	static FName TargetTypeName = "SkeletalMeshComponent";
+	return TargetTypeName;
+}
 
 static const FName AnimationCurvesName("AnimationCurves");
 
@@ -70,7 +75,7 @@ FSlateIcon FAnimationCurvesViewCreator::GetIcon() const
 #endif
 }
 
-TSharedPtr<IGameplayInsightsDebugView> FAnimationCurvesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
+TSharedPtr<IRewindDebuggerView> FAnimationCurvesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
 {
 	return SNew(SAnimationCurvesView, ObjectId, CurrentTime, AnalysisSession);
 }

@@ -60,12 +60,17 @@ void SObjectPropertiesView::GetVariantsAtFrame(const TraceServices::FFrame& InFr
 	}
 }
 
-
 static const FName ObjectPropertiesName("ObjectProperties");
 
 FName SObjectPropertiesView::GetName() const
 {
 	return ObjectPropertiesName;
+}
+
+FName FObjectPropertiesViewCreator::GetTargetTypeName() const
+{
+	static FName TargetTypeName = "Object";
+	return TargetTypeName;
 }
 
 FName FObjectPropertiesViewCreator::GetName() const
@@ -83,7 +88,7 @@ FSlateIcon FObjectPropertiesViewCreator::GetIcon() const
 	return FSlateIconFinder::FindIconForClass(UObject::StaticClass());
 }
 
-TSharedPtr<IGameplayInsightsDebugView> FObjectPropertiesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
+TSharedPtr<IRewindDebuggerView> FObjectPropertiesViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
 {
 	return SNew(SObjectPropertiesView, ObjectId, CurrentTime, AnalysisSession);
 }

@@ -1003,6 +1003,12 @@ void SAnimGraphSchematicView::RefreshDetails(const TArray<TSharedRef<FAnimGraphS
 	}
 }
 
+FName FAnimGraphSchematicViewCreator::GetTargetTypeName() const
+{
+	static FName TargetTypeName = "AnimInstance";
+	return TargetTypeName;
+}
+
 FName FAnimGraphSchematicViewCreator::GetName() const
 {
 	return AnimGraphSchematicName;
@@ -1022,7 +1028,7 @@ FSlateIcon FAnimGraphSchematicViewCreator::GetIcon() const
 #endif
 }
 
-TSharedPtr<IGameplayInsightsDebugView> FAnimGraphSchematicViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
+TSharedPtr<IRewindDebuggerView> FAnimGraphSchematicViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
 {
 	return SNew(SAnimGraphSchematicView, ObjectId, CurrentTime, AnalysisSession);
 }

@@ -64,13 +64,19 @@ void FGameplayInsightsModule::StartupModule()
 		}
 	});
 
-	DebugViewCreator.RegisterDebugViewCreator("Object", MakeShared<FObjectPropertiesViewCreator>());
-	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", MakeShared<FAnimGraphSchematicViewCreator>());
-	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", MakeShared<FBlendWeightsViewCreator>());
-	DebugViewCreator.RegisterDebugViewCreator("AnimInstance", MakeShared<FNotifiesViewCreator>());
-	DebugViewCreator.RegisterDebugViewCreator("SkeletalMeshComponent", MakeShared<FAnimationCurvesViewCreator>());
-
 #if WITH_EDITOR
+	// register rewind debugger view creators
+	static FObjectPropertiesViewCreator ObjectPropertiesViewCreator;
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &ObjectPropertiesViewCreator);
+	static FAnimGraphSchematicViewCreator AnimGraphSchematicViewCreator;
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &AnimGraphSchematicViewCreator);
+	static FBlendWeightsViewCreator BlendWeightsViewCreator;
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &BlendWeightsViewCreator);
+	static FNotifiesViewCreator NotifiesViewCreator;
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &NotifiesViewCreator);
+	static FAnimationCurvesViewCreator AnimationCurvesViewCreator;
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerViewCreator::ModularFeatureName, &AnimationCurvesViewCreator);
+
 
 	if (!IsRunningCommandlet())
 	{

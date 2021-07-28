@@ -58,6 +58,12 @@ FName SBlendWeightsView::GetName() const
 	return BlendWeightsName;
 }
 
+FName FBlendWeightsViewCreator::GetTargetTypeName() const
+{
+	static FName TargetTypeName = "AnimInstance";
+	return TargetTypeName;
+}
+
 FName FBlendWeightsViewCreator::GetName() const
 {
 	return BlendWeightsName;
@@ -77,7 +83,7 @@ FSlateIcon FBlendWeightsViewCreator::GetIcon() const
 #endif
 }
 
-TSharedPtr<IGameplayInsightsDebugView> FBlendWeightsViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
+TSharedPtr<IRewindDebuggerView> FBlendWeightsViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& AnalysisSession) const
 {
 	return SNew(SBlendWeightsView, ObjectId, CurrentTime, AnalysisSession);
 }

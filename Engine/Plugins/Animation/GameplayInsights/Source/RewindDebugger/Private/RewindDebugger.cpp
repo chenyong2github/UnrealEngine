@@ -15,7 +15,6 @@
 
 
 FRewindDebugger* FRewindDebugger::InternalInstance = nullptr;
-const FName IRewindDebuggerExtension::ModularFeatureName = "RewindDebuggerExtension";
 
 static void IterateExtensions(TFunction<void(IRewindDebuggerExtension* Extension)> IteratorFunction)
 {

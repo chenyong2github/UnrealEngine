@@ -12,7 +12,7 @@ namespace TraceServices
 	class IAnalysisSession;
 }
 
-struct REWINDDEBUGGER_API FDebugObjectInfo
+struct FDebugObjectInfo
 {
 	FDebugObjectInfo(uint64 Id, const FString& Name): ObjectId(Id), ObjectName(Name), bExpanded(true)
 	{
@@ -25,9 +25,13 @@ struct REWINDDEBUGGER_API FDebugObjectInfo
 	TArray<TSharedPtr<FDebugObjectInfo>> Children;
 };
 
-class REWINDDEBUGGER_API IRewindDebugger
+class REWINDDEBUGGERINTERFACE_API IRewindDebugger
 {
 public:
+	IRewindDebugger();
+
+	virtual ~IRewindDebugger();
+
 	// get the time the debugger is scrubbed to, in seconds since the capture started (or the recording duration while the game is running)
 	virtual double CurrentTraceTime() const = 0;
 
