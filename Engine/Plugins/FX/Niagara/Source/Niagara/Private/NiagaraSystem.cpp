@@ -146,7 +146,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraLazyPrec
 
 		// Grab the list of user variables that were actually encountered so that we can add to them later.
 		SystemPrecompiledData->GatherPreCompiledVariables(TEXT("User"), EncounteredExposedVars);
-		SystemPrecompiledData->GetReferencedObjects(*CompilationRootObjects);
+		SystemPrecompiledData->GetReferencedObjects(CompilationRootObjects);
 		TArray<FNiagaraEmitterHandle> EmitterHandles = System->GetEmitterHandles();
 		for (int32 i = 0; i < EmitterHandles.Num(); i++)
 		{
@@ -154,7 +154,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraLazyPrec
 			if (Handle.GetInstance() && Handle.GetIsEnabled())
 			{
 				TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> EmitterPrecompiledData = SystemPrecompiledData->GetDependentRequest(i);
-				EmitterPrecompiledData->GetReferencedObjects(*CompilationRootObjects);
+				EmitterPrecompiledData->GetReferencedObjects(CompilationRootObjects);
 				
 				TArray<UNiagaraScript*> EmitterScripts;
 				Handle.GetInstance()->GetScripts(EmitterScripts, false, true);
@@ -2428,6 +2428,12 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 			{
 				continue;
 			}
+
+			if (!AsyncTask->bFetchedGCObjects && AsyncTask->CurrentState > ENiagaraCompilationState::Precompile && AsyncTask->CurrentState <= ENiagaraCompilationState::ProcessResult)
+			{
+				CompileRequest.RootObjects.Append(AsyncTask->PrecompileReference->CompilationRootObjects);
+				AsyncTask->bFetchedGCObjects = true;
+			}
 			
 			if (bWait)
 			{
@@ -2873,7 +2879,6 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 		// prepare data for any precompile the ddc tasks need to do
 		TSharedPtr<FNiagaraLazyPrecompileReference, ESPMode::ThreadSafe> PrecompileReference = MakeShared<FNiagaraLazyPrecompileReference, ESPMode::ThreadSafe>();
 		PrecompileReference->System = this;
-		PrecompileReference->CompilationRootObjects = &ActiveCompilation.RootObjects;
 		PrecompileReference->Scripts = ScriptsNeedingCompile;
 		
 		for (int32 i = 0; i < EmitterHandles.Num(); i++)
