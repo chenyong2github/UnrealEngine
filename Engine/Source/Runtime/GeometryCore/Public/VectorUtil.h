@@ -110,6 +110,15 @@ namespace VectorUtil
 	}
 
 	/**
+	 * @return signed area of 2D triangle V0,V1,V2
+	 */
+	template <typename RealType>
+	inline RealType SignedArea(const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	{
+		return ((RealType)0.5) * ((V0.X * V1.Y - V0.Y * V1.X) + (V1.X * V2.Y - V1.Y * V2.X) + (V2.X * V0.Y - V2.Y * V0.X));
+	}
+
+	/**
 	 * @return true if triangle V1,V2,V3 is obtuse
 	 */
 	template <typename RealType>

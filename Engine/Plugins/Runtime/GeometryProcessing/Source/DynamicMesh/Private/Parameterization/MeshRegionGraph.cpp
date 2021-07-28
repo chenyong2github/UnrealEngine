@@ -157,7 +157,7 @@ bool FMeshRegionGraph::MergeSmallRegionsPass(int32 SmallThreshold,
 		}
 	}
 
-	return true;
+	return bMergedAny;
 }
 
 
