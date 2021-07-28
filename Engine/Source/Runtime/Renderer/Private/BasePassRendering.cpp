@@ -700,7 +700,9 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	const FDBufferTextures& DBufferTextures,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 	FRDGTextureRef ForwardShadowMaskTexture,
-	FInstanceCullingManager& InstanceCullingManager)
+	FInstanceCullingManager& InstanceCullingManager,
+	bool bNaniteEnabled,
+	const TArrayView<Nanite::FRasterResults>& NaniteRasterResults)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderBasePass);
 
@@ -871,7 +873,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	}
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_BasePass));
-	RenderBasePassInternal(GraphBuilder, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, SceneTextures.QuadOverdraw, bDoParallelBasePass, bRenderLightmapDensity, InstanceCullingManager);
+	RenderBasePassInternal(GraphBuilder, SceneTextures, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, bDoParallelBasePass, bRenderLightmapDensity, InstanceCullingManager, bNaniteEnabled, NaniteRasterResults);
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterBasePass));
 
 	if (ViewFamily.ViewExtensions.Num() > 0)
@@ -1049,14 +1051,16 @@ static void RenderEditorPrimitives(
 
 void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures& SceneTextures,
 	const FRenderTargetBindingSlots& BasePassRenderTargets,
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 	const FForwardBasePassTextures& ForwardBasePassTextures,
 	const FDBufferTextures& DBufferTextures,
-	FRDGTextureRef QuadOverdrawTexture,
 	bool bParallelBasePass,
 	bool bRenderLightmapDensity,
-	FInstanceCullingManager& InstanceCullingManager)
+	FInstanceCullingManager& InstanceCullingManager,
+	bool bNaniteEnabled,
+	const TArrayView<Nanite::FRasterResults>& NaniteRasterResults)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderBasePass);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderBasePass, FColor::Emerald);
@@ -1069,13 +1073,56 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	else if (ViewFamily.UseDebugViewPS())
 	{
 		// Override the base pass with one of the debug view shader mode (see EDebugViewShaderMode) if required.
-		RenderDebugViewMode(GraphBuilder, Views, QuadOverdrawTexture, BasePassRenderTargets);
+		RenderDebugViewMode(GraphBuilder, Views, SceneTextures.QuadOverdraw, BasePassRenderTargets);
 	}
 	else
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
 		RDG_EVENT_SCOPE(GraphBuilder, "BasePass");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, Basepass);
+
+		// Nanite materials do not currently support most debug view modes.
+		const bool bShouldDrawNaniteBasePass = bNaniteEnabled && !ViewFamily.EngineShowFlags.ShaderComplexity && !ViewFamily.EngineShowFlags.Wireframe;
+		const bool bNeedsPrePass = ShouldRenderPrePass();
+		auto RenderNaniteBasePass = [&](FViewInfo& View, int32 ViewIndex)
+		{
+			Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
+
+			if (!bNeedsPrePass)
+			{
+				// Emit velocity with depth if not writing it in base pass.
+				FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
+
+				const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
+
+				Nanite::EmitDepthTargets(
+					GraphBuilder,
+					*Scene,
+					View,
+					RasterResults.SOAStrides,
+					RasterResults.VisibleClustersSWHW,
+					RasterResults.ViewsBuffer,
+					SceneTextures.Depth.Target,
+					RasterResults.VisBuffer64,
+					VelocityBuffer,
+					RasterResults.MaterialDepth,
+					RasterResults.NaniteMask,
+					bNeedsPrePass,
+					bEmitStencilMask
+				);
+			}
+
+			Nanite::DrawBasePass(
+				GraphBuilder,
+				View.NaniteMaterialPassCommands,
+				*this,
+				SceneTextures,
+				DBufferTextures,
+				*Scene,
+				View,
+				RasterResults
+			);
+		};
 
 		if (bParallelBasePass)
 		{
@@ -1111,6 +1158,11 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_BasePass), *this, View, FParallelCommandListBindings(PassParameters));
 						View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(&ParallelCommandListSet, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 					});
+				}				
+
+				if (bShouldDrawNaniteBasePass)
+				{
+					RenderNaniteBasePass(View, ViewIndex);
 				}
 
 				RenderEditorPrimitives(GraphBuilder, PassParameters, View, DrawRenderState, InstanceCullingManager);
@@ -1169,6 +1221,11 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						SetStereoViewport(RHICmdList, View, 1.0f);
 						View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 					});
+				}
+
+				if (bShouldDrawNaniteBasePass)
+				{
+					RenderNaniteBasePass(View, ViewIndex);
 				}
 
 				RenderEditorPrimitives(GraphBuilder, PassParameters, View, DrawRenderState, InstanceCullingManager);

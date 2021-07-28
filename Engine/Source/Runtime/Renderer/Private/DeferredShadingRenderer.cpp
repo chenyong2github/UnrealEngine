@@ -1905,13 +1905,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// NOTE: Must be done after  system texture initialization
 	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager, UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
 
-	// Nanite materials do not currently support most debug view modes.
-	const bool bShouldApplyNaniteMaterials
-		 = !ViewFamily.EngineShowFlags.ShaderComplexity
-		&& !ViewFamily.UseDebugViewPS()
-		&& !ViewFamily.EngineShowFlags.Wireframe
-		&& !ViewFamily.EngineShowFlags.LightMapDensity;
-
 	// if DDM_AllOpaqueNoVelocity was used, then velocity should have already been rendered as well
 	const bool bIsEarlyDepthComplete = (DepthPass.EarlyZPassMode == DDM_AllOpaque || DepthPass.EarlyZPassMode == DDM_AllOpaqueNoVelocity);
 
@@ -2541,52 +2534,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 #endif
 
 	{
-		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture, InstanceCullingManager);
-		GraphBuilder.AddDispatchHint();
-
-		if (bNaniteEnabled && bShouldApplyNaniteMaterials)
-		{
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-			{
-				FViewInfo& View = Views[ViewIndex];
-				Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
-
-				if (!bNeedsPrePass)
-				{
-					// Emit velocity with depth if not writing it in base pass.
-					FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
-
-					const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
-
-					Nanite::EmitDepthTargets(
-						GraphBuilder,
-						*Scene,
-						View,
-						RasterResults.SOAStrides,
-						RasterResults.VisibleClustersSWHW,
-						RasterResults.ViewsBuffer,
-						SceneTextures.Depth.Target,
-						RasterResults.VisBuffer64,
-						VelocityBuffer,
-						RasterResults.MaterialDepth,
-						RasterResults.NaniteMask,
-						bNeedsPrePass,
-						bEmitStencilMask
-					);
-				}
-
-				Nanite::DrawBasePass(
-					GraphBuilder,
-					View.NaniteMaterialPassCommands,
-					*this,
-					SceneTextures,
-					DBufferTextures,
-					*Scene,
-					View,
-					RasterResults
-				);
-			}
-		}
+		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture, InstanceCullingManager, bNaniteEnabled, NaniteRasterResults);
+		GraphBuilder.AddDispatchHint();	
 
 		if (!bAllowReadOnlyDepthBasePass)
 		{
