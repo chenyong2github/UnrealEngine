@@ -8,6 +8,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsPublic.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 
@@ -1202,6 +1203,12 @@ FConstraintInstance* FConstraintInstanceAccessor::Get() const
 		{
 			return &(PhysicsConstraintComponent->ConstraintInstance);
 		}
+#if WITH_EDITOR
+		if (UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(Owner.Get()))
+		{
+			return PhysicsAsset->GetConstraintInstanceByIndex(Index);
+		}
+#endif
 	}
 	return nullptr;
 }

@@ -198,6 +198,7 @@ public:
 	ENGINE_API int32		FindControllingBodyIndex(class USkeletalMesh* skelMesh, int32 BoneIndex);
 	ENGINE_API int32		FindParentBodyIndex(class USkeletalMesh * skelMesh, int32 StartBoneIndex) const;
 	ENGINE_API int32		FindConstraintIndex(FName ConstraintName);
+	ENGINE_API int32		FindConstraintIndex(FName Bone1Name, FName Bone2Name);
 	FName					FindConstraintBoneName(int32 ConstraintIndex);
 	ENGINE_API int32		FindMirroredBone(class USkeletalMesh* skelMesh, int32 BoneIndex);
 
@@ -280,6 +281,16 @@ public:
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true);
 	virtual USkeletalMesh* GetPreviewMesh() const;
 
+#if WITH_EDITOR
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+	FConstraintInstanceAccessor GetConstraintByName(FName ConstraintName);
+
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+	FConstraintInstanceAccessor GetConstraintByBoneNames(FName Bone1Name, FName Bone2Name);
+
+	FConstraintInstanceAccessor GetConstraintInstanceAccessorByIndex(int32 Index);
+	FConstraintInstance* GetConstraintInstanceByIndex(uint32 Index);
+#endif
 
 private:
 
