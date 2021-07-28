@@ -68,9 +68,9 @@ FRigVMOperand FRigVMCompilerWorkData::AddProperty(
 {
 	check(bSetupMemory);
 	
-	URigVMMemoryStorage::FPropertyDescription Description(InName, InCPPType, InCPPTypeObject, InDefaultValue);
+	FRigVMPropertyDescription Description(InName, InCPPType, InCPPTypeObject, InDefaultValue);
 
-	TArray<URigVMMemoryStorage::FPropertyDescription>& PropertyArray = PropertyDescriptions.FindOrAdd(InMemoryType);
+	TArray<FRigVMPropertyDescription>& PropertyArray = PropertyDescriptions.FindOrAdd(InMemoryType);
 	const int32 PropertyIndex = PropertyArray.Add(Description);
 
 	return FRigVMOperand(InMemoryType, PropertyIndex);
@@ -78,7 +78,7 @@ FRigVMOperand FRigVMCompilerWorkData::AddProperty(
 
 FRigVMOperand FRigVMCompilerWorkData::FindProperty(ERigVMMemoryType InMemoryType, const FName& InName)
 {
-	TArray<URigVMMemoryStorage::FPropertyDescription>* PropertyArray = PropertyDescriptions.Find(InMemoryType);
+	TArray<FRigVMPropertyDescription>* PropertyArray = PropertyDescriptions.Find(InMemoryType);
 	if(PropertyArray)
 	{
 		for(int32 Index=0;Index<PropertyArray->Num();Index++)
@@ -92,9 +92,9 @@ FRigVMOperand FRigVMCompilerWorkData::FindProperty(ERigVMMemoryType InMemoryType
 	return FRigVMOperand();
 }
 
-URigVMMemoryStorage::FPropertyDescription FRigVMCompilerWorkData::GetProperty(const FRigVMOperand& InOperand)
+FRigVMPropertyDescription FRigVMCompilerWorkData::GetProperty(const FRigVMOperand& InOperand)
 {
-	TArray<URigVMMemoryStorage::FPropertyDescription>* PropertyArray = PropertyDescriptions.Find(InOperand.GetMemoryType());
+	TArray<FRigVMPropertyDescription>* PropertyArray = PropertyDescriptions.Find(InOperand.GetMemoryType());
 	if(PropertyArray)
 	{
 		if(PropertyArray->IsValidIndex(InOperand.GetRegisterIndex()))
@@ -102,21 +102,41 @@ URigVMMemoryStorage::FPropertyDescription FRigVMCompilerWorkData::GetProperty(co
 			return PropertyArray->operator[](InOperand.GetRegisterIndex());
 		}
 	}
-	return URigVMMemoryStorage::FPropertyDescription();
+	return FRigVMPropertyDescription();
 }
 
-int32 FRigVMCompilerWorkData::FindPropertyPath(const FString& InSegmentPath) const
+int32 FRigVMCompilerWorkData::FindPropertyPath(ERigVMMemoryType InMemoryType, const FString& InSegmentPath) const
 {
-	for(int32 Index = 0; Index < PropertyPathDescriptions.Num(); Index++)
+	const TArray<FRigVMPropertyPathDescription>* Descriptions = PropertyPathDescriptions.Find(InMemoryType);
+	if(Descriptions)
 	{
-		const FRigVMCompilerWorkData::FPropertyPathDescription& Description = PropertyPathDescriptions[Index]; 
+		for(int32 Index = 0; Index < Descriptions->Num(); Index++)
+		{
+			const FRigVMPropertyPathDescription& Description = Descriptions->operator[](Index); 
+			if(Description.SegmentPath == InSegmentPath)
+			{
+				return Index;
+			}
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+int32 FRigVMCompilerWorkData::FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InSegmentPath)
+{
+	check(bSetupMemory);
+	
+	TArray<FRigVMPropertyPathDescription>& Descriptions = PropertyPathDescriptions.FindOrAdd(InOperand.GetMemoryType());
+	for(int32 Index = 0; Index < Descriptions.Num(); Index++)
+	{
+		const FRigVMPropertyPathDescription& Description = Descriptions[Index]; 
 		if(Description.SegmentPath == InSegmentPath)
 		{
 			return Index;
 		}
 	}
-
-	return INDEX_NONE;
+	return Descriptions.Add(FRigVMPropertyPathDescription(InOperand.GetRegisterIndex(), InSegmentPath));
 }
 
 #endif
@@ -353,28 +373,18 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 			}
 		}
 
-		TArray<URigVMMemoryStorage::FPropertyDescription>* Properties = WorkData.PropertyDescriptions.Find(MemoryType);
+		TArray<FRigVMPropertyDescription>* Properties = WorkData.PropertyDescriptions.Find(MemoryType);
 		if(Properties == nullptr)
 		{
-			*MemoryStorageObject = NewObject<URigVMMemoryStorage>(WorkData.VM, NAME_None, RF_Public | RF_Transactional);
+			*MemoryStorageObject = NewObject<URigVMMemoryStorage>(WorkData.VM, NAME_None, RF_Public);
 			continue;
 		}
 
 		UPackage* Package = InGraph->GetOutermost();
-		UClass* MemoryClass = URigVMMemoryStorage::CreateStorageClass(Package, MemoryType, *Properties);
-		*MemoryStorageObject = NewObject<URigVMMemoryStorage>(WorkData.VM, MemoryClass, NAME_None, RF_Public | RF_Transactional); 
+		UClass* MemoryClass = URigVMMemoryStorageGeneratorClass::CreateStorageClass(Package, MemoryType, *Properties);
+		*MemoryStorageObject = NewObject<URigVMMemoryStorage>(WorkData.VM, MemoryClass, NAME_None, RF_Public); 
 	}
 
-	WorkData.VM->PropertyPaths.Reset();
-	for(FRigVMCompilerWorkData::FPropertyPathDescription Description : WorkData.PropertyPathDescriptions)
-	{
-		URigVMMemoryStorage* MemoryStorageObject = WorkData.VM->GetMemoryByType(Description.OriginalOperand.GetMemoryType());
-		const FProperty* Property = MemoryStorageObject->GetProperties()[Description.OriginalOperand.GetRegisterIndex()];
-
-		FRigVMPropertyPath PropertyPath(Property, Description.SegmentPath);
-		WorkData.VM->PropertyPaths.Add(PropertyPath);
-	}
-	
 #endif
 
 	WorkData.bSetupMemory = false;
@@ -867,17 +877,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 
 #else
 
-					int32 PropertyPathIndex = WorkData.FindPropertyPath(SegmentPath);
-					if(PropertyPathIndex == INDEX_NONE)
-					{
-						check(WorkData.bSetupMemory);
-						
-						FRigVMCompilerWorkData::FPropertyPathDescription PropertyPathDescription;
-						PropertyPathDescription.OriginalOperand = Operand;
-						PropertyPathDescription.SegmentPath = SegmentPath;
-						PropertyPathIndex = WorkData.PropertyPathDescriptions.Add(PropertyPathDescription);
-					}
-					
+					const int32 PropertyPathIndex = WorkData.FindOrAddPropertyPath(Operand, SegmentPath);
 					Operand = FRigVMOperand(Operand.GetMemoryType(), Operand.GetRegisterIndex(), PropertyPathIndex);
 					
 #endif
@@ -1840,17 +1840,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 #else
 
-						int32 PropertyPathIndex = WorkData.FindPropertyPath(SegmentPath);
-						if(PropertyPathIndex == INDEX_NONE)
-						{
-							check(WorkData.bSetupMemory);
-
-							FRigVMCompilerWorkData::FPropertyPathDescription PropertyPathDescription;
-							PropertyPathDescription.OriginalOperand = Operand;
-							PropertyPathDescription.SegmentPath = SegmentPath;
-							PropertyPathIndex = WorkData.PropertyPathDescriptions.Add(PropertyPathDescription);
-						}
-
+						const int32 PropertyPathIndex = WorkData.FindOrAddPropertyPath(Operand, SegmentPath);
 						Operand.RegisterOffset = (uint16)PropertyPathIndex;
 						
 #endif
@@ -1994,7 +1984,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 				Operand = WorkData.FindProperty(MemoryType, RegisterName);
 				if(Operand.IsValid())
 				{
-					URigVMMemoryStorage::FPropertyDescription Property = WorkData.GetProperty(Operand);
+					FRigVMPropertyDescription Property = WorkData.GetProperty(Operand);
 					if(Property.IsValid())
 					{
 						if(ExistingOperand == nullptr)

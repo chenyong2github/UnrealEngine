@@ -93,19 +93,15 @@ public:
 	FRigVMOperand ComparisonOperand;
 
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	struct FPropertyPathDescription
-	{
-		FRigVMOperand OriginalOperand;
-		FString SegmentPath;
-	};
 	
-	TArray<FPropertyPathDescription> PropertyPathDescriptions;
-	TMap<ERigVMMemoryType, TArray<URigVMMemoryStorage::FPropertyDescription>> PropertyDescriptions;
+	TMap<ERigVMMemoryType, TArray<FRigVMPropertyPathDescription>> PropertyPathDescriptions;
+	TMap<ERigVMMemoryType, TArray<FRigVMPropertyDescription>> PropertyDescriptions;
 
 	FRigVMOperand AddProperty(ERigVMMemoryType InMemoryType, const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue = FString());
 	FRigVMOperand FindProperty(ERigVMMemoryType InMemoryType, const FName& InName);
-	URigVMMemoryStorage::FPropertyDescription GetProperty(const FRigVMOperand& InOperand);
-	int32 FindPropertyPath(const FString& InSegmentPath) const;
+	FRigVMPropertyDescription GetProperty(const FRigVMOperand& InOperand);
+	int32 FindPropertyPath(ERigVMMemoryType InMemoryType, const FString& InSegmentPath) const;
+	int32 FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InSegmentPath);
 	
 #endif
 };
