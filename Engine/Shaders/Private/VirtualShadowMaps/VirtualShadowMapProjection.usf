@@ -378,7 +378,7 @@ void OutputDebug( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 		}
 		else if ( DebugOutputType == 4 && bValidPageAddress )	// Physical page age (mix in a bit of shadow for clarity)
 		{
-			uint Age = PhysicalPageMetaData[ PhysPageAddressToIndex(pPage) ].Age;
+			uint Age = PhysicalPageMetaData[ VSMPhysicalPageAddressToIndex(pPage) ].Age;
 			float3 Color = GreenToRedTurbo( 1.0f - 0.1f * float(Age) );
 			Output = lerp( Color, Result.ShadowFactor.xxx, 0.15f );
 		}

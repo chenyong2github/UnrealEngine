@@ -11,15 +11,6 @@
 #define HAS_CACHE_DATA 0
 #endif //HAS_CACHE_DATA
 
-// States of a physical page
-// Allocated but not cleared
-#define VSM_PHYSICAL_PAGE_STATE_INVALID 0
-// Cleared
-#define VSM_PHYSICAL_PAGE_STATE_CLEARED 1
-// Mapped (in page tables) during a call to render (not tracking whether any geo was drawn into the page)
-#define VSM_PHYSICAL_PAGE_STATE_RENDERED 2
-
-
 #if ENABLE_NON_NANITE_VSM
 // GPUCULL_TODO: This is probably ok to just leave on.
 // Marks pages that are not cached (bit 0)
@@ -119,21 +110,29 @@ uint CalcPageOffset(uint ShadowMapID, uint Level, uint2 PageAddress)
 }
 
 // Linearlize a physical page address to a linear offset
-uint PhysPageAddressToIndex(uint2 PhysicalPageAddress)
+uint VSMPhysicalPageAddressToIndex(uint2 PhysicalPageAddress)
 {
 	return (PhysicalPageAddress.y << VirtualShadowMap.PhysicalPageRowShift) + PhysicalPageAddress.x;
 }
 
+uint2 VSMPhysicalIndexToPageAddress(uint PageIndex)
+{
+	uint2 PageAddress;
+	PageAddress.x = PageIndex  & VirtualShadowMap.PhysicalPageRowMask;
+	PageAddress.y = PageIndex >> VirtualShadowMap.PhysicalPageRowShift;
+	return PageAddress;
+}
+
 // Current page table format:
 // NOTE: Some redundancy in flags and encoding, but we have spare bits for now
-//   [0:9] PageIndex.x
-//   [10:19] PageIndex.y
+//   [0:9] PageAddress.x
+//   [10:19] PageAddress.y
 //   [20:25] LODOffset
 //   [26:30] (currently unused)
 //   [31] bAnyLODValid
 struct FShadowPhysicalPage
 {
-	uint2 PageIndex;		// Physical page index X, Y
+	uint2 PhysicalAddress;	// Physical page address X, Y
 	uint LODOffset;			// 0 if page is mapped at this mip/clipmap level; 1 if mapped at next courser level, etc. [0..64)
 	bool bAnyLODValid;		// Valid physical page mapped at some LOD level
 	bool bThisLODValid;		// Valid page mapped at this specific level (equivalent to bAnyMipValid && LODOffset == 0)
@@ -145,19 +144,19 @@ struct FShadowPhysicalPage
 // TODO: Remove this, but need to update cache metadata
 #define VSM_INVALID_PHYSICAL_PAGE_ADDRESS 65535
 
-uint ShadowEncodePageTable(uint2 PageIndex)
+uint ShadowEncodePageTable(uint2 PhysicalAddress)
 {
-	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (PageIndex.y << 10) | (PageIndex.x);
+	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (PhysicalAddress.y << 10) | (PhysicalAddress.x);
 }
-uint ShadowEncodePageTable(uint2 PageIndex, uint LODOffset)
+uint ShadowEncodePageTable(uint2 PhysicalAddress, uint LODOffset)
 {
-	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (LODOffset << 20) | (PageIndex.y << 10) | (PageIndex.x);
+	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (LODOffset << 20) | (PhysicalAddress.y << 10) | (PhysicalAddress.x);
 }
 
 FShadowPhysicalPage ShadowDecodePageTable(uint Value)
 {
 	FShadowPhysicalPage Result;
-	Result.PageIndex = uint2(Value & 0x3FF, (Value >> 10) & 0x3FF);
+	Result.PhysicalAddress = uint2(Value & 0x3FF, (Value >> 10) & 0x3FF);
 	Result.LODOffset = (Value >> 20) & 0x3F;
 	Result.bAnyLODValid = (Value & VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG) != 0;
 	Result.bThisLODValid = Result.bAnyLODValid && Result.LODOffset == 0;
@@ -175,7 +174,7 @@ bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddr
 	uint VPageY = VirtualTexelAddress.y >> VSM_LOG2_PAGE_SIZE;
 
 	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageOffset(ShadowMapID, Level, uint2(VPageX, VPageY)));
-	PhysicalTexelAddress = PhysicalPageEntry.PageIndex * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
+	PhysicalTexelAddress = PhysicalPageEntry.PhysicalAddress * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
 	return (PhysicalPageEntry.bThisLODValid);
 }
 
@@ -201,7 +200,7 @@ FShadowPageTranslationResult ShadowVirtualToPhysicalUV(uint VirtualShadowMapID, 
 	// TODO: Can optimize this slightly based on relative offset
 	Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(Result.LODOffset));
 	Result.VirtualTexelAddress = uint2(Result.VirtualTexelAddressFloat);
-	Result.PhysicalTexelAddress = PhysicalPageEntry.PageIndex * VSM_PAGE_SIZE + (Result.VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
+	Result.PhysicalTexelAddress = PhysicalPageEntry.PhysicalAddress * VSM_PAGE_SIZE + (Result.VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
 
 	return Result;
 }

@@ -4,8 +4,7 @@
 #include "../ShaderPrintCommon.ush"
 #include "PageOverlap.ush"
 
-// Just the page count for now
-StructuredBuffer< uint >	InStatsBuffer;
+StructuredBuffer<uint>	InStatsBuffer;
 StructuredBuffer<uint4> AllocatedPageRectBounds;
 
 float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
@@ -112,26 +111,6 @@ void PrintStats()
 	ScreenPos.x = ValueX;
 	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[2]);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
-
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _A_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _H_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _E_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _D_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _F_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _B_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _P_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _C_);
-	ScreenPos = ShaderPrintSymbol(ScreenPos, _T_);
-	ScreenPos.x = ValueX;
-	if (InStatsBuffer[0])
-	{
-		ScreenPos = ShaderPrintLeftAlign(ScreenPos, (InStatsBuffer[2] * 100) / InStatsBuffer[0]);
-	}
 }
 
 

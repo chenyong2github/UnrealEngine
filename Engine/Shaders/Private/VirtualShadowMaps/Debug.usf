@@ -67,7 +67,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 
 			if( pPage.bThisLODValid )
 			{
-				uint2 pAddress = pPage.PageIndex * VSM_PAGE_SIZE + ( vAddress & VSM_PAGE_SIZE_MASK );
+				uint2 pAddress = pPage.PhysicalAddress * VSM_PAGE_SIZE + ( vAddress & VSM_PAGE_SIZE_MASK );
 				Depth = asfloat( VirtualShadowMap.PhysicalPagePool[ pAddress ] );
 				break;
 			}
@@ -85,7 +85,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 			{
 				vAddress >>= 1;
 
-				uint2 pAddress = pPage.PageIndex * HZB_PAGE_SIZE + ( vAddress & (HZB_PAGE_SIZE - 1) );
+				uint2 pAddress = pPage.PhysicalAddress * HZB_PAGE_SIZE + ( vAddress & (HZB_PAGE_SIZE - 1) );
 				HZBDepth = HZBPhysical[ pAddress ];
 				break;
 			}
@@ -148,15 +148,12 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 				uint PrevPageFlag = 0;
 				uint PrevDynFlag = 0;
 
-				if (ShadowMapCacheData[VirtualShadowMapId].VirtualShadowMapId != INDEX_NONE)// && MipLevel < VSM_MAX_MIP_LEVELS - 1)
+				const uint PrevVirtualShadowMapId = ShadowMapCacheData[VirtualShadowMapId].PrevVirtualShadowMapId;
+				if (PrevVirtualShadowMapId != INDEX_NONE)
 				{
-					int2 PrevPageAddress = int2(PageAddress) - (ShadowMapCacheData[VirtualShadowMapId].SmPageOffset >> MipLevel);
-					if (all(PrevPageAddress >= 0 && PrevPageAddress < CalcLevelDimsPages(MipLevel)))
-					{
-						uint PrevOffset = CalcPageOffset(ShadowMapCacheData[VirtualShadowMapId].VirtualShadowMapId, MipLevel, PrevPageAddress);
-						PrevPageFlag = PrevPageFlags[PrevOffset];
-						PrevDynFlag = PrevDynamicCasterPageFlags[PrevOffset];
-					}
+					uint PrevOffset = CalcPageOffset(PrevVirtualShadowMapId, MipLevel, PageAddress);
+					PrevPageFlag = PrevPageFlags[PrevOffset];
+					PrevDynFlag = PrevDynamicCasterPageFlags[PrevOffset];
 				}
 
 				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
