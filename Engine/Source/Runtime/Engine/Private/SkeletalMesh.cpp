@@ -104,6 +104,7 @@
 #include "SkeletalDebugRendering.h"
 #include "Misc/RuntimeErrors.h"
 #include "PlatformInfo.h"
+#include "Async/Async.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
@@ -1568,11 +1569,37 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 }
 
 #if WITH_EDITOR
+void CacheRunningPlatform(USkeletalMesh* Mesh)
+{
+	//Cache the running platform, dcc should be valid so it will be fast
+	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	check(RunningPlatform);
+	FSkeletalMeshBuildContext Context;
+	FSkeletalMeshRenderData RunningPlatformRenderData;
+	RunningPlatformRenderData.Cache(RunningPlatform, Mesh, &Context);
+
+	auto ApplyContext = [Mesh, Context = MoveTemp(Context)]()
+	{
+		check(IsInGameThread());
+		Context.FinishBuildInternalData.ApplyEditorData(Mesh);
+	};
+
+	if (IsInGameThread())
+	{
+		ApplyContext();
+	}
+	else
+	{
+		//Always apply context data on the game thread
+		Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(ApplyContext));
+	}
+}
+
 FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh);
 
 static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh* Mesh, const ITargetPlatform* TargetPlatform)
 {
-	FString PlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Mesh);
+	const FString PlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Mesh);
 	FSkeletalMeshRenderData* PlatformRenderData = Mesh->GetResourceForRendering();
 	if (Mesh->GetOutermost()->bIsCookedForEditor)
 	{
@@ -1589,7 +1616,10 @@ static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh*
 	{
 		// Cache render data for this platform and insert it in to the linked list.
 		PlatformRenderData = new FSkeletalMeshRenderData();
-		PlatformRenderData->Cache(TargetPlatform, Mesh);
+		FSkeletalMeshBuildContext Context;
+		PlatformRenderData->Cache(TargetPlatform, Mesh, &Context);
+		//No need to apply the context editor data to the mesh when the target is not the running target
+		
 		check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
 		Swap(PlatformRenderData->NextCachedRenderData, Mesh->GetResourceForRendering()->NextCachedRenderData);
 		Mesh->GetResourceForRendering()->NextCachedRenderData = TUniquePtr<FSkeletalMeshRenderData>(PlatformRenderData);
@@ -1600,15 +1630,14 @@ static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh*
 			//Normally it should just take back the ddc for the running platform, since the ddc was cache when we have load the asset to cook it.
 			ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 			check(RunningPlatform);
-			if (RunningPlatform != TargetPlatform)
+			//The running platform was loaded before getting here, so we should not have an null PlatformRenderData if someone call
+			//GetPlatformSkeletalMeshRenderData with a platform using the same ddc key
+			const FString RunningPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(RunningPlatform, Mesh);
+			if (RunningPlatformDerivedDataKey != PlatformDerivedDataKey)
 			{
-				FString RunningPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(RunningPlatform, Mesh);
-				if (RunningPlatformDerivedDataKey != PlatformDerivedDataKey)
-				{
-					FSkeletalMeshRenderData RunningPlatformRenderData;
-					RunningPlatformRenderData.Cache(RunningPlatform, Mesh);
-					check(RunningPlatformRenderData.DerivedDataKey == RunningPlatformDerivedDataKey);
-				}
+				//Force a cache of the running platform to put back the running platform editor data (FSkeletalMeshLODModel and MorphTargets)
+				//Editor data do not have "DDC key linked list". Maybe we should move this data in the FSkeletalMeshRenderData.
+				CacheRunningPlatform(Mesh);
 			}
 		}
 	}
@@ -1913,6 +1942,72 @@ uint32 USkeletalMesh::GetVertexBufferFlags() const
 
 #if WITH_EDITOR
 
+void FFinishBuildInternalData::ApplyMorphTargetsEditorData(USkeletalMesh* SkeletalMesh) const
+{
+	check(IsInGameThread());
+	//Return if we do not need to apply data
+	if (!bApplyMorphTargetsData)
+	{
+		return;
+	}
+
+	FSkeletalMeshModel* SkelMeshModel = SkeletalMesh->GetImportedModel();
+	check(SkelMeshModel);
+
+	TMap<FName, UMorphTarget*> ExistingMorphTargets;
+	for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
+	{
+		ExistingMorphTargets.Add(MorphTarget->GetFName(), MorphTarget);
+	}
+
+	int32 MorphTargetNumber = MorphLODModelsPerTargetName.Num();
+	TArray<UMorphTarget*> ToDeleteMorphTargets;
+	ToDeleteMorphTargets.Append(SkeletalMesh->GetMorphTargets());
+	SkeletalMesh->GetMorphTargets().Empty();
+	//Rebuild the MorphTarget object
+	for(TPair<FName, TArray<FMorphTargetLODModel>> TargetNameAndMorphLODModels : MorphLODModelsPerTargetName)
+	{
+		FName MorphTargetName = TargetNameAndMorphLODModels.Key;
+		UMorphTarget* MorphTarget = ExistingMorphTargets.FindRef(MorphTargetName);
+		if (!MorphTarget)
+		{
+			MorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
+			check(MorphTarget);
+		}
+		else
+		{
+			ToDeleteMorphTargets.Remove(MorphTarget);
+		}
+		MorphTarget->MorphLODModels.Empty();
+		SkeletalMesh->GetMorphTargets().Add(MorphTarget);
+		const TArray<FMorphTargetLODModel>& MorphTargetLODModels = TargetNameAndMorphLODModels.Value;
+		int32 MorphLODModelNumber = MorphTargetLODModels.Num();
+		MorphTarget->MorphLODModels.AddDefaulted(MorphLODModelNumber);
+		for (int32 MorphDataIndex = 0; MorphDataIndex < MorphLODModelNumber; ++MorphDataIndex)
+		{
+			MorphTarget->MorphLODModels[MorphDataIndex] = MorphTargetLODModels[MorphDataIndex];
+		}
+	}
+	//Rebuild the mapping and rehook the curve data
+	SkeletalMesh->InitMorphTargets();
+
+	for (UMorphTarget* ToDeleteMorphTarget : ToDeleteMorphTargets)
+	{
+		ToDeleteMorphTarget->BaseSkelMesh = nullptr;
+		ToDeleteMorphTarget->MorphLODModels.Empty();
+
+		//Move the unused asset in the transient package and mark it pending kill
+		ToDeleteMorphTarget->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		ToDeleteMorphTarget->MarkPendingKill();
+	}
+}
+
+void FFinishBuildInternalData::ApplyEditorData(USkeletalMesh* SkeletalMesh) const
+{
+	check(IsInGameThread());
+	ApplyMorphTargetsEditorData(SkeletalMesh);
+}
+
 thread_local const USkeletalMesh* FSkeletalMeshAsyncBuildScope::SkeletalMeshBeingAsyncCompiled = nullptr;
 
 FSkeletalMeshAsyncBuildScope::FSkeletalMeshAsyncBuildScope(const USkeletalMesh* SkeletalMesh)
@@ -2087,7 +2182,7 @@ void USkeletalMesh::ExecuteBuildInternal(FSkeletalMeshBuildContext& Context)
 	FSkeletalMeshAsyncBuildScope AsyncBuildScope(this);
 
 	// rebuild render data from imported model
-	CacheDerivedData();
+	CacheDerivedData(&Context);
 
 	// Do not need to fix up 16-bit UVs here, as we assume all editor platforms support them.
 	ensure(GVertexElementTypeSupport.IsSupported(VET_Half2));
@@ -2099,12 +2194,22 @@ void USkeletalMesh::ExecuteBuildInternal(FSkeletalMeshBuildContext& Context)
 	UpdateGenerateUpToData();
 }
 
+void USkeletalMesh::ApplyFinishBuildInternalData(FSkeletalMeshCompilationContext* ContextPtr)
+{
+	//We cannot execute this code outside of the game thread
+	checkf(IsInGameThread(), TEXT("Cannot execute function USkeletalMesh::ApplyFinishBuildInternalData asynchronously. Asset: %s"), *this->GetFullName());
+	check(ContextPtr);
+	ContextPtr->FinishBuildInternalData.ApplyEditorData(this);
+}
+
 void USkeletalMesh::FinishBuildInternal(FSkeletalMeshBuildContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::FinishBuildInternal);
 
 	ReleaseAsyncProperty();
 
+	ApplyFinishBuildInternalData(&Context);
+	
 	// Note: meshes can be built during automated importing.  We should not create resources in that case
 	// as they will never be released when this object is deleted
 	if (FApp::CanEverRender())
@@ -3239,7 +3344,7 @@ void USkeletalMesh::ExecutePostLoadInternal(FSkeletalMeshPostLoadContext& Contex
 
 		if (GetResourceForRendering() == nullptr)
 		{
-			CacheDerivedData();
+			CacheDerivedData(&Context);
 			Context.bHasCachedDerivedData = true;
 		}
 	}
@@ -3301,9 +3406,9 @@ void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context
 	}
 #endif // WITH_EDITOR
 
-	// init morph targets. 
-	// should do this before InitResource, so that we clear invalid morphtargets
-	InitMorphTargets();
+#if WITH_EDITOR
+	ApplyFinishBuildInternalData(&Context);
+#endif
 
 	// initialize rendering resources
 	if (FApp::CanEverRender())
@@ -4297,9 +4402,10 @@ namespace InternalSkeletalMeshHelper
 	}
 } //namespace InternalSkeletalMeshHelper
 
-void USkeletalMesh::CacheDerivedData()
+void USkeletalMesh::CacheDerivedData(FSkeletalMeshCompilationContext* ContextPtr)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::CacheDerivedData);
+	check(ContextPtr);
 
 	// Cache derived data for the running platform.
 	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
@@ -4316,7 +4422,7 @@ void USkeletalMesh::CacheDerivedData()
 	TMap<int32, TArray<int16>> BackupSectionsPerLOD;
 	InternalSkeletalMeshHelper::CreateLodMaterialMapBackup(this, BackupSectionsPerLOD);
 
-	GetSkeletalMeshRenderData()->Cache(RunningPlatform, this);
+	GetSkeletalMeshRenderData()->Cache(RunningPlatform, this, ContextPtr);
 
 	InternalSkeletalMeshHelper::RestoreLodMaterialMapBackup(this, BackupSectionsPerLOD);
 }

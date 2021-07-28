@@ -322,10 +322,10 @@ FString FSkeletalMeshRenderData::GetDerivedDataKey(const ITargetPlatform* Target
 	return BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
 }
 
-void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner)
+void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner, FSkeletalMeshCompilationContext* ContextPtr)
 {
 	check(Owner);
-
+	check(ContextPtr);
 
 	check(LODRenderData.Num() == 0); // Should only be called on new, empty RenderData
 	check(TargetPlatform);
@@ -363,7 +363,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			
 			FLargeMemoryReader Ar(DerivedData.GetData(), DerivedData.Num(), ELargeMemoryReaderFlags::Persistent);
 
-			//With skeletal mesh build refactor we serialize the LODModel sections into the DDC
+			//With skeletal mesh build refactor we serialize the LODModel data into the DDC
 			//We need to store those so we do not have to rerun the reduction to make them up to date
 			//with the serialize renderdata. This allow to use DDC when changing the reduction settings.
 			//The old workflow has to reduce the LODModel before getting the render data DDC.
@@ -372,78 +372,33 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				FSkeletalMeshModel* SkelMeshModel = Owner->GetImportedModel();
 				check(SkelMeshModel);
 
-				TMap<FName, UMorphTarget*> ExistingMorphTargets;
-				for (UMorphTarget* MorphTarget : Owner->GetMorphTargets())
+				//Get the morph target data, we put it in the compilation context to apply them in the game thread before the InitResources
 				{
-					ExistingMorphTargets.Add(MorphTarget->GetFName(), MorphTarget);
-				}
-
-				int32 MorphTargetNumber = 0;
-				Ar << MorphTargetNumber;
-				TArray<UMorphTarget*> ToDeleteMorphTargets;
-				ToDeleteMorphTargets.Append(Owner->GetMorphTargets());
-				Owner->GetMorphTargets().Empty();
-				//Rebuild the MorphTarget object
-				//We cannot serialize directly the UMorphTarget with a FMemoryArchive. This is not supported.
-				for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
-				{
-					FName MorphTargetName = NAME_None;
-					Ar << MorphTargetName;
-					UMorphTarget* MorphTarget = ExistingMorphTargets.FindRef(MorphTargetName);
-					if (!MorphTarget)
+					if (!ensureMsgf(!ContextPtr->FinishBuildInternalData.bApplyMorphTargetsData, TEXT("Error in FSkeletalMeshRenderData::Cache. The compilation context morph targets data was already set.")))
 					{
-						MorphTarget = NewObject<UMorphTarget>(Owner, MorphTargetName);
-						check(MorphTarget);
+						ContextPtr->FinishBuildInternalData.MorphLODModelsPerTargetName.Empty();
+						ContextPtr->FinishBuildInternalData.bApplyMorphTargetsData = false;
 					}
-					else
-					{
-						ToDeleteMorphTargets.Remove(MorphTarget);
-					}
-					MorphTarget->MorphLODModels.Empty();
-					Owner->GetMorphTargets().Add(MorphTarget);
-					check(MorphTargetIndex == Owner->GetMorphTargets().Num() - 1);
-					int32 MorphLODModelNumber = 0;
-					Ar << MorphLODModelNumber;
-					MorphTarget->MorphLODModels.AddDefaulted(MorphLODModelNumber);
-					for (int32 MorphDataIndex = 0; MorphDataIndex < MorphLODModelNumber; ++MorphDataIndex)
-					{
-						Ar << MorphTarget->MorphLODModels[MorphDataIndex];
-					}
-				}
-				//Rebuild the mapping and rehook the curve data
-				Owner->InitMorphTargets();
 
-				for (UMorphTarget* ToDeleteMorphTarget : ToDeleteMorphTargets)
-				{
-					ToDeleteMorphTarget->BaseSkelMesh = nullptr;
-					ToDeleteMorphTarget->MorphLODModels.Empty();
-
-					auto DeleteObject = 
-						[ObjectToDelete = TWeakObjectPtr<UMorphTarget>(ToDeleteMorphTarget)]()
+					int32 MorphTargetNumber = 0;
+					Ar << MorphTargetNumber;
+					ContextPtr->FinishBuildInternalData.MorphLODModelsPerTargetName.Reserve(MorphTargetNumber);
+					ContextPtr->FinishBuildInternalData.bApplyMorphTargetsData = true;
+					//We cannot serialize directly the UMorphTarget with a FMemoryArchive. This is not supported.
+					for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
+					{
+						FName MorphTargetName = NAME_None;
+						Ar << MorphTargetName;
+						TArray<FMorphTargetLODModel>& MorphTargetLODModels = ContextPtr->FinishBuildInternalData.MorphLODModelsPerTargetName.FindOrAdd(MorphTargetName);
+						int32 MorphLODModelNumber = 0;
+						Ar << MorphLODModelNumber;
+						MorphTargetLODModels.Empty(MorphLODModelNumber);
+						MorphTargetLODModels.AddDefaulted(MorphLODModelNumber);
+						for (int32 MorphDataIndex = 0; MorphDataIndex < MorphLODModelNumber; ++MorphDataIndex)
 						{
-							//Move the unused asset in the transient package and mark it pending kill
-							if (ObjectToDelete.IsValid())
-							{
-								ObjectToDelete->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-								ObjectToDelete->MarkPendingKill();
-							}
-						};
-
-					if (IsInGameThread())
-					{
-						DeleteObject();
+							Ar << MorphTargetLODModels[MorphDataIndex];
+						}
 					}
-					else
-					{
-						Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(DeleteObject));
-					}
-				}
-
-				// In case we're built async and objects were created, we need to remove the async flag now that they are referenced
-				// and reachable by the GC.
-				for (UMorphTarget* MorphTarget : Owner->GetMorphTargets())
-				{
-					MorphTarget->ClearInternalFlags(EInternalObjectFlags::Async);
 				}
 
 				//Serialize the LODModel sections since they are dependent on the reduction
@@ -485,7 +440,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			for (int32 LODIndex = 0; LODIndex < SkelMeshModel->LODModels.Num(); LODIndex++)
 			{
 				FSkeletalMeshLODModel* LODModel = &(SkelMeshModel->LODModels[LODIndex]);
-				FSkeletalMeshLODInfo* LODInfo = Owner->GetLODInfo(LODIndex);
+				const FSkeletalMeshLODInfo* LODInfo = Owner->GetLODInfo(LODIndex);
 				check(LODInfo);
 				bool bRawDataEmpty = Owner->IsLODImportedDataEmpty(LODIndex);
 				bool bRawBuildDataAvailable = Owner->IsLODImportedDataBuildAvailable(LODIndex);
