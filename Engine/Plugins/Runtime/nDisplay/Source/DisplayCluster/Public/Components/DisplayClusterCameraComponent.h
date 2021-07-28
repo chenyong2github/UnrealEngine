@@ -150,7 +150,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Gizmo", meta = (UIMin = "0", UIMax = "2.0", ClampMin = "0.01", ClampMax = "10.0", EditCondition = "bEnableGizmo"))
 	float GizmoScaleMultiplier;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UBillboardComponent* SpriteComponent;
 
 	UPROPERTY()
