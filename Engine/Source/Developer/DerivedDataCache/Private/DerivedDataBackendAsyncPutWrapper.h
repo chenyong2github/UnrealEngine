@@ -78,6 +78,9 @@ public:
 	/** Returns a class of speed for this interface **/
 	virtual ESpeedClass GetSpeedClass() const override;
 
+	/** Return true if hits on this cache should propagate to lower cache level. */
+	virtual bool BackfillLowerCacheLevels() const override;
+
 	/**
 	 * Synchronous test for the existence of a cache item
 	 *
