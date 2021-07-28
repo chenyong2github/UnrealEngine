@@ -234,7 +234,8 @@ bool FActorInstance::ShouldStripFromStreaming() const
 
 FVector FActorInstance::GetOrigin() const
 {
-	return ContainerInstance->Transform.TransformPosition(GetActorDescView().GetOrigin());
+	// Embedded mode means all actors of the container share the same location so that they get placed in the same runtime cell
+	return ContainerInstance->ClusterMode == EContainerClusterMode::Embedded ? ContainerInstance->Transform.GetLocation() : ContainerInstance->Transform.TransformPosition(GetActorDescView().GetOrigin());
 }
 
 const FWorldPartitionActorDescView& FActorInstance::GetActorDescView() const
