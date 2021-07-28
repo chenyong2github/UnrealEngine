@@ -180,7 +180,7 @@ struct FNiagaraLazyPrecompileReference
 	UNiagaraSystem* System = nullptr;
 	TArray<UNiagaraScript*> Scripts;
 	TMap<UNiagaraScript*, int32> EmitterScriptIndex;
-	TArray<TObjectPtr<UObject>>* CompilationRootObjects;
+	TArray<TObjectPtr<UObject>> CompilationRootObjects;
 	TArray<FNiagaraVariable> EncounteredExposedVars;
 
 private:
@@ -210,6 +210,7 @@ public:
 	double StartCompileTime = 0;
 	bool bWaitForCompileJob = false;
 	bool bUsedShaderCompilerWorker = false;
+	bool bFetchedGCObjects = false;
 	FEmitterCompiledScriptPair ScriptPair;
 
 	ENiagaraCompilationState CurrentState;
