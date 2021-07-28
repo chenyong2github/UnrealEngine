@@ -17,7 +17,7 @@
 #include "RenderTargetPool.h"
 #include "RHIResources.h"
 #include "SceneRenderTargetParameters.h"
-#include "InstanceCulling/InstanceCullingContext.h"
+#include "SimpleMeshDrawCommandPass.h"
 
 DECLARE_GPU_STAT_NAMED(LandscapePhysicalMaterial_Draw, TEXT("LandscapePhysicalMaterial"));
 
@@ -277,13 +277,14 @@ namespace
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FLandscapePhysicalMaterialPassParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
 	/** Render the landscape physical material IDs and copy to the read back texture. */
 	void Render_RenderThread(
 		FRHICommandListImmediate& RHICmdList,
+		FSceneInterface* SceneInterface,
 		FMeshInfoArray const& MeshInfos,
 		FIntPoint TargetSize,
 		FVector ViewOrigin,
@@ -291,11 +292,16 @@ namespace
 		FMatrix ProjectionMatrix,
 		FRHIGPUTextureReadback* Readback)
 	{
+		FMemMark Mark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
+
 		// Create the view
-		FSceneViewFamily::ConstructionValues ViewFamilyInit(nullptr, nullptr, FEngineShowFlags(ESFIM_Game));
+		FSceneViewFamily::ConstructionValues ViewFamilyInit(nullptr, SceneInterface, FEngineShowFlags(ESFIM_Game));
 		ViewFamilyInit.SetWorldTimes(0.0f, 0.0f, 0.0f);
 		FSceneViewFamilyContext ViewFamily(ViewFamilyInit);
 		ViewFamily.LandscapeLODOverride = 0; // Force LOD 0 render
+
+		FScenePrimitiveRenderingContextScopeHelper ScenePrimitiveRenderingContextScopeHelper(GetRendererModule().BeginScenePrimitiveRendering(GraphBuilder, &ViewFamily));
 
 		FSceneViewInitOptions ViewInitOptions;
 		ViewInitOptions.SetViewRectangle(FIntRect(0, 0, TargetSize.X, TargetSize.Y));
@@ -307,34 +313,21 @@ namespace
 		GetRendererModule().CreateAndInitSingleView(RHICmdList, &ViewFamily, &ViewInitOptions);
 		const FSceneView* View = ViewFamily.Views[0];
 
-		FMemMark Mark(FMemStack::Get());
-		FRDGBuilder GraphBuilder(RHICmdList);
-
 		FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(
 			FRDGTextureDesc::Create2D(TargetSize, PF_G8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource),
 			TEXT("LandscapePhysicalMaterialTarget"));
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FLandscapePhysicalMaterialPassParameters>();
 		PassParameters->View = View->ViewUniformBuffer;
-		PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::EClear);
 
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("LandscapePhysicalMaterial"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[&View, &MeshInfos](FRHICommandListImmediate& RHICmdList)
-		{
-			RHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
-			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-
-			DrawDynamicMeshPass(*View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+		AddSimpleMeshPass(GraphBuilder, PassParameters, SceneInterface->GetRenderScene(), *View, nullptr, RDG_EVENT_NAME("LandscapePhysicalMaterial"), View->UnscaledViewRect,
+			[View, &MeshInfos](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
 				FLandscapePhysicalMaterialMeshProcessor PassMeshProcessor(
 					nullptr,
 					View,
 					DynamicMeshPassContext);
-
 				for (auto& MeshInfo : MeshInfos)
 				{
 					const FMeshBatch& Mesh = *MeshInfo.MeshBatch;
@@ -345,7 +338,6 @@ namespace
 					}
 				}
 			});
-		});
 
 		AddEnqueueCopyPass(GraphBuilder, Readback, OutputTexture);
 
@@ -480,6 +472,7 @@ namespace
 
 				Render_RenderThread(
 					RHICmdList,
+					&SceneProxy->GetScene(),
 					MeshInfos,
 					Task.TargetSize,
 					Task.ViewOrigin,
