@@ -21,6 +21,7 @@ struct FGenericCrashContext;
  */
 struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 {
+	static void PlatformPreInit();
 	static void PlatformInit();
 	static void PlatformTearDown();
 	static void SetGracefulTerminationHandler();
