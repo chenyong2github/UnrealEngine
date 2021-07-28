@@ -385,12 +385,12 @@ void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId 
 	}
 	else if (VendorId == EGpuVendorId::Nvidia)
 	{
+		UNvidiaDriverVersion NvidiaVersion;
+		static_assert(sizeof(NvidiaVersion) == sizeof(Props.driverVersion), "Mismatched Nvidia pack driver version!");
+		NvidiaVersion.Packed = Props.driverVersion;
+
 		if (GRHIAdapterName.Contains(TEXT("RTX 20")))
 		{
-			UNvidiaDriverVersion NvidiaVersion;
-			static_assert(sizeof(NvidiaVersion) == sizeof(Props.driverVersion), "Mismatched Nvidia pack driver version!");
-			NvidiaVersion.Packed = Props.driverVersion;
-
 			if (NvidiaVersion.Major < 430)
 			{
 				// Workaround a crash on 20xx family
@@ -401,6 +401,13 @@ void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId 
 				IConsoleVariable* BypassVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdBypass"));
 				BypassVar->SetWithCurrentPriority(1);
 			}
+		}
+
+		if ((NvidiaVersion.Major < 471) || ((NvidiaVersion.Major == 471) && (NvidiaVersion.Minor < 46)))
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Nvidia drivers < 471.46 do not support Nanite/Lumen in Vulkan."));
+			extern TAutoConsoleVariable<int32> GRHIAllow64bitShaderAtomicsCvar;
+			GRHIAllow64bitShaderAtomicsCvar->SetWithCurrentPriority(0);
 		}
 	}
 }

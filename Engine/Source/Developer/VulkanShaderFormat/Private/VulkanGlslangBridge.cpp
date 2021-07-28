@@ -266,24 +266,28 @@ void PatchSpirvReflectionEntries(FVulkanSpirv& Spirv)
 				if (FoundTypeName && FoundTypeName->Len() > 0)
 				{
 					FVulkanSpirv::FEntry* FoundEntry = Spirv.GetEntry(*FoundTypeName);
-					checkf(FoundEntry, TEXT("cannot find variable entry in SPIR-V module: %s"), **FoundTypeName);
-					FDecorations& FoundDecorations = Decorations.FindChecked(VariableId);
-					FoundEntry->Binding = FoundDecorations.BindingIndex;
-					FoundEntry->WordBindingIndex = FoundDecorations.WordBindingIndex;
-					FoundEntry->DescriptorSet = FoundDecorations.DescriptorSet;
-					FoundEntry->WordDescriptorSetIndex = FoundDecorations.WordDescriptorSet;
+					if (FoundEntry)
+					{
+						FDecorations& FoundDecorations = Decorations.FindChecked(VariableId);
+						FoundEntry->Binding = FoundDecorations.BindingIndex;
+						FoundEntry->WordBindingIndex = FoundDecorations.WordBindingIndex;
+						FoundEntry->DescriptorSet = FoundDecorations.DescriptorSet;
+						FoundEntry->WordDescriptorSetIndex = FoundDecorations.WordDescriptorSet;
+					}
 				}
 			}
 			else
 			{
 				// Standalone global var
 				FVulkanSpirv::FEntry* FoundEntry = Spirv.GetEntry(*FoundVariableName);
-				checkf(FoundEntry, TEXT("Entry name not found in SPIR-V module: %s"), *(*FoundVariableName));
-				FDecorations& FoundDecorations = Decorations.FindChecked(VariableId);
-				FoundEntry->Binding = FoundDecorations.BindingIndex;
-				FoundEntry->WordBindingIndex = FoundDecorations.WordBindingIndex;
-				FoundEntry->DescriptorSet = FoundDecorations.DescriptorSet;
-				FoundEntry->WordDescriptorSetIndex = FoundDecorations.WordDescriptorSet;
+				if (FoundEntry)
+				{
+					FDecorations& FoundDecorations = Decorations.FindChecked(VariableId);
+					FoundEntry->Binding = FoundDecorations.BindingIndex;
+					FoundEntry->WordBindingIndex = FoundDecorations.WordBindingIndex;
+					FoundEntry->DescriptorSet = FoundDecorations.DescriptorSet;
+					FoundEntry->WordDescriptorSetIndex = FoundDecorations.WordDescriptorSet;
+				}
 			}
 		}
 	}

@@ -1623,30 +1623,42 @@ FRasterContext InitRasterContext(
 	else
 	{
 		// Determine what is providing support for atomics.
-	#if PLATFORM_WINDOWS
-		// TODO: This... should be cleaned up. No way to query the RHI in another capacity.
+
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
+		// TODO: This... should be cleaned up. No way to query the RHI in another capacity. Should be cleaned up
 		const TCHAR* RHIName = GDynamicRHI->GetName();
-		static const bool bIsDx12 = FCString::Stristr(RHIName, TEXT("D3D12")) != nullptr; // Also covers -rhivalidation => D3D12_Validation
-
-		if (IsRHIDeviceNVIDIA())
+		static const bool bIsVulkan = FCString::Strcmp(RHIName, TEXT("Vulkan")) == 0;
+		if (bIsVulkan)
 		{
-			// Support is provided through NVAPI.
-			RasterContext.RasterTechnique = ERasterTechnique::NVAtomics;
+			RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
 		}
-		else if (IsRHIDeviceAMD())
+		else
+#endif
 		{
-			// Support is provided through AGS.
-			RasterContext.RasterTechnique = bIsDx12 ? ERasterTechnique::AMDAtomicsD3D12 : ERasterTechnique::AMDAtomicsD3D11;
+#if PLATFORM_WINDOWS
+			// TODO: This... should be cleaned up. No way to query the RHI in another capacity.
+			static const bool bIsDx12 = FCString::Stristr(RHIName, TEXT("D3D12")) != nullptr; // Also covers -rhivalidation => D3D12_Validation
 
-			// TODO: Currently the atomics only work properly in the hardware path on DX11. Disable any compute support with this technique.
-			if (!bIsDx12)
+			if (IsRHIDeviceNVIDIA())
 			{
-				RasterContext.RasterScheduling = ERasterScheduling::HardwareOnly;
+				// Support is provided through NVAPI.
+				RasterContext.RasterTechnique = ERasterTechnique::NVAtomics;
 			}
+			else if (IsRHIDeviceAMD())
+			{
+				// Support is provided through AGS.
+				RasterContext.RasterTechnique = bIsDx12 ? ERasterTechnique::AMDAtomicsD3D12 : ERasterTechnique::AMDAtomicsD3D11;
+
+				// TODO: Currently the atomics only work properly in the hardware path on DX11. Disable any compute support with this technique.
+				if (!bIsDx12)
+				{
+					RasterContext.RasterScheduling = ERasterScheduling::HardwareOnly;
+				}
+			}
+#else
+			RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
+#endif
 		}
-	#else
-		RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
-	#endif
 	}
 
 	RasterContext.DepthBuffer	= ExternalDepthBuffer ? ExternalDepthBuffer :
