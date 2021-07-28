@@ -1652,7 +1652,7 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 	if (bUnMirrorEnabled[1][1] || IsDebugGenerateAllFunctionsEnabled())
 	{
 		// UnMirrorUV
-		Ret += TEXT("FloatDeriv2 UnMirrorU(FloatDeriv2 UV, FMaterialPixelParameters Parameters)") LINE_TERMINATOR;
+		Ret += TEXT("FloatDeriv2 UnMirrorUV(FloatDeriv2 UV, FMaterialPixelParameters Parameters)") LINE_TERMINATOR;
 		Ret += TEXT("{") LINE_TERMINATOR;
 		Ret += TEXT("\tconst MaterialFloat Scale = (Parameters.UnMirrored * 0.5f);") LINE_TERMINATOR;
 		Ret += TEXT("\tUV.Value = UV.Value * Scale + 0.5f;") LINE_TERMINATOR;
