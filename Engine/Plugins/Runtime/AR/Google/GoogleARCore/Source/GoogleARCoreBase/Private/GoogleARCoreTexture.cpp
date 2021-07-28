@@ -4,6 +4,7 @@
 #include "TextureResource.h"
 #include "RHICommandList.h"
 #include "ExternalTexture.h"
+#include "XRThreadUtils.h"
 
 
 class FARCoreCameraTextureResource : public FTextureResource
@@ -22,9 +23,13 @@ public:
 		
 		FRHIResourceCreateInfo CreateInfo;
 		TextureRHI = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_SRGB, CreateInfo);
-		void* NativeResource = TextureRHI->GetNativeResource();
-		check(NativeResource);
-		TextureId = *reinterpret_cast<uint32*>(NativeResource);
+
+		ExecuteOnRHIThread([this]()
+		{
+			void* NativeResource = TextureRHI->GetNativeResource();
+			check(NativeResource);
+			TextureId = *reinterpret_cast<uint32*>(NativeResource);
+		});
 		
 		FExternalTextureRegistry::Get().RegisterExternalTexture(ExternalTextureGuid, TextureRHI, SamplerStateRHI);
 	}
