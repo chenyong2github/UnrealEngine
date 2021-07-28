@@ -59,6 +59,12 @@ void UMetaSoundSource::PostEditUndo()
 	Metasound::PostAssetUndo(*this);
 }
 
+void UMetaSoundSource::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
+{
+	Super::PostDuplicate(InDuplicateMode);
+	Metasound::PostDuplicate(*this, InDuplicateMode);
+}
+
 void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 {
 	using namespace Metasound;

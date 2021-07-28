@@ -37,6 +37,12 @@ UMetaSound::UMetaSound(const FObjectInitializer& ObjectInitializer)
 }
 
 #if WITH_EDITOR
+void UMetaSound::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
+{
+	Super::PostDuplicate(InDuplicateMode);
+	Metasound::PostDuplicate(*this, InDuplicateMode);
+}
+
 void UMetaSound::PostEditUndo()
 {
 	Super::PostEditUndo();

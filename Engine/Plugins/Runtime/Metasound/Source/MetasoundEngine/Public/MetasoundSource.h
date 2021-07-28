@@ -120,6 +120,8 @@ public:
 		return false;
 	}
 
+	virtual void PostDuplicate(EDuplicateMode::Type InDuplicateMode) override;
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
 
