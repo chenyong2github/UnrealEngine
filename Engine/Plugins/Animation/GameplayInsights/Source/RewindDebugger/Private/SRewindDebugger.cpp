@@ -30,6 +30,8 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "IRewindDebuggerViewCreator.h"
+#include "RewindDebuggerViewCreators.h"
 
 #define LOCTEXT_NAMESPACE "SRewindDebugger"
 
@@ -262,7 +264,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	TSharedPtr<FTabManager::FStack> MainTabStack = FTabManager::NewStack();
 
 	IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
-	GameplayInsightsModule.GetDebugViewCreator()->EnumerateCreators([this, MainTabStack](const TSharedPtr<ICreateGameplayInsightsDebugView>& Creator)
+	FRewindDebuggerViewCreators::EnumerateCreators([this, MainTabStack](const IRewindDebuggerViewCreator* Creator)
 		{
 			FName TabName = Creator->GetName();
 			TabNames.Add(TabName);
@@ -420,11 +422,11 @@ void SRewindDebugger::RefreshDebugComponents()
 
 void SRewindDebugger::TraceTimeChanged(double Time)
 {
-	for(TSharedPtr<IGameplayInsightsDebugView>& DebugView : DebugViews)
+	for(TSharedPtr<IRewindDebuggerView>& DebugView : DebugViews)
 	{
 		DebugView->SetTimeMarker(Time);
 	}
-	for(TSharedPtr<IGameplayInsightsDebugView>& DebugView : PinnedDebugViews)
+	for(TSharedPtr<IRewindDebuggerView>& DebugView : PinnedDebugViews)
 	{
 		DebugView->SetTimeMarker(Time);
 	}
@@ -432,7 +434,7 @@ void SRewindDebugger::TraceTimeChanged(double Time)
 
 TSharedRef<SDockTab> SRewindDebugger::SpawnTab(const FSpawnTabArgs& Args, FName ViewName)
 {
-	TSharedPtr<IGameplayInsightsDebugView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IGameplayInsightsDebugView>& View) { return View->GetName() == ViewName; } );
+	TSharedPtr<IRewindDebuggerView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IRewindDebuggerView>& View) { return View->GetName() == ViewName; } );
 	if (View)
 	{
 		HiddenTabs.Remove(ViewName);
@@ -457,12 +459,12 @@ TSharedRef<SDockTab> SRewindDebugger::SpawnTab(const FSpawnTabArgs& Args, FName 
 // returns true if DebugViews contains a view for the ViewName, but there is no matching Pinned view already open
 bool SRewindDebugger::CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName)
 {
-	TSharedPtr<IGameplayInsightsDebugView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IGameplayInsightsDebugView>& View) { return View->GetName() == ViewName; } );
+	TSharedPtr<IRewindDebuggerView>* View = DebugViews.FindByPredicate([ViewName](TSharedPtr<IRewindDebuggerView>& View) { return View->GetName() == ViewName; } );
 
 	if (View!=nullptr)
 	{
 		bool bPinned = nullptr != PinnedDebugViews.FindByPredicate(
-			[View](TSharedPtr<IGameplayInsightsDebugView>& PinnedView)
+			[View](TSharedPtr<IRewindDebuggerView>& PinnedView)
 			{
 				return PinnedView->GetName() == (*View)->GetName() && PinnedView->GetObjectId() == (*View)->GetObjectId();
 			}
@@ -476,14 +478,14 @@ bool SRewindDebugger::CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName)
 void SRewindDebugger::OnPinnedTabClosed(TSharedRef<SDockTab> Tab)
 {
 	// remove view from list of pinned views
-	TSharedRef<IGameplayInsightsDebugView> View = StaticCastSharedRef<IGameplayInsightsDebugView>(Tab->GetContent());
+	TSharedRef<IRewindDebuggerView> View = StaticCastSharedRef<IRewindDebuggerView>(Tab->GetContent());
 	PinnedDebugViews.Remove(View);
 
 	// recreate non-pinned tabs, so when closing a pinned tab for the currently selected component, the non-pinned one will appear
 	CreateDebugTabs();
 }
 
- void SRewindDebugger::PinTab(TSharedPtr<IGameplayInsightsDebugView> View)
+ void SRewindDebugger::PinTab(TSharedPtr<IRewindDebuggerView> View)
  {
 	if (PinnedDebugViews.Find(View) != INDEX_NONE)
 	{
@@ -498,8 +500,7 @@ void SRewindDebugger::OnPinnedTabClosed(TSharedRef<SDockTab> Tab)
 	FText TabLabel;
 
 	IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
-	TSharedPtr<ICreateGameplayInsightsDebugView> Creator = GameplayInsightsModule.GetDebugViewCreator()->GetCreator(TabName);
-	if (Creator.IsValid())
+	if (const IRewindDebuggerViewCreator* Creator = FRewindDebuggerViewCreators::GetCreator(TabName))
 	{
 		TabIcon = Creator->GetIcon();
 		TabLabel = Creator->GetTitle();
@@ -540,7 +541,7 @@ void SRewindDebugger::MakeViewsMenu(FMenuBuilder& MenuBuilder)
 							 FExecuteAction::CreateLambda([this]() { ShowAllViews(); }));
 }
 
-void SRewindDebugger::ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IGameplayInsightsDebugView> View)
+void SRewindDebugger::ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IRewindDebuggerView> View)
 {
 	MenuBuilder.BeginSection("RewindDebugger", LOCTEXT("Rewind Debugger", "Rewind Debugger"));
 
@@ -572,7 +573,7 @@ void SRewindDebugger::CreateDebugViews()
 		IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
 		TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule.GetAnalysisSession();
 
-		GameplayInsightsModule.GetDebugViewCreator()->CreateDebugViews(SelectedComponent->ObjectId, TraceTime.Get(), *Session, DebugViews);
+		FRewindDebuggerViewCreators::CreateDebugViews(SelectedComponent->ObjectId, TraceTime.Get(), *Session, DebugViews);
 	}
 }
 
@@ -595,12 +596,12 @@ void SRewindDebugger::CreateDebugTabs()
 		CloseTab(TabName);
 	}
 
-	for(TSharedPtr<IGameplayInsightsDebugView> DebugView : DebugViews)
+	for(TSharedPtr<IRewindDebuggerView> DebugView : DebugViews)
 	{
 		FName ViewName = DebugView->GetName();
 		uint64 ObjectId = DebugView->GetObjectId();
 
-	    bool bPinned = nullptr != PinnedDebugViews.FindByPredicate([ViewName, ObjectId](TSharedPtr<IGameplayInsightsDebugView>& View) { return View->GetName() == ViewName && View->GetObjectId() == ObjectId; } );
+	    bool bPinned = nullptr != PinnedDebugViews.FindByPredicate([ViewName, ObjectId](TSharedPtr<IRewindDebuggerView>& View) { return View->GetName() == ViewName && View->GetObjectId() == ObjectId; } );
 	    bool bHidden = HiddenTabs.Find(ViewName) != INDEX_NONE;
 
 		if(!bPinned && !bHidden)

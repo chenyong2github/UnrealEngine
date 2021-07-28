@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
-#include "IGameplayInsightsDebugView.h"
+#include "IRewindDebuggerView.h"
 #include "RewindDebuggerModule.h"
 #include "RewindDebuggerTimeSliderController.h"
 #include "SRewindDebuggerComponentTree.h"
@@ -85,13 +85,13 @@ private:
 	bool CanSpawnTab(const FSpawnTabArgs& Args, FName ViewName);
 	void CloseTab(FName TabName);
 	void OnPinnedTabClosed(TSharedRef<SDockTab> Tab);
-	void ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IGameplayInsightsDebugView> View);
-	void PinTab(TSharedPtr<IGameplayInsightsDebugView> View);
+	void ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IRewindDebuggerView> View);
+	void PinTab(TSharedPtr<IRewindDebuggerView> View);
 	void ShowAllViews();
 	void CreateDebugViews();
 	void CreateDebugTabs();
-	TArray<TSharedPtr<IGameplayInsightsDebugView>> DebugViews;
-	TArray<TSharedPtr<IGameplayInsightsDebugView>> PinnedDebugViews;
+	TArray<TSharedPtr<IRewindDebuggerView>> DebugViews;
+	TArray<TSharedPtr<IRewindDebuggerView>> PinnedDebugViews;
 	TArray<FName> TabNames;
 	TArray<FName> HiddenTabs;  // keep track of tabs that have been closed so we don't automatically reopen them when switching components
 	bool bInternalClosingTab = false;

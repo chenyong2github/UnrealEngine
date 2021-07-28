@@ -8,7 +8,6 @@
 #include "GameplayTimingViewExtender.h"
 #include "Framework/Docking/TabManager.h"
 #include "IGameplayInsightsModule.h"
-#include "GameplayInsightsDebugViewCreator.h"
 #include "Trace/StoreService.h"
 
 struct FInsightsMajorTabExtender;
@@ -31,9 +30,6 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	// IGameplayInsightsModule interface
-	virtual IGameplayInsightsDebugViewCreator* GetDebugViewCreator() override { return &DebugViewCreator; }
-
 #if WITH_EDITOR
 	virtual void EnableObjectPropertyTrace(UObject* Object, bool bEnable = true) override;
 	virtual bool IsObjectPropertyTraceEnabled(UObject* Object) override;
@@ -49,8 +45,6 @@ protected:
 #endif
 
 private:
-	FGameplayInsightsDebugViewCreator DebugViewCreator;
-
 	FGameplayTraceModule GameplayTraceModule;
 
 	FGameplayTimingViewExtender GameplayTimingViewExtender;

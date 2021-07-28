@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IGameplayInsightsDebugView.h"
-#include "IGameplayInsightsDebugViewCreator.h"
+#include "IRewindDebuggerView.h"
+#include "IRewindDebuggerViewCreator.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 
@@ -21,7 +21,7 @@ class SComboButton;
 class SSplitter;
 enum class EAnimGraphSchematicFilterState;
 
-class SAnimGraphSchematicView : public IGameplayInsightsDebugView
+class SAnimGraphSchematicView : public IRewindDebuggerView
 {
 	SLATE_BEGIN_ARGS(SAnimGraphSchematicView) {}
 	SLATE_END_ARGS()
@@ -116,11 +116,12 @@ private:
 	uint64 AnimInstanceId;
 };
 
-class FAnimGraphSchematicViewCreator : public ICreateGameplayInsightsDebugView
+class FAnimGraphSchematicViewCreator : public IRewindDebuggerViewCreator
 {
 	public:
+		virtual FName GetTargetTypeName() const;
 		virtual FName GetName() const override;
 		virtual FText GetTitle() const override;
 		virtual FSlateIcon GetIcon() const override;
-		virtual TSharedPtr<IGameplayInsightsDebugView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
+		virtual TSharedPtr<IRewindDebuggerView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
 };
