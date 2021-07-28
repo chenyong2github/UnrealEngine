@@ -3,12 +3,14 @@
 #pragma once
 
 #include "IoDispatcher.h"
+#include "HAL/LowLevelMemTracker.h"
 
 class FIoRequestImpl
 {
 public:
 	FIoRequestImpl* NextRequest = nullptr;
 	void* BackendData = nullptr;
+	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 	FIoChunkId ChunkId;
 	FIoReadOptions Options;
 	FIoBuffer IoBuffer;
@@ -17,7 +19,7 @@ public:
 	FIoRequestImpl(FIoDispatcherImpl& InDispatcher)
 		: Dispatcher(InDispatcher)
 	{
-
+		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 	}
 
 	bool IsCancelled() const

@@ -187,7 +187,6 @@ public:
 
 	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options)
 	{
-		LLM_SCOPE(ELLMTag::FileSystem);
 		FIoRequestImpl* Request = RequestAllocator.Construct(*this);
 
 		Request->ChunkId = ChunkId;
