@@ -840,7 +840,7 @@ void UpdateHistoryScreenProbeGather(
 
 			{
 				FRDGTextureRef OldRoughSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*RoughSpecularIndirectHistoryState);
-				FRDGTextureRef OldDepthHistory = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer);
+				FRDGTextureRef OldDepthHistory = View.PrevViewInfo.DepthBuffer ? GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer) : SceneTextures.Depth.Target;
 				FRDGTextureRef OldHistoryConvergence = GraphBuilder.RegisterExternalTexture(*HistoryConvergenceState);
 
 				FScreenProbeTemporalReprojectionDepthRejectionPS::FPermutationDomain PermutationVector;
