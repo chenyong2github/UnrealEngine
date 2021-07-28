@@ -231,6 +231,9 @@ public:
 	/** broadcast a change in the preview*/
 	void BroadcastPreviewChanged();
 
+	/** Returns true if the clipboard contains data this class can process */
+	static bool ClipboardHasCompatibleData();
+
 private:
 	/** Initializes a constraint setup */
 	void InitConstraintSetup(UPhysicsConstraintTemplate* ConstraintSetup, int32 ChildBodyIndex, int32 ParentBodyIndex);
@@ -242,7 +245,19 @@ private:
 	void UpdateNoCollisionBodies();
 
 	/** Copy the properties of the one and only selected constraint */
-	void CopyConstraintProperties(UPhysicsConstraintTemplate * FromConstraintSetup, UPhysicsConstraintTemplate * ToConstraintSetup);
+	void CopyConstraintProperties(const UPhysicsConstraintTemplate * FromConstraintSetup, UPhysicsConstraintTemplate * ToConstraintSetup, bool bKeepOldRotation = false);
+
+	/** Copies a reference to a given element to the clipboard */
+	void CopyToClipboard(const FString& ObjectType, UObject* Object);
+
+	/** Pastes data from the clipboard on a given type */
+	bool PasteFromClipboard(const FString& InObjectType, UPhysicsAsset*& OutAsset, UObject*& OutObject);
+
+	/** Clears data in clipboard if it was pointing to the given type/data */
+	void ConditionalClearClipboard(const FString& ObjectType, UObject* Object);
+
+	/** Checks and parses clipboard data */
+	static bool ParseClipboard(UPhysicsAsset*& OutAsset, FString& OutObjectType, UObject*& OutObject);
 
 public:
 	/** Callback for handling selection changes */
@@ -302,9 +317,6 @@ public:
 		int32 Count = SelectedBodies.Num();
 		return Count ? &SelectedBodies[Count - 1] : NULL;
 	}
-
-	UBodySetup * CopiedBodySetup;
-	UPhysicsConstraintTemplate * CopiedConstraintTemplate;
 
 	/** Constraint editing */
 	TArray<FSelection> SelectedConstraints;
