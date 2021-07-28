@@ -204,6 +204,9 @@ private:
 
 private:
 
+	/* The time at which to record. Taken from the Sequencer global time, otherwise based on timecode */
+	FQualifiedFrameTime GetRecordTime() const;
+
 	/** Called by Tick and Start to make sure we record at start */
 	void InternalTick(float DeltaTime);
 
@@ -219,6 +222,9 @@ private:
 
 	/** FFrameTime in MovieScene Resolution we are at*/
 	FFrameTime CurrentFrameTime;
+
+	/** Timecode at the start of recording */
+	FTimecode TimecodeAtStart;
 
 	/** Optional frame to stop recording at*/
 	TOptional<FFrameNumber> StopRecordingFrame;
