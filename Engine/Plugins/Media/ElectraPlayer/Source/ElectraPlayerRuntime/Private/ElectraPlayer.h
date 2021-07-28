@@ -367,6 +367,33 @@ private:
 	FIntPoint										LastPresentedFrameDimension;
 
 
+	struct FPlayerState
+	{
+		TOptional<float>		IntendedPlayRate;
+		float					CurrentPlayRate = 0.0f;
+
+		TAtomic<EPlayerState>	State;
+		TAtomic<EPlayerStatus>	Status;
+
+		bool					bUseInternal = false;
+
+		void Reset()
+		{
+			IntendedPlayRate.Reset();
+			CurrentPlayRate = 0.0f;
+			State = EPlayerState::Closed;
+			Status = EPlayerStatus::None;
+		}
+
+		float GetRate() const;
+		EPlayerState GetState() const;
+		EPlayerStatus GetStatus() const;
+
+		void SetIntendedPlayRate(float InIntendedRate);
+		void SetPlayRateFromPlayer(float InCurrentPlayerPlayRate);
+	};
+
+
 	/** Media player Guid */
 	FGuid											PlayerGuid;
 	/** Metric delegates */
@@ -378,9 +405,7 @@ private:
 	/** Option interface **/
 	FPlaystartOptions								PlaystartOptions;
 
-	/**  */
-	TAtomic<EPlayerState>							State;
-	TAtomic<EPlayerStatus>							Status;
+	FPlayerState									PlayerState;
 
 	TAtomic<bool>									bPlayerHasClosed;
 	TAtomic<bool>									bHasPendingError;
@@ -705,7 +730,6 @@ private:
 	void HandlePlayerEventLogMessage(IInfoLog::ELevel InLogLevel, const FString& InLogMessage, int64 InPlayerWallclockMilliseconds);
 	void HandlePlayerEventDroppedVideoFrame();
 	void HandlePlayerEventDroppedAudioFrame();
-
 };
 
 ENUM_CLASS_FLAGS(FElectraPlayer::EPlayerStatus);
