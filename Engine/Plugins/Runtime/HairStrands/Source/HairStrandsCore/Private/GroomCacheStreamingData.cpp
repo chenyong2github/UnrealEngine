@@ -93,9 +93,12 @@ void FGroomCacheStreamingData::PrefetchData(UGroomComponent *Component)
 		ChunksNeeded.AddUnique(ChunkId);
 	}
 
-	// Synchronously load the first 2 frames
+	// Synchronously load the first 2 frames, but it's possible there's only one frame
+	// when scrubbing past a non-looping animation
+	const int32 MaxNumPrefetches = FMath::Min(NewChunksNeeded.Num(), 2);
+
 	// This ensures we have something to display initially
-	for (int32 ChunkIndex = 0; ChunkIndex < 2; ++ChunkIndex)
+	for (int32 ChunkIndex = 0; ChunkIndex < MaxNumPrefetches; ++ChunkIndex)
 	{
 		// We just check here in case anything got loaded asynchronously last minute
 		// to avoid unnecessary loading it synchronously again
