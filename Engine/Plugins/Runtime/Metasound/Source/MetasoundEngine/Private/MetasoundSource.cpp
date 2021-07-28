@@ -10,9 +10,9 @@
 #include "MetasoundEngineEnvironment.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundFrontendInjectReceiveNodes.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
-#include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundGenerator.h"
 #include "MetasoundInstanceTransmitter.h"
@@ -29,6 +29,35 @@
 #endif // WITH_EDITORONLY_DATA
 
 #define LOCTEXT_NAMESPACE "MetaSoundSource"
+
+namespace MetaSoundSourcePrivate
+{
+	using FFormatOutputVertexKeyMap = TMap<EMetasoundSourceAudioFormat, TArray<Metasound::FVertexKey>>;
+
+	const FFormatOutputVertexKeyMap& GetFormatOutputVertexKeys()
+	{
+		using namespace Metasound;
+		using namespace Metasound::Engine;
+
+		static const FFormatOutputVertexKeyMap Map
+		(
+			{
+				{
+					EMetasoundSourceAudioFormat::Mono, 
+					{ MetasoundSourceMono::GetAudioOutputName() }
+				},
+				{
+					EMetasoundSourceAudioFormat::Stereo, 
+					{ 
+						MetasoundSourceStereo::GetLeftAudioOutputName(), 
+						MetasoundSourceStereo::GetRightAudioOutputName() 
+					}
+				}
+			}
+		);
+		return Map;
+	}
+}
 
 
 FAutoConsoleVariableRef CVarMetaSoundBlockRate(
@@ -204,73 +233,26 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 
 	SampleRate = InParams.SampleRate;
 	FOperatorSettings InSettings = GetOperatorSettings(static_cast<FSampleRate>(SampleRate));
-	FMetasoundEnvironment Environment;
+	FMetasoundEnvironment Environment = CreateEnvironment(InParams);
 
-	// Add audio device ID to environment.
-	FAudioDeviceHandle DeviceHandle;
-	if (UWorld* World = GetWorld())
+	// TODO: cache graph to avoid having to create it every call to `CreateSoundGenerator(...)`
+	TUniquePtr<IGraph> MetasoundGraph = BuildMetasoundDocument();
+	if (!MetasoundGraph.IsValid())
 	{
-		DeviceHandle = World->GetAudioDevice();
-	}
-	if (!DeviceHandle.IsValid())
-	{
-		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-		{
-			DeviceHandle = DeviceManager->GetMainAudioDeviceHandle();
-		}
-	}
-	Environment.SetValue<FAudioDeviceHandle>(MetasoundSource::GetAudioDeviceHandleVariableName(), DeviceHandle);
-	Environment.SetValue<uint32>(MetasoundSource::GetSoundUniqueIdName(), GetUniqueID());
-	Environment.SetValue<bool>(MetasoundSource::GetIsPreviewSoundName(), InParams.bIsPreviewSound);
-
-	const FMetasoundFrontendDocument* OriginalDoc = GetDocument().Get();
-	if (nullptr == OriginalDoc)
-	{
-		UE_LOG(LogMetaSound, Error, TEXT("Cannot create sound generator. Null Metasound document in UMetaSoundSource [Name:%s]"), *GetName());
+		UE_LOG(LogMetaSound, Error, TEXT("Cannot create UMetaSoundSource SoundGenerator [Name:%s]. Failed to create MetaSound Graph"), *GetName());
 		return ISoundGeneratorPtr(nullptr);
 	}
-
-	// Inject receive nodes for unused transmittable inputs. Perform edits on a copy
-	// of the document to avoid altering document.
-	// TODO: Use a light wrapper of the document instead of a copy.
-	FMetasoundFrontendDocument DocumentWithInjectedReceives;
-	ensure(CopyDocumentAndInjectReceiveNodes(InParams.InstanceID, *OriginalDoc, DocumentWithInjectedReceives));
-
-	// Create handles for new root graph
-	FConstDocumentHandle NewDocumentHandle = IDocumentController::CreateDocumentHandle(MakeAccessPtr<FConstDocumentAccessPtr>(DocumentWithInjectedReceives.AccessPoint, DocumentWithInjectedReceives));
 
 	FMetasoundGeneratorInitParams InitParams = 
 	{
 		InSettings,
-		MoveTemp(DocumentWithInjectedReceives),
+		MoveTemp(MetasoundGraph),
 		Environment,
 		GetName(),
-		{}, // Channel names still need to be set.
+		GetAudioOutputVertexKeys(),
 		MetasoundSource::GetOnPlayInputName(),
 		MetasoundSource::GetIsFinishedOutputName()
 	};
-
-	// Set init params dependent upon output audio format.
-	switch (OutputFormat)
-	{
-		case EMetasoundSourceAudioFormat::Mono:
-		{
-			InitParams.AudioOutputNames = { MetasoundSourceMono::GetAudioOutputName() };
-		}
-		break;
-
-		case EMetasoundSourceAudioFormat::Stereo:
-		{
-			InitParams.AudioOutputNames = { MetasoundSourceStereo::GetLeftAudioOutputName(), MetasoundSourceStereo::GetRightAudioOutputName() };
-		}
-		break;
-
-		default:
-		{
-			static_assert(static_cast<int32>(EMetasoundSourceAudioFormat::COUNT) == 2, "Possible missing format switch case coverage.");
-		}
-		break;
-	}
 
 	return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
 }
@@ -302,6 +284,73 @@ const TArray<FMetasoundFrontendVersion>& UMetaSoundSource::GetSupportedArchetype
 		});
 
 	return Supported;
+}
+
+
+Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment() const
+{
+	using namespace Metasound;
+	using namespace Metasound::Engine;
+
+	FMetasoundEnvironment Environment;
+	// Add audio device ID to environment.
+	FAudioDeviceHandle DeviceHandle;
+	if (UWorld* World = GetWorld())
+	{
+		DeviceHandle = World->GetAudioDevice();
+	}
+	if (!DeviceHandle.IsValid())
+	{
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		{
+			DeviceHandle = DeviceManager->GetMainAudioDeviceHandle();
+		}
+	}
+
+	Environment.SetValue<FAudioDeviceHandle>(MetasoundSource::GetAudioDeviceHandleVariableName(), DeviceHandle);
+	Environment.SetValue<uint32>(MetasoundSource::GetSoundUniqueIdName(), GetUniqueID());
+
+	return Environment;
+}
+
+Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const FSoundGeneratorInitParams& InParams) const
+{
+	using namespace Metasound;
+	using namespace Metasound::Engine;
+
+	FMetasoundEnvironment Environment = CreateEnvironment();
+	Environment.SetValue<bool>(MetasoundSource::GetIsPreviewSoundName(), InParams.bIsPreviewSound);
+	Environment.SetValue<uint64>(MetasoundSource::GetInstanceIDName(), InParams.InstanceID);
+
+	return Environment;
+}
+
+Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const FAudioInstanceTransmitterInitParams& InParams) const
+{
+	using namespace Metasound;
+	using namespace Metasound::Engine;
+
+	FMetasoundEnvironment Environment = CreateEnvironment();
+	Environment.SetValue<uint64>(MetasoundSource::GetInstanceIDName(), InParams.InstanceID);
+
+	return Environment;
+}
+
+const TArray<Metasound::FVertexKey>& UMetaSoundSource::GetAudioOutputVertexKeys() const
+{
+	using namespace MetaSoundSourcePrivate;
+
+	if (const TArray<Metasound::FVertexKey>* ArrayKeys = GetFormatOutputVertexKeys().Find(OutputFormat))
+	{
+		return *ArrayKeys;
+	}
+	else
+	{
+		// Unhandled audio format. Need to update audio output format vertex key map.
+		checkNoEntry();
+		static const TArray<Metasound::FVertexKey> Empty;
+		return Empty;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE // MetaSoundSource

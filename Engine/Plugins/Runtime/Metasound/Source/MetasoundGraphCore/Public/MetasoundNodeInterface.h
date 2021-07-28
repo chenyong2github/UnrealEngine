@@ -250,7 +250,7 @@ namespace Metasound
 	};
 
 	/** Key type for an FOutputDataSource or FInputDataDestination. */
-	typedef TTuple<const INode*, FString> FNodeDataVertexKey;
+	typedef TTuple<const INode*, FVertexKey> FNodeDataVertexKey;
 
 	/** FOutputDataSourceCollection contains multiple FOutputDataSources mapped 
 	 * by FNodeDataVertexKeys.

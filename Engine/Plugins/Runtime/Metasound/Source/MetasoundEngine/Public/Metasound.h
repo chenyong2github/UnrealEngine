@@ -253,8 +253,6 @@ public:
 		return this;
 	}
 
-	TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const;
-
 	// Get the most up to date archetype for metasound sources.
 	const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const override;
 
@@ -275,13 +273,4 @@ protected:
 		// object is no longer valid.
 		return MakeAccessPtr<FConstDocumentAccessPtr>(RootMetaSoundDocument.AccessPoint, RootMetaSoundDocument);
 	}
-
-	bool CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const;	
-
-private:
-	TArray<FString> GetTransmittableInputVertexNames() const;
-	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
-	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const;
-	static const FString& GetAudioDeviceHandleVariableName();
-	static const FMetasoundFrontendArchetype& GetBaseArchetype();
 };

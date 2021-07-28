@@ -13,8 +13,10 @@
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendGraph.h"
+#include "MetasoundFrontendInjectReceiveNodes.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendTransform.h"
+#include "MetasoundInstanceTransmitter.h"
 #include "MetasoundJsonBackend.h"
 #include "MetasoundLog.h"
 #include "MetasoundReceiveNode.h"
@@ -259,6 +261,28 @@ FMetasoundFrontendVersion FMetasoundAssetBase::GetPreferredArchetypeVersion(cons
 	return GetDefaultArchetypeVersion();
 }
 
+bool FMetasoundAssetBase::GetArchetype(FMetasoundFrontendArchetype& OutArchetype) const
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	bool bFoundArchetype = false;
+
+	const FMetasoundFrontendDocument* Document = GetDocument().Get();
+	if (nullptr != Document)
+	{
+		FArchetypeRegistryKey ArchetypeRegistryKey = GetArchetypeRegistryKey(Document->ArchetypeVersion);
+		bFoundArchetype = IArchetypeRegistry::Get().FindArchetype(ArchetypeRegistryKey, OutArchetype);
+
+		if (!bFoundArchetype)
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("No registered archetype matching archetype version on document [ArchetypeVersion:%s]"), *Document->ArchetypeVersion.ToString());
+		}
+	}
+
+	return bFoundArchetype;
+}
+
 void FMetasoundAssetBase::SetDocument(const FMetasoundFrontendDocument& InDocument)
 {
 	FMetasoundFrontendDocument& Document = GetDocumentChecked();
@@ -356,87 +380,38 @@ bool FMetasoundAssetBase::VersionAsset(const IMetaSoundAssetInterface& InAssetIn
 	return bDidEdit;
 }
 
-bool FMetasoundAssetBase::CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const
+
+TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	OutDestDoc = InSourceDoc;
-
-	FDocumentHandle Document = IDocumentController::CreateDocumentHandle(MakeAccessPtr<FDocumentAccessPtr>(OutDestDoc.AccessPoint, OutDestDoc));
-	FGraphHandle RootGraph = Document->GetRootGraph();
-
-	TArray<FSendInfoAndVertexName> SendInfoAndVertexes = GetSendInfos(InInstanceID);
-
-	// Inject receive nodes for each transmittable input
-	for (const FSendInfoAndVertexName& InfoAndVertexName : SendInfoAndVertexes)
+	const FMetasoundFrontendDocument* Doc = GetDocument().Get();
+	if (nullptr == Doc)
 	{
+		UE_LOG(LogMetaSound, Error, TEXT("Cannot create graph. Null MetaSound document in MetaSound asset [Name:%s]"), *GetOwningAssetName());
+		return TUniquePtr<IGraph>(nullptr);
+	}
 
-		// Add receive node to graph
-		FMetasoundFrontendClassMetadata ReceiveNodeMetadata;
-		bool bSuccess = GetReceiveNodeMetadataForDataType(InfoAndVertexName.SendInfo.TypeName, ReceiveNodeMetadata);
-		if (!bSuccess)
+	// Create graph which can spawn instances. TODO: cache graph.
+	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(*Doc);
+	if (FrontendGraph.IsValid())
+	{
+		auto GetVertexName = [](const FMetasoundFrontendClassVertex& InVertex) { return InVertex.Name; };
+
+		TSet<FVertexKey> VerticesToSkip;
+		FMetasoundFrontendArchetype Archetype;
+		GetArchetype(Archetype);
+		Algo::Transform(Archetype.Interface.Inputs, VerticesToSkip, GetVertexName);
+
+		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetasoundInstanceTransmitter::CreateSendAddressFromEnvironment, VerticesToSkip);
+		if (!bSuccessfullyInjectedReceiveNodes)
 		{
-			// TODO: log warning
-			continue;
-		}
-		FNodeHandle ReceiveNode = RootGraph->AddNode(ReceiveNodeMetadata);
-
-		// Add receive node address to graph
-		FNodeHandle AddressNode = AddInputPinForSendAddress(InfoAndVertexName.SendInfo, RootGraph);
-		TArray<FOutputHandle> AddressNodeOutputs = AddressNode->GetOutputs();
-		if (AddressNodeOutputs.Num() != 1)
-		{
-			// TODO: log warning
-			continue;
-		}
-
-		FOutputHandle AddressOutput = AddressNodeOutputs[0];
-		TArray<FInputHandle> ReceiveAddressInput = ReceiveNode->GetInputsWithVertexName(Metasound::FReceiveNodeNames::GetAddressInputName());
-		if (ReceiveAddressInput.Num() != 1)
-		{
-			// TODO: log error
-			continue;
-		}
-
-		ensure(ReceiveAddressInput[0]->Connect(*AddressOutput));
-
-		// Swap input node connections with receive node connections
-		FNodeHandle InputNode = RootGraph->GetInputNodeWithName(InfoAndVertexName.VertexName);
-		if (!ensure(InputNode->GetOutputs().Num() == 1))
-		{
-			// TODO: handle input node with varying number of outputs or varying output types.
-			continue;
-		}
-
-		FOutputHandle InputNodeOutput = InputNode->GetOutputs()[0];
-
-		if (ensure(ReceiveNode->IsValid()))
-		{
-			TArray<FOutputHandle> ReceiveNodeOutputs = ReceiveNode->GetOutputs();
-			if (!ensure(ReceiveNodeOutputs.Num() == 1))
-			{
-				// TODO: handle array outputs and receive nodes of varying formats.
-				continue;
-			}
-
-			TArray<FInputHandle> ReceiveDefaultInputs = ReceiveNode->GetInputsWithVertexName(Metasound::FReceiveNodeNames::GetDefaultDataInputName());
-			if (ensure(ReceiveDefaultInputs.Num() == 1))
-			{
-				FOutputHandle ReceiverNodeOutput = ReceiveNodeOutputs[0];
-				for (FInputHandle NodeInput : InputNodeOutput->GetConnectedInputs())
-				{
-					// Swap connections to receiver node
-					ensure(InputNodeOutput->Disconnect(*NodeInput));
-					ensure(ReceiverNodeOutput->Connect(*NodeInput));
-				}
-
-				ReceiveDefaultInputs[0]->Connect(*InputNodeOutput);
-			}
+			UE_LOG(LogMetaSound, Error, TEXT("Error while injecting async communication hooks. Instance communication may not function properly [Name:%s]."), *GetOwningAssetName());
 		}
 	}
 
-	return true;
+	return MoveTemp(FrontendGraph);
 }
 
 void FMetasoundAssetBase::RebuildReferencedAssets(const IMetaSoundAssetInterface& InAssetInterface)
@@ -502,6 +477,7 @@ bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InRef
 }
 
 Metasound::FSendAddress FMetasoundAssetBase::CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const
+
 {
 	using namespace Metasound;
 
@@ -528,8 +504,9 @@ void FMetasoundAssetBase::ConvertFromPreset()
 
 TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSendInfos(uint64 InInstanceID) const
 {
-	using FSendInfo = Metasound::FMetasoundInstanceTransmitter::FSendInfo;
+	using namespace Metasound;
 	using namespace Metasound::Frontend;
+	using FSendInfo = FMetasoundInstanceTransmitter::FSendInfo;
 
 	TArray<FSendInfoAndVertexName> SendInfos;
 
@@ -545,7 +522,7 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 
 			// TODO: incorporate VertexID into address. But need to ensure that VertexID
 			// will be maintained after injecting Receive nodes. 
-			Info.SendInfo.Address = CreateSendAddress(InInstanceID, InputHandle->GetName(), InputHandle->GetDataType());
+			Info.SendInfo.Address = FMetasoundInstanceTransmitter::CreateSendAddressFromInstanceID(InInstanceID, InputHandle->GetName(), InputHandle->GetDataType());
 			Info.SendInfo.ParameterName = FName(InputHandle->GetDisplayName().ToString()); // TODO: display name hack. Need to have naming consistent in editor for inputs
 			//Info.SendInfo.ParameterName = FName(*InputHandle->GetName()); // TODO: this is the expected parameter name.
 			Info.SendInfo.TypeName = InputHandle->GetDataType();
@@ -645,23 +622,6 @@ FText FMetasoundAssetBase::GetDisplayName(FString&& InTypeName) const
 }
 #endif // WITH_EDITORONLY_DATA
 
-bool FMetasoundAssetBase::GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const
-{
-	using namespace Metasound;
-	using namespace Metasound::Frontend;
-
-	const FNodeClassName ClassName = FReceiveNodeNames::GetClassNameForDataType(InTypeName);
-	TArray<FMetasoundFrontendClass> ReceiverNodeClasses = ISearchEngine::Get().FindClassesWithName(ClassName, true /* bInSortByVersion */);
-
-	if (ReceiverNodeClasses.IsEmpty())
-	{
-		return false;
-	}
-
-	OutMetadata = ReceiverNodeClasses[0].Metadata;
-	return true;
-}
-
 bool FMetasoundAssetBase::MarkMetasoundDocumentDirty() const
 {
 	if (const UObject* OwningAsset = GetOwningAsset())
@@ -739,4 +699,14 @@ const FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked() cons
 	check(nullptr != Document);
 	return *Document;
 }
+
+FString FMetasoundAssetBase::GetOwningAssetName() const
+{
+	if (const UObject* OwningAsset = GetOwningAsset())
+	{
+		return OwningAsset->GetName();
+	}
+	return FString();
+}
+
 #undef LOCTEXT_NAMESPACE // "MetaSound"

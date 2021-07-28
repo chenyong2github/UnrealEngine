@@ -296,6 +296,12 @@ namespace Metasound
 				return SoundIsPreviewSoundName;
 			}
 
+			const FString& GetInstanceIDName()
+			{
+				static const FString& Name = FMetasoundInstanceTransmitter::GetInstanceIDEnvironmentVariableName();
+				return Name;
+			}
+
 			FMetasoundFrontendClassVertex GetClassAudioOutput()
 			{
 				FMetasoundFrontendClassVertex GeneratedAudio;
@@ -460,6 +466,12 @@ namespace Metasound
 			{
 				static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
 				return SoundIsPreviewSoundName;
+			}
+
+			const FString& GetInstanceIDName()
+			{
+				static const FString& Name = FMetasoundInstanceTransmitter::GetInstanceIDEnvironmentVariableName();
+				return Name;
 			}
 
 			FMetasoundFrontendClassVertex GetClassLeftAudioOutput()
@@ -645,6 +657,12 @@ namespace Metasound
 			{
 				check(CurrentMonoVersion::GetIsPreviewSoundName() == CurrentStereoVersion::GetIsPreviewSoundName());
 				return CurrentMonoVersion::GetIsPreviewSoundName();
+			}
+
+			const FString& GetInstanceIDName()
+			{
+				check(CurrentMonoVersion::GetInstanceIDName() == CurrentStereoVersion::GetInstanceIDName());
+				return CurrentMonoVersion::GetInstanceIDName();
 			}
 		}
 

@@ -522,15 +522,16 @@ namespace Metasound
 
 	void FFrontendGraphBuilder::AddDefaultInputVariables(FBuildGraphContext& InGraphContext)
 	{
-		for (const TPair<FNodeIDVertexID, FDefaultVariableData>& Pair : InGraphContext.DefaultInputs)
+		using FIterator = FDefaultInputByIDMap::TIterator;
+
+		for (FDefaultInputByIDMap::ElementType& Pair : InGraphContext.DefaultInputs)
 		{
-			const FDefaultVariableData& VariableData = Pair.Value;
+			FDefaultVariableData& VariableData = Pair.Value;
 			const FGuid VariableNodeID = FGuid::NewGuid();
 
 			// 1. Construct and add the default variable to the graph
 			{
-				FVariableNodeConstructorParams InitParams = VariableData.InitParams.Clone();
-				TUniquePtr<const INode> DefaultVariable = FMetasoundFrontendRegistryContainer::Get()->CreateVariableNode(VariableData.TypeName, MoveTemp(InitParams));
+				TUniquePtr<const INode> DefaultVariable = FMetasoundFrontendRegistryContainer::Get()->CreateVariableNode(VariableData.TypeName, MoveTemp(VariableData.InitParams));
 				InGraphContext.Graph->AddNode(VariableNodeID, TSharedPtr<const INode>(DefaultVariable.Release()));
 			}
 
@@ -555,6 +556,9 @@ namespace Metasound
 				UE_LOG(LogMetaSound, Error, TEXT("Failed to connect default variable edge: from '%s' to '%s'"), *FromVertexKey, *ToVertexKey);
 			}
 		}
+
+		// Clear default inputs because literals have been moved out of default input map.
+		InGraphContext.DefaultInputs.Reset();
 	}
 
 	TArray<FFrontendGraphBuilder::FDefaultVariableData> FFrontendGraphBuilder::GetInputDefaultVariableData(const FMetasoundFrontendNode& InNode, const FNodeInitData& InInitData)

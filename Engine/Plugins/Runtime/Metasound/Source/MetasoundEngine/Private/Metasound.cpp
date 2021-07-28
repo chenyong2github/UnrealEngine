@@ -120,24 +120,6 @@ const FMetasoundFrontendVersion& UMetaSound::GetDefaultArchetypeVersion() const
 	return DefaultArchetypeVersion;
 }
 
-Metasound::FOperatorSettings UMetaSound::GetOperatorSettings(Metasound::FSampleRate InSampleRate) const
-{
-	const float BlockRate = FMath::Clamp(Metasound::ConsoleVariables::BlockRate, 1.0f, 1000.0f);
-	return Metasound::FOperatorSettings(InSampleRate, BlockRate);
-}
-
-Metasound::FSendAddress UMetaSound::CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const
-{
-	using namespace Metasound;
-
-	FSendAddress Address;
-
-	Address.Subsystem = GetSubsystemNameForSendScope(ETransmissionScope::Global);
-	Address.ChannelName = FName(FString::Printf(TEXT("%d:%s:%s"), InInstanceID, *InVertexName, *InDataTypeName.ToString()));
-
-	return Address;
-}
-
 const TArray<FMetasoundFrontendVersion>& UMetaSound::GetSupportedArchetypeVersions() const
 {
 	static const TArray<FMetasoundFrontendVersion> Supported
@@ -146,12 +128,6 @@ const TArray<FMetasoundFrontendVersion>& UMetaSound::GetSupportedArchetypeVersio
 	};
 
 	return Supported;
-}
-
-const FString& UMetaSound::GetAudioDeviceHandleVariableName()
-{
-	static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
-	return AudioDeviceHandleVarName;
 }
 
 #undef LOCTEXT_NAMESPACE // MetaSound
