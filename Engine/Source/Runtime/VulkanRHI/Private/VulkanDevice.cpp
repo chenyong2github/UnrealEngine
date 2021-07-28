@@ -43,6 +43,14 @@ static TAutoConsoleVariable<int32> CVarVulkanUseD24(
 	ECVF_ReadOnly
 );
 
+TAutoConsoleVariable<int32> GRHIAllow64bitShaderAtomicsCvar(
+	TEXT("r.Vulkan.Allow64bitShaderAtomics"),
+	0,
+	TEXT("Whether to enable 64bit buffer/image atomics required by Nanite/Lumen\n")
+	TEXT("0 to disable 64bit atomics (default)\n")
+	TEXT("1 to enable")
+);
+
 #if NV_AFTERMATH
 #include "GFSDK_Aftermath_GpuCrashDump.h"
 void AftermathGpuCrashDumpCallback(const void* pGpuCrashDump, const uint32 gpuCrashDumpSize, void* pUserData);
@@ -382,6 +390,28 @@ void FVulkanDevice::CreateDevice()
 		DeviceMultiviewFeatures.multiview = VK_TRUE;
 		DeviceMultiviewFeatures.pNext = (void*)DeviceInfo.pNext;
 		DeviceInfo.pNext = &DeviceMultiviewFeatures;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS && VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
+	const bool bEnable64bitAtomics = (GRHIAllow64bitShaderAtomicsCvar.GetValueOnAnyThread() != 0);
+
+	// Ensure we have both to enable atomic code paths
+	VkPhysicalDeviceShaderAtomicInt64Features BufferAtomicFeatures;
+	VkPhysicalDeviceShaderImageAtomicInt64FeaturesEXT ImageAtomicFeatures;
+	if (bEnable64bitAtomics && OptionalDeviceExtensions.HasBufferAtomicInt64 && OptionalDeviceExtensions.HasImageAtomicInt64)
+	{
+		ZeroVulkanStruct(BufferAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
+		BufferAtomicFeatures.shaderBufferInt64Atomics = VK_TRUE;
+
+		ZeroVulkanStruct(ImageAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_ATOMIC_INT64_FEATURES_EXT);
+		ImageAtomicFeatures.shaderImageInt64Atomics = VK_TRUE;
+
+		BufferAtomicFeatures.pNext = &ImageAtomicFeatures;
+		ImageAtomicFeatures.pNext = (void*)DeviceInfo.pNext;
+		DeviceInfo.pNext = &BufferAtomicFeatures;
+
+		GRHISupportsAtomicUInt64 = true;
 	}
 #endif
 
@@ -1055,12 +1085,15 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		void** NextPropsAddr = nullptr;
 		NextPropsAddr = &Features2.pNext;
 
-		VkPhysicalDeviceShaderAtomicInt64Features AtomicFeatures;
+#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
+		VkPhysicalDeviceShaderAtomicInt64FeaturesKHR BufferAtomicFeatures;
+		ZeroVulkanStruct(BufferAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
+		if (OptionalDeviceExtensions.HasBufferAtomicInt64)  // Set by QueryGPU if extension is supported
 		{
-			*NextPropsAddr = &AtomicFeatures;
-			NextPropsAddr = &AtomicFeatures.pNext;
-			ZeroVulkanStruct(AtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
+			*NextPropsAddr = &BufferAtomicFeatures;
+			NextPropsAddr = &BufferAtomicFeatures.pNext;
 		}
+#endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 		if (GetOptionalExtensions().HasEXTFragmentDensityMap)
@@ -1111,11 +1144,27 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		}
 #endif
 
-		Features2.pNext = &AtomicFeatures;
-		VulkanRHI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &Features2);
-		OptionalDeviceExtensions.HasBufferAtomicInt64 = (AtomicFeatures.shaderBufferInt64Atomics == VK_TRUE);
-	}
+#if VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
+		VkPhysicalDeviceShaderImageAtomicInt64FeaturesEXT ImageAtomicFeatures;
+		ZeroVulkanStruct(ImageAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_ATOMIC_INT64_FEATURES_EXT);
+		if (OptionalDeviceExtensions.HasImageAtomicInt64)  // Set by QueryGPU if extension is supported
+		{
+			*NextPropsAddr = &ImageAtomicFeatures;
+			NextPropsAddr = &ImageAtomicFeatures.pNext;
+		}
 #endif
+
+		VulkanRHI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &Features2);
+
+		// If we have the extension but the feature is not supported, clear the bits.
+#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
+		OptionalDeviceExtensions.HasBufferAtomicInt64 = (BufferAtomicFeatures.shaderBufferInt64Atomics == VK_TRUE);
+#endif
+#if VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
+		OptionalDeviceExtensions.HasImageAtomicInt64 = (ImageAtomicFeatures.shaderImageInt64Atomics == VK_TRUE);
+#endif
+	}
+#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d Tessellation %d BufferAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, PhysicalFeatures.tessellationShader, OptionalDeviceExtensions.HasBufferAtomicInt64);
 
