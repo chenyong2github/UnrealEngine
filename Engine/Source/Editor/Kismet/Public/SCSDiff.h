@@ -6,8 +6,10 @@
 #include "DiffUtils.h"
 
 class FSCSEditorTreeNode;
+class FSubobjectEditorTreeNode;
 class SKismetInspector;
 class SSCSEditor;
+class SSubobjectBlueprintEditor;
 
 /** Struct to support diffing the component tree for a blueprint */
 class KISMET_API FSCSDiff
@@ -23,12 +25,12 @@ public:
 	const UBlueprint* GetBlueprint() const { return Blueprint; }
 
 protected:
-	void OnSCSEditorUpdateSelectionFromNodes(const TArray< TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);
+	void OnSCSEditorUpdateSelectionFromNodes(const TArray<TSharedPtr<FSubobjectEditorTreeNode>>& SelectedNodes);
 	void OnSCSEditorHighlightPropertyInDetailsView(const class FPropertyPath& InPropertyPath);
 
 private:
 	TSharedPtr< class SWidget > ContainerWidget;
-	TSharedPtr< class SSCSEditor > SCSEditor;
+	TSharedPtr< class SSubobjectBlueprintEditor > SubobjectEditor;
 	TSharedPtr< class SKismetInspector > Inspector;
 
 	/** Blueprint we are inspecting */
