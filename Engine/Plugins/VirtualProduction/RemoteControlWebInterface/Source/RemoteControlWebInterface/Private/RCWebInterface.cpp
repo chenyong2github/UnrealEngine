@@ -4,17 +4,13 @@
 
 #include "RCWebInterfacePrivate.h"
 #include "RCWebInterfaceProcess.h"
-#include "RCWebInterfaceSettings.h"
+#include "RemoteControlSettings.h"
 #include "IWebRemoteControlModule.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 
 #if WITH_EDITOR
 #include "Misc/CoreDelegates.h"
-#include "ISettingsContainer.h"
-#include "ISettingsCategory.h"
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
 #include "RCWebInterfaceCustomizations.h"
 #endif
 
@@ -36,22 +32,15 @@ void FRemoteControlWebInterfaceModule::StartupModule()
 
 	if (IWebRemoteControlModule* WebRemoteControlModule = FModuleManager::GetModulePtr<IWebRemoteControlModule>("WebRemoteControl"))
 	{
-		WebSocketServerStartedDelegate = WebRemoteControlModule->OnWebSocketServerStarted().AddLambda([this](uint32) { OnSettingsModified(); });
+		WebSocketServerStartedDelegate = WebRemoteControlModule->OnWebSocketServerStarted().AddLambda([this](uint32) 
+		{ 
+			WebApp->Shutdown();
+			WebApp->Start();
+		});
 	}
 
 #if WITH_EDITOR
-	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
-	{
-		TSharedPtr<ISettingsSection> SettingsSection = SettingsModule->RegisterSettings(
-			"Project",
-			"Plugins",
-			"RemoteControlWebInterface",
-			LOCTEXT("RemoteControlWebInterfaceSettingsName", "Remote Control Web Interface"),
-			LOCTEXT("RemoteControlWebInterfaceSettingsDescription", "Configure the Web Remote Control settings."),
-			GetMutableDefault<URemoteControlWebInterfaceSettings>());
-
-		SettingsSection->OnModified().BindRaw(this, &FRemoteControlWebInterfaceModule::OnSettingsModified);
-	}
+	GetMutableDefault<URemoteControlSettings>()->OnSettingChanged().AddRaw(this, &FRemoteControlWebInterfaceModule::OnSettingsModified);
 	
 	FCoreDelegates::OnPostEngineInit.AddLambda([this]()
 	{
@@ -71,11 +60,6 @@ void FRemoteControlWebInterfaceModule::ShutdownModule()
 
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
-	
-	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
-	{
-		SettingsModule->UnregisterSettings("Project", "Plugins", "RemoteControlWebInterface");
-	}
 #endif
 	
 	if (IWebRemoteControlModule* WebRemoteControlModule = FModuleManager::GetModulePtr<IWebRemoteControlModule>("WebRemoteControl"))
@@ -84,17 +68,19 @@ void FRemoteControlWebInterfaceModule::ShutdownModule()
 	}
 }
 
-bool FRemoteControlWebInterfaceModule::OnSettingsModified()
+void FRemoteControlWebInterfaceModule::OnSettingsModified(UObject* Settings, FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (bRCWebInterfaceDisable)
 	{
-		return true;
+		return;
 	}
-
-	WebApp->Shutdown();
-	WebApp->Start();
-
-	return true;
+	
+	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(URemoteControlSettings, RemoteControlWebInterfacePort) || PropertyName == GET_MEMBER_NAME_CHECKED(URemoteControlSettings, bForceWebAppBuildAtStartup))
+	{
+		WebApp->Shutdown();
+		WebApp->Start();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

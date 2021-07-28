@@ -13,7 +13,7 @@
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
-#include "RemoteControlUISettings.h"
+#include "RemoteControlSettings.h"
 #include "Textures/SlateIcon.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
 #include "UI/RemoteControlPanelStyle.h"
@@ -380,14 +380,14 @@ void FRemoteControlUIModule::UnregisterStructCustomizations()
 
 void FRemoteControlUIModule::RegisterSettings()
 {
-	GetMutableDefault<URemoteControlUISettings>()->OnSettingChanged().AddRaw(this, &FRemoteControlUIModule::OnSettingsModified);
+	GetMutableDefault<URemoteControlSettings>()->OnSettingChanged().AddRaw(this, &FRemoteControlUIModule::OnSettingsModified);
 }
 
 void FRemoteControlUIModule::UnregisterSettings()
 {
 	if (UObjectInitialized())
 	{
-		GetMutableDefault<URemoteControlUISettings>()->OnSettingChanged().RemoveAll(this);
+		GetMutableDefault<URemoteControlSettings>()->OnSettingChanged().RemoveAll(this);
 	}
 }
 

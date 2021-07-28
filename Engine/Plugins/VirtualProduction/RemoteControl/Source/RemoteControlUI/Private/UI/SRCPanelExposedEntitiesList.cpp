@@ -15,7 +15,7 @@
 #include "RemoteControlActor.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
-#include "RemoteControlUISettings.h"
+#include "RemoteControlSettings.h"
 #include "ScopedTransaction.h"
 #include "SRCPanelFieldGroup.h"
 #include "SRCPanelExposedActor.h"

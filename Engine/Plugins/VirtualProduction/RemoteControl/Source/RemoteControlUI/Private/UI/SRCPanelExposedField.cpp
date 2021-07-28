@@ -14,7 +14,7 @@
 #include "RemoteControlField.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
-#include "RemoteControlUISettings.h"
+#include "RemoteControlSettings.h"
 #include "ScopedTransaction.h"
 #include "SRCPanelDragHandle.h"
 #include "SRCPanelTreeNode.h"
@@ -209,7 +209,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 
 	FText WarningMessage;
 
-	if (GetDefault<URemoteControlUISettings>()->bDisplayInEditorOnlyWarnings)
+	if (GetDefault<URemoteControlSettings>()->bDisplayInEditorOnlyWarnings)
 	{
 		bool bIsEditorOnly = false,
             bIsEditableInPackaged = true,

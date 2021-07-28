@@ -15,7 +15,7 @@
 #include "IRemoteControlUIModule.h"
 #include "ISettingsModule.h"
 #include "RCWebInterfaceProcess.h"
-#include "RCWebInterfaceSettings.h"
+#include "RemoteControlSettings.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlEntity.h"
 #include "ScopedTransaction.h"
@@ -249,7 +249,7 @@ FReply FRCWebInterfaceCustomizations::OpenWebApp() const
 {
 	if (WebApp->GetStatus() == FRemoteControlWebInterfaceProcess::EStatus::Running)
 	{
-		const uint32 Port = GetDefault<URemoteControlWebInterfaceSettings>()->RemoteControlWebInterfacePort;
+		const uint32 Port = GetDefault<URemoteControlSettings>()->RemoteControlWebInterfacePort;
 		FString ActivePreset;
 		if (URemoteControlPreset* Preset = IRemoteControlUIModule::Get().GetActivePreset())
 		{
