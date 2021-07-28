@@ -10,7 +10,7 @@
 /**
  * Implements an Actor for exponential height fog.
  */
-UCLASS(showcategories=(Movement, Rendering, Transformation), ClassGroup=Fog, MinimalAPI)
+UCLASS(showcategories=(Movement, Rendering, Transformation, DataLayers), ClassGroup=Fog, MinimalAPI)
 class AExponentialHeightFog
 	: public AInfo
 {
