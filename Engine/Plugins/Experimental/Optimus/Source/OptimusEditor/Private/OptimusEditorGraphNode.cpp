@@ -194,6 +194,12 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 }
 
 
+void UOptimusEditorGraphNode::SyncGraphNodeNameWithModelNodeName()
+{
+	(void)NodeTitleDirtied.ExecuteIfBound();
+}
+
+
 void UOptimusEditorGraphNode::SyncDiagnosticStateWithModelNode()
 {
 	const EOptimusDiagnosticLevel DiagnosticLevel = ModelNode->GetDiagnosticLevel();

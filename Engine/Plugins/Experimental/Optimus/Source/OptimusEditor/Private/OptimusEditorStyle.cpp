@@ -61,6 +61,9 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 
 	// Graph styles
 	{
+		const FTableViewStyle NodePinTreeViewStyle = FTableViewStyle();
+		Set("Node.PinTreeView", NodePinTreeViewStyle);		
+		
 		Set("Node.Pin.Resource_Connected", new IMAGE_BRUSH_SVG("Icons/Resource_Pin_Connected", IconSize16x12, DefaultForeground));
 		Set("Node.Pin.Resource_Disconnected", new IMAGE_BRUSH_SVG("Icons/Resource_Pin_Disconnected", IconSize16x12, DefaultForeground));		
 

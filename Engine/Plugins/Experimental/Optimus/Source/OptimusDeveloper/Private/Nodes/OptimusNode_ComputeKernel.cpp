@@ -455,8 +455,12 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 
 	if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ValueSet)
 	{
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_ComputeKernel, KernelName) ||
-		    PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_ComputeKernel, ThreadCount))
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_ComputeKernel, KernelName))
+		{
+			SetDisplayName(FText::FromString(KernelName));
+			UpdatePreamble();
+		}
+		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_ComputeKernel, ThreadCount))
 		{
 			UpdatePreamble();
 		}

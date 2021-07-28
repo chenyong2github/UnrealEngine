@@ -16,6 +16,7 @@
 #include "OptimusComputeDataInterface.h"
 #include "Styling/SlateIconFinder.h"
 
+#define LOCTEXT_NAMESPACE "OptimusEditor"
 
 static UOptimusNodePin* GetModelPinFromGraphPin(const UEdGraphPin* InGraphPin)
 {
@@ -72,7 +73,7 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 	{
 		if (DataTypeHandle->CanCreateProperty())
 		{
-			const FText NodeName = FText::FromName(DataTypeHandle->TypeName);
+			const FText NodeName = FText::Format(LOCTEXT("ConstantValueNode", "{0} Constant"), DataTypeHandle->DisplayName);
 			const FText NodeCategory = FText::FromName(UOptimusNode::CategoryName::Values);
 			
 			TSharedPtr< FOptimusGraphSchemaAction_NewConstantValueNode> Action(
@@ -312,3 +313,5 @@ void UOptimusEditorGraphSchema::TrySetDefaultValue(
 		ModelPin->SetValueFromString(NewDefaultValue);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

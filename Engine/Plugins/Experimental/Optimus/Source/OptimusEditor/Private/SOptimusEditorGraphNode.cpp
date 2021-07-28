@@ -132,7 +132,7 @@ class SOptimusEditorGraphPinTreeRow : public STableRow<UOptimusNodePin*>
 		STableRow<UOptimusNodePin*>::Construct(STableRow<UOptimusNodePin*>::FArguments(), InOwnerTableView);
 	}
 
-	const FSlateBrush* GetBorder() const 
+	const FSlateBrush* GetBorder() const override
 	{
 		// We want a transparent background.
 		return FCoreStyle::Get().GetBrush("NoBrush");
@@ -279,6 +279,7 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(InputTree, STreeView<UOptimusNodePin*>)
 	        .Visibility(this, &SOptimusEditorGraphNode::GetInputTreeVisibility)
+	        .TreeViewStyle(&FOptimusEditorStyle::Get().GetWidgetStyle<FTableViewStyle>("Node.PinTreeView"))
 	        .TreeItemsSource(EditorGraphNode->GetTopLevelInputPins())
 	        .SelectionMode(ESelectionMode::None)
 	        .OnGenerateRow(this, &SOptimusEditorGraphNode::MakeTableRowWidget)
@@ -293,6 +294,7 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(OutputTree, STreeView<UOptimusNodePin*>)
 			.Visibility(this, &SOptimusEditorGraphNode::GetOutputTreeVisibility)
+	        .TreeViewStyle(&FOptimusEditorStyle::Get().GetWidgetStyle<FTableViewStyle>("Node.PinTreeView"))
 			.TreeItemsSource(EditorGraphNode->GetTopLevelOutputPins())
 			.SelectionMode(ESelectionMode::None)
 			.OnGenerateRow(this, &SOptimusEditorGraphNode::MakeTableRowWidget)
@@ -305,6 +307,40 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 	// FIXME: Do expansion from stored expansion data.
 	SetTreeExpansion_Recursive(InputTree, *EditorGraphNode->GetTopLevelInputPins());
 	SetTreeExpansion_Recursive(OutputTree, *EditorGraphNode->GetTopLevelOutputPins());
+
+	EditorGraphNode->OnNodeTitleDirtied().BindLambda([this]()
+	{
+		if (NodeTitle.IsValid())
+		{
+			NodeTitle->MarkDirty();
+		}
+	});
+
+}
+
+EVisibility SOptimusEditorGraphNode::GetTitleVisibility() const
+{
+	// return UseLowDetailNodeTitles() ? EVisibility::Hidden : EVisibility::Visible;
+	return EVisibility::Visible;
+}
+
+TSharedRef<SWidget> SOptimusEditorGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle)
+{
+	NodeTitle = InNodeTitle;
+
+	TSharedRef<SWidget> WidgetRef = SGraphNode::CreateTitleWidget(NodeTitle);
+	WidgetRef->SetVisibility(MakeAttributeSP(this, &SOptimusEditorGraphNode::GetTitleVisibility));
+	if (NodeTitle.IsValid())
+	{
+		NodeTitle->SetVisibility(MakeAttributeSP(this, &SOptimusEditorGraphNode::GetTitleVisibility));
+	}
+
+	return SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.Padding(0.0f)
+		[
+			WidgetRef
+		];
 }
 
 

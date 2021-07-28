@@ -11,6 +11,8 @@
 class UOptimusNode;
 class UOptimusNodePin;
 
+DECLARE_DELEGATE(FOptimusNodeTitleDirtied);
+
 UCLASS()
 class UOptimusEditorGraphNode : public UEdGraphNode
 {
@@ -27,8 +29,11 @@ public:
 	void SynchronizeGraphPinNameWithModelPin(const UOptimusNodePin* InModelPin);
 	void SynchronizeGraphPinValueWithModelPin(const UOptimusNodePin* InModelPin);
 	void SynchronizeGraphPinTypeWithModelPin(const UOptimusNodePin* InModelPin);
-
+	
+	void SyncGraphNodeNameWithModelNodeName();
 	void SyncDiagnosticStateWithModelNode();
+
+	FOptimusNodeTitleDirtied& OnNodeTitleDirtied() { return NodeTitleDirtied; }
 	
 	// UEdGraphNode overrides
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -75,4 +80,6 @@ private:
 	// SOptimusEditorGraphNode for usage.
 	TArray<UOptimusNodePin*> TopLevelInputPins;
 	TArray<UOptimusNodePin*> TopLevelOutputPins;
+
+	FOptimusNodeTitleDirtied NodeTitleDirtied;
 };

@@ -260,7 +260,7 @@ void UOptimusNode::PostCreateNode()
 	Pins.Empty();
 
 	{
-		TGuardValue<bool> BlockNotify(bNotifyPinAdded, false);
+		TGuardValue<bool> BlockNotify(bBlockNotifications, true);
 		CreatePins();
 	}
 }
@@ -275,11 +275,14 @@ bool UOptimusNode::Modify(bool bInAlwaysMarkDirty)
 
 void UOptimusNode::Notify(EOptimusGraphNotifyType InNotifyType)
 {
-	UOptimusNodeGraph *Graph = Cast<UOptimusNodeGraph>(GetOuter());
-
-	if (Graph)
+	if (!bBlockNotifications)
 	{
-		Graph->Notify(InNotifyType, this);
+		UOptimusNodeGraph *Graph = Cast<UOptimusNodeGraph>(GetOuter());
+
+		if (Graph)
+		{
+			Graph->Notify(InNotifyType, this);
+		}
 	}
 }
 
@@ -329,7 +332,7 @@ UOptimusNodePin* UOptimusNode::AddPin(
 		}
 	}
 
-	if (bNotifyPinAdded)
+	if (!bBlockNotifications)
 	{
 		Pin->Notify(EOptimusGraphNotifyType::PinAdded);
 	}
@@ -381,7 +384,7 @@ bool UOptimusNode::SetPinDataType(
 			bPinTypeChanged = InPin->SetDataType(InDataType);
 		}
 
-		if (bPinTypeChanged)
+		if (bPinTypeChanged && !bBlockNotifications)
 		{
 			InPin->Notify(EOptimusGraphNotifyType::PinTypeChanged);
 		}
