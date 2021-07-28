@@ -11,6 +11,7 @@
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "MeshQueries.h"
 #include "MeshWeights.h"
+#include "CompGeom/ConvexHull2.h"
 
 #include "Parameterization/MeshDijkstra.h"
 #include "Parameterization/MeshLocalParam.h"
@@ -40,6 +41,13 @@ FDynamicMeshUVEditor::FDynamicMeshUVEditor(FDynamicMesh3* MeshIn, int32 UVLayerI
 	}
 }
 
+
+FDynamicMeshUVEditor::FDynamicMeshUVEditor(FDynamicMesh3* MeshIn, FDynamicMeshUVOverlay* UVOverlayIn)
+{
+	Mesh = MeshIn;
+	UVOverlay = UVOverlayIn;
+	ensure(UVOverlay->GetParentMesh() == Mesh);
+}
 
 
 void FDynamicMeshUVEditor::CreateUVLayer(int32 LayerIndex)
@@ -263,7 +271,6 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangl
 		FMeshNormals::SmoothVertexNormals(Submesh, Options.NormalSmoothingRounds, Options.NormalSmoothingAlpha);
 	}
 
-
 	FFrame3d SeedFrame;
 	int32 FrameVertexID;
 	bool bFrameOK = EstimateGeodesicCenterFrameVertex(Submesh, SeedFrame, FrameVertexID, true);
@@ -310,7 +317,6 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangl
 
 	return (NumFailed == 0);
 }
-
 
 
 
@@ -1035,6 +1041,165 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromCylinderProjection(
 }
 
 
+
+
+bool FDynamicMeshUVEditor::ScaleUVAreaTo3DArea(const TArray<int32>& Triangles, bool bRecenterAtOrigin)
+{
+	double Area3D = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*Mesh, Triangles).Y;
+	if (FMathd::Abs(Area3D) < FMathf::Epsilon || FMathd::IsFinite(Area3D) == false)
+	{
+		return false;
+	}
+
+	TSet<int32> Elements;
+
+	double Area2D = 0.0;
+	FAxisAlignedBox2f UVBounds = FAxisAlignedBox2f::Empty();
+	for (int32 tid : Triangles)
+	{
+		if (UVOverlay->IsSetTriangle(tid))
+		{
+			FIndex3i UVTri = UVOverlay->GetTriangle(tid);
+			Elements.Add(UVTri.A); Elements.Add(UVTri.B); Elements.Add(UVTri.C);
+			FVector2f U = UVOverlay->GetElement(UVTri.A);
+			FVector2f V = UVOverlay->GetElement(UVTri.B);
+			FVector2f W = UVOverlay->GetElement(UVTri.C);
+			UVBounds.Contain(U); UVBounds.Contain(V); UVBounds.Contain(W);
+			Area2D += (double)VectorUtil::Area(U, V, W);
+		}
+	}
+	if (Elements.Num() == 0 || FMathd::Abs(Area2D) < FMathf::Epsilon ||  FMathd::IsFinite(Area2D) == false )
+	{
+		return false;
+	}
+
+	double UVScale = FMathd::Sqrt(Area3D) / FMathd::Sqrt(Area2D);
+	if (!FMathd::IsFinite(UVScale))
+	{
+		return false;
+	}
+
+	FVector2f ScaleOrigin = UVBounds.Center();
+	FVector2f Translation = (bRecenterAtOrigin) ? FVector2f::Zero() : ScaleOrigin;
+	for (int32 eid : Elements)
+	{
+		FVector2f UV = UVOverlay->GetElement(eid);
+		UV = (UV - ScaleOrigin) * UVScale + Translation;
+		UVOverlay->SetElement(eid, UV);
+	}
+
+	return true;
+}
+
+
+
+bool FDynamicMeshUVEditor::AutoOrientUVArea(const TArray<int32>& Triangles)
+{
+	TSet<int32> Elements;
+	TArray<FVector2f> UVs;
+	FAxisAlignedBox2f UVBounds = FAxisAlignedBox2f::Empty();
+	for (int32 tid : Triangles)
+	{
+		if (UVOverlay->IsSetTriangle(tid))
+		{
+			FIndex3i UVTri = UVOverlay->GetTriangle(tid);
+			for (int32 j = 0; j < 3; ++j)
+			{
+				bool bIsAlreadyInSet = false;
+				Elements.Add(UVTri[j], &bIsAlreadyInSet);
+				if (bIsAlreadyInSet == false)
+				{
+					FVector2f UV = UVOverlay->GetElement(UVTri[j]);
+					UVs.Add(UV);
+					UVBounds.Contain(UV);
+				}
+			}
+		}
+	}
+	int32 N = UVs.Num();
+	if (N == 0)
+	{
+		return false;
+	}
+
+	// shift to origin so we can skip subtract below
+	FVector2f BoxCenter = UVBounds.Center();
+	for ( int32 k = 0; k < N; ++k )
+	{
+		UVs[k] -= BoxCenter;
+	}
+
+	FConvexHull2f ConvexHull;
+	if (ConvexHull.Solve(UVs) == false)
+	{
+		return false;
+	}
+	TArray<int32> const& HullPointIndices = ConvexHull.GetPolygonIndices();
+	check(HullPointIndices[0] != HullPointIndices.Last());
+
+	TArray<FVector2f> HullPoints;
+	HullPoints.Reserve(HullPointIndices.Num());
+	for (int32 k = 0; k < HullPointIndices.Num(); ++k)
+	{
+		HullPoints.Add(UVs[HullPointIndices[k]]);
+	}
+	int32 NV = HullPoints.Num();
+
+
+	// This is basically a brute-force rotating-calipers implementation. Probably should be moved to a CompGeom class (and implemented more efficiently)
+	double MinBoxArea = UVBounds.Area();
+	FVector2f MinAxisDirection = FVector2f::UnitX();
+	bool bFoundSmallerBox = false;
+	for (int32 j = 0; j <= NV; ++j)
+	{
+		FVector2f A = HullPoints[j%NV], B = HullPoints[(j+1)%NV], C = HullPoints[(j+NV/2)%NV];
+		FVector2f Axis0 = B - A; 
+		float Dimension0 = Normalize(Axis0);
+		FVector2f Axis1 = PerpCW(Axis0);
+		float Dimension1 = (C - A).Dot(Axis1);
+
+		FInterval1f Interval0 = FInterval1f::Empty();
+		FInterval1f Interval1 = FInterval1f::Empty();
+
+		bool bAbort = false;
+		// Use modulo iteration here to try to grow the box more quickly, which (hopefully) hits the early-out faster
+		// (would be worth profiling to see if this is a good idea, due to cache coherency)
+		FModuloIteration Iter(NV);
+		uint32 Index;
+		while (Iter.GetNextIndex(Index))
+		{
+			Interval0.Contain(Axis0.Dot(HullPoints[Index]));
+			Dimension0 = FMathf::Max(Dimension0, Interval0.Length());
+			Interval1.Contain(Axis1.Dot(HullPoints[Index]));
+			Dimension1 = FMathf::Max(Dimension1, Interval1.Length());
+			if (Dimension0 * Dimension1 > MinBoxArea)
+			{
+				bAbort = true;
+				break;
+			}
+		}
+		if (bAbort == false && (Dimension0 * Dimension1 < MinBoxArea) )
+		{
+			MinBoxArea = Dimension0 * Dimension1;
+			MinAxisDirection = Axis0;
+			bFoundSmallerBox = true;
+		}
+	}
+
+	if (bFoundSmallerBox)
+	{
+		float RotationAngle = FMathf::Atan2(MinAxisDirection.Y, MinAxisDirection.X);
+		FMatrix2f RotMatrix = FMatrix2f::RotationRad(-RotationAngle);
+		for (int32 eid : Elements)
+		{
+			FVector2f UV = UVOverlay->GetElement(eid);
+			UV = RotMatrix * (UV - BoxCenter) + BoxCenter;
+			UVOverlay->SetElement(eid, UV);
+		}
+	}
+
+	return true;
+}
 
 
 bool FDynamicMeshUVEditor::QuickPack(int32 TargetTextureResolution, float GutterSize)
