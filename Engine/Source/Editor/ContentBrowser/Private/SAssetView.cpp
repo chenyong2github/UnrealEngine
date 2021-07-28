@@ -1599,16 +1599,19 @@ FReply SAssetView::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKe
 
 FReply SAssetView::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-/*
-	if( MouseEvent.IsControlDown() )
+	// Make sure to not change the thumbnail scaling when we're in Columns view since thumbnail scaling isn't applicable there.
+	if( MouseEvent.IsControlDown() && IsThumbnailScalingAllowed() )
 	{
-		const float DesiredScale = FMath::Clamp<float>(GetThumbnailScale() + ( MouseEvent.GetWheelDelta() * 0.05f ), 0.0f, 1.0f);
-		if ( DesiredScale != GetThumbnailScale() )
+		// Step up/down a level depending on the scroll wheel direction.
+		// Clamp value to enum min/max before updating.
+		const int32 Delta = MouseEvent.GetWheelDelta() > 0 ? 1 : -1;
+		const EThumbnailSize DesiredThumbnailSize = (EThumbnailSize)FMath::Clamp<int32>((int32)ThumbnailSize + Delta, 0, (int32)EThumbnailSize::MAX - 1);
+		if ( DesiredThumbnailSize != ThumbnailSize )
 		{
-			SetThumbnailScale( DesiredScale );
+			OnThumbnailSizeChanged(DesiredThumbnailSize);
 		}		
 		return FReply::Handled();
-	}*/
+	}
 	return FReply::Unhandled();
 }
 
