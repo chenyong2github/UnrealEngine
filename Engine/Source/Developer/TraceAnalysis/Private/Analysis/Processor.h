@@ -4,6 +4,7 @@
 
 #include "Engine.h"
 #include "HAL/Runnable.h"
+#include "Trace/Analysis.h"
 
 class FEvent;
 class FRunnableThread;
