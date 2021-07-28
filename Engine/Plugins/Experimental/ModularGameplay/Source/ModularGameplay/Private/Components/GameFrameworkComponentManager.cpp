@@ -355,7 +355,8 @@ void UGameFrameworkComponentManager::RemoveExtensionHandler(const TSoftClassPtr<
 				if (ensure(LocalGameInstance))
 				{
 					UWorld* LocalWorld = LocalGameInstance->GetWorld();
-					if (ensure(LocalWorld))
+					ensure(GIsEditor || (LocalWorld != nullptr));
+					if (LocalWorld)
 					{
 						for (TActorIterator<AActor> ActorIt(LocalWorld, ReceiverClassPtr); ActorIt; ++ActorIt)
 						{
