@@ -37,6 +37,12 @@ public:
 	 */
 	explicit FDynamicMeshUVEditor(FDynamicMesh3* MeshIn, int32 UVLayerIndex, bool bCreateIfMissing);
 
+	/**
+	 * Construct UV Editor for a UV Overlay of the given Mesh.
+	 */
+	explicit FDynamicMeshUVEditor(FDynamicMesh3* MeshIn, FDynamicMeshUVOverlay* UVOverlayIn);
+
+
 	FDynamicMesh3* GetMesh() { return Mesh; }
 	const FDynamicMesh3* GetMesh() const { return Mesh; }
 
@@ -168,6 +174,20 @@ public:
 	 */
 	void SetTriangleUVsFromCylinderProjection(const TArray<int32>& Triangles, TFunctionRef<FVector3d(const FVector3d&)> PointTransform, const FFrame3d& CylFrame, const FVector3d& CylDimensions, float CylinderSplitAngle, FUVEditResult* Result = nullptr);
 
+
+	/**
+	* Compute the UV-space and 3D area of the given Triangles, and then scale the UV area to be equvalent
+	* to the 3D area. Scaling is around the center of the UV bounding box.
+	* @param bRecenterAtOrigin if true, UVs are translated after scaling such that the UV bounding box center is at (0,0)
+	*/
+	bool ScaleUVAreaTo3DArea(const TArray<int32>& Triangles, bool bRecenterAtOrigin);
+
+	/**
+	* Compute an oriented UV-space bounding box for the given Triangles, and then rotate the UVs such that the
+	* box is aligned with the X axis. 
+	* The UV-space box is found by computing the 2D Convex Hull and then finding the hull edge that results in the minimal box.
+	*/
+	bool AutoOrientUVArea(const TArray<int32>& Triangles);
 
 
 	/**

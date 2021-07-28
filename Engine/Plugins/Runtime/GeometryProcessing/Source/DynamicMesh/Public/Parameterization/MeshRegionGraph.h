@@ -108,6 +108,14 @@ public:
 	bool OptimizeBorders(int32 MaxRounds = 25);
 
 
+	/**
+	 * @return list of triangles in a Region
+	 * @warning This method leaves the FMeshRegionGraph in an invalid state, and should only be used as a means to avoid memory copies while extracting the triangle sets from a FMeshRegionGraph that will then be discarded
+	 */
+	TArray<int32>&& MoveRegionTris(int32 RegionIdx) { return MoveTemp(Regions[RegionIdx].Triangles); }
+
+
+
 public:
 
 	struct FNeighbour
