@@ -109,8 +109,9 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		uint64 BookmarkPoint = EventData.GetValue<uint64>("BookmarkPoint");
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		double Timestamp = Context.EventTime.AsSeconds(Cycle);
-		BookmarkProvider.AppendBookmark(Timestamp, BookmarkPoint, EventData.GetAttachment());
-		LogProvider.AppendMessage(BookmarkPoint, Timestamp, EventData.GetAttachment());
+		TArrayView<const uint8> FormatArgsView = FTraceAnalyzerUtils::LegacyAttachmentArray("FormatArgs", Context);
+		BookmarkProvider.AppendBookmark(Timestamp, BookmarkPoint, FormatArgsView.GetData());
+		LogProvider.AppendMessage(BookmarkPoint, Timestamp, FormatArgsView.GetData());
 		break;
 	}
 	case RouteId_BeginFrame:

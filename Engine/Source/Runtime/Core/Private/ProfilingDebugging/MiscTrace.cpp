@@ -21,6 +21,7 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(Misc, Bookmark)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(const void*, BookmarkPoint)
+	UE_TRACE_EVENT_FIELD(uint8[], FormatArgs)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Misc, BeginFrame)
@@ -48,10 +49,10 @@ void FMiscTrace::OutputBookmarkSpec(const void* BookmarkPoint, const ANSICHAR* F
 
 void FMiscTrace::OutputBookmarkInternal(const void* BookmarkPoint, uint16 EncodedFormatArgsSize, uint8* EncodedFormatArgs)
 {
-	UE_TRACE_LOG(Misc, Bookmark, BookmarkChannel, EncodedFormatArgsSize)
+	UE_TRACE_LOG(Misc, Bookmark, BookmarkChannel)
 		<< Bookmark.Cycle(FPlatformTime::Cycles64())
 		<< Bookmark.BookmarkPoint(BookmarkPoint)
-		<< Bookmark.Attachment(EncodedFormatArgs, EncodedFormatArgsSize);
+		<< Bookmark.FormatArgs(EncodedFormatArgs, EncodedFormatArgsSize);
 }
 
 void FMiscTrace::OutputBeginFrame(ETraceFrameType FrameType)
