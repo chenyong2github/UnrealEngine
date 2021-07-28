@@ -759,8 +759,6 @@ UWorld* UTakeRecorder::GetWorld() const
 
 void UTakeRecorder::Tick(float DeltaTime)
 {
-	FTimecode TimecodeSource = FApp::GetTimecode();
-
 	if (State == ETakeRecorderState::CountingDown)
 	{
 		NumberOfTicksAfterPre = 0;
@@ -781,28 +779,30 @@ void UTakeRecorder::Tick(float DeltaTime)
 	else if (State == ETakeRecorderState::TickingAfterPre)
 	{
 		NumberOfTicksAfterPre = 0;
-		Start(TimecodeSource);
-		InternalTick(TimecodeSource, 0.0f);
+		Start();
+		InternalTick(0.0f);
 	}
 	else if (State == ETakeRecorderState::Started)
 	{
-		InternalTick(TimecodeSource, DeltaTime);
+		InternalTick(DeltaTime);
 	}
 }
 
-void UTakeRecorder::InternalTick(const FTimecode& InTimecodeSource, float DeltaTime)
+void UTakeRecorder::InternalTick(float DeltaTime)
 {
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	FQualifiedFrameTime SequencerTime = Sequencer.IsValid() ? Sequencer->GetGlobalTime() : FQualifiedFrameTime();
+	
 	UTakeRecorderSources* Sources = SequenceAsset->FindOrAddMetaData<UTakeRecorderSources>();
 	if (!Parameters.bDisableRecordingAndSave)
 	{
-		CurrentFrameTime = Sources->TickRecording(SequenceAsset, InTimecodeSource, DeltaTime);
+		CurrentFrameTime = Sources->TickRecording(SequenceAsset, SequencerTime, DeltaTime);
 	}
 	else
 	{
-		CurrentFrameTime = Sources->AdvanceTime(DeltaTime);
+		CurrentFrameTime = Sources->AdvanceTime(SequencerTime, DeltaTime);
 	}
 
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	if (Sequencer.IsValid())
 	{
 		FAnimatedRange Range = Sequencer->GetViewRange();
@@ -869,9 +869,21 @@ void UTakeRecorder::PreRecord()
 
 	Sources->SetSettings(TakeRecorderSourcesSettings);
 
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	if (!Parameters.bDisableRecordingAndSave)
 	{
-		Sources->PreRecording(SequenceAsset, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
+		UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
+		FQualifiedFrameTime SequencerTime;
+		if (MovieScene)
+		{
+			FTimecode Timecode = FApp::GetTimecode();
+			FFrameRate FrameRate = MovieScene->GetDisplayRate();
+			FFrameRate TickResolution = MovieScene->GetTickResolution();
+			FFrameNumber PlaybackStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Timecode.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
+			SequencerTime = FQualifiedFrameTime(PlaybackStartFrame, TickResolution);
+		}
+
+		Sources->PreRecording(SequenceAsset, SequencerTime, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
 	}
 	else
 	{
@@ -879,15 +891,16 @@ void UTakeRecorder::PreRecord()
 	}
 
 	// Refresh sequencer in case the movie scene data has mutated (ie. existing object bindings removed because they will be recorded again)
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	if (Sequencer.IsValid())
 	{
 		Sequencer->RefreshTree();
 	}
 }
 
-void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
+void UTakeRecorder::Start()
 {
+	FTimecode Timecode = FApp::GetTimecode();
+
 	State = ETakeRecorderState::Started;
 
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
@@ -913,7 +926,7 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 
 		FFrameRate FrameRate = MovieScene->GetDisplayRate();
 		FFrameRate TickResolution = MovieScene->GetTickResolution();
-		FFrameNumber PlaybackStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(InTimecodeSource.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
+		FFrameNumber PlaybackStartFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(Timecode.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame() : MovieScene->GetPlaybackRange().GetLowerBoundValue();
 
 		// Transform all the sections to start the playback start frame
 		FFrameNumber DeltaFrame = PlaybackStartFrame - MovieScene->GetPlaybackRange().GetLowerBoundValue();
@@ -944,11 +957,16 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 	UTakeMetaData* AssetMetaData = SequenceAsset->FindMetaData<UTakeMetaData>();
 	FDateTime UtcNow = FDateTime::UtcNow();
 	AssetMetaData->SetTimestamp(UtcNow);
-	AssetMetaData->SetTimecodeIn(InTimecodeSource);
+	AssetMetaData->SetTimecodeIn(Timecode);
 
 	if (!Parameters.bDisableRecordingAndSave)
 	{
-		Sources->StartRecording(SequenceAsset, InTimecodeSource, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
+		FQualifiedFrameTime SequencerTime = Sequencer.IsValid() ? Sequencer->GetGlobalTime() : FQualifiedFrameTime();
+
+		Sources->StartRecording(SequenceAsset, SequencerTime, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
+
+		// Record immediately so that there's a key on the first frame of recording
+		Sources->TickRecording(SequenceAsset, SequencerTime, 0.1f);
 	}
 
 	if (!ShouldShowNotifications())
@@ -975,8 +993,6 @@ void UTakeRecorder::Stop()
 
 	TGuardValue<bool> ReentrantGuard(bStoppedRecording, true);
 
-	FTimecode TimecodeOut = FApp::GetTimecode();
-	
 	if (Parameters.TakeRecorderMode == ETakeRecorderMode::RecordNewSequence)
 	{
 		USequencerSettings* SequencerSettings = USequencerSettingsContainer::GetOrCreate<USequencerSettings>(TEXT("TakeRecorderSequenceEditor"));
@@ -1026,10 +1042,8 @@ void UTakeRecorder::Stop()
 			TRange<FFrameNumber> Range = MovieScene->GetPlaybackRange();
 
 			//Set Range to what we recorded instead of that large number, this let's us reliably set camera cut times.
-			FFrameRate FrameRate = MovieScene->GetDisplayRate();
-			FFrameRate TickResolution = MovieScene->GetTickResolution();
-			FFrameNumber PlaybackEndFrame = Parameters.Project.bStartAtCurrentTimecode ? FFrameRate::TransformTime(FFrameTime(TimecodeOut.ToFrameNumber(FrameRate)), FrameRate, TickResolution).CeilToFrame() : CurrentFrameTime.FrameNumber;
-			
+			FFrameNumber PlaybackEndFrame = CurrentFrameTime.FrameNumber;
+
 			if (StopRecordingFrame.IsSet())
 			{
 				PlaybackEndFrame = StopRecordingFrame.GetValue();
@@ -1070,7 +1084,14 @@ void UTakeRecorder::Stop()
 		UTakeMetaData* AssetMetaData = SequenceAsset->FindMetaData<UTakeMetaData>();
 		check(AssetMetaData);
 
-		AssetMetaData->SetTimecodeOut(TimecodeOut);
+		if (MovieScene)
+		{
+			FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+			FFrameRate TickResolution = MovieScene->GetTickResolution();
+			FTimecode Timecode = FTimecode::FromFrameNumber(FFrameRate::TransformTime(CurrentFrameTime, TickResolution, DisplayRate).FloorToFrame(), DisplayRate);
+
+			AssetMetaData->SetTimecodeOut(Timecode);
+		}
 
 		if (GEditor && GEditor->GetEditorWorldContext().World())
 		{

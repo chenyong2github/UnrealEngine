@@ -159,7 +159,7 @@ private:
 	/**
 	 * Called after PreRecord To Start
 	 */
-	void Start(const FTimecode& InTimecodeSource);
+	void Start();
 
 	/**
 	 * Ticked by a tickable game object to performe any necessary time-sliced logic
@@ -205,7 +205,7 @@ private:
 private:
 
 	/** Called by Tick and Start to make sure we record at start */
-	void InternalTick(const FTimecode& InTimecodeSource, float DeltaTime);
+	void InternalTick(float DeltaTime);
 
 	virtual UWorld* GetWorld() const override;
 

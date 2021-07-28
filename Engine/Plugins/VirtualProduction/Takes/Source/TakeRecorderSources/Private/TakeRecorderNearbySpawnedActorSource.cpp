@@ -26,7 +26,7 @@ UTakeRecorderNearbySpawnedActorSource::UTakeRecorderNearbySpawnedActorSource(con
 	TrackTint = FColor(167, 167, 59);
 }
 
-void UTakeRecorderNearbySpawnedActorSource::StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence)
+TArray<UTakeRecorderSource*> UTakeRecorderNearbySpawnedActorSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
 	// Get the sources, add callbacks for new spawned
 	UWorld* World = TakeRecorderSourcesUtils::GetSourceWorld(InSequence);
@@ -40,6 +40,8 @@ void UTakeRecorderNearbySpawnedActorSource::StartRecording(const FTimecode& InSe
 			ActorSpawningDelegateHandles.Add(World, NewHandle);
 		}
 	}
+
+	return TArray<UTakeRecorderSource*>();
 }
 
 TArray<UTakeRecorderSource*> UTakeRecorderNearbySpawnedActorSource::PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence)
@@ -188,7 +190,7 @@ void UTakeRecorderNearbySpawnedActorSource::HandleActorSpawned(AActor* Actor, cl
 
 	// This has to be called after setting the Target and propegating the change event so that it has a chance to know what to record
 	// about the actor.
-	Sources->StartRecordingSource(TArray<UTakeRecorderSource*>({ ActorSource }), FApp::GetTimecode());
+	Sources->StartRecordingSource(TArray<UTakeRecorderSource*>({ ActorSource }), Sources->GetCachedFrameTime());
 
 	SpawnedActorSources.Add(ActorSource);
 }
