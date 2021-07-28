@@ -2068,7 +2068,7 @@ bool FPhysicsAssetEditor::CanPasteProperties() const
 
 bool FPhysicsAssetEditor::IsCopyProperties() const
 {
-	return (SharedData->CopiedBodySetup) || (SharedData->CopiedConstraintTemplate);
+	return FPhysicsAssetEditorSharedData::ClipboardHasCompatibleData();
 }
 
 //We need to save and restore physics states based on the mode we use to simulate

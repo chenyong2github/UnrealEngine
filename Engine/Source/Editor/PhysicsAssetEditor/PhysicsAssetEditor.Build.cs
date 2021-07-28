@@ -46,7 +46,8 @@ public class PhysicsAssetEditor : ModuleRules
 				"PhysicsCore",
 				"PhysicsUtilities",
 				"MeshUtilitiesCommon",
-            }
+				"ApplicationCore",
+			}
         );
 
 		DynamicallyLoadedModuleNames.AddRange(
