@@ -29,6 +29,7 @@
 #include "SkeletalMeshLODSettings.h"
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Animation/SkinWeightProfile.h"
+#include "Animation/MorphTarget.h"
 #include "Engine/StreamableRenderAsset.h"
 
 #include "SkeletalMesh.generated.h"
@@ -36,7 +37,6 @@
 class UAnimInstance;
 class UAssetUserData;
 class UBodySetup;
-class UMorphTarget;
 class USkeletalMeshSocket;
 class USkeleton;
 class UClothingAssetBase;
@@ -121,14 +121,40 @@ enum class ESkeletalMeshAsyncProperties : uint64
 
 ENUM_CLASS_FLAGS(ESkeletalMeshAsyncProperties);
 
-class FSkeletalMeshPostLoadContext
+struct FFinishBuildInternalData
+{
+public:
+	/** Editor MorphTargets data to set. */
+	bool bApplyMorphTargetsData = false;
+	TMap<FName, TArray<FMorphTargetLODModel> > MorphLODModelsPerTargetName;
+
+	void ApplyEditorData(USkeletalMesh* SkeletalMesh) const;
+
+private:
+	void ApplyMorphTargetsEditorData(USkeletalMesh* SkeletalMesh) const;
+};
+
+class FSkeletalMeshCompilationContext
+{
+public:
+	FSkeletalMeshCompilationContext() = default;
+	// Non-copyable
+	FSkeletalMeshCompilationContext(const FSkeletalMeshCompilationContext&) = delete;
+	FSkeletalMeshCompilationContext& operator=(const FSkeletalMeshCompilationContext&) = delete;
+	// Movable
+	FSkeletalMeshCompilationContext(FSkeletalMeshCompilationContext&&) = default;
+	FSkeletalMeshCompilationContext& operator=(FSkeletalMeshCompilationContext&&) = default;
+	FFinishBuildInternalData FinishBuildInternalData;
+};
+
+class FSkeletalMeshPostLoadContext : public FSkeletalMeshCompilationContext
 {
 public:
 	bool bIsPreSkeletalMeshBuildRefactor = false;
 	bool bHasCachedDerivedData = false;
 };
 
-class FSkeletalMeshBuildContext
+class FSkeletalMeshBuildContext : public FSkeletalMeshCompilationContext
 {
 public:
 	TUniquePtr<FSkinnedMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
@@ -2784,7 +2810,7 @@ private:
 
 #if WITH_EDITOR
 	/** Generate SkeletalMeshRenderData from ImportedModel */
-	void CacheDerivedData();
+	void CacheDerivedData(FSkeletalMeshCompilationContext* ContextPtr);
 
 	/**
 	 * Initial step for the building process - Can't be done in parallel.
@@ -2800,6 +2826,12 @@ private:
 	 * Complete the building process - Can't be done in parallel.
 	 */
 	void FinishBuildInternal(FSkeletalMeshBuildContext& Context);
+
+	/**
+	 * Copy build/load context result data to the skeletalmesh member on the game thread - Can't be done in parallel.
+	 */
+	void ApplyFinishBuildInternalData(FSkeletalMeshCompilationContext* ContextPtr);
+	
 #endif
 
 	/** Utility function to help with building the combined socket list */
