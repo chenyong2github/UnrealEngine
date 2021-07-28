@@ -65,58 +65,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Links)
 	FPoseLink Source;
 
-	/**
-	 * If this is checked the bone pose coming from the AnimBP will be
-	 * transferred into the Control Rig.
-	 */
-	UPROPERTY(EditAnywhere, Category = Settings)
-	bool bTransferInputPose;
-
-	/**
-	 * If this is checked the curves coming from the AnimBP will be
-	 * transferred into the Control Rig.
-	 */
-	UPROPERTY(EditAnywhere, Category = Settings)
-	bool bTransferInputCurves;
-
-	/**
-	 * Transferring the pose in global space guarantees a global pose match,
-	 * while transferring in local space ensures a match of the local transforms.
-	 * In general transforms only differ if the hierarchy topology differs
-	 * between the Control Rig and the skeleton used in the AnimBP.
-	 * Note: Turning this off can potentially improve performance.
-	 */
-	UPROPERTY(EditAnywhere, Category = Settings)
-	bool bTransferPoseInGlobalSpace;
-
-	/**
-	 * An inclusive list of bones to transfer as part
-	 * of the input pose transfer phase.
-	 * If this list is empty all bones will be transferred.
-	 */
-	UPROPERTY(EditAnywhere, Category = Settings)
-	TArray<FBoneReference> InputBonesToTransfer;
-
-	/** Complete mapping from skeleton to control rig bone index */
-	TArray<TPair<uint16, uint16>> ControlRigBoneInputMappingComplete;
-	TArray<TPair<uint16, uint16>> ControlRigBoneOutputMappingComplete;
-
-	/** Complete mapping from skeleton to curve index */
-	TArray<TPair<uint16, uint16>> ControlRigCurveMappingComplete;
-
-	/**
-	 * Indices of transform elements requiring a reset
-	 * this is only used in conjunctions with ControlRigBoneMappingComplete
-	 */
-	TArray<uint16> ControlRigTransformElementsToReset;
-
 	/** Rig Hierarchy bone name to required array index mapping */
-	TMap<FName, uint16> ControlRigBoneInputMappingIncomplete;
-	TMap<FName, uint16> ControlRigBoneOutputMappingIncomplete;
+	UPROPERTY(transient)
+	TMap<FName, uint16> ControlRigBoneMapping;
 
 	/** Rig Curve name to Curve LUI mapping */
-	TMap<FName, uint16> ControlRigCurveMappingIncomplete;
+	UPROPERTY(transient)
+	TMap<FName, uint16> ControlRigCurveMapping;
 
+	UPROPERTY(transient)
 	TMap<FName, uint16> InputToCurveMappingUIDs;
 
 	/** Node Mapping Container */
