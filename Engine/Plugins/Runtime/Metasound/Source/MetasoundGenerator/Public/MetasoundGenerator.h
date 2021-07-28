@@ -19,7 +19,7 @@ namespace Metasound
 	struct FMetasoundGeneratorInitParams
 	{
 		FOperatorSettings OperatorSettings;
-		FMetasoundFrontendDocument DocumentCopy;
+		TUniquePtr<IGraph> Graph;
 		FMetasoundEnvironment Environment;
 		FString MetaSoundName;
 		TArray<FString> AudioOutputNames;

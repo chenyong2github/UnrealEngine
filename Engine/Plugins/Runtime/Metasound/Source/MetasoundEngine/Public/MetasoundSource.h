@@ -183,4 +183,8 @@ protected:
 
 private:
 	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
+	Metasound::FMetasoundEnvironment CreateEnvironment() const;
+	Metasound::FMetasoundEnvironment CreateEnvironment(const FSoundGeneratorInitParams& InParams) const;
+	Metasound::FMetasoundEnvironment CreateEnvironment(const FAudioInstanceTransmitterInitParams& InParams) const;
+	const TArray<Metasound::FVertexKey>& GetAudioOutputVertexKeys() const;
 };

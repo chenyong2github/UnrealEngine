@@ -87,7 +87,6 @@ public:
 	// Unregisters the root graph of the given asset with the MetaSound Frontend.
 	void UnregisterGraphWithFrontend();
 
-	bool CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const;
 
 	// Sets/overwrites the root class metadata
 	virtual void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata);
@@ -103,10 +102,7 @@ public:
 
 	// Returns the preferred archetype for the given document.
 	virtual FMetasoundFrontendVersion GetPreferredArchetypeVersion(const FMetasoundFrontendDocument& InDocument) const;
-
-	// TODO:
-	//virtual void OnMetaSoundDependencyAdded(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
-	//virtual void OnMetaSoundDependencyRemoved(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
+	bool GetArchetype(FMetasoundFrontendArchetype& OutArchetype) const;
 
 	// Gets the asset class info.
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const = 0;
@@ -155,12 +151,16 @@ public:
 	// Calls the outermost package and marks it dirty.
 	bool MarkMetasoundDocumentDirty() const;
 
-protected:
 	struct FSendInfoAndVertexName
 	{
 		Metasound::FMetasoundInstanceTransmitter::FSendInfo SendInfo;
 		FString VertexName;
 	};
+
+	// Builds the Metasound Document returned by `GetDocument() const`.
+	virtual TUniquePtr<Metasound::IGraph> BuildMetasoundDocument() const;
+
+protected:
 
 	TArray<FSendInfoAndVertexName> GetSendInfos(uint64 InInstanceID) const;
 
@@ -181,10 +181,12 @@ protected:
 	// Returns the owning asset responsible for transactions applied to metasound
 	virtual const UObject* GetOwningAsset() const = 0;
 
+	FString GetOwningAssetName() const;
+
+
 private:
 	Metasound::Frontend::FNodeRegistryKey RegistryKey;
 
-	bool GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const;
 	TArray<FString> GetTransmittableInputVertexNames() const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const;
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;

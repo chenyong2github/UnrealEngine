@@ -12,6 +12,7 @@
 #define LOCTEXT_NAMESPACE "MetasoundFrontend"
 
 
+// TODO: Consider rename to TLiteralNode. 
 namespace Metasound
 {
 	/** A writable variable (if non-const) and a readable output that is only accessible within a given graph. */
@@ -26,12 +27,11 @@ namespace Metasound
 
 			virtual ~TGetVariableOperator() = default;
 
+			/* TODO: No inputs should be return for a "GetVariable"
 			virtual FDataReferenceCollection GetInputs() const override
 			{
-				FDataReferenceCollection Inputs;
-				Inputs.AddDataWriteReference<DataType>(TInputOperator<DataType>::DataReferenceName, TInputOperator<DataType>::InputValue);
-				return Inputs;
 			}
+			*/
 	};
 
 	/** TGetVariableOperatorLiteralFactory creates an input by passing it a literal. */
@@ -93,8 +93,15 @@ namespace Metasound
 
 			static FVertexInterface DeclareVertexInterface(const FVertexKey& InVertexName)
 			{
+				// TODO: Do not need to copy vertex name for these nodes. Should
+				// probably just have them be named "Value" or something generic
+				// to avoid the trouble. Should make similar changes for TInputNode, TOutputNode
+				//
 				return FVertexInterface(
 					FInputVertexInterface(
+						// TODO: Once node versioning is possible, remove this.
+						// Variable nodes do not need writable inputs. They should
+						// constant and renamed to TLiteralNode
 						TInputDataVertexModel<DataType>(InVertexName, FText::GetEmpty())
 					),
 					FOutputVertexInterface(

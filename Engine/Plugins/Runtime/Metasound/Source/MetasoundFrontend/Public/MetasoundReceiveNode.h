@@ -18,30 +18,14 @@
 
 namespace Metasound
 {
-	struct FReceiveNodeNames
+	namespace ReceiveNodeInfo
 	{
-		static const FString& GetAddressInputName()
-		{
-			static const FString InputName = FString(TEXT("Address"));
-			return InputName;
-		}
-
-		static const FString& GetDefaultDataInputName()
-		{
-			static const FString DefaultDataName = FString(TEXT("Default"));
-			return DefaultDataName;
-		}
-
-		static const FString& GetOutputName()
-		{
-			static const FString OutputName = FString(TEXT("Out"));
-			return OutputName;
-		}
-
-		static FNodeClassName GetClassNameForDataType(const FName& InDataTypeName)
-		{
-			return FNodeClassName{TEXT("Receive"), InDataTypeName, TEXT("")};
-		}
+		METASOUNDFRONTEND_API const FString& GetAddressInputName();
+		METASOUNDFRONTEND_API const FString& GetDefaultDataInputName();
+		METASOUNDFRONTEND_API const FString& GetOutputName();
+		METASOUNDFRONTEND_API FNodeClassName GetClassNameForDataType(const FName& InDataTypeName);
+		METASOUNDFRONTEND_API int32 GetCurrentMajorVersion();
+		METASOUNDFRONTEND_API int32 GetCurrentMinorVersion();
 	};
 
 	template<typename TDataType>
@@ -52,11 +36,11 @@ namespace Metasound
 		{
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FSendAddress>(FReceiveNodeNames::GetAddressInputName(), FText::GetEmpty()),
-					TInputDataVertexModel<TDataType>(FReceiveNodeNames::GetDefaultDataInputName(), FText::GetEmpty())
+					TInputDataVertexModel<FSendAddress>(ReceiveNodeInfo::GetAddressInputName(), FText::GetEmpty()),
+					TInputDataVertexModel<TDataType>(ReceiveNodeInfo::GetDefaultDataInputName(), FText::GetEmpty())
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataType>(FReceiveNodeNames::GetOutputName(), FText::GetEmpty())
+					TOutputDataVertexModel<TDataType>(ReceiveNodeInfo::GetOutputName(), FText::GetEmpty())
 				)
 			);
 		}
@@ -66,9 +50,9 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = FReceiveNodeNames::GetClassNameForDataType(GetMetasoundDataTypeName<TDataType>());
-				Info.MajorVersion = 1;
-				Info.MinorVersion = 0;
+				Info.ClassName = ReceiveNodeInfo::GetClassNameForDataType(GetMetasoundDataTypeName<TDataType>());
+				Info.MajorVersion = ReceiveNodeInfo::GetCurrentMajorVersion();
+				Info.MinorVersion = ReceiveNodeInfo::GetCurrentMinorVersion();
 				Info.DisplayName = FText::Format(LOCTEXT("Metasound_ReceiveNodeDisplayNameFormat", "Receive {0}"), FText::FromName(GetMetasoundDataTypeName<TDataType>()));
 				Info.Description = LOCTEXT("Metasound_ReceiveNodeDescription", "Receives data from a send node with the same name.");
 				Info.Author = PluginAuthor;
@@ -111,8 +95,8 @@ namespace Metasound
 				{
 					FDataReferenceCollection Inputs;
 
-					Inputs.AddDataReadReference<TDataType>(FReceiveNodeNames::GetDefaultDataInputName(), DefaultData);
-					Inputs.AddDataReadReference<FSendAddress>(FReceiveNodeNames::GetAddressInputName(), SendAddress);
+					Inputs.AddDataReadReference<TDataType>(ReceiveNodeInfo::GetDefaultDataInputName(), DefaultData);
+					Inputs.AddDataReadReference<FSendAddress>(ReceiveNodeInfo::GetAddressInputName(), SendAddress);
 
 					return Inputs;
 				}
@@ -120,7 +104,7 @@ namespace Metasound
 				virtual FDataReferenceCollection GetOutputs() const override
 				{
 					FDataReferenceCollection Outputs;
-					Outputs.AddDataReadReference<TDataType>(FReceiveNodeNames::GetOutputName(), TDataReadReference<TDataType>(OutputData));
+					Outputs.AddDataReadReference<TDataType>(ReceiveNodeInfo::GetOutputName(), TDataReadReference<TDataType>(OutputData));
 					return Outputs;
 				}
 
@@ -185,15 +169,15 @@ namespace Metasound
 				{
 					TDataReadReference<TDataType> DefaultReadRef = TDataReadReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings);
 
-					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(FReceiveNodeNames::GetDefaultDataInputName()))
+					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(ReceiveNodeInfo::GetDefaultDataInputName()))
 					{
-						DefaultReadRef = InParams.InputDataReferences.GetDataReadReference<TDataType>(FReceiveNodeNames::GetDefaultDataInputName());
+						DefaultReadRef = InParams.InputDataReferences.GetDataReadReference<TDataType>(ReceiveNodeInfo::GetDefaultDataInputName());
 					}
 
 					return MakeUnique<TReceiverOperator>(
 						DefaultReadRef,
 						TDataWriteReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings, *DefaultReadRef),
-						InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(FReceiveNodeNames::GetAddressInputName()),
+						InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(ReceiveNodeInfo::GetAddressInputName()),
 						InParams.OperatorSettings
 						);
 				}
@@ -201,7 +185,6 @@ namespace Metasound
 
 		public:
 
-			// TODO: default value of received object.
 			TReceiveNode(const FNodeInitData& InInitData)
 				: FNode(InInitData.InstanceName, InInitData.InstanceID, GetNodeInfo())
 				, Interface(DeclareVertexInterface())

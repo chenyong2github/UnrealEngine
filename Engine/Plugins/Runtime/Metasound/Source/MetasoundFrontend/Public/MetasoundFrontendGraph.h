@@ -14,7 +14,7 @@ namespace Metasound
 	 * that live within the graph and provides query interfaces for finding nodes
 	 * by dependency ID or input/output index. 
 	 */
-	class FFrontendGraph : public FGraph
+	class METASOUNDFRONTEND_API FFrontendGraph : public FGraph
 	{
 		public:
 			/** FFrontendGraph constructor.
@@ -94,7 +94,7 @@ namespace Metasound
 	/** FFrontendGraphBuilder builds a FFrontendGraph from a FMetasoundDoucment
 	 * or FMetasoundFrontendClass.
 	 */
-	class FFrontendGraphBuilder
+	class METASOUNDFRONTEND_API FFrontendGraphBuilder
 	{
 	public:
 

@@ -22,14 +22,13 @@ namespace Metasound
 
 	void FAsyncMetaSoundBuilder::DoWork()
 	{
-		using namespace Frontend;
-		// Create handles for new root graph
-		FConstDocumentHandle NewDocumentHandle = IDocumentController::CreateDocumentHandle(MakeAccessPtr<FConstDocumentAccessPtr>(InitParams.DocumentCopy.AccessPoint, InitParams.DocumentCopy));
-		FConstGraphHandle RootGraph = NewDocumentHandle->GetRootGraph();
-		ensureAlways(RootGraph->IsValid());
-
+		// Create an instance of the new graph
+		FOperatorBuilder OperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings());
+		FBuildGraphParams BuildParams{*InitParams.Graph, InitParams.OperatorSettings, FDataReferenceCollection{}, InitParams.Environment};
 		TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
-		TUniquePtr<IOperator> GraphOperator = RootGraph->BuildOperator(InitParams.OperatorSettings, InitParams.Environment, BuildErrors);
+
+		TUniquePtr<IOperator> GraphOperator = OperatorBuilder.BuildGraphOperator(BuildParams, BuildErrors);
+
 
 		// Log build errors
 		for (const IOperatorBuilder::FBuildErrorPtr& Error : BuildErrors)

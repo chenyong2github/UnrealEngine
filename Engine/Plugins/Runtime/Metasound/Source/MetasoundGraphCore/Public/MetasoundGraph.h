@@ -72,6 +72,23 @@ namespace Metasound
 			 */
 			bool AddDataEdge(const INode& FromNode, const FVertexKey& FromVertexKey, const INode& ToNode, const FVertexKey& ToVertexKey);
 
+			/** Remove the given data edge. 
+			 *
+			 * @return True on success, false on failure.
+			 */
+			bool RemoveDataEdge(const INode& FromNode, const FVertexKey& FromVertexKey, const INode& ToNode, const FVertexKey& ToVertexKey);
+
+			/** Removes all edges for which that predicate returns true.
+			 *
+			 * @param Predicate - A callable object which accepts an FDataEdge and returns true if
+			 *                    the edge should be removed.
+			 */
+			template<typename PredicateType>
+			void RemoveDataEdgeByPredicate(const PredicateType& Predicate)
+			{
+				Edges.RemoveAllSwap(Predicate);
+			}
+
 			/** Add an input data destination to describe how data provided 
 			 * outside this graph should be routed internally.
 			 *

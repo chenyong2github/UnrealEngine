@@ -38,6 +38,7 @@ namespace Metasound
 			FName TypeName;
 		};
 
+
 		/** Initialization parameters for a FMetasoundInstanceTransmitter. */
 		struct FInitParams
 		{
@@ -59,6 +60,15 @@ namespace Metasound
 			}
 
 		};
+
+		/** Returns the MetaSound environment variable name which contains the instance ID. */
+		static FString GetInstanceIDEnvironmentVariableName();
+
+		/** Creates a unique send address using the given MetaSound environment. */
+		static FSendAddress CreateSendAddressFromEnvironment(const FMetasoundEnvironment& InEnvironment, const FVertexKey& InVertexkey, const FName& InTypeName);
+		
+		/** Creates a unique send address using the given InstanceID. */
+		static FSendAddress CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexKey& InVertexKey, const FName& InTypeName);
 
 		FMetasoundInstanceTransmitter(const FMetasoundInstanceTransmitter::FInitParams& InInitParams);
 		virtual ~FMetasoundInstanceTransmitter() = default;

@@ -4,6 +4,34 @@
 
 namespace Metasound
 {
+	FString FMetasoundInstanceTransmitter::GetInstanceIDEnvironmentVariableName()
+	{
+		return TEXT("TransmitterInstanceID");
+	}
+
+	FSendAddress FMetasoundInstanceTransmitter::CreateSendAddressFromEnvironment(const FMetasoundEnvironment& InEnvironment, const FVertexKey& InVertexKey, const FName& InTypeName)
+	{
+		const FString IDVarName = GetInstanceIDEnvironmentVariableName();
+		uint64 InstanceID = -1;
+
+		if (ensure(InEnvironment.Contains<uint64>(IDVarName)))
+		{
+			InstanceID = InEnvironment.GetValue<uint64>(IDVarName);
+		}
+
+		return CreateSendAddressFromInstanceID(InstanceID, InVertexKey, InTypeName);
+	}
+
+	FSendAddress FMetasoundInstanceTransmitter::CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexKey& InVertexKey, const FName& InTypeName)
+	{
+		FSendAddress Address;
+
+		Address.Subsystem = GetSubsystemNameForSendScope(ETransmissionScope::Global);
+		Address.ChannelName = FName(FString::Format(TEXT("{0}:{1}:{2}"), { InInstanceID, InVertexKey, InTypeName.ToString() }));
+
+		return Address;
+	}
+
 	FMetasoundInstanceTransmitter::FMetasoundInstanceTransmitter(const FMetasoundInstanceTransmitter::FInitParams& InInitParams)
 	: SendInfos(InInitParams.Infos)
 	, OperatorSettings(InInitParams.OperatorSettings)

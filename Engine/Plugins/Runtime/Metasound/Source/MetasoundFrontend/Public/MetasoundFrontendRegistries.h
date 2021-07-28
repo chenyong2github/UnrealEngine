@@ -31,18 +31,6 @@ namespace Metasound
 		FGuid InstanceID;
 		FString VertexName;
 		FLiteral InitParam = FLiteral::CreateInvalid();
-
-		// TODO: Remove Clone(), move variable instead. 
-		FDefaultLiteralNodeConstructorParams Clone() const
-		{
-			return
-			{
-				NodeName,
-				InstanceID,
-				VertexName,
-				InitParam.Clone()
-			};
-		}
 	};
 
 	using FOutputNodeConstructorParams = FDefaultNodeConstructorParams;
@@ -381,6 +369,7 @@ namespace Metasound
 			// Returns true if the class info and class metadata represent the same entry in the node registry.
 			METASOUNDFRONTEND_API bool IsEqual(const FNodeClassInfo& InLHS, const FMetasoundFrontendClassMetadata& InRHS);
 
+			METASOUNDFRONTEND_API FNodeRegistryKey CreateKey(EMetasoundFrontendClassType InType, const FString& InFullClassName, int32 InMajorVersion, int32 InMinorVersion);
 			METASOUNDFRONTEND_API FNodeRegistryKey CreateKey(const FNodeClassMetadata& InNodeMetadata);
 			METASOUNDFRONTEND_API FNodeRegistryKey CreateKey(const FMetasoundFrontendClassMetadata& InNodeMetadata);
 			METASOUNDFRONTEND_API FNodeRegistryKey CreateKey(const FNodeClassInfo& ClassInfo);
