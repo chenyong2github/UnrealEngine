@@ -504,6 +504,20 @@ int32 UPhysicsAsset::FindConstraintIndex(FName ConstraintName)
 	return INDEX_NONE;
 }
 
+int32 UPhysicsAsset::FindConstraintIndex(FName Bone1Name, FName Bone2Name)
+{
+	for (int32 i = 0; i < ConstraintSetup.Num(); i++)
+	{
+		if (ConstraintSetup[i]->DefaultInstance.ConstraintBone1 == Bone1Name &&
+			ConstraintSetup[i]->DefaultInstance.ConstraintBone2 == Bone2Name)
+		{
+			return i;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
 FName UPhysicsAsset::FindConstraintBoneName(int32 ConstraintIndex)
 {
 	if ( (ConstraintIndex < 0) || (ConstraintIndex >= ConstraintSetup.Num()) )
@@ -842,6 +856,46 @@ USkeletalMesh* UPhysicsAsset::GetPreviewMesh() const
 	return nullptr;
 #endif
 }
+
+#if WITH_EDITOR
+FConstraintInstanceAccessor UPhysicsAsset::GetConstraintInstanceAccessorByIndex(int32 ConstraintIndex)
+{
+	if (ConstraintIndex == INDEX_NONE || ConstraintIndex >= ConstraintSetup.Num())
+	{
+		return FConstraintInstanceAccessor();
+	}
+
+	if (ConstraintSetup[ConstraintIndex])
+	{
+		return FConstraintInstanceAccessor(this, ConstraintIndex);
+	}
+
+	return FConstraintInstanceAccessor();
+}
+
+FConstraintInstanceAccessor UPhysicsAsset::GetConstraintByName(FName ConstraintName)
+{
+	return GetConstraintInstanceAccessorByIndex(FindConstraintIndex(ConstraintName));
+}
+
+FConstraintInstanceAccessor UPhysicsAsset::GetConstraintByBoneNames(FName Bone1Name, FName Bone2Name)
+{
+	return GetConstraintInstanceAccessorByIndex(FindConstraintIndex(Bone1Name, Bone2Name));
+}
+
+FConstraintInstance* UPhysicsAsset::GetConstraintInstanceByIndex(uint32 Index)
+{
+	if (Index < (uint32)ConstraintSetup.Num())
+	{
+		if (ConstraintSetup[Index])
+		{
+			return &ConstraintSetup[Index]->DefaultInstance;
+		}
+	}
+
+	return nullptr;
+}
+#endif
 
 void UPhysicsAsset::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty/*=true*/)
 {
