@@ -30,6 +30,7 @@ void UOptimusNode_DataInterface::CreatePins()
 
 		if (ensure(DataInterfaceCDO))
 		{
+			SetDisplayName(FText::FromString(DataInterfaceCDO->GetDisplayName()));
 			CreatePinsFromDataInterface(DataInterfaceCDO);
 		}
 	}

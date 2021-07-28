@@ -44,4 +44,7 @@ public:
 
 	// Returns the stored value as a shader-compatible value.
 	TArray<uint8> GetShaderValue() const;
+
+protected:
+	void CreatePins() override;
 };

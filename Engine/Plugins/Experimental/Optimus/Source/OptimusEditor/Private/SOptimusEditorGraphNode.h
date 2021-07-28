@@ -36,6 +36,11 @@ private:
 	UOptimusEditorGraphNode *GetEditorGraphNode() const;
 	UOptimusNode* GetModelNode() const;
 
+	EVisibility GetTitleVisibility() const;
+
+	// SGraphNode protected overrides
+	TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
+	
 	// STreeView helper functions
 	EVisibility GetInputTreeVisibility() const;
 	EVisibility GetOutputTreeVisibility() const;
@@ -45,6 +50,8 @@ private:
 
 	FText GetPinLabel(TWeakPtr<SGraphPin> InWeakGraphPin) const;
 
+	TSharedPtr<SNodeTitle> NodeTitle;
+	
 	// Collapsible input pins
 	TSharedPtr<STreeView<UOptimusNodePin*>> InputTree;
 

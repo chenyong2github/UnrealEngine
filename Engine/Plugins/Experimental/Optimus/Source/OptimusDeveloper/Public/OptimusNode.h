@@ -155,6 +155,7 @@ protected:
 	UPROPERTY()
 	FVector2D GraphPosition;
 
+	// FIXME: Rename to ConstructNode()
 	virtual void CreatePins();
 
 	/** Create a pin and add it to the node in the location specified. */ 
@@ -230,9 +231,8 @@ private:
 	// if the object is now different and may need to be involved in updating the compute graph.
 	int32 Revision = 0;
 
-	// A safety valve because we don't want notifications on pin added to be fired if a pin
-	// is added during CreatePins.
-	bool bNotifyPinAdded = true;
+	// Ensure we don't send notifications during construction.
+	bool bBlockNotifications = false;
 
 	/// Cached pin lookups
 	mutable TMap<TArray<FName>, UOptimusNodePin*> CachedPinLookup;

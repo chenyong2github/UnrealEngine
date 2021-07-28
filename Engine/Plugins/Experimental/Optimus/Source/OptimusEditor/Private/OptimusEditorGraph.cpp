@@ -201,7 +201,12 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		}
 
 		case EOptimusGraphNotifyType::NodeDisplayNameChanged:
-			ensure(false);
+		{
+			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
+			UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelNode);
+
+			GraphNode->SyncGraphNodeNameWithModelNodeName();
+		}
 		break;
 
 		case EOptimusGraphNotifyType::NodePositionChanged:

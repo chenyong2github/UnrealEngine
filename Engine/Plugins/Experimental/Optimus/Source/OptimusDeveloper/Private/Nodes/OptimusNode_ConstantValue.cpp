@@ -97,3 +97,11 @@ TArray<uint8> UOptimusNode_ConstantValue::GetShaderValue() const
 	
 	return {};
 }
+
+
+void UOptimusNode_ConstantValue::CreatePins()
+{
+	SetDisplayName(FText::Format(FText::FromString(TEXT("{0} Constant")), GetDataType()->DisplayName));
+
+	UOptimusNode::CreatePins();
+}
