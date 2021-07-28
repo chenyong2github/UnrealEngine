@@ -7,6 +7,7 @@
 #include "ConcertSyncClientUtil.h"
 
 #include "ConcertTransactionEvents.h"
+#include "IConcertClientTransactionBridge.h"
 #include "Misc/PackageName.h"
 #include "Misc/CoreDelegates.h"
 #include "HAL/IConsoleManager.h"
@@ -455,6 +456,11 @@ FOnConcertClientLocalTransactionFinalized& FConcertClientTransactionBridge::OnLo
 bool FConcertClientTransactionBridge::CanApplyRemoteTransaction() const
 {
 	return ConcertSyncClientUtil::CanPerformBlockingAction();
+}
+
+FOnApplyTransaction& FConcertClientTransactionBridge::OnApplyTransaction()
+{
+	return OnApplyTransactionDelegate;
 }
 
 void FConcertClientTransactionBridge::ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot)

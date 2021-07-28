@@ -597,11 +597,14 @@ void ADisplayClusterRootActor::BeginDestroy()
 
 void ADisplayClusterRootActor::RerunConstructionScripts()
 {
-	Super::RerunConstructionScripts();
-
+	IDisplayClusterConfiguration& Config = IDisplayClusterConfiguration::Get();
+	if (!Config.IsTransactingSnapshot())
+	{
+		Super::RerunConstructionScripts();
 #if WITH_EDITOR
-	RerunConstructionScripts_Editor();
+		RerunConstructionScripts_Editor();
 #endif
+	}
 }
 
 UDisplayClusterCameraComponent* ADisplayClusterRootActor::GetDefaultCamera() const

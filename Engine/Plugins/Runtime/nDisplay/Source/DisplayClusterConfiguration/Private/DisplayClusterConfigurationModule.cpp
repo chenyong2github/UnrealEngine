@@ -37,6 +37,17 @@ void FDisplayClusterConfigurationModule::StartupModule()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterConfiguration
 //////////////////////////////////////////////////////////////////////////////////////////////
+
+void FDisplayClusterConfigurationModule::SetIsSnapshotTransacting(bool bIsSnapshotState)
+{
+	bIsSnapshot = bIsSnapshotState;
+}
+
+bool FDisplayClusterConfigurationModule::IsTransactingSnapshot() const
+{
+	return bIsSnapshot;
+}
+
 EDisplayClusterConfigurationVersion FDisplayClusterConfigurationModule::GetConfigVersion(const FString& FilePath)
 {
 	return FDisplayClusterConfigurationMgr::Get().GetConfigVersion(FilePath);

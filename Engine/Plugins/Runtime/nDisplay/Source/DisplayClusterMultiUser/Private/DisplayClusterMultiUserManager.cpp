@@ -5,6 +5,9 @@
 
 #include "DisplayClusterConfigurationTypes_Base.h"
 
+#include "IConcertClientTransactionBridge.h"
+#include "IDisplayClusterConfiguration.h"
+
 #include "IConcertSyncClient.h"
 #include "IConcertSyncClientModule.h"
 
@@ -20,6 +23,7 @@ FDisplayClusterMultiUserManager::FDisplayClusterMultiUserManager()
 
 		Bridge->RegisterTransactionFilter(NDISPLAY_MULTIUSER_TRANSACTION_FILTER,
 			FTransactionFilterDelegate::CreateRaw(this, &FDisplayClusterMultiUserManager::ShouldObjectBeTransacted));
+		Bridge->OnApplyTransaction().AddRaw(this, &FDisplayClusterMultiUserManager::OnApplyRemoteTransaction);
 	}
 }
 
@@ -32,6 +36,20 @@ FDisplayClusterMultiUserManager::~FDisplayClusterMultiUserManager()
 		check(Bridge != nullptr);
 
 		Bridge->UnregisterTransactionFilter(NDISPLAY_MULTIUSER_TRANSACTION_FILTER);
+		Bridge->OnApplyTransaction().RemoveAll(this);
+	}
+}
+
+void FDisplayClusterMultiUserManager::OnApplyRemoteTransaction(ETransactionNotification Notification, const bool bIsSnapshot)
+{
+	IDisplayClusterConfiguration& Config = IDisplayClusterConfiguration::Get();
+	if (Notification == ETransactionNotification::Begin && bIsSnapshot)
+	{
+		Config.SetIsSnapshotTransacting(true);
+	}
+	else if (bIsSnapshot)
+	{
+		Config.SetIsSnapshotTransacting(false);
 	}
 }
 
