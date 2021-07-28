@@ -33,13 +33,17 @@ public:
 	*/
 	FCachePutAsyncWorker(const TCHAR* InCacheKey, TArrayView<const uint8> InData, FDerivedDataBackendInterface* InInnerBackend, bool InbPutEvenIfExists, FDerivedDataBackendInterface* InInflightCache, FThreadSet* InInFilesInFlight, FDerivedDataCacheUsageStats& InUsageStats)
 		: CacheKey(InCacheKey)
-		, Data(InData.GetData(), InData.Num())
 		, InnerBackend(InInnerBackend)
 		, InflightCache(InInflightCache)
 		, FilesInFlight(InInFilesInFlight)
 		, bPutEvenIfExists(InbPutEvenIfExists)
 		, UsageStats(InUsageStats)
 	{
+		// Only make a copy if it's not going to be available from the Inflight cache
+		if (!InInflightCache || !InInflightCache->CachedDataProbablyExists(InCacheKey))
+		{
+			Data = InData;
+		}
 		check(InnerBackend);
 	}
 
@@ -75,6 +79,11 @@ public:
 		}
 		else
 		{
+			if (InflightCache && Data.Num() == 0)
+			{
+				// We verified at construction time that we would be able to get the data from the Inflight cache
+				verify(InflightCache->GetCachedData(*CacheKey, Data));
+			}
 			Status = InnerBackend->PutCachedData(*CacheKey, Data, bPutEvenIfExists);
 			COOK_STAT(Timer.AddHit(Data.Num()));
 		}
@@ -93,6 +102,10 @@ public:
 				}
 				else
 				{
+					if (Data.Num() == 0)
+					{
+						verify(InflightCache->GetCachedData(*CacheKey, Data));
+					}
 					Status = InnerBackend->PutCachedData(*CacheKey, Data, /*bPutEvenIfExists*/ false);
 				}
 			}
@@ -167,6 +180,11 @@ bool FDerivedDataBackendAsyncPutWrapper::IsWritable() const
 FDerivedDataBackendInterface::ESpeedClass FDerivedDataBackendAsyncPutWrapper::GetSpeedClass() const
 {
 	return InnerBackend->GetSpeedClass();
+}
+
+bool FDerivedDataBackendAsyncPutWrapper::BackfillLowerCacheLevels() const
+{
+	return InnerBackend->BackfillLowerCacheLevels();
 }
 
 bool FDerivedDataBackendAsyncPutWrapper::CachedDataProbablyExists(const TCHAR* CacheKey)
@@ -279,7 +297,7 @@ FDerivedDataBackendInterface::EPutStatus FDerivedDataBackendAsyncPutWrapper::Put
 		InflightCache->PutCachedData(CacheKey, InData, true); // temp copy stored in memory while the async task waits to complete
 		COOK_STAT(Timer.AddHit(InData.Num()));
 	}
-
+	
 	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s queueing %s for put"), *GetName(), CacheKey);
 
 	FDerivedDataBackend::Get().AddToAsyncCompletionCounter(1);
