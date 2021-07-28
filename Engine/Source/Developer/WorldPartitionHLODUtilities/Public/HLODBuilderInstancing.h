@@ -10,7 +10,7 @@
  * Build a AWorldPartitionHLOD whose components are ISMC
  */
 UCLASS()
-class UHLODBuilderInstancing : public UHLODBuilder
+class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderInstancing : public UHLODBuilder
 {
 	 GENERATED_UCLASS_BODY()
 

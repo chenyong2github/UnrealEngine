@@ -11,7 +11,7 @@ class UMaterial;
 
 
 UCLASS(Blueprintable, Config = Engine, PerObjectConfig)
-class UHLODBuilderMeshMergeSettings : public UHLODBuilderSettings
+class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderMeshMergeSettings : public UHLODBuilderSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -31,7 +31,7 @@ class UHLODBuilderMeshMergeSettings : public UHLODBuilderSettings
  * Build a merged mesh using geometry from the provided actors
  */
 UCLASS()
-class UHLODBuilderMeshMerge : public UHLODBuilder
+class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderMeshMerge : public UHLODBuilder
 {
 	GENERATED_UCLASS_BODY()
 

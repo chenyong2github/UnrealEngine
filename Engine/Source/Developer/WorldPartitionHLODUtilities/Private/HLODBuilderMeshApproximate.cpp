@@ -80,7 +80,7 @@ UHLODBuilderSettings* UHLODBuilderMeshApproximate::CreateSettings(UHLODLayer* In
 
 TArray<UPrimitiveComponent*> UHLODBuilderMeshApproximate::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_MeshApproximate::CreateComponents);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderMeshApproximate::CreateComponents);
 
 	TSet<AActor*> Actors;
 	TArray<UPrimitiveComponent*> InstancedComponents;

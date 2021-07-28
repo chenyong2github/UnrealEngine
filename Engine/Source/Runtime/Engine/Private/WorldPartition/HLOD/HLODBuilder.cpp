@@ -48,9 +48,6 @@ void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InH
 		return;
 	}
 
-	// Before capturing the scene, make sure all assets are finished compiling
-	FAssetCompilingManager::Get().FinishAllCompilation();
-
 	TArray<UPrimitiveComponent*> HLODPrimitives = CreateComponents(InHLODActor, InHLODLayer, SubComponents);
 	HLODPrimitives.RemoveSwap(nullptr);
 

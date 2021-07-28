@@ -5,21 +5,21 @@
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #include "Engine/MeshMerging.h"
 
-#include "HLODBuilderMeshSimplify.generated.h"
+#include "HLODBuilderMeshApproximate.generated.h"
 
 class UMaterial;
 
 
 UCLASS(Blueprintable, Config = Engine, PerObjectConfig)
-class UHLODBuilderMeshSimplifySettings : public UHLODBuilderSettings
+class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderMeshApproximateSettings : public UHLODBuilderSettings
 {
 	GENERATED_UCLASS_BODY()
 
 	virtual uint32 GetCRC() const override;
 
-	/** Simplified mesh generation settings */
-	UPROPERTY(EditAnywhere, Config, Category = HLOD)
-	FMeshProxySettings MeshSimplifySettings;
+	/** Mesh approximation settings */
+	UPROPERTY(EditAnywhere, Config, Category = HLOD, meta=(EditInline))
+	FMeshApproximationSettings MeshApproximationSettings;
 
 	/** Material that will be used by the generated HLOD static mesh */
 	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category = HLOD)
@@ -28,10 +28,10 @@ class UHLODBuilderMeshSimplifySettings : public UHLODBuilderSettings
 
 
 /**
- * Build a simplified mesh using geometry from the provided actors
+ * Build an approximated mesh using geometry from the provided actors
  */
 UCLASS()
-class UHLODBuilderMeshSimplify : public UHLODBuilder
+class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderMeshApproximate : public UHLODBuilder
 {
 	GENERATED_UCLASS_BODY()
 
