@@ -293,6 +293,31 @@ void AddCopyToResolveTargetPass(
 	});
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FCopyBufferParameters, )
+	RDG_BUFFER_ACCESS(SrcBuffer, ERHIAccess::CopySrc)
+	RDG_BUFFER_ACCESS(DstBuffer, ERHIAccess::CopyDest)
+END_SHADER_PARAMETER_STRUCT()
+
+void AddCopyBufferPass(FRDGBuilder& GraphBuilder, FRDGBufferRef DstBuffer, FRDGBufferRef SrcBuffer)
+{
+	check(SrcBuffer);
+	check(DstBuffer);
+
+	FCopyBufferParameters* Parameters = GraphBuilder.AllocParameters<FCopyBufferParameters>();
+	Parameters->SrcBuffer = SrcBuffer;
+	Parameters->DstBuffer = DstBuffer;
+	const uint64 NumBytes = Parameters->SrcBuffer->Desc.NumElements * Parameters->SrcBuffer->Desc.BytesPerElement;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("CopyBuffer(%s Size=%ubytes)", SrcBuffer->Name, SrcBuffer->Desc.GetTotalNumBytes()),
+		Parameters,
+		ERDGPassFlags::Copy,
+		[&Parameters, SrcBuffer, DstBuffer, NumBytes](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.CopyBufferRegion(DstBuffer->GetRHI(), 0, SrcBuffer->GetRHI(), 0, NumBytes);
+		});
+}
+
 BEGIN_SHADER_PARAMETER_STRUCT(FClearBufferUAVParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BufferUAV)
 END_SHADER_PARAMETER_STRUCT()
