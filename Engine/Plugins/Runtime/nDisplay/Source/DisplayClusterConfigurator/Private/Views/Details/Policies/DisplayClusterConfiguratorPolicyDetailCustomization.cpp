@@ -751,6 +751,13 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
 		TArray<TSubclassOf<UActorComponent>>{ USceneComponent::StaticClass() });
+
+	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
+		"Enable Preview",
+		DisplayClusterProjectionStrings::cfg::mpcdi::EnablePreview,
+		Blueprint,
+		ConfigurationViewportPtr.Get(),
+		ParametersHandle));
 }
 
 #undef LOCTEXT_NAMESPACE

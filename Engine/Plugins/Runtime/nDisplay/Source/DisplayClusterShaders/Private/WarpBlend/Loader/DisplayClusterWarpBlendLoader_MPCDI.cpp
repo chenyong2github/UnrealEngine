@@ -33,7 +33,7 @@ THIRD_PARTY_INCLUDES_END
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryContext.h"
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryProxy.h"
 
-struct FWarpRegion
+struct FMPCDIRegionLoader
 {
 	EDisplayClusterWarpProfileType ProfileType;
 
@@ -45,7 +45,7 @@ struct FWarpRegion
 	IDisplayClusterRenderTexture* AlphaMap = nullptr;
 	IDisplayClusterRenderTexture* BetaMap = nullptr;
 
-	bool CreateWarpBlendInterface(TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
+	TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> CreateWarpBlendInterface()
 	{
 		TSharedPtr<FDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlend = MakeShared<FDisplayClusterWarpBlend, ESPMode::ThreadSafe>();
 
@@ -55,16 +55,18 @@ struct FWarpRegion
 
 		FDisplayClusterWarpBlend_GeometryProxy& Proxy = WarpBlend->GeometryContext.GeometryProxy;
 		Proxy.AlphaMap = AlphaMap;
+		AlphaMap = nullptr;
+
 		Proxy.AlphaMapEmbeddedGamma = AlphaMapGammaEmbedded;
 
 		Proxy.BetaMap = BetaMap;
+		BetaMap = nullptr;
+
 		Proxy.WarpMap = WarpMap;
+		WarpMap = nullptr;
 
-		OutWarpBlend = WarpBlend;
-		
-		return true;
+		return WarpBlend;
 	}
-
 
 	void ReleaseResources()
 	{
@@ -83,6 +85,57 @@ struct FWarpRegion
 			delete BetaMap;
 			BetaMap = nullptr;
 		}
+	}
+
+	bool LoadRegion(EDisplayClusterWarpProfileType InProfileType, mpcdi::Region* InRegionData)
+	{
+		check(InRegionData);
+
+		ProfileType = InProfileType;
+
+		float X = InRegionData->GetX();
+		float Y = InRegionData->GetY();
+		float W = InRegionData->GetXsize();
+		float H = InRegionData->GetYsize();
+
+		// Build Region matrix
+		RegionMatrix = FMatrix::Identity;
+		RegionMatrix.M[0][0] = W;
+		RegionMatrix.M[1][1] = H;
+		RegionMatrix.M[3][0] = X;
+		RegionMatrix.M[3][1] = Y;
+
+		mpcdi::AlphaMap* AlphaMapSource = InRegionData->GetFileSet()->GetAlphaMap();
+		if (AlphaMapSource != nullptr)
+		{
+			AlphaMap = FDisplayClusterWarpBlendLoader_Texture::CreateBlendMap(AlphaMapSource);
+			AlphaMapGammaEmbedded = AlphaMapSource->GetGammaEmbedded();
+		}
+
+		mpcdi::BetaMap* BetaMapSource = InRegionData->GetFileSet()->GetBetaMap();
+		if (BetaMapSource != nullptr)
+		{
+			BetaMap = FDisplayClusterWarpBlendLoader_Texture::CreateBlendMap(BetaMapSource);
+		}
+
+		if (ProfileType != EDisplayClusterWarpProfileType::warp_SL)
+		{
+			mpcdi::GeometryWarpFile* WarpMapSource = InRegionData->GetFileSet()->GetGeometryWarpFile();
+			if (WarpMapSource)
+			{
+				WarpMap = FDisplayClusterWarpBlendLoader_Texture::CreateWarpMap(ProfileType, WarpMapSource);
+
+				if (WarpMap)
+				{
+					return true;
+				}
+			}
+		}
+
+		// Release unused resources
+		ReleaseResources();
+
+		return false;
 	}
 };
 
@@ -105,139 +158,130 @@ EDisplayClusterWarpProfileType ImplGetProfileType(mpcdi::Profile* profile)
 	return EDisplayClusterWarpProfileType::Invalid;
 };
 
-bool ImplLoadRegion(EDisplayClusterWarpProfileType ProfileType, mpcdi::Region* mpcdiRegion, FWarpRegion& Out)
+class FMPCDIFileLoader
 {
-	Out.ProfileType = ProfileType;
+public:
+	FMPCDIFileLoader()
+	{ }
 
-	float X = mpcdiRegion->GetX();
-	float Y = mpcdiRegion->GetY();
-	float W = mpcdiRegion->GetXsize();
-	float H = mpcdiRegion->GetYsize();
+	~FMPCDIFileLoader()
+	{ Release(); }
 
-	// Build Region matrix
-	Out.RegionMatrix = FMatrix::Identity;
-	Out.RegionMatrix.M[0][0] = W;
-	Out.RegionMatrix.M[1][1] = H;
-	Out.RegionMatrix.M[3][0] = X;
-	Out.RegionMatrix.M[3][1] = Y;
-	
-	mpcdi::AlphaMap* AlphaMapSource = mpcdiRegion->GetFileSet()->GetAlphaMap();
-	if (AlphaMapSource != nullptr)
+public:
+	bool LoadMPCDIFile(const FString& InMPCDIFileName, const FString& InBufferId, const FString& InRegionId, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
 	{
-		Out.AlphaMap = FDisplayClusterWarpBlendLoader_Texture::CreateBlendMap(AlphaMapSource);
-		Out.AlphaMapGammaEmbedded = AlphaMapSource->GetGammaEmbedded();
-	}
+		FString MPCIDIFileFullPath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(InMPCDIFileName);
 
-	mpcdi::BetaMap* BetaMapSource = mpcdiRegion->GetFileSet()->GetBetaMap();
-	if (BetaMapSource != nullptr)
-	{
-		Out.BetaMap = FDisplayClusterWarpBlendLoader_Texture::CreateBlendMap(BetaMapSource);
-	}
-
-
-	if (ProfileType != EDisplayClusterWarpProfileType::warp_SL)
-	{
-		mpcdi::GeometryWarpFile* geometryFile = mpcdiRegion->GetFileSet()->GetGeometryWarpFile();
-		if (geometryFile)
+		if (!FPaths::FileExists(MPCIDIFileFullPath))
 		{
-			Out.WarpMap = FDisplayClusterWarpBlendLoader_Texture::CreateWarpMap(ProfileType, geometryFile);
-			return Out.WarpMap != nullptr;
+			UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("File not found: %s"), *MPCIDIFileFullPath);
+			return false;
 		}
-	}
 
-	return false;
-}
+		Profile = mpcdi::Profile::CreateProfile();
 
-bool FDisplayClusterWarpBlendLoader_MPCDI::Load(const FDisplayClusterWarpBlendConstruct::FLoadMPCDIFile& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
-{
-	FString MPCIDIFileFullPath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(InParameters.MPCDIFileName);
-
-	if (!FPaths::FileExists(MPCIDIFileFullPath))
-	{
-		UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("File not found: %s"), *MPCIDIFileFullPath);
-		return false;
-	}
-
-	mpcdi::Profile* profile = mpcdi::Profile::CreateProfile();
-	mpcdi::Reader* reader = mpcdi::Reader::CreateReader();
-	std::string version = reader->GetSupportedVersions();
-
-	EDisplayClusterWarpProfileType ProfileType = ImplGetProfileType(profile);
-
-	mpcdi::MPCDI_Error mpcdi_err = reader->Read(TCHAR_TO_ANSI(*MPCIDIFileFullPath), profile);
-	delete reader;
-
-	UE_LOG(LogDisplayClusterWarpBlend, Log, TEXT("Loading MPCDI file %s."), *MPCIDIFileFullPath);
-
-	if (MPCDI_FAILED(mpcdi_err))
-	{
-		UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Error %d reading MPCDI file"), int32(mpcdi_err));
-		return false;
-	}
-
-	FString Version = version.c_str();
-	UE_LOG(LogDisplayClusterWarpBlend, Verbose, TEXT("Version: %s"), *Version);
-
-	// Find desired region:
-	for (mpcdi::Display::BufferIterator itBuffer = profile->GetDisplay()->GetBufferBegin(); itBuffer != profile->GetDisplay()->GetBufferEnd(); ++itBuffer)
-	{
-		mpcdi::Buffer* mpcdiBuffer = itBuffer->second;
-
-		FString BufferId(mpcdiBuffer->GetId().c_str());
-		if (InParameters.BufferId.Equals(BufferId, ESearchCase::IgnoreCase))
 		{
-			for (mpcdi::Buffer::RegionIterator it = mpcdiBuffer->GetRegionBegin(); it != mpcdiBuffer->GetRegionEnd(); ++it)
+			// Read profile data from mpcdi file using mpcdi lib:
+			mpcdi::Reader* Reader = mpcdi::Reader::CreateReader();
+
+			UE_LOG(LogDisplayClusterWarpBlend, Log, TEXT("Loading MPCDI file %s."), *MPCIDIFileFullPath);
+
+			std::string version = Reader->GetSupportedVersions();
+			FString Version = version.c_str();
+			UE_LOG(LogDisplayClusterWarpBlend, Verbose, TEXT("MPCDI library version: %s"), *Version);
+
+			mpcdi::MPCDI_Error mpcdi_err = Reader->Read(TCHAR_TO_ANSI(*MPCIDIFileFullPath), Profile);
+			delete Reader;
+
+			if (MPCDI_FAILED(mpcdi_err))
 			{
-				mpcdi::Region* mpcdiRegion = it->second;
-				FString RegionId(mpcdiRegion->GetId().c_str());
+				UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Error %d reading MPCDI file"), int32(mpcdi_err));
+				Release();
+				return false;
+			}
+		}
 
-				if (InParameters.RegionId.Equals(RegionId, ESearchCase::IgnoreCase))
+		// Read mpcdi profile type
+		ProfileType = ImplGetProfileType(Profile);
+
+		// Find desired region:
+		for (mpcdi::Display::BufferIterator itBuffer = Profile->GetDisplay()->GetBufferBegin(); itBuffer != Profile->GetDisplay()->GetBufferEnd(); ++itBuffer)
+		{
+			mpcdi::Buffer* mpcdiBuffer = itBuffer->second;
+
+			FString BufferId(mpcdiBuffer->GetId().c_str());
+			if (InBufferId.Equals(BufferId, ESearchCase::IgnoreCase))
+			{
+				for (mpcdi::Buffer::RegionIterator it = mpcdiBuffer->GetRegionBegin(); it != mpcdiBuffer->GetRegionEnd(); ++it)
 				{
-					FWarpRegion RegionResources;
-					if (!ImplLoadRegion(ProfileType, mpcdiRegion, RegionResources))
-					{
-						UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Can't load region '%s' buffer '%s' from mpcdi file '%s'"), *InParameters.RegionId, *InParameters.BufferId, *InParameters.MPCDIFileName);
-						RegionResources.ReleaseResources();
-						return false;
-					}
+					mpcdi::Region* mpcdiRegion = it->second;
+					FString RegionId(mpcdiRegion->GetId().c_str());
 
-					//ok, Create and initialize warpblend interface
-					return RegionResources.CreateWarpBlendInterface(OutWarpBlend);
+					if (InRegionId.Equals(RegionId, ESearchCase::IgnoreCase))
+					{
+						FMPCDIRegionLoader RegionLoader;
+						if (!RegionLoader.LoadRegion(ProfileType, mpcdiRegion))
+						{
+							UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Can't load region '%s' buffer '%s' from mpcdi file '%s'"), *InRegionId, *InBufferId, *InMPCDIFileName);
+							return false;
+						}
+
+						//ok, Create and initialize warpblend interface
+						OutWarpBlend = RegionLoader.CreateWarpBlendInterface();
+						return true;
+					}
 				}
 			}
 		}
+
+		UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Can't find region '%s' buffer '%s' inside mpcdi file '%s'"), *InRegionId, *InBufferId, *InMPCDIFileName);
+		return false;
 	}
 
-	UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Can't find region '%s' buffer '%s' inside mpcdi file '%s'"), *InParameters.RegionId, *InParameters.BufferId, *InParameters.MPCDIFileName);
-	return false;
+	void Release()
+	{
+		if (Profile)
+		{
+			delete Profile;
+			Profile = nullptr;
+		}
+	}
+
+private:
+	mpcdi::Profile* Profile = nullptr;
+	EDisplayClusterWarpProfileType ProfileType = EDisplayClusterWarpProfileType::Invalid;
+};
+
+bool FDisplayClusterWarpBlendLoader_MPCDI::Load(const FDisplayClusterWarpBlendConstruct::FLoadMPCDIFile& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
+{
+	FMPCDIFileLoader Loader;
+	return Loader.LoadMPCDIFile(InParameters.MPCDIFileName, InParameters.BufferId, InParameters.RegionId, OutWarpBlend);
 }
 
 bool FDisplayClusterWarpBlendLoader_MPCDI::Load(const FDisplayClusterWarpBlendConstruct::FLoadPFMFile& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
 {
-	FWarpRegion RegionResources;
-	RegionResources.ProfileType = InParameters.ProfileType;
-	RegionResources.AlphaMapGammaEmbedded = InParameters.AlphaMapEmbeddedAlpha;
+	FMPCDIRegionLoader RegionLoader;
+	RegionLoader.ProfileType = InParameters.ProfileType;
+	RegionLoader.AlphaMapGammaEmbedded = InParameters.AlphaMapEmbeddedAlpha;
 
-	RegionResources.WarpMap = FDisplayClusterWarpBlendLoader_Texture::CreateWarpMap(RegionResources.ProfileType, InParameters.PFMFileName, InParameters.PFMScale, InParameters.bIsUnrealGameSpace);
-	if (RegionResources.WarpMap)
+	RegionLoader.WarpMap = FDisplayClusterWarpBlendLoader_Texture::CreateWarpMap(RegionLoader.ProfileType, InParameters.PFMFileName, InParameters.PFMScale, InParameters.bIsUnrealGameSpace);
+	if (RegionLoader.WarpMap)
 	{
 		if (InParameters.AlphaMapFileName.IsEmpty() == false)
 		{
-			RegionResources.AlphaMap = FDisplayClusterWarpBlendLoader_Texture::CreateBlendMap(InParameters.AlphaMapFileName);
+			RegionLoader.AlphaMap = FDisplayClusterWarpBlendLoader_Texture::CreateBlendMap(InParameters.AlphaMapFileName);
 		}
 
 		if (InParameters.BetaMapFileName.IsEmpty() == false)
 		{
-			RegionResources.BetaMap = FDisplayClusterWarpBlendLoader_Texture::CreateBlendMap(InParameters.BetaMapFileName);
+			RegionLoader.BetaMap = FDisplayClusterWarpBlendLoader_Texture::CreateBlendMap(InParameters.BetaMapFileName);
 		}
 
-		return RegionResources.CreateWarpBlendInterface(OutWarpBlend);
+		OutWarpBlend = RegionLoader.CreateWarpBlendInterface();
+		return true;
 	}
 
-	RegionResources.ReleaseResources();
+	RegionLoader.ReleaseResources();
 
 	return false;
 }
-
-
-

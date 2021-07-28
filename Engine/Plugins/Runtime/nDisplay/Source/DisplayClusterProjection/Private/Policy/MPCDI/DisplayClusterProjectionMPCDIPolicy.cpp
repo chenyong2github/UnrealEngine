@@ -38,6 +38,7 @@ FDisplayClusterProjectionMPCDIPolicy::FDisplayClusterProjectionMPCDIPolicy(const
 
 FDisplayClusterProjectionMPCDIPolicy::~FDisplayClusterProjectionMPCDIPolicy()
 {
+	ImplRelease();
 }
 
 void FDisplayClusterProjectionMPCDIPolicy::UpdateProxyData(IDisplayClusterViewport* InViewport)
@@ -68,6 +69,11 @@ void FDisplayClusterProjectionMPCDIPolicy::UpdateProxyData(IDisplayClusterViewpo
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewport* InViewport)
 {
+	if (bInvalidConfiguration)
+	{
+		return false;
+	}
+
 	check(IsInGameThread());
 
 	// The game side of the nDisplay has been initialized by the nDisplay Game Manager already
@@ -80,6 +86,9 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewp
 
 	if (WarpBlendInterface.IsValid() == false && !CreateWarpBlendFromConfig())
 	{
+		// Ignore broken MPCDI config for other attempts
+		bInvalidConfiguration = true;
+
 		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI config for viewport '%s'"), *InViewport->GetId());
 		return false;
 	}
@@ -94,7 +103,16 @@ void FDisplayClusterProjectionMPCDIPolicy::HandleEndScene(IDisplayClusterViewpor
 {
 	check(IsInGameThread());
 
-	ReleaseOriginComponent(InViewport);
+	ImplRelease();
+
+#if WITH_EDITOR
+	ReleasePreviewMeshComponent();
+#endif
+}
+
+void FDisplayClusterProjectionMPCDIPolicy::ImplRelease()
+{
+	ReleaseOriginComponent();
 
 	WarpBlendInterface.Reset();
 	WarpBlendContexts.Empty();
@@ -306,14 +324,17 @@ void FDisplayClusterProjectionMPCDIPolicy::ReleasePreviewMeshComponent()
 	PreviewMeshComponentRef.ResetSceneComponent();
 }
 
-UMeshComponent* FDisplayClusterProjectionMPCDIPolicy::GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport)
+UMeshComponent* FDisplayClusterProjectionMPCDIPolicy::GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 {
 	check(IsInGameThread());
 
-	if (WarpBlendInterface.IsValid() == false)
+	if (WarpBlendInterface.IsValid() == false || !bIsPreviewMeshEnabled)
 	{
 		return nullptr;
 	}
+
+	// used created mesh component
+	bOutIsRootActorComponent = false;
 
 	USceneComponent* OriginComp = GetOriginComp();
 
@@ -330,9 +351,12 @@ UMeshComponent* FDisplayClusterProjectionMPCDIPolicy::GetOrCreatePreviewMeshComp
 		}
 	}
 
+	// Downscale preview mesh dimension to max limit
+	const uint32 PreviewGeometryDimLimit = 128;
+
 	// Create new WarpMesh component
 	FMPCDIGeometryExportData MeshData;
-	if (WarpBlendInterface->ExportWarpMapGeometry(&MeshData))
+	if (WarpBlendInterface->ExportWarpMapGeometry(&MeshData, PreviewGeometryDimLimit))
 	{
 		const FString CompName = FString::Printf(TEXT("MPCDI_%s_impl"), *GetId());
 
@@ -369,6 +393,8 @@ bool FDisplayClusterProjectionMPCDIPolicy::CreateWarpBlendFromConfig()
 
 		// Support custom origin node
 		OriginCompId = CfgData.OriginType;
+
+		bIsPreviewMeshEnabled = CfgData.bEnablePreview;
 
 		// Load from MPCDI file:
 		if (CfgData.PFMFile.IsEmpty())

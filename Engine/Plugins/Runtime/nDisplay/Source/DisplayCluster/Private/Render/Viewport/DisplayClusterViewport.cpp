@@ -38,6 +38,8 @@ FDisplayClusterViewport::FDisplayClusterViewport(FDisplayClusterViewportManager&
 
 FDisplayClusterViewport::~FDisplayClusterViewport()
 {
+	HandleEndScene();
+
 	// ViewportProxy deleted on render thread from FDisplayClusterViewportManagerProxy::ImplDeleteViewport()
 }
 

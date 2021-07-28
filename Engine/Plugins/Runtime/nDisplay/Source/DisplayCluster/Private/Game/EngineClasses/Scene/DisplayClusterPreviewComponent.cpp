@@ -87,6 +87,12 @@ bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayCluster
 
 void UDisplayClusterPreviewComponent::UpdatePreviewMeshMaterial(bool bRestoreOriginalMaterial)
 {
+	if (bRestoreOriginalMaterial && !bIsRootActorPreviewMesh)
+	{
+		// Forged created meshes, dont restore
+		PreviewMesh = nullptr;
+	}
+
 	if (PreviewMesh)
 	{
 		bool bViewportPreviewEnabled = (ViewportConfig && ViewportConfig->bIsEnabled && RootActor && RootActor->bPreviewEnable);
@@ -149,14 +155,14 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh(bool bRestoreOriginalMat
 			{
 				UpdatePreviewMeshMaterial(true);
 
-					// Forget old mesh ptr
-					PreviewMesh = nullptr;
-				}
+				// Forget old mesh ptr
+				PreviewMesh = nullptr;
+			}
 
 			if (PreviewMesh == nullptr)
 			{
 				// Get new mesh ptr
-				PreviewMesh = Viewport->GetProjectionPolicy()->GetOrCreatePreviewMeshComponent(Viewport);
+				PreviewMesh = Viewport->GetProjectionPolicy()->GetOrCreatePreviewMeshComponent(Viewport, bIsRootActorPreviewMesh);
 
 				UpdatePreviewMeshMaterial(bRestoreOriginalMaterial);
 					

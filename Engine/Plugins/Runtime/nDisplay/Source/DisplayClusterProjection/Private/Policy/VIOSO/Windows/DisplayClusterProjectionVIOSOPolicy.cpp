@@ -193,6 +193,7 @@ FDisplayClusterProjectionVIOSOPolicy::FDisplayClusterProjectionVIOSOPolicy(const
 
 FDisplayClusterProjectionVIOSOPolicy::~FDisplayClusterProjectionVIOSOPolicy()
 {
+	ImplRelease();
 }
 
 bool FDisplayClusterProjectionVIOSOPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
@@ -232,7 +233,12 @@ void FDisplayClusterProjectionVIOSOPolicy::HandleEndScene(class IDisplayClusterV
 {
 	check(IsInGameThread());
 
-	ReleaseOriginComponent(InViewport);
+	ImplRelease();
+}
+
+void FDisplayClusterProjectionVIOSOPolicy::ImplRelease()
+{
+	ReleaseOriginComponent();
 
 	// Destroy VIOSO for all views
 	FScopeLock lock(&DllAccessCS);

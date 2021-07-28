@@ -97,6 +97,12 @@ namespace DisplayClusterProjectionStrings
 			static constexpr auto FileAlpha  = TEXT("alpha");
 			static constexpr auto AlphaGamma = TEXT("alpha_gamma");
 			static constexpr auto FileBeta   = TEXT("beta");
+
+			static constexpr auto MPCDITypeKey = TEXT("MPCDIType");
+			static constexpr auto TypeMPCDI = TEXT("MPCDI");
+			static constexpr auto TypePFM = TEXT("Explicit PFM");
+
+			static constexpr auto EnablePreview = TEXT("EnablePreview");
 		}
 
 		namespace domeprojection

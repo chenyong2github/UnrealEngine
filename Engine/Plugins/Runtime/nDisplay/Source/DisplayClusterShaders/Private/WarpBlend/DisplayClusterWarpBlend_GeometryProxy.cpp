@@ -3,7 +3,7 @@
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryProxy.h"
 
 #include "Render/DisplayClusterRenderTexture.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_WarpMesh.h"
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_WarpMap.h"
@@ -61,6 +61,8 @@ bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometry_WarpMesh()
 	if (MeshComponent == nullptr)
 	{
 		// mesh deleted?
+		WarpMesh->UpdateDefferedRef();
+		bIsWarpMeshComponentLost = true;
 		return false;
 	};
 
@@ -72,9 +74,10 @@ bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometry_WarpMesh()
 	}
 
 	// If StaticMesh geometry changed, update mpcdi math and RHI resources
-	if (WarpMesh->MeshComponentRef.IsMeshComponentChanged())
+	if (WarpMesh->MeshComponentRef.IsMeshComponentChanged() || bIsWarpMeshComponentLost)
 	{
 		AssignWarpMesh(MeshComponent, OriginComponent);
+		bIsWarpMeshComponentLost = false;
 	}
 	
 	// Update caches
@@ -120,7 +123,7 @@ bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometryCache_WarpMesh()
 
 	if (WarpMesh)
 	{
-		const FStaticMeshLODResources* WarpMeshResource = WarpMesh->GetWarpMeshLodResource();
+		const FStaticMeshLODResources* WarpMeshResource = WarpMesh->GetStaticMeshLODResource();
 		if (WarpMeshResource != nullptr)
 		{
 			FDisplayClusterWarpBlendMath_WarpMesh MeshHelper(*WarpMeshResource);

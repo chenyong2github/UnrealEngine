@@ -44,6 +44,45 @@ UDisplayClusterConfigurationData::UDisplayClusterConfigurationData()
 	Scene   = CreateDefaultSubobject<UDisplayClusterConfigurationScene>(TEXT("Scene"));
 }
 
+bool UDisplayClusterConfigurationData::AssignPostprocess(const FString& NodeId, const FString& PostprocessId, const FString& Type, TMap<FString, FString> Parameters, int32 Order)
+{
+	if (Cluster && Cluster->Nodes.Contains(NodeId))
+	{
+		if (!PostprocessId.IsEmpty())
+		{
+			FDisplayClusterConfigurationPostprocess PostprocessData;
+			PostprocessData.Type = Type;
+			PostprocessData.Parameters.Append(Parameters);
+			PostprocessData.Order = Order;
+
+			Cluster->Nodes[NodeId]->Postprocess.Emplace(PostprocessId, PostprocessData);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UDisplayClusterConfigurationData::RemovePostprocess(const FString& NodeId, const FString& PostprocessId)
+{
+	if (Cluster && Cluster->Nodes.Contains(NodeId))
+	{
+		if (Cluster->Nodes[NodeId]->Postprocess.Contains(PostprocessId))
+		{
+			Cluster->Nodes[NodeId]->Postprocess.Remove(PostprocessId);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData::GetClusterNodeConfiguration(const FString& NodeId) const
+{
+	return Cluster->Nodes.Contains(NodeId) ? Cluster->Nodes[NodeId] : nullptr;
+}
+
 const UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData::GetClusterNode(const FString& NodeId) const
 {
 	return Cluster->Nodes.Contains(NodeId) ? Cluster->Nodes[NodeId] : nullptr;
@@ -134,6 +173,11 @@ const TSet<FString> UDisplayClusterConfigurationData::ProjectionPolicies =
 FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 {
 	Type = TEXT("simple");
+}
+
+FDisplayClusterConfigurationPostprocess::FDisplayClusterConfigurationPostprocess()
+{
+	Type = TEXT("OutputRemap");
 }
 
 const float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;

@@ -167,3 +167,17 @@ public:
 	FDisplayClusterConfigurationProjection();
 };
 
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostprocess
+	: public FDisplayClusterConfigurationPolymorphicEntity
+{
+	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationPostprocess();
+
+	// Control postprocess rendering order. Bigger value rendered last
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
+	int32 Order = -1;
+};
+

@@ -48,8 +48,6 @@ private:
 	void ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration);
 	void ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);
 
-	void ImplUpdateConfiguration_PostProcess(const FString& InClusterNodeId, const UDisplayClusterConfigurationData& ConfigurationData);
-
 private:
 	FDisplayClusterViewportManager&    ViewportManager;
 	FDisplayClusterActorRef            RootActorRef;

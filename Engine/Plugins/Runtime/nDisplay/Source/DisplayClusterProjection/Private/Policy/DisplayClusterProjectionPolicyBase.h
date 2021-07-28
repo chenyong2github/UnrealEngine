@@ -48,7 +48,7 @@ public:
 
 protected:
 	void InitializeOriginComponent(class IDisplayClusterViewport* InViewport, const FString& OriginCopmId);
-	void ReleaseOriginComponent(class IDisplayClusterViewport* InViewport);
+	void ReleaseOriginComponent();
 
 private:
 	// Added 'Policy' prefix to avoid "... hides class name ..." warnings in child classes

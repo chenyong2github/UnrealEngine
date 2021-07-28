@@ -264,16 +264,6 @@ public:
 	int32 RenderSyncBarrierTimeout;
 };
 
-
-
-USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostprocess
-	: public FDisplayClusterConfigurationPolymorphicEntity
-{
-	GENERATED_BODY()
-};
-
-
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationExternalImage
 {
@@ -478,7 +468,34 @@ public:
 	const UDisplayClusterConfigurationClusterNode* GetClusterNode(const FString& NodeId) const;
 	const UDisplayClusterConfigurationViewport*    GetViewport(const FString& NodeId, const FString& ViewportId) const;
 
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
 	UDisplayClusterConfigurationViewport* GetViewportConfiguration(const FString& NodeId, const FString& ViewportId);
+
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
+	UDisplayClusterConfigurationClusterNode* GetClusterNodeConfiguration(const FString& NodeId) const;
+
+	/**
+	* Update\Create node postprocess
+	*
+	* @param PostprocessId - Unique postprocess name
+	* @param Type          - Postprocess type id
+	* @param Parameters    - Postprocess parameters
+	* @param Order         - Control the rendering order of post-processing. Larger value is displayed last
+	*
+	* @return - true, if success
+	*/
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
+	bool AssignPostprocess(const FString& NodeId, const FString& PostprocessId, const FString& Type, TMap<FString, FString> Parameters, int32 Order = -1);
+
+	/**
+	* Delet node postprocess
+	*
+	* @param PostprocessId - Unique postprocess name
+	*
+	* @return - true, if success
+	*/
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
+	bool RemovePostprocess(const FString& NodeId, const FString& PostprocessId);
 
 	bool GetPostprocess(const FString& NodeId, const FString& PostprocessId, FDisplayClusterConfigurationPostprocess& OutPostprocess) const;
 	bool GetProjectionPolicy(const FString& NodeId, const FString& ViewportId, FDisplayClusterConfigurationProjection& OutProjection) const;

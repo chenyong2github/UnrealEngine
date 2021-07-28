@@ -61,16 +61,13 @@ APlayerCameraManager* const GetCurPlayerCameraManager(IDisplayClusterViewport* I
 
 UCameraComponent* FDisplayClusterProjectionCameraPolicy::GetCameraComponent()
 {
-	if (CameraRef.IsDefinedSceneComponent())
+	USceneComponent* SceneComponent = CameraRef.GetOrFindSceneComponent();
+	if (SceneComponent)
 	{
-		USceneComponent* SceneComponent = CameraRef.GetOrFindSceneComponent();
-		if (SceneComponent)
+		UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent);
+		if (CameraComponent)
 		{
-			UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent);
-			if (CameraComponent)
-			{
-				return CameraComponent;
-			}
+			return CameraComponent;
 		}
 	}
 	

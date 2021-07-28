@@ -43,10 +43,14 @@ public:
 	bool IsPreviewAvailable() const;
 
 	const FString& GetViewportId() const
-		{ return ViewportId; }
+	{ 
+		return ViewportId; 
+	}
 
 	UDisplayClusterConfigurationViewport* GetViewportConfig() const
-		{ return ViewportConfig; }
+	{ 
+		return ViewportConfig;
+	}
 	
 	UTextureRenderTarget2D* GetRenderTargetTexture() const
 	{
@@ -92,36 +96,39 @@ private:
 #if WITH_EDITORONLY_DATA
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview", meta = (DisplayName = "Render Target"))
-		UTextureRenderTarget2D* RenderTarget;
+	UTextureRenderTarget2D* RenderTarget;
 
 private:
 	// Saved mesh policy params
 	UPROPERTY()
-		FDisplayClusterConfigurationProjection WarpMeshSavedProjectionPolicy;
+	FDisplayClusterConfigurationProjection WarpMeshSavedProjectionPolicy;
 
 	UPROPERTY()
-		ADisplayClusterRootActor* RootActor = nullptr;
+	ADisplayClusterRootActor* RootActor = nullptr;
 
 	UPROPERTY()
-		FString ViewportId;
+	FString ViewportId;
 
 	UPROPERTY()
-		UDisplayClusterConfigurationViewport* ViewportConfig = nullptr;
+	UDisplayClusterConfigurationViewport* ViewportConfig = nullptr;
 
 	UPROPERTY()
-		UMeshComponent* PreviewMesh = nullptr;
+	UMeshComponent* PreviewMesh = nullptr;
 
 	UPROPERTY()
-		UMaterial* OriginalMaterial = nullptr;
+	bool bIsRootActorPreviewMesh = false;
 
 	UPROPERTY()
-		UMaterial* PreviewMaterial = nullptr;
+	UMaterial* OriginalMaterial = nullptr;
 
 	UPROPERTY()
-		UMaterialInstanceDynamic* PreviewMaterialInstance = nullptr;
+	UMaterial* PreviewMaterial = nullptr;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* PreviewMaterialInstance = nullptr;
 
 	UPROPERTY(Transient)
-		UTexture2D* PreviewTexture;
+	UTexture2D* PreviewTexture;
 
 #endif /*WITH_EDITORONLY_DATA*/
 };

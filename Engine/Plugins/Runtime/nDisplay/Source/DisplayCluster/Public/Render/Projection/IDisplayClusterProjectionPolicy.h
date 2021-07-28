@@ -181,10 +181,10 @@ public:
 	/**
 	* Build preview mesh
 	*
-	* @param PolicyParameters - Projection specific parameters. It needs to be Cast-ed to internal parameters class type returned by GetParametersClass().
-	* @param bOutHandleDeleteComponent - return true, if component delete op must handled outside
+	* @param InViewport - Projection specific parameters.
+	* @param bOutIsRootActorComponent - return true, if used custom root actor component. return false, if created unique temporary component
 	*/
-	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport)
+	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 	{
 		return nullptr;
 	}

@@ -5,16 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "RenderResource.h"
-
-
-/** The vertex data used to filter a texture. */
-struct FDisplayClusterMeshVertex
-{
-	FVector4 Position;
-	FVector2D UV;
-	FVector2D UV_Chromakey;
-};
-
+#include "Render/Containers/DisplayClusterRender_MeshComponentTypes.h"
 
 /** The filter vertex declaration resource type. */
 class FDisplayClusterMeshVertexDeclaration : public FRenderResource

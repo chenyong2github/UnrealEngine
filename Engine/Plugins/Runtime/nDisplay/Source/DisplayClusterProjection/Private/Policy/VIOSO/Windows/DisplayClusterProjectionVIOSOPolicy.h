@@ -51,6 +51,7 @@ public:
 
 protected:
 	bool ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy);
+	void ImplRelease();
 
 protected:
 	FViosoPolicyConfiguration ViosoConfigData;

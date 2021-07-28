@@ -7,13 +7,18 @@
 
 #include "HAL/IConsoleManager.h"
 
+#include "Render/IPDisplayClusterRenderManager.h"
+#include "Render/IDisplayClusterRenderManager.h"
+#include "Render/PostProcess/IDisplayClusterPostProcessFactory.h"
+
+#include "Render/Viewport/DisplayClusterViewportManager.h"
+
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 
-#include "Render/IPDisplayClusterRenderManager.h"
 #include "Misc/DisplayClusterGlobals.h"
 
-//#include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
+#include "DisplayClusterConfigurationTypes.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Round 1: VIEW before warp&blend
@@ -51,12 +56,231 @@ static TAutoConsoleVariable<int32> CVarPostprocessFrameAfterWarpBlend(
 	ECVF_RenderThreadSafe
 );
 
-void ImplGetPPOperations(TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo>& OutPPOperations)
+bool FDisplayClusterViewportPostProcessManager::HandleStartScene()
 {
-	// Get registered PP operations map
-	const TMap<FString, IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperationsMap = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
-	// Get operations array (sorted already by the rendering manager)
-	PPOperationsMap.GenerateValueArray(OutPPOperations);
+	check(IsInGameThread());;
+
+	if (ViewportManager.IsSceneOpened())
+	{
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& It : Postprocess)
+		{
+			if (It.IsValid())
+			{
+				It->HandleStartScene(&ViewportManager);
+			}
+		}
+	}
+
+	return false;
+}
+
+void FDisplayClusterViewportPostProcessManager::HandleEndScene()
+{
+	check(IsInGameThread());
+	for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& It : Postprocess)
+	{
+		if (It.IsValid())
+		{
+			It->HandleEndScene(&ViewportManager);
+		}
+	}
+}
+
+const TArray<FString> FDisplayClusterViewportPostProcessManager::GetPostprocess() const
+{
+	check(IsInGameThread());
+
+	TArray<FString> ExistPostProcess;
+	for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& It : Postprocess)
+	{
+		if (It.IsValid())
+		{
+			ExistPostProcess.Add(It->GetId());
+		}
+	}
+
+	return ExistPostProcess;
+}
+
+bool FDisplayClusterViewportPostProcessManager::CreatePostprocess(const FString& InPostprocessId, const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess)
+{
+	check(IsInGameThread());
+	check(InConfigurationPostprocess != nullptr);
+
+	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> DesiredPP = ImplFindPostProcess(InPostprocessId);
+	if (DesiredPP.IsValid())
+	{
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("PostProcess '%s', type '%s' : Already exist"), *InConfigurationPostprocess->Type, *InPostprocessId);
+		return false;
+	}
+
+	IDisplayClusterRenderManager* const DCRenderManager = IDisplayCluster::Get().GetRenderMgr();
+	check(DCRenderManager);
+
+	TSharedPtr<IDisplayClusterPostProcessFactory> PostProcessFactory = DCRenderManager->GetPostProcessFactory(InConfigurationPostprocess->Type);
+	if (PostProcessFactory.IsValid())
+	{
+		TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> PostProcessInstance = PostProcessFactory->Create(InPostprocessId, InConfigurationPostprocess);
+		if (PostProcessInstance.IsValid())
+		{
+			if (ViewportManager.IsSceneOpened())
+			{
+				PostProcessInstance->HandleStartScene(&ViewportManager);
+			}
+
+			for (int Order = 0; Order < Postprocess.Num(); Order++)
+			{
+				if (Postprocess[Order].IsValid() && Postprocess[Order]->GetOrder() > PostProcessInstance->GetOrder())
+				{
+					// Add sorted
+					Postprocess.Insert(PostProcessInstance, Order);
+
+					return true;
+				}
+			}
+
+			// Add last
+			Postprocess.Add(PostProcessInstance);
+
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Invalid PostProcess '%s', type '%s' : Can't create postprocess"), *InConfigurationPostprocess->Type, *InPostprocessId);
+		}
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No postprocess found for type '%s' in '%s'"), *InConfigurationPostprocess->Type, *InPostprocessId);
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportPostProcessManager::RemovePostprocess(const FString& InPostprocessId)
+{
+	check(IsInGameThread());
+
+	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> DesiredPP = ImplFindPostProcess(InPostprocessId);
+	if (DesiredPP.IsValid())
+	{
+		Postprocess.Remove(DesiredPP);
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportPostProcessManager::UpdatePostprocess(const FString& InPostprocessId, const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess)
+{
+	// Now update is remove+create
+	RemovePostprocess(InPostprocessId);
+
+	return CreatePostprocess(InPostprocessId, InConfigurationPostprocess);
+}
+
+TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> FDisplayClusterViewportPostProcessManager::ImplFindPostProcess(const FString& InPostprocessId) const
+{
+	check(IsInGameThread());
+
+	// Ok, we have a request for a particular viewport. Let's find it.
+	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> const* DesiredPP = Postprocess.FindByPredicate([InPostprocessId](const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& ItemPP)
+	{
+		return InPostprocessId.Equals(ItemPP->GetId(), ESearchCase::IgnoreCase);
+	});
+
+	return (DesiredPP != nullptr) ? *DesiredPP : nullptr;
+}
+
+bool FDisplayClusterViewportPostProcessManager::IsPostProcessViewBeforeWarpBlendRequired(const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& PostprocessInstance) const
+{
+	if (PostprocessInstance.IsValid() && PostprocessInstance->IsPostProcessViewBeforeWarpBlendRequired())
+	{
+		return (CVarPostprocessViewBeforeWarpBlend.GetValueOnAnyThread() != 0);
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportPostProcessManager::IsPostProcessViewAfterWarpBlendRequired(const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& PostprocessInstance) const
+{
+	if (PostprocessInstance.IsValid() && PostprocessInstance->IsPostProcessViewAfterWarpBlendRequired())
+	{
+		return (CVarPostprocessViewAfterWarpBlend.GetValueOnAnyThread() != 0);
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportPostProcessManager::IsPostProcessFrameAfterWarpBlendRequired(const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& PostprocessInstance) const
+{
+	if (PostprocessInstance.IsValid() && PostprocessInstance->IsPostProcessFrameAfterWarpBlendRequired())
+	{
+		return (CVarPostprocessFrameAfterWarpBlend.GetValueOnAnyThread() != 0);
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportPostProcessManager::IsAnyPostProcessRequired(const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& PostprocessInstance) const
+{
+	if (IsPostProcessViewBeforeWarpBlendRequired(PostprocessInstance))
+	{
+		return true;
+	}
+
+	if (IsPostProcessViewAfterWarpBlendRequired(PostprocessInstance))
+	{
+		return true;
+	}
+
+	if (IsPostProcessFrameAfterWarpBlendRequired(PostprocessInstance))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterViewportPostProcessManager::ShouldUseAdditionalFrameTargetableResource_PostProcess() const
+{
+	check(IsInGameThread());
+
+	for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : Postprocess)
+	{
+		if (It.IsValid() && It->ShouldUseAdditionalFrameTargetableResource())
+		{
+			return IsAnyPostProcessRequired(It);
+		}
+	}
+
+	return false;
+}
+
+void FDisplayClusterViewportPostProcessManager::Tick()
+{
+	check(IsInGameThread());
+
+	for (TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : Postprocess)
+	{
+		if(It.IsValid() && IsAnyPostProcessRequired(It))
+		{
+			It->Tick();
+		}
+	}
+}
+
+void FDisplayClusterViewportPostProcessManager::FinalizeNewFrame()
+{
+	check(IsInGameThread());
+
+	ENQUEUE_RENDER_COMMAND(DisplayClusterViewportPostProcessManager_FinalizeNewFrame)(
+		[PostprocessManager = this, PostprocessData = Postprocess](FRHICommandListImmediate& RHICmdList)
+	{
+		PostprocessManager->PostprocessProxy.Empty();
+		PostprocessManager->PostprocessProxy.Append(PostprocessData);
+	});
 }
 
 void FDisplayClusterViewportPostProcessManager::PerformPostProcessBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const
@@ -85,30 +309,6 @@ void FDisplayClusterViewportPostProcessManager::PerformPostProcessAfterWarpBlend
 	}
 }
 
-bool FDisplayClusterViewportPostProcessManager::ShouldUseAdditionalFrameTargetableResource_PostProcess() const
-{
-	const bool bEnabled = (CVarPostprocessViewBeforeWarpBlend.GetValueOnAnyThread() != 0);
-
-	if (bEnabled)
-	{
-		TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperations;
-		ImplGetPPOperations(PPOperations);
-
-		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
-		{
-			if (CurPP.Operation->IsPostProcessViewBeforeWarpBlendRequired())
-			{
-				if (CurPP.Operation->ShouldUseAdditionalFrameTargetableResource())
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
 void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const
 {
 	const bool bEnabled = (CVarPostprocessViewBeforeWarpBlend.GetValueOnRenderThread() != 0);
@@ -116,17 +316,14 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewBefore
 
 	if (bEnabled && InViewportManagerProxy)
 	{
-		TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperations;
-		ImplGetPPOperations(PPOperations);
-
-		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
 		{
-			if (CurPP.Operation->IsPostProcessViewBeforeWarpBlendRequired())
+			if (IsPostProcessViewBeforeWarpBlendRequired(It))
 			{
 				for(IDisplayClusterViewportProxy* ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
 				{
 					UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess VIEW before WarpBlend - Viewport '%s'"), *ViewportProxyIt->GetId());
-					CurPP.Operation->PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, ViewportProxyIt);
+					It->PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, ViewportProxyIt);
 				}
 			}
 		}
@@ -144,17 +341,14 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewAfterW
 
 	if (bEnabled != 0 && InViewportManagerProxy)
 	{
-		TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperations;
-		ImplGetPPOperations(PPOperations);
-
-		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
+		for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
 		{
-			if (CurPP.Operation->IsPostProcessViewAfterWarpBlendRequired())
+			if (IsPostProcessViewAfterWarpBlendRequired(It))
 			{
 				for (IDisplayClusterViewportProxy* ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
 				{
 					UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess VIEW after WarpBlend - Viewport '%s'"), *ViewportProxyIt->GetId());
-					CurPP.Operation->PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, ViewportProxyIt);
+					It->PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, ViewportProxyIt);
 				}
 			}
 		}
@@ -177,17 +371,14 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessFrameAfter
 		TArray<FIntPoint> TargetOffset;
 		if (InViewportManagerProxy->GetFrameTargets_RenderThread(FrameResources, TargetOffset, &AdditionalFrameResources))
 		{
-			TArray<IDisplayClusterRenderManager::FDisplayClusterPPInfo> PPOperations;
-			ImplGetPPOperations(PPOperations);
-
-			for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
+			for (const TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe >& It : PostprocessProxy)
 			{
-				if (CurPP.Operation->IsPostProcessFrameAfterWarpBlendRequired())
+				if (IsPostProcessFrameAfterWarpBlendRequired(It))
 				{
 					UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess FRAME after WarpBlend"));
 
-					TArray<FRHITexture2D*>* AdditionalResources = (AdditionalFrameResources.Num() > 0 && CurPP.Operation->ShouldUseAdditionalFrameTargetableResource())? &AdditionalFrameResources: nullptr;
-					CurPP.Operation->PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, &FrameResources, AdditionalResources);
+					TArray<FRHITexture2D*>* AdditionalResources = (AdditionalFrameResources.Num() > 0 && It->ShouldUseAdditionalFrameTargetableResource())? &AdditionalFrameResources: nullptr;
+					It->PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, &FrameResources, AdditionalResources);
 				}
 			}
 		}

@@ -102,6 +102,9 @@ public:
 		return *ViewportManagerProxy;
 	}
 
+	TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> GetPostProcessManager() const
+	{ return PostProcessManager; }
+
 protected:
 	friend FDisplayClusterViewportManagerProxy;
 	friend FDisplayClusterViewportConfiguration;
