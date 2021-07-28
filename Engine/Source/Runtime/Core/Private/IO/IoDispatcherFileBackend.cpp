@@ -1143,7 +1143,7 @@ bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 				}
 				else
 				{
-					LLM_SCOPE(ELLMTag::FileSystem);
+					LLM_SCOPE(Request->InheritedLLMTag);
 					TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
 					Request->IoBuffer = FIoBuffer(ResolvedSize);
 				}
