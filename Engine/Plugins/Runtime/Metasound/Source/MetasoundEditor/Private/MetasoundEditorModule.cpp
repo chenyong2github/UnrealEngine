@@ -147,40 +147,15 @@ namespace Metasound
 
 		class FModule : public IMetasoundEditorModule
 		{
-			void AddClassRegistryAsset(const FAssetData& InAssetData)
+			void AddOrUpdateClassRegistryAsset(const FAssetData& InAssetData)
 			{
 				using namespace Metasound;
 				using namespace Metasound::Frontend;
 
 				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
 				{
-					// Must reset guid prior to registration as asset could've been duplicated from another asset
-					UObject* AssetObject = InAssetData.GetAsset();
-					FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(AssetObject);
-					if (ensure(MetasoundAsset))
-					{
-						FRegenerateAssetClassName().Transform(MetasoundAsset->GetDocumentHandle());
-					}
-
 					// Use the editor version of UnregisterWithFrontend so it refreshes any open MetaSound editors
 					UMetaSoundAssetSubsystem::Get().AddOrUpdateAsset(InAssetData, false /* bRegisterWithFrontend */);
-
-					if (ensure(AssetObject))
-					{
-						FGraphBuilder::RegisterGraphWithFrontend(*AssetObject);
-					}
-				}
-			}
-
-			void UpdateClassRegistryAsset(const FAssetData& InAssetData)
-			{
-				using namespace Metasound;
-				using namespace Metasound::Frontend;
-
-				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
-				{
-					// Use the editor version of UnregisterWithFrontend so it refreshes any open MetaSound editors
-					UMetaSoundAssetSubsystem::Get().AddOrUpdateAsset(InAssetData, false /* bUnregisterWithFrontend */);
 					if (UObject* AssetObject = InAssetData.GetAsset())
 					{
 						FGraphBuilder::RegisterGraphWithFrontend(*AssetObject);
@@ -228,17 +203,19 @@ namespace Metasound
 				}
 			}
 
-			void InitializeAssetClassRegistry()
+			void OnAssetScanFinished()
 			{
 				FARFilter Filter;
 				Filter.ClassNames = MetaSoundClassNames;
 
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-				AssetRegistryModule.Get().EnumerateAssets(Filter, [this](const FAssetData& AssetData) { UpdateClassRegistryAsset(AssetData); return true; });
-				AssetRegistryModule.Get().OnAssetAdded().AddRaw(this, &FModule::AddClassRegistryAsset);
-				AssetRegistryModule.Get().OnAssetUpdated().AddRaw(this, &FModule::UpdateClassRegistryAsset);
+				AssetRegistryModule.Get().EnumerateAssets(Filter, [this](const FAssetData& AssetData) { AddOrUpdateClassRegistryAsset(AssetData); return true; });
+				AssetRegistryModule.Get().OnAssetAdded().AddRaw(this, &FModule::AddOrUpdateClassRegistryAsset);
+				AssetRegistryModule.Get().OnAssetUpdated().AddRaw(this, &FModule::AddOrUpdateClassRegistryAsset);
 				AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FModule::RemoveAssetFromClassRegistry);
 				AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FModule::RenameAssetInClassRegistry);
+
+				AssetRegistryModule.Get().OnFilesLoaded().RemoveAll(this);
 
 				FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FModule::OnPackageReloaded);
 			}
@@ -408,6 +385,7 @@ namespace Metasound
 					AssetRegistryModule->Get().OnAssetUpdated().RemoveAll(this);
 					AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
 					AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+					AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(this);
 
 					FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
 				}
@@ -515,7 +493,9 @@ namespace Metasound
 
 				FAssetTypeActions_MetaSound::RegisterMenuActions();
 				FAssetTypeActions_MetaSoundSource::RegisterMenuActions();
-				InitializeAssetClassRegistry();
+
+				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+				AssetRegistryModule.Get().OnFilesLoaded().AddRaw(this, &FModule::OnAssetScanFinished);
 			}
 
 			virtual void ShutdownModule() override

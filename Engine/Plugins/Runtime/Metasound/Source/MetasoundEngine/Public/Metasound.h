@@ -7,6 +7,7 @@
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendTransform.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
 #include "MetasoundUObjectRegistry.h"
@@ -55,6 +56,21 @@ namespace Metasound
 			if (MetaSoundGraph->Validate(false /* bAutoUpdate */))
 			{
 				MetaSoundGraph->RegisterGraphWithFrontend();
+			}
+		}
+	}
+
+	template <typename TMetaSoundObject>
+	void PostDuplicate(TMetaSoundObject& InMetaSound, EDuplicateMode::Type InDuplicateMode)
+	{
+		if (InDuplicateMode == EDuplicateMode::Normal)
+		{
+			// Guid is reset as asset may share implementation from
+			// asset duplicated from but should not be registered as such.
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
+			if (ensure(MetasoundAsset))
+			{
+				Metasound::Frontend::FRegenerateAssetClassName().Transform(MetasoundAsset->GetDocumentHandle());
 			}
 		}
 	}
@@ -203,6 +219,7 @@ public:
 #endif // #if WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
