@@ -43,6 +43,7 @@
 #include "EdMode.h"
 #include "PropertyEditorModule.h"
 #include "LevelEditor.h"
+#include "InstancedStaticMeshDelegates.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Settings/EditorLoadingSavingSettingsCustomization.h"
 #include "Settings/GameMapsSettingsCustomization.h"
@@ -120,6 +121,8 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 	// register windows message pre and post handler
 	FEditorSupportDelegates::PreWindowsMessage.AddUObject(this, &UUnrealEdEngine::OnPreWindowsMessage);
 	FEditorSupportDelegates::PostWindowsMessage.AddUObject(this, &UUnrealEdEngine::OnPostWindowsMessage);
+
+	FHierarchicalInstancedStaticMeshDelegates::OnTreeBuilt.AddUObject(this, &UUnrealEdEngine::OnHISMTreeBuilt);
 
 	USelection::SelectionChangedEvent.AddUObject(this, &UUnrealEdEngine::OnEditorSelectionChanged);
 	USelection::SelectionElementSelectionPtrChanged.AddUObject(this, &UUnrealEdEngine::OnEditorElementSelectionPtrChanged);
@@ -890,6 +893,22 @@ bool UUnrealEdEngine::OnlyLoadEditorVisibleLevelsInPIE() const
 bool UUnrealEdEngine::PreferToStreamLevelsInPIE() const
 {
 	return GetDefault<ULevelEditorPlaySettings>()->bPreferToStreamLevelsInPIE;
+}
+
+void UUnrealEdEngine::OnHISMTreeBuilt(UHierarchicalInstancedStaticMeshComponent* Component, bool bWasAsyncBuild)
+{
+	if (bWasAsyncBuild)
+	{
+		// Async tree builds require that hit-proxies be updated when the build has finished (as it generates new hit-proxies).
+		// Sadly we don't know which viewport needs updating, so we just have to update all of them.
+		for (FEditorViewportClient* ViewportClient : GetAllViewportClients())
+		{
+			if (ViewportClient && ViewportClient->Viewport)
+			{
+				ViewportClient->RequestInvalidateHitProxy(ViewportClient->Viewport);
+			}
+		}
+	}
 }
 
 void UUnrealEdEngine::RedrawLevelEditingViewports(bool bInvalidateHitProxies)

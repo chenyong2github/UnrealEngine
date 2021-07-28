@@ -25,6 +25,7 @@ class FViewport;
 class IEngineLoop;
 class ITargetPlatform;
 class UPrimitiveComponent;
+class UHierarchicalInstancedStaticMeshComponent;
 class UTexture2D;
 class UUnrealEdOptions;
 class USelection;
@@ -925,6 +926,9 @@ protected:
 
 	/** Called when the element selection set associated with the global editor selection changes */
 	void OnEditorElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet);
+
+	/** Called when a HISM tree has finished building */
+	void OnHISMTreeBuilt(UHierarchicalInstancedStaticMeshComponent* Component, bool bWasAsyncBuild);
 
 	/** The package auto-saver instance used by the editor */
 	TUniquePtr<IPackageAutoSaver> PackageAutoSaver;
