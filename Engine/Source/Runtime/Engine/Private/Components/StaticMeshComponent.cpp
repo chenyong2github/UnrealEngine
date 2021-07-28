@@ -29,6 +29,7 @@
 #include "HierarchicalLODUtilitiesModule.h"
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "Streaming/ActorTextureStreamingBuildDataComponent.h"
+#include "Misc/Crc.h"
 #endif
 #include "LightMap.h"
 #include "ShadowMap.h"
@@ -826,6 +827,16 @@ bool UStaticMeshComponent::RemapActorTextureStreamingBuiltDataToLevel(const UAct
 		BuildInfo.TextureLevelIndex = Level->RegisterStreamableTexture(TextureName, TextureGuid);
 	}
 	return true;
+}
+
+uint32 UStaticMeshComponent::ComputeHashTextureStreamingBuiltData() const
+{
+	uint32 Hash = 0;
+	for (const FStreamingTextureBuildInfo& Data : StreamingTextureData)
+	{
+		Hash = FCrc::TypeCrc32(Data.ComputeHash(), Hash);
+	}
+	return Hash;
 }
 #endif
 

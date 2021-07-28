@@ -525,6 +525,7 @@ public:
 	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 #if WITH_EDITOR
 	virtual bool RemapActorTextureStreamingBuiltDataToLevel(const class UActorTextureStreamingBuildDataComponent* InActorTextureBuildData) override;
+	virtual uint32 ComputeHashTextureStreamingBuiltData() const override;
 #endif 
 
 	virtual class UBodySetup* GetBodySetup() override;

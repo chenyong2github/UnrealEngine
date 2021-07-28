@@ -32,6 +32,10 @@ struct ENGINE_API FStreamableTexture
 	UPROPERTY()
 	FGuid Guid;
 #endif
+
+#if WITH_EDITOR
+	uint32 ComputeHash() const;
+#endif
 };
 
 UCLASS()
@@ -53,6 +57,7 @@ public:
 	//~End ITextureStreamingContainer Interface.
 
 	uint32 GetPackedTextureStreamingQualityLevelFeatureLevel() const { return PackedTextureStreamingQualityLevelFeatureLevel; }
+	uint32 ComputeHash() const;
 #endif
 
 private:

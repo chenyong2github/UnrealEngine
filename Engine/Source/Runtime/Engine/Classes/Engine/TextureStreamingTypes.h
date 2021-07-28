@@ -159,6 +159,9 @@ struct FStreamingTextureBuildInfo
 	 *	@param	Info						[in]		The unpacked params.
 	 */
 	ENGINE_API void PackFrom(ITextureStreamingContainer* TextureStreamingContainer, const FBoxSphereBounds& RefBounds, const FStreamingRenderAssetPrimitiveInfo& Info);
+
+	/** Returns hash of content. */
+	ENGINE_API uint32 ComputeHash() const;
 #endif
 };
 

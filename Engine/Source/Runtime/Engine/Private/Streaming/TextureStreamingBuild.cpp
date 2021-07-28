@@ -23,6 +23,10 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "UnrealEngine.h"
+#if WITH_EDITOR
+#include "Misc/Crc.h"
+#endif
+
 
 DEFINE_LOG_CATEGORY(TextureStreamingBuild);
 #define LOCTEXT_NAMESPACE "TextureStreamingBuild"
@@ -36,13 +40,41 @@ ENGINE_API uint32 GetPackedTextureStreamingQualityLevelFeatureLevel(EMaterialQua
 	return ((uint32)InQualityLevel << 16) | ((uint32)InFeatureLevel & 0xFFFF);
 }
 
+static uint32 ComputeHashTextureStreamingDataForActor(AActor* InActor)
+{
+	uint32 Hash = 0;
+	if (UActorTextureStreamingBuildDataComponent* BuiltDataComponent = InActor->FindComponentByClass<UActorTextureStreamingBuildDataComponent>())
+	{
+		Hash = FCrc::TypeCrc32(BuiltDataComponent->ComputeHash(), Hash);
+	}
+	
+	TInlineComponentArray<UPrimitiveComponent*> Primitives;
+	InActor->GetComponents<UPrimitiveComponent>(Primitives);
+
+	TArray<uint32> PrimitiveHashes;
+	for (UPrimitiveComponent* Primitive : Primitives)
+	{
+		if (Primitive)
+		{
+			PrimitiveHashes.Add(FCrc::TypeCrc32(Primitive->ComputeHashTextureStreamingBuiltData()));
+		}
+	}
+	PrimitiveHashes.Sort();
+	for (uint32 PrimitiveHash : PrimitiveHashes)
+	{
+		Hash = FCrc::TypeCrc32(PrimitiveHash, Hash);
+	}
+	return Hash;
+}
+
 ENGINE_API void BuildActorTextureStreamingData(AActor* InActor, EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel)
 {
 	if (!InActor || InActor->IsTemplate())
 	{
 		return;
 	}
-
+	uint32 OldHash = ComputeHashTextureStreamingDataForActor(InActor);
+	
 	TSet<FGuid> DummyResourceGuids;
 	UActorTextureStreamingBuildDataComponent* BuiltDataComponent = InActor->FindComponentByClass<UActorTextureStreamingBuildDataComponent>();
 	if (!BuiltDataComponent)
@@ -51,7 +83,7 @@ ENGINE_API void BuildActorTextureStreamingData(AActor* InActor, EMaterialQuality
 		InActor->AddInstanceComponent(BuiltDataComponent);
 	}
 	BuiltDataComponent->InitializeTextureStreamingContainer(GetPackedTextureStreamingQualityLevelFeatureLevel(InQualityLevel, InFeatureLevel));
-	
+
 	TInlineComponentArray<UPrimitiveComponent*> Primitives;
 	InActor->GetComponents<UPrimitiveComponent>(Primitives);
 	for (UPrimitiveComponent* Primitive : Primitives)
@@ -60,6 +92,13 @@ ENGINE_API void BuildActorTextureStreamingData(AActor* InActor, EMaterialQuality
 		{
 			Primitive->BuildTextureStreamingData(TSB_ActorBuild, InQualityLevel, InFeatureLevel, DummyResourceGuids);
 		}
+	}
+
+	// If actor's texture streaming built data has changed, dirty its package
+	uint32 NewHash = ComputeHashTextureStreamingDataForActor(InActor);
+	if (NewHash != OldHash)
+	{
+		InActor->GetPackage()->MarkPackageDirty();
 	}
 }
 
@@ -356,9 +395,14 @@ void FStreamingTextureBuildInfo::PackFrom(ITextureStreamingContainer* TextureStr
 	TextureLevelIndex = TextureStreamingContainer->RegisterStreamableTexture(Texture);
 	TexelFactor = Info.TexelFactor;
 }
+
+uint32 FStreamingTextureBuildInfo::ComputeHash() const
+{
+	return FCrc::TypeCrc32(PackedRelativeBox, FCrc::TypeCrc32(TextureLevelIndex, FCrc::TypeCrc32(TexelFactor, 0)));
+}
 #endif
 
-bool FStreamingTextureLevelContext::UseTextureStreamingBuiltData = false;
+bool FStreamingTextureLevelContext::UseTextureStreamingBuiltData = true;
 FAutoConsoleCommand FStreamingTextureLevelContext::UseTextureStreamingBuiltDataCommand(
 	TEXT("r.Streaming.UseTextureStreamingBuiltData"),
 	TEXT("Turn on/off usage of texture streaming built data (0 to turn off)."),
@@ -429,7 +473,6 @@ void FStreamingTextureLevelContext::UpdateContext(EMaterialQualityLevel::Type In
 					{
 						LevelStreamingTextures[TextureLevelIndex] = Texture;
 						GetBuildDataIndexRef(Texture, /*ForceUpdate*/ true);
-						check(Texture->LevelIndex == TextureLevelIndex);
 					}
 				}
 			}
@@ -576,7 +619,6 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 				{
 					if (UTexture* Texture = LevelStreamingTextures[BuildInfo.TextureLevelIndex])
 					{
-						check(Texture->IsStreamable());
 						check(Texture->LevelIndex != INDEX_NONE);
 						Textures.Add(Texture);
 					}

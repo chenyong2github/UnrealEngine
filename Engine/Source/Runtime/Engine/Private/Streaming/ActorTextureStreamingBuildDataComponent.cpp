@@ -10,6 +10,7 @@
 
 #include "Engine/TextureStreamingTypes.h"
 #include "Engine/Texture.h"
+#include "Misc/Crc.h"
 
 void UActorTextureStreamingBuildDataComponent::InitializeTextureStreamingContainer(uint32 InPackedTextureStreamingQualityLevelFeatureLevel)
 {
@@ -46,6 +47,21 @@ bool UActorTextureStreamingBuildDataComponent::GetStreamableTexture(uint16 InTex
 		return true;
 	}
 	return false;
+}
+
+uint32 UActorTextureStreamingBuildDataComponent::ComputeHash() const
+{
+	uint32 Hash = PackedTextureStreamingQualityLevelFeatureLevel;
+	for (const FStreamableTexture& StreamableTexture : StreamableTextures)
+	{
+		Hash = FCrc::TypeCrc32(StreamableTexture.ComputeHash(), Hash);
+	}
+	return Hash;
+}
+
+uint32 FStreamableTexture::ComputeHash() const
+{
+	return FCrc::TypeCrc32(GetTypeHash(Name), GetTypeHash(Guid));
 }
 
 #endif
