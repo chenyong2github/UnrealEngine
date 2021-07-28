@@ -346,8 +346,11 @@ static void UpdatePlanarReflectionContents_RenderThread(
 #else
 				SCOPED_DRAW_EVENT(RHICmdList, UpdatePlanarReflectionContent_RenderThread);
 #endif
+				const ERDGBuilderFlags BuilderFlags = SceneRenderer->Scene->GetShadingPath() == EShadingPath::Mobile
+					? ERDGBuilderFlags::None
+					: ERDGBuilderFlags::AllowParallelExecute;
 
-				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PlanarReflection"), ERDGBuilderFlags::AllowParallelExecute);
+				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PlanarReflection"), BuilderFlags);
 
 				// Reflection view late update
 				if (SceneRenderer->Views.Num() > 1)
