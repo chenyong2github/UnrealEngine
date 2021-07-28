@@ -32,7 +32,7 @@ public:
 	 * by the pipeline. Each factory node should be send to a a interchange factory to create an unreal asset.
 	 * @note - the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Pipeline")
 	bool ScriptedExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas);
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
 	bool ScriptedExecutePreImportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
@@ -48,7 +48,7 @@ public:
 	 * @example - PhysicsAsset need skeletal mesh render data to be build properly.
 	 * @note - the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Pipeline")
 	bool ScriptedExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset);
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
 	bool ScriptedExecutePostImportPipeline_Implementation(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset)
@@ -61,7 +61,7 @@ public:
 	 * Non virtual helper to allow blueprint to implement event base function let the interchange know if it can run asynchronously.
 	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interchange | Translator")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interchange | Pipeline")
 	bool ScriptedExecuteExportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteExportPipeline */
@@ -74,7 +74,7 @@ public:
 	 * Non virtual helper to allow blueprint to implement event base function let the interchange know if it can run asynchronously.
 	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Pipeline")
 	bool ScriptedCanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual CanExecuteAsync */

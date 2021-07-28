@@ -83,7 +83,7 @@ namespace InterchangePrivateNodeBase
  * @param EnumType - Optional, specify it only if the AssetType member is an enum so we can type cast it in the apply function (we use uint8 to store the enum value)"
  */
 #define IMPLEMENT_NODE_ATTRIBUTE_KEY(AttributeName)																		\
-const UE::Interchange::FAttributeKey Macro_Custom##AttributeName##Key = UE::Interchange::FAttributeKey(TEXT(#AttributeName));	\
+const UE::Interchange::FAttributeKey Macro_Custom##AttributeName##Key = UE::Interchange::FAttributeKey(TEXT(#AttributeName));
 
 #if WITH_ENGINE
 #define IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(AttributeName, AttributeType, AssetType, EnumType)	\
@@ -164,6 +164,17 @@ bool FillCustom##AttributeName##FromAsset(UObject* Asset)											\
 
 #endif //#if WITH_ENGINE
 
+#define INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(ValueType)																									\
+UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = RegisterAttribute<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey), Value);	\
+return Handle.IsValid();
+
+#define INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(ValueType)																							\
+UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = GetAttributeHandle<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey));	\
+if (Handle.IsValid())																															\
+{																																				\
+	return (Handle.Get(OutValue) == UE::Interchange::EAttributeStorageResult::Operation_Success);													\
+}																																				\
+return false;
 
 //Interchange namespace
 namespace UE
@@ -966,6 +977,88 @@ public:
 	void GetAttributeKeys(TArray<UE::Interchange::FAttributeKey>& AttributeKeys)
 	{
 		Attributes->GetAttributeKeys(AttributeKeys);
+	}
+
+	/**
+	 * Remove any attribute from this node. Return false if we cannot remove it. If the attribute do not exist it will return true.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool RemoveAttribute(const FString& NodeAttributeKey)
+	{
+		Attributes->UnregisterAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey));
+		return !HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey));
+	}
+
+	/**
+	 * Add a boolean attribute to this node. Return false if the attribute do not exist or if we cannot add it
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool AddBooleanAttribute(const FString& NodeAttributeKey, const bool& Value)
+	{
+		INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(bool);
+	}
+	
+	/**
+	 * Get a boolean attribute from this node. Return false if the attribute do not exist
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue)
+	{
+		INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(bool);
+	}
+
+	/**
+	 * Add a int32 attribute to this node. Return false if the attribute do not exist or if we cannot add it
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool AddInt32Attribute(const FString& NodeAttributeKey, const int32& Value)
+	{
+		INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(int32);
+	}
+	
+	/**
+	 * Get a int32 attribute from this node. Return false if the attribute do not exist
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue)
+	{
+		INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(int32);
+	}
+
+	/**
+	 * Add a float attribute to this node. Return false if the attribute do not exist or if we cannot add it
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool AddFloatAttribute(const FString& NodeAttributeKey, const float& Value)
+	{
+		INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(float);
+	}
+	
+	/**
+	 * Get a float attribute from this node. Return false if the attribute do not exist
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue)
+	{
+		INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(float);
+	}
+
+	/**
+	 * Add a string attribute to this node. Return false if the attribute do not exist or if we cannot add it
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool AddStringAttribute(const FString& NodeAttributeKey, const FString& Value)
+	{
+		INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FString);
+	}
+	
+	/**
+	 * Get a string attribute from this node. Return false if the attribute do not exist
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue)
+	{
+		INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FString);
 	}
 
 	/**
