@@ -1601,7 +1601,7 @@ namespace UnrealBuildTool
 					throw new DirectoryNotFoundException(IncludePath);
 				}
 
-				PublicIncludePaths.Add(Path.Combine(VcPackageRoot, "include"));
+				PublicSystemIncludePaths.Add(Path.Combine(VcPackageRoot, "include"));
 			}
 		}
 	}
