@@ -43,8 +43,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category="Source")
 	FColor TrackTint;
 
-	//Timecode source when recording is started via StartRecording.
-	FTimecode TimecodeSource;
 public:
 	/** 
 	* If the source is Valid and ready to be recorded. Tells the Take Recorder that it's really going to record. Note that PreRecord/StartRecord

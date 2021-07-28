@@ -294,7 +294,8 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PreRecording(ULevelSequen
 	}
 	// Now we need to create the section recorders for each of the enabled properties based on the property map.
 	// Any components spawned at runtime will get picked up on Tick and have section recorders created for them mid-recording.
-	CreateSectionRecordersRecursive(ActorToRecord, RecordedProperties);
+	TArray<UObject*> TraversedObjects;
+	CreateSectionRecordersRecursive(ActorToRecord, RecordedProperties, TraversedObjects);
 
 	// Update our cached list of components so that we don't detect them all as new components on the first Tick
 	GetAllComponents(CachedComponentList, false);
@@ -356,8 +357,15 @@ void UTakeRecorderActorSource::StartRecording(const FTimecode& InSectionStartTim
 	}
 }
 
-void UTakeRecorderActorSource::CreateSectionRecordersRecursive(UObject* ObjectToRecord, UActorRecorderPropertyMap* PropertyMap)
+void UTakeRecorderActorSource::CreateSectionRecordersRecursive(UObject* ObjectToRecord, UActorRecorderPropertyMap* PropertyMap, TArray<UObject*>& TraversedObjects)
 {
+	if (TraversedObjects.Contains(ObjectToRecord))
+	{
+		return;
+	}
+
+	TraversedObjects.Add(ObjectToRecord);
+
 	FGuid Guid = CachedObjectBindingGuid;
 	if (ObjectToRecord->IsA<UActorComponent>())
 	{
@@ -513,7 +521,7 @@ void UTakeRecorderActorSource::CreateSectionRecordersRecursive(UObject* ObjectTo
 		UObject* ChildObject = Child->RecordedObject.Get();
 		if (ChildObject)
 		{
-			CreateSectionRecordersRecursive(ChildObject, Child);
+			CreateSectionRecordersRecursive(ChildObject, Child, TraversedObjects);
 		}
 		else
 		{
@@ -552,6 +560,7 @@ void UTakeRecorderActorSource::TickRecording(const FQualifiedFrameTime& CurrentS
 		}
 	}
 
+	TArray<UObject*> TraversedObjects;
 	for (UActorComponent* AddedComponent : NewComponentsAdded)
 	{
 		if (Target.IsValid())
@@ -575,7 +584,7 @@ void UTakeRecorderActorSource::TickRecording(const FQualifiedFrameTime& CurrentS
 			RebuildRecordedPropertyMapRecursive(AddedComponent, ComponentPropertyMap);
 
 			// Create the Section Recorders required
-			CreateSectionRecordersRecursive(AddedComponent, ComponentPropertyMap);
+			CreateSectionRecordersRecursive(AddedComponent, ComponentPropertyMap, TraversedObjects);
 
 			// Update our numbers on the display
 			UpdateCachedNumberOfRecordedProperties();
@@ -1561,14 +1570,6 @@ void UTakeRecorderActorSource::CreateNewActorSourceForReferencedActors()
 		ActorSource->PostEditChangeProperty(PropertyChangedEvent);
 	}
 	NewReferencedActors.Reset();
-
-	// If this actor reference was added at runtime we need to immediately start recording it. If this was added during PreRecording
-	// we don't want to call StartRecordingSource as the UTakeRecorderSources will do that automatically.
-	const bool bStartRecordingImmediately = false;
-	if (bStartRecordingImmediately)
-	{
-		SourcesList->StartRecordingSource(NewSources,TimecodeSource);
-	}
 }
 
 bool UTakeRecorderActorSource::IsOtherActorBeingRecorded(AActor* OtherActor) const
