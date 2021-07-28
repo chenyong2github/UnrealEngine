@@ -135,6 +135,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 			uint32 SinglePhysicalSpace : 1;
 			uint32 EnableCompressCrunch : 1;
 			uint32 ContinuousUpdate : 1;
+			uint32 bUseLowQualityCompression : 1;
 		};
 	};
 
@@ -148,6 +149,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	Settings.ContinuousUpdate = (uint32)VirtualTexture->GetContinuousUpdate();
 	Settings.SinglePhysicalSpace = (uint32)VirtualTexture->GetSinglePhysicalSpace();
 	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
+	Settings.bUseLowQualityCompression = (uint32)VirtualTexture->GetLQCompression();
 
 	return Settings.PackedValue;
 }
@@ -204,6 +206,15 @@ private:
 	TArray<URuntimeVirtualTexture*> VirtualTextures;
 };
 
+static void GetLayerFormatSettings(FTextureFormatSettings& OutFormatSettings, EPixelFormat LayerFormat, bool IsLayerYCoCg, bool IsLayerSRGB, bool IsLayerLQCompression)
+{
+	OutFormatSettings.CompressionSettings = IsLayerLQCompression? TC_LQ : (LayerFormat == PF_BC5 ? TC_Normalmap : TC_Default);
+	OutFormatSettings.CompressionNone = LayerFormat == PF_B8G8R8A8 || LayerFormat == PF_G16;
+	OutFormatSettings.CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5 || LayerFormat == PF_R5G6B5_UNORM;
+	OutFormatSettings.CompressionForceAlpha = LayerFormat == PF_DXT5;
+	OutFormatSettings.CompressionYCoCg = IsLayerYCoCg;
+	OutFormatSettings.SRGB = IsLayerSRGB;
+}
 void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData)
 {
 	// We need an existing StreamingTexture object to update.
@@ -225,17 +236,12 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 		BuildDesc.LayerFormats.AddDefaulted(BuildDesc.LayerCount);
 		BuildDesc.LayerFormatSettings.AddDefaulted(BuildDesc.LayerCount);
 
-		for (int32 Layer = 0; Layer < BuildDesc.LayerCount; Layer++)
+		for (int32 Layer = 0; Layer < BuildDesc.LayerCount; Layer++) 
 		{
 			const EPixelFormat LayerFormat = VirtualTexture->GetLayerFormat(Layer);
 			BuildDesc.LayerFormats[Layer] = LayerFormat == PF_G16 ? TSF_G16 : TSF_BGRA8;
-
-			BuildDesc.LayerFormatSettings[Layer].CompressionSettings = LayerFormat == PF_BC5 ? TC_Normalmap : TC_Default;
-			BuildDesc.LayerFormatSettings[Layer].CompressionNone = LayerFormat == PF_B8G8R8A8 || LayerFormat == PF_G16;
-			BuildDesc.LayerFormatSettings[Layer].CompressionNoAlpha = LayerFormat == PF_DXT1 || LayerFormat == PF_BC5;
-			BuildDesc.LayerFormatSettings[Layer].CompressionForceAlpha = LayerFormat == PF_DXT5;
-			BuildDesc.LayerFormatSettings[Layer].CompressionYCoCg = VirtualTexture->IsLayerYCoCg(Layer);
-			BuildDesc.LayerFormatSettings[Layer].SRGB = VirtualTexture->IsLayerSRGB(Layer);
+			bool IsLayerLQCompression = (VirtualTexture->GetMaterialType() == ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Roughness && VirtualTexture->GetLQCompression() && LayerFormat != PF_B8G8R8A8);
+			GetLayerFormatSettings(BuildDesc.LayerFormatSettings[Layer], LayerFormat, VirtualTexture->IsLayerYCoCg(Layer), VirtualTexture->IsLayerSRGB(Layer), IsLayerLQCompression);
 		}
 
 		BuildDesc.BuildHash = CalculateStreamingTextureSettingsHash();

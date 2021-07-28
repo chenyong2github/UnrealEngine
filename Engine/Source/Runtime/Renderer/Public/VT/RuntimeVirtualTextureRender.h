@@ -35,6 +35,8 @@ namespace RuntimeVirtualTexture
 		FRHITexture2D* Texture = nullptr;
 		/** Unordered access view of physical texture to render to. If this exists we can render to it directly instead of using RHICopyTexture(). */
 		FRHIUnorderedAccessView* UAV = nullptr;
+
+		struct IPooledRenderTarget* PooledRenderTarget = nullptr;
 	};
 
 	/** A single page description. Multiple of these can be placed in a single FRenderPageBatchDesc batch description. */

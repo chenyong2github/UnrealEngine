@@ -4,7 +4,7 @@
 
 #include "Common.ush"
 #include "Random.ush"
-
+#include "GammaCorrectionCommon.ush"
 #ifndef VT_DISABLE_VIEW_UNIFORM_BUFFER
 #define VT_DISABLE_VIEW_UNIFORM_BUFFER 0
 #endif
@@ -726,4 +726,17 @@ float3 VirtualTextureUnpackNormalBC5BC1(in float4 PackedValue0, in float4 Packed
 float VirtualTextureUnpackHeight(in float4 PackedValue, in float2 UnpackHeightScaleBias)
 {
 	return PackedValue.r * UnpackHeightScaleBias.x + UnpackHeightScaleBias.y;
+}
+
+
+float3 VirtualTextureUnpackNormalBGR565(in float4 PackedValue)
+{
+	// sign of normal z is considered always positive to save channels
+	return VirtualTextureUnpackNormal(PackedValue.xz, 1.0);
+}
+
+/** Unpack SRGB Color */
+float3 VirtualTextureUnpackBaseColorSRGB(in float4 PackedValue)
+{
+	return sRGBToLinear(PackedValue.rgb);
 }

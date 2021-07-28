@@ -137,15 +137,16 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-	// Not all mobile RHIs support sRGB texture views/aliasing, use only linear targets on mobile
-	ETextureCreateFlags VT_SRGB = GetFeatureLevel() > ERHIFeatureLevel::ES3_1 ? TexCreate_SRGB : TexCreate_None;
-
 	for (int32 Layer = 0; Layer < Description.NumLayers; ++Layer)
 	{
 		const EPixelFormat FormatSRV = RemapVirtualTexturePhysicalSpaceFormat(Description.Format[Layer]);
 		const EPixelFormat FormatUAV = GetUnorderedAccessViewFormat(FormatSRV);
 		const bool bCreateAliasedUAV = (FormatUAV != PF_Unknown) && (FormatUAV != FormatSRV);
 		
+		const bool b16BitFormat = (FormatSRV == EPixelFormat::PF_R5G6B5_UNORM) || (FormatSRV == EPixelFormat::PF_B5G5R5A1_UNORM);
+		// Not all mobile RHIs support sRGB texture views/aliasing, use only linear targets on mobile, and the 16bit format transfer the color space manually in shader
+		ETextureCreateFlags VT_SRGB = (b16BitFormat || GetFeatureLevel() <= ERHIFeatureLevel::ES3_1) ? TexCreate_None : TexCreate_SRGB;
+
 		// Allocate physical texture from the render target pool
 		const uint32 TextureSize = GetTextureSize();
 		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(

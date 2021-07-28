@@ -38,6 +38,8 @@ enum class EVirtualTextureUnpackType
 	NormalBC3BC3,
 	NormalBC5BC1,
 	HeightR16,
+	NormalBGR565,
+	BaseColorSRGB
 };
 
 /** What type of compiler is this? Used by material expressions that select input based on compile context */
