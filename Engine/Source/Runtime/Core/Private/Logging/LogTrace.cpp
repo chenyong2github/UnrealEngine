@@ -28,6 +28,7 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(Logging, LogMessage, NoSync)
 	UE_TRACE_EVENT_FIELD(const void*, LogPoint)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint8[], FormatArgs)
 UE_TRACE_EVENT_END()
 
 void FLogTrace::OutputLogCategory(const FLogCategoryBase* Category, const TCHAR* Name, ELogVerbosity::Type DefaultVerbosity)
@@ -55,10 +56,10 @@ void FLogTrace::OutputLogMessageSpec(const void* LogPoint, const FLogCategoryBas
 
 void FLogTrace::OutputLogMessageInternal(const void* LogPoint, uint16 EncodedFormatArgsSize, uint8* EncodedFormatArgs)
 {
-	UE_TRACE_LOG(Logging, LogMessage, LogChannel, EncodedFormatArgsSize)
+	UE_TRACE_LOG(Logging, LogMessage, LogChannel)
 		<< LogMessage.LogPoint(LogPoint)
 		<< LogMessage.Cycle(FPlatformTime::Cycles64())
-		<< LogMessage.Attachment(EncodedFormatArgs, EncodedFormatArgsSize);
+		<< LogMessage.FormatArgs(EncodedFormatArgs, EncodedFormatArgsSize);
 }
 
 #endif
