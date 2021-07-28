@@ -97,10 +97,11 @@ namespace Metasound
 			const IMetaSoundAssetInterface* AssetInterface = nullptr;
 		};
 
-		class METASOUNDFRONTEND_API FSynchronizeAssetClassName : public IDocumentTransform
+		/** Synchronizes the document's root graph's display name with that of the asset. */
+		class METASOUNDFRONTEND_API FSynchronizeAssetClassDisplayName : public IDocumentTransform
 		{
 		public:
-			FSynchronizeAssetClassName(FName InAssetName)
+			FSynchronizeAssetClassDisplayName(FName InAssetName)
 				: AssetName(InAssetName)
 			{
 			}
@@ -109,6 +110,16 @@ namespace Metasound
 
 		private:
 			FName AssetName;
+		};
+
+		/** Regenerates the class' name, effectively causing the class to get registered as
+		  * a new class (useful for when an asset is duplicated). */
+		class METASOUNDFRONTEND_API FRegenerateAssetClassName : public IDocumentTransform
+		{
+		public:
+			FRegenerateAssetClassName() = default;
+
+			bool Transform(FDocumentHandle InDocument) const override;
 		};
 
 		/** Base class for versioning a document. */
@@ -120,7 +131,7 @@ namespace Metasound
 		public:
 			static FMetasoundFrontendVersionNumber GetMaxVersion()
 			{
-				return FMetasoundFrontendVersionNumber { 1, 5 };
+				return FMetasoundFrontendVersionNumber { 1, 6 };
 			}
 
 			FVersionDocument(FName InName, const FString& InPath);

@@ -451,6 +451,16 @@ namespace Metasound
 			FSlateApplication::Get().DismissAllMenus();
 		}
 
+		void FEditor::NotifyNodePasteFailure_ReferenceLoop()
+		{
+			FNotificationInfo Info(LOCTEXT("NodePasteFailed_ReferenceLoop", "Node(s) not pasted: Nodes would create asset reference cycle."));
+			Info.bFireAndForget = true;
+			Info.bUseSuccessFailIcons = false;
+			Info.ExpireDuration = 5.0f;
+
+			MetasoundGraphEditor->AddNotification(Info, false /* bSuccess */);
+		}
+
 		void FEditor::NotifyUserModifiedBySync()
 		{
 			FNotificationInfo Info(LOCTEXT("SynchronizationRequired", "Operation modified pin(s), connection(s), and/or node(s).  Please refer to graph."));
@@ -1563,6 +1573,9 @@ namespace Metasound
 				Location = MetasoundGraphEditor->GetPasteLocation();
 			}
 
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+			check(MetasoundAsset);
+
 			UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
 
 			const FScopedTransaction Transaction(InTransactionText);
@@ -1577,16 +1590,37 @@ namespace Metasound
 
 			NodeTextToPaste.Empty();
 
+			bool bNotifyReferenceLoop = false;
+
 			TArray<UEdGraphNode*> NodesToRemove;
 			for (UEdGraphNode* GraphNode : PastedGraphNodes)
 			{
 				GraphNode->CreateNewGuid();
 				if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(GraphNode))
 				{
-					FNodeHandle NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *ExternalNode);
-					if (!NewHandle->IsValid())
+					FMetasoundFrontendClassMetadata LookupMetadata;
+					LookupMetadata.SetClassName(ExternalNode->GetClassName());
+					LookupMetadata.SetType(EMetasoundFrontendClassType::External);
+					const FNodeRegistryKey PastedRegistryKey = NodeRegistryKey::CreateKey(LookupMetadata);
+					if (const FSoftObjectPath* AssetPath = UMetaSoundAssetSubsystem::Get().FindObjectPathFromKey(PastedRegistryKey))
 					{
-						NodesToRemove.Add(GraphNode);
+						if (MetasoundAsset->AddingReferenceCausesLoop(*AssetPath, UMetaSoundAssetSubsystem::Get()))
+						{
+							FMetasoundFrontendClass MetaSoundClass;
+							FMetasoundFrontendRegistryContainer::Get()->FindFrontendClassFromRegistered(PastedRegistryKey, MetaSoundClass);
+							const FString FriendlyClassName = MetaSoundClass.Metadata.GetDisplayName().ToString();
+							UE_LOG(LogMetaSound, Warning, TEXT("Failed to paste node with class '%s'.  Class would introduce cyclic asset dependency."), *FriendlyClassName);
+							bNotifyReferenceLoop = true;
+							NodesToRemove.Add(GraphNode);
+						}
+					}
+					else
+					{
+						FNodeHandle NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *ExternalNode);
+						if (!NewHandle->IsValid())
+						{
+							NodesToRemove.Add(GraphNode);
+						}
 					}
 				}
 				else if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(GraphNode))
@@ -1710,6 +1744,14 @@ namespace Metasound
 			if (FGraphBuilder::SynchronizeGraph(*Metasound))
 			{
 				NotifyUserModifiedBySync();
+			}
+
+			const bool bAutoUpdate = true;
+			FGraphBuilder::ValidateGraph(*Metasound, bAutoUpdate);
+
+			if (bNotifyReferenceLoop)
+			{
+				NotifyNodePasteFailure_ReferenceLoop();
 			}
 
 			MetasoundGraphEditor->NotifyGraphChanged();
