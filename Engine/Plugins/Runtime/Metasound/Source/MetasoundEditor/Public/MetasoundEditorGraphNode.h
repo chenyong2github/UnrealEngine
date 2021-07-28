@@ -139,8 +139,8 @@ protected:
 	// Whether or not the referenced class is natively defined
 	// (false if defined in another asset). Cached from node
 	// implementation for fast access when validated.
-	UPROPERTY(Transient)
-	bool bIsClassNative = false;
+	UPROPERTY()
+	bool bIsClassNative = true;
 
 public:
 	virtual void PostLoad() override;

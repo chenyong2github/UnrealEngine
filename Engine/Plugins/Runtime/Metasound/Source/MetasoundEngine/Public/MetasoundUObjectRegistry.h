@@ -32,7 +32,7 @@ public:
 	void RemoveAsset(UObject& InObject, bool bInUnregisterWithFrontend = true);
 	void RemoveAsset(const FAssetData& InAssetData, bool bInUnregisterWithFrontend = true);
 	void RenameAsset(const FAssetData& InAssetData, bool bInReregisterWithFrontend = true);
-	void SynchronizeAssetClassName(const FAssetData& InAssetData);
+	void SynchronizeAssetClassDisplayName(const FAssetData& InAssetData);
 
 	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
 	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;

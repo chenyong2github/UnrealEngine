@@ -623,7 +623,7 @@ namespace Metasound
 			return true;
 		}
 
-		bool FSynchronizeAssetClassName::Transform(FDocumentHandle InDocument) const
+		bool FSynchronizeAssetClassDisplayName::Transform(FDocumentHandle InDocument) const
 		{
 			const FMetasoundFrontendClassMetadata& Metadata = InDocument->GetRootGraphClass().Metadata;
 			const FText NewAssetName = FText::FromString(AssetName.ToString());
@@ -633,8 +633,19 @@ namespace Metasound
 				FMetasoundFrontendClassMetadata NewMetadata = Metadata;
 				NewMetadata.SetDisplayName(NewAssetName);
 				InDocument->GetRootGraph()->SetGraphMetadata(NewMetadata);
+				return true;
 			}
 
+			return false;
+		}
+
+		bool FRegenerateAssetClassName::Transform(FDocumentHandle InDocument) const
+		{
+			FMetasoundFrontendClassMetadata Metadata = InDocument->GetRootGraph()->GetGraphMetadata();
+			FMetasoundFrontendClassName NewName = Metadata.GetClassName();
+			NewName.Name = *FGuid::NewGuid().ToString();
+			Metadata.SetClassName(NewName);
+			InDocument->GetRootGraph()->SetGraphMetadata(Metadata);
 			return true;
 		}
 
@@ -660,7 +671,6 @@ namespace Metasound
 					NewMetadata.Version.Number = GetTargetVersion();
 					InDocument->SetMetadata(NewMetadata);
 
-					UE_LOG(LogMetaSound, Display, TEXT("Versioned MetaSound Document to %s"), *Metadata.Version.Number.ToString());
 					return true;
 				}
 		};
@@ -810,7 +820,6 @@ namespace Metasound
 					const TArray<FMetasoundFrontendClass>& Dependencies = InDocument->GetDependencies();
 					const TArray<FMetasoundFrontendGraphClass>& Subgraphs = InDocument->GetSubgraphs();
 
-
 					if (const FMetasoundFrontendArchetype* Arch = FindMostSimilarArchetypeSupportingEnvironment(RootGraph, Dependencies, Subgraphs, AllArchetypes))
 					{
 						UE_LOG(LogMetaSound, Display, TEXT("Assigned archetype [ArchetypeVersion:%s] to document [RootGraphClassName:%s]"),
@@ -843,11 +852,30 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
-				FSynchronizeAssetClassName(AssetName).Transform(InDocument);
+				FSynchronizeAssetClassDisplayName(AssetName).Transform(InDocument);
 			}
 
 		private:
 			FName AssetName;
+		};
+
+		/** Versions document from 1.5 to 1.6. */
+		class FVersionDocument_1_6 : public FVersionDocumentTransform
+		{
+		public:
+			FVersionDocument_1_6()
+			{
+			}
+
+			FMetasoundFrontendVersionNumber GetTargetVersion() const override
+			{
+				return { 1, 6 };
+			}
+
+			void TransformInternal(FDocumentHandle InDocument) const override
+			{
+				FRegenerateAssetClassName().Transform(InDocument);
+			}
 		};
 
 		FVersionDocument::FVersionDocument(FName InName, const FString& InPath)
@@ -865,12 +893,22 @@ namespace Metasound
 
 			bool bWasUpdated = false;
 
+			const FMetasoundFrontendVersionNumber InitVersionNumber = InDocument->GetMetadata().Version.Number;
+
 			// Add additional transforms here after defining them above, example below.
 			bWasUpdated |= FVersionDocument_1_1().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_2(Name, Path).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_3().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_4().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_5(Name).Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_6().Transform(InDocument);
+
+			if (bWasUpdated)
+			{
+				const FText& DisplayName = InDocument->GetRootGraph()->GetGraphMetadata().GetDisplayName();
+				const FMetasoundFrontendVersionNumber NewVersionNumber = InDocument->GetMetadata().Version.Number;
+				UE_LOG(LogMetaSound, Display, TEXT("MetaSound Graph '%s' Parent Document Versioned: '%s' --> '%s'"), *DisplayName.ToString(), *InitVersionNumber.ToString(), *NewVersionNumber.ToString());
+			}
 
 			return bWasUpdated;
 		}

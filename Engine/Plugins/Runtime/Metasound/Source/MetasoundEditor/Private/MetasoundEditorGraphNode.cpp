@@ -167,7 +167,8 @@ void UMetasoundEditorGraphNode::AllocateDefaultPins()
 
 void UMetasoundEditorGraphNode::ReconstructNode()
 {
-	using namespace Metasound;
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
 
 	// Don't remove unused pins here. Reconstruction can occur while duplicating or pasting nodes,
 	// and subsequent steps clean-up unused pins.  This can be called mid-copy, which means the node
@@ -175,7 +176,11 @@ void UMetasoundEditorGraphNode::ReconstructNode()
 	// are lost.
 	// TODO: User will want to see dead pins as well for node definition changes. Label and color-code dead
 	// pins (ex. red), and leave dead connections for reference like BP.
-	Editor::FGraphBuilder::SynchronizeNodePins(*this, GetNodeHandle(), false /* bRemoveUnusedPins */, false /* bLogChanges */);
+	FConstNodeHandle NodeHandle = GetNodeHandle();
+	if (NodeHandle->IsValid())
+	{
+		FGraphBuilder::SynchronizeNodePins(*this, NodeHandle, false /* bRemoveUnusedPins */, false /* bLogChanges */);
+	}
 }
 
 void UMetasoundEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
@@ -463,7 +468,7 @@ FMetasoundFrontendClassName UMetasoundEditorGraphOutputNode::GetClassName() cons
 
 FGuid UMetasoundEditorGraphOutputNode::GetNodeID() const
 {
-	if (ensure(Output))
+	if (Output)
 	{
 		return Output->NodeID;
 	}
@@ -599,11 +604,12 @@ UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVe
 	UObject& MetaSound = GetMetasoundChecked();
 	UMetasoundEditorGraphExternalNode* ReplacementEdNode = FGraphBuilder::AddExternalNode(MetaSound, ReplacementNode, NodeLocation, false /* bInSelectNewNode */);
 
-	if (ensure(ReplacementEdNode))
+	if (!ensure(ReplacementEdNode))
 	{
-		GetGraph()->RemoveNode(this);
+		return this;
 	}
 
+	GetGraph()->RemoveNode(this);
 	MetaSound.Modify();
 
 	// TODO: Pare down to SynchronizeNode/NodeConnections call to avoid having to synchronize the entire graph for all version calls

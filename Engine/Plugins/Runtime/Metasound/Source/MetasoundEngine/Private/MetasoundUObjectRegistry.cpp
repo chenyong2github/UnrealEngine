@@ -242,11 +242,11 @@ void UMetaSoundAssetSubsystem::RemoveAsset(const FAssetData& InAssetData, bool b
 void UMetaSoundAssetSubsystem::RenameAsset(const FAssetData& InAssetData, bool bInReregisterWithFrontend)
 {
 	RemoveAsset(InAssetData, bInReregisterWithFrontend);
-	SynchronizeAssetClassName(InAssetData);
+	SynchronizeAssetClassDisplayName(InAssetData);
 	AddOrUpdateAsset(InAssetData, bInReregisterWithFrontend);
 }
 
-void UMetaSoundAssetSubsystem::SynchronizeAssetClassName(const FAssetData& InAssetData)
+void UMetaSoundAssetSubsystem::SynchronizeAssetClassDisplayName(const FAssetData& InAssetData)
 {
 	UObject* Object = nullptr;
 	FSoftObjectPath Path(InAssetData.ObjectPath);
@@ -261,7 +261,7 @@ void UMetaSoundAssetSubsystem::SynchronizeAssetClassName(const FAssetData& InAss
 
 	FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
 	check(MetaSoundAsset);
-	Metasound::Frontend::FSynchronizeAssetClassName(InAssetData.AssetName).Transform(MetaSoundAsset->GetDocumentHandle());
+	Metasound::Frontend::FSynchronizeAssetClassDisplayName(InAssetData.AssetName).Transform(MetaSoundAsset->GetDocumentHandle());
 }
 
 namespace Metasound

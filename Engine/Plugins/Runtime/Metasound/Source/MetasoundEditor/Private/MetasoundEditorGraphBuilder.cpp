@@ -1033,12 +1033,15 @@ namespace Metasound
 
 			MetaSoundAsset->RegisterGraphWithFrontend();
 
-			TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
-			for (UObject* Asset : EditedAssets)
+			if (GEditor)
 			{
-				if (Asset != &InMetaSound && IMetasoundUObjectRegistry::Get().IsRegisteredClass(Asset))
+				TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+				for (UObject* Asset : EditedAssets)
 				{
-					ValidateGraph(*Asset, true /* bAutoUpdate */);
+					if (Asset != &InMetaSound && IMetasoundUObjectRegistry::Get().IsRegisteredClass(Asset))
+					{
+						ValidateGraph(*Asset, true /* bAutoUpdate */);
+					}
 				}
 			}
 		}
@@ -1050,17 +1053,20 @@ namespace Metasound
 
 			MetaSoundAsset->UnregisterGraphWithFrontend();
 
-			TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
-			for (UObject* Asset : EditedAssets)
+			if (GEditor)
 			{
-				if (Asset != &InMetaSound && IMetasoundUObjectRegistry::Get().IsRegisteredClass(Asset))
+				TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+				for (UObject* Asset : EditedAssets)
 				{
-					ValidateGraph(*Asset, true /* bAutoUpdate */);
+					if (Asset != &InMetaSound && IMetasoundUObjectRegistry::Get().IsRegisteredClass(Asset))
+					{
+						ValidateGraph(*Asset, true /* bAutoUpdate */);
+					}
 				}
 			}
 		}
 
-		bool FGraphBuilder::IsMatchingInputHandleAndPin(const Frontend::FInputHandle& InInputHandle, const UEdGraphPin& InEditorPin)
+		bool FGraphBuilder::IsMatchingInputHandleAndPin(const Frontend::FConstInputHandle& InInputHandle, const UEdGraphPin& InEditorPin)
 		{
 			if (InEditorPin.Direction != EGPD_Input)
 			{
@@ -1076,7 +1082,7 @@ namespace Metasound
 			return false;
 		}
 
-		bool FGraphBuilder::IsMatchingOutputHandleAndPin(const Frontend::FOutputHandle& InOutputHandle, const UEdGraphPin& InEditorPin)
+		bool FGraphBuilder::IsMatchingOutputHandleAndPin(const Frontend::FConstOutputHandle& InOutputHandle, const UEdGraphPin& InEditorPin)
 		{
 			if (InEditorPin.Direction != EGPD_Output)
 			{
@@ -1114,7 +1120,7 @@ namespace Metasound
 			}
 		}
 
-		UEdGraphPin* FGraphBuilder::AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FInputHandle InInputHandle)
+		UEdGraphPin* FGraphBuilder::AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FConstInputHandle InInputHandle)
 		{
 			using namespace Frontend;
 
@@ -1125,15 +1131,13 @@ namespace Metasound
 			if (ensure(NewPin))
 			{
 				RefreshPinMetadata(*NewPin, InInputHandle->GetMetadata());
-
-				FNodeHandle NodeHandle = InInputHandle->GetOwningNode();
 				SynchronizePinLiteral(*NewPin);
 			}
 
 			return NewPin;
 		}
 
-		UEdGraphPin* FGraphBuilder::AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FOutputHandle InOutputHandle)
+		UEdGraphPin* FGraphBuilder::AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FConstOutputHandle InOutputHandle)
 		{
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 			FEdGraphPinType	PinType = EditorModule.FindDataType(InOutputHandle->GetDataType()).PinType;
@@ -1421,12 +1425,12 @@ namespace Metasound
 			return bIsEditorGraphDirty;
 		}
 
-		bool FGraphBuilder::SynchronizeNodePins(UMetasoundEditorGraphNode& InEditorNode, Frontend::FNodeHandle InNode, bool bRemoveUnusedPins, bool bLogChanges)
+		bool FGraphBuilder::SynchronizeNodePins(UMetasoundEditorGraphNode& InEditorNode, Frontend::FConstNodeHandle InNode, bool bRemoveUnusedPins, bool bLogChanges)
 		{
 			bool bIsNodeDirty = false;
 
-			TArray<Frontend::FInputHandle> InputHandles = InNode->GetInputs();
-			TArray<Frontend::FOutputHandle> OutputHandles = InNode->GetOutputs();
+			TArray<Frontend::FConstInputHandle> InputHandles = InNode->GetConstInputs();
+			TArray<Frontend::FConstOutputHandle> OutputHandles = InNode->GetConstOutputs();
 			TArray<UEdGraphPin*> EditorPins = InEditorNode.Pins;
 
 			// Filter out pins which are not paired.
@@ -1434,12 +1438,12 @@ namespace Metasound
 			{
 				UEdGraphPin* Pin = EditorPins[i];
 
-				auto IsMatchingInputHandle = [&](const Frontend::FInputHandle& InputHandle) -> bool
+				auto IsMatchingInputHandle = [&](const Frontend::FConstInputHandle& InputHandle) -> bool
 				{
 					return IsMatchingInputHandleAndPin(InputHandle, *Pin);
 				};
 
-				auto IsMatchingOutputHandle = [&](const Frontend::FOutputHandle& OutputHandle) -> bool
+				auto IsMatchingOutputHandle = [&](const Frontend::FConstOutputHandle& OutputHandle) -> bool
 				{
 					return IsMatchingOutputHandleAndPin(OutputHandle, *Pin);
 				};
@@ -1495,7 +1499,7 @@ namespace Metasound
 				{
 					bIsNodeDirty = true;
 					InputHandles = InNode->GetInputStyle().SortDefaults(InputHandles);
-					for (Frontend::FInputHandle& InputHandle : InputHandles)
+					for (Frontend::FConstInputHandle& InputHandle : InputHandles)
 					{
 						if (bLogChanges)
 						{
@@ -1515,7 +1519,7 @@ namespace Metasound
 				{
 					bIsNodeDirty = true;
 					OutputHandles = InNode->GetOutputStyle().SortDefaults(OutputHandles);
-					for (Frontend::FOutputHandle& OutputHandle : OutputHandles)
+					for (Frontend::FConstOutputHandle& OutputHandle : OutputHandles)
 					{
 						if (bLogChanges)
 						{

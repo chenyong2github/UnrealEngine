@@ -266,6 +266,7 @@ namespace Metasound
 		private:
 			void EditObjectSettings();
 
+			void NotifyNodePasteFailure_ReferenceLoop();
 			void NotifyUserModifiedBySync();
 
 			bool IsPlaying() const;
