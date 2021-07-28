@@ -281,39 +281,9 @@ void UControlRigBlueprint::Serialize(FArchive& Ar)
 
 	if(Ar.IsObjectReferenceCollector())
 	{
-		TArray<UBlueprint*> ReferencedBlueprints;
-		
-		TArray<UEdGraph*> EdGraphs;
-		GetAllGraphs(EdGraphs);
-		for (UEdGraph* EdGraph : EdGraphs)
-		{
-			for(UEdGraphNode* Node : EdGraph->Nodes)
-			{
-				if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
-				{
-					if(URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
-					{
-						if(URigVMLibraryNode* ReferencedNode = FunctionRefNode->GetReferencedNode())
-						{
-							if(URigVMFunctionLibrary* ReferencedFunctionLibrary = ReferencedNode->GetLibrary())
-							{
-								if(ReferencedFunctionLibrary == GetLocalFunctionLibrary())
-								{
-									continue;
-								}
+		TArray<UControlRigBlueprint*> ReferencedBlueprints = GetReferencedControlRigBlueprints();
 
-								if(UBlueprint* ReferencedBlueprint = Cast<UBlueprint>(ReferencedFunctionLibrary->GetOuter()))
-								{
-									ReferencedBlueprints.AddUnique(ReferencedBlueprint);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		for(UBlueprint* ReferencedBlueprint : ReferencedBlueprints)
+		for(UControlRigBlueprint* ReferencedBlueprint : ReferencedBlueprints)
 		{
 			Ar << ReferencedBlueprints;
 		}
@@ -367,6 +337,18 @@ void UControlRigBlueprint::PostLoad()
 {
 	Super::PostLoad();
 
+	TArray<UControlRigBlueprint*> ReferencedBlueprints = GetReferencedControlRigBlueprints();
+
+	// PostLoad all referenced BPs so that their function graphs are fully loaded 
+	// and ready to be inlined into this BP during compilation
+	for (UControlRigBlueprint* BP : ReferencedBlueprints)
+	{
+		if (BP->HasAllFlags(RF_NeedPostLoad))
+		{
+			BP->ConditionalPostLoad();
+		}
+	}
+	
 	// temporarily disable default value validation during load time, serialized values should always be accepted
 	TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);
 
@@ -724,6 +706,43 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 		EdGraphNode->ErrorMsg = InMessage;
 		EdGraphNode->bHasCompilerMessage = EdGraphNode->ErrorType <= int32(EMessageSeverity::Info);
 	}
+}
+
+TArray<UControlRigBlueprint*> UControlRigBlueprint::GetReferencedControlRigBlueprints()
+{
+	TArray<UControlRigBlueprint*> ReferencedBlueprints;
+	
+	TArray<UEdGraph*> EdGraphs;
+	GetAllGraphs(EdGraphs);
+	for (UEdGraph* EdGraph : EdGraphs)
+	{
+		for(UEdGraphNode* Node : EdGraph->Nodes)
+		{
+			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+			{
+				if(URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
+				{
+					if(URigVMLibraryNode* ReferencedNode = FunctionRefNode->GetReferencedNode())
+					{
+						if(URigVMFunctionLibrary* ReferencedFunctionLibrary = ReferencedNode->GetLibrary())
+						{
+							if(ReferencedFunctionLibrary == GetLocalFunctionLibrary())
+							{
+								continue;
+							}
+
+							if(UControlRigBlueprint* ReferencedBlueprint = Cast<UControlRigBlueprint>(ReferencedFunctionLibrary->GetOuter()))
+							{
+								ReferencedBlueprints.AddUnique(ReferencedBlueprint);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return ReferencedBlueprints;
 }
 
 #if WITH_EDITOR
