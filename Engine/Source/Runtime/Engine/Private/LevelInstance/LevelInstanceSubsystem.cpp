@@ -1081,7 +1081,9 @@ void ULevelInstanceSubsystem::RemoveLevelFromWorld(ULevel* Level, bool bResetTra
 	}
 	else
 	{
-		EditorLevelUtils::RemoveLevelFromWorld(Level, false, bResetTrans);
+		// No need to clear the whole editor selection since actor of this level will be removed from the selection by: UEditorEngine::OnLevelRemovedFromWorld
+		const bool bClearSelection = false;
+		EditorLevelUtils::RemoveLevelFromWorld(Level, bClearSelection, bResetTrans);
 	}
 }
 
