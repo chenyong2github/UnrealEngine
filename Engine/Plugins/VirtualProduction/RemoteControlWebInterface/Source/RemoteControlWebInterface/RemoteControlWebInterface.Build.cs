@@ -21,16 +21,24 @@ public class RemoteControlWebInterface : ModuleRules
 			}
 			);
 
-		if (Target.Type == TargetType.Editor)
+		PrivateDependencyModuleNames.AddRange(
+			new string[] 
+			{
+				"RemoteControlCommon",
+			}
+		);
+
+
+        if (Target.Type == TargetType.Editor)
 		{
 			PrivateDependencyModuleNames.AddRange(
-				new string[] {
+				new string[] 
+				{
 					"DeveloperSettings",
 					"EditorStyle",
 					"EditorWidgets",
 					"PropertyEditor",
 					"RemoteControl",
-					"RemoteControlCommon",
 					"RemoteControlUI",
 					"Settings",
 					"UnrealEd"
