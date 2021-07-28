@@ -71,22 +71,6 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 void AWorldPartitionHLOD::RerunConstructionScripts()
 {}
 
-void AWorldPartitionHLOD::PreSave(FObjectPreSaveContext ObjectSaveContext)
-{
-	Super::PreSave(ObjectSaveContext);
-
-#if WITH_EDITOR
-	// When generating WorldPartition HLODs, we have the renderer initialized.
-	// Take advantage of this and generate texture streaming built data (local to the actor).
-	// This built data will be used by the cooking (it will convert it to level texture streaming built data).
-	if (!ObjectSaveContext.IsCooking())
-	{
-		// Use same quality level and feature level as FEditorBuildUtils::EditorBuildTextureStreaming
-		BuildActorTextureStreamingData(this, EMaterialQualityLevel::High, GMaxRHIFeatureLevel);
-	}
-#endif
-}
-
 #if WITH_EDITOR
 
 bool AWorldPartitionHLOD::IsHiddenEd() const
@@ -196,10 +180,12 @@ void AWorldPartitionHLOD::BuildHLOD(bool bForceBuild)
 
 		HLODHash = WPHLODUtilities->BuildHLOD(this);
 	}
-	else
-	{
 
-	}
+	// When generating WorldPartition HLODs, we have the renderer initialized.
+	// Take advantage of this and generate texture streaming built data (local to the actor).
+	// This built data will be used by the cooking (it will convert it to level texture streaming built data).
+	// Use same quality level and feature level as FEditorBuildUtils::EditorBuildTextureStreaming
+	BuildActorTextureStreamingData(this, EMaterialQualityLevel::High, GMaxRHIFeatureLevel);
 }
 
 #endif // WITH_EDITOR

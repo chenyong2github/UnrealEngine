@@ -1767,6 +1767,9 @@ public:
 	 *	
 	 */
 	virtual bool RemapActorTextureStreamingBuiltDataToLevel(const class UActorTextureStreamingBuildDataComponent* InActorTextureBuildData) { return false; }
+
+	/** Computes a hash of component's texture streaming built data. */
+	virtual uint32 ComputeHashTextureStreamingBuiltData() const { return 0; }
 #endif // WITH_EDITOR
 
 	/**
