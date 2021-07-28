@@ -21,9 +21,11 @@ UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, NoSync|Important)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EventBatch, NoSync)
+	UE_TRACE_EVENT_FIELD(uint8[], Data)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EndCapture)
+	UE_TRACE_EVENT_FIELD(uint8[], Data)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EndThread, NoSync)
@@ -105,16 +107,16 @@ FCpuProfilerTraceInternal::FThreadBuffer* FCpuProfilerTraceInternal::CreateThrea
 
 void FCpuProfilerTraceInternal::FlushThreadBuffer(FThreadBuffer* InThreadBuffer)
 {
-	UE_TRACE_LOG(CpuProfiler, EventBatch, true, InThreadBuffer->BufferSize)
-		<< EventBatch.Attachment(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
+	UE_TRACE_LOG(CpuProfiler, EventBatch, true)
+		<< EventBatch.Data(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
 	InThreadBuffer->BufferSize = 0;
 	InThreadBuffer->LastCycle = 0;
 }
 
 void FCpuProfilerTraceInternal::EndCapture(FThreadBuffer* InThreadBuffer)
 {
-	UE_TRACE_LOG(CpuProfiler, EndCapture, true, InThreadBuffer->BufferSize)
-		<< EndCapture.Attachment(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
+	UE_TRACE_LOG(CpuProfiler, EndCapture, true)
+		<< EndCapture.Data(InThreadBuffer->Buffer, InThreadBuffer->BufferSize);
 	InThreadBuffer->BufferSize = 0;
 	InThreadBuffer->LastCycle = 0;
 }
