@@ -563,7 +563,7 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
-	/// The type of configuration a target can be built for
+	/// The type of configuration a target can be built for.  Roughly order by optimization level. 
 	/// </summary>
 	public enum UnrealTargetConfiguration
 	{
@@ -588,14 +588,14 @@ namespace UnrealBuildTool
 		Development,
 
 		/// <summary>
-		/// Shipping configuration
-		/// </summary>
-		Shipping,
-
-		/// <summary>
 		/// Test configuration
 		/// </summary>
 		Test,
+
+		/// <summary>
+		/// Shipping configuration
+		/// </summary>
+		Shipping,
 	}
 
 	/// <summary>
