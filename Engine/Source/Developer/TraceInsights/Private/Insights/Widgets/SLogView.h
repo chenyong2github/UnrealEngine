@@ -66,6 +66,8 @@ public:
 	 */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 	FLogMessageCache& GetCache() { return Cache; }
 
 	TSharedPtr<FLogMessage> GetSelectedLogMessage() const;
@@ -78,6 +80,8 @@ public:
 protected:
 	/** Generate a new list view row. */
 	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FLogMessage> InLogMessage, const TSharedRef<STableViewBase>& OwnerTable);
+
+	void InitCommandList();
 
 	void SelectLogMessage(TSharedPtr<FLogMessage> LogMessage);
 	void OnMouseButtonClick(TSharedPtr<FLogMessage> LogMessage);
@@ -104,14 +108,45 @@ protected:
 	bool ShowHideAllCategories_IsChecked() const;
 	void ShowHideAllCategories_Execute();
 	
-	void ShowAllCategories_Execute();
-	
-	void ShowOnlyCategory_Execute(FName InName);
+	bool IsLogCategoryEnabled(FName InName) const;
+	void ToggleCategory(FName InName);
 
-	bool ToggleCategory_IsChecked(FName InName) const;
-	void ToggleCategory_Execute(FName InName);
+	bool CanHideSelectedCategory() const;
+	void HideSelectedCategory();
+
+	bool CanShowOnlySelectedCategory() const;
+	void ShowOnlySelectedCategory();
+
+	bool CanShowAllCategories() const;
+	void ShowAllCategories();
+
+	void AppendFormatMessageDetailed(const FLogMessageRecord& Log, TStringBuilderBase<TCHAR>& InOutStringBuilder) const;
+	void AppendFormatMessageDelimitedHeader(TStringBuilderBase<TCHAR>& InOutStringBuilder, TCHAR Separator = TEXT('\t')) const;
+	void AppendFormatMessageDelimited(const FLogMessageRecord& Log, TStringBuilderBase<TCHAR>& InOutStringBuilder, TCHAR Separator = TEXT('\t')) const;
+
+	bool CanCopySelected() const;
+	void CopySelected() const;
+
+	bool CanCopyMessage() const;
+	void CopyMessage() const;
+
+	bool CanCopyRange() const;
+	void CopyRange() const;
+
+	bool CanCopyAll() const;
+	void CopyAll() const;
+
+	bool CanSaveRange() const;
+	void SaveRange() const;
+
+	bool CanSaveAll() const;
+	void SaveAll() const;
+
+	void SaveLogsToFile(bool bSaveLogsInSelectedRangeOnly) const;
 
 protected:
+	TSharedPtr<FUICommandList> CommandList;
+
 	/** The list view widget. */
 	TSharedPtr<SListView<TSharedPtr<FLogMessage>>> ListView;
 
@@ -148,7 +183,7 @@ protected:
 	FText StatsText;
 
 	/** Cached log messages. */
-	FLogMessageCache Cache;
+	mutable FLogMessageCache Cache;
 
 	/** List of trace log messages to show in list view (i.e. filtered). */
 	TArray<TSharedPtr<FLogMessage>> Messages; // TODO: this needs virtualisation (an a new SListView)
