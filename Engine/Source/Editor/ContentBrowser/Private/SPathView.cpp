@@ -10,6 +10,7 @@
 #include "Settings/ContentBrowserSettings.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
+#include "AssetViewSortManager.h"
 #include "ContentBrowserSingleton.h"
 #include "ContentBrowserUtils.h"
 #include "ContentBrowserLog.h"
@@ -24,6 +25,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "ContentBrowserModule.h"
 #include "Misc/BlacklistNames.h"
+#include "Misc/PathViews.h"
 
 #include "IContentBrowserDataModule.h"
 #include "ContentBrowserDataSource.h"
@@ -31,7 +33,6 @@
 
 #include "Application/SlateApplicationBase.h"
 #include "ToolMenus.h"
-#include <Misc/PathViews.h>
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -1492,7 +1493,7 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 		else
 		{
 			// Two non special folders of the same priority, sort alphabetically
-			const int32 CompareResult = SortInfoA.FolderName.Compare(SortInfoB.FolderName, ESearchCase::IgnoreCase);
+			const int32 CompareResult = FAssetViewSortManager::CompareWithNumericSuffix(SortInfoA.FolderName, SortInfoB.FolderName);
 			if (CompareResult != 0)
 			{
 				return CompareResult < 0;
