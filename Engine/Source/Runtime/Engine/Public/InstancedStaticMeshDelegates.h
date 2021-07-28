@@ -6,6 +6,7 @@
 #include "Containers/ArrayView.h"
 
 class UInstancedStaticMeshComponent;
+class UHierarchicalInstancedStaticMeshComponent;
 
 struct ENGINE_API FInstancedStaticMeshDelegates
 {
@@ -48,4 +49,13 @@ struct ENGINE_API FInstancedStaticMeshDelegates
 	 */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInstanceIndexUpdated, UInstancedStaticMeshComponent* /*Component*/, TArrayView<const FInstanceIndexUpdateData> /*IndexUpdates*/);
 	static FOnInstanceIndexUpdated OnInstanceIndexUpdated;
+};
+
+struct ENGINE_API FHierarchicalInstancedStaticMeshDelegates
+{
+	/**
+	 * Delegate called when the tree of a HISM has been (re)built.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTreeBuilt, UHierarchicalInstancedStaticMeshComponent* /*Component*/, bool /*bWasAsyncBuild*/);
+	static FOnTreeBuilt OnTreeBuilt;
 };
