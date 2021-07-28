@@ -537,8 +537,6 @@ FRigVMMemoryContainer& FRigVMMemoryContainer::operator= (const FRigVMMemoryConta
 
 #endif
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 void FRigVMMemoryContainer::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
@@ -562,19 +560,10 @@ void FRigVMMemoryContainer::Serialize(FArchive& Ar)
 	}
 }
 
-#else
-
-void FRigVMMemoryContainer::Serialize(FArchive& Ar)
-{
-	return;
-}
-
-#endif
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 void FRigVMMemoryContainer::Save(FArchive& Ar)
 {
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	for (FRigVMRegister& Register : Registers)
 	{
 		if (Register.IsNestedDynamic())
@@ -761,20 +750,22 @@ void FRigVMMemoryContainer::Save(FArchive& Ar)
 			}
 		}
 	}
+#endif
 }
 
 void FRigVMMemoryContainer::Load(FArchive& Ar)
 {
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
 	{
 		Destroy(RegisterIndex);
 	}
+#endif
 	
 	Ar << bUseNameMap;
 	Ar << MemoryType;
 	Ar << Registers;
 	Ar << RegisterOffsets;
-
 
 #if DEBUG_RIGVMMEMORY
 	UE_LOG_RIGVMMEMORY(TEXT("%d Memory - Begin Loading..."), (int32)GetMemoryType());
@@ -785,6 +776,8 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 	ScriptStructs.Reset();
 	TArray<FString> ScriptStructPaths;
 	Ar << ScriptStructPaths;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	for (const FString& ScriptStructPath : ScriptStructPaths)
 	{
@@ -802,13 +795,18 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		ScriptStructs.Add(ScriptStruct);
 	}
 
+#endif
+
 	uint64 TotalBytes = 0;
 	Ar << TotalBytes;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	Data.Empty();
 
 	if (!bEncounteredErrorDuringLoad)
 	{
+
 		// during load we'll recreate the memory for all registers.
 		// the size for structs might have changed, so we need to reallocate.
 		for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
@@ -842,6 +840,7 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 			}
 		}
 		UpdateRegisters();
+		
 
 		for (int32 RegisterOffsetIndex = 0; RegisterOffsetIndex < RegisterOffsets.Num(); RegisterOffsetIndex++)
 		{
@@ -873,9 +872,13 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		}
 	}
 
+#endif
+
 	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
 	{
 		FRigVMRegister& Register = Registers[RegisterIndex];
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 		if (Register.ElementCount == 0 && !Register.IsDynamic())
 		{
@@ -889,6 +892,8 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		{
 			check(!Register.IsDynamic());
 		}
+
+#endif
 		
 		if (!Register.IsDynamic())
 		{
@@ -898,39 +903,57 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 				{
 					FRigVMByteArray View;
 					Ar << View;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 					if (!bEncounteredErrorDuringLoad)
 					{
 						ensure(View.Num() <= Register.GetAllocatedBytes());
 						FMemory::Memcpy(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 					}
+
+#endif
 					break;
 				}
 				case ERigVMRegisterType::Name:
 				{
 					TArray<FName> View;
 					Ar << View;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 					if (!bEncounteredErrorDuringLoad)
 					{
 						ensure(View.Num() == Register.GetTotalElementCount());
 						RigVMCopy<FName>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 					}
+
+#endif
 					break;
 				}
 				case ERigVMRegisterType::String:
 				{
 					TArray<FString> View;
 					Ar << View;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+						
 					if (!bEncounteredErrorDuringLoad)
 					{
 						ensure(View.Num() == Register.GetTotalElementCount());
 						RigVMCopy<FString>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 					}
+						
+#endif
 					break;
 				}
 				case ERigVMRegisterType::Struct:
 				{
 					TArray<FString> View;
 					Ar << View;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 					if (!bEncounteredErrorDuringLoad)
 					{
 						ensure(View.Num() == Register.GetTotalElementCount());
@@ -954,18 +977,25 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 							}
 						}
 					}
+
+#endif
 					break;
 				}
 			}
 		}
 		else if (!Register.IsNestedDynamic())
 		{
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+			
 			FRigVMByteArray* ArrayStorage = nullptr;
 
 			if (!bEncounteredErrorDuringLoad)
 			{
 				ArrayStorage = (FRigVMByteArray*)&Data[Register.GetWorkByteIndex()];
 			}
+			
+#endif
 			
 			// notice that all dynamic registers' memory is not really serialized
 			// serialize empty arrays here just to avoid having to increment serialization version
@@ -1000,6 +1030,9 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		}
 		else
 		{
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+			
 			FRigVMNestedByteArray* NestedArrayStorage = nullptr;
 			if (!bEncounteredErrorDuringLoad)
 			{
@@ -1007,14 +1040,20 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 				NestedArrayStorage->Reset();
 				NestedArrayStorage->SetNumZeroed(Register.SliceCount);
 			}
+			
+#endif
 
 			for (int32 SliceIndex = 0; SliceIndex < Register.SliceCount; SliceIndex++)
 			{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				
 				FRigVMByteArray* ArrayStorage = nullptr;
 				if (NestedArrayStorage)
 				{
 					ArrayStorage = &(*NestedArrayStorage)[SliceIndex];
 				}
+
+#endif
 
 				// notice that all dynamic registers' memory is not really serialized
 				// serialize empty arrays here just to avoid having to increment serialization version
@@ -1050,6 +1089,9 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		}
 	}
 
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	if (bEncounteredErrorDuringLoad)
 	{
 #if DEBUG_RIGVMMEMORY
@@ -1065,8 +1107,11 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 #if DEBUG_RIGVMMEMORY
 	UE_LOG_RIGVMMEMORY(TEXT("%d Memory - Finished Loading."), (int32)GetMemoryType());
 #endif
-	
+
+#endif
 }
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 void FRigVMMemoryContainer::Reset()
 {

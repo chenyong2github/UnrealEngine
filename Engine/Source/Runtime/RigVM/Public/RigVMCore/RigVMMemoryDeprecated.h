@@ -576,9 +576,6 @@ public:
 #endif
 	
 	void Serialize(FArchive& Ar);
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
 	FORCEINLINE_DEBUGGABLE friend FArchive& operator<<(FArchive& Ar, FRigVMMemoryContainer& P)
@@ -586,6 +583,8 @@ public:
 		P.Serialize(Ar);
 		return Ar;
 	}
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	// Returns an argument for a given register.
 	// This is typically used to store a light weight address for use within a VM.

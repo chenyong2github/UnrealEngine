@@ -5,6 +5,29 @@
 #include "CoreMinimal.h"
 #include "UObject/UnrealType.h"
 
+struct RIGVM_API FRigVMPropertyPathDescription
+{
+	int32 PropertyIndex;
+	FString SegmentPath;
+	
+	FRigVMPropertyPathDescription()
+		: PropertyIndex(INDEX_NONE)
+		, SegmentPath()
+	{}
+
+	FRigVMPropertyPathDescription(int32 InPropertyIndex, const FString& InSegmentPath)
+		: PropertyIndex(InPropertyIndex)
+		, SegmentPath(InSegmentPath)
+	{}
+
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMPropertyPathDescription& Path)
+	{
+		Ar << Path.PropertyIndex;
+		Ar << Path.SegmentPath;
+		return Ar;
+	}
+};
+
 enum RIGVM_API ERigVMPropertyPathSegmentType
 {
 	StructMember,
@@ -83,3 +106,4 @@ private:
 	FString Path;
 	TArray<FRigVMPropertyPathSegment> Segments;
 };
+

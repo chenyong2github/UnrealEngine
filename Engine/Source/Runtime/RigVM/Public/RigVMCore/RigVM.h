@@ -250,8 +250,6 @@ public:
 	UPROPERTY()
 	URigVMMemoryStorage* DebugMemoryStorageObject;
 
-	TArray<FRigVMPropertyPath> PropertyPaths;
-
 	// The byte code of the VM
 	UPROPERTY()
 	FRigVMByteCode ByteCodeStorage;

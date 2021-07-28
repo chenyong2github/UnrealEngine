@@ -6,10 +6,10 @@
 #include "RigVMDefines.h"
 #include "RigVMTraits.h"
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 typedef TArray<uint8> FRigVMByteArray;
 typedef TArray<FRigVMByteArray> FRigVMNestedByteArray;
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 /**
  * The FRigVMDynamicArray is used as an array wrapping a generic TArray.

@@ -82,57 +82,134 @@ private:
 
 #endif
 
+//////////////////////////////////////////////////////////////////////////////
+/// Property Management
+//////////////////////////////////////////////////////////////////////////////
+struct RIGVM_API FRigVMPropertyDescription
+{
+	FName Name;
+	const FProperty* Property;
+	FString CPPType;
+	UObject* CPPTypeObject;
+	TArray<EPinContainerType> Containers;
+	FString DefaultValue;
+
+	FRigVMPropertyDescription()
+		: Name(NAME_None)
+		, Property(nullptr)
+		, CPPType()
+		, CPPTypeObject(nullptr)
+		, Containers()
+		, DefaultValue()
+	{}
+	FRigVMPropertyDescription(const FProperty* InProperty, const FString& InDefaultValue, const FName& InName = NAME_None);
+	FRigVMPropertyDescription(const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue);
+
+	static FName SanitizeName(const FName& InName);
+	void SanitizeName();
+
+	bool IsValid() const { return !Name.IsNone(); }
+	int32 NumContainers() const { return Containers.Num(); }
+	bool HasContainer() const { return NumContainers() > 0; }
+	bool IsArray(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Array; }
+	bool IsMap(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Map; }
+	bool IsSet(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Set; }
+
+	FString GetBaseCPPType() const;
+
+	static const FString ArrayPrefix;
+	static const FString MapPrefix;
+	static const FString SetPrefix;
+	static const FString ContainerSuffix;
+};
+
+UCLASS()
+class RIGVM_API URigVMMemoryStorageGeneratorClass :
+	public UClass
+{
+	GENERATED_BODY()
+
+public:
+
+	URigVMMemoryStorageGeneratorClass()
+		: Super()
+		, MemoryType(ERigVMMemoryType::Literal)
+	{}
+	
+	// UClass overrides
+	void PurgeClass(bool bRecompilingOnLoad) override;
+	void Link(FArchive& Ar, bool bRelinkExistingProperties) override;
+	void Serialize(FArchive& Ar) override;;
+
+	// URigVMMemoryStorageGeneratorClass specific
+	static URigVMMemoryStorageGeneratorClass* GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType);
+	static URigVMMemoryStorageGeneratorClass* CreateStorageClass(
+		UObject* InOuter,
+		ERigVMMemoryType InMemoryType,
+		const TArray<FRigVMPropertyDescription>& InProperties,
+		const TArray<FRigVMPropertyPathDescription>& InPropertyPaths = TArray<FRigVMPropertyPathDescription>());
+
+	ERigVMMemoryType GetMemoryType() const { return MemoryType; }
+	const TArray<const FProperty*>& GetProperties() const { return LinkedProperties; }
+	const TArray<FRigVMPropertyPath>& GetPropertyPaths() const { return PropertyPaths; }
+
+protected:
+
+	static FProperty* AddProperty(URigVMMemoryStorageGeneratorClass* InClass, const FRigVMPropertyDescription& InProperty, bool bPurge = false, bool bLink = true, FField** LinkToProperty = nullptr);
+
+private:
+
+	ERigVMMemoryType MemoryType;
+	TArray<const FProperty*> LinkedProperties;
+	TArray<FRigVMPropertyPath> PropertyPaths;
+	TArray<FRigVMPropertyPathDescription> PropertyPathDescriptions;
+
+	struct FClassInfo
+	{
+		URigVMMemoryStorageGeneratorClass* LiteralStorageClass;
+		URigVMMemoryStorageGeneratorClass* WorkStorageClass;
+		URigVMMemoryStorageGeneratorClass* DebugStorageClass;
+		
+		FClassInfo()
+			: LiteralStorageClass(nullptr)
+			, WorkStorageClass(nullptr)
+			, DebugStorageClass(nullptr)
+		{
+		}
+
+		URigVMMemoryStorageGeneratorClass** GetClassPtr(ERigVMMemoryType InMemoryType)
+		{
+			switch(InMemoryType)
+			{
+			case ERigVMMemoryType::Literal:
+				{
+					return &LiteralStorageClass;
+				}
+			case ERigVMMemoryType::Debug:
+				{
+					return &DebugStorageClass;
+				}
+			default:
+				{
+					break;
+				}
+			}
+			return &WorkStorageClass;
+		}
+	};
+	
+	static TMap<FString, FClassInfo> PackageToInfo;
+
+	friend class URigVMMemoryStorage;
+	friend class URigVMCompiler;
+};
+
 UCLASS()
 class RIGVM_API URigVMMemoryStorage : public UObject
 {
 	GENERATED_BODY()
 
 public:
-
-	//////////////////////////////////////////////////////////////////////////////
-	/// Property Management
-	//////////////////////////////////////////////////////////////////////////////
-	struct RIGVM_API FPropertyDescription
-	{
-		FName Name;
-		const FProperty* Property;
-		FString CPPType;
-		UObject* CPPTypeObject;
-		TArray<EPinContainerType> Containers;
-		FString DefaultValue;
-
-		FPropertyDescription()
-			: Name(NAME_None)
-			, Property(nullptr)
-			, CPPType()
-			, CPPTypeObject(nullptr)
-			, Containers()
-			, DefaultValue()
-		{}
-		FPropertyDescription(const FProperty* InProperty, const FString& InDefaultValue, const FName& InName = NAME_None);
-		FPropertyDescription(const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue);
-
-		static FName SanitizeName(const FName& InName);
-		void SanitizeName();
-
-		bool IsValid() const { return !Name.IsNone(); }
-		int32 NumContainers() const { return Containers.Num(); }
-		bool HasContainer() const { return NumContainers() > 0; }
-		bool IsArray(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Array; }
-		bool IsMap(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Map; }
-		bool IsSet(int32 InContainerIndex = 0) const { return Containers[InContainerIndex] == EPinContainerType::Set; }
-
-		FString GetBaseCPPType() const;
-
-		static const FString ArrayPrefix;
-		static const FString MapPrefix;
-		static const FString SetPrefix;
-		static const FString ContainerSuffix;
-	};
-
-	static UClass* GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType);
-	static UClass* CreateStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType, const TArray<FPropertyDescription>& InProperties);
-	static URigVMMemoryStorage* CreateStorage(UObject* InOuter, ERigVMMemoryType InMemoryType);
 
 	//////////////////////////////////////////////////////////////////////////////
 	/// Memory Access
@@ -149,6 +226,7 @@ public:
 	}
 	
 	const TArray<const FProperty*>& GetProperties() const;
+	const TArray<FRigVMPropertyPath>& GetPropertyPaths() const;
 
 	int32 GetPropertyIndex(const FProperty* InProperty) const;
 
@@ -286,48 +364,4 @@ public:
 		FRigVMMemoryHandle& SourceHandle);
 	
 #endif
-
-protected:
-
-	static FProperty* AddProperty(UClass* InClass, const FPropertyDescription& InProperty, bool bPurge = false, bool bLink = true, FField** LinkToProperty = nullptr);
-
-	TArray<const FProperty*> CachedProperties;
-
-private:
-	
-	struct FClassInfo
-	{
-		UClass* LiteralStorageClass;
-		UClass* WorkStorageClass;
-		UClass* DebugStorageClass;
-		
-		FClassInfo()
-			: LiteralStorageClass(nullptr)
-			, WorkStorageClass(nullptr)
-			, DebugStorageClass(nullptr)
-		{
-		}
-
-		UClass** GetClassPtr(ERigVMMemoryType InMemoryType)
-		{
-			switch(InMemoryType)
-			{
-				case ERigVMMemoryType::Literal:
-				{
-					return &LiteralStorageClass;
-				}
-				case ERigVMMemoryType::Debug:
-				{
-					return &DebugStorageClass;
-				}
-				default:
-				{
-					break;
-				}
-			}
-			return &WorkStorageClass;
-		}
-	};
-	
-	static TMap<FString, FClassInfo> PackageToInfo;
 };
