@@ -197,7 +197,7 @@ bool FDynamicMeshUVEditor::EstimateGeodesicCenterFrameVertex(const FDynamicMesh3
 	FVector3d Normal = FMeshNormals::ComputeVertexNormal(Mesh, VertexIDOut);
 
 	FMeshBoundaryLoops LoopsCalc(&Mesh, true);
-	if (ensure(LoopsCalc.GetLoopCount() > 0) == false )
+	if (LoopsCalc.GetLoopCount() == 0)
 	{
 		FrameOut = Mesh.GetVertexFrame(VertexIDOut, false, &Normal);
 		return false;

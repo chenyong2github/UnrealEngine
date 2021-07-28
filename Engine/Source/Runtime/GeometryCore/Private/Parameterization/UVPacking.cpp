@@ -783,6 +783,11 @@ void FStandardChartPacker::RasterizeChart(const FUVIsland& Chart, uint32 RectW, 
 	for (int32 tid : Chart.Triangles)
 	{
 		FIndex3i UVTriangle = Mesh->GetUVTriangle(tid);
+		if (UVTriangle.A < 0 || UVTriangle.B < 0 || UVTriangle.C < 0)
+		{
+			continue;
+		}
+
 		FVector2f Points[3];
 		for (int k = 0; k <3; k++)
 		{
@@ -861,9 +866,12 @@ bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<voi
 
 		for (int32 elemid : IslandElements)
 		{
-			FVector2d UV = (FVector2d)Mesh->GetUV(elemid);
-			FVector2d TransformedUV = UV.X * Chart.PackingScaleU + UV.Y * Chart.PackingScaleV + Chart.PackingBias;
-			Mesh->SetUV(elemid, (FVector2f)TransformedUV);
+			if (elemid >= 0)
+			{
+				FVector2d UV = (FVector2d)Mesh->GetUV(elemid);
+				FVector2d TransformedUV = UV.X * Chart.PackingScaleU + UV.Y * Chart.PackingScaleV + Chart.PackingBias;
+				Mesh->SetUV(elemid, (FVector2f)TransformedUV);
+			}
 		}
 
 	}
@@ -918,17 +926,23 @@ bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(i
 		for (int32 tid : Island)
 		{
 			FIndex3i UVTri = Mesh->GetUVTriangle(tid);
-			IslandElements.Add(UVTri[0]);
-			IslandElements.Add(UVTri[1]);
-			IslandElements.Add(UVTri[2]);
+			if (UVTri[0] >= 0 && UVTri[1] >= 0 && UVTri[2] >= 0)
+			{
+				IslandElements.Add(UVTri[0]);
+				IslandElements.Add(UVTri[1]);
+				IslandElements.Add(UVTri[2]);
+			}
 		}
 
 		double ScaleFactor = UseUniformScale * AllIslandScaleFactors[ci];
 		for (int32 elemid : IslandElements)
 		{
-			FVector2d CurUV = (FVector2d)Mesh->GetUV(elemid);
-			FVector2d NewUV = (CurUV - IslandBounds.Min) * ScaleFactor;
-			Mesh->SetUV(elemid, (FVector2f)NewUV);
+			if (elemid >= 0)
+			{
+				FVector2d CurUV = (FVector2d)Mesh->GetUV(elemid);
+				FVector2d NewUV = (CurUV - IslandBounds.Min) * ScaleFactor;
+				Mesh->SetUV(elemid, (FVector2f)NewUV);
+			}
 		}
 	}
 
