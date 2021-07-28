@@ -45,7 +45,7 @@ UHLODBuilderInstancing::UHLODBuilderInstancing(const FObjectInitializer& ObjectI
 
 TArray<UPrimitiveComponent*> UHLODBuilderInstancing::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_Instancing::CreateComponents);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODBuilderInstancing::CreateComponents);
 
 	TArray<UPrimitiveComponent*> Components;
 
