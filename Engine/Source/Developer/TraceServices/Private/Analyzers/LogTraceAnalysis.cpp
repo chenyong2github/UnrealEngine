@@ -74,7 +74,8 @@ bool FLogTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	{
 		uint64 LogPoint = EventData.GetValue<uint64>("LogPoint");
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-		LogProvider.AppendMessage(LogPoint, Context.EventTime.AsSeconds(Cycle), EventData.GetAttachment());
+		TArrayView<const uint8> FormatArgsView = FTraceAnalyzerUtils::LegacyAttachmentArray("FormatArgs", Context);
+		LogProvider.AppendMessage(LogPoint, Context.EventTime.AsSeconds(Cycle), FormatArgsView.GetData());
 		break;
 	}
 	}
