@@ -47,7 +47,9 @@ namespace Gauntlet
 
 				string MarkdownFilename = "GauntletStepDetails.md";
 
-				string Markdown = $"Gauntlet Artifacts: [{Globals.LogDir}](file://{Globals.LogDir})";
+				// file:// is attractive here, and file://\\computer\share\folder\file.txt does work ok in Chrome, but it does not Firefox
+				// so, lacking a uniform way to link to a network filesystem, just put the path here as static text and escaped for markdown
+				string Markdown = System.Text.RegularExpressions.Regex.Replace($"Gauntlet Artifacts: {Globals.LogDir}", @"([|\\*\+])", @"\$1");
 
 				File.WriteAllText(Path.Combine(LogFolder, MarkdownFilename), Markdown);
 
