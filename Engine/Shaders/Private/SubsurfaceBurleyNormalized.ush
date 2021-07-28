@@ -64,11 +64,6 @@
 #define MORTON_USE_LUT 0
 #define REWEIGHT_CENTER_SAMPLE 1
 
-// exactly one of these should be true
-#define LIGHT_PERPENDICULAR 0
-#define LIGHT_DIFFUSESURFACE 0
-#define LIGHT_PERPENDICULAR_DIFFUSE_SURFACE 1
-
 #define VARIANCE_LEVEL 0.0001
 #define HIGH_LUMA_SAMPLE_COUNT 8
 #define LOW_LUMA_SAMPLE_COUNT 16
@@ -129,18 +124,6 @@
 
 #ifndef MORTON_USE_LUT
 #define MORTON_USE_LUT 0
-#endif
-
-#ifndef LIGHT_PERPENDICULAR
-#define LIGHT_PERPENDICULAR 0
-#endif
-
-#ifndef LIGHT_DIFFUSESURFACE
-#define LIGHT_DIFFUSESURFACE 0
-#endif
-
-#ifndef LIGHT_PERPENDICULAR_DIFFUSE_SURFACE
-#define LIGHT_PERPENDICULAR_DIFFUSE_SURFACE 0
 #endif
 
 #ifndef ENABLE_PROFILE_ID_CACHE
@@ -794,31 +777,6 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 	return Sample;
 #endif
 }
-
-float GetScalingFactor(float A)
-{
-#if LIGHT_PERPENDICULAR
-	float S = GetPerpendicularScalingFactor(A);
-#elif (LIGHT_DIFFUSESURFACE)
-	float S = GetDiffuseSurfaceScalingFactor(A);
-#elif (LIGHT_PERPENDICULAR_DIFFUSE_SURFACE)
-	float S = GetSearchLightDiffuseScalingFactor(A);
-#endif
-	return S;
-}
-
-float3 GetScalingFactor3D(float3 SurfaceAlbedo)
-{
-#if LIGHT_PERPENDICULAR
-	float3 S3D = GetPerpendicularScalingFactor3D(SurfaceAlbedo);
-#elif (LIGHT_DIFFUSESURFACE)
-	float3 S3D = GetDiffuseSurfaceScalingFactor3D(SurfaceAlbedo);
-#elif (LIGHT_PERPENDICULAR_DIFFUSE_SURFACE)
-	float3 S3D = GetSearchLightDiffuseScalingFactor3D(SurfaceAlbedo);
-#endif
-	return S3D;
-}
-
 
 float2 CalculateBurleyScale(float WorldUnitScale, float DepthAtCenter)
 {

@@ -332,6 +332,16 @@ void MobileDirectLightPS(
 #endif
 	half3 SkyDiffuseLighting = GetSkySHDiffuseSimple(GBuffer.WorldNormal);
 	half3 DiffuseColorForSky = ShadingModelContext.DiffuseColor;
+
+#if MOBILE_SHADINGMODEL_SUPPORT
+	if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+	{
+		half3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
+		// Add subsurface energy to diffuse
+		DiffuseColorForSky += SubsurfaceColor;
+	}
+#endif
+
 	MobileLightAccumulator_Add(MobileLightAccumulator, SkyDiffuseLighting, 0.0f, half3(View.SkyLightColor.rgb) * DiffuseColorForSky * GBuffer.GBufferAO);
 	
 	half3 Color = MobileLightAccumulator_GetResult(MobileLightAccumulator);

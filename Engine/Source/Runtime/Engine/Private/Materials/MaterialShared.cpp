@@ -4555,6 +4555,7 @@ FText FMaterialAttributeDefinitionMap::GetAttributeOverrideForMaterial(const FGu
 		CustomPinNames.Add({MSM_Hair, "Backlit"});
 		CustomPinNames.Add({MSM_Cloth, "Cloth"});
 		CustomPinNames.Add({MSM_Eye, "Iris Mask"});
+		CustomPinNames.Add({MSM_SubsurfaceProfile, "Curvature" });
 		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Custom Data 0"));
 	case MP_CustomData1:
 		CustomPinNames.Add({ MSM_ClearCoat, "Clear Coat Roughness" });

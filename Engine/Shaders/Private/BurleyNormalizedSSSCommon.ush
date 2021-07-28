@@ -10,6 +10,11 @@
 #define BURLEY_MM_2_CM		0.1f
 #define BURLEY_CM_2_MM      10.0f
 
+// exactly one of these should be true
+#define LIGHT_PERPENDICULAR 0
+#define LIGHT_DIFFUSESURFACE 0
+#define LIGHT_PERPENDICULAR_DIFFUSE_SURFACE 1
+
 //------------------------------------------------------------------------------------------
 // Consistent in BurleyNormalizedSSSCommon.ush and SubsurfaceProfile.cpp
 
@@ -144,6 +149,30 @@ float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
 {
 	float3 Value = SurfaceAlbedo - 0.33;
 	return 3.5 + 100 * Value * Value * Value * Value;
+}
+
+float GetScalingFactor(float A)
+{
+#if LIGHT_PERPENDICULAR
+	float S = GetPerpendicularScalingFactor(A);
+#elif (LIGHT_DIFFUSESURFACE)
+	float S = GetDiffuseSurfaceScalingFactor(A);
+#elif (LIGHT_PERPENDICULAR_DIFFUSE_SURFACE)
+	float S = GetSearchLightDiffuseScalingFactor(A);
+#endif
+	return S;
+}
+
+float3 GetScalingFactor3D(float3 SurfaceAlbedo)
+{
+#if LIGHT_PERPENDICULAR
+	float3 S3D = GetPerpendicularScalingFactor3D(SurfaceAlbedo);
+#elif (LIGHT_DIFFUSESURFACE)
+	float3 S3D = GetDiffuseSurfaceScalingFactor3D(SurfaceAlbedo);
+#elif (LIGHT_PERPENDICULAR_DIFFUSE_SURFACE)
+	float3 S3D = GetSearchLightDiffuseScalingFactor3D(SurfaceAlbedo);
+#endif
+	return S3D;
 }
 
 //@TODO Revisit here after offline comparison.
