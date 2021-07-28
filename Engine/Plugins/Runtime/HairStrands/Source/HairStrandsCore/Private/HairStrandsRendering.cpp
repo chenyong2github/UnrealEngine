@@ -1819,7 +1819,7 @@ void ComputeHairStrandsInterpolation(
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("HairStrands::UpdateBLAS(Strands)"),
 						ERDGPassFlags::NeverCull,
-					[Instance, bNeedUpdate](FRHICommandList& RHICmdList)
+					[Instance, bNeedUpdate](FRHICommandListImmediate& RHICmdList)
 					{
 						const bool bLocalNeedBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized;
 						if (bLocalNeedBuild)
