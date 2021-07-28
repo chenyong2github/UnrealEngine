@@ -169,7 +169,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			check(ActorCluster->Actors.Num() == 1);
 			const FGuid& ActorGuid = *ActorCluster->Actors.CreateConstIterator();
 			FActorInstance ActorInstance(ActorGuid, ClusterInstance->ContainerInstance);
-			if (ensure(PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorInstance.GetActorDescView().GetOrigin()), CellCoords)))
+			if (ensure(PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorInstance.GetOrigin()), CellCoords)))
 			{
 				PartitionedActors.GetLowestLevel().GetCell(CellCoords).AddActor(MoveTemp(ActorInstance), ClusterInstance->DataLayers);
 			}
