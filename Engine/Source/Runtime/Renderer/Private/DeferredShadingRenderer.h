@@ -205,18 +205,22 @@ public:
 		const FDBufferTextures& DBufferTextures,
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 		FRDGTextureRef ForwardShadowMaskTexture,
-		FInstanceCullingManager& InstanceCullingManager);
+		FInstanceCullingManager& InstanceCullingManager,
+		bool bNaniteEnabled,
+		const TArrayView<Nanite::FRasterResults>& NaniteRasterResults);
 
 	void RenderBasePassInternal(
 		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
 		const FRenderTargetBindingSlots& BasePassRenderTargets,
 		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
 		const FForwardBasePassTextures& ForwardBasePassTextures,
 		const FDBufferTextures& DBufferTextures,
-		FRDGTextureRef QuadOverdrawTexture,
 		bool bParallelBasePass,
 		bool bRenderLightmapDensity,
-		FInstanceCullingManager& InstanceCullingManager);
+		FInstanceCullingManager& InstanceCullingManager,
+		bool bNaniteEnabled,
+		const TArrayView<Nanite::FRasterResults>& NaniteRasterResults);
 
 	bool ShouldRenderAnisotropyPass() const;
 
