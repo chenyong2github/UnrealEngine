@@ -180,6 +180,13 @@ extern bool CORE_API GUseNewCrashSymbolicator;
 // Helps greatly by reducing I/O during ensures/crashes. Only suggested when running a monolithic build
 extern void CORE_API UnixPlatformStackWalk_PreloadModuleSymbolFile();
 
+void FUnixPlatformMisc::PlatformPreInit()
+{
+	FGenericPlatformMisc::PlatformPreInit();
+
+	UnixCrashReporterTracker::PreInit();
+}
+
 void FUnixPlatformMisc::PlatformInit()
 {
 	// install a platform-specific signal handler

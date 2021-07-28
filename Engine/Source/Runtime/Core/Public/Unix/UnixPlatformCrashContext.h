@@ -129,6 +129,11 @@ typedef FUnixCrashContext FPlatformCrashContext;
 namespace UnixCrashReporterTracker
 {
 	/**
+	 * Initialize persistent data and tickers
+	 */
+	void PreInit();
+
+	/**
 	 * Only call this function from a forked child process. The child process cannot be responsible for a sibling process.
 	 *
 	 * This removes a valid Crash Reporter tracker from the calling process.
