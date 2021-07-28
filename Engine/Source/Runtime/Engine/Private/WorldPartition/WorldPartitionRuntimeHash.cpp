@@ -64,7 +64,8 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 
 void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE)
 {
-	if (!IsRunningGame())
+	// Do this only on non game worlds prior to PIE so that always loaded actors get duplicated with the world
+	if (!GetWorld()->IsGameWorld())
 	{
 		for (const FAlwaysLoadedActorForPIE& AlwaysLoadedActor : AlwaysLoadedActorsForPIE)
 		{
