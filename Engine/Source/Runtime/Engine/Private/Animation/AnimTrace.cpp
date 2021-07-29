@@ -83,6 +83,7 @@ UE_TRACE_EVENT_BEGIN(Animation, AnimNodeStart)
 	UE_TRACE_EVENT_FIELD(float, Weight)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
 	UE_TRACE_EVENT_FIELD(uint8, Phase)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DisplayName)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeEnd)
@@ -103,56 +104,57 @@ UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueBool)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
-	UE_TRACE_EVENT_FIELD(int32, KeyLength)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
 	UE_TRACE_EVENT_FIELD(bool, Value)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueInt)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
-	UE_TRACE_EVENT_FIELD(int32, KeyLength)
 	UE_TRACE_EVENT_FIELD(int32, Value)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueFloat)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
-	UE_TRACE_EVENT_FIELD(int32, KeyLength)
 	UE_TRACE_EVENT_FIELD(float, Value)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueVector2D)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
-	UE_TRACE_EVENT_FIELD(int32, KeyLength)
 	UE_TRACE_EVENT_FIELD(float, ValueX)
 	UE_TRACE_EVENT_FIELD(float, ValueY)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueVector)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
-	UE_TRACE_EVENT_FIELD(int32, KeyLength)
 	UE_TRACE_EVENT_FIELD(float, ValueX)
 	UE_TRACE_EVENT_FIELD(float, ValueY)
 	UE_TRACE_EVENT_FIELD(float, ValueZ)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueString)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
-	UE_TRACE_EVENT_FIELD(int32, KeyLength)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Value)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueObject)
@@ -160,8 +162,8 @@ UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueObject)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(uint64, Value)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
-	UE_TRACE_EVENT_FIELD(int32, KeyLength)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueClass)
@@ -169,8 +171,8 @@ UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueClass)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
 	UE_TRACE_EVENT_FIELD(uint64, Value)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
-	UE_TRACE_EVENT_FIELD(int32, KeyLength)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, AnimSequencePlayer)
@@ -653,7 +655,7 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 
 	check(InPreviousNodeId != InNodeId);
 
-	UE_TRACE_LOG(Animation, AnimNodeStart, AnimationChannel, (DisplayNameString.Len() + 1) * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeStart, AnimationChannel)
 		<< AnimNodeStart.StartCycle(InStartCycle)
 		<< AnimNodeStart.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeStart.PreviousNodeId(InPreviousNodeId)
@@ -661,7 +663,7 @@ void FAnimTrace::OutputAnimNodeStart(const FAnimationBaseContext& InContext, uin
 		<< AnimNodeStart.Weight(InBlendWeight)
 		<< AnimNodeStart.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
 		<< AnimNodeStart.Phase(InPhase)
-		<< AnimNodeStart.Attachment(*DisplayNameString, (DisplayNameString.Len() + 1) * sizeof(TCHAR));
+		<< AnimNodeStart.DisplayName(*DisplayNameString, DisplayNameString.Len());
 }
 
 void FAnimTrace::OutputAnimNodeEnd(const FAnimationBaseContext& InContext, uint64 InEndCycle)
@@ -734,16 +736,13 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-
-	UE_TRACE_LOG(Animation, AnimNodeValueBool, AnimationChannel, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueBool, AnimationChannel)
 		<< AnimNodeValueBool.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueBool.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeValueBool.NodeId(InContext.GetCurrentNodeId())
-		<< AnimNodeValueBool.KeyLength(KeyLength)
 		<< AnimNodeValueBool.Value(InValue)
 		<< AnimNodeValueBool.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueBool.Attachment(InKey, KeyLength * sizeof(TCHAR));
+		<< AnimNodeValueBool.Key(InKey);
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, int32 InValue)
@@ -764,16 +763,13 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-
-	UE_TRACE_LOG(Animation, AnimNodeValueInt, AnimationChannel, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueInt, AnimationChannel)
 		<< AnimNodeValueInt.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueInt.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeValueInt.NodeId(InContext.GetCurrentNodeId())
-		<< AnimNodeValueInt.KeyLength(KeyLength)
 		<< AnimNodeValueInt.Value(InValue)
 		<< AnimNodeValueInt.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueInt.Attachment(InKey, KeyLength * sizeof(TCHAR));
+		<< AnimNodeValueInt.Key(InKey);
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, float InValue)
@@ -794,16 +790,13 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-
-	UE_TRACE_LOG(Animation, AnimNodeValueFloat, AnimationChannel, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueFloat, AnimationChannel)
 		<< AnimNodeValueFloat.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueFloat.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeValueFloat.NodeId(InContext.GetCurrentNodeId())
-		<< AnimNodeValueFloat.KeyLength(KeyLength)
 		<< AnimNodeValueFloat.Value(InValue)
 		<< AnimNodeValueFloat.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueFloat.Attachment(InKey, KeyLength * sizeof(TCHAR));
+		<< AnimNodeValueFloat.Key(InKey);
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FVector2D& InValue)
@@ -819,17 +812,14 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-
-	UE_TRACE_LOG(Animation, AnimNodeValueVector2D, AnimationChannel, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueVector2D, AnimationChannel)
 		<< AnimNodeValueVector2D.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueVector2D.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeValueVector2D.NodeId(InContext.GetCurrentNodeId())
-		<< AnimNodeValueVector2D.KeyLength(KeyLength)
 		<< AnimNodeValueVector2D.ValueX(InValue.X)
 		<< AnimNodeValueVector2D.ValueY(InValue.Y)
 		<< AnimNodeValueVector2D.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueVector2D.Attachment(InKey, KeyLength * sizeof(TCHAR));
+		<< AnimNodeValueVector2D.Key(InKey);
 }
 
 
@@ -857,18 +847,15 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-
-	UE_TRACE_LOG(Animation, AnimNodeValueVector, AnimationChannel, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueVector, AnimationChannel)
 		<< AnimNodeValueVector.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueVector.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< AnimNodeValueVector.NodeId(InContext.GetCurrentNodeId())
-		<< AnimNodeValueVector.KeyLength(KeyLength)
 		<< AnimNodeValueVector.ValueX(InValue.X)
 		<< AnimNodeValueVector.ValueY(InValue.Y)
 		<< AnimNodeValueVector.ValueZ(InValue.Z)
 		<< AnimNodeValueVector.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueVector.Attachment(InKey, KeyLength * sizeof(TCHAR));
+		<< AnimNodeValueVector.Key(InKey);
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FName& InValue)
@@ -889,22 +876,16 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-	int32 ValueLength = InValue.GetStringLength() + 1;
+	TCHAR Value[FName::StringBufferSize];
+	uint32 ValueLength = InValue.ToString(Value);
 
-	auto StringCopyFunc = [KeyLength, ValueLength, InKey, &InValue](uint8* Out)
-	{
-		FCString::Strncpy(reinterpret_cast<TCHAR*>(Out), InKey, KeyLength);
-		InValue.ToString(reinterpret_cast<TCHAR*>(Out) + KeyLength, ValueLength);
-	};
-
-	UE_TRACE_LOG(Animation, AnimNodeValueString, AnimationChannel, (KeyLength + ValueLength) * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueString, AnimationChannel)
 		<< AnimNodeValueString.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueString.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeValueString.NodeId(InContext.GetCurrentNodeId())
-		<< AnimNodeValueString.KeyLength(KeyLength)
 		<< AnimNodeValueString.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueString.Attachment(StringCopyFunc);
+		<< AnimNodeValueString.Key(InKey)
+		<< AnimNodeValueString.Value(Value, ValueLength);
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const TCHAR* InValue)
@@ -925,22 +906,13 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-	int32 ValueLength = FCString::Strlen(InValue) + 1;
-
-	auto StringCopyFunc = [KeyLength, ValueLength, InKey, InValue](uint8* Out)
-	{
-		FCString::Strncpy(reinterpret_cast<TCHAR*>(Out), InKey, KeyLength);
-		FCString::Strncpy(reinterpret_cast<TCHAR*>(Out) + KeyLength, InValue, ValueLength);
-	};
-
-	UE_TRACE_LOG(Animation, AnimNodeValueString, AnimationChannel, (KeyLength + ValueLength) * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueString, AnimationChannel)
 		<< AnimNodeValueString.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueString.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeValueString.NodeId(InContext.GetCurrentNodeId())
-		<< AnimNodeValueString.KeyLength(KeyLength)
 		<< AnimNodeValueString.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueString.Attachment(StringCopyFunc);
+		<< AnimNodeValueString.Key(InKey)
+		<< AnimNodeValueString.Value(InValue);
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const UObject* InValue)
@@ -962,16 +934,13 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	TRACE_OBJECT(AnimInstance);
 	TRACE_OBJECT(InValue);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-
-	UE_TRACE_LOG(Animation, AnimNodeValueObject, AnimationChannel, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueObject, AnimationChannel)
 		<< AnimNodeValueObject.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueObject.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeValueObject.NodeId(InContext.GetCurrentNodeId())
 		<< AnimNodeValueObject.Value(FObjectTrace::GetObjectId(InValue))
-		<< AnimNodeValueObject.KeyLength(KeyLength)
 		<< AnimNodeValueObject.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueObject.Attachment(InKey, KeyLength * sizeof(TCHAR));
+		<< AnimNodeValueObject.Key(InKey);
 }
 
 void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const UClass* InValue)
@@ -993,16 +962,13 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 	TRACE_OBJECT(AnimInstance);
 	TRACE_CLASS(InValue);
 
-	int32 KeyLength = FCString::Strlen(InKey) + 1;
-
-	UE_TRACE_LOG(Animation, AnimNodeValueClass, AnimationChannel, KeyLength * sizeof(TCHAR))
+	UE_TRACE_LOG(Animation, AnimNodeValueClass, AnimationChannel)
 		<< AnimNodeValueClass.Cycle(FPlatformTime::Cycles64())
 		<< AnimNodeValueClass.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimNodeValueClass.NodeId(InContext.GetCurrentNodeId())
 		<< AnimNodeValueClass.Value(FObjectTrace::GetObjectId(InValue))
-		<< AnimNodeValueClass.KeyLength(KeyLength)
 		<< AnimNodeValueClass.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
-		<< AnimNodeValueClass.Attachment(InKey, KeyLength * sizeof(TCHAR));
+		<< AnimNodeValueClass.Key(InKey);
 }
 
 void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayerBase& InNode)

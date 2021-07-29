@@ -26,20 +26,22 @@ UE_TRACE_CHANNEL(ObjectChannel)
 UE_TRACE_EVENT_BEGIN(Object, Class)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(uint64, SuperId)
-	UE_TRACE_EVENT_FIELD(int32, ClassNameStringLength)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Path)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Object, Object)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(uint64, ClassId)
 	UE_TRACE_EVENT_FIELD(uint64, OuterId)
-	UE_TRACE_EVENT_FIELD(int32, ObjectNameStringLength)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Path)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Object, ObjectEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
-	UE_TRACE_EVENT_FIELD(uint8, Event)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Event)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Object, World)
@@ -289,21 +291,15 @@ void FObjectTrace::OutputClass(const UClass* InClass)
 	Annotation.bTraced = true;
 	GObjectTraceAnnotations.AddAnnotation(InClass, MoveTemp(Annotation));
 
-	int32 ClassNameStringLength = InClass->GetFName().GetStringLength() + 1;
-	int32 ClassFullNameStringLength = InClass->GetPathName().Len() + 1;
+	FString ClassPathName = InClass->GetPathName();
+	TCHAR ClassName[FName::StringBufferSize];
+	uint32 ClassNameLength = InClass->GetFName().ToString(ClassName);
 
-	auto StringCopyFunc = [ClassNameStringLength, ClassFullNameStringLength, InClass](uint8* Out)
-	{
-		InClass->GetFName().ToString(reinterpret_cast<TCHAR*>(Out), ClassNameStringLength);
-		FPlatformMemory::Memcpy(reinterpret_cast<TCHAR*>(Out) + ClassNameStringLength, *InClass->GetPathName(), ClassFullNameStringLength * sizeof(TCHAR));
-	};
-
-	UE_TRACE_LOG(Object, Class, ObjectChannel, (ClassNameStringLength + ClassFullNameStringLength) * sizeof(TCHAR))
-		<< Class.ClassNameStringLength(ClassNameStringLength)
+	UE_TRACE_LOG(Object, Class, ObjectChannel)
 		<< Class.Id(GetObjectId(InClass))
 		<< Class.SuperId(GetObjectId(InClass->GetSuperClass()))
-		<< Class.Attachment(StringCopyFunc);
-
+		<< Class.Name(ClassName, ClassNameLength)
+		<< Class.Path(*ClassPathName, ClassPathName.Len());
 }
 
 void FObjectTrace::OutputView(const UObject* InPlayer, const FSceneView* InView)
@@ -368,21 +364,16 @@ void FObjectTrace::OutputObject(const UObject* InObject)
 	// Trace the object's class first
 	TRACE_CLASS(InObject->GetClass());
 
-	int32 ObjectNameStringLength = InObject->GetFName().GetStringLength() + 1;
-	int32 ObjectPathNameStringLength = InObject->GetPathName().Len() + 1;
+	TCHAR ObjectName[FName::StringBufferSize];
+	uint32 ObjectNameLength = InObject->GetFName().ToString(ObjectName);
+	FString ObjectPathName = InObject->GetPathName();
 
-	auto StringCopyFunc = [ObjectNameStringLength, ObjectPathNameStringLength, InObject](uint8* Out)
-	{
-		InObject->GetFName().ToString(reinterpret_cast<TCHAR*>(Out), ObjectNameStringLength);
-		FPlatformMemory::Memcpy(reinterpret_cast<TCHAR*>(Out) + ObjectNameStringLength, *InObject->GetPathName(), ObjectPathNameStringLength * sizeof(TCHAR));
-	};
-
-	UE_TRACE_LOG(Object, Object, ObjectChannel, (ObjectNameStringLength + ObjectPathNameStringLength) * sizeof(TCHAR))
-		<< Object.ObjectNameStringLength(ObjectNameStringLength)
+	UE_TRACE_LOG(Object, Object, ObjectChannel)
 		<< Object.Id(GetObjectId(InObject))
 		<< Object.ClassId(GetObjectId(InObject->GetClass()))
 		<< Object.OuterId(GetObjectId(InObject->GetOuter()))
-		<< Object.Attachment(StringCopyFunc);
+		<< Object.Name(ObjectName, ObjectNameLength)
+		<< Object.Path(*ObjectPathName, ObjectPathName.Len());
 }
 
 void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEvent)
@@ -405,12 +396,10 @@ void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEve
 
 	TRACE_OBJECT(InObject);
 
-	int32 StringBufferSize = (FCString::Strlen(InEvent) + 1) * sizeof(TCHAR);
-
-	UE_TRACE_LOG(Object, ObjectEvent, ObjectChannel, StringBufferSize)
+	UE_TRACE_LOG(Object, ObjectEvent, ObjectChannel)
 		<< ObjectEvent.Cycle(FPlatformTime::Cycles64())
 		<< ObjectEvent.Id(GetObjectId(InObject))
-		<< ObjectEvent.Attachment(InEvent, StringBufferSize);
+		<< ObjectEvent.Event(InEvent);
 }
 
 void FObjectTrace::OutputWorld(const UWorld* InWorld)

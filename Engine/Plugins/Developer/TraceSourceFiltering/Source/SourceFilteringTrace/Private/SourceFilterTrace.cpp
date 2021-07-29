@@ -30,6 +30,7 @@ UE_TRACE_EVENT_BEGIN(SourceFilters, FilterInstance)
 	UE_TRACE_EVENT_FIELD(uint64, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint64, ClassId)
 	UE_TRACE_EVENT_FIELD(uint64, SetId)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DisplayString)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(SourceFilters, FilterSet)
@@ -45,12 +46,14 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(SourceFilters, SetFilterSettingValue)
 	UE_TRACE_EVENT_FIELD(uint8, Value)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, PropertyName)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(WorldSourceFilters, WorldInstance)
 	UE_TRACE_EVENT_FIELD(uint64, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint8, Type)
 	UE_TRACE_EVENT_FIELD(uint8, State)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, SendName)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(WorldSourceFilters, WorldOperation)
@@ -111,22 +114,13 @@ void FSourceFilterTrace::OutputInstance(const UDataSourceFilter* InFilter)
 
 		FText DisplayText;
 		InFilter->Execute_GetDisplayText(InFilter, DisplayText);
-
 		FString DisplayString = DisplayText.ToString();
 		
-		const uint32 AttachmentSize = (DisplayString.Len() + 1) * sizeof(TCHAR);
-		auto WriteAttachment = [DisplayString, AttachmentSize](uint8* Out)
-		{
-			TCHAR* StringPtr = (TCHAR*)Out;
-			FMemory::Memcpy(StringPtr, *DisplayString, AttachmentSize);
-			StringPtr[AttachmentSize / sizeof(TCHAR) - 1] = '\0';
-		};
-		
-		UE_TRACE_LOG(SourceFilters, FilterInstance, TraceSourceFiltersChannel, AttachmentSize)
+		UE_TRACE_LOG(SourceFilters, FilterInstance, TraceSourceFiltersChannel)
 			<< FilterInstance.ClassId(ClassId)
 			<< FilterInstance.InstanceId(InstanceId)
 			<< FilterInstance.SetId(SetId)
-			<< FilterInstance.Attachment(WriteAttachment);
+			<< FilterInstance.DisplayString(*DisplayString, DisplayString.Len());
 	}
 }
 
@@ -155,17 +149,9 @@ void FSourceFilterTrace::OutputFilterOperation(const UDataSourceFilter* InFilter
 
 void FSourceFilterTrace::OutputFilterSettingsValue(const FString& InPropertyName, const uint8 InValue)
 {
-	const uint32 AttachmentSize = (InPropertyName.Len() + 1) * sizeof(TCHAR);
-	auto WriteAttachment = [InPropertyName, AttachmentSize](uint8* Out)
-	{
-		TCHAR* StringPtr = (TCHAR*)Out;
-		FMemory::Memcpy(StringPtr, *InPropertyName, AttachmentSize);
-		StringPtr[AttachmentSize / sizeof(TCHAR) - 1] = '\0';
-	};
-
-	UE_TRACE_LOG(SourceFilters, SetFilterSettingValue, TraceSourceFiltersChannel, AttachmentSize)
+	UE_TRACE_LOG(SourceFilters, SetFilterSettingValue, TraceSourceFiltersChannel)
 		<< SetFilterSettingValue.Value(InValue)
-		<< SetFilterSettingValue.Attachment(WriteAttachment);
+		<< SetFilterSettingValue.PropertyName(*InPropertyName, InPropertyName.Len());
 }
 
 void FSourceFilterTrace::OutputWorld(const UWorld* InWorld)
@@ -187,11 +173,11 @@ void FSourceFilterTrace::OutputWorld(const UWorld* InWorld)
 			StringPtr[AttachmentSize / sizeof(TCHAR) - 1] = '\0';
 		};
 
-		UE_TRACE_LOG(WorldSourceFilters, WorldInstance, TraceSourceFiltersChannel, AttachmentSize)
+		UE_TRACE_LOG(WorldSourceFilters, WorldInstance, TraceSourceFiltersChannel)
 			<< WorldInstance.InstanceId(InstanceId)
 			<< WorldInstance.Type((uint8)InWorld->WorldType)
 			<< WorldInstance.State(CAN_TRACE_OBJECT(InWorld) ? 1 : 0)
-			<< WorldInstance.Attachment(WriteAttachment);
+			<< WorldInstance.SendName(*SendName, SendName.Len());
 	}
 }
 
