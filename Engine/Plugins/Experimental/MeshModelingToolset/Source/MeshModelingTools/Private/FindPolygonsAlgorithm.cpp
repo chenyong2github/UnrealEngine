@@ -204,8 +204,7 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromFurthestPointSampling(int32 NumPoin
 	int32 NumConnected = Components.Num();
 	for (int32 k = 0; k < NumConnected; ++k)
 	{
-		FIndex3i TriVerts = Mesh->GetTriangle(Components[k].Indices[0]);
-		SeedIndices.Add(TriVerts.A);
+		SeedIndices.Add(Components[k].Indices[0]);
 	}
 
 	// initial incremental update from per-component points
