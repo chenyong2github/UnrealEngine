@@ -17,6 +17,7 @@
 
 // Insights
 #include "Insights/Common/InsightsMenuBuilder.h"
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
@@ -401,18 +402,11 @@ void FInsightsManager::UpdateSessionDuration()
 {
 	if (Session.IsValid())
 	{
+		bool bLocalIsAnalysisComplete = false;
 		double LocalSessionDuration = 0.0;
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			if (bIsAnalysisComplete != Session->IsAnalysisComplete())
-			{
-				bIsAnalysisComplete = Session->IsAnalysisComplete();
-				if (bIsAnalysisComplete)
-				{
-					SessionAnalysisCompletedEvent.Broadcast();
-				}
-			}
-
+			bLocalIsAnalysisComplete = Session->IsAnalysisComplete();
 			LocalSessionDuration = Session->GetDurationSeconds();
 		}
 
@@ -422,6 +416,22 @@ void FInsightsManager::UpdateSessionDuration()
 			AnalysisStopwatch.Update();
 			AnalysisDuration = AnalysisStopwatch.GetAccumulatedTime();
 			AnalysisSpeedFactor = SessionDuration / AnalysisDuration;
+			if (bIsAnalysisComplete)
+			{
+				UE_LOG(TraceInsights, Warning, TEXT("The session duration was updated (%s) after the analysis has been completed."),
+					*TimeUtils::FormatTimeAuto(GetSessionDuration(), 2));
+			}
+		}
+
+		if (bLocalIsAnalysisComplete && !bIsAnalysisComplete)
+		{
+			bIsAnalysisComplete = true;
+			SessionAnalysisCompletedEvent.Broadcast();
+
+			UE_LOG(TraceInsights, Log, TEXT("Analysis has completed in %s (%.1fX speed; session duration: %s)."),
+				*TimeUtils::FormatTimeAuto(AnalysisDuration, 2),
+				AnalysisSpeedFactor,
+				*TimeUtils::FormatTimeAuto(SessionDuration, 2));
 		}
 	}
 }

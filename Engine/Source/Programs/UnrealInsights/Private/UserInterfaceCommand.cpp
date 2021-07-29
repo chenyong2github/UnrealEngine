@@ -303,6 +303,8 @@ void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, cons
 	//This parameter will cause the application to close when analysis fails to start or completes succesfully
 	const bool bAutoQuit = FParse::Param(FCommandLine::Get(), TEXT("AutoQuit"));
 
+	const bool bNoUI = FParse::Param(FCommandLine::Get(), TEXT("NoUI"));
+
 	const bool bInitializeTesting = FParse::Param(FCommandLine::Get(), TEXT("InsightsTest"));
 
 	if (bUseTraceId)
@@ -317,7 +319,11 @@ void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, cons
 			}
 		}
 
-		TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
+		if (!bNoUI)
+		{
+			TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
+		}
+
 		TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
 		TraceInsightsModule.StartAnalysisForTrace(TraceId, bAutoQuit);
 	}
@@ -335,7 +341,11 @@ void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, cons
 				}
 			}
 
-			TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
+			if (!bNoUI)
+			{
+				TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
+			}
+
 			TraceInsightsModule.StartAnalysisForTraceFile(TraceFile, bAutoQuit);
 		}
 		else

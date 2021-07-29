@@ -378,11 +378,12 @@ void FTraceInsightsModule::AddAreaForWidgetReflector(TSharedRef<FTabManager::FLa
 
 void FTraceInsightsModule::ShutdownUserInterface()
 {
-	check(PersistentLayout.IsValid());
-
-	// Save application layout.
-	FLayoutSaveRestore::SaveToConfig(UnrealInsightsLayoutIni, PersistentLayout.ToSharedRef());
-	GConfig->Flush(false, UnrealInsightsLayoutIni);
+	if (PersistentLayout.IsValid())
+	{
+		// Save application layout.
+		FLayoutSaveRestore::SaveToConfig(UnrealInsightsLayoutIni, PersistentLayout.ToSharedRef());
+		GConfig->Flush(false, UnrealInsightsLayoutIni);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
