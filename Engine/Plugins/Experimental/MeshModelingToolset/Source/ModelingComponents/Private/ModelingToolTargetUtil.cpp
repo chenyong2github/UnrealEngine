@@ -3,6 +3,8 @@
 #include "ModelingToolTargetUtil.h"
 
 #include "ToolTargets/ToolTarget.h"
+#include "TargetInterfaces/DynamicMeshCommitter.h"
+#include "TargetInterfaces/DynamicMeshProvider.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -164,6 +166,12 @@ FDynamicMesh3 UE::ToolTarget::GetDynamicMeshCopy(UToolTarget* Target, bool bWant
 		return Mesh;
 	}
 
+	IDynamicMeshProvider* DynamicMeshProvider = Cast<IDynamicMeshProvider>(Target);
+	if (DynamicMeshProvider)
+	{
+		return *DynamicMeshProvider->GetDynamicMesh();
+	}
+
 	IMeshDescriptionProvider* MeshDescriptionProvider = Cast<IMeshDescriptionProvider>(Target);
 	FDynamicMesh3 Mesh(EMeshComponents::FaceGroups);
 	Mesh.EnableAttributes();
@@ -248,6 +256,23 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 
 
 		// todo support bModifiedTopology flag?
+		return EDynamicMeshUpdateResult::Ok;
+	}
+
+	IDynamicMeshCommitter* DynamicMeshCommitter = Cast<IDynamicMeshCommitter>(Target);
+	if (DynamicMeshCommitter)
+	{
+		IDynamicMeshCommitter::FDynamicMeshCommitInfo CommitInfo;
+		CommitInfo.bTopologyChanged = bHaveModifiedTopology;
+		CommitInfo.bPolygroupsChanged = ConversionOptions.bSetPolyGroups;
+		CommitInfo.bPositionsChanged = ConversionOptions.bUpdatePositions;
+		CommitInfo.bNormalsChanged = ConversionOptions.bUpdateNormals;
+		CommitInfo.bTangentsChanged = ConversionOptions.bUpdateTangents;
+		CommitInfo.bUVsChanged = ConversionOptions.bUpdateUVs;
+		CommitInfo.bVertexColorsChanged = ConversionOptions.bUpdateVtxColors;
+
+		DynamicMeshCommitter->CommitDynamicMesh(UpdatedMesh, CommitInfo);
+
 		return EDynamicMeshUpdateResult::Ok;
 	}
 
