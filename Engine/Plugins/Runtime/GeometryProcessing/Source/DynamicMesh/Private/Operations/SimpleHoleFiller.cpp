@@ -105,7 +105,7 @@ bool FSimpleHoleFiller::Fill_EarClip(int GroupID)
 		}
 	}
 
-	return true;
+	return NewTriangles.Num() == Triangles.Num();
 }
 
 bool FSimpleHoleFiller::UpdateAttributes(TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& VidUVMaps)
@@ -117,11 +117,28 @@ bool FSimpleHoleFiller::UpdateAttributes(TArray<FMeshRegionBoundaryLoops::VidOve
 
 	FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
 
-	check(VidUVMaps.Num() == Attributes->NumUVLayers());
+	if (!ensure(VidUVMaps.Num() == Attributes->NumUVLayers()))
+	{
+		return false;
+	}
+
 	for (int i = 0; i < Attributes->NumUVLayers(); ++i)
 	{
 		FDynamicMeshUVOverlay* UVLayer = Attributes->GetUVLayer(i);
 		FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>& UVMap = VidUVMaps[i];
+
+		// Create an entry for the newly added center vert if we need it
+		if (NewVertex != IndexConstants::InvalidID && !UVMap.Contains(NewVertex))
+		{
+			FVector2f NewVertUV = FVector2f::Zero();
+			for (int32 Vid : Loop.Vertices)
+			{
+				NewVertUV += UVMap[Vid].Value;
+			}
+			NewVertUV /= Loop.Vertices.Num();
+			UVMap.Add(NewVertex, FMeshRegionBoundaryLoops::ElementIDAndValue<FVector2f>(
+				IndexConstants::InvalidID, NewVertUV));
+		}
 
 		for (int32 Tid : NewTriangles)
 		{
