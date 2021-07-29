@@ -65,6 +65,12 @@ public:
 		{
 			return EOperationValidationResult::Failed_UnknownReason;
 		}
+		// TODO: For EFillType::PolygonEarClipping, we actually have more constraints; specifically, there
+		// must not be any edges between non-adjacent loop vertices that we choose to connect (this can
+		// happen in a few weird topology cases, for instance if a hole is attached to a single triangle
+		// flap), because we would end up trying to add two more triangles to an existing edge.
+		// To do a proper check we'd need to know which verts we're planning to connect, which would require
+		// going through the whole retriangulation. That does not seem worthwhile...
 
 		return EOperationValidationResult::Ok;
 	}
@@ -74,9 +80,11 @@ public:
 	/**
 	 * Updates the normals and UV's of NewTriangles. UV's are taken from VidUVMaps,
 	 * which is an array of maps (1:1 with UV layers) that map vid's of vertices on the
-	 * boundary to their UV elements and values. If the UV element for a vertex does not
-	 * yet exist in the overlay, the corresponding element ID should be InvalidID. The 
-	 * function will update it to point to the new element once it inserts it.
+	 * boundary to their UV elements and values. If an entry for NewVertex is not provided,
+	 * it is set to be the average of the boundary UV's. For other UV's, an entry must
+	 * exist, though the UV element ID can be InvalidID if an element does not exist for
+	 * that UV value. The function will update the element ID in the map to point to the
+	 * new element once it inserts it.
 
 	 * Normals are shared among NewTriangles but not with the surrounding portions of the mesh.
 	 *
