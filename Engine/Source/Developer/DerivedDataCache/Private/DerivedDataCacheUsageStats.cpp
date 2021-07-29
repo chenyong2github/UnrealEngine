@@ -4,7 +4,7 @@
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataBackendInterface.h"
 
-DERIVEDDATACACHE_API void GatherDerivedDataCacheResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats)
+void GatherDerivedDataCacheResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats)
 {
 #if ENABLE_COOK_STATS
 	// Temporary Set to allow accumulation by asset type
@@ -102,21 +102,21 @@ DERIVEDDATACACHE_API void GatherDerivedDataCacheResourceStats(TArray<FDerivedDat
 #endif
 }
 
-#if ENABLE_COOK_STATS
-DERIVEDDATACACHE_API void GatherDerivedDataCacheSummaryStats(TArray<FDerivedDataCacheSummaryStat>& DDCSummaryStats)
+void GatherDerivedDataCacheSummaryStats(FDerivedDataCacheSummaryStats& DDCSummaryStats)
 {
+#if ENABLE_COOK_STATS
 	/** this functor will take a collected cooker stat and log it out using some custom formatting based on known stats that are collected.. */
 	auto LogStatsFunc = [&DDCSummaryStats]
 	(const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
 	{
 		if (StatName == TEXT("DDC.Summary"))
 		{
-			DDCSummaryStats.Append(StatAttributes);
+			DDCSummaryStats.Stats.Append(StatAttributes);
 		}
 	};
 
 	// Grab the DDC stats
 	FCookStatsManager::LogCookStats(LogStatsFunc);
-}
 #endif
+}
 

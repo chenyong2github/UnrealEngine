@@ -18,6 +18,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Templates/SharedPointer.h"
 #include "HAL/PlatformProcess.h"
+#include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheUsageStats.h"
 
 bool FStudioAnalytics::bInitialized = false;
@@ -170,7 +171,7 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 		TArray<FDerivedDataCacheResourceStat> DDCResourceStats;
 
 		// Grab the latest resource stats
-		GatherDerivedDataCacheResourceStats(DDCResourceStats);
+		GetDerivedDataCacheRef().GatherResourceStats(DDCResourceStats);
 
 		FDerivedDataCacheResourceStat DDCResourceStatsTotal(TEXT("Total"));
 
@@ -217,12 +218,11 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 			}
 		}
 
-		TArray<FDerivedDataCacheSummaryStat> DDCSummaryStats;
-
 		// Grab the summary stats
-		GatherDerivedDataCacheSummaryStats(DDCSummaryStats);
+		FDerivedDataCacheSummaryStats DDCSummaryStats;
+		GetDerivedDataCacheRef().GatherSummaryStats(DDCSummaryStats);
 		
-		for (const FDerivedDataCacheSummaryStat& Stat : DDCSummaryStats)
+		for (const FDerivedDataCacheSummaryStat& Stat : DDCSummaryStats.Stats)
 		{
 			FString FormattedAttrName = "DDC.Summary." + Stat.Key;
 			Attributes.Emplace(FormattedAttrName, Stat.Value);
