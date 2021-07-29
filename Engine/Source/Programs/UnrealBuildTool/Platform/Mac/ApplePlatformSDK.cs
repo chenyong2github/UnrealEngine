@@ -39,45 +39,6 @@ namespace UnrealBuildTool
 			MinVersion = MaxVersion = null;
 		}
 
-		public override string GetInstalledSDKVersion()
-		{
-			// get xcode version on Mac
-			if (RuntimePlatform.IsMac)
-			{
-				string Output = Utils.RunLocalProcessAndReturnStdOut("sh", "-c 'xcodebuild -version'");
-				Match Result = Regex.Match(Output, @"Xcode (\S*)");
-				return Result.Success ? Result.Groups[1].Value : "";
-			}
-
-			if (RuntimePlatform.IsWindows)
-			{
-				// otherwise, get iTunes "Version"
-				string DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "iTunesMobileDeviceDLL", null) as string;
-				if (string.IsNullOrEmpty(DllPath) || !File.Exists(DllPath))
-				{
-					DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "MobileDeviceDLL", null) as string;
-					if (string.IsNullOrEmpty(DllPath) || !File.Exists(DllPath))
-					{
-						// iTunes >= 12.7 doesn't have a key specifying the 32-bit DLL but it does have a ASMapiInterfaceDLL key and MobileDevice.dll is in usually in the same directory
-						DllPath = Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Apple Inc.\\Apple Mobile Device Support\\Shared", "ASMapiInterfaceDLL", null) as string;
-						DllPath = String.IsNullOrEmpty(DllPath) ? null : DllPath.Substring(0, DllPath.LastIndexOf('\\') + 1) + "MobileDevice.dll";
-
-						if (string.IsNullOrEmpty(DllPath) || !File.Exists(DllPath))
-						{
-							DllPath = FindWindowsStoreITunesDLL();
-						}
-					}
-				}
-
-				if (!string.IsNullOrEmpty(DllPath) && File.Exists(DllPath))
-				{
-					return FileVersionInfo.GetVersionInfo(DllPath).FileVersion;
-				}
-			}
-
-			return null;
-		}
-
 		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
 		{
 			// 8 bits per component, with high getting extra from high 32
@@ -99,38 +60,9 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-
-
-
-
-		static string FindWindowsStoreITunesDLL()
+		public override string GetInstalledSDKVersion()
 		{
-			string InstallPath = null;
-
-			string PackagesKeyName = "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\PackageRepository\\Packages";
-
-			RegistryKey PackagesKey = Registry.LocalMachine.OpenSubKey(PackagesKeyName);
-			if (PackagesKey != null)
-			{
-				string[] PackageSubKeyNames = PackagesKey.GetSubKeyNames();
-
-				foreach (string PackageSubKeyName in PackageSubKeyNames)
-				{
-					if (PackageSubKeyName.Contains("AppleInc.iTunes") && (PackageSubKeyName.Contains("_x64") || PackageSubKeyName.Contains("_x86")))
-					{
-						string FullPackageSubKeyName = PackagesKeyName + "\\" + PackageSubKeyName;
-
-						RegistryKey iTunesKey = Registry.LocalMachine.OpenSubKey(FullPackageSubKeyName);
-						if (iTunesKey != null)
-						{
-							InstallPath = (string)iTunesKey.GetValue("Path") + "\\AMDS32\\MobileDevice.dll";
-							break;
-						}
-					}
-				}
-			}
-
-			return InstallPath;
+			return UnrealBuildBase.ApplePlatformSDK.InstalledSDKVersion;
 		}
 	}
 }
