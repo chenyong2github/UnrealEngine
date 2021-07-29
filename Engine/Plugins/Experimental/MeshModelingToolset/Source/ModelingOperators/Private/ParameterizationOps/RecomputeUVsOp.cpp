@@ -3,12 +3,24 @@
 #include "ParameterizationOps/RecomputeUVsOp.h"
 
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshNormals.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Parameterization/MeshLocalParam.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
+#include "Parameterization/PatchBasedMeshUVGenerator.h"
+
+#include "Parameterization/MeshRegionGraph.h"
+#include "DynamicSubmesh3.h"
+#include "Parameterization/MeshDijkstra.h"
+
+#include "Async/ParallelFor.h"
+
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
+
+
+#define LOCTEXT_NAMESPACE "RecomputeUVsOp"
 
 
 void FRecomputeUVsOp::NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale)
@@ -54,7 +66,7 @@ void FRecomputeUVsOp::NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUV
 		for (int elemid : UVElements)
 		{
 			FVector2d UV = FVector2d(Overlay->GetElement(elemid));
-			UV = (UV - ComponentOrigin) * LinearScale + ComponentOrigin;
+			UV = (UV - ComponentOrigin) * LinearScale;
 			Overlay->SetElement(elemid, FVector2f(UV));
 		}
 	}
@@ -63,9 +75,31 @@ void FRecomputeUVsOp::NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUV
 
 void FRecomputeUVsOp::CalculateResult(FProgressCancel* Progress)
 {
+	NewResultInfo = FGeometryResult(EGeometryResultType::InProgress);
+
+	bool bOK = false;
+	if (bMergingOptimization)
+	{
+		bOK = CalculateResult_RegionOptimization(Progress);
+	}
+	else
+	{
+		bOK = CalculateResult_Basic(Progress);
+	}
+
+	NewResultInfo.SetSuccess(bOK, Progress);
+	SetResultInfo(NewResultInfo);
+
+}
+
+
+
+
+bool FRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
+{
 	if (!InputMesh.IsValid())
 	{
-		return;
+		return false;
 	}
 
 	ResultMesh = MakeUnique<FDynamicMesh3>(*InputMesh);
@@ -75,12 +109,12 @@ void FRecomputeUVsOp::CalculateResult(FProgressCancel* Progress)
 	FDynamicMeshUVOverlay* UseOverlay = UVEditor.GetOverlay();
 	if (ensure(UseOverlay != nullptr) == false)
 	{
-		return;
+		return false;
 	}
 
 	if (Progress && Progress->Cancelled())
 	{
-		return;
+		return false;
 	}
 
 	// find group-connected-components
@@ -109,38 +143,69 @@ void FRecomputeUVsOp::CalculateResult(FProgressCancel* Progress)
 
 	if (Progress && Progress->Cancelled())
 	{
-		return;
+		return false;
 	}
 
 	// TODO: the solves here could be done in parallel if we pre-allocated the island element IDs
 
 	int32 NumComponents = ConnectedComponents.Num();
+	TArray<bool> bComponentSolved;
+	bComponentSolved.Init(false, NumComponents);
 	int32 SuccessCount = 0;
 	for (int32 k = 0; k < NumComponents; ++k)
 	{
 		const TArray<int32>& ComponentTris = ConnectedComponents[k].Indices;
 
-		bool bComputedUVs = false;
+		bComponentSolved[k] = false;
 		switch (UnwrapType)
 		{
 		case ERecomputeUVsUnwrapType::ExpMap:
-			bComputedUVs = UVEditor.SetTriangleUVsFromExpMap(ComponentTris);
-			break;
+		{
+			FDynamicMeshUVEditor::FExpMapOptions Options;
+			Options.NormalSmoothingRounds = this->NormalSmoothingRounds;
+			Options.NormalSmoothingAlpha = this->NormalSmoothingAlpha;
+			bComponentSolved[k] = UVEditor.SetTriangleUVsFromExpMap(ComponentTris, Options);
+		}
+		break;
 
 		case ERecomputeUVsUnwrapType::ConformalFreeBoundary:
-			bComputedUVs = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris);
+			bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris);
+			if (bComponentSolved[k])
+			{
+				UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+			}
 			break;
 		}
 
-		if (bComputedUVs)
+		if (bComponentSolved[k])
 		{
 			SuccessCount++;
 		}
 
 		if (Progress && Progress->Cancelled())
 		{
-			return;
+			return false;
 		}
+	}
+
+	if (bAutoRotate)
+	{
+		ParallelFor(NumComponents, [&](int32 k)
+		{
+			if (Progress && Progress->Cancelled())
+			{
+				return;
+			}
+			if (bComponentSolved[k])
+			{
+				const TArray<int32>& ComponentTris = ConnectedComponents[k].Indices;
+				UVEditor.AutoOrientUVArea(ComponentTris);
+			};
+		});
+	}
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
 	}
 
 
@@ -150,9 +215,157 @@ void FRecomputeUVsOp::CalculateResult(FProgressCancel* Progress)
 		NormalizeUVAreas(*ResultMesh, UseOverlay, AreaScaling);
 	}
 
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
 	if (bPackUVs)
 	{
 		UVEditor.QuickPack(PackingTextureResolution, PackingGutterWidth);
 	}
 
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	return true;
 }
+
+
+
+
+
+
+bool FRecomputeUVsOp::CalculateResult_RegionOptimization(FProgressCancel* Progress)
+{
+	if (!InputMesh.IsValid())
+	{
+		return false;
+	}
+
+	ResultMesh = MakeUnique<FDynamicMesh3>(*InputMesh);
+
+	FDynamicMesh3* BaseMesh = ResultMesh.Get();
+	FDynamicMeshUVEditor UVEditor(BaseMesh, UVLayer, true);
+	FDynamicMeshUVOverlay* UseOverlay = UVEditor.GetOverlay();
+	if (ensure(UseOverlay != nullptr) == false)
+	{
+		return false;
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	// initialize UV generation with connected components
+	FMeshConnectedComponents ConnectedComponents(ResultMesh.Get());
+	if (IslandMode == ERecomputeUVsIslandMode::PolyGroups)
+	{
+		if (InputGroups != nullptr)
+		{
+			ConnectedComponents.FindConnectedTriangles([this](int32 CurTri, int32 NbrTri) {
+				return InputGroups->GetTriangleGroup(CurTri) == InputGroups->GetTriangleGroup(NbrTri);
+			});
+		}
+		else
+		{
+			ConnectedComponents.FindConnectedTriangles([this](int32 CurTri, int32 NbrTri) {
+				return ResultMesh->GetTriangleGroup(CurTri) == ResultMesh->GetTriangleGroup(NbrTri);
+			});
+		}
+	}
+	else
+	{
+		ConnectedComponents.FindConnectedTriangles([&](int32 Triangle0, int32 Triangle1) {
+			return UseOverlay->AreTrianglesConnected(Triangle0, Triangle1);
+		});
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+
+	FPatchBasedMeshUVGenerator UVGenerator;
+	UVGenerator.MergingThreshold = this->MergingThreshold;
+	UVGenerator.CompactnessThreshold = this->CompactnessThreshold;
+	UVGenerator.MaxNormalDeviationDeg = this->MaxNormalDeviationDeg;
+	UVGenerator.NormalSmoothingRounds = this->NormalSmoothingRounds;
+	UVGenerator.NormalSmoothingAlpha = this->NormalSmoothingAlpha;
+
+	TArray<TArray<int32>> UVIslandTriangleSets;
+	bool bIslandsOK = UVGenerator.ComputeIslandsByRegionMerging(*BaseMesh, *UseOverlay, ConnectedComponents, UVIslandTriangleSets, Progress);
+
+	if (bIslandsOK == false)
+	{
+		NewResultInfo.AddError(FGeometryError(0, LOCTEXT("IslandMergingFailed", "Failed to merge UV islands")));
+		return false;
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	TArray<bool> bIslandUVsValid;
+	int32 NumSolvesFailed = UVGenerator.ComputeUVsFromTriangleSets(*BaseMesh, *UseOverlay, UVIslandTriangleSets, bIslandUVsValid, Progress);
+	if (NumSolvesFailed > 0)
+	{
+		NewResultInfo.AddWarning(FGeometryWarning(0, LOCTEXT("PartialSolvesFailed", "Failed to compute UVs for some UV islands")));
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	if (bAutoRotate)
+	{
+		ParallelFor(UVIslandTriangleSets.Num(), [&](int32 k)
+		{
+			if (Progress && Progress->Cancelled())
+			{
+				return;
+			}
+			if (bIslandUVsValid[k])
+			{
+				UVEditor.AutoOrientUVArea(UVIslandTriangleSets[k]);
+			}
+		});
+	}
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	if (bNormalizeAreas)
+	{
+		// todo should be a DynamicUVEditor function?
+		NormalizeUVAreas(*ResultMesh, UseOverlay, AreaScaling);
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	if (bPackUVs)
+	{
+		UVEditor.QuickPack(PackingTextureResolution, PackingGutterWidth);
+	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+
+
+#undef LOCTEXT_NAMESPACE
