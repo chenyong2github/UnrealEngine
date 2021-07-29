@@ -1423,6 +1423,7 @@ public:
 	/** Custom visibility query for view */
 	ICustomVisibilityQuery* CustomVisibilityQuery;
 
+	const FTexture2DResource* FFTBloomKernelTexture = nullptr;
 	const FTexture2DResource* FilmGrainTexture = nullptr;
 
 	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> IndirectShadowPrimitives;

@@ -3,7 +3,7 @@
 #include "GPUFastFourierTransform.h"
 #include "SceneUtils.h"
 #include "GlobalShader.h"
-#include "RenderTargetPool.h" // used for on-the-fly acquisition of 
+#include "RenderGraph.h" 
 #include "ShaderCompilerCore.h"
 
 bool ShouldCompileGPUFFT(EShaderPlatform Platform)
@@ -14,16 +14,6 @@ bool ShouldCompileGPUFFT(EShaderPlatform Platform)
 uint32 GPUFFT::MaxScanLineLength() 
 {
 	return 4096;
-}
-
-
- FString GPUFFT::FFT_TypeName(const FFT_XFORM_TYPE& XFormType)
-{
-	if (XFormType == FFT_XFORM_TYPE::FORWARD_HORIZONTAL) return FString(TEXT("Forward Horizontal"));
-	if (XFormType == FFT_XFORM_TYPE::INVERSE_HORIZONTAL) return FString(TEXT("Inverse Horizontal"));
-	if (XFormType == FFT_XFORM_TYPE::FORWARD_VERTICAL)   return FString(TEXT("Forward Vertical"));
-	if (XFormType == FFT_XFORM_TYPE::INVERSE_VERTICAL)   return FString(TEXT("Inverse Vertical"));
-	return FString(TEXT("Error"));
 }
 
 bool GPUFFT::IsHorizontal(const FFT_XFORM_TYPE& XFormType)
@@ -68,9 +58,14 @@ bool GPUFFT::FFTDescription::IsForward() const
 	return GPUFFT::IsForward(XFormType);
 }
 
-FString GPUFFT::FFTDescription::FFT_TypeName() const
+const TCHAR* GPUFFT::FFTDescription::FFT_TypeName() const
 {
-	return GPUFFT::FFT_TypeName(XFormType);
+	if (XFormType == FFT_XFORM_TYPE::FORWARD_HORIZONTAL) return TEXT("Forward Horizontal");
+	if (XFormType == FFT_XFORM_TYPE::INVERSE_HORIZONTAL) return TEXT("Inverse Horizontal");
+	if (XFormType == FFT_XFORM_TYPE::FORWARD_VERTICAL)   return TEXT("Forward Vertical");
+	if (XFormType == FFT_XFORM_TYPE::INVERSE_VERTICAL)   return TEXT("Inverse Vertical");
+	unimplemented();
+	return TEXT("Error");
 }
 
 
@@ -136,1502 +131,824 @@ namespace GPUFFT
 	}
 
 
-	/**
-	* Double buffer to manage RenderTargets during multi-pass FFTs.
-	*/
-	class  FDoubleBufferTargets
-	{
-	public:
-		FDoubleBufferTargets(FSceneRenderTargetItem& InitialSrc, FSceneRenderTargetItem& InitialDst) :
-				SrcIdx(0)
-		{
-			Targets[0] = &InitialSrc;
-			Targets[1] = &InitialDst;
-		}
-
-		void Swap() { SrcIdx = 1 - SrcIdx; }
-
-		// Return the index of the current Src target.  If it is 0 than this is the original src, otherwise
-		// it is the original dst.
-		const uint32&  GetSrcIdx() const { return SrcIdx; }
-
-		// Access to the render targets with a return by reference for clear ownership semantics
-		const FSceneRenderTargetItem& SrcTarget() const { return *Targets[SrcIdx]; }
-		FSceneRenderTargetItem& DstTarget() { return *Targets[1 - SrcIdx]; }
-
-	private:
-		uint32 SrcIdx;
-		FSceneRenderTargetItem* Targets[2];
-	};
-}
-
-
-
-namespace GPUFFT
-{
-
-	class FFFTShader : public FGlobalShader
-	{
-	public:
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return ShouldCompileGPUFFT(Parameters.Platform);
-		}
-
-		FFFTShader() = default;
-		FFFTShader(const CompiledShaderInitializerType& Initializer)
-			: FGlobalShader(Initializer)
-		{}
-	};
-
-	class FReorderFFTPassCS : public FFFTShader
-	{
-		// NB:  the following is actually "public:" 
-		// due to text in the DECLARE_SHADER_TYPE Macro 
-		DECLARE_SHADER_TYPE(FReorderFFTPassCS, Global);
-
-	public:
-
-
-		typedef FFT_XFORM_TYPE   FFT_XFORM_TYPE;
-
-		FReorderFFTPassCS() {};
-
-		FReorderFFTPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FFFTShader(Initializer)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
-
-			FComputeParameterBinder Binder(Initializer.ParameterMap);
-			Binder(SrcROTexture,     TEXT("SrcSRV"))
-				(DstRWTexture,       TEXT("DstUAV"))
-				(TransformType,      TEXT("TransformType"))
-				(SrcRect,            TEXT("SrcRect"))
-				(DstRect,            TEXT("DstRect"))
-				(LogTransformLength, TEXT("LogTwoLength"))
-				(BitCount,           TEXT("BitCount"));
-		}
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName() { return TEXT("ReorderFFTPassCS"); }
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_REORDER_FFT_PASS"), 1);
-		}
-
-		void SetCSParamters(FRHICommandList& RHICmdList,
-			const FFT_XFORM_TYPE& XFormType,
-			const FTextureRHIRef& SrcTexture, const FIntRect& SrcRectValue, const FIntRect& DstRectValue, const uint32 TransformLength, const uint32 PowTwoSubLengthCount, const bool bScrubNaNs)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
-			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-
-			ParamSetter(SrcROTexture, SrcTexture);
-
-			// Translate the transform type. 
-			uint32 TransformTypeValue = GPUFFT::BitEncode(XFormType);
-			if (bScrubNaNs)
-			{
-				TransformTypeValue |= 4;
-			}
-		
-			const uint32 BitCountValue =    BitSize(PowTwoSubLengthCount) - 1;
-			const uint32 LogTwoTransformLength = BitSize(TransformLength) - 1;
-
-			ParamSetter(TransformType, TransformTypeValue)
-				(SrcRect, SrcRectValue)
-				(DstRect, DstRectValue)
-				(LogTransformLength, LogTwoTransformLength)
-				(BitCount, BitCountValue);
-		}
-
-		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
-
-	public:
-
-		LAYOUT_FIELD(FShaderResourceParameter, SrcROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, DstRWTexture);
-		LAYOUT_FIELD(FShaderParameter, TransformType);
-		LAYOUT_FIELD(FShaderParameter, SrcRect);
-		LAYOUT_FIELD(FShaderParameter, DstRect);
-		LAYOUT_FIELD(FShaderParameter, LogTransformLength);
-		LAYOUT_FIELD(FShaderParameter, BitCount);
-	};
-
-
-	class FGroupShardSubFFTPassCS : public FFFTShader
-	{
-		// NB:  the following is actually "public:" 
-		// due to text in the DECLARE_SHADER_TYPE Macro 
-		DECLARE_SHADER_TYPE(FGroupShardSubFFTPassCS, Global);
-
-	public:
-
-
-		typedef FFT_XFORM_TYPE   FFT_XFORM_TYPE;
-
-		FGroupShardSubFFTPassCS() {};
-
-		FGroupShardSubFFTPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FFFTShader(Initializer)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
-
-			FComputeParameterBinder Binder(Initializer.ParameterMap);
-			Binder(SrcROTexture,  TEXT("SrcTexture"))
-				(DstRWTexture,    TEXT("DstTexture"))
-				(TransformType,   TEXT("TransformType"))
-				(SrcRect,         TEXT("SrcWindow"))
-				(TransformLength, TEXT("TransformLength"))
-				(NumSubRegions,   TEXT("NumSubRegions"));
-		}
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName()   { return TEXT("GroupSharedSubComplexFFTCS"); }
-		
-		static uint32 SubPassLength() { return 2048;}
-		static uint32 Radix() { return 2; }
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_SUB_COMPLEX_FFT"), 1);
-			OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), FGroupShardSubFFTPassCS::SubPassLength());
-			OutEnvironment.SetDefine(TEXT("RADIX"), FGroupShardSubFFTPassCS::Radix());
-		
-
-		}
-
-		void SetCSParamters(FRHICommandList& RHICmdList,
-			const FFT_XFORM_TYPE& XFormType,
-			const uint32 TransformLengthValue,
-			const FIntRect& WindowValue,
-			const FTextureRHIRef& SrcTexture,
-			const uint32 SubRegionCount)
-		{
-
-
-			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
-			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-
-			ParamSetter(SrcROTexture, SrcTexture);
-
-			// Translate the transform type. 
-			uint32 TransformTypeValue = GPUFFT::BitEncode(XFormType);
-
-			ParamSetter(TransformType, TransformTypeValue)
-				(SrcRect, WindowValue)
-				(TransformLength, TransformLengthValue)
-				(NumSubRegions, SubRegionCount);
-		}
-
-		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
-
-	public:
-
-		LAYOUT_FIELD(FShaderResourceParameter, SrcROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, DstRWTexture);
-		LAYOUT_FIELD(FShaderParameter, TransformType);
-		LAYOUT_FIELD(FShaderParameter, SrcRect);
-		LAYOUT_FIELD(FShaderParameter, TransformLength);
-		LAYOUT_FIELD(FShaderParameter, NumSubRegions);
-	};
-
-	class FComplexFFTPassCS : public FFFTShader
-	{
-	// NB:  the following is actually "public:" 
-	// due to text in the DECLARE_SHADER_TYPE Macro 
-	DECLARE_SHADER_TYPE(FComplexFFTPassCS, Global);
-	
-	public:
-
-
-		typedef FFT_XFORM_TYPE   FFT_XFORM_TYPE;
-
-		FComplexFFTPassCS() {};
-
-		FComplexFFTPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FFFTShader(Initializer)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
-
-			FComputeParameterBinder Binder(Initializer.ParameterMap);
-			Binder(SrcROTexture, TEXT("SrcSRV"))
-				(DstRWTexture, TEXT("DstUAV"))
-				(TransformType, TEXT("TransformType"))
-				(SrcRect, TEXT("SrcRect"))
-				(DstRect, TEXT("DstRect"))
-				(BitCount, TEXT("BitCount"))
-				(PowTwoLength, TEXT("PowTwoLength"));
-		}
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName()   { return TEXT("ComplexFFTPassCS"); }
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_COMPLEX_FFT_PASS"), 1);
-		}
-
-		void SetCSParamters(FRHICommandList& RHICmdList,
-			const FFT_XFORM_TYPE& XFormType,
-			const FTextureRHIRef& SrcTexture, const FIntRect& SrcRectValue, const FIntRect& DstRectValue, const uint32 TransformLength, const uint32 PassLength, const bool bScrubNaNs)
-		{
-			const uint32 BitCountValue = BitSize(TransformLength);
-			const uint32 PowTwo        = PassLength;  // The pass number should be log(2, PassLength)
-
-			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
-			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-
-			ParamSetter(SrcROTexture, SrcTexture);
-
-			// Translate the transform type. 
-			uint32 TransformTypeValue = GPUFFT::BitEncode(XFormType);
-			if (bScrubNaNs)
-			{
-				TransformTypeValue |= 4;
-			}
-
-			ParamSetter(TransformType, TransformTypeValue)
-				(SrcRect, SrcRectValue)
-				(DstRect, DstRectValue)
-				(BitCount, BitCountValue)
-				(PowTwoLength, PowTwo);
-		}
-
-		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
-
-	public:
-
-		LAYOUT_FIELD(FShaderResourceParameter, SrcROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, DstRWTexture);
-		LAYOUT_FIELD(FShaderParameter, TransformType);
-		LAYOUT_FIELD(FShaderParameter, SrcRect);
-		LAYOUT_FIELD(FShaderParameter, DstRect);
-		LAYOUT_FIELD(FShaderParameter, BitCount);
-		LAYOUT_FIELD(FShaderParameter, PowTwoLength);
-	};
-
-
-	class FPackTwoForOneFFTPassCS : public FFFTShader
-	{
-		// NB:  the following is actually "public:" 
-		// due to text in the DECLARE_SHADER_TYPE Macro 
-		DECLARE_SHADER_TYPE(FPackTwoForOneFFTPassCS, Global);
-
-	public:
-
-
-		typedef FFT_XFORM_TYPE   FFT_XFORM_TYPE;
-
-		FPackTwoForOneFFTPassCS() {};
-
-		FPackTwoForOneFFTPassCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FFFTShader(Initializer)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
-
-			FComputeParameterBinder Binder(Initializer.ParameterMap);
-			Binder(SrcROTexture,  TEXT("SrcSRV"))
-					(DstRWTexture,  TEXT("DstUAV"))
-					(TransformType, TEXT("TransformType"))
-					(DstRect,       TEXT("DstRect"));
-		}
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName() { return TEXT("PackTwoForOneFFTPassCS"); }
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_PACK_TWOFORONE_FFT_PASS"), 1);
-		}
-
-		void SetCSParamters(FRHICommandList& RHICmdList,
-			const FFT_XFORM_TYPE& XFormType,
-			const FTextureRHIRef& SrcTexture, const FIntRect& DstRectValue)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
-			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-
-			ParamSetter(SrcROTexture, SrcTexture);
-
-			// Translate the transform type. 
-			uint32 TransformTypeValue = GPUFFT::BitEncode(XFormType);
-
-			ParamSetter(TransformType, TransformTypeValue)
-				(DstRect, DstRectValue);
-		}
-
-		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
-
-	public:
-
-		LAYOUT_FIELD(FShaderResourceParameter, SrcROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, DstRWTexture);
-		LAYOUT_FIELD(FShaderParameter, TransformType);
-		LAYOUT_FIELD(FShaderParameter, DstRect);
-	};
-
-
-	class FCopyWindowCS : public FFFTShader
-	{
-		// NB:  the following is actually "public:" 
-		// due to text in the DECLARE_SHADER_TYPE Macro 
-		DECLARE_SHADER_TYPE(FCopyWindowCS, Global);
-
-	public:
-
-		FCopyWindowCS() {};
-
-		FCopyWindowCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FFFTShader(Initializer)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
-
-			FComputeParameterBinder Binder(Initializer.ParameterMap);
-			Binder(SrcROTexture, TEXT("SrcSRV"))
-				(DstRWTexture, TEXT("DstUAV"))
-				(SrcRect, TEXT("SrcRect"))
-				(DstRect, TEXT("DstRect"))
-				(PreFilter, TEXT("BrightPixelGain"));
-		}
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName()   { return TEXT("CopyWindowCS"); }
-
-		static uint32 XThreadCount() { return 1; }
-		static uint32 YThreadCount() { return 32; }
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_COPY_WINDOW"), 1);
-			OutEnvironment.SetDefine(TEXT("X_THREAD_COUNT"), XThreadCount());
-			OutEnvironment.SetDefine(TEXT("Y_THREAD_COUNT"), YThreadCount());
-		}
-
-		void SetCSParamters(FRHICommandList& RHICmdList,
-			const FIntRect& SrcRectValue,
-			const FTextureRHIRef& SrcTexture, const FIntRect& DstRectValue,
-			const FPreFilter& PreFilterValue)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
-			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-
-			ParamSetter(SrcROTexture, SrcTexture);
-			ParamSetter(SrcRect, SrcRectValue)
-				(DstRect, DstRectValue)
-				(PreFilter, PreFilterValue);
-		}
-
-		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
-
-	public:
-
-		LAYOUT_FIELD(FShaderResourceParameter, SrcROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, DstRWTexture);
-		LAYOUT_FIELD(FShaderParameter, SrcRect);
-		LAYOUT_FIELD(FShaderParameter, DstRect);
-		LAYOUT_FIELD(FShaderParameter, PreFilter);
-	};
-
-	class FComplexMultiplyImagesCS : public FFFTShader
-	{
-		// NB:  the following is actually "public:" 
-		// due to text in the DECLARE_SHADER_TYPE Macro 
-		DECLARE_SHADER_TYPE(FComplexMultiplyImagesCS, Global);
-
-	public:
-
-		FComplexMultiplyImagesCS() {};
-
-		FComplexMultiplyImagesCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FFFTShader(Initializer)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
-
-			FComputeParameterBinder Binder(Initializer.ParameterMap);
-			Binder(SrcROTexture, TEXT("SrcSRV"))
-				(KnlROTexture, TEXT("KnlSRV"))
-				(DstRWTexture, TEXT("DstUAV"))
-				(SrcRect, TEXT("SrcRect"))
-				(DataLayout, TEXT("DataLayout"));
-		}
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName() { return TEXT("ComplexMultiplyImagesCS"); }
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_COMPLEX_MULTIPLY_IMAGES"), 1);
-		}
-
-		void SetCSParamters(FRHICommandList& RHICmdList,
-			const bool bHorizontalScanlines,
-			const FIntRect& SrcRectValue,
-			const FTextureRHIRef& SrcTexture, 
-			const FTextureRHIRef& KnlTexture)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-			const uint32 DataLayoutValue = (bHorizontalScanlines) ? 1 : 0;
-			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
-			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-
-			ParamSetter(SrcROTexture, SrcTexture)
-				(KnlROTexture, KnlTexture)
-				(SrcRect, SrcRectValue)
-				(DataLayout, DataLayoutValue);
-
-		}
-
-		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
-
-	public:
-
-		LAYOUT_FIELD(FShaderResourceParameter, SrcROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, KnlROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, DstRWTexture);
-		LAYOUT_FIELD(FShaderParameter, SrcRect);
-		LAYOUT_FIELD(FShaderParameter, DataLayout);
-	};
-
-	class FGSComplexTransformBaseCS : public FFFTShader
-	{
-		DECLARE_INLINE_TYPE_LAYOUT(FGSComplexTransformBaseCS, NonVirtual);
-	public:
-		
-
-		typedef FFT_XFORM_TYPE   FFT_XFORM_TYPE;
-
-		FGSComplexTransformBaseCS() {};
-
-		FGSComplexTransformBaseCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FFFTShader(Initializer)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
-		
-			FComputeParameterBinder Binder(Initializer.ParameterMap);
-			Binder(SrcROTexture,  TEXT("SrcTexture"))
-				(DstRWTexture,    TEXT("DstTexture"))
-				(TransformType,   TEXT("TransformType"))
-				(SrcRectMin,      TEXT("SrcRectMin"))
-				(SrcRectMax,      TEXT("SrcRectMax"))
-				(DstExtent,       TEXT("DstExtent"))
-				(DstRect,         TEXT("DstRect"))
-				(BrightPixelGain, TEXT("BrightPixelGain"));
-		}
-
-
-		void SetCSParamters(FRHICommandList& RHICmdList,
-			const FFT_XFORM_TYPE& XFormType,
-			const FTextureRHIRef& SrcTexture, const FIntRect& SrcRect, const FIntRect& DstRectValue,
-			const GPUFFT::FPreFilter& PreFilterParameters = GPUFFT::FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f))
-		{
-			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
-			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-
-			ParamSetter(SrcROTexture, SrcTexture);
-
-			// Translate the transform type. 
-			uint32 TransformTypeValue = GPUFFT::BitEncode(XFormType);
-
-			// We have a valid prefilter if the min is less than the max
-			if (PreFilterParameters.Component(0) < PreFilterParameters.Component(1))
-			{
-				// Encode a bool to turn on the pre-filter.
-				TransformTypeValue |= 4;
-			}
-
-			ParamSetter(TransformType, TransformTypeValue)
-				(SrcRectMin,      SrcRect.Min)
-				(SrcRectMax,      SrcRect.Max)
-				(DstRect,         DstRectValue)
-				(DstExtent,       DstRectValue.Size())
-				(BrightPixelGain, PreFilterParameters);
-		}
-
-		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
-
-	public:
-		LAYOUT_FIELD(FShaderResourceParameter, SrcROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, DstRWTexture);
-		LAYOUT_FIELD(FShaderParameter, TransformType);
-		LAYOUT_FIELD(FShaderParameter, SrcRectMin);
-		LAYOUT_FIELD(FShaderParameter, SrcRectMax);
-		LAYOUT_FIELD(FShaderParameter, DstExtent);
-		LAYOUT_FIELD(FShaderParameter, DstRect);
-		LAYOUT_FIELD(FShaderParameter, BrightPixelGain);
-	};
-
-	template <int PowRadixSignalLength>
-	class TGSComplexTransformCS : public FGSComplexTransformBaseCS
-	{
-		// NB:  the following is actually "public:" 
-		// due to text in the DECLARE_SHADER_TYPE Macro 
-		DECLARE_SHADER_TYPE(TGSComplexTransformCS, Global);
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName()   { return TEXT("GroupSharedComplexFFTCS"); }
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_COMPLEX_FFT"), 1);
-			OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), PowRadixSignalLength);
-			if (PowRadixSignalLength > 8)
-			{
-				OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
-			}
-		}
-
-		/** Default constructor **/
-		TGSComplexTransformCS() {};
-
-	public:
-
-		TGSComplexTransformCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGSComplexTransformBaseCS(Initializer)
-		{}
-	};
-
-
-
-	template < int PowRadixSignalLength>
-	class TGSTwoForOneTransformCS : public FGSComplexTransformBaseCS
-	{
-		// NB:  the following is actually "public:" 
-		// due to text in the DECLARE_SHADER_TYPE Macro 
-		DECLARE_SHADER_TYPE(TGSTwoForOneTransformCS, Global);
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName()   { return TEXT("GroupSharedTwoForOneFFTCS"); }
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_TWO_FOR_ONE_FFT"), 1);
-			OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), PowRadixSignalLength);
-			if (PowRadixSignalLength > 8)
-			{
-				OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
-			}
-		}
-
-		/** Default constructor **/
-		TGSTwoForOneTransformCS() {};
-
-	public:
-
-		TGSTwoForOneTransformCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGSComplexTransformBaseCS(Initializer)
-		{}
-	};
-
-	/**
-	* Base class used for 1d convolution.  
-	*/
-	class FGSConvolutionBaseCS : public FFFTShader
-	{
-		DECLARE_INLINE_TYPE_LAYOUT(FGSConvolutionBaseCS, NonVirtual);
-	public:
-
-		FGSConvolutionBaseCS() {};
-
-		FGSConvolutionBaseCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FFFTShader(Initializer)
-		{
-			using GPUFFTComputeShaderUtils::FComputeParameterBinder;
-
-			FComputeParameterBinder Binder(Initializer.ParameterMap);
-			Binder(SrcROTexture, TEXT("SrcTexture"))
-				(DstRWTexture,   TEXT("DstTexture"))
-				(SrcRectMin,     TEXT("SrcRectMin"))
-				(SrcRectMax,     TEXT("SrcRectMax"))
-				(DstExtent,      TEXT("DstExtent"))
-				(TransformType,  TEXT("TransformType"));
-		}
-
-
-		// @todo - template this on KernelType.  Have KernelType know how to do its own SetShaderValue
-		// Note: We pass in the 2d spectral size (transform size) to help the filter
-		void SetCSParamters(FRHICommandList& RHICmdList, const FFT_XFORM_TYPE& XFormType,
-			const FTextureRHIRef& SrcTexture, const FIntRect& SrcRect, const FIntPoint& DstExtentValue)
-		{
-
-			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-
-			// Translate the transform type. 
-			uint32 TransformTypeValue = GPUFFT::BitEncode(XFormType);
-
-			const bool bUseAlpha = true;
-
-			if (bUseAlpha)
-			{
-				TransformTypeValue |= 8;
-			}
-
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
-
-			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-			ParamSetter(SrcROTexture, SrcTexture); // set the texture
-
-													// set all the other parameters
-			ParamSetter(SrcRectMin, SrcRect.Min)
-				(SrcRectMax,        SrcRect.Max)
-				(DstExtent,         DstExtentValue)
-				(TransformType,     TransformTypeValue);
-		}
-
-		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
-
-	public:
-		LAYOUT_FIELD(FShaderResourceParameter, SrcROTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, DstRWTexture);
-		LAYOUT_FIELD(FShaderParameter, SrcRectMin);
-		LAYOUT_FIELD(FShaderParameter, SrcRectMax);
-		LAYOUT_FIELD(FShaderParameter, DstExtent);
-		LAYOUT_FIELD(FShaderParameter, TransformType);
-	};
-
-	/**
-	* Common class used by the shader permutations of the convolution with texture
-	*/
-	class FGSConvolutionWithTextureKernelBaseCS : public FGSConvolutionBaseCS
-	{
-		DECLARE_INLINE_TYPE_LAYOUT(FGSConvolutionWithTextureKernelBaseCS, NonVirtual);
-	public:
-
-		FGSConvolutionWithTextureKernelBaseCS() {};
-
-		FGSConvolutionWithTextureKernelBaseCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGSConvolutionBaseCS(Initializer)
-		{
-			GPUFFTComputeShaderUtils::FComputeParameterBinder Binder(Initializer.ParameterMap);
-
-			Binder(FilterSrcROTexture, TEXT("FilterTexture"));
-		}
-
-		// Used by IMPLEMENT_SHADER_TYPE2
-		static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/GPUFastFourierTransform.usf"); }
-		static const TCHAR* GetFunctionName()   { return TEXT("GSConvolutionWithTextureCS"); }
-	
-
-
-		// @todo - template this on KernelType.  Have KernelType know how to do its own SetShaderValue
-		// Note: We pass in the 2d spectral size (transform size) to help the filter
-		void SetCSParamters(FRHICommandList& RHICmdList,
-			const FFT_XFORM_TYPE& XFormType,
-			const FTextureRHIRef& FilterSrcTexture,
-			const FTextureRHIRef& SrcTexture, const FIntRect& SrcRect, const FIntPoint& DstExtentValue)
-		{
-
-			FGSConvolutionBaseCS::SetCSParamters(RHICmdList, XFormType, SrcTexture, SrcRect, DstExtentValue);
-
-			// additional source input for sampling the spectral texture
-			FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-			GPUFFTComputeShaderUtils::FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
-			// set the texture
-			ParamSetter(FilterSrcROTexture, FilterSrcTexture);
-
-		}
-
-	public:
-		LAYOUT_FIELD(FShaderResourceParameter, FilterSrcROTexture);
-	};
-
-
-	template <int PowRadixSignalLength>
-	class TGSConvolutionWithTexturerCS : public FGSConvolutionWithTextureKernelBaseCS
-	{
-
-		// NB:  the following is actually "public:" 
-		// due to text in the DECLARE_SHADER_TYPE Macro 
-		DECLARE_SHADER_TYPE(TGSConvolutionWithTexturerCS, Global);
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_CONVOLUTION_WITH_TEXTURE"), 1);
-			OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), PowRadixSignalLength);
-			if (PowRadixSignalLength > 8)
-			{
-				OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
-			}
-		}
-
-		/** Default constructor **/
-		TGSConvolutionWithTexturerCS() {};
-
-	public:
-
-		TGSConvolutionWithTexturerCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGSConvolutionWithTextureKernelBaseCS(Initializer)
-		{}
-	};
-
-
-	void SwapContents(FSceneRenderTargetItem& TmpBuffer, FSceneRenderTargetItem& DstBuffer)
+	void SwapContents(FRDGTextureRef& TmpBuffer, FRDGTextureRef& DstBuffer)
 	{
 		// Swap the pointers
-		FSceneRenderTargetItem TmpDst = DstBuffer;
+		FRDGTextureRef TmpDst = DstBuffer;
 		DstBuffer = TmpBuffer;
 		TmpBuffer = TmpDst;
 	}
-} // end namespace
-
-IMPLEMENT_SHADER_TYPE3(GPUFFT::FReorderFFTPassCS, SF_Compute);
-IMPLEMENT_SHADER_TYPE3(GPUFFT::FGroupShardSubFFTPassCS, SF_Compute);
-IMPLEMENT_SHADER_TYPE3(GPUFFT::FComplexFFTPassCS, SF_Compute);
-IMPLEMENT_SHADER_TYPE3(GPUFFT::FPackTwoForOneFFTPassCS, SF_Compute);
-IMPLEMENT_SHADER_TYPE3(GPUFFT::FCopyWindowCS, SF_Compute);
-IMPLEMENT_SHADER_TYPE3(GPUFFT::FComplexMultiplyImagesCS, SF_Compute);
-
-#define GROUPSHARED_COMPLEX_TRANSFORM(_Length) \
-typedef GPUFFT::TGSComplexTransformCS< _Length> FGSComplexTransformCSLength##_Length; \
-IMPLEMENT_SHADER_TYPE2(FGSComplexTransformCSLength##_Length, SF_Compute);
-
-GROUPSHARED_COMPLEX_TRANSFORM(2)  GROUPSHARED_COMPLEX_TRANSFORM(16)  GROUPSHARED_COMPLEX_TRANSFORM(128)   GROUPSHARED_COMPLEX_TRANSFORM(1024)
-
-GROUPSHARED_COMPLEX_TRANSFORM(4)  GROUPSHARED_COMPLEX_TRANSFORM(32)  GROUPSHARED_COMPLEX_TRANSFORM(256)   GROUPSHARED_COMPLEX_TRANSFORM(2048)  
-
-GROUPSHARED_COMPLEX_TRANSFORM(8)  GROUPSHARED_COMPLEX_TRANSFORM(64)  GROUPSHARED_COMPLEX_TRANSFORM(512)   GROUPSHARED_COMPLEX_TRANSFORM(4096)
-// NB: FFTBLOCK(8192, false/true) won't work because the max number of threads in a group 1024 is less than the requested 8192 / 2 
-
-#undef GROUPSHARED_COMPLEX_TRANSFORM
-
-
-
-#define GROUPSHARED_TWO_FOR_ONE_TRANSFORM(_Length) \
-typedef GPUFFT::TGSTwoForOneTransformCS<_Length> FGSTwoForOneTransformCSLength##_Length; \
-IMPLEMENT_SHADER_TYPE2(FGSTwoForOneTransformCSLength##_Length, SF_Compute);
-
-GROUPSHARED_TWO_FOR_ONE_TRANSFORM(2)  GROUPSHARED_TWO_FOR_ONE_TRANSFORM(16)  GROUPSHARED_TWO_FOR_ONE_TRANSFORM(128)   GROUPSHARED_TWO_FOR_ONE_TRANSFORM(1024)
-
-GROUPSHARED_TWO_FOR_ONE_TRANSFORM(4)  GROUPSHARED_TWO_FOR_ONE_TRANSFORM(32)  GROUPSHARED_TWO_FOR_ONE_TRANSFORM(256)   GROUPSHARED_TWO_FOR_ONE_TRANSFORM(2048)  
- 
-GROUPSHARED_TWO_FOR_ONE_TRANSFORM(8)  GROUPSHARED_TWO_FOR_ONE_TRANSFORM(64)  GROUPSHARED_TWO_FOR_ONE_TRANSFORM(512)   GROUPSHARED_TWO_FOR_ONE_TRANSFORM(4096)  
-
-// NB: FFTBLOCK(8192, false/true) won't work because the max number of threads in a group 1024 is less than the requested 8192 / 2 
-
-#undef GROUPSHARED_TWO_FOR_ONE_TRANSFORM
-
-
-#define GROUPSHARED_CONVOLUTION_WTEXTURE(_Length) \
-typedef GPUFFT::TGSConvolutionWithTexturerCS<_Length >  FGSConvolutionWithTextureCSLength##_Length; \
-IMPLEMENT_SHADER_TYPE2(FGSConvolutionWithTextureCSLength##_Length,  SF_Compute); 
-
-GROUPSHARED_CONVOLUTION_WTEXTURE(2)  GROUPSHARED_CONVOLUTION_WTEXTURE(16)  GROUPSHARED_CONVOLUTION_WTEXTURE(128)   GROUPSHARED_CONVOLUTION_WTEXTURE(1024)
-
-GROUPSHARED_CONVOLUTION_WTEXTURE(4)  GROUPSHARED_CONVOLUTION_WTEXTURE(32)  GROUPSHARED_CONVOLUTION_WTEXTURE(256)   GROUPSHARED_CONVOLUTION_WTEXTURE(2048)
-
-GROUPSHARED_CONVOLUTION_WTEXTURE(8)  GROUPSHARED_CONVOLUTION_WTEXTURE(64)  GROUPSHARED_CONVOLUTION_WTEXTURE(512)   GROUPSHARED_CONVOLUTION_WTEXTURE(4096)
-//GROUPSHARED_CONVOLUTION_WTEXTURE(2, 8192)
-// NB: FFTBLOCK(2, 4196, false/true) won't work because the max number of threads in a group 1024 is less than the requested 4196 / 2 
-
-
-#undef GROUPSHARED_CONVOLUTION_WTEXTURE
-
-
-namespace 
-{
-	using namespace GPUFFT;
-
-	TShaderRef<FCopyWindowCS> GetCopyWindowCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap)
-	{
-		return  ShaderMap.GetShader<FCopyWindowCS>();
-	}
-
-	TShaderRef<FComplexMultiplyImagesCS> GetComplexMultiplyImagesCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap)
-	{
-		return  ShaderMap.GetShader<FComplexMultiplyImagesCS>();
-	}
-
-	TShaderRef<FGroupShardSubFFTPassCS> GetGroupSharedSubFFTPassCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap, const uint32 TransformLength)
-	{
-		return ShaderMap.GetShader<FGroupShardSubFFTPassCS>();
-	}
-
-	TShaderRef<FReorderFFTPassCS> GetReorderFFTPassCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap)
-	{
-		return ShaderMap.GetShader<FReorderFFTPassCS>();
-	}
-	TShaderRef<FPackTwoForOneFFTPassCS> GetPackTwoForOneFFTPassCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap, const uint32 TransformLength)
-	{
-		return  ShaderMap.GetShader<FPackTwoForOneFFTPassCS>();
-	}
-
-	TShaderRef<FComplexFFTPassCS> GetComplexFFTPassCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap, const uint32 TransformLength)
-	{
-		return ShaderMap.GetShader<FComplexFFTPassCS>();
-	}
-
-	// Shader Permutation picker.
-	TShaderRef<FGSComplexTransformBaseCS> GetComplexFFTCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap, const uint32 TransformLength)
-	{
-		TShaderRef<FGSComplexTransformBaseCS> Result;
-
-	#define GET_COMPLEX_SHADER(_LENGTH)  ShaderMap.GetShader<TGSComplexTransformCS<_LENGTH>>();
-
-		switch (TransformLength)
-		{
-		case 2:     Result = GET_COMPLEX_SHADER(2);    break;
-		case 4:     Result = GET_COMPLEX_SHADER(4);    break;
-		case 8:     Result = GET_COMPLEX_SHADER(8);    break;
-		case 16:    Result = GET_COMPLEX_SHADER(16);   break;
-		case 32:    Result = GET_COMPLEX_SHADER(32);   break;
-		case 64:    Result = GET_COMPLEX_SHADER(64);   break;
-		case 128:   Result = GET_COMPLEX_SHADER(128);  break;
-		case 256:   Result = GET_COMPLEX_SHADER(256);  break;
-		case 512:   Result = GET_COMPLEX_SHADER(512);  break;
-		case 1024:  Result = GET_COMPLEX_SHADER(1024); break;
-		case 2048:  Result = GET_COMPLEX_SHADER(2048); break;
-		case 4096:  Result = GET_COMPLEX_SHADER(4096); break;
-		//case 8192:  Result = GET_COMPLEX_SHADER(2, 8192); break;
-
-		default:
-			ensureMsgf(0, TEXT("The FFT block height is not supported"));
-			break;
-		}
-
-	#undef GET_COMPLEX_SHADER
-
-		return Result;
-	}
-
-	// Shader Permutation picker.
-	TShaderRef<FGSComplexTransformBaseCS> GetTwoForOneFFTCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap, const uint32 TransformLength)
-	{
-		TShaderRef<FGSComplexTransformBaseCS> Result;
-
-	#define GET_TWOFORONE_SHADER(_LENGTH)  ShaderMap.GetShader<TGSTwoForOneTransformCS<_LENGTH>>();
-
-		switch (TransformLength)
-		{
-		case 2:     Result = GET_TWOFORONE_SHADER(2);    break;
-		case 4:     Result = GET_TWOFORONE_SHADER(4);    break;
-		case 8:     Result = GET_TWOFORONE_SHADER(8);    break;
-		case 16:    Result = GET_TWOFORONE_SHADER(16);   break;
-		case 32:    Result = GET_TWOFORONE_SHADER(32);   break;
-		case 64:    Result = GET_TWOFORONE_SHADER(64);   break;
-		case 128:   Result = GET_TWOFORONE_SHADER(128);  break;
-		case 256:   Result = GET_TWOFORONE_SHADER(256);  break;
-		case 512:   Result = GET_TWOFORONE_SHADER(512);  break;
-		case 1024:  Result = GET_TWOFORONE_SHADER(1024); break;
-		case 2048:  Result = GET_TWOFORONE_SHADER(2048); break;
-		case 4096:  Result = GET_TWOFORONE_SHADER(4096); break;
-		//case 8192:  Result = GET_TWOFORONE_SHADER(2, 8192); break;
-
-		default:
-			ensureMsgf(0, TEXT("The FFT block height is not supported"));
-			break;
-		}
-
-	#undef GET_TWOFORONE_SHADER
-
-		return Result;
-	}
-
-
-	TShaderRef<FGSConvolutionWithTextureKernelBaseCS> GetConvolutionWithTextureKernelCS(const FGPUFFTShaderContext::ShaderMapType& ShaderMap, const uint32 TransformLength)
-	{
-		TShaderRef<FGSConvolutionWithTextureKernelBaseCS> Result;
-
-		// Get the spectral filter.
-	#define GET_GROUP_SHARED_TEXTURE_FILTER(_LENGTH)  ShaderMap.GetShader< TGSConvolutionWithTexturerCS<_LENGTH> >();
-		switch (TransformLength)
-		{
-		case 2:    Result = GET_GROUP_SHARED_TEXTURE_FILTER(2);    break;
-		case 4:    Result = GET_GROUP_SHARED_TEXTURE_FILTER(4);    break;
-		case 8:    Result = GET_GROUP_SHARED_TEXTURE_FILTER(8);    break;
-		case 16:   Result = GET_GROUP_SHARED_TEXTURE_FILTER(16);   break;
-		case 32:   Result = GET_GROUP_SHARED_TEXTURE_FILTER(32);   break;
-		case 64:   Result = GET_GROUP_SHARED_TEXTURE_FILTER(64);   break;
-		case 128:  Result = GET_GROUP_SHARED_TEXTURE_FILTER(128);  break;
-		case 256:  Result = GET_GROUP_SHARED_TEXTURE_FILTER(256);  break;
-		case 512:  Result = GET_GROUP_SHARED_TEXTURE_FILTER(512);  break;
-		case 1024: Result = GET_GROUP_SHARED_TEXTURE_FILTER(1024); break;
-		case 2048: Result = GET_GROUP_SHARED_TEXTURE_FILTER(2048); break;
-		case 4096: Result = GET_GROUP_SHARED_TEXTURE_FILTER(4096); break;
-		//case 8192: Result = GET_GROUP_SHARED_TEXTURE_FILTER(2, 8192); break;
-		default:
-			ensureMsgf(0, TEXT("The FFT block height is not supported"));
-			break;
-		}
-	#undef GET_GROUP_SHARED_TEXTURE_FILTER
-
-		return Result;
-
-	}
-	/**
-	* Single Pass that Copies a sub-region of a buffer and potentially 
-	* boosts the intensity of select pixels.
-	* 
-	* Assumes the dst buffer is large enough to hold the result.
-	* The Src float4 data is interpreted as a pair of independent complex numbers.
-	* The Knl float4 data is interpreted as a pair of independent complex numbers
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param SrcWindow  - The region of interest to copy.
-	* @param SrcTexture - SRV the source image buffer.
-	* @param DstWindow  - The target location for the images.
-	*
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
-	* @param Prefilter  - Optional filter to boost selected pixels.
-	*/
-	void DispatchCopyWindowCS(FGPUFFTShaderContext& Context,
-		const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
-		const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f))
-	{
-		using namespace GPUFFTComputeShaderUtils;
-		// The size of the dst
-		const FIntPoint DstExtent = DstWindow.Size();
-
-		const uint32 XThreadCount = FCopyWindowCS::XThreadCount();
-		const uint32 YThreadCount = FCopyWindowCS::YThreadCount();
-
-		// Number of thread groups
-		const uint32 XGroups = ( DstExtent.X / XThreadCount ) + ( (DstExtent.X % XThreadCount == 0) ? 0 : 1 ); //-V::547, 1063
-		const uint32 YGroups = ( DstExtent.Y / YThreadCount ) + ( (DstExtent.Y % YThreadCount == 0) ? 0 : 1 ); //-V547
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList = Context.GetRHICmdList();
-
-		SCOPED_DRAW_EVENTF(RHICmdList, CopyWindowCS, TEXT("FFT Multipass: Copy Subwindow"));
-
-		// Get pointer to the shader
-		TShaderRef<FCopyWindowCS> ComputeShader = GetCopyWindowCS(ShaderMap);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-
-		ComputeShader->SetCSParamters(RHICmdList, SrcWindow, SrcTexture,  DstWindow, PreFilter);
-
-		// Dispatch with a single thread-group for each "column" in the result where the transform direction is the "row" direction.
-		RHICmdList.DispatchComputeShader(XGroups, YGroups, 1);
-	}
-
-	/**
-	* 
-	* Single Pass that computes the Frequency Space convolution of two buffers
-	* that have already been transformed into frequency space.
-	*
-	* This is really means the complex product of two buffers divided
-	* by the correct values to "normalize" the effect of the kernel buffer.
-	*
-	* In this case, each float4 is viewed as a pair of complex numbers,
-	* and the product of float4 Src, Knl is computed
-	* as float4(ComplexMult(Src.xy, Knl.xy) / Na, ComplexMult(Src.zw, Knl.zw)/Nb)
-	* where Na and Nb are related to the sums of the weights in the kernel buffer. 
-	*
-	* Assumes the dst buffer is large enough to hold the result.
-	* The Src float4 data is interpreted as a pair of independent complex numbers.
-	* The Knl float4 data is interpreted as a pair of independent complex numbers  
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param bHorizontalFirst - Describes the layout of the transformed data.
-	*                           bHorizontalFirst == true for data that was transformed as 
-	*                           Vertical::ComplexFFT following Horizontal::TwoForOneRealFFT
-	*                           bHorizontalFirst == false for data that was transformed as
-	*                           Horizontal::ComplexFFT following Vertical::TwoForOneRealFFT
-	* @param SrcTexture - SRV the source image buffer.
-	* @param KnlTexture - SRV the kernel image buffer.
-	*
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
-	*
-	*/
-
-	void DispatchComplexMultiplyImagesCS(FGPUFFTShaderContext& Context,
-		const bool bHorizontalScanlines,
-		const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-		const FTextureRHIRef& KnlTexure,
-		FUnorderedAccessViewRHIRef DstUAV)
-	{
-		using namespace GPUFFTComputeShaderUtils;
-		// The size of the dst
-		const FIntPoint DstExtent = SrcWindow.Size();
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList = Context.GetRHICmdList();
-
-		SCOPED_DRAW_EVENTF(RHICmdList, ComplexMultiplyImagesCS, TEXT("FFT Multipass: Convolution in freq-space"));
-
-		// Get pointer to the shader
-		TShaderRef<FComplexMultiplyImagesCS> ComputeShader = GetComplexMultiplyImagesCS(ShaderMap);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-
-		ComputeShader->SetCSParamters(RHICmdList, bHorizontalScanlines, SrcWindow, SrcTexture, KnlTexure);
-		
-		// Align the scanlines in the direction of the first transform.
-		const uint32 NumScanLines = (bHorizontalScanlines)  ? DstExtent.Y : DstExtent.X;
-		const uint32 SignalLength = (!bHorizontalScanlines) ? DstExtent.Y : DstExtent.X;
-	
-		// Dispatch with a single thread-group for each "column."
-		// Configured this way because the entire column will share the same normalization values (retrieved  from the kernel)
-		//RHICmdList.DispatchComputeShader(1, ThreadGroupsPerScanline, NumScanLines);
-		RHICmdList.DispatchComputeShader(1, 1, NumScanLines);
-	}
-
-
-	/**
-	* Single Pass that separates or merges the transform of four real signals from 
-	* viewed as the transform of two complex  signals.  
-	*
-	* Assumes the dst buffer is large enough to hold the result.
-	* The Src float4 data is interprets  as a pair of independent complex numbers.
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param FFTDesc    - Metadata that describes the underlying complex FFT
-	* @param SrcTexture - SRV the source image buffer
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
-	*
-	* The data in the SrcTexture and DstUAV is aligned with (0,0).
-	* FFTDesc.IsHorizontal() indicates the transform direction in the buffer that needs to be spit/merged
-	* FFTDesc.IsForward() indicates spit (true) vs merge (false).
-	*/
-	void DispatchPackTwoForOneFFTPassCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-		const FTextureRHIRef& SrcTexture, FUnorderedAccessViewRHIRef DstUAV)
-	{
-
-		using namespace GPUFFTComputeShaderUtils;
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList = Context.GetRHICmdList();
-	
-		const uint32 TransformLength = FFTDesc.SignalLength;
-		const FString TransformName = FFTDesc.FFT_TypeName();
-
-		// A real signal of length 'TransformLenght' requires  only TransformLength / 2 + 1  complex coefficients, 
-		const uint32 RealTransformLength = ( TransformLength / 2 ) + 1;
-
-		// The splitting into two real signals (isForward) or joinging back into a single signal
-		const uint32 ResultingLength = (FFTDesc.IsForward()) ? 2 * RealTransformLength : TransformLength;
-
-		SCOPED_DRAW_EVENTF(RHICmdList, PackTwoForOneFFTPass, TEXT("FFT Multipass: TwoForOne Combine/split result of %s of size %d"), *TransformName, TransformLength);
-
-		FIntPoint DstExtent = FFTDesc.TransformExtent();
-		if (FFTDesc.IsHorizontal())
-		{
-			DstExtent.X = ResultingLength;
-		}	
-		else
-		{
-			DstExtent.Y = ResultingLength;
-		}
-
-		// Get pointer to the shader
-		TShaderRef<FPackTwoForOneFFTPassCS> ComputeShader = GetPackTwoForOneFFTPassCS(ShaderMap, TransformLength);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-
-		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, FIntRect(FIntPoint(0, 0), DstExtent));
-
-		// Dispatch with a single thread-group for each "column" in the result where the transform direction is the "row" direction.
-		RHICmdList.DispatchComputeShader(1, 1, RealTransformLength);
-	}
-
-	/**
-	* Single Pass of a multi-pass complex FFT.
-	* Assumes the dst buffer is large enough to hold the result.
-	* The Src float4 data is interpt as a pair of independent complex numbers.
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param FFTDesc    - Metadata that describes the underlying complex FFT
-	* @param PassStage  - The Depth at which this FFT pass lives. 
-	* @param SrcTexture - SRV the source image buffer
-	* @param SrcRct     - The region in the Src buffer where the image to transform lives.
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
-	*
-	*/
-	void DispatchComplexFFTPassCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-		const uint32 PassLength,
-		const FTextureRHIRef& SrcTexture, const FIntRect& SrcWindow,
-		FUnorderedAccessViewRHIRef DstUAV,
-		const bool bScrubNaNs = false)
-	{
-		// Using multiple radix two passes.
-		const uint32 Radix = 2;
-		using namespace GPUFFTComputeShaderUtils;
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList = Context.GetRHICmdList();
-
-		const uint32 TransformLength = FFTDesc.SignalLength;
-		const FString TransformName = FFTDesc.FFT_TypeName();
-
-
-		SCOPED_DRAW_EVENTF(RHICmdList, ComplexFFTPass, TEXT("FFT Multipass: Pass %d of Complex %s of size %d"), PassLength, *TransformName, TransformLength);
-		
-		FIntPoint DstExtent = FFTDesc.TransformExtent();
-		
-		// Get a base pointer to the shader
-		TShaderRef<FComplexFFTPassCS> ComputeShader = GetComplexFFTPassCS(ShaderMap, TransformLength);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-
-		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, SrcWindow, FIntRect(FIntPoint(0, 0), DstExtent), TransformLength, PassLength, bScrubNaNs);
-
-		RHICmdList.DispatchComputeShader(1, 1, TransformLength / Radix);
-	}
-
-	/**
-	* Single Pass of a multi-pass complex FFT that just reorders data for
-	* a group shared subpass to consume.
-	*
-	* Assumes the dst buffer is large enough to hold the result.
-	* The Src float4 data is interpt as a pair of independent complex numbers.
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param FFTDesc    - Metadata that describes the underlying complex FFT
-	* @param SrcRct     - The region in the Src buffer where the image to transform lives.
-	* @param SrcTexture - SRV the source image buffer
-	* @param DstRect    - The target Window.
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
-	*
-	*/
-	void DispatchReorderFFTPassCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-		const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
-		const bool bScrubNaNs = false)
-	{
-		// Using multiple radix two passes.
-		const uint32 Radix = 2;
-		using namespace GPUFFTComputeShaderUtils;
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList = Context.GetRHICmdList();
-
-		const uint32 TransformLength = FFTDesc.SignalLength;
-		const FString TransformName = FFTDesc.FFT_TypeName();
-
-		// Breaks the data into the correct number of sub-transforms for the later group-shared pass.
-		const uint32 SubLength = TransformLength / FGroupShardSubFFTPassCS::SubPassLength();
-
-		SCOPED_DRAW_EVENTF(RHICmdList, ReorderFFTPass, TEXT("FFT Multipass: Complex %s Reorder pass of size %d"), *TransformName, TransformLength);
-
-		FIntPoint DstExtent = FFTDesc.TransformExtent();
-
-		// Get a base pointer to the shader
-		TShaderRef<FReorderFFTPassCS> ComputeShader = GetReorderFFTPassCS(ShaderMap);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-
-		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, SrcWindow, DstWindow, TransformLength, SubLength, bScrubNaNs);
-			
-
-		RHICmdList.DispatchComputeShader(1, 1, TransformLength / Radix);
-	}
-
-	/**
-	* A Group Shared Single Pass of a multi-pass complex FFT.
-	* Assumes the dst buffer is large enough to hold the result.
-	* The Src float4 data is interpt as a pair of independent complex numbers.
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param FFTDesc    - Metadata that describes the underlying complex FFT
-	* @param SrcTexture - SRV the source image buffer
-	* @param SrcRct     - The region in the Src buffer where the image to transform lives.
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
-	*
-	*/
-	void DispatchGSSubComplexFFTPassCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-		const FTextureRHIRef& SrcTexture, const FIntRect& SrcWindow,
-		FUnorderedAccessViewRHIRef DstUAV)
-	{
-	
-		using namespace GPUFFTComputeShaderUtils;
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList = Context.GetRHICmdList();
-
-		const uint32 TransformLength = FFTDesc.SignalLength;
-		const FString TransformName = FFTDesc.FFT_TypeName();
-
-		const uint32 NumSubRegions = TransformLength / FGroupShardSubFFTPassCS::SubPassLength();
-
-		
-
-		SCOPED_DRAW_EVENTF(RHICmdList, GSSubComplexFFTPass, TEXT("FFT Multipass: %d GS Subpasses Complex %s of size %d"), 
-			NumSubRegions, *TransformName, FGroupShardSubFFTPassCS::SubPassLength());
-
-		// The window on which a single transform acts.
-		FIntRect SubPassWindow = SrcWindow;
-		if (FFTDesc.IsHorizontal())
-		{
-			SubPassWindow.Max.X = SubPassWindow.Min.X + FGroupShardSubFFTPassCS::SubPassLength();
-		}
-		else
-		{
-			SubPassWindow.Max.Y = SubPassWindow.Min.Y + FGroupShardSubFFTPassCS::SubPassLength();
-		}
-
-
-		FIntPoint DstExtent = FFTDesc.TransformExtent();
-
-		// Get a base pointer to the shader
-		TShaderRef<FGroupShardSubFFTPassCS> ComputeShader = GetGroupSharedSubFFTPassCS(ShaderMap, TransformLength);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-
-		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, TransformLength, SubPassWindow, SrcTexture, NumSubRegions);
-		// The number of signals to transform simultaneously (i.e. number of scan lines)
-
-		const uint32 NumSignals = FFTDesc.IsHorizontal() ? SubPassWindow.Size().Y : SubPassWindow.Size().X;
-
-		RHICmdList.DispatchComputeShader(1, 1, NumSignals);
-	}
-
-
-	/**
-	* Complex 1D FFT of two independent complex signals.  
-	* Assumes the dst buffer is large enough to hold the result.
-	* The Src float4 data is interpt as a pair of independent complex numbers. 
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param FFTDesc    - Metadata that describes the underlying complex FFT
-	* @param SrcTexture - SRV the source image buffer
-	* @param SrcRct     - The region in the Src buffer where the image to transform lives.
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the 1d complex FFT
-	*
-	*/
-	void DispatchGSComplexFFTCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-		const FTextureRHIRef& SrcTexture, const FIntRect& SrcRect, 
-		FUnorderedAccessViewRHIRef DstUAV)
-	{
-		using namespace GPUFFTComputeShaderUtils;
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList                 = Context.GetRHICmdList();
-
-		const uint32 TransformLength = FFTDesc.SignalLength;
-		const FString TransformName  = FFTDesc.FFT_TypeName();
-		const FIntPoint DstExtent    = FFTDesc.TransformExtent();
-
-		SCOPED_DRAW_EVENTF(RHICmdList, ComplexFFTImage, TEXT("FFT: Complex %s of size %d"), *TransformName, TransformLength);
-
-
-		// Get a base pointer to the shader
-		TShaderRef<FGSComplexTransformBaseCS> ComputeShader = GetComplexFFTCS(ShaderMap, TransformLength);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-
-		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, SrcRect, FIntRect(FIntPoint(0, 0), DstExtent));
-
-		// The number of signals to transform simultaneously (i.e. number of scan lines)
-
-		const uint32 NumSignals = FFTDesc.IsHorizontal() ? SrcRect.Size().Y : SrcRect.Size().X;
-
-		RHICmdList.DispatchComputeShader(1, 1, NumSignals);
-	}
-
-	/**
-	* Real 1D FFT of four independent real signals.   
-	* Assumes the dst buffer is large enough to hold the result.
-	* The Src float4 data is interptd as 4 independent real numbers.
-	* The Dst float4 data will be two complex numbers.
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param FFTDesc    - Metadata that describes the underlying complex FFT
-	* @param SrcTexture - SRV the source image buffer
-	* @param SrcRct     - The region in the Src buffer where the image to transform lives.
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the 1d complex FFT
-	* @param DstRect    - Where to write the tranform data in the Dst buffer
-	* @param PreFilter  - Used to boost the intensity of already bright pixels.
-	*
-	*/
-	void DispatchGSTwoForOneFFTCS(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-		const FTextureRHIRef& SrcTexture, const FIntRect& SrcRect,
-		FUnorderedAccessViewRHIRef DstUAV, const FIntRect& DstRect,
-		const FPreFilter& PreFilter)
-	{
-		using namespace GPUFFTComputeShaderUtils;
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList                 = Context.GetRHICmdList();
-
-		const uint32 TransformLength = FFTDesc.SignalLength;
-		const FString TransformName  = FFTDesc.FFT_TypeName();
-	
-
-
-		SCOPED_DRAW_EVENTF(RHICmdList, FRCPassFFT, TEXT("FFT: Two-For-One %s of size %d of buffer %d x %d"), *TransformName, TransformLength, SrcRect.Size().X, SrcRect.Size().Y);
-
-		// Get a base pointer to the shader
-		TShaderRef<FGSComplexTransformBaseCS> ComputeShader = GetTwoForOneFFTCS(ShaderMap, TransformLength);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, SrcRect, DstRect, PreFilter);
-
-
-		// The number of signals to transform simultaneously (i.e. number of scan lines)
-		const uint32 NumScanLines = (FFTDesc.IsHorizontal()) ? SrcRect.Size().Y : SrcRect.Size().X;
-
-		RHICmdList.DispatchComputeShader(1, 1, NumScanLines);
-
-	}
-
-	/**
-	* Complex 1D FFT followed by multiplication in with kernel and inverse transform.
-	*
-	* @param Context    - container for RHI and ShanderMap
-	* @param FFTDesc    - Metadata that describes the underlying complex FFT
-	* @param PreTransformedKernel - Pre-transformed kernel used in the convolution.
-	* @param SrcTexture - SRV the source image buffer
-	* @param SrcRct     - The region in the Src buffer where the image to transform lives.
-	* @param DstUAV     - UAV, the destination buffer that will hold the result of the 1d complex FFT
-	* @param DstRect    - Where to write the tranform data in the Dst buffer
-	*
-	*/
-	void DispatchGSConvolutionWithTextureCS(FGPUFFTShaderContext& Context,
-		const FFTDescription& FFTDesc,
-		const FTextureRHIRef& PreTransformedKernel,
-		const FTextureRHIRef& SrcTexture, 
-		const FIntRect& SrcRect,
-		FUnorderedAccessViewRHIRef DstUAV)
-	{
-		using GPUFFTComputeShaderUtils::FScopedUAVBind;
-
-		const FGPUFFTShaderContext::ShaderMapType& ShaderMap = Context.GetShaderMap();
-		FRHICommandList& RHICmdList                 = Context.GetRHICmdList();
-
-		// Transform particulars
-
-		const uint32 SignalLength   = FFTDesc.SignalLength;
-		const FString XFormDirName  = FFTDesc.FFT_TypeName();
-		const bool bIsHornizontal   = FFTDesc.IsHorizontal();
-
-		const FIntPoint& SrcRectSize = SrcRect.Size();
-		// The number of signals to transform simultaneously (i.e. number of scan lines)
-		// NB: This may be different from the FFTDesc.NumScanlines.
-		const uint32 NumSignals = (bIsHornizontal) ? SrcRectSize.Y : SrcRectSize.X;
-
-		
-		SCOPED_DRAW_EVENTF(RHICmdList, FRCPassFFTBloom, TEXT("FFT: Apply %s Transform, Multiply Texture, and InverseTransform size %d of buffer %d x %d"), *XFormDirName, SignalLength, SrcRectSize.X, SrcRectSize.Y);
-
-		// Get a base pointer to the shader
-		TShaderRef<FGSConvolutionWithTextureKernelBaseCS> ComputeShader = GetConvolutionWithTextureKernelCS(ShaderMap, SignalLength);
-		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-		
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
-
-		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, PreTransformedKernel, SrcTexture, SrcRect, SrcRect.Size());
-
-		RHICmdList.DispatchComputeShader(1, 1, NumSignals);
-	}
-} // end anonymous namespace 
-
-
-void GPUFFT::CopyImage2D(FGPUFFTShaderContext& Context,
-	const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-	const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
-	const FPreFilter& PreFilter)
-{
-	DispatchCopyWindowCS(Context, SrcWindow, SrcTexture, DstWindow, DstUAV, PreFilter);
 }
 
-void GPUFFT::ComplexFFTImage1D::Requirements(const FFTDescription& FFTDesc, FIntPoint& MinBufferSize, bool& bUseMultipass)
+namespace
 {
-	MinBufferSize = FFTDesc.TransformExtent();
-	bUseMultipass = !FitsInGroupSharedMemory(FFTDesc);
+
+class FPowRadixSignalLengthDim : SHADER_PERMUTATION_SPARSE_INT("SCAN_LINE_LENGTH", 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096);
+
+class FFFTShader : public FGlobalShader
+{
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileGPUFFT(Parameters.Platform);
+	}
+
+	FFFTShader() = default;
+	FFFTShader(const CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{}
+};
+
+class FReorderFFTPassCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FReorderFFTPassCS);
+	SHADER_USE_PARAMETER_STRUCT(FReorderFFTPassCS, FFFTShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntRect, SrcRect)
+		SHADER_PARAMETER(FIntRect, DstRect)
+		SHADER_PARAMETER(int32, TransformType)
+		SHADER_PARAMETER(int32, LogTwoLength)
+		SHADER_PARAMETER(int32, BitCount)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcSRV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstUAV)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_REORDER_FFT_PASS"), 1);
+	}
+};
+
+
+class FGroupShardSubFFTPassCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FGroupShardSubFFTPassCS);
+	SHADER_USE_PARAMETER_STRUCT(FGroupShardSubFFTPassCS, FFFTShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntRect, SrcWindow)
+		SHADER_PARAMETER(int32, TransformType)
+		SHADER_PARAMETER(int32, TransformLength)
+		SHADER_PARAMETER(int32, NumSubRegions)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static uint32 SubPassLength() { return 2048; }
+	static uint32 Radix() { return 2; }
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_SUB_COMPLEX_FFT"), 1);
+		OutEnvironment.SetDefine(TEXT("SCAN_LINE_LENGTH"), FGroupShardSubFFTPassCS::SubPassLength());
+		OutEnvironment.SetDefine(TEXT("RADIX"), FGroupShardSubFFTPassCS::Radix());
+	}
+};
+
+class FComplexFFTPassCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FComplexFFTPassCS);
+	SHADER_USE_PARAMETER_STRUCT(FComplexFFTPassCS, FFFTShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntRect, SrcRect)
+		SHADER_PARAMETER(FIntRect, DstRect)
+		SHADER_PARAMETER(int32, TransformType)
+		SHADER_PARAMETER(int32, PowTwoLength)
+		SHADER_PARAMETER(int32, BitCount)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcSRV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstUAV)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_COMPLEX_FFT_PASS"), 1);
+	}
+};
+
+
+class FPackTwoForOneFFTPassCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FPackTwoForOneFFTPassCS);
+	SHADER_USE_PARAMETER_STRUCT(FPackTwoForOneFFTPassCS, FFFTShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntRect, DstRect)
+		SHADER_PARAMETER(int32, TransformType)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcSRV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstUAV)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_PACK_TWOFORONE_FFT_PASS"), 1);
+	}
+};
+
+class FCopyWindowCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyWindowCS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyWindowCS, FFFTShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntRect, SrcRect)
+		SHADER_PARAMETER(FIntRect, DstRect)
+		SHADER_PARAMETER(FVector3f, BrightPixelGain)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcSRV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstUAV)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static FIntPoint ThreadCount() { return FIntPoint(1, 32); }
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_COPY_WINDOW"), 1);
+		OutEnvironment.SetDefine(TEXT("X_THREAD_COUNT"), ThreadCount().X);
+		OutEnvironment.SetDefine(TEXT("Y_THREAD_COUNT"), ThreadCount().Y);
+	}
+};
+
+class FComplexMultiplyImagesCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FComplexMultiplyImagesCS);
+	SHADER_USE_PARAMETER_STRUCT(FComplexMultiplyImagesCS, FFFTShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntRect, SrcRect)
+		SHADER_PARAMETER(int32, DataLayout)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcSRV)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, KnlSRV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstUAV)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_COMPLEX_MULTIPLY_IMAGES"), 1);
+	}
+};
+
+class FGSComplexTransformCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FGSComplexTransformCS);
+	SHADER_USE_PARAMETER_STRUCT(FGSComplexTransformCS, FFFTShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<FPowRadixSignalLengthDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, SrcRectMin)
+		SHADER_PARAMETER(FIntPoint, SrcRectMax)
+		SHADER_PARAMETER(FIntPoint, DstExtent)
+		SHADER_PARAMETER(FIntRect, DstRect)
+		SHADER_PARAMETER(FVector3f, BrightPixelGain)
+		SHADER_PARAMETER(int32, TransformType)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		int32 PowRadixSignalLength = PermutationVector.Get<FPowRadixSignalLengthDim>();
+
+		FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_COMPLEX_FFT"), 1);
+		if (PowRadixSignalLength > 8)
+		{
+			OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
+		}
+	}
+};
+
+class FGSTwoForOneTransformCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FGSTwoForOneTransformCS);
+	SHADER_USE_PARAMETER_STRUCT(FGSTwoForOneTransformCS, FFFTShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<FPowRadixSignalLengthDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, SrcRectMin)
+		SHADER_PARAMETER(FIntPoint, SrcRectMax)
+		SHADER_PARAMETER(FIntPoint, DstExtent)
+		SHADER_PARAMETER(FIntRect, DstRect)
+		SHADER_PARAMETER(FVector3f, BrightPixelGain)
+		SHADER_PARAMETER(int32, TransformType)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		int32 PowRadixSignalLength = PermutationVector.Get<FPowRadixSignalLengthDim>();
+
+		FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_TWO_FOR_ONE_FFT"), 1);
+		if (PowRadixSignalLength > 8)
+		{
+			OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
+		}
+	}
+};
+
+class FGSConvolutionWithTextureCS : public FFFTShader
+{
+	DECLARE_GLOBAL_SHADER(FGSConvolutionWithTextureCS);
+	SHADER_USE_PARAMETER_STRUCT(FGSConvolutionWithTextureCS, FFFTShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<FPowRadixSignalLengthDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, SrcRectMin)
+		SHADER_PARAMETER(FIntPoint, SrcRectMax)
+		SHADER_PARAMETER(FIntPoint, DstExtent)
+		SHADER_PARAMETER(int32, TransformType)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilterTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		int32 PowRadixSignalLength = PermutationVector.Get<FPowRadixSignalLengthDim>();
+
+		FFFTShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("INCLUDE_GROUP_SHARED_CONVOLUTION_WITH_TEXTURE"), 1);
+		if (PowRadixSignalLength > 8)
+		{
+			OutEnvironment.SetDefine(TEXT("MIXED_RADIX"), 1);
+		}
+	}
+};
+
+
+IMPLEMENT_GLOBAL_SHADER(FReorderFFTPassCS,           "/Engine/Private/GPUFastFourierTransform.usf", "ReorderFFTPassCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FGroupShardSubFFTPassCS,     "/Engine/Private/GPUFastFourierTransform.usf", "GroupSharedSubComplexFFTCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FComplexFFTPassCS,           "/Engine/Private/GPUFastFourierTransform.usf", "ComplexFFTPassCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FPackTwoForOneFFTPassCS,     "/Engine/Private/GPUFastFourierTransform.usf", "PackTwoForOneFFTPassCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCopyWindowCS,               "/Engine/Private/GPUFastFourierTransform.usf", "CopyWindowCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FComplexMultiplyImagesCS,    "/Engine/Private/GPUFastFourierTransform.usf", "ComplexMultiplyImagesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FGSComplexTransformCS,       "/Engine/Private/GPUFastFourierTransform.usf", "GroupSharedComplexFFTCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FGSTwoForOneTransformCS,     "/Engine/Private/GPUFastFourierTransform.usf", "GroupSharedTwoForOneFFTCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FGSConvolutionWithTextureCS, "/Engine/Private/GPUFastFourierTransform.usf", "GSConvolutionWithTextureCS", SF_Compute);
+
+
+/**
+ * Single Pass of a multi-pass complex FFT that just reorders data for
+ * a group shared subpass to consume.
+ *
+ * Assumes the dst buffer is large enough to hold the result.
+ * The Src float4 data is interpt as a pair of independent complex numbers.
+ *
+ * @param FFTDesc    - Metadata that describes the underlying complex FFT
+ * @param SrcRct     - The region in the Src buffer where the image to transform lives.
+ * @param SrcTexture - SRV the source image buffer
+ * @param DstRect    - The target Window.
+ * @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
+ *
+ */
+void DispatchReorderFFTPassCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const GPUFFT::FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef DstTexture, const FIntRect& DstWindow,
+	const bool bScrubNaNs = false)
+{
+	// Using multiple radix two passes.
+	const uint32 Radix = 2;
+
+	uint32 TransformLength = FFTDesc.SignalLength;
+
+	// Breaks the data into the correct number of sub-transforms for the later group-shared pass.
+	uint32 PowTwoSubLengthCount = TransformLength / FGroupShardSubFFTPassCS::SubPassLength();
+
+	FReorderFFTPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReorderFFTPassCS::FParameters>();
+	PassParameters->SrcRect = SrcWindow;
+	PassParameters->DstRect = DstWindow;
+	{
+		PassParameters->TransformType = GPUFFT::BitEncode(FFTDesc.XFormType);
+		if (bScrubNaNs)
+		{
+			PassParameters->TransformType |= 4;
+		}
+	}
+	PassParameters->LogTwoLength = GPUFFT::BitSize(FFTDesc.SignalLength) - 1;
+	PassParameters->BitCount = GPUFFT::BitSize(PowTwoSubLengthCount) - 1;
+
+	PassParameters->SrcSRV = SrcTexture;
+	PassParameters->DstUAV = GraphBuilder.CreateUAV(DstTexture);
+
+	TShaderMapRef<FReorderFFTPassCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT Multipass: Complex %s Reorder pass of size %d", FFTDesc.FFT_TypeName(), TransformLength),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, TransformLength / Radix));
 }
 
 
-bool GPUFFT::ComplexFFTImage1D::GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-	const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,  FUnorderedAccessViewRHIRef DstUAV)
+/**
+* A Group Shared Single Pass of a multi-pass complex FFT.
+* Assumes the dst buffer is large enough to hold the result.
+* The Src float4 data is interpt as a pair of independent complex numbers.
+*
+* @param FFTDesc    - Metadata that describes the underlying complex FFT
+* @param SrcTexture - SRV the source image buffer
+* @param SrcRct     - The region in the Src buffer where the image to transform lives.
+* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
+*
+*/
+void DispatchGSSubComplexFFTPassCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const GPUFFT::FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef DstTexture)
 {
-	bool SuccessValue = true;
+	const uint32 TransformLength = FFTDesc.SignalLength;
 
-	check(FMath::IsPowerOfTwo(FFTDesc.SignalLength));
+	const uint32 NumSubRegions = TransformLength / FGroupShardSubFFTPassCS::SubPassLength();
 
-	if (FitsInGroupSharedMemory(FFTDesc))
+	// The window on which a single transform acts.
+	FIntRect SubPassWindow = SrcWindow;
+	if (FFTDesc.IsHorizontal())
 	{
-		DispatchGSComplexFFTCS(Context, FFTDesc, SrcTexture, SrcWindow, DstUAV);
+		SubPassWindow.Max.X = SubPassWindow.Min.X + FGroupShardSubFFTPassCS::SubPassLength();
 	}
 	else
 	{
-		SuccessValue = false;
-		// @todo
-		ensureMsgf(0, TEXT("The FFT size is too large for group shared memory"));
-		// Do forward expensive transform
+		SubPassWindow.Max.Y = SubPassWindow.Min.Y + FGroupShardSubFFTPassCS::SubPassLength();
 	}
 
-	return SuccessValue;
+	const uint32 NumSignals = FFTDesc.IsHorizontal() ? SubPassWindow.Size().Y : SubPassWindow.Size().X;
+
+	FGroupShardSubFFTPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGroupShardSubFFTPassCS::FParameters>();
+	PassParameters->SrcWindow = SrcWindow;
+	PassParameters->TransformType = GPUFFT::BitEncode(FFTDesc.XFormType);
+	PassParameters->TransformLength = TransformLength;
+	PassParameters->NumSubRegions = NumSubRegions;
+
+	PassParameters->SrcTexture = SrcTexture;
+	PassParameters->DstTexture = GraphBuilder.CreateUAV(DstTexture);
+
+	TShaderMapRef<FGroupShardSubFFTPassCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT Multipass: %d GS Subpasses Complex %s of size %d",
+			NumSubRegions, FFTDesc.FFT_TypeName(), FGroupShardSubFFTPassCS::SubPassLength()),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, NumSignals));
+}
+
+/**
+* Single Pass of a multi-pass complex FFT.
+* Assumes the dst buffer is large enough to hold the result.
+* The Src float4 data is interpt as a pair of independent complex numbers.
+*
+* @param FFTDesc    - Metadata that describes the underlying complex FFT
+* @param PassStage  - The Depth at which this FFT pass lives. 
+* @param SrcTexture - SRV the source image buffer
+* @param SrcRct     - The region in the Src buffer where the image to transform lives.
+* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
+*
+*/
+void DispatchComplexFFTPassCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const GPUFFT::FFTDescription& FFTDesc,
+	const uint32 PassLength,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef DstTexture,
+	const bool bScrubNaNs = false)
+{
+	// Using multiple radix two passes.
+	const uint32 Radix = 2;
+
+	const uint32 TransformLength = FFTDesc.SignalLength;
+
+	// Translate the transform type. 
+	uint32 TransformTypeValue = GPUFFT::BitEncode(FFTDesc.XFormType);
+	if (bScrubNaNs)
+	{
+		TransformTypeValue |= 4;
+	}
+
+	FComplexFFTPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComplexFFTPassCS::FParameters>();
+	PassParameters->SrcRect = SrcWindow;
+	PassParameters->DstRect = FIntRect(FIntPoint(0, 0), FFTDesc.TransformExtent());
+	PassParameters->TransformType = TransformTypeValue;
+	PassParameters->PowTwoLength = PassLength;
+	PassParameters->BitCount = GPUFFT::BitSize(TransformLength);
+
+	PassParameters->SrcSRV = SrcTexture;
+	PassParameters->DstUAV = GraphBuilder.CreateUAV(DstTexture);
+
+	TShaderMapRef<FComplexFFTPassCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT Multipass: Pass %d of Complex %s of size %d", PassLength, FFTDesc.FFT_TypeName(), TransformLength),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, TransformLength / Radix));
+}
+
+/**
+* Single Pass that separates or merges the transform of four real signals from 
+* viewed as the transform of two complex  signals.  
+*
+* Assumes the dst buffer is large enough to hold the result.
+* The Src float4 data is interprets  as a pair of independent complex numbers.
+*
+* @param FFTDesc    - Metadata that describes the underlying complex FFT
+* @param SrcTexture - SRV the source image buffer
+* @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
+*
+* The data in the SrcTexture and DstUAV is aligned with (0,0).
+* FFTDesc.IsHorizontal() indicates the transform direction in the buffer that needs to be spit/merged
+* FFTDesc.IsForward() indicates spit (true) vs merge (false).
+*/
+void DispatchPackTwoForOneFFTPassCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const GPUFFT::FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture,
+	FRDGTextureRef DstTexture)
+{
+	const uint32 TransformLength = FFTDesc.SignalLength;
+
+	// A real signal of length 'TransformLenght' requires  only TransformLength / 2 + 1  complex coefficients, 
+	const uint32 RealTransformLength = ( TransformLength / 2 ) + 1;
+
+	// The splitting into two real signals (isForward) or joinging back into a single signal
+	const uint32 ResultingLength = (FFTDesc.IsForward()) ? 2 * RealTransformLength : TransformLength;
+
+	FIntPoint DstExtent = FFTDesc.TransformExtent();
+	if (FFTDesc.IsHorizontal())
+	{
+		DstExtent.X = ResultingLength;
+	}	
+	else
+	{
+		DstExtent.Y = ResultingLength;
+	}
+
+	FPackTwoForOneFFTPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPackTwoForOneFFTPassCS::FParameters>();
+	PassParameters->DstRect = FIntRect(FIntPoint(0, 0), DstExtent);
+	PassParameters->TransformType = GPUFFT::BitEncode(FFTDesc.XFormType);
+
+	PassParameters->SrcSRV = SrcTexture;
+	PassParameters->DstUAV = GraphBuilder.CreateUAV(DstTexture);
+
+	TShaderMapRef<FPackTwoForOneFFTPassCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT Multipass: TwoForOne Combine/split result of %s of size %d", FFTDesc.FFT_TypeName(), TransformLength),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, RealTransformLength));
+}
+
+/**
+ * Single Pass that Copies a sub-region of a buffer and potentially 
+ * boosts the intensity of select pixels.
+ * 
+ * Assumes the dst buffer is large enough to hold the result.
+ * The Src float4 data is interpreted as a pair of independent complex numbers.
+ * The Knl float4 data is interpreted as a pair of independent complex numbers
+ *
+ * @param SrcWindow  - The region of interest to copy.
+ * @param SrcTexture - SRV the source image buffer.
+ * @param DstWindow  - The target location for the images.
+ *
+ * @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
+ * @param Prefilter  - Optional filter to boost selected pixels.
+ */
+void DispatchCopyWindowCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef DstTexture, const FIntRect& DstWindow,
+	const GPUFFT::FPreFilter& PreFilter = GPUFFT::FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f))
+{
+	FCopyWindowCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyWindowCS::FParameters>();
+	PassParameters->SrcRect = SrcWindow;
+	PassParameters->DstRect = DstWindow;
+	PassParameters->BrightPixelGain = PreFilter;
+
+	PassParameters->SrcSRV = SrcTexture;
+	PassParameters->DstUAV = GraphBuilder.CreateUAV(DstTexture);
+
+	TShaderMapRef<FCopyWindowCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT Multipass: Copy Subwindow"),
+		ComputeShader,
+		PassParameters,
+		FComputeShaderUtils::GetGroupCount(DstWindow.Size(), FCopyWindowCS::ThreadCount()));
+}
+
+/**
+ * 
+ * Single Pass that computes the Frequency Space convolution of two buffers
+ * that have already been transformed into frequency space.
+ *
+ * This is really means the complex product of two buffers divided
+ * by the correct values to "normalize" the effect of the kernel buffer.
+ *
+ * In this case, each float4 is viewed as a pair of complex numbers,
+ * and the product of float4 Src, Knl is computed
+ * as float4(ComplexMult(Src.xy, Knl.xy) / Na, ComplexMult(Src.zw, Knl.zw)/Nb)
+ * where Na and Nb are related to the sums of the weights in the kernel buffer. 
+ *
+ * Assumes the dst buffer is large enough to hold the result.
+ * The Src float4 data is interpreted as a pair of independent complex numbers.
+ * The Knl float4 data is interpreted as a pair of independent complex numbers  
+ *
+ * @param bHorizontalFirst - Describes the layout of the transformed data.
+ *                           bHorizontalFirst == true for data that was transformed as 
+ *                           Vertical::ComplexFFT following Horizontal::TwoForOneRealFFT
+ *                           bHorizontalFirst == false for data that was transformed as
+ *                           Horizontal::ComplexFFT following Vertical::TwoForOneRealFFT
+ * @param SrcTexture - SRV the source image buffer.
+ * @param KnlTexture - SRV the kernel image buffer.
+ *
+ * @param DstUAV     - UAV, the destination buffer that will hold the result of the single pass
+ *
+ */
+void DispatchComplexMultiplyImagesCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const bool bHorizontalScanlines,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef KnlTexure,
+	FRDGTextureRef DstTexture)
+{
+	// The size of the dst
+	const FIntPoint DstExtent = SrcWindow.Size();
+
+	// Align the scanlines in the direction of the first transform.
+	const uint32 NumScanLines = (bHorizontalScanlines)  ? DstExtent.Y : DstExtent.X;
+	const uint32 SignalLength = (!bHorizontalScanlines) ? DstExtent.Y : DstExtent.X;
+	
+	FComplexMultiplyImagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComplexMultiplyImagesCS::FParameters>();
+	PassParameters->SrcRect = SrcWindow;
+	PassParameters->DataLayout = (bHorizontalScanlines) ? 1 : 0;
+
+	PassParameters->SrcSRV = SrcTexture;
+	PassParameters->KnlSRV = KnlTexure;
+	PassParameters->DstUAV = GraphBuilder.CreateUAV(DstTexture);
+
+	TShaderMapRef<FComplexMultiplyImagesCS> ComputeShader(ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT Multipass: Convolution in freq-space"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, NumScanLines));
+}
+
+/**
+ * Complex 1D FFT of two independent complex signals.
+ * Assumes the dst buffer is large enough to hold the result.
+ * The Src float4 data is interpt as a pair of independent complex numbers.
+ *
+ * @param Context    - container for RHI and ShanderMap
+ * @param FFTDesc    - Metadata that describes the underlying complex FFT
+ * @param SrcTexture - SRV the source image buffer
+ * @param SrcRct     - The region in the Src buffer where the image to transform lives.
+ * @param DstUAV     - UAV, the destination buffer that will hold the result of the 1d complex FFT
+ *
+ */
+void DispatchGSComplexFFTCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const GPUFFT::FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcRect,
+	FRDGTextureRef DstTexture)
+{
+	const uint32 TransformLength = FFTDesc.SignalLength;
+	const FIntPoint DstExtent    = FFTDesc.TransformExtent();
+
+	// The number of signals to transform simultaneously (i.e. number of scan lines)
+	const uint32 NumSignals = FFTDesc.IsHorizontal() ? SrcRect.Size().Y : SrcRect.Size().X;
+
+	FGSComplexTransformCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGSComplexTransformCS::FParameters>();
+	PassParameters->SrcRectMin = SrcRect.Min;
+	PassParameters->SrcRectMax = SrcRect.Max;
+	PassParameters->DstExtent = DstExtent;
+	PassParameters->DstRect = FIntRect(FIntPoint(0, 0), DstExtent);
+	PassParameters->BrightPixelGain = GPUFFT::FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f);
+	{
+		// Translate the transform type. 
+		PassParameters->TransformType = GPUFFT::BitEncode(FFTDesc.XFormType);
+
+		// We have a valid prefilter if the min is less than the max
+		if (PassParameters->BrightPixelGain.Component(0) < PassParameters->BrightPixelGain.Component(1))
+		{
+			// Encode a bool to turn on the pre-filter.
+			PassParameters->TransformType |= 4;
+		}
+	}
+
+	PassParameters->SrcTexture = SrcTexture;
+	PassParameters->DstTexture = GraphBuilder.CreateUAV(DstTexture);
+
+	FGSComplexTransformCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FPowRadixSignalLengthDim>(TransformLength);
+
+	TShaderMapRef<FGSComplexTransformCS> ComputeShader(ShaderMap, PermutationVector);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT: Complex %s of size %d", FFTDesc.FFT_TypeName(), TransformLength),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, NumSignals));
 }
 
 
-bool GPUFFT::ComplexFFTImage1D::MultiPass(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-	const FIntRect& Window, const FTextureRHIRef& SrcTexture,  FSceneRenderTargetItem& DstBuffer,
-	FSceneRenderTargetItem& TmpBuffer,
+/**
+* Real 1D FFT of four independent real signals.   
+* Assumes the dst buffer is large enough to hold the result.
+* The Src float4 data is interptd as 4 independent real numbers.
+* The Dst float4 data will be two complex numbers.
+*
+* @param Context    - container for RHI and ShanderMap
+* @param FFTDesc    - Metadata that describes the underlying complex FFT
+* @param SrcTexture - SRV the source image buffer
+* @param SrcRct     - The region in the Src buffer where the image to transform lives.
+* @param DstUAV     - UAV, the destination buffer that will hold the result of the 1d complex FFT
+* @param DstRect    - Where to write the tranform data in the Dst buffer
+* @param PreFilter  - Used to boost the intensity of already bright pixels.
+*
+*/
+void DispatchGSTwoForOneFFTCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const GPUFFT::FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcRect,
+	FRDGTextureRef DstTexture, const FIntRect& DstRect,
+	const GPUFFT::FPreFilter& PreFilter)
+{
+	const uint32 TransformLength = FFTDesc.SignalLength;
+	
+	// The number of signals to transform simultaneously (i.e. number of scan lines)
+	const uint32 NumScanLines = (FFTDesc.IsHorizontal()) ? SrcRect.Size().Y : SrcRect.Size().X;
+
+	FGSTwoForOneTransformCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGSTwoForOneTransformCS::FParameters>();
+	PassParameters->SrcRectMin = SrcRect.Min;
+	PassParameters->SrcRectMax = SrcRect.Max;
+	PassParameters->DstExtent = DstRect.Size();
+	PassParameters->DstRect = DstRect;
+	PassParameters->BrightPixelGain = PreFilter;
+	{
+		// Translate the transform type. 
+		PassParameters->TransformType = GPUFFT::BitEncode(FFTDesc.XFormType);
+
+		// We have a valid prefilter if the min is less than the max
+		if (PassParameters->BrightPixelGain.Component(0) < PassParameters->BrightPixelGain.Component(1))
+		{
+			// Encode a bool to turn on the pre-filter.
+			PassParameters->TransformType |= 4;
+		}
+	}
+
+	PassParameters->SrcTexture = SrcTexture;
+	PassParameters->DstTexture = GraphBuilder.CreateUAV(DstTexture);
+
+	FGSTwoForOneTransformCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FPowRadixSignalLengthDim>(TransformLength);
+
+	TShaderMapRef<FGSTwoForOneTransformCS> ComputeShader(ShaderMap, PermutationVector);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT: Two-For-One %s of size %d of buffer %d x %d", FFTDesc.FFT_TypeName(), TransformLength, SrcRect.Size().X, SrcRect.Size().Y),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, NumScanLines));
+}
+
+
+/**
+ * Complex 1D FFT followed by multiplication in with kernel and inverse transform.
+ *
+ * @param Context    - container for RHI and ShanderMap
+ * @param FFTDesc    - Metadata that describes the underlying complex FFT
+ * @param PreTransformedKernel - Pre-transformed kernel used in the convolution.
+ * @param SrcTexture - SRV the source image buffer
+ * @param SrcRct     - The region in the Src buffer where the image to transform lives.
+ * @param DstUAV     - UAV, the destination buffer that will hold the result of the 1d complex FFT
+ * @param DstRect    - Where to write the tranform data in the Dst buffer
+ *
+ */
+void DispatchGSConvolutionWithTextureCS(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const GPUFFT::FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcRect,
+	FRDGTextureRef PreTransformedKernel,
+	FRDGTextureRef DstTexture)
+{
+	const uint32 SignalLength   = FFTDesc.SignalLength;
+	const bool bIsHornizontal   = FFTDesc.IsHorizontal();
+
+	const FIntPoint& SrcRectSize = SrcRect.Size();
+	// The number of signals to transform simultaneously (i.e. number of scan lines)
+	// NB: This may be different from the FFTDesc.NumScanlines.
+	const uint32 NumSignals = (bIsHornizontal) ? SrcRectSize.Y : SrcRectSize.X;
+
+	FGSConvolutionWithTextureCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGSConvolutionWithTextureCS::FParameters>();
+	PassParameters->SrcRectMin = SrcRect.Min;
+	PassParameters->SrcRectMax = SrcRect.Max;
+	PassParameters->DstExtent = SrcRect.Size();
+	{
+		PassParameters->TransformType = GPUFFT::BitEncode(FFTDesc.XFormType);
+
+		const bool bUseAlpha = true;
+		if (bUseAlpha)
+		{
+			PassParameters->TransformType |= 8;
+		}
+	}
+
+	PassParameters->SrcTexture = SrcTexture;
+	PassParameters->FilterTexture = PreTransformedKernel;
+	PassParameters->DstTexture = GraphBuilder.CreateUAV(DstTexture);
+
+	FGSConvolutionWithTextureCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FPowRadixSignalLengthDim>(SignalLength);
+
+	TShaderMapRef<FGSConvolutionWithTextureCS> ComputeShader(ShaderMap, PermutationVector);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFT: Apply %s Transform, Multiply Texture, and InverseTransform size %d of buffer %d x %d", FFTDesc.FFT_TypeName(), SignalLength, SrcRectSize.X, SrcRectSize.Y),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, NumSignals));
+}
+
+bool FitsInGroupSharedMemory(const uint32& Length)
+{
+	const bool bFitsInGroupSharedMemory = !(GPUFFT::MaxScanLineLength() < Length);
+	return bFitsInGroupSharedMemory;
+}
+
+bool FitsInGroupSharedMemory(const GPUFFT::FFTDescription& FFTDesc)
+{
+	return FitsInGroupSharedMemory(FFTDesc.SignalLength);
+}
+
+
+} // namespace
+
+
+void GPUFFT::CopyImage2D(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef DstTexture, const FIntRect& DstWindow,
+	const FPreFilter& PreFilter)
+{
+	DispatchCopyWindowCS(GraphBuilder, ShaderMap, SrcTexture, SrcWindow, DstTexture, DstWindow, PreFilter);
+}
+
+void GPUFFT::ComplexFFTImage1D::MultiPass(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef DstTexture,
 	const bool bScrubNaNs)
 {
-	bool SuccessValue = true;
+	if (FitsInGroupSharedMemory(FFTDesc))
+	{
+		return DispatchGSComplexFFTCS(
+			GraphBuilder, ShaderMap,
+			FFTDesc,
+			SrcTexture, SrcWindow,
+			DstTexture);
+	}
 
+	RDG_EVENT_SCOPE(GraphBuilder, "ComplexFFTImage1D");
 
 	const uint32 TransformLength = FFTDesc.SignalLength;
 	const FFT_XFORM_TYPE XFormType = FFTDesc.XFormType;
@@ -1640,16 +957,8 @@ bool GPUFFT::ComplexFFTImage1D::MultiPass(FGPUFFTShaderContext& Context, const F
 
 	check(FMath::IsPowerOfTwo(TransformLength));
 
-	// Command list
-	FRHICommandList& RHICmdList = Context.GetRHICmdList();
-
 	// The number of iterations required.
 	const uint32 Log2TransformLength = BitSize(TransformLength) - 1;
-
-	// Double buffer to manage the Dst and Tmp buffers.
-	GPUFFT::FDoubleBufferTargets Targets(TmpBuffer, DstBuffer);
-
-	
 
 	FIntPoint DstExtent = FFTDesc.TransformExtent();
 
@@ -1657,7 +966,7 @@ bool GPUFFT::ComplexFFTImage1D::MultiPass(FGPUFFTShaderContext& Context, const F
 
 	// Testing code branch: Breaks the transform into Log2(TransformLength) number of passes.
 	// this is the slowest algorithm, and uses no group-shared storage.
-	if (0) 
+	#if 0
 	{
 		DispatchComplexFFTPassCS(Context, FFTDesc, 1, SrcTexture, Window, Targets.DstTarget().UAV, bScrubNaNs);
 
@@ -1676,11 +985,6 @@ bool GPUFFT::ComplexFFTImage1D::MultiPass(FGPUFFTShaderContext& Context, const F
 
 			checkf(HasValidTargets(), TEXT("FFT: Allocated Buffers too small."));
 
-			RHICmdList.Transition(
-				{
-					FRHITransitionInfo(Targets.SrcTarget().ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-					FRHITransitionInfo(Targets.DstTarget().UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-				});
 			DispatchComplexFFTPassCS(Context, FFTDesc, Ns, Targets.SrcTarget().ShaderResourceTexture, XFormWindow, Targets.DstTarget().UAV);
 		}
 
@@ -1691,167 +995,133 @@ bool GPUFFT::ComplexFFTImage1D::MultiPass(FGPUFFTShaderContext& Context, const F
 			SwapContents(TmpBuffer, DstBuffer);
 		}
 	}
-	else
-		// Reorder, followed by a High-level group-shared pass followed by Log2(TransformLength / SubPassLength() ) simple passes.
-		// In total 2 + Log2(TransformLength / SubPassLength() )  passes.   This will be on the order of 3 or 4 passes 
-		// compared with 12 or more ..
+	#endif
+	// Reorder, followed by a High-level group-shared pass followed by Log2(TransformLength / SubPassLength() ) simple passes.
+	// In total 2 + Log2(TransformLength / SubPassLength() )  passes.   This will be on the order of 3 or 4 passes 
+	// compared with 12 or more ..
 	{
+		FRDGTextureDesc SpectralDesc = FFTDesc.IsForward() ? DstTexture->Desc : SrcTexture->Desc;
+
 		// Re-order the data so we can do a pass of group-shared transforms
-		DispatchReorderFFTPassCS(Context, FFTDesc, Window, SrcTexture, XFormWindow, Targets.DstTarget().UAV);
-		Targets.Swap();
+		FRDGTextureRef SpectralTexture = GraphBuilder.CreateTexture(SpectralDesc, TEXT("FFT.Spectral"));
+		DispatchReorderFFTPassCS(
+			GraphBuilder, ShaderMap, FFTDesc,
+			/* SrcTexture = */ SrcTexture, SrcWindow,
+			/* DstTexture = */ SpectralTexture, XFormWindow);
 
-		RHICmdList.Transition(
-			{
-				FRHITransitionInfo(Targets.SrcTarget().ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-				FRHITransitionInfo(Targets.DstTarget().UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-			});
-		DispatchGSSubComplexFFTPassCS(Context, FFTDesc, Targets.SrcTarget().ShaderResourceTexture, XFormWindow, Targets.DstTarget().UAV);
-
+		FRDGTextureRef PrevSpectralTexture = GraphBuilder.CreateTexture(SpectralDesc, TEXT("FFT.Spectral"));
+		DispatchGSSubComplexFFTPassCS(
+			GraphBuilder, ShaderMap, FFTDesc,
+			/* SrcTexture = */ SpectralTexture, XFormWindow,
+			/* DstTexture = */ PrevSpectralTexture);
+		
 		for (uint32 Ns = FGroupShardSubFFTPassCS::SubPassLength(); Ns < TransformLength; Ns *= 2)
 		{
-			Targets.Swap();
-
-			auto HasValidTargets = [&Targets, &DstExtent]()->bool
+			FRDGTextureRef OpDstTexture;
+			if (Ns * 2 < TransformLength)
 			{
-				// Verify that the buffers being used are big enough.  Note that we are checking the "src" buffer, but due
-				// to the double buffering we will end up testing both buffers.
-				FIntPoint SrcBufferSize = Targets.SrcTarget().ShaderResourceTexture->GetTexture2D()->GetSizeXY();
-				bool Fits = !(SrcBufferSize.X < DstExtent.X) && !(SrcBufferSize.Y < DstExtent.Y);
-				return Fits;
-			};
+				FIntPoint SrcBufferSize = PrevSpectralTexture->Desc.Extent;
+				checkf(!(SrcBufferSize.X < DstExtent.X) && !(SrcBufferSize.Y < DstExtent.Y), TEXT("FFT: Allocated Buffers too small."));
 
-			checkf(HasValidTargets(), TEXT("FFT: Allocated Buffers too small."));
+				OpDstTexture = GraphBuilder.CreateTexture(DstTexture->Desc, TEXT("FFT.Spectral"));
+			}
+			else
+			{
+				OpDstTexture = DstTexture;
+			}
 
-			RHICmdList.Transition(
-				{
-					FRHITransitionInfo(Targets.SrcTarget().ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-					FRHITransitionInfo(Targets.DstTarget().UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-				});
-			DispatchComplexFFTPassCS(Context, FFTDesc, Ns, Targets.SrcTarget().ShaderResourceTexture, XFormWindow, Targets.DstTarget().UAV);
+			DispatchComplexFFTPassCS(
+				GraphBuilder, ShaderMap, FFTDesc,
+				Ns,
+				/* SrcTexture = */ PrevSpectralTexture, XFormWindow,
+				/* DstTexture = */ OpDstTexture);
 
+			PrevSpectralTexture = OpDstTexture;
 		}
 
-		if (Targets.GetSrcIdx() != 0)
-		{
-			SwapContents(TmpBuffer, DstBuffer);
-		}
+		check(PrevSpectralTexture == DstTexture);
 	}
-
-	return SuccessValue;
 }
 
-
-void GPUFFT::TwoForOneRealFFTImage1D::Requirements(const FFTDescription& FFTDesc, FIntPoint& MinBufferSize, bool& bUseMultipass)
-{
-	FFTDescription TmpDesc = FFTDesc;
-	// The two-for-one produces a result that has two additional elements in the transform direction.
-	TmpDesc.SignalLength += 2;
-
-	MinBufferSize = TmpDesc.TransformExtent();
-	bUseMultipass = !FitsInGroupSharedMemory(FFTDesc);
-}
-
-bool GPUFFT::TwoForOneRealFFTImage1D::GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-	const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-	const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
+void GPUFFT::TwoForOneRealFFTImage1D::MultiPass(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef DstTexture, const FIntRect& DstWindow,
 	const FPreFilter& PreFilter)
 {
-	bool SuccessValue = true;
-				
 	if (FitsInGroupSharedMemory(FFTDesc))
 	{
-		DispatchGSTwoForOneFFTCS(Context, FFTDesc, SrcTexture, SrcWindow, DstUAV, DstWindow, PreFilter);
+		DispatchGSTwoForOneFFTCS(GraphBuilder, ShaderMap, FFTDesc, SrcTexture, SrcWindow, DstTexture, DstWindow, PreFilter);
 	}
-	else
+	else if (FFTDesc.IsForward())
 	{
-		SuccessValue = false;
-		// @todo
-		ensureMsgf(0, TEXT("The FFT size is too large for group shared memory"));
-		// Do forward expensive transform
-	}
+		RDG_EVENT_SCOPE(GraphBuilder, "TwoForOneRealFFTImage1D(Forward)");
 
-	return SuccessValue;
-}
-
-
-bool GPUFFT::TwoForOneRealFFTImage1D::MultiPass(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-	const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-	FSceneRenderTargetItem& DstBuffer,
-	FSceneRenderTargetItem& TmpBuffer,
-	const FPreFilter& PreFilter)
-{
-	
-	bool SuccessValue = true;
-	if (FFTDesc.IsForward())
-	{
-
-		// Only filter on the forward transform.
+		// Filter only on forward transform through image copy pass.
 		if (IsActive(PreFilter))
 		{
-			// Copy data into DstBuffer
-			CopyImage2D(Context, SrcWindow, SrcTexture, SrcWindow, DstBuffer.UAV, PreFilter);
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				SrcTexture->Desc.Extent,
+				SrcTexture->Desc.Format,
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV);
 
-			Context.GetRHICmdList().Transition(
-				{
-					FRHITransitionInfo(DstBuffer.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-					FRHITransitionInfo(TmpBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-				});
+			FRDGTextureRef PreFilteredTexture = GraphBuilder.CreateTexture(Desc, TEXT("FFT.PreFilter"));
 
-			// Transform as 2 sets of complex data, putting the result in the DstBuffer.  This performs multiple dispatches.
-			// Transform into DstBuffer.
-			SuccessValue = SuccessValue &&
-				ComplexFFTImage1D::MultiPass(Context, FFTDesc, SrcWindow, DstBuffer.ShaderResourceTexture, TmpBuffer /*result*/, DstBuffer/*tmp*/, true /*scrub nans*/);
-		}
-		else
-		{
-			// Transform as 2 sets of complex data, putting the result in the DstBuffer.  This performs multiple dispatches.
+			CopyImage2D(
+				GraphBuilder, ShaderMap,
+				/* SrcTexture = */ SrcTexture, SrcWindow,
+				/* DstTexture = */ PreFilteredTexture, SrcWindow,
+				PreFilter);
 
-			SuccessValue = SuccessValue &&
-				ComplexFFTImage1D::MultiPass(Context, FFTDesc, SrcWindow, SrcTexture, DstBuffer /*result*/, TmpBuffer/*tmp*/, true /*scrub nans*/);
-			
-			SwapContents(DstBuffer, TmpBuffer);
+			SrcTexture = PreFilteredTexture;
 		}
 
-		Context.GetRHICmdList().Transition(
-			{
-				FRHITransitionInfo(TmpBuffer.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-				FRHITransitionInfo(DstBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-			});
-		// Unpack the complex transform into transform of real data
-		DispatchPackTwoForOneFFTPassCS(Context, FFTDesc, TmpBuffer.ShaderResourceTexture, DstBuffer.UAV);
+		FRDGTextureRef SpectralTexture = GraphBuilder.CreateTexture(DstTexture->Desc, TEXT("FFT.Spectral"));
+		ComplexFFTImage1D::MultiPass(
+			GraphBuilder, ShaderMap, FFTDesc,
+			/* SrcTexture = */ SrcTexture, SrcWindow,
+			/* DstTexture = */ SpectralTexture,
+			/* bScrubNaNs = */ true);
 		
+		// Unpack the complex transform into transform of real data
+		ensure(DstWindow.Min == FIntPoint::ZeroValue);
+		DispatchPackTwoForOneFFTPassCS(
+			GraphBuilder, ShaderMap, FFTDesc,
+			/* SrcTexture = */ SpectralTexture,
+			/* DstTexture = */ DstTexture);
 	}
 	else  // Inverse transform.
 	{
-		Context.GetRHICmdList().Transition(FRHITransitionInfo(DstBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask));
+		RDG_EVENT_SCOPE(GraphBuilder, "TwoForOneRealFFTImage1D(Inverse)");
+
 		// Pack the 4 transforms of real data as 2 transforms of complex data 
-		DispatchPackTwoForOneFFTPassCS(Context, FFTDesc, SrcTexture, DstBuffer.UAV);
+		FRDGTextureRef SpectralTexture = GraphBuilder.CreateTexture(SrcTexture->Desc, TEXT("FFT.Spectral"));
+		ensure(SrcWindow.Min == FIntPoint::ZeroValue);
+		DispatchPackTwoForOneFFTPassCS(
+			GraphBuilder, ShaderMap, FFTDesc,
+			/* SrcTexture = */ SrcTexture,
+			/* DstTexture = */ SpectralTexture);
 
-		Context.GetRHICmdList().Transition(
-			{
-				FRHITransitionInfo(DstBuffer.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-				FRHITransitionInfo(TmpBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-			});
 		// Transform as complex data
-		SuccessValue = SuccessValue &&
-			ComplexFFTImage1D::MultiPass(Context, FFTDesc, SrcWindow, DstBuffer.ShaderResourceTexture, TmpBuffer/*result*/, DstBuffer/*tmp*/);
-
-		SwapContents(TmpBuffer, DstBuffer);
+		ensure(DstWindow.Min == FIntPoint::ZeroValue);
+		ComplexFFTImage1D::MultiPass(
+			GraphBuilder, ShaderMap, FFTDesc,
+			/* SrcTexture = */ SpectralTexture, SrcWindow,
+			/* DstTexture = */ DstTexture);
 	}
-
-	return SuccessValue;
 }
 
-
-
-bool GPUFFT::FFTImage2D(FGPUFFTShaderContext& Context, const FIntPoint& FrequencySize, bool bHorizontalFirst,
-	const FIntRect& ROIRect, const FTextureRHIRef& SrcTexture,
-	FSceneRenderTargetItem& DstBuffer,
-	FSceneRenderTargetItem& TmpBuffer)
+void GPUFFT::FFTImage2D(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const FIntPoint& FrequencySize, bool bHorizontalFirst,
+	FRDGTextureRef SrcTexture, const FIntRect& ROIRect,
+	FRDGTextureRef DstTexture)
 {
 	using GPUFFT::FFTDescription;
-
-	FRHICommandList& RHICmdList = Context.GetRHICmdList();
 
 	// This will be for the actual output.
 	const FIntRect FFTResultRect = ROIRect;
@@ -1872,136 +1142,68 @@ bool GPUFFT::FFTImage2D(FGPUFFTShaderContext& Context, const FIntPoint& Frequenc
 
 	const FIntRect TmpRect = FIntRect(FIntPoint(0, 0), TmpExent);
 
-
-	// Perform the transforms and convolutions.
-	bool SuccessValue = true;
-
 	// Two-for-one transform: SrcTexture fills the TmpBuffer
+	FRDGTextureRef TempTexture = GraphBuilder.CreateTexture(DstTexture->Desc, DstTexture->Name);
+	TwoForOneRealFFTImage1D::MultiPass(
+		GraphBuilder, ShaderMap,
+		TwoForOneFFTDesc,
+		SrcTexture, ROIRect,
+		TempTexture, TmpRect);
 
-	Context.GetRHICmdList().Transition(FRHITransitionInfo(TmpBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask));
-	if (FitsInGroupSharedMemory(TwoForOneFFTDesc))
-	{
-		// Horizontal FFT: input -> tmp buffer 0 
-		SuccessValue = SuccessValue &&
-			TwoForOneRealFFTImage1D::GroupShared(Context, TwoForOneFFTDesc, ROIRect, SrcTexture, TmpRect, TmpBuffer.UAV);
-		//->dst
-	}
-	else
-	{
-		// use the dst buffer as a dummy buffer
-		FSceneRenderTargetItem& DmyBuffer = DstBuffer;
-		// Horizontal FFT: input -> TmpBuffer
-		SuccessValue = SuccessValue &&
-			TwoForOneRealFFTImage1D::MultiPass(Context, TwoForOneFFTDesc, ROIRect, SrcTexture, TmpBuffer /*dst*/, DmyBuffer/*tmp*/);
-		//->dst
-	}
-
-	Context.GetRHICmdList().Transition(
-		{
-			FRHITransitionInfo(DstBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask),
-			FRHITransitionInfo(TmpBuffer.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask)
-		});
-
-	// Complex transform in the other direction: TmpBuffer fills DstBuffer
-	if (FitsInGroupSharedMemory(ComplexFFTDesc))
-	{
-		SuccessValue = SuccessValue &&
-			ComplexFFTImage1D::GroupShared(Context, ComplexFFTDesc, TmpRect, TmpBuffer.ShaderResourceTexture, DstBuffer.UAV);
-	}
-	else
-	{
-		SuccessValue = SuccessValue &&
-			ComplexFFTImage1D::MultiPass(Context, ComplexFFTDesc, TmpRect, TmpBuffer.ShaderResourceTexture, DstBuffer, TmpBuffer);
-	}
-
-	return SuccessValue;
-
+	ComplexFFTImage1D::MultiPass(
+		GraphBuilder, ShaderMap,
+		ComplexFFTDesc,
+		TempTexture, TmpRect,
+		DstTexture);
 }
 
-void GPUFFT::ConvolutionWithTextureImage1D::Requirements(const FFTDescription& FFTDesc, FIntPoint& MinBufferSize, bool& bUseMultipass)
+void GPUFFT::ConvolutionWithTextureImage1D::MultiPass(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const FFTDescription& FFTDesc,
+	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+	FRDGTextureRef TransformedKernel,
+	FRDGTextureRef DstTexture)
 {
-	bUseMultipass = !FitsInGroupSharedMemory(FFTDesc);
-	MinBufferSize = FFTDesc.TransformExtent();
-}
-
-bool GPUFFT::ConvolutionWithTextureImage1D::GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-	const FTextureRHIRef& TransformedKernel,
-	const FIntRect& SrcWindow,
-	const FTextureRHIRef& SrcTexture,
-	FUnorderedAccessViewRHIRef DstUAV)
-{
-
-	bool SuccessValue = true;
-
 	if (FitsInGroupSharedMemory(FFTDesc))
 	{
-		DispatchGSConvolutionWithTextureCS(Context, FFTDesc, TransformedKernel, SrcTexture, SrcWindow, DstUAV);
+		DispatchGSConvolutionWithTextureCS(
+			GraphBuilder, ShaderMap, FFTDesc,
+			SrcTexture, SrcWindow, TransformedKernel, DstTexture);
 	}
 	else
 	{
-		SuccessValue = false;
-		// @todo
-		ensureMsgf(0, TEXT("The FFT size is too large for group shared memory"));
+		RDG_EVENT_SCOPE(GraphBuilder, "ConvolutionWithTextureImage1D");
+
+		// Frequency Space size.
+		const FIntPoint TargetExtent = FFTDesc.TransformExtent();
+		const FIntRect  TargetRect(FIntPoint(0, 0), TargetExtent);
+
+		// Forward transform: Results in DstBuffer
+		FRDGTextureRef SpectralTexture0 = GraphBuilder.CreateTexture(SrcTexture->Desc, TEXT("FFT.Spectral"));
+		ComplexFFTImage1D::MultiPass(
+			GraphBuilder, ShaderMap, FFTDesc,
+			/* SrcTexture = */ SrcTexture, SrcWindow,
+			/* DstTexture = */ SpectralTexture0);
+
+		// Apply convolution kernel.
+		FRDGTextureRef SpectralTexture1 = GraphBuilder.CreateTexture(SrcTexture->Desc, TEXT("FFT.Spectral"));
+		DispatchComplexMultiplyImagesCS(
+			GraphBuilder, ShaderMap, FFTDesc.IsHorizontal(),
+			/* SrcTexture = */ SpectralTexture0, TargetRect,
+			TransformedKernel, 
+			/* DstTexture = */ SpectralTexture1);
+
+		// Backward transform.
+		FFTDescription InvFFTDesc = FFTDesc;
+		InvFFTDesc.XFormType = GetInverseOfXForm(FFTDesc.XFormType);
+
+		ComplexFFTImage1D::MultiPass(
+			GraphBuilder, ShaderMap, InvFFTDesc,
+			/* SrcTexture = */ SpectralTexture1, TargetRect,
+			/* DstTexture = */ DstTexture);
 	}
-
-	return SuccessValue;
 }
-
-bool GPUFFT::ConvolutionWithTextureImage1D::MultiPass(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-	const FTextureRHIRef& TransformedKernel,
-	const FIntRect& SrcWindow,
-	const FTextureRHIRef& SrcTexture,
-	FSceneRenderTargetItem& DstBuffer,
-	FSceneRenderTargetItem& TmpBuffer)
-{
-	bool SuccessValue = true;
-
-
-	// Frequency Space size.
-	const FIntPoint TargetExtent = FFTDesc.TransformExtent();
-	const FIntRect  TargetRect(FIntPoint(0, 0), TargetExtent);
-
-	// Forward transform: Results in DstBuffer
-	SuccessValue = SuccessValue &&
-		ComplexFFTImage1D::MultiPass(Context, FFTDesc, SrcWindow, SrcTexture, DstBuffer, TmpBuffer);
-
-	Context.GetRHICmdList().Transition(
-		{
-			FRHITransitionInfo(DstBuffer.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-			FRHITransitionInfo(TmpBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-		});
-
-	// Convolution: Results in TmpBuffer
-	DispatchComplexMultiplyImagesCS(Context, FFTDesc.IsHorizontal(), TargetRect, DstBuffer.ShaderResourceTexture, TransformedKernel,  TmpBuffer.UAV);
-
-	// Inverse Transform: Results in DstBuffer
-	
-	FFTDescription InvFFTDesc = FFTDesc;
-	InvFFTDesc.XFormType = GetInverseOfXForm(FFTDesc.XFormType);
-	// testing.  Verify that the forward transform works.
-	
-	Context.GetRHICmdList().Transition(
-		{
-			FRHITransitionInfo(TmpBuffer.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-			FRHITransitionInfo(DstBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-		});
-	SuccessValue = SuccessValue &&
-		ComplexFFTImage1D::MultiPass(Context, InvFFTDesc, TargetRect, TmpBuffer.ShaderResourceTexture, DstBuffer, TmpBuffer);
-	
-	Context.GetRHICmdList().Transition(
-		{
-			FRHITransitionInfo(DstBuffer.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-			FRHITransitionInfo(TmpBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask)
-		});
-
-	// Copy back to the correct sized sub-window
-	DispatchCopyWindowCS(Context, TargetRect, DstBuffer.ShaderResourceTexture, SrcWindow, TmpBuffer.UAV);
-
-	SwapContents(TmpBuffer, DstBuffer);
-
-	return SuccessValue;
-}
-
 
 FIntPoint GPUFFT::Convolution2DBufferSize(const FIntPoint& FrequencySize, const bool bHorizontalFirst, const FIntPoint& ROIExtent)
 {
@@ -2037,24 +1239,32 @@ FIntPoint GPUFFT::Convolution2DBufferSize(const FIntPoint& FrequencySize, const 
 	return BufferSize;
 }
 
-bool GPUFFT::ConvolutionWithTextureImage2D(FGPUFFTShaderContext& Context, const FIntPoint& FrequencySize, bool bHorizontalFirst,
-	const FTextureRHIRef& TransformedKernel,
-	const FIntRect& ROIRect, const FTextureRHIRef& SrcTexture,
-	FUnorderedAccessViewRHIRef ResultUAV,
-	FSceneRenderTargetItem& TmpBuffer0,
-	FSceneRenderTargetItem& TmpBuffer1,
+FRDGTextureDesc CreateFrequencyDesc(const FIntPoint& FrequencySize, const bool bHorizontalFirst, const FIntPoint& SrcExtent)
+{
+	const FIntPoint FrequencyExtent = GPUFFT::Convolution2DBufferSize(
+		FrequencySize, bHorizontalFirst, SrcExtent);
+
+	return FRDGTextureDesc::Create2D(
+		FrequencyExtent,
+		GPUFFT::PixelFormat(),
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV);
+}
+
+void GPUFFT::ConvolutionWithTextureImage2D(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const FIntPoint& FrequencySize, bool bHorizontalFirst,
+	FRDGTextureRef TransformedKernel,
+	FRDGTextureRef SrcTexture, const FIntRect& ROIRect,
+	FRDGTextureRef DstTexture, const FIntRect& DstRect,
 	const FPreFilter& PreFilter)
 {
-
-	using GPUFFT::FFTDescription;
-
-	FRHICommandList& RHICmdList = Context.GetRHICmdList();
+	FRDGTextureDesc SpectralDesc = CreateFrequencyDesc(FrequencySize, bHorizontalFirst, ROIRect.Size());
 
 	// This will be for the actual output.
 	const FIntRect FFTResultRect = ROIRect;
 	const FIntPoint ROISize = ROIRect.Size();
-
-	//DoubleBufferTargets TmpBuffers(Context, TmpExent, PixelFormat);
 
 	// Set up the transform descriptions
 	FFTDescription TwoForOneFFTDesc;
@@ -2063,11 +1273,11 @@ bool GPUFFT::ConvolutionWithTextureImage2D(FGPUFFTShaderContext& Context, const 
 	TwoForOneFFTDesc.NumScanLines = (bHorizontalFirst) ? ROISize.Y : ROISize.X;
 
 	// The output has two more elements
-	FIntRect TwoForOneOutputRect;
+	FIntRect SpectralOutputRect;
 	{
 		FFTDescription TmpDesc = TwoForOneFFTDesc;
 		TmpDesc.SignalLength += 2;
-		TwoForOneOutputRect = FIntRect(FIntPoint(0, 0), TmpDesc.TransformExtent());
+		SpectralOutputRect = FIntRect(FIntPoint(0, 0), TmpDesc.TransformExtent());
 	}
 
 	FFTDescription ConvolutionFFTDesc;
@@ -2080,72 +1290,32 @@ bool GPUFFT::ConvolutionWithTextureImage2D(FGPUFFTShaderContext& Context, const 
 	
 	
 
-	// Perform the transforms and convolutions.
-	bool SuccessValue = true;
-
-
 	// ---- Two For One Transform --- 
 
-	// Horizontal FFT: input -> tmp buffer 0 
-	RHICmdList.Transition(FRHITransitionInfo(TmpBuffer0.UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask));
-	if (FitsInGroupSharedMemory(TwoForOneFFTDesc))
-	{
-		SuccessValue = SuccessValue &&
-			TwoForOneRealFFTImage1D::GroupShared(Context, TwoForOneFFTDesc, ROIRect, SrcTexture, TwoForOneOutputRect, TmpBuffer0.UAV, PreFilter);
-		//->dst
-	}
-	else
-	{
-		SuccessValue = SuccessValue &&
-			TwoForOneRealFFTImage1D::MultiPass(Context, TwoForOneFFTDesc, ROIRect, SrcTexture, TmpBuffer0, TmpBuffer1, PreFilter);
-	}
+	FRDGTextureRef TwoForOneFFTOutput = GraphBuilder.CreateTexture(SpectralDesc, TEXT("FFT.TwoForOne"));
+	TwoForOneRealFFTImage1D::MultiPass(
+		GraphBuilder, ShaderMap, TwoForOneFFTDesc,
+		SrcTexture, ROIRect,
+		TwoForOneFFTOutput, SpectralOutputRect,
+		PreFilter);
 
 	// ---- 1 D Convolution --- 
 
-	RHICmdList.Transition(
-		{
-			FRHITransitionInfo(TmpBuffer0.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-			FRHITransitionInfo(TmpBuffer1.UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask)
-		});
-	if (FitsInGroupSharedMemory(ConvolutionFFTDesc))
-	{
-		// Vertical FFT / Filter / Vertical InvFFT : tmp buffer 0 -> tmp buffer 1
-		SuccessValue = SuccessValue &&
-			ConvolutionWithTextureImage1D::GroupShared(Context, ConvolutionFFTDesc, TransformedKernel, TwoForOneOutputRect, TmpBuffer0.ShaderResourceTexture, TmpBuffer1.UAV);
-		//->src
-	}
-	else
-	{
-		SuccessValue = SuccessValue &&
-			ConvolutionWithTextureImage1D::MultiPass(Context, ConvolutionFFTDesc, TransformedKernel, TwoForOneOutputRect, TmpBuffer0.ShaderResourceTexture, TmpBuffer1, TmpBuffer0);
-	}
+	FRDGTextureRef ConvolutionOutput = GraphBuilder.CreateTexture(SpectralDesc, TEXT("FFT.Convolution"));
+	ConvolutionWithTextureImage1D::MultiPass(
+		GraphBuilder, ShaderMap,
+		ConvolutionFFTDesc,
+		TwoForOneFFTOutput, SpectralOutputRect,
+		TransformedKernel,
+		ConvolutionOutput);
 
 
 	// ---- Inverse Two For One ---
 
-	RHICmdList.Transition(
-		{
-			FRHITransitionInfo(TmpBuffer1.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-			FRHITransitionInfo(ResultUAV, ERHIAccess::Unknown, ERHIAccess::UAVMask)
-		});
-	if (FitsInGroupSharedMemory(TwoForOneIvnFFTDesc))
-	{
-		// Horizontal InvFFT: tmp buffer 1 -> result
-		SuccessValue = SuccessValue &&
-			TwoForOneRealFFTImage1D::GroupShared(Context, TwoForOneIvnFFTDesc, TwoForOneOutputRect, TmpBuffer1.ShaderResourceTexture, ROIRect, ResultUAV);
-		//->dst
-	}
-	else
-	{
-		// TmpBuffer1 -> TmpBuffer0
-		SuccessValue = SuccessValue &&
-			TwoForOneRealFFTImage1D::MultiPass(Context, TwoForOneIvnFFTDesc, TwoForOneOutputRect, TmpBuffer1.ShaderResourceTexture, TmpBuffer0, TmpBuffer1);
-
-		RHICmdList.Transition(FRHITransitionInfo(TmpBuffer0.ShaderResourceTexture, ERHIAccess::UAVMask, ERHIAccess::SRVMask));
-
-		DispatchCopyWindowCS(Context, TwoForOneOutputRect, TmpBuffer0.ShaderResourceTexture, ROIRect, ResultUAV);
-	}
-	
-	return SuccessValue;
+	TwoForOneRealFFTImage1D::MultiPass(
+		GraphBuilder, ShaderMap,
+		TwoForOneIvnFFTDesc,
+		ConvolutionOutput, SpectralOutputRect,
+		DstTexture, DstRect,
+		PreFilter);
 }
-

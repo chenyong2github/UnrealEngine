@@ -37,12 +37,7 @@ namespace GPUFFT
 	{
 		return  static_cast<FFT_XFORM_TYPE> ((static_cast<int> (XForm) + 2) % 4);
 	}
-	/**
-	* Pretty name for the associated transform type'
-	* @return - Pretty name for given XFormType
-	*/
-	FString FFT_TypeName(const FFT_XFORM_TYPE& XFormType);
-	
+
 	/**
 	* The direction of the associated transform type
 	*/
@@ -66,36 +61,12 @@ namespace GPUFFT
 		FIntPoint TransformExtent() const;
 		bool IsHorizontal() const;
 		bool IsForward() const;
-		FString FFT_TypeName() const;
+		const TCHAR* FFT_TypeName() const;
 		
 		// member data public
 		FFT_XFORM_TYPE  XFormType = FFT_XFORM_TYPE::FORWARD_HORIZONTAL;
 		uint32 SignalLength = 0;
 		uint32 NumScanLines = 0;
-	};
-
-
-
-	/**
-	* Context to hold the Hardware Interface and the Shader Map.
-	*/
-	class FGPUFFTShaderContext
-	{
-	public:
-
-		typedef FGlobalShaderMap  ShaderMapType;
-
-		FGPUFFTShaderContext(FRHICommandList& CmdList, const FGPUFFTShaderContext::ShaderMapType& Map)
-			: RHICmdList(&CmdList), ShaderMap(&Map)
-		{}
-
-		FRHICommandList& GetRHICmdList() { return *RHICmdList; }
-		const ShaderMapType& GetShaderMap() const { return *ShaderMap; }
-
-	private:
-		FGPUFFTShaderContext();
-		FRHICommandList* RHICmdList;
-		const ShaderMapType* ShaderMap;
 	};
 
 	/**
@@ -104,23 +75,6 @@ namespace GPUFFT
 	* a much slower (@todo) code path
 	*/
 	uint32 MaxScanLineLength();// { return 4096; }
-
-	/**
-	* Compare a signal length with the max that fits in group shared memory
-	*/
-	static bool FitsInGroupSharedMemory(const uint32& Length)
-	{
-		const bool bFitsInGroupSharedMemory = !(MaxScanLineLength() < Length);
-		return bFitsInGroupSharedMemory;
-	}
-
-	/**
-	* Verify the given FFT will fit in group shared memory.
-	*/
-	static bool FitsInGroupSharedMemory(const  FFTDescription& FFTDesc)
-	{
-		return FitsInGroupSharedMemory(FFTDesc.SignalLength);
-	}
 
 	/**
 	*  The pixel format required for transforming rgba buffer.
@@ -146,42 +100,6 @@ namespace GPUFFT
 	struct ComplexFFTImage1D
 	{
 		/**
-		* The requirements of the complex 1d FFT. 
-		*
-		* @param FFTDesc         - Indicates the number of frequencies and scan lines as well as direction.
-		* @param MinBufferSize   - On return: The size of Dst buffer required. If multipass is required
-		*                          this size also applies to the tmpBuffer
-		* @param bUseGroupShared - On return: indicates if the transform requires the multipass 
-		*                          or if we can use the much faster group shared variant
-		*/
-		static void Requirements(const FFTDescription& FFTDesc, FIntPoint& MinBufferSize, bool& bUseMultipass);
-
-		/**
-		* One Dimensional Fast Fourier Transform of two signals in a two dimensional buffer.
-		* The each scanline of the float4 buffer is interpreted as two complex signals (x+iy and z + iw).
-		*
-		* On input a scanline (lenght N) contains 2 interlaced signals float4(r,g,b,a) = {z_n, q_n}.
-		* where z_n = r_n + i g_n  and q_n = b_n + i a_n
-		*
-		* On output a scanline will be N  elements long with the following data layout
-		* Entries k = [0,     N-1] hold  float4(Z_k, Q_k)
-		* where the array {Z_k} is the transform of the signal {z_n}
-		*
-		* @param Context    - RHI and ShadersMap
-		* @param FFTDesc    - Defines the scanline direction and count and transform type
-		* @param SrcWindow  - Location of the data in the SrcTexture to be transformed. Zero values pad
-		*                     the data to fit the  FFTDesc TrasformExtent.
-		* @param SrcTexture - The two dimensional float4 input buffer to transform
-		* @param DstUAV     - The buffer to be populated by the result of the transform.
-		*
-		* @return           - True on success.  Will only fail if the buffer is too large for supported transform method
-		*
-		* NB: This function does not transition resources.  That must be done by the calling scope.
-		*/
-		static bool GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-			const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture, FUnorderedAccessViewRHIRef DstUAV);
-
-		/**
 		* One Dimensional Fast Fourier Transform of two signals in a two dimensional buffer.
 		* The each scanline of the float4 buffer is interpreted as two complex signals (x+iy and z + iw).
 		*
@@ -206,9 +124,13 @@ namespace GPUFFT
 		*
 		* NB: This function does not transition resources.  That must be done by the calling scope.
 		*/
-		static bool MultiPass(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-			const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture, FSceneRenderTargetItem& DstBuffer,
-			FSceneRenderTargetItem& TmpBuffer, const bool bScrubNaNs = false);
+		static void MultiPass(
+			FRDGBuilder& GraphBuilder,
+			const FGlobalShaderMap* ShaderMap,
+			const FFTDescription& FFTDesc,
+			FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+			FRDGTextureRef DstTexture,
+			const bool bScrubNaNs = false);
 
 	};
 	
@@ -216,62 +138,6 @@ namespace GPUFFT
 
 	struct TwoForOneRealFFTImage1D
 	{
-		/**
-		* The requirements of the real two-for-one 1d FFT.
-		*
-		* @param FFTDesc         - Indicates the number of frequencies and scan lines as well as direction.
-		*                          Due to real-transform symmetries, the input frequency count is the number of 
-		*                          frequencies used for the complex transform (of two real singals togehter, e.g. z = r + i * g).
-		* @param MinBufferSize   - On return: The size of Dst buffer required to hold the full result. If multipass is required
-		*                          this size also applies to the tmpBuffer
-		* @param bUseGroupShared - On return: indicates if the transform requires the multipass
-		*                          or if we can use the much faster group shared variant.
-		* 
-		* NB: When doing the inverse transform in group-shared memory, a smaller buffer maybe used if the full result is not desired.
-		* for example, if only the result in a sub-window is required.
-		*/
-		static void Requirements(const FFTDescription& FFTDesc, FIntPoint& MinBufferSize, bool& bUseMultipass);
-
-
-		/**
-		* One Dimensional Fast Fourier Transform of four real signals (rgba) in a two dimensional buffer.
-		* The each scanline of the float4 buffer is interpreted four distinct real signals.
-		*
-		* On input a scanline (lenght N) contains 4 interlaced signals {r_n, g_n, b_n, a_n}.
-		* On output a scanline will be N + 2 elements long with the following data layout
-		* Entries i = [0,     N/2] hold  float4(R_i, B_i).
-		* Entries i = [N/2+1, N-1] hold  float4(G_i, A_i)
-		* Entries i = N            hold  float4(G_N/2, A_N/2)
-		* Entry   i = N + 1        hold  float4(G_0, A_0)
-		*
-		* Here R_k, G_k ,B_k, A_k are complex (float2) values representing the transforms of the real signals r,g,b,a
-		*
-		* Note: Due to the fact that r,g,b,a are real signals, R_0, B_0, G_0, A_0 are real values.
-		* and will equal the sum of the signals , i.e. R_0 = sum(r_i, i=0..N-1).
-		*
-		* Note if {x_n} is a real signal of length N, then the transfromed signal has the symmetry X_k = ComplexConjugate(X_{N-k})
-		*
-		* @param Context    - RHI and ShadersMap
-		* @param FFTDesc    - Defines the scanline direction and power-of-two length and transform type
-		* @param SrcWindow  - Location of the data in the SrcTexture to be transformed. Zero values pad
-		*                     the data to fit the  FFTDesc TrasformExtent.
-		* @param SrcTexture - The two dimensional float4 input buffer to transform
-		* @param DstWindow  - The region in the DstUAV to write the result of the transform.
-		* @param DstUAV     - The buffer to be populated by the result of the transform.
-		* @param PreFilter  - Values use to boost the intensity of any pixels.  Default value deactivates prefilter
-		*
-		* @return           - True on success.  Will only fail if the buffer is too large for supported transform method.
-		*
-		* NB: On a forward transform, the DstWindow must accommodate Context.SignalLength + 2 in the transform direction.
-		*
-		* NB: This function does not transition resources.  That must be done by the calling scope
-		*/
-		static bool GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-			const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-			const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
-			const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f));
-
-
 		/**
 		* One Dimensional Fast Fourier Transform of four real signals (rgba) in a two dimensional buffer.
 		* The each scanline of the float4 buffer is interpreted four distinct real signals.
@@ -307,71 +173,18 @@ namespace GPUFFT
 		*               On inverse transform the DstBuffer must accommodate Context.SignalLength in the transform direction.
 		* NB: This function does not transition resources.  That must be done by the calling scope
 		*/
-		static bool MultiPass(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-			const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-			FSceneRenderTargetItem& DstBuffer,
-			FSceneRenderTargetItem& TmpBuffer,
+		static void MultiPass(
+			FRDGBuilder& GraphBuilder,
+			const FGlobalShaderMap* ShaderMap,
+			const FFTDescription& FFTDesc,
+			FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+			FRDGTextureRef DstTexture, const FIntRect& DstWindow,
 			const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f));
 
 	};
 
 	struct ConvolutionWithTextureImage1D
 	{
-
-		/**
-		* The requirements of the 1d convolution.
-		*
-		* @param FFTDesc         - Indicates the number of frequencies and scan lines as well as direction.
-		*                         
-		* @param MinBufferSize   - On return: The size of Dst buffer required. If multipass is required
-		*                          this size also applies to the tmpBuffer
-		* @param bUseGroupShared - On return: indicates if the transform requires the multipass
-		*                          or if we can use the much faster group shared variant
-		* NB: When doing the inverse transform in group-shared memory, a smaller buffer maybe used if the full result is not desired.
-		* for example, if only the result in a sub-window is required.
-		*/
-		static void Requirements(const FFTDescription& FFTDesc, FIntPoint& MinBufferSize, bool& bUseMultipass);
-
-		/**
-		* One Dimensional convolution against a pre-convolved texture: does two complex signals at once.
-		*
-		* The each scanline of the float4 buffer is interpreted as two complex signals (x+iy and z + iw).
-		*
-		* ------------------Breakdown of the convolution------------------------------------
-		* On input:  Each scanline (length N) of the SrcTexture contains 2 interlaced signals
-		* float4(a,b,c,d) = {z_n, q_n}  where z_n = a_n + i b_n  and q_n = c_n + i d_n
-		*
-		*            Each scanline (length N) of the TransformedKernel contains 2 interlaced, pre-transformed
-		*            signals  float4( TK1, TK2)
-		*
-		* This function transforms the Src scanline to give two interlaced frequency signals float4(Z_k, Q_k)
-		*
-		* The convolution is affected as a multiplication in frequency space:
-		*       float4( ComplexMult(Z_k, TK1_k), ComplexMult(Q_k, TK2_k))
-		*
-		* And inverse transform is applied to bring the result back to the input space.
-		* ---------------------------------------------------------------------------------
-		*
-		*
-		* @param Context    - RHI and ShadersMap
-		* @param FFTDesc    - Defines the scanline direction and count and transform type
-		* @param TransformedKernel - A texture that contains a transformed convolution kernel.
-		* @param SrcWindow  - Location of the data in the SrcTexture to be transformed. Zero values pad
-		*                     the data to fit the  FFTDesc TrasformExtent.
-		* @param SrcTexture - The two dimensional float4 input buffer to transform
-		* @param DstUAV     - The buffer to be populated by the result of the transform.
-		*
-		* @return           - True on success.  Will only fail if the buffer is too large for supported transform method
-		*
-		* NB: This function does not transition resources.  That must be done by the calling scope.
-		*/
-		static bool GroupShared(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-			const FTextureRHIRef& TransformedKernel,
-			const FIntRect& SrcWindow,
-			const FTextureRHIRef& SrcTexture,
-			FUnorderedAccessViewRHIRef DstUAV);
-
-
 		/**
 		* One Dimensional convolution against a pre-convolved texture: does two complex signals at once.
 		*
@@ -406,12 +219,13 @@ namespace GPUFFT
 		*
 		* NB: This function does not transition resources.  That must be done by the calling scope.
 		*/
-		static bool MultiPass(FGPUFFTShaderContext& Context, const FFTDescription& FFTDesc,
-			const FTextureRHIRef& TransformedKernel,
-			const FIntRect& SrcWindow,
-			const FTextureRHIRef& SrcTexture,
-			FSceneRenderTargetItem& DstBuffer,
-			FSceneRenderTargetItem& TmpBuffer);
+		static void MultiPass(
+			FRDGBuilder& GraphBuilder,
+			const FGlobalShaderMap* ShaderMap,
+			const FFTDescription& FFTDesc,
+			FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+			FRDGTextureRef TransformedKernel,
+			FRDGTextureRef DstTexture);
 	};
 
 
@@ -431,10 +245,12 @@ namespace GPUFFT
 	* NB: This function does not transition resources on the Src or Target.  That must be done by the calling scope.
 	*
 	*/
-	bool FFTImage2D(FGPUFFTShaderContext& Context, const FIntPoint& FrequencySize, bool bHorizontalFirst,
-		const FIntRect& ROIRect/*region of interest*/, const FTextureRHIRef& SrcTexture,
-		FSceneRenderTargetItem& ResultBuffer,
-		FSceneRenderTargetItem& TmpBuffer0);
+	void FFTImage2D(
+		FRDGBuilder& GraphBuilder,
+		const FGlobalShaderMap* ShaderMap,
+		const FIntPoint& FrequencySize, bool bHorizontalFirst,
+		FRDGTextureRef SrcTexture, const FIntRect& ROIRect,
+		FRDGTextureRef ResultTexture);
 
 
 
@@ -462,13 +278,14 @@ namespace GPUFFT
 	*
 	* The Src and Dst textures can be re-used as the tmp buffers (Dst->TmpBuffer0, Src->TmpBuffer1) provided they are large enough.
 	*/
-	bool ConvolutionWithTextureImage2D(FGPUFFTShaderContext& Context, const FIntPoint& FrequencySize, bool bHorizontalFirst,
-		const FTextureRHIRef& TransformedKernel,
-		const FIntRect& ROIRect/*region of interest*/,
-		const FTextureRHIRef& SrcTexture, 
-		FUnorderedAccessViewRHIRef ResultUAV,
-		FSceneRenderTargetItem& TmpBuffer0,
-		FSceneRenderTargetItem& TmpBuffer1,
+	void ConvolutionWithTextureImage2D(
+		FRDGBuilder& GraphBuilder,
+		const FGlobalShaderMap* ShaderMap,
+		const FIntPoint& FrequencySize,
+		bool bHorizontalFirst,
+		FRDGTextureRef TransformedKernel,
+		FRDGTextureRef SrcTexture, const FIntRect& ROIRect,
+		FRDGTextureRef DstTexture, const FIntRect& DstRect,
 		const FPreFilter& PreFilter);
 
 	FIntPoint Convolution2DBufferSize(const FIntPoint& FrequencySize, const bool bHorizontalFirst, const FIntPoint& SrcExtent);
@@ -489,118 +306,10 @@ namespace GPUFFT
 
 	* NB: This function does not transition resources.  That must be done by the calling scope.
 	*/
-	void CopyImage2D(FGPUFFTShaderContext& Context,
-		const FIntRect& SrcWindow, const FTextureRHIRef& SrcTexture,
-		const FIntRect& DstWindow, FUnorderedAccessViewRHIRef DstUAV,
+	void CopyImage2D(
+		FRDGBuilder& GraphBuilder,
+		const FGlobalShaderMap* ShaderMap,
+		FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
+		FRDGTextureRef DstTexture, const FIntRect& DstWindow,
 		const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f));
 };
-
-// Collection of utilities that make interfacing with compute shaders a little more nice
-namespace GPUFFTComputeShaderUtils
-{
-
-
-	class FComputeParamterValueSetter
-	{
-	public:
-		FComputeParamterValueSetter(FRHICommandList& CmdList, FRHIComputeShader* InShaderRHI) :
-			RHICmdList(&CmdList), ShaderRHI(InShaderRHI) {}
-
-
-		template < typename TValue >
-		inline FComputeParamterValueSetter& operator()(FShaderParameter& Parameter, const TValue& Value)
-		{
-			SetShaderValue(*RHICmdList, ShaderRHI, Parameter, Value);
-			return *this;
-		}
-
-		template <typename TValue>
-		inline FComputeParamterValueSetter& operator()(FShaderParameter& Parameter, const TValue* Value, const uint32 NumElements)
-		{
-			SetShaderValueArray(*RHICmdList, ShaderRHI, Parameter, Value, NumElements);
-			return *this;
-		}
-
-		inline FComputeParamterValueSetter& operator()(FShaderResourceParameter& TextureParameter, FRHITexture* TextureRHI)
-		{
-			if (TextureParameter.IsBound())
-			{
-				SetTextureParameter(*RHICmdList, ShaderRHI, TextureParameter, TextureRHI);
-			}
-			return *this;
-		}
-
-
-		template <ESamplerFilter Filter, ESamplerAddressMode AddressMode>
-		inline FComputeParamterValueSetter& Set(FShaderResourceParameter& TextureParameter, FShaderResourceParameter& SamplerParameter, FRHITexture* TextureRHI)
-		{
-			SetTextureParameter(*RHICmdList, ShaderRHI, TextureParameter, SamplerParameter,
-				TStaticSamplerState<Filter, AddressMode, AddressMode, AddressMode>::GetRHI(), TextureRHI);
-			return *this;
-		}
-
-	private:
-		FRHICommandList* RHICmdList;
-		FRHIComputeShader* ShaderRHI;
-	};
-
-	class FComputeParameterBinder
-	{
-	public:
-		FComputeParameterBinder(const FShaderParameterMap& ParameterMap) : Map(&ParameterMap) {}
-
-		template <typename ParameterType>
-		inline const FComputeParameterBinder& operator()(ParameterType& Parameter, const TCHAR* Name) const
-		{
-			Parameter.Bind(*Map, Name);
-			return *this;
-		}
-
-		template <typename ParameterType>
-		inline const FComputeParameterBinder& operator()(ParameterType& Parameter) const
-		{
-			Parameter.Bind(*Map);
-			return *this;
-		}
-	private:
-		const FShaderParameterMap* Map;
-	};
-
-	class FScopedUAVBind
-	{
-	public:
-
-		// Factory method.
-		template <typename ComputeShaderT>
-		inline static FScopedUAVBind BindOutput(FRHICommandList& CmdList, const TShaderRef<ComputeShaderT>& Shader, const FUnorderedAccessViewRHIRef& BufferUAV)
-		{
-			FRHIComputeShader* ShaderRHI = Shader.GetComputeShader();
-			const uint32 BaseIndex = Shader->DestinationResourceParameter().GetBaseIndex();
-			return FScopedUAVBind(CmdList, ShaderRHI, BaseIndex, BufferUAV);
-		}
-
-
-		// destructor unbinds the UAV
-		~FScopedUAVBind()
-		{
-			RHICmdList->SetUAVParameter(ComputeShader, Index, NULL);
-		}
-
-
-	private:
-		FScopedUAVBind();
-
-		FScopedUAVBind(FRHICommandList& CmdList, FRHIComputeShader* ShaderRHI, const uint32 BaseIndex, FUnorderedAccessViewRHIRef BufferUAV)
-			:ComputeShader(ShaderRHI), RHICmdList(&CmdList), Index(BaseIndex)
-		{
-			RHICmdList->SetUAVParameter(ComputeShader, Index, BufferUAV);
-		}
-
-
-		FRHIComputeShader* ComputeShader;
-		FRHICommandList* RHICmdList;
-		uint32 Index;
-	};
-
-
-}; // end namespace GPUFFTComputeShaderUtils

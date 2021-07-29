@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessFFTBloom.h"
 #include "GPUFastFourierTransform.h"
 #include "RendererModule.h"
+#include "Rendering/Texture2DResource.h"
 
 namespace
 {
@@ -44,13 +45,15 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FResizeAndCenterTextureCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SrcSampler)
-		SHADER_PARAMETER_UAV(RWTexture2D<float4>, DstTexture)
 		SHADER_PARAMETER(FIntPoint, DstExtent)
 		SHADER_PARAMETER(FIntPoint, ImageExtent)
 		SHADER_PARAMETER(FVector4, KernelCenterAndScale)
 		SHADER_PARAMETER(FIntPoint, DstBufferExtent)
+
+		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SrcSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -61,8 +64,6 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FResizeAndCenterTextureCS, "/Engine/Private/PostProcessFFTBloom.usf", "ResizeAndCenterTextureCS", SF_Compute);
-
 class FCaptureKernelWeightsCS : public FFFTBloomShader
 {
 public:
@@ -70,12 +71,14 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FCaptureKernelWeightsCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_TEXTURE(Texture2D, HalfResSrcTexture)
-		SHADER_PARAMETER_TEXTURE(Texture2D, PhysicalSrcTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, PhysicalSrcSampler)
-		SHADER_PARAMETER_UAV(RWTexture2D<float4>, DstTexture)
 		SHADER_PARAMETER(FIntPoint, HalfResSumLocation)
 		SHADER_PARAMETER(FVector2D, UVCenter)
+
+		SHADER_PARAMETER_SAMPLER(SamplerState, PhysicalSrcSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HalfResSrcTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, PhysicalSrcTexture)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -85,8 +88,6 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FCaptureKernelWeightsCS, "/Engine/Private/PostProcessFFTBloom.usf", "CaptureKernelWeightsCS", SF_Compute);
-
 class FBlendLowResCS : public FFFTBloomShader
 {
 public:
@@ -94,14 +95,16 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FBlendLowResCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
-		SHADER_PARAMETER_TEXTURE(Texture2D, HalfResSrcTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, HalfResSrcSampler)
-		SHADER_PARAMETER_TEXTURE(Texture2D, CenterWeightTexture)
-		SHADER_PARAMETER_UAV(RWTexture2D<float4>, DstTexture)
 		SHADER_PARAMETER(FIntRect, DstRect)
 		SHADER_PARAMETER(FIntRect, HalfRect)
 		SHADER_PARAMETER(FIntPoint, HalfBufferSize)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HalfResSrcTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HalfResSrcSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CenterWeightTexture)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -112,30 +115,10 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FBlendLowResCS, "/Engine/Private/PostProcessFFTBloom.usf", "BlendLowResCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FResizeAndCenterTextureCS, "/Engine/Private/PostProcessFFTBloom.usf", "ResizeAndCenterTextureCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCaptureKernelWeightsCS,   "/Engine/Private/PostProcessFFTBloom.usf", "CaptureKernelWeightsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBlendLowResCS,            "/Engine/Private/PostProcessFFTBloom.usf", "BlendLowResCS", SF_Compute);
 
-class FPassThroughCS : public FFFTBloomShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FPassThroughCS);
-	SHADER_USE_PARAMETER_STRUCT(FPassThroughCS, FFFTBloomShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
-		SHADER_PARAMETER_UAV(RWTexture2D<float4>, DstTexture)
-		SHADER_PARAMETER(FIntRect, SrcRect)
-		SHADER_PARAMETER(FIntRect, DstRect)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FFFTBloomShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("INCLUDE_PASSTHROUGH"), 1);
-		OutEnvironment.SetDefine(TEXT("THREADS_PER_GROUP"), ThreadsPerGroup);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FPassThroughCS, "/Engine/Private/PostProcessFFTBloom.usf", "PassThroughCS", SF_Compute);
 } //! namespace
 
 bool IsFFTBloomHalfResolutionEnabled()
@@ -146,51 +129,6 @@ bool IsFFTBloomHalfResolutionEnabled()
 bool IsFFTBloomQuarterResolutionEnabled()
 {
 	return CVarHalfResFFTBloom.GetValueOnRenderThread() == 2;
-}
-
-bool IsFFTBloomPhysicalKernelReady(const FViewInfo& View)
-{
-	UTexture2D* BloomConvolutionTexture = View.FinalPostProcessSettings.BloomConvolutionTexture;
-
-	// Fall back to the default bloom texture if provided.
-	if (BloomConvolutionTexture == nullptr)
-	{
-		BloomConvolutionTexture = GEngine->DefaultBloomKernelTexture;
-	}
-
-	bool bValidSetup = (BloomConvolutionTexture != nullptr && BloomConvolutionTexture->GetResource() != nullptr);
-
-	// The bloom convolution kernel needs to be resident to avoid visual artifacts.
-	if (bValidSetup)
-	{
-		const int32 CinematicTextureGroups = 0;
-		const float Seconds = 5.0f;
-		BloomConvolutionTexture->SetForceMipLevelsToBeResident(Seconds, CinematicTextureGroups);
-	}
-
-	const uint32 FramesPerWarning = 15;
-
-	if (bValidSetup && BloomConvolutionTexture->IsFullyStreamedIn() == false)
-	{
-		if ((View.Family->FrameNumber % FramesPerWarning) == 0)
-		{
-			UE_LOG(LogRenderer, Warning, TEXT("The Physical Kernel Texture not fully streamed in."));
-		}
-	}
-
-	bValidSetup = bValidSetup && (BloomConvolutionTexture->IsFullyStreamedIn() == true);
-
-	if (bValidSetup && BloomConvolutionTexture->bHasStreamingUpdatePending == true)
-	{
-		if ((View.Family->FrameNumber % FramesPerWarning) == 0)
-		{
-			UE_LOG(LogRenderer, Warning, TEXT("The Physical Kernel Texture has pending update."));
-		}
-	}
-
-	bValidSetup = bValidSetup && (BloomConvolutionTexture->bHasStreamingUpdatePending == false);
-
-	return bValidSetup;
 }
 
 bool IsFFTBloomEnabled(const FViewInfo& View)
@@ -208,7 +146,7 @@ bool IsFFTBloomEnabled(const FViewInfo& View)
 
 	if (bUseFFTBloom && !bOldMetalNoFFT)
 	{
-		return IsFFTBloomPhysicalKernelReady(View);
+		return View.FFTBloomKernelTexture != nullptr;
 	}
 	else
 	{
@@ -233,95 +171,83 @@ bool IsFFTBloomEnabled(const FViewInfo& View)
 * @param bForceCenterZero -  is true only for the experimental 1/2 res version, part of conserving energy
 */
 void ResizeAndCenterTexture(
-	FRHICommandList& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FTextureRHIRef& SrcTexture,
 	const FIntPoint& SrcImageSize,
 	const FVector2D& SrcImageCenterUV,
 	const float ResizeScale,
 	const FIntPoint& TargetSize,
-	FUnorderedAccessViewRHIRef& DstUAV,
+	FRDGTextureRef DstTexture,
 	const FIntPoint& DstBufferSize,
 	const bool bForceCenterZero)
 {
-	SCOPED_DRAW_EVENTF(RHICmdList, FRCPassFFTBloom, TEXT("FFT: Pre-process the space kernel to %d by %d"), TargetSize.X, TargetSize.Y);
-
 	// Clamp the image center
 	FVector2D ClampedImageCenterUV = SrcImageCenterUV;
 	ClampedImageCenterUV.X = FMath::Clamp(SrcImageCenterUV.X, 0.f, 1.f);
 	ClampedImageCenterUV.Y = FMath::Clamp(SrcImageCenterUV.Y, 0.f, 1.f);
 
-	check(DstUAV);
-	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	check(DstTexture);
 
-	{
-		TShaderMapRef<FResizeAndCenterTextureCS> ComputeShader(View.ShaderMap);
+	float CenterScale = bForceCenterZero ? 0.f : 1.f;
+	const FLinearColor KernelCenterAndScale(ClampedImageCenterUV.X, ClampedImageCenterUV.Y, ResizeScale, CenterScale);
 
-		float CenterScale = bForceCenterZero ? 0.f : 1.f;
-		const FLinearColor KernelCenterAndScale(ClampedImageCenterUV.X, ClampedImageCenterUV.Y, ResizeScale, CenterScale);
+	FResizeAndCenterTextureCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FResizeAndCenterTextureCS::FParameters>();
+	PassParameters->DstExtent = TargetSize;
+	PassParameters->ImageExtent = SrcImageSize;
+	PassParameters->KernelCenterAndScale = KernelCenterAndScale;
+	PassParameters->DstBufferExtent = DstBufferSize;
 
-		FResizeAndCenterTextureCS::FParameters PassParameters;
-		PassParameters.SrcTexture = SrcTexture;
-		PassParameters.SrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-		PassParameters.DstTexture = DstUAV;
-		PassParameters.DstExtent = TargetSize;
-		PassParameters.ImageExtent = SrcImageSize;
-		PassParameters.KernelCenterAndScale = KernelCenterAndScale;
-		PassParameters.DstBufferExtent = DstBufferSize;
+	PassParameters->SrcTexture = SrcTexture;
+	PassParameters->SrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+	PassParameters->DstTexture = GraphBuilder.CreateUAV(DstTexture);
 
-		// Use multiple threads per scan line to insure memory coalescing during the write
-		const int32 ThreadsPerGroup = FResizeAndCenterTextureCS::ThreadsPerGroup;
-		const int32 ThreadsGroupsPerScanLine = (DstBufferSize.X % ThreadsPerGroup == 0) ? DstBufferSize.X / ThreadsPerGroup : DstBufferSize.X / ThreadsPerGroup + 1;
-		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, DstBufferSize.Y, 1));
-	}
+	// Use multiple threads per scan line to insure memory coalescing during the write
+	const int32 ThreadsPerGroup = FResizeAndCenterTextureCS::ThreadsPerGroup;
+	const int32 ThreadsGroupsPerScanLine = (DstBufferSize.X % ThreadsPerGroup == 0) ? DstBufferSize.X / ThreadsPerGroup : DstBufferSize.X / ThreadsPerGroup + 1;
+	
+	TShaderMapRef<FResizeAndCenterTextureCS> ComputeShader(View.ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFTBloom PreProcessKernel %dx%d", TargetSize.X, TargetSize.Y),
+		ComputeShader,
+		PassParameters, FIntVector(ThreadsGroupsPerScanLine, DstBufferSize.Y, 1));
 }
 
-/**
-* Used by experimental energy conserving 1/2 resolution version of the bloom.
-* Captures the sum of the kernel weights represented by the 1/2 res kernel and
-* the Center weight from the physical space kernel.
-*
-* @param Context            - container for RHI and ShaderMap
-* @param HalfResKernel      - SRV for the pre-transformed 1/2 res kernel
-* @param HalfResSumLocation - The location to sample in the pre-transformed kernel to find the sum of the physical space kernel weights
-* @param PhysicalKernel     - SRV for the original physical space kernel
-* @param CenterUV           - Where to sample the Physical Kernel for the center weight
-* @param CenterWeightRT     - 2x1 float4 buffer that on return will hold result:
-*     At  (0,0) the center weight of physical kernel, and (1,0) the sum of the 1/2res kernel weights
-*/
-void CaptureKernelWeight(
-	FRHICommandList& RHICmdList,
+FRDGTextureRef CaptureKernelWeight(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FTextureRHIRef& HalfResKernel,
+	FRDGTextureRef HalfResKernel,
 	const FIntPoint& HalfResSumLocation,
 	const FTextureRHIRef& PhysicalKernel,
-	const FVector2D& CenterUV,
-	TRefCountPtr<IPooledRenderTarget>& CenterWeightRT)
+	const FVector2D& CenterUV)
 {
-	SCOPED_DRAW_EVENTF(RHICmdList, FRCPassFFTBloom, TEXT("FFT: Capture Kernel Weights"));
+	FRDGTextureDesc CenterWeightDesc = FRDGTextureDesc::Create2D(
+		FIntPoint(2, 1),
+		GPUFFT::PixelFormat(),
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV);
 
-	FSceneRenderTargetItem& DstTargetItem = CenterWeightRT->GetRenderTargetItem();
+	// Resize the buffer to hold the transformed kernel
+	FRDGTextureRef CenterWeightTexture = GraphBuilder.CreateTexture(CenterWeightDesc, TEXT("Bloom.FFT.KernelCenterWeight"));
 
-	check(DstTargetItem.UAV);
-	RHICmdList.Transition(FRHITransitionInfo(DstTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	FCaptureKernelWeightsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCaptureKernelWeightsCS::FParameters>();
+	PassParameters->HalfResSumLocation = HalfResSumLocation;
+	PassParameters->UVCenter = CenterUV;
+	PassParameters->PhysicalSrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+	PassParameters->HalfResSrcTexture = HalfResKernel;
+	PassParameters->PhysicalSrcTexture = PhysicalKernel;
+	PassParameters->DstTexture = GraphBuilder.CreateUAV(CenterWeightTexture);
 
-	{
-		TShaderMapRef<FCaptureKernelWeightsCS> ComputeShader(View.ShaderMap);
+	TShaderMapRef<FCaptureKernelWeightsCS> ComputeShader(View.ShaderMap);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFTBloom CaptureKernelWeights"),
+		ComputeShader,
+		PassParameters, 
+		FIntVector(1, 1, 1));
 
-		FCaptureKernelWeightsCS::FParameters PassParameters;
-		PassParameters.HalfResSrcTexture = HalfResKernel;
-		PassParameters.PhysicalSrcTexture = PhysicalKernel;
-		PassParameters.PhysicalSrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-		PassParameters.DstTexture = DstTargetItem.UAV;
-		PassParameters.HalfResSumLocation = HalfResSumLocation;
-		PassParameters.UVCenter = CenterUV;
-
-		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(1, 1, 1));
-	}
-
-	RHICmdList.Transition(FRHITransitionInfo(DstTargetItem.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-
-	ensureMsgf(DstTargetItem.TargetableTexture == DstTargetItem.ShaderResourceTexture, TEXT("%s should be resolved to a separate SRV"), *DstTargetItem.TargetableTexture->GetName().ToString());
+	return CenterWeightTexture;
 }
 
 /**
@@ -342,137 +268,87 @@ void CaptureKernelWeight(
 * @param DstUAV                - Destination buffer that will hold the result.
 */
 void BlendLowRes(
-	FRHICommandList& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FTextureRHIRef& FullResImage,
+	FRDGTextureRef FullResImage,
 	const FIntRect& FullResImageRect,
-	const FTextureRHIRef& HalfResConvolvedImage,
+	FRDGTextureRef HalfResConvolvedImage,
 	const FIntRect& HalfResRect,
 	const FIntPoint& HalfBufferSize,
-	const FTextureRHIRef& CenterWeightTexutre,
-	FUnorderedAccessViewRHIRef DstUAV)
+	FRDGTextureRef CenterWeightTexutre,
+	FRDGTextureRef DstTexture)
 {
-	SCOPED_DRAW_EVENTF(RHICmdList, FRCPassFFTBloom, TEXT("FFT: Post-process upres and blend"));
+	FBlendLowResCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBlendLowResCS::FParameters>();
+	PassParameters->DstRect = FullResImageRect;
+	PassParameters->HalfRect = HalfResRect;
+	PassParameters->HalfBufferSize = HalfBufferSize;
 
-	// set destination
-	check(DstUAV);
-	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	PassParameters->SrcTexture = FullResImage;
+	PassParameters->HalfResSrcTexture = HalfResConvolvedImage;
+	PassParameters->HalfResSrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+	PassParameters->CenterWeightTexture = CenterWeightTexutre;
 
-	{
-		TShaderMapRef<FBlendLowResCS> ComputeShader(View.ShaderMap);
+	PassParameters->DstTexture = GraphBuilder.CreateUAV(DstTexture);
 
-		FBlendLowResCS::FParameters PassParameters;
-		PassParameters.SrcTexture = FullResImage;
-		PassParameters.DstTexture = DstUAV;
-		PassParameters.HalfResSrcTexture = HalfResConvolvedImage;
-		PassParameters.HalfResSrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-		PassParameters.CenterWeightTexture = CenterWeightTexutre;
-		PassParameters.DstRect = FullResImageRect;
-		PassParameters.HalfRect = HalfResRect;
-		PassParameters.HalfBufferSize = HalfBufferSize;
+	TShaderMapRef<FBlendLowResCS> ComputeShader(View.ShaderMap);
 
-		const FIntPoint TargetExtent = FullResImageRect.Size();
+	const FIntPoint TargetSize = FullResImageRect.Size();
 
-		// Use multiple threads per scan line to insure memory coalescing during the write
-		const int32 ThreadsPerGroup = ComputeShader->ThreadsPerGroup;
-		const int32 ThreadsGroupsPerScanLine = (TargetExtent.X % ThreadsPerGroup == 0) ? TargetExtent.X / ThreadsPerGroup : TargetExtent.X / ThreadsPerGroup + 1;
+	// Use multiple threads per scan line to insure memory coalescing during the write
+	const int32 ThreadsPerGroup = ComputeShader->ThreadsPerGroup;
+	const int32 ThreadsGroupsPerScanLine = (TargetSize.X % ThreadsPerGroup == 0) ? TargetSize.X / ThreadsPerGroup : TargetSize.X / ThreadsPerGroup + 1;
 
-		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, TargetExtent.Y, 1));
-	}
-
-	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FFTBloom Upscale&Blend %dx%d -> %dx%d",
+			HalfResRect.Width(),
+			HalfResRect.Height(),
+			FullResImageRect.Width(),
+			FullResImageRect.Height()),
+		ComputeShader,
+		PassParameters,
+		FIntVector(ThreadsGroupsPerScanLine, TargetSize.Y, 1));
 }
 
-/**
-* Used to copy the input image in the event that it is too large to bloom (i.e. doesn't fit in the FFT group shared memory)
-*
-* @param SrcTargetItem  - The SrcBuffer to be copied.
-* @param SrcRect        - The region in the SrcBuffer to copy
-* @param DstUAV         - The target buffer for the copy
-* @param DstRect        - The location and region in the target buffer for the copy
-*/
-void CopyImageRect(
-	FRHICommandList& RHICmdList,
+FRDGTextureRef TransformKernelFFT(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FSceneRenderTargetItem& SrcTargetItem,
-	const FIntRect& SrcRect,
-	FUnorderedAccessViewRHIRef& DstUAV,
-	const FIntRect& DstRect)
-{
-	SCOPED_DRAW_EVENTF(RHICmdList, FRCPassFFTBloom, TEXT("FFT: passthrough "));
-
-	// set destination
-	check(DstUAV);
-	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-
-	{
-		TShaderMapRef<FPassThroughCS> ComputeShader(View.ShaderMap);
-
-		FPassThroughCS::FParameters PassParameters;
-		PassParameters.SrcTexture = SrcTargetItem.ShaderResourceTexture;
-		PassParameters.DstTexture = DstUAV;
-		PassParameters.SrcRect = SrcRect;
-		PassParameters.DstRect = DstRect;
-
-		const FIntPoint DstRectSize = DstRect.Size();
-
-		// Use multiple threads per scan line to insure memory coalescing during the write
-		const int32 ThreadsPerGroup = ComputeShader->ThreadsPerGroup;
-		const int32 ThreadsGroupsPerScanLine = (DstRectSize.X % ThreadsPerGroup == 0) ? DstRectSize.X / ThreadsPerGroup : DstRectSize.X / ThreadsPerGroup + 1;
-
-		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, DstRectSize.Y, 1));
-	}
-}
-
-bool TransformKernelFFT(
-	FRHICommandList& RHICmdList,
-	const FViewInfo& View,
-	FSceneRenderTargetItem& KernelTargetItem,
+	FRDGTextureRef ResizedKernel,
 	bool bDoHorizontalFirst,
 	FIntPoint FrequencySize)
 {
-	GPUFFT::FGPUFFTShaderContext FFTContext(RHICmdList, *View.ShaderMap);
-
-	// Create the tmp buffer
-
 	// Our frequency storage layout adds two elements to the first transform direction. 
 	const FIntPoint FrequencyPadding = (bDoHorizontalFirst) ? FIntPoint(2, 0) : FIntPoint(0, 2);
 	const FIntPoint PaddedFrequencySize = FrequencySize + FrequencyPadding;
 
 	// Should read / write to PF_G16R16F or PF_G32R32F (float2 formats)
 	// Need to set the render target description before we "request surface"
-	const EPixelFormat PixelFormat = GPUFFT::PixelFormat();
-	FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(PaddedFrequencySize, PixelFormat,
-		FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false);
+	FRDGTextureRef SpectralKernel;
+	{
 
-	// Temp buffer used at intermediate buffer when transforming the world space kernel 
-	TRefCountPtr<IPooledRenderTarget> TmpRT;
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, TmpRT, TEXT("FFT Tmp Kernel Buffer"));
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			PaddedFrequencySize,
+			GPUFFT::PixelFormat(),
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV);
+
+		SpectralKernel = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.SpectralKernel"));
+	}
 
 	FIntRect SrcRect(FIntPoint(0, 0), FrequencySize);
-	const FTextureRHIRef& SrcImage = KernelTargetItem.ShaderResourceTexture;
-	FSceneRenderTargetItem& ResultBuffer = KernelTargetItem;
+	GPUFFT::FFTImage2D(
+		GraphBuilder,
+		View.ShaderMap,
+		FrequencySize, bDoHorizontalFirst,
+		ResizedKernel, SrcRect,
+		SpectralKernel);
 
-	bool SuccessValue = GPUFFT::FFTImage2D(FFTContext, FrequencySize, bDoHorizontalFirst, SrcRect, SrcImage, ResultBuffer, TmpRT->GetRenderTargetItem());
-
-	// Transition resource
-	RHICmdList.Transition(FRHITransitionInfo(ResultBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-
-	return SuccessValue;
+	return SpectralKernel;
 }
 
 struct FFFTBloomIntermediates
 {
-	FRHITexture* FullResolutionTarget = nullptr;
-	FIntRect FullResolutionViewRect;
-	FIntPoint FullResolutionSize;
-
-	FRHITexture* HalfResolutionTarget = nullptr;
-	FIntRect HalfResolutionViewRect;
-	FIntPoint HalfResolutionSize;
-
-	FRHITexture* InputTarget = nullptr;
-	FRHIUnorderedAccessView* OutputUAV = nullptr;
+	FRDGTextureRef InputTexture;
 
 	// The size of the input buffer.
 	FIntPoint InputBufferSize;
@@ -493,14 +369,11 @@ struct FFFTBloomIntermediates
 	// The order of the two-dimensional transform.  This implicitly defines
 	// the data layout in transform space for both the kernel and image transform
 	bool bDoHorizontalFirst = false;
-
-	bool bHalfResolutionFFT = false;
 };
 
 FFFTBloomIntermediates GetFFTBloomIntermediates(
 	const FViewInfo& View,
-	const FFFTBloomInputs& Inputs,
-	FRDGTextureUAVRef OutputUAV)
+	const FFFTBloomInputs& Inputs)
 {
 	FSceneViewState* ViewState = (FSceneViewState*)View.State;
 	check(ViewState);
@@ -535,29 +408,18 @@ FFFTBloomIntermediates GetFFTBloomIntermediates(
 	const bool bHalfResolutionFFT = IsFFTBloomHalfResolutionEnabled();
 
 	FFFTBloomIntermediates Intermediates;
-	Intermediates.FullResolutionTarget = Inputs.FullResolutionTexture->GetRHI();
-	Intermediates.FullResolutionViewRect = Inputs.FullResolutionViewRect;
-	Intermediates.FullResolutionSize = Intermediates.FullResolutionViewRect.Size();
-	Intermediates.bHalfResolutionFFT = bHalfResolutionFFT;
-
 	if (bHalfResolutionFFT)
 	{
-		Intermediates.HalfResolutionTarget = Inputs.HalfResolutionTexture->GetRHI();
-		Intermediates.HalfResolutionViewRect = Inputs.HalfResolutionViewRect;
-		Intermediates.HalfResolutionSize = Inputs.HalfResolutionViewRect.Size();
-
-		Intermediates.InputTarget = Intermediates.HalfResolutionTarget;
-		Intermediates.InputBufferSize = Intermediates.HalfResolutionSize;
-		Intermediates.ImageRect = Intermediates.HalfResolutionViewRect;
+		Intermediates.InputTexture = Inputs.HalfResolutionTexture;
+		Intermediates.InputBufferSize = Inputs.HalfResolutionViewRect.Size();
+		Intermediates.ImageRect = Inputs.HalfResolutionViewRect;
 	}
 	else
 	{
-		Intermediates.InputTarget = Intermediates.FullResolutionTarget;
-		Intermediates.InputBufferSize = Intermediates.FullResolutionSize;
-		Intermediates.ImageRect = Intermediates.FullResolutionViewRect;
+		Intermediates.InputTexture = Inputs.FullResolutionTexture;
+		Intermediates.InputBufferSize = Inputs.FullResolutionViewRect.Size();
+		Intermediates.ImageRect = Inputs.FullResolutionViewRect;
 	}
-
-	Intermediates.OutputUAV = OutputUAV->GetRHI();
 
 	Intermediates.KernelSupportScale = KernelSupportScale;
 	Intermediates.KernelSupportScaleClamp = KernelSupportScaleClamp;
@@ -595,50 +457,20 @@ FFFTBloomIntermediates GetFFTBloomIntermediates(
 	return Intermediates;
 }
 
-void ConvolveWithKernel(
-	FRHICommandList& RHICmdList,
+void InitDomainAndGetKernel(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FFFTBloomIntermediates& Intermediates,
-	const FTextureRHIRef& SpectralKernelTexture,
-	const FLinearColor& Tint,
-	FUnorderedAccessViewRHIRef ResultUAV)
+	bool bForceCenterZero,
+	FRDGTextureRef* OutCachedSpectralKernel,
+	FRDGTextureRef* OutCenterWeightTexture)
 {
-	GPUFFT::FGPUFFTShaderContext FFTContext(RHICmdList, *View.ShaderMap);
-
-	// Get Tmp buffers required for the Convolution
-
-	TRefCountPtr<IPooledRenderTarget> TmpTargets[2];
-
-	const FIntPoint TmpExtent = GPUFFT::Convolution2DBufferSize(Intermediates.FrequencySize, Intermediates.bDoHorizontalFirst, Intermediates.ImageRect.Size());
-	//(bDoHorizontalFirst) ? FIntPoint(FrequencySize.X + 2, ImageRect.Size().Y) : FIntPoint(ImageRect.Size().X, FrequencySize.Y + 2);
-	FPooledRenderTargetDesc Desc =
-		FPooledRenderTargetDesc::Create2DDesc(TmpExtent, GPUFFT::PixelFormat(), FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false);
-
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, TmpTargets[0], TEXT("Tmp FFT Buffer A"));
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, TmpTargets[1], TEXT("Tmp FFT Buffer B"));
-
-	// Get the source
-	FRHITexture* InputTexture = Intermediates.InputTarget;
-
-	GPUFFT::ConvolutionWithTextureImage2D(FFTContext, Intermediates.FrequencySize, Intermediates.bDoHorizontalFirst,
-		SpectralKernelTexture,
-		Intermediates.ImageRect/*region of interest*/,
-		InputTexture,
-		ResultUAV,
-		TmpTargets[0]->GetRenderTargetItem(),
-		TmpTargets[1]->GetRenderTargetItem(),
-		Intermediates.PreFilter);
-
-	RHICmdList.Transition(FRHITransitionInfo(ResultUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-}
-
-FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, const FViewInfo& View, const FFFTBloomIntermediates& Intermediates)
-{
-	FSceneViewState* ViewState = (FSceneViewState*)View.State;
+	FSceneViewState* ViewState = View.ViewState;
 
 	const auto& PPSettings = View.FinalPostProcessSettings;
 
 	UTexture2D* BloomConvolutionTexture = PPSettings.BloomConvolutionTexture;
+	const FTexture2DResource* BloomConvolutionTextureResource = View.FFTBloomKernelTexture;
 
 	// Fall back to the default bloom texture if provided.
 	if (BloomConvolutionTexture == nullptr)
@@ -647,7 +479,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 	}
 
 	// This should exist if we called IsFFTBloomPhysicalKernelReady.
-	check(BloomConvolutionTexture && BloomConvolutionTexture->GetResource() && BloomConvolutionTexture->GetResource()->TextureRHI);
+	check(BloomConvolutionTexture && BloomConvolutionTextureResource && BloomConvolutionTextureResource->TextureRHI);
 
 	const float BloomConvolutionSize = PPSettings.BloomConvolutionSize;
 	const FVector2D CenterUV = PPSettings.BloomConvolutionCenterUV;
@@ -658,102 +490,99 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 
 	// Should read / write to PF_G16R16F or PF_G32R32F (float2 formats)
 	// Need to set the render target description before we "request surface"
-	const EPixelFormat PixelFormat = GPUFFT::PixelFormat();
-	const FPooledRenderTargetDesc TransformDesc = FPooledRenderTargetDesc::Create2DDesc(PaddedFrequencySize, PixelFormat,
-		FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false);
+	const FRDGTextureDesc TransformDesc = FRDGTextureDesc::Create2D(
+		PaddedFrequencySize,
+		GPUFFT::PixelFormat(),
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV);
 
-	auto& FFTKernel = ViewState->BloomFFTKernel;
-	// Get the FFT kernel from the view state (note, this has already been transformed).
-	TRefCountPtr<IPooledRenderTarget>& TransformedKernelRT = FFTKernel.Spectral;
-	const UTexture2D* CachedKernelPhysical = FFTKernel.Physical;
-	const float       CachedKernelScale = FFTKernel.Scale;
-	const FVector2D&  CachedKernelCenterUV = FFTKernel.CenterUV;
-	const FIntPoint&  CachedImageSize = FFTKernel.ImageSize;
-
-	const FIntPoint ImageSize = Intermediates.ImageRect.Size();
-
-	bool bCachedKernelIsDirty = true;
-
-	if (TransformedKernelRT)
+	FRDGTextureRef CachedSpectralKernel = nullptr;
+	FRDGTextureRef CenterWeightTexture = nullptr;
+	if (ViewState && ViewState->BloomFFTKernel.Spectral)
 	{
-		FPooledRenderTarget* TransformedTexture = (FPooledRenderTarget*)TransformedKernelRT.GetReference();
+		auto& FFTKernel = ViewState->BloomFFTKernel;
 
-		const bool bSameTexture = (CachedKernelPhysical == static_cast<const UTexture2D*>(BloomConvolutionTexture));
-		const bool bSameSpectralBuffer = TransformedTexture->GetDesc().Compare(TransformDesc, true /*exact match*/);
-		const bool bSameKernelSize = FMath::IsNearlyEqual(CachedKernelScale, BloomConvolutionSize, float(1.e-6) /*tol*/);
-		const bool bSameImageSize = (ImageSize == CachedImageSize);
-		const bool bSameKernelCenterUV = CachedKernelCenterUV.Equals(CenterUV, float(1.e-6) /*tol*/);
-		const bool bSameMipLevel = bSameTexture && FFTKernel.PhysicalMipLevel == BloomConvolutionTexture->GetResource()->GetCurrentMipCount();
+		FRDGTextureRef PrevCachedSpectralKernel = GraphBuilder.RegisterExternalTexture(FFTKernel.Spectral);
+
+		const bool bSameTexture = (FFTKernel.Physical == static_cast<const UTexture2D*>(BloomConvolutionTexture));
+		const bool bSameSpectralBuffer = TransformDesc.ClearValue == PrevCachedSpectralKernel->Desc.ClearValue
+			&& TransformDesc.Flags == PrevCachedSpectralKernel->Desc.Flags
+			&& TransformDesc.Format == PrevCachedSpectralKernel->Desc.Format
+			&& TransformDesc.Extent == PrevCachedSpectralKernel->Desc.Extent;
+
+		const bool bSameKernelSize = FMath::IsNearlyEqual(FFTKernel.Scale, BloomConvolutionSize, float(1.e-6) /*tol*/);
+		const bool bSameImageSize = (Intermediates.ImageRect.Size() == FFTKernel.ImageSize);
+		const bool bSameKernelCenterUV = FFTKernel.CenterUV.Equals(CenterUV, float(1.e-6) /*tol*/);
+		const bool bSameMipLevel = bSameTexture && FFTKernel.PhysicalMipLevel == BloomConvolutionTextureResource->GetCurrentMipCount();
 
 		if (bSameTexture && bSameSpectralBuffer && bSameKernelSize && bSameImageSize && bSameKernelCenterUV && bSameMipLevel)
 		{
-			bCachedKernelIsDirty = false;
+			CachedSpectralKernel = PrevCachedSpectralKernel;
+
+			if (bForceCenterZero)
+			{
+				CenterWeightTexture = GraphBuilder.RegisterExternalTexture(FFTKernel.CenterWeight);
+			}
 		}
 	}
 
 	// Re-transform the kernel if needed.
-	if (bCachedKernelIsDirty)
+	if (!CachedSpectralKernel)
 	{
-		// Resize the buffer to hold the transformed kernel
-		GRenderTargetPool.FindFreeElement(RHICmdList, TransformDesc, TransformedKernelRT, TEXT("FFTKernel"));
-
-		// NB: SpectralKernelRTItem is member data
-		FSceneRenderTargetItem& SpectralKernelRTItem = TransformedKernelRT->GetRenderTargetItem();
-		FUnorderedAccessViewRHIRef SpectralKernelUAV = SpectralKernelRTItem.UAV;
+		RDG_EVENT_SCOPE(GraphBuilder, "InitDomainAndGetKernel");
 
 		// Sample the physical space kernel into the resized buffer
-
-		FTextureRHIRef& PhysicalSpaceKernelTextureRef = BloomConvolutionTexture->GetResource()->TextureRHI;
+		const FTextureRHIRef& PhysicalSpaceKernelTextureRef = BloomConvolutionTextureResource->TextureRHI;
 
 		// Rescale the physical space kernel ( and omit the center if this is a 1/2 resolution fft, it will be added later)
-
-		ResizeAndCenterTexture(RHICmdList, View, PhysicalSpaceKernelTextureRef, ImageSize, CenterUV, Intermediates.KernelSupportScale,
-			Intermediates.FrequencySize, SpectralKernelRTItem.UAV, PaddedFrequencySize, Intermediates.bHalfResolutionFFT);
-
-		// ResizeAndCenterTexture transitioned SpectralKernelRTItem to UAVCompute
-		RHICmdList.Transition(FRHITransitionInfo(SpectralKernelRTItem.ShaderResourceTexture, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		FRDGTextureRef ResizedKernel = GraphBuilder.CreateTexture(TransformDesc, TEXT("Bloom.FFT.ResizedKernel"));
+		ResizeAndCenterTexture(
+			GraphBuilder,
+			View, PhysicalSpaceKernelTextureRef, Intermediates.ImageRect.Size(), CenterUV, Intermediates.KernelSupportScale,
+			Intermediates.FrequencySize, ResizedKernel, PaddedFrequencySize, bForceCenterZero);
 
 		// Two Dimensional FFT of the physical space kernel.  
-		// Input: SpectralRTItem holds the physical space kernel, on return it will be the spectral space 
+		CachedSpectralKernel = TransformKernelFFT(
+			GraphBuilder, View,
+			ResizedKernel,
+			Intermediates.bDoHorizontalFirst,
+			Intermediates.FrequencySize);
 
-		TransformKernelFFT(RHICmdList, View, SpectralKernelRTItem, Intermediates.bDoHorizontalFirst, Intermediates.FrequencySize);
-
-		if (Intermediates.bHalfResolutionFFT)
+		if (bForceCenterZero)
 		{
-			TRefCountPtr<IPooledRenderTarget>& CenterWeightRT = FFTKernel.CenterWeight;
-
-			const FPooledRenderTargetDesc CenterWeightDesc = FPooledRenderTargetDesc::Create2DDesc(FIntPoint(2, 1), PixelFormat,
-				FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false);
-
-			// Resize the buffer to hold the transformed kernel
-			GRenderTargetPool.FindFreeElement(RHICmdList, CenterWeightDesc, CenterWeightRT, TEXT("FFTKernelCenterWeight"));
-
-			const FTextureRHIRef& HalfResKernelTextureRef = SpectralKernelRTItem.ShaderResourceTexture;
-
-			const FIntPoint& HalfResKernelExtent = PaddedFrequencySize;
-
-			const FIntPoint HalfResSumLocation = (Intermediates.bDoHorizontalFirst) ? FIntPoint(HalfResKernelExtent.X, 0) : FIntPoint(0, HalfResKernelExtent.Y);
 			// Capture the missing center weight from the kernel and the sum of the existing weights.
-			CaptureKernelWeight(RHICmdList, View, HalfResKernelTextureRef, HalfResKernelExtent, PhysicalSpaceKernelTextureRef, CenterUV, CenterWeightRT);
+			CenterWeightTexture = CaptureKernelWeight(
+				GraphBuilder,
+				View,
+				CachedSpectralKernel,
+				PaddedFrequencySize,
+				PhysicalSpaceKernelTextureRef,
+				CenterUV);
 		}
 
 		// Update the data on the ViewState
-		ViewState->BloomFFTKernel.Scale = BloomConvolutionSize;
-		ViewState->BloomFFTKernel.ImageSize = ImageSize;
-		ViewState->BloomFFTKernel.Physical = BloomConvolutionTexture;
-		ViewState->BloomFFTKernel.CenterUV = CenterUV;
-		ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTexture->GetResource()->GetCurrentMipCount();
+		if (ViewState)
+		{
+			ViewState->BloomFFTKernel.Scale = BloomConvolutionSize;
+			ViewState->BloomFFTKernel.ImageSize = Intermediates.ImageRect.Size();
+			ViewState->BloomFFTKernel.Physical = BloomConvolutionTexture;
+			ViewState->BloomFFTKernel.CenterUV = CenterUV;
+			ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTextureResource->GetCurrentMipCount();
+			{
+				ViewState->BloomFFTKernel.Spectral.SafeRelease();
+				GraphBuilder.QueueTextureExtraction(CachedSpectralKernel, &ViewState->BloomFFTKernel.Spectral);
+			}
+			{
+				ViewState->BloomFFTKernel.CenterWeight.SafeRelease();
+				if (CenterWeightTexture)
+					GraphBuilder.QueueTextureExtraction(CenterWeightTexture, &ViewState->BloomFFTKernel.CenterWeight);
+			}
+		}
 	}
 
-	// Return pointer to the transformed kernel.
-	return &(TransformedKernelRT->GetRenderTargetItem());
+	*OutCachedSpectralKernel = CachedSpectralKernel;
+	*OutCenterWeightTexture = CenterWeightTexture;
 }
-
-BEGIN_SHADER_PARAMETER_STRUCT(FFFTPassParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, FullResolution)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, HalfResolution)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
-END_SHADER_PARAMETER_STRUCT()
 
 FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs)
 {
@@ -762,75 +591,96 @@ FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 	check(Inputs.HalfResolutionTexture);
 	check(!Inputs.HalfResolutionViewRect.IsEmpty());
 
-	const FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
-		Inputs.FullResolutionTexture->Desc.Extent,
-		Inputs.FullResolutionTexture->Desc.Format,
-		FClearValueBinding::None,
-		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
+	const bool bHalfResolutionFFT = IsFFTBloomHalfResolutionEnabled();
 
-	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("FFTBloom"));
-	FRDGTextureUAVRef OutputUAV = GraphBuilder.CreateUAV(OutputTexture);
+	FFFTBloomIntermediates Intermediates = GetFFTBloomIntermediates(View, Inputs);
+	
+	// Init the domain data update the cached kernel if needed.
+	FRDGTextureRef SpectralKernelTexture;
+	FRDGTextureRef CenterWeightTexture;
+	InitDomainAndGetKernel(
+		GraphBuilder, View, Intermediates,
+		/* bForceCenterZero = */ bHalfResolutionFFT,
+		/* out */ &SpectralKernelTexture,
+		/* out */ &CenterWeightTexture);
 
-	FFFTPassParameters* PassParameters = GraphBuilder.AllocParameters<FFFTPassParameters>();
-	PassParameters->FullResolution = Inputs.FullResolutionTexture;
-	PassParameters->HalfResolution = Inputs.HalfResolutionTexture;
-	PassParameters->Output = OutputUAV;
+	const FLinearColor Tint(1, 1, 1, 1);
 
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("FFTBloom"),
-		PassParameters,
-		ERDGPassFlags::Compute,
-		[&View, Inputs, OutputUAV](FRHICommandList& RHICmdList)
+	RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom %dx%d", Intermediates.ImageRect.Width(), Intermediates.ImageRect.Height());
+
+	if (bHalfResolutionFFT)
 	{
-		FFFTBloomIntermediates Intermediates = GetFFTBloomIntermediates(View, Inputs, OutputUAV);
+		// Get a half-resolution destination buffer.
+		TRefCountPtr<IPooledRenderTarget> HalfResConvolutionResult;
 
-		// Init the domain data update the cached kernel if needed.
-		FSceneRenderTargetItem* SpectralKernelRTItem = InitDomainAndGetKernel(RHICmdList, View, Intermediates);
-
-		// Do the convolution with the kernel
-		const FTextureRHIRef& SpectralKernelTexture = SpectralKernelRTItem->ShaderResourceTexture;
-
-		const FLinearColor Tint(1, 1, 1, 1);
-
-		if (Intermediates.bHalfResolutionFFT)
+		FRDGTextureRef FFTConvolutionTexture;
 		{
-			// Get a half-resolution destination buffer.
-			TRefCountPtr<IPooledRenderTarget> HalfResConvolutionResult;
+			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				Intermediates.InputBufferSize,
+				GPUFFT::PixelFormat(),
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV);
 
-			const EPixelFormat PixelFormat = GPUFFT::PixelFormat();
-
-			const FPooledRenderTargetDesc HalfResFFTDesc = FPooledRenderTargetDesc::Create2DDesc(Intermediates.InputBufferSize, PixelFormat,
-				FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false);
-
-			GRenderTargetPool.FindFreeElement(RHICmdList, HalfResFFTDesc, HalfResConvolutionResult, TEXT("HalfRes FFT Result"));
-			FSceneRenderTargetItem& HalfResConvolutionRTItem = HalfResConvolutionResult->GetRenderTargetItem();
-
-			// The FFT result buffer is also half res.
-
-			ConvolveWithKernel(RHICmdList, View, Intermediates, SpectralKernelTexture, Tint, HalfResConvolutionRTItem.UAV);
-
-			// The blend weighting parameters from the View State
-
-			FSceneViewState* ViewState = (FSceneViewState*)View.State;
-			auto& FFTKernel = ViewState->BloomFFTKernel;
-
-			const FTextureRHIRef& CenterWeightTexture = FFTKernel.CenterWeight->GetRenderTargetItem().ShaderResourceTexture;
-
-			// Get full resolution source
-			FRHITexture* FullResResourceTexture = Intermediates.FullResolutionTarget;
-
-			// Blend with  alpha * SrcBuffer + betta * BloomedBuffer  where alpha = Weights[0], beta = Weights[1]
-			const FIntPoint HalfResBufferSize = Intermediates.InputBufferSize;
-
-			BlendLowRes(RHICmdList, View, FullResResourceTexture, Intermediates.FullResolutionViewRect, HalfResConvolutionRTItem.ShaderResourceTexture, Intermediates.ImageRect, HalfResBufferSize, CenterWeightTexture, Intermediates.OutputUAV);
+			FFTConvolutionTexture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.SceneColor"));
 		}
-		else
+
+		GPUFFT::ConvolutionWithTextureImage2D(
+			GraphBuilder,
+			View.ShaderMap,
+			Intermediates.FrequencySize,
+			Intermediates.bDoHorizontalFirst,
+			SpectralKernelTexture,
+			Intermediates.InputTexture, Intermediates.ImageRect,
+			FFTConvolutionTexture, Intermediates.ImageRect,
+			Intermediates.PreFilter);
+
+		// Blend with  alpha * SrcBuffer + betta * BloomedBuffer  where alpha = Weights[0], beta = Weights[1]
+		const FIntPoint HalfResBufferSize = Intermediates.InputBufferSize;
+
+		FRDGTextureRef OutputSceneColorTexture;
 		{
-			// Do Convolution directly into the output buffer
-			// NB: In this case there is only one input, and the output has matching resolution
-			ConvolveWithKernel(RHICmdList, View, Intermediates, SpectralKernelTexture, Tint, Intermediates.OutputUAV);
-		}
-	});
+			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				Inputs.FullResolutionTexture->Desc.Extent,
+				Inputs.FullResolutionTexture->Desc.Format,
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV);
 
-	return OutputTexture;
+			OutputSceneColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.SceneColor"));
+		}
+
+		BlendLowRes(
+			GraphBuilder,
+			View,
+			Inputs.FullResolutionTexture, Inputs.FullResolutionViewRect,
+			FFTConvolutionTexture, Intermediates.ImageRect,
+			Intermediates.InputBufferSize,
+			CenterWeightTexture,
+			OutputSceneColorTexture);
+
+		return OutputSceneColorTexture;
+	}
+	else
+	{
+		FRDGTextureDesc OutputSceneColorDesc = FRDGTextureDesc::Create2D(
+			Inputs.FullResolutionTexture->Desc.Extent,
+			Inputs.FullResolutionTexture->Desc.Format,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV);
+		
+		FRDGTextureRef OutputSceneColorTexture = GraphBuilder.CreateTexture(OutputSceneColorDesc, TEXT("Bloom.FFT.SceneColor"));
+
+		GPUFFT::ConvolutionWithTextureImage2D(
+			GraphBuilder,
+			View.ShaderMap,
+			Intermediates.FrequencySize,
+			Intermediates.bDoHorizontalFirst,
+			SpectralKernelTexture,
+			Intermediates.InputTexture, Intermediates.ImageRect,
+			OutputSceneColorTexture, Intermediates.ImageRect,
+			Intermediates.PreFilter);
+
+		return OutputSceneColorTexture;
+	}
+
+	return Inputs.FullResolutionTexture;
 }
