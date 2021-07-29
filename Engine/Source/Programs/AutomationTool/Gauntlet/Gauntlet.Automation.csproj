@@ -33,14 +33,23 @@
     <Reference Include="fastJSON">
       <HintPath>..\..\..\..\Binaries\ThirdParty\fastJSON\netstandard2.0\fastJSON.dll</HintPath>
     </Reference>
-    <Reference Include="Magick.NET-Q16-HDRI-AnyCPU, Version=7.0.0.0, Culture=neutral, PublicKeyToken=2004825badfa91ec, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>ThirdParty\Magick.NET\Magick.NET-Q16-HDRI-AnyCPU.dll</HintPath>
-    </Reference>
     <Reference Include="Ionic.Zip.Reduced">
       <HintPath>..\..\..\..\Binaries\DotNET\Ionic.Zip.Reduced.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Magick.NET-Q16-HDRI-AnyCPU, Version=7.24.1">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>ThirdParty\Magick.NET\Magick.NET-Q16-HDRI-AnyCPU\lib\netstandard20\Magick.NET-Q16-HDRI-AnyCPU.dll</HintPath>
+    </Reference>
+    <Reference Include="Magick.NET.Core">
+      <HintPath>ThirdParty\Magick.NET\Magick.NET.Core\lib\netstandard20\Magick.NET.Core.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="ThirdParty\Magick.NET\Magick.NET-Q16-HDRI-AnyCPU\runtimes\**\*.*" Link="..\..\runtimes\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
     <!-- The following will glob all platform extensions' Gauntlet source
