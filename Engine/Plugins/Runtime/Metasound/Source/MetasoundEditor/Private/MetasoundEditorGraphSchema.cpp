@@ -259,17 +259,14 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
-	const FText& InputName = InputHandle->GetOwningNode()->GetDisplayName();
-	const FText& InputNodeName = InputHandle->GetDisplayName();
-
 	FMetasoundFrontendLiteral DefaultValue;
 	FGraphBuilder::GetPinLiteral(*FromPin, DefaultValue);
 
 	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, InputHandle->GetDataType(), FText::GetEmpty(), &DefaultValue);
 	if (ensure(NodeHandle->IsValid()))
 	{
-		const FText InputNameBase = FText::Format(LOCTEXT("PromoteInputNameBaseFormat", "{0} {1}"), InputName, InputNodeName);
-		const FText NewNodeName = FGraphBuilder::GenerateUniqueInputDisplayName(ParentMetasound, &InputNameBase);
+		const FText& InputName = InputHandle->GetDisplayName();
+		const FText NewNodeName = FGraphBuilder::GenerateUniqueInputDisplayName(ParentMetasound, &InputName);
 		NodeHandle->SetDisplayName(NewNodeName);
 		UMetasoundEditorGraphInput* Input = MetasoundGraph->FindOrAddInput(NodeHandle);
 		if (ensure(Input))
@@ -331,6 +328,58 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 		SchemaPrivate::TryConnectNewNodeToPin(*NewGraphNode, FromPin);
 		FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
 		return NewGraphNode;
+	}
+
+	return nullptr;
+}
+
+FMetasoundGraphSchemaAction_PromoteToOutput::FMetasoundGraphSchemaAction_PromoteToOutput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping)
+	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+{
+}
+
+UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToOutput::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D InLocation, bool bSelectNewNode /* = true */)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(FromPin);
+	if (!ensure(OutputHandle->IsValid()))
+	{
+		return nullptr;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("PromoteNodeOutputToGraphOutput", "Promote MetaSound Node Output to Graph Output"));
+	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
+	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
+	ParentMetasound.Modify();
+
+	FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(ParentMetasound, OutputHandle->GetDataType(), FText::GetEmpty());
+	if (ensure(NodeHandle->IsValid()))
+	{
+		const FText& OutputName = OutputHandle->GetDisplayName();
+		const FText NewNodeName = FGraphBuilder::GenerateUniqueOutputDisplayName(ParentMetasound, &OutputName);
+		NodeHandle->SetDisplayName(NewNodeName);
+		UMetasoundEditorGraphOutput* Output = MetasoundGraph->FindOrAddOutput(NodeHandle);
+		if (ensure(Output))
+		{
+			if (UMetasoundEditorGraphOutputNode* NewGraphNode = FGraphBuilder::AddOutputNode(ParentMetasound, NodeHandle, InLocation))
+			{
+				UEdGraphNode* EdGraphNode = CastChecked<UEdGraphNode>(NewGraphNode);
+
+				if (ensure(SchemaPrivate::TryConnectNewNodeToPin(*EdGraphNode, FromPin)))
+				{
+					TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*ParentGraph);
+					if (MetasoundEditor.IsValid())
+					{
+						MetasoundEditor->OnOutputNameChanged(NewGraphNode->GetNodeID());
+					}
+
+					FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
+					return EdGraphNode;
+				}
+			}
+		}
 	}
 
 	return nullptr;
@@ -492,6 +541,14 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 				});
 				return bHasInputOfType;
 			});
+
+			TSharedPtr<FMetasoundGraphSchemaAction_PromoteToOutput> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_PromoteToOutput>(
+				SchemaPrivate::GetContextGroupDisplayName(SchemaPrivate::EPrimaryContextGroup::Inputs),
+				LOCTEXT("PromoteToOutputName", "Promote To Graph Output"),
+				LOCTEXT("PromoteToOutputTooltip", "Promotes node output to graph output"),
+				static_cast<int32>(SchemaPrivate::EPrimaryContextGroup::Inputs));
+
+			static_cast<FGraphActionMenuBuilder&>(ContextMenuBuilder).AddAction(NewNodeAction);
 		}
 	}
 	else

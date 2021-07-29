@@ -117,7 +117,7 @@ namespace Metasound
 			static FText GenerateUniqueOutputDisplayName(const UObject& InMetaSound, const FText* InBaseName = nullptr);
 
 			// Generates a unique name by retrieving the provided MetaSound's associated GraphHandle and filtering by the provided function.
-			static FText GenerateUniqueNameByFilter(const UObject& InMetaSound, const FText& InBaseText, TUniqueFunction<bool(const Frontend::FConstGraphHandle&, const FText&)> InIsValidNameFilter);
+			static FText GenerateUniqueNameByFilter(const UObject& InMetaSound, const FText& InBaseText, TFunctionRef<bool(const Frontend::FConstGraphHandle&, const FText&)> InNameIsValidFilter);
 
 			static TArray<FString> GetDataTypeNameCategories(const FName& InDataTypeName);
 
