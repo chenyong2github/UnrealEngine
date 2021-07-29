@@ -633,9 +633,16 @@ void CullMeshSDFObjectsToViewGrid(
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ScatterMeshSDFsToGrid"),
 				PassParameters,
-				ERDGPassFlags::Raster,
+				ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 				[CullGridSize, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 			{
+				FRHIRenderPassInfo RPInfo;
+				RPInfo.ResolveParameters.DestRect.X1 = 0;
+				RPInfo.ResolveParameters.DestRect.Y1 = 0;
+				RPInfo.ResolveParameters.DestRect.X2 = CullGridSize.X;
+				RPInfo.ResolveParameters.DestRect.Y2 = CullGridSize.Y;
+				RHICmdList.BeginRenderPass(RPInfo, TEXT("ScatterMeshSDFsToGrid"));
+
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
@@ -662,6 +669,8 @@ void CullMeshSDFObjectsToViewGrid(
 					StencilingGeometry::GLowPolyStencilSphereIndexBuffer.IndexBufferRHI,
 					PassParameters->MeshSDFIndirectArgs->GetIndirectRHICallBuffer(),
 					0);
+
+				RHICmdList.EndRenderPass();
 			});
 		}
 

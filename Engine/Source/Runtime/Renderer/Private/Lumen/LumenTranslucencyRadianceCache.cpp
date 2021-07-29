@@ -279,10 +279,19 @@ void LumenTranslucencyRadianceCacheMarkUsedProbes(
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("LumenTranslucencyRadianceCacheMark"),
 		PassParameters,
-		ERDGPassFlags::Raster,
-		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale](FRHICommandListImmediate& RHICmdList)
+		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandListImmediate& RHICmdList)
 	{
+		FRHIRenderPassInfo RPInfo;
+		RPInfo.ResolveParameters.DestRect.X1 = DownsampledViewRect.Min.X;
+		RPInfo.ResolveParameters.DestRect.Y1 = DownsampledViewRect.Min.Y;
+		RPInfo.ResolveParameters.DestRect.X2 = DownsampledViewRect.Max.X;
+		RPInfo.ResolveParameters.DestRect.Y2 = DownsampledViewRect.Max.Y;
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("LumenTranslucencyRadianceCacheMark"));
+
 		SceneRenderer.SetStereoViewport(RHICmdList, View, ViewportScale);
 		View.ParallelMeshDrawCommandPasses[MeshPass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+
+		RHICmdList.EndRenderPass();
 	});
 }
