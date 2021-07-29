@@ -145,8 +145,7 @@ public:
 	};
 
 	FParallelMeshDrawCommandPass()
-		: bPrimitiveIdBufferDataOwnedByRHIThread(false)
-		, bHasInstanceCullingDrawParameters(false)
+		: bHasInstanceCullingDrawParameters(false)
 		, MaxNumDraws(0)
 	{
 	}
@@ -217,8 +216,6 @@ private:
 	FGraphEventRef TaskEventRef;
 	FString PassNameForStats;
 
-	// If TaskContext::PrimitiveIdBufferData will be released by RHI Thread.
-	mutable bool bPrimitiveIdBufferDataOwnedByRHIThread;
 	bool bHasInstanceCullingDrawParameters;
 
 	// Maximum number of draws for this pass. Used to prealocate resources on rendering thread. 

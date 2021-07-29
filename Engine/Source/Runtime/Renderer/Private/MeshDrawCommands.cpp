@@ -1089,7 +1089,6 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	if (MaxNumDraws > 0)
 	{
 		// Preallocate resources on rendering thread based on MaxNumDraws.
-		bPrimitiveIdBufferDataOwnedByRHIThread = false;
 		TaskContext.PrimitiveIdBufferDataSize = TaskContext.InstanceFactor * MaxNumDraws * sizeof(int32);
 		TaskContext.PrimitiveIdBufferData = FMemory::Malloc(TaskContext.PrimitiveIdBufferDataSize);
 #if DO_GUARD_SLOW
@@ -1173,24 +1172,10 @@ void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty(EWaitThread WaitThread)
 
 	if (MaxNumDraws > 0)
 	{
-		if (bPrimitiveIdBufferDataOwnedByRHIThread)
-		{
-			FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([PrimitiveIdVertexBufferPoolEntry = PrimitiveIdVertexBufferPoolEntry](FRHICommandListImmediate&) {
-				GPrimitiveIdVertexBufferPool.ReturnToFreeList(PrimitiveIdVertexBufferPoolEntry);
-			});
-		}
-		else
-		{
-			GPrimitiveIdVertexBufferPool.ReturnToFreeList(PrimitiveIdVertexBufferPoolEntry);
-		}
+		GPrimitiveIdVertexBufferPool.ReturnToFreeList(PrimitiveIdVertexBufferPoolEntry);
 	}
 
-	if (!bPrimitiveIdBufferDataOwnedByRHIThread)
-	{
-		FMemory::Free(TaskContext.PrimitiveIdBufferData);
-	}
-
-	bPrimitiveIdBufferDataOwnedByRHIThread = false;
+	FMemory::Free(TaskContext.PrimitiveIdBufferData);
 	MaxNumDraws = 0;
 	PassNameForStats.Empty();
 
