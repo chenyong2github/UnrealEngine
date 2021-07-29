@@ -1124,6 +1124,17 @@ bool AActor::RemoveDataLayer(const UDataLayer* DataLayer)
 	return bActorWasModified;
 }
 
+bool AActor::RemoveAllDataLayers()
+{
+	if (HasDataLayers())
+	{
+		Modify();
+		DataLayers.Empty();
+		return true;
+	}
+	return false;
+}
+
 bool AActor::ContainsDataLayer(const UDataLayer* DataLayer) const
 {
 	return DataLayer && DataLayers.Contains(FActorDataLayer(DataLayer->GetFName()));

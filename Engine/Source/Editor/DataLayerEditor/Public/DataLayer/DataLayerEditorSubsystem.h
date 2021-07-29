@@ -110,6 +110,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	bool RemoveActorFromDataLayers(AActor* Actor, const TArray<UDataLayer*>& DataLayers);
 
+	/**
+	 * Removes an actor from all DataLayers.
+	 *
+	 * @param	Actor			The actor to modify
+	 * @return					true if the actor was changed.
+	 */
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	bool RemoveActorFromAllDataLayers(AActor* Actor);
+	
+	/**
+	 * Removes an actor from all DataLayers.
+	 *
+	 * @param	Actor			The actors to modify
+	 * @return					true if any actor was changed.
+	 */
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	bool RemoveActorsFromAllDataLayers(const TArray<AActor*>& Actors);
 
 	/////////////////////////////////////////////////
 	// Operations on multiple actors.

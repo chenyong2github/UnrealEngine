@@ -1090,6 +1090,7 @@ public:
 	// DataLayers functions.
 	bool AddDataLayer(const UDataLayer* DataLayer);
 	bool RemoveDataLayer(const UDataLayer* DataLayer);
+	bool RemoveAllDataLayers();
 	bool ContainsDataLayer(const UDataLayer* DataLayer) const;
 	virtual bool SupportsDataLayer() const { return true; }
 	bool HasDataLayers() const;
