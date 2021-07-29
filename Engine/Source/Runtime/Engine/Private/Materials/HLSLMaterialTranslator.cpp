@@ -390,21 +390,22 @@ void FHLSLMaterialTranslator::CompileCustomOutputs(TArray<UMaterialExpressionCus
 
 			if (NumOutputs > 0)
 			{
+				EShaderFrequency CustomOutputShaderFrequency = CustomOutput->GetShaderFrequency();
 				for (int32 Index = 0; Index < NumOutputs; Index++)
 				{
 					{
-						ClearFunctionStack(SF_Pixel);
-						FunctionStacks[SF_Pixel].Add(new FMaterialFunctionCompileState(nullptr));
+						ClearFunctionStack(CustomOutputShaderFrequency);
+						FunctionStacks[CustomOutputShaderFrequency].Add(new FMaterialFunctionCompileState(nullptr));
 					}
 					MaterialProperty = MP_MAX; // Indicates we're not compiling any material property.
-					ShaderFrequency = SF_Pixel;
+					ShaderFrequency = CustomOutputShaderFrequency;
 					TArray<FShaderCodeChunk> CustomExpressionChunks;
 					AssignTempScope(CustomExpressionChunks);
 					CustomOutput->Compile(this, Index);
 				}
 
-				ClearFunctionStack(SF_Pixel);
-				FunctionStacks[SF_Pixel].Add(new FMaterialFunctionCompileState(nullptr));
+				ClearFunctionStack(CustomOutputShaderFrequency);
+				FunctionStacks[CustomOutputShaderFrequency].Add(new FMaterialFunctionCompileState(nullptr));
 			}
 		}
 	}
