@@ -49,10 +49,23 @@ struct FDataLayerSection
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SNew(STextBlock)
-				.Text(this, &FDataLayerSection::GetVisibilityText)
-				.ColorAndOpacity(this, &FDataLayerSection::GetTextColor)
-				.TextStyle(FAppStyle::Get(), "NormalText.Important")
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(this, &FDataLayerSection::GetVisibilityText)
+					.ColorAndOpacity(this, &FDataLayerSection::GetTextColor)
+					.TextStyle(FAppStyle::Get(), "NormalText.Important")
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(this, &FDataLayerSection::GetPrerollText)
+				]
 			]
 
 			+ SVerticalBox::Slot()
@@ -78,6 +91,22 @@ struct FDataLayerSection
 		}
 
 		return LOCTEXT("VisibilityText_Activated", "Activate");
+	}
+
+	FText GetPrerollText() const
+	{
+		UMovieSceneDataLayerSection* Section = WeakSection.Get();
+		if (Section)
+		{
+			switch (Section->GetPrerollState())
+			{
+			case EDataLayerState::Unloaded:  return LOCTEXT("PrerollText_Unloaded", "(Unloaded over time in pre/post roll)");
+			case EDataLayerState::Loaded:    return LOCTEXT("PrerollText_Loaded", "(Loaded over time in preroll)");
+			default: break;
+			}
+		}
+
+		return LOCTEXT("PrerollText_Activated", "(Activated over time in preroll)");
 	}
 
 	FText GetLayerBarText() const
@@ -193,11 +222,25 @@ UMovieSceneDataLayerSection* FDataLayerTrackEditor::AddNewSection(UMovieScene* M
 	UMovieSceneDataLayerSection* DataLayerSection = CastChecked<UMovieSceneDataLayerSection>(DataLayerTrack->CreateNewSection());
 	DataLayerSection->SetDesiredState(DesiredState);
 
+	// By default, activated states will preroll to loaded
+	if (DesiredState == EDataLayerState::Activated)
+	{
+		DataLayerSection->SetPrerollState(EDataLayerState::Loaded);
+	}
+	else
+	{
+		DataLayerSection->SetPrerollState(DesiredState);
+	}
+
 	TRange<FFrameNumber> SectionRange = MovieScene->GetPlaybackRange();
 	DataLayerSection->InitialPlacement(DataLayerTrack->GetAllSections(), MovieScene->GetPlaybackRange().GetLowerBoundValue(), DiscreteSize(MovieScene->GetPlaybackRange()), true);
 	DataLayerTrack->AddSection(*DataLayerSection);
 
-	DataLayerSection->SetPreRollFrames((2.f * MovieScene->GetTickResolution()).RoundToFrame().Value);
+	// Set some default preroll for activated or loaded data layers
+	if (DesiredState != EDataLayerState::Unloaded)
+	{
+		DataLayerSection->SetPreRollFrames((2.f * MovieScene->GetTickResolution()).RoundToFrame().Value);
+	}
 
 	return DataLayerSection;
 }

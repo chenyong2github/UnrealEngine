@@ -75,8 +75,9 @@ struct FDataLayerState
 {
 	void Reset();
 	bool IsEmpty() const;
-	void AddRequest(int16 InBias, EDataLayerState RequestedState);
+	void AddRequest(int16 InBias, EDataLayerState RequestedState, bool bRequiresStreamingFlush);
 	TOptional<EDataLayerState> ComputeDesiredState() const;
+	bool ShouldFlushStreaming(EDataLayerState ComputedState) const;
 
 private:
 
@@ -84,6 +85,8 @@ private:
 	int32 UnloadedCount    = 0;
 	int32 LoadedCount      = 0;
 	int32 ActivatedCount   = 0;
+	bool  bFlushUnloaded   = false;
+	bool  bFlushActivated  = false;
 };
 
 
@@ -95,7 +98,7 @@ struct FDesiredLayerStates
 #if WITH_EDITOR
 	void ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimatedStorage, UDataLayerEditorSubsystem* EditorSubSystem);
 #endif
-	void ApplyNewState(const FName& InDataLayerName, int16 HierarchicalBias, EDataLayerState DesiredState);
+	void ApplyNewState(const FName& InDataLayerName, int16 HierarchicalBias, EDataLayerState DesiredState, bool bRequiresStreamingFlush);
 
 	TMap<FName, FDataLayerState> StatesByLayer;
 };
@@ -191,9 +194,11 @@ void FDataLayerState::Reset()
 	UnloadedCount    = 0;
 	LoadedCount      = 0;
 	ActivatedCount   = 0;
+	bFlushUnloaded   = false;
+	bFlushActivated  = false;
 }
 
-void FDataLayerState::AddRequest(int16 InBias, EDataLayerState RequestedState)
+void FDataLayerState::AddRequest(int16 InBias, EDataLayerState RequestedState, bool bRequiresStreamingFlush)
 {
 	if (InBias > HierarchicalBias)
 	{
@@ -205,9 +210,9 @@ void FDataLayerState::AddRequest(int16 InBias, EDataLayerState RequestedState)
 	{
 		switch (RequestedState)
 		{
-		case EDataLayerState::Unloaded:  ++UnloadedCount;  break;
+		case EDataLayerState::Unloaded:  ++UnloadedCount;  bFlushUnloaded |= bRequiresStreamingFlush; break;
 		case EDataLayerState::Loaded:    ++LoadedCount;    break;
-		case EDataLayerState::Activated: ++ActivatedCount; break;
+		case EDataLayerState::Activated: ++ActivatedCount; bFlushActivated |= bRequiresStreamingFlush; break;
 		}
 	}
 }
@@ -238,6 +243,17 @@ TOptional<EDataLayerState> FDataLayerState::ComputeDesiredState() const
 	}
 
 	return FallbackState;
+}
+
+bool FDataLayerState::ShouldFlushStreaming(EDataLayerState ComputedState) const
+{
+	switch (ComputedState)
+	{
+	case EDataLayerState::Unloaded:  return bFlushUnloaded;
+	case EDataLayerState::Activated: return bFlushActivated;
+	}
+
+	return false;
 }
 
 // ---------------------------------------------------------------------
@@ -280,7 +296,7 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 
 				SubSystem->SetDataLayerState(DataLayer, DesiredState.GetValue());
 
-				if (DesiredState.GetValue() == EDataLayerState::Activated || DesiredState.GetValue() == EDataLayerState::Unloaded)
+				if (StateValue.ShouldFlushStreaming(DesiredState.GetValue()))
 				{
 					Flags |= EDataLayerUpdateFlags::FlushStreaming;
 				}
@@ -362,7 +378,7 @@ void FDesiredLayerStates::ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimate
 }
 #endif
 
-void FDesiredLayerStates::ApplyNewState(const FName& InDataLayerName, int16 HierarchicalBias, EDataLayerState DesiredState)
+void FDesiredLayerStates::ApplyNewState(const FName& InDataLayerName, int16 HierarchicalBias, EDataLayerState DesiredState, bool bRequiresStreamingFlush)
 {
 	using namespace UE::MovieScene;
 
@@ -372,7 +388,7 @@ void FDesiredLayerStates::ApplyNewState(const FName& InDataLayerName, int16 Hier
 		LayerState = &StatesByLayer.Add(InDataLayerName, FDataLayerState());
 	}
 
-	LayerState->AddRequest(HierarchicalBias, DesiredState);
+	LayerState->AddRequest(HierarchicalBias, DesiredState, bRequiresStreamingFlush);
 }
 
 } // namespace MovieScene
@@ -478,22 +494,12 @@ void UMovieSceneDataLayerSystem::UpdateDesiredStates()
 				continue;
 			}
 
-			EDataLayerState DesiredState = Section->GetDesiredState();
-			if (bPreroll)
-			{
-				// Ignore unloaded data layers in preroll
-				if (DesiredState == EDataLayerState::Unloaded)
-				{
-					continue;
-				}
-
-				// Preroll always means keep the data layer in memory, but do not activate until the section is active
-				DesiredState = EDataLayerState::Loaded;
-			}
+			const bool bRequiresStreamingFlush = bPreroll == false;
+			EDataLayerState DesiredState = bPreroll ? Section->GetPrerollState() : Section->GetDesiredState();
 
 			for (const FActorDataLayer& ActorDataLayer : Section->GetDataLayers())
 			{
-				this->DesiredLayerStates->ApplyNewState(ActorDataLayer.Name, OptHBiases ? OptHBiases[Index] : 0, DesiredState);
+				this->DesiredLayerStates->ApplyNewState(ActorDataLayer.Name, OptHBiases ? OptHBiases[Index] : 0, DesiredState, bRequiresStreamingFlush);
 			}
 		}
 	};
