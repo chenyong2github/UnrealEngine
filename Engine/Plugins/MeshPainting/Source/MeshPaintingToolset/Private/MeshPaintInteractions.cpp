@@ -102,7 +102,10 @@ bool UMeshPaintSelectionMechanic::FindClickedComponentsAndCacheAdapters(const FI
 						if (!MeshAdapter.IsValid())
 						{
 							MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
-							MeshPaintingSubsystem->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
+							if (MeshAdapter)
+							{
+								MeshPaintingSubsystem->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
+							}
 						}
 						IMeshPaintSelectionInterface* Interface = Cast<IMeshPaintSelectionInterface>(GetParentTool());
 						if (MeshAdapter.IsValid() && Interface->IsMeshAdapterSupported(MeshAdapter))
