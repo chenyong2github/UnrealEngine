@@ -723,11 +723,7 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, CubeMapCapture);
 
-		const ERDGBuilderFlags BuilderFlags = SceneRenderer->Scene->GetShadingPath() == EShadingPath::Mobile
-			? ERDGBuilderFlags::None
-			: ERDGBuilderFlags::AllowParallelExecute;
-
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("CubeMapCapture"), BuilderFlags);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("CubeMapCapture"), ERDGBuilderFlags::AllowParallelExecute);
 
 		// Render the scene normally for one face of the cubemap
 		SceneRenderer->Render(GraphBuilder);
