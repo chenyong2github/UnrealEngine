@@ -7,6 +7,20 @@
 #include "NiagaraScriptVariable.h"
 
 
+void UNiagaraEditorParametersAdapter::PostLoad()
+{
+	Super::PostLoad();
+
+	// Remove null entries from EditorOnlyScriptVars predating null checks on add methods.
+	for (int32 Idx = EditorOnlyScriptVars.Num() - 1; Idx > -1; --Idx)
+	{
+		if (EditorOnlyScriptVars[Idx] == nullptr)
+		{
+			EditorOnlyScriptVars.RemoveAtSwap(Idx);
+		}
+	}
+}
+
 TArray<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> UNiagaraEditorParametersAdapter::SynchronizeParametersWithParameterDefinitions(
 	const TArray<UNiagaraParameterDefinitionsBase*> TargetDefinitions,
 	const TArray<UNiagaraParameterDefinitionsBase*> AllDefinitions,

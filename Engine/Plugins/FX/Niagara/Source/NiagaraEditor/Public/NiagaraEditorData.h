@@ -20,6 +20,10 @@ class UNiagaraEditorParametersAdapter : public UNiagaraEditorParametersAdapterBa
 
 #if WITH_EDITORONLY_DATA
 public:
+	//~ Begin UObject Interface
+	virtual void PostLoad() override;
+	//~ End UObject Interface
+
 	//~ Begin UNiagaraEditorParametersBase
 	/** Synchronize all source script variables that have been changed or removed from the parameter definitions to all eligible destination script variables owned by the editor data.
 	 *
