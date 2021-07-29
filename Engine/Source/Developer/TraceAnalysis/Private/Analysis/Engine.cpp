@@ -1717,6 +1717,7 @@ public:
 						FProtocol0Stage(FTransport* InTransport);
 						~FProtocol0Stage();
 	virtual EStatus		OnData(FStreamReader& Reader, const FMachineContext& Context) override;
+	virtual void		EnterStage(const FMachineContext& Context) override;
 
 private:
 	FTypeRegistry		TypeRegistry;
@@ -1733,6 +1734,12 @@ FProtocol0Stage::FProtocol0Stage(FTransport* InTransport)
 FProtocol0Stage::~FProtocol0Stage()
 {
 	delete Transport;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FProtocol0Stage::EnterStage(const FMachineContext& Context)
+{
+	Context.Bridge.SetActiveThread(0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
