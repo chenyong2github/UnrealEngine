@@ -135,6 +135,9 @@ namespace UnrealEditor
 				AppConfig.CommandLineParams.Add("BENCHMARK");
 				AppConfig.CommandLineParams.Add("Deterministic");
 			}
+
+			// Workaround for UE-117842
+			AppConfig.CommandLineParams.Add("dx11");
 		}
 	}
 
