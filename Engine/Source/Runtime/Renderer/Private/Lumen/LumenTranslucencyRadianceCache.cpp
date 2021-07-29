@@ -280,7 +280,7 @@ void LumenTranslucencyRadianceCacheMarkUsedProbes(
 		RDG_EVENT_NAME("LumenTranslucencyRadianceCacheMark"),
 		PassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandListImmediate& RHICmdList)
+		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandList& RHICmdList)
 	{
 		FRHIRenderPassInfo RPInfo;
 		RPInfo.ResolveParameters.DestRect.X1 = DownsampledViewRect.Min.X;
