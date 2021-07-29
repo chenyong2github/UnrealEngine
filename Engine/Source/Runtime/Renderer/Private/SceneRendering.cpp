@@ -3836,17 +3836,13 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		SCOPE_CYCLE_COUNTER(STAT_TotalSceneRenderingTime);
 
 		{
-			const ERDGBuilderFlags BuilderFlags = SceneRenderer->Scene->GetShadingPath() == EShadingPath::Mobile
-				? ERDGBuilderFlags::None
-				: ERDGBuilderFlags::AllowParallelExecute;
-
 			FRDGBuilder GraphBuilder(
 				RHICmdList,
 				RDG_EVENT_NAME("SceneRenderer_%s(ViewFamily=%s)",
 					ViewFamily.EngineShowFlags.HitProxies ? TEXT("RenderHitProxies") : TEXT("Render"),
 					ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")
 				),
-				BuilderFlags
+				ERDGBuilderFlags::AllowParallelExecute
 			);
 
 			if (ViewFamily.EngineShowFlags.HitProxies)

@@ -203,7 +203,7 @@ FORCEINLINE bool IsParallelExecuteEnabled()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
 		&& !GRDGTransitionLog
-		&& !IsOpenGLPlatform(GMaxRHIShaderPlatform);
+		&& !IsMobilePlatform(GMaxRHIShaderPlatform);
 }
 
 template <typename ResourceRegistryType, typename FunctionType>
