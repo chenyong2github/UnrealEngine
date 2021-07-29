@@ -326,6 +326,44 @@ bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Act
 	return bChangesOccurred;
 }
 
+bool UDataLayerEditorSubsystem::RemoveActorFromAllDataLayers(AActor* Actor)
+{
+	return RemoveActorsFromAllDataLayers({ Actor });
+}
+
+bool UDataLayerEditorSubsystem::RemoveActorsFromAllDataLayers(const TArray<AActor*>& Actors)
+{
+	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+
+	bool bChangesOccurred = false;
+	for (AActor* Actor : Actors)
+	{
+		TArray<const UDataLayer*> ModifiedDataLayers = Actor->GetDataLayerObjects();
+		if (Actor->RemoveAllDataLayers())
+		{
+			for (const UDataLayer* DataLayer : ModifiedDataLayers)
+			{
+				DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, NAME_None);
+			}
+			ActorDataLayersChanged.Broadcast(Actor);
+
+			// Update per-view visibility info
+			UpdateActorAllViewsVisibility(Actor);
+
+			// Update general actor visibility
+			bool bActorModified = false;
+			bool bActorSelectionChanged = false;
+			UpdateActorVisibility(Actor, bActorSelectionChanged, bActorModified, /*bActorNotifySelectionChange*/true, /*bActorRedrawViewports*/false);
+
+			bChangesOccurred = true;
+		}
+	}
+
+	GEditor->GetSelectedActors()->EndBatchSelectOperation();
+
+	return bChangesOccurred;
+}
+
 bool UDataLayerEditorSubsystem::RemoveActorFromDataLayer(AActor* Actor, UDataLayer* DataLayer)
 {
 	TArray<AActor*> Actors;
