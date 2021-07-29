@@ -1040,8 +1040,7 @@ private:
 		FStreamCodecInformation			CurrentCodecInfo;
 		ISubtitleDecoder*				Decoder = nullptr;
 		bool							bIsRunning = false;
-		bool							bDrainingForCodecChange = false;
-		bool							bDrainingForCodecChangeDone = false;
+		bool							bRequireCodecChange = false;
 	};
 
 	class FWorkerThreadMessages

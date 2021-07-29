@@ -651,6 +651,10 @@ namespace Electra
 
 		virtual bool IsCompatibleWith(const FStreamSelectionAttributes& Other)
 		{
+			if (OverrideIndex.IsSet() && Other.OverrideIndex.IsSet() && OverrideIndex.GetValue() >= 0 && Other.OverrideIndex.GetValue() >= 0 && OverrideIndex.GetValue() != Other.OverrideIndex.GetValue())
+			{
+				return false;
+			}
 			FString Kind1 = Kind.IsSet() ? Kind.GetValue() : FString();
 			FString Kind2 = Other.Kind.IsSet() ? Other.Kind.GetValue() : FString();
 
