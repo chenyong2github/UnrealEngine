@@ -115,7 +115,8 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 			}
 			else
 			{
-				TracedNameIdToNetProfilerNameIdMap.Add(TraceNameId, NetProfilerProvider.AddNetProfilerName(UTF8_TO_TCHAR(EventData.GetAttachment())));
+				FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<UTF8CHAR>("Name", Context);
+				TracedNameIdToNetProfilerNameIdMap.Add(TraceNameId, NetProfilerProvider.AddNetProfilerName(*Name));
 			}
 		}
 		break;
@@ -189,8 +190,9 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 	TArray<FBunchInfo>& BunchInfos = (ConnectionState->BunchInfos)[ConnectionMode];
 
 	// Decode batched events
-	uint64 BufferSize = EventData.GetAttachmentSize();
-	const uint8* BufferPtr = EventData.GetAttachment();
+	TArrayView<const uint8> DataView = FTraceAnalyzerUtils::LegacyAttachmentArray("Data", Context);
+	uint64 BufferSize = DataView.Num();
+	const uint8* BufferPtr = DataView.GetData();
 	const uint8* BufferEnd = BufferPtr + BufferSize;
 	uint64 LastOffset = 0;
 
