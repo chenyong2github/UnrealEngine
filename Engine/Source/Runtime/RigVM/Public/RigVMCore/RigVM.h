@@ -356,6 +356,29 @@ public:
 
 #else
 
+	FORCEINLINE_DEBUGGABLE FRigVMParameter AddParameter(ERigVMParameterType InType, const FName& InParameterName, const FName& InWorkMemoryPropertyName)
+	{
+		check(GetWorkMemory());
+
+		if(ParametersNameMap.Contains(InParameterName))
+		{
+			return FRigVMParameter();
+		}
+
+		const FProperty* Property = GetWorkMemory()->FindPropertyByName(InWorkMemoryPropertyName);
+		const int32 PropertyIndex = GetWorkMemory()->GetPropertyIndex(Property);
+
+		UScriptStruct* Struct = nullptr;
+		if(const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			Struct = StructProperty->Struct;
+		}
+		
+		FRigVMParameter Parameter(InType, InParameterName, PropertyIndex, Property->GetCPPType(), Struct);
+		ParametersNameMap.Add(Parameter.Name, Parameters.Add(Parameter));
+		return Parameter;
+	}
+
 	// Retrieve the array size of the parameter
 	FORCEINLINE int32 GetParameterArraySize(const FRigVMParameter& InParameter) const
 	{
@@ -605,6 +628,7 @@ public:
 		return FRigVMOperand(ERigVMMemoryType::External, VariableIndex);
 	}
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	// Adds a new external / unowned variable to the VM
 	template<typename T>
 	FORCEINLINE_DEBUGGABLE FRigVMOperand AddExternalVariable(const FName& InExternalVariableName, T& InValue)
@@ -618,6 +642,7 @@ public:
 	{
 		return AddExternalVariable(FRigVMExternalVariable::Make(InExternalVariableName, InValue));
 	}
+#endif
 
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	void SetRegisterValueFromString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject, const TArray<FString>& InDefaultValues);

@@ -599,8 +599,10 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 			{
 				TargetMemory = NewObject<URigVMMemoryStorage>(Outer, SourceMemory->GetClass());
 			}
-
-			check(TargetMemory->GetClass() == SourceMemory->GetClass());
+			else if(TargetMemory->GetClass() != SourceMemory->GetClass())
+			{
+				TargetMemory = NewObject<URigVMMemoryStorage>(Outer, SourceMemory->GetClass());
+			}
 
 			for(int32 PropertyIndex = 0; PropertyIndex < TargetMemory->Num(); PropertyIndex++)
 			{
