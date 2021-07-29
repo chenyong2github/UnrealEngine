@@ -466,6 +466,15 @@ int32 URigVMPin::GetArraySize() const
 
 FString URigVMPin::GetCPPType() const
 {
+	if(UScriptStruct* ScriptStruct = GetScriptStruct())
+	{
+		const FString StructCPPType = ScriptStruct->GetStructCPPName();
+		if(IsArray())
+		{
+			return FString::Printf(TEXT("TArray<%s>"), *StructCPPType);
+		}
+		return StructCPPType;
+	}
 	return CPPType;
 }
 
@@ -475,12 +484,15 @@ FString URigVMPin::GetArrayElementCppType() const
 	{
 		return FString();
 	}
-	return CPPType.Mid(7, CPPType.Len() - 8);
+
+	const FString ResolvedType = GetCPPType();
+	return ResolvedType.Mid(7, ResolvedType.Len() - 8);
 }
 
 bool URigVMPin::IsStringType() const
 {
-	return CPPType.Equals(TEXT("FString")) || CPPType.Equals(TEXT("FName"));
+	const FString ResolvedType = GetCPPType();
+	return ResolvedType.Equals(TEXT("FString")) || ResolvedType.Equals(TEXT("FName"));
 }
 
 bool URigVMPin::IsExecuteContext() const
@@ -798,33 +810,11 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 #else
 	if(!InSegmentPath.IsEmpty())
 	{
+		check(InExternalVariable.Property);
+
 		const FProperty* Property = InExternalVariable.Property;
-		if(Property == nullptr)
-		{
-			return false;
-		}
-
-		TArray<FString> Segments;
-		SplitPinPath(InSegmentPath, Segments);
-
-		while(!Segments.IsEmpty())
-		{
-			if(const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
-			{
-				const FString FirstSegment = Segments[0];
-				Segments.RemoveAt(0);
-
-				Property = StructProperty->Struct->FindPropertyByName(*FirstSegment);
-				if(Property == nullptr)
-				{
-					return false;
-				}
-			}
-			else
-			{
-				return false;
-			}
-		}
+		const FRigVMPropertyPath PropertyPath(Property, InSegmentPath);
+		Property = PropertyPath.GetTargetProperty();
 
 		FRigVMExternalVariable::GetTypeFromProperty(Property, ExternalCPPType, ExternalCPPTypeObject);
 	}

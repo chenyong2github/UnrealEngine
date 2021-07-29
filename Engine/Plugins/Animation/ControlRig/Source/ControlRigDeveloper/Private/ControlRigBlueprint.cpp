@@ -2839,12 +2839,28 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						}
 						else
 						{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 							Compiler->CreateDebugRegister(Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+#else
+							if(CR->GetVM()->GetDebugMemory()->Num() == 0)
+							{
+								RequestAutoVMRecompilation();
+								MarkPackageDirty();
+							}
+							else
+							{
+								Compiler->MarkDebugWatch(true, Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+							}
+#endif
 						}
 					}
 					else
 					{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 						Compiler->RemoveDebugRegister(Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+#else
+						Compiler->MarkDebugWatch(true, Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+#endif
 					}
 				}
 				// break; fall through

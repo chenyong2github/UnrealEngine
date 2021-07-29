@@ -27,19 +27,11 @@ public:
 		, PropertyPath(nullptr)
 	{}
 
-	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle(uint8* InPtr, const FProperty* InProperty,  const FRigVMPropertyPath* InPropertyPath = nullptr)
+	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle(uint8* InPtr, const FProperty* InProperty,  const FRigVMPropertyPath* InPropertyPath)
 		: Ptr(InPtr)
 		, Property(InProperty)
 		, PropertyPath(InPropertyPath)
 	{
-		if(PropertyPath)
-		{
-			if(PropertyPath->IsDirect())
-			{
-				Ptr = PropertyPath->GetData<uint8>(Ptr);
-				PropertyPath = nullptr;
-			}
-		}
 	}
 
 	FORCEINLINE uint8* GetData(bool bFollowPropertyPath = false)
@@ -62,13 +54,22 @@ public:
 		return PropertyPath;
 	}
 
+	FORCEINLINE const FRigVMPropertyPath& GetPropertyPathRef() const
+	{
+		if(PropertyPath)
+		{
+			return *PropertyPath;
+		}
+		return EmptyPropertyPath;
+	}
+
 private:
 
-	FORCEINLINE uint8* GetData_Internal(bool bFollowPropertyPath = false) const
+	FORCEINLINE_DEBUGGABLE uint8* GetData_Internal(bool bFollowPropertyPath = false) const
 	{
 		if(bFollowPropertyPath && PropertyPath != nullptr)
 		{
-			return PropertyPath->GetData<uint8>(Ptr);
+			return PropertyPath->GetData<uint8>(Ptr, Property);
 		}
 		return Ptr;
 	}
@@ -76,6 +77,7 @@ private:
 	uint8* Ptr;
 	const FProperty* Property;
 	const FRigVMPropertyPath* PropertyPath;
+	static const FRigVMPropertyPath EmptyPropertyPath;
 
 	friend class URigVM;
 };
@@ -85,6 +87,7 @@ private:
 //////////////////////////////////////////////////////////////////////////////
 /// Property Management
 //////////////////////////////////////////////////////////////////////////////
+
 struct RIGVM_API FRigVMPropertyDescription
 {
 	FName Name;
@@ -142,6 +145,7 @@ public:
 	void Serialize(FArchive& Ar) override;;
 
 	// URigVMMemoryStorageGeneratorClass specific
+	static FString GetClassName(ERigVMMemoryType InMemoryType);
 	static URigVMMemoryStorageGeneratorClass* GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType);
 	static URigVMMemoryStorageGeneratorClass* CreateStorageClass(
 		UObject* InOuter,
@@ -155,50 +159,16 @@ public:
 
 protected:
 
-	static FProperty* AddProperty(URigVMMemoryStorageGeneratorClass* InClass, const FRigVMPropertyDescription& InProperty, bool bPurge = false, bool bLink = true, FField** LinkToProperty = nullptr);
+	static FProperty* AddProperty(URigVMMemoryStorageGeneratorClass* InClass, const FRigVMPropertyDescription& InProperty, FField** LinkToProperty = nullptr);
 
 private:
+
+	void RefreshPropertyPaths();
 
 	ERigVMMemoryType MemoryType;
 	TArray<const FProperty*> LinkedProperties;
 	TArray<FRigVMPropertyPath> PropertyPaths;
 	TArray<FRigVMPropertyPathDescription> PropertyPathDescriptions;
-
-	struct FClassInfo
-	{
-		URigVMMemoryStorageGeneratorClass* LiteralStorageClass;
-		URigVMMemoryStorageGeneratorClass* WorkStorageClass;
-		URigVMMemoryStorageGeneratorClass* DebugStorageClass;
-		
-		FClassInfo()
-			: LiteralStorageClass(nullptr)
-			, WorkStorageClass(nullptr)
-			, DebugStorageClass(nullptr)
-		{
-		}
-
-		URigVMMemoryStorageGeneratorClass** GetClassPtr(ERigVMMemoryType InMemoryType)
-		{
-			switch(InMemoryType)
-			{
-			case ERigVMMemoryType::Literal:
-				{
-					return &LiteralStorageClass;
-				}
-			case ERigVMMemoryType::Debug:
-				{
-					return &DebugStorageClass;
-				}
-			default:
-				{
-					break;
-				}
-			}
-			return &WorkStorageClass;
-		}
-	};
-	
-	static TMap<FString, FClassInfo> PackageToInfo;
 
 	friend class URigVMMemoryStorage;
 	friend class URigVMCompiler;
@@ -297,7 +267,8 @@ public:
 	template<typename T>
 	FORCEINLINE T* GetData(int32 InPropertyIndex, const FRigVMPropertyPath& InPropertyPath)
 	{
-		return InPropertyPath.GetData<T>(GetData<uint8>(InPropertyIndex));
+		const FProperty* Property = GetProperties()[InPropertyIndex];
+		return InPropertyPath.GetData<T>(GetData<uint8>(InPropertyIndex), Property);
 	}
 
 	template<typename T>
@@ -364,4 +335,9 @@ public:
 		FRigVMMemoryHandle& SourceHandle);
 	
 #endif
+
+private:
+	
+	static const TArray<const FProperty*> EmptyProperties;
+	static const TArray<FRigVMPropertyPath> EmptyPropertyPaths;
 };

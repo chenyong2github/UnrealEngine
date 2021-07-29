@@ -250,6 +250,9 @@ public:
 	UPROPERTY()
 	URigVMMemoryStorage* DebugMemoryStorageObject;
 
+	TArray<FRigVMPropertyPathDescription> ExternalPropertyPathDescriptions;
+	TArray<FRigVMPropertyPath> ExternalPropertyPaths;
+
 	// The byte code of the VM
 	UPROPERTY()
 	FRigVMByteCode ByteCodeStorage;
@@ -344,12 +347,30 @@ public:
 		DefaultValues.Add(DefaultValue);
 		return AddParameter(InParameterType, InName, InCPPType, DefaultValues);
 	}
-	
+
 	// Retrieve the array size of the parameter
 	int32 GetParameterArraySize(const FRigVMParameter& InParameter) const
 	{
 		return (int32)GetWorkMemory()[InParameter.GetRegisterIndex()].GetTotalElementCount();
 	}
+
+#else
+
+	// Retrieve the array size of the parameter
+	FORCEINLINE int32 GetParameterArraySize(const FRigVMParameter& InParameter) const
+	{
+		const int32 PropertyIndex = InParameter.GetRegisterIndex();
+		const FProperty* Property = GetWorkMemory()->GetProperties()[PropertyIndex];
+		const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
+		if(ArrayProperty)
+		{
+			FScriptArrayHelper ArrayHelper(ArrayProperty, GetWorkMemory()->GetData<uint8>(PropertyIndex));
+			return ArrayHelper.Num();
+		}
+		return 1;
+	}
+
+#endif
 
 	// Retrieve the array size of the parameter
 	int32 GetParameterArraySize(int32 InParameterIndex) const
@@ -363,8 +384,6 @@ public:
 		int32 ParameterIndex = ParametersNameMap.FindChecked(InParameterName);
 		return GetParameterArraySize(ParameterIndex);
 	}
-
-#endif
 	
 	// Retrieve the value of a parameter
 	template<class T>

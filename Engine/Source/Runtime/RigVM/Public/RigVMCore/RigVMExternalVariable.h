@@ -32,26 +32,32 @@ struct RIGVM_API FRigVMExternalVariable
 		if (CastField<FBoolProperty>(InProperty))
 		{
 			OutTypeName = TEXT("bool");
+			OutTypeObject = nullptr;
 		}
 		else if (CastField<FIntProperty>(InProperty))
 		{
 			OutTypeName = TEXT("int32");
+			OutTypeObject = nullptr;
 		}
 		else if (CastField<FFloatProperty>(InProperty))
 		{
 			OutTypeName = TEXT("float");
+			OutTypeObject = nullptr;
 		}
 		else if (CastField<FDoubleProperty>(InProperty))
 		{
 			OutTypeName = TEXT("double");
+			OutTypeObject = nullptr;
 		}
 		else if (CastField<FStrProperty>(InProperty))
 		{
 			OutTypeName = TEXT("FString");
+			OutTypeObject = nullptr;
 		}
 		else if (CastField<FNameProperty>(InProperty))
 		{
 			OutTypeName = TEXT("FName");
+			OutTypeObject = nullptr;
 		}
 		else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))
 		{
@@ -78,14 +84,14 @@ struct RIGVM_API FRigVMExternalVariable
 		}
 	}
 
-	FORCEINLINE static FRigVMExternalVariable Make(FProperty* InProperty, UObject* InContainer)
+	FORCEINLINE static FRigVMExternalVariable Make(const FProperty* InProperty, void* InContainer, const FName& InOptionalName = NAME_None)
 	{
 		check(InProperty);
 
-		FProperty* Property = InProperty;
+		const FProperty* Property = InProperty;
 
 		FRigVMExternalVariable ExternalVariable;
-		ExternalVariable.Name = InProperty->GetFName();
+		ExternalVariable.Name = InOptionalName.IsNone() ? InProperty->GetFName() : InOptionalName;
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		ExternalVariable.Property = Property;
 #endif
@@ -98,7 +104,7 @@ struct RIGVM_API FRigVMExternalVariable
 		}
 
 		FString TypePrefix, TypeSuffix;
-		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
 			ExternalVariable.bIsArray = true;
 			TypePrefix = TEXT("TArray<");
