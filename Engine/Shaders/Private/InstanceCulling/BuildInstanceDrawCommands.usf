@@ -13,6 +13,9 @@ uint InstanceSceneDataSOAStride;
 uint GPUSceneNumInstances;
 uint GPUSceneNumPrimitives;
 
+#ifndef BATCH_PROCESSING_MODE_NUM
+	#define BATCH_PROCESSING_MODE_NUM 1
+#endif // BATCH_PROCESSING_MODE_NUM
 
 StructuredBuffer<FDrawCommandDesc> DrawCommandDescs;
 Buffer<uint> InstanceIdOffsetBuffer;
@@ -204,4 +207,19 @@ void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupTh
 		}
 	}
 #endif // STEREO_CULLING_MODE
+}
+
+
+uint NumIndirectArgs;
+/**
+ */
+[numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
+void ClearIndirectArgInstanceCountCS(uint3 GroupId : SV_GroupID, int GroupThreadIndex : SV_GroupIndex)
+{
+	uint IndirectArgIndex = GetUnWrappedDispatchThreadId(GroupId, GroupThreadIndex, NUM_THREADS_PER_GROUP);
+
+	if (IndirectArgIndex < NumIndirectArgs)
+	{
+		DrawIndirectArgsBufferOut[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1] = 0U;
+	}
 }
