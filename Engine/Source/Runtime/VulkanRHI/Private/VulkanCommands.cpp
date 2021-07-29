@@ -358,6 +358,7 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 			break;
 		}
 
+		case UBMT_RDG_TEXTURE_SRV:
 		case UBMT_SRV:
 		case UBMT_RDG_BUFFER_SRV:
 		{
