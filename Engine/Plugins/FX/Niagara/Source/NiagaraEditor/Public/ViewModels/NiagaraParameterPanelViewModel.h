@@ -145,7 +145,7 @@ public:
 	virtual const TArray<UNiagaraParameterDefinitions*> GetAvailableParameterDefinitions(bool bSkipSubscribedParameterDefinitions) const = 0;
 	//~ End INiagaraImmutableParameterPanelViewModel interface
 
-	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const = 0;
+	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const = 0;
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const = 0;
 
@@ -272,7 +272,7 @@ public:
 	//~ End INiagaraImmutableParameterPanelViewModel interface
 
 	//~ Begin INiagaraParameterPanelViewModel interface
-	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const override;
+	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const override;
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
@@ -366,7 +366,7 @@ public:
 	//~ End INiagaraImmutableParameterPanelViewModel interface
 
 	//~ Begin INiagaraParameterPanelViewModel interface
-	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const override;
+	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const override;
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
@@ -458,7 +458,7 @@ public:
 	//~ End INiagaraImmutableParameterPanelViewModel interface
 
 	//~ Begin INiagaraParameterPanelViewModel interface
-	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const override;
+	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const override;
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
@@ -489,9 +489,6 @@ public:
 	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToRename, const FText& NewVariableNameText, bool bCheckEmptyNameText, FText& OutCanRenameParameterToolTip) const override;
 	
 	//~ End INiagaraParameterPanelViewModel interface
-
-	// Handle setting namespace to the variable name when adding parameters from menu.
-	void AddParameterFromMenu(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const;
 
 private:
 	TWeakObjectPtr<UNiagaraParameterDefinitions> ParameterDefinitionsWeak;

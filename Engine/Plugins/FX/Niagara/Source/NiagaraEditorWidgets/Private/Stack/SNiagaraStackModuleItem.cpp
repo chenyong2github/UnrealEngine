@@ -532,26 +532,6 @@ void ReassignModuleScript(UNiagaraStackModuleItem* ModuleItem, FAssetData NewMod
 	}
 }
 
-void SNiagaraStackModuleItem::CollectParameterActions(FGraphActionListBuilderBase& ModuleActions)
-{
-	UNiagaraNodeAssignment* AssignmentNode = Cast<UNiagaraNodeAssignment>(&ModuleItem->GetModuleNode());
-	if (AssignmentNode != nullptr)
-	{
-		UNiagaraNodeOutput* OutputNode = ModuleItem->GetOutputNode();
-		if (OutputNode != nullptr)
-		{
-			TArray<TSharedPtr<FNiagaraMenuAction>> AllActions;
-			AssignmentNode->CollectAddExistingActions(OutputNode->GetUsage(), OutputNode, AllActions);
-			AssignmentNode->CollectCreateNewActions(OutputNode->GetUsage(), OutputNode, AllActions);
-			
-			for (TSharedPtr<FNiagaraMenuAction> Action : AllActions)
-			{
-				ModuleActions.AddAction(Action);
-			}
-		}
-	}
-}
-
 void SNiagaraStackModuleItem::CollectModuleActions(FGraphActionListBuilderBase& ModuleActions)
 {
 	TArray<FAssetData> ModuleAssets;

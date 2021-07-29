@@ -18,6 +18,7 @@ class SExpanderArrow;
 class SGraphActionMenu;
 class UEdGraphPin;
 class UNiagaraGraph;
+class UNiagaraNodeAssignment;
 class UNiagaraNodeWithDynamicPins;
 class UNiagaraParameterDefinitions;
 class UNiagaraScriptVariable;
@@ -72,6 +73,7 @@ public:
 		, _ForceCollectEngineNamespaceParameterActions(false)
 		, _CullParameterActionsAlreadyInGraph(false)
 		, _AdditionalCulledParameterNames(TSet<FName>())
+		, _AssignmentNode(nullptr)
 	{}
 		//~ Begin Required Events
 		SLATE_EVENT(FOnAddParameter, OnAddParameter)
@@ -93,6 +95,7 @@ public:
 		SLATE_ARGUMENT(bool, ForceCollectEngineNamespaceParameterActions)
 		SLATE_ARGUMENT(bool, CullParameterActionsAlreadyInGraph)
 		SLATE_ARGUMENT(TSet<FName>, AdditionalCulledParameterNames)
+		SLATE_ARGUMENT(UNiagaraNodeAssignment*, AssignmentNode)
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs);
@@ -145,6 +148,7 @@ private:
 	bool bForceCollectEngineNamespaceParameterActions;
 	bool bCullParameterActionsAlreadyInGraph;
 	TSet<FName> AdditionalCulledParameterNames;
+	UNiagaraNodeAssignment* AssignmentNode;
 };
 
 class SNiagaraAddParameterFromPinMenu : public SNiagaraParameterMenu

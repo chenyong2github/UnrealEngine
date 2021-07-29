@@ -62,8 +62,6 @@ private:
 
 	bool OnModuleItemAllowDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
 
-	void CollectParameterActions(FGraphActionListBuilderBase& ModuleActions);
-
 	void CollectModuleActions(FGraphActionListBuilderBase& ModuleActions);
 
 	void ShowReassignModuleScriptMenu();

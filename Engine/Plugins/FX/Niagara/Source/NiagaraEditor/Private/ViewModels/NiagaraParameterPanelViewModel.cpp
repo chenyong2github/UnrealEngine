@@ -298,7 +298,8 @@ void INiagaraParameterPanelViewModel::DuplicateParameter(const FNiagaraParameter
 	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(ItemToDuplicate.GetVariable().GetName(), ParameterNames);
 	FScopedTransaction Transaction(LOCTEXT("DuplicateParameterTransaction", "Duplicate parameter"));
 	const bool bRequestRename = true;
-	AddParameter(FNiagaraVariable(ItemToDuplicate.GetVariable().GetType(), NewUniqueName), FNiagaraParameterPanelCategory(ItemToDuplicate.NamespaceMetaData), bRequestRename);
+	const bool bMakeUniqueName = true;
+	AddParameter(FNiagaraVariable(ItemToDuplicate.GetVariable().GetType(), NewUniqueName), FNiagaraParameterPanelCategory(ItemToDuplicate.NamespaceMetaData), bRequestRename, bMakeUniqueName);
 }
 
 bool INiagaraParameterPanelViewModel::GetCanDuplicateParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToDuplicate, FText& OutCanDuplicateParameterToolTip) const
@@ -429,7 +430,8 @@ void INiagaraParameterPanelViewModel::SetParameterNamespace(const FNiagaraParame
 			}
 			FScopedTransaction Transaction(LOCTEXT("DuplicateParameterToNewNamespaceTransaction", "Duplicate parameter to new namespace"));
 			const bool bRequestRename = false;
-			AddParameter(FNiagaraVariable(ItemToModify.GetVariable().GetType(), NewUniqueName), FNiagaraParameterPanelCategory(NewNamespaceMetaData), bRequestRename);
+			const bool bMakeUniqueName = true;
+			AddParameter(FNiagaraVariable(ItemToModify.GetVariable().GetType(), NewUniqueName), FNiagaraParameterPanelCategory(NewNamespaceMetaData), bRequestRename, bMakeUniqueName);
 		}
 		else if (bParameterExists == false)
 		{
@@ -479,7 +481,8 @@ void INiagaraParameterPanelViewModel::SetParameterNamespaceModifier(const FNiaga
 			}
 			FScopedTransaction Transaction(LOCTEXT("DuplicateParameterToWithCustomNamespaceModifierTransaction", "Duplicate parameter with custom namespace modifier"));
 			const bool bRequestRename = false;
-			AddParameter(FNiagaraVariable(ItemToModify.GetVariable().GetType(), NewUniqueName), FNiagaraParameterPanelCategory(ItemToModify.NamespaceMetaData), bRequestRename);
+			const bool bMakeUniqueName = true;
+			AddParameter(FNiagaraVariable(ItemToModify.GetVariable().GetType(), NewUniqueName), FNiagaraParameterPanelCategory(ItemToModify.NamespaceMetaData), bRequestRename, bMakeUniqueName);
 		}
 		else if (bParameterExists == false)
 		{
@@ -554,7 +557,8 @@ void INiagaraParameterPanelViewModel::SetParameterCustomNamespaceModifier(const 
 		}
 		FScopedTransaction Transaction(LOCTEXT("DuplicateParameterToWithCustomNamespaceModifierTransaction", "Duplicate parameter with custom namespace modifier"));
 		const bool bRequestRename = false;
-		AddParameter(FNiagaraVariable(ItemToModify.GetVariable().GetType(), NewUniqueName), FNiagaraParameterPanelCategory(ItemToModify.NamespaceMetaData), bRequestRename);
+		const bool bMakeUniqueName = true;
+		AddParameter(FNiagaraVariable(ItemToModify.GetVariable().GetType(), NewUniqueName), FNiagaraParameterPanelCategory(ItemToModify.NamespaceMetaData), bRequestRename, bMakeUniqueName);
 		OnNotifyParameterPendingNamespaceModifierRenameDelegate.ExecuteIfBound(NewUniqueName);
 	}
 	else
@@ -901,7 +905,7 @@ const TArray<UNiagaraScriptVariable*> FNiagaraSystemToolkitParameterPanelViewMod
 	return EditableScriptVariables;
 }
 
-void FNiagaraSystemToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const
+void FNiagaraSystemToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const
 {
 	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
 	bool bSuccess = false;
@@ -921,7 +925,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable
 		bool bNewScriptVarAlreadyExists = EditorOnlyScriptVars.ContainsByPredicate([&NewVariable](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Variable == NewVariable; });
 
 		// unless the namespace prevents name changes we make sure the new parameter has a unique name  
-		if (!Category.NamespaceMetaData.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName))
+		if (bMakeUniqueName && !Category.NamespaceMetaData.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName))
 		{
 			TSet<FName> Names;
 			for (UNiagaraScriptVariable* ScriptVar : EditorOnlyScriptVars)
@@ -1209,6 +1213,7 @@ FMenuAndSearchBoxWidgets FNiagaraSystemToolkitParameterPanelViewModel::GetParame
 {
 	const bool bRequestRename = true;
 	const bool bSkipSubscribedLibraries = false;
+	const bool bMakeUniqueName = true;
 
 	// Collect names of all parameters the System already owns to cull from the parameter add menu.
 	TSet<FName> AdditionalCulledParameterNames;
@@ -1221,14 +1226,14 @@ FMenuAndSearchBoxWidgets FNiagaraSystemToolkitParameterPanelViewModel::GetParame
 		.Graphs(GetEditableGraphsConst())
 		.AvailableParameterDefinitions(SystemViewModel->GetAvailableParameterDefinitions(bSkipSubscribedLibraries))
 		.SubscribedParameterDefinitions(SystemViewModel->GetSubscribedParameterDefinitions())
-		.OnAddParameter(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename)
+		.OnAddParameter(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
 		.OnAddScriptVar(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddScriptVariable)
 		.OnAddParameterDefinitions(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameterDefinitions)
 		.OnAllowMakeType_Static(&INiagaraParameterPanelViewModel::CanMakeNewParameterOfType)
 		.NamespaceId(Category.NamespaceMetaData.GetGuid())
 		.ShowNamespaceCategory(false)
 		.ShowGraphParameters(false)
-		.AutoExpandMenu(true)
+		.AutoExpandMenu(false)
 		.AdditionalCulledParameterNames(AdditionalCulledParameterNames);
 
 	ParameterMenuSearchBoxWidget = MenuWidget->GetSearchBox();
@@ -1300,11 +1305,26 @@ bool FNiagaraSystemToolkitParameterPanelViewModel::GetCanHandleDragDropOperation
 
 TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParameterMenuForAssignmentNode(UNiagaraNodeAssignment* AssignmentNode, const TSharedPtr<SComboButton>& AddButton) const
 {
-	auto AddParameterLambda = [this, AssignmentNode](const FNiagaraVariable& NewParameter) {
+	auto AddParameterLambda = [this, AssignmentNode](FNiagaraVariable& NewParameter) {
+		// If an assignment target is already setting the associated parameter, make a unique name here so that the assignment target is valid.
+		// Because the unique name is made before calling FNiagaraSystemToolkitParameterPanelViewModel::AddParameter, pass bMakeUniqueName = false.
+		if (AssignmentNode->GetAssignmentTargets().Contains(NewParameter))
+		{
+			TSet<FName> Names;
+			UNiagaraEditorParametersAdapter* EditorParametersAdapter = SystemViewModel->GetEditorOnlyParametersAdapter();
+			TArray<UNiagaraScriptVariable*>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
+			for (UNiagaraScriptVariable* ScriptVar : EditorOnlyScriptVars)
+			{
+				Names.Add(ScriptVar->Variable.GetName());
+			}
+			NewParameter.SetName(FNiagaraUtilities::GetUniqueName(NewParameter.GetName(), Names));
+		}
+
 		const FString VarDefaultValue = FNiagaraConstants::GetAttributeDefaultValue(NewParameter);
 		FNiagaraParameterPanelCategory TempCategory = FNiagaraParameterPanelCategory(FNiagaraEditorUtilities::GetNamespaceMetaDataForVariableName(NewParameter.GetName()));
 		const bool bRequestRename = true;
-		AddParameter(NewParameter, TempCategory, bRequestRename);
+		const bool bMakeUniqueName = false;
+		AddParameter(NewParameter, TempCategory, bRequestRename, bMakeUniqueName);
 		AssignmentNode->AddParameter(NewParameter, VarDefaultValue);
 	};
 
@@ -1342,7 +1362,8 @@ TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParam
 		.ShowNamespaceCategory(false)
 		.ShowGraphParameters(false)
 		.AutoExpandMenu(false)
-		.AdditionalCulledParameterNames(AdditionalCulledParameterNames);
+		.AdditionalCulledParameterNames(AdditionalCulledParameterNames)
+		.AssignmentNode(AssignmentNode);
 
 	AddButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
 	return MenuWidget;
@@ -2055,21 +2076,24 @@ void FNiagaraScriptToolkitParameterPanelViewModel::Init(const FScriptToolkitUICo
 	}
 }
 
-void FNiagaraScriptToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const
+void FNiagaraScriptToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const
 {
 	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
 	bool bSuccess = false;
 
-	TSet<FName> Names;
-	for (const UNiagaraGraph* Graph : GetEditableGraphsConst())
-	{
-		for (auto It = Graph->GetParameterReferenceMap().CreateConstIterator(); It; ++It)
+	if(bMakeUniqueName)
+	{ 
+		TSet<FName> Names;
+		for (const UNiagaraGraph* Graph : GetEditableGraphsConst())
 		{
-			Names.Add(It.Key().GetName());
+			for (auto It = Graph->GetParameterReferenceMap().CreateConstIterator(); It; ++It)
+			{
+				Names.Add(It.Key().GetName());
+			}
 		}
+		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
+		NewVariable.SetName(NewUniqueName);
 	}
-	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
-	NewVariable.SetName(NewUniqueName);
 
 	FScopedTransaction AddTransaction(LOCTEXT("AddScriptParameterTransaction", "Add parameter to script."));
 	for (UNiagaraGraph* Graph : GetEditableGraphs())
@@ -2378,12 +2402,13 @@ FMenuAndSearchBoxWidgets FNiagaraScriptToolkitParameterPanelViewModel::GetParame
 {
 	const bool bRequestRename = true;
 	const bool bSkipSubscribedLibraries = false;
+	const bool bMakeUniqueName = true;
 
 	TSharedPtr<SNiagaraAddParameterFromPanelMenu> MenuWidget = SAssignNew(ParameterMenuWidget, SNiagaraAddParameterFromPanelMenu)
 		.Graphs(GetEditableGraphsConst())
 		.AvailableParameterDefinitions(ScriptViewModel->GetAvailableParameterDefinitions(bSkipSubscribedLibraries))
  		.SubscribedParameterDefinitions(ScriptViewModel->GetSubscribedParameterDefinitions())
-		.OnAddParameter(this, &FNiagaraScriptToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename)
+		.OnAddParameter(this, &FNiagaraScriptToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
 		.OnAddScriptVar(this, &FNiagaraScriptToolkitParameterPanelViewModel::AddScriptVariable)
 		.OnAddParameterDefinitions(this, &FNiagaraScriptToolkitParameterPanelViewModel::AddParameterDefinitions)
 		.OnAllowMakeType_Static(&INiagaraParameterPanelViewModel::CanMakeNewParameterOfType)
@@ -2704,18 +2729,21 @@ void FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::Cleanup()
 	}
 }
 
-void FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const
+void FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const
 {
 	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
 	bool bSuccess = false;
 
-	TSet<FName> Names;
-	for (const UNiagaraScriptVariable* ScriptVar : ParameterDefinitionsWeak.Get()->GetParametersConst())
+	if (bMakeUniqueName)
 	{
-		Names.Add(ScriptVar->Variable.GetName());
+		TSet<FName> Names;
+		for (const UNiagaraScriptVariable* ScriptVar : ParameterDefinitionsWeak.Get()->GetParametersConst())
+		{
+			Names.Add(ScriptVar->Variable.GetName());
+		}
+		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
+		NewVariable.SetName(NewUniqueName);
 	}
-	const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
-	NewVariable.SetName(NewUniqueName);
 
 	FScopedTransaction AddTransaction(LOCTEXT("ParameterDefinitionsToolkitParameterPanelViewModel_AddParameter", "Add Parameter"));
 	ParameterDefinitionsWeak.Get()->AddParameter(NewVariable);
@@ -2898,9 +2926,10 @@ const TArray<FNiagaraParameterPanelCategory>& FNiagaraParameterDefinitionsToolki
 FMenuAndSearchBoxWidgets FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetParameterMenu(FNiagaraParameterPanelCategory Category) const
 {
 	const bool bRequestRename = true;
+	const bool bMakeUniqueName = true;
 
 	TSharedPtr<SNiagaraAddParameterFromPanelMenu> MenuWidget = SAssignNew(ParameterMenuWidget, SNiagaraAddParameterFromPanelMenu)
-	.OnAddParameter(this, &FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename)
+	.OnAddParameter(this, &FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
 	.OnAllowMakeType_Static(&INiagaraParameterPanelViewModel::CanMakeNewParameterOfType)
 	.NamespaceId(Category.NamespaceMetaData.GetGuid())
 	.ShowNamespaceCategory(false)
@@ -2931,32 +2960,6 @@ void FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::OnParameterItem
 	{
 		VariableObjectSelection->SetSelectedObject(SelectedScriptVariable);
 	}
-}
-
-void FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::AddParameterFromMenu(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename) const
-{
-	if (Category.NamespaceMetaData.IsValid() == false)
-	{
-		ensureMsgf(false, TEXT("Encountered category with invalid namespace metadata when adding parameter to parameter definitions!"));
-		return;
-	}
-
-	TArray<FString> NameParts;
-	for (const FName CategoryNamespace : Category.NamespaceMetaData.Namespaces)
-	{
-		NameParts.Add(CategoryNamespace.ToString());
-	}
-
-	if (Category.NamespaceMetaData.RequiredNamespaceModifier != NAME_None)
-	{
-		NameParts.Add(Category.NamespaceMetaData.RequiredNamespaceModifier.ToString());
-	}
-
-	NameParts.Add(NewVariable.GetName().ToString());
-	const FString ResultName = FString::Join(NameParts, TEXT("."));
-	NewVariable.SetName(FName(*ResultName));
-
-	AddParameter(NewVariable, Category, bRequestRename);
 }
 
 #undef LOCTEXT_NAMESPACE // "FNiagaraParameterPanelViewModel"
