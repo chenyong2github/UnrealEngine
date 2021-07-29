@@ -59,6 +59,29 @@ UWidgetBlueprintFactory::UWidgetBlueprintFactory(const FObjectInitializer& Objec
 
 bool UWidgetBlueprintFactory::ConfigureProperties()
 {
+	{
+		FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+
+		// Fill in options
+		FClassViewerInitializationOptions Options;
+		Options.DisplayMode = EClassViewerDisplayMode::Type::TreeView;
+		Options.Mode = EClassViewerMode::ClassPicker;
+		Options.bShowNoneOption = false;
+		Options.bExpandAllNodes = true;
+
+		TSharedPtr<FWidgetClassFilter> Filter = MakeShareable(new FWidgetClassFilter);
+		Options.ClassFilters.Add(Filter.ToSharedRef());
+		Options.ExtraPickerCommonClasses.Add(UUserWidget::StaticClass());
+
+		Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
+		Filter->AllowedChildrenOfClasses.Add(UUserWidget::StaticClass());
+
+		const FText TitleText = LOCTEXT("CreateWidgetBlueprint", "Pick Root Widget for New Widget Blueprint");
+
+		UClass* ChosenParentClass = nullptr;
+		SClassPickerDialog::PickClass(TitleText, Options, ChosenParentClass, UUserWidget::StaticClass());
+		ParentClass = ChosenParentClass ? ChosenParentClass : UUserWidget::StaticClass();
+	}
 	if (GetDefault<UUMGEditorProjectSettings>()->bUseWidgetTemplateSelector)
 	{
 		// Load the classviewer module to display a class picker

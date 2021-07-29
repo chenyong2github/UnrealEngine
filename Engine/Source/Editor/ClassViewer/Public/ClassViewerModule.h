@@ -96,6 +96,9 @@ public:
 	/** If true, root nodes will be expanded by default. */
 	bool bExpandRootNodes;
 
+	/** If true, all nodes will be expanded by default. */
+	bool bExpandAllNodes;
+
 	/** true allows class dynamic loading on selection */
 	bool bEnableClassDynamicLoading;
 
@@ -142,6 +145,7 @@ public:
 		, bShowNoneOption(false)
 		, bShowObjectRootClass(false)
 		, bExpandRootNodes(true)
+		, bExpandAllNodes(false)
 		, bEnableClassDynamicLoading(true)
 		, NameTypeToDisplay(EClassViewerNameTypeToDisplay::ClassName)
 		, bAllowViewOptions(true)
