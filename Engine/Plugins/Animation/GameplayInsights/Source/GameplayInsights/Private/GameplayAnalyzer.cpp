@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayAnalyzer.h"
+#include "TraceServices/Utils.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "GameplayProvider.h"
 
@@ -56,33 +57,50 @@ bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	}
 	case RouteId_Class:
 	{
-		const TCHAR* ClassNameAndPathName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-		const TCHAR* ClassName = ClassNameAndPathName;
-		int32 ClassNameStringLength = EventData.GetValue<int32>("ClassNameStringLength");
-		const TCHAR* ClassPathName = ClassNameAndPathName + ClassNameStringLength;
+		FString ClassName, ClassPathName;
+		if (EventData.GetString("Name", ClassName))
+		{
+			EventData.GetString("Path", ClassPathName);
+		}
+		else
+		{
+			const TCHAR* ClassNameAndPathName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
+			ClassName = ClassNameAndPathName;
+			int32 ClassNameStringLength = EventData.GetValue<int32>("ClassNameStringLength");
+			ClassPathName = ClassNameAndPathName + ClassNameStringLength;
+		}
+
 		uint64 Id = EventData.GetValue<uint64>("Id");
 		uint64 SuperId = EventData.GetValue<uint64>("SuperId");
-		GameplayProvider.AppendClass(Id, SuperId, ClassName, ClassPathName);
+		GameplayProvider.AppendClass(Id, SuperId, *ClassName, *ClassPathName);
 		break;
 	}
 	case RouteId_Object:
 	{
-		const TCHAR* ObjectNameAndPathName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-		const TCHAR* ObjectName = ObjectNameAndPathName;
-		int32 NameStringLength = EventData.GetValue<int32>("ObjectNameStringLength");
-		const TCHAR* ObjectPathName = ObjectNameAndPathName + NameStringLength;
+		FString ObjectName, ObjectPathName;
+		if (EventData.GetString("Name", ObjectName))
+		{
+			EventData.GetString("Path", ObjectPathName);
+		}
+		else
+		{
+			const TCHAR* ObjectNameAndPathName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
+			ObjectName = ObjectNameAndPathName;
+			int32 NameStringLength = EventData.GetValue<int32>("ObjectNameStringLength");
+			ObjectPathName = ObjectNameAndPathName + NameStringLength;
+		}
 		uint64 Id = EventData.GetValue<uint64>("Id");
 		uint64 OuterId = EventData.GetValue<uint64>("OuterId");
 		uint64 ClassId = EventData.GetValue<uint64>("ClassId");
-		GameplayProvider.AppendObject(Id, OuterId, ClassId, ObjectName, ObjectPathName);
+		GameplayProvider.AppendObject(Id, OuterId, ClassId, *ObjectName, *ObjectPathName);
 		break;
 	}
 	case RouteId_ObjectEvent:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		uint64 Id = EventData.GetValue<uint64>("Id");
-		const TCHAR* Event = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-		GameplayProvider.AppendObjectEvent(Id, Context.EventTime.AsSeconds(Cycle), Event);
+		FString Event = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Event", Context);
+		GameplayProvider.AppendObjectEvent(Id, Context.EventTime.AsSeconds(Cycle), *Event);
 		break;
 	}
 	case RouteId_View:
