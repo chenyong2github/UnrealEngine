@@ -549,6 +549,11 @@ void FAdaptiveStreamingPlayer::HandleDecoderChanges()
 		VideoDecoder.bDrainingForCodecChange = false;
 		VideoDecoder.bDrainingForCodecChangeDone = false;
 	}
+	if (SubtitleDecoder.bRequireCodecChange)
+	{
+		SubtitleDecoder.Close();
+		SubtitleDecoder.bRequireCodecChange = false;
+	}
 	CreateDecoder(EStreamType::Video);
 	CreateDecoder(EStreamType::Audio);
 	CreateDecoder(EStreamType::Subtitle);
@@ -712,7 +717,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 				bCodecChangeDetected = true;
 				if (Decoder)
 				{
-					// Check type of stream. We can currently change the video codec only.
+					// Check type of stream. We can currently change the video and subtitle codecs only.
 					if (Type == EStreamType::Video)
 					{
 						if (VideoDecoder.Decoder && !VideoDecoder.bDrainingForCodecChange)
@@ -720,6 +725,10 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 							VideoDecoder.bDrainingForCodecChange = true;
 							VideoDecoder.Decoder->DrainForCodecChange();
 						}
+					}
+					else if (Type == EStreamType::Subtitle)
+					{
+						SubtitleDecoder.bRequireCodecChange = true;
 					}
 					else
 					{

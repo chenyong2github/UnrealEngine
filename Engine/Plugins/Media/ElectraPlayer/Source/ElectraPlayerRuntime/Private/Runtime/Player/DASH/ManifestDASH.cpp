@@ -590,7 +590,9 @@ TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdapt
 				}
 			}
 			// Matching language not found. Is there an explicit index given?
-			if (!AS.IsValid())
+			// Note: for now we use the explicit override even if a matching language was already found.
+			//       there's a reason the override is specified, like to enforce a specific codec for the same language.
+			//if (!AS.IsValid())
 			{
 				if (Attributes.OverrideIndex.IsSet() && Attributes.OverrideIndex.GetValue() >= 0 && Attributes.OverrideIndex.GetValue() < NumAdaptationSets)
 				{
