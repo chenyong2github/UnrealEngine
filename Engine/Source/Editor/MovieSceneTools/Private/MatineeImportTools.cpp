@@ -812,6 +812,10 @@ bool FMatineeImportTools::CopyInterpAnimControlTrack( UInterpTrackAnimControl* M
 		NewSection->Params.Animation = AnimSeq.AnimSeq;
 		NewSection->Params.SlotName = MatineeAnimControlTrack->SlotName;
 
+		// Matinee behavior is that animation sections hold their value after they end but Sequencer properly handles save/load restore
+		// so we need to change the default behavior of the section to mimick Matinee more.
+		NewSection->SetCompletionMode(EMovieSceneCompletionMode::KeepState);
+
 		SkeletalAnimationTrack->AddSection( *NewSection );
 		bSectionCreated = true;
 	}
