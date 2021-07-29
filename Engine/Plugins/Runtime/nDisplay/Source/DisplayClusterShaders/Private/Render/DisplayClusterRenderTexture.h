@@ -4,12 +4,14 @@
 
 #include "Render/IDisplayClusterRenderTexture.h"
 
+#include "TextureResource.h"
+
 class FDisplayClusterRenderTextureResource
 	: public FTextureResource
 {
 public:
 	FDisplayClusterRenderTextureResource(EPixelFormat InPixelFormat, uint32_t InWidth, uint32_t InHeight, const void* InTextureData, bool bInHasCPUAccess);
-	~FDisplayClusterRenderTextureResource();
+	virtual ~FDisplayClusterRenderTextureResource();
 
 	void ReleaseTextureData();
 
