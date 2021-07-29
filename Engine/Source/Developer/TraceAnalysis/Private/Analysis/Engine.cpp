@@ -2408,12 +2408,12 @@ FEstablishTransportStage::EStatus FEstablishTransportStage::OnData(
 		break;
 
 	case Protocol1::EProtocol::Id:
+	case Protocol2::EProtocol::Id:
+	case Protocol3::EProtocol::Id:
 		Context.Machine.QueueStage<FProtocol2Stage>(ProtocolVersion, Transport);
 		Context.Machine.Transition();
 		break;
 
-	case Protocol2::EProtocol::Id:
-	case Protocol3::EProtocol::Id:
 	case Protocol4::EProtocol::Id:
 		Context.Machine.QueueStage<FProtocol4Stage>(ProtocolVersion, Transport);
 		Context.Machine.Transition();
