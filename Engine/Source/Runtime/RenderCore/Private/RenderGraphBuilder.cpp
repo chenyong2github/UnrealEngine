@@ -537,7 +537,7 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 #endif
 	, bParallelExecuteEnabled(IsParallelExecuteEnabled() && EnumHasAnyFlags(InFlags, ERDGBuilderFlags::AllowParallelExecute))
 #if RDG_ENABLE_DEBUG
-	, UserValidation(Allocator)
+	, UserValidation(Allocator, bParallelExecuteEnabled)
 	, BarrierValidation(&Passes, BuilderName)
 	, LogFile(Passes)
 #endif
@@ -1677,7 +1677,7 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 		IF_RDG_ENABLE_TRACE(Trace.OutputGraphBegin());
 	}
 
-	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = false);
+	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = bParallelExecuteEnabled);
 
 	const ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread_Local();
 
@@ -1819,6 +1819,7 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 
 		IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecuteEnd());
 		IF_RDG_ENABLE_DEBUG(LogFile.End());
+		IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = false);
 
 	#if STATS
 		GRDGStatBufferCount += Buffers.Num();
@@ -1832,6 +1833,8 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 		AddProloguePass();
 	}
 
+	RasterPassCount = 0;
+	AsyncComputePassCount = 0;
 	ExecuteGeneration++;
 
 	// Flush any outstanding async compute commands at the end to get things moving down the pipe.
@@ -2142,8 +2145,11 @@ void FRDGBuilder::SubmitBufferUploads()
 				void* DestPtr = RHICmdList.LockBuffer(TempBuffer, 0, UploadedBuffer.DataSize, RLM_WriteOnly);
 				FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
 				RHICmdList.UnlockBuffer(TempBuffer);
-				RHICmdList.Transition(FRHITransitionInfo(TempBuffer, ERHIAccess::Unknown, ERHIAccess::CopySrc | ERHIAccess::SRVMask));
-				RHICmdList.Transition(FRHITransitionInfo(UploadedBuffer.Buffer->GetRHI(), ERHIAccess::Unknown, ERHIAccess::CopyDest | ERHIAccess::UAVMask));
+				RHICmdList.Transition(
+				{
+					FRHITransitionInfo(TempBuffer, ERHIAccess::Unknown, ERHIAccess::CopySrc | ERHIAccess::SRVMask),
+					FRHITransitionInfo(UploadedBuffer.Buffer->GetRHI(), ERHIAccess::Unknown, ERHIAccess::CopyDest)
+				});
 				RHICmdList.CopyBufferRegion(UploadedBuffer.Buffer->GetRHI(), 0, TempBuffer, 0, UploadedBuffer.DataSize);
 			}
 			else
@@ -2277,12 +2283,13 @@ void FRDGBuilder::SetupParallelExecute()
 		}
 	}
 
+	ParallelPassCandidates.Emplace(EpiloguePass);
 	FlushParallelPassCandidates();
 }
 
 void FRDGBuilder::DispatchParallelExecute(IRHICommandContext* RHICmdContext)
 {
-	SCOPED_NAMED_EVENT(SetupParallelExecute, FColor::Emerald);
+	SCOPED_NAMED_EVENT(DispatchParallelExecute, FColor::Emerald);
 	ParallelExecuteEvents.Reserve(ParallelExecuteEvents.Num() + ParallelPassSets.Num());
 
 	for (int32 Index = ParallelPassSetsOffset; Index < ParallelPassSets.Num(); ++Index)
@@ -2334,7 +2341,7 @@ void FRDGBuilder::CreateUniformBuffers()
 
 void FRDGBuilder::AddProloguePass()
 {
-	if (!PassesOnAsyncComputeToJoin.IsEmpty())
+	if (AsyncComputePassCount > 0)
 	{
 		FRDGPass* AsyncComputePass = SetupEmptyPass(Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Prologue (AsyncCompute)"), ERDGPassFlags::AsyncCompute));
 		ProloguePasses[ERHIPipeline::AsyncCompute] = AsyncComputePass;
@@ -2346,7 +2353,7 @@ void FRDGBuilder::AddProloguePass()
 	ProloguePassHandles[ERHIPipeline::Graphics] = GraphicsPass->Handle;
 
 	// If we don't need an async compute prologue pass, we still want a valid handle to make ClampToPrologue not always return null.
-	if (PassesOnAsyncComputeToJoin.IsEmpty())
+	if (!AsyncComputePassCount)
 	{
 		ProloguePassHandles[ERHIPipeline::AsyncCompute] = GraphicsPass->Handle;
 	}

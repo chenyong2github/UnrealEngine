@@ -304,6 +304,14 @@ void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
 	State = &PooledBuffer->State;
 	ViewCache = &PooledBuffer->ViewCache;
 	ResourceRHI = InPooledBuffer->GetRHI();
+
+	// The upload with UAV workaround performs its own transitions outside of RDG, so fall back to Unknown for simplicity.
+#if PLATFORM_NEEDS_GPU_UAV_RESOURCE_INIT_WORKAROUND
+	if (bUAVAccessed && bQueuedForUpload)
+	{
+		*State = FRDGSubresourceState();
+	}
+#endif
 }
 
 void FRDGBuffer::SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& Allocator)

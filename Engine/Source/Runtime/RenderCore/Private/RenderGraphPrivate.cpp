@@ -488,10 +488,28 @@ void InitRenderGraph()
 		GRDGClobberResources = 1;
 	}
 
+	int32 TransientAllocatorValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgtransientallocator="), TransientAllocatorValue))
+	{
+		GRDGTransientAllocator = TransientAllocatorValue;
+	}
+
 	int32 CullPassesValue = 0;
 	if (FParse::Value(FCommandLine::Get(), TEXT("rdgcullpasses="), CullPassesValue))
 	{
 		GRDGCullPasses = CullPassesValue;
+	}
+
+	int32 DrainValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdrain="), DrainValue))
+	{
+		GRDGDrain = DrainValue;
+	}
+
+	int32 ParallelExecuteValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgparallelxecute="), ParallelExecuteValue))
+	{
+		GRDGParallelExecute = ParallelExecuteValue;
 	}
 
 	int32 MergeRenderPassesValue = 0;
