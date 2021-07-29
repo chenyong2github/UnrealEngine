@@ -259,7 +259,8 @@ public:
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
 		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle
+		const TSharedPtr<IPropertyHandle>& InParametersHandle,
+		bool bInvertValue = false
 		);
 
 	// FPolicyParameterInfo
@@ -268,6 +269,8 @@ public:
 
 private:
 	ECheckBoxState IsChecked() const;
+
+	bool bInvertValue;
 };
 
 /**

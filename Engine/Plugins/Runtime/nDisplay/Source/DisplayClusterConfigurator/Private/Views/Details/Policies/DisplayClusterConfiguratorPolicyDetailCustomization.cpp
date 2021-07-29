@@ -378,11 +378,12 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateCameraPolicy(UDis
 		TArray<TSubclassOf<UActorComponent>>{ UCameraComponent::StaticClass() } ));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
-		"Native",
+		"Use nDisplay Renderer",
 		DisplayClusterProjectionStrings::cfg::camera::Native,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
-		ParametersHandle));
+		ParametersHandle,
+		true));
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateMeshPolicy(UDisplayClusterBlueprint* Blueprint)

@@ -256,8 +256,9 @@ void FPolicyParameterInfoText::CreateCustomRowWidget(IDetailChildrenBuilder& InD
 
 FPolicyParameterInfoBool::FPolicyParameterInfoBool(const FString& InDisplayName, const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
-	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle)
+	const TSharedPtr<IPropertyHandle>& InParametersHandle, bool bInvertValue) :
+	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
+	bInvertValue(bInvertValue)
 {
 }
 
@@ -276,7 +277,8 @@ void FPolicyParameterInfoBool::CreateCustomRowWidget(IDetailChildrenBuilder& InD
 			.IsChecked(this, &FPolicyParameterInfoBool::IsChecked)
 			.OnCheckStateChanged_Lambda([this](ECheckBoxState InValue)
 			{
-				UpdateCustomParameterValueText(DisplayClusterTypesConverter::template ToString(InValue == ECheckBoxState::Checked ? true : false));
+				const bool bIsChecked = InValue == ECheckBoxState::Checked;
+				UpdateCustomParameterValueText(DisplayClusterTypesConverter::template ToString(bInvertValue ? !bIsChecked : bIsChecked));
 			})
 		];
 }
@@ -285,8 +287,9 @@ ECheckBoxState FPolicyParameterInfoBool::IsChecked() const
 {
 	const FString StrValue = GetOrAddCustomParameterValueText().ToString().ToLower();
 	const bool bValue = DisplayClusterTypesConverter::template FromString<bool>(StrValue);
+	const bool bIsChecked = bInvertValue ? !bValue : bValue;
 
-	return bValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return bIsChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 
