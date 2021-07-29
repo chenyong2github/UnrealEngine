@@ -626,6 +626,14 @@ void FRHITransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList
 	});
 }
 
+void FRHITransientResourceAllocator::Flush()
+{
+	for (FRHITransientHeapState& State : Heaps)
+	{
+		State.LastCommitSize = State.CommitSize;
+	}
+}
+
 FRHITransientHeapAllocation FRHITransientResourceAllocator::Allocate(FMemoryStats& StatsToUpdate, uint64 Size, uint32 Alignment, ERHITransientHeapFlags ResourceHeapFlags)
 {
 	FRHITransientHeapAllocation Allocation;
