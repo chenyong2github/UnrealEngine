@@ -2644,6 +2644,11 @@ void SClassViewer::Tick( const FGeometry& AllottedGeometry, const double InCurre
 			ExpandRootNodes();
 		}
 
+		if (InitOptions.bExpandAllNodes)
+		{
+			SetAllExpansionStates(true);
+		}
+
 		// Scroll the first item into view if applicable
 		const TArray<TSharedPtr<FClassViewerNode>> SelectedItems = GetSelectedItems();
 		if (SelectedItems.Num() > 0)
