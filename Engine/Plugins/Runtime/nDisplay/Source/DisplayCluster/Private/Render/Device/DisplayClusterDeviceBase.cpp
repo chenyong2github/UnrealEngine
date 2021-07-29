@@ -436,15 +436,8 @@ void FDisplayClusterDeviceBase::FinalizeNewFrame()
 		}
 	}
 
-	// Stop using viewport manager on game thread
+	// reset viewport manager ptr on game thread
 	ViewportManagerPtr = nullptr;
-
-	// reset viewport manager proxy on render thread
-	ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_ResetViewportManagerPtr)(
-		[DCRenderDevice = this](FRHICommandListImmediate& RHICmdList)
-	{
-		DCRenderDevice->ViewportManagerProxyPtr = nullptr;
-	});
 }
 
 DECLARE_GPU_STAT_NAMED(nDisplay_Device_RenderTexture, TEXT("nDisplay RenderDevice::RenderTexture"));
@@ -456,15 +449,18 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 {
 	SCOPED_GPU_STAT(RHICmdList, nDisplay_Device_RenderTexture);
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Device_RenderTexture);
-
-	// SrcTexture contain MONO/LEFT eye with debug canvas
-	// copy the render target texture to the MONO/LEFT_EYE back buffer  (MONO = mono, side_by_side, top_bottom)
-	RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, FResolveParams());
 	
 	if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxyPtr)
 	{
-		// QuadBufStereo: Copy RIGHT_EYE to backbuffer
+		// QuadBufStereo: Copy LEFT/RIGHT EYE to backbuffer
+		ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 0, 0, BackBuffer, WindowSize);
 		ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 1, BackBuffer, WindowSize);
+	}
+	else
+	{
+		// SrcTexture contain MONO/LEFT eye with debug overlay canvas
+		// copy the render target texture to the MONO/LEFT_EYE back buffer  (MONO = mono, side_by_side, top_bottom)
+		RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, FResolveParams());
 	}
 	
 	// Clear render target before out frame resolving
