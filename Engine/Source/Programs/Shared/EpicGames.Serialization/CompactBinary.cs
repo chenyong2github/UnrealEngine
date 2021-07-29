@@ -722,11 +722,20 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Access the field as a UTF-8 string.
+		/// </summary>
+		/// <returns></returns>
+		public Utf8String AsString()
+		{
+			return AsString(default);
+		}
+
+		/// <summary>
 		/// Access the field as a UTF-8 string. Returns the provided default on error.
 		/// </summary>
 		/// <param name="Default">Default value to return</param>
 		/// <returns></returns>
-		public Utf8String AsString(Utf8String Default = default)
+		public Utf8String AsString(Utf8String Default)
 		{
 			if (CbFieldUtils.IsString(TypeWithFlags))
 			{
@@ -768,7 +777,15 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as an int32. Returns the provided default on error.
 		/// </summary>
-		public int AsInt32(int Default = 0)
+		public int AsInt32()
+		{
+			return AsInt32(0);
+		}
+
+		/// <summary>
+		/// Access the field as an int32. Returns the provided default on error.
+		/// </summary>
+		public int AsInt32(int Default)
 		{
 			return (int)AsInteger((ulong)Default, 31, true);
 		}
@@ -1592,6 +1609,24 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Check if the current value is valid
+		/// </summary>
+		/// <returns></returns>
+		public bool IsValid()
+		{
+			return Current.GetType() != CbFieldType.None;
+		}
+
+		/// <summary>
+		/// Accessor for the current value
+		/// </summary>
+		/// <returns></returns>
+		public CbField GetCurrent()
+		{
+			return Current;
+		}
+
+		/// <summary>
 		/// Copy the field range into a buffer of exactly GetRangeSize() bytes.
 		/// </summary>
 		/// <param name="Buffer"></param>
@@ -1687,7 +1722,7 @@ namespace EpicGames.Serialization
 		/// <param name="Iterator"></param>
 		public static implicit operator bool(CbFieldIterator Iterator)
 		{
-			return Iterator.Current.GetType() != CbFieldType.None;
+			return Iterator.IsValid();
 		}
 
 		/// <summary>
