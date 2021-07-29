@@ -132,6 +132,12 @@ public:
 
 	static bool AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene);
 
+	/**
+	 * Helper function to add a pass to zero the instance count in the indirect args.
+	 */
+	static void AddClearIndirectArgInstanceCountPass(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferRef DrawIndirectArgsBuffer);
+
+
 	void SetupDrawCommands(
 		FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
 		bool bCompactIdenticalCommands,
