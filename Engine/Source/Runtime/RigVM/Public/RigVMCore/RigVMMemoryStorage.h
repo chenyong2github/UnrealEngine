@@ -185,6 +185,16 @@ public:
 	/// Memory Access
 	//////////////////////////////////////////////////////////////////////////////
 
+	FORCEINLINE ERigVMMemoryType GetMemoryType() const
+	{
+		if(URigVMMemoryStorageGeneratorClass* Class = Cast<URigVMMemoryStorageGeneratorClass>(GetClass()))
+		{
+			return Class->GetMemoryType();
+		}
+		// empty debug containers don't have a generator class
+		return ERigVMMemoryType::Debug;
+	}
+	
 	FORCEINLINE int32 Num() const
 	{
 		return GetProperties().Num();
@@ -194,7 +204,7 @@ public:
 	{
 		return GetProperties().IsValidIndex(InIndex);
 	}
-	
+
 	const TArray<const FProperty*>& GetProperties() const;
 	const TArray<FRigVMPropertyPath>& GetPropertyPaths() const;
 
@@ -202,11 +212,19 @@ public:
 
 	int32 GetPropertyIndexByName(const FName& InName) const;
 
+	FORCEINLINE const FProperty* GetProperty(int32 InPropertyIndex) const
+	{
+		return GetProperties()[InPropertyIndex];
+	}
+
 	const FProperty* FindPropertyByName(const FName& InName) const;
+
+	FRigVMOperand GetOperand(int32 InPropertyIndex, int32 InPropertyPathIndex = INDEX_NONE) const;
+	FRigVMOperand GetOperandByName(const FName& InName, int32 InPropertyPathIndex = INDEX_NONE) const;
 	
 	FORCEINLINE bool IsArray(int32 InPropertyIndex) const
 	{
-		return GetProperties()[InPropertyIndex]->IsA<FArrayProperty>();
+		return GetProperty(InPropertyIndex)->IsA<FArrayProperty>();
 	}
 	
 	FORCEINLINE bool IsArrayByName(const FName& InName) const
@@ -220,7 +238,7 @@ public:
 	
 	FORCEINLINE bool IsMap(int32 InPropertyIndex) const
 	{
-		return GetProperties()[InPropertyIndex]->IsA<FMapProperty>();
+		return GetProperty(InPropertyIndex)->IsA<FMapProperty>();
 	}
 	
 	FORCEINLINE bool IsMapByName(const FName& InName) const
@@ -234,7 +252,7 @@ public:
 	
 	FORCEINLINE bool IsSet(int32 InPropertyIndex) const
 	{
-		return GetProperties()[InPropertyIndex]->IsA<FSetProperty>();
+		return GetProperty(InPropertyIndex)->IsA<FSetProperty>();
 	}
 	
 	FORCEINLINE bool IsSetByName(const FName& InName) const
@@ -267,7 +285,7 @@ public:
 	template<typename T>
 	FORCEINLINE T* GetData(int32 InPropertyIndex, const FRigVMPropertyPath& InPropertyPath)
 	{
-		const FProperty* Property = GetProperties()[InPropertyIndex];
+		const FProperty* Property = GetProperty(InPropertyIndex);
 		return InPropertyPath.GetData<T>(GetData<uint8>(InPropertyIndex), Property);
 	}
 
@@ -278,7 +296,55 @@ public:
 		return GetData<T>(PropertyIndex, InPropertyPath);
 	}
 
+	template<typename T>
+	FORCEINLINE T* GetData(const FRigVMOperand& InOperand)
+	{
+		const int32 PropertyIndex = InOperand.GetRegisterIndex();
+		const int32 PropertyPathIndex = InOperand.GetRegisterOffset();
+
+		check(GetProperties().IsValidIndex(PropertyIndex));
+		
+		if(PropertyPathIndex == INDEX_NONE)
+		{
+			return GetData<T>(PropertyIndex);
+		}
+
+		check(GetPropertyPaths().IsValidIndex(PropertyPathIndex));
+		return GetData<T>(PropertyIndex, GetPropertyPaths()[PropertyPathIndex]); 
+	}
+
+	template<typename T>
+	FORCEINLINE T& GetRef(int32 InPropertyIndex)
+	{
+		return *GetData<T>(InPropertyIndex);
+	}
+
+	template<typename T>
+	FORCEINLINE T& GetRefByName(const FName& InName)
+	{
+		return *GetDataByName<T>(InName);
+	}
+
+	template<typename T>
+	FORCEINLINE T& GetRef(int32 InPropertyIndex, const FRigVMPropertyPath& InPropertyPath)
+	{
+		return *GetData<T>(InPropertyIndex, InPropertyPath);
+	}
+
+	template<typename T>
+	FORCEINLINE T& GetRefByName(const FName& InName, const FRigVMPropertyPath& InPropertyPath)
+	{
+		return *GetDataByName<T>(InName, InPropertyPath);
+	}
+
+	template<typename T>
+	FORCEINLINE T& GetRef(const FRigVMOperand& InOperand)
+	{
+		return *GetData<T>(InOperand);
+	}
+
 	FString GetDataAsString(int32 InPropertyIndex);
+	FString GetDataAsString(const FRigVMOperand& InOperand);
 	
 	FORCEINLINE FString GetDataAsStringByName(const FName& InName)
 	{

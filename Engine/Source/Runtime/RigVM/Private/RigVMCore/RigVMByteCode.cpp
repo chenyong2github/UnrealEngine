@@ -32,8 +32,6 @@ void FRigVMCopyOp::Serialize(FArchive& Ar)
 	Ar << Source;
 	Ar << Target;
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 	if(Ar.IsLoading())
 	{
 		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
@@ -52,8 +50,6 @@ void FRigVMCopyOp::Serialize(FArchive& Ar)
 		Ar << NumBytes;
 		Ar << RegisterType;
 	}
-	
-#endif
 }
 
 void FRigVMComparisonOp::Serialize(FArchive& Ar)

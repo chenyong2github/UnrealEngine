@@ -224,7 +224,7 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	const TArray<FRigVMPropertyPathDescription>& InPropertyPaths)
 {
 	check(InOuter);
-	UPackage* Package = InOuter->GetOutermost(); 
+	UPackage* Package = InOuter->GetOutermost();
 	UClass *SuperClass = URigVMMemoryStorage::StaticClass();
 
 	const FString ClassName = GetClassName(InMemoryType);
@@ -484,6 +484,13 @@ FString URigVMMemoryStorage::GetDataAsString(int32 InPropertyIndex)
 	return Value;
 }
 
+FString URigVMMemoryStorage::GetDataAsString(const FRigVMOperand& InOperand)
+{
+	const int32 PropertyIndex = InOperand.GetRegisterIndex();
+	check(IsValidIndex(PropertyIndex));
+	return GetDataAsString(PropertyIndex);
+}
+
 class FRigVMMemoryStorageImportErrorContext : public FOutputDevice
 {
 public:
@@ -542,8 +549,36 @@ bool URigVMMemoryStorage::CopyProperty(
 	check(InTargetPtr != nullptr);
 	check(InSourcePtr != nullptr);
 
-	if(!ensure(InTargetProperty->SameType(InSourceProperty)))
+	if(!InTargetProperty->SameType(InSourceProperty))
 	{
+		if(const FFloatProperty* TargetFloatProperty = CastField<FFloatProperty>(InTargetProperty))
+		{
+			if(const FDoubleProperty* SourceDoubleProperty = CastField<FDoubleProperty>(InSourceProperty))
+			{
+				float* TargetFloats = (float*)InTargetPtr;
+				double* SourceDoubles = (double*)InSourcePtr;
+				for(int32 Index=0;Index<TargetFloatProperty->ArrayDim;Index++)
+				{
+					TargetFloats[Index] = (float)SourceDoubles[Index];
+				}
+				return true;
+			}
+		}
+		else if(const FDoubleProperty* TargetDoubleProperty = CastField<FDoubleProperty>(InTargetProperty))
+		{
+			if(const FFloatProperty* SourceFloatProperty = CastField<FFloatProperty>(InSourceProperty))
+			{
+				double* TargetDoubles = (double*)InTargetPtr;
+				float* SourceFloats = (float*)InSourcePtr;
+				for(int32 Index=0;Index<TargetDoubleProperty->ArrayDim;Index++)
+				{
+					TargetDoubles[Index] = (double)SourceFloats[Index];
+				}
+				return true;
+			}
+		}
+		
+		ensure(InTargetProperty->SameType(InSourceProperty));
 		return false;
 	}
 
@@ -638,7 +673,15 @@ const TArray<FRigVMPropertyPath>& URigVMMemoryStorage::GetPropertyPaths() const
 
 int32 URigVMMemoryStorage::GetPropertyIndex(const FProperty* InProperty) const
 {
-	return GetProperties().Find(InProperty);
+	const TArray<const FProperty*>& Properties = GetProperties();
+	for(int32 PropertyIndex = 0; PropertyIndex < Properties.Num(); PropertyIndex++)
+	{
+		if(Properties[PropertyIndex] == InProperty)
+		{
+			return PropertyIndex;
+		}
+	}
+	return INDEX_NONE;
 }
 
 int32 URigVMMemoryStorage::GetPropertyIndexByName(const FName& InName) const
@@ -651,4 +694,24 @@ const FProperty* URigVMMemoryStorage::FindPropertyByName(const FName& InName) co
 {
 	const FName SanitizedName = FRigVMPropertyDescription::SanitizeName(InName);
 	return GetClass()->FindPropertyByName(SanitizedName);
+}
+
+FRigVMOperand URigVMMemoryStorage::GetOperand(int32 InPropertyIndex, int32 InPropertyPathIndex) const
+{
+	if(GetProperties().IsValidIndex(InPropertyIndex))
+	{
+		if(InPropertyPathIndex != INDEX_NONE)
+		{
+			check(GetPropertyPaths().IsValidIndex(InPropertyPathIndex));
+			return FRigVMOperand(GetMemoryType(), InPropertyIndex, InPropertyPathIndex);
+		}
+		return FRigVMOperand(GetMemoryType(), InPropertyIndex);
+	}
+	return FRigVMOperand();
+}
+
+FRigVMOperand URigVMMemoryStorage::GetOperandByName(const FName& InName, int32 InPropertyPathIndex) const
+{
+	const int32 PropertyIndex = GetPropertyIndexByName(InName);
+	return GetOperand(PropertyIndex, InPropertyPathIndex);
 }

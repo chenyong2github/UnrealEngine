@@ -6,6 +6,7 @@
 #include "RigVMDefines.h"
 #include "RigVMRegistry.h"
 #include "RigVMStatistics.h"
+#include "RigVMMemoryDeprecated.h"
 
 #include "RigVMByteCode.generated.h"
 
@@ -234,15 +235,17 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 {
 	GENERATED_USTRUCT_BODY()
 
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+public:
+#endif
+
 	FRigVMCopyOp()
 	: FRigVMBaseOp(ERigVMOpCode::Copy)
 	, Source()
 	, Target()
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	, NumBytes(0)
 	, RegisterType(ERigVMRegisterType::Invalid)
 	, CopyType(ERigVMCopyType::Default)
-#endif
 	{
 	}
 
@@ -262,18 +265,26 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 		, NumBytes(InNumBytes)
 		, RegisterType(InRegisterType)
 		, CopyType(InCopyType)
+#else
+		, NumBytes(0)
+		, RegisterType(ERigVMRegisterType::Invalid)
+		, CopyType(ERigVMCopyType::Default)
 #endif
 	{
 	}
 
 	FRigVMOperand Source;
 	FRigVMOperand Target;
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+private:
+#endif
 	uint16 NumBytes;
 	ERigVMRegisterType RegisterType;
 	ERigVMCopyType CopyType;
-#endif
 
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+public:
+#endif
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMCopyOp& P)
 	{
