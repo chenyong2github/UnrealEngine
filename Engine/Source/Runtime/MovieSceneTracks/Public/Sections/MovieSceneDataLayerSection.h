@@ -27,6 +27,12 @@ public:
 	MOVIESCENETRACKS_API void SetDesiredState(EDataLayerState InDesiredState);
 
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
+	MOVIESCENETRACKS_API EDataLayerState GetPrerollState() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
+	MOVIESCENETRACKS_API void SetPrerollState(EDataLayerState InPrerollState);
+
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	const TArray<FActorDataLayer>& GetDataLayers() const { return DataLayers; }
 
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
@@ -42,7 +48,11 @@ private:
 	UPROPERTY(EditAnywhere, Category=DataLayer)
 	TArray<FActorDataLayer> DataLayers;
 
-	/** Whether or not the levels in this section should be visible or hidden. */
+	/** The desired state for the data layers on this section when the section is actively evaluating. */
 	UPROPERTY(EditAnywhere, Category=DataLayer)
 	EDataLayerState DesiredState;
+
+	/** The desired state for the data layers on this section when the section is pre or post-rolling. */
+	UPROPERTY(EditAnywhere, Category=DataLayer)
+	EDataLayerState PrerollState;
 };
