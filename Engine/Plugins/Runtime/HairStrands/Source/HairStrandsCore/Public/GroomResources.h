@@ -252,7 +252,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 struct FHairStrandsDeformedResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
-	FHairStrandsDeformedResource(FHairStrandsBulkData& BulkData, bool bInitializeData, EHairStrandsResourcesType CurveType);
+	FHairStrandsDeformedResource(FHairStrandsBulkData& BulkData, EHairStrandsResourcesType CurveType);
 
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -285,9 +285,6 @@ struct FHairStrandsDeformedResource : public FHairCommonResource
 
 	/* Reference to the hair strands render data */
 	FHairStrandsBulkData& BulkData;
-
-	/* Whether the GPU data should be initialized with the asset data or not */
-	const bool bInitializedData = false;
 
 	/* Whether the GPU data should be initialized with the asset data or not */
 	uint32 CurrentIndex = 0;

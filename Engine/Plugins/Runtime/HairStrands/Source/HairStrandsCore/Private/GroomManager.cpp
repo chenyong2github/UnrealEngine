@@ -576,6 +576,18 @@ static void RunHairBufferSwap(const FHairStrandsInstances& Instances, const TArr
 	}
 }
 
+static void AddCopyHairStrandsPositionPass(
+	FRDGBuilder& GraphBuilder,
+	FHairStrandsRestResource& RestResources,
+	FHairStrandsDeformedResource& DeformedResources)
+{
+	FRDGBufferRef RestBuffer = Register(GraphBuilder, RestResources.PositionBuffer, ERDGImportedBufferFlags::None).Buffer;
+	FRDGBufferRef Deformed0Buffer = Register(GraphBuilder, DeformedResources.DeformedPositionBuffer[0], ERDGImportedBufferFlags::None).Buffer;
+	FRDGBufferRef Deformed1Buffer = Register(GraphBuilder, DeformedResources.DeformedPositionBuffer[1], ERDGImportedBufferFlags::None).Buffer;
+	AddCopyBufferPass(GraphBuilder, Deformed0Buffer, RestBuffer);
+	AddCopyBufferPass(GraphBuilder, Deformed1Buffer, RestBuffer);
+}
+
 static void RunHairLODSelection(
 	FRDGBuilder& GraphBuilder, 
 	const FHairStrandsInstances& Instances, 
@@ -686,13 +698,13 @@ static void RunHairLODSelection(
 		}
 
 		// Lazy allocation of resources
-		// Note: Allocation will only be done if the resources it not yet initialized.
+		// Note: Allocation will only be done if the resources is not initialized yet. Guides deformed position are also initialized from the Rest position at creation time.
 		if (Instance->Guides.Data)
 		{
 			if (Instance->Guides.RestRootResource)			{ Instance->Guides.RestRootResource->Allocate(GraphBuilder); Instance->Guides.RestRootResource->AllocateLOD(GraphBuilder, MeshLODIndex); }
 			if (Instance->Guides.RestResource)				{ Instance->Guides.RestResource->Allocate(GraphBuilder); }
 			if (Instance->Guides.DeformedRootResource)		{ Instance->Guides.DeformedRootResource->Allocate(GraphBuilder); Instance->Guides.DeformedRootResource->AllocateLOD(GraphBuilder, MeshLODIndex); }
-			if (Instance->Guides.DeformedResource)			{ Instance->Guides.DeformedResource->Allocate(GraphBuilder); }
+			if (Instance->Guides.DeformedResource)			{ const bool bNeedCopy = !Instance->Guides.DeformedResource->bIsInitialized; Instance->Guides.DeformedResource->Allocate(GraphBuilder); if (bNeedCopy) { AddCopyHairStrandsPositionPass(GraphBuilder, *Instance->Guides.RestResource, *Instance->Guides.DeformedResource); }}
 		}
 
 		if (GeometryType == EHairGeometryType::Meshes)
