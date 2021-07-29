@@ -358,7 +358,7 @@ void TraceReflections(
 
 		if (View.PrevViewInfo.CustomSSRInput.IsValid())
 		{
-			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput);
+			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput.RT[0]);
 		}
 		else if (View.PrevViewInfo.TSRHistory.IsValid())
 		{
@@ -390,7 +390,13 @@ void TraceReflections(
 			FIntPoint ViewportExtent = View.ViewRect.Size();
 			FIntPoint BufferSize = SceneTextures.Config.Extent;
 
-			if (View.PrevViewInfo.TSRHistory.IsValid())
+			if (View.PrevViewInfo.CustomSSRInput.IsValid())
+			{
+				ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
+				ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
+				BufferSize = InputColor->Desc.Extent;
+			}
+			else if (View.PrevViewInfo.TSRHistory.IsValid())
 			{
 				ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
 				ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
