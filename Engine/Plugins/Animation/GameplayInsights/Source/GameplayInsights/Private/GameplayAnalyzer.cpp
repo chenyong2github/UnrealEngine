@@ -22,10 +22,9 @@ void FGameplayAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_World, "Object", "World");
 	Builder.RouteEvent(RouteId_View, "Object", "View");
 	Builder.RouteEvent(RouteId_ClassPropertyStringId, "Object", "ClassPropertyStringId");
-	Builder.RouteEvent(RouteId_ClassProperty, "Object", "ClassProperty");
 	Builder.RouteEvent(RouteId_PropertiesStart, "Object", "PropertiesStart");
 	Builder.RouteEvent(RouteId_PropertiesEnd, "Object", "PropertiesEnd");
-	Builder.RouteEvent(RouteId_PropertyValue, "Object", "PropertyValue");
+	Builder.RouteEvent(RouteId_PropertyValue, "Object", "PropertyValue2");
 }
 
 bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -121,16 +120,6 @@ bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 		GameplayProvider.AppendClassPropertyStringId(Id, Value);
 		break;
 	}
-	case RouteId_ClassProperty:
-	{
-		uint64 ClassId = EventData.GetValue<uint64>("ClassId");
-		int32 Id = EventData.GetValue<int32>("Id");
-		int32 ParentId = EventData.GetValue<int32>("ParentId");
-		uint32 TypeId = EventData.GetValue<uint32>("TypeId");
-		uint32 KeyId = EventData.GetValue<uint32>("KeyId");
-		GameplayProvider.AppendClassProperty(ClassId, Id, ParentId, TypeId, KeyId);
-		break;
-	}
 	case RouteId_PropertiesStart:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
@@ -149,9 +138,12 @@ bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		uint64 ObjectId = EventData.GetValue<uint64>("ObjectId");
-		int32 PropertyId = EventData.GetValue<int32>("PropertyId");
+		int32 ParentId = EventData.GetValue<int32>("ParentId");
+		uint32 TypeId = EventData.GetValue<uint32>("TypeId");
+		uint32 KeyId = EventData.GetValue<uint32>("KeyId");
+
 		FStringView Value; EventData.GetString("Value", Value);
-		GameplayProvider.AppendPropertyValue(ObjectId, Context.EventTime.AsSeconds(Cycle), Cycle, PropertyId, Value);
+		GameplayProvider.AppendPropertyValue(ObjectId, Context.EventTime.AsSeconds(Cycle), Cycle, ParentId, TypeId, KeyId, Value);
 		break;
 	}
 	}

@@ -416,26 +416,6 @@ void FGameplayProvider::AppendClassPropertyStringId(uint32 InStringId, const FSt
 	PropertyStrings.Add(InStringId, StoredString);
 }
 
-void FGameplayProvider::AppendClassProperty(uint64 InClassId, int32 InId, int32 InParentId, uint32 InTypeStringId, uint32 InKeyStringId)
-{
-	Session.WriteAccessCheck();
-
-	bHasAnyData = true;
-
-	if(int32* ClassInfoIndexPtr = ClassIdToIndexMap.Find(InClassId))
-	{
-		FClassInfo& ClassInfo = ClassInfos[*ClassInfoIndexPtr];
-
-		// Resize to accommodate this property if required
-		ClassInfo.Properties.SetNum(FMath::Max(ClassInfo.Properties.Num(), InId + 1));
-
-		FClassPropertyInfo& PropertyInfo = ClassInfo.Properties[InId];
-		PropertyInfo.ParentId = InParentId;
-		PropertyInfo.TypeStringId = InTypeStringId;
-		PropertyInfo.KeyStringId = InKeyStringId;
-	}
-}
-
 void FGameplayProvider::AppendPropertiesStart(uint64 InObjectId, double InTime, uint64 InEventId)
 {
 	Session.WriteAccessCheck();
@@ -495,7 +475,7 @@ void FGameplayProvider::AppendPropertiesEnd(uint64 InObjectId, double InTime)
 	}
 }
 
-void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, uint64 InEventId, int32 InPropertyId, const FStringView& InValue)
+void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, uint64 InEventId, int32 InParentId, uint32 InTypeStringId, uint32 InKeyStringId, const FStringView& InValue)
 {
 	Session.WriteAccessCheck();
 
@@ -519,9 +499,11 @@ void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, ui
 	if(Storage->OpenEventId == InEventId)
 	{
 		FObjectPropertyValue& Message = Storage->Values.AddDefaulted_GetRef();
-		Message.PropertyId = InPropertyId;
 		Message.Value = Session.StoreString(InValue);
 		Message.ValueAsFloat = FCString::Atof(Message.Value);
+		Message.ParentId = InParentId;
+		Message.TypeStringId = InTypeStringId;
+		Message.KeyStringId = InKeyStringId; 
 
 		Storage->OpenEvent.PropertyValueEndIndex = Storage->Values.Num();
 	}
