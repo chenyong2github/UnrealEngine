@@ -57,7 +57,7 @@ public:
 
 	/** Determines how edge loops are added to the geometry */
 	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop)
-	EEdgeLoopInsertionMode InsertionMode = EEdgeLoopInsertionMode::Retriangulate;
+	EEdgeLoopInsertionMode InsertionMode = EEdgeLoopInsertionMode::PlaneCut;
 
 	/** How many loops to insert at a time. Only used with "even" positioning mode. */
 	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop, meta = (UIMin = "0", UIMax = "20", ClampMin = "0", ClampMax = "500",
@@ -87,7 +87,7 @@ public:
 	bool bHighlightProblemGroups = true;
 
 	/** How close a new loop edge needs to pass next to an existing vertex to use that vertex rather than creating a new one. */
-	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = InsertEdgeLoop, AdvancedDisplay, meta = (UIMin = "0", UIMax = "0.01", ClampMin = "0", ClampMax = "10"))
 	double VertexTolerance = 0.001;
 };
 

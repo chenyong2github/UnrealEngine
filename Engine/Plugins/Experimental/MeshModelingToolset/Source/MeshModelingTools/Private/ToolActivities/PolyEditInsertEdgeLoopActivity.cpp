@@ -38,6 +38,10 @@ TUniquePtr<FDynamicMeshOperator> UPolyEditInsertEdgeLoopActivity::MakeNewOperato
 
 	Op->VertexTolerance = Settings->VertexTolerance;
 
+	if (!ensure(InputGroupEdgeID >= 0))
+	{
+		return Op;
+	}
 	Op->GroupEdgeID = InputGroupEdgeID;
 
 	Op->StartCornerID = Settings->bFlipOffsetDirection ?
@@ -172,6 +176,7 @@ EToolActivityEndResult UPolyEditInsertEdgeLoopActivity::End(EToolShutdownType Sh
 
 	ActivityContext->Preview->OnOpCompleted.RemoveAll(this);
 	ActivityContext->Preview->OnMeshUpdated.RemoveAll(this);
+	ClearPreview();
 	ActivityContext->Preview->ClearOpFactory();
 
 	bIsRunning = false;
@@ -311,20 +316,12 @@ bool UPolyEditInsertEdgeLoopActivity::CanAccept() const
 void UPolyEditInsertEdgeLoopActivity::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PreviewEdges.Reset();
-	ActivityContext->Preview->InvalidateResult();
+	ClearPreview();
 }
 
 FInputRayHit UPolyEditInsertEdgeLoopActivity::HitTest(const FRay& WorldRay)
 {
 	FInputRayHit Hit;
-
-	// Early out if the activity is not running. This is actually important because the behavior is
-	// always in the behavior list while the tool is running (we don't have a way to add/remove at
-	// will).
-	if (!bIsRunning)
-	{
-		return Hit; // Hit.bHit is false
-	}
 
 	// See if we hit an edge
 	FRay3d LocalRay((FVector3d)TargetTransform.InverseTransformPosition(WorldRay.Origin),
@@ -475,7 +472,10 @@ void UPolyEditInsertEdgeLoopActivity::ConditionallyUpdatePreview(int32 NewGroupI
 
 FInputRayHit UPolyEditInsertEdgeLoopActivity::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
 {
-	if (bWaitingForInsertionCompletion)
+	// Note that the check for bIsRunning is important here and other input handlers since the
+	// hover/click behaviors are always in the behavior list while the tool is running (we don't
+	// currently have a way to add/remove at will).
+	if (bWaitingForInsertionCompletion || !bIsRunning)
 	{
 		return FInputRayHit();
 	}
@@ -485,7 +485,7 @@ FInputRayHit UPolyEditInsertEdgeLoopActivity::BeginHoverSequenceHitTest(const FI
 
 bool UPolyEditInsertEdgeLoopActivity::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
-	if (bWaitingForInsertionCompletion)
+	if (bWaitingForInsertionCompletion || !bIsRunning)
 	{
 		return false;
 	}
@@ -506,7 +506,7 @@ void UPolyEditInsertEdgeLoopActivity::OnEndHover()
 	// cancel any requested clear on mouse down, and keep updating hover during drag. On mouse up
 	// we accept whatever hover we have.
 
-	if (!bWaitingForInsertionCompletion)
+	if (bIsRunning && !bWaitingForInsertionCompletion)
 	{
 		ClearPreview();
 	}
@@ -515,7 +515,7 @@ void UPolyEditInsertEdgeLoopActivity::OnEndHover()
 FInputRayHit UPolyEditInsertEdgeLoopActivity::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
 	FInputRayHit Hit;
-	if (bWaitingForInsertionCompletion)
+	if (bWaitingForInsertionCompletion || !bIsRunning)
 	{
 		return Hit;
 	}

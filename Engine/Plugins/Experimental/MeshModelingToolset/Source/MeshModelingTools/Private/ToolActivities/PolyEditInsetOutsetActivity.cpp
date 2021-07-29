@@ -26,10 +26,10 @@ void UPolyEditInsetOutsetActivity::Setup(UInteractiveTool* ParentToolIn)
 {
 	Super::Setup(ParentToolIn);
 
-	InsetProperties = NewObject<UPolyEditInsetOutsetProperties>();
-	InsetProperties->RestoreProperties(ParentTool.Get());
-	AddToolPropertySource(InsetProperties);
-	SetToolPropertySourceEnabled(InsetProperties, false);
+	Settings = NewObject<UPolyEditInsetOutsetProperties>();
+	Settings->RestoreProperties(ParentTool.Get());
+	AddToolPropertySource(Settings);
+	SetToolPropertySourceEnabled(Settings, false);
 
 	// Register ourselves to receive clicks and hover
 	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
@@ -45,9 +45,9 @@ void UPolyEditInsetOutsetActivity::Setup(UInteractiveTool* ParentToolIn)
 void UPolyEditInsetOutsetActivity::Shutdown(EToolShutdownType ShutdownType)
 {
 	Clear();
-	InsetProperties->SaveProperties(ParentTool.Get());
+	Settings->SaveProperties(ParentTool.Get());
 
-	InsetProperties = nullptr;
+	Settings = nullptr;
 	ParentTool = nullptr;
 	ActivityContext = nullptr;
 }
@@ -66,6 +66,9 @@ EToolActivityStartResult UPolyEditInsetOutsetActivity::Start()
 {
 	if (!CanStart())
 	{
+		ParentTool->GetToolManager()->DisplayMessage(
+			LOCTEXT("OnInsetOutsetFailedMesssage", "Cannot inset or outset without face selection."),
+			EToolMessageLevel::UserWarning);
 		return EToolActivityStartResult::FailedStart;
 	}
 
@@ -83,13 +86,27 @@ bool UPolyEditInsetOutsetActivity::CanAccept() const
 	return false;
 }
 
-EToolActivityEndResult UPolyEditInsetOutsetActivity::End(EToolShutdownType)
+EToolActivityEndResult UPolyEditInsetOutsetActivity::End(EToolShutdownType ShutdownType)
 {
-	Clear();
-	EToolActivityEndResult ToReturn = bIsRunning ? EToolActivityEndResult::Cancelled 
-		: EToolActivityEndResult::ErrorDuringEnd;
-	bIsRunning = false;
-	return ToReturn;
+	if (!bIsRunning)
+	{
+		Clear();
+		return EToolActivityEndResult::ErrorDuringEnd;
+	}
+
+	if (ShutdownType == EToolShutdownType::Cancel)
+	{
+		Clear();
+		bIsRunning = false;
+		return EToolActivityEndResult::Cancelled;
+	}
+	else
+	{
+		ApplyInset();
+		Clear();
+		bIsRunning = false;
+		return EToolActivityEndResult::Completed;
+	}
 }
 
 void UPolyEditInsetOutsetActivity::BeginInset()
@@ -124,7 +141,7 @@ void UPolyEditInsetOutsetActivity::BeginInset()
 	Loops.Loops[0].GetVertices(LoopVertices);
 	CurveDistMechanic->InitializePolyLoop(LoopVertices, FTransform3d::Identity());
 
-	SetToolPropertySourceEnabled(InsetProperties, true);
+	SetToolPropertySourceEnabled(Settings, true);
 
 	float BoundsMaxDim = ActivityContext->CurrentMesh->GetBounds().MaxDim();
 	if (BoundsMaxDim > 0)
@@ -146,12 +163,12 @@ void UPolyEditInsetOutsetActivity::ApplyInset()
 	FInsetMeshRegion Inset(ActivityContext->CurrentMesh.Get());
 	Inset.UVScaleFactor = UVScaleFactor;
 	Inset.Triangles = ActiveTriangleSelection;
-	Inset.InsetDistance = (InsetProperties->bOutset) ? -CurveDistMechanic->CurrentDistance
+	Inset.InsetDistance = (Settings->bOutset) ? -CurveDistMechanic->CurrentDistance
 		: CurveDistMechanic->CurrentDistance;
-	Inset.bReproject = (InsetProperties->bOutset) ? false : InsetProperties->bReproject;
-	Inset.Softness = InsetProperties->Softness;
-	Inset.bSolveRegionInteriors = !InsetProperties->bBoundaryOnly;
-	Inset.AreaCorrection = InsetProperties->AreaScale;
+	Inset.bReproject = (Settings->bOutset) ? false : Settings->bReproject;
+	Inset.Softness = Settings->Softness;
+	Inset.bSolveRegionInteriors = !Settings->bBoundaryOnly;
+	Inset.AreaCorrection = Settings->AreaScale;
 
 	Inset.ChangeTracker = MakeUnique<FDynamicMeshChangeTracker>(ActivityContext->CurrentMesh.Get());
 	Inset.ChangeTracker->BeginChange();
@@ -162,11 +179,6 @@ void UPolyEditInsetOutsetActivity::ApplyInset()
 	// Emit undo (also updates relevant structures)
 	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshInsetOutsetChange", "Inset/Outset"),
 		Inset.ChangeTracker->EndChange(), ActiveSelection, true);
-
-	// End activity
-	Clear();
-	bIsRunning = false;
-	Cast<IToolActivityHost>(ParentTool)->NotifyActivitySelfEnded(this);
 }
 
 void UPolyEditInsetOutsetActivity::Clear()
@@ -180,7 +192,7 @@ void UPolyEditInsetOutsetActivity::Clear()
 	ActivityContext->Preview->PreviewMesh->SetSecondaryBuffersVisibility(true);
 
 	CurveDistMechanic = nullptr;
-	SetToolPropertySourceEnabled(InsetProperties, false);
+	SetToolPropertySourceEnabled(Settings, false);
 }
 
 void UPolyEditInsetOutsetActivity::Render(IToolsContextRenderAPI* RenderAPI)
@@ -195,11 +207,11 @@ void UPolyEditInsetOutsetActivity::Tick(float DeltaTime)
 {
 	if (EditPreview && bPreviewUpdatePending)
 	{
-		double Sign = InsetProperties->bOutset ? -1.0 : 1.0;
-		bool bReproject = (InsetProperties->bOutset) ? false : InsetProperties->bReproject;
-		double Softness = InsetProperties->Softness;
-		bool bBoundaryOnly = InsetProperties->bBoundaryOnly;
-		double AreaCorrection = InsetProperties->AreaScale;
+		double Sign = Settings->bOutset ? -1.0 : 1.0;
+		bool bReproject = (Settings->bOutset) ? false : Settings->bReproject;
+		double Softness = Settings->Softness;
+		bool bBoundaryOnly = Settings->bBoundaryOnly;
+		double AreaCorrection = Settings->AreaScale;
 		EditPreview->UpdateInsetType(Sign * CurveDistMechanic->CurrentDistance,
 			bReproject, Softness, AreaCorrection, bBoundaryOnly);
 
@@ -219,6 +231,11 @@ void UPolyEditInsetOutsetActivity::OnClicked(const FInputDeviceRay& ClickPos)
 	if (bIsRunning)
 	{
 		ApplyInset();
+
+		// End activity
+		Clear();
+		bIsRunning = false;
+		Cast<IToolActivityHost>(ParentTool)->NotifyActivitySelfEnded(this);
 	}
 }
 

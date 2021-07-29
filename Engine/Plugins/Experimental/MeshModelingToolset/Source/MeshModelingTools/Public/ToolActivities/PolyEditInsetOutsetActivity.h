@@ -19,11 +19,6 @@ class MESHMODELINGTOOLS_API UPolyEditInsetOutsetProperties : public UInteractive
 	GENERATED_BODY()
 
 public:
-	//~ TODO: We should not have to have the user tell us when it's an inset/offset, we should just do the proper
-	//~ thing based on where the user clicks.
-	UPROPERTY(EditAnywhere, Category = "Inset/Outset")
-	bool bOutset = false;
-
 	/** Amount of smoothing applied to outset boundary */
 	UPROPERTY(EditAnywhere, Category = "Inset/Outset", 
 		meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
@@ -39,10 +34,16 @@ public:
 	float AreaScale = true;
 
 	/** When insetting, determines whether vertices in inset region should be projected back onto input surface */
-	UPROPERTY(EditAnywhere, Category = "Inset/Outset")
+	UPROPERTY(EditAnywhere, Category = "Inset/Outset", Meta = (EditCondition = "bOutset", HideEditConditionToggle))
 	bool bReproject = true;
 
-
+	//~ This is not user editable- it gets set by PolyEdit depending on whether the user clicks
+	//~ inset or outset. Currently, both operations share the same code, and one may argue that
+	//~ we should just determine which to do based on where the user clicks. However, our long
+	//~ term plan is that they will be more differentiated in operation, to the point that we
+	//~ may split them into separate activities.
+	UPROPERTY()
+	bool bOutset = false;
 };
 
 
@@ -78,7 +79,7 @@ public:
 	virtual void OnEndHover() override {}
 
 	UPROPERTY()
-	UPolyEditInsetOutsetProperties* InsetProperties;
+	UPolyEditInsetOutsetProperties* Settings;
 
 protected:
 	void Clear();

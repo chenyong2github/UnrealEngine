@@ -9,6 +9,7 @@
 #include "DynamicMesh/DynamicMeshChangeTracker.h" // FDynamicMeshChange for TUniquePtr
 #include "InteractiveToolActivity.h" // IToolActivityHost
 #include "InteractiveToolBuilder.h"
+#include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI
 #include "Operations/GroupTopologyDeformer.h"
 #include "SingleSelectionTool.h"
 
@@ -98,7 +99,8 @@ enum class EEditMeshPolygonsToolActions
 	NoAction,
 	CancelCurrent,
 	Extrude,
-	InsetOutset,
+	Inset,
+	Outset,
 	InsertEdge,
 	InsertEdgeLoop,
 	Complete,
@@ -185,9 +187,13 @@ public:
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Extrude", DisplayPriority = 1))
 	void Extrude() { PostAction(EEditMeshPolygonsToolActions::Extrude); }
 
-	/** Inset/Outset the current set of selected faces. Click in viewport to confirm inset/outset distance. */
-	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Inset/Outset", DisplayPriority = 3))
-	void InsetOutset() { PostAction(EEditMeshPolygonsToolActions::InsetOutset);	}
+	/** Inset the current set of selected faces. Click in viewport to confirm inset distance. */
+	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Inset", DisplayPriority = 2))
+	void Inset() { PostAction(EEditMeshPolygonsToolActions::Inset);	}
+
+	/** Outset the current set of selected faces. Click in viewport to confirm outset distance. */
+	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Outset", DisplayPriority = 3))
+	void Outset() { PostAction(EEditMeshPolygonsToolActions::Outset);	}
 
 	/** Merge the current set of selected faces into a single face. */
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Merge", DisplayPriority = 4))
@@ -239,8 +245,12 @@ public:
 	void Extrude() { PostAction(EEditMeshPolygonsToolActions::Extrude); }
 
 	/** Inset the current set of selected faces. Click in viewport to confirm inset distance. */
-	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Inset/Outset", DisplayPriority = 3))
-	void InsetOutset() { PostAction(EEditMeshPolygonsToolActions::InsetOutset);	}
+	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Inset", DisplayPriority = 2))
+	void Inset() { PostAction(EEditMeshPolygonsToolActions::Inset);	}
+
+	/** Outset the current set of selected faces. Click in viewport to confirm outset distance. */
+	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Outset", DisplayPriority = 3))
+	void Outset() { PostAction(EEditMeshPolygonsToolActions::Outset);	}
 
 	/** Delete the current set of selected faces */
 	UFUNCTION(CallInEditor, Category = TriangleEdits, meta = (DisplayName = "Delete", DisplayPriority = 4))
@@ -299,10 +309,10 @@ class MESHMODELINGTOOLS_API UEditMeshPolygonsToolEdgeActions : public UEditMeshP
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "InsertEdgeLoop", DisplayPriority = 1))
+	UFUNCTION(CallInEditor, Category = ShapeEdits, meta = (DisplayName = "InsertEdgeLoop", DisplayPriority = 1))
 	void InsertEdgeLoop() { PostAction(EEditMeshPolygonsToolActions::InsertEdgeLoop); }
 
-	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Insert Edge", DisplayPriority = 2))
+	UFUNCTION(CallInEditor, Category = ShapeEdits, meta = (DisplayName = "Insert Edge", DisplayPriority = 2))
 	void InsertEdge() { PostAction(EEditMeshPolygonsToolActions::InsertEdge); }
 
 	UFUNCTION(CallInEditor, Category = EdgeEdits, meta = (DisplayName = "Weld", DisplayPriority = 3))
@@ -362,7 +372,10 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public USingleSelectionTool, public IToolActivityHost, public IMeshVertexCommandChangeTarget
+class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public USingleSelectionTool, 
+	public IToolActivityHost, 
+	public IMeshVertexCommandChangeTarget,
+	public IInteractiveToolNestedAcceptCancelAPI
 {
 	GENERATED_BODY()
 	using FFrame3d = UE::Geometry::FFrame3d;
@@ -403,6 +416,14 @@ public:
 
 	// IMeshVertexCommandChangeTarget
 	virtual void ApplyChange(const FMeshVertexChange* Change, bool bRevert) override;
+
+	// IInteractiveToolNestedAcceptCancelAPI
+	virtual bool SupportsNestedCancelCommand() override { return true; }
+	virtual bool CanCurrentlyNestedCancel() override;
+	virtual bool ExecuteNestedCancelCommand() override;
+	virtual bool SupportsNestedAcceptCommand() override { return true; }
+	virtual bool CanCurrentlyNestedAccept() override;
+	virtual bool ExecuteNestedAcceptCommand() override;
 
 public:
 
@@ -516,7 +537,7 @@ protected:
 	int32 ActivityTimestamp = 1;
 
 	void StartActivity(TObjectPtr<UInteractiveToolActivity> Activity);
-	void EndCurrentActivity();
+	void EndCurrentActivity(EToolShutdownType ShutdownType = EToolShutdownType::Cancel);
 	void SetActionButtonPanelsVisible(bool bVisible);
 
 	// Emit an undoable change to CurrentMesh and update related structures (preview, spatial, etc)

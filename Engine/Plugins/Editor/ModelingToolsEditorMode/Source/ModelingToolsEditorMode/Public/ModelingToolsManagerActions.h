@@ -118,7 +118,8 @@ public:
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_RingSelect;
 
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Extrude;
-	TSharedPtr<FUICommandInfo> BeginPolyModelTool_InsetOutset;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Inset;
+	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Outset;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_CutFaces;
 
 

@@ -95,12 +95,27 @@ bool UPolyEditExtrudeActivity::CanAccept() const
 	return false;
 }
 
-EToolActivityEndResult UPolyEditExtrudeActivity::End(EToolShutdownType)
+EToolActivityEndResult UPolyEditExtrudeActivity::End(EToolShutdownType ShutdownType)
 {
-	Clear();
-	EToolActivityEndResult ToReturn = bIsRunning ? EToolActivityEndResult::Cancelled : EToolActivityEndResult::ErrorDuringEnd;
-	bIsRunning = false;
-	return ToReturn;
+	if (!bIsRunning)
+	{
+		Clear();
+		return EToolActivityEndResult::ErrorDuringEnd;
+	}
+
+	if (ShutdownType == EToolShutdownType::Cancel)
+	{
+		Clear();
+		bIsRunning = false;
+		return EToolActivityEndResult::Cancelled;
+	}
+	else
+	{
+		ApplyExtrude();
+		Clear();
+		bIsRunning = false;
+		return EToolActivityEndResult::Completed;
+	}
 }
 
 
@@ -205,11 +220,6 @@ void UPolyEditExtrudeActivity::ApplyExtrude()
 	// Emit undo  (also updates relevant structures)
 	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshExtrudeChange", "Extrude"),
 		Extruder.ChangeTracker->EndChange(), NewSelection, true);
-
-	// End activity
-	Clear();
-	bIsRunning = false;
-	Cast<IToolActivityHost>(ParentTool)->NotifyActivitySelfEnded(this);
 }
 
 void UPolyEditExtrudeActivity::Clear()
@@ -291,6 +301,11 @@ void UPolyEditExtrudeActivity::OnClicked(const FInputDeviceRay& ClickPos)
 	if (bIsRunning)
 	{
 		ApplyExtrude();
+
+		// End activity
+		Clear();
+		bIsRunning = false;
+		Cast<IToolActivityHost>(ParentTool)->NotifyActivitySelfEnded(this);
 	}
 }
 

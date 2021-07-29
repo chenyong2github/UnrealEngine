@@ -154,6 +154,7 @@ EToolActivityEndResult UPolyEditInsertEdgeActivity::End(EToolShutdownType Shutdo
 
 	ActivityContext->Preview->OnOpCompleted.RemoveAll(this);
 	ActivityContext->Preview->OnMeshUpdated.RemoveAll(this);
+	ClearPreview(true);
 	ActivityContext->Preview->ClearOpFactory();
 
 	LatestOpTopologyResult.Reset();
@@ -279,7 +280,10 @@ bool UPolyEditInsertEdgeActivity::CanAccept() const
 void UPolyEditInsertEdgeActivity::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PreviewEdges.Reset();
-	ActivityContext->Preview->InvalidateResult();
+
+	// Don't clear drawn elements because we may be getting the second endpoint, and still
+	// need to keep the first.
+	ClearPreview(false); 
 }
 
 void UPolyEditInsertEdgeActivity::ClearPreview(bool bClearDrawnElements)
@@ -404,6 +408,11 @@ bool UPolyEditInsertEdgeActivity::OnUpdateHover(const FInputDeviceRay& DevicePos
 {
 	using namespace PolyEditInsertEdgeActivityLocals;
 
+	if (!bIsRunning)
+	{
+		return false;
+	}
+
 	switch (ToolState)
 	{
 	case EState::WaitingForInsertComplete:
@@ -474,6 +483,10 @@ bool UPolyEditInsertEdgeActivity::OnUpdateHover(const FInputDeviceRay& DevicePos
 
 void UPolyEditInsertEdgeActivity::OnEndHover()
 {
+	if (!bIsRunning)
+	{
+		return;
+	}
 	switch (ToolState)
 	{
 	case EState::WaitingForInsertComplete:

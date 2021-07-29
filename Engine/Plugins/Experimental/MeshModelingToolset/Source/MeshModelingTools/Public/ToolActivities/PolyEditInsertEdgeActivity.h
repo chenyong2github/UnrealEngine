@@ -40,13 +40,10 @@ class MESHMODELINGTOOLS_API UGroupEdgeInsertionProperties : public UInteractiveT
 public:
 	/** Determines how group edges are added to the geometry */
 	UPROPERTY(EditAnywhere, Category = InsertEdge)
-	EGroupEdgeInsertionMode InsertionMode = EGroupEdgeInsertionMode::Retriangulate;
-
-	UPROPERTY(EditAnywhere, Category = InsertEdge)
-	bool bWireframe = true;
+	EGroupEdgeInsertionMode InsertionMode = EGroupEdgeInsertionMode::PlaneCut;
 
 	/** How close a new loop edge needs to pass next to an existing vertex to use that vertex rather than creating a new one (used for plane cut). */
-	UPROPERTY(EditAnywhere, Category = InsertEdge, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = InsertEdge, AdvancedDisplay, meta = (UIMin = "0", UIMax = "0.01", ClampMin = "0", ClampMax = "10"))
 	double VertexTolerance = 0.001;
 };
 
