@@ -58,7 +58,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FEdGrap
 	//~ End FEdGraphSchemaAction Interface
 };
 
-/** Action to promote a literal to a graph input */
+/** Promotes an input to a graph input, using its respective literal value as the default value */
 USTRUCT()
 struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public FEdGraphSchemaAction
 {
@@ -75,7 +75,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public F
 	//~ End FEdGraphSchemaAction Interface
 };
 
-/** Action to add an output to the graph */
+/** Adds an output to the graph */
 USTRUCT()
 struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FEdGraphSchemaAction
 {
@@ -89,6 +89,23 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FEdGra
 	{}
 
 	FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FGuid InOutputNodeID, FText InToolTip, const int32 InGrouping);
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
+/** Promotes a node output to a graph output */
+USTRUCT()
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToOutput : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	FMetasoundGraphSchemaAction_PromoteToOutput()
+		: FEdGraphSchemaAction()
+	{}
+
+	FMetasoundGraphSchemaAction_PromoteToOutput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping);
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;

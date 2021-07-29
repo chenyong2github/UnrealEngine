@@ -257,22 +257,29 @@ namespace Metasound
 			});
 		}
 
-		FText FGraphBuilder::GenerateUniqueNameByFilter(const UObject& InMetaSound, const FText& InBaseText, TUniqueFunction<bool(const Frontend::FConstGraphHandle&, const FText&)> InIsValidNameFilter)
+		FText FGraphBuilder::GenerateUniqueNameByFilter(const UObject& InMetaSound, const FText& InBaseText, TFunctionRef<bool(const Frontend::FConstGraphHandle&, const FText&)> InNameIsValidFilter)
 		{
 			const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
 
 			const Frontend::FConstGraphHandle GraphHandle = MetaSoundAsset->GetRootGraphHandle();
 
-			static const FText VariableUniqueNameFormat = LOCTEXT("VariableUniqueNameFormat", "{0}{1}");
+			if (InNameIsValidFilter(GraphHandle, InBaseText))
+			{
+				return InBaseText;
+			}
+
+			FNumberFormattingOptions NumberFormatOptions;
+			NumberFormatOptions.MinimumIntegralDigits = 2;
 
 			int32 i = 1;
-			FText NewName = FText::Format(VariableUniqueNameFormat, InBaseText, i);
-
-			while (!InIsValidNameFilter(GraphHandle, NewName))
+			FText NewName;
+			do
 			{
-				NewName = FText::Format(VariableUniqueNameFormat, InBaseText, ++i);
+				static const FText VariableUniqueNameFormat = LOCTEXT("GenerateUniqueVariableNameFormat", "{0} {1}");
+				NewName = FText::Format(VariableUniqueNameFormat, InBaseText, FText::AsNumber(++i, &NumberFormatOptions));
 			}
+			while (!InNameIsValidFilter(GraphHandle, NewName));
 
 			return NewName;
 		}
