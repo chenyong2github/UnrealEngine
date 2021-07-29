@@ -2989,12 +2989,11 @@ bool FSlateEditableTextLayout::HasTextChangedFromOriginal() const
 
 void FSlateEditableTextLayout::BeginEditTransation()
 {
-	// Never change text on read only controls! 
-	check(!OwnerWidget->IsTextReadOnly());
-
-	if (StateBeforeChangingText.IsSet())
+	if (StateBeforeChangingText.IsSet() || OwnerWidget->IsTextReadOnly())
 	{
 		// Already within a translation - don't open another
+		//Or never change text on read only controls.
+		//The TextReadOnly is an attribute, the return value may have changed since the last time it was checked.
 		return;
 	}
 
