@@ -145,7 +145,7 @@ public:
 	void OnWindowClosed( const TSharedRef<SWindow>& InWindowBeingClosed );
 
 	/**
-	 * A delegate called when the viewports top level window is deactivated
+	 * A delegate called when the viewports top level window is activated
 	 */
 	FReply OnViewportActivated(const FWindowActivateEvent& InActivateEvent);
 
@@ -201,6 +201,9 @@ public:
 	UE_DEPRECATED(4.11, "SetWidgetToFocusOnActivate is no longer needed, remove this call.")
 	void SetWidgetToFocusOnActivate(TSharedPtr<SWidget> WidgetToFocus) { }
 
+	/** Transform a cursor position to the viewport */
+	FVector2D TransformToViewport(const FVector2D& CursorPosition) const;
+
 public:
 
 	// SWidget interface
@@ -251,6 +254,9 @@ protected:
 	TWeakPtr<ISlateViewport> ViewportInterface;
 	
 private:
+
+	/** The parent window during this viewport's last activation */
+	TWeakPtr<SWindow> CachedParentWindow;
 
 	/** The handle to the active EnsureTick() timer */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;

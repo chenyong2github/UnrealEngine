@@ -544,6 +544,11 @@ public:
 	void ActivateGameViewport();
 
 	/**
+	 * True if transforming mouse input coordinates to account for fullscreen distortions
+	 */
+	bool GetTransformFullscreenMouseInput() const; 
+
+	/**
 	 * Sets specified user focus to the SWidget passed in.
 	 *
 	 * @param UserIndex Index of the user to change focus for

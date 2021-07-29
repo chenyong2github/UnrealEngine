@@ -811,6 +811,17 @@ public:
 		, bIsTouchForceChanged(false)
 		, bIsTouchFirstMove(false)
 	{ }
+
+	/** A constructor to alter cursor positions */
+	FPointerEvent(
+		const FPointerEvent& Other,
+		const FVector2D& InScreenSpacePosition,
+		const FVector2D& InLastScreenSpacePosition)
+	{
+		*this = Other;
+		ScreenSpacePosition = InScreenSpacePosition;
+		LastScreenSpacePosition = InLastScreenSpacePosition;
+	}
 	
 public:
 

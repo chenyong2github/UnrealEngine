@@ -535,6 +535,13 @@ FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
 	TEXT("Whether gamepad input should be ignored by the engine if the application is not currently active")
 );
 
+static bool TransformFullscreenMouseInput = true;
+FAutoConsoleVariableRef CVarSlateTransformFullscreenMouseInput(
+	TEXT("Slate.Transform.FullscreenMouseInput"),
+	TransformFullscreenMouseInput,
+	TEXT("Set true to transform mouse input to account for viewport stretching at fullscreen resolutions not natively supported by the monitor.")
+);
+
 #if PLATFORM_UI_NEEDS_TOOLTIPS
 static bool bEnableTooltips = true;
 #else
@@ -1713,7 +1720,19 @@ FWidgetPath FSlateApplication::LocateWidgetInWindow(FVector2D ScreenspaceMouseCo
 	const bool bAcceptsInput = Window->IsVisible() && (Window->AcceptsInput() || IsWindowHousingInteractiveTooltip(Window));
 	if (bAcceptsInput && Window->IsScreenspaceMouseWithin(ScreenspaceMouseCoordinate))
 	{
-		TArray<FWidgetAndPointer> WidgetsAndCursors = Window->GetHittestGrid().GetBubblePath(ScreenspaceMouseCoordinate, GetCursorRadius(), bIgnoreEnabledStatus, UserIndex);
+		FVector2D CursorPosition = ScreenspaceMouseCoordinate;
+
+		if (TransformFullscreenMouseInput && !GIsEditor && Window->GetWindowMode() == EWindowMode::Fullscreen)
+		{
+			// Screen space mapping scales everything. When window resolution doesn't match platform resolution, 
+			// this causes offset cursor hit-tests in fullscreen. Correct in slate since we are first window-aware slate processor.
+			FVector2D WindowSize = Window->GetSizeInScreen();
+			FVector2D DisplaySize = { (float)CachedDisplayMetrics.PrimaryDisplayWidth, (float)CachedDisplayMetrics.PrimaryDisplayHeight };
+
+			CursorPosition *= WindowSize / DisplaySize;
+		}
+
+		TArray<FWidgetAndPointer> WidgetsAndCursors = Window->GetHittestGrid().GetBubblePath(CursorPosition, GetCursorRadius(), bIgnoreEnabledStatus, UserIndex);
 		return FWidgetPath(MoveTemp(WidgetsAndCursors));
 	}
 	else
@@ -2436,6 +2455,11 @@ void FSlateApplication::ActivateGameViewport()
 			}
 		}
 	}
+}
+
+bool FSlateApplication::GetTransformFullscreenMouseInput() const
+{
+	return TransformFullscreenMouseInput;
 }
 
 bool FSlateApplication::SetUserFocus(uint32 UserIndex, const TSharedPtr<SWidget>& WidgetToFocus, EFocusCause ReasonFocusIsChanging /* = EFocusCause::SetDirectly*/)
