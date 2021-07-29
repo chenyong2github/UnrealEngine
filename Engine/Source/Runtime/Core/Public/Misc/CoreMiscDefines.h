@@ -14,7 +14,6 @@
 // rest of code out for resource compilation.
 #ifndef RC_INVOKED
 
-#define LOCALIZED_SEEKFREE_SUFFIX	TEXT("_LOC")
 #define PLAYWORLD_PACKAGE_PREFIX TEXT("UEDPIE")
 
 #ifndef WITH_EDITORONLY_DATA
