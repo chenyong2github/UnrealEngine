@@ -1134,7 +1134,7 @@ bool FLightmassMaterialRenderer::GenerateMaterialPropertyData(
 		// If the ShaderMap is NULL that's because it failed to compile, which is ok as the default material will be used for exporting
 		check(!MaterialProxy->GetGameThreadShaderMap() || MaterialProxy->GetGameThreadShaderMap()->IsValidForRendering());
 
-		//@todo UE4. The format may be determined by the material property...
+		//@todo The format may be determined by the material property...
 		// For example, if Diffuse doesn't need to be F16 it can create a standard RGBA8 target.
 		EPixelFormat Format = PF_FloatRGBA;
 		if (MaterialProxy->GetRenderTargetFormatAndSize(InMaterialProperty, Format, InMaterial.GetExportResolutionScale(), InOutSizeX, InOutSizeY))

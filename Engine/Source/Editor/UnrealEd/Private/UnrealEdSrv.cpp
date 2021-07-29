@@ -2384,7 +2384,7 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		}
 		else if( FParse::Command(&Str,TEXT("BASED")) ) // ACTOR SELECT BASED
 		{
-			// @TODO UE4 - no longer meaningful
+			// @TODO no longer meaningful
 			return true;
 		}
 		else if( FParse::Command(&Str,TEXT("BYPROPERTY")) ) // ACTOR SELECT BYPROPERTY

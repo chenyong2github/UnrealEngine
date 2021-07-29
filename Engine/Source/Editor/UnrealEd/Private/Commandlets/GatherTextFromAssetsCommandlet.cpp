@@ -990,7 +990,7 @@ bool UGatherTextFromAssetsCommandlet::ConfigureFromScript(const FString& GatherT
 
 	GetPathArrayFromConfig(*SectionName, TEXT("ManifestDependencies"), ManifestDependenciesList, GatherTextConfigPath);
 
-	// Get whether we should gather editor-only data. Typically only useful for the localization of UE4 itself.
+	// Get whether we should gather editor-only data. Typically only useful for the localization of UE itself.
 	if (!GetBoolFromConfig(*SectionName, TEXT("ShouldGatherFromEditorOnlyData"), ShouldGatherFromEditorOnlyData, GatherTextConfigPath))
 	{
 		ShouldGatherFromEditorOnlyData = false;

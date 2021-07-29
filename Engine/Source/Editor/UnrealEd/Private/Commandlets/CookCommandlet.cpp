@@ -248,7 +248,7 @@ namespace DetailedCookStats
 				{
 					AssetType += FString::Printf(TEXT(" (%s)"), *AssetSubType->Value);
 				}
-				// Pull the Time and Size attributes and AddOrAccumulate them into the set of stats. Ugly string/container manipulation code courtesy of UE4/C++.
+				// Pull the Time and Size attributes and AddOrAccumulate them into the set of stats. Ugly string/container manipulation code courtesy of UE/C++.
 				const FCookStatsManager::StringKeyValue* AssetTimeSecAttr = StatAttributes.FindByPredicate([](const FCookStatsManager::StringKeyValue& Item) { return Item.Key == TEXT("TimeSec"); });
 				double AssetTimeSec = 0.0;
 				if (AssetTimeSecAttr)
