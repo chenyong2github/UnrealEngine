@@ -15,6 +15,8 @@
 class AActor;
 class IStructSerializerBackend;
 class IStructDeserializerBackend;
+enum class EPackageReloadPhase : uint8;
+struct FPropertyChangedEvent;
 struct FRCFieldPathInfo;
 struct FRemoteControlActor;
 struct FRemoteControlPresetLayout;
@@ -804,7 +806,7 @@ private:
 	void UnregisterDelegates();
 	
 	//~ Keep track of any property change to notify if one of the exposed property has changed
-	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
+	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& Event);
 	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
 
 #if WITH_EDITOR	
@@ -814,6 +816,9 @@ private:
 	void OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap);
 	void OnMapChange(uint32 /*MapChangeFlags*/);
 	void OnBlueprintRecompiled(UBlueprint* Blueprint);
+
+	/** Handles a package reloaded, used to detect a multi-user session being joined in order to update entities. */
+	void OnPackageReloaded(EPackageReloadPhase Phase, FPackageReloadedEvent* Event);
 #endif
 
 	//~ Frame events handlers.

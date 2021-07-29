@@ -18,18 +18,15 @@
 #include "RemoteControlBinding.h"
 #include "RemoteControlObjectVersion.h"
 #include "RemoteControlPresetRebindingManager.h"
-#include "StructDeserializer.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "UObject/StructOnScope.h"
-
 #if WITH_EDITOR
 #include "AnalyticsEventAttribute.h"
 #include "Editor.h"
 #include "EngineAnalytics.h"
 #include "Engine/Blueprint.h"
-#include "ScopedTransaction.h"
 #include "TimerManager.h"
+#include "UObject/PackageReload.h"
 #endif
 
 URemoteControlPreset::FOnPostLoadRemoteControlPreset URemoteControlPreset::OnPostLoadRemoteControlPreset;
@@ -1747,12 +1744,15 @@ void URemoteControlPreset::RegisterDelegates()
 
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &URemoteControlPreset::OnObjectPropertyChanged);
+
+		
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.AddUObject(this, &URemoteControlPreset::OnPreObjectPropertyChanged);
 
 	if (GEngine)
 	{
 		GEngine->OnLevelActorDeleted().AddUObject(this, &URemoteControlPreset::OnActorDeleted);
 	}
+
 	FEditorDelegates::PostPIEStarted.AddUObject(this, &URemoteControlPreset::OnPieEvent);
 	FEditorDelegates::EndPIE.AddUObject(this, &URemoteControlPreset::OnPieEvent);
 	
@@ -1762,6 +1762,8 @@ void URemoteControlPreset::RegisterDelegates()
 	}
 
 	FEditorDelegates::MapChange.AddUObject(this, &URemoteControlPreset::OnMapChange);
+
+	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &URemoteControlPreset::OnPackageReloaded);
 #endif
 
 	FCoreDelegates::OnBeginFrame.AddUObject(this, &URemoteControlPreset::OnBeginFrame);
@@ -1774,6 +1776,8 @@ void URemoteControlPreset::UnregisterDelegates()
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
 
 #if WITH_EDITOR
+	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+
 	for (TWeakObjectPtr<UBlueprint> Blueprint : BlueprintsWithRegisteredDelegates)
 	{
 		if (Blueprint.IsValid())
@@ -1907,6 +1911,7 @@ void URemoteControlPreset::OnMapChange(uint32)
 		if (PresetPtr.IsValid() && PresetPtr->Registry)
 		{
 			Algo::Transform(PresetPtr->Registry->GetExposedEntities(), PresetPtr->PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
+			Algo::Transform(PresetPtr->Registry->GetExposedEntities<FRemoteControlProperty>(), PresetPtr->PerFrameModifiedProperties, [](const TSharedPtr<FRemoteControlProperty>& RCProp) { return RCProp->GetId(); });
 		}
 	}));
 }
@@ -1938,6 +1943,26 @@ void URemoteControlPreset::OnBlueprintRecompiled(UBlueprint* Blueprint)
 	}
 }
 
+void URemoteControlPreset::OnPackageReloaded(EPackageReloadPhase Phase, FPackageReloadedEvent* Event)
+{
+	if (Phase == EPackageReloadPhase::PrePackageFixup && Event)
+	{
+		URemoteControlPreset* RepointedPreset = nullptr;
+		if (Event->GetRepointedObject<URemoteControlPreset>(this, RepointedPreset) && RepointedPreset)
+		{
+			RepointedPreset->OnEntityExposedDelegate = OnEntityExposedDelegate;
+			RepointedPreset->OnEntityUnexposedDelegate = OnEntityUnexposedDelegate;
+			RepointedPreset->OnEntitiesUpdatedDelegate = OnEntitiesUpdatedDelegate;
+			RepointedPreset->OnPropertyChangedDelegate = OnPropertyChangedDelegate;
+			RepointedPreset->OnPropertyExposedDelegate = OnPropertyExposedDelegate;
+			RepointedPreset->OnPropertyUnexposedDelegate = OnPropertyUnexposedDelegate;
+			RepointedPreset->OnPresetFieldRenamed = OnPresetFieldRenamed;
+			RepointedPreset->OnMetadataModifiedDelegate = OnMetadataModifiedDelegate;
+			RepointedPreset->OnActorPropertyModifiedDelegate = OnActorPropertyModifiedDelegate;
+			RepointedPreset->OnPresetLayoutModifiedDelegate = OnPresetLayoutModifiedDelegate;
+		}
+	}
+}
 #endif
 
 void URemoteControlPreset::OnBeginFrame()
