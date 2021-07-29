@@ -227,10 +227,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1", EditCondition = "bPreviewEnable"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
-	/* Enable the on-screen camera preview widget when selecting this actor. Changing this value requires reselecting the actor. */
-	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Enable Inner Frustum Preview", EditCondition = "bPreviewEnable"))
-	bool bEnableICVFXCameraPreview = false;
-
 private:
 	UPROPERTY(Transient)
 	TMap<FString, UDisplayClusterPreviewComponent*> PreviewComponents;
