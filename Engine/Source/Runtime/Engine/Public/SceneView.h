@@ -1647,6 +1647,9 @@ public:
 	 */
 	bool bWorldIsPaused;
 
+	/** GetWorld->IsPaused(). Simulate-in-Editor included. */
+	bool bWorldIsPaused_IncludingSimulatingInEditor;
+
 	/** When enabled, the post processing will output in HDR space */
 	bool bIsHDR;
 

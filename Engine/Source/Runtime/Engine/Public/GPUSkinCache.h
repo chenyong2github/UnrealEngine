@@ -188,7 +188,8 @@ public:
 		FShaderResourceParameter GPUSkinCachePositionBuffer,
 		FShaderResourceParameter GPUSkinCachePreviousPositionBuffer,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams);
+		FVertexInputStreamArray& VertexStreams,
+		bool bWorldIsPaused);
 
 	static void Release(FGPUSkinCacheEntry*& SkinCacheEntry);
 
@@ -449,7 +450,6 @@ public:
 	bool IsBatchingDispatch() const { return bShouldBatchDispatches; }
 
 	inline ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
-	inline bool IsWorldPaused() const { return World ? World->IsPaused() : false; }
 
 protected:
 	void MakeBufferTransitions(FRHICommandListImmediate& RHICmdList, TArray<FSkinCacheRWBuffer*>& Buffers, ERHIAccess ToState);

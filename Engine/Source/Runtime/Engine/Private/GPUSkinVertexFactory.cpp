@@ -699,8 +699,7 @@ public:
 				bLocalPerBoneMotionBlur = true;
 
 				// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
-				const bool bWorldPaused = Scene->GetWorld() ? Scene->GetWorld()->IsPaused() : false;
-				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(bWorldPaused ? false : true).VertexBufferSRV;
+				FRHIShaderResourceView* PreviousData = ShaderData.GetBoneBufferForReading(!View->Family->bWorldIsPaused_IncludingSimulatingInEditor).VertexBufferSRV;
 				ShaderBindings.Add(PreviousBoneMatrices, PreviousData);
 			}
 		}
@@ -786,7 +785,7 @@ public:
 
 		// #dxr_todo do we need this call to the base?
 		FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
-		FGPUSkinCache::GetShaderBindings(BatchUserData->Entry, BatchUserData->Section, Shader, (const FGPUSkinPassthroughVertexFactory*)VertexFactory, BatchElement.MinVertexIndex, GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, ShaderBindings, VertexStreams);
+		FGPUSkinCache::GetShaderBindings(BatchUserData->Entry, BatchUserData->Section, Shader, (const FGPUSkinPassthroughVertexFactory*)VertexFactory, BatchElement.MinVertexIndex, GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, ShaderBindings, VertexStreams, View->Family->bWorldIsPaused_IncludingSimulatingInEditor);
 	}
 
 private:

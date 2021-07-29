@@ -2577,6 +2577,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	SceneCaptureSource(SCS_FinalColorLDR),
 	SceneCaptureCompositeMode(SCCM_Overwrite),
 	bWorldIsPaused(false),
+	bWorldIsPaused_IncludingSimulatingInEditor(false),
 	bIsHDR(false),
 	bRequireMultiView(false),
 	GammaCorrection(CVS.GammaCorrection),
@@ -2627,6 +2628,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 			}
 
 			bWorldIsPaused = !World->IsCameraMoveable();
+			bWorldIsPaused_IncludingSimulatingInEditor = World->IsPaused();
 		}
 	}
 
