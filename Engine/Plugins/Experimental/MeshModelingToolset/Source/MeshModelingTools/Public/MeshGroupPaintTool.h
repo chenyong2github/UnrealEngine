@@ -414,7 +414,7 @@ protected:
 	EMeshGroupPaintBrushType PendingStampType = EMeshGroupPaintBrushType::Paint;
 
 	bool UpdateStampPosition(const FRay& WorldRay);
-	void ApplyStamp();
+	bool ApplyStamp();
 
 	UE::Geometry::FDynamicMeshOctree3 Octree;
 
@@ -427,7 +427,7 @@ protected:
 
 	TArray<int32> ROITriangleBuffer;
 	TArray<int32> ROIGroupBuffer;
-	void SyncMeshWithGroupBuffer(FDynamicMesh3* Mesh);
+	bool SyncMeshWithGroupBuffer(FDynamicMesh3* Mesh);
 
 	TUniquePtr<FDynamicMeshGroupEditBuilder> ActiveGroupEditBuilder;
 	void BeginChange();
