@@ -1811,10 +1811,6 @@ void ClearLumenCards(FRDGBuilder& GraphBuilder,
 		0xff, 0xff>::GetRHI());
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenBufferUpload, )
-	RDG_BUFFER_ACCESS(DestBuffer, ERHIAccess::CopyDest)
-END_SHADER_PARAMETER_STRUCT()
-
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
@@ -1877,30 +1873,25 @@ void UploadCardPagesToRenderIndexBuffers(
 	QUICK_SCOPE_CYCLE_COUNTER(UploadCardPagesToRenderIndexBuffers);
 
 	{
-		LumenCardRenderer.CardPagesToRenderIndexBuffer = GraphBuilder.CreateBuffer(
-			FRDGBufferDesc::CreateUploadDesc(sizeof(uint32), FMath::Max(CardPagesToRender.Num(), 1)),
-			TEXT("Lumen.CardPagesToRenderIndexBuffer"));
+		if (CardPagesToRender.Num())
+		{
+			LumenCardRenderer.CardPagesToRenderIndexBuffer = GraphBuilder.CreateBuffer(
+				FRDGBufferDesc::CreateUploadDesc(sizeof(uint32), CardPagesToRender.Num()),
+				TEXT("Lumen.CardPagesToRenderIndexBuffer"));
 
-		FLumenBufferUpload* PassParameters = GraphBuilder.AllocParameters<FLumenBufferUpload>();
-		PassParameters->DestBuffer = LumenCardRenderer.CardPagesToRenderIndexBuffer;
+			FRDGUploadData<int32> CardPageIds(GraphBuilder, CardPagesToRender.Num());
 
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Upload CardPagesToRenderIndexBuffer NumIndices=%d", CardPagesToRender.Num()),
-			PassParameters,
-			ERDGPassFlags::Copy,
-			[PassParameters, CardPagesToRender](FRHICommandListImmediate& RHICmdList)
+			for (int32 CardPageIndex = 0; CardPageIndex < CardPagesToRender.Num(); ++CardPageIndex)
 			{
-				const uint32 CardPageIdBytes = sizeof(int32) * CardPagesToRender.Num();
-				if (CardPageIdBytes > 0)
-				{
-					int32* DestCardIdPtr = (int32*)RHILockBuffer(PassParameters->DestBuffer->GetRHI(), 0, CardPageIdBytes, RLM_WriteOnly);
-					for (int32 CardPageIndex = 0; CardPageIndex < CardPagesToRender.Num(); ++CardPageIndex)
-					{
-						DestCardIdPtr[CardPageIndex] = CardPagesToRender[CardPageIndex].PageTableIndex;
-					}
-					RHIUnlockBuffer(PassParameters->DestBuffer->GetRHI());
-				}
-			});
+				CardPageIds[CardPageIndex] = CardPagesToRender[CardPageIndex].PageTableIndex;
+			}
+
+			GraphBuilder.QueueBufferUpload(LumenCardRenderer.CardPagesToRenderIndexBuffer, CardPageIds);
+		}
+		else
+		{
+			LumenCardRenderer.CardPagesToRenderIndexBuffer = GSystemTextures.GetDefaultBuffer(GraphBuilder, 4);
+		}
 	}
 
 	{
