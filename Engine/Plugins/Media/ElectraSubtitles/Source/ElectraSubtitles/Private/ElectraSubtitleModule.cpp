@@ -8,6 +8,7 @@
 #include "ElectraSubtitleDecoderFactory.h"
 
 #include "tx3g/ElectraSubtitleDecoder_TX3G.h"
+#include "wvtt/ElectraSubtitleDecoder_WVTT.h"
 
 #define LOCTEXT_NAMESPACE "ElectraSubtitlesModule"
 
@@ -56,6 +57,7 @@ public:
 	{
 		// Register the codecs this plugin provides.
 		FElectraSubtitleDecoderTX3G::RegisterCodecs(ModularFeature);
+		FElectraSubtitleDecoderWVTT::RegisterCodecs(ModularFeature);
 
 		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), &ModularFeature);
 	}
