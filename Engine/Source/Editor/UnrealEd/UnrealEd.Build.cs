@@ -200,6 +200,7 @@ public class UnrealEd : ModuleRules
 				"EditorInteractiveToolsFramework",
 				"TraceLog",
 				"TraceAnalysis",
+				"TraceServices",
 				"DeveloperSettings",
 				"AnimationModifiers",
 				"AnimationBlueprintLibrary",
