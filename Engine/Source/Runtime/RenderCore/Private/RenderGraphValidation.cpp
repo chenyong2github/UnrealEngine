@@ -79,7 +79,7 @@ void FRDGResource::MarkResourceAsUsed()
 void FRDGResource::ValidateRHIAccess() const
 {
 	check(DebugData);
-	checkf(DebugData->bAllowRHIAccess || GRDGAllowRHIAccess || IsParallelExecuteEnabled(),
+	checkf(DebugData->bAllowRHIAccess || GRDGAllowRHIAccess,
 		TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
 		TEXT("that is due to this resource not being referenced in the parameters of your pass."),
 		Name);
@@ -153,8 +153,9 @@ void FRDGUniformBuffer::MarkResourceAsUsed()
 	});
 }
 
-FRDGUserValidation::FRDGUserValidation(FRDGAllocator& InAllocator)
+FRDGUserValidation::FRDGUserValidation(FRDGAllocator& InAllocator, bool bInParallelExecuteEnabled)
 	: Allocator(InAllocator)
+	, bParallelExecuteEnabled(bInParallelExecuteEnabled)
 {
 	checkf(!GRDGBuilderActive, TEXT("Another FRDGBuilder already exists on the stack. Only one builder can be created at a time. This builder instance should be merged into the parent one."));
 	GRDGBuilderActive = true;
@@ -912,7 +913,7 @@ void FRDGUserValidation::ValidateExecuteEnd()
 
 void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 {
-	if (IsParallelExecuteEnabled())
+	if (bParallelExecuteEnabled)
 	{
 		return;
 	}
@@ -1012,7 +1013,7 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 
 void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
 {
-	if (IsParallelExecuteEnabled())
+	if (bParallelExecuteEnabled)
 	{
 		return;
 	}

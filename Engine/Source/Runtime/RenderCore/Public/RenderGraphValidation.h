@@ -23,7 +23,7 @@
 class RENDERCORE_API FRDGUserValidation final
 {
 public:
-	FRDGUserValidation(FRDGAllocator& Allocator);
+	FRDGUserValidation(FRDGAllocator& Allocator, bool bParallelExecuteEnabled);
 	FRDGUserValidation(const FRDGUserValidation&) = delete;
 	~FRDGUserValidation();
 
@@ -107,6 +107,8 @@ private:
 	void ValidateCreateResource(FRDGResourceRef Resource);
 	void ValidateExtractResource(FRDGParentResourceRef Resource);
 
+	FRDGAllocator& Allocator;
+
 	/** List of tracked resources for validation prior to shutdown. */
 	TArray<FRDGTextureRef, FRDGArrayAllocator> TrackedTextures;
 	TArray<FRDGBufferRef, FRDGArrayAllocator> TrackedBuffers;
@@ -118,9 +120,9 @@ private:
 	bool bHasExecuted = false;
 	bool bHasExecuteBegun = false;
 
-	void ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName);
+	bool bParallelExecuteEnabled;
 
-	FRDGAllocator& Allocator;
+	void ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName);
 };
 
 /** This class validates and logs barriers submitted by the graph. */

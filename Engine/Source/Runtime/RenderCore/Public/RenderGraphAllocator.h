@@ -77,6 +77,7 @@ private:
 	};
 
 	FContext Context;
+	uint8 Pad[PLATFORM_CACHE_LINE_SIZE];
 	FContext ContextForTasks;
 
 	FORCEINLINE FContext& GetContext()
