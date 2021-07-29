@@ -83,10 +83,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Gizmo, meta = (HideEditConditionToggle, EditCondition = "bLocalCoordSystem"))
 	bool bLockRotation = false;
 
-	/** Snaps to grid in translation. Only active with a global coordinate system. */
-	UPROPERTY(EditAnywhere, Category = Gizmo, meta = (HideEditConditionToggle, EditCondition = "!bLocalCoordSystem"))
-	bool bSnapToWorldGrid = false;
-
 	/** This gets updated internally so that properties can respond to whether the coordinate system is set to local or global */
 	UPROPERTY()
 	bool bLocalCoordSystem = true;

@@ -838,9 +838,6 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		NotifyOfPropertyChangeByTool(CommonProps);
 	}
 
-	// TODO: We should probably allow gizmo snapping in local mode as well. It requires some gizmo changes.
-	TransformGizmo->bSnapToWorldGrid = CommonProps->bSnapToWorldGrid && !bLocalCoordSystem;
-
 	if (bGizmoUpdatePending)
 	{
 		ComputeUpdate_Gizmo();
