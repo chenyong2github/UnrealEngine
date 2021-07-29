@@ -219,12 +219,10 @@ struct FDerivedDataCacheResourceStatKeyFuncs : BaseKeyFuncs<FDerivedDataCacheRes
 	static uint32 GetKeyHash(const FString& Key) { return GetTypeHash(Key); }
 };
 
-DERIVEDDATACACHE_API void GatherDerivedDataCacheResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats);
+COOK_STAT(using FDerivedDataCacheSummaryStat = FCookStatsManager::StringKeyValue);
 
-#if ENABLE_COOK_STATS
-
-using FDerivedDataCacheSummaryStat = FCookStatsManager::StringKeyValue;
-DERIVEDDATACACHE_API void GatherDerivedDataCacheSummaryStats(TArray<FDerivedDataCacheSummaryStat>& DDCSummaryStats);
-
-#endif
+struct FDerivedDataCacheSummaryStats
+{
+	COOK_STAT(TArray<FDerivedDataCacheSummaryStat> Stats);
+};
 

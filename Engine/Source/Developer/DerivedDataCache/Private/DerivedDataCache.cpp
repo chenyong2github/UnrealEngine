@@ -149,6 +149,9 @@ namespace DerivedDataCacheCookStats
 }
 #endif
 
+void GatherDerivedDataCacheResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats);
+void GatherDerivedDataCacheSummaryStats(FDerivedDataCacheSummaryStats& DDCSummaryStats);
+
 /** Whether we want to verify the DDC (pass in -VerifyDDC on the command line)*/
 bool GVerifyDDC = false;
 
@@ -623,6 +626,16 @@ public:
 		return FDerivedDataBackend::Get().GatherUsageStats();
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	virtual void GatherResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats) const override
+	{
+		GatherDerivedDataCacheResourceStats(DDCResourceStats);
+	}
+
+	virtual void GatherSummaryStats(FDerivedDataCacheSummaryStats& DDCSummaryStats) const override
+	{
+		GatherDerivedDataCacheSummaryStats(DDCSummaryStats);
+	}
 
 	/** Get event delegate for data cache notifications */
 	virtual FOnDDCNotification& GetDDCNotificationEvent()

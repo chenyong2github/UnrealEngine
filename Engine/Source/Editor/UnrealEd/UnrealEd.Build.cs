@@ -207,7 +207,6 @@ public class UnrealEd : ModuleRules
 				"MaterialBaking",
 				"CookOnTheFly",
 				"BazelExecutor",
-				"DerivedDataCache",
 			}
 		);
 

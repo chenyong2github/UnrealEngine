@@ -61,10 +61,6 @@ public class Engine : ModuleRules
 					"EditorAnalyticsSession",
 				}
 			);
-			if (Target.Type != TargetType.Server)
-			{
-				PrivateDependencyModuleNames.Add("DerivedDataCache");
-			}
 		}
 
 		PublicDependencyModuleNames.AddRange(

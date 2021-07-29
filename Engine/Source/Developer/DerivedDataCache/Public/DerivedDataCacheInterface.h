@@ -12,6 +12,8 @@
 class FDerivedDataCacheUsageStats;
 class FDerivedDataCacheStatsNode;
 class IDDCCleanup;
+struct FDerivedDataCacheResourceStat;
+struct FDerivedDataCacheSummaryStats;
 
 /** 
  * Interface for the derived data cache
@@ -291,6 +293,10 @@ public:
 	 */
 	UE_DEPRECATED(4.27, "This overload of GatherUsageStats is temporary. Please use other overload.")
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const = 0;
+
+	virtual void GatherResourceStats(TArray<FDerivedDataCacheResourceStat>& DDCResourceStats) const = 0;
+
+	virtual void GatherSummaryStats(FDerivedDataCacheSummaryStats& DDCSummaryStats) const = 0;
 
 	//-----------------------
 	// Notification Interface

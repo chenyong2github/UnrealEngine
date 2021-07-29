@@ -91,7 +91,7 @@ TSharedRef<SWidget> SDDCInformation::GetAssetGrid()
 	TArray<FDerivedDataCacheResourceStat> DDCResourceStats;
 
 	// Grab the resource stats
-	GatherDerivedDataCacheResourceStats(DDCResourceStats);
+	GetDerivedDataCacheRef().GatherResourceStats(DDCResourceStats);
 
 	// Sort results on asscending Load size
 	DDCResourceStats.Sort([](const FDerivedDataCacheResourceStat& LHS, const FDerivedDataCacheResourceStat& RHS) { return LHS.LoadSizeMB > RHS.LoadSizeMB; });
@@ -326,7 +326,7 @@ TSharedRef<SWidget> SDDCInformation::GetSummaryGrid()
 	TArray<FDerivedDataCacheResourceStat> DDCResourceStats;
 
 	// Grab the latest resource stats
-	GatherDerivedDataCacheResourceStats(DDCResourceStats);
+	GetDerivedDataCacheRef().GatherResourceStats(DDCResourceStats);
 
 	FDerivedDataCacheResourceStat DDCResourceStatsTotal(TEXT("Total"));
 
