@@ -1401,7 +1401,10 @@ void AddTemporalSuperResolutionPasses(
 		if (bAccumulateSeparateTranslucency || HistorySize != OutputRect.Size())
 		{
 			GraphBuilder.QueueTextureExtraction(
-				SceneColorOutputTexture, &View.ViewState->PrevFrameViewInfo.CustomSSRInput);
+				SceneColorOutputTexture, &View.ViewState->PrevFrameViewInfo.CustomSSRInput.RT[0]);
+
+			View.ViewState->PrevFrameViewInfo.CustomSSRInput.ViewportRect = OutputRect;
+			View.ViewState->PrevFrameViewInfo.CustomSSRInput.ReferenceBufferSize = OutputExtent;
 		}
 	}
 

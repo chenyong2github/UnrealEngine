@@ -752,7 +752,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 
 			if (View.PrevViewInfo.CustomSSRInput.IsValid())
 			{
-				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.CustomSSRInput);
+				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.CustomSSRInput.RT[0]);
 				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			}
 			else if (View.PrevViewInfo.TSRHistory.IsValid())
@@ -821,7 +821,19 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 		EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
 		EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
 
-		if (View.PrevViewInfo.TemporalAAHistory.IsValid())
+		if (View.PrevViewInfo.CustomSSRInput.IsValid())
+		{
+			ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
+			ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
+			EffectiveBufferSize = View.PrevViewInfo.CustomSSRInput.RT[0]->GetDesc().Extent;
+		}
+		else if (View.PrevViewInfo.TSRHistory.IsValid())
+		{
+			ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
+			ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
+			EffectiveBufferSize = View.PrevViewInfo.TSRHistory.LowFrequency->GetDesc().Extent;
+		}
+		else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 		{
 			ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
 			ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();

@@ -1038,7 +1038,7 @@ struct FPreviousViewInfo
 
 	// Scene color input for SSR, that can be different from TemporalAAHistory.RT[0] if there is a SSR
 	// input post process material.
-	TRefCountPtr<IPooledRenderTarget> CustomSSRInput;
+	FTemporalAAHistory CustomSSRInput;
 
 	// History for the reflections
 	FScreenSpaceDenoiserHistory ReflectionsHistory;

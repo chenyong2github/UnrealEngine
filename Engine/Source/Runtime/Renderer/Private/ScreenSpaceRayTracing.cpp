@@ -1046,7 +1046,7 @@ void RenderScreenSpaceReflections(
 	{
 		if (View.PrevViewInfo.CustomSSRInput.IsValid())
 		{
-			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput);
+			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput.RT[0]);
 		}
 		else if (GSSRHalfResSceneColor && View.PrevViewInfo.HalfResTemporalAAHistory.IsValid())
 		{
@@ -1167,7 +1167,15 @@ void RenderScreenSpaceReflections(
 			FIntPoint ViewportExtent = View.ViewRect.Size();
 			FIntPoint BufferSize = SceneTextures.SceneDepthTexture->Desc.Extent;
 
-			if (View.PrevViewInfo.TSRHistory.IsValid())
+			if (View.PrevViewInfo.CustomSSRInput.IsValid())
+			{
+				ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
+				ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
+				BufferSize = View.PrevViewInfo.CustomSSRInput.ReferenceBufferSize;
+				ensure(ViewportExtent.X > 0 && ViewportExtent.Y > 0);
+				ensure(BufferSize.X > 0 && BufferSize.Y > 0);
+			}
+			else if (View.PrevViewInfo.TSRHistory.IsValid())
 			{
 				ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
 				ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
