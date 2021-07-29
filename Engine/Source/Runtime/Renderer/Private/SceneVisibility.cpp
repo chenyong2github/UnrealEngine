@@ -2923,22 +2923,7 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				const FPrimitiveBounds& Bounds = InScene->PrimitiveBounds[PrimitiveIndex];
 				Collector.SetPrimitive(PrimitiveSceneInfo->Proxy, PrimitiveSceneInfo->DefaultDynamicHitProxyId);
 
-				// Mark DynamicMeshEndIndices start.
-				if (PrimitiveIndex > 0)
-				{
-					for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
-					{
-						InViews[ViewIndex].DynamicMeshEndIndices[PrimitiveIndex - 1] = Collector.GetMeshBatchCount(ViewIndex);
-					}
-				}
-
 				PrimitiveSceneInfo->Proxy->GetDynamicMeshElements(InViewFamily.Views, InViewFamily, ViewMaskFinal, Collector);
-
-				// Mark DynamicMeshEndIndices end.
-				for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
-				{
-					InViews[ViewIndex].DynamicMeshEndIndices[PrimitiveIndex] = Collector.GetMeshBatchCount(ViewIndex);
-				}
 
 				// Compute DynamicMeshElementsMeshPassRelevance for this primitive.
 				for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
@@ -2961,6 +2946,12 @@ void FSceneRenderer::GatherDynamicMeshElements(
 						}
 					}
 				}
+			}
+
+			// Mark DynamicMeshEndIndices end.
+			for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
+			{
+				InViews[ViewIndex].DynamicMeshEndIndices[PrimitiveIndex] = Collector.GetMeshBatchCount(ViewIndex);
 			}
 		}
 	}
