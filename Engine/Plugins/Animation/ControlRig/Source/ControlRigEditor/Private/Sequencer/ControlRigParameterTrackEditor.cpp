@@ -1665,7 +1665,6 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
-	TArray<FString> StringArray;
 	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 	UControlRig* ControlRig = nullptr;
 
@@ -1717,6 +1716,14 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 		return;
 	}
 
+	SelectRigsAndControls(ControlRig, KeyAreas);
+}
+
+void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* ControlRig, const TArray<const IKeyArea*>& KeyAreas)
+{
+	FControlRigEditMode* ControlRigEditMode = GetEditMode();
+
+	TArray<FString> StringArray;
 	TMap<UControlRig *, TSet<FName>> RigsAndControls;
 	for (const IKeyArea* KeyArea : KeyAreas)
 	{
@@ -1938,6 +1945,8 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 	}
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
+	FControlRigEditMode* ControlRigEditMode = GetEditMode();
+
 	FName ControlRigName(*Subject->GetName());
 	if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = Subject->GetObjectBinding())
 	{
@@ -1958,7 +1967,7 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 
 		FFindOrCreateTrackResult TrackResult = FindOrCreateControlRigTrackForObject(ObjectHandle, Subject, ControlRigName, bCreateTrack);
 		UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
-			if (Track)
+		if (Track)
 		{
 			GetSequencer()->SuspendSelectionBroadcast();
 			for (UMovieSceneSection* Section : Track->GetAllSections())
@@ -1967,6 +1976,10 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 				SelectSequencerNodeInSection(ParamSection,ControlElement->GetName(), bSelected);	
 			}
 			GetSequencer()->ResumeSelectionBroadcast();
+
+			TArray<const IKeyArea*> KeyAreas;
+			GetSequencer()->GetSelectedKeyAreas(KeyAreas);
+			SelectRigsAndControls(Subject, KeyAreas);
 
 			//Force refresh now, not later
 			GetSequencer()->RefreshTree();
