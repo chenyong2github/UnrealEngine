@@ -791,9 +791,12 @@ class DevicenDisplay(DeviceUnreal):
             local_uasset_path = self.uasset_path_from_object_path(self.bp_object_path, os.path.dirname(CONFIG.UPROJECT_PATH.get_value()))
             dest_uasset_path = self.uasset_path_from_object_path(self.bp_object_path, os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name)))
 
-            self.pending_transfer_uasset = True
-            _, uasset_msg = message_protocol.create_send_file_message(local_uasset_path, dest_uasset_path, force_overwrite=True)
-            self.unreal_client.send_message(uasset_msg)
+            if os.path.isfile(local_uasset_path):
+                self.pending_transfer_uasset = True
+                _, uasset_msg = message_protocol.create_send_file_message(local_uasset_path, dest_uasset_path, force_overwrite=True)
+                self.unreal_client.send_message(uasset_msg)
+            else:
+                LOGGER.warning(f'{self.name}: Could not find nDisplay uasset at {local_uasset_path}')
 
     @classmethod
     def plug_into_ui(cls, menubar, tabs):
