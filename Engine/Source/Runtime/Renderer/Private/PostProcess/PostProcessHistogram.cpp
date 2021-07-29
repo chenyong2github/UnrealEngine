@@ -9,7 +9,7 @@
 #include "ShaderCompilerCore.h"
 
 TAutoConsoleVariable<int32> CVarUseAtomicHistogram(
-	TEXT("r.Histogram.UseAtomic"), 0,
+	TEXT("r.Histogram.UseAtomic"), 1,
 	TEXT("Uses atomic to speed up the generation of the histogram."),
 	ECVF_RenderThreadSafe);
 
