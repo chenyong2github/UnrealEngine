@@ -29,8 +29,8 @@
 #include "Selection/PolygonSelectionMechanic.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/DynamicMeshCommitter.h"
-#include "TargetInterfaces/DynamicMeshProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolActivities/PolyEditActivityContext.h"
 #include "ToolActivities/PolyEditExtrudeActivity.h"
@@ -69,8 +69,16 @@ const FToolTargetTypeRequirements& UEditMeshPolygonsToolBuilder::GetTargetRequir
 {
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMaterialProvider::StaticClass(),
-		UDynamicMeshCommitter::StaticClass(),
-		UDynamicMeshProvider::StaticClass(),
+
+		// TODO: In reality we don't actually need a mesh description- we need anything that we
+		// can get a dynamic mesh out of. Unfortunately we have not yet settled on an interface that
+		// provides this- DynamicMeshProvider (which currently gives a dynamic mesh shared ptr) is 
+		// likely to be changed or replaced with something that gives a UDynamicMesh instead. For now
+		// we ask for a mesh description as a hack, since all the targets we currently use are able to
+		// provide both it and a dynamic mesh.
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		
 		UPrimitiveComponentBackedTarget::StaticClass()
 		});
 	return TypeRequirements;
@@ -248,7 +256,7 @@ void UEditMeshPolygonsTool::Setup()
 	// and cause UpdateGizmoFrame() to be called emitting a spurious Transform change. 
 	CommonProps->SilentUpdateWatched();
 
-	CurrentMesh = Cast<IDynamicMeshProvider>(Target)->GetDynamicMesh();
+	CurrentMesh = MakeShared<FDynamicMesh3>(UE::ToolTarget::GetDynamicMeshCopy(Target));
 
 	// TODO: Do we need this?
 	FMeshNormals::QuickComputeVertexNormals(*CurrentMesh);
@@ -497,13 +505,9 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 				SelectionMechanic->GetStorableSelection(*NewStoredToolSelection, bModifiedTopology ? &CompactMaps : nullptr);
 			}
 
-			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
+			// Bake CurrentMesh back to target inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("EditMeshPolygonsToolTransactionName", "Deform Mesh"));
-			Preview->PreviewMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
-			{
-				FConversionToMeshDescriptionOptions ConversionOptions;
-				UE::ToolTarget::CommitDynamicMeshUpdate(Target, ReadMesh, bModifiedTopology, ConversionOptions);
-			});
+			UE::ToolTarget::CommitDynamicMeshUpdate(Target, *CurrentMesh, bModifiedTopology);
 
 			// The stored selection change should go into this transaction as well.
 			// If we're keeping the same selection, we still need to store it back, though we could do it outside
@@ -866,8 +870,15 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 			StartActivity(ExtrudeActivity);
 			break;
 		}
-		case EEditMeshPolygonsToolActions::InsetOutset:
+		case EEditMeshPolygonsToolActions::Inset:
 		{
+			InsetOutsetActivity->Settings->bOutset = false;
+			StartActivity(InsetOutsetActivity);
+			break;
+		}
+		case EEditMeshPolygonsToolActions::Outset:
+		{
+			InsetOutsetActivity->Settings->bOutset = true;
 			StartActivity(InsetOutsetActivity);
 			break;
 		}
@@ -970,13 +981,13 @@ void UEditMeshPolygonsTool::StartActivity(TObjectPtr<UInteractiveToolActivity> A
 	}
 }
 
-void UEditMeshPolygonsTool::EndCurrentActivity()
+void UEditMeshPolygonsTool::EndCurrentActivity(EToolShutdownType ShutdownType)
 {
 	if (CurrentActivity)
 	{
 		if (CurrentActivity->IsRunning())
 		{
-			CurrentActivity->End(EToolShutdownType::Cancel);
+			CurrentActivity->End(ShutdownType);
 
 			// Reset info message.
 			GetToolManager()->DisplayMessage(DefaultMessage,
@@ -1759,7 +1770,7 @@ void UEditMeshPolygonsTool::EmitCurrentMeshChangeAndUpdate(const FText& Transact
 
 		SelectionMechanic->BeginChange();
 		SelectionMechanic->ClearSelection();
-		GetToolManager()->EmitObjectChange(SelectionMechanic, SelectionMechanic->EndChange(), LOCTEXT("PolyMeshExtrudeChangeClearSelection", "ClearSelection"));
+		GetToolManager()->EmitObjectChange(SelectionMechanic, SelectionMechanic->EndChange(), LOCTEXT("ClearSelection", "Clear Selection"));
 	}
 
 	GetToolManager()->EmitObjectChange(this, 
@@ -1776,7 +1787,7 @@ void UEditMeshPolygonsTool::EmitCurrentMeshChangeAndUpdate(const FText& Transact
 	{
 		SelectionMechanic->BeginChange();
 		SelectionMechanic->SetSelection(*OutputSelectionToUse);
-		GetToolManager()->EmitObjectChange(SelectionMechanic, SelectionMechanic->EndChange(), LOCTEXT("PolyMeshExtrudeChangeSetSelection", "SetSelection"));
+		GetToolManager()->EmitObjectChange(SelectionMechanic, SelectionMechanic->EndChange(), LOCTEXT("SetSelection", "Set Selection"));
 	}
 
 	GetToolManager()->EndUndoTransaction();
@@ -1865,6 +1876,45 @@ void UEditMeshPolygonsTool::SetActionButtonPanelsVisible(bool bVisible)
 			SetToolPropertySourceEnabled(EditEdgeActions_Triangles, bVisible);
 		}
 	}
+}
+
+
+bool UEditMeshPolygonsTool::CanCurrentlyNestedCancel()
+{
+	return CurrentActivity != nullptr 
+		|| (SelectionMechanic && !SelectionMechanic->GetActiveSelection().IsEmpty());
+}
+
+bool UEditMeshPolygonsTool::ExecuteNestedCancelCommand()
+{
+	if (CurrentActivity)
+	{
+		EndCurrentActivity(EToolShutdownType::Cancel);
+		return true;
+	}
+	else if (SelectionMechanic && !SelectionMechanic->GetActiveSelection().IsEmpty())
+	{
+		SelectionMechanic->BeginChange();
+		SelectionMechanic->ClearSelection();
+		GetToolManager()->EmitObjectChange(SelectionMechanic, SelectionMechanic->EndChange(), LOCTEXT("ClearSelection", "Clear Selection"));
+		return true;
+	}
+	return false;
+}
+
+bool UEditMeshPolygonsTool::CanCurrentlyNestedAccept()
+{
+	return CurrentActivity != nullptr;
+}
+
+bool UEditMeshPolygonsTool::ExecuteNestedAcceptCommand()
+{
+	if (CurrentActivity)
+	{
+		EndCurrentActivity(EToolShutdownType::Accept);
+		return true;
+	}
+	return false;
 }
 
 void FEditMeshPolygonsToolMeshChange::Apply(UObject* Object)

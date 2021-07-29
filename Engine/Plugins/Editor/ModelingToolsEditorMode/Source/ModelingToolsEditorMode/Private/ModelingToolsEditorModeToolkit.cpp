@@ -673,7 +673,8 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_RingSelect);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Extrude);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_InsetOutset);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Inset);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_Outset);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyModelTool_CutFaces);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSubdividePolyTool);

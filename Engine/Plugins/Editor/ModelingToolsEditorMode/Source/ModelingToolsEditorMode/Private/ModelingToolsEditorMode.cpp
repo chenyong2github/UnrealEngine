@@ -600,7 +600,8 @@ void UModelingToolsEditorMode::Enter()
 		RegisterTool(UICommand, StringName, ActionModeBuilder);
 	};
 	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::Extrude, ToolManagerCommands.BeginPolyModelTool_Extrude, TEXT("PolyEdit_Extrude"));
-	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::InsetOutset, ToolManagerCommands.BeginPolyModelTool_InsetOutset, TEXT("PolyEdit_InsetOutset"));
+	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::Inset, ToolManagerCommands.BeginPolyModelTool_Inset, TEXT("PolyEdit_Inset"));
+	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::Outset, ToolManagerCommands.BeginPolyModelTool_Outset, TEXT("PolyEdit_Outset"));
 	RegisterPolyModelActionTool(EEditMeshPolygonsToolActions::CutFaces, ToolManagerCommands.BeginPolyModelTool_CutFaces, TEXT("PolyEdit_CutFaces"));
 
 
