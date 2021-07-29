@@ -20,7 +20,8 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	FPBDEvolution(FPBDParticles&& InParticles, FKinematicGeometryClothParticles&& InGeometryParticles, TArray<TVec3<int32>>&& CollisionTriangles, int32 NumIterations = 1, FReal CollisionThickness = 0, FReal SelfCollisionsThickness = 0, FReal CoefficientOfFriction = 0, FReal Damping = 0.04f);
 	~FPBDEvolution() {}
 
-	void AdvanceOneTimeStep(const FReal dt);
+	// Advance one time step. Filter the input time step if specified.
+	void AdvanceOneTimeStep(const FReal Dt, const bool bSmoothDt = true);
 
 	// Remove all particles, will also reset all rules
 	void ResetParticles();
@@ -173,5 +174,6 @@ private:
 	FReal MCoefficientOfFriction;
 	FReal MDamping;
 	FReal MTime;
+	FReal MSmoothDt;
 };
 }

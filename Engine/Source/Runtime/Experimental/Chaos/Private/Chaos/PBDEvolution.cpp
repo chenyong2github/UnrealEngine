@@ -32,6 +32,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Constraints Init"), STAT_ChaosXPBDConstraint
 
 TAutoConsoleVariable<bool> CVarChaosPBDEvolutionUseNestedParallelFor(TEXT("p.Chaos.PBDEvolution.UseNestedParallelFor"), true, TEXT(""), ECVF_Cheat);
 TAutoConsoleVariable<bool> CVarChaosPBDEvolutionFastPositionBasedFriction(TEXT("p.Chaos.PBDEvolution.FastPositionBasedFriction"), true, TEXT(""), ECVF_Cheat);
+TAutoConsoleVariable<bool> CVarChaosPBDEvolutionUseSmoothTimeStep(TEXT("p.Chaos.PBDEvolution.UseSmoothTimeStep"), true, TEXT(""), ECVF_Cheat);
 TAutoConsoleVariable<int32> CVarChaosPBDEvolutionMinParallelBatchSize(TEXT("p.Chaos.PBDEvolution.MinParallelBatchSize"), 300, TEXT(""), ECVF_Cheat);
 TAutoConsoleVariable<bool> CVarChaosPBDEvolutionWriteCCDContacts(TEXT("p.Chaos.PBDEvolution.WriteCCDContacts"), false, TEXT("Write CCD collision contacts and normals potentially causing the CCD collision threads to lock, allowing for debugging of these contacts."), ECVF_Cheat);
 
@@ -77,6 +78,7 @@ FPBDEvolution::FPBDEvolution(FPBDParticles&& InParticles, FKinematicGeometryClot
 	, MCoefficientOfFriction(CoefficientOfFriction)
 	, MDamping(Damping)
 	, MTime(0)
+	, MSmoothDt(1.f / 30.f)  // Initialize filtered timestep at 30fps
 {
 	// Add group arrays
 	TArrayCollection::AddArray(&MGroupGravityForces);
@@ -229,7 +231,7 @@ void FPBDEvolution::PreIterationUpdate(
 				}
 
 				// Euler Step Velocity
-				MParticles.V(Index) += MParticles.F(Index) * MParticles.InvM(Index) * Dt;
+				MParticles.V(Index) += MParticles.F(Index) * MParticles.InvM(Index) * MSmoothDt;
 
 				// Damp Velocity Rule
 				if (bDampVelocityRule)
@@ -247,13 +249,24 @@ void FPBDEvolution::PreIterationUpdate(
 		}, RangeSize < MinParallelBatchSize);
 }
 
-void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
+void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt, const bool bSmoothDt)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDEvolution_AdvanceOneTimeStep);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVAdvanceTime);
 
 	// Advance time
 	MTime += Dt;
+
+	// Filter delta time to smoothen time variations and prevent unwanted vibrations, works best on Forces
+	if (bSmoothDt && CVarChaosPBDEvolutionUseSmoothTimeStep.GetValueOnAnyThread())
+	{
+		constexpr FReal DeltaTimeDecay = (FReal)0.1;
+		MSmoothDt += (Dt - MSmoothDt) * DeltaTimeDecay;
+	}
+	else
+	{
+		MSmoothDt = Dt;
+	}
 
 	// Don't bother with threaded execution if we don't have enough work to make it worth while.
 	const bool bUseSingleThreadedRange = !CVarChaosPBDEvolutionUseNestedParallelFor.GetValueOnAnyThread();
