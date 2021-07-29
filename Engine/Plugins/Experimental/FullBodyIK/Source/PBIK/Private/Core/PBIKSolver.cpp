@@ -112,15 +112,13 @@ namespace PBIK
 		{
 			return; // limb is stretched
 		}
-
-		// shrink distance to reach full blend to preferred angle
-		const float ScaledDistOrig = DistanceToSubRootInInputPose;// * 0.3f;
+		
 		// amount squashed (clamped to scaled original length)
 		float DeltaSquash = DistanceToSubRootInInputPose - DistToParentSubRoot;
-		DeltaSquash = DeltaSquash > ScaledDistOrig ? ScaledDistOrig : DeltaSquash;
-		float SquashPercent = DeltaSquash / ScaledDistOrig;
+		DeltaSquash = DeltaSquash > DistanceToSubRootInInputPose ? DistanceToSubRootInInputPose : DeltaSquash;
+		float SquashPercent = DeltaSquash / DistanceToSubRootInInputPose;
 		SquashPercent = PBIK::CircularEaseOut(SquashPercent);
-		if (SquashPercent < 0.0001f)
+		if (FMath::IsNearlyZero(SquashPercent))
 		{
 			return; // limb not squashed enough
 		}
@@ -189,49 +187,8 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 	// do all constraint solving
 	UpdateBodies(Settings);
 
-	// update Bone transforms controlled by Bodies
-	for (FRigidBody& Body : Bodies)
-	{
-		Body.Bone->Position = Body.Position + Body.Rotation * Body.BoneLocalPosition;
-		Body.Bone->Rotation = Body.Rotation;
-	}
-
-	// update Bone transforms controlled by effectors
-	for (const FEffector& Effector : Effectors)
-	{
-		FBone* Bone = Effector.Bone;
-		if (Bone->bIsSolverRoot)
-		{
-			continue; // if there's an effector on the root, leave it where the body ended up
-		}
-
-		if (Bone->Body)
-		{
-			continue; // effector is between other effectors, so leave transform where body ended up
-		}
-		
-		Bone->Position = Bone->Parent->Position + Bone->Parent->Rotation * Bone->LocalPositionOrig;
-
-		if (Effector.bPinRotation)
-		{
-			Bone->Rotation = Effector.Rotation; // optionally pin rotation to that of effector
-		}else
-		{
-			Bone->Rotation = Bone->Parent->Rotation * Bone->LocalRotationOrig;
-		}
-	}
-
-	// propagate to non-solved bones (requires storage in root to tip order)
-	for (FBone& Bone : Bones)
-	{
-		if (Bone.bIsSolved || !Bone.Parent)
-		{
-			continue;
-		}
-
-		Bone.Position = Bone.Parent->Position + Bone.Parent->Rotation * Bone.LocalPositionOrig;
-		Bone.Rotation = Bone.Parent->Rotation * Bone.LocalRotationOrig;
-	}
+	// now that bodies are posed, update bone transforms
+	UpdateBonesFromBodies();
 }
 
 void FPBIKSolver::PullRootTowardsEffectors()
@@ -264,7 +221,7 @@ void FPBIKSolver::PullRootTowardsEffectors()
 	}
 }
 
-void FPBIKSolver::PullChainsTowardsEffectors()
+void FPBIKSolver::ApplyPullChainAlpha()
 {
 	using PBIK::FEffector;
 	using PBIK::FBone;
@@ -278,6 +235,11 @@ void FPBIKSolver::PullChainsTowardsEffectors()
 		}
 
 		if (Effector.DistToSubRootAlongBones < SMALL_NUMBER)
+		{
+			continue;
+		}
+
+		if (Effector.PullChainAlpha < SMALL_NUMBER)
 		{
 			continue;
 		}
@@ -331,27 +293,38 @@ void FPBIKSolver::PullChainsTowardsEffectors()
 	}
 }
 
-void FPBIKSolver::UpdateBodies(const FPBIKSolverSettings& Settings)
+void FPBIKSolver::ApplyPreferredAngles()
 {
-	using PBIK::FRigidBody;
-	using PBIK::FEffector;
-
-	// this creates a better pose from which to start the constraint solving
-	if (Settings.bPreProcessPose)
-	{
-		// pull ALL bodies towards the effectors
-		PullRootTowardsEffectors();
-		// pull each effector's chain towards itself
-		PullChainsTowardsEffectors();
-	}
-	
 	// apply preferred angles to squashed effector chains
+	using PBIK::FEffector;
 	for (FEffector& Effector : Effectors)
 	{
 		Effector.ApplyPreferredAngles();
 	}
-	
-	// run constraint iterations while allowing stretch, just to get reaching pose
+
+	// preferred angles introduce stretch, so remove that to prevent biasing the first constraint iteration
+	for (int32 C = Constraints.Num() - 1; C >= 0; --C)
+	{
+		Constraints[C]->RemoveStretch();
+	}
+}
+
+void FPBIKSolver::UpdateBodies(const FPBIKSolverSettings& Settings)
+{
+	// this creates a better pose from which to start the constraint solving
+	if (Settings.bPrePullRoot)
+	{
+		// pull ALL bodies towards the effectors
+		PullRootTowardsEffectors();
+	}
+
+	// pre-rotate bones towards preferred angles when effector limb is squashed
+	ApplyPreferredAngles();
+
+	// pull each effector's chain towards itself
+	ApplyPullChainAlpha();
+		
+	// run ALL constraint iterations
 	SolveConstraints(Settings.Iterations, true, Settings.bAllowStretch);
 }
 
@@ -384,6 +357,57 @@ void FPBIKSolver::SolveConstraints(const int32 Iterations, const bool bMoveRoots
 				Constraints[C]->RemoveStretch();
 			}
 		}
+	}
+}
+
+void FPBIKSolver::UpdateBonesFromBodies()
+{
+	using PBIK::FRigidBody;
+	using PBIK::FBone;
+	using PBIK::FEffector;
+	
+	// update Bone transforms controlled by Bodies
+	for (FRigidBody& Body : Bodies)
+	{
+		Body.Bone->Position = Body.Position + Body.Rotation * Body.BoneLocalPosition;
+		Body.Bone->Rotation = Body.Rotation;
+	}
+
+	// update Bone transforms controlled by effectors
+	for (const FEffector& Effector : Effectors)
+	{
+		FBone* Bone = Effector.Bone;
+		if (Bone->bIsSolverRoot)
+		{
+			continue; // if there's an effector on the root, leave it where the body ended up
+		}
+
+		if (Bone->Body)
+		{
+			continue; // effector is between other effectors, so leave transform where body ended up
+		}
+		
+		Bone->Position = Bone->Parent->Position + Bone->Parent->Rotation * Bone->LocalPositionOrig;
+
+		if (Effector.bPinRotation)
+		{
+			Bone->Rotation = Effector.Rotation; // optionally pin rotation to that of effector
+		}else
+		{
+			Bone->Rotation = Bone->Parent->Rotation * Bone->LocalRotationOrig;
+		}
+	}
+
+	// propagate to non-solved bones (requires storage in root to tip order)
+	for (FBone& Bone : Bones)
+	{
+		if (Bone.bIsSolved || !Bone.Parent)
+		{
+			continue;
+		}
+
+		Bone.Position = Bone.Parent->Position + Bone.Parent->Rotation * Bone.LocalPositionOrig;
+		Bone.Rotation = Bone.Parent->Rotation * Bone.LocalRotationOrig;
 	}
 }
 

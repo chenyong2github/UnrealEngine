@@ -153,9 +153,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
 	bool bAllowStretch = false;
 
-	/** If true, solver will pre-process the skeleton to approximate a solved pose before running constraint iterations. Default is true. */
+	/** If true, solver will pull entire skeleton towards effectors BEFORE running constraint iterations. Default is true. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
-	bool bPreProcessPose = true;
+	bool bPrePullRoot = true;
 
 	/** Lock the position and rotation of the solver root bone in-place (at animated position). Useful for partial-body solves. Default is false. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)

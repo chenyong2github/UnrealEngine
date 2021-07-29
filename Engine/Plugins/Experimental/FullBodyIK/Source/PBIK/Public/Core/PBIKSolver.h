@@ -17,6 +17,7 @@ static float GLOBAL_UNITS = 100.0f; // (1.0f = meters), (100.0f = centimeters)
 
 // A long tail ease out function. Input range, 0-1. 
 FORCEINLINE static float QuarticEaseOut(const float& Input){ return (FMath::Pow(Input-1.0f, 4.0f) * -1.0f) + 1.0f; };
+// A C2 continuous ease out function. Input range, 0-1
 FORCEINLINE static float CircularEaseOut(const float& Input){ return FMath::Sqrt(1.0f - FMath::Pow(Input - 1.0f, 2.0f)); };
 // An ease out function. Input range, 0-1.
 FORCEINLINE static float SquaredEaseOut(const float& Input){ return (FMath::Pow(Input-1.0f, 2.0f) * -1.0f) + 1.0f; };
@@ -92,7 +93,7 @@ struct PBIK_API FPBIKSolverSettings
 
 	/** If true, solver will kinematically rotate skeleton limbs to approximate a solved pose before running constraint iterations. This can decrease the amount of iterations needed to achieve a converged pose. Default is true. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
-	bool bPreProcessPose = true;
+	bool bPrePullRoot = true;
 
 	/** When true, the solver is reset each tick to start from the current input pose. If false, incoming animated poses are ignored and the solver starts from the results of the previous solve. Default is true. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
@@ -168,11 +169,15 @@ private:
 
 	void UpdateBodies(const FPBIKSolverSettings& Settings);
 
+	void UpdateBonesFromBodies();
+
 	void SolveConstraints(const int32 Iterations, const bool bMoveRoots, const bool bAllowStretch);
 	
 	void PullRootTowardsEffectors();
 	
-	void PullChainsTowardsEffectors();
+	void ApplyPullChainAlpha();
+
+	void ApplyPreferredAngles();
 
 private:
 

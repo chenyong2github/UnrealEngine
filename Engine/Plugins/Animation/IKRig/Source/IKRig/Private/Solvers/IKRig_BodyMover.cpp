@@ -92,8 +92,12 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	ExtractRotation(DX, DY, DZ, RotationOffset, 50);
 
 	// alpha blend the position offset and add it to the current bone location
-	const FVector TargetPosition = (CurrentCentroid - InitialCentroid) * PositionAlpha;
-	CurrentBodyTransform.AddToTranslation(TargetPosition);
+	FVector Offset = (CurrentCentroid - InitialCentroid);
+	FVector Weight(
+		Offset.X > 0.f ? PositionPositiveX : PositionNegativeX,
+		Offset.Y > 0.f ? PositionPositiveY : PositionNegativeY,
+		Offset.Z > 0.f ? PositionPositiveZ : PositionNegativeZ);
+	CurrentBodyTransform.AddToTranslation(Offset * (Weight*PositionAlpha));
 
 	// do per-axis alpha blend
 	FVector Euler = RotationOffset.Euler() * FVector(RotateXAlpha, RotateYAlpha, RotateZAlpha);
@@ -140,6 +144,12 @@ void UIKRig_BodyMover::UpdateSolverSettings(UIKRigSolver* InSettings)
 	{
 		// copy solver settings
 		PositionAlpha = Settings->PositionAlpha;
+		PositionPositiveX = Settings->PositionPositiveX;
+		PositionPositiveY = Settings->PositionPositiveY;
+		PositionPositiveZ = Settings->PositionPositiveZ;
+		PositionNegativeX = Settings->PositionNegativeX;
+		PositionNegativeY = Settings->PositionNegativeY;
+		PositionNegativeZ = Settings->PositionNegativeZ;
 		RotationAlpha = Settings->RotationAlpha;
 		RotateXAlpha = Settings->RotateXAlpha;
 		RotateYAlpha = Settings->RotateYAlpha;

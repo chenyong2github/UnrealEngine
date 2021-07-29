@@ -39,23 +39,47 @@ public:
 	FName BodyBone;
 
 	/** Blend the translational effect of this solver on/off. Range is 0-1. Default is 1.0. */
-	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (ClampMin = "0", ClampMa = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
 	float PositionAlpha = 1.0f;
 
+	/** Multiply the POSITIVE X translation. Range is 0-1. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
+	float PositionPositiveX = 1.0f;
+
+	/** Multiply the NEGATIVE X translation. Range is 0-1. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
+	float PositionNegativeX = 1.0f;
+
+	/** Multiply the POSITIVE Y translation. Range is 0-1. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
+	float PositionPositiveY = 1.0f;
+
+	/** Multiply the NEGATIVE Y translation. Range is 0-1. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
+	float PositionNegativeY = 1.0f;
+
+	/** Multiply the POSITIVE Z translation. Range is 0-1. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
+	float PositionPositiveZ = 1.0f;
+
+	/** Multiply the NEGATIVE Z translation. Range is 0-1. Default is 1.0. */
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
+	float PositionNegativeZ = 1.0f;
+
 	/** Blend the total rotational effect on/off. Range is 0-1. Default is 1.0. */
-	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (ClampMin = "0", ClampMa = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
 	float RotationAlpha = 1.0f;
 
 	/** Blend the X-axis rotational effect on/off. Range is 0-1. Default is 1.0. */
-	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (ClampMin = "0", ClampMa = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
 	float RotateXAlpha = 1.0f;
 
 	/** Blend the Y-axis rotational effect on/off. Range is 0-1. Default is 1.0. */
-	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (ClampMin = "0", ClampMa = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
 	float RotateYAlpha = 1.0f;
 
 	/** Blend the Z-axis rotational effect on/off. Range is 0-1. Default is 1.0. */
-	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (ClampMin = "0", ClampMa = "1", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = "Body Mover Solver", meta = (UIMin = "0.0", UIMax = "1.0"))
 	float RotateZAlpha = 1.0f;
 	
 	UPROPERTY()
