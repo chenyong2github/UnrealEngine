@@ -2,16 +2,15 @@
 
 #pragma once
 
-#include "DisjunctiveNormalFormFilter.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include "LevelSnapshot.h"
+#include "LevelSnapshotsFilterPreset.h"
 #include "NegatableFilter.h"
 #include "LevelSnapshotsEditorData.generated.h"
 
-class UDisjunctiveNormalFormFilter;
 class UFavoriteFilterContainer;
 class UFilterLoader;
 class UFilteredResults;
@@ -65,7 +64,7 @@ public:
 	
 	/******************** Loading filter preset ********************/
 	
-	DECLARE_EVENT_TwoParams(ULevelSnapshotsEditorData, FUserDefinedFiltersChanged, UDisjunctiveNormalFormFilter* /*NewFilter*/, UDisjunctiveNormalFormFilter* /* OldFilter */);
+	DECLARE_EVENT_TwoParams(ULevelSnapshotsEditorData, FUserDefinedFiltersChanged, ULevelSnapshotsFilterPreset* /*NewFilter*/, ULevelSnapshotsFilterPreset* /* OldFilter */);
 	/* Called when user loads a new set of filters. */
 	FUserDefinedFiltersChanged OnUserDefinedFiltersChanged;
 	
@@ -73,7 +72,7 @@ public:
 	/******************** Getters ********************/
 	
 	UFavoriteFilterContainer* GetFavoriteFilters() const;
-	UDisjunctiveNormalFormFilter* GetUserDefinedFilters() const;
+	ULevelSnapshotsFilterPreset* GetUserDefinedFilters() const;
 	UFilterLoader* GetFilterLoader() const;
 	UFilteredResults* GetFilterResults() const;
 
@@ -93,7 +92,7 @@ private:
 	UFavoriteFilterContainer* FavoriteFilters;
 	/* Stores user-defined filters in chain of ORs of ANDs. */
 	UPROPERTY()
-	UDisjunctiveNormalFormFilter* UserDefinedFilters;
+	ULevelSnapshotsFilterPreset* UserDefinedFilters;
 	/* Handles save & load requests for exchanging UserDefinedFilters. */
 	UPROPERTY()
 	UFilterLoader* FilterLoader;

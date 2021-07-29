@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LevelSnapshotFilters.h"
-#include "DisjunctiveNormalFormFilter.generated.h"
+#include "LevelSnapshotsFilterPreset.generated.h"
 
 class UConjunctionFilter;
 class UNegatableFilter;
@@ -28,7 +28,7 @@ enum class EFilterChangeType : uint8
  * Disjunctive normal form = ORs of ANDs. Example: (a && !b) || (c && d) || e
  */
 UCLASS(meta = (InternalSnapshotFilter))
-class UDisjunctiveNormalFormFilter : public ULevelSnapshotFilter
+class ULevelSnapshotsFilterPreset : public ULevelSnapshotFilter
 {
 	GENERATED_BODY()
 public:

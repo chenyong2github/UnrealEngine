@@ -4,7 +4,7 @@
 
 #include "Customizations/NegatableFilterDetailsCustomization.h"
 #include "Data/FilteredResults.h"
-#include "Data/Filters/DisjunctiveNormalFormFilter.h"
+#include "Data/Filters/LevelSnapshotsFilterPreset.h"
 #include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorFilters.h"
 #include "LevelSnapshotsEditorStyle.h"
@@ -264,7 +264,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 	];
 
 	// Set Delegates
-	OnUserDefinedFiltersChangedHandle = GetEditorData()->OnUserDefinedFiltersChanged.AddLambda([this](UDisjunctiveNormalFormFilter* NewFilter, UDisjunctiveNormalFormFilter* OldFilter)
+	OnUserDefinedFiltersChangedHandle = GetEditorData()->OnUserDefinedFiltersChanged.AddLambda([this](ULevelSnapshotsFilterPreset* NewFilter, ULevelSnapshotsFilterPreset* OldFilter)
 	{
 		if (IsValid(OldFilter) && OnFilterModifiedHandle.IsValid())
 		{
@@ -307,7 +307,7 @@ bool SLevelSnapshotsEditorFilters::IsResizingDetailsView() const
 
 void SLevelSnapshotsEditorFilters::RemoveFilter(UConjunctionFilter* FilterToRemove)
 {
-	UDisjunctiveNormalFormFilter* UserDefinedFilters = GetEditorData()->GetUserDefinedFilters();
+	ULevelSnapshotsFilterPreset* UserDefinedFilters = GetEditorData()->GetUserDefinedFilters();
 	UserDefinedFilters->RemoveConjunction(FilterToRemove);
 }
 

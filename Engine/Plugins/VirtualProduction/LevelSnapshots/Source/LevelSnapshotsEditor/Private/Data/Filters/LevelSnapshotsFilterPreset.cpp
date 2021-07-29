@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisjunctiveNormalFormFilter.h"
+#include "LevelSnapshotsFilterPreset.h"
 
 #include "Data/Filters/ConjunctionFilter.h"
 
@@ -59,7 +59,7 @@ namespace
 	}
 }
 
-void UDisjunctiveNormalFormFilter::MarkTransactional()
+void ULevelSnapshotsFilterPreset::MarkTransactional()
 {
 	SetFlags(RF_Transactional);
 	for (UConjunctionFilter* Child : Children)
@@ -68,7 +68,7 @@ void UDisjunctiveNormalFormFilter::MarkTransactional()
 	}
 }
 
-UConjunctionFilter* UDisjunctiveNormalFormFilter::CreateChild()
+UConjunctionFilter* ULevelSnapshotsFilterPreset::CreateChild()
 {
 	UConjunctionFilter* Child;
 
@@ -90,7 +90,7 @@ UConjunctionFilter* UDisjunctiveNormalFormFilter::CreateChild()
 	return Child;
 }
 
-void UDisjunctiveNormalFormFilter::RemoveConjunction(UConjunctionFilter* Child)
+void ULevelSnapshotsFilterPreset::RemoveConjunction(UConjunctionFilter* Child)
 {
 	FScopedTransaction Transaction(FText::FromString("Remove filter row"));
 	Modify();
@@ -103,12 +103,12 @@ void UDisjunctiveNormalFormFilter::RemoveConjunction(UConjunctionFilter* Child)
 	}
 }
 
-const TArray<UConjunctionFilter*>& UDisjunctiveNormalFormFilter::GetChildren() const
+const TArray<UConjunctionFilter*>& ULevelSnapshotsFilterPreset::GetChildren() const
 {
 	return Children;
 }
 
-void UDisjunctiveNormalFormFilter::PostInitProperties()
+void ULevelSnapshotsFilterPreset::PostInitProperties()
 {
 	Super::PostInitProperties();
 
@@ -125,7 +125,7 @@ void UDisjunctiveNormalFormFilter::PostInitProperties()
 	}
 }
 
-void UDisjunctiveNormalFormFilter::BeginDestroy()
+void ULevelSnapshotsFilterPreset::BeginDestroy()
 {
 	if (OnObjectTransactedHandle.IsValid())
 	{
@@ -136,7 +136,7 @@ void UDisjunctiveNormalFormFilter::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-EFilterResult::Type UDisjunctiveNormalFormFilter::IsActorValid(const FIsActorValidParams& Params) const
+EFilterResult::Type ULevelSnapshotsFilterPreset::IsActorValid(const FIsActorValidParams& Params) const
 {
 	return ExecuteOrChain(Children, [&Params](UConjunctionFilter* Child)
 	{
@@ -144,7 +144,7 @@ EFilterResult::Type UDisjunctiveNormalFormFilter::IsActorValid(const FIsActorVal
 	});
 }
 
-EFilterResult::Type UDisjunctiveNormalFormFilter::IsPropertyValid(const FIsPropertyValidParams& Params) const
+EFilterResult::Type ULevelSnapshotsFilterPreset::IsPropertyValid(const FIsPropertyValidParams& Params) const
 {
 	return ExecuteOrChain(Children, [&Params](UConjunctionFilter* Child)
 	{
@@ -152,7 +152,7 @@ EFilterResult::Type UDisjunctiveNormalFormFilter::IsPropertyValid(const FIsPrope
 	});
 }
 
-EFilterResult::Type UDisjunctiveNormalFormFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
+EFilterResult::Type ULevelSnapshotsFilterPreset::IsDeletedActorValid(const FIsDeletedActorValidParams& Params) const
 {
 	return ExecuteOrChain(Children, [&Params](UConjunctionFilter* Child)
 	{
@@ -160,7 +160,7 @@ EFilterResult::Type UDisjunctiveNormalFormFilter::IsDeletedActorValid(const FIsD
 	});
 }
 
-EFilterResult::Type UDisjunctiveNormalFormFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
+EFilterResult::Type ULevelSnapshotsFilterPreset::IsAddedActorValid(const FIsAddedActorValidParams& Params) const
 {
 	return ExecuteOrChain(Children, [&Params](UConjunctionFilter* Child)
 	{

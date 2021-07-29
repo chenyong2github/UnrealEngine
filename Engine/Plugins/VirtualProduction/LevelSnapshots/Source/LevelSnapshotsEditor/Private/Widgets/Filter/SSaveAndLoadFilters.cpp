@@ -2,7 +2,7 @@
 
 #include "SSaveAndLoadFilters.h"
 
-#include "DisjunctiveNormalFormFilter.h"
+#include "LevelSnapshotsFilterPreset.h"
 #include "FilterLoader.h"
 
 #include "ContentBrowserModule.h"
@@ -57,7 +57,7 @@ namespace
 		}
 		
 		UObject* Loaded = SelectedAssetData.GetAsset();
-		UDisjunctiveNormalFormFilter* AsFilter = Cast<UDisjunctiveNormalFormFilter>(Loaded);
+		ULevelSnapshotsFilterPreset* AsFilter = Cast<ULevelSnapshotsFilterPreset>(Loaded);
 		if (!ensure(Loaded) || !ensure(AsFilter))
 		{
 			return;
@@ -103,7 +103,7 @@ void SSaveAndLoadFilters::Construct(const FArguments& InArgs, ULevelSnapshotsEdi
             .AutoWidth()
             [
               SNew(SImage)
-              .Image(FSlateIconFinder::FindIconBrushForClass(UDisjunctiveNormalFormFilter::StaticClass()))
+              .Image(FSlateIconFinder::FindIconBrushForClass(ULevelSnapshotsFilterPreset::StaticClass()))
             ]
 
             + SHorizontalBox::Slot()
@@ -151,7 +151,7 @@ TSharedRef<SWidget> SSaveAndLoadFilters::GenerateSaveLoadMenu()
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 		FAssetPickerConfig AssetPickerConfig;
-		AssetPickerConfig.Filter.ClassNames.Add(UDisjunctiveNormalFormFilter::StaticClass()->GetFName());
+		AssetPickerConfig.Filter.ClassNames.Add(ULevelSnapshotsFilterPreset::StaticClass()->GetFName());
 		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
 		AssetPickerConfig.OnAssetSelected.BindStatic(OnSelectPreset, EditorData);
