@@ -16,47 +16,32 @@ void SObjectPropertiesView::GetVariantsAtFrame(const TraceServices::FFrame& InFr
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
 
-		const FClassInfo& ClassInfo = GameplayProvider->GetClassInfoFromObject(ObjectId);
+		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("Properties", "Properties"), INDEX_NONE));
 
-		if(ClassInfo.Properties.Num() > 0)
+		TArray<TSharedPtr<FVariantTreeNode>> PropertyVariants;
+
+		GameplayProvider->ReadObjectPropertiesTimeline(ObjectId, [this, &InFrame, GameplayProvider, &Header, &PropertyVariants](const FGameplayProvider::ObjectPropertiesTimeline& InTimeline)
 		{
-			TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("Properties", "Properties"), INDEX_NONE));
-
-			// Build the class tree
-			TArray<TSharedPtr<FVariantTreeNode>> PropertyVariants;
-			PropertyVariants.SetNum(ClassInfo.Properties.Num());
-			for(int32 PropertyIndex = 0; PropertyIndex < ClassInfo.Properties.Num(); ++PropertyIndex)
+			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [this, GameplayProvider, &Header, &PropertyVariants](double InStartTime, double InEndTime, uint32 InDepth, const FObjectPropertiesMessage& InMessage)
 			{
-				const FClassPropertyInfo& PropertyInfo = ClassInfo.Properties[PropertyIndex];
-
-				// Add a string node with a default value
-				const TCHAR* Key = GameplayProvider->GetPropertyName(PropertyInfo.KeyStringId);
-				PropertyVariants[PropertyIndex] = FVariantTreeNode::MakeString(FText::FromString(Key), TEXT("Unknown"), PropertyIndex);
-
-				// note assumes that order is parent->child in the properties array
-				if(PropertyInfo.ParentId != INDEX_NONE)
+				GameplayProvider->EnumerateObjectPropertyValues(ObjectId, InMessage, [GameplayProvider, &Header, &PropertyVariants](const FObjectPropertyValue& InValue)
 				{
-					PropertyVariants[PropertyInfo.ParentId]->AddChild(PropertyVariants[PropertyIndex].ToSharedRef());
-				}
-				else
-				{
-					Header->AddChild(PropertyVariants[PropertyIndex].ToSharedRef());
-				}
-			}
+					const TCHAR* Key = GameplayProvider->GetPropertyName(InValue.KeyStringId);
+					PropertyVariants.Add(FVariantTreeNode::MakeString(FText::FromString(Key), InValue.Value));
 
-			// object events
-			GameplayProvider->ReadObjectPropertiesTimeline(ObjectId, [this, &InFrame, &GameplayProvider, &PropertyVariants](const FGameplayProvider::ObjectPropertiesTimeline& InTimeline)
-			{
-				InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [this, &GameplayProvider, &PropertyVariants](double InStartTime, double InEndTime, uint32 InDepth, const FObjectPropertiesMessage& InMessage)
-				{
-					GameplayProvider->EnumerateObjectPropertyValues(ObjectId, InMessage, [&PropertyVariants](const FObjectPropertyValue& InValue)
+					// note assumes that order is parent->child in the properties array
+					if(InValue.ParentId != INDEX_NONE)
 					{
-						PropertyVariants[InValue.PropertyId]->GetValue().String.Value = InValue.Value;
-					});
-					return TraceServices::EEventEnumerate::Stop;
+						PropertyVariants[InValue.ParentId]->AddChild(PropertyVariants.Last().ToSharedRef());
+					}
+					else
+					{
+						Header->AddChild(PropertyVariants.Last().ToSharedRef());
+					}
 				});
+				return TraceServices::EEventEnumerate::Stop;
 			});
-		}
+		});
 	}
 }
 

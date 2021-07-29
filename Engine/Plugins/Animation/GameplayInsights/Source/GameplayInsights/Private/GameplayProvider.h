@@ -59,9 +59,6 @@ public:
 	/** Add a class property string ID message */
 	void AppendClassPropertyStringId(uint32 InStringId, const FStringView& InString);
 
-	/** Add a class property message */
-	void AppendClassProperty(uint64 InClassId, int32 InId, int32 InParentId, uint32 InTypeStringId, uint32 InKeyStringId);
-
 	/** Add a properties start message */
 	void AppendPropertiesStart(uint64 InObjectId, double InTime, uint64 InEventId);
 
@@ -69,7 +66,7 @@ public:
 	void AppendPropertiesEnd(uint64 InObjectId, double InTime);
 
 	/** Add a property value message */
-	void AppendPropertyValue(uint64 InObjectId, double InTime, uint64 InEventId, int32 InPropertyId, const FStringView& InValue);
+	void AppendPropertyValue(uint64 InObjectId, double InTime, uint64 InEventId, int32 InParentId, uint32 InTypeStringId, uint32 InKeyStringId, const FStringView& InValue);
 
 	/** Check whether we have any data */
 	bool HasAnyData() const;

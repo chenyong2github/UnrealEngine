@@ -6,20 +6,12 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Containers/Timelines.h"
 
-struct FClassPropertyInfo
-{
-	int32 ParentId = 0;
-	uint32 TypeStringId = 0;
-	uint32 KeyStringId = 0;
-};
-
 struct FClassInfo
 {	
 	uint64 Id = 0;
 	uint64 SuperId = 0;
 	const TCHAR* Name = nullptr;
 	const TCHAR* PathName = nullptr;
-	TArray<FClassPropertyInfo> Properties;
 };
 
 struct FObjectInfo
@@ -40,7 +32,9 @@ struct FObjectPropertiesMessage
 struct FObjectPropertyValue
 {
 	const TCHAR* Value = nullptr;
-	int32 PropertyId;
+	int32 ParentId = 0;
+	uint32 TypeStringId = 0;
+	uint32 KeyStringId = 0;
 	float ValueAsFloat = 0.0f;
 };
 
