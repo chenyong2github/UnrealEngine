@@ -105,7 +105,7 @@ int32 UGatherTextFromMetaDataCommandlet::Main( const FString& Params )
 
 	FGatherTextDelegates::GetAdditionalGatherPaths.Broadcast(GatherManifestHelper->GetTargetName(), IncludePathFilters, ExcludePathFilters);
 
-	// Get whether we should gather editor-only data. Typically only useful for the localization of UE4 itself.
+	// Get whether we should gather editor-only data. Typically only useful for the localization of UE itself.
 	if (!GetBoolFromConfig(*SectionName, TEXT("ShouldGatherFromEditorOnlyData"), ShouldGatherFromEditorOnlyData, GatherTextConfigPath))
 	{
 		ShouldGatherFromEditorOnlyData = false;

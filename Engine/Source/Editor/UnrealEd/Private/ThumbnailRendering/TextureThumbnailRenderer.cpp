@@ -111,7 +111,7 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 		CanvasTile.BatchedElementParameters = BatchedElementParameters;
 		if (bIsVirtualTexture && Texture->Source.GetNumBlocks() > 1)
 		{
-			// Adjust UVs to display entire UDIM range, acounting for UE4 inverted V-axis
+			// Adjust UVs to display entire UDIM range, acounting for UE inverted V-axis
 			// We're not actually rendering a VT here, but the editor-only texture we're using is still using the UDIM tile layout
 			// So we use inverted Y-axis, but then normalize back to [0,1)
 			const FIntPoint BlockSize = Texture->Source.GetSizeInBlocks();

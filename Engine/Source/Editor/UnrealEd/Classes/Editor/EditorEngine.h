@@ -407,7 +407,7 @@ public:
 	UPROPERTY()
 	uint32 bIsToggleBetweenPIEandSIEQueued:1;
 
-	/** Allows multiple PIE worlds under a single instance. If false, you can only do multiple UE4 processes for pie networking */
+	/** Allows multiple PIE worlds under a single instance. If false, you can only do multiple UE processes for pie networking */
 	UPROPERTY(globalconfig)
 	uint32 bAllowMultiplePIEWorlds:1;
 

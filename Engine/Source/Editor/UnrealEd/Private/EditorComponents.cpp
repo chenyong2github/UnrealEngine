@@ -408,7 +408,7 @@ void FEditorCommonDrawHelper::Draw(const FSceneView* View,class FPrimitiveDrawIn
 /** Draw green lines to indicate what the selected actor(s) are based on. */
 void FEditorCommonDrawHelper::DrawBaseInfo(const FSceneView* View,FPrimitiveDrawInterface* PDI)
 {
-// @todo UE4 - reimplement with new component attachment system
+// @todo UE - reimplement with new component attachment system
 }
 
 void FEditorCommonDrawHelper::DrawOldGrid(const FSceneView* View,FPrimitiveDrawInterface* PDI)

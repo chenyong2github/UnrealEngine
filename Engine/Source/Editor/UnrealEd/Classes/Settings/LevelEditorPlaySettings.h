@@ -348,7 +348,7 @@ private:
 	UPROPERTY(config, EditAnywhere, Category="Multiplayer Options")
 	TEnumAsByte<EPlayNetMode> PlayNetMode;
 
-	/** Spawn multiple player windows in a single instance of UE4. This will load much faster, but has potential to have more issues.  */
+	/** Spawn multiple player windows in a single instance of UE. This will load much faster, but has potential to have more issues.  */
 	UPROPERTY(config, EditAnywhere, Category="Multiplayer Options")
 	bool RunUnderOneProcess;
 

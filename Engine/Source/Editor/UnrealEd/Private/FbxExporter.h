@@ -497,7 +497,7 @@ private:
 
 	/**
 	 * Finds the given actor in the already-exported list of structures
-	 * @return FbxNode* the FBX node created from the UE4 actor
+	 * @return FbxNode* the FBX node created from the UE actor
 	 */
 	FbxNode* FindActor(AActor* Actor, INodeNameAdapter* NodeNameAdapter = nullptr);
 

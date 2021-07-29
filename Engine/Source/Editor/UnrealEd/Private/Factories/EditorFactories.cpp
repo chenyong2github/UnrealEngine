@@ -3989,7 +3989,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 			// Don't try to rename the texture if we are doing a reimport.
 			if (!bIsDoingAReimport)
 			{ 
-				// Exclude UDIM number from the name of the UE4 texture asset we create
+				// Exclude UDIM number from the name of the UE texture asset we create
 				// We do this even in the case where we're only importing a single 1001 image, which won't technically be a UDIM
 				// We still want to strip the UDIM suffix in this case, as industry standard still considers this a UDIM imageset
 				const FString ShortPackageName = ObjectTools::SanitizeInvalidChars(BaseUDIMName, INVALID_LONGPACKAGE_CHARACTERS);
@@ -4544,7 +4544,7 @@ bool UTextureFactory::IsImportResolutionValid(int32 Width, int32 Height, bool bA
 {
 	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
 
-	// In theory this value could be much higher, but various UE4 image code currently uses 32bit size/offset values
+	// In theory this value could be much higher, but various UE image code currently uses 32bit size/offset values
 	const int32 MaximumSupportedVirtualTextureResolution = 16 * 1024;
 
 	// Calculate the maximum supported resolution utilizing the global max texture mip count

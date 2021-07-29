@@ -269,7 +269,7 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 	// Init a parse context to track the state of the file parsing 
 	FSourceFileParseContext ParseCtxt(this);
 
-	// Get whether we should gather editor-only data. Typically only useful for the localization of UE4 itself.
+	// Get whether we should gather editor-only data. Typically only useful for the localization of UE itself.
 	if (!GetBoolFromConfig(*SectionName, TEXT("ShouldGatherFromEditorOnlyData"), ParseCtxt.ShouldGatherFromEditorOnlyData, GatherTextConfigPath))
 	{
 		ParseCtxt.ShouldGatherFromEditorOnlyData = false;

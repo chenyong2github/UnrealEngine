@@ -281,7 +281,7 @@ bool FMergeAsset::Load(FCommandLineErrorReporter& ErrorReporter)
 		return false;
 	}
 
-	// UE4 cannot open files with certain special characters in them (like 
+	// UE cannot open files with certain special characters in them (like 
 	// the # symbol), so we make a copy of the file with a more UE digestible 
 	// path (since this may be a perforce temp file)
 	if (IFileManager::Get().Copy(*DestFilePath, *SrcFilePath) != COPY_OK)

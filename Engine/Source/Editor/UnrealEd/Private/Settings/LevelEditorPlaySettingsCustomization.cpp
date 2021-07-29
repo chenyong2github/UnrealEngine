@@ -525,7 +525,7 @@ FText FLevelEditorPlaySettingsCustomization::HandleMultiplayerOptionsDescription
 	FString Desc;
 	if ( CanRunUnderOneProcess )
 	{
-		Desc += LOCTEXT( "MultiplayerDescription_OneProcess", "The following will all run under one UE4 instance:\n" ).ToString();
+		Desc += LOCTEXT( "MultiplayerDescription_OneProcess", "The following will all run under one UE instance:\n" ).ToString();
 		if ( PlayNetMode == EPlayNetMode::PIE_Client )
 		{
 			Desc += LOCTEXT( "MultiplayerDescription_DedicatedServerHidden", "A hidden dedicated server instance will run in editor. " ).ToString();
@@ -568,7 +568,7 @@ FText FLevelEditorPlaySettingsCustomization::HandleMultiplayerOptionsDescription
 	}
 	else
 	{
-		Desc += LOCTEXT( "MultiplayerDescription_MultiProcess", "The following will run with multiple UE4 instances:\n" ).ToString();
+		Desc += LOCTEXT( "MultiplayerDescription_MultiProcess", "The following will run with multiple UE instances:\n" ).ToString();
 		if ( PlayNetMode == PIE_Standalone )
 		{
 			if ( PlayNumberOfClients == 1 )

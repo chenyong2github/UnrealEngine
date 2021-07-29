@@ -70,7 +70,7 @@ UNREALED_API bool GLightmassStatsMode = false;
 #if !UE_BUILD_DOCS
 void FSwarmDebugOptions::Touch()
 {
-	//@todo UE4. For some reason, the global instance is not initializing to the default settings...
+	//@todo For some reason, the global instance is not initializing to the default settings...
 	if (bInitialized == false)
 	{
 		bDistributionEnabled = true;
