@@ -338,7 +338,7 @@ public:
 	bool bReplaceEnable = false;
 
 	/** Strength of motion blur, 0:off, should be renamed to intensity */
-	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "1.0", editcondition = "bReplaceEnable", DisplayName = "Amount"))
+	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "1.0", editcondition = "bReplaceEnable", DisplayName = "Intensity"))
 	float MotionBlurAmount = 1;
 
 	/** max distortion caused by motion blur, in percent of the screen width, 0:off */
