@@ -45,6 +45,9 @@ public:
 	// source groups (optional)
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGroups;
 
+	// orientation control
+	bool bAutoRotate = true;
+
 	// area scaling
 	bool bNormalizeAreas = true;
 	float AreaScaling = 1.0;
@@ -59,6 +62,20 @@ public:
 
 	ERecomputeUVsUnwrapType UnwrapType = ERecomputeUVsUnwrapType::ExpMap;
 	ERecomputeUVsIslandMode IslandMode = ERecomputeUVsIslandMode::PolyGroups;
+
+	// 
+	// ExpMap Options
+	//
+	int32 NormalSmoothingRounds = 0;
+	double NormalSmoothingAlpha = 0.25;
+
+	//
+	// Patch Merging options
+	//
+	bool bMergingOptimization = false;
+	double MergingThreshold = 1.5;
+	double CompactnessThreshold = 9999999.0;		// effectively disabled as it usually is not a good idea
+	double MaxNormalDeviationDeg = 45.0;
 
 	// set ability on protected transform.
 	void SetTransform(const FTransform3d& XForm)
@@ -75,7 +92,12 @@ public:
 
 protected:
 
+	FGeometryResult NewResultInfo;
+
 	void NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale = 1.0f);
+
+	virtual bool CalculateResult_Basic(FProgressCancel* Progress);
+	virtual bool CalculateResult_RegionOptimization(FProgressCancel* Progress);
 };
 
 } // end namespace UE::Geometry

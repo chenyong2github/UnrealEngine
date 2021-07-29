@@ -10,6 +10,7 @@
 #include "Properties/MeshUVChannelProperties.h"
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "Polygroups/PolygroupSet.h"
+#include "Drawing/UVLayoutPreview.h"
 
 #include "RecomputeUVsTool.generated.h"
 
@@ -39,9 +40,9 @@ enum class ERecomputeUVsUnwrapType
 {
 	// Values must match UE::Geometry::ERecomputeUVsUnwrapType
 
-	/** */
+	/** ExpMap UV Flattening Algorithm is very fast but has limited ability to control stretching/distortion */
 	ExpMap = 0,
-	/** */
+	/** Conformal UV Flattening algorithm is increasingly-expensive on large islands but better at distortion control */
 	Conformal = 1
 };
 
@@ -52,11 +53,22 @@ enum class ERecomputeUVsIslandMode
 {
 	// Values must match UE::Geometry::ERecomputeUVsIslandMode
 
-	/** */
+	/** Use Active Mesh Polygroups Layer to define initial UV Islands */
 	PolyGroups = 0,
-	/** */
+	/** Use Existing UV Layer to define UV Islands (ie re-solve UV flattening based on existing UVs) */
 	ExistingUVs = 1
 };
+
+
+UENUM()
+enum class ERecomputeUVsToolOrientationMode
+{
+	/**  */
+	None,
+	/**  */
+	MinBoxBounds
+};
+
 
 UENUM()
 enum class ERecomputeUVsToolUVScaleMode
@@ -76,15 +88,43 @@ class MESHMODELINGTOOLS_API URecomputeUVsToolProperties : public UInteractiveToo
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Compute UVs")
+	/** IslandMode determines which patches of triangles will be used as initial UV Islands */
+	UPROPERTY(EditAnywhere, Category = "UV Generation")
 	ERecomputeUVsIslandMode IslandMode = ERecomputeUVsIslandMode::PolyGroups;
 
-	UPROPERTY(EditAnywhere, Category = "Compute UVs")
+	/** Which type of UV flattening algorithm to use */
+	UPROPERTY(EditAnywhere, Category = "UV Generation", meta = (EditCondition = "bIslandMerging == false"))
 	ERecomputeUVsUnwrapType UnwrapType = ERecomputeUVsUnwrapType::Conformal;
 
+	/** Which type of automatic island orientation to use */
+	UPROPERTY(EditAnywhere, Category = "UV Generation")
+	ERecomputeUVsToolOrientationMode AutoRotation = ERecomputeUVsToolOrientationMode::MinBoxBounds;
+
+	/** If Island Merging is enabled, then the initial UV islands will be merged into larger islands if it does not increase distortion/stretching beyond the limits below */
+	UPROPERTY(EditAnywhere, Category = "UV Generation")
+	bool bIslandMerging = false;
+
+	/** Distortion/Stretching Threshold for island merging - larger values increase the allowable UV stretching */
+	UPROPERTY(EditAnywhere, Category = "UV Generation", meta = (UIMin = "1.0", UIMax = "5.0", ClampMin = "1.0", EditCondition = "bIslandMerging == true"))
+	float MergingThreshold = 1.5f;
+
+	/** UV islands will not be merged if their average face normals deviate by larger than this amount */
+	UPROPERTY(EditAnywhere, Category = "UV Generation", meta = (UIMin = "0.0", UIMax = "90.0", ClampMin = "0.0", ClampMax = "180.0", EditCondition = "bIslandMerging == true"))
+	float MaxAngleDeviation = 45.0f;
+
+	/** Number of smoothing steps to apply in the ExpMap UV Generation method (Smoothing slightly increases distortion but produces more stable results) */
+	UPROPERTY(EditAnywhere, Category = "ExpMap UV Generator", meta = (UIMin = "0", UIMax = "25", ClampMin = "0", ClampMax = "1000", EditCondition = "UnwrapType == ERecomputeUVsUnwrapType::ExpMap || bIslandMerging == true" ))
+	int SmoothingSteps = 5;
+
+	/** Smoothing parameter, larger values result in faster smoothing in each step */
+	UPROPERTY(EditAnywhere, Category = "ExpMap UV Generator", meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0", EditCondition = "UnwrapType == ERecomputeUVsUnwrapType::ExpMap || bIslandMerging == true"))
+	float SmoothingAlpha = 0.25f;
+
+	/** If enabled, result UVs are automatically packed into the standard UV 0-1 square */
 	UPROPERTY(EditAnywhere, Category = "UV Layout")
 	bool bAutoPack = true;
 
+	/** Target texture resolution used for UV packing, which determines gutter size */
 	UPROPERTY(EditAnywhere, Category = "UV Layout", meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096", EditCondition = bAutoPack))
 	int TextureResolution = 1024;
 
@@ -113,6 +153,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -137,6 +178,13 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
 
+	UPROPERTY()
+	bool bCreateUVLayoutViewOnSetup = true;
+
+	UPROPERTY()
+	TObjectPtr<UUVLayoutPreview> UVLayoutView = nullptr;
+
+
 protected:
 	UPROPERTY()
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
@@ -148,4 +196,6 @@ protected:
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();
 	void UpdateActiveGroupLayer();
+
+	void OnPreviewMeshUpdated();
 };

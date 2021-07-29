@@ -39,17 +39,19 @@ void URecomputeUVsTool::Setup()
 	InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	*InputMesh = UE::ToolTarget::GetDynamicMeshCopy(Target);
 
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
+	FTransform TargetTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
+
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
 	Preview->Setup(this->TargetWorld, this);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
-	Preview->ConfigureMaterials(UE::ToolTarget::GetMaterialSet(Target).Materials,
-								ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()) );
-	Preview->PreviewMesh->SetTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
+	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()) );
+	Preview->PreviewMesh->SetTransform(TargetTransform);
 
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
 	{
-		MaterialSettings->UpdateMaterials();
+		OnPreviewMeshUpdated();
 	});
 
 	UE::ToolTarget::HideSourceObject(Target);
@@ -85,6 +87,18 @@ void URecomputeUVsTool::Setup()
 	MaterialSettings->UpdateMaterials();
 	Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 
+	if (bCreateUVLayoutViewOnSetup)
+	{
+		UVLayoutView = NewObject<UUVLayoutPreview>(this);
+		UVLayoutView->CreateInWorld(TargetWorld);
+		UVLayoutView->SetSourceMaterials(MaterialSet);
+		UVLayoutView->SetSourceWorldPosition(TargetTransform, UE::ToolTarget::GetTargetActor(Target)->GetComponentsBoundingBox());
+		UVLayoutView->Settings->bVisible = false;
+		UVLayoutView->Settings->bShowWireframe = false;
+		UVLayoutView->Settings->RestoreProperties(this, TEXT("RecomputeUVsTool"));
+		AddToolPropertySource(UVLayoutView->Settings);
+	}
+
 	Preview->InvalidateResult();    // start compute
 
 	SetToolDisplayName(LOCTEXT("ToolNameLocal", "UV Unwrap"));
@@ -114,6 +128,12 @@ void URecomputeUVsTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 
 void URecomputeUVsTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (UVLayoutView)
+	{
+		UVLayoutView->Settings->SaveProperties(this, TEXT("RecomputeUVsTool"));
+		UVLayoutView->Disconnect();
+	}
+
 	UVChannelProperties->SaveProperties(this);
 	Settings->SaveProperties(this);
 	PolygroupLayerProperties->RestoreProperties(this, TEXT("RecomputeUVsTool"));
@@ -135,9 +155,23 @@ void URecomputeUVsTool::Shutdown(EToolShutdownType ShutdownType)
 
 }
 
+void URecomputeUVsTool::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	if (UVLayoutView)
+	{
+		UVLayoutView->Render(RenderAPI);
+	}
+}
+
+
 void URecomputeUVsTool::OnTick(float DeltaTime)
 {
 	Preview->Tick(DeltaTime);
+
+	if (UVLayoutView)
+	{
+		UVLayoutView->OnTick(DeltaTime);
+	}
 }
 
 bool URecomputeUVsTool::CanAccept() const
@@ -155,6 +189,15 @@ TUniquePtr<FDynamicMeshOperator> URecomputeUVsTool::MakeNewOperator()
 	
 	RecomputeUVsOp->IslandMode = (UE::Geometry::ERecomputeUVsIslandMode)(int)Settings->IslandMode;
 	RecomputeUVsOp->UnwrapType = (UE::Geometry::ERecomputeUVsUnwrapType)(int)Settings->UnwrapType;
+
+	RecomputeUVsOp->bAutoRotate = (Settings->AutoRotation == ERecomputeUVsToolOrientationMode::MinBoxBounds);
+
+	RecomputeUVsOp->NormalSmoothingRounds = Settings->SmoothingSteps;
+	RecomputeUVsOp->NormalSmoothingAlpha = Settings->SmoothingAlpha;
+
+	RecomputeUVsOp->bMergingOptimization = Settings->bIslandMerging;
+	RecomputeUVsOp->MergingThreshold = Settings->MergingThreshold;
+	RecomputeUVsOp->MaxNormalDeviationDeg = Settings->MaxAngleDeviation;
 
 	RecomputeUVsOp->bPackUVs = Settings->bAutoPack;
 	if (Settings->bAutoPack)
@@ -209,6 +252,24 @@ void URecomputeUVsTool::UpdateActiveGroupLayer()
 		FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*InputMesh, SelectedName);
 		ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
 		ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(InputMesh.Get(), FoundAttrib);
+	}
+}
+
+
+void URecomputeUVsTool::OnPreviewMeshUpdated()
+{
+	if (UVLayoutView)
+	{
+		int32 UVChannel = UVChannelProperties ? UVChannelProperties->GetSelectedChannelIndex(true) : 0;
+		Preview->PreviewMesh->ProcessMesh([&](const FDynamicMesh3& NewMesh)
+		{
+			UVLayoutView->UpdateUVMesh(&NewMesh, UVChannel);
+		});
+	}
+
+	if (MaterialSettings)
+	{
+		MaterialSettings->UpdateMaterials();
 	}
 
 }
