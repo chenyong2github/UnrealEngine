@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigVMDefines.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMExternalVariable.h"
 #include "RigVMCore/RigVMTraits.h"
@@ -146,7 +147,9 @@ struct RIGVM_API FRigVMStruct
 
 public:
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	FORCEINLINE virtual int32 GetArraySize(const FName& InParameterName, const FRigVMUserDataArray& RigVMUserData) { return INDEX_NONE; }
+#endif
 
 	// loop related
 	FORCEINLINE virtual bool IsForLoop() const { return false; }

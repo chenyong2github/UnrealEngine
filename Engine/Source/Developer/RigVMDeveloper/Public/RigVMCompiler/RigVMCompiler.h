@@ -93,6 +93,8 @@ public:
 	FRigVMOperand ComparisonOperand;
 
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+	TArray<URigVMPin*> WatchedPins;
 	
 	TMap<ERigVMMemoryType, TArray<FRigVMPropertyPathDescription>> PropertyPathDescriptions;
 	TMap<ERigVMMemoryType, TArray<FRigVMPropertyDescription>> PropertyDescriptions;
@@ -100,8 +102,7 @@ public:
 	FRigVMOperand AddProperty(ERigVMMemoryType InMemoryType, const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue = FString());
 	FRigVMOperand FindProperty(ERigVMMemoryType InMemoryType, const FName& InName);
 	FRigVMPropertyDescription GetProperty(const FRigVMOperand& InOperand);
-	int32 FindPropertyPath(ERigVMMemoryType InMemoryType, const FString& InSegmentPath) const;
-	int32 FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InSegmentPath);
+	int32 FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InRootCPPType, const FString& InSegmentPath);
 	
 #endif
 };
@@ -128,8 +129,17 @@ public:
 
 	static UScriptStruct* GetScriptStructForCPPType(const FString& InCPPType);
 	static FString GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAST* InVarExpr, bool bIsDebugValue = false);
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	void CreateDebugRegister(URigVMPin* InPin, URigVM* OutVM, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST);
 	void RemoveDebugRegister(URigVMPin* InPin, URigVM* OutVM, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST);
+
+#else
+
+	void MarkDebugWatch(bool bRequired, URigVMPin* InPin, URigVM* OutVM, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST);
+
+#endif
 
 private:
 

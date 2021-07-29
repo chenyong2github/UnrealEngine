@@ -29,6 +29,9 @@ FRigUnit_TimeOffsetFloat_Execute()
 	}
 
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	Buffer.SetNum(MaxSize);
+#endif
 	MaxSize = FMath::Min<int32>(MaxSize, Buffer.Num());
 
 	if (Context.State == EControlRigState::Init)
@@ -136,6 +139,9 @@ FRigUnit_TimeOffsetVector_Execute()
 	}
 
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	Buffer.SetNum(MaxSize);
+#endif
 	MaxSize = FMath::Min<int32>(MaxSize, Buffer.Num());
 
 	if (Context.State == EControlRigState::Init)
@@ -243,6 +249,9 @@ FRigUnit_TimeOffsetTransform_Execute()
 	}
 
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	Buffer.SetNum(MaxSize);
+#endif
 	MaxSize = FMath::Min<int32>(MaxSize, Buffer.Num());
 
 	if (Context.State == EControlRigState::Init)

@@ -131,7 +131,7 @@ bool FRigVMPropertyPath::IsDirect() const
 			case ERigVMPropertyPathSegmentType::ArrayElement:
 			case ERigVMPropertyPathSegmentType::MapValue:
 			{
-				return true;
+				return false;
 			}
 			default:
 			{
@@ -139,10 +139,47 @@ bool FRigVMPropertyPath::IsDirect() const
 			}
 		}
 	}
-	return false;
+	return true;
 }
 
-uint8* FRigVMPropertyPath::GetData_Internal(uint8* InPtr) const
+const FProperty* FRigVMPropertyPath::GetTargetProperty() const
+{
+	if(Segments.IsEmpty())
+	{
+		return nullptr;
+	}
+	
+	const FRigVMPropertyPathSegment& LastSegment = Segments[Num() - 1];
+	switch(LastSegment.Type)
+	{
+		case ERigVMPropertyPathSegmentType::ArrayElement:
+		{
+			const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(LastSegment.Property);
+			return ArrayProperty->Inner;
+			break;
+		}
+		case ERigVMPropertyPathSegmentType::MapValue:
+		{
+			const FMapProperty* MapProperty = CastFieldChecked<FMapProperty>(LastSegment.Property);
+			return MapProperty->ValueProp;
+			break;
+		}
+		case ERigVMPropertyPathSegmentType::StructMember:
+		{
+			return LastSegment.Property;
+			break;
+		}
+		default:
+		{
+			checkNoEntry();
+			break;
+		}
+	}
+
+	return nullptr;
+}
+
+uint8* FRigVMPropertyPath::GetData_Internal(uint8* InPtr, const FProperty* InProperty) const
 {
 	for(const FRigVMPropertyPathSegment& Segment : Segments)
 	{
@@ -150,19 +187,35 @@ uint8* FRigVMPropertyPath::GetData_Internal(uint8* InPtr) const
 		{
 			case ERigVMPropertyPathSegmentType::StructMember:
 			{
-				// index represents the offset needed
-				// from container to struct member
+#if UE_BUILD_DEBUG
+				// make sure to only allow jumps within the same data structure.
+				// we check this to avoid heap corruption.
+				const FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(InProperty);
+				check(StructProperty->Struct == Segment.Property->GetOwnerStruct());
+				InProperty = Segment.Property;
+#endif
+
 				InPtr += Segment.Property->GetOffset_ForInternal();
 				break;
 			}
 			case ERigVMPropertyPathSegmentType::ArrayElement:
 			{
+#if UE_BUILD_DEBUG
+				// we check this to avoid heap corruption.
+				check(InProperty->SameType(Segment.Property));
+				InProperty = CastFieldChecked<FArrayProperty>(Segment.Property)->Inner;
+#endif
 				FScriptArrayHelper ArrayHelper(CastFieldChecked<FArrayProperty>(Segment.Property), InPtr);
 				InPtr = ArrayHelper.GetRawPtr(Segment.Index);
 				break;
 			}
 			case ERigVMPropertyPathSegmentType::MapValue:
 			{
+#if UE_BUILD_DEBUG
+				// we check this to avoid heap corruption.
+				check(InProperty->SameType(Segment.Property));
+				InProperty = CastFieldChecked<FMapProperty>(Segment.Property)->ValueProp;
+#endif
 				FScriptMapHelper MapHelper(CastFieldChecked<FMapProperty>(Segment.Property), InPtr);
 				InPtr = MapHelper.FindValueFromHash(&Segment.Name);;
 				break;

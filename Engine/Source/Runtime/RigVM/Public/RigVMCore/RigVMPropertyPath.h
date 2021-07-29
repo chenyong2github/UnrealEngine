@@ -8,21 +8,25 @@
 struct RIGVM_API FRigVMPropertyPathDescription
 {
 	int32 PropertyIndex;
+	FString RootCPPType;
 	FString SegmentPath;
 	
 	FRigVMPropertyPathDescription()
 		: PropertyIndex(INDEX_NONE)
+		, RootCPPType()
 		, SegmentPath()
 	{}
 
-	FRigVMPropertyPathDescription(int32 InPropertyIndex, const FString& InSegmentPath)
+	FRigVMPropertyPathDescription(int32 InPropertyIndex, const FString& InRootCPPType, const FString& InSegmentPath)
 		: PropertyIndex(InPropertyIndex)
+		, RootCPPType(InRootCPPType)
 		, SegmentPath(InSegmentPath)
 	{}
 
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMPropertyPathDescription& Path)
 	{
 		Ar << Path.PropertyIndex;
+		Ar << Path.RootCPPType;
 		Ar << Path.SegmentPath;
 		return Ar;
 	}
@@ -78,12 +82,10 @@ public:
 		return GetTypeHash(this) < GetTypeHash(Other);
 	}
 
-	uint8* GetData_Internal(uint8* InPtr) const;
-
 	template<typename T>
-	FORCEINLINE T* GetData(uint8* InPtr) const
+	FORCEINLINE T* GetData(uint8* InPtr, const FProperty* InProperty) const
 	{
-		return (T*)GetData_Internal(InPtr);
+		return (T*)GetData_Internal(InPtr, InProperty);
 	}
 
 	friend FORCEINLINE uint32 GetTypeHash(const FRigVMPropertyPath& InPropertyPath)
@@ -99,9 +101,13 @@ public:
 		);
 	}
 
+	const FProperty* GetTargetProperty() const;
+	
 	static FRigVMPropertyPath Empty;
 
 private:
+
+	uint8* GetData_Internal(uint8* InPtr, const FProperty* InProperty) const;
 
 	FString Path;
 	TArray<FRigVMPropertyPathSegment> Segments;

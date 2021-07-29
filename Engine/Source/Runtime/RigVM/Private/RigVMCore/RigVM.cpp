@@ -156,6 +156,8 @@ void URigVM::Save(FArchive& Ar)
 	{
 		LiteralMemoryStorageObject->Serialize(Ar);
 	}
+
+	Ar << ExternalPropertyPathDescriptions;
 	
 #endif
 	
@@ -205,12 +207,26 @@ void URigVM::Load(FArchive& Ar)
 	if(WorkMemoryStorageObject == nullptr)
 	{
 		UClass* StorageClass = URigVMMemoryStorageGeneratorClass::GetStorageClass(GetOutermost(), ERigVMMemoryType::Work);
-		WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, StorageClass, NAME_None, RF_Public);
+		if(StorageClass)
+		{
+			WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, StorageClass, NAME_None, RF_Public);
+		}
+		else
+		{
+			WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, NAME_None, RF_Public);
+		}
 	}
 	if(LiteralMemoryStorageObject == nullptr)
 	{
 		UClass* StorageClass = URigVMMemoryStorageGeneratorClass::GetStorageClass(GetOutermost(), ERigVMMemoryType::Literal);
-		LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, StorageClass, NAME_None, RF_Public);
+		if(StorageClass)
+		{
+			LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, StorageClass, NAME_None, RF_Public);
+		}
+		else
+		{
+			LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, NAME_None, RF_Public);
+		}
 	}
 	if(DebugMemoryStorageObject == nullptr)
 	{
@@ -230,6 +246,8 @@ void URigVM::Load(FArchive& Ar)
 	{
 		LiteralMemoryStorageObject->Serialize(Ar);
 	}
+	
+	Ar << ExternalPropertyPathDescriptions;
 
 	Ar << FunctionNamesStorage;
 	Ar << ByteCodeStorage;
@@ -472,6 +490,8 @@ void URigVM::Reset()
 #endif
 	FunctionNamesStorage.Reset();
 	FunctionsStorage.Reset();
+	ExternalPropertyPathDescriptions.Reset();
+	ExternalPropertyPaths.Reset();
 	ByteCodeStorage.Reset();
 	Instructions.Reset();
 	Parameters.Reset();
@@ -501,6 +521,8 @@ void URigVM::Empty()
 #endif
 	FunctionNamesStorage.Empty();
 	FunctionsStorage.Empty();
+	ExternalPropertyPathDescriptions.Empty();
+	ExternalPropertyPaths.Empty();
 	ByteCodeStorage.Empty();
 	Instructions.Empty();
 	Parameters.Empty();
@@ -603,6 +625,9 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 	CopyMemoryStorage(WorkMemoryStorageObject, InVM->WorkMemoryStorageObject, this);
 	CopyMemoryStorage(LiteralMemoryStorageObject, InVM->LiteralMemoryStorageObject, this);
 	CopyMemoryStorage(DebugMemoryStorageObject, InVM->DebugMemoryStorageObject, this);
+
+	ExternalPropertyPathDescriptions = InVM->ExternalPropertyPathDescriptions;
+	ExternalPropertyPaths.Reset();
 	
 #endif
 
@@ -684,7 +709,6 @@ URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType) cons
 			return GetLiteralMemory();
 		}
 		case ERigVMMemoryType::Work:
-		case ERigVMMemoryType::External:
 		{
 			return GetWorkMemory();
 		}
@@ -819,6 +843,10 @@ void URigVM::InvalidateCachedMemory()
 	CachedMemory.Reset();
 	FirstHandleForInstruction.Reset();
 	CachedMemoryHandles.Reset();
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	ExternalPropertyPaths.Reset();
+#endif
 }
 
 void URigVM::CopyDeferredVMIfRequired()
@@ -879,6 +907,28 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 	{
 		CachedMemory.Add(InMemory[Index]);
 	}
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+	ExternalPropertyPaths.Reset();
+
+	ExternalPropertyPaths.SetNumZeroed(ExternalPropertyPathDescriptions.Num());
+	for(int32 PropertyPathIndex = 0; PropertyPathIndex < ExternalPropertyPaths.Num(); PropertyPathIndex++)
+	{
+		ExternalPropertyPaths[PropertyPathIndex] = FRigVMPropertyPath();
+
+		const int32 PropertyIndex = ExternalPropertyPathDescriptions[PropertyPathIndex].PropertyIndex;
+		if(ExternalVariables.IsValidIndex(PropertyIndex))
+		{
+			check(ExternalVariables[PropertyIndex].Property);
+			
+			ExternalPropertyPaths[PropertyPathIndex] = FRigVMPropertyPath(
+				ExternalVariables[PropertyIndex].Property,
+				ExternalPropertyPathDescriptions[PropertyPathIndex].SegmentPath);
+		}
+	}
+	
+#endif		
 
 	FRigVMByteCode& ByteCode = GetByteCode();
 
@@ -2637,15 +2687,15 @@ void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecut
 
 	URigVMMemoryStorage* Memory = GetMemoryByType(InArg.GetMemoryType());
 
-	const FRigVMPropertyPath* PropertyPath = nullptr;
-	if(InArg.GetRegisterOffset())
-	{
-		check(Memory->GetPropertyPaths().IsValidIndex(InArg.GetRegisterOffset()));
-		PropertyPath = &Memory->GetPropertyPaths()[InArg.GetRegisterOffset()];
-	}
-
 	if (InArg.GetMemoryType() == ERigVMMemoryType::External)
 	{
+		const FRigVMPropertyPath* PropertyPath = nullptr;
+		if(InArg.GetRegisterOffset() != INDEX_NONE)
+		{
+			check(ExternalPropertyPaths.IsValidIndex(InArg.GetRegisterOffset()));
+			PropertyPath = &ExternalPropertyPaths[InArg.GetRegisterOffset()];
+		}
+
 		check(ExternalVariables.IsValidIndex(InArg.GetRegisterIndex()));
 
 		FRigVMExternalVariable& ExternalVariable = ExternalVariables[InArg.GetRegisterIndex()];
@@ -2656,6 +2706,12 @@ void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecut
 		return;
 	}
 
+	const FRigVMPropertyPath* PropertyPath = nullptr;
+	if(InArg.GetRegisterOffset() != INDEX_NONE)
+	{
+		check(Memory->GetPropertyPaths().IsValidIndex(InArg.GetRegisterOffset()));
+		PropertyPath = &Memory->GetPropertyPaths()[InArg.GetRegisterOffset()];
+	}
 	uint8* Data = Memory->GetData<uint8>(InArg.GetRegisterIndex());
 	const FProperty* Property = Memory->GetProperties()[InArg.GetRegisterIndex()];
 	const FRigVMMemoryHandle Handle(Data, Property, PropertyPath);
@@ -2797,6 +2853,16 @@ void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigV
 
 	// add an element to the end for debug watching
 	FScriptArrayHelper ArrayHelper(TargetArrayProperty, TargetPtr);
+
+	if (Context.GetSlice().GetIndex() == 0)
+	{
+		ArrayHelper.Resize(0);
+	}
+	else if(Context.GetSlice().GetIndex() == ArrayHelper.Num() - 1)
+	{
+		return;
+	}
+
 	const int32 AddedIndex = ArrayHelper.AddValue();
 	TargetPtr = ArrayHelper.GetRawPtr(AddedIndex);
 	TargetProperty = TargetArrayProperty->Inner;
