@@ -2230,6 +2230,44 @@ void FSortedShadowMaps::Release()
 	PreshadowCache.RenderTargets.Release();
 }
 
+static bool PreparePostProcessSettingTextureForRenderer(const FViewInfo& View, UTexture2D* Texture2D, const TCHAR* TextureUsageName)
+{
+	check(IsInGameThread());
+
+	bool bIsValid = Texture2D != nullptr;
+
+	if (bIsValid)
+	{
+		const int32 CinematicTextureGroups = 0;
+		const float Seconds = 5.0f;
+		Texture2D->SetForceMipLevelsToBeResident(Seconds, CinematicTextureGroups);
+	}
+
+	const uint32 FramesPerWarning = 15;
+
+	if (bIsValid && Texture2D->IsFullyStreamedIn() == false)
+	{
+		if ((View.Family->FrameNumber % FramesPerWarning) == 0)
+		{
+			UE_LOG(LogRenderer, Warning, TEXT("The %s texture is not streamed in."), TextureUsageName);
+		}
+
+		bIsValid = false;
+	}
+
+	if (bIsValid && Texture2D->bHasStreamingUpdatePending == true)
+	{
+		if ((View.Family->FrameNumber % FramesPerWarning) == 0)
+		{
+			UE_LOG(LogRenderer, Warning, TEXT("The %s texture has pending update."), TextureUsageName);
+		}
+
+		bIsValid = false;
+	}
+
+	return bIsValid;
+};
+
 template <typename T>
 inline T* CheckPointer(T* Ptr)
 {
@@ -2304,6 +2342,39 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 		}
 		#endif
 
+		// Handle the FFT bloom kernel textire
+		if (ViewInfo->FinalPostProcessSettings.BloomMethod == EBloomMethod::BM_FFT && ViewInfo->ViewState != nullptr)
+		{
+			GEngine->LoadDefaultBloomTexture();
+
+			UTexture2D* BloomConvolutionTexture = ViewInfo->FinalPostProcessSettings.BloomConvolutionTexture;
+			if (BloomConvolutionTexture == nullptr)
+			{
+				BloomConvolutionTexture = GEngine->DefaultBloomKernelTexture;
+			}
+
+			bool bIsValid = PreparePostProcessSettingTextureForRenderer(*ViewInfo, BloomConvolutionTexture, TEXT("convolution bloom"));
+
+			if (bIsValid)
+			{
+				const FTextureResource* TextureResource = BloomConvolutionTexture->GetResource();
+				if (TextureResource)
+				{
+					ViewInfo->FFTBloomKernelTexture = TextureResource->GetTexture2DResource();
+					ViewInfo->FinalPostProcessSettings.BloomConvolutionTexture = BloomConvolutionTexture;
+				}
+				else
+				{
+					ViewInfo->FinalPostProcessSettings.BloomConvolutionTexture = nullptr;
+				}
+
+				if (BloomConvolutionTexture == GEngine->DefaultBloomKernelTexture)
+				{
+
+				}
+			}
+		}
+
 		// Handle the film grain texture
 		if (ViewInfo->FinalPostProcessSettings.FilmGrainIntensity > 0.0f)
 		{
@@ -2314,38 +2385,9 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 			{
 				FilmGrainTexture = ViewInfo->FinalPostProcessSettings.FilmGrainTexture;
 			}
-			  
-			bool bIsValid = FilmGrainTexture != nullptr;
 
-			if (bIsValid)
-			{
-				const int32 CinematicTextureGroups = 0;
-				const float Seconds = 5.0f;
-				FilmGrainTexture->SetForceMipLevelsToBeResident(Seconds, CinematicTextureGroups);
-			}
-
-			const uint32 FramesPerWarning = 15;
-
-			if (bIsValid && FilmGrainTexture->IsFullyStreamedIn() == false)
-			{
-				if ((ViewInfo->Family->FrameNumber % FramesPerWarning) == 0)
-				{
-					UE_LOG(LogRenderer, Warning, TEXT("The film grain texture is not streamed in."));
-				}
-
-				bIsValid = false;
-			}
-
-			if (bIsValid && FilmGrainTexture->bHasStreamingUpdatePending == true)
-			{
-				if ((ViewInfo->Family->FrameNumber % FramesPerWarning) == 0)
-				{
-					UE_LOG(LogRenderer, Warning, TEXT("The film grain texture has pending update."));
-				}
-
-				bIsValid = false;
-			}
-
+			bool bIsValid = PreparePostProcessSettingTextureForRenderer(*ViewInfo, FilmGrainTexture, TEXT("film grain"));
+			 
 			if (bIsValid)
 			{
 				const FTextureResource* TextureResource = FilmGrainTexture->GetResource();
