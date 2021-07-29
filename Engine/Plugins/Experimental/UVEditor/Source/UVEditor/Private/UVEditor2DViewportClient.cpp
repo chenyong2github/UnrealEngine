@@ -131,3 +131,7 @@ void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInter
 	FEditorViewportClient::Draw(View, PDI);
 }
 
+bool FUVEditor2DViewportClient::ShouldOrbitCamera() const
+{
+	return false; // The UV Editor's 2D viewport should never orbit.
+}
