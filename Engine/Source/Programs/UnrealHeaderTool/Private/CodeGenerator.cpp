@@ -3018,7 +3018,7 @@ void ExportVTableHelperCtorAndCaller(FOutputDevice& Out, FUnrealClassDefinitionI
  */
 void ExportStandardConstructorsMacro(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API, const TCHAR* ClassCPPName)
 {
-	if (!ClassDef.HasAnyClassFlags(CLASS_CustomConstructor))
+	if (!ClassDef.HasCustomConstructor())
 	{
 		Out.Logf(TEXT("\t/** Standard constructor, called after all reflected properties have been initialized */\r\n"));
 		Out.Logf(TEXT("\t%s_API %s(const FObjectInitializer& ObjectInitializer%s);\r\n"), API, ClassCPPName,

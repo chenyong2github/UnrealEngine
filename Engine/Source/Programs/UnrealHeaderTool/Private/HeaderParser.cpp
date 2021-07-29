@@ -5287,7 +5287,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 	// If we have existing class flags (preexisting engine objects), make sure we have some shared flags.
 	check(ClassDef.GetClassFlags() == 0 || (ClassDef.GetClassFlags() & ClassDef.GetParsedClassFlags()) != 0);
 
-	ClassDef.SetClassFlags(CLASS_Parsed);
+	ClassDef.MarkParsed();
 
 	PushNest(ENestType::Class, &ClassDef);
 	
@@ -5296,7 +5296,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 	// Make sure our parent classes is parsed.
 	for (FUnrealClassDefinitionInfo* TempDef = ClassDef.GetSuperClass(); TempDef; TempDef = TempDef->GetSuperClass())
 	{
-		bool bIsParsed = TempDef->HasAnyClassFlags(CLASS_Parsed);
+		bool bIsParsed = TempDef->IsParsed();
 		bool bIsIntrinsic = TempDef->HasAnyClassFlags(CLASS_Intrinsic);
 		if (!(bIsParsed || bIsIntrinsic))
 		{
@@ -7244,7 +7244,7 @@ void FHeaderParser::ParseHeader()
 			FUnrealClassDefinitionInfo& ClassDef = ClassDataPair->AsClassChecked();
 			for (FUnrealClassDefinitionInfo* ParentClassDef = ClassDef.GetSuperClass(); ParentClassDef; ParentClassDef = ParentClassDef->GetSuperClass())
 			{
-				if (ParentClassDef->HasAnyClassFlags(CLASS_Parsed | CLASS_Intrinsic))
+				if (ParentClassDef->IsParsed() || ParentClassDef->HasAnyClassFlags(CLASS_Intrinsic))
 				{
 					break;
 				}
@@ -7357,7 +7357,7 @@ void FHeaderParser::ParseHeader()
 
 	for (const TSharedRef<FUnrealTypeDefinitionInfo>& ClassDef : SourceFile.GetDefinedClasses())
 	{
-		ClassDef->AsClassChecked().SetClassFlags(CLASS_Parsed);
+		ClassDef->AsClassChecked().MarkParsed();
 	}
 
 	// Perform any final concurrent finalization

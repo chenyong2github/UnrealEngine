@@ -3322,6 +3322,38 @@ public:
 	}
 
 	/**
+	 * Return true if the class has been parsed
+	 */
+	bool IsParsed() const
+	{
+		return bParsed;
+	}
+
+	/**
+	 * Mark the class as being parsed
+	 */
+	void MarkParsed()
+	{
+		bParsed = true;
+	}
+
+	/**
+	 * Return true if the class has a custom constructor
+	 */
+	bool HasCustomConstructor() const
+	{
+		return bCustomConstructor;
+	}
+
+	/**
+	 * Mark the class as having a custom constructor
+	 */
+	void MarkCustomConstructor()
+	{
+		bCustomConstructor = true;
+	}
+
+	/**
 	 * Get the generated body access specifier
 	 */
 	EAccessSpecifier GetGeneratedBodyMacroAccessSpecifier() const
@@ -3434,12 +3466,19 @@ private:
 	/** Is default constructor declared? */
 	bool bDefaultConstructorDeclared = false;
 
-	/* Is ObjectInitializer constructor (i.e. a constructor with only one parameter of type FObjectInitializer) declared? */
+	/** Is ObjectInitializer constructor (i.e. a constructor with only one parameter of type FObjectInitializer) declared? */
 	bool bObjectInitializerConstructorDeclared = false;
 
-	/* Is custom VTable helper constructor declared? */
+	/** Is custom VTable helper constructor declared? */
 	bool bCustomVTableHelperConstructorDeclared = false;
 
+	/** True if the class definition has been parsed */
+	bool bParsed = false;
+
+	/** True if the class has a custom constructor */
+	bool bCustomConstructor = false;
+
+	/** True if the class is an interface */
 	bool bIsInterface = false;
 };
 

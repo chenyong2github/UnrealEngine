@@ -2209,22 +2209,6 @@ void FUnrealClassDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineT
 			UFunction* Function = FunctionDef->GetFunction();
 			Class->AddFunctionToFunctionMap(Function, Function->GetFName());
 		}
-
-
-		if (!HasAnyClassFlags(CLASS_Native))
-		{
-			//Class->UnMark(EObjectMark(OBJECTMARK_TagImp | OBJECTMARK_TagExp));
-		}
-		else if (!HasAnyClassFlags(CLASS_NoExport | CLASS_Intrinsic))
-		{
-			//Class->UnMark(OBJECTMARK_TagImp);
-			//Class->Mark(OBJECTMARK_TagExp);
-		}
-
-		// This needs to be done outside of parallel blocks because it will modify UClass memory.
-		// Later calls to SetUpUhtReplicationData inside parallel blocks should be fine, because
-		// they will see the memory has already been set up, and just return the parent pointer.
-		Class->SetUpUhtReplicationData();
 		break;
 	}
 
@@ -2491,7 +2475,7 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 		case EClassMetadataSpecifier::CustomConstructor:
 
 			// we will not export a constructor for this class, assuming it is in the CPP block
-			ParsedClassFlags |= CLASS_CustomConstructor;
+			MarkCustomConstructor();
 			break;
 
 		case EClassMetadataSpecifier::Config:
