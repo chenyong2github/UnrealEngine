@@ -897,7 +897,7 @@ void FSlateUser::LockCursorInternal(const FWidgetPath& WidgetPath)
 	if (NativeWindow && NativeWindow->IsForegroundWindow())
 	{
 		// The last widget in the path should be the widget we are locking the cursor to
-		const FSlateRect SlateClipRect = WidgetPath.Widgets.Last().Geometry.GetLayoutBoundingRect();
+		FSlateRect SlateClipRect = WidgetPath.Widgets.Last().Geometry.GetLayoutBoundingRect();
 		LastComputedLockBounds = SlateClipRect;
 		LockingWidgetPath = WidgetPath;
 
@@ -908,6 +908,20 @@ void FSlateUser::LockCursorInternal(const FWidgetPath& WidgetPath)
 #else
 		const int32 ClipRectAdjustment = 0;
 #endif
+		// Screen space mapping scales everything. When viewport resolution doesn't match platform resolution, 
+		// this causes offset cursor hit-tests in fullscreen. Correct when capturing mouse as viewport widget may be smaller than screen in pixels.
+		if (FSlateApplication::Get().GetTransformFullscreenMouseInput() && !GIsEditor && NativeWindow->GetWindowMode() == EWindowMode::Fullscreen)
+		{
+			FDisplayMetrics CachedDisplayMetrics;
+			FSlateApplication::Get().GetCachedDisplayMetrics(CachedDisplayMetrics);
+			FVector2D DisplaySize = { (float)CachedDisplayMetrics.PrimaryDisplayWidth, (float)CachedDisplayMetrics.PrimaryDisplayHeight };
+			FVector2D DisplayDistortion = SlateClipRect.GetSize() / DisplaySize;
+
+			SlateClipRect.Left /= DisplayDistortion.X;
+			SlateClipRect.Top /= DisplayDistortion.Y;
+			SlateClipRect.Right /= DisplayDistortion.X;
+			SlateClipRect.Bottom /= DisplayDistortion.Y;
+		}
 
 		// Note: We round the upper left coordinate of the clip rect so we guarantee the rect is inside the geometry of the widget.  If we truncated when there is a half pixel we would cause the clip
 		// rect to be half a pixel larger than the geometry and cause the mouse to go outside of the geometry.
