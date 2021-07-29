@@ -16,6 +16,7 @@
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/DataStream.h"
+#include "TraceServices/Utils.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
 /*
@@ -122,8 +123,9 @@ void FCpuAnalyzer::OnBatch(const FOnEventContext& Context)
 
 	uint32 ThreadId = Context.ThreadInfo.GetId();
 
-	const uint8* Cursor = EventData.GetAttachment();
-	const uint8* End = Cursor + EventData.GetAttachmentSize();
+	TArrayView<const uint8> DataView = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentArray("Data", Context);
+	const uint8* Cursor = DataView.GetData();
+	const uint8* End = Cursor + DataView.Num();
 	uint64 LastCycle = 0;
 	while (Cursor < End)
 	{
