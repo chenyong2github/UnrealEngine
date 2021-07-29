@@ -300,7 +300,6 @@ UDeformMeshPolygonsTransformProperties::UDeformMeshPolygonsTransformProperties()
 	bSelectFaces        = true;
 	bSelectEdges        = true;
 	bShowWireframe      = false;
-	bSnapToWorldGrid    = false;
 }
 
 /*
@@ -1472,9 +1471,9 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Translate()
 	FGroupTopologyDeformer& SelectedDeformer = (bIsLaplacian) ? *LaplacianDeformer : LinearDeformer;
 
 	TFunction<FVector3d(const FVector3d&)> PointConstraintFunc = nullptr;
-	if (TransformProps->bSnapToWorldGrid &&
-	    GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+	if (GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
 	{
+		// We currently don't support grid snapping in local mode
 		PointConstraintFunc = [&](const FVector3d& Pos) {
 			FVector3d GridSnapPos;
 			return ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, Pos, GridSnapPos) ? GridSnapPos : Pos;

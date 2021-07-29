@@ -109,9 +109,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = SelectionFilter)
 	bool bSelectVertices;
 
-	UPROPERTY(EditAnywhere, Category = Snapping)
-	bool bSnapToWorldGrid;
-
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowWireframe;
 
