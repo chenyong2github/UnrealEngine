@@ -34,9 +34,9 @@ namespace DisplayClusterRootActorDetailsCustomizationUtils
 			DisplayClusterConfigurationStrings::categories::OCIOCategory,
 			DisplayClusterConfigurationStrings::categories::LightcardCategory,
 			DisplayClusterConfigurationStrings::categories::OverrideCategory,
+			TEXT("Rendering"),
 			DisplayClusterConfigurationStrings::categories::PreviewCategory,
 			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
-			DisplayClusterConfigurationStrings::categories::PreviewCategory,
 			DisplayClusterConfigurationStrings::categories::AdvancedCategory
 		};
 
@@ -75,7 +75,6 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	ForcePropertyWindowRebuildHandle = FEditorSupportDelegates::ForcePropertyWindowRebuild.AddSP(this, &FDisplayClusterRootActorDetailsCustomization::OnForcePropertyWindowRebuild);
 
 	// Hide the following categories, we don't really need them
-	InLayoutBuilder.HideCategory(TEXT("Rendering"));
 	InLayoutBuilder.HideCategory(TEXT("Replication"));
 	InLayoutBuilder.HideCategory(TEXT("Collision"));
 	InLayoutBuilder.HideCategory(TEXT("Input"));
