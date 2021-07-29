@@ -52,8 +52,7 @@ class MESHMODELINGTOOLS_API UConvertToPolygonsToolProperties : public UInteracti
 public:
 	/** Strategy to use to group triangles */
 	UPROPERTY(EditAnywhere, Category = PolyGroups)
-		EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FromFurthestPointSampling;
-	//EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
+	EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
 
 	/** Tolerance for planarity */
 	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (UIMin = "0.001", UIMax = "20.0", ClampMin = "0.0", ClampMax = "90.0", EditCondition = "ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation", EditConditionHides))
