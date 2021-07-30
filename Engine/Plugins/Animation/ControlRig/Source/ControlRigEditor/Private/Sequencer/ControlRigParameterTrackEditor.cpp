@@ -848,7 +848,7 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 			TempAnimSequence->SetSkeleton(Skeleton);
 			const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
 			FMovieSceneSequenceIDRef Template = ParentSequencer->GetFocusedTemplateID();
-			FMovieSceneSequenceTransform RootToLocalTransform;
+			FMovieSceneSequenceTransform RootToLocalTransform = ParentSequencer->GetFocusedMovieSceneSequenceTransform();
 			UAnimSeqExportOption* AnimSeqExportOption = NewObject<UAnimSeqExportOption>(GetTransientPackage(), NAME_None);
 			UBakeToControlRigSettings* BakeSettings = GetMutableDefault<UBakeToControlRigSettings>();
 
