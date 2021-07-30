@@ -1571,9 +1571,10 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 
 	for (int32 TransformIdx : TransformIndices)
 	{
-		if (Collection->Children[TransformIdx].Num() > 0)
+		int32 GeometryIdx = Collection->TransformToGeometryIndex[TransformIdx];
+		if (GeometryIdx == INDEX_NONE)
 		{
-			// only store the meshes of leaf nodes
+			// only store the mesh if there is associated geometry
 			continue;
 		}
 
@@ -1584,8 +1585,7 @@ void FDynamicMeshCollection::Init(const FGeometryCollection* Collection, const T
 		MeshData.TransformIndex = TransformIdx;
 		MeshData.ToCollection = FTransform(CollectionToLocal.Inverse());
 		FDynamicMesh3& Mesh = MeshData.AugMesh;
-
-		int32 GeometryIdx = Collection->TransformToGeometryIndex[TransformIdx];
+		
 		Mesh.EnableAttributes();
 		Mesh.Attributes()->EnableMaterialID();
 

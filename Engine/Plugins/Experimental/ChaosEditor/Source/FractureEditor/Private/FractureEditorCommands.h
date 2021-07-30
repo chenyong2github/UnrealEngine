@@ -66,6 +66,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > ConvertToMesh;
 		TSharedPtr< FUICommandInfo > Validate;
 		TSharedPtr< FUICommandInfo > MakeConvex;
+		TSharedPtr< FUICommandInfo > FixTinyGeo;
 
 		// Property Commands
 		TSharedPtr< FUICommandInfo > SetInitialDynamicState;

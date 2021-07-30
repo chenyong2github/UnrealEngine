@@ -208,6 +208,58 @@ int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
 	bool bSetDefaultInternalMaterialsFromCollection = true
 );
 
+
+/**
+ * Populate an array of transform indices w/ those that are smaller than a threshold volume
+ *
+ * @param Collection			The collection to be processed
+ * @param TransformIndices		The transform indices to process, or empty if all should be processed
+ * @param OutVolumes			Output array, to be filled w/ volumes of geometry; 1:1 w/ TransformIndices array
+ * @param ScalePerDimension		Scale to apply per dimension (e.g. 1/100 converts volume from centimeters^3 to meters^3)
+ */
+void PLANARCUT_API FindBoneVolumes(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	TArray<double>& OutVolumes,
+	double ScalePerDimension = .01
+);
+
+/**
+ * Populate an array of transform indices w/ those that are smaller than a threshold volume
+ *
+ * @param Collection			The collection to be processed
+ * @param TransformIndices		The transform indices to process, or empty if all should be processed
+ * @param Volumes				Volumes of geometry; 1:1 w/ TransformIndices array
+ * @param MinVolume				Geometry smaller than this quantity will be chosen
+ * @param OutSmallBones			Output array, to be filled with transform indices for small pieces of geometry
+ */
+void PLANARCUT_API FindSmallBones(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	const TArrayView<const double>& Volumes,
+	double MinVolume,
+	TArray<int32>& OutSmallBones
+);
+
+/**
+ * Merge chosen geometry into neighboring geometry.  Geometry will be merged into its largest neighboring geometry (if any).
+ *
+ * @param Collection			The collection to be processed
+ * @param TransformIndices		The transform indices to process, or empty if all should be processed
+ * @param Volumes				Volumes of geometry; 1:1 w/ TransformIndices array
+ * @param MinVolume				If merged small geometry is larger than this, it will not require further merging
+ * @param SmallTransformIndices	Transformed indices of pieces that we want to merge
+ * @param bUnionJoinedPieces	Try to 'union' the merged pieces, removing internal triangles and connecting the shared cut boundary
+ */
+int32 PLANARCUT_API MergeBones(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	const TArrayView<const double>& Volumes,
+	double MinVolume,
+	const TArrayView<const int32>& SmallTransformIndices,
+	bool bUnionJoinedPieces
+);
+
 /**
  * Recompute normals and tangents of selected geometry, optionally restricted to faces with odd or given material IDs (i.e. to target internal faces)
  *

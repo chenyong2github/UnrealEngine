@@ -535,6 +535,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.ConvertToMesh);
 		ToolbarBuilder.AddToolBarButton(Commands.Validate);
 		ToolbarBuilder.AddToolBarButton(Commands.MakeConvex);
+		ToolbarBuilder.AddToolBarButton(Commands.FixTinyGeo);
 	}
 	else if (PaletteIndex == TEXT("Properties"))
 	{
