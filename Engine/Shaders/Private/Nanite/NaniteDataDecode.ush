@@ -17,8 +17,9 @@
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteResources.h
 
-#define CLUSTER_PAGE_GPU_SIZE_BITS				17														// must match define in NaniteResources.h
-#define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_GPU_SIZE_BITS )						// must match define in NaniteResources.h
+#define ROOT_PAGE_GPU_SIZE_BITS					15														// must match define in NaniteResources.h
+#define STREAMING_PAGE_GPU_SIZE_BITS			17														// must match define in NaniteResources.h
+
 #define MAX_CLUSTERS_PER_PAGE_BITS				10														// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteResources.h
@@ -52,6 +53,7 @@
 #define MAX_TRANSCODE_GROUPS_PER_PAGE			128														// must match define in NaniteResources.h
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				6														// must match define in NaniteResources.h
+#define GPU_PAGE_HEADER_SIZE					16														// must match define in NaniteResources.h
 
 #define MAX_POSITION_QUANTIZATION_BITS			21		// (21*3 = 63) < 64								// must match define in NaniteResources.h
 #define POSITION_PRECISION_BITS					 5														// must match define in NaniteResources.h
@@ -159,6 +161,11 @@ struct FVisibleCluster
 	uint	PageIndex;
 	uint	ClusterIndex;
 	uint2	vPage;
+};
+
+struct FPageHeader
+{
+	uint	NumClusters;
 };
 
 struct FCluster
@@ -277,22 +284,20 @@ struct FInstanceDraw
 };
 
 #if NANITE_USE_UNIFORM_BUFFER
-	#define SOAStrides 				Nanite.SOAStrides
+	#define PageConstants			Nanite.PageConstants
 	#define MaxNodes				Nanite.MaxNodes
 	#define MaxVisibleClusters		Nanite.MaxVisibleClusters
 	#define RenderFlags				Nanite.RenderFlags
 	#define DebugFlags				Nanite.DebugFlags
 	#define ClusterPageData			Nanite.ClusterPageData
-	#define ClusterPageHeaders		Nanite.ClusterPageHeaders
 	#define VisibleClustersSWHW		Nanite.VisibleClustersSWHW
 #else
-	uint4 							SOAStrides;
+	uint4 							PageConstants;
 	uint							MaxNodes;
 	uint							MaxVisibleClusters;
 	uint							RenderFlags;
 	uint							DebugFlags;
 	ByteAddressBuffer 				ClusterPageData;
-	ByteAddressBuffer 				ClusterPageHeaders;
 	ByteAddressBuffer				VisibleClustersSWHW;
 #endif
 
@@ -378,7 +383,7 @@ FVisibleCluster GetVisibleCluster( uint ClusterIndex )
 
 FInstanceSceneData GetInstanceSceneData( inout FVisibleCluster VisibleCluster )
 {
-	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, SOAStrides.x );
+	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, PageConstants.x );
 
 	// Couldn't have been stored so signals this is an imposter
 	if( VisibleCluster.Flags == (1 << NUM_CULLING_FLAG_BITS) )
@@ -418,7 +423,7 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 
 FInstanceSceneData GetInstanceSceneData( uint InstanceId )
 {
-	return GetInstanceSceneData( InstanceId, SOAStrides.x );
+	return GetInstanceSceneData( InstanceId, PageConstants.x );
 }
 
 FCluster UnpackCluster(uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S])
@@ -504,10 +509,33 @@ FCluster UnpackCluster(uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S])
 	return Cluster;
 }
 
+uint GPUPageIndexToGPUOffset(uint PageIndex)
+{
+	const uint MaxStreamingPages = PageConstants.y;
+	return (min(PageIndex, MaxStreamingPages) << STREAMING_PAGE_GPU_SIZE_BITS) + ((uint)max((int)PageIndex - (int)MaxStreamingPages, 0) << ROOT_PAGE_GPU_SIZE_BITS);
+}
+
+FPageHeader UnpackPageHeader(uint4 Data)
+{
+	FPageHeader Header;
+	Header.NumClusters = Data.x;
+	return Header;
+}
+
+FPageHeader GetPageHeader(ByteAddressBuffer InputBuffer, uint PageAddress)
+{
+	return UnpackPageHeader(InputBuffer.Load4(PageAddress));
+}
+
+FPageHeader GetPageHeader(RWByteAddressBuffer InputBuffer, uint PageAddress)
+{
+	return UnpackPageHeader(InputBuffer.Load4(PageAddress));
+}
+
 FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
 {
 	const uint ClusterSOAStride = ( NumPageClusters << 4 );
-	const uint ClusterBaseAddress = SrcBaseOffset + ( ClusterIndex << 4 );
+	const uint ClusterBaseAddress = SrcBaseOffset + GPU_PAGE_HEADER_SIZE + ( ClusterIndex << 4 );
 	
 	uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S];
 	UNROLL
@@ -522,7 +550,7 @@ FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Clus
 FCluster GetCluster(RWByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
 {
 	const uint ClusterSOAStride = (NumPageClusters << 4);
-	const uint ClusterBaseAddress = SrcBaseOffset + (ClusterIndex << 4);
+	const uint ClusterBaseAddress = SrcBaseOffset + GPU_PAGE_HEADER_SIZE + (ClusterIndex << 4);
 
 	uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S];
 	UNROLL
@@ -535,10 +563,9 @@ FCluster GetCluster(RWByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Cl
 
 FCluster GetCluster(uint PageIndex, uint ClusterIndex)
 {
-	uint NumClusters = ClusterPageHeaders.Load(PageIndex * 4);
-	uint PageBaseAddress = (PageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
-	
-	FCluster Cluster = GetCluster(ClusterPageData, PageBaseAddress, ClusterIndex, NumClusters);
+	uint PageBaseAddress = GPUPageIndexToGPUOffset(PageIndex);
+	FPageHeader Header = GetPageHeader(ClusterPageData, PageBaseAddress);
+	FCluster Cluster = GetCluster(ClusterPageData, PageBaseAddress, ClusterIndex, Header.NumClusters);
 	Cluster.PageBaseAddress = PageBaseAddress;
 	return Cluster;
 }

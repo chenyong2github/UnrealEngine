@@ -25,9 +25,8 @@ class FEmitHitProxyIdPS : public FNaniteShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
-		SHADER_PARAMETER(FIntVector4, SOAStrides)
+		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageData )
-		SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageHeaders )
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 
@@ -121,9 +120,8 @@ void DrawHitProxies(
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
-		PassParameters->SOAStrides = RasterResults.SOAStrides;
+		PassParameters->PageConstants = RasterResults.PageConstants;
 		PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
-		PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->VisBuffer64 = VisBuffer64;
 		PassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 
@@ -172,9 +170,8 @@ void GetEditorSelectionPassParameters(
 	OutPassParameters->View						= View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	OutPassParameters->MaxVisibleClusters		= Nanite::FGlobalResources::GetMaxVisibleClusters();
-	OutPassParameters->SOAStrides				= NaniteRasterResults->SOAStrides;
+	OutPassParameters->PageConstants			= NaniteRasterResults->PageConstants;
 	OutPassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
-	OutPassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64				= VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable	= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	OutPassParameters->OutputToInputScale		= FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Scale;
@@ -242,9 +239,8 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	OutPassParameters->View = View.ViewUniformBuffer;
 	OutPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	OutPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
-	OutPassParameters->SOAStrides = NaniteRasterResults->SOAStrides;
+	OutPassParameters->PageConstants = NaniteRasterResults->PageConstants;
 	OutPassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
-	OutPassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64 = VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	OutPassParameters->OutputToInputScale = FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Scale;

@@ -45,14 +45,13 @@ struct FPageSections
 	uint32 Attribute		= 0;
 
 	uint32 GetMaterialTableSize() const		{ return Align(MaterialTable, 16); }
-
-	uint32 GetClusterOffset() const			{ return 0; }
-	uint32 GetMaterialTableOffset() const	{ return Cluster; }
-	uint32 GetDecodeInfoOffset() const		{ return Cluster + GetMaterialTableSize(); }
-	uint32 GetIndexOffset() const			{ return Cluster + GetMaterialTableSize() + DecodeInfo; }
-	uint32 GetPositionOffset() const		{ return Cluster + GetMaterialTableSize() + DecodeInfo + Index; }
-	uint32 GetAttributeOffset() const		{ return Cluster + GetMaterialTableSize() + DecodeInfo + Index + Position; }
-	uint32 GetTotal() const					{ return Cluster + GetMaterialTableSize() + DecodeInfo + Index + Position + Attribute; }
+	uint32 GetClusterOffset() const			{ return GPU_PAGE_HEADER_SIZE; }
+	uint32 GetMaterialTableOffset() const	{ return GetClusterOffset() + Cluster; }
+	uint32 GetDecodeInfoOffset() const		{ return GetMaterialTableOffset() + GetMaterialTableSize(); }
+	uint32 GetIndexOffset() const			{ return GetDecodeInfoOffset() + DecodeInfo; }
+	uint32 GetPositionOffset() const		{ return GetIndexOffset() + Index; }
+	uint32 GetAttributeOffset() const		{ return GetPositionOffset() + Position; }
+	uint32 GetTotal() const					{ return GetAttributeOffset() + Attribute; }
 
 	FPageSections GetOffsets() const
 	{
@@ -1352,7 +1351,8 @@ static void AssignClustersToPages(
 
 			// Add to page
 			FPage* Page = &Pages.Top();
-			if (Page->GpuSizes.GetTotal() + EncodingInfo.GpuSizes.GetTotal() > CLUSTER_PAGE_GPU_SIZE || Page->NumClusters + 1 > MAX_CLUSTERS_PER_PAGE)
+			bool bRootPage = IsRootPage(Pages.Num() - 1u);
+			if (Page->GpuSizes.GetTotal() + EncodingInfo.GpuSizes.GetTotal() > (bRootPage ? ROOT_PAGE_GPU_SIZE : STREAMING_PAGE_GPU_SIZE) || Page->NumClusters + 1 > MAX_CLUSTERS_PER_PAGE)
 			{
 				// Page is full. Need to start a new one
 				Pages.AddDefaulted();
@@ -1551,7 +1551,6 @@ static void WritePages(	FResources& Resources,
 	const uint32 NumClusters = Clusters.Num();
 	Resources.PageStreamingStates.SetNum(NumPages);
 
-	uint32 TotalGPUSize = 0;
 	TArray<FFixupChunk> FixupChunks;
 	FixupChunks.SetNum(NumPages);
 	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
@@ -1568,7 +1567,6 @@ static void WritePages(	FResources& Resources,
 		}
 
 		FixupChunk.Header.NumHierachyFixups = NumHierarchyFixups;	// NumHierarchyFixups must be set before writing cluster fixups
-		TotalGPUSize += Page.GpuSizes.GetTotal();
 	}
 
 	// Add external fixups to pages
@@ -1704,6 +1702,7 @@ static void WritePages(	FResources& Resources,
 		NumPageClusterPairsPerCluster.SetNumUninitialized(Page.NumClusters);
 		
 		const uint32 NumPackedClusterDwords = Page.NumClusters * sizeof(FPackedCluster) / sizeof(uint32);
+		const uint32 MaterialTableStartOffsetInDwords = (GPU_PAGE_HEADER_SIZE / 4) + NumPackedClusterDwords;
 
 		FPageSections GpuSectionOffsets = Page.GpuSizes.GetOffsets();
 		TMap<FVariableVertex, uint32> UniqueVertices;
@@ -1721,7 +1720,7 @@ static void WritePages(	FResources& Resources,
 				FPackedCluster& PackedCluster = PackedClusters[LocalClusterIndex];
 				PackCluster(PackedCluster, Cluster, EncodingInfos[ClusterIndex], NumTexCoords);
 
-				PackedCluster.PackedMaterialInfo = PackMaterialInfo(Cluster, MaterialRangeData, NumPackedClusterDwords);
+				PackedCluster.PackedMaterialInfo = PackMaterialInfo(Cluster, MaterialRangeData, MaterialTableStartOffsetInDwords);
 				check((GpuSectionOffsets.Index & 3) == 0);
 				check((GpuSectionOffsets.Position & 3) == 0);
 				check((GpuSectionOffsets.Attribute & 3) == 0);
@@ -1786,7 +1785,7 @@ static void WritePages(	FResources& Resources,
 
 		// Begin page
 		TArray<uint8>& PageResult = PageResults[PageIndex];
-		PageResult.SetNum(CLUSTER_PAGE_DISK_SIZE);
+		PageResult.SetNum(MAX_PAGE_DISK_SIZE);
 		FBlockPointer PagePointer(PageResult.GetData(), PageResult.Num());
 
 		// Disk header
@@ -1795,15 +1794,21 @@ static void WritePages(	FResources& Resources,
 		// 16-byte align material range data to make it easy to copy during GPU transcoding
 		MaterialRangeData.SetNum(Align(MaterialRangeData.Num(), 4));
 
+		static_assert(sizeof(FPageGPUHeader) % 16 == 0, "sizeof(FGPUPageHeader) must be a multiple of 16");
 		static_assert(sizeof(FUVRange) % 16 == 0, "sizeof(FUVRange) must be a multiple of 16");
 		static_assert(sizeof(FPackedCluster) % 16 == 0, "sizeof(FPackedCluster) must be a multiple of 16");
 		PageDiskHeader->NumClusters = Page.NumClusters;
 		PageDiskHeader->GpuSize = Page.GpuSizes.GetTotal();
-		PageDiskHeader->NumRawFloat4s = Page.NumClusters * (sizeof(FPackedCluster) + NumTexCoords * sizeof(FUVRange)) / 16 +  MaterialRangeData.Num() / 4;
+		PageDiskHeader->NumRawFloat4s = sizeof(FPageGPUHeader) / 16 + Page.NumClusters * (sizeof(FPackedCluster) + NumTexCoords * sizeof(FUVRange)) / 16 +  MaterialRangeData.Num() / 4;
 		PageDiskHeader->NumTexCoords = NumTexCoords;
 
 		// Cluster headers
 		FClusterDiskHeader* ClusterDiskHeaders = PagePointer.Advance<FClusterDiskHeader>(Page.NumClusters);
+
+		// GPU page header
+		FPageGPUHeader* GPUPageHeader = PagePointer.Advance<FPageGPUHeader>(1);
+		*GPUPageHeader = FPageGPUHeader{};
+		GPUPageHeader->NumClusters = Page.NumClusters;
 
 		// Write clusters in SOA layout
 		{
@@ -1957,14 +1962,20 @@ static void WritePages(	FResources& Resources,
 	});
 
 	// Write pages
-	uint32 TotalSize = 0;
+	uint32 NumRootPages = 0;
+	uint32 TotalRootGPUSize = 0;
+	uint32 TotalRootDiskSize = 0;
+	uint32 NumStreamingPages = 0;
+	uint32 TotalStreamingGPUSize = 0;
+	uint32 TotalStreamingDiskSize = 0;
+	
 	uint32 TotalFixupSize = 0;
 	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
 	{
 		const FPage& Page = Pages[PageIndex];
-		
+		const bool bRootPage = IsRootPage(PageIndex);
 		FFixupChunk& FixupChunk = FixupChunks[PageIndex];
-		TArray<uint8>& BulkData = IsRootPage(PageIndex) ? Resources.RootClusterPage : StreamableBulkData;
+		TArray<uint8>& BulkData = bRootPage ? Resources.RootClusterPage : StreamableBulkData;
 
 		FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
 		PageStreamingState.BulkOffset = BulkData.Num();
@@ -1979,18 +1990,31 @@ static void WritePages(	FResources& Resources,
 		// Copy page to BulkData
 		TArray<uint8>& PageData = PageResults[PageIndex];
 		BulkData.Append(PageData.GetData(), PageData.Num());
-		TotalSize += PageData.Num();
+		
+		if (bRootPage)
+		{
+			TotalRootGPUSize += Page.GpuSizes.GetTotal();
+			TotalRootDiskSize += PageData.Num();
+			NumRootPages++;
+		}
+		else
+		{
+			TotalStreamingGPUSize += Page.GpuSizes.GetTotal();
+			TotalStreamingDiskSize += PageData.Num();
+			NumStreamingPages++;
+		}
 
 		PageStreamingState.BulkSize = BulkData.Num() - PageStreamingState.BulkOffset;
 		PageStreamingState.PageSize = PageData.Num();
 	}
 
-	uint32 TotalDiskSize = Resources.RootClusterPage.Num() + StreamableBulkData.Num();
+	const uint32 TotalPageGPUSize = TotalRootGPUSize + TotalStreamingGPUSize;
+	const uint32 TotalPageDiskSize = TotalRootDiskSize + TotalStreamingDiskSize;
 	UE_LOG(LogStaticMesh, Log, TEXT("WritePages:"), NumPages);
-	UE_LOG(LogStaticMesh, Log, TEXT("  %d pages written."), NumPages);
-	UE_LOG(LogStaticMesh, Log, TEXT("  GPU size: %d bytes. %.3f bytes per page. %.3f%% utilization."), TotalGPUSize, TotalGPUSize / float(NumPages), TotalGPUSize / (float(NumPages) * CLUSTER_PAGE_GPU_SIZE) * 100.0f);
-	UE_LOG(LogStaticMesh, Log, TEXT("  Page data: %d bytes. Fixup data: %d bytes."), TotalSize, TotalFixupSize);
-	UE_LOG(LogStaticMesh, Log, TEXT("  Total disk size: %d bytes. %.3f bytes per page."), TotalDiskSize, TotalDiskSize/ float(NumPages));
+	UE_LOG(LogStaticMesh, Log, TEXT("  Root: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalRootGPUSize, NumRootPages, TotalRootGPUSize / (float)NumRootPages, TotalRootGPUSize / (float(NumRootPages) * ROOT_PAGE_GPU_SIZE) * 100.0f);
+	UE_LOG(LogStaticMesh, Log, TEXT("  Streaming: GPU size: %d bytes. %d Pages. %.3f bytes per page (%.3f%% utilization)."), TotalStreamingGPUSize, NumStreamingPages, TotalStreamingGPUSize / float(NumStreamingPages), TotalStreamingGPUSize / (float(NumStreamingPages) * STREAMING_PAGE_GPU_SIZE) * 100.0f);
+	UE_LOG(LogStaticMesh, Log, TEXT("  Page data disk size: %d bytes. Fixup data size: %d bytes."), TotalPageDiskSize, TotalFixupSize);
+	UE_LOG(LogStaticMesh, Log, TEXT("  Total GPU size: %d bytes, Total disk size: %d bytes."), TotalPageGPUSize, TotalPageDiskSize + TotalFixupSize);
 
 	// Store PageData
 	Resources.StreamableClusterPages.Lock(LOCK_READ_WRITE);

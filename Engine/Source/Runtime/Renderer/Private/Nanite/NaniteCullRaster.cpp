@@ -19,6 +19,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, 
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCull, TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM, TEXT("Nanite Instance Cull VSM"));
 DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
+DECLARE_GPU_STAT_NAMED(NaniteClusterCull2, TEXT("Nanite Cluster Cull 2"));
 
 #define CULLING_PASS_NO_OCCLUSION		0
 #define CULLING_PASS_OCCLUSION_MAIN		1
@@ -186,7 +187,7 @@ struct FCompactedViewInfo
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT( FCullingParameters, )
-	SHADER_PARAMETER( FIntVector4,	SOAStrides )
+	SHADER_PARAMETER( FIntVector4,	PageConstants )
 	SHADER_PARAMETER( uint32,		MaxCandidateClusters )
 	SHADER_PARAMETER( uint32,		MaxVisibleClusters )
 	SHADER_PARAMETER( uint32,		RenderFlags )
@@ -439,7 +440,6 @@ class FPersistentClusterCull_CS : public FNaniteShader
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters)
 
-		SHADER_PARAMETER_SRV( ByteAddressBuffer,								ClusterPageHeaders )
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageData )
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,				HierarchyBuffer )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FUintVector2 >,		InTotalPrevDrawClusters )
@@ -591,13 +591,12 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
 	SHADER_PARAMETER_STRUCT_INCLUDE( FRasterParameters, RasterParameters )
 
-	SHADER_PARAMETER( FIntVector4,	SOAStrides )
+	SHADER_PARAMETER( FIntVector4,	PageConstants )
 	SHADER_PARAMETER( uint32,		MaxVisibleClusters )
 	SHADER_PARAMETER( uint32,		RenderFlags )
 	SHADER_PARAMETER( uint32,		VisualizeModeBitMask )
 	
 	SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageData )
-	SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageHeaders )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FPackedView >,	InViews )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,					VisibleClustersSWHW )
@@ -1021,9 +1020,9 @@ FCullingContext InitCullingContext(
 	}
 
 	// TODO: Might this not break if the view has overridden the InstanceSceneData?
-	const uint32 NumSceneInstancesPo2					= FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize());
-	CullingContext.SOAStrides.X							= Scene.GPUScene.InstanceSceneDataSOAStride;
-	CullingContext.SOAStrides.Y							= NumSceneInstancesPo2;
+	const uint32 NumSceneInstancesPo2						= FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize());
+	CullingContext.PageConstants.X							= Scene.GPUScene.InstanceSceneDataSOAStride;
+	CullingContext.PageConstants.Y							= Nanite::GStreamingManager.GetMaxStreamingPages();
 	
 	check(NumSceneInstancesPo2 <= MAX_INSTANCES);		// There are too many instances in the scene.
 
@@ -1097,6 +1096,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	)
 {
 	LLM_SCOPE_BYTAG(Nanite);
+
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteClusterCull2);
 
 	checkf(GRHIPersistentThreadGroupCount > 0, TEXT("GRHIPersistentThreadGroupCount must be configured correctly in the RHI."));
 
@@ -1238,7 +1239,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->CullingParameters		= CullingParameters;
 		PassParameters->MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
 		
-		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV();
 		
@@ -1358,7 +1358,7 @@ void AddPass_Rasterize(
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
-	FIntVector4 SOAStrides, 
+	FIntVector4 PageConstants,
 	uint32 RenderFlags,
 	FRDGBufferRef ViewsBuffer,
 	FRDGBufferRef VisibleClustersSWHW,
@@ -1381,7 +1381,6 @@ void AddPass_Rasterize(
 	auto* CommonPassParameters = &RasterPassParameters->Common;
 
 	CommonPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
-	CommonPassParameters->ClusterPageHeaders = GStreamingManager.GetClusterPageHeadersSRV();
 
 	if (ViewsBuffer)
 	{
@@ -1391,7 +1390,7 @@ void AddPass_Rasterize(
 	CommonPassParameters->GPUSceneParameters = GPUSceneParameters;
 	CommonPassParameters->RasterParameters = RasterContext.Parameters;
 	CommonPassParameters->VisualizeModeBitMask = RasterContext.VisualizeModeBitMask;
-	CommonPassParameters->SOAStrides = SOAStrides;
+	CommonPassParameters->PageConstants = PageConstants;
 	CommonPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 	CommonPassParameters->RenderFlags = RenderFlags;
 	if (RasterState.CullMode == CM_CCW)
@@ -1905,7 +1904,7 @@ void CullRasterize(
 		CullingParameters.HZBTexture	= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
 		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2D(0.0f);
 		CullingParameters.HZBSampler	= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
-		CullingParameters.SOAStrides	= CullingContext.SOAStrides;
+		CullingParameters.PageConstants = CullingContext.PageConstants;
 		CullingParameters.MaxCandidateClusters	= Nanite::FGlobalResources::GetMaxCandidateClusters();
 		CullingParameters.MaxVisibleClusters	= Nanite::FGlobalResources::GetMaxVisibleClusters();
 		CullingParameters.RenderFlags	= CullingContext.RenderFlags;
@@ -2052,7 +2051,7 @@ void CullRasterize(
 		Views,
 		RasterContext,
 		RasterState,
-		CullingContext.SOAStrides,
+		CullingContext.PageConstants,
 		CullingContext.RenderFlags,
 		CullingContext.ViewsBuffer,
 		CullingContext.VisibleClustersSWHW,
@@ -2130,7 +2129,7 @@ void CullRasterize(
 			Views,
 			RasterContext,
 			RasterState,
-			CullingContext.SOAStrides,
+			CullingContext.PageConstants,
 			CullingContext.RenderFlags,
 			CullingContext.ViewsBuffer,
 			CullingContext.VisibleClustersSWHW,

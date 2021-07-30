@@ -234,12 +234,11 @@ class FCalculateClusterStatsCS : public FNaniteShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER( FIntVector4, SOAStrides )
+		SHADER_PARAMETER( FIntVector4, PageConstants )
 		SHADER_PARAMETER( uint32, MaxVisibleClusters )
 		SHADER_PARAMETER( uint32, RenderFlags )
 
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,	ClusterPageData )
-		SHADER_PARAMETER_SRV( ByteAddressBuffer,	ClusterPageHeaders )
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, VisibleClustersSWHW )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
@@ -436,12 +435,11 @@ void ExtractStats(
 		{
 			FCalculateClusterStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCalculateClusterStatsCS::FParameters>();
 
-			PassParameters->SOAStrides = CullingContext.SOAStrides;
+			PassParameters->PageConstants = CullingContext.PageConstants;
 			PassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 			PassParameters->RenderFlags = CullingContext.RenderFlags;
 
 			PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
-			PassParameters->ClusterPageHeaders = GStreamingManager.GetClusterPageHeadersSRV();
 			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
 
@@ -553,7 +551,7 @@ void ExtractResults(
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
-	RasterResults.SOAStrides 			= CullingContext.SOAStrides;
+	RasterResults.PageConstants			= CullingContext.PageConstants;
 	RasterResults.MaxVisibleClusters	= Nanite::FGlobalResources::GetMaxVisibleClusters();
 	RasterResults.MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
 	RasterResults.RenderFlags			= CullingContext.RenderFlags;

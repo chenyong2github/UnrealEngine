@@ -1099,7 +1099,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 					GraphBuilder,
 					*Scene,
 					View,
-					RasterResults.SOAStrides,
+					RasterResults.PageConstants,
 					RasterResults.VisibleClustersSWHW,
 					RasterResults.ViewsBuffer,
 					SceneTextures.Depth.Target,

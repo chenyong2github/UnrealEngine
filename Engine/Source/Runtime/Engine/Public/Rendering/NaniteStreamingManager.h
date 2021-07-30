@@ -122,9 +122,9 @@ public:
 	const TRefCountPtr< FRDGPooledBuffer >&	GetStreamingRequestsBuffer()	{ return StreamingRequestsBuffer; }
 
 	FRHIShaderResourceView*				GetClusterPageDataSRV() const		{ return ClusterPageData.DataBuffer.SRV; }
-	FRHIShaderResourceView*				GetClusterPageHeadersSRV() const	{ return ClusterPageHeaders.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetHierarchySRV() const				{ return Hierarchy.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetRootPagesSRV() const				{ return RootPages.DataBuffer.SRV; }
+	uint32								GetMaxStreamingPages() const		{ return MaxStreamingPages; }
 
 	inline bool HasResourceEntries() const
 	{
@@ -151,7 +151,6 @@ private:
 	};
 
 	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
-	FHeapBuffer				ClusterPageHeaders;
 	FScatterUploadBuffer	ClusterFixupUploadBuffer;
 	FHeapBuffer				Hierarchy;
 	FHeapBuffer				RootPages;
@@ -212,6 +211,8 @@ private:
 	void ApplyFixups( const FFixupChunk& FixupChunk, const FResources& Resources, uint32 PageIndex, uint32 GPUPageIndex );
 
 	bool ArePageDependenciesCommitted(uint32 RuntimeResourceID, uint32 PageIndex, uint32 DependencyPageStart, uint32 DependencyPageNum);
+
+	uint32 GPUPageIndexToGPUOffset(uint32 PageIndex) const;
 
 	// Returns whether any work was done and page/hierarchy buffers were transitioned to compute writable state
 	bool ProcessNewResources( FRDGBuilder& GraphBuilder);
