@@ -123,7 +123,7 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 				UsdUtils::AddPayload( AssetRootPrim, *PayloadFilename );
 			}
 
-			UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage );
+			UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage, Options->Inner.LowestMeshLOD, Options->Inner.HighestMeshLOD );
 
 			AssetStage.GetRootLayer().Save();
 		}
@@ -131,7 +131,15 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 	// Not using payload: Just author everything on the current edit target of the payload (== asset) layer
 	else
 	{
-		UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim );
+		int32 LowestLOD = 0;
+		int32 HighestLOD = MAX_MESH_LOD_COUNT - 1;
+		if ( Options )
+		{
+			LowestLOD = Options->Inner.LowestMeshLOD;
+			HighestLOD = Options->Inner.HighestMeshLOD;
+		}
+
+		UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), nullptr, LowestLOD, HighestLOD );
 	}
 
 	UsdStage.GetRootLayer().Save();

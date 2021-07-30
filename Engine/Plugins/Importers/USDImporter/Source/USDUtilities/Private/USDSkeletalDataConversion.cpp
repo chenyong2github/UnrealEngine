@@ -2348,7 +2348,7 @@ bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkelet
 	return UnrealToUsd::ConvertSkeleton( Skeleton->GetReferenceSkeleton(), UsdSkeleton );
 }
 
-bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
+bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments, int32 LowestMeshLOD, int32 HighestMeshLOD )
 {
 	pxr::UsdSkelRoot SkelRoot{ SkelRootPrim };
 	if ( !SkeletalMesh || !SkeletalMesh->GetSkeleton() || !SkelRoot )
@@ -2371,6 +2371,18 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 	{
 		return false;
 	}
+
+	// Make sure they're both >= 0 (the options dialog slider is clamped, but this may be called directly)
+	LowestMeshLOD = FMath::Clamp( LowestMeshLOD, 0, NumLODs - 1 );
+	HighestMeshLOD = FMath::Clamp( HighestMeshLOD, 0, NumLODs - 1 );
+
+	// Make sure Lowest <= Highest
+	int32 Temp = FMath::Min( LowestMeshLOD, HighestMeshLOD );
+	HighestMeshLOD = FMath::Max( LowestMeshLOD, HighestMeshLOD );
+	LowestMeshLOD = Temp;
+
+	// Make sure it's at least 1 LOD level
+	NumLODs = FMath::Max( HighestMeshLOD - LowestMeshLOD + 1, 1 );
 
 	pxr::UsdVariantSets VariantSets = SkelRootPrim.GetVariantSets();
 	if ( NumLODs > 1 && VariantSets.HasVariantSet( UnrealIdentifiers::LOD ) )
@@ -2423,7 +2435,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 	}
 
 	// Actual meshes
-	for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
+	for ( int32 LODIndex = LowestMeshLOD; LODIndex <= HighestMeshLOD; ++LODIndex )
 	{
 		const FSkeletalMeshLODModel& LODModel = SkelMeshResource->LODModels[ LODIndex ];
 
@@ -2490,7 +2502,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			}
 
 			int32 NumDeltas = 0;
-			FMorphTargetDelta* DeltaArray = MorphTarget->GetMorphTargetDelta(LODIndex, NumDeltas);
+			FMorphTargetDelta* DeltaArray = MorphTarget->GetMorphTargetDelta( LODIndex, NumDeltas );
 			if ( !DeltaArray || NumDeltas == 0 )
 			{
 				continue;

@@ -131,7 +131,7 @@ bool UStaticMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, F
 				UsdUtils::AddPayload( AssetRootPrim, *PayloadFilename );
 			}
 
-			UnrealToUsd::ConvertStaticMesh( StaticMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage );
+			UnrealToUsd::ConvertStaticMesh( StaticMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage, Options->LowestMeshLOD, Options->HighestMeshLOD );
 
 			AssetStage.GetRootLayer().Save();
 		}
@@ -139,7 +139,15 @@ bool UStaticMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, F
 	// Not using payload: Just author everything on the current edit target of the payload (== asset) layer
 	else
 	{
-		UnrealToUsd::ConvertStaticMesh( StaticMesh, RootPrim );
+		int32 LowestLOD = 0;
+		int32 HighestLOD = MAX_MESH_LOD_COUNT - 1;
+		if ( Options )
+		{
+			LowestLOD = Options->LowestMeshLOD;
+			HighestLOD = Options->HighestMeshLOD;
+		}
+
+		UnrealToUsd::ConvertStaticMesh( StaticMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), nullptr, LowestLOD, HighestLOD );
 	}
 
 	UsdStage.GetRootLayer().Save();
