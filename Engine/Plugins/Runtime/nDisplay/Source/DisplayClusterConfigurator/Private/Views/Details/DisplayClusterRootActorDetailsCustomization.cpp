@@ -37,7 +37,7 @@ namespace DisplayClusterRootActorDetailsCustomizationUtils
 			TEXT("Rendering"),
 			DisplayClusterConfigurationStrings::categories::PreviewCategory,
 			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
-			DisplayClusterConfigurationStrings::categories::AdvancedCategory
+			DisplayClusterConfigurationStrings::categories::AdvancedCategory,
 		};
 
 		for (const TPair<FName, IDetailCategoryBuilder*>& Pair : AllCategoryMap)
@@ -83,10 +83,9 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	InLayoutBuilder.HideCategory(TEXT("Cooking"));
 	InLayoutBuilder.HideCategory(TEXT("Physics"));
 	InLayoutBuilder.HideCategory(TEXT("Activation"));
-	InLayoutBuilder.HideCategory(TEXT("Tags"));
 	InLayoutBuilder.HideCategory(TEXT("Asset User Data"));
 	InLayoutBuilder.HideCategory(TEXT("Actor Tick"));
-	
+
 	// Hide the auto-generated category. Currently, you can see "Advanced" and "Default". Fix in a different way.
 	InLayoutBuilder.HideCategory(TEXT("Advanced"));
 
@@ -282,6 +281,25 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				REPLACE_PROPERTY_WITH_CUSTOM_ENABLE_CONDITION(ADisplayClusterRootActor, PreviewNodeId, CreateCustomNodeIdWidget(), PreviewEnabledEditCondition);
 			}
 		END_CATEGORY();
+
+		// Hide unwanted properties from "Rendering" category
+		{
+			IDetailCategoryBuilder& RenderingCategory = InLayoutBuilder.EditCategory(TEXT("Rendering"));
+
+			TArray<TSharedRef<IPropertyHandle>> DefaultProperties;
+			RenderingCategory.GetDefaultProperties(DefaultProperties);
+
+			for (TSharedRef<IPropertyHandle>& PropertyHandle : DefaultProperties)
+			{
+				if (const FProperty* Property = PropertyHandle->GetProperty())
+				{
+					if (Property->GetFName() != TEXT("bHidden")) // "Actor Hidden In Game"
+					{
+						PropertyHandle->MarkHiddenByCustomization();
+					}
+				}
+			}
+		}
 
 		// Hide the Configuration category from level instances, will only be allowed to edit them in the config editor
 		if (!bIsCDO)
