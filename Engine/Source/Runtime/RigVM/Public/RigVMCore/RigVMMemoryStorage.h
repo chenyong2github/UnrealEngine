@@ -34,14 +34,14 @@ public:
 	{
 	}
 
-	FORCEINLINE uint8* GetData(bool bFollowPropertyPath = false)
+	FORCEINLINE uint8* GetData(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE)
 	{
-		return GetData_Internal(bFollowPropertyPath);
+		return GetData_Internal(bFollowPropertyPath, InSliceIndex);
 	}
 
-	FORCEINLINE const uint8* GetData(bool bFollowPropertyPath = false) const
+	FORCEINLINE const uint8* GetData(bool bFollowPropertyPath = false, int32 InSliceIndex = INDEX_NONE) const
 	{
-		return GetData_Internal(bFollowPropertyPath);
+		return GetData_Internal(bFollowPropertyPath, InSliceIndex);
 	}
 
 	FORCEINLINE const FProperty* GetProperty() const
@@ -65,8 +65,27 @@ public:
 
 private:
 
-	FORCEINLINE_DEBUGGABLE uint8* GetData_Internal(bool bFollowPropertyPath = false) const
+	FORCEINLINE_DEBUGGABLE uint8* GetData_Internal(bool bFollowPropertyPath, int32 InSliceIndex) const
 	{
+		if(InSliceIndex != INDEX_NONE)
+		{
+			// sliced memory cannot be accessed
+			// using a property path.
+			// it refers to opaque memory only
+			check(PropertyPath == nullptr);
+			check(!bFollowPropertyPath);
+
+			const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(Property);
+			FScriptArrayHelper ArrayHelper(ArrayProperty, Ptr);
+			if(ArrayHelper.Num() <= InSliceIndex)
+			{
+				const int32 NumValuesToAdd = 1 + InSliceIndex - ArrayHelper.Num();
+				ArrayHelper.AddValues(NumValuesToAdd);
+			}
+
+			return ArrayHelper.GetRawPtr(InSliceIndex);
+		}
+		
 		if(bFollowPropertyPath && PropertyPath != nullptr)
 		{
 			return PropertyPath->GetData<uint8>(Ptr, Property);

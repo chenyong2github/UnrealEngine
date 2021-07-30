@@ -1257,9 +1257,20 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		bool bCPPTypesDiffer = true;
 		static const FString Float = TEXT("float");
 		static const FString Double = TEXT("double");
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 		if((InSourcePin->CPPType == Float && InTargetPin->CPPType == Double) ||
 			(InSourcePin->CPPType == Double && InTargetPin->CPPType == Float))
+#else
+
+		static const FString FloatArray = TEXT("TArray<float>");
+		static const FString DoubleArray = TEXT("TArray<double>");
+		
+		if((InSourcePin->CPPType == Float && InTargetPin->CPPType == Double) ||
+			(InSourcePin->CPPType == Double && InTargetPin->CPPType == Float) ||
+			(InSourcePin->CPPType == FloatArray && InTargetPin->CPPType == DoubleArray) ||
+			(InSourcePin->CPPType == DoubleArray && InTargetPin->CPPType == FloatArray))
+#endif
 		{
 			bCPPTypesDiffer = false;
 		}

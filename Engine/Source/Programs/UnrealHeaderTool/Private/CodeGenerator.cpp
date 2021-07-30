@@ -3420,23 +3420,6 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 				OperandIndex++;
 			}
-
-#else
-
-			if (Parameter.IsArray())
-			{
-				FString ExtendedType = Parameter.ExtendedType();
-				RigVMStubProlog.Add(FString::Printf(TEXT("TArray%s& %s = *(TArray%s*)RigVMMemoryHandles[%d].GetData();"),
-					*ExtendedType,
-					*ParamNameOriginal,
-					*ExtendedType,
-					OperandIndex));
-
-				OperandIndex++;
-			}
-			
-#endif
-			
 			else
 			{
 				FString VariableType = Parameter.TypeVariableRef(true);
@@ -3459,6 +3442,45 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 				OperandIndex++;
 			}
+
+#else
+
+			FString AdditionalParameters;
+			if(!Parameter.bInput && !Parameter.bOutput && !Parameter.bSingleton)
+			{
+				static const FString SliceContextParameter = TEXT(", RigVMExecuteContext.GetSlice().GetIndex()");
+				AdditionalParameters = SliceContextParameter;
+			}
+
+			if (Parameter.IsArray())
+			{
+				FString ExtendedType = Parameter.ExtendedType();
+				RigVMStubProlog.Add(FString::Printf(TEXT("TArray%s& %s = *(TArray%s*)RigVMMemoryHandles[%d].GetData(false%s);"),
+					*ExtendedType,
+					*ParamNameOriginal,
+					*ExtendedType,
+					OperandIndex,
+					*AdditionalParameters));
+
+				OperandIndex++;
+			}
+			else
+			{
+				FString VariableType = Parameter.TypeVariableRef(true);
+				FString ExtractedType = Parameter.TypeOriginal();
+				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
+
+				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMMemoryHandles[%d].GetData(false%s);"),
+				*VariableType,
+				*ParamNameOriginal,
+				*ParameterCast,
+				OperandIndex,
+				*AdditionalParameters));
+
+				OperandIndex++;
+			}
+			
+#endif
 		}
 
 		FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
