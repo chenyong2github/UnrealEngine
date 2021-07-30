@@ -57,6 +57,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"ModelingComponents",
 				"ModelingComponentsEditorOnly",
 				"MeshModelingTools",
+				"MeshModelingToolsExp",
 				"MeshModelingToolsEditorOnly",
 				"MeshLODToolset",
 

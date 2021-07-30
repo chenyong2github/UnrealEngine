@@ -30,7 +30,7 @@ public class UVEditor : ModuleRules
 				"UnrealEd",
 				"InputCore",
 				"InteractiveToolsFramework",
-				"MeshModelingTools",
+				"MeshModelingToolsExp",
 				
 				// ... add other public dependencies that you statically link with here ...
 			}

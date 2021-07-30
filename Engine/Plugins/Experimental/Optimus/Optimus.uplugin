@@ -39,7 +39,7 @@
 	],
 	"Plugins": [
 		{
-			"Name": "MeshModelingToolset",
+			"Name": "MeshModelingToolsetExp",
 			"Enabled": true
 		},
 		{
