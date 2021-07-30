@@ -469,17 +469,11 @@ void InitDomainAndGetKernel(
 
 	const auto& PPSettings = View.FinalPostProcessSettings;
 
-	UTexture2D* BloomConvolutionTexture = PPSettings.BloomConvolutionTexture;
 	const FTexture2DResource* BloomConvolutionTextureResource = View.FFTBloomKernelTexture;
-
-	// Fall back to the default bloom texture if provided.
-	if (BloomConvolutionTexture == nullptr)
-	{
-		BloomConvolutionTexture = GEngine->DefaultBloomKernelTexture;
-	}
+	const FTextureRHIRef& PhysicalSpaceKernelTextureRef = BloomConvolutionTextureResource->TextureRHI;
 
 	// This should exist if we called IsFFTBloomPhysicalKernelReady.
-	check(BloomConvolutionTexture && BloomConvolutionTextureResource && BloomConvolutionTextureResource->TextureRHI);
+	check(BloomConvolutionTextureResource && PhysicalSpaceKernelTextureRef);
 
 	const float BloomConvolutionSize = PPSettings.BloomConvolutionSize;
 	const FVector2D CenterUV = PPSettings.BloomConvolutionCenterUV;
@@ -504,7 +498,7 @@ void InitDomainAndGetKernel(
 
 		FRDGTextureRef PrevCachedSpectralKernel = GraphBuilder.RegisterExternalTexture(FFTKernel.Spectral);
 
-		const bool bSameTexture = (FFTKernel.Physical == static_cast<const UTexture2D*>(BloomConvolutionTexture));
+		const bool bSameTexture = (FFTKernel.PhysicalRHI == PhysicalSpaceKernelTextureRef);
 		const bool bSameSpectralBuffer = TransformDesc.ClearValue == PrevCachedSpectralKernel->Desc.ClearValue
 			&& TransformDesc.Flags == PrevCachedSpectralKernel->Desc.Flags
 			&& TransformDesc.Format == PrevCachedSpectralKernel->Desc.Format
@@ -530,9 +524,6 @@ void InitDomainAndGetKernel(
 	if (!CachedSpectralKernel)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "InitDomainAndGetKernel");
-
-		// Sample the physical space kernel into the resized buffer
-		const FTextureRHIRef& PhysicalSpaceKernelTextureRef = BloomConvolutionTextureResource->TextureRHI;
 
 		// Rescale the physical space kernel ( and omit the center if this is a 1/2 resolution fft, it will be added later)
 		FRDGTextureRef ResizedKernel = GraphBuilder.CreateTexture(TransformDesc, TEXT("Bloom.FFT.ResizedKernel"));
@@ -565,7 +556,8 @@ void InitDomainAndGetKernel(
 		{
 			ViewState->BloomFFTKernel.Scale = BloomConvolutionSize;
 			ViewState->BloomFFTKernel.ImageSize = Intermediates.ImageRect.Size();
-			ViewState->BloomFFTKernel.Physical = BloomConvolutionTexture;
+			ViewState->BloomFFTKernel.Physical = View.FinalPostProcessSettings.BloomConvolutionTexture;
+			ViewState->BloomFFTKernel.PhysicalRHI = PhysicalSpaceKernelTextureRef;
 			ViewState->BloomFFTKernel.CenterUV = CenterUV;
 			ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTextureResource->GetCurrentMipCount();
 			{

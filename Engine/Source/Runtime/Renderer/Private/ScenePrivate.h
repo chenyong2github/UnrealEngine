@@ -970,8 +970,9 @@ public:
 		TRefCountPtr<IPooledRenderTarget> Spectral;
 		TRefCountPtr<IPooledRenderTarget> CenterWeight; // a 1-pixel buffer that holds blend weights for half-resolution fft.
 
-														// The physical space source texture
-		UTexture2D* Physical = NULL;
+		// The physical space source texture
+		UTexture2D* Physical = nullptr;
+		FRHITexture* PhysicalRHI = nullptr;
 
 		// The Scale * 100 = percentage of the image space that the physical kernel represents.
 		// e.g. Scale = 1 indicates that the physical kernel image occupies the same size 

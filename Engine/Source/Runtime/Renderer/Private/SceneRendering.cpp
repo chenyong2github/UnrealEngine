@@ -2245,7 +2245,7 @@ static bool PreparePostProcessSettingTextureForRenderer(const FViewInfo& View, U
 
 	const uint32 FramesPerWarning = 15;
 
-	if (bIsValid && Texture2D->IsFullyStreamedIn() == false)
+	if (bIsValid && (Texture2D->IsFullyStreamedIn() == false || Texture2D->HasPendingInitOrStreaming()))
 	{
 		if ((View.Family->FrameNumber % FramesPerWarning) == 0)
 		{
@@ -2260,6 +2260,20 @@ static bool PreparePostProcessSettingTextureForRenderer(const FViewInfo& View, U
 		if ((View.Family->FrameNumber % FramesPerWarning) == 0)
 		{
 			UE_LOG(LogRenderer, Warning, TEXT("The %s texture has pending update."), TextureUsageName);
+		}
+
+		bIsValid = false;
+	}
+
+#if WITH_EDITOR
+	if (bIsValid && Texture2D->IsDefaultTexture())
+#else
+	if (bIsValid && (!Texture2D->GetResource() || Texture2D->GetResource()->IsProxy()))
+#endif
+	{
+		if ((View.Family->FrameNumber % FramesPerWarning) == 0)
+		{
+			UE_LOG(LogRenderer, Warning, TEXT("The %s texture is still using the default texture proxy."), TextureUsageName);
 		}
 
 		bIsValid = false;
@@ -2345,11 +2359,11 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 		// Handle the FFT bloom kernel textire
 		if (ViewInfo->FinalPostProcessSettings.BloomMethod == EBloomMethod::BM_FFT && ViewInfo->ViewState != nullptr)
 		{
-			GEngine->LoadDefaultBloomTexture();
-
 			UTexture2D* BloomConvolutionTexture = ViewInfo->FinalPostProcessSettings.BloomConvolutionTexture;
 			if (BloomConvolutionTexture == nullptr)
 			{
+				GEngine->LoadDefaultBloomTexture();
+
 				BloomConvolutionTexture = GEngine->DefaultBloomKernelTexture;
 			}
 
@@ -2366,11 +2380,6 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 				else
 				{
 					ViewInfo->FinalPostProcessSettings.BloomConvolutionTexture = nullptr;
-				}
-
-				if (BloomConvolutionTexture == GEngine->DefaultBloomKernelTexture)
-				{
-
 				}
 			}
 		}
