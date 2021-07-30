@@ -81,12 +81,11 @@ class FNaniteVisualizeCS : public FNaniteShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)
 		SHADER_PARAMETER(FIntVector4, VisualizeConfig)
 		SHADER_PARAMETER(FIntVector4, VisualizeScales)
-		SHADER_PARAMETER(FIntVector4, SOAStrides)
+		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
@@ -110,10 +109,9 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
-		SHADER_PARAMETER(FIntVector4, SOAStrides)
+		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(FIntVector4, ViewRect)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialComplexity)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
@@ -204,9 +202,8 @@ void AddVisualizationPasses(
 				FMaterialComplexityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMaterialComplexityCS::FParameters>();
 				PassParameters->View					= View.ViewUniformBuffer;
 				PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-				PassParameters->SOAStrides				= Data.SOAStrides;
+				PassParameters->PageConstants			= Data.PageConstants;
 				PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
-				PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 				PassParameters->VisBuffer64				= VisBuffer64;
 				PassParameters->MaterialSlotTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 				PassParameters->MaterialDepthTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
@@ -281,10 +278,9 @@ void AddVisualizationPasses(
 
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
-				PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 				PassParameters->VisualizeConfig = GetVisualizeConfig(Visualization.ModeID, Visualization.bCompositeScene, GNaniteVisualizeEdgeDetect != 0);
 				PassParameters->VisualizeScales = GetVisualizeScales(Visualization.ModeID);
-				PassParameters->SOAStrides = Data.SOAStrides;
+				PassParameters->PageConstants = Data.PageConstants;
 				PassParameters->MaxVisibleClusters = Data.MaxVisibleClusters;
 				PassParameters->RenderFlags = Data.RenderFlags;
 				PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
@@ -366,9 +362,8 @@ void DrawVisualization(
 
 		PassParameters->View					= View.ViewUniformBuffer;
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
-		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 		PassParameters->VisualizeConfig			= GetVisualizeConfig();
-		PassParameters->SOAStrides				= RasterResults.SOAStrides;
+		PassParameters->PageConstants			= RasterResults.PageConstants;
 		PassParameters->MaxVisibleClusters		= RasterResults.MaxVisibleClusters;
 		PassParameters->RenderFlags				= RasterResults.RenderFlags;
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);

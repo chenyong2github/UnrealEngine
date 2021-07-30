@@ -121,14 +121,13 @@ struct FVisualizeResult
 } // namespace Nanite
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
-	SHADER_PARAMETER(FIntVector4,					SOAStrides)
+	SHADER_PARAMETER(FIntVector4,					PageConstants)
 	SHADER_PARAMETER(FIntVector4,					MaterialConfig) // .x mode, .yz grid size, .w unused
 	SHADER_PARAMETER(uint32,						MaxNodes)
 	SHADER_PARAMETER(uint32,						MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,						RenderFlags)
 	SHADER_PARAMETER(FVector4,						RectScaleOffset) // xy: scale, zw: offset
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageData)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageHeaders)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			VisibleClustersSWHW)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>,	VisibleMaterials)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint2>,		MaterialRange)

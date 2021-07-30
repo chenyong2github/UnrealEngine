@@ -2299,7 +2299,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						GraphBuilder,
 						*Scene,
 						Views[ViewIndex],
-						CullingContext.SOAStrides,
+						CullingContext.PageConstants,
 						CullingContext.VisibleClustersSWHW,
 						CullingContext.ViewsBuffer,
 						SceneTextures.Depth.Target,

@@ -331,7 +331,7 @@ void EmitDepthTargets(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
-	const FIntVector4& SOAStrides,
+	const FIntVector4& PageConstants,
 	FRDGBufferRef VisibleClustersSWHW,
 	FRDGBufferRef ViewsBuffer,
 	FRDGTextureRef SceneDepth,

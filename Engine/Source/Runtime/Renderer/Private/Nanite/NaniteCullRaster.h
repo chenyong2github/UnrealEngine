@@ -85,7 +85,7 @@ struct FCullingContext
 	bool			bTwoPassOcclusion;
 	bool			bSupportsMultiplePasses;
 
-	FIntVector4		SOAStrides;
+	FIntVector4		PageConstants;
 
 	FRDGBufferRef	MainRasterizeArgsSWHW;
 	FRDGBufferRef	PostRasterizeArgsSWHW;
@@ -127,7 +127,7 @@ struct FRasterContext
 
 struct FRasterResults
 {
-	FIntVector4		SOAStrides;
+	FIntVector4		PageConstants;
 	uint32			MaxVisibleClusters;
 	uint32			MaxNodes;
 	uint32			RenderFlags;

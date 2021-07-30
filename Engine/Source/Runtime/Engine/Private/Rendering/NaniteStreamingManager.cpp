@@ -121,9 +121,9 @@ class FTranscodePageToGPU_CS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32,								StartPageIndex)
+		SHADER_PARAMETER(FIntVector4,							PageConstants)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FPageInstallInfo>,InstallInfoBuffer)
 		SHADER_PARAMETER_SRV(StructuredBuffer<uint>,			PageDependenciesBuffer)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer,					ClusterPageHeaders)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer,					SrcPageBuffer)
 		SHADER_PARAMETER_UAV(RWByteAddressBuffer,				DstPageBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -269,11 +269,12 @@ public:
 		ResetState();
 	}
 
-	void Init(uint32 InMaxPages, uint32 InMaxPageBytes)
+	void Init(uint32 InMaxPages, uint32 InMaxPageBytes, uint32 InMaxStreamingPages)
 	{
 		ResetState();
 		MaxPages = InMaxPages;
 		MaxPageBytes = InMaxPageBytes;
+		MaxStreamingPages = InMaxStreamingPages;
 
 		const uint32 PageAllocationSize	= FMath::RoundUpToPowerOfTwo(MaxPageBytes);
 		if (PageAllocationSize > PageUploadBuffer.NumBytes)
@@ -323,7 +324,7 @@ public:
 		ResetState();
 	}
 
-	void ResourceUploadTo(FRHICommandList& RHICmdList, FRWByteAddressBuffer& DstBuffer, FRWByteAddressBuffer& ClusterPageHeaders)
+	void ResourceUploadTo(FRHICommandList& RHICmdList, FRWByteAddressBuffer& DstBuffer)
 	{
 		RHIUnlockBuffer(PageUploadBuffer.Buffer);
 
@@ -407,10 +408,10 @@ public:
 			FTranscodePageToGPU_CS::FParameters Parameters;
 			Parameters.InstallInfoBuffer = InstallInfoUploadBuffer.SRV;
 			Parameters.PageDependenciesBuffer = PageDependenciesBuffer.SRV;
-			Parameters.ClusterPageHeaders = ClusterPageHeaders.SRV;
 			Parameters.SrcPageBuffer = PageUploadBuffer.SRV;
 			Parameters.DstPageBuffer = DstBuffer.UAV;
 			Parameters.StartPageIndex = StartPageIndex;
+			Parameters.PageConstants = FIntVector4(0, MaxStreamingPages, 0, 0);
 			
 			const uint32 NumPagesInPass = NumInstalledPagesPerPass[PassIndex];
 
@@ -434,6 +435,7 @@ private:
 
 	uint32					MaxPages;
 	uint32					MaxPageBytes;
+	uint32					MaxStreamingPages;
 	uint32					NextPageByteOffset;
 	TArray<FAddedPageInfo>	AddedPageInfos;
 	TMap<FPageKey, uint32>	GPUPageKeyToAddedIndex;
@@ -480,7 +482,7 @@ void FStreamingManager::InitRHI()
 
 	LLM_SCOPE_BYTAG(Nanite);
 
-	MaxStreamingPages = (uint32)((uint64)GNaniteStreamingPoolSize * 1024 * 1024 / CLUSTER_PAGE_GPU_SIZE);
+	MaxStreamingPages = (uint32)((uint64)GNaniteStreamingPoolSize * 1024 * 1024 / STREAMING_PAGE_GPU_SIZE);
 	check(MaxStreamingPages + GNaniteStreamingNumInitialRootPages <= MAX_GPU_PAGES);
 
 	MaxPendingPages = GNaniteStreamingMaxPendingPages;
@@ -520,10 +522,10 @@ void FStreamingManager::InitRHI()
 	PendingPages.SetNum( MaxPendingPages );
 
 #if !WITH_EDITOR
-	PendingPageStagingMemory.SetNumUninitialized( MaxPendingPages * CLUSTER_PAGE_DISK_SIZE );
+	PendingPageStagingMemory.SetNumUninitialized( MaxPendingPages * MAX_PAGE_DISK_SIZE );
 	for (int32 i = 0; i < PendingPages.Num(); i++)
 	{
-		PendingPages[i].MemoryPtr = PendingPageStagingMemory.GetData() + i * CLUSTER_PAGE_DISK_SIZE;
+		PendingPages[i].MemoryPtr = PendingPageStagingMemory.GetData() + i * MAX_PAGE_DISK_SIZE;
 	}
 #endif
 
@@ -532,7 +534,6 @@ void FStreamingManager::InitRHI()
 
 	RootPages.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.RootPagesInitial"), sizeof(uint32));
 	ClusterPageData.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.ClusterPageDataInitial"), sizeof(uint32));
-	ClusterPageHeaders.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.ClusterPageHeadersInitial"), sizeof(uint32));
 	Hierarchy.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.HierarchyInitial"), sizeof(uint32));	// Dummy allocation to make sure it is a valid resource
 }
 
@@ -560,7 +561,6 @@ void FStreamingManager::ReleaseRHI()
 
 	RootPages.Release();
 	ClusterPageData.Release();
-	ClusterPageHeaders.Release();
 	Hierarchy.Release();
 	ClusterFixupUploadBuffer.Release();
 	StreamingRequestsBuffer.SafeRelease();
@@ -812,6 +812,11 @@ bool FStreamingManager::ArePageDependenciesCommitted(uint32 RuntimeResourceID, u
 	return bResult;
 }
 
+uint32 FStreamingManager::GPUPageIndexToGPUOffset(uint32 PageIndex) const
+{
+	return (FMath::Min(PageIndex, MaxStreamingPages) << STREAMING_PAGE_GPU_SIZE_BITS) + ((uint32)FMath::Max((int32)PageIndex - (int32)MaxStreamingPages, 0) << ROOT_PAGE_GPU_SIZE_BITS);
+}
+
 // Applies the fixups required to install/uninstall a page.
 // Hierarchy references are patched up and leaf flags of parent clusters are set accordingly.
 // GPUPageIndex == INVALID_PAGE_INDEX signals that the page should be uninstalled.
@@ -865,7 +870,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 		{
 			uint32 ClusterIndex = Fixup.GetClusterIndex();
 			uint32 FlagsOffset = offsetof( FPackedCluster, Flags );
-			uint32 Offset = ( TargetGPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS ) + ( ( FlagsOffset >> 4 ) * NumTargetPageClusters + ClusterIndex ) * 16 + ( FlagsOffset & 15 );
+			uint32 Offset = GPUPageIndexToGPUOffset( TargetGPUPageIndex ) + GPU_PAGE_HEADER_SIZE + ( ( FlagsOffset >> 4 ) * NumTargetPageClusters + ClusterIndex ) * 16 + ( FlagsOffset & 15 );
 			ClusterFixupUploadBuffer.Add( Offset / sizeof( uint32 ), &Flags, 1 );
 		}
 	}
@@ -1094,7 +1099,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 					}
 				}
 			
-				uint32 PageOffset = PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
+				uint32 PageOffset = GPUPageIndexToGPUOffset( PendingPage.GPUPageIndex );
 				uint32 DataSize = PageStreamingState.BulkSize - FixupChunkSize;
 				check(NumInstalledPages < MaxPageInstallsPerUpdate);
 
@@ -1105,10 +1110,6 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				UploadTask.Src = SrcPtr + FixupChunkSize;
 				UploadTask.SrcSize = DataSize;
 				NumInstalledPages++;
-
-				// Update page headers
-				uint32 NumPageClusters = FixupChunk->Header.NumClusters;
-				ClusterPageHeaders.UploadBuffer.Add( PendingPage.GPUPageIndex, &NumPageClusters );
 
 				// Apply fixups to install page
 				StreamingPage->ResidentKey = PendingPage.InstallKey;
@@ -1196,7 +1197,13 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 	check( MaxStreamingPages <= MAX_GPU_PAGES );
 	uint32 MaxRootPages = MAX_GPU_PAGES - MaxStreamingPages;
-	uint32 NumAllocatedRootPages = FMath::Clamp( RoundUpToSignificantBits( RootPages.Allocator.GetMaxSize(), 2 ), (uint32)GNaniteStreamingNumInitialRootPages, MaxRootPages );
+	
+	uint32 NumAllocatedRootPages;	
+	if(GNaniteStreamingDynamicRootPages)
+		NumAllocatedRootPages = FMath::Clamp( RoundUpToSignificantBits( RootPages.Allocator.GetMaxSize(), 2 ), (uint32)GNaniteStreamingNumInitialRootPages, MaxRootPages );
+	else
+		NumAllocatedRootPages = GNaniteStreamingNumInitialRootPages;
+
 	check( NumAllocatedRootPages >= (uint32)RootPages.Allocator.GetMaxSize() );	// Root pages just don't fit!
 	
 	uint32 WidthInTiles = 12;
@@ -1204,14 +1211,14 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	uint32 AtlasBytes = FMath::Square( WidthInTiles * TileSize ) * sizeof( uint16 );
 	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, RootPages.DataBuffer, NumAllocatedRootPages * AtlasBytes, TEXT("Nanite.StreamingManager.RootPages") );
 
-	uint32 NumAllocatedPages = MaxStreamingPages + NumAllocatedRootPages;
+	
+	const uint32 NumAllocatedPages = MaxStreamingPages + NumAllocatedRootPages;
+	const uint32 AllocatedPagesSize = GPUPageIndexToGPUOffset( NumAllocatedPages );
 	check( NumAllocatedPages <= MAX_GPU_PAGES );
-	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, NumAllocatedPages * sizeof( uint32 ), TEXT("Nanite.StreamingManager.ClusterPageHeaders") );
-	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageData.DataBuffer, NumAllocatedPages << CLUSTER_PAGE_GPU_SIZE_BITS, TEXT("Nanite.StreamingManager.ClusterPageData") );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageData.DataBuffer, AllocatedPagesSize, TEXT("Nanite.StreamingManager.ClusterPageData") );
 
-	check( NumAllocatedPages <= ( 1u << ( 31 - CLUSTER_PAGE_GPU_SIZE_BITS ) ) );	// 2GB seems to be some sort of limit.
-																					// TODO: Is it a GPU/API limit or is it a signed integer bug on our end?
-
+	check( AllocatedPagesSize <= ( 1u << 31 ) );	// 2GB seems to be some sort of limit.
+													// TODO: Is it a GPU/API limit or is it a signed integer bug on our end?
 	RootPageInfos.SetNum( NumAllocatedRootPages );
 
 	uint32 NumPendingAdds = PendingAdds.Num();
@@ -1219,7 +1226,6 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	// TODO: These uploads can end up being quite large.
 	// We should try to change the high level logic so the proxy is not considered loaded until the root page has been loaded, so we can split this over multiple frames.
 	
-	ClusterPageHeaders.UploadBuffer.Init( NumPendingAdds, sizeof( uint32 ), false, TEXT("Nanite.StreamingManager.ClusterPageHeadersUpload") );
 	Hierarchy.UploadBuffer.Init( Hierarchy.TotalUpload, sizeof( FPackedHierarchyNode ), false, TEXT("Nanite.StreamingManager.HierarchyUpload"));
 	RootPages.UploadBuffer.Init( RootPages.TotalUpload, AtlasBytes, false, TEXT("Nanite.StreamingManager.RootPagesUpload"));
 	
@@ -1230,7 +1236,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		TotalPageSize += PendingAdds[i]->PageStreamingStates[0].PageSize;
 	}
 
-	PageUploader->Init(NumPendingAdds, TotalPageSize);
+	PageUploader->Init(NumPendingAdds, TotalPageSize, MaxStreamingPages);
 
 	GPUPageDependencies.Reset();
 
@@ -1246,11 +1252,9 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 		const FPageStreamingState& PageStreamingState = Resources->PageStreamingStates[0];
 		uint32 PageDiskSize = PageStreamingState.BulkSize - FixupChunkSize;
-		uint32 PageOffset = GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
+		uint32 PageOffset = GPUPageIndexToGPUOffset(GPUPageIndex);
 		uint8* Dst = PageUploader->Add_GetRef(PageDiskSize, PageOffset, GPUPageKey, GPUPageDependencies);
 		FMemory::Memcpy(Dst, Ptr + FixupChunkSize, PageDiskSize);
-
-		ClusterPageHeaders.UploadBuffer.Add(GPUPageIndex, &NumClusters);
 
 		// Root node should only have fixups that depend on other pages and cannot be satisfied yet.
 
@@ -1292,7 +1296,6 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		FRHITransitionInfo UAVTransitions[] =
 		{
 			FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 			FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 			FRHITransitionInfo(RootPages.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
 		};
@@ -1304,14 +1307,11 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		RootPages.TotalUpload = 0;
 		RootPages.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, RootPages.DataBuffer, false);
 
-		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, false);	// Must be updated before Page data is uploaded. Get rid of ClusterPageHeader?
-		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		PageUploader->ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageData.DataBuffer, ClusterPageHeaders.DataBuffer);
+		PageUploader->ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageData.DataBuffer);
 
 		// Transition root pages already since this one is not done while processing bBuffersTransitionedToWrite flag
 		GraphBuilder.RHICmdList.Transition(
 			{
-				FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::SRVMask, ERHIAccess::UAVCompute),
 				FRHITransitionInfo(RootPages.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
 			});
 	}
@@ -1438,10 +1438,8 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocBuffers);
 		// Prepare buffers for upload
-		PageUploader->Init(MaxPageInstallsPerUpdate, MaxPageInstallsPerUpdate * CLUSTER_PAGE_DISK_SIZE);
+		PageUploader->Init(MaxPageInstallsPerUpdate, MaxPageInstallsPerUpdate * MAX_PAGE_DISK_SIZE, MaxStreamingPages);
 		ClusterFixupUploadBuffer.Init(MaxPageInstallsPerUpdate * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
-
-		ClusterPageHeaders.UploadBuffer.Init(MaxPageInstallsPerUpdate, sizeof(uint32), false, TEXT("Nanite.ClusterPageHeadersUploadBuffer"));
 		Hierarchy.UploadBuffer.Init(2 * MaxPageInstallsPerUpdate * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
 	}
 
@@ -1846,15 +1844,11 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 				RHICmdList.Transition(
 				{
 					FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 					FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
 				});
 			}
 
-			ClusterPageHeaders.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageHeaders.DataBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
-
-			PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, ClusterPageHeaders.DataBuffer);
+			PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
 			Hierarchy.UploadBuffer.ResourceUploadTo(RHICmdList, Hierarchy.DataBuffer, false);
 
 			// NOTE: We need an additional barrier here to make sure pages are finished uploading before fixups can be applied.
@@ -1862,7 +1856,6 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 			RHICmdList.Transition(
 				{
 					FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::SRVCompute, ERHIAccess::UAVCompute),
 				});
 
 			ClusterFixupUploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
@@ -1877,7 +1870,6 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 			FRHICommandListExecutor::Transition(
 			{
 				FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::SRVMask),
-				FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
 				FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
 			}, ERHIPipeline::Graphics, ERHIPipeline::All);
 

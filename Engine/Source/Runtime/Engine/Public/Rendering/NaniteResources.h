@@ -30,9 +30,12 @@
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteDataDecode.ush
 
-#define CLUSTER_PAGE_GPU_SIZE_BITS				17														// must match define in NaniteDataDecode.ush
-#define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_GPU_SIZE_BITS )						// must match define in NaniteDataDecode.ush
-#define CLUSTER_PAGE_DISK_SIZE					( CLUSTER_PAGE_GPU_SIZE * 2 )							// must match define in NaniteDataDecode.ush
+#define ROOT_PAGE_GPU_SIZE_BITS					15														// must match define in NaniteDataDecode.ush
+#define ROOT_PAGE_GPU_SIZE						( 1u << ROOT_PAGE_GPU_SIZE_BITS )						// must match define in NaniteDataDecode.ush
+#define STREAMING_PAGE_GPU_SIZE_BITS			17														// must match define in NaniteDataDecode.ush
+#define STREAMING_PAGE_GPU_SIZE					( 1u << STREAMING_PAGE_GPU_SIZE_BITS )					// must match define in NaniteDataDecode.ush
+#define MAX_PAGE_DISK_SIZE						( STREAMING_PAGE_GPU_SIZE * 2 )							// must match define in NaniteDataDecode.ush
+
 #define MAX_CLUSTERS_PER_PAGE_BITS				10														// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteDataDecode.ush
@@ -64,7 +67,7 @@
 #define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteDataDecode.ush
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				6														// must match define in NaniteDataDecode.ush
-
+#define GPU_PAGE_HEADER_SIZE					16														// must match define in NaniteDataDecode.ush
 
 #define MAX_POSITION_QUANTIZATION_BITS			21		// (21*3 = 63) < 64								// must match define in NaniteDataDecode.ush
 #define MIN_POSITION_PRECISION					-8														// must match define in NaniteDataDecode.ush
@@ -242,6 +245,12 @@ struct FPackedCluster
 	void		SetColorBitsA(uint32 NumBits)			{ SetBits(ColorBits_GroupIndex, NumBits, 4, 12); }
 
 	void		SetGroupIndex(uint32 GroupIndex)		{ SetBits(ColorBits_GroupIndex, GroupIndex & 0xFFFFu, 16, 16); }
+};
+
+struct FPageGPUHeader
+{
+	uint32 NumClusters = 0;
+	uint32 Pad[3] = {0};
 };
 
 struct FPageStreamingState
