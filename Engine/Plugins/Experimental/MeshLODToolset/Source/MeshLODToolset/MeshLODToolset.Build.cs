@@ -36,7 +36,7 @@ public class MeshLODToolset : ModuleRules
                 "StaticMeshDescription",
 				"ModelingComponents",
 				"ModelingOperators",
-				"MeshModelingTools",
+				"MeshModelingToolsExp",
 				"GeometryFlowCore",
 				"GeometryFlowMeshProcessing",
 				"GeometryFlowMeshProcessingEditor"

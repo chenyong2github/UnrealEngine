@@ -20,7 +20,7 @@ namespace UnrealBuildTool.Rules
 					"MeshConversion",
 					"MeshDescription",
 					"MeshMergeUtilities",
-					"MeshModelingTools",
+					"MeshModelingToolsExp",
 					"MeshUtilitiesCommon",
 					"ModelingOperators",
 					"ModelingOperatorsEditorOnly",

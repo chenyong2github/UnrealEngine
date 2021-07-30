@@ -155,7 +155,7 @@ public:
 		//
 
 		// A new MIC derived from this material will be created and assigned to the generated mesh
-		UMaterialInterface* BakeMaterial = nullptr;		// if null, will use /MeshModelingToolset/Materials/FullMaterialBakePreviewMaterial_PackedMRS instead
+		UMaterialInterface* BakeMaterial = nullptr;		// if null, will use /MeshModelingToolsetExp/Materials/FullMaterialBakePreviewMaterial_PackedMRS instead
 		FName BaseColorTexParamName = FName("BaseColor");
 		bool bBakeBaseColor = true;
 		FName RoughnessTexParamName = FName("Roughness");
