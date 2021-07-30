@@ -195,9 +195,11 @@ namespace UnrealToUsd
 	 * @param SkelRoot - Root prim of the output source data. Child UsdSkelSkeleton, UsdGeomMesh, and UsdSkelBlendShape will be created as children of it, containing the converted data
 	 * @param TimeCode - TimeCode with which the converted data will be placed in the USD stage
 	 * @param StageForMaterialAssignments - Stage to use when authoring material assignments (we use this when we want to export the mesh to a payload layer, but the material assignments to an asset layer)
+	 * @param LowestMeshLOD - Lowest LOD of the UStaticMesh to export (start of the LOD range)
+	 * @param HighestMeshLOD - Lowest LOD of the UStaticMesh to export (end of the LOD range)
 	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default(), UE::FUsdStage* StageForMaterialAssignments = nullptr );
+	USDUTILITIES_API bool ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default(), UE::FUsdStage* StageForMaterialAssignments = nullptr, int32 LowestMeshLOD = 0, int32 HighestMeshLOD = INT32_MAX );
 
 	/**
 	 * Converts an AnimSequence to a UsdSkelAnimation. Includes bone transforms and blend shape weights.

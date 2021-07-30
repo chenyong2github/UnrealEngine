@@ -133,7 +133,7 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 
 					if ( UE::FUsdPrim PayloadSkelRootPrim = PayloadStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT( "SkelRoot" ) ) )
 					{
-						UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, PayloadSkelRootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage );
+						UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, PayloadSkelRootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage, Options->PreviewMeshOptions.LowestMeshLOD, Options->PreviewMeshOptions.HighestMeshLOD );
 						PayloadStage.SetDefaultPrim( PayloadSkelRootPrim );
 					}
 
@@ -149,7 +149,7 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 			// Not using payload: Just author everything on the current edit target of the payload (== asset) layer
 			else
 			{
-				UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, SkelRootPrim );
+				UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, SkelRootPrim, UsdUtils::GetDefaultTimeCode(), nullptr, Options->PreviewMeshOptions.LowestMeshLOD, Options->PreviewMeshOptions.HighestMeshLOD );
 			}
 		}
 		else

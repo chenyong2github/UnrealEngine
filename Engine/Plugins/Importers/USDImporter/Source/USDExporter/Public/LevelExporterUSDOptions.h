@@ -8,6 +8,7 @@
 
 #include "AssetExportTask.h"
 #include "Engine/EngineTypes.h"
+#include "RHIDefinitions.h"
 
 #include "LevelExporterUSDOptions.generated.h"
 
@@ -55,6 +56,14 @@ public:
 	/** USD format to use for exported payload files */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bUsePayload", GetOptions = GetUsdExtensions ) )
 	FString PayloadFormat;
+
+	/** Lowest of the LOD indices to export static and skeletal meshes with (use 0 for maximum detail) */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
+	int32 LowestMeshLOD = 0;
+
+	/** Highest of the LOD indices to export static and skeletal meshes with */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "0" ) )
+	int32 HighestMeshLOD = MAX_MESH_LOD_COUNT - 1;
 
 	/** Whether to use UE actor folders as empty prims */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )

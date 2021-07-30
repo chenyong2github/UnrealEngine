@@ -1322,7 +1322,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 	return Result;
 }
 
-bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
+bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments, int32 LowestMeshLOD, int32 HighestMeshLOD )
 {
 	FScopedUsdAllocs UsdAllocs;
 
@@ -1339,6 +1339,18 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 	{
 		return false;
 	}
+
+	// Make sure they're both >= 0 (the options dialog slider is clamped, but this may be called directly)
+	LowestMeshLOD = FMath::Clamp( LowestMeshLOD, 0, NumLODs -1 );
+	HighestMeshLOD = FMath::Clamp( HighestMeshLOD, 0, NumLODs - 1 );
+
+	// Make sure Lowest <= Highest
+	int32 Temp = FMath::Min( LowestMeshLOD, HighestMeshLOD );
+	HighestMeshLOD = FMath::Max( LowestMeshLOD, HighestMeshLOD );
+	LowestMeshLOD = Temp;
+
+	// Make sure it's at least 1 LOD level
+	NumLODs = FMath::Max( HighestMeshLOD - LowestMeshLOD + 1, 1 );
 
 	pxr::UsdVariantSets VariantSets = UsdPrim.GetVariantSets();
 	if ( NumLODs > 1 && VariantSets.HasVariantSet( UnrealIdentifiers::LOD ) )
@@ -1375,7 +1387,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		MaterialAssignments.clear();
 	}
 
-	for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
+	for ( int32 LODIndex = LowestMeshLOD; LODIndex <= HighestMeshLOD; ++LODIndex )
 	{
 		const FStaticMeshLODResources& RenderMesh = StaticMesh->GetLODForExport( LODIndex );
 
