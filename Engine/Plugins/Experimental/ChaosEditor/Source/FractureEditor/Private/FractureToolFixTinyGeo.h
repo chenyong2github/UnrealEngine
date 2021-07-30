@@ -1,0 +1,85 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "FractureToolCutter.h"
+#include "Engine/StaticMeshActor.h"
+
+#include "FractureToolFixTinyGeo.generated.h"
+
+class FFractureToolContext;
+
+UENUM()
+enum class EGeometrySelectionMethod
+{
+	VolumeCubeRoot,
+	RelativeVolume
+	// TODO: also have a manual selection method?
+};
+
+/** Settings controlling how convex hulls are generated for geometry collections */
+UCLASS(config = EditorPerProjectUserSettings)
+class UFractureTinyGeoSettings : public UFractureToolSettings
+{
+public:
+
+	GENERATED_BODY()
+
+	UFractureTinyGeoSettings(const FObjectInitializer& ObjInit)
+		: Super(ObjInit)
+	{}
+
+	UPROPERTY(EditAnywhere, Category = FilterSettings)
+	EGeometrySelectionMethod SelectionMethod = EGeometrySelectionMethod::RelativeVolume;
+
+	/** If volume is less than this value cubed, geometry should be merged into neighbors -- i.e. a value of 2 merges geometry smaller than a 2x2x2 cube */
+	UPROPERTY(EditAnywhere, Category = FilterSettings, meta = (ClampMin = ".00001", UIMin = ".1", UIMax = "10", EditCondition = "SelectionMethod == EGeometrySelectionMethod::VolumeCubeRoot", EditConditionHides))
+	double MinVolumeCubeRoot = 1;
+
+	/** If (cube root of) volume relative to the overall geometry (cube root) volume is less than this, geometry should be merged into neighbors */
+	UPROPERTY(EditAnywhere, Category = FilterSettings, meta = (ClampMin = ".001", UIMax = ".1", ClampMax = "1.0", EditCondition = "SelectionMethod == EGeometrySelectionMethod::RelativeVolume", EditConditionHides))
+	double RelativeVolume = .01;
+
+};
+
+
+
+// Note this tool doesn't actually fracture, but it does remake pieces of geometry and shares a lot of machinery with the fracture tools
+UCLASS(DisplayName = "Fix Tiny Geometry Tool", Category = "FractureTools")
+class UFractureToolFixTinyGeo : public UFractureToolCutterBase
+{
+public:
+	GENERATED_BODY()
+
+	UFractureToolFixTinyGeo(const FObjectInitializer& ObjInit);
+
+	// UFractureTool Interface
+	virtual FText GetDisplayText() const override;
+	virtual FText GetTooltipText() const override;
+	virtual FSlateIcon GetToolIcon() const override;
+
+	virtual FText GetApplyText() const override { return FText(NSLOCTEXT("FixTinyGeo", "ExecuteFixTinyGeo", "Merge Geometry")); }
+
+	void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
+
+	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+
+	virtual TArray<UObject*> GetSettingsObjects() const override;
+
+	virtual void FractureContextChanged() override;
+	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
+
+private:
+
+	UPROPERTY(EditAnywhere, Category = FixGeo)
+	TObjectPtr<UFractureTinyGeoSettings> TinyGeoSettings;
+
+
+	TArray<FBox> ToRemoveBounds;
+
+	double GetMinVolume(TArray<double>& Volumes);
+	const double VolDimScale = .01; // compute volumes in meters instead of cm, for saner units at typical scales
+
+};
+
+

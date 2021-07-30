@@ -794,6 +794,13 @@ namespace GeometryCollectionAlgo
 		if (NewNumFaces > OldNumFaces)
 		{
 			GeometryCollection->AddElements(NewNumFaces - OldNumFaces, FGeometryCollection::FacesGroup);
+			// fill in end faces with dummy values, rather than leaving them uninitialized (to avoid breaking things on later reordering call)
+			int LastVertex = OldNumVertices > 0 ? OldNumVertices - 1 : 0;
+			FIntVector EndFace(LastVertex, LastVertex, LastVertex);
+			for (int Idx = OldNumFaces; Idx < NewNumFaces; Idx++)
+			{
+				GeometryCollection->Indices[Idx] = EndFace;
+			}
 		}
 		if (NewNumVertices > OldNumVertices)
 		{
@@ -880,17 +887,17 @@ namespace GeometryCollectionAlgo
 		}
 
 		// remove trailing elements if needed
-		if (NewNumFaces < OldNumFaces)
-		{
-			TArray<int32> ToDelete;
-			AddRange(ToDelete, NewNumFaces, OldNumFaces);
-			GeometryCollection->RemoveElements(FGeometryCollection::FacesGroup, ToDelete);
-		}
 		if (NewNumVertices < OldNumVertices)
 		{
 			TArray<int32> ToDelete;
 			AddRange(ToDelete, NewNumVertices, OldNumVertices);
 			GeometryCollection->RemoveElements(FGeometryCollection::VerticesGroup, ToDelete);
+		}
+		if (NewNumFaces < OldNumFaces)
+		{
+			TArray<int32> ToDelete;
+			AddRange(ToDelete, NewNumFaces, OldNumFaces);
+			GeometryCollection->RemoveElements(FGeometryCollection::FacesGroup, ToDelete);
 		}
 
 		// TODO: can remove these ensure()s after this has been tested some more

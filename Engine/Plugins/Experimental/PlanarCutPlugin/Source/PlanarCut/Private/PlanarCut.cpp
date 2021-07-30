@@ -15,6 +15,7 @@
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/GeometryCollectionProximityUtility.h"
 
 #include "DisjointSet.h"
 
@@ -757,6 +758,450 @@ int32 CutWithMesh(
 
 	Collection.ReindexMaterials();
 	return NewGeomStartIdx;
+}
+
+
+void FindBoneVolumes(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	TArray<double>& OutVolumes,
+	double ScalePerDimension
+)
+{
+	OutVolumes.Reset();
+
+	TArray<FTransform> Transforms;
+	TArray<int32> TransformIndicesArray(TransformIndices);
+	if (TransformIndicesArray.Num() == 0)
+	{
+		for (int32 TransformIdx = 0; TransformIdx < Collection.TransformToGeometryIndex.Num(); TransformIdx++)
+		{
+			TransformIndicesArray.Add(TransformIdx);
+		}
+	}
+	GeometryCollectionAlgo::GlobalMatrices(Collection.Transform, Collection.Parent, TransformIndicesArray, Transforms);
+
+	auto GetVolume = [](const FGeometryCollection& Collection, int32 GeomIdx, const FTransform& Transform,
+		double DimScaleFactor = 1) -> double
+	{
+		int32 VStart = Collection.VertexStart[GeomIdx];
+		int32 VEnd = VStart + Collection.VertexCount[GeomIdx];
+		if (VStart == VEnd)
+		{
+			return 0.0;
+		}
+		FVector3d Center = FVector::ZeroVector;
+		for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
+		{
+			FVector Pos = Transform.TransformPosition(Collection.Vertex[VIdx]);
+			Center += (FVector3d)Pos;
+		}
+		Center /= double(VEnd - VStart);
+		int32 FStart = Collection.FaceStart[GeomIdx];
+		int32 FEnd = FStart + Collection.FaceCount[GeomIdx];
+		double VolOut = 0;
+		for (int32 FIdx = FStart; FIdx < FEnd; FIdx++)
+		{
+			FIntVector Tri = Collection.Indices[FIdx];
+			FVector3d V0 = (FVector3d)Transform.TransformPosition(Collection.Vertex[Tri.X]);
+			FVector3d V1 = (FVector3d)Transform.TransformPosition(Collection.Vertex[Tri.Y]);
+			FVector3d V2 = (FVector3d)Transform.TransformPosition(Collection.Vertex[Tri.Z]);
+
+			// add volume of the tetrahedron formed by the triangles and the reference point
+			FVector3d V1mRef = (V1 - Center) * DimScaleFactor;
+			FVector3d V2mRef = (V2 - Center) * DimScaleFactor;
+			FVector3d N = V2mRef.Cross(V1mRef);
+
+			VolOut += ((V0 - Center) * DimScaleFactor).Dot(N) / 6.0;
+		}
+		return VolOut;
+	};
+
+	OutVolumes.SetNum(TransformIndicesArray.Num());
+	ParallelFor(TransformIndicesArray.Num(), [&](int32 Idx)
+		{
+			int32 TransformIdx = TransformIndicesArray[Idx];
+			int32 GeomIdx = Collection.TransformToGeometryIndex[TransformIdx];
+			if (GeomIdx == -1)
+			{
+				OutVolumes[Idx] = 0.0;
+			}
+			else
+			{
+				OutVolumes[Idx] = GetVolume(Collection, GeomIdx, Transforms[Idx], ScalePerDimension);
+			}
+		});
+}
+
+
+void FindSmallBones(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	const TArrayView<const double>& Volumes,
+	double MinVolume,
+	TArray<int32>& OutSmallBones
+)
+{
+	OutSmallBones.Reset();
+
+	auto AddIdx = [&Collection, &Volumes, &MinVolume, &OutSmallBones](int32 TransformIdx)
+	{
+		if (Collection.TransformToGeometryIndex[TransformIdx] > -1 && Volumes[TransformIdx] < MinVolume)
+		{
+			OutSmallBones.Add(TransformIdx);
+		}
+	};
+
+	TArray<FTransform> Transforms;
+	if (TransformIndices.Num() == 0)
+	{
+		int32 NumTransforms = Collection.TransformToGeometryIndex.Num();
+		if (!ensure(Volumes.Num() == NumTransforms))
+		{
+			return;
+		}
+		for (int32 TransformIdx = 0; TransformIdx < NumTransforms; TransformIdx++)
+		{
+			AddIdx(TransformIdx);
+		}
+	}
+	else
+	{
+		if (!ensure(Volumes.Num() == TransformIndices.Num()))
+		{
+			return;
+		}
+		for (int32 TransformIdx : TransformIndices)
+		{
+			AddIdx(TransformIdx);
+		}
+	}
+}
+
+
+int32 MergeBones(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndicesView,
+	const TArrayView<const double>& Volumes,
+	double MinVolume,
+	const TArrayView<const int32>& SmallTransformIndices,
+	bool bUnionJoinedPieces
+)
+{
+	FTransform CellsToWorld = FTransform::Identity;
+
+	FGeometryCollectionProximityUtility::UpdateProximity(&Collection);
+	TManagedArray<TSet<int32>>& Proximity = Collection.GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+
+	// local array so we can populate it with all transforms if input was empty
+	TArray<int32> TransformIndices(TransformIndicesView);
+	if (TransformIndices.Num() == 0)
+	{
+		for (int32 TransformIdx = 0; TransformIdx < Collection.TransformToGeometryIndex.Num(); TransformIdx++)
+		{
+			TransformIndices.Add(TransformIdx);
+		}
+	}
+	if (!ensure(TransformIndices.Num() == Volumes.Num()))
+	{
+		return INDEX_NONE;
+	}
+
+	struct FRemoveGroup
+	{
+		int32 MergeTo = INDEX_NONE;
+		double MergeTargetVolume = 0;
+		double TotalVolume = 0;
+		bool bRemoveMergeTarget = false;
+		TArray<int32> ToRemove;
+
+		FRemoveGroup() {}
+		FRemoveGroup(const TMap<int32, double>& GeomVolMaps, double MinVolume, int32 SmallIdx, int32 BigIdx)
+		{
+			ToRemove.Add(SmallIdx);
+			double BigVol = GeomVolMaps[BigIdx];
+			if (BigVol < MinVolume)
+			{
+				ToRemove.Add(BigIdx);
+				bRemoveMergeTarget = true;
+			}
+			MergeTargetVolume = BigVol;
+			TotalVolume = BigVol + GeomVolMaps[SmallIdx];
+			MergeTo = BigIdx;
+		}
+
+		bool IsValid()
+		{
+			return MergeTo != INDEX_NONE;
+		}
+
+		void UpdateMergeTarget(int Idx, double Volume)
+		{
+			if (bRemoveMergeTarget)
+			{
+				if (Volume > MergeTargetVolume)
+				{
+					MergeTo = Idx;
+					MergeTargetVolume = Volume;
+				}
+			}
+		}
+
+		// add a too-small geometry to this group
+		void AddSmall(const TMap<int32, double>& GeomVolMaps, int32 SmallIdx)
+		{
+			double SmallVol = GeomVolMaps[SmallIdx];
+			TotalVolume += SmallVol;
+			UpdateMergeTarget(SmallIdx, SmallVol);
+			checkSlow(!ToRemove.Contains(SmallIdx));
+			ToRemove.Add(SmallIdx);
+		}
+
+		// add a neighbor of a too-small geometry to an existing group
+		void AddBig(const TMap<int32, double>& GeomVolMaps, double MinVolume, int32 BigIdx)
+		{
+			double BigVol = GeomVolMaps[BigIdx];
+			TotalVolume += BigVol;
+			UpdateMergeTarget(BigIdx, BigVol);
+			if (BigVol < MinVolume)
+			{
+				checkSlow(!ToRemove.Contains(BigIdx));
+				ToRemove.Add(BigIdx);
+			}
+			else
+			{
+				bRemoveMergeTarget = false;
+			}
+		}
+
+		void TransferGroup(FRemoveGroup& SmallGroup, TMap<int32, int32>& GeomIdxToRemoveGroupIdx, int32 NewIdx)
+		{
+			for (int32 RmIdx : SmallGroup.ToRemove)
+			{
+				checkSlow(!ToRemove.Contains(RmIdx));
+				ToRemove.Add(RmIdx);
+				GeomIdxToRemoveGroupIdx[RmIdx] = NewIdx;
+			}
+			if (!SmallGroup.bRemoveMergeTarget)
+			{
+				checkSlow(!ToRemove.Contains(SmallGroup.MergeTo));
+				ToRemove.Add(SmallGroup.MergeTo);
+				GeomIdxToRemoveGroupIdx[SmallGroup.MergeTo] = NewIdx;
+			}
+			TotalVolume += SmallGroup.TotalVolume;
+			SmallGroup = FRemoveGroup(); // clear old group
+		}
+
+		bool IsGroupSmall(double MinVolume)
+		{
+			return TotalVolume < MinVolume;
+		}
+	};
+	TMap<int32, double> GeomToVol;
+	TMap<int32, int32> GeomIdxToRemoveGroupIdx;
+	TArray<FRemoveGroup> RemoveGroups;
+	TSet<int32> TooSmalls;
+	TSet<int32> CanMerge;
+
+	for (int32 TransformIdx : TransformIndices)
+	{
+		int32 GeomIdx = Collection.TransformToGeometryIndex[TransformIdx];
+		if (GeomIdx > -1)
+		{
+			CanMerge.Add(GeomIdx);
+			GeomToVol.Add(GeomIdx, Volumes[TransformIdx]);
+		}
+	}
+	for (int32 TransformIdx : SmallTransformIndices)
+	{
+		int32 GeomIdx = Collection.TransformToGeometryIndex[TransformIdx];
+		if (GeomIdx > -1)
+		{
+			TooSmalls.Add(GeomIdx);
+			GeomToVol.Add(GeomIdx, Volumes[TransformIdx]);
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Cannot merge bones that have no geometry attached"));
+		}
+	}
+
+	for (int32 SmallIdx : TooSmalls)
+	{
+		int32* SmallRemoveGroupIdx = GeomIdxToRemoveGroupIdx.Find(SmallIdx);
+		if (SmallRemoveGroupIdx)
+		{
+			if (RemoveGroups[*SmallRemoveGroupIdx].TotalVolume >= MinVolume)
+			{
+				continue;
+			}
+		}
+
+		const TSet<int32>& Prox = Proximity[SmallIdx];
+		double BiggestVol = 0;
+		int32 BiggestVolIdx = INDEX_NONE;
+		for (int32 NbrIdx : Prox)
+		{
+			if (CanMerge.Contains(NbrIdx))
+			{
+				double Vol = GeomToVol[NbrIdx];
+				if (Vol > BiggestVol)
+				{
+					BiggestVol = Vol;
+					BiggestVolIdx = NbrIdx;
+				}
+			}
+		}
+		if (BiggestVolIdx == INDEX_NONE)
+		{
+			continue;
+		}
+
+		if (SmallRemoveGroupIdx)
+		{
+			int32 OldSGIdx = *SmallRemoveGroupIdx;
+			int32* BigRemoveGroupIdx = GeomIdxToRemoveGroupIdx.Find(BiggestVolIdx);
+			if (BigRemoveGroupIdx)
+			{
+				int32 BigRGIdx = *BigRemoveGroupIdx;
+				if (OldSGIdx != BigRGIdx)
+				{
+					RemoveGroups[BigRGIdx].TransferGroup(RemoveGroups[OldSGIdx], GeomIdxToRemoveGroupIdx, BigRGIdx);
+					checkSlow(GeomIdxToRemoveGroupIdx.FindKey(OldSGIdx) == nullptr);
+				}
+			}
+			else
+			{
+				RemoveGroups[OldSGIdx].AddBig(GeomToVol, MinVolume, BiggestVolIdx);
+				checkSlow(!GeomIdxToRemoveGroupIdx.Contains(BiggestVolIdx));
+				GeomIdxToRemoveGroupIdx.Add(BiggestVolIdx, OldSGIdx);
+			}
+		}
+		else
+		{
+			int32* BigRemoveGroupIdx = GeomIdxToRemoveGroupIdx.Find(BiggestVolIdx);
+			if (BigRemoveGroupIdx)
+			{
+				int32 BigRGIdx = *BigRemoveGroupIdx;
+				RemoveGroups[BigRGIdx].AddSmall(GeomToVol, SmallIdx);
+				checkSlow(!GeomIdxToRemoveGroupIdx.Contains(SmallIdx));
+				GeomIdxToRemoveGroupIdx.Add(SmallIdx, BigRGIdx);
+			}
+			else
+			{
+				int32 RemoveGroupIdx = RemoveGroups.Emplace(GeomToVol, MinVolume, SmallIdx, BiggestVolIdx);
+				checkSlow(!GeomIdxToRemoveGroupIdx.Contains(SmallIdx));
+				checkSlow(!GeomIdxToRemoveGroupIdx.Contains(BiggestVolIdx));
+				GeomIdxToRemoveGroupIdx.Add(SmallIdx, RemoveGroupIdx);
+				GeomIdxToRemoveGroupIdx.Add(BiggestVolIdx, RemoveGroupIdx);
+			}
+		}
+	}
+
+	TArray<int32> AllRemoveIndices;
+	TArray<int32> AllUpdateIndices;
+
+	for (FRemoveGroup& Group : RemoveGroups)
+	{
+		if (!Group.IsValid())
+		{
+			continue;
+		}
+		if (Group.bRemoveMergeTarget)
+		{
+			Group.ToRemove.RemoveSingle(Group.MergeTo);
+		}
+		for (int32 RmIdx : Group.ToRemove)
+		{
+			AllRemoveIndices.Add(Collection.TransformIndex[RmIdx]);
+		}
+		AllUpdateIndices.Add(Collection.TransformIndex[Group.MergeTo]);
+	}
+
+	AllRemoveIndices.Sort();
+	AllUpdateIndices.Sort();
+	
+	FDynamicMeshCollection RemoveCollection(&Collection, AllRemoveIndices, CellsToWorld, true);
+	FDynamicMeshCollection UpdateCollection(&Collection, AllUpdateIndices, CellsToWorld, true);
+
+	TMap<int32, int32> GeoIdxToRmMeshIdx;
+	for (int32 RmMeshIdx = 0; RmMeshIdx < RemoveCollection.Meshes.Num(); RmMeshIdx++)
+	{
+		int32 TransformIdx = RemoveCollection.Meshes[RmMeshIdx].TransformIndex;
+		GeoIdxToRmMeshIdx.Add(
+			Collection.TransformToGeometryIndex[TransformIdx],
+			RmMeshIdx
+		);
+	}
+
+	using FMeshData = UE::PlanarCut::FDynamicMeshCollection::FMeshData;
+
+	for (int32 UpMeshIdx = 0; UpMeshIdx < UpdateCollection.Meshes.Num(); UpMeshIdx++)
+	{
+		FMeshData& UpMeshData = UpdateCollection.Meshes[UpMeshIdx];
+		FTransform3d UpMeshXF = (FTransform3d)UpMeshData.ToCollection;
+		int32 UpGeoIdx = Collection.TransformToGeometryIndex[UpMeshData.TransformIndex];
+		FRemoveGroup& Group = RemoveGroups[GeomIdxToRemoveGroupIdx[UpGeoIdx]];
+		if (!ensure(Group.IsValid()))
+		{
+			continue;
+		}
+		FDynamicMeshEditor MeshEditor(&UpMeshData.AugMesh);
+		for (int32 RmGeoIdx : Group.ToRemove)
+		{
+			FMeshData& RmMeshData = RemoveCollection.Meshes[GeoIdxToRmMeshIdx[RmGeoIdx]];
+			FTransform3d RmMeshXF = (FTransform3d)RmMeshData.ToCollection;
+			if (bUnionJoinedPieces)
+			{
+				FMeshBoolean Boolean(&UpMeshData.AugMesh, &RmMeshData.AugMesh, &UpMeshData.AugMesh, FMeshBoolean::EBooleanOp::Union);
+				Boolean.bWeldSharedEdges = false;
+				Boolean.bSimplifyAlongNewEdges = true;
+				Boolean.Compute();
+			}
+			else
+			{
+				FMeshIndexMappings IndexMaps_Unused;
+				MeshEditor.AppendMesh(&RmMeshData.AugMesh, IndexMaps_Unused,
+					[&UpMeshXF, &RmMeshXF](int32 Unused, const FVector3d& Pos)
+					{
+						return UpMeshXF.InverseTransformPosition(RmMeshXF.TransformPosition(Pos));
+					},
+					[&UpMeshXF, &RmMeshXF](int32 Unused, const FVector3d& Normal)
+					{
+						return UpMeshXF.InverseTransformNormal(RmMeshXF.TransformNormal(Normal));
+					});
+			}
+		}
+	}
+
+	UpdateCollection.UpdateAllCollections(Collection);
+
+	for (FRemoveGroup& Group : RemoveGroups)
+	{
+		if (!Group.IsValid())
+		{
+			continue;
+		}
+		int32 MergeTransformIdx = Collection.TransformIndex[Group.MergeTo];
+		TArray<int32> Children;
+		for (int32 RmIdx : Group.ToRemove)
+		{
+			int32 RmTransformIdx = Collection.TransformIndex[RmIdx];
+			for (int32 ChildIdx : Collection.Children[RmTransformIdx])
+			{
+				Children.Add(ChildIdx);
+			}
+		}
+		if (Children.Num())
+		{
+			GeometryCollectionAlgo::ParentTransforms(&Collection, MergeTransformIdx, Children);
+		}
+	}
+
+	// remove transforms for all geometry that was merged in
+	Collection.RemoveElements(FGeometryCollection::TransformGroup, AllRemoveIndices);
+
+	return INDEX_NONE; // TODO: consider tracking smallest index of updated groups?  but no reason to do so currently
 }
 
 
