@@ -468,7 +468,7 @@ bool FMetasoundFrontendLiteral::TryGet(UObject*& OutValue) const
 
 bool FMetasoundFrontendLiteral::TryGet(TArray<UObject*>& OutValue) const
 {
-	if (Type == EMetasoundFrontendLiteralType::UObject)
+	if (Type == EMetasoundFrontendLiteralType::UObjectArray)
 	{
 		OutValue = AsUObject;
 		return true;

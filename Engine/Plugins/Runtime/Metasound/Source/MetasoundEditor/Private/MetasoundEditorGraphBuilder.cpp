@@ -1056,7 +1056,10 @@ namespace Metasound
 		void FGraphBuilder::UnregisterGraphWithFrontend(UObject& InMetaSound)
 		{
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
-			check(MetaSoundAsset);
+			if (!ensure(MetaSoundAsset))
+			{
+				return;
+			}
 
 			MetaSoundAsset->UnregisterGraphWithFrontend();
 
