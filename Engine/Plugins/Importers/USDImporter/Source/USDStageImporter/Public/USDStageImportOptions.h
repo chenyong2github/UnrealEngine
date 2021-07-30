@@ -70,10 +70,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options")
 	FName RenderContextToImport;
 
-	/** Time to evaluate the USD Stage for import */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (DisplayName = "Time"))
-	float ImportTime;
-
 	/** Whether to use the specified StageOptions instead of the stage's own settings */
 	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options" )
 	bool bOverrideStageOptions;
