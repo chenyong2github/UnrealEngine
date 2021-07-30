@@ -444,7 +444,21 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 			}
 		}
 
-		Result->SetPropertyFlags(CPF_Edit | CPF_NonTransactional);
+		Result->SetPropertyFlags(CPF_Edit | CPF_EditConst | CPF_NonTransactional);
+
+		static const FName NAME_DisplayName(TEXT("DisplayName"));
+		static const FName NAME_ToolTipName(TEXT("ToolTip"));
+
+		FString DisplayName = Result->GetName();
+		while(DisplayName.ReplaceInline(TEXT("__"), TEXT("_")) > 0)
+		{}
+		DisplayName.ReplaceInline(TEXT("_"), TEXT(" "));
+
+		DisplayName = FString::Printf(TEXT("[%d] %s"), InClass->LinkedProperties.Num(), *DisplayName);
+		Result->SetMetaData(NAME_DisplayName, *DisplayName);
+		Result->SetMetaData(NAME_ToolTipName, *FString::Printf(TEXT("Name %s\nCPPType %s"), *Result->GetName(), *InProperty.CPPType));
+
+		InClass->LinkedProperties.Add(Result);
 		(*LinkToProperty) = Result;
 	}
 

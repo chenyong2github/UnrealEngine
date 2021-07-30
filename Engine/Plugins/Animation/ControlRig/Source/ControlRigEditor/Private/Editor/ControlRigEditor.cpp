@@ -345,6 +345,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	InControlRigBlueprint->OnModified().AddSP(this, &FControlRigEditor::HandleModifiedEvent);
 	InControlRigBlueprint->OnVMCompiled().AddSP(this, &FControlRigEditor::HandleVMCompiledEvent);
+	InControlRigBlueprint->OnRequestInspectObject().AddSP(this, &FControlRigEditor::SetDetailObjects);
 
 	BindCommands();
 
@@ -1307,6 +1308,44 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 	{
 		return;
 	}
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	if(InObjects.Num() == 1)
+	{
+		if(URigVMMemoryStorage* Memory = Cast<URigVMMemoryStorage>(InObjects[0]))
+		{
+			FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+			FDetailsViewArgs DetailsViewArgs;
+			DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+			DetailsViewArgs.bHideSelectionTip = true;
+
+			TSharedRef<IDetailsView> DetailsView = EditModule.CreateDetailView( DetailsViewArgs );
+			TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+			.Label( LOCTEXT("ControlRigMemoryDetails", "Control Rig Memory Details") )
+			.TabRole(ETabRole::NomadTab)
+			[
+				DetailsView
+			];
+
+			GetTabManager()->InsertNewDocumentTab(
+				FBlueprintEditorTabs::DetailsID,
+				TEXT("ControlRigMemoryDetails"),
+				FTabManager::FLastMajorOrNomadTab(TEXT("ControlRigMemoryDetails")),
+				DockTab
+			);
+
+			FFunctionGraphTask::CreateAndDispatchWhenReady([DetailsView, InObjects]()
+			{
+				
+				DetailsView->SetObject(InObjects[0]);
+				
+			}, TStatId(), NULL, ENamedThreads::GameThread);
+
+			return;
+		}
+	}
+#endif
 
 	ClearDetailObject();
 
