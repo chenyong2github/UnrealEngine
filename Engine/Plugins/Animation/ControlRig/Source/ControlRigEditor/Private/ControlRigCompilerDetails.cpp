@@ -10,6 +10,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ControlRig.h"
+#include "IPropertyUtilities.h"
 #include "IPythonScriptPlugin.h"
 #include "RigVMPythonUtils.h"
 
@@ -51,6 +52,45 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 		{
 			StructBuilder.AddProperty(InStructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef());
 		}
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+		StructBuilder.AddCustomRow(LOCTEXT("MemoryInspection", "Memory Inspection"))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Memory Inspection")))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked(this, &FRigVMCompileSettingsDetails::OnInspectMemory, ERigVMMemoryType::Literal)
+					.ContentPadding(FMargin(2))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Justification(ETextJustify::Center)
+						.Text(LOCTEXT("InspectLiteralMemory", "Inspect Literal Memory"))
+					]
+				]
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked(this, &FRigVMCompileSettingsDetails::OnInspectMemory, ERigVMMemoryType::Work)
+					.ContentPadding(FMargin(2))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Justification(ETextJustify::Center)
+						.Text(LOCTEXT("InspectWorkMemory", "Inspect Work Memory"))
+					]
+				]
+			];
+#endif
 
 		StructBuilder.AddCustomRow(LOCTEXT("ASTTools", "AST Tools"))
 			.NameContent()
@@ -113,6 +153,26 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 			];
 	}
 }
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+FReply FRigVMCompileSettingsDetails::OnInspectMemory(ERigVMMemoryType InMemoryType)
+{
+	if (BlueprintBeingCustomized)
+	{
+		if(UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+		{
+			if(URigVMMemoryStorage* MemoryStorage = DebuggedRig->GetVM()->GetMemoryByType(InMemoryType))
+			{
+				TArray<UObject*> ObjectsToSelect = {MemoryStorage};
+				BlueprintBeingCustomized->RequestInspectObject(ObjectsToSelect);
+			}
+		}
+	}
+	return FReply::Handled();
+}
+
+#endif
 
 FReply FRigVMCompileSettingsDetails::OnCopyASTClicked()
 {
