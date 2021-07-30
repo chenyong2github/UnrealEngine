@@ -318,9 +318,13 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 				if ( CollapsesChildren( ECollapsingType::Assets ) )
 				{
-					if ( UStaticMesh* PrimStaticMesh = Cast< UStaticMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) ) )
+					// If we're a type that collapses assets, we should probably be a static mesh component as we only really collapse static meshes together right now.
+					// We can't just check if there's a static mesh for this prim on the cache, because the prims with meshes could be potentially invisible (and so
+					// we don't have parsed their meshes yet), so here we traverse our child hierarchy and if we have any chance of ever generating a Mesh, we go
+					// for a static mesh component
+					TArray< UE::FUsdPrim > ChildMeshPrims = UsdUtils::GetAllPrimsOfType( Prim, TEXT( "UsdGeomMesh" ) );
+					if ( ChildMeshPrims.Num() > 0 )
 					{
-						// At this time, we only support collapsing static meshes together
 						ComponentType = UStaticMeshComponent::StaticClass();
 					}
 				}

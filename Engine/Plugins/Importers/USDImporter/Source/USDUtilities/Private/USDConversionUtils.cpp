@@ -1029,7 +1029,7 @@ void UsdUtils::MakeInvisible( UE::FUsdPrim& Prim, double TimeCode )
 #endif // USE_USD_SDK
 }
 
-bool UsdUtils::IsVisible( UE::FUsdPrim& Prim, double TimeCode )
+bool UsdUtils::IsVisible( const UE::FUsdPrim& Prim, double TimeCode )
 {
 #if USE_USD_SDK
 	FScopedUsdAllocs Allocs;
@@ -1046,7 +1046,7 @@ bool UsdUtils::IsVisible( UE::FUsdPrim& Prim, double TimeCode )
 #endif // USE_USD_SDK
 }
 
-bool UsdUtils::HasInheritedVisibility( UE::FUsdPrim& Prim, double TimeCode )
+bool UsdUtils::HasInheritedVisibility( const UE::FUsdPrim& Prim, double TimeCode )
 {
 #if USE_USD_SDK
 	FScopedUsdAllocs Allocs;
@@ -1071,6 +1071,38 @@ bool UsdUtils::HasInheritedVisibility( UE::FUsdPrim& Prim, double TimeCode )
 #else
 	return false;
 #endif // USE_USD_SDK
+}
+
+bool UsdUtils::HasInvisibleParent( const UE::FUsdPrim& Prim, const UE::FUsdPrim& RootPrim, double TimeCode )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim PxrUsdPrim{ Prim };
+	pxr::UsdPrim Parent = PxrUsdPrim.GetParent();
+
+	while ( Parent && Parent != RootPrim )
+	{
+		if ( pxr::UsdGeomImageable Imageable{ Parent } )
+		{
+			if ( pxr::UsdAttribute VisibilityAttr = Imageable.GetVisibilityAttr() )
+			{
+				pxr::TfToken Visibility;
+				if ( VisibilityAttr.Get<pxr::TfToken>( &Visibility, TimeCode ) )
+				{
+					if ( Visibility == pxr::UsdGeomTokens->invisible )
+					{
+						return true;
+					}
+				}
+			}
+		}
+
+		Parent = Parent.GetParent();
+	}
+#endif // USE_USD_SDK
+
+	return false;
 }
 
 UE::FSdfPath UsdUtils::GetPrimSpecPathForLayer( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer )

@@ -180,10 +180,17 @@ namespace UsdUtils
 	USDUTILITIES_API void MakeInvisible( UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
 
 	/** Returns if the ComputedVisibility for Prim says it should be visible */
-	USDUTILITIES_API bool IsVisible( UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+	USDUTILITIES_API bool IsVisible( const UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
 
 	/** Returns whether Prim has visibility set to 'inherited' */
-	USDUTILITIES_API bool HasInheritedVisibility( UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+	USDUTILITIES_API bool HasInheritedVisibility( const UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+
+	/**
+	 * Travels up from Prim and returns true if we hit any invisible prim before we hit the stage pseudoroot.
+	 * Does not check `Prim` itself (or `RootPrim`, so that you can just pass the PseudoRoot in most cases).
+	 * Completely ignores whether non-UsdGeomImageable prims are visible or not and keeps travelling up.
+	 */
+	USDUTILITIES_API bool HasInvisibleParent( const UE::FUsdPrim& Prim, const UE::FUsdPrim& RootPrim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
 
 	/**
 	 * Returns a path exactly like Prim.GetPrimPath(), except that if the prim is within variant sets, it will return the
