@@ -144,11 +144,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Chromak
 	GENERATED_BODY()
 
 public:
-	FDisplayClusterConfigurationICVFX_ChromakeyMarkers()
-		// Default chromakey marker color is (0,64,0)
-		: MarkerColor(0,0.25f,0)
-		, MarkerTileOffset(0)
-	{ }
+	FDisplayClusterConfigurationICVFX_ChromakeyMarkers();
 
 public:
 	// Allow chromakey markers rendering (Also require not empty MarkerTileRGBA)
@@ -159,17 +155,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FLinearColor MarkerColor;
 
-	// (*required) This texture must by tiled in both directions. Alpha channel used to composing
+	// (*required) This texture must by tiled in both directions. Alpha channel used for composing
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	UTexture2D* MarkerTileRGBA = nullptr;
 
 	// Scale markers UV source
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", ClampMin = "0", UIMin = "0", DisplayName = "Marker Scale"))
-	float MarkerSizeScale = 1;
+	float MarkerSizeScale = 0.5;
 
 	// Distance (or spacing) between tile markers
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", ClampMin = "0", UIMin = "0"))
-	float MarkerTileDistance = 1;
+	float MarkerTileDistance = 1.5;
 
 	// 2D tile marker offset (normalized to the tile distance)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
