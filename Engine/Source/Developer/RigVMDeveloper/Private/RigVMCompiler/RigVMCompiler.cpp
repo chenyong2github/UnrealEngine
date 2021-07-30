@@ -2354,6 +2354,17 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			// debug values are always stored as arrays
 			CPPType = FString::Printf(TEXT("TArray<%s>"), *CPPType);
 		}
+		else if(Pin->GetDirection() == ERigVMPinDirection::Hidden && Pin->GetNode()->IsA<URigVMUnitNode>())
+		{
+			UScriptStruct* UnitStruct = Cast<URigVMUnitNode>(Pin->GetNode())->GetScriptStruct();
+			const FProperty* Property = UnitStruct->FindPropertyByName(Pin->GetFName());
+			check(Property);
+
+			if (!Property->HasMetaData(FRigVMStruct::SingletonMetaName))
+			{
+				CPPType = FString::Printf(TEXT("TArray<%s>"), *CPPType);
+			}
+		}
 		Operand = WorkData.AddProperty(MemoryType, RegisterName, CPPType, Pin->GetCPPTypeObject(), JoinedDefaultValue);
 		
 #endif

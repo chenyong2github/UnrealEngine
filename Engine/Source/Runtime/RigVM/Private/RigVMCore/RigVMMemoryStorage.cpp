@@ -577,6 +577,43 @@ bool URigVMMemoryStorage::CopyProperty(
 				return true;
 			}
 		}
+		else if(const FArrayProperty* TargetArrayProperty = CastField<FArrayProperty>(InTargetProperty))
+		{
+			if(const FArrayProperty* SourceArrayProperty = CastField<FArrayProperty>(InSourceProperty))
+			{
+				FScriptArrayHelper TargetArray(TargetArrayProperty, InTargetPtr);
+				FScriptArrayHelper SourceArray(SourceArrayProperty, InSourcePtr);
+				
+				if(TargetArrayProperty->IsA<FFloatProperty>())
+				{
+					if(SourceArrayProperty->IsA<FDoubleProperty>())
+					{
+						TargetArray.Resize(SourceArray.Num());
+						for(int32 Index=0;Index<TargetArray.Num();Index++)
+						{
+							float* TargetFloat = (float*)TargetArray.GetRawPtr(Index);
+							const double* SourceDouble = (const double*)SourceArray.GetRawPtr(Index);
+							*TargetFloat = (float)*SourceDouble;
+						}
+						return true;
+					}
+				}
+				else if(TargetArrayProperty->IsA<FDoubleProperty>())
+				{
+					if(SourceArrayProperty->IsA<FFloatProperty>())
+					{
+						TargetArray.Resize(SourceArray.Num());
+						for(int32 Index=0;Index<TargetArray.Num();Index++)
+						{
+							double* TargetDouble = (double*)TargetArray.GetRawPtr(Index);
+							const float* SourceFloat = (const float*)SourceArray.GetRawPtr(Index);
+							*TargetDouble = (double)*SourceFloat;
+						}
+						return true;
+					}
+				}
+			}
+		}
 		
 		ensure(InTargetProperty->SameType(InSourceProperty));
 		return false;
