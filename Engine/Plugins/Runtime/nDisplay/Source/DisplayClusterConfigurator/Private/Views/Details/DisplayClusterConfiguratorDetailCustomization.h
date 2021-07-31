@@ -388,6 +388,8 @@ protected:
 class FDisplayClusterConfiguratorNodeSelection : public TSharedFromThis<FDisplayClusterConfiguratorNodeSelection>
 {
 public:
+	static const FName NAME_ElementToolTip;
+
 	enum EOperationMode
 	{
 		Viewports,

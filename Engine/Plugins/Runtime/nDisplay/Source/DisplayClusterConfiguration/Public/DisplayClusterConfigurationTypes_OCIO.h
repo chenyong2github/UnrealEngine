@@ -21,9 +21,11 @@ struct FDisplayClusterConfigurationOCIOConfiguration
 
 	FDisplayClusterConfigurationOCIOConfiguration();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable OCIO"))
+	/** Enable the application of an OpenColorIO configuration to all viewports. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable Viewport OCIO"))
 	bool bIsEnabled = true;
 
+	/** OpenColorIO Configuration */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "OCIO Configuration", EditCondition = "bIsEnabled"))
 	FOpenColorIODisplayConfiguration OCIOConfiguration;
 };
@@ -35,13 +37,15 @@ struct FDisplayClusterConfigurationOCIOProfile
 
 	FDisplayClusterConfigurationOCIOProfile();
 
+	/** Enable the application of an OpenColorIO configuration for the viewport(s) specified. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable OCIO"))
 	bool bIsEnabled = true;
 
+	/** OpenColorIO Configuration */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "OCIO Configuration", EditCondition = "bIsEnabled"))
 	FOpenColorIODisplayConfiguration OCIOConfiguration;
 
-	/** The data to receive the profile information. This will either be viewports or nodes. */
+	/** Specify the viewports to apply this OpenColorIO configuration. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OCIO", meta = (EditCondition = "bIsEnabled"))
 	TArray<FString> ApplyOCIOToObjects;
 };

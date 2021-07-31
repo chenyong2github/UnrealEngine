@@ -21,19 +21,19 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Ov
 	GENERATED_BODY()
 
 public:
-	// Disable default render, and resolve SourceTexture to viewport
+	/** Disable default render, and resolve SourceTexture to viewport */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Enable Viewport Texture Replacement"))
 	bool bAllowReplace = false;
 
-	// This texture resolved to target
+	/** Texture to use in place of the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAllowReplace"))
 	UTexture2D* SourceTexture = nullptr;
 
-	// Use TextureRegion rect on SourceTexture to resolve
+	/** Set to True to crop the texture for the inner frustum as specified below. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Use Texture Crop", EditCondition = "bAllowReplace"))
 	bool bShouldUseTextureRegion = false;
 
-	// Resolve this region from OverrideTexture
+	/** Texture Crop */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Texture Crop", EditCondition = "bAllowReplace && bShouldUseTextureRegion"))
 	FDisplayClusterReplaceTextureCropRectangle TextureRegion;
 };
@@ -44,12 +44,15 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Bl
 	GENERATED_BODY()
 
 public:
+	/** Enable/disable Post Process Blur and specify method. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
 	EDisplayClusterConfiguration_PostRenderBlur Mode = EDisplayClusterConfiguration_PostRenderBlur::None;
 
+	/** Kernel Radius */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "Mode != EDisplayClusterConfiguration_PostRenderBlur::None"))
 	int   KernelRadius = 5;
 
+	/** Kernel Scale */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "Mode != EDisplayClusterConfiguration_PostRenderBlur::None"))
 	float KernelScale = 20;
 };
@@ -59,27 +62,27 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Ge
 {
 	GENERATED_BODY()
 
-	// Allow autogenerate num mips for this target
+	/** Generate and use mipmaps for the inner frustum.  Disabling this can improve performance but result in visual artifacts on the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
 	bool bAutoGenerateMips = false;
 
-	// Control mips generator settings
+	/** Mips Sampler Filter */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureFilter> MipsSamplerFilter = TF_Trilinear;
 
-	/**  AutoGenerateMips sampler address mode for U channel. Defaults to clamp. */
+	/** AutoGenerateMips sampler address mode for U channel. Defaults to clamp. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureAddress> MipsAddressU = TA_Clamp;
 
-	/**  AutoGenerateMips sampler address mode for V channel. Defaults to clamp. */
+	/** AutoGenerateMips sampler address mode for V channel. Defaults to clamp. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureAddress> MipsAddressV = TA_Clamp;
 
-	// Performance: Allows a limited number of MIPs for high resolution.
+	/** Performance: Allows a limited number of MIPs for high resolution. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Enable Maximum Number of Mips", EditCondition = "bAutoGenerateMips"))
 	bool bEnabledMaxNumMips = false;
 
-	// Performance: Use this value as the maximum number of MIPs for high resolution.
+	/** Performance: Use this value as the maximum number of MIPs for high resolution.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Maximum Number of Mips", EditCondition = "bAutoGenerateMips && bEnabledMaxNumMips"))
 	int MaxNumMips = 0;
 };

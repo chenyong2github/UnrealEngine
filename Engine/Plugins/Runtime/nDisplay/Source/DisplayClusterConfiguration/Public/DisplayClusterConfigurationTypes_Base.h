@@ -57,9 +57,11 @@ public:
 	FIntRect ToRect() const;
 
 public:
+	/** Texture Crop Origin */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Texture Crop Origin"))
 	FTextureCropOrigin Origin;
 
+	/** Texture Crop Size */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Texture Crop Size"))
 	FTextureCropSize Size;
 };

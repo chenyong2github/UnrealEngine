@@ -65,6 +65,8 @@ void FDisplayClusterGameManager::EndSession()
 
 bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 {
+	FScopeLock Lock(&InternalsSyncScope);
+
 	check(InWorld);
 	check(ConfigData);
 	CurrentWorld = InWorld;

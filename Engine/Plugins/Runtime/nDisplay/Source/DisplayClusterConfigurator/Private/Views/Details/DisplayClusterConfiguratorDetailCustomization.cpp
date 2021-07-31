@@ -1237,6 +1237,8 @@ void FDisplayClusterConfiguratorComponentRefCustomization::CustomizeHeader(TShar
 // Node Selection Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
 
+const FName FDisplayClusterConfiguratorNodeSelection::NAME_ElementToolTip = TEXT("ElementToolTip");
+
 FDisplayClusterConfiguratorNodeSelection::FDisplayClusterConfiguratorNodeSelection(EOperationMode InMode, ADisplayClusterRootActor* InRootActor, FDisplayClusterConfiguratorBlueprintEditor* InToolkitPtr)
 {
 	RootActorPtr = InRootActor;
@@ -1323,11 +1325,30 @@ FDisplayClusterConfiguratorNodeSelection::EOperationMode FDisplayClusterConfigur
 void FDisplayClusterConfiguratorNodeSelection::GenerateSelectionWidget(
 	TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder)
 {
+	FText ElementTooltip = FText::GetEmpty();
+
+	TSharedPtr<IPropertyHandle> ParentArrayHandle = PropertyHandle->GetParentHandle();
+	if (ParentArrayHandle.IsValid() && ParentArrayHandle->IsValidHandle())
+	{
+		if (const FString* MetaData = ParentArrayHandle->GetInstanceMetaData(NAME_ElementToolTip))
+		{
+			ElementTooltip = FText::FromString(*MetaData);
+		}
+		else if (ParentArrayHandle->HasMetaData(NAME_ElementToolTip))
+		{
+			ElementTooltip = FText::FromString(ParentArrayHandle->GetMetaData(NAME_ElementToolTip));
+		}
+		else
+		{
+			ElementTooltip = ParentArrayHandle->GetPropertyDisplayName();
+		}
+	}
+
 	IDetailPropertyRow& PropertyRow = ChildrenBuilder.AddProperty(PropertyHandle);
 	PropertyRow.CustomWidget(false)
 		.NameContent()
 		[
-			PropertyHandle->CreatePropertyNameWidget()
+			PropertyHandle->CreatePropertyNameWidget(FText::GetEmpty(), ElementTooltip)
 		]
 		.IsEnabled(IsEnabledAttr)
 		.ValueContent()
@@ -1405,9 +1426,17 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeHeader(TShare
 	Mode = FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(PropertyHandle->GetProperty()->GetOwnerProperty());
 	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
 	
+	FText ElementTooltip = FText::GetEmpty();
+
+	TSharedPtr<IPropertyHandle> ParentArrayHandle = PropertyHandle->GetParentHandle();
+	if (ParentArrayHandle.IsValid() && ParentArrayHandle->IsValidHandle())
+	{
+		ElementTooltip = ParentArrayHandle->GetPropertyDisplayName();
+	}
+
 	HeaderRow.NameContent()
 	[
-		PropertyHandle->CreatePropertyNameWidget()
+		PropertyHandle->CreatePropertyNameWidget(FText::GetEmpty(), ElementTooltip)
 	];
 }
 
@@ -1428,16 +1457,21 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSha
 	
 	EnableOCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("EnableOCIOViewportsDisplayName", "Enable Per-Viewport OCIO") : LOCTEXT("EnableOCIOClusterDisplayName", "Enable Per-Node OCIO"));
+	EnableOCIOHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("EnableOCIOViewportsTooltip", "Enable the application of an OpenColorIO configuration for the viewport(s) specified.") : LOCTEXT("EnableOCIOClusterNodesTooltip", "Enable the application of an OpenColorIO configuration for the nodes(s) specified."));
 
 	OCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("OCIOViewportsModeDisplayName", "Viewport OCIO") : LOCTEXT("OCIOClusterModeDisplayName", "Inner Frustum OCIO"));
+	OCIOHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("OCIOViewportsModeTooltip", "Viewport OCIO") : LOCTEXT("OCIOClusterModeTooltip", "Inner Frustum OCIO"));
 
 	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("DataViewportsModeDisplayName", "Apply OCIO to Viewports") : LOCTEXT("DataClusterModeDisplayName", "Apply OCIO to Nodes"));
 	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("DataViewportsModeToolTip", "Select viewports to receive this OCIO profile.") :
-		LOCTEXT("DataClusterModeToolTip", "Select cluster nodes to receive this OCIO profile."));
-	
+		LOCTEXT("DataViewportsModeToolTip", "Specify the viewports to apply this OpenColorIO configuration.") :
+		LOCTEXT("DataClusterModeToolTip", "Specify the nodes to apply this OpenColorIO configuration."));
+	ArrayHandle->SetInstanceMetaData(FDisplayClusterConfiguratorNodeSelection::NAME_ElementToolTip, ArrayHandle->GetPropertyDisplayName().ToString());
+
 	const TAttribute<bool> OCIOEnabledEditCondition = TAttribute<bool>::Create([this, EnableOCIOHandle]()
 	{
 		bool bCond1 = false;
@@ -1462,10 +1496,18 @@ void FDisplayClusterConfiguratorPerViewportColorGradingCustomization::CustomizeH
 	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
 	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
 
+	FText ElementTooltip = FText::GetEmpty();
+
+	TSharedPtr<IPropertyHandle> ParentArrayHandle = PropertyHandle->GetParentHandle();
+	if (ParentArrayHandle.IsValid() && ParentArrayHandle->IsValidHandle())
+	{
+		ElementTooltip = ParentArrayHandle->GetPropertyDisplayName();
+	}
+
 	HeaderRow.NameContent()
-		[
-			PropertyHandle->CreatePropertyNameWidget()
-		];
+	[
+		PropertyHandle->CreatePropertyNameWidget(FText::GetEmpty(), ElementTooltip)
+	];
 }
 
 void FDisplayClusterConfiguratorPerViewportColorGradingCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
@@ -1486,6 +1528,8 @@ void FDisplayClusterConfiguratorPerViewportColorGradingCustomization::CustomizeC
 	ChildBuilder.AddProperty(IsEnabledHandle.ToSharedRef());
 	ChildBuilder.AddProperty(IsEntireClusterPostProcessHandle.ToSharedRef());	
 	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef()).EditCondition(IsEnabledEditCondition, nullptr);
+
+	ArrayHandle->SetInstanceMetaData(FDisplayClusterConfiguratorNodeSelection::NAME_ElementToolTip, ArrayHandle->GetPropertyDisplayName().ToString());
 
 	const TAttribute<bool> IsArrayHandleEnabledEditCondition = TAttribute<bool>::Create([this]()
 	{
@@ -1532,6 +1576,8 @@ void FDisplayClusterConfiguratorPerNodeColorGradingCustomization::CustomizeChild
 	ChildBuilder.AddProperty(IsEntireClusterPostProcessHandle.ToSharedRef());	
 	ChildBuilder.AddProperty(IsAllNodesPostProcessHandle.ToSharedRef());
 	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef()).EditCondition(IsEnabledEditCondition, nullptr);
+
+	ArrayHandle->SetInstanceMetaData(FDisplayClusterConfiguratorNodeSelection::NAME_ElementToolTip, ArrayHandle->GetPropertyDisplayName().ToString());
 
 	const TAttribute<bool> IsArrayHandleEnabledEditCondition = TAttribute<bool>::Create([this]()
 	{
