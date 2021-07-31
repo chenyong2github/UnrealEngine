@@ -12,6 +12,8 @@
 #include "DisplayClusterRootActor.h"
 #include "Camera/CameraComponent.h"
 
+#include "Blueprints/DisplayClusterBlueprint.h"
+
 #include "Components/SceneComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
@@ -22,7 +24,9 @@
 #include "Misc/DisplayClusterStrings.h"
 
 #include "GameFramework/Actor.h"
+#include "GameFramework/PlayerStart.h"
 #include "Engine/LevelStreaming.h"
+#include "EngineUtils.h"
 
 
 FDisplayClusterGameManager::FDisplayClusterGameManager()
@@ -69,20 +73,54 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 
 	check(InWorld);
 	check(ConfigData);
+
 	CurrentWorld = InWorld;
 
 	// Find the first DCRA instance that matches to the specified configuration
 	ADisplayClusterRootActor* RootActor = FindRootActor(InWorld, ConfigData);
 
-	// In cluster mode, spawn an empty DCRA instance and initialize it with specified configuration data.
+	// If no proper DCRA found,
+	// 1. Detect spawn location and rotation
+	// 2. Try to spawn a blueprint from a corresponding asset
+	// 3. If the asset not found, spawn an empty DCRA instance and initialize it with specified configuration data.
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
 		if (!RootActor)
 		{
-			// Spawn the DCRA
-			RootActor = Cast<ADisplayClusterRootActor>(CurrentWorld->SpawnActor(ADisplayClusterRootActor::StaticClass()));
-			// And initialize it with the config data
-			RootActor->InitializeFromConfig(ConfigData);
+			// 1. Detect spawn location and rotation
+			FVector  StartLocation = FVector::ZeroVector;
+			FRotator StartRotation = FRotator::ZeroRotator;
+
+			// Use PlayerStart transform if it exists in the world
+			TActorIterator<APlayerStart> It(InWorld);
+			if (It)
+			{
+				StartLocation = (*It)->GetActorLocation();
+				StartRotation = (*It)->GetActorRotation();
+			}
+
+			// 2. Spawn the DCRA PB from a corresponding asset
+			UObject* ActorToSpawn = Cast<UObject>(StaticLoadObject(UObject::StaticClass(), NULL, *ConfigData->Info.AssetPath));
+			if (ActorToSpawn)
+			{
+				UBlueprint* GeneratedBP = Cast<UBlueprint>(ActorToSpawn);
+				UClass* ClassToSpawn = ActorToSpawn->StaticClass();
+				if (ClassToSpawn && GeneratedBP)
+				{
+					AActor* NewActor = CurrentWorld->SpawnActor<AActor>(GeneratedBP->GeneratedClass, StartLocation, StartRotation, FActorSpawnParameters());
+					RootActor = Cast<ADisplayClusterRootActor>(NewActor);
+				}
+			}
+
+			// 3. Still no root actor exists? Spawn the DCRA and initialize it with the config data
+			if (!RootActor)
+			{
+				RootActor = CurrentWorld->SpawnActor<ADisplayClusterRootActor>(ADisplayClusterRootActor::StaticClass(), StartLocation, StartRotation, FActorSpawnParameters());
+				if (RootActor)
+				{
+					RootActor->InitializeFromConfig(ConfigData);
+				}
+			}
 		}
 	}
 

@@ -176,6 +176,15 @@ void ADisplayClusterRootActor::UpdateConfigDataInstance(UDisplayClusterConfigura
 					NAME_None,
 					IsTemplate() ? RF_ArchetypeObject | CommonFlags : CommonFlags);
 			}
+
+			if (CurrentConfigData->Scene == nullptr)
+			{
+				CurrentConfigData->Scene = NewObject<UDisplayClusterConfigurationScene>(
+					CurrentConfigData,
+					UDisplayClusterConfigurationScene::StaticClass(),
+					NAME_None,
+					IsTemplate() ? RF_ArchetypeObject | CommonFlags : CommonFlags);
+			}
 		}
 		else if (bForceRecreate)
 		{

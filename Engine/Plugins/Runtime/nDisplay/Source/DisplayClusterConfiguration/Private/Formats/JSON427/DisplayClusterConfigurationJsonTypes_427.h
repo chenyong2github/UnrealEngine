@@ -223,6 +223,112 @@ public:
 	bool bExitOnEsc;
 };
 
+
+USTRUCT()
+struct FDisplayClusterConfigurationJsonSceneComponent_427
+{
+	GENERATED_BODY()
+};
+
+
+USTRUCT()
+struct FDisplayClusterConfigurationJsonSceneComponentXform_427
+	: public FDisplayClusterConfigurationJsonSceneComponent_427
+{
+	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationJsonSceneComponentXform_427()
+		: FDisplayClusterConfigurationJsonSceneComponentXform_427(FString(), FVector::ZeroVector, FRotator::ZeroRotator)
+	{ }
+
+	FDisplayClusterConfigurationJsonSceneComponentXform_427(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation)
+		: ParentId(InParentId)
+		, Location(InLocation)
+		, Rotation(InRotation)
+	{ }
+
+public:
+	UPROPERTY()
+	FString ParentId;
+
+	UPROPERTY()
+	FDisplayClusterConfigurationJsonVector_427 Location;
+
+	UPROPERTY()
+	FDisplayClusterConfigurationJsonRotator_427 Rotation;
+};
+
+
+USTRUCT()
+struct FDisplayClusterConfigurationJsonSceneComponentCamera_427
+	: public FDisplayClusterConfigurationJsonSceneComponentXform_427
+{
+	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationJsonSceneComponentCamera_427()
+		: FDisplayClusterConfigurationJsonSceneComponentCamera_427(FString(), FVector::ZeroVector, FRotator::ZeroRotator, 6.4f, false, DisplayClusterConfigurationStrings::config::scene::camera::CameraStereoOffsetNone)
+	{ }
+
+	FDisplayClusterConfigurationJsonSceneComponentCamera_427(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, float InInterpupillaryDistance, bool bInSwapEyes, const FString& InStereoOffset)
+		: FDisplayClusterConfigurationJsonSceneComponentXform_427(InParentId, InLocation, InRotation)
+		, InterpupillaryDistance(InInterpupillaryDistance)
+		, SwapEyes(bInSwapEyes)
+		, StereoOffset(InStereoOffset)
+	{ }
+
+public:
+	UPROPERTY()
+	float InterpupillaryDistance;
+
+	UPROPERTY()
+	bool SwapEyes;
+
+	UPROPERTY()
+	FString StereoOffset;
+};
+
+
+USTRUCT()
+struct FDisplayClusterConfigurationJsonSceneComponentScreen_427
+	: public FDisplayClusterConfigurationJsonSceneComponentXform_427
+{
+	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationJsonSceneComponentScreen_427()
+		: FDisplayClusterConfigurationJsonSceneComponentScreen_427(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FVector2D(1.f, 1.f))
+	{ }
+
+	FDisplayClusterConfigurationJsonSceneComponentScreen_427(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, const FVector2D& InSize)
+		: FDisplayClusterConfigurationJsonSceneComponentXform_427(InParentId, InLocation, InRotation)
+		, Size(InSize)
+	{ }
+
+public:
+	UPROPERTY()
+	FDisplayClusterConfigurationJsonSizeFloat_427 Size;
+};
+
+
+USTRUCT()
+struct FDisplayClusterConfigurationJsonScene_427
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	TMap<FString, FDisplayClusterConfigurationJsonSceneComponentXform_427> Xforms;
+
+	UPROPERTY()
+	TMap<FString, FDisplayClusterConfigurationJsonSceneComponentCamera_427> Cameras;
+
+	UPROPERTY()
+	TMap<FString, FDisplayClusterConfigurationJsonSceneComponentScreen_427> Screens;
+};
+
+
 USTRUCT()
 struct FDisplayClusterConfigurationJsonMasterNode_427
 {
@@ -377,6 +483,9 @@ public:
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonMisc_427 Misc;
+
+	UPROPERTY()
+	FDisplayClusterConfigurationJsonScene_427 Scene;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonCluster_427 Cluster;

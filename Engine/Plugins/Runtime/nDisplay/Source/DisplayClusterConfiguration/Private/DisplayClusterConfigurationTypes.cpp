@@ -41,7 +41,6 @@ FIntRect FDisplayClusterConfigurationRectangle::ToRect() const
 
 UDisplayClusterConfigurationData::UDisplayClusterConfigurationData()
 {
-	Scene   = CreateDefaultSubobject<UDisplayClusterConfigurationScene>(TEXT("Scene"));
 }
 
 bool UDisplayClusterConfigurationData::AssignPostprocess(const FString& NodeId, const FString& PostprocessId, const FString& Type, TMap<FString, FString> Parameters, int32 Order)
@@ -370,7 +369,10 @@ UDisplayClusterConfigurationData* UDisplayClusterConfigurationData::CreateNewCon
 {
 	UDisplayClusterConfigurationData* NewConfigData = NewObject<UDisplayClusterConfigurationData>(Owner ? Owner : GetTransientPackage(), NAME_None,
 		ObjectFlags | RF_ArchetypeObject | RF_Public | RF_Transactional);
-	
+
+	NewConfigData->Scene = NewObject<UDisplayClusterConfigurationScene>(NewConfigData, NAME_None,
+		RF_ArchetypeObject | RF_Public | RF_Transactional);
+
 	NewConfigData->Cluster = NewObject<UDisplayClusterConfigurationCluster>(NewConfigData, NAME_None,
 		RF_ArchetypeObject | RF_Public | RF_Transactional);
 
