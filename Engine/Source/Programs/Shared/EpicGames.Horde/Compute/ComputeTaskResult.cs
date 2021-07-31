@@ -11,7 +11,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Describes an action to be executed in a particular workspace
 	/// </summary>
-	public class ActionResult
+	public class ComputeTaskResult
 	{
 		/// <summary>
 		/// Exit code of the process
@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Compute
 		/// Constructor
 		/// </summary>
 		/// <param name="ExitCode">Exit code of the process</param>
-		public ActionResult(int ExitCode)
+		public ComputeTaskResult(int ExitCode)
 		{
 			this.ExitCode = ExitCode;
 		}

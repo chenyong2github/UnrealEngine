@@ -11,7 +11,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Describes an action to be executed in a particular workspace
 	/// </summary>
-	public class Action
+	public class ComputeTask
 	{
 		/// <summary>
 		/// Hash of a <see cref="Command"/> object encoded as a CbObject and stored in the CAS
@@ -36,7 +36,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="CommandHash"></param>
 		/// <param name="SandboxHash"></param>
-		public Action(IoHash CommandHash, IoHash SandboxHash)
+		public ComputeTask(IoHash CommandHash, IoHash SandboxHash)
 		{
 			this.CommandHash = CommandHash;
 			this.SandboxHash = SandboxHash;
