@@ -14,6 +14,7 @@ namespace HordeServer.Utilities
 	/// <summary>
 	/// Attribute specifying the converter type to use for a class
 	/// </summary>
+	[AttributeUsage(AttributeTargets.Class)]
 	public class RedisConverterAttribute : Attribute
 	{
 		/// <summary>
