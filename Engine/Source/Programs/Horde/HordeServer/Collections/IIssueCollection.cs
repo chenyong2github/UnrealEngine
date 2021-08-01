@@ -127,7 +127,7 @@ namespace HordeServer.Collections
 		/// <returns>The hashcode value</returns>
 		public override int GetHashCode()
 		{
-			int Result = string.GetHashCode(Type, StringComparison.Ordinal);
+			int Result = StringComparer.Ordinal.GetHashCode(Type);
 			foreach (string Key in Keys)
 			{
 				Result = HashCode.Combine(Result, Key);
