@@ -367,6 +367,80 @@ USceneComponent* FLedWallCalibration::GetTypedParentComponent(const USceneCompon
 		}
 	}
 
+	// If we're here, the component might be under an inherited component, so we search for it by its variable name.
+
+	// Find the expected parent variable name
+
+	FName ExpectedParentVariableName(NAME_None);
+	{
+		bool bFoundExpectedParentVariableName = false;
+
+		for (const UBlueprintGeneratedClass* BPGClass : BlueprintClasses)
+		{
+			if (!BPGClass->SimpleConstructionScript)
+			{
+				continue;
+			}
+
+			const TArray<USCS_Node*> CDONodes = BPGClass->SimpleConstructionScript->GetAllNodes();
+
+			for (const USCS_Node* Node : CDONodes)
+			{
+				const UActorComponent* NodeCDOComponent
+					= Node->GetActualComponentTemplate(Cast<UBlueprintGeneratedClass>(BPGeneratedClass));
+
+				if (NodeCDOComponent == InComponent)
+				{
+					ExpectedParentVariableName = Node->ParentComponentOrVariableName;
+					bFoundExpectedParentVariableName = true;
+					break;
+				}
+			}
+
+			if (bFoundExpectedParentVariableName)
+			{
+				break;
+			}
+		}
+
+		if (!bFoundExpectedParentVariableName || (ExpectedParentVariableName == NAME_None))
+		{
+			return nullptr;
+		}
+	}
+
+	// Traverse the components until one with the expected parent variable name is found
+
+	for (const UBlueprintGeneratedClass* BPGClass : BlueprintClasses)
+	{
+		if (!BPGClass->SimpleConstructionScript)
+		{
+			continue;
+		}
+
+		const TArray<USCS_Node*> CDONodes = BPGClass->SimpleConstructionScript->GetAllNodes();
+
+		for (const USCS_Node* Node : CDONodes)
+		{
+			USceneComponent* NodeCDOComponent
+				= Cast<USceneComponent>(Node->GetActualComponentTemplate(Cast<UBlueprintGeneratedClass>(BPGeneratedClass)));
+
+			if (NodeCDOComponent == InComponent)
+			{
+				continue;
+			}
+
+			if (NodeCDOComponent && NodeCDOComponent->IsA(InParentClass))
+			{
+				if (Node->GetVariableName() == ExpectedParentVariableName)
+				{
+					return NodeCDOComponent;
+				}
+			}
+		}
+	}
+
+	// If we're here, we could not find the parent component (of the expected class).
 	return nullptr;
 }
 
