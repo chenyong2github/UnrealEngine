@@ -333,12 +333,9 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 
 	OutPrimitives.Empty();
 
-#if WITH_EDITOR
-
 	if (CurrentConfigData)
 	{
-		//@todo: Add more rules to hide components used in config
-		// Hide all static meshes assigned into configuration:
+		// Add warp meshes assigned in the configuration into hide lists
 		TArray<FString> WarpMeshNames;
 		CurrentConfigData->GetReferencedMeshNames(WarpMeshNames);
 		if (WarpMeshNames.Num() > 0)
@@ -346,6 +343,8 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 			GetTypedPrimitives<UStaticMeshComponent>(OutPrimitives, &WarpMeshNames);
 		}
 	}
+
+#if WITH_EDITOR
 
 	// Hide all visualization components from RootActor
 	{
