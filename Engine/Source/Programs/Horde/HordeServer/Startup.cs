@@ -770,7 +770,9 @@ namespace HordeServer
 				Endpoints.MapGrpcService<ExecutionService>();
 
 				Endpoints.MapGrpcService<BlobRpc>();
+				Endpoints.MapGrpcService<BlobStoreRpc>();
 				Endpoints.MapGrpcService<RefRpc>();
+				Endpoints.MapGrpcService<RefTableRpc>();
 
 				Endpoints.MapGrpcReflectionService();
 
