@@ -41,4 +41,10 @@
     <ProjectReference Include="..\EpicGames.IoHash\EpicGames.IoHash.csproj" />
     <ProjectReference Include="..\EpicGames.Serialization\EpicGames.Serialization.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Protobuf Include="Protos\horde\common\cbobject_wrapper.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\iohash_wrapper.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\storage\blob_store.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\storage\ref_table.proto" ProtoRoot="Protos" />
+  </ItemGroup>
 </Project>
