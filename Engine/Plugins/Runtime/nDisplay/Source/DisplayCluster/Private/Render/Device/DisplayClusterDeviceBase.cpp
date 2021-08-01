@@ -384,6 +384,8 @@ bool FDisplayClusterDeviceBase::BeginNewFrame(FViewport* InViewport, UWorld* InW
 	check(IsInGameThread());
 	check(InViewport);
 
+	IDisplayClusterViewportManagerProxy* NewViewportManagerProxy = nullptr;
+
 	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
 	ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor();
 	if (RootActor)
@@ -403,28 +405,28 @@ bool FDisplayClusterDeviceBase::BeginNewFrame(FViewport* InViewport, UWorld* InW
 						ViewportManagerPtr = ViewportManager;
 
 						// Send viewport manager proxy on render thread
-						ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_SetViewportManagerPtr)(
-							[DCRenderDevice = this, ViewportManagerProxy = ViewportManager->GetProxy()](FRHICommandListImmediate& RHICmdList)
-						{
-							DCRenderDevice->ViewportManagerProxyPtr = ViewportManagerProxy;
-						});
+						NewViewportManagerProxy = ViewportManager->GetProxy();
 
 						// update total number of views for this frame (in multiple families)
 						DesiredNumberOfViews = OutRenderFrame.DesiredNumberOfViews;
-
-						return true;
 					}
 				}
 			}
 		}
 	}
 
-	return false;
+	// Update render thread viewport manager proxy
+	ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_SetViewportManagerPtr)(
+		[DCRenderDevice = this, ViewportManagerProxy = NewViewportManagerProxy](FRHICommandListImmediate& RHICmdList)
+	{
+		DCRenderDevice->ViewportManagerProxyPtr = ViewportManagerProxy;
+	});
+
+	return NewViewportManagerProxy != nullptr;
 }
 
 void FDisplayClusterDeviceBase::FinalizeNewFrame()
 {
-
 	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
 	ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor();
 	if (RootActor)
@@ -449,25 +451,34 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 {
 	SCOPED_GPU_STAT(RHICmdList, nDisplay_Device_RenderTexture);
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Device_RenderTexture);
-	
-	if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxyPtr)
+
+	if (SrcTexture && BackBuffer)
 	{
-		// QuadBufStereo: Copy LEFT/RIGHT EYE to backbuffer
-		ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 0, 0, BackBuffer, WindowSize);
-		ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 1, BackBuffer, WindowSize);
-	}
-	else
-	{
-		// SrcTexture contain MONO/LEFT eye with debug overlay canvas
+		// SrcTexture contain MONO/LEFT eye with debug canvas
 		// copy the render target texture to the MONO/LEFT_EYE back buffer  (MONO = mono, side_by_side, top_bottom)
-		RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, FResolveParams());
+		{
+			const FIntPoint SrcSize = SrcTexture->GetSizeXY();
+			const FIntPoint DstSize = BackBuffer->GetSizeXY();
+
+			FResolveRect CopyRect(0, 0, FMath::Min(SrcSize.X, DstSize.X), FMath::Min(SrcSize.Y, DstSize.Y));
+			FResolveParams CopyParams = {};
+			CopyParams.Rect = CopyParams.DestRect = CopyRect;
+
+			RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, CopyParams);
+		}
+
+		if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxyPtr)
+		{
+			// QuadBufStereo: Copy RIGHT_EYE to backbuffer
+			ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 1, BackBuffer, WindowSize);
+		}
+
+		// Clear render target before out frame resolving, help to make things look better visually for console/resize, etc.
+		FRHIRenderPassInfo RPInfo(SrcTexture, ERenderTargetActions::Clear_Store);
+		TransitionRenderPassTargets(RHICmdList, RPInfo);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
+		RHICmdList.EndRenderPass();
 	}
-	
-	// Clear render target before out frame resolving
-	FRHIRenderPassInfo RPInfo(SrcTexture, ERenderTargetActions::Clear_Store);
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
-	RHICmdList.EndRenderPass();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
