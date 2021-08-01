@@ -744,28 +744,6 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationActio
 {
 	return SNew(SHorizontalBox)
 
-		+ SHorizontalBox::Slot() // Button to remove last row
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("RemoveLast", "Remove Last"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([&]() -> FReply
-			{
-				if (CalibrationRows.Num())
-				{
-					CalibrationRows.RemoveAt(CalibrationRows.Num() - 1);
-					if (CalibrationListView.IsValid())
-					{
-						CalibrationListView->RequestListRefresh();
-					}
-				}
-
-				return FReply::Handled();
-			})
-		]
-
 		+ SHorizontalBox::Slot() // Button to clear all rows
 		.AutoWidth()
 		[ 
@@ -792,7 +770,44 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationPoint
 			return SNew(CameraLensDistortionAlgoCheckerboard::SCalibrationRowGenerator, OwnerTable)
 				.CalibrationRowData(InItem);
 		})
-		.SelectionMode(ESelectionMode::SingleToggle)
+		.SelectionMode(ESelectionMode::Multi)
+		.OnKeyDownHandler_Lambda([&](const FGeometry& Geometry, const FKeyEvent& KeyEvent) -> FReply
+		{
+			if (!CalibrationListView.IsValid())
+			{
+				return FReply::Unhandled();
+			}
+
+			if (KeyEvent.GetKey() == EKeys::Delete)
+			{
+				// Delete selected items
+
+				const TArray<TSharedPtr<FCalibrationRowData>> SelectedItems = CalibrationListView->GetSelectedItems();
+
+				for (const TSharedPtr<FCalibrationRowData>& SelectedItem : SelectedItems)
+				{
+					CalibrationRows.Remove(SelectedItem);
+				}
+
+				CalibrationListView->RequestListRefresh();
+
+				return FReply::Handled();
+			}
+			else if (KeyEvent.GetModifierKeys().IsControlDown() && (KeyEvent.GetKey() == EKeys::A))
+			{
+				// Select all items
+
+				CalibrationListView->SetItemSelection(CalibrationRows, true);
+			}
+			else if (KeyEvent.GetKey() == EKeys::Escape)
+			{
+				// Deselect all items
+
+				CalibrationListView->ClearSelection();
+			}
+
+			return FReply::Unhandled();
+		})
 		.HeaderRow
 		(
 			SNew(SHeaderRow)
