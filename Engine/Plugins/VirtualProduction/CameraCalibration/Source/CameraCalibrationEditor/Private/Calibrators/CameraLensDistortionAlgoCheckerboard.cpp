@@ -790,7 +790,6 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationPoint
 				}
 
 				CalibrationListView->RequestListRefresh();
-
 				return FReply::Handled();
 			}
 			else if (KeyEvent.GetModifierKeys().IsControlDown() && (KeyEvent.GetKey() == EKeys::A))
@@ -798,12 +797,14 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationPoint
 				// Select all items
 
 				CalibrationListView->SetItemSelection(CalibrationRows, true);
+				return FReply::Handled();
 			}
 			else if (KeyEvent.GetKey() == EKeys::Escape)
 			{
 				// Deselect all items
 
 				CalibrationListView->ClearSelection();
+				return FReply::Handled();
 			}
 
 			return FReply::Unhandled();
