@@ -16,27 +16,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Shared\EpicGames.Horde.Common\EpicGames.Horde.Common.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\horde_rpc_messages.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\common\agent_status.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\common\event_severity.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\common\jobstep_outcome.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\common\jobstep_state.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\common\label_change.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\common\lease_outcome.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\common\lease_state.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\common\priority.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\messages\agent_capabilities.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\messages\agent_requirements.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\messages\agent_workspace.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\messages\lease.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\tasks\conform_task.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\tasks\job_task.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\tasks\restart_task.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\tasks\shutdown_task.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\tasks\upgrade_task.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" />
+    <Protobuf Include="Protos\horde\horde_rpc_messages.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\agent_status.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\event_severity.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\jobstep_outcome.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\jobstep_state.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\label_change.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\lease_outcome.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\lease_state.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\priority.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\messages\agent_capabilities.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\messages\agent_requirements.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\messages\agent_workspace.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\messages\lease.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\tasks\conform_task.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\tasks\job_task.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\tasks\restart_task.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\tasks\shutdown_task.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\tasks\upgrade_task.proto" ProtoRoot="Protos" />
   </ItemGroup>
 </Project>
