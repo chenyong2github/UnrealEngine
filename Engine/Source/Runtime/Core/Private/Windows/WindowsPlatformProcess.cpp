@@ -924,6 +924,25 @@ bool FWindowsPlatformProcess::ExecElevatedProcess(const TCHAR* URL, const TCHAR*
 	return bSuccess;
 }
 
+FProcHandle FWindowsPlatformProcess::CreateElevatedProcess(const TCHAR* URL, const TCHAR* Params)
+{
+	SHELLEXECUTEINFO ShellExecuteInfo;
+	ZeroMemory(&ShellExecuteInfo, sizeof(ShellExecuteInfo));
+	ShellExecuteInfo.cbSize = sizeof(ShellExecuteInfo);
+	ShellExecuteInfo.fMask = SEE_MASK_UNICODE | SEE_MASK_NOCLOSEPROCESS;
+	ShellExecuteInfo.lpFile = URL;
+	ShellExecuteInfo.lpVerb = TEXT("runas");
+	ShellExecuteInfo.nShow = SW_SHOW;
+	ShellExecuteInfo.lpParameters = Params;
+
+	if (ShellExecuteEx(&ShellExecuteInfo))
+	{
+		return FProcHandle(ShellExecuteInfo.hProcess);
+	}
+
+	return FProcHandle{};
+}
+
 const TCHAR* FWindowsPlatformProcess::BaseDir()
 {
 	static TCHAR Result[512]=TEXT("");
