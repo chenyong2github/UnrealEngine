@@ -1046,6 +1046,24 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Checks to see if any arguments are used
+		/// </summary>
+		/// <returns></returns>
+		public bool AreAnyArgumentsUsed()
+		{
+			return UsedArguments.Cast<bool>().Count(B => B) != 0;
+		}
+		
+		/// <summary>
+		/// Count the number of value (non-flag) arguments on the command line
+		/// </summary>
+		/// <returns></returns>
+		public int CountValueArguments()
+		{
+			return FlagArguments.Cast<bool>().Count(B => !B);
+		}
+
+		/// <summary>
 		/// Checks that a given string is a valid argument prefix
 		/// </summary>
 		/// <param name="Prefix">The prefix to check</param>
