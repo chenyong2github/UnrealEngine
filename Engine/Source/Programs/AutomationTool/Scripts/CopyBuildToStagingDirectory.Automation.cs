@@ -638,7 +638,7 @@ namespace AutomationScripts
 
 			LogInformation("Creating Staging Manifest...");
 
-			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
+			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
 
 			if (Params.HasIterateSharedCookedBuild)
 			{
@@ -1129,7 +1129,7 @@ namespace AutomationScripts
 					}
 					// check if the game will be verifying ssl connections - if not, we can skip staging files that won't be needed
 					bool bStageSSLCertificates = false;
-					ConfigHierarchy PlatformEngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
+					ConfigHierarchy PlatformEngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
 					if (PlatformEngineConfig != null)
 					{
 						PlatformEngineConfig.GetBool("/Script/Engine.NetworkSettings", "n.VerifyPeer", out bStageSSLCertificates);
@@ -1397,6 +1397,7 @@ namespace AutomationScripts
 		/// <param name="SC">The staging context</param>
 		/// <param name="ConfigDir">Directory containing the config files</param>
 		/// <param name="ConfigFile">The config file to check</param>
+		/// <param name="PlatformExtenionName">Name of platform to scan outside the main directory</param>
 		/// <returns>True if the file should be staged, false otherwise</returns>
 		static Nullable<bool> ShouldStageConfigFile(DeploymentContext SC, DirectoryReference ConfigDir, FileReference ConfigFile, string PlatformExtensionName)
 		{
@@ -1410,7 +1411,34 @@ namespace AutomationScripts
 				return false;
 			}
 
+			const string CustomPrefix = "custom/";
 			string NormalizedPath = ConfigFile.MakeRelativeTo(ConfigDir).ToLowerInvariant().Replace('\\', '/');
+
+			if (NormalizedPath.StartsWith(CustomPrefix))
+			{
+				// Strip custom prefix, then check if it matches our specified custom config
+				NormalizedPath = NormalizedPath.Substring(CustomPrefix.Length);
+
+				if (!String.IsNullOrEmpty(SC.CustomConfig))
+				{
+					string PrefixToStrip = SC.CustomConfig.ToLowerInvariant() + "/";
+					if (NormalizedPath.StartsWith(PrefixToStrip))
+					{
+						// Strip custom config path off the front
+						NormalizedPath = NormalizedPath.Substring(PrefixToStrip.Length);
+					}
+					else
+					{
+						// If custom config is specified, we want to ignore others automatically
+						return false;
+					}
+				}
+				else
+				{
+					// Ignore all custom config directories
+					return false;
+				}
+			}
 
 			int DirectoryIdx = NormalizedPath.IndexOf('/');
 			if (DirectoryIdx == -1)
@@ -1821,7 +1849,7 @@ namespace AutomationScripts
 
 
 
-			ConfigHierarchy PakRulesConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.PakFileRules, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
+			ConfigHierarchy PakRulesConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.PakFileRules, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
 
 			bool bChunkedBuild = SC.PlatformUsesChunkManifests && DoesChunkPakManifestExist(Params, SC);
 
@@ -2287,7 +2315,7 @@ namespace AutomationScripts
 
 			// read some compression settings from the project (once, shared across all pak commands)
 
-			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
+			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
 
 			// in standard runs, ProjectPackagingSettings/bCompressed is read by the program invoking this script
 			//	and used to pass "-compressed" on the command line
@@ -2771,7 +2799,7 @@ namespace AutomationScripts
 						AdditionalArgs += " -platform=" + ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
 
 						Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
-						if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform))
+						if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform, SC.CustomConfig))
 						{
 							bool bAllowBulkDataInIoStore = true;
 							if (!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
@@ -2950,7 +2978,7 @@ namespace AutomationScripts
 
 					InternalUtils.SafeCreateDirectory(Path.GetDirectoryName(ReleaseVersionPath));
 					InternalUtils.SafeCopyFile(OutputLocation.FullName, ReleaseVersionPath);
-					if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform))
+					if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform, SC.CustomConfig))
 					{
 						InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".utoc"), Path.ChangeExtension(ReleaseVersionPath, ".utoc"));
 						InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".ucas"), Path.ChangeExtension(ReleaseVersionPath, ".ucas"));
@@ -3060,7 +3088,7 @@ namespace AutomationScripts
 						{
 							HashSet<string> IncludedExtensions = new HashSet<string>();
 							IncludedExtensions.Add(OutputFilenameExtension);
-							if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform))
+							if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform, SC.CustomConfig))
 							{
 								IncludedExtensions.Add(".ucas");
 								IncludedExtensions.Add(".utoc");
@@ -3355,7 +3383,7 @@ namespace AutomationScripts
 			LogInformation("Creating pak using streaming install manifests.");
 			DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "") + "_" + SC.CookPlatform));
 
-			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
+			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
 
 			bool bShouldGenerateEarlyDownloaderPakFile = false, bForceOneChunkPerFile = false;
 			string EarlyDownloaderPakFilePrefix = string.Empty;
@@ -3684,7 +3712,7 @@ namespace AutomationScripts
 			return TmpPackagingPath;
 		}
 
-		private static bool ShouldCreateIoStoreContainerFiles(ProjectParams Params, Platform StageTargetPlatform)
+		private static bool ShouldCreateIoStoreContainerFiles(ProjectParams Params, Platform StageTargetPlatform, String CustomConfig)
 		{
 			if (Params.CookOnTheFly)
 			{
@@ -3703,7 +3731,7 @@ namespace AutomationScripts
 
 			if (Params.Stage && !Params.SkipStage)
 			{
-				ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), StageTargetPlatform.IniPlatformType);
+				ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), StageTargetPlatform.IniPlatformType, CustomConfig);
 				bool bUseIoStore = false;
 				PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bUseIoStore", out bUseIoStore);
 				return bUseIoStore;

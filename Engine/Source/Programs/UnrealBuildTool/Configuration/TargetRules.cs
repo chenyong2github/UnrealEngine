@@ -398,6 +398,13 @@ namespace UnrealBuildTool
 		public bool bShouldCompileAsDLL = false;
 
 		/// <summary>
+		/// Extra subdirectory to load config files out of, for making multiple types of builds with the same platform
+		/// This will get baked into the game executable as CUSTOM_CONFIG and used when staging to filter files and settings
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public string CustomConfig = String.Empty;
+
+		/// <summary>
 		/// Subfolder to place executables in, relative to the default location.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2063,6 +2070,11 @@ namespace UnrealBuildTool
 		public string SolutionDirectory
 		{
 			get { return Inner.SolutionDirectory; }
+		}
+
+		public string CustomConfig
+		{
+			get { return Inner.CustomConfig; }
 		}
 
 		public bool? bBuildInSolutionByDefault
