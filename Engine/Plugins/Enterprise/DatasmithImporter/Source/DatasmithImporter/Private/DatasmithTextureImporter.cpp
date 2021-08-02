@@ -287,6 +287,11 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 			break;
 		}
 
+		bool bUpdateResource = false;
+		bUpdateResource |= Texture->Filter != TexFilter;
+		bUpdateResource |= Texture->AddressX != (TextureAddress)TextureElement->GetTextureAddressX();
+		bUpdateResource |= Texture->AddressY != (TextureAddress)TextureElement->GetTextureAddressY();
+
 		Texture->Filter = TexFilter;
 		Texture->AddressX = (TextureAddress)TextureElement->GetTextureAddressX();
 		Texture->AddressY = (TextureAddress)TextureElement->GetTextureAddressY();
@@ -296,8 +301,6 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 
 		// Notify the asset registry
 		FAssetRegistryModule::AssetCreated(Texture);
-
-		bool bUpdateResource = false;
 
 		if (FMath::IsNearlyEqual(RGBCurve, 1.0f) == false && RGBCurve > 0.f)
 		{
