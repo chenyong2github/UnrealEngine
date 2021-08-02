@@ -1032,7 +1032,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 
 					for(const FRigElementKey& NewParent : PerElementData.Parents)
 					{
-						AddParent(ExistingElement->GetKey(), NewParent, true, bSetupUndo);
+						AddParent(ExistingElement->GetKey(), NewParent, 0.f, true, bSetupUndo);
 					}
 				}
 				
@@ -1061,7 +1061,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 				Parent = *RemappedParent;
 			}
 
-			AddParent(NewElement->GetKey(), Parent, true, bSetupUndo);
+			AddParent(NewElement->GetKey(), Parent, 0.f, true, bSetupUndo);
 		}
 		
 		for(int32 ParentIndex = 0; ParentIndex < PerElementData.ParentWeights.Num(); ParentIndex++)
@@ -1778,7 +1778,7 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 	return true;
 }
 
-bool URigHierarchyController::AddParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform, bool bSetupUndo)
+bool URigHierarchyController::AddParent(FRigElementKey InChild, FRigElementKey InParent, float InWeight, bool bMaintainGlobalTransform, bool bSetupUndo)
 {
 	if(!IsValid())
 	{
@@ -1808,7 +1808,7 @@ bool URigHierarchyController::AddParent(FRigElementKey InChild, FRigElementKey I
 	}
 #endif
 
-	const bool bAdded = AddParent(Child, Parent, bMaintainGlobalTransform);
+	const bool bAdded = AddParent(Child, Parent, InWeight, bMaintainGlobalTransform);
 
 #if WITH_EDITOR
 	if(!bAdded && TransactionPtr.IsValid())
@@ -1821,7 +1821,7 @@ bool URigHierarchyController::AddParent(FRigElementKey InChild, FRigElementKey I
 	return bAdded;
 }
 
-bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bMaintainGlobalTransform, bool bRemoveAllParents)
+bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElement* InParent, float InWeight, bool bMaintainGlobalTransform, bool bRemoveAllParents)
 {
 	if(InChild == nullptr || InParent == nullptr)
 	{
@@ -1892,6 +1892,8 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 	{
 		return false;
 	}
+	Constraint.InitialWeight = InWeight;
+	Constraint.Weight = InWeight;
 
 	if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InChild))
 	{
@@ -1916,23 +1918,29 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 		const int32 ParentIndex = MultiParentElement->ParentConstraints.Add(Constraint);
 		MultiParentElement->IndexLookup.Add(Constraint.ParentElement->GetKey(), ParentIndex);
 
-		MultiParentElement->Parent.MarkDirty(ERigTransformType::CurrentGlobal);  
-		MultiParentElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
-
-		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
+		if(InWeight > SMALL_NUMBER)
 		{
-			ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);  
-			ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
-			ControlElement->Gizmo.MarkDirty(ERigTransformType::CurrentGlobal);  
-			ControlElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
+			MultiParentElement->Parent.MarkDirty(ERigTransformType::CurrentGlobal);  
+			MultiParentElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
+
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
+			{
+				ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);  
+				ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
+				ControlElement->Gizmo.MarkDirty(ERigTransformType::CurrentGlobal);  
+				ControlElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
+			}
 		}
 
 		Hierarchy->TopologyVersion++;
 
-		if(!bMaintainGlobalTransform)
+		if(InWeight > SMALL_NUMBER)
 		{
-			Hierarchy->PropagateDirtyFlags(MultiParentElement, true, true);
-			Hierarchy->PropagateDirtyFlags(MultiParentElement, false, true);
+			if(!bMaintainGlobalTransform)
+			{
+				Hierarchy->PropagateDirtyFlags(MultiParentElement, true, true);
+				Hierarchy->PropagateDirtyFlags(MultiParentElement, false, true);
+			}
 		}
 
 		Notify(ERigHierarchyNotification::ParentChanged, MultiParentElement);
@@ -2396,7 +2404,7 @@ bool URigHierarchyController::SetParent(FRigBaseElement* InChild, FRigBaseElemen
 	{
 		return false;
 	}
-	return AddParent(InChild, InParent, bMaintainGlobalTransform, true);
+	return AddParent(InChild, InParent, 1.f, bMaintainGlobalTransform, true);
 }
 
 void URigHierarchyController::AddElementToDirty(FRigBaseElement* InParent, FRigBaseElement* InElementToAdd, int32 InHierarchyDistance) const

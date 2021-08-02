@@ -1437,16 +1437,16 @@ void FControlRigEditMode::ClearRigElementSelection(uint32 InTypes)
 	}
 
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(InteractionRig->GetClass()->ClassGeneratedBy);
-	if (Blueprint)
-	{
-		Blueprint->GetHierarchyController()->ClearSelection();
-	}
 	if (IsInLevelEditor())
 	{
 		if(URigHierarchyController* Controller = InteractionRig->GetHierarchy()->GetController())
 		{
 			Controller->ClearSelection();
 		}
+	}
+	else if (Blueprint)
+	{
+		Blueprint->GetHierarchyController()->ClearSelection();
 	}
 }
 
@@ -1460,16 +1460,16 @@ void FControlRigEditMode::SetRigElementSelectionInternal(ERigElementType Type, c
 	}
 
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(InteractionRig->GetClass()->ClassGeneratedBy);
-	if (Blueprint)
-	{
-		Blueprint->GetHierarchyController()->SelectElement(FRigElementKey(InRigElementName, Type), bSelected);
-	}
 	if (IsInLevelEditor())
 	{
 		if(URigHierarchyController* Controller = InteractionRig->GetHierarchy()->GetController())
 		{
 			Controller->SelectElement(FRigElementKey(InRigElementName, Type), bSelected);
 		}
+	}
+	else if (Blueprint)
+	{
+		Blueprint->GetHierarchyController()->SelectElement(FRigElementKey(InRigElementName, Type), bSelected);
 	}
 }
 

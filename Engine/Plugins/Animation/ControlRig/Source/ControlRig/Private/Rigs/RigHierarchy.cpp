@@ -888,6 +888,31 @@ FRigElementWeight URigHierarchy::GetParentWeight(const FRigBaseElement* InChild,
 	return FRigElementWeight(FLT_MAX);
 }
 
+TArray<FRigElementWeight> URigHierarchy::GetParentWeightArray(FRigElementKey InChild, bool bInitial) const
+{
+	return GetParentWeightArray(Find(InChild), bInitial);
+}
+
+TArray<FRigElementWeight> URigHierarchy::GetParentWeightArray(const FRigBaseElement* InChild, bool bInitial) const
+{
+	TArray<FRigElementWeight> Weights;
+	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
+	{
+		for(int32 ParentIndex = 0; ParentIndex < MultiParentElement->ParentConstraints.Num(); ParentIndex++)
+		{
+			if(bInitial)
+			{
+				Weights.Add(MultiParentElement->ParentConstraints[ParentIndex].InitialWeight);
+			}
+			else
+			{
+				Weights.Add(MultiParentElement->ParentConstraints[ParentIndex].Weight);
+			}
+		}
+	}
+	return Weights;
+}
+
 bool URigHierarchy::SetParentWeight(FRigElementKey InChild, FRigElementKey InParent, FRigElementWeight InWeight, bool bInitial, bool bAffectChildren)
 {
 	return SetParentWeight(Find(InChild), Find(InParent), InWeight, bInitial, bAffectChildren);
@@ -970,6 +995,114 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentInde
 						if(FRigBaseElement* ListeningElement = ListeningHierarchy->Find(InChild->GetKey()))
 						{
 							ListeningHierarchy->SetParentWeight(ListeningElement, InParentIndex, InWeight, bInitial, bAffectChildren);
+						}
+					}
+				}	
+			}
+#endif
+			return true;
+		}
+	}
+	return false;
+}
+
+bool URigHierarchy::SetParentWeightArray(FRigElementKey InChild, TArray<FRigElementWeight> InWeights, bool bInitial,
+	bool bAffectChildren)
+{
+	return SetParentWeightArray(Find(InChild), InWeights, bInitial, bAffectChildren);
+}
+
+bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild, const TArray<FRigElementWeight>& InWeights,
+	bool bInitial, bool bAffectChildren)
+{
+	using namespace ERigTransformType;
+
+	if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
+	{
+		if(MultiParentElement->ParentConstraints.Num() == InWeights.Num())
+		{
+			TArray<FRigElementWeight> InputWeights;
+			InputWeights.Reserve(InWeights.Num());
+
+			bool bFoundDifference = false;
+			for(int32 WeightIndex=0; WeightIndex < InWeights.Num(); WeightIndex++)
+			{
+				FRigElementWeight InputWeight = InWeights[WeightIndex];
+				InputWeight.Location = FMath::Max(InputWeight.Location, 0.f);
+				InputWeight.Rotation = FMath::Max(InputWeight.Rotation, 0.f);
+				InputWeight.Scale = FMath::Max(InputWeight.Scale, 0.f);
+				InputWeights.Add(InputWeight);
+
+				FRigElementWeight& TargetWeight = bInitial?
+					MultiParentElement->ParentConstraints[WeightIndex].InitialWeight :
+					MultiParentElement->ParentConstraints[WeightIndex].Weight;
+
+				if(!FMath::IsNearlyZero(InputWeight.Location - TargetWeight.Location) ||
+					!FMath::IsNearlyZero(InputWeight.Rotation - TargetWeight.Rotation) ||
+					!FMath::IsNearlyZero(InputWeight.Scale - TargetWeight.Scale))
+				{
+					bFoundDifference = true;
+				}
+			}
+
+			if(!bFoundDifference)
+			{
+				return false;
+			}
+			
+			const ERigTransformType::Type LocalType = bInitial ? InitialLocal : CurrentLocal;
+			const ERigTransformType::Type GlobalType = SwapLocalAndGlobal(LocalType);
+
+			if(bAffectChildren)
+			{
+				GetTransform(MultiParentElement, LocalType);
+				MultiParentElement->Pose.MarkDirty(GlobalType);
+			}
+			else
+			{
+				GetTransform(MultiParentElement, GlobalType);
+				MultiParentElement->Pose.MarkDirty(LocalType);
+			}
+
+			for(int32 WeightIndex=0; WeightIndex < InWeights.Num(); WeightIndex++)
+			{
+				if(bInitial)
+				{
+					MultiParentElement->ParentConstraints[WeightIndex].InitialWeight = InputWeights[WeightIndex];
+				}
+				else
+				{
+					MultiParentElement->ParentConstraints[WeightIndex].Weight = InputWeights[WeightIndex];
+				}
+			}
+
+			MultiParentElement->Parent.MarkDirty(GlobalType);
+
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
+			{
+				ControlElement->Offset.MarkDirty(GlobalType);
+			}
+
+			PropagateDirtyFlags(MultiParentElement, ERigTransformType::IsInitial(LocalType), bAffectChildren);
+			
+#if WITH_EDITOR
+			if (ensure(!bPropagatingChange))
+			{
+				TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
+			
+				for(FRigHierarchyListener& Listener : ListeningHierarchies)
+				{
+					if(!bForcePropagation && !Listener.ShouldReactToChange(LocalType))
+					{
+						continue;
+					}
+
+					URigHierarchy* ListeningHierarchy = Listener.Hierarchy.Get();
+					if (ListeningHierarchy)
+					{
+						if(FRigBaseElement* ListeningElement = ListeningHierarchy->Find(InChild->GetKey()))
+						{
+							ListeningHierarchy->SetParentWeightArray(ListeningElement, InWeights, bInitial, bAffectChildren);
 						}
 					}
 				}	
@@ -1199,6 +1332,19 @@ void URigHierarchy::SendEvent(const FRigEventContext& InEvent, bool bAsynchronou
 		}
 	}
 
+}
+
+void URigHierarchy::SendAutoKeyEvent(FRigElementKey InElement, float InOffsetInSeconds, bool bAsynchronous)
+{
+	FRigEventContext Context;
+	Context.Event = ERigEvent::RequestAutoKey;
+	Context.Key = InElement;
+	Context.LocalTime = InOffsetInSeconds;
+	if(UControlRig* Rig = Cast<UControlRig>(GetOuter()))
+	{
+		Context.LocalTime += Rig->AbsoluteTime;
+	}
+	SendEvent(Context, bAsynchronous);
 }
 
 URigHierarchyController* URigHierarchy::GetController(bool bCreateIfNeeded)

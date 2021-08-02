@@ -1476,6 +1476,7 @@ struct CONTROLRIG_API FRigElementKeyCollection
 
 protected:
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Collection, meta = (AllowPrivateAccess = "true"))
 	TArray<FRigElementKey> Keys;
 };
 

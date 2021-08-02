@@ -627,13 +627,13 @@ struct CONTROLRIG_API FRigElementWeight
 public:
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Weight)
 	float Location;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Weight)
 	float Rotation;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Weight)
 	float Scale;
 
 	FORCEINLINE FRigElementWeight()
