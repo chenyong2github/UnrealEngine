@@ -73,7 +73,17 @@ public:
 
 	// TODO: Look into removing BulkDataToAppend and use AdditionalDataToAppend instead.
 
-	using AdditionalDataCallback = TUniqueFunction<void(FArchive& Ar)>;
+	/**
+	 * Callback for arbitrary serializers to append data to the end of the ExportsArchive.
+	 * Some PackageStoreWriters used by SavePackage will write this data to a separate archive.
+	 * 
+	 * @param ExportsArchive The archive containing the UObjects and structs, this is always this LinkerSave.
+	 * @param DataArchive The archive to which the data should be written. Might be this LinkerSave, or might be a separate archive.
+	 * @param DataStartOffset The offset to the beginning of the range in DataArchive that should be stored in the UObject or struct's
+	 *        export data. Reading at DataStartOffset from the FArchive passed into Serialize during a load will return the data that the
+	 *		  callback wrote to DataArchive.
+	 */
+	using AdditionalDataCallback = TUniqueFunction<void(FLinkerSave& ExportsArchive, FArchive& DataArchive, int64 DataStartOffset)>;
 	/** 
 	 * Array of callbacks that will be invoked when it is possible to serialize out data 
 	 * to the end of the output file.

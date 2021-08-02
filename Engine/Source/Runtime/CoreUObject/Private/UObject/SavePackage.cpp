@@ -4162,57 +4162,72 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				SlowTask.EnterProgressFrame(1, NSLOCTEXT("Core", "SerializingBulkData", "Serializing bulk data"));
 
-				ESavePackageResult SaveResult = 
-					SavePackageUtilities::SaveBulkData(Linker.Get(), InOuter, Filename, TargetPlatform, SavePackageContext, SaveFlags, bTextFormat, bDiffing,
-							 bComputeHash, AsyncWriteAndHashSequence, TotalPackageSizeUncompressed );
-				if (SaveResult != ESavePackageResult::Success)
-				{
-					return SaveResult;
-				}
-
-				ESavePackageResult AppendAdditionalDataResult = SavePackageUtilities::AppendAdditionalData(*Linker.Get());
-				if (AppendAdditionalDataResult != ESavePackageResult::Success)
-				{
-					return AppendAdditionalDataResult;
-				}
-
+				IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
 				FSavePackageOutputFileArray AdditionalOutputFiles;
-				ESavePackageResult CreateSidecarResult = SavePackageUtilities::CreatePayloadSidecarFile(*Linker, TargetPackagePath, bSaveAsync, !bDiffing, AdditionalOutputFiles);
-				if (CreateSidecarResult != ESavePackageResult::Success)
+				auto WriteAdditionalFiles = [&](int64 LinkerSize) -> ESavePackageResult
 				{
-					return CreateSidecarResult;
-				}
+					int64 DataStartOffset = LinkerSize >= 0 ? LinkerSize : Linker->Tell();
+					ESavePackageResult SaveResult =
+						SavePackageUtilities::SaveBulkData(Linker.Get(), DataStartOffset, InOuter, Filename, TargetPlatform, SavePackageContext, SaveFlags, bTextFormat, bDiffing,
+							bComputeHash, AsyncWriteAndHashSequence, TotalPackageSizeUncompressed);
+					if (SaveResult != ESavePackageResult::Success)
+					{
+						return SaveResult;
+					}
+
+					ESavePackageResult AppendAdditionalDataResult = SavePackageUtilities::AppendAdditionalData(*Linker.Get(), DataStartOffset, PackageStoreWriter);
+					if (AppendAdditionalDataResult != ESavePackageResult::Success)
+					{
+						return AppendAdditionalDataResult;
+					}
+
+					ESavePackageResult CreateSidecarResult = SavePackageUtilities::CreatePayloadSidecarFile(*Linker, TargetPackagePath, bSaveAsync, !bDiffing, AdditionalOutputFiles);
+					if (CreateSidecarResult != ESavePackageResult::Success)
+					{
+						return CreateSidecarResult;
+					}
 
 #if WITH_EDITOR
-				if (bIsCooking && AdditionalFilesFromExports.Num() > 0)
-				{
-					const bool bWriteFileToDisk = !bDiffing;
-					for (FLargeMemoryWriter& Writer : AdditionalFilesFromExports)
+					if (bIsCooking && AdditionalFilesFromExports.Num() > 0)
 					{
-						const int64 Size = Writer.TotalSize();
-						TotalPackageSizeUncompressed += Size;
-
-						if (bComputeHash || bWriteFileToDisk)
+						const bool bWriteFileToDisk = !bDiffing;
+						for (FLargeMemoryWriter& Writer : AdditionalFilesFromExports)
 						{
-							FLargeMemoryPtr DataPtr(Writer.ReleaseOwnership());
+							const int64 Size = Writer.TotalSize();
+							TotalPackageSizeUncompressed += Size;
 
-							EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
-							if (bComputeHash)
+							if (bComputeHash || bWriteFileToDisk)
 							{
-								WriteOptions |= EAsyncWriteOptions::ComputeHash;
+								FLargeMemoryPtr DataPtr(Writer.ReleaseOwnership());
+
+								EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
+								if (bComputeHash)
+								{
+									WriteOptions |= EAsyncWriteOptions::ComputeHash;
+								}
+								if (bWriteFileToDisk)
+								{
+									WriteOptions |= EAsyncWriteOptions::WriteFileToDisk;
+								}
+								SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), WriteOptions, {});
 							}
-							if (bWriteFileToDisk)
-							{
-								WriteOptions |= EAsyncWriteOptions::WriteFileToDisk;
-							}
-							SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), WriteOptions, {});
 						}
+						AdditionalFilesFromExports.Empty();
 					}
-					AdditionalFilesFromExports.Empty();
-				}
 #endif
-
+					return ESavePackageResult::Success;
+				};
 			
+				bool bAdditionalFilesNeedLinkerSize = PackageStoreWriter ? PackageStoreWriter->IsAdditionalFilesNeedLinkerSize() : false;
+				if (!bAdditionalFilesNeedLinkerSize)
+				{
+					ESavePackageResult AdditionalFilesResult = WriteAdditionalFiles(-1);
+					if (AdditionalFilesResult != ESavePackageResult::Success)
+					{
+						return AdditionalFilesResult;
+					}
+				}
+
 				// write the package post tag
 				if (!bTextFormat)
 				{
@@ -4223,6 +4238,16 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// We capture the package size before the first seek to work with archives that don't report the file
 				// size correctly while the file is still being written to.
 				PackageSize = Linker->Tell();
+
+				if (bAdditionalFilesNeedLinkerSize)
+				{
+					ESavePackageResult AdditionalFilesResult = WriteAdditionalFiles(PackageSize);
+					if (AdditionalFilesResult != ESavePackageResult::Success)
+					{
+						return AdditionalFilesResult;
+					}
+					checkf(Linker->Tell() == PackageSize, TEXT("The writing of additional files is not allowed to append to the LinkerSave when IsAdditionalFilesNeedLinkerSize is true."));
+				}
 
 				// Save the import map.
 				{
@@ -4442,7 +4467,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 
 					// Compress the temporarily file to destination.
-					IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
 					if (bSaveAsync)
 					{	
 						FString NewPathToSave = NewPath;

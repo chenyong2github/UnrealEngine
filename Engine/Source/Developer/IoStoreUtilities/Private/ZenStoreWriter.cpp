@@ -478,6 +478,12 @@ bool FZenStoreWriter::WriteAdditionalFile(const FAdditionalFileInfo& Info, const
 	return true;
 }
 
+void FZenStoreWriter::WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
+{
+	// Should not be called because IsLinkerAdditionalDataInSeparateArchive returned false
+	checkNoEntry();
+}
+
 void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 {
 	CookMode = Info.CookMode;
