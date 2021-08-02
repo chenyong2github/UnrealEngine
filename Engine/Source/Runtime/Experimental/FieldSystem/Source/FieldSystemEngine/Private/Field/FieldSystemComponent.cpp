@@ -137,7 +137,7 @@ bool UFieldSystemComponent::HasValidPhysicsState() const
 void UFieldSystemComponent::DispatchFieldCommand(const FFieldSystemCommand& InCommand, const bool IsTransient)
 {
 	using namespace Chaos;
-	if (HasValidPhysicsState())
+	if (HasValidPhysicsState() && InCommand.RootNode)
 	{
 		const FName Name = GetOwner() ? *GetOwner()->GetName() : TEXT("");
 		
@@ -281,7 +281,10 @@ void UFieldSystemComponent::AddFieldCommand(bool Enabled, EFieldPhysicsType Targ
 		if (FieldSystem)
 		{
 			FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(Target, Field, MetaData);
-			SetupConstructionFields.Add(Command);
+			if (Command.RootNode)
+			{
+				SetupConstructionFields.Add(Command);
+			}
 		}
 
 		BufferCommands.AddFieldCommand(GetFieldPhysicsName(Target), Field, MetaData);

@@ -2445,7 +2445,7 @@ bool UGeometryCollectionComponent::GetIsObjectDynamic() const
 
 void UGeometryCollectionComponent::DispatchFieldCommand(const FFieldSystemCommand& InCommand)
 {
-	if (PhysicsProxy)
+	if (PhysicsProxy && InCommand.RootNode)
 	{
 		FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
 		checkSlow(ChaosModule);
@@ -2478,7 +2478,11 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 				{
 					for (int32 CommandIndex = 0; CommandIndex < NumCommands; ++CommandIndex)
 					{
-						CombinedCommmands.Add(FieldSystemActor->GetFieldSystemComponent()->ConstructionCommands.BuildFieldCommand(CommandIndex));
+						const FFieldSystemCommand NewCommand = FieldSystemActor->GetFieldSystemComponent()->ConstructionCommands.BuildFieldCommand(CommandIndex);
+						if (NewCommand.RootNode)
+						{
+							CombinedCommmands.Emplace(NewCommand);
+						}
 					}
 				}
 				// Legacy path : only there for old levels. New ones will have the commands directly stored onto the component
@@ -2487,14 +2491,17 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 					const FName Name = GetOwner() ? *GetOwner()->GetName() : TEXT("");
 					for (const FFieldSystemCommand& Command : FieldSystemActor->GetFieldSystemComponent()->GetFieldSystem()->Commands)
 					{
-						FFieldSystemCommand NewCommand = { Command.TargetAttribute, Command.RootNode->NewCopy() };
-						NewCommand.InitFieldNodes(0.0, Name);
-
-						for (auto& Elem : Command.MetaData)
+						if (Command.RootNode)
 						{
-							NewCommand.MetaData.Add(Elem.Key, TUniquePtr<FFieldSystemMetaData>(Elem.Value->NewCopy()));
+							FFieldSystemCommand NewCommand = { Command.TargetAttribute, Command.RootNode->NewCopy() };
+							NewCommand.InitFieldNodes(0.0, Name);
+
+							for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Elem : Command.MetaData)
+							{
+								NewCommand.MetaData.Add(Elem.Key, TUniquePtr<FFieldSystemMetaData>(Elem.Value->NewCopy()));
+							}
+							CombinedCommmands.Emplace(NewCommand);
 						}
-						CombinedCommmands.Add(NewCommand);
 					}
 				}
 			}
