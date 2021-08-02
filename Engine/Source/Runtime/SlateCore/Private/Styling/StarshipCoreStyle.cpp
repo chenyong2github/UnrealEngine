@@ -769,7 +769,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	// Message Log
 	{
 		Style->Set("MessageLog", FTextBlockStyle(NormalText)
-			.SetFont(StyleFonts.Small)
+			.SetFont(DEFAULT_FONT("Mono", 9))
 			.SetShadowOffset(FVector2D::ZeroVector)
 		);
 		Style->Set("MessageLog.Error", new IMAGE_BRUSH("MessageLog/Log_Error", Icon16x16));
