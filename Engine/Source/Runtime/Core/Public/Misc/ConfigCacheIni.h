@@ -1041,6 +1041,13 @@ public:
 	static void InitializeConfigSystem();
 
 	/**
+	 * Returns the Custom Config string, which if set will load additional config files from Config/Custom/{CustomConfig}/DefaultX.ini to allow different types of builds.
+	 * It can be set from a game Target.cs file with CustomConfig = "Name".
+	 * Or in development, it can be overridden with a -CustomConfig=Name command line parameter.
+	 */
+	static const FString& GetCustomConfigString();
+
+	/**
 	 * Calculates the name of a dest (generated) .ini file for a given base (ie Engine, Game, etc)
 	 *
 	 * @param IniBaseName Base name of the .ini (Engine, Game)

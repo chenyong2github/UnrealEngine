@@ -82,16 +82,23 @@ namespace UnrealBuildTool
 			public UnrealTargetPlatform Platform;
 
 			/// <summary>
+			/// Custom config subdirectory to load
+			/// </summary>
+			public string CustomConfig;
+
+			/// <summary>
 			/// Constructor
 			/// </summary>
 			/// <param name="Type">The hierarchy type</param>
 			/// <param name="ProjectDir">The project directory to read from</param>
 			/// <param name="Platform">Which platform-specific files to read</param>
-			public ConfigHierarchyKey(ConfigHierarchyType Type, DirectoryReference? ProjectDir, UnrealTargetPlatform Platform)
+			/// <param name="CustomConfig">Custom config subdirectory to load</param>
+			public ConfigHierarchyKey(ConfigHierarchyType Type, DirectoryReference? ProjectDir, UnrealTargetPlatform Platform, string CustomConfig)
 			{
 				this.Type = Type;
 				this.ProjectDir = ProjectDir;
 				this.Platform = Platform;
+				this.CustomConfig = CustomConfig;
 			}
 
 			/// <summary>
@@ -102,7 +109,7 @@ namespace UnrealBuildTool
 			public override bool Equals(object? Other)
 			{
 				ConfigHierarchyKey? OtherKey = Other as ConfigHierarchyKey;
-				return (OtherKey != null && OtherKey.Type == Type && OtherKey.ProjectDir == ProjectDir && OtherKey.Platform == Platform);
+				return (OtherKey != null && OtherKey.Type == Type && OtherKey.ProjectDir == ProjectDir && OtherKey.Platform == Platform && OtherKey.CustomConfig == CustomConfig);
 			}
 
 			/// <summary>
@@ -111,7 +118,7 @@ namespace UnrealBuildTool
 			/// <returns>Hash value for this object</returns>
 			public override int GetHashCode()
 			{
-				return ((ProjectDir != null) ? ProjectDir.GetHashCode() : 0) + ((int)Type * 123) + (Platform.GetHashCode() * 345);
+				return ((ProjectDir != null) ? ProjectDir.GetHashCode() : 0) + ((int)Type * 123) + (Platform.GetHashCode() * 345) + (CustomConfig.GetHashCode() * 789);
 			}
 		}
 
@@ -163,11 +170,34 @@ namespace UnrealBuildTool
 		/// <param name="Type">The type of hierarchy to read</param>
 		/// <param name="ProjectDir">The project directory to read the hierarchy for</param>
 		/// <param name="Platform">Which platform to read platform-specific config files for</param>
+		/// <param name="CustomConfig">Optional override config directory to search, for support of multiple target types</param>
 		/// <returns>The requested config hierarchy</returns>
-		public static ConfigHierarchy ReadHierarchy(ConfigHierarchyType Type, DirectoryReference? ProjectDir, UnrealTargetPlatform Platform)
+		public static ConfigHierarchy ReadHierarchy(ConfigHierarchyType Type, DirectoryReference? ProjectDir, UnrealTargetPlatform Platform, string CustomConfig = "")
 		{
+			// Handle command line overrides
+			List<String> OverrideStrings = new List<String>();
+			string[] CmdLine = Environment.GetCommandLineArgs();
+			string IniConfigArgPrefix = "-ini:" + Enum.GetName(typeof(ConfigHierarchyType), Type) + ":";
+			string CustomConfigPrefix = "-CustomConfig=";
+			foreach (string CmdLineArg in CmdLine)
+			{
+				if (CmdLineArg.StartsWith(IniConfigArgPrefix, StringComparison.InvariantCultureIgnoreCase))
+				{
+					OverrideStrings.Add(CmdLineArg.Substring(IniConfigArgPrefix.Length));
+				}
+				if (CmdLineArg.StartsWith(CustomConfigPrefix, StringComparison.InvariantCultureIgnoreCase))
+				{
+					CustomConfig = CmdLineArg.Substring(CustomConfigPrefix.Length);
+				}
+			}
+
+			if (CustomConfig == null)
+			{
+				CustomConfig = String.Empty;
+			}
+
 			// Get the key to use for the cache. It cannot be null, so we use the engine directory if a project directory is not given.
-			ConfigHierarchyKey Key = new ConfigHierarchyKey(Type, ProjectDir, Platform);
+			ConfigHierarchyKey Key = new ConfigHierarchyKey(Type, ProjectDir, Platform, CustomConfig);
 
 			// Try to get the cached hierarchy with this key
 			ConfigHierarchy? Hierarchy;
@@ -177,7 +207,7 @@ namespace UnrealBuildTool
 				{
 					// Find all the input files
 					List<ConfigFile> Files = new List<ConfigFile>();
-					foreach (FileReference IniFileName in ConfigHierarchy.EnumerateConfigFileLocations(Type, ProjectDir, Platform))
+					foreach (FileReference IniFileName in ConfigHierarchy.EnumerateConfigFileLocations(Type, ProjectDir, Platform, CustomConfig))
 					{
 						ConfigFile? File;
 						if (TryReadFile(IniFileName, out File))
@@ -186,16 +216,10 @@ namespace UnrealBuildTool
 						}
 					}
 
-					// Handle command line overrides
-					string[] CmdLine = Environment.GetCommandLineArgs();
-					string IniConfigArgPrefix = "-ini:" + Enum.GetName(typeof(ConfigHierarchyType), Type) + ":";
-					foreach (string CmdLineArg in CmdLine)
+					foreach (string OverrideString in OverrideStrings)
 					{
-						if (CmdLineArg.StartsWith(IniConfigArgPrefix))
-						{
-							ConfigFile OverrideFile = new ConfigFile(CmdLineArg.Substring(IniConfigArgPrefix.Length));
-							Files.Add(OverrideFile);
-						}
+						ConfigFile OverrideFile = new ConfigFile(OverrideString);
+						Files.Add(OverrideFile);
 					}
 
 					// Create the hierarchy

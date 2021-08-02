@@ -1523,6 +1523,12 @@ namespace UnrealBuildTool
 			// add the SDK used by the tool chain
 			Receipt.AdditionalProperties.Add(new ReceiptProperty("SDK", ToolChain.GetSDKVersion()));
 
+			if (!String.IsNullOrEmpty(Rules.CustomConfig))
+			{
+				// Pass through the custom config string
+				Receipt.AdditionalProperties.Add(new ReceiptProperty("CustomConfig", Rules.CustomConfig));
+			}
+
 			return Receipt;
 		}
 
@@ -3750,6 +3756,12 @@ namespace UnrealBuildTool
 			else
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_CPP_MODULES=0");
+			}
+
+			// Define the custom config if specified, this should not be set in an editor build
+			if (!bUseSharedBuildEnvironment && !String.IsNullOrEmpty(Rules.CustomConfig))
+			{
+				GlobalCompileEnvironment.Definitions.Add(String.Format("CUSTOM_CONFIG=\"{0}\"", Rules.CustomConfig));
 			}
 
 			// Compile in the names of the module manifests

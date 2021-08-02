@@ -137,6 +137,11 @@ public class DeploymentContext //: ProjectParams
 	public List<StageTarget> StageTargets;
 
 	/// <summary>
+	/// Extra subdirectory to load config files out of, for making multiple types of builds with the same platform
+	/// </summary>
+	public string CustomConfig;
+
+	/// <summary>
 	/// This is the root directory that contains the engine: d:\a\UE4\
 	/// </summary>
 	public DirectoryReference LocalRoot;
@@ -443,8 +448,30 @@ public class DeploymentContext //: ProjectParams
 		ProjectArgForCommandLines = CommandUtils.MakePathSafeToUseWithCommandLine(RawProjectPath.FullName);
 		CookSourceRuntimeRootDir = RuntimeRootDir = LocalRoot;
 		RuntimeProjectRootDir = ProjectRoot;
-       
-        if (Stage)
+
+		// Parse the custom config dir out of the receipts
+		foreach (StageTarget Target in StageTargets)
+		{
+			var Results = Target.Receipt.AdditionalProperties.Where(x => x.Name == "CustomConfig");
+			foreach (var Property in Results)
+			{
+				string FoundCustomConfig = Property.Value;
+				if (String.IsNullOrEmpty(FoundCustomConfig))
+				{
+					continue;
+				}
+				else if (String.IsNullOrEmpty(CustomConfig))
+				{
+					CustomConfig = FoundCustomConfig;
+				}
+				else if (CustomConfig != FoundCustomConfig)
+				{
+					throw new AutomationException("Cannot deploy targts with conflicting CustomConfig values! {0} does not match {1}", FoundCustomConfig, CustomConfig);
+				}
+			}
+		}
+
+		if (Stage)
 		{
 			CommandUtils.CreateDirectory(StageDirectory.FullName);
 
@@ -470,7 +497,7 @@ public class DeploymentContext //: ProjectParams
 		RestrictedFolderNames.Remove(StageTargetPlatform.IniPlatformType.ToString());
 
 		// Read the game config files
-		ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectRoot, InTargetPlatform.PlatformType);
+		ConfigHierarchy GameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectRoot, InTargetPlatform.PlatformType, CustomConfig);
 
 		// Read the list of directories to remap when staging
 		List<string> RemapDirectoriesList;
@@ -524,12 +551,11 @@ public class DeploymentContext //: ProjectParams
 		ReadConfigFileList(GameConfig, "Staging", "BlacklistConfigFiles", BlacklistConfigFiles);
 
 		// Grab the game ini data
-		ConfigHierarchy GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectRoot, InTargetPlatform.PlatformType);
-		String IniPath = "/Script/UnrealEd.ProjectPackagingSettings";
+		String PackagingIniPath = "/Script/UnrealEd.ProjectPackagingSettings";
 
 		// Read the config blacklists
-		GameIni.GetArray(IniPath, "IniKeyBlacklist", out IniKeyBlacklist);
-		GameIni.GetArray(IniPath, "IniSectionBlacklist", out IniSectionBlacklist);
+		GameConfig.GetArray(PackagingIniPath, "IniKeyBlacklist", out IniKeyBlacklist);
+		GameConfig.GetArray(PackagingIniPath, "IniSectionBlacklist", out IniSectionBlacklist);
 
 		// TODO: Drive these lists from a config file
 		IniSuffixWhitelist = new List<string>
@@ -576,7 +602,7 @@ public class DeploymentContext //: ProjectParams
 		else
 		{
 			bool bSetting = false;
-			if (GameIni.GetBool(IniPath, "bGenerateChunks", out bSetting))
+			if (GameConfig.GetBool(PackagingIniPath, "bGenerateChunks", out bSetting))
 			{
 				PlatformUsesChunkManifests = bSetting;
 			}
