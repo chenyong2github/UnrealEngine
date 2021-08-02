@@ -857,7 +857,6 @@ static void AssignPackagesDiskOrder(
 					Cluster->Packages.Add(PackageToProcess);
 					TArray<FPackageId> AllReferencedPackageIds;
 					AllReferencedPackageIds.Append(PackageToProcess->OptimizedPackage->GetImportedPackageIds());
-					AllReferencedPackageIds.Append(PackageToProcess->OptimizedPackage->GetImportedRedirectedPackageIds().Array());
 					for (const FPackageId& ReferencedPackageId : AllReferencedPackageIds)
 					{
 						FLegacyCookedPackage* FindReferencedPackage = PackageIdMap.FindRef(ReferencedPackageId);
@@ -2303,13 +2302,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			{
 				Package->OptimizedPackage->RedirectFrom(RedirectedPackageName);
 			}
-			else
-			{
-				// TODO: Should NAME_None be the default source package name instead?
-				// RemapLocalizationPathIfNeeded sets it to the original
-				// package name when not remapping plugin content
-				Package->OptimizedPackage->RedirectFrom(NAME_None);
-			}
 		}
 	}
 
@@ -2346,14 +2338,8 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		OptimizedPackagesMap.Add(Package->OptimizedPackage->GetId(), Package->OptimizedPackage);
 	}
 
-	if (Arguments.PackageStore.IsValid())
-	{
-		UE_LOG(LogIoStore, Display, TEXT("Processing imports.."));
-		PackageStoreOptimizer.FindImports(OptimizedPackagesMap);
-	}
-
 	UE_LOG(LogIoStore, Display, TEXT("Processing redirects..."));
-	PackageStoreOptimizer.ProcessRedirects(OptimizedPackagesMap);
+	PackageStoreOptimizer.ProcessRedirects(OptimizedPackagesMap, Arguments.IsDLC());
 
 	UE_LOG(LogIoStore, Display, TEXT("Optimizing packages..."));
 	PackageStoreOptimizer.OptimizeExportBundles(OptimizedPackagesMap);
@@ -2820,11 +2806,11 @@ int32 Describe(
 		FPackageDesc* Package = nullptr;
 		FName Name;
 		FName FullName;
+		uint32 ExportHash;
 		FPackageObjectIndex OuterIndex;
 		FPackageObjectIndex ClassIndex;
 		FPackageObjectIndex SuperIndex;
 		FPackageObjectIndex TemplateIndex;
-		FPackageObjectIndex GlobalImportIndex;
 		uint64 SerialOffset = 0;
 		uint64 SerialSize = 0;
 		FSHAHash Hash;
@@ -2862,6 +2848,7 @@ int32 Describe(
 		int32 NameCount = -1;
 		int32 ExportBundleCount = -1;
 		TArray<FPackageLocation, TInlineAllocator<1>> Locations;
+		TArray<FPackageId> ImportedPackageIds;
 		TArray<FImportDesc> Imports;
 		TArray<FExportDesc> Exports;
 		TArray<TArray<FExportBundleEntryDesc>, TInlineAllocator<1>> ExportBundles;
@@ -2954,7 +2941,7 @@ int32 Describe(
 		TArray<FPackageDesc*> Packages;
 		FIoStoreReader* Reader = nullptr;
 		FCulturePackageMap RawCulturePackageMap;
-		TArray<TPair<FPackageId, FPackageId>> RawPackageRedirects;
+		TArray<FContainerHeaderPackageRedirect> RawPackageRedirects;
 	};
 
 	TArray<FLoadContainerHeaderJob> LoadContainerHeaderJobs;
@@ -3016,6 +3003,7 @@ int32 Describe(
 				PackageDesc->Exports.SetNum(ContainerEntry.ExportCount);
 				PackageDesc->ExportBundleCount = ContainerEntry.ExportBundleCount;
 				PackageDesc->LoadOrder = ContainerEntry.LoadOrder;
+				PackageDesc->ImportedPackageIds = TArrayView<FPackageId>(ContainerEntry.ImportedPackages.Data(), ContainerEntry.ImportedPackages.Num());
 				Job.Packages.Add(PackageDesc);
 				++TotalPackageCount;
 			}
@@ -3063,8 +3051,8 @@ int32 Describe(
 		for (const auto& RedirectPair : LoadContainerHeaderJob.RawPackageRedirects)
 		{
 			FPackageRedirect& PackageRedirect = LoadContainerHeaderJob.ContainerDesc->PackageRedirects.AddDefaulted_GetRef();
-			PackageRedirect.Source = PackageByIdMap.FindRef(RedirectPair.Get<0>());
-			PackageRedirect.Target = PackageByIdMap.FindRef(RedirectPair.Get<1>());
+			PackageRedirect.Source = PackageByIdMap.FindRef(RedirectPair.SourcePackageId);
+			PackageRedirect.Target = PackageByIdMap.FindRef(RedirectPair.TargetPackageId);
 		}
 		for (const auto& CultureRedirectsPair : LoadContainerHeaderJob.RawCulturePackageMap)
 		{
@@ -3072,8 +3060,8 @@ int32 Describe(
 			for (const auto& RedirectPair : CultureRedirectsPair.Get<1>())
 			{
 				FPackageRedirect& PackageRedirect = LoadContainerHeaderJob.ContainerDesc->PackageRedirects.AddDefaulted_GetRef();
-				PackageRedirect.Source = PackageByIdMap.FindRef(RedirectPair.Get<0>());
-				PackageRedirect.Target = PackageByIdMap.FindRef(RedirectPair.Get<1>());
+				PackageRedirect.Source = PackageByIdMap.FindRef(RedirectPair.SourcePackageId);
+				PackageRedirect.Target = PackageByIdMap.FindRef(RedirectPair.TargetPackageId);
 				PackageRedirect.Culture = Culture;
 			}
 		}
@@ -3142,7 +3130,7 @@ int32 Describe(
 			ExportDesc.ClassIndex = ExportMapEntry.ClassIndex;
 			ExportDesc.SuperIndex = ExportMapEntry.SuperIndex;
 			ExportDesc.TemplateIndex = ExportMapEntry.TemplateIndex;
-			ExportDesc.GlobalImportIndex = ExportMapEntry.GlobalImportIndex;
+			ExportDesc.ExportHash = ExportMapEntry.ExportHash;
 			ExportDesc.SerialSize = ExportMapEntry.CookedSerialSize;
 		}
 
@@ -3179,7 +3167,7 @@ int32 Describe(
 	}, EParallelForFlags::Unbalanced);
 
 	UE_LOG(LogIoStore, Display, TEXT("Connecting imports and exports..."));
-	TMap<FPackageObjectIndex, FExportDesc*> ExportByGlobalIdMap;
+	TMap<FPublicExportKey, FExportDesc*> ExportByKeyMap;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ConnectImportsAndExports);
 
@@ -3187,9 +3175,10 @@ int32 Describe(
 		{
 			for (FExportDesc& ExportDesc : PackageDesc->Exports)
 			{
-				if (!ExportDesc.GlobalImportIndex.IsNull())
+				if (ExportDesc.ExportHash)
 				{
-					ExportByGlobalIdMap.Add(ExportDesc.GlobalImportIndex, &ExportDesc);
+					FPublicExportKey Key = FPublicExportKey::MakeKey(PackageDesc->PackageId, ExportDesc.ExportHash);
+					ExportByKeyMap.Add(Key, &ExportDesc);
 				}
 			}
 		}
@@ -3245,7 +3234,8 @@ int32 Describe(
 				{
 					if (Import.GlobalImportIndex.IsPackageImport())
 					{
-						Import.Export = ExportByGlobalIdMap.FindRef(Import.GlobalImportIndex);
+						FPublicExportKey Key = FPublicExportKey::FromPackageImport(Import.GlobalImportIndex, PackageDesc->ImportedPackageIds);
+						Import.Export = ExportByKeyMap.FindRef(Key);
 						if (!Import.Export)
 						{
 							UE_LOG(LogIoStore, Warning, TEXT("Missing import: 0x%llX in package 0x%llX '%s'"), Import.GlobalImportIndex.Value(), PackageDesc->PackageId.ValueForDebugging(), *PackageDesc->PackageName.ToString());
@@ -3363,7 +3353,7 @@ int32 Describe(
 		TGuardValue<bool> GuardPrintLogCategory(GPrintLogCategory, false);
 		TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
 
-		auto PackageObjectIndexToString = [&ScriptObjectByGlobalIdMap, &ExportByGlobalIdMap](const FPackageObjectIndex& PackageObjectIndex, bool bIncludeName) -> FString
+		auto PackageObjectIndexToString = [&ScriptObjectByGlobalIdMap, &ExportByKeyMap](const FPackageDesc* Package, const FPackageObjectIndex& PackageObjectIndex, bool bIncludeName) -> FString
 		{
 			if (PackageObjectIndex.IsNull())
 			{
@@ -3371,7 +3361,8 @@ int32 Describe(
 			}
 			else if (PackageObjectIndex.IsPackageImport())
 			{
-				FExportDesc* ExportDesc = ExportByGlobalIdMap.FindRef(PackageObjectIndex);
+				FPublicExportKey Key = FPublicExportKey::FromPackageImport(PackageObjectIndex, Package->ImportedPackageIds);
+				FExportDesc* ExportDesc = ExportByKeyMap.FindRef(Key);
 				if (ExportDesc && bIncludeName)
 				{
 					return FString::Printf(TEXT("0x%llX '%s'"), PackageObjectIndex.Value(), *ExportDesc->FullName.ToString());
@@ -3470,7 +3461,7 @@ int32 Describe(
 			{
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\tImport %d: '%s'"), Index++, *Import.Name.ToString());
-				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tGlobalImportIndex: %s"), *PackageObjectIndexToString(Import.GlobalImportIndex, false));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tGlobalImportIndex: %s"), *PackageObjectIndexToString(PackageDesc, Import.GlobalImportIndex, false));
 			}
 
 			OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
@@ -3481,11 +3472,11 @@ int32 Describe(
 			{
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t*************************"));
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\tExport %d: '%s'"), Index++, *Export.Name.ToString());
-				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       OuterIndex: %s"), *PackageObjectIndexToString(Export.OuterIndex, true));
-				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       ClassIndex: %s"), *PackageObjectIndexToString(Export.ClassIndex, true));
-				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       SuperIndex: %s"), *PackageObjectIndexToString(Export.SuperIndex, true));
-				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t    TemplateIndex: %s"), *PackageObjectIndexToString(Export.TemplateIndex, true));
-				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\tGlobalImportIndex: %s"), *PackageObjectIndexToString(Export.GlobalImportIndex, false));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       OuterIndex: %s"), *PackageObjectIndexToString(PackageDesc, Export.OuterIndex, true));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       ClassIndex: %s"), *PackageObjectIndexToString(PackageDesc, Export.ClassIndex, true));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       SuperIndex: %s"), *PackageObjectIndexToString(PackageDesc, Export.SuperIndex, true));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t    TemplateIndex: %s"), *PackageObjectIndexToString(PackageDesc, Export.TemplateIndex, true));
+				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t       ExportHash: %d"), Export.ExportHash);
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t           Offset: %lld"), Export.SerialOffset);
 				OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t             Size: %lld"), Export.SerialSize);
 				if (bIncludeExportHashes)

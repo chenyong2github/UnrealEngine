@@ -183,12 +183,7 @@ private:
 		};
 	}
 
-	virtual FPackageId GetRedirectedPackageId(FPackageId PackageId)  override
-	{
-		return FPackageId();
-	}
-
-	virtual bool IsRedirect(FPackageId PackageId) override
+	virtual bool GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId)  override
 	{
 		return false;
 	}

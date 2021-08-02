@@ -18,7 +18,16 @@ class IAsyncPackageLoader;
 class FIoDispatcher;
 class IEDLBootNotificationManager;
 
-using FSourceToLocalizedPackageIdMap = TArray<TPair<FPackageId, FPackageId>>;
+struct FContainerHeaderPackageRedirect
+{
+	FPackageId SourcePackageId;
+	FPackageId TargetPackageId;
+	FMappedName SourcePackageName;
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FContainerHeaderPackageRedirect& PackageRedirect);
+};
+
+using FSourceToLocalizedPackageIdMap = TArray<FContainerHeaderPackageRedirect>;
 using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
 
 struct FContainerHeader
@@ -27,10 +36,35 @@ struct FContainerHeader
 	uint32 PackageCount = 0;
 	TArray<FPackageId> PackageIds;
 	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
+	TArray<FNameEntryId> RedirectsNameMap;
 	FCulturePackageMap CulturePackageMap;
-	TArray<TPair<FPackageId, FPackageId>> PackageRedirects;
+	TArray<FContainerHeaderPackageRedirect> PackageRedirects;
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader);
+};
+
+class FPackageImportReference
+{
+public:
+	FPackageImportReference(uint32 InImportedPackageIndex, uint32 InExportHash)
+		: ImportedPackageIndex(InImportedPackageIndex)
+		, ExportHash(InExportHash)
+	{
+	}
+
+	uint32 GetImportedPackageIndex() const
+	{
+		return ImportedPackageIndex;
+	}
+
+	uint32 GetExportHash() const
+	{
+		return ExportHash;
+	}
+
+private:
+	uint32 ImportedPackageIndex;
+	uint32 ExportHash;
 };
 
 class FPackageObjectIndex
@@ -70,9 +104,11 @@ public:
 		return FPackageObjectIndex(ScriptImport, GenerateImportHashFromObjectPath(ScriptObjectPath));
 	}
 
-	inline static FPackageObjectIndex FromPackagePath(const FStringView& PackageObjectPath)
+	inline static FPackageObjectIndex FromPackageImportRef(const FPackageImportReference& PackageImportRef)
 	{
-		return FPackageObjectIndex(PackageImport, GenerateImportHashFromObjectPath(PackageObjectPath));
+		uint64 Id = static_cast<uint64>(PackageImportRef.GetImportedPackageIndex()) << 32 | PackageImportRef.GetExportHash();
+		check(!(Id & TypeMask));
+		return FPackageObjectIndex(PackageImport, Id);
 	}
 
 	inline bool IsNull() const
@@ -106,6 +142,13 @@ public:
 		return uint32(TypeAndId);
 	}
 
+	inline FPackageImportReference ToPackageImportRef() const
+	{
+		uint32 ImportedPackageIndex = static_cast<uint32>((TypeAndId & IndexMask) >> 32);
+		uint32 ExportHash = static_cast<uint32>(TypeAndId);
+		return FPackageImportReference(ImportedPackageIndex, ExportHash);
+	}
+
 	inline uint64 Value() const
 	{
 		return TypeAndId & IndexMask;
@@ -133,6 +176,69 @@ public:
 	}
 };
 
+class FPublicExportKey
+{
+public:
+	FPublicExportKey()
+	{
+	}
+
+	bool IsNull() const
+	{
+		return ExportHash == 0;
+	}
+
+	FPackageId GetPackageId() const
+	{
+		return FPackageId::FromValue(uint64(PackageIdHigh) << 32 | PackageIdLow);
+	}
+
+	uint32 GetExportHash() const
+	{
+		return ExportHash;
+	}
+
+	inline bool operator==(const FPublicExportKey& Other) const
+	{
+		return ExportHash == Other.ExportHash &&
+			PackageIdHigh == Other.PackageIdHigh &&
+			PackageIdLow == Other.PackageIdLow;
+	}
+
+	inline friend uint32 GetTypeHash(const FPublicExportKey& In)
+	{
+		return HashCombine(HashCombine(In.PackageIdHigh, In.PackageIdLow), In.ExportHash);
+	}
+
+	static FPublicExportKey MakeKey(FPackageId PackageId, uint32 ExportHash)
+	{
+		check(PackageId.IsValid());
+		check(ExportHash);
+		uint64 PackageIdValue = PackageId.Value();
+		return FPublicExportKey(uint32(PackageIdValue >> 32), uint32(PackageIdValue), ExportHash);
+	}
+
+	static FPublicExportKey FromPackageImport(FPackageObjectIndex ObjectIndex, const TArrayView<const FPackageId>& ImportedPackageIds)
+	{
+		check(ObjectIndex.IsPackageImport());
+		FPackageImportReference PackageImportRef = ObjectIndex.ToPackageImportRef();
+		FPackageId PackageId = ImportedPackageIds[PackageImportRef.GetImportedPackageIndex()];
+		return MakeKey(PackageId, PackageImportRef.GetExportHash());
+	}
+
+private:
+	FPublicExportKey(uint32 InPackageIdHigh, uint32 InPackageIdLow, uint32 InExportHash)
+		: PackageIdHigh(InPackageIdHigh)
+		, PackageIdLow(InPackageIdLow)
+		, ExportHash(InExportHash)
+	{
+	}
+
+	uint32 PackageIdHigh = 0;
+	uint32 PackageIdLow = 0;
+	uint32 ExportHash = 0;
+};
+
 /**
  * Export filter flags.
  */
@@ -150,7 +256,6 @@ struct FPackageSummary
 {
 	uint32 HeaderSize;
 	FMappedName Name;
-	FMappedName SourceName;
 	uint32 PackageFlags;
 	uint32 CookedHeaderSize;
 	int32 ImportMapOffset;
@@ -211,10 +316,10 @@ struct FExportMapEntry
 	FPackageObjectIndex ClassIndex;
 	FPackageObjectIndex SuperIndex;
 	FPackageObjectIndex TemplateIndex;
-	FPackageObjectIndex GlobalImportIndex;
+	uint32 ExportHash;
 	EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags;
 	EExportFilterFlags FilterFlags = EExportFilterFlags::None;
-	uint8 Pad[3] = {};
+	uint8 Pad[7] = {};
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };
