@@ -3,8 +3,13 @@
 #include "Misc/ObjectThumbnail.h"
 #include "Serialization/StructuredArchive.h"
 
+#define USE_JPEG_FOR_THUMBNAILS 0
+
 /** Static: Thumbnail compressor */
-FThumbnailCompressionInterface* FObjectThumbnail::ThumbnailCompressor = NULL;
+// these are installed from UnrealEngine.cpp startup
+// because we are in Core Module we can't access ImageWrapper ourselves
+FThumbnailCompressionInterface* FObjectThumbnail::PNGThumbnailCompressor = nullptr;
+FThumbnailCompressionInterface* FObjectThumbnail::JPEGThumbnailCompressor = nullptr;
 
 
 FObjectThumbnail::FObjectThumbnail()
@@ -12,6 +17,7 @@ FObjectThumbnail::FObjectThumbnail()
 	  ImageHeight( 0 ),
 	  bIsDirty( false ),
 	  bLoadedFromDisk(false),
+	  bIsJPEG(false),
 	  bCreatedAfterCustomThumbForSharedTypesEnabled(false)
 { }
 
@@ -35,10 +41,6 @@ void FObjectThumbnail::Serialize( FArchive& Ar )
 
 void FObjectThumbnail::Serialize(FStructuredArchive::FSlot Slot)
 {
-	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << SA_VALUE(TEXT("ImageWidth"), ImageWidth);
-	Record << SA_VALUE(TEXT("ImageHeight"), ImageHeight);
-
 	//if the image thinks it's empty, ensure there is no memory waste
 	if ((ImageWidth == 0) || (ImageHeight == 0))
 	{
@@ -52,6 +54,27 @@ void FObjectThumbnail::Serialize(FStructuredArchive::FSlot Slot)
 		CompressImageData();
 	}
 
+	FStructuredArchive::FRecord Record = Slot.EnterRecord();
+	Record << SA_VALUE(TEXT("ImageWidth"), ImageWidth);
+	
+	// serialize bIsJPEG via negative ImageHeight
+	if (Slot.GetArchiveState().IsLoading())
+	{
+		Record << SA_VALUE(TEXT("ImageHeight"), ImageHeight);
+		bIsJPEG = false;
+		if ( ImageHeight < 0 )
+		{
+			bIsJPEG = true;
+			ImageHeight = -ImageHeight;
+		}
+	}
+	else
+	{
+		int32 ImageHeightToSerialize = bIsJPEG ? -ImageHeight : ImageHeight;
+		
+		Record << SA_VALUE(TEXT("ImageHeight"), ImageHeightToSerialize);
+	}
+		
 	Record << SA_VALUE(TEXT("CompressedImageData"), CompressedImageData);
 
 	if (Slot.GetUnderlyingArchive().IsCountingMemory())
@@ -73,9 +96,23 @@ void FObjectThumbnail::Serialize(FStructuredArchive::FSlot Slot)
 void FObjectThumbnail::CompressImageData()
 {
 	CompressedImageData.Reset();
-	if( ThumbnailCompressor != NULL && ImageData.Num() > 0 && ImageWidth > 0 && ImageHeight > 0 )
+
+	if ( ImageData.Num() > 0 && ImageWidth > 0 && ImageHeight > 0 )
 	{
-		ThumbnailCompressor->CompressImage( ImageData, ImageWidth, ImageHeight, CompressedImageData );
+		#if USE_JPEG_FOR_THUMBNAILS
+		// prefer JPEG except on images that are trivially tiny or 1d
+		if( JPEGThumbnailCompressor != NULL && ImageWidth >= 8 && ImageHeight >= 8 )
+		{
+			JPEGThumbnailCompressor->CompressImage( ImageData, ImageWidth, ImageHeight, CompressedImageData );
+			bIsJPEG = true;
+		}
+		#endif
+
+		if( PNGThumbnailCompressor != NULL && CompressedImageData.Num() == 0 )
+		{
+			PNGThumbnailCompressor->CompressImage( ImageData, ImageWidth, ImageHeight, CompressedImageData );
+			bIsJPEG = false;
+		}
 	}
 }
 
@@ -83,9 +120,16 @@ void FObjectThumbnail::CompressImageData()
 void FObjectThumbnail::DecompressImageData()
 {
 	ImageData.Reset();
-	if( ThumbnailCompressor != NULL && CompressedImageData.Num() > 0 && ImageWidth > 0 && ImageHeight > 0 )
+	if( CompressedImageData.Num() > 0 && ImageWidth > 0 && ImageHeight > 0 )
 	{
-		ThumbnailCompressor->DecompressImage( CompressedImageData, ImageWidth, ImageHeight, ImageData );
+		if ( bIsJPEG && JPEGThumbnailCompressor != nullptr )
+		{
+			JPEGThumbnailCompressor->DecompressImage( CompressedImageData, ImageWidth, ImageHeight, ImageData );
+		}
+		else if ( !bIsJPEG && PNGThumbnailCompressor != nullptr )
+		{
+			PNGThumbnailCompressor->DecompressImage( CompressedImageData, ImageWidth, ImageHeight, ImageData );
+		}
 	}
 }
 
