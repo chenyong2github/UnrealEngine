@@ -689,11 +689,10 @@ bool FDisplayClusterConfiguratorBlueprintEditor::SaveToFile(const FString& InFil
 		// Save asset path
 		Data->Info.AssetPath = LoadedBlueprint->GetPathName();
 
-		// Prepare the target container
-		Data->Scene->Cameras.Reset();
-		Data->Scene->Cameras.Reserve(CameraComponents.Num());
-		Data->Scene->Screens.Reserve(ScreenComponents.Num());
-		Data->Scene->Xforms.Reserve(XformComponents.Num());
+		// Prepare the target containers
+		Data->Scene->Cameras.Empty(CameraComponents.Num());
+		Data->Scene->Screens.Empty(ScreenComponents.Num());
+		Data->Scene->Xforms.Empty(XformComponents.Num());
 
 		// Export cameras
 		for (const UDisplayClusterCameraComponent* const CfgComp : CameraComponents)
