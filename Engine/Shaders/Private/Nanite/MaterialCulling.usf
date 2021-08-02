@@ -12,13 +12,23 @@
 // MATERIAL_CULLING_METHOD 2: cull individual tiles   (32bit mask)
 // MATERIAL_CULLING_METHOD 3: cull individual tiles   (range load)
 // MATERIAL_CULLING_METHOD 4: cull individual tiles   (64bit mask)
+// MATERIAL_CULLING_METHOD 5: cull individual indirect tiles
 
 Texture2D<UlongType> VisBuffer64;
 ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
 
+RWBuffer<uint> MaterialIndirectArgs;
+RWStructuredBuffer<uint> MaterialTileRemap;
+
 // .xy = min, .zw = max
 uint4 ViewRect;
+
+uint MaterialRemapCount;
+uint MaterialTileCount;
+uint MaterialSlotCount;
+uint MaterialBinCount;
+
 #if MATERIAL_CULLING_METHOD == 1 || MATERIAL_CULLING_METHOD == 2
 
 RWStructuredBuffer<uint> VisibleMaterials;
@@ -43,7 +53,8 @@ void ClassifyMaterials(uint3 PixelPos : SV_DispatchThreadID)
 			const FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
 			const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable);
+			const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 			MaterialDepthValue = asfloat(MaterialDepthId);
 		}
 
@@ -125,7 +136,8 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupIndex : 
 					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 					FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-					const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable);
+					const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+					const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 
 				#if MATERIAL_CULLING_METHOD == 3
 					InterlockedMin(TileMinMax.x, MaterialDepthId);
@@ -159,4 +171,194 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupIndex : 
 	}
 }
 
+#elif MATERIAL_CULLING_METHOD == 5
+
+#define NANITE_MAX_MATERIAL_SLOTS (16u * 1024u)
+#define NANITE_MAX_MATERIAL_BINS (NANITE_MAX_MATERIAL_SLOTS / 32u)
+
+uint2 FetchClamp;
+uint RowTileCount;
+
+RWTexture2D<uint2> MaterialRange;
+
+groupshared uint2 TileMinMax;
+groupshared uint  TileMaterialCount;
+groupshared uint  TileMaterialBins[NANITE_MAX_MATERIAL_BINS]; // 16384 material slot max (1 bit per material slot)
+
+[numthreads(16, 16, 1)]
+void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_GroupID)
+{
+	const uint TileSlotOffset = ((ThreadIndex.y * 16) + ThreadIndex.x);
+	const uint TileBin1Offset = TileSlotOffset + 0;
+	const uint TileBin2Offset = TileSlotOffset + 256;
+
+	const uint2 GroupPixelStart = ThreadIndex.xy + GroupID.xy * 64u + ViewRect.xy;
+
+	if (all(ThreadIndex.xy == 0u))
+	{
+		TileMaterialCount = 0;
+		TileMinMax.x = 0x0;
+		TileMinMax.y = 0x0;
+	}
+
+	if (TileBin1Offset < MaterialBinCount)
+	{
+		TileMaterialBins[TileBin1Offset] = 0;
+		if (TileBin2Offset < MaterialBinCount)
+		{
+			TileMaterialBins[TileBin2Offset] = 0;
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	for (uint BlockY = 0; BlockY < 64u; BlockY += 16)
+	{
+		for (uint BlockX = 0; BlockX < 64u; BlockX += 16)
+		{
+			uint2 FetchPos = GroupPixelStart + uint2(BlockX, BlockY);
+
+			FetchPos = min(FetchPos, FetchClamp);
+
+			UlongType VisPixel = VisBuffer64[FetchPos];
+
+			uint DepthInt = 0;
+			uint VisibleClusterIndex = 0;
+			uint TriIndex = 0;
+			UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+			const bool ValidClusterIndex = (VisibleClusterIndex != 0xFFFFFFFF);
+		#if COMPILER_SUPPORTS_WAVE_VOTE
+			const bool TileHasNanite = WaveActiveAnyTrue(ValidClusterIndex);
+			if (TileHasNanite)
+		#endif
+			{
+				if (ValidClusterIndex)
+				{
+					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+					FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+					const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+
+				// Scalarize tile classify if all lanes ballot the same material slot index
+				// TODO: Untested
+				#if 0 && COMPILER_SUPPORTS_WAVE_VOTE
+					const uint FirstMaterialSlot = WaveReadFirstLane(MaterialSlot);
+					if (WaveActiveAllTrue(FirstMaterialSlot == MaterialSlot))
+					{
+						if (WaveIsFirstLane())
+						{
+							const uint TileBinIndex  = FirstMaterialSlot >> 5u;
+							const uint TileBinOffset = FirstMaterialSlot & 31u;
+							const uint TileBinUsage  = 1u << TileBinOffset;
+							InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
+						}
+					}
+					else
+					{
+				#endif
+						const uint TileBinIndex  = MaterialSlot >> 5u;
+						const uint TileBinOffset = MaterialSlot & 31u;
+						const uint TileBinUsage  = 1u << TileBinOffset;
+						InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
+				#if 0 && COMPILER_SUPPORTS_WAVE_VOTE
+					}
+				#endif
+
+					//const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
+				}
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	const uint TileLinearOffset  = (GroupID.y * RowTileCount) + GroupID.x;
+	const uint TileRemapBinIndex = TileLinearOffset >> 5u;
+
+	BRANCH
+	if (TileBin1Offset < MaterialBinCount)
+	{
+		uint TileBin1 = TileMaterialBins[TileBin1Offset];
+		if (TileBin1 != 0u)
+		{
+			InterlockedAdd(TileMaterialCount, countbits(TileBin1));
+
+			const uint MaterialSlot1Base = TileBin1Offset * 32u;
+			while (TileBin1 != 0)
+			{
+				const uint Bin1Index = firstbitlow(TileBin1);
+				TileBin1 &= ~(1u << Bin1Index);
+
+				const uint MaterialSlot1 = MaterialSlot1Base + Bin1Index;
+				InterlockedAdd(MaterialIndirectArgs[MaterialSlot1 * DRAW_INDEXED_INDIRECT_UINT_COUNT + 1], 1);
+
+				const uint RemapBaseOffset = (MaterialRemapCount * MaterialSlot1);
+				const uint RemapBinOffset  = TileLinearOffset & 31u;
+				const uint RemapBinUsage   = 1u << RemapBinOffset;
+
+				InterlockedOr(MaterialTileRemap[RemapBaseOffset + TileRemapBinIndex], RemapBinUsage);
+			}
+		}
+
+		BRANCH
+		if (TileBin2Offset < MaterialBinCount)
+		{
+			uint TileBin2 = TileMaterialBins[TileBin2Offset];
+			if (TileBin2 != 0)
+			{
+				InterlockedAdd(TileMaterialCount, countbits(TileBin2));
+
+				const uint MaterialSlot2Base = TileBin2Offset * 32u;
+				while (TileBin2 != 0)
+				{
+					const uint Bin2Index = firstbitlow(TileBin2);
+					TileBin2 &= ~(1u << Bin2Index);
+
+					const uint MaterialSlot2 = MaterialSlot2Base + Bin2Index;
+					InterlockedAdd(MaterialIndirectArgs[MaterialSlot2 * DRAW_INDEXED_INDIRECT_UINT_COUNT + 1], 1);
+
+					const uint RemapBaseOffset = (MaterialRemapCount * MaterialSlot2);
+					const uint RemapBinOffset  = TileLinearOffset & 31u;
+					const uint RemapBinUsage   = 1u << RemapBinOffset;
+					InterlockedOr(MaterialTileRemap[RemapBaseOffset + TileRemapBinIndex], RemapBinUsage);
+				}
+			}
+		}
+	}
+}
+
 #endif
+
+uint TopologyIndexCount;
+
+[numthreads(64, 1, 1)]
+void InitializeMaterials(uint3 ThreadIndex : SV_DispatchThreadID)
+{
+	const uint MaterialSlot = ThreadIndex.x;
+
+	if (MaterialSlot < MaterialSlotCount)
+	{
+		// IndexCountPerInstance
+		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 0] = TopologyIndexCount; // 6 for tri prim, 3 for rect prim
+
+		// TODO: Store4(0) with a byte address buffer to avoid any SPI bottlenecks
+
+		// InstanceCount
+		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 1] = 0; // Populated by material tile classification (# of surviving tiles per material)
+
+		// StartIndexLocation
+		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 2] = 0;
+
+		// BaseVertexLocation
+		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 3] = 0;
+
+		// StartInstanceLocation
+		MaterialIndirectArgs[MaterialSlot * DRAW_INDEXED_INDIRECT_UINT_COUNT + 4] = 0;
+
+		for (uint RemapIndex = 0; RemapIndex < MaterialRemapCount; ++RemapIndex)
+		{
+			MaterialTileRemap[(MaterialRemapCount * MaterialSlot) + RemapIndex] = 0u;
+		}
+	}
+}

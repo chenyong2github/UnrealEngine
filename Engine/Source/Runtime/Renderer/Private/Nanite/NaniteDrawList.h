@@ -88,12 +88,15 @@ void DrawNaniteMaterialPasses(
 	const FParallelCommandListBindings& ParallelBindings,
 	TShaderMapRef<FNaniteMaterialVS> VertexShader,
 	FRHICommandListImmediate& RHICmdListImmediate,
+	FRHIBuffer* MaterialIndirectArgs,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& MaterialPassCommands
 );
 
 void SubmitNaniteMaterialPassCommand(
 	const FMeshDrawCommand& MeshDrawCommand,
 	const float MaterialDepth,
+	const int32 MaterialSlot,
+	FRHIBuffer* MaterialIndirectArgs,
 	const TShaderMapRef<FNaniteMaterialVS>& VertexShader,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	const uint32 InstanceFactor,
@@ -108,5 +111,6 @@ void SubmitNaniteMaterialPassCommand(
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	const uint32 InstanceFactor,
 	FRHICommandList& RHICmdList,
+	FRHIBuffer* MaterialIndirectArgs,
 	FMeshDrawCommandStateCache& StateCache
 );

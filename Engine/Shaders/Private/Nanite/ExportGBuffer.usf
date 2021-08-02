@@ -8,10 +8,6 @@
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
 
-Texture2D TestDiffuseTexture;
-Texture2D TestNormalTexture;
-SamplerState MaterialSampler;
-
 ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
 ByteAddressBuffer MaterialHitProxyTable;
@@ -21,16 +17,16 @@ uint StencilClear;
 uint StencilDecal;
 
 Texture2D<UlongType> VisBuffer64;
-Texture2D<uint> NaniteMask;
+Texture2D<uint> MaterialResolve;
+StructuredBuffer<uint> MaterialTileRemap;
 
-// TODO: Can likely be removed
 void MarkStencilPS(
 	in float4 SvPosition	: SV_Position,
 	out float OutDepth		: SV_Depth
 )
 {
-	uint2 PixelPos = (uint2)SvPosition.xy;
-	UlongType VisPixel = VisBuffer64[PixelPos];
+	const uint2 PixelPos = (uint2)SvPosition.xy;
+	const UlongType VisPixel = VisBuffer64[PixelPos];
 
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;
@@ -52,14 +48,14 @@ void EmitMaterialDepthPS(
 	out float  OutDepth		: SV_Depth
 )
 {
-	uint2 PixelPos = (uint2)SvPosition.xy;
+	const uint2 PixelPos = (uint2)SvPosition.xy;
+	uint MaterialSlot = 0;
 
-#if NANITE_MASK
-	const bool UnOccluded = NaniteMask[PixelPos] != 0;
+#if MATERIAL_RESOLVE
+	bool IsNanitePixel = false;
+	bool IsDecalReceiver = false;
+	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
 #else
-	const bool UnOccluded = true;
-#endif
-
 	UlongType VisPixel  = VisBuffer64[PixelPos];
 
 	uint DepthInt = 0;
@@ -67,13 +63,20 @@ void EmitMaterialDepthPS(
 	uint TriIndex = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	if (VisibleClusterIndex != 0xFFFFFFFF && UnOccluded)
+	const bool IsNanitePixel = VisibleClusterIndex != 0xFFFFFFFF;
+	if (IsNanitePixel)
 	{
-		// Export material depth ID as SV_Depth.
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster );
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-		const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable);
+		MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+	}
+#endif
+
+	if (IsNanitePixel)
+	{
+		// Export material depth ID as SV_Depth.
+		const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 		OutDepth = asfloat(MaterialDepthId | DummyZero); // Workaround for bug on Geforce 2080Ti. It seems the issue might be related to writing directly to OutDepth in a buffer load instruction.
 	}
 	else
@@ -83,12 +86,14 @@ void EmitMaterialDepthPS(
 }
 
 void EmitSceneDepthPS(
-	in float4  SvPosition		: SV_Position,
-	out uint   OutNaniteMask	: SV_Target0,
-#if VELOCITY_EXPORT
-	out float4 OutVelocity		: SV_Target1,
+	in float4  SvPosition			: SV_Position,
+#if MATERIAL_RESOLVE
+	out uint   OutMaterialResolve	: SV_Target0,
 #endif
-	out float  OutDepth			: SV_Depth
+#if VELOCITY_EXPORT
+	out float4 OutVelocity			: SV_Target1,
+#endif
+	out float  OutDepth				: SV_Depth
 )
 {
 #if VELOCITY_EXPORT
@@ -105,9 +110,19 @@ void EmitSceneDepthPS(
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-#if VELOCITY_EXPORT
+#if VELOCITY_EXPORT || MATERIAL_RESOLVE
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
+		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+#endif
+
+#if MATERIAL_RESOLVE
+		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
+		OutMaterialResolve = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
+#endif
+
+#if VELOCITY_EXPORT
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 		const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
@@ -120,7 +135,6 @@ void EmitSceneDepthPS(
 		OutVelocity = EncodeVelocityToTexture(Velocity);
 #endif
 
-		OutNaniteMask = 0x1;
 		OutDepth = asfloat(DepthInt);
 	}
 	else
@@ -134,47 +148,39 @@ void EmitSceneStencilPS(
 	out float OutDepth		: SV_Depth
 )
 {
-	OutDepth = 0;
+	const uint2 PixelPos = (uint2)SvPosition.xy;
 
-	uint2 PixelPos = (uint2)SvPosition.xy;
-	UlongType VisPixel = VisBuffer64[PixelPos];
+	bool IsNanitePixel = false;
+	bool IsDecalReceiver = false;
+	uint MaterialSlot = 0;
+	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
 
-	uint DepthInt = 0;
-	uint VisibleClusterIndex = 0;
-	uint TriIndex = 0;
-	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
-
-	if (VisibleClusterIndex != 0xFFFFFFFF)
+	BRANCH
+	if (IsNanitePixel && IsDecalReceiver)
 	{
-		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
-
-		// TODO: Move this into 'NaniteMask' to avoid the extra cluster decode, and to touch less memory
-		// by skipping the vbuffer (64b -> 8b)
-		if ((GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
-		{
-			OutDepth = asfloat(DepthInt);
-		}
-		else
-		{
-			discard;
-		}
+		UlongType VisPixel = VisBuffer64[PixelPos];
+		uint DepthInt = 0;
+		uint VisibleClusterIndex = 0;
+		uint TriIndex = 0;
+		UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+		OutDepth = asfloat(DepthInt);
 	}
 	else
 	{
+		OutDepth = 0.0f;
 		discard;
 	}
 }
 
 void EmitSceneDepthStencilPS
 (
-	in float4  SvPosition		: SV_Position,
-	out uint   OutNaniteMask	: SV_Target0,
+	in float4  SvPosition			: SV_Position,
+	out uint   OutMaterialResolve	: SV_Target0,
 #if VELOCITY_EXPORT
-	out float4 OutVelocity		: SV_Target1,
+	out float4 OutVelocity			: SV_Target1,
 #endif
-	out float  OutDepth			: SV_Depth,
-	out uint   OutStencil		: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
+	out float  OutDepth				: SV_Depth,
+	out uint   OutStencil			: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
 )
 {
 	uint2 PixelPos = (uint2)SvPosition.xy;
@@ -190,7 +196,11 @@ void EmitSceneDepthStencilPS
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
+		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+
+		const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+		const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 		
 #if VELOCITY_EXPORT
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
@@ -206,16 +216,9 @@ void EmitSceneDepthStencilPS
 #endif
 
 		OutDepth = asfloat(DepthInt);
-		OutNaniteMask = 0x1;
+		OutMaterialResolve = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
 
-		if ((GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
-		{
-			OutStencil = StencilDecal;
-		}
-		else
-		{
-			OutStencil = StencilClear;
-		}
+		OutStencil = CondMask(IsDecalReceiver, StencilDecal, StencilClear);
 
 		//@todo - proper support
 		OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
@@ -402,6 +405,8 @@ void EmitEditorSelectionDepthPS(
 #endif
 
 float MaterialDepth;
+uint MaterialSlot;
+uint TileRemapCount;
 uint InstanceBaseOffset;
 
 struct FVertexFactoryInterpolantsVSToPS
@@ -420,9 +425,64 @@ void FullScreenVS(
 
 )
 {
+	const uint  CullMode = Nanite.MaterialConfig.x;
+	const uint2 GridSize = Nanite.MaterialConfig.yz;
+
 	Output = (FVertexFactoryInterpolantsVSToPS)0;
 
 	uint TileIndex = InstanceIndex;
+	if (CullMode == 5)
+	{
+		const uint TargetTileCount = TileIndex + 1;
+
+		uint ValidTiles = 0;
+
+		// Remap compacted tile index to sparse tile index
+		// If compacted index is 7, the first 4 indices are valid, but the next 2 are not, the sparse index is 9
+		// Basically figure out how many preceeding empty slots exist, so we can shift the index by that. (reverse prefix sum w/ linear scan)
+		const uint RemapBaseOffset = (TileRemapCount * MaterialSlot);
+
+		// TODO: Could optimize by having material classify store out the prefix sum per remap uint, and then binary search the result quicker
+
+		uint RemapBin  = 0;
+		uint RemapData = 0;
+
+		LOOP
+		for (; RemapBin < TileRemapCount; ++RemapBin)
+		{
+			RemapData = Nanite.MaterialTileRemap[RemapBaseOffset + RemapBin];
+
+			const uint SumValidTiles = ValidTiles + countbits(RemapData); // Count number of valid tiles in bin
+			if (SumValidTiles < TargetTileCount)
+			{
+				// Keeping going
+				ValidTiles = SumValidTiles;
+			}
+			else
+			{
+				// Found the target bin
+				break;
+			}
+		}
+
+		uint RemapBinBit = 0;
+
+		LOOP
+		while (RemapData != 0)
+		{
+			RemapBinBit = firstbitlow(RemapData);
+			RemapData &= ~(1u << RemapBinBit);
+			++ValidTiles;
+			if (ValidTiles == TargetTileCount)
+			{
+				// Arrived at sparse tile index
+				break;
+			}
+		}
+
+		TileIndex = (RemapBin * 32u) + RemapBinBit;
+	}
+
 	float4 RectScaleOffset = Nanite.RectScaleOffset;
 
 	BRANCH
@@ -435,10 +495,6 @@ void FullScreenVS(
 		RectScaleOffset = Nanite.MultiViewRectScaleOffsets[ViewIndex];
 		Output.ViewIndex = ViewIndex;	
 	}
-
-
-	const uint  CullMode = Nanite.MaterialConfig.x;
-	const uint2 GridSize = Nanite.MaterialConfig.yz;
 
 	float2 GridStep = float2(1.0, 1.0) / (float2)GridSize;
 	uint2  GridPos  = uint2(TileIndex % GridSize.x, TileIndex / GridSize.x);
@@ -497,5 +553,9 @@ void FullScreenVS(
 		{
 			Position.x = asfloat(0xFFFFFFFF);
 		}
+	}
+	else if (CullMode == 5)
+	{
+		// Nothing to do yet
 	}
 }

@@ -584,6 +584,27 @@ uint3 ReadTriangleIndices(FCluster Cluster, uint TriIndex)
 	return BaseIndex + uint3(0, Delta0, Delta1);
 }
 
+uint PackMaterialResolve(
+	uint MaterialSlot,
+	bool IsDecalReceiver)
+{
+	uint Packed = 0x1; // Is Nanite
+	Packed |= (BitFieldMaskU32(14, 1) & (MaterialSlot << 1u));
+	Packed |= CondMask(IsDecalReceiver, 1u << 15u, 0u);
+	return Packed;
+}
+
+void UnpackMaterialResolve(
+	uint Packed,
+	out bool IsNanitePixel,
+	out bool IsDecalReceiver,
+	out uint MaterialSlot)
+{
+	IsNanitePixel   = BitFieldExtractU32(Packed,  1,  0) != 0;
+	MaterialSlot    = BitFieldExtractU32(Packed, 14,  1);
+	IsDecalReceiver = BitFieldExtractU32(Packed,  1, 15) != 0;
+}
+
 void UnpackVisPixel(
 	UlongType Pixel,
 	out uint DepthInt,

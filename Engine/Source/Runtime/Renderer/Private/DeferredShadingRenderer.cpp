@@ -2306,7 +2306,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						RasterContext.VisBuffer64,
 						VelocityBuffer,
 						RasterResults.MaterialDepth,
-						RasterResults.NaniteMask,
+						RasterResults.MaterialResolve,
 						bNeedsPrePass,
 						bEmitStencilMask
 					);
@@ -2535,7 +2535,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	{
 		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture, InstanceCullingManager, bNaniteEnabled, NaniteRasterResults);
-		GraphBuilder.AddDispatchHint();	
+		GraphBuilder.AddDispatchHint();
 
 		if (!bAllowReadOnlyDepthBasePass)
 		{

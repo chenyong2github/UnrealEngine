@@ -1057,11 +1057,42 @@ void FMeshDrawCommand::SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, ui
 	FRHIBuffer* IndirectArgsOverrideBuffer,
 	uint32 IndirectArgsOverrideByteOffset)
 {
-	const bool bDoOverrideArgs = IndirectArgsOverrideBuffer != nullptr && MeshDrawCommand.PrimitiveIdStreamIndex >= 0;
+	FRHIBuffer* IndirectArgsBuffer = nullptr;
+	uint32		IndirectArgsOffset = 0;
 
-	if (MeshDrawCommand.IndexBuffer)
+	if (MeshDrawCommand.NumPrimitives == 0)
 	{
-		if (MeshDrawCommand.NumPrimitives > 0 && !bDoOverrideArgs)
+		IndirectArgsBuffer = MeshDrawCommand.IndirectArgs.Buffer;
+		IndirectArgsOffset = MeshDrawCommand.IndirectArgs.Offset;
+	}
+
+	if (IndirectArgsOverrideBuffer != nullptr)
+	{
+		IndirectArgsBuffer = IndirectArgsOverrideBuffer;
+		IndirectArgsOffset = IndirectArgsOverrideByteOffset;
+	}
+
+	if (IndirectArgsBuffer != nullptr)
+	{
+		if (MeshDrawCommand.IndexBuffer)
+		{
+			RHICmdList.DrawIndexedPrimitiveIndirect(
+				MeshDrawCommand.IndexBuffer,
+				IndirectArgsBuffer,
+				IndirectArgsOffset
+			);
+		}
+		else
+		{
+			RHICmdList.DrawPrimitiveIndirect(
+				IndirectArgsBuffer,
+				IndirectArgsOffset
+			);
+		}
+	}
+	else if (MeshDrawCommand.NumPrimitives > 0)
+	{
+		if (MeshDrawCommand.IndexBuffer)
 		{
 			RHICmdList.DrawIndexedPrimitive(
 				MeshDrawCommand.IndexBuffer,
@@ -1075,27 +1106,10 @@ void FMeshDrawCommand::SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, ui
 		}
 		else
 		{
-			RHICmdList.DrawIndexedPrimitiveIndirect(
-				MeshDrawCommand.IndexBuffer,
-				bDoOverrideArgs ? IndirectArgsOverrideBuffer : MeshDrawCommand.IndirectArgs.Buffer,
-				bDoOverrideArgs ? IndirectArgsOverrideByteOffset : MeshDrawCommand.IndirectArgs.Offset
-			);
-		}
-	}
-	else
-	{
-		if (MeshDrawCommand.NumPrimitives > 0 && !bDoOverrideArgs)
-		{
 			RHICmdList.DrawPrimitive(
 				MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
 				MeshDrawCommand.NumPrimitives,
-				MeshDrawCommand.NumInstances * InstanceFactor);
-		}
-		else
-		{
-			RHICmdList.DrawPrimitiveIndirect(
-				bDoOverrideArgs ? IndirectArgsOverrideBuffer : MeshDrawCommand.IndirectArgs.Buffer,
-				bDoOverrideArgs ? IndirectArgsOverrideByteOffset : MeshDrawCommand.IndirectArgs.Offset
+				MeshDrawCommand.NumInstances * InstanceFactor
 			);
 		}
 	}
