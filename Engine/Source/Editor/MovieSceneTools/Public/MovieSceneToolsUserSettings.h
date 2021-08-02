@@ -41,6 +41,9 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=General, meta=(EditCondition=bDrawThumbnails))
 	EThumbnailQuality Quality;
 
+	/** Temporal history for the view required for advanced features(e.g., eye adaptation) on all thumbnails*/
+	FSceneViewStateReference ViewState;
+
 	DECLARE_EVENT(UMovieSceneUserThumbnailSettings, FOnForceRedraw)
 	FOnForceRedraw& OnForceRedraw() { return OnForceRedrawEvent; }
 	void BroadcastRedrawThumbnails() const { OnForceRedrawEvent.Broadcast(); }

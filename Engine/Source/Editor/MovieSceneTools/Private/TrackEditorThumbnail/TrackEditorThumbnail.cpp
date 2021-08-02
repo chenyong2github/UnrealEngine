@@ -385,6 +385,8 @@ void FTrackEditorThumbnailCache::DrawViewportThumbnail(FTrackEditorThumbnail& Tr
 		.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
 		.SetResolveScene(true));
 
+	FSceneViewStateInterface* ViewStateInterface = nullptr;
+
 	// Screen percentage is not supported in thumbnail.
 	ViewFamily.EngineShowFlags.ScreenPercentage = false;
 
@@ -398,10 +400,24 @@ void FTrackEditorThumbnailCache::DrawViewportThumbnail(FTrackEditorThumbnail& Tr
 	case EThumbnailQuality::Normal:
 	case EThumbnailQuality::Best:
 		ViewFamily.EngineShowFlags.SetMotionBlur(false);
+
+		// Default eye adaptation requires a viewstate.
+		ViewFamily.EngineShowFlags.EyeAdaptation = true;
+		UMovieSceneUserThumbnailSettings* ThumbnailSettings = GetMutableDefault<UMovieSceneUserThumbnailSettings>();
+		FSceneViewStateInterface* Ref = ThumbnailSettings->ViewState.GetReference();
+		if (!Ref)
+		{
+			ThumbnailSettings->ViewState.Allocate();
+		}
+		ViewStateInterface = ThumbnailSettings->ViewState.GetReference();
 		break;
 	}
 
 	FSceneViewInitOptions ViewInitOptions;
+
+	// Use target exposure without blend. 
+	ViewInitOptions.bInCameraCut = true;
+	ViewInitOptions.SceneViewStateInterface = ViewStateInterface;
 
 	ViewInitOptions.BackgroundColor = FLinearColor::Black;
 	ViewInitOptions.SetViewRectangle(FIntRect(FIntPoint::ZeroValue, RTSize));
