@@ -67,6 +67,11 @@ struct STRUCTUTILS_API FInstancedStructStream
 	
 	void Append(FInstancedStructStream&& Other)
 	{
+		if (Other.NumItems == 0)
+		{
+			return;
+		}
+
 		if (Other.ChunkSize == ChunkSize)
 		{
 			if (NumItems == 0)
