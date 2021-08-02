@@ -830,13 +830,7 @@ void FLiveCodingModule::BeginReload()
 bool FLiveCodingModule::IsReinstancingEnabled() const
 {
 #if WITH_EDITOR
-	if (Settings->bEnableReinstancing)
-	{
-		return true;
-	}
-	bool bEnableReinstancing = true;
-	GConfig->GetBool(TEXT("LiveCoding"), TEXT("bEnableReinstancing"), bEnableReinstancing, GEngineIni);
-	return bEnableReinstancing;
+	return Settings->bEnableReinstancing;
 #else
 	return false;
 #endif
