@@ -37,15 +37,15 @@ public:
 	virtual void Uncompress(const ERGBFormat InFormat, int32 InBitDepth) override;
 	virtual void Compress(int32 Quality) override;
 
+private:
+
+	int32 NumComponents;
+	
 #if WITH_LIBJPEGTURBO
 	bool SetCompressedTurbo(const void* InCompressedData, int64 InCompressedSize);
 	void CompressTurbo(int32 Quality);
 	void UncompressTurbo(const ERGBFormat InFormat, int32 InBitDepth);
 #endif	// WITH_LIBJPEGTURBO
-
-private:
-
-	int32 NumComponents;
 
 #if WITH_LIBJPEGTURBO
 	tjhandle Compressor;

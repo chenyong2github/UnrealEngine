@@ -457,7 +457,7 @@ void UTexture::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	Super::Serialize(Ar);
-
+	
 	FStripDataFlags StripFlags(Ar);
 
 	/** Legacy serialization. */
@@ -1256,6 +1256,12 @@ void FTextureSource::Compress()
 	FWriteScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
 #endif
 
+	// if bUseOodleOnPNGz0 , do PNG filters but then use Oodle instead of zlib back-end LZ
+	//	no point turning this on until we drill Oodle compressor options through BulkData
+	bool bUseOodleOnPNGz0 = false;
+
+	// may already have bPNGCompressed or "CompressionFormat" set
+
 	if (CanPNGCompress()) // Note that this will return false if the data is already a compressed PNG
 	{
 		FSharedBuffer Payload = BulkData.GetPayload().Get();
@@ -1264,13 +1270,19 @@ void FTextureSource::Compress()
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper( EImageFormat::PNG );
 		// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
 		ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
-		if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw(Payload.GetData(), Payload.GetSize(), SizeX, SizeY, RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8 ) )
+		int RawBitsPerChannel = (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8;
+		if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw(Payload.GetData(), Payload.GetSize(), SizeX, SizeY, RawFormat, RawBitsPerChannel ) )
 		{
-			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed();
+			int32 PngQuality = (int32)EImageCompressionQuality::Default; // 0 means default 
+			if ( bUseOodleOnPNGz0 )
+			{
+				PngQuality = (int32)EImageCompressionQuality::Uncompressed; // turn off zlib
+			}
+			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed(PngQuality);
 			if ( CompressedData.Num() > 0 )
-			{			
+			{
 				BulkData.UpdatePayload(MakeSharedBufferFromArray(MoveTemp(CompressedData)), NAME_None);
-
+				
 				bPNGCompressed = true;
 				CompressionFormat = TSCF_PNG;
 			}
@@ -1285,7 +1297,20 @@ void FTextureSource::Compress()
 
 	// There was a brief period when textures could be saved with the wrong compression flag based on their storage format
 	// so we force set it here so that they will be fixed on resave.
-	BulkData.SetCompressionFormat(CompressionFormat == TSCF_None ? NAME_Default : NAME_None);
+
+	FName Compressor = NAME_None;
+	if ( CompressionFormat == TSCF_None )
+	{
+		//was NAME_Default which is Zlib
+		Compressor = NAME_Default;
+		// @todo use Oodle for all non-PNG and JPEG
+		//Compressor = NAME_Oodle;
+	}
+	else if ( CompressionFormat == TSCF_PNG && bUseOodleOnPNGz0 )
+	{
+		Compressor = NAME_Oodle;
+	}
+	BulkData.SetCompressionFormat(Compressor);
 }
 
 FSharedBuffer FTextureSource::Decompress(IImageWrapperModule* ImageWrapperModule) const

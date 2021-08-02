@@ -144,6 +144,25 @@ bool FJpegImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int
 
 void FJpegImageWrapper::Compress(int32 Quality)
 {
+	if (Quality == 0)
+	{
+		//default 
+		Quality = 85;
+	}
+	else if (Quality == (int32)EImageCompressionQuality::Uncompressed)
+	{
+		// fix = 1 (Uncompressed) was previously treated as max-compress
+		Quality = 100;
+	}
+	else
+	{
+		ensure(Quality >= 1 && Quality <= 100);
+
+		#define JPEG_QUALITY_MIN 30
+		// JPEG should not be used below quality JPEG_QUALITY_MIN
+		Quality = FMath::Clamp(Quality, JPEG_QUALITY_MIN, 100);
+	}
+
 #if WITH_LIBJPEGTURBO
 	CompressTurbo(Quality);
 #else
@@ -151,10 +170,6 @@ void FJpegImageWrapper::Compress(int32 Quality)
 	{
 		FScopeLock JPEGLock(&GJPEGSection);
 		
-		if (Quality == 0) {Quality = 85;}
-		ensure(Quality >= 1 && Quality <= 100);
-		Quality = FMath::Clamp(Quality, 1, 100);
-
 		check(RawData.Num());
 		check(Width > 0);
 		check(Height > 0);
@@ -270,12 +285,10 @@ void FJpegImageWrapper::CompressTurbo(int32 Quality)
 	{
 		FScopeLock JPEGLock(&GJPEGSection);
 
+		// Quality mapping should have already been done
+		check( Quality >= JPEG_QUALITY_MIN && Quality <= 100 );
+
 		check(Compressor);
-
-		if (Quality == 0) { Quality = 85; }
-		ensure(Quality >= 1 && Quality <= 100);
-		Quality = FMath::Clamp(Quality, 1, 100);
-
 		check(RawData.Num());
 		check(Width > 0);
 		check(Height > 0);
