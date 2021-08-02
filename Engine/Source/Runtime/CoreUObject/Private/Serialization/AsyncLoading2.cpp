@@ -4501,6 +4501,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 		bLocalDidSomething |= MainThreadEventQueue.PopAndExecute(ThreadState);
 
 		bLocalDidSomething |= LoadedPackagesToProcess.Num() > 0;
+		TArray<FAsyncPackage2*, TInlineAllocator<4>> PackagesReadyForCallback;
 		for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num(); ++PackageIndex)
 		{
 			SCOPED_LOADTIMER(ProcessLoadedPackagesTime);
@@ -4594,14 +4595,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 			TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 
-			// Call external callbacks
-			const EAsyncLoadingResult::Type LoadingResult = Package->HasLoadFailed() ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded;
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(PackageCompletionCallbacks);
-				Package->CallCompletionCallbacks(LoadingResult);
-			}
-
-			// We don't need the package anymore
 			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::Finalize);
 			if (bHasClusterObjects)
 			{
@@ -4611,6 +4604,21 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			{
 				Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::Complete;
 			}
+			PackagesReadyForCallback.Add(Package);
+		}
+
+		// Call callbacks in a batch in a stack-local array. This is to ensure that callbacks that trigger
+		// on each package load and call FlushAsyncLoading do not stack overflow by adding one FlushAsyncLoading
+		// call per LoadedPackageToProcess onto the stack
+		for (FAsyncPackage2* Package : PackagesReadyForCallback)
+		{
+			// Call external callbacks
+			const EAsyncLoadingResult::Type LoadingResult = Package->HasLoadFailed() ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded;
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(PackageCompletionCallbacks);
+				Package->CallCompletionCallbacks(LoadingResult);
+			}
+
 			check(!CompletedPackages.Contains(Package));
 			CompletedPackages.Add(Package);
 			Package->MarkRequestIDsAsComplete();
