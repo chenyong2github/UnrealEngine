@@ -240,16 +240,22 @@ enum class UE_DEPRECATED(4.26, "No longer supported") EPowerSavingEligibility : 
 
 class CORE_API FAutoConsoleTaskPriority
 {
-	FAutoConsoleCommand Command;
-	FString CommandName;
+	FString RawSetting;
+	FString FullHelpText;
+	FAutoConsoleVariableRef Variable;
 	ENamedThreads::Type ThreadPriority;
 	ENamedThreads::Type TaskPriority;
 	ENamedThreads::Type TaskPriorityIfForcedToNormalThreadPriority;
-	void CommandExecute(const TArray<FString>& Args);
+
+	static FString CreateFullHelpText(const TCHAR* Name, const TCHAR* OriginalHelp);
+	static FString ConfigStringFromPriorities(ENamedThreads::Type InThreadPriority, ENamedThreads::Type InTaskPriority, ENamedThreads::Type InTaskPriorityBackup);
+	void OnSettingChanged(IConsoleVariable* Variable);
+
 public:
 	FAutoConsoleTaskPriority(const TCHAR* Name, const TCHAR* Help, ENamedThreads::Type DefaultThreadPriority, ENamedThreads::Type DefaultTaskPriority, ENamedThreads::Type DefaultTaskPriorityIfForcedToNormalThreadPriority = ENamedThreads::UnusedAnchor)
-		: Command(Name, Help, FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAutoConsoleTaskPriority::CommandExecute))
-		, CommandName(Name)
+		: RawSetting(ConfigStringFromPriorities(DefaultThreadPriority, DefaultTaskPriority, DefaultTaskPriorityIfForcedToNormalThreadPriority))
+		, FullHelpText(CreateFullHelpText(Name, Help))
+		, Variable(Name, RawSetting, *FullHelpText, FConsoleVariableDelegate::CreateRaw(this, &FAutoConsoleTaskPriority::OnSettingChanged), ECVF_Default)
 		, ThreadPriority(DefaultThreadPriority)
 		, TaskPriority(DefaultTaskPriority)
 		, TaskPriorityIfForcedToNormalThreadPriority(DefaultTaskPriorityIfForcedToNormalThreadPriority)

@@ -338,98 +338,86 @@ FORCEINLINE void TestRandomizedThreads()
 
 #endif
 
-static FString ThreadPriorityToName(ENamedThreads::Type Priority)
+static TCHAR CharFromTaskPriority(ENamedThreads::Type InPriority)
 {
-	if (Priority == ENamedThreads::NormalThreadPriority)
+	if (InPriority == ENamedThreads::HighThreadPriority)
 	{
-		return FString(TEXT("Normal"));
+		return TEXT('h');
 	}
-	if (Priority == ENamedThreads::HighThreadPriority)
-	{
-		return FString(TEXT("High"));
-	}
-	if (Priority == ENamedThreads::BackgroundThreadPriority)
-	{
-		return FString(TEXT("Background"));
-	}
-	return FString(TEXT("??Unknown??"));
+	return TEXT('n');
 }
 
-static FString TaskPriorityToName(ENamedThreads::Type Priority)
+static ENamedThreads::Type TaskPriorityFromChar(TCHAR InChar)
 {
-	if (Priority == ENamedThreads::NormalTaskPriority)
+	if (InChar == TEXT('h'))
 	{
-		return FString(TEXT("Normal"));
+		return ENamedThreads::HighTaskPriority;
 	}
-	if (Priority == ENamedThreads::HighTaskPriority)
-	{
-		return FString(TEXT("High"));
-	}
-	return FString(TEXT("??Unknown??"));
+	return ENamedThreads::NormalTaskPriority;
 }
 
-void FAutoConsoleTaskPriority::CommandExecute(const TArray<FString>& Args)
+static TCHAR CharFromThreadPriority(ENamedThreads::Type InPriority)
 {
-	if (Args.Num() > 0)
+	if (InPriority == ENamedThreads::NormalThreadPriority)
 	{
-		if (Args[0].Compare(ThreadPriorityToName(ENamedThreads::NormalThreadPriority), ESearchCase::IgnoreCase) == 0)
-		{
-			ThreadPriority = ENamedThreads::NormalThreadPriority;
-		}
-		else if (Args[0].Compare(ThreadPriorityToName(ENamedThreads::HighThreadPriority), ESearchCase::IgnoreCase) == 0)
-		{
-			ThreadPriority = ENamedThreads::HighThreadPriority;
-		}
-		else if (Args[0].Compare(ThreadPriorityToName(ENamedThreads::BackgroundThreadPriority), ESearchCase::IgnoreCase) == 0)
-		{
-			ThreadPriority = ENamedThreads::BackgroundThreadPriority;
-		}
-		else
-		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("Could not parse thread priority %s"), *Args[0]);
-		}
+		return TEXT('n');
 	}
-	if (Args.Num() > 1)
+	if (InPriority == ENamedThreads::HighThreadPriority)
 	{
-		if (Args[1].Compare(TaskPriorityToName(ENamedThreads::NormalTaskPriority), ESearchCase::IgnoreCase) == 0)
-		{
-			TaskPriority = ENamedThreads::NormalTaskPriority;
-		}
-		else if (Args[1].Compare(TaskPriorityToName(ENamedThreads::HighTaskPriority), ESearchCase::IgnoreCase) == 0)
-		{
-			TaskPriority = ENamedThreads::HighTaskPriority;
-		}
-		else
-		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("Could not parse task priority %s"), *Args[1]);
-		}
+		return TEXT('h');
 	}
-	if (Args.Num() > 2)
-	{
-		if (Args[2].Compare(TaskPriorityToName(ENamedThreads::NormalTaskPriority), ESearchCase::IgnoreCase) == 0)
-		{
-			TaskPriorityIfForcedToNormalThreadPriority = ENamedThreads::NormalTaskPriority;
-		}
-		else if (Args[2].Compare(TaskPriorityToName(ENamedThreads::HighTaskPriority), ESearchCase::IgnoreCase) == 0)
-		{
-			TaskPriorityIfForcedToNormalThreadPriority = ENamedThreads::HighTaskPriority;
-		}
-		else
-		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("Could not parse task priority %s"), *Args[2]);
-		}
-	}
-	if (ThreadPriority == ENamedThreads::NormalThreadPriority)
-	{
-		UE_LOG(LogConsoleResponse, Display, TEXT("%s - thread priority:%s   task priority:%s"), *CommandName, *ThreadPriorityToName(ThreadPriority), *TaskPriorityToName(TaskPriority));
-	}
-	else
-	{
-		UE_LOG(LogConsoleResponse, Display, TEXT("%s - thread priority:%s   task priority:%s  %s (when forced to normal)"), *CommandName, *ThreadPriorityToName(ThreadPriority), *TaskPriorityToName(TaskPriority), *TaskPriorityToName(this->TaskPriorityIfForcedToNormalThreadPriority));
-	}
+	return TEXT('b');
 }
 
+static ENamedThreads::Type ThreadPriorityFromChar(TCHAR InChar)
+{
+	if (InChar == TEXT('n'))
+	{
+		return ENamedThreads::NormalThreadPriority;
+	}
+	if (InChar == TEXT('h'))
+	{
+		return ENamedThreads::HighThreadPriority;
+	}
+	return ENamedThreads::BackgroundThreadPriority;
+}
 
+FString FAutoConsoleTaskPriority::CreateFullHelpText(const TCHAR* Name, const TCHAR* OriginalHelp)
+{
+	return FString::Printf(
+		TEXT("%s\n")
+		TEXT("Arguments are three characters: [ThreadPriority][TaskPriority][TaskPriorityIfForcedToNormalThreadPriority] ")
+		TEXT("where ThreadPriority is 'h' or 'n' or 'b' (high/normal/background) and TaskPriority is 'h' or 'n' (high/normal). ")
+		TEXT("Example: %s bnh")
+		, OriginalHelp, Name);
+}
+
+FString FAutoConsoleTaskPriority::ConfigStringFromPriorities(ENamedThreads::Type InThreadPriority, ENamedThreads::Type InTaskPriority, ENamedThreads::Type InTaskPriorityBackup)
+{
+	const TCHAR OutName[4] = {
+		CharFromThreadPriority(InThreadPriority),
+		CharFromTaskPriority(InTaskPriority),
+		CharFromTaskPriority(InTaskPriorityBackup),
+		TEXT('\0')
+	};
+	return FString(OutName);
+}
+
+void FAutoConsoleTaskPriority::OnSettingChanged(IConsoleVariable* InVariable)
+{
+	if (RawSetting.Len() > 0)
+	{
+		ThreadPriority = ThreadPriorityFromChar(RawSetting[0]);
+	}
+	if (RawSetting.Len() > 1)
+	{
+		TaskPriority = TaskPriorityFromChar(RawSetting[1]);
+	}
+	if (RawSetting.Len() > 2)
+	{
+		TaskPriorityIfForcedToNormalThreadPriority = TaskPriorityFromChar(RawSetting[2]);
+	}
+}
 
 /** 
  *	FTaskThreadBase
