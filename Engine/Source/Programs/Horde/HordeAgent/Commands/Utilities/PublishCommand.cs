@@ -66,11 +66,7 @@ namespace HordeAgent.Commands.Utilities
 					foreach (FileReference InputFile in DirectoryReference.EnumerateFiles(InputDir, "*", SearchOption.AllDirectories))
 					{
 						string RelativePath = InputFile.MakeRelativeTo(InputDir).Replace(Path.DirectorySeparatorChar, '/');
-						if (RelativePath.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase))
-						{
-							Logger.LogInformation("  Skipping {RelativePath}", RelativePath);
-						}
-						else if (!RelativePath.Equals("Log.json", StringComparison.OrdinalIgnoreCase) && !RelativePath.Equals("Log.txt", StringComparison.OrdinalIgnoreCase))
+						if (!RelativePath.Equals("Log.json", StringComparison.OrdinalIgnoreCase) && !RelativePath.Equals("Log.txt", StringComparison.OrdinalIgnoreCase))
 						{
 							Logger.LogInformation("  Adding {RelativePath}", RelativePath);
 
