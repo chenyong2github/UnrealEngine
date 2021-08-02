@@ -545,7 +545,8 @@ protected:
 	void InitScriptLocation( FScriptLocation& Retry );
 	void ReturnToLocation( const FScriptLocation& Retry, bool Binary=1, bool Text=1 );
 
-	void ValidatePropertyIsDeprecatedIfNecessary(bool bOuterTypeDeprecated, const FPropertyBase& VarProperty, EUHTPropertyType OuterPropertyType, EPropertyFlags OuterPropertyFlags);
+	void ValidateTypeIsDeprecated(EVariableCategory VariableCategory, FUnrealTypeDefinitionInfo* TypeDef);
+	void ValidatePropertyIsDeprecatedIfNecessary(bool bOuterTypeDeprecated, EVariableCategory VariableCategory, const FPropertyBase& VarProperty, EUHTPropertyType OuterPropertyType, EPropertyFlags OuterPropertyFlags);
 
 	// Cache of ScriptStructs that have been validated for Net Replication and RPC
 	TSet<FUnrealScriptStructDefinitionInfo*> ScriptStructsValidForNet;
