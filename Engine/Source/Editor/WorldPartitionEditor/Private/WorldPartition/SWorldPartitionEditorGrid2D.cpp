@@ -159,7 +159,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 			return false;
 		}
 
-		return GLevelEditorModeTools().IsDefaultModeActive() && (WorldPartition->EditorHash->GetIntersectingCells(SelectBox, Cells) > 0);
+		return GLevelEditorModeTools().IsDefaultModeActive() && SelectBox.IsValid && (WorldPartition->EditorHash->GetIntersectingCells(SelectBox, Cells) > 0);
 	};
 
 	ActionList.MapAction(Commands.LoadSelectedCells, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::LoadSelectedCells), FCanExecuteAction::CreateLambda(CanLoadOrUnloadCells));
@@ -739,8 +739,6 @@ void SWorldPartitionEditorGrid2D::UpdateSelection()
 		FVector(FMath::Min(SelectionStart.X, SelectionEnd.X), FMath::Min(SelectionStart.Y, SelectionEnd.Y), -WORLD_MAX),
 		FVector(FMath::Max(SelectionStart.X, SelectionEnd.X), FMath::Max(SelectionStart.Y, SelectionEnd.Y), WORLD_MAX)
 	);
-
-	const FBox2D SelectBox2D(FVector2D(SelectionBox.Min), FVector2D(SelectionBox.Max));
 
 	SelectBox = SelectionBox;
 }
