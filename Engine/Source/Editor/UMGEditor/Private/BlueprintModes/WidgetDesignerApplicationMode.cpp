@@ -12,6 +12,7 @@
 
 #include "TabFactory/PaletteTabSummoner.h"
 #include "TabFactory/HierarchyTabSummoner.h"
+#include "TabFactory/BindWidgetTabSummoner.h"
 #include "TabFactory/DesignerTabSummoner.h"
 #include "TabFactory/SequencerTabSummoner.h"
 #include "TabFactory/DetailsTabSummoner.h"
@@ -53,9 +54,21 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 				)
 				->Split
 				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient( 0.5f )
-					->AddTab( FHierarchyTabSummoner::TabID, ETabState::OpenedTab )
+					FTabManager::NewSplitter()
+					->SetSizeCoefficient(0.15f)
+					->SetOrientation(Orient_Horizontal)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.5f)
+						->AddTab(FHierarchyTabSummoner::TabID, ETabState::OpenedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.5f)
+						->AddTab(FBindWidgetTabSummoner::TabID, ETabState::OpenedTab)
+					)
 				)
 			)
 			->Split
@@ -104,6 +117,7 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	TabFactories.RegisterFactory(MakeShareable(new FDetailsTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FDesignerTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FHierarchyTabSummoner(InWidgetEditor)));
+	TabFactories.RegisterFactory(MakeShareable(new FBindWidgetTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FPaletteTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FSequencerTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FAnimationTabSummoner(InWidgetEditor)));
