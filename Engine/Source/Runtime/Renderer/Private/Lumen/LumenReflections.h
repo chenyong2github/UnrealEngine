@@ -44,7 +44,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCompactedReflectionTraceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CompactedTraceTexelAllocator)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, CompactedTraceTexelData)
 	RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
-	RDG_BUFFER_ACCESS(RayTraceDispatchIndirectArgs, ERHIAccess::IndirectArgs)
+	RDG_BUFFER_ACCESS(RayTraceDispatchIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
 END_SHADER_PARAMETER_STRUCT()
 
 extern void TraceReflections(
