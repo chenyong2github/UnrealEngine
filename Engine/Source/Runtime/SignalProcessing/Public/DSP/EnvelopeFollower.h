@@ -34,9 +34,9 @@ namespace Audio
 			const float InAttackTimeMsec = 10.0f,
 			const float InReleaseTimeMSec = 100.0f,
 			const EPeakMode::Type InMode = EPeakMode::RootMeanSquared,
+			const bool bInIsAnalg = true,
 			const int32 InWindowSizeForMean = DefaultWindowSize,
-			const int32 InHopSizeForMean = DefaultHopSize,
-			const bool bInIsAnalg = true);
+			const int32 InHopSizeForMean = DefaultHopSize);
 
 		virtual ~FEnvelopeFollower();
 
@@ -45,9 +45,9 @@ namespace Audio
 			const float InAttackTimeMsec = 10.0f,
 			const float InReleaseTimeMSec = 100.0f,
 			const EPeakMode::Type InMode = EPeakMode::RootMeanSquared,
+			const bool bInIsAnalg = true,
 			const int32 InWindowSizeForMean = DefaultWindowSize,
-			const int32 InHopSizeForMean = DefaultHopSize,
-			const bool bInIsAnalg = true);
+			const int32 InHopSizeForMean = DefaultHopSize);
 
 		// Resets the state of the envelope follower
 		void Reset();
