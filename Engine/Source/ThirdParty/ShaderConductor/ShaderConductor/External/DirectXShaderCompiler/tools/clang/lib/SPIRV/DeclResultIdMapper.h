@@ -56,7 +56,7 @@ public:
       : sigPoint(sig), semanticInfo(std::move(semaInfo)), builtinAttr(builtin),
         type(astType), value(nullptr), isBuiltin(false),
         storageClass(spv::StorageClass::Max), location(nullptr),
-        locationCount(locCount) {
+        locationCount(locCount), entryPoint(nullptr) {
     isBuiltin = builtinAttr != nullptr;
   }
 
@@ -85,6 +85,9 @@ public:
 
   uint32_t getLocationCount() const { return locationCount; }
 
+  SpirvFunction *getEntryPoint() const { return entryPoint; }
+  void setEntryPoint(SpirvFunction *entry) { entryPoint = entry; }
+
 private:
   /// HLSL SigPoint. It uniquely identifies each set of parameters that may be
   /// input or output for each entry point.
@@ -107,6 +110,36 @@ private:
   const VKIndexAttr *indexAttr;
   /// How many locations this stage variable takes.
   uint32_t locationCount;
+  /// Entry point for this stage variable. If this stage variable is not
+  /// specific for an entry point e.g., built-in, it must be nullptr.
+  SpirvFunction *entryPoint;
+};
+
+/// \brief The struct containing information of stage variable's location and
+/// index. This information will be used to check the duplication of stage
+/// variable's location and index.
+struct StageVariableLocationInfo {
+  SpirvFunction *entryPoint;
+  spv::StorageClass sc;
+  uint32_t location;
+  uint32_t index;
+
+  static inline StageVariableLocationInfo getEmptyKey() {
+    return {nullptr, spv::StorageClass::Max, 0, 0};
+  }
+  static inline StageVariableLocationInfo getTombstoneKey() {
+    return {nullptr, spv::StorageClass::Max, 0xffffffff, 0xffffffff};
+  }
+  static unsigned getHashValue(const StageVariableLocationInfo &Val) {
+    return llvm::hash_combine(Val.entryPoint) ^
+           llvm::hash_combine(Val.location) ^ llvm::hash_combine(Val.index) ^
+           llvm::hash_combine(static_cast<uint32_t>(Val.sc));
+  }
+  static bool isEqual(const StageVariableLocationInfo &LHS,
+                      const StageVariableLocationInfo &RHS) {
+    return LHS.entryPoint == RHS.entryPoint && LHS.sc == RHS.sc &&
+           LHS.location == RHS.location && LHS.index == RHS.index;
+  }
 };
 
 class ResourceVar {
@@ -453,6 +486,16 @@ private:
   /// Returns nullptr if no such decl was previously registered.
   const DeclSpirvInfo *getDeclSpirvInfo(const ValueDecl *decl) const;
 
+  /// \brief Creates DeclSpirvInfo using the given instr and index. It creates a
+  /// clone variable if it is CTBuffer including matrix 1xN with FXC memory
+  /// layout.
+  DeclSpirvInfo createDeclSpirvInfo(SpirvInstruction *instr,
+                                    int index = -1) const {
+    if (auto *clone = spvBuilder.initializeCloneVarForFxcCTBuffer(instr))
+      instr = clone;
+    return DeclSpirvInfo(instr, index);
+  }
+
 public:
   /// \brief Returns the information for the given decl.
   ///
@@ -496,9 +539,10 @@ public:
   /// won't attach Block/BufferBlock decoration.
   const SpirvType *getCTBufferPushConstantType(const DeclContext *decl);
 
-  /// \brief Returns all defined stage (builtin/input/ouput) variables in this
-  /// mapper.
-  std::vector<SpirvVariable *> collectStageVars() const;
+  /// \brief Returns all defined stage (builtin/input/ouput) variables for the
+  /// entry point function entryPoint in this mapper.
+  std::vector<SpirvVariable *>
+  collectStageVars(SpirvFunction *entryPoint) const;
 
   /// \brief Writes out the contents in the function parameter for the GS
   /// stream output to the corresponding stage output variables in a recursive
@@ -601,6 +645,13 @@ private:
   /// \brief Checks whether some semantic is used more than once and returns
   /// true if no such cases. Returns false otherwise.
   bool checkSemanticDuplication(bool forInput);
+
+  /// \brief Checks whether some location/index is used more than once and
+  /// returns true if no such cases. Returns false otherwise.
+  bool isDuplicatedStageVarLocation(
+      llvm::DenseSet<StageVariableLocationInfo, StageVariableLocationInfo>
+          *stageVariableLocationInfo,
+      const StageVar &var, uint32_t location, uint32_t index);
 
   /// \brief Decorates all stage input (if forInput is true) or output (if
   /// forInput is false) variables with proper location and returns true on
@@ -786,6 +837,7 @@ private:
   /// Mapping of all Clang AST decls to their instruction pointers.
   llvm::DenseMap<const ValueDecl *, DeclSpirvInfo> astDecls;
   llvm::DenseMap<const ValueDecl *, SpirvFunction *> astFunctionDecls;
+
   /// Vector of all defined stage variables.
   llvm::SmallVector<StageVar, 8> stageVars;
   /// Mapping from Clang AST decls to the corresponding stage variables.

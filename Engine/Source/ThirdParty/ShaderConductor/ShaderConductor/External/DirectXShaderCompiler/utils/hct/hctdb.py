@@ -298,9 +298,6 @@ class db_dxil(object):
             self.name_idx[i].shader_stages = ("pixel",)
         for i in "TextureGather,TextureGatherCmp".split(","):
             self.name_idx[i].category = "Resources - gather"
-        for i in "TextureGatherImm,TextureGatherCmpImm".split(","):
-            self.name_idx[i].category = "Resources - gather"
-            self.name_idx[i].shader_model = 6,15 # Dummy large shader model to prevent accidental inclusion
         for i in "AtomicBinOp,AtomicCompareExchange,Barrier".split(","):
             self.name_idx[i].category = "Synchronization"
         for i in "CalculateLOD,DerivCoarseX,DerivCoarseY,DerivFineX,DerivFineY".split(","):
@@ -1872,34 +1869,6 @@ class db_dxil(object):
         self.set_op_count_for_version(1, 6, next_op_idx)
         assert next_op_idx == 222, "222 is expected next operation index but encountered %d and thus opcodes are broken" % next_op_idx
 
-        self.add_dxil_op("TextureGatherImm", next_op_idx, "TextureGatherImm", "same as TextureGather, except offsets are limited to immediate values between -8 and 7", "hfwi", "ro", [
-            db_dxil_param(0, "$r", "", "dimension information for texture"),
-            db_dxil_param(2, "res", "srv", "handle of SRV to sample"),
-            db_dxil_param(3, "res", "sampler", "handle of sampler to use"),
-            db_dxil_param(4, "f", "coord0", "coordinate"),
-            db_dxil_param(5, "f", "coord1", "coordinate, undef for Texture1D"),
-            db_dxil_param(6, "f", "coord2", "coordinate, undef for Texture1D, Texture1DArray or Texture2D"),
-            db_dxil_param(7, "f", "coord3", "coordinate, defined only for TextureCubeArray"),
-            db_dxil_param(8, "i32", "offset0", "optional offset, applicable to Texture1D, Texture1DArray, and as part of offset1"),
-            db_dxil_param(9, "i32", "offset1", "optional offset, applicable to Texture2D, Texture2DArray, and as part of offset2"),
-            db_dxil_param(10, "i32", "channel", "channel to sample")],
-            counters=('tex_norm',))
-        next_op_idx += 1
-        self.add_dxil_op("TextureGatherCmpImm", next_op_idx, "TextureGatherCmpImm", "same as TextureGatherCmp, except offsets are limited to immediate values between -8 and 7", "hfwi", "ro", [
-            db_dxil_param(0, "$r", "", "gathered texels"),
-            db_dxil_param(2, "res", "srv", "handle of SRV to sample"),
-            db_dxil_param(3, "res", "sampler", "handle of sampler to use"),
-            db_dxil_param(4, "f", "coord0", "coordinate"),
-            db_dxil_param(5, "f", "coord1", "coordinate, undef for Texture1D"),
-            db_dxil_param(6, "f", "coord2", "coordinate, undef for Texture1D, Texture1DArray or Texture2D"),
-            db_dxil_param(7, "f", "coord3", "coordinate, defined only for TextureCubeArray"),
-            db_dxil_param(8, "i32", "offset0", "optional offset, applicable to Texture1D, Texture1DArray, and as part of offset1"),
-            db_dxil_param(9, "i32", "offset1", "optional offset, applicable to Texture2D, Texture2DArray, and as part of offset2"),
-            db_dxil_param(10, "i32", "channel", "channel to sample"),
-            db_dxil_param(11, "f", "compareVale", "value to compare with")],
-            counters=('tex_cmp',))
-        next_op_idx += 1
-
         # Set interesting properties.
         self.build_indices()
         for i in "CalculateLOD,DerivCoarseX,DerivCoarseY,DerivFineX,DerivFineY,Sample,SampleBias,SampleCmp".split(","):
@@ -2139,6 +2108,7 @@ class db_dxil(object):
         add_pass('hlsl-passes-pause', 'PausePasses', 'Prepare to pause passes', [])
         add_pass('hlsl-passes-resume', 'ResumePasses', 'Prepare to resume passes', [])
         add_pass('hlsl-dxil-lower-handle-for-lib', 'DxilLowerCreateHandleForLib', 'DXIL Lower createHandleForLib', [])
+        add_pass('hlsl-dxil-cleanup-annotate-handle', 'DxilCleanupAnnotateHandle', 'DXIL Cleanup extra annotate handle calls', [])
         add_pass('hlsl-dxil-allocate-resources-for-lib', 'DxilAllocateResourcesForLib', 'DXIL Allocate Resources For Library', [])
         add_pass('hlsl-dxil-convergent-mark', 'DxilConvergentMark', 'Mark convergent', [])
         add_pass('hlsl-dxil-convergent-clear', 'DxilConvergentClear', 'Clear convergent before dxil emit', [])
