@@ -23,7 +23,37 @@ namespace UE { namespace Tasks { namespace Private
 		if (GetPipe() != nullptr)
 		{
 			GetPipe()->ExecutionFinished();
+		}
+	}
+
+	void FTaskBase::Close()
+	{
+		if (GetPipe() != nullptr)
+		{
 			GetPipe()->ClearTask(*this);
 		}
+
+		Subsequents.Close(
+			[this](FTaskBase* Subsequent)
+			{
+				Subsequent->TryUnlock();
+			}
+		);
+	
+		Release(); // release the reference accounted for nested tasks. the task can be destroyed as the result
+	}
+
+	thread_local FTaskBase* CurrentTask = nullptr;
+
+	FTaskBase* FTaskBase::GetCurrentTask()
+	{
+		return CurrentTask;
+	}
+
+	FTaskBase* FTaskBase::ExchangeCurrentTask(FTaskBase* Task)
+	{
+		FTaskBase* PrevTask = CurrentTask;
+		CurrentTask = Task;
+		return PrevTask;
 	}
 }}}

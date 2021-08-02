@@ -6,7 +6,6 @@
 #include "Tasks/Pipe.h"
 #include "HAL/Thread.h"
 #include "Async/ParallelFor.h"
-#include "Experimental/Async/AwaitableTask.h"
 
 #include <atomic>
 
@@ -107,6 +106,15 @@ namespace UE { namespace TasksTests
 			check(Event.IsCompleted());
 			verify(Event.Wait(FTimespan::Zero()));
 			verify(Event.BusyWait(FTimespan::Zero()));
+		}
+
+		{	// FTaskEvent can be triggered multiple times
+			FTaskEvent Event{ UE_SOURCE_LOCATION };
+			Event.Trigger();
+			check(Event.IsCompleted());
+			Event.Trigger();
+			Event.Trigger();
+			check(Event.IsCompleted());
 		}
 
 		{	// same but using busy-waiting
@@ -236,6 +244,144 @@ namespace UE { namespace TasksTests
 			Task.Wait();
 			Task = {};
 		}
+
+		///////////////////////////////////////////////////////////////////////////////
+		// nested tasks
+		///////////////////////////////////////////////////////////////////////////////
+
+		{	// one nested task
+			FTaskEvent FinishSignal{ UE_SOURCE_LOCATION };
+			FTaskEvent ExecutedSignal{ UE_SOURCE_LOCATION };
+			FTask Task{ Launch(UE_SOURCE_LOCATION,
+				[&FinishSignal, &ExecutedSignal]
+				{
+					AddNested(FinishSignal);
+					ExecutedSignal.Trigger();
+				}
+			) };
+
+			verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
+			verify(ExecutedSignal.IsCompleted());
+			FinishSignal.Trigger();
+			verify(Task.Wait());
+		}
+
+		{	// nested task completed before the parent finishes its execution
+			Launch(UE_SOURCE_LOCATION,
+				[]
+				{
+					FTask NestedTask = Launch(UE_SOURCE_LOCATION, [] {});
+					AddNested(NestedTask);
+					NestedTask.Wait();
+				}
+			).Wait();
+		}
+
+		{	// multiple nested tasks
+			FTaskEvent Signal1{ UE_SOURCE_LOCATION };
+			FTaskEvent Signal2{ UE_SOURCE_LOCATION };
+			FTaskEvent Signal3{ UE_SOURCE_LOCATION };
+
+			FTask Task{ Launch(UE_SOURCE_LOCATION,
+				[&Signal1, &Signal2, &Signal3]
+				{
+					AddNested(Signal1);
+					AddNested(Signal2);
+					AddNested(Signal3);
+				}
+			) };
+
+			verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
+			Signal1.Trigger();
+			verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
+			Signal2.Trigger();
+			verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
+			Signal3.Trigger();
+			verify(Task.Wait());
+		}
+
+		{	// nested in square
+			FTaskEvent Signal{ UE_SOURCE_LOCATION };
+			FTask Task{ Launch(UE_SOURCE_LOCATION,
+				[&Signal]
+				{
+					AddNested(Signal);
+
+					FTaskEvent NestedSignal{ UE_SOURCE_LOCATION };
+					FTask NestedTask{ Launch(UE_SOURCE_LOCATION,
+						[&NestedSignal]
+						{
+							AddNested(NestedSignal);
+						}
+					) };
+
+					verify(!NestedTask.Wait(FTimespan::FromMilliseconds(100)));
+					NestedSignal.Trigger();
+					verify(NestedTask.Wait());
+				}
+			)};
+
+			verify(!Task.Wait(FTimespan::FromMilliseconds(200)));
+			Signal.Trigger();
+			verify(Task.Wait());
+		}
+
+		{	// nested task should block pipe execution, also an example of pipe suspension
+
+			struct FPipeSuspensionScope
+			{
+				explicit FPipeSuspensionScope(FPipe& Pipe)
+				{
+					Pipe.Launch(UE_SOURCE_LOCATION,
+						[this]
+						{
+							SuspendSignal.Trigger();
+							AddNested(ResumeSignal);
+						}
+					);
+
+					SuspendSignal.Wait();
+				}
+
+				~FPipeSuspensionScope()
+				{
+					ResumeSignal.Trigger();
+				}
+
+				FTaskEvent SuspendSignal{ UE_SOURCE_LOCATION };
+				FTaskEvent ResumeSignal{ UE_SOURCE_LOCATION };
+			};
+
+			FPipe Pipe{ UE_SOURCE_LOCATION };
+			FTask Task;
+			{
+				FPipeSuspensionScope Suspension(Pipe);
+				FPlatformProcess::Sleep(0.1f); // let pipe suspension finish its business, which was a bug as pipe was cleared (and unblocked) before AddNested kicked in
+				Task = Pipe.Launch(UE_SOURCE_LOCATION, [] {});
+				verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
+			}
+			verify(Task.Wait());
+		}
+
+		//{	// Cancelled task is completed only after nested
+		//	FTaskEvent ParentBlocker{ UE_SOURCE_LOCATION };
+		//	FTaskEvent NestedBlocker{ UE_SOURCE_LOCATION };
+		//	FTask Parent = Launch(UE_SOURCE_LOCATION,
+		//		[&NestedBlocker]
+		//		{
+		//			FTask Nested{ Launch(UE_SOURCE_LOCATION, [] {}, NestedBlocker) };
+		//			AddNested(Nested);
+		//			Nested.Wait();
+		//			// the only reference left is hold by Parent because of `AddNested` dependency
+		//		},
+		//		ParentBlocker
+		//	);
+		//	verify(Parent.TryCancel());
+		//	ParentBlocker.Trigger(); // unblock `Parent` so it can notice that it's been cancelled
+		//	check(Parent.Wait(FTimespan::FromMilliseconds(100))); // but it's still not complete because of the nested task is blocked
+		//	NestedBlocker.Trigger();
+		//	verify(Parent.Wait());
+		//}
 
 		UE_BENCHMARK(5, BasicStressTest<1000, 1000>);
 
