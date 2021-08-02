@@ -86,6 +86,7 @@ struct FNaniteMaterialPassCommand
 	FNaniteMaterialPassCommand(const FMeshDrawCommand& InMeshDrawCommand)
 	: MeshDrawCommand(InMeshDrawCommand)
 	, MaterialDepth(0.0f)
+	, MaterialSlot(INDEX_NONE)
 	, SortKey(MeshDrawCommand.CachedPipelineId.GetId())
 	{
 	}
@@ -97,6 +98,7 @@ struct FNaniteMaterialPassCommand
 
 	FMeshDrawCommand MeshDrawCommand;
 	float MaterialDepth = 0.0f;
+	int32 MaterialSlot = INDEX_NONE;
 	uint64 SortKey = 0;
 };
 
@@ -106,8 +108,10 @@ class FNaniteMaterialVS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER(FNaniteMaterialVS);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(float, MaterialDepth)
-		SHADER_PARAMETER(uint32, InstanceBaseOffset)
+		SHADER_PARAMETER(float,   MaterialDepth)
+		SHADER_PARAMETER(uint32,  MaterialSlot)
+		SHADER_PARAMETER(uint32,  TileRemapCount)
+		SHADER_PARAMETER(uint32,  InstanceBaseOffset)
 	END_SHADER_PARAMETER_STRUCT()
 
 	FNaniteMaterialVS()
@@ -279,6 +283,11 @@ public:
 	FRHIShaderResourceView* GetMaterialDepthSRV() const { return MaterialDepthDataBuffer.SRV; }
 	//FRHIShaderResourceView* GetMaterialArgumentSRV() const { return MaterialArgumentDataBuffer.SRV; }
 
+	inline const int32 GetHighestMaterialSlot() const
+	{
+		return MaterialSlotAllocator.GetMaxSize();
+	}
+
 private:
 	FRWLock ReadWriteLock;
 	FNaniteMaterialEntryMap EntryMap;
@@ -338,7 +347,7 @@ void EmitDepthTargets(
 	FRDGTextureRef VisBuffer64,
 	FRDGTextureRef VelocityBuffer,
 	FRDGTextureRef& OutMaterialDepth,
-	FRDGTextureRef& OutNaniteMask,
+	FRDGTextureRef& OutMaterialResolve,
 	bool bPrePass,
 	bool bStencilMask
 );

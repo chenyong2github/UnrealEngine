@@ -90,7 +90,7 @@ class FNaniteVisualizeCS : public FNaniteShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, DbgBuffer32)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NaniteMask)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialComplexity)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
@@ -183,10 +183,10 @@ void AddVisualizationPasses(
 
 			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
-			FRDGTextureRef VisBuffer64 = Data.VisBuffer64 ? Data.VisBuffer64 : SystemTextures.Black;
-			FRDGTextureRef DbgBuffer64 = Data.DbgBuffer64 ? Data.DbgBuffer64 : SystemTextures.Black;
-			FRDGTextureRef DbgBuffer32 = Data.DbgBuffer32 ? Data.DbgBuffer32 : SystemTextures.Black;
-			FRDGTextureRef NaniteMask = Data.NaniteMask ? Data.NaniteMask : SystemTextures.Black;
+			FRDGTextureRef VisBuffer64		= Data.VisBuffer64 ? Data.VisBuffer64 : SystemTextures.Black;
+			FRDGTextureRef DbgBuffer64		= Data.DbgBuffer64 ? Data.DbgBuffer64 : SystemTextures.Black;
+			FRDGTextureRef DbgBuffer32		= Data.DbgBuffer32 ? Data.DbgBuffer32 : SystemTextures.Black;
+			FRDGTextureRef MaterialResolve	= Data.MaterialResolve ? Data.MaterialResolve : SystemTextures.Black;
 
 			FRDGBufferRef VisibleClustersSWHW = Data.VisibleClustersSWHW;
 
@@ -287,7 +287,7 @@ void AddVisualizationPasses(
 				PassParameters->VisBuffer64 = VisBuffer64;
 				PassParameters->DbgBuffer64 = DbgBuffer64;
 				PassParameters->DbgBuffer32 = DbgBuffer32;
-				PassParameters->NaniteMask = NaniteMask;
+				PassParameters->MaterialResolve = MaterialResolve;
 				PassParameters->SceneDepth = SceneTextures.Depth.Target;
 				PassParameters->MaterialComplexity = MaterialComplexity ? MaterialComplexity : SystemTextures.Black;
 				PassParameters->MaterialSlotTable = Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();

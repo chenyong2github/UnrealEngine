@@ -140,7 +140,7 @@ struct FRasterResults
 	FRDGTextureRef	DbgBuffer32{};
 
 	FRDGTextureRef	MaterialDepth{};
-	FRDGTextureRef	NaniteMask{};
+	FRDGTextureRef	MaterialResolve{};
 
 	TArray<FVisualizeResult, TInlineAllocator<32>> Visualizations;
 };

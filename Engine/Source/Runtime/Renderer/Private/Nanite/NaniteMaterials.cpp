@@ -37,7 +37,8 @@ static FAutoConsoleVariableRef CVarNaniteMaterialCulling(
 	TEXT("1: Cull full screen passes for occluded materials\n")
 	TEXT("2: Cull individual screen space tiles on 8x4 grid\n")
 	TEXT("3: Cull individual screen space tiles on 64x64 grid - method 1\n")
-	TEXT("4: Cull individual screen space tiles on 64x64 grid - method 2")
+	TEXT("4: Cull individual screen space tiles on 64x64 grid - method 2\n")
+	TEXT("5: Cull individual screen space tiles on 64x64 grid - method 3 [indirect]")
 );
 
 static TAutoConsoleVariable<int32> CVarParallelBasePassBuild(
@@ -70,8 +71,8 @@ class FEmitMaterialDepthPS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER(FEmitMaterialDepthPS);
 	SHADER_USE_PARAMETER_STRUCT(FEmitMaterialDepthPS, FNaniteShader);
 
-	class FNaniteMaskDim : SHADER_PERMUTATION_BOOL("NANITE_MASK");
-	using FPermutationDomain = TShaderPermutationDomain<FNaniteMaskDim>;
+	class FMaterialResolveDim : SHADER_PERMUTATION_BOOL("MATERIAL_RESOLVE");
+	using FPermutationDomain = TShaderPermutationDomain<FMaterialResolveDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -91,7 +92,7 @@ class FEmitMaterialDepthPS : public FNaniteShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NaniteMask)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
@@ -110,7 +111,8 @@ class FEmitSceneDepthPS : public FNaniteShader
 	SHADER_USE_PARAMETER_STRUCT(FEmitSceneDepthPS, FNaniteShader);
 
 	class FVelocityExportDim : SHADER_PERMUTATION_BOOL("VELOCITY_EXPORT");
-	using FPermutationDomain = TShaderPermutationDomain<FVelocityExportDim>;
+	class FMaterialResolveDim : SHADER_PERMUTATION_BOOL("MATERIAL_RESOLVE");
+	using FPermutationDomain = TShaderPermutationDomain<FVelocityExportDim, FMaterialResolveDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -127,7 +129,9 @@ class FEmitSceneDepthPS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE( Texture2D<UlongType>,	VisBuffer64 )
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -155,7 +159,7 @@ class FEmitSceneStencilPS : public FNaniteShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NaniteMask)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -190,6 +194,7 @@ class FEmitSceneDepthStencilPS : public FNaniteShader
 		SHADER_PARAMETER(uint32, StencilDecal)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -217,7 +222,7 @@ class FDepthExportCS : public FNaniteShader
 		SHADER_PARAMETER(FIntVector4, DepthExportConfig)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Velocity)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, NaniteMask)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTextureMetadata, SceneHTile)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, SceneStencil)
@@ -229,10 +234,28 @@ class FDepthExportCS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FDepthExportCS, "/Engine/Private/Nanite/DepthExport.usf", "DepthExport", SF_Compute);
 
+class FInitializeMaterialsCS : public FNaniteShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FInitializeMaterialsCS);
+	SHADER_USE_PARAMETER_STRUCT(FInitializeMaterialsCS, FNaniteShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, MaterialTileCount)
+		SHADER_PARAMETER(uint32, MaterialRemapCount)
+		SHADER_PARAMETER(uint32, MaterialSlotCount)
+		SHADER_PARAMETER(uint32, MaterialBinCount)
+		SHADER_PARAMETER(uint32, TopologyIndexCount)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, MaterialIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, MaterialTileRemap)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FInitializeMaterialsCS, "/Engine/Private/Nanite/MaterialCulling.usf", "InitializeMaterials", SF_Compute);
+
 class FClassifyMaterialsCS : public FNaniteShader
 {
 public:
-	class FCullingMethodDim : SHADER_PERMUTATION_INT("CULLING_METHOD", 5);
+	class FCullingMethodDim : SHADER_PERMUTATION_INT("CULLING_METHOD", 6);
 	using FPermutationDomain = TShaderPermutationDomain<FCullingMethodDim>;
 
 	DECLARE_GLOBAL_SHADER(FClassifyMaterialsCS);
@@ -244,10 +267,17 @@ public:
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(FIntVector4, ViewRect)
 		SHADER_PARAMETER(FIntPoint, FetchClamp)
+		SHADER_PARAMETER(uint32, MaterialTileCount)
+		SHADER_PARAMETER(uint32, MaterialRemapCount)
+		SHADER_PARAMETER(uint32, MaterialSlotCount)
+		SHADER_PARAMETER(uint32, MaterialBinCount)
+		SHADER_PARAMETER(uint32, RowTileCount)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, MaterialRange)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VisibleMaterials)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, MaterialIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, MaterialTileRemap)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
 	END_SHADER_PARAMETER_STRUCT()
@@ -303,8 +333,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER(uint32,		MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,		MaxNodes)
 	SHADER_PARAMETER(uint32,		RenderFlags)
+	SHADER_PARAMETER(uint32,		MaterialRemapCount)
 	SHADER_PARAMETER(FIntPoint,		GridSize)
-	
+
 	SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageData )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,	VisibleClustersSWHW)
@@ -315,6 +346,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>,  DbgBuffer32)
+
+	RDG_BUFFER_ACCESS(MaterialIndirectArgs, ERHIAccess::IndirectArgs)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaterialTileRemap)
 
 	// Multi view
 	SHADER_PARAMETER(uint32, MultiViewEnabled)
@@ -389,28 +423,68 @@ void DrawBasePass(
 	}
 
 	const bool b32BitMaskCulling = (NaniteMaterialCulling == 1 || NaniteMaterialCulling == 2);
-	const bool bTileGridCulling  = (NaniteMaterialCulling == 3 || NaniteMaterialCulling == 4);
+	const bool bTileGridCulling  = (NaniteMaterialCulling == 3 || NaniteMaterialCulling == 4 || NaniteMaterialCulling == 5);
+	const bool bIndirectCulling  =  NaniteMaterialCulling == 5;
 
 	const FIntPoint TileGridDim = bTileGridCulling ? FMath::DivideAndRoundUp(ViewSize, { 64, 64 }) : FIntPoint(1, 1);
 
-	FRDGBufferDesc     VisibleMaterialsDesc	= FRDGBufferDesc::CreateStructuredDesc(4, b32BitMaskCulling ? FNaniteCommandInfo::MAX_STATE_BUCKET_ID+1 : 1);
-	FRDGBufferRef      VisibleMaterials		= GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("Nanite.VisibleMaterials"));
-	FRDGBufferUAVRef   VisibleMaterialsUAV	= GraphBuilder.CreateUAV(VisibleMaterials);
-	FRDGTextureDesc    MaterialRangeDesc	= FRDGTextureDesc::Create2D(TileGridDim, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
-	FRDGTextureRef     MaterialRange		= GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("Nanite.MaterialRange"));
-	FRDGTextureUAVRef  MaterialRangeUAV		= GraphBuilder.CreateUAV(MaterialRange);
-	FRDGTextureSRVDesc MaterialRangeSRVDesc	= FRDGTextureSRVDesc::Create(MaterialRange);
-	FRDGTextureSRVRef  MaterialRangeSRV		= GraphBuilder.CreateSRV(MaterialRangeSRVDesc);
+	const uint32 MaxMaterialSlots = FNaniteCommandInfo::MAX_STATE_BUCKET_ID + 1;
+
+	FRDGBufferDesc     VisibleMaterialsDesc		= FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), b32BitMaskCulling ? MaxMaterialSlots : 1);
+	FRDGBufferRef      VisibleMaterials			= GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("Nanite.VisibleMaterials"));
+	FRDGBufferUAVRef   VisibleMaterialsUAV		= GraphBuilder.CreateUAV(VisibleMaterials);
+	FRDGTextureDesc    MaterialRangeDesc		= FRDGTextureDesc::Create2D(TileGridDim, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+	FRDGTextureRef     MaterialRange			= GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("Nanite.MaterialRange"));
+	FRDGTextureUAVRef  MaterialRangeUAV			= GraphBuilder.CreateUAV(MaterialRange);
+	FRDGTextureSRVDesc MaterialRangeSRVDesc		= FRDGTextureSRVDesc::Create(MaterialRange);
+	FRDGTextureSRVRef  MaterialRangeSRV			= GraphBuilder.CreateSRV(MaterialRangeSRVDesc);
+	FRDGBufferRef      MaterialIndirectArgs		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(bIndirectCulling ? MaxMaterialSlots : 1), TEXT("Nanite.MaterialIndirectArgs"));
 
 	FRDGBufferRef MultiViewIndices = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Nanite.DummyMultiViewIndices"));
 	FRDGBufferRef MultiViewRectScaleOffsets = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), 1), TEXT("Nanite.DummyMultiViewRectScaleOffsets"));
 	FRDGBufferRef ViewsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), 1), TEXT("Nanite.PackedViews"));
+
+	const uint32 HighestMaterialSlot = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHighestMaterialSlot();
+	const uint32 HighestMaterialBin  = FMath::DivideAndRoundUp(HighestMaterialSlot, 32u);
+
+	const FIntPoint	TileGridSize	= FMath::DivideAndRoundUp(View.ViewRect.Max - View.ViewRect.Min, { 64, 64 });
+	const uint32	TileCount		= TileGridSize.X * TileGridSize.Y;
+	const uint32	TileRemaps		= FMath::DivideAndRoundUp(TileCount, 32u);
+
+	FRDGBufferRef MaterialTileRemap = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), TileRemaps * MaxMaterialSlots), TEXT("Nanite.MaterialTileRemap"));
 
 	AddClearUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
 	AddClearUAVPass(GraphBuilder, MaterialRangeUAV, { 0u, 1u, 0u, 0u });
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MultiViewIndices), 0);
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MultiViewRectScaleOffsets), 0);
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ViewsBuffer), 0);
+
+	if (bIndirectCulling)
+	{
+		auto ComputeShader = View.ShaderMap->GetShader<FInitializeMaterialsCS>();
+		FInitializeMaterialsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitializeMaterialsCS::FParameters>();
+		PassParameters->MaterialSlotCount		= HighestMaterialSlot;
+		PassParameters->MaterialTileCount		= TileGridSize.X * TileGridSize.Y;
+		PassParameters->MaterialRemapCount		= TileRemaps;
+		PassParameters->TopologyIndexCount		= GRHISupportsRectTopology ? 3 : 6;
+		PassParameters->MaterialIndirectArgs	= GraphBuilder.CreateUAV(FRDGBufferUAVDesc(MaterialIndirectArgs, PF_R32_UINT));
+		PassParameters->MaterialTileRemap		= GraphBuilder.CreateUAV(MaterialTileRemap);
+		PassParameters->MaterialBinCount		= HighestMaterialBin;
+
+		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(PassParameters->MaterialSlotCount, 64);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Initialize Materials"),
+			ComputeShader,
+			PassParameters,
+			DispatchDim
+		);
+	}
+	else
+	{
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MaterialTileRemap), 0);
+	}
 
 	// Classify materials for tile culling
 	// TODO: Run velocity export in here instead of depth pre-pass?
@@ -424,6 +498,12 @@ void DrawBasePass(
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 		PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
+		PassParameters->MaterialIndirectArgs	= GraphBuilder.CreateUAV(FRDGBufferUAVDesc(MaterialIndirectArgs, PF_R32_UINT));
+		PassParameters->MaterialTileRemap		= GraphBuilder.CreateUAV(MaterialTileRemap);
+		PassParameters->MaterialSlotCount		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHighestMaterialSlot();
+		PassParameters->MaterialTileCount		= TileGridSize.X * TileGridSize.Y;
+		PassParameters->MaterialRemapCount		= TileRemaps;
+		PassParameters->MaterialBinCount		= HighestMaterialBin;
 
 		uint32 DispatchGroupSize = 0;
 
@@ -445,6 +525,8 @@ void DrawBasePass(
 
 		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max - View.ViewRect.Min, DispatchGroupSize);
 
+		PassParameters->RowTileCount = DispatchDim.X;
+
 		FClassifyMaterialsCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FClassifyMaterialsCS::FCullingMethodDim>(NaniteMaterialCulling);
 		auto ComputeShader = View.ShaderMap->GetShader<FClassifyMaterialsCS>(PermutationVector.ToDimensionValueId());
@@ -462,10 +544,11 @@ void DrawBasePass(
 	{
 		FNaniteEmitGBufferParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitGBufferParameters>();
 
-		PassParameters->PageConstants = RasterResults.PageConstants;
+		PassParameters->PageConstants		= RasterResults.PageConstants;
 		PassParameters->MaxVisibleClusters	= RasterResults.MaxVisibleClusters;
-		PassParameters->MaxNodes	= RasterResults.MaxNodes;
-		PassParameters->RenderFlags	= RasterResults.RenderFlags;
+		PassParameters->MaxNodes			= RasterResults.MaxNodes;
+		PassParameters->RenderFlags			= RasterResults.RenderFlags;
+		PassParameters->MaterialRemapCount	= TileRemaps;
 			
 		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV(); 
 
@@ -473,6 +556,9 @@ void DrawBasePass(
 
 		PassParameters->MaterialRange = MaterialRange;
 		PassParameters->VisibleMaterials = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT);
+		PassParameters->MaterialTileRemap = GraphBuilder.CreateSRV(MaterialTileRemap, PF_R32_UINT);
+
+		PassParameters->MaterialIndirectArgs = MaterialIndirectArgs;
 
 		PassParameters->MultiViewEnabled = 0;
 		PassParameters->MultiViewIndices = GraphBuilder.CreateSRV(MultiViewIndices);
@@ -500,6 +586,7 @@ void DrawBasePass(
 		// Rendering grid of 64x64 pixel tiles
 		case 3:
 		case 4:
+		case 5:
 			PassParameters->GridSize = FMath::DivideAndRoundUp(View.ViewRect.Max - View.ViewRect.Min, { 64, 64 });
 			break;
 
@@ -553,7 +640,7 @@ void DrawBasePass(
 
 			UniformParams.RectScaleOffset = FVector4(1.0f, 1.0f, 0.0f, 0.0f); // Render a rect that covers the entire screen
 
-			if (NaniteMaterialCulling == 3 || NaniteMaterialCulling == 4)
+			if (NaniteMaterialCulling == 3 || NaniteMaterialCulling == 4 || NaniteMaterialCulling == 5)
 			{
 				FIntPoint ScaledSize = PassParameters->GridSize * 64;
 				UniformParams.RectScaleOffset.X = float(ScaledSize.X) / float(View.ViewRect.Max.X - View.ViewRect.Min.X);
@@ -565,6 +652,7 @@ void DrawBasePass(
 
 			UniformParams.MaterialRange = PassParameters->MaterialRange->GetRHI();
 			UniformParams.VisibleMaterials = PassParameters->VisibleMaterials->GetRHI();
+			UniformParams.MaterialTileRemap = PassParameters->MaterialTileRemap->GetRHI();
 
 			UniformParams.MultiViewEnabled = PassParameters->MultiViewEnabled;
 			UniformParams.MultiViewIndices = PassParameters->MultiViewIndices->GetRHI();
@@ -578,6 +666,12 @@ void DrawBasePass(
 
 			const uint32 TileCount = UniformParams.MaterialConfig.Y * UniformParams.MaterialConfig.Z; // (W * H)
 
+			const bool bIndirect = NaniteMaterialCulling == 5;
+			if (bIndirect)
+			{
+				PassParameters->MaterialIndirectArgs->MarkResourceAsUsed();
+			}
+			
 			DrawNaniteMaterialPasses(
 				SceneRenderer,
 				Scene,
@@ -587,6 +681,7 @@ void DrawBasePass(
 				FParallelCommandListBindings(PassParameters),
 				NaniteVertexShader,
 				RHICmdListImmediate,
+				bIndirect ? PassParameters->MaterialIndirectArgs->GetIndirectRHICallBuffer() : nullptr,
 				MaterialPassCommands
 			);
 		});
@@ -604,7 +699,7 @@ void EmitDepthTargets(
 	FRDGTextureRef VisBuffer64,
 	FRDGTextureRef VelocityBuffer,
 	FRDGTextureRef& OutMaterialDepth,
-	FRDGTextureRef& OutNaniteMask,
+	FRDGTextureRef& OutMaterialResolve,
 	bool bPrePass,
 	bool bStencilMask
 )
@@ -626,10 +721,9 @@ void EmitDepthTargets(
 	const bool bEmitVelocity = VelocityBuffer != nullptr;
 	const bool bClearVelocity = bEmitVelocity && !HasBeenProduced(VelocityBuffer);
 
-	// Nanite mask (TODO: unpacked right now, 7bits wasted per pixel).
-	FRDGTextureDesc NaniteMaskDesc = FRDGTextureDesc::Create2D(
+	FRDGTextureDesc MaterialResolveDesc = FRDGTextureDesc::Create2D(
 		SceneTexturesExtent,
-		PF_R8_UINT,
+		PF_R16_UINT,
 		FClearValueBinding::Transparent,
 		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 
@@ -640,7 +734,7 @@ void EmitDepthTargets(
 		DefaultDepthStencil,
 		TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | (UseComputeDepthExport() ? TexCreate_UAV : TexCreate_None));
 
-	FRDGTextureRef NaniteMask		= GraphBuilder.CreateTexture(NaniteMaskDesc, TEXT("Nanite.Mask"));
+	FRDGTextureRef MaterialResolve	= GraphBuilder.CreateTexture(MaterialResolveDesc, TEXT("Nanite.MaterialResolve"));
 	FRDGTextureRef MaterialDepth	= GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("Nanite.MaterialDepth"));
 
 	if (UseComputeDepthExport())
@@ -666,13 +760,13 @@ void EmitDepthTargets(
 		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, 8); // Only run DepthExport shader on viewport. We have already asserted that ViewRect.Min=0.
 		const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTexturesExtent.X, SceneTexturesExtent.Y);
 
-		FRDGTextureUAVRef SceneDepthUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::CompressedSurface));
-		FRDGTextureUAVRef SceneStencilUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::Stencil));
-		FRDGTextureUAVRef SceneHTileUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
-		FRDGTextureUAVRef MaterialDepthUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::CompressedSurface));
-		FRDGTextureUAVRef MaterialHTileUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::HTile));
-		FRDGTextureUAVRef VelocityUAV		= bEmitVelocity ? GraphBuilder.CreateUAV(VelocityBuffer) : nullptr;
-		FRDGTextureUAVRef NaniteMaskUAV		= GraphBuilder.CreateUAV(NaniteMask);
+		FRDGTextureUAVRef SceneDepthUAV			= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::CompressedSurface));
+		FRDGTextureUAVRef SceneStencilUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::Stencil));
+		FRDGTextureUAVRef SceneHTileUAV			= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
+		FRDGTextureUAVRef MaterialDepthUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::CompressedSurface));
+		FRDGTextureUAVRef MaterialHTileUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::HTile));
+		FRDGTextureUAVRef VelocityUAV			= bEmitVelocity ? GraphBuilder.CreateUAV(VelocityBuffer) : nullptr;
+		FRDGTextureUAVRef MaterialResolveUAV	= GraphBuilder.CreateUAV(MaterialResolve);
 
 		FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
 
@@ -684,7 +778,7 @@ void EmitDepthTargets(
 		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, StencilDecalMask, 0);
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->Velocity				= VelocityUAV;
-		PassParameters->NaniteMask				= NaniteMaskUAV;
+		PassParameters->MaterialResolve			= MaterialResolveUAV;
 		PassParameters->SceneHTile				= SceneHTileUAV;
 		PassParameters->SceneDepth				= SceneDepthUAV;
 		PassParameters->SceneStencil			= SceneStencilUAV;
@@ -708,7 +802,7 @@ void EmitDepthTargets(
 	else
 	{
 		// Can't use ERenderTargetLoadAction::EClear to clear here because it needs to be the same for all render targets.
-		AddClearRenderTargetPass(GraphBuilder, NaniteMask);
+		AddClearRenderTargetPass(GraphBuilder, MaterialResolve);
 		if (bClearVelocity)
 		{
 			AddClearRenderTargetPass(GraphBuilder, VelocityBuffer);
@@ -732,14 +826,15 @@ void EmitDepthTargets(
 			PassParameters->StencilDecal				= StencilDecalMask;
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
 			PassParameters->VisBuffer64					= VisBuffer64;
-			PassParameters->RenderTargets[0]			= FRenderTargetBinding(NaniteMask, ERenderTargetLoadAction::ELoad);
+			PassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+			PassParameters->RenderTargets[0]			= FRenderTargetBinding(MaterialResolve, ERenderTargetLoadAction::ELoad);
 			PassParameters->RenderTargets[1]			= bEmitVelocity ? FRenderTargetBinding(VelocityBuffer, ERenderTargetLoadAction::ELoad) : FRenderTargetBinding();
 			PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 			FPixelShaderUtils::AddFullscreenPass(
 				GraphBuilder,
 				View.ShaderMap,
-				RDG_EVENT_NAME("Emit Scene Depth/Stencil/Mask/Velocity"),
+				RDG_EVENT_NAME("Emit Scene Depth/Stencil/Resolve/Velocity"),
 				PixelShader,
 				PassParameters,
 				View.ViewRect,
@@ -754,6 +849,7 @@ void EmitDepthTargets(
 			{
 				FEmitSceneDepthPS::FPermutationDomain PermutationVectorPS;
 				PermutationVectorPS.Set<FEmitSceneDepthPS::FVelocityExportDim>(bEmitVelocity);
+				PermutationVectorPS.Set<FEmitSceneDepthPS::FMaterialResolveDim>(true);
 				auto  PixelShader = View.ShaderMap->GetShader<FEmitSceneDepthPS>(PermutationVectorPS);
 				
 				auto* PassParameters = GraphBuilder.AllocParameters<FEmitSceneDepthPS::FParameters>();
@@ -763,14 +859,16 @@ void EmitDepthTargets(
 				PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 				PassParameters->PageConstants				= PageConstants;
 				PassParameters->VisBuffer64					= VisBuffer64;
-				PassParameters->RenderTargets[0]			= FRenderTargetBinding(NaniteMask,	ERenderTargetLoadAction::ELoad);
+				PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
+				PassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+				PassParameters->RenderTargets[0]			= FRenderTargetBinding(MaterialResolve,	ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets[1]			= bEmitVelocity ? FRenderTargetBinding(VelocityBuffer, ERenderTargetLoadAction::ELoad) : FRenderTargetBinding();
 				PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 				FPixelShaderUtils::AddFullscreenPass(
 					GraphBuilder,
 					View.ShaderMap,
-					RDG_EVENT_NAME("Emit Scene Depth/Mask/Velocity"),
+					RDG_EVENT_NAME("Emit Scene Depth/Resolve/Velocity"),
 					PixelShader,
 					PassParameters,
 					View.ViewRect,
@@ -789,7 +887,7 @@ void EmitDepthTargets(
 				PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 				PassParameters->PageConstants				= PageConstants;
 				PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
-				PassParameters->NaniteMask					= NaniteMask;
+				PassParameters->MaterialResolve				= MaterialResolve;
 				PassParameters->VisBuffer64					= VisBuffer64;
 				PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding
 				(
@@ -823,7 +921,7 @@ void EmitDepthTargets(
 			PassParameters->MaterialDepthTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 			PassParameters->PageConstants				= PageConstants;
 			PassParameters->View						= View.ViewUniformBuffer;
-			PassParameters->NaniteMask					= NaniteMask;
+			PassParameters->MaterialResolve				= MaterialResolve;
 			PassParameters->VisBuffer64					= VisBuffer64;
 			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(
@@ -833,7 +931,7 @@ void EmitDepthTargets(
 			);
 
 			FEmitMaterialDepthPS::FPermutationDomain PermutationVectorPS;
-			PermutationVectorPS.Set<FEmitMaterialDepthPS::FNaniteMaskDim>(true /* using Nanite mask */);
+			PermutationVectorPS.Set<FEmitMaterialDepthPS::FMaterialResolveDim>(true /* using material resolve */);
 			auto PixelShader = View.ShaderMap->GetShader<FEmitMaterialDepthPS>(PermutationVectorPS);
 
 			FRHIDepthStencilState* DepthStencilState = bStencilMask ?
@@ -863,7 +961,7 @@ void EmitDepthTargets(
 		}
 	}
 
-	OutNaniteMask = NaniteMask;
+	OutMaterialResolve = MaterialResolve;
 	OutMaterialDepth = MaterialDepth;
 }
 
@@ -992,7 +1090,7 @@ void DrawLumenMeshCapturePass(
 		);
 
 		FEmitMaterialDepthPS::FPermutationDomain PermutationVectorPS;
-		PermutationVectorPS.Set<FEmitMaterialDepthPS::FNaniteMaskDim>(false /* not using Nanite mask */);
+		PermutationVectorPS.Set<FEmitMaterialDepthPS::FMaterialResolveDim>(false /* not using material resolve */);
 		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitMaterialDepthPS>(PermutationVectorPS);
 
 		FPixelShaderUtils::AddRasterizeToRectsPass(GraphBuilder,
@@ -1121,8 +1219,9 @@ void DrawLumenMeshCapturePass(
 		PassParameters->MaterialRange = MaterialRange;
 		PassParameters->GridSize = { 1u, 1u };
 
-		PassParameters->VisibleMaterials = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT);
-			
+		PassParameters->VisibleMaterials = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT); // Dummy
+		PassParameters->MaterialTileRemap = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT); // Dummy
+
 		PassParameters->MultiViewEnabled = 1;
 		PassParameters->MultiViewIndices = GraphBuilder.CreateSRV(ViewIndexBuffer);
 		PassParameters->MultiViewRectScaleOffsets = GraphBuilder.CreateSRV(ViewRectScaleOffsetBuffer);
@@ -1148,7 +1247,8 @@ void DrawLumenMeshCapturePass(
 
 		TShaderMapRef<FNaniteMaterialVS> NaniteVertexShader(SharedView->ShaderMap);
 
-		GraphBuilder.AddPass(
+		GraphBuilder.AddPass
+		(
 			RDG_EVENT_NAME("Lumen Emit GBuffer %d materials %d quads", MaterialPasses.Num(), NumMaterialQuads),
 			PassParameters,
 			ERDGPassFlags::Raster,
@@ -1179,6 +1279,7 @@ void DrawLumenMeshCapturePass(
 
 				UniformParams.MaterialRange = PassParameters->MaterialRange->GetRHI();
 				UniformParams.VisibleMaterials = PassParameters->VisibleMaterials->GetRHI();
+				UniformParams.MaterialTileRemap = PassParameters->MaterialTileRemap->GetRHI();
 
 				UniformParams.MultiViewEnabled = PassParameters->MultiViewEnabled;
 				UniformParams.MultiViewIndices = PassParameters->MultiViewIndices->GetRHI();
@@ -1208,6 +1309,8 @@ void DrawLumenMeshCapturePass(
 					SubmitNaniteMaterialPassCommand(
 						MeshDrawCommand,
 						MaterialDepth,
+						INDEX_NONE, /* material slot */
+						nullptr, /* indirect args */
 						NaniteVertexShader,
 						GraphicsMinimalPipelineStateSet,
 						InstanceFactor,
@@ -1216,7 +1319,8 @@ void DrawLumenMeshCapturePass(
 						InstanceBaseOffset
 					);
 				}
-			});
+			}
+		);
 	}
 
 	// Emit depth values
@@ -1233,6 +1337,7 @@ void DrawLumenMeshCapturePass(
 
 		FEmitSceneDepthPS::FPermutationDomain PermutationVectorPS;
 		PermutationVectorPS.Set<FEmitSceneDepthPS::FVelocityExportDim>(false);
+		PermutationVectorPS.Set<FEmitSceneDepthPS::FMaterialResolveDim>(false);
 		auto PixelShader = SharedView->ShaderMap->GetShader<FEmitSceneDepthPS>(PermutationVectorPS);
 
 		FPixelShaderUtils::AddRasterizeToRectsPass(GraphBuilder,

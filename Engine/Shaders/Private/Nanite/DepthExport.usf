@@ -25,13 +25,13 @@ uint4 DepthExportConfig;
 
 Texture2D<UlongType>		VisBuffer64;
 
-RWTexture2D<float4>			Velocity;
-RWTexture2D<uint>			NaniteMask;
-
 RWStructuredBuffer<uint>	SceneHTile;
 RWTexture2D<float>			SceneDepth;
 RWTexture2D<uint>			SceneStencil;
 
+RWTexture2D<float4>			Velocity;
+
+RWTexture2D<uint>			MaterialResolve;
 RWStructuredBuffer<uint>	MaterialHTile;
 RWTexture2D<float>			MaterialDepth;
 
@@ -98,22 +98,20 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 			FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
 			const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable);
+
+			const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 			const float NaniteDepth = asfloat(DepthInt);
 
 			if (NaniteDepth >= SceneDepthValue)
 			{
+				const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
+
 				MaterialDepthValue = asfloat(MaterialDepthId);
 				SceneDepthValue = NaniteDepth;
 				SceneDepth[PixelPos.xy] = SceneDepthValue;
 
-				uint OutStencil = 0;
-				// TODO: Move this into 'NaniteMask' to avoid an extra cluster decode, and to touch less memory
-				// by skipping the vbuffer (64b -> 8b)
-				if ((GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
-				{
-					OutStencil = DepthExportConfig.z;
-				}
+				uint OutStencil = CondMask(IsDecalReceiver, DepthExportConfig.z, 0u);
 
 				//@todo - proper support
 				OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
@@ -131,7 +129,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				Velocity[PixelPos.xy] = EncodeVelocityToTexture(Calculate3DVelocity(ScreenPos, ScreenPosPrev));
 			#endif
 
-				NaniteMask[PixelPos.xy] = 0x1;
+				MaterialResolve[PixelPos.xy] = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
 			}
 		}
 

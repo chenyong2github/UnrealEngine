@@ -1106,7 +1106,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 					RasterResults.VisBuffer64,
 					VelocityBuffer,
 					RasterResults.MaterialDepth,
-					RasterResults.NaniteMask,
+					RasterResults.MaterialResolve,
 					bNeedsPrePass,
 					bEmitStencilMask
 				);

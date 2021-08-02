@@ -13,8 +13,8 @@ RWTexture2D<float4>		DebugOutput;
 Texture2D<UlongType>	VisBuffer64;
 Texture2D<UlongType>	DbgBuffer64;
 Texture2D<uint>			DbgBuffer32;
-Texture2D<uint>			NaniteMask;
 Texture2D<float>		SceneDepth;
+Texture2D<uint>			MaterialResolve;
 Texture2D<uint>			MaterialComplexity;
 ByteAddressBuffer		MaterialSlotTable;
 ByteAddressBuffer		MaterialDepthTable;
@@ -118,14 +118,18 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 	FNaniteView NaniteView = GetNaniteView( 0 );
 
-	const bool IsUnOccluded = NaniteMask[PixelPos] == 0x1;
+	bool IsNanitePixel = false;
+	bool IsDecalReceiver = false;
+	uint ResolvedMaterialSlot = 0;
+	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, ResolvedMaterialSlot);
+
 	const float3 Velocity = float3(0.0f, 0.0f, 0.0f);
 
 	float3 Result = float3(0, 0, 0);
 	float3 OutlineColor = 1;
 	bool bDarkOutline = false;
 
-	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() | IsUnOccluded))
+	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() | IsNanitePixel))
 	{
 		// Nanite Pixel
 
@@ -225,7 +229,10 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == VISUALIZE_MATERIAL_DEPTH)
 		{
-			Result = IntToColor(GetMaterialDepthId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable, MaterialDepthTable));
+			//const uint MaterialSlot = GetMaterialSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			const uint MaterialSlot = ResolvedMaterialSlot;
+			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
+			Result = IntToColor(MaterialDepthId);
 		}
 		else if (VisualizeMode == VISUALIZE_MATERIAL_COMPLEXITY)
 		{
@@ -283,7 +290,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 	}
 
-	if (ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() | IsUnOccluded))
+	if (ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() | IsNanitePixel))
 	{
 		Result = ApplySobelFilter(PixelPos, DepthInt, Result, OutlineColor, bDarkOutline);
 	}
