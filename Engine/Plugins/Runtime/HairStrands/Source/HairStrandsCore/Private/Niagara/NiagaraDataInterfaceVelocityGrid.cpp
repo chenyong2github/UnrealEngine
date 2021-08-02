@@ -655,7 +655,7 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT_VELOCITY );
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT_VELOCITY);
 	}
 
 	FClearVelocityGridCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -704,8 +704,8 @@ inline void ClearTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* De
 		};
 		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
-		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_VELOCITY ;
-		const FIntVector GridSize( (InGridSize.X + 1) * DestinationGridBuffer->NumAttributes, InGridSize.Y + 1, InGridSize.Z + 1);
+		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_VELOCITY;
+		const FIntVector GridSize((InGridSize.X + 1) * DestinationGridBuffer->NumAttributes, InGridSize.Y + 1, InGridSize.Z + 1);
 
 		const uint32 DispatchCountX = FMath::DivideAndRoundUp((uint32)GridSize.X, GroupSize);
 		const uint32 DispatchCountY = FMath::DivideAndRoundUp((uint32)GridSize.Y, GroupSize);
@@ -732,7 +732,7 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT_VELOCITY );
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT_VELOCITY);
 	}
 
 	FCopyVelocityGridCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -788,8 +788,8 @@ inline void CopyTexture(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type Feat
 		};
 		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
-		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_VELOCITY ;
-		const FIntVector GridSize((InGridSize.X + 1) * DestinationGridBuffer->NumAttributes,InGridSize.Y + 1, InGridSize.Z + 1);
+		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_VELOCITY;
+		const FIntVector GridSize((InGridSize.X + 1) * DestinationGridBuffer->NumAttributes, InGridSize.Y + 1, InGridSize.Z + 1);
 
 		const uint32 DispatchCountX = FMath::DivideAndRoundUp((uint32)GridSize.X, GroupSize);
 		const uint32 DispatchCountY = FMath::DivideAndRoundUp((uint32)GridSize.Y, GroupSize);
