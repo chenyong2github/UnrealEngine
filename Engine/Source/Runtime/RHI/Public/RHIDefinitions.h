@@ -1476,6 +1476,8 @@ enum ETextureCreateFlags
 	TexCreate_AFRManual = 1 << 29,
 	// Workaround for 128^3 volume textures getting bloated 4x due to tiling mode on PS4
 	TexCreate_ReduceMemoryWithTilingMode = 1 << 30,
+	/** Texture should be allocated for external access. Vulkan only - Reusing TexCreate_ReduceMemoryWithTilingMode value since the two should never be used together */
+	TexCreate_External = 1 << 30,
 	/** Texture should be allocated from transient memory. */
 	TexCreate_Transient = 1 << 31
 };
