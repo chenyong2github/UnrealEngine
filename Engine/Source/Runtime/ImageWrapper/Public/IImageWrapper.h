@@ -73,11 +73,13 @@ enum class ERGBFormat : int8
 
 /**
  * Enumerates available image compression qualities.
+ * 
+ * JPEG interprets Quality as 1-100
  */
 enum class EImageCompressionQuality : uint8
 {
 	Default = 0,
-	Uncompressed =  1,
+	Uncompressed = 1,
 };
 
 
