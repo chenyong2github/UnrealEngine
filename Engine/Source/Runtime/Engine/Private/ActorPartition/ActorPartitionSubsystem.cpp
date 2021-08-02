@@ -109,7 +109,7 @@ public:
 		{
 			if (APartitionActor* PartitionActor = Cast<APartitionActor>(Actor))
 			{
-				if (PartitionActor->GetGridGuid() == InActorPartitionId.GetGridGuid())
+				if (PartitionActor->IsA(InActorPartitionId.GetClass()) && (PartitionActor->GetGridGuid() == InActorPartitionId.GetGridGuid()))
 				{
 					FoundActor = PartitionActor;
 					break;
