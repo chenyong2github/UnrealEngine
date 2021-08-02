@@ -62,6 +62,14 @@ namespace AVEncoder
 	{
 		check(!bIsAvailable);
 
+#if PLATFORM_WINDOWS
+		// Early out on non-supported windows versions
+		if (!FPlatformMisc::VerifyWindowsVersion(6, 2))
+		{
+			return;
+		}
+#endif
+
 #ifdef AMF_DLL_NAMEA
 		DllHandle = FPlatformProcess::GetDllHandle(TEXT(AMF_DLL_NAMEA));
 #endif
