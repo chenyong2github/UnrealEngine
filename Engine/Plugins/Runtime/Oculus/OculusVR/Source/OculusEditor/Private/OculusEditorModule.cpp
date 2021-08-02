@@ -76,19 +76,6 @@ void FOculusEditorModule::StartupModule()
 
 		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FOculusEditorModule::OnEngineLoopInitComplete);
 	}
-
-	// If UseAllowTearing CVar is present, set it to 0. UseAllowTearing causes performance issues on Rift if enabled.
-	IConsoleVariable* d3d11AllowTearing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D11.UseAllowTearing"));
-	if (d3d11AllowTearing)
-	{
-		d3d11AllowTearing->Set(0);
-	}
-
-	IConsoleVariable* d3d12AllowTearing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D12.UseAllowTearing"));
-	if (d3d12AllowTearing)
-	{
-		d3d12AllowTearing->Set(0);
-	}
 }
 
 void FOculusEditorModule::ShutdownModule()
