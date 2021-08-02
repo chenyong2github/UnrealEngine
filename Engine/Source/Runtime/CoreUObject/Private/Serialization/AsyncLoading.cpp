@@ -4355,6 +4355,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 		
 	bDidSomething = LoadedPackagesToProcess.Num() > 0;
 
+	TArray<FAsyncPackage*, TInlineAllocator<4>> CompletedPackages;
 	for (int32 PackageIndex = 0; PackageIndex < LoadedPackagesToProcess.Num() && !IsAsyncLoadingSuspendedInternal(); ++PackageIndex)
 	{
 		FPlatformMisc::PumpEssentialAppMessages();
@@ -4406,17 +4407,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 
 				UE_CLOG(NewExistingAsyncPackagesCounterValue < 0, LogStreaming, Fatal, TEXT("ExistingAsyncPackagesCounter is negative, this means we loaded more packages then requested so there must be a bug in async loading code."));
 
-				// Call external callbacks
-				const bool bInternalCallbacks = false;
-				const EAsyncLoadingResult::Type LoadingResult = Package->HasLoadFailed() ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded;
-				Package->CallCompletionCallbacks(bInternalCallbacks, LoadingResult);
-#if WITH_EDITOR
-				// In the editor we need to find any assets and add them to list for later callback
-				Package->GetLoadedAssets(LoadedAssets);
-#endif
-				// We don't need the package anymore
-				PackagesToDelete.AddUnique(Package);
-				Package->MarkRequestIDsAsComplete();
+				CompletedPackages.Add(Package);
 
 				TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 
@@ -4437,6 +4428,25 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 			// Break immediately, we want to keep the order of processing when packages get here
 			break;
 		}
+	}
+
+	// Call callbacks in a batch in a stack-local array. This is to ensure that callbacks that trigger
+	// on each package load and call FlushAsyncLoading do not stack overflow by adding one FlushAsyncLoading
+	// call per LoadedPackageToProcess onto the stack
+	for (FAsyncPackage* Package : CompletedPackages)
+	{
+		// Call external callbacks
+		const bool bInternalCallbacks = false;
+		const EAsyncLoadingResult::Type LoadingResult = Package->HasLoadFailed() ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded;
+		Package->CallCompletionCallbacks(bInternalCallbacks, LoadingResult);
+#if WITH_EDITOR
+		// In the editor we need to find any assets and add them to list for later callback
+		Package->GetLoadedAssets(LoadedAssets);
+#endif
+		// We don't need the package anymore
+		PackagesToDelete.AddUnique(Package);
+		Package->MarkRequestIDsAsComplete();
+
 	}
 	bDidSomething = bDidSomething || PackagesToDelete.Num() > 0;
 
