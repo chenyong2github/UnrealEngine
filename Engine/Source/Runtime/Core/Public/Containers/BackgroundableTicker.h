@@ -5,6 +5,28 @@
 #include "Ticker.h"
 
 /**
+ * This works the same as the core FTSTicker, but on supported mobile platforms
+ * it continues ticking while the app is running in the background.
+ */
+class CORE_API FTSBackgroundableTicker
+	: public FTSTicker
+{
+public:
+	static FTSBackgroundableTicker& GetCoreTicker();
+
+	FTSBackgroundableTicker();
+	~FTSBackgroundableTicker();
+
+private:
+	FDelegateHandle CoreTickerHandle;
+	::FDelegateHandle BackgroundTickerHandle;
+	bool bWasBackgrounded = false;
+};
+
+/**
+ * DEPRECATED not thread-safe version
+ * For migration guide see `FTSTicker`
+ * 
  * This works the same as the core FTicker, but on supported mobile platforms 
  * it continues ticking while the app is running in the background.
  */

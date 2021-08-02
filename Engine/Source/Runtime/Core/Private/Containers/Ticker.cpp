@@ -4,6 +4,152 @@
 #include "Stats/Stats.h"
 #include "Misc/TimeGuard.h"
 
+FTSTicker& FTSTicker::GetCoreTicker()
+{
+	static FTSTicker CoreTicker;
+	return CoreTicker;
+}
+
+FTSTicker::FDelegateHandle FTSTicker::AddTicker(const FTickerDelegate& InDelegate, float InDelay)
+{
+	FElementPtr NewElement{ new FElement{ CurrentTime + InDelay, InDelay, InDelegate } };
+	AddedElements.Enqueue(NewElement);
+	return NewElement;
+}
+
+FTSTicker::FDelegateHandle FTSTicker::AddTicker(const TCHAR* InName, float InDelay, TFunction<bool(float)> Function)
+{
+	FElementPtr NewElement{ new FElement{ CurrentTime + InDelay, InDelay, FTickerDelegate::CreateLambda(Function) } };
+	AddedElements.Enqueue(NewElement);
+	return NewElement;
+}
+
+void FTSTicker::RemoveTicker(FDelegateHandle Handle)
+{
+	if (FElementPtr Element = Handle.Pin())
+	{
+		// mark the element as removed and if it's being ticked atm, spin-wait until its execution is finished
+		uint8 PrevState = Element->State.fetch_add(FElement::Removed, std::memory_order_acquire); // "acquire" to prevent potential 
+		// resource release after RemoveTicker() to be reordered before it
+		checkf(PrevState < FElement::Removed, TEXT("The delegate is already removed (%u)"), PrevState);
+		while (PrevState != FElement::Idle && PrevState != FElement::Removed) // is not being executed
+		{
+			FPlatformProcess::Yield();
+			PrevState = Element->State.load(std::memory_order_relaxed);
+		}
+	}
+}
+
+void FTSTicker::Tick(float DeltaTime)
+{
+	SCOPE_TIME_GUARD(TEXT("FTSTicker::Tick"));
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FTicker_Tick);
+
+	// take in all new elements
+	while (TOptional<FElementPtr> AddedElement = AddedElements.Dequeue())
+	{
+		uint8 State = AddedElement.GetValue()->State.load(std::memory_order_relaxed);
+		checkf(State == FElement::Idle || State == FElement::Removed, TEXT("Invalid state %u"), State);
+		if (State == FElement::Idle)
+		{
+			Elements.Add(MoveTemp(AddedElement.GetValue()));
+		}
+	}
+
+	if (!Elements.Num())
+	{
+		return;
+	}
+
+	CurrentTime += DeltaTime;
+
+	TArray<FElementPtr> TickedElements;
+	for (FElementPtr& Element : Elements)
+	{
+		// set the execution flag
+		uint8 PrevState = Element->State.fetch_add(FElement::Executing, std::memory_order_acquire); // "acquire" to prevent anything between this and `ClearExecutionFlag()` to be reordered outside of this scope, is coupled with "release" in `ClearExecutionFlag`
+		checkf(PrevState == FElement::Idle || PrevState == FElement::Removed, TEXT("Invalid state %u"), PrevState);
+		auto ClearExecutionFlag = [](FElementPtr& Element) { return (uint8)(Element->State.fetch_sub(FElement::Executing, std::memory_order_release) - FElement::Executing); };
+
+		if (PrevState == FElement::Removed)
+		{
+			PrevState = ClearExecutionFlag(Element);
+			continue;
+		}
+
+		checkf(PrevState == FElement::Idle, TEXT("Invalid state %u"), PrevState);
+
+		if (Element->FireTime > CurrentTime)
+		{
+			ClearExecutionFlag(Element);
+			TickedElements.Add(MoveTemp(Element));
+			continue;
+		}
+
+		if (Element->Fire(DeltaTime))
+		{
+			PrevState = ClearExecutionFlag(Element); // it can be removed during execution
+			if (PrevState != FElement::Removed)
+			{
+				checkf(PrevState == FElement::Idle, TEXT("Invalid state %u"), PrevState);
+				Element->FireTime = CurrentTime + Element->DelayTime;
+				TickedElements.Add(MoveTemp(Element));
+			}
+		}
+		else
+		{
+			PrevState = ClearExecutionFlag(Element);
+			checkf(PrevState == FElement::Idle || PrevState == FElement::Removed, TEXT("Invalid state %u"), PrevState);
+		}
+	}
+
+	Elements.Reset();
+	Exchange(TickedElements, Elements);
+
+	if (this == &GetCoreTicker())
+	{
+		// tick also deprecated FTicker for backward compatibility
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FTicker::GetCoreTicker().Tick(DeltaTime);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+}
+
+FTSTicker::FElement::FElement()
+	: FireTime(0.0)
+	, DelayTime(0.0f)
+{}
+
+FTSTicker::FElement::FElement(double InFireTime, float InDelayTime, const FTickerDelegate& InDelegate)
+	: FireTime(InFireTime)
+	, DelayTime(InDelayTime)
+	, Delegate(InDelegate)
+{}
+
+bool FTSTicker::FElement::Fire(float DeltaTime)
+{
+	check(Delegate.IsBound());
+	return Delegate.Execute(DeltaTime);
+}
+
+FTSTickerObjectBase::FTSTickerObjectBase(float InDelay, FTSTicker& InTicker)
+{
+	// Register delegate for ticker callback
+	FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FTSTickerObjectBase::Tick);
+	TickHandle = InTicker.AddTicker(TickDelegate, InDelay);
+}
+
+FTSTickerObjectBase::~FTSTickerObjectBase()
+{
+	FTSTicker::RemoveTicker(TickHandle);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// deprecated non thread-safe version
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 FTicker::FTicker()
 	: CurrentTime(0.0)
 	, bInTick(false)
@@ -27,6 +173,8 @@ FDelegateHandle FTicker::AddTicker(const FTickerDelegate& InDelegate, float InDe
 
 FDelegateHandle FTicker::AddTicker(const TCHAR* InName, float InDelay, TFunction<bool(float)> Function)
 {
+	checkf(IsInGameThread(), TEXT("FTicker is not thread-safe and will be deprecated, please use FTSTicker"));
+
 	// todo - use InName for profiling. Added in sig to be forward looking..
 
 	FTickerDelegate Delegate = FTickerDelegate::CreateLambda(Function);
@@ -39,6 +187,8 @@ FDelegateHandle FTicker::AddTicker(const TCHAR* InName, float InDelay, TFunction
 
 void FTicker::RemoveTicker(FDelegateHandle Handle)
 {
+	checkf(IsInGameThread(), TEXT("FTicker is not thread-safe and will be deprecated, please use FTSTicker"));
+
 	// must remove the handle from both arrays because we could be in the middle of a tick, 
 	// and may be removing ourselves or something else we've already considered this Tick
 	auto CompareHandle = [=](const FElement& Element){ return Element.Delegate.GetHandle() == Handle; };
@@ -155,3 +305,5 @@ FTickerObjectBase::~FTickerObjectBase()
 		TickHandle = FDelegateHandle();
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
