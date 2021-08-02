@@ -1957,7 +1957,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
     static FORCEINLINE FRigControlValue MakeControlValueFromRotator(FRotator InValue)
 	{
-		return FRigControlValue::Make<FVector3f>(InValue.Vector());
+		return FRigControlValue::Make<FVector3f>(InValue.Euler());
 	}
 
 	/**

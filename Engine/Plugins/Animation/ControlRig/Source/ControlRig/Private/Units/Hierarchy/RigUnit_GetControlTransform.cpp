@@ -121,9 +121,12 @@ FRigUnit_GetControlVector2D_Execute()
 				}
 				else
 				{
-					Vector = Hierarchy->GetControlValue(CachedControlIndex).Get<FVector2D>();
-					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector2D>();
-					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector2D>();
+					const FVector3f TempVector = Hierarchy->GetControlValue(CachedControlIndex).Get<FVector3f>();
+					const FVector3f TempMinimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector3f>();
+					const FVector3f TempMaximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector3f>();
+					Vector = FVector2D(TempVector.X, TempVector.Y);
+					Minimum = FVector2D(TempMinimum.X, TempMinimum.Y);
+					Maximum = FVector2D(TempMaximum.X, TempMaximum.Y);
 				}
 			}
 			default:
@@ -184,8 +187,8 @@ FRigUnit_GetControlVector_Execute()
 						Vector = Transform.GetScale3D();
 					}
 
-					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector>();
-					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector>();
+					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector3f>();
+					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector3f>();
 				}
 			}
 			default:
@@ -236,8 +239,11 @@ FRigUnit_GetControlRotator_Execute()
 					}
 
 					Rotator = Transform.GetRotation().Rotator();
-					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FRotator>();
-					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FRotator>();
+
+					const FVector3f MinimumVector = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector3f>();
+					const FVector3f MaximumVector = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector3f>();
+					Minimum = FRotator::MakeFromEuler(MinimumVector); 
+					Maximum = FRotator::MakeFromEuler(MaximumVector); 
 				}
 			}
 			default:
@@ -285,8 +291,9 @@ FRigUnit_GetControlTransform_Execute()
 							break;
 						}
 					}
-					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FTransform>();
-					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FTransform>();
+					
+					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FRigControlValue::FTransform_Float>().ToTransform();
+					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FRigControlValue::FTransform_Float>().ToTransform();
 				}
 			}
 			default:

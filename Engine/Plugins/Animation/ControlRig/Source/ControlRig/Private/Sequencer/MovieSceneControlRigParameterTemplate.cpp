@@ -773,35 +773,41 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 					}
 					case ERigControlType::Vector2D:
 					{
-						const FVector2D Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
-						Token.Vector2DValues.Add(TNameAndValue<FVector2D>{ ControlElement->GetName(), Val });
+						const FVector3f Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+						Token.Vector2DValues.Add(TNameAndValue<FVector2D>{ ControlElement->GetName(), FVector2D(Val.X, Val.Y) });
 						break;
 					}
 					case ERigControlType::Position:
 					case ERigControlType::Scale:
 					case ERigControlType::Rotator:
 					{
-						const FVector Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector>();
+						const FVector3f Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
 						Token.VectorValues.Add(TNameAndValue<FVector>{ ControlElement->GetName(), Val });
 						//mz todo specify rotator special so we can do quat interps
 						break;
 					}
 					case ERigControlType::Transform:
 					{
-						const FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransform>();
+						const FTransform Val = 
+							ControlRig->GetHierarchy()
+							->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
 						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
 						break;
 					}
 					case ERigControlType::TransformNoScale:
 					{
-						const FTransformNoScale NoScale = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransformNoScale>();
+						const FTransformNoScale NoScale = 
+							ControlRig->GetHierarchy()
+							->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
 						FTransform Val = NoScale;
 						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
 						break;
 					}
 					case ERigControlType::EulerTransform:
 					{
-						const FEulerTransform Euler = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FEulerTransform>();
+						const FEulerTransform Euler = 
+							ControlRig->GetHierarchy()
+							->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
 						FTransform Val = Euler.ToFTransform();
 						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
 						break;
@@ -1096,8 +1102,8 @@ struct TControlRigParameterActuatorVector2D : TMovieSceneBlendingActuator<FContr
 			FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 			if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Vector2D))
 			{
-				FVector2D Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
-				return FControlRigTrackTokenVector2D(Val);
+				FVector3f Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+				return FControlRigTrackTokenVector2D(FVector2D(Val.X, Val.Y));
 			}
 		}
 		return FControlRigTrackTokenVector2D();
@@ -1119,7 +1125,8 @@ struct TControlRigParameterActuatorVector2D : TMovieSceneBlendingActuator<FContr
 				FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 				if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Vector2D))
 				{
-					Section->GetControlRig()->SetControlValue<FVector2D>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
+					const FVector3f Value(InFinalValue.Value.X, InFinalValue.Value.Y, 0.f);
+					Section->GetControlRig()->SetControlValue<FVector3f>(ParameterName, Value, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 
@@ -1159,7 +1166,7 @@ struct TControlRigParameterActuatorVector : TMovieSceneBlendingActuator<FControl
 			FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 			if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Position || ControlElement->Settings.ControlType == ERigControlType::Scale || ControlElement->Settings.ControlType == ERigControlType::Rotator))
 			{
-				FVector Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector>();
+				FVector3f Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
 				return FControlRigTrackTokenVector(Val);
 			}
 		}
@@ -1181,7 +1188,7 @@ struct TControlRigParameterActuatorVector : TMovieSceneBlendingActuator<FControl
 				FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 				if (ControlElement && (ControlElement->Settings.ControlType == ERigControlType::Position || ControlElement->Settings.ControlType == ERigControlType::Scale || ControlElement->Settings.ControlType == ERigControlType::Rotator))
 				{
-						Section->GetControlRig()->SetControlValue<FVector>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
+						Section->GetControlRig()->SetControlValue<FVector3f>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 
@@ -1221,18 +1228,24 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 			FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 			if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Transform)
 			{
-				FTransform Val = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransform>();
+				FTransform Val = 
+					Section->GetControlRig()->GetHierarchy()
+					->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
 				return FControlRigTrackTokenTransform(Val);
 			}
 			else if(ControlElement && ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 			{
-				FTransformNoScale ValNoScale = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransformNoScale>();
+				FTransformNoScale ValNoScale = 
+					Section->GetControlRig()->GetHierarchy()
+					->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
 				FTransform Val = ValNoScale;
 				return FControlRigTrackTokenTransform(Val);
 			}
 			else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				FEulerTransform Euler = Section->GetControlRig()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FEulerTransform>();
+				FEulerTransform Euler = 
+					Section->GetControlRig()->GetHierarchy()
+					->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
 				FTransform Val = Euler.ToFTransform();
 				return FControlRigTrackTokenTransform(Val);
 		}
@@ -1263,17 +1276,17 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 				FRigControlElement* ControlElement = Section->GetControlRig()->FindControl(ParameterName);
 				if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Transform)
 				{
-						Section->GetControlRig()->SetControlValue<FTransform>(ParameterName, InFinalValue.Value,true, EControlRigSetKey::Never,bSetupUndo);
+						Section->GetControlRig()->SetControlValue<FRigControlValue::FTransform_Float>(ParameterName, InFinalValue.Value,true, EControlRigSetKey::Never,bSetupUndo);
 				}
 				else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 				{
 					FTransformNoScale NoScale = InFinalValue.Value;
-						Section->GetControlRig()->SetControlValue<FTransformNoScale>(ParameterName, NoScale, true, EControlRigSetKey::Never,bSetupUndo);
+						Section->GetControlRig()->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ParameterName, NoScale, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 				else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 				{
 					FEulerTransform Euler = InFinalValue.Value;
-					Section->GetControlRig()->SetControlValue<FEulerTransform>(ParameterName, Euler, true, EControlRigSetKey::Never,bSetupUndo);
+					Section->GetControlRig()->SetControlValue<FRigControlValue::FEulerTransform_Float>(ParameterName, Euler, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 

@@ -5411,7 +5411,8 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 				}
 				case ERigControlType::Rotator:
 				{
-					FRotator Rotator = ControlValue.Get<FRotator>();
+					FVector3f RotatorAngles = ControlValue.Get<FVector3f>();
+					FRotator Rotator = FRotator::MakeFromEuler(RotatorAngles);
 					FRigControlValue RotatorValue = FRigControlValue::Make<FRotator>(Rotator);
 					NewDefaultValue = RotatorValue.ToString<FRotator>();
 					break;
@@ -5448,7 +5449,8 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 
 			if (ElementKey.Type == ERigElementType::Bone)
 			{
-				const FTransform Transform = ControlValue.Get<FTransform>() * Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
+				const FTransform CurrentValue = ControlValue.Get<FRigControlValue::FTransform_Float>().ToTransform();
+				const FTransform Transform = CurrentValue * Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
 				Blueprint->Hierarchy->SetLocalTransform(ElementKey, Transform);
 				Hierarchy->SetLocalTransform(ElementKey, Transform);
 

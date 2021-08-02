@@ -824,7 +824,8 @@ FVector2D UControlRigComponent::GetControlVector2D(FName ControlName)
 		{
 			if (ControlElement->Settings.ControlType == ERigControlType::Vector2D)
 			{
-				return CR->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
+				const FVector3f Value = CR->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+				return FVector2D(Value.X, Value.Y);
 			}
 		}
 	}

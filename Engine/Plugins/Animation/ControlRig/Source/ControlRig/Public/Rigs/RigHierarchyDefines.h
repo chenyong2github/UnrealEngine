@@ -289,40 +289,40 @@ public:
 			case ERigControlType::Float: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_float(%.6f)"), Get<float>()); break;
 			case ERigControlType::Integer: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_int(%d)"), Get<int>()); break;
 			case ERigControlType::Position: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_vector(unreal.Vector(%.6f, %.6f, %.6f))"),
-				Get<FVector>().X, Get<FVector>().Y, Get<FVector>().Z); break;
+				Get<FVector3f>().X, Get<FVector3f>().Y, Get<FVector3f>().Z); break;
 			case ERigControlType::Rotator: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_rotator(unreal.Rotator(pitch=%.6f, roll=%.6f, yaw=%.6f))"),
-				Get<FRotator>().Pitch, Get<FRotator>().Roll, Get<FRotator>().Yaw); break;
+				Get<FVector3f>().X, Get<FVector3f>().Z, Get<FVector3f>().Y); break;
 			case ERigControlType::Scale: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_vector(unreal.Vector(%.6f, %.6f, %.6f))"),
-				Get<FVector>().X, Get<FVector>().Y, Get<FVector>().Z); break;
+				Get<FVector3f>().X, Get<FVector3f>().Y, Get<FVector3f>().Z); break;
 			case ERigControlType::Transform: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_transform(unreal.Transform(location=[%.6f,%.6f,%.6f],rotation=[%.6f,%.6f,%.6f],scale=[%.6f,%.6f,%.6f]))"),
-				Get<FTransform>().GetLocation().X,
-				Get<FTransform>().GetLocation().Y,
-				Get<FTransform>().GetLocation().Z,
-				Get<FTransform>().Rotator().Pitch,
-				Get<FTransform>().Rotator().Yaw,
-				Get<FTransform>().Rotator().Roll,
-				Get<FTransform>().GetScale3D().X,
-				Get<FTransform>().GetScale3D().Y,
-				Get<FTransform>().GetScale3D().Z); break;
+				Get<FTransform_Float>().ToTransform().GetLocation().X,
+				Get<FTransform_Float>().ToTransform().GetLocation().Y,
+				Get<FTransform_Float>().ToTransform().GetLocation().Z,
+				Get<FTransform_Float>().ToTransform().Rotator().Pitch,
+				Get<FTransform_Float>().ToTransform().Rotator().Yaw,
+				Get<FTransform_Float>().ToTransform().Rotator().Roll,
+				Get<FTransform_Float>().ToTransform().GetScale3D().X,
+				Get<FTransform_Float>().ToTransform().GetScale3D().Y,
+				Get<FTransform_Float>().ToTransform().GetScale3D().Z); break;
 			case ERigControlType::EulerTransform: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_euler_transform(unreal.EulerTransform(location=[%.6f,%.6f,%.6f],rotation=[%.6f,%.6f,%.6f],scale=[%.6f,%.6f,%.6f]))"),
-				Get<FEulerTransform>().Location.X,
-				Get<FEulerTransform>().Location.Y,
-				Get<FEulerTransform>().Location.Z,
-				Get<FEulerTransform>().Rotation.Euler().X,
-				Get<FEulerTransform>().Rotation.Euler().Y,
-				Get<FEulerTransform>().Rotation.Euler().Z,
-				Get<FEulerTransform>().Scale.X,
-				Get<FEulerTransform>().Scale.Y,
-				Get<FEulerTransform>().Scale.Z); break;
+				Get<FEulerTransform_Float>().ToTransform().Location.X,
+				Get<FEulerTransform_Float>().ToTransform().Location.Y,
+				Get<FEulerTransform_Float>().ToTransform().Location.Z,
+				Get<FEulerTransform_Float>().ToTransform().Rotation.Euler().X,
+				Get<FEulerTransform_Float>().ToTransform().Rotation.Euler().Y,
+				Get<FEulerTransform_Float>().ToTransform().Rotation.Euler().Z,
+				Get<FEulerTransform_Float>().ToTransform().Scale.X,
+				Get<FEulerTransform_Float>().ToTransform().Scale.Y,
+				Get<FEulerTransform_Float>().ToTransform().Scale.Z); break;
 			case ERigControlType::Vector2D: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_vector2d(unreal.Vector2D(%.6f, %.6f))"),
-				Get<FVector2D>().X, Get<FVector2D>().Y); break;
+				Get<FVector3f>().X, Get<FVector3f>().Y); break;
 			case ERigControlType::TransformNoScale: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_transform_no_scale(unreal.TransformNoScale(location=[%.6f,%.6f,%.6f],rotation=[%.6f,%.6f,%.6f]))"),
-				Get<FTransform>().GetLocation().X,
-				Get<FTransform>().GetLocation().Y,
-				Get<FTransform>().GetLocation().Z,
-				Get<FTransform>().Rotator().Pitch,
-				Get<FTransform>().Rotator().Yaw,
-				Get<FTransform>().Rotator().Roll); break;
+				Get<FTransformNoScale_Float>().ToTransform().ToFTransform().GetLocation().X,
+				Get<FTransformNoScale_Float>().ToTransform().ToFTransform().GetLocation().Y,
+				Get<FTransformNoScale_Float>().ToTransform().ToFTransform().GetLocation().Z,
+				Get<FTransformNoScale_Float>().ToTransform().ToFTransform().Rotator().Pitch,
+				Get<FTransformNoScale_Float>().ToTransform().ToFTransform().Rotator().Yaw,
+				Get<FTransformNoScale_Float>().ToTransform().ToFTransform().Rotator().Roll); break;
 			default: ensure(false);
 		}
 
@@ -429,7 +429,7 @@ public:
 			case ERigControlType::Rotator:
 			{
 				const FVector3f RotatorAxes = Get<FVector3f>();
-				Transform.SetRotation(FQuat(FRotator(RotatorAxes.X, RotatorAxes.Y, RotatorAxes.Z)));
+				Transform.SetRotation(FQuat(FRotator::MakeFromEuler(RotatorAxes)));
 				break;
 			}
 			case ERigControlType::Transform:
@@ -548,7 +548,7 @@ public:
 			case ERigControlType::Rotator:
 			{
 				//allow for values ><180/-180 by getting diff and adding that back in.
-				FRotator CurrentRotator = Get<FRotator>();
+				FRotator CurrentRotator = FRotator::MakeFromEuler(Get<FVector3f>());
 				FRotator CurrentRotWind, CurrentRotRem;
 				CurrentRotator.GetWindingAndRemainder(CurrentRotWind, CurrentRotRem);
 
@@ -559,7 +559,7 @@ public:
 
 				//Add Diff
 				CurrentRotator = CurrentRotator + DeltaRot;
-				Set<FVector3f>(CurrentRotator.Vector());
+				Set<FVector3f>(CurrentRotator.Euler());
 				break;
 			}
 			case ERigControlType::Transform:
@@ -578,7 +578,7 @@ public:
 				//Find Diff of the rotation from current and just add that instead of setting so we can go over/under -180
 				FEulerTransform NewTransform(InTransform);
 
-				const FEulerTransform CurrentEulerTransform = Get<FEulerTransform>();
+				const FEulerTransform CurrentEulerTransform = Get<FEulerTransform_Float>().ToTransform();
 				FRotator CurrentWinding;
 				FRotator CurrentRotRemainder;
 				CurrentEulerTransform.Rotation.GetWindingAndRemainder(CurrentWinding, CurrentRotRemainder);
@@ -775,9 +775,9 @@ public:
 				}
 				if (bLimitRotation)
 				{
-					ValueRef.RotationX = Clamp<float>(ValueRef.RotationX, Min.RotationX, Max.RotationX);
-					ValueRef.RotationY = Clamp<float>(ValueRef.RotationY, Min.RotationY, Max.RotationY);
-					ValueRef.RotationZ = Clamp<float>(ValueRef.RotationZ, Min.RotationZ, Max.RotationZ);
+					ValueRef.RotationPitch = Clamp<float>(ValueRef.RotationPitch, Min.RotationPitch, Max.RotationPitch);
+					ValueRef.RotationYaw = Clamp<float>(ValueRef.RotationYaw, Min.RotationYaw, Max.RotationYaw);
+					ValueRef.RotationRoll = Clamp<float>(ValueRef.RotationRoll, Min.RotationRoll, Max.RotationRoll);
 				}
 				if (bLimitScale)
 				{
@@ -844,6 +844,10 @@ public:
 			Transform.SetScale3D(FVector(ScaleX, ScaleY, ScaleZ));
 			return Transform;
 		}
+
+		FVector3f GetTranslation() const { return FVector3f(TranslationX, TranslationY, TranslationZ); }
+		FQuat GetRotation() const { return FQuat(RotationX, RotationY, RotationZ, RotationW); }
+		FVector3f GetScale3D() const { return FVector3f(ScaleX, ScaleY, ScaleZ); }
 	};
 
 	struct FTransformNoScale_Float
@@ -885,13 +889,16 @@ public:
 			Transform.Location = FVector(TranslationX, TranslationY, TranslationZ);
 			return Transform;
 		}
+
+		FVector3f GetTranslation() const { return FVector3f(TranslationX, TranslationY, TranslationZ); }
+		FQuat GetRotation() const { return FQuat(RotationX, RotationY, RotationZ, RotationW); }
 	};
 
 	struct FEulerTransform_Float
 	{
-		float RotationX;
-		float RotationY;
-		float RotationZ;
+		float RotationPitch;
+		float RotationYaw;
+		float RotationRoll;
 		float TranslationX;
 		float TranslationY;
 		float TranslationZ;
@@ -906,9 +913,9 @@ public:
 
 		FEulerTransform_Float(const FEulerTransform& InTransform)
 		{
-			RotationX = InTransform.Rotation.Pitch;
-			RotationY = InTransform.Rotation.Yaw;
-			RotationZ = InTransform.Rotation.Roll;
+			RotationPitch = InTransform.Rotation.Pitch;
+			RotationYaw = InTransform.Rotation.Yaw;
+			RotationRoll = InTransform.Rotation.Roll;
 			TranslationX = InTransform.Location.X;
 			TranslationY = InTransform.Location.Y;
 			TranslationZ = InTransform.Location.Z;
@@ -920,11 +927,15 @@ public:
 		FEulerTransform ToTransform() const
 		{
 			FEulerTransform Transform;
-			Transform.Rotation = FRotator(RotationX, RotationY, RotationZ);
+			Transform.Rotation = FRotator(RotationPitch, RotationYaw, RotationRoll);
 			Transform.Location = FVector(TranslationX, TranslationY, TranslationZ);
 			Transform.Scale = FVector(ScaleX, ScaleY, ScaleZ);
 			return Transform;
 		}
+		
+		FVector3f GetTranslation() const { return FVector3f(TranslationX, TranslationY, TranslationZ); }
+		FRotator GetRotator() const { return FRotator(RotationPitch, RotationYaw, RotationRoll); }
+		FVector3f GetScale3D() const { return FVector3f(ScaleX, ScaleY, ScaleZ); }
 	};
 
 private:
@@ -938,20 +949,8 @@ private:
 	friend struct FRigControlHierarchy;
 	friend class UControlRigBlueprint;
 	friend class URigHierarchyController;
+	friend class UControlRig;
 };
-
-#if UE_LARGE_WORLD_COORDINATES_DISABLED
-
-template<>
-inline FQuat FRigControlValue::SetFromString<FQuat>(const FString& InString)
-{
-	FQuat Value;
-	TBaseStructure<FQuat>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<FQuat>::Get()->GetName());
-	Set<FRotator>(Value.Rotator());
-	return Value;
-}
-
-#else
 
 template<>
 inline FRigControlValue FRigControlValue::Make(FVector2D InValue)
@@ -959,16 +958,20 @@ inline FRigControlValue FRigControlValue::Make(FVector2D InValue)
 	return Make<FVector3f>(FVector3f(InValue.X, InValue.Y, 0.f));
 }
 
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+
 template<>
 inline FRigControlValue FRigControlValue::Make(FVector InValue)
 {
 	return Make<FVector3f>(InValue);
 }
 
+#endif
+
 template<>
 inline FRigControlValue FRigControlValue::Make(FRotator InValue)
 {
-	return Make<FVector3f>(InValue.Vector());
+	return Make<FVector3f>(InValue.Euler());
 }
 
 template<>
@@ -989,6 +992,8 @@ inline FRigControlValue FRigControlValue::Make(FEulerTransform InValue)
 	return Make<FEulerTransform_Float>(InValue);
 }
 
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+
 template<>
 inline FString FRigControlValue::ToString<FVector>() const
 {
@@ -997,6 +1002,8 @@ inline FString FRigControlValue::ToString<FVector>() const
 	TBaseStructure<FVector>::Get()->ExportText(Result, &Value, nullptr, nullptr, PPF_None, nullptr);
 	return Result;
 }
+
+#endif
 
 template<>
 inline FString FRigControlValue::ToString<FRotator>() const
@@ -1017,6 +1024,26 @@ inline FString FRigControlValue::ToString<FTransform>() const
 }
 
 template<>
+inline FString FRigControlValue::ToString<FTransformNoScale>() const
+{
+	FTransformNoScale Value = GetRef<FTransformNoScale_Float>().ToTransform();
+	FString Result;
+	TBaseStructure<FTransformNoScale>::Get()->ExportText(Result, &Value, nullptr, nullptr, PPF_None, nullptr);
+	return Result;
+}
+
+template<>
+inline FString FRigControlValue::ToString<FEulerTransform>() const
+{
+	FEulerTransform Value = GetRef<FEulerTransform_Float>().ToTransform();
+	FString Result;
+	TBaseStructure<FEulerTransform>::Get()->ExportText(Result, &Value, nullptr, nullptr, PPF_None, nullptr);
+	return Result;
+}
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+
+template<>
 inline FVector FRigControlValue::SetFromString<FVector>(const FString& InString)
 {
 	FVector Value;
@@ -1025,12 +1052,14 @@ inline FVector FRigControlValue::SetFromString<FVector>(const FString& InString)
 	return Value;
 }
 
+#endif
+
 template<>
 inline FQuat FRigControlValue::SetFromString<FQuat>(const FString& InString)
 {
 	FQuat Value;
 	TBaseStructure<FQuat>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<FQuat>::Get()->GetName());
-	Set<FVector3f>(Value.Rotator().Vector());
+	Set<FVector3f>(Value.Rotator().Euler());
 	return Value;
 }
 
@@ -1039,7 +1068,7 @@ inline FRotator FRigControlValue::SetFromString<FRotator>(const FString& InStrin
 {
 	FRotator Value;
 	TBaseStructure<FRotator>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<FRotator>::Get()->GetName());
-	Set<FVector3f>(Value.Vector());
+	Set<FVector3f>(Value.Euler());
 	return Value;
 }
 
@@ -1053,35 +1082,47 @@ inline FTransform FRigControlValue::SetFromString<FTransform>(const FString& InS
 }
 
 template<>
-FVector2D& FRigControlValue::GetRef() = delete;
-template<>
-FVector& FRigControlValue::GetRef() = delete;
-template<>
-FRotator& FRigControlValue::GetRef() = delete;
-template<>
-FQuat& FRigControlValue::GetRef() = delete;
-template<>
-FTransform& FRigControlValue::GetRef() = delete;
-template<>
-FTransformNoScale& FRigControlValue::GetRef() = delete;
-template<>
-FEulerTransform& FRigControlValue::GetRef() = delete;
-template<>
-void FRigControlValue::Set(FVector2D InValue) = delete;
-template<>
-void FRigControlValue::Set(FVector InValue) = delete;
-template<>
-void FRigControlValue::Set(FRotator InValue) = delete;
-template<>
-void FRigControlValue::Set(FQuat InValue) = delete;
-template<>
-void FRigControlValue::Set(FTransform InValue) = delete;
-template<>
-void FRigControlValue::Set(FTransformNoScale InValue) = delete;
-template<>
-void FRigControlValue::Set(FEulerTransform InValue) = delete;
+inline FTransformNoScale FRigControlValue::SetFromString<FTransformNoScale>(const FString& InString)
+{
+	FTransformNoScale Value;
+	TBaseStructure<FTransformNoScale>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<FTransformNoScale>::Get()->GetName());
+	Set<FTransformNoScale_Float>(Value);
+	return Value;
+}
 
+template<>
+inline FEulerTransform FRigControlValue::SetFromString<FEulerTransform>(const FString& InString)
+{
+	FEulerTransform Value;
+	TBaseStructure<FEulerTransform>::Get()->ImportText(*InString, &Value, nullptr, PPF_None, nullptr, TBaseStructure<FEulerTransform>::Get()->GetName());
+	Set<FEulerTransform_Float>(Value);
+	return Value;
+}
+
+#define UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(T) \
+template<> \
+const T FRigControlValue::Get() const = delete;  \
+template<>  \
+const T& FRigControlValue::GetRef() const = delete; \
+template<> \
+T& FRigControlValue::GetRef() = delete; \
+template<> \
+void FRigControlValue::Set(T InValue) = delete;
+
+// We disable all of these to force Control Rig
+// to store values as floats. We've added our own
+// float variations purely for storage purposes,
+// from which we'll cast back and forth to FTransform etc.
+UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FVector2D)
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FVector)
 #endif
+UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FVector4)
+UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FRotator)
+UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FQuat)
+UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FTransform)
+UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FTransformNoScale)
+UE_CONTROLRIG_VALUE_DELETE_TEMPLATE(FEulerTransform)
 
 enum class EControlRigContextChannelToKey : uint32
 {

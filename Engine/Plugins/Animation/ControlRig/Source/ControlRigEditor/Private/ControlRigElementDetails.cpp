@@ -1298,6 +1298,92 @@ void FRigControlElementDetails_SetupFloatValueWidget(IDetailGroup& InGroup, IDet
 }
 
 template<typename T>
+T FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
+{
+	return InValue.Get<T>();
+}
+
+template<typename T>
+FRigControlValue FRigControlElementDetails_PackageValue(const T& InValue)
+{
+	return FRigControlValue::Make<T>(InValue);
+}
+
+template<>
+FVector2D FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
+{
+	const FVector3f TempValue = InValue.Get<FVector3f>();
+	return FVector2D(TempValue.X, TempValue.Y);
+}
+
+template<>
+FRigControlValue FRigControlElementDetails_PackageValue(const FVector2D& InValue)
+{
+	const FVector3f TempValue(InValue.X, InValue.Y, 0.f);
+	return FRigControlValue::Make<FVector3f>(TempValue);
+}
+
+template<>
+FVector FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
+{
+	return InValue.Get<FVector3f>();
+}
+
+template<>
+FRigControlValue FRigControlElementDetails_PackageValue(const FVector& InValue)
+{
+	return FRigControlValue::Make<FVector3f>(InValue);
+}
+
+template<>
+FRotator FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
+{
+	return FRotator::MakeFromEuler(InValue.Get<FVector3f>());
+}
+
+template<>
+FRigControlValue FRigControlElementDetails_PackageValue(const FRotator& InValue)
+{
+	return FRigControlValue::Make<FVector3f>(InValue.Euler());
+}
+
+template<>
+FTransform FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
+{
+	return InValue.Get<FRigControlValue::FTransform_Float>().ToTransform();
+}
+
+template<>
+FRigControlValue FRigControlElementDetails_PackageValue(const FTransform& InValue)
+{
+	return FRigControlValue::Make<FRigControlValue::FTransform_Float>(InValue);
+}
+
+template<>
+FTransformNoScale FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
+{
+	return InValue.Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
+}
+
+template<>
+FRigControlValue FRigControlElementDetails_PackageValue(const FTransformNoScale& InValue)
+{
+	return FRigControlValue::Make<FRigControlValue::FTransformNoScale_Float>(InValue);
+}
+
+template<>
+FEulerTransform FRigControlElementDetails_ExtractValue(const FRigControlValue& InValue)
+{
+	return InValue.Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
+}
+
+template<>
+FRigControlValue FRigControlElementDetails_PackageValue(const FEulerTransform& InValue)
+{
+	return FRigControlValue::Make<FRigControlValue::FEulerTransform_Float>(InValue);
+}
+
+template<typename T>
 void FRigControlElementDetails_SetupStructValueWidget(IDetailGroup& InGroup, IDetailChildrenBuilder& InStructBuilder, ERigControlValueType InValueType, FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
 {
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
@@ -1320,8 +1406,9 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailGroup& InGroup, IDe
             {
             	// update the struct with the current control value
             	uint8* StructMemory = StructToDisplay->GetStructMemory();
-            	const FRigControlValue& CurrentValue = HierarchyPtr->GetControlValue(Key, InValueType);            	
-            	FMemory::Memcpy(StructToDisplay->GetStructMemory(), &CurrentValue.GetRef<T>(), sizeof(T));
+            	const FRigControlValue& ControlValue = HierarchyPtr->GetControlValue(Key, InValueType);
+            	T ExtractedValue = FRigControlElementDetails_ExtractValue<T>(ControlValue);
+            	FMemory::Memcpy(StructToDisplay->GetStructMemory(), &ExtractedValue, sizeof(T));
 
             	return ControlElement->Settings.IsValueTypeEnabled(InValueType);
             }
@@ -1357,13 +1444,13 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailGroup& InGroup, IDe
 	{
 		if(HierarchyPtr.IsValid())
 		{
-            const FRigControlValue Value = FRigControlValue::Make(*(T*)StructToDisplay->GetStructMemory());
-			HierarchyPtr->SetControlValue(Key, Value, InValueType, true);
+            const FRigControlValue ControlValue = FRigControlElementDetails_PackageValue(*(T*)StructToDisplay->GetStructMemory());
+			HierarchyPtr->SetControlValue(Key, ControlValue, InValueType, true);
 			if(InValueType == ERigControlValueType::Initial)
 			{
                 if(UControlRigBlueprint* Blueprint = RigElementDetails_GetBlueprintFromHierarchy(HierarchyPtr.Get()))
                 {
-                    Blueprint->Hierarchy->SetControlValue(Key, Value, InValueType, true);
+                    Blueprint->Hierarchy->SetControlValue(Key, ControlValue, InValueType, true);
                 }
             }
 		}

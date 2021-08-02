@@ -411,8 +411,9 @@ void UFKControlRig::ToggleApplyMode()
         {
             if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				const FEulerTransform InitValue = GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Initial).Get<FEulerTransform>();
-				SetControlValue<FEulerTransform>(ControlElement->GetName(), InitValue, true, Context, bSetupUndo);
+				const FRigControlValue::FEulerTransform_Float InitValue =
+					GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Initial).Get<FRigControlValue::FEulerTransform_Float>();
+				SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlElement->GetName(), InitValue, true, Context, bSetupUndo);
 			}
 			else if (ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
