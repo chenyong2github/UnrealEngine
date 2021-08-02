@@ -293,7 +293,8 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(MessageString))
-				.ColorAndOpacity(FStyleColors::Foreground)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.TextStyle(FAppStyle::Get(), "MessageLog")
 			];
 		}
 	}
