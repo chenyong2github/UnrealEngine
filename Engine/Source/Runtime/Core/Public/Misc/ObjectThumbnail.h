@@ -52,15 +52,18 @@ public:
 	 *
 	 * @param	InThumbnailCompressor	A class derived from FThumbnailCompressionInterface.
 	 */
-	static void SetThumbnailCompressor( FThumbnailCompressionInterface* InThumbnailCompressor )
+	static void SetThumbnailCompressors( FThumbnailCompressionInterface* InPNGThumbnailCompressor, 
+		FThumbnailCompressionInterface* InJPEGThumbnailCompressor)
 	{
-		ThumbnailCompressor = InThumbnailCompressor;
+		PNGThumbnailCompressor = InPNGThumbnailCompressor;
+		JPEGThumbnailCompressor = InJPEGThumbnailCompressor;
 	}
 
 private:
 
 	/** Static: Thumbnail compressor. */
-	static FThumbnailCompressionInterface* ThumbnailCompressor;
+	static FThumbnailCompressionInterface* PNGThumbnailCompressor;
+	static FThumbnailCompressionInterface* JPEGThumbnailCompressor;
 
 public:
 
@@ -227,6 +230,9 @@ private:
 
 	/** Whether the thumbnail has a backup on disk*/
 	bool bLoadedFromDisk;
+
+	/** Whether compressed data is JPEG (else PNG) */
+	bool bIsJPEG;
 
 	/** Whether this was saved AFTER custom-thumbnails for shared thumbnail asset types was supported */
 	bool bCreatedAfterCustomThumbForSharedTypesEnabled;

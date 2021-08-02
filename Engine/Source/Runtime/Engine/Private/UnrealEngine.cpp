@@ -1099,6 +1099,76 @@ public:
 };
 
 
+class FJPEGThumbnailCompressor
+	: public FThumbnailCompressionInterface
+{
+
+public:
+
+	/**
+	* Compresses an image
+	*
+	* @param	InUncompressedData	The uncompressed image data
+	* @param	InWidth				Width of the image
+	* @param	InHeight			Height of the image
+	* @param	OutCompressedData	[Out] Compressed image data
+	*
+	* @return	true if the image was compressed successfully, otherwise false if an error occurred
+	*/
+	virtual bool CompressImage( const TArray< uint8 >& InUncompressedData, const int32 InWidth, const int32 InHeight, TArray< uint8 >& OutCompressedData )
+	{
+		bool bSucceeded = false;
+		OutCompressedData.Reset();
+		if( InUncompressedData.Num() > 0 )
+		{
+			IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
+			TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper( EImageFormat::JPEG );
+			if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw( &InUncompressedData[ 0 ], InUncompressedData.Num(), InWidth, InHeight, ERGBFormat::RGBA, 8 ) )
+			{
+				int ThumbnailJPEGQuality = 65;
+				OutCompressedData = ImageWrapper->GetCompressed(ThumbnailJPEGQuality);
+				bSucceeded = true;
+			}
+		}
+
+		return bSucceeded;
+	}
+
+
+	/**
+	* Decompresses an image
+	*
+	* @param	InCompressedData	The compressed image data
+	* @param	InWidth				Width of the image
+	* @param	InHeight			Height of the image
+	* @param	OutUncompressedData	[Out] Uncompressed image data
+	*
+	* @return	true if the image was decompressed successfully, otherwise false if an error occurred
+	*/
+	virtual bool DecompressImage( const TArray< uint8 >& InCompressedData, const int32 InWidth, const int32 InHeight, TArray< uint8 >& OutUncompressedData )
+	{
+		bool bSucceeded = false;
+		OutUncompressedData.Reset();
+		if( InCompressedData.Num() > 0 )
+		{
+			IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
+			TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper( EImageFormat::JPEG );
+			if ( ImageWrapper.IsValid() && ImageWrapper->SetCompressed( &InCompressedData[ 0 ], InCompressedData.Num() ) )
+			{
+				check( ImageWrapper->GetWidth() == InWidth );
+				check( ImageWrapper->GetHeight() == InHeight );
+				if ( ImageWrapper->GetRaw( ERGBFormat::RGBA, 8, OutUncompressedData) )
+				{
+					bSucceeded = true;
+				}
+			}
+		}
+
+		return bSucceeded;
+	}
+};
+
+
 /**
 * Helper class inhibiting screen saver by e.g. moving the mouse by 0 pixels every 50 seconds.
 */
@@ -1622,7 +1692,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	}
 
 	// Assign thumbnail compressor/decompressor
-	FObjectThumbnail::SetThumbnailCompressor( new FPNGThumbnailCompressor() );
+	FObjectThumbnail::SetThumbnailCompressors( new FPNGThumbnailCompressor() , new FJPEGThumbnailCompressor() );
 
 	//UEngine::StaticClass()->GetDefaultObject(true);
 	LoadObject<UClass>(UEngine::StaticClass()->GetOuter(), *UEngine::StaticClass()->GetName(), NULL, LOAD_Quiet|LOAD_NoWarn, NULL );
