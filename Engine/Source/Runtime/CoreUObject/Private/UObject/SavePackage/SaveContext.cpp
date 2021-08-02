@@ -2,6 +2,8 @@
 
 #include "SaveContext.h"
 
+#include "IO/PackageStoreWriter.h"
+
 void FSaveContext::MarkUnsaveable(UObject* InObject)
 {
 	if (IsUnsaveable(InObject))
@@ -53,4 +55,10 @@ bool FSaveContext::IsUnsaveable(UObject* InObject) const
 		Obj = Obj->GetOuter();
 	}
 	return false;	
+}
+
+bool FSaveContext::IsAdditionalFilesNeedLinkerSize() const
+{
+	IPackageStoreWriter* PackageStoreWriter = GetPackageStoreWriter();
+	return PackageStoreWriter ? PackageStoreWriter->IsAdditionalFilesNeedLinkerSize() : false;
 }

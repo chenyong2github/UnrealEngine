@@ -232,8 +232,12 @@ class FMemoryPackageStoreWriter : public IPackageStoreWriter
 {
 public:
 	// IPackageStoreWriter
+	virtual bool IsAdditionalFilesNeedLinkerSize() const override { return true; }
+	virtual bool IsLinkerAdditionalDataInSeparateArchive() const override { return true; }
+
 	virtual void WritePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions) override;
 	virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override;
+	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) override;
 	virtual void Flush() override
 	{
 	}
@@ -243,7 +247,7 @@ public:
 	}
 
 	// IPackageStoreWriter cooking and accessor interface: not implemented in this writer
-	bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override
+	virtual bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override
 	{
 		checkNoEntry();
 		return false;
@@ -343,6 +347,22 @@ void FMemoryPackageStoreWriter::WriteBulkdata(const FBulkDataInfo& Info, const F
 	}
 }
 
+void FMemoryPackageStoreWriter::WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
+{
+	SetPackageName(Info.PackageName);
+
+	FIoBuffer& DataOwner = BulkDataArchives.Add_GetRef(Data);
+	const uint8* DataStart = Data.Data();
+	uint64 DataLen = Data.DataSize();
+	for (const FFileRegion& FileRegion : FileRegions)
+	{
+		checkf(FileRegion.Type == EFileRegionType::None, TEXT("FMemoryPackageStoreWriter does not currently support FileRegion types other than None."));
+		checkf(FileRegion.Offset + FileRegion.Length <= DataLen, TEXT("FileRegions in WriteLinkerAdditionalData were outside of the range of the Data's size."));
+		BulkDataRegions.Add(FIoBuffer(DataStart + FileRegion.Offset, FileRegion.Length, DataOwner));
+	}
+
+}
+
 bool TrySavePackage(UPackage* Package)
 {
 	using namespace UE::DerivedData;
@@ -407,7 +427,7 @@ bool TrySavePackage(UPackage* Package)
 	{
 		TArray64<uint8> TempBytes;
 		const FIoBuffer& MainBuffer = PackageStoreWriter->GetHeaderAndExports();
-		TempBytes.Append(MainBuffer .Data(), MainBuffer.DataSize());
+		TempBytes.Append(MainBuffer.Data(), MainBuffer.DataSize());
 		for (const FIoBuffer& BulkBuffer : PackageStoreWriter->GetBulkDatas())
 		{
 			TempBytes.Append(BulkBuffer.Data(), BulkBuffer.DataSize());

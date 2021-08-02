@@ -548,6 +548,13 @@ public:
 		return ObjectSaveContext;
 	}
 
+	IPackageStoreWriter* GetPackageStoreWriter() const
+	{
+		return SaveArgs.SavePackageContext ? SaveArgs.SavePackageContext->PackageStoreWriter : nullptr;
+	}
+
+	bool IsAdditionalFilesNeedLinkerSize() const;
+
 public:
 	ESavePackageResult Result;
 

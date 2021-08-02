@@ -2119,13 +2119,51 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 #endif
 }
 
-ESavePackageResult AppendAdditionalData(FLinkerSave& Linker)
+class FLargeMemoryWriterWithRegions : public FLargeMemoryWriter
 {
-	FArchive& Ar = Linker;
+public:
+	FLargeMemoryWriterWithRegions()
+		: FLargeMemoryWriter(0, /* IsPersistent */ true)
+	{}
 
-	for (FLinkerSave::AdditionalDataCallback& Callback : Linker.AdditionalDataToAppend)
+	TArray<FFileRegion> FileRegions;
+};
+
+ESavePackageResult AppendAdditionalData(FLinkerSave& Linker, int64& InOutDataStartOffset, IPackageStoreWriter* PackageStoreWriter)
+{
+	if (Linker.AdditionalDataToAppend.Num() == 0)
 	{
-		Callback(Ar);
+		return ESavePackageResult::Success;
+	}
+
+	if (PackageStoreWriter && PackageStoreWriter->IsLinkerAdditionalDataInSeparateArchive())
+	{
+		FLargeMemoryWriterWithRegions DataArchive;
+		for (FLinkerSave::AdditionalDataCallback& Callback : Linker.AdditionalDataToAppend)
+		{
+			int64 RegionStart = DataArchive.Tell();
+			Callback(Linker, DataArchive, InOutDataStartOffset + RegionStart);
+			int64 RegionEnd = DataArchive.Tell();
+			if (RegionEnd != RegionStart)
+			{
+				DataArchive.FileRegions.Add(FFileRegion(RegionStart, RegionEnd - RegionStart, EFileRegionType::None));
+			}
+		}
+		IPackageStoreWriter::FLinkerAdditionalDataInfo DataInfo{ Linker.LinkerRoot->GetFName() };
+		int64 DataSize = DataArchive.TotalSize();
+		FIoBuffer DataBuffer = FIoBuffer(FIoBuffer::AssumeOwnership, DataArchive.ReleaseOwnership(), DataSize);
+		PackageStoreWriter->WriteLinkerAdditionalData(DataInfo, DataBuffer, DataArchive.FileRegions);
+		InOutDataStartOffset += DataSize;
+	}
+	else
+	{
+		int64 LinkerStart = Linker.Tell();
+		FArchive& Ar = Linker;
+		for (FLinkerSave::AdditionalDataCallback& Callback : Linker.AdditionalDataToAppend)
+		{
+			Callback(Linker, Linker, Linker.Tell());
+		}
+		InOutDataStartOffset += Linker.Tell() - LinkerStart;
 	}
 
 	Linker.AdditionalDataToAppend.Empty();
@@ -2217,14 +2255,14 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 	return ESavePackageResult::Success;
 }
 
-ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
+ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
 				  FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, const bool bDiffing,
 				  const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed)
 {
 	// Now we write all the bulkdata that is supposed to be at the end of the package
 	// and fix up the offset
 	IPackageStoreWriter* PackageStoreWriter = SavePackageContext != nullptr ? SavePackageContext->PackageStoreWriter : nullptr;
-	Linker->Summary.BulkDataStartOffset = Linker->Tell();
+	Linker->Summary.BulkDataStartOffset = InOutStartOffset;
 
 	if (Linker->BulkDataToAppend.Num() == 0)
 	{
@@ -2235,16 +2273,6 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 	COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::SerializeBulkDataTimeSec));
 
 	FScopedSlowTask BulkDataFeedback(Linker->BulkDataToAppend.Num());
-
-	class FLargeMemoryWriterWithRegions : public FLargeMemoryWriter
-	{
-	public:
-		FLargeMemoryWriterWithRegions()
-			: FLargeMemoryWriter(0, /* IsPersistent */ true)
-		{}
-
-		TArray<FFileRegion> FileRegions;
-	};
 
 	TUniquePtr<FLargeMemoryWriterWithRegions> BulkArchive;
 	TUniquePtr<FLargeMemoryWriterWithRegions> OptionalBulkArchive;
@@ -2267,14 +2295,19 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 	} CookerUseSeparateSegments;
 	const bool bSeparateSegmentsEnabled = CookerUseSeparateSegments.bEnable && Linker->IsCooking();
 
+	int64 LinkerStart = 0;
 	if (PackageStoreWriter || bSeparateSegmentsEnabled)
 	{
 		BulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+		if (bSeparateSegmentsEnabled)
+		{
+			OptionalBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+			MappedBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+		}
 	}
-	if (bSeparateSegmentsEnabled)
+	else
 	{
-		OptionalBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
-		MappedBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+		LinkerStart = Linker->Tell();
 	}
 	bool bRequestSaveByReference = SaveFlags & SAVE_BulkDataByReference;
 
@@ -2475,7 +2508,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 				// We record offsets in the bulkdata segment relative to the beginning of the CompositeArchive.
 				// We have to do this to distinguish them from inline bulkdatas in the exports segment
 				check((BulkDataFlags& BULKDATA_NoOffsetFixUp) != 0); // offset fixups are not supported with this SaveLocation
-				BulkDataOffsetInFile = BulkStartOffset + Linker->Summary.BulkDataStartOffset;
+				BulkDataOffsetInFile = BulkStartOffset + InOutStartOffset;
 			}
 			else if ((BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0)
 			{
@@ -2584,6 +2617,20 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, co
 			WriteBulkData(BulkArchive.Get(), LexToString(EPackageExtension::BulkDataDefault));
 			WriteBulkData(OptionalBulkArchive.Get(), LexToString(EPackageExtension::BulkDataOptional));
 			WriteBulkData(MappedBulkArchive.Get(), LexToString(EPackageExtension::BulkDataMemoryMapped));
+		}
+	}
+
+	if (!bSeparateSegmentsEnabled)
+	{
+		if (PackageStoreWriter)
+		{
+			check(BulkArchive.IsValid() && LinkerStart == 0);
+			InOutStartOffset += BulkArchive->TotalSize();
+		}
+		else
+		{
+			check(!BulkArchive.IsValid() && LinkerStart > 0);
+			InOutStartOffset += Linker->Tell() - LinkerStart;
 		}
 	}
 

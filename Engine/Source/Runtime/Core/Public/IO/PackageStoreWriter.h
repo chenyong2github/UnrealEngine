@@ -12,6 +12,22 @@ class IPackageStoreWriter
 public:
 	virtual ~IPackageStoreWriter() = default;
 
+
+	// Properties of the PackageStoreWriter
+	/** Whether this writer needs BulkDatas to be written after the Linker's archive has finalized its size.
+
+		Some PackageStoreWriters need that behavior because they put the BulkDatas in a segment following
+		the exports in a Composite archive.
+	 */
+	virtual bool IsAdditionalFilesNeedLinkerSize() const { return false; }
+	/** Whether data stored in Linker.AdditionalDataToAppend should be serialized to a separate archive.
+	
+		If false, the data will be serialized to the end of the LinkerSave archive instead.
+	*/
+	virtual bool IsLinkerAdditionalDataInSeparateArchive() const { return false; }
+
+
+	// Events the PackageStoreWriter receives
 	struct FBeginPackageInfo
 	{
 		FName	PackageName;
@@ -75,7 +91,19 @@ public:
 		FIoChunkId ChunkId;
 	};
 
+	/** Write separate files written by UObjects during cooking via UObject::CookAdditionalFiles. */
 	virtual bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) = 0;
+
+	struct FLinkerAdditionalDataInfo
+	{
+		FName PackageName;
+	};
+	/** Write separate data written by UObjects via FLinkerSave::AdditionalDataToAppend.
+
+		This function will not be called unless IsLinkerAdditionalDataInSeparateArchive returned true.
+		If that function is false, the data was inlined into the PackageData instead.
+	*/
+	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) = 0;
 
 	struct FCookInfo
 	{

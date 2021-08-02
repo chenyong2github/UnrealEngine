@@ -54,6 +54,8 @@ bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bChe
 namespace
 {
 
+ESavePackageResult WriteAdditionalFiles(FSaveContext& SaveContext, FScopedSlowTask& SlowTask, int64 LinkerSize);
+
 ESavePackageResult ReturnSuccessOrCancel()
 {
 	return !GWarn->ReceivedUserCancel() ? ESavePackageResult::Success : ESavePackageResult::Canceled;
@@ -2107,32 +2109,13 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		}
 	}
 
-	// Save Bulk Data
-	SlowTask.EnterProgressFrame();
-	SaveContext.Result = SavePackageUtilities::SaveBulkData(SaveContext.Linker.Get(), SaveContext.GetPackage(), SaveContext.GetFilename(), SaveContext.GetTargetPlatform(),
-		SaveContext.GetSavePackageContext(), SaveContext.GetSaveArgs().SaveFlags, SaveContext.IsTextFormat(), SaveContext.IsDiffing(),
-		SaveContext.IsComputeHash(), SaveContext.AsyncWriteAndHashSequence, SaveContext.TotalPackageSizeUncompressed);
-
-	// Add any pending data blobs to the end of the file by invoking the callbacks
-	SaveContext.Result = SavePackageUtilities::AppendAdditionalData(*SaveContext.Linker.Get());
-	if (SaveContext.Result != ESavePackageResult::Success)
+	if (!SaveContext.IsAdditionalFilesNeedLinkerSize())
 	{
-		return SaveContext.Result;
-	}
-
-	// Create the payload side car file (if needed)
-	SaveContext.Result = SavePackageUtilities::CreatePayloadSidecarFile(*SaveContext.Linker.Get(), SaveContext.GetTargetPackagePath(), SaveContext.IsSaveAsync(), !SaveContext.IsDiffing(), SaveContext.AdditionalPackageFiles);
-	if (SaveContext.Result != ESavePackageResult::Success)
-	{
-		return SaveContext.Result;
-	}
-
-	// Write Additional files from export
-	SlowTask.EnterProgressFrame();
-	SaveContext.Result = WriteAdditionalExportFiles(SaveContext);
-	if (SaveContext.Result != ESavePackageResult::Success)
-	{
-		return SaveContext.Result;
+		SaveContext.Result = WriteAdditionalFiles(SaveContext, SlowTask, -1);
+		if (SaveContext.Result != ESavePackageResult::Success)
+		{
+			return SaveContext.Result;
+		}
 	}
 	
 	// Write Package Post Tag
@@ -2145,6 +2128,16 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	// Capture Package Size
 	int32 PackageSize = SaveContext.Linker->Tell();
 	SaveContext.TotalPackageSizeUncompressed += PackageSize;
+
+	if (SaveContext.IsAdditionalFilesNeedLinkerSize())
+	{
+		SaveContext.Result = WriteAdditionalFiles(SaveContext, SlowTask, PackageSize);
+		if (SaveContext.Result != ESavePackageResult::Success)
+		{
+			return SaveContext.Result;
+		}
+		checkf(SaveContext.Linker->Tell() == PackageSize, TEXT("The writing of additional files is not allowed to append to the LinkerSave when IsAdditionalFilesNeedLinkerSize is true."));
+	}
 
 	for (const FSavePackageOutputFile& File : SaveContext.AdditionalPackageFiles)
 	{
@@ -2202,6 +2195,46 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		SaveContext.GetPackage()->FileSize = PackageSize;
 	}
 	return SaveContext.Result;
+}
+
+/** WriteAdditionalPayloads writes BulkData, PayloadSidecarFiles, and other data that is separate from exports.
+ * Depending on settings, these additional files may be appended to the LinkerSave after the exports, or they
+ * may be written into separate sidecar files.
+ * 
+ * @param SaveContext The context for the overall save, including data about the additional payloads
+ * @param LinkerSize If the Linker has finished writing, this is the size of the Linker's archive: Linker->Tell(). Otherwise it is -1.
+ */
+ESavePackageResult WriteAdditionalFiles(FSaveContext& SaveContext, FScopedSlowTask& SlowTask, int64 LinkerSize)
+{
+	// Save Bulk Data
+	SlowTask.EnterProgressFrame();
+	int64 DataStartOffset = LinkerSize >= 0 ? LinkerSize : SaveContext.Linker.Get()->Tell();
+	SaveContext.Result = SavePackageUtilities::SaveBulkData(SaveContext.Linker.Get(), DataStartOffset, SaveContext.GetPackage(), SaveContext.GetFilename(), SaveContext.GetTargetPlatform(),
+		SaveContext.GetSavePackageContext(), SaveContext.GetSaveArgs().SaveFlags, SaveContext.IsTextFormat(), SaveContext.IsDiffing(),
+		SaveContext.IsComputeHash(), SaveContext.AsyncWriteAndHashSequence, SaveContext.TotalPackageSizeUncompressed);
+
+	// Add any pending data blobs to the end of the file by invoking the callbacks
+	ESavePackageResult Result = SavePackageUtilities::AppendAdditionalData(*SaveContext.Linker.Get(), DataStartOffset, SaveContext.GetPackageStoreWriter());
+	if (Result != ESavePackageResult::Success)
+	{
+		return Result;
+	}
+
+	// Create the payload side car file (if needed)
+	Result = SavePackageUtilities::CreatePayloadSidecarFile(*SaveContext.Linker.Get(), SaveContext.GetTargetPackagePath(), SaveContext.IsSaveAsync(), !SaveContext.IsDiffing(), SaveContext.AdditionalPackageFiles);
+	if (Result != ESavePackageResult::Success)
+	{
+		return Result;
+	}
+
+	// Write Additional files from export
+	SlowTask.EnterProgressFrame();
+	Result = WriteAdditionalExportFiles(SaveContext);
+	if (Result != ESavePackageResult::Success)
+	{
+		return Result;
+	}
+	return ESavePackageResult::Success;
 }
 
 FText GetSlowTaskStatusMessage(const FSaveContext& SaveContext)
