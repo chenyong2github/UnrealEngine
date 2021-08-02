@@ -475,7 +475,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 		TextureFormat
 	);
 
-	if (!UE::Interchange::Private::ReadData(PayloadData.RawData.GetData(), Buffer, PSDHeader))
+	if (!UE::Interchange::Private::ReadData(static_cast<uint8*>(PayloadData.RawData.GetData()), Buffer, PSDHeader))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to read this PSD"));
 		return TOptional<UE::Interchange::FImportImage>();

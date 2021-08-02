@@ -1068,40 +1068,13 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	int32 InNumBlocks,
 	const uint8** InDataPerBlock)
 {
-	check(InNumBlocks > 0);
-	check(InNumLayers > 0);
-
-	RemoveSourceData();
-
-	BaseBlockX = InBlocks[0].BlockX;
-	BaseBlockY = InBlocks[0].BlockY;
-	SizeX = InBlocks[0].SizeX;
-	SizeY = InBlocks[0].SizeY;
-	NumSlices = InBlocks[0].NumSlices;
-	NumMips = InBlocks[0].NumMips;
-
-	NumLayers = InNumLayers;
-	Format = InLayerFormats[0];
-
-	Blocks.Reserve(InNumBlocks - 1);
-	for (int32 BlockIndex = 1; BlockIndex < InNumBlocks; ++BlockIndex)
-	{
-		Blocks.Add(InBlocks[BlockIndex]);
-	}
-
-	LayerFormat.SetNum(InNumLayers, true);
-	for (int i = 0; i < InNumLayers; ++i)
-	{
-		LayerFormat[i] = InLayerFormats[i];
-	}
+	InitBlockedImpl(InLayerFormats, InBlocks, InNumLayers, InNumBlocks);
 
 	int64 TotalBytes = 0;
 	for (int i = 0; i < InNumBlocks; ++i)
 	{
 		TotalBytes += CalcBlockSize(i);
 	}
-
-	checkf(LockState == ELockState::None, TEXT("InitBlocked shouldn't be called in-between LockMip/UnlockMip"));
 
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(TotalBytes);
 	uint8* DataPtr = (uint8*)Buffer.GetData();
@@ -1122,6 +1095,17 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	BulkData.UpdatePayload(Buffer.MoveToShared());
 }
 
+void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
+	const FTextureSourceBlock* InBlocks,
+	int32 InNumLayers,
+	int32 InNumBlocks,
+	FSharedBuffer NewData)
+{
+	InitBlockedImpl(InLayerFormats, InBlocks, InNumLayers, InNumBlocks);
+
+	BulkData.UpdatePayload(MoveTemp(NewData));
+}
+
 void FTextureSource::InitLayered(
 	int32 NewSizeX,
 	int32 NewSizeY,
@@ -1131,26 +1115,20 @@ void FTextureSource::InitLayered(
 	const ETextureSourceFormat* NewLayerFormat,
 	const uint8* NewData)
 {
-	RemoveSourceData();
-	SizeX = NewSizeX;
-	SizeY = NewSizeY;
-	NumLayers = NewNumLayers;
-	NumSlices = NewNumSlices;
-	NumMips = NewNumMips;
-	Format = NewLayerFormat[0];
-	LayerFormat.SetNum(NewNumLayers, true);
-	for (int i = 0; i < NewNumLayers; ++i)
-	{
-		LayerFormat[i] = NewLayerFormat[i];
-	}
+	InitLayeredImpl(
+		NewSizeX,
+		NewSizeY,
+		NewNumSlices,
+		NewNumLayers,
+		NewNumMips,
+		NewLayerFormat
+		);
 
 	int64 TotalBytes = 0;
 	for (int i = 0; i < NewNumLayers; ++i)
 	{
 		TotalBytes += CalcLayerSize(0, i);
 	}
-
-	checkf(LockState == ELockState::None, TEXT("InitLayered shouldn't be called in-between LockMip/UnlockMip"));
 
 	// TODO: Allocating an empty buffer if there is no data to copy from seems like an odd choice but the 
 	// code logic has been doing this for almost a decade so I don't want to change it until I am sure that
@@ -1165,6 +1143,27 @@ void FTextureSource::InitLayered(
 	}
 }
 
+void FTextureSource::InitLayered(
+	int32 NewSizeX,
+	int32 NewSizeY,
+	int32 NewNumSlices,
+	int32 NewNumLayers,
+	int32 NewNumMips,
+	const ETextureSourceFormat* NewLayerFormat,
+	FSharedBuffer NewData)
+{
+	InitLayeredImpl(
+		NewSizeX,
+		NewSizeY,
+		NewNumSlices,
+		NewNumLayers,
+		NewNumMips,
+		NewLayerFormat
+	);
+
+	BulkData.UpdatePayload(MoveTemp(NewData));
+}
+
 void FTextureSource::Init(
 		int32 NewSizeX,
 		int32 NewSizeY,
@@ -1173,6 +1172,18 @@ void FTextureSource::Init(
 		ETextureSourceFormat NewFormat,
 		const uint8* NewData
 		)
+{
+	InitLayered(NewSizeX, NewSizeY, NewNumSlices, 1, NewNumMips, &NewFormat, NewData);
+}
+
+void FTextureSource::Init(
+	int32 NewSizeX,
+	int32 NewSizeY,
+	int32 NewNumSlices,
+	int32 NewNumMips,
+	ETextureSourceFormat NewFormat,
+	FSharedBuffer NewData
+)
 {
 	InitLayered(NewSizeX, NewSizeY, NewNumSlices, 1, NewNumMips, &NewFormat, NewData);
 }
@@ -2335,6 +2346,65 @@ void FTextureSource::FMipAllocation::CreateReadWriteBuffer(const void* SrcData, 
 	FMemory::Memcpy(ReadWriteBuffer.Get(), SrcData, DataLength);
 
 	ReadOnlyReference = FSharedBuffer::MakeView(ReadWriteBuffer.Get(), DataLength);
+}
+
+void FTextureSource::InitLayeredImpl(
+	int32 NewSizeX,
+	int32 NewSizeY,
+	int32 NewNumSlices,
+	int32 NewNumLayers,
+	int32 NewNumMips,
+	const ETextureSourceFormat* NewLayerFormat)
+{
+	RemoveSourceData();
+	SizeX = NewSizeX;
+	SizeY = NewSizeY;
+	NumLayers = NewNumLayers;
+	NumSlices = NewNumSlices;
+	NumMips = NewNumMips;
+	Format = NewLayerFormat[0];
+	LayerFormat.SetNum(NewNumLayers, true);
+	for (int i = 0; i < NewNumLayers; ++i)
+	{
+		LayerFormat[i] = NewLayerFormat[i];
+	}
+
+	checkf(LockState == ELockState::None, TEXT("InitLayered shouldn't be called in-between LockMip/UnlockMip"));
+}
+
+void FTextureSource::InitBlockedImpl(const ETextureSourceFormat* InLayerFormats,
+	const FTextureSourceBlock* InBlocks,
+	int32 InNumLayers,
+	int32 InNumBlocks)
+{
+	check(InNumBlocks > 0);
+	check(InNumLayers > 0);
+
+	RemoveSourceData();
+
+	BaseBlockX = InBlocks[0].BlockX;
+	BaseBlockY = InBlocks[0].BlockY;
+	SizeX = InBlocks[0].SizeX;
+	SizeY = InBlocks[0].SizeY;
+	NumSlices = InBlocks[0].NumSlices;
+	NumMips = InBlocks[0].NumMips;
+
+	NumLayers = InNumLayers;
+	Format = InLayerFormats[0];
+
+	Blocks.Reserve(InNumBlocks - 1);
+	for (int32 BlockIndex = 1; BlockIndex < InNumBlocks; ++BlockIndex)
+	{
+		Blocks.Add(InBlocks[BlockIndex]);
+	}
+
+	LayerFormat.SetNum(InNumLayers, true);
+	for (int i = 0; i < InNumLayers; ++i)
+	{
+		LayerFormat[i] = InLayerFormats[i];
+	}
+
+	checkf(LockState == ELockState::None, TEXT("InitBlocked shouldn't be called in-between LockMip/UnlockMip"));
 }
 
 #endif //WITH_EDITOR

@@ -82,7 +82,7 @@ public:
 	 *
 	 * @Note override function should verify the AssetNode in Arguments match the expected type for the factory.
 	 */
-	virtual UObject* CreateEmptyAsset(const FCreateAssetParams& Arguments) const
+	virtual UObject* CreateEmptyAsset(const FCreateAssetParams& Arguments)
 	{
 		return nullptr;
 	}
@@ -95,7 +95,7 @@ public:
 	 *
 	 * @Note override function should verify the AssetNode in Arguments match the expected type for the factory.
 	 */
-	virtual UObject* CreateAsset(const FCreateAssetParams& Arguments) const
+	virtual UObject* CreateAsset(const FCreateAssetParams& Arguments)
 	{
 		return nullptr;
 	}
@@ -113,12 +113,18 @@ public:
 	{
 		/** The source data, mainly use to set the asset import data file. TODO: we have to refactor UAssetImportData, the source data should be the base class for this now */
 		const UInterchangeSourceData* SourceData = nullptr;
+		UInterchangeBaseNode* FactoryNode = nullptr;
+
 
 		/** The UObject  we want to execute code on*/
 		UObject* ImportedObject = nullptr;
 		FString NodeUniqueID;
 		UInterchangeBaseNodeContainer* NodeContainer = nullptr;
 		TArray<UInterchangePipelineBase*> Pipelines;
+
+
+		EReimportStrategyFlags ReimportStrategyFlags;
+		bool bIsReimport  = false;
 ;
 	};
 
@@ -126,7 +132,7 @@ public:
 	 * This function is call in the pre completion task on the main thread, use it to call main thread post creation step for your assets
 	 * @note - This function is called when starting the pre completion task (before PostEditChange is called for the asset).
 	 */
-	virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const
+	virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 	{
 		check(IsInGameThread());
 		return;
@@ -136,7 +142,7 @@ public:
 	 * This function is call in the pre completion task on the main thread, use it to call main thread post creation step for your assets
 	 * @note - This function is called at the end of the pre completion task (after PostEditChange is called for the asset).
 	 */
-	virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const
+	virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 	{
 		check(IsInGameThread());
 		return;
@@ -146,7 +152,7 @@ public:
 	 * This function is used to add the given message object directly into the results for this operation.
 	 */
 	template <typename T>
-	T* AddMessage() const
+	T* AddMessage()
 	{
 		check(Results != nullptr);
 		T* Item = Results->Add<T>();
@@ -154,7 +160,7 @@ public:
 	}
 
 
-	void AddMessage(UInterchangeResult* Item) const
+	void AddMessage(UInterchangeResult* Item)
 	{
 		check(Results != nullptr);
 		Results->Add(Item);

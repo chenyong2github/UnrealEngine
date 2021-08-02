@@ -15,7 +15,7 @@ UClass* UInterchangeSkeletonFactory::GetFactoryClass() const
 	return USkeleton::StaticClass();
 }
 
-UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments) const
+UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
 {
 	UObject* Skeleton = nullptr;
 
@@ -57,7 +57,7 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 	return Skeleton;
 }
 
-UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFactory::FCreateAssetParams& Arguments) const
+UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
 #if !WITH_EDITORONLY_DATA
 

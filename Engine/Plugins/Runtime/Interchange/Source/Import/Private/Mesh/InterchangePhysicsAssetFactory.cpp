@@ -14,7 +14,7 @@ UClass* UInterchangePhysicsAssetFactory::GetFactoryClass() const
 	return UPhysicsAsset::StaticClass();
 }
 
-UObject* UInterchangePhysicsAssetFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments) const
+UObject* UInterchangePhysicsAssetFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
 {
 	UObject* PhysicsAsset = nullptr;
 
@@ -56,7 +56,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateEmptyAsset(const FCreateAssetPar
 	return PhysicsAsset;
 }
 
-UObject* UInterchangePhysicsAssetFactory::CreateAsset(const UInterchangePhysicsAssetFactory::FCreateAssetParams& Arguments) const
+UObject* UInterchangePhysicsAssetFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
 #if !WITH_EDITORONLY_DATA
 

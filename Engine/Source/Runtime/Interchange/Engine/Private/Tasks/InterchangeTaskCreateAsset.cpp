@@ -153,7 +153,8 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
 			AssetInfo.ImportAsset = NodeAsset;
 			AssetInfo.Factory = Factory;
-			AssetInfo.NodeUniqueId = Node->GetUniqueID();
+			AssetInfo.FactoryNode = Node;
+			AssetInfo.bIsReimport = bool(AsyncHelper->TaskData.ReimportObject);
 			Node->ReferenceObject = FSoftObjectPath(NodeAsset);
 		}
 	}
@@ -284,7 +285,8 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 				UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
 				AssetInfo.ImportAsset = NodeAsset;
 				AssetInfo.Factory = Factory;
-				AssetInfo.NodeUniqueId = Node->GetUniqueID();
+				AssetInfo.FactoryNode = Node;
+				AssetInfo.bIsReimport = bool(AsyncHelper->TaskData.ReimportObject);
 			}
 
 			// Fill in destination asset and type in any results which have been added previously by a translator or pipeline, now that we have a corresponding factory.

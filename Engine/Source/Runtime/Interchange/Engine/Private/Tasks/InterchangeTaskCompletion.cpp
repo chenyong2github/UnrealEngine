@@ -56,9 +56,12 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 				UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
 				Arguments.ImportedObject = Asset;
 				Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
-				Arguments.NodeUniqueID = AssetInfo.NodeUniqueId;
+				Arguments.FactoryNode = AssetInfo.FactoryNode;
+				// Should we assert if there is no factory node?
+				Arguments.NodeUniqueID = AssetInfo.FactoryNode ? AssetInfo.FactoryNode->GetUniqueID() : FString();
 				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 				Arguments.Pipelines = AsyncHelper->Pipelines;
+				Arguments.bIsReimport = AssetInfo.bIsReimport;
 				AssetInfo.Factory->PreImportPreCompletedCallback(Arguments);
 			}
 
@@ -95,9 +98,11 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 				UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
 				Arguments.ImportedObject = Asset;
 				Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
-				Arguments.NodeUniqueID = AssetInfo.NodeUniqueId;
+				Arguments.FactoryNode = AssetInfo.FactoryNode;
+				Arguments.NodeUniqueID = AssetInfo.FactoryNode ? AssetInfo.FactoryNode->GetUniqueID() : FString();
 				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 				Arguments.Pipelines = AsyncHelper->Pipelines;
+				Arguments.bIsReimport = AssetInfo.bIsReimport;
 				AssetInfo.Factory->PostImportPreCompletedCallback(Arguments);
 			}
 		}

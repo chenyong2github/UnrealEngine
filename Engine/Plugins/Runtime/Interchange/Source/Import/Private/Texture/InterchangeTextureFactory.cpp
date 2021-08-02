@@ -20,11 +20,10 @@
 #include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
 #include "InterchangeTranslatorBase.h"
-#include "Misc/TVariant.h"
 #include "Nodes/InterchangeBaseNode.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Texture/InterchangeBlockedTexturePayloadInterface.h"
 #include "Texture/InterchangeSlicedTexturePayloadInterface.h"
-#include "Texture/InterchangeTextureLightProfilePayloadData.h"
 #include "Texture/InterchangeTextureLightProfilePayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 #include "TextureCompiler.h"
@@ -227,12 +226,6 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return {};
 	}
 
-	using FTexturePayloadVariant = TVariant<FEmptyVariantState
-		, TOptional<FImportImage>
-		, TOptional<FImportBlockedImage>
-		, TOptional<FImportSlicedImage>
-		, TOptional<FImportLightProfile>>;
-
 	FTexturePayloadVariant GetTexturePayload(const UInterchangeSourceData* SourceData, const FString& PayloadKey, const FTextureNodeVariant& TextureNodeVariant, const UInterchangeTranslatorBase* Translator)
 	{
 		// Standard texture 2D payload
@@ -270,7 +263,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	}
 
 #if WITH_EDITORONLY_DATA
-	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image)
+	void SetupTextureSourceData(UTexture* Texture, FImportImage& Image)
 	{
 		Texture->Source.Init(
 			Image.SizeX,
@@ -278,11 +271,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			/*NumSlices=*/ 1,
 			Image.NumMips,
 			Image.Format,
-			Image.RawData.GetData()
+			Image.RawData.MoveToShared()
 		);
 
 		Texture->CompressionSettings = Image.CompressionSettings;
-		Texture->SRGB = Image.SRGB;
+		Texture->SRGB = Image.bSRGB;
 
 		//If the MipGenSettings was set by the translator, we must apply it before the build
 		if (Image.MipGenSettings.IsSet())
@@ -292,50 +285,50 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
-	bool SetupTexture2DSourceData(UTexture2D* Texture2D, const FImportBlockedImage& BlockedImage)
+	bool SetupTexture2DSourceData(UTexture2D* Texture2D, FImportBlockedImage& BlockedImage)
 	{
-		if (BlockedImage.IsBlockedData())
+		if (BlockedImage.IsValid())
 		{
-			if (BlockedImage.HasData())
+			if (BlockedImage.BlocksData.Num() > 1)
 			{
-				ETextureSourceFormat Format = BlockedImage.ImagesData[0].Format;
-				TextureCompressionSettings CompressionSettings = BlockedImage.ImagesData[0].CompressionSettings;
-				bool bSRGB = BlockedImage.ImagesData[0].SRGB;
-
-				TArray<const uint8*> SourceImageDatasPtr;
-				SourceImageDatasPtr.Reserve(BlockedImage.ImagesData.Num());
-				for (const  UE::Interchange::FImportImage& Image : BlockedImage.ImagesData)
-				{
-					SourceImageDatasPtr.Add(Image.RawData.GetData());
-				}
 
 				Texture2D->Source.InitBlocked(
-					&Format,
+					&BlockedImage.Format,
 					BlockedImage.BlocksData.GetData(),
-					/*NumSlices=*/ 1,
+					/*InNumLayers=*/ 1,
 					BlockedImage.BlocksData.Num(),
-					SourceImageDatasPtr.GetData()
-				);
+					BlockedImage.RawData.MoveToShared()
+					);
 
-				Texture2D->CompressionSettings = CompressionSettings;
-				Texture2D->SRGB = bSRGB;
+				Texture2D->CompressionSettings = BlockedImage.CompressionSettings;
+				Texture2D->SRGB = BlockedImage.bSRGB;
 				Texture2D->VirtualTextureStreaming = true;
 
-				if (BlockedImage.ImagesData[0].MipGenSettings.IsSet())
+				if (BlockedImage.MipGenSettings.IsSet())
 				{
 					// if the source has mips we keep the mips by default, unless the user changes that
-					Texture2D->MipGenSettings = BlockedImage.ImagesData[0].MipGenSettings.GetValue();
+					Texture2D->MipGenSettings = BlockedImage.MipGenSettings.GetValue();
 				}
 
 				return true;
 			}
-		}
-		else
-		{
-			//Import as a normal texture
-			if (BlockedImage.ImagesData.Num() == 1)
+			else
 			{
-				SetupTextureSourceData(Texture2D, BlockedImage.ImagesData[0]);
+				//Import as a normal texture
+				FImportImage Image;
+				Image.Format = BlockedImage.Format;
+				Image.CompressionSettings = BlockedImage.CompressionSettings;
+				Image.bSRGB = BlockedImage.bSRGB;
+				Image.MipGenSettings = BlockedImage.MipGenSettings;
+
+				const FTextureSourceBlock& Block = BlockedImage.BlocksData[0];
+				Image.SizeX = Block.SizeX;
+				Image.SizeY = Block.SizeY;
+				Image.NumMips = Block.NumMips;
+
+				Image.RawData = MoveTemp(BlockedImage.RawData);
+
+				SetupTextureSourceData(Texture2D, Image);
 				return true;
 			}
 		}
@@ -343,42 +336,20 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return false;
 	}
 
-	void SetupTextureSourceData(UTexture* Texture, const FImportSlicedImage& SlicedImage)
+	void SetupTextureSourceData(UTexture* Texture, FImportSlicedImage& SlicedImage)
 	{
-		Texture->Source.Init(
+		Texture->Source.InitLayered(
 			SlicedImage.SizeX,
 			SlicedImage.SizeY,
 			SlicedImage.NumSlice,
+			1,
 			SlicedImage.NumMips,
-			SlicedImage.Format
-		);
+			&SlicedImage.Format,
+			SlicedImage.RawData.MoveToShared()
+			);
 
 		Texture->CompressionSettings = SlicedImage.CompressionSettings;
 		Texture->SRGB = SlicedImage.bSRGB;
-
-
-		uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = {0};
-		int32 MipSize[MAX_TEXTURE_MIP_COUNT] = {0};
-		for (int32 MipIndex = 0; MipIndex < SlicedImage.NumMips; ++MipIndex)
-		{
-			DestMipData[MipIndex] = Texture->Source.LockMip(MipIndex);
-			MipSize[MipIndex] = Texture->Source.CalcMipSize(MipIndex) / SlicedImage.NumSlice;
-		}
-
-		for (int32 SliceIndex = 0; SliceIndex < SlicedImage.NumSlice; ++SliceIndex)
-		{
-			const uint8* SrcMipData = SlicedImage.GetMipData(0, SliceIndex);
-			for (int32 MipIndex = 0; MipIndex < SlicedImage.NumMips; ++MipIndex)
-			{
-				FMemory::Memcpy(DestMipData[MipIndex] + MipSize[MipIndex] * SliceIndex, SrcMipData, MipSize[MipIndex]);
-				SrcMipData += MipSize[MipIndex];
-			}
-		}
-
-		for (int32 MipIndex = 0; MipIndex < SlicedImage.NumMips; ++MipIndex)
-		{
-			Texture->Source.UnlockMip(MipIndex);
-		}
 
 		if (SlicedImage.MipGenSettings.IsSet())
 		{
@@ -387,25 +358,52 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
-	void SetupTextureSourceData(UTextureLightProfile* TextureLightProfile, const FImportLightProfile& LightProfile)
+	void SetupTextureSourceData(UTextureLightProfile* TextureLightProfile, FImportLightProfile& LightProfile)
 	{
-		const FImportImage& ImportImage = LightProfile;
+		FImportImage& ImportImage = LightProfile;
 		SetupTextureSourceData(TextureLightProfile, ImportImage);
 
 		TextureLightProfile->Brightness = LightProfile.Brightness;
 		TextureLightProfile->TextureMultiplier = LightProfile.TextureMultiplier;
 	}
 
-	bool SetupTexture2DSourceData(UTexture2D* Texture2D, const FTexturePayloadVariant& TexturePayload)
+	bool CanSetupTexture2DSourceData(FTexturePayloadVariant& TexturePayload)
 	{
-		if (const TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
+		if (TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
+		{
+			if (BlockedImage->IsSet())
+			{
+				return (*BlockedImage)->IsValid();
+			}
+		}
+		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (Image->IsSet())
+			{
+				return (*Image)->IsValid();
+			}
+		}
+		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (LightProfile->IsSet())
+			{
+				return (*LightProfile)->IsValid();
+			}
+		}
+
+		return false;
+	}
+
+	bool SetupTexture2DSourceData(UTexture2D* Texture2D, FTexturePayloadVariant& TexturePayload)
+	{
+		if (TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
 		{
 			if (BlockedImage->IsSet())
 			{
 				return SetupTexture2DSourceData(Texture2D, BlockedImage->GetValue());
 			}
 		}
-		else if (const TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
 		{
 			if (Image->IsSet())
 			{
@@ -413,17 +411,20 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 				return true;
 			}
 		}
-		else if (const TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		else if (TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
 		{
-			const FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+			if (OptionalLightProfile->IsSet())
+			{
+				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
 
-			if (UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(Texture2D))
-			{
-				SetupTextureSourceData(TextureLightProfile, LightProfile);
-			}
-			else
-			{
-				SetupTextureSourceData(Texture2D, LightProfile);
+				if (UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(Texture2D))
+				{
+					SetupTextureSourceData(TextureLightProfile, LightProfile);
+				}
+				else
+				{
+					SetupTextureSourceData(Texture2D, LightProfile);
+				}
 			}
 
 			return true;
@@ -432,13 +433,40 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return false;
 	}
 
-	bool SetupTextureCubeSourceData(UTextureCube* TextureCube, const FTexturePayloadVariant& TexturePayload)
+	bool CanSetupTextureCubeSourceData(FTexturePayloadVariant& TexturePayload)
 	{
-		if (const TOptional<FImportSlicedImage>* OptionalSlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
+		if (TOptional<FImportSlicedImage>* SlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
+		{
+			if (SlicedImage->IsSet())
+			{
+				return (*SlicedImage)->IsValid() && (*SlicedImage)->NumSlice == 6;
+			}
+		}
+		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (Image->IsSet())
+			{
+				return (*Image)->IsValid();
+			}
+		}
+		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (LightProfile->IsSet())
+			{
+				return (*LightProfile)->IsValid();
+			}
+		}
+
+		return false;
+	}
+
+	bool SetupTextureCubeSourceData(UTextureCube* TextureCube, FTexturePayloadVariant& TexturePayload)
+	{
+		if (TOptional<FImportSlicedImage>* OptionalSlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
 		{
 			if (OptionalSlicedImage->IsSet())
 			{
-				const FImportSlicedImage& SlicedImage = OptionalSlicedImage->GetValue();
+				FImportSlicedImage& SlicedImage = OptionalSlicedImage->GetValue();
 
 				// Cube texture always have six slice
 				if (SlicedImage.NumSlice == 6)
@@ -448,20 +476,20 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 				}
 			}
 		}
-		else if (const TOptional<FImportImage>* OptionalImage = TexturePayload.TryGet<TOptional<FImportImage>>())
+		else if (TOptional<FImportImage>* OptionalImage = TexturePayload.TryGet<TOptional<FImportImage>>())
 		{
 			if (OptionalImage->IsSet())
 			{
-				const FImportImage& Image = OptionalImage->GetValue();
+				FImportImage& Image = OptionalImage->GetValue();
 				SetupTextureSourceData(TextureCube, Image);
 				return true;
 			}
 		}
-		else if (const TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		else if (TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
 		{
 			if (OptionalLightProfile->IsSet())
 			{
-				const FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
 				SetupTextureSourceData(TextureCube, LightProfile);
 				return true;
 			}
@@ -470,35 +498,70 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return false;
 	}
 
-	bool SetupTexture2DArraySourceData(UTexture2DArray* Texture2DArray, const FTexturePayloadVariant& TexturePayload)
+	bool CanSetupTexture2DArraySourceData(FTexturePayloadVariant& TexturePayload)
 	{
-		if (const TOptional<FImportSlicedImage>* OptionalSlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
+		if (TOptional<FImportSlicedImage>* SlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
+		{
+			if (SlicedImage->IsSet())
+			{
+				return (*SlicedImage)->IsValid();
+			}
+		}
+		else if (TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (Image->IsSet())
+			{
+				return (*Image)->IsValid();
+			}
+		}
+		else if (TOptional<FImportLightProfile>* LightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (LightProfile->IsSet())
+			{
+				return (*LightProfile)->IsValid();
+			}
+		}
+
+		return false;
+	}
+
+	bool SetupTexture2DArraySourceData(UTexture2DArray* Texture2DArray, FTexturePayloadVariant& TexturePayload)
+	{
+		if (TOptional<FImportSlicedImage>* OptionalSlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
 		{
 			if (OptionalSlicedImage->IsSet())
 			{
-				const FImportSlicedImage& SlicedImage = OptionalSlicedImage->GetValue();
+				FImportSlicedImage& SlicedImage = OptionalSlicedImage->GetValue();
 
 				SetupTextureSourceData(Texture2DArray, SlicedImage);
 				return true;
 			}
 		}
-		else if (const TOptional<FImportImage>* OptionalImage = TexturePayload.TryGet<TOptional<FImportImage>>())
+		else if (TOptional<FImportImage>* OptionalImage = TexturePayload.TryGet<TOptional<FImportImage>>())
 		{
 			if (OptionalImage->IsSet())
 			{
-				const FImportImage& Image = OptionalImage->GetValue();
+				FImportImage& Image = OptionalImage->GetValue();
 				SetupTextureSourceData(Texture2DArray, Image);
 				return true;
 			}
 		}
-		else if (const TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		else if (TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
 		{
-			const FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
-			SetupTextureSourceData(Texture2DArray, LightProfile);
+			if (OptionalLightProfile->IsSet())
+			{
+				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+				SetupTextureSourceData(Texture2DArray, LightProfile);
+			}
 			return true;
 		}
 
 		return false;
+	}
+
+	void LogErrorInvalidPayload(const FString& TextureClass, const FString& ObjectName)
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a %s. (%s)"), *TextureClass, *ObjectName);
 	}
 
 #endif // WITH_EDITORONLY_DATA
@@ -510,7 +573,7 @@ UClass* UInterchangeTextureFactory::GetFactoryClass() const
 	return UTexture::StaticClass();
 }
 
-UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments) const
+UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
 {
 	using namespace  UE::Interchange::Private::InterchangeTextureFactory;
 
@@ -573,13 +636,12 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 		return nullptr;
 	}
 
-	Texture->PreEditChange(nullptr);
-
 #endif //WITH_EDITORONLY_DATA
 	return Texture;
 }
 
-UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactory::FCreateAssetParams& Arguments) const
+// The payload fetching and the heavy operations are done here
+UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
 #if !WITH_EDITORONLY_DATA
 
@@ -587,6 +649,8 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	return nullptr;
 
 #else
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UInterchangeTextureFactory::CreateAsset);
 
 	using namespace  UE::Interchange::Private::InterchangeTextureFactory;
 
@@ -627,7 +691,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		return nullptr;
 	}
 
-	FTexturePayloadVariant TexturePayload = GetTexturePayload(Arguments.SourceData, PayLoadKey.GetValue(), TextureNodeVariant, Arguments.Translator);
+	TexturePayload = GetTexturePayload(Arguments.SourceData, PayLoadKey.GetValue(), TextureNodeVariant, Arguments.Translator);
 
 	if(TexturePayload.IsType<FEmptyVariantState>())
 	{
@@ -660,59 +724,32 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	}
 
 
-	// Setup source data
+	bool bCanSetup = false;
+	// Check if the payload is valid for the Texture
 	if (UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
 	{
-		if (!SetupTexture2DSourceData(Texture2D, TexturePayload))
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a %s. (%s)"), *(TextureClass->GetName()), *Arguments.AssetName);
-			return nullptr;
-		}
+		bCanSetup = CanSetupTexture2DSourceData(TexturePayload);
 	}
 	else if (UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
 	{
-		if (!SetupTextureCubeSourceData(TextureCube, TexturePayload))
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a TextureCube. (%s)"), *Arguments.AssetName);
-			return nullptr;
-		}
+		bCanSetup = CanSetupTextureCubeSourceData(TexturePayload);
 	}
 	else if (UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
 	{
-		if (!SetupTexture2DArraySourceData(Texture2DArray, TexturePayload))
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a TextureArray. (%s)"), *Arguments.AssetName);
-			return nullptr;
-		}
+		bCanSetup = CanSetupTexture2DArraySourceData(TexturePayload);
 	}
-	else
+
+	if (!bCanSetup)
 	{
+		LogErrorInvalidPayload(Texture->GetClass()->GetName(), Texture->GetName());
+
 		// The texture is not supported
-		Texture->RemoveFromRoot();
-		Texture->MarkPendingKill();
-		return nullptr;
-	}
-
-	UInterchangeBaseNode* TextureFactoryNode = Arguments.AssetNode;
-	if(!Arguments.ReimportObject)
-	{
-		/** Apply all TextureNode custom attributes to the texture asset */
-		TextureFactoryNode->ApplyAllCustomAttributeToAsset(Texture);
-	}
-	else
-	{
-		UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(Texture->AssetImportData);
-		UInterchangeBaseNode* PreviousNode = nullptr;
-		if (InterchangeAssetImportData)
+		if (!Arguments.ReimportObject)
 		{
-			PreviousNode = InterchangeAssetImportData->NodeContainer->GetNode(InterchangeAssetImportData->NodeUniqueID);
+			Texture->RemoveFromRoot();
+			Texture->MarkPendingKill();
 		}
-
-		UInterchangeBaseNode* CurrentNode = NewObject<UInterchangeBaseNode>(GetTransientPackage(), SupportedFactoryNodeClass);
-		UInterchangeBaseNode::CopyStorage(TextureFactoryNode, CurrentNode);
-		CurrentNode->FillAllCustomAttributeFromAsset(Texture);
-		//Apply reimport strategy
-		UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Arguments.ReimportStrategyFlags, Texture, PreviousNode, CurrentNode, TextureFactoryNode);
+		return nullptr;
 	}
 
 	//Getting the file Hash will cache it into the source data
@@ -725,24 +762,93 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const
+void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UInterchangeTextureFactory::PreImportPreCompletedCallback);
+
 	check(IsInGameThread());
+
+	UTexture* Texture = Cast<UTexture>(Arguments.ImportedObject);
+
+#if WITH_EDITOR
+
+	// Finish the import on the game thread by doing the setup on the texture here
+	if (Texture)
+	{
+		Texture->PreEditChange(nullptr);
+
+		using namespace UE::Interchange::Private::InterchangeTextureFactory;
+
+		// Setup source data
+		if (UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
+		{
+			if (!SetupTexture2DSourceData(Texture2D, TexturePayload))
+			{
+				LogErrorInvalidPayload(Arguments.ImportedObject->GetClass()->GetName(), Arguments.ImportedObject->GetName());
+				return;			
+			}
+		}
+		else if (UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
+		{
+			if (!SetupTextureCubeSourceData(TextureCube, TexturePayload))
+			{
+				LogErrorInvalidPayload(Arguments.ImportedObject->GetClass()->GetName(), Arguments.ImportedObject->GetName());
+				return;
+			}
+		}
+		else if (UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Arguments.ImportedObject))
+		{
+			if (!SetupTexture2DArraySourceData(Texture2DArray, TexturePayload))
+			{
+				LogErrorInvalidPayload(Arguments.ImportedObject->GetClass()->GetName(), Arguments.ImportedObject->GetName());
+				return;
+			}
+		}
+		else
+		{
+			// This should never happen.
+			ensure(false);
+		}
+
+
+		UInterchangeBaseNode* TextureFactoryNode = Arguments.FactoryNode;
+		if (!Arguments.bIsReimport)
+		{
+			/** Apply all TextureNode custom attributes to the texture asset */
+			TextureFactoryNode->ApplyAllCustomAttributeToAsset(Texture);
+		}
+		else
+		{
+			UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(Texture->AssetImportData);
+			UInterchangeBaseNode* PreviousNode = nullptr;
+			if (InterchangeAssetImportData)
+			{
+				PreviousNode = InterchangeAssetImportData->NodeContainer->GetNode(InterchangeAssetImportData->NodeUniqueID);
+			}
+
+			UInterchangeBaseNode* CurrentNode = NewObject<UInterchangeBaseNode>(GetTransientPackage(), GetSupportedFactoryNodeClass(TextureFactoryNode));
+			UInterchangeBaseNode::CopyStorage(TextureFactoryNode, CurrentNode);
+			CurrentNode->FillAllCustomAttributeFromAsset(Texture);
+			//Apply reimport strategy
+			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Arguments.ReimportStrategyFlags, Texture, PreviousNode, CurrentNode, TextureFactoryNode);
+		}
+	}
+#endif //WITH_EDITOR
+
 	Super::PreImportPreCompletedCallback(Arguments);
+
 	//TODO make sure this work at runtime
 #if WITH_EDITORONLY_DATA
-	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
+	if (ensure(Texture && Arguments.SourceData))
 	{
 		//We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
-		UTexture* ImportedTexture = CastChecked<UTexture>(Arguments.ImportedObject);
-		
-		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(ImportedTexture
-																						 , ImportedTexture->AssetImportData
+		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(Texture
+																						 , Texture->AssetImportData
 																						 , Arguments.SourceData
 																						 , Arguments.NodeUniqueID
 																						 , Arguments.NodeContainer
 																						 , Arguments.Pipelines);
-		ImportedTexture->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
+		Texture->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 	}
 #endif
 }

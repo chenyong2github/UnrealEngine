@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Texture.h"
+#include "Memory/SharedBuffer.h"
 
 namespace UE
 {
@@ -14,33 +15,30 @@ namespace UE
 		// Also known as a UDIMs texture
 		struct FImportBlockedImage
 		{
-			// The first image data will be used for the default compression setting 
-			// The first image will also be use for the pixel format and gamma (bsRGB)
-
+			FUniqueBuffer RawData;
 			TArray<FTextureSourceBlock> BlocksData;
-			TArray<FImportImage> ImagesData;
 
-			void InitZeroed(uint32 Count)
-			{
-				BlocksData.AddZeroed(Count);
-				ImagesData.AddZeroed(Count);
-			}
+			ETextureSourceFormat Format = TSF_Invalid;
+			TextureCompressionSettings CompressionSettings = TC_Default;
+			bool bSRGB = true;
+			TOptional<TextureMipGenSettings> MipGenSettings;
 
-			void RemoveBlock(int32 Index)
-			{
-				BlocksData.RemoveAtSwap(Index);
-				ImagesData.RemoveAtSwap(Index);
-			}
 
-			bool HasData() const
-			{
-				return ImagesData.Num() > 0;
-			}
+			int64 ComputeBufferSize() const;
+			bool IsValid() const;
 
-			bool IsBlockedData() const
-			{
-				return BlocksData.Num() > 0;
-			}
+
+			bool InitDataSharedAmongBlocks(const FImportImage& Image);
+
+			/**
+			 * Everything except the RawData and BlocksData must be initialized before calling this function
+			 */
+			bool InitBlockFromImage(int32 BlockX, int32 BlockY, const FImportImage& Image);
+
+			/**
+			 * Everything except the RawData must be initialized before calling this function
+			 */
+			bool MigrateDataFromImagesToRawData(TArray<FImportImage>& Images);
 		};
 	}
 }

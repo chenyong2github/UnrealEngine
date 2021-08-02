@@ -4,8 +4,8 @@
 
 #include "InterchangeManager.h"
 #include "InterchangeTexture2DNode.h"
+#include "Texture/InterchangeTexturePayloadData.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
-
 
 #include "UDIMUtilities.h"
 #include "Async/ParallelFor.h"
@@ -228,8 +228,6 @@ bool UInterchangeUDIMTranslator::Translate(UInterchangeBaseNodeContainer& BaseNo
 
 TOptional<UE::Interchange::FImportBlockedImage> UInterchangeUDIMTranslator::GetBlockedTexturePayloadData(const TMap<int32, FString>& InSourcesData,  const UInterchangeSourceData* OriginalFile) const
 {
-	const FString CurrentFilename = OriginalFile->GetFilename();
-
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 
 	if (UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorSupportingPayloadInterfaceForSourceData(OriginalFile, UInterchangeTexturePayloadInterface::StaticClass()))
@@ -247,12 +245,15 @@ TOptional<UE::Interchange::FImportBlockedImage> UInterchangeUDIMTranslator::GetB
 			using namespace UE::Interchange::Private::InterchangeUDIMTranslator;
 			FScopedTranslatorsAndSourceData TranslatorsAndSourceData(*Translator, UDIMsAndSourcesFileArray.Num());
 
-			UE::Interchange::FImportBlockedImage BlockedImage;
-			BlockedImage.InitZeroed(UDIMsAndSourcesFileArray.Num());
+			/**
+			 * Possible improvement notes.
+			 * If we are able at some point to extract the size and format of the textures from the translate step for some formats,
+			 * We could use those information to init the blocked image RawData and set the ImportsImages RawData to be a view into the blocked image.
+			 */ 
+			TArray<UE::Interchange::FImportImage> Images;
+			Images.AddDefaulted(UDIMsAndSourcesFileArray.Num());
 
-			TArray<int32> InvalidTextureIndex;
-
-			ParallelFor(UDIMsAndSourcesFileArray.Num(), [&TranslatorsAndSourceData, &UDIMsAndSourcesFileArray, &BlockedImage, &InvalidTextureIndex](int32 Index)
+			ParallelFor(UDIMsAndSourcesFileArray.Num(), [&TranslatorsAndSourceData, &UDIMsAndSourcesFileArray, &Images](int32 Index)
 				{
 					TPair<UInterchangeTranslatorBase*,UInterchangeSourceData*>& TranslatorAndSourceData = TranslatorsAndSourceData[Index];
 					UInterchangeTranslatorBase* Translator = TranslatorAndSourceData.Key;
@@ -266,6 +267,7 @@ TOptional<UE::Interchange::FImportBlockedImage> UInterchangeUDIMTranslator::GetB
 					TOptional<UE::Interchange::FImportImage> Payload;
 					if (Translator->CanImportSourceData(SourceDataForBlock))
 					{
+						Translator->SourceData = SourceDataForBlock;
 						Payload = TextureTranslator->GetTexturePayloadData(SourceDataForBlock, SourceDataForBlock->GetFilename());
 					}
 
@@ -273,35 +275,40 @@ TOptional<UE::Interchange::FImportBlockedImage> UInterchangeUDIMTranslator::GetB
 					{
 						UE::Interchange::FImportImage& Image = Payload.GetValue();
 						// Consume the image
-						BlockedImage.ImagesData[Index] = MoveTemp(Image);
-
-						FTextureSourceBlock& Block =  BlockedImage.BlocksData[Index];
-						Block.BlockX = (CurrentUDIM - 1001) % 10;
-						Block.BlockY = (CurrentUDIM - 1001) / 10;
-						Block.SizeX = Image.SizeX;
-						Block.SizeY = Image.SizeY;
-						Block.NumSlices = 1;
-						Block.NumMips = Image.NumMips;
+						Images[Index] = MoveTemp(Image);
 					}
 					else
 					{
-						// Todo Interchange Log error
-						InvalidTextureIndex.Add(Index);
+						// Todo Capture the error message from the translator?
 					}
 
-					// Let the translator release it data.
+					// Let the translator release his data.
 					Translator->ImportFinish();
 				}
 				, EParallelForFlags::Unbalanced | EParallelForFlags::BackgroundPriority);
 
-			for (int32 Index : InvalidTextureIndex)
-			{
-				BlockedImage.RemoveBlock(Index);
-			}
 
-			if (BlockedImage.HasData())
+			UE::Interchange::FImportBlockedImage BlockedImage;
+			// If the image that triggered the import is not valid. We shouldn't import the rest of the images into the UDIM.
+			if (BlockedImage.InitDataSharedAmongBlocks(Images[0]))
 			{
-				return BlockedImage;
+				BlockedImage.BlocksData.Reserve(Images.Num());
+
+				for (int32 Index = 0; Index < Images.Num(); ++Index)
+				{
+					int32 UDIMIndex = UDIMsAndSourcesFileArray[Index]->Key;
+					const int32 BlockX = (UDIMIndex - 1001) % 10;
+					const int32 BlockY = (UDIMIndex - 1001) / 10;
+					BlockedImage.InitBlockFromImage(BlockX, BlockY, Images[Index]);
+				}
+
+				BlockedImage.MigrateDataFromImagesToRawData(Images);
+
+				if (BlockedImage.BlocksData.Num() > 0)
+				{
+					return BlockedImage;
+				}
+				
 			}
 		}
 
@@ -311,11 +318,30 @@ TOptional<UE::Interchange::FImportBlockedImage> UInterchangeUDIMTranslator::GetB
 			TOptional<UE::Interchange::FImportImage> Payload = TextureTranslator->GetTexturePayloadData(OriginalFile, OriginalFile->GetFilename());
 			if (Payload.IsSet())
 			{
+				UE::Interchange::FImportImage& Image = Payload.GetValue();
+
 				UE::Interchange::FImportBlockedImage BlockedImage;
-				// Consume the image
-				BlockedImage.ImagesData.Add(MoveTemp(Payload.GetValue()));
-				Translator->ImportFinish();
-				return BlockedImage;
+				if (BlockedImage.InitDataSharedAmongBlocks(Image))
+				{
+					const FString FilenameNoExtension = FPaths::GetBaseFilename(OriginalFile->GetFilename());
+
+					FString PreUDIMName;
+					FString PostUDIMName;
+					const int32 UDIMIndex = UE::TextureUtilitiesCommon::ParseUDIMName(FilenameNoExtension, UdimRegexPattern, PreUDIMName, PostUDIMName);
+					
+					const int32 BlockX = (UDIMIndex - 1001) % 10;
+					const int32 BlockY = (UDIMIndex - 1001) / 10;
+
+					BlockedImage.InitBlockFromImage(BlockX, BlockY, Image);
+
+					// Consume the payload
+					BlockedImage.RawData = MoveTemp(Image.RawData);
+		
+					Translator->ImportFinish();
+					return BlockedImage;
+				}
+
+				// Todo else Grab error message from translator
 			}
 		}
 

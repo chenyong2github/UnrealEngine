@@ -74,7 +74,10 @@ TOptional<UE::Interchange::FImportLightProfile> UInterchangeIESTranslator::GetLi
 		Payload.Brightness = IESConverter.GetBrightness();
 		Payload.TextureMultiplier = IESConverter.GetMultiplier();
 
-		Payload.RawData = IESConverter.GetRawData();
+
+		const TArray<uint8>&  RawData = IESConverter.GetRawData();;
+
+		FPlatformMemory::Memcpy(Payload.RawData.GetData(), RawData.GetData(), Payload.RawData.GetSize());
 
 		return Payload;
 	}

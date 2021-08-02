@@ -177,7 +177,8 @@ namespace UE
 			{
 				UObject* ImportAsset;
 				UInterchangeFactoryBase* Factory;
-				FString NodeUniqueId;
+				UInterchangeBaseNode* FactoryNode;
+				bool bIsReimport;
 			};
 
 			FCriticalSection ImportedAssetsPerSourceIndexLock;

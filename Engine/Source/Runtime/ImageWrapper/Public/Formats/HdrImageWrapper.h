@@ -36,6 +36,7 @@ public:
 
 	void FreeCompressedData();
 
+	using IImageWrapper::GetRaw;
 private:
 	bool GetHeaderLine(const uint8*& BufferPos, char Line[256]);
 
