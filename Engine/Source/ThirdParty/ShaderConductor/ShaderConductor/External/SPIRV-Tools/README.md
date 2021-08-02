@@ -348,7 +348,7 @@ option, like so:
 
 ```sh
 # In <spirv-dir> (the SPIRV-Tools repo root):
-git clone --depth=1 --branch v3.13.0 https://github.com/protocolbuffers/protobuf external/protobuf
+git clone --depth=1 --branch v3.13.0.1 https://github.com/protocolbuffers/protobuf external/protobuf
 
 # In your build directory:
 cmake [-G <platform-generator>] <spirv-dir> -DSPIRV_BUILD_FUZZER=ON
@@ -643,8 +643,32 @@ This is experimental.
 
 ### Tests
 
-Tests are only built when googletest is found. Use `ctest` to run all the
-tests.
+Tests are only built when googletest is found.
+
+#### Running test with CMake
+
+Use `ctest -j <num threads>` to run all the tests. To run tests using all threads:
+```shell
+ctest -j$(nproc)
+```
+
+To run a single test target, use `ctest [-j <N>] -R <test regex>`. For example,
+you can run all `opt` tests with:
+```shell
+ctest -R 'spirv-tools-test_opt'
+```
+
+#### Running test with Bazel
+
+Use `bazel test :all` to run all tests. This will run tests in parallel by default.
+
+To run a single test target, specify `:my_test_target` instead of `:all`. Test target
+names get printed when you run `bazel test :all`. For example, you can run
+`opt_def_use_test` with:
+```shell
+bazel test :opt_def_use_test
+```
+
 
 ## Future Work
 <a name="future"></a>

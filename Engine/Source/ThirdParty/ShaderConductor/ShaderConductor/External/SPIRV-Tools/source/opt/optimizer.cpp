@@ -500,6 +500,8 @@ bool Optimizer::RegisterPassFromFlag(const std::string& flag) {
     RegisterSizePasses();
   } else if (pass_name == "legalize-hlsl") {
     RegisterLegalizationPasses();
+  } else if (pass_name == "remove-unused-interface-variables") {
+    RegisterPass(CreateRemoveUnusedInterfaceVariablesPass());
     // UE Change Begin: Implement a fused-multiply-add pass to reduce the
     // possibility of re-association.
   } else if (pass_name == "fused-multiply-add") {
@@ -744,6 +746,11 @@ Optimizer::PassToken CreateLocalMultiStoreElimPass() {
 Optimizer::PassToken CreateAggressiveDCEPass() {
   return MakeUnique<Optimizer::PassToken::Impl>(
       MakeUnique<opt::AggressiveDCEPass>());
+}
+
+Optimizer::PassToken CreateRemoveUnusedInterfaceVariablesPass() {
+  return MakeUnique<Optimizer::PassToken::Impl>(
+      MakeUnique<opt::RemoveUnusedInterfaceVariablesPass>());
 }
 
 Optimizer::PassToken CreatePropagateLineInfoPass() {

@@ -17,16 +17,17 @@ expected_value)`.
 Built-in matchers (where `argument` is the function argument, e.g.
 `actual_value` in the example above, or when used in the context of
 `EXPECT_CALL(mock_object, method(matchers))`, the arguments of `method`) are
-divided into several categories:
+divided into several categories. All matchers are defined in the `::testing`
+namespace unless otherwise noted.
 
-### Wildcard
+## Wildcard
 
 Matcher                     | Description
 :-------------------------- | :-----------------------------------------------
 `_`                         | `argument` can be any value of the correct type.
 `A<type>()` or `An<type>()` | `argument` can be any value of type `type`.
 
-### Generic Comparison
+## Generic Comparison
 
 | Matcher                | Description                                         |
 | :--------------------- | :-------------------------------------------------- |
@@ -55,9 +56,9 @@ will be changed.
 `IsTrue` and `IsFalse` are useful when you need to use a matcher, or for types
 that can be explicitly converted to Boolean, but are not implicitly converted to
 Boolean. In other cases, you can use the basic
-[`EXPECT_TRUE` and `EXPECT_FALSE`](primer.md#basic-assertions) assertions.
+[`EXPECT_TRUE` and `EXPECT_FALSE`](assertions.md#boolean) assertions.
 
-### Floating-Point Matchers {#FpMatchers}
+## Floating-Point Matchers {#FpMatchers}
 
 | Matcher                          | Description                        |
 | :------------------------------- | :--------------------------------- |
@@ -81,7 +82,7 @@ user wants.
 | `NanSensitiveDoubleNear(a_double, max_abs_error)` | `argument` is a `double` value close to `a_double` (absolute error <= `max_abs_error`), treating two NaNs as equal. |
 | `NanSensitiveFloatNear(a_float, max_abs_error)`   | `argument` is a `float` value close to `a_float` (absolute error <= `max_abs_error`), treating two NaNs as equal. |
 
-### String Matchers
+## String Matchers
 
 The `argument` can be either a C string or a C++ string object:
 
@@ -100,10 +101,10 @@ The `argument` can be either a C string or a C++ string object:
 
 `ContainsRegex()` and `MatchesRegex()` take ownership of the `RE` object. They
 use the regular expression syntax defined
-[here](advanced.md#regular-expression-syntax). All of these matchers, except
+[here](../advanced.md#regular-expression-syntax). All of these matchers, except
 `ContainsRegex()` and `MatchesRegex()` work for wide strings as well.
 
-### Container Matchers
+## Container Matchers
 
 Most STL-style containers support `==`, so you can use `Eq(expected_container)`
 or simply `expected_container` to match a container exactly. If you want to
@@ -115,6 +116,7 @@ messages, you can use:
 | `BeginEndDistanceIs(m)` | `argument` is a container whose `begin()` and `end()` iterators are separated by a number of increments matching `m`. E.g. `BeginEndDistanceIs(2)` or `BeginEndDistanceIs(Lt(2))`. For containers that define a `size()` method, `SizeIs(m)` may be more efficient. |
 | `ContainerEq(container)` | The same as `Eq(container)` except that the failure message also includes which elements are in one container but not the other. |
 | `Contains(e)` | `argument` contains an element that matches `e`, which can be either a value or a matcher. |
+| `Contains(e).Times(n)` | `argument` contains elements that match `e`, which can be either a value or a matcher, and the number of matches is `n`, which can be either a value or a matcher. Unlike the plain `Contains` and `Each` this allows to check for arbitrary occurrences including testing for absence with `Contains(e).Times(0)`. |
 | `Each(e)` | `argument` is a container where *every* element matches `e`, which can be either a value or a matcher. |
 | `ElementsAre(e0, e1, ..., en)` | `argument` has `n + 1` elements, where the *i*-th element matches `ei`, which can be a value or a matcher. |
 | `ElementsAreArray({e0, e1, ..., en})`, `ElementsAreArray(a_container)`, `ElementsAreArray(begin, end)`, `ElementsAreArray(array)`, or `ElementsAreArray(array, count)` | The same as `ElementsAre()` except that the expected element values/matchers come from an initializer list, STL-style container, iterator range, or C-style array. |
@@ -145,7 +147,6 @@ messages, you can use:
     one might write:
 
     ```cpp
-    using ::std::get;
     MATCHER(FooEq, "") {
       return std::get<0>(arg).Equals(std::get<1>(arg));
     }
@@ -153,7 +154,7 @@ messages, you can use:
     EXPECT_THAT(actual_foos, Pointwise(FooEq(), expected_foos));
     ```
 
-### Member Matchers
+## Member Matchers
 
 | Matcher                         | Description                                |
 | :------------------------------ | :----------------------------------------- |
@@ -187,13 +188,13 @@ messages, you can use:
     taking addresses of functions is fragile and generally not part of the
     contract of the function.
 
-### Matching the Result of a Function, Functor, or Callback
+## Matching the Result of a Function, Functor, or Callback
 
 | Matcher          | Description                                       |
 | :--------------- | :------------------------------------------------ |
 | `ResultOf(f, m)` | `f(argument)` matches matcher `m`, where `f` is a function or functor. |
 
-### Pointer Matchers
+## Pointer Matchers
 
 | Matcher                   | Description                                     |
 | :------------------------ | :---------------------------------------------- |
@@ -202,7 +203,7 @@ messages, you can use:
 | `Pointer(m)`              | `argument` (either a smart pointer or a raw pointer) contains a pointer that matches `m`. `m` will match against the raw pointer regardless of the type of `argument`. |
 | `WhenDynamicCastTo<T>(m)` | when `argument` is passed through `dynamic_cast<T>()`, it matches matcher `m`. |
 
-### Multi-argument Matchers {#MultiArgMatchers}
+## Multi-argument Matchers {#MultiArgMatchers}
 
 Technically, all matchers match a *single* value. A "multi-argument" matcher is
 just one that matches a *tuple*. The following matchers can be used to match a
@@ -225,7 +226,7 @@ reorder them) to participate in the matching:
 | `AllArgs(m)`               | Equivalent to `m`. Useful as syntactic sugar in `.With(AllArgs(m))`. |
 | `Args<N1, N2, ..., Nk>(m)` | The tuple of the `k` selected (using 0-based indices) arguments matches `m`, e.g. `Args<1, 2>(Eq())`. |
 
-### Composite Matchers
+## Composite Matchers
 
 You can make a matcher from one or more other matchers:
 
@@ -236,19 +237,20 @@ You can make a matcher from one or more other matchers:
 | `AnyOf(m1, m2, ..., mn)` | `argument` matches at least one of the matchers `m1` to `mn`. |
 | `AnyOfArray({m0, m1, ..., mn})`, `AnyOfArray(a_container)`, `AnyOfArray(begin, end)`, `AnyOfArray(array)`, or `AnyOfArray(array, count)` | The same as `AnyOf()` except that the matchers come from an initializer list, STL-style container, iterator range, or C-style array. |
 | `Not(m)` | `argument` doesn't match matcher `m`. |
+| `Conditional(cond, m1, m2)` | Matches matcher `m1` if `cond` evalutes to true, else matches `m2`.|
 
-### Adapters for Matchers
+## Adapters for Matchers
 
 | Matcher                 | Description                           |
 | :---------------------- | :------------------------------------ |
 | `MatcherCast<T>(m)`     | casts matcher `m` to type `Matcher<T>`. |
-| `SafeMatcherCast<T>(m)` | [safely casts](gmock_cook_book.md#casting-matchers) matcher `m` to type `Matcher<T>`. |
+| `SafeMatcherCast<T>(m)` | [safely casts](../gmock_cook_book.md#SafeMatcherCast) matcher `m` to type `Matcher<T>`. |
 | `Truly(predicate)`      | `predicate(argument)` returns something considered by C++ to be true, where `predicate` is a function or functor. |
 
 `AddressSatisfies(callback)` and `Truly(callback)` take ownership of `callback`,
 which must be a permanent callback.
 
-### Using Matchers as Predicates {#MatchersAsPredicatesCheat}
+## Using Matchers as Predicates {#MatchersAsPredicatesCheat}
 
 | Matcher                       | Description                                 |
 | :---------------------------- | :------------------------------------------ |
@@ -256,9 +258,9 @@ which must be a permanent callback.
 | `ExplainMatchResult(m, value, result_listener)` | evaluates to `true` if `value` matches `m`, explaining the result to `result_listener`. |
 | `Value(value, m)` | evaluates to `true` if `value` matches `m`. |
 
-### Defining Matchers
+## Defining Matchers
 
-| Matcher                              | Description                           |
+| Macro                                | Description                           |
 | :----------------------------------- | :------------------------------------ |
 | `MATCHER(IsEven, "") { return (arg % 2) == 0; }` | Defines a matcher `IsEven()` to match an even number. |
 | `MATCHER_P(IsDivisibleBy, n, "") { *result_listener << "where the remainder is " << (arg % n); return (arg % n) == 0; }` | Defines a matcher `IsDivisibleBy(n)` to match a number divisible by `n`. |

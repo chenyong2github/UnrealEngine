@@ -549,7 +549,7 @@ static void CreateDefineStrings(
 }
 
 class DxcCompiler : public IDxcCompiler3,
-                    public IDxcLangExtensions2,
+                    public IDxcLangExtensions3,
                     public IDxcContainerEvent,
                     public IDxcVersionInfo3,
 #ifdef SUPPORT_QUERY_GIT_COMMIT_INFO
@@ -587,6 +587,7 @@ public:
       IDxcCompiler3,
       IDxcLangExtensions,
       IDxcLangExtensions2,
+      IDxcLangExtensions3,
       IDxcContainerEvent,
       IDxcVersionInfo
 #ifdef SUPPORT_QUERY_GIT_COMMIT_INFO
@@ -609,7 +610,7 @@ public:
     _In_opt_ IDxcIncludeHandler *pIncludeHandler, // user-provided interface to handle #include directives (optional)
     _In_ REFIID riid, _Out_ LPVOID *ppResult      // IDxcResult: status, buffer, and errors
   ) override {
-    if (pSource == nullptr ||
+    if (pSource == nullptr || ppResult == nullptr ||
         (argCount > 0 && pArguments == nullptr))
       return E_INVALIDARG;
     if (!(IsEqualIID(riid, __uuidof(IDxcResult)) ||
@@ -1130,9 +1131,11 @@ public:
       _Analysis_assume_(DXC_FAILED(e.hr));
       CComPtr<IDxcResult> pResult;
       hr = e.hr;
+      std::string msg("Internal Compiler error: ");
+      msg += e.msg;
       if (SUCCEEDED(DxcResult::Create(e.hr, DXC_OUT_NONE, {
               DxcOutputObject::ErrorOutput(CP_UTF8,
-                e.msg.c_str(), e.msg.size())
+                msg.c_str(), msg.size())
             }, &pResult)) &&
           SUCCEEDED(pResult->QueryInterface(riid, ppResult))) {
         hr = S_OK;
@@ -1349,6 +1352,9 @@ public:
     compiler.getCodeGenOpts().HLSLOptimizationToggles = Opts.DxcOptimizationToggles;
     compiler.getCodeGenOpts().HLSLOptimizationSelects = Opts.DxcOptimizationSelects;
     compiler.getCodeGenOpts().HLSLAllResourcesBound = Opts.AllResourcesBound;
+    compiler.getCodeGenOpts().HLSLIgnoreOptSemDefs = Opts.IgnoreOptSemDefs;
+    compiler.getCodeGenOpts().HLSLIgnoreSemDefs = Opts.IgnoreSemDefs;
+    compiler.getCodeGenOpts().HLSLOverrideSemDefs = Opts.OverrideSemDefs;
     compiler.getCodeGenOpts().HLSLDefaultRowMajor = Opts.DefaultRowMajor;
     compiler.getCodeGenOpts().HLSLPreferControlFlow = Opts.PreferFlowControl;
     compiler.getCodeGenOpts().HLSLAvoidControlFlow = Opts.AvoidFlowControl;

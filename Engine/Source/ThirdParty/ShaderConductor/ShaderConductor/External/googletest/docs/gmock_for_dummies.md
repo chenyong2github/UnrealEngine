@@ -262,8 +262,9 @@ when you allocate mocks on the heap. You get that automatically if you use the
 `gtest_main` library already.
 
 **Important note:** gMock requires expectations to be set **before** the mock
-functions are called, otherwise the behavior is **undefined**. In particular,
-you mustn't interleave `EXPECT_CALL()s` and calls to the mock functions.
+functions are called, otherwise the behavior is **undefined**. Do not alternate
+between calls to `EXPECT_CALL()` and calls to the mock functions, and do not set
+any expectations on a mock after passing the mock to an API.
 
 This means `EXPECT_CALL()` should be read as expecting that a call will occur
 *in the future*, not that a call has occurred. Why does gMock work like that?
@@ -479,8 +480,8 @@ the *default* action for the function every time (unless, of course, you have a
 `WillRepeatedly()`.).
 
 What can we do inside `WillOnce()` besides `Return()`? You can return a
-reference using `ReturnRef(*variable*)`, or invoke a pre-defined function, among
-[others](gmock_cook_book.md#using-actions).
+reference using `ReturnRef(`*`variable`*`)`, or invoke a pre-defined function,
+among [others](gmock_cook_book.md#using-actions).
 
 **Important note:** The `EXPECT_CALL()` statement evaluates the action clause
 only once, even though the action may be performed many times. Therefore you
