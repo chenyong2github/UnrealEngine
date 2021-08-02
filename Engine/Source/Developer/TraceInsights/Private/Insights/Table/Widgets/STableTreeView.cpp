@@ -51,7 +51,7 @@ class FTableTreeViewCommands : public TCommands<FTableTreeViewCommands>
 {
 public:
 	FTableTreeViewCommands()
-		: TCommands<FTableTreeViewCommands>(TEXT("FTableTreeViewCommands"), NSLOCTEXT("FTableTreeViewCommands", "Table Tree View Commands", "Table Tree View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+	: TCommands<FTableTreeViewCommands>(TEXT("FTableTreeViewCommands"), NSLOCTEXT("FTableTreeViewCommands", "Table Tree View Commands", "Table Tree View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
 	{
 	}
 
@@ -85,6 +85,10 @@ public:
 	TSharedPtr<FUICommandInfo> Command_ExportEntireTreeToFile;
 	TSharedPtr<FUICommandInfo> Command_ExportEntireTreeToFileNoLeafs;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// STableTreeView
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FName STableTreeView::RootNodeName(TEXT("Root"));
 
@@ -460,7 +464,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -469,7 +473,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -478,7 +482,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy")
 		);
 
 		MenuBuilder.AddSubMenu
@@ -496,7 +500,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Export to file"),
 			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildExportMenu),
 			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ProfilerManager_Save")
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
 		);
 	}
 	MenuBuilder.EndSection();
@@ -643,7 +647,7 @@ void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ProfilerManager_Save")
+		FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
 	);
 
 	MenuBuilder.AddMenuEntry
@@ -652,7 +656,7 @@ void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ProfilerManager_Save")
+		FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
 	);
 
 	MenuBuilder.AddMenuEntry
@@ -661,7 +665,7 @@ void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ProfilerManager_Save")
+		FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Save")
 	);
 
 	MenuBuilder.EndSection();

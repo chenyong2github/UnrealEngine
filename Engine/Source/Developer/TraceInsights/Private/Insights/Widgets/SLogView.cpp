@@ -1132,7 +1132,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 				NAME_None,
 				FText::Format(LOCTEXT("HideCategory", "Hide \"{0}\" Category"), Record.GetCategoryAsText()),
 				FText::Format(LOCTEXT("HideCategory_Tooltip", "Hide the \"{0}\" log category."), Record.GetCategoryAsText()),
-				FSlateIcon()
+				FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Hidden")
 			);
 
 			MenuBuilder.AddMenuEntry(
@@ -1140,11 +1140,17 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 				NAME_None,
 				FText::Format(LOCTEXT("ShowOnlyCategory", "Show Only \"{0}\" Category"), Record.GetCategoryAsText()),
 				FText::Format(LOCTEXT("ShowOnlyCategory_Tooltip", "Show only the \"{0}\" log category (hide all other log categories)."), Record.GetCategoryAsText()),
-				FSlateIcon()
+				FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Visible")
 			);
 		}
 
-		MenuBuilder.AddMenuEntry(FLogViewCommands::Get().Command_ShowAllCategories);
+		MenuBuilder.AddMenuEntry(
+			FLogViewCommands::Get().Command_ShowAllCategories,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "Icons.Visible")
+		);
 
 		MenuBuilder.AddSeparator();
 
