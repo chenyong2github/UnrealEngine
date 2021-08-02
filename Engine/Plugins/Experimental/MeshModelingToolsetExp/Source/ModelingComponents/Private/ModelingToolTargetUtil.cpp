@@ -166,8 +166,9 @@ FDynamicMesh3 UE::ToolTarget::GetDynamicMeshCopy(UToolTarget* Target, bool bWant
 		return Mesh;
 	}
 
+	// TODO: Handle tangent computation. For now skip if tangents requested.
 	IDynamicMeshProvider* DynamicMeshProvider = Cast<IDynamicMeshProvider>(Target);
-	if (DynamicMeshProvider)
+	if (DynamicMeshProvider && !bWantMeshTangents)
 	{
 		return *DynamicMeshProvider->GetDynamicMesh();
 	}
