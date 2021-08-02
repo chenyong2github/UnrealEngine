@@ -153,11 +153,11 @@ FMemoryView FCbFieldView::AsBinaryView(const FMemoryView Default)
 	}
 }
 
-FAnsiStringView FCbFieldView::AsString(const FAnsiStringView Default)
+FUtf8StringView FCbFieldView::AsString(const FUtf8StringView Default)
 {
 	if (FCbFieldType::IsString(TypeWithFlags))
 	{
-		const ANSICHAR* const PayloadChars = static_cast<const ANSICHAR*>(Payload);
+		const UTF8CHAR* const PayloadChars = static_cast<const UTF8CHAR*>(Payload);
 		uint32 ValueSizeByteCount;
 		const uint64 ValueSize = ReadVarUInt(PayloadChars, ValueSizeByteCount);
 
@@ -168,7 +168,7 @@ FAnsiStringView FCbFieldView::AsString(const FAnsiStringView Default)
 		}
 
 		Error = ECbFieldError::None;
-		return FAnsiStringView(PayloadChars + ValueSizeByteCount, int32(ValueSize));
+		return FUtf8StringView(PayloadChars + ValueSizeByteCount, int32(ValueSize));
 	}
 	else
 	{
@@ -456,9 +456,9 @@ FCbCustomByName FCbFieldView::AsCustomByName(FCbCustomByName Default)
 		PayloadBytes += TypeNameLenByteCount;
 
 		FCbCustomByName Value;
-		Value.Name = FAnsiStringView(
-			reinterpret_cast<const ANSICHAR*>(PayloadBytes),
-			static_cast<FAnsiStringView::SizeType>(TypeNameLen));
+		Value.Name = FUtf8StringView(
+			reinterpret_cast<const UTF8CHAR*>(PayloadBytes),
+			static_cast<FUtf8StringView::SizeType>(TypeNameLen));
 		Value.Data = MakeMemoryView(PayloadBytes + TypeNameLen, PayloadSize - TypeNameLen - TypeNameLenByteCount);
 		Error = ECbFieldError::None;
 		return Value;
@@ -484,7 +484,7 @@ FMemoryView FCbFieldView::AsCustom(uint64 Id, FMemoryView Default)
 	}
 }
 
-FMemoryView FCbFieldView::AsCustom(FAnsiStringView Name, FMemoryView Default)
+FMemoryView FCbFieldView::AsCustom(FUtf8StringView Name, FMemoryView Default)
 {
 	const FCbCustomByName Custom = AsCustomByName(FCbCustomByName{Name, Default});
 	if (Custom.Name.Equals(Name, ESearchCase::CaseSensitive))
@@ -621,7 +621,7 @@ FMemoryView FCbFieldView::GetViewNoType() const
 	return MakeMemoryView(static_cast<const uint8*>(Payload) - NameSize, NameSize + PayloadSize);
 }
 
-FCbFieldView FCbFieldView::operator[](FAnsiStringView Name) const
+FCbFieldView FCbFieldView::operator[](FUtf8StringView Name) const
 {
 	switch (GetType())
 	{
@@ -721,7 +721,7 @@ FCbObjectView::FCbObjectView()
 {
 }
 
-FCbFieldView FCbObjectView::FindView(const FAnsiStringView Name) const
+FCbFieldView FCbObjectView::FindView(const FUtf8StringView Name) const
 {
 	for (const FCbFieldView& Field : *this)
 	{
@@ -733,7 +733,7 @@ FCbFieldView FCbObjectView::FindView(const FAnsiStringView Name) const
 	return FCbFieldView();
 }
 
-FCbFieldView FCbObjectView::FindViewIgnoreCase(const FAnsiStringView Name) const
+FCbFieldView FCbObjectView::FindViewIgnoreCase(const FUtf8StringView Name) const
 {
 	for (const FCbFieldView& Field : *this)
 	{

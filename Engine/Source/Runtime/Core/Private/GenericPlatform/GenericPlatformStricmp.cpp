@@ -105,6 +105,7 @@ int32 FGenericPlatformStricmp::Stricmp(const UTF16CHAR* Str1, const ANSICHAR* St
 int32 FGenericPlatformStricmp::Stricmp(const UTF32CHAR* Str1, const ANSICHAR* Str2) { return StricmpImpl(Str1, Str2); }
 int32 FGenericPlatformStricmp::Strnicmp(const ANSICHAR* Str1, const ANSICHAR* Str2, SIZE_T Count) { return StrnicmpImpl(Str1, Str2, Count); }
 int32 FGenericPlatformStricmp::Strnicmp(const WIDECHAR* Str1, const WIDECHAR* Str2, SIZE_T Count) { return StrnicmpImpl(Str1, Str2, Count); }
+int32 FGenericPlatformStricmp::Strnicmp(const UTF8CHAR* Str1, const UTF8CHAR* Str2, SIZE_T Count) { return StrnicmpImpl(Str1, Str2, Count); }
 int32 FGenericPlatformStricmp::Strnicmp(const ANSICHAR* Str1, const WIDECHAR* Str2, SIZE_T Count) { return StrnicmpImpl(Str1, Str2, Count); }
 int32 FGenericPlatformStricmp::Strnicmp(const WIDECHAR* Str1, const ANSICHAR* Str2, SIZE_T Count) { return StrnicmpImpl(Str1, Str2, Count); }
 

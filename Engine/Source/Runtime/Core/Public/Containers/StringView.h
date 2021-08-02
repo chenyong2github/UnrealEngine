@@ -37,7 +37,8 @@ namespace StringViewPrivate
 	{
 		static constexpr bool Value = TOr<
 			TIsConvertibleFromTo<T, FAnsiStringView>,
-			TIsConvertibleFromTo<T, FWideStringView>
+			TIsConvertibleFromTo<T, FWideStringView>,
+			TIsConvertibleFromTo<T, FUtf8StringView>
 			>::Value;
 	};
 
@@ -48,7 +49,14 @@ namespace StringViewPrivate
 		using Type =
 			typename TChooseClass<TIsConvertibleFromTo<T, FAnsiStringView>::Value, FAnsiStringView,
 			typename TChooseClass<TIsConvertibleFromTo<T, FWideStringView>::Value, FWideStringView,
-			NotCompatible>::Result>::Result;
+			typename TChooseClass<TIsConvertibleFromTo<T, FUtf8StringView>::Value, FUtf8StringView,
+			NotCompatible>::Result>::Result>::Result;
+	};
+
+	template <typename CharRangeType, typename ElementType>
+	struct TIsCompatibleRangeType
+	{
+		static constexpr bool Value = FPlatformString::IsCharEncodingCompatibleWith<typename TRemoveCV<typename TRemovePointer<decltype(StringViewPrivate::WrapGetData(DeclVal<CharRangeType&>()))>::Type>::Type, ElementType>();
 	};
 }
 
@@ -110,7 +118,7 @@ private:
 	using TIsCharRange = TAnd<
 		TIsContiguousContainer<CharRangeType>,
 		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
-		TIsSame<ElementType, typename TRemoveCV<typename TRemovePointer<decltype(StringViewPrivate::WrapGetData(DeclVal<CharRangeType&>()))>::Type>::Type>>;
+		StringViewPrivate::TIsCompatibleRangeType<CharRangeType, ElementType>>;
 
 public:
 	/** Construct an empty view. */
@@ -121,6 +129,15 @@ public:
 	 *
 	 * The caller is responsible for ensuring that the provided character range remains valid for the lifetime of the view.
 	 */
+	template <typename OtherCharType,
+		typename TEnableIf<
+			FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()
+		>::Type* = nullptr>
+	constexpr inline TStringView(const OtherCharType* InData)
+		: DataPtr((const CharType*)InData)
+		, Size(InData ? TCString<CharType>::Strlen((const CharType*)InData) : 0)
+	{
+	}
 	constexpr inline TStringView(const CharType* InData)
 		: DataPtr(InData)
 		, Size(InData ? TCString<CharType>::Strlen(InData) : 0)
@@ -132,6 +149,15 @@ public:
 	 *
 	 * The caller is responsible for ensuring that the provided character range remains valid for the lifetime of the view.
 	 */
+	template <typename OtherCharType,
+		typename TEnableIf<
+			FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()
+		>::Type* = nullptr>
+	constexpr inline TStringView(const OtherCharType* InData, SizeType InSize)
+		: DataPtr((const CharType*)InData)
+		, Size(InSize)
+	{
+	}
 	constexpr inline TStringView(const CharType* InData, SizeType InSize)
 		: DataPtr(InData)
 		, Size(InSize)
@@ -149,8 +175,21 @@ public:
 			TIsCharRange<CharRangeType>
 		>::Value>::Type* = nullptr>
 	constexpr inline TStringView(CharRangeType&& InRange)
-		: DataPtr(StringViewPrivate::WrapGetData(InRange))
+		: DataPtr((const CharType*)StringViewPrivate::WrapGetData(InRange))
 		, Size(static_cast<SizeType>(GetNum(InRange)))
+	{
+	}
+
+	/**
+	 * Construct a view from a compatible view.
+	 */
+	template <typename OtherCharType,
+		typename TEnableIf<
+			!TIsSame<CharType, OtherCharType>::Value &&
+			FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()>::Type* = nullptr>
+	constexpr inline TStringView(TStringView<OtherCharType> InView)
+		: DataPtr(reinterpret_cast<const CharType*>(InView.GetData()))
+		, Size(InView.Len())
 	{
 	}
 
@@ -338,9 +377,27 @@ constexpr inline auto GetNum(TStringView<CharType> String)
 
 //////////////////////////////////////////////////////////////////////////
 
-constexpr inline FStringView operator "" _SV(const TCHAR* String, size_t Size) { return FStringView(String, Size); }
-constexpr inline FAnsiStringView operator "" _ASV(const ANSICHAR* String, size_t Size) { return FAnsiStringView(String, Size); }
-constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t Size) { return FWideStringView(String, Size); }
+constexpr inline FStringView operator "" _SV(const TCHAR* String, size_t Size)
+{
+	return FStringView(String, Size);
+}
+
+constexpr inline FAnsiStringView operator "" _ASV(const ANSICHAR* String, size_t Size)
+{
+	return FAnsiStringView(String, Size);
+}
+
+constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t Size)
+{
+	return FWideStringView(String, Size);
+}
+
+/*constexpr*/ inline FUtf8StringView operator "" _U8SV(const ANSICHAR* String, size_t Size)
+{
+	// Would like this operator to be constexpr, but cannot be until after this operator can take a UTF8CHAR*
+	// rather than an ANSICHAR*, which won't be until we have C++20 char8_t string literals.
+	return FUtf8StringView(reinterpret_cast<const UTF8CHAR*>(String), Size);
+}
 
 //////////////////////////////////////////////////////////////////////////
 

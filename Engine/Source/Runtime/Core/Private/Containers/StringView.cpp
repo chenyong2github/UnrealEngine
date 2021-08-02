@@ -95,3 +95,4 @@ TStringView<CharType> TStringView<CharType>::TrimEnd() const
 
 template class TStringView<ANSICHAR>;
 template class TStringView<WIDECHAR>;
+template class TStringView<UTF8CHAR>;

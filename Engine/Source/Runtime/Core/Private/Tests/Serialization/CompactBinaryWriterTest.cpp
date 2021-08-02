@@ -191,7 +191,7 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Null, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), "Null"_ASV);
+			TestEqual(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), "Null"_U8SV);
 			TestTrue(TEXT("FCbWriter(Null, Name).HasName()"), Field.HasName());
 			TestTrue(TEXT("FCbWriter(Null, Name).IsNull()"), Field.IsNull());
 		}
@@ -283,7 +283,7 @@ bool FCbWriterBinaryTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Binary, Array) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), "Binary"_ASV);
+			TestEqual(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), "Binary"_U8SV);
 			TestTrue(TEXT("FCbWriter(Binary, Array).HasName()"), Field.HasName());
 			TestTrue(TEXT("FCbWriter(Binary, Array).IsBinary()"), Field.IsBinary());
 			TestTrue(TEXT("FCbWriter(Binary, Array).AsBinaryView()"), Field.AsBinaryView().EqualBytes(MakeMemoryView(BinaryValue)));
@@ -327,10 +327,10 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), "String"_ASV);
+				TestEqual(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), "String"_U8SV);
 				TestTrue(TEXT("FCbWriter(String, Basic).HasName()"), Field.HasName());
 				TestTrue(TEXT("FCbWriter(String, Basic).IsString()"), Field.IsString());
-				TestEqual(TEXT("FCbWriter(String, Basic).AsString()"), Field.AsString(), "Value"_ASV);
+				TestEqual(TEXT("FCbWriter(String, Basic).AsString()"), Field.AsString(), "Value"_U8SV);
 			}
 		}
 	}
@@ -339,7 +339,7 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		constexpr int DotCount = 256;
-		TAnsiStringBuilder<DotCount + 1> Dots;
+		TUtf8StringBuilder<DotCount + 1> Dots;
 		for (int Index = 0; Index < DotCount; ++Index)
 		{
 			Dots << '.';
@@ -351,7 +351,7 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Long).AsString()"), Field.AsString(), FAnsiStringView(Dots));
+				TestEqual(TEXT("FCbWriter(String, Long).AsString()"), Field.AsString(), Dots.ToView());
 			}
 		}
 	}
@@ -367,7 +367,7 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), "\xf0\x9f\x98\x80"_ASV);
+				TestEqual(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), "\xf0\x9f\x98\x80"_U8SV);
 			}
 		}
 	}
@@ -807,13 +807,13 @@ bool FCbWriterCustomByNameTest::RunTest(const FString& Parameters)
 
 	struct FCustomValue
 	{
-		FAnsiStringView Type;
+		FUtf8StringView Type;
 		TArray<uint8, TInlineAllocator<16>> Bytes;
 	};
 	const FCustomValue Values[] =
 	{
-		{ "Type1", {1, 2, 3} },
-		{ "Type2", {4, 5, 6} },
+		{ "Type1"_U8SV, {1, 2, 3} },
+		{ "Type2"_U8SV, {4, 5, 6} },
 	};
 
 	for (const FCustomValue& Value : Values)
@@ -879,6 +879,7 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 			Writer.AddString("WideString"_ASV, FString::ChrN(256, TEXT('.')));
 			Writer.AddString("EmptyAnsiString"_ASV, FAnsiStringView());
 			Writer.AddString("EmptyWideString"_ASV, FWideStringView());
+			Writer.AddString("EmptyUtf8String"_U8SV, FUtf8StringView());
 			Writer.AddString("AnsiStringLiteral", "AnsiValue");
 			Writer.AddString("WideStringLiteral", TEXT("AnsiValue"));
 		}

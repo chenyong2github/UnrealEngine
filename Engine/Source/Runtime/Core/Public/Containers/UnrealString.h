@@ -38,6 +38,13 @@ int32        GetNum(const FString& String);
 /**
  * A dynamically sizeable string.
  * @see https://docs.unrealengine.com/latest/INT/Programming/UnrealArchitecture/StringHandling/FString/
+ *
+ * When dealing with UTF-8 literals, the following advice is recommended:
+ *
+ * - Do not use the u8"..." prefix (gives the wrong array type until C++20).
+ * - Use UTF8TEXT("...") for array literals (type is const UTF8CHAR[n]).
+ * - Use "..."_U8SV for string view literals (type is FUtf8StringView).
+ * - Use \uxxxx or \Uxxxxxxxx escape sequences rather than \x to specify Unicode code points.
  */
 class CORE_API FString
 {
@@ -495,6 +502,7 @@ public:
 	void AppendChars(const ANSICHAR* Str, int32 Count);
 	void AppendChars(const WIDECHAR* Str, int32 Count);
 	void AppendChars(const UCS2CHAR* Str, int32 Count);
+	void AppendChars(const UTF8CHAR* Str, int32 Count);
 
 	/** Append a string and return a reference to this */
 	template<class CharType>

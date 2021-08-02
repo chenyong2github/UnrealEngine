@@ -107,132 +107,132 @@ public:
 	 * It is not valid to call this function when writing a field inside an array.
 	 * Names must be valid UTF-8 and must be unique within an object.
 	 */
-	CORE_API FCbWriter& SetName(FAnsiStringView Name);
+	CORE_API FCbWriter& SetName(FUtf8StringView Name);
 
 	/** Copy the value (not the name) of an existing field. */
-	inline void AddField(FAnsiStringView Name, const FCbFieldView& Value) { SetName(Name); AddField(Value); }
+	inline void AddField(FUtf8StringView Name, const FCbFieldView& Value) { SetName(Name); AddField(Value); }
 	CORE_API void AddField(const FCbFieldView& Value);
 	/** Copy the value (not the name) of an existing field. Holds a reference if owned. */
-	inline void AddField(FAnsiStringView Name, const FCbField& Value) { SetName(Name); AddField(Value); }
+	inline void AddField(FUtf8StringView Name, const FCbField& Value) { SetName(Name); AddField(Value); }
 	CORE_API void AddField(const FCbField& Value);
 
 	/** Begin a new object. Must have a matching call to EndObject. */
-	inline void BeginObject(FAnsiStringView Name) { SetName(Name); BeginObject(); }
+	inline void BeginObject(FUtf8StringView Name) { SetName(Name); BeginObject(); }
 	CORE_API void BeginObject();
 	/** End an object after its fields have been written. */
 	CORE_API void EndObject();
 
 	/** Copy the value (not the name) of an existing object. */
-	inline void AddObject(FAnsiStringView Name, const FCbObjectView& Value) { SetName(Name); AddObject(Value); }
+	inline void AddObject(FUtf8StringView Name, const FCbObjectView& Value) { SetName(Name); AddObject(Value); }
 	CORE_API void AddObject(const FCbObjectView& Value);
 	/** Copy the value (not the name) of an existing object. Holds a reference if owned. */
-	inline void AddObject(FAnsiStringView Name, const FCbObject& Value) { SetName(Name); AddObject(Value); }
+	inline void AddObject(FUtf8StringView Name, const FCbObject& Value) { SetName(Name); AddObject(Value); }
 	CORE_API void AddObject(const FCbObject& Value);
 
 	/** Begin a new array. Must have a matching call to EndArray. */
-	inline void BeginArray(FAnsiStringView Name) { SetName(Name); BeginArray(); }
+	inline void BeginArray(FUtf8StringView Name) { SetName(Name); BeginArray(); }
 	CORE_API void BeginArray();
 	/** End an array after its fields have been written. */
 	CORE_API void EndArray();
 
 	/** Copy the value (not the name) of an existing array. */
-	inline void AddArray(FAnsiStringView Name, const FCbArrayView& Value) { SetName(Name); AddArray(Value); }
+	inline void AddArray(FUtf8StringView Name, const FCbArrayView& Value) { SetName(Name); AddArray(Value); }
 	CORE_API void AddArray(const FCbArrayView& Value);
 	/** Copy the value (not the name) of an existing array. Holds a reference if owned. */
-	inline void AddArray(FAnsiStringView Name, const FCbArray& Value) { SetName(Name); AddArray(Value); }
+	inline void AddArray(FUtf8StringView Name, const FCbArray& Value) { SetName(Name); AddArray(Value); }
 	CORE_API void AddArray(const FCbArray& Value);
 
 	/** Write a null field. */
-	inline void AddNull(FAnsiStringView Name) { SetName(Name); AddNull(); }
+	inline void AddNull(FUtf8StringView Name) { SetName(Name); AddNull(); }
 	CORE_API void AddNull();
 
 	/** Write a binary field by copying Size bytes from Value. */
-	inline void AddBinary(FAnsiStringView Name, const void* Value, uint64 Size) { SetName(Name); AddBinary(Value, Size); }
+	inline void AddBinary(FUtf8StringView Name, const void* Value, uint64 Size) { SetName(Name); AddBinary(Value, Size); }
 	CORE_API void AddBinary(const void* Value, uint64 Size);
 	/** Write a binary field by copying the view. */
-	inline void AddBinary(FAnsiStringView Name, FMemoryView Value) { SetName(Name); AddBinary(Value); }
+	inline void AddBinary(FUtf8StringView Name, FMemoryView Value) { SetName(Name); AddBinary(Value); }
 	inline void AddBinary(FMemoryView Value) { AddBinary(Value.GetData(), Value.GetSize()); }
 	/** Write a binary field by copying the buffer. Holds a reference if owned. */
-	inline void AddBinary(FAnsiStringView Name, const FSharedBuffer& Value) { SetName(Name); AddBinary(Value); }
+	inline void AddBinary(FUtf8StringView Name, const FSharedBuffer& Value) { SetName(Name); AddBinary(Value); }
 	CORE_API void AddBinary(const FSharedBuffer& Value);
-	inline void AddBinary(FAnsiStringView Name, const FCompositeBuffer& Value) { SetName(Name); AddBinary(Value); }
+	inline void AddBinary(FUtf8StringView Name, const FCompositeBuffer& Value) { SetName(Name); AddBinary(Value); }
 	CORE_API void AddBinary(const FCompositeBuffer& Value);
 
 	/** Write a string field by copying the UTF-8 value. */
-	inline void AddString(FAnsiStringView Name, FAnsiStringView Value) { SetName(Name); AddString(Value); }
-	CORE_API void AddString(FAnsiStringView Value);
+	inline void AddString(FUtf8StringView Name, FUtf8StringView Value) { SetName(Name); AddString(Value); }
+	CORE_API void AddString(FUtf8StringView Value);
 	/** Write a string field by converting the UTF-16 value to UTF-8. */
-	inline void AddString(FAnsiStringView Name, FWideStringView Value) { SetName(Name); AddString(Value); }
+	inline void AddString(FUtf8StringView Name, FWideStringView Value) { SetName(Name); AddString(Value); }
 	CORE_API void AddString(FWideStringView Value);
 
 	/** Write an integer field. */
-	inline void AddInteger(FAnsiStringView Name, int32 Value) { SetName(Name); AddInteger(Value); }
+	inline void AddInteger(FUtf8StringView Name, int32 Value) { SetName(Name); AddInteger(Value); }
 	CORE_API void AddInteger(int32 Value);
 	/** Write an integer field. */
-	inline void AddInteger(FAnsiStringView Name, int64 Value) { SetName(Name); AddInteger(Value); }
+	inline void AddInteger(FUtf8StringView Name, int64 Value) { SetName(Name); AddInteger(Value); }
 	CORE_API void AddInteger(int64 Value);
 	/** Write an integer field. */
-	inline void AddInteger(FAnsiStringView Name, uint32 Value) { SetName(Name); AddInteger(Value); }
+	inline void AddInteger(FUtf8StringView Name, uint32 Value) { SetName(Name); AddInteger(Value); }
 	CORE_API void AddInteger(uint32 Value);
 	/** Write an integer field. */
-	inline void AddInteger(FAnsiStringView Name, uint64 Value) { SetName(Name); AddInteger(Value); }
+	inline void AddInteger(FUtf8StringView Name, uint64 Value) { SetName(Name); AddInteger(Value); }
 	CORE_API void AddInteger(uint64 Value);
 
 	/** Write a float field from a 32-bit float value. */
-	inline void AddFloat(FAnsiStringView Name, float Value) { SetName(Name); AddFloat(Value); }
+	inline void AddFloat(FUtf8StringView Name, float Value) { SetName(Name); AddFloat(Value); }
 	CORE_API void AddFloat(float Value);
 	/** Write a float field from a 64-bit float value. */
-	inline void AddFloat(FAnsiStringView Name, double Value) { SetName(Name); AddFloat(Value); }
+	inline void AddFloat(FUtf8StringView Name, double Value) { SetName(Name); AddFloat(Value); }
 	CORE_API void AddFloat(double Value);
 
 	/** Write a bool field. */
-	inline void AddBool(FAnsiStringView Name, bool bValue) { SetName(Name); AddBool(bValue); }
+	inline void AddBool(FUtf8StringView Name, bool bValue) { SetName(Name); AddBool(bValue); }
 	CORE_API void AddBool(bool bValue);
 
 	/** Write a field referencing an object attachment by its hash. */
-	inline void AddObjectAttachment(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddObjectAttachment(Value); }
+	inline void AddObjectAttachment(FUtf8StringView Name, const FIoHash& Value) { SetName(Name); AddObjectAttachment(Value); }
 	CORE_API void AddObjectAttachment(const FIoHash& Value);
 	/** Write a field referencing a binary attachment by its hash. */
-	inline void AddBinaryAttachment(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddBinaryAttachment(Value); }
+	inline void AddBinaryAttachment(FUtf8StringView Name, const FIoHash& Value) { SetName(Name); AddBinaryAttachment(Value); }
 	CORE_API void AddBinaryAttachment(const FIoHash& Value);
 	/** Write a field referencing the attachment by its hash. */
-	inline void AddAttachment(FAnsiStringView Name, const FCbAttachment& Attachment) { SetName(Name); AddAttachment(Attachment); }
+	inline void AddAttachment(FUtf8StringView Name, const FCbAttachment& Attachment) { SetName(Name); AddAttachment(Attachment); }
 	CORE_API void AddAttachment(const FCbAttachment& Attachment);
 
 	/** Write a hash field. */
-	inline void AddHash(FAnsiStringView Name, const FIoHash& Value) { SetName(Name); AddHash(Value); }
+	inline void AddHash(FUtf8StringView Name, const FIoHash& Value) { SetName(Name); AddHash(Value); }
 	CORE_API void AddHash(const FIoHash& Value);
 	/** Write a UUID field. */
-	inline void AddUuid(FAnsiStringView Name, const FGuid& Value) { SetName(Name); AddUuid(Value); }
+	inline void AddUuid(FUtf8StringView Name, const FGuid& Value) { SetName(Name); AddUuid(Value); }
 	CORE_API void AddUuid(const FGuid& Value);
 
 	/** Write a date/time field with the specified count of 100ns ticks since the epoch. */
-	inline void AddDateTimeTicks(FAnsiStringView Name, int64 Ticks) { SetName(Name); AddDateTimeTicks(Ticks); }
+	inline void AddDateTimeTicks(FUtf8StringView Name, int64 Ticks) { SetName(Name); AddDateTimeTicks(Ticks); }
 	CORE_API void AddDateTimeTicks(int64 Ticks);
 
 	/** Write a date/time field. */
-	CORE_API void AddDateTime(FAnsiStringView Name, FDateTime Value);
+	CORE_API void AddDateTime(FUtf8StringView Name, FDateTime Value);
 	CORE_API void AddDateTime(FDateTime Value);
 
 	/** Write a time span field with the specified count of 100ns ticks. */
-	inline void AddTimeSpanTicks(FAnsiStringView Name, int64 Ticks) { SetName(Name); AddTimeSpanTicks(Ticks); }
+	inline void AddTimeSpanTicks(FUtf8StringView Name, int64 Ticks) { SetName(Name); AddTimeSpanTicks(Ticks); }
 	CORE_API void AddTimeSpanTicks(int64 Ticks);
 
 	/** Write a time span field. */
-	CORE_API void AddTimeSpan(FAnsiStringView Name, FTimespan Value);
+	CORE_API void AddTimeSpan(FUtf8StringView Name, FTimespan Value);
 	CORE_API void AddTimeSpan(FTimespan Value);
 
 	/** Write an ObjectId field. */
-	inline void AddObjectId(FAnsiStringView Name, const FCbObjectId& Value) { SetName(Name); AddObjectId(Value); }
+	inline void AddObjectId(FUtf8StringView Name, const FCbObjectId& Value) { SetName(Name); AddObjectId(Value); }
 	CORE_API void AddObjectId(const FCbObjectId& Value);
 
 	/** Write a custom field with an integer sub-type identifier. */
-	inline void AddCustom(FAnsiStringView FieldName, uint64 TypeId, FMemoryView Value) { SetName(FieldName); AddCustom(TypeId, Value); }
+	inline void AddCustom(FUtf8StringView FieldName, uint64 TypeId, FMemoryView Value) { SetName(FieldName); AddCustom(TypeId, Value); }
 	CORE_API void AddCustom(uint64 TypeId, FMemoryView Value);
 
 	/** Write a custom field with a string sub-type identifier. */
-	inline void AddCustom(FAnsiStringView FieldName, FAnsiStringView TypeName, FMemoryView Value) { SetName(FieldName); AddCustom(TypeName, Value); }
-	CORE_API void AddCustom(FAnsiStringView TypeName, FMemoryView Value);
+	inline void AddCustom(FUtf8StringView FieldName, FUtf8StringView TypeName, FMemoryView Value) { SetName(FieldName); AddCustom(TypeName, Value); }
+	CORE_API void AddCustom(FUtf8StringView TypeName, FMemoryView Value);
 
 	/** Private flags that are public to work with ENUM_CLASS_FLAGS. */
 	enum class EStateFlags : uint8;
@@ -242,7 +242,7 @@ protected:
 	CORE_API explicit FCbWriter(int64 InitialSize);
 
 private:
-	friend FCbWriter& operator<<(FCbWriter& Writer, FAnsiStringView NameOrValue);
+	friend FCbWriter& operator<<(FCbWriter& Writer, FUtf8StringView NameOrValue);
 
 	/** Begin writing a field. May be called twice for named fields. */
 	void BeginField();
@@ -251,10 +251,10 @@ private:
 	void EndField(ECbFieldType Type);
 
 	/** Set the field name if valid in this state, otherwise write add a string field. */
-	CORE_API void SetNameOrAddString(FAnsiStringView NameOrValue);
+	CORE_API void SetNameOrAddString(FUtf8StringView NameOrValue);
 
 	/** Returns a view of the name of the active field, if any, otherwise the empty view. */
-	FAnsiStringView GetActiveName() const;
+	FUtf8StringView GetActiveName() const;
 
 	/** Remove field types after the first to make the sequence uniform. */
 	void MakeFieldsUniform(int64 FieldBeginOffset, int64 FieldEndOffset);
@@ -311,7 +311,7 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Write the field name if valid in this state, otherwise write the string value. */
-inline FCbWriter& operator<<(FCbWriter& Writer, FAnsiStringView NameOrValue)
+inline FCbWriter& operator<<(FCbWriter& Writer, FUtf8StringView NameOrValue)
 {
 	Writer.SetNameOrAddString(NameOrValue);
 	return Writer;
@@ -321,6 +321,12 @@ inline FCbWriter& operator<<(FCbWriter& Writer, FAnsiStringView NameOrValue)
 inline FCbWriter& operator<<(FCbWriter& Writer, const ANSICHAR* NameOrValue)
 {
 	return Writer << FAnsiStringView(NameOrValue);
+}
+
+/** Write the field name if valid in this state, otherwise write the string value. */
+inline FCbWriter& operator<<(FCbWriter& Writer, const UTF8CHAR* NameOrValue)
+{
+	return Writer << FUtf8StringView(NameOrValue);
 }
 
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbFieldView& Value)

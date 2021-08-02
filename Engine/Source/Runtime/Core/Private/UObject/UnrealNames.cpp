@@ -1837,6 +1837,15 @@ struct FNameAnsiStringView
 	int32 Len;
 };
 
+struct FNameUtf8StringViewWithWidth
+{
+	using CharType = UTF8CHAR;
+
+	const UTF8CHAR* Str;
+	int32 Len;
+	bool bIsWide;
+};
+
 struct FWideStringViewWithWidth
 {
 	using CharType = WIDECHAR;
@@ -1856,25 +1865,27 @@ static FNameAnsiStringView MakeUnconvertedView(const ANSICHAR* Str)
 	return { Str, Str ? FCStringAnsi::Strlen(Str) : 0 };
 }
 
-static bool IsWide(const WIDECHAR* Str, const int32 Len)
+template <typename CharType>
+static bool IsWide(const CharType* Str, const int32 Len)
 {
 	uint32 UserCharBits = 0;
 	for (int32 I = 0; I < Len; ++I)
 	{
-		UserCharBits |= TChar<WIDECHAR>::ToUnsigned(Str[I]);
+		UserCharBits |= TChar<CharType>::ToUnsigned(Str[I]);
 	}
 	return UserCharBits & 0xffffff80u;
 }
 
-static int32 GetLengthAndWidth(const WIDECHAR* Str, bool& bOutIsWide)
+template <typename CharType>
+static int32 GetLengthAndWidth(const CharType* Str, bool& bOutIsWide)
 {
 	uint32 UserCharBits = 0;
-	const WIDECHAR* It = Str;
+	const CharType* It = Str;
 	if (Str)
 	{
 		while (*It)
 		{
-			UserCharBits |= TChar<WIDECHAR>::ToUnsigned(*It);
+			UserCharBits |= TChar<CharType>::ToUnsigned(*It);
 			++It;
 		}
 	}
@@ -1882,6 +1893,19 @@ static int32 GetLengthAndWidth(const WIDECHAR* Str, bool& bOutIsWide)
 	bOutIsWide = UserCharBits & 0xffffff80u;
 
 	return UE_PTRDIFF_TO_INT32(It - Str);
+}
+
+static FNameUtf8StringViewWithWidth MakeUnconvertedView(const UTF8CHAR* Str, int32 Len)
+{
+	return { Str, Len, IsWide(Str, Len) };
+}
+
+static FNameUtf8StringViewWithWidth MakeUnconvertedView(const UTF8CHAR* Str)
+{
+	FNameUtf8StringViewWithWidth View;
+	View.Str = Str;
+	View.Len = GetLengthAndWidth(Str, View.bIsWide);
+	return View;
 }
 
 static FWideStringViewWithWidth MakeUnconvertedView(const WIDECHAR* Str, int32 Len)
@@ -1966,6 +1990,26 @@ struct FNameHelper
 		}
 
 		return Make(FNameStringView(View.Str, View.Len), FindType, InternalNumber);
+	}
+
+	static FName MakeWithNumber(FNameUtf8StringViewWithWidth View, EFindName FindType, int32 InternalNumber)
+	{
+		// Ignore the supplied number if the name string is empty
+		// to keep the semantics of the old FName implementation
+		if (View.Len == 0)
+		{
+			return FName();
+		}
+
+		if (!View.bIsWide)
+		{
+			return Make(FNameStringView(reinterpret_cast<const ANSICHAR*>(View.Str), View.Len), FindType, InternalNumber);
+		}
+		else
+		{
+			TStringConversion<FUTF8ToTCHAR_Convert, NAME_SIZE> WideName(View.Str, View.Len);
+			return Make(FNameStringView(WideName.Get(), WideName.Length()), FindType, InternalNumber);
+		}
 	}
 
 	static FName MakeWithNumber(const FWideStringViewWithWidth View, EFindName FindType, int32 InternalNumber)
@@ -2108,11 +2152,19 @@ FName::FName(const ANSICHAR* Name, EFindName FindType)
 	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name), FindType))
 {}
 
+FName::FName(const UTF8CHAR* Name, EFindName FindType)
+	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name), FindType))
+{}
+
 FName::FName(int32 Len, const WIDECHAR* Name, EFindName FindType)
 	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
 {}
 
 FName::FName(int32 Len, const ANSICHAR* Name, EFindName FindType)
+	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
+{}
+
+FName::FName(int32 Len, const UTF8CHAR* Name, EFindName FindType)
 	: FName(FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
 {}
 
@@ -2124,12 +2176,21 @@ FName::FName(const ANSICHAR* Name, int32 InNumber, EFindName FindType)
 	: FName(FNameHelper::MakeWithNumber(MakeUnconvertedView(Name), FindType, InNumber))
 {}
 
+FName::FName(const UTF8CHAR* Name, int32 InNumber, EFindName FindType)
+	: FName(FNameHelper::MakeWithNumber(MakeUnconvertedView(Name), FindType, InNumber))
+{}
+
 FName::FName(int32 Len, const WIDECHAR* Name, int32 InNumber, EFindName FindType)
 	: FName(InNumber != NAME_NO_NUMBER_INTERNAL ? FNameHelper::MakeWithNumber(MakeUnconvertedView(Name, Len), FindType, InNumber)
 												: FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
 {}
 
 FName::FName(int32 Len, const ANSICHAR* Name, int32 InNumber, EFindName FindType)
+	: FName(InNumber != NAME_NO_NUMBER_INTERNAL ? FNameHelper::MakeWithNumber(MakeUnconvertedView(Name, Len), FindType, InNumber)
+												: FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
+{}
+
+FName::FName(int32 Len, const UTF8CHAR* Name, int32 InNumber, EFindName FindType)
 	: FName(InNumber != NAME_NO_NUMBER_INTERNAL ? FNameHelper::MakeWithNumber(MakeUnconvertedView(Name, Len), FindType, InNumber)
 												: FNameHelper::MakeDetectNumber(MakeUnconvertedView(Name, Len), FindType))
 {}

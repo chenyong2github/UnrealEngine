@@ -158,10 +158,10 @@ static FMemoryView ValidateCbDynamicPayload(FMemoryView& View, ECbValidateMode M
  *
  * Modifies the view to start at the end of the string, and adds error flags if applicable.
  */
-static FAnsiStringView ValidateCbString(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static FUtf8StringView ValidateCbString(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	const FMemoryView Payload = ValidateCbDynamicPayload(View, Mode, Error);
-	const FAnsiStringView Value(static_cast<const ANSICHAR*>(Payload.GetData()), static_cast<int32>(Payload.GetSize()));
+	const FUtf8StringView Value(static_cast<const UTF8CHAR*>(Payload.GetData()), static_cast<int32>(Payload.GetSize()));
 	return Value;
 }
 
@@ -219,7 +219,7 @@ static void ValidateCbObject(FMemoryView& View, ECbValidateMode Mode, ECbValidat
 
 	if (Size > 0)
 	{
-		TArray<FAnsiStringView, TInlineAllocator<16>> Names;
+		TArray<FUtf8StringView, TInlineAllocator<16>> Names;
 
 		const bool bUniformObject = FCbFieldType::GetType(ObjectType) == ECbFieldType::UniformObject;
 		const ECbFieldType ExternalType = bUniformObject ? ValidateCbFieldType(ObjectView, Mode, Error) : ECbFieldType::HasFieldType;
@@ -245,8 +245,8 @@ static void ValidateCbObject(FMemoryView& View, ECbValidateMode Mode, ECbValidat
 
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Names) && Names.Num() > 1)
 		{
-			Algo::Sort(Names, [](FAnsiStringView L, FAnsiStringView R) { return L.Compare(R) < 0; });
-			for (const FAnsiStringView* NamesIt = Names.GetData(), *NamesEnd = NamesIt + Names.Num() - 1; NamesIt != NamesEnd; ++NamesIt)
+			Algo::Sort(Names, [](FUtf8StringView L, FUtf8StringView R) { return L.Compare(R) < 0; });
+			for (const FUtf8StringView* NamesIt = Names.GetData(), *NamesEnd = NamesIt + Names.Num() - 1; NamesIt != NamesEnd; ++NamesIt)
 			{
 				if (NamesIt[0].Equals(NamesIt[1]))
 				{
@@ -296,7 +296,7 @@ static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECb
 {
 	const FMemoryView FieldView = View;
 	const ECbFieldType Type = ValidateCbFieldType(View, Mode, Error, ExternalType);
-	const FAnsiStringView Name = FCbFieldType::HasFieldName(Type) ? ValidateCbString(View, Mode, Error) : FAnsiStringView();
+	const FUtf8StringView Name = FCbFieldType::HasFieldName(Type) ? ValidateCbString(View, Mode, Error) : FUtf8StringView();
 
 	if (EnumHasAnyFlags(Error, ECbValidateError::OutOfBounds | ECbValidateError::InvalidType))
 	{
@@ -370,7 +370,7 @@ static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECb
 	case ECbFieldType::CustomByName:
 	{
 		FMemoryView Value = ValidateCbDynamicPayload(View, Mode, Error);
-		const FAnsiStringView TypeName = ValidateCbString(Value, Mode, Error);
+		const FUtf8StringView TypeName = ValidateCbString(Value, Mode, Error);
 		if (TypeName.IsEmpty() && !EnumHasAnyFlags(Error, ECbValidateError::OutOfBounds))
 		{
 			AddError(Error, ECbValidateError::InvalidType);

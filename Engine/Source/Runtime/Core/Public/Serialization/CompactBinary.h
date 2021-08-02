@@ -541,7 +541,7 @@ struct FCbCustomById
 struct FCbCustomByName
 {
 	/** An identifier for the sub-type of the field. Lifetime is tied to the field that the name is associated with. */
-	FAnsiStringView Name;
+	FUtf8StringView Name;
 	/** A view of the value. Lifetime is tied to the field that the value is associated with. */
 	FMemoryView Data;
 };
@@ -583,9 +583,9 @@ public:
 	CORE_API explicit FCbFieldView(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
 
 	/** Returns the name of the field if it has a name, otherwise an empty view. */
-	constexpr inline FAnsiStringView GetName() const
+	constexpr inline FUtf8StringView GetName() const
 	{
-		return FAnsiStringView(static_cast<const ANSICHAR*>(Payload) - NameLen, NameLen);
+		return FUtf8StringView(static_cast<const UTF8CHAR*>(Payload) - NameLen, NameLen);
 	}
 
 	/** Access the field as an object. Defaults to an empty object on error. */
@@ -597,8 +597,8 @@ public:
 	/** Access the field as binary. Returns the provided default on error. */
 	CORE_API FMemoryView AsBinaryView(FMemoryView Default = FMemoryView());
 
-	/** Access the field as a UTF-8 string. Returns the provided default on error. */
-	CORE_API FAnsiStringView AsString(FAnsiStringView Default = FAnsiStringView());
+	/** Access the field as a string. Returns the provided default on error. */
+	CORE_API FUtf8StringView AsString(FUtf8StringView Default = FUtf8StringView());
 
 	/** Access the field as an int8. Returns the provided default on error. */
 	inline int8 AsInt8(int8 Default = 0)       { return AsInteger<int8>(Default); }
@@ -667,7 +667,7 @@ public:
 	/** Access the field as a custom sub-type with an integer identifier. Returns the provided default on error. */
 	CORE_API FMemoryView AsCustom(uint64 Id, FMemoryView Default = FMemoryView());
 	/** Access the field as a custom sub-type with a string identifier. Returns the provided default on error. */
-	CORE_API FMemoryView AsCustom(FAnsiStringView Name, FMemoryView Default = FMemoryView());
+	CORE_API FMemoryView AsCustom(FUtf8StringView Name, FMemoryView Default = FMemoryView());
 
 	/** True if the field has a name. */
 	constexpr inline bool HasName() const           { return FCbFieldType::HasFieldName(TypeWithFlags); }
@@ -763,7 +763,7 @@ public:
 	}
 
 	/** Find a field of an object by case-sensitive name comparison, otherwise a field with no value. */
-	CORE_API FCbFieldView operator[](FAnsiStringView Name) const;
+	CORE_API FCbFieldView operator[](FUtf8StringView Name) const;
 
 	/** Create an iterator for the fields of an array or object, otherwise an empty iterator. */
 	CORE_API FCbFieldViewIterator CreateViewIterator() const;
@@ -1005,13 +1005,13 @@ public:
 	 * @param Name The name of the field.
 	 * @return The matching field if found, otherwise a field with no value.
 	 */
-	CORE_API FCbFieldView FindView(FAnsiStringView Name) const;
+	CORE_API FCbFieldView FindView(FUtf8StringView Name) const;
 
 	/** Find a field by case-insensitive name comparison. */
-	CORE_API FCbFieldView FindViewIgnoreCase(FAnsiStringView Name) const;
+	CORE_API FCbFieldView FindViewIgnoreCase(FUtf8StringView Name) const;
 
 	/** Find a field by case-sensitive name comparison. */
-	inline FCbFieldView operator[](FAnsiStringView Name) const { return FindView(Name); }
+	inline FCbFieldView operator[](FUtf8StringView Name) const { return FindView(Name); }
 
 	/** Access the object as an object field. */
 	inline FCbFieldView AsFieldView() const { return static_cast<const FCbFieldView&>(*this); }
@@ -1146,7 +1146,7 @@ public:
 	inline FSharedBuffer GetOuterBuffer() && { return MoveTemp(Buffer); }
 
 	/** Find a field of an object by case-sensitive name comparison, otherwise a field with no value. */
-	inline FCbField operator[](FAnsiStringView Name) const;
+	inline FCbField operator[](FUtf8StringView Name) const;
 
 	/** Create an iterator for the fields of an array or object, otherwise an empty iterator. */
 	inline FCbFieldIterator CreateIterator() const;
@@ -1236,7 +1236,7 @@ public:
 };
 
 template <typename ViewType>
-inline FCbField TCbBuffer<ViewType>::operator[](FAnsiStringView Name) const
+inline FCbField TCbBuffer<ViewType>::operator[](FUtf8StringView Name) const
 {
 	if (FCbFieldView Field = ViewType::operator[](Name))
 	{
@@ -1357,7 +1357,7 @@ public:
 	using TCbBuffer::TCbBuffer;
 
 	/** Find a field by case-sensitive name comparison. */
-	inline FCbField Find(FAnsiStringView Name) const
+	inline FCbField Find(FUtf8StringView Name) const
 	{
 		if (::FCbFieldView Field = FindView(Name))
 		{
@@ -1367,7 +1367,7 @@ public:
 	}
 
 	/** Find a field by case-insensitive name comparison. */
-	inline FCbField FindIgnoreCase(FAnsiStringView Name) const
+	inline FCbField FindIgnoreCase(FUtf8StringView Name) const
 	{
 		if (::FCbFieldView Field = FindViewIgnoreCase(Name))
 		{
@@ -1377,7 +1377,7 @@ public:
 	}
 
 	/** Find a field by case-sensitive name comparison. */
-	inline FCbField operator[](FAnsiStringView Name) const { return Find(Name); }
+	inline FCbField operator[](FUtf8StringView Name) const { return Find(Name); }
 
 	/** Access the object as an object field. */
 	inline FCbField AsField() const & { return FCbField(FCbObjectView::AsFieldView(), *this); }

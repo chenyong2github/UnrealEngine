@@ -131,18 +131,43 @@ void AppendCharacters(TArray<TCHAR>& Out, const CharType* Str, int32 Count)
 
 	checkSlow(Str);
 
-	const int32 OldNum = Out.Num();
+	int32 OldEnd = Out.Num();
+	OldEnd -= OldEnd ? 1 : 0;
 
-	// Reserve enough space - including an extra gap for a null terminator if we don't already have a string allocated
-	Out.AddUninitialized(Count + (OldNum ? 0 : 1));
+	// Try to reserve enough space by guessing that the new length will be the same as the input length.
+	// Include an extra gap for a null terminator if we don't already have a string allocated
+	Out.AddUninitialized(Count + (OldEnd ? 0 : 1));
 
-	TCHAR* Dest = Out.GetData() + OldNum - (OldNum ? 1 : 0);
+	TCHAR* Dest = Out.GetData() + OldEnd;
 
-	// Copy characters to end of string, overwriting null terminator if we already have one
-	FPlatformString::Convert(Dest, Count, Str, Count);
+	// Try copying characters to end of string, overwriting null terminator if we already have one
+	TCHAR* NewEnd = FPlatformString::Convert(Dest, Count, Str, Count);
+	if (!NewEnd)
+	{
+		// If that failed, it will have meant that conversion likely contained multi-code unit characters
+		// and so the buffer wasn't long enough, so calculate it properly.
+		int32 Length = FPlatformString::ConvertedLength<TCHAR>(Str, Count);
+
+		// Add the extra bytes that we need
+		Out.AddUninitialized(Length - Count);
+
+		// Restablish destination pointer in case a realloc happened
+		Dest = Out.GetData() + OldEnd;
+
+		bool bSuccess = !!FPlatformString::Convert(Dest, Length, Str, Count);
+		checkSlow(bSuccess);
+	}
+	else
+	{
+		int32 NewEndIndex = (int32)(NewEnd - Dest);
+		if (NewEndIndex < Count)
+		{
+			Out.SetNumUninitialized(OldEnd + NewEndIndex + 1, /*bAllowShrinking=*/false);
+		}
+	}
 
 	// (Re-)establish the null terminator
-	Dest[Count] = '\0';
+	*NewEnd = '\0';
 }
 
 void FString::AppendChars(const ANSICHAR* Str, int32 Count)
@@ -158,6 +183,12 @@ void FString::AppendChars(const WIDECHAR* Str, int32 Count)
 }
 
 void FString::AppendChars(const UCS2CHAR* Str, int32 Count)
+{
+	CheckInvariants();
+	AppendCharacters(Data, Str, Count);
+}
+
+void FString::AppendChars(const UTF8CHAR* Str, int32 Count)
 {
 	CheckInvariants();
 	AppendCharacters(Data, Str, Count);
