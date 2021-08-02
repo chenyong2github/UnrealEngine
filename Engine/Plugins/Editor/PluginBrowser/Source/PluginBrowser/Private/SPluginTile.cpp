@@ -326,6 +326,7 @@ void SPluginTile::RecreateWidgets()
 																SNew(STextBlock)
 																	.TextStyle(FPluginStyle::Get(), "PluginTile.BetaText")
 																	.Text(PluginDescriptor.bIsBetaVersion ? LOCTEXT("PluginBetaVersionText", "BETA") : LOCTEXT("PluginExperimentalVersionText", "EXPERIMENTAL"))
+																	.ToolTipText(this, &SPluginTile::GetBetaOrExperimentalHelpText)
 															]
 													]
 
@@ -490,7 +491,15 @@ void SPluginTile::OnEnablePluginCheckboxChanged(ECheckBoxState NewCheckedState)
 		// If this is plugin is marked as beta, make sure the user is aware before enabling it.
 		if (PluginDescriptor.bIsBetaVersion)
 		{
-			FText WarningMessage = FText::Format(LOCTEXT("Warning_EnablingBetaPlugin", "Plugin '{0}' is a beta version and might be unstable or removed without notice. Please use with caution. Are you sure you want to enable the plugin?"), GetPluginNameText());
+			FText WarningMessage = FText::Format(LOCTEXT("Warning_EnablingBetaPlugin", "Plugin '{0}' is a beta version. {1} Are you sure you want to enable the plugin?"), GetPluginNameText(), GetBetaOrExperimentalHelpText());
+			if (EAppReturnType::No == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
+			{
+				return;
+			}
+		}
+		else if (PluginDescriptor.bIsExperimentalVersion)
+		{
+			FText WarningMessage = FText::Format(LOCTEXT("Warning_EnablingExperimentalPlugin", "Plugin '{0}' is an experimental version. {1} Are you sure you want to enable the plugin?"), GetPluginNameText(), GetBetaOrExperimentalHelpText());
 			if (EAppReturnType::No == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
 			{
 				return;
@@ -625,6 +634,26 @@ void SPluginTile::OnPackagePlugin()
 
 	IUATHelperModule::Get().CreateUatTask(CommandLine, PlatformName, LOCTEXT("PackagePluginTaskName", "Packaging Plugin"),
 		LOCTEXT("PackagePluginTaskShortName", "Package Plugin Task"), FEditorStyle::GetBrush(TEXT("MainFrame.CookContent")));
+}
+
+FText SPluginTile::GetBetaOrExperimentalHelpText() const
+{
+	if (!Plugin)
+	{
+		return FText();
+	}
+
+	const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
+	if (PluginDescriptor.bIsBetaVersion)
+	{
+		return LOCTEXT("Description_BetaPlugin", "Epic recommends using caution when shipping projects with beta plugins. Beta plugins support backwards compatibility for assets and APIs, but performance, stability, and platform support may not be shipping quality.");
+	}
+	if (PluginDescriptor.bIsExperimentalVersion)
+	{
+		return LOCTEXT("Description_ExperimentalPlugin", "Epic does not recommend shipping projects with experimental plugins. APIs, features, and the plugin itself are subject to change or be removed without notice.");
+	}
+
+	return FText();
 }
 
 #undef LOCTEXT_NAMESPACE
