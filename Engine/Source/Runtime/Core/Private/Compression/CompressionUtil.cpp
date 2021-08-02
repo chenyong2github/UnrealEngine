@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Compression/CompressionUtil.h"
 #include "Serialization/Archive.h"
 #include "UObject/NameTypes.h"
