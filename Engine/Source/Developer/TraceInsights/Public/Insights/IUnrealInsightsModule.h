@@ -9,6 +9,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 
 class FExtender;
+class FWorkspaceItem;
 
 namespace UE
 {
@@ -124,13 +125,18 @@ struct TRACEINSIGHTS_API FInsightsMajorTabConfig
 /** Combination of extenders applied to the individual major tabs within Insights */
 struct TRACEINSIGHTS_API FInsightsMajorTabExtender
 {
-	FInsightsMajorTabExtender(TSharedPtr<FTabManager>& InTabManager) : MenuExtender(MakeShared<FExtender>()), TabManager(InTabManager) {}
+	FInsightsMajorTabExtender(TSharedPtr<FTabManager>& InTabManager, TSharedRef<FWorkspaceItem> InWorkspaceGroup)
+		: MenuExtender(MakeShared<FExtender>())
+		, TabManager(InTabManager)
+		, WorkspaceGroup(InWorkspaceGroup)
+	{}
 
 	TSharedPtr<FExtender>& GetMenuExtender() { return MenuExtender; }
 	FLayoutExtender& GetLayoutExtender() { return LayoutExtender; }
 	FInsightsMinorTabConfig& AddMinorTabConfig() { return MinorTabs.AddDefaulted_GetRef(); }
 	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
 	const TArray<FInsightsMinorTabConfig>& GetMinorTabs() const { return MinorTabs; }
+	TSharedRef<FWorkspaceItem> GetWorkspaceGroup() { return WorkspaceGroup; }
 
 protected:
 	/** Extender used to add to the menu for this tab */
@@ -144,6 +150,8 @@ protected:
 
 	/** Tab manager for this major tab*/
 	TSharedPtr<FTabManager> TabManager;
+
+	TSharedRef<FWorkspaceItem> WorkspaceGroup;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

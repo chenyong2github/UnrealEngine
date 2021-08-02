@@ -80,7 +80,7 @@ void FSlateInsightsModule::RegisterTimingProfilerLayoutExtensions(FInsightsMajor
 	MinorTabConfig.TabLabel = LOCTEXT("SlateTabTitle", "Slate Frame View");
 	MinorTabConfig.TabTooltip = LOCTEXT("SlateTabTitleTooltip", "Opens the Slate Frame View tab, allows for diagnostics  of a Slate frame.");
 	MinorTabConfig.TabIcon = FSlateIcon(FSlateInsightsStyle::Get().GetStyleSetName(), "SlateProfiler.Icon.Small");
-	//MinorTabConfig.WorkspaceGroup = InOutExtender.GetMinorTabs();
+	MinorTabConfig.WorkspaceGroup = InOutExtender.GetWorkspaceGroup();
 	MinorTabConfig.OnSpawnTab = FOnSpawnTab::CreateLambda([this](const FSpawnTabArgs& Args)
 		{
 			TSharedRef<SSlateFrameSchematicView> Content = SNew(SSlateFrameSchematicView);
