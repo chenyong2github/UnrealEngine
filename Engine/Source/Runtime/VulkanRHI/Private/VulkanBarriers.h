@@ -25,6 +25,8 @@ struct FVulkanPipelineBarrier
 	TArray<FVulkanTextureBase*, TInlineAllocator<2>> Textures;
 
 	void AddImageLayoutTransition(VkImage Image, VkImageLayout SrcLayout, VkImageLayout DstLayout, const VkImageSubresourceRange& SubresourceRange);
+	void AddImageLayoutTransition(VkImage Image, VkImageAspectFlags AspectMask, const struct FVulkanImageLayout& SrcLayout, VkImageLayout DstLayout);
+	void AddImageLayoutTransition(VkImage Image, VkImageAspectFlags AspectMask, VkImageLayout SrcLayout, const struct FVulkanImageLayout& DstLayout);
 	void AddImageAccessTransition(const FVulkanSurface& Surface, ERHIAccess SrcAccess, ERHIAccess DstAccess, const VkImageSubresourceRange& SubresourceRange, VkImageLayout& InOutLayout);
 	void Execute(VkCommandBuffer CmdBuffer);
 
@@ -176,17 +178,20 @@ public:
 		return Layout.MainLayout;
 	}
 
-	VULKANRHI_API VkImageLayout& FindOrAddLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound, uint32 NumMips, uint32 NumLayers)
+	VULKANRHI_API FVulkanImageLayout& FindOrAddFullLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound, uint32 NumMips, uint32 NumLayers)
 	{
 		FVulkanImageLayout* Layout = Layouts.Find(Image);
 		if (Layout)
 		{
 			check(Layout->AreAllSubresourcesSameLayout());
-			return Layout->MainLayout;
+			return *Layout;
 		}
+		return Layouts.Add(Image, FVulkanImageLayout(LayoutIfNotFound, NumMips, NumLayers));
+	}
 
-		Layout = &Layouts.Add(Image, FVulkanImageLayout(LayoutIfNotFound, NumMips, NumLayers));
-		return Layout->MainLayout;
+	VULKANRHI_API VkImageLayout& FindOrAddLayoutRW(VkImage Image, VkImageLayout LayoutIfNotFound, uint32 NumMips, uint32 NumLayers)
+	{
+		return FindOrAddFullLayoutRW(Image, LayoutIfNotFound, NumMips, NumLayers).MainLayout;
 	}
 
 	VULKANRHI_API VkImageLayout& FindOrAddLayoutRW(const FVulkanSurface& Surface, VkImageLayout LayoutIfNotFound)

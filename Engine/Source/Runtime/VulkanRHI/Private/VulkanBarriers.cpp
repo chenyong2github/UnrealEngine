@@ -1260,6 +1260,63 @@ void FVulkanPipelineBarrier::AddImageLayoutTransition(VkImage Image, VkImageLayo
 	SetupImageBarrier(ImgBarrier, Image, SrcAccessFlags, DstAccessFlags, SrcLayout, DstLayout, SubresourceRange);
 }
 
+void FVulkanPipelineBarrier::AddImageLayoutTransition(VkImage Image, VkImageAspectFlags AspectMask, const FVulkanImageLayout& SrcLayout, VkImageLayout DstLayout)
+{
+	if (SrcLayout.AreAllSubresourcesSameLayout())
+	{
+		AddImageLayoutTransition(Image, SrcLayout.MainLayout, DstLayout, MakeSubresourceRange(AspectMask));
+		return;
+	}
+
+	DstStageMask |= GetVkStageFlagsForLayout(DstLayout);
+	const VkAccessFlags DstAccessFlags = GetVkAccessMaskForLayout(DstLayout);
+
+	VkImageSubresourceRange SubresourceRange = MakeSubresourceRange(AspectMask, 0, 1, 0, 1);
+	for (; SubresourceRange.baseArrayLayer < SrcLayout.NumLayers; ++SubresourceRange.baseArrayLayer)
+	{
+		for (; SubresourceRange.baseMipLevel < SrcLayout.NumMips; ++SubresourceRange.baseMipLevel)
+		{
+			const VkImageLayout SubresourceLayout = SrcLayout.GetSubresLayout(SubresourceRange.baseArrayLayer, SubresourceRange.baseMipLevel);
+			if (SubresourceLayout != DstLayout)
+			{
+				SrcStageMask |= GetVkStageFlagsForLayout(SubresourceLayout);
+				const VkAccessFlags SrcAccessFlags = GetVkAccessMaskForLayout(SubresourceLayout);
+
+				VkImageMemoryBarrier& ImgBarrier = ImageBarriers.AddDefaulted_GetRef();
+				SetupImageBarrier(ImgBarrier, Image, SrcAccessFlags, DstAccessFlags, SubresourceLayout, DstLayout, SubresourceRange);
+			}
+		}
+	}
+}
+
+void FVulkanPipelineBarrier::AddImageLayoutTransition(VkImage Image, VkImageAspectFlags AspectMask, VkImageLayout SrcLayout, const FVulkanImageLayout& DstLayout)
+{
+	if (DstLayout.AreAllSubresourcesSameLayout())
+	{
+		AddImageLayoutTransition(Image, SrcLayout, DstLayout.MainLayout, MakeSubresourceRange(AspectMask));
+		return;
+	}
+
+	SrcStageMask |= GetVkStageFlagsForLayout(SrcLayout);
+	const VkAccessFlags SrcAccessFlags = GetVkAccessMaskForLayout(SrcLayout);
+
+	VkImageSubresourceRange SubresourceRange = MakeSubresourceRange(AspectMask, 0, 1, 0, 1);
+	for (; SubresourceRange.baseArrayLayer < DstLayout.NumLayers; ++SubresourceRange.baseArrayLayer)
+	{
+		for (; SubresourceRange.baseMipLevel < DstLayout.NumMips; ++SubresourceRange.baseMipLevel)
+		{
+			const VkImageLayout SubresourceLayout = DstLayout.GetSubresLayout(SubresourceRange.baseArrayLayer, SubresourceRange.baseMipLevel);
+			if (SubresourceLayout != SrcLayout)
+			{
+				DstStageMask |= GetVkStageFlagsForLayout(SubresourceLayout);
+				const VkAccessFlags DstAccessFlags = GetVkAccessMaskForLayout(SubresourceLayout);
+
+				VkImageMemoryBarrier& ImgBarrier = ImageBarriers.AddDefaulted_GetRef();
+				SetupImageBarrier(ImgBarrier, Image, SrcAccessFlags, DstAccessFlags, SrcLayout, SubresourceLayout, SubresourceRange);
+			}
+		}
+	}
+}
 void FVulkanPipelineBarrier::AddImageAccessTransition(const FVulkanSurface& Surface, ERHIAccess SrcAccess, ERHIAccess DstAccess, const VkImageSubresourceRange& SubresourceRange, VkImageLayout& InOutLayout)
 {
 	// This function should only be used for known states.

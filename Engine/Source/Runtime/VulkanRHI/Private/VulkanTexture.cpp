@@ -536,7 +536,6 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 	, PixelFormat(InFormat)
 	, UEFlags(InUEFlags)
 	, MemProps(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-	, NumArrayLevels(0)
 	, Tiling(VK_IMAGE_TILING_MAX_ENUM)	// Can be expanded to a per-platform definition
 	, ViewType(ResourceType)
 	, bIsImageOwner(true)
@@ -596,8 +595,6 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 	VulkanRHI::vkGetImageMemoryRequirements(InDevice.GetInstanceHandle(), Image, &MemoryRequirements);
 
 	VULKAN_SET_DEBUG_NAME(InDevice, VK_OBJECT_TYPE_IMAGE, Image, TEXT("(FVulkanSurface*)0x%p"), this);
-	uint32 LayerCount = (ResourceType == VK_IMAGE_VIEW_TYPE_CUBE || ResourceType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) ? 6 : 1;
-	NumArrayLevels = ArraySize * LayerCount;
 
 	FullAspectMask = VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, true, true);
 	PartialAspectMask = VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, false, true);
@@ -680,7 +677,9 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 	}
 }
 
-void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& NewAllocation)
+
+
+void FVulkanSurface::InternalMoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& DestAllocation, bool bSwapAllocation)
 {
 	FImageCreateInfo ImageCreateInfo;
 	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo,
@@ -691,327 +690,168 @@ void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanCommandListCont
 
 	VkImage MovedImage;
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo.ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &MovedImage));
-	check(ImageCreateInfo.ImageCreateInfo.tiling == VK_IMAGE_TILING_OPTIMAL);
-
+	checkf(Tiling == ImageCreateInfo.ImageCreateInfo.tiling, TEXT("Move has changed image tiling:  before [%d] != after [%d]"), (int32)Tiling, (int32)ImageCreateInfo.ImageCreateInfo.tiling);
 
 	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
-	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
 	const bool bCPUReadback = EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback);
-	const bool bDynamic = EnumHasAnyFlags(UEFlags, TexCreate_Dynamic);
 	const bool bMemoryless = EnumHasAnyFlags(UEFlags, TexCreate_Memoryless);
-	check(!bCPUReadback); //not currently supported
-	check(!bMemoryless);  //not currently supported
+	checkf(!bCPUReadback, TEXT("Move of CPUReadback surfaces not currently supported.   UEFlags=0x%x"), (int32)UEFlags);
+	checkf(!bMemoryless, TEXT("Move of Memoryless surfaces not currently supported.   UEFlags=0x%x"), (int32)UEFlags);
 
-	VkMemoryPropertyFlags MemoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+	// This shouldn't change
+	VkMemoryRequirements MovedMemReqs;
+	VulkanRHI::vkGetImageMemoryRequirements(InDevice.GetInstanceHandle(), MovedImage, &MovedMemReqs);
+	checkf((MemoryRequirements.alignment == MovedMemReqs.alignment), TEXT("Memory requirements changed: alignment %d -> %d"), (int32)MemoryRequirements.alignment, (int32)MovedMemReqs.alignment);
+	checkf((MemoryRequirements.size == MovedMemReqs.size), TEXT("Memory requirements changed: size %d -> %d"), (int32)MemoryRequirements.size, (int32)MovedMemReqs.size);
+	checkf((MemoryRequirements.memoryTypeBits == MovedMemReqs.memoryTypeBits), TEXT("Memory requirements changed: memoryTypeBits %d -> %d"), (int32)MemoryRequirements.memoryTypeBits, (int32)MovedMemReqs.memoryTypeBits);
+#endif // UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 
-	check(bRenderTarget || bUAV);
+	DestAllocation.BindImage(&InDevice, MovedImage);
 
-
-	NewAllocation.BindImage(Device, MovedImage);
-
-	uint32 LayerCount = (ViewType == VK_IMAGE_VIEW_TYPE_CUBE || ViewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) ? 6 : 1;
-	NumArrayLevels = ArraySize * LayerCount;
-
-	//Copy Old -> Moved
+	// Copy Original -> Moved
 	FVulkanCmdBuffer* CmdBuffer = Context.GetCommandBufferManager()->GetActiveCmdBuffer();
 	VkCommandBuffer VkCmdBuffer = CmdBuffer->GetHandle();
-
 	ensure(CmdBuffer->IsOutsideRenderPass());
-	VkImageLayout& Layout = Context.GetLayoutManager().FindOrAddLayoutRW(Image, VK_IMAGE_LAYOUT_UNDEFINED, NumMips, LayerCount);
-	VkImageLayout& MovedLayout = Context.GetLayoutManager().FindOrAddLayoutRW(MovedImage, VK_IMAGE_LAYOUT_UNDEFINED, NumMips, LayerCount);
+
+	const uint32 NumberOfArrayLevels = GetNumberOfArrayLevels();
+	FVulkanImageLayout* MovedLayout = &Context.GetLayoutManager().FindOrAddFullLayoutRW(MovedImage, VK_IMAGE_LAYOUT_UNDEFINED, GetNumMips(), NumberOfArrayLevels);
+	FVulkanImageLayout* OriginalLayout = Context.GetLayoutManager().GetFullLayout(Image);
+	// Account for map resize, should rarely happen...
+	if (OriginalLayout == nullptr)
 	{
-		check(MovedLayout == VK_IMAGE_LAYOUT_UNDEFINED);
-		VkImageSubresourceRange RangeAll;
-		RangeAll.aspectMask = FullAspectMask;
-		RangeAll.baseMipLevel = 0;
-		RangeAll.levelCount = VK_REMAINING_MIP_LEVELS;
-		RangeAll.baseArrayLayer = 0;
-		RangeAll.layerCount = VK_REMAINING_ARRAY_LAYERS;
+		OriginalLayout = &Context.GetLayoutManager().GetOrAddFullLayout(*this, VK_IMAGE_LAYOUT_UNDEFINED);
+		MovedLayout = &Context.GetLayoutManager().GetFullLayoutChecked(MovedImage);
+	}
+
+	checkf((OriginalLayout->NumMips == GetNumMips()), TEXT("NumMips reported by LayoutManager (%d) differs from surface (%d)"), OriginalLayout->NumMips, GetNumMips());
+	checkf((OriginalLayout->NumLayers == NumberOfArrayLevels), TEXT("NumLayers reported by LayoutManager (%d) differs from surface (%d)"), OriginalLayout->NumLayers, NumberOfArrayLevels);
+	{
+		// Transition to copying layouts
 		{
 			FVulkanPipelineBarrier Barrier;
-			Barrier.AddImageLayoutTransition(Image, Layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, RangeAll);
-			Barrier.AddImageLayoutTransition(MovedImage, MovedLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, RangeAll);
+			Barrier.AddImageLayoutTransition(Image, FullAspectMask, *OriginalLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+			Barrier.AddImageLayoutTransition(MovedImage, FullAspectMask, *MovedLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 			Barrier.Execute(VkCmdBuffer);
 		}
 		{
+			VkImageCopy Regions[MAX_TEXTURE_MIP_COUNT];
+			check(NumMips <= MAX_TEXTURE_MIP_COUNT);
+			FMemory::Memzero(Regions);
+			for (uint32 i = 0; i < NumMips; ++i)
 			{
-				VkImageCopy Regions[MAX_TEXTURE_MIP_COUNT];
-				check(NumMips <= MAX_TEXTURE_MIP_COUNT);
-				FMemory::Memzero(Regions);
-				for (uint32 i = 0; i < NumMips; ++i)
-				{
-					VkImageCopy& Region = Regions[i];
-					Region.extent.width = FMath::Max(1u, Width >> i);
-					Region.extent.height = FMath::Max(1u, Height >> i);
-					Region.extent.depth = FMath::Max(1u, Depth >> i);
-					Region.srcSubresource.aspectMask = FullAspectMask;
-					Region.dstSubresource.aspectMask = FullAspectMask;
-					Region.srcSubresource.baseArrayLayer = 0;
-					Region.dstSubresource.baseArrayLayer = 0;
-					Region.srcSubresource.layerCount = 1;
-					Region.dstSubresource.layerCount = 1;
-					Region.srcSubresource.mipLevel = i;
-					Region.dstSubresource.mipLevel = i;
-				}
-				VulkanRHI::vkCmdCopyImage(VkCmdBuffer,
-					Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-					MovedImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-					NumMips, &Regions[0]);
+				VkImageCopy& Region = Regions[i];
+				Region.extent.width = FMath::Max(1u, Width >> i);
+				Region.extent.height = FMath::Max(1u, Height >> i);
+				Region.extent.depth = FMath::Max(1u, Depth >> i);
+				Region.srcSubresource.aspectMask = FullAspectMask;
+				Region.dstSubresource.aspectMask = FullAspectMask;
+				Region.srcSubresource.baseArrayLayer = 0;
+				Region.dstSubresource.baseArrayLayer = 0;
+				Region.srcSubresource.layerCount = NumberOfArrayLevels;
+				Region.dstSubresource.layerCount = NumberOfArrayLevels;
+				Region.srcSubresource.mipLevel = i;
+				Region.dstSubresource.mipLevel = i;
 			}
+			VulkanRHI::vkCmdCopyImage(VkCmdBuffer,
+				Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				MovedImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				NumMips, &Regions[0]);
 		}
-		VkImageLayout FinalLayout = Layout;
-		{
-			VulkanSetImageLayout(VkCmdBuffer, MovedImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, FinalLayout, RangeAll);
-		}
-		Layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		MovedLayout = FinalLayout;
 
+		// Put the destination image in exactly the same layout the original image was
 		{
-			check(Image != VK_NULL_HANDLE);
-			uint64 Size = GetMemorySize();
-			Device->NotifyDeletedImage(Image, bRenderTarget);
-			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
-			Image = MovedImage;
-			VulkanTextureDestroyed(Size, ViewType, bRenderTarget);
-			Allocation.Swap(NewAllocation);
+			FVulkanPipelineBarrier Barrier;
+			Barrier.AddImageLayoutTransition(MovedImage, FullAspectMask, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, *OriginalLayout);
+			Barrier.Execute(VkCmdBuffer);
 		}
+
+		// Update the tracked layouts
+		*MovedLayout = *OriginalLayout;
+		OriginalLayout->Set(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, FVulkanPipelineBarrier::MakeSubresourceRange(FullAspectMask));
 	}
 
+	{
+		check(Image != VK_NULL_HANDLE);
+		InDevice.NotifyDeletedImage(Image, bRenderTarget);
+		InDevice.GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
+		FGenericPlatformMisc::LowLevelOutputDebugStringf(TEXT("** MOVE IMAGE %p -> %p\n"), Image, MovedImage);
+	}
+
+	Image = MovedImage;
+
+	if (bSwapAllocation)
+	{
+		const uint64 Size = GetMemorySize();
+		VulkanTextureDestroyed(Size, ViewType, bRenderTarget);
+
+		Allocation.Swap(DestAllocation);
+	}
+}
+
+void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& NewAllocation)
+{
+	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
+	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
+	checkf(bRenderTarget || bUAV, TEXT("Surface must be a RenderTarget or a UAV in order to be moved.  UEFlags=0x%x"), (int32)UEFlags);
+	checkf(Tiling == VK_IMAGE_TILING_OPTIMAL, TEXT("Tiling [%d] is not supported for move, only VK_IMAGE_TILING_OPTIMAL"), (int32)Tiling);
+
+	InternalMoveSurface(InDevice, Context, NewAllocation, true);
 }
 
 
 void FVulkanSurface::OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, uint32 NewOffset)
 {
-	FImageCreateInfo ImageCreateInfo;
-	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo,
-		InDevice, ViewType,
-		PixelFormat, Width, Height, Depth,
-		ArraySize, NumMips, NumSamples, UEFlags,
-		&StorageFormat, &ViewFormat);
-
-	VkImage MovedImage;
-	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo.ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &MovedImage));
-	check(ImageCreateInfo.ImageCreateInfo.tiling == VK_IMAGE_TILING_OPTIMAL);
-
-
 	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
 	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
-	const bool bCPUReadback = EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback);
-	const bool bDynamic = EnumHasAnyFlags(UEFlags, TexCreate_Dynamic);
-	const bool bMemoryless = EnumHasAnyFlags(UEFlags, TexCreate_Memoryless);
-	check(!bCPUReadback); //not currently supported
-	check(!bMemoryless);  //not currently supported
+	checkf(bRenderTarget || bUAV, TEXT("Surface must be a RenderTarget or a UAV in order to be defragged.  UEFlags=0x%x"), (int32)UEFlags);
+	checkf(Tiling == VK_IMAGE_TILING_OPTIMAL, TEXT("Tiling [%d] is not supported for defrag, only VK_IMAGE_TILING_OPTIMAL"), (int32)Tiling);
 
-	VkMemoryPropertyFlags MemoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-	check(bRenderTarget || bUAV);
+	Allocation.Offset = NewOffset;
+	InternalMoveSurface(InDevice, Context, Allocation, false);
 
 	//note: this exploits that the unmoved image is still bound to the old allocation, which is freed by the caller in this case.
-	Allocation.Offset = NewOffset;
-	Allocation.BindImage(Device, MovedImage);
-
-	uint32 LayerCount = (ViewType == VK_IMAGE_VIEW_TYPE_CUBE || ViewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) ? 6 : 1;
-	NumArrayLevels = ArraySize * LayerCount;
-
-
-	//Copy Old -> Moved
-	FVulkanCmdBuffer* CmdBuffer = Context.GetCommandBufferManager()->GetActiveCmdBuffer();
-	VkCommandBuffer VkCmdBuffer = CmdBuffer->GetHandle();
-
-	ensure(CmdBuffer->IsOutsideRenderPass());
-	VkImageLayout& Layout = Context.GetLayoutManager().FindOrAddLayoutRW(Image, VK_IMAGE_LAYOUT_UNDEFINED, NumMips, LayerCount);
-	VkImageLayout& MovedLayout = Context.GetLayoutManager().FindOrAddLayoutRW(MovedImage, VK_IMAGE_LAYOUT_UNDEFINED, NumMips, LayerCount);
-	{
-		check(MovedLayout == VK_IMAGE_LAYOUT_UNDEFINED);
-		VkImageSubresourceRange RangeAll;
-		RangeAll.aspectMask = FullAspectMask;
-		RangeAll.baseMipLevel = 0;
-		RangeAll.levelCount = VK_REMAINING_MIP_LEVELS;
-		RangeAll.baseArrayLayer = 0;
-		RangeAll.layerCount = VK_REMAINING_ARRAY_LAYERS;
-		{
-			FVulkanPipelineBarrier Barrier;
-			Barrier.AddImageLayoutTransition(Image, Layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, RangeAll);
-			Barrier.AddImageLayoutTransition(MovedImage, MovedLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, RangeAll);
-			Barrier.Execute(VkCmdBuffer);
-		}
-		{
-			{
-				VkImageCopy Regions[MAX_TEXTURE_MIP_COUNT];
-				check(NumMips <= MAX_TEXTURE_MIP_COUNT);
-				FMemory::Memzero(Regions);
-				for (uint32 i = 0; i < NumMips; ++i)
-				{
-					VkImageCopy& Region = Regions[i];
-					Region.extent.width = FMath::Max(1u, Width >> i);
-					Region.extent.height = FMath::Max(1u, Height >> i);
-					Region.extent.depth = FMath::Max(1u, Depth >> i);
-					Region.srcSubresource.aspectMask = FullAspectMask;
-					Region.dstSubresource.aspectMask = FullAspectMask;
-					Region.srcSubresource.baseArrayLayer = 0;
-					Region.dstSubresource.baseArrayLayer = 0;
-					Region.srcSubresource.layerCount = 1;
-					Region.dstSubresource.layerCount = 1;
-					Region.srcSubresource.mipLevel = i;
-					Region.dstSubresource.mipLevel = i;
-				}
-				VulkanRHI::vkCmdCopyImage(VkCmdBuffer,
-					Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-					MovedImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-					NumMips, &Regions[0]);
-			}
-		}
-		VkImageLayout FinalLayout = Layout;
-		{
-			VulkanSetImageLayout(VkCmdBuffer, MovedImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, FinalLayout, RangeAll);
-		}
-		Layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		MovedLayout = FinalLayout;
-
-		{
-			check(Image != VK_NULL_HANDLE);
-			Device->NotifyDeletedImage(Image, bRenderTarget);
-			Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
-			FGenericPlatformMisc::LowLevelOutputDebugStringf(TEXT("** MOVE IMAGE %p -> %p\n"), Image, MovedImage);
-			Image = MovedImage;
-		}
-	}
 }
 
 
 void FVulkanSurface::EvictSurface(FVulkanDevice& InDevice)
 {
 	check(0 == CpuReadbackBuffer);
-	FImageCreateInfo ImageCreateInfo;
-	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo,
-		InDevice, ViewType,
-		PixelFormat, Width, Height, Depth,
-		ArraySize, NumMips, NumSamples, UEFlags,
-		&StorageFormat, &ViewFormat);
+	checkf(MemProps == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, TEXT("Can't evict surface that isn't device local.  MemoryProperties=%d"), (int32)MemProps);
+	checkf(VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, true, true) == FullAspectMask, TEXT("FullAspectMask (%d) does not match with PixelFormat (%d)"), (int32)FullAspectMask, (int32)PixelFormat);
+	checkf(VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, false, true) == PartialAspectMask, TEXT("PartialAspectMask (%d) does not match with PixelFormat (%d)"), (int32)PartialAspectMask, (int32)PixelFormat);
 
+	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
+	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
+	//none of this is supported for eviction
+	checkf(!bRenderTarget, TEXT("RenderTargets do not support evict."));
+	checkf(!bUAV, TEXT("UAV do not support evict."));
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	FVulkanCommandListContext& Context = (FVulkanCommandListContext&)RHICmdList.GetContext().GetLowestLevelContext();
 
+	MemProps = InDevice.GetDeviceMemoryManager().GetEvictedMemoryProperties();
 
-	VkImage HostImage;
 	FVulkanAllocation HostAllocation;
-	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo.ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &HostImage));
-
-	VulkanRHI::vkGetImageMemoryRequirements(InDevice.GetInstanceHandle(), HostImage, &MemoryRequirements);
-
-	VULKAN_SET_DEBUG_NAME(InDevice, VK_OBJECT_TYPE_IMAGE, HostImage, TEXT("(FVulkanSurface*)0x%p [hostimage]"), this);
-	uint32 LayerCount = (ViewType == VK_IMAGE_VIEW_TYPE_CUBE || ViewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) ? 6 : 1;
-	NumArrayLevels = ArraySize * LayerCount;
-
-	VkImageAspectFlags NewFullAspectMask = VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, true, true);
-	VkImageAspectFlags NewPartialAspectMask = VulkanRHI::GetAspectMaskFromUEFormat(PixelFormat, false, true);
-	check(NewFullAspectMask == FullAspectMask);
-	check(NewPartialAspectMask == PartialAspectMask);
-
-
-	check(MemProps == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT); //cant evict stuff thats not device local.
-
-	const bool bRenderTarget = EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable);
-	const bool bUAV = EnumHasAnyFlags(UEFlags, TexCreate_UAV);
-	const bool bCPUReadback = EnumHasAnyFlags(UEFlags, TexCreate_CPUReadback);
-	const bool bDynamic = EnumHasAnyFlags(UEFlags, TexCreate_Dynamic);
-	bool bMemoryless = EnumHasAnyFlags(UEFlags, TexCreate_Memoryless);
-	//none of this is supported for eviction
-	check(!bMemoryless);
-	check(!bRenderTarget);
-	check(!bCPUReadback);
-	check(!bUAV);
-	MemProps = Device->GetDeviceMemoryManager().GetEvictedMemoryProperties();
-
-	const uint64 TotalGPUMemory = Device->GetDeviceMemoryManager().GetTotalMemory(true);
-
-	EVulkanAllocationMetaType MetaType = EVulkanAllocationMetaImageOther;
+	const EVulkanAllocationMetaType MetaType = EVulkanAllocationMetaImageOther;
 	if (!InDevice.GetMemoryManager().AllocateImageMemory(HostAllocation, this, MemoryRequirements, MemProps, MetaType, __FILE__, __LINE__))
 	{
 		InDevice.GetMemoryManager().HandleOOM();
 		checkNoEntry();
 	}
-	HostAllocation.BindImage(Device, HostImage);
 	VulkanTextureAllocated(MemoryRequirements.size, ViewType, bRenderTarget);
-	check(Tiling == ImageCreateInfo.ImageCreateInfo.tiling);
 
-	{
-		//copy local image -> host image
-		FVulkanCmdBuffer* CmdBuffer = Context.GetCommandBufferManager()->GetActiveCmdBuffer();
-		VkCommandBuffer VkCmdBuffer = CmdBuffer->GetHandle();
+	InternalMoveSurface(InDevice, Context, HostAllocation, true);
 
-		ensure(CmdBuffer->IsOutsideRenderPass());
-		VkImageLayout& Layout = Context.GetLayoutManager().FindOrAddLayoutRW(Image, VK_IMAGE_LAYOUT_UNDEFINED, NumMips, LayerCount);
-		VkImageLayout& HostLayout = Context.GetLayoutManager().FindOrAddLayoutRW(HostImage, VK_IMAGE_LAYOUT_UNDEFINED, NumMips, LayerCount);
-		check(HostLayout == VK_IMAGE_LAYOUT_UNDEFINED);
+	// Since the allocations were swapped, HostAllocation now contains the original allocation to be freed
+	Device->GetMemoryManager().FreeVulkanAllocation(HostAllocation);
 
-		VkImageSubresourceRange RangeAll;
-		RangeAll.aspectMask = FullAspectMask;
-		RangeAll.baseMipLevel = 0;
-		RangeAll.levelCount = VK_REMAINING_MIP_LEVELS;
-		RangeAll.baseArrayLayer = 0;
-		RangeAll.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-
-		{
-			FVulkanPipelineBarrier Barrier;
-			Barrier.AddImageLayoutTransition(Image, Layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, RangeAll);
-			Barrier.AddImageLayoutTransition(HostImage, HostLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, RangeAll);
-			Barrier.Execute(VkCmdBuffer);
-		}
-		{
-			{
-				VkImageCopy Regions[MAX_TEXTURE_MIP_COUNT];
-				check(NumMips <= MAX_TEXTURE_MIP_COUNT);
-				FMemory::Memzero(Regions);
-				for(uint32 i = 0; i < NumMips; ++i)
-				{
-					VkImageCopy& Region = Regions[i];
-					Region.extent.width = FMath::Max(1u, Width >> i);
-					Region.extent.height = FMath::Max(1u, Height >> i);
-					Region.extent.depth = FMath::Max(1u, Depth >> i);
-					Region.srcSubresource.aspectMask = FullAspectMask;
-					Region.dstSubresource.aspectMask = FullAspectMask;
-					Region.srcSubresource.baseArrayLayer = 0;
-					Region.dstSubresource.baseArrayLayer = 0;
-					Region.srcSubresource.layerCount = 1;
-					Region.dstSubresource.layerCount = 1;
-					Region.srcSubresource.mipLevel = i;
-					Region.dstSubresource.mipLevel = i;
-				}
-					VulkanRHI::vkCmdCopyImage(VkCmdBuffer,
-						Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-						HostImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-						NumMips, &Regions[0]);
-			}
-		}
-		VkImageLayout FinalLayout = Layout;
-		{
-			VulkanSetImageLayout(VkCmdBuffer, HostImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, FinalLayout, RangeAll);
-		}
-		Layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		HostLayout = FinalLayout;
-	}
-	{
-		check(Image != VK_NULL_HANDLE);
-		uint64 Size = GetMemorySize();
-		Device->NotifyDeletedImage(Image, bRenderTarget);
-		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Image, Image);
-		Device->GetMemoryManager().FreeVulkanAllocation(Allocation);
-		check(!Allocation.HasAllocation());
-		Image = VK_NULL_HANDLE;
-		VulkanTextureDestroyed(Size, ViewType, bRenderTarget);
-	}
-	Image = HostImage;
-	Allocation.Swap(HostAllocation);
-
+	VULKAN_SET_DEBUG_NAME(InDevice, VK_OBJECT_TYPE_IMAGE, Image, TEXT("(FVulkanSurface*)0x%p [hostimage]"), this);
 }
-
 
 // This is usually used for the framebuffer image
 FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType ResourceType, EPixelFormat InFormat,
-								uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 ArraySize, uint32 InNumMips, uint32 InNumSamples,
+								uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 InArraySize, uint32 InNumMips, uint32 InNumSamples,
 								VkImage InImage, ETextureCreateFlags InUEFlags, const FRHIResourceCreateInfo& CreateInfo)
 	: Device(&InDevice)
 	, Image(InImage)
@@ -1020,10 +860,10 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	, Width(SizeX)
 	, Height(SizeY)
 	, Depth(SizeZ)
+	, ArraySize(InArraySize)
 	, PixelFormat(InFormat)
 	, UEFlags(InUEFlags)
 	, MemProps(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-	, NumArrayLevels(ArraySize)
 	, Tiling(VK_IMAGE_TILING_MAX_ENUM)	// Can be expanded to a per-platform definition
 	, ViewType(ResourceType)
 	, bIsImageOwner(false)
@@ -2195,7 +2035,7 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 }
 
 FVulkanTextureBase::FVulkanTextureBase(FTextureRHIRef& SrcTextureRHI, const FVulkanTextureBase* SrcTexture, VkImageViewType ResourceType, uint32 SizeX, uint32 SizeY, uint32 SizeZ)
-	: Surface(*SrcTexture->Surface.Device, ResourceType, SrcTexture->Surface.PixelFormat, SizeX, SizeY, SizeZ, SrcTexture->Surface.NumArrayLevels, SrcTexture->Surface.NumMips, SrcTexture->Surface.NumSamples, SrcTexture->Surface.Image, SrcTexture->Surface.UEFlags, FRHIResourceCreateInfo(TEXT("FVulkanTextureBase")))
+	: Surface(*SrcTexture->Surface.Device, ResourceType, SrcTexture->Surface.PixelFormat, SizeX, SizeY, SizeZ, SrcTexture->Surface.GetNumberOfArrayLevels(), SrcTexture->Surface.NumMips, SrcTexture->Surface.NumSamples, SrcTexture->Surface.Image, SrcTexture->Surface.UEFlags, FRHIResourceCreateInfo(TEXT("FVulkanTextureBase")))
 	, PartialView(nullptr)
 	, AliasedTexture(SrcTextureRHI)
 {
@@ -2416,7 +2256,7 @@ FVulkanTexture2DArray::FVulkanTexture2DArray(FVulkanDevice& Device, EPixelFormat
 }
 
 FVulkanTexture2DArray::FVulkanTexture2DArray(FTextureRHIRef& SrcTextureRHI, const FVulkanTexture2DArray* SrcTexture)
-	: FRHITexture2DArray(SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->Surface.NumArrayLevels, SrcTexture->GetNumMips(), SrcTexture->GetNumSamples(), SrcTexture->GetFormat(), SrcTexture->GetFlags(), SrcTexture->GetClearBinding())
+	: FRHITexture2DArray(SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), SrcTexture->Surface.GetNumberOfArrayLevels(), SrcTexture->GetNumMips(), SrcTexture->GetNumSamples(), SrcTexture->GetFormat(), SrcTexture->GetFlags(), SrcTexture->GetClearBinding())
 	, FVulkanTextureBase(SrcTextureRHI, static_cast<const FVulkanTextureBase*>(SrcTexture), VK_IMAGE_VIEW_TYPE_2D_ARRAY, SrcTexture->GetSizeX(), SrcTexture->GetSizeY(), 1)
 {
 }
