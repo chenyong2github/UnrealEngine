@@ -4,6 +4,7 @@
 
 #include "IO/IoDispatcher.h"
 #include "Misc/SecureHash.h"
+#include "Serialization/CompactBinary.h"
 
 struct FPackageStoreEntryResource;
 
@@ -43,6 +44,7 @@ public:
 	{
 		FName PackageName;
 		FGuid PackageGuid;
+		FCbObject TargetDomainDependencies;
 		bool bSucceeded = false;
 	};
 
