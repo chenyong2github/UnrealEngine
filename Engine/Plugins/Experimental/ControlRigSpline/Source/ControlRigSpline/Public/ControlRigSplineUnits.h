@@ -23,6 +23,8 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 	{
 		SplineMode = ESplineType::BSpline;
 		SamplesPerSegment = 16;
+		Compression = 1.f;
+		Stretch = 1.f;
 	}
 
 	/** Execute logic for this rig unit */
@@ -37,6 +39,12 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 
 	UPROPERTY(meta = (Input))
 	int32 SamplesPerSegment;
+
+	UPROPERTY(meta = (Input))
+	float Compression;
+
+	UPROPERTY(meta = (Input))
+	float Stretch;
 
 	UPROPERTY(meta = (Output))
 	FControlRigSpline Spline;

@@ -14,7 +14,7 @@ FRigUnit_ControlRigSplineFromPoints_Execute()
 		case EControlRigState::Update:
 		{
 			const TArrayView<const FVector> PointsView(Points.GetData(), Points.Num());
-			Spline.SetControlPoints(PointsView, SplineMode, SamplesPerSegment);
+			Spline.SetControlPoints(PointsView, SplineMode, SamplesPerSegment, Compression, Stretch);
 			break;
 		}
 		default:
@@ -45,7 +45,7 @@ FRigUnit_SetSplinePoints_Execute()
 		case EControlRigState::Update:
 		{
 			const TArrayView<const FVector> PointsView(Points.GetData(), Points.Num());
-			Spline.SetControlPoints(PointsView, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment);
+			Spline.SetControlPoints(PointsView, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
 			break;
 		}
 		default:
@@ -58,6 +58,11 @@ FRigUnit_SetSplinePoints_Execute()
 
 FRigUnit_PositionFromControlRigSpline_Execute()
 {
+	if (!Spline.SplineData.IsValid())
+	{
+		return;
+	}
+	
 	switch (Context.State)
 	{
 		case EControlRigState::Init:
@@ -76,6 +81,11 @@ FRigUnit_PositionFromControlRigSpline_Execute()
 
 FRigUnit_TransformFromControlRigSpline_Execute()
 {
+	if (!Spline.SplineData.IsValid())
+	{
+		return;
+	}
+	
 	switch (Context.State)
 	{
 		case EControlRigState::Init:
@@ -122,6 +132,11 @@ FRigUnit_DrawControlRigSpline_Execute()
 	{
 		return;
 	}
+	
+	if (!Spline.SplineData.IsValid())
+	{
+		return;
+	}
 
 	int32 Count = FMath::Clamp<int32>(Detail, 4, 64);
 	FControlRigDrawInstruction Instruction(EControlRigDrawSettings::LineStrip, Color, Thickness);
@@ -141,6 +156,12 @@ FRigUnit_DrawControlRigSpline_Execute()
 
 FRigUnit_GetLengthControlRigSpline_Execute()
 {
+	if (!Spline.SplineData.IsValid())
+	{
+		Length = 0;
+		return;
+	}
+	
 	switch (Context.State)
 	{
 		case EControlRigState::Init:
