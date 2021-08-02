@@ -37,7 +37,7 @@ FClassDigestMap& GetClassDigests()
 }
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("C217EB656E9B4C04816D3DC0E21901F6");
+const TCHAR* EditorDomainVersion = TEXT("D2B58CFE87DA471C95A91F36D2EA9214");
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
 const TCHAR* EditorDomainBulkDataListBucketName = TEXT("EditorDomainBulkDataList");
@@ -281,19 +281,18 @@ public:
 
 	// FMemoryPackageStoreWriter interface
 	uint64 GetHeaderSize() const { return HeaderSize; }
-	FIoBuffer GetHeaderAndExports() const { return HeaderAndExports; }
+	FSharedBuffer& GetHeaderAndExports() { return HeaderAndExports; }
 	/**
 	 * BulkDatas in this array are views into the FMemoryPackageStoreWriter.
 	 * Callers should call MakeOwned if they make copies that need to outlive the FMemoryPackageStoreWriter.
 	 */
-	const TArray<FIoBuffer>& GetBulkDatas() const { return BulkDataRegions; }
+	TArray<FSharedBuffer>& GetBulkDatas() { return BulkDataRegions; }
 
 private:
 	void SetPackageName(FName InPackageName);
 
-	FIoBuffer HeaderAndExports;
-	TArray<FIoBuffer> BulkDataArchives;
-	TArray<FIoBuffer> BulkDataRegions;
+	FSharedBuffer HeaderAndExports;
+	TArray<FSharedBuffer> BulkDataRegions;
 	FCommitEvent CommitEvent;
 	FName PackageName;
 	uint64 HeaderSize = 0;
@@ -316,6 +315,14 @@ void FMemoryPackageStoreWriter::BeginPackage(const FBeginPackageInfo& Info)
 	SetPackageName(Info.PackageName);
 }
 
+auto IoBufferToSharedBuffer = [](const FIoBuffer& InBuffer) -> FSharedBuffer {
+	InBuffer.EnsureOwned();
+	const uint64 DataSize = InBuffer.DataSize();
+	FIoBuffer MutableBuffer(InBuffer);
+	uint8* DataPtr = MutableBuffer.Release().ValueOrDie();
+	return FSharedBuffer{ FSharedBuffer::TakeOwnership(DataPtr, DataSize, FMemory::Free) };
+};
+
 void FMemoryPackageStoreWriter::WritePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions)
 {
 	for (const FFileRegion& FileRegion : FileRegions)
@@ -326,7 +333,7 @@ void FMemoryPackageStoreWriter::WritePackageData(const FPackageInfo& Info, const
 	// Info.LooseFilePath is ignored
 	HeaderSize = Info.HeaderSize;
 	// Info.ChunkId is ignored
-	HeaderAndExports = PackageData;
+	HeaderAndExports = IoBufferToSharedBuffer(PackageData);
 }
 
 void FMemoryPackageStoreWriter::WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions)
@@ -336,14 +343,15 @@ void FMemoryPackageStoreWriter::WriteBulkdata(const FBulkDataInfo& Info, const F
 	// Info.ChunkId is ignored
 	checkf(Info.BulkdataType == IPackageStoreWriter::FBulkDataInfo::Standard, TEXT("MemoryPackageStoreWriter does not currently support BulkData types other than Standard."));
 
-	FIoBuffer& BulkDataOwner = BulkDataArchives.Add_GetRef(BulkData);
-	const uint8* BulkDataStart = BulkData.Data();
-	uint64 BulkDataLen = BulkData.DataSize();
+	FSharedBuffer BulkDataOwner = IoBufferToSharedBuffer(BulkData);
+	const uint8* BulkDataStart = reinterpret_cast<const uint8*>(BulkDataOwner.GetData());
+	uint64 BulkDataLen = BulkDataOwner.GetSize();
 	for (const FFileRegion& FileRegion : FileRegions)
 	{
 		checkf(FileRegion.Type == EFileRegionType::None, TEXT("FMemoryPackageStoreWriter does not currently support FileRegion types other than None."));
 		checkf(FileRegion.Offset + FileRegion.Length <= BulkDataLen, TEXT("FileRegions in WriteBulkdata were outside of the range of the BulkData's size."));
-		BulkDataRegions.Add(FIoBuffer(BulkDataStart + FileRegion.Offset, FileRegion.Length, BulkDataOwner));
+		check(FileRegion.Length > 0); // SavePackage is not allowed to call WriteBulkData with empty bulkdatas
+		BulkDataRegions.Add(FSharedBuffer::MakeView(BulkDataStart + FileRegion.Offset, FileRegion.Length, BulkDataOwner));
 	}
 }
 
@@ -351,14 +359,15 @@ void FMemoryPackageStoreWriter::WriteLinkerAdditionalData(const FLinkerAdditiona
 {
 	SetPackageName(Info.PackageName);
 
-	FIoBuffer& DataOwner = BulkDataArchives.Add_GetRef(Data);
-	const uint8* DataStart = Data.Data();
-	uint64 DataLen = Data.DataSize();
+	FSharedBuffer DataOwner = IoBufferToSharedBuffer(Data);
+	const uint8* DataStart = reinterpret_cast<const uint8*>(DataOwner.GetData());
+	uint64 DataLen = DataOwner.GetSize();
 	for (const FFileRegion& FileRegion : FileRegions)
 	{
 		checkf(FileRegion.Type == EFileRegionType::None, TEXT("FMemoryPackageStoreWriter does not currently support FileRegion types other than None."));
 		checkf(FileRegion.Offset + FileRegion.Length <= DataLen, TEXT("FileRegions in WriteLinkerAdditionalData were outside of the range of the Data's size."));
-		BulkDataRegions.Add(FIoBuffer(DataStart + FileRegion.Offset, FileRegion.Length, DataOwner));
+		check(FileRegion.Length > 0); // SavePackage is not allowed to call WriteLinkerAdditionalData with empty regions
+		BulkDataRegions.Add(FSharedBuffer::MakeView(DataStart + FileRegion.Offset, FileRegion.Length, DataOwner));
 	}
 
 }
@@ -422,27 +431,42 @@ bool TrySavePackage(UPackage* Package)
 		return false;
 	}
 
-	// EDITOR_DOMAIN_TODO: Convert FIoBuffer to use FSharedBuffer and refer to the SharedBuffers rather than copying
-	FSharedBuffer PackageBuffer;
-	{
-		TArray64<uint8> TempBytes;
-		const FIoBuffer& MainBuffer = PackageStoreWriter->GetHeaderAndExports();
-		TempBytes.Append(MainBuffer.Data(), MainBuffer.DataSize());
-		for (const FIoBuffer& BulkBuffer : PackageStoreWriter->GetBulkDatas())
-		{
-			TempBytes.Append(BulkBuffer.Data(), BulkBuffer.DataSize());
-		}
-		PackageBuffer = MakeSharedBufferFromArray(MoveTemp(TempBytes));
-	}
-
 	ICache& Cache = GetDerivedDataCacheRef();
 	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetEditorDomainPackageKey(PackageDigest));
-	TCbWriter<256> MetaData;
+
+	// We use a counter for PayloadIds rather than hashes of the Attachments. We do this because
+	// some attachments may be identical, and Attachments are not allowed to have identical PayloadIds.
+	// We need to keep the duplicate copies of identical payloads because BulkDatas were written into
+	// the exports with offsets that expect all attachment segments to exist in the segmented archive.
+	auto IntToPayloadId = [](int32 Value)
+	{
+		FPayloadId::ByteArray Bytes;
+		static_assert(sizeof(Bytes) >= sizeof(int32), "We are storing an int32 counter in the Bytes array");
+		FMemory::Memset(&Bytes, 0, sizeof(Bytes));
+		int32* IntView = reinterpret_cast<int32*>(&Bytes);
+		IntView[0] = Value;
+		return FPayloadId(Bytes);
+	};
+
+	int32 AttachmentIndex = 0;
+	const FSharedBuffer& ExportsBuffer = PackageStoreWriter->GetHeaderAndExports();
+	check(ExportsBuffer.GetSize() > 0); // Header+Exports segment is non-zero in length
+	RecordBuilder.AddAttachment(ExportsBuffer, IntToPayloadId(AttachmentIndex++));
+	uint64 FileSize = ExportsBuffer.GetSize();
+	for (const FSharedBuffer& BulkBuffer : PackageStoreWriter->GetBulkDatas())
+	{
+		int64 BulkSize = BulkBuffer.GetSize();
+		check(BulkSize > 0); // We checked this before adding the Region to the PackageStoreWriter
+		RecordBuilder.AddAttachment(BulkBuffer, IntToPayloadId(AttachmentIndex++));
+		FileSize += BulkSize;
+	}
+
+	TCbWriter<16> MetaData;
 	MetaData.BeginObject();
-	MetaData << "FileSize" << PackageBuffer.GetSize();
+	MetaData << "FileSize" << FileSize;
 	MetaData.EndObject();
+
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
-	RecordBuilder.SetValue(PackageBuffer);
 	FCacheRecord Record = RecordBuilder.Build();
 	Cache.Put(MakeArrayView(&Record, 1), Package->GetName(), ECachePolicy::Local);
 	return true;

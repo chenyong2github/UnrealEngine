@@ -19,6 +19,8 @@ class FSharedBuffer;
 class IAssetRegistry;
 class UPackage;
 
+namespace UE::DerivedData { struct FCacheKey; }
+
 namespace UE::EditorDomain
 {
 
@@ -61,6 +63,7 @@ void PrecacheClassDigests(TConstArrayView<FName> ClassNames);
 UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
 	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePolicy SkipFlags,
 	UE::DerivedData::EPriority CachePriority, UE::DerivedData::FOnCacheGetComplete&& Callback);
+UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest);
 
 /** Save the given package into the EditorDomain. */
 bool TrySavePackage(UPackage* Package);

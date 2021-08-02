@@ -289,6 +289,7 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	FPackagePath* OutUpdatedPath)
 {
 	using namespace UE::EditorDomain;
+	using namespace UE::DerivedData;
 
 	FScopeLock ScopeLock(&Locks->Lock);
 	if (PackageSegment != EPackageSegment::Header)
@@ -308,22 +309,26 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	// Unlock before requesting the package because the completion callback takes the lock.
 	ScopeLock.Unlock();
 
-	UE::DerivedData::FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSourceDigest,
-		UE::DerivedData::ECachePolicy::None, UE::DerivedData::EPriority::Normal,
-		[Result](UE::DerivedData::FCacheGetCompleteParams&& Params)
+	// Fetch only meta-data in the initial request
+	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
+	FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSourceDigest,
+		SkipFlags, EPriority::Normal,
+		[Result](FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainReadArchive waits for this callback to be called, so Result cannot dangle
-			Result->OnCacheRequestComplete(MoveTemp(Params));
+			Result->OnRecordRequestComplete(MoveTemp(Params));
 		});
 	Result->SetRequest(Request);
+
+	// Precache the exports segment
+	// EDITOR_DOMAIN_TODO: Skip doing this for OpenReadPackage calls from bulk data
+	Result->Precache(0, 0);
 
 	if (OutUpdatedPath)
 	{
 		*OutUpdatedPath = PackagePath;
 	}
 
-	// EDITOR_DOMAIN_TODO: Reading GetPackageFormat forces us to wait for the cache response
-	// We should read just the metadata for the package so we don't have to block here on the transfer of the bytes.
 	const EPackageFormat Format = bHasEditorSource ? EPackageFormat::Binary : Result->GetPackageFormat();
 	return FOpenPackageResult{ TUniquePtr<FArchive>(Result), Format };
 }
@@ -331,6 +336,7 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment)
 {
 	using namespace UE::EditorDomain;
+	using namespace UE::DerivedData;
 
 	FScopeLock ScopeLock(&Locks->Lock);
 	if (PackageSegment != EPackageSegment::Header)
@@ -345,13 +351,15 @@ IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& Pa
 		return Workspace->OpenAsyncReadPackage(PackagePath, PackageSegment);
 	}
 
+	// Fetch meta-data only in the initial request
+	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
 	FEditorDomainAsyncReadFileHandle* Result = new FEditorDomainAsyncReadFileHandle(Locks, PackagePath, PackageSource);
-	UE::DerivedData::FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
-		UE::DerivedData::ECachePolicy::None, UE::DerivedData::EPriority::Normal,
-		[Result](UE::DerivedData::FCacheGetCompleteParams&& Params)
+	FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
+		SkipFlags, EPriority::Normal,
+		[Result](FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainAsyncReadFileHandle waits for this callback to be called, so Result cannot dangle
-			Result->OnCacheRequestComplete(MoveTemp(Params));
+			Result->OnRecordRequestComplete(MoveTemp(Params));
 		});
 	Result->SetRequest(Request);
 
