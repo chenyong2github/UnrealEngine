@@ -502,7 +502,10 @@ TSharedPtr<SWidget> SMemTagTreeView::TreeView_GetMenuContent()
 		(
 			LOCTEXT("ContextMenu_Header_Misc_CopySelectedToClipboard", "Copy To Clipboard"),
 			LOCTEXT("ContextMenu_Header_Misc_CopySelectedToClipboard_Desc", "Copies selection to clipboard"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard"), Action_CopySelectedToClipboard, NAME_None, EUserInterfaceActionType::Button
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy"),
+			Action_CopySelectedToClipboard,
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 		*/
 
