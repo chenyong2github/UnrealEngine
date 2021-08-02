@@ -92,12 +92,33 @@ static FAutoConsoleVariableRef CVar_AsyncLoadingMaxPendingRequestsSizeMB(
 );
 
 
+FArchive& operator<<(FArchive& Ar, FContainerHeaderPackageRedirect& Redirect)
+{
+	Ar << Redirect.SourcePackageId;
+	Ar << Redirect.TargetPackageId;
+	Ar << Redirect.SourcePackageName;
+
+	return Ar;
+}
+
 FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader)
 {
 	Ar << ContainerHeader.ContainerId;
 	Ar << ContainerHeader.PackageCount;
 	Ar << ContainerHeader.PackageIds;
 	Ar << ContainerHeader.StoreEntries;
+	if (Ar.IsLoading())
+	{
+		ContainerHeader.RedirectsNameMap = LoadNameBatch(Ar);
+	}
+	else
+	{
+#if ALLOW_NAME_BATCH_SAVING
+		SaveNameBatch(ContainerHeader.RedirectsNameMap, Ar);
+#else
+		check(false);
+#endif
+	}
 	Ar << ContainerHeader.CulturePackageMap;
 	Ar << ContainerHeader.PackageRedirects;
 
@@ -139,7 +160,7 @@ FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry)
 	Ar << ExportMapEntry.ClassIndex;
 	Ar << ExportMapEntry.SuperIndex;
 	Ar << ExportMapEntry.TemplateIndex;
-	Ar << ExportMapEntry.GlobalImportIndex;
+	Ar << ExportMapEntry.ExportHash;
 
 	uint32 ObjectFlags = uint32(ExportMapEntry.ObjectFlags);
 	Ar << ObjectFlags;
@@ -269,7 +290,7 @@ static FAutoConsoleVariableRef CVar_VerbosePackageNames(
 #endif
 
 #define UE_ASYNC_PACKAGE_DEBUG(PackageDesc) \
-if (GAsyncLoading2_DebugPackageIds.Contains((PackageDesc).DiskPackageId)) \
+if (GAsyncLoading2_DebugPackageIds.Contains((PackageDesc).UPackageId)) \
 { \
 	UE_DEBUG_BREAK(); \
 }
@@ -286,24 +307,14 @@ if (GAsyncLoading2_DebugPackageIds.Contains((UPackage)->GetPackageId())) \
 #define UE_ASYNC_PACKAGE_LOG(Verbosity, PackageDesc, LogDesc, Format, ...) \
 if ((ELogVerbosity::Type(ELogVerbosity::Verbosity & ELogVerbosity::VerbosityMask) < ELogVerbosity::Verbose) || \
 	(GAsyncLoading2_VerboseLogFilter == 2) || \
-	(GAsyncLoading2_VerboseLogFilter == 1 && GAsyncLoading2_VerbosePackageIds.Contains((PackageDesc).DiskPackageId))) \
+	(GAsyncLoading2_VerboseLogFilter == 1 && GAsyncLoading2_VerbosePackageIds.Contains((PackageDesc).UPackageId))) \
 { \
-	if (!(PackageDesc).CustomPackageName.IsNone()) \
-	{ \
-		UE_LOG(LogStreaming, Verbosity, LogDesc TEXT(": %s (0x%llX) %s (0x%llX) - ") Format, \
-			*(PackageDesc).CustomPackageName.ToString(), \
-			(PackageDesc).CustomPackageId.ValueForDebugging(), \
-			*(PackageDesc).DiskPackageName.ToString(), \
-			(PackageDesc).DiskPackageId.ValueForDebugging(), \
-			##__VA_ARGS__); \
-	} \
-	else \
-	{ \
-		UE_LOG(LogStreaming, Verbosity, LogDesc TEXT(": %s (0x%llX) - ") Format, \
-			*(PackageDesc).DiskPackageName.ToString(), \
-			(PackageDesc).DiskPackageId.ValueForDebugging(), \
-			##__VA_ARGS__); \
-	} \
+	UE_LOG(LogStreaming, Verbosity, LogDesc TEXT(": %s (0x%llX) %s (0x%llX) - ") Format, \
+		*(PackageDesc).UPackageName.ToString(), \
+		(PackageDesc).UPackageId.ValueForDebugging(), \
+		*(PackageDesc).PackageNameToLoad.ToString(), \
+		(PackageDesc).PackageIdToLoad.ValueForDebugging(), \
+		##__VA_ARGS__); \
 }
 
 #define UE_ASYNC_PACKAGE_CLOG(Condition, Verbosity, PackageDesc, LogDesc, Format, ...) \
@@ -391,32 +402,24 @@ struct FPackageRequest
 {
 	int32 RequestId = -1;
 	int32 Priority = -1;
-	FPackageId PackageId;
-	FPackagePath PackagePath;
 	FName CustomName;
+	FName PackageNameToLoad;
+	FName UPackageName;
+	FPackageId PackageIdToLoad;
 	TUniquePtr<FLoadPackageAsyncDelegate> PackageLoadedDelegate;
 	FPackageStoreEntryHandle StoreEntryHandle;
 	FPackageRequest* Next = nullptr;
 
-	FName GetUPackageName() const
-	{
-		return CustomName.IsNone() ? PackagePath.GetPackageFName() : CustomName;
-	}
-
-	FName GetDiskPackageName() const
-	{
-		return PackagePath.GetPackageFName();
-	}
-
-	static FPackageRequest Create(const int32 RequestId, const int32 Priority, FPackagePath PackagePath, FName CustomPackageName, TUniquePtr<FLoadPackageAsyncDelegate> PackageLoadedDelegate)
+	static FPackageRequest Create(const int32 RequestId, const int32 Priority, FName PackageNameToLoad, FPackageId PackageIdToLoad, FName CustomName, TUniquePtr<FLoadPackageAsyncDelegate> PackageLoadedDelegate)
 	{
 		return FPackageRequest
 		{
 			RequestId,
 			Priority,
-			FPackageId::FromName(PackagePath.GetPackageFName()),
-			MoveTemp(PackagePath),
-			CustomPackageName,
+			CustomName,
+			PackageNameToLoad,
+			FName(),
+			PackageIdToLoad,
 			MoveTemp(PackageLoadedDelegate),
 			FPackageStoreEntryHandle(),
 			nullptr
@@ -470,15 +473,55 @@ public:
 		: PackageStore(InPackageStore)
 	{ }
 
-	void Enqueue(FPackageRequest LoadPackageRequest)
+	void Enqueue(FPackageRequest&& LoadPackageRequest)
 	{
+		TCHAR NameBuffer[FName::StringBufferSize];
+		uint32 NameLen = LoadPackageRequest.PackageNameToLoad.ToString(NameBuffer);
+		FStringView PackageNameStr = FStringView(NameBuffer, NameLen);
+		if (!FPackageName::IsValidLongPackageName(PackageNameStr))
+		{
+			FString NewPackageNameStr;
+			if (FPackageName::TryConvertFilenameToLongPackageName(FString(PackageNameStr), NewPackageNameStr))
+			{
+				LoadPackageRequest.PackageNameToLoad = *NewPackageNameStr;
+				LoadPackageRequest.PackageIdToLoad = FPackageId::FromName(LoadPackageRequest.PackageNameToLoad);
+			}
+		}
+
+		LoadPackageRequest.UPackageName = LoadPackageRequest.PackageNameToLoad;
+		{
+			FName SourcePackageName;
+			FPackageId RedirectedToPackageId;
+			if (PackageStore.GetPackageRedirectInfo(LoadPackageRequest.PackageIdToLoad, SourcePackageName, RedirectedToPackageId))
+			{
+				LoadPackageRequest.PackageIdToLoad = RedirectedToPackageId;
+				LoadPackageRequest.UPackageName = SourcePackageName;
+			}
+		}
+
+		LoadPackageRequest.StoreEntryHandle = PackageStore.GetPackageEntryHandle(LoadPackageRequest.PackageIdToLoad, LoadPackageRequest.PackageNameToLoad);
+		
+		// Fixup CustomName to handle any input string that can be converted to a long package name.
+		if (!LoadPackageRequest.CustomName.IsNone())
+		{
+			NameLen = LoadPackageRequest.CustomName.ToString(NameBuffer);
+			PackageNameStr = FStringView(NameBuffer, NameLen);
+			if (!FPackageName::IsValidLongPackageName(PackageNameStr))
+			{
+				FString NewPackageNameStr;
+				if (FPackageName::TryConvertFilenameToLongPackageName(FString(PackageNameStr), NewPackageNameStr))
+				{
+					LoadPackageRequest.CustomName = *NewPackageNameStr;
+				}
+			}
+			LoadPackageRequest.UPackageName = LoadPackageRequest.CustomName;
+		}
+
 		FScopeLock _(&CriticalSection);
 
 		FPackageRequest* Request = Alloc();
 		check(Request->Next == nullptr)
 		*Request = MoveTemp(LoadPackageRequest);
-
-		Request->StoreEntryHandle = PackageStore.GetPackageEntryHandle(Request->PackageId, Request->GetDiskPackageName());
 
 #if WITH_COTF
 		EPackageStoreEntryStatus Status = Request->StoreEntryHandle.Status();
@@ -502,7 +545,7 @@ public:
 		for (auto It = PendingRequests.CreateIterator(); It; ++It)
 		{
 			FPackageRequest* PendingRequest = *It;
-			PendingRequest->StoreEntryHandle = PackageStore.GetPackageEntryHandle(PendingRequest->PackageId, PendingRequest->GetDiskPackageName());
+			PendingRequest->StoreEntryHandle = PackageStore.GetPackageEntryHandle(PendingRequest->PackageIdToLoad, PendingRequest->PackageNameToLoad);
 			if (PendingRequest->StoreEntryHandle.Status() != EPackageStoreEntryStatus::Pending)
 			{
 				ReadyRequests.Add(PendingRequest);
@@ -571,88 +614,26 @@ struct FAsyncPackageDesc2
 	int32 Priority;
 	// The package store entry with meta data about the actual disk package
 	const FPackageStoreEntryHandle StoreEntry;
-	// The disk package id corresponding to the StoreEntry
-	// It is used by the loader for io chunks and to handle ref tracking of loaded packages and import objects.
-	FPackageId DiskPackageId; 
-	// The custom package id is only set for temp packages with a valid but "fake" CustomPackageName,
-	// if set, it will be used as key when tracking active async packages in AsyncPackageLookup
-	FPackageId CustomPackageId;
-	// The disk package name from the LoadPackage call, or none for imported packages
-	// up until the package summary has been serialized
-	FName DiskPackageName;
-	// The custom package name from the LoadPackage call is only used for temp packages,
-	// if set, it will be used as the runtime UPackage name
-	FName CustomPackageName;
-	// Set from the package summary,
-	FName SourcePackageName;
-
-	void SetDiskPackageName(FName SerializedDiskPackageName, FName SerializedSourcePackageName = FName())
-	{
-		check(DiskPackageName.IsNone() || DiskPackageName == SerializedDiskPackageName);
-		check(SourcePackageName.IsNone() || SourcePackageName == SerializedSourcePackageName);
-		DiskPackageName = SerializedDiskPackageName;
-		SourcePackageName = SerializedSourcePackageName;
-	}
-
-	bool CanBeImported() const
-	{
-		return CustomPackageName.IsNone();
-	}
-
-	/**
-	 * The UPackage name is used by the engine and game code for in-memory and network communication.
-	 */
-	FName GetUPackageName() const
-	{
-		if (!CustomPackageName.IsNone())
-		{
-			// temp packages
-			return CustomPackageName;
-		}
-		else if(!SourcePackageName.IsNone())
-		{
-			// localized packages
-			return SourcePackageName;
-		}
-		// normal packages
-		return DiskPackageName;
-	}
-
-	/**
-	 * The AsyncPackage id is used by the loader as a key in AsyncPackageLookup to track active load requests,
-	 * which in turn is used for looking up packages for setting up serialized arcs (mostly post load dependencies).
-	 */
-	FORCEINLINE FPackageId GetAsyncPackageId() const
-	{
-		return CustomPackageId.IsValid() ? CustomPackageId : DiskPackageId;
-	}
+	// The package id of the UPackage being loaded
+	// It will be used as key when tracking active async packages
+	FPackageId UPackageId;
+	// The id of the package being loaded from disk
+	FPackageId PackageIdToLoad; 
+	// The name of the UPackage being loaded
+	// Set to none for imported packages up until the package summary has been serialized
+	FName UPackageName;
+	// The name of the package being loaded from disk
+	// Set to none up until the package summary has been serialized
+	FName PackageNameToLoad;
+	// Packages with a a custom name can't be imported
+	bool bCanBeImported;
 
 	static FAsyncPackageDesc2 FromPackageRequest(
 		int32 RequestID,
 		int32 Priority,
+		FName UPackageName,
 		FPackageId PackageIdToLoad,
-		const FPackageStoreEntryHandle StoreEntryHandle,
-		FName DiskPackageName,
-		FPackageId PackageId,
-		FName CustomName)
-	{
-		return FAsyncPackageDesc2
-		{
-			RequestID,
-			Priority,
-			StoreEntryHandle,
-			PackageIdToLoad,
-			PackageId,
-			DiskPackageName,
-			CustomName,
-			FName()
-		};
-	}
-
-	static FAsyncPackageDesc2 FromPackageImport(
-		int32 RequestID,
-		int32 Priority,
-		FPackageId PackageIdToLoad,
+		bool bHasCustomName,
 		const FPackageStoreEntryHandle StoreEntryHandle)
 	{
 		return FAsyncPackageDesc2
@@ -660,33 +641,47 @@ struct FAsyncPackageDesc2
 			RequestID,
 			Priority,
 			StoreEntryHandle,
+			FPackageId::FromName(UPackageName),
 			PackageIdToLoad,
-			FPackageId(),
+			UPackageName,
 			FName(),
+			!bHasCustomName
+		};
+	}
+
+	static FAsyncPackageDesc2 FromPackageImport(
+		int32 RequestID,
+		int32 Priority,
+		FPackageId ImportedPackageId,
+		FPackageId PackageIdToLoad,
+		FName UPackageName,
+		const FPackageStoreEntryHandle StoreEntryHandle)
+	{
+		return FAsyncPackageDesc2
+		{
+			RequestID,
+			Priority,
+			StoreEntryHandle,
+			ImportedPackageId,
+			PackageIdToLoad,
+			UPackageName,
 			FName(),
-			FName()
+			true
 		};
 	}
 };
 
-struct FPublicExport
-{
-	UObject* Object = nullptr;
-	FPackageId PackageId; // for fast clear of package load status during GC
-};
-
 // Note: RemoveUnreachableObjects could move from GT to ALT by removing the debug raw pointers here,
 // the tradeoff would be increased complexity and more restricted debug and log possibilities.
-using FUnreachablePackage = TPair<FName, UPackage*>;
 using FUnreachablePublicExport = TPair<int32, UObject*>;
-using FUnreachablePackages = TArray<FUnreachablePackage>;
+using FUnreachablePackages = TArray<UPackage*>;
 using FUnreachablePublicExports = TArray<FUnreachablePublicExport>;
 
 struct FGlobalImportStore
 {
 	TMap<FPackageObjectIndex, UObject*> ScriptObjects;
-	TMap<FPackageObjectIndex, FPublicExport> PublicExportObjects;
-	TMap<int32, FPackageObjectIndex> ObjectIndexToPublicExport;
+	TMap<FPublicExportKey, UObject*> PublicExportObjects;
+	TMap<int32, FPublicExportKey> ObjectIndexToPublicExport;
 	// Temporary initial load data
 	TArray<FScriptObjectEntry> ScriptObjectEntries;
 	TMap<FPackageObjectIndex, FScriptObjectEntry*> ScriptObjectEntriesMap;
@@ -735,83 +730,78 @@ struct FGlobalImportStore
 	TArray<FPackageId> RemovePublicExports(const FUnreachablePublicExports& PublicExports)
 	{
 		TArray<FPackageId> PackageIds;
-		TArray<FPackageObjectIndex> GlobalIndices;
-		GlobalIndices.Reserve(PublicExports.Num());
+		TArray<FPublicExportKey> PublicExportKeys;
+		PublicExportKeys.Reserve(PublicExports.Num());
 		PackageIds.Reserve(PublicExports.Num());
 
 		for (const FUnreachablePublicExport& Item : PublicExports)
 		{
 			int32 ObjectIndex = Item.Key;
-			FPackageObjectIndex GlobalIndex;
-			if (ObjectIndexToPublicExport.RemoveAndCopyValue(ObjectIndex, GlobalIndex))
+			FPublicExportKey PublicExportKey;
+			if (ObjectIndexToPublicExport.RemoveAndCopyValue(ObjectIndex, PublicExportKey))
 			{
-				GlobalIndices.Emplace(GlobalIndex);
+				PublicExportKeys.Emplace(PublicExportKey);
 #if DO_CHECK
-				FPublicExport* PublicExport = PublicExportObjects.Find(GlobalIndex);
-				checkf(PublicExport, TEXT("Missing entry in ImportStore for object %s with id 0x%llX"), *Item.Value->GetPathName(), GlobalIndex.Value());
-				int32 ObjectIndex2 = GUObjectArray.ObjectToIndex(PublicExport->Object);
-				checkf(ObjectIndex2 == ObjectIndex, TEXT("Mismatch in ImportStore for %s with id 0x%llX"), *Item.Value->GetPathName(), GlobalIndex.Value());
+				UObject* PublicExportObject = PublicExportObjects.FindRef(PublicExportKey);
+				checkf(PublicExportObject, TEXT("Missing entry in ImportStore for object %s with id 0x%llX:%d"),
+					*Item.Value->GetPathName(),
+					PublicExportKey.GetPackageId().Value(),
+					PublicExportKey.GetExportHash());
+				int32 ObjectIndex2 = GUObjectArray.ObjectToIndex(PublicExportObject);
+				checkf(ObjectIndex2 == ObjectIndex, TEXT("Mismatch in ImportStore for %s with id 0x%llX:%d"),
+					*Item.Value->GetPathName(),
+					PublicExportKey.GetPackageId().Value(),
+					PublicExportKey.GetExportHash());
 #endif
 			}
 		}
 
 		FPackageId LastPackageId;
-		for (const FPackageObjectIndex& GlobalIndex : GlobalIndices)
+		for (const FPublicExportKey& PublicExportKey : PublicExportKeys)
 		{
-			FPublicExport PublicExport;
-			PublicExportObjects.RemoveAndCopyValue(GlobalIndex, PublicExport);
-			if (!(PublicExport.PackageId == LastPackageId)) // fast approximation of Contains()
+			PublicExportObjects.Remove(PublicExportKey);
+			FPackageId PackageId = PublicExportKey.GetPackageId();
+			if (!(PackageId == LastPackageId)) // fast approximation of Contains()
 			{
-				LastPackageId = PublicExport.PackageId;
+				LastPackageId = PackageId;
 				PackageIds.Emplace(LastPackageId);
 			}
 		}
 		return PackageIds;
 	}
 
-	inline UObject* GetPublicExportObject(FPackageObjectIndex GlobalIndex)
+	inline UObject* FindPublicExportObject(const FPublicExportKey& Key)
 	{
-		check(GlobalIndex.IsPackageImport());
-		UObject* Object = nullptr;
-		FPublicExport* PublicExport = PublicExportObjects.Find(GlobalIndex);
-		if (PublicExport)
-		{
-			Object = PublicExport->Object;
-			checkf(Object && !Object->IsUnreachable(), TEXT("%s"), Object ? *Object->GetFullName() : TEXT("null"));
-		}
+		UObject* Object = PublicExportObjects.FindRef(Key);
+		checkf(!Object || !Object->IsUnreachable(), TEXT("%s"), Object ? *Object->GetFullName() : TEXT("null"));
 		return Object;
 	}
 
 	UObject* FindScriptImportObjectFromIndex(FPackageObjectIndex ScriptImportIndex);
 
-	inline UObject* FindOrGetImportObject(FPackageObjectIndex GlobalIndex)
+	inline UObject* FindScriptImportObject(FPackageObjectIndex GlobalIndex)
 	{
-		check(GlobalIndex.IsImport());
+		check(GlobalIndex.IsScriptImport());
 		UObject* Object = nullptr;
-		if (GlobalIndex.IsScriptImport())
+		if (!bHasInitializedScriptObjects)
 		{
-			if (!bHasInitializedScriptObjects)
-			{
-				Object = FindScriptImportObjectFromIndex(GlobalIndex);
-			}
-			else
-			{
-				Object = ScriptObjects.FindRef(GlobalIndex);
-			}
+			Object = FindScriptImportObjectFromIndex(GlobalIndex);
 		}
 		else
 		{
-			Object = GetPublicExportObject(GlobalIndex);
+			Object = ScriptObjects.FindRef(GlobalIndex);
 		}
 		return Object;
 	}
 
-	void StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* Object)
+	void StoreGlobalObject(FPackageId PackageId, uint32 ExportHash, UObject* Object)
 	{
-		check(GlobalIndex.IsPackageImport());
+		check(PackageId.IsValid());
+		check(ExportHash != 0);
 		int32 ObjectIndex = GUObjectArray.ObjectToIndex(Object);
-		PublicExportObjects.Add(GlobalIndex, {Object, PackageId});
-		ObjectIndexToPublicExport.Add(ObjectIndex, GlobalIndex);
+		FPublicExportKey Key = FPublicExportKey::MakeKey(PackageId, ExportHash);
+		PublicExportObjects.Add(Key, Object);
+		ObjectIndexToPublicExport.Add(ObjectIndex, Key);
 	}
 
 	void FindAllScriptObjects();
@@ -995,7 +985,7 @@ public:
 	}
 #endif
 
-	void RemovePackage(FPackageId PackageId, UPackage* Package)
+	void RemovePackage(UPackage* Package)
 	{
 		UE_ASYNC_UPACKAGE_DEBUG(Package);
 		check(IsGarbageCollecting());
@@ -1005,21 +995,13 @@ public:
 			return;
 		}
 
-		int32 RefCount = RemovePackage(PackageId);
-		if (RefCount < 0) // not found
-		{
-			FPackageId RedirectedId = PackageStore->GetRedirectedPackageId(PackageId);
-			if (RedirectedId.IsValid())
-			{
-				RefCount = RemovePackage(RedirectedId);
-			}
-		}
+		int32 RefCount = RemovePackage(Package->GetPackageId());
 		if (RefCount > 0)
 		{
 			UE_LOG(LogStreaming, Error,
-				TEXT("RemovePackage: %s (0x%llX) %s (0x%llX) - with (ObjectFlags=%x, InternalObjectFlags=%x) - ")
+				TEXT("RemovePackage: %s %s (0x%llX) - with (ObjectFlags=%x, InternalObjectFlags=%x) - ")
 				TEXT("Package destroyed while still being referenced, RefCount %d > 0."),
-				*Package->GetName(), PackageId.Value(),
+				*Package->GetName(),
 				*Package->GetLoadedPath().GetDebugName(), Package->GetPackageId().Value(),
 				Package->GetFlags(), Package->GetInternalFlags(), RefCount);
 			checkf(false, TEXT("Package %s destroyed with RefCount"), *Package->GetName());
@@ -1027,9 +1009,9 @@ public:
 		else if (RefCount < 0)
 		{
 			UE_LOG(LogStreaming, Error,
-				TEXT("RemovePackage: %s (0x%llX) %s (0x%llX) - with (ObjectFlags=%x, InternalObjectFlags=%x) - ")
+				TEXT("RemovePackage: %s %s (0x%llX) - with (ObjectFlags=%x, InternalObjectFlags=%x) - ")
 				TEXT("Package not found!"),
-				*Package->GetName(), PackageId.Value(),
+				*Package->GetName(),
 				*Package->GetLoadedPath().GetDebugName(), Package->GetPackageId().Value(),
 				Package->GetFlags(), Package->GetInternalFlags());
 			checkf(false, TEXT("Package %s not found"), *Package->GetName());
@@ -1039,19 +1021,9 @@ public:
 	void RemovePackages(const FUnreachablePackages& UnreachablePackages)
 	{
 		const int32 PackageCount = UnreachablePackages.Num();
-		TArray<FPackageId> PackageIds;
-		PackageIds.AddUninitialized(PackageCount);
-		bool bForceSingleThreaded = PackageCount < 64;
-		{
-			// TRACE_CPUPROFILER_EVENT_SCOPE(FPackageId::FromName);
-			ParallelFor(PackageCount, [&UnreachablePackages, &PackageIds](int32 Index)
-			{
-				PackageIds[Index] = FPackageId::FromName(UnreachablePackages[Index].Key);
-			}, bForceSingleThreaded);
-		}
 		for (int32 Index = 0; Index < PackageCount; ++Index)
 		{
-			RemovePackage(PackageIds[Index], UnreachablePackages[Index].Value);
+			RemovePackage(UnreachablePackages[Index]);
 		}
 	}
 
@@ -1075,13 +1047,15 @@ struct FPackageImportStore
 	FGlobalImportStore& GlobalImportStore;
 	FLoadedPackageStore& LoadedPackageStore;
 	const FAsyncPackageDesc2& Desc;
+	const TArrayView<const FPackageId>& ImportedPackageIds;
 	TArrayView<const FPackageObjectIndex> ImportMap;
 
-	FPackageImportStore(IPackageStore& InPackageStore, FGlobalImportStore& InGlobalImportStore, FLoadedPackageStore& InLoadedPackageStore, const FAsyncPackageDesc2& InDesc)
+	FPackageImportStore(IPackageStore& InPackageStore, FGlobalImportStore& InGlobalImportStore, FLoadedPackageStore& InLoadedPackageStore, const FAsyncPackageDesc2& InDesc, const TArrayView<const FPackageId>& InImportedPackageIds)
 		: PackageStore(InPackageStore)
 		, GlobalImportStore(InGlobalImportStore)
 		, LoadedPackageStore(InLoadedPackageStore)
 		, Desc(InDesc)
+		, ImportedPackageIds(InImportedPackageIds)
 	{
 	}
 
@@ -1103,22 +1077,26 @@ struct FPackageImportStore
 		const int32 LocalImportIndex = LocalIndex.ToImport();
 		check(LocalImportIndex < ImportMap.Num());
 		const FPackageObjectIndex GlobalIndex = ImportMap[LocalIndex.ToImport()];
+		return FindOrGetImportObject(GlobalIndex);
+	}
+
+	inline UObject* FindOrGetImportObject(FPackageObjectIndex GlobalIndex)
+	{
+		check(GlobalIndex.IsImport());
 		UObject* Object = nullptr;
-		if (GlobalIndex.IsImport())
+		if (GlobalIndex.IsScriptImport())
 		{
-			Object = GlobalImportStore.FindOrGetImportObject(GlobalIndex);
+			Object = GlobalImportStore.FindScriptImportObject(GlobalIndex);
+		}
+		else if (GlobalIndex.IsPackageImport())
+		{
+			Object = GlobalImportStore.FindPublicExportObject(FPublicExportKey::FromPackageImport(GlobalIndex, ImportedPackageIds));
 		}
 		else
 		{
 			check(GlobalIndex.IsNull());
 		}
 		return Object;
-	}
-
-	inline UObject* FindOrGetImportObject(FPackageObjectIndex GlobalIndex)
-	{
-		check(GlobalIndex.IsImport());
-		return GlobalImportStore.FindOrGetImportObject(GlobalIndex);
 	}
 
 	bool GetUnresolvedCDOs(TArray<UClass*, TInlineAllocator<8>>& Classes)
@@ -1152,9 +1130,9 @@ struct FPackageImportStore
 		return Classes.Num() > 0;
 	}
 
-	inline void StoreGlobalObject(FPackageId PackageId, FPackageObjectIndex GlobalIndex, UObject* Object)
+	inline void StoreGlobalObject(FPackageId PackageId, uint32 ExportHash, UObject* Object)
 	{
-		GlobalImportStore.StoreGlobalObject(PackageId, GlobalIndex, Object);
+		GlobalImportStore.StoreGlobalObject(PackageId, ExportHash, Object);
 	}
 
 private:
@@ -1199,7 +1177,7 @@ private:
 	}
 
 public:
-	void AddPackageReferences(const TArrayView<const FPackageId>& ImportedPackageIds)
+	void AddPackageReferences()
 	{
 		for (const FPackageId& ImportedPackageId : ImportedPackageIds)
 		{
@@ -1209,9 +1187,9 @@ public:
 				AddAsyncFlags(PackageRef.GetPackage());
 			}
 		}
-		if (Desc.CanBeImported())
+		if (Desc.bCanBeImported)
 		{
-			FLoadedPackageRef& PackageRef = LoadedPackageStore.GetPackageRef(Desc.DiskPackageId);
+			FLoadedPackageRef& PackageRef = LoadedPackageStore.GetPackageRef(Desc.UPackageId);
 			PackageRef.ClearErrorFlags();
 			if (PackageRef.AddRef())
 			{
@@ -1220,21 +1198,21 @@ public:
 		}
 	}
 
-	void ReleasePackageReferences(const TArrayView<const FPackageId>& ImportedPackageIds)
+	void ReleasePackageReferences()
 	{
 		for (const FPackageId& ImportedPackageId : ImportedPackageIds)
 		{
 			FLoadedPackageRef& PackageRef = LoadedPackageStore.GetPackageRef(ImportedPackageId);
-			if (PackageRef.ReleaseRef(Desc.DiskPackageId, ImportedPackageId))
+			if (PackageRef.ReleaseRef(Desc.UPackageId, ImportedPackageId))
 			{
 				ClearAsyncFlags(PackageRef.GetPackage());
 			}
 		}
-		if (Desc.CanBeImported())
+		if (Desc.bCanBeImported)
 		{
 			// clear own reference, and possible all async flags if no remaining ref count
-			FLoadedPackageRef& PackageRef =	LoadedPackageStore.GetPackageRef(Desc.DiskPackageId);
-			if (PackageRef.ReleaseRef(Desc.DiskPackageId, Desc.DiskPackageId))
+			FLoadedPackageRef& PackageRef = LoadedPackageStore.GetPackageRef(Desc.UPackageId);
+			if (PackageRef.ReleaseRef(Desc.UPackageId, Desc.UPackageId))
 			{
 				ClearAsyncFlags(PackageRef.GetPackage());
 			}
@@ -1854,7 +1832,7 @@ private:
 
 	struct FExportToBundleMapping
 	{
-		FPackageObjectIndex GlobalImportIndex;
+		uint32 ExportHash;
 		int32 BundleIndex[FExportBundleEntry::ExportCommandType_Count];
 	};
 
@@ -2484,7 +2462,7 @@ private:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(CreateAsyncPackage);
 		UE_ASYNC_PACKAGE_DEBUG(Desc);
-		checkf(Desc.StoreEntry, TEXT("No package store entry for package %s"), *Desc.DiskPackageName.ToString());
+		checkf(Desc.StoreEntry, TEXT("No package store entry for package %s"), *Desc.UPackageName.ToString());
 
 		FPackageStoreEntry PackageStoreEntry = PackageStore->GetPackageEntry(Desc.StoreEntry);
 
@@ -2679,14 +2657,14 @@ FAsyncPackage2* FAsyncLoadingThread2::FindOrInsertPackage(FAsyncPackageDesc2& De
 	bInserted = false;
 	{
 		FScopeLock LockAsyncPackages(&AsyncPackagesCritical);
-		Package = AsyncPackageLookup.FindRef(Desc.GetAsyncPackageId());
+		Package = AsyncPackageLookup.FindRef(Desc.UPackageId);
 		if (!Package)
 		{
 			Package = CreateAsyncPackage(Desc);
-			checkf(Package, TEXT("Failed to create async package %s"), *Desc.DiskPackageName.ToString());
+			checkf(Package, TEXT("Failed to create async package %s"), *Desc.UPackageName.ToString());
 			Package->AddRef();
 			ActiveAsyncPackagesCounter.Increment();
-			AsyncPackageLookup.Add(Desc.GetAsyncPackageId(), Package);
+			AsyncPackageLookup.Add(Desc.UPackageId, Package);
 			bInserted = true;
 		}
 		else
@@ -2731,7 +2709,7 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 			{
 				bool bInserted;
 				FAsyncPackage2* Package = FindOrInsertPackage(PackageDesc, bInserted, MoveTemp(Request.PackageLoadedDelegate));
-				checkf(Package, TEXT("Failed to find or insert imported package %s"), *PackageDesc.DiskPackageName.ToString());
+				checkf(Package, TEXT("Failed to find or insert package %s"), *PackageDesc.UPackageName.ToString());
 
 				if (bInserted)
 				{
@@ -2811,7 +2789,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 		WaitingIoRequests.HeapPop(BundleIoRequest, false);
 
 		FIoReadOptions ReadOptions;
-		Package->IoRequest = IoBatch.ReadWithCallback(CreateIoChunkId(Package->Desc.DiskPackageId.Value(), 0, EIoChunkType::ExportBundleData),
+		Package->IoRequest = IoBatch.ReadWithCallback(CreateIoChunkId(Package->Desc.PackageIdToLoad.Value(), 0, EIoChunkType::ExportBundleData),
 			ReadOptions,
 			Package->Desc.Priority,
 			[Package](TIoStatusOr<FIoBuffer> Result)
@@ -3253,9 +3231,10 @@ void FAsyncPackage2::SetupSerializedArcs()
 				check(ToExportBundleIndex < Data.ExportInfo.ExportBundleCount);
 				
 				FPackageObjectIndex GlobalImportIndex = ImportStore.ImportMap[FromImportIndex];
+				FPackageImportReference PackageImportRef = GlobalImportIndex.ToPackageImportRef();
 				for (const FExportToBundleMapping& ExportToBundleMapping : ImportedPackage->ExportToBundleMappings)
 				{
-					if (ExportToBundleMapping.GlobalImportIndex == GlobalImportIndex)
+					if (ExportToBundleMapping.ExportHash == PackageImportRef.GetExportHash())
 					{
 						int32 FromExportBundleIndex = ExportToBundleMapping.BundleIndex[FromCommandType];
 						if (PreviousFromExportBundleIndex != FromExportBundleIndex || PreviousToExportBundleIndex != ToExportBundleIndex)
@@ -3384,6 +3363,18 @@ void FAsyncPackage2::ImportPackagesRecursive()
 	Data.ImportedAsyncPackages = MakeArrayView(Data.ImportedAsyncPackages.GetData(), Data.ImportedPackageIds.Num());
 	for (const FPackageId& ImportedPackageId : Data.ImportedPackageIds)
 	{
+		FName ImportedPackageUPackageName = FName();
+		FPackageId ImportedPackageIdToLoad = ImportedPackageId;
+		{
+			FName SourcePackageName;
+			FPackageId RedirectedToPackageId;
+			if (PackageStore.GetPackageRedirectInfo(ImportedPackageId, SourcePackageName, RedirectedToPackageId))
+			{
+				ImportedPackageUPackageName = SourcePackageName;
+				ImportedPackageIdToLoad = RedirectedToPackageId;
+			}
+		}
+		
 		FLoadedPackageRef& PackageRef = ImportStore.LoadedPackageStore.GetPackageRef(ImportedPackageId);
 		if (PackageRef.AreAllPublicExportsLoaded())
 		{
@@ -3391,7 +3382,7 @@ void FAsyncPackage2::ImportPackagesRecursive()
 			continue;
 		}
 
-		const FPackageStoreEntryHandle ImportedPackageEntry = PackageStore.GetPackageEntryHandle(ImportedPackageId);
+		const FPackageStoreEntryHandle ImportedPackageEntry = PackageStore.GetPackageEntryHandle(ImportedPackageIdToLoad);
 
 		if (!ImportedPackageEntry)
 		{
@@ -3402,7 +3393,7 @@ void FAsyncPackage2::ImportPackagesRecursive()
 			continue;
 		}
 
-		FAsyncPackageDesc2 PackageDesc = FAsyncPackageDesc2::FromPackageImport(INDEX_NONE, Desc.Priority, ImportedPackageId, ImportedPackageEntry);
+		FAsyncPackageDesc2 PackageDesc = FAsyncPackageDesc2::FromPackageImport(INDEX_NONE, Desc.Priority, ImportedPackageId, ImportedPackageIdToLoad, ImportedPackageUPackageName, ImportedPackageEntry);
 		bool bInserted;
 		FAsyncPackage2* ImportedPackage = AsyncLoadingThread.FindOrInsertPackage(PackageDesc, bInserted);
 
@@ -3461,9 +3452,9 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncLoadi
 
 	if (Package->bLoadHasFailed)
 	{
-		if (Package->Desc.CanBeImported())
+		if (Package->Desc.bCanBeImported)
 		{
-			FLoadedPackageRef* PackageRef = Package->ImportStore.LoadedPackageStore.FindPackageRef(Package->Desc.DiskPackageId);
+			FLoadedPackageRef* PackageRef = Package->ImportStore.LoadedPackageStore.FindPackageRef(Package->Desc.UPackageId);
 			check(PackageRef);
 			PackageRef->SetHasFailed();
 		}
@@ -3483,18 +3474,15 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncLoadi
 
 		{
 			FName PackageName = Package->NameMap.GetName(PackageSummary->Name);
-			// Don't apply any redirects in editor builds
-#if !WITH_IOSTORE_IN_EDITOR
-			if (PackageSummary->SourceName != PackageSummary->Name)
+			check(Package->Desc.PackageNameToLoad.IsNone());
+			Package->Desc.PackageNameToLoad = PackageName;
+			check(Package->Desc.PackageIdToLoad == FPackageId::FromName(Package->Desc.PackageNameToLoad));
+			// Imported packages won't have a UPackage name set unless they were redirected, in which case they will have the source package name
+			if (Package->Desc.UPackageName.IsNone())
 			{
-				FName SourcePackageName = Package->NameMap.GetName(PackageSummary->SourceName);
-				Package->Desc.SetDiskPackageName(PackageName, SourcePackageName);
+				Package->Desc.UPackageName = PackageName;
 			}
-			else
-#endif
-			{
-				Package->Desc.SetDiskPackageName(PackageName);
-			}
+			check(Package->Desc.UPackageId == FPackageId::FromName(Package->Desc.UPackageName));
 		}
 
 		Package->CookedHeaderSize = PackageSummary->CookedHeaderSize;
@@ -3525,13 +3513,13 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncLoadi
 			{
 				const FExportMapEntry& ExportMapEntry = Package->ExportMap[BundleEntry->LocalExportIndex];
 				FExportToBundleMapping& ExportToBundleMapping = Package->ExportToBundleMappings[BundleEntry->LocalExportIndex];
-				ExportToBundleMapping.GlobalImportIndex = ExportMapEntry.GlobalImportIndex;
+				ExportToBundleMapping.ExportHash = ExportMapEntry.ExportHash;
 				ExportToBundleMapping.BundleIndex[BundleEntry->CommandType] = ExportBundleIndex;
 				++BundleEntry;
 			}
 		}
 
-		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, Package->Desc.DiskPackageName, PackageSummary->HeaderSize, Package->ImportStore.ImportMap.Num(), Package->Data.ExportInfo.ExportCount);
+		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, Package->Desc.PackageNameToLoad, PackageSummary->HeaderSize, Package->ImportStore.ImportMap.Num(), Package->Data.ExportInfo.ExportCount);
 	}
 
 	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::SetupDependencies;
@@ -3727,7 +3715,7 @@ UObject* FAsyncPackage2::EventDrivenIndexToObject(FPackageObjectIndex Index, boo
 		UE_CLOG(!Result, LogStreaming, Warning, TEXT("Missing %s import 0x%llX for package %s"),
 			Index.IsScriptImport() ? TEXT("script") : TEXT("package"),
 			Index.Value(),
-			*Desc.DiskPackageName.ToString());
+			*Desc.PackageNameToLoad.ToString());
 	}
 #if DO_CHECK
 	if (bCheckSerialized && !IsFullyLoadedObj(Result))
@@ -3938,19 +3926,13 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	check(Object);
 	PinObjectForGC(Object, bIsNewObject);
 
-	if (Desc.CanBeImported() && !Export.GlobalImportIndex.IsNull())
+	if (Desc.bCanBeImported && Export.ExportHash)
 	{
 		check(Object->HasAnyFlags(RF_Public));
-		FPackageObjectIndex GlobalImportIndex = Export.GlobalImportIndex;
-#if WITH_IOSTORE_IN_EDITOR
-		// Always compute the global import index when loading cooked packages in editor builds
-		// to prevent localized packages to overwrite the redirected package name
-		GlobalImportIndex = FPackageObjectIndex::FromPackagePath(Object->GetPathName());
-#endif
-		ImportStore.StoreGlobalObject(Desc.DiskPackageId, GlobalImportIndex, Object);
+		ImportStore.StoreGlobalObject(Desc.UPackageId, Export.ExportHash, Object);
 
 		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"),
-			TEXT("Created public export %s. Tracked as 0x%llX"), *Object->GetPathName(), Export.GlobalImportIndex.Value());
+			TEXT("Created public export %s. Tracked as 0x%llX:%d"), *Object->GetPathName(), Desc.UPackageId.Value(), Export.ExportHash);
 	}
 	else
 	{
@@ -4058,10 +4040,10 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncLoadingThreadSt
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ExportsDone);
 
-	if (!Package->bLoadHasFailed && Package->Desc.CanBeImported())
+	if (!Package->bLoadHasFailed && Package->Desc.bCanBeImported)
 	{
 		FLoadedPackageRef& PackageRef =
-			Package->AsyncLoadingThread.LoadedPackageStore.GetPackageRef(Package->Desc.DiskPackageId);
+			Package->AsyncLoadingThread.LoadedPackageStore.GetPackageRef(Package->Desc.UPackageId);
 		PackageRef.SetAllPublicExportsLoaded();
 	}
 
@@ -4477,7 +4459,7 @@ bool FAsyncPackage2::AreAllDependenciesFullyLoaded(TSet<FPackageId>& VisitedPack
 	{
 		FAsyncPackage2* AsyncRoot = AsyncLoadingThread.GetAsyncPackage(PackageId);
 		UE_LOG(LogStreaming, Verbose, TEXT("AreAllDependenciesFullyLoaded: '%s' doesn't have all exports processed by DeferredPostLoad"),
-			*AsyncRoot->Desc.DiskPackageName.ToString());
+			*AsyncRoot->Desc.PackageNameToLoad.ToString());
 	}
 	return bLoaded;
 }
@@ -4596,7 +4578,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 			{
 				FScopeLock LockAsyncPackages(&AsyncPackagesCritical);
-				AsyncPackageLookup.Remove(Package->Desc.GetAsyncPackageId());
+				AsyncPackageLookup.Remove(Package->Desc.UPackageId);
 				if (!Package->bLoadHasFailed)
 				{
 					Package->ClearConstructedObjects();
@@ -5251,7 +5233,7 @@ FORCENOINLINE static void FilterUnreachableObjects(
 				if (Package->HasAnyPackageFlags(PKG_Cooked))
 #endif
 				{
-					Packages.Emplace(Package->GetLoadedPath().GetPackageFName(), Package);
+					Packages.Emplace(Package);
 				}
 			}
 		}
@@ -5382,10 +5364,10 @@ FAsyncPackage2::FAsyncPackage2(
 , Data(InData)
 , AsyncLoadingThread(InAsyncLoadingThread)
 , GraphAllocator(InGraphAllocator)
-, ImportStore(AsyncLoadingThread.GetPackageStore(), AsyncLoadingThread.GlobalImportStore, AsyncLoadingThread.LoadedPackageStore, Desc)
+, ImportStore(AsyncLoadingThread.GetPackageStore(), AsyncLoadingThread.GlobalImportStore, AsyncLoadingThread.LoadedPackageStore, Desc, Data.ImportedPackageIds)
 {
 	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this);
-	ImportStore.AddPackageReferences(Data.ImportedPackageIds);
+	ImportStore.AddPackageReferences();
 	AddRequestID(Desc.RequestID);
 
 	ConstructedObjects.Reserve(Data.ExportInfo.ExportCount + 1); // +1 for UPackage, may grow dynamically beoynd that
@@ -5421,16 +5403,16 @@ FAsyncPackage2::~FAsyncPackage2()
 	TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(this);
 	UE_ASYNC_PACKAGE_LOG(Verbose, Desc, TEXT("AsyncThread: Deleted"), TEXT("Package deleted."));
 
-	ImportStore.ReleasePackageReferences(Data.ImportedPackageIds);
+	ImportStore.ReleasePackageReferences();
 
 	checkf(RefCount == 0, TEXT("RefCount is not 0 when deleting package %s"),
-		*Desc.DiskPackageName.ToString());
+		*Desc.PackageNameToLoad.ToString());
 
 	checkf(RequestIDs.Num() == 0, TEXT("MarkRequestIDsAsComplete() has not been called for package %s"),
-		*Desc.DiskPackageName.ToString());
+		*Desc.PackageNameToLoad.ToString());
 	
 	checkf(ConstructedObjects.Num() == 0, TEXT("ClearConstructedObjects() has not been called for package %s"),
-		*Desc.DiskPackageName.ToString());
+		*Desc.PackageNameToLoad.ToString());
 }
 
 void FAsyncPackage2::ReleaseRef()
@@ -5473,7 +5455,7 @@ void FAsyncPackage2::ClearConstructedObjects()
 	ConstructedObjects.Empty();
 
 	// the async flag of all GC'able public export objects in non-temp packages are handled by FGlobalImportStore::ClearAsyncFlags
-	const bool bShouldClearAsyncFlagForPublicExports = GUObjectArray.IsDisregardForGC(LinkerRoot) || !Desc.CanBeImported();
+	const bool bShouldClearAsyncFlagForPublicExports = GUObjectArray.IsDisregardForGC(LinkerRoot) || !Desc.bCanBeImported;
 
 	for (FExportObject& Export : Data.Exports)
 	{
@@ -5589,15 +5571,15 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 	UPackage* ExistingPackage = nullptr;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPackageFind);
-		if (Desc.CanBeImported())
+		if (Desc.bCanBeImported)
 		{
-			PackageRef = ImportStore.LoadedPackageStore.FindPackageRef(Desc.DiskPackageId);
+			PackageRef = ImportStore.LoadedPackageStore.FindPackageRef(Desc.UPackageId);
 			UE_ASYNC_PACKAGE_CLOG(!PackageRef, Fatal, Desc, TEXT("CreateUPackage"), TEXT("Package has been destroyed by GC."));
 			LinkerRoot = PackageRef->GetPackage();
 #if DO_CHECK
 			if (LinkerRoot)
 			{
-				UPackage* FoundPackage = FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName());
+				UPackage* FoundPackage = FindObjectFast<UPackage>(nullptr, Desc.UPackageName);
 				checkf(LinkerRoot == FoundPackage,
 					TEXT("LinkerRoot '%s' (%p) is different from FoundPackage '%s' (%p)"),
 					*LinkerRoot->GetName(), LinkerRoot, *FoundPackage->GetName(), FoundPackage);
@@ -5607,7 +5589,7 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		if (!LinkerRoot)
 		{
 			// Packages can be created outside the loader, i.e from ResolveName via StaticLoadObject
-			ExistingPackage = FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName());
+			ExistingPackage = FindObjectFast<UPackage>(nullptr, Desc.UPackageName);
 		}
 	}
 	if (!LinkerRoot)
@@ -5619,13 +5601,14 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		}
 		else 
 		{
-			LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.GetUPackageName());
+			LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.UPackageName);
 			bCreatedLinkerRoot = true;
 		}
 		LinkerRoot->SetFlags(RF_Public | RF_WasLoaded);
-		LinkerRoot->SetLoadedPath(FPackagePath::FromPackageNameChecked(Desc.DiskPackageName));
-		LinkerRoot->SetCanBeImportedFlag(Desc.CanBeImported());
-		LinkerRoot->SetPackageId(Desc.DiskPackageId);
+		LinkerRoot->SetLoadedPath(FPackagePath::FromPackageNameChecked(Desc.PackageNameToLoad));
+		LinkerRoot->SetCanBeImportedFlag(Desc.bCanBeImported);
+		LinkerRoot->SetPackageId(Desc.UPackageId);
+		LinkerRoot->SetPackageIdToLoad(Desc.PackageIdToLoad);
 		LinkerRoot->SetPackageFlagsTo(PackageSummary->PackageFlags | PKG_Cooked);
 		LinkerRoot->LinkerPackageVersion = GPackageFileUEVersion;
 		LinkerRoot->LinkerLicenseeVersion = GPackageFileLicenseeUEVersion;
@@ -5640,8 +5623,8 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 	}
 	else
 	{
-		check(LinkerRoot->CanBeImported() == Desc.CanBeImported());
-		check(LinkerRoot->GetPackageId() == Desc.DiskPackageId);
+		check(LinkerRoot->CanBeImported() == Desc.bCanBeImported);
+		check(LinkerRoot->GetPackageId() == Desc.UPackageId);
 		check(LinkerRoot->GetPackageFlags() == (PackageSummary->PackageFlags | PKG_Cooked));
 		check(LinkerRoot->LinkerPackageVersion == GPackageFileUEVersion);
 		check(LinkerRoot->LinkerLicenseeVersion == GPackageFileLicenseeUEVersion);
@@ -5745,7 +5728,7 @@ void FAsyncPackage2::CallCompletionCallbacks(EAsyncLoadingResult::Type LoadingRe
 #endif
 	for (FCompletionCallback& CompletionCallback : CompletionCallbacks)
 	{
-		CompletionCallback->ExecuteIfBound(Desc.GetUPackageName(), LoadedPackage, LoadingResult);
+		CompletionCallback->ExecuteIfBound(Desc.UPackageName, LoadedPackage, LoadingResult);
 	}
 	CompletionCallbacks.Empty();
 }
@@ -5787,9 +5770,15 @@ int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName
 
 	LazyInitializeFromLoadPackage();
 	
-	const FName PackageName = InCustomName.IsNone() ? InPackagePath.GetPackageFName() : InCustomName;
+	const FName PackageNameToLoad = InPackagePath.GetPackageFName();
+	const FPackageId PackageIdToLoad = FPackageId::FromName(PackageNameToLoad);
+	if (InCustomName == PackageNameToLoad)
+	{
+		InCustomName = NAME_None;
+	}
 	if (FCoreDelegates::OnAsyncLoadPackage.IsBound())
 	{
+		const FName PackageName = InCustomName.IsNone() ? PackageNameToLoad : InCustomName;
 		FCoreDelegates::OnAsyncLoadPackage.Broadcast(PackageName.ToString());
 	}
 
@@ -5804,7 +5793,7 @@ int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName
 		? MakeUnique<FLoadPackageAsyncDelegate>(MoveTemp(InCompletionDelegate))
 		: TUniquePtr<FLoadPackageAsyncDelegate>();
 
-	PackageRequestQueue->Enqueue(FPackageRequest::Create(RequestId, InPackagePriority, InPackagePath, InCustomName, MoveTemp(CompletionDelegate)));
+	PackageRequestQueue->Enqueue(FPackageRequest::Create(RequestId, InPackagePriority, PackageNameToLoad, PackageIdToLoad, InCustomName, MoveTemp(CompletionDelegate)));
 	++QueuedPackagesCounter;
 
 	AltZenaphore.NotifyOne();
@@ -5814,116 +5803,30 @@ int32 FAsyncLoadingThread2::LoadPackage(const FPackagePath& InPackagePath, FName
 
 FAsyncPackageDesc2 FAsyncLoadingThread2::CreatePackageDesc(FPackageRequest& Request, bool& bIsMissingPackage)
 {
-	const FName Name = Request.GetUPackageName();
-	FName DiskPackageName = Request.GetDiskPackageName();
-	bool bHasCustomPackageName = Name != DiskPackageName;
-
-	FPackageId DiskPackageId = Request.PackageId;
+	FPackageId PackageIdToLoad = Request.PackageIdToLoad;
 	FPackageStoreEntryHandle StoreEntry = Request.StoreEntryHandle;
-	if (!StoreEntry.IsValid())
-	{
-		FString PackageNameStr = DiskPackageName.ToString();
-		if (!FPackageName::IsValidLongPackageName(PackageNameStr))
-		{
-			FString NewPackageNameStr;
-			if (FPackageName::TryConvertFilenameToLongPackageName(PackageNameStr, NewPackageNameStr))
-			{
-				DiskPackageName = *NewPackageNameStr;
-				DiskPackageId = FPackageId::FromName(DiskPackageName);
-				StoreEntry = PackageStore->GetPackageEntryHandle(DiskPackageId);
-				bHasCustomPackageName &= Name != DiskPackageName;
-			}
-		}
-	}
-
-	// Verify CustomPackageName, or fixup to handle any input string that can be converted to a long package name.
-	// CustomPackageName must not be an existing disk package name,
-	// that could cause missing or incorrect import objects for other packages.
-	FName CustomPackageName;
-	FPackageId CustomPackageId;
-	if (bHasCustomPackageName)
-	{
-		FPackageId PackageId = FPackageId::FromName(Name);
-		if (!PackageStore->GetPackageEntryHandle(PackageId))
-		{
-			FString PackageNameStr = Name.ToString();
-			if (FPackageName::IsValidLongPackageName(PackageNameStr))
-			{
-				CustomPackageName = Name;
-				CustomPackageId = PackageId;
-			}
-			else
-			{
-				FString NewPackageNameStr;
-				if (FPackageName::TryConvertFilenameToLongPackageName(PackageNameStr, NewPackageNameStr))
-				{
-					PackageId = FPackageId::FromName(FName(*NewPackageNameStr));
-					if (!PackageStore->GetPackageEntryHandle(PackageId))
-					{
-						CustomPackageName = *NewPackageNameStr;
-						CustomPackageId = PackageId;
-					}
-				}
-			}
-		}
-	}
-	// When explicitly requesting a redirected package then set CustomName to
-	// the redirected name, otherwise the UPackage name will be set to the base game name.
-	else if (PackageStore->IsRedirect(DiskPackageId))
-	{
-		bHasCustomPackageName = true;
-		CustomPackageName = DiskPackageName;
-		CustomPackageId = DiskPackageId;
-	}
-
-	check(CustomPackageId.IsValid() == !CustomPackageName.IsNone());
-
-	bool bCustomNameIsValid = (!bHasCustomPackageName && CustomPackageName.IsNone()) || (bHasCustomPackageName && !CustomPackageName.IsNone());
-	bool bDiskPackageIdIsValid = StoreEntry.IsValid();
-	if (!bDiskPackageIdIsValid)
+	
+	if (StoreEntry.Status() == EPackageStoreEntryStatus::Missing)
 	{
 		// While there is an active load request for (InName=/Temp/PackageABC_abc, InPackageToLoadFrom=/Game/PackageABC), then allow these requests too:
 		// (InName=/Temp/PackageA_abc, InPackageToLoadFrom=/Temp/PackageABC_abc) and (InName=/Temp/PackageABC_xyz, InPackageToLoadFrom=/Temp/PackageABC_abc)
-		FAsyncPackage2* Package = GetAsyncPackage(DiskPackageId);
+		FAsyncPackage2* Package = GetAsyncPackage(PackageIdToLoad);
 		if (Package)
 		{
-			if (CustomPackageName.IsNone())
-			{
-				CustomPackageName = Package->Desc.CustomPackageName;
-				CustomPackageId = Package->Desc.CustomPackageId;
-				bHasCustomPackageName = bCustomNameIsValid = true;
-			}
-			DiskPackageName = Package->Desc.DiskPackageName;
-			DiskPackageId = Package->Desc.DiskPackageId;
+			PackageIdToLoad = Package->Desc.PackageIdToLoad;
 			StoreEntry = Package->Desc.StoreEntry;
-			bDiskPackageIdIsValid = true;
 		}
 	}
 
-	FAsyncPackageDesc2 PackageDesc = FAsyncPackageDesc2::FromPackageRequest(Request.RequestId, Request.Priority, DiskPackageId, StoreEntry, DiskPackageName, CustomPackageId, CustomPackageName);
-
-	bool bIsValid = bDiskPackageIdIsValid && bCustomNameIsValid;
-	if (bIsValid)
-	{
-		// Fixup for redirected packages since the slim StoreEntry itself has been stripped from both package names and package ids
-		FPackageId RedirectedDiskPackageId = PackageStore->GetRedirectedPackageId(DiskPackageId);
-		if (RedirectedDiskPackageId.IsValid())
-		{
-			PackageDesc.DiskPackageId = RedirectedDiskPackageId;
-			PackageDesc.SourcePackageName = PackageDesc.DiskPackageName;
-			PackageDesc.DiskPackageName = FName();
-		}
-	}
-	
-	bIsMissingPackage = !bIsValid || StoreEntry.Status() == EPackageStoreEntryStatus::Missing;
+	FAsyncPackageDesc2 PackageDesc = FAsyncPackageDesc2::FromPackageRequest(Request.RequestId, Request.Priority, Request.UPackageName, PackageIdToLoad, !Request.CustomName.IsNone(), Request.StoreEntryHandle);
+	bIsMissingPackage = StoreEntry.Status() == EPackageStoreEntryStatus::Missing;
 
 	return MoveTemp(PackageDesc);
 }
 
 void FAsyncLoadingThread2::QueueMissingPackage(FAsyncPackageDesc2& PackageDesc, TUniquePtr<FLoadPackageAsyncDelegate>&& PackageLoadedDelegate)
 {
-	const bool bInvalidPackageName = PackageDesc.StoreEntry.IsValid();
-	const FName FailedPackageName = bInvalidPackageName ? PackageDesc.CustomPackageName : PackageDesc.DiskPackageName;
+	const FName FailedPackageName = PackageDesc.UPackageName;
 
 	static TSet<FName> SkippedPackages;
 	bool bIsAlreadySkipped = false;
@@ -5932,18 +5835,9 @@ void FAsyncLoadingThread2::QueueMissingPackage(FAsyncPackageDesc2& PackageDesc, 
 
 	if (!bIsAlreadySkipped)
 	{
-		if (bInvalidPackageName)
-		{
-			UE_LOG(LogStreaming, Warning,
-				TEXT("LoadPackage: SkipPackage: %s (0x%llX) - The package name is invalid"),
-				*FailedPackageName.ToString(), PackageDesc.CustomPackageId.ValueForDebugging());
-		}
-		else
-		{
-			UE_LOG(LogStreaming, Warning,
-				TEXT("LoadPackage: SkipPackage: %s (0x%llX) - The package to load does not exist on disk or in the loader"),
-				*FailedPackageName.ToString(), PackageDesc.DiskPackageId.ValueForDebugging());
-		}
+		UE_LOG(LogStreaming, Warning,
+			TEXT("LoadPackage: SkipPackage: %s (0x%llX) - The package to load does not exist on disk or in the loader"),
+			*FailedPackageName.ToString(), PackageDesc.PackageIdToLoad.ValueForDebugging());
 	}
 
 	if (PackageLoadedDelegate.IsValid())

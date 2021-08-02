@@ -70,16 +70,20 @@ public:
 		};
 	}
 
-	virtual FPackageId GetRedirectedPackageId(FPackageId PackageId) override
+	virtual bool GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId) override
 	{
 		FScopeLock Lock(&PackageNameMapsCritical);
-		FPackageId RedirectedId = RedirectsPackageMap.FindRef(PackageId);
-		return RedirectedId;
-	}
-
-	virtual bool IsRedirect(FPackageId PackageId) override
-	{
-		return TargetRedirectIds.Contains(PackageId);
+		TTuple<FName, FPackageId>* FindRedirect = RedirectsPackageMap.Find(PackageId);
+		if (FindRedirect)
+		{
+			OutSourcePackageName = FindRedirect->Get<0>();
+			OutRedirectedToPackageId = FindRedirect->Get<1>();
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 private:
@@ -193,24 +197,22 @@ private:
 
 							if (LocalizedPackages)
 							{
-								for (auto& Pair : *LocalizedPackages)
+								for (const FContainerHeaderPackageRedirect& Redirect : *LocalizedPackages)
 								{
-									const FPackageId& SourceId = Pair.Key;
-									const FPackageId& LocalizedId = Pair.Value;
-									RedirectsPackageMap.Emplace(SourceId, LocalizedId);
-									TargetRedirectIds.Add(LocalizedId);
+									FNameEntryId NameEntry = ContainerHeader.RedirectsNameMap[Redirect.SourcePackageName.GetIndex()];
+									FName SourcePackageName = FName::CreateFromDisplayId(NameEntry, Redirect.SourcePackageName.GetNumber());
+									RedirectsPackageMap.Emplace(Redirect.SourcePackageId, MakeTuple(SourcePackageName, Redirect.TargetPackageId));
 								}
 							}
 						}
 
 						{
 							TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreRedirects);
-							for (const TPair<FPackageId, FPackageId>& Redirect : ContainerHeader.PackageRedirects)
+							for (const FContainerHeaderPackageRedirect& Redirect : ContainerHeader.PackageRedirects)
 							{
-								const FPackageId& SourceId = Redirect.Key;
-								const FPackageId& RedirectedId = Redirect.Value;
-								RedirectsPackageMap.Emplace(SourceId, RedirectedId);
-								TargetRedirectIds.Add(RedirectedId);
+								FNameEntryId NameEntry = ContainerHeader.RedirectsNameMap[Redirect.SourcePackageName.GetIndex()];
+								FName SourcePackageName = FName::CreateFromDisplayId(NameEntry, Redirect.SourcePackageName.GetNumber());
+								RedirectsPackageMap.Emplace(Redirect.SourcePackageId, MakeTuple(SourcePackageName, Redirect.TargetPackageId));
 							}
 						}
 					}
@@ -226,53 +228,12 @@ private:
 		IoBatch.Issue();
 		Event->Wait();
 		FPlatformProcess::ReturnSynchEventToPool(Event);
-
-		ApplyRedirects(RedirectsPackageMap);
 	}
 
 	void OnContainerMounted(const FIoContainerId& ContainerId)
 	{
 		LLM_SCOPE(ELLMTag::AsyncLoading);
 		LoadContainers(MakeArrayView(&ContainerId, 1));
-	}
-
-	void ApplyRedirects(const TMap<FPackageId, FPackageId>& Redirects)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ApplyRedirects);
-
-		FScopeLock Lock(&PackageNameMapsCritical);
-
-		if (Redirects.Num() == 0)
-		{
-			return;
-		}
-
-		for (auto It = Redirects.CreateConstIterator(); It; ++It)
-		{
-			const FPackageId& SourceId = It.Key();
-			const FPackageId& RedirectId = It.Value();
-			check(RedirectId.IsValid());
-			FFilePackageStoreEntry* RedirectEntry = StoreEntriesMap.FindRef(RedirectId);
-			check(RedirectEntry);
-			FFilePackageStoreEntry*& PackageEntry = StoreEntriesMap.FindOrAdd(SourceId);
-			if (RedirectEntry)
-			{
-				PackageEntry = RedirectEntry;
-			}
-		}
-
-		for (auto It = StoreEntriesMap.CreateIterator(); It; ++It)
-		{
-			FFilePackageStoreEntry* StoreEntry = It.Value();
-
-			for (FPackageId& ImportedPackageId : StoreEntry->ImportedPackages)
-			{
-				if (const FPackageId* RedirectId = Redirects.Find(ImportedPackageId))
-				{
-					ImportedPackageId = *RedirectId;
-				}
-			}
-		}
 	}
 
 	struct FLoadedContainer
@@ -291,8 +252,7 @@ private:
 	FCriticalSection PackageNameMapsCritical;
 
 	TMap<FPackageId, FFilePackageStoreEntry*> StoreEntriesMap;
-	TMap<FPackageId, FPackageId> RedirectsPackageMap;
-	TSet<FPackageId> TargetRedirectIds;
+	TMap<FPackageId, TTuple<FName, FPackageId>> RedirectsPackageMap;
 	int32 NextCustomPackageIndex = 0;
 };
 

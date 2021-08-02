@@ -336,9 +336,9 @@ FPackageStoreOptimizer::FPackageStoreHeaderData FPackageStoreOptimizer::LoadPack
 	return PackageStoreHeaderData;
 }
 
-void FPackageStoreOptimizer::ResolveImport(FPackageStorePackage::FImport* Imports, const FObjectImport* ObjectImports, int32 LocalImportIndex) const
+void FPackageStoreOptimizer::ResolveImport(FPackageStorePackage::FUnresolvedImport* Imports, const FObjectImport* ObjectImports, int32 LocalImportIndex) const
 {
-	FPackageStorePackage::FImport* Import = Imports + LocalImportIndex;
+	FPackageStorePackage::FUnresolvedImport* Import = Imports + LocalImportIndex;
 	if (Import->FullName.Len() == 0)
 	{
 		Import->FullName.Reserve(256);
@@ -349,22 +349,26 @@ void FPackageStoreOptimizer::ResolveImport(FPackageStorePackage::FImport* Import
 			FName PackageName = ObjectImport->ObjectName;
 			PackageName.AppendString(Import->FullName);
 			Import->FullName.ToLowerInline();
-			Import->PackageId = FPackageId::FromName(PackageName);
+			Import->FromPackageId = FPackageId::FromName(PackageName);
+			Import->FromPackageName = PackageName;
+			Import->FromPackageNameLen = Import->FullName.Len();
 			Import->bIsScriptImport = Import->FullName.StartsWith(TEXT("/Script/"));
-			Import->bIsPackageImport = true;
+			Import->bIsImportOfPackage = true;
 		}
 		else
 		{
 			const int32 OuterIndex = ObjectImport->OuterIndex.ToImport();
 			ResolveImport(Imports, ObjectImports, OuterIndex);
-			FPackageStorePackage::FImport* OuterImport = Imports + OuterIndex;
+			FPackageStorePackage::FUnresolvedImport* OuterImport = Imports + OuterIndex;
 			check(OuterImport->FullName.Len() > 0);
 			Import->bIsScriptImport = OuterImport->bIsScriptImport;
 			Import->FullName.Append(OuterImport->FullName);
 			Import->FullName.AppendChar(TEXT('/'));
 			ObjectImport->ObjectName.AppendString(Import->FullName);
 			Import->FullName.ToLowerInline();
-			Import->PackageId = OuterImport->PackageId;
+			Import->FromPackageId = OuterImport->FromPackageId;
+			Import->FromPackageName = OuterImport->FromPackageName;
+			Import->FromPackageNameLen = OuterImport->FromPackageNameLen;
 		}
 	}
 }
@@ -372,42 +376,55 @@ void FPackageStoreOptimizer::ResolveImport(FPackageStorePackage::FImport* Import
 void FPackageStoreOptimizer::ProcessImports(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const
 {
 	int32 ImportCount = CookedHeaderData.ObjectImports.Num();
+	TArray<FPackageStorePackage::FUnresolvedImport> UnresolvedImports;
+	UnresolvedImports.SetNum(ImportCount);
 	Package->Imports.SetNum(ImportCount);
 
 	TSet<FPackageId> ImportedPackageIds;
 	for (int32 ImportIndex = 0; ImportIndex < ImportCount; ++ImportIndex)
 	{
-		ResolveImport(Package->Imports.GetData(), CookedHeaderData.ObjectImports.GetData(), ImportIndex);
-		FPackageStorePackage::FImport& Import = Package->Imports[ImportIndex];
-		if (Import.bIsScriptImport)
+		ResolveImport(UnresolvedImports.GetData(), CookedHeaderData.ObjectImports.GetData(), ImportIndex);
+		FPackageStorePackage::FUnresolvedImport& UnresolvedImport = UnresolvedImports[ImportIndex];
+		if (!UnresolvedImport.bIsScriptImport && UnresolvedImport.bIsImportOfPackage)
 		{
-			Import.GlobalImportIndex = FPackageObjectIndex::FromScriptPath(Import.FullName);
-		}
-		else if (!Import.bIsPackageImport)
-		{
-			Import.GlobalImportIndex = FPackageObjectIndex::FromPackagePath(Import.FullName);
-		}
-		else
-		{
-			ImportedPackageIds.Add(Import.PackageId);
+			ImportedPackageIds.Add(UnresolvedImport.FromPackageId);
 		}
 	}
 	Package->ImportedPackageIds = ImportedPackageIds.Array();
 	Algo::Sort(Package->ImportedPackageIds);
+
+	for (int32 ImportIndex = 0; ImportIndex < ImportCount; ++ImportIndex)
+	{
+		FPackageStorePackage::FUnresolvedImport& UnresolvedImport = UnresolvedImports[ImportIndex];
+		if (UnresolvedImport.bIsScriptImport)
+		{
+			Package->Imports[ImportIndex] = FPackageObjectIndex::FromScriptPath(UnresolvedImport.FullName);
+		}
+		else if (!UnresolvedImport.bIsImportOfPackage)
+		{
+			bool bFoundPackageIndex = false;
+			for (uint32 PackageIndex = 0, PackageCount = static_cast<uint32>(Package->ImportedPackageIds.Num()); PackageIndex < PackageCount; ++PackageIndex)
+			{
+				if (UnresolvedImport.FromPackageId == Package->ImportedPackageIds[PackageIndex])
+				{
+					FStringView PackageRelativeName = FStringView(UnresolvedImport.FullName).RightChop(UnresolvedImport.FromPackageNameLen);
+					check(PackageRelativeName.Len());
+					uint32 ExportHash = GetTypeHash(PackageRelativeName);
+					FPackageImportReference PackageImportRef(PackageIndex, ExportHash);
+					Package->Imports[ImportIndex] = FPackageObjectIndex::FromPackageImportRef(PackageImportRef);
+					bFoundPackageIndex = true;
+					break;
+				}
+			}
+			check(bFoundPackageIndex);
+		}
+	}
 }
 
 void FPackageStoreOptimizer::ProcessImports(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const
 {
 	Package->ImportedPackageIds = PackageStoreHeaderData.ImportedPackageIds;
-
-	for (FPackageObjectIndex ImportObjectIndex : PackageStoreHeaderData.Imports)
-	{
-		FPackageStorePackage::FImport& Import = Package->Imports.AddDefaulted_GetRef();
-		Import.GlobalImportIndex = ImportObjectIndex;
-		Import.bIsScriptImport = ImportObjectIndex.IsScriptImport();
-		Import.bIsPackageImport = ImportObjectIndex.IsPackageImport();
-		// Import.FullName and Import.PackageId will be resolve in FindImports after all package headers have been loaded
-	}
+	Package->Imports = PackageStoreHeaderData.Imports;
 }
 
 void FPackageStoreOptimizer::ResolveExport(
@@ -481,11 +498,11 @@ void FPackageStoreOptimizer::ProcessExports(const FCookedHeaderData& CookedHeade
 	Package->ExportGraphNodes.Reserve(ExportCount * 2);
 
 	auto PackageObjectIdFromPackageIndex =
-		[](const TArray<FPackageStorePackage::FImport>& Imports, const FPackageIndex& PackageIndex) -> FPackageObjectIndex
+		[](const TArray<FPackageObjectIndex>& Imports, const FPackageIndex& PackageIndex) -> FPackageObjectIndex
 	{
 		if (PackageIndex.IsImport())
 		{
-			return Imports[PackageIndex.ToImport()].GlobalImportIndex;
+			return Imports[PackageIndex.ToImport()];
 		}
 		if (PackageIndex.IsExport())
 		{
@@ -494,6 +511,7 @@ void FPackageStoreOptimizer::ProcessExports(const FCookedHeaderData& CookedHeade
 		return FPackageObjectIndex();
 	};
 
+	FString PackageNameStr = Package->Name.ToString();
 	for (int32 ExportIndex = 0; ExportIndex < ExportCount; ++ExportIndex)
 	{
 		const FObjectExport& ObjectExport = CookedHeaderData.ObjectExports[ExportIndex];
@@ -512,7 +530,9 @@ void FPackageStoreOptimizer::ProcessExports(const FCookedHeaderData& CookedHeade
 		if (Export.bIsPublic)
 		{
 			check(Export.FullName.Len() > 0);
-			Export.GlobalImportIndex = FPackageObjectIndex::FromPackagePath(Export.FullName);
+			FStringView PackageRelativeName = FStringView(Export.FullName).RightChop(PackageNameStr.Len());
+			check(PackageRelativeName.Len());
+			Export.ExportHash = GetTypeHash(PackageRelativeName);
 		}
 
 		Export.OuterIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.OuterIndex);
@@ -546,11 +566,11 @@ void FPackageStoreOptimizer::ProcessExports(const FPackageStoreHeaderData& Packa
 
 		FPackageStorePackage::FExport& Export = Package->Exports[ExportIndex];
 		Export.ObjectName = FName::CreateFromDisplayId(NameMap[ExportEntry.ObjectName.GetIndex()], ExportEntry.ObjectName.GetNumber());
+		Export.ExportHash = ExportEntry.ExportHash;
 		Export.OuterIndex = ExportEntry.OuterIndex;
 		Export.ClassIndex = ExportEntry.ClassIndex;
 		Export.SuperIndex = ExportEntry.SuperIndex;
 		Export.TemplateIndex = ExportEntry.TemplateIndex;
-		Export.GlobalImportIndex = ExportEntry.GlobalImportIndex;
 		Export.ObjectFlags = ExportEntry.ObjectFlags;
 		Export.CookedSerialOffset = ExportEntry.CookedSerialOffset;
 		Export.SerialSize = ExportEntry.CookedSerialSize;
@@ -609,15 +629,6 @@ TArray<FPackageStorePackage*> FPackageStoreOptimizer::SortPackagesInLoadOrder(co
 		for (FPackageId ImportedPackageId : Package->ImportedPackageIds)
 		{
 			FPackageStorePackage* FindImportedPackage = PackagesMap.FindRef(ImportedPackageId);
-			if (FindImportedPackage)
-			{
-				TArray<FPackageStorePackage*>& SourceArray = SortedEdges.FindOrAdd(FindImportedPackage);
-				SourceArray.Add(Package);
-			}
-		}
-		for (FPackageId ImportedRedirectedPackageId : Package->ImportedRedirectedPackageIds)
-		{
-			FPackageStorePackage* FindImportedPackage = PackagesMap.FindRef(ImportedRedirectedPackageId);
 			if (FindImportedPackage)
 			{
 				TArray<FPackageStorePackage*>& SourceArray = SortedEdges.FindOrAdd(FindImportedPackage);
@@ -769,41 +780,26 @@ void FPackageStoreOptimizer::OptimizeExportBundles(const TMap<FPackageId, FPacka
 				}
 				for (FPackageStorePackage::FExternalDependency& ExternalDependency : ExportGraphNode->ExternalDependencies)
 				{
-					const FPackageStorePackage::FImport& FromImport = Package->Imports[ExternalDependency.ImportIndex];
-					FPackageStorePackage* FindFromPackage = PackagesMap.FindRef(FromImport.PackageId);
+					FPackageObjectIndex FromImport = Package->Imports[ExternalDependency.ImportIndex];
+					check(FromImport.IsPackageImport());
+					FPackageImportReference FromPackageImportRef = FromImport.ToPackageImportRef();
+					FPackageId FromPackageId = Package->ImportedPackageIds[FromPackageImportRef.GetImportedPackageIndex()];
+					FPackageStorePackage* FindFromPackage = PackagesMap.FindRef(FromPackageId);
 					if (FindFromPackage)
 					{
 						bool bFoundExport = false;
 						for (int32 ExportIndex = 0; ExportIndex < FindFromPackage->Exports.Num(); ++ExportIndex)
 						{
 							FPackageStorePackage::FExport& FromExport = FindFromPackage->Exports[ExportIndex];
-							if (FromExport.GlobalImportIndex == FromImport.GlobalImportIndex)
+							if (FromExport.ExportHash == FromPackageImportRef.GetExportHash())
 							{
 								FPackageStorePackage::FExportGraphNode* FromExportGraphNode = FromExport.Nodes[ExternalDependency.ExportBundleCommandType];
 								check(FromExportGraphNode->ExportBundleIndex >= 0);
 								FPackageStorePackage::FExportBundleGraphNode* FromNode = &FindFromPackage->ExportBundleGraphNodes[FromExportGraphNode->ExportBundleIndex];
 								Dependencies.Add(FromNode);
-
-								for (const FPackageId& FromRedirectedPackageId : FindFromPackage->RedirectedToPackageIds)
-								{
-									FPackageStorePackage* FindRedirectedFromPackage = PackagesMap.FindRef(FromRedirectedPackageId);
-									if (FindRedirectedFromPackage)
-									{
-										FPackageStorePackage::FExport& FromRedirectedExport = FindRedirectedFromPackage->Exports[ExportIndex];
-										FPackageStorePackage::FExportGraphNode* FromRedirectedExportGraphNode = FromRedirectedExport.Nodes[ExternalDependency.ExportBundleCommandType];
-										check(FromRedirectedExportGraphNode->ExportBundleIndex >= 0);
-										FPackageStorePackage::FExportBundleGraphNode* FromRedirectedNode = &FindFromPackage->ExportBundleGraphNodes[FromRedirectedExportGraphNode->ExportBundleIndex];
-										Dependencies.Add(FromRedirectedNode);
-									}
-								}
-
 								bFoundExport = true;
 								break;
 							}
-						}
-						if (!bFoundExport)
-						{
-							ExternalDependency.bIsConfirmedMissing = true;
 						}
 					}
 				}
@@ -840,51 +836,6 @@ void FPackageStoreOptimizer::OptimizeExportBundles(const TMap<FPackageId, FPacka
 	}
 }
 
-void FPackageStoreOptimizer::FindImports(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const
-{
-	using FPackageExportIndexPair = TPair<FPackageStorePackage*, int32>;
-	using FGlobalImportIndexToExport = TMap<FPackageObjectIndex, FPackageExportIndexPair>;
-
-	FGlobalImportIndexToExport GlobalImportIndexToExport;
-
-	for (const auto& PackageIdPackage : PackagesMap)
-	{
-		const FPackageStorePackage& Package = *PackageIdPackage.Value;
-		for (int32 ExportIndex = 0; ExportIndex < Package.Exports.Num(); ++ExportIndex)
-		{
-			const FPackageStorePackage::FExport& Export = Package.Exports[ExportIndex];
-			if (Export.bIsPublic)
-			{
-				GlobalImportIndexToExport.Add(Export.GlobalImportIndex, FPackageExportIndexPair(PackageIdPackage.Value, ExportIndex));
-			}
-		}
-	}
-
-	for (const auto& PackageIdPackage : PackagesMap)
-	{
-		FPackageStorePackage& Package = *PackageIdPackage.Value;
-		for (FPackageStorePackage::FImport& Import : Package.Imports)
-		{
-			if (Import.GlobalImportIndex.IsPackageImport())
-			{
-				if (const FPackageExportIndexPair* Entry = GlobalImportIndexToExport.Find(Import.GlobalImportIndex))
-				{
-					const FPackageStorePackage& ImportedPackage = *Entry->Key;
-					const int32 ExportIndex = Entry->Value;
-					Import.PackageId = ImportedPackage.GetId();
-					Import.FullName = ImportedPackage.Exports[ExportIndex].FullName;
-				}
-				else
-				{
-					UE_LOG(LogPackageStoreOptimizer, Warning,
-						TEXT("Failed to find import '0x%llX' in package '%s'"),
-						Import.GlobalImportIndex.Value(), *Package.Name.ToString());
-				}
-			}
-		}
-	}
-}
-
 void FPackageStoreOptimizer::ProcessPreloadDependencies(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessPreloadDependencies);
@@ -898,8 +849,8 @@ void FPackageStoreOptimizer::ProcessPreloadDependencies(const FCookedHeaderData&
 
 	auto AddExternalDependency = [](FPackageStorePackage* Package, int32 FromImportIndex, FExportBundleEntry::EExportCommandType FromExportBundleCommandType, FPackageStorePackage::FExportGraphNode* ToNode)
 	{
-		const FPackageStorePackage::FImport& FromImport = Package->Imports[FromImportIndex];
-		if (FromImport.GlobalImportIndex.IsScriptImport())
+		FPackageObjectIndex FromImport = Package->Imports[FromImportIndex];
+		if (FromImport.IsScriptImport())
 		{
 			return;
 		}
@@ -1135,40 +1086,65 @@ static const TCHAR* GetExportNameSafe(const FString& ExportFullName, const FName
 	return nullptr;
 };
 
-bool FPackageStoreOptimizer::RedirectPackage(
-	const FPackageStorePackage& SourcePackage,
+bool FPackageStoreOptimizer::VerifyRedirect(
+	const FPackageStorePackage* SourcePackage,
 	FPackageStorePackage& TargetPackage,
-	TMap<FPackageObjectIndex, FPackageObjectIndex>& RedirectedToSourceImportIndexMap) const
+	bool bIsBuildingDLC) const
 {
+	if (!SourcePackage)
+	{
+		if (bIsBuildingDLC)
+		{
+			// We can't verify against the source package but check for presence of UStructs
+			for (const FPackageStorePackage::FExport& Export : TargetPackage.Exports)
+			{
+				if (!Export.SuperIndex.IsNull() && Export.OuterIndex.IsNull())
+				{
+					UE_LOG(LogPackageStoreOptimizer, Warning, TEXT("Skipping redirect to package '%s' due to presence of UStruct '%s'"), *TargetPackage.Name.ToString(), *Export.ObjectName.ToString());
+					return false;
+				}
+			}
+			return true;
+		}
+
+		if (TargetPackage.Region.Len() > 0)
+		{
+			// no update or verification required
+			UE_LOG(LogPackageStoreOptimizer, Verbose,
+				TEXT("For culture '%s': Localized package '%s' (0x%llX) is unique and does not override a source package."),
+				*TargetPackage.Region,
+				*TargetPackage.Name.ToString(),
+				TargetPackage.Id.ValueForDebugging());
+		}
+		return false;
+	}
+
 	const int32 ExportCount =
-		SourcePackage.Exports.Num() < TargetPackage.Exports.Num() ?
-		SourcePackage.Exports.Num() :
+		SourcePackage->Exports.Num() < TargetPackage.Exports.Num() ?
+		SourcePackage->Exports.Num() :
 		TargetPackage.Exports.Num();
 
-	UE_CLOG(SourcePackage.Exports.Num() != TargetPackage.Exports.Num(), LogPackageStoreOptimizer, Verbose,
+	UE_CLOG(SourcePackage->Exports.Num() != TargetPackage.Exports.Num(), LogPackageStoreOptimizer, Verbose,
 		TEXT("Redirection target package '%s' (0x%llX) for source package '%s' (0x%llX)  - Has ExportCount %d vs. %d"),
 		*TargetPackage.Name.ToString(),
 		TargetPackage.Id.ValueForDebugging(),
-		*SourcePackage.Name.ToString(),
-		SourcePackage.Id.ValueForDebugging(),
+		*SourcePackage->Name.ToString(),
+		SourcePackage->Id.ValueForDebugging(),
 		TargetPackage.Exports.Num(),
-		SourcePackage.Exports.Num());
+		SourcePackage->Exports.Num());
 
-	auto AppendMismatchMessage = [&TargetPackage, &SourcePackage](
+	auto AppendMismatchMessage = [&TargetPackage, SourcePackage](
 		const TCHAR* Text, FName ExportName, FPackageObjectIndex TargetIndex, FPackageObjectIndex SourceIndex, FString& FailReason)
 	{
 		FailReason.Appendf(TEXT("Public export '%s' has %s %s vs. %s"),
 			*ExportName.ToString(),
 			Text,
 			*TargetPackage.Exports[TargetIndex.ToExport()].FullName,
-			*SourcePackage.Exports[SourceIndex.ToExport()].FullName);
+			*SourcePackage->Exports[SourceIndex.ToExport()].FullName);
 	};
 
 	const int32 TargetPackageNameLen = TargetPackage.Name.GetStringLength();
-	const int32 SourcePackageNameLen = SourcePackage.Name.GetStringLength();
-
-	TArray <TPair<int32, int32>, TInlineAllocator<64>> NewPublicExports;
-	NewPublicExports.Reserve(ExportCount);
+	const int32 SourcePackageNameLen = SourcePackage->Name.GetStringLength();
 
 	bool bSuccess = true;
 	int32 TargetIndex = 0;
@@ -1177,12 +1153,12 @@ bool FPackageStoreOptimizer::RedirectPackage(
 	{
 		FString FailReason;
 		const FPackageStorePackage::FExport& TargetExport = TargetPackage.Exports[TargetIndex];
-		const FPackageStorePackage::FExport& SourceExport = SourcePackage.Exports[SourceIndex];
+		const FPackageStorePackage::FExport& SourceExport = SourcePackage->Exports[SourceIndex];
 
 		const TCHAR* TargetExportStr = GetExportNameSafe(
 			TargetExport.FullName, TargetPackage.Name, TargetPackageNameLen);
 		const TCHAR* SourceExportStr = GetExportNameSafe(
-			SourceExport.FullName, SourcePackage.Name, SourcePackageNameLen);
+			SourceExport.FullName, SourcePackage->Name, SourcePackageNameLen);
 
 		if (!TargetExportStr || !SourceExportStr)
 		{
@@ -1190,8 +1166,8 @@ bool FPackageStoreOptimizer::RedirectPackage(
 				TEXT("Redirection target package '%s' (0x%llX) for source package '%s' (0x%llX) - Has some bad data from an earlier phase."),
 				*TargetPackage.Name.ToString(),
 				TargetPackage.Id.ValueForDebugging(),
-				*SourcePackage.Name.ToString(),
-				SourcePackage.Id.ValueForDebugging())
+				*SourcePackage->Name.ToString(),
+				SourcePackage->Id.ValueForDebugging())
 				return false;
 		}
 
@@ -1199,12 +1175,6 @@ bool FPackageStoreOptimizer::RedirectPackage(
 		if (CompareResult < 0)
 		{
 			++TargetIndex;
-
-			if (TargetExport.bIsPublic)
-			{
-				// public localized export is missing in the source package, so just keep it as it is
-				NewPublicExports.Emplace(TargetIndex - 1, 1);
-			}
 		}
 		else if (CompareResult > 0)
 		{
@@ -1244,10 +1214,6 @@ bool FPackageStoreOptimizer::RedirectPackage(
 					AppendMismatchMessage(TEXT("super"), TargetExport.ObjectName,
 						TargetExport.SuperIndex, SourceExport.SuperIndex, FailReason);
 				}
-				else
-				{
-					NewPublicExports.Emplace(TargetIndex - 1, SourceIndex - 1);
-				}
 			}
 			else if (TargetExport.bIsPublic)
 			{
@@ -1263,56 +1229,19 @@ bool FPackageStoreOptimizer::RedirectPackage(
 				TEXT("Redirection target package '%s' (0x%llX) for '%s' (0x%llX) - %s"),
 				*TargetPackage.Name.ToString(),
 				TargetPackage.Id.ValueForDebugging(),
-				*SourcePackage.Name.ToString(),
-				SourcePackage.Id.ValueForDebugging(),
+				*SourcePackage->Name.ToString(),
+				SourcePackage->Id.ValueForDebugging(),
 				*FailReason);
 			bSuccess = false;
-		}
-	}
-
-	if (bSuccess)
-	{
-		for (TPair<int32, int32>& Pair : NewPublicExports)
-		{
-			FPackageStorePackage::FExport& TargetExport = TargetPackage.Exports[Pair.Key];
-			if (Pair.Value != -1)
-			{
-				const FPackageStorePackage::FExport& SourceExport = SourcePackage.Exports[Pair.Value];
-
-				RedirectedToSourceImportIndexMap.Add(TargetExport.GlobalImportIndex, SourceExport.GlobalImportIndex);
-				TargetExport.GlobalImportIndex = SourceExport.GlobalImportIndex;
-			}
 		}
 	}
 
 	return bSuccess;
 }
 
-void FPackageStoreOptimizer::RedirectPackageUnverified(FPackageStorePackage& TargetPackage, TMap<FPackageObjectIndex, FPackageObjectIndex>& RedirectedToSourceImportIndexMap) const
-{
-	const int32 TargetPackageNameLen = TargetPackage.Name.GetStringLength();
-	TStringBuilder<256> NameStringBuilder;
-	for (FPackageStorePackage::FExport& Export : TargetPackage.Exports)
-	{
-		if (Export.bIsPublic)
-		{
-			const TCHAR* ExportNameStr = GetExportNameSafe(Export.FullName, TargetPackage.Name, TargetPackageNameLen);
-			NameStringBuilder.Reset();
-			TargetPackage.SourceName.AppendString(NameStringBuilder);
-			NameStringBuilder.Append(TEXT("/"));
-			NameStringBuilder.Append(ExportNameStr);
-			FPackageObjectIndex SourceGlobalImportIndex = FPackageObjectIndex::FromPackagePath(NameStringBuilder);
-			RedirectedToSourceImportIndexMap.Add(Export.GlobalImportIndex, SourceGlobalImportIndex);
-			Export.GlobalImportIndex = SourceGlobalImportIndex;
-		}
-	}
-}
-
-void FPackageStoreOptimizer::ProcessRedirects(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const
+void FPackageStoreOptimizer::ProcessRedirects(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap, bool bIsBuildingDLC) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessRedirects);
-	TMap<FPackageObjectIndex, FPackageObjectIndex> RedirectedToSourceImportIndexMap;
-	TMap<FPackageId, FPackageId> SourceToRedirectedPackageMap;
 
 	for (const auto& KV : PackagesMap)
 	{
@@ -1324,39 +1253,7 @@ void FPackageStoreOptimizer::ProcessRedirects(const TMap<FPackageId, FPackageSto
 		
 		FPackageId SourcePackageId = FPackageId::FromName(Package->SourceName);
 		FPackageStorePackage* SourcePackage = PackagesMap.FindRef(SourcePackageId);
-		
-		if (SourcePackage)
-		{
-			Package->bIsRedirected = RedirectPackage(*SourcePackage, *Package, RedirectedToSourceImportIndexMap);
-		}
-		else
-		{
-			if (Package->Region.Len() > 0)
-			{
-				// no update or verification required
-				UE_LOG(LogPackageStoreOptimizer, Verbose,
-					TEXT("For culture '%s': Localized package '%s' (0x%llX) is unique and does not override a source package."),
-					*Package->Region,
-					*Package->Name.ToString(),
-					Package->Id.ValueForDebugging());
-				continue;
-			}
-
-			// Assume DLC base game redirection
-			// TODO: Unify these two redirection paths
-			RedirectPackageUnverified(*Package, RedirectedToSourceImportIndexMap);
-			SourceToRedirectedPackageMap.Add(SourcePackageId, Package->Id);
-			Package->bIsRedirected = true;
-			for (const FPackageStorePackage::FExport& Export : Package->Exports)
-			{
-				if (!Export.SuperIndex.IsNull() && Export.OuterIndex.IsNull())
-				{
-					UE_LOG(LogPackageStoreOptimizer, Warning, TEXT("Skipping redirect to package '%s' due to presence of UStruct '%s'"), *Package->Name.ToString(), *Export.ObjectName.ToString());
-					Package->bIsRedirected = false;
-					break;
-				}
-			}
-		}
+		Package->bIsRedirected = VerifyRedirect(SourcePackage, *Package, bIsBuildingDLC);
 		
 		if (Package->bIsRedirected)
 		{
@@ -1365,10 +1262,6 @@ void FPackageStoreOptimizer::ProcessRedirects(const TMap<FPackageId, FPackageSto
 				SourcePackageId.ValueForDebugging(),
 				*Package->Name.ToString(),
 				Package->Id.ValueForDebugging());
-			if (SourcePackage)
-			{
-				SourcePackage->RedirectedToPackageIds.Add(Package->Id);
-			}
 		}
 		else
 		{
@@ -1378,37 +1271,6 @@ void FPackageStoreOptimizer::ProcessRedirects(const TMap<FPackageId, FPackageSto
 				SourcePackageId.ValueForDebugging(),
 				*Package->Name.ToString(),
 				Package->Id.ValueForDebugging());
-		}
-	}
-
-	for (const auto& KV : PackagesMap)
-	{
-		FPackageStorePackage* Package = KV.Value;
-		for (FPackageId ImportedPackageId : Package->ImportedPackageIds)
-		{
-			FPackageStorePackage* FindImportedPackage = PackagesMap.FindRef(ImportedPackageId);
-			if (FindImportedPackage)
-			{
-				Package->ImportedRedirectedPackageIds.Append(FindImportedPackage->RedirectedToPackageIds);
-			}
-		}
-
-		for (FPackageStorePackage::FImport& Import : Package->Imports)
-		{
-			if (Import.GlobalImportIndex.IsPackageImport())
-			{
-				const FPackageObjectIndex* FindSourceGlobalImportIndex = RedirectedToSourceImportIndexMap.Find(Import.GlobalImportIndex);
-				if (FindSourceGlobalImportIndex)
-				{
-					Import.GlobalImportIndex = *FindSourceGlobalImportIndex;
-				}
-
-				const FPackageId* FindRedirectedPackageId = SourceToRedirectedPackageMap.Find(Import.PackageId);
-				if (FindRedirectedPackageId)
-				{
-					Import.PackageId = *FindRedirectedPackageId;
-				}
-			}
 		}
 	}
 }
@@ -1477,10 +1339,9 @@ void FPackageStoreOptimizer::SerializeGraphData(const TArray<FPackageId>& Import
 void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package) const
 {
 	FBufferWriter ImportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
-	for (const FPackageStorePackage::FImport& Import : Package->Imports)
+	for (FPackageObjectIndex Import : Package->Imports)
 	{
-		FPackageObjectIndex GlobalImportIndex = Import.GlobalImportIndex;
-		ImportMapArchive << GlobalImportIndex;
+		ImportMapArchive << Import;
 	}
 	Package->ImportMapSize = ImportMapArchive.Tell();
 
@@ -1491,11 +1352,11 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 		ExportMapEntry.CookedSerialOffset = Export.CookedSerialOffset;
 		ExportMapEntry.CookedSerialSize = Export.SerialSize;
 		ExportMapEntry.ObjectName = Package->NameMapBuilder.MapName(Export.ObjectName);
+		ExportMapEntry.ExportHash = Export.ExportHash;
 		ExportMapEntry.OuterIndex = Export.OuterIndex;
 		ExportMapEntry.ClassIndex = Export.ClassIndex;
 		ExportMapEntry.SuperIndex = Export.SuperIndex;
 		ExportMapEntry.TemplateIndex = Export.TemplateIndex;
-		ExportMapEntry.GlobalImportIndex = Export.GlobalImportIndex;
 		ExportMapEntry.ObjectFlags = Export.ObjectFlags;
 		ExportMapEntry.FilterFlags = EExportFilterFlags::None;
 		if (Export.bNotForClient)
@@ -1527,8 +1388,6 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 
 	Package->NameMapBuilder.MarkNameAsReferenced(Package->Name);
 	FMappedName MappedPackageName = Package->NameMapBuilder.MapName(Package->Name);
-	Package->NameMapBuilder.MarkNameAsReferenced(Package->SourceName);
-	FMappedName MappedPackageSourceName = Package->NameMapBuilder.MapName(Package->SourceName);
 
 	FBufferWriter NameMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
 	SaveNameBatch(Package->NameMapBuilder.GetNameMap(), NameMapArchive);
@@ -1548,7 +1407,6 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	FPackageSummary* PackageSummary = reinterpret_cast<FPackageSummary*>(HeaderData);
 	PackageSummary->HeaderSize = Package->HeaderSize;
 	PackageSummary->Name = MappedPackageName;
-	PackageSummary->SourceName = MappedPackageSourceName;
 	PackageSummary->PackageFlags = Package->PackageFlags;
 	PackageSummary->CookedHeaderSize = Package->CookedHeaderSize;
 	FBufferWriter HeaderArchive(HeaderData, Package->HeaderSize);
@@ -1597,14 +1455,10 @@ void FPackageStoreOptimizer::FinalizePackage(FPackageStorePackage* Package)
 		for (FPackageStorePackage::FExternalDependency& ExternalDependency : Node.ExternalDependencies)
 		{
 			check(ExternalDependency.ImportIndex >= 0);
-			const FPackageStorePackage::FImport& Import = Package->Imports[ExternalDependency.ImportIndex];
-			if (ExternalDependency.bIsConfirmedMissing)
-			{
-				UE_LOG(LogPackageStoreOptimizer, Warning, TEXT("Package '%s' missing import '%s'"), *Package->Name.ToString(), *Import.FullName);
-				continue;
-			}
-
-			TArray<FPackageStorePackage::FExternalArc>& ArcsFromImportedPackage = Package->GraphData.ExternalArcs.FindOrAdd(Import.PackageId);
+			const FPackageObjectIndex& Import = Package->Imports[ExternalDependency.ImportIndex];
+			check(Import.IsPackageImport());
+			FPackageImportReference PackageImportRef = Import.ToPackageImportRef();
+			TArray<FPackageStorePackage::FExternalArc>& ArcsFromImportedPackage = Package->GraphData.ExternalArcs.FindOrAdd(Package->ImportedPackageIds[PackageImportRef.GetImportedPackageIndex()]);
 			FPackageStorePackage::FExternalArc Arc;
 			Arc.FromImportIndex = ExternalDependency.ImportIndex;
 			Arc.FromCommandType = ExternalDependency.ExportBundleCommandType;
@@ -1874,18 +1728,22 @@ FContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContaine
 	});
 
 	Header.PackageIds.Reserve(SortedPackageStoreEntries.Num());
+	FPackageStoreNameMapBuilder RedirectsNameMapBuilder;
+	RedirectsNameMapBuilder.SetNameMapType(FMappedName::EType::Container);
 	for (const FPackageStoreEntryResource* Entry : SortedPackageStoreEntries)
 	{
 		Header.PackageIds.Add(Entry->GetPackageId());
 		if (Entry->IsRedirected())
 		{
+			RedirectsNameMapBuilder.MarkNameAsReferenced(Entry->GetSourcePackageName());
+			FMappedName MappedSourcePackageName = RedirectsNameMapBuilder.MapName(Entry->GetSourcePackageName());
 			if (Entry->Region.IsValid())
 			{
-				Header.CulturePackageMap.FindOrAdd(Entry->Region.ToString()).Emplace(Entry->GetSourcePackageId(), Entry->GetPackageId());
+				Header.CulturePackageMap.FindOrAdd(Entry->Region.ToString()).Add({ Entry->GetSourcePackageId(), Entry->GetPackageId(), MappedSourcePackageName });
 			}
 			else
 			{
-				Header.PackageRedirects.Add(MakeTuple(Entry->GetSourcePackageId(), Entry->GetPackageId()));
+				Header.PackageRedirects.Add({ Entry->GetSourcePackageId(), Entry->GetPackageId(), MappedSourcePackageName });
 			}
 		}
 		
@@ -1912,6 +1770,7 @@ FContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContaine
 			StoreDataArchive << const_cast<FSHAHash&>(ShaderMapHash);
 		}
 	}
+	Header.RedirectsNameMap = RedirectsNameMapBuilder.GetNameMap();
 
 	check(StoreTocArchive.TotalSize() == StoreTocSize);
 

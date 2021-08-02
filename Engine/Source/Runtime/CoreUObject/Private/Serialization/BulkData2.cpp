@@ -863,7 +863,7 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				if (bSeparateFilesUseIoStore)
 				{
-					Data.PackageID = Package->GetPackageId().Value();
+					Data.PackageID = Package->GetPackageIdToLoad().Value();
 					SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a PackagePath
 				}
 				else

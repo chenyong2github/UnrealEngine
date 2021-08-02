@@ -84,6 +84,11 @@ struct FPackageStoreEntryResource
 		return SourcePackageName.IsNone() ? FPackageId() : FPackageId::FromName(SourcePackageName);
 	}
 
+	FName GetSourcePackageName() const
+	{
+		return SourcePackageName;
+	}
+
 	/** Returns whether this package is redirected. */
 	bool IsRedirected() const
 	{
@@ -195,9 +200,6 @@ public:
 	/* Returns the package store entry data with export info and imported packages for the specified package ID. */
 	virtual FPackageStoreEntry GetPackageEntry(FPackageStoreEntryHandle Handle) = 0;
 
-	/* Returns the redirected package ID for the specified package ID. */
-	virtual FPackageId GetRedirectedPackageId(FPackageId PackageId) = 0;
-
-	/* Returns whether the package ID is a redirect. */
-	virtual bool IsRedirect(FPackageId PackageId) = 0;
+	/* Returns the redirected package ID and source package name for the specified package ID if it's being redirected. */
+	virtual bool GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId) = 0;
 };

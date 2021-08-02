@@ -139,11 +139,6 @@ public:
 		return ImportedPackageIds;
 	}
 
-	const TSet<FPackageId>& GetImportedRedirectedPackageIds() const
-	{
-		return ImportedRedirectedPackageIds;
-	}
-
 	void RedirectFrom(FName SourcePackageName)
 	{
 		SourceName = SourcePackageName;
@@ -166,7 +161,6 @@ private:
 	{
 		int32 ImportIndex = -1;
 		FExportBundleEntry::EExportCommandType ExportBundleCommandType;
-		bool bIsConfirmedMissing = false;
 	};
 
 	struct FExportGraphNode
@@ -183,7 +177,7 @@ private:
 	{
 		FString FullName;
 		FName ObjectName;
-		FPackageObjectIndex GlobalImportIndex;
+		uint32 ExportHash = 0;
 		FPackageObjectIndex OuterIndex;
 		FPackageObjectIndex ClassIndex;
 		FPackageObjectIndex SuperIndex;
@@ -204,13 +198,14 @@ private:
 		TArray<FExportBundleEntry> Entries;
 	};
 
-	struct FImport
+	struct FUnresolvedImport
 	{
 		FString FullName;
-		FPackageId PackageId;
-		FPackageObjectIndex GlobalImportIndex;
+		FName FromPackageName;
+		int32 FromPackageNameLen = 0;
+		FPackageId FromPackageId;
 		bool bIsScriptImport = false;
-		bool bIsPackageImport = false;
+		bool bIsImportOfPackage = false;
 	};
 
 	struct FInternalArc
@@ -260,14 +255,12 @@ private:
 	FString Region;
 
 	FPackageStoreNameMapBuilder NameMapBuilder;
-	TArray<FImport> Imports;
+	TArray<FPackageObjectIndex> Imports;
 	TArray<FExport> Exports;
 	TArray<FExportGraphNode> ExportGraphNodes;
 	FGraphData GraphData;
 
 	TArray<FPackageId> ImportedPackageIds;
-	TSet<FPackageId> RedirectedToPackageIds;
-	TSet<FPackageId> ImportedRedirectedPackageIds;
 	TSet<FSHAHash> ShaderMapHashes;
 
 	FIoBuffer HeaderBuffer;
@@ -337,9 +330,8 @@ public:
 	FPackageStoreEntryResource CreatePackageStoreEntry(const FPackageStorePackage* Package) const;
 	FContainerHeader CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries) const;
 	FIoBuffer CreateScriptObjectsBuffer() const;
-	void ProcessRedirects(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const;
+	void ProcessRedirects(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap, bool bIsBuildingDLC) const;
 	void OptimizeExportBundles(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap);
-	void FindImports(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const;
 
 private:
 	struct FScriptObjectData
@@ -378,7 +370,7 @@ private:
 
 	FCookedHeaderData LoadCookedHeader(const FIoBuffer& CookedHeaderBuffer) const;
 	FPackageStoreHeaderData LoadPackageStoreHeader(const FIoBuffer& PackageStoreHeaderBuffer, const FPackageStoreEntryResource& PackageStoreEntry) const;
-	void ResolveImport(FPackageStorePackage::FImport* Imports, const FObjectImport* ObjectImports, int32 LocalImportIndex) const;
+	void ResolveImport(FPackageStorePackage::FUnresolvedImport* Imports, const FObjectImport* ObjectImports, int32 LocalImportIndex) const;
 	void ProcessImports(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const;
 	void ProcessImports(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const;
 	void ResolveExport(FPackageStorePackage::FExport* Exports, const FObjectExport* ObjectExports, const int32 LocalExportIndex, const FName& PackageName) const;
@@ -392,8 +384,7 @@ private:
 	TArray<FPackageStorePackage::FExportGraphNode*> SortExportGraphNodesInLoadOrder(FPackageStorePackage* Package, FExportGraphEdges& Edges) const;
 	TArray<FPackageStorePackage::FExportBundleGraphNode*> SortExportBundleGraphNodesInLoadOrder(const TArray<FPackageStorePackage*>& Packages, FExportBundleGraphEdges& Edges) const;
 	void CreateExportBundles(FPackageStorePackage* Package) const;
-	bool RedirectPackage(const FPackageStorePackage& SourcePackage, FPackageStorePackage& TargetPackage, TMap<FPackageObjectIndex, FPackageObjectIndex>& RedirectedToSourceImportIndexMap) const;
-	void RedirectPackageUnverified(FPackageStorePackage& TargetPackage, TMap<FPackageObjectIndex, FPackageObjectIndex>& RedirectedToSourceImportIndexMap) const;
+	bool VerifyRedirect(const FPackageStorePackage* SourcePackage, FPackageStorePackage& TargetPackage, bool bIsBuildingDLC) const;
 	void FinalizePackageHeader(FPackageStorePackage* Package) const;
 	void FindScriptObjectsRecursive(FPackageObjectIndex OuterIndex, UObject* Object, EObjectMark ExcludedObjectMarks, const ITargetPlatform* TargetPlatform);
 	void FindScriptObjects(const ITargetPlatform* TargetPlatform);
