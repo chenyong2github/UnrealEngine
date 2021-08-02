@@ -308,7 +308,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePNGTranslator::GetTexturePa
 		BitDepth < 16
 	);
 
-	if (PngImageWrapper->GetRaw(Format, BitDepth, PayloadData.RawData))
+	if (PngImageWrapper->GetRaw(Format, BitDepth, PayloadData.GetArrayViewOfRawData()))
 	{
 		bool bFillPNGZeroAlpha = true;
 		GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha, GEditorIni);
@@ -316,7 +316,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePNGTranslator::GetTexturePa
 		if (bFillPNGZeroAlpha)
 		{
 			// Replace the pixels with 0.0 alpha with a color value from the nearest neighboring color which has a non-zero alpha
-			UE::Interchange::Private::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, PayloadData.RawData.GetData());
+			UE::Interchange::Private::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, static_cast<uint8*>(PayloadData.RawData.GetData()));
 		}
 	}
 	else

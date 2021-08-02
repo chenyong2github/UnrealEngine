@@ -69,7 +69,7 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 			ImportAssets.Reserve(ImportedInfos.Num());
 			for (UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& ImportedInfo : ImportedInfos)
 			{
-				NodeUniqueIDs.Add(ImportedInfo.NodeUniqueId);
+				NodeUniqueIDs.Add(ImportedInfo.FactoryNode->GetUniqueID());
 				ImportAssets.Add(ImportedInfo.ImportAsset);
 			}
 		}

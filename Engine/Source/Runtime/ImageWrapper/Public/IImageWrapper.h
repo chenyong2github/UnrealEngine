@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
 
 
@@ -127,6 +128,31 @@ public:
 	 * @return Array of the compressed data.
 	 */
 	virtual TArray64<uint8> GetCompressed(int32 Quality = 0) = 0;
+
+	/**
+	 * Get the raw version of the image and write to the array view
+	 * (Note: It may consume the data set in the SetRaw function if it was set before)
+	 *
+	 * @param InFormat How we want to manipulate the RGB data.
+	 * @param InBitDepth The output bit-depth per channel, normally 8.
+	 * @param OutRawData Will contain the uncompressed raw data.
+	 * @return true on success, false otherwise.
+	 */
+	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArrayView64<uint8> OutRawData)
+	{
+		// Todo We should make this function virtual pure and implement this properly in each ImageWrapper
+		TArray64<uint8> TmpRawData;
+		if (GetRaw(InFormat, InBitDepth, TmpRawData))
+		{
+			if (ensureMsgf(TmpRawData.Num() == OutRawData.Num(), TEXT("The view doesn't have the proper size to receive the texture.")))
+			{
+				FPlatformMemory::Memcpy(OutRawData.GetData(), TmpRawData.GetData(), OutRawData.Num());
+				return true;
+			}
+		}
+
+		return false;
+	}
 
 	/**  
 	 * Gets the raw data.

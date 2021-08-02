@@ -105,7 +105,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePa
 	);
 	PayloadData.CompressionSettings = TC_HDR;
 
-	if (!ExrImageWrapper->GetRaw(Format, BitDepth, PayloadData.RawData))
+	if (!ExrImageWrapper->GetRaw(Format, BitDepth, PayloadData.GetArrayViewOfRawData()))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to decode EXR. [%s]"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();

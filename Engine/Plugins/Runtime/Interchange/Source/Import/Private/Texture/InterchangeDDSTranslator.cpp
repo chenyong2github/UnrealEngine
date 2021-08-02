@@ -288,17 +288,12 @@ TOptional<UE::Interchange::FImportSlicedImage> UInterchangeDDSTranslator::GetSli
 
 	uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = { 0 };
 	int64 MipsSize[MAX_TEXTURE_MIP_COUNT] = { 0 };
-	int64 NumBytes = 0;
 
 	for (uint32 MipIndex = 0; MipIndex < MipMapCount; ++MipIndex)
 	{
 		int64 MipSize = PayloadData.GetMipSize(MipIndex);
 		MipsSize[MipIndex] = MipSize;
-		// Six time since we have six slice
-		NumBytes += MipSize * 6;
 	}
-
-	PayloadData.RawData.AddUninitialized(NumBytes);
 
 	for (uint32 MipIndex = 0; MipIndex < MipMapCount; ++MipIndex)
 	{

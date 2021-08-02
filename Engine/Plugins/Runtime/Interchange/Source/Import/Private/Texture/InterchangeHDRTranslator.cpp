@@ -90,7 +90,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeHDRTranslator::GetTexturePa
 			TSF_BGRE8,
 			false);
 
-		if (!HdrImageWrapper.GetRaw(ERGBFormat::BGRE, 8, PayloadData.RawData))
+		if (!HdrImageWrapper.GetRaw(ERGBFormat::BGRE, 8, PayloadData.GetArrayViewOfRawData()))
 		{
 			UE_LOG(LogInterchangeImport, Error, TEXT("Failed to Import HDR. [%s]"), *Filename);
 			UE_LOG(LogInterchangeImport, Error, TEXT("%s"), *( HdrImageWrapper.GetErrorMessage().ToString()));

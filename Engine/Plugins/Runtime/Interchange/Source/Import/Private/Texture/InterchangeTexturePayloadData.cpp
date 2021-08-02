@@ -51,45 +51,36 @@ bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, i
 
 void UE::Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB)
 {
-	SizeX = InSizeX;
-	SizeY = InSizeY;
-	NumMips = 1;
-	Format = InFormat;
-	SRGB = InSRGB;
+	Init2DWithParams(InSizeX, InSizeY, 1, InFormat, InSRGB);
 }
 
-void UE::Interchange::FImportImage::Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData)
-{
-#if WITH_EDITOR
-	SizeX = InSizeX;
-	SizeY = InSizeY;
-	NumMips = 1;
-	Format = InFormat;
-	RawData.AddUninitialized((int64)SizeX * SizeY * FTextureSource::GetBytesPerPixel(Format));
-	if (InData)
-	{
-		FMemory::Memcpy(RawData.GetData(), InData, RawData.Num());
-	}
-#endif
-}
-
-void UE::Interchange::FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, const void* InData)
+void UE::Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, bool InSRGB)
 {
 	SizeX = InSizeX;
 	SizeY = InSizeY;
 	NumMips = InNumMips;
 	Format = InFormat;
+	bSRGB = InSRGB;
+	RawData = FUniqueBuffer::Alloc(ComputeBufferSize());
+}
 
-	int64 TotalSize = 0;
-	for (int32 MipIndex = 0; MipIndex < InNumMips; ++MipIndex)
-	{
-		TotalSize += GetMipSize(MipIndex);
-	}
-	RawData.AddUninitialized(TotalSize);
+void UE::Interchange::FImportImage::Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData)
+{
+	Init2DWithParams(InSizeX, InSizeY, 1, InFormat, bSRGB);
 
 	if (InData)
 	{
-		FMemory::Memcpy(RawData.GetData(), InData, RawData.Num());
+		FMemory::Memcpy(RawData.GetData(), InData, RawData.GetSize());
+	}
+}
+
+void UE::Interchange::FImportImage::Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, const void* InData)
+{
+	Init2DWithParams(InSizeX, InSizeY, 1, InFormat, bSRGB);
+
+	if (InData)
+	{
+		FMemory::Memcpy(RawData.GetData(), InData, RawData.GetSize());
 	}
 }
 
@@ -106,12 +97,27 @@ int64 UE::Interchange::FImportImage::GetMipSize(int32 InMipIndex) const
 #endif
 }
 
-void* UE::Interchange::FImportImage::GetMipData(int32 InMipIndex)
+int64 UE::Interchange::FImportImage::ComputeBufferSize() const
 {
-	int64 Offset = 0;
-	for (int32 MipIndex = 0; MipIndex < InMipIndex; ++MipIndex)
+	int64 TotalSize = 0;
+	for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 	{
-		Offset += GetMipSize(MipIndex);
+		TotalSize += GetMipSize(MipIndex);
 	}
-	return &RawData[Offset];
+
+	return TotalSize;
+}
+
+TArrayView64<uint8> UE::Interchange::FImportImage::GetArrayViewOfRawData()
+{
+	return TArrayView64<uint8>(static_cast<uint8*>(RawData.GetData()), RawData.GetSize());
+}
+
+bool UE::Interchange::FImportImage::IsValid() const
+{
+	return SizeX > 0
+		&& SizeY > 0
+		&& NumMips > 0
+		&& Format != TSF_Invalid
+		&& ComputeBufferSize() == RawData.GetSize();
 }

@@ -134,6 +134,12 @@ struct FTextureSource
 		int32 InNumBlocks,
 		const uint8** InDataPerBlock);
 
+	ENGINE_API void InitBlocked(const ETextureSourceFormat* InLayerFormats,
+		const FTextureSourceBlock* InBlocks,
+		int32 InNumLayers,
+		int32 InNumBlocks,
+		FSharedBuffer NewData);
+
 	ENGINE_API void InitLayered(
 		int32 NewSizeX,
 		int32 NewSizeY,
@@ -143,6 +149,16 @@ struct FTextureSource
 		const ETextureSourceFormat* NewLayerFormat,
 		const uint8* NewData = NULL
 		);
+
+	ENGINE_API void InitLayered(
+		int32 NewSizeX,
+		int32 NewSizeY,
+		int32 NewNumSlices,
+		int32 NewNumLayers,
+		int32 NewNumMips,
+		const ETextureSourceFormat* NewLayerFormat,
+		FSharedBuffer NewData
+	);
 
 	/**
 	 * Initialize the source data with the given size, number of mips, and format.
@@ -161,6 +177,24 @@ struct FTextureSource
 		ETextureSourceFormat NewFormat,
 		const uint8* NewData = NULL
 		);
+
+	/**
+	 * Initialize the source data with the given size, number of mips, and format.
+	 * @param NewSizeX - Width of the texture source data.
+	 * @param NewSizeY - Height of the texture source data.
+	 * @param NewNumSlices - The number of slices in the texture source data.
+	 * @param NewNumMips - The number of mips in the texture source data.
+	 * @param NewFormat - The format in which source data is stored.
+	 * @param NewData - The new source data.
+	 */
+	ENGINE_API void Init(
+		int32 NewSizeX,
+		int32 NewSizeY,
+		int32 NewNumSlices,
+		int32 NewNumMips,
+		ETextureSourceFormat NewFormat,
+		FSharedBuffer NewData
+	);
 
 	/**
 	 * Initializes the source data for a 2D texture with a full mip chain.
@@ -425,7 +459,7 @@ private:
 	FSharedBuffer TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) const;
 	/** Attempt to decompress the source data from Jpeg format. All failures will be logged and result in the method returning false */
 	FSharedBuffer TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) const;
-	
+
 	/** Return true if the source art is not png compressed but could be. */
 	bool CanPNGCompress() const;
 	/** Removes source data. */
@@ -435,6 +469,19 @@ private:
 
 	int64 CalcBlockSize(int32 BlockIndex) const;
 	int64 CalcLayerSize(int32 BlockIndex, int32 LayerIndex) const;
+
+	void InitLayeredImpl(
+		int32 NewSizeX,
+		int32 NewSizeY,
+		int32 NewNumSlices,
+		int32 NewNumLayers,
+		int32 NewNumMips,
+		const ETextureSourceFormat* NewLayerFormat);
+
+	void InitBlockedImpl(const ETextureSourceFormat* InLayerFormats,
+		const FTextureSourceBlock* InBlocks,
+		int32 InNumLayers,
+		int32 InNumBlocks);
 
 public:
 	/** Uses a hash as the GUID, useful to prevent creating new GUIDs on load for legacy assets. */

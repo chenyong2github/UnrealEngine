@@ -185,7 +185,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePCXTranslator::GetTexturePa
 				TSF_BGRA8
 			);
 
-			uint8* Dest = PayloadData.RawData.GetData();
+			uint8* Dest = static_cast<uint8*>(PayloadData.RawData.GetData());
 
 			// Doing a memset to make sure the alpha channel is set to 0xff since we only have 3 color planes.
 			FMemory::Memset(Dest, 0xff, NewU * NewV * FTextureSource::GetBytesPerPixel(PayloadData.Format));

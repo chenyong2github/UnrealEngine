@@ -99,7 +99,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeBMPTranslator::GetTexturePa
 		false
 	);
 
-	if (!BmpImageWrapper->GetRaw(Format, BitDepth, PayloadData.RawData))
+	if (!BmpImageWrapper->GetRaw(Format, BitDepth, PayloadData.GetArrayViewOfRawData()))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to decode BMP. [%s]"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();

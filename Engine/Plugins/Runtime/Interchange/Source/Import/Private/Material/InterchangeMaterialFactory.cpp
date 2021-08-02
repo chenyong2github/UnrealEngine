@@ -29,7 +29,7 @@ UClass* UInterchangeMaterialFactory::GetFactoryClass() const
 	return UMaterialInterface::StaticClass();
 }
 
-UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments) const
+UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
 {
 	UObject* Material = nullptr;
 
@@ -82,7 +82,7 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 	return Material;
 }
 
-UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFactory::FCreateAssetParams& Arguments) const
+UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
 #if !WITH_EDITORONLY_DATA
 
@@ -302,7 +302,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const
+void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	check(IsInGameThread());
 	Super::PreImportPreCompletedCallback(Arguments);

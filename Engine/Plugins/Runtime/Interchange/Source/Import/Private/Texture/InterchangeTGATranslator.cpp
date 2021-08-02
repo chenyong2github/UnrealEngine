@@ -141,12 +141,12 @@ TOptional<UE::Interchange::FImportImage> UInterchangeTGATranslator::GetTexturePa
 
 		TGATranslatorImpl::DecompressTGA( TGA, PayloadData );
 
-		const bool bResult = TgaImageWrapper->GetRaw( TgaImageWrapper->GetFormat(), TgaImageWrapper->GetBitDepth(), PayloadData.RawData );
+		const bool bResult = TgaImageWrapper->GetRaw( TgaImageWrapper->GetFormat(), TgaImageWrapper->GetBitDepth(), PayloadData.GetArrayViewOfRawData() );
 
 		if ( bResult && PayloadData.CompressionSettings == TC_Grayscale && TGA->ImageTypeCode == 3 )
 		{
 			// default grayscales to linear as they wont get compression otherwise and are commonly used as masks
-			PayloadData.SRGB = false;
+			PayloadData.bSRGB = false;
 		}
 
 		return PayloadData;
