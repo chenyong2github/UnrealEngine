@@ -31,13 +31,6 @@ FMoviePipelineConfigAssetEditor::FMoviePipelineConfigAssetEditor(UAssetEditor* I
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-				->SetHideTabWell(true)
-			)
-			->Split
-			(
-				FTabManager::NewStack()
 				->SetSizeCoefficient(1.f)
 				->SetHideTabWell(true)
 				->AddTab(ContentTabId, ETabState::OpenedTab)
@@ -49,7 +42,7 @@ void FMoviePipelineConfigAssetEditor::RegisterTabSpawners(const TSharedRef<class
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_PipelineAssetEditor", "Movie Pipeline Asset Editor"));
 
-	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
+	FBaseAssetToolkit::RegisterTabSpawners(InTabManager);
 
 	InTabManager->RegisterTabSpawner(ContentTabId, FOnSpawnTab::CreateSP(this, &FMoviePipelineConfigAssetEditor::SpawnTab_ConfigEditor))
 		.SetDisplayName(LOCTEXT("ConfigTab", "Config"))
@@ -87,7 +80,6 @@ TSharedRef<SDockTab> FMoviePipelineConfigAssetEditor::SpawnTab_ConfigEditor(cons
 				Section.AddEntry(FToolMenuEntry::InitWidget(FName("Settings"), ConfigEditorPanel->MakeSettingsWidget(), LOCTEXT("AddSettings_Label", "Settings")));
 			}
 		}
-		RegenerateMenusAndToolbars();
 	}
 
 	// Tabs and Windows have different backgrounds, so we copy the window style to
