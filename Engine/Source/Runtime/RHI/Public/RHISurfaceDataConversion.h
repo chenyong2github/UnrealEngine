@@ -639,6 +639,7 @@ static inline void ConvertRawR32DataToFLinearColor(uint32 Width, uint32 Height, 
 			float DeviceStencil = (float)(*(SrcStart + 4)) / 255.0f;
 			*DestPtr = FLinearColor(LinearValue, DeviceStencil, 0.0f, 0.0f);
 			SrcStart += 8; //64 bit format with the last 24 bit ignore
+			++DestPtr;
 		}
 	}
 }
