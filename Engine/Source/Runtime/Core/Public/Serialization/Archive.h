@@ -1688,18 +1688,39 @@ public:
 	}
 
 	/**
-	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression
-	 * support. The data is saved in a way compatible with FIOSystem::LoadCompressedData.
+	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression support. 
+	 
+	 // @@ old comment ? remove me ?
+	 The data is saved in a way compatible with FIOSystem::LoadCompressedData.
+
+	 *
+	 * prefer SerializeCompressedNew instead.
+	 *
 	 *
 	 * @param	V		Data pointer to serialize data from/ to
 	 * @param	Length	Length of source data if we're saving, unused otherwise
+	 * @param   CompressionFormatCannotChange  Compression Format to use for encoding & decoding - cannot be changed without breaking file compatibility
 	 * @param	Flags	Flags to control what method to use for [de]compression and optionally control memory vs speed when compressing
 	 * @param	bTreatBufferAsFileReader true if V is actually an FArchive, which is used when saving to read data - helps to avoid single huge allocations of source data
-	 * @param	bUsePlatformBitWindow use a platform specific bitwindow setting
 	 */
-	void SerializeCompressed(void* V, int64 Length, FName CompressionFormat, ECompressionFlags Flags=COMPRESS_NoFlags, bool bTreatBufferAsFileReader=false);
-
-
+	void SerializeCompressed(void* V, int64 Length, FName CompressionFormatCannotChange,
+		ECompressionFlags Flags=COMPRESS_NoFlags, bool bTreatBufferAsFileReader=false);
+	
+	/**
+	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression support. 
+	 *
+	 * call SerializeCompressedNew instead of SerializeCompressed
+	 *
+	 * @param	V		Data pointer to serialize data from/ to
+	 * @param	Length	Length of source data if we're saving, unused otherwise
+	 * @param   CompressionFormatToEncode  Compression Format to use for encoding, can be changed freely without breaking compatibility
+	 * @param   CompressionFormatToDecodeOldV1Files  Compression Format to decode old data with that didn't write compressor in header, cannot change, usually NAME_Zlib
+	 * @param	Flags	Flags to control what method to use for [de]compression and optionally control memory vs speed when compressing
+	 * @param	bTreatBufferAsFileReader true if V is actually an FArchive, which is used when saving to read data - helps to avoid single huge allocations of source data
+	 */
+	void SerializeCompressedNew(void* V, int64 Length, FName CompressionFormatToEncode, FName CompressionFormatToDecodeOldV1Files,
+		ECompressionFlags Flags=COMPRESS_NoFlags, bool bTreatBufferAsFileReader=false);
+		
 	using FArchiveState::IsByteSwapping;
 
 	/** Used to do byte swapping on small items. This does not happen usually, so we don't want it inline. */
