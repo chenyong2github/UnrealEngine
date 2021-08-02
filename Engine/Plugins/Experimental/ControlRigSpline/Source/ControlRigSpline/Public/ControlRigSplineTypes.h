@@ -17,7 +17,7 @@ enum class ESplineType : uint8
 	BSpline,
 
 	/** Hermite: */
-	/** The curve will pass through the control points (except the first and last points, which are used as tangents) */
+	/** The curve will pass through the control points */
 	Hermite,
 
 	/** MAX - invalid */
@@ -41,11 +41,20 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 	// The control points to construct the spline
 	TArray<FVector> ControlPoints;
 
+	// The initial lengths between samples
+	TArray<float> InitialLengths;
+
 	// The actual spline
 	tinyspline::BSpline Spline;
 
 	// Samples per segment, where segment is the portion between two control points
 	int32 SamplesPerSegment;
+
+	// The allowed length compression (1.f being do not allow compression`). If 0, no restriction wil be applied.
+	float Compression;
+
+	// The allowed length stretch (1.f being do not allow stretch`). If 0, no restriction wil be applied.
+	float Stretch;
 
 	// Positions along the "real" curve (no samples in the first and last segments of a hermite spline)
 	TArray<FVector> SamplesArray;
@@ -71,9 +80,12 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	* depend on what is set in SplineMode.
 	*
 	* @param InPoints	The control points to set.
-	* @param forceRebuild	If true, will build the spline from scratch.
+	* @param SplineMode	The type of spline
+	* @param SamplesPerSegment The samples to cache for every segment defined between two control rig
+	* @param Compression The allowed length compression (1.f being do not allow compression`). If 0, no restriction wil be applied.
+	* @param Stretch The allowed length stretch (1.f being do not allow stretch). If 0, no restriction wil be applied.
 	*/
-	void SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const int32 SamplesPerSegment = 16);
+	void SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const int32 SamplesPerSegment = 16, const float Compression = 1.f, const float Stretch = 1.f);
 
 	/**
 	* Populates OutPoints and returns the number of control points in the spline.
