@@ -20,10 +20,17 @@ namespace UE { namespace Tasks
 	template<typename TaskBodyType, typename PrerequisitesCollectionType>
 	TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal);
 
+	template<typename TaskCollectionType>
+	bool Wait(TaskCollectionType&& Tasks, FTimespan InTimeout = FTimespan::MaxValue());
+
+	template<typename TaskCollectionType>
+	bool BusyWait(TaskCollectionType&& Tasks, FTimespan InTimeout = FTimespan::MaxValue());
+
 	// a common part of the generic `TTask<ResultType>` and its `TTask<void>` specialisation
 	template<typename ResultType>
 	class TTaskBase
 	{
+		// friends to get access to `Pimpl`
 		friend Private::FTaskBase;
 
 		template<typename... TaskTypes>
@@ -31,6 +38,15 @@ namespace UE { namespace Tasks
 
 		template<typename TaskCollectionType>
 		friend bool Private::TryRetractAndExecute(TaskCollectionType&& Tasks, FTimespan Timeout);
+
+		template<typename TaskType>
+		friend void AddNested(TaskType&& Nested);
+
+		template<typename TaskCollectionType>
+		friend bool Wait(TaskCollectionType&& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/);
+
+		template<typename TaskCollectionType>
+		friend bool BusyWait(TaskCollectionType&& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/);
 
 	protected:
 		TTaskBase() = default;
@@ -148,7 +164,7 @@ namespace UE { namespace Tasks
 	{
 	public:
 		TTask() = default;
-	
+
 		void GetResult()
 		{
 			check(IsValid()); // to be consistent with a generic `TTask<ResultType>::GetResult()`
@@ -171,7 +187,8 @@ namespace UE { namespace Tasks
 		{}
 	};
 
-	// a synchronisation primitive similar to `FEvent` that uses "busy waiting" - executing tasks while waiting
+	// A synchronisation primitive, a recommended substitution of `FEvent` for signalling between tasks. If used as a task prerequisite or 
+	// a nested task, it doesn't block a worker thread. Optionally can use "busy waiting" - executing tasks while waiting.
 	class FTaskEvent : public TTask<void>
 	{
 	public:
@@ -181,9 +198,19 @@ namespace UE { namespace Tasks
 			Pimpl->Init(DebugName, [] {}, Private::FTaskBase::InlineTaskPriority);
 		}
 
+		// all prerequisites must be added before triggering the event
+		template<typename PrerequisitesType>
+		void AddPrerequisites(const PrerequisitesType& Prerequisites)
+		{
+			Pimpl->AddPrerequisites(Prerequisites);
+		}
+
 		void Trigger()
 		{
-			verify(Pimpl->TryLaunch());
+			if (!IsCompleted()) // event can be triggered multiple times
+			{
+				Pimpl->TryLaunch();
+			}
 		}
 	};
 
@@ -231,7 +258,7 @@ namespace UE { namespace Tasks
 
 	// wait for multiple tasks, with optional timeout
 	template<typename TaskCollectionType>
-	bool Wait(TaskCollectionType&& Tasks, FTimespan InTimeout = FTimespan::MaxValue())
+	bool Wait(TaskCollectionType&& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/)
 	{
 		FTimeout Timeout{ InTimeout };
 
@@ -259,7 +286,7 @@ namespace UE { namespace Tasks
 
 	// wait for multiple tasks while executing other tasks
 	template<typename TaskCollectionType>
-	bool BusyWait(TaskCollectionType&& Tasks, FTimespan TimeoutValue = FTimespan::MaxValue())
+	bool BusyWait(TaskCollectionType&& Tasks, FTimespan TimeoutValue/* = FTimespan::MaxValue()*/)
 	{
 		FTimeout Timeout{ TimeoutValue };
 
@@ -270,7 +297,7 @@ namespace UE { namespace Tasks
 
 		for (auto& Task : Tasks)
 		{
-			if (Timeout || (!Task.BusyWait(Timeout.GetRemainingTime())))
+			if (Timeout || !Task.BusyWait(Timeout.GetRemainingTime()))
 			{
 				return false;
 			}
@@ -311,6 +338,17 @@ namespace UE { namespace Tasks
 	TPrerequisites<TaskTypes...> Prerequisites(TaskTypes&... Tasks)
 	{
 		return TPrerequisites<TaskTypes...>{ Forward<TaskTypes>(Tasks)... };
+	}
+
+	// Adds the nested task to the task that is being currently executed by the current thread. A parent task is not flagged completed
+	// until all nested tasks are completed. It's similar to explicitly waiting for a sub-task at the end of its parent task, except explicit waiting
+	// blocks the worker executing the parent task until the sub-task is completed. With nested tasks, the worker won't be blocked.
+	template<typename TaskType>
+	void AddNested(TaskType&& Nested)
+	{
+		Private::FTaskBase* Parent = Private::FTaskBase::GetCurrentTask();
+		check(Parent != nullptr);
+		Parent->AddNested(*Nested.Pimpl);
 	}
 }}
 
