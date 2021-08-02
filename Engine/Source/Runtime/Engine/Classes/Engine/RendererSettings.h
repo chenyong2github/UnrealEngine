@@ -482,7 +482,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	TEnumAsByte<EFixedFoveationLevels::Type> HMDFixedFoveationLevel;
 
 	UPROPERTY(config, EditAnywhere, Category = VR, meta = (
-		ConsoleVariable = "vr.VRS.HMDFixedFoveationDynamic", DisplayName = "Dynamic Fixed Foveation (Oculus Quest/Quest 2 Only)",
+		ConsoleVariable = "vr.VRS.HMDFixedFoveationDynamic", DisplayName = "Dynamic Fixed Foveation",
 		ToolTip = "Allows fixed foveation level to adjust dynamically based on GPU utilization.\nLevel will range between none at the minimum, and the currently selected foveation level at the maximum."))
 	uint32 bHMDFixedFoveationDynamic:1;
 

@@ -42,6 +42,14 @@ enum class EVRSGenerationFlags : uint32;
 
 struct FVRSImageGenerationParameters;
 
+struct FDynamicVRSData
+{
+	float	VRSAmount = 1.0f;
+	double	SumBusyTime = 0.0;
+	int		NumFramesStored = 0;
+	uint32	LastUpdateFrame = 0;
+};
+
 class FVariableRateShadingImageManager : public FRenderResource
 {
 public:
@@ -64,6 +72,7 @@ protected:
 	uint64 CalculateVRSImageHash(const FVRSImageGenerationParameters& VRSImageGenParamsIn, EVRSGenerationFlags ViewFlags) const;
 	void UpdateFixedFoveationParameters(FVRSImageGenerationParameters& VRSImageGenParamsInOut);
 	void UpdateEyeTrackedFoveationParameters(FVRSImageGenerationParameters& VRSImageGenParamsInOut, const FSceneViewFamily& ViewFamily);
+	float GetDynamicVRSAmount();
 
 	/** Per frame tick/update. */
 	void Tick();
@@ -89,6 +98,7 @@ private:
 	TRefCountPtr<IPooledRenderTarget> MobileHMDFixedFoveationOverrideImage;
 
 	uint64 LastFrameTick;
+	FDynamicVRSData DynamicVRSData;
 };
 
 RENDERER_API extern TGlobalResource<FVariableRateShadingImageManager> GVRSImageManager;
