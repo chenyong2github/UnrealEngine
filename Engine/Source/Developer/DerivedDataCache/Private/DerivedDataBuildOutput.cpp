@@ -28,9 +28,9 @@ static FStringView LexToString(EBuildDiagnosticLevel Level)
 	}
 }
 
-static void LexFromString(EBuildDiagnosticLevel& OutLevel, FAnsiStringView String)
+static void LexFromString(EBuildDiagnosticLevel& OutLevel, FUtf8StringView String)
 {
-	if (String.Equals("Warning"_ASV, ESearchCase::CaseSensitive))
+	if (String.Equals("Warning"_U8SV, ESearchCase::CaseSensitive))
 	{
 		OutLevel = EBuildDiagnosticLevel::Warning;
 	}
@@ -186,8 +186,8 @@ void FBuildOutputInternal::IterateDiagnostics(TFunctionRef<void (const FBuildDia
 	{
 		EBuildDiagnosticLevel Level;
 		LexFromString(Level, Diagnostic["Level"_ASV].AsString());
-		const FAnsiStringView Category = Diagnostic["Category"_ASV].AsString();
-		const FAnsiStringView Message = Diagnostic["Message"_ASV].AsString();
+		const FUtf8StringView Category = Diagnostic["Category"_ASV].AsString();
+		const FUtf8StringView Message = Diagnostic["Message"_ASV].AsString();
 		Visitor(FBuildDiagnostic{FUTF8ToTCHAR(Category), FUTF8ToTCHAR(Message), Level});
 	}
 }

@@ -163,6 +163,15 @@ namespace StringConv
 		StrBuffer.SetNum(NewStrLen + 1, /*bAllowShrinking*/false);
 #endif	// PLATFORM_TCHAR_IS_4_BYTES
 	}
+
+	struct FUnused;
+
+	// Helper functions for getting the conversion type from a converter
+	template <typename ConverterType>
+	typename ConverterType::LegacyFromType GetLegacyFromType(typename ConverterType::LegacyFromType*);
+
+	template <typename ConverterType>
+	FUnused GetLegacyFromType(...);
 }
 
 namespace UE4StringConv_Private
@@ -325,11 +334,9 @@ public:
 
 class FUTF8ToTCHAR_Convert
 {
-	// Leave this until we convert all the call sites and can change FromType to this.
-	using IntendedFromType = UTF8CHAR;
-
 public:
-	typedef ANSICHAR FromType;
+	typedef ANSICHAR LegacyFromType;
+	typedef UTF8CHAR FromType;
 	typedef TCHAR    ToType;
 
 	/**
@@ -346,7 +353,11 @@ public:
 	>
 	static FORCEINLINE void Convert(ToType* Dest, const int32 DestLen, const SrcBufferType* Source, const int32 SourceLen)
 	{
-		FPlatformString::Convert(Dest, DestLen, (const IntendedFromType*)Source, SourceLen);
+		FPlatformString::Convert(Dest, DestLen, (const FromType*)Source, SourceLen);
+	}
+	static FORCEINLINE void Convert(ToType* Dest, const int32 DestLen, const LegacyFromType* Source, const int32 SourceLen)
+	{
+		FPlatformString::Convert(Dest, DestLen, (const FromType*)Source, SourceLen);
 	}
 
 	/**
@@ -362,7 +373,11 @@ public:
 	>
 	static int32 ConvertedLength(const SrcBufferType* Source, const int32 SourceLen)
 	{
-		return FPlatformString::ConvertedLength<ToType>((const IntendedFromType*)Source, SourceLen);
+		return FPlatformString::ConvertedLength<ToType>((const FromType*)Source, SourceLen);
+	}
+	static int32 ConvertedLength(const LegacyFromType* Source, const int32 SourceLen)
+	{
+		return FPlatformString::ConvertedLength<ToType>((const FromType*)Source, SourceLen);
 	}
 };
 
@@ -639,6 +654,8 @@ class TStringConversion : private Converter, private TInlineAllocator<DefaultCon
 	typedef typename Converter::FromType FromType;
 	typedef typename Converter::ToType   ToType;
 
+	using LegacyFromType = decltype(StringConv::GetLegacyFromType<Converter>(nullptr));
+
 	/**
 	 * Converts the data by using the Convert() method on the base class
 	 */
@@ -671,6 +688,10 @@ public:
 			StringLength = 0;
 		}
 	}
+	explicit TStringConversion(const LegacyFromType* Source)
+		: TStringConversion((const FromType*)Source)
+	{
+	}
 
 	template <
 		typename SrcBufferType,
@@ -695,6 +716,10 @@ public:
 			Ptr = nullptr;
 			StringLength = 0;
 		}
+	}
+	TStringConversion(const LegacyFromType* Source, int32 SourceLen)
+		: TStringConversion((const FromType*)Source, SourceLen)
+	{
 	}
 
 	/**

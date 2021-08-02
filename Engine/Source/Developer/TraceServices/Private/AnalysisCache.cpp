@@ -192,7 +192,7 @@ bool FAnalysisCache::FFileContents::Load()
 	for (FCbFieldView IndexEntry : IndexArray)
 	{
 		FCbObjectView IndexEntryObj = IndexEntry.AsObjectView();
-		FAnsiStringView NameView = IndexEntryObj["N"_ASV].AsString();
+		FUtf8StringView NameView = IndexEntryObj["N"_ASV].AsString();
 		const uint32 Id = IndexEntryObj["I"_ASV].AsUInt32();
 		const uint32 Flags = IndexEntryObj["F"_ASV].AsUInt32();
 		FMemoryView UserData = IndexEntryObj["UD"_ASV].AsBinaryView();

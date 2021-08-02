@@ -780,10 +780,12 @@ public:
 	 */
 	FName(const WIDECHAR* Name, EFindName FindType=FNAME_Add);
 	FName(const ANSICHAR* Name, EFindName FindType=FNAME_Add);
+	FName(const UTF8CHAR* Name, EFindName FindType=FNAME_Add);
 
 	/** Create FName from non-null string with known length  */
 	FName(int32 Len, const WIDECHAR* Name, EFindName FindType=FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, EFindName FindType=FNAME_Add);
+	FName(int32 Len, const UTF8CHAR* Name, EFindName FindType=FNAME_Add);
 
 	template <typename CharRangeType,
 		typename CharType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type,
@@ -806,8 +808,10 @@ public:
 	 */
 	FName(const WIDECHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
 	FName(const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
+	FName(const UTF8CHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
 	FName(int32 Len, const WIDECHAR* Name, int32 Number, EFindName FindType = FNAME_Add);
 	FName(int32 Len, const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
+	FName(int32 Len, const UTF8CHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
 
 	template <typename CharRangeType,
 		typename CharType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type,

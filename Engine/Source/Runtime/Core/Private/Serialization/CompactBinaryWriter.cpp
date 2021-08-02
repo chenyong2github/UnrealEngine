@@ -164,7 +164,7 @@ void FCbWriter::EndField(ECbFieldType Type)
 	Data[State.Offset] = uint8(Type);
 }
 
-FCbWriter& FCbWriter::SetName(const FAnsiStringView Name)
+FCbWriter& FCbWriter::SetName(const FUtf8StringView Name)
 {
 	FState& State = States.Last();
 	checkf((State.Flags & EStateFlags::Array) != EStateFlags::Array,
@@ -185,7 +185,7 @@ FCbWriter& FCbWriter::SetName(const FAnsiStringView Name)
 	return *this;
 }
 
-void FCbWriter::SetNameOrAddString(const FAnsiStringView NameOrValue)
+void FCbWriter::SetNameOrAddString(const FUtf8StringView NameOrValue)
 {
 	// A name is only written if it would begin a new field inside of an object.
 	if ((States.Last().Flags & (EStateFlags::Name | EStateFlags::Field | EStateFlags::Object)) == EStateFlags::Object)
@@ -198,7 +198,7 @@ void FCbWriter::SetNameOrAddString(const FAnsiStringView NameOrValue)
 	}
 }
 
-FAnsiStringView FCbWriter::GetActiveName() const
+FUtf8StringView FCbWriter::GetActiveName() const
 {
 	const FState& State = States.Last();
 	if ((State.Flags & EStateFlags::Name) == EStateFlags::Name)
@@ -206,11 +206,11 @@ FAnsiStringView FCbWriter::GetActiveName() const
 		const uint8* const EncodedName = Data.GetData() + State.Offset + sizeof(ECbFieldType);
 		uint32 NameLenByteCount;
 		const uint64 NameLen = ReadVarUInt(EncodedName, NameLenByteCount);
-		using NameLenSizeType = FAnsiStringView::SizeType;
+		using NameLenSizeType = FUtf8StringView::SizeType;
 		const NameLenSizeType ClampedNameLen = NameLenSizeType(FMath::Clamp<uint64>(NameLen, 0, ~NameLenSizeType(0)));
-		return FAnsiStringView(reinterpret_cast<const ANSICHAR*>(EncodedName + NameLenByteCount), ClampedNameLen);
+		return FUtf8StringView(reinterpret_cast<const UTF8CHAR*>(EncodedName + NameLenByteCount), ClampedNameLen);
 	}
-	return FAnsiStringView();
+	return FUtf8StringView();
 }
 
 void FCbWriter::MakeFieldsUniform(const int64 FieldBeginOffset, const int64 FieldEndOffset)
@@ -380,7 +380,7 @@ void FCbWriter::AddBinary(const FCompositeBuffer& Buffer)
 	AddBinary(Buffer.Flatten());
 }
 
-void FCbWriter::AddString(const FAnsiStringView Value)
+void FCbWriter::AddString(const FUtf8StringView Value)
 {
 	BeginField();
 	const uint64 Size = uint64(Value.Len());
@@ -391,7 +391,7 @@ void FCbWriter::AddString(const FAnsiStringView Value)
 	StringData += SizeByteCount;
 	if (Size > 0)
 	{
-		FMemory::Memcpy(StringData, Value.GetData(), Value.Len() * sizeof(ANSICHAR));
+		FMemory::Memcpy(StringData, Value.GetData(), Value.Len() * sizeof(UTF8CHAR));
 	}
 	EndField(ECbFieldType::String);
 }
@@ -537,7 +537,7 @@ void FCbWriter::AddDateTimeTicks(const int64 Ticks)
 	EndField(ECbFieldType::DateTime);
 }
 
-void FCbWriter::AddDateTime(FAnsiStringView Name, FDateTime Value)
+void FCbWriter::AddDateTime(FUtf8StringView Name, FDateTime Value)
 {
 	SetName(Name);
 	AddDateTime(Value);
@@ -556,7 +556,7 @@ void FCbWriter::AddTimeSpanTicks(const int64 Ticks)
 	EndField(ECbFieldType::TimeSpan);
 }
 
-void FCbWriter::AddTimeSpan(FAnsiStringView Name, FTimespan Value)
+void FCbWriter::AddTimeSpan(FUtf8StringView Name, FTimespan Value)
 {
 	SetName(Name);
 	AddTimeSpan(Value);
@@ -588,7 +588,7 @@ void FCbWriter::AddCustom(const uint64 TypeId, const FMemoryView Value)
 	EndField(ECbFieldType::CustomById);
 }
 
-void FCbWriter::AddCustom(const FAnsiStringView TypeName, const FMemoryView Value)
+void FCbWriter::AddCustom(const FUtf8StringView TypeName, const FMemoryView Value)
 {
 	checkf(!TypeName.IsEmpty(), TEXT("Field '%.*hs' requires a non-empty type name for its custom type."),
 		GetActiveName().Len(), GetActiveName().GetData());

@@ -116,8 +116,7 @@ FPackageStoreEntryResource FPackageStoreEntryResource::FromCbObject(const FCbObj
 		for (FCbField& ArrayField : Obj["shadermaphashes"].AsArray())
 		{
 			FSHAHash& ShaderMapHash = Entry.ShaderMapHashes.AddDefaulted_GetRef();
-			FAnsiStringView AnsiStringView = ArrayField.AsString();
-			ShaderMapHash.FromString(FStringView(ANSI_TO_TCHAR(AnsiStringView.GetData()), AnsiStringView.Len()));
+			ShaderMapHash.FromString(FUTF8ToTCHAR(ArrayField.AsString()));
 		}
 	}
 

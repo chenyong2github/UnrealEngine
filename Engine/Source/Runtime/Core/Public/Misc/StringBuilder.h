@@ -12,6 +12,7 @@
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/UnrealTemplate.h"
 #include "Traits/IsContiguousContainer.h"
+#include <type_traits>
 
 /**
  * String Builder
@@ -433,6 +434,7 @@ private:
 inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.Append(Char); }
 inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.Append(Char); }
 inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, WIDECHAR Char)							{ return Builder.Append(Char); }
+inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.Append(UTF8CHAR(Char)); }
 inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, UTF8CHAR Char)							{ return Builder.Append(Char); }
 
 template <typename T>
@@ -442,9 +444,17 @@ inline auto operator<<(FAnsiStringBuilderBase& Builder, T&& Str) -> decltype(Bui
 }
 
 template <typename T>
-inline auto operator<<(FWideStringBuilderBase& Builder, T&& Str) -> decltype(Builder.AppendAnsi(ImplicitConv<FAnsiStringView>(Forward<T>(Str))))
+inline auto operator<<(FWideStringBuilderBase& Builder, T&& Str) -> decltype(Builder.AppendUtf8(ImplicitConv<FUtf8StringView>(Forward<T>(Str))))
 {
-	return Builder.AppendAnsi(ImplicitConv<FAnsiStringView>(Forward<T>(Str)));
+	// Anything convertible to an FAnsiStringView is also convertible to a FUtf8StringView, but FAnsiStringView is more efficient to convert
+	if constexpr (std::is_convertible_v<T, FAnsiStringView>)
+	{
+		return Builder.AppendAnsi(ImplicitConv<FAnsiStringView>(Forward<T>(Str)));
+	}
+	else
+	{
+		return Builder.AppendUtf8(ImplicitConv<FUtf8StringView>(Forward<T>(Str)));
+	}
 }
 
 template <typename T>
@@ -456,13 +466,20 @@ inline auto operator<<(FWideStringBuilderBase& Builder, T&& Str) -> decltype(Bui
 template <typename T>
 inline auto operator<<(FUtf8StringBuilderBase& Builder, T&& Str) -> decltype(Builder.Append(ImplicitConv<FUtf8StringView>(Forward<T>(Str))))
 {
-	return Builder.AppendUtf8(ImplicitConv<FUtf8StringView>(Forward<T>(Str)));
+	// Anything convertible to an FAnsiStringView is also convertible to a FUtf8StringView, but FAnsiStringView is more efficient to convert
+	if constexpr (std::is_convertible_v<T, FAnsiStringView>)
+	{
+		return Builder.AppendAnsi(ImplicitConv<FAnsiStringView>(Forward<T>(Str)));
+	}
+	else
+	{
+		return Builder.AppendUtf8(ImplicitConv<FUtf8StringView>(Forward<T>(Str)));
+	}
 }
 
 // Prefer using << instead of += as operator+= is only intended for mechanical FString -> FStringView replacement.
 inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, ANSICHAR Char)								{ return Builder.Append(Char); }
 inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, WIDECHAR Char)								{ return Builder.Append(Char); }
-inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, FAnsiStringView Str)						{ return Builder.AppendAnsi(Str); }
 inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, FWideStringView Str)						{ return Builder.Append(Str); }
 inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, FUtf8StringView Str)						{ return Builder.AppendUtf8(Str); }
 
