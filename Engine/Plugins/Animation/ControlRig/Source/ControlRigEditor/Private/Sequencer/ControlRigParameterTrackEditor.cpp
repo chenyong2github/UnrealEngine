@@ -2096,7 +2096,7 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 		}
 		case ERigControlType::Vector2D:
 		{
-			FVector2D Val = ControlValue.Get<FVector2D>();
+			FVector3f Val = ControlValue.Get<FVector3f>();
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
 			break;
@@ -2105,7 +2105,7 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 		case ERigControlType::Scale:
 		case ERigControlType::Rotator:
 		{
-			FVector3f Val = ControlValue.Get<FVector>();
+			FVector3f Val = ControlValue.Get<FVector3f>();
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Z, bSetKey));
@@ -2121,20 +2121,20 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 
 			if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 			{
-				FTransformNoScale NoScale = ControlValue.Get<FTransformNoScale>();
+				FTransformNoScale NoScale = ControlValue.Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
 				Translation = NoScale.Location;
 				Rotation = NoScale.Rotation.Rotator();
 			}
 			else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				FEulerTransform Euler = ControlValue.Get < FEulerTransform >();
+				FEulerTransform Euler = ControlValue.Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
 				Translation = Euler.Location;
 				Rotation = Euler.Rotation;
 				Scale = Euler.Scale;
 			}
 			else
 			{
-				FTransform Val = ControlValue.Get<FTransform>();
+				FTransform Val = ControlValue.Get<FRigControlValue::FTransform_Float>().ToTransform();
 				Translation = Val.GetTranslation();
 				Rotation = Val.GetRotation().Rotator();
 				Scale = Val.GetScale3D();

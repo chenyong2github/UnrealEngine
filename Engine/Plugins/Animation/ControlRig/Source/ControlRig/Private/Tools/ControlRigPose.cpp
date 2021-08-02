@@ -126,8 +126,8 @@ void FControlRigControlPose::PastePoseInternal(UControlRig* ControlRig, bool bDo
 			}
 			case ERigControlType::Vector2D:
 			{
-				FVector2D Val = CopyRigControl->Value.Get<FVector2D>();
-				ControlRig->SetControlValue<FVector2D>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
+				FVector3f Val = CopyRigControl->Value.Get<FVector3f>();
+				ControlRig->SetControlValue<FVector3f>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
 				break;
 			}
 			default:

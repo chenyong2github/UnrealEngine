@@ -939,8 +939,8 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					case ERigControlType::Vector2D:
 					{
 						Instruction.PrimitiveType = EControlRigDrawSettings::LineStrip;
-						FVector2D MinPos = Settings.MinimumValue.Get<FVector2D>();
-						FVector2D MaxPos = Settings.MaximumValue.Get<FVector2D>();
+						FVector3f MinPos = Settings.MinimumValue.Get<FVector3f>();
+						FVector3f MaxPos = Settings.MaximumValue.Get<FVector3f>();
 
 						switch (Settings.PrimaryAxis)
 						{
@@ -980,33 +980,33 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					case ERigControlType::TransformNoScale:
 					case ERigControlType::EulerTransform:
 					{
-						FVector MinPos, MaxPos;
+						FVector3f MinPos, MaxPos;
 
 						switch (Settings.ControlType)
 						{
 							case ERigControlType::Position:
 							case ERigControlType::Scale:
 							{
-								MinPos = Settings.MinimumValue.Get<FVector>();
-								MaxPos = Settings.MaximumValue.Get<FVector>();
+								MinPos = Settings.MinimumValue.Get<FVector3f>();
+								MaxPos = Settings.MaximumValue.Get<FVector3f>();
 								break;
 							}
 							case ERigControlType::Transform:
 							{
-								MinPos = Settings.MinimumValue.Get<FTransform>().GetLocation();
-								MaxPos = Settings.MaximumValue.Get<FTransform>().GetLocation();
+								MinPos = Settings.MinimumValue.Get<FRigControlValue::FTransform_Float>().GetTranslation();
+								MaxPos = Settings.MaximumValue.Get<FRigControlValue::FTransform_Float>().GetTranslation();
 								break;
 							}
 							case ERigControlType::TransformNoScale:
 							{
-								MinPos = Settings.MinimumValue.Get<FTransformNoScale>().Location;
-								MaxPos = Settings.MaximumValue.Get<FTransformNoScale>().Location;
+								MinPos = Settings.MinimumValue.Get<FRigControlValue::FTransformNoScale_Float>().GetTranslation();
+								MaxPos = Settings.MaximumValue.Get<FRigControlValue::FTransformNoScale_Float>().GetTranslation();
 								break;
 							}
 							case ERigControlType::EulerTransform:
 							{
-								MinPos = Settings.MinimumValue.Get<FEulerTransform>().Location;
-								MaxPos = Settings.MaximumValue.Get<FEulerTransform>().Location;
+								MinPos = Settings.MinimumValue.Get<FRigControlValue::FEulerTransform_Float>().GetTranslation();
+								MaxPos = Settings.MaximumValue.Get<FRigControlValue::FEulerTransform_Float>().GetTranslation();
 								break;
 							}
 						}

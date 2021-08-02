@@ -212,14 +212,15 @@ FRigUnit_SetControlVector2D_Execute()
 				const FRigElementKey Key(Control, ERigElementType::Control);
 				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
+					const FVector3f CurrentValue(Vector.X, Vector.Y, 0.f);
 					if(FMath::IsNearlyEqual(Weight, 1.f))
 					{
-						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector2D>(Vector));
+						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector3f>(CurrentValue));
 					}
 					else
 					{
-						FVector2D PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<FVector2D>();
-						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector2D>(FMath::Lerp<FVector2D>(PreviousValue, Vector, FMath::Clamp<float>(Weight, 0.f, 1.f))));
+						const FVector3f PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<FVector3f>();
+						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector3f>(FMath::Lerp<FVector3f>(PreviousValue, CurrentValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
 					}
 				}
 				break;
@@ -648,8 +649,10 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlVector2D)
 	Init();
 	Execute();
 
-	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector2D>() == FVector2D(1.f, 1.f), TEXT("unexpected control value"));
-	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector2D>() == FVector2D(2.f, 2.f), TEXT("unexpected control value"));
+	const FVector3f TempValue1 = Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector3f>();
+	const FVector3f TempValue2 = Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector3f>();
+	AddErrorIfFalse(FVector2D(TempValue1.X, TempValue1.Y) == FVector2D(1.f, 1.f), TEXT("unexpected control value"));
+	AddErrorIfFalse(FVector2D(TempValue2.X, TempValue2.Y) == FVector2D(2.f, 2.f), TEXT("unexpected control value"));
 
 	return true;
 }
@@ -682,9 +685,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlRotator)
 
 	Init();
 	Execute(); 
-	
-	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<FRotator>() != FRotator(0.f, 0.f, 0.f), TEXT("unexpected control value"));
-	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<FRotator>() != FRotator(0.f, 0.f, 0.f), TEXT("unexpected control value"));
+
+	const FVector3f TempValue1 = Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector3f>();
+	const FVector3f TempValue2 = Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector3f>();
+	AddErrorIfFalse(FRotator::MakeFromEuler(TempValue1) != FRotator(0.f, 0.f, 0.f), TEXT("unexpected control value"));
+	AddErrorIfFalse(FRotator::MakeFromEuler(TempValue2) != FRotator(0.f, 0.f, 0.f), TEXT("unexpected control value"));
 
 	return true;
 }
