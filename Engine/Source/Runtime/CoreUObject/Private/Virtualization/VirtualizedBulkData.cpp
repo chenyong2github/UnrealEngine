@@ -1041,6 +1041,10 @@ void FVirtualizedUntypedBulkData::SetCompressionFormat(FName InCompressionFormat
 	{
 		EnumAddFlags(Flags, EFlags::DisablePayloadCompression);
 	}
+	else
+	{
+		EnumRemoveFlags(Flags, EFlags::DisablePayloadCompression);
+	}
 }
 
 FCustomVersionContainer FVirtualizedUntypedBulkData::GetCustomVersions(FArchive& InlineArchive)
