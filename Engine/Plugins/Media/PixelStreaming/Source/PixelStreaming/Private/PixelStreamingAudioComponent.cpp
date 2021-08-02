@@ -17,9 +17,17 @@ UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitia
     ,   CriticalSection()
     ,   SampleRate(16000)
     {
+
+        bool bPixelStreamingLoaded = IPixelStreamingModule::IsAvailable();
+
+        if(!bPixelStreamingLoaded)
+        {
+            UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming audio component will not tick because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
+        }
+
         //this->NumChannels = 2; //2 channels seem to cause problems
-        this->PrimaryComponentTick.bCanEverTick = true;
-        this->SetComponentTickEnabled(true);
+        this->PrimaryComponentTick.bCanEverTick = bPixelStreamingLoaded;
+        this->SetComponentTickEnabled(bPixelStreamingLoaded);
         this->bAutoActivate = true;
     };
 
@@ -101,6 +109,7 @@ bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
 
     if(!IPixelStreamingModule::IsAvailable())
     {
+        UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming audio component could not listen to anything because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
         return false;
     }
 
@@ -192,6 +201,7 @@ void UPixelStreamingAudioComponent::OnConsumerRemoved()
 
 void UPixelStreamingAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+
     // if auto connect turned off don't bother
     if(!this->bAutoFindPeer)
     {

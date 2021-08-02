@@ -18,15 +18,33 @@ UPixelStreamerInputComponent::UPixelStreamerInputComponent()
 void UPixelStreamerInputComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	// When this component is initializing it registers itself with the Pixel Streaming module.
-	this->PixelStreamingModule->AddInputComponent(this);
+
+	if(this->PixelStreamingModule)
+	{
+		// When this component is initializing it registers itself with the Pixel Streaming module.
+		this->PixelStreamingModule->AddInputComponent(this);
+	}
+	else 
+	{
+		UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming input component not added because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
+	}
+	
 }
 
 void UPixelStreamerInputComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	// When this component is destructing it unregisters itself with the Pixel Streaming module.
-	this->PixelStreamingModule->RemoveInputComponent(this);
+
+	if(this->PixelStreamingModule) 
+	{
+		// When this component is destructing it unregisters itself with the Pixel Streaming module.
+		this->PixelStreamingModule->RemoveInputComponent(this);
+	}
+	else 
+	{
+		UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming input component not removed because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
+	}
+	
 }
 
 bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)
@@ -65,7 +83,15 @@ bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)
 
 void UPixelStreamerInputComponent::SendPixelStreamingResponse(const FString& Descriptor)
 {
-	PixelStreamingModule->SendResponse(Descriptor);
+	if(this->PixelStreamingModule)
+	{
+		PixelStreamingModule->SendResponse(Descriptor);
+	}
+	else 
+	{
+		UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming input component skipped sending response. This is expected on dedicated servers."));
+	}
+	
 }
 
 void UPixelStreamerInputComponent::GetJsonStringValue(FString Descriptor, FString FieldName, FString& StringValue, bool& Success)
