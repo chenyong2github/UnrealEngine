@@ -3,6 +3,9 @@
 #pragma once
 
 #include "Async/AsyncFileHandle.h"
+#include "Containers/Array.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
 #include "EditorDomain/EditorDomain.h"
 #include "HAL/CriticalSection.h"
@@ -10,12 +13,175 @@
 #include "Memory/SharedBuffer.h"
 #include "Misc/PackagePath.h"
 #include "Serialization/Archive.h"
+#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/PackageResourceManager.h"
 
 class FAssetPackageData;
 namespace UE { namespace DerivedData { struct FCacheGetCompleteParams; } }
+
+/**
+ * Helper class for archive classes that server either an EditorDomain version of a package
+ * or the WorkspaceDomain version. Starts with a request to the Cache to load the metadata for
+ * an EditorDomainPackage. If the request fails, goes dormant and the owner class falls
+ * back to workspace domain. If the request succeeds, it makes all Attachments from the
+ * CacheRecord available as individually fetched segments.
+ */
+class FEditorDomainPackageSegments
+{
+public:
+	enum class ESource : uint8
+	{
+		Uninitialized,
+		Segments,
+		Fallback,
+		Closed
+	};
+
+	FEditorDomainPackageSegments(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
+		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
+	~FEditorDomainPackageSegments();
+
+	/** Set the CacheRequest handle that will feed this archive. */
+	void SetRequest(const UE::DerivedData::FRequest& InRequest);
+	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
+	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params,
+		TUniqueFunction<void(bool bValid)>&& CreateSegmentData,
+		TUniqueFunction<bool(FEditorDomain& EditorDomain)>&& TryCreateFallbackData);
+
+	/**
+	 * Get the cache of GetAsyncSource as seen on the Interface thread.
+	 * If Uninitialized, caller should early exit, WaitForReady, or call GetAsyncSource.
+	 */
+	ESource GetSource() const;
+
+	/** Get the ESource that is an atomic used from all threads. */
+	std::atomic<ESource>& GetAsyncSource();
+
+	/** Wait for the handle to call OnCacheRequestComplete and make the size and list of Segments available. */
+	void WaitForReady() const;
+
+	/** Set Pos to the given value. Caller is responsible for ensuring in range. Can be called before ready. */
+	void Seek(int64 InPos);
+
+	/** Report the current value of Pos. Can be called before ready. */
+	int64 Tell() const;
+
+	/**
+	 * Report the combined size of all segments.
+	 * Must not be called unless GetSource is ESource::Segments.
+	 */
+	int64 TotalSize() const;
+
+	/** Return the PackagePath. Can be called before ready. */
+	const FPackagePath& GetPackagePath() const;
+
+	/** Cancel any requests, wait for them to complete, release memory. */
+	void Close();
+
+	/**
+	 * Copy Length bytes from current Pos into V.
+	 * Must not be called unless GetSource is ESource::Segments.
+	 */
+	bool Serialize(void* V, int64 Length);
+
+	/**
+	 * Ensure requests have been sent for segments touching the given range. Out of range requests are ignored.
+	 * Must not be called unless GetSource is ESource::Segments.
+
+	 * @param bOutIsReady Set to true iff all segments touching the range have completd their request.
+	 */
+	void Precache(int64 InStart, int64 InSize, bool* bOutIsReady = nullptr);
+
+private:
+	/**
+	 * A segment of bytes that is sourced from an attachment in the CacheRecord and
+	 * is requested on demand.
+	 */
+	struct FSegment
+	{
+		FSegment(const UE::DerivedData::FPayloadId& InPayloadId, uint64 InStart)
+			: PayloadId(InPayloadId), Start(InStart)
+		{}
+
+		/** Attachment ID to request from cache for this segment. Read-only. */
+		UE::DerivedData::FPayloadId PayloadId;
+		/** The request that will be (has been) sent for the bytes from cache. Interface-only. */
+		UE::DerivedData::FRequest Request;
+		/** Offset from the start of the entire archive. Read-only. */
+		uint64 Start;
+		/** Payload bytes. Callback-only before bAsyncComplete, Interface-only after. */
+		FSharedBuffer Data;
+		/** Interface thread cache of bAsyncComplete. Interface-only. */
+		bool bComplete = false;
+		/** Set to true whent the callback for the cache request has finished writing Data. */
+		std::atomic<bool> bAsyncComplete{ false };
+	};
+
+	/** Map offset to segment index. Start must be in range 0 <= Start < Size. Must be called after Segments assigned. */
+	int32 GetSegmentContainingOffset(uint64 Start) const;
+
+	/**
+	 * Make sure requests are sent for segments touching [Start, End); optionally wait for requests to finish.
+	 * Must not be called unless GetSource is ESource::Segments. Caller must ensure valid range Start <= End <= Size.
+	 *
+	 * @param bOutIsReady Set to true if all segments touching the range have finished their request.
+	 * @return Address of the first segment touching the range.
+	 */
+	FSegment* EnsureSegmentRange(uint64 Start, uint64 End, bool bWait, bool& bOutIsReady);
+
+	/**
+	 * Send the request for the given segment; does not check if it has already been sent.
+	 * Losing Race values are ignored.
+	 */
+	void SendSegmentRequest(FSegment& Segment);
+
+	/**
+	 * Lock from the EditorDomain to allow shutting down this archive if callback outlives editor domain.
+	 * Pointer is read - only, * pointer has internal lock.
+	 */
+	TRefCountPtr<FEditorDomain::FLocks> EditorDomainLocks;
+	/** Initial Request for the list of segments. Read-only. */
+	UE::DerivedData::FRequest Request;
+	/** PackagePath for fallback to WorkspaceDomain. Read-only. */
+	FPackagePath PackagePath;
+	/** Offset to next use in Serialize. Interface-only. */
+	int64 Pos = 0;
+	/**
+	 * Interface-thread cache of AsyncSource. Used for performance and to trigger copying of async data on first
+	 * read after Request complete. Interface-only.
+	 */
+	mutable ESource Source = ESource::Uninitialized;
+	/**
+	 * PackageSource for read/write of whether this Package comes from editor domain or workspace domain.
+	 * Read-only, *pointer requires EditorDomainLocks.Lock.
+	 */
+	TRefCountPtr<FEditorDomain::FPackageSource> PackageSource;
+	/** PackageDigest for requesting payloads, copied from PackageSource. Read-only. */
+	UE::EditorDomain::FPackageDigest PackageDigest;
+
+	/**
+	 * Data read from the EditorDomain; each Segment is requested individually.
+	 * Array allocation is Callback-only before Request returns, read-only after.
+	 * Thread properties of elements are mixed; see FSegment.
+	 */
+	TArray<FSegment> Segments;
+	/** Size if Source is Segments, 0 otherwise. Callback-only before Request returns, read-only after. */
+	int64 Size = 0;
+	/** 
+	 * Specifies which data to use based on whether EditorDomain data exists.
+	 * Set by Close to shutdown both Callback and Interface activity.
+	 * Interface thread polls this in some cases to check whether it should wait for WaitForReady.
+	 */
+	std::atomic<ESource> AsyncSource{ ESource::Uninitialized };
+	/**
+	 * Instructs the Callback thread to immediately send a SegmentRequest for the given offset.
+	 * Written by Interface thread. Callback thread will use it if its set in time(shortly after AsyncSource is set),
+	 * otherwise will ignore or use stale value.
+	 */
+	std::atomic<int64> InitialRequestOffset{ -1 }; 
+};
 
 /**
  * An Archive that asynchronously waits for the cache request to complete, and reads either from the returned cache bytes
@@ -29,12 +195,11 @@ class FEditorDomainReadArchive : public FArchive
 public:
 	FEditorDomainReadArchive(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
-	~FEditorDomainReadArchive();
 
 	/** Set the CacheRequest handle that will feed this archive. */
 	void SetRequest(const UE::DerivedData::FRequest& InRequest);
-	/** Callback from the CacheRequest; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
-	void OnCacheRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
+	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
+	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
 	/** Get the PackageFormat, which depends on the domain the data is read from. */
 	EPackageFormat GetPackageFormat() const;
 
@@ -51,34 +216,12 @@ public:
 	virtual bool NeedsEngineVersionChecks() const override { return false; }
 
 private:
-	enum class ESource : uint8
-	{
-		Uninitialized,
-		Bytes,
-		Archive,
-		Closed
-	};
-
-	/** Wait for the handle to call OnCacheRequestComplete and make the size and bytes available. */
 	void WaitForReady() const;
+	void CreateSegmentData(bool bValid);
+	bool TryCreateFallbackData(FEditorDomain& EditorDomain);
 
-	/** Lock to synchronize the CacheCompletion and the public interface thread. */
-	mutable FCriticalSection Lock;
-
-	// Data in this section is either read-only, or is read and written only on the public interface thread.
-	TRefCountPtr<FEditorDomain::FLocks> EditorDomainLocks; // Pointer is read-only, *pointer has internal lock
-	UE::DerivedData::FRequest Request; // Read-only
-	FPackagePath PackagePath; // Read-only
-	int64 Pos = 0; // Interface-thread-only
-	mutable ESource Source = ESource::Uninitialized; // Interface-thread-only
-	TRefCountPtr<FEditorDomain::FPackageSource> PackageSource; // Read-only, *pointer requires EditorDomainLocks.Lock
-
-	// Data in this section is written on the callback thread.
-	// It can not be read until after WaitForReady or Cancel.
+	FEditorDomainPackageSegments Segments;
 	TUniquePtr<FArchive> InnerArchive;
-	FSharedBuffer Bytes;
-	int64 Size = 0;
-	ESource AsyncSource = ESource::Uninitialized;
 	EPackageFormat PackageFormat = EPackageFormat::Binary;
 };
 
@@ -91,12 +234,11 @@ class FEditorDomainAsyncReadFileHandle : public IAsyncReadFileHandle
 public:
 	FEditorDomainAsyncReadFileHandle(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
-	~FEditorDomainAsyncReadFileHandle();
 
 	/** Set the CacheRequest handle that will feed this archive. */
 	void SetRequest(const UE::DerivedData::FRequest& InRequest);
-	/** Callback from the CacheRequest; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
-	void OnCacheRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
+	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
+	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
 
 	// IAsyncReadFileHandle interface
 	virtual IAsyncReadRequest* SizeRequest(FAsyncFileCallBack* CompleteCallback = nullptr) override;
@@ -106,30 +248,9 @@ public:
 	virtual bool UsesCache();
 
 private:
-	enum class ESource : uint8
-	{
-		Uninitialized,
-		Bytes,
-		Archive,
-		Closed
-	};
+	void CreateSegmentData(bool bValid);
+	bool TryCreateFallbackData(FEditorDomain& EditorDomain);
 
-	/** Wait for the handle to call OnCacheRequestComplete and make the size and bytes available. */
-	void WaitForReady() const;
-
-	/** Lock to synchronize the CacheCompletion and the public interface thread. */
-	mutable FCriticalSection Lock;
-
-	// Data in this section is either read-only, or is read and written only on the public interface thread.
-	TRefCountPtr<FEditorDomain::FLocks> EditorDomainLocks; // Pointer is read-only, *pointer has internal lock
-	UE::DerivedData::FRequest Request; // Read-only
-	FPackagePath PackagePath; // Read-only
-	mutable ESource Source = ESource::Uninitialized; // Interface-thread-only
-	TRefCountPtr<FEditorDomain::FPackageSource> PackageSource; // Read-only, *pointer requires EditorDomainLocks.Lock
-
-	// Data in this section is written on the callback thread.
-	// It can not be read until after WaitForReady or Cancel.
+	FEditorDomainPackageSegments Segments;
 	TUniquePtr<IAsyncReadFileHandle> InnerArchive;
-	FSharedBuffer Bytes;
-	ESource AsyncSource = ESource::Uninitialized;
 };

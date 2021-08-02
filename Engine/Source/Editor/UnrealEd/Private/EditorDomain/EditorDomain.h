@@ -154,6 +154,7 @@ private:
 	static FEditorDomain* RegisteredEditorDomain;
 
 	friend class FEditorDomainRegisterAsPackageResourceManager;
+	friend class FEditorDomainPackageSegments;
 	friend class FEditorDomainReadArchive;
 	friend class FEditorDomainAsyncReadFileHandle;
 };

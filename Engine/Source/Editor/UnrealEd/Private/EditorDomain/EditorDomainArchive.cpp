@@ -5,8 +5,11 @@
 #include "AssetRegistry/AssetData.h"
 #include "Async/AsyncFileHandleNull.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
 #include "EditorDomain/EditorDomainSave.h"
+#include "EditorDomain/EditorDomainUtils.h"
 #include "HAL/UnrealMemory.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/AssertionMacros.h"
@@ -14,97 +17,549 @@
 #include "Misc/ScopeLock.h"
 #include "Serialization/CompactBinary.h"
 
-FEditorDomainReadArchive::FEditorDomainReadArchive(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
+FEditorDomainPackageSegments::FEditorDomainPackageSegments(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
 	: EditorDomainLocks(InLocks)
 	, PackagePath(InPackagePath)
 	, PackageSource(InPackageSource)
+	, PackageDigest(InPackageSource->Digest)
+{
+}
+
+FEditorDomainPackageSegments::~FEditorDomainPackageSegments()
+{
+	Close();
+}
+
+void FEditorDomainPackageSegments::SetRequest(const UE::DerivedData::FRequest& InRequest)
+{
+	Request = InRequest;
+}
+
+FEditorDomainPackageSegments::ESource FEditorDomainPackageSegments::GetSource() const
+{
+	return Source;
+}
+
+std::atomic<FEditorDomainPackageSegments::ESource>& FEditorDomainPackageSegments::GetAsyncSource()
+{
+	return AsyncSource;
+}
+
+void FEditorDomainPackageSegments::WaitForReady() const
+{
+	if (Source != ESource::Uninitialized)
+	{
+		return;
+	}
+	Request.Wait();
+	Source = AsyncSource;
+}
+
+void FEditorDomainPackageSegments::Seek(int64 InPos)
+{
+	Pos = InPos;
+}
+
+int64 FEditorDomainPackageSegments::Tell() const
+{
+	return Pos;
+}
+
+int64 FEditorDomainPackageSegments::TotalSize() const
+{
+	check(Source == ESource::Segments);
+	return Size;
+}
+
+const FPackagePath& FEditorDomainPackageSegments::GetPackagePath() const
+{
+	return PackagePath;
+}
+
+void FEditorDomainPackageSegments::Close()
+{
+	// Called from Interface-only
+	AsyncSource = ESource::Closed;
+	Request.Cancel();
+	for (FSegment& Segment : Segments)
+	{
+		Segment.Request.Cancel();
+	}
+
+	Segments.Reset();
+	Source = ESource::Closed;
+}
+
+bool FEditorDomainPackageSegments::Serialize(void* V, int64 Length)
+{
+	// Called from Interface-only
+	check(Source == ESource::Segments); // Caller should not call in any other case
+	int64 End = Pos + Length;
+	if (Pos < 0)
+	{
+		UE_LOG(LogEditorDomain, Error, TEXT("Invalid negative Pos %" INT64_FMT " (file = %s)"), Pos,
+			*PackagePath.GetDebugName());
+		return false;
+	}
+	if (End > Size)
+	{
+		UE_LOG(LogEditorDomain, Error, TEXT("Requested read of %" INT64_FMT " bytes when %" INT64_FMT " bytes remain (file = %s, size=%" INT64_FMT ")"),
+			Length, Size - Pos, *PackagePath.GetDebugName(), Size);
+		return false;
+	}
+	bool bIsReady;
+	FSegment* Segment = EnsureSegmentRange(Pos, End, true, bIsReady);
+	while (Pos < End)
+	{
+		int64 SegmentEnd = Segment < &Segments.Last() ? (Segment + 1)->Start : Size;
+		int64 LengthInSegment = FMath::Min(SegmentEnd, End) - Pos;
+		int64 SegmentPos = Pos - Segment->Start;
+		FMemory::Memcpy(V, static_cast<const uint8*>(Segment->Data.GetData()) + SegmentPos, LengthInSegment);
+		Pos += LengthInSegment;
+		++Segment;
+	}
+	return true;
+}
+
+void FEditorDomainPackageSegments::Precache(int64 InStart, int64 InSize, bool* bOutIsReady)
+{
+	switch (Source)
+	{
+	case ESource::Uninitialized:
+		if (AsyncSource != ESource::Uninitialized)
+		{
+			WaitForReady();
+			return Precache(InStart, InSize, bOutIsReady);
+		}
+		else
+		{
+			// Set the Initial request offset. We only support a single initial offset; overwrite any
+			// previously existing offset. 
+			InitialRequestOffset = InStart;
+			// THe offset will not be used if the callback thread reached the callback and checked the
+			// value of InitialRequestOffset in between our read of AsyncSource and our write of
+			// InitialRequestOffset. Check AsyncSource again to handle that case.
+			if (AsyncSource != ESource::Uninitialized)
+			{
+				WaitForReady();
+				return Precache(InStart, InSize, bOutIsReady);
+			}
+			if (bOutIsReady)
+			{
+				*bOutIsReady = false;
+			}
+		}
+		break;
+	case ESource::Segments:
+	{
+		int64 End = InStart + InSize;
+		End = FMath::Min(End, this->Size);
+		int64 Start = FMath::Clamp(InStart, 0, End);
+
+		bool bIsReady;
+		EnsureSegmentRange(Start, End, false /* bWait */, bIsReady);
+		if (bOutIsReady)
+		{
+			*bOutIsReady = bIsReady;
+		}
+	}
+	default:
+		break;
+	}
+}
+
+int32 FEditorDomainPackageSegments::GetSegmentContainingOffset(uint64 Start) const
+{
+	int32 StartIndex = Algo::LowerBoundBy(Segments, Start, [](const FSegment& Segment) { return Segment.Start; });
+	check(0 <= StartIndex && StartIndex <= Segments.Num());
+	if (StartIndex == Segments.Num() || Segments[StartIndex].Start > Start)
+	{
+		check(StartIndex > 0);
+		--StartIndex;
+	}
+	check(Segments[StartIndex].Start <= Start && (StartIndex == Segments.Num() - 1 || Start < Segments[StartIndex + 1].Start));
+	return StartIndex;
+}
+
+FEditorDomainPackageSegments::FSegment* FEditorDomainPackageSegments::EnsureSegmentRange(uint64 Start, uint64 End, bool bWait, bool& bOutIsReady)
+{
+	// Called from Interface-only
+	check(Source == ESource::Segments); // Caller should not call in any other case
+
+	int32 StartIndex = GetSegmentContainingOffset(Start);
+	FSegment* StartSegment = &Segments[StartIndex];
+
+	bOutIsReady = true;
+	bool bNeedsWait = false;
+	FSegment* Segment = StartSegment;
+	FSegment* FileEndSegment = &Segments[0] + Segments.Num();
+	do
+	{
+		if (!Segment->bComplete)
+		{
+			if (!Segment->Request.IsValid())
+			{
+				SendSegmentRequest(*Segment);
+			}
+			if (Segment->bAsyncComplete)
+			{
+				Segment->bComplete = true;
+			}
+			else
+			{
+				bOutIsReady = false;
+			}
+		}
+		++Segment;
+	} while (Segment < FileEndSegment && Segment->Start < End);
+
+	if (!bOutIsReady && bWait)
+	{
+		Segment = StartSegment;
+		do
+		{
+			if (!Segment->bComplete)
+			{
+				Segment->Request.Wait();
+				check(Segment->bAsyncComplete);
+				Segment->bComplete = true;
+			}
+			++Segment;
+		} while (Segment < FileEndSegment && Segment->Start < End);
+		bOutIsReady = true;
+	}
+	return StartSegment;
+}
+
+void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params,
+	TUniqueFunction<void(bool bValid)>&& CreateSegmentData,
+	TUniqueFunction<bool(FEditorDomain& EditorDomain)>&& TryCreateFallbackData)
+{
+	{
+		ESource LocalAsyncSource = AsyncSource;
+		if (AsyncSource == ESource::Closed)
+		{
+			return;
+		}
+		check(LocalAsyncSource == ESource::Uninitialized);
+	}
+
+	Size = 0;
+
+	ESource NewAsyncSource = ESource::Uninitialized;
+	int32 InitialRequestIndex = -1;
+	if (Params.Status == UE::DerivedData::EStatus::Ok)
+	{
+		UE::DerivedData::FCacheRecord& Record = Params.Record;
+		uint64 FileSize = Record.GetMeta()["FileSize"].AsUInt64();
+		const UE::DerivedData::FPayload& ValuePayload = Record.GetValuePayload();
+
+		Segments.Reserve(1 + Record.GetAttachmentPayloads().Num());
+		uint64 CompositeSize = 0;
+		uint64 ValueSize = ValuePayload.GetRawSize();
+		if (ValueSize > 0)
+		{
+			Segments.Emplace(ValuePayload.GetId(), CompositeSize);
+			CompositeSize += ValueSize;
+		}
+		for (const UE::DerivedData::FPayload& Payload : Record.GetAttachmentPayloads())
+		{
+			uint64 PayloadSize = Payload.GetRawSize();
+			if (PayloadSize > 0)
+			{
+				Segments.Emplace(Payload.GetId(), CompositeSize);
+				CompositeSize += PayloadSize;
+			}
+		}
+
+		if (CompositeSize != FileSize)
+		{
+			UE_LOG(LogEditorDomain, Warning, TEXT("Package %s received invalid record from EditorDomainPackage table ")
+				TEXT("with size of all segments %" UINT64_FMT " not equal to FileSize in metadata %" UINT64_FMT)
+				TEXT(". Reading from workspace domain instead."),
+				*PackagePath.GetDebugName(), CompositeSize, FileSize);
+			Segments.Empty();
+		}
+		else
+		{
+			bool bRegisterSuccessful = false;
+			bool bEditorDomainAvailable = false;
+			{
+				FScopeLock DomainScopeLock(&EditorDomainLocks->Lock);
+				if (EditorDomainLocks->Owner)
+				{
+					bEditorDomainAvailable = true;
+					if (PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor)
+					{
+						PackageSource->Source = FEditorDomain::EPackageSource::Editor;
+						bRegisterSuccessful = true;
+					}
+				}
+			}
+			if (bRegisterSuccessful)
+			{
+				Size = FileSize;
+				NewAsyncSource = ESource::Segments;
+				CreateSegmentData(true /* bValid */);
+				if (0 <= InitialRequestOffset && static_cast<uint32>(InitialRequestOffset) < FileSize)
+				{
+					InitialRequestIndex = GetSegmentContainingOffset(InitialRequestOffset);
+				}
+			}
+			else
+			{
+				Segments.Empty();
+				if (!bEditorDomainAvailable)
+				{
+					UE_LOG(LogEditorDomain, Warning, TEXT("%s read after EditorDomain shutdown. Archive Set to Error."),
+						*PackagePath.GetDebugName());
+					NewAsyncSource = ESource::Segments;
+					CreateSegmentData(false /* bValid */);
+				}
+			}
+		}
+	}
+
+	if (NewAsyncSource == ESource::Uninitialized)
+	{
+		FScopeLock DomainScopeLock(&EditorDomainLocks->Lock);
+		if (EditorDomainLocks->Owner)
+		{
+			checkf(PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Workspace,
+				TEXT("%s was previously loaded from the EditorDomain but now is unavailable."), *PackagePath.GetDebugName());
+			FEditorDomain& EditorDomain(*EditorDomainLocks->Owner);
+			bool bSucceeded = TryCreateFallbackData(EditorDomain);
+			if (bSucceeded)
+			{
+				EditorDomain.MarkNeedsLoadFromWorkspace(PackagePath, PackageSource);
+				NewAsyncSource = ESource::Fallback;
+			}
+			else
+			{
+				NewAsyncSource = ESource::Segments;
+			}
+		}
+		else
+		{
+			UE_LOG(LogEditorDomain, Warning, TEXT("%s read after EditorDomain shutdown. Archive Set to Error."),
+				*PackagePath.GetDebugName());
+			NewAsyncSource = ESource::Segments;
+			CreateSegmentData(false /* bValid */);
+		}
+	}
+
+	ESource ExpectedValue = ESource::Uninitialized;
+	bool bSetSuccessful = AsyncSource.compare_exchange_strong(ExpectedValue, NewAsyncSource);
+	if (bSetSuccessful && InitialRequestIndex >= 0)
+	{
+		SendSegmentRequest(Segments[InitialRequestIndex]);
+	}
+}
+
+void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
+{
+	// Called from Callback-only until AsyncSource is set, then from Interface-only
+	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
+
+	// Note that Segment.Request is Interface-only and so we can write it outside the lock
+	Segment.Request = Cache.GetPayload({ UE::DerivedData::FCachePayloadKey{ UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest), Segment.PayloadId} },
+		PackagePath.GetDebugName(), UE::DerivedData::ECachePolicy::Local, UE::DerivedData::EPriority::Normal,
+		[this, &Segment](UE::DerivedData::FCacheGetPayloadCompleteParams&& Params)
+		{
+			if (AsyncSource == ESource::Closed)
+			{
+				return;
+			}
+			if (Segment.bAsyncComplete)
+			{
+				// Race condition; another request got there before us
+				return;
+			}
+
+			if (Params.Status != UE::DerivedData::EStatus::Ok)
+			{
+				UE_LOG(LogEditorDomain, Error, TEXT("Package %s is missing cache data in segment %d."), *PackagePath.GetDebugName(), (int32)(&Segment - &Segments[0]));
+			}
+			else
+			{
+				Segment.Data = Params.Payload.GetData().Decompress();
+				uint64 SegmentEnd = &Segment < &Segments.Last() ? (&Segment + 1)->Start : Size;
+				uint64 SegmentSize = SegmentEnd - Segment.Start;
+				if (Segment.Data.GetSize() != SegmentSize)
+				{
+					UE_LOG(LogEditorDomain, Error, TEXT("Package %s has corrupted cache data in segment %d."), *PackagePath.GetDebugName(), (int32)(&Segment - &Segments[0]));
+					Segment.Data.Reset();
+				}
+			}
+			Segment.bAsyncComplete = true;
+		});
+}
+
+FEditorDomainReadArchive::FEditorDomainReadArchive(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
+	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
+	: Segments(InLocks, InPackagePath, InPackageSource)
 {
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
 }
 
-FEditorDomainReadArchive::~FEditorDomainReadArchive()
-{
-	Close();
-}
-
 void FEditorDomainReadArchive::SetRequest(const UE::DerivedData::FRequest& InRequest)
 {
-	Request = InRequest;
+	Segments.SetRequest(InRequest);
+}
+
+void FEditorDomainReadArchive::WaitForReady() const
+{
+	if (Segments.GetSource() != FEditorDomainPackageSegments::ESource::Uninitialized)
+	{
+		return;
+	}
+
+	Segments.WaitForReady();
+
+	// If we had any seeks, implement the seek behavior for the last seek, now that we know what that behavior is.
+	int64 Pos = Segments.Tell();
+	if (Pos != 0)
+	{
+		switch (Segments.GetSource())
+		{
+		case FEditorDomainPackageSegments::ESource::Fallback:
+		{
+			InnerArchive->Seek(Pos);
+			break;
+		}
+		case FEditorDomainPackageSegments::ESource::Segments:
+		{
+			const_cast<FEditorDomainReadArchive&>(*this).Segments.Precache(Pos, 0);
+			break;
+		}
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
+}
+
+void FEditorDomainReadArchive::OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params)
+{
+	Segments.OnRecordRequestComplete(MoveTemp(Params),
+		[this](bool bValid) { CreateSegmentData(bValid); },
+		[this](FEditorDomain& EditorDomain) { return TryCreateFallbackData(EditorDomain); }
+	);
+}
+
+void FEditorDomainReadArchive::CreateSegmentData(bool bValid)
+{
+	PackageFormat = EPackageFormat::Binary;
+	if (!bValid)
+	{
+		SetError();
+	}
+}
+
+bool FEditorDomainReadArchive::TryCreateFallbackData(FEditorDomain& EditorDomain)
+{
+	IPackageResourceManager& Workspace = *EditorDomain.Workspace;
+	// EDITOR_DOMAIN_TODO: Editor platforms that return false in FPlatformMisc::SupportsMultithreadedFileHandles
+	// will fail here because we are creating the file handle on the callback thread and using it on the 
+	// interface thread which is on the game thread. Need to make all editor platforms support that, or
+	// have this fallback occur when WaitForReady is called.
+	FOpenPackageResult Result = Workspace.OpenReadPackage(Segments.GetPackagePath(), EPackageSegment::Header);
+	if (Result.Archive)
+	{
+		InnerArchive = MoveTemp(Result.Archive);
+		PackageFormat = Result.Format;
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogEditorDomain, Warning, TEXT("%s could not be read from WorkspaceDomain. Archive Set to Error."),
+			*Segments.GetPackagePath().GetDebugName());
+		PackageFormat = EPackageFormat::Binary;
+		SetError();
+		return false;
+	}
 }
 
 void FEditorDomainReadArchive::Seek(int64 InPos)
 {
-	switch (Source)
+	switch (Segments.GetSource())
 	{
-	case ESource::Archive:
+	case FEditorDomainPackageSegments::ESource::Uninitialized:
+		if (Segments.GetAsyncSource() != FEditorDomainPackageSegments::ESource::Uninitialized)
+		{
+			WaitForReady();
+			check(Segments.GetSource() != FEditorDomainPackageSegments::ESource::Uninitialized);
+			return Seek(InPos);
+		}
+		Segments.Seek(InPos);
+		break;
+	case FEditorDomainPackageSegments::ESource::Segments:
+		Segments.Seek(InPos);
+		Segments.Precache(InPos, 0);
+		break;
+	case FEditorDomainPackageSegments::ESource::Fallback:
 		InnerArchive->Seek(InPos);
 		break;
+	case FEditorDomainPackageSegments::ESource::Closed:
+		break;
 	default:
-		Pos = InPos;
+		checkNoEntry();
 		break;
 	}
 }
 
 int64 FEditorDomainReadArchive::Tell()
 {
-	switch (Source)
+	switch (Segments.GetSource())
 	{
-	case ESource::Archive:
+	case FEditorDomainPackageSegments::ESource::Fallback:
 		return InnerArchive->Tell();
 	default:
-		return Pos;
+		return Segments.Tell();
 	}
 }
 
 int64 FEditorDomainReadArchive::TotalSize()
 {
 	WaitForReady();
-	return Size;
+	switch (Segments.GetSource())
+	{
+	case FEditorDomainPackageSegments::ESource::Fallback:
+		return InnerArchive->TotalSize();
+	default:
+		return Segments.TotalSize();
+	}
 }
 
 bool FEditorDomainReadArchive::Close()
 {
-	{
-		FScopeLock ScopeLock(&Lock);
-		if (AsyncSource == ESource::Uninitialized)
-		{
-			AsyncSource = ESource::Closed;
-		}
-	}
-	Request.Cancel();
+	Segments.Close();
 	InnerArchive.Reset();
-	Bytes.Reset();
-	Source = ESource::Closed;
 	return true;
 }
 
 void FEditorDomainReadArchive::Serialize(void* V, int64 Length)
 {
-	switch (Source)
+	switch (Segments.GetSource())
 	{
-	case ESource::Uninitialized:
+	case FEditorDomainPackageSegments::ESource::Uninitialized:
 		WaitForReady();
-		check(Source != ESource::Uninitialized);
+		check(Segments.GetSource() != FEditorDomainPackageSegments::ESource::Uninitialized);
 		Serialize(V, Length);
 		break;
-	case ESource::Bytes:
-		if (Pos + Length > Size)
+	case FEditorDomainPackageSegments::ESource::Segments:
+		if (!Segments.Serialize(V, Length))
 		{
 			SetError();
-			UE_LOG(LogEditorDomain, Error, TEXT("Requested read of %d bytes when %d bytes remain (file=%s, size=%d)"),
-				Length, Size - Pos, *PackagePath.GetDebugName(), Size);
-			return;
 		}
-		FMemory::Memcpy(V, static_cast<const uint8*>(Bytes.GetData()) + Pos, Length);
-		Pos += Length;
 		break;
-	case ESource::Archive:
+	case FEditorDomainPackageSegments::ESource::Fallback:
 		InnerArchive->Serialize(V, Length);
 		break;
-	case ESource::Closed:
-		UE_LOG(LogEditorDomain, Error, TEXT("Requested read after close (file=%s)"), *PackagePath.GetDebugName());
+	case FEditorDomainPackageSegments::ESource::Closed:
+		UE_LOG(LogEditorDomain, Error, TEXT("Requested read after close (file=%s)"), *Segments.GetPackagePath().GetDebugName());
 		break;
 	default:
 		checkNoEntry();
@@ -114,19 +569,19 @@ void FEditorDomainReadArchive::Serialize(void* V, int64 Length)
 
 FString FEditorDomainReadArchive::GetArchiveName() const
 {
-	return PackagePath.GetDebugName();
+	return Segments.GetPackagePath().GetDebugName();
 }
 
 void FEditorDomainReadArchive::Flush()
 {
-	switch (Source)
+	switch (Segments.GetSource())
 	{
-	case ESource::Uninitialized:
+	case FEditorDomainPackageSegments::ESource::Uninitialized:
 		WaitForReady();
-		check(Source != ESource::Uninitialized);
+		check(Segments.GetSource() != FEditorDomainPackageSegments::ESource::Uninitialized);
 		Flush();
 		break;
-	case ESource::Archive:
+	case FEditorDomainPackageSegments::ESource::Fallback:
 		InnerArchive->Flush();
 		break;
 	default:
@@ -136,14 +591,14 @@ void FEditorDomainReadArchive::Flush()
 
 void FEditorDomainReadArchive::FlushCache()
 {
-	switch (Source)
+	switch (Segments.GetSource())
 	{
-	case ESource::Uninitialized:
+	case FEditorDomainPackageSegments::ESource::Uninitialized:
 		WaitForReady();
-		check(Source != ESource::Uninitialized);
+		check(Segments.GetSource() != FEditorDomainPackageSegments::ESource::Uninitialized);
 		FlushCache();
 		break;
-	case ESource::Archive:
+	case FEditorDomainPackageSegments::ESource::Fallback:
 		InnerArchive->FlushCache();
 		break;
 	default:
@@ -153,13 +608,21 @@ void FEditorDomainReadArchive::FlushCache()
 
 bool FEditorDomainReadArchive::Precache(int64 PrecacheOffset, int64 PrecacheSize)
 {
-	switch (Source)
+	switch (Segments.GetSource())
 	{
-	case ESource::Uninitialized:
-		WaitForReady();
-		check(Source != ESource::Uninitialized);
-		return Precache(PrecacheOffset, PrecacheSize);
-	case ESource::Archive:
+	case FEditorDomainPackageSegments::ESource::Uninitialized:
+	{
+		bool bIsReady;
+		Segments.Precache(PrecacheOffset, PrecacheSize, &bIsReady);
+		return bIsReady;
+	}
+	case FEditorDomainPackageSegments::ESource::Segments:
+	{
+		bool bIsReady;
+		Segments.Precache(PrecacheOffset, PrecacheSize, &bIsReady);
+		return bIsReady;
+	}
+	case FEditorDomainPackageSegments::ESource::Fallback:
 		return InnerArchive->Precache(PrecacheOffset, PrecacheSize);
 	default:
 		return true;
@@ -170,110 +633,6 @@ EPackageFormat FEditorDomainReadArchive::GetPackageFormat() const
 {
 	WaitForReady();
 	return PackageFormat;
-}
-
-
-void FEditorDomainReadArchive::OnCacheRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params)
-{
-	FScopeLock ScopeLock(&Lock);
-	if (AsyncSource == ESource::Closed)
-	{
-		return;
-	}
-
-	check(AsyncSource == ESource::Uninitialized);
-	FScopeLock DomainScopeLock(&EditorDomainLocks->Lock);
-	if ((PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor) &&
-		Params.Status == UE::DerivedData::EStatus::Ok)
-	{
-		const FCbObject& MetaData = Params.Record.GetMeta();
-		int64 FileSize = MetaData["FileSize"].AsInt64(-1);
-		FSharedBuffer LocalBytes = MoveTemp(Params.Record).GetValue();
-		if (static_cast<int64>(LocalBytes.GetSize()) != FileSize)
-		{
-			UE_LOG(LogEditorDomain, Warning, TEXT("Package %s received invalid record from EditorDomainPackage table ")
-				TEXT("with blob size %" INT64_FMT " not equal to FileSize in metadata %" INT64_FMT)
-				TEXT(". Reading from workspace domain instead."),
-				*PackagePath.GetDebugName(), static_cast<int64>(LocalBytes.GetSize()), FileSize);
-		}
-		else
-		{
-			AsyncSource = ESource::Bytes;
-			Size = FileSize;
-			Bytes = MoveTemp(LocalBytes).MakeOwned();
-			PackageFormat = EPackageFormat::Binary;
-			PackageSource->Source = FEditorDomain::EPackageSource::Editor;
-		}
-	}
-	if (AsyncSource == ESource::Uninitialized)
-	{
-		checkf(PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Workspace,
-			TEXT("%s was previously loaded from the EditorDomain but now is unavailable."), *PackagePath.GetDebugName());
-		if (EditorDomainLocks->Owner)
-		{
-			FEditorDomain& EditorDomain(*EditorDomainLocks->Owner);
-			IPackageResourceManager& Workspace = *EditorDomain.Workspace;
-			FOpenPackageResult Result = Workspace.OpenReadPackage(PackagePath, EPackageSegment::Header);
-			if (Result.Archive)
-			{
-				EditorDomain.MarkNeedsLoadFromWorkspace(PackagePath, PackageSource);
-				InnerArchive = MoveTemp(Result.Archive);
-				AsyncSource = ESource::Archive;
-				Size = InnerArchive->TotalSize();
-				PackageFormat = Result.Format;
-			}
-			else
-			{
-				UE_LOG(LogEditorDomain, Warning, TEXT("%s could not be read from WorkspaceDomain. Archive Set to Error."),
-					*PackagePath.GetDebugName());
-				AsyncSource = ESource::Bytes;
-				Size = 0;
-				PackageFormat = EPackageFormat::Binary;
-				SetError();
-			}
-		}
-		else
-		{
-			UE_LOG(LogEditorDomain, Warning, TEXT("%s read after EditorDomain shutdown. Archive Set to Error."),
-				*PackagePath.GetDebugName());
-			AsyncSource = ESource::Bytes;
-			Size = 0;
-			PackageFormat = EPackageFormat::Binary;
-			SetError();
-		}
-	}
-}
-
-void FEditorDomainReadArchive::WaitForReady() const
-{
-	if (Source != ESource::Uninitialized)
-	{
-		return;
-	}
-	Request.Wait();
-	{
-		// Even though we know that the asynchronous task has left the critical section,
-		// we still need to synchronize the memory order.
-		// Entering the critical section will activate the equivalent of std::memory_order::acquire that we need.
-		FScopeLock ReceiverScopeLock(&Lock);
-		Source = AsyncSource;
-	}
-
-	switch (Source)
-	{
-	case ESource::Archive:
-		// Copy local variables over to InnerArchive
-		if (Pos != 0)
-		{
-			InnerArchive->Seek(Pos);
-		}
-		break;
-	case ESource::Bytes:
-		break;
-	default:
-		check(false);
-		break;
-	}
 }
 
 /** An IAsyncReadRequest SizeRequest that returns a value known at construction time. */
@@ -297,26 +656,18 @@ protected:
 	}
 };
 
-/** An IAsyncReadRequest that reads from a SharedBuffer that was already populated at construction time. */
+/** An IAsyncReadRequest that reads from memory that was already populated. */
 class FAsyncReadRequestConstant : public IAsyncReadRequest
 {
 public:
-	FAsyncReadRequestConstant(const FSharedBuffer& Bytes, FAsyncFileCallBack* InCallback, int64 Offset,
-		int64 BytesToRead, uint8* UserSuppliedMemory, const FPackagePath& PackagePath)
-		: IAsyncReadRequest(InCallback, false /* bInSizeRequest */, UserSuppliedMemory)
+	FAsyncReadRequestConstant(uint8* Data, bool bIsUserSupplied, FAsyncFileCallBack* InCallback)
+		: IAsyncReadRequest(InCallback, false /* bInSizeRequest */, bIsUserSupplied ? Data : nullptr)
 	{
-		if (Offset < 0 || BytesToRead < 0 || Offset + BytesToRead > static_cast<int64>(Bytes.GetSize()))
+		if (!bIsUserSupplied)
 		{
-			UE_LOG(LogEditorDomain, Fatal, TEXT("FAsyncReadRequestConstant bogus request Offset = %" INT64_FMT)
-				TEXT(" BytesToRead = %" INT64_FMT " Bytes.GetSize() == %" UINT64_FMT " File = %s"),
-				Offset, BytesToRead, Bytes.GetSize(), *PackagePath.GetDebugName());
-		}
-		if (!UserSuppliedMemory)
-		{
-			Memory = (uint8*)FMemory::Malloc(BytesToRead);
+			Memory = Data;
 		}
 		check(Memory);
-		FMemory::Memcpy(Memory, reinterpret_cast<const uint8*>(Bytes.GetData()) + Offset, BytesToRead);
 		SetComplete();
 	}
 
@@ -346,41 +697,47 @@ protected:
 
 FEditorDomainAsyncReadFileHandle::FEditorDomainAsyncReadFileHandle(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
-	: EditorDomainLocks(InLocks)
-	, PackagePath(InPackagePath)
-	, PackageSource(InPackageSource)
+	: Segments(InLocks, InPackagePath, InPackageSource)
 {
-}
-
-FEditorDomainAsyncReadFileHandle::~FEditorDomainAsyncReadFileHandle()
-{
-	{
-		FScopeLock ScopeLock(&Lock);
-		if (AsyncSource == ESource::Uninitialized)
-		{
-			AsyncSource = ESource::Closed;
-		}
-	}
-	Request.Cancel();
-	Source = ESource::Closed;
 }
 
 void FEditorDomainAsyncReadFileHandle::SetRequest(const UE::DerivedData::FRequest& InRequest)
 {
-	Request = InRequest;
+	Segments.SetRequest(InRequest);
+}
+
+void FEditorDomainAsyncReadFileHandle::OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params)
+{
+	Segments.OnRecordRequestComplete(MoveTemp(Params),
+		[this](bool bValid) { CreateSegmentData(bValid); },
+		[this](FEditorDomain& EditorDomain) { return TryCreateFallbackData(EditorDomain); }
+	);
+}
+
+void FEditorDomainAsyncReadFileHandle::CreateSegmentData(bool bValid)
+{
+}
+
+bool FEditorDomainAsyncReadFileHandle::TryCreateFallbackData(FEditorDomain& EditorDomain)
+{
+	IPackageResourceManager& Workspace = *EditorDomain.Workspace;
+	IAsyncReadFileHandle* Result = Workspace.OpenAsyncReadPackage(Segments.GetPackagePath(), EPackageSegment::Header);
+	check(Result);
+	InnerArchive.Reset(Result);
+	return true;
 }
 
 IAsyncReadRequest* FEditorDomainAsyncReadFileHandle::SizeRequest(FAsyncFileCallBack* CompleteCallback)
 {
-	switch (Source)
+	switch (Segments.GetSource())
 	{
-	case ESource::Uninitialized:
-		WaitForReady();
-		check(Source != ESource::Uninitialized);
+	case FEditorDomainPackageSegments::ESource::Uninitialized:
+		Segments.WaitForReady();
+		check(Segments.GetSource() != FEditorDomainPackageSegments::ESource::Uninitialized);
 		return SizeRequest(CompleteCallback);
-	case ESource::Bytes:
-		return new FAsyncSizeRequestConstant(Bytes.GetSize(), CompleteCallback);
-	case ESource::Archive:
+	case FEditorDomainPackageSegments::ESource::Segments:
+		return new FAsyncSizeRequestConstant(Segments.TotalSize(), CompleteCallback);
+	case FEditorDomainPackageSegments::ESource::Fallback:
 		return InnerArchive->SizeRequest(CompleteCallback);
 	default:
 		checkNoEntry();
@@ -392,15 +749,33 @@ IAsyncReadRequest* FEditorDomainAsyncReadFileHandle::ReadRequest(int64 Offset, i
 	EAsyncIOPriorityAndFlags PriorityAndFlags, FAsyncFileCallBack* CompleteCallback,
 	uint8* UserSuppliedMemory)
 {
-	switch (Source)
+	switch (Segments.GetSource())
 	{
-	case ESource::Uninitialized:
-		WaitForReady();
-		check(Source != ESource::Uninitialized);
+	case FEditorDomainPackageSegments::ESource::Uninitialized:
+		Segments.WaitForReady();
+		check(Segments.GetSource() != FEditorDomainPackageSegments::ESource::Uninitialized);
 		return ReadRequest(Offset, BytesToRead, PriorityAndFlags, CompleteCallback, UserSuppliedMemory);
-	case ESource::Bytes:
-		return new FAsyncReadRequestConstant(Bytes, CompleteCallback, Offset, BytesToRead, UserSuppliedMemory, PackagePath);
-	case ESource::Archive:
+	case FEditorDomainPackageSegments::ESource::Segments:
+	{
+		// EDITOR_DOMAIN_TODO: Make a FAsyncReadRequest that accepts a TFuture instead of synchronously reading upfront
+		Segments.Precache(Offset, 0);
+		Segments.Seek(Offset);
+		uint8* Memory = UserSuppliedMemory;
+		if (!Memory)
+		{
+			Memory = (uint8*)FMemory::Malloc(BytesToRead);
+		}
+		if (!Segments.Serialize(Memory, BytesToRead))
+		{
+			if (!UserSuppliedMemory)
+			{
+				FMemory::Free(Memory);
+			}
+			return nullptr;
+		}
+		return new FAsyncReadRequestConstant(Memory, UserSuppliedMemory != nullptr, CompleteCallback);
+	}
+	case FEditorDomainPackageSegments::ESource::Fallback:
 		return InnerArchive->ReadRequest(Offset, BytesToRead, PriorityAndFlags, CompleteCallback, UserSuppliedMemory);
 	default:
 		checkNoEntry();
@@ -410,74 +785,5 @@ IAsyncReadRequest* FEditorDomainAsyncReadFileHandle::ReadRequest(int64 Offset, i
 
 bool FEditorDomainAsyncReadFileHandle::UsesCache()
 {
-	return false;
-}
-
-void FEditorDomainAsyncReadFileHandle::OnCacheRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params)
-{
-	FScopeLock ScopeLock(&Lock);
-	if (AsyncSource == ESource::Closed)
-	{
-		return;
-	}
-
-	check(AsyncSource == ESource::Uninitialized);
-	FScopeLock DomainScopeLock(&EditorDomainLocks->Lock);
-	if ((PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor) &&
-		Params.Status == UE::DerivedData::EStatus::Ok)
-	{
-		const FCbObject& MetaData = Params.Record.GetMeta();
-		int64 FileSize = MetaData["FileSize"].AsInt64(-1);
-		FSharedBuffer LocalBytes = MoveTemp(Params.Record).GetValue();
-		if (static_cast<int64>(LocalBytes.GetSize()) != FileSize)
-		{
-			UE_LOG(LogEditorDomain, Warning, TEXT("Package %s received invalid record from EditorDomainPackage ")
-				TEXT("table with blob size %" INT64_FMT "not equal to FileSize in metadata %" INT64_FMT)
-				TEXT(". Reading from workspace domain instead."),
-				*PackagePath.GetDebugName(), static_cast<int64>(LocalBytes.GetSize()), FileSize);
-		}
-		else
-		{
-			AsyncSource = ESource::Bytes;
-			Bytes = MoveTemp(LocalBytes).MakeOwned();
-			PackageSource->Source = FEditorDomain::EPackageSource::Editor;
-		}
-	}
-	if (AsyncSource == ESource::Uninitialized)
-	{
-		checkf(PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Workspace,
-			TEXT("%s was previously loaded from the EditorDomain but now is unavailable."), *PackagePath.GetDebugName());
-		if (EditorDomainLocks->Owner)
-		{
-			FEditorDomain& EditorDomain(*EditorDomainLocks->Owner);
-			IPackageResourceManager& Workspace = *EditorDomain.Workspace;
-			IAsyncReadFileHandle* Result = Workspace.OpenAsyncReadPackage(PackagePath, EPackageSegment::Header);
-			check(Result);
-			AsyncSource = ESource::Archive;
-			InnerArchive.Reset(Result);
-			EditorDomain.MarkNeedsLoadFromWorkspace(PackagePath, PackageSource);
-		}
-		else
-		{
-			UE_LOG(LogEditorDomain, Warning, TEXT("%s read after EditorDomain shutdown. Returning null archive"),
-				*PackagePath.GetDebugName());
-			AsyncSource = ESource::Archive;
-			InnerArchive.Reset(new FAsyncReadFileHandleNull());
-		}
-	}
-}
-
-void FEditorDomainAsyncReadFileHandle::WaitForReady() const
-{
-	if (Source != ESource::Uninitialized)
-	{
-		return;
-	}
-	Request.Wait();
-	{
-		// Even though we know that the asynchronous task has left the critical section, we still need to synchronize the memory order
-		// Entering the critical section will activate the equivalent of std::memory_order::acquire that we need
-		FScopeLock ReceiverScopeLock(&Lock);
-		Source = AsyncSource;
-	}
+	return true;
 }
