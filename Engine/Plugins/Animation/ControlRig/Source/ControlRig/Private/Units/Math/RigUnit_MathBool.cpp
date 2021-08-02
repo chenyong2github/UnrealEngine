@@ -49,3 +49,28 @@ FRigUnit_MathBoolNotEquals_Execute()
 	Result = A != B;
 }
 
+FRigUnit_MathBoolToggled_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	if(Context.State == EControlRigState::Init)
+	{
+		Initialized = false;
+		LastValue = Value;
+		Toggled = false;
+		return;
+	}
+
+	if(!Initialized)
+	{
+		Initialized = true;
+		Toggled = false;
+	}
+	else
+	{
+		Toggled = LastValue != Value;
+	}
+
+	LastValue = Value;
+}
+

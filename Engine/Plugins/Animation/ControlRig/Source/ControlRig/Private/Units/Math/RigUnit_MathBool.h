@@ -195,3 +195,31 @@ struct CONTROLRIG_API FRigUnit_MathBoolNotEquals : public FRigUnit_MathBoolBase
 	UPROPERTY(meta=(Output))
 	bool Result;
 };
+
+/**
+* Returns true if the value has changed from the last run
+*/
+USTRUCT(meta=(DisplayName="Toggled", PrototypeName="Toggled", Keywords="Changed,Different"))
+struct CONTROLRIG_API FRigUnit_MathBoolToggled : public FRigUnit_MathBoolBase
+{
+	GENERATED_BODY()
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_MathBoolToggled()
+	{
+		Value = Toggled = Initialized = LastValue = false;
+	}
+
+	UPROPERTY(meta=(Input))
+	bool Value;
+
+	UPROPERTY(meta=(Output))
+	bool Toggled;
+
+	UPROPERTY()
+	bool Initialized;
+
+	UPROPERTY()
+	bool LastValue;
+};

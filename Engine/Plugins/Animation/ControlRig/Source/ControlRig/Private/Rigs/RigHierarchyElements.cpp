@@ -328,6 +328,7 @@ void FRigMultiParentElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElemen
 	const FRigMultiParentElement* Source = CastChecked<FRigMultiParentElement>(InOther);
 	Parent = Source->Parent;
 	ParentConstraints.Reset();
+	IndexLookup.Reset();
 
 	for(int32 ParentIndex = 0; ParentIndex < Source->ParentConstraints.Num(); ParentIndex++)
 	{
@@ -336,6 +337,7 @@ void FRigMultiParentElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElemen
 		ParentConstraint.ParentElement = CastChecked<FRigTransformElement>(InHierarchy->Get(SourceParentElement->Index));
 		ParentConstraints.Add(ParentConstraint);
 		check(ParentConstraints[ParentIndex].ParentElement->GetKey() == SourceParentElement->GetKey());
+		IndexLookup.Add(ParentConstraint.ParentElement->GetKey(), ParentIndex);
 	}
 }
 

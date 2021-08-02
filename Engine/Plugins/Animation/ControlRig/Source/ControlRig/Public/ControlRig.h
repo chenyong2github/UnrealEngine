@@ -90,7 +90,11 @@ public:
 	/** Is valid for execution */
 	UFUNCTION(BlueprintPure, Category="Control Rig")
 	virtual bool CanExecute() const;
-	
+
+	/** Gets the current absolute time */
+	UFUNCTION(BlueprintPure, Category = "Control Rig")
+	float GetAbsoluteTime() const { return AbsoluteTime; }
+
 	/** Set the current delta time */
 	UFUNCTION(BlueprintCallable, Category="Control Rig")
 	void SetDeltaTime(float InDeltaTime);

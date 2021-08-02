@@ -1628,6 +1628,23 @@ public:
 	FRigElementWeight GetParentWeight(const FRigBaseElement* InChild, int32 InParentIndex, bool bInitial = false) const;
 
 	/**
+	 * Returns the weights of all parents below a multi parent element
+	 * @param InChild The key of the multi parented element
+	 * @param bInitial If true the initial weights will be used
+	 * @return Returns the weight of a parent below a multi parent element, or FLT_MAX if the parent is invalid
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	TArray<FRigElementWeight> GetParentWeightArray(FRigElementKey InChild, bool bInitial = false) const;
+
+	/**
+	 * Returns the weights of all parents below a multi parent element
+	 * @param InChild The multi parented element
+	 * @param bInitial If true the initial weights will be used
+	 * @return Returns the weight of a parent below a multi parent element, or FLT_MAX if the parent is invalid
+	 */
+	TArray<FRigElementWeight> GetParentWeightArray(const FRigBaseElement* InChild, bool bInitial = false) const;
+
+	/**
 	 * Sets the weight of a parent below a multi parent element
 	 * @param InChild The key of the multi parented element
 	 * @param InParent The key of the parent to look up the weight for
@@ -1660,6 +1677,27 @@ public:
 	 * @return Returns true if changing the weight was successful
 	 */
 	bool SetParentWeight(FRigBaseElement* InChild, int32 InParentIndex, FRigElementWeight InWeight, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	 * Sets the all of the weights of the parents of a multi parent element
+	 * @param InChild The key of the multi parented element
+	 * @param InWeights The new weights to set for the parents
+	 * @param bInitial If true the initial weights will be used
+	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @return Returns true if changing the weight was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	bool SetParentWeightArray(FRigElementKey InChild, TArray<FRigElementWeight> InWeights, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	 * Sets the all of the weights of the parents of a multi parent element
+	 * @param InChild The multi parented element
+	 * @param InWeights The new weights to set for the parents
+	 * @param bInitial If true the initial weights will be used
+	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @return Returns true if changing the weight was successful
+	 */
+	bool SetParentWeightArray(FRigBaseElement* InChild,  const TArray<FRigElementWeight>& InWeights, bool bInitial = false, bool bAffectChildren = true);
 
 	/**
 	 * Returns true if an element is parented to another element
@@ -1764,6 +1802,15 @@ public:
 	 * @param bAsynchronous If set to true the event will go on a thread safe queue
 	 */
 	void SendEvent(const FRigEventContext& InEvent, bool bAsynchronous = true);
+
+	/**
+	* Sends an autokey event from the hierarchy to the world
+	* @param InElement The element to send the autokey for
+	* @param InOffsetInSeconds The time offset in seconds
+	* @param bAsynchronous If set to true the event will go on a thread safe queue
+	*/
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	void SendAutoKeyEvent(FRigElementKey InElement, float InOffsetInSeconds = 0.f, bool bAsynchronous = true);
 
 	/**
 	 * Returns the delegate to listen to for events coming from this hierarchy
