@@ -308,20 +308,17 @@ FZenStoreWriter::FZenStoreWriter(
 		if (FileStatus .IsOk())
 		{
 			FCbObject FilesObj = FileStatus.ConsumeValueOrDie();
-			if (FilesObj["files"])
+			for (FCbField& FileEntry : FilesObj["files"])
 			{
-				for (FCbField& FileEntry : FilesObj["files"].AsArray())
-				{
-					FCbObject FileObj	= FileEntry.AsObject();
-					FCbObjectId FileId	= FileObj["id"].AsObjectId();
-					FString ServerPath	= FString(FileObj["serverpath"].AsString());
-					FString ClientPath	= FString(FileObj["clientpath"].AsString());
+				FCbObject FileObj	= FileEntry.AsObject();
+				FCbObjectId FileId	= FileObj["id"].AsObjectId();
+				FString ServerPath	= FString(FileObj["serverpath"].AsString());
+				FString ClientPath	= FString(FileObj["clientpath"].AsString());
 
-					FIoChunkId FileChunkId;
-					FileChunkId.Set(FileId.GetView());
+				FIoChunkId FileChunkId;
+				FileChunkId.Set(FileId.GetView());
 					
-					ZenFileSystemManifest->AddManifestEntry(FileChunkId, MoveTemp(ServerPath), MoveTemp(ClientPath));
-				}
+				ZenFileSystemManifest->AddManifestEntry(FileChunkId, MoveTemp(ServerPath), MoveTemp(ClientPath));
 			}
 
 			UE_LOG(LogZenStoreWriter, Display, TEXT("Fetched '%d' files(s) from oplog '%s/%s'"), ZenFileSystemManifest->NumEntries(), *ProjectId, *OplogId);
@@ -609,12 +606,12 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 			PackageObj.BeginObject();
 			PackageObj << "key" << Info.PackageName.ToString();
 
-			// NOTE: The package GUID and disk size are used for iterative cooks when comparing asset registry package data
+			// NOTE: The package GUID and disk size are used for legacy iterative cooks when comparing asset registry package data
 			PackageObj.BeginObject("package");
 			PackageObj << "id" << PkgData.ChunkId;
 			PackageObj << "guid" << Info.PackageGuid;
 			PackageObj << "data" << PkgDataAttachment;
-			PackageObj << "disksize" << PkgDiskSize; 
+			PackageObj << "disksize" << PkgDiskSize;
 			PackageObj.EndObject();
 
 			PackageObj << "packagestoreentry" << PkgData.PackageStoreEntry;
@@ -663,6 +660,13 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 				}
 
 				PackageObj.EndArray();
+			}
+
+			if (Info.TargetDomainDependencies)
+			{
+				FCbAttachment DependencyAttachment(Info.TargetDomainDependencies);
+				Pkg.AddAttachment(DependencyAttachment);
+				PackageObj << "dependencies" << DependencyAttachment;
 			}
 
 			PackageObj.EndObject();
