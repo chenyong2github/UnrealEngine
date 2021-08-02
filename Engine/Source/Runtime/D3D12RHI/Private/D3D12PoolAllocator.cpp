@@ -477,6 +477,8 @@ void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLoc
 	DeleteRequest.FrameFence = FrameFence.GetCurrentFence();
 	DeleteRequest.AllocationData = ReleasedAllocationData;
 
+	PendingDeleteRequestSize += DeleteRequest.AllocationData->GetSize();
+
 	// Update the last used frame fence (used during garbage collection)
 	((FD3D12MemoryPool*)Pools[PoolIndex])->UpdateLastUsedFrameFence(DeleteRequest.FrameFence);
 
@@ -561,7 +563,7 @@ bool FD3D12PoolAllocator::HandleDefragRequest(FRHIPoolAllocationData* InSourceBl
 }
 
 
-void FD3D12PoolAllocator::CleanUpAllocations(uint64 InFrameLag)
+void FD3D12PoolAllocator::CleanUpAllocations(uint64 InFrameLag, bool bForceFree)
 {
 	FScopeLock Lock(&CS);
 
@@ -572,12 +574,16 @@ void FD3D12PoolAllocator::CleanUpAllocations(uint64 InFrameLag)
 	for (int32 i = 0; i < FrameFencedOperations.Num(); i++)
 	{
 		FrameFencedAllocationData& Operation = FrameFencedOperations[i];
-		if (FrameFence.IsFenceComplete(Operation.FrameFence))
+		if (bForceFree || FrameFence.IsFenceComplete(Operation.FrameFence))
 		{
 			switch (Operation.Operation)
 			{
 			case FrameFencedAllocationData::EOperation::Deallocate:
 			{
+				// Not pending anymore
+				check(PendingDeleteRequestSize >= Operation.AllocationData->GetSize());
+				PendingDeleteRequestSize -= Operation.AllocationData->GetSize();
+
 				// Deallocate the locked block (actually free now)
 				DeallocateInternal(*Operation.AllocationData);
 				Operation.AllocationData->Reset();
@@ -628,7 +634,7 @@ void FD3D12PoolAllocator::CleanUpAllocations(uint64 InFrameLag)
 	for (int32 PoolIndex = 0; PoolIndex < Pools.Num(); ++PoolIndex)
 	{
 		FD3D12MemoryPool* MemoryPool = (FD3D12MemoryPool*) Pools[PoolIndex];
-		if (MemoryPool != nullptr && MemoryPool->IsEmpty() && (MemoryPool->GetLastUsedFrameFence() + InFrameLag <= CompletedFence))
+		if (MemoryPool != nullptr && MemoryPool->IsEmpty() && (bForceFree || (MemoryPool->GetLastUsedFrameFence() + InFrameLag <= CompletedFence)))
 		{
 			MemoryPool->Destroy();
 			delete(MemoryPool);

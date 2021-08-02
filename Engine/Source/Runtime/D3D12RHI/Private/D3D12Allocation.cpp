@@ -160,6 +160,13 @@ static FAutoConsoleVariableRef CVarD3D12FastAllocatorMinPagesToRetain(
 	TEXT("Minimum number of pages to retain. Pages below this limit will never be released. Pages above can be released after being unused for a certain number of frames."),
 	ECVF_Default);
 
+static int32 GD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB = 1;
+static FAutoConsoleVariableRef CVarD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB(
+	TEXT("d3d12.UploadAllocator.PendingDeleteSizeForceFlushInGB"),
+	GD3D12FastAllocatorMinPagesToRetain,
+	TEXT("If given threshold of GBs in the pending delete is queue is reached, then a force GPU flush is triggered to reduce memory load (1 by default, 0 to disable)"),
+	ECVF_Default);
+
 namespace ED3D12AllocatorID
 {
 	enum Type
@@ -1017,11 +1024,29 @@ void* FD3D12UploadHeapAllocator::AllocUploadResource(uint32 InSize, uint32 InAli
 
 	// Clean up the release queue of resources which are currently not used by the GPU anymore
 	FD3D12Adapter* Adapter = GetParentAdapter();
-	if (Adapter->GetDeferredDeletionQueue().QueueSize() > 128)
+	bool bFlushDeferredDeletionQueue = Adapter->GetDeferredDeletionQueue().QueueSize() > 128;
+	bool bFlushPendingDeleteRequests = GD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB > 0 && BigBlockAllocator.GetPendingDeleteRequestSize() > (GD3D12UploadAllocatorPendingDeleteSizeForceFlushInGB * 1024 * 1024 * 1024);
+	if ((bFlushDeferredDeletionQueue || bFlushPendingDeleteRequests) && IsInRenderingThread())
 	{
-		Adapter->GetDeferredDeletionQueue().ReleaseResources(true, false);
+		if (bFlushPendingDeleteRequests)
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Force flushing GPU because pending upload allocations reached its limit"));
+
+			// Flush to GPU & Wait (stall the RHI thread)
+			FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList());
+			Adapter->GetDevice(0)->GetDefaultCommandContext().FlushCommands(true);	// Don't wait yet, since we're stalling the RHI thread.
+
+			// Waited for GPU to finish so all sync points are ready so can force free all pending deletes (done while RHI thread is stalled)
+			bool bForceFreePendingDeletes = true;
+			BigBlockAllocator.CleanUpAllocations(0, bForceFreePendingDeletes);
+		}
+		else
+		{
+			BigBlockAllocator.CleanUpAllocations(0);
+		}
+		
 		SmallBlockAllocator.CleanUpAllocations(0); // 0 - no FrameLag, delete all unsued pages
-		BigBlockAllocator.CleanUpAllocations(0);
+		Adapter->GetDeferredDeletionQueue().ReleaseResources(true, false);
 	}
 
 	check(InSize > 0);

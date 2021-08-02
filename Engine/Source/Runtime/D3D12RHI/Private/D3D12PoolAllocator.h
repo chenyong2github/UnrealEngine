@@ -140,7 +140,7 @@ public:
 	virtual void AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const FD3D12ResourceDesc& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation) override;
 
-	void CleanUpAllocations(uint64 InFrameLag);
+	void CleanUpAllocations(uint64 InFrameLag, bool bForceFree = false);
 	void FlushPendingCopyOps(FD3D12CommandContext& InCommandContext);
 
 	void TransferOwnership(FD3D12ResourceLocation& InSource, FD3D12ResourceLocation& InDest);
@@ -150,6 +150,7 @@ public:
 	FD3D12Resource* GetBackingResource(FD3D12ResourceLocation& InResourceLocation) const;
 	FD3D12HeapAndOffset GetBackingHeapAndAllocationOffsetInBytes(FD3D12ResourceLocation& InResourceLocation) const;
 	FD3D12HeapAndOffset GetBackingHeapAndAllocationOffsetInBytes(const FRHIPoolAllocationData& InAllocationData) const;
+	uint64 GetPendingDeleteRequestSize() const { return PendingDeleteRequestSize; }
 
 	static FD3D12ResourceInitConfig GetResourceAllocatorInitConfig(D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage);
 	static EResourceAllocationStrategy GetResourceAllocationStrategy(D3D12_RESOURCE_FLAGS InResourceFlags, ED3D12ResourceStateMode InResourceStateMode, uint32 Alignment);
@@ -195,6 +196,9 @@ protected:
 
 	// All operations which need to happen on specific frame fences
 	TArray<FrameFencedAllocationData> FrameFencedOperations;
+
+	// Size of all pending delete requests in the frame fence operation array
+	uint64 PendingDeleteRequestSize = 0;
 
 	// Pending copy ops which need to be flush this frame
 	TArray<FD3D12VRAMCopyOperation> PendingCopyOps;
