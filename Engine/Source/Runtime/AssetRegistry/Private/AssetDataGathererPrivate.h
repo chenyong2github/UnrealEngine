@@ -122,8 +122,13 @@ public:
 	void AddDirectory(FString&& DirAbsPath, TArray<FGatheredPathData>&& FilePaths);
 	/** Re-add a file from PopFront that we didn't have time to process. */
 	void AddFileAgainAfterTimeout(FGatheredPathData&& FilePath);
-	/** Re-add a file from PopFront that uses a not-yet-loaded class for later retry. */
+	/**
+	 * Re-add a file from PopFront that uses a not-yet-loaded class for later retry.
+	 * Later retry files are not returned from PopFront until RetryLaterRetryFiles is called.
+	 */
 	void AddFileForLaterRetry(FGatheredPathData&& FilePath);
+	/** Move all of the LaterRetry files into the main list so that they are once again visible to PopFront. */
+	void RetryLaterRetryFiles();
 
 	/** In coarse priority order, pop the given number of files out of the container. */
 	template <typename AllocatorType>
@@ -141,8 +146,10 @@ public:
 
 	/** Reduce memory used in buffers. */
 	void Shrink();
-	/** How many files are in the container. */
+	/** How many files are in the container, including unavailable files. */
 	int32 Num() const;
+	/** How many files are returnable from PopFront. */
+	int32 GetNumAvailable() const;
 	/** How much memory is used by the container, not counting sizeof(*this). */
 	uint32 GetAllocatedSize() const;
 private:

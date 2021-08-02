@@ -2706,7 +2706,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 		IngestDiscoveryResults();
 
 		// Take a batch off of the work list. If we're waiting only on the first WaitBatchCount results don't take more than that
-		int32 NumToProcess = FMath::Min<int32>(BatchSize-LocalFilesToSearch.Num(), FilesToSearch->Num());
+		int32 NumToProcess = FMath::Min<int32>(BatchSize-LocalFilesToSearch.Num(), FilesToSearch->GetNumAvailable());
 		if (WaitBatchCount > 0)
 		{
 			bWaitBatchCountDecremented = true;
@@ -2720,10 +2720,10 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 
 		FilesToSearch->PopFront(LocalFilesToSearch, NumToProcess);
 
-		// If all work is finished mark idle and exit
+		// If no work is available mark idle and exit
 		if (LocalFilesToSearch.Num() == 0 && bDiscoveryIsComplete)
 		{
-			WaitBatchCount = 0; // Clear WaitBatchCount in case it was set higher than FilesToSearch->Num()
+			WaitBatchCount = 0; // Clear WaitBatchCount in case it was set higher than FilesToSearch->GetNumAvailable().
 			bOutIsTickInterrupt = true;
 
 			if (!bFinishedInitialDiscovery)
@@ -2834,7 +2834,6 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 
 	// Accumulate the results
 	bool bHasCancelation = false;
-	TArray<FGatheredPathData> LocalFilesToRetry;
 	for (FReadContext& ReadContext : ReadContexts)
 	{
 		if (ReadContext.bCanceled)
@@ -3059,12 +3058,14 @@ void FAssetDataGatherer::GetAndTrimSearchResults(bool& bOutIsSearching, TRingBuf
 	OutNumPathsToSearch = NumPathsToSearchAtLastSyncPoint;
 	OutIsDiscoveringFiles = !bDiscoveryIsComplete;
 
-	if (bIsIdle && !bIsComplete)
+	// Idle means no more work OR we are blocked on external events, but complete means no more work period.
+	bool bLocalIsComplete = bIsIdle && FilesToSearch->Num() == 0;
+	if (bLocalIsComplete && !bIsComplete)
 	{
 		bIsComplete = true;
 		Shrink();
 	}
-	bOutIsSearching = !bIsIdle;
+	bOutIsSearching = !bLocalIsComplete;
 }
 
 void FAssetDataGatherer::GetPackageResults(TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults)
@@ -3194,6 +3195,8 @@ void FAssetDataGatherer::WaitForIdle()
 		FGathererScopeLock ResultsScopeLock(&ResultsLock); // bIsIdle requires the lock
 		if (bIsIdle)
 		{
+			// We need to break out of WaitForIdle whenever it requires main thread action to proceed,
+			// so we check bIsIdle rather than whether we're complete
 			break;
 		}
 	}
@@ -3208,6 +3211,9 @@ bool FAssetDataGatherer::IsComplete() const
 void FAssetDataGatherer::SetInitialPluginsLoaded()
 {
 	bInitialPluginsLoaded = true;
+	FGathererScopeLock ResultsScopeLock(&ResultsLock);
+	SetIsIdle(false);
+	FilesToSearch->RetryLaterRetryFiles();
 }
 
 bool FAssetDataGatherer::IsGatheringDependencies() const
@@ -3769,6 +3775,16 @@ void FFilesToSearch::AddFileForLaterRetry(FGatheredPathData&& FilePath)
 	LaterRetryFiles.Add(FilePath);
 }
 
+void FFilesToSearch::RetryLaterRetryFiles()
+{
+	while (!LaterRetryFiles.IsEmpty())
+	{
+		FGatheredPathData FilePath = LaterRetryFiles.PopFrontValue();
+		FTreeNode& Node = Root.FindOrAddNode(FPathViews::GetPath(FilePath.LocalAbsPath));
+		Node.AddFile(MoveTemp(FilePath));
+	}
+}
+
 template <typename AllocatorType>
 void FFilesToSearch::PopFront(TArray<FGatheredPathData, AllocatorType>& Out, int32 NumToPop)
 {
@@ -3778,22 +3794,12 @@ void FFilesToSearch::PopFront(TArray<FGatheredPathData, AllocatorType>& Out, int
 		--NumToPop;
 	}
 	Root.PopFiles(Out, NumToPop);
-	while (NumToPop > 0 && !LaterRetryFiles.IsEmpty())
-	{
-		Out.Add(LaterRetryFiles.PopFrontValue());
-		--NumToPop;
-	}
 }
 
 void FFilesToSearch::PrioritizeDirectory(FStringView DirAbsPath, EPriority Priority)
 {
 	// We may need to prioritize a LaterRetryFile that is now loadable, so add them all into the Root
-	while (!LaterRetryFiles.IsEmpty())
-	{
-		FGatheredPathData FilePath = LaterRetryFiles.PopFrontValue();
-		FTreeNode& Node = Root.FindOrAddNode(FPathViews::GetPath(FilePath.LocalAbsPath));
-		Node.AddFile(MoveTemp(FilePath));
-	}
+	RetryLaterRetryFiles();
 
 	if (Priority > EPriority::Blocking)
 	{
@@ -3814,12 +3820,7 @@ void FFilesToSearch::PrioritizeDirectory(FStringView DirAbsPath, EPriority Prior
 void FFilesToSearch::PrioritizeFile(FStringView FileAbsPathExtOptional, EPriority Priority)
 {
 	// We may need to prioritize a LaterRetryFile that is now loadable, so add them all into the Root
-	while (!LaterRetryFiles.IsEmpty())
-	{
-		FGatheredPathData FilePath = LaterRetryFiles.PopFrontValue();
-		FTreeNode& Node = Root.FindOrAddNode(FPathViews::GetPath(FilePath.LocalAbsPath));
-		Node.AddFile(MoveTemp(FilePath));
-	}
+	RetryLaterRetryFiles();
 
 	if (Priority > EPriority::Blocking)
 	{
@@ -3863,6 +3864,11 @@ void FFilesToSearch::Shrink()
 int32 FFilesToSearch::Num() const
 {
 	return BlockingFiles.Num() + Root.NumFiles() + LaterRetryFiles.Num();
+}
+
+int32 FFilesToSearch::GetNumAvailable() const
+{
+	return BlockingFiles.Num() + Root.NumFiles();
 }
 
 uint32 FFilesToSearch::GetAllocatedSize() const

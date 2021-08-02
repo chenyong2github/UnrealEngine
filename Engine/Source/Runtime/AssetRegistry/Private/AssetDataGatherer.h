@@ -371,7 +371,7 @@ private:
 	bool bDiscoveryIsComplete;
 	/** Track whether this Gather has gone idle and a caller has read all search data from it. Read/writable only within ResultsLock. */
 	bool bIsComplete;
-	/** Track whether this Gatherer has gone idle. Read/writable only within ResultsLock. */
+	/** Track whether this Gatherer has gone idle, either because of no more work or because its blocked on external events. Read/writable only within ResultsLock. */
 	bool bIsIdle;
 	/** Track the first tick after idle to set up e.g. timing data. Read/writable only within ResultsLock. */
 	bool bFirstTickAfterIdle;
