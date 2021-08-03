@@ -96,6 +96,7 @@ struct FVehicleDebugParams
 	bool DisableVehicleSleep = false;
 	bool EnableMultithreading = true;
 	float SetMaxMPH = 0.0f;
+	float ControlInputWakeTolerance = 0.02f;
 };
 
 struct FBodyInstance;
@@ -790,6 +791,7 @@ UCLASS(Abstract, hidecategories=(PlanarMovement, "Components|Movement|Planar", A
 class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementComponent
 {
 	friend struct FChaosVehicleDefaultAsyncInput;
+	friend class FChaosVehicleManager;
 
 	GENERATED_UCLASS_BODY()
 
@@ -1342,5 +1344,8 @@ private:
 
 	Chaos::FSimpleAerodynamicsConfig PAerodynamicsSetup;
 	int32 TargetGear;
+
+	float PrevSteeringInput;
+	float PrevReplicatedSteeringInput;
 
 };

@@ -15,6 +15,9 @@ DECLARE_CYCLE_STAT(TEXT("VehicleManager:ParallelUpdateVehicles"), STAT_ChaosVehi
 DECLARE_CYCLE_STAT(TEXT("VehicleManager:Update"), STAT_ChaosVehicleManager_Update, STATGROUP_ChaosVehicleManager);
 DECLARE_CYCLE_STAT(TEXT("VehicleManager:ScenePreTick"), STAT_ChaosVehicleManager_ScenePreTick, STATGROUP_ChaosVehicleManager);
 
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumVehiclesTotal"), STAT_NumVehicles_Dynamic, STATGROUP_ChaosVehicleManager);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumVehiclesAwake"), STAT_NumVehicles_Awake, STATGROUP_ChaosVehicleManager);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumVehiclesSleeping"), STAT_NumVehicles_Sleeping, STATGROUP_ChaosVehicleManager);
 
 extern FVehicleDebugParams GVehicleDebugParams;
 
@@ -197,7 +200,19 @@ void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 
 void FChaosVehicleManager::PostUpdate(FChaosScene* PhysScene)
 {
-	// Unused
+	SET_DWORD_STAT(STAT_NumVehicles_Dynamic, Vehicles.Num());
+
+	int32 SleepingCount = 0;
+	for (int32 i = 0; i < Vehicles.Num(); ++i)
+	{
+		if (Vehicles[i]->VehicleState.bSleeping)
+		{
+			SleepingCount++;
+		}
+	}
+	SET_DWORD_STAT(STAT_NumVehicles_Awake, Vehicles.Num() - SleepingCount);
+	SET_DWORD_STAT(STAT_NumVehicles_Sleeping, SleepingCount);
+
 }
 
 void FChaosVehicleManager::ParallelUpdateVehicles(float DeltaSeconds)
