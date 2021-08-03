@@ -554,7 +554,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 			);
 
 			FormatActionsSection.AddMenuEntry(
-				"ViewSelectedAssetAsText",
+				"RunTextAssetRoundtrip",
 				LOCTEXT("TextFormatRountrip", "Run Text Asset Roundtrip"),
 				LOCTEXT("TextFormatRountripTooltip", "Save the select asset backwards or forwards between text and binary formats and check for determinism"),
 				FSlateIcon(),
