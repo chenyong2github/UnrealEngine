@@ -15,9 +15,11 @@ class UMeshElementsVisualizer;
 class UPreviewMesh;
 class UToolTarget;
 class UWorld;
+class FUVEditorModeToolkit;
 class UInteractiveToolPropertySet;
 class UUVToolStateObjectStore;
 class UUVEditorToolMeshInput;
+class UUVEditorBackgroundPreview;
 
 /**
  * The UV editor mode is the mode used in the UV asset editor. It holds most of the inter-tool state.
@@ -72,6 +74,12 @@ public:
 	// We don't actually override MouseEnter, etc, because things get forwarded to the input
 	// router via FEditorModeTools, and we don't have any additional input handling to do at the mode level.
 
+
+	// Holds the background visualiztion
+	UPROPERTY()
+		TObjectPtr<UUVEditorBackgroundPreview> BackgroundVisualization;
+
+
 protected:
 
 	// UEdMode overrides
@@ -81,6 +89,17 @@ protected:
 	virtual void BindCommands() override;
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
+
+	// Wireframe Display Properties
+	float TriangleOpacity = 1.0;
+	FColor TriangleColor = FColor(50, 194, 219);
+	FColor WireframeColor = FColor(50, 100, 219);
+	FColor IslandBorderColor = FColor(103, 52, 235);
+
+    /**
+     * Stores a pointer to the specific EditorModeToolkit so we can interact with specific UI detail views
+     */
+	TSharedPtr<FUVEditorModeToolkit> EditorModeToolkit;
 
 	/**
 	 * This stores the original objects that the UV editor was asked to operate on (for

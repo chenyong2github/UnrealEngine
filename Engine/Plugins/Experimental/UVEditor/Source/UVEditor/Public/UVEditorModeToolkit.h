@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Toolkits/BaseToolkit.h"
+#include "InteractiveTool.h"
 
 class SBorder;
 class STextBlock;
@@ -27,6 +28,9 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
 
+
+	virtual void SetBackgroundSettings(UObject* InSettingsObject);
+
 protected:
 	// The mode's entire toolbox, which gets returned by GetInlineContent()
 	TSharedPtr<SWidget> ToolkitWidget;
@@ -40,6 +44,13 @@ protected:
 	// A container for the tool settings that is populated by the DetailsView managed
 	// in FModeToolkit
 	TSharedPtr<SBorder> ToolDetailsContainer;
+
+	// A container for the editor settings
+	TSharedPtr<SBorder> EditorDetailsContainer;
+
+	// A container for the background settings
+	TSharedPtr<SBorder> BackgroundDetailsContainer;
+	TSharedPtr<IDetailsView> BackgroundDetailsView;
 
 	// A place for tools to write out any instructions
 	TSharedPtr<STextBlock> ToolMessageArea;
