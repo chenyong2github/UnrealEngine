@@ -45,20 +45,6 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Textures"), STAT_RHITransientTextures, STAT
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Buffers"), STAT_RHITransientBuffers, STATGROUP_RHITransientMemory);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Heaps"), STAT_RHITransientHeaps, STATGROUP_RHITransientMemory);
 
-inline uint64 ComputeHash(const FRHITextureCreateInfo& InCreateInfo, uint64 HeapOffset)
-{
-	// Make sure all padding is removed.
-	FRHITextureCreateInfo NewInfo;
-	FPlatformMemory::Memzero(&NewInfo, sizeof(FRHITextureCreateInfo));
-	NewInfo = InCreateInfo;
-	return CityHash64WithSeed((const char*)&NewInfo, sizeof(FRHITextureCreateInfo), HeapOffset);
-}
-
-inline uint64 ComputeHash(const FRHIBufferCreateInfo& InCreateInfo, uint64 HeapOffset)
-{
-	return CityHash64WithSeed((const char*)&InCreateInfo, sizeof(FRHIBufferCreateInfo), HeapOffset);
-}
-
 //////////////////////////////////////////////////////////////////////////
 
 template <typename CreateFunctionType>
