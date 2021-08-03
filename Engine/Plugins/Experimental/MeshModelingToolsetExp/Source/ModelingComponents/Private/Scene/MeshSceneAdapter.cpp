@@ -347,6 +347,37 @@ public:
 		}
 	}
 
+
+	virtual bool RayIntersection(const FRay3d& WorldRay, const FTransformSequence3d& LocalToWorldTransform, FMeshSceneRayHit& WorldHitResultOut) override
+	{
+		FRay3d UseRay = WorldRay;
+		if (bHasBakedTransform == false)
+		{
+			FVector3d LocalOrigin = LocalToWorldTransform.InverseTransformPosition(WorldRay.Origin);
+			FVector3d LocalDir = Normalized(LocalToWorldTransform.InverseTransformPosition(WorldRay.PointAt(1.0)) - LocalOrigin);
+			UseRay = FRay3d(LocalOrigin, LocalDir);
+		}
+
+		double RayHitT; int32 HitTID;
+		if (AABBTree->FindNearestHitTriangle(UseRay, RayHitT, HitTID))
+		{
+			WorldHitResultOut.HitMeshTriIndex = HitTID;
+			WorldHitResultOut.HitMeshSpatialWrapper = this;
+			if (bHasBakedTransform)
+			{
+				WorldHitResultOut.RayDistance = RayHitT;
+			}
+			else
+			{
+				FVector3d WorldPos = LocalToWorldTransform.TransformPosition(UseRay.PointAt(RayHitT));
+				WorldHitResultOut.RayDistance = WorldRay.Project(WorldPos);
+			}
+			return true;
+		}
+		return false;
+	}
+
+
 	virtual void ProcessVerticesInWorld(TFunctionRef<void(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
 	{
 		if (bHasBakedTransform)
@@ -589,6 +620,25 @@ public:
 		return (SourceMesh) ? FWNTree->FastWindingNumber(LocalToWorldTransform.InverseTransformPosition(P)) : 0.0;
 	}
 
+	virtual bool RayIntersection(const FRay3d& WorldRay, const FTransformSequence3d& LocalToWorldTransform, FMeshSceneRayHit& WorldHitResultOut) override
+	{
+		FVector3d LocalOrigin = LocalToWorldTransform.InverseTransformPosition(WorldRay.Origin);
+		FVector3d LocalDir = Normalized(LocalToWorldTransform.InverseTransformPosition(WorldRay.PointAt(1.0)) - LocalOrigin);
+		FRay3d LocalRay(LocalOrigin, LocalDir);
+
+		double LocalHitT; int32 HitTID;
+		if (AABBTree->FindNearestHitTriangle(LocalRay, LocalHitT, HitTID))
+		{
+			WorldHitResultOut.HitMeshTriIndex = HitTID;
+			WorldHitResultOut.HitMeshSpatialWrapper = this;
+			FVector3d WorldPos = LocalToWorldTransform.TransformPosition(LocalRay.PointAt(LocalHitT));
+			WorldHitResultOut.RayDistance = WorldRay.Project(WorldPos);
+			return true;
+		}
+		return false;
+	}
+
+
 	virtual void ProcessVerticesInWorld(TFunctionRef<void(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
 	{
 		int32 NumVertices = (SourceMesh) ? Adapter->VertexCount() : 0;
@@ -659,7 +709,7 @@ static TUniquePtr<IMeshSpatialWrapper> SpatialWrapperFactory( const FMeshTypeCon
 
 
 
-static void CollectActorChildMeshes(AActor* Actor, UActorComponent* Component, FActorAdapter& Adapter)
+static void CollectComponentChildMeshes(UActorComponent* Component, FActorAdapter& Adapter)
 {
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 	if (StaticMeshComponent != nullptr)
@@ -723,6 +773,7 @@ void FMeshSceneAdapter::AddActors(const TArray<AActor*>& ActorsSetIn)
 	// build an FActorAdapter for each Actor, that contains all mesh Components we know 
 	// how to process, including those contained in ChildActorComponents
 	TArray<AActor*> ChildActors;
+	TArray<FActorAdapter*> NewActorAdapters;
 	for (AActor* Actor : ActorsSetIn)
 	{
 		TUniquePtr<FActorAdapter> Adapter = MakeUnique<FActorAdapter>();
@@ -730,7 +781,7 @@ void FMeshSceneAdapter::AddActors(const TArray<AActor*>& ActorsSetIn)
 
 		for (UActorComponent* Component : Actor->GetComponents())
 		{
-			CollectActorChildMeshes(Actor, Component, *Adapter);
+			CollectComponentChildMeshes(Component, *Adapter);
 		}
 
 		ChildActors.Reset();
@@ -739,17 +790,46 @@ void FMeshSceneAdapter::AddActors(const TArray<AActor*>& ActorsSetIn)
 		{
 			for (UActorComponent* Component : ChildActor->GetComponents())
 			{
-				CollectActorChildMeshes(ChildActor, Component, *Adapter);
+				CollectComponentChildMeshes(Component, *Adapter);
 			}
 		}
 
+		NewActorAdapters.Add(Adapter.Get());
 		SceneActors.Add(MoveTemp(Adapter));
 	}
 
+	InitializeSpatialWrappers(NewActorAdapters);
+}
 
+
+
+void FMeshSceneAdapter::AddComponents(const TArray<UActorComponent*>& ComponentSetIn)
+{
+	// Build an FActorAdapter for each Component. This may result in multiple FActorAdapters
+	// for a single AActor, this is currently not a problem
+	TArray<FActorAdapter*> NewActorAdapters;
+	for (UActorComponent* Component : ComponentSetIn)
+	{
+		TUniquePtr<FActorAdapter> Adapter = MakeUnique<FActorAdapter>();
+		Adapter->SourceActor = Component->GetOwner();
+		CollectComponentChildMeshes(Component, *Adapter);
+		if (Adapter->ChildMeshes.Num() > 0)
+		{
+			NewActorAdapters.Add(Adapter.Get());
+			SceneActors.Add(MoveTemp(Adapter));
+		}
+	}
+
+	InitializeSpatialWrappers(NewActorAdapters);
+}
+
+
+
+void FMeshSceneAdapter::InitializeSpatialWrappers(const TArray<FActorAdapter*>& NewItemsToProcess)
+{
 	// Find IMeshSpatialWrapper for each child mesh component. If one does not exist
 	// and we have not seen the underlying unique mesh (eg StaticMesh Asset, etc, construct a new one
-	for (TUniquePtr<FActorAdapter>& Actor : SceneActors)
+	for (FActorAdapter* Actor : NewItemsToProcess)
 	{
 		for (TUniquePtr<FActorChildMesh>& ChildMesh : Actor->ChildMeshes)
 		{
@@ -778,11 +858,7 @@ void FMeshSceneAdapter::AddActors(const TArray<AActor*>& ActorsSetIn)
 			ChildMesh->MeshSpatial = MeshInfo->SpatialWrapper.Get();
 		}
 	}
-
 }
-
-
-
 
 
 void FMeshSceneAdapter::Build(const FMeshSceneAdapterBuildOptions& BuildOptions)
@@ -1547,6 +1623,140 @@ void FMeshSceneAdapter::BuildSpatialEvaluationCache()
 	}
 
 	bHaveSpatialEvaluationCache = true;
+}
+
+
+
+bool FMeshSceneAdapter::FindNearestRayIntersection(const FRay3d& WorldRay, FMeshSceneRayHit& HitResultOut)
+{
+	check(bHaveSpatialEvaluationCache);		// must call BuildSpatialEvaluationCache() to build Octree
+
+	int32 HitObjectID = Octree->FindNearestHitObject(WorldRay,
+		[&](int32 idx) { return SortedSpatials[idx].Bounds; },
+		[&](int idx, const FRay3d& WorldRay) {
+			FMeshSceneRayHit LocalHitResult;
+			FSpatialCacheInfo& CacheInfo = SortedSpatials[idx];
+			if (CacheInfo.Spatial->RayIntersection(WorldRay, CacheInfo.ChildMesh->WorldTransform, LocalHitResult))
+			{
+				return LocalHitResult.RayDistance;
+			}
+			return TNumericLimits<double>::Max();
+		});
+
+	if (HitObjectID >= 0)
+	{
+		FSpatialCacheInfo& CacheInfo = SortedSpatials[HitObjectID];
+		bool bHit = CacheInfo.Spatial->RayIntersection(WorldRay, CacheInfo.ChildMesh->WorldTransform, HitResultOut);
+		if (ensure(bHit))
+		{
+			HitResultOut.HitActor = CacheInfo.Actor->SourceActor;
+			HitResultOut.HitComponent = CacheInfo.ChildMesh->SourceComponent;
+			HitResultOut.HitComponentElementIndex = CacheInfo.ChildMesh->ComponentIndex;
+			HitResultOut.Ray = WorldRay;
+			HitResultOut.LocalToWorld = CacheInfo.ChildMesh->WorldTransform;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+
+void FMeshSceneAdapter::FastUpdateTransforms(bool bRebuildSpatialCache)
+{
+	for (TUniquePtr<FActorAdapter>& Actor : SceneActors)
+	{
+		for (TUniquePtr<FActorChildMesh>& ChildMesh : Actor->ChildMeshes)
+		{
+			ChildMesh->WorldTransform = FTransformSequence3d();
+
+			if ((ChildMesh->ComponentType == EActorMeshComponentType::InstancedStaticMesh) ||
+				(ChildMesh->ComponentType == EActorMeshComponentType::HierarchicalInstancedStaticMesh))
+			{
+				UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(ChildMesh->SourceComponent);
+				if (ISMComponent->IsValidInstance(ChildMesh->ComponentIndex))
+				{
+					FTransform InstanceTransform;
+					ISMComponent->GetInstanceTransform(ChildMesh->ComponentIndex, InstanceTransform, true);
+					ChildMesh->WorldTransform.Append(InstanceTransform);
+					ChildMesh->bIsNonUniformScaled = ChildMesh->WorldTransform.HasNonUniformScale();
+				}
+			}
+			else if (ChildMesh->ComponentType == EActorMeshComponentType::StaticMesh)
+			{
+				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ChildMesh->SourceComponent);
+				ChildMesh->WorldTransform.Append(StaticMeshComponent->GetComponentTransform());
+				ChildMesh->bIsNonUniformScaled = ChildMesh->WorldTransform.HasNonUniformScale();
+			}
+		}
+	}
+
+	// this cache is invalid now
+	bHaveSpatialEvaluationCache = false;
+
+	// update bounding boxes for actors
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_FastUpdateTransforms_ActorBounds);
+		ParallelFor(SceneActors.Num(), [&](int32 i)
+		{
+			UpdateActorBounds(*SceneActors[i]);
+		});
+	}
+
+	if (bRebuildSpatialCache)
+	{
+		BuildSpatialEvaluationCache();
+	}
+
+}
+
+
+
+void FMeshSceneAdapter::GetMeshBoundingBoxes(TArray<FAxisAlignedBox3d>& Bounds)
+{
+	if (bHaveSpatialEvaluationCache)
+	{
+		for (FSpatialCacheInfo& CacheInfo : SortedSpatials)
+		{
+			Bounds.Add(CacheInfo.Bounds);
+		}
+	}
+	else
+	{
+		for (const TUniquePtr<FActorAdapter>& Actor : SceneActors)
+		{
+			for (const TUniquePtr<FActorChildMesh>& ChildMesh : Actor->ChildMeshes)
+			{
+				if (ChildMesh->MeshSpatial != nullptr)
+				{
+					FAxisAlignedBox3d ChildBounds = ChildMesh->MeshSpatial->GetWorldBounds(
+						[&](const FVector3d& P) { return ChildMesh->WorldTransform.TransformPosition(P); });
+					Bounds.Add(ChildBounds);
+				}
+			}
+		}
+	}
+}
+
+
+FAxisAlignedBox3d FMeshSceneAdapter::GetMeshBoundingBox(UActorComponent* Component, int32 ComponentIndex)
+{
+	// implementation below depends on the spatial cache
+	check(bHaveSpatialEvaluationCache);
+
+	for (FSpatialCacheInfo& CacheInfo : SortedSpatials)
+	{
+		if (CacheInfo.ChildMesh->SourceComponent == Component)
+		{
+			if (ComponentIndex == -1 || ComponentIndex == CacheInfo.ChildMesh->ComponentIndex )
+			{
+				return CacheInfo.Bounds;
+			}
+		}
+	}
+
+	return FAxisAlignedBox3d(FVector3d::Zero(), 1.0);
 }
 
 
