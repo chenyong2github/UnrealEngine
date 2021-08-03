@@ -70,7 +70,7 @@ void SubmitNaniteMaterialPassCommand(
 #if WANTS_DRAW_MESH_EVENTS
 	FMeshDrawCommand::FMeshDrawEvent MeshEvent(MeshDrawCommand, InstanceFactor, RHICmdList);
 #endif
-	FMeshDrawCommand::SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
+	FMeshDrawCommand::SubmitDrawIndirectBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
 
 	// All Nanite mesh draw commands are using the same vertex shader, which has a material depth parameter we assign at render time.
 	{
@@ -84,7 +84,7 @@ void SubmitNaniteMaterialPassCommand(
 
 	check(MaterialIndirectArgs == nullptr || MaterialSlot != INDEX_NONE);
 	const uint32 MaterialSlotIndirectOffset = MaterialIndirectArgs != nullptr ? sizeof(FRHIDrawIndexedIndirectParameters) * uint32(MaterialSlot) : 0;
-	FMeshDrawCommand::SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList, MaterialIndirectArgs, MaterialSlotIndirectOffset);
+	FMeshDrawCommand::SubmitDrawIndirectEnd(MeshDrawCommand, InstanceFactor, RHICmdList, MaterialIndirectArgs, MaterialSlotIndirectOffset);
 }
 
 void SubmitNaniteMaterialPassCommand(
