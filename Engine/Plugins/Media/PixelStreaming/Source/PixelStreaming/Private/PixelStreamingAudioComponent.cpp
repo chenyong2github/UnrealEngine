@@ -4,6 +4,7 @@
 #include "PixelStreamingAudioSink.h"
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingPrivate.h"
+#include "CoreMinimal.h"
 
 
 UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitializer& ObjectInitializer) 
@@ -20,7 +21,8 @@ UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitia
 
         bool bPixelStreamingLoaded = IPixelStreamingModule::IsAvailable();
 
-        if(!bPixelStreamingLoaded)
+        // Only output this warning if we are actually running this component (not in commandlet).
+        if(!bPixelStreamingLoaded && !IsRunningCommandlet())
         {
             UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming audio component will not tick because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
         }
