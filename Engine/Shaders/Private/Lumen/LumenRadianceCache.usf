@@ -394,7 +394,7 @@ void ScatterScreenProbeBRDFToRadianceProbesCS(
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 
-	if (ScreenProbeIndex < GetNumScreenProbes())
+	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);

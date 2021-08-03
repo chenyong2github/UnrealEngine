@@ -27,7 +27,7 @@ void ScreenProbeCompositeTracesWithScatterCS(
 	uint2 ScreenProbeAtlasCoord = GroupId.xy;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 
-	if (ScreenProbeIndex < GetNumScreenProbes())
+	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
@@ -153,6 +153,102 @@ void ScreenProbeCompositeTracesWithScatterCS(
 }
 
 Texture2D<float3> ScreenProbeRadiance;
+
+float4 HistoryScreenPositionScaleBias;
+float4 HistoryUVMinMax;
+float ProbeTemporalFilterHistoryWeight;
+float HistoryDistanceThreshold;
+float PrevInvPreExposure;
+
+Texture2D<uint> HistoryScreenProbeSceneDepth;
+Texture2D<float3> HistoryScreenProbeRadiance;
+Texture2D<float3> HistoryScreenProbeTranslatedWorldPosition;
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeTemporallyAccumulateTraceRadianceCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeGatherOctahedronResolution;
+	uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+	uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
+
+	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
+	{
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
+
+		if (SceneDepth > 0.0f)
+		{
+			float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float3 SceneNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
+			float4 ScenePlane = float4(SceneNormal, dot(WorldPosition, SceneNormal));
+
+			float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+			float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition, ScreenUV, ConvertToDeviceZ(SceneDepth));
+			float2 HistoryScreenUV = HistoryScreenPosition.xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
+
+			float3 TotalHistoryRadiance = 0;
+			float TotalHistoryWeight = 0.0f;
+	
+			if (any(HistoryScreenUV > HistoryUVMinMax.zw + .5f * View.BufferSizeAndInvSize.zw) || any(HistoryScreenUV < HistoryUVMinMax.xy - .5f * View.BufferSizeAndInvSize.zw))
+			{
+
+			}
+			else
+			{
+				uint HistoryTemporalIndex = (FixedJitterIndex < 0 ? ((int)View.StateFrameIndexMod8 - 1) % 8 : FixedJitterIndex);
+				float2 UnclampedHistoryScreenProbeCoord = GetScreenTileCoordFromScreenUV(HistoryScreenUV, HistoryTemporalIndex /*SCREEN_TEMPORAL_INDEX*/);
+
+				for (float Y = 0; Y < 2; Y++)
+				{
+					for (float X = 0; X < 2; X++)
+					{
+						uint2 NeighborHistoryScreenProbeCoord = clamp(UnclampedHistoryScreenProbeCoord + float2(X, Y), float2(0, 0), float2(ScreenProbeViewSize - 1));
+
+						float NeighborHistoryDepth = GetScreenProbeDepth(NeighborHistoryScreenProbeCoord, HistoryScreenProbeSceneDepth);
+
+						if (NeighborHistoryDepth > 0.0f)
+						{
+							float3 NeighborWorldPosition = HistoryScreenProbeTranslatedWorldPosition[NeighborHistoryScreenProbeCoord] - View.PrevPreViewTranslation;
+
+							float PlaneDistance = abs(dot(float4(NeighborWorldPosition, -1), ScenePlane));
+							float RelativeDepthDifference = PlaneDistance / SceneDepth;
+							float PositionWeight = exp2(-10000.0f * (RelativeDepthDifference * RelativeDepthDifference)) > .1f ? 1.0f : 0.0f;
+
+							uint2 HistoryRadianceCoord = NeighborHistoryScreenProbeCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+
+							//@todo spatial weight
+							//@todo - same angle weighting as spatial filter
+							TotalHistoryRadiance += HistoryScreenProbeRadiance.Load(int3(HistoryRadianceCoord, 0)).xyz * (PrevInvPreExposure * View.PreExposure * PositionWeight);
+							TotalHistoryWeight += PositionWeight;
+						}
+					}
+				}
+
+				if (TotalHistoryWeight > 0.0f)
+				{
+					TotalHistoryRadiance /= TotalHistoryWeight;
+				}
+			}
+
+			float3 NewRadiance = ScreenProbeRadiance.Load(int3(DispatchThreadId.xy, 0)).xyz;
+
+			float3 UpdatedRadiance = lerp(NewRadiance, TotalHistoryRadiance, TotalHistoryWeight > 0.0f ? ProbeTemporalFilterHistoryWeight : 0.0f);
+
+			RWScreenProbeRadiance[DispatchThreadId.xy] = UpdatedRadiance;
+		}
+		else
+		{
+			RWScreenProbeRadiance[DispatchThreadId.xy] = 0.0f;
+		}
+	}
+}
+
 Texture2D<float> ScreenProbeHitDistance;
 
 float SpatialFilterMaxRadianceHitAngle;
@@ -258,7 +354,7 @@ void ScreenProbeFilterGatherTracesCS(
 	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 	uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
 
-	if (ScreenProbeIndex < GetNumScreenProbes())
+	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
@@ -340,7 +436,7 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 	uint2 ScreenProbeAtlasCoord = GroupId.xy;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 
-	if (ScreenProbeIndex < GetNumScreenProbes())
+	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
@@ -536,7 +632,7 @@ void ScreenProbeCalculateMovingCS(
 	uint2 ScreenProbeAtlasCoord = GroupId.xy;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 
-	if (ScreenProbeIndex < GetNumScreenProbes())
+	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
@@ -608,7 +704,9 @@ void ScreenProbeFixupBordersCS(
 	uint2 ProbeTexelCoordWithBorder = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolutionWithBorder;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 
-	if (ScreenProbeIndex < GetNumScreenProbes() && all(ProbeTexelCoordWithBorder < ScreenProbeGatherOctahedronResolutionWithBorder))
+	if (ScreenProbeIndex < GetNumScreenProbes() 
+		&& all(ProbeTexelCoordWithBorder < ScreenProbeGatherOctahedronResolutionWithBorder)
+		&& ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 

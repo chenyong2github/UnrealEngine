@@ -67,7 +67,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-		float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+		float3 WorldNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
 
 		bool bHit = false;
 		bool bMoving = false;
@@ -176,7 +176,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 
 	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-	float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+	float3 WorldNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
 	
 	float2 ProbeUV;
 	float ConeHalfAngle;
