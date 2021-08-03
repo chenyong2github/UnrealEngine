@@ -9,6 +9,7 @@
 #include "SocketSubsystem.h"
 #include "OnlineError.h"
 #include "EOSSettings.h"
+#include "IEOSSDKManager.h"
 
 #include COMPILED_PLATFORM_HEADER(EOSHelpers.h)
 
@@ -2224,16 +2225,15 @@ void FUserManagerEOS::UpdatePresence(EOS_EpicAccountId AccountId)
 		}
 
 		FOnlineUserPresenceRef PresenceRef = NetIdStringToOnlineUserPresenceMap[NetId];
-		FString ProductId(UTF8_TO_TCHAR(PresenceInfo->ProductId));
-		FString ProdVersion(UTF8_TO_TCHAR(PresenceInfo->ProductVersion));
-		FString Platform(UTF8_TO_TCHAR(PresenceInfo->Platform));
+		const FString ProductId(UTF8_TO_TCHAR(PresenceInfo->ProductId));
+		const FString ProdVersion(UTF8_TO_TCHAR(PresenceInfo->ProductVersion));
+		const FString Platform(UTF8_TO_TCHAR(PresenceInfo->Platform));
 		// Convert the presence data to our format
 		PresenceRef->Status.State = ToEOnlinePresenceState(PresenceInfo->Status);
 		PresenceRef->Status.StatusStr = PresenceInfo->RichText;
 		PresenceRef->bIsOnline = PresenceRef->Status.State == EOnlinePresenceState::Online;
 		PresenceRef->bIsPlaying = !ProductId.IsEmpty();
-		PresenceRef->bIsPlayingThisGame = FCStringAnsi::Strcmp(PresenceInfo->ProductId, EOSSubsystem->ProductNameAnsi) == 0 &&
-			FCStringAnsi::Strcmp(PresenceInfo->ProductVersion, EOSSubsystem->ProductVersionAnsi) == 0;
+		PresenceRef->bIsPlayingThisGame = ProductId == EOSSubsystem->ProductId && ProdVersion == EOSSubsystem->EOSSDKManager->GetProductVersion();
 //		PresenceRef->bIsJoinable = ???;
 //		PresenceRef->bHasVoiceSupport = ???;
 		PresenceRef->Status.Properties.Add(TEXT("ProductId"), ProductId);
@@ -2425,7 +2425,7 @@ bool FUserManagerEOS::QueryUserIdMapping(const FUniqueNetId& UserId, const FStri
 	};
 
 	FQueryByDisplayNameOptions Options;
-	FCStringAnsi::Strncpy(Options.DisplayNameAnsi, TCHAR_TO_UTF8(*DisplayNameOrEmail), EOS_PRODUCTNAME_MAX_BUFFER_LEN);
+	FCStringAnsi::Strncpy(Options.DisplayNameAnsi, TCHAR_TO_UTF8(*DisplayNameOrEmail), EOS_OSS_STRING_BUFFER_LENGTH);
 	Options.LocalUserId = StringToAccountIdMap[NetId];
 	EOS_UserInfo_QueryUserInfoByDisplayName(EOSSubsystem->UserInfoHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 
