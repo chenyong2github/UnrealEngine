@@ -31,7 +31,7 @@ struct FLumenCardData
 
 // Stride of a single cards's data in float4's, must match C++
 #define LUMEN_CARD_DATA_STRIDE 7
-#define LUMEN_CARD_TILE_DATA_STRIDE 3
+#define LUMEN_CARD_PAGE_DATA_STRIDE 4
 
 void GetLumenCardSharedDataInternal(uint BaseOffset, StructuredBuffer<float4> CardBuffer, inout FLumenCardData CardData)
 {
@@ -98,8 +98,11 @@ FLumenCardData GetLumenCardData(uint CardId, StructuredBuffer<float4> CardBuffer
 struct FLumenCardPageData
 {
 	uint CardIndex;
+	float2 SizeInTexels;
 	float4 CardUVRect;
 	float4 PhysicalAtlasUVRect;
+	float2 CardUVTexelScale;
+	float2 PhysicalAtlasUVTexelScale;
 };
 
 void GetLumenCardPageInternal(uint BaseOffset, StructuredBuffer<float4> CardPageBuffer, inout FLumenCardPageData CardPageData)
@@ -111,17 +114,21 @@ void GetLumenCardPageInternal(uint BaseOffset, StructuredBuffer<float4> CardPage
 	float4 Vector0 = CardPageBuffer[BaseOffset + 0];
 	float4 Vector1 = CardPageBuffer[BaseOffset + 1];
 	float4 Vector2 = CardPageBuffer[BaseOffset + 2];
+	float4 Vector3 = CardPageBuffer[BaseOffset + 3];
 
 	CardPageData.CardIndex = asuint(Vector0.x);
+	CardPageData.SizeInTexels = Vector0.zw;
 	CardPageData.CardUVRect = Vector1;
 	CardPageData.PhysicalAtlasUVRect = Vector2;
+	CardPageData.CardUVTexelScale = Vector3.xy;
+	CardPageData.PhysicalAtlasUVTexelScale = Vector3.zw;
 }
 
 // Fetch from scene card buffer
 FLumenCardPageData GetLumenCardPageData(uint CardPageId)
 {
 	FLumenCardPageData CardPageData;
-	uint BaseOffset = CardPageId * LUMEN_CARD_TILE_DATA_STRIDE;
+	uint BaseOffset = CardPageId * LUMEN_CARD_PAGE_DATA_STRIDE;
 
 	GetLumenCardPageInternal(BaseOffset, LumenCardScene.CardPageData, CardPageData);
 
@@ -131,7 +138,7 @@ FLumenCardPageData GetLumenCardPageData(uint CardPageId)
 FLumenCardPageData GetLumenCardPageData(uint CardPageId, StructuredBuffer<float4> CardPageBuffer)
 {
 	FLumenCardPageData CardPageData;
-	uint BaseOffset = CardPageId * LUMEN_CARD_TILE_DATA_STRIDE;
+	uint BaseOffset = CardPageId * LUMEN_CARD_PAGE_DATA_STRIDE;
 
 	GetLumenCardPageInternal(BaseOffset, CardPageBuffer, CardPageData);
 
@@ -193,7 +200,8 @@ struct FCardVSToPS
 {
 	float2 AtlasUV : ATTRIBUTE0;
 	float2 CardUV : ATTRIBUTE1;
-	nointerpolation uint CardPageIndex : CARD_ID;
+	nointerpolation uint CardTileIndex : CARD_TILE_INDEX;
+	nointerpolation uint CardPageIndex : CARD_PAGE_INDEX;
 };
 
 // Stride of mesh cards data, must match C++
@@ -371,7 +379,7 @@ FLightCullingParameters CreateLightCullingParameters(
 	return Parameters;
 }
 
-bool DoesLightAffectCard(uint LightType, FLightCullingParameters LightCullingParameters, FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax)
+bool DoesLightAffectCardPageUVRange(uint LightType, FLightCullingParameters LightCullingParameters, FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax)
 {
 	float3 CardPageLocalCenter;
 	float3 CardPageLocalExtent;
@@ -431,9 +439,9 @@ bool DoesLightAffectCard(uint LightType, FLightCullingParameters LightCullingPar
 
 bool DoesLightAffectCardPage(uint LightType, FLightCullingParameters LightCullingParameters, FLumenCardPageData CardPage, FLumenCardData Card)
 {
-	float2 UVMin = 0;
-	float2 UVMax = 1;
-	return DoesLightAffectCard(LightType, LightCullingParameters, CardPage, Card, UVMin, UVMax);
+	float2 UVMin = float2(0.0f, 0.0f);
+	float2 UVMax = float2(1.0f, 1.0f);
+	return DoesLightAffectCardPageUVRange(LightType, LightCullingParameters, CardPage, Card, UVMin, UVMax);
 }
 
 float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float SurfaceBias, float SlopeScaledSurfaceBias, float BiasScale)

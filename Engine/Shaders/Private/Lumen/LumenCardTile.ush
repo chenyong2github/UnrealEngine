@@ -1,0 +1,32 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenCardTiles.ush
+=============================================================================*/
+
+#pragma once
+
+#define CARD_TILE_SIZE 8
+
+struct FCardTileData
+{
+	uint CardPageIndex;
+	uint2 TileCoord;
+};
+
+FCardTileData UnpackCardTileData(uint PackedTile)
+{
+	FCardTileData TileData;
+	TileData.CardPageIndex = PackedTile & 0xFFFFFF;
+	TileData.TileCoord.x = (PackedTile >> 24) & 0xF;
+	TileData.TileCoord.y = (PackedTile >> 28) & 0xF;
+	return TileData;
+}
+
+uint PackCardTileData(FCardTileData CardTile)
+{
+	uint PackedTile = CardTile.CardPageIndex;
+	PackedTile |= (CardTile.TileCoord.x << 24);
+	PackedTile |= (CardTile.TileCoord.y << 28);
+	return PackedTile;
+}

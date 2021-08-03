@@ -22,14 +22,16 @@ class FLumenCardPageGPUData
 {
 public:
 	// Must match usf
-	enum { DataStrideInFloat4s = 3 };
+	enum { DataStrideInFloat4s = 4 };
 	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4) };
 
 	static void FillData(const FLumenPageTableEntry& RESTRICT PageTableEntry, FVector2D InvPhysicalAtlasSize, FVector4* RESTRICT OutData)
 	{
 		// Layout must match GetLumenCardPageData in usf
+		const float SizeInTexelsX = PageTableEntry.PhysicalAtlasRect.Max.X - PageTableEntry.PhysicalAtlasRect.Min.X;
+		const float SizeInTexelsY = PageTableEntry.PhysicalAtlasRect.Max.Y - PageTableEntry.PhysicalAtlasRect.Min.Y;
 
-		OutData[0] = FVector4(*((float*)&PageTableEntry.CardIndex), 0.0f, 0.0f, 0.0f);
+		OutData[0] = FVector4(*((float*)&PageTableEntry.CardIndex), 0.0f, SizeInTexelsX, SizeInTexelsY);
 		OutData[1] = PageTableEntry.CardUVRect;
 
 		OutData[2].X = PageTableEntry.PhysicalAtlasRect.Min.X * InvPhysicalAtlasSize.X;
@@ -37,7 +39,12 @@ public:
 		OutData[2].Z = PageTableEntry.PhysicalAtlasRect.Max.X * InvPhysicalAtlasSize.X;
 		OutData[2].W = PageTableEntry.PhysicalAtlasRect.Max.Y * InvPhysicalAtlasSize.Y;
 
-		static_assert(DataStrideInFloat4s == 3, "Data stride doesn't match");
+		OutData[3].X = (PageTableEntry.CardUVRect.Z - PageTableEntry.CardUVRect.X) / SizeInTexelsX;
+		OutData[3].Y = (PageTableEntry.CardUVRect.W - PageTableEntry.CardUVRect.Y) / SizeInTexelsY;
+		OutData[3].Z = InvPhysicalAtlasSize.X;
+		OutData[3].W = InvPhysicalAtlasSize.Y;
+
+		static_assert(DataStrideInFloat4s == 4, "Data stride doesn't match");
 	}
 };
 

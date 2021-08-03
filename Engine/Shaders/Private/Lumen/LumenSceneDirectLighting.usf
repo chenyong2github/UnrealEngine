@@ -6,6 +6,7 @@
 
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
+#include "LumenCardTile.ush"
 #define SUPPORT_CONTACT_SHADOWS 0
 #define USE_IES_PROFILE 1
 #include "../DeferredLightingCommon.ush"
@@ -18,24 +19,10 @@
 #include "../DistanceFieldLightingShared.ush"
 #define DF_SHADOW_QUALITY 2
 #include "../DistanceFieldShadowingShared.ush"
-
-#if VIRTUAL_SHADOW_MAP
-	#include "../VirtualShadowMaps/ProjectionCommon.ush"
-#endif
-
 #if USE_CLOUD_TRANSMITTANCE
 	#include "../VolumetricCloudCommon.ush"
 #endif
-
-// Must match ELumenLightType in LumenSceneDirectLighting.cpp
-#define LIGHT_TYPE_DIRECTIONAL 0
-#define LIGHT_TYPE_POINT 1
-#define LIGHT_TYPE_SPOT 2
-#define LIGHT_TYPE_RECT 3
-
-#ifndef HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
-#define HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE 0
-#endif
+#include "LumenSceneDirectLighting.ush"
 
 /** Fade distance in x, disabled brightness in y, output for preview shadows mask in z. */
 float3 LightFunctionParameters2;
@@ -59,7 +46,6 @@ float GetLightFunction(float3 WorldPosition)
 	return GreyScale;
 }
 
-Texture2D OpacityAtlas;
 float MaxTraceDistance;
 float StepFactor;
 float SurfaceBias;
@@ -68,103 +54,37 @@ float SlopeScaledSurfaceBias;
 float SDFSurfaceBiasScale;
 float VirtualShadowMapSurfaceBias;
 uint ForceOffscreenShadowing;
-int VirtualShadowMapId;
 uint UseIESProfile;
-uint ShadowMaskIndex;
 
-#if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
-Texture2D<uint> ShadowMaskAtlas;
-#endif
-
-float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal)
-{
-	float ShadowFactor = 1.0f;
-
-	// Offscreen shadowing, trace to light
-	float TraceDistance = MaxTraceDistance;
-
-	#if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
-		TraceDistance = min(length(ToLight), MaxTraceDistance);
-	#endif
-
-	#define OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF 1
-
-	#if OFFSCREEN_SHADOWING_TRACE_MESH_SDF && (LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL)
-	{
-		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
-
-		uint NumIntersectingObjects = GetCulledNumObjects();
-		uint CulledDataParameter = 0;
-		GetShadowTileCulledData(WorldPositionForShadowing, CulledDataParameter, NumIntersectingObjects);
-
-		float SubsurfaceDensity = 0;
-		bool bUseSubsurfaceTransmission = false;
-
-		ShadowFactor = ShadowRayTraceThroughCulledObjects(
-			WorldPositionForShadowing,
-			WorldPositionForShadowing + L * TraceDistance,
-			TraceDistance,
-			0, //@todo - TanLightSourceAngle - causes mismatch with CSM which doesn't support LightSourceAngle
-			0,
-			100,
-			SubsurfaceDensity,
-			CulledDataParameter,
-			NumIntersectingObjects,
-			true,
-			true,
-			bUseSubsurfaceTransmission,
-			/*bExpandSurface*/ true);
-	}
-	#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
-	{
-		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, SDFSurfaceBiasScale);
-
-		FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
-		FGlobalSDFTraceResult SDFResult = RayTraceGlobalDistanceField(TraceInput);
-
-		//@todo - approximate cone trace from SDF for antialiasing
-		ShadowFactor = GlobalSDFTraceResultIsHit(SDFResult) ? 0.0f : 1.0f;
-	}
-	#endif
-
-	return ShadowFactor;
-}
+StructuredBuffer<uint> ShadowMaskTiles;
 
 void LumenCardDirectLightingPS(
 	FCardVSToPS CardInterpolants,
-	out float4 OutColor : SV_Target0)
+	out float4 OutColor : SV_Target0,
+	float4 SvPosition : SV_Position)
 {
-	float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).x;
-	float3 Irradiance = 0;
+	FShadowMaskRay ShadowMaskRay;
+	ShadowMaskRay.bShadowFactorComplete = true;
+	ShadowMaskRay.ShadowFactor = 1.0f;
 
-	if (Opacity > 0)
+	bool bValidTexel = true;
+	#if SHADOW_MASK
 	{
-		FDeferredLightData LightData;
-		{
-			LightData.Position = DeferredLightUniforms.Position;
-			LightData.InvRadius = DeferredLightUniforms.InvRadius;
-			LightData.Color = DeferredLightUniforms.Color;
-			LightData.FalloffExponent = DeferredLightUniforms.FalloffExponent;
-			LightData.Direction = DeferredLightUniforms.Direction;  
-			LightData.Tangent = DeferredLightUniforms.Tangent;
-			LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
-			LightData.SourceRadius = DeferredLightUniforms.SourceRadius;
-			LightData.SourceLength = DeferredLightUniforms.SourceLength;
-			LightData.SoftSourceRadius = DeferredLightUniforms.SoftSourceRadius;
-			LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
-			LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
-			LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
-			LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
-			LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
-			LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
-			LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
-			LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
+		uint2 CoordInCardTile = SvPosition.xy % CARD_TILE_SIZE;
+		ReadShadowMaskRay(ShadowMaskTiles, CardInterpolants.CardTileIndex, CoordInCardTile, ShadowMaskRay);
+	}
+	#else
+	{
+		float Opacity = Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).x;
+		bValidTexel = Opacity > 0.0f;
+	}
+	#endif
 
-			LightData.bInverseSquared = LightData.FalloffExponent == 0.0f;
-			LightData.bRadialLight = LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL;
-			LightData.bSpotLight = LIGHT_TYPE == LIGHT_TYPE_SPOT;
-			LightData.bRectLight = LIGHT_TYPE == LIGHT_TYPE_RECT;
-		}
+	float3 Irradiance = 0.0f;
+
+	if (bValidTexel && ShadowMaskRay.ShadowFactor > 0.0f)
+	{
+		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
 
 		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).x;
 
@@ -209,104 +129,24 @@ void LumenCardDirectLightingPS(
 
 			if (dot(WorldNormal, L) > 0)
 			{
-				float ShadowFactor = 1.0f;
-
-				#if SHADOWED_LIGHT 
-				{
-					{
-						bool bShadowFactorComplete = false;
-						bool bVSMValid = false;
-
-						#if VIRTUAL_SHADOW_MAP
-						{
-							// Bias only ray start to maximize chances of hitting an allocated page
-							FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSurfaceBias, WorldNormal);
-
-							bVSMValid = VirtualShadowMapSample.bValid;
-							ShadowFactor = VirtualShadowMapSample.ShadowFactor;
-							bShadowFactorComplete = VirtualShadowMapSample.bValid && ShadowFactor == 0.0f;
-						}
-						#endif
-
-						if (!bShadowFactorComplete)
-						{
-							float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
-
-							#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
-							{
-								#if DYNAMICALLY_SHADOWED
-									float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
-
-									bool bShadowingFromValidUVArea = false;
-									float NewShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
-
-									float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
-									// CSM's are culled so only query points inside the view are valid
-									float2 ValidTexelSize = float2(length(ddx(WorldPosition)), length(ddy(WorldPosition))) * 2;
-									if (bShadowingFromValidUVArea && all(PostProjectionPosition.xy - ValidTexelSize < PostProjectionPosition.w&& PostProjectionPosition.xy + ValidTexelSize > -PostProjectionPosition.w))
-									{ 
-										ShadowFactor *= NewShadowFactor;
-										bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
-									}
-								#endif
-							}
-							#else
-							{
-								bool bShadowingFromValidUVArea = false;
-								float NewShadowFactor = ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
-
-								if (bShadowingFromValidUVArea) 
-								{
-									ShadowFactor *= NewShadowFactor;
-									bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
-								}
-							}
-							#endif
-						}
-
-						bool bOffscreenShadowing = !bShadowFactorComplete;
-						if (ForceOffscreenShadowing != 0)
-						{
-							ShadowFactor = 1.0;
-							bOffscreenShadowing = true;
-						}
-
-						if (bOffscreenShadowing)
-						{
-							#if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
-							{
-								uint ShadowValue = ShadowMaskAtlas.Load(uint3(CardInterpolants.AtlasUV * LumenCardScene.PhysicalAtlasSize, 0));
-								uint ShadowMask = 1u << ShadowMaskIndex;
-								ShadowFactor = (ShadowValue & ShadowMask) > 0 ? 1.0 : 0.0;
-							}
-							#else
-							{
-								ShadowFactor *= TraceOffscreenShadows(WorldPosition, L, ToLight, WorldNormal);
-							}
-							#endif
-						}
-					}
-				}
-				#endif // End ShadowLight
-
 				#if LIGHT_FUNCTION
-					ShadowFactor *= GetLightFunction(WorldPosition);
+					ShadowMaskRay.ShadowFactor *= GetLightFunction(WorldPosition);
 				#endif
 
 				#if USE_CLOUD_TRANSMITTANCE
 				{
 					float OutOpticalDepth = 0.0f;
-					ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(WorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
+					ShadowMaskRay.ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(WorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
 				}
 				#endif
 
 				if (UseIESProfile > 0)
 				{
-					ShadowFactor *= ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+					ShadowMaskRay.ShadowFactor *= ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 				}
 
 				float NoL = saturate(dot(WorldNormal, L));
-				Irradiance = LightColor * (CombinedAttenuation * NoL * ShadowFactor);
+				Irradiance = LightColor * (CombinedAttenuation * NoL * ShadowMaskRay.ShadowFactor);
 				//Irradiance = bShadowFactorValid ? float3(0, 1, 0) : float3(0.2f, 0.0f, 0.0f);
 			}
 		}

@@ -268,7 +268,7 @@ class FPlaceProbeIndirectArgsCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgs)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, QuadAllocator)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -296,8 +296,8 @@ class FSetupCardTraceBlocksCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>, RWCardTraceBlockData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, QuadAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, QuadData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
 		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
@@ -712,27 +712,17 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 		FLumenCardScatterContext VisibleCardScatterContext;
 
 		// Build the indirect args to write to the card faces we are going to update radiosity for this frame
-		VisibleCardScatterContext.Init(
-			GraphBuilder,
-			MainView,
-			LumenSceneData,
-			LumenCardRenderer,
-			ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender);
-
-		VisibleCardScatterContext.CullCardPagesToShape(
+		VisibleCardScatterContext.Build(
 			GraphBuilder,
 			MainView,
 			LumenSceneData,
 			LumenCardRenderer,
 			TracingInputs.LumenCardSceneUniformBuffer,
-			ECullCardsShapeType::None,
-			FCullCardsShapeParameters(),
+			/*bBuildCardTiles*/ false,
+			ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
 			GLumenSceneCardRadiosityUpdateFrequencyScale,
-			0);
-
-		VisibleCardScatterContext.BuildScatterIndirectArgs(
-			GraphBuilder,
-			MainView);
+			FCullCardsShapeParameters(),
+			ECullCardsShapeType::None);
 
 		RadiosityDirections.GenerateSamples(
 			FMath::Clamp(GLumenRadiosityNumTargetCones, 1, (int32)MaxRadiosityConeDirections),
@@ -753,7 +743,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 				LumenSceneData,
 				RadiosityAtlas,
 				TracingInputs,
-				VisibleCardScatterContext.Parameters,
+				VisibleCardScatterContext.CardPageParameters,
 				GlobalShaderMap);
 		}
 		else
@@ -763,8 +753,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(RadiosityAtlas, ERenderTargetLoadAction::ENoAction);
 
 			PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
-			PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
-			PassParameters->VS.ScatterInstanceIndex = 0;
+			PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
 			PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 
 			SetupTraceFromTexelParameters(GraphBuilder, Views[0], TracingInputs, LumenSceneData, PassParameters->PS.TraceFromTexelParameters);

@@ -31,10 +31,6 @@ Texture2D NormalAtlas;
 Texture2D EmissiveAtlas;
 Texture2D DepthAtlas;
 
-#ifndef ENABLE_VISUALIZE_MODE
-	#define ENABLE_VISUALIZE_MODE 0
-#endif
-
 #if ENABLE_VISUALIZE_MODE == 1
 	#define VISUALIZE_MODE_ALBEDO 1
 	#define VISUALIZE_MODE_GEOMETRY_NORMALS 2

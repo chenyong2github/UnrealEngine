@@ -18,7 +18,8 @@
 #define THREADGROUP_SIZE 0
 #endif
 
-Buffer<uint> QuadAllocator;
+StructuredBuffer<uint> QuadAllocator;
+StructuredBuffer<uint> QuadData;
 RWBuffer<uint> RWIndirectArgs;
 
 [numthreads(1, 1, 1)]
@@ -31,7 +32,6 @@ void PlaceProbeIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 StructuredBuffer<float4> CardBuffer;
 StructuredBuffer<float4> CardPageBuffer;
-Buffer<uint> QuadData;
 
 float StepFactor;
 float MaxTraceDistance;
