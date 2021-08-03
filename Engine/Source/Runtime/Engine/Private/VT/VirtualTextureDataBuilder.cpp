@@ -247,7 +247,7 @@ struct FPixelDataRectangle
 		FArchive* Ar = FileManager->CreateFileWriter(*Filename);
 		if (Ar != nullptr)
 		{
-			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Uncompressed);
+			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Default);
 			Ar->Serialize((void *)CompressedData.GetData(), CompressedData.Num());
 			delete Ar;
 		}
