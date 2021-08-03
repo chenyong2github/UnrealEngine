@@ -22,8 +22,9 @@
 
 bool SNiagaraStackItemGroupAddMenu::bLibraryOnly = true;
 
-void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex)
+void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, TWeakObjectPtr<UNiagaraStackItemGroup> InItemGroup, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex)
 {
+	StackItemGroup = InItemGroup;
 	AddUtilities = InAddUtilities;
 	InsertIndex = InInsertIndex;
 	bSetFocusOnNextTick = true;
@@ -135,6 +136,11 @@ void SNiagaraStackItemGroupAddMenu::OnItemActivated(const TSharedPtr<FNiagaraMen
 	{
 		FSlateApplication::Get().DismissAllMenus();
 		CurrentAction->Execute();
+
+		if(StackItemGroup.IsValid())
+		{
+			StackItemGroup->SetIsExpandedInOverview(true);
+		}
 	}	
 }
 

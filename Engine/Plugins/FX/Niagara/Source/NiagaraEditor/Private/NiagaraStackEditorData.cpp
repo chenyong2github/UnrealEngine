@@ -27,6 +27,28 @@ void UNiagaraStackEditorData::SetStackEntryIsExpanded(const FString& StackEntryK
 	}
 }
 
+bool UNiagaraStackEditorData::GetStackEntryIsExpandedInOverview(const FString& StackEntryKey, bool bIsExpandedDefault) const
+{
+	const bool* bIsExpandedPtr = StackEntryKeyToExpandedOverviewMap.Find(StackEntryKey);
+	return bIsExpandedPtr != nullptr ? *bIsExpandedPtr : bIsExpandedDefault;
+}
+
+void UNiagaraStackEditorData::SetStackEntryIsExpandedInOverview(const FString& StackEntryKey, bool bIsExpanded)
+{
+	bool bBroadcast = false;
+	if (ensureMsgf(StackEntryKey.IsEmpty() == false, TEXT("Can not set the expanded state with an empty key")))
+	{
+		// we assume elements are expanded by default, so collapsing (bIsExpanded = false) will cause a broadcast
+		bBroadcast = GetStackEntryIsExpandedInOverview(StackEntryKey, true) != bIsExpanded;
+		StackEntryKeyToExpandedOverviewMap.FindOrAdd(StackEntryKey) = bIsExpanded;
+	}
+
+	if (bBroadcast)
+	{
+		OnPersistentDataChanged().Broadcast();
+	}
+}
+
 bool UNiagaraStackEditorData::GetStackEntryWasExpandedPreSearch(const FString& StackEntryKey, bool bWasExpandedPreSearchDefault) const
 {
 	const bool* bWasExpandedPreSearchPtr = StackEntryKeyToPreSearchExpandedMap.Find(StackEntryKey);

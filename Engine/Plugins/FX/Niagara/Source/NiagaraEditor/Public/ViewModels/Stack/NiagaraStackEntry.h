@@ -258,15 +258,19 @@ public:
 
 	virtual bool GetCanExpand() const;
 
+	virtual bool GetCanExpandInOverview() const;
+
 	virtual bool IsExpandedByDefault() const;
 
 	bool GetIsExpanded() const;
 
-	// Calling this doesn't broadcast structure change automatically due to the expense of synchronizing
-	// expanded state with the tree which is done to prevent items being expanded on tick.
 	void SetIsExpanded(bool bInExpanded);
 
 	void SetIsExpanded_Recursive(bool bInExpanded);
+
+	bool GetIsExpandedInOverview() const;
+
+	void SetIsExpandedInOverview(bool bInExpanded);
 
 	virtual bool GetIsEnabled() const;
 
@@ -286,9 +290,32 @@ public:
 	virtual bool GetShouldShowInStack() const;
 
 	void GetFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren) const;
-
+	
 	void GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const;
 
+	void GetFilteredChildrenOfTypes(TArray<UNiagaraStackEntry*>& OutFilteredChildren, const TSet<UClass*>& AllowedClasses) const
+	{
+		TArray<UNiagaraStackEntry*> FilteredChildrenTmp;
+		GetFilteredChildren(FilteredChildrenTmp);
+		for (UNiagaraStackEntry* FilteredChild : FilteredChildrenTmp)
+		{
+			for(const UClass* Class : AllowedClasses)
+			{
+				if(FilteredChild->IsA(Class))
+				{
+					OutFilteredChildren.Add(FilteredChild);
+					break;
+				}
+			}
+			UClass* ChildClass = FilteredChild->GetClass();
+
+			if(AllowedClasses.Contains(ChildClass))
+			{
+				OutFilteredChildren.Add(FilteredChild);	
+			}
+		}
+	}
+	
 	template<typename T>
 	void GetUnfilteredChildrenOfType(TArray<T*>& OutUnfilteredChildrenOfType) const
 	{
@@ -305,6 +332,8 @@ public:
 	}
 
 	FOnExpansionChanged& OnExpansionChanged();
+
+	FOnExpansionChanged& OnExpansionInOverviewChanged();
 
 	FOnStructureChanged& OnStructureChanged();
 
@@ -452,6 +481,8 @@ private:
 	void ChildStructureChanged(ENiagaraStructureChangedFlags Info);
 
 	void ChildExpansionChanged();
+
+	void ChildExpansionInOverviewChanged();
 	
 	void ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 
@@ -499,6 +530,8 @@ private:
 	FString StackEditorDataKey;
 
 	FOnExpansionChanged ExpansionChangedDelegate;
+
+	FOnExpansionChanged ExpansionInOverviewChangedDelegate;
 	
 	FOnStructureChanged StructureChangedDelegate;
 
@@ -523,6 +556,7 @@ private:
 	TArray<TObjectPtr<UNiagaraStackErrorItem>> ErrorChildren;
 
 	mutable TOptional<bool> bIsExpandedCache;
+	mutable TOptional<bool> bIsExpandedInOverviewCache;
 
 	int32 IndentLevel;
 

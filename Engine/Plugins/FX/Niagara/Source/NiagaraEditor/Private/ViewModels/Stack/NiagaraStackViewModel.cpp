@@ -102,6 +102,7 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 		StackRoot->RefreshChildren();
 		StackRoot->OnStructureChanged().AddUObject(this, &UNiagaraStackViewModel::EntryStructureChanged);
 		StackRoot->OnExpansionChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionChanged);
+		StackRoot->OnExpansionInOverviewChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionInOverviewChanged);
 		StackRoot->OnDataObjectModified().AddUObject(this, &UNiagaraStackViewModel::EntryDataObjectModified);
 		StackRoot->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
 		StackRoot->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
@@ -122,6 +123,7 @@ void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootE
 	RootEntry = InRootEntry;
 	RootEntry->OnStructureChanged().AddUObject(this, &UNiagaraStackViewModel::EntryStructureChanged);
 	RootEntry->OnExpansionChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionChanged);
+	RootEntry->OnExpansionInOverviewChanged().AddUObject(this, &UNiagaraStackViewModel::EntryExpansionInOverviewChanged);
 	RootEntry->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefresh);
 	RootEntry->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackViewModel::EntryRequestFullRefreshDeferred);
 	RootEntries.Add(RootEntry);
@@ -136,6 +138,7 @@ void UNiagaraStackViewModel::Reset()
 	if (RootEntry != nullptr)
 	{
 		RootEntry->OnExpansionChanged().RemoveAll(this);
+		RootEntry->OnExpansionInOverviewChanged().RemoveAll(this);
 		RootEntry->OnStructureChanged().RemoveAll(this);
 		RootEntry->OnDataObjectModified().RemoveAll(this);
 		RootEntry->OnRequestFullRefresh().RemoveAll(this);
@@ -489,6 +492,11 @@ UNiagaraStackViewModel::FOnExpansionChanged& UNiagaraStackViewModel::OnExpansion
 	return ExpansionChangedDelegate;
 }
 
+UNiagaraStackViewModel::FOnExpansionChanged& UNiagaraStackViewModel::OnExpansionInOverviewChanged()
+{
+	return ExpansionInOverviewChangedDelegate;
+}
+
 UNiagaraStackViewModel::FOnStructureChanged& UNiagaraStackViewModel::OnStructureChanged()
 {
 	return StructureChangedDelegate;
@@ -632,6 +640,11 @@ void UNiagaraStackViewModel::SetLastScrollPosition(double InLastScrollPosition)
 void UNiagaraStackViewModel::EntryExpansionChanged()
 {
 	ExpansionChangedDelegate.Broadcast();
+}
+
+void UNiagaraStackViewModel::EntryExpansionInOverviewChanged()
+{
+	ExpansionInOverviewChangedDelegate.Broadcast();
 }
 
 void UNiagaraStackViewModel::EntryStructureChanged(ENiagaraStructureChangedFlags Flags)

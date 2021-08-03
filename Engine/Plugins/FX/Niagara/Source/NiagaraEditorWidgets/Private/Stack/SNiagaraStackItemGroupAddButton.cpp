@@ -76,7 +76,7 @@ TSharedRef<SWidget> SNiagaraStackItemGroupAddButton::GetAddMenu()
 {
 	if(StackItemGroupWeak.IsValid())
 	{
-		TSharedRef<SNiagaraStackItemGroupAddMenu> AddMenu = SNew(SNiagaraStackItemGroupAddMenu, StackItemGroupWeak->GetAddUtilities(), INDEX_NONE);
+		TSharedRef<SNiagaraStackItemGroupAddMenu> AddMenu = SNew(SNiagaraStackItemGroupAddMenu, StackItemGroupWeak, StackItemGroupWeak->GetAddUtilities(), INDEX_NONE);
 		AddActionButton->SetMenuContentWidgetToFocus(AddMenu->GetFilterTextBox()->AsShared());
 		return AddMenu;
 	}
@@ -88,6 +88,7 @@ FReply SNiagaraStackItemGroupAddButton::AddDirectlyButtonClicked()
 	if(StackItemGroupWeak.IsValid())
 	{
 		StackItemGroupWeak->GetAddUtilities()->AddItemDirectly();
+		StackItemGroupWeak->SetIsExpandedInOverview(true);
 	}
 	return FReply::Handled();
 }

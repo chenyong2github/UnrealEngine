@@ -237,6 +237,11 @@ bool UNiagaraStackEntry::GetCanExpand() const
 	return true;
 }
 
+bool UNiagaraStackEntry::GetCanExpandInOverview() const
+{
+	return false;
+}
+
 bool UNiagaraStackEntry::IsExpandedByDefault() const
 {
 	return true;
@@ -284,6 +289,32 @@ void UNiagaraStackEntry::SetIsExpanded_Recursive(bool bInExpanded)
 
 	bIsExpandedCache.Reset();
 	ExpansionChangedDelegate.Broadcast();
+}
+
+bool UNiagaraStackEntry::GetIsExpandedInOverview() const
+{
+	if (GetCanExpandInOverview() == false)
+	{
+		// Entries that can't expand are always expanded.
+		return true;
+	}
+
+	if (bIsExpandedInOverviewCache.IsSet() == false)
+	{
+		bIsExpandedInOverviewCache = StackEditorData->GetStackEntryIsExpandedInOverview(GetStackEditorDataKey(), IsExpandedByDefault());
+	}
+	return bIsExpandedInOverviewCache.GetValue();
+}
+
+void UNiagaraStackEntry::SetIsExpandedInOverview(bool bInExpanded)
+{
+	if (StackEditorData && GetCanExpandInOverview())
+	{
+		StackEditorData->SetStackEntryIsExpandedInOverview(GetStackEditorDataKey(), bInExpanded);
+	}
+
+	bIsExpandedInOverviewCache.Reset();
+	ExpansionInOverviewChangedDelegate.Broadcast();	
 }
 
 bool UNiagaraStackEntry::GetIsEnabled() const
@@ -389,6 +420,11 @@ TSharedPtr<FNiagaraEmitterViewModel> UNiagaraStackEntry::GetEmitterViewModel() c
 UNiagaraStackEntry::FOnExpansionChanged& UNiagaraStackEntry::OnExpansionChanged()
 {
 	return ExpansionChangedDelegate;
+}
+
+UNiagaraStackEntry::FOnExpansionChanged& UNiagaraStackEntry::OnExpansionInOverviewChanged()
+{
+	return ExpansionInOverviewChangedDelegate;
 }
 
 UNiagaraStackEntry::FOnStructureChanged& UNiagaraStackEntry::OnStructureChanged()
@@ -573,6 +609,7 @@ void UNiagaraStackEntry::RefreshChildren()
 	for (UNiagaraStackEntry* Child : Children)
 	{
 		Child->OnExpansionChanged().RemoveAll(this);
+		Child->OnExpansionInOverviewChanged().RemoveAll(this);
 		Child->OnStructureChanged().RemoveAll(this);
 		Child->OnDataObjectModified().RemoveAll(this);
 		Child->OnRequestFullRefresh().RemoveAll(this);
@@ -587,6 +624,7 @@ void UNiagaraStackEntry::RefreshChildren()
 	for (UNiagaraStackErrorItem* ErrorChild : ErrorChildren)
 	{
 		ErrorChild->OnExpansionChanged().RemoveAll(this);
+		ErrorChild->OnExpansionInOverviewChanged().RemoveAll(this);
 		ErrorChild->OnStructureChanged().RemoveAll(this);
 		ErrorChild->OnDataObjectModified().RemoveAll(this);
 		ErrorChild->OnRequestFullRefresh().RemoveAll(this);
@@ -623,6 +661,7 @@ void UNiagaraStackEntry::RefreshChildren()
 		Child->RefreshChildren();
 		Child->OnStructureChanged().AddUObject(this, &UNiagaraStackEntry::ChildStructureChanged);
 		Child->OnExpansionChanged().AddUObject(this, &UNiagaraStackEntry::ChildExpansionChanged);
+		Child->OnExpansionInOverviewChanged().AddUObject(this, &UNiagaraStackEntry::ChildExpansionInOverviewChanged);
 		Child->OnDataObjectModified().AddUObject(this, &UNiagaraStackEntry::ChildDataObjectModified);
 		Child->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackEntry::ChildRequestFullRefresh);
 		Child->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackEntry::ChildRequestFullRefreshDeferred);
@@ -645,6 +684,7 @@ void UNiagaraStackEntry::RefreshChildren()
 		ErrorChild->RefreshChildren();
 		ErrorChild->OnStructureChanged().AddUObject(this, &UNiagaraStackEntry::ChildStructureChanged);
 		ErrorChild->OnExpansionChanged().AddUObject(this, &UNiagaraStackEntry::ChildExpansionChanged);
+		ErrorChild->OnExpansionInOverviewChanged().AddUObject(this, &UNiagaraStackEntry::ChildExpansionInOverviewChanged);
 		ErrorChild->OnDataObjectModified().AddUObject(this, &UNiagaraStackEntry::ChildDataObjectModified);
 		ErrorChild->OnRequestFullRefresh().AddUObject(this, &UNiagaraStackEntry::ChildRequestFullRefresh);
 		ErrorChild->OnRequestFullRefreshDeferred().AddUObject(this, &UNiagaraStackEntry::ChildRequestFullRefreshDeferred);
@@ -830,6 +870,11 @@ void UNiagaraStackEntry::ChildStructureChanged(ENiagaraStructureChangedFlags Inf
 void UNiagaraStackEntry::ChildExpansionChanged()
 {
 	ExpansionChangedDelegate.Broadcast();
+}
+
+void UNiagaraStackEntry::ChildExpansionInOverviewChanged()
+{
+	ExpansionInOverviewChangedDelegate.Broadcast();
 }
 
 void UNiagaraStackEntry::ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
