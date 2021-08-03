@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/LightWeightInstanceSubsystem.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"
 #include "WorldPartition/DataLayer/DataLayer.h"

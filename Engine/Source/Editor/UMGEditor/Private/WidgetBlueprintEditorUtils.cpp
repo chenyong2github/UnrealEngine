@@ -9,6 +9,7 @@
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Blueprint/WidgetTree.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "MovieScene.h"
 #include "WidgetBlueprint.h"

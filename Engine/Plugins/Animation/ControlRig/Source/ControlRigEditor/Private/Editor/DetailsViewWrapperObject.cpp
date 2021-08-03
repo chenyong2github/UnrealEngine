@@ -3,6 +3,7 @@
 #include "DetailsViewWrapperObject.h"
 #include "Units/RigUnit.h"
 #include "ControlRigElementDetails.h"
+#include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR
 #include "PropertyEditorModule.h"
