@@ -12,13 +12,27 @@
 #include "RendererPrivateUtils.h"
 #include "Lumen.h"
 #include "DistanceFieldLightingShared.h"
+#include "LumenSceneRendering.h"
+#include "LumenProbeHierarchy.h"
+#include "IndirectLightRendering.h"
+
+class FLumenCardRenderer;
+class FLumenLight;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardScatterParameters, )
-	RDG_BUFFER_ACCESS(CardIndirectArgs, ERHIAccess::IndirectArgs)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadData)
+	RDG_BUFFER_ACCESS(DrawIndirectArgs, ERHIAccess::IndirectArgs)
+	RDG_BUFFER_ACCESS(DispatchIndirectArgs, ERHIAccess::IndirectArgs)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, QuadAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, QuadData)
 	SHADER_PARAMETER(uint32, MaxQuadsPerScatterInstance)
-	SHADER_PARAMETER(uint32, TilesPerInstance)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTileScatterParameters, )
+	RDG_BUFFER_ACCESS(DrawIndirectArgs, ERHIAccess::IndirectArgs)
+	RDG_BUFFER_ACCESS(DispatchIndirectArgs, ERHIAccess::IndirectArgs)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardTileAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardTileData)
+	SHADER_PARAMETER(uint32, MaxCardTilesPerScatterInstance)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCullCardsShapeParameters, )
@@ -58,105 +72,25 @@ class FLumenCardScatterContext
 {
 public:
 	int32 MaxQuadCount = 0;
-	int32 MaxScatterInstanceCount = 0;
 	int32 MaxQuadsPerScatterInstance = 0;
+	int32 MaxCardTilesPerScatterInstance = 0;
 	int32 NumCardPagesToOperateOn = 0;
 	ECullCardsMode CardsCullMode;
 
-	FLumenCardScatterParameters Parameters;
+	FLumenCardScatterParameters CardPageParameters;
+	FLumenCardTileScatterParameters CardTileParameters;
 
-	FRDGBufferUAVRef QuadAllocatorUAV = nullptr;
-	FRDGBufferUAVRef QuadDataUAV = nullptr;
-
-	void Init(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FLumenSceneData& LumenSceneData,
-		const FLumenCardRenderer& LumenCardRenderer,
-		ECullCardsMode InCardsCullMode,
-		int32 InMaxScatterInstanceCount = 1);
-
-	void CullCardPagesToShape(
+	void Build(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		const FLumenSceneData& LumenSceneData,
 		const FLumenCardRenderer& LumenCardRenderer,
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-		ECullCardsShapeType ShapeType,
-		const FCullCardsShapeParameters& ShapeParameters,
+		bool InBuildCardTiles,
+		ECullCardsMode InCardsCullMode,
 		float UpdateFrequencyScale,
-		int32 ScatterInstanceIndex);
-
-	void BuildScatterIndirectArgs(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View);
-
-	uint32 GetIndirectArgOffset(int32 ScatterInstanceIndex) const;
-};
-
-class FCullCardPagesToShapeCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FCullCardPagesToShapeCS);
-	SHADER_USE_PARAMETER_STRUCT(FCullCardPagesToShapeCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQuadAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQuadData)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER(uint32, MaxQuadsPerScatterInstance)
-		SHADER_PARAMETER(uint32, ScatterInstanceIndex)
-		SHADER_PARAMETER(uint32, NumCardPagesToRenderIndices)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardPagesToRenderIndices)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardPagesToRenderHashMap)
-		SHADER_PARAMETER(uint32, FrameId)
-		SHADER_PARAMETER(float, CardLightingUpdateFrequencyScale)
-		SHADER_PARAMETER(uint32, CardLightingUpdateMinFrequency)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FCullCardsShapeParameters, ShapeParameters)
-	END_SHADER_PARAMETER_STRUCT()
-
-	class FOperateOnCardPagesMode : SHADER_PERMUTATION_INT("OPERATE_ON_CARD_TILES_MODE", 3);
-	class FShapeType : SHADER_PERMUTATION_INT("SHAPE_TYPE", 4);
-	using FPermutationDomain = TShaderPermutationDomain<FOperateOnCardPagesMode, FShapeType>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-};
-
-class FInitializeCardScatterIndirectArgsCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FInitializeCardScatterIndirectArgsCS)
-	SHADER_USE_PARAMETER_STRUCT(FInitializeCardScatterIndirectArgsCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCardIndirectArgs)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
-		SHADER_PARAMETER(uint32, MaxScatterInstanceCount)
-		SHADER_PARAMETER(uint32, TilesPerInstance)
-	END_SHADER_PARAMETER_STRUCT()
-
-	class FRectList : SHADER_PERMUTATION_BOOL("RECT_LIST_TOPOLOGY");
-	using FPermutationDomain = TShaderPermutationDomain<FRectList>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static uint32 GetGroupSize()
-	{
-		return 64;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
+		FCullCardsShapeParameters ShapeParameters,
+		ECullCardsShapeType ShapeType);
 };
 
 class FRasterizeToCardsVS : public FGlobalShader
@@ -169,7 +103,6 @@ class FRasterizeToCardsVS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardScatterParameters, CardScatterParameters)
 		SHADER_PARAMETER(FVector4, InfluenceSphere)
 		SHADER_PARAMETER(FVector2D, DownsampledInputAtlasSize)
-		SHADER_PARAMETER(uint32, ScatterInstanceIndex)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, RectMinMaxBuffer)
 		SHADER_PARAMETER(FVector2D, InvRectMinMaxResolution)
 	END_SHADER_PARAMETER_STRUCT()
@@ -183,17 +116,20 @@ class FRasterizeToCardsVS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 };
 
-extern TGlobalResource<FTileTexCoordVertexBuffer> GLumenTileTexCoordVertexBuffer;
-extern TGlobalResource<FTileIndexBuffer> GLumenTileIndexBuffer;
-
-extern const int32 NumLumenQuadsInBuffer;
-
-inline bool UseRectTopologyForLumen()
+class FRasterizeToCardTilesVS : public FGlobalShader
 {
-	//@todo - debug why rects aren't working
-	return false;
-	//return GRHISupportsRectTopology != 0;
-}
+	DECLARE_GLOBAL_SHADER(FRasterizeToCardTilesVS);
+	SHADER_USE_PARAMETER_STRUCT(FRasterizeToCardTilesVS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
+	END_SHADER_PARAMETER_STRUCT()
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
+};
 
 template<typename PixelShaderType, typename PassParametersType>
 void DrawQuadsToAtlas(
@@ -224,17 +160,16 @@ void DrawQuadsToAtlas(
 	});
 }
 
-template<typename PixelShaderType, typename PassParametersType, typename SetParametersLambdaType>
+template<typename VertexShaderType, typename PixelShaderType, typename PassParametersType, typename SetParametersLambdaType>
 void DrawQuadsToAtlas(
 	FIntPoint ViewportSize,
-	TShaderRefBase<FRasterizeToCardsVS, FShaderMapPointerTable> VertexShader,
+	TShaderRefBase<VertexShaderType, FShaderMapPointerTable> VertexShader,
 	TShaderRefBase<PixelShaderType, FShaderMapPointerTable> PixelShader,
 	const PassParametersType* PassParameters,
 	FGlobalShaderMap* GlobalShaderMap,
 	FRHIBlendState* BlendState,
 	FRHICommandList& RHICmdList,
-	SetParametersLambdaType&& SetParametersLambda,
-	uint32 CardIndirectArgOffset = 0)
+	SetParametersLambdaType&& SetParametersLambda)
 {
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -245,9 +180,9 @@ void DrawQuadsToAtlas(
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	GraphicsPSOInit.BlendState = BlendState;
 
-	GraphicsPSOInit.PrimitiveType = UseRectTopologyForLumen() ? PT_RectList : PT_TriangleList;
+	GraphicsPSOInit.PrimitiveType = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
 
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GTileVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
@@ -257,16 +192,7 @@ void DrawQuadsToAtlas(
 	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 	SetParametersLambda(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
-	RHICmdList.SetStreamSource(0, GLumenTileTexCoordVertexBuffer.VertexBufferRHI, 0);
-
-	if (UseRectTopologyForLumen())
-	{
-		RHICmdList.DrawPrimitiveIndirect(PassParameters->VS.CardScatterParameters.CardIndirectArgs->GetIndirectRHICallBuffer(), CardIndirectArgOffset);
-	}
-	else
-	{
-		RHICmdList.DrawIndexedPrimitiveIndirect(GLumenTileIndexBuffer.IndexBufferRHI, PassParameters->VS.CardScatterParameters.CardIndirectArgs->GetIndirectRHICallBuffer(), CardIndirectArgOffset);
-	}
+	RHICmdList.DrawPrimitiveIndirect(PassParameters->VS.CardScatterParameters.DrawIndirectArgs->GetIndirectRHICallBuffer(), 0);
 }
 
 class FHemisphereDirectionSampleGenerator
@@ -289,17 +215,14 @@ public:
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenVoxelTracingParameters, )
-SHADER_PARAMETER(uint32, NumClipmapLevels)
-SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVScale, [MaxVoxelClipmapLevels])
-SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVBias, [MaxVoxelClipmapLevels])
-SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
-SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
-SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSamplingExtent, [MaxVoxelClipmapLevels])
-SHADER_PARAMETER_ARRAY(FVector4, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER(uint32, NumClipmapLevels)
+	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVScale, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVBias, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSamplingExtent, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-extern void GetLumenVoxelParametersForClipmapLevel(const FLumenCardTracingInputs& TracingInputs, FLumenVoxelTracingParameters& LumenVoxelTracingParameters, 
-								int SrcClipmapLevel, int DstClipmapLevel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -379,20 +302,13 @@ struct FLumenShadowSetup
 
 FLumenShadowSetup GetShadowForLumenDirectLighting(FVisibleLightInfo& VisibleLightInfo);
 
-void RenderLumenHardwareRayTracingDirectLighting(
+void TraceLumenHardwareRayTracedDirectLightingShadows(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	const TArray<const FLightSceneInfo*, TInlineAllocator<Lumen::MaxShadowMaskChannels>>& Lights,
-	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
-	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FLumenCardTracingInputs& TracingInputs,
-	FRDGTextureRef OpacityAtlas,
-	const FLumenCardRenderer& LumenCardRenderer,
-	const FLumenCardScatterContext& CardScatterContext,
-	FRDGTextureRef& ShadowMaskTexture,
-	uint32 ShadowMaskIndex);
+	const FLumenLight& LumenLight,
+	const FLumenCardScatterContext& CardScatterContext);
 
 extern void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, FLumenCardTracingParameters& TracingParameters, bool bShaderWillTraceCardsOnly = false);
 

@@ -1736,6 +1736,7 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{
+		OutParameters.OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas, TEXT("Lumen.SceneOpacity"));
 		OutParameters.AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.SceneAlbedo"));
 		OutParameters.NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas, TEXT("Lumen.SceneNormal"));
 		OutParameters.EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("Lumen.SceneEmissive"));
@@ -1744,6 +1745,7 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	else
 	{
 		FRDGTextureRef BlackDummyTextureRef = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("Lumen.BlackDummy"));
+		OutParameters.OpacityAtlas = BlackDummyTextureRef;
 		OutParameters.AlbedoAtlas = BlackDummyTextureRef;
 		OutParameters.NormalAtlas = BlackDummyTextureRef;
 		OutParameters.EmissiveAtlas = BlackDummyTextureRef;
@@ -1769,7 +1771,7 @@ class FClearLumenCardsPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneUtils.usf", "ClearLumenCardsPS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenCardsParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)

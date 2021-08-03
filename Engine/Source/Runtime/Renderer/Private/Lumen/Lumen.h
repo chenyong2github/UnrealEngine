@@ -22,7 +22,7 @@ namespace Lumen
 	constexpr uint32 MaxResLevel = 11; // 2^11 = 2048 texels
 	constexpr uint32 SubAllocationResLevel = 7; // log2(PHYSICAL_PAGE_SIZE)
 	constexpr uint32 NumResLevels = MaxResLevel - MinResLevel + 1;
-	constexpr uint32 MaxShadowMaskChannels = 32;
+	constexpr uint32 CardTileSize = 8;
 
 	enum class ETracingPermutation
 	{

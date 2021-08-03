@@ -19,179 +19,12 @@
 
 #if LUMEN_HARDWARE_RAYTRACING
 #include "LumenHardwareRayTracingCommon.ush"
-#include "../VirtualShadowMaps/ProjectionCommon.ush"
 #endif // LUMEN_HARDWARE_RAYTRACING
 
-#define SHADOW_TRACE_TILE_SIZE_2D MIN_CARD_RESOLUTION
-#define SHADOW_TRACE_TILE_SIZE_1D SHADOW_TRACE_TILE_SIZE_2D * SHADOW_TRACE_TILE_SIZE_2D
-
-#ifndef THREADGROUP_SIZE 
-#define THREADGROUP_SIZE 0
-#endif
-
-RWBuffer<uint> RWShadowTraceTileAllocator;
-
-[numthreads(1, 1, 1)]
-void ClearShadowTraceTileAllocatorCS(
-	uint DispatchThreadId : SV_DispatchThreadID
-)
-{
-	RWShadowTraceTileAllocator[0] = 0;
-}
-
-struct FLightBatchCullingParametersPacked
-{
-	float4 InfluenceSphere;
-	float4 LightPositionAndCosConeAngle;
-	float4 LightDirectionAndSinConeAngle;
-	float LightRadius;
-	uint Flags;
-	uint2 Padding;
-};
-
-FLightCullingParameters UnpackLightBatchCullingParameters(FLightBatchCullingParametersPacked PackedData, inout uint LightType, inout bool bIsDynamicShadow)
-{
-	FLightCullingParameters Parameters;
-	Parameters.InfluenceSphere = PackedData.InfluenceSphere;
-	Parameters.LightPosition = PackedData.LightPositionAndCosConeAngle.xyz;
-	Parameters.LightDirection = PackedData.LightDirectionAndSinConeAngle.xyz;
-	Parameters.LightRadius = PackedData.LightRadius;
-	Parameters.CosConeAngle = PackedData.LightPositionAndCosConeAngle.w;
-	Parameters.SinConeAngle = PackedData.LightDirectionAndSinConeAngle.w;
-	
-	bIsDynamicShadow = PackedData.Flags & 0x01;
-	LightType = (PackedData.Flags >> 1) & 0x03;
-	return Parameters;
-}
-
-struct FTileData
-{
-	uint CardPageId;
-	uint TileIndex;
-	uint LightIndex;
-};
-
-uint2 PackTileData(FTileData TileData)
-{
-	uint2 PackedData;
-	PackedData.x = TileData.CardPageId;
-	PackedData.y = (TileData.TileIndex & 0xFFFFF) | (TileData.LightIndex & 0x1F) << 20;
-	return PackedData;
-}
-
-uint2 PackTileData(uint CardPageId, uint TileIndex, uint LightIndex)
-{
-	FTileData TileData;
-	TileData.CardPageId = CardPageId;
-	TileData.TileIndex = TileIndex;
-	TileData.LightIndex = LightIndex;
-	return PackTileData(TileData);
-}
-
-FTileData UnpackTileData(uint2 PackedData)
-{
-	FTileData TileData;
-	TileData.CardPageId = PackedData.x;
-	TileData.TileIndex = PackedData.y & 0xFFFFF;
-	TileData.LightIndex = (PackedData.y >> 20) & 0x1F;
-	return TileData;
-}
-
-uint OperateOnCardPagesToRender;
-uint2 AtlasSize;
-
-StructuredBuffer<FLightBatchCullingParametersPacked> LightBatchCullingParameters;
-uint LightsNum;
-
-// Resources for LumenCardUpdate
-uint NumCardPagesToRenderIndices;
-Buffer<uint> CardPagesToRenderIndices;
-Buffer<uint> CardPagesToRenderHashMap;
-
-uint FrameId;
-float CardLightingUpdateFrequencyScale;
-uint CardLightingUpdateMinFrequency;
-
-RWBuffer<uint2> RWShadowTraceTileData;
-
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void CreateShadowTraceTilesCS(
-	uint3 DispatchThreadId : SV_DispatchThreadID
-)
-{
-	uint Index = DispatchThreadId.x;
-	uint NumCardPages = OperateOnCardPagesToRender ? NumCardPagesToRenderIndices : LumenCardScene.NumCardPages;
-	if (Index < NumCardPages)
-	{
-		uint CardPageIndex = OperateOnCardPagesToRender ? CardPagesToRenderIndices[Index] : Index;
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
-		if (CardPage.CardIndex >= 0)
-		{
-			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-
-			FLumenCardUpdateResources CardUpdateResources = CreateLumenCardUpdateResources(
-				NumCardPagesToRenderIndices, CardPagesToRenderIndices, CardPagesToRenderHashMap);
-
-			FLumenCardUpdateOptions CardUpdateOptions = CreateLumenCardUpdateOptions(
-				CardLightingUpdateMinFrequency, CardLightingUpdateFrequencyScale, FrameId);
-
-			if (Card.bVisible && ShouldUpdateCardPage(CardPageIndex, Card, CardUpdateResources, CardUpdateOptions))
-			{
-				uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, AtlasSize);
-				uint2 NumTilesXY = (CardPageSizeInTexels + SHADOW_TRACE_TILE_SIZE_2D - 1) / SHADOW_TRACE_TILE_SIZE_2D;
-				uint NumTiles = NumTilesXY.x * NumTilesXY.y;
-
-				for (uint LightIndex = 0; LightIndex < LightsNum; ++LightIndex)
-				{
-					uint LightType;
-					bool bIsDynamicShadow;
-					FLightCullingParameters LightCullingParameters = UnpackLightBatchCullingParameters(LightBatchCullingParameters[LightIndex], LightType, bIsDynamicShadow);
-
-					if (bIsDynamicShadow && DoesLightAffectCardPage(LightType, LightCullingParameters, CardPage, Card))
-					{
-						// Per-tile culling is too expensive, deferring to query
-						uint TileOffset;
-						InterlockedAdd(RWShadowTraceTileAllocator[0], NumTiles, TileOffset);
-
-						for (uint TileIndex = 0; TileIndex < NumTiles; ++TileIndex)
-						{
-							uint2 TileData = PackTileData(CardPageIndex, TileIndex, LightIndex);
-							RWShadowTraceTileData[TileOffset + TileIndex] = TileData;
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-Buffer<uint> ShadowTraceTileAllocator;
-
-#define TILE_GROUP_STRIDE 128
-RWBuffer<int> RWCullShadowTraceTilesIndirectArgs;
-
-[numthreads(1, 1, 1)]
-void CreateCullShadowTraceTileIndirectArgsCS(
-	uint3 DispatchThreadId : SV_DispatchThreadID
-)
-{
-	RWCullShadowTraceTilesIndirectArgs[0] = TILE_GROUP_STRIDE;
-	RWCullShadowTraceTilesIndirectArgs[1] = (ShadowTraceTileAllocator[0] + TILE_GROUP_STRIDE - 1) / TILE_GROUP_STRIDE;
-	RWCullShadowTraceTilesIndirectArgs[2] = 1;
-}
-
-[numthreads(SHADOW_TRACE_TILE_SIZE_2D, SHADOW_TRACE_TILE_SIZE_2D, 1)]
-void CullShadowTraceTilesCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 GroupThreadId : SV_GroupThreadID
-)
-{
-	uint TileIndex = GroupId.y * TILE_GROUP_STRIDE + GroupId.x;
-	if (TileIndex < RWShadowTraceTileAllocator[0])
-	{
-		return;
-	}
-}
+#include "LumenCardTile.ush"
+#define SUPPORT_CONTACT_SHADOWS 0
+#include "../DeferredLightingCommon.ush"
+#include "LumenSceneDirectLighting.ush"
 
 #if LUMEN_HARDWARE_RAYTRACING
 
@@ -204,133 +37,92 @@ uint TranslucentSkipCount;
 uint GroupCount;
 uint LightOffset;
 
+uint LumenLightType;
 float MaxTraceDistance;
 float SurfaceBias;
 float SlopeScaledSurfaceBias;
 
-RWTexture2D<uint> RWShadowMask;
+StructuredBuffer<uint> CardTileAllocator;
+StructuredBuffer<uint> CardTileData;
+RWStructuredBuffer<uint> RWShadowMaskTiles;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 {
 	uint ThreadIndex = DispatchRaysIndex().x;
-	uint GroupIndex = DispatchRaysIndex().y * SHADOW_TRACE_TILE_SIZE_1D;
-	uint GroupStride = GroupCount * SHADOW_TRACE_TILE_SIZE_1D;
+	uint GroupIndex = DispatchRaysIndex().y * CARD_TILE_SIZE * CARD_TILE_SIZE;
+	uint GroupStride = GroupCount * CARD_TILE_SIZE * CARD_TILE_SIZE;
 
-	uint2 TexelLocalCoord = uint2(ThreadIndex % SHADOW_TRACE_TILE_SIZE_2D, ThreadIndex / SHADOW_TRACE_TILE_SIZE_2D);
-	for (uint Index = DispatchRaysIndex().y; Index < ShadowTraceTileAllocator[0]; Index += GroupCount)
+	uint2 CoordInCardTile = uint2(ThreadIndex % CARD_TILE_SIZE, ThreadIndex / CARD_TILE_SIZE);
+
+	for (uint CardTileIndex = DispatchRaysIndex().y; CardTileIndex < CardTileAllocator[0]; CardTileIndex += GroupCount)
 	{
-		// Get card data based on tile information
-		FTileData TileData = UnpackTileData(ShadowTraceTileData[Index]);
-		uint CardPageIndex = TileData.CardPageId;
-		uint TileIndex = TileData.TileIndex;
-		uint LightIndex = TileData.LightIndex;
+		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+		uint2 TexelInCardPageCoord = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
-		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, AtlasSize);
-		uint2 NumTilesXY = (CardPageSizeInTexels + SHADOW_TRACE_TILE_SIZE_2D - 1) / SHADOW_TRACE_TILE_SIZE_2D;
-		uint2 TileOffset = uint2(TileIndex % NumTilesXY.x, TileIndex / NumTilesXY.x);
-		uint2 TexelCoord = TileOffset * SHADOW_TRACE_TILE_SIZE_2D + TexelLocalCoord;
-
-		if (all(TexelCoord < CardPageSizeInTexels))
+		if (all(CoordInCardTile < CARD_TILE_SIZE))
 		{
-			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+			FShadowMaskRay ShadowMaskRay;
+			ReadShadowMaskRay(RWShadowMaskTiles, CardTileIndex, CoordInCardTile, ShadowMaskRay);
 
-			// Per-tile culling at query level
-			uint LightType;
-			bool bIsDynamicShadow;
-			FLightCullingParameters LightCullingParameters = UnpackLightBatchCullingParameters(LightBatchCullingParameters[LightIndex], LightType, bIsDynamicShadow);
-
-			float2 UVMin = float2(TileOffset) / NumTilesXY;
-			float2 UVMax = float2(TileOffset + 1) / NumTilesXY;
-			bool bLightAffectsCard = DoesLightAffectCard(LightType, LightCullingParameters, CardPage, Card, UVMin, UVMax);
-
-			if (bLightAffectsCard)
+			// Trace visibility ray
+			if (!ShadowMaskRay.bShadowFactorComplete)
 			{
-				float2 CardPageUV = float2(TexelCoord + 0.5) / CardPageSizeInTexels;
-				float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
-				float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
-				int2 AtlasWriteCoord = int2(AtlasUV * AtlasSize);
+				FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+				FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+				float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (TexelInCardPageCoord + 0.5f);
+				float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * (TexelInCardPageCoord + 0.5f);
 
-				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
-				float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
 
-				// Trace visibility ray
-				uint ShadowFactor = 0;
-				if (Opacity > 0.0)
+				FDeferredLightData LightData = LoadLightData(LumenLightType);
+
+				float3 L = LightData.Direction;
+				float3 ToLight = L;
+				float TMax = MaxTraceDistance;
+
+				if (LumenLightType != LIGHT_TYPE_DIRECTIONAL && LightData.bRadialLight)
 				{
-					RayDesc Ray;
-					const float2 RandSample = 0.5;
-#if 0
-					bool bIsValid = GenerateOcclusionRay(LightType, LightParameters, WorldPosition, WorldNormal, RandSample,
-						Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
-#else
-					float3 LightPosition = LightCullingParameters.LightPosition;
-					float3 LightDirection = LightCullingParameters.LightDirection;
-					float3 LightDir = LightPosition - WorldPosition;
-					float TMax = min(length(LightDir), MaxTraceDistance);
-					if (LightType == LIGHT_TYPE_DIRECTIONAL)
-					{
-						LightDir = -LightDirection;
-						TMax = MaxTraceDistance;
-					}
-					float3 L = normalize(LightDir);
-
-					const float BiasScale = 1.0;
-					Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, BiasScale);
-					Ray.Direction = L;
-					Ray.TMin = 0;
-					Ray.TMax = TMax;
-#endif
-
-					bool bIsValid = true;
-					// NoL guard
-					float NoL = saturate(dot(WorldNormal, Ray.Direction));
-					bIsValid = bIsValid && (NoL > 0);
-
-					// Attenuation guard
-					float AttenuationRadius = LightBatchCullingParameters[LightIndex].LightRadius;
-					bIsValid = bIsValid && (Ray.TMax < AttenuationRadius);
-
-#if DIM_USE_VIRTUAL_SHADOW_MAPS
-					if (bIsValid && VirtualShadowMapIds[LightIndex] > 0)
-					{
-						const float BiasScale = 1.0;
-						FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapIds[LightIndex], Ray.Origin, 0.0);
-						bool bVSMValid = VirtualShadowMapSample.bValid && VirtualShadowMapSample.ShadowFactor == 0.0f;
-						bIsValid = !bVSMValid;
-					}
-#endif
-					if (bIsValid)
-					{
-						FRayCone RayCone = (FRayCone)0;
-						bool bCullBackFacingTriangles = false;
-						FRayTracedLightingContext Context = CreateRayTracedLightingContext(
-							TLAS,
-							RayCone,
-							TexelCoord,
-							TexelCoord.x, // dummy coordinate
-							bCullBackFacingTriangles,
-							TranslucentSkipCount);
-
-						FLumenMinimalPayload Payload;
-						bool bHit = TraceLumenMinimalRay(Ray, Context, Payload);
-						if (!bHit)
-						{
-							// Write to shadow mask
-							ShadowFactor = 1;
-						}
-					}
-
-
-					uint InvariantMask = 0xFFFFFFFF - (1u << LightIndex);
-					uint ShadowMaskValue = (RWShadowMask[AtlasWriteCoord] & InvariantMask) | (ShadowFactor << LightIndex);
-
-					uint OriginalValue;
-					InterlockedAnd(RWShadowMask[AtlasWriteCoord], InvariantMask, OriginalValue);
-					InterlockedOr(RWShadowMask[AtlasWriteCoord], ShadowFactor << LightIndex, OriginalValue);
+					ToLight = LightData.Position - WorldPosition;
+					TMax = min(TMax, length(ToLight));
+					L = normalize(ToLight);
 				}
+
+				RayDesc Ray;
+				const float2 RandSample = 0.5;
+
+#if 0
+				bool bIsValid = GenerateOcclusionRay(LumenLightType, LightParameters, WorldPosition, WorldNormal, RandSample,
+					Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
+#else
+
+				const float BiasScale = 1.0;
+				Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, BiasScale);
+				Ray.Direction = L;
+				Ray.TMin = 0;
+				Ray.TMax = TMax;
+#endif
+
+				{
+					FRayCone RayCone = (FRayCone)0;
+					bool bCullBackFacingTriangles = false;
+					FRayTracedLightingContext Context = CreateRayTracedLightingContext(
+						TLAS,
+						RayCone,
+						CoordInCardTile,
+						CoordInCardTile.x, // dummy coordinate
+						bCullBackFacingTriangles,
+						TranslucentSkipCount);
+
+					FLumenMinimalPayload Payload;
+					bool bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+					ShadowMaskRay.ShadowFactor = bHit ? 0.0f : 1.0f;
+				}
+
+				ShadowMaskRay.bShadowFactorComplete = true;
+
+				WriteShadowMaskRay(ShadowMaskRay, CardTileIndex, CoordInCardTile, RWShadowMaskTiles);
 			}
 		}
 	}
