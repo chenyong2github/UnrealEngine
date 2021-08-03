@@ -6370,7 +6370,8 @@ void PrepareModules(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const FS
 	enum EHeaderFolderTypes
 	{
 		PublicClassesHeaders = 0,
-		PublicHeaders = 1,
+		PublicHeaders,
+		InternalHeaders,
 		PrivateHeaders,
 
 		FolderType_Count
@@ -6391,7 +6392,7 @@ void PrepareModules(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const FS
 		PackageDefs.Add(&PackageDef);
 
 		TArray<TSharedRef<FUnrealSourceFile>>& AllSourceFiles = PackageDef.GetAllSourceFiles();
-		AllSourceFiles.Reserve(Module.PublicUObjectClassesHeaders.Num() + Module.PublicUObjectHeaders.Num() + Module.PrivateUObjectHeaders.Num());
+		AllSourceFiles.Reserve(Module.PublicUObjectClassesHeaders.Num() + Module.PublicUObjectHeaders.Num() + Module.InternalUObjectHeaders.Num() + Module.PrivateUObjectHeaders.Num());
 
 		// Initialize the other header data structures and create the unreal source files
 		for (int32 PassIndex = 0; PassIndex < FolderType_Count && FResults::IsSucceeding(); ++PassIndex)
@@ -6401,6 +6402,7 @@ void PrepareModules(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const FS
 			const TArray<FString>& UObjectHeaders =
 				(CurrentlyProcessing == PublicClassesHeaders) ? Module.PublicUObjectClassesHeaders :
 				(CurrentlyProcessing == PublicHeaders) ? Module.PublicUObjectHeaders :
+				(CurrentlyProcessing == InternalHeaders) ? Module.InternalUObjectHeaders :
 				Module.PrivateUObjectHeaders;
 
 			if (UObjectHeaders.Num() == 0)
@@ -7088,7 +7090,7 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	int NumSources = 0;
 	for (const FManifestModule& Module : GManifest.Modules)
 	{
-		NumSources += Module.PublicUObjectClassesHeaders.Num() + Module.PublicUObjectHeaders.Num() + Module.PrivateUObjectHeaders.Num();
+		NumSources += Module.PublicUObjectClassesHeaders.Num() + Module.PublicUObjectHeaders.Num() + Module.InternalUObjectHeaders.Num() + Module.PrivateUObjectHeaders.Num();
 	}
 	UE_LOG(LogCompile, Log, TEXT("Preparing %d modules took %.3f seconds"), GManifest.Modules.Num(), TotalPrepareModuleTime);
 	UE_LOG(LogCompile, Log, TEXT("Preparsing %d sources took %.3f seconds"), NumSources, TotalPreparseTime);

@@ -37,6 +37,9 @@ struct FManifestModule
 	/** List of C++ public header files with UObjects in them */
 	TArray<FString> PublicUObjectHeaders;
 
+	/** List of C++ internal header files with UObjects in them */
+	TArray<FString> InternalUObjectHeaders;
+
 	/** List of C++ private header files with UObjects in them */
 	TArray<FString> PrivateUObjectHeaders;
 
