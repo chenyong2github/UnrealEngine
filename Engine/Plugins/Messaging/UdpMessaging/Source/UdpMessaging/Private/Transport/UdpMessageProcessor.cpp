@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transport/UdpMessageProcessor.h"
+#include "Algo/AllOf.h"
+#include "Algo/Transform.h"
 #include "UdpMessagingPrivate.h"
 
 #include "Common/UdpSocketSender.h"
@@ -144,7 +146,7 @@ bool FUdpMessageProcessor::EnqueueOutboundMessage(const TSharedRef<IMessageConte
 	{
 		return false;
 	}
-	
+
 	TMap<uint8, TArray<FGuid>> RecipientPerVersions = GetRecipientsPerProtocolVersion(Recipients);
 	for (const auto& RecipientVersion : RecipientPerVersions)
 	{
@@ -194,16 +196,18 @@ uint32 FUdpMessageProcessor::Run()
 {
 	while (!Stopping)
 	{
-		FDateTime LastTime = CurrentTime;
-		CurrentTime = FDateTime::UtcNow();
-		DeltaTime = CurrentTime - LastTime;
+		WorkEvent->Wait(CalculateWaitTime());
 
-		if (WorkEvent->Wait(CalculateWaitTime()))
+		do
 		{
+			FDateTime LastTime = CurrentTime;
+			CurrentTime = FDateTime::UtcNow();
+			DeltaTime = CurrentTime - LastTime;
+
 			ConsumeInboundSegments();
 			ConsumeOutboundMessages();
-		}
-		UpdateKnownNodes();
+			UpdateKnownNodes();
+		} while (!InboundSegments.IsEmpty() && !Stopping);
 	}
 
 	delete Beacon;
@@ -307,11 +311,17 @@ FTimespan FUdpMessageProcessor::CalculateWaitTime() const
 }
 
 
+FTimespan ComputeMaxWorkTimespan(const int32 DeadHelloIntervals, FUdpMessageBeacon* Beacon)
+{
+	return 0.25 * DeadHelloIntervals * Beacon->GetBeaconInterval();
+}
+
 void FUdpMessageProcessor::ConsumeInboundSegments()
 {
 	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_ConsumeInboundSegments);
 	FInboundSegment Segment;
 
+	FTimespan MaxWorkTimespan = ComputeMaxWorkTimespan(DeadHelloIntervals, Beacon);
 	while (InboundSegments.Dequeue(Segment))
 	{
 		// quick hack for TTP# 247103
@@ -356,7 +366,7 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 				ProcessByeSegment(Segment, NodeInfo);
 				break;
 
-			case EUdpMessageSegments::Data:			
+			case EUdpMessageSegments::Data:
 				ProcessDataSegment(Segment, NodeInfo);
 				break;
 
@@ -384,41 +394,91 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 				ProcessUnknownSegment(Segment, NodeInfo, (uint8)Header.SegmentType);
 			}
 		}
+
+		if ((CurrentTime + MaxWorkTimespan) <= FDateTime::UtcNow())
+		{
+			break;
+		}
 	}
 }
 
+bool FUdpMessageProcessor::ConsumeOneOutboundMessage(const FOutboundMessage& OutboundMessage)
+{
+	const auto FindNodeWithLog = [this](const FGuid &Id)
+	{
+		FNodeInfo *NodeInfo = KnownNodes.Find(Id);
+		if (NodeInfo == nullptr)
+		{
+			UE_LOG(LogUdpMessaging, Verbose, TEXT("No recipient NodeInfo found for %s"), *Id.ToString());
+		}
+		return NodeInfo;
+	};
+
+	TArray<FNodeInfo*> Recipients;
+	Algo::TransformIf(OutboundMessage.RecipientIds, Recipients,
+					  [FindNodeWithLog](const FGuid &Id) {return FindNodeWithLog(Id);},
+					  [this](const FGuid &Id) {return KnownNodes.Find(Id);} );
+
+	bool bCanConsume = Algo::AllOf(Recipients, [](FNodeInfo *Node) {return !Node->WorkQueue.IsFull();});
+	if (bCanConsume)
+	{
+		++LastSentMessage;
+		for (FNodeInfo *RecipientNodeInfo : Recipients)
+		{
+			UE_LOG(LogUdpMessaging, Verbose, TEXT("Passing %d byte message to be segement-sent to %s with id %s"),
+				   OutboundMessage.SerializedMessage->TotalSize(),
+				   *RecipientNodeInfo->Endpoint.ToString(),
+				   *RecipientNodeInfo->NodeId.ToString());
+
+			RecipientNodeInfo->Segmenters.Add(
+				LastSentMessage,
+				MakeShared<FUdpMessageSegmenter>(OutboundMessage.SerializedMessage.ToSharedRef(), UDP_MESSAGING_SEGMENT_SIZE));
+			RecipientNodeInfo->WorkQueue.Enqueue(LastSentMessage);
+		}
+	}
+	else
+	{
+		return false;
+
+	}
+	return true;
+}
 
 void FUdpMessageProcessor::ConsumeOutboundMessages()
 {
 	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_ConsumeOutputMessages);
 	FOutboundMessage OutboundMessage;
 
+	const auto CannotConsumeMsg = []()
+	{
+		UE_LOG(LogUdpMessaging, Warning, TEXT("Can't consume outbound messages. Work queue on one or more receipents is full. Will try again next tick."));
+		// We can't queue any messages at the moment because our some/all of our work queues are full.
+		//
+	};
+
+	if (DeferredOutboundMessage)
+	{
+		if (ConsumeOneOutboundMessage(DeferredOutboundMessage.GetValue()))
+		{
+			DeferredOutboundMessage.Reset();
+		}
+		else
+		{
+			CannotConsumeMsg();
+			return;
+		}
+	}
+
 	while (OutboundMessages.Dequeue(OutboundMessage))
 	{
-		++LastSentMessage;
-
-		for (const FGuid& RecipientId : OutboundMessage.RecipientIds)
+		if (!ConsumeOneOutboundMessage(OutboundMessage))
 		{
-			FNodeInfo* RecipientNodeInfo = KnownNodes.Find(RecipientId);
-			// Queue segmenters to the nodes we are dispatching to
-			if (RecipientNodeInfo)
-			{
-				UE_LOG(LogUdpMessaging, Verbose, TEXT("Passing %d byte message to be segement-sent to %s"), 
-					OutboundMessage.SerializedMessage->TotalSize(), *RecipientNodeInfo->NodeId.ToString());
-
-				RecipientNodeInfo->Segmenters.Add(
-					LastSentMessage,
-					MakeShared<FUdpMessageSegmenter>(OutboundMessage.SerializedMessage.ToSharedRef(), UDP_MESSAGING_SEGMENT_SIZE)
-				);
-			}
-			else
-			{
-				UE_LOG(LogUdpMessaging, Verbose, TEXT("No recipient NodeInfo found for %s"), *RecipientId.ToString());
-			}
+			CannotConsumeMsg();
+			DeferredOutboundMessage = OutboundMessage;
+			return ;
 		}
 	}
 }
-
 
 bool FUdpMessageProcessor::FilterSegment(const FUdpMessageSegment::FHeader& Header)
 {
@@ -455,7 +515,6 @@ void FUdpMessageProcessor::ProcessAcknowledgeSegment(FInboundSegment& Segment, F
 	NodeInfo.Segmenters.Remove(AcknowledgeChunk.MessageId);
 
 	UE_LOG(LogUdpMessaging, Verbose, TEXT("Received Acknowledge for %d from %s"), AcknowledgeChunk.MessageId , *NodeInfo.NodeId.ToString());
-
 }
 
 
@@ -814,7 +873,7 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 
 int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSendBytes)
 {
-
+	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_UpdateSegmenters);
 	FUdpMessageSegment::FHeader Header
 	{
 		NodeInfo.ProtocolVersion,		// Header.ProtocolVersion - Send data segment using the node protocol version
@@ -823,12 +882,29 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 		EUdpMessageSegments::Data		// Header.SegmentType
 	};
 
-	uint32 ByteSent = 0;
-	for (TMap<int32, TSharedPtr<FUdpMessageSegmenter> >::TIterator It(NodeInfo.Segmenters); It; ++It)
-	{
-		TSharedPtr<FUdpMessageSegmenter>& Segmenter = It.Value();
 
-		Segmenter->Initialize();
+	TArray<int32> MessagesForRequeue;
+
+	uint32 ByteSent = 0;
+	while (ByteSent < MaxSendBytes && !NodeInfo.WorkQueue.IsEmpty())
+	{
+		int32 MessageId;
+		if (!NodeInfo.WorkQueue.Dequeue(MessageId))
+		{
+			continue;
+		}
+		TSharedPtr<FUdpMessageSegmenter>* FoundSegmenter = NodeInfo.Segmenters.Find(MessageId);
+		if (!FoundSegmenter)
+		{
+			UE_LOG(LogUdpMessaging, Warning, TEXT("Can't find segmenter for %d"), MessageId);
+			continue;
+		}
+		TSharedPtr<FUdpMessageSegmenter>& Segmenter = *FoundSegmenter;
+
+		if (!Segmenter->IsInitialized())
+		{
+			Segmenter->Initialize();
+		}
 
 		if (Segmenter->IsInitialized() && Segmenter->NeedSending(CurrentTime))
 		{
@@ -843,7 +919,7 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 				Segmenter->GetPendingSegment(BIt.GetIndex(), DataChunk.Data);
 				DataChunk.SegmentNumber = BIt.GetIndex();
 
-				DataChunk.MessageId = It.Key();
+				DataChunk.MessageId = MessageId;
 				DataChunk.MessageFlags = Segmenter->GetMessageFlags();
 				DataChunk.MessageSize = Segmenter->GetMessageSize();
 				DataChunk.SegmentOffset = UDP_MESSAGING_SEGMENT_SIZE * DataChunk.SegmentNumber;
@@ -861,11 +937,11 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 
 				ByteSent += Writer->Num();
 
-				UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Sending msg %d as segment %d/%d of %d bytes to %s"),
-					DataChunk.MessageId, 
-					DataChunk.SegmentNumber + 1, 
-					DataChunk.TotalSegments, 
-					Segmenter->GetMessageSize(), 
+				UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Sending msg %d as segment %d/%d of %d bytes to %s"),
+					DataChunk.MessageId,
+					DataChunk.SegmentNumber + 1,
+					DataChunk.TotalSegments,
+					Segmenter->GetMessageSize(),
 					*NodeInfo.NodeId.ToString());
 
 				if (!SocketSender->Send(Writer, NodeInfo.Endpoint))
@@ -888,7 +964,6 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 				}
 			}
 
-
 			// Mark those segments as sent. This removes them from the pending list
 			Segmenter->MarkAsSent(SentSegments);
 
@@ -899,37 +974,44 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 				if (EnumHasAnyFlags(Segmenter->GetMessageFlags(), EMessageFlags::Reliable))
 				{
 					Segmenter->UpdateSentTime(CurrentTime);
+					MessagesForRequeue.Add(MessageId);
 				}
 				else
 				{
 					UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Finished with message segmenter for %s"), *NodeInfo.NodeId.ToString());
-					It.RemoveCurrent();
+					NodeInfo.Segmenters.Remove(MessageId);
 				}
 			}
 			else
 			{
 				// Still work to do that will be picked up next tick
 				UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Will continue processing segments for msg %d from %s on next tick"), DataChunk.MessageId , *NodeInfo.NodeId.ToString());
+				MessagesForRequeue.Add(MessageId);
 			}
 		}
 		else if (Segmenter->IsInvalid())
 		{
-			It.RemoveCurrent();
+			NodeInfo.Segmenters.Remove(MessageId);
 		}
-		// if we reach the max send rate, break
-		if (ByteSent >= MaxSendBytes)
+		else
 		{
-			break;
+			MessagesForRequeue.Add(MessageId);
 		}
+	}
+	for (int32 MessageId : MessagesForRequeue)
+	{
+		NodeInfo.WorkQueue.Enqueue(MessageId);
 	}
 	return ByteSent;
 }
+
 
 
 const FTimespan FUdpMessageProcessor::StaleReassemblyInterval = FTimespan::FromSeconds(30);
 
 bool FUdpMessageProcessor::UpdateReassemblers(FNodeInfo& NodeInfo)
 {
+	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_UpdateReassemblers);
 	FUdpMessageSegment::FHeader Header
 	{
 		FMath::Max(NodeInfo.ProtocolVersion, (uint8)11),	// Header.ProtocolVersion, AcknowledgeSegments are version 11 and onward segment
@@ -938,12 +1020,18 @@ bool FUdpMessageProcessor::UpdateReassemblers(FNodeInfo& NodeInfo)
 		EUdpMessageSegments::AcknowledgeSegments			// Header.SegmentType
 	};
 
+	const uint32 MaxSendRate = GetMaxSendRate();
+	double DeltaSeconds = DeltaTime.GetTotalSeconds();
+	const int32 MaxSendRateDelta = MaxSendRate * DeltaSeconds;
+	int32 MaxNodeByteSend = (MaxSendRateDelta) / KnownNodes.Num();
+
 	for (TMap<int32, TSharedPtr<FUdpReassembledMessage, ESPMode::ThreadSafe>>::TIterator It(NodeInfo.ReassembledMessages); It; ++It)
 	{
 		TSharedPtr<FUdpReassembledMessage, ESPMode::ThreadSafe>& ReassembledMessage = It.Value();
 
 		// Send pending acknowledgments
-		if (ReassembledMessage->HasPendingAcknowledgements())
+		int BytesSent = 0;
+		while (ReassembledMessage->HasPendingAcknowledgements() && BytesSent < MaxNodeByteSend)
 		{
 			TArray<uint32> PendingAcknowledgments = ReassembledMessage->GetPendingAcknowledgments();
 			const int32 AckCount = PendingAcknowledgments.Num();
@@ -952,8 +1040,9 @@ bool FUdpMessageProcessor::UpdateReassemblers(FNodeInfo& NodeInfo)
 			TSharedRef<FArrayWriter, ESPMode::ThreadSafe> Writer = MakeShared<FArrayWriter, ESPMode::ThreadSafe>();
 			{
 				*Writer << Header;
-				AcknowledgeChunk.Serialize(*Writer, Header.ProtocolVersion);				
+				AcknowledgeChunk.Serialize(*Writer, Header.ProtocolVersion);
 			}
+			BytesSent += Writer->Num();
 
 			UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateReassemblers: Sending EUdpMessageSegments::AcknowledgeSegments for %d segments for message %d from %s"), AckCount, It.Key(), *ReassembledMessage->Describe());
 
@@ -963,10 +1052,10 @@ bool FUdpMessageProcessor::UpdateReassemblers(FNodeInfo& NodeInfo)
 
 				return false;
 			}
-			
-			UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateReassemblers: sending acknowledgement for reliable msg %d from %s"), 
-				It.Key(), 
-				*NodeInfo.NodeId.ToString());			
+
+			UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateReassemblers: sending acknowledgement for reliable msg %d from %s"),
+				It.Key(),
+				*NodeInfo.NodeId.ToString());
 		}
 
 		// Try to deliver completed message that couldn't be delivered the first time around
@@ -980,9 +1069,9 @@ bool FUdpMessageProcessor::UpdateReassemblers(FNodeInfo& NodeInfo)
 			(!EnumHasAnyFlags(ReassembledMessage->GetFlags(), EMessageFlags::Reliable) || ReassembledMessage->IsDelivered()))
 		{
 			if (!ReassembledMessage->IsDelivered())
-			{ 
+			{
 				const int ReceivedSegments = ReassembledMessage->GetTotalSegmentsCount() - ReassembledMessage->GetPendingSegmentsCount();
-				UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::UpdateReassemblers Discarding %d/%d of stale message segements from %s"), 
+				UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::UpdateReassemblers Discarding %d/%d of stale message segements from %s"),
 					ReceivedSegments,
 					ReassembledMessage->GetTotalSegmentsCount(),
 					*ReassembledMessage->Describe());

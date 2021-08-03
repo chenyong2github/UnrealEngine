@@ -100,7 +100,7 @@ public:
 	 */
 	const TBitArray<>& GetAcknowledgedSegments() const
 	{
-		return AcknowlededSegments;
+		return AcknowledgeSegments;
 	}
 
 	/**
@@ -110,7 +110,7 @@ public:
 	 */
 	uint32 GetAcknowledgedSegmentsCount() const
 	{
-		return AcknowlededSegmentsCount;
+		return AcknowledgeSegmentsCount;
 	}
 
 	/**
@@ -143,7 +143,7 @@ public:
 	 */
 	bool AreAcknowledgementsComplete() const
 	{
-		return (AcknowlededSegmentsCount == AcknowlededSegments.Num());
+		return (AcknowledgeSegmentsCount == AcknowledgeSegments.Num());
 	}
 
 	/**
@@ -230,13 +230,13 @@ private:
 	TBitArray<> PendingSendSegments;
 
 	/** Holds an array of bits where true indicates a segment has been acknowledged. Will always zero-length for an unreliable segment. */
-	TBitArray<> AcknowlededSegments;
+	TBitArray<> AcknowledgeSegments;
 
 	/** Holds the number of segments that haven't been sent yet. */
 	uint32 PendingSendSegmentsCount;
 
 	/** Holds the number of segments that haven't been acknowledged yet. Will always be zero for an unreliable message */
-	uint32 AcknowlededSegmentsCount;
+	uint32 AcknowledgeSegmentsCount;
 
 	/** Holds the segment size. */
 	uint16 SegmentSize;
