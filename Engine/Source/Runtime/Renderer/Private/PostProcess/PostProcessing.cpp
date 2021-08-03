@@ -772,47 +772,45 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			GraphBuilder.QueueTextureExtraction(DownsampledSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
 		}
 
-		FSceneDownsampleChain SceneDownsampleChain;
-
 		if (bHistogramEnabled)
 		{
 			HistogramTexture = AddHistogramPass(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, LastEyeAdaptationTexture);
 		}
 
-		if (bEyeAdaptationEnabled)
+		const bool bFFTBloomEnabled = IsFFTBloomEnabled(View);
+		const bool bBasicEyeAdaptationEnabled = bEyeAdaptationEnabled && (AutoExposureMethod == EAutoExposureMethod::AEM_Basic);
+
+		FSceneDownsampleChain SceneDownsampleChain;
+		if (bBasicEyeAdaptationEnabled || (bBloomEnabled && bFFTBloomEnabled))
 		{
-			const bool bBasicEyeAdaptationEnabled = bEyeAdaptationEnabled && (AutoExposureMethod == EAutoExposureMethod::AEM_Basic);
-
-			if (bBasicEyeAdaptationEnabled)
-			{
-				const bool bLogLumaInAlpha = true;
-				SceneDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, DownsampleQuality, bLogLumaInAlpha);
-
-				// Use the alpha channel in the last downsample (smallest) to compute eye adaptations values.
-				EyeAdaptationTexture = AddBasicEyeAdaptationPass(GraphBuilder, View, EyeAdaptationParameters, SceneDownsampleChain.GetLastTexture(), LastEyeAdaptationTexture);
-			}
-			// Add histogram eye adaptation pass even if no histogram exists to support the manual clamping mode.
-			else
-			{
-				EyeAdaptationTexture = AddHistogramEyeAdaptationPass(GraphBuilder, View, EyeAdaptationParameters, HistogramTexture);
-			}
+			const bool bLogLumaInAlpha = true;
+			SceneDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, DownsampleQuality, bLogLumaInAlpha);
 		}
 
-		FScreenPassTexture Bloom;
+		if (bBasicEyeAdaptationEnabled)
+		{
+			// Use the alpha channel in the last downsample (smallest) to compute eye adaptations values.
+			EyeAdaptationTexture = AddBasicEyeAdaptationPass(GraphBuilder, View, EyeAdaptationParameters, SceneDownsampleChain.GetLastTexture(), LastEyeAdaptationTexture);
+		}
+		// Add histogram eye adaptation pass even if no histogram exists to support the manual clamping mode.
+		else if (bEyeAdaptationEnabled)
+		{
+			EyeAdaptationTexture = AddHistogramEyeAdaptationPass(GraphBuilder, View, EyeAdaptationParameters, HistogramTexture);
+		}
+
+		FBloomOutputs Bloom;
 
 		if (bBloomEnabled)
 		{
 			FSceneDownsampleChain BloomDownsampleChain;
 
-			FBloomInputs PassInputs;
-			PassInputs.SceneColor = SceneColor;
-
 			const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > -1.0f;
 
-			// Reuse the main scene downsample chain if a threshold isn't required for bloom.
+			// Reuse the main scene downsample chain if a threshold isn't required for gaussian bloom.
+			const FSceneDownsampleChain* GaussianBloomSceneDownsampleChain;
 			if (SceneDownsampleChain.IsInitialized() && !bBloomThresholdEnabled)
 			{
-				PassInputs.SceneDownsampleChain = &SceneDownsampleChain;
+				GaussianBloomSceneDownsampleChain = &SceneDownsampleChain;
 			}
 			else
 			{
@@ -833,26 +831,41 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				const bool bLogLumaInAlpha = false;
 				BloomDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampleInput, DownsampleQuality, bLogLumaInAlpha);
 
-				PassInputs.SceneDownsampleChain = &BloomDownsampleChain;
+				GaussianBloomSceneDownsampleChain = &BloomDownsampleChain;
 			}
 
-			FBloomOutputs PassOutputs = AddBloomPass(GraphBuilder, View, PassInputs);
-			SceneColor = PassOutputs.SceneColor;
-			Bloom = PassOutputs.Bloom;
+			if (bFFTBloomEnabled)
+			{
+				FScreenPassTexture HalfResolution;
+				if (IsFFTBloomQuarterResolutionEnabled())
+				{
+					HalfResolution = SceneDownsampleChain.GetTexture(1);
+				}
+				else
+				{
+					HalfResolution = SceneDownsampleChain.GetFirstTexture();
+				}
 
-			FScreenPassTexture LensFlares = AddLensFlaresPass(GraphBuilder, View, Bloom, *PassInputs.SceneDownsampleChain);
+				FFFTBloomInputs PassInputs;
+				PassInputs.FullResolutionTexture = SceneColor.Texture;
+				PassInputs.FullResolutionViewRect = SceneColor.ViewRect;
+				PassInputs.HalfResolutionTexture = HalfResolution.Texture;
+				PassInputs.HalfResolutionViewRect = HalfResolution.ViewRect;
+
+				Bloom = AddFFTBloomPass(GraphBuilder, View, PassInputs);
+			}
+			else
+			{
+				Bloom = AddGaussianBloomPasses(GraphBuilder, View, GaussianBloomSceneDownsampleChain);
+			}
+
+			FScreenPassTexture LensFlares = AddLensFlaresPass(GraphBuilder, View, Bloom.Bloom, *GaussianBloomSceneDownsampleChain);
 
 			if (LensFlares.IsValid())
 			{
 				// Lens flares are composited with bloom.
-				Bloom = LensFlares;
+				Bloom.Bloom = LensFlares;
 			}
-		}
-
-		// Tonemapper needs a valid bloom target, even if it's black.
-		if (!Bloom.IsValid())
-		{
-			Bloom = BlackDummy;
 		}
 
 		SceneColorBeforeTonemap = SceneColor;
@@ -869,7 +882,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				PassSequence.AcceptOverrideIfLastPass(EPass::Tonemap, PassInputs.OverrideOutput);
 				PassInputs.SetInput(EPostProcessMaterialInput::SceneColor, SceneColor);
 				PassInputs.SetInput(EPostProcessMaterialInput::SeparateTranslucency, SeparateTranslucency);
-				PassInputs.SetInput(EPostProcessMaterialInput::CombinedBloom, Bloom);
+				PassInputs.SetInput(EPostProcessMaterialInput::CombinedBloom, Bloom.Bloom);
 				PassInputs.SceneTextures = GetSceneTextureShaderParameters(Inputs.SceneTextures);
 				PassInputs.CustomDepthTexture = CustomDepth.Texture;
 
@@ -2176,7 +2189,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		}
 			
 		TonemapperInputs.SceneColor = SceneColor;
-		TonemapperInputs.Bloom = BloomOutput;
+		TonemapperInputs.Bloom.Bloom = BloomOutput;
 		TonemapperInputs.EyeAdaptationTexture = nullptr;
 		TonemapperInputs.ColorGradingTexture = ColorGradingTexture;
 		TonemapperInputs.bWriteAlphaChannel = View.AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported() || bUseMobileDof || IsMobilePropagateAlphaEnabled(View.GetShaderPlatform());

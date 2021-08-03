@@ -6,12 +6,20 @@
 
 #define EYE_ADAPTATION_LOOSE_PARAMETERS 1
 
+#ifndef SUPPORTS_BLOOM_APPLY_PARAMETERS
+	#define SUPPORTS_BLOOM_APPLY_PARAMETERS 0
+#endif
+
+
 #include "Common.ush"
 #include "PostProcessCommon.ush"
 #include "TonemapCommon.ush"
 #include "EyeAdaptationCommon.ush"
 #include "PixelQuadMessagePassing.ush"
 #include "ScreenPass.ush"
+#if SUPPORTS_BLOOM_APPLY_PARAMETERS
+	#include "Bloom/BloomCommon.ush"
+#endif
 
 /** Values of DIM_OUTPUT_DEVICE (matching C++'s ETonemapperOutputDevice) */
 #define TONEMAPPER_OUTPUT_sRGB 0
@@ -37,15 +45,23 @@
 #define DEBUG_TONEMAPPER 0
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Color)
-SCREEN_PASS_TEXTURE_VIEWPORT(Bloom)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
-FScreenTransform ColorToBloom;
 
 Texture2D ColorTexture;
 SamplerState ColorSampler;
 
+
+FScreenTransform ColorToBloom;
+float2 BloomUVViewportBilinearMin;
+float2 BloomUVViewportBilinearMax;
+float4 BloomMultiply;
 Texture2D BloomTexture;
 SamplerState BloomSampler;
+
+#if SUPPORTS_BLOOM_APPLY_PARAMETERS
+	StructuredBuffer<FBloomApplyInfo> BloomApplyParameters;
+#endif
+
 
 // xyz:SceneColorTint.rgb, w:unused
 float4 ColorScale0;
@@ -536,7 +552,7 @@ float4 TonemapCommonPS(
 		OutColor.rgb = pow(SceneColor.rgb, InverseGamma.x);
 
 	#else 
-
+	{
 		#if METAL_MSAA_HDR_DECODE
 			// look for PreTonemapMSAA 
 			SceneColor.rgb *= rcp(SceneColor.r*(-0.299) + SceneColor.g*(-0.587) + SceneColor.b*(-0.114) + 1.0);
@@ -547,13 +563,21 @@ float4 TonemapCommonPS(
 		half3 LinearColor = SceneColor.rgb * ColorScale0.rgb;
 
 		#if USE_BLOOM
-			float2 BloomUV = ApplyScreenTransform(UV, ColorToBloom);
-			BloomUV = clamp(BloomUV, Bloom_UVViewportBilinearMin, Bloom_UVViewportBilinearMax);
+		{
+			float2 BloomUV;
 			#if ES3_1_PROFILE
+			{
 				BloomUV = FullViewUV.xy;
+			}
+			#else
+			{
+				BloomUV = ApplyScreenTransform(UV, ColorToBloom);
+				BloomUV = clamp(BloomUV, BloomUVViewportBilinearMin, BloomUVViewportBilinearMax);
+			}
 			#endif
+
 			float4 CombinedBloom = Texture2DSample(BloomTexture, BloomSampler, BloomUV);
-			CombinedBloom.rgb *= View.OneOverPreExposure; // Standard bloom path, convolution path has bloom already in scene color.
+			CombinedBloom.rgb *= View.OneOverPreExposure;
 
 			//float2 DirtViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse; 
 
@@ -573,16 +597,36 @@ float4 TonemapCommonPS(
 #endif //DEBUG_TONEMAPPER
 
 			#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
+			{
 				// Support sunshaft and vignette for mobile, and we have applied the BloomIntensity and the BloomDirtMask at the sun merge pass.
 				LinearColor = LinearColor.rgb * CombinedBloom.a + CombinedBloom.rgb;
+			}
 			#else
-			
+			{
 				float2 DirtLensUV = ConvertScreenViewportSpaceToLensViewportSpace(ScreenPos) * float2(1.0f, -1.0f);
 
 				float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMaskTexture, BloomDirtMaskSampler, DirtLensUV * .5f + .5f).rgb * BloomDirtMaskTint.rgb;
+				
+				#if SUPPORTS_BLOOM_APPLY_PARAMETERS
+				{
+					FBloomApplyInfo BloomApplyInfo = BloomApplyParameters[0];
 
-				LinearColor += CombinedBloom.rgb * (ColorScale1.rgb + BloomDirtMaskColor); 
+					LinearColor = (
+						LinearColor.rgb * BloomApplyInfo.SceneColorMultiply.rgb +
+						CombinedBloom.rgb * (BloomApplyInfo.BloomMultiply.rgb + BloomDirtMaskColor));
+					
+					SceneColor.a = (
+						SceneColor.a * BloomApplyInfo.SceneColorMultiply.a +
+						CombinedBloom.a * BloomApplyInfo.BloomMultiply.a);
+				}
+				#else
+				{
+					LinearColor += CombinedBloom.rgb * (BloomMultiply.rgb + BloomDirtMaskColor);
+				}
+				#endif
+			}
 			#endif
+		}
 		#endif
 
 		#if NO_EYEADAPTATION_EXPOSURE_FIX == 1
@@ -649,7 +693,7 @@ float4 TonemapCommonPS(
 		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve
 			OutColor.xyz = OutDeviceColor;
 		#endif
-
+	}
 	#endif
 	
 	#if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1 && (USE_FXAA == 0 || MOBILE_PROPAGATE_ALPHA > 0)) || POST_PROCESS_ALPHA == 2 || (POST_PROCESS_ALPHA == 1 && DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve)  || (POST_PROCESS_ALPHA == 1 && DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve)

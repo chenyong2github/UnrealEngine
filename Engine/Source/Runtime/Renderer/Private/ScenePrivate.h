@@ -963,12 +963,16 @@ public:
 	// Pre-computed filter in spectral (i.e. FFT) domain along with data to determine if we need to up date it
 	struct {
 		/// @cond DOXYGEN_WARNINGS
-		void SafeRelease() { Spectral.SafeRelease(); CenterWeight.SafeRelease(); }
+		void SafeRelease()
+		{
+			Spectral.SafeRelease();
+			ConstantsBuffer.SafeRelease();
+		}
 		/// @endcond
 
 		// The 2d fourier transform of the physical space texture.
 		TRefCountPtr<IPooledRenderTarget> Spectral;
-		TRefCountPtr<IPooledRenderTarget> CenterWeight; // a 1-pixel buffer that holds blend weights for half-resolution fft.
+		TRefCountPtr<FRDGPooledBuffer> ConstantsBuffer;
 
 		// The physical space source texture
 		UTexture2D* Physical = nullptr;
@@ -981,8 +985,6 @@ public:
 
 		// The size of the viewport for which the spectral kernel was calculated. 
 		FIntPoint ImageSize;
-
-		FVector2D CenterUV;
 
 		// Mip level of the physical space source texture used when caching the spectral space texture.
 		uint32 PhysicalMipLevel;

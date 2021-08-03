@@ -1413,6 +1413,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(Bloom6Size);
 		LERP_PP(BloomDirtMaskIntensity);
 		LERP_PP(BloomDirtMaskTint);
+		LERP_PP(BloomConvolutionScatterDispersion);
 		LERP_PP(BloomConvolutionSize);
 		LERP_PP(BloomConvolutionCenterUV);
 		LERP_PP(BloomConvolutionPreFilterMin);

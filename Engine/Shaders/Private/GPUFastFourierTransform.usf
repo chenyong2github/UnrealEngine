@@ -429,10 +429,7 @@ void GroupSharedTwoForOneFFTCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID :
 //              (e.g. Vertical ComplexFFT ( Horizontal TwoForOneFFT(Kernel))) 
 //
 //      
-//              And needed helper functions           
-//
-//              NB: This code affects a scale preserving 'normalization' of the kernel, by using the integral of the largest channel
-//                  of the physical space kernel.    
+//              And needed helper functions
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
 // Input SRV: 
@@ -628,30 +625,27 @@ void GSConvolutionWithTextureCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID 
 		GetKernelSum(FilterTexture, bIsHorizontal, NumScanlines, Norm);
 		// redSum = Norm[0].x;  greenSum = Norm[0].y; blueSum = Norm[1].x; alphaSum = Norm[1].y
 		
-		
-
-		// We normalize to preserve the relative sizes of the r,g,b kernels.
-		float NormMax = max(Norm[0].x, max(Norm[0].y, Norm[1].x));
-		float AlphaSum = (bUseAlpha) ? Norm[1].y : 1.f;
-
-
 		// Normalize R & G
 		{
+			//float Normal = NormMax;
+			float Normal = (bIsGAGroup) ? Norm[0].y :  Norm[0].x;
+
 			for (uint r = 0; r < RADIX; ++r)
 			{
 				// This is the R or G channel
-				LocalBuffer[0][r] /= NormMax; 
+				LocalBuffer[0][r] /= Normal; 
 			}
 		}
 		
-		float AorBNorm = (bIsGAGroup) ? AlphaSum : NormMax; 
-
 		// Normalize B & A
 		{
+			//float Normal = AorBNorm;
+			float Normal = (bIsGAGroup) ? Norm[1].y :  Norm[1].x;
+
 			for (uint r = 0; r < RADIX; ++r)
 			{
 				// This is the B or A channel
-				LocalBuffer[1][r] /= AorBNorm; 
+				LocalBuffer[1][r] /= Normal; 
 			}
 		}
 	}
@@ -1387,14 +1381,8 @@ void ComplexMultiplyImagesCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID : S
 
 		// redSum = Norm[0].x;  greenSum = Norm[0].y; blueSum = Norm[1].x; alphaSum = Norm[1].y
 
-		// We normalize to preserve the relative sizes of the r,g,b kernels.
-		float InvNormMax = 1.f / max(Norm[0].x, max(Norm[0].y, Norm[1].x));
-		
-		float InvAlphaSum = (bUseAlpha) ? 1.f / Norm[1].y : 1.f;
-		
-		float BorANorm = (bIsGAGroup) ? InvAlphaSum : InvNormMax;
-
-		InvNorm = float4(InvNormMax, InvNormMax, BorANorm, BorANorm);
+		// We normalize each RGBA channel independently.
+		InvNorm = float4(((bIsGAGroup) ? Norm[0].y : Norm[0].x).xx, ((bIsGAGroup) ? Norm[1].y : Norm[1].x).xx);
 	}
 
 

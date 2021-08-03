@@ -1,19 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessFFTBloom.h"
+#include "PostProcess/PostProcessBloomSetup.h"
 #include "GPUFastFourierTransform.h"
 #include "RendererModule.h"
 #include "Rendering/Texture2DResource.h"
 
 namespace
 {
+TAutoConsoleVariable<int32> CVarBloomCacheKernel(
+	TEXT("r.Bloom.CacheKernel"), 1,
+	TEXT("Whether to cache the kernel in spectral domain."),
+	ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<int32> CVarHalfResFFTBloom(
-	TEXT("r.Bloom.HalfResolutionFFT"),
-	0,
+	TEXT("r.Bloom.HalfResolutionFFT"), 0,
 	TEXT("Experimental half-resolution FFT Bloom convolution. \n")
-	TEXT(" 0: Standard full resolution convolution bloom.")
-	TEXT(" 1: Half-resolution convolution that excludes the center of the kernel.\n")
-	TEXT(" 2: Quarter-resolution convolution that excludes the center of the kernel.\n"),
+	TEXT(" 0: Standard full resolution convolution bloom;")
+	TEXT(" 1: Half-resolution convolution;\n")
+	TEXT(" 2: Quarter-resolution convolution.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static bool DoesPlatformSupportFFTBloom(EShaderPlatform Platform)
@@ -24,9 +29,6 @@ static bool DoesPlatformSupportFFTBloom(EShaderPlatform Platform)
 class FFFTBloomShader : public FGlobalShader
 {
 public:
-	// Determine the number of threads used per scanline when writing the physical space kernel
-	static const uint32 ThreadsPerGroup = 32;
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportFFTBloom(Parameters.Platform);
@@ -38,86 +40,154 @@ public:
 	{}
 };
 
-class FResizeAndCenterTextureCS : public FFFTBloomShader
+class FBloomFindKernelCenterCS : public FFFTBloomShader
 {
 public:
-	DECLARE_GLOBAL_SHADER(FResizeAndCenterTextureCS);
-	SHADER_USE_PARAMETER_STRUCT(FResizeAndCenterTextureCS, FFFTBloomShader);
+	DECLARE_GLOBAL_SHADER(FBloomFindKernelCenterCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomFindKernelCenterCS, FFFTBloomShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, KernelSpatialTextureSize)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, KernelSpatialTexture)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, KernelCenterCoordOutput)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FBloomSurveyMaxScatterDispersionCS : public FFFTBloomShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FBloomSurveyMaxScatterDispersionCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomSurveyMaxScatterDispersionCS, FFFTBloomShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(float, ViewTexelRadiusInKernelTexels)
+		SHADER_PARAMETER(int32, SurveyGroupGridSize)
+		SHADER_PARAMETER(FIntPoint, KernelSpatialTextureSize)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, KernelSpatialTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelCenterCoordBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, SurveyOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FBloomSurveyKernelCenterEnergyCS : public FFFTBloomShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FBloomSurveyKernelCenterEnergyCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomSurveyKernelCenterEnergyCS, FFFTBloomShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(float, ViewTexelRadiusInKernelTexels)
+		SHADER_PARAMETER(int32, SurveyGroupGridSize)
+		SHADER_PARAMETER(FIntPoint, KernelSpatialTextureSize)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, KernelSpatialTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelCenterCoordBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaxScatterDispersionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, SurveyOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FBloomReduceKernelSurveyCS : public FFFTBloomShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FBloomReduceKernelSurveyCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomReduceKernelSurveyCS, FFFTBloomShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(int32, SurveyReduceOp)
+		SHADER_PARAMETER(int32, SurveyGroupCount)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, SurveyOutput)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FBloomSumScatterDispersionEnergyCS : public FFFTBloomShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FBloomSumScatterDispersionEnergyCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomSumScatterDispersionEnergyCS, FFFTBloomShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(int32, PassId)
+		SHADER_PARAMETER(FIntPoint, ScatterDispersionTextureSize)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScatterDispersionTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaxScatterDispersionBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ScatterDispersionOutput)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FBloomPackKernelConstantsCS : public FFFTBloomShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FBloomPackKernelConstantsCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomPackKernelConstantsCS, FFFTBloomShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelCenterCoordBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelCenterEnergyBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaxScatterDispersionBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE(StructuredBuffer<uint>, ScatterDispersionTexture)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, KernelConstantsOutput)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FBloomClampKernelCS : public FFFTBloomShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FBloomClampKernelCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomClampKernelCS, FFFTBloomShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, KernelSpatialTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelConstantsBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ClampedKernelSpatialOutput)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FBloomResizeKernelCS : public FFFTBloomShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FBloomResizeKernelCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomResizeKernelCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, DstExtent)
 		SHADER_PARAMETER(FIntPoint, ImageExtent)
-		SHADER_PARAMETER(FVector4, KernelCenterAndScale)
+		SHADER_PARAMETER(FVector2D, KernelSpatialTextureInvSize)
 		SHADER_PARAMETER(FIntPoint, DstBufferExtent)
+		SHADER_PARAMETER(float, KernelSupportScale)
 
-		SHADER_PARAMETER_TEXTURE(Texture2D, SrcTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelConstantsBuffer)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SrcSampler)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FFFTBloomShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("INCLUDE_RESIZE_AND_CENTER"), 1);
-		OutEnvironment.SetDefine(TEXT("THREADS_PER_GROUP"), ThreadsPerGroup);
-	}
 };
 
-class FCaptureKernelWeightsCS : public FFFTBloomShader
+class FBloomFinalizeApplyConstantsCS : public FFFTBloomShader
 {
 public:
-	DECLARE_GLOBAL_SHADER(FCaptureKernelWeightsCS);
-	SHADER_USE_PARAMETER_STRUCT(FCaptureKernelWeightsCS, FFFTBloomShader);
+	DECLARE_GLOBAL_SHADER(FBloomFinalizeApplyConstantsCS);
+	SHADER_USE_PARAMETER_STRUCT(FBloomFinalizeApplyConstantsCS, FFFTBloomShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntPoint, HalfResSumLocation)
-		SHADER_PARAMETER(FVector2D, UVCenter)
-
-		SHADER_PARAMETER_SAMPLER(SamplerState, PhysicalSrcSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HalfResSrcTexture)
-		SHADER_PARAMETER_TEXTURE(Texture2D, PhysicalSrcTexture)
-
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DstTexture)
+		SHADER_PARAMETER(float, ScatterDispersionIntensity)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelConstantsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, BloomApplyConstantsOutput)
 	END_SHADER_PARAMETER_STRUCT()
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FFFTBloomShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("INCLUDE_CAPTURE_KERNEL_WEIGHTS"), 1);
-	}
 };
 
-class FBlendLowResCS : public FFFTBloomShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FBlendLowResCS);
-	SHADER_USE_PARAMETER_STRUCT(FBlendLowResCS, FFFTBloomShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntRect, DstRect)
-		SHADER_PARAMETER(FIntRect, HalfRect)
-		SHADER_PARAMETER(FIntPoint, HalfBufferSize)
-
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HalfResSrcTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, HalfResSrcSampler)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CenterWeightTexture)
-
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DstTexture)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FFFTBloomShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("INCLUDE_BLEND_LOW_RES"), 1);
-		OutEnvironment.SetDefine(TEXT("THREADS_PER_GROUP"), ThreadsPerGroup);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FResizeAndCenterTextureCS, "/Engine/Private/PostProcessFFTBloom.usf", "ResizeAndCenterTextureCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FCaptureKernelWeightsCS,   "/Engine/Private/PostProcessFFTBloom.usf", "CaptureKernelWeightsCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FBlendLowResCS,            "/Engine/Private/PostProcessFFTBloom.usf", "BlendLowResCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomFindKernelCenterCS,           "/Engine/Private/Bloom/BloomFindKernelCenter.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomSurveyMaxScatterDispersionCS, "/Engine/Private/Bloom/BloomSurveyMaxScatterDispersion.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomSurveyKernelCenterEnergyCS,   "/Engine/Private/Bloom/BloomSurveyKernelCenterEnergy.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomReduceKernelSurveyCS,         "/Engine/Private/Bloom/BloomReduceKernelSurvey.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomSumScatterDispersionEnergyCS, "/Engine/Private/Bloom/BloomSumScatterDispersionEnergy.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomPackKernelConstantsCS,        "/Engine/Private/Bloom/BloomPackKernelConstants.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomClampKernelCS,                "/Engine/Private/Bloom/BloomClampKernel.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomResizeKernelCS,               "/Engine/Private/Bloom/BloomResizeKernel.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBloomFinalizeApplyConstantsCS,     "/Engine/Private/Bloom/BloomFinalizeApplyConstants.usf", "MainCS", SF_Compute);
 
 } //! namespace
 
@@ -152,162 +222,6 @@ bool IsFFTBloomEnabled(const FViewInfo& View)
 	{
 		return false;
 	}
-}
-
-/**
-* Used to resample the physical space kernel into the correct sized buffer with the 
-* correct periodicity and center.
-*
-* Resizes the image, moves the center to to 0,0 and applies periodicity 
-* across the full TargetSize (periods TargetSize.x & TargetSize.y)
-*
-* @param SrcTexture    - SRV for the physical space kernel supplied by user
-* @param SrcImageSize  - The extent of the src image
-* @param SrcImageCenterUV - The location of the center in src image (e.g. where the kernel center really is).
-* @param ResizeScale    - Affective size of the physical space kernel in units of the ImageExtent.x 
-* @param TargetSize    - Size of the image produced. 
-* @param DstUAV        - Holds the result
-* @param DstBufferSize - Size of DstBuffer
-* @param bForceCenterZero -  is true only for the experimental 1/2 res version, part of conserving energy
-*/
-void ResizeAndCenterTexture(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const FTextureRHIRef& SrcTexture,
-	const FIntPoint& SrcImageSize,
-	const FVector2D& SrcImageCenterUV,
-	const float ResizeScale,
-	const FIntPoint& TargetSize,
-	FRDGTextureRef DstTexture,
-	const FIntPoint& DstBufferSize,
-	const bool bForceCenterZero)
-{
-	// Clamp the image center
-	FVector2D ClampedImageCenterUV = SrcImageCenterUV;
-	ClampedImageCenterUV.X = FMath::Clamp(SrcImageCenterUV.X, 0.f, 1.f);
-	ClampedImageCenterUV.Y = FMath::Clamp(SrcImageCenterUV.Y, 0.f, 1.f);
-
-	check(DstTexture);
-
-	float CenterScale = bForceCenterZero ? 0.f : 1.f;
-	const FLinearColor KernelCenterAndScale(ClampedImageCenterUV.X, ClampedImageCenterUV.Y, ResizeScale, CenterScale);
-
-	FResizeAndCenterTextureCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FResizeAndCenterTextureCS::FParameters>();
-	PassParameters->DstExtent = TargetSize;
-	PassParameters->ImageExtent = SrcImageSize;
-	PassParameters->KernelCenterAndScale = KernelCenterAndScale;
-	PassParameters->DstBufferExtent = DstBufferSize;
-
-	PassParameters->SrcTexture = SrcTexture;
-	PassParameters->SrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	PassParameters->DstTexture = GraphBuilder.CreateUAV(DstTexture);
-
-	// Use multiple threads per scan line to insure memory coalescing during the write
-	const int32 ThreadsPerGroup = FResizeAndCenterTextureCS::ThreadsPerGroup;
-	const int32 ThreadsGroupsPerScanLine = (DstBufferSize.X % ThreadsPerGroup == 0) ? DstBufferSize.X / ThreadsPerGroup : DstBufferSize.X / ThreadsPerGroup + 1;
-	
-	TShaderMapRef<FResizeAndCenterTextureCS> ComputeShader(View.ShaderMap);
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("FFTBloom PreProcessKernel %dx%d", TargetSize.X, TargetSize.Y),
-		ComputeShader,
-		PassParameters, FIntVector(ThreadsGroupsPerScanLine, DstBufferSize.Y, 1));
-}
-
-FRDGTextureRef CaptureKernelWeight(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FRDGTextureRef HalfResKernel,
-	const FIntPoint& HalfResSumLocation,
-	const FTextureRHIRef& PhysicalKernel,
-	const FVector2D& CenterUV)
-{
-	FRDGTextureDesc CenterWeightDesc = FRDGTextureDesc::Create2D(
-		FIntPoint(2, 1),
-		GPUFFT::PixelFormat(),
-		FClearValueBinding::None,
-		TexCreate_ShaderResource | TexCreate_UAV);
-
-	// Resize the buffer to hold the transformed kernel
-	FRDGTextureRef CenterWeightTexture = GraphBuilder.CreateTexture(CenterWeightDesc, TEXT("Bloom.FFT.KernelCenterWeight"));
-
-	FCaptureKernelWeightsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCaptureKernelWeightsCS::FParameters>();
-	PassParameters->HalfResSumLocation = HalfResSumLocation;
-	PassParameters->UVCenter = CenterUV;
-	PassParameters->PhysicalSrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	PassParameters->HalfResSrcTexture = HalfResKernel;
-	PassParameters->PhysicalSrcTexture = PhysicalKernel;
-	PassParameters->DstTexture = GraphBuilder.CreateUAV(CenterWeightTexture);
-
-	TShaderMapRef<FCaptureKernelWeightsCS> ComputeShader(View.ShaderMap);
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("FFTBloom CaptureKernelWeights"),
-		ComputeShader,
-		PassParameters, 
-		FIntVector(1, 1, 1));
-
-	return CenterWeightTexture;
-}
-
-/**
-* Used by energy conserving 1/2 resolution version of the bloom.
-* This blends the results of the low resolution bloom with the full resolution image 
-* in an energy conserving manner.  Assumes the 1/2-res bloom is done with a kernel that
-* is missing the center pixel (i.e. the self-gather contribution), and this missing contribution
-* is supplied by the full-res image.
-*
-* @param Context  - container for RHI and ShaderMap
-* @param FullResImage - Unbloomed full-resolution source image
-* @param FullResImageRect      - Region in FullResImage and DstUAV where the image lives
-* @param HaflResConvolvedImage - A 1/2 res image that has been convolved with the bloom kernel minus center.
-* @param HalfResRect           - Location of image in the HalfResConvolvedImage buffer
-* @param HalfBufferSize        - Full size of the 1/2 Res buffer.
-* @param CenterWeightTexture   - Texture that holds the weight between the kernel center and sum of 1/2res kernel weights.
-*                                 needed to correctly composite the 1/2 res bloomed result with the full-res image.
-* @param DstUAV                - Destination buffer that will hold the result.
-*/
-void BlendLowRes(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FRDGTextureRef FullResImage,
-	const FIntRect& FullResImageRect,
-	FRDGTextureRef HalfResConvolvedImage,
-	const FIntRect& HalfResRect,
-	const FIntPoint& HalfBufferSize,
-	FRDGTextureRef CenterWeightTexutre,
-	FRDGTextureRef DstTexture)
-{
-	FBlendLowResCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBlendLowResCS::FParameters>();
-	PassParameters->DstRect = FullResImageRect;
-	PassParameters->HalfRect = HalfResRect;
-	PassParameters->HalfBufferSize = HalfBufferSize;
-
-	PassParameters->SrcTexture = FullResImage;
-	PassParameters->HalfResSrcTexture = HalfResConvolvedImage;
-	PassParameters->HalfResSrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	PassParameters->CenterWeightTexture = CenterWeightTexutre;
-
-	PassParameters->DstTexture = GraphBuilder.CreateUAV(DstTexture);
-
-	TShaderMapRef<FBlendLowResCS> ComputeShader(View.ShaderMap);
-
-	const FIntPoint TargetSize = FullResImageRect.Size();
-
-	// Use multiple threads per scan line to insure memory coalescing during the write
-	const int32 ThreadsPerGroup = ComputeShader->ThreadsPerGroup;
-	const int32 ThreadsGroupsPerScanLine = (TargetSize.X % ThreadsPerGroup == 0) ? TargetSize.X / ThreadsPerGroup : TargetSize.X / ThreadsPerGroup + 1;
-
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("FFTBloom Upscale&Blend %dx%d -> %dx%d",
-			HalfResRect.Width(),
-			HalfResRect.Height(),
-			FullResImageRect.Width(),
-			FullResImageRect.Height()),
-		ComputeShader,
-		PassParameters,
-		FIntVector(ThreadsGroupsPerScanLine, TargetSize.Y, 1));
 }
 
 FRDGTextureRef TransformKernelFFT(
@@ -457,13 +371,175 @@ FFFTBloomIntermediates GetFFTBloomIntermediates(
 	return Intermediates;
 }
 
+
+struct FKernelAnalysisResult
+{
+	FRDGBufferRef MaxScatterDispersionBuffer;
+	FRDGBufferRef KernelCenterEnergyBuffer;
+	FRDGTextureRef ScatterDispersionTexture;
+};
+
+FKernelAnalysisResult AnalysesKernelAtDensity(
+	FRDGBuilder& GraphBuilder,
+	const FGlobalShaderMap* ShaderMap,
+	const FFFTBloomIntermediates& Intermediates,
+	FRDGTextureRef SpatialKernelTexture,
+	FRDGBufferRef KernelCenterCoordBuffer,
+	float ViewTexelDiameterInKernelTexels)
+{
+	// Find information about the kernel's energy distribution
+	FRDGBufferRef MaxScatterDispersionBuffer;
+	FRDGBufferRef KernelCenterEnergyBuffer;
+	{
+		const int32 SurveyTileSize = 8;
+
+		float ViewTexelRadiusInKernelTexels = ViewTexelDiameterInKernelTexels * 0.5f;
+
+		int32 SurveyGroupGridSize = 2 * FMath::DivideAndRoundUp(FMath::CeilToInt(ViewTexelRadiusInKernelTexels) + 4, SurveyTileSize);
+		int32 SurveyGroupCount = SurveyGroupGridSize * SurveyGroupGridSize;
+
+		FRDGTextureUAVRef DebugTextureUAV;
+		{
+			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
+				FIntPoint(SurveyGroupGridSize * 8, SurveyGroupGridSize * 8),
+				PF_FloatRGBA,
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+
+			FRDGTextureRef DebugTexture = GraphBuilder.CreateTexture(DebugDesc, TEXT("Debug.Bloom.Survey"));
+
+			DebugTextureUAV = GraphBuilder.CreateUAV(DebugTexture);
+		}
+
+		RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom SurveyKernel(TexelDiameter=%f)", ViewTexelDiameterInKernelTexels);
+
+		// Reduce a survey buffer to a single value.
+		auto ReduceSurveyBuffer = [&](FRDGBufferRef SurveyBuffer, int32 Op)
+		{
+			FBloomReduceKernelSurveyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomReduceKernelSurveyCS::FParameters>();
+			PassParameters->SurveyReduceOp = Op;
+			PassParameters->SurveyGroupCount = SurveyGroupCount;
+			PassParameters->SurveyOutput = GraphBuilder.CreateUAV(SurveyBuffer);
+
+			TShaderMapRef<FBloomReduceKernelSurveyCS> ComputeShader(ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom ReduceKernelSurvey(Op=%d) %d", Op, SurveyGroupCount),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(SurveyGroupCount, 64));
+		};
+
+		// Find the max scatter dispersion to use around the footprint of the view pixel in the kernel.
+		{
+			MaxScatterDispersionBuffer = GraphBuilder.CreateBuffer(
+				FRDGBufferDesc::CreateStructuredDesc(sizeof(FLinearColor), /* NumElements = */ SurveyGroupCount),
+				TEXT("Bloom.FFT.MaxScatterDispersion"));
+
+			FBloomSurveyMaxScatterDispersionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomSurveyMaxScatterDispersionCS::FParameters>();
+			PassParameters->ViewTexelRadiusInKernelTexels = ViewTexelRadiusInKernelTexels;
+			PassParameters->SurveyGroupGridSize = SurveyGroupGridSize;
+			PassParameters->KernelSpatialTextureSize = SpatialKernelTexture->Desc.Extent;
+			PassParameters->KernelSpatialTexture = SpatialKernelTexture;
+			PassParameters->KernelCenterCoordBuffer = GraphBuilder.CreateSRV(KernelCenterCoordBuffer);
+			PassParameters->SurveyOutput = GraphBuilder.CreateUAV(MaxScatterDispersionBuffer);
+			PassParameters->DebugOutput = DebugTextureUAV;
+
+			TShaderMapRef<FBloomSurveyMaxScatterDispersionCS> ComputeShader(ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom SurveyMaxScatterDispersion"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(SurveyGroupGridSize, SurveyGroupGridSize, 1));
+
+			ReduceSurveyBuffer(MaxScatterDispersionBuffer, /* Op = */ 0);
+		}
+
+		// Find the amount of energy at the center in the footprint of the view pixel in the kernel.
+		{
+			KernelCenterEnergyBuffer = GraphBuilder.CreateBuffer(
+				FRDGBufferDesc::CreateStructuredDesc(sizeof(FLinearColor), /* NumElements = */ SurveyGroupCount),
+				TEXT("Bloom.FFT.KernelCenterEnergy"));
+
+			FBloomSurveyKernelCenterEnergyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomSurveyKernelCenterEnergyCS::FParameters>();
+			PassParameters->ViewTexelRadiusInKernelTexels = ViewTexelRadiusInKernelTexels;
+			PassParameters->SurveyGroupGridSize = SurveyGroupGridSize;
+			PassParameters->KernelSpatialTextureSize = SpatialKernelTexture->Desc.Extent;
+			PassParameters->KernelSpatialTexture = SpatialKernelTexture;
+			PassParameters->KernelCenterCoordBuffer = GraphBuilder.CreateSRV(KernelCenterCoordBuffer);
+			PassParameters->MaxScatterDispersionBuffer = GraphBuilder.CreateSRV(MaxScatterDispersionBuffer);
+			PassParameters->SurveyOutput = GraphBuilder.CreateUAV(KernelCenterEnergyBuffer);
+			PassParameters->DebugOutput = DebugTextureUAV;
+
+			TShaderMapRef<FBloomSurveyKernelCenterEnergyCS> ComputeShader(ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom SurveyKernelCenterEnergy"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(SurveyGroupGridSize, SurveyGroupGridSize, 1));
+
+			ReduceSurveyBuffer(KernelCenterEnergyBuffer, /* Op = */ 1);
+		}
+	}
+
+	// Find out the total energy of the kernel - center.
+	// Implemented in such away to prioritize numerical error rather than speed.
+	FRDGTextureRef ScatterDispersionTexture;
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom SumScatterDispersionEnergy %dx%d",
+			SpatialKernelTexture->Desc.Extent.X, SpatialKernelTexture->Desc.Extent.Y);
+
+		ScatterDispersionTexture = SpatialKernelTexture;
+
+		for (int32 PassId = 0; ScatterDispersionTexture->Desc.Extent.X > 1 && ScatterDispersionTexture->Desc.Extent.Y > 1; PassId++)
+		{
+			FRDGTextureRef NewScatterDispersionTexture;
+			{
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+					FIntPoint::DivideAndRoundUp(ScatterDispersionTexture->Desc.Extent, 8),
+					PF_A32B32G32R32F,
+					FClearValueBinding::None,
+					TexCreate_ShaderResource | TexCreate_UAV);
+
+				NewScatterDispersionTexture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.KernelIntensity"));
+			}
+
+			FBloomSumScatterDispersionEnergyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomSumScatterDispersionEnergyCS::FParameters>();
+			PassParameters->PassId = PassId;
+			PassParameters->ScatterDispersionTextureSize = ScatterDispersionTexture->Desc.Extent;
+			PassParameters->ScatterDispersionTexture = ScatterDispersionTexture;
+			PassParameters->MaxScatterDispersionBuffer = GraphBuilder.CreateSRV(MaxScatterDispersionBuffer);
+			PassParameters->ScatterDispersionOutput = GraphBuilder.CreateUAV(NewScatterDispersionTexture);
+
+			TShaderMapRef<FBloomSumScatterDispersionEnergyCS> ComputeShader(ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom SumScatterDispersionEnergy %dx%d -> %dx%d",
+					ScatterDispersionTexture->Desc.Extent.X, ScatterDispersionTexture->Desc.Extent.Y,
+					NewScatterDispersionTexture->Desc.Extent.X, NewScatterDispersionTexture->Desc.Extent.Y),
+				ComputeShader,
+				PassParameters,
+				FIntVector(NewScatterDispersionTexture->Desc.Extent.X, NewScatterDispersionTexture->Desc.Extent.Y, 1));
+
+			ScatterDispersionTexture = NewScatterDispersionTexture;
+		}
+	}
+
+	FKernelAnalysisResult Result;
+	Result.MaxScatterDispersionBuffer = MaxScatterDispersionBuffer;
+	Result.KernelCenterEnergyBuffer = KernelCenterEnergyBuffer;
+	Result.ScatterDispersionTexture = ScatterDispersionTexture;
+	return Result;
+}
+
 void InitDomainAndGetKernel(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FFFTBloomIntermediates& Intermediates,
-	bool bForceCenterZero,
-	FRDGTextureRef* OutCachedSpectralKernel,
-	FRDGTextureRef* OutCenterWeightTexture)
+	FRDGTextureRef* OutSpectralKernelTexture,
+	FRDGBufferRef* OutKernelConstantsBuffer)
 {
 	FSceneViewState* ViewState = View.ViewState;
 
@@ -476,7 +552,7 @@ void InitDomainAndGetKernel(
 	check(BloomConvolutionTextureResource && PhysicalSpaceKernelTextureRef);
 
 	const float BloomConvolutionSize = PPSettings.BloomConvolutionSize;
-	const FVector2D CenterUV = PPSettings.BloomConvolutionCenterUV;
+	const FVector2D CenterUV = PPSettings.BloomConvolutionCenterUV; // TODO: remove
 
 	// Our frequency storage layout adds two elements to the first transform direction. 
 	const FIntPoint FrequencyPadding = (Intermediates.bDoHorizontalFirst) ? FIntPoint(2, 0) : FIntPoint(0, 2);
@@ -490,9 +566,7 @@ void InitDomainAndGetKernel(
 		FClearValueBinding::None,
 		TexCreate_ShaderResource | TexCreate_UAV);
 
-	FRDGTextureRef CachedSpectralKernel = nullptr;
-	FRDGTextureRef CenterWeightTexture = nullptr;
-	if (ViewState && ViewState->BloomFFTKernel.Spectral)
+	if (ViewState && ViewState->BloomFFTKernel.Spectral && CVarBloomCacheKernel.GetValueOnRenderThread() != 0)
 	{
 		auto& FFTKernel = ViewState->BloomFFTKernel;
 
@@ -506,77 +580,306 @@ void InitDomainAndGetKernel(
 
 		const bool bSameKernelSize = FMath::IsNearlyEqual(FFTKernel.Scale, BloomConvolutionSize, float(1.e-6) /*tol*/);
 		const bool bSameImageSize = (Intermediates.ImageRect.Size() == FFTKernel.ImageSize);
-		const bool bSameKernelCenterUV = FFTKernel.CenterUV.Equals(CenterUV, float(1.e-6) /*tol*/);
 		const bool bSameMipLevel = bSameTexture && FFTKernel.PhysicalMipLevel == BloomConvolutionTextureResource->GetCurrentMipCount();
 
-		if (bSameTexture && bSameSpectralBuffer && bSameKernelSize && bSameImageSize && bSameKernelCenterUV && bSameMipLevel)
+		if (bSameTexture && bSameSpectralBuffer && bSameKernelSize && bSameImageSize && bSameMipLevel)
 		{
-			CachedSpectralKernel = PrevCachedSpectralKernel;
-
-			if (bForceCenterZero)
-			{
-				CenterWeightTexture = GraphBuilder.RegisterExternalTexture(FFTKernel.CenterWeight);
-			}
+			*OutSpectralKernelTexture = PrevCachedSpectralKernel;
+			*OutKernelConstantsBuffer = GraphBuilder.RegisterExternalBuffer(FFTKernel.ConstantsBuffer);
+			return;
 		}
 	}
 
 	// Re-transform the kernel if needed.
-	if (!CachedSpectralKernel)
+	RDG_EVENT_SCOPE(GraphBuilder, "InitBloomKernel");
+
+
+	FRDGTextureRef SpatialKernelTexture = RegisterExternalTexture(GraphBuilder, PhysicalSpaceKernelTextureRef, TEXT("Bloom.FFT.OriginalKernel"));
+
+
+	// Find the center of the kernel
+	FRDGBufferRef KernelCenterCoordBuffer;
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "InitDomainAndGetKernel");
+		KernelCenterCoordBuffer = GraphBuilder.CreateBuffer(
+			FRDGBufferDesc::CreateStructuredDesc(sizeof(int32_t), /* NumElements = */ 4),
+			TEXT("Bloom.FFT.KernelCenterCoord"));
 
-		// Rescale the physical space kernel ( and omit the center if this is a 1/2 resolution fft, it will be added later)
-		FRDGTextureRef ResizedKernel = GraphBuilder.CreateTexture(TransformDesc, TEXT("Bloom.FFT.ResizedKernel"));
-		ResizeAndCenterTexture(
+		FBloomFindKernelCenterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomFindKernelCenterCS::FParameters>();
+		PassParameters->KernelSpatialTextureSize = SpatialKernelTexture->Desc.Extent;
+		PassParameters->KernelSpatialTexture = SpatialKernelTexture;
+		PassParameters->KernelCenterCoordOutput = GraphBuilder.CreateUAV(KernelCenterCoordBuffer);
+
+		AddClearUAVPass(GraphBuilder, PassParameters->KernelCenterCoordOutput, /* Value = */ 0);
+
+		TShaderMapRef<FBloomFindKernelCenterCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			View, PhysicalSpaceKernelTextureRef, Intermediates.ImageRect.Size(), CenterUV, Intermediates.KernelSupportScale,
-			Intermediates.FrequencySize, ResizedKernel, PaddedFrequencySize, bForceCenterZero);
+			RDG_EVENT_NAME("FFTBloom FindKernelCenter %dx%d", SpatialKernelTexture->Desc.Extent.X, SpatialKernelTexture->Desc.Extent.Y),
+			ComputeShader,
+			PassParameters, 
+			FComputeShaderUtils::GetGroupCount(SpatialKernelTexture->Desc.Extent, 8));
+	}
 
-		// Two Dimensional FFT of the physical space kernel.  
-		CachedSpectralKernel = TransformKernelFFT(
-			GraphBuilder, View,
-			ResizedKernel,
-			Intermediates.bDoHorizontalFirst,
-			Intermediates.FrequencySize);
+	// Find information about the kernel's energy distribution
+	FRDGBufferRef MaxScatterDispersionBuffer;
+	FRDGBufferRef KernelCenterEnergyBuffer;
+	{
+		const int32 SurveyTileSize = 8;
 
-		if (bForceCenterZero)
+		float KernelSizeInDstPixels = FMath::Max(float(Intermediates.ImageRect.Width()) * Intermediates.KernelSupportScale, 1.0f);
+
+		// Diameter of a view texel in the kernel.
+		float ViewTexelDiameterInKernelTexels = FMath::Max(SpatialKernelTexture->Desc.Extent.X / KernelSizeInDstPixels, 1.0f);
+
+		float ViewTexelRadiusInKernelTexels = ViewTexelDiameterInKernelTexels * 0.5f;
+
+		int32 SurveyGroupGridSize = 2 * FMath::DivideAndRoundUp(FMath::CeilToInt(ViewTexelRadiusInKernelTexels) + 4, SurveyTileSize);
+		int32 SurveyGroupCount = SurveyGroupGridSize * SurveyGroupGridSize;
+
+		FRDGTextureUAVRef DebugTextureUAV;
 		{
-			// Capture the missing center weight from the kernel and the sum of the existing weights.
-			CenterWeightTexture = CaptureKernelWeight(
-				GraphBuilder,
-				View,
-				CachedSpectralKernel,
-				PaddedFrequencySize,
-				PhysicalSpaceKernelTextureRef,
-				CenterUV);
+			FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
+				FIntPoint(SurveyGroupGridSize * 8, SurveyGroupGridSize * 8),
+				PF_FloatRGBA,
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+
+			FRDGTextureRef DebugTexture = GraphBuilder.CreateTexture(DebugDesc, TEXT("Debug.Bloom.Survey"));
+
+			DebugTextureUAV = GraphBuilder.CreateUAV(DebugTexture);
 		}
 
-		// Update the data on the ViewState
-		if (ViewState)
+		RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom SurveyKernel(TexelDiameter=%f)", ViewTexelDiameterInKernelTexels);
+
+		// Reduce a survey buffer to a single value.
+		auto ReduceSurveyBuffer = [&](FRDGBufferRef SurveyBuffer, int32 Op)
 		{
-			ViewState->BloomFFTKernel.Scale = BloomConvolutionSize;
-			ViewState->BloomFFTKernel.ImageSize = Intermediates.ImageRect.Size();
-			ViewState->BloomFFTKernel.Physical = View.FinalPostProcessSettings.BloomConvolutionTexture;
-			ViewState->BloomFFTKernel.PhysicalRHI = PhysicalSpaceKernelTextureRef;
-			ViewState->BloomFFTKernel.CenterUV = CenterUV;
-			ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTextureResource->GetCurrentMipCount();
-			{
-				ViewState->BloomFFTKernel.Spectral.SafeRelease();
-				GraphBuilder.QueueTextureExtraction(CachedSpectralKernel, &ViewState->BloomFFTKernel.Spectral);
-			}
-			{
-				ViewState->BloomFFTKernel.CenterWeight.SafeRelease();
-				if (CenterWeightTexture)
-					GraphBuilder.QueueTextureExtraction(CenterWeightTexture, &ViewState->BloomFFTKernel.CenterWeight);
-			}
+			FBloomReduceKernelSurveyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomReduceKernelSurveyCS::FParameters>();
+			PassParameters->SurveyReduceOp = Op;
+			PassParameters->SurveyGroupCount = SurveyGroupCount;
+			PassParameters->SurveyOutput = GraphBuilder.CreateUAV(SurveyBuffer);
+
+			TShaderMapRef<FBloomReduceKernelSurveyCS> ComputeShader(View.ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom ReduceKernelSurvey(Op=%d) %d", Op, SurveyGroupCount),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(SurveyGroupCount, 64));
+		};
+
+		// Find the max scatter dispersion to use around the footprint of the view pixel in the kernel.
+		{
+			MaxScatterDispersionBuffer = GraphBuilder.CreateBuffer(
+				FRDGBufferDesc::CreateStructuredDesc(sizeof(FLinearColor), /* NumElements = */ SurveyGroupCount),
+				TEXT("Bloom.FFT.MaxScatterDispersion"));
+
+			FBloomSurveyMaxScatterDispersionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomSurveyMaxScatterDispersionCS::FParameters>();
+			PassParameters->ViewTexelRadiusInKernelTexels = ViewTexelRadiusInKernelTexels;
+			PassParameters->SurveyGroupGridSize = SurveyGroupGridSize;
+			PassParameters->KernelSpatialTextureSize = SpatialKernelTexture->Desc.Extent;
+			PassParameters->KernelSpatialTexture = SpatialKernelTexture;
+			PassParameters->KernelCenterCoordBuffer = GraphBuilder.CreateSRV(KernelCenterCoordBuffer);
+			PassParameters->SurveyOutput = GraphBuilder.CreateUAV(MaxScatterDispersionBuffer);
+			PassParameters->DebugOutput = DebugTextureUAV;
+
+			TShaderMapRef<FBloomSurveyMaxScatterDispersionCS> ComputeShader(View.ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom SurveyMaxScatterDispersion"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(SurveyGroupGridSize, SurveyGroupGridSize, 1));
+
+			ReduceSurveyBuffer(MaxScatterDispersionBuffer, /* Op = */ 0);
+		}
+
+		// Find the amount of energy at the center in the footprint of the view pixel in the kernel.
+		{
+			KernelCenterEnergyBuffer = GraphBuilder.CreateBuffer(
+				FRDGBufferDesc::CreateStructuredDesc(sizeof(FLinearColor), /* NumElements = */ SurveyGroupCount),
+				TEXT("Bloom.FFT.KernelCenterEnergy"));
+
+			FBloomSurveyKernelCenterEnergyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomSurveyKernelCenterEnergyCS::FParameters>();
+			PassParameters->ViewTexelRadiusInKernelTexels = ViewTexelRadiusInKernelTexels;
+			PassParameters->SurveyGroupGridSize = SurveyGroupGridSize;
+			PassParameters->KernelSpatialTextureSize = SpatialKernelTexture->Desc.Extent;
+			PassParameters->KernelSpatialTexture = SpatialKernelTexture;
+			PassParameters->KernelCenterCoordBuffer = GraphBuilder.CreateSRV(KernelCenterCoordBuffer);
+			PassParameters->MaxScatterDispersionBuffer = GraphBuilder.CreateSRV(MaxScatterDispersionBuffer);
+			PassParameters->SurveyOutput = GraphBuilder.CreateUAV(KernelCenterEnergyBuffer);
+			PassParameters->DebugOutput = DebugTextureUAV;
+
+			TShaderMapRef<FBloomSurveyKernelCenterEnergyCS> ComputeShader(View.ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom SurveyKernelCenterEnergy"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(SurveyGroupGridSize, SurveyGroupGridSize, 1));
+
+			ReduceSurveyBuffer(KernelCenterEnergyBuffer, /* Op = */ 1);
 		}
 	}
 
-	*OutCachedSpectralKernel = CachedSpectralKernel;
-	*OutCenterWeightTexture = CenterWeightTexture;
+	// Find out the total energy of the kernel - center.
+	// Implemented in such away to prioritize numerical error rather than speed.
+	FRDGTextureRef ScatterDispersionTexture;
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom SumScatterDispersionEnergy %dx%d",
+			SpatialKernelTexture->Desc.Extent.X, SpatialKernelTexture->Desc.Extent.Y);
+
+		ScatterDispersionTexture = SpatialKernelTexture;
+
+		for (int32 PassId = 0; ScatterDispersionTexture->Desc.Extent.X > 1 && ScatterDispersionTexture->Desc.Extent.Y > 1; PassId++)
+		{
+			FRDGTextureRef NewScatterDispersionTexture;
+			{
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+					FIntPoint::DivideAndRoundUp(ScatterDispersionTexture->Desc.Extent, 8),
+					PF_A32B32G32R32F,
+					FClearValueBinding::None,
+					TexCreate_ShaderResource | TexCreate_UAV);
+
+				NewScatterDispersionTexture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.KernelIntensity"));
+			}
+
+			FBloomSumScatterDispersionEnergyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomSumScatterDispersionEnergyCS::FParameters>();
+			PassParameters->PassId = PassId;
+			PassParameters->ScatterDispersionTextureSize = ScatterDispersionTexture->Desc.Extent;
+			PassParameters->ScatterDispersionTexture = ScatterDispersionTexture;
+			PassParameters->MaxScatterDispersionBuffer = GraphBuilder.CreateSRV(MaxScatterDispersionBuffer);
+			PassParameters->ScatterDispersionOutput = GraphBuilder.CreateUAV(NewScatterDispersionTexture);
+
+			TShaderMapRef<FBloomSumScatterDispersionEnergyCS> ComputeShader(View.ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom SumScatterDispersionEnergy %dx%d -> %dx%d",
+					ScatterDispersionTexture->Desc.Extent.X, ScatterDispersionTexture->Desc.Extent.Y,
+					NewScatterDispersionTexture->Desc.Extent.X, NewScatterDispersionTexture->Desc.Extent.Y),
+				ComputeShader,
+				PassParameters,
+				FIntVector(NewScatterDispersionTexture->Desc.Extent.X, NewScatterDispersionTexture->Desc.Extent.Y, 1));
+
+			ScatterDispersionTexture = NewScatterDispersionTexture;
+		}
+	}
+
+	// Packs all the kernel information into the same buffer.
+	FRDGBufferRef KernelConstantsBuffer = nullptr;
+	{
+		KernelConstantsBuffer = GraphBuilder.CreateBuffer(
+			FRDGBufferDesc::CreateStructuredDesc(sizeof(float) * 16, /* NumElements = */ 1),
+			TEXT("Bloom.FFT.KernelConstants"));
+
+		FBloomPackKernelConstantsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomPackKernelConstantsCS::FParameters>();
+		PassParameters->KernelCenterCoordBuffer = GraphBuilder.CreateSRV(KernelCenterCoordBuffer);
+		PassParameters->KernelCenterEnergyBuffer   = GraphBuilder.CreateSRV(KernelCenterEnergyBuffer);
+		PassParameters->MaxScatterDispersionBuffer = GraphBuilder.CreateSRV(MaxScatterDispersionBuffer);
+		PassParameters->ScatterDispersionTexture   = ScatterDispersionTexture;
+		PassParameters->KernelConstantsOutput = GraphBuilder.CreateUAV(KernelConstantsBuffer);
+
+		TShaderMapRef<FBloomPackKernelConstantsCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("FFTBloom PackKernelConstants"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
+	}
+
+	// Preprocess the original kernel for Fourier transformation
+	FRDGTextureRef ResizedKernel;
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom PreprocessKernel");
+
+		// Clamp the kernel to avoid highlight contamination in the resize.
+		FRDGTextureRef ClampedKernelTexture;
+		{
+			{
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+					SpatialKernelTexture->Desc.Extent,
+					PF_FloatRGBA,
+					FClearValueBinding::None,
+					TexCreate_ShaderResource | TexCreate_UAV);
+
+				ClampedKernelTexture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.ClampedKernel"));
+			}
+
+			FBloomClampKernelCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomClampKernelCS::FParameters>();
+			PassParameters->KernelSpatialTexture = SpatialKernelTexture;
+			PassParameters->KernelConstantsBuffer = GraphBuilder.CreateSRV(KernelConstantsBuffer);
+			PassParameters->ClampedKernelSpatialOutput = GraphBuilder.CreateUAV(ClampedKernelTexture);
+
+			TShaderMapRef<FBloomClampKernelCS> ComputeShader(View.ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom ClampedKernel %dx%d",
+					SpatialKernelTexture->Desc.Extent.X,
+					SpatialKernelTexture->Desc.Extent.Y),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(SpatialKernelTexture->Desc.Extent, 8));
+		}
+
+		// Final resize the kernel for Fourier transformation
+		{
+			ResizedKernel = GraphBuilder.CreateTexture(TransformDesc, TEXT("Bloom.FFT.ResizedKernel"));
+
+			FBloomResizeKernelCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomResizeKernelCS::FParameters>();
+			PassParameters->DstExtent = Intermediates.FrequencySize;
+			PassParameters->ImageExtent = Intermediates.ImageRect.Size();
+			PassParameters->KernelSpatialTextureInvSize.X = 1.0f / float(SpatialKernelTexture->Desc.Extent.X);
+			PassParameters->KernelSpatialTextureInvSize.Y = 1.0f / float(SpatialKernelTexture->Desc.Extent.Y);
+			PassParameters->DstBufferExtent = Intermediates.FrequencySize;
+			PassParameters->KernelSupportScale = Intermediates.KernelSupportScale;
+
+			PassParameters->KernelConstantsBuffer = GraphBuilder.CreateSRV(KernelConstantsBuffer);
+			PassParameters->SrcTexture = ClampedKernelTexture;
+			PassParameters->SrcSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+		
+			PassParameters->DstTexture = GraphBuilder.CreateUAV(ResizedKernel);
+
+			TShaderMapRef<FBloomResizeKernelCS> ComputeShader(View.ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("FFTBloom PreProcessKernel %dx%d", Intermediates.FrequencySize.X, Intermediates.FrequencySize.Y),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(PaddedFrequencySize, 8));
+		}
+	}
+
+	// Two Dimensional FFT of the physical space kernel.  
+	FRDGTextureRef SpectralKernelTexture = TransformKernelFFT(
+		GraphBuilder, View,
+		ResizedKernel,
+		Intermediates.bDoHorizontalFirst,
+		Intermediates.FrequencySize);
+
+	// Update the data on the ViewState
+	if (ViewState && CVarBloomCacheKernel.GetValueOnRenderThread() != 0)
+	{
+		ViewState->BloomFFTKernel.Scale = BloomConvolutionSize;
+		ViewState->BloomFFTKernel.ImageSize = Intermediates.ImageRect.Size();
+		ViewState->BloomFFTKernel.Physical = View.FinalPostProcessSettings.BloomConvolutionTexture;
+		ViewState->BloomFFTKernel.PhysicalRHI = PhysicalSpaceKernelTextureRef;
+		ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTextureResource->GetCurrentMipCount();
+		{
+			ViewState->BloomFFTKernel.Spectral.SafeRelease();
+			GraphBuilder.QueueTextureExtraction(SpectralKernelTexture, &ViewState->BloomFFTKernel.Spectral);
+		}
+		{
+			ViewState->BloomFFTKernel.ConstantsBuffer.SafeRelease();
+			GraphBuilder.QueueBufferExtraction(KernelConstantsBuffer, &ViewState->BloomFFTKernel.ConstantsBuffer);
+		}
+	}
+
+	*OutSpectralKernelTexture = SpectralKernelTexture;
+	*OutKernelConstantsBuffer = KernelConstantsBuffer;
 }
 
-FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs)
+FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs)
 {
 	check(Inputs.FullResolutionTexture);
 	check(!Inputs.FullResolutionViewRect.IsEmpty());
@@ -586,93 +889,59 @@ FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 	const bool bHalfResolutionFFT = IsFFTBloomHalfResolutionEnabled();
 
 	FFFTBloomIntermediates Intermediates = GetFFTBloomIntermediates(View, Inputs);
-	
-	// Init the domain data update the cached kernel if needed.
-	FRDGTextureRef SpectralKernelTexture;
-	FRDGTextureRef CenterWeightTexture;
-	InitDomainAndGetKernel(
-		GraphBuilder, View, Intermediates,
-		/* bForceCenterZero = */ bHalfResolutionFFT,
-		/* out */ &SpectralKernelTexture,
-		/* out */ &CenterWeightTexture);
-
-	const FLinearColor Tint(1, 1, 1, 1);
 
 	RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom %dx%d", Intermediates.ImageRect.Width(), Intermediates.ImageRect.Height());
 
-	if (bHalfResolutionFFT)
+	// Init the domain data update the cached kernel if needed.
+	FRDGTextureRef SpectralKernelTexture;
+	FRDGBufferRef KernelConstantsBuffer;
+	InitDomainAndGetKernel(
+		GraphBuilder, View, Intermediates,
+		/* out */ &SpectralKernelTexture,
+		/* out */ &KernelConstantsBuffer);
+
+	FBloomOutputs BloomOutput;
+
+	// Generate the apply constant buffer for the tone-maping pass.
 	{
-		// Get a half-resolution destination buffer.
-		TRefCountPtr<IPooledRenderTarget> HalfResConvolutionResult;
+		check(FBloomOutputs::SupportsApplyParametersBuffer(View.GetShaderPlatform()));
 
-		FRDGTextureRef FFTConvolutionTexture;
-		{
-			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				Intermediates.InputBufferSize,
-				GPUFFT::PixelFormat(),
-				FClearValueBinding::None,
-				TexCreate_ShaderResource | TexCreate_UAV);
+		BloomOutput.ApplyParameters = GraphBuilder.CreateBuffer(
+			FRDGBufferDesc::CreateStructuredDesc(sizeof(FBloomOutputs::FApplyInfo), /* NumElements = */ 1),
+			TEXT("Bloom.FFT.KernelConstants"));
 
-			FFTConvolutionTexture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.SceneColor"));
-		}
+		FBloomFinalizeApplyConstantsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomFinalizeApplyConstantsCS::FParameters>();
+		PassParameters->ScatterDispersionIntensity = View.FinalPostProcessSettings.BloomConvolutionScatterDispersion;
+		PassParameters->KernelConstantsBuffer = GraphBuilder.CreateSRV(KernelConstantsBuffer);
+		PassParameters->BloomApplyConstantsOutput = GraphBuilder.CreateUAV(BloomOutput.ApplyParameters);
 
-		GPUFFT::ConvolutionWithTextureImage2D(
+		TShaderMapRef<FBloomFinalizeApplyConstantsCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			View.ShaderMap,
-			Intermediates.FrequencySize,
-			Intermediates.bDoHorizontalFirst,
-			SpectralKernelTexture,
-			Intermediates.InputTexture, Intermediates.ImageRect,
-			FFTConvolutionTexture, Intermediates.ImageRect,
-			Intermediates.PreFilter);
-
-		// Blend with  alpha * SrcBuffer + betta * BloomedBuffer  where alpha = Weights[0], beta = Weights[1]
-		const FIntPoint HalfResBufferSize = Intermediates.InputBufferSize;
-
-		FRDGTextureRef OutputSceneColorTexture;
-		{
-			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				Inputs.FullResolutionTexture->Desc.Extent,
-				Inputs.FullResolutionTexture->Desc.Format,
-				FClearValueBinding::None,
-				TexCreate_ShaderResource | TexCreate_UAV);
-
-			OutputSceneColorTexture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.SceneColor"));
-		}
-
-		BlendLowRes(
-			GraphBuilder,
-			View,
-			Inputs.FullResolutionTexture, Inputs.FullResolutionViewRect,
-			FFTConvolutionTexture, Intermediates.ImageRect,
-			Intermediates.InputBufferSize,
-			CenterWeightTexture,
-			OutputSceneColorTexture);
-
-		return OutputSceneColorTexture;
+			RDG_EVENT_NAME("FFTBloom FinalizeApplyConstants(ScatterDispersion=%f)", PassParameters->ScatterDispersionIntensity),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
 	}
-	else
-	{
-		FRDGTextureDesc OutputSceneColorDesc = FRDGTextureDesc::Create2D(
-			Inputs.FullResolutionTexture->Desc.Extent,
-			Inputs.FullResolutionTexture->Desc.Format,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV);
+
+	FRDGTextureDesc OutputSceneColorDesc = FRDGTextureDesc::Create2D(
+		Intermediates.InputTexture->Desc.Extent,
+		Intermediates.InputTexture->Desc.Format,
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV);
 		
-		FRDGTextureRef OutputSceneColorTexture = GraphBuilder.CreateTexture(OutputSceneColorDesc, TEXT("Bloom.FFT.SceneColor"));
+	BloomOutput.Bloom.Texture = GraphBuilder.CreateTexture(OutputSceneColorDesc, TEXT("Bloom.FFT.SceneColor"));
+	BloomOutput.Bloom.ViewRect = Intermediates.ImageRect;
 
-		GPUFFT::ConvolutionWithTextureImage2D(
-			GraphBuilder,
-			View.ShaderMap,
-			Intermediates.FrequencySize,
-			Intermediates.bDoHorizontalFirst,
-			SpectralKernelTexture,
-			Intermediates.InputTexture, Intermediates.ImageRect,
-			OutputSceneColorTexture, Intermediates.ImageRect,
-			Intermediates.PreFilter);
+	GPUFFT::ConvolutionWithTextureImage2D(
+		GraphBuilder,
+		View.ShaderMap,
+		Intermediates.FrequencySize,
+		Intermediates.bDoHorizontalFirst,
+		SpectralKernelTexture,
+		Intermediates.InputTexture, Intermediates.ImageRect,
+		BloomOutput.Bloom.Texture, BloomOutput.Bloom.ViewRect,
+		Intermediates.PreFilter);
 
-		return OutputSceneColorTexture;
-	}
-
-	return Inputs.FullResolutionTexture;
+	return BloomOutput;
 }

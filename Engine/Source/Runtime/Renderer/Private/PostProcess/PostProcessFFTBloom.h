@@ -5,6 +5,8 @@
 #include "RenderGraph.h"
 #include "ScenePrivate.h"
 
+struct FBloomOutputs;
+
 // Returns whether FFT bloom is enabled for the view.
 bool IsFFTBloomEnabled(const FViewInfo& View);
 
@@ -19,4 +21,4 @@ struct FFFTBloomInputs
 
 bool IsFFTBloomQuarterResolutionEnabled();
 
-FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs);
+FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs);
