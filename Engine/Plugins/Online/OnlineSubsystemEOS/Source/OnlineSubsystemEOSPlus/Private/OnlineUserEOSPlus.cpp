@@ -1326,14 +1326,14 @@ void FOnlineUserEOSPlus::OnPresenceArrayUpdated(const FUniqueNetId& UserId, cons
 
 void FOnlineUserEOSPlus::SetPresence(const FUniqueNetId& User, const FOnlineUserPresenceStatus& Status, const FOnPresenceTaskCompleteDelegate& Delegate)
 {
-	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(User.ToString());
+	const FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(User.ToString());
 	if (!NetIdPlus.IsValid())
 	{
 		UE_LOG_ONLINE(Error, TEXT("Failed to find user (%s) in net id plus to base net id map"), *User.ToString());
 		Delegate.ExecuteIfBound(User, false);
 		return;
 	}
-	BasePresenceInterface->SetPresence(*NetIdPlusToBaseNetId[User.ToString()], Status,
+	BasePresenceInterface->SetPresence(*NetIdPlus->GetBaseNetId(), Status,
 		FOnPresenceTaskCompleteDelegate::CreateLambda([this, NetIdPlus, StatusCopy = FOnlineUserPresenceStatus(Status), IntermediateComplete = FOnPresenceTaskCompleteDelegate(Delegate)](const FUniqueNetId& UserId, const bool bWasSuccessful)
 	{
 		// Skip setting EAS presence if not mirrored or if we errored at the platform level or the EOS user isn't found
