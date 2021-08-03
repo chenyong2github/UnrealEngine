@@ -311,11 +311,11 @@ static SDL_Rect GetConfinementRect(const RECT* const Bounds, const TSharedPtr<FL
 	int Bottom = 0;
 	SDL_GetWindowBordersSize(CurrentFocusWindow->GetHWnd(), &Top, &Left, &Bottom, &Right);
 
-	ConfineRect.x = FMath::TruncToInt(Bounds->left) + Left;
-	ConfineRect.y = FMath::TruncToInt(Bounds->top) - Top;
+	ConfineRect.x = Bounds->left + Left;
+	ConfineRect.y = Bounds->top - Top;
 
-	ConfineRect.w = FMath::TruncToInt(Bounds->right) - FMath::TruncToInt(Bounds->left) - 1;
-	ConfineRect.h = FMath::TruncToInt(Bounds->bottom) - FMath::TruncToInt(Bounds->top) - 1;
+	ConfineRect.w = Bounds->right - Bounds->left - 1;
+	ConfineRect.h = Bounds->bottom - Bounds->top - 1;
 
 	// TODO. For some reason the values from Bounds seem not to cover the SDL's window area.
 	// The cursor exceeds the right and bottom border of the window. This can be troublesome

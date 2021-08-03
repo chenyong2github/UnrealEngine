@@ -363,10 +363,10 @@ void FMacCursor::Lock(const RECT* const Bounds)
 	}
 	else
 	{
-		CursorClipRect.Min.X = FMath::TruncToInt(Bounds->left);
-		CursorClipRect.Min.Y = FMath::TruncToInt(Bounds->top);
-		CursorClipRect.Max.X = Bounds->right > Bounds->left ? FMath::TruncToInt(Bounds->right) - 1 : Bounds->left;
-		CursorClipRect.Max.Y = Bounds->bottom > Bounds->top ? FMath::TruncToInt(Bounds->bottom) - 1 : Bounds->top;
+		CursorClipRect.Min.X = Bounds->left;
+		CursorClipRect.Min.Y = Bounds->top;
+		CursorClipRect.Max.X = Bounds->right > Bounds->left ? Bounds->right - 1 : Bounds->left;
+		CursorClipRect.Max.Y = Bounds->bottom > Bounds->top ? Bounds->bottom - 1 : Bounds->top;
 	}
 
 	MacApplication->OnCursorLock();
