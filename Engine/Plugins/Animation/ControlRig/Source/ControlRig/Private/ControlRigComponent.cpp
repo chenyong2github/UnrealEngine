@@ -1144,6 +1144,15 @@ UControlRig* UControlRigComponent::SetupControlRigIfRequired()
 }
 void UControlRigComponent::SetControlRig(UControlRig* InControlRig)
 {
+	if (ControlRig)
+	{
+		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
+		ControlRig->OnPreSetup_AnyThread().RemoveAll(this);
+		ControlRig->OnPostSetup_AnyThread().RemoveAll(this);
+		ControlRig->OnPreForwardsSolve_AnyThread().RemoveAll(this);
+		ControlRig->OnPostForwardsSolve_AnyThread().RemoveAll(this);
+		ControlRig->OnExecuted_AnyThread().RemoveAll(this);
+	}
 	ControlRig = InControlRig;
 	ControlRig->OnInitialized_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigInitializedEvent);
 	ControlRig->OnPreSetup_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPreSetupEvent);
