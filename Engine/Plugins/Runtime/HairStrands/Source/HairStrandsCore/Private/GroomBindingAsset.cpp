@@ -727,7 +727,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 			Ar << UncompressedSize;
 
 			uint8* DecompressionBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(UncompressedSize));
-			Ar.SerializeCompressed(DecompressionBuffer, 0, NAME_Zlib);
+			Ar.SerializeCompressed(DecompressionBuffer, UncompressedSize, NAME_Zlib);
 
 			FLargeMemoryReader LargeMemReader(DecompressionBuffer, UncompressedSize, ELargeMemoryReaderFlags::Persistent | ELargeMemoryReaderFlags::TakeOwnership);
 			InternalSerialize(LargeMemReader, this, HairGroupBulkDatas, 0);

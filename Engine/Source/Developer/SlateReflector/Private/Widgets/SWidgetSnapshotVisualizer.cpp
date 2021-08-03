@@ -579,7 +579,7 @@ void FWidgetSnapshotData::LoadSnapshotFromBuffer(const TArray<uint8>& InData)
 		BufferReader << UncompressedDataSize;
 
 		UncompressedData.AddZeroed(UncompressedDataSize);
-		BufferReader.SerializeCompressed(UncompressedData.GetData(), 0, NAME_Zlib);
+		BufferReader.SerializeCompressed(UncompressedData.GetData(), UncompressedDataSize, NAME_Zlib);
 	}
 
 	bool bJsonLoaded = false;
