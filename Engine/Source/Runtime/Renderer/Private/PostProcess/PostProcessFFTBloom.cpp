@@ -126,7 +126,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelCenterCoordBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelCenterEnergyBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaxScatterDispersionBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE(StructuredBuffer<uint>, ScatterDispersionTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScatterDispersionTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, KernelConstantsOutput)
 	END_SHADER_PARAMETER_STRUCT()
 };
