@@ -137,7 +137,7 @@ public:
 	
 	static EThreadPriority GetRHIThreadPriority()
 	{
-		return TPri_SlightlyBelowNormal;
+		return TPri_Normal;
 	}
 
 	static EThreadCreateFlags GetRHIThreadFlags()
