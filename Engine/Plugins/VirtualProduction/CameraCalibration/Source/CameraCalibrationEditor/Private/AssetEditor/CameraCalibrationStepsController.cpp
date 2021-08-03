@@ -715,12 +715,6 @@ void FCameraCalibrationStepsController::EnableDistortionInCG()
 		break;
 	}
 
-	if (!DistortionHandler)
-	{
-		UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find a distortion handler in the selected camera"));
-		return;
-	}
-
 	for (ACompositingElement* Element : Comp->GetChildElements())
 	{
 		ACompositingCaptureBase* CaptureBase = Cast<ACompositingCaptureBase>(Element);
@@ -730,8 +724,20 @@ void FCameraCalibrationStepsController::EnableDistortionInCG()
 			continue;
 		}
 
+		// Enable distortion on the CG compositing layer
 		CaptureBase->SetApplyDistortion(true);
-		CaptureBase->SetDistortionHandler(DistortionHandler);
+
+		// If a distortion handler exists for the target camera, set it on the CG layer. 
+		// If no handlers currently exist, log a warning. At some later time, if a distortion source is created
+		// the CG layer will automatically pick it up and start using it.
+		if (DistortionHandler)
+		{
+			CaptureBase->SetDistortionHandler(DistortionHandler);
+		}
+		else
+		{
+			UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find a distortion handler in the selected camera"));
+		}
 	}
 }
 
