@@ -78,10 +78,14 @@ void FAnimNode_PoseDriver::CacheBones_AnyThread(const FAnimationCacheBonesContex
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	FAnimNode_PoseHandler::CacheBones_AnyThread(Context);
+
 	// Init pose input
 	SourcePose.CacheBones(Context);
 
 	const FBoneContainer& BoneContainer = Context.AnimInstanceProxy->GetRequiredBones();
+
+	// Get RefPose
+	RefPoseCompact = BoneContainer.GetRefPoseCompactArray();
 
 	// Init bone refs
 	for (FBoneReference& SourceBoneRef : SourceBones)
@@ -196,13 +200,45 @@ void FAnimNode_PoseDriver::GetRBFTargets(TArray<FRBFTarget>& OutTargets) const
 			if (PoseTarget.BoneTransforms.IsValidIndex(SourceIdx))
 			{
 				const FPoseDriverTransform& BoneTransform = PoseTarget.BoneTransforms[SourceIdx];
+
+				// Get Ref Transform
+				FTransform RefBoneTransform = FTransform::Identity;
+				if (bEvalFromRefPose)
+				{
+					const int32 CompactPoseIndex = SourceBones[SourceIdx].CachedCompactPoseIndex.GetInt();
+					if (RefPoseCompact.IsValidIndex(CompactPoseIndex))
+					{
+						RefBoneTransform = RefPoseCompact[CompactPoseIndex];
+					}
+				}
+
+				// Target Translation
 				if (DriveSource == EPoseDriverSource::Translation)
 				{
-					RBFTarget.AddFromVector(BoneTransform.TargetTranslation);
+					// Make translation relative to its Ref
+					if (bEvalFromRefPose)
+					{
+						RBFTarget.AddFromVector(RefBoneTransform.Inverse().TransformPosition(BoneTransform.TargetTranslation));
+					}
+					else
+					{
+						RBFTarget.AddFromVector(BoneTransform.TargetTranslation);
+					}
 				}
+
+				// Target Rotation
 				else
 				{
-					RBFTarget.AddFromRotator(BoneTransform.TargetRotation);
+					// Make rotation relative to its Ref
+					if (bEvalFromRefPose)
+					{	
+						const FQuat TargetRotation = BoneTransform.TargetRotation.Quaternion();
+						RBFTarget.AddFromRotator(RefBoneTransform.Inverse().TransformRotation(TargetRotation).Rotator());
+					}
+					else
+					{
+						RBFTarget.AddFromRotator(BoneTransform.TargetRotation);
+					}
 				}
 			}
 			else
@@ -272,7 +308,15 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 				// If just evaluating in local space, just grab from local space pose
 				else
 				{
-					SourceBoneTM = SourceData.Pose[SourceCompactIndex];
+					// Relative to Ref Pose
+					if (bEvalFromRefPose && RefPoseCompact.IsValidIndex(SourceCompactIndex.GetInt()))
+					{
+						SourceBoneTM = SourceData.Pose[SourceCompactIndex].GetRelativeTransform(RefPoseCompact[SourceCompactIndex.GetInt()]);
+					}
+					else
+					{
+						SourceBoneTM = SourceData.Pose[SourceCompactIndex];
+					}
 				}
 
 				bFoundAnyBone = true;
