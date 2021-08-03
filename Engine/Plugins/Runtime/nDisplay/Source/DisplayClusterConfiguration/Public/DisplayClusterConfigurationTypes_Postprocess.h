@@ -234,7 +234,7 @@ struct FDisplayClusterConfigurationViewport_EntireClusterColorGrading
 	bool bEnableEntireClusterColorGrading = true;
 
 	/** Entire Cluster Color Grading */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bIsEnabled"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bEnableEntireClusterColorGrading"))
 	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
 };
 

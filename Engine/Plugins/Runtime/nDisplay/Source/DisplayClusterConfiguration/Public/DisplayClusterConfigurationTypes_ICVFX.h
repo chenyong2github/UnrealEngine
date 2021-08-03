@@ -440,11 +440,11 @@ public:
 	TArray<FDisplayClusterConfigurationOCIOProfile> PerNodeOCIOProfiles;
 
 	/** All Nodes Color Grading */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "All Nodes Color Grading", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "All Nodes Color Grading", EditCondition = "bEnable"))
 	FDisplayClusterConfigurationViewport_AllNodesColorGrading AllNodesColorGrading;
 
 	/** Perform advanced color grading operations for the inner frustum on a per-node or group-of-nodes basis. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Per-Node Color Grading", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Per-Node Color Grading", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable"))
 	TArray<FDisplayClusterConfigurationViewport_PerNodeColorGrading> PerNodeColorGrading;
 
 	/** Content specified here will not appear in the inner frustum, but can appear in the nDisplay viewports. */
