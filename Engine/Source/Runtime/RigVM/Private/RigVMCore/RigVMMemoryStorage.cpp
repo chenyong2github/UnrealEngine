@@ -7,15 +7,12 @@
 
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
-const FRigVMPropertyPath FRigVMMemoryHandle::EmptyPropertyPath;
-
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FString FRigVMPropertyDescription::ArrayPrefix = TEXT("TArray<");
 const FString FRigVMPropertyDescription::MapPrefix = TEXT("TMap<");
-const FString FRigVMPropertyDescription::SetPrefix = TEXT("TSet<");
 const FString FRigVMPropertyDescription::ContainerSuffix = TEXT(">");
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,8 +25,11 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FProperty* InProperty
 	, Containers()
 	, DefaultValue(InDefaultValue)
 {
+	// make sure to use valid names only
 	SanitizeName();
 
+	// walk the property until you reach the tail
+	// and build up the container array along the way
 	const FProperty* ChildProperty = InProperty;
 	do
 	{
@@ -40,8 +40,7 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FProperty* InProperty
 		}
 		else if(const FSetProperty* SetProperty = CastField<FSetProperty>(ChildProperty))
 		{
-			Containers.Add(EPinContainerType::Set);
-			ChildProperty = SetProperty->ElementProp;
+			checkNoEntry();
 		}
 		else if(const FMapProperty* MapProperty = CastField<FMapProperty>(ChildProperty))
 		{
@@ -64,33 +63,31 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FName& InName, const 
 	, Containers()
 	, DefaultValue(InDefaultValue)
 {
+	// only allow valid names
 	SanitizeName();
 
-	FString BaseCPPType = CPPType;
+	FString TailCPPType = CPPType;
 
+	// build the containers and validate the expected string
+	// for the tail CPP type
 	do
 	{
-		if(BaseCPPType.RemoveFromStart(ArrayPrefix))
+		if(TailCPPType.RemoveFromStart(ArrayPrefix))
 		{
 			Containers.Add(EPinContainerType::Array);
-			check(BaseCPPType.RemoveFromEnd(ContainerSuffix));
+			check(TailCPPType.RemoveFromEnd(ContainerSuffix));
 		}
-		else if(BaseCPPType.RemoveFromStart(MapPrefix))
+		else if(TailCPPType.RemoveFromStart(MapPrefix))
 		{
 			Containers.Add(EPinContainerType::Map);
-			check(BaseCPPType.RemoveFromEnd(ContainerSuffix));
-		}
-		else if(BaseCPPType.RemoveFromStart(SetPrefix))
-		{
-			Containers.Add(EPinContainerType::Set);
-			check(BaseCPPType.RemoveFromEnd(ContainerSuffix));
+			check(TailCPPType.RemoveFromEnd(ContainerSuffix));
 		}
 		else
 		{
 			break;
 		}
 	}
-	while(!BaseCPPType.IsEmpty());
+	while(!TailCPPType.IsEmpty());
 }
 
 FName FRigVMPropertyDescription::SanitizeName(const FName& InName)
@@ -125,30 +122,26 @@ void FRigVMPropertyDescription::SanitizeName()
 	Name = SanitizeName(Name);
 }
 
-FString FRigVMPropertyDescription::GetBaseCPPType() const
+FString FRigVMPropertyDescription::GetTailCPPType() const
 {
-	FString BaseCPPType = CPPType;
+	FString TailCPPType = CPPType;
 
+	// walk the containers and remove prefix and
+	// suffix from the path. Turns 'TArray<TArray<float>>' to 'float'
 	for(EPinContainerType Container : Containers)
 	{
 		switch(Container)
 		{
 			case EPinContainerType::Array:
 			{
-				check(BaseCPPType.RemoveFromStart(ArrayPrefix))
-				check(BaseCPPType.RemoveFromEnd(ContainerSuffix));
+				check(TailCPPType.RemoveFromStart(ArrayPrefix))
+				check(TailCPPType.RemoveFromEnd(ContainerSuffix));
 				break;
 			}		
 			case EPinContainerType::Map:
 			{
-				check(BaseCPPType.RemoveFromStart(MapPrefix))
-				check(BaseCPPType.RemoveFromEnd(ContainerSuffix));
-				break;
-			}		
-			case EPinContainerType::Set:
-			{
-				check(BaseCPPType.RemoveFromStart(SetPrefix))
-				check(BaseCPPType.RemoveFromEnd(ContainerSuffix));
+				check(TailCPPType.RemoveFromStart(MapPrefix))
+				check(TailCPPType.RemoveFromEnd(ContainerSuffix));
 				break;
 			}		
 			case EPinContainerType::None:
@@ -159,7 +152,7 @@ FString FRigVMPropertyDescription::GetBaseCPPType() const
 		}
 	}
 	
-	return BaseCPPType;
+	return TailCPPType;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,6 +160,8 @@ FString FRigVMPropertyDescription::GetBaseCPPType() const
 void URigVMMemoryStorageGeneratorClass::PurgeClass(bool bRecompilingOnLoad)
 {
 	Super::PurgeClass(bRecompilingOnLoad);
+
+	// clear our state as well
 	LinkedProperties.Reset();
 	PropertyPaths.Reset();
 	PropertyPathDescriptions.Reset();
@@ -180,15 +175,8 @@ void URigVMMemoryStorageGeneratorClass::Link(FArchive& Ar, bool bRelinkExistingP
 	// garbage collector.
 	AssembleReferenceTokenStream(/*bForce=*/true);
 
-	// Setup the LinkedProperties
-	LinkedProperties.Reset();
-	const FProperty* Property = CastField<FProperty>(ChildProperties);
-	while(Property)
-	{
-		LinkedProperties.Add(Property);
-		Property = CastField<FProperty>(Property->Next);
-	}
-
+	// rebuild property list and property path list
+	RefreshLinkedProperties();
 	RefreshPropertyPaths();
 }
 
@@ -201,6 +189,15 @@ void URigVMMemoryStorageGeneratorClass::Serialize(FArchive& Ar)
 		Ar << PropertyPathDescriptions;
 		Ar << MemoryType;
 	}
+}
+
+void URigVMMemoryStorageGeneratorClass::PostLoad()
+{
+	Super::PostLoad();
+
+	// rebuild property list and property path list
+	RefreshLinkedProperties();
+	RefreshPropertyPaths();
 }
 
 FString URigVMMemoryStorageGeneratorClass::GetClassName(ERigVMMemoryType InMemoryType)
@@ -228,7 +225,8 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	UClass *SuperClass = URigVMMemoryStorage::StaticClass();
 
 	const FString ClassName = GetClassName(InMemoryType);
-	
+
+	// if there's an old class - remove it from the package and mark it to destroy
 	URigVMMemoryStorageGeneratorClass* OldClass = FindObject<URigVMMemoryStorageGeneratorClass>(Package, *ClassName);
 	if(OldClass)
 	{
@@ -237,24 +235,34 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 		OldClass->MarkPendingKill();
 	}
 
+	// create the new class
 	URigVMMemoryStorageGeneratorClass* Class = NewObject<URigVMMemoryStorageGeneratorClass>(
 		Package,
 		*ClassName,
 		RF_Standalone | RF_Public
 	);
 
+	// add it to the root so that the garbage collector doesn't pick it up
 	Class->AddToRoot();
 
+	// clear the class (sets relevant flags)
 	Class->PurgeClass(false);
+
+	// setup class to inherit from the super class
 	Class->SetSuperStruct(SuperClass);
 	Class->PropertyLink = SuperClass->PropertyLink;
+
+	// allow to create this class's instances everywhere
 	Class->ClassWithin = UObject::StaticClass();
+
+	// make sure that it cannot be placed / used for class selectors
 	Class->ClassFlags |= CLASS_NotPlaceable;
+
+	// store our custom state
 	Class->MemoryType = InMemoryType;
 
-	// Generate properties
+	// Generate properties by iterating
 	FField** LinkToProperty = &Class->ChildProperties;
-
 	for(const FRigVMPropertyDescription& PropertyDescription : InProperties)
 	{
 		FProperty* CachedProperty = AddProperty(Class, PropertyDescription, LinkToProperty);
@@ -264,7 +272,7 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	// Store the property path descriptions
 	Class->PropertyPathDescriptions = InPropertyPaths;
 
-	// Update the class
+	// Update the class's data and link it / build it
 	Class->Bind();
 	Class->StaticLink(true);
 	
@@ -287,24 +295,6 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 		Property->ImportText(*DefaultValue, ValuePtr, EPropertyPortFlags::PPF_None, nullptr);
 	}
 
-	/*
-	if(OldClass)
-	{
-		UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
-		Params.bAggressiveDefaultSubobjectReplacement = false;
-		Params.bDoDelta = false;
-		Params.bCopyDeprecatedProperties = true;
-		Params.bSkipCompilerGeneratedDefaults = true;
-		Params.bNotifyObjectReplacement = true;
-
-		Params.bClearReferences = true;
-		UEngine::CopyPropertiesForUnrelatedObjects(OldClass->GetDefaultObject(), CDO, Params);
-
-		// we might need to run this again on the old instances,
-		// but the VM compiler should take care of it anyway
-	}
-	*/
-	
 	return Class;
 }
 
@@ -327,6 +317,7 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 	FProperty* Result = nullptr;
 	if(InProperty.Property)
 	{
+		// if the property description provides a property simply duplicate that property
 		FProperty* NewProperty = CastFieldChecked<FProperty>(FField::Duplicate(InProperty.Property, InClass, InProperty.Name));
 		check(NewProperty);
 
@@ -336,7 +327,6 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 	else
 	{
 		FFieldVariant PropertyOwner = InClass;
-		// FProperty** KeyPropertyPtr = nullptr;
 		FProperty** ValuePropertyPtr = &Result;
 
 		for(EPinContainerType Container : InProperty.Containers)
@@ -345,6 +335,7 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 			{
 				case EPinContainerType::Array:
 				{
+					// create an array property as a container for the tail
 					FArrayProperty* ArrayProperty = new FArrayProperty(PropertyOwner, InProperty.Name, RF_Public);
 					*ValuePropertyPtr = ArrayProperty;
 					ValuePropertyPtr = &ArrayProperty->Inner;
@@ -353,20 +344,17 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 				}
 				case EPinContainerType::Map:
 				{
+					// create a map property as a container for the tail
 					checkNoEntry(); // this is not implemented yet
 					FMapProperty* MapProperty = new FMapProperty(PropertyOwner, InProperty.Name, RF_Public);
 					*ValuePropertyPtr = MapProperty;
-					// KeyPropertyPtr = &MapProperty->KeyProp;
 					ValuePropertyPtr = &MapProperty->ValueProp;
 					PropertyOwner = MapProperty;
 					break;
 				}
 				case EPinContainerType::Set:
 				{
-					FSetProperty* SetProperty = new FSetProperty(PropertyOwner, InProperty.Name, RF_Public);
-					*ValuePropertyPtr = SetProperty;
-					ValuePropertyPtr = &SetProperty->ElementProp;
-					PropertyOwner = SetProperty;
+					checkNoEntry();
 					break;
 				}
 				case EPinContainerType::None:
@@ -377,6 +365,7 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 			}
 		}
 
+		// create properties for types which are provided through the CPPTypeObject
 		if(InProperty.CPPTypeObject != nullptr)
 		{
 			if(UEnum* Enum = Cast<UEnum>(InProperty.CPPTypeObject))
@@ -402,7 +391,7 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 				checkNoEntry();
 			}
 		}
-		else // take care of default types...
+		else // take care of simple types...
 		{
 			static FString BoolString = TEXT("bool");
 			static FString Int32String = TEXT("int32");
@@ -412,7 +401,7 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 			static FString StringString = TEXT("FString");
 			static FString NameString = TEXT("FName");
 
-			const FString BaseCPPType = InProperty.GetBaseCPPType();
+			const FString BaseCPPType = InProperty.GetTailCPPType();
 			if(BaseCPPType.Equals(BoolString, ESearchCase::IgnoreCase))
 			{
 				(*ValuePropertyPtr) = new FBoolProperty(PropertyOwner, InProperty.Name, RF_Public);;
@@ -444,10 +433,14 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 			}
 		}
 
+		// mark the property as visible only for details panels
+		// also mark it as non transactional, which means the undo / redo system will ignore changes to it
 		Result->SetPropertyFlags(CPF_Edit | CPF_EditConst | CPF_NonTransactional);
 
 #if WITH_EDITORONLY_DATA
 
+		// store some additional meta data,
+		// mainly for inspecting things in the details panel
 		static const FName NAME_DisplayName(TEXT("DisplayName"));
 		static const FName NAME_ToolTipName(TEXT("ToolTip"));
 
@@ -461,11 +454,24 @@ FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGen
 		Result->SetMetaData(NAME_ToolTipName, *FString::Printf(TEXT("Name %s\nCPPType %s"), *Result->GetName(), *InProperty.CPPType));
 		
 #endif
+
+		// store the property in the cached list
 		InClass->LinkedProperties.Add(Result);
 		(*LinkToProperty) = Result;
 	}
 
 	return Result;
+}
+
+void URigVMMemoryStorageGeneratorClass::RefreshLinkedProperties()
+{
+	LinkedProperties.Reset();
+	const FProperty* Property = CastField<FProperty>(ChildProperties);
+	while(Property)
+	{
+		LinkedProperties.Add(Property);
+		Property = CastField<FProperty>(Property->Next);
+	}
 }
 
 void URigVMMemoryStorageGeneratorClass::RefreshPropertyPaths()
@@ -566,6 +572,9 @@ bool URigVMMemoryStorage::CopyProperty(
 	check(InTargetPtr != nullptr);
 	check(InSourcePtr != nullptr);
 
+	// This block below is there to support Large World Coordinates (LWC).
+	// We allow to link float and double pins (single and arrays) so we need
+	// to support copying values between those as well.
 	if(!InTargetProperty->SameType(InSourceProperty))
 	{
 		if(const FFloatProperty* TargetFloatProperty = CastField<FFloatProperty>(InTargetProperty))
@@ -631,11 +640,14 @@ bool URigVMMemoryStorage::CopyProperty(
 				}
 			}
 		}
-		
+
+		// if we reach this we failed since we are trying to copy
+		// between two properties which are not compatible
 		ensure(InTargetProperty->SameType(InSourceProperty));
 		return false;
 	}
 
+	// rely on the core to copy the property contents
 	InTargetProperty->CopyCompleteValue(InTargetPtr, InSourcePtr);
 	return true;
 }
@@ -661,7 +673,7 @@ bool URigVMMemoryStorage::CopyProperty(
 		}
 
 		MemoryPtr = PropertyPath.GetData<uint8>(MemoryPtr, Property);
-		Property = PropertyPath.GetTargetProperty();
+		Property = PropertyPath.GetTailProperty();
 	};
 
 	uint8* SourcePtr = (uint8*)InSourcePtr;
@@ -693,16 +705,16 @@ bool URigVMMemoryStorage::CopyProperty(
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 bool URigVMMemoryStorage::CopyProperty(
-	FRigVMMemoryHandle& TargetHandle,
-	FRigVMMemoryHandle& SourceHandle)
+	FRigVMMemoryHandle& InTargetHandle,
+	FRigVMMemoryHandle& InSourceHandle)
 {
 	return CopyProperty(
-		TargetHandle.GetProperty(),
-		TargetHandle.GetData(false),
-		TargetHandle.GetPropertyPathRef(),
-		SourceHandle.GetProperty(),
-		SourceHandle.GetData(false),
-		SourceHandle.GetPropertyPathRef());
+		InTargetHandle.GetProperty(),
+		InTargetHandle.GetData(false),
+		InTargetHandle.GetPropertyPathRef(),
+		InSourceHandle.GetProperty(),
+		InSourceHandle.GetData(false),
+		InSourceHandle.GetPropertyPathRef());
 }
 
 #endif

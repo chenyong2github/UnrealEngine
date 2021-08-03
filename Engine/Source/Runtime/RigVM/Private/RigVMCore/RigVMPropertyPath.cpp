@@ -19,15 +19,20 @@ FRigVMPropertyPath::FRigVMPropertyPath(const FProperty* InProperty, const FStrin
 	check(InProperty);
 	check(!InSegmentPath.IsEmpty())
 
-	const FProperty* Property = InProperty;
+	// Reformat the path. We'll remove any brackets and clean up
+	// double periods. Turns '[2].Translation.X' to '2.Translation.X'
 	FString WorkPath = InSegmentPath;
 	WorkPath = WorkPath.Replace(TEXT("["), TEXT("."));
 	WorkPath = WorkPath.Replace(TEXT("]"), TEXT("."));
 	WorkPath = WorkPath.Replace(TEXT(".."), TEXT("."));
 	WorkPath.TrimCharInline('.', nullptr);
 
+	// Traverse the provided segment path and build up the segments for
+	// the property path/
+	const FProperty* Property = InProperty;
 	while(!WorkPath.IsEmpty())
 	{
+		// split off the head
 		FString PathSegment, PathRemainder;
 		if(!WorkPath.Split(TEXT("."), &PathSegment, &PathRemainder))
 		{
@@ -73,6 +78,10 @@ FRigVMPropertyPath::FRigVMPropertyPath(const FProperty* InProperty, const FStrin
 			Segment.Property = MapProperty;
 			Property = ValueProperty;
 		}
+		else if(CastField<FSetProperty>(Property))
+		{
+			checkNoEntry();
+		}
 		else
 		{
 			Segments.Empty();
@@ -83,8 +92,8 @@ FRigVMPropertyPath::FRigVMPropertyPath(const FProperty* InProperty, const FStrin
 		WorkPath = PathRemainder;
 	}
 
+	// rebuild the path again from the retrieved segments 
 	Path.Empty();
-
 	for(const FRigVMPropertyPathSegment& Segment : Segments)
 	{
 		switch(Segment.Type)
@@ -122,27 +131,7 @@ FRigVMPropertyPath::FRigVMPropertyPath(const FRigVMPropertyPath& InOther)
 {
 }
 
-bool FRigVMPropertyPath::IsDirect() const
-{
-	for(const FRigVMPropertyPathSegment& Segment : Segments)
-	{
-		switch(Segment.Type)
-		{
-			case ERigVMPropertyPathSegmentType::ArrayElement:
-			case ERigVMPropertyPathSegmentType::MapValue:
-			{
-				return false;
-			}
-			default:
-			{
-				break;
-			}
-		}
-	}
-	return true;
-}
-
-const FProperty* FRigVMPropertyPath::GetTargetProperty() const
+const FProperty* FRigVMPropertyPath::GetTailProperty() const
 {
 	if(Segments.IsEmpty())
 	{
