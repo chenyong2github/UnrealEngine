@@ -17,6 +17,14 @@ FSnapshotTestRunner::FSnapshotTestRunner()
 			);
 }
 
+FSnapshotTestRunner::~FSnapshotTestRunner()
+{
+	for (auto SnapshotIt = Snapshots.CreateIterator(); SnapshotIt; ++SnapshotIt)
+	{
+		SnapshotIt->Value->RemoveFromRoot();
+	}
+}
+
 FSnapshotTestRunner& FSnapshotTestRunner::ModifyWorld(TFunction<void(UWorld*)> Callback)
 {
 	Callback(TestWorld->GetWorld());
@@ -31,9 +39,13 @@ FSnapshotTestRunner& FSnapshotTestRunner::TakeSnapshot(FName SnapshotId)
 	}
 	else
 	{
+		ULevelSnapshot* NewSnapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(TestWorld->GetWorld(), SnapshotId);
+		// Executed tests might (indirectly) trigger a manual garbage collection 
+		NewSnapshot->AddToRoot();
+		
 		Snapshots.Add(
 			SnapshotId,
-			ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(TestWorld->GetWorld(), SnapshotId)
+			NewSnapshot
 			);
 	}
 	

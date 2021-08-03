@@ -15,7 +15,10 @@
 #include "GameFramework/Actor.h"
 #include "UObject/Package.h"
 #if WITH_EDITOR
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Engine/Selection.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEdGlobals.h"
@@ -226,7 +229,7 @@ void FWorldSnapshotData::ApplyToWorld(UWorld* WorldToApplyTo, UPackage* Localisa
 #endif
 	
 
-	ApplyToWorld_HandleRemovingActors(PropertiesToSerialize);
+	ApplyToWorld_HandleRemovingActors(WorldToApplyTo, PropertiesToSerialize);
 
 	
 	TSet<AActor*> EvaluatedActors;
@@ -603,8 +606,44 @@ UObject* FWorldSnapshotData::ResolveExternalReference(const FSoftObjectPath& Obj
 	return ExternalReference;
 }
 
-void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(const FPropertySelectionMap& PropertiesToSerialize)
+void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyTo, const FPropertySelectionMap& PropertiesToSerialize)
 {
+#if WITH_EDITOR
+	const TSet<TWeakObjectPtr<AActor>>& ActorsToDespawn = PropertiesToSerialize.GetNewActorsToDespawn();
+	const bool bShouldDespawnActors = ActorsToDespawn.Num() > 0;
+	if (!bShouldDespawnActors || !ensure(GEditor))
+	{
+		return;
+	}
+	
+	// Not sure whether needed. "DELETE" command does in UUnrealEdEngine::Exec_Actor ...
+	FEditorDelegates::OnDeleteActorsBegin.Broadcast();
+
+	// Avoid accidentally deleting other user selected actors
+	GEditor->SelectNone(false, false, false);
+
+	USelection* EdSelectionManager = GEditor->GetSelectedActors();
+	EdSelectionManager->BeginBatchSelectOperation();
+	for (const TWeakObjectPtr<AActor>& ActorToDespawn: ActorsToDespawn)
+	{
+		if (ensureMsgf(ActorToDespawn.IsValid(), TEXT("Actor became invalid since selection set was created")))
+		{
+			EdSelectionManager->Modify();
+			GEditor->SelectActor(ActorToDespawn.Get(), /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
+		}
+	}
+	EdSelectionManager->EndBatchSelectOperation();
+
+	const bool bVerifyDeletionCanHappen = true;
+	const bool bWarnAboutReferences = false;
+	GEditor->edactDeleteSelected(WorldToApplyTo, bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
+	
+	// TODO: restore user selection
+
+	// ... and call the end event like in UUnrealEdEngine
+	FEditorDelegates::OnDeleteActorsEnd.Broadcast();
+#else
+	// In non-editor builds delete the actors like gameplay code would:
 	for (const TWeakObjectPtr<AActor>& ActorToDespawn: PropertiesToSerialize.GetNewActorsToDespawn())
 	{
 		if (ensureMsgf(ActorToDespawn.IsValid(), TEXT("Actor became invalid since selection set was created")))
@@ -612,6 +651,7 @@ void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(const FPropertySelect
 			ActorToDespawn->Destroy(true, true);
 		}
 	}
+#endif
 }
 
 void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
