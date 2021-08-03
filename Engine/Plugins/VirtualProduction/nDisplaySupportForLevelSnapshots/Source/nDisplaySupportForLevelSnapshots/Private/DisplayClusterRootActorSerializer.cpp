@@ -32,7 +32,7 @@ void FDisplayClusterRootActorSerializer::OnTakeSnapshot(UObject* EditorObject, I
 	ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(EditorObject);
 	UDisplayClusterConfigurationData* Subobject = Actor->GetConfigData();
 
-	if (ensure(Subobject))
+	if (Subobject)
 	{
 		DataStorage.AddSubobjectSnapshot(Subobject);
 	}
