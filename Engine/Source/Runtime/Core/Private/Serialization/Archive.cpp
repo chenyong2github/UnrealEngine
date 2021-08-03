@@ -693,10 +693,10 @@ void FArchive::SerializeCompressed(void* V, int64 Length, FName CompressionForma
 	// with this legacy/deprecated API you can NOT change the CompressionFormat and still load old files
 	//  CompressionFormat must match exactly the format that was written to the file
 
-	SerializeCompressedNew(V,Length,CompressionFormatCannotChange,CompressionFormatCannotChange,Flags,bTreatBufferAsFileReader);
+	SerializeCompressedNew(V,Length,CompressionFormatCannotChange,CompressionFormatCannotChange,Flags,bTreatBufferAsFileReader,nullptr);
 }
 
-void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFormatToEncode, FName CompressionFormatToDecodeOldV1Files,  ECompressionFlags Flags, bool bTreatBufferAsFileReader)
+void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFormatToEncode, FName CompressionFormatToDecodeOldV1Files,  ECompressionFlags Flags, bool bTreatBufferAsFileReader, int64 * OutPartialReadLength)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FArchive::SerializeCompressed);
 
@@ -822,7 +822,19 @@ void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFo
 		check( LoadingCompressionChunkSize > 0 );
 
 		// check Summary.UncompressedSize vs [V,Length] passed in
-		UE_CLOG( Summary.UncompressedSize != Length, LogSerialization, Fatal, TEXT(" Archive SerializedCompressed UncompressedSize (%lld) != Length (%lld)"), (int64)Summary.UncompressedSize, (int64) Length );
+		if ( OutPartialReadLength == nullptr )
+		{
+			check( Summary.UncompressedSize == Length );
+			UE_CLOG( Summary.UncompressedSize != Length, LogSerialization, Fatal, TEXT(" Archive SerializedCompressed UncompressedSize (%lld) != Length (%lld)"), (int64)Summary.UncompressedSize, (int64) Length );
+		}
+		else
+		{
+			// UncompressedSize smaller than length is okay
+			check( Summary.UncompressedSize <= Length );
+			check( Summary.UncompressedSize >= 0 );
+			UE_CLOG( Summary.UncompressedSize > Length, LogSerialization, Fatal, TEXT(" Archive SerializedCompressed UncompressedSize (%lld) > Length (%lld)"), (int64)Summary.UncompressedSize, (int64) Length );
+			*OutPartialReadLength = Summary.UncompressedSize;
+		}
 
 		// Figure out how many chunks there are going to be based on uncompressed size and compression chunk size.
 		int64	TotalChunkCount	= (Summary.UncompressedSize + LoadingCompressionChunkSize - 1) / LoadingCompressionChunkSize;
