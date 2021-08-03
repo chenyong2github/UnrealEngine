@@ -125,12 +125,12 @@ void FWebRemoteControlModule::StartupModule()
 
 	const bool bIsHeadless = !FApp::CanEverRender();
 
-	if ((!bIsHeadless && GetDefault<URemoteControlSettings>()->bAutoStartWebServer) || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
+	if (!bIsHeadless && (GetDefault<URemoteControlSettings>()->bAutoStartWebServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0))
 	{
 		StartHttpServer();
 	}
 
-	if ((!bIsHeadless && GetDefault<URemoteControlSettings>()->bAutoStartWebSocketServer) || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
+	if (!bIsHeadless && (GetDefault<URemoteControlSettings>()->bAutoStartWebSocketServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0))
 	{
 		StartWebSocketServer();
 	}
