@@ -1097,6 +1097,23 @@ public:
 		FRHIBuffer* IndirectArgsOverrideBuffer = nullptr,
 		uint32 IndirectArgsOverrideByteOffset = 0U);
 
+	/** Submits the state and shader bindings to the RHI command list, but does not invoke the draw indirect. */
+	static void SubmitDrawIndirectBegin(
+		const FMeshDrawCommand& RESTRICT MeshDrawCommand,
+		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
+		FRHIBuffer* ScenePrimitiveIdsBuffer,
+		int32 PrimitiveIdOffset,
+		uint32 InstanceFactor,
+		FRHICommandList& RHICmdList,
+		FMeshDrawCommandStateCache& RESTRICT StateCache);
+
+	/** Submits just the draw indirect primitive portion of the draw command. */
+	static void SubmitDrawIndirectEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList,
+		// GPUCULL_TODO: Rename, and probably wrap in struct that links to GPU-Scene, maybe generalize (probably not)?
+		FRHIBuffer* IndirectArgsOverrideBuffer,
+		uint32 IndirectArgsOverrideByteOffset);
+
 	/** Submits commands to the RHI Commandlist to draw the MeshDrawCommand. */
 	static void SubmitDraw(
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand,

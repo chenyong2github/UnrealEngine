@@ -1057,6 +1057,77 @@ void FMeshDrawCommand::SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, ui
 	FRHIBuffer* IndirectArgsOverrideBuffer,
 	uint32 IndirectArgsOverrideByteOffset)
 {
+	const bool bDoOverrideArgs = IndirectArgsOverrideBuffer != nullptr && MeshDrawCommand.PrimitiveIdStreamIndex >= 0;
+
+	if (MeshDrawCommand.IndexBuffer)
+	{
+		if (MeshDrawCommand.NumPrimitives > 0 && !bDoOverrideArgs)
+		{
+			RHICmdList.DrawIndexedPrimitive(
+				MeshDrawCommand.IndexBuffer,
+				MeshDrawCommand.VertexParams.BaseVertexIndex,
+				0,
+				MeshDrawCommand.VertexParams.NumVertices,
+				MeshDrawCommand.FirstIndex,
+				MeshDrawCommand.NumPrimitives,
+				MeshDrawCommand.NumInstances * InstanceFactor
+			);
+		}
+		else
+		{
+			RHICmdList.DrawIndexedPrimitiveIndirect(
+				MeshDrawCommand.IndexBuffer,
+				bDoOverrideArgs ? IndirectArgsOverrideBuffer : MeshDrawCommand.IndirectArgs.Buffer,
+				bDoOverrideArgs ? IndirectArgsOverrideByteOffset : MeshDrawCommand.IndirectArgs.Offset
+			);
+		}
+	}
+	else
+	{
+		if (MeshDrawCommand.NumPrimitives > 0 && !bDoOverrideArgs)
+		{
+			RHICmdList.DrawPrimitive(
+				MeshDrawCommand.VertexParams.BaseVertexIndex + MeshDrawCommand.FirstIndex,
+				MeshDrawCommand.NumPrimitives,
+				MeshDrawCommand.NumInstances * InstanceFactor);
+		}
+		else
+		{
+			RHICmdList.DrawPrimitiveIndirect(
+				bDoOverrideArgs ? IndirectArgsOverrideBuffer : MeshDrawCommand.IndirectArgs.Buffer,
+				bDoOverrideArgs ? IndirectArgsOverrideByteOffset : MeshDrawCommand.IndirectArgs.Offset
+			);
+		}
+	}
+}
+
+void FMeshDrawCommand::SubmitDrawIndirectBegin(
+	const FMeshDrawCommand& RESTRICT MeshDrawCommand,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	FRHIBuffer* ScenePrimitiveIdsBuffer,
+	int32 PrimitiveIdOffset,
+	uint32 InstanceFactor,
+	FRHICommandList& RHICmdList,
+	FMeshDrawCommandStateCache& RESTRICT StateCache)
+{
+	SubmitDrawBegin(
+		MeshDrawCommand,
+		GraphicsMinimalPipelineStateSet,
+		ScenePrimitiveIdsBuffer,
+		PrimitiveIdOffset,
+		InstanceFactor,
+		RHICmdList,
+		StateCache
+	);
+}
+
+void FMeshDrawCommand::SubmitDrawIndirectEnd(
+	const FMeshDrawCommand& MeshDrawCommand,
+	uint32 InstanceFactor,
+	FRHICommandList& RHICmdList,
+	FRHIBuffer* IndirectArgsOverrideBuffer,
+	uint32 IndirectArgsOverrideByteOffset)
+{
 	FRHIBuffer* IndirectArgsBuffer = nullptr;
 	uint32		IndirectArgsOffset = 0;
 
