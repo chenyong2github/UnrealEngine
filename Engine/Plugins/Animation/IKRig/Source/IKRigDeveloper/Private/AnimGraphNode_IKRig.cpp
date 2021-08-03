@@ -12,11 +12,11 @@
 
 void UAnimGraphNode_IKRig::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const
 {
-	if (PreviewSkelMeshComp)
+	if(PreviewSkelMeshComp)
 	{
-		if (FAnimNode_IKRig* ActiveNode = GetActiveInstanceNode<FAnimNode_IKRig>(PreviewSkelMeshComp->GetAnimInstance()))
+		if(FAnimNode_IKRig* ActiveNode = GetActiveInstanceNode<FAnimNode_IKRig>(PreviewSkelMeshComp->GetAnimInstance()))
 		{
-			//ActiveNode->ConditionalDebugDraw(PDI, PreviewSkelMeshComp);
+			ActiveNode->ConditionalDebugDraw(PDI, PreviewSkelMeshComp);
 		}
 	}
 }

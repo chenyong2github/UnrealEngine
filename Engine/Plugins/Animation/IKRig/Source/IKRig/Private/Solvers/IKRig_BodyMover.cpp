@@ -28,9 +28,10 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		return;
 	}
 	
-	// accumulate offsets to apply to body bone
+	// ensure body bone exists
 	check(IKRigSkeleton.RefPoseGlobal.IsValidIndex(BodyBoneIndex));
-	// the bone transform to modify (not const!)
+
+	// the bone transform to modify
 	FTransform& CurrentBodyTransform = IKRigSkeleton.CurrentPoseGlobal[BodyBoneIndex];
 
 	// calculate initial and current centroids
@@ -45,7 +46,7 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		}
 
 		const int32 BoneIndex = IKRigSkeleton.GetBoneIndexFromName(Effector->BoneName);
-		const FTransform InitialEffector = IKRigSkeleton.RefPoseGlobal[BoneIndex];
+		const FTransform InitialEffector = IKRigSkeleton.CurrentPoseGlobal[BoneIndex];
 
 		InitialCentroid += InitialEffector.GetTranslation();
 		CurrentCentroid += Goal.FinalBlendedPosition;
@@ -69,7 +70,7 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		}
 
 		const int32 BoneIndex = IKRigSkeleton.GetBoneIndexFromName(Effector->BoneName);
-		const FTransform InitialEffector = IKRigSkeleton.RefPoseGlobal[BoneIndex];
+		const FTransform InitialEffector = IKRigSkeleton.CurrentPoseGlobal[BoneIndex];
 
 		//
 		// accumulate the deformation gradient tensor for all points

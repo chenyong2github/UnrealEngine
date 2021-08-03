@@ -38,9 +38,13 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 	bool bDriveWithSourceAsset = false;
 
 #if WITH_EDITORONLY_DATA
-	/** Toggle drawing of axes to debug joint rotation*/
+	/** Toggle debug drawing of goals when node is selected.*/
 	UPROPERTY(EditAnywhere, Category = Solver)
 	bool bEnableDebugDraw;
+
+	/** Adjust size of debug drawing.*/
+	UPROPERTY(EditAnywhere, Category = Solver)
+	float DebugScale = 5.0f;
 #endif
 
 private:
@@ -74,7 +78,7 @@ private:
 	void CopyInputPoseToSolver(FCompactPose& InputPose);
 	void AssignGoalTargets();
 	void CopyOutputPoseToAnimGraph(FCompactPose& OutputPose);	
-	void QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld) const;
+	virtual void ConditionalDebugDraw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const;
 	
 	friend class UAnimGraphNode_IKRig;
 	friend struct FIKRigAnimInstanceProxy;

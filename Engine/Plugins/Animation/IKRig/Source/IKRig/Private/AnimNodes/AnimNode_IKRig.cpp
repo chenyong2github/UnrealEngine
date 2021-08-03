@@ -50,9 +50,6 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	IKRigProcessor->Solve(WorldToComponent);
 	// updates transforms with new pose
 	CopyOutputPoseToAnimGraph(Output.Pose);
-	
-	// debug drawing
-	QueueDrawInterface(Output.AnimInstanceProxy, Output.AnimInstanceProxy->GetComponentTransform());
 }
 
 void FAnimNode_IKRig::CopyInputPoseToSolver(FCompactPose& InputPose)
@@ -246,62 +243,30 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 	}
 }
 
-void FAnimNode_IKRig::QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld) const
+void FAnimNode_IKRig::ConditionalDebugDraw(
+	FPrimitiveDrawInterface* PDI,
+	USkeletalMeshComponent* PreviewSkelMeshComp) const
 {
-	check (AnimProxy);
+#if WITH_EDITORONLY_DATA
 
-	/*
-	 *TODO implement basic drawing interface for IKRig solvers
-	for (const FControlRigDrawInstruction& Instruction : IKRigProcessor->GetDrawInterface())
+	// is anim graph setup?
+	if (!(bEnableDebugDraw && PreviewSkelMeshComp && PreviewSkelMeshComp->GetWorld()))
 	{
-		if (!Instruction.IsValid())
-		{
-			continue;
-		}
+		return;
+	}
 
-		FTransform InstructionTransform = Instruction.Transform * ComponentToWorld;
-		switch (Instruction.PrimitiveType)
-		{
-		case EControlRigDrawSettings::Points:
-		{
-			ensure(false);
-			// no support for points yet, but feel free to add that to AnimProxy
-// 			for (const FVector& Point : Instruction.Positions)
-// 			{
-// 				AnimProxy->Add (InstructionTransform.TransformPosition(Point), Instruction.Color, Instruction.Thickness, SDPG_Foreground);
-// 			}
- 			break;
-		}
-		case EControlRigDrawSettings::Lines:
-		{
-			const TArray<FVector>& Points = Instruction.Positions;
-			for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
-			{
-				AnimProxy->AnimDrawDebugLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color.ToFColor(false), false, 0.f, Instruction.Thickness);
-			}
-			break;
-		}
-		case EControlRigDrawSettings::LineStrip:
-		{
-			const TArray<FVector>& Points = Instruction.Positions;
-			for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
-			{
-				AnimProxy->AnimDrawDebugLine(InstructionTransform.TransformPosition(Points[PointIndex]), InstructionTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color.ToFColor(false), false, 0.f, Instruction.Thickness);
-			}
-			break;
-		}
+	// is node setup?
+	if (!(RigDefinitionAsset && IKRigProcessor && !IKRigProcessor->NeedsInitialized(RigDefinitionAsset)))
+	{
+		return;
+	}
 
-		case EControlRigDrawSettings::DynamicMesh:
-		{
-			ensure(false);
-			// no support for this yet
-// 			FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
-// 			MeshBuilder.AddVertices(Instruction.MeshVerts);
-// 			MeshBuilder.AddTriangles(Instruction.MeshIndices);
-// 			MeshBuilder.Draw(PDI, InstructionTransform.ToMatrixWithScale(), Instruction.MaterialRenderProxy, SDPG_World);
-			break;
-		}
-
-		}
-	}*/
+	const FIKRigGoalContainer& ProcessorGoals = IKRigProcessor->GetGoalContainer();
+	for (const TPair<FName, FIKRigGoal>& GoalPair : ProcessorGoals.Goals)
+	{
+		const FIKRigGoal& Goal = GoalPair.Value;
+		DrawOrientedWireBox(PDI, Goal.FinalBlendedPosition, FVector::XAxisVector, FVector::YAxisVector, FVector::ZAxisVector, FVector::One() * DebugScale, FLinearColor::Yellow, SDPG_World);
+		DrawCoordinateSystem(PDI, Goal.Position, Goal.FinalBlendedRotation.Rotator(), DebugScale, SDPG_World);
+	}
+#endif
 }
