@@ -140,6 +140,9 @@ private:
 	void ListPhysicalPoolsFromConsole();
 	FAutoConsoleCommand ListPhysicalPools;
 
+	void DumpPoolUsageFromConsole();
+	FAutoConsoleCommand DumpPoolUsageCommand;
+
 #if WITH_EDITOR
 	void SaveAllocatorImagesFromConsole();
 	FAutoConsoleCommand SaveAllocatorImages;

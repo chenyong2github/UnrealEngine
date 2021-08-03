@@ -131,6 +131,11 @@ public:
 	uint32		GetNumVisiblePages(uint32 Frame) const;
 
 	/**
+	 * Returns a map between producer handle and number of tiles that the producer uses in the pool.
+	 */
+	void		CollectProducerCounts(TMap<uint32, uint32>& OutProducerCountMap) const;
+
+	/**
 	* Map the physical address to a specific virtual address.
 	*/
 	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 MaxLevel, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress);
