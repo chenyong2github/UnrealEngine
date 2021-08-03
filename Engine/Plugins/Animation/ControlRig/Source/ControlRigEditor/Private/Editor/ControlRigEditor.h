@@ -463,7 +463,7 @@ protected:
 	bool bSuspendDetailsPanelRefresh;
 
 	TMap<int32, int32> CapsuleToHierarchyIndex;
-	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> WrapperObjects;
+	TArray<TStrongObjectPtr<UDetailsViewWrapperObject>> WrapperObjects;
 	
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;
