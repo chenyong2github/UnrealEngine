@@ -410,7 +410,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 
 	if (FApp::ShouldUseThreadingForPerformance())
 	{
-		ParallelForTemplate(NumBatches, DoWorkLambda, EParallelForFlags::PumpRenderingThread);
+		ParallelForTemplate(NumBatches, DoWorkLambda, EParallelForFlags::PumpRenderingThread | EParallelForFlags::Unbalanced);
 	}
 	else
 	{
