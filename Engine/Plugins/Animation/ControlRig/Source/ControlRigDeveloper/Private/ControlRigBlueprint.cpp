@@ -2618,7 +2618,10 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 					bool bRequiresRecompile = false;
 
 					URigVMPin* RootPin = Pin->GetRootPin();
-					if (const FRigVMOperand* Operand = PinToOperandMap.Find(RootPin->GetPinPath()))
+					static const FString ConstSuffix = TEXT(":Const");
+					const FString PinHash = RootPin->GetPinPath(true) + ConstSuffix;
+					
+					if (const FRigVMOperand* Operand = PinToOperandMap.Find(PinHash))
 					{
 						FRigVMASTProxy RootPinProxy = FRigVMASTProxy::MakeFromUObject(RootPin);
 						if(const FRigVMExprAST* Expression = InGraph->GetRuntimeAST()->GetExprForSubject(RootPinProxy))
