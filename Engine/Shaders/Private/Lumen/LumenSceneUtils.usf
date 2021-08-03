@@ -1,0 +1,366 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenCardSceneLighting.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "../BRDF.ush"
+#include "LumenCardCommon.ush"
+#include "LumenCardUpdate.ush"
+#include "LumenCardTile.ush"
+
+RWStructuredBuffer<uint> RWQuadAllocator;
+RWStructuredBuffer<uint> RWQuadData;
+
+float4 InfluenceSphere;
+float3 LightPosition;
+float3 LightDirection;
+float LightRadius;
+float CosConeAngle;
+float SinConeAngle;
+
+void GetCardAABB(FLumenCardData LumenCardData, out float3 WorldCardCenter, out float3 WorldCardExtent)
+{
+	WorldCardCenter = LumenCardData.Origin;
+	WorldCardExtent = mul(abs(LumenCardData.WorldToLocalRotation), LumenCardData.LocalExtent);
+}
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 0
+#endif
+
+#ifndef SHAPE_TYPE
+#define SHAPE_TYPE 0
+#endif
+
+uint MaxQuadsPerScatterInstance;
+uint MaxCardTilesPerScatterInstance;
+
+// Resources for LumenCardUpdate
+uint NumCardPagesToRenderIndices;
+Buffer<uint> CardPagesToRenderIndices;
+Buffer<uint> CardPagesToRenderHashMap;
+
+uint FrameId;
+float CardLightingUpdateFrequencyScale;
+uint CardLightingUpdateMinFrequency;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void CullCardPagesToShapeCS(
+	uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint IndexInIndexBuffer = DispatchThreadId.x;
+
+#if OPERATE_ON_CARD_TILES_MODE == OPERATE_ON_CARD_TILES_TO_RENDER
+	if (IndexInIndexBuffer < NumCardPagesToRenderIndices)
+	{
+		uint CardPageIndex = CardPagesToRenderIndices[IndexInIndexBuffer];
+#else
+	if (IndexInIndexBuffer < LumenCardScene.NumCardPages)
+	{
+		uint CardPageIndex = IndexInIndexBuffer;
+#endif
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
+		if (CardPage.CardIndex >= 0)
+		{
+			FLightCullingParameters LightCullingParameters = CreateLightCullingParameters(
+				InfluenceSphere, LightPosition, LightDirection, LightRadius, CosConeAngle, SinConeAngle);
+
+			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+
+			FLumenCardUpdateResources CardUpdateResources = CreateLumenCardUpdateResources(
+				NumCardPagesToRenderIndices, CardPagesToRenderIndices, CardPagesToRenderHashMap);
+
+			FLumenCardUpdateOptions CardUpdateOptions = CreateLumenCardUpdateOptions(
+				CardLightingUpdateMinFrequency, CardLightingUpdateFrequencyScale, FrameId);
+
+			if (Card.bVisible
+				&& DoesLightAffectCardPage(SHAPE_TYPE, LightCullingParameters, CardPage, Card)
+				&& ShouldUpdateCardPage(CardPageIndex, Card, CardUpdateResources, CardUpdateOptions))
+			{
+				uint QuadDataInsertIndex;
+				InterlockedAdd(RWQuadAllocator[0], 1, QuadDataInsertIndex);
+
+				if (QuadDataInsertIndex < MaxQuadsPerScatterInstance)
+				{
+					RWQuadData[QuadDataInsertIndex] = CardPageIndex;
+				}
+			}
+		}
+	}
+}
+
+StructuredBuffer<uint> QuadAllocator;
+StructuredBuffer<uint> QuadData;
+RWStructuredBuffer<uint> RWCardTileAllocator;
+RWStructuredBuffer<uint> RWCardTileData;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void BuildCardTilesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint QuadIndex = GroupId.x;
+	uint2 TileInQuadBaseCoord = 2 * GroupThreadId.xy;
+	uint NumQuads = QuadAllocator[0];
+
+	if (QuadIndex < NumQuads)
+	{
+		uint CardPageIndex = QuadData[QuadIndex];
+
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
+		if (CardPage.CardIndex >= 0)
+		{
+			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+
+			FLightCullingParameters LightCullingParameters = CreateLightCullingParameters(
+				InfluenceSphere, LightPosition, LightDirection, LightRadius, CosConeAngle, SinConeAngle);
+
+			const uint2 SizeInTiles = CardPage.SizeInTexels / CARD_TILE_SIZE;
+
+			for (uint TileCoordOffsetY = 0; TileCoordOffsetY < 2; ++TileCoordOffsetY)
+			{
+				for (uint TileCoordOffsetX = 0; TileCoordOffsetX < 2; ++TileCoordOffsetX)
+				{
+					const uint TileCoordX = TileCoordOffsetX + TileInQuadBaseCoord.x;
+					const uint TileCoordY = TileCoordOffsetY + TileInQuadBaseCoord.y;
+
+					if (TileCoordX < SizeInTiles.x && TileCoordY < SizeInTiles.y)
+					{
+						FCardTileData CardTile;
+						CardTile.CardPageIndex = CardPageIndex;
+						CardTile.TileCoord.x = TileCoordX;
+						CardTile.TileCoord.y = TileCoordY;
+
+						float2 UVMin = float2(CardTile.TileCoord) / SizeInTiles;
+						float2 UVMax = float2(CardTile.TileCoord + 1) / SizeInTiles;
+
+						float SwapY = UVMin.y;
+						UVMin.y = 1.0f - UVMax.y;
+						UVMax.y = 1.0f - SwapY;
+
+						bool bLightAffectsCard = DoesLightAffectCardPageUVRange(SHAPE_TYPE, LightCullingParameters, CardPage, Card, UVMin, UVMax);
+						if (bLightAffectsCard)
+						{
+							uint NextTileOffset = 0;
+							InterlockedAdd(RWCardTileAllocator[0], 1, NextTileOffset);
+
+							if (NextTileOffset < MaxCardTilesPerScatterInstance)
+							{
+								RWCardTileData[NextTileOffset] = PackCardTileData(CardTile);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+RWBuffer<uint> RWDrawCardPagesIndirectArgs;
+RWBuffer<uint> RWBuildTilesIndirectArgs;
+
+uint MaxScatterInstanceCount;
+uint VertexCountPerInstanceIndirect;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void InitializeCardPageIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId.x == 0)
+	{
+		uint NumQuads = QuadAllocator[0];
+
+		// FRHIDrawIndirectParameters
+		RWDrawCardPagesIndirectArgs[0] = VertexCountPerInstanceIndirect;
+		RWDrawCardPagesIndirectArgs[1] = NumQuads;
+		RWDrawCardPagesIndirectArgs[2] = 0;
+		RWDrawCardPagesIndirectArgs[3] = 0;
+
+		// FRHIDispatchIndirectParameters
+		RWBuildTilesIndirectArgs[0] = NumQuads;
+		RWBuildTilesIndirectArgs[1] = 1;
+		RWBuildTilesIndirectArgs[2] = 1;
+	}
+}
+
+RWBuffer<uint> RWDrawCardTilesIndirectArgs;
+RWBuffer<uint> RWDispatchCardTilesIndirectArgs;
+
+StructuredBuffer<uint> CardTileAllocator;
+StructuredBuffer<uint> CardTileData;
+
+float2 DownsampledInputAtlasSize;
+
+Buffer<uint4> RectMinMaxBuffer;
+float2 InvRectMinMaxResolution;
+
+void RasterizeToCardsVS(
+	uint VertexId : SV_VertexID,
+	uint InstanceId : SV_InstanceID, 
+	out FCardVSToPS CardInterpolants,
+	out float4 OutPosition : SV_POSITION
+	)
+{
+	float2 TexCoord = float2(0.0f, 0.0f);
+	TexCoord.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? 1.0f : 0.0f;
+	TexCoord.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? 1.0f : 0.0f;
+
+	uint InstanceIndex = InstanceId.x;
+	uint NumQuads = QuadAllocator[0];
+
+	CardInterpolants = (FCardVSToPS)0;
+	OutPosition = 0;
+
+	if (InstanceIndex < NumQuads)
+	{
+		uint QuadIndex = InstanceIndex;
+		uint CardPageIndex = QuadData[QuadIndex];
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
+		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+
+		#if CLAMP_TO_INFLUENCE_SPHERE
+		{
+			float3 LocalSphereOrigin = mul(InfluenceSphere.xyz - Card.Origin, Card.WorldToLocalRotation);
+
+			float2 InvCardPageUVSize = 1.0f / (CardPage.CardUVRect.zw - CardPage.CardUVRect.xy);
+
+			float2 SphereOriginCardUV = SamplePositonToCardUV(Card, LocalSphereOrigin.xy);
+			float2 SphereOriginCardPageUV = (SphereOriginCardUV - CardPage.CardUVRect.xy) * InvCardPageUVSize;
+
+			float2 SphereRadius = 0.5f * (InfluenceSphere.ww / Card.LocalExtent.xy) * InvCardPageUVSize;
+
+			TexCoord = clamp(TexCoord, SphereOriginCardPageUV - SphereRadius, SphereOriginCardPageUV + SphereRadius);
+		}
+		#endif
+
+		float2 ScreenUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, TexCoord);
+		float2 AtlasUV = ScreenUV;
+
+		#if RECT_BUFFER_SRC
+		{
+			float4 AtlasUVRect = RectMinMaxBuffer[CardPageIndex].xyzw * InvRectMinMaxResolution.xyxy;
+			AtlasUV = lerp(AtlasUVRect.xy, AtlasUVRect.zw, TexCoord);
+		}
+		#endif
+
+		#if RECT_BUFFER_SRC
+		{
+			float4 AtlasUVRect = RectMinMaxBuffer[QuadIndex].xyzw * InvRectMinMaxResolution.xyxy;
+			ScreenUV = lerp(AtlasUVRect.xy, AtlasUVRect.zw, TexCoord);
+		}
+		#endif
+
+		// When sampling from a downsampled atlas we need to appropriately clamp input UVs to prevent bilinear reading outside of the valid area
+		if (DownsampledInputAtlasSize.x > 0.0f)
+		{
+			float2 CardWidthInTexels = (CardPage.PhysicalAtlasUVRect.zw - CardPage.PhysicalAtlasUVRect.xy) * DownsampledInputAtlasSize;
+			float2 ClampBorder = 0.5f / CardWidthInTexels;
+
+			TexCoord = clamp(TexCoord, ClampBorder, 1.0f - ClampBorder);
+			AtlasUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, TexCoord);
+		}
+
+		float2 ScreenPosition = float2(2.0f, -2.0f) * ScreenUV + float2(-1.0f, 1.0f);
+		OutPosition = float4(ScreenPosition, 0, 1);
+
+		float2 QuadCorner = -2.0f * TexCoord + 1.0f;
+		CardInterpolants.AtlasUV = AtlasUV;
+		CardInterpolants.CardUV = lerp(CardPage.CardUVRect.xy, CardPage.CardUVRect.zw, TexCoord);
+		CardInterpolants.CardTileIndex = 0;
+		CardInterpolants.CardPageIndex = CardPageIndex;
+	}
+}
+
+void RasterizeToCardTilesVS(
+	uint VertexId : SV_VertexID,
+	uint InstanceId : SV_InstanceID, 
+	out FCardVSToPS CardInterpolants,
+	out float4 OutPosition : SV_POSITION
+	)
+{
+	float2 TexCoord = float2(0.0f, 0.0f);
+	TexCoord.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? 1.0f : 0.0f;
+	TexCoord.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? 1.0f : 0.0f;
+
+	uint CardTileIndex = InstanceId.x;
+	uint NumCardTiles = CardTileAllocator[0];
+
+	CardInterpolants = (FCardVSToPS)0;
+	OutPosition = 0;
+
+	if (CardTileIndex < NumCardTiles)
+	{
+		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+
+		float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * CARD_TILE_SIZE * (CardTile.TileCoord + TexCoord);
+		float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * CARD_TILE_SIZE * (CardTile.TileCoord + TexCoord);
+
+		float2 ScreenPosition = float2(2.0f, -2.0f) * AtlasUV + float2(-1.0f, 1.0f);
+		OutPosition = float4(ScreenPosition, 0, 1);
+
+		CardInterpolants.AtlasUV = AtlasUV;
+		CardInterpolants.CardUV = CardUV;
+		CardInterpolants.CardTileIndex = CardTileIndex;
+		CardInterpolants.CardPageIndex = CardTile.CardPageIndex;
+	}
+}
+
+Texture2D RadiosityAtlas;
+Texture2D OpacityAtlas;
+
+void LumenCardLightingInitializePS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor : SV_Target0)
+{   
+	float3 Radiosity = Texture2DSampleLevel(RadiosityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
+	
+	// Secure again strange values, as we are writing it to a persistent atlas with a feedback loop
+	Radiosity = max(MakeFinite(Radiosity), float3(0.0f, 0.0f, 0.0f));
+	OutColor = float4(Radiosity, 0);
+}
+
+Texture2D SrcAtlas;
+
+void LumenCardCopyAtlasPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutValue : SV_Target0)
+{
+	float3 Value = Texture2DSampleLevel(SrcAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
+	OutValue = float4(Value, 0);
+}
+
+Texture2D AlbedoAtlas;
+Texture2D EmissiveAtlas;
+float DiffuseReflectivityOverride;
+
+void LumenCardBlendAlbedoPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor0 : SV_Target0,
+	out float4 OutColor1 : SV_Target1)
+{
+	float3 DiffuseColor = DecodeSurfaceCacheAlbedo(Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz);
+
+	if (DiffuseReflectivityOverride > 0.0f)
+	{
+		float DiffuseMaxComponent = max(DiffuseColor.r, max(DiffuseColor.g, DiffuseColor.b));
+		DiffuseColor = saturate(DiffuseColor * max(DiffuseReflectivityOverride / max(DiffuseMaxComponent, .0001f), 1.0f));
+	}
+
+	float3 Emissive = Texture2DSampleLevel(EmissiveAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
+	OutColor0 = float4(Emissive, 0);
+	OutColor1 = float4(Diffuse_Lambert(DiffuseColor), 0);
+}
+
+void ClearLumenCardsPS(
+	out float4 OutAlbedo : SV_Target0,
+	out float4 OutNormals : SV_Target1,
+	out float4 OutEmissive : SV_Target2
+)
+{
+	OutAlbedo = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	OutNormals = float4(0.5f, 0.5f, 0.0f, 0.0f);
+	OutEmissive = float4(0.0f, 0.0f, 0.0f, 0.0f);
+}
