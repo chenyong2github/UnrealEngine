@@ -331,6 +331,19 @@ uint32 FTexturePagePool::GetNumVisiblePages(uint32 Frame) const
 	return Count;
 }
 
+void FTexturePagePool::CollectProducerCounts(TMap<uint32, uint32>& OutProducerCountMap) const
+{
+	for (uint32 i = 0; i < NumPages; ++i)
+	{
+		const uint32 PackedProducerHandle = Pages[i].PackedProducerHandle;
+		if (PackedProducerHandle != 0u)
+		{
+			OutProducerCountMap.FindOrAdd(PackedProducerHandle) += 1;
+		}
+	}
+}
+
+
 void FTexturePagePool::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 MaxLevel, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress)
 {
 	check(pAddress < NumPages);
