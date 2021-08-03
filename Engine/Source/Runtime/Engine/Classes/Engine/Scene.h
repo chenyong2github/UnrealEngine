@@ -403,6 +403,7 @@ struct FConvolutionBloomSettings
 	FConvolutionBloomSettings()
 	{
 		Texture = nullptr;
+		ScatterDispersion = 1.0f;
 		Size = 1.f;
 		CenterUV = FVector2D(0.5f, 0.5f);
 		PreFilterMin = 7.f;
