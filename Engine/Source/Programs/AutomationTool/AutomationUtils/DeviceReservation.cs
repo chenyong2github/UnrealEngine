@@ -201,12 +201,26 @@ namespace AutomationTool.DeviceReservation
 			}
 		}
 
-		public static void InvokeAPI(Uri UriToRequest, string Method)
+		public static void InvokeAPI(Uri UriToRequest, string Method, object ObjectToSerialize = null)
 		{
 			var Request = (HttpWebRequest)WebRequest.Create(UriToRequest);
 			Request.UseDefaultCredentials = true;
 			Request.Method = Method;
-			if (Method == "PUT")
+
+			if (ObjectToSerialize != null)
+			{
+				Request.ContentType = "application/json";
+
+				using (var RequestStream = Request.GetRequestStream())
+				{
+					var JsonString = fastJSON.JSON.Instance.ToJSON(ObjectToSerialize, new fastJSON.JSONParameters() { UseExtensions = false });
+					var Writer = new StreamWriter(RequestStream);
+					Writer.Write(JsonString);
+					Writer.Flush();
+					RequestStream.Flush();
+				}
+			}
+			else if (Method == "PUT")
 			{
 				Request.ContentLength = 0;
 			}
@@ -228,22 +242,15 @@ namespace AutomationTool.DeviceReservation
 		public Guid Guid { get; set; }
 		public static string ReservationDetails = "";
 
-		private void Copy(Reservation Other)
-		{
-			DeviceNames = Other.DeviceNames.ToArray();
-			HostName = Other.HostName;
-			StartDateTime = Other.StartDateTime;
-			Duration = Other.Duration;
-			Guid = Other.Guid;
-		}
-
 		private sealed class CreateReservationData
 		{
 			public string[] DeviceTypes;
 			public string Hostname;
 			public TimeSpan Duration;
 			public string ReservationDetails;
-			public string PoolID;
+			public string PoolId;
+			public string JobId;
+			public string StepId;
 		}
 
 		public static Reservation Create(Uri BaseUri, string[] DeviceTypes, TimeSpan Duration, int RetryMax = 5, string PoolID = "")
@@ -273,7 +280,9 @@ namespace AutomationTool.DeviceReservation
 						Hostname = Environment.MachineName,
 						Duration = Duration,
 						ReservationDetails = ReservationDetails,
-						PoolID = PoolID
+						PoolId = PoolID,
+						JobId = Environment.GetEnvironmentVariable("UE_HORDE_JOBID"),
+						StepId = Environment.GetEnvironmentVariable("UE_HORDE_STEPID")
 					});
 				}
 				catch (WebException WebEx)
@@ -323,8 +332,7 @@ namespace AutomationTool.DeviceReservation
 		{
 			try
 			{
-				var NewReservation = Utils.InvokeAPI<Reservation>(BaseUri.AppendPath("api/v1/reservations/" + Guid.ToString()), "PUT", NewDuration);
-				Copy(NewReservation);
+				Utils.InvokeAPI(BaseUri.AppendPath("api/v1/reservations/" + Guid.ToString()), "PUT", NewDuration);				
 			}
 			catch (Exception ex)
 			{
