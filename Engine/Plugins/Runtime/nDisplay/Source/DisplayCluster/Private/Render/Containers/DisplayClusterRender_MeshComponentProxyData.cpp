@@ -18,6 +18,15 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	UStaticMesh* StaticMesh = InMeshComponent.GetStaticMesh();
 	if (StaticMesh)
 	{
+		if (StaticMesh->bAllowCPUAccess == false)
+		{
+			UE_LOG(LogDisplayClusterRender, Error, TEXT("Required raised flag AllowCPUAccess for static mesh '%s'"), *StaticMesh->GetName());
+#ifndef WITH_EDITOR
+			// Can't access to cooked data from CPU without this flag
+			return;
+#endif
+		}
+
 		const FStaticMeshLODResources& SrcMeshResource = StaticMesh->GetLODForExport(0);
 
 		const FPositionVertexBuffer& VertexPosition = SrcMeshResource.VertexBuffers.PositionVertexBuffer;
