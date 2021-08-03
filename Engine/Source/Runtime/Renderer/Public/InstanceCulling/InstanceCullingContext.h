@@ -27,10 +27,12 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FInstanceCullingDrawParams, )
 	RDG_BUFFER_ACCESS(DrawIndirectArgsBuffer, ERHIAccess::IndirectArgs)
 	RDG_BUFFER_ACCESS(InstanceIdOffsetBuffer, ERHIAccess::VertexOrIndexBuffer)
-	SHADER_PARAMETER(uint32, DrawCommandDataOffset)
+	SHADER_PARAMETER(uint32, InstanceDataByteOffset) // offset into per-instance buffer
+	SHADER_PARAMETER(uint32, IndirectArgsByteOffset) // offset into indirect args buffer
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FInstanceCullingGlobalUniforms, InstanceCulling)	
 END_SHADER_PARAMETER_STRUCT()
 
+FMeshDrawCommandOverrideArgs GetMeshDrawCommandOverrideArgs(const FInstanceCullingDrawParams& InstanceCullingDrawParams);
 
 enum class EInstanceCullingMode
 {
@@ -146,6 +148,15 @@ public:
 		int32& VisibleMeshDrawCommandsNumOut,
 		int32& NewPassVisibleMeshDrawCommandsNumOut);
 
+	void SubmitDrawCommands(
+		const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+		const FMeshDrawCommandOverrideArgs& OverrideArgs,
+		int32 StartIndex,
+		int32 NumMeshDrawCommands,
+		uint32 InstanceFactor,
+		FRHICommandList& RHICmdList) const;
+
 	FInstanceCullingManager* InstanceCullingManager = nullptr;
 	TArray<int32, TInlineAllocator<6>/*, SceneRenderingAllocator*/> ViewIds;
 	bool bIsEnabled = false;
@@ -160,10 +171,10 @@ public:
 	{
 		// flag to indicate if using indirect or not.
 		uint32 bUseIndirect : 1U;
-		// stores either the offset to the indirect args or the number of instances
+		// stores either the offset (in bytes) to the indirect args or the number of instances
 		uint32 IndirectArgsOffsetOrNumInstances : 31U;
-		// Offset to write the instance data for the command to (either offset into the vertex array
-		uint32 InstanceDataOffset;
+		// offset into per-instance buffer
+		uint32 InstanceDataByteOffset;
 	};
 
 	// TODO: bit-pack
@@ -184,8 +195,8 @@ public:
 		uint32 DynamicInstanceIdMax;
 		uint32 ItemDataOffset[uint32(EBatchProcessingMode::Num)];
 	};
-
-	//TArray<FMeshDrawCommandInfo> MeshDrawCommandInfos;
+	
+	TArray<FMeshDrawCommandInfo> MeshDrawCommandInfos;
 	TArray<FRHIDrawIndexedIndirectParameters> IndirectArgs;
 	TArray<FDrawCommandDesc> DrawCommandDescs;
 	TArray<uint32> InstanceIdOffsets;

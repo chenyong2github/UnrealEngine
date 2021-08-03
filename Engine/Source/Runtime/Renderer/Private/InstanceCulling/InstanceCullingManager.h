@@ -35,8 +35,9 @@ struct FInstanceCullingResult
 	//TRefCountPtr<FRDGPooledBuffer> InstanceIdsBuffer;
 	FRDGBufferRef DrawIndirectArgsBuffer = nullptr;
 	FRDGBufferRef InstanceIdOffsetBuffer = nullptr;
-	// Offset (in items, not bytes or something) for both buffers to start fetching data at, used when batching multiple culling jobs in the same buffer
-	uint32 DrawCommandDataOffset = 0U;
+	// Offset for both buffers to start fetching data at, used when batching multiple culling jobs in the same buffer
+	uint32 InstanceDataByteOffset = 0U;
+	uint32 IndirectArgsByteOffset = 0U;
 	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
 
 	//FRHIBuffer* GetDrawIndirectArgsBufferRHI() const { return DrawIndirectArgsBuffer.IsValid() ? DrawIndirectArgsBuffer->GetVertexBufferRHI() : nullptr; }
@@ -46,7 +47,8 @@ struct FInstanceCullingResult
 		// GPUCULL_TODO: Maybe get dummy buffers?
 		OutParams.DrawIndirectArgsBuffer = DrawIndirectArgsBuffer;
 		OutParams.InstanceIdOffsetBuffer = InstanceIdOffsetBuffer;
-		OutParams.DrawCommandDataOffset = DrawCommandDataOffset;
+		OutParams.InstanceDataByteOffset = InstanceDataByteOffset;
+		OutParams.IndirectArgsByteOffset = IndirectArgsByteOffset;
 		OutParams.InstanceCulling = UniformBuffer;
 	}
 
@@ -60,7 +62,8 @@ struct FInstanceCullingResult
 		{
 			OutParams.DrawIndirectArgsBuffer = nullptr;
 			OutParams.InstanceIdOffsetBuffer = nullptr;
-			OutParams.DrawCommandDataOffset = 0U;
+			OutParams.InstanceDataByteOffset = 0U;
+			OutParams.IndirectArgsByteOffset = 0U;
 			OutParams.InstanceCulling = nullptr;
 		}
 	}

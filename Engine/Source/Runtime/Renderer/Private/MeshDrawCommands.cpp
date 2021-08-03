@@ -1197,40 +1197,14 @@ FParallelMeshDrawCommandPass::~FParallelMeshDrawCommandPass()
 	check(TaskEventRef == nullptr);
 }
 
-void SubmitGPUInstancedMeshDrawCommandsRange(
-	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
-	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
-	int32 StartIndex,
-	int32 NumMeshDrawCommands,
-	uint32 InstanceFactor,
-	FRHIBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
-	FRHIBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
-	uint32 DrawCommandDataOffset, // Used to offset both the indirect args and the instance ID offset buffers when bound (wrt each their strides)
-	FRHICommandList& RHICmdList)
-{
-	FMeshDrawCommandStateCache StateCache;
-	INC_DWORD_STAT_BY(STAT_MeshDrawCalls, NumMeshDrawCommands);
-
-	for (int32 DrawCommandIndex = StartIndex; DrawCommandIndex < StartIndex + NumMeshDrawCommands; DrawCommandIndex++)
-	{
-		//SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, MeshEvent, GEmitMeshDrawEvent != 0, TEXT("Mesh Draw"));
-
-		const FVisibleMeshDrawCommand& VisibleMeshDrawCommand = VisibleMeshDrawCommands[DrawCommandIndex];
-		const uint32 IndirectArgsByteOffset = uint32(DrawCommandDataOffset + DrawCommandIndex) * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
-		const int32 InstanceIdsOffsetBufferByteOffset = (DrawCommandDataOffset + DrawCommandIndex) * sizeof(int32);
-		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, GraphicsMinimalPipelineStateSet, InstanceIdsOffsetBuffer, InstanceIdsOffsetBufferByteOffset, InstanceFactor, RHICmdList, StateCache, IndirectArgsBuffer, IndirectArgsByteOffset);
-	}
-}
-
 class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask
 {
 	FRHICommandList& RHICmdList;
+	const FInstanceCullingContext& InstanceCullingContext;
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands;
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet;
+	const FMeshDrawCommandOverrideArgs OverrideArgs;
 	uint32 InstanceFactor;
-	FRHIBuffer* InstanceIdOffsetBuffer;
-	FRHIBuffer* DrawIndirectArgsBuffer;
-	uint32 DrawCommandDataOffset;
 	int32 TaskIndex;
 	int32 TaskNum;
 
@@ -1238,25 +1212,24 @@ public:
 
 	FDrawVisibleMeshCommandsAnyThreadTask(
 		FRHICommandList& InRHICmdList,
+		const FInstanceCullingContext& InInstanceCullingContext,
 		const FMeshCommandOneFrameArray& InVisibleMeshDrawCommands,
 		const FGraphicsMinimalPipelineStateSet& InGraphicsMinimalPipelineStateSet,
+		const FMeshDrawCommandOverrideArgs& InOverrideArgs,
 		uint32 InInstanceFactor,
-		FRHIBuffer* InInstanceIdOffsetBuffer,
-		FRHIBuffer* InDrawIndirectArgsBuffer,
-		uint32 InDrawCommandDataOffset,
 		int32 InTaskIndex,
 		int32 InTaskNum
 	)
 		: RHICmdList(InRHICmdList)
+		, InstanceCullingContext(InInstanceCullingContext)
 		, VisibleMeshDrawCommands(InVisibleMeshDrawCommands)
 		, GraphicsMinimalPipelineStateSet(InGraphicsMinimalPipelineStateSet)
+		, OverrideArgs(InOverrideArgs)
 		, InstanceFactor(InInstanceFactor)
-		, InstanceIdOffsetBuffer(InInstanceIdOffsetBuffer)
-		, DrawIndirectArgsBuffer(InDrawIndirectArgsBuffer)
-		, DrawCommandDataOffset(InDrawCommandDataOffset)
 		, TaskIndex(InTaskIndex)
 		, TaskNum(InTaskNum)
-	{}
+	{
+	}
 
 	FORCEINLINE TStatId GetStatId() const
 	{
@@ -1279,15 +1252,14 @@ public:
 		const int32 NumDrawsPerTask = TaskIndex < DrawNum ? FMath::DivideAndRoundUp(DrawNum, TaskNum) : 0;
 		const int32 StartIndex = TaskIndex * NumDrawsPerTask;
 		const int32 NumDraws = FMath::Min(NumDrawsPerTask, DrawNum - StartIndex);
-		SubmitGPUInstancedMeshDrawCommandsRange(
+
+		InstanceCullingContext.SubmitDrawCommands(
 			VisibleMeshDrawCommands,
 			GraphicsMinimalPipelineStateSet,
+			OverrideArgs,
 			StartIndex,
 			NumDraws,
 			InstanceFactor,
-			InstanceIdOffsetBuffer,
-			DrawIndirectArgsBuffer,
-			DrawCommandDataOffset,
 			RHICmdList);
 		RHICmdList.EndRenderPass();
 		RHICmdList.HandleRTThreadTaskCompletion(MyCompletionGraphEvent);
@@ -1312,7 +1284,8 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(
 	}
 	OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
 	OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;
-	OutInstanceCullingDrawParams.DrawCommandDataOffset = 0U;
+	OutInstanceCullingDrawParams.InstanceDataByteOffset = 0U;
+	OutInstanceCullingDrawParams.IndirectArgsByteOffset = 0U;
 }
 
 
@@ -1340,16 +1313,10 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		return;
 	}
 
-	FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
-	FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
-	uint32 DrawCommandDataOffset = 0U;
-	if (InstanceCullingDrawParams != nullptr 
-		&& InstanceCullingDrawParams->DrawIndirectArgsBuffer.GetBuffer() != nullptr
-		&& InstanceCullingDrawParams->InstanceIdOffsetBuffer.GetBuffer() != nullptr)
+	FMeshDrawCommandOverrideArgs OverrideArgs; 
+	if (InstanceCullingDrawParams)
 	{
-		DrawIndirectArgsBuffer = InstanceCullingDrawParams->DrawIndirectArgsBuffer.GetBuffer()->GetRHI();
-		InstanceIdOffsetBuffer = InstanceCullingDrawParams->InstanceIdOffsetBuffer.GetBuffer()->GetRHI();
-		DrawCommandDataOffset = InstanceCullingDrawParams->DrawCommandDataOffset;
+		OverrideArgs = GetMeshDrawCommandOverrideArgs(*InstanceCullingDrawParams);
 	}
 
 	if (ParallelCommandListSet)
@@ -1381,11 +1348,9 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 			FRHICommandList* CmdList = ParallelCommandListSet->NewParallelCommandList();
 
 			FGraphEventRef AnyThreadCompletionEvent = TGraphTask<FDrawVisibleMeshCommandsAnyThreadTask>::CreateTask(&Prereqs, RenderThread)
-				.ConstructAndDispatchWhenReady(*CmdList, TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, 
+				.ConstructAndDispatchWhenReady(*CmdList, TaskContext.InstanceCullingContext, TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet,
+					OverrideArgs,
 					TaskContext.InstanceFactor,
-					InstanceIdOffsetBuffer,
-					DrawIndirectArgsBuffer,
-					DrawCommandDataOffset,
 					TaskIndex, NumTasks);
 
 			ParallelCommandListSet->AddParallelCommandList(CmdList, AnyThreadCompletionEvent, NumDraws);
@@ -1401,15 +1366,13 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 		{
 			if (TaskContext.MeshDrawCommands.Num() > 0)
 			{
-				SubmitGPUInstancedMeshDrawCommandsRange(
+				TaskContext.InstanceCullingContext.SubmitDrawCommands(
 					TaskContext.MeshDrawCommands,
 					TaskContext.MinimalPipelineStatePassSet,
+					OverrideArgs,
 					0,
 					TaskContext.MeshDrawCommands.Num(),
 					TaskContext.InstanceFactor,
-					InstanceIdOffsetBuffer,
-					DrawIndirectArgsBuffer,
-					DrawCommandDataOffset,
 					RHICmdList);
 			}
 		}

@@ -99,6 +99,7 @@ public:
 				CurrentBatchPackedPrefixSum = 0U;
 			}
 		}
+		TotalInstances += InstancesAdded;
 	}
 
 	bool IsEmpty() const
@@ -216,6 +217,12 @@ public:
 
 		Batches.Append(Other.Batches);
 		Items.Append(Other.Items);
+		TotalInstances += Other.TotalInstances;
+	}
+
+	bool HasSingleInstanceItemsOnly() const
+	{
+		return TotalInstances == Items.Num();
 	}
 
 protected:
@@ -226,4 +233,5 @@ protected:
 	uint32 CurrentBatchNumItems = 0U;
 	uint32 CurrentBatchPackedPrefixSum = 0U;
 	uint32 CurrentBatchFirstItem = 0U;
+	uint32 TotalInstances = 0U;
 };

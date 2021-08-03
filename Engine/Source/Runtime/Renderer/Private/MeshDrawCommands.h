@@ -233,14 +233,3 @@ RENDERER_API extern void SortAndMergeDynamicPassMeshDrawCommands(
 	FRHIBuffer*& OutPrimitiveIdVertexBuffer,
 	uint32 InstanceFactor,
 	const TRange<int32>& DynamicPrimitiveIdRange);
-
-void SubmitGPUInstancedMeshDrawCommandsRange(
-	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
-	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
-	int32 StartIndex,
-	int32 NumMeshDrawCommands,
-	uint32 InstanceFactor,
-	FRHIBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
-	FRHIBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
-	uint32 DrawCommandDataOffset, // Used to offset both the indirect args and the instance ID offset buffers when bound (wrt each their strides)
-	FRHICommandList& RHICmdList);

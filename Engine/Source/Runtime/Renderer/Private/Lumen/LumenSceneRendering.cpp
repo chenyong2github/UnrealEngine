@@ -1950,19 +1950,20 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 		{
 			FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 			FInstanceCullingResult InstanceCullingResult;
+			TUniquePtr<FInstanceCullingContext> InstanceCullingContext;
 			if (Scene->GPUScene.IsEnabled())
 			{
+				InstanceCullingContext = MakeUnique<FInstanceCullingContext>(nullptr, TArrayView<const int32>(&View.GPUSceneViewId, 1));
+				
 				int32 MaxInstances = 0;
 				int32 VisibleMeshDrawCommandsNum = 0;
 				int32 NewPassVisibleMeshDrawCommandsNum = 0;
-
-				FInstanceCullingContext InstanceCullingContext(nullptr, TArrayView<const int32>(&View.GPUSceneViewId, 1));
-
-				InstanceCullingContext.SetupDrawCommands(LumenCardRenderer.MeshDrawCommands, false, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
+				
+				InstanceCullingContext->SetupDrawCommands(LumenCardRenderer.MeshDrawCommands, false, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
 				// Not supposed to do any compaction here.
 				ensure(VisibleMeshDrawCommandsNum == LumenCardRenderer.MeshDrawCommands.Num());
 
-				InstanceCullingContext.BuildRenderingCommands(GraphBuilder, Scene->GPUScene, View.DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), View.DynamicPrimitiveCollector.NumInstances(), InstanceCullingResult);
+				InstanceCullingContext->BuildRenderingCommands(GraphBuilder, Scene->GPUScene, View.DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), View.DynamicPrimitiveCollector.NumInstances(), InstanceCullingResult);
 			}
 			else
 			{
@@ -2090,7 +2091,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					RDG_EVENT_NAME("MeshCardCapture Pages:%u Draws:%u Instances:%u Tris:%u", NumPages, NumDraws, NumInstances, NumTris),
 					PassParameters,
 					ERDGPassFlags::Raster,
-					[this, Scene = Scene, PrimitiveIdVertexBuffer, SharedView, &CardPagesToRender, PassParameters](FRHICommandListImmediate& RHICmdList)
+					[this, Scene = Scene, PrimitiveIdVertexBuffer, SharedView, &CardPagesToRender, PassParameters, InstanceCullingContext = MoveTemp(InstanceCullingContext)](FRHICommandListImmediate& RHICmdList)
 					{
 						QUICK_SCOPE_CYCLE_COUNTER(MeshPass);
 
@@ -2107,24 +2108,15 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 								FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 								if (Scene->GPUScene.IsEnabled())
 								{
-									FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
-									FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
 									FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;
-									if (InstanceCullingDrawParams.DrawIndirectArgsBuffer.GetBuffer() != nullptr && InstanceCullingDrawParams.InstanceIdOffsetBuffer.GetBuffer() != nullptr)
-									{
-										DrawIndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer.GetBuffer()->GetRHI();
-										InstanceIdOffsetBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer.GetBuffer()->GetRHI();
-									}
-
-									SubmitGPUInstancedMeshDrawCommandsRange(
+									
+									InstanceCullingContext->SubmitDrawCommands(
 										LumenCardRenderer.MeshDrawCommands,
 										GraphicsMinimalPipelineStateSet,
+										GetMeshDrawCommandOverrideArgs(PassParameters->InstanceCullingDrawParams),
 										CardPageRenderData.StartMeshDrawCommandIndex,
 										CardPageRenderData.NumMeshDrawCommands,
 										1,
-										InstanceIdOffsetBuffer,
-										DrawIndirectArgsBuffer,
-										InstanceCullingDrawParams.DrawCommandDataOffset,
 										RHICmdList);
 								}
 								else
