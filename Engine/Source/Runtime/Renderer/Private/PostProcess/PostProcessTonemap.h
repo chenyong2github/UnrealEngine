@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PostProcess/PostProcessEyeAdaptation.h"
+#include "PostProcess/PostProcessBloomSetup.h"
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"
 #include "Math/Halton.h"
@@ -47,7 +48,7 @@ struct FTonemapInputs
 	FScreenPassTexture SceneColor;
 
 	// [Required] Filtered bloom texture to composite with tonemapped scene color. This should be transparent black for no bloom.
-	FScreenPassTexture Bloom;
+	FBloomOutputs Bloom;
 
 	// [Required] Color grading texture used to remap colors.
 	FRDGTextureRef ColorGradingTexture = nullptr;

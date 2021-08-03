@@ -109,6 +109,11 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FBloomSetupCS, "/Engine/Private/PostProcessBloom.usf", "BloomSetupCS", SF_Compute);
 } //!namespace
 
+bool FBloomOutputs::SupportsApplyParametersBuffer(EShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsFFTBloom(Platform);
+}
+
 FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FBloomSetupInputs& Inputs)
 {
 	check(Inputs.SceneColor.IsValid());
@@ -180,112 +185,96 @@ static_assert(
 	static_cast<uint32>(EBloomQuality::MAX) == FSceneDownsampleChain::StageCount,
 	"The total number of stages in the scene downsample chain and the number of bloom quality levels must match.");
 
-FBloomOutputs AddBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FBloomInputs& Inputs)
+FBloomOutputs AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSceneDownsampleChain* SceneDownsampleChain)
 {
-	check(Inputs.SceneColor.IsValid());
-	check(Inputs.SceneDownsampleChain);
+	check(SceneDownsampleChain);
+	check(!IsFFTBloomEnabled(View));
 
 	const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
 	const EBloomQuality BloomQuality = GetBloomQuality();
 
-	FScreenPassTexture SceneColor = Inputs.SceneColor;
-	FScreenPassTexture Bloom;
-
+	FBloomOutputs PassOutputs;
 	if (BloomQuality != EBloomQuality::Disabled)
 	{
-		const bool bFFTBloomEnabled = IsFFTBloomEnabled(View);
+		RDG_EVENT_SCOPE(GraphBuilder, "Bloom");
 
-		if (bFFTBloomEnabled)
+		const float CrossBloom = CVarBloomCross.GetValueOnRenderThread();
+
+		const FVector2D CrossCenterWeight(FMath::Max(CrossBloom, 0.0f), FMath::Abs(CrossBloom));
+
+		check(BloomQuality != EBloomQuality::Disabled);
+		const uint32 BloomQualityIndex = static_cast<uint32>(BloomQuality);
+		const uint32 BloomQualityCountMax = static_cast<uint32>(EBloomQuality::MAX);
+
+		struct FBloomStage
 		{
-			FScreenPassTexture FullResolution = Inputs.SceneColor;
-			FScreenPassTexture HalfResolution;
-			if (IsFFTBloomQuarterResolutionEnabled())
-			{
-				HalfResolution = Inputs.SceneDownsampleChain->GetTexture(1);
-			}
-			else
-			{
-				HalfResolution = Inputs.SceneDownsampleChain->GetFirstTexture();
-			}
+			const float Size;
+			const FLinearColor& Tint;
+		};
 
-			FFFTBloomInputs PassInputs;
-			PassInputs.FullResolutionTexture = FullResolution.Texture;
-			PassInputs.FullResolutionViewRect = FullResolution.ViewRect;
-			PassInputs.HalfResolutionTexture = HalfResolution.Texture;
-			PassInputs.HalfResolutionViewRect = HalfResolution.ViewRect;
+		FBloomStage BloomStages[] =
+		{
+			{ Settings.Bloom6Size, Settings.Bloom6Tint },
+			{ Settings.Bloom5Size, Settings.Bloom5Tint },
+			{ Settings.Bloom4Size, Settings.Bloom4Tint },
+			{ Settings.Bloom3Size, Settings.Bloom3Tint },
+			{ Settings.Bloom2Size, Settings.Bloom2Tint },
+			{ Settings.Bloom1Size, Settings.Bloom1Tint }
+		};
 
-			SceneColor.Texture = AddFFTBloomPass(GraphBuilder, View, PassInputs);
+		const uint32 BloomQualityToSceneDownsampleStage[] =
+		{
+			static_cast<uint32>(-1), // Disabled (sentinel entry to preserve indices)
+			3, // Q1
+			3, // Q2
+			4, // Q3
+			5, // Q4
+			6  // Q5
+		};
+
+		static_assert(UE_ARRAY_COUNT(BloomStages) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
+		static_assert(UE_ARRAY_COUNT(BloomQualityToSceneDownsampleStage) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
+
+		// Use bloom quality to select the number of downsample stages to use for bloom.
+		const uint32 BloomStageCount = BloomQualityToSceneDownsampleStage[BloomQualityIndex];
+
+		const float TintScale = 1.0f / BloomQualityCountMax;
+
+		for (uint32 StageIndex = 0, SourceIndex = BloomQualityCountMax - 1; StageIndex < BloomStageCount; ++StageIndex, --SourceIndex)
+		{
+			const FBloomStage& BloomStage = BloomStages[StageIndex];
+
+			if (BloomStage.Size > SMALL_NUMBER)
+			{
+				FGaussianBlurInputs PassInputs;
+				PassInputs.NameX = TEXT("BloomX");
+				PassInputs.NameY = TEXT("BloomY");
+				PassInputs.Filter = SceneDownsampleChain->GetTexture(SourceIndex);
+				PassInputs.Additive = PassOutputs.Bloom;
+				PassInputs.CrossCenterWeight = CrossCenterWeight;
+				PassInputs.KernelSizePercent = BloomStage.Size * Settings.BloomSizeScale;
+				PassInputs.TintColor = BloomStage.Tint * TintScale;
+
+				PassOutputs.Bloom = AddGaussianBlurPass(GraphBuilder, View, PassInputs);
+			}
 		}
-		else
+
+		if (FBloomOutputs::SupportsApplyParametersBuffer(View.GetShaderPlatform()))
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "Bloom");
+			FBloomOutputs::FApplyInfo ApplyParameters;
+			ApplyParameters.SceneColorMultiply = FLinearColor::White;
+			ApplyParameters.BloomMultiply = FLinearColor::White * View.FinalPostProcessSettings.BloomIntensity;;
 
-			const float CrossBloom = CVarBloomCross.GetValueOnRenderThread();
+			TArray<FBloomOutputs::FApplyInfo, TInlineAllocator<1> > ApplyParametersArray;
+			ApplyParametersArray.Add(ApplyParameters);
 
-			const FVector2D CrossCenterWeight(FMath::Max(CrossBloom, 0.0f), FMath::Abs(CrossBloom));
-
-			check(BloomQuality != EBloomQuality::Disabled);
-			const uint32 BloomQualityIndex = static_cast<uint32>(BloomQuality);
-			const uint32 BloomQualityCountMax = static_cast<uint32>(EBloomQuality::MAX);
-
-			struct FBloomStage
-			{
-				const float Size;
-				const FLinearColor& Tint;
-			};
-
-			FBloomStage BloomStages[] =
-			{
-				{ Settings.Bloom6Size, Settings.Bloom6Tint },
-				{ Settings.Bloom5Size, Settings.Bloom5Tint },
-				{ Settings.Bloom4Size, Settings.Bloom4Tint },
-				{ Settings.Bloom3Size, Settings.Bloom3Tint },
-				{ Settings.Bloom2Size, Settings.Bloom2Tint },
-				{ Settings.Bloom1Size, Settings.Bloom1Tint }
-			};
-
-			const uint32 BloomQualityToSceneDownsampleStage[] =
-			{
-				static_cast<uint32>(-1), // Disabled (sentinel entry to preserve indices)
-				3, // Q1
-				3, // Q2
-				4, // Q3
-				5, // Q4
-				6  // Q5
-			};
-
-			static_assert(UE_ARRAY_COUNT(BloomStages) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
-			static_assert(UE_ARRAY_COUNT(BloomQualityToSceneDownsampleStage) == BloomQualityCountMax, "Array must be one less than the number of bloom quality entries.");
-
-			// Use bloom quality to select the number of downsample stages to use for bloom.
-			const uint32 BloomStageCount = BloomQualityToSceneDownsampleStage[BloomQualityIndex];
-
-			const float TintScale = 1.0f / BloomQualityCountMax;
-
-			for (uint32 StageIndex = 0, SourceIndex = BloomQualityCountMax - 1; StageIndex < BloomStageCount; ++StageIndex, --SourceIndex)
-			{
-				const FBloomStage& BloomStage = BloomStages[StageIndex];
-
-				if (BloomStage.Size > SMALL_NUMBER)
-				{
-					FGaussianBlurInputs PassInputs;
-					PassInputs.NameX = TEXT("BloomX");
-					PassInputs.NameY = TEXT("BloomY");
-					PassInputs.Filter = Inputs.SceneDownsampleChain->GetTexture(SourceIndex);
-					PassInputs.Additive = Bloom;
-					PassInputs.CrossCenterWeight = CrossCenterWeight;
-					PassInputs.KernelSizePercent = BloomStage.Size * Settings.BloomSizeScale;
-					PassInputs.TintColor = BloomStage.Tint * TintScale;
-
-					Bloom = AddGaussianBlurPass(GraphBuilder, View, PassInputs);
-				}
-			}
+			PassOutputs.ApplyParameters = CreateStructuredBuffer(
+				GraphBuilder,
+				TEXT("Bloom.ApplyParameters"),
+				ApplyParametersArray);
 		}
 	}
 
-	FBloomOutputs PassOutputs;
-	PassOutputs.SceneColor = SceneColor;
-	PassOutputs.Bloom = Bloom;
 	return PassOutputs;
 }

@@ -329,21 +329,27 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FFilmGrainParameters, FilmGrain)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FTonemapperOutputDeviceParameters, OutputDevice)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
-	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Bloom)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+
+	// Bloom texture
+	SHADER_PARAMETER(FScreenTransform, ColorToBloom)
+	SHADER_PARAMETER(FVector2D, BloomUVViewportBilinearMin)
+	SHADER_PARAMETER(FVector2D, BloomUVViewportBilinearMax)
+	SHADER_PARAMETER(FVector4, BloomMultiply)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, BloomSampler)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(SamplerState, BloomApplyParameters)
+
 	// SM5 and above use Texture2D for EyeAdaptationTexture
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorGradingLUT)
 	SHADER_PARAMETER_TEXTURE(Texture2D, BloomDirtMaskTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
-	SHADER_PARAMETER_SAMPLER(SamplerState, BloomSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorGradingLUTSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomDirtMaskSampler)
-	SHADER_PARAMETER(FScreenTransform, ColorToBloom)
+
 	SHADER_PARAMETER(FVector4, ColorScale0)
-	SHADER_PARAMETER(FVector4, ColorScale1)
 	SHADER_PARAMETER(FVector4, BloomDirtMaskTint)
 	SHADER_PARAMETER(FVector4, ChromaticAberrationParams)
 	SHADER_PARAMETER(FVector4, TonemapperParams)
@@ -408,6 +414,8 @@ public:
 	{
 		const int UseVolumeLut = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Parameters.Platform) ? 1 : 0;
 		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
+
+		OutEnvironment.SetDefine(TEXT("SUPPORTS_BLOOM_APPLY_PARAMETERS"), FBloomOutputs::SupportsApplyParametersBuffer(Parameters.Platform) ? 1 : 0);
 	}
 };
 
@@ -447,6 +455,8 @@ public:
 
 		const int UseVolumeLut = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Parameters.Platform) ? 1 : 0;
 		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
+
+		OutEnvironment.SetDefine(TEXT("SUPPORTS_BLOOM_APPLY_PARAMETERS"), FBloomOutputs::SupportsApplyParametersBuffer(Parameters.Platform) ? 1 : 0);
 	}
 };
 
@@ -611,24 +621,15 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 	CommonParameters.OutputDevice = GetTonemapperOutputDeviceParameters(ViewFamily);
 	CommonParameters.Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
-	if (Inputs.Bloom.Texture)
-	{
-		const FScreenPassTextureViewport BloomViewport(Inputs.Bloom);
-		CommonParameters.Bloom = GetScreenPassTextureViewportParameters(BloomViewport);
-		CommonParameters.ColorToBloom = FScreenTransform::ChangeTextureUVCoordinateFromTo(SceneColorViewport, BloomViewport);
-	}
 	CommonParameters.Output = GetScreenPassTextureViewportParameters(OutputViewport);
 	CommonParameters.ColorTexture = Inputs.SceneColor.Texture;
-	CommonParameters.BloomTexture = Inputs.Bloom.Texture;
 	CommonParameters.EyeAdaptationTexture = Inputs.EyeAdaptationTexture;
 	CommonParameters.ColorGradingLUT = Inputs.ColorGradingTexture;
 	CommonParameters.BloomDirtMaskTexture = BloomDirtMaskTexture;
 	CommonParameters.ColorSampler = BilinearClampSampler;
-	CommonParameters.BloomSampler = BilinearClampSampler;
 	CommonParameters.ColorGradingLUTSampler = BilinearClampSampler;
 	CommonParameters.BloomDirtMaskSampler = BilinearClampSampler;
 	CommonParameters.ColorScale0 = PostProcessSettings.SceneColorTint;
-	CommonParameters.ColorScale1 = FLinearColor::White * PostProcessSettings.BloomIntensity;
 	CommonParameters.BloomDirtMaskTint = PostProcessSettings.BloomDirtMaskTint * PostProcessSettings.BloomDirtMaskIntensity;
 	CommonParameters.ChromaticAberrationParams = ChromaticAberrationParams;
 	CommonParameters.TonemapperParams = FVector4(PostProcessSettings.VignetteIntensity, SharpenDiv6, 0.0f, 0.0f);
@@ -637,6 +638,54 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	CommonParameters.EditorNITLevel = EditorNITLevel;
 	CommonParameters.bOutputInHDR = ViewFamily.bIsHDR;
 	CommonParameters.LensPrincipalPointOffsetScale = View.LensPrincipalPointOffsetScale;
+
+	// Bloom parameters
+	{
+		if (Inputs.Bloom.Bloom.Texture)
+		{
+			const FScreenPassTextureViewport BloomViewport(Inputs.Bloom.Bloom);
+			CommonParameters.ColorToBloom = FScreenTransform::ChangeTextureUVCoordinateFromTo(SceneColorViewport, BloomViewport);
+			CommonParameters.BloomUVViewportBilinearMin = GetScreenPassTextureViewportParameters(BloomViewport).UVViewportBilinearMin;
+			CommonParameters.BloomUVViewportBilinearMax = GetScreenPassTextureViewportParameters(BloomViewport).UVViewportBilinearMax;
+			CommonParameters.BloomMultiply = FLinearColor::White * PostProcessSettings.BloomIntensity;
+			CommonParameters.BloomTexture = Inputs.Bloom.Bloom.Texture;
+			CommonParameters.BloomSampler = BilinearClampSampler;
+		}
+		else
+		{
+			CommonParameters.ColorToBloom = FScreenTransform::Identity;
+			CommonParameters.BloomUVViewportBilinearMin = FVector2D::ZeroVector;
+			CommonParameters.BloomUVViewportBilinearMax = FVector2D::UnitVector;
+			CommonParameters.BloomMultiply = FLinearColor::Transparent;
+			CommonParameters.BloomTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+			CommonParameters.BloomSampler = BilinearClampSampler;
+		}
+
+		if (!FBloomOutputs::SupportsApplyParametersBuffer(View.GetShaderPlatform()))
+		{
+			check(Inputs.Bloom.ApplyParameters == nullptr);
+		}
+		else if (Inputs.Bloom.ApplyParameters)
+		{
+			CommonParameters.BloomApplyParameters = GraphBuilder.CreateSRV(Inputs.Bloom.ApplyParameters);
+		}
+		else
+		{
+			FBloomOutputs::FApplyInfo ApplyParameters;
+			ApplyParameters.SceneColorMultiply = FLinearColor::White;
+			ApplyParameters.BloomMultiply = FLinearColor(CommonParameters.BloomMultiply);
+
+			TArray<FBloomOutputs::FApplyInfo, TInlineAllocator<1> > ApplyParametersArray;
+			ApplyParametersArray.Add(ApplyParameters);
+
+			FRDGBufferRef ApplyParametersBuffer = CreateStructuredBuffer(
+				GraphBuilder,
+				TEXT("Bloom.ApplyParameters"),
+				ApplyParametersArray);
+
+			CommonParameters.BloomApplyParameters = GraphBuilder.CreateSRV(ApplyParametersBuffer);
+		}
+	}
 
 	// forward transformation from shader:
 	//return LensPrincipalPointOffsetScale.xy + UV * LensPrincipalPointOffsetScale.zw;
