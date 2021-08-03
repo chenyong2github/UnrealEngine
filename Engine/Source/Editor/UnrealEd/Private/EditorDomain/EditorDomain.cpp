@@ -459,7 +459,6 @@ void FEditorDomain::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages)
 
 void FEditorDomain::OnPostEngineInit()
 {
-	TArray<UPackage*> PackagesToSave;
 	{
 		FScopeLock ScopeLock(&Locks->Lock);
 		bHasPassedPostEngineInit = true;
@@ -467,17 +466,22 @@ void FEditorDomain::OnPostEngineInit()
 		{
 			return;
 		}
+	}
 
-		FString PackageName;
-		for (TObjectIterator<UPackage> It; It; ++It)
+	TArray<UPackage*> PackagesToSave;
+	FString PackageName;
+	for (TObjectIterator<UPackage> It; It; ++It)
+	{
+		UPackage* Package = *It;
+		Package->GetName(PackageName);
+		if (Package->IsFullyLoaded() && !FPackageName::IsScriptPackage(PackageName))
 		{
-			UPackage* Package = *It;
-			Package->GetName(PackageName);
-			if (Package->IsFullyLoaded() && !FPackageName::IsScriptPackage(PackageName))
-			{
-				PackagesToSave.Add(Package);
-			}
+			PackagesToSave.Add(Package);
 		}
+	}
+
+	{
+		FScopeLock ScopeLock(&Locks->Lock);
 		FilterKeepPackagesToSave(PackagesToSave);
 	}
 
