@@ -132,11 +132,11 @@ void AppendCharacters(TArray<TCHAR>& Out, const CharType* Str, int32 Count)
 	checkSlow(Str);
 
 	int32 OldEnd = Out.Num();
-	OldEnd -= OldEnd ? 1 : 0;
-
+	
 	// Try to reserve enough space by guessing that the new length will be the same as the input length.
 	// Include an extra gap for a null terminator if we don't already have a string allocated
 	Out.AddUninitialized(Count + (OldEnd ? 0 : 1));
+	OldEnd -= OldEnd ? 1 : 0;
 
 	TCHAR* Dest = Out.GetData() + OldEnd;
 
