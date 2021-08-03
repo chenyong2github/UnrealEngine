@@ -279,6 +279,7 @@ private:
 
 	friend class URigVMMemoryStorage;
 	friend class URigVMCompiler;
+	friend class URigVM;
 };
 
 /**

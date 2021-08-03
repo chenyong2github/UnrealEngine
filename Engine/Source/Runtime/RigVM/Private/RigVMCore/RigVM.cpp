@@ -202,12 +202,10 @@ void URigVM::Load(FArchive& Ar)
 #endif
 
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	if (WorkMemoryStorage.bEncounteredErrorDuringLoad ||
 		LiteralMemoryStorage.bEncounteredErrorDuringLoad ||
 		!ValidateAllOperandsDuringLoad())
-#else
-	if (!ValidateAllOperandsDuringLoad())
-#endif
 	{
 		Reset();
 	}
@@ -227,6 +225,62 @@ void URigVM::Load(FArchive& Ar)
 
 		InvalidateCachedMemory();
 	}
+
+#endif
+}
+
+void URigVM::PostLoad()
+{
+	Super::PostLoad();
+	
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+	ClearMemory();
+
+	TArray<ERigVMMemoryType> MemoryTypes;
+	MemoryTypes.Add(ERigVMMemoryType::Literal);
+	MemoryTypes.Add(ERigVMMemoryType::Work);
+	MemoryTypes.Add(ERigVMMemoryType::Debug);
+
+	for(ERigVMMemoryType MemoryType : MemoryTypes)
+	{
+		if(URigVMMemoryStorageGeneratorClass* Class = URigVMMemoryStorageGeneratorClass::GetStorageClass(this, MemoryType))
+		{
+			if(Class->LinkedProperties.Num() == 0)
+			{
+				Class->RefreshLinkedProperties();
+			}
+			if(Class->PropertyPathDescriptions.Num() != Class->PropertyPaths.Num())
+			{
+				Class->RefreshPropertyPaths();
+			}
+		}
+	}
+	
+	RefreshExternalPropertyPaths();
+
+	if (!ValidateAllOperandsDuringLoad())
+	{
+		Reset();
+	}
+	else
+	{
+		Instructions.Reset();
+		FunctionsStorage.Reset();
+		ParametersNameMap.Reset();
+
+		for (int32 Index = 0; Index < Parameters.Num(); Index++)
+		{
+			ParametersNameMap.Add(Parameters[Index].Name, Index);
+		}
+
+		// rebuild the bytecode to adjust for byte shifts in shipping
+		RebuildByteCodeOnLoad();
+
+		InvalidateCachedMemory();
+	}
+
+#endif
 }
 
 bool URigVM::ValidateAllOperandsDuringLoad()
@@ -944,23 +998,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
-	ExternalPropertyPaths.Reset();
-
-	ExternalPropertyPaths.SetNumZeroed(ExternalPropertyPathDescriptions.Num());
-	for(int32 PropertyPathIndex = 0; PropertyPathIndex < ExternalPropertyPaths.Num(); PropertyPathIndex++)
-	{
-		ExternalPropertyPaths[PropertyPathIndex] = FRigVMPropertyPath();
-
-		const int32 PropertyIndex = ExternalPropertyPathDescriptions[PropertyPathIndex].PropertyIndex;
-		if(ExternalVariables.IsValidIndex(PropertyIndex))
-		{
-			check(ExternalVariables[PropertyIndex].Property);
-			
-			ExternalPropertyPaths[PropertyPathIndex] = FRigVMPropertyPath(
-				ExternalVariables[PropertyIndex].Property,
-				ExternalPropertyPathDescriptions[PropertyPathIndex].SegmentPath);
-		}
-	}
+	RefreshExternalPropertyPaths();
 	
 #endif		
 
@@ -2956,6 +2994,27 @@ FRigVMCopyOp URigVM::GetCopyOpForOperands(const FRigVMOperand& InSource, const F
 FRigVMCopyOp URigVM::GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
 {
 	return FRigVMCopyOp(InSource, InTarget);
+}
+
+void URigVM::RefreshExternalPropertyPaths()
+{
+	ExternalPropertyPaths.Reset();
+
+	ExternalPropertyPaths.SetNumZeroed(ExternalPropertyPathDescriptions.Num());
+	for(int32 PropertyPathIndex = 0; PropertyPathIndex < ExternalPropertyPaths.Num(); PropertyPathIndex++)
+	{
+		ExternalPropertyPaths[PropertyPathIndex] = FRigVMPropertyPath();
+
+		const int32 PropertyIndex = ExternalPropertyPathDescriptions[PropertyPathIndex].PropertyIndex;
+		if(ExternalVariables.IsValidIndex(PropertyIndex))
+		{
+			check(ExternalVariables[PropertyIndex].Property);
+			
+			ExternalPropertyPaths[PropertyPathIndex] = FRigVMPropertyPath(
+				ExternalVariables[PropertyIndex].Property,
+				ExternalPropertyPathDescriptions[PropertyPathIndex].SegmentPath);
+		}
+	}
 }
 
 #endif
