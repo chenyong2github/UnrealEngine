@@ -738,12 +738,6 @@ namespace Audio
 			FChildSubmixInfo& ChildSubmix = Iter.Value;
 			SetupSoundfieldEncodingForChild(ChildSubmix);
 		}
-
-		if ((ChildSubmixes.Num() > 0) && !SoundfieldStreams.Factory->ShouldEncodeAllStreamsIndependently(*SoundfieldStreams.Settings))
-		{
-			FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
-			SoundfieldStreams.DownmixedChildrenEncoder = SoundfieldStreams.Factory->CreateEncoderStream(InitParams, *SoundfieldStreams.Settings);
-		}
 	}
 
 	void FMixerSubmix::SetupSoundfieldEncodingForChild(FChildSubmixInfo& InChild)
@@ -764,6 +758,16 @@ namespace Audio
 			{
 				// If the child submix is of a soundfield format that needs to be transcoded, set up a transcoder.
 				InChild.Transcoder = GetTranscoderForChildSubmix(SubmixPtr);
+			}
+
+			// see if we need to initialize our child submix encoder
+			const bool bNeedsDownmixedChildEncoder = !SoundfieldStreams.DownmixedChildrenEncoder.IsValid();
+			const bool bUsingUniqueEncoderForEachChildSubmix = !SoundfieldStreams.Factory->ShouldEncodeAllStreamsIndependently(*SoundfieldStreams.Settings);
+
+			if (bNeedsDownmixedChildEncoder && bUsingUniqueEncoderForEachChildSubmix)
+			{
+				FAudioPluginInitializationParams InitParams = GetInitializationParamsForSoundfieldStream();
+				SoundfieldStreams.DownmixedChildrenEncoder = SoundfieldStreams.Factory->CreateEncoderStream(InitParams, *SoundfieldStreams.Settings);
 			}
 
 			// If neither of these are true, either we are downmixing all child audio and encoding it once, or
@@ -830,8 +834,9 @@ namespace Audio
 			if (!ChildSubmixSharedPtr->IsSoundfieldSubmix())
 			{
 				// Reset the output scratch buffer so that we can call ProcessAudio on the ChildSubmix with it:
-				ScratchBuffer.Reset(NumSamples);
-				ScratchBuffer.AddZeroed(NumSamples);
+				ScratchBuffer.Reset(ChildSubmixSharedPtr->NumSamples);
+				ScratchBuffer.AddZeroed(ChildSubmixSharedPtr->NumSamples);
+				
 
 				// If this is true, the Soundfield Factory explicitly requested that a seperate encoder stream was set up for every
 				// non-soundfield child submix.
