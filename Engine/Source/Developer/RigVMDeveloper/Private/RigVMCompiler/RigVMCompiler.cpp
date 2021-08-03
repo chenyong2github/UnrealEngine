@@ -384,42 +384,17 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 	for(ERigVMMemoryType MemoryType : MemoryTypes)
 	{
-		URigVMMemoryStorage** MemoryStorageObject = nullptr;
-		switch(MemoryType)
-		{
-			case ERigVMMemoryType::Literal:
-			{
-				MemoryStorageObject = &WorkData.VM->LiteralMemoryStorageObject;
-				break;
-			}
-			case ERigVMMemoryType::Work:
-			{
-				MemoryStorageObject = &WorkData.VM->WorkMemoryStorageObject;
-				break;
-			}
-			case ERigVMMemoryType::Debug:
-			{
-				MemoryStorageObject = &WorkData.VM->DebugMemoryStorageObject;
-				break;
-			}
-			default:
-			{
-				checkNoEntry();
-				break;
-			}
-		}
-
 		TArray<FRigVMPropertyDescription>* Properties = WorkData.PropertyDescriptions.Find(MemoryType);
 		if(Properties == nullptr)
 		{
-			*MemoryStorageObject = NewObject<URigVMMemoryStorage>(WorkData.VM, NAME_None, RF_Public);
 			continue;
 		}
 
 		UPackage* Package = InGraph->GetOutermost();
-		UClass* MemoryClass = URigVMMemoryStorageGeneratorClass::CreateStorageClass(Package, MemoryType, *Properties);
-		*MemoryStorageObject = NewObject<URigVMMemoryStorage>(WorkData.VM, MemoryClass, NAME_None, RF_Public); 
+		URigVMMemoryStorageGeneratorClass::CreateStorageClass(Package, MemoryType, *Properties);
 	}
+
+	WorkData.VM->ClearMemory();
 
 #endif
 

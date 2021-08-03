@@ -213,41 +213,39 @@ public:
 #else
 
 	// Returns a memory storage by type
-	URigVMMemoryStorage* GetMemoryByType(ERigVMMemoryType InMemoryType) const;
+	URigVMMemoryStorage* GetMemoryByType(ERigVMMemoryType InMemoryType, bool bCreateIfNeeded = true);
 	
 	// The default mutable work memory
-	FORCEINLINE URigVMMemoryStorage* GetWorkMemory() const { return WorkMemoryStorageObject; }
+	FORCEINLINE URigVMMemoryStorage* GetWorkMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Work, bCreateIfNeeded); }
 
 	// The default const literal memory
-	FORCEINLINE URigVMMemoryStorage* GetLiteralMemory() const { return LiteralMemoryStorageObject; }
+	FORCEINLINE URigVMMemoryStorage* GetLiteralMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Literal, bCreateIfNeeded); }
 
 	// The default debug watch memory
-	FORCEINLINE URigVMMemoryStorage* GetDebugMemory() const { return DebugMemoryStorageObject; }
+	FORCEINLINE URigVMMemoryStorage* GetDebugMemory(bool bCreateIfNeeded = true) { return GetMemoryByType(ERigVMMemoryType::Debug, bCreateIfNeeded); }
 
 	// returns all memory storages as an array
-	FORCEINLINE TArray<URigVMMemoryStorage*> GetLocalMemoryArray() const
+	FORCEINLINE TArray<URigVMMemoryStorage*> GetLocalMemoryArray()
 	{
-		check(GetWorkMemory());
-		check(GetLiteralMemory());
-		check(GetDebugMemory());
-		
 		TArray<URigVMMemoryStorage*> LocalMemory;
-		LocalMemory.Add(GetWorkMemory());
-		LocalMemory.Add(GetLiteralMemory());
-		LocalMemory.Add(GetDebugMemory());
-		
+		LocalMemory.Add(GetWorkMemory(true));
+		LocalMemory.Add(GetLiteralMemory(true));
+		LocalMemory.Add(GetDebugMemory(true));
 		return LocalMemory;
 	}
 
+	// Removes all memory from this VM
+	void ClearMemory();
+
 #endif
 
-	UPROPERTY()
+	UPROPERTY(transient, DuplicateTransient)
 	URigVMMemoryStorage* WorkMemoryStorageObject;
 
-	UPROPERTY()
+	UPROPERTY(transient, DuplicateTransient)
 	URigVMMemoryStorage* LiteralMemoryStorageObject;
 
-	UPROPERTY()
+	UPROPERTY(transient, DuplicateTransient)
 	URigVMMemoryStorage* DebugMemoryStorageObject;
 
 	TArray<FRigVMPropertyPathDescription> ExternalPropertyPathDescriptions;
@@ -349,7 +347,7 @@ public:
 	}
 
 	// Retrieve the array size of the parameter
-	int32 GetParameterArraySize(const FRigVMParameter& InParameter) const
+	int32 GetParameterArraySize(const FRigVMParameter& InParameter)
 	{
 		return (int32)GetWorkMemory()[InParameter.GetRegisterIndex()].GetTotalElementCount();
 	}
@@ -380,7 +378,7 @@ public:
 	}
 
 	// Retrieve the array size of the parameter
-	FORCEINLINE int32 GetParameterArraySize(const FRigVMParameter& InParameter) const
+	FORCEINLINE int32 GetParameterArraySize(const FRigVMParameter& InParameter)
 	{
 		const int32 PropertyIndex = InParameter.GetRegisterIndex();
 		const FProperty* Property = GetWorkMemory()->GetProperties()[PropertyIndex];
@@ -396,13 +394,13 @@ public:
 #endif
 
 	// Retrieve the array size of the parameter
-	int32 GetParameterArraySize(int32 InParameterIndex) const
+	int32 GetParameterArraySize(int32 InParameterIndex)
 	{
 		return GetParameterArraySize(Parameters[InParameterIndex]);
 	}
 
 	// Retrieve the array size of the parameter
-	int32 GetParameterArraySize(const FName& InParameterName) const
+	int32 GetParameterArraySize(const FName& InParameterName)
 	{
 		int32 ParameterIndex = ParametersNameMap.FindChecked(InParameterName);
 		return GetParameterArraySize(ParameterIndex);
@@ -682,7 +680,7 @@ public:
 
 #if WITH_EDITOR
 	// FormatFunction is an optional argument that allows you to override how operands are displayed, for example, see SControlRigStackView::PopulateStackView
-	FString GetOperandLabel(const FRigVMOperand & InOperand, TFunction<FString(const FString& RegisterName, const FString& RegisterOffsetName)> FormatFunction = nullptr) const;
+	FString GetOperandLabel(const FRigVMOperand & InOperand, TFunction<FString(const FString& RegisterName, const FString& RegisterOffsetName)> FormatFunction = nullptr);
 #endif
 
 	FExecutionReachedExitEvent& ExecutionReachedExit() { return OnExecutionReachedExit; }
