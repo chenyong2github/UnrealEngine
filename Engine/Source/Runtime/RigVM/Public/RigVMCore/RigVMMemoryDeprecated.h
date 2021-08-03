@@ -215,12 +215,8 @@ public:
 	// constructs a path given a struct and a segment path
 	FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const FString& InSegmentPath, int32 InInitialOffset = 0, uint16 InElementSize = 0, const FName& InCPPType = NAME_None);
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 	// returns the data pointer within a container
 	uint8* GetData(uint8* InContainer) const;
-
-#endif
 	
 	// returns the segments of this path
 	const TArray<int32>& GetSegments() const { return Segments; }
@@ -506,8 +502,6 @@ public:
 
 	FRigVMMemoryContainer(bool bInUseNames = true);
 	
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	
 	FRigVMMemoryContainer(const FRigVMMemoryContainer& Other);
 	~FRigVMMemoryContainer();
 
@@ -572,8 +566,6 @@ public:
 
 	// accessor for a register based on a a name. note: only works if SupportsNames() == true
 	FORCEINLINE_DEBUGGABLE FRigVMRegister& GetRegister(const FName& InName) { return Registers[GetIndex(InName)]; }
-
-#endif
 	
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar);
@@ -583,8 +575,6 @@ public:
 		P.Serialize(Ar);
 		return Ar;
 	}
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	// Returns an argument for a given register.
 	// This is typically used to store a light weight address for use within a VM.
@@ -665,6 +655,8 @@ private:
 	}
 
 public:
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	// Returns a memory handle for a given register
 	FORCEINLINE_DEBUGGABLE FRigVMMemoryHandle GetHandle(const FRigVMRegister& Register, int32 InRegisterOffset = INDEX_NONE) const
@@ -927,6 +919,8 @@ public:
 		return GetDynamicArray<T>(InOperand.GetRegisterIndex(), InOperand.GetRegisterOffset(), InSliceIndex);
 	}
 
+#endif
+	
 	// Returns the script struct used for a given register (can be nullptr for non-struct-registers).
 	FORCEINLINE_DEBUGGABLE UScriptStruct* GetScriptStruct(const FRigVMRegister& Register) const
 	{
@@ -951,6 +945,8 @@ public:
 		const FRigVMRegisterOffset& Path = RegisterOffsets[InRegisterOffset];
 		return Path.GetScriptStruct();
 	}
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	// Copies the content of a source register to a target register.
 	// The source register can optionally be referencing a specific source memory container.
@@ -984,6 +980,8 @@ public:
 		int32 InSourceSliceIndex = 0,
 		int32 InTargetSliceIndex = 0);
 
+#endif
+	
 	// Returns the index of a register based on the register name.
 	// Note: This only works if SupportsNames() == true
 	FORCEINLINE_DEBUGGABLE int32 GetIndex(const FName& InName) const
@@ -1024,6 +1022,8 @@ public:
 		}
 		return GetIndex(InPotentialNewName) == INDEX_NONE;
 	}
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	// Adds a new named register for a typed array from an array view (used by compiler)
 	template<typename T>
@@ -1095,6 +1095,8 @@ public:
 		return AddDynamicValue<T>(NAME_None, InValue, InSliceCount);
 	}
 
+#endif
+	
 	// Adds a register path and returns its index
 	int32 GetOrAddRegisterOffset(int32 InRegisterIndex, int32 InArrayElement = 0);
 
@@ -1103,6 +1105,8 @@ public:
 
 	// Adds a register path and returns its index
 	int32 GetOrAddRegisterOffset(int32 InRegisterIndex, UScriptStruct* InScriptStruct, const FString& InSegmentPath, int32 InInitialOffset = 0, int32 InElementSize = 0);
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	void SetRegisterValueFromString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject, const TArray<FString>& InDefaultValues);
 	TArray<FString> GetRegisterValueAsString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject);
@@ -1313,6 +1317,8 @@ private:
 		return Register;
 	}
 
+#endif
+
 	// Updates internal data for topological changes
 	void UpdateRegisters();
 
@@ -1328,13 +1334,15 @@ private:
 	// Performs optional destruction of data within a struct register
 	bool Destroy(int32 InRegisterIndex, int32 InElementIndex = INDEX_NONE, int32 InSliceIndex = 0);
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+	
 	// Fills a register with zero memory
 	void FillWithZeroes(int32 InRegisterIndex);
 
+#endif
+
 	// Ensures to add a script struct to the internal map if needed
 	int32 FindOrAddScriptStruct(UScriptStruct* InScriptStruct);
-
-#endif
 	
 	UPROPERTY()
 	bool bUseNameMap;

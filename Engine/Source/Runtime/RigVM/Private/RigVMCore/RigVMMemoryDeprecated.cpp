@@ -351,8 +351,6 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 	ensure(ElementSize > 0);
 }
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 uint8* FRigVMRegisterOffset::GetData(uint8* InContainer) const
 {
 	uint8* Data = InContainer;
@@ -371,8 +369,6 @@ uint8* FRigVMRegisterOffset::GetData(uint8* InContainer) const
 	}
 	return Data;
 }
-
-#endif
 
 bool FRigVMRegisterOffset::ContainsArraySegment() const
 {
@@ -469,8 +465,6 @@ FRigVMMemoryContainer::FRigVMMemoryContainer(bool bInUseNames)
 {
 }
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 FRigVMMemoryContainer::FRigVMMemoryContainer(const FRigVMMemoryContainer& Other)
 {
 	*this = Other;
@@ -486,10 +480,14 @@ bool FRigVMMemoryContainer::CopyRegisters(const FRigVMMemoryContainer &InOther)
 	ensure(Registers.Num() == InOther.Registers.Num());
 	for (int32 Index = 0; Index < Registers.Num(); ++Index)
 	{
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+		
 		if (!Copy(Index, Index, &InOther))
 		{
 			return false;
 		}
+
+#endif
 	}
 	return true;
 }
@@ -526,16 +524,18 @@ FRigVMMemoryContainer& FRigVMMemoryContainer::operator= (const FRigVMMemoryConta
 
 		// Why was this introduced? Are we trying to save time here?
 		// An assignment should be copying everything.
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 		if (MemoryType == ERigVMMemoryType::Literal)
 		{
 			Copy(Index, Index, &InOther);
 		}
+
+#endif
 	}
 
 	return *this;
 }
-
-#endif
 
 void FRigVMMemoryContainer::Serialize(FArchive& Ar)
 {
@@ -755,12 +755,10 @@ void FRigVMMemoryContainer::Save(FArchive& Ar)
 
 void FRigVMMemoryContainer::Load(FArchive& Ar)
 {
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
 	{
 		Destroy(RegisterIndex);
 	}
-#endif
 	
 	Ar << bUseNameMap;
 	Ar << MemoryType;
@@ -776,8 +774,6 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 	ScriptStructs.Reset();
 	TArray<FString> ScriptStructPaths;
 	Ar << ScriptStructPaths;
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	for (const FString& ScriptStructPath : ScriptStructPaths)
 	{
@@ -795,12 +791,8 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		ScriptStructs.Add(ScriptStruct);
 	}
 
-#endif
-
 	uint64 TotalBytes = 0;
 	Ar << TotalBytes;
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	Data.Empty();
 
@@ -839,8 +831,8 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 				Register.ByteIndex = Data.AddZeroed(Register.GetNumBytesAllSlices());
 			}
 		}
+
 		UpdateRegisters();
-		
 
 		for (int32 RegisterOffsetIndex = 0; RegisterOffsetIndex < RegisterOffsets.Num(); RegisterOffsetIndex++)
 		{
@@ -872,13 +864,9 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		}
 	}
 
-#endif
-
 	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
 	{
 		FRigVMRegister& Register = Registers[RegisterIndex];
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 		if (Register.ElementCount == 0 && !Register.IsDynamic())
 		{
@@ -892,8 +880,6 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		{
 			check(!Register.IsDynamic());
 		}
-
-#endif
 		
 		if (!Register.IsDynamic())
 		{
@@ -904,15 +890,11 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 					FRigVMByteArray View;
 					Ar << View;
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 					if (!bEncounteredErrorDuringLoad)
 					{
 						ensure(View.Num() <= Register.GetAllocatedBytes());
 						FMemory::Memcpy(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 					}
-
-#endif
 					break;
 				}
 				case ERigVMRegisterType::Name:
@@ -920,15 +902,11 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 					TArray<FName> View;
 					Ar << View;
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 					if (!bEncounteredErrorDuringLoad)
 					{
 						ensure(View.Num() == Register.GetTotalElementCount());
 						RigVMCopy<FName>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 					}
-
-#endif
 					break;
 				}
 				case ERigVMRegisterType::String:
@@ -936,23 +914,17 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 					TArray<FString> View;
 					Ar << View;
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-						
 					if (!bEncounteredErrorDuringLoad)
 					{
 						ensure(View.Num() == Register.GetTotalElementCount());
 						RigVMCopy<FString>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
 					}
-						
-#endif
 					break;
 				}
 				case ERigVMRegisterType::Struct:
 				{
 					TArray<FString> View;
 					Ar << View;
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 					if (!bEncounteredErrorDuringLoad)
 					{
@@ -977,8 +949,6 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 							}
 						}
 					}
-
-#endif
 					break;
 				}
 			}
@@ -986,16 +956,12 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		else if (!Register.IsNestedDynamic())
 		{
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-			
 			FRigVMByteArray* ArrayStorage = nullptr;
 
 			if (!bEncounteredErrorDuringLoad)
 			{
 				ArrayStorage = (FRigVMByteArray*)&Data[Register.GetWorkByteIndex()];
 			}
-			
-#endif
 			
 			// notice that all dynamic registers' memory is not really serialized
 			// serialize empty arrays here just to avoid having to increment serialization version
@@ -1030,8 +996,6 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 		}
 		else
 		{
-
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			
 			FRigVMNestedByteArray* NestedArrayStorage = nullptr;
 			if (!bEncounteredErrorDuringLoad)
@@ -1041,19 +1005,13 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 				NestedArrayStorage->SetNumZeroed(Register.SliceCount);
 			}
 			
-#endif
-
 			for (int32 SliceIndex = 0; SliceIndex < Register.SliceCount; SliceIndex++)
 			{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-				
 				FRigVMByteArray* ArrayStorage = nullptr;
 				if (NestedArrayStorage)
 				{
 					ArrayStorage = &(*NestedArrayStorage)[SliceIndex];
 				}
-
-#endif
 
 				// notice that all dynamic registers' memory is not really serialized
 				// serialize empty arrays here just to avoid having to increment serialization version
@@ -1111,8 +1069,6 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 #endif
 }
 
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-
 void FRigVMMemoryContainer::Reset()
 {
 	if (Data.Num() > 0)
@@ -1138,6 +1094,8 @@ void FRigVMMemoryContainer::Empty()
 	ScriptStructs.Empty();
 	NameMap.Empty();
 }
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 bool FRigVMMemoryContainer::Copy(
 	int32 InTargetRegisterIndex,
@@ -1335,6 +1293,8 @@ bool FRigVMMemoryContainer::Copy(
 {
 	return Copy(InSourceOperand.GetRegisterIndex(), InTargetOperand.GetRegisterIndex(), InSourceMemory, InSourceOperand.GetRegisterOffset(), InTargetOperand.GetRegisterOffset(), InSourceSliceIndex, InTargetSliceIndex);
 }
+
+#endif
 
 int32 FRigVMMemoryContainer::Allocate(const FName& InNewName, int32 InElementSize, int32 InElementCount, int32 InSliceCount, const uint8* InDataPtr, bool bUpdateRegisters)
 {
@@ -1714,6 +1674,8 @@ int32 FRigVMMemoryContainer::GetOrAddRegisterOffset(int32 InRegisterIndex, UScri
 	return ExistingIndex;
 }
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 void FRigVMMemoryContainer::SetRegisterValueFromString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject, const TArray<FString>& InDefaultValues)
 {
 	if (InOperand.GetRegisterIndex() < 0 || InOperand.GetRegisterIndex() >= Registers.Num())
@@ -1892,6 +1854,8 @@ const FRigVMRegisterOffset& FRigVMMemoryContainer::GetRegisterOffsetForOperand(c
 	return GetRegisterOffset(InOperand.GetRegisterOffset());
 }
 
+#endif
+
 void FRigVMMemoryContainer::UpdateRegisters()
 {
 	int32 AlignmentShift = 0;
@@ -1965,11 +1929,15 @@ void FRigVMMemoryContainer::UpdateRegisters()
 	}
 }
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 void FRigVMMemoryContainer::FillWithZeroes(int32 InRegisterIndex)
 {
 	ensure(Registers.IsValidIndex(InRegisterIndex));
 	FMemory::Memzero(GetData(InRegisterIndex), Registers[InRegisterIndex].GetNumBytesAllSlices());
 }
+
+#endif
 
 int32 FRigVMMemoryContainer::FindOrAddScriptStruct(UScriptStruct* InScriptStruct)
 {
@@ -1985,5 +1953,3 @@ int32 FRigVMMemoryContainer::FindOrAddScriptStruct(UScriptStruct* InScriptStruct
 	}
 	return ScriptStructs.Add(InScriptStruct);
 }
-
-#endif
