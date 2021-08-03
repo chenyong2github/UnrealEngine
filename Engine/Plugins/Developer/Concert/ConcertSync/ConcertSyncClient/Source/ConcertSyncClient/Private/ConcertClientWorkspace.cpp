@@ -9,6 +9,8 @@
 #include "IConcertClient.h"
 #include "IConcertClientWorkspace.h"
 #include "IConcertModule.h"
+#include "IConcertSyncClientModule.h"
+
 #include "IConcertSession.h"
 #include "IConcertFileSharingService.h"
 #include "ConcertSyncClientLiveSession.h"
@@ -20,8 +22,10 @@
 #include "ConcertClientDataStore.h"
 #include "ConcertClientLiveTransactionAuthors.h"
 
+
 #include "Containers/Ticker.h"
 #include "Containers/ArrayBuilder.h"
+#include "IConcertSyncClient.h"
 #include "UObject/Package.h"
 #include "UObject/Linker.h"
 #include "UObject/LinkerLoad.h"
@@ -124,10 +128,75 @@ void SetReflectEditorLevelVisibilityWithGame(bool InValue)
 #endif
 }
 
+struct FConcertWorkspaceConsoleCommands
+{
+	FConcertWorkspaceConsoleCommands() :
+		EnableRemoteVerboseLogging(TEXT("Concert.SetRemoteLoggingOn"), TEXT("Send logging event to enable verbose logging on server."),
+								   FConsoleCommandDelegate::CreateRaw(this, &FConcertWorkspaceConsoleCommands::EnableRemoteLogging)),
+		DisableRemoteVerboseLogging(TEXT("Concert.SetRemoteLoggingOff"), TEXT("Send logging event to disable verbose logging on server."),
+									FConsoleCommandDelegate::CreateRaw(this, &FConcertWorkspaceConsoleCommands::DisableRemoteLogging))
+	{
+	};
+
+	TSharedPtr<IConcertClientWorkspace> GetConnectedWorkspace()
+	{
+		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
+		{
+			TSharedPtr<IConcertClientWorkspace> Workspace = ConcertSyncClient->GetWorkspace();
+			IConcertClientSession& Session = Workspace->GetSession();
+			if (Session.GetConnectionStatus() == EConcertConnectionStatus::Connected)
+			{
+				return Workspace;
+			}
+		}
+		return nullptr;
+	}
+
+	void SendForceResend()
+	{
+		TSharedPtr<IConcertClientWorkspace> Workspace = GetConnectedWorkspace();
+		if (Workspace)
+		{
+			IConcertClientSession& Session = Workspace->GetSession();
+			FConcertSendResendPending Resend;
+			Session.SendCustomEvent(Resend, Session.GetSessionServerEndpointId(), EConcertMessageFlags::None);
+		}
+	}
+
+	void SendRemoteLogging(bool bInValue)
+	{
+		TSharedPtr<IConcertClientWorkspace> Workspace = GetConnectedWorkspace();
+		if (Workspace)
+		{
+			IConcertClientSession& Session = Workspace->GetSession();
+			FConcertServerLogging Logging;
+			Logging.bLoggingEnabled = bInValue;
+			Session.SendCustomEvent(Logging, Session.GetSessionServerEndpointId(), EConcertMessageFlags::None);
+		}
+	}
+
+	void EnableRemoteLogging()
+	{
+		SendRemoteLogging(true);
+	}
+
+	void DisableRemoteLogging()
+	{
+		SendRemoteLogging(false);
+	}
+
+	/** Console command enable verbose logging command to server. */
+	FAutoConsoleCommand EnableRemoteVerboseLogging;
+
+	/** Console command disable verbose logging command to server. */
+	FAutoConsoleCommand DisableRemoteVerboseLogging;
+};
 
 FConcertClientWorkspace::FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge, TSharedPtr<IConcertFileSharingService> InFileSharingService)
 	: FileSharingService(MoveTemp(InFileSharingService))
 {
+	static FConcertWorkspaceConsoleCommands ConsoleCommands;
+
 	BindSession(InLiveSession, InPackageBridge, InTransactionBridge);
 }
 

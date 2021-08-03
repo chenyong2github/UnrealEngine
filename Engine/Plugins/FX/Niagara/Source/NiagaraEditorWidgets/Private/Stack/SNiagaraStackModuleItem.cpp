@@ -444,31 +444,11 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::RaiseActionMenuClicked()
 {
 	if (CanRaiseActionMenu())
 	{
-		TSharedPtr<SGraphActionMenu> GraphActionMenu;
-
-		TSharedRef<SBorder> MenuWidget = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-		.Padding(5)
-		[
-			SNew(SBox)
-			.MinDesiredWidth(300)
-			.HeightOverride(400)
-			[
-				SAssignNew(GraphActionMenu, SGraphActionMenu)
-				.OnActionSelected_Static(OnActionSelected)
-				.OnCollectAllActions(this, &SNiagaraStackModuleItem::CollectParameterActions)
-				.AutoExpandActionMenu(false)
-				.ShowFilterTextBox(true)
-				.OnCreateCustomRowExpander_Static(&SNiagaraStackModuleItem::CreateCustomActionExpander)
-				.OnCreateWidgetForAction_Lambda([](const FCreateWidgetForActionData* InData)
+		UNiagaraNodeAssignment* AssignmentNode = Cast<UNiagaraNodeAssignment>(&ModuleItem->GetModuleNode());
+		if (AssignmentNode != nullptr)
 				{
-					return SNew(SNiagaraGraphActionWidget, InData);
-				})
-			]
-		];
-
-		AddButton->SetMenuContentWidgetToFocus(GraphActionMenu->GetFilterTextBox()->AsShared());
-		return MenuWidget;
+			return AssignmentNode->CreateAddParameterMenu(AddButton);
+	}
 	}
 	return SNullWidget::NullWidget;
 }
@@ -553,26 +533,6 @@ void ReassignModuleScript(UNiagaraStackModuleItem* ModuleItem, FAssetData NewMod
 	if (NewModuleScript != nullptr)
 	{
 		ModuleItem->ReassignModuleScript(NewModuleScript);
-	}
-}
-
-void SNiagaraStackModuleItem::CollectParameterActions(FGraphActionListBuilderBase& ModuleActions)
-{
-	UNiagaraNodeAssignment* AssignmentNode = Cast<UNiagaraNodeAssignment>(&ModuleItem->GetModuleNode());
-	if (AssignmentNode != nullptr)
-	{
-		UNiagaraNodeOutput* OutputNode = ModuleItem->GetOutputNode();
-		if (OutputNode != nullptr)
-		{
-			TArray<TSharedPtr<FNiagaraMenuAction>> AllActions;
-			AssignmentNode->CollectAddExistingActions(OutputNode->GetUsage(), OutputNode, AllActions);
-			AssignmentNode->CollectCreateNewActions(OutputNode->GetUsage(), OutputNode, AllActions);
-			
-			for (TSharedPtr<FNiagaraMenuAction> Action : AllActions)
-			{
-				ModuleActions.AddAction(Action);
-			}
-		}
 	}
 }
 

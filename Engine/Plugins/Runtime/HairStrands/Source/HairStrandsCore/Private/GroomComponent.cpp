@@ -1032,6 +1032,7 @@ public:
 			const FGroomCacheGroupData& NextGroupData = FrameB.GroupsData[GroupIndex];
 			FGroomCacheGroupData& InterpolatedGroupData = InterpolatedFrame.GroupsData[GroupIndex];
 			const int32 NumVertices = CurrentGroupData.VertexData.PointsPosition.Num();
+			const int32 NextNumVertices = NextGroupData.VertexData.PointsPosition.Num();
 
 			// Update the bounding box used for hair strands rendering computation
 			FVector InterpolatedCenter = FMath::Lerp(CurrentGroupData.BoundingBox.GetCenter(), NextGroupData.BoundingBox.GetCenter(), InterpolationFactor);
@@ -1042,6 +1043,11 @@ public:
 			{
 				InterpolatedGroupData.StrandData.MaxRadius = FMath::Lerp(CurrentGroupData.StrandData.MaxRadius, NextGroupData.StrandData.MaxRadius, InterpolationFactor);
 			}
+
+			if (NumVertices == NextNumVertices)
+			{
+				// In case the topology is varying, make sure the interpolated group data can hold the required number of vertices
+				InterpolatedGroupData.VertexData.PointsPosition.SetNum(NumVertices);
 
 			// Parallel batched interpolation
 			const int32 BatchSize = 1024;
@@ -1068,6 +1074,17 @@ public:
 					}
 				}
 			});
+		}
+			else
+			{
+				// Cannot interpolate, use the closest frame
+				InterpolatedGroupData.VertexData.PointsPosition = InterpolationFactor < 0.5f ? CurrentGroupData.VertexData.PointsPosition : NextGroupData.VertexData.PointsPosition;
+
+				if (bHasRadiusData)
+				{
+					InterpolatedGroupData.VertexData.PointsRadius = InterpolationFactor < 0.5f ? CurrentGroupData.VertexData.PointsRadius : NextGroupData.VertexData.PointsRadius;
+				}
+	}
 		}
 	}
 

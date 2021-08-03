@@ -303,71 +303,19 @@ void FLevelSnapshotsEditorModule::TakeAndSaveSnapshot(const FText& InDescription
 	ULevelSnapshotsEditorDataManagementSettings* DataManagementSettings = DataMangementSettingsObjectPtr.Get();
 
 
-	// Notify the user that a snapshot is being created
-	FNotificationInfo Notification(NSLOCTEXT("LevelSnapshots", "NotificationFormatText_CreatingSnapshot", "Creating Level Snapshot"));
-	Notification.Image = FLevelSnapshotsEditorStyle::GetBrush(TEXT("LevelSnapshots.ToolbarButton"));
-	Notification.bUseThrobber = true;
-	Notification.bUseSuccessFailIcons = true;
-	Notification.ExpireDuration = 2.f;
-	Notification.bFireAndForget = false;
-
-	TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Notification);
-	NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
-	ON_SCOPE_EXIT
-	{
-		NotificationItem->ExpireAndFadeout();
-	};
-
-	
 	DataManagementSettings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
 	DataManagementSettings->SanitizeAllProjectSettingsPaths(true);
 
-	const FText& NewSnapshotDir = ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(FText::FromString(
-		bShouldUseOverrides && DataManagementSettings->IsPathOverridden() ? 
-		DataManagementSettings->GetSaveDirOverride() : DataManagementSettings->LevelSnapshotSaveDir), World->GetName());
-	const FText& NewSnapshotName = ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(FText::FromString(
+	const FText& NewSnapshotDir = ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(
+		FText::FromString(
+			FPaths::Combine(DataManagementSettings->RootLevelSnapshotSaveDir.Path, DataManagementSettings->LevelSnapshotSaveDir)), World->GetName());
+	const FText& NewSnapshotName = ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(FText::FromString(
 		bShouldUseOverrides && DataManagementSettings->IsNameOverridden() ?
 		DataManagementSettings->GetNameOverride() : DataManagementSettings->DefaultLevelSnapshotName), World->GetName());
 
 	const FString& ValidatedName = FPaths::MakeValidFileName(NewSnapshotName.ToString());
-	const FString& PathToSavePackage = FPaths::Combine(DataManagementSettings->RootLevelSnapshotSaveDir.Path, NewSnapshotDir.ToString(), ValidatedName);
 
-
-	// Take snapshot
-	UPackage* Package = CreatePackage(*PathToSavePackage);
-	ULevelSnapshot* Snapshot = ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot_Internal(World, *ValidatedName, Package, InDescription.ToString());
-	if (!ensure(Snapshot))
-	{
-		return;
-	}
-	Snapshot->SetFlags(RF_Public | RF_Standalone);
-
-	
-	// Take screenshot before we save
-	const FString& PackageFileName = FPackageName::LongPackageNameToFilename(PathToSavePackage, FPackageName::GetAssetPackageExtension());
-	const bool bPathIsValid = FPaths::ValidatePath(PackageFileName);
-	if (bPathIsValid)
-	{
-		ULevelSnapshotsEditorFunctionLibrary::GenerateThumbnailForSnapshotAsset(Snapshot);
-	}
-
-	
-	// Notify the user of the outcome
-	if (bPathIsValid && UPackage::SavePackage(Package, Snapshot, RF_Public | RF_Standalone, *PackageFileName))
-	{
-		// If successful
-		NotificationItem->SetText(
-			FText::Format(
-				NSLOCTEXT("LevelSnapshots", "NotificationFormatText_CreateSnapshotSuccess", "Successfully created Level Snapshot \"{0}\""), NewSnapshotName));
-		NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
-	}
-	else
-	{
-		NotificationItem->SetText(
-			FText::Format(
-				NSLOCTEXT("LevelSnapshots", "NotificationFormatText_CreateSnapshotSuccess", "Failed to create Level Snapshot \"{0}\". Check the file name."), NewSnapshotName));
-		NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
-	}
+	ULevelSnapshotsEditorFunctionLibrary::TakeLevelSnapshotAndSaveToDisk(World, ValidatedName, NewSnapshotDir.ToString(), InDescription.ToString(), false);
 }
 
 void FLevelSnapshotsEditorModule::OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData)

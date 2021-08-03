@@ -58,6 +58,11 @@ UWorld* UCheatManagerExtension::GetWorld() const
 	return GetOuterUCheatManager()->GetWorld();
 }
 
+APlayerController* UCheatManagerExtension::GetPlayerController() const
+{
+	return GetOuterUCheatManager()->GetPlayerController();
+}
+
 UCheatManager::UCheatManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bToggleAILogging(false)
@@ -1412,6 +1417,11 @@ FDelegateHandle UCheatManager::RegisterForOnCheatManagerCreated(FOnCheatManagerC
 void UCheatManager::UnregisterFromOnCheatManagerCreated(FDelegateHandle DelegateHandle)
 {
 	OnCheatManagerCreatedDelegate.Remove(DelegateHandle);
+}
+
+APlayerController* UCheatManager::GetPlayerController() const
+{
+	return GetOuterAPlayerController();
 }
 
 #undef LOCTEXT_NAMESPACE

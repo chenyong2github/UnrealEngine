@@ -219,13 +219,12 @@ namespace Audio
 		{
 			// InBuffer1 x InGain1
 			VectorRegister4Float Input1 = VectorLoadAligned(&InBuffer1[i]);
-			VectorRegister4Float Weighted1 = VectorMultiply(Input1, Gain1Vector);
 
 			// InBuffer2 x InGain2
 			VectorRegister4Float Input2 = VectorLoadAligned(&InBuffer2[i]);
 			VectorRegister4Float Weighted2 = VectorMultiply(Input2, Gain2Vector);
 
-			VectorRegister4Float Output = VectorAdd(Weighted1, Weighted2);
+			VectorRegister4Float Output = VectorMultiplyAdd(Input1, Gain1Vector, Weighted2);
 			VectorStoreAligned(Output, &OutBuffer[i]);
 		}
 	}
@@ -248,11 +247,8 @@ namespace Audio
 		{
 			// InBuffer1 x InGain1
 			VectorRegister4Float Input1 = VectorLoadAligned(&InBuffer1[i]);
-			VectorRegister4Float Weighted1 = VectorMultiply(Input1, Gain1Vector);
-
 			VectorRegister4Float Input2 = VectorLoadAligned(&InBuffer2[i]);
-
-			VectorRegister4Float Output = VectorAdd(Weighted1, Input2);
+			VectorRegister4Float Output = VectorMultiplyAdd(Input1, Gain1Vector, Input2);
 			VectorStoreAligned(Output, &OutBuffer[i]);
 		}
 	}
@@ -427,9 +423,7 @@ namespace Audio
 					VectorRegister4Float Input = VectorLoadAligned(&InFloatBuffer[i]);
 					VectorRegister4Float Output = VectorLoadAligned(&BufferToSumTo[i]);
 
-					Input = VectorMultiply(Input, Gain);
-					Output = VectorAdd(Input, Output);
-					
+					Output = VectorMultiplyAdd(Input, Gain, Output);					
 					VectorStoreAligned(Output, &BufferToSumTo[i]);
 				}
 			}
@@ -445,8 +439,7 @@ namespace Audio
 			{
 				VectorRegister4Float Input = VectorLoadAligned(&InFloatBuffer[i]);
 				VectorRegister4Float Output = VectorLoadAligned(&BufferToSumTo[i]);
-				Input = VectorMultiply(Input, Gain);
-				Output = VectorAdd(Input, Output);
+				Output = VectorMultiplyAdd(Input, Gain, Output);
 				
 				VectorStoreAligned(Output, &BufferToSumTo[i]);
 
@@ -861,8 +854,7 @@ namespace Audio
 
 		// To help with stair stepping, we initialize the second frame in GainVector to be half a GainDeltas vector higher than the first frame.
 		const VectorRegister4Float VectorOfHalf = VectorSet(0.5f, 0.5f, 1.0f, 1.0f);
-		const VectorRegister4Float HalfOfDeltaVector = VectorMultiply(GainDeltasVector, VectorOfHalf);
-		GainVector = VectorAdd(GainVector, HalfOfDeltaVector);
+		GainVector = VectorMultiplyAdd(GainDeltasVector, VectorOfHalf, GainVector);
 
 		for (int32 i = 0; i < NumFrames; i += 2)
 		{
@@ -984,15 +976,13 @@ namespace Audio
 		// To help with stair stepping, we initialize the second frame in GainVector to be half a GainDeltas vector higher than the first frame.
 		const VectorRegister4Float VectorOfHalf = VectorSet(0.5f, 0.5f, 1.0f, 1.0f);
 
-		const VectorRegister4Float HalfOfDeltaVector1 = VectorMultiply(GainDeltasVector1, VectorOfHalf);
-		GainVector1 = VectorAdd(GainVector1, HalfOfDeltaVector1);
+		GainVector1 = VectorMultiplyAdd(GainDeltasVector1, VectorOfHalf, GainVector1);
 
 		VectorRegister4Float GainVector2 = VectorLoadFloat2(StartGains + 2);
 		const VectorRegister4Float DestinationVector2 = VectorLoadFloat2(EndGains + 2);
 		const VectorRegister4Float GainDeltasVector2 = VectorDivide(VectorSubtract(DestinationVector2, GainVector2), NumFramesVector);
 
-		const VectorRegister4Float HalfOfDeltaVector2 = VectorMultiply(GainDeltasVector2, VectorOfHalf);
-		GainVector2 = VectorAdd(GainVector2, HalfOfDeltaVector2);
+		GainVector2 = VectorMultiplyAdd(GainDeltasVector2, VectorOfHalf, GainVector2);
 
 		for (int32 i = 0; i < NumFrames; i += 2)
 		{
@@ -1475,16 +1465,14 @@ namespace Audio
 		// In order to ease stair stepping, we ensure that the second frame is initialized to half the GainDelta more than the first frame.
 		// This gives us a consistent increment across every frame.
 		const VectorRegister4Float DeltaHalf21 = VectorSet(0.0f, 0.0f, 0.5f, 0.5f);
-		const VectorRegister4Float InitializedDelta21 = VectorMultiply(GainDeltasVector21, DeltaHalf21);
-		GainVector21 = VectorAdd(GainVector21, InitializedDelta21);
+		GainVector21 = VectorMultiplyAdd(GainDeltasVector21, DeltaHalf21, GainVector21);
 
 		VectorRegister4Float GainVector31 = VectorLoad(&StartGains[2]);
 		const VectorRegister4Float DestinationVector31 = VectorLoad(&EndGains[2]);
 		const VectorRegister4Float GainDeltasVector31 = VectorDivide(VectorSubtract(DestinationVector31, GainVector31), NumFramesVector);
 
 		const VectorRegister4Float DeltaHalf31 = VectorSetFloat1(0.5f);
-		const VectorRegister4Float InitializedDelta31 = VectorMultiply(GainDeltasVector31, DeltaHalf31);
-		GainVector31 = VectorAdd(GainVector31, InitializedDelta31);
+		GainVector31 = VectorMultiplyAdd(GainDeltasVector31, DeltaHalf31, GainVector31);
 
 		VectorRegister4Float GainVector12 = VectorLoad(StartGains + 6);
 		const VectorRegister4Float DestinationVector12 = VectorLoad(EndGains + 6);
@@ -1493,18 +1481,12 @@ namespace Audio
 		VectorRegister4Float GainVector22 = VectorSet(StartGains[10], StartGains[11], StartGains[6], StartGains[7]);
 		const VectorRegister4Float DestinationVector22 = VectorSet(EndGains[10], EndGains[11], EndGains[6], EndGains[7]);
 		const VectorRegister4Float GainDeltasVector22 = VectorDivide(VectorSubtract(DestinationVector22, GainVector22), NumFramesVector);
-
-		const VectorRegister4Float DeltaHalf22 = VectorSet(0.0f, 0.0f, 0.5f, 0.5f);
-		const VectorRegister4Float InitializedDelta22 = VectorMultiply(GainDeltasVector22, DeltaHalf22);
-		GainVector22 = VectorAdd(GainVector22, InitializedDelta22);
+		GainVector22 = VectorMultiplyAdd(GainDeltasVector22, DeltaHalf21, GainVector22);
 
 		VectorRegister4Float GainVector32 = VectorLoadAligned(StartGains + 8);
 		const VectorRegister4Float DestinationVector32 = VectorLoadAligned(EndGains + 8);
 		const VectorRegister4Float GainDeltasVector32 = VectorDivide(VectorSubtract(DestinationVector32, GainVector32), NumFramesVector);
-
-		const VectorRegister4Float DeltaHalf32 = VectorSetFloat1(0.5f);
-		const VectorRegister4Float InitializedDelta32 = VectorMultiply(GainDeltasVector32, DeltaHalf32);
-		GainVector32 = VectorAdd(GainVector32, InitializedDelta32);
+		GainVector32 = VectorMultiplyAdd(GainDeltasVector32, DeltaHalf31, GainVector32);
 
 		for (int32 FrameIndex = 0; FrameIndex < NumFrames; FrameIndex += 2)
 		{
@@ -2044,9 +2026,7 @@ namespace Audio
 			VectorRegister4Float VInRealSquared = VectorMultiply(VInReal, VInReal);
 
 			VectorRegister4Float VInImag = VectorLoadAligned(&InImaginarySamples[i]);
-			VectorRegister4Float VInImagSquared = VectorMultiply(VInImag, VInImag);
-
-			VectorRegister4Float VOut = VectorAdd(VInRealSquared, VInImagSquared);
+			VectorRegister4Float VOut = VectorMultiplyAdd(VInImag, VInImag, VInRealSquared);
 
 			VectorStoreAligned(VOut, &OutPowerSamples[i]);
 		}

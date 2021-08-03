@@ -216,7 +216,9 @@ public:
 
 	//API for static particle
 	const FVec3& X() const { return ReadRef([](auto* Particle) -> const auto& { return Particle->X(); }); }
-	void SetX(const FVec3& InX, bool bInvalidate = true) { Write([&InX, bInvalidate, this](auto* Particle)
+
+protected:
+	void SetXBase(const FVec3& InX, bool bInvalidate = true) { Write([&InX, bInvalidate, this](auto* Particle)
 	{
 		if (bInvalidate)
 		{
@@ -227,18 +229,16 @@ public:
 			}
 		}
 		Particle->SetX(InX, bInvalidate);
-		if(bExternal)
-		{
-			SyncTimestamp->XTimestamp = GetSolverSyncTimestamp_External();
-			SyncTimestamp->OverWriteX = InX;
-		}
 	});}
+public:
 
 	FUniqueIdx UniqueIdx() const { return Read([](auto* Particle) { return Particle->UniqueIdx(); }); }
 	void SetUniqueIdx(const FUniqueIdx UniqueIdx, bool bInvalidate = true) { Write([UniqueIdx, bInvalidate](auto* Particle) { Particle->SetUniqueIdx(UniqueIdx, bInvalidate); }); }
 
 	const FRotation3& R() const { return ReadRef([](auto* Particle) -> const auto& { return Particle->R(); }); }
-	void SetR(const FRotation3& InR, bool bInvalidate = true){ Write([&InR, bInvalidate, this](auto* Particle)
+
+protected:
+	void SetRBase(const FRotation3& InR, bool bInvalidate = true){ Write([&InR, bInvalidate, this](auto* Particle)
 	{
 			if (bInvalidate)
 			{
@@ -249,18 +249,14 @@ public:
 				}
 			}
 			Particle->SetR(InR, bInvalidate);
-			if(bExternal)
-			{
-				SyncTimestamp->RTimestamp = GetSolverSyncTimestamp_External();
-				SyncTimestamp->OverWriteR = InR;
-			}
 	});}
+public:
 
 	const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return ReadRef([](auto* Ptr) -> const auto& { return Ptr->SharedGeometryLowLevel(); });}
 
-#if CHAOS_CHECKED
-	const FName DebugName() const { return Read([](auto* Ptr) { return Ptr->DebugName(); }); }
-	void SetDebugName(const FName& InDebugName) { Write([&InDebugName](auto* Ptr) { Ptr->SetDebugName(InDebugName); }); }
+#if CHAOS_DEBUG_NAME
+	const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName() const { return Read([](auto* Ptr) { return Ptr->DebugName(); }); }
+	void SetDebugName(const TSharedPtr<FString, ESPMode::ThreadSafe>& InDebugName) { Write([&InDebugName](auto* Ptr) { Ptr->SetDebugName(InDebugName); }); }
 #endif
 
 	TSerializablePtr<FImplicitObject> Geometry() const { return Read([](auto* Ptr) { return Ptr->Geometry(); }); }
@@ -288,7 +284,8 @@ public:
 		});
 	}
 
-	void SetV(const FVec3& InV, bool bInvalidate = true)
+protected:
+	void SetVBase(const FVec3& InV, bool bInvalidate = true)
 	{
 		Write([&InV, bInvalidate, this](auto* Particle)
 		{
@@ -303,23 +300,11 @@ public:
 					}
 				}
 
-				if (bExternal)
-				{
-					if (InV == FVec3(0))	//should we use an explicit API instead?
-					{
-						//external thread is setting velocity to 0 so we want to freeze object until sim catches up
-						//but we also want position to snap to where it currently is on external thread
-						SetX(X(), bInvalidate);
-					}
-
-					SyncTimestamp->VTimestamp = GetSolverSyncTimestamp_External();
-					SyncTimestamp->OverWriteV = InV;
-				}
-
 				Kinematic->SetV(InV, bInvalidate);
 			}
 		});
 	}
+public:
 
 	const FVec3 W() const
 	{
@@ -334,7 +319,8 @@ public:
 		});
 	}
 
-	void SetW(const FVec3& InW, bool bInvalidate = true)
+protected:
+	void SetWBase(const FVec3& InW, bool bInvalidate = true)
 	{
 		Write([&InW, bInvalidate, this](auto* Particle)
 		{
@@ -349,22 +335,11 @@ public:
 					}
 				}
 
-				if (bExternal)
-				{
-					if (InW == FVec3(0))	//should we use an explicit API instead?
-					{
-						//external thread is setting velocity to 0 so we want to freeze object until sim catches up
-						//but we also want position to snap to where it currently is on external thread
-						SetR(R(), bInvalidate);
-					}
-
-					SyncTimestamp->WTimestamp = GetSolverSyncTimestamp_External();
-					SyncTimestamp->OverWriteW = InW;
-				}
 				Kinematic->SetW(InW, bInvalidate);
 			}
 		});
 	}
+public:
 
 	void SetKinematicTarget(const TKinematicTarget<FReal, 3>& InKinematicTarget, bool bInvalidate = true)
 	{
@@ -790,28 +765,18 @@ public:
 		});
 	}
 
-	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true)
+protected:
+	void SetObjectStateBase(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true)
 	{
 		Write([InState, bAllowEvents, bInvalidate, this](auto* Ptr)
 		{
 			if (auto Rigid = Ptr->CastToRigidParticle())
 			{
-				if (bExternal)
-				{
-					SyncTimestamp->ObjectStateTimestamp = GetSolverSyncTimestamp_External();
-					if (InState != EObjectStateType::Dynamic && Rigid->ObjectState() == EObjectStateType::Dynamic)
-					{
-						//we want to snap the particle to its current state on the external thread. This is because the user wants the object to fully stop right now
-						//the internal thread will continue if async is on, but eventually it will see this snap
-						SetV(FVec3(0), bInvalidate);
-						SetW(FVec3(0), bInvalidate);
-					}
-				}
-
 				SetObjectStateHelper(*this, *Rigid, InState, bAllowEvents, bInvalidate);
 			}
 		});
 	}
+public:
 
 	void SetSleepType(ESleepType InSleepType)
 	{
@@ -885,25 +850,7 @@ private:
 			}
 
 			Lambda(GetHandle_LowLevel());
-
-			if (FRewindData* RewindData = SolverBase->GetRewindData())
-			{
-				RewindData->MarkDirtyDynamicsFromPT(*GetHandle_LowLevel());
-			}
 		}
-	}
-
-	int32 GetSolverSyncTimestamp_External() const
-	{
-		if (bExternal)
-		{
-			if (FPhysicsSolverBase* SolverBase = GetSolverBase())
-			{
-				return SolverBase->GetMarshallingManager().GetExternalTimestamp_External();
-			}
-		}
-
-		return INDEX_NONE;
 	}
 };
 
@@ -930,6 +877,70 @@ public:
 	void SetShapeQueryCollisionEnabled(int32 InShapeIndex, bool bInEnabled) { VerifyContext(); GetParticle_LowLevel()->SetShapeQueryCollisionEnabled(InShapeIndex, bInEnabled); }
 	void SetShapeSimData(int32 InShapeIndex, const FCollisionFilterData& SimData) { VerifyContext(); GetParticle_LowLevel()->SetShapeSimData(InShapeIndex, SimData); }
 
+	void SetX(const FVec3& InX, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetXBase(InX, bInvalidate);
+		SyncTimestamp->XTimestamp = GetSolverSyncTimestamp_External();
+		SyncTimestamp->OverWriteX = InX;
+	}
+
+	void SetR(const FRotation3& InR, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetRBase(InR, bInvalidate);
+		SyncTimestamp->RTimestamp = GetSolverSyncTimestamp_External();
+		SyncTimestamp->OverWriteR = InR;
+	}
+
+	void SetV(const FVec3& InV, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetVBase(InV, bInvalidate);
+		if (InV == FVec3(0))	//should we use an explicit API instead?
+		{
+			//external thread is setting velocity to 0 so we want to freeze object until sim catches up
+			//but we also want position to snap to where it currently is on external thread
+			SetX(X(), bInvalidate);
+		}
+
+		SyncTimestamp->VTimestamp = GetSolverSyncTimestamp_External();
+		SyncTimestamp->OverWriteV = InV;
+	}
+
+	void SetW(const FVec3& InW, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetWBase(InW, bInvalidate);
+		
+		if (InW == FVec3(0))	//should we use an explicit API instead?
+		{
+			//external thread is setting velocity to 0 so we want to freeze object until sim catches up
+			//but we also want position to snap to where it currently is on external thread
+			SetR(R(), bInvalidate);
+		}
+
+		SyncTimestamp->WTimestamp = GetSolverSyncTimestamp_External();
+		SyncTimestamp->OverWriteW = InW;
+	}
+
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true)
+	{
+		VerifyContext();
+		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			SyncTimestamp->ObjectStateTimestamp = GetSolverSyncTimestamp_External();
+			if (InState != EObjectStateType::Dynamic && Rigid->ObjectState() == EObjectStateType::Dynamic)
+			{
+				//we want to snap the particle to its current state on the external thread. This is because the user wants the object to fully stop right now
+				//the internal thread will continue if async is on, but eventually it will see this snap
+				SetV(FVec3(0), bInvalidate);
+				SetW(FVec3(0), bInvalidate);
+			}
+		}
+
+		SetObjectStateBase(InState, bAllowEvents, bInvalidate);
+	}
 
 	int32 Island() const
 	{
@@ -1136,6 +1147,18 @@ public:
 		return false;
 	}
 
+private:
+
+	int32 GetSolverSyncTimestamp_External() const
+	{
+		if (FPhysicsSolverBase* SolverBase = GetSolverBase())
+		{
+			return SolverBase->GetMarshallingManager().GetExternalTimestamp_External();
+		}
+
+		return INDEX_NONE;
+	}
+
 };
 
 static_assert(sizeof(FRigidBodyHandle_External) == sizeof(FSingleParticlePhysicsProxy), "Derived types only used to constrain API, all data lives in base class ");
@@ -1166,6 +1189,44 @@ public:
 			return Rigid->PreW();
 		}
 		return FVec3(0);
+	}
+
+	void SetX(const FVec3& InX, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetXBase(InX, bInvalidate);
+		if (auto Rigid = GetHandle_LowLevel()->CastToRigidParticle())
+		{
+			Rigid->SetP(InX);
+		}
+	}
+
+	void SetR(const FRotation3& InR, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetRBase(InR, bInvalidate);
+		if (auto Rigid = GetHandle_LowLevel()->CastToRigidParticle())
+		{
+			Rigid->SetQ(InR);
+		}
+	}
+
+	void SetV(const FVec3& InV, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetVBase(InV, bInvalidate);
+	}
+
+	void SetW(const FVec3& InW, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetWBase(InW, bInvalidate);
+	}
+
+	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true)
+	{
+		VerifyContext();
+		SetObjectStateBase(InState, bAllowEvents, bInvalidate);
 	}
 };
 

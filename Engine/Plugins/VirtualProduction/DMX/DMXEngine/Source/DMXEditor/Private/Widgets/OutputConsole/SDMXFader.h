@@ -150,20 +150,23 @@ private:
 	/** Called when the fader name changes */
 	void OnFaderNameCommitted(const FText& NewFaderName, ETextCommit::Type InCommit);
 
-	/** Called when the UniverseID border was doubleclicked, to give some more click-space to users */
-	FReply OnUniverseIDBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+	/** Called when the UniverseID border was Clicked, to give some more click-space to users */
+	FReply OnUniverseIDBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
 
-	/** Called when the Starting Adress border was doubleclicked, to give some more click-space to users */
-	FReply OnStartingAddressBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+	/** Called when the Min Value border was Clicked, to give some more click-space to users */
+	FReply OnMinValueBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
 
-	/** Called when the Ending Adress was doubleclicked, to give some more click-space to users */
-	FReply OnEndingAddressBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+	/** Called when the Max Value border was Clicked, to give some more click-space to users */
+	FReply OnMaxValueBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+
+	/** Called when the Starting Adress border was Clicked, to give some more click-space to users */
+	FReply OnStartingAddressBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+
+	/** Called when the Ending Adress was Clicked, to give some more click-space to users */
+	FReply OnEndingAddressBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
 
 	/** Returns the UniverseID as text */
 	FText GetUniverseIDAsText() const { return FText::FromString(FString::FromInt(UniverseID)); }
-
-	/** Called when UniverseID changes, but is not commited yet */
-	bool VerifyUniverseID(const FText& UniverseIDText, FText& OutErrorText);
 
 	/** Called when the UniverseID was commited */
 	void OnUniverseIDCommitted(const FText& UniverseIDText, ETextCommit::Type InCommit);
@@ -171,17 +174,11 @@ private:
 	/** Returns the max value as text */
 	FText GetStartingAddressAsText() const { return FText::FromString(FString::FromInt(StartingAddress)); }
 
-	/** Called when max value changes, but is not commited yet */
-	bool VerifyStartingAddress(const FText& StartingAddressText, FText& OutErrorText);
-
 	/** Called when the UniverseID was commited */
 	void OnStartingAddressCommitted(const FText& StartingAddressText, ETextCommit::Type InCommit);
 
 	/** Returns the max value as text */
 	FText GetEndingAddressAsText() const { return FText::FromString(FString::FromInt(EndingAddress)); }
-
-	/** Called when max value changes, but is not commited yet */
-	bool VerifyEndingAddress(const FText& EndingAddressText, FText& OutErrorText);
 
 	/** Called when the UniverseID was commited */
 	void OnEndingAddressCommitted(const FText& EndingAddressText, ETextCommit::Type InCommit);
@@ -189,17 +186,11 @@ private:
 	/** Returns the max value as text */
 	FText GetMaxValueAsText() const { return FText::FromString(FString::FromInt(MaxValue)); }
 
-	/** Called when max value changes, but is not commited yet */
-	bool VerifyMaxValue(const FText& MaxValueText, FText& OutErrorText);
-
 	/** Called when the max value was commited */
 	void OnMaxValueCommitted(const FText& MaxValueText, ETextCommit::Type InCommit);
 
 	/** Returns the min value as text */
 	FText GetMinValueAsText() const { return FText::FromString(FString::FromInt(MinValue)); }
-
-	/** Called when min value changes, but is not commited yet */
-	bool VerifyMinValue(const FText& MinValueText, FText& OutErrorText);
 
 	/** Called when the min value was commited */
 	void OnMinValueCommitted(const FText& MinValueText, ETextCommit::Type InCommit);
@@ -219,6 +210,12 @@ private:
 
 	/** The actual editable fader */
 	TSharedPtr<SSpinBoxVertical<uint8>> FaderSpinBox;
+
+	/** Textblock to edit the Max Value of the Fader */
+	TSharedPtr<SInlineEditableTextBlock> MaxValueEditableTextBlock;
+
+	/** Textblock to edit the Min Value of the Fader */
+	TSharedPtr<SInlineEditableTextBlock> MinValueEditableTextBlock;
 
 	/** Textblock to edit the UniverseID */
 	TSharedPtr<SInlineEditableTextBlock> UniverseIDEditableTextBlock;

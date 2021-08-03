@@ -223,7 +223,7 @@ public:
 
 	/** Opens an asset picker dialog and creates an asset with the specified name and path */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
-	virtual UObject* CreateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext = NAME_None) = 0;
+	virtual UObject* CreateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext = NAME_None, const bool bCallConfigureProperties = true) = 0;
 
 	/** Opens an asset picker dialog and creates an asset with the chosen path */
 	UE_DEPRECATED(4.17, "This version of CreateAsset has been deprecated.  Use CreateAssetWithDialog instead")

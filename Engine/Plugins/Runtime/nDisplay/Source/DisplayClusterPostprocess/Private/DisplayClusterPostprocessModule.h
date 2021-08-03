@@ -3,10 +3,8 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
-#include "Render/PostProcess/IDisplayClusterPostProcess.h"
 
-class IDisplayClusterProjectionPolicyFactory;
-
+#include "Render/PostProcess/IDisplayClusterPostProcessFactory.h"
 
 class FDisplayClusterPostprocessModule
 	: public IModuleInterface
@@ -24,5 +22,5 @@ public:
 
 private:
 	// Available postprocess policy
-	TMap<FString, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>> PostprocessAssets;
+	TMap<FString, TSharedPtr<IDisplayClusterPostProcessFactory>> PostprocessAssets;
 };

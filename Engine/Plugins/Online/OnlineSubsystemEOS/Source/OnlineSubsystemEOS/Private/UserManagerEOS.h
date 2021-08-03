@@ -141,6 +141,12 @@ public:
 		ListEntries.Remove(InListEntry);
 	}
 
+	void Empty()
+	{
+		ListEntries.Empty();
+		NetIdStringToListEntryMap.Empty();
+	}
+
 	void UpdateNetIdStr(const FString& PrevNetId, const FString& NewNetId)
 	{
 		ListClass ListEntry = NetIdStringToListEntryMap[PrevNetId];
@@ -378,12 +384,14 @@ private:
 	void AddLocalUser(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId, EOS_ProductUserId UserId);
 
 	void AddFriend(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId);
-	void AddRemotePlayer(const FString& NetId, EOS_EpicAccountId EpicAccountId);
-	void AddRemotePlayer(const FString& NetId, EOS_EpicAccountId EpicAccountId, FUniqueNetIdEOSPtr UniqueNetId, FOnlineUserPtr OnlineUser, IAttributeAccessInterfaceRef AttributeRef);
+	void AddRemotePlayer(int32 LocalUserNum, const FString& NetId, EOS_EpicAccountId EpicAccountId);
+	void AddRemotePlayer(int32 LocalUserNum, const FString& NetId, EOS_EpicAccountId EpicAccountId, FUniqueNetIdEOSPtr UniqueNetId, FOnlineUserPtr OnlineUser, IAttributeAccessInterfaceRef AttributeRef);
 	void UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountId, EOS_ProductUserId UserId);
-	void ReadUserInfo(EOS_EpicAccountId EpicAccountId);
+	void ReadUserInfo(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId);
 
 	void UpdateUserInfo(IAttributeAccessInterfaceRef AttriubteAccessRef, EOS_EpicAccountId LocalId, EOS_EpicAccountId TargetId);
+	bool IsFriendQueryUserInfoOngoing(int32 LocalUserNum);
+	void ProcessReadFriendsListComplete(int32 LocalUserNum, bool bWasSuccessful, const FString& ErrorStr);
 
 	void UpdatePresence(EOS_EpicAccountId AccountId);
 	void UpdateFriendPresence(const FString& FriendId, FOnlineUserPresenceRef Presence);
@@ -438,6 +446,28 @@ private:
 
 	/** Ids mapped to remote user presence */
 	TMap<FString, FOnlineUserPresenceRef> NetIdStringToOnlineUserPresenceMap;
+
+	/** Id map to keep track of which friends have been processed during async user info queries */
+	TMap<int32, TArray<EOS_EpicAccountId>> IsFriendQueryUserInfoOngoingForLocalUserMap;
+
+	/** Cache for the info passed on to ReadFriendsList, kept while user info queries complete */
+	struct ReadUserListInfo
+	{
+		const int32 LocalUserNum;
+		const FString ListName;
+		const FOnReadFriendsListComplete Delegate;
+
+		ReadUserListInfo(int32 InLocalUserNum, const FString& InListName, FOnReadFriendsListComplete InDelegate)
+			: LocalUserNum(InLocalUserNum), ListName(InListName), Delegate(MoveTemp(InDelegate))
+		{
+		}
+
+		void ExecuteDelegateIfBound(bool bWasSuccessful, const FString& ErrorStr) const {
+			Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
+		};
+	};
+
+	TMap<int32, TArray<ReadUserListInfo>> CachedReadUserListInfoForLocalUserMap;
 
 	/** Identifier for the external UI notification callback */
 	EOS_NotificationId DisplaySettingsUpdatedId;

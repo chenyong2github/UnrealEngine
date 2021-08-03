@@ -6,6 +6,7 @@
 #include "Commander.h"
 #include "Menus.h"
 #include "Utils/ShellOpenDocument.h"
+#include "Utils/TaskCalledFromEventLoop.h"
 
 DISABLE_SDK_WARNINGS_START
 
@@ -172,6 +173,16 @@ class FEndpointObserver : public DirectLink::IEndpointObserver
 	GS::Condition CV;
 };
 
+class FToolTipText : public GS::Object
+{
+public:
+    FToolTipText(const GS::UniString& InString)
+    : ToolTipText(InString)
+    {}
+
+    GS::UniString   ToolTipText;
+};
+
 class FConnectionDialog : public DG::Palette,
 						  public DG::PanelObserver,
 						  public DG::ListBoxObserver,
@@ -218,6 +229,7 @@ class FConnectionDialog : public DG::Palette,
 	{
 		*bAccepted = true;
 		Hide();
+		FTaskCalledFromEventLoop::CallFunctorFromEventLoop([]() { FConnectionWindow::DeleteWindow(); });
 	}
 
 	virtual void PanelIdle(const DG::PanelIdleEvent& /* ev */) override
@@ -281,6 +293,14 @@ class FConnectionDialog : public DG::Palette,
 												DestinationDataPointId->DataPointId->Name);
 						ConnectionsListBox.SetTabItemText(ItemsCount, kDestinationColumn,
 														  UEToGSString(*DestinationName));
+
+                        /* kName_FmtTooltip "User : %T\nComputer Name : %T\nProgram Name: %T\nEndpoint Name : %T" */
+                        GS::UniString ToolTipString(GS::UniString::Printf(GetGSName(kName_FmtTooltip),
+                                                                          UEToGSString(*DestinationDataPointId->EndpointInfo->UserName).ToPrintf(),
+                                                                          UEToGSString(*DestinationDataPointId->EndpointInfo->ComputerName).ToPrintf(),
+                                                                          UEToGSString(*DestinationDataPointId->EndpointInfo->ExecutableName).ToPrintf(),
+                                                                          UEToGSString(*DestinationDataPointId->EndpointInfo->Name).ToPrintf()));
+                        ConnectionsListBox.SetItemObjectData(ItemsCount, new FToolTipText(ToolTipString));
 					}
 				}
 			}
@@ -382,9 +402,31 @@ FConnectionDialog::FConnectionDialog()
 
 	ConnectionsListBox.SetHeaderItemText(kSourceColumn, GS::UniString("Source"));
 	ConnectionsListBox.SetHeaderItemText(kDestinationColumn, GS::UniString("Destination"));
+    ConnectionsListBox.SetHelpStyle(ConnectionsListBox.HSForItem);
 
 	ConnectionsListBox.Hide();
-
+#if AC_VERSION >= 24
+    ConnectionsListBox.onToolTipRequested += [this](const DG::Item& inItem, DG::HelpEventArg& EventArgs) -> short
+    {
+        if (&inItem != &ConnectionsListBox)
+        {
+            UE_AC_DebugF("ConnectionsListBox.onToolTipRequested - Item isn't ConnectionsListBox\n");
+            return 0;
+        }
+        if (EventArgs.subMessage != DG_HSM_TOOLTIP || EventArgs.listItem == 0)
+        {
+            return 0;
+        }
+        GS::Ref<GS::Object> Object(ConnectionsListBox.GetItemObjectData(EventArgs.listItem));
+        if (Object == GS::null)
+        {
+            UE_AC_DebugF("ConnectionsListBox.onToolTipRequested - Object is null\n");
+            return 0;
+        }
+        EventArgs.toolTipText += static_cast<FToolTipText&>(*Object).ToolTipText;
+        return 1;
+    };
+#endif
 	Attach(*this);
 	AttachToAllItems(*this);
 

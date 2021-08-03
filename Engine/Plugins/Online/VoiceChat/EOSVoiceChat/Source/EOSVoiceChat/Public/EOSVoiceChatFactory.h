@@ -7,6 +7,7 @@
 #if WITH_EOS_RTC
 
 #include "Features/IModularFeatures.h"
+#include "Misc/CoreMisc.h"
 #include "Templates/SharedPointer.h"
 #include "IEOSSDKManager.h"
 

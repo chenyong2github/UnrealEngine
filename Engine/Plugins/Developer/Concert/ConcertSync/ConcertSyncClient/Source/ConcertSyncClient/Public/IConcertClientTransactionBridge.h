@@ -52,6 +52,13 @@ struct FConcertClientLocalTransactionFinalizedData
 	bool bWasCanceled = false;
 };
 
+enum class ETransactionNotification
+{
+	Begin,
+	End,
+};
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnApplyTransaction, ETransactionNotification, const bool bIsSnapshot);
 DECLARE_DELEGATE_RetVal_TwoParams(ETransactionFilterResult, FTransactionFilterDelegate, UObject*, UPackage*);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientLocalTransactionSnapshot, const FConcertClientLocalTransactionCommonData&, const FConcertClientLocalTransactionSnapshotData&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientLocalTransactionFinalized, const FConcertClientLocalTransactionCommonData&, const FConcertClientLocalTransactionFinalizedData&);
@@ -92,6 +99,12 @@ public:
 	 * @return True if we can apply a remote transaction, false otherwise.
 	 */
 	virtual bool CanApplyRemoteTransaction() const = 0;
+
+	/**
+	 * Notification of an application of a transaction. This will tell the user if the transaction
+	 * originates as a snapshot or is a finalized snapshot message.
+	 */
+	virtual FOnApplyTransaction& OnApplyTransaction() = 0;
 
 	/**
 	 * Apply a remote transaction event to this local instance.

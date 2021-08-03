@@ -9,6 +9,7 @@
 #include "BuoyancyTypes.generated.h"
 
 class UBuoyancyComponent;
+class AWaterBody;
 
 USTRUCT(Blueprintable)
 struct FSphericalPontoon
@@ -67,8 +68,8 @@ struct FSphericalPontoon
 
 	FTransform SocketTransform;
 
-	TMap<const AWaterBody*, float> SplineInputKeys;
-	TMap<const AWaterBody*, float> SplineSegments;
+	TMap<const UWaterBodyComponent*, float> SplineInputKeys;
+	TMap<const UWaterBodyComponent*, float> SplineSegments;
 
 	TMap<const FSolverSafeWaterBodyData*, float> SolverSplineInputKeys;
 	TMap<const FSolverSafeWaterBodyData*, float> SolverSplineSegments;
@@ -76,8 +77,9 @@ struct FSphericalPontoon
 	uint8 bIsInWater : 1;
 	uint8 bEnabled : 1;
 	uint8 bUseCenterSocket : 1;
+
 	UPROPERTY(Transient, BlueprintReadOnly, Category = Buoyancy)
-	AWaterBody* CurrentWaterBody;
+	UWaterBodyComponent* CurrentWaterBodyComponent;
 
 	FSolverSafeWaterBodyData* SolverWaterBody;
 
@@ -101,7 +103,7 @@ struct FSphericalPontoon
 		, bIsInWater(false)
 		, bEnabled(true)
 		, bUseCenterSocket(false)
-		, CurrentWaterBody(nullptr)
+		, CurrentWaterBodyComponent(nullptr)
 		, SolverWaterBody(nullptr)
 	{
 	}
@@ -120,7 +122,7 @@ struct FSphericalPontoon
 		WaterSurfacePosition = PTPontoon.WaterSurfacePosition;
 		WaterVelocity = PTPontoon.WaterVelocity;
 		WaterBodyIndex = PTPontoon.WaterBodyIndex;
-		CurrentWaterBody = PTPontoon.CurrentWaterBody;
+		CurrentWaterBodyComponent = PTPontoon.CurrentWaterBodyComponent;
 	}
 
 	//void CopyDataToPT(const FSphericalPontoon& GTPontoon)
@@ -297,7 +299,7 @@ struct FBuoyancyAuxData
 	{ }
 
 	TArray<FSphericalPontoon> Pontoons;
-	TArray<AWaterBody*> WaterBodies;
+	TArray<UWaterBodyComponent*> WaterBodyComponents;
 	float SmoothedWorldTimeSeconds;
 };
 
@@ -317,7 +319,7 @@ struct FBuoyancyComponentAsyncInput
 
 	FSingleParticlePhysicsProxy* Proxy;
 
-	virtual TUniquePtr<struct FBuoyancyComponentAsyncOutput> PreSimulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, FBuoyancyComponentAsyncAux* Aux, const TMap<AWaterBody*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyData) const = 0;
+	virtual TUniquePtr<struct FBuoyancyComponentAsyncOutput> PreSimulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, FBuoyancyComponentAsyncAux* Aux, const TMap<UWaterBodyComponent*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyComponentData) const = 0;
 
 	FBuoyancyComponentAsyncInput(EAsyncBuoyancyComponentDataType InType = EAsyncBuoyancyComponentDataType::AsyncBuoyancyInvalid)
 		: Type(InType)
@@ -332,7 +334,7 @@ struct FBuoyancyComponentAsyncInput
 struct FBuoyancyManagerAsyncInput : public Chaos::FSimCallbackInput
 {
 	TArray<TUniquePtr<FBuoyancyComponentAsyncInput>> Inputs;
-	TMap<AWaterBody*, TUniquePtr<FSolverSafeWaterBodyData>> WaterBodyToSolverData;
+	TMap<UWaterBodyComponent*, TUniquePtr<FSolverSafeWaterBodyData>> WaterBodyComponentToSolverData;
 	TWeakObjectPtr<UWorld> World;
 	int32 Timestamp = INDEX_NONE;
 
@@ -340,7 +342,7 @@ struct FBuoyancyManagerAsyncInput : public Chaos::FSimCallbackInput
 	{
 		Inputs.Reset();
 		World.Reset();
-		WaterBodyToSolverData.Reset();
+		WaterBodyComponentToSolverData.Reset();
 	}
 };
 

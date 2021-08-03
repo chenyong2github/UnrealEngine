@@ -230,7 +230,7 @@ int32 UGatherTextCommandlet::ProcessGatherConfig(const FString& GatherTextConfig
 			return -1;
 		}
 
-		UE_LOG(LogGatherTextCommandlet, Display, TEXT("Completed %s: %s in %f seconds"), *StepName, *CommandletClassName, FPlatformTime::Seconds() - CommandletExecutionStartTime);
+		UE_LOG(LogGatherTextCommandlet, Display, TEXT("Completed %s: %s in %.2f seconds"), *StepName, *CommandletClassName, FPlatformTime::Seconds() - CommandletExecutionStartTime);
 	}
 
 	// Clean-up any stale per-platform data

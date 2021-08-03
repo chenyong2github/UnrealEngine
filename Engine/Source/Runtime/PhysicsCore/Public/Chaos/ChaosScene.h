@@ -18,6 +18,10 @@
 #include "Chaos/SimCallbackInput.h"
 #include "Chaos/SimCallbackObject.h"
 
+#ifndef CHAOS_DEBUG_NAME
+#define CHAOS_DEBUG_NAME 0
+#endif
+
 // Currently compilation issue with Incredibuild when including headers required by event template functions
 #define XGE_FIXED 0
 
@@ -81,7 +85,7 @@ public:
 	FChaosScene(
 		UObject* OwnerPtr
 		, Chaos::FReal InAsyncDt
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 	, const FName& DebugName=NAME_None
 #endif
 );

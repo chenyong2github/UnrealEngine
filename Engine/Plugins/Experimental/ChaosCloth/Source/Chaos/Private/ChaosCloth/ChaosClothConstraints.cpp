@@ -578,3 +578,11 @@ void FClothConstraints::SetSelfCollisionProperties(FReal SelfCollisionThickness)
 		SelfCollisionConstraints->SetThickness(SelfCollisionThickness);
 	}
 }
+
+void FClothConstraints::SetBackstopProperties(bool bEnabled)
+{
+	if (BackstopConstraints)
+	{
+		BackstopConstraints->SetEnabled(bEnabled);
+	}
+}

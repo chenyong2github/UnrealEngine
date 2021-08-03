@@ -309,6 +309,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		.AllowDragging( InArgs._AssetPickerConfig.bAllowDragging )
 		.CanShowClasses( InArgs._AssetPickerConfig.bCanShowClasses )
 		.CanShowFolders( InArgs._AssetPickerConfig.bCanShowFolders )
+		.CanShowReadOnlyFolders( InArgs._AssetPickerConfig.bCanShowReadOnlyFolders )
 		.ShowPathInColumnView( InArgs._AssetPickerConfig.bShowPathInColumnView)
 		.ShowTypeInColumnView( InArgs._AssetPickerConfig.bShowTypeInColumnView)
 		.ShowViewOptions(false)  // We control this in the asset picker

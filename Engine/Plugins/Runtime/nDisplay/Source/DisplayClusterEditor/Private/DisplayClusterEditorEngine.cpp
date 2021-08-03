@@ -76,12 +76,15 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 {
 	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::StartPlayInEditorSession"));
 
-#if 0
+	// Reset session frame counter
+	SessionFrameCounter = 0;
+
+	// Get PIE world
 	UWorld* EditorWorldPreDup = GetEditorWorldContext().World();
 
 	if (DisplayClusterModule)
 	{
-		// Find nDisplay root actor
+		// Find any nDisplay root actor in the PIE world
 		ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(EditorWorldPreDup);
 		if (!RootActor && EditorWorldPreDup)
 		{
@@ -108,9 +111,10 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 		{
 			bIsNDisplayPIE = true;
 
-			// Get current config data from root actor:
-			UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
+			// Get current config data from the root actor
+			UDisplayClusterConfigurationData* ConfigData = DuplicateObject<UDisplayClusterConfigurationData>(RootActor->GetConfigData(), this);
 
+			// And start PIE session with that config data
 			if (ConfigData)
 			{
 				if (!DisplayClusterModule->StartSession(ConfigData, ConfigData->Cluster->MasterNode.Id))
@@ -140,14 +144,10 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 			}
 		}
 	}
-#else
-	Super::StartPlayInEditorSession(InRequestParams);
-#endif
 }
 
 bool UDisplayClusterEditorEngine::LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error)
 {
-#if 0
 	if (bIsNDisplayPIE)
 	{
 		// Finish previous scene
@@ -168,45 +168,42 @@ bool UDisplayClusterEditorEngine::LoadMap(FWorldContext& WorldContext, FURL URL,
 	}
 
 	return true;
-#else
-	return Super::LoadMap(WorldContext, URL, Pending, Error);
-#endif
 }
 
 void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)
 {
-#if 0
+	// Perform nDisplay Tick
 	if (DisplayClusterModule && bIsActivePIE && bIsNDisplayPIE)
 	{
-		DisplayClusterModule->StartFrame(GFrameCounter);
+		DisplayClusterModule->StartFrame(SessionFrameCounter);
 		DisplayClusterModule->PreTick(DeltaSeconds);
 		DisplayClusterModule->Tick(DeltaSeconds);
 		DisplayClusterModule->PostTick(DeltaSeconds);
-		DisplayClusterModule->EndFrame(GFrameCounter);
+		DisplayClusterModule->EndFrame(SessionFrameCounter);
 	}
-#endif
 
 	Super::Tick(DeltaSeconds, bIdleMode);
+
+	// Increment session frame counter
+	++SessionFrameCounter;
 }
 
 void UDisplayClusterEditorEngine::OnBeginPIE(const bool bSimulate)
 {
 	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::OnBeginPIE"));
 
-#if 0
 	bIsActivePIE = true;
-#endif
 }
 
 void UDisplayClusterEditorEngine::OnEndPIE(const bool bSimulate)
 {
 	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::OnEndPIE"));
 
-#if 0
+	// Reset PIE flags
 	bIsActivePIE   = false;
 	bIsNDisplayPIE = false;
 
+	// Notify nDisplay about session end
 	DisplayClusterModule->EndScene();
 	DisplayClusterModule->EndSession();
-#endif
 }

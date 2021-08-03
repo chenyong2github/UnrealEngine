@@ -393,10 +393,11 @@ namespace D3D12RHI
 		uint64 CalculateIdleTime(uint64 StartTime, uint64 EndTime);
 
 #if NV_AFTERMATH
-		void RegisterCommandList(GFSDK_Aftermath_ContextHandle context);
-		void UnregisterCommandList(GFSDK_Aftermath_ContextHandle context);
+		void RegisterCommandList(ID3D12GraphicsCommandList* CommandList, GFSDK_Aftermath_ContextHandle ContextHandle);
+		void UnregisterCommandList(GFSDK_Aftermath_ContextHandle ContextHandle);
 
 		TArray<GFSDK_Aftermath_ContextHandle> AftermathContexts;
+		TArray<ID3D12GraphicsCommandList*> AftermathCommandLists;
 		FCriticalSection AftermathLock;
 #endif
 

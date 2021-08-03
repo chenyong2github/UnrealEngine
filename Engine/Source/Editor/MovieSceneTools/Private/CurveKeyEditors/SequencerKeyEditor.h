@@ -10,6 +10,7 @@
 #include "SequencerChannelTraits.h"
 #include "Channels/MovieSceneChannelHandle.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Channels/MovieSceneFloatChannel.h"
 
 
 template<typename ChannelType, typename ValueType>
@@ -154,6 +155,9 @@ struct TSequencerKeyEditor
 			SetChannelDefault(Channel, InValue);
 		}
 		 
+		//need to tell channel change happened (float will call AutoSetTangents())
+		Channel->PostEditChange();
+
 		const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
 		Sequencer->OnChannelChanged().Broadcast(MetaData, OwningSection);
 

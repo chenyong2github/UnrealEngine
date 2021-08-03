@@ -20,6 +20,8 @@ struct FNDISpline_InstanceData
 	/** A binding to the user ptr we're reading the mesh from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
 
+	//Cached ComponentToWorld Rotation
+	FQuat TransformQuat;
 	//Cached ComponentToWorld.
 	FMatrix Transform;
 	//InverseTranspose of above for transforming normals/tangents.

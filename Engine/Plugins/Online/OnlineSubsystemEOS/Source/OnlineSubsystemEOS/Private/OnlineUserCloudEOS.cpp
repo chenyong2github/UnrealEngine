@@ -305,7 +305,7 @@ bool FOnlineUserCloudEOS::ReadUserFile(const FUniqueNetId& UserId, const FString
 
 	FTCHARToUTF8 FileNameUtf8(*FileName);
 
-	int32 ReadChunkSize = GetDefault<UEOSSettings>()->TitleStorageReadChunkLength;
+	int32 ReadChunkSize = UEOSSettings::GetSettings().TitleStorageReadChunkLength;
 	if (ReadChunkSize <= 0)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("[FOnlineUserCloudEOS::ReadUserFile] invalid size TitleStorageReadChunkLength %d. ReadChunkSize set to 16KB by default"), ReadChunkSize);
@@ -486,7 +486,7 @@ bool FOnlineUserCloudEOS::WriteUserFile(const FUniqueNetId& UserId, const FStrin
 	FTCHARToUTF8 FileNameUtf8(*FileName);
 
 	// We'll use the same buffer size to write as we use to read
-	int32 ReadChunkSize = GetDefault<UEOSSettings>()->TitleStorageReadChunkLength;
+	int32 ReadChunkSize = UEOSSettings::GetSettings().TitleStorageReadChunkLength;
 	if (ReadChunkSize <= 0)
 	{
 		UE_LOG_ONLINE_CLOUD(Warning, TEXT("[FOnlineUserCloudEOS::WriteUserFile] invalid size TitleStorageReadChunkLength %d"), ReadChunkSize);

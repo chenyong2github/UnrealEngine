@@ -2,13 +2,11 @@
 
 #pragma once
 
+#include <atomic>
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "NiagaraRendererProperties.h"
 #include "Components/PointLightComponent.h"
-#include "Engine/EngineTypes.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UnrealType.h"
 #include "NiagaraComponentRendererProperties.generated.h"
 
 class FNiagaraEmitterInstance;
@@ -160,5 +158,8 @@ private:
 #if WITH_EDITOR
 	/** Callback for whenever any blueprint components are reinstanced */
 	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
+
 #endif
+
+	std::atomic_bool IsSetterMappingDirty;
 };

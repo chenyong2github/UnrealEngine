@@ -70,6 +70,22 @@ static FAutoConsoleVariableRef CVarNiagaraForceSsafeScriptAttributeTrim(
 	ECVF_Default
 );
 
+bool GNiagaraCompressScriptByteCode = true;
+static FAutoConsoleVariableRef CVarNiagaraCompressScriptByteCode(
+	TEXT("fx.Niagara.CompressScriptByteCode"),
+	GNiagaraCompressScriptByteCode,
+	TEXT("Should we compress script bytecode to save memory. Will be uncompressed on demand."),
+	ECVF_Default
+);
+
+bool GNiagaraDelayScriptAsyncOptimization = true;
+static FAutoConsoleVariableRef CVarNiagaraDelayScriptAsyncOptimization(
+	TEXT("fx.Niagara.DelayScriptAsyncOptimization"),
+	GNiagaraDelayScriptAsyncOptimization,
+	TEXT("Should we delay the async optimization until the emitter is activated?"),
+	ECVF_Default
+);
+
 FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), FrameLastWriteId(-1), bWritten(false)
 {
 }
@@ -93,6 +109,89 @@ UNiagaraScriptSourceBase::UNiagaraScriptSourceBase(const FObjectInitializer& Obj
 {
 }
 
+
+bool FNiagaraVMExecutableByteCode::SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	if (Tag.Type == NAME_ArrayProperty)
+	{
+		Slot << Data;
+		return true;
+	}
+
+	return false;
+}
+
+void FNiagaraVMExecutableByteCode::SetData(const TArray<uint8>& InData)
+{
+	Data = InData;
+	UncompressedSize = INDEX_NONE;
+}
+
+void FNiagaraVMExecutableByteCode::SetData(TArray<uint8>&& InData)
+{
+	Data = MoveTemp(InData);
+	UncompressedSize = INDEX_NONE;
+}
+
+bool FNiagaraVMExecutableByteCode::HasByteCode() const
+{
+	return Data.Num() > 0;
+}
+
+bool FNiagaraVMExecutableByteCode::IsCompressed() const
+{
+	return HasByteCode() && UncompressedSize != INDEX_NONE;
+}
+
+bool FNiagaraVMExecutableByteCode::Compress()
+{
+	if (!IsCompressed())
+	{
+		int32 OriginalSize = Data.Num();
+
+		// It is possible for compression to actually increase the size of the data, so we over allocate here to handle that.
+		int32 CompressedSize = OriginalSize * 4 / 3;
+
+		TArray<uint8> CompressedData;
+		CompressedData.SetNumUninitialized(CompressedSize);
+
+		if (FCompression::CompressMemory(NAME_Zlib, CompressedData.GetData(), CompressedSize, Data.GetData(), Data.Num(), COMPRESS_BiasMemory))
+		{
+			// In the case that compressing it actually increases the size, we leave it uncompressed
+			if (CompressedSize < OriginalSize)
+			{
+				CompressedData.SetNum(CompressedSize);
+				Data = MoveTemp(CompressedData);
+				Data.Shrink();
+				UncompressedSize = OriginalSize;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool FNiagaraVMExecutableByteCode::Uncompress()
+{
+	if (IsCompressed())
+	{
+		TArray<uint8> UncompressedData;
+		UncompressedData.SetNumUninitialized(UncompressedSize);
+
+		if (FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedSize, Data.GetData(), Data.Num()))
+		{
+			Data = MoveTemp(UncompressedData);
+			UncompressedSize = INDEX_NONE;
+		}
+	}
+	return true;
+}
+
+void FNiagaraVMExecutableByteCode::Reset()
+{
+	Data.Empty();
+	UncompressedSize = INDEX_NONE;
+}
 
 FNiagaraVMExecutableData::FNiagaraVMExecutableData()
 	: NumTempRegisters(0)
@@ -118,6 +217,57 @@ bool FNiagaraVMExecutableData::IsValid() const
 void FNiagaraVMExecutableData::Reset()
 {
 	*this = FNiagaraVMExecutableData();
+}
+
+void FNiagaraVMExecutableData::WaitOnOptimizeCompletion()
+{
+	// If we got here and this isn't valid, somethings wrong as this should have been created in Activate()
+	check(OptimizationTask.IsValid());
+
+
+	TSharedFuture<FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr> TaskFuture;
+	{
+		FReadScopeLock ReadLock(OptimizationTask->RWLock);
+
+		// Bail if we already know it's completed
+		if (OptimizationTask->bCompleted)
+		{
+			check(!OptimizationTask->SharedTask.IsValid());
+			return;
+		}
+
+		TaskFuture = OptimizationTask->SharedTask;
+		check(TaskFuture.IsValid());
+	}
+
+	TaskFuture.Wait();
+
+	{
+		FWriteScopeLock WriteLock(OptimizationTask->RWLock);
+
+		// Check this still hasn't been handled by another thread
+		if (!OptimizationTask->bCompleted)
+		{
+			FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr Result = OptimizationTask->SharedTask.Get();
+			ApplyFinishedOptimization(Result);
+
+			OptimizationTask->SharedTask = TSharedFuture<FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr>();
+			OptimizationTask->bCompleted = true;
+		}
+	}
+}
+
+void FNiagaraVMExecutableData::ApplyFinishedOptimization(const FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr& Result)
+{
+	if (Result->OptimizedByteCode.IsSet())
+	{
+		OptimizedByteCode = MoveTemp(Result->OptimizedByteCode.GetValue());
+	}
+
+	if (Result->SourceByteCode.IsSet())
+	{
+		ByteCode = MoveTemp(Result->SourceByteCode.GetValue());
+	}
 }
 
 void FNiagaraVMExecutableData::SerializeData(FArchive& Ar, bool bDDCData)
@@ -700,6 +850,8 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				auto TrimAttributesSupported = [=](const UNiagaraEmitter* OtherEmitter)
 				{
 					TArray<const UNiagaraDataInterfaceBase*> DataInterfaces;
+					if (OtherEmitter && OtherEmitter->GraphSource)
+					{
 					OtherEmitter->GraphSource->CollectDataInterfaces(DataInterfaces);
 
 					for (const UNiagaraDataInterfaceBase* DataInterface : DataInterfaces)
@@ -710,6 +862,11 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 						}
 					}
 					return true;
+					}
+					else
+					{
+						return false;
+					}
 				};
 
 				// if this emitter is being referenced by another emitter (PartilceRead) then don't worry about trimming attributes
@@ -903,7 +1060,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 
 	if (const FVersionedNiagaraScriptData* ScriptData = GetScriptData(Id.ScriptVersionID))
 	{
+		if (ScriptData->Source)
+		{
 		ScriptData->Source->ComputeVMCompilationId(Id, Usage, UsageId);
+	}
 	}
 
 	FNiagaraVMExecutableDataId& LastGeneratedVMId = GetLastGeneratedVMId(VersionGuid);
@@ -952,7 +1112,26 @@ void UNiagaraScript::ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDa
 	// Sort the additional variables by name lexically so they are always in the same order
 	Id.AdditionalVariables.Sort([](const FNiagaraVariableBase& A, const FNiagaraVariableBase& B) { return A.GetName().LexicalLess(B.GetName()); });
 }
+
 #endif
+
+void UNiagaraScript::AsyncOptimizeAllScriptsForComponent(UNiagaraComponent* Component)
+{
+	if (Component)
+	{
+		if (UNiagaraSystem* System = Component->GetAsset())
+		{
+			System->ForEachScript([](UNiagaraScript* Script)
+				{
+					if (Script)
+					{
+						// Kick off the async optimize, which we'll wait on when the script is actually needed
+						Script->AsyncOptimizeByteCode();
+					}
+				});
+		}
+	}
+}
 
 bool UNiagaraScript::ContainsUsage(ENiagaraScriptUsage InUsage) const
 {
@@ -1061,9 +1240,9 @@ TOptional<ENiagaraSimTarget> UNiagaraScript::GetSimTarget() const
 	return TOptional<ENiagaraSimTarget>();
 }
 
-void UNiagaraScript::AsyncOptimizeByteCode()
+void UNiagaraScript::AsyncOptimizeByteCode(bool bIsInPostLoad)
 {
-	if ( !CachedScriptVMId.IsValid() || !CachedScriptVM.IsValid() || (CachedScriptVM.OptimizedByteCode.Num() > 0) || (CachedScriptVM.ByteCode.Num() == 0) )
+	if (!CachedScriptVM.IsValid() || CachedScriptVM.OptimizedByteCode.HasByteCode() || !CachedScriptVM.ByteCode.HasByteCode() || CachedScriptVM.OptimizationTask.IsValid())
 	{
 		return;
 	}
@@ -1073,6 +1252,7 @@ void UNiagaraScript::AsyncOptimizeByteCode()
 	{
 		return;
 	}
+
 
 	// This has to be done game code side as we can not access anything in CachedScriptVM
 	TArray<uint8, TInlineAllocator<32>> ExternalFunctionRegisterCounts;
@@ -1086,48 +1266,48 @@ void UNiagaraScript::AsyncOptimizeByteCode()
 	// If we wish to release the original ByteCode we must optimize synchronously currently
 	//-TODO: Find a safe point where we can release the original ByteCode
 	static const IConsoleVariable* CVarFreeUnoptimizedByteCode = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.FreeUnoptimizedByteCode"));
-	if ((FPlatformProperties::RequiresCookedData() || IsScriptCooked()) && CVarFreeUnoptimizedByteCode && (CVarFreeUnoptimizedByteCode->GetInt() != 0) )
-	{
-		// use the current size of the byte code as a starting point for the allocator
-		CachedScriptVM.OptimizedByteCode.Reserve(CachedScriptVM.ByteCode.Num());
 
-		VectorVM::OptimizeByteCode(CachedScriptVM.ByteCode.GetData(), CachedScriptVM.OptimizedByteCode, MakeArrayView(ExternalFunctionRegisterCounts));
-		if (CachedScriptVM.OptimizedByteCode.Num() > 0)
+	const bool bShouldFreeSourceByteCodeOnCooked = ((FPlatformProperties::RequiresCookedData() || IsScriptCooked()) && CVarFreeUnoptimizedByteCode && (CVarFreeUnoptimizedByteCode->GetInt() != 0));
+	const bool bShouldOptimizeImmediately = (!GNiagaraDelayScriptAsyncOptimization && bIsInPostLoad && bShouldFreeSourceByteCodeOnCooked);	
+
+	TUniqueFunction<FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr()> Task =
+		[InSourceByteCode = CachedScriptVM.ByteCode, InExternalFunctionRegisterCounts = MoveTemp(ExternalFunctionRegisterCounts), bShouldFreeSourceByteCodeOnCooked]() mutable ->FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr
+	{
+		InSourceByteCode.Uncompress();
+
+		// Generate optimized byte code on any thread
+		FNiagaraVMExecutableByteCode OptimizedByteCode;
+		OptimizedByteCode.Reserve(InSourceByteCode.GetLength());
+		VectorVM::OptimizeByteCode(InSourceByteCode.GetDataPtr(), OptimizedByteCode.GetData(), MakeArrayView(InExternalFunctionRegisterCounts));
+		OptimizedByteCode.Shrink();
+
+		auto Result = MakeShared<FNiagaraVMExecutableByteCodeOptimizationTaskResult, ESPMode::ThreadSafe>();
+
+		if (!bShouldFreeSourceByteCodeOnCooked || !OptimizedByteCode.HasByteCode())
 		{
-			CachedScriptVM.ByteCode.Empty();
+			Result->SourceByteCode = MoveTemp(InSourceByteCode);
 		}
 
-		CachedScriptVM.OptimizedByteCode.Shrink();
+		if (OptimizedByteCode.HasByteCode())
+		{
+			Result->OptimizedByteCode = MoveTemp(OptimizedByteCode);
+	}
+
+		return Result;
+	};
+
+	if (!bShouldOptimizeImmediately)
+					{
+		CachedScriptVM.OptimizationTask = MakeShared<FNiagaraVMExecutableByteCodeOptimizationTaskState, ESPMode::ThreadSafe>();
+		CachedScriptVM.OptimizationTask->SharedTask = Async(EAsyncExecution::TaskGraph, MoveTemp(Task)).Share();
 	}
 	else
-	{
-		// Async optimize the ByteCode
-		AsyncTask(
-			ENamedThreads::AnyThread,
-			[WeakScript=TWeakObjectPtr<UNiagaraScript>(this), InExternalFunctionRegisterCounts=MoveTemp(ExternalFunctionRegisterCounts), InByteCode=CachedScriptVM.ByteCode, InCachedScriptVMId=CachedScriptVMId]() mutable
-			{
-				// Generate optimized byte code on any thread
-				TArray<uint8> OptimizedByteCode;
-				OptimizedByteCode.Reserve(InByteCode.Num());
-				VectorVM::OptimizeByteCode(InByteCode.GetData(), OptimizedByteCode, MakeArrayView(InExternalFunctionRegisterCounts));
-
-				// Kick off task to set optimized byte code on game thread
-				AsyncTask(
-					ENamedThreads::GameThread,
-					[WeakScript, InOptimizedByteCode = MoveTemp(OptimizedByteCode), InCachedScriptVMId]() mutable
-					{
-						UNiagaraScript* NiagaraScript = WeakScript.Get();
-						if ( (NiagaraScript != nullptr) && (NiagaraScript->CachedScriptVMId == InCachedScriptVMId) )
 						{
-							NiagaraScript->CachedScriptVM.OptimizedByteCode = MoveTemp(InOptimizedByteCode);
-							NiagaraScript->CachedScriptVM.OptimizedByteCode.Shrink();
-						}
+		FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr Result = Task();
+		CachedScriptVM.ApplyFinishedOptimization(Result);
+		CachedScriptVM.OptimizationTask = MakeShared<FNiagaraVMExecutableByteCodeOptimizationTaskState, ESPMode::ThreadSafe>(true);
 					}
-				);
 			}
-		);
-	}
-}
 
 void UNiagaraScript::GenerateDefaultFunctionBindings()
 {
@@ -1237,9 +1417,9 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		bool bUsesRapidIterationParams = true;
 
 #if WITH_EDITORONLY_DATA
-		if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(GetOuter()))
+		if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
 		{
-			UNiagaraSystem* EmitterOwner = Cast<UNiagaraSystem>(Emitter->GetOuter());
+			UNiagaraSystem* EmitterOwner = Emitter->GetTypedOuter<UNiagaraSystem>();
 			if (EmitterOwner && EmitterOwner->bBakeOutRapidIteration)
 			{
 				bUsesRapidIterationParams = false;
@@ -1250,7 +1430,7 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 				bUsesRapidIterationParams = true;
 			}
 		}
-		else if (UNiagaraSystem* System = Cast<UNiagaraSystem>(GetOuter()))
+		else if (UNiagaraSystem* System = GetTypedOuter<UNiagaraSystem>())
 		{
 			if (System && System->bBakeOutRapidIteration)
 			{
@@ -1303,6 +1483,11 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
 		}
+
+		if (GNiagaraCompressScriptByteCode)
+		{
+			ExecutableData.ByteCode.Compress();
+	}
 	}
 
 	if (Ar.IsLoading())
@@ -1622,7 +1807,10 @@ void UNiagaraScript::PostLoad()
 	GenerateStatIDs();
 
 	// Optimize the VM script for runtime usage
-	AsyncOptimizeByteCode();
+	if (!GNiagaraDelayScriptAsyncOptimization)
+	{
+		AsyncOptimizeByteCode(true);
+	}
 }
 
 bool UNiagaraScript::IsReadyToRun(ENiagaraSimTarget SimTarget) const
@@ -2145,7 +2333,7 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 
 			if (Info.bIsPlaceholder == false)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("We somehow ended up with a data interface that we couldn't match post compile. This shouldn't happen. Creating a dummy to prevent crashes. DataInterfaceInfoName:%s Object:%s"), *Info.Name.ToString(), *GetPathNameSafe(this));
+				UE_LOG(LogNiagara, Display, TEXT("We somehow ended up with a data interface that we couldn't match post compile. This shouldn't happen. Creating a dummy to prevent crashes. DataInterfaceInfoName:%s Object:%s"), *Info.Name.ToString(), *GetPathNameSafe(this));
 				UE_LOG(LogNiagara, Log, TEXT("Object to Name map contents:"));
 				DumpNameMap(ObjectNameMap);
 			}
@@ -2924,7 +3112,7 @@ NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) con
 	}
 	else if (CachedScriptVM.IsValid())
 	{
-		return (CachedScriptVM.ByteCode.Num() == 0) && (CachedScriptVM.OptimizedByteCode.Num() == 0) && (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated || CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown);
+		return !CachedScriptVM.ByteCode.HasByteCode() && !CachedScriptVM.OptimizedByteCode.HasByteCode() && (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated || CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown);
 	}
 	return false;
 }
@@ -2957,7 +3145,7 @@ NIAGARA_API bool UNiagaraScript::DidScriptCompilationSucceed(bool bGPUScript) co
 	}
 	else if (CachedScriptVM.IsValid())
 	{
-		return (CachedScriptVM.ByteCode.Num() != 0) || (CachedScriptVM.OptimizedByteCode.Num() != 0);
+		return (CachedScriptVM.ByteCode.HasByteCode()) || (CachedScriptVM.OptimizedByteCode.HasByteCode());
 	}
 
 	return false;

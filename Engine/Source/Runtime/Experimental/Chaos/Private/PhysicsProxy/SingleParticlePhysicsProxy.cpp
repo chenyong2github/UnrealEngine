@@ -86,13 +86,15 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 			const auto& Geometry = Handle->Geometry();
 			if(Geometry && Geometry->HasBoundingBox())
 			{
+				const FAABB3 BoundingBox = Geometry->BoundingBox();
+
 				Handle->SetHasBounds(true);
-				Handle->SetLocalBounds(Geometry->BoundingBox());
-				FAABB3 WorldSpaceBounds = Geometry->BoundingBox().TransformedAABB(FRigidTransform3(Handle->X(), Handle->R()));
+				Handle->SetLocalBounds(BoundingBox);
+				FAABB3 WorldSpaceBounds = BoundingBox.TransformedAABB(FRigidTransform3(Handle->X(), Handle->R()));
 				if (NewKinematicTargetGT && NewKinematicTargetGT->GetMode() == EKinematicTargetMode::Position)
 				{
 					// for kinematic we actually extend the bouns back to the target as XR represent the previous position for now
-					FAABB3 TargetWorldSpaceBounds = Geometry->BoundingBox().TransformedAABB(NewKinematicTargetGT->GetTarget());
+					FAABB3 TargetWorldSpaceBounds = BoundingBox.TransformedAABB(NewKinematicTargetGT->GetTarget());
 					WorldSpaceBounds.GrowToInclude(TargetWorldSpaceBounds);
 				}
 				if (bHasKinematicData)

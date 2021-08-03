@@ -22,6 +22,8 @@
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
 #include "PackageHelperFunctions.h"
+#include "ShaderCompiler.h"
+#include "DistanceFieldAtlas.h"
 #include "Templates/UniquePtr.h"
 #include "CollectionManagerModule.h"
 #include "ICollectionManager.h"
@@ -34,7 +36,7 @@ class FLoadPackageLogOutputRedirector : public FFeedbackContext
 public:
 	struct FScopedCapture
 	{
-		FScopedCapture(FLoadPackageLogOutputRedirector* InLogOutputRedirector, const FString& InPackageContext)
+		FScopedCapture(FLoadPackageLogOutputRedirector* InLogOutputRedirector, FStringView InPackageContext)
 			: LogOutputRedirector(InLogOutputRedirector)
 		{
 			LogOutputRedirector->BeginCapturingLogData(InPackageContext);
@@ -51,7 +53,7 @@ public:
 	FLoadPackageLogOutputRedirector() = default;
 	virtual ~FLoadPackageLogOutputRedirector() = default;
 
-	void BeginCapturingLogData(const FString& InPackageContext)
+	void BeginCapturingLogData(FStringView InPackageContext)
 	{
 		// Override GWarn so that we can capture any log data
 		check(!OriginalWarningContext);
@@ -183,8 +185,8 @@ const FString UGatherTextFromAssetsCommandlet::UsageText
 
 UGatherTextFromAssetsCommandlet::UGatherTextFromAssetsCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, PackagesPerBatchCount(100)
-	, MaxMemoryAllowanceBytes(0)
+	, MinFreeMemoryBytes(0)
+	, MaxUsedMemoryBytes(0)
 	, bSkipGatherCache(false)
 	, ShouldGatherFromEditorOnlyData(false)
 	, ShouldExcludeDerivedClasses(false)
@@ -265,14 +267,21 @@ void UGatherTextFromAssetsCommandlet::CalculateDependenciesForPackagesPendingGat
 	}
 }
 
-bool UGatherTextFromAssetsCommandlet::HasExceededMemoryLimit()
+bool UGatherTextFromAssetsCommandlet::HasExceededMemoryLimit(const bool bLog)
 {
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
 
-	const uint64 UsedMemory = MemStats.UsedPhysical;
-	if (MaxMemoryAllowanceBytes > 0u && UsedMemory >= MaxMemoryAllowanceBytes)
+	const uint64 FreeMemoryBytes = MemStats.AvailablePhysical;
+	if (MinFreeMemoryBytes > 0u && FreeMemoryBytes < MinFreeMemoryBytes)
 	{
-		UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Used memory %d kb exceeded max memory %d kb"), UsedMemory / 1024, MaxMemoryAllowanceBytes / 1024);
+		UE_CLOG(bLog, LogGatherTextFromAssetsCommandlet, Display, TEXT("Free system memory is currently %s, which is less than the requested limit of %s; a flush will be performed."), *FText::AsMemory(FreeMemoryBytes).ToString(), *FText::AsMemory(MinFreeMemoryBytes).ToString());
+		return true;
+	}
+
+	const uint64 UsedMemoryBytes = MemStats.UsedPhysical;
+	if (MaxUsedMemoryBytes > 0u && UsedMemoryBytes >= MaxUsedMemoryBytes)
+	{
+		UE_CLOG(bLog, LogGatherTextFromAssetsCommandlet, Display, TEXT("Used process memory is currently %s, which is greater than the requested limit of %s; a flush will be performed."), *FText::AsMemory(UsedMemoryBytes).ToString(), *FText::AsMemory(MaxUsedMemoryBytes).ToString());
 		return true;
 	}
 
@@ -323,13 +332,14 @@ void UGatherTextFromAssetsCommandlet::PurgeGarbage(const bool bPurgeReferencedPa
 	{
 		// Sort the remaining packages to gather so that currently loaded packages are processed first, followed by those with the most dependencies
 		// This aims to allow packages to be GC'd as soon as possible once nothing is no longer referencing them as a dependency
+		// Note: This array is processed backwards, so "first" is actually the end of the array
 		PackagesPendingGather.Sort([&LoadedPackageNames](const FPackagePendingGather& PackagePendingGatherOne, const FPackagePendingGather& PackagePendingGatherTwo)
 		{
 			const bool bIsPackageOneLoaded = LoadedPackageNames.Contains(PackagePendingGatherOne.PackageName);
 			const bool bIsPackageTwoLoaded = LoadedPackageNames.Contains(PackagePendingGatherTwo.PackageName);
 			return (bIsPackageOneLoaded == bIsPackageTwoLoaded) 
-				? PackagePendingGatherOne.Dependencies.Num() > PackagePendingGatherTwo.Dependencies.Num() 
-				: bIsPackageOneLoaded;
+				? PackagePendingGatherOne.Dependencies.Num() < PackagePendingGatherTwo.Dependencies.Num() 
+				: bIsPackageTwoLoaded;
 		});
 	}
 }
@@ -468,6 +478,8 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 			return -1;
 		}
 	}
+
+	UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Discovering assets to gather..."));
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
@@ -620,9 +632,18 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 	FAssetGatherCacheMetrics AssetGatherCacheMetrics;
 	TMap<FString, FName> AssignedPackageLocalizationIds;
 
+	int32 NumPackagesProcessed = 0;
+	int32 PackageCount = PackagesPendingGather.Num();
+
 	// Process all packages that do not need to be loaded. Remove processed packages from the list.
+	UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Processing assets to gather..."));
 	PackagesPendingGather.RemoveAll([&](FPackagePendingGather& PackagePendingGather) -> bool
 	{
+		const FNameBuilder PackageNameStr(PackagePendingGather.PackageName);
+
+		const int32 CurrentPackageNum = ++NumPackagesProcessed;
+		const float PercentageComplete = (((float)CurrentPackageNum / (float)PackageCount) * 100.0f);
+
 		TUniquePtr<FArchive> FileReader(IFileManager::Get().CreateFileReader(*PackagePendingGather.PackageFilename));
 		if (!FileReader)
 		{
@@ -638,7 +659,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		{
 			if (const FName* ExistingLongPackageName = AssignedPackageLocalizationIds.Find(PackageFileSummary.LocalizationId))
 			{
-				UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("Package '%s' and '%s' have the same localization ID (%s). Please reset one of these (Asset Localization -> Reset Localization ID) to avoid conflicts."), *PackagePendingGather.PackageName.ToString(), *ExistingLongPackageName->ToString(), *PackageFileSummary.LocalizationId);
+				UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("Package '%s' and '%s' have the same localization ID (%s). Please reset one of these (Asset Localization -> Reset Localization ID) to avoid conflicts."), *PackageNameStr, *ExistingLongPackageName->ToString(), *PackageFileSummary.LocalizationId);
 			}
 			else
 			{
@@ -702,6 +723,8 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		// Process packages that don't require loading to process.
 		if (PackageFileSummary.GatherableTextDataOffset > 0)
 		{
+			UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("[%6.2f%%] Gathering package: '%s'..."), PercentageComplete, *PackageNameStr);
+
 			AssetGatherCacheMetrics.CountCachedAsset();
 
 			FileReader->Seek(PackageFileSummary.GatherableTextDataOffset);
@@ -728,56 +751,74 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 
 	AssetGatherCacheMetrics.LogMetrics();
 
-	const int32 PackageCount = PackagesPendingGather.Num();
-	const int32 BatchCount = PackageCount / PackagesPerBatchCount + (PackageCount % PackagesPerBatchCount > 0 ? 1 : 0); // Add an extra batch for any remainder if necessary.
-	if (PackageCount > 0)
+	NumPackagesProcessed = 0;
+	PackageCount = PackagesPendingGather.Num();
+	if (PackageCount == 0)
 	{
-		UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Loading %i packages in %i batches of %i."), PackageCount, BatchCount, PackagesPerBatchCount);
+		// Nothing more to do!
+		return 0;
 	}
+
+	const double PackageLoadingStartTime = FPlatformTime::Seconds();
+	UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Preparing to load %d packages..."), PackageCount);
+
 	FLoadPackageLogOutputRedirector LogOutputRedirector;
 
 	CalculateDependenciesForPackagesPendingGather();
 
-	TArray<FName> PackagesWithStaleGatherCache;
+	// Collect garbage before beginning to load packages
+	// This also sorts the list of packages into the best processing order
+	PurgeGarbage(/*bPurgeReferencedPackages*/false);
 
-	// Process the packages in batches
-	TArray<FGatherableTextData> GatherableTextDataArray;
-	for (int32 BatchIndex = 0; BatchIndex < BatchCount; ++BatchIndex)
+	// We don't need to have compiled shaders to gather text
+	bool bWasShaderCompilationEnabled = false;
+	if (GShaderCompilingManager)
 	{
-		int32 PackagesInThisBatch = 0;
-		int32 FailuresInThisBatch = 0;
+		bWasShaderCompilationEnabled = !GShaderCompilingManager->IsShaderCompilationSkipped();
+		GShaderCompilingManager->SkipShaderCompilation(true);
+	}
 
-		// Collect garbage before beginning to load packages for this batch
-		// This also sorts the list of packages into the best processing order
-		PurgeGarbage(/*bPurgeReferencedPackages*/false);
-
-		// Process this batch
-		const int32 PackagesToProcessThisBatch = FMath::Min(PackagesPendingGather.Num(), PackagesPerBatchCount);
-		for (int32 PackageIndex = 0; PackageIndex < PackagesToProcessThisBatch; ++PackageIndex)
+	int32 NumPackagesFailed = 0;
+	TArray<FName> PackagesWithStaleGatherCache;
+	TArray<FGatherableTextData> GatherableTextDataArray;
+	while (PackagesPendingGather.Num() > 0)
 		{
-			const FPackagePendingGather& PackagePendingGather = PackagesPendingGather[PackageIndex];
-			const FString PackageNameStr = PackagePendingGather.PackageName.ToString();
+		const FPackagePendingGather PackagePendingGather = PackagesPendingGather.Pop(/*bAllowShrinking*/false);
+		const FNameBuilder PackageNameStr(PackagePendingGather.PackageName);
 
-			UE_LOG(LogGatherTextFromAssetsCommandlet, Verbose, TEXT("Loading package: '%s'."), *PackageNameStr);
+		const int32 CurrentPackageNum = ++NumPackagesProcessed + NumPackagesFailed;
+		const float PercentageComplete = (((float)CurrentPackageNum / (float)PackageCount) * 100.0f);
+		UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("[%6.2f%%] Loading package: '%s'..."), PercentageComplete, *PackageNameStr);
 
 			UPackage* Package = nullptr;
 			{
-				FLoadPackageLogOutputRedirector::FScopedCapture ScopedCapture(&LogOutputRedirector, PackageNameStr);
+			FLoadPackageLogOutputRedirector::FScopedCapture ScopedCapture(&LogOutputRedirector, *PackageNameStr);
 				Package = LoadPackage(nullptr, *PackageNameStr, LOAD_NoWarn | LOAD_Quiet);
 			}
 
 			if (!Package)
 			{
-				++FailuresInThisBatch;
+			UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("Failed to load package: '%s'."), *PackageNameStr);
+			++NumPackagesFailed;
 				continue;
 			}
 			
-			++PackagesInThisBatch;
+		// Tick background tasks
+		if (GShaderCompilingManager)
+		{
+			GShaderCompilingManager->ProcessAsyncResults(true, false);
+		}
+		if (GDistanceFieldAsyncQueue)
+		{
+			GDistanceFieldAsyncQueue->ProcessAsyncTasks();
+		}
 
 			// Because packages may not have been resaved after this flagging was implemented, we may have added packages to load that weren't flagged - potential false positives.
 			// The loading process should have reflagged said packages so that only true positives will have this flag.
 			if (Package->RequiresLocalizationGather())
 			{
+			UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("[%6.2f%%] Gathering package: '%s'..."), PercentageComplete, *PackageNameStr);
+
 				// Gathers from the given package
 				EPropertyLocalizationGathererResultFlags GatherableTextResultFlags = EPropertyLocalizationGathererResultFlags::Empty;
 				FPropertyLocalizationDataGatherer(GatherableTextDataArray, Package, GatherableTextResultFlags);
@@ -810,7 +851,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 				// Re-save the package to attempt to fix it?
 				if (bSavePackage)
 				{
-					UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Resaving package: '%s'."), *PackageNameStr);
+				UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Resaving package: '%s'..."), *PackageNameStr);
 
 					bool bSavedPackage = false;
 					{
@@ -820,7 +861,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 
 					if (!bSavedPackage)
 					{
-						UE_LOG(LogGatherTextFromAssetsCommandlet, Error, TEXT("Failed to resave package: '%s'."), *PackageNameStr);
+					UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("Failed to resave package: '%s'."), *PackageNameStr);
 					}
 				}
 
@@ -834,24 +875,32 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 				GatherableTextDataArray.Reset();
 			}
 
-			if (HasExceededMemoryLimit())
+		if (HasExceededMemoryLimit(/*bLog*/true))
 			{
-				// Over the memory limit, perform a full purge
+			// First try a minimal purge to only remove things that are no longer referenced or needed by other packages pending gather
+			PurgeGarbage(/*bPurgeReferencedPackages*/false);
+
+			if (HasExceededMemoryLimit(/*bLog*/false))
+			{
+				// If we're still over the memory limit after a minimal purge, then attempt a full purge
 				PurgeGarbage(/*bPurgeReferencedPackages*/true);
+
+				// If we're still over the memory limit after both purges, then log a warning as we may be about to OOM
+				UE_CLOG(HasExceededMemoryLimit(/*bLog*/false), LogGatherTextFromAssetsCommandlet, Warning, TEXT("Flushing failed to reduce process memory to within the requested limits; this process may OOM!"));
 			}
 		}
-
-		UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Loaded %i packages in batch %i of %i. %i failed."), PackagesInThisBatch, BatchIndex + 1, BatchCount, FailuresInThisBatch);
-
-		// Remove the processed packages
-		PackagesPendingGather.RemoveAt(0, PackagesToProcessThisBatch, /*bAllowShrinking*/false);
 	}
-	check(PackagesPendingGather.Num() == 0);
+	UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Loaded %d packages in %.2f seconds. %d failed."), NumPackagesProcessed, FPlatformTime::Seconds() - PackageLoadingStartTime, NumPackagesFailed);
 
-	PackagesWithStaleGatherCache.Sort(FNameLexicalLess());
+	if (GShaderCompilingManager)
+	{
+		GShaderCompilingManager->SkipShaderCompilation(!bWasShaderCompilationEnabled);
+	}
 
 	if (bReportStaleGatherCache)
 	{
+	PackagesWithStaleGatherCache.Sort(FNameLexicalLess());
+
 		FString StaleGatherCacheReport;
 		for (const FName& PackageWithStaleGatherCache : PackagesWithStaleGatherCache)
 		{
@@ -1013,13 +1062,22 @@ bool UGatherTextFromAssetsCommandlet::ConfigureFromScript(const FString& GatherT
 
 	// Read some settings from the editor config
 	{
-		int32 MaxMemoryAllowanceInMB = 0;
-		GConfig->GetInt(TEXT("GatherTextFromAssets"), TEXT("MaxMemoryAllowance"), MaxMemoryAllowanceInMB, GEditorIni);
-		MaxMemoryAllowanceInMB = FMath::Max(MaxMemoryAllowanceInMB, 0);
-		MaxMemoryAllowanceBytes = MaxMemoryAllowanceInMB * 1024LL * 1024LL;
+		int32 MinFreeMemoryMB = 0;
+		GConfig->GetInt(TEXT("GatherTextFromAssets"), TEXT("MinFreeMemory"), MinFreeMemoryMB, GEditorIni);
+		MinFreeMemoryMB = FMath::Max(MinFreeMemoryMB, 0);
+		MinFreeMemoryBytes = MinFreeMemoryMB * 1024LL * 1024LL;
 
-		PackagesPerBatchCount = 100;
-		GConfig->GetInt(TEXT("GatherTextFromAssets"), TEXT("BatchCount"), PackagesPerBatchCount, GEditorIni);
+		int32 MaxUsedMemoryMB = 0;
+		if (GConfig->GetInt(TEXT("GatherTextFromAssets"), TEXT("MaxMemoryAllowance"), MaxUsedMemoryMB, GEditorIni))
+		{
+			UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("The MaxMemoryAllowance config option is deprecated, please use MaxUsedMemory."), *SectionName);
+		}
+		else
+		{
+			GConfig->GetInt(TEXT("GatherTextFromAssets"), TEXT("MaxUsedMemory"), MaxUsedMemoryMB, GEditorIni);
+		}
+		MaxUsedMemoryMB = FMath::Max(MaxUsedMemoryMB, 0);
+		MaxUsedMemoryBytes = MaxUsedMemoryMB * 1024LL * 1024LL;
 	}
 
 	return !HasFatalError;

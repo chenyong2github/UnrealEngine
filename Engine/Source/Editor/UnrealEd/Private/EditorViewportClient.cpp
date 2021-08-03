@@ -547,18 +547,26 @@ FEditorViewportClient::~FEditorViewportClient()
 	ModeTools.Reset();
 }
 
+FLevelEditorViewportClient::FRealtimeOverride::FRealtimeOverride(bool bInIsRealtime, FText InSystemDisplayName)
+	: SystemDisplayName(InSystemDisplayName)
+	, bIsRealtime(bInIsRealtime)
+{
+}
+
 void FEditorViewportClient::AddRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)
 {
-	RealtimeOverrides.Add(TPair<bool, FText>(bShouldBeRealtime, SystemDisplayName));
+	RealtimeOverrides.Add(FRealtimeOverride(bShouldBeRealtime, SystemDisplayName));
 
 	bShouldInvalidateViewportWidget = true;
 }
 
 bool FEditorViewportClient::HasRealtimeOverride(FText SystemDisplayName) const
 {
+	const FString SystemDisplayString = SystemDisplayName.BuildSourceString();
 	for (int32 Index = 0; Index < RealtimeOverrides.Num(); ++Index)
 	{
-		if (RealtimeOverrides[Index].Value.EqualTo(SystemDisplayName))
+		const FString RealtimeOverrideSystemDisplayString = RealtimeOverrides[Index].SystemDisplayName.BuildSourceString();
+		if (RealtimeOverrideSystemDisplayString == SystemDisplayString)
 		{
 			return true;
 		}
@@ -569,16 +577,18 @@ bool FEditorViewportClient::HasRealtimeOverride(FText SystemDisplayName) const
 bool FEditorViewportClient::RemoveRealtimeOverride(FText SystemDisplayName, bool bCheckMissingOverride)
 {
 	bool bRemoved = false;
+	const FString SystemDisplayString = SystemDisplayName.BuildSourceString();
 	for (int32 Index = RealtimeOverrides.Num() - 1; Index >= 0; --Index)
 	{
-		if (RealtimeOverrides[Index].Value.EqualTo(SystemDisplayName))
+		const FString RealtimeOverrideSystemDisplayString = RealtimeOverrides[Index].SystemDisplayName.BuildSourceString();
+		if (RealtimeOverrideSystemDisplayString == SystemDisplayString)
 		{
 			RealtimeOverrides.RemoveAt(Index);
 			bRemoved = true;
 			break;
 		}
 	}
-	check(!bCheckMissingOverride || bRemoved);
+	ensureMsgf(!bCheckMissingOverride || bRemoved, TEXT("No realtime override was found with the given SystemDisplayName"));
 	
 	if (bRemoved)
 	{
@@ -616,7 +626,7 @@ void FEditorViewportClient::SetRealtime(bool bInRealtime)
 
 FText FEditorViewportClient::GetRealtimeOverrideMessage() const
 {
-	return RealtimeOverrides.Num() > 0 ? RealtimeOverrides.Last().Value : FText::GetEmpty();
+	return RealtimeOverrides.Num() > 0 ? RealtimeOverrides.Last().SystemDisplayName : FText::GetEmpty();
 }
 
 void FEditorViewportClient::SetRealtime(bool bInRealtime, bool bStoreCurrentValue)

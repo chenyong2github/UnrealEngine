@@ -73,6 +73,16 @@ namespace Gauntlet
 		public override TestPriority Priority { get { return GetPriority(); } }
 
 		/// <summary>
+		/// Returns a list of all log channels the heartbeat tick should look for.
+		/// </summary>
+		public virtual List<string> GetAdditionalLogChannels()
+		{
+			List<string> ReturnList = new List<string>();
+			ReturnList.Add("OrionTest");
+			return ReturnList;
+		}
+
+		/// <summary>
 		/// Returns Warnings found during tests. By default only ensures and warnings in case of abnormal exit are considered
 		/// </summary>
 		public override IEnumerable<string> GetWarnings()
@@ -721,6 +731,14 @@ namespace Gauntlet
 
 			// Launch the test
 			TestInstance = UnrealApp.LaunchSession();
+			// Add info from test context to device usage log
+			foreach(IAppInstance AppInstance in TestInstance.ClientApps)
+			{
+				IDeviceUsageReporter.RecordComment(AppInstance.Device.Name, (UnrealTargetPlatform)AppInstance.Device.Platform, IDeviceUsageReporter.EventType.Device, Context.Options.JobDetails);
+				IDeviceUsageReporter.RecordComment(AppInstance.Device.Name, (UnrealTargetPlatform)AppInstance.Device.Platform, IDeviceUsageReporter.EventType.Test, this.GetType().Name);
+			}
+
+			
 
 			// track the overall session time
 			if (SessionStartTime == DateTime.MinValue)
@@ -850,10 +868,13 @@ namespace Gauntlet
 			{
 				UnrealLogParser Parser = new UnrealLogParser(App.StdOut);
 				
-				// TODO - hardcoded for Orion
 				List<string> TestLines = Parser.GetLogChannel("Gauntlet").ToList();
 
-				TestLines.AddRange(Parser.GetLogChannel("OrionTest"));
+				List<string> AdditionalLogCategories = GetAdditionalLogChannels();
+				foreach (string Category in AdditionalLogCategories)
+				{
+					TestLines.AddRange(Parser.GetLogChannel(Category));
+				}
 
 				for (int i = LastLogCount; i < TestLines.Count; i++)
 				{

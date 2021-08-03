@@ -6,6 +6,7 @@
 
 #include "Utils/WarningsDisabler.h"
 #include "Utils/TaskMgr.h"
+#include "Utils/TaskCalledFromEventLoop.h"
 
 DISABLE_SDK_WARNINGS_START
 
@@ -83,7 +84,7 @@ GSErrCode __ACENV_CALL RegisterInterface(void)
 	}
 	if (GSErr == NoError)
 	{
-		GSErr = FTraceListener::Register();
+		GSErr = FTaskCalledFromEventLoop::Register();
 	}
 
 	ACAPI_KeepInMemory(true);
@@ -126,6 +127,10 @@ GSErrCode __ACENV_CALL Initialize(void)
 	{
 		GSErr = FElementEvent::Initialize();
 	}
+	if (GSErr == NoError)
+	{
+		GSErr = FTaskCalledFromEventLoop::Initialize();
+	}
 
 	FPalette::Register();
 
@@ -145,6 +150,7 @@ GSErrCode __ACENV_CALL FreeData(void)
 {
 	UE_AC_TraceF("-> UE_AC FreeData\n");
 
+	FTaskCalledFromEventLoop::Uninitialize();
 #if PLATFORM_MAC
 	FConnectionWindow::DeleteWindow();
 #endif

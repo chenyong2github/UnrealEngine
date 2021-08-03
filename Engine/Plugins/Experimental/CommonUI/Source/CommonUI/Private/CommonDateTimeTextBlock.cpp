@@ -97,6 +97,7 @@ void UCommonDateTimeTextBlock::UpdateUnderlyingText()
 		if (Remaining.GetTotalSeconds() < 1.0 && bUseCountdownCompletionText)
 		{
 			TextToSet = CountdownCompletionText;
+			OnTimeCountDownCompletion().Broadcast();
 		}
 		else
 		{

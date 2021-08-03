@@ -505,6 +505,7 @@ namespace AutomationTool
 				{
 					Value = ScopeValue;
 
+					// It's valid for a property to exist but have a null value. It won't be expanded
 					// Handle $(PropName:-6) where PropName might be "Foo"
 					if (Value != null && Value.Length > Math.Abs(ValueLength))
 					{

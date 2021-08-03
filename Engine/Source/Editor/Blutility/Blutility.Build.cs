@@ -39,6 +39,9 @@ public class Blutility : ModuleRules
                 "UMGEditor",
                 "KismetCompiler",
 				"ToolMenus",
+				"RHI",
+				"RenderCore",
+				"ImageWriteQueue"
 			}
 			);
 	}

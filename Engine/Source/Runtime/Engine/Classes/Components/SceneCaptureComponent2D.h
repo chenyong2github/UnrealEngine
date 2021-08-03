@@ -34,7 +34,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Projection)
 	float OrthoWidth;
 
-	/** Output render target of the scene capture that can be read in materals. */
+	/** Output render target of the scene capture that can be read in materials. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SceneCapture)
 	TObjectPtr<class UTextureRenderTarget2D> TextureTarget;
 
@@ -66,7 +66,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, AdvancedDisplay, Category = Projection)
 	FMatrix CustomProjectionMatrix;
 
-	/** Render the scene in n frames (i.e TileCount) - Ignored in Perspective mode, works only in Orthographic mode */
+	/** Render the scene in n frames (i.e TileCount) - Ignored in Perspective mode, works only in Orthographic mode when CaptureSource uses SceneColor (not FinalColor)
+	* If CaptureSource uses FinalColor, tiling will be ignored and a Warning message will be logged	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Projection, meta = (editcondition = "ProjectionType==1"))
 	bool bEnableOrthographicTiling = false;
 
@@ -129,6 +130,10 @@ public:
 		return true;
 	}
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+
+	/** Reset Orthographic tiling counter */
+	void ResetOrthographicTilingCounter();
+
 	//~ End UActorComponent Interface
 
 	//~ Begin UObject Interface
@@ -169,7 +174,14 @@ public:
 
 	void UpdateSceneCaptureContents(FSceneInterface* Scene) override;
 
-	void UpdateOrthographicTilingSettings();
+	/* Return if orthographic tiling rendering is enabled or not */
+	bool GetEnableOrthographicTiling() const;
+
+	/* Return number of X tiles to render (to be used when orthographic tiling rendering is enabled) */
+	int32 GetNumXTiles() const;
+
+	/* Return number of Y tiles to render (to be used when orthographic tiling rendering is enabled) */
+	int32 GetNumYTiles() const;
 
 #if WITH_EDITORONLY_DATA
 	void UpdateDrawFrustum();

@@ -561,37 +561,6 @@ bool FDMXGDTFImporter::ParseXML()
     FString FinalXMLString;
     for (FString& Line : XMLStringLines)
     {
-        TCHAR LeftToken = '<';
-        TCHAR RightToken = '>';
-        TArray<int32> LeftTockensIndexes;
-        TArray<int32> RightTockensIndexes;
-
-        for (int32 CharIndex = 0; CharIndex < Line.Len(); ++CharIndex)
-        {
-            TCHAR CurrentChar = Line[CharIndex];
-
-            if (CurrentChar == LeftToken)
-            {
-                LeftTockensIndexes.Add(CharIndex);
-            }
-            else if (CurrentChar == RightToken)
-            {
-                RightTockensIndexes.Add(CharIndex);
-            }
-        }
-
-        int32 LeftTockensNum = LeftTockensIndexes.Num() - 1;
-        for (int32 LeftCharIndex = 1; LeftCharIndex < LeftTockensNum; ++LeftCharIndex)
-        {
-            Line[LeftTockensIndexes[LeftCharIndex]] = TCHAR(' ');
-        }
-
-        int32 RightTockensNum = RightTockensIndexes.Num() - 1;
-        for (int32 RightCharIndex = 0; RightCharIndex < RightTockensNum; ++RightCharIndex)
-        {
-            Line[RightTockensIndexes[RightCharIndex]] = TCHAR(' ');
-        }
-
         FinalXMLString.Append(Line + LINE_TERMINATOR);
     }
 

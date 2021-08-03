@@ -97,13 +97,13 @@ public:
 	
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 	FPhysScene_Chaos(AActor* InSolverActor
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 	, const FName& DebugName=NAME_None
 #endif
 );
 #else
 	FPhysScene_Chaos(AActor* InSolverActor=nullptr
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 	, const FName& DebugName=NAME_None
 #endif
 );

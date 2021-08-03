@@ -83,7 +83,7 @@ public:
 			{
 				//last element so just pop
 				ProxiesData.Pop(/*bAllowShrinking=*/false);
-			} else
+			} else if(ProxiesData.IsValidIndex(Idx))
 			{
 				//update other proxy's idx
 				ProxiesData.RemoveAtSwap(Idx);

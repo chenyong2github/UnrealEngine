@@ -5,6 +5,7 @@
 #include "CameraCalibrationEditorLog.h"
 #include "LensFile.h"
 
+#define LOCTEXT_NAMESPACE "LensImageCenterCurveModel"
 
 
 FLensImageCenterCurveModel::FLensImageCenterCurveModel(ULensFile* InOwner, float InFocus, int32 InParameterIndex)
@@ -82,4 +83,9 @@ void FLensImageCenterCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> I
 	}
 }
 
+FText FLensImageCenterCurveModel::GetValueLabel() const
+{
+	return LOCTEXT("ImageCenterValueLabel", "(normalized)");
+}
 
+#undef LOCTEXT_NAMESPACE

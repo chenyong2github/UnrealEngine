@@ -28,13 +28,12 @@ namespace
 		FScopedCurveTableChange(UCurveTable* InTable)
 			: Table(InTable)
 		{
-			FScopeLock Lock(&CriticalSection);
+			CriticalSection.Lock();
 			int32& Count = ScopeCount.FindOrAdd(Table);
 			++Count;
 		}
 		~FScopedCurveTableChange()
 		{
-			FScopeLock Lock(&CriticalSection);
 			int32& Count = ScopeCount.FindChecked(Table);
 			--Count;
 			if (Count == 0)
@@ -42,12 +41,16 @@ namespace
 				Table->OnCurveTableChanged().Broadcast();
 				ScopeCount.Remove(Table);
 			}
+
+			CriticalSection.Unlock();
 		}
 
 	private:
 		UCurveTable* Table;
 
 		static TMap<UCurveTable*, int32> ScopeCount;
+
+	public:
 		static FCriticalSection CriticalSection;
 	};
 
@@ -55,6 +58,11 @@ namespace
 	FCriticalSection FScopedCurveTableChange::CriticalSection;
 
 #define CURVETABLE_CHANGE_SCOPE()	FScopedCurveTableChange ActiveScope(this);
+}
+
+FCriticalSection& UCurveTable::GetCurveTableChangeCriticalSection()
+{
+	return FScopedCurveTableChange::CriticalSection;
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -606,6 +606,34 @@ void ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(const FARFilte
 	}
 }
 
+TSharedPtr<FBlacklistPaths> ContentBrowserUtils::GetCombinedFolderBlacklist(const TSharedPtr<FBlacklistPaths>& FolderBlacklist, const TSharedPtr<FBlacklistPaths>& WritableFolderBlacklist)
+{
+	TSharedPtr<FBlacklistPaths> CombinedFolderBlacklist;
+
+	const bool bHidingFolders = FolderBlacklist && FolderBlacklist->HasFiltering();
+	const bool bHidingReadOnlyFolders = WritableFolderBlacklist && WritableFolderBlacklist->HasFiltering();
+	if (bHidingFolders || bHidingReadOnlyFolders)
+	{
+		CombinedFolderBlacklist = MakeShared<FBlacklistPaths>();
+
+		if (bHidingReadOnlyFolders && bHidingFolders)
+		{
+			FBlacklistPaths IntersectedFilter = FolderBlacklist->CombinePathFilters(*WritableFolderBlacklist.Get());
+			CombinedFolderBlacklist->Append(IntersectedFilter);
+		}
+		else if (bHidingReadOnlyFolders)
+		{
+			CombinedFolderBlacklist->Append(*WritableFolderBlacklist);
+		}
+		else if (bHidingFolders)
+		{
+			CombinedFolderBlacklist->Append(*FolderBlacklist);
+		}
+	}
+
+	return CombinedFolderBlacklist;
+}
+
 bool ContentBrowserUtils::CanDeleteFromAssetView(TWeakPtr<SAssetView> AssetView, FText* OutErrorMsg)
 {
 	if (TSharedPtr<SAssetView> AssetViewPin = AssetView.Pin())

@@ -4,6 +4,7 @@
 
 #include "LensFile.h"
 
+#define LOCTEXT_NAMESPACE "LensEncodersCurveModel"
 
 
 FLensEncodersCurveModel::FLensEncodersCurveModel(ULensFile* InOwner, EEncoderType InEncoderType)
@@ -44,3 +45,49 @@ void FLensEncodersCurveModel::OnCurveModifiedCallback() const
 		LensFile->EncodersTable.Iris = CurrentCurve;
 	}
 }
+
+FText FLensEncodersCurveModel::GetKeyLabel() const
+{
+	if (EncoderType == EEncoderType::Focus)
+	{
+		return LOCTEXT("KeyLabelFocus", "Raw Focus");
+	}
+	else if (EncoderType == EEncoderType::Iris)
+	{
+		return LOCTEXT("KeyLabelIris", "Raw Iris");
+	}
+	return FText();
+}
+
+FText FLensEncodersCurveModel::GetValueLabel() const
+{
+	if (EncoderType == EEncoderType::Focus)
+	{
+		return LOCTEXT("FocusValueLabel", "(cm)");
+	}
+	else if (EncoderType == EEncoderType::Iris)
+	{
+		return LOCTEXT("IrisValueLabel", "(FStop)");
+	}
+	return FText();
+}
+
+FText FLensEncodersCurveModel::GetValueUnitPrefixLabel() const
+{
+	if (EncoderType == EEncoderType::Iris)
+	{
+		return LOCTEXT("UnitPrefixLabelIris", "f/");
+	}
+	return FText();
+}
+
+FText FLensEncodersCurveModel::GetValueUnitSuffixLabel() const
+{
+	if (EncoderType == EEncoderType::Focus)
+	{
+		return LOCTEXT("UnitSuffixLabelFocus", "cm");
+	}
+	return FText();
+}
+
+#undef LOCTEXT_NAMESPACE

@@ -21,19 +21,18 @@ FLightHit PointLight_TraceLight(RayDesc Ray, int LightId)
 	float LightRadius = GetRadius(LightId);
 	float LightRadius2 = Pow2(LightRadius);
 	float3 oc = Ray.Origin - LightPosition;
-	float LightDistanceSquared = dot(oc, oc);
-
-	// #dxr_todo: switch to numericaly stable ray/sphere test?
-	float a = dot(Ray.Direction, Ray.Direction);
 	float b = dot(oc, Ray.Direction);
-	float c = LightDistanceSquared - LightRadius2;
-	float h = b * b - a * c;
-	if (h >= 0)
+	// "Precision Improvements for Ray / Sphere Intersection" - Ray Tracing Gems (2019)
+	// https://link.springer.com/content/pdf/10.1007%2F978-1-4842-4427-2_7.pdf
+	// NOTE: we assume the incoming ray direction is normalized
+	float h = LightRadius2 - length2(oc - b * Ray.Direction);
+	if (h > 0)
 	{
-		h = sqrt(h);
-		float t = (-b - h) / a;
+		float t = -b - sqrt(h);
 		if (t > Ray.TMin && t < Ray.TMax)
 		{
+			float LightDistanceSquared = dot(oc, oc);
+
 			// #dxr_todo: sphere area is 4*pi*r^2 -- but the factor of 4 is missing for some reason?
 			float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 			float3 LightRadiance = LightPower / (PI * LightRadius2);

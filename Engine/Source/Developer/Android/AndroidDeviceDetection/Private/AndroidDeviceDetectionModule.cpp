@@ -30,6 +30,7 @@
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
+#include "Internationalization/Regex.h"
 
 #if WITH_EDITOR
 #include "PIEPreviewDeviceProfileSelectorModule.h"
@@ -39,10 +40,20 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
 #endif
+#include "String/ParseLines.h"
 
 #define LOCTEXT_NAMESPACE "FAndroidDeviceDetectionModule" 
 
 DEFINE_LOG_CATEGORY_STATIC(AndroidDeviceDetectionLog, Log, All);
+
+static int32 GAndroidDeviceDetectionPollInterval = 10;
+static FAutoConsoleVariableRef CVarAndroidDeviceDetectionPollInterval(
+	TEXT("Android.DeviceDetectionPollInterval"),
+	GAndroidDeviceDetectionPollInterval,
+	TEXT("The number of seconds between polling for connected Android devices.\n")
+	TEXT("Default: 10"),
+	ECVF_Default
+);
 
 class FAndroidDeviceDetectionRunnable : public FRunnable
 {
@@ -81,8 +92,8 @@ public:
 
 		while (StopTaskCounter.GetValue() == 0)
 		{
-			// query every 10 seconds
-			if (LoopCount++ >= 10 || ForceCheck)
+			// query when we have waited 'GAndroidDeviceDetectionPollInterval' seconds.
+			if (LoopCount++ >= GAndroidDeviceDetectionPollInterval || ForceCheck)
 			{
 				// Make sure we have an ADB path before checking
 				FScopeLock PathLock(ADBPathCheckLock);
@@ -420,15 +431,130 @@ private:
 				}
 				NewDeviceInfo.GLESVersion = FCString::Atoi(*GLESVersionString);
 
-				// parse the device model
+				// Find the device model
 				FParse::Value(*DeviceString, TEXT("model:"), NewDeviceInfo.Model);
-				if (NewDeviceInfo.Model.IsEmpty())
-				{
+				// find the product model (this must match java's android.os.build.model)
 					FString ModelCommand = FString::Printf(TEXT("-s %s %s ro.product.model"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
 					FString RoProductModel;
-					ExecuteAdbCommand(*ModelCommand, &RoProductModel, nullptr);
-					const TCHAR* Ptr = *RoProductModel;
-					FParse::Line(&Ptr, NewDeviceInfo.Model);
+				if( ExecuteAdbCommand(*ModelCommand, &RoProductModel, nullptr) )
+				{
+					if(!RoProductModel.IsEmpty())
+					{
+						NewDeviceInfo.Model = RoProductModel.TrimStartAndEnd();
+				}
+				}
+
+				// Find the build ID
+				FString BuildNumberString;
+				const FString BuildNumberCommand = FString::Printf(TEXT("-s %s %s ro.build.display.id"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
+				if (ExecuteAdbCommand(*BuildNumberCommand, &BuildNumberString, nullptr))
+				{
+					NewDeviceInfo.BuildNumber = BuildNumberString.TrimStartAndEnd();
+				}
+
+				// Scan lines looking for ContainsTerm
+				auto FindLineContaining = [](const FString& SourceString, const FString& ContainsTerm)
+				{
+					FString result;
+					UE::String::ParseLines(SourceString,
+						[&result, &ContainsTerm](const FStringView& Line)
+						{
+							if (result.IsEmpty() && Line.Contains(ContainsTerm))
+							{
+								result = Line;
+							}
+						});
+
+					return result;
+				};
+
+				// Parse vulkan version:
+				auto MajorVK = [](uint32 Version) { return (((uint32_t)(Version) >> 22) & 0x7FU); };
+				auto MinorVK = [](uint32 Version) { return (((uint32_t)(Version) >> 12) & 0x3FFU); };
+				auto PatchVK = [](uint32 Version) { return ((uint32_t)(Version) & 0xFFFU); };
+				FString FeaturesString;
+				const FString FeaturesStringCommand = FString::Printf(TEXT("-s %s shell pm list features"), *NewDeviceInfo.SerialNumber);
+				if (ExecuteAdbCommand(*FeaturesStringCommand, &FeaturesString, nullptr))
+				{
+					FString VulkanVersionLine = FindLineContaining(FeaturesString, TEXT("android.hardware.vulkan.version"));
+					const FRegexPattern RegexPattern(TEXT("android\\.hardware\\.vulkan\\.version=(\\d*)"));
+					FRegexMatcher RegexMatcher(RegexPattern, *VulkanVersionLine);
+					if (RegexMatcher.FindNext())
+					{
+						uint32 PackedVersion = (uint32)FCString::Atoi64(*RegexMatcher.GetCaptureGroup(1));
+						NewDeviceInfo.VulkanVersion = FString::Printf(TEXT("%d.%d.%d"), MajorVK(PackedVersion), MinorVK(PackedVersion), PatchVK(PackedVersion));
+					}
+				}
+
+				// try vkjson:
+				FString VKJsonString;
+				const FString VKJsonStringCommand = FString::Printf(TEXT("-s %s shell cmd gpu vkjson"), *NewDeviceInfo.SerialNumber);
+				if (ExecuteAdbCommand(*VKJsonStringCommand, &VKJsonString, nullptr))
+				{
+					FString VulkanVersionLine = FindLineContaining(VKJsonString, TEXT("apiVersion"));
+
+					const FRegexPattern RegexPattern(TEXT("\"apiVersion\"\\s*:\\s*(\\d*)"));
+ 					FRegexMatcher RegexMatcher(RegexPattern, *VulkanVersionLine);
+ 					if (RegexMatcher.FindNext())
+					{
+						FString VulkanVersion = RegexMatcher.GetCaptureGroup(1);
+						uint32 PackedVersion = (uint32)FCString::Atoi64(*VulkanVersion);
+						if(PackedVersion>0)
+						{
+							NewDeviceInfo.VulkanVersion = FString::Printf(TEXT("%d.%d.%d"), MajorVK(PackedVersion), MinorVK(PackedVersion), PatchVK(PackedVersion));
+						}
+					}
+				}
+				
+				if(NewDeviceInfo.VulkanVersion.IsEmpty())
+				{
+					NewDeviceInfo.VulkanVersion = TEXT("0.0.0");
+				}
+
+				// create the hardware field
+				FString HardwareCommand = FString::Printf(TEXT("-s %s %s ro.hardware"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
+				FString RoHardware;
+				{
+					ExecuteAdbCommand(*HardwareCommand, &RoHardware, nullptr);
+					const TCHAR* Ptr = *RoHardware;
+					FParse::Line(&Ptr, NewDeviceInfo.Hardware);
+				}
+				if (RoHardware.Contains(TEXT("qcom")))
+				{
+					HardwareCommand = FString::Printf(TEXT("-s %s %s ro.hardware.chipname"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
+					ExecuteAdbCommand(*HardwareCommand, &RoHardware, nullptr);
+					const TCHAR* Ptr = *RoHardware;
+					FParse::Line(&Ptr, NewDeviceInfo.Hardware);
+				}
+
+				// Read hardware from cpuinfo:
+				FString CPUInfoString;
+				const FString CPUInfoCommand = FString::Printf(TEXT("-s %s shell cat /proc/cpuinfo"), *NewDeviceInfo.SerialNumber);
+				if (ExecuteAdbCommand(*CPUInfoCommand, &CPUInfoString, nullptr))
+				{
+					FString HardwareLine = FindLineContaining(CPUInfoString, TEXT("Hardware"));
+
+					const FRegexPattern RegexPattern(TEXT("Hardware\\s*:\\s*(.*)"));
+					FRegexMatcher RegexMatcher(RegexPattern, *HardwareLine);
+					if (RegexMatcher.FindNext())
+					{
+						NewDeviceInfo.Hardware = RegexMatcher.GetCaptureGroup(1);
+					}
+				}
+
+				// Total physical mem:
+				FString MemTotalString;
+				const FString MemTotalCommand = FString::Printf(TEXT("-s %s shell cat /proc/meminfo"), *NewDeviceInfo.SerialNumber);
+				if (ExecuteAdbCommand(*MemTotalCommand, &MemTotalString, nullptr))
+				{
+					FString MemTotalLine = FindLineContaining(MemTotalString, TEXT("MemTotal"));
+
+					const FRegexPattern RegexPattern(TEXT("MemTotal:\\s*(\\d*)"));
+					FRegexMatcher RegexMatcher(RegexPattern, *MemTotalLine);
+					if (RegexMatcher.FindNext())
+					{
+						NewDeviceInfo.TotalPhysicalKB = (uint32)FCString::Atoi64(*RegexMatcher.GetCaptureGroup(1));
+					}
 				}
 
 				// parse the device name
@@ -727,9 +853,13 @@ public:
 			DeviceSpecs.AndroidProperties.DeviceMake = DeviceInfo->DeviceBrand;
 			DeviceSpecs.AndroidProperties.GLVersion = DeviceInfo->OpenGLVersionString;
 			DeviceSpecs.AndroidProperties.GPUFamily = DeviceInfo->GPUFamilyString;
-			DeviceSpecs.AndroidProperties.VulkanVersion = "0.0.0";
+			DeviceSpecs.AndroidProperties.VulkanVersion = DeviceInfo->VulkanVersion;
+			DeviceSpecs.AndroidProperties.Hardware = DeviceInfo->Hardware;
+			DeviceSpecs.AndroidProperties.DeviceBuildNumber = DeviceInfo->BuildNumber;
+			DeviceSpecs.AndroidProperties.TotalPhysicalGB = FString::Printf(TEXT("%d"),(((uint64)DeviceInfo->TotalPhysicalKB + 1024 * 1024 - 1) / 1024 / 1024));
+			
 			DeviceSpecs.AndroidProperties.UsingHoudini = false;
-			DeviceSpecs.AndroidProperties.VulkanAvailable = false;
+			DeviceSpecs.AndroidProperties.VulkanAvailable = !(DeviceInfo->VulkanVersion.IsEmpty() || DeviceInfo->VulkanVersion.Contains(TEXT("0.0.0")));
 
 			// OpenGL ES 3.x
 			bOpenGL3x = DeviceInfo->OpenGLVersionString.Contains(TEXT("OpenGL ES 3"));
@@ -751,8 +881,9 @@ public:
 		// create a JSon object from the above structure
 		TSharedPtr<FJsonObject> JsonObject = FJsonObjectConverter::UStructToJsonObject<FPIEPreviewDeviceSpecifications>(DeviceSpecs);
 
-		// remove IOS fields
+		// remove IOS and switch fields
 		JsonObject->RemoveField("IOSProperties");
+		JsonObject->RemoveField("switchProperties");
 
 		// serialize the JSon object to string
 		FString OutputString;

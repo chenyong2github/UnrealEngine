@@ -4,10 +4,10 @@
 #include "Containers/SortedMap.h"
 #include "IMovieScenePlayer.h"
 #include "MovieSceneSequence.h"
-#include "MovieSceneSequence.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Stats/Stats2.h"
 
 #include "IMovieSceneModule.h"
 #include "Algo/Sort.h"
@@ -107,6 +107,11 @@ void FMovieSceneTrackEvaluator::Evaluate(FMovieSceneContext Context, IMovieScene
 		CallSetupTearDown(Player);
 		return;
 	}
+
+#if STATS || ENABLE_STATNAMEDEVENTS
+	const bool bShouldTrackObject = Stats::IsThreadCollectingData();
+	FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? OverrideRootSequence : nullptr);
+#endif
 
 	const FMovieSceneEvaluationGroup* GroupToEvaluate = SetupFrame(OverrideRootSequence, InOverrideRootID, Context);
 	if (!GroupToEvaluate)

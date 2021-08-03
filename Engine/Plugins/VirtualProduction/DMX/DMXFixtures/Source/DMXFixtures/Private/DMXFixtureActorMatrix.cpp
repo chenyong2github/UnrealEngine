@@ -199,37 +199,39 @@ void ADMXFixtureActorMatrix::UpdateMatrixData(int32 RowIndex, int32 CellIndex, i
 }
 
 // NB: Matrix data and effects are hardcoded for now - We could expose that to BP later
-// Cells should always come in following [top-left to bottom-right] convention
 void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FixtureActorMatrixPushFixtureMatrixCellData);
 
 	if (HasBeenInitialized)
 	{
-		// Get current components (supports PIE)
-		TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
-		GetComponents<UDMXFixtureComponent>(DMXComponents);
-
 		// get fixture patch
 		UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
 
-		for (int CurrentCellIndex = 0; CurrentCellIndex < Cells.Num(); CurrentCellIndex++)
+		if (FixturePatch)
+		{
+			for (int32 CellIndex = 0; CellIndex < Cells.Num(); CellIndex++)
 		{
 			TMap<FDMXAttributeName, float> NormalizedValuePerAttribute;
-			const FDMXCell& Cell = Cells[CurrentCellIndex];
-			FixturePatch->GetNormalizedMatrixCellValues(Cell.Coordinate, NormalizedValuePerAttribute);
+				FixturePatch->GetNormalizedMatrixCellValues(Cells[CellIndex].Coordinate, NormalizedValuePerAttribute);
 
-			for (auto& DMXComponent : DMXComponents)
+				for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
 			{
 				if (DMXComponent->bIsEnabled && DMXComponent->bUsingMatrixData)
 				{
 					// set current cell reference
-					DMXComponent->SetCurrentCell(CurrentCellIndex);
+						if (bIgnorePixelMappingDistributionOfFixturePatch)
+						{
+							DMXComponent->SetCurrentCell(Cells[CellIndex].CellID - 1);
+						}
+						else
+						{
+							DMXComponent->SetCurrentCell(CellIndex);
+						}
 
+						if (UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
+						{
 					// Color component
-					UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
-					if(ColorComponent)
-					{
 						if (FLinearColor* CurrentTargetColorPtr = ColorComponent->CurrentTargetColorRef)
 						{
 							const float* FirstTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel1);
@@ -249,44 +251,42 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 								ColorComponent->SetTargetColor(NewTargetColor);
 
 								// pack data in Matrix structure
-								UpdateMatrixData(0, CurrentCellIndex, 0, NewTargetColor.B);
-								UpdateMatrixData(0, CurrentCellIndex, 1, NewTargetColor.G);
-								UpdateMatrixData(0, CurrentCellIndex, 2, NewTargetColor.R);
-								UpdateMatrixData(0, CurrentCellIndex, 3, NewTargetColor.A);
+									UpdateMatrixData(0, CellIndex, 0, NewTargetColor.B);
+									UpdateMatrixData(0, CellIndex, 1, NewTargetColor.G);
+									UpdateMatrixData(0, CellIndex, 2, NewTargetColor.R);
+									UpdateMatrixData(0, CellIndex, 3, NewTargetColor.A);
 							}
 						}
 					}
-
+						else if (UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent))
+						{
 					// Single channel component - hardcoded for now
-					UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent);
-					if(SingleComponent)
-					{
-						float* d1 = NormalizedValuePerAttribute.Find(SingleComponent->DMXChannel.Name.Name);
-						int ChannelIndex = 0;
-						if (d1)
+							float* D1 = NormalizedValuePerAttribute.Find(SingleComponent->DMXChannel.Name.Name);
+							if (D1)
 						{
 							if (SingleComponent->DMXChannel.Name.Name == FName("Dimmer"))
 							{
-								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
+									const float TargetValue = SingleComponent->NormalizedToAbsoluteValue(*D1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
-									UpdateMatrixData(0, CurrentCellIndex, 3, TargetValue);
+										UpdateMatrixData(0, CellIndex, 3, TargetValue);
 								}
 							}
 							else if (SingleComponent->DMXChannel.Name.Name == FName("Pan"))
 							{
-								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
+									const float TargetValue = SingleComponent->NormalizedToAbsoluteValue(*D1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
-									UpdateMatrixData(1, CurrentCellIndex, 0, TargetValue);
+										UpdateMatrixData(1, CellIndex, 0, TargetValue);
 								}
 							}
 							else if (SingleComponent->DMXChannel.Name.Name == FName("Tilt"))
 							{
-								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
+									const float TargetValue = SingleComponent->NormalizedToAbsoluteValue(*D1);
 								if (SingleComponent->IsTargetValid(TargetValue))
 								{
-									UpdateMatrixData(1, CurrentCellIndex, 1, TargetValue);
+										UpdateMatrixData(1, CellIndex, 1, TargetValue);
+									}
 								}
 							}
 						}
@@ -304,7 +304,6 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 		SpotLight->SetIntensity(LightIntensityMax * MatrixAverageColor.A);
 	}
 }
-
 
 FLinearColor ADMXFixtureActorMatrix::GetMatrixAverageColor()
 {

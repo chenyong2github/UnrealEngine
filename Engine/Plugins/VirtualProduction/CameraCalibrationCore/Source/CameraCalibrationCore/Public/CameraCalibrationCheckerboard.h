@@ -44,23 +44,23 @@ public:
 	USceneComponent* Root;
 
 	/** TopLeft calibration point */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Calibration")
 	UCalibrationPointComponent* TopLeft;
 
 	/** TopRight calibration point */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Calibration")
 	UCalibrationPointComponent* TopRight;
 
 	/** BottomLeft calibration point */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Calibration")
 	UCalibrationPointComponent* BottomLeft;
 
 	/** BottomRight calibration point */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Calibration")
 	UCalibrationPointComponent* BottomRight;
 
 	/** Center calibration point */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Calibration")
 	UCalibrationPointComponent* Center;
 
 

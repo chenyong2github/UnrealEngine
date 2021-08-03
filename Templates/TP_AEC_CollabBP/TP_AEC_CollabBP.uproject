@@ -69,7 +69,26 @@
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
 				"Lumin",
-				"Mac",
+				"Win64"
+			]
+		},
+		{
+			"Name": "DatasmithRuntime",
+			"Enabled": true
+		},
+		{
+			"Name": "OpenXR",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win32",
+				"Win64"
+			]
+		},
+		{
+			"Name": "OculusVR",
+			"Enabled": false,
+			"SupportedTargetPlatforms": [
+				"Win32",
 				"Win64"
 			]
 		},
@@ -78,41 +97,7 @@
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
 				"Win32",
-				"Win64",
-				"Linux"
-			]
-		},
-		{
-			"Name": "DatasmithRuntime",
-			"Enabled": true
-		},
-		{
-			"Name": "OculusVR",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Win32",
-				"Win64",
-				"Android"
-			]
-		},
-		{
-			"Name": "OculusOpenXR",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win32",
-				"Win64",
-				"Android"
-			]
-		},
-		{
-			"Name": "OpenXR",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win32",
-				"Win64",
-				"Linux",
-				"Android",
-				"HoloLens"
+				"Win64"
 			]
 		}
 	]

@@ -82,15 +82,13 @@ void UDataprepAsset::PostLoad()
 			bMarkDirty = true;
 		}
 
-		// Mark the asset as dirty to indicate asset's properties have changed
 		if(bMarkDirty)
 		{
+			// Inform user asset has changed and needs to be saved
 			const FText AssetName = FText::FromString( GetName() );
 			const FText WarningMessage = FText::Format( LOCTEXT( "DataprepAssetOldVersion", "{0} is from an old version and has been updated. Please save asset to complete update."), AssetName );
 			const FText NotificationText = FText::Format( LOCTEXT( "DataprepAssetOldVersionNotif", "{0} is from an old version and has been updated."), AssetName );
 			DataprepCorePrivateUtils::LogMessage( EMessageSeverity::Warning, WarningMessage, NotificationText );
-
-			GetOutermost()->SetDirtyFlag(true);
 		}
 	}
 }

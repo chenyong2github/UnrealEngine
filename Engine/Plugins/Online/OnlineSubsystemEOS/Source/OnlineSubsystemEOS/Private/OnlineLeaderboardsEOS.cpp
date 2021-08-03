@@ -265,9 +265,6 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 		EOS_Leaderboards_CopyLeaderboardRecordByIndexOptions CopyOptions = { };
 		CopyOptions.ApiVersion = EOS_LEADERBOARDS_COPYLEADERBOARDRECORDBYINDEX_API_LATEST;
 
-		char EpicIdStr[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH];
-		int32 EpicIdStrSize = EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH;
-
 		EOS_Connect_GetProductUserIdMappingOptions Options = { };
 		Options.ApiVersion = EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST;
 		Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
@@ -282,22 +279,21 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 			EOS_EResult Result = EOS_Leaderboards_CopyLeaderboardRecordByIndex(EOSSubsystem->LeaderboardsHandle, &CopyOptions, &Record);
 			if (Result == EOS_EResult::EOS_Success)
 			{
+				char EpicIdStr[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH+1];
+				int32 EpicIdStrSize = sizeof(EpicIdStr);
 				Options.TargetProductUserId = Record->UserId;
-				FString Nickname = Record->UserDisplayName;
 
 				Result = EOS_Connect_GetProductUserIdMapping(EOSSubsystem->ConnectHandle, &Options, EpicIdStr, &EpicIdStrSize);
 				if (Result == EOS_EResult::EOS_Success)
 				{
-					EOS_EpicAccountId AccountId = EOS_EpicAccountId_FromString(EpicIdStr);
-
-					// Make sure we have something to display
+					FString Nickname = UTF8_TO_TCHAR(Record->UserDisplayName);
 					if (Nickname.IsEmpty())
 					{
 						Nickname = TEXT("Unknown Player");
 					}
+					const EOS_EpicAccountId AccountId = EOS_EpicAccountId_FromString(EpicIdStr);
+					const FUniqueNetIdEOSRef NetId = FUniqueNetIdEOS::Create(MakeNetIdStringFromIds(AccountId, Record->UserId));
 
-					// Add the leaderboard entry in
-					FUniqueNetIdEOSRef NetId = FUniqueNetIdEOS::Create(MakeNetIdStringFromIds(AccountId, Record->UserId));
 					FOnlineStatsRow* Row = new(LambdaReadObject->Rows) FOnlineStatsRow(Nickname, NetId);
 					Row->Rank = Record->Rank;
 					Row->Columns.Add(LambdaReadObject->SortedColumn, FVariantData(Record->Score));

@@ -166,6 +166,9 @@ private:
 	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth < 0.5f ? 0.5f : InWidth; }
 
 	/** Callback to track property changes */
+	void OnObjectPropertyChanged(UObject* InObject, struct FPropertyChangedEvent& InEvent);
+
+	/** Callback to track property changes */
 	void OnPropertyChanged(const struct FPropertyChangedEvent& InEvent);
 
 	/** Callback used to detect the existence of a new object to display after a re-instancing process */
@@ -202,7 +205,7 @@ private:
 	/** Struct to be detailed. */
 	TSharedPtr<FStructOnScope> Struct;
 
-	/** Delegate handle to track property changes. */
+	/** Delegate handle to track property changes (from this widget). */
 	FDelegateHandle OnPropertyChangedHandle;
 
 	/** Delegate handle to track new object after a re-instancing process. */
@@ -210,6 +213,9 @@ private:
 
 	/** Delegate handle to track when a object was transacted. */
 	FDelegateHandle OnObjectTransactedHandle;
+
+	/** Delegate handle to track property changes (from FCoreUObjectDelegates). */
+	FDelegateHandle OnObjectPropertyChangedHandle;
 
 	/** Relative width to control splitters. */
 	float ColumnWidth = 0;

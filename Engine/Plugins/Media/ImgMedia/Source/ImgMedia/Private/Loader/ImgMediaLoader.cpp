@@ -36,6 +36,22 @@ DECLARE_CYCLE_STAT(TEXT("ImgMedia Loader Release Cache"), STAT_ImgMedia_LoaderRe
 
 constexpr int32 FImgMediaLoader::MAX_MIPMAP_LEVELS;
 
+namespace ImgMediaLoader
+{
+	void CheckAndUpdateImgDimensions(FIntPoint& InOutSequenceDim, const FIntPoint& InNewDim)
+	{
+		if (InOutSequenceDim != InNewDim)
+		{
+			// This means that image sequence has inconsistent dimension and user needs to be made aware.
+			UE_LOG(LogImgMedia, Warning, TEXT("Image sequence has inconsistent dimensions. The original sequence dimension (%d%d) is changed to the new dimension (%d%d)."),
+				InOutSequenceDim.X, InOutSequenceDim.Y, InNewDim.X, InNewDim.Y);
+
+			InOutSequenceDim = InNewDim;
+		}
+	}
+	
+}
+
 /* FImgMediaLoader structors
  *****************************************************************************/
 
@@ -150,6 +166,8 @@ TSharedPtr<FImgMediaTextureSample, ESPMode::ThreadSafe> FImgMediaLoader::GetFram
 
 	auto Sample = MakeShared<FImgMediaTextureSample, ESPMode::ThreadSafe>();
 	
+	ImgMediaLoader::CheckAndUpdateImgDimensions(SequenceDim, Frame->Get()->Info.Dim);
+
 	if (!Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameStartTime, 0), NextStartTime - FrameStartTime, GetNumMipLevels()))
 	{
 		return nullptr;
@@ -406,6 +424,9 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 					// We are clear to return it as new result... Make a sample & initialize it...
 					auto Sample = MakeShared<FImgMediaTextureSample, ESPMode::ThreadSafe>();
 					auto Duration = Frame->Get()->Info.FrameRate.AsInterval();
+
+					ImgMediaLoader::CheckAndUpdateImgDimensions(SequenceDim, Frame->Get()->Info.Dim);
+
 					if (Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameNumberToTime(MaxIdx), QueuedSampleFetch.CurrentSequenceIndex), FTimespan::FromSeconds(Duration), GetNumMipLevels()))
 					{
 						OutSample = Sample;
@@ -744,7 +765,7 @@ void FImgMediaLoader::FindFiles(const FString& SequencePath, TArray<FString>& Ou
 	TArray<FString> FoundFiles;
 	IFileManager::Get().FindFiles(FoundFiles, *SequencePath, TEXT("*"));
 
-	UE_LOG(LogImgMedia, Warning, TEXT("Loader %p: Found %i image files in %s"), this, FoundFiles.Num(), *SequencePath);
+	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Found %i image files in %s"), this, FoundFiles.Num(), *SequencePath);
 
 	FoundFiles.Sort();
 
@@ -771,15 +792,35 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 	{
 		// Loop over all mip levels.
 		FString BaseMipDir = FPaths::GetPath(SequenceDir);
-		FString MipLevelString = SequenceDir.RightChop(Index + 1);
-		int32 MipLevel = FCString::Atoi(*MipLevelString);
-		while (MipLevel > 1)
+		int32 MipLevelWidth = 0;
+		int32 MipLevelHeight = 0;
+
+		// Getting both left and right components of resolution for mips.
+		{
+			FString MipLevelStringHeight = SequenceDir.RightChop(Index + 1);
+			FString MipLevelStringWidth = SequenceDir.LeftChop(SequenceDir.Len() - Index);
+			MipLevelHeight = FCString::Atoi(*MipLevelStringHeight);
+			int32 IndexLeft = MipLevelStringWidth.Len() - 1;
+			for (; IndexLeft > 0; IndexLeft--)
+			{
+				FString TempChop = MipLevelStringWidth.RightChop(IndexLeft);
+				if (!FCString::IsNumeric(*TempChop))
+		{
+					break;
+				}
+			}
+			MipLevelStringWidth = MipLevelStringWidth.RightChop(IndexLeft + 1);
+			MipLevelWidth = FCString::Atoi(*MipLevelStringWidth);
+		}
+
+		while (MipLevelWidth > 1 && MipLevelHeight > 1)
 		{
 			// Next level down.
-			MipLevel /= 2;
+			MipLevelWidth /= 2;
+			MipLevelHeight /= 2;
 
 			// Try and find files for this mip level.
-			FString MipDir = FPaths::Combine(BaseMipDir, FString::Printf(TEXT("%dx%d"), MipLevel, MipLevel));
+			FString MipDir = FPaths::Combine(BaseMipDir, FString::Printf(TEXT("%dx%d"), MipLevelWidth, MipLevelHeight));
 			TArray<FString> MipFiles;
 			FindFiles(MipDir, MipFiles);
 
@@ -936,7 +977,7 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 
 		if (!FramesToLoad.Contains(FrameNumber))
 		{
-			UE_LOG(LogImgMedia, Warning, TEXT("Loader %p: Removed Frame %i"), this, FrameNumber);
+			UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Removed Frame %i"), this, FrameNumber);
 			QueuedFrameNumbers.RemoveAtSwap(Idx);
 			Reader->CancelFrame(FrameNumber);
 		}

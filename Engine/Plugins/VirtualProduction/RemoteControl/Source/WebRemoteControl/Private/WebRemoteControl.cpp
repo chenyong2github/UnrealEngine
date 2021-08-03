@@ -8,7 +8,7 @@
 #include "IRemoteControlModule.h"
 #include "WebRemoteControlUtils.h"
 #include "RemoteControlRoute.h"
-#include "WebRemoteControlSettings.h"
+#include "RemoteControlSettings.h"
 #include "RemoteControlPreset.h"
 #include "WebSocketMessageHandler.h"
 
@@ -74,21 +74,28 @@ namespace WebRemoteControl
 			return nullptr;
 		}
 
-		FGuid Id{PropertyLabelOrId};
+		FGuid Id;
+		if (FGuid::ParseExact(PropertyLabelOrId, EGuidFormats::Digits, Id))
+		{
         if (TSharedPtr<EntityType> Entity = Preset->GetExposedEntity<EntityType>(Id).Pin())
         {
         	return Entity;
         }
+		}
+
 
 		return Preset->GetExposedEntity<EntityType>(Preset->GetExposedEntityId(*PropertyLabelOrId)).Pin();
 	}
 
 	URemoteControlPreset* GetPreset(FString PresetNameOrId)
 	{
-		FGuid Id{PresetNameOrId};
+		FGuid Id;
+		if (FGuid::ParseExact(PresetNameOrId, EGuidFormats::Digits, Id))
+		{
 		if (URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(Id))
 		{
 			return ResolvedPreset;
+		}
 		}
 
 		return IRemoteControlModule::Get().ResolvePreset(*PresetNameOrId);
@@ -108,8 +115,8 @@ void FWebRemoteControlModule::StartupModule()
 
 	WebSocketRouter = MakeShared<FWebsocketMessageRouter>();
 
-	HttpServerPort = GetDefault<UWebRemoteControlSettings>()->RemoteControlHttpServerPort;
-	WebSocketServerPort = GetDefault<UWebRemoteControlSettings>()->RemoteControlWebSocketServerPort;
+	HttpServerPort = GetDefault<URemoteControlSettings>()->RemoteControlHttpServerPort;
+	WebSocketServerPort = GetDefault<URemoteControlSettings>()->RemoteControlWebSocketServerPort;
 
 	WebSocketHandler = MakeUnique<FWebSocketMessageHandler>(&WebSocketServer, ActingClientId);
 
@@ -118,12 +125,12 @@ void FWebRemoteControlModule::StartupModule()
 
 	const bool bIsHeadless = !FApp::CanEverRender();
 
-	if ((!bIsHeadless && GetDefault<UWebRemoteControlSettings>()->bAutoStartWebServer) || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
+	if (!bIsHeadless && (GetDefault<URemoteControlSettings>()->bAutoStartWebServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0))
 	{
 		StartHttpServer();
 	}
 
-	if ((!bIsHeadless && GetDefault<UWebRemoteControlSettings>()->bAutoStartWebSocketServer) || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
+	if (!bIsHeadless && (GetDefault<URemoteControlSettings>()->bAutoStartWebSocketServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0))
 	{
 		StartWebSocketServer();
 	}
@@ -907,10 +914,22 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 	bool bSuccess = true;
 
+	RemoteControlProperty->EnableEditCondition();
+
 	for (UObject* Object : RemoteControlProperty->GetBoundObjects())
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
+		// Notify the handler before the change to ensure that the notification triggered by PostEditChange is ignored by the handler 
+		// if the client does not want remote change notifications.
+		if (ActingClientId.IsValid())
+		{
+			// Don't manually trigger a property change modification if this request gets converted to a function call.
+			if (ObjectRef.IsValid() && !RemoteControlPropertyUtilities::FindSetterFunction(ObjectRef.Property.Get(), ObjectRef.Object->GetClass()))
+			{
+				WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, Preset->GetFName(), RemoteControlProperty->GetId());
+			}
+		}
 		if (SetPropertyRequest.ResetToDefault)
 		{
 			// set interception flag as an extra argument {}
@@ -1592,50 +1611,40 @@ void FWebRemoteControlModule::InvokeWrappedRequest(const FRCRequestWrapper& Wrap
 #if WITH_EDITOR
 void FWebRemoteControlModule::RegisterSettings()
 {
-	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
-	{
-		TSharedPtr<ISettingsSection> SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "Remote Control Web Server",
-			LOCTEXT("RemoteControlWebServerSettingsName", "Remote Control Web Server"),
-			LOCTEXT("RemoteControlWebServerSettingsDescription", "Configure the Web Remote Control Server settings."),
-			GetMutableDefault<UWebRemoteControlSettings>());
-
-		SettingsSection->OnModified().BindRaw(this, &FWebRemoteControlModule::OnSettingsModified);
-	}
+	GetMutableDefault<URemoteControlSettings>()->OnSettingChanged().AddRaw(this, &FWebRemoteControlModule::OnSettingsModified);
 }
 
 void FWebRemoteControlModule::UnregisterSettings()
 {
-	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	if (UObjectInitialized())
 	{
-		SettingsModule->UnregisterSettings("Project", "Plugins", "WebRemoteControl");
+		GetMutableDefault<URemoteControlSettings>()->OnSettingChanged().RemoveAll(this);	
 	}
 }
 
-bool FWebRemoteControlModule::OnSettingsModified()
+void FWebRemoteControlModule::OnSettingsModified(UObject* Settings, FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const UWebRemoteControlSettings* Settings = GetDefault<UWebRemoteControlSettings>();
+	const URemoteControlSettings* RCSettings = CastChecked<URemoteControlSettings>(Settings);
 	const bool bIsWebServerStarted = HttpRouter.IsValid();
 	const bool bIsWebSocketServerStarted = WebSocketServer.IsRunning();
-	const bool bRestartHttpServer = Settings->RemoteControlHttpServerPort != HttpServerPort;
-	const bool bRestartWebSocketServer = Settings->RemoteControlWebSocketServerPort != WebSocketServerPort;
+	const bool bRestartHttpServer = RCSettings->RemoteControlHttpServerPort != HttpServerPort;
+	const bool bRestartWebSocketServer = RCSettings->RemoteControlWebSocketServerPort != WebSocketServerPort;
 
 	if ((bIsWebServerStarted && bRestartHttpServer)
-		|| (!bIsWebServerStarted && Settings->bAutoStartWebServer))
+		|| (!bIsWebServerStarted && RCSettings->bAutoStartWebServer))
 	{
-		HttpServerPort = Settings->RemoteControlHttpServerPort;
+		HttpServerPort = RCSettings->RemoteControlHttpServerPort;
 		StopHttpServer();
 		StartHttpServer();
 	}
 
 	if ((bIsWebSocketServerStarted && bRestartWebSocketServer)
-		|| (!bIsWebSocketServerStarted && Settings->bAutoStartWebSocketServer))
+		|| (!bIsWebSocketServerStarted && RCSettings->bAutoStartWebSocketServer))
 	{
-		WebSocketServerPort = Settings->RemoteControlWebSocketServerPort;
+		WebSocketServerPort = RCSettings->RemoteControlWebSocketServerPort;
 		StopWebSocketServer();
 		StartWebSocketServer();
 	}
-
-	return true;
 }
 
 #endif

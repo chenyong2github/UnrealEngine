@@ -22,7 +22,7 @@ enum class EDisplayClusterEyeStereoOffset : uint8
 
 
 /**
- * nDisplay camera component
+ * 3D point in space used to render nDisplay viewports from
  */
 UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay View Origin"))
 class DISPLAYCLUSTER_API UDisplayClusterCameraComponent
@@ -150,7 +150,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Gizmo", meta = (UIMin = "0", UIMax = "2.0", ClampMin = "0.01", ClampMax = "10.0", EditCondition = "bEnableGizmo"))
 	float GizmoScaleMultiplier;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UBillboardComponent* SpriteComponent;
 
 	UPROPERTY()

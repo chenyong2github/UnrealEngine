@@ -112,9 +112,10 @@ FReply SComboButton::OnButtonClicked()
 	// Focusing any newly-created widgets must occur after they have been added to the UI root.
 	FReply ButtonClickedReply = FReply::Handled();
 	
+	TSharedPtr<SWidget> WidgetToFocus = WidgetToFocusPtr.Pin();
+	
 	if (bIsFocusable)
 	{
-		TSharedPtr<SWidget> WidgetToFocus = WidgetToFocusPtr.Pin();
 		if (!WidgetToFocus.IsValid())
 		{
 			// no explicitly focused widget, try to focus the content that is a child of the border
@@ -135,12 +136,12 @@ FReply SComboButton::OnButtonClicked()
 			// no content, so try to focus the original widget set on construction
 			WidgetToFocus = ContentWidgetPtr.Pin();
 		}
+	}
 
 		if (WidgetToFocus.IsValid())
 		{
 			ButtonClickedReply.SetUserFocus(WidgetToFocus.ToSharedRef(), EFocusCause::SetDirectly);
 		}
-	}
 
 	return ButtonClickedReply;
 }

@@ -621,6 +621,7 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 	MaxVirtualMemory = 0;
 	MinPhysicalMemory = ULONG_MAX;
 	MinVirtualMemory = ULONG_MAX;
+	MinAvailablePhysicalMemory = ULONG_MAX;
 	TotalPhysicalMemoryUsed = 0;
 	TotalVirtualMemoryUsed = 0;
 
@@ -704,6 +705,7 @@ void FPerformanceTrackingChart::AccumulateWith(const FPerformanceTrackingChart& 
 	MaxVirtualMemory = FMath::Min(MaxVirtualMemory, Chart.MaxVirtualMemory);
 	MinPhysicalMemory = FMath::Min(MinPhysicalMemory, Chart.MinPhysicalMemory);
 	MinVirtualMemory = FMath::Min(MinVirtualMemory, Chart.MinVirtualMemory);
+	MinAvailablePhysicalMemory = FMath::Min(MinAvailablePhysicalMemory, Chart.MinAvailablePhysicalMemory);
 	TotalPhysicalMemoryUsed += Chart.TotalPhysicalMemoryUsed;
 	TotalVirtualMemoryUsed += Chart.TotalVirtualMemoryUsed;
 }
@@ -798,6 +800,7 @@ void FPerformanceTrackingChart::ProcessFrame(const FFrameData& FrameData)
 		MaxVirtualMemory = FMath::Max(MaxVirtualMemory, static_cast<uint64>(MemoryStats.UsedVirtual));
 		MinPhysicalMemory = FMath::Min(MinPhysicalMemory, static_cast<uint64>(MemoryStats.UsedPhysical));
 		MinVirtualMemory = FMath::Min(MinVirtualMemory, static_cast<uint64>(MemoryStats.UsedVirtual));
+		MinAvailablePhysicalMemory = FMath::Min(MinAvailablePhysicalMemory, static_cast<uint64>(MemoryStats.GetAvailablePhysical(true)));
 		TotalPhysicalMemoryUsed += MemoryStats.UsedPhysical;
 		TotalVirtualMemoryUsed += MemoryStats.UsedVirtual;
 

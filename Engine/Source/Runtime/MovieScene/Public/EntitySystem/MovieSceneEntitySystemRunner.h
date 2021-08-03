@@ -39,7 +39,7 @@ public:
 	/** Attach this runner to a linker */
 	void AttachToLinker(UMovieSceneEntitySystemLinker* InLinker);
 	/** Returns whether this runner is attached to a linker */
-	bool IsAttachedToLinker() const { return Linker != nullptr; }
+	bool IsAttachedToLinker() const;
 	/** Detaches this runner from a linker */
 	void DetachFromLinker();
 
@@ -67,9 +67,9 @@ public:
 
 public:
 
-	UMovieSceneEntitySystemLinker* GetLinker() { return Linker; }
-	FEntityManager* GetEntityManager();
-	FInstanceRegistry* GetInstanceRegistry();
+	UMovieSceneEntitySystemLinker* GetLinker() const;
+	FEntityManager* GetEntityManager() const;
+	FInstanceRegistry* GetInstanceRegistry() const;
 
 public:
 	
@@ -114,7 +114,7 @@ private:
 	};
 
 	/** Owner linker */
-	UMovieSceneEntitySystemLinker* Linker;
+	TWeakObjectPtr<UMovieSceneEntitySystemLinker> WeakLinker;
 
 	/** Queue of sequence instances to be updated */
 	TArray<FMovieSceneUpdateRequest> UpdateQueue;

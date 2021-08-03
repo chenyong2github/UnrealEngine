@@ -47,6 +47,7 @@
 #include "MaterialShaderQualitySettings.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "ShaderCompilerCore.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -3574,7 +3575,7 @@ void UMaterialInstance::PostLoad()
 #if WITH_EDITOR && 1
 		// enable caching in postload for derived data cache commandlet and cook by the book
 		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-		if (TPM && (TPM->RestrictFormatsToRuntimeOnly() == false)) 
+		if (TPM && (TPM->RestrictFormatsToRuntimeOnly() == false) && AllowShaderCompiling()) 
 		{
 			TArray<ITargetPlatform*> Platforms = TPM->GetActiveTargetPlatforms();
 			// Cache for all the shader formats that the cooking target requires

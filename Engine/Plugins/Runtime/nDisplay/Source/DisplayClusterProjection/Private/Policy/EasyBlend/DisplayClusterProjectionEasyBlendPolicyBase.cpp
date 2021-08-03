@@ -80,7 +80,7 @@ void FDisplayClusterProjectionEasyBlendPolicyBase::HandleEndScene(class IDisplay
 {
 	check(IsInGameThread());
 
-	ReleaseOriginComponent(InViewport);
+	ReleaseOriginComponent();
 }
 
 void FDisplayClusterProjectionEasyBlendPolicyBase::ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* InViewportProxy)

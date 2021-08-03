@@ -604,41 +604,65 @@ void UNiagaraMeshRendererProperties::GetAdditionalVariables(TArray<FNiagaraVaria
 
 void UNiagaraMeshRendererProperties::GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
 {
-	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
+	TSharedRef<SWidget> DefaultThumbnailWidget = SNew(SImage)
+		.Image(FSlateIconFinder::FindIconBrushForClass(StaticClass()));
+
 	int32 ThumbnailSize = 32;
-	TArray<UMaterialInterface*> Materials;
-	GetUsedMaterials(InEmitter, Materials);
-	for (UMaterialInterface* Material : Materials)
+	for(const FNiagaraMeshRendererMeshProperties& MeshProperties : Meshes)
 	{
-		TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(Material, ThumbnailSize, ThumbnailSize, InThumbnailPool));
-		if (AssetThumbnail)
+		TSharedPtr<SWidget> ThumbnailWidget = DefaultThumbnailWidget;
+
+		UStaticMesh* Mesh = MeshProperties.Mesh;
+		if (Mesh && Mesh->HasValidRenderData())
 		{
+			TSharedPtr<FAssetThumbnail> AssetThumbnail = MakeShareable(new FAssetThumbnail(Mesh, ThumbnailSize, ThumbnailSize, InThumbnailPool));
 			ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
 		}
+		
 		OutWidgets.Add(ThumbnailWidget);
 	}
 
-	if (Materials.Num() == 0)
+	if (Meshes.Num() == 0)
 	{
-		TSharedRef<SWidget> SpriteWidget = SNew(SImage)
-			.Image(FSlateIconFinder::FindIconBrushForClass(GetClass()));
-		OutWidgets.Add(SpriteWidget);
+		OutWidgets.Add(DefaultThumbnailWidget);
 	}
 }
 
 void UNiagaraMeshRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
 {
-	TArray<UMaterialInterface*> Materials;
-	GetUsedMaterials(InEmitter, Materials);
-	if (Materials.Num() > 0)
+	TSharedRef<SWidget> DefaultMeshTooltip = SNew(STextBlock)
+			.Text(LOCTEXT("MeshRendererNoMat", "Mesh Renderer (No Mesh Set)"));
+	
+	TArray<TSharedPtr<SWidget>> RendererWidgets;
+	if (Meshes.Num() > 0)
 	{
-		GetRendererWidgets(InEmitter, OutWidgets, InThumbnailPool);
+		GetRendererWidgets(InEmitter, RendererWidgets, InThumbnailPool);
 	}
-	else
+	
+	for(int32 MeshIndex = 0; MeshIndex < Meshes.Num(); MeshIndex++)
 	{
-		TSharedRef<SWidget> MeshTooltip = SNew(STextBlock)
-			.Text(LOCTEXT("MeshRendererNoMat", "Mesh Renderer (No Material Set)"));
-		OutWidgets.Add(MeshTooltip);
+		const FNiagaraMeshRendererMeshProperties& MeshProperties = Meshes[MeshIndex];
+		
+		TSharedPtr<SWidget> TooltipWidget = DefaultMeshTooltip;		
+		// we make sure to reuse the mesh widget as a thumbnail if the mesh is valid
+		if(MeshProperties.ResolveStaticMesh(InEmitter))
+		{
+			TooltipWidget = RendererWidgets[MeshIndex];
+		}
+
+		// we override the previous thumbnail tooltip with a text indicating user parameter binding, if it exists
+		if(MeshProperties.UserParamBinding.Parameter.IsValid())
+		{
+			TooltipWidget = SNew(STextBlock)
+				.Text(FText::Format(LOCTEXT("MeshBoundTooltip", "Mesh slot is bound to user parameter {0}"), FText::FromName(MeshProperties.UserParamBinding.Parameter.GetName())));
+		}
+		
+		OutWidgets.Add(TooltipWidget);
+	}
+
+	if (Meshes.Num() == 0)
+	{
+		OutWidgets.Add(DefaultMeshTooltip);
 	}
 }
 

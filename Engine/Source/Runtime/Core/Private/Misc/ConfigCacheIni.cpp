@@ -968,9 +968,9 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
  * 
  * @param Contents Contents of the .ini file
  */
-void FConfigFile::ProcessInputFileContents(const FString& Contents)
+void FConfigFile::ProcessInputFileContents(FStringView Contents)
 {
-	const TCHAR* Ptr = Contents.Len() > 0 ? *Contents : nullptr;
+	const TCHAR* Ptr = Contents.Len() > 0 ? Contents.GetData() : nullptr;
 	FConfigSection* CurrentSection = nullptr;
 	TStringBuilder<128> TheLine;
 	bool Done = false;
@@ -1557,20 +1557,101 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite/* = true*/,
 	{
 		SectionTexts.Add(FString(), PrefixText);
 	}
-	return Write(Filename, bDoRemoteWrite, SectionTexts, SectionOrder);
+	return WriteInternal(Filename, bDoRemoteWrite, SectionTexts, SectionOrder);
 }
 
-bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder)
+void FConfigFile::WriteToString(FString& InOutText, const FString& SimulatedFilename /*= FString()*/, const FString& PrefixText /*= FString()*/)
+{
+	TMap<FString, FString> SectionTexts;
+	TArray<FString> SectionOrder;
+	if (!PrefixText.IsEmpty())
+	{
+		SectionTexts.Add(FString(), PrefixText);
+	}
+
+	int32 IniCombineThreshold = MAX_int32;
+	bool bIsADefaultIniWrite = IsADefaultIniWrite(SimulatedFilename, IniCombineThreshold);
+
+	WriteToStringInternal(InOutText, bIsADefaultIniWrite, IniCombineThreshold, SectionTexts, SectionOrder);
+}
+
+bool FConfigFile::IsADefaultIniWrite(const FString& Filename, int32& OutIniCombineThreshold) const
+{
+	bool bIsADefaultIniWrite = false;
+	{
+		// If we are writing to a default config file and this property is an array, we need to be careful to remove those from higher up the hierarchy
+		const FString AbsoluteFilename = FPaths::ConvertRelativePathToFull(Filename);
+		const FString AbsoluteGameGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::GeneratedConfigDir());
+		const FString AbsoluteGameAgnosticGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::GameAgnosticSavedDir(), TEXT("Config")) + TEXT("/"));
+		bIsADefaultIniWrite = !AbsoluteFilename.Contains(AbsoluteGameGeneratedConfigDir) && !AbsoluteFilename.Contains(AbsoluteGameAgnosticGeneratedConfigDir);
+	}
+
+	OutIniCombineThreshold = MAX_int32;
+	if (bIsADefaultIniWrite)
+	{
+		// find the filename in ini hierarchy
+		FString IniName = FPaths::GetCleanFilename(Filename);
+		for (const auto& HierarchyFileIt : SourceIniHierarchy)
+		{
+			if (FPaths::GetCleanFilename(HierarchyFileIt.Value.Filename) == IniName)
+			{
+				OutIniCombineThreshold = HierarchyFileIt.Key;
+				break;
+			}
+		}
+	}
+
+	return bIsADefaultIniWrite;
+}
+
+bool FConfigFile::WriteInternal(const FString& Filename, bool bDoRemoteWrite, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder)
 {
 	if( !Dirty || NoSave || FParse::Param( FCommandLine::Get(), TEXT("nowrite")) || 
 		(FParse::Param( FCommandLine::Get(), TEXT("Multiprocess"))  && !FParse::Param( FCommandLine::Get(), TEXT("MultiprocessSaveConfig"))) // Is can be useful to save configs with multiprocess if they are given INI overrides
 		) 
+	{
 		return true;
+	}
 
-	bool bAcquiredIniCombineThreshold = false;	// avoids extra work when writing multiple properties
 	int32 IniCombineThreshold = MAX_int32;
+	bool bIsADefaultIniWrite = IsADefaultIniWrite(Filename, IniCombineThreshold);	
 
 	FString Text;
+	WriteToStringInternal(Text, bIsADefaultIniWrite, IniCombineThreshold, InOutSectionTexts, InSectionOrder);
+
+	if (bDoRemoteWrite)
+	{
+		// Write out the remote version (assuming it was loaded)
+		FRemoteConfig::Get()->Write(*Filename, Text);
+	}
+
+	bool bResult = SaveConfigFileWrapper(*Filename, Text);
+
+#if INI_CACHE
+	// if we wrote the config successfully
+	if ( bResult && CacheKey.Len() > 0 )
+	{
+		check( Name != NAME_None );
+		ClearHierarchyCache(*Name.ToString());
+	}
+	
+	/*if (bResult && CacheKey.Len() > 0)
+	{
+		HierarchyCache.Add(CacheKey, *this);
+	}*/
+#endif
+
+	// File is still dirty if it didn't save.
+	Dirty = !bResult;
+
+	// Return if the write was successful
+	return bResult;
+}
+
+void FConfigFile::WriteToStringInternal(FString& InOutText, bool bIsADefaultIniWrite, int32 IniCombineThreshold, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder)
+{
+	const int32 InitialInOutTextSize = InOutText.Len();
+
 	// Estimate max size to reduce re-allocations (does not inspect actual properties for performance)
 	int32 InitialEstimatedFinalTextSize = 0;
 	int32 HighestPropertiesInSection = 0;
@@ -1581,21 +1662,12 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 	}
 	// Limit size estimate to avoid pre-allocating too much memory
 	InitialEstimatedFinalTextSize = FMath::Min(InitialEstimatedFinalTextSize, 128 * 1024 * 1024);
-	Text.Reserve(InitialEstimatedFinalTextSize);
+	InOutText.Reserve(InitialInOutTextSize + InitialEstimatedFinalTextSize);
 
 	TArray<FString> SectionOrder;
 	SectionOrder.Reserve(InSectionOrder.Num() + this->Num());
 	SectionOrder.Append(InSectionOrder);
 	InOutSectionTexts.Reserve(InSectionOrder.Num() + this->Num());
-
-	bool bIsADefaultIniWrite = false;
-	{
-		// If we are writing to a default config file and this property is an array, we need to be careful to remove those from higher up the hierarchy
-		const FString AbsoluteFilename = FPaths::ConvertRelativePathToFull(Filename);
-		const FString AbsoluteGameGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::GeneratedConfigDir());
-		const FString AbsoluteGameAgnosticGeneratedConfigDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::GameAgnosticSavedDir(), TEXT("Config")) + TEXT("/"));
-		bIsADefaultIniWrite = !AbsoluteFilename.Contains(AbsoluteGameGeneratedConfigDir) && !AbsoluteFilename.Contains(AbsoluteGameAgnosticGeneratedConfigDir);
-	}
 
 	TArray<const FConfigValue*> CompletePropertyToWrite;
 	FString PropertyNameString;
@@ -1628,7 +1700,7 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 #endif
 		}
 
-		Text.Reset();
+		InOutText.LeftInline(InitialInOutTextSize, false);
 		PropertiesAddedLookup.Reset();
 
 		for( FConfigSection::TConstIterator It2(Section); It2; ++It2 )
@@ -1650,14 +1722,14 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 				if ((bIsADefaultIniWrite || bIsCurrentIniVersion || !DoesConfigPropertyValueMatch(SourceConfigSection, PropertyName, PropertyValue)) && !bOptionIsFromCommandline)
 				{
 					// If this is the first property we are writing of this section, then print the section name
-					if( Text.Len() == 0 )
+					if( InOutText.Len() == InitialInOutTextSize )
 					{
-						Text.Appendf(TEXT("[%s]") LINE_TERMINATOR, *SectionName);
+						InOutText.Appendf(TEXT("[%s]") LINE_TERMINATOR, *SectionName);
 
 						// and if the section has any array of struct uniqueness keys, add them here
 						for (auto It = Section.ArrayOfStructKeys.CreateConstIterator(); It; ++It)
 						{
-							Text.Appendf(TEXT("@%s=%s") LINE_TERMINATOR, *It.Key().ToString(), *It.Value());
+							InOutText.Appendf(TEXT("@%s=%s") LINE_TERMINATOR, *It.Key().ToString(), *It.Value());
 						}
 					}
 
@@ -1667,23 +1739,8 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 
 					if( bIsADefaultIniWrite )
 					{
-						if (!bAcquiredIniCombineThreshold)
-						{
-							// find the filename in ini hierarchy
-							FString IniName = FPaths::GetCleanFilename(Filename);
-							for (const auto& HierarchyFileIt : SourceIniHierarchy)
-							{
-								if (FPaths::GetCleanFilename(HierarchyFileIt.Value.Filename) == IniName)
-								{
-									IniCombineThreshold = HierarchyFileIt.Key;
-									break;
-								}
-							}
-
-							bAcquiredIniCombineThreshold = true;
+						ProcessPropertyAndWriteForDefaults(IniCombineThreshold, CompletePropertyToWrite, InOutText, SectionName, PropertyName.ToString());
 						}
-						ProcessPropertyAndWriteForDefaults(IniCombineThreshold, CompletePropertyToWrite, Text, SectionName, PropertyName.ToString());
-					}
 					else
 					{
 						PropertyNameString.Reset(FName::StringBufferSize);
@@ -1691,7 +1748,7 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 						for (const FConfigValue* ConfigValue : CompletePropertyToWrite)
 						{
 							// Use GetSavedValueForWriting rather than GetSavedValue to avoid marking these values used during save to disk as having been accessed for dependency tracking
-							AppendExportedPropertyLine(Text, PropertyNameString, UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue));
+							AppendExportedPropertyLine(InOutText, PropertyNameString, UE::ConfigCacheIni::Private::FAccessor::GetSavedValueForWriting(*ConfigValue));
 						}
 					}
 
@@ -1702,14 +1759,14 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 
 		// If we didn't decide to write any properties on this section, then we don't add the section
 		// to the destination file
-		if (Text.Len() > 0)
+		if (InOutText.Len() > InitialInOutTextSize)
 		{
-			InOutSectionTexts.FindOrAdd(SectionName) = Text;
+			InOutSectionTexts.FindOrAdd(SectionName) = InOutText.RightChop(InitialInOutTextSize);
 
 			// Add the Section to SectionOrder in case it's not already there
 			SectionOrder.Add(SectionName);
 
-			EstimatedFinalTextSize += Text.Len() + 4;
+			EstimatedFinalTextSize += InOutText.Len() - InitialInOutTextSize + 4;
 		}
 		else
 		{
@@ -1718,7 +1775,8 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 	}
 
 	// Join all of the sections together
-	Text.Reset(EstimatedFinalTextSize);
+	InOutText.LeftInline(InitialInOutTextSize, false);
+	InOutText.Reserve(InitialInOutTextSize + EstimatedFinalTextSize);
 	TSet<FString> SectionNamesLeftToWrite;
 	SectionNamesLeftToWrite.Reserve(InOutSectionTexts.Num());
 	for (TPair<FString,FString>& kvpair : InOutSectionTexts)
@@ -1727,7 +1785,7 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 	}
 
 	static const FString BlankLine(LINE_TERMINATOR LINE_TERMINATOR);
-	auto AddSectionToText = [&Text, &InOutSectionTexts, &SectionNamesLeftToWrite](const FString& SectionName)
+	auto AddSectionToText = [&InOutText, &InOutSectionTexts, &SectionNamesLeftToWrite](const FString& SectionName)
 	{
 		FString* SectionText = InOutSectionTexts.Find(SectionName);
 		if (!SectionText)
@@ -1739,10 +1797,10 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 			// We already wrote this section
 			return;
 		}
-		Text.Append(*SectionText);
-		if (!Text.EndsWith(BlankLine, ESearchCase::CaseSensitive))
+		InOutText.Append(*SectionText);
+		if (!InOutText.EndsWith(BlankLine, ESearchCase::CaseSensitive))
 		{
-			Text.Append(LINE_TERMINATOR);
+			InOutText.Append(LINE_TERMINATOR);
 		}
 	};
 
@@ -1772,41 +1830,11 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 	}
 
 	// Ensure We have at least something to write
-	if (Text.Len() == 0)
+	if (InOutText.Len() == 0)
 	{
-		Text.Append(LINE_TERMINATOR);
+		InOutText.Append(LINE_TERMINATOR);
 	}
-
-	if (bDoRemoteWrite)
-	{
-		// Write out the remote version (assuming it was loaded)
-		FRemoteConfig::Get()->Write(*Filename, Text);
 	}
-
-	bool bResult = SaveConfigFileWrapper(*Filename, Text);
-
-#if INI_CACHE
-	// if we wrote the config successfully
-	if ( bResult && CacheKey.Len() > 0 )
-	{
-		check( Name != NAME_None );
-		ClearHierarchyCache(*Name.ToString());
-	}
-	
-	/*if (bResult && CacheKey.Len() > 0)
-	{
-		HierarchyCache.Add(CacheKey, *this);
-	}*/
-#endif
-
-	// File is still dirty if it didn't save.
-	Dirty = !bResult;
-
-	// Return if the write was successful
-	return bResult;
-}
-
-
 
 /** Adds any properties that exist in InSourceFile that this config file is missing */
 void FConfigFile::AddMissingProperties( const FConfigFile& InSourceFile )
@@ -4701,7 +4729,7 @@ void FConfigFile::UpdateSections(const TCHAR* DiskFilename, const TCHAR* IniRoot
 		LoadIniFileHierarchy(SourceIniHierarchy, *SourceConfigFile, true);
 	}
 
-	Write(DiskFilename, true, SectionTexts, SectionOrder);
+	WriteInternal(DiskFilename, true, SectionTexts, SectionOrder);
 }
 
 

@@ -12,17 +12,10 @@ class ULakeCollisionComponent;
 // ----------------------------------------------------------------------------------
 
 UCLASS(MinimalAPI)
-class ULakeGenerator : public UWaterBodyGenerator
+class UDEPRECATED_LakeGenerator : public UDEPRECATED_WaterBodyGenerator
 {
 	GENERATED_UCLASS_BODY()
-
 public:
-	virtual void Reset() override;
-	virtual void OnUpdateBody(bool bWithExclusionVolumes) override;
-	virtual void PostLoad() override;
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
-
-private:
 	UPROPERTY(NonPIEDuplicateTransient)
 	UStaticMeshComponent* LakeMeshComp;
 
@@ -39,18 +32,12 @@ UCLASS(Blueprintable)
 class WATER_API AWaterBodyLake : public AWaterBody
 {
 	GENERATED_UCLASS_BODY()
-
-public:
-	/** AWaterBody Interface */
-	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Lake; }
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
-
 protected:
-	/** AWaterBody Interface */
-	virtual void InitializeBody() override;
-	virtual bool IsBodyInitialized() const override { return !!LakeGenerator; }
-	virtual void UpdateWaterBody(bool bWithExclusionVolumes) override;
+	virtual void PostLoad() override;
+	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Lake; }
 
-	UPROPERTY(NonPIEDuplicateTransient)
-	ULakeGenerator* LakeGenerator;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	UDEPRECATED_LakeGenerator* LakeGenerator_DEPRECATED;
+#endif
 };

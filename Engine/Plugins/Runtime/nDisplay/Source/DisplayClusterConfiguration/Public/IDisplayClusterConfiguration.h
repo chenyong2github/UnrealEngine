@@ -45,6 +45,17 @@ public:
 	}
 
 public:
+
+	/**
+	 * Sets the transaction flags so that we don't necessarily re-run the construction scripts all the time.
+	 */
+	virtual void SetIsSnapshotTransacting(bool bIsSnapshot) = 0;
+
+	/**
+	 * Gets the current transaction snapshot status.
+	 */
+	virtual bool IsTransactingSnapshot() const = 0;
+
 	/**
 	* Returns version of a specified config file
 	*

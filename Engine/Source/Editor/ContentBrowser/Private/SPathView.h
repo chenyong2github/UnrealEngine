@@ -193,6 +193,9 @@ public:
 	/** Get paths to select by default */
 	TArray<FName> GetDefaultPathsToSelect() const;
 
+	/** Get list of root path item names */
+	TArray<FName> GetRootPathItemNames() const;	
+
 protected:
 	/** Expands all parents of the specified item */
 	void RecursiveExpandParents(const TSharedPtr<FTreeItem>& Item);

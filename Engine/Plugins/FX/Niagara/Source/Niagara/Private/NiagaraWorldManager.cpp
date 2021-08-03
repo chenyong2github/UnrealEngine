@@ -25,6 +25,11 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraCullProxyComponent.h"
 
+#if WITH_EDITORONLY_DATA
+#include "EditorViewportClient.h"
+#include "LevelEditorViewport.h"
+#endif
+
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Update Scalability Managers [GT]"), STAT_UpdateScalabilityManagers, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorldManWaitOnRender, STATGROUP_Niagara);
@@ -470,6 +475,9 @@ void FNiagaraWorldManager::DestroySystemSimulation(UNiagaraSystem* System)
 		TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>* Simulation = SystemSimulations[TG].Find(System);
 		if (Simulation != nullptr)
 		{
+			SimulationsWithPostActorWork.Remove(*Simulation);
+			SimulationsWithEndOfFrameWait.Remove(*Simulation);
+
 			(*Simulation)->Destroy();
 			SystemSimulations[TG].Remove(System);
 		}
@@ -527,6 +535,9 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 		SystemSimulations[TG].Empty();
 	}
 	CleanupParameterCollections();
+
+	SimulationsWithPostActorWork.Empty();
+	SimulationsWithEndOfFrameWait.Empty();
 
 	DeferredDeletionQueue.Empty();
 
@@ -846,6 +857,7 @@ void FNiagaraWorldManager::PreSendAllEndOfFrameUpdates()
 void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation)
 {
 	check(SystemSimulation != nullptr);
+	check(!SystemSimulation->GetIsSolo());
 	if ( !SimulationsWithPostActorWork.ContainsByPredicate([&](const TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>& Existing) { return &Existing.Get() == SystemSimulation; }) )
 	{
 		SimulationsWithPostActorWork.Add(SystemSimulation->AsShared());
@@ -855,6 +867,7 @@ void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulati
 void FNiagaraWorldManager::MarkSimulationsForEndOfFrameWait(FNiagaraSystemSimulation* SystemSimulation)
 {
 	check(SystemSimulation);
+	check(!SystemSimulation->GetIsSolo());
 	if (!SimulationsWithEndOfFrameWait.ContainsByPredicate([&](const TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>& Existing) { return &Existing.Get() == SystemSimulation; }))
 	{
 		SimulationsWithEndOfFrameWait.Add(SystemSimulation->AsShared());
@@ -950,6 +963,14 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		{
 			bCachedPlayerViewLocationsValid = false;
 		}
+
+#if WITH_EDITORONLY_DATA
+		if (GCurrentLevelEditingViewportClient && (GCurrentLevelEditingViewportClient->GetWorld() == World))
+		{
+			const FViewportCameraTransform& ViewTransform = GCurrentLevelEditingViewportClient->GetViewTransform();
+			CachedPlayerViewLocations.Add(ViewTransform.GetLocation());
+		}
+#endif
 
 		UpdateScalabilityManagers(DeltaSeconds, false);
 

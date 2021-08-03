@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4.download.datastructs;
+package com.epicgames.unreal.download.datastructs;
 
 //WARNING: We don't import org.json.JSONArray OR org.json.simple.JSONArray as we use both in this file
 import org.json.JSONException;
@@ -15,7 +15,7 @@ import java.io.FileReader;
 import java.util.List;
 import java.util.ArrayList;
 
-import com.epicgames.ue4.download.DownloadProgressListener;
+import com.epicgames.unreal.download.DownloadProgressListener;
 
 //Helper class that holds the necessary data to describe a single URL request and loading/saving that request to JSON strings.
 public class DownloadDescription
@@ -32,6 +32,8 @@ public class DownloadDescription
 	public int MaxRetryCount = 0;
 	//How many times we retry a single URL before moving on to the next one
 	public int IndividualURLRetryCount = 0;
+	//If our download has been completed and thus shouldn't be redownloaded
+	public boolean bHasCompleted = false;
 	
 	//
 	//Non-serialized members -- Used to track download information
@@ -206,6 +208,11 @@ public class DownloadDescription
 					ReturnedDescription.URLs.add(JSONURLs.optString(URLIndex));
 				}
 			}
+
+			if (false == jObject.isNull(bHasCompletedKey))
+			{
+				ReturnedDescription.bHasCompleted = jObject.optBoolean(bHasCompletedKey);
+		}
 		}
 		catch( JSONException e )
 		{
@@ -236,6 +243,7 @@ public class DownloadDescription
 			JSONObj.put(IndividualURLRetryCountKey, IndividualURLRetryCount);
 			JSONObj.put(RequestPriorityKey, RequestPriority);
 			JSONObj.put(GroupIDKey, GroupID);
+			JSONObj.put(bHasCompletedKey, bHasCompleted);
 		}
 		catch( JSONException e )
 		{
@@ -268,8 +276,8 @@ public class DownloadDescription
 		DownloadDescription CastOther = (DownloadDescription) Other;
 		
 		return ((CastOther.RequestID == this.RequestID) &&
-				(this.bIsCancelled == CastOther.bIsCancelled) &&
 				(this.MaxRetryCount == CastOther.MaxRetryCount) &&
+				(this.bHasCompleted == CastOther.bHasCompleted) &&
 				(this.IndividualURLRetryCount == CastOther.IndividualURLRetryCount) &&
 				(this.RequestPriority == CastOther.RequestPriority) &&
 				(this.HasNewURLs(CastOther)) &&
@@ -302,4 +310,5 @@ public class DownloadDescription
 	private static final String IndividualURLRetryCountKey = "IndividualURLRetryCount";
 	private static final String RequestPriorityKey = "RequestPriority";
 	private static final String GroupIDKey = "GroupId";
+	private static final String bHasCompletedKey = "bHasCompleted";
 }

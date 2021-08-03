@@ -3,8 +3,11 @@
 #include "DMXProtocolBlueprintLibrary.h"
 
 #include "DMXProtocolSettings.h"
-
+#include "DMXProtocolUtils.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "IO/DMXInputPortConfig.h"
+#include "IO/DMXOutputPortConfig.h"
+#include "IO/DMXPortManager.h"
 
 
 void UDMXProtocolBlueprintLibrary::SetSendDMXEnabled(bool bSendDMXEnabled, bool bAffectEditor)
@@ -35,4 +38,90 @@ bool UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled()
 {
 	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 	return ProtocolSettings->IsReceiveDMXEnabled();
+}
+
+TArray<FString> UDMXProtocolBlueprintLibrary::GetLocalDMXNetworkInterfaceCardIPs()
+{
+	TArray<FString> NetworkInterfaceCardIPs;
+
+	TArray<TSharedPtr<FString>> NetworkInterfaceCardIPSharedPtrs = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
+
+	for (const TSharedPtr<FString>& IP : NetworkInterfaceCardIPSharedPtrs)
+	{
+		if (IP.IsValid())
+		{
+			NetworkInterfaceCardIPs.Add(*IP);
+		}
+	}
+
+	return NetworkInterfaceCardIPs;
+}
+
+void UDMXProtocolBlueprintLibrary::SetDMXInputPortDeviceAddress(FDMXInputPortReference InputPort, const FString& DeviceAddress)
+{
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+
+	if (ProtocolSettings)
+	{
+		FDMXInputPortConfig* InputPortConfigPtr = ProtocolSettings->InputPortConfigs.FindByPredicate([&InputPort](const FDMXInputPortConfig& InputPortConfig)
+			{
+				return InputPortConfig.GetPortGuid() == InputPort.GetPortGuid();
+			});
+
+		if (InputPortConfigPtr)
+		{
+			FDMXInputPortConfigParams InputPortConfigParams(*InputPortConfigPtr);
+			InputPortConfigParams.DeviceAddress = DeviceAddress;
+
+			*InputPortConfigPtr = FDMXInputPortConfig(InputPortConfigPtr->GetPortGuid(), InputPortConfigParams);
+
+			FDMXPortManager::Get().UpdateFromProtocolSettings();
+		}
+	}
+}
+
+void UDMXProtocolBlueprintLibrary::SetDMXOutputPortDeviceAddress(FDMXOutputPortReference OutputPort, const FString& DeviceAddress)
+{
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+
+	if (ProtocolSettings)
+	{
+		FDMXOutputPortConfig* OutputPortConfigPtr = ProtocolSettings->OutputPortConfigs.FindByPredicate([&OutputPort](const FDMXOutputPortConfig& OutputPortConfig)
+			{
+				return OutputPortConfig.GetPortGuid() == OutputPort.GetPortGuid();
+			});
+
+		if (OutputPortConfigPtr)
+		{
+			FDMXOutputPortConfigParams OutputPortConfigParams(*OutputPortConfigPtr);
+			OutputPortConfigParams.DeviceAddress = DeviceAddress;
+
+			*OutputPortConfigPtr = FDMXOutputPortConfig(OutputPortConfigPtr->GetPortGuid(), OutputPortConfigParams);
+
+			FDMXPortManager::Get().UpdateFromProtocolSettings();
+		}
+	}
+}
+
+void UDMXProtocolBlueprintLibrary::SetDMXOutputPortDestinationAddress(FDMXOutputPortReference OutputPort, const FString& DestinationAddress)
+{
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+
+	if (ProtocolSettings)
+	{
+		FDMXOutputPortConfig* OutputPortConfigPtr = ProtocolSettings->OutputPortConfigs.FindByPredicate([&OutputPort](const FDMXOutputPortConfig& OutputPortConfig)
+			{
+				return OutputPortConfig.GetPortGuid() == OutputPort.GetPortGuid();
+			});
+
+		if (OutputPortConfigPtr)
+		{
+			FDMXOutputPortConfigParams OutputPortConfigParams(*OutputPortConfigPtr);
+			OutputPortConfigParams.DestinationAddress = DestinationAddress;
+
+			*OutputPortConfigPtr = FDMXOutputPortConfig(OutputPortConfigPtr->GetPortGuid(), OutputPortConfigParams);
+
+			FDMXPortManager::Get().UpdateFromProtocolSettings();
+		}
+	}
 }

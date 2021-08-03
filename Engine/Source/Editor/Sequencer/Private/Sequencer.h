@@ -137,9 +137,9 @@ public:
 	 */
 	void SetSelectionRange(TRange<FFrameNumber> Range);
 	
-	virtual void SetSelectionRangeEnd() override;
+	virtual void SetSelectionRangeEnd(FFrameTime EndFrame) override;
 
-	virtual void SetSelectionRangeStart() override;
+	virtual void SetSelectionRangeStart(FFrameTime StartFrame) override;
 
 	/** Clear and reset the selection range. */
 	void ClearSelectionRange();
@@ -853,7 +853,6 @@ public:
 	virtual TSharedPtr<class ITimeSlider> GetTopTimeSliderWidget() const override;
 	virtual void ResetTimeController() override;
 	virtual void SetFilterOn(const FText& InName, bool bOn) override;
-
 
 public:
 

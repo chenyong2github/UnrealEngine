@@ -298,10 +298,21 @@ TSharedRef<SWidget> SDataprepPalette::CreateBackground(const TAttribute<FSlateCo
 	 return SectionTitle;
  }
  
+FSlateColor SDataprepPalette::OnGetWidgetColor(FLinearColor InDefaultColor, FIsSelected InIsActionSelectedDelegate)
+{
+	if (InIsActionSelectedDelegate.IsBound() && InIsActionSelectedDelegate.Execute())
+	{
+		return InDefaultColor + FColor(90, 90, 90);
+	}
+	return InDefaultColor;
+}
+
 TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData)
 {
 	FText Category;
+
 	FLinearColor OutlineColor;
+	FLinearColor BodyColor = FColor(91, 91, 91);
 
 	if ( TSharedPtr<FDataprepSchemaAction> DataprepSchemaAction = StaticCastSharedPtr<FDataprepSchemaAction>( InCreateData->Action ) )
 	{
@@ -320,6 +331,9 @@ TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForAc
 				break;
 		}
 	}
+
+	TAttribute<FSlateColor> OutlineColorAttribute = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepPalette::OnGetWidgetColor, OutlineColor, InCreateData->IsRowSelectedDelegate));
+	TAttribute<FSlateColor> BodyColorAttribute = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepPalette::OnGetWidgetColor, BodyColor, InCreateData->IsRowSelectedDelegate));
 
 	return SNew(SVerticalBox)
 	+SVerticalBox::Slot()
@@ -340,7 +354,7 @@ TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForAc
 				.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				[
-					CreateBackground(OutlineColor)
+					CreateBackground(OutlineColorAttribute)
 				]
 
 				+ SOverlay::Slot()
@@ -348,7 +362,7 @@ TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForAc
 				.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				[
-					CreateBackground(FLinearColor(FColor(91, 91, 91)))
+					CreateBackground(BodyColorAttribute)
 				]
 
 				+ SOverlay::Slot()
@@ -369,7 +383,7 @@ TSharedRef<SWidget> SDataprepPalette::OnCreateWidgetForAction(FCreateWidgetForAc
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
+							.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
 							.ColorAndOpacity(FLinearColor::White)
 							.Text(InCreateData->Action->GetMenuDescription())
 							.HighlightText(InCreateData->HighlightText)

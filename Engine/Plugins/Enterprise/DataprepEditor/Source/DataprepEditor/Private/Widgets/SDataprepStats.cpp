@@ -13,7 +13,6 @@ namespace DataprepStats
 {
 	const FName ColumnNameOnImport(TEXT("OnImport"));
 	const FName ColumnNameOnImportCount(TEXT("OnImportCount"));
-	const FName ColumnNameAfterExecute(TEXT("AfterExecute"));
 	const FName ColumnNameAfterExecuteCount(TEXT("AfterExecuteCount"));
 
 	class STableRow : public SMultiColumnTableRow<FDataprepStatPtr>
@@ -39,7 +38,7 @@ namespace DataprepStats
 
 					if (InAttribute->IsSet())
 					{
-						CellText = FText::FromString(FString::Format(TEXT("{0}"), { InAttribute->Get() }));;
+						CellText = FText::AsNumber(InAttribute->Get());
 					}
 					return CellText;
 				})));
@@ -63,26 +62,6 @@ namespace DataprepStats
 					[
 						SNew(STextBlock)
 						.Text(ItemPtr->StatPtr->StatName)
-					];
-				}
-				else if (InColumnName == DataprepStats::ColumnNameAfterExecute)
-				{
-					CellText = SNew(SBox)
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.MaxWidth(1.0f)
-						[
-							SNew(SColorBlock)
-							.Color(DividerColor)
-						]
-						+ SHorizontalBox::Slot()
-						.Padding(FMargin(MarginHoriz, MarginVert))
-						.VAlign(VAlign_Center)
-						[
-							SNew(STextBlock)
-							.Text(ItemPtr->StatPtr->StatName)
-						]
 					];
 				}
 				else if (InColumnName == DataprepStats::ColumnNameOnImportCount || InColumnName == DataprepStats::ColumnNameAfterExecuteCount)
@@ -119,27 +98,6 @@ namespace DataprepStats
 						SNew(STextBlock)
 						.Text(FText::FromName(ItemPtr->StatCategory))
 						.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-					];
-				}
-				else if (InColumnName == DataprepStats::ColumnNameAfterExecute)
-				{
-					CellText = SNew(SBox)
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.MaxWidth(1.0f)
-						[
-							SNew(SColorBlock)
-							.Color(DividerColor)
-						]
-						+ SHorizontalBox::Slot()
-						.Padding(FMargin(MarginHoriz, MarginVert))
-						.VAlign(VAlign_Center)
-						[
-							SNew(STextBlock)
-							.Text(FText::FromName(ItemPtr->StatCategory))
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-						]
 					];
 				}
 				else
@@ -288,17 +246,14 @@ void SDataprepStats::Construct(const FArguments& InArgs)
 					(
 						SNew(SHeaderRow)
 						+ SHeaderRow::Column(DataprepStats::ColumnNameOnImport)
-							.DefaultLabel(LOCTEXT("ColumnOnImportLabel", "On Import"))
-							.FillWidth(0.25f)
+							.DefaultLabel(LOCTEXT("ColumnOnImportLabel", ""))
+							.FillWidth(0.33f)
 						+ SHeaderRow::Column(DataprepStats::ColumnNameOnImportCount)
-							.DefaultLabel(LOCTEXT("ColumnPreCountLabel", ""))
-							.FillWidth(0.25f)
-						+ SHeaderRow::Column(DataprepStats::ColumnNameAfterExecute)
-							.DefaultLabel(LOCTEXT("ColumnEfterExecuteLabel", "After Execute"))
-							.FillWidth(0.25f)
+							.DefaultLabel(LOCTEXT("ColumnPreCountLabel", "On Import"))
+							.FillWidth(0.33f)
 						+ SHeaderRow::Column(DataprepStats::ColumnNameAfterExecuteCount)
-							.DefaultLabel(LOCTEXT("ColumnPostCountLabel", ""))
-							.FillWidth(0.25f)
+							.DefaultLabel(LOCTEXT("ColumnPostCountLabel", "After Execute"))
+							.FillWidth(0.33f)
 					)
 			]
 		]

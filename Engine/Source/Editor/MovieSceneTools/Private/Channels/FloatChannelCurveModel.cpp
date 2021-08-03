@@ -147,18 +147,6 @@ void FFloatChannelCurveModel::GetKeyDrawInfo(ECurvePointType PointType, const FK
 	}
 }
 
-void FFloatChannelCurveModel::SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType)
-{
-	FChannelCurveModel::SetKeyPositions(InKeys, InKeyPositions, ChangeType);
-
-	FMovieSceneFloatChannel* Channel = GetChannelHandle().Get();
-
-	if (Channel && !IsReadOnly())
-	{
-		Channel->AutoSetTangents();
-	}
-}
-
 void FFloatChannelCurveModel::GetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<FKeyAttributes> OutAttributes) const
 {
 	FMovieSceneFloatChannel* Channel = GetChannelHandle().Get();

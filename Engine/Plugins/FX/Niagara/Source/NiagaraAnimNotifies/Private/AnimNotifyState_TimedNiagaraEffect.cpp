@@ -165,12 +165,32 @@ void UAnimNotifyState_TimedNiagaraEffectAdvanced::NotifyTick(USkeletalMeshCompon
 		ProgressInfo->Elapsed += FrameDeltaTime;
 	}
 
-	//send the progress to the FX Component
+	if (UFXSystemComponent* FXComponent = GetSpawnedEffect(MeshComp))
+	{
+		//send the notify progress to the FX Component
 	if (bEnableNormalizedNotifyProgress && !NotifyProgressUserParameter.IsNone())
 	{ 
-		if (UFXSystemComponent* FXComponent = GetSpawnedEffect(MeshComp))
-		{
 			FXComponent->SetFloatParameter(NotifyProgressUserParameter, GetNotifyProgress(MeshComp));
+		}
+		//Send anim curve data to the FX Component
+		if (AnimCurves.Num() != 0)
+		{
+			if (UAnimInstance* AnimInst = MeshComp->GetAnimInstance())
+			{
+				for (int32 Index = 0; Index != AnimCurves.Num(); ++Index)
+				{
+					FName CurveName = AnimCurves[Index].AnimCurveName;
+					FName NiagaraUserVariableName = AnimCurves[Index].UserVariableName;
+					if ((!CurveName.IsNone()) && (!NiagaraUserVariableName.IsNone()))
+					{
+						float CurveValue = 0.0f;
+						if (AnimInst->GetCurveValue(CurveName, CurveValue))
+		{
+							FXComponent->SetFloatParameter(NiagaraUserVariableName, CurveValue);
+						}
+					}
+				}
+			}
 		}
 	}
 }

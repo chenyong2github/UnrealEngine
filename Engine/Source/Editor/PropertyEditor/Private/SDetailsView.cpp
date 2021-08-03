@@ -789,6 +789,14 @@ void SDetailsView::RemoveDeletedObjects(const TArray<UObject*>& DeletedObjects)
 /** Called before during SetObjectArray before we change the objects being observed */
 void SDetailsView::PreSetObject(int32 InNewNumObjects)
 {
+	TSharedPtr<SColorPicker> ExistingColorPicker = GetColorPicker();
+	if (ExistingColorPicker.IsValid()
+		&& ExistingColorPicker->GetOptionalOwningDetailsView().IsValid()
+		&& ExistingColorPicker->GetOptionalOwningDetailsView().Get() != this)
+	{
+		DestroyColorPicker();
+	}
+
 	// Save existing expanded items first
 	for(TSharedPtr<FComplexPropertyNode>& RootNode : RootPropertyNodes)
 	{

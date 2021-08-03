@@ -46,6 +46,7 @@
 #include "UObject/UnrealType.h"
 #include "Widgets/SWidget.h"
 
+
 #if WITH_OPENCV
 #include "OpenCVHelper.h"
 OPENCV_INCLUDES_START
@@ -466,7 +467,7 @@ void FCameraCalibrationStepsController::CreateComp()
 			return;
 		}
 
-		MediaPlayer->PlayOnOpen = false;
+		MediaPlayer->PlayOnOpen = true;
 
 		// Create MediaTexture
 
@@ -481,21 +482,41 @@ void FCameraCalibrationStepsController::CreateComp()
 			MediaInput->MediaSource = MediaTexture.Get();
 		}
 
-		// Play the first time-synchronizable media source.
+		// Play the media source, preferring time-synchronizable sources.
 		if (const UMediaProfile* MediaProfile = IMediaProfileManager::Get().GetCurrentMediaProfile())
 		{
+			bool bFoundPreferredMediaSource = false;
+
 			for (int32 MediaSourceIdx = 0; MediaSourceIdx < MediaProfile->NumMediaSources(); ++MediaSourceIdx)
 			{
-				if (UTimeSynchronizableMediaSource* TSMediaSource = Cast<UTimeSynchronizableMediaSource>(
-					MediaProfile->GetMediaSource(MediaSourceIdx)))
+				UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx);
+
+				if (Cast<UTimeSynchronizableMediaSource>(MediaSource))
 				{
-					MediaPlayer->OpenSource(TSMediaSource);
+					MediaPlayer->OpenSource(MediaSource);
 					MediaPlayer->Play();
+
+					bFoundPreferredMediaSource = true;
 
 					// Break since we don't need to look for more MediaSources.
 					break;
 				}
 			}
+
+			if (!bFoundPreferredMediaSource)
+			{
+				for (int32 MediaSourceIdx = 0; MediaSourceIdx < MediaProfile->NumMediaSources(); ++MediaSourceIdx)
+				{
+					if (UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx))
+					{
+						MediaPlayer->OpenSource(MediaSource);
+						MediaPlayer->Play();
+
+						// Break since we don't need to look for more MediaSources.
+						break;
+					}
+				}
+		}
 		}
 
 		// Break since don't need to look at more UMediaTextureCompositingInputs.
@@ -694,12 +715,6 @@ void FCameraCalibrationStepsController::EnableDistortionInCG()
 		break;
 	}
 
-	if (!DistortionHandler)
-	{
-		UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find a distortion handler in the selected camera"));
-		return;
-	}
-
 	for (ACompositingElement* Element : Comp->GetChildElements())
 	{
 		ACompositingCaptureBase* CaptureBase = Cast<ACompositingCaptureBase>(Element);
@@ -709,8 +724,20 @@ void FCameraCalibrationStepsController::EnableDistortionInCG()
 			continue;
 		}
 
+		// Enable distortion on the CG compositing layer
 		CaptureBase->SetApplyDistortion(true);
+
+		// If a distortion handler exists for the target camera, set it on the CG layer. 
+		// If no handlers currently exist, log a warning. At some later time, if a distortion source is created
+		// the CG layer will automatically pick it up and start using it.
+		if (DistortionHandler)
+		{
 		CaptureBase->SetDistortionHandler(DistortionHandler);
+	}
+		else
+		{
+			UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find a distortion handler in the selected camera"));
+}
 	}
 }
 
@@ -912,15 +939,14 @@ bool FCameraCalibrationStepsController::SetMediaSourceUrl(const FString& InMedia
 
 	for (int32 MediaSourceIdx = 0; MediaSourceIdx < MediaProfile->NumMediaSources(); ++MediaSourceIdx)
 	{
-		UTimeSynchronizableMediaSource* TSMediaSource = Cast<UTimeSynchronizableMediaSource>(
-			MediaProfile->GetMediaSource(MediaSourceIdx));
+		UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx);
 
-		if (!TSMediaSource || TSMediaSource->GetUrl() != InMediaSourceUrl)
+		if (!MediaSource || (MediaSource->GetUrl() != InMediaSourceUrl))
 		{
 			continue;
 		}
 
-		MediaPlayer->OpenSource(TSMediaSource);
+		MediaPlayer->OpenSource(MediaSource);
 		MediaPlayer->Play();
 
 		return true;
@@ -951,10 +977,9 @@ void FCameraCalibrationStepsController::FindMediaSourceUrls(TArray<TSharedPtr<FS
 
 	for (int32 MediaSourceIdx = 0; MediaSourceIdx < MediaProfile->NumMediaSources(); ++MediaSourceIdx)
 	{
-		if (UTimeSynchronizableMediaSource* TSMediaSource = Cast<UTimeSynchronizableMediaSource>(
-			MediaProfile->GetMediaSource(MediaSourceIdx)))
+		if (const UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx))
 		{
-			OutMediaSourceUrls.Add(MakeShareable(new FString(TSMediaSource->GetUrl())));
+			OutMediaSourceUrls.Add(MakeShareable(new FString(MediaSource->GetUrl())));
 		}
 	}
 }
@@ -1064,67 +1089,5 @@ bool FCameraCalibrationStepsController::ReadMediaPixels(TArray<FColor>& Pixels, 
 
 	return true;
 }
-
-UTexture2D* FCameraCalibrationStepsController::TextureFromCvMat(cv::Mat& Mat)
-{
-#if !WITH_OPENCV
-	return nullptr;
-#else
-	// Currently we only support the pixel format below
-	if (Mat.depth() != CV_8U)
-	{
-		return nullptr;
-	}
-
-	EPixelFormat PixelFormat;
-
-	switch (Mat.channels())
-	{
-	case 1:
-		PixelFormat = PF_G8;
-		break;
-
-	case 4:
-		PixelFormat = PF_B8G8R8A8;
-		break;
-
-	default:
-		return nullptr;
-	}
-
-	UTexture2D* Texture = UTexture2D::CreateTransient(Mat.cols, Mat.rows, PixelFormat);
-
-	if (!Texture)
-	{
-		return nullptr;
-	}
-
-#if WITH_EDITORONLY_DATA
-	Texture->MipGenSettings = TMGS_NoMipmaps;
-#endif
-	Texture->NeverStream = true;
-	Texture->SRGB = 0;
-
-	if (Mat.channels() == 1)
-	{
-		Texture->CompressionSettings = TextureCompressionSettings::TC_Grayscale;
-#if WITH_EDITORONLY_DATA
-		Texture->CompressionNoAlpha = true;
-#endif
-	}
-
-	FTexture2DMipMap& Mip0 = Texture->PlatformData->Mips[0];
-	void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
-
-	const int32 PixelStride = Mat.channels();
-	FMemory::Memcpy(TextureData, Mat.data, SIZE_T(Mat.cols * Mat.rows * PixelStride));
-
-	Mip0.BulkData.Unlock();
-	Texture->UpdateResource();
-
-	return Texture;
-#endif // WITH_OPENCV
-};
-
 
 #undef LOCTEXT_NAMESPACE

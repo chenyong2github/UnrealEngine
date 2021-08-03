@@ -94,6 +94,7 @@ extern RHI_API FString GRHIAdapterName;
 extern RHI_API FString GRHIAdapterInternalDriverVersion;
 extern RHI_API FString GRHIAdapterUserDriverVersion;
 extern RHI_API FString GRHIAdapterDriverDate;
+extern RHI_API bool GRHIAdapterDriverBlacklisted;
 extern RHI_API uint32 GRHIDeviceId;
 extern RHI_API uint32 GRHIDeviceRevision;
 

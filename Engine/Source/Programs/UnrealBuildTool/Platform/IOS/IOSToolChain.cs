@@ -1586,6 +1586,13 @@ namespace UnrealBuildTool
 
 				string PostBuildSyncArguments = String.Format("-Input=\"{0}\" -XmlConfigCache=\"{1}\" -remoteini=\"{2}\"", PostBuildSyncFile, XmlConfig.CacheFile, UnrealBuildTool.GetRemoteIniPath());
 
+				if (Log.OutputFile != null)
+				{
+					string LogFileName = Log.OutputFile.GetFileNameWithoutExtension()+"_PostBuildSync.txt";
+					LogFileName = FileReference.Combine(Log.OutputFile.Directory, LogFileName).ToString();
+					PostBuildSyncArguments += " -log=\"" + LogFileName + "\"";
+				}
+
 				Action PostBuildSyncAction = Graph.CreateRecursiveAction<IOSPostBuildSyncMode>(ActionType.CreateAppBundle, PostBuildSyncArguments);
 				PostBuildSyncAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				PostBuildSyncAction.PrerequisiteItems.Add(Executable);

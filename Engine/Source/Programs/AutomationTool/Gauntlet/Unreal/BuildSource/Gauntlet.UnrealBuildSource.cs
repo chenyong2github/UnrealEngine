@@ -293,7 +293,7 @@ namespace Gauntlet
 				}
 				else
 				{
-					Log.Info("No editor bianries found at {0}. Unable to create an editor build source.", EditorExe);
+					Log.Info("No editor binaries found at {0}. Unable to create an editor build source.", EditorExe);
 				}
 			}
 			else

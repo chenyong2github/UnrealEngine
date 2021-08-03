@@ -113,7 +113,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 
 	if((ERayTracingPrimaryRaysFlag_UseGBufferForMaxDistance & PrimaryRayFlags) != 0) 
 	{
-		Ray.TMax = dot(WorldPosition - Ray.Origin, Ray.Direction); // assumes Ray.Direction is normalized
+		// NOTE: we need a small epsilon even though we only trace RAY_TRACING_MASK_TRANSLUCENT objects at first
+		//       because we might have an object with a mix of materials on it and therefore still need to avoid
+		//       hitting the target surface if possible
+		Ray.TMax = dot(WorldPosition - Ray.Origin, Ray.Direction) - 0.1; // assumes Ray.Direction is normalized
 	}
 
 	bool bAllowSkySampling;

@@ -62,6 +62,7 @@
 #include "HairStrands/HairStrandsVisibility.h"
 #include "SystemTextures.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
+#include "Misc/AutomationTest.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -2209,8 +2210,11 @@ void FDisplayInternalsData::Setup(UWorld *World)
 
 	if(IsValid())
 	{
+#if WITH_AUTOMATION_TESTS
+		// this variable is defined inside WITH_AUTOMATION_TESTS, 
 		extern ENGINE_API uint32 GStreamAllResourcesStillInFlight;
 		NumPendingStreamingRequests = GStreamAllResourcesStillInFlight;
+#endif
 	}
 #endif
 }

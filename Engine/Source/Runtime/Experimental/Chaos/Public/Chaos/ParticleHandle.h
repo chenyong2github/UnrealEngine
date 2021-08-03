@@ -413,7 +413,7 @@ public:
 		SetUniqueIdx(InData.UniqueIdx());
 		SetSpatialIdx(InData.SpatialIdx());
 
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 		SetDebugName(InData.DebugName());
 #endif
 	}
@@ -463,9 +463,9 @@ public:
 	FSpatialAccelerationIdx SpatialIdx() const { return GeometryParticles->SpatialIdx(ParticleIdx); }
 	void SetSpatialIdx(FSpatialAccelerationIdx Idx) { GeometryParticles->SpatialIdx(ParticleIdx) = Idx; }
 
-#if CHAOS_CHECKED
-	const FName& DebugName() const { return GeometryParticles->DebugName(ParticleIdx); }
-	void SetDebugName(const FName& InDebugName) { GeometryParticles->DebugName(ParticleIdx) = InDebugName; }
+#if CHAOS_DEBUG_NAME
+	const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName() const { return GeometryParticles->DebugName(ParticleIdx); }
+	void SetDebugName(const TSharedPtr<FString, ESPMode::ThreadSafe>& InDebugName) { GeometryParticles->DebugName(ParticleIdx) = InDebugName; }
 #endif
 	
 	EObjectStateType ObjectState() const;
@@ -1466,8 +1466,8 @@ public:
 	}
 
 
-#if CHAOS_CHECKED
-	const FName& DebugName() const
+#if CHAOS_DEBUG_NAME
+	const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName() const
 	{
 		return MHandle->DebugName();
 	}
@@ -1783,9 +1783,9 @@ public:
 		}
 	}
 
-#if CHAOS_CHECKED
-	const FName DebugName() const { return MNonFrequentData.Read().DebugName(); }
-	void SetDebugName(const FName& InDebugName)
+#if CHAOS_DEBUG_NAME
+	const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName() const { return MNonFrequentData.Read().DebugName(); }
+	void SetDebugName(const TSharedPtr<FString, ESPMode::ThreadSafe>& InDebugName)
 	{
 		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[&InDebugName](auto& Data){ Data.SetDebugName(InDebugName);});
 	}

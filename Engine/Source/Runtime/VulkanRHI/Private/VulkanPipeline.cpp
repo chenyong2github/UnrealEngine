@@ -199,12 +199,13 @@ FVulkanComputePipeline::FVulkanComputePipeline(FVulkanDevice* InDevice)
 
 FVulkanComputePipeline::~FVulkanComputePipeline()
 {
+	Device->NotifyDeletedComputePipeline(this);
+	
 	if (ComputeShader)
 	{
 		ComputeShader->Release();
 	}
 
-	Device->NotifyDeletedComputePipeline(this);
 	DEC_DWORD_STAT(STAT_VulkanNumComputePSOs);
 }
 
@@ -1897,6 +1898,16 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::CreateComputePipelineF
 	INC_DWORD_STAT(STAT_VulkanNumPSOs);
 
 	return Pipeline;
+}
+
+void FVulkanPipelineStateCacheManager::NotifyDeletedComputePipeline(FVulkanComputePipeline* Pipeline)
+{
+	if (Pipeline->ComputeShader)
+	{
+		const uint64 Key = Pipeline->ComputeShader->GetShaderKey();
+		FRWScopeLock ScopeLock(ComputePipelineLock, SLT_Write); 
+		ComputePipelineEntries.Remove(Key);
+	}
 }
 
 template<typename T>

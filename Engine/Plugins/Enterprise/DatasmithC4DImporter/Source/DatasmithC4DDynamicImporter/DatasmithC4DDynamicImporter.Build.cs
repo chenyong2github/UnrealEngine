@@ -4,7 +4,7 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-	[SupportedPlatforms("Win64")]
+	[SupportedPlatforms("Win64", "Mac")]
 	public class DatasmithC4DDynamicImporter : ModuleRules
 	{
 		public DatasmithC4DDynamicImporter(ReadOnlyTargetRules Target) : base(Target)

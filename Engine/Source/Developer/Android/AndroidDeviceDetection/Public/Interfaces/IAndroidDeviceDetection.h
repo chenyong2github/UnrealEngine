@@ -50,11 +50,23 @@ struct FAndroidDeviceInfo
 	// Holds the reported OpenGLES version.
 	FString OpenGLVersionString;
 
+	// device's vulkan version, in major.minor.patch format.
+	FString VulkanVersion;
+
 	// Holds the GPU family name.
 	FString GPUFamilyString;
 
 	// Holds the name of the manufacturer
 	FString DeviceBrand;
+
+	// device Hardware field. (or hardware.chipset for qcom)
+	FString Hardware;
+
+	// device's total mem (as reported from /proc/meminfo)
+	uint32 TotalPhysicalKB = 0;
+
+	// device BuildNumber field
+	FString BuildNumber;
 
 	FAndroidDeviceInfo()
 		: SDKVersion(INDEX_NONE)

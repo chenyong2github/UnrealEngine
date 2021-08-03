@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
 #include "AudioCaptureCore.h"
 #include "AudioCaptureInternal.h"
 #include "CoreMinimal.h"
@@ -8,6 +9,7 @@
 
 namespace Audio
 {
+	static const unsigned int MaxBufferSize = 2 * 2 * 48000;
 
 	FAudioCapture::FAudioCapture()
 	{
@@ -191,7 +193,16 @@ namespace Audio
 					// Append the audio memory to the capture data buffer
 					int32 Index = AudioCaptureData.AddUninitialized(NumSamples);
 					float* AudioCaptureDataPtr = AudioCaptureData.GetData();
+
+					//Avoid reading outside of buffer boundaries
+					if (!(AudioCaptureData.Num() + NumSamples > MaxBufferSize))
+					{
 					FMemory::Memcpy(&AudioCaptureDataPtr[Index], AudioData, NumSamples * sizeof(float));
+				}
+					else
+					{
+						UE_LOG(LogAudioCaptureCore, Warning, TEXT("Attempt to write past end of buffer in OpenDefaultStream [%u]"), AudioCaptureData.Num() + NumSamples);
+					}
 				}
 			};
 
@@ -265,7 +276,17 @@ namespace Audio
 			// Append the capture audio to the output buffer
 			int32 OutIndex = OutAudioData.AddUninitialized(CaptureDataSamples);
 			float* OutDataPtr = OutAudioData.GetData();
+
+			//Check bounds of buffer
+			if (!(OutIndex > MaxBufferSize))
+			{
 			FMemory::Memcpy(&OutDataPtr[OutIndex], AudioCaptureData.GetData(), CaptureDataSamples * sizeof(float));
+			}
+			else
+			{
+				UE_LOG(LogAudioCaptureCore, Warning, TEXT("Attempt to write past end of buffer in GetAudioData"));
+				return false;
+			}
 
 			// Reset the capture data buffer since we copied the audio out
 			AudioCaptureData.Reset();

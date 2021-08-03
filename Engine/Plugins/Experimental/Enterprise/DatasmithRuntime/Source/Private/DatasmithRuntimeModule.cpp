@@ -16,19 +16,6 @@
 #include "Misc/Paths.h"
 #endif // WITH_EDITOR
 
-#ifdef USE_CAD_RUNTIME_DLL
-#include "CoreTechTypes.h"
-#include "DatasmithCADTranslatorModule.h"
-// Temporarily remove dependency to Rhino and Wire translators
-//#include "DatasmithOpenNurbsTranslatorModule.h"
-//#include "DatasmithWireTranslatorModule.h"
-#include "DatasmithDispatcherModule.h"
-#include "CADInterfacesModule.h"
-
-#include "HAL/IConsoleManager.h"
-#include "Misc/Paths.h"
-#endif
-
 const TCHAR* MaterialsPath = TEXT("/DatasmithRuntime/Materials");
 
 class FDatasmithRuntimeModule : public IDatasmithRuntimeModuleInterface
@@ -69,54 +56,13 @@ public:
 		}
 #endif // WITH_EDITOR
 
-		bool bCADRuntimeSupported = false;
-#ifdef USE_CAD_RUNTIME_DLL
-		FString DatasmithCADRuntimeBinDir = FPaths::Combine( FPaths::EngineDir(), TEXT("Plugins/Enterprise/DatasmithCADImporter/Binaries"), FPlatformProcess::GetBinariesSubdirectory() );
-		FString DatasmithCADRuntimeLibPath = FPaths::Combine( DatasmithCADRuntimeBinDir, TEXT("DatasmithCADRuntime.dll"));
-		FPlatformProcess::PushDllDirectory( *DatasmithCADRuntimeBinDir );
-		void* DatasmithCADRuntimeDllHandle = FPlatformProcess::GetDllHandle( *DatasmithCADRuntimeLibPath );
-		FPlatformProcess::PopDllDirectory( *DatasmithCADRuntimeBinDir );
-
-		if (DatasmithCADRuntimeDllHandle)
-		{
-			// Load CADInterface module to load kernel_io dll
-			FModuleManager::Get().LoadModuleChecked(CADINTERFACES_MODULE_NAME);
-
-			if (void* DatasmithCADRuntimeInit = FPlatformProcess::GetDllExport(DatasmithCADRuntimeDllHandle, TEXT("DatasmithCADRuntimeInitialize")))
-			{
-				if (((int32 (*)(void (*)(TSharedPtr<CADLibrary::ICoreTechInterface>)))DatasmithCADRuntimeInit)(&CADLibrary::SetCoreTechInterface) == 0)
-				{
-					FModuleManager::Get().LoadModuleChecked(DATASMITHDISPATCHER_MODULE_NAME);
-					// Temporarily remove dependency to Rhino and Wire translators
-					//FModuleManager::Get().LoadModuleChecked(DATASMITHWIRETRANSLATOR_MODULE_NAME);
-					//FModuleManager::Get().LoadModuleChecked(DATASMITHOPENNURBSTRANSLATOR_MODULE_NAME);
-					FModuleManager::Get().LoadModuleChecked(DATASMITHCADTRANSLATOR_MODULE_NAME);
-
-					if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableThreadedImport")))
-					{
-						CVar->Set(0);
-					}
-
-					if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableCADCache")))
-					{
-						CVar->Set(0);
-					}
-
-					bCADRuntimeSupported = true;
-				}
-			}
-		}
-#elif defined(USE_KERNEL_IO_SDK)
-		bCADRuntimeSupported = true;
-#endif
-
 		FModuleManager::Get().LoadModuleChecked(TEXT("UdpMessaging"));
 
 		DatasmithRuntime::FDestinationProxy::InitializeEndpointProxy();
 
 		FDatasmithMasterMaterialManager::Get().RegisterSelector(DatasmithRuntime::MATERIAL_HOST, MakeShared< FDatasmithRuntimeMaterialSelector >());
 
-		ADatasmithRuntimeActor::OnStartupModule(bCADRuntimeSupported);
+		ADatasmithRuntimeActor::OnStartupModule();
 	}
 
 	virtual void ShutdownModule() override

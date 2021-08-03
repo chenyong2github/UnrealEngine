@@ -137,7 +137,7 @@ private:
 	//~ Settings
 	void RegisterSettings();
 	void UnregisterSettings();
-	bool OnSettingsModified();
+	void OnSettingsModified(UObject* Settings, FPropertyChangedEvent& PropertyChangedEvent);
 #endif
 
 private:

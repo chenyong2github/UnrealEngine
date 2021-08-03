@@ -66,6 +66,19 @@ FString FTextChronoFormatter::AsDateTime(const FDateTime& DateTime, const EDateT
 	return ICUUtilities::ConvertString(FormattedString);
 }
 
+FString FTextChronoFormatter::AsDateTime(const FDateTime& DateTime, const FString& CustomPattern, const FString& TimeZone, const FCulture& TargetCulture)
+{
+	FInternationalization& I18N = FInternationalization::Get();
+	checkf(I18N.IsInitialized() == true, TEXT("FInternationalization is not initialized. An FText formatting method was likely used in static object initialization - this is not supported."));
+	const UDate ICUDate = I18N.Implementation->UEDateTimeToICUDate(DateTime);
+
+	const TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> ICUDateFormat(TargetCulture.Implementation->GetDateTimeFormatter(CustomPattern, TimeZone));
+	icu::UnicodeString FormattedString;
+	ICUDateFormat->format(ICUDate, FormattedString);
+
+	return ICUUtilities::ConvertString(FormattedString);
+}
+
 FString FTextTransformer::ToLower(const FString& InStr)
 {
 	return ICUUtilities::ConvertString(ICUUtilities::ConvertString(InStr).toLower());

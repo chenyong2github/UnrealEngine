@@ -39,6 +39,8 @@ namespace DisplayClusterProjectionStrings
 
 		namespace manual
 		{
+			static constexpr auto Rendering    = TEXT("ManualRendering");
+			static constexpr auto Type         = TEXT("ManualFrustum");
 			static constexpr auto Rotation     = TEXT("rot");
 
 			static constexpr auto Matrix       = TEXT("matrix");
@@ -53,6 +55,17 @@ namespace DisplayClusterProjectionStrings
 			static constexpr auto AngleR      = TEXT("r");
 			static constexpr auto AngleT      = TEXT("t");
 			static constexpr auto AngleB      = TEXT("b");
+			namespace FrustumType
+			{
+				static constexpr auto Matrix = TEXT("Matrix");
+				static constexpr auto Angles = TEXT("Angles");
+		}
+			namespace RenderingType
+			{
+				static constexpr auto Mono = TEXT("Mono");
+				static constexpr auto Stereo = TEXT("Stereo");
+				static constexpr auto MonoStereo = TEXT("Mono & Stereo");
+			}
 		}
 
 		namespace camera
@@ -84,6 +97,12 @@ namespace DisplayClusterProjectionStrings
 			static constexpr auto FileAlpha  = TEXT("alpha");
 			static constexpr auto AlphaGamma = TEXT("alpha_gamma");
 			static constexpr auto FileBeta   = TEXT("beta");
+
+			static constexpr auto MPCDITypeKey = TEXT("MPCDIType");
+			static constexpr auto TypeMPCDI = TEXT("MPCDI");
+			static constexpr auto TypePFM = TEXT("Explicit PFM");
+
+			static constexpr auto EnablePreview = TEXT("EnablePreview");
 		}
 
 		namespace domeprojection

@@ -127,6 +127,7 @@ namespace SolidworksDatasmith.Engine
 			public Dictionary<string, SolidworksDatasmith.SwObjects.SwMaterial> ComponentMaterial = new Dictionary<string, SolidworksDatasmith.SwObjects.SwMaterial>();
 		};
 
+		public string ConfigurationsSetName = "";
 		public List<Configuration> Configurations = new List<Configuration>();
 
 		public ConfigurationDataCommand()

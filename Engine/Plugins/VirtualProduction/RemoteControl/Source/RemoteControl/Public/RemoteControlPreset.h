@@ -15,6 +15,8 @@
 class AActor;
 class IStructSerializerBackend;
 class IStructDeserializerBackend;
+enum class EPackageReloadPhase : uint8;
+struct FPropertyChangedEvent;
 struct FRCFieldPathInfo;
 struct FRemoteControlActor;
 struct FRemoteControlPresetLayout;
@@ -455,7 +457,9 @@ public:
 	//~ Begin UObject interface
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void BeginDestroy() override;
+	
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 #endif /*WITH_EDITOR*/
@@ -753,6 +757,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_FourParams(FOnActorPropertyModified, URemoteControlPreset* /*Preset*/, FRemoteControlActor& /*Actor*/, UObject* /*ModifiedObject*/, FProperty* /*MemberProperty*/);
 	FOnActorPropertyModified& OnActorPropertyModified() { return OnActorPropertyModifiedDelegate; }
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetLayoutModified, URemoteControlPreset* /*Preset*/);
+	FOnPresetLayoutModified& OnPresetLayoutModified() { return OnPresetLayoutModifiedDelegate; }
+
 	UE_DEPRECATED(4.27, "This function is deprecated.")
 	void NotifyExposedPropertyChanged(FName PropertyLabel);
 
@@ -799,9 +806,8 @@ private:
 	void UnregisterDelegates();
 	
 	//~ Keep track of any property change to notify if one of the exposed property has changed
-	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
+	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& Event);
 	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
-	void OnPostPropertyModifiedRemotely(const FRCObjectReference& ObjectRef);
 
 #if WITH_EDITOR	
 	//~ Handle events that can incur bindings to be modified.
@@ -810,6 +816,9 @@ private:
 	void OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap);
 	void OnMapChange(uint32 /*MapChangeFlags*/);
 	void OnBlueprintRecompiled(UBlueprint* Blueprint);
+
+	/** Handles a package reloaded, used to detect a multi-user session being joined in order to update entities. */
+	void OnPackageReloaded(EPackageReloadPhase Phase, FPackageReloadedEvent* Event);
 #endif
 
 	//~ Frame events handlers.
@@ -901,6 +910,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FOnPresetMetadataModified OnMetadataModifiedDelegate;
 	/** Delegate triggered when an exposed actor's property is modified. */
 	FOnActorPropertyModified OnActorPropertyModifiedDelegate;
+	/** Delegate triggered when the layout is modified. */
+	FOnPresetLayoutModified OnPresetLayoutModifiedDelegate;
 
 	struct FPreObjectsModifiedCache
 	{

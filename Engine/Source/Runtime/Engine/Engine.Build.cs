@@ -118,6 +118,7 @@ public class Engine : ModuleRules
 				"TypedElementFramework",
 				"TypedElementRuntime",
 				"MaterialShaderQualitySettings",
+				"MoviePlayerProxy",
 				"CinematicCamera",
 				"Analytics",
 				"AudioMixer",

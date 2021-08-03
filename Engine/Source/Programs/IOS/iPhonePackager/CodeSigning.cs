@@ -422,13 +422,19 @@ namespace iPhonePackager
 				CertTool.Start ();
 				CertTool.BeginOutputReadLine ();
 				CertTool.WaitForExit ();
+
+				Program.LogVerbose("  Running {0} {1}\n{2}", CertTool.StartInfo.FileName, CertTool.StartInfo.Arguments, CertToolData);
+
 				if (CertTool.ExitCode == 0)
 				{
+					Program.LogVerbose("  Provisioning profile contains the following certificate hashes:");
 					foreach (X509Certificate2 SourceCert in ProvisionToWorkFrom.DeveloperCertificates)
 					{
 						X509Certificate2 ValidInTimeCert = null;
 						// see if certificate can be found by serial number
 						string CertHash = SourceCert.GetCertHashString();
+
+						Program.LogVerbose("    {0}", CertHash);
 
 						if (CertToolData.Contains (CertHash))
 						{
@@ -439,6 +445,7 @@ namespace iPhonePackager
 						{
 							// Found a cert in the valid time range, quit now!
 							Result = ValidInTimeCert;
+							Program.LogVerbose("  Matches!");
 							break;
 						}
 					}

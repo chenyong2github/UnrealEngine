@@ -2662,9 +2662,9 @@ void FSequencer::SetSelectionRange(TRange<FFrameNumber> Range)
 }
 
 
-void FSequencer::SetSelectionRangeEnd()
+void FSequencer::SetSelectionRangeEnd(FFrameTime EndFrame)
 {
-	const FFrameNumber LocalTime = GetLocalTime().Time.FrameNumber;
+	const FFrameNumber LocalTime = EndFrame.FrameNumber;
 
 	if (GetSelectionRange().GetLowerBoundValue() >= LocalTime)
 	{
@@ -2677,9 +2677,9 @@ void FSequencer::SetSelectionRangeEnd()
 }
 
 
-void FSequencer::SetSelectionRangeStart()
+void FSequencer::SetSelectionRangeStart(FFrameTime StartFrame)
 {
-	const FFrameNumber LocalTime = GetLocalTime().Time.FrameNumber;
+	const FFrameNumber LocalTime = StartFrame.FrameNumber;
 
 	if (GetSelectionRange().GetUpperBoundValue() <= LocalTime)
 	{
@@ -2694,6 +2694,11 @@ void FSequencer::SetSelectionRangeStart()
 
 void FSequencer::SelectInSelectionRange(const TSharedRef<FSequencerDisplayNode>& DisplayNode, const TRange<FFrameNumber>& SelectionRange, bool bSelectKeys, bool bSelectSections)
 {
+	if (DisplayNode->IsHidden())
+	{
+		return;
+	}
+
 	if (bSelectKeys)
 	{
 		TArray<FKeyHandle> HandlesScratch;
@@ -2749,12 +2754,16 @@ void FSequencer::SelectInSelectionRange(bool bSelectKeys, bool bSelectSections)
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	TRange<FFrameNumber> SelectionRange = MovieScene->GetSelectionRange();
 
-	Selection.Empty();
+	// Don't empty all selection, just keys and sections
+	Selection.SuspendBroadcast();
+	Selection.EmptySelectedKeys();
+	Selection.EmptySelectedSections();
 
 	for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : NodeTree->GetRootNodes())
 	{
 		SelectInSelectionRange(DisplayNode, SelectionRange, bSelectKeys, bSelectSections);
 	}
+	Selection.ResumeBroadcast();
 }
 
 void FSequencer::SelectForward()
@@ -2775,11 +2784,14 @@ void FSequencer::SelectForward()
 
 	if (DisplayNodes.Num() > 0)
 	{
-		Selection.Empty();
+		Selection.SuspendBroadcast();
+		Selection.EmptySelectedKeys();
+		Selection.EmptySelectedSections();
 		for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
 		{
 			SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
 		}
+		Selection.ResumeBroadcast();
 	}
 }
 
@@ -2802,11 +2814,14 @@ void FSequencer::SelectBackward()
 
 	if (DisplayNodes.Num() > 0)
 	{
-		Selection.Empty();
+		Selection.SuspendBroadcast();
+		Selection.EmptySelectedKeys();
+		Selection.EmptySelectedSections();
 		for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
 		{
 			SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
 		}
+		Selection.ResumeBroadcast();
 	}
 }
 
@@ -12620,7 +12635,7 @@ void FSequencer::SplitSection()
 {
 	FScopedTransaction SplitSectionTransaction( NSLOCTEXT("Sequencer", "SplitSection_Transaction", "Split Section") );
 	MovieSceneToolHelpers::SplitSection(Selection.GetSelectedSections(), GetLocalTime(), Settings->GetDeleteKeysWhenTrimming());
-	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
+	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::RefreshAllImmediately );
 }
 
 const ISequencerEditTool* FSequencer::GetEditTool() const
@@ -13146,11 +13161,6 @@ void FSequencer::BindCommands()
 	);
 
 	SequencerCommandBindings->MapAction(
-		FGenericCommands::Get().Delete,
-		FExecuteAction::CreateSP( this, &FSequencer::DeleteSelectedItems ),
-		FCanExecuteAction::CreateLambda(CanDelete));
-
-	SequencerCommandBindings->MapAction(
 		Commands.TogglePlaybackRangeLocked,
 		FExecuteAction::CreateSP( this, &FSequencer::TogglePlaybackRangeLocked ),
 		FCanExecuteAction::CreateLambda( [this] { return GetFocusedMovieSceneSequence() != nullptr;	} ),
@@ -13293,6 +13303,11 @@ void FSequencer::BindCommands()
 
 	// Sequencer-only bindings
 	SequencerCommandBindings->MapAction(
+		FGenericCommands::Get().Delete,
+		FExecuteAction::CreateSP( this, &FSequencer::DeleteSelectedItems ),
+		FCanExecuteAction::CreateLambda(CanDelete));
+
+	SequencerCommandBindings->MapAction(
 		Commands.TogglePlay,
 		FExecuteAction::CreateSP(this, &FSequencer::TogglePlay));
 
@@ -13380,11 +13395,11 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeEnd,
-		FExecuteAction::CreateLambda([this]{ SetSelectionRangeEnd(); }));
+		FExecuteAction::CreateLambda([this]{ SetSelectionRangeEnd(GetLocalTime().Time); }));
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeStart,
-		FExecuteAction::CreateLambda([this]{ SetSelectionRangeStart(); }));
+		FExecuteAction::CreateLambda([this]{ SetSelectionRangeStart(GetLocalTime().Time); }));
 
 	SequencerCommandBindings->MapAction(
 		Commands.ClearSelectionRange,

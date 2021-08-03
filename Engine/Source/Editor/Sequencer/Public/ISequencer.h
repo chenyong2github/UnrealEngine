@@ -673,18 +673,18 @@ public:
 	virtual TSharedPtr<class ITimeSlider> GetTopTimeSliderWidget() const = 0;
 
 	/**
-	* Set the selection range's end position to the current global time.
+	* Set the selection range's end position to the requested time.
 	*
 	* @see GetSelectionRange, SetSelectionRange, SetSelectionRangeStart
 	*/
-	virtual void SetSelectionRangeEnd() = 0;
+	virtual void SetSelectionRangeEnd(FFrameTime EndFrame) = 0;
 
 	/**
-	* Set the selection range's start position to the current global time.
+	* Set the selection range's start position to the requested time.
 	*
 	* @see GetSelectionRange, SetSelectionRange, SetSelectionRangeEnd
 	*/
-	virtual void SetSelectionRangeStart() = 0;
+	virtual void SetSelectionRangeStart(FFrameTime StartFrame) = 0;
 
 	/**
 	* Get the selection range.

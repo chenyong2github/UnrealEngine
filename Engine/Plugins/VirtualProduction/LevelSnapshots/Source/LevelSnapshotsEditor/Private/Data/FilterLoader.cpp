@@ -2,7 +2,7 @@
 
 #include "FilterLoader.h"
 
-#include "DisjunctiveNormalFormFilter.h"
+#include "LevelSnapshotsFilterPreset.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorDirectories.h"
@@ -59,7 +59,7 @@ void UFilterLoader::OverwriteExisting()
 	TArray<UObject*> SavedAssets;
 	FEditorFileUtils::PromptForCheckoutAndSave({ AssetDuplicatedAtCorrectPath->GetOutermost() }, true, false);
 
-	UDisjunctiveNormalFormFilter* Filter = Cast<UDisjunctiveNormalFormFilter>(AssetDuplicatedAtCorrectPath);
+	ULevelSnapshotsFilterPreset* Filter = Cast<ULevelSnapshotsFilterPreset>(AssetDuplicatedAtCorrectPath);
 	if (ensure(Filter))
 	{
 		OnSaveOrLoadAssetOnDisk(Filter);
@@ -76,19 +76,19 @@ void UFilterLoader::SaveAs()
 	if (bSavedSuccessfully)
 	{
 		UObject* SavedAssetOnDisk = SavedAssets[0];
-		OnSaveOrLoadAssetOnDisk(Cast<UDisjunctiveNormalFormFilter>(SavedAssetOnDisk));
+		OnSaveOrLoadAssetOnDisk(Cast<ULevelSnapshotsFilterPreset>(SavedAssetOnDisk));
 	}
 }
 
 void UFilterLoader::LoadAsset(const FAssetData& PickedAsset)
 {
 	UObject* LoadedAsset = PickedAsset.GetAsset();
-	if (!ensure(LoadedAsset) || !ensure(Cast<UDisjunctiveNormalFormFilter>(LoadedAsset)))
+	if (!ensure(LoadedAsset) || !ensure(Cast<ULevelSnapshotsFilterPreset>(LoadedAsset)))
 	{
 		return;
 	}
 	
-	UDisjunctiveNormalFormFilter* Filter = Cast<UDisjunctiveNormalFormFilter>(LoadedAsset);
+	ULevelSnapshotsFilterPreset* Filter = Cast<ULevelSnapshotsFilterPreset>(LoadedAsset);
 	if (ensure(Filter))
 	{
 		FScopedTransaction Transaction(FText::FromString("Load filter preset"));
@@ -113,17 +113,17 @@ void UFilterLoader::PostTransacted(const FTransactionObjectEvent& TransactionEve
 	}
 }
 
-void UFilterLoader::SetAssetBeingEdited(UDisjunctiveNormalFormFilter* NewAssetBeingEdited)
+void UFilterLoader::SetAssetBeingEdited(ULevelSnapshotsFilterPreset* NewAssetBeingEdited)
 {
 	AssetBeingEdited = NewAssetBeingEdited;
 }
 
-void UFilterLoader::OnSaveOrLoadAssetOnDisk(UDisjunctiveNormalFormFilter* AssetOnDisk)
+void UFilterLoader::OnSaveOrLoadAssetOnDisk(ULevelSnapshotsFilterPreset* AssetOnDisk)
 {
 	SetAssetLastSavedOrLoaded(AssetOnDisk);
 	
 	// Duplicate to avoid referencing asset on disk: if user deletes the asset, this will leave editor with nulled references
-	UDisjunctiveNormalFormFilter* DuplicatedFilter = DuplicateObject<UDisjunctiveNormalFormFilter>(AssetOnDisk, GetOutermost());
+	ULevelSnapshotsFilterPreset* DuplicatedFilter = DuplicateObject<ULevelSnapshotsFilterPreset>(AssetOnDisk, GetOutermost());
 	// If user does Save as again later, this prevents FEditorFileUtils::SaveAssetsAs from suggesting an invalid file path to a transient package
 	DuplicatedFilter->SetFlags(RF_Transient);
 
@@ -131,7 +131,7 @@ void UFilterLoader::OnSaveOrLoadAssetOnDisk(UDisjunctiveNormalFormFilter* AssetO
 	OnFilterChanged.Broadcast(DuplicatedFilter);
 }
 
-void UFilterLoader::SetAssetLastSavedOrLoaded(UDisjunctiveNormalFormFilter* NewSavedAsset)
+void UFilterLoader::SetAssetLastSavedOrLoaded(ULevelSnapshotsFilterPreset* NewSavedAsset)
 {
 	AssetLastSavedOrLoaded = NewSavedAsset;
 	OnFilterWasSavedOrLoaded.Broadcast();

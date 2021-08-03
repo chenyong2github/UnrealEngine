@@ -130,9 +130,10 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("SystemParameters2", "Legacy Parameters"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 
-	InTabManager->RegisterTabSpawner(SystemParameterDefinitionsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameterDefinitions))
-		.SetDisplayName(LOCTEXT("SystemParameterDefinitions", "Parameter Definitions"))
-		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+//@todo(ng) disable parameter definitions panel pending bug fixes
+// 	InTabManager->RegisterTabSpawner(SystemParameterDefinitionsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameterDefinitions)) 
+// 		.SetDisplayName(LOCTEXT("SystemParameterDefinitions", "Parameter Definitions"))
+// 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 
 	InTabManager->RegisterTabSpawner(SelectedEmitterStackTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SelectedEmitterStack))
 		.SetDisplayName(LOCTEXT("SelectedEmitterStacks", "Selected Emitters"))
@@ -191,7 +192,8 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(SystemDetailsTabID);
 	InTabManager->UnregisterTabSpawner(SystemParametersTabID);
 	InTabManager->UnregisterTabSpawner(SystemParametersTabID2);
-	InTabManager->UnregisterTabSpawner(SystemParameterDefinitionsTabID);
+	//@todo(ng) disable parameter definitions panel pending bug fixes
+	//InTabManager->UnregisterTabSpawner(SystemParameterDefinitionsTabID);
 	InTabManager->UnregisterTabSpawner(SelectedEmitterStackTabID);
 	InTabManager->UnregisterTabSpawner(SelectedEmitterGraphTabID);
 	InTabManager->UnregisterTabSpawner(DebugSpreadsheetTabID);

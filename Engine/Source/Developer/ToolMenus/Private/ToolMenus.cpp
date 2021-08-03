@@ -2,6 +2,7 @@
 
 #include "ToolMenus.h"
 #include "IToolMenusModule.h"
+#include "ToolMenusLog.h"
 
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
@@ -759,6 +760,12 @@ void UToolMenus::AssembleMenu(UToolMenu* GeneratedMenu, const UToolMenu* Other)
 				if (!Section->Label.IsSet() && RemainingSection.Label.IsSet())
 				{
 					Section->Label = RemainingSection.Label;
+				}
+
+				// Let child menu override dynamic legacy section
+				if (!RemainingSection.IsNonLegacyDynamic())
+				{
+					Section->Construct = RemainingSection.Construct;
 				}
 			}
 

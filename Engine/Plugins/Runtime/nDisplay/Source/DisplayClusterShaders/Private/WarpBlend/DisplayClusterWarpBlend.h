@@ -37,7 +37,7 @@ public:
 		return GeometryContext.GeometryProxy.AlphaMapEmbeddedGamma; 
 	}
 
-	virtual const class FDisplayClusterRender_MeshComponentProxy* GetWarpMesh() const override
+	virtual const class FDisplayClusterRender_MeshComponent* GetWarpMesh() const override
 	{
 		return GeometryContext.GeometryProxy.WarpMesh;
 	}
@@ -54,7 +54,7 @@ public:
 		return GeometryContext.GeometryProxy.GeometryType;
 	}
 
-	virtual bool ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData) const override final;
+	virtual bool ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData, uint32 InMaxDimension = 0) const override final;
 
 	//~!IDisplayClusterWarpBlend
 

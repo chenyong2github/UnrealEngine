@@ -300,9 +300,10 @@ class UNiagaraGraph : public UEdGraph
 	* @param NewName				The new name to apply.
 	* @param bFromStaticSwitch		Whether the target parameter is from a static switch. Used to determine whether to fixup binding strings.
 	* @param bMerged				Whether or not the rename ended up merging with a different parameter because the names are the same.
+	* @param bSuppressEvents		Whether or not to invoke UEdGraphNode::OnPinRenamed() when setting NewName on a node pin. If true, do not call UEdGraphNode::OnPinRenamed().
 	* @return						true if the new name was applied. 
 	*/
-	NIAGARAEDITOR_API bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch = false, bool* bMerged = nullptr);
+	NIAGARAEDITOR_API bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch = false, bool* bMerged = nullptr, bool bSuppressEvents = false);
 
 	/** Rename a pin inline in a graph. If this is the only instance used in the graph, then rename them all, otherwise make a duplicate. */
 	bool RenameParameterFromPin(const FNiagaraVariable& Parameter, FName NewName, UEdGraphPin* InPin);

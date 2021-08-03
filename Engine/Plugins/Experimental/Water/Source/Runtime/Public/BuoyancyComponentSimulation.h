@@ -46,7 +46,7 @@ struct FBuoyancyComponentBaseAsyncAux : public FBuoyancyComponentAsyncAux
 };
 struct FBuoyancyComponentBaseAsyncInput : public FBuoyancyComponentAsyncInput
 {
-	TArray<AWaterBody*> WaterBodies;
+	TArray<UWaterBodyComponent*> WaterBodyComponents;
 	TArray<FSphericalPontoon> Pontoons;
 	float SmoothedWorldTimeSeconds;
 
@@ -58,7 +58,7 @@ struct FBuoyancyComponentBaseAsyncInput : public FBuoyancyComponentAsyncInput
 		: FBuoyancyComponentAsyncInput(InType)
 	{ }
 
-	WATER_API virtual TUniquePtr<struct FBuoyancyComponentAsyncOutput> PreSimulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, FBuoyancyComponentAsyncAux* Aux, const TMap<AWaterBody*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyData) const override;
+	WATER_API virtual TUniquePtr<struct FBuoyancyComponentAsyncOutput> PreSimulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, FBuoyancyComponentAsyncAux* Aux, const TMap<UWaterBodyComponent*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyComponentData) const override;
 	virtual ~FBuoyancyComponentBaseAsyncInput() = default;
 };
 
@@ -98,11 +98,11 @@ public:
 	{ }
 
 	template <typename TBody, typename TAux, typename TOut>
-	static void Update(const float DeltaSeconds, const float TotalSeconds, const UWorld* World, TBody* Body, const FBuoyancyData& BuoyancyData, TAux& Aux, const TMap<AWaterBody*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyData, TOut& Out)
+	static void Update(const float DeltaSeconds, const float TotalSeconds, const UWorld* World, TBody* Body, const FBuoyancyData& BuoyancyData, TAux& Aux, const TMap<UWaterBodyComponent*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyComponentData, TOut& Out)
 	{
 		FBuoyancyPhysicsState State;
 		FBuoyancyComponentSim::UpdatePhysicsState(Body, State);
-		FBuoyancyComponentSim::UpdateBuoyancy(Body, State, BuoyancyData, Aux, WaterBodyData);
+		FBuoyancyComponentSim::UpdateBuoyancy(Body, State, BuoyancyData, Aux, WaterBodyComponentData);
 		//FBuoyancyComponentSim::UpdateWaterControl(Body, State, BuoyancyData, Aux);
 
 		if (BuoyancyData.bApplyDragForcesInWater)
@@ -231,14 +231,14 @@ public:
 	}
 
 	template <typename TBody, typename TState, typename TAux>
-	static void UpdateBuoyancy(const TBody* Body, TState& State, const FBuoyancyData& BuoyancyData, TAux& Aux, const TMap<AWaterBody*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyData)
+	static void UpdateBuoyancy(const TBody* Body, TState& State, const FBuoyancyData& BuoyancyData, TAux& Aux, const TMap<UWaterBodyComponent*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyComponentData)
 	{
 		State.NumPontoonsInWater = 0;
 
 		TArray<FSolverSafeWaterBodyData*> SolverWaterBodies;
-		for (const AWaterBody* WaterBody : Aux.WaterBodies)
+		for (const UWaterBodyComponent* WaterBodyComponent : Aux.WaterBodyComponents)
 		{
-			if (const TUniquePtr<FSolverSafeWaterBodyData>* WaterDataPtrPtr = WaterBodyData.Find(WaterBody))
+			if (const TUniquePtr<FSolverSafeWaterBodyData>* WaterDataPtrPtr = WaterBodyComponentData.Find(WaterBodyComponent))
 			{
 				FSolverSafeWaterBodyData& SolverWaterBody = **WaterDataPtrPtr;
 				SolverWaterBodies.Add(&SolverWaterBody);

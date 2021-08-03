@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "ParticleRule.h"
 #include "Chaos/PBDParticles.h"
 #include "ChaosStats.h"
 #include "Containers/ArrayView.h"
@@ -22,7 +21,7 @@ extern CHAOS_API bool bChaos_Spherical_ISPC_Enabled;
 
 namespace Chaos
 {
-	class CHAOS_API FPBDSphericalConstraint : public FParticleRule
+	class CHAOS_API FPBDSphericalConstraint final
 	{
 	public:
 		FPBDSphericalConstraint(
@@ -38,9 +37,9 @@ namespace Chaos
 		{
 			check(InSphereRadii.Num() == InParticleCount);
 		}
-		virtual ~FPBDSphericalConstraint() {}
+		~FPBDSphericalConstraint() {}
 
-		inline virtual void Apply(FPBDParticles& Particles, const FReal Dt) const override
+		void Apply(FPBDParticles& Particles, const FReal Dt) const
 		{
 			SCOPE_CYCLE_COUNTER(STAT_PBD_Spherical);
 
@@ -54,13 +53,13 @@ namespace Chaos
 			}
 		}
 
-		inline void SetSphereRadiiMultiplier(const FReal InSphereRadiiMultiplier)
+		void SetSphereRadiiMultiplier(const FReal InSphereRadiiMultiplier)
 		{
 			SphereRadiiMultiplier = FMath::Max((FReal)0., InSphereRadiiMultiplier);
 		}
 
 	private:
-		inline void ApplyHelper(FPBDParticles& Particles, const FReal Dt) const
+		void ApplyHelper(FPBDParticles& Particles, const FReal Dt) const
 		{
 			const int32 ParticleCount = SphereRadii.Num();
 
@@ -98,7 +97,7 @@ namespace Chaos
 		FReal SphereRadiiMultiplier;
 	};
 
-	class CHAOS_API FPBDSphericalBackstopConstraint : public FParticleRule
+	class CHAOS_API FPBDSphericalBackstopConstraint final
 	{
 	public:
 		FPBDSphericalBackstopConstraint(
@@ -116,17 +115,23 @@ namespace Chaos
 			, SphereOffsetDistances(InSphereOffsetDistances)
 			, ParticleOffset(InParticleOffset)
 			, SphereRadiiMultiplier((FReal)1.)
+			, bEnabled(true)
 			, bUseLegacyBackstop(bInUseLegacyBackstop)
 		{
 			check(InSphereRadii.Num() == InParticleCount);
 			check(InSphereOffsetDistances.Num() == InParticleCount);
 		}
-		virtual ~FPBDSphericalBackstopConstraint() {}
+		~FPBDSphericalBackstopConstraint() {}
 
-		inline virtual void Apply(FPBDParticles& Particles, const FReal Dt) const override
+		void SetEnabled(bool bInEnabled) { bEnabled = bInEnabled; }
+		bool IsEnabled() const { return bEnabled; }
+
+		void Apply(FPBDParticles& Particles, const FReal Dt) const
 		{
 			SCOPE_CYCLE_COUNTER(STAT_PBD_SphericalBackstop);
 
+			if (bEnabled)
+			{
 			if (bUseLegacyBackstop)
 			{
 				// SphereOffsetDistances includes the sphere radius
@@ -154,24 +159,25 @@ namespace Chaos
 				}
 			}
 		}
+		}
 
-		inline void SetSphereRadiiMultiplier(const FReal InSphereRadiiMultiplier)
+		void SetSphereRadiiMultiplier(const FReal InSphereRadiiMultiplier)
 		{
 			SphereRadiiMultiplier = FMath::Max((FReal)0., InSphereRadiiMultiplier);
 		}
 
-		inline FReal GetSphereRadiiMultiplier() const
+		FReal GetSphereRadiiMultiplier() const
 		{
 			return SphereRadiiMultiplier;
 		}
 
-		inline bool UseLegacyBackstop() const
+		bool UseLegacyBackstop() const
 		{
 			return bUseLegacyBackstop;
 		}
 
 	private:
-		inline void ApplyHelper(FPBDParticles& Particles, const FReal Dt) const
+		void ApplyHelper(FPBDParticles& Particles, const FReal Dt) const
 		{
 			const int32 ParticleCount = SphereRadii.Num();
 
@@ -208,7 +214,7 @@ namespace Chaos
 			});
 		}
 
-		inline void ApplyLegacyHelper(FPBDParticles& Particles, const FReal Dt) const
+		void ApplyLegacyHelper(FPBDParticles& Particles, const FReal Dt) const
 		{
 			const int32 ParticleCount = SphereRadii.Num();
 
@@ -255,6 +261,7 @@ namespace Chaos
 		const TConstArrayView<FRealSingle> SphereOffsetDistances;  // Sphere position offsets, use local indexation
 		const int32 ParticleOffset;
 		FReal SphereRadiiMultiplier;
+		bool bEnabled;
 		bool bUseLegacyBackstop;
 	};
 

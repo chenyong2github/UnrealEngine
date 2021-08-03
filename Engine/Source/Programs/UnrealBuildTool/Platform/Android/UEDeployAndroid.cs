@@ -3683,9 +3683,15 @@ namespace UnrealBuildTool
 			// force create from scratch if on build machine
 			bool bCreateFromScratch = bIsBuildMachine;
 
+			AndroidToolChain.ClangSanitizer Sanitizer = ToolChain.BuildWithSanitizer();
+
 			// see if last time matches the skipGradle setting
 			string BuildTypeFilename = Path.Combine(IntermediateAndroidPath, "BuildType.txt");
 			string BuildTypeID = bSkipGradleBuild ? "Embedded" : "Standalone";
+			if (Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress)
+			{
+				BuildTypeID += Sanitizer.ToString() + "Sanitizer";
+			}
 			if (File.Exists(BuildTypeFilename))
 			{
 				string BuildTypeContents = File.ReadAllText(BuildTypeFilename);
@@ -4134,7 +4140,7 @@ namespace UnrealBuildTool
 				CopySTL(ToolChain, UnrealBuildPath, Arch, NDKArch, bForDistribution);
 				CopyGfxDebugger(UnrealBuildPath, Arch, NDKArch);
 				CopyVulkanValidationLayers(UnrealBuildPath, Arch, NDKArch, Configuration.ToString());
-				AndroidToolChain.ClangSanitizer Sanitizer = ToolChain.BuildWithSanitizer();
+				
 				if (Sanitizer != AndroidToolChain.ClangSanitizer.None && Sanitizer != AndroidToolChain.ClangSanitizer.HwAddress)
 				{
 					CopyClangSanitizerLib(UnrealBuildPath, Arch, NDKArch, Sanitizer);

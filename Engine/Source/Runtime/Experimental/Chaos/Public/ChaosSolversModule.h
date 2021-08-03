@@ -127,7 +127,7 @@ public:
 	 * @param bStandalone Whether the solver is standalone (not sent to physics thread - updating left to caller)
 	 */
 	Chaos::FPBDRigidsSolver* CreateSolver(UObject* InOwner, Chaos::FReal InAsyncDt, Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 		, const FName& DebugName = NAME_None
 #endif
 	);

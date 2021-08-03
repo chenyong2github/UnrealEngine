@@ -194,10 +194,18 @@ public:
 	bool UnregisterOwners(const TArray<FName>& OwnerNames);
 	
 	/**
-	 * Add the specified filters to this one.
+	 * Add the specified filters to this one. Rules are not applied, direct append lists.
 	 * @return whether the filters changed.
 	 */
 	bool Append(const FBlacklistPaths& Other);
+
+	/**
+	 * Combine two filters.
+	 * Result will contain all blacklisted paths combined.
+	 * Result will contain whitelisted paths that pass both filters.
+	 * @return new combined filter.
+	 */
+	FBlacklistPaths CombinePathFilters(const FBlacklistPaths& OtherFilter) const;
 
 	/**
 	* Unregisters specified owners then adds specified filters in one operation (to avoid multiple filters changed events).

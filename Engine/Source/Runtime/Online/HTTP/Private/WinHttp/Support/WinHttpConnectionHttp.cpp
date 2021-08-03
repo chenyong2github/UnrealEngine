@@ -1003,10 +1003,6 @@ void FWinHttpConnectionHttp::HandleWriteComplete(const uint32 NumBytesSent)
 	}
 	else
 	{
-		// We don't need our payload data anymore, release the memory
-		PayloadBuffer.Empty();
-		Payload.Reset();
-
 		// Tell the main thread to request the response
 		CurrentAction = EState::RequestResponse;
 	}
@@ -1038,10 +1034,6 @@ void FWinHttpConnectionHttp::HandleSendRequestComplete()
 	}
 	else
 	{
-		// We don't need our payload data anymore, release the memory
-		PayloadBuffer.Empty();
-		Payload.Reset();
-
 		// Tell the main thread to request the response
 		CurrentAction = EState::RequestResponse;
 	}
@@ -1063,6 +1055,9 @@ void FWinHttpConnectionHttp::HandleHeadersAvailable()
 	{
 		CurrentAction = EState::ProcessResponseHeaders;
 	}
+
+	// The fact we received a headers available message indicates request success, so we don't need the payload data anymore
+	ReleasePayloadData();
 }
 
 void FWinHttpConnectionHttp::HandleDataAvailable(const uint32 NumBytesAvailable)
@@ -1161,11 +1156,20 @@ void FWinHttpConnectionHttp::HandleRequestError(const uint32 ErrorApiId, const u
 			FinishRequest(EHttpRequestStatus::Failed);
 		}
 	}
+
+	// If the request was cancelled, we can release the payload memory
+	if (ErrorCode == ERROR_WINHTTP_OPERATION_CANCELLED)
+	{
+		ReleasePayloadData();
+}
 }
 
 void FWinHttpConnectionHttp::HandleHandleClosing()
 {
 	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[HANDLE_CLOSING]"), this);
+
+	// If we are closing the request handle, we can release the payload memory
+	ReleasePayloadData();
 
 	KeepAlive.Reset();
 }
@@ -1289,6 +1293,13 @@ void FWinHttpConnectionHttp::HandleHttpStatusCallback(HINTERNET ResourceHandle, 
 	}
 
 	checkNoEntry();
+}
+
+void FWinHttpConnectionHttp::ReleasePayloadData()
+{
+	// We don't need our payload data anymore, release the memory
+	PayloadBuffer.Empty();
+	Payload.Reset();
 }
 
 #include "Windows/HideWindowsPlatformTypes.h"

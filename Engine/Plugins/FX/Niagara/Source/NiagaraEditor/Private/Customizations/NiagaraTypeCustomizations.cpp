@@ -746,20 +746,25 @@ TSharedRef<SWidget> FNiagaraMaterialAttributeBindingCustomization::OnGetNiagaraM
 {
 	FGraphActionMenuBuilder MenuBuilder;
 
-	return SNew(SBorder)
+	TSharedRef<SGraphActionMenu> GraphActionMenu = SNew(SGraphActionMenu)
+		.OnActionSelected(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::OnNiagaraActionSelected)
+		.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::OnCreateWidgetForNiagaraAction))
+		.OnCollectAllActions(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::CollectAllNiagaraActions)
+		.AutoExpandActionMenu(false)
+		.ShowFilterTextBox(true);
+	
+	TSharedRef<SWidget> MenuContent =  SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
 			[
-				SNew(SGraphActionMenu)
-				.OnActionSelected(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::OnNiagaraActionSelected)
-				.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::OnCreateWidgetForNiagaraAction))
-				.OnCollectAllActions(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::CollectAllNiagaraActions)
-				.AutoExpandActionMenu(false)
-				.ShowFilterTextBox(true)
+				GraphActionMenu
 			]
 		];
+
+	NiagaraParameterButton->SetMenuContentWidgetToFocus(GraphActionMenu->GetFilterTextBox());
+	return MenuContent;
 }
 
 
@@ -990,20 +995,25 @@ TSharedRef<SWidget> FNiagaraMaterialAttributeBindingCustomization::OnGetMaterial
 {
 	FGraphActionMenuBuilder MenuBuilder;
 
-	return SNew(SBorder)
+	TSharedRef<SGraphActionMenu> GraphActionMenu = SNew(SGraphActionMenu)
+		.OnActionSelected(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::OnMaterialActionSelected)
+		.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::OnCreateWidgetForMaterialAction))
+		.OnCollectAllActions(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::CollectAllMaterialActions)
+		.AutoExpandActionMenu(false)
+		.ShowFilterTextBox(true);
+
+	TSharedRef<SWidget> MenuContent = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
 			[
-				SNew(SGraphActionMenu)
-				.OnActionSelected(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::OnMaterialActionSelected)
-				.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::OnCreateWidgetForMaterialAction))
-				.OnCollectAllActions(const_cast<FNiagaraMaterialAttributeBindingCustomization*>(this), &FNiagaraMaterialAttributeBindingCustomization::CollectAllMaterialActions)
-				.AutoExpandActionMenu(false)
-				.ShowFilterTextBox(true)
+				GraphActionMenu
 			]
 		];
+
+	MaterialParameterButton->SetMenuContentWidgetToFocus(GraphActionMenu->GetFilterTextBox());
+	return MenuContent;
 }
 
 TArray<FName> FNiagaraMaterialAttributeBindingCustomization::GetMaterialNames() const
@@ -1177,7 +1187,7 @@ void FNiagaraMaterialAttributeBindingCustomization::CustomizeChildren(TSharedRef
 			.ValueContent()
 				.MaxDesiredWidth(200.f)
 				[
-					SNew(SComboButton)
+					SAssignNew(MaterialParameterButton, SComboButton)
 					.OnGetMenuContent(this, &FNiagaraMaterialAttributeBindingCustomization::OnGetMaterialMenuContent)
 					.ContentPadding(1)
 					.ToolTipText(this, &FNiagaraMaterialAttributeBindingCustomization::GetMaterialTooltipText)
@@ -1201,7 +1211,7 @@ void FNiagaraMaterialAttributeBindingCustomization::CustomizeChildren(TSharedRef
 			.ValueContent()
 				.MaxDesiredWidth(200.f)
 				[
-					SNew(SComboButton)
+					SAssignNew(NiagaraParameterButton, SComboButton)
 					.OnGetMenuContent(this, &FNiagaraMaterialAttributeBindingCustomization::OnGetNiagaraMenuContent)
 					.ContentPadding(1)
 					.ToolTipText(this, &FNiagaraMaterialAttributeBindingCustomization::GetNiagaraTooltipText)

@@ -272,8 +272,19 @@ void FConcurrencyGroup::UpdateGeneration(FActiveSound* NewActiveSound)
 				case EConcurrencyVolumeScaleMode::Priority:
 				{
 					// Ensures sounds set to always play are sorted above those that aren't, but are sorted appropriately between one another
-					const float APriority = A.GetAlwaysPlay() ? A.GetHighestPriority(true /* bIgnoreAlwaysPlay */) + MAX_SOUND_PRIORITY + 1.0f : A.GetHighestPriority();
-					const float BPriority = B.GetAlwaysPlay() ? B.GetHighestPriority(true /* bIgnoreAlwaysPlay */) + MAX_SOUND_PRIORITY + 1.0f : B.GetHighestPriority();
+					auto GetPriority = [](const FActiveSound& InActiveSound)
+					{
+						if (InActiveSound.GetAlwaysPlay())
+						{
+							return InActiveSound.GetHighestPriority(true) * InActiveSound.Priority + MAX_SOUND_PRIORITY + 1.0f;
+						}
+						else
+						{
+							return InActiveSound.GetHighestPriority() * InActiveSound.Priority;
+						}
+					};
+					const float APriority = GetPriority(A);
+					const float BPriority = GetPriority(B);
 
 					// If sounds share the same priority, newer sounds will be sorted last to avoid volume ping-ponging 
 					if (FMath::IsNearlyEqual(APriority, BPriority, KINDA_SMALL_NUMBER))
@@ -351,8 +362,20 @@ void FConcurrencyGroup::CullSoundsDueToMaxConcurrency()
 				case EMaxConcurrentResolutionRule::StopLowestPriorityThenPreventNew:
 				{
 					// Ensures sounds set to always play are sorted above those that aren't, but are sorted appropriately between one another
-					const float APriority = A.GetAlwaysPlay() ? A.GetHighestPriority(true /* bIgnoreAlwaysPlay */) + MAX_SOUND_PRIORITY + 1.0f : A.GetHighestPriority();
-					const float BPriority = B.GetAlwaysPlay() ? B.GetHighestPriority(true /* bIgnoreAlwaysPlay */) + MAX_SOUND_PRIORITY + 1.0f : B.GetHighestPriority();
+					auto GetPriority = [](const FActiveSound& InActiveSound)
+					{
+						if (InActiveSound.GetAlwaysPlay())
+						{
+							return InActiveSound.GetHighestPriority(true) * InActiveSound.Priority + MAX_SOUND_PRIORITY + 1.0f;
+						}
+						else
+						{
+							return InActiveSound.GetHighestPriority() * InActiveSound.Priority;
+						}
+					};
+					const float APriority = GetPriority(A);
+					const float BPriority = GetPriority(B);
+
 					if (!FMath::IsNearlyEqual(APriority, BPriority, KINDA_SMALL_NUMBER))
 					{
 						return APriority < BPriority;

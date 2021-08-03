@@ -108,8 +108,6 @@ struct FInstanceRegistry
 	bool RemoveInvalidHandles();
 	void PostInstantation();
 
-	void FinalizeFrame();
-
 	void TagGarbage();
 
 	void WorldCleanup(UWorld* World);

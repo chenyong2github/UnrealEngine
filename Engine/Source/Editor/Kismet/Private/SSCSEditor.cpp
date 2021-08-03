@@ -2931,10 +2931,7 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 				UActorComponent* ClonedComponent = SCSEditorPtr->AddNewComponent(ComponentTemplate->GetClass(), nullptr);
 				check(ClonedComponent);
 
-				//Serialize object properties using write/read operations.
-				TArray<uint8> SavedProperties;
-				FObjectWriter Writer(ComponentTemplate, SavedProperties);
-				FObjectReader(ClonedComponent, SavedProperties);
+				UEngine::CopyPropertiesForUnrelatedObjects(ComponentTemplate, ClonedComponent);
 
 				// Attach the copied node to the target node (this will also detach it from the root if necessary)
 				FSCSEditorTreeNodePtrType NewNodePtr = SCSEditorPtr->GetNodeFromActorComponent(ClonedComponent);
@@ -3192,10 +3189,7 @@ void SSCS_RowWidget::OnMakeNewRootDropAction(FSCSEditorTreeNodePtrType DroppedNo
 			UActorComponent* ClonedComponent = SCSEditorPtr->AddNewComponent(ComponentTemplate->GetClass(), nullptr);
 			check(ClonedComponent);
 
-			//Serialize object properties using write/read operations.
-			TArray<uint8> SavedProperties;
-			FObjectWriter Writer(ComponentTemplate, SavedProperties);
-			FObjectReader(ClonedComponent, SavedProperties);
+			UEngine::CopyPropertiesForUnrelatedObjects(ComponentTemplate, ClonedComponent);
 
 			DroppedNodePtr = SCSEditorPtr->GetNodeFromActorComponent(ClonedComponent);
 			check(DroppedNodePtr.IsValid());
@@ -5611,10 +5605,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 
 		if (ComponentTemplate)
 		{
-			//Serialize object properties using write/read operations.
-			TArray<uint8> SavedProperties;
-			FObjectWriter Writer(ComponentTemplate, SavedProperties);
-			FObjectReader(NewComponent, SavedProperties);
+			UEngine::CopyPropertiesForUnrelatedObjects(ComponentTemplate, NewComponent);
 			NewComponent->UpdateComponentToWorld();
 		}
 

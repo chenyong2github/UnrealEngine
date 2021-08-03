@@ -6,7 +6,7 @@
 #include "WarpBlend/DisplayClusterWarpEnums.h"
 
 class IDisplayClusterRenderTexture;
-class FDisplayClusterRender_MeshComponentProxy;
+class FDisplayClusterRender_MeshComponent;
 class UStaticMeshComponent;
 class USceneComponent;
 
@@ -65,7 +65,7 @@ public:
 	IDisplayClusterRenderTexture* AlphaMap = nullptr;
 	IDisplayClusterRenderTexture* BetaMap  = nullptr;
 
-	FDisplayClusterRender_MeshComponentProxy* WarpMesh = nullptr;
+	FDisplayClusterRender_MeshComponent* WarpMesh = nullptr;
 
 	float AlphaMapEmbeddedGamma = 1.f;
 
@@ -88,5 +88,8 @@ public:
 	};
 
 	FDisplayClusterWarpBlend_GeometryCache GeometryCache;
+
+private:
+	bool bIsWarpMeshComponentLost = false;
 };
 

@@ -148,7 +148,7 @@ protected:
 	void Initialize();
 
 	/** Updates the input range value clamping (in case the type/precision has changed). */
-	void UpdateInputValueRange() const;
+	void UpdateInputValueRange();
 
 	FRemoteControlProtocolMapping* GetRangesData() const { return ParentViewModel.Pin()->GetRangesMapping(RangeId); }
 	FRemoteControlProtocolBinding* GetBinding() const { return ParentViewModel.Pin()->GetBinding(); }
@@ -182,6 +182,9 @@ private:
 	FGuid RangeId;
 
 	FOnChanged OnChangedDelegate;
+
+	/** Previous value of RangeTypeSize for comparison when changed. */
+	uint64 PreviousRangeMaxValue = 0;
 
 	/** A UObject container/owner for the input property */
 	TStrongObjectPtr<URCPropertyContainerBase> InputProxyPropertyContainer;

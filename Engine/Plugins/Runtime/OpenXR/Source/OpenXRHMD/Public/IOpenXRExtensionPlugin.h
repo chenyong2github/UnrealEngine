@@ -8,6 +8,7 @@
 #include "ARTextures.h"
 #include "ARTraceResult.h"
 #include "DefaultSpectatorScreenController.h"
+#include "UObject/SoftObjectPath.h"
 
 #include <openxr/openxr.h>
 
@@ -126,6 +127,11 @@ public:
 		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 	}
 
+	virtual FString GetDisplayName()
+	{
+		return FString(TEXT("OpenXRExtensionPlugin"));
+	}
+
 	/**
 	* Optionally provide a custom loader for the OpenXR plugin.
 	*/
@@ -177,6 +183,27 @@ public:
 	virtual bool GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics)
 	{
 		return false;
+	}
+
+	/**
+	 * Set the output parameters to provide a path to an asset in the plugin content folder that visualizes
+	 * the controller in the hand represented by the user path.
+	 * While it's possible to provide controller models for other interaction profiles, you should only provide
+	 * controller models for the interaction profile provided by the plugin.
+	 * 
+	 * NOTE: All models that can be returned also need to be returned in GetControllerModels() so they're included
+	 * when cooking a project. If this is skipped the controllers won't show up in packaged projects
+	 */
+	virtual bool GetControllerModel(XrInstance InInstance, XrPath InInteractionProfile, XrPath InDevicePath, FSoftObjectPath& OutPath)
+	{
+		return false;
+	}
+
+	/**
+	 * Add all asset paths that need to be packaged for cooking.
+	 */
+	virtual void GetControllerModelsForCooking(TArray<FSoftObjectPath>& OutPaths)
+	{
 	}
 
 	/**
@@ -242,6 +269,10 @@ public:
 	virtual const void* OnCreateInstance(class IOpenXRHMDPlugin* InPlugin, const void* InNext)
 	{
 		return InNext;
+	}
+
+	virtual void PostCreateInstance(XrInstance InInstance)
+	{
 	}
 
 	virtual const void* OnGetSystem(XrInstance InInstance, const void* InNext)

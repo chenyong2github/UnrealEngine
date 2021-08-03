@@ -521,6 +521,11 @@ public:
 	bool Init(Audio::FDeviceId InDeviceID, int32 InMaxSources);
 
 	/**
+	 * Called after FAudioDevice creation and init
+	 */
+	void OnDeviceCreated(Audio::FDeviceId InDeviceID);
+
+	/**
 	 * Tears down the audio device
 	 */
 	void Teardown();
@@ -812,14 +817,19 @@ public:
 	void ResetAudioVolumeProxyChangedState();
 
 	/**
-	 * Gathers data about interior volumes affecting the active sound
+	 * Gathers data about interior volumes affecting the active sound (called on audio thread)
 	 */
 	void GatherInteriorData(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const;
 
 	/**
-	 * Applies interior settings from affecting volumes to the active sound
+	 * Applies interior settings from affecting volumes to the active sound (called on audio thread)
 	 */
 	void ApplyInteriorSettings(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const;
+
+	/**
+	 * Notifies subsystems an active sound is about to be deleted (called on audio thread)
+	 */
+	void NotifyPendingDelete(FActiveSound& ActiveSound) const;
 
 public:
 
@@ -852,8 +862,11 @@ protected:
 	 */
 	void InitSoundSources();
 
-	/** Create our subsystem collection root object and initailize subsystems */
+	/** Create our subsystem collection root object and initialize subsystems */
 	void InitializeSubsystemCollection();
+
+	// Handle for our device created delegate
+	FDelegateHandle DeviceCreatedHandle;
 
 public:
 	/**

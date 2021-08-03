@@ -143,6 +143,8 @@ public:
 		return InputMethodPermissions[(uint8)InputType];
 	}
 
+	FGamepadChangeDetectedEvent OnGamepadChangeDetected;
+
 private:
 	bool IsRelevantInput(FSlateApplication& SlateApp, const FInputEvent& InputEvent, const ECommonInputType DesiredInputType)
 	{
@@ -222,6 +224,7 @@ private:
 					{
 						UE_LOG(LogCommonInput, Log, TEXT("UCommonInputSubsystem: Autodetect changed GamepadInputType to %s"), *BestGamepadType.ToString());
 						InputSubsystem.SetGamepadInputType(BestGamepadType);
+						OnGamepadChangeDetected.Broadcast(BestGamepadType);
 					}
 				}
 			}
@@ -329,6 +332,11 @@ void UCommonInputSubsystem::Deinitialize()
 	CommonInputPreprocessor.Reset();
 
 	FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+}
+
+FGamepadChangeDetectedEvent& UCommonInputSubsystem::GetOnGamepadChangeDetected()
+{
+	return CommonInputPreprocessor->OnGamepadChangeDetected;
 }
 
 void UCommonInputSubsystem::SetInputTypeFilter(ECommonInputType InputType, FName Reason, bool Filter)

@@ -511,4 +511,11 @@ class nDisplayMonitor(QAbstractTableModel):
             except:
                 LOGGER.warning("Could not soft kill cluster")
 
+    @QtCore.Slot()
+    def btnMinimizeWindows_clicked(self):
+        ''' Tries to minimize all windows in the nodes. '''
+        for devicedata in self.devicedatas.values():
+            device = devicedata['device']
+            device.minimize_windows()
+    
     #~ QAbstractTableModel interface end

@@ -181,7 +181,7 @@ void FCommander::ZapDB()
 		FSynchronizer::GetCurrent()->Reset("Zap database");
 	}
 	FReportWindow::Delete();
-	FTraceListener::Get().Traces.clear();
+	FTraceListener::Get().Clear();
 }
 
 void FCommander::DoSnapshotOrExport(const IO::Location* InExportedFile)

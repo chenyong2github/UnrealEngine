@@ -7,6 +7,7 @@
 #include "IConcertTransportLogger.h"
 #include "ConcertRemoteEndpoint.h"
 #include "ConcertTransportSettings.h"
+#include "Containers/Queue.h"
 
 class FMessageEndpoint;
 struct FMessageBusNotification;
@@ -129,6 +130,15 @@ private:
 	/** Resend pending messages to remote endpoints if need be. */
 	void ResendPendingMessages(const TArray<FConcertRemoteEndpointPtr>& InRemoteEndpoints, const FDateTime& UtcNow);
 
+	/** Handles the inbound message from MessageBus. Operates on the game thread. */
+	void HandleInboundMessages(const FDateTime& UtcNow);
+
+	/** Updates the last receive time for a KeepAlive message. */
+	void ProcessKeepAliveMessage(const TSharedPtr<IMessageContext, ESPMode::ThreadSafe>& Context, const FDateTime& UtcNow);
+
+	/** Force pending resend on endpoints */
+	void ForcePendingResend();
+
 	/** This context of this endpoint */
 	FConcertEndpointContext EndpointContext;
 
@@ -138,6 +148,9 @@ private:
 	/** Map of remote Endpoints we are sending messages to from this endpoint */
 	mutable FCriticalSection RemoteEndpointsCS;
 	TMap<FGuid, FConcertRemoteEndpointPtr> RemoteEndpoints;
+
+	/** Incoming message bus messages */
+	TQueue<TSharedPtr<IMessageContext, ESPMode::ThreadSafe>, EQueueMode::Spsc> InboundMessages;
 
 	/** Callback when a remote endpoint connection status changes. */
 	TArray<TTuple<FConcertEndpointContext, EConcertRemoteEndpointConnection>> PendingRemoteEndpointConnectionChangedEvents;
@@ -164,6 +177,6 @@ private:
 	/** Holds the endpoint settings */
 	FConcertEndpointSettings Settings;
 
-	/** Holds the Transport Logger, if any */
+	/** Holds the Transport Logger, if any. */
 	FConcertTransportLoggerWrapper Logger;
 };

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClientSequencerManager.h"
+#include "Delegates/IDelegateInstance.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/QualifiedFrameTime.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "Logging/LogMacros.h"
@@ -13,6 +15,7 @@
 
 #include "Engine/GameEngine.h"
 #include "MovieSceneSequence.h"
+#include "MovieSceneTimeHelpers.h"
 #include "LevelSequencePlayer.h"
 #include "LevelSequenceActor.h"
 
@@ -355,9 +358,20 @@ void FConcertClientSequencerManager::ApplyTransportOpenEvent(const FString& Sequ
 
 void FConcertClientSequencerManager::ApplyCloseToPlayers(const FConcertSequencerCloseEvent& InEvent)
 {
-	ALevelSequenceActor* LevelSequenceActor = SequencePlayers.FindRef(*InEvent.SequenceObjectPath);
+	FSequencePlayer Player = SequencePlayers.FindRef(*InEvent.SequenceObjectPath);
+	ALevelSequenceActor* LevelSequenceActor = Player.Actor.Get();
 	if (LevelSequenceActor && LevelSequenceActor->SequencePlayer)
 	{
+		ULevelSequence *Sequence = LevelSequenceActor->GetSequence();
+		if (Sequence)
+		{
+			UMovieScene *Scene = Sequence->GetMovieScene();
+			if (Scene && Player.SignatureChangedHandle.IsValid())
+			{
+				Scene->OnSignatureChanged().Remove(Player.SignatureChangedHandle);
+			}
+		}
+
 		LevelSequenceActor->SequencePlayer->Stop();
 		if (!InEvent.bMasterClose)
 		{
@@ -486,6 +500,7 @@ void FConcertClientSequencerManager::ApplyEventToSequencers(const FConcertSequen
 	}
 }
 
+
 void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencerState& EventState)
 {
 	ULevelSequencePlayer* Player = nullptr;
@@ -501,6 +516,7 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 
 		// Get the actual sequence
 		ULevelSequence* Sequence = LoadObject<ULevelSequence>(nullptr, *EventState.SequenceObjectPath);
+		FDelegateHandle Handle;
 		if (Sequence && CurrentWorld)
 		{
 			FMovieSceneSequencePlaybackSettings PlaybackSettings;
@@ -508,11 +524,39 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 			// Sequencer pauses at the last frame and Player Stops and goes to the first frame unless we set this flag.
 			PlaybackSettings.bPauseAtEnd = true;
 			Player = ULevelSequencePlayer::CreateLevelSequencePlayer(CurrentWorld->PersistentLevel, Sequence, PlaybackSettings, LevelSequenceActor);
+			UMovieScene* Scene = Sequence->GetMovieScene();
+
+			check(Scene != nullptr);
+			Handle = Scene->OnSignatureChanged().AddLambda([SceneObj = TWeakObjectPtr<UMovieScene>(Scene),
+															LevelActorObj = TWeakObjectPtr<ALevelSequenceActor>(LevelSequenceActor)]() {
+				if (LevelActorObj.IsValid() && SceneObj.IsValid())
+				{
+					const TRange<FFrameNumber> PlayRange = SceneObj->GetPlaybackRange();
+					const FFrameRate TickResolution = SceneObj->GetTickResolution();
+					const FFrameRate DisplayRate = SceneObj->GetDisplayRate();
+
+					const FFrameNumber SrcStartFrame = UE::MovieScene::DiscreteInclusiveLower(PlayRange);
+					const FFrameNumber SrcEndFrame   = UE::MovieScene::DiscreteExclusiveUpper(PlayRange);
+
+					const FFrameTime EndingTime = ConvertFrameTime(SrcEndFrame, TickResolution, DisplayRate);
+
+					const FFrameNumber StartingFrame = ConvertFrameTime(SrcStartFrame, TickResolution, DisplayRate).FloorToFrame();
+					const FFrameNumber EndingFrame   = EndingTime.FloorToFrame();
+
+					int32 CurrentDuration = LevelActorObj->GetSequencePlayer()->GetFrameDuration();
+					FQualifiedFrameTime QualifiedStartTime = LevelActorObj->GetSequencePlayer()->GetStartTime();
+					int32 NewDuration = (EndingFrame - StartingFrame).Value;
+					if (CurrentDuration != NewDuration || QualifiedStartTime.Time.GetFrame() != StartingFrame)
+					{
+						LevelActorObj->GetSequencePlayer()->SetFrameRange(StartingFrame.Value, NewDuration, EndingTime.GetSubFrame());
 		}
-		SequencePlayers.Add(*EventState.SequenceObjectPath, LevelSequenceActor);
+				}
+			});
+		}
+		SequencePlayers.Add(*EventState.SequenceObjectPath, {LevelSequenceActor, MoveTemp(Handle)});
 	}
 
-	LevelSequenceActor = SequencePlayers.FindChecked(*EventState.SequenceObjectPath);
+	LevelSequenceActor = SequencePlayers.FindChecked(*EventState.SequenceObjectPath).Actor.Get();
 	if (LevelSequenceActor && LevelSequenceActor->SequencePlayer)
 	{
 		Player = LevelSequenceActor->SequencePlayer;
@@ -614,7 +658,15 @@ void FConcertClientSequencerManager::OnEndFrame()
 
 void FConcertClientSequencerManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObjects(SequencePlayers);
+	TArray<ALevelSequenceActor*> Actors;
+	for (TTuple<FName, FSequencePlayer>& Item : SequencePlayers)
+	{
+		if (Item.Value.Actor.IsValid())
+		{
+			Actors.Add(Item.Value.Actor.Get());
+		}
+	}
+	Collector.AddReferencedObjects(Actors);
 }
 
 #endif

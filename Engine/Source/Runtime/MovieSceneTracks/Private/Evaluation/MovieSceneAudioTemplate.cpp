@@ -269,7 +269,14 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 	{
 		FCachedAudioTrackData& TrackData = PersistentData.GetOrAddTrackData<FCachedAudioTrackData>();
 
-		if ((Context.GetStatus() != EMovieScenePlayerStatus::Playing && Context.GetStatus() != EMovieScenePlayerStatus::Scrubbing && Context.GetStatus() != EMovieScenePlayerStatus::Stepping) || Context.HasJumped() || Context.GetDirection() == EPlayDirection::Backwards)
+		// If the status says we jumped, we always stop all sounds, then allow them to be played again naturally below if status == Playing (for example)
+		if (Context.HasJumped())
+		{
+			TrackData.StopAllSounds();
+		}
+
+
+		if ((Context.GetStatus() != EMovieScenePlayerStatus::Playing && Context.GetStatus() != EMovieScenePlayerStatus::Scrubbing && Context.GetStatus() != EMovieScenePlayerStatus::Stepping) || Context.GetDirection() == EPlayDirection::Backwards)
 		{
 			// stopped, recording, etc
 			TrackData.StopAllSounds();

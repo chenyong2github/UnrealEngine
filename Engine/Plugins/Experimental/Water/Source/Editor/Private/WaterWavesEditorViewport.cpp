@@ -34,9 +34,13 @@ void SWaterWavesEditorViewport::Construct(const FArguments& InArgs)
 	PreviewScene->SetFloorVisibility(false);
 
 	CustomWaterBody = CastChecked<AWaterBodyCustom>(PreviewScene->GetWorld()->SpawnActor(AWaterBodyCustom::StaticClass()));
-	CustomWaterBody->SetWaterMeshOverride(GetDefault<UWaterEditorSettings>()->WaterBodyCustomDefaults.GetWaterMesh());
+	UWaterBodyComponent* WaterBodyComponent = CustomWaterBody->GetWaterBodyComponent();
+	check(WaterBodyComponent);
+	WaterBodyComponent->SetWaterMeshOverride(GetDefault<UWaterEditorSettings>()->WaterBodyCustomDefaults.GetWaterMesh());
 
 	UWaterSplineComponent* WaterSpline = CustomWaterBody->GetWaterSpline();
+	check(WaterSpline);
+	
 	WaterSpline->ResetSpline({ FVector(0, 0, 0) });
 	CustomWaterBody->SetWaterWaves(WaterWavesAssetRef);
 	CustomWaterBody->SetActorScale3D(FVector(60, 60, 1));

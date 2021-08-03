@@ -153,6 +153,16 @@ bool FNodalOffsetTable::DoesZoomPointExists(float InFocus, float InZoom, float I
 	return false;
 }
 
+const FBaseFocusPoint* FNodalOffsetTable::GetBaseFocusPoint(int32 InIndex) const
+{
+	if (FocusPoints.IsValidIndex(InIndex))
+	{
+		return &FocusPoints[InIndex];
+	}
+
+	return nullptr;
+}
+
 TMap<ELensDataCategory, FLinkPointMetadata> FNodalOffsetTable::GetLinkedCategories() const
 {
 	static TMap<ELensDataCategory, FLinkPointMetadata> LinkedToCategories =

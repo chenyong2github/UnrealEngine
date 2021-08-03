@@ -52,10 +52,10 @@ enum class EDisplayClusterConfiguration_PostRenderBlur : uint8
 	None      UMETA(DisplayName = "None"),
 
 	// Blur viewport using Gaussian method
-	Gaussian  UMETA(DisplayName = "Gaussian match"),
+	Gaussian  UMETA(DisplayName = "Gaussian"),
 
 	// Blur viewport using Dilate method
-	Dilate    UMETA(DisplayName = "Dilate match"),
+	Dilate    UMETA(DisplayName = "Dilate"),
 };
 
 UENUM()
@@ -74,10 +74,10 @@ enum class EDisplayClusterConfigurationICVFX_ChromakeySource : uint8
 UENUM()
 enum class EDisplayClusterConfigurationICVFX_LightcardRenderMode : uint8
 {
-	// Render incamera frame over lightcard
+	/** Render Light Cards over the inner frustum.  Light Cards can be directly visible in camera. */
 	Over    UMETA(DisplayName = "Lightcard Over Frustum"),
 
-	// Over lightcard over incamera frame
+	/** Render Light Cards under the inner frustum. Light Cards will not be directly visible in camera. */
 	Under   UMETA(DisplayName = "Lightcard Under Frustum"),
 };
 
@@ -142,13 +142,13 @@ enum class EDisplayClusterConfigurationRenderFamilyMode : uint8
 UENUM()
 enum class EDisplayClusterConfigurationCameraMotionBlurMode : uint8
 {
-	// Do not apply motion blur caused by camera movements
+	/** Subtract blur due to all global motion of the ICVFX camera, but preserve blur from object motion. */
 	Off          UMETA(DisplayName = "All Camera Blur Off"),
 
-	// Apply motion blur caused by camera movements
+	/** Allow blur from camera motion. This option should not normally be used for shooting, but may be useful for diagnostic purposes. */
 	On           UMETA(DisplayName = "ICVFX Camera Blur On"),
 
-	// Cancel default camera motion blur and replace with motion blur of a custom camera setup
+	/** Subtract blur due to motion of the ICVFX camera relative to the nDisplay root, but preserve blur from both object motion and movement of the nDisplay root, which can be animated to represent vehicular motion through an environment. */
 	Override     UMETA(DisplayName = "ICVFX Camera Blur Off"),
 };
 

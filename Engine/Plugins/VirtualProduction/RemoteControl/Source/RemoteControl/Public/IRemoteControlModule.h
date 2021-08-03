@@ -339,10 +339,5 @@ public:
 	/**
 	 * Returns whether the property can be modified through SetObjectProperties when running without an editor.
 	 */
-	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property) const = 0;
-
-	/**
-	 * Returns the delegate called after a property is modified remotely.
-	 */
-	virtual FOnPostPropertyModifiedRemotely& OnPostPropertyModifiedRemotely() = 0;
+	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property, UClass* OwnerClass = nullptr) const = 0;
 };

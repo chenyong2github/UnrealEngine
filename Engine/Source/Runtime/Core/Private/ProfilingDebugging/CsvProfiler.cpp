@@ -1675,11 +1675,12 @@ public:
 		}
 	}
 
-	static FORCENOINLINE FCsvProfilerThreadData* CreateTLSData(const FString* InThreadName = nullptr)
+	static FORCENOINLINE FCsvProfilerThreadData* CreateTLSData()
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(CSVProfiler_ThreadData_CreateTLSData);
 		FScopeLock Lock(&TlsCS);
 
-		FSharedPtr ProfilerThreadPtr = MakeShareable(new FCsvProfilerThreadData(InThreadName));
+		FSharedPtr ProfilerThreadPtr = MakeShareable(new FCsvProfilerThreadData());
 		FPlatformTLS::SetTlsValue(TlsSlot, ProfilerThreadPtr.Get());
 
 		// Keep a weak reference to this thread data in the global array.
@@ -1692,18 +1693,19 @@ public:
 		return ProfilerThreadPtr.Get();
 	}
 
-	static CSV_PROFILER_INLINE FCsvProfilerThreadData& Get(const FString* InThreadName = nullptr)
+	static CSV_PROFILER_INLINE FCsvProfilerThreadData& Get()
 	{
 		FCsvProfilerThreadData* ProfilerThread = (FCsvProfilerThreadData*)FPlatformTLS::GetTlsValue(TlsSlot);
 		if (UNLIKELY(!ProfilerThread))
 		{
-			ProfilerThread = CreateTLSData(InThreadName);
+			ProfilerThread = CreateTLSData();
 		}
 		return *ProfilerThread;
 	}
 
 	static inline void GetTlsInstances(TArray<FSharedPtr>& OutTlsInstances)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(CSVProfiler_ThreadData_GetTlsInstances);
 		FScopeLock Lock(&TlsCS);
 		OutTlsInstances.Empty(TlsInstances.Num());
 
@@ -1718,9 +1720,9 @@ public:
 		}
 	}
 
-	FCsvProfilerThreadData(const FString* InThreadName = nullptr)
+	FCsvProfilerThreadData()
 		: ThreadId(FPlatformTLS::GetCurrentThreadId())
-		, ThreadName((InThreadName==nullptr) ? FThreadManager::GetThreadName(ThreadId) : *InThreadName)
+		, ThreadName(FThreadManager::GetThreadName(ThreadId))
 		, DataProcessor(nullptr)
 	{
 	}
@@ -1736,6 +1738,8 @@ public:
 		// No thread data processors should have a reference to this TLS instance when we're being deleted.
 		check(DataProcessor == nullptr);
 
+		QUICK_SCOPE_CYCLE_COUNTER(CSVProfiler_ThreadData_Destructor);
+
 		// Clean up dead entries in the thread data array.
 		// This will remove both the current instance, and any others that have expired.
 		FScopeLock Lock(&TlsCS);
@@ -1750,6 +1754,8 @@ public:
 
 	void FlushResults(TArray<FCsvTimingMarker>& OutMarkers, TArray<FCsvCustomStat>& OutCustomStats, TArray<FCsvEvent>& OutEvents)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfilerThreadData_FlushResults);
+		
 		check(IsInCsvProcessingThread());
 
 		TimingMarkers.PopAll(OutMarkers);
@@ -2151,6 +2157,8 @@ void FCsvStreamWriter::Process(FCsvProcessThreadDataStats& OutStats)
 	TArray<FCsvProfilerThreadData::FSharedPtr> TlsData;
 	FCsvProfilerThreadData::GetTlsInstances(TlsData);
 
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(CSVProfiler_Writer_GetDataProcessors);
 	for (FCsvProfilerThreadData::FSharedPtr Data : TlsData)
 	{
 		if (!Data->DataProcessor)
@@ -2158,15 +2166,22 @@ void FCsvStreamWriter::Process(FCsvProcessThreadDataStats& OutStats)
 			DataProcessors.Add(new FCsvProfilerThreadDataProcessor(Data, this, RenderThreadId, RHIThreadId));
 		}
 	}
+	}
+
 
 	int32 MinFrameNumberProcessed = MAX_int32;
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(CSVProfiler_Writer_ProcessDataProcessors);
 	for (FCsvProfilerThreadDataProcessor* DataProcessor : DataProcessors)
 	{
 		DataProcessor->Process(OutStats, MinFrameNumberProcessed);
 	}
+	}
+
 
 	if (bContinuousWrites && MinFrameNumberProcessed < MAX_int32)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(CSVProfiler_Writer_FinalizeNextRow);
 		int64 NewReadFrameIndex = MinFrameNumberProcessed - NumFramesToBuffer;
 		while (ReadFrameIndex < NewReadFrameIndex)
 		{
@@ -2707,12 +2722,12 @@ void FCsvProfiler::EndFrame()
 {
 	LLM_SCOPE(ELLMTag::CsvProfiler);
 
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_EndFrame);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CsvProfiler);
 
 	check(IsInGameThread());
 	if (GCsvProfilerIsCapturing)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_EndFrame_Capturing);
 		if (NumFramesToCapture >= 0)
 		{
 			NumFramesToCapture--;
@@ -2755,6 +2770,7 @@ void FCsvProfiler::EndFrame()
 	FCsvCaptureCommand CurrentCommand;
 	if (CommandQueue.Peek(CurrentCommand) && CurrentCommand.CommandType == ECsvCommandType::Stop)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_EndFrame_Stop);
 		bool bCaptureComplete = false;
 
 		if (!GCsvProfilerIsCapturing && !GCsvProfilerIsWritingFile)
@@ -2857,30 +2873,12 @@ void FCsvProfiler::EndFrame()
 
 void FCsvProfiler::OnEndFramePostFork()
 {
-	if (FForkProcessHelper::IsForkedMultithreadInstance())
-	{
-		if (FParse::Param(FCommandLine::Get(), TEXT("csvNoProcessingThread")))
-		{
-			GCsvUseProcessingThread = false;
-		}
-		else 
-		{
-			if (ProcessingThread == nullptr)
-			{
-				GCsvUseProcessingThread = true;
-				// Lazily create the CSV processing thread
-				ProcessingThread = new FCsvProfilerProcessingThread(*this);
-				if (ProcessingThread->IsValid() == false)
-				{
-					UE_LOG(LogCsvProfiler, Error, TEXT("CSV Processing Thread could not be created due to being in a single-thread environment "));
-					delete ProcessingThread;
-					ProcessingThread = nullptr;
-					GCsvUseProcessingThread = false;
-				}
-			}
-		}
+	// Reinitialize commandline-based configuration
+	GCsvUseProcessingThread = FForkProcessHelper::IsForkedMultithreadInstance() && !FParse::Param(FCommandLine::Get(), TEXT("csvNoProcessingThread"));
+	GGameThreadIsCsvProcessingThread = !GCsvUseProcessingThread;
+	// Make sure no one called BeginCapture() before forking, as the runnable doesn't fully support the transition
+	checkf(ProcessingThread == nullptr, TEXT("CSV profiling should not be started pre-fork"));
 	}
-}
 
 /** Per-frame update */
 void FCsvProfiler::BeginFrameRT()
@@ -3199,11 +3197,6 @@ void FCsvProfiler::SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, boo
 	}
 }
 
-void FCsvProfiler::SetThreadName(const FString& InThreadName)
-{
-	FCsvProfilerThreadData::Get(&InThreadName);
-}
-
 void FCsvProfiler::RecordEventAtTimestamp(int32 CategoryIndex, const FString& EventText, uint64 Cycles64)
 {
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
@@ -3445,6 +3438,8 @@ bool FCsvProfiler::IsCapturing_Renderthread()
 float FCsvProfiler::ProcessStatData()
 {
 	check(IsInCsvProcessingThread());
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_ProcessStatData);
 
 	float ElapsedMS = 0.0f;
 	if (!IsShuttingDown.GetValue())

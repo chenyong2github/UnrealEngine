@@ -123,6 +123,9 @@ static FAutoConsoleVariableRef CVarRepGraphDormancyNodeObsoleteBehavior(TEXT("Ne
 
 static TAutoConsoleVariable<float> CVar_ForceConnectionViewerPriority(TEXT("Net.RepGraph.ForceConnectionViewerPriority"), 1, TEXT("Force the connection's player controller and viewing pawn as topmost priority."));
 
+int32 CVar_RepGraph_GridSpatialization2D_DestroyDormantDynamicActorsDefault = 1;
+static FAutoConsoleVariableRef CVarRepGraphGridSpatialization2DDestroyDormantDynamicActorsDefault(TEXT("Net.RepGraph.GridSpatialization2DDestroyDormantDynamicActorsDefault"), CVar_RepGraph_GridSpatialization2D_DestroyDormantDynamicActorsDefault, TEXT("Configure what the default for UReplicationGraphNode_GridSpatialization2D::DestroyDormantDynamicActors should be."), ECVF_Default);
+
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.LogNetDormancyDetails", CVar_RepGraph_LogNetDormancyDetails, 0, "Logs actors that are removed from the replication graph/nodes.");
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.LogActorRemove", CVar_RepGraph_LogActorRemove, 0, "Logs actors that are removed from the replication graph/nodes.");
 REPGRAPH_DEVCVAR_SHIPCONST(int32, "Net.RepGraph.LogActorAdd", CVar_RepGraph_LogActorAdd, 0, "Logs actors that are added to replication graph/nodes.");
@@ -655,7 +658,7 @@ void UReplicationGraph::RemoveNetworkActor(AActor* Actor)
 		for (UNetReplicationGraphConnection* ConnectionManager : Connections)
 		{
 			ConnectionManager->ActorInfoMap.RemoveActor(Actor);
-			ConnectionManager->PrevDormantActorList.RemoveSlow(Actor);
+			ConnectionManager->PrevDormantActorList.RemoveFast(Actor);
 		}
 	}
 }
@@ -2359,6 +2362,8 @@ void UNetReplicationGraphConnection::Serialize(FArchive& Ar)
 		);
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("TrackedDestructionInfoPtrs", TrackedDestructionInfoPtrs.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingDormantDestructList", PendingDormantDestructList.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("TrackedDormantDestructionInfos", TrackedDormantDestructionInfos.CountBytes(Ar));
 	}
 }
 
@@ -2539,17 +2544,36 @@ void UNetReplicationGraphConnection::NotifyAddDestructionInfo(FActorDestructionI
 
 void UNetReplicationGraphConnection::NotifyAddDormantDestructionInfo(AActor* Actor)
 {
-	if (NetConnection && NetConnection->Driver && NetConnection->Driver->GuidCache)
+	if (Actor && NetConnection && NetConnection->Driver && NetConnection->Driver->GuidCache)
 	{
+		ULevel* Level = Actor->GetLevel();
+		FName StreamingLevelName = NAME_None;
+
+		if (Level && Level->IsPersistentLevel())
+		{
+			StreamingLevelName = Level->GetOutermost()->GetFName();
+
+			if (NetConnection->ClientVisibleLevelNames.Contains(StreamingLevelName) == false)
+	{
+				UE_LOG(LogReplicationGraph, Verbose, TEXT("NotifyAddDormantDestructionInfo skipping actor [%s] because streaming level is no longer visible."), *GetNameSafe(Actor));
+				return;
+			}
+		}
+
 		FNetworkGUID NetGUID = NetConnection->Driver->GuidCache->GetNetGUID(Actor);
 		if (NetGUID.IsValid() && !NetGUID.IsDefault())
 		{
-			PendingDormantDestructList.RemoveAll([NetGUID](const FCachedDormantDestructInfo& Info) { return (Info.NetGUID == NetGUID); });
+			bool bWasAlreadyTracked = false;
+			TrackedDormantDestructionInfos.Add(NetGUID, &bWasAlreadyTracked);
+			if (bWasAlreadyTracked)
+			{
+				return;
+			}
 	
 			FCachedDormantDestructInfo& Info = PendingDormantDestructList.AddDefaulted_GetRef();
 
 			Info.NetGUID = NetGUID;
-			Info.Level = Actor->GetLevel();
+			Info.Level = Level;
 			Info.ObjOuter = Actor->GetOuter();
 			Info.PathName = Actor->GetName();
 		}
@@ -2717,7 +2741,8 @@ int64 UNetReplicationGraphConnection::ReplicateDormantDestructionInfos()
 			NumBits += NetConnection->Driver->SendDestructionInfo(NetConnection, &DestructInfo);
 		}
 
-		PendingDormantDestructList.Empty();
+		PendingDormantDestructList.Reset();
+		TrackedDormantDestructionInfos.Reset();
 	}
 
 	return NumBits;
@@ -4510,6 +4535,7 @@ UReplicationGraphNode_GridSpatialization2D::UReplicationGraphNode_GridSpatializa
 	, GridBounds(ForceInitToZero)
 {
 	bRequiresPrepareForReplicationCall = true;
+	bDestroyDormantDynamicActors = CVar_RepGraph_GridSpatialization2D_DestroyDormantDynamicActorsDefault != 0;
 }
 
 void UReplicationGraphNode_GridSpatialization2D::NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo)

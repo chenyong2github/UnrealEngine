@@ -6,6 +6,7 @@
 
 class IDisplayClusterRenderDevice;
 class IDisplayClusterPostProcess;
+class IDisplayClusterPostProcessFactory;
 class IDisplayClusterProjectionPolicy;
 class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
@@ -103,7 +104,7 @@ public:
 	/**
 	* Unregisters projection policy factory
 	*
-	* @param ProjectionType - Type of synchronization policy
+	* @param ProjectionType - Type of projection policy
 	*
 	* @return - True if success
 	*/
@@ -126,6 +127,41 @@ public:
 	virtual void GetRegisteredProjectionPolicies(TArray<FString>& OutPolicyIDs) const = 0;
 
 	/**
+	* Registers PostProcess factory
+	*
+	* @param PostProcessType - Type of PostProcess data
+	* @param Factory        - Factory instance
+	*
+	* @return - True if success
+	*/
+	virtual bool RegisterPostProcessFactory(const FString& PostProcessType, TSharedPtr<IDisplayClusterPostProcessFactory>& Factory) = 0;
+
+	/**
+	* Unregisters PostProcess factory
+	*
+	* @param PostProcessType - Type of post process
+	*
+	* @return - True if success
+	*/
+	virtual bool UnregisterPostProcessFactory(const FString& PostProcessType) = 0;
+
+	/**
+	* Returns a postprocess factory of specified type (if it has been registered previously)
+	*
+	* @param PostProcessType - PostProcess type
+	*
+	* @return - PostProcess factory pointer or nullptr if not registered
+	*/
+	virtual TSharedPtr<IDisplayClusterPostProcessFactory> GetPostProcessFactory(const FString& PostProcessType) = 0;
+
+	/**
+	* Returns all registered postprocess types
+	*
+	* @param OutPostProcessIDs - (out) array to put registered IDs
+	*/
+	virtual void GetRegisteredPostProcess(TArray<FString>& OutPostProcessIDs) const = 0;
+
+	/**
 	* Registers a post process operation
 	*
 	* @param Name      - A unique PP operation name
@@ -134,7 +170,9 @@ public:
 	*
 	* @return - True if success
 	*/
-	virtual bool RegisterPostprocessOperation(const FString& Name, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& Operation, int Priority = 0) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool RegisterPostprocessOperation(const FString& Name, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& Operation, int Priority = 0)
+	{ return false; }
 
 	/**
 	* Registers a post process operation
@@ -144,7 +182,9 @@ public:
 	*
 	* @return - True if success
 	*/
-	virtual bool RegisterPostprocessOperation(const FString& Name, FDisplayClusterPPInfo& PPInfo) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool RegisterPostprocessOperation(const FString& Name, FDisplayClusterPPInfo& PPInfo)
+	{ return false; }
 
 	/**
 	* Unregisters a post process operation
@@ -153,14 +193,18 @@ public:
 	*
 	* @return - True if success
 	*/
-	virtual bool UnregisterPostprocessOperation(const FString& Name) = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual bool UnregisterPostprocessOperation(const FString& Name)
+	{ return false; }
 
 	/**
 	* Returns all registered post-process operations
 	*
 	* @return - PP operations
 	*/
-	virtual TMap<FString, FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const = 0;
+	UE_DEPRECATED(4.27, "This function has been moved to FDisplayClusterViewport. Use GetViewportManager() to access  that interface.")
+	virtual TMap<FString, FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const
+	{ return TMap<FString, FDisplayClusterPPInfo>(); }
 
 	/**
 	* @return - Current viewport manager from root actor

@@ -457,6 +457,20 @@ void UUMGSequencePlayer::ApplyLatentActions()
 	}
 }
 
+void UUMGSequencePlayer::RemoveEvaluationData()
+{
+	using namespace UE::MovieScene;
+
+	UMovieSceneEntitySystemLinker* Linker           = RootTemplateInstance.GetEntitySystemLinker();
+	FSequenceInstance*             SequenceInstance = RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root);
+
+	if (SequenceInstance && Linker)
+	{
+		SequenceInstance->Ledger.UnlinkEverything(Linker);
+		SequenceInstance->InvalidateCachedData(Linker);
+	}
+}
+
 void UUMGSequencePlayer::TearDown()
 {
 	RootTemplateInstance.BeginDestroy();

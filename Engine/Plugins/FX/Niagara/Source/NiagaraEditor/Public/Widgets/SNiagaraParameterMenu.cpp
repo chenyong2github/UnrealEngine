@@ -11,12 +11,19 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNode.h"
+#include "NiagaraNodeAssignment.h"
+#include "NiagaraNodeOutput.h"
+#include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeWithDynamicPins.h"
 #include "NiagaraParameterDefinitions.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraScriptSource.h"
+#include "NiagaraSystem.h"
+#include "NiagaraSystemEditorData.h"
 #include "SGraphActionMenu.h"
 #include "SNiagaraGraphActionWidget.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/TNiagaraViewModelManager.h"
 #include "Widgets/SNiagaraActionMenuExpander.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraParameterMenu"
@@ -129,6 +136,9 @@ void SNiagaraAddParameterFromPanelMenu::Construct(const FArguments& InArgs)
 	this->bShowGraphParameters = InArgs._ShowGraphParameters;
 	this->bIsParameterReadNode = InArgs._IsParameterRead;
 	this->bForceCollectEngineNamespaceParameterActions = InArgs._ForceCollectEngineNamespaceParameterActions;
+	this->bCullParameterActionsAlreadyInGraph = InArgs._CullParameterActionsAlreadyInGraph;
+	this->AdditionalCulledParameterNames = InArgs._AdditionalCulledParameterNames;
+	this->AssignmentNode = InArgs._AssignmentNode;
 	this->bOnlyShowParametersInNamespaceId = NamespaceId.IsValid();
 
 	SNiagaraParameterMenu::FArguments SuperArgs;
@@ -289,6 +299,8 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 
 	TSet<FGuid> ExistingGraphParameterIds;
 	TSet<FName> VisitedParameterNames;
+	// Append additional culled parameter names to visited parameter names so that we preemptively cull any parameters that are name matching.
+	VisitedParameterNames.Append(AdditionalCulledParameterNames);
 	TArray<FGuid> ExcludedNamespaceIds;
 	// If this is a write node, exclude any read-only vars.
 	if (!bIsParameterReadNode)
@@ -336,11 +348,15 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 			}
 		}
 
+		// If culling parameter actions that match existing parameters in the graph, collect all IDs for parameters visited in the graph.
+		if(bCullParameterActionsAlreadyInGraph)
+		{ 
 		const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& VariableToScriptVariableMap = Graph->GetAllMetaData();
 		for (auto It = VariableToScriptVariableMap.CreateConstIterator(); It; ++It)
 		{
 			ExistingGraphParameterIds.Add(It.Value()->Metadata.GetVariableGuid());
 		}
+	}
 	}
 
 
@@ -383,7 +399,6 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	// Collect "add existing graph parameter" actions
 	if (bShowGraphParameters)
 	{
-		TSet<FGuid> VisitedParameterIds;
 		for (const UNiagaraGraph* Graph : Graphs)
 		{
 			TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ParameterEntries = Graph->GetParameterReferenceMap();
@@ -402,11 +417,11 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 						continue;
 					}
 					// Check that we do not add a duplicate entry.
-					const FGuid& ScriptVarId = ScriptVar->Metadata.GetVariableGuid();
-					if (VisitedParameterIds.Contains(ScriptVarId) == false)
+					const FName& ParameterName = Parameter.GetName();
+					if (VisitedParameterNames.Contains(ParameterName) == false)
 					{
 						// The script variable is not a duplicate, add an entry for it.
-						VisitedParameterIds.Add(ScriptVarId);
+						VisitedParameterNames.Add(ParameterName);
 						FNiagaraVariable MutableParameter = FNiagaraVariable(Parameter);
 						const FText Category = bShowNamespaceCategory ? GetNamespaceCategoryText(NamespaceId) : LOCTEXT("NiagaraAddExistingParameterMenu", "Add Existing Parameter");
 						const FText DisplayName = FText::FromName(Parameter.GetName());
@@ -444,7 +459,6 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 						continue;
 					}
 				}
-				ensureMsgf(false, TEXT("Encountered existing variable of unknown type when collecting graph parameters!"));
 			}
 		}
 	}
@@ -465,7 +479,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 
 			// Check that we do not add a duplicate entry.
 			const FGuid& ScriptVarId = ScriptVar->Metadata.GetVariableGuid();
-			if (ExistingGraphParameterIds.Contains(ScriptVarId))
+			if (bCullParameterActionsAlreadyInGraph && ExistingGraphParameterIds.Contains(ScriptVarId))
 			{
 				continue;
 			}
@@ -489,6 +503,157 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 			{ 
 				Action->SetSectionId(1); //Increment the default section id so parameter definitions actions are always categorized BELOW other actions.
 				Collector.AddAction(Action, ParameterDefinitions->GetMenuSortOrder());
+			}
+		}
+	}
+
+	// Collect "add existing parameter" actions associated with Assignment nodes.
+	if (AssignmentNode != nullptr)
+	{
+		// Gather required members for context from the AssignmentNode.
+		UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*AssignmentNode);
+		UNiagaraSystem* OwningSystem = AssignmentNode->GetTypedOuter<UNiagaraSystem>();
+		if (OwningSystem == nullptr)
+		{
+			return;
+		}
+
+		UNiagaraSystemEditorData* OwningSystemEditorData = Cast<UNiagaraSystemEditorData>(OwningSystem->GetEditorData());
+		if (OwningSystemEditorData == nullptr)
+		{
+			return;
+		}
+
+		bool bOwningSystemIsPlaceholder = OwningSystemEditorData->GetOwningSystemIsPlaceholder();
+		TOptional<FName> StackContextOverride = OutputNode->GetStackContextOverride();
+
+		// Gather available parameters from the parameter map history.
+		TArray<FNiagaraVariable> AvailableParameters;
+		TArray<FName> CustomIterationNamespaces;
+		TArray<FNiagaraParameterMapHistory> Histories = UNiagaraNodeParameterMapBase::GetParameterMaps(OutputNode->GetNiagaraGraph());
+		for (FNiagaraParameterMapHistory& History : Histories)
+		{
+			for (int32 VarIdx = 0; VarIdx < History.Variables.Num(); VarIdx++)
+			{
+				FNiagaraVariable& Variable = History.Variables[VarIdx];
+				if (StackContextOverride.IsSet() && StackContextOverride.GetValue() != NAME_None && Variable.IsInNameSpace(StackContextOverride.GetValue()))
+				{
+					AvailableParameters.AddUnique(Variable);
+				}
+				else if (History.IsPrimaryDataSetOutput(Variable, OutputNode->GetUsage()))
+				{
+					AvailableParameters.AddUnique(Variable);
+				}
+			}
+
+			for (const FName& Namespace : History.IterationNamespaceOverridesEncountered)
+			{
+				CustomIterationNamespaces.AddUnique(Namespace);
+			}
+		}
+
+		// Gather available parameters in the used namespace from the graph parameter to reference map and the system editor only parameters.
+		TOptional<FName> UsageNamespace = FNiagaraStackGraphUtilities::GetNamespaceForOutputNode(OutputNode);
+		if (UsageNamespace.IsSet())
+		{
+			for (const TPair<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& Entry : OutputNode->GetNiagaraGraph()->GetParameterReferenceMap())
+			{
+				// Pick up any params with 0 references from the Parameters window
+				bool bDoesParamHaveNoReferences = Entry.Value.ParameterReferences.Num() == 0;
+				bool bIsParamInUsageNamespace = Entry.Key.IsInNameSpace(UsageNamespace.GetValue().ToString());
+
+				if (bDoesParamHaveNoReferences && bIsParamInUsageNamespace)
+				{
+					AvailableParameters.AddUnique(Entry.Key);
+				}
+			}
+
+			TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(OwningSystem);
+			if (SystemViewModel.IsValid())
+			{
+				TArray<FNiagaraVariable> EditorOnlyParameters;
+				for (const UNiagaraScriptVariable* EditorOnlyScriptVar : SystemViewModel->GetEditorOnlyParametersAdapter()->GetParameters())
+				{
+					const FNiagaraVariable& EditorOnlyParameter = EditorOnlyScriptVar->Variable;
+					if (EditorOnlyParameter.IsInNameSpace(UsageNamespace.GetValue().ToString()))
+					{
+						AvailableParameters.AddUnique(EditorOnlyParameter);
+					}
+				}
+			}
+		}
+
+		// Now check to see if any of the available write namespaces have overlap with the iteration namespaces. If so, we need to exclude them if they aren't the active stack context.
+		// This is for situations like Emitter.Grid2DCollection.TestValue which should only be written if in the sim stage scripts and not emitter scripts, which would normally be allowed.
+		TArray<FName> AvailableWriteNamespaces;
+		FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(
+			bOwningSystemIsPlaceholder ? FNiagaraStackGraphUtilities::EStackEditContext::Emitter : FNiagaraStackGraphUtilities::EStackEditContext::System,
+			OutputNode->GetUsage(), StackContextOverride, AvailableWriteNamespaces);
+
+		TArray<FName> ExclusionList;
+		for (const FName& IterationNamespace : CustomIterationNamespaces)
+		{
+			FNiagaraVariableBase TempVar(FNiagaraTypeDefinition::GetFloatDef(), IterationNamespace);
+			for (const FName& AvailableWriteNamespace : AvailableWriteNamespaces)
+			{
+				if (TempVar.IsInNameSpace(AvailableWriteNamespace))
+				{
+					if (!StackContextOverride.IsSet() || (StackContextOverride.IsSet() && IterationNamespace != StackContextOverride.GetValue()))
+						ExclusionList.AddUnique(IterationNamespace);
+				}
+			}
+		}
+
+		// Cull available parameters if they are outside the available namespaces.
+		for (const FNiagaraVariable& AvailableParameter : AvailableParameters)
+		{
+			bool bFound = false;
+			// Now check to see if the variable is possible to write to
+			for (const FName& AvailableWriteNamespace : AvailableWriteNamespaces)
+			{
+				if (AvailableParameter.IsInNameSpace(AvailableWriteNamespace))
+				{
+					bFound = true;
+					break;
+				}
+			}
+
+			if (!bFound)
+			{
+				continue;
+			}
+				
+			// Now double-check that it doesn't overlap with a sub-namespace we're not allowed to write to
+			bFound = false;
+			for (const FName& ExcludedNamespace : ExclusionList)
+			{
+				if (AvailableParameter.IsInNameSpace(ExcludedNamespace))
+				{
+					bFound = true;
+					break;
+				}
+			}
+
+			if (bFound)
+			{
+				continue;
+			}
+
+			// Cull the available parameter if it has already been visited.
+			const FName& ParameterName = AvailableParameter.GetName();
+			if (VisitedParameterNames.Contains(ParameterName) == false)
+			{
+				// The parameter is not a duplicate, add an entry for it.
+				VisitedParameterNames.Add(ParameterName);
+				const FText Category = LOCTEXT("ModuleSetCategory", "Set Specific Parameters");
+				const FText DisplayName = FText::FromName(AvailableParameter.GetName());
+				const FText VarDesc = FNiagaraConstants::GetAttributeDescription(AvailableParameter);
+				const FText Tooltip = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Description: Set the parameter {0}. {1}"), DisplayName, VarDesc);
+				TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
+					Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
+					FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterFromPanelMenu::ParameterSelected, AvailableParameter)));
+				Action->SetParameterVariable(AvailableParameter);
+				Collector.AddAction(Action, 3);
 			}
 		}
 	}

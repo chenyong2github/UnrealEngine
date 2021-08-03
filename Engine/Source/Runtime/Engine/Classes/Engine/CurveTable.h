@@ -66,6 +66,8 @@ protected:
 	 */
 	TMap<FName, FRealCurve*>	RowMap;
 
+	static FCriticalSection& GetCurveTableChangeCriticalSection();
+
 public:
 	//~ Begin UObject Interface.
 	virtual void FinishDestroy() override;

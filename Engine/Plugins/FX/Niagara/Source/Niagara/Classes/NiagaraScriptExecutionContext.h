@@ -190,8 +190,6 @@ struct FNiagaraScriptExecutionContextBase
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return Parameters.GetDataInterfaces(); }
 
-	bool CanExecute()const;
-
 	TArrayView<const uint8> GetScriptLiterals() const;
 
 	void DirtyDataInterfaces();

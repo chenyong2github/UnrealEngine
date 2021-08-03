@@ -550,11 +550,11 @@ void UNiagaraNodeUsageSelector::OnPinRenamed(UEdGraphPin* RenamedPin, const FStr
 
 		if(OptionValues.Num() > 0)
 		{
-			int32 OptionIndex = OptionValues[0];
-			 for(int32 StartIndex = FoundIndex; StartIndex < OutputVars.Num() * OptionsCount; StartIndex += OutputVars.Num())
+			int32 OptionIndex = 0;
+			 for(int32 InputPinIndex = FoundIndex; InputPinIndex < OutputVars.Num() * OptionsCount; InputPinIndex += OutputVars.Num())
 			 {
-		 		InputPins[StartIndex]->PinName = GetOptionPinName(OutputVars[FoundIndex], OptionValues[OptionIndex]);
-			 	InputPins[StartIndex]->PinFriendlyName = GetOptionPinFriendlyName(OutputVars[FoundIndex]);
+		 		InputPins[InputPinIndex]->PinName = GetOptionPinName(OutputVars[FoundIndex], OptionValues[OptionIndex]);
+			 	InputPins[InputPinIndex]->PinFriendlyName = GetOptionPinFriendlyName(OutputVars[FoundIndex]);
 			 	OptionIndex++;
 			 }
 		}

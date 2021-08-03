@@ -17,7 +17,7 @@ void FD3D12Fence::InternalSignal(ED3D12CommandQueueType InQueueType, uint64 Fenc
 		check(FenceCore);
 
 	#if DEBUG_FENCES
-		UE_LOG(LogD3D12RHI, Log, TEXT("*** GPU SIGNAL (CmdQueueType: %u) Fence: %016llX (%s), Value: %u ***"), InQueueType, FenceCore->GetFence(), *Name.ToString(), FenceToSignal);
+		UE_LOG(LogD3D12RHI, Log, TEXT("*** [tid:%08x] GPU SIGNAL (CmdQueueType: %u) GPUIndex: %u, Fence: %016llX (%s), Value: %u ***"), FPlatformTLS::GetCurrentThreadId(), InQueueType, GPUIndex, FenceCore->GetFence(), *Name.ToString(), FenceToSignal);
 	#endif
 		VERIFYD3D12RESULT(CommandQueue->Signal(FenceCore->GetFence(), FenceToSignal));
 	}
@@ -37,7 +37,7 @@ void FD3D12Fence::WaitForFence(uint64 FenceValue)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_D3D12WaitForFenceTime);
 #if DEBUG_FENCES
-				UE_LOG(LogD3D12RHI, Log, TEXT("*** CPU WAIT Fence: %016llX (%s), Value: %u ***"), FenceCore->GetFence(), *Name.ToString(), FenceValue);
+				UE_LOG(LogD3D12RHI, Log, TEXT("*** [tid:%08x] CPU WAIT GPUIndex: %u, Fence: %016llX (%s), Value: %u, LastCompletedFence: %u, FenceCore Completed Value: %u ***"), FPlatformTLS::GetCurrentThreadId(), GPUIndex, FenceCore->GetFence(), *Name.ToString(), FenceValue, LastCompletedFence, FenceCore->GetFence()->GetCompletedValue());
 #endif
 				// Multiple threads can be using the same FD3D12Fence (texture streaming).
 				FScopeLock Lock(&WaitForFenceCS);
@@ -54,6 +54,12 @@ void FD3D12Fence::WaitForFence(uint64 FenceValue)
 		// Refresh the completed fence value
 		UpdateLastCompletedFence();
 #if DEBUG_FENCES
+		for (uint32 GPUIndex : GetGPUMask())
+		{
+			FD3D12FenceCore* FenceCore = FenceCores[GPUIndex];
+			UE_LOG(LogD3D12RHI, Log, TEXT("*** [tid:%08x] CPU WAIT FINISHED GPUIndex: %u, Fence: %016llX (%s), Value: %u, LastCompletedFence: %u, FenceCore Completed Value: %u ***"), FPlatformTLS::GetCurrentThreadId(), GPUIndex, FenceCore->GetFence(), *Name.ToString(), FenceValue, LastCompletedFence, FenceCore->GetFence()->GetCompletedValue());
+		}
+
 		checkf(FenceValue <= LastCompletedFence, TEXT("Wait for fence value (%llu) failed! Last completed value is still %llu."), FenceValue, LastCompletedFence);
 #endif
 	}

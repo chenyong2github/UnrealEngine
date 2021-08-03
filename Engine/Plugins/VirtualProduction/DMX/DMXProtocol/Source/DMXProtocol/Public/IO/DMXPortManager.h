@@ -19,13 +19,12 @@ DECLARE_MULTICAST_DELEGATE(FDMXOnPortsChangedDelegate);
 /** 
  * Manager for all DMX ports. Exposes available input and output ports anywhere.
  *
-
- * A) Overview of the IO System - for developers that want to send and receive DMX
+ * A) Overview of the IO System
  * ============================
  *
  * 1. Definition of Ports in Project Settings:
  * -------------------------------------------
- * DMX Protocol Settings (the DMX Project Settings) holds arrays of DMX Port Configs. This is where ports are defined.
+ * DMX Protocol Settings (the DMX Project Settings) holds two arrays of DMX Input Port Configs resp. DMX Output Port Configs. This is where ports are defined.
  *
  * Port Manager automatically creates DMXInputPortS and DMXOutputPortS that match these settings. Generally this is self-contained and does not need any user code.
  *
@@ -60,7 +59,7 @@ DECLARE_MULTICAST_DELEGATE(FDMXOnPortsChangedDelegate);
  *
  * 4. Send DMX from your object:
  * -------------------------------
- * Use the DMXOutputPort's SendDMX method to output DMX
+ * Use the DMXOutputPort's SendDMX method to send DMX.
  *
  */
 class DMXPROTOCOL_API FDMXPortManager

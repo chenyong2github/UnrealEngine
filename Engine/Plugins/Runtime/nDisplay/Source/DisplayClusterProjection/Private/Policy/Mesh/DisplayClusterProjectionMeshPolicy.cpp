@@ -116,8 +116,10 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshAndOrigin(class IDisplayClu
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyPreview
 //////////////////////////////////////////////////////////////////////////////////////////////
-UMeshComponent* FDisplayClusterProjectionMeshPolicy::GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport)
+UMeshComponent* FDisplayClusterProjectionMeshPolicy::GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 {
+	bOutIsRootActorComponent = true;
+
 	UStaticMeshComponent* MeshComponent = nullptr;
 	USceneComponent* OriginComponent = nullptr;
 

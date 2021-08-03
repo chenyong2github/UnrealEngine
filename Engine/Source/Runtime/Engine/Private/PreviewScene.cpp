@@ -125,7 +125,7 @@ FPreviewScene::~FPreviewScene()
 	}
 	
 	// The world may be released by now.
-	if (PreviewWorld)
+	if (PreviewWorld && GEngine)
 	{
 		PreviewWorld->CleanupWorld();
 		GEngine->DestroyWorldContext(GetWorld());

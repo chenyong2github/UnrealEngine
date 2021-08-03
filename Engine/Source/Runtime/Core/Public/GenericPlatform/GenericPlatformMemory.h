@@ -162,6 +162,8 @@ struct CORE_API FGenericPlatformMemoryStats : public FPlatformMemoryConstants
 	};
 
 	TArray<FPlatformSpecificStat> GetPlatformSpecificStats() const;
+
+	uint64 GetAvailablePhysical(bool bExcludeExtraDevMemory) const;
 };
 
 

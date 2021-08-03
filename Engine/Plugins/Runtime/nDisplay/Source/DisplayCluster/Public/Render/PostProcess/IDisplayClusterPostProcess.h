@@ -9,9 +9,7 @@
 #include "RHICommandList.h"
 
 class IDisplayClusterViewportManager;
-class FDisplayClusterViewport;
-class FViewport;
-
+class IDisplayClusterViewportProxy;
 
 /**
  * nDisplay post-process interface
@@ -32,12 +30,51 @@ public:
 	{ }
 
 	/**
-	* Game thread call. Postprocess initialization
-	*
-	* @param Parameters - Configuration parameters
+	* Return postprocess name
 	*/
-	virtual void InitializePostProcess(IDisplayClusterViewportManager& InViewportManager, const TMap<FString, FString>& Parameters)
+	virtual const FString& GetId() const = 0;
+
+	/**
+	* Return postprocess order
+	*/
+	virtual int32 GetOrder() const = 0;
+
+	/**
+	* Return postprocess type
+	*/
+	virtual const FString GetTypeId() const = 0;
+
+	/**
+	* Return postprocess configuration
+	*/
+	virtual const TMap<FString, FString>& GetParameters() const = 0;
+
+	/**
+	* Update postprocess internal data from game thread
+	*/
+	virtual void Tick()
 	{ }
+
+	/**
+	* Check postprocess settings changes
+	*
+	* @param InConfigurationProjectionPolicy - new settings
+	*
+	* @return - True if found changes
+	*/
+	virtual bool IsConfigurationChanged(const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess) const = 0;
+
+	/**
+	* Called each time a new game level starts
+	*
+	*/
+	virtual bool HandleStartScene(IDisplayClusterViewportManager* InViewportManager) = 0;
+
+	/**
+	* Called when current level is going to be closed (i.e. before loading a new map)
+	*
+	*/
+	virtual void HandleEndScene(IDisplayClusterViewportManager* InViewportManager) = 0;
 
 	/**
 	* Returns if an interface implementation processes each view region before warp&blend
@@ -55,7 +92,7 @@ public:
 	* @param RHICmdList - RHI command list
 	* @param ViewportProxy - viewport proxy interface
 	*/
-	virtual void PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* ViewportProxy) const
+	virtual void PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* ViewportProxy) const
 	{ }
 
 	/**
@@ -74,7 +111,7 @@ public:
 	* @param RHICmdList - RHI command list
 	* @param ViewportProxy - viewport proxy interface
 	*/
-	virtual void PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* ViewportProxy) const
+	virtual void PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* ViewportProxy) const
 	{ }
 
 	/**

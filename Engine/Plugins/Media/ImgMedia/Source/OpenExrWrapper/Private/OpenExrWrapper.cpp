@@ -191,7 +191,11 @@ void FRgbaInputFile::ReadPixels(int32 StartY, int32 EndY)
 {
 	try
 	{
-		((Imf::RgbaInputFile*)InputFile)->readPixels(StartY, EndY);
+		// Since we convert everything to a coordinate system that goes from 0 to infinity when we GetDataWindow()
+		// we need to convert it back to original coordinate system.
+		Imath::Box2i Win = ((Imf::RgbaInputFile*)InputFile)->dataWindow();
+
+		((Imf::RgbaInputFile*)InputFile)->readPixels(StartY + Win.min.y, EndY + Win.min.y);
 	}
 	catch (std::exception const& Exception)
 	{

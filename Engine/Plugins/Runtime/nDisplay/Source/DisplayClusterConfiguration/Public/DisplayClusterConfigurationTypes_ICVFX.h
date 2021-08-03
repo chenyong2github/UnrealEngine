@@ -24,16 +24,17 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Visibil
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Actor Layers */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Layers"))
 	TArray<FActorLayer> ActorLayers;
 
+	/** Actor references */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	TArray<TSoftObjectPtr<AActor>> Actors;
 
-	//@todo change link, now by names
-	// Reference to RootActor components by names
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
-	TArray<FString> RootActorComponentNames;
+	/** Reference to RootActor components by names */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = NDisplay)
+	TArray<FString> RootActorComponentNames; //@todo change link, now by names
 };
 
 USTRUCT(Blueprintable)
@@ -108,34 +109,35 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Chromak
 	GENERATED_BODY()
 
 public:
-	// Render chromakey actors from ShowOnlyList into texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Set to True to use custom chromakey content. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Use Custom Chromakey"))
 	bool bEnable = false;
 
-	// Debug: override the texture of the camera viewport from this chromakey RTT
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category = NDisplay, meta = (EditCondition = "bEnable"))
-	bool bOverrideCameraViewport = false;
+	// Replace the texture of the camera viewport from this chromakey RTT
+	UPROPERTY(BlueprintReadWrite,Category = NDisplay, meta = (EditCondition = "bEnable"))
+	bool bReplaceCameraViewport = false;
 
 	// Performance: Use custom size (low-res) for chromakey RTT frame. Default size same as camera frame
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_CustomSize CustomSize;
 
-	// Render actors from this layers to chromakey texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	/** Content specified here will be overridden to use the chromakey color specified and include chromakey markers if enabled. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Custom Chromakey Content"))
 	FDisplayClusterConfigurationICVFX_VisibilityList ShowOnlyList;
 
-	// Override viewport render from source texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
-	FDisplayClusterConfigurationPostRender_Override Override;
+	// Replace viewport render from source texture
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	FDisplayClusterConfigurationPostRender_Override Replace;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	/** Apply blur to the Custom Chromakey content. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Post Process Blur"))
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationPostRender_GenerateMips GenerateMips;
 
 	// Advanced render settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings AdvancedRenderSettings;
 };
 
@@ -145,30 +147,32 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Chromak
 	GENERATED_BODY()
 
 public:
-	FDisplayClusterConfigurationICVFX_ChromakeyMarkers()
-		// Default chromakey marker color is (0,64,0)
-		: MarkerColor(0,0.25f,0)
-	{ }
+	FDisplayClusterConfigurationICVFX_ChromakeyMarkers();
 
 public:
-	// Allow chromakey markers rendering (Also require not empty MarkerTileRGBA)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** True to display Chromakey Markers within the inner frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Chromakey Markers"))
 	bool bEnable = true;
 
-	// Color of chromakey marker
+	/** Marker Color */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FLinearColor MarkerColor;
 
-	// (*required) This texture must by tiled in both directions. Alpha channel used to composing
+	/** Texture to use as the chromakey marker tile. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	UTexture2D* MarkerTileRGBA = nullptr;
 
-	// Scale markers UV source
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
-	float MarkerTileScale = 1;
+	/** Scale value for the size of each chromakey marker tile. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", ClampMin = "0", UIMin = "0", DisplayName = "Marker Scale"))
+	float MarkerSizeScale = 0.5;
 
+	/** Distance value between each chromakey marker tile. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", ClampMin = "0", UIMin = "0"))
+	float MarkerTileDistance = 1.5;
+
+	/** Offset value for the chromakey marker tiles, normalized to the tile distance.  Adjust placement of the chromakey markers within the composition of the camera framing.  Whole numbers will offset chromakey markers by a cyclical amount and have no visual change. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
-	float MarkerTileDistance = 0;
+	FVector2D MarkerTileOffset;
 };
 
 USTRUCT(Blueprintable)
@@ -183,19 +187,19 @@ public:
 	{ }
 
 public:
-	// Allow chromakey rendering
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Set to True to fill the inner frustum with the specified Chromakey Color. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Chromakey"))
 	bool bEnable = false;
 
-	// Color of chromakey
+	/** Chromakey Color */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FLinearColor ChromakeyColor;
 
-	// Settings for chromakey texture source rendering
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	/** Configure a custom chromakey based on content that will appear in the inner frustum, rather than the entire inner frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Custom Chromakey"))
 	FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings ChromakeyRenderTexture;
 
-	// Global setup for chromakey markers rendering
+	/** Display Chromakey Markers to facilitate camera tracking in post production. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_ChromakeyMarkers ChromakeyMarkers;
 };
@@ -206,15 +210,15 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Lightca
 	GENERATED_BODY()
 
 public:
-	// Debug: override the texture of the target viewport from this lightcard RTT
+	// override the texture of the target viewport from this lightcard RTT
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
-	bool bOverrideViewport = false;
+	bool bReplaceViewport = false;
 
 	// Override viewport render from source texture
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
-	FDisplayClusterConfigurationPostRender_Override Override;
+	FDisplayClusterConfigurationPostRender_Override Replace;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY()
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
@@ -231,11 +235,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Lightca
 	GENERATED_BODY()
 
 public:
-	// Allow lightcard rendering (also require not empty LightCardLayers)
+	/** Enable Light Cards */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Light Cards"))
 	bool bEnable = true;
 
-	// Global lighcard rendering mode
+	/** Specify how to render Light Cards in relation to the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Blending Mode", EditCondition = "bEnable"))
 	EDisplayClusterConfigurationICVFX_LightcardRenderMode Blendingmode = EDisplayClusterConfigurationICVFX_LightcardRenderMode::Under;
 
@@ -243,7 +247,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_VisibilityList ShowOnlyList;
 
-	// Configure global render settings for this viewports
+	// Configure global render settings for this viewport
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_LightcardRenderSettings RenderSettings;
 
@@ -308,14 +312,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	bool bUseCameraComponentPostprocess = true;
 
-	// Override viewport render from source texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
-	FDisplayClusterConfigurationPostRender_Override Override;
+	// Replace viewport render from source texture
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mipmapping"))
+	FDisplayClusterConfigurationPostRender_Override Replace;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY()
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Mipmapping can help avoid visual artifacts when the inner frustum is rendered at a lower resolution than specified in the configuration and is smaller on screen than the available pixels on the display device. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mipmapping"))
 	FDisplayClusterConfigurationPostRender_GenerateMips GenerateMips;
 
 	// Advanced render settings
@@ -329,19 +334,20 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraM
 	GENERATED_BODY()
 
 public:
+	/** If enabled, override the overall motion blur settings that would otherwise come from the current post-process volume or Cine Camera. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (DisplayName = "Enable Settings Override"))
-	bool bOverrideEnable = false;
+	bool bReplaceEnable = false;
 
-	/** Strength of motion blur, 0:off, should be renamed to intensity */
-	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "1.0", editcondition = "bOverrideEnable", DisplayName = "Amount"))
+	/** Strength of motion blur, 0:off. */
+	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "1.0", editcondition = "bReplaceEnable", DisplayName = "Intensity"))
 	float MotionBlurAmount = 1;
 
-	/** max distortion caused by motion blur, in percent of the screen width, 0:off */
-	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "100.0", editcondition = "bOverrideEnable", DisplayName = "Max"))
+	/** Max distortion caused by motion blur in percent of the screen width, 0:off */
+	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", ClampMax = "100.0", editcondition = "bReplaceEnable", DisplayName = "Max"))
 	float MotionBlurMax = 50;
 
-	/** The minimum projected screen radius for a primitive to be drawn in the velocity pass, percentage of screen width. smaller numbers cause more draw calls, default: 4% */
-	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", UIMax = "100.0", editcondition = "bOverrideEnable", DisplayName = "Per Object Size"))
+	/** The minimum projected screen radius for a primitive to be drawn in the velocity pass.Percentage of screen width, smaller numbers cause more draw calls, default: 4 % */
+	UPROPERTY(interp, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", UIMax = "100.0", editcondition = "bReplaceEnable", DisplayName = "Per Object Size"))
 	float MotionBlurPerObjectSize = 4;
 };
 
@@ -351,14 +357,17 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraM
 	GENERATED_BODY()
 
 public:
+	/** Specify the motion blur mode for the inner frustum, correcting for the motion of the camera. Blur due to camera motion will be incorrectly doubled in the physically exposed image if there is already camera blur applied to the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	EDisplayClusterConfigurationCameraMotionBlurMode MotionBlurMode = EDisplayClusterConfigurationCameraMotionBlurMode::Override;
 
+	/** Translation Scale */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	float TranslationScale = 1.f;
 
+	/** Motion Blur Settings Override */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Motion Blur Settings Override"))
-	FDisplayClusterConfigurationICVFX_CameraMotionBlurOverridePPS OverrideMotionBlurPPS;
+	FDisplayClusterConfigurationICVFX_CameraMotionBlurOverridePPS MotionBlurPPS;
 };
 
 USTRUCT(BlueprintType)
@@ -366,10 +375,12 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraS
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+	/** Adjust blur amount to the top and bottom edges of the inner frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Top and Bottom", ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float Vertical = 0.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+	/** Adjust blur amount to the left and right side edges of the inner frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Sides", ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float Horizontal = 0.f;
 };
 
@@ -378,61 +389,65 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraS
 {
 	GENERATED_BODY()
 
+	FDisplayClusterConfigurationICVFX_CameraSettings();
+
 public:
-	// Enable this camera
+	/** Render the inner frustum for this ICVFX camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum"))
 	bool bEnable = true;
 
-	// Use external cine camera actor
+	/** Specify a Cine Camera Actor for this ICVFX camera to use instead of the default nDisplay camera. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (DisplayName = "Cine Camera Actor", EditCondition = "bEnable"))
 	TSoftObjectPtr<ACineCameraActor> ExternalCameraActor;
 
-	// Allow ScreenPercentage, for values!=1
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0", EditCondition = "bEnable"))
+	/** Adjust resolution scaling for the inner frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "1.0", EditCondition = "bEnable"))
 	float BufferRatio = 1;
 
+	/** Multiply the field of view for the ICVFX camera by this value.  This can increase the overall size of the inner frustum to help provide a buffer against latency when moving the camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "5.0", UIMax = "5.0", EditCondition = "bEnable"))
 	float FieldOfViewMultiplier = 1.0f;
 
-	// Basic soft edges setup for incamera
+	/** Soften the edges of the inner frustum to help avoid hard lines in reflections seen by the live-action camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_CameraSoftEdge SoftEdge;
 
-	// Rotate incamera frustum on this value to fix broken lens on physic camera
+	/** Rotate the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum Rotation", EditCondition = "bEnable"))
 	FRotator  FrustumRotation = FRotator::ZeroRotator;
 
-	// Move incamera frustum on this value to fix broken lens on physic camera
+	/** Specify an offset on the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum Offset", EditCondition = "bEnable"))
 	FVector FrustumOffset = FVector::ZeroVector;
 
+	/** Render motion blur more accurately by subtracting blur from camera motion and avoiding amplification of blur by the physical camera. */
 	UPROPERTY(BlueprintReadWrite, BlueprintReadWrite, EditAnywhere, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_CameraMotionBlur CameraMotionBlur;
 
-	// Configure global render settings for this viewports
+	/** Configure global render settings for this viewport */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_CameraRenderSettings RenderSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_ChromakeySettings Chromakey;
 
-	// OCIO Display look configuration for this camera
+	/** OCIO Display look configuration for this camera */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "All Nodes OCIO Configuration", EditCondition = "bEnable"))
-	FOpenColorIODisplayConfiguration AllNodesOCIOConfiguration;
+	FDisplayClusterConfigurationOCIOConfiguration AllNodesOCIOConfiguration;
 
-	// Define special OCIO for cluster nodes for this camera
+	/** Apply an OpenColorIO configuration on a per-node or group-of-nodes basis. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Per-Node OCIO Overrides", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> PerNodeOCIOProfiles;
 
-	// Inner Frustum Color Grading look configuration
+	/** All Nodes Color Grading */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "All Nodes Color Grading", EditCondition = "bEnable"))
-	FDisplayClusterConfigurationViewport_ColorGradingConfiguration AllNodesColorGradingConfiguration;
+	FDisplayClusterConfigurationViewport_AllNodesColorGrading AllNodesColorGrading;
 
-	// Define special per-node Inner Frustum Color Grading
+	/** Perform advanced color grading operations for the inner frustum on a per-node or group-of-nodes basis. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Per-Node Color Grading", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable"))
-	TArray<FDisplayClusterConfigurationViewport_ColorGradingProfile> PerNodeColorGradingProfiles;
+	TArray<FDisplayClusterConfigurationViewport_PerNodeColorGrading> PerNodeColorGrading;
 
-	// Special hide list for this camera viewport
+	/** Content specified here will not appear in the inner frustum, but can appear in the nDisplay viewports. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_VisibilityList CameraHideList;
 };
@@ -443,59 +458,43 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_StageSe
 	GENERATED_BODY()
 
 public:
-	FDisplayClusterConfigurationICVFX_StageSettings();
-
-public:
-	// Allow ICVFX features
+	/** Enable/disable the inner frustum on all ICVFX cameras. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum"))
-	bool bEnable = true;
-
-	// Allow Inner frustums rendering
-	UPROPERTY()
 	bool bEnableInnerFrustums = true;
 
-	// Allow to use ICVFX visibility rules (hide chromakey, lightcards, other stuff and visualization components)
-	// this rules ignore flag [bEnable=false]
-	UPROPERTY()
-	bool bEnableICVFXVisibility = true;
-
-	// Default incameras RTT texture size.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	/** Default incameras RTT texture size. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_Size DefaultFrameSize;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_LightcardSettings Lightcard;
 
 	// Hide list for all icvfx viewports (outer, inner, cameras, etc)
 	// (This allow to hide all actors from layers for icvfx render logic)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_VisibilityList HideList;
 
-	// Special hide list for Outer viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	/** Special hide list for Outer viewports */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_VisibilityList OuterViewportHideList;
 
-	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable Entire Cluster Color Grading", EditCondition = "bEnable"))
-	bool bUseOverallClusterPostProcess = true;
+	/** Entire Cluster Color Grading */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Entire Cluster"))
+	FDisplayClusterConfigurationViewport_EntireClusterColorGrading EntireClusterColorGrading;
 
-	// Global cluster post process settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Entire Cluster Color Grading", EditCondition = "bEnable && bUseOverallClusterPostProcess"))
-	FDisplayClusterConfigurationViewport_PerViewportSettings OverallClusterPostProcessSettings;
+	/** Perform advanced color grading operations on a per-viewport or group-of-viewports basis. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Per-Viewport Color Grading", ConfigurationMode = "Viewports"))
+	TArray<FDisplayClusterConfigurationViewport_PerViewportColorGrading> PerViewportColorGrading;
 
-	// Define special per-viewport Color Grading
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Per-Viewport Color Grading", ConfigurationMode = "Viewports", EditCondition = "bEnable && bUseOverallClusterPostProcess"))
-	TArray<FDisplayClusterConfigurationViewport_ColorGradingProfile> PerViewportColorGradingProfiles;
-
-	// Apply the global cluster OCIO settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable Viewport OCIO", EditCondition = "bEnable"))
+	/** Enable the application of an OpenColorIO configuration to all viewports. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable Viewport OCIO"))
 	bool bUseOverallClusterOCIOConfiguration = true;
 
-	// OCIO Display look configuration for outer viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "All Viewports Color Configuration", EditCondition = "bEnable && bUseOverallClusterOCIOConfiguration"))
-	FOpenColorIODisplayConfiguration AllViewportsOCIOConfiguration;
+	/** Apply this OpenColorIO configuration to all viewports. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "All Viewports Color Configuration", EditCondition = "bUseOverallClusterOCIOConfiguration"))
+	FDisplayClusterConfigurationOCIOConfiguration AllViewportsOCIOConfiguration;
 
-	// Define special OCIO for outer viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Per-Viewport OCIO Overrides", ConfigurationMode = "Viewports", EditCondition = "bEnable && bUseOverallClusterOCIOConfiguration"))
+	/** Apply an OpenColorIO configuration on a per-viewport or group-of-viewports basis. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Per-Viewport OCIO Overrides", ConfigurationMode = "Viewports", EditCondition = "bUseOverallClusterOCIOConfiguration"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> PerViewportOCIOProfiles;
 };

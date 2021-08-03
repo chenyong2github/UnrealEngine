@@ -142,7 +142,7 @@ void UMovieSceneActorReferenceSection::OnBindingsUpdated(const TMap<FGuid, FGuid
 		ActorReferenceData.GetDefault().Object.SetGuid(OldGuidToNewGuidMap[ActorReferenceData.GetDefault().Object.GetGuid()]);
 	}
 
-	for (FMovieSceneActorReferenceKey Key : ActorReferenceData.GetData().GetValues())
+	for (FMovieSceneActorReferenceKey& Key : ActorReferenceData.GetData().GetValues())
 	{
 		if (OldGuidToNewGuidMap.Contains(Key.Object.GetGuid()))
 		{

@@ -43,10 +43,14 @@ public:
 	bool IsPreviewAvailable() const;
 
 	const FString& GetViewportId() const
-		{ return ViewportId; }
+	{ 
+		return ViewportId; 
+	}
 
 	UDisplayClusterConfigurationViewport* GetViewportConfig() const
-		{ return ViewportConfig; }
+	{ 
+		return ViewportConfig;
+	}
 	
 	UTextureRenderTarget2D* GetRenderTargetTexture() const
 	{
@@ -110,6 +114,9 @@ private:
 
 	UPROPERTY()
 		UMeshComponent* PreviewMesh = nullptr;
+
+	UPROPERTY()
+	bool bIsRootActorPreviewMesh = false;
 
 	UPROPERTY()
 		UMaterial* OriginalMaterial = nullptr;

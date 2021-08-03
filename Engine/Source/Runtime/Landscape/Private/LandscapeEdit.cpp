@@ -957,7 +957,7 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 	{
 		if (CollisionMipLevel == 0)
 		{
-			GrassHeights = GrassData->HeightData.GetData();
+			GrassHeights = GrassData->GetHeightData().GetData();
 		}
 		else
 		{

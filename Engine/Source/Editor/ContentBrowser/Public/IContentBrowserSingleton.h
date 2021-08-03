@@ -272,6 +272,9 @@ struct FAssetPickerConfig
 	/** Indicates if the 'Show folders' option should be enabled or disabled */
 	bool bCanShowFolders;
 
+	/** If true, will allow read-only folders to be shown in the picker */
+	bool bCanShowReadOnlyFolders;
+
 	/** Indicates if the 'Real-Time Thumbnails' option should be enabled or disabled */
 	bool bCanShowRealTimeThumbnails;
 
@@ -312,6 +315,7 @@ struct FAssetPickerConfig
 		, bAllowDragging(true)
 		, bCanShowClasses(true)
 		, bCanShowFolders(false)
+		, bCanShowReadOnlyFolders(true)
 		, bCanShowRealTimeThumbnails(false)
 		, bCanShowDevelopersFolder(true)
 		, bForceShowEngineContent(false)

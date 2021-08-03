@@ -1178,11 +1178,13 @@ void FRenderAssetStreamingManager::UpdateStreamingRenderAssets(int32 StageIndex,
 		// enough work.  Can be adjusted by CVarStreamingParallelRenderAssetsNumWorkgroups.
 		int32 Num = EndIndex - StartIndex;
 		int32 NumThreadTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads() * GParallelRenderAssetsNumWorkgroups, Num - 1);
+		// make sure it never goes negative, as a divide by zero could happen below
+		NumThreadTasks = FMath::Max<int32>(NumThreadTasks, 0);
 		TArray<FPacket> Packets;
 		Packets.Reset(NumThreadTasks); // Go ahead and reserve space up front
 		int32 Start = StartIndex;
 		int32 NumRemaining = Num;
-		int32 NumItemsPerGroup = Num / NumThreadTasks + 1;
+		int32 NumItemsPerGroup = Num / (NumThreadTasks + 1);
 		for (int32 i = 0; i < NumThreadTasks; ++i)
 		{
 			int32 NumAssetsToProcess = FMath::Min<int32>(NumRemaining, NumItemsPerGroup);

@@ -79,6 +79,9 @@ public:
 	/** Factory function for use with FConcertTransportLoggerFactory */
 	static IConcertTransportLoggerRef CreateLogger(const FConcertEndpointContext& InOwnerContext);
 
+	/** Static function to enable / disable verbose logging. */
+	static void SetVerboseLogging(bool bInState);
+
 	explicit FConcertLogger(const FConcertEndpointContext& InOwnerContext);
 	virtual ~FConcertLogger();
 

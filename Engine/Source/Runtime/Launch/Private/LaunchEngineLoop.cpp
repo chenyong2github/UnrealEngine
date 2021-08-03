@@ -3523,6 +3523,13 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		if (!bIsRegularClient)
 		{
 			CommandletClass = FindObject<UClass>(ANY_PACKAGE,*Token,false);
+			int32 PeriodIdx;
+			if (!CommandletClass && Token.FindChar('.', PeriodIdx))
+			{
+				// try to load module for commandlet specified before a period.
+				FModuleManager::Get().LoadModule(*Token.Left(PeriodIdx));
+				CommandletClass = FindObject<UClass>(ANY_PACKAGE, *Token, false);
+			}
 			if (!CommandletClass)
 			{
 				if (GLogConsole && !GIsSilent)
@@ -4262,7 +4269,10 @@ int32 FEngineLoop::Init()
 	}
 
 	// Call init callbacks
+	{
+		SCOPED_BOOT_TIMING("OnPostEngineInit.Broadcast");
 	FCoreDelegates::OnPostEngineInit.Broadcast();
+	}
 
 	SlowTask.EnterProgressFrame(30);
 
@@ -4559,7 +4569,10 @@ void FEngineLoop::Exit()
 	// Unload all modules.  Note that this doesn't actually unload the module DLLs (that happens at
 	// process exit by the OS), but it does call ShutdownModule() on all loaded modules in the reverse
 	// order they were loaded in, so that systems can unregister and perform general clean up.
+	{
+		SCOPED_BOOT_TIMING("UnloadModulesAtShutdown");
 	FModuleManager::Get().UnloadModulesAtShutdown();
+	}
 #endif // !ANDROID
 
 	IStreamingManager::Shutdown();
@@ -5731,6 +5744,8 @@ bool FEngineLoop::AppInit( )
 		return false;
 	}
 
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::EarliestPossiblePluginsLoaded);
+
 	{
 		SCOPED_BOOT_TIMING("FPlatformStackWalk::Init");
 		// Now that configs have been initialized, setup stack walking options
@@ -6042,6 +6057,8 @@ bool FEngineLoop::AppInit( )
 
 void FEngineLoop::AppPreExit( )
 {
+	SCOPED_BOOT_TIMING("AppPreExit");
+
 	UE_LOG(LogExit, Log, TEXT("Preparing to exit.") );
 
 	FCoreDelegates::OnPreExit.Broadcast();

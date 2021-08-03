@@ -106,4 +106,3 @@ public:
 	UE_DEPRECATED(4.27, "Only call initialize instead.")
 	virtual void SetRangeValue() {};
 };
-

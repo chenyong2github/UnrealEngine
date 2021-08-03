@@ -18,8 +18,7 @@ TRACE_DECLARE_INT_COUNTER(MovieSceneEntitySystemFlushes, TEXT("MovieScene/ECSFlu
 TRACE_DECLARE_INT_COUNTER(MovieSceneEntitySystemEvaluations, TEXT("MovieScene/ECSEvaluations"));
 
 FMovieSceneEntitySystemRunner::FMovieSceneEntitySystemRunner()
-	: Linker(nullptr)
-	, CompletionTask(nullptr)
+	: CompletionTask(nullptr)
 	, GameThread(ENamedThreads::GameThread_Local)
 	, CurrentPhase(UE::MovieScene::ESystemPhase::None)
 {
@@ -39,37 +38,57 @@ void FMovieSceneEntitySystemRunner::AttachToLinker(UMovieSceneEntitySystemLinker
 	{
 		return;
 	}
-	if (!ensureMsgf(Linker == nullptr, TEXT("This runner is already attached to a linker")))
+	if (!ensureMsgf(WeakLinker.IsExplicitlyNull(), TEXT("This runner is already attached to a linker")))
+	{
+		if (ensureMsgf(WeakLinker.IsValid(), TEXT("Our previous linker isn't valid anymore! We will permit attaching to a new one.")))
 	{
 		return;
 	}
+	}
 
-	Linker = InLinker;
+	WeakLinker = InLinker;
 	LastInstantiationVersion = 0;
-	Linker->Events.CleanTaggedGarbage.AddRaw(this, &FMovieSceneEntitySystemRunner::OnLinkerGarbageCleaned);
-	Linker->Events.AbandonLinker.AddRaw(this, &FMovieSceneEntitySystemRunner::OnLinkerAbandon);
+	InLinker->Events.CleanTaggedGarbage.AddRaw(this, &FMovieSceneEntitySystemRunner::OnLinkerGarbageCleaned);
+	InLinker->Events.AbandonLinker.AddRaw(this, &FMovieSceneEntitySystemRunner::OnLinkerAbandon);
+}
+
+bool FMovieSceneEntitySystemRunner::IsAttachedToLinker() const
+{
+	return !WeakLinker.IsExplicitlyNull();
 }
 
 void FMovieSceneEntitySystemRunner::DetachFromLinker()
 {
-	if (ensureMsgf(Linker, TEXT("This runner is not attached to any linker")))
+	if (ensureMsgf(!WeakLinker.IsExplicitlyNull(), TEXT("This runner is not attached to any linker")))
 	{
-		OnLinkerAbandon(Linker);
+		if (ensureMsgf(WeakLinker.IsValid(), TEXT("This runner is attached to an invalid linker!")))
+		{
+			OnLinkerAbandon(WeakLinker.Get());
+		}
+		else
+		{
+			WeakLinker.Reset();
 	}
 }
+}
 
-UE::MovieScene::FEntityManager* FMovieSceneEntitySystemRunner::GetEntityManager()
+UMovieSceneEntitySystemLinker* FMovieSceneEntitySystemRunner::GetLinker() const
 {
-	if (Linker)
+	return WeakLinker.Get();
+}
+
+UE::MovieScene::FEntityManager* FMovieSceneEntitySystemRunner::GetEntityManager() const
+	{
+	if (UMovieSceneEntitySystemLinker* Linker = GetLinker())
 	{
 		return &Linker->EntityManager;
 	}
 	return nullptr;
 }
 
-UE::MovieScene::FInstanceRegistry* FMovieSceneEntitySystemRunner::GetInstanceRegistry()
+UE::MovieScene::FInstanceRegistry* FMovieSceneEntitySystemRunner::GetInstanceRegistry() const
 {
-	if (Linker)
+	if (UMovieSceneEntitySystemLinker* Linker = GetLinker())
 	{
 		return Linker->GetInstanceRegistry();
 	}
@@ -78,7 +97,14 @@ UE::MovieScene::FInstanceRegistry* FMovieSceneEntitySystemRunner::GetInstanceReg
 
 bool FMovieSceneEntitySystemRunner::HasQueuedUpdates() const
 {
-	return UpdateQueue.Num() != 0 || DissectedUpdates.Num() != 0 || Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion);
+	if (UpdateQueue.Num() != 0 || DissectedUpdates.Num() != 0)
+	{
+		if (UMovieSceneEntitySystemLinker* Linker = GetLinker())
+		{
+			return Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion);
+		}
+	}
+	return false;
 }
 
 bool FMovieSceneEntitySystemRunner::HasQueuedUpdates(FInstanceHandle InInstanceHandle) const
@@ -108,11 +134,14 @@ void FMovieSceneEntitySystemRunner::Flush()
 {
 	using namespace UE::MovieScene;
 
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+
 	// Check that we are attached to a linker that allows starting a new evaluation.
-	if (!ensureMsgf(Linker, TEXT("Runner isn't attached to a linker")))
+	if (!ensureMsgf(Linker, TEXT("Runner isn't attached to a valid linker")))
 	{
 		return;
 	}
+
 	if (!Linker->StartEvaluation(*this))
 	{
 		UE_LOG(LogMovieScene, Error, TEXT("An evaluation is already running on this linker, and re-entrancy isn't allow at this point"));
@@ -191,6 +220,9 @@ void FMovieSceneEntitySystemRunner::GameThread_ProcessQueue()
 {
 	using namespace UE::MovieScene;
 	
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	check(Linker);
+
 	FInstanceRegistry* InstanceRegistry = GetInstanceRegistry();
 
 	if (DissectedUpdates.Num() == 0)
@@ -267,6 +299,9 @@ void FMovieSceneEntitySystemRunner::GameThread_SpawnPhase()
 
 	check(GameThread == ENamedThreads::GameThread || GameThread == ENamedThreads::GameThread_Local);
 
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	check(Linker);
+
 	Linker->EntityManager.IncrementSystemSerial();
 
 	CurrentPhase = ESystemPhase::Spawn;
@@ -320,7 +355,7 @@ void FMovieSceneEntitySystemRunner::GameThread_SpawnPhase()
 	// --------------------------------------------------------------------------------------------------------------------------------------------
 	// Step 2: Run the instantiation phase if there is anything to instantiate. This must come after the spawn phase because new intatniations may
 	//         be created during the spawn phase
-	auto NextStep = [this, bInstantiationDirty]
+	auto NextStep = [this, bInstantiationDirty, Linker]
 	{
 		const bool bAnyPending = Linker->EntityManager.ContainsComponent(FBuiltInComponentTypes::Get()->Tags.NeedsLink) || Linker->GetInstanceRegistry()->HasInvalidatedBindings();
 		if (bInstantiationDirty || bAnyPending)
@@ -353,6 +388,9 @@ void FMovieSceneEntitySystemRunner::GameThread_InstantiationPhase()
 
 	check(GameThread == ENamedThreads::GameThread || GameThread == ENamedThreads::GameThread_Local);
 
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	check(Linker);
+
 	CurrentPhase = ESystemPhase::Instantiation;
 
 	FGraphEventArray AllTasks;
@@ -378,9 +416,12 @@ void FMovieSceneEntitySystemRunner::GameThread_PostInstantiation()
 {
 	using namespace UE::MovieScene;
 
+	SCOPE_CYCLE_COUNTER(MovieSceneEval_PostInstantiation);
+
 	check(GameThread == ENamedThreads::GameThread || GameThread == ENamedThreads::GameThread_Local);
 
-	SCOPE_CYCLE_COUNTER(MovieSceneEval_PostInstantiation);
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	check(Linker);
 
 	LastInstantiationVersion = Linker->EntityManager.GetSystemSerial();
 	Linker->GetInstanceRegistry()->PostInstantation();
@@ -410,6 +451,9 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationPhase()
 	using namespace UE::MovieScene;
 
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_EvaluationPhase);
+
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	check(Linker);
 
 	CurrentPhase = ESystemPhase::Evaluation;
 
@@ -448,6 +492,9 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationFinalizationPhase()
 
 	check(GameThread == ENamedThreads::GameThread || GameThread == ENamedThreads::GameThread_Local);
 
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	check(Linker);
+
 	Linker->EntityManager.ReleaseLockDown();
 
 	CurrentPhase = ESystemPhase::Finalization;
@@ -456,7 +503,16 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationFinalizationPhase()
 	// The events are actually executed a bit later, in GameThread_PostEvaluationPhase.
 	bCanQueueEventTriggers = true;
 	{
-		GetInstanceRegistry()->FinalizeFrame();
+		FInstanceRegistry* InstanceRegistry = GetInstanceRegistry();
+
+		for (FInstanceHandle UpdatedInstance : CurrentInstances)
+		{
+			FSequenceInstance& Instance = InstanceRegistry->MutateInstance(UpdatedInstance);
+			if (Instance.IsRootSequence())
+			{
+				Instance.RunLegacyTrackTemplates();
+			}
+		}
 
 		FGraphEventArray Tasks;
 		Linker->SystemGraph.ExecutePhase(ESystemPhase::Finalization, Linker, Tasks);
@@ -470,6 +526,9 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationFinalizationPhase()
 void FMovieSceneEntitySystemRunner::GameThread_PostEvaluationPhase()
 {
 	using namespace UE::MovieScene;
+
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	check(Linker);
 
 	// Execute any queued events from the evaluation finalization phase.
 	if (EventTriggers.IsBound())
@@ -514,6 +573,9 @@ void FMovieSceneEntitySystemRunner::FinishInstance(FInstanceHandle InInstanceHan
 {
 	using namespace UE::MovieScene;
 
+	UMovieSceneEntitySystemLinker* Linker = GetLinker();
+	check(Linker);
+
 	// If we've already got queued updates for this instance we need to flush the linker first so that those updates are reflected correctly
 	FInstanceRegistry* InstanceRegistry = GetInstanceRegistry();
 	if (InstanceRegistry->GetInstance(InInstanceHandle).HasEverUpdated() && HasQueuedUpdates(InInstanceHandle))
@@ -540,16 +602,18 @@ void FMovieSceneEntitySystemRunner::MarkForUpdate(FInstanceHandle InInstanceHand
 
 void FMovieSceneEntitySystemRunner::OnLinkerGarbageCleaned(UMovieSceneEntitySystemLinker* InLinker)
 {
-	check(Linker == InLinker);
+	check(WeakLinker.Get() == InLinker);
 	LastInstantiationVersion = 0;
 }
 
 void FMovieSceneEntitySystemRunner::OnLinkerAbandon(UMovieSceneEntitySystemLinker* InLinker)
 {
-	check(Linker == InLinker);
-	Linker->Events.CleanTaggedGarbage.RemoveAll(this);
-	Linker->Events.AbandonLinker.RemoveAll(this);
-	Linker = nullptr;
+	if (ensure(InLinker))
+	{
+		InLinker->Events.CleanTaggedGarbage.RemoveAll(this);
+		InLinker->Events.AbandonLinker.RemoveAll(this);
+	}
+	WeakLinker.Reset();
 }
 
 FMovieSceneEntitySystemEventTriggers& FMovieSceneEntitySystemRunner::GetQueuedEventTriggers()

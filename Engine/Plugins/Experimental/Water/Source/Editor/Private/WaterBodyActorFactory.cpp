@@ -7,6 +7,8 @@
 #include "WaterBodyOceanActor.h"
 #include "WaterBodyLakeActor.h"
 #include "WaterBodyCustomActor.h"
+#include "WaterBodyOceanComponent.h"
+#include "WaterBodyRiverComponent.h"
 #include "WaterSplineComponent.h"
 #include "WaterWaves.h"
 
@@ -25,21 +27,22 @@ void UWaterBodyActorFactory::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {
 	Super::PostSpawnActor(Asset, NewActor);
 
-	AWaterBody* WaterBody = CastChecked<AWaterBody>(NewActor);
+	UWaterBodyComponent* WaterBodyComponent = CastChecked<AWaterBody>(NewActor)->GetWaterBodyComponent();
+	check(WaterBodyComponent);
 
 	if (const FWaterBrushActorDefaults* WaterBrushActorDefaults = GetWaterBrushActorDefaults())
 	{
-		WaterBody->CurveSettings = WaterBrushActorDefaults->CurveSettings;
-		WaterBody->WaterHeightmapSettings = WaterBrushActorDefaults->HeightmapSettings;
-		WaterBody->LayerWeightmapSettings = WaterBrushActorDefaults->LayerWeightmapSettings;
+		WaterBodyComponent->CurveSettings = WaterBrushActorDefaults->CurveSettings;
+		WaterBodyComponent->WaterHeightmapSettings = WaterBrushActorDefaults->HeightmapSettings;
+		WaterBodyComponent->LayerWeightmapSettings = WaterBrushActorDefaults->LayerWeightmapSettings;
 	}
 
 	if (const FWaterBodyDefaults* WaterBodyDefaults = GetWaterBodyDefaults())
 	{
-		WaterBody->SetWaterMaterial(WaterBodyDefaults->GetWaterMaterial());
-		WaterBody->SetUnderwaterPostProcessMaterial(WaterBodyDefaults->GetUnderwaterPostProcessMaterial());
+		WaterBodyComponent->SetWaterMaterial(WaterBodyDefaults->GetWaterMaterial());
+		WaterBodyComponent->SetUnderwaterPostProcessMaterial(WaterBodyDefaults->GetUnderwaterPostProcessMaterial());
 
-		UWaterSplineComponent* WaterSpline = WaterBody->GetWaterSpline();
+		UWaterSplineComponent* WaterSpline = WaterBodyComponent->GetWaterSpline();
 		if (ShouldOverrideWaterSplineDefaults(WaterSpline))
 		{
 			WaterSpline->WaterSplineDefaults = WaterBodyDefaults->SplineDefaults;
@@ -79,11 +82,12 @@ void UWaterBodyRiverActorFactory::PostSpawnActor(UObject* Asset, AActor* NewActo
 {
 	Super::PostSpawnActor(Asset, NewActor);
 	
-	AWaterBodyRiver* WaterBodyRiver = CastChecked<AWaterBodyRiver>(NewActor);
-	WaterBodyRiver->SetLakeTransitionMaterial(GetDefault<UWaterEditorSettings>()->WaterBodyRiverDefaults.GetRiverToLakeTransitionMaterial());
-	WaterBodyRiver->SetOceanTransitionMaterial(GetDefault<UWaterEditorSettings>()->WaterBodyRiverDefaults.GetRiverToOceanTransitionMaterial());
+	AWaterBodyRiver* WaterBodyActor = CastChecked<AWaterBodyRiver>(NewActor);
+	UWaterBodyRiverComponent* WaterBodyRiverComponent = CastChecked<UWaterBodyRiverComponent>(WaterBodyActor->GetWaterBodyComponent());
+	WaterBodyRiverComponent->SetLakeTransitionMaterial(GetDefault<UWaterEditorSettings>()->WaterBodyRiverDefaults.GetRiverToLakeTransitionMaterial());
+	WaterBodyRiverComponent->SetOceanTransitionMaterial(GetDefault<UWaterEditorSettings>()->WaterBodyRiverDefaults.GetRiverToOceanTransitionMaterial());
 
-	UWaterSplineComponent* WaterSpline = WaterBodyRiver->GetWaterSpline();
+	UWaterSplineComponent* WaterSpline = WaterBodyRiverComponent->GetWaterSpline();
 	WaterSpline->ResetSpline({ FVector(0, 0, 0), FVector(5000, 0, 0), FVector(10000, 5000, 0) });
 }
 
@@ -112,13 +116,16 @@ void UWaterBodyOceanActorFactory::PostSpawnActor(UObject* Asset, AActor* NewActo
 	Super::PostSpawnActor(Asset, NewActor);
 
 	AWaterBodyOcean* WaterBodyOcean = CastChecked<AWaterBodyOcean>(NewActor);
+	UWaterBodyComponent* WaterBodyComponent = WaterBodyOcean->GetWaterBodyComponent();
+	check(WaterBodyComponent != nullptr);
+	
 	if (const UWaterWavesBase* DefaultWaterWaves = GetDefault<UWaterEditorSettings>()->WaterBodyOceanDefaults.WaterWaves)
 	{
 		UWaterWavesBase* WaterWaves = DuplicateObject(DefaultWaterWaves, NewActor, MakeUniqueObjectName(NewActor, DefaultWaterWaves->GetClass(), TEXT("OceanWaterWaves")));
 		WaterBodyOcean->SetWaterWaves(WaterWaves);
 	}
 
-	UWaterSplineComponent* WaterSpline = WaterBodyOcean->GetWaterSpline();
+	UWaterSplineComponent* WaterSpline = WaterBodyComponent->GetWaterSpline();
 	WaterSpline->ResetSpline({ FVector(10000, -10000, 0), FVector(10000,  10000, 0), FVector(-10000,  10000, 0), FVector(-10000, -10000, 0) });
 }
 
@@ -147,6 +154,9 @@ void UWaterBodyLakeActorFactory::PostSpawnActor(UObject* Asset, AActor* NewActor
 	Super::PostSpawnActor(Asset, NewActor);
 
 	AWaterBodyLake* WaterBodyLake = CastChecked<AWaterBodyLake>(NewActor);
+	UWaterBodyComponent* WaterBodyComponent = WaterBodyLake->GetWaterBodyComponent();
+	check(WaterBodyComponent != nullptr);
+	
 	if (const UWaterWavesBase* DefaultWaterWaves = GetDefault<UWaterEditorSettings>()->WaterBodyLakeDefaults.WaterWaves)
 	{
 		UWaterWavesBase* WaterWaves = DuplicateObject(DefaultWaterWaves, NewActor, MakeUniqueObjectName(NewActor, DefaultWaterWaves->GetClass(), TEXT("LakeWaterWaves")));
@@ -177,7 +187,7 @@ void UWaterBodyCustomActorFactory::PostSpawnActor(UObject* Asset, AActor* NewAct
 	Super::PostSpawnActor(Asset, NewActor);
 
 	AWaterBodyCustom* WaterBodyCustom = CastChecked<AWaterBodyCustom>(NewActor);
-	WaterBodyCustom->SetWaterMeshOverride(GetDefault<UWaterEditorSettings>()->WaterBodyCustomDefaults.GetWaterMesh());
+	WaterBodyCustom->GetWaterBodyComponent()->SetWaterMeshOverride(GetDefault<UWaterEditorSettings>()->WaterBodyCustomDefaults.GetWaterMesh());
 
 	UWaterSplineComponent* WaterSpline = WaterBodyCustom->GetWaterSpline();
 	WaterSpline->ResetSpline({ FVector(0, 0, 0) });

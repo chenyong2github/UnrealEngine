@@ -226,6 +226,9 @@ private:
 	/** Mark our callback as a friend so they can call the above status callback function */
 	friend void CALLBACK UE_WinHttpStatusHttpCallback(HINTERNET, DWORD_PTR, DWORD, LPVOID, DWORD);
 
+	/** Reset both PayloadBuffer and Payload when we don't need them anymore, releasing the memory */
+	void ReleasePayloadData();
+
 protected:
 	/** Critical section used to synchronize access to the below properties across multiple threads */
 	mutable FCriticalSection SyncObject;

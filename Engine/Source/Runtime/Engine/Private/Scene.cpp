@@ -376,6 +376,7 @@ FPostProcessSettings::FPostProcessSettings()
 	// to set all bOverride_.. by default to false
 	FMemory::Memzero(this, sizeof(FPostProcessSettings));
 
+	TemperatureType = ETemperatureMethod::TEMP_WhiteBalance;
 	WhiteTemp = 6500.0f;
 	WhiteTint = 0.0f;
 
@@ -622,7 +623,8 @@ FPostProcessSettings::FPostProcessSettings()
 }
 
 FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
-	: bOverride_WhiteTemp(Settings.bOverride_WhiteTemp)
+	: bOverride_TemperatureType(Settings.bOverride_TemperatureType)
+	, bOverride_WhiteTemp(Settings.bOverride_WhiteTemp)
 	, bOverride_WhiteTint(Settings.bOverride_WhiteTint)
 	, bOverride_ColorSaturation(Settings.bOverride_ColorSaturation)
 	, bOverride_ColorContrast(Settings.bOverride_ColorContrast)
@@ -805,6 +807,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bMobileHQGaussian(Settings.bMobileHQGaussian)
 	, BloomMethod(Settings.BloomMethod)
 	, AutoExposureMethod(Settings.AutoExposureMethod)
+	, TemperatureType(Settings.TemperatureType)
 	, WhiteTemp(Settings.WhiteTemp)
 	, WhiteTint(Settings.WhiteTint)
 	, ColorSaturation(Settings.ColorSaturation)

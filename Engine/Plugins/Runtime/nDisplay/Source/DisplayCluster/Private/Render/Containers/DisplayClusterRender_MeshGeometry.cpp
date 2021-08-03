@@ -33,18 +33,7 @@ public:
 private:
 	bool CreateFromFile(const FString& FullPathFileName);
 
-	void Normalize();
-
-	// The geometry is created by the 3D artist and is sometimes incorrect. 
-	// For example, in the OutputRemap post-process, it is necessary that all UVs be in the range 0..1. 
-	// For visual validation, all points outside the 0..1 range are excluded during geometry loading when called function RemoveInvisibleFaces().
-	void RemoveInvisibleFaces();
-
 private:
-	// Mesh post-op's
-	bool IsFaceVisible(int32 Face);
-	bool IsUVVisible(int32 UVIndex);
-
 	// Obj file parser:
 	bool ParseLine(const FString& Line);
 	bool ExtractVertex(const FString& Line);
@@ -99,7 +88,7 @@ bool FDisplayClusterRender_MeshGeometry::LoadFromFile(const FString& FullPathFil
 }
 
 // Test purpose: create square geometry
-bool FDisplayClusterRender_MeshGeometry::CreatePassthrough()
+void FDisplayClusterRender_MeshGeometry::CreatePassthrough()
 {
 	Vertices.Empty();
 	Vertices.Add(FVector(2.6f, 1, 0));
@@ -108,10 +97,10 @@ bool FDisplayClusterRender_MeshGeometry::CreatePassthrough()
 	Vertices.Add(FVector(5.5f, 1, 0));
 
 	UV.Empty();
-	UV.Add(FVector2D(0, 1));
 	UV.Add(FVector2D(0, 0));
-	UV.Add(FVector2D(1, 0));
+	UV.Add(FVector2D(0, 1));
 	UV.Add(FVector2D(1, 1));
+	UV.Add(FVector2D(1, 0));
 
 	Triangles.Empty();
 	Triangles.Add(0);
@@ -121,8 +110,6 @@ bool FDisplayClusterRender_MeshGeometry::CreatePassthrough()
 	Triangles.Add(3);
 	Triangles.Add(0);
 	Triangles.Add(2);
-
-	return true;
 }
 
 //*************************************************************************
@@ -130,21 +117,8 @@ bool FDisplayClusterRender_MeshGeometry::CreatePassthrough()
 //*************************************************************************
 bool FDisplayCluster_MeshGeometryLoaderOBJ::Load(const FString& FullPathFileName)
 {
-	if (CreateFromFile(FullPathFileName))
-	{
-		// Now used only for OutputRemap postprocess
-		// OutputRemap postprocess helpers:
-		
-		// Normalize mesh for output screen 0..1
-		Normalize();
-
-		// Remove faces with UV out of 0..1 range
-		RemoveInvisibleFaces();
-		return true;
+	return CreateFromFile(FullPathFileName);
 	}
-
-	return false;
-}
 
 bool FDisplayCluster_MeshGeometryLoaderOBJ::CreateFromFile(const FString& FullPathFileName)
 {	
@@ -220,12 +194,12 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractVertex(const FString& Line)
 bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractUV(const FString& Line)
 {
 	TArray<FString> Data;
-
-	if (Line.ParseIntoArray(Data, ObjMeshStrings::delims::Values) == 4)
+	int32 Count = Line.ParseIntoArray(Data, ObjMeshStrings::delims::Values);
+	if (Count > 2)
 	{
 		const float U = FCString::Atof(*Data[1]);
 		const float V = FCString::Atof(*Data[2]);
-		const float W = FCString::Atof(*Data[3]);
+		const float W = (Count > 3)?FCString::Atof(*Data[3]) : 0;
 
 		InUV.Add(FVector(U, V, W));
 
@@ -283,92 +257,29 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractFaceVertex(const FString& Lin
 	if (Line.ParseIntoArray(Data, ObjMeshStrings::delims::Face) > 1)
 	{
 		const int32 InVertexIndex = FCString::Atoi(*Data[0]) - 1;
-		const int32 InUVIndex = FCString::Atoi(*Data[1]) - 1;
-
-		Target.Vertices.Add(InVertex[InVertexIndex]);
-		Target.UV.Add(FVector2D(InUV[InUVIndex].X, InUV[InUVIndex].Y));
-		
-		return true;
+		if (InVertexIndex < 0 || InVertexIndex >= InVertex.Num())
+{
+			UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken vertex index. Line: '%s'"), *Line);
+			Target.Vertices.Add(FVector(0,0,0));
 	}
+		else
+	{
+			Target.Vertices.Add(InVertex[InVertexIndex]);
+	}
+
+		const int32 InUVIndex = FCString::Atoi(*Data[1]) - 1;
+		if (InUVIndex < 0 || InUVIndex >= InUV.Num())
+	{
+			UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshGeometryLoaderOBJ: broken uv index. Line: '%s'"), *Line);
+			Target.UV.Add(FVector2D(0, 0));
+	}
+		else
+{
+			Target.UV.Add(FVector2D(InUV[InUVIndex].X, InUV[InUVIndex].Y));
+		}
+
+		return true;
+}
 
 	return false;
-}
-
-void FDisplayCluster_MeshGeometryLoaderOBJ::Normalize()
-{
-	FBox AABBox(FVector(FLT_MAX, FLT_MAX, FLT_MAX), FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX));
-	
-	for (const FVector& Vertex: InVertex)
-	{
-		AABBox.Min.X = FMath::Min(AABBox.Min.X, Vertex.X);
-		AABBox.Min.Y = FMath::Min(AABBox.Min.Y, Vertex.Y);
-		AABBox.Min.Z = FMath::Min(AABBox.Min.Z, Vertex.Z);
-
-		AABBox.Max.X = FMath::Max(AABBox.Max.X, Vertex.X);
-		AABBox.Max.Y = FMath::Max(AABBox.Max.Y, Vertex.Y);
-		AABBox.Max.Z = FMath::Max(AABBox.Max.Z, Vertex.Z);
-	}
-
-	//Normalize
-	FVector Size(
-		(AABBox.Max.X - AABBox.Min.X),
-		(AABBox.Max.Y - AABBox.Min.Y),
-		(AABBox.Max.Z - AABBox.Min.Z)
-	);
-
-	// Detect axis aligned plane
-	const bool bHelperSwapYZ = fabs(Size.Y) > fabs(Size.Z);
-
-	Size.X = (Size.X == 0 ? 1 : Size.X);
-	Size.Y = (Size.Y == 0 ? 1 : Size.Y);
-	Size.Z = (Size.Z == 0 ? 1 : Size.Z);
-
-	FVector Scale(1.f / Size.X, 1.f / Size.Y, 1.f / Size.Z);
-	
-	for (FVector& VertexIt : Target.Vertices)
-	{
-		const float X = (VertexIt.X - AABBox.Min.X) * Scale.X;
-		const float Y = (VertexIt.Y - AABBox.Min.Y) * Scale.Y;
-		const float Z = (VertexIt.Z - AABBox.Min.Z) * Scale.Z;
-
-		VertexIt = (bHelperSwapYZ ? FVector(X, Y, Z) : FVector(X, Z, Y));
-	}
-
-	for (FVector2D& UVIt : Target.UV)
-	{
-		// Apply axis wrap
-		UVIt.Y = 1 - UVIt.Y;
-	}
-}
-
-void FDisplayCluster_MeshGeometryLoaderOBJ::RemoveInvisibleFaces()
-{
-	const int32 FacesNum = Target.Triangles.Num() / 3;
-	for (int32 Face = 0; Face < FacesNum; ++Face)
-	{
-		const bool bFaceExist = (Face * 3) < Target.Triangles.Num();
-
-		if (bFaceExist && !IsFaceVisible(Face))
-		{
-			Target.Triangles.RemoveAt(Face * 3, 3, false);
-		}
-	}
-
-	Target.Triangles.Shrink();
-}
-
-bool FDisplayCluster_MeshGeometryLoaderOBJ::IsFaceVisible(int32 Face)
-{
-	const int32 FaceIdx0 = Target.Triangles[Face * 3 + 0];
-	const int32 FaceIdx1 = Target.Triangles[Face * 3 + 1];
-	const int32 FaceIdx2 = Target.Triangles[Face * 3 + 2];
-
-	return IsUVVisible(FaceIdx0) && IsUVVisible(FaceIdx1) && IsUVVisible(FaceIdx2);
-}
-
-bool FDisplayCluster_MeshGeometryLoaderOBJ::IsUVVisible(int32 UVIndex)
-{
-	return (
-		Target.UV[UVIndex].X >= 0.f && Target.UV[UVIndex].X <= 1.f &&
-		Target.UV[UVIndex].Y >= 0.f && Target.UV[UVIndex].Y <= 1.f);
 }

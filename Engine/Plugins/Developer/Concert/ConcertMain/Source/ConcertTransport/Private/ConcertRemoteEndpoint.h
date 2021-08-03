@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericPlatform/GenericPlatformMath.h"
 #include "IConcertEndpoint.h"
 #include "IMessageContext.h"
 #include "IConcertTransportLogger.h"
@@ -77,6 +78,11 @@ public:
 	/** Get the Timespan before the remote end point consider us timed out */
 	FTimespan GetEndpointTimeoutSpan() const { return EndpointTimeoutSpan; }
 
+	void UpdateLastMessageReceivedTime(const FDateTime& Now)
+	{
+		LastReceivedMessageTime = FGenericPlatformMath::Max<FDateTime>(LastReceivedMessageTime, Now);
+	}
+
 	/** Get the time of last message received from this endpoint. */
 	FDateTime GetLastReceivedMessageTime() const { return LastReceivedMessageTime; }
 
@@ -95,6 +101,12 @@ public:
 	/** Get the next message to handle from the queued list, if any. */
 	TSharedPtr<FConcertMessageCapturedContext> GetNextMessageToReceive(const FDateTime& UtcNow);
 	
+	/** Forces the resend pending messages flag to be set for this endpoint. This if for debugging use only. */
+	void MarkForResend()
+	{
+		bNeedResendPendingMessages = true;
+	}
+
 private:
 	/** */
 	void TimeoutAllMessages();

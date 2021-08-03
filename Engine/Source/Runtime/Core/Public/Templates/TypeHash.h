@@ -118,7 +118,7 @@ inline uint32 GetTypeHash( const __uint128_t A )
 }
 #endif
 
-#if PLATFORM_ANDROID && PLATFORM_64BITS
+#if (PLATFORM_ANDROID && PLATFORM_64BITS) || defined(UINT64_T_IS_UNSIGNED_LONG)
 //On Android 64bit, uint64_t is unsigned long, not unsigned long long (aka uint64). These types can't be automatically converted.
 inline uint32 GetTypeHash(uint64_t A)
 {

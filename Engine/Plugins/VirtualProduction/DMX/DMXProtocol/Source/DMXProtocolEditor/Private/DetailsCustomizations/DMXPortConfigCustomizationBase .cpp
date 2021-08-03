@@ -55,10 +55,10 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 	}
 
 	// Cache customized properties
-	ProtocolNameHandle = PropertyHandles.FindChecked(GetProtocolNamePropertyNameChecked());
-	CommunicationTypeHandle = PropertyHandles.FindChecked(GetCommunicationTypePropertyNameChecked());
-	DeviceAddressHandle = PropertyHandles.FindChecked(GetDeviceAddressPropertyNameChecked());
-	PortGuidHandle = PropertyHandles.FindChecked(GetPortGuidPropertyNameChecked());
+	ProtocolNameHandle = PropertyHandles.FindChecked(GetProtocolNamePropertyName());
+	CommunicationTypeHandle = PropertyHandles.FindChecked(GetCommunicationTypePropertyName());
+	DeviceAddressHandle = PropertyHandles.FindChecked(GetDeviceAddressPropertyName());
+	PortGuidHandle = PropertyHandles.FindChecked(GetPortGuidPropertyName());
 
 	// Ports always need a valid Guid (cannot be blueprinted)
 	if (!GetPortGuid().IsValid())
@@ -67,7 +67,7 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 			.WholeRowContent()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("InvalidPortConfigText", "Cannot utilize Port Configs in Blueprints"))
+				.Text(LOCTEXT("InvalidPortConfigText", "Invalid Port Guid. Cannot utilize this port."))
 			];
 
 		return;
@@ -97,42 +97,52 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 		{
 			GenerateIPAddressRow(PropertyRow);
 		}
-		else if (Iter.Key() == FDMXOutputPortConfig::GetDestinationAddressPropertyNameChecked())
+		else if (Iter.Key() == GetDestinationAddressPropertyName())
 		{
-			// Customize the destination address for DMXOutputPortConfig only, instead of doing it in DMXOutputPortConfigCustomization.
-			// This is not beautiful code, but otherwise the whole customization with almost identical code would have to be moved to child classes.
-				
 			UpdateDestinationAddressVisibility();
 
-			TAttribute<EVisibility> DestinationAddressVisibilityAttribute =
-				TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]() {
+			TAttribute<EVisibility> DestinationAddressVisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]() 
+				{
 				return DestinationAddressVisibility;
 			}));
 
 			PropertyRow.Visibility(DestinationAddressVisibilityAttribute);
 		}
+		else if (GetPriorityStrategyPropertyName() == Iter.Key())
+		{
+			TAttribute<EVisibility> PriorityStrategyVisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]() 
+				{
+					const bool bPriorityStrategyIsVisible = GetProtocol().IsValid() && GetProtocol()->SupportsPrioritySettings();
+					return bPriorityStrategyIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+				}));
+
+			PropertyRow.Visibility(PriorityStrategyVisibilityAttribute);
 	}
+		else if (GetPriorityPropertyName() == Iter.Key())
+		{
+			TAttribute<EVisibility> PriorityVisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]() 
+				{
+					const bool bPriorityIsVisible = GetProtocol().IsValid() && GetProtocol()->SupportsPrioritySettings();
+					return bPriorityIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+				}));
+
+			PropertyRow.Visibility(PriorityVisibilityAttribute);
+		}
+}
 }
 
-IDMXProtocolPtr FDMXPortConfigCustomizationBase::GetProtocolChecked() const
+IDMXProtocolPtr FDMXPortConfigCustomizationBase::GetProtocol() const
 {
-	// We don't expect this to ever fail. 
-	// If there's no protocol, there's no DMX, and this is details customizations for DMX only, this should not be dealt with here.
-	check(ProtocolNameHandle.IsValid());
-
 	FName ProtocolName;
 	ProtocolNameHandle->GetValue(ProtocolName);
 
 	IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
-	check(Protocol.IsValid());
 	
 	return Protocol;
 }
 
 FGuid FDMXPortConfigCustomizationBase::GetPortGuid() const
 {
-	check(PortGuidHandle.IsValid());
-
 	TArray<void*> RawData;
 	PortGuidHandle->AccessRawData(RawData);
 
@@ -149,33 +159,8 @@ FGuid FDMXPortConfigCustomizationBase::GetPortGuid() const
 	return FGuid();
 }
 
-FGuid FDMXPortConfigCustomizationBase::GetPortGuidChecked() const
-{
-	check(PortGuidHandle.IsValid());
-
-	TArray<void*> RawData;
-	PortGuidHandle->AccessRawData(RawData);
-
-	// Multiediting is not supported, may fire if this is used in a blueprint way that would support it
-	if (ensureMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
-	{
-		const FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
-		if (ensureMsgf(PortGuidPtr, TEXT("Expected to be valid")))
-		{
-			check(PortGuidPtr->IsValid());
-			return *PortGuidPtr;
-		}
-	}
-
-	checkNoEntry();
-
-	return FGuid();
-}
-
 EDMXCommunicationType FDMXPortConfigCustomizationBase::GetCommunicationType() const
 {
-	check(CommunicationTypeHandle.IsValid());
-
 	uint8 CommunicationType;
 	ensure(CommunicationTypeHandle->GetValue(CommunicationType) == FPropertyAccess::Success);
 
@@ -183,8 +168,31 @@ EDMXCommunicationType FDMXPortConfigCustomizationBase::GetCommunicationType() co
 }
 
 FString FDMXPortConfigCustomizationBase::GetIPAddress() const
+	{
+	FGuid PortGuid = GetPortGuid();
+	if (PortGuid.IsValid())
+		{
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+		checkf(ProtocolSettings, TEXT("Unexpected protocol settings not available when its details are customized"));
+
+		const FDMXInputPortConfig* InputPortConfigPtr = ProtocolSettings->InputPortConfigs.FindByPredicate([&PortGuid](const FDMXInputPortConfig& InputPortConfig)
+			{
+				return InputPortConfig.GetPortGuid() == PortGuid;
+			});
+		if (InputPortConfigPtr)
+		{
+			return InputPortConfigPtr->GetDeviceAddress();
+}
+
+		const FDMXOutputPortConfig* OutputPortConfigPtr = ProtocolSettings->OutputPortConfigs.FindByPredicate([&PortGuid](const FDMXOutputPortConfig& OutputPortConfig)
+			{
+				return OutputPortConfig.GetPortGuid() == PortGuid;
+			});
+		if (OutputPortConfigPtr)
 {
-	check(DeviceAddressHandle.IsValid());
+			return OutputPortConfigPtr->GetDeviceAddress();
+		}
+}
 
 	FString IPAddress;
 	ensure(DeviceAddressHandle->GetValue(IPAddress) == FPropertyAccess::Success);
@@ -201,7 +209,15 @@ void FDMXPortConfigCustomizationBase::GenerateProtocolNameRow(IDetailPropertyRow
 	FDetailWidgetRow Row;
 	PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
 	
-	const FName InitialSelection = GetProtocolChecked()->GetProtocolName();
+	const FName InitialSelection = [this]() -> FName
+	{
+		if (const IDMXProtocolPtr& Protocol = GetProtocol())
+		{
+			return Protocol->GetProtocolName();
+		}
+
+		return NAME_None;
+	}();
 		
 	PropertyRow.CustomWidget()
 		.NameContent()
@@ -214,6 +230,7 @@ void FDMXPortConfigCustomizationBase::GenerateProtocolNameRow(IDetailPropertyRow
 			.InitiallySelectedProtocolName(InitialSelection)
 			.OnProtocolNameSelected(this, &FDMXPortConfigCustomizationBase::OnProtocolNameSelected)
 		];
+
 }
 
 void FDMXPortConfigCustomizationBase::GenerateCommunicationTypeRow(IDetailPropertyRow& PropertyRow)
@@ -268,7 +285,7 @@ void FDMXPortConfigCustomizationBase::GenerateIPAddressRow(IDetailPropertyRow& P
 
 EVisibility FDMXPortConfigCustomizationBase::GetCommunicationTypeVisibility() const
 {
-	if (CommunicationTypeComboBox.IsValid())
+	if (CommunicationTypeComboBox.IsValid() && GetProtocol().IsValid())
 	{
 		return CommunicationTypeComboBox->GetVisibility();
 	}
@@ -278,10 +295,6 @@ EVisibility FDMXPortConfigCustomizationBase::GetCommunicationTypeVisibility() co
 
 void FDMXPortConfigCustomizationBase::OnProtocolNameSelected()
 {
-	check(ProtocolNameHandle.IsValid());
-	check(ProtocolNameComboBox.IsValid());
-	check(CommunicationTypeComboBox.IsValid());
-
 	FName ProtocolName = ProtocolNameComboBox->GetSelectedProtocolName();
 
 	const FScopedTransaction Transaction(LOCTEXT("ProtocolSelected", "DMX: Selected Protocol"));
@@ -295,9 +308,6 @@ void FDMXPortConfigCustomizationBase::OnProtocolNameSelected()
 
 void FDMXPortConfigCustomizationBase::OnCommunicationTypeSelected()
 {
-	check(CommunicationTypeHandle.IsValid());
-	check(CommunicationTypeComboBox.IsValid());
-
 	EDMXCommunicationType SelectedCommunicationType = CommunicationTypeComboBox->GetSelectedCommunicationType();
 
 	const FScopedTransaction Transaction(LOCTEXT("CommunicationTypeSelected", "DMX: Selected Communication Type"));
@@ -311,15 +321,12 @@ void FDMXPortConfigCustomizationBase::OnCommunicationTypeSelected()
 
 void FDMXPortConfigCustomizationBase::OnIPAddressSelected()
 {
-	check(DeviceAddressHandle.IsValid());
-	check(IPAddressEditWidget.IsValid());
-
-	TSharedPtr<FString> SelectedIP = IPAddressEditWidget->GetSelectedIPAddress();
+	FString SelectedIP = IPAddressEditWidget->GetSelectedIPAddress();
 
 	const FScopedTransaction Transaction(LOCTEXT("CommunicationTypeSelected", "DMX: Selected IP Address"));
 	
 	DeviceAddressHandle->NotifyPreChange();
-	ensure(DeviceAddressHandle->SetValue(*SelectedIP) == FPropertyAccess::Success);	
+	ensure(DeviceAddressHandle->SetValue(SelectedIP) == FPropertyAccess::Success);	
 	DeviceAddressHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 

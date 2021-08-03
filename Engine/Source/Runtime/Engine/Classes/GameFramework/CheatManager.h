@@ -78,6 +78,9 @@ class ENGINE_API UCheatManagerExtension : public UObject
 public:
 	/** Use the outer cheat manager to get a World. */
 	virtual UWorld* GetWorld() const override;
+
+	UFUNCTION(BlueprintPure, Category = "Cheat Manager")
+	APlayerController* GetPlayerController() const;
 };
 
 /** 
@@ -469,6 +472,10 @@ protected:
     
     /** Retrieve the given PlayerContoller's current "target" AActor. */
     virtual AActor* GetTarget(APlayerController* PlayerController, struct FHitResult& OutHit);
+
+public:
+	UFUNCTION(BlueprintPure, Category = "Cheat Manager")
+	APlayerController* GetPlayerController() const;
 };
 
 

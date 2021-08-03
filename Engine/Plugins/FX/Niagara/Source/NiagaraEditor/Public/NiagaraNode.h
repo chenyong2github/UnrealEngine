@@ -130,6 +130,8 @@ public:
 	/** Sets whether or not the supplied pin has a rename pending. */
 	void SetIsPinRenamePending(const UEdGraphPin* Pin, bool bInIsRenamePending);
 
+	bool IsParameterMapPin(const UEdGraphPin* Pin) const;
+	
 	/** Adds the current node information to the parameter map history
 	 *
 	 *  @Param	OutHistory				The resulting history

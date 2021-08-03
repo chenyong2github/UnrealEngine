@@ -25,10 +25,12 @@ static inline EOSSValue ToEOSSValue(FName OSSName)
 	{
 		return EOSSValue::PS4;
 	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	else if (OSSName == LIVE_SUBSYSTEM)
 	{
 		return EOSSValue::XboxLive;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else if (OSSName == SWITCH_SUBSYSTEM)
 	{
 		return EOSSValue::Switch;
@@ -50,10 +52,12 @@ static inline FName ToOSSName(EOSSValue OSSValue)
 	{
 		return PS4_SUBSYSTEM;
 	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	else if (OSSValue == EOSSValue::XboxLive)
 	{
 		return LIVE_SUBSYSTEM;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else if (OSSValue == EOSSValue::Switch)
 	{
 		return SWITCH_SUBSYSTEM;
@@ -130,6 +134,8 @@ bool FUniqueNetIdEOSPlus::IsValid() const
 FOnlineUserEOSPlus::FOnlineUserEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
 	: EOSPlus(InSubsystem)
 {
+	BaseUserInterface = EOSPlus->BaseOSS->GetUserInterface(); //We don't check it here, since some platforms might not implement it
+
 	BaseIdentityInterface = EOSPlus->BaseOSS->GetIdentityInterface();
 	check(BaseIdentityInterface.IsValid());
 	EOSIdentityInterface = EOSPlus->EosOSS->GetIdentityInterface();
@@ -192,6 +198,11 @@ FOnlineUserEOSPlus::~FOnlineUserEOSPlus()
 
 	for (int32 LocalUserNum = 0; LocalUserNum < MAX_LOCAL_PLAYERS; LocalUserNum++)
 	{
+		if (BaseUserInterface.IsValid())
+		{
+			BaseUserInterface->ClearOnQueryUserInfoCompleteDelegates(LocalUserNum, this);
+		}
+
 		BaseIdentityInterface->ClearOnLoginStatusChangedDelegates(LocalUserNum, this);
 		BaseIdentityInterface->ClearOnLoginCompleteDelegates(LocalUserNum, this);
 		BaseIdentityInterface->ClearOnLogoutCompleteDelegates(LocalUserNum, this);
@@ -238,6 +249,237 @@ FUniqueNetIdPtr FOnlineUserEOSPlus::GetEOSNetId(const FString& SourceId) const
 	return nullptr;
 }
 
+void FOnlineUserEOSPlus::Initialize()
+{
+	if (BaseUserInterface.IsValid())
+	{
+		for (int32 LocalUserNum = 0; LocalUserNum < MAX_LOCAL_PLAYERS; LocalUserNum++)
+		{
+			BaseUserInterface->AddOnQueryUserInfoCompleteDelegate_Handle(LocalUserNum, FOnQueryUserInfoCompleteDelegate::CreateThreadSafeSP(this, &FOnlineUserEOSPlus::OnQueryUserInfoCompleteBase));
+		}
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::Initialize] BaseUserInterface delegates not bound. Base interface not valid"));
+	}
+}
+
+// IOnlineUser Interface
+
+bool FOnlineUserEOSPlus::QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef>& UserIds)
+{
+	TArray< FUniqueNetIdRef > BaseUserIds;
+	if (BaseUserInterface.IsValid())
+	{
+		bool bArePlayerIdsValid = true;
+		for (const FUniqueNetIdRef& UserId : UserIds)
+		{
+			FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId->ToString());
+			if (NetIdPlus.IsValid())
+			{
+				const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+				if (bIsBaseNetIdValid)
+				{
+					BaseUserIds.Add(NetIdPlus->GetBaseNetId().ToSharedRef());
+				}
+				else
+				{
+					UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::QueryUserInfo] Unable to call method in base interface. Base id not valid for user (%s)."), *UserId->ToDebugString());
+					bArePlayerIdsValid = false;
+					break;
+				}
+			}
+			else
+			{
+				UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::QueryUserInfo] Unable to call method in base interface. User not found (%s)."), *UserId->ToDebugString());
+				bArePlayerIdsValid = false;
+				break;
+}
+		}
+
+		if (bArePlayerIdsValid)
+{
+			return BaseUserInterface->QueryUserInfo(LocalUserNum, BaseUserIds);
+		}
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::QueryUserInfo] Unable to call method in base interface. Base interface not valid."));
+	}
+
+	EOSPlus->ExecuteNextTick([this, LocalUserNum, BaseUserIds]() {
+		TriggerOnQueryUserInfoCompleteDelegates(LocalUserNum, false, BaseUserIds, TEXT("Unable to call method in base interface."));
+		});
+
+	return true;
+}
+
+bool FOnlineUserEOSPlus::GetAllUserInfo(int32 LocalUserNum, TArray<TSharedRef<FOnlineUser>>& OutUsers)
+	{
+	bool bResult = false;
+
+	if (BaseUserInterface.IsValid())
+		{
+		TArray<TSharedRef<FOnlineUser>> BaseUsers;
+		bResult = BaseUserInterface->GetAllUserInfo(LocalUserNum, BaseUsers);
+
+		// We construct a list of Plus types to return
+		for (const TSharedRef<FOnlineUser>& BaseUser : BaseUsers)
+		{
+			OutUsers.Add(MakeShareable(new FOnlineUserPlus(BaseUser, nullptr)));
+		}
+		}
+		else
+		{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetAllUserInfo] Unable to call method in base interface. Base interface not valid."));
+		}
+
+	return bResult;
+	}
+
+TSharedPtr<FOnlineUser> FOnlineUserEOSPlus::GetUserInfo(int32 LocalUserNum, const FUniqueNetId& UserId)
+	{
+	TSharedPtr<FOnlineUserPlus> Result = nullptr;
+
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+	if (NetIdPlus.IsValid())
+		{
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBaseUserInterfaceValid = BaseUserInterface.IsValid();
+		if (bIsBaseNetIdValid && bIsBaseUserInterfaceValid)
+		{
+			// We make sure to always return a Plus type
+			TSharedPtr<FOnlineUser> BaseResult = BaseUserInterface->GetUserInfo(LocalUserNum, *NetIdPlus->GetBaseNetId());
+			if (BaseResult.IsValid())
+			{
+				Result = MakeShareable(new FOnlineUserPlus(BaseResult, nullptr));
+		}
+		}
+		else
+		{
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetUserInfo] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseUserInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBaseUserInterfaceValid));
+		}
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetUserInfo] Unable to call method in base interface. Unknown user (%s)"), *UserId.ToString());
+	}
+
+	return Result;
+}
+
+bool FOnlineUserEOSPlus::QueryUserIdMapping(const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FOnQueryUserMappingComplete& Delegate)
+{
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+	if (NetIdPlus.IsValid())
+	{
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBaseUserInterfaceValid = BaseUserInterface.IsValid();
+		if (bIsBaseNetIdValid && bIsBaseUserInterfaceValid)
+		{
+			return BaseUserInterface->QueryUserIdMapping(*NetIdPlus->GetBaseNetId(), DisplayNameOrEmail, Delegate);
+		}
+		else
+		{
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::QueryUserIdMapping] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseUserInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBaseUserInterfaceValid));
+		}
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::QueryUserIdMapping] Unable to call method in base interface. Unknown user (%s)"), *UserId.ToString());
+	}
+
+	EOSPlus->ExecuteNextTick([this, NetIdPlus, DisplayNameOrEmail, Delegate]() {
+		Delegate.ExecuteIfBound(false, *NetIdPlus, DisplayNameOrEmail, *FUniqueNetIdEOSPlus::EmptyId(), TEXT("Unable to call method in base interface."));
+		});
+
+	return true;
+}
+
+bool FOnlineUserEOSPlus::QueryExternalIdMappings(const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FOnQueryExternalIdMappingsComplete& Delegate)
+{
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+	if (NetIdPlus.IsValid())
+	{
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBaseUserInterfaceValid = BaseUserInterface.IsValid();
+		if (bIsBaseNetIdValid && bIsBaseUserInterfaceValid)
+		{
+			return BaseUserInterface->QueryExternalIdMappings(*NetIdPlus->GetBaseNetId(), QueryOptions, ExternalIds, Delegate);
+		}
+		else
+		{
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::QueryExternalIdMappings] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseUserInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBaseUserInterfaceValid));
+		}
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::QueryExternalIdMappings] Unable to call method in base interface. Unknown user (%s)"), *UserId.ToString());
+	}
+
+	EOSPlus->ExecuteNextTick([this, NetIdPlus, QueryOptions, ExternalIds, Delegate]() {
+		Delegate.ExecuteIfBound(false, *NetIdPlus, QueryOptions, ExternalIds, TEXT("Unable to call method in base interface."));
+	});
+
+	return true;
+}
+
+void FOnlineUserEOSPlus::GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<FUniqueNetIdPtr>& OutIds)
+{
+	if (BaseUserInterface.IsValid())
+	{
+		// We don't return Plus ids here because we want external id types
+		BaseUserInterface->GetExternalIdMappings(QueryOptions, ExternalIds, OutIds);
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetExternalIdMappings] Unable to call method in base interface. Base interface not valid."));
+	}
+}
+
+FUniqueNetIdPtr FOnlineUserEOSPlus::GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId)
+{
+	FUniqueNetIdPtr Result = nullptr;
+
+	if (BaseUserInterface.IsValid())
+	{
+		// We don't return a Plus id here because we want external id types
+		Result = BaseUserInterface->GetExternalIdMapping(QueryOptions, ExternalId);
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetExternalIdMapping] Unable to call method in base interface. Base interface not valid."));
+	}
+
+	return Result;
+}
+
+void FOnlineUserEOSPlus::OnQueryUserInfoCompleteBase(int32 LocalUserNum, bool bWasSuccessful, const TArray< FUniqueNetIdRef >& UserIds, const FString& ErrorStr)
+{
+	TArray< FUniqueNetIdRef > PlusUserIds;
+
+	if (bWasSuccessful)
+	{
+		// We'll build a list of PlusUserIds from the UserIds we can find
+		for (const FUniqueNetIdRef& UserId : UserIds)
+		{
+			FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId->ToString());
+			if (NetIdPlus.IsValid())
+			{
+				PlusUserIds.Add(NetIdPlus.ToSharedRef());
+			}
+			else
+			{
+				UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::OnQueryUserInfoCompleteBase] User not found (%s)."), *UserId->ToDebugString());
+			}
+		}
+	}
+
+	TriggerOnQueryUserInfoCompleteDelegates(LocalUserNum, bWasSuccessful, PlusUserIds, ErrorStr);
+}
+
+// ~IOnlineUser Interface
+
 bool FOnlineUserEOSPlus::Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials)
 {
 	LocalUserNumToLastLoginCredentials.Emplace(LocalUserNum, MakeShared<FOnlineAccountCredentials>(AccountCredentials));
@@ -247,36 +489,14 @@ bool FOnlineUserEOSPlus::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 
 void FOnlineUserEOSPlus::OnLoginChanged(int32 LocalUserNum)
 {
-	bool bForward = GetDefault<UEOSSettings>()->bUseEAS || GetDefault<UEOSSettings>()->bUseEOSConnect;
-
-	ELoginStatus::Type LoginStatus = BaseIdentityInterface->GetLoginStatus(LocalUserNum);
-	if (LoginStatus == ELoginStatus::LoggedIn || LoginStatus == ELoginStatus::UsingLocalProfile)
-	{
-		// When the platform logs in we need to conditionally log into EAS/EOS
-		if (bForward)
-		{
-			EOSIdentityInterface->AutoLogin(LocalUserNum);
-		}
-		else
-		{
-			AddPlayer(LocalUserNum);
-			TriggerOnLoginChangedDelegates(LocalUserNum);
-		}
-	}
-	else if (LoginStatus == ELoginStatus::NotLoggedIn)
-	{
-		// Log out of EAS/EOS if configured
-		if (bForward)
-		{
-			Logout(LocalUserNum);
-		}
 		TriggerOnLoginChangedDelegates(LocalUserNum);
 	}
-}
 
 void FOnlineUserEOSPlus::OnEOSLoginChanged(int32 LocalUserNum)
 {
-	if (!GetDefault<UEOSSettings>()->bUseEAS && !GetDefault<UEOSSettings>()->bUseEOSConnect)
+	const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
+
+	if (!EOSSettings.bUseEAS && !EOSSettings.bUseEOSConnect)
 	{
 		return;
 	}
@@ -297,7 +517,9 @@ void FOnlineUserEOSPlus::OnLoginStatusChanged(int32 LocalUserNum, ELoginStatus::
 {
 	if (NewStatus == ELoginStatus::UsingLocalProfile)
 	{
-		if (!GetDefault<UEOSSettings>()->bUseEAS && !GetDefault<UEOSSettings>()->bUseEOSConnect)
+		const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
+
+		if (!EOSSettings.bUseEAS && !EOSSettings.bUseEOSConnect)
 		{
 			EOSIdentityInterface->Logout(LocalUserNum);
 		}
@@ -328,12 +550,29 @@ void FOnlineUserEOSPlus::OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful
 
 void FOnlineUserEOSPlus::OnBaseLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorStr)
 {
+	if (!bWasSuccessful)
+	{
+		TriggerOnLoginCompleteDelegates(LocalUserNum, bWasSuccessful, UserId, ErrorStr);
+		return;
+	}
+
+	const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
+	const bool bForward = EOSSettings.bUseEAS || EOSSettings.bUseEOSConnect;
+	if (bForward)
+	{
 	check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
 	EOSIdentityInterface->Login(LocalUserNum, *LocalUserNumToLastLoginCredentials[LocalUserNum]);
+}
+	else
+	{
+		AddPlayer(LocalUserNum);
+		TriggerOnLoginCompleteDelegates(LocalUserNum, bWasSuccessful, UserId, ErrorStr);
+	}
 }
 
 void FOnlineUserEOSPlus::OnLogoutComplete(int32 LocalUserNum, bool bWasSuccessful)
 {
+	// TODO: Make logout work the same way login does, triggering EOS after completion of Base
 	TriggerOnLogoutCompleteDelegates(LocalUserNum, bWasSuccessful);
 }
 
@@ -520,8 +759,20 @@ FString FOnlineUserEOSPlus::GetPlayerNickname(int32 LocalUserNum) const
 
 FString FOnlineUserEOSPlus::GetPlayerNickname(const FUniqueNetId& UserId) const
 {
+	FString Result;
+
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+	if (NetIdPlus.IsValid())
+	{
 	// Do we wrap this and map or pass through or aggregate and pass through?
-	return BaseIdentityInterface->GetPlayerNickname(UserId);
+		Result = BaseIdentityInterface->GetPlayerNickname(*NetIdPlus->GetBaseNetId());
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetPlayerNickname] User not found (%s)"), *UserId.ToString());
+	}
+
+	return Result;
 }
 
 FString FOnlineUserEOSPlus::GetAuthToken(int32 LocalUserNum) const
@@ -679,7 +930,7 @@ bool FOnlineUserEOSPlus::ReadFriendsList(int32 LocalUserNum, const FString& List
 		FOnReadFriendsListComplete::CreateLambda([this, IntermediateComplete = FOnReadFriendsListComplete(Delegate)](int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr)
 	{
 		// Skip reading EAS if not in use and if we errored at the platform level
-		if (!GetDefault<UEOSSettings>()->bUseEAS || !bWasSuccessful)
+		if (!UEOSSettings::GetSettings().bUseEAS || !bWasSuccessful)
 		{
 			IntermediateComplete.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
 			return;
@@ -803,7 +1054,7 @@ bool FOnlineUserEOSPlus::GetFriendsList(int32 LocalUserNum, const FString& ListN
 		OutFriends.Add(GetFriend(Friend));
 	}
 
-	if (GetDefault<UEOSSettings>()->bUseEAS)
+	if (UEOSSettings::GetSettings().bUseEAS)
 	{
 		Friends.Reset();
 		bWasSuccessful |= EOSFriendsInterface->GetFriendsList(LocalUserNum, ListName, Friends);
@@ -845,7 +1096,7 @@ bool FOnlineUserEOSPlus::IsFriend(int32 LocalUserNum, const FUniqueNetId& Friend
 	{
 		bIsFriend = BaseFriendsInterface->IsFriend(LocalUserNum, *NetIdPlusToBaseNetId[FriendId.ToString()], ListName);
 	}
-	if (!bIsFriend && GetDefault<UEOSSettings>()->bUseEAS && NetIdPlusToEOSNetId.Contains(FriendId.ToString()))
+	if (!bIsFriend && UEOSSettings::GetSettings().bUseEAS && NetIdPlusToEOSNetId.Contains(FriendId.ToString()))
 	{
 		bIsFriend = EOSFriendsInterface->IsFriend(LocalUserNum, *NetIdPlusToEOSNetId[FriendId.ToString()], ListName);
 	}
@@ -1088,7 +1339,7 @@ void FOnlineUserEOSPlus::SetPresence(const FUniqueNetId& User, const FOnlineUser
 		FOnPresenceTaskCompleteDelegate::CreateLambda([this, NetIdPlus, StatusCopy = FOnlineUserPresenceStatus(Status), IntermediateComplete = FOnPresenceTaskCompleteDelegate(Delegate)](const FUniqueNetId& UserId, const bool bWasSuccessful)
 	{
 		// Skip setting EAS presence if not mirrored or if we errored at the platform level or the EOS user isn't found
-		if (!bWasSuccessful || !NetIdPlus->GetEOSNetId().IsValid() || !GetDefault<UEOSSettings>()->bMirrorPresenceToEAS)
+		if (!bWasSuccessful || !NetIdPlus->GetEOSNetId().IsValid() || !UEOSSettings::GetSettings().bMirrorPresenceToEAS)
 		{
 			IntermediateComplete.ExecuteIfBound(UserId, bWasSuccessful);
 			return;

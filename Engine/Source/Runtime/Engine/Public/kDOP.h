@@ -231,9 +231,9 @@ static int32 appLineCheckTriangleSOA(const FVector3SOA& Start, const FVector3SOA
 		const VectorRegister EdgeX = VectorSubtract( Triangle4.Positions[(SideIndex + 1) % 3].X, Triangle4.Positions[SideIndex].X );
 		const VectorRegister EdgeY = VectorSubtract( Triangle4.Positions[(SideIndex + 1) % 3].Y, Triangle4.Positions[SideIndex].Y );
 		const VectorRegister EdgeZ = VectorSubtract( Triangle4.Positions[(SideIndex + 1) % 3].Z, Triangle4.Positions[SideIndex].Z );
-		const VectorRegister SideDirectionX = VectorSubtract( VectorMultiply( Triangle4.Normals.Y, EdgeZ ), VectorMultiply(Triangle4.Normals.Z, EdgeY) );
-		const VectorRegister SideDirectionY = VectorSubtract( VectorMultiply( Triangle4.Normals.Z, EdgeX ), VectorMultiply(Triangle4.Normals.X, EdgeZ) );
-		const VectorRegister SideDirectionZ = VectorSubtract( VectorMultiply( Triangle4.Normals.X, EdgeY ), VectorMultiply(Triangle4.Normals.Y, EdgeX) );
+		const VectorRegister SideDirectionX = VectorNegateMultiplyAdd( Triangle4.Normals.Z, EdgeY, VectorMultiply( Triangle4.Normals.Y, EdgeZ ) );
+		const VectorRegister SideDirectionY = VectorNegateMultiplyAdd( Triangle4.Normals.X, EdgeZ, VectorMultiply( Triangle4.Normals.Z, EdgeX ) );
+		const VectorRegister SideDirectionZ = VectorNegateMultiplyAdd( Triangle4.Normals.Y, EdgeX, VectorMultiply( Triangle4.Normals.X, EdgeY ) );
 		VectorRegister SideW;
 		SideW = VectorMultiply( SideDirectionX, Triangle4.Positions[SideIndex].X );
 		SideW = VectorMultiplyAdd( SideDirectionY, Triangle4.Positions[SideIndex].Y, SideW );

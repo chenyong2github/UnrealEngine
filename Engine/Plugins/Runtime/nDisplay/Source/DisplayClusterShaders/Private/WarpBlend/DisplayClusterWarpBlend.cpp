@@ -104,10 +104,10 @@ bool FDisplayClusterWarpBlend::CalcFrustumContext(class IDisplayClusterViewport*
 	return true;
 }
 
-bool FDisplayClusterWarpBlend::ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData) const
+bool FDisplayClusterWarpBlend::ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData, uint32 InMaxDimension) const
 {
 #if WITH_EDITOR
-	return OutMeshData ? FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(GeometryContext.GeometryProxy.WarpMap, *OutMeshData) : false;
+	return OutMeshData ? FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(GeometryContext.GeometryProxy.WarpMap, *OutMeshData, InMaxDimension) : false;
 #else
 	return false;
 #endif

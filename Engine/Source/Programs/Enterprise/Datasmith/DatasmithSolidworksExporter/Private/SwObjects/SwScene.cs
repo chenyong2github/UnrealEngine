@@ -13,6 +13,7 @@ using SolidWorks.Interop.swconst;
 using System.Runtime.InteropServices;
 using SolidworksDatasmith.Geometry;
 using SolidworksDatasmith.Engine;
+using System.Diagnostics;
 
 namespace SolidworksDatasmith.SwObjects
 {
@@ -53,6 +54,18 @@ namespace SolidworksDatasmith.SwObjects
 				}
 			}
 		}
+
+		// Used with global (unlinked) display states.
+		// Tracks which materials are assigned to components for a specific display state.
+		class DisplayStateUsage
+		{
+			public DisplayStateUsage(string InName)
+			{
+				Name = InName;
+			}
+			public string Name;
+			public Dictionary<IComponent2, SwMaterial> ComponentMaterails = new Dictionary<IComponent2, SwMaterial>();
+		};
 
 		// accessory used during export
 		public HashSet<int> AddedMaterials = new HashSet<int>();
@@ -622,7 +635,7 @@ namespace SolidworksDatasmith.SwObjects
 					nodeConfig.CopyFrom(child.CommonConfig);
 
 					// Apply the material override for this configuration if any
-					if (materialOverrides.ContainsKey(child.ComponentName))
+					if (materialOverrides != null && materialOverrides.ContainsKey(child.ComponentName))
 					{
 						nodeConfig.SetMaterial(materialOverrides[child.ComponentName]);
 					}
@@ -747,6 +760,8 @@ namespace SolidworksDatasmith.SwObjects
 					target.ComponentTransform.Add(node.ComponentName, nodeConfig.RelativeTransform);
 				if (!node.VisibilitySame)
 					target.ComponentVisibility.Add(node.ComponentName, nodeConfig.Visible);
+				if (!node.SuppressionSame)
+					target.ComponentVisibility.Add(node.ComponentName, !nodeConfig.Suppressed);
 				if (!node.MaterialSame)
 				{
 					SwMaterial material = nodeConfig.GetMaterial();
@@ -772,7 +787,7 @@ namespace SolidworksDatasmith.SwObjects
 			}
 		}
 
-		private void CollectComponentsRecurse(Component2 component, NodeInfo parentNode)
+		private void CollectComponentsRecurse(Component2 component, NodeInfo parentNode, DisplayStateUsage DSU)
 		{
 			NodeInfo newNode = new NodeInfo();
 			parentNode.Children.Add(newNode);
@@ -821,6 +836,16 @@ namespace SolidworksDatasmith.SwObjects
 			}
 
 			// Read material (appearance) information.
+
+			if (DSU != null)
+			{
+				if (DSU.ComponentMaterails.ContainsKey(component))
+				{
+					newNode.CommonConfig.SetMaterial(DSU.ComponentMaterails[component]);
+				}
+			}
+			else
+			{
 			// swThisDisplayState provides the most correct default material information.
 			int displayStateOption = (int)swDisplayStateOpts_e.swThisDisplayState;
 			int numMaterials = component.GetRenderMaterialsCount2(displayStateOption, null);
@@ -833,6 +858,7 @@ namespace SolidworksDatasmith.SwObjects
 				SwMaterial swMaterial = _materialMapper.FindOrAddMaterial(partMaterial, Doc.Extension, GetMaterialOffset(Doc));
 				newNode.CommonConfig.SetMaterial(swMaterial);
 			}
+			}
 
 			// Process children components
 			var children = (Object[])component.GetChildren();
@@ -842,7 +868,7 @@ namespace SolidworksDatasmith.SwObjects
 				foreach (var obj in children)
 				{
 					Component2 child = (Component2)obj;
-					CollectComponentsRecurse(child, newNode);
+					CollectComponentsRecurse(child, newNode, DSU);
 				}
 
 				newNode.Children.Sort(delegate (NodeInfo a, NodeInfo b)
@@ -852,60 +878,53 @@ namespace SolidworksDatasmith.SwObjects
 			}
 		}
 
-		private void CollectConfigurationData(AssemblyDoc doc)
+		private void ExportRegularConfigurations(ModelDoc2 Doc)
 		{
-			NodeInfo rootNode = new NodeInfo();
-			rootNode.Children = new List<NodeInfo>();
+			string[] CfgNames = (Doc as ModelDoc2).GetConfigurationNames();
 
-			NodeInfo combinedTree = new NodeInfo();
-			combinedTree.ComponentName = "CombinedTree";
-			// Ensure recursion will not stop on the root node (this may happen if it is not explicitly marked as visible)
-			combinedTree.VisibilitySame = true;
-			combinedTree.CommonConfig.Visible = true;
-
-			string[] CfgNames = (doc as ModelDoc2).GetConfigurationNames();
 			if (CfgNames.Length <= 1)
 			{
-				// There's no configurations in the scene
 				return;
 			}
 
+			NodeInfo RootNode = new NodeInfo();
+			RootNode.Children = new List<NodeInfo>();
+
+			NodeInfo CombinedTree = new NodeInfo();
+			CombinedTree.ComponentName = "CombinedTree";
+			// Ensure recursion will not stop on the root node (this may happen if it is not explicitly marked as visible)
+			CombinedTree.VisibilitySame = true;
+			CombinedTree.CommonConfig.Visible = true;
+
 			foreach (string CfgName in CfgNames)
 			{
-				IConfiguration swConfiguration = (doc as ModelDoc2).GetConfigurationByName(CfgName) as IConfiguration;
+				IConfiguration swConfiguration = (Doc as ModelDoc2).GetConfigurationByName(CfgName) as IConfiguration;
 
-				/*//todo: configuration parameters are useless, may remove the code
-				int ParamCount = swConfiguration.GetParameterCount();
-				object Params, Values;
-				swConfiguration.GetParameters(out Params, out Values);
-				for (int i = 0; i < (Params as string[]).Length; i++)
+				NodeInfo ConfigNode = new NodeInfo();
+				ConfigNode.Children = new List<NodeInfo>();
+				ConfigNode.ComponentName = CfgName;
+				RootNode.Children.Add(ConfigNode);
+
+				int DisplayStateCount = swConfiguration.GetDisplayStatesCount();
+				string[] DisplayStates = null;
+				if (DisplayStateCount > 0)
 				{
-					System.Diagnostics.Debug.WriteLine(" [" + i + "] " + (Params as string[])[i] + " = " + (Values as string[])[i]);
-				}*/
-
-				NodeInfo configNode = new NodeInfo();
-				configNode.Children = new List<NodeInfo>();
-				configNode.ComponentName = CfgName;
-				rootNode.Children.Add(configNode);
-
-				int displayStateCount = swConfiguration.GetDisplayStatesCount();
-				string[] displayStates = null;
-				if (displayStateCount > 0)
-				{
-					displayStates = swConfiguration.GetDisplayStates();
+					DisplayStates = swConfiguration.GetDisplayStates();
 				}
 
 				// Get per-configuration materials
-				Dictionary<string, SwMaterial> configurationMaterials = new Dictionary<string, SwMaterial>();
-				CollectMaterialsForConfiguration(Doc, displayStates, configurationMaterials);
+				Dictionary<string, SwMaterial> ConfigurationMaterials = new Dictionary<string, SwMaterial>();
+				CollectMaterialsForConfiguration(Doc, DisplayStates, ConfigurationMaterials);
 
 				// Build the tree and get default materials (which aren't affected by any configuration)
 				// Use GetRootComponent3() with Resolve = true to ensure suppressed components will be loaded
-				CollectComponentsRecurse(swConfiguration.GetRootComponent3(true), configNode);
+				CollectComponentsRecurse(swConfiguration.GetRootComponent3(true), ConfigNode, null);
 
 				// Combine separate scene trees into the single one with configuration-specific data
-				MergeConfigurationTrees(combinedTree, configNode, CfgName, configurationMaterials);
+				MergeConfigurationTrees(CombinedTree, ConfigNode, CfgName, ConfigurationMaterials);
 			}
+
+			SubmitConfigurationCommand("Configurations", CfgNames, CombinedTree);
 
 #if WRITE_CONFIGS_TO_XML
 			// Save configuration parameters to separate xml files for easier analysis
@@ -922,8 +941,6 @@ namespace SolidworksDatasmith.SwObjects
 			}*/
 #endif // WRITE_CONFIGS_TO_XML
 
-			// Remove configuration data when it's the same
-			CompressConfigurationData(combinedTree);
 
 #if WRITE_CONFIGS_TO_XML
 			// Save combined tree to a single xml file
@@ -936,20 +953,116 @@ namespace SolidworksDatasmith.SwObjects
 			System.IO.File.WriteAllText(baseFilename + "combined.xml", sb2.ToString());
 #endif // WRITE_CONFIGS_TO_XML
 
-			// Send configurations to processor
-			var cmd = new ConfigurationDataCommand();
+		}
 
-			// Add roots for configurations
-			foreach (string CfgName in CfgNames)
+		private void ExportDisplayStatesAsConfigurations(ModelDoc2 Doc, string[] DisplayStates)
+		{
+			Debug.Assert(DisplayStates != null && DisplayStates.Length > 0);
+
+			NodeInfo CombinedTree = new NodeInfo();
+			CombinedTree.ComponentName = "CombinedTree";
+			// Ensure recursion will not stop on the root node (this may happen if it is not explicitly marked as visible)
+			CombinedTree.VisibilitySame = true;
+			CombinedTree.CommonConfig.Visible = true;
+
+			IModelDocExtension Ext = Doc.Extension;
+
+			DisplayStateUsage[] DisplayStatesData = new DisplayStateUsage[DisplayStates.Length];
+
+			for(int DisplayStateIndex = 0; DisplayStateIndex < DisplayStates.Length; ++DisplayStateIndex)
 			{
-				ConfigurationDataCommand.Configuration cfg = new ConfigurationDataCommand.Configuration();
-				cfg.Name = CfgName;
-				cmd.Configurations.Add(cfg);
-				FillConfigurationCommand(combinedTree, CfgName, cfg);
+				string DisplayStateName = DisplayStates[DisplayStateIndex];
+				string[] DisplayStateAsArray = new string[]{ DisplayStateName };
+				int NumMaterials = Ext.GetRenderMaterialsCount2((int)swDisplayStateOpts_e.swSpecifyDisplayState, DisplayStateAsArray);
+
+				if (NumMaterials > 0)
+				{
+					object[] Materials = Ext.GetRenderMaterials2((int)swDisplayStateOpts_e.swSpecifyDisplayState, DisplayStateAsArray);
+
+					DisplayStateUsage DSU = new DisplayStateUsage(DisplayStateName);
+
+					DisplayStatesData[DisplayStateIndex] = DSU;
+					
+					foreach (object Mat in Materials)
+					{
+						RenderMaterial RenderMat = Mat as RenderMaterial;
+						int NumUsers = RenderMat.GetEntitiesCount();
+						if (NumUsers > 0)
+						{
+							SwMaterial SwMat = _materialMapper.FindOrAddMaterial(RenderMat, Ext, 0);
+
+							object[] Users = RenderMat.GetEntities();
+							foreach (var User in Users)
+							{
+								if (User is IComponent2 Component)
+								{
+									DSU.ComponentMaterails[Component] = SwMat;
+								}
+							}
+						}
+					}
+				}
 			}
 
-			Processor.AddCommand(cmd);
+			Configuration ActiveConfig = (Configuration)Doc.GetActiveConfiguration();
 
+			for (int DisplayStateIndex = 0; DisplayStateIndex < DisplayStates.Length; ++DisplayStateIndex)
+			{
+				string CfgName = DisplayStates[DisplayStateIndex];
+				NodeInfo ConfigNode = new NodeInfo();
+				ConfigNode.Children = new List<NodeInfo>();
+				ConfigNode.ComponentName = CfgName;
+
+				// Build the tree and get default materials (which aren't affected by any configuration)
+				// Use GetRootComponent3() with Resolve = true to ensure suppressed components will be loaded
+				CollectComponentsRecurse(ActiveConfig.GetRootComponent3(true), ConfigNode, DisplayStatesData[DisplayStateIndex]);
+
+				// Combine separate scene trees into the single one with configuration-specific data
+				MergeConfigurationTrees(CombinedTree, ConfigNode, CfgName, null);
+			}
+
+			SubmitConfigurationCommand("DisplayStates", DisplayStates, CombinedTree);
+		}
+
+		private void SubmitConfigurationCommand(string ConfigurationSetName, string[] Configurations, NodeInfo Tree)
+		{
+			// Remove configuration data when it's the same
+			CompressConfigurationData(Tree);
+
+			var Cmd = new ConfigurationDataCommand();
+			Cmd.ConfigurationsSetName = ConfigurationSetName;
+
+			// Add roots for configurations
+			foreach (string CfgName in Configurations)
+			{
+				ConfigurationDataCommand.Configuration Cfg = new ConfigurationDataCommand.Configuration();
+				Cfg.Name = CfgName;
+				Cmd.Configurations.Add(Cfg);
+				FillConfigurationCommand(Tree, CfgName, Cfg);
+			}
+
+			Processor.AddCommand(Cmd);
+		}
+
+		private void CollectConfigurationData(AssemblyDoc doc)
+		{
+			ModelDoc2 Doc2 = doc as ModelDoc2;
+
+			// Check if display states are linked: if not, export them as variants (it they are, they'll be 
+			// exported as part of their respective linked configs)
+            ConfigurationManager ConfigManager = Doc2.ConfigurationManager;
+            if (!ConfigManager.LinkDisplayStatesToConfigurations)
+			{
+				Configuration ActiveConfig = (Configuration)Doc2.GetActiveConfiguration();
+				int DisplayStateCount = ActiveConfig.GetDisplayStatesCount();
+				if (DisplayStateCount > 1)
+				{
+					string[] DisplayStates = ActiveConfig.GetDisplayStates();
+					ExportDisplayStatesAsConfigurations(Doc2, DisplayStates);
+				}
+			}
+
+			ExportRegularConfigurations(Doc2);
 		}
 
 		private void EvaluateSceneTransforms(AssemblyDoc doc)
@@ -1102,6 +1215,8 @@ namespace SolidworksDatasmith.SwObjects
 
 		public void SendModelDocMetadataToProcessor(ModelDoc2 modeldoc2, string docname, MetadataCommand.MetadataType metadatatype)
 		{
+			try
+			{
 			MetadataCommand mc = new MetadataCommand(metadatatype);
 			if (mc != null)
 			{
@@ -1109,6 +1224,8 @@ namespace SolidworksDatasmith.SwObjects
 				SwMetaDataManager.AddDocumentMetadataToCommand(modeldoc2, mc);
 				Processor.AddCommand(mc);
 			}
+		}
+			catch(Exception){ }
 		}
 
 		public void DeleteComponent(string itemName)

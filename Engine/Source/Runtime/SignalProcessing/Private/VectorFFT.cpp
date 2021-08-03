@@ -380,10 +380,9 @@ namespace Audio
 					VectorRegister C5ConjSwizzle = VectorSwizzle(C5Conj, 1, 0, 3, 2);
 					VectorRegister T5 = VectorAdd(C5, C5ConjSwizzle);
 
-					VectorRegister C7Conj = VectorMultiply(SignFlipImag, C7);
 					VectorRegister C7Swizzle = VectorSwizzle(C7, 1, 0, 3, 2);
 
-					VectorRegister T7 = VectorAdd(C7Swizzle, C7Conj);
+					VectorRegister T7 = VectorMultiplyAdd(SignFlipImag, C7, C7Swizzle);
 					VectorRegister T7Conj = VectorMultiply(T7, SignFlipImag);
 
 					VectorRegister D0 = VectorAdd(C0, C1);
@@ -1099,15 +1098,15 @@ namespace Audio
 				// Out2 = [ I * Ai,  R * Ai]
 				// Out3 = [NR * Br, NI * Br]
 				// Out4 = [NI * Bi, NR * Bi]
-				VectorRegister Out1 = VectorMultiply(VIn, VAlphaReal);
+				//VectorRegister Out1 = VectorMultiply(VIn, VAlphaReal);
 				VectorRegister Out2 = VectorMultiply(VInRISwap, VAlphaImag);
-				VectorRegister Out3 = VectorMultiply(VInRev, VBetaReal);
+				//VectorRegister Out3 = VectorMultiply(VInRev, VBetaReal);
 				VectorRegister Out4 = VectorMultiply(VInRevRISwap, VBetaImag);
 
 				// Out12 = [(R * Ar) + (I * Ai), (I * Ar) + (R * Ai)]
-				VectorRegister Out12 = VectorAdd(Out1, Out2);
+				VectorRegister Out12 = VectorMultiplyAdd(VIn, VAlphaReal, Out2);
 				// Out34 = [(NR * Br) + (NI * Bi), (NR * Bi) + (NI * Br)]
-				VectorRegister Out34 = VectorAdd(Out3, Out4);
+				VectorRegister Out34 = VectorMultiplyAdd(VInRev, VBetaReal, Out4);
 
 				// Out = [
 				// 	(R * Ar) + (I * Ai) + (NR * Br) + (NI * Bi),

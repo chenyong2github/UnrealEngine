@@ -3,7 +3,7 @@
 set -x
 set -eu
 
-ToolChainVersion=v18
+ToolChainVersion=v19
 LLVM_VERSION=11.0.1
 LLVM_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}
 

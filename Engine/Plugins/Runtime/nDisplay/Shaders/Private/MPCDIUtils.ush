@@ -44,6 +44,7 @@ float4 ChromakeyMarkerColor;
 
 float ChromakeyMarkerScale;
 float ChromakeyMarkerDistance;
+float2 ChromakeyMarkerOffset;
 
 struct InputVS
 {

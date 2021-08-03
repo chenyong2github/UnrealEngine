@@ -171,7 +171,7 @@ void FDMXInputPort::RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerT
 
 bool FDMXInputPort::Register()
 {
-	if (IsValidPortSlow() && bReceiveDMXEnabled && !FDMXPortManager::Get().AreProtocolsSuspended())
+	if (Protocol.IsValid() && IsValidPortSlow() && bReceiveDMXEnabled && !FDMXPortManager::Get().AreProtocolsSuspended())
 	{
 		bRegistered = Protocol->RegisterInputPort(SharedThis(this));
 
@@ -185,9 +185,10 @@ void FDMXInputPort::Unregister()
 {
 	if (bRegistered)
 	{
-		check(Protocol.IsValid());
-
+		if (Protocol.IsValid())
+		{
 		Protocol->UnregisterInputPort(SharedThis(this));
+		}
 
 		bRegistered = false;
 	}

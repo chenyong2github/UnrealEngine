@@ -538,14 +538,15 @@ void UKismetRenderingLibrary::ConvertRenderTargetToTexture2DEditorOnly( UObject*
 	}
 	else
 	{
-		UTexture2D* NewTexture = RenderTarget->ConstructTexture2D(Texture->GetOuter(), Texture->GetName(), RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default, nullptr);
+		// We don't want to create a new texture here, we already have one.  We want to preserve any configuration
+		// by a developer and just update the minimal pixel data and format data.
+		const ETextureSourceFormat TextureFormat = RenderTarget->GetTextureFormatForConversionToTexture2D();
+		RenderTarget->UpdateTexture2D(Texture, TextureFormat);
 
-		check(NewTexture == Texture);
-
-		NewTexture->Modify();
-		NewTexture->MarkPackageDirty();
-		NewTexture->PostEditChange();
-		NewTexture->UpdateResource();
+		Texture->Modify();
+		Texture->MarkPackageDirty();
+		Texture->PostEditChange();
+		Texture->UpdateResource();
 	}
 #else
 	FMessageLog("Blueprint").Error(LOCTEXT("Convert to render target can't be used at run time.", "ConvertRenderTarget: Can't convert render target to texture2d at run time. "));

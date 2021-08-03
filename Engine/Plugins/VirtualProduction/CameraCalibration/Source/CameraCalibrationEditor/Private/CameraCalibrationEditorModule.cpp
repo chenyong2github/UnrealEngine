@@ -108,9 +108,9 @@ void FCameraCalibrationEditorModule::RegisterPlacementModeItems()
 			return;
 		}
 
-		// Register the Tracker
+		// Register the Trackers, Version 2 and 3
 		{
-			FAssetData TrackerAssetData(
+			const FAssetData TrackerAssetDataV2(
 				TEXT("/CameraCalibration/Devices/Tracker/BP_UE_Tracker"),
 				TEXT("/CameraCalibration/Devices/Tracker"),
 				TEXT("BP_UE_Tracker"),
@@ -119,12 +119,29 @@ void FCameraCalibrationEditorModule::RegisterPlacementModeItems()
 
 			PlaceActors.Add(IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
 				*UActorFactoryBlueprint::StaticClass(),
-				TrackerAssetData,
+				TrackerAssetDataV2,
 				NAME_None,
 				NAME_None,
 				TOptional<FLinearColor>(),
 				TOptional<int32>(),
-				NSLOCTEXT("PlacementMode", "Tracker", "Tracker")
+				NSLOCTEXT("PlacementMode", "TrackerV2", "TrackerV2")
+			)));
+
+			const FAssetData TrackerAssetDataV3(
+				TEXT("/CameraCalibration/Devices/Tracker/BP_UE_Tracker3"),
+				TEXT("/CameraCalibration/Devices/Tracker"),
+				TEXT("BP_UE_Tracker3"),
+				TEXT("Blueprint")
+			);
+
+			PlaceActors.Add(IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
+				*UActorFactoryBlueprint::StaticClass(),
+				TrackerAssetDataV3,
+				NAME_None,
+				NAME_None,
+				TOptional<FLinearColor>(),
+				TOptional<int32>(),
+				NSLOCTEXT("PlacementMode", "TrackerV3", "TrackerV3")
 			)));
 		}
 	};

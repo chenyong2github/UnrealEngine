@@ -4,6 +4,8 @@
 
 #include "LensFile.h"
 
+#define LOCTEXT_NAMESPACE "LensDataCurveModel"
+
 
 ECurveEditorViewID FLensDataCurveModel::ViewId = ECurveEditorViewID::Invalid;
 FLensDataCurveModel::FLensDataCurveModel(ULensFile* InOwner)
@@ -45,3 +47,29 @@ const FRichCurve& FLensDataCurveModel::GetReadOnlyRichCurve() const
 	return CurrentCurve;
 }
 
+UObject* FLensDataCurveModel::GetOwningObject() const
+{
+	return LensFile.Get();
+}
+
+FText FLensDataCurveModel::GetKeyLabel() const
+{
+	return LOCTEXT("XAxisLabel", "Raw Zoom");
+}
+
+FText FLensDataCurveModel::GetValueLabel() const
+{
+	return FText();
+}
+
+FText FLensDataCurveModel::GetValueUnitPrefixLabel() const
+{
+	return FText();
+}
+
+FText FLensDataCurveModel::GetValueUnitSuffixLabel() const
+{
+	return FText();
+}
+
+#undef LOCTEXT_NAMESPACE

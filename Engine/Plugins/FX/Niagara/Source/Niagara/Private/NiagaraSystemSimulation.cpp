@@ -778,10 +778,10 @@ void FNiagaraSystemSimulation::Destroy()
 
 	check(GetSystemInstances(ENiagaraSystemInstanceState::Spawning).Num() == 0);
 
-	FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World);
-	check(WorldMan);
 	SpawnExecContext->Parameters.UnbindFromSourceStores();
 	UpdateExecContext->Parameters.UnbindFromSourceStores();
+
+	World = nullptr;
 }
 
 UNiagaraParameterCollectionInstance* FNiagaraSystemSimulation::GetParameterCollectionInstance(UNiagaraParameterCollection* Collection)
@@ -1274,7 +1274,7 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 			Instance->ConcurrentTickGraphEvent = ConcurrentTickGraphEvent;
 		}
 		ConcurrentTickTask->Unlock();
-		if (GNiagaraSystemSimulationTickTaskShouldWait)
+		if (bIsSolo || GNiagaraSystemSimulationTickTaskShouldWait)
 		{
 			MyCompletionGraphEvent->DontCompleteUntil(AllWorkCompleteGraphEvent);
 		}
@@ -1429,12 +1429,10 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 		}
 
 		// Can we spawn async?
-		const bool bCanRunAsync = !bPostActorTick || !GNiagaraSystemSimulationTickTaskShouldWait;
+		const bool bCanRunAsync = !bIsSolo && (!bPostActorTick || !GNiagaraSystemSimulationTickTaskShouldWait);
 		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), bCanRunAsync);
 		if ( Context.IsRunningAsync() )
 		{
-			check(bIsSolo == false);
-
 			auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationSpawnConcurrentTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
 			ConcurrentTickGraphEvent = ConcurrentTickTask->GetCompletionEvent();
 			for (FNiagaraSystemInstance* Instance : Context.Instances)

@@ -747,24 +747,44 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 		return;
 	}
 
+	auto BindToParameterCollection = [&](UNiagaraParameterCollection* Collection, FNiagaraParameterStore& DestStore)
+	{
+		if (Collection)
+		{
+			if (UNiagaraParameterCollectionInstance* Inst = ParentSystemInstance->GetParameterCollectionInstance(Collection))
+			{
+				Inst->GetParameterStore().Bind(&DestStore);
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Error, TEXT("Emitter attempting to bind to a null Parameter Collection Instance.\nEmitter:%s\nCollection:%s")
+				, CachedEmitter ? *CachedEmitter->GetPathName() : TEXT("null emitter!"), *Collection->GetPathName());
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Emitter attempting to bind to a null Parameter Collection.\nEmitter:%s"), CachedEmitter ? *CachedEmitter->GetPathName() : TEXT("null emitter!" ));
+		}
+	};
+
 	for (UNiagaraParameterCollection* Collection : SpawnExecContext.Script->GetCachedParameterCollectionReferences())
 	{
-		ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&SpawnExecContext.Parameters);
+		BindToParameterCollection(Collection, SpawnExecContext.Parameters);
 	}
 	for (UNiagaraParameterCollection* Collection : UpdateExecContext.Script->GetCachedParameterCollectionReferences())
 	{
-		ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&UpdateExecContext.Parameters);
+		BindToParameterCollection(Collection, UpdateExecContext.Parameters);
 	}
 
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		for (UNiagaraParameterCollection* Collection : SpawnExecContext.Script->GetCachedParameterCollectionReferences())
 		{
-			ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&GPUExecContext->CombinedParamStore);
+			BindToParameterCollection(Collection, GPUExecContext->CombinedParamStore);
 		}
 		for (UNiagaraParameterCollection* Collection : UpdateExecContext.Script->GetCachedParameterCollectionReferences())
 		{
-			ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&GPUExecContext->CombinedParamStore);
+			BindToParameterCollection(Collection, GPUExecContext->CombinedParamStore);
 		}
 	}
 
@@ -772,7 +792,7 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 	{
 		for (UNiagaraParameterCollection* Collection : EventContext.Script->GetCachedParameterCollectionReferences())
 		{
-			ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&EventContext.Parameters);
+			BindToParameterCollection(Collection, EventContext.Parameters);
 		}
 	}
 

@@ -45,7 +45,7 @@ public:
 	virtual void PostLoad() override;
 	
 #if WITH_EDITOR
-	void UpdateOverlappingWaterBodies();
+	void UpdateOverlappingWaterBodyComponents();
 	void UpdateActorIcon();
 #endif // WITH_EDITOR
 

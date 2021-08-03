@@ -102,6 +102,7 @@ public:
 	
 	DECLARE_EVENT_OneParam(USocialToolkit, FPartyInviteEvent, USocialUser&);
 	FPartyInviteEvent& OnPartyInviteReceived() const { return OnPartyInviteReceivedEvent; }
+	FPartyInviteEvent& OnPartyInviteRemoved() const { return OnPartyInviteRemovedEvent; }
 
 	DECLARE_EVENT_TwoParams(USocialToolkit, FFriendInviteEvent, USocialUser&, ESocialSubsystem);
 	FFriendInviteEvent& OnFriendInviteSent() const { return OnFriendInviteSentEvent; }
@@ -131,6 +132,7 @@ public:
 	FOnPartyRequestToJoinRemovedEvent& OnPartyRequestToJoinRemoved() const { return OnPartyRequestToJoinRemovedEvent; }
 
 	virtual void NotifyPartyInviteReceived(USocialUser& SocialUser, const IOnlinePartyJoinInfo& Invite);
+	virtual void NotifyPartyInviteRemoved(USocialUser& SocialUser, const IOnlinePartyJoinInfo& Invite);
 
 #if WITH_EDITOR
 	bool Debug_IsRandomlyChangingPresence() const { return bDebug_IsRandomlyChangingUserPresence; }
@@ -292,6 +294,7 @@ private:
 	mutable FPartyInviteEvent OnPartyInviteReceivedEvent;
 	mutable FPartyInviteEvent OnPartyInviteAcceptedEvent;
 	mutable FPartyInviteEvent OnPartyInviteRejectedEvent;
+	mutable FPartyInviteEvent OnPartyInviteRemovedEvent;
 
 	mutable FFriendInviteEvent OnFriendInviteReceivedEvent;
 	mutable FFriendInviteEvent OnFriendInviteSentEvent;

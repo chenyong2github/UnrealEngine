@@ -294,13 +294,17 @@ void FConcertClientTransactionManager::ProcessTransactionFinalizedEvent(const FP
 {
 	const FConcertSessionVersionInfo* VersionInfo = LiveSession->GetSession().GetSessionInfo().VersionInfos.IsValidIndex(InEvent.VersionIndex) ? &LiveSession->GetSession().GetSessionInfo().VersionInfos[InEvent.VersionIndex] : nullptr;
 	FConcertLocalIdentifierTable LocalIdentifierTable(InEvent.LocalIdentifierState);
+	TransactionBridge->OnApplyTransaction().Broadcast(ETransactionNotification::Begin, /*bIsSnapshot*/ false);
 	TransactionBridge->ApplyRemoteTransaction(InEvent, VersionInfo, InContext.PackagesToProcess, &LocalIdentifierTable, /*bIsSnapshot*/false);
+	TransactionBridge->OnApplyTransaction().Broadcast(ETransactionNotification::End, /*bIsSnapshot*/ false);
 }
 
 void FConcertClientTransactionManager::ProcessTransactionSnapshotEvent(const FPendingTransactionToProcessContext& InContext, const FConcertTransactionSnapshotEvent& InEvent)
 {
 	const FConcertSessionVersionInfo* VersionInfo = LiveSession->GetSession().GetSessionInfo().VersionInfos.IsValidIndex(InEvent.VersionIndex) ? &LiveSession->GetSession().GetSessionInfo().VersionInfos[InEvent.VersionIndex] : nullptr;
+	TransactionBridge->OnApplyTransaction().Broadcast(ETransactionNotification::Begin, /*bIsSnapshot*/ true);
 	TransactionBridge->ApplyRemoteTransaction(InEvent, VersionInfo, InContext.PackagesToProcess, nullptr, /*bIsSnapshot*/true);
+	TransactionBridge->OnApplyTransaction().Broadcast(ETransactionNotification::End, /*bIsSnapshot*/ true);
 }
 
 FConcertClientTransactionManager::FPendingTransactionToSend& FConcertClientTransactionManager::HandleLocalTransactionCommon(const FConcertClientLocalTransactionCommonData& InCommonData)

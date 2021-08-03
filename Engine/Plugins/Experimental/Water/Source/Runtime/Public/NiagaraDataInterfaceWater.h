@@ -6,7 +6,7 @@
 #include "Components/SplineComponent.h"
 #include "NiagaraDataInterfaceWater.generated.h"
 
-class AWaterBody;
+class UWaterBodyComponent;
 
 UCLASS(EditInlineNew, Category = "Water", meta = (DisplayName = "Water"))
 class WATER_API UNiagaraDataInterfaceWater : public UNiagaraDataInterface
@@ -33,8 +33,8 @@ public:
 	void GetWaveParamLookupTableOffset(FVectorVMExternalFunctionContext& Context);
 
 	/** Sets the current water body to be used by this data interface */
-	void SetWaterBody(AWaterBody* InWaterBody) { SourceBody = InWaterBody; }
+	void SetWaterBodyComponent(UWaterBodyComponent* InWaterBodyComponent) { SourceBodyComponent = InWaterBodyComponent; }
 private:
 	UPROPERTY(EditAnywhere, Category = "Water") 
-	AWaterBody* SourceBody;
+	UWaterBodyComponent* SourceBodyComponent;
 };

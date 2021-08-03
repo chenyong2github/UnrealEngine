@@ -35,6 +35,7 @@ public:
 	virtual int32 GetMaxUniverseID() const override;
 	virtual bool IsValidUniverseID(int32 UniverseID) const override;
 	virtual int32 MakeValidUniverseID(int32 DesiredUniverseID) const override;
+	virtual bool SupportsPrioritySettings() const override;
 	virtual bool RegisterInputPort(const TSharedRef<FDMXInputPort, ESPMode::ThreadSafe>& InputPort) override;
 	virtual void UnregisterInputPort(const TSharedRef<FDMXInputPort, ESPMode::ThreadSafe>& InputPort) override;
 	virtual TSharedPtr<IDMXSender> RegisterOutputPort(const TSharedRef<FDMXOutputPort, ESPMode::ThreadSafe>& OutputPort) override;

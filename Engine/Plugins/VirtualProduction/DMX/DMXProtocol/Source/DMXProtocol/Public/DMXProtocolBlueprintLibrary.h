@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "IO/DMXInputPortReference.h"
+#include "IO/DMXOutputPortReference.h"
+
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
@@ -43,4 +46,35 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	static bool IsReceiveDMXEnabled();
+
+	/**
+	 * Returns the IP addresses of the network interface cards available to the system.
+	 * @return		The Network Interface Card IP Addresses
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static TArray<FString> GetLocalDMXNetworkInterfaceCardIPs();
+
+	/**
+	 * Sets the Device Address of the Output Port. For networking Protocols that's the IP Adress of the network interface card.
+	 * @param InputPort			The Input Port for which the Device Address should be set
+	 * @param DeviceAddress		The Device Address the Input Port should use
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void	SetDMXInputPortDeviceAddress(FDMXInputPortReference InputPort, const FString& DeviceAddress);
+
+	/**
+	 * Sets the Device Address of the Output Port. For networking Protocols that's the IP Adress of the network interface card.
+	 * @param OutputPort		The Output Port for which the Device Address should be set
+	 * @param DeviceAddress		The Device Address the Output Port should use 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void	SetDMXOutputPortDeviceAddress(FDMXOutputPortReference OutputPort, const FString& DeviceAddress);
+
+	/**
+	 * Sets the Destination Address Address of the Output Port. For networking Protocols that's the Unicast IP Adress. Not required for Multicast and Broadcast.
+	 * @param PortName				The Output Port for which the Unicast IP Address should be set
+	 * @param DestinationAddress	The Destination Address the Output Port should use 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void	SetDMXOutputPortDestinationAddress(FDMXOutputPortReference OutputPort, const FString& DestinationAddress);
 };

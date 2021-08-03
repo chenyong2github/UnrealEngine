@@ -401,7 +401,11 @@ void FD3D12DynamicRHI::RHIGetSupportedResolution(uint32& Width, uint32& Height)
 	{
 		HRESULT HResult = S_OK;
 		TRefCountPtr<IDXGIAdapter> Adapter;
+#if PLATFORM_WINDOWS
+		HResult = GetAdapter().GetDesc().EnumAdapters(GetAdapter().GetDXGIFactory(), GetAdapter().GetDXGIFactory6(), Adapter.GetInitReference());
+#else
 		HResult = GetAdapter().GetDXGIFactory()->EnumAdapters(GetAdapter().GetAdapterIndex(), Adapter.GetInitReference());
+#endif
 		if (DXGI_ERROR_NOT_FOUND == HResult)
 		{
 			return;

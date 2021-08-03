@@ -335,7 +335,8 @@ public:
 	bool SendMatrixCellValue(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, const FDMXAttributeName& Attribute, int32 Value);
 
 	/** Sends the DMX value of the Attribute to specified matrix coordinates with given Attribute Name Channel Map */
-	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
+	UE_DEPRECATED(4.27, "Deprecated due to ambigous arguments CellCoordinate and InAttributeNameChannelMap. Use SendMatrixCellValue or SendNormalizedMatrixCellValue instead.")
+	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated due to ambigous arguments CellCoordinate and InAttributeNameChannelMap. Use SendMatrixCellValue or SendNormalizedMatrixCellValue instead."))
 	bool SendMatrixCellValueWithAttributeMap(const FIntPoint& CellCoordinate /* Cell coordinate X/Y */, const FDMXAttributeName& Attribute, int32 Value, const TMap<FDMXAttributeName, int32>& InAttributeNameChannelMap);
 	
 	/** Maps the normalized value to the Attribute's full value range and sends it to specified matrix coordinates  */

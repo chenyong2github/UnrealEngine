@@ -459,7 +459,7 @@ void DecodeMultiplexedSignalsFromUint2(
 			float SampleCount = (WorldBluringRadius == -2.0 ? 0.0 : 1.0);
 
 			float MissCount = SampleCount * MissCountRatio;
-			float TransmissionDistance = TransmissionDistanceRatio * 5.0;
+			float TransmissionDistance = TransmissionDistanceRatio;
 
 			// TODO(Denoiser): feed the actual number of sample.
 			OutSamples.Array[MultiplexId].SampleCount = SampleCount;
@@ -720,7 +720,7 @@ void EncodeMultiplexedSignals(
 			}
 
 			float MissCountRatio = MissCount * SafeRcp(SampleCount);
-			float TransmissionDistanceRatio = TransmissionDistance / 5.0;
+			float TransmissionDistanceRatio = TransmissionDistance;
 
 			uint EncodedData = MissCountRatio * 255;
 			EncodedData |= (uint(TransmissionDistanceRatio * 255) << 8);

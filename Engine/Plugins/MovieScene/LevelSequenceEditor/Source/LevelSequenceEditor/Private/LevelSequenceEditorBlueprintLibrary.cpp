@@ -267,6 +267,54 @@ void ULevelSequenceEditorBlueprintLibrary::EmptySelection()
 	}
 }
 
+void ULevelSequenceEditorBlueprintLibrary::SetSelectionRangeStart(int32 NewFrame)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		FFrameRate DisplayRate = CurrentSequencer.Pin()->GetFocusedDisplayRate();
+		FFrameRate TickResolution = CurrentSequencer.Pin()->GetFocusedTickResolution();
+
+		CurrentSequencer.Pin()->SetSelectionRangeStart(ConvertFrameTime(NewFrame, DisplayRate, TickResolution));
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SetSelectionRangeEnd(int32 NewFrame)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		FFrameRate DisplayRate = CurrentSequencer.Pin()->GetFocusedDisplayRate();
+		FFrameRate TickResolution = CurrentSequencer.Pin()->GetFocusedTickResolution();
+
+		CurrentSequencer.Pin()->SetSelectionRangeEnd(ConvertFrameTime(NewFrame, DisplayRate, TickResolution));
+	}
+}
+
+int32 ULevelSequenceEditorBlueprintLibrary::GetSelectionRangeStart()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		FFrameRate DisplayRate = CurrentSequencer.Pin()->GetFocusedDisplayRate();
+		FFrameRate TickResolution = CurrentSequencer.Pin()->GetFocusedTickResolution();
+
+		return ConvertFrameTime(CurrentSequencer.Pin()->GetSelectionRange().GetLowerBoundValue(), TickResolution, DisplayRate).FloorToFrame().Value;
+	}
+
+	return 0;
+}
+
+int32 ULevelSequenceEditorBlueprintLibrary::GetSelectionRangeEnd()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		FFrameRate DisplayRate = CurrentSequencer.Pin()->GetFocusedDisplayRate();
+		FFrameRate TickResolution = CurrentSequencer.Pin()->GetFocusedTickResolution();
+
+		return ConvertFrameTime(CurrentSequencer.Pin()->GetSelectionRange().GetUpperBoundValue(), TickResolution, DisplayRate).FloorToFrame().Value;
+	}
+
+	return 0;
+}
+
 void ULevelSequenceEditorBlueprintLibrary::SetSequencer(TSharedRef<ISequencer> InSequencer)
 {
 	CurrentSequencer = TWeakPtr<ISequencer>(InSequencer);

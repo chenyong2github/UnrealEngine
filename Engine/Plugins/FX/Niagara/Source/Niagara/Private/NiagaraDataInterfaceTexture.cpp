@@ -4,7 +4,7 @@
 #include "NiagaraShader.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraCustomVersion.h"
-
+#include "NiagaraComputeExecutionContext.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceTexture"
 
@@ -20,6 +20,7 @@ struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
 {
 	FSamplerStateRHIRef SamplerStateRHI;
 	FTextureReferenceRHIRef TextureReferenceRHI;
+	FTextureRHIRef ResolvedTextureRHI;
 	FVector2D TexDims;
 
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override
@@ -34,10 +35,22 @@ struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
 
 	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
 	{
-		if (TextureReferenceRHI.IsValid())
+		// Because the underlying reference can have a switch in flight on the RHI we get the referenced texture
+		// here, ensure it's valid (as it could be queued for delete) and cache until next round.  If we were
+		// to release the reference in PostStage / PostSimulate we still stand a chance the the transition we
+		// queue will be invalid by the time it is processed on the RHI thread.
+		if (Context.SimStageData->bFirstStage && TextureReferenceRHI.IsValid())
+		{
+			ResolvedTextureRHI = TextureReferenceRHI->GetReferencedTexture();
+			if (ResolvedTextureRHI && !ResolvedTextureRHI->IsValid())
+			{
+				ResolvedTextureRHI = nullptr;
+			}
+		}
+		if (ResolvedTextureRHI)
 		{
 			// Make sure the texture is readable, we don't know where it's coming from.
-			RHICmdList.Transition(FRHITransitionInfo(TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			RHICmdList.Transition(FRHITransitionInfo(ResolvedTextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 	}
 };
@@ -389,7 +402,7 @@ public:
 		FNiagaraDataInterfaceProxyTexture* TextureDI = static_cast<FNiagaraDataInterfaceProxyTexture*>(Context.DataInterface);
 
 		
-		if (TextureDI && TextureDI->TextureReferenceRHI.IsValid())
+		if (TextureDI && TextureDI->ResolvedTextureRHI.IsValid())
 		{
 			FRHISamplerState* SamplerStateRHI = TextureDI->SamplerStateRHI;
 			if (!SamplerStateRHI)
@@ -405,7 +418,7 @@ public:
 				TextureParam,
 				SamplerParam,
 				SamplerStateRHI,
-				TextureDI->TextureReferenceRHI->GetReferencedTexture()
+				TextureDI->ResolvedTextureRHI
 			);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector2D(TextureDI->TexDims.X, TextureDI->TexDims.Y));
 		}
@@ -449,10 +462,10 @@ void UNiagaraDataInterfaceTexture::PushToRenderThreadImpl()
 	(
 		[RT_Proxy, RT_Texture=Texture, RT_TexDims=TextureSize](FRHICommandListImmediate& RHICmdList)
 		{
-			if (RT_Texture)
+			if (RT_Texture && RT_Texture->GetResource() && RT_Texture->TextureReference.TextureReferenceRHI)
 			{
 				RT_Proxy->TextureReferenceRHI = RT_Texture->TextureReference.TextureReferenceRHI;
-				RT_Proxy->SamplerStateRHI = RT_Texture->GetResource() ? RT_Texture->GetResource()->SamplerStateRHI : nullptr;
+				RT_Proxy->SamplerStateRHI = RT_Texture->GetResource()->SamplerStateRHI;
 			}
 			else
 			{

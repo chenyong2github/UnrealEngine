@@ -89,9 +89,14 @@ void AWaterBodyIsland::Destroyed()
 	Super::Destroyed();
 
 	// No need for water bodies to keep a pointer to ourselves, even if a lazy one :
-	for (AWaterBody* WaterBody : TActorRange<AWaterBody>(GetWorld()))
+	// Use a TObjectRange here instead of the Manager for each because it may not be valid
+	UWorld* World = GetWorld();
+	for (UWaterBodyComponent* WaterBodyComponent : TObjectRange<UWaterBodyComponent>())
 	{
-		WaterBody->RemoveIsland(this);
+		if (WaterBodyComponent && WaterBodyComponent->GetWorld() == World)
+		{
+			WaterBodyComponent->RemoveIsland(this);
+		}
 	}
 }
 
@@ -160,7 +165,7 @@ void AWaterBodyIsland::PostLoad()
 }
 
 #if WITH_EDITOR
-void AWaterBodyIsland::UpdateOverlappingWaterBodies()
+void AWaterBodyIsland::UpdateOverlappingWaterBodyComponents()
 {
 	TArray<FOverlapResult> Overlaps;
 
@@ -173,40 +178,41 @@ void AWaterBodyIsland::UpdateOverlappingWaterBodies()
 	}
 
 	// Find any new overlapping bodies and notify them that this island influences them
-	TSet<AWaterBody*> ExistingOverlappingBodies;
-	TSet<TWeakObjectPtr<AWaterBody>> NewOverlappingBodies;
+	TSet<UWaterBodyComponent*> ExistingOverlappingBodies;
+	TSet<TWeakObjectPtr<UWaterBodyComponent>> NewOverlappingBodies;
 
 	TLazyObjectPtr<AWaterBodyIsland> LazyThis(this);
 
 	// Fixup overlapping bodies 
-	for (AWaterBody* WaterBody : TActorRange<AWaterBody>(GetWorld()))
+	UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [LazyThis, &ExistingOverlappingBodies](UWaterBodyComponent* WaterBodyComponent)
 	{
-		if (WaterBody->ContainsIsland(LazyThis))
+		if (WaterBodyComponent->ContainsIsland(LazyThis))
 		{
-			ExistingOverlappingBodies.Add(WaterBody);
+			ExistingOverlappingBodies.Add(WaterBodyComponent);
 		}
-	}
+		return true;
+	});
 
 	for (const FOverlapResult& Result : Overlaps)
 	{
-		AWaterBody* WaterBody = Result.OverlapObjectHandle.FetchActor<AWaterBody>();
-		if (WaterBody)
+		if (AWaterBody* WaterBody = Result.OverlapObjectHandle.FetchActor<AWaterBody>())
 		{
-			NewOverlappingBodies.Add(WaterBody);
+			UWaterBodyComponent* WaterBodyComponent = WaterBody->GetWaterBodyComponent();
+			NewOverlappingBodies.Add(WaterBodyComponent);
 			// If the water body is not already overlapping then notify
-			if (!ExistingOverlappingBodies.Contains(WaterBody))
+			if (!ExistingOverlappingBodies.Contains(WaterBodyComponent))
 			{
-				WaterBody->AddIsland(this);
+				WaterBodyComponent->AddIsland(this);
 			}
 		}
 	}
 
 	// Find existing bodies that are no longer overlapping and remove them
-	for (AWaterBody* ExistingBody : ExistingOverlappingBodies)
+	for (UWaterBodyComponent* ExistingBodyComponent : ExistingOverlappingBodies)
 	{
-		if (ExistingBody && !NewOverlappingBodies.Contains(ExistingBody))
+		if (ExistingBodyComponent && !NewOverlappingBodies.Contains(ExistingBodyComponent))
 		{
-			ExistingBody->RemoveIsland(this);
+			ExistingBodyComponent->RemoveIsland(this);
 		}
 	}
 }
@@ -236,7 +242,7 @@ void AWaterBodyIsland::UpdateAll()
 {
 	UpdateHeight();
 
-	UpdateOverlappingWaterBodies();
+	UpdateOverlappingWaterBodyComponents();
 
 	OnWaterBodyIslandChanged(/*bShapeOrPositionChanged*/true, /*bWeightmapSettingsChanged*/true);
 
@@ -266,7 +272,7 @@ void AWaterBodyIsland::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	bool bWeightmapSettingsChanged = false;
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBody, LayerWeightmapSettings))
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, LayerWeightmapSettings))
 	{
 		bWeightmapSettingsChanged = true;
 	}
@@ -278,7 +284,7 @@ void AWaterBodyIsland::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 
 void AWaterBodyIsland::OnSplineDataChanged()
 {
-	UpdateOverlappingWaterBodies();
+	UpdateOverlappingWaterBodyComponents();
 
 	OnWaterBodyIslandChanged(/* bShapeOrPositionChanged = */true, /* bWeightmapSettingsChanged = */false);
 }

@@ -384,6 +384,8 @@ bool FDisplayClusterDeviceBase::BeginNewFrame(FViewport* InViewport, UWorld* InW
 	check(IsInGameThread());
 	check(InViewport);
 
+	IDisplayClusterViewportManagerProxy* NewViewportManagerProxy = nullptr;
+
 	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
 	ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor();
 	if (RootActor)
@@ -403,28 +405,28 @@ bool FDisplayClusterDeviceBase::BeginNewFrame(FViewport* InViewport, UWorld* InW
 						ViewportManagerPtr = ViewportManager;
 
 						// Send viewport manager proxy on render thread
-						ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_SetViewportManagerPtr)(
-							[DCRenderDevice = this, ViewportManagerProxy = ViewportManager->GetProxy()](FRHICommandListImmediate& RHICmdList)
-						{
-							DCRenderDevice->ViewportManagerProxyPtr = ViewportManagerProxy;
-						});
+						NewViewportManagerProxy = ViewportManager->GetProxy();
 
 						// update total number of views for this frame (in multiple families)
 						DesiredNumberOfViews = OutRenderFrame.DesiredNumberOfViews;
-
-						return true;
 					}
 				}
 			}
 		}
 	}
 
-	return false;
+	// Update render thread viewport manager proxy
+	ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_SetViewportManagerPtr)(
+		[DCRenderDevice = this, ViewportManagerProxy = NewViewportManagerProxy](FRHICommandListImmediate& RHICmdList)
+	{
+		DCRenderDevice->ViewportManagerProxyPtr = ViewportManagerProxy;
+	});
+
+	return NewViewportManagerProxy != nullptr;
 }
 
 void FDisplayClusterDeviceBase::FinalizeNewFrame()
 {
-
 	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
 	ADisplayClusterRootActor* RootActor = DisplayCluster.GetGameMgr()->GetRootActor();
 	if (RootActor)
@@ -436,15 +438,8 @@ void FDisplayClusterDeviceBase::FinalizeNewFrame()
 		}
 	}
 
-	// Stop using viewport manager on game thread
+	// reset viewport manager ptr on game thread
 	ViewportManagerPtr = nullptr;
-
-	// reset viewport manager proxy on render thread
-	ENQUEUE_RENDER_COMMAND(DisplayClusterDevice_ResetViewportManagerPtr)(
-		[DCRenderDevice = this](FRHICommandListImmediate& RHICmdList)
-	{
-		DCRenderDevice->ViewportManagerProxyPtr = nullptr;
-	});
 }
 
 DECLARE_GPU_STAT_NAMED(nDisplay_Device_RenderTexture, TEXT("nDisplay RenderDevice::RenderTexture"));
@@ -457,9 +452,20 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 	SCOPED_GPU_STAT(RHICmdList, nDisplay_Device_RenderTexture);
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Device_RenderTexture);
 
+	if (SrcTexture && BackBuffer)
+	{
 	// SrcTexture contain MONO/LEFT eye with debug canvas
 	// copy the render target texture to the MONO/LEFT_EYE back buffer  (MONO = mono, side_by_side, top_bottom)
-	RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, FResolveParams());
+		{
+			const FIntPoint SrcSize = SrcTexture->GetSizeXY();
+			const FIntPoint DstSize = BackBuffer->GetSizeXY();
+
+			FResolveRect CopyRect(0, 0, FMath::Min(SrcSize.X, DstSize.X), FMath::Min(SrcSize.Y, DstSize.Y));
+			FResolveParams CopyParams = {};
+			CopyParams.Rect = CopyParams.DestRect = CopyRect;
+
+			RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, CopyParams);
+		}
 	
 	if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxyPtr)
 	{
@@ -467,11 +473,12 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 		ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 1, BackBuffer, WindowSize);
 	}
 	
-	// Clear render target before out frame resolving
+		// Clear render target before out frame resolving, help to make things look better visually for console/resize, etc.
 	FRHIRenderPassInfo RPInfo(SrcTexture, ERenderTargetActions::Clear_Store);
 	TransitionRenderPassTargets(RHICmdList, RPInfo);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
 	RHICmdList.EndRenderPass();
+}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -623,11 +630,11 @@ void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessS
 			// Get the final overall cluster + per-viewport PPS from nDisplay
 			if (ViewportPtr->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport, &RequestedFinalPerViewportPPS))
 			{
-				FDisplayClusterConfigurationViewport_PerViewportSettings InPPSnDisplay;
+				FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings InPPSnDisplay;
 				FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStructConditional(&InPPSnDisplay, &RequestedFinalPerViewportPPS);
 
 				// Get the passed-in cumulative PPS from the game/viewport (includes all PPVs affecting this viewport)
-				FDisplayClusterConfigurationViewport_PerViewportSettings InPPSCumulative;
+				FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings InPPSCumulative;
 				FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStruct(&InPPSCumulative, FinalPostProcessingSettings);
 
 				// Blend both together with our custom math instead of the default PPS blending

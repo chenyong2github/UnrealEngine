@@ -2224,7 +2224,7 @@ bool UEditorEngine::ShouldAbortBecauseOfUnsavedWorld()
 /**
  * Prompts the user to save the current map if necessary, then creates a new (blank) map.
  */
-void UEditorEngine::CreateNewMapForEditing()
+void UEditorEngine::CreateNewMapForEditing(bool bPromptUserToSave)
 {
 	// If a PIE world exists, warn the user that the PIE session will be terminated.
 	// Abort if the user refuses to terminate the PIE session.
@@ -2234,9 +2234,9 @@ void UEditorEngine::CreateNewMapForEditing()
 	}
 
 	// If there are any unsaved changes to the current level, see if the user wants to save those first.
-	bool bPromptUserToSave = true;
 	bool bSaveMapPackages = true;
 	bool bSaveContentPackages = false;
+
 	if( FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages) == false )
 	{
 		// something went wrong or the user pressed cancel.  Return to the editor so the user doesn't lose their changes		

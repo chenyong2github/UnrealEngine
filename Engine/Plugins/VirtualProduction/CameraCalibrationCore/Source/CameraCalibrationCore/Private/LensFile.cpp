@@ -1011,6 +1011,56 @@ void ULensFile::UpdateInputTolerance(const float NewTolerance)
 	InputTolerance = NewTolerance;
 }
 
+TArray<FDistortionPointInfo> ULensFile::GetDistortionPoints() const
+{
+	return LensDataTableUtils::GetAllPointsInfo<FDistortionPointInfo>(DistortionTable);
+}
+
+TArray<FFocalLengthPointInfo> ULensFile::GetFocalLengthPoints() const
+{
+	return LensDataTableUtils::GetAllPointsInfo<FFocalLengthPointInfo>(FocalLengthTable);
+}
+
+TArray<FSTMapPointInfo> ULensFile::GetSTMapPoints() const
+{
+	return LensDataTableUtils::GetAllPointsInfo<FSTMapPointInfo>(STMapTable);
+}
+
+TArray<FImageCenterPointInfo> ULensFile::GetImageCenterPoints() const
+{
+	return LensDataTableUtils::GetAllPointsInfo<FImageCenterPointInfo>(ImageCenterTable);
+}
+
+TArray<FNodalOffsetPointInfo> ULensFile::GetNodalOffsetPoints() const
+{
+	return LensDataTableUtils::GetAllPointsInfo<FNodalOffsetPointInfo>(NodalOffsetTable);
+}
+
+bool ULensFile::GetDistortionPoint(const float InFocus, const float InZoom, FDistortionInfo& OutDistortionInfo) const
+{
+	return DistortionTable.GetPoint(InFocus, InZoom, OutDistortionInfo);
+}
+
+bool ULensFile::GetFocalLengthPoint(const float InFocus, const float InZoom, FFocalLengthInfo& OutFocalLengthInfo) const
+{
+	return FocalLengthTable.GetPoint(InFocus, InZoom, OutFocalLengthInfo);
+}
+
+bool ULensFile::GetImageCenterPoint(const float InFocus, const float InZoom, FImageCenterInfo& OutImageCenterInfo) const
+{
+	return ImageCenterTable.GetPoint(InFocus, InZoom, OutImageCenterInfo);
+}
+
+bool ULensFile::GetNodalOffsetPoint(const float InFocus, const float InZoom, FNodalPointOffset& OutNodalPointOffset) const
+{
+	return NodalOffsetTable.GetPoint(InFocus, InZoom, OutNodalPointOffset);
+}
+
+bool ULensFile::GetSTMapPoint(const float InFocus, const float InZoom, FSTMapInfo& OutSTMapInfo) const
+{
+	return STMapTable.GetPoint(InFocus, InZoom, OutSTMapInfo);
+}
+
 void ULensFile::AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewDistortionPoint, const FFocalLengthInfo& NewFocalLength)
 {
 	const bool bPointAdded = DistortionTable.AddPoint(NewFocus, NewZoom, NewDistortionPoint, InputTolerance, false);
@@ -1211,35 +1261,36 @@ bool ULensFile::HasSamples(ELensDataCategory InDataCategory) const
 	}
 }
 
-const FBaseLensTable& ULensFile::GetDataTable(ELensDataCategory InDataCategory) const
+const FBaseLensTable* ULensFile::GetDataTable(ELensDataCategory InDataCategory) const
 {
 	switch(InDataCategory)
 	{
 	case ELensDataCategory::Distortion:
 		{
-			return DistortionTable;
+			return &DistortionTable;
 		}
 	case ELensDataCategory::ImageCenter:
 		{
-			return ImageCenterTable;
+			return &ImageCenterTable;
 		}
 	case ELensDataCategory::Zoom:
 		{
-			return FocalLengthTable;
+			return &FocalLengthTable;
 		}
 	case ELensDataCategory::STMap:
 		{
-			return STMapTable;
+			return &STMapTable;
 		}
 	case ELensDataCategory::NodalOffset:
 		{
-			return NodalOffsetTable;
+			return &NodalOffsetTable;
 		}
+		case ELensDataCategory::Focus:
+		case ELensDataCategory::Iris:
 	default:
 		{
-			checkNoEntry();
-			static FBaseLensTable BaseDataTable;
-			return BaseDataTable;
+			// No base table for now.
+			return nullptr;
 		}
 	}
 }

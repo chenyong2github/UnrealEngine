@@ -38,4 +38,7 @@ public:
 	{
 		return false;
 	}
+
+	virtual bool ShouldUseSourceTextureWithMips() const override
+	{ return true; }
 };

@@ -885,7 +885,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	UWorld* World = GetWorld();
 	// If the particle system can't ever render (ie on dedicated server or in a commandlet) than do not activate...
-	if (!FApp::CanEverRender() || !World || World->IsNetMode(NM_DedicatedServer))
+	if (!FApp::CanEverRender() || !World || World->IsNetMode(NM_DedicatedServer) || World->bIsTearingDown)
 	{
 		return;
 	}
@@ -979,6 +979,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	}
 
 	DestroyCullProxy();
+	UNiagaraScript::AsyncOptimizeAllScriptsForComponent(this);
 
 	// We can't call 'Super::Activate(bReset);' as this will enable the component tick
 	if (bReset || ShouldActivate() == true)

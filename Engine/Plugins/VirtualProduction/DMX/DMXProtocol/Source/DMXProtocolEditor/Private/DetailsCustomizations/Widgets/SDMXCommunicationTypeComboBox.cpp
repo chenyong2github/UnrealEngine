@@ -45,10 +45,9 @@ void SDMXCommunicationTypeComboBox::Construct(const FArguments& InArgs)
 		{
 			CommunicationTypeComboBox->SetSelectedItem(InitialSelection);
 		}
-		else
+		else if(CommunicationTypesSource.Num() > 0)
 		{
 			// Recover from a bad initial selection
-			check(CommunicationTypesSource.Num() > 0);
 			CommunicationTypeComboBox->SetSelectedItem(CommunicationTypesSource[0]);
 		}
 	}

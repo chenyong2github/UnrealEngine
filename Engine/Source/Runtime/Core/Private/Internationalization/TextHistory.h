@@ -547,6 +547,7 @@ class CORE_API FTextHistory_AsDateTime : public FTextHistory
 public:
 	FTextHistory_AsDateTime() {}
 	FTextHistory_AsDateTime(FDateTime InSourceDateTime, const EDateTimeStyle::Type InDateStyle, const EDateTimeStyle::Type InTimeStyle, FString InTimeZone, FCulturePtr InTargetCulture);
+	FTextHistory_AsDateTime(FDateTime InSourceDateTime, FString InCustomPattern, FString InTimeZone, FCulturePtr InTargetCulture);
 
 	/** Allow moving */
 	FTextHistory_AsDateTime(FTextHistory_AsDateTime&& Other);
@@ -572,6 +573,8 @@ private:
 	EDateTimeStyle::Type DateStyle;
 	/** Style to format the time using */
 	EDateTimeStyle::Type TimeStyle;
+	/** Custom pattern for this format (if DateStyle == Custom) */
+	FString CustomPattern;
 	/** Timezone to put the time in */
 	FString TimeZone;
 	/** Culture to format the time in */

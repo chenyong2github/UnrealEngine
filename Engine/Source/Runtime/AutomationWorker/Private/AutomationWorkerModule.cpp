@@ -339,7 +339,7 @@ void FAutomationWorkerModule::SendWorkerFound(const FMessageAddress& ControllerA
 	Response->GPUName = FPlatformMisc::GetPrimaryGPUBrand();
 	Response->CPUModelName = CPUModelString;
 	Response->RAMInGB = FPlatformMemory::GetPhysicalGBRam();
-#if WITH_ENGINE
+#if WITH_ENGINE && WITH_AUTOMATION_TESTS
 	Response->RenderModeName = AutomationCommon::GetRenderDetailsString();
 #else
 	Response->RenderModeName = TEXT("Unknown");

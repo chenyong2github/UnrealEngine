@@ -37,25 +37,42 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DMX")
 	bool IsDMXInterpolationDone() const;
 	
-	/** Returns the interpolated value */
-	float GetInterpolatedValue(float Alpha) const;
+	/** Maps the normalized value to the compoenent's value range */
+	float NormalizedToAbsoluteValue(float Alpha) const;
 
+	/** Retuns true if the target differs from the previous target, and when interpolating, from the current value */
 	bool IsTargetValid(float Target);
 
-	/** Sets the target value. Interpolates to the value if bUseInterpolation is true. */
-	void SetTargetValue(float Value);
+	/** Sets the target value. Interpolates to the value if bUseInterpolation is true. Expects the value to be in value range of the component */
+	void SetTargetValue(float AbsoluteValue);
 
 	/** Called to set the value. When interpolation is enabled this function is called by the plugin until the target value is reached, else just once. */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX Component")
 	void SetValueNoInterp(float NewValue);
 
+
+
+	///////////////////////////////////////
 	// DEPRECATED 4.27
 public:	
-	// DEPRECATED 4.27
-	UE_DEPRECATED(4.27, "Replaced with SetChannelValue to be more expressive about the intent of the function and to avoid the duplicate method Push and SetTarget.")
-	void Push(float Target);
+	UE_DEPRECATED(4.27, "Replaced with SetTargetValue (handling both Push and SetTarget).")
+	void Push(float Target) { SetTargetValue(Target); }
 
-	// DEPRECATED 4.27
-	UE_DEPRECATED(4.27, "Replaced with SetChannelValue to be more expressive about the intent of the function.")
-	void SetTarget(float Target);
+	UE_DEPRECATED(4.27, "Replaced with SetTargetValue (handling both Push and SetTarget).")
+	void SetTarget(float Target) { SetTargetValue(Target); }
+
+	UE_DEPRECATED(4.27, "Replaced with GetDMXInterpolatedStep")
+	float DMXInterpolatedStep() { return GetDMXInterpolatedStep(); }
+
+	UE_DEPRECATED(4.27, "Replaced with GetDMXInterpolatedValue")
+	float DMXInterpolatedValue() { return GetDMXInterpolatedValue(); }
+
+	UE_DEPRECATED(4.27, "Replaced with GetDMXTargetValue")
+	float DMXTargetValue() { return GetDMXTargetValue(); }
+
+	UE_DEPRECATED(4.27, "Replaced with NormalizedToAbsoluteValue")
+	float RemapValue(float Alpha) { return NormalizedToAbsoluteValue(Alpha); }
+
+	UE_DEPRECATED(4.27, "Replaced with SetValueNoInterp")
+	void SetComponent(float NewValue) { SetValueNoInterp(NewValue); }
 };

@@ -337,6 +337,16 @@ FORCEINLINE float VectorGetComponent( VectorRegister Vec, uint32 ComponentIndex 
 #define VectorMultiplyAdd( Vec1, Vec2, Vec3 )	DirectX::XMVectorMultiplyAdd( Vec1, Vec2, Vec3 )
 
 /**
+ * Multiplies two vectors (component-wise), negates the results and adds it to the third vector i.e. -AB + C = C - AB
+ *
+ * @param Vec1	1st vector
+ * @param Vec2	2nd vector
+ * @param Vec3	3rd vector
+ * @return		VectorRegister( Vec3.x - Vec1.x*Vec2.x, Vec3.y - Vec1.y*Vec2.y, Vec3.z - Vec1.z*Vec2.z, Vec3.w - Vec1.w*Vec2.w )
+ */
+#define VectorNegateMultiplyAdd(Vec1, Vec2, Vec3) DirectX::XMVectorNegativeMultiplySubtract( Vec1, Vec2, Vec3 )
+
+/**
  * Calculates the dot3 product of two vectors and returns a vector with the result in all 4 components.
  * Only really efficient on Xbox 360.
  *

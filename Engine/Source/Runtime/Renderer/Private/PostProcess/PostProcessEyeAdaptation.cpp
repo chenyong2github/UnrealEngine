@@ -65,8 +65,12 @@ namespace
 		TEXT("When set to 1.0, fully dark pixels will accumulate normally, whereas when set to 0.0 fully dark pixels\n")
 		TEXT("will have no influence.\n"),
 		ECVF_RenderThreadSafe);
+}
 
-	const ERHIFeatureLevel::Type BasicEyeAdaptationMinFeatureLevel = ERHIFeatureLevel::ES3_1;
+// Basic eye adaptation is supported everywhere except mobile when MobileHDR is disabled
+static ERHIFeatureLevel::Type GetBasicEyeAdaptationMinFeatureLevel()
+{
+	return IsMobileHDR() ? ERHIFeatureLevel::ES3_1 : ERHIFeatureLevel::SM5;
 }
 
 bool IsAutoExposureMethodSupported(ERHIFeatureLevel::Type FeatureLevel, EAutoExposureMethod AutoExposureMethodId)
@@ -75,6 +79,7 @@ bool IsAutoExposureMethodSupported(ERHIFeatureLevel::Type FeatureLevel, EAutoExp
 	{
 	case EAutoExposureMethod::AEM_Histogram:
 	case EAutoExposureMethod::AEM_Basic:
+		return FeatureLevel > ERHIFeatureLevel::ES3_1 || IsMobileHDR();
 	case EAutoExposureMethod::AEM_Manual:
 		return true;
 	}
@@ -108,10 +113,10 @@ EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View)
 {
 	EAutoExposureMethod AutoExposureMethod = View.FinalPostProcessSettings.AutoExposureMethod;
 
-	// Fallback to basic if the requested mode is not supported by the feature level.
+	// Fallback to basic (or manual) if the requested mode is not supported by the feature level.
 	if (!IsAutoExposureMethodSupported(View.GetFeatureLevel(), AutoExposureMethod))
 	{
-		AutoExposureMethod = EAutoExposureMethod::AEM_Basic;
+		AutoExposureMethod = IsAutoExposureMethodSupported(View.GetFeatureLevel(), EAutoExposureMethod::AEM_Basic) ? EAutoExposureMethod::AEM_Basic : EAutoExposureMethod::AEM_Manual;
 	}
 
 	const int32 EyeOverride = CVarEyeAdaptationMethodOverride.GetValueOnRenderThread();
@@ -294,20 +299,8 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 		// ignores bExtendedLuminanceRange
 		MinWhitePointLuminance = MaxWhitePointLuminance = CalculateFixedAutoExposure(View);
 	}
-	else if (!EngineShowFlags.EyeAdaptation)
-	{
-		// if eye adaptation is off, then set everything to 1.0
-		ExposureCompensationSettings = 1.0f;
-		ExposureCompensationCurve = 1.0f;
-
-		// GetAutoExposureMethod() should return Manual in this case.
-		check(AutoExposureMethod == AEM_Manual);
-
-		// just lock to 1.0, it's not possible to guess a reasonable value using the min and max.
-		MinWhitePointLuminance = MaxWhitePointLuminance = 1.0;
-	}
-	// This should always be true now that it works on mobile
-	else if (View.GetFeatureLevel() >= MinFeatureLevel)
+	// The feature level check should always pass unless on mobile with MobileHDR is false
+	else if (EngineShowFlags.EyeAdaptation && View.GetFeatureLevel() >= MinFeatureLevel)
 	{
 		if (AutoExposureMethod == EAutoExposureMethod::AEM_Manual)
 		{
@@ -327,6 +320,18 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 				MaxWhitePointLuminance = Settings.AutoExposureMaxBrightness;
 			}
 		}
+	}
+	else
+	{
+		// if eye adaptation is off, then set everything to 1.0
+		ExposureCompensationSettings = 1.0f;
+		ExposureCompensationCurve = 1.0f;
+
+		// GetAutoExposureMethod() should return Manual in this case.
+		check(AutoExposureMethod == AEM_Manual);
+
+		// just lock to 1.0, it's not possible to guess a reasonable value using the min and max.
+		MinWhitePointLuminance = MaxWhitePointLuminance = 1.0;
 	}
 
 	MinWhitePointLuminance = FMath::Min(MinWhitePointLuminance, MaxWhitePointLuminance);
@@ -402,7 +407,7 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 
 float GetEyeAdaptationFixedExposure(const FViewInfo& View)
 {
-	const FEyeAdaptationParameters Parameters = GetEyeAdaptationParameters(View, BasicEyeAdaptationMinFeatureLevel);
+	const FEyeAdaptationParameters Parameters = GetEyeAdaptationParameters(View, GetBasicEyeAdaptationMinFeatureLevel());
 
 	const float Exposure = (Parameters.MinAverageLuminance + Parameters.MaxAverageLuminance) * 0.5f;
 
@@ -484,7 +489,7 @@ public:
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::Type(BasicEyeAdaptationMinFeatureLevel));
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::Type(GetBasicEyeAdaptationMinFeatureLevel()));
 	}
 };
 
@@ -550,7 +555,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::Type(BasicEyeAdaptationMinFeatureLevel));
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::Type(GetBasicEyeAdaptationMinFeatureLevel()));
 	}
 
 	FBasicEyeAdaptationShader() = default;
@@ -864,13 +869,13 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 		}
 
 		bUpdateLastExposure = true;
+	}
 
 		// Mobile LDR does not support post-processing but still can apply Exposure during basepass
 		if (bMobilePlatform && !IsMobileHDR())
 		{
 			PreExposure = GetEyeAdaptationFixedExposure(View);
 		}
-	}
 
 	// Update the pre-exposure value on the actual view
 	View.PreExposure = PreExposure;

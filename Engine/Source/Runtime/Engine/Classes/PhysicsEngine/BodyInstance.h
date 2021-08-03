@@ -55,7 +55,11 @@ namespace EDOFMode
 
 struct FBodyInstnace;
 
-#define USE_BODYINSTANCE_DEBUG_NAMES ((WITH_EDITORONLY_DATA || UE_BUILD_DEBUG || LOOKING_FOR_PERF_ISSUES || CHAOS_CHECKED) && !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && !NO_LOGGING)
+#ifndef CHAOS_DEBUG_NAME
+#define CHAOS_DEBUG_NAME 0
+#endif
+
+#define USE_BODYINSTANCE_DEBUG_NAMES (!NO_LOGGING && CHAOS_DEBUG_NAME)
 
 /** Helper struct to specify spawn behavior */
 struct FInitBodySpawnParams
@@ -92,7 +96,7 @@ struct FInitBodiesHelperBase
 	FPhysicsAggregateHandle Aggregate;
 
 #if USE_BODYINSTANCE_DEBUG_NAMES
-	FString DebugName;
+	TSharedPtr<FString, ESPMode::ThreadSafe> DebugName;
 	TSharedPtr<TArray<ANSICHAR>> PhysXName; // Get rid of ANSICHAR in physics
 #endif
 

@@ -346,11 +346,11 @@ class ENGINE_API FParticlePerfStatsListener_CSVProfiler : public FParticlePerfSt
 public:
 	FParticlePerfStatsListener_CSVProfiler() : FParticlePerfStatsListener_GatherAll(false, true, false) {}
 
+#if WITH_PARTICLE_PERF_CSV_STATS
 	virtual bool Tick()override;
 	virtual void TickRT()override;
 	virtual void End()override;
 
-#if CSV_PROFILER
 	static void OnCSVStart();
 	static void OnCSVEnd();
 #endif

@@ -114,7 +114,7 @@ void UK2Node_TemporaryVariable::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 
 FString UK2Node_TemporaryVariable::GetDescriptiveCompiledName() const
 {
-	FString Result = NSLOCTEXT("K2Node", "TempPinCategory", "Temp_").ToString() + VariableType.PinCategory.ToString();
+	FString Result = FString(TEXT("Temp_")) + VariableType.PinCategory.ToString();
 		
 	if (!NodeComment.IsEmpty())
 	{

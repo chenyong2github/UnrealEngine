@@ -40,6 +40,7 @@
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
+#include "Tracks/MovieScenePropertyTrack.h"
 #include "MovieSceneSpawnableAnnotation.h"
 #include "ISequencerModule.h"
 #include "MovieSceneTracksComponentTypes.h"
@@ -115,11 +116,27 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 
 			UMovieSceneTrack* TrackToKey = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
 
+			// If we are keying something for a property track, give the interrogator all the info it needs
+			// to know about the bound object. This will let it, for instance, cache the correct initial values
+			// for that property.
+			FInterrogationKey InterrogationKey(FInterrogationKey::Default());
+			UMovieScenePropertyTrack* PropertyTrackToKey = Cast<UMovieScenePropertyTrack>(TrackToKey);
+			if (PropertyTrackToKey != nullptr)
+			{
+				const FInterrogationChannel InterrogationChannel = Interrogator.AllocateChannel(FirstBoundObject, PropertyTrackToKey->GetPropertyBinding());
+				InterrogationKey.Channel = InterrogationChannel;
+				Interrogator.ImportTrack(TrackToKey, InterrogationChannel);
+			}
+			else
+			{
 			Interrogator.ImportTrack(TrackToKey, FInterrogationChannel::Default());
+			}
+
+			// Interrogate!
 			Interrogator.AddInterrogation(InTime);
 			Interrogator.Update();
 
-			const FMovieSceneEntityID EntityID = Interrogator.FindEntityFromOwner(FInterrogationKey::Default(), SectionToKey, 0);
+			const FMovieSceneEntityID EntityID = Interrogator.FindEntityFromOwner(InterrogationKey, SectionToKey, 0);
 
 			UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator.GetLinker()->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
 
@@ -1049,9 +1066,9 @@ struct FFloatChannelSectionMenuExtension : FExtender, TSharedFromThis<FFloatChan
 
 		USequencerSettings* Settings = Sequencer->GetSequencerSettings();
 		if (!Settings)
-		{
+			{
 			return;
-		}
+			}
 
 		// Menu entry for key area height
 		auto OnKeyAreaHeightChanged = [=](int32 NewValue) { Settings->SetKeyAreaHeightWithCurves((float)NewValue); };
@@ -1089,7 +1106,7 @@ struct FFloatChannelSectionMenuExtension : FExtender, TSharedFromThis<FFloatChan
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);	
-		
+
 		FString KeyAreaName;
 		TArray<const IKeyArea*> SelectedKeyAreas;
 		Sequencer->GetSelectedKeyAreas(SelectedKeyAreas);

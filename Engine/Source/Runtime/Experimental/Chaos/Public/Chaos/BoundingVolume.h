@@ -486,6 +486,11 @@ private:
 
 				for (const auto& Elem : Elems)
 				{
+					if (PrePreFilterHelper(Elem.Payload, QueryData))
+					{
+						continue;
+					}
+
 					if (bPruneDuplicates)
 					{
 						bool bSkip = false;
@@ -767,6 +772,11 @@ private:
 				const auto& Elems = MElements(CellIntersection.CellIdx);
 				for (const auto& Elem : Elems)
 				{
+					if (PrePreFilterHelper(Elem.Payload, QueryData))
+					{
+						continue;
+					}
+
 					if (bPruneDuplicates)
 					{
 						bool bSkip = false;
@@ -875,6 +885,10 @@ private:
 					const auto& Elems = MElements(X, Y, Z);
 					for (const auto& Elem : Elems)
 					{
+						if (PrePreFilterHelper(Elem.Payload, QueryData))
+						{
+							continue;
+						}
 						if (bPruneDuplicates)
 						{
 							if (InstancesSeen.Contains(GetUniqueIdx(Elem.Payload)))

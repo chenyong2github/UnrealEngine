@@ -5,7 +5,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
-TUniquePtr<struct FBuoyancyComponentAsyncOutput> FBuoyancyComponentBaseAsyncInput::PreSimulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, FBuoyancyComponentAsyncAux* Aux, const TMap<AWaterBody*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyData) const
+TUniquePtr<struct FBuoyancyComponentAsyncOutput> FBuoyancyComponentBaseAsyncInput::PreSimulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, FBuoyancyComponentAsyncAux* Aux, const TMap<UWaterBodyComponent*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyComponentData) const
 {
 	TUniquePtr<FBuoyancyComponentBaseAsyncOutput> Output = MakeUnique<FBuoyancyComponentBaseAsyncOutput>();
 	if (Proxy && Aux)
@@ -14,12 +14,12 @@ TUniquePtr<struct FBuoyancyComponentAsyncOutput> FBuoyancyComponentBaseAsyncInpu
 		FBuoyancyComponentBaseAsyncAux* BaseAux = static_cast<FBuoyancyComponentBaseAsyncAux*>(Aux);
 		FBuoyancyAuxData& AuxData = BaseAux->AuxData;
 		AuxData.Pontoons = Pontoons;
-		AuxData.WaterBodies = WaterBodies;
+		AuxData.WaterBodyComponents = WaterBodyComponents;
 		AuxData.SmoothedWorldTimeSeconds = SmoothedWorldTimeSeconds;
 
 		// Perform the simulation
 
-		FBuoyancyComponentSim::Update(DeltaSeconds, TotalSeconds, World, Proxy->GetPhysicsThreadAPI(), BaseAux->BuoyancyData, AuxData, WaterBodyData, Output->SimOutput);
+		FBuoyancyComponentSim::Update(DeltaSeconds, TotalSeconds, World, Proxy->GetPhysicsThreadAPI(), BaseAux->BuoyancyData, AuxData, WaterBodyComponentData, Output->SimOutput);
 		Output->AuxData = AuxData;
 		Output->bValid = true;
 	}

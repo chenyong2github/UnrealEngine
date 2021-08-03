@@ -4,9 +4,10 @@
 
 #include "CoreTypes.h"
 #include "Trace/Config.h"
+#include "ProfilingDebugging/CsvProfilerConfig.h"
 
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
-#define CSVPROFILERTRACE_ENABLED WITH_ENGINE
+#define CSVPROFILERTRACE_ENABLED (WITH_ENGINE && CSV_PROFILER)
 #else
 #define CSVPROFILERTRACE_ENABLED 0
 #endif

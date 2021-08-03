@@ -245,7 +245,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 				RHICmdList.EndRenderPass();
 
 				// Mark this render command for this buffer as complete, so we can poll it and transfer later.
-		static_cast<FD3D12GPUFence*>(BufferData->Fence.GetReference())->WriteInternal(ED3D12CommandQueueType::Direct);
+				RHICmdList.WriteGPUFence(BufferData->Fence);
 			}
 
 			// Next level.
@@ -260,7 +260,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 	SampleConverter->ConvertExrBufferCallback = FExrConvertBufferCallback::CreateLambda(RenderThreadSwizzler);
 	OutFrame->SampleConverter = MakeShareable(SampleConverter);
 	OutFrame->MipMapsPresent = 1 << MipLevel;
-	UE_LOG(LogImgMedia, Log, TEXT("Reader %p: Read Pixels Complete. %i"), this, FrameId);
+	UE_LOG(LogImgMedia, Verbose, TEXT("Reader %p: Read Pixels Complete. %i"), this, FrameId);
 
 	return true;
 }

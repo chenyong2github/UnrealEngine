@@ -22,6 +22,9 @@
 	/** Keep track of success across all functions and callbacks */
 	bool bOverallSuccess;
 
+	/** We'll set this to true when operations are expected to fail, like in the cancelled file write case */
+	bool bIsFailureExpected;
+
 	/** Convenient access to the cloud interfaces */
 	IOnlineUserCloudPtr UserCloud;
 	IOnlineSharedCloudPtr SharedCloud;
@@ -29,6 +32,7 @@
 	/** Delegates to various cloud functionality triggered */
 	FOnEnumerateUserFilesCompleteDelegate EnumerationDelegate;
 	FOnWriteUserFileCompleteDelegate OnWriteUserCloudFileCompleteDelegate;
+	FOnWriteUserFileCanceledDelegate OnWriteUserFileCanceledDelegate;
 	FOnReadUserFileCompleteDelegate OnReadEnumeratedUserFilesCompleteDelegate;
 	FOnDeleteUserFileCompleteDelegate OnDeleteEnumeratedUserFilesCompleteDelegate;
 	FOnWriteSharedFileCompleteDelegate OnWriteSharedCloudFileCompleteDelegate;
@@ -37,6 +41,7 @@
 	/** Handles to those delegates */
 	FDelegateHandle EnumerationDelegateHandle;
 	FDelegateHandle OnWriteUserCloudFileCompleteDelegateHandle;
+	FDelegateHandle OnWriteUserFileCanceledDelegateHandle;
 	FDelegateHandle OnReadEnumeratedUserFilesCompleteDelegateHandle;
 	FDelegateHandle OnDeleteEnumeratedUserFilesCompleteDelegateHandle;
 	FDelegateHandle OnWriteSharedCloudFileCompleteDelegateHandle;
@@ -54,16 +59,49 @@
 	int32 WriteUserCloudFileCount;
 	/** Number of files written to be used to clear the delegate */
 	int32 WriteSharedCloudFileCount;
+	/** Number of file writing cancellations to be used to clear the delegate */
+	int32 WriteUserFileCanceledCount;
 	/** Number of files read to be used to clear the delegate */
 	int32 ReadUserFileCount;
 	/** Number of files read to be used to clear the delegate */
 	int32 ReadSharedFileCount;
 	/** Number of files deleted to be used to clear the delegate */
 	int32 DeleteUserFileCount;
+
+	enum class EUserCloudTestPhase
+	{
+		Invalid,
+		EnumerateFiles,
+		WriteFiles,
+		ReadFiles,
+		DeleteFilesLocally,
+		DeleteFilesInCloud,
+		CancelWritingFiles,
+		WriteSharedFiles,
+		ReadSharedFiles,
+		DeleteSharedFilesInCloud,
+		ReadRandomSharedFiles,
+		DeleteSharedFilesTotally,
+		End
+	};
+
+	friend EUserCloudTestPhase& operator++(EUserCloudTestPhase& TestPhase) {
+		const int TestPhaseInt = int(TestPhase) + 1;
+		const int EndPhaseInt = int(EUserCloudTestPhase::End);
+		TestPhase = EUserCloudTestPhase((TestPhaseInt > EndPhaseInt) ? EndPhaseInt : TestPhaseInt);
+		return TestPhase;
+	}
+
+	friend EUserCloudTestPhase operator++(EUserCloudTestPhase& TestPhase, int) {
+		const EUserCloudTestPhase Result = TestPhase;
+		++TestPhase;
+		return Result;
+	}
+
 	/** Current phase of testing */
-	int32 TestPhase;
+	EUserCloudTestPhase CurrentTestPhase;
 	/** Last phase of testing triggered */
-	int32 LastTestPhase;
+	EUserCloudTestPhase LastTestPhase;
 
 	/**
 	 *	Fill a buffer with random data of a given file size
@@ -84,7 +122,7 @@
 	 * @param FileCount number of files to write out
 	 * @param Delegate delegate to trigger for each file written
 	 */
-	FDelegateHandle WriteNUserCloudFiles(const FUniqueNetId& UserId, const FString& FileNameBase, int32 FileCount, FOnWriteUserFileCompleteDelegate& Delegate);
+	FDelegateHandle WriteNUserCloudFiles(const FUniqueNetId& UserId, const FString& FileNameBase, int32 FileCount, bool bCancelWrite, FOnWriteUserFileCompleteDelegate& Delegate);
 
 	/**
 	 *	Write out files marked for the cloud (and shared) for the given user
@@ -94,6 +132,15 @@
 	 * @param Delegate delegate to trigger for each file written
 	 */
 	FDelegateHandle WriteNSharedCloudFiles(const FUniqueNetId& UserId, const FString& FileNameBase, int32 FileCount, FOnWriteSharedFileCompleteDelegate& Delegate);
+
+	/**
+	 *	Cancel cloud file write operations for the given user
+	 * @param UserId user to cancel cloud file write operations for
+	 * @param FileNameBase filename to derive cancelled file names from (appends 0-FileCount)
+	 * @param FileCount number of files to cancel
+	 * @param Delegate delegate to trigger for each file write cancelled
+	 */
+	FDelegateHandle CancelWriteNUserCloudFiles(const FUniqueNetId& InUserId, const FString& FileNameBase, int32 FileCount, FOnWriteUserFileCanceledDelegate& Delegate);
 
 	/**
 	 *	Read cloud files currently enumerated for the logged in user
@@ -134,6 +181,14 @@
 	 */
 	void OnWriteUserCloudFileComplete(bool bWasSuccessful, const FUniqueNetId& UserId, const FString& FileName);
 	
+	/**
+	 *	Delegate triggered for each user cloud file write cancellation
+	 * @param bWasSuccessful did the operation complete successfully
+	 * @param UserId user that triggered the operation
+	 * @param FileName name of the file for which writing was cancelled
+	 */
+	void OnCancelWriteUserCloudFileComplete(bool bWasSuccessful, const FUniqueNetId& InUserId, const FString& FileName);
+
 	/**
 	 *	Delegate triggered for each user cloud file read
 	 * @param bWasSuccessful did the operation complete successfully
@@ -191,8 +246,8 @@
 		ReadUserFileCount(0),
 		ReadSharedFileCount(0),
 		DeleteUserFileCount(0),
-		TestPhase(0),
-		LastTestPhase(-1)
+		CurrentTestPhase(EUserCloudTestPhase::EnumerateFiles),
+		LastTestPhase(EUserCloudTestPhase::Invalid)
 	{
 	}
 

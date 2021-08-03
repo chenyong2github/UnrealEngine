@@ -12,7 +12,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 
-#include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 
 #include "WarpBlend/Loader/DisplayClusterWarpBlendLoader_Texture.h"
 #include "WarpBlend/DisplayClusterWarpBlend.h"
@@ -30,7 +30,7 @@ bool FDisplayClusterWarpBlendLoader_MeshComponent::Load(const FDisplayClusterWar
 		WarpBlend->GeometryContext.ProfileType = EDisplayClusterWarpProfileType::warp_A3D;
 
 		FDisplayClusterWarpBlend_GeometryProxy& Proxy = WarpBlend->GeometryContext.GeometryProxy;
-		Proxy.WarpMesh = new FDisplayClusterRender_MeshComponentProxy();
+		Proxy.WarpMesh = new FDisplayClusterRender_MeshComponent();
 		Proxy.WarpMesh->AssignMeshRefs(InParameters.MeshComponent, InParameters.OriginComponent);
 
 		OutWarpBlend = WarpBlend;

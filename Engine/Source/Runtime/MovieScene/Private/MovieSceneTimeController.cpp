@@ -7,6 +7,12 @@
 #include "AudioDevice.h"
 #include "Misc/App.h"
 
+static TAutoConsoleVariable<int32> CVarSequencerRelativeTimecodeSmoothing(
+	TEXT("Sequencer.RelativeTimecodeSmoothing"),
+	1,
+	TEXT("If nonzero, accumulate with platform time since when the timecodes were equal."),
+	ECVF_Default);
+
 void FMovieSceneTimeController::Tick(float DeltaSeconds, float InPlayRate)
 {
 	OnTick(DeltaSeconds, InPlayRate);
@@ -108,17 +114,57 @@ double FMovieSceneTimeController_AudioClock::GetCurrentTime() const
 	return AudioDevice ? AudioDevice->GetAudioClock() : FPlatformTime::Seconds();
 }
 
+void FMovieSceneTimeController_RelativeTimecodeClock::OnStopPlaying(const FQualifiedFrameTime& InStopTime)
+{
+	FMovieSceneTimeController_ExternalClock::OnStopPlaying(InStopTime);
+
+	AccumulatedFrameTime = 0;
+	LastCurrentFrameTime.Reset();
+	TimeSinceCurrentFrameTime.Reset();
+}
+
 double FMovieSceneTimeController_RelativeTimecodeClock::GetCurrentTime() const
 {
 	const TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
 	if (CurrentFrameTime.IsSet())
 	{
-		return CurrentFrameTime.GetValue().AsSeconds();
+		return CurrentFrameTime.GetValue().AsSeconds() + AccumulatedFrameTime;
 	}
 	else
 	{
 		return FPlatformTime::Seconds();
 	}
+}
+
+FFrameTime FMovieSceneTimeController_RelativeTimecodeClock::OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate)
+{
+	TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
+
+	// If the engine tick rate is faster than the timecode, there could be multiple ticks with the same timecode. 
+	// That's not necessarily desirable, so accumulate with platform time since when the timecodes were equal.
+	AccumulatedFrameTime = 0;
+	if (CVarSequencerRelativeTimecodeSmoothing->GetInt() && CurrentFrameTime.IsSet())
+	{
+		if (LastCurrentFrameTime.IsSet() && LastCurrentFrameTime.GetValue() == CurrentFrameTime.GetValue().Time)
+		{
+			if (TimeSinceCurrentFrameTime.IsSet())
+			{
+				AccumulatedFrameTime = FPlatformTime::Seconds() - TimeSinceCurrentFrameTime.GetValue();
+			}
+			else
+			{
+				TimeSinceCurrentFrameTime = FPlatformTime::Seconds();
+			}
+		}
+		else
+		{
+			TimeSinceCurrentFrameTime = FPlatformTime::Seconds();
+		}
+		
+		LastCurrentFrameTime = CurrentFrameTime.GetValue().Time;
+	}
+
+	return FMovieSceneTimeController_ExternalClock::OnRequestCurrentTime(InCurrentTime, InPlayRate);
 }
 
 FFrameTime FMovieSceneTimeController_TimecodeClock::OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate)

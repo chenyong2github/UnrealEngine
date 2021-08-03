@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/QueuedThreadPool.h"
 /** 
  * Interface for data deriving backends
  * This API will not be called concurrently, except that Build might be called on different instances if IsBuildThreadsafe.
@@ -36,6 +37,11 @@ public:
 	* @return	true if this plugin is threadsafe
 	**/
 	virtual bool IsBuildThreadsafe() const = 0;
+	/** 
+	* If IsBuildThreadsafe() returns true, then this is the thread pool that is used to run the background task.
+	* @return	The threadpool to run the task with
+	**/
+	virtual FQueuedThreadPool* GetCustomThreadPool() const { return GThreadPool; }
 
 	/** Indicated that this plugin generates deterministic data. This is used for DDC verification */
 	virtual bool IsDeterministic() const { return false; }

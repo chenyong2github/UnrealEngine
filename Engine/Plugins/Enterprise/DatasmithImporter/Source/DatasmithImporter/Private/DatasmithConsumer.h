@@ -36,8 +36,9 @@ public:
 	virtual void PostInitProperties() override;
 	// End of UObject interface
 
-	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal, DuplicateTransient )
-	TSoftObjectPtr<UDatasmithScene> DatasmithScene;
+	/** DEPRECATED: Removing use of TSoftObjectPtr */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use GetDatasmithScene method to obtain the associated UDatasmithScene.") )
+	TSoftObjectPtr<UDatasmithScene> DatasmithScene_DEPRECATED;
 
 	/** Stores the level used on the last call to UDatasmithConsumer::Run */
 	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal )
@@ -51,9 +52,12 @@ public:
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
 
+	UFUNCTION(BlueprintCallable, Category = DatasmithConsumerInternal)
+	UDatasmithScene* GetDatasmithScene() { return DatasmithSceneWeakPtr.Get(); }
+
 protected:
 	/** Getter/setter on consumer's output level */
-	FString GetOutputLevelPath() const { return OutputLevelSoftObject.GetAssetPathString(); }
+	FString GetOutputLevelPath() const { return OutputLevelObjectPath; }
 	bool SetOutputLevel(const FString& LevelName);
 
 	virtual bool SetLevelNameImplementation(const FString& InLevelName, FText& OutFailureReason, const bool bIsAutomated) override;
@@ -63,6 +67,14 @@ protected:
 	virtual bool Run() override;
 	virtual void Reset() override;
 	// End UDataprepContentConsumer overrides
+
+	/** Path to UDatasmithScene potentially linked to */
+	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal )
+	FString DatasmithSceneObjectPath;
+
+	/** Path to ULevel potentially linked to */
+	UPROPERTY( BlueprintReadOnly, Category = DatasmithConsumerInternal )
+	FString OutputLevelObjectPath;
 
 private:
 	/** Temporary code to work with UDataprepContentConsumer */
@@ -104,8 +116,11 @@ private:
 	/** World used by the consumer to create new output levels */
 	TStrongObjectPtr<UWorld> WorkingWorld;
 
-	UPROPERTY()
-	FSoftObjectPath OutputLevelSoftObject;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = ""))
+	FSoftObjectPath OutputLevelSoftObject_DEPRECATED;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UDatasmithScene> DatasmithSceneWeakPtr;
 
 	/** Level associated with the consumer */
 	ULevel* PrimaryLevel;

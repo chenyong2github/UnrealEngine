@@ -359,6 +359,7 @@ class FStitchBorderCS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1G)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0B)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
+		SHADER_PARAMETER_UAV(RWTexture3D<float>, OutDirectionalLightShadowing)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -388,6 +389,7 @@ class FFinalizeBrickResultsCS : public FGlobalShader
 		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients1G)
 		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients0B)
 		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients1B)
+		SHADER_PARAMETER_TEXTURE(Texture3D<float>, DirectionalLightShadowing)
 		SHADER_PARAMETER_UAV(RWTexture3D<float3>, OutAmbientVector)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0R)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1R)
@@ -395,5 +397,6 @@ class FFinalizeBrickResultsCS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1G)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0B)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
+		SHADER_PARAMETER_UAV(RWTexture3D<float>, OutDirectionalLightShadowing)
 	END_SHADER_PARAMETER_STRUCT()
 };

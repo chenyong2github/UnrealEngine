@@ -62,6 +62,7 @@ public:
 
 protected:
 	bool CreateWarpBlendFromConfig();
+	void ImplRelease();
 
 protected:
 	FString OriginCompId;
@@ -72,6 +73,10 @@ protected:
 	TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlendInterface_Proxy;
 	TArray<FDisplayClusterWarpContext> WarpBlendContexts_Proxy;
 
+private:
+	bool bInvalidConfiguration = false;
+	bool bIsPreviewMeshEnabled = false;
+
 #if WITH_EDITOR
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,12 +86,11 @@ protected:
 	{
 		return true;
 	}
-	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport) override;
+	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
 
 	void ReleasePreviewMeshComponent();
 
 private:
 	FDisplayClusterSceneComponentRef PreviewMeshComponentRef;
-
 #endif
 };

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Paths.h"
 
 struct FVersion
 {
@@ -53,10 +55,17 @@ struct FInstallInfo
 		Release			
 	};
 	
+	enum class EInstallType
+	{
+		Installed,
+		Toolbox,
+		Custom
+	};
+	
 	FString Path;
 	FVersion Version;
 	ESupportUproject SupportUprojectState = ESupportUproject::None;
-	bool IsToolbox = false;
+	EInstallType InstallType;
 
 	FInstallInfo() = default;
 
@@ -67,12 +76,21 @@ struct FInstallInfo
 
 	bool operator==(const FInstallInfo& InstallInfo) const
 	{
-		return !(*this < InstallInfo) && !(InstallInfo < *this); 
+		FString LocalPath = Path;
+		FString InputPath = InstallInfo.Path;
+		LocalPath.ReplaceInline(TEXT("\\\\"), TEXT("/"), ESearchCase::CaseSensitive);
+		FPaths::NormalizeFilename(LocalPath);
+		InputPath.ReplaceInline(TEXT("\\\\"), TEXT("/"), ESearchCase::CaseSensitive);
+		FPaths::NormalizeFilename(InputPath);
+		return !(*this < InstallInfo) && !(InstallInfo < *this) && (LocalPath == InputPath);
 	}
 		
 	friend FORCEINLINE uint32 GetTypeHash(const FInstallInfo& InstallInfo)
 	{
-		return GetTypeHash(InstallInfo.Path);
+		FString LocalPath = InstallInfo.Path;
+		LocalPath.ReplaceInline(TEXT("\\\\"), TEXT("/"), ESearchCase::CaseSensitive);
+		FPaths::NormalizeFilename(LocalPath);
+        return GetTypeHash(LocalPath);
 	}
 };
 
@@ -80,10 +98,11 @@ class FRiderPathLocator
 {
 public:
 	// Platform specific implementation
-	static TOptional<FInstallInfo> GetInstallInfoFromRiderPath(const FString& Path, bool bIsToolbox);
+	static TOptional<FInstallInfo> GetInstallInfoFromRiderPath(const FString& Path, FInstallInfo::EInstallType InstallType);
 	static TSet<FInstallInfo> CollectAllPaths();
 private:
 	static void ParseProductInfoJson(FInstallInfo& Info, const FString& ProductInfoJsonPath);
 	static TArray<FInstallInfo> GetInstallInfosFromToolbox(const FString& ToolboxPath, const FString& Pattern);
-	static TArray<FInstallInfo> GetInstallInfos(const FString& ToolboxRiderRootPath, const FString& Pattern, bool IsToolbox);
+	static TArray<FInstallInfo> GetInstallInfosFromResourceFile();
+	static TArray<FInstallInfo> GetInstallInfos(const FString& ToolboxRiderRootPath, const FString& Pattern, FInstallInfo::EInstallType InstallType);
 };

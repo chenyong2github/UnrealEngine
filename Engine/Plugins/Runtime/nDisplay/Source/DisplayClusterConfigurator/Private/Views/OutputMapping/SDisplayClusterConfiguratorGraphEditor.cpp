@@ -104,7 +104,7 @@ void SDisplayClusterConfiguratorGraphEditor::OnNodeDoubleClicked(UEdGraphNode* C
 
 void SDisplayClusterConfiguratorGraphEditor::OnObjectSelected()
 {
-	const TArray<UObject*>& SelectedObjects = ToolkitPtr.Pin()->GetSelectedObjects();
+	TArray<UObject*> SelectedObjects = ToolkitPtr.Pin()->GetSelectedObjects();
 
 	if (!SelectedObjects.Num())
 	{
@@ -450,6 +450,7 @@ void SDisplayClusterConfiguratorGraphEditor::DeleteSelectedNodes()
 		TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
 		Toolkit->GetEditorData()->MarkPackageDirty();
 		Toolkit->ClusterChanged();
+		ClearSelectionSet();
 	}
 }
 

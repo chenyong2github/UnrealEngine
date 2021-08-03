@@ -616,12 +616,17 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 {
 	FDMXCustomization::CustomizeDetails(DetailLayout);
 
+	PropertyUtilities = DetailLayout.GetPropertyUtilities();
+
 	// Bind to auto assign address changes to assign channels when it gets enabled
 	AutoAssignAddressHandle = DetailLayout.GetProperty(UDMXEntityFixturePatch::GetAutoAssignAddressPropertyNameChecked());
 	check(AutoAssignAddressHandle.IsValid() && AutoAssignAddressHandle->IsValidHandle());
 	
 	FSimpleDelegate OnAutoAssignAddressChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXFixturePatchesDetails::OnAutoAssignAddressChanged);
 	AutoAssignAddressHandle->SetOnPropertyValueChanged(OnAutoAssignAddressChangedDelegate);
+
+	// Handle mode changes of the parent fixture type
+	UDMXEntityFixtureType::GetDataTypeChangeDelegate().AddSP(this, &FDMXFixturePatchesDetails::OnModesChanged);
 
 	// Make a Fixture Types dropdown for the Fixture Type template property
 	ParentFixtureTypeHandle = DetailLayout.GetProperty(UDMXEntityFixturePatch::GetParentFixtureTypeTemplatePropertyNameChecked());
@@ -676,7 +681,6 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 			.OptionsSource(&ActiveModeOptions)
 			.OnGenerateWidget(this, &FDMXFixturePatchesDetails::GenerateActiveModeOptionWidget)
 			.OnSelectionChanged(this, &FDMXFixturePatchesDetails::OnActiveModeChanged)
-			.OnComboBoxOpening(this, &FDMXFixturePatchesDetails::OnActiveComboBoxOpening)
 			.InitiallySelectedItem(DefaultSelectedActiveMode)
 			[
 				SNew(STextBlock)
@@ -724,6 +728,11 @@ void FDMXFixturePatchesDetails::OnAutoAssignAddressChanged()
 			FDMXEditorUtils::AutoAssignedAddresses(FixturePatches);
 		}
 	}
+}
+
+void FDMXFixturePatchesDetails::OnModesChanged(const UDMXEntityFixtureType* FixtureType, const FDMXFixtureMode& Mode)
+{
+	PropertyUtilities->ForceRefresh();
 }
 
 void FDMXFixturePatchesDetails::GenerateActiveModeOptions()
@@ -786,9 +795,13 @@ TSharedRef<SWidget> FDMXFixturePatchesDetails::GenerateActiveModeOptionWidget(co
 	{
 		if (UDMXEntityFixtureType* Patch = Cast<UDMXEntityFixtureType>(Object))
 		{
+			if (InMode.IsValid() && 
+				Patch->Modes.IsValidIndex(*InMode))
+			{
 			return SNew(STextBlock)
 				.Text(FText::FromString(Patch->Modes[*InMode].ModeName));
 		}
+	}
 	}
 
 	return SNullWidget::NullWidget;
@@ -800,13 +813,6 @@ void FDMXFixturePatchesDetails::OnActiveModeChanged(const TSharedPtr<uint32> InS
 	{
 		ActiveModeHandle->SetValue(*InSelectedMode);
 	}
-}
-
-void FDMXFixturePatchesDetails::OnActiveComboBoxOpening()
-{
-	GenerateActiveModeOptions();
-
-	ActiveModeOptionsWidget->RefreshOptions();
 }
 
 FText FDMXFixturePatchesDetails::GetCurrentActiveModeLabel() const

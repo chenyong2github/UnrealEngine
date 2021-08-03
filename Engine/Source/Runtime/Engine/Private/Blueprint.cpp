@@ -884,7 +884,7 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	UObject* BlueprintCDO = nullptr;
 	if (GeneratedClass)
 	{
-		BlueprintCDO = GeneratedClass->GetDefaultObject();
+		BlueprintCDO = GeneratedClass->GetDefaultObject(/*bCreateIfNeeded*/false);
 		if (BlueprintCDO)
 		{
 			BlueprintCDO->GetAssetRegistryTags(OutTags);
@@ -1007,7 +1007,7 @@ FPrimaryAssetId UBlueprint::GetPrimaryAssetId() const
 {
 	// Forward to our Class, which will forward to CDO if needed
 	// We use Generated instead of Skeleton because the CDO data is more accurate on Generated
-	if (GeneratedClass)
+	if (GeneratedClass && GeneratedClass->ClassDefaultObject)
 	{
 		return GeneratedClass->GetPrimaryAssetId();
 	}

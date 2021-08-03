@@ -283,7 +283,8 @@ namespace Gauntlet
 		Demos,
 		Profiling,
 		Saved,
-		Platform
+		Platform,
+		PersistentDownloadDir
 	}
 
 	/// <summary>

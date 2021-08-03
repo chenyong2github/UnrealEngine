@@ -745,19 +745,7 @@ FContentBrowserDataCompiledFilter SPathView::CreateCompiledFolderFilter() const
 		| (ContentBrowserSettings->GetDisplayDevelopersFolder() ? EContentBrowserItemAttributeFilter::IncludeDeveloper : EContentBrowserItemAttributeFilter::IncludeNone)
 		| (ContentBrowserSettings->GetDisplayL10NFolder() ? EContentBrowserItemAttributeFilter::IncludeLocalized : EContentBrowserItemAttributeFilter::IncludeNone);
 
-	TSharedPtr<FBlacklistPaths> CombinedFolderBlacklist;
-	if ((FolderBlacklist && FolderBlacklist->HasFiltering()) || (WritableFolderBlacklist && WritableFolderBlacklist->HasFiltering() && !bAllowReadOnlyFolders))
-	{
-		CombinedFolderBlacklist = MakeShared<FBlacklistPaths>();
-		if (FolderBlacklist)
-		{
-			CombinedFolderBlacklist->Append(*FolderBlacklist);
-		}
-		if (WritableFolderBlacklist && !bAllowReadOnlyFolders)
-		{
-			CombinedFolderBlacklist->Append(*WritableFolderBlacklist);
-		}
-	}
+	TSharedPtr<FBlacklistPaths> CombinedFolderBlacklist = ContentBrowserUtils::GetCombinedFolderBlacklist(FolderBlacklist, bAllowReadOnlyFolders ? nullptr : WritableFolderBlacklist);
 
 	if (CustomFolderBlacklist.IsValid())
 	{
@@ -1919,6 +1907,21 @@ TArray<FName> SPathView::GetDefaultPathsToSelect() const
 	}
 
 	return VirtualPaths;
+}
+
+TArray<FName> SPathView::GetRootPathItemNames() const
+{
+	TArray<FName> RootPathItemNames;
+	RootPathItemNames.Reserve(TreeRootItems.Num());
+	for (const TSharedPtr<FTreeItem>& RootItem : TreeRootItems)
+	{
+		if (RootItem.IsValid())
+		{
+			RootPathItemNames.Add(RootItem->GetItem().GetItemName());
+		}
+	}
+
+	return RootPathItemNames;
 }
 
 TArray<FName> SPathView::GetDefaultPathsToExpand() const

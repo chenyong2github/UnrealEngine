@@ -19,26 +19,18 @@ void FWaterBodyManager::Deinitialize()
 	GerstnerWaterWaveViewExtension.Reset();
 }
 
-void FWaterBodyManager::Update()
-{
-	if (GerstnerWaterWaveViewExtension)
+int32 FWaterBodyManager::AddWaterBodyComponent(UWaterBodyComponent* InWaterBodyComponent)
 	{
-		GerstnerWaterWaveViewExtension->WaterBodies = &WaterBodies;
-	}
-}
-
-int32 FWaterBodyManager::AddWaterBody(const AWaterBody* InWaterBody)
-{
 	int32 Index = INDEX_NONE;
 	if (UnusedWaterBodyIndices.Num())
 	{
 		Index = UnusedWaterBodyIndices.Pop();
-		check(WaterBodies[Index] == nullptr);
-		WaterBodies[Index] = InWaterBody;
+		check(WaterBodyComponents[Index] == nullptr);
+		WaterBodyComponents[Index] = InWaterBodyComponent;
 	}
 	else
 	{
-		Index = WaterBodies.Add(InWaterBody);
+		Index = WaterBodyComponents.Add(InWaterBodyComponent);
 	}
 
 	RequestWaveDataRebuild();
@@ -47,20 +39,20 @@ int32 FWaterBodyManager::AddWaterBody(const AWaterBody* InWaterBody)
 	return Index;
 }
 
-void FWaterBodyManager::RemoveWaterBody(const AWaterBody* InWaterBody)
+void FWaterBodyManager::RemoveWaterBodyComponent(UWaterBodyComponent* InWaterBodyComponent)
 {
-	check(InWaterBody->WaterBodyIndex != INDEX_NONE);
-	check(!UnusedWaterBodyIndices.Contains(InWaterBody->WaterBodyIndex));
-	UnusedWaterBodyIndices.Add(InWaterBody->WaterBodyIndex);
-	WaterBodies[InWaterBody->WaterBodyIndex] = nullptr;
+	const int32 WaterBodyIndex = InWaterBodyComponent->GetWaterBodyIndex();
+	check(WaterBodyIndex != INDEX_NONE);
+	UnusedWaterBodyIndices.Add(WaterBodyIndex);
+	WaterBodyComponents[WaterBodyIndex] = nullptr;
 
 	RequestWaveDataRebuild();
 
 	// Reset all arrays once there are no more waterbodies
-	if (UnusedWaterBodyIndices.Num() == WaterBodies.Num())
+	if (UnusedWaterBodyIndices.Num() == WaterBodyComponents.Num())
 	{
 		UnusedWaterBodyIndices.Empty();
-		WaterBodies.Empty();
+		WaterBodyComponents.Empty();
 	}
 }
 
@@ -73,11 +65,25 @@ void FWaterBodyManager::RequestWaveDataRebuild()
 
 	// Recompute the maximum of all MaxWaveHeight : 
 	GlobalMaxWaveHeight = 0.0f;
-	for (const AWaterBody* WaterBody : WaterBodies)
+	for (const UWaterBodyComponent* WaterBodyComponent : WaterBodyComponents)
 	{
-		if (WaterBody != nullptr)
+		if (WaterBodyComponent != nullptr)
 		{
-			GlobalMaxWaveHeight = FMath::Max(GlobalMaxWaveHeight, WaterBody->GetMaxWaveHeight());
+			GlobalMaxWaveHeight = FMath::Max(GlobalMaxWaveHeight, WaterBodyComponent->GetMaxWaveHeight());
+		}
+	}
+}
+
+void FWaterBodyManager::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Pred) const
+{
+	for (UWaterBodyComponent* WaterBodyComponent : WaterBodyComponents)
+	{
+		if (WaterBodyComponent)
+		{
+			if (!Pred(WaterBodyComponent))
+			{
+				return;
+			}
 		}
 	}
 }

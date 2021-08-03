@@ -448,10 +448,10 @@ UBodySetup* ULakeCollisionComponent::GetBodySetup()
 bool ULakeCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
 	const AWaterBody* OwningBody = GetTypedOuter<AWaterBody>();
-	if (CachedBodySetup && OwningBody)
+	if (CachedBodySetup && OwningBody && OwningBody->GetWaterBodyComponent())
 	{		
 		FTransform GeomTransform(GetComponentTransform());
-		GeomTransform.AddToTranslation(OwningBody->GetWaterNavCollisionOffset());
+		GeomTransform.AddToTranslation(OwningBody->GetWaterBodyComponent()->GetWaterNavCollisionOffset());
 		GeomExport.ExportRigidBodySetup(*CachedBodySetup, GeomTransform);
 		return false;
 	}

@@ -53,6 +53,16 @@ enum EBloomMethod
 	BM_MAX,
 };
 
+/** Used by FPostProcessSettings to determine Temperature calculation method. */
+UENUM()
+enum ETemperatureMethod
+{
+	TEMP_WhiteBalance UMETA(DisplayName = "White Balance"),
+	TEMP_ColorTemperature UMETA(DisplayName = "Color Temperature"),
+	TEMP_MAX,
+};
+
+
 UENUM() 
 enum class ELightUnits : uint8
 {
@@ -660,6 +670,8 @@ struct FPostProcessSettings
 	// first all bOverride_... as they get grouped together into bitfields
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_TemperatureType:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTemp:1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTint:1;
@@ -832,7 +844,7 @@ struct FPostProcessSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_BloomConvolutionTexture : 1;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_BloomConvolutionScatterDispersion : 1;
 
@@ -1252,9 +1264,16 @@ struct FPostProcessSettings
 	TEnumAsByte<enum EDepthOfFieldMethod> DepthOfFieldMethod_DEPRECATED;
 #endif
 
-	UPROPERTY(interp, BlueprintReadWrite, Category="Color Grading|WhiteBalance", meta=(UIMin = "1500.0", UIMax = "15000.0", editcondition = "bOverride_WhiteTemp", DisplayName = "Temp"))
+	/**
+	* Selects the type of temperature calculation.
+	* White Balance uses the Temperature value to control the virtual camera's White Balance. This is the default selection.
+	* Color Temperature uses the Temperature value to adjust the color temperature of the scene, which is the inverse of the White Balance operation.
+	*/
+	UPROPERTY(interp, BlueprintReadWrite, Category = "Color Grading|Temperature", meta = (DisplayName = "Temperature Type", editcondition = "bOverride_TemperatureType" ))
+	TEnumAsByte<enum ETemperatureMethod> TemperatureType;
+	UPROPERTY(interp, BlueprintReadWrite, Category="Color Grading|Temperature", meta=(UIMin = "1500.0", UIMax = "15000.0", editcondition = "bOverride_WhiteTemp", DisplayName = "Temp"))
 	float WhiteTemp;
-	UPROPERTY(interp, BlueprintReadWrite, Category="Color Grading|WhiteBalance", meta=(UIMin = "-1.0", UIMax = "1.0", editcondition = "bOverride_WhiteTint", DisplayName = "Tint"))
+	UPROPERTY(interp, BlueprintReadWrite, Category="Color Grading|Temperature", meta=(UIMin = "-1.0", UIMax = "1.0", editcondition = "bOverride_WhiteTint", DisplayName = "Tint"))
 	float WhiteTint;
 
 	// Color Correction controls

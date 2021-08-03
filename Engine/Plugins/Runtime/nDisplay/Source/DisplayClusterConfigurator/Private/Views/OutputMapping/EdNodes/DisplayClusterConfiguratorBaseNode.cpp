@@ -394,6 +394,13 @@ bool UDisplayClusterConfiguratorBaseNode::IsOutsideParentBoundary() const
 
 void UDisplayClusterConfiguratorBaseNode::UpdateChildNodes()
 {
+	// In rare cases, the child pointer may be in the process of being killed (such as if the user undoes an add operation)
+	// so remove any dead or dying children nodes.
+	Children.RemoveAll([](UDisplayClusterConfiguratorBaseNode* Child)
+	{
+		return !Child || Child->IsPendingKill();
+	});
+
 	for (UDisplayClusterConfiguratorBaseNode* ChildNode : Children)
 	{
 		ChildNode->UpdateNode();

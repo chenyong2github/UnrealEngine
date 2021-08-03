@@ -205,14 +205,32 @@ public:
 		FMemory::Memset(Hash, 0, sizeof(Hash));
 	}
 
+	static constexpr int32 GetStringLen() { return UE_ARRAY_COUNT(Hash) * 2; }
+
 	inline FString ToString() const
 	{
 		return BytesToHex((const uint8*)Hash, sizeof(Hash));
 	}
 
+	inline void ToString(TCHAR* Dest, bool bNullTerminate) const
+	{
+		constexpr auto Count = UE_ARRAY_COUNT(Hash);
+		for (int i = 0; i < Count; ++i)
+		{
+			uint8 Val = Hash[i];
+			Dest[i * 2] = NibbleToTChar(Val >> 4);
+			Dest[i * 2 + 1] = NibbleToTChar(Val & 15);
+		}
+
+		if (bNullTerminate)
+		{
+			Dest[Count * 2] = 0;
+		}
+	}
+
 	inline void FromString(const FStringView& Src)
 	{
-		check(Src.Len() == 40);
+		check(Src.Len() == GetStringLen());
 		UE::String::HexToBytes(Src, Hash);
 	}
 

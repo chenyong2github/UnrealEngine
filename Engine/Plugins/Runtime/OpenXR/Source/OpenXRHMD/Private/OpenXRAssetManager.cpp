@@ -3,6 +3,7 @@
 #include "OpenXRAssetManager.h"
 #include "OpenXRHMD.h"
 #include "OpenXRCore.h"
+#include "IOpenXRExtensionPlugin.h"
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/SoftObjectPath.h"
@@ -42,6 +43,36 @@ FSoftObjectPath FOpenXRAssetDirectory::SamsungOdysseyRight        = FString(TEXT
 FSoftObjectPath FOpenXRAssetDirectory::ValveIndexLeft             = FString(TEXT("/OpenXR/Devices/ValveIndex/Left/left_ValveIndexController.left_ValveIndexController"));
 FSoftObjectPath FOpenXRAssetDirectory::ValveIndexRight            = FString(TEXT("/OpenXR/Devices/ValveIndex/Right/right_ValveIndexController.right_ValveIndexController"));
 
+
+/* OpenXRAssetManager_Impl
+ *****************************************************************************/
+
+namespace OpenXRAssetManager_Impl
+{
+	struct FRenderableDevice
+	{
+		const char* UserPath;
+		const char* InteractionProfile;
+		FSoftObjectPath MeshAssetRef;
+	};
+
+	static TArray<FRenderableDevice> RenderableDevices =
+	{
+		{ "/user/hand/left",  "/interaction_profiles/google/daydream_controller", FOpenXRAssetDirectory::GoogleDaydream },
+		{ "/user/hand/right", "/interaction_profiles/google/daydream_controller", FOpenXRAssetDirectory::GoogleDaydream },
+		{ "/user/hand/left",  "/interaction_profiles/htc/vive_controller", FOpenXRAssetDirectory::HTCVive },
+		{ "/user/hand/right", "/interaction_profiles/htc/vive_controller", FOpenXRAssetDirectory::HTCVive },
+		{ "/user/hand/left",  "/interaction_profiles/microsoft/motion_controller", FOpenXRAssetDirectory::MicrosoftMixedRealityLeft },
+		{ "/user/hand/right", "/interaction_profiles/microsoft/motion_controller", FOpenXRAssetDirectory::MicrosoftMixedRealityRight },
+		{ "/user/hand/left",  "/interaction_profiles/oculus/go_controller", FOpenXRAssetDirectory::OculusGo },
+		{ "/user/hand/right", "/interaction_profiles/oculus/go_controller", FOpenXRAssetDirectory::OculusGo },
+		{ "/user/hand/left",  "/interaction_profiles/oculus/touch_controller", FOpenXRAssetDirectory::OculusTouchLeft },
+		{ "/user/hand/right", "/interaction_profiles/oculus/touch_controller", FOpenXRAssetDirectory::OculusTouchRight },
+		{ "/user/hand/left",  "/interaction_profiles/valve/index_controller", FOpenXRAssetDirectory::ValveIndexLeft },
+		{ "/user/hand/right", "/interaction_profiles/valve/index_controller", FOpenXRAssetDirectory::ValveIndexRight },
+	};
+};
+
 #if WITH_EDITORONLY_DATA
 class FOpenXRAssetRepo : public FGCObject, public TArray<UObject*>
 {
@@ -73,7 +104,29 @@ public:
 
 void FOpenXRAssetDirectory::LoadForCook()
 {
-	FOpenXRAssetRepo& AssetRepro = FOpenXRAssetRepo::Get();
+	FOpenXRAssetRepo& AssetRepo = FOpenXRAssetRepo::Get();
+	for (const OpenXRAssetManager_Impl::FRenderableDevice& RenderableDevice : OpenXRAssetManager_Impl::RenderableDevices)
+	{
+		AssetRepo.LoadAndAdd(RenderableDevice.MeshAssetRef);
+}
+
+	// Query all extension plugins for controller models
+	TArray<IOpenXRExtensionPlugin*> ExtModules = IModularFeatures::Get().GetModularFeatureImplementations<IOpenXRExtensionPlugin>(IOpenXRExtensionPlugin::GetModularFeatureName());
+	for (IOpenXRExtensionPlugin* Plugin : ExtModules)
+	{
+		TArray<FSoftObjectPath> Paths;
+		Plugin->GetControllerModelsForCooking(Paths);
+		for (const FSoftObjectPath& AssetPath : Paths)
+		{
+			AssetRepo.LoadAndAdd(AssetPath);
+		}
+	}
+
+	// These meshes are handled explicitly based on the system name
+	AssetRepo.LoadAndAdd(FOpenXRAssetDirectory::OculusTouchV2Left);
+	AssetRepo.LoadAndAdd(FOpenXRAssetDirectory::OculusTouchV2Right);
+	AssetRepo.LoadAndAdd(FOpenXRAssetDirectory::OculusTouchV3Left);
+	AssetRepo.LoadAndAdd(FOpenXRAssetDirectory::OculusTouchV3Right);
 }
 
 void FOpenXRAssetDirectory::ReleaseAll()
@@ -88,36 +141,28 @@ void FOpenXRAssetDirectory::ReleaseAll()
 
 FOpenXRAssetManager::FOpenXRAssetManager(XrInstance Instance, FOpenXRHMD* InHMD)
 	: OpenXRHMD(InHMD)
+	, Quest1(TEXT("Oculus Quest"))
+	, Quest2(TEXT("Oculus Quest2"))
 {
 	IModularFeatures::Get().RegisterModularFeature(IXRSystemAssets::GetModularFeatureName(), this);
 
 	XR_ENSURE(xrStringToPath(Instance, "/user/hand/left", &LeftHand));
 	XR_ENSURE(xrStringToPath(Instance, "/user/hand/right", &RightHand));
 
-	XrPath Profile;
-	XR_ENSURE(xrStringToPath(Instance, "/interaction_profiles/google/daydream_controller", &Profile));
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, LeftHand), FOpenXRAssetDirectory::GoogleDaydream);
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, RightHand), FOpenXRAssetDirectory::GoogleDaydream);
+	for (const OpenXRAssetManager_Impl::FRenderableDevice& RenderableDevice : OpenXRAssetManager_Impl::RenderableDevices)
+	{
+		TPair<XrPath, XrPath> ProfileDevicePair;
+		XR_ENSURE(xrStringToPath(Instance, RenderableDevice.InteractionProfile, &ProfileDevicePair.Key));
+		XR_ENSURE(xrStringToPath(Instance, RenderableDevice.UserPath, &ProfileDevicePair.Value));
 
-	XR_ENSURE(xrStringToPath(Instance, "/interaction_profiles/htc/vive_controller", &Profile));
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, LeftHand), FOpenXRAssetDirectory::HTCVive);
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, RightHand), FOpenXRAssetDirectory::HTCVive);
+		DeviceMeshes.Add(ProfileDevicePair, RenderableDevice.MeshAssetRef);
+	}
 
-	XR_ENSURE(xrStringToPath(Instance, "/interaction_profiles/microsoft/motion_controller", &Profile));
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, LeftHand), FOpenXRAssetDirectory::MicrosoftMixedRealityLeft);
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, RightHand), FOpenXRAssetDirectory::MicrosoftMixedRealityRight);
-
-	XR_ENSURE(xrStringToPath(Instance, "/interaction_profiles/oculus/go_controller", &Profile));
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, LeftHand), FOpenXRAssetDirectory::OculusGo);
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, RightHand), FOpenXRAssetDirectory::OculusGo);
-
-	XR_ENSURE(xrStringToPath(Instance, "/interaction_profiles/oculus/touch_controller", &Profile));
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, LeftHand), FOpenXRAssetDirectory::OculusTouchLeft);
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, RightHand), FOpenXRAssetDirectory::OculusTouchRight);
-
-	XR_ENSURE(xrStringToPath(Instance, "/interaction_profiles/valve/index_controller", &Profile));
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, LeftHand), FOpenXRAssetDirectory::ValveIndexLeft);
-	DeviceMeshes.Add(TPair<XrPath, XrPath>(Profile, RightHand), FOpenXRAssetDirectory::ValveIndexRight);
+	// These meshes are handled explicitly based on the system name
+	Quest1Meshes.Add(LeftHand, FOpenXRAssetDirectory::OculusTouchV2Left);
+	Quest1Meshes.Add(RightHand, FOpenXRAssetDirectory::OculusTouchV2Right);
+	Quest2Meshes.Add(LeftHand, FOpenXRAssetDirectory::OculusTouchV3Left);
+	Quest2Meshes.Add(RightHand, FOpenXRAssetDirectory::OculusTouchV3Right);
 }
 
 FOpenXRAssetManager::~FOpenXRAssetManager()
@@ -156,6 +201,8 @@ int32 FOpenXRAssetManager::GetDeviceId(EControllerHand ControllerHand)
 UPrimitiveComponent* FOpenXRAssetManager::CreateRenderComponent(const int32 DeviceId, AActor* Owner, EObjectFlags Flags, const bool /*bForceSynchronous*/, const FXRComponentLoadComplete& OnLoadComplete)
 {
 	UPrimitiveComponent* NewRenderComponent = nullptr;
+
+	XrInstance Instance = OpenXRHMD->GetInstance();
 	XrSession Session = OpenXRHMD->GetSession();
 	XrPath DevicePath = OpenXRHMD->GetTrackedDevicePath(DeviceId);
 	if (Session && DevicePath && OpenXRHMD->IsRunning())
@@ -163,23 +210,55 @@ UPrimitiveComponent* FOpenXRAssetManager::CreateRenderComponent(const int32 Devi
 		XrInteractionProfileState Profile;
 		Profile.type = XR_TYPE_INTERACTION_PROFILE_STATE;
 		Profile.next = nullptr;
-		if (!XR_ENSURE(xrGetCurrentInteractionProfile(Session, DevicePath, &Profile)))
+		if (XR_FAILED(xrGetCurrentInteractionProfile(Session, DevicePath, &Profile)))
 		{
+			// This call can often fail because action sets are not yet attached to the session
+			// or the user path doesn't have an interaction profile assigned yet.
 			return nullptr;
 		}
 
+		FSoftObjectPath DeviceMeshPath;
+		for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())
+		{
+			if (Plugin->GetControllerModel(Instance, Profile.interactionProfile, DevicePath, DeviceMeshPath))
+			{
+				break;
+			}
+
+			// Reset the path in case the failed query assigned it
+			DeviceMeshPath.Reset();
+		}
+
+		if (DeviceMeshPath.IsNull())
+		{
+			FSoftObjectPath* DeviceMeshPtr = nullptr;
+			FName System = OpenXRHMD->GetHMDName();
+			if (System == Quest1)
+			{
+				DeviceMeshPtr = Quest1Meshes.Find(DevicePath);
+			}
+			else if (System == Quest2)
+			{
+				DeviceMeshPtr = Quest2Meshes.Find(DevicePath);
+			}
+			else
+			{
 		TPair<XrPath, XrPath> Key(Profile.interactionProfile, DevicePath);
-		FSoftObjectPath* DeviceMeshPtr = DeviceMeshes.Find(Key);
+				DeviceMeshPtr = DeviceMeshes.Find(Key);
+			}
+
 		if (!DeviceMeshPtr)
 		{
 			return nullptr;
 		}
+			DeviceMeshPath = *DeviceMeshPtr;
+		}
 
-		if (UObject* DeviceMesh = DeviceMeshPtr->TryLoad())
+		if (UObject* DeviceMesh = DeviceMeshPath.TryLoad())
 		{
 			if (UStaticMesh* AsStaticMesh = Cast<UStaticMesh>(DeviceMesh))
 			{
-				const FName ComponentName = MakeUniqueObjectName(Owner, UStaticMeshComponent::StaticClass(), *FString::Printf(TEXT("%s_Device%d"), TEXT("Oculus"), DeviceId));
+				const FName ComponentName = MakeUniqueObjectName(Owner, UStaticMeshComponent::StaticClass(), *FString::Printf(TEXT("%s_Device%d"), TEXT("OpenXR"), DeviceId));
 				UStaticMeshComponent* MeshComponent = NewObject<UStaticMeshComponent>(Owner, ComponentName, Flags);
 
 				MeshComponent->SetStaticMesh(AsStaticMesh);
@@ -191,4 +270,3 @@ UPrimitiveComponent* FOpenXRAssetManager::CreateRenderComponent(const int32 Devi
 	OnLoadComplete.ExecuteIfBound(NewRenderComponent);
 	return NewRenderComponent;
 }
-

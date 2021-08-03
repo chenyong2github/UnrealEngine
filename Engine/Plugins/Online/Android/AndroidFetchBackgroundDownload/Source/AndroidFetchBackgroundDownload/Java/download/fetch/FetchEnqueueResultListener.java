@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4.download.fetch;
+package com.epicgames.unreal.download.fetch;
 
 import androidx.annotation.NonNull;
 
@@ -11,7 +11,7 @@ import com.tonyodev.fetch2core.Func;
 public interface FetchEnqueueResultListener
 {
 	//Function called on this FetchEnqueueResultListener by the FetchEnqueueRequestCallback
-	public void OnFetchEnqueueRequestCallback(@NonNull Request EnqueuedRequest);
+	public void OnFetchEnqueueRequestCallback(@NonNull String RequestID, @NonNull Request EnqueuedRequest);
 	
 	//Function called on this FetchEnqueueResultListener by the FetchEnqueueErrorCallback
 	public void OnFetchEnqueueErrorCallback(@NonNull String RequestID, @NonNull Error EnqueueError);
@@ -19,9 +19,10 @@ public interface FetchEnqueueResultListener
 	//Helper class passed in to the Fetch.enqueue command to pass back the results of the enqueue operation on success.
 	public class FetchEnqueueRequestCallback implements Func<Request>
 	{
-		public FetchEnqueueRequestCallback(FetchEnqueueResultListener Owner)
+		public FetchEnqueueRequestCallback(@NonNull FetchEnqueueResultListener Owner, @NonNull String CachedRequestID)
 		{
 			this.Owner = Owner;
+			this.CachedRequestID = CachedRequestID;
 		}
 
 		@Override
@@ -29,12 +30,13 @@ public interface FetchEnqueueResultListener
 		{
 			if (Owner != null) 
 			{
-				Owner.OnFetchEnqueueRequestCallback(result);
+				Owner.OnFetchEnqueueRequestCallback(CachedRequestID, result);
 			}			
 			Owner = null;
 		}
 
 		FetchEnqueueResultListener Owner = null;
+		String CachedRequestID = null;
 	}
 
 	//Helper class passed in to the Fetch.enqueue command to pass back the results of the enqueue operation on error

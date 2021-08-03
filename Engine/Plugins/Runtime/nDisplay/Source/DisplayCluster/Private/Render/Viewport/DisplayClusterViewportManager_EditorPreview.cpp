@@ -123,7 +123,6 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 
 		for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamiliesIt : RenderTargetIt.ViewFamilies)
 		{
-			if (ViewFamiliesIt.NumViewsForRender > 0)
 			{
 				FRenderTarget* DstResource = RenderTargetIt.RenderTargetPtr;
 				// Create the view family for rendering the world scene to the viewport's render target
@@ -140,8 +139,6 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 
 				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamiliesIt.Views)
 				{
-					if (ViewIt.bDisableRender == false)
-					{
 						FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
 
 						check(ViewportPtr != nullptr);
@@ -152,13 +149,20 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 						FRotator ViewRotation;
 						FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
 
+					if (View && ViewIt.bDisableRender)
+					{
+						ViewFamily.Views.Remove(View);
+
+						delete View;
+						View = nullptr;
+					}
+
 						if (View)
 						{
 							// Apply viewport context settings to view (crossGPU, visibility, etc)
 							ViewIt.Viewport->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily , *View);
 						}
 					}
-				}
 
 				if (ViewFamily.Views.Num() > 0)
 				{

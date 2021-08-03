@@ -8,7 +8,6 @@
 #include "UObject/UObjectGlobals.h"
 
 #include "FavoriteFilterContainer.h"
-#include "DisjunctiveNormalFormFilter.h"
 #include "FilterLoader.h"
 #include "FilteredResults.h"
 #include "SnapshotRestorability.h"
@@ -19,7 +18,7 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 		this,
 		TEXT("FavoriteFilters")
 		);
-	UserDefinedFilters = ObjectInitializer.CreateDefaultSubobject<UDisjunctiveNormalFormFilter>(
+	UserDefinedFilters = ObjectInitializer.CreateDefaultSubobject<ULevelSnapshotsFilterPreset>(
 		this,
 		TEXT("UserDefinedFilters")
 		);
@@ -33,10 +32,10 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 		);
 	FilterLoader->SetFlags(RF_Transactional);
 	FilterLoader->SetAssetBeingEdited(UserDefinedFilters);
-	FilterLoader->OnFilterChanged.AddLambda([this](UDisjunctiveNormalFormFilter* NewFilterToEdit)
+	FilterLoader->OnFilterChanged.AddLambda([this](ULevelSnapshotsFilterPreset* NewFilterToEdit)
 	{
 		Modify();
-		UDisjunctiveNormalFormFilter* OldFilter = UserDefinedFilters;
+		ULevelSnapshotsFilterPreset* OldFilter = UserDefinedFilters;
 		UserDefinedFilters = NewFilterToEdit;
 		UserDefinedFilters->MarkTransactional();
 
@@ -137,7 +136,7 @@ UFavoriteFilterContainer* ULevelSnapshotsEditorData::GetFavoriteFilters() const
 	return FavoriteFilters;
 }
 
-UDisjunctiveNormalFormFilter* ULevelSnapshotsEditorData::GetUserDefinedFilters() const
+ULevelSnapshotsFilterPreset* ULevelSnapshotsEditorData::GetUserDefinedFilters() const
 {
 	return UserDefinedFilters;
 }

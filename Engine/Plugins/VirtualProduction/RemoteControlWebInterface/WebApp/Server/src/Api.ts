@@ -29,6 +29,11 @@ export class Api {
     this.send(res, UnrealEngine.getPayloads());
   }
 
+  @Get('presets/:preset/load')
+  private async load(req: Request, res: Response): Promise<void> {
+    this.send(res, UnrealEngine.loadPreset(req.params.preset));
+  }  
+
   @Get('presets/payload')
   private async payload(req: Request, res: Response): Promise<void> {
     this.send(res, UnrealEngine.getPayload(req.query.preset?.toString()));

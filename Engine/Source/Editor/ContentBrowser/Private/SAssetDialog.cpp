@@ -81,7 +81,6 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 
 	FAssetPickerConfig AssetPickerConfig;
 	AssetPickerConfig.Filter.ClassNames.Append(AssetClassNames);
-	AssetPickerConfig.Filter.PackagePaths.Add(IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(*DefaultPath));
 	AssetPickerConfig.bAllowDragging = false;
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Tile;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAssetDialog::OnAssetSelected);
@@ -119,9 +118,11 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 	{
 		const FSaveAssetDialogConfig& SaveAssetConfig = static_cast<const FSaveAssetDialogConfig&>(InConfig);
 		PathPickerConfig.bAllowContextMenu = true;
+		PathPickerConfig.bAllowReadOnlyFolders = false;
 		ConfirmButtonText = LOCTEXT("AssetDialogSaveButton", "Save");
 		AssetPickerConfig.SelectionMode = ESelectionMode::Single;
 		AssetPickerConfig.bFocusSearchBoxWhenOpened = false;
+		AssetPickerConfig.bCanShowReadOnlyFolders = false;
 		bIncludeNameBox = true;
 		ExistingAssetPolicy = SaveAssetConfig.ExistingAssetPolicy;
 		SetCurrentlyEnteredAssetName(SaveAssetConfig.DefaultAssetName);
@@ -134,7 +135,54 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 	}
 
 	PathPicker = StaticCastSharedRef<SPathPicker>(FContentBrowserSingleton::Get().CreatePathPicker(PathPickerConfig));
+
+	TArray<FString> SelectedVirtualPaths = PathPicker->GetPaths();
+	if (SelectedVirtualPaths.Num() == 0)
+	{
+		// No paths selected, choose PathView's default selection
+		const TSharedPtr<SPathView>& PathView = PathPicker->GetPathView();
+		const TArray<FName> DefaultPathsToSelect = PathView->GetDefaultPathsToSelect();
+		if (DefaultPathsToSelect.Num() > 0)
+		{
+			// Try select path
+			PathPicker->SetPaths({ DefaultPathsToSelect[0].ToString() });
+
+			// Get paths that were successfully selected
+			SelectedVirtualPaths = PathPicker->GetPaths();
+		}
+
+		if (SelectedVirtualPaths.Num() == 0)
+		{
+			// No paths selected, choose selection based on first root folder displayed in PathView
+			const TArray<FName> RootPathItemNames = PathView->GetRootPathItemNames();
+			if (RootPathItemNames.Num() > 0)
+			{
+				// Try select path
+				PathPicker->SetPaths({ FString(TEXT("/")) + RootPathItemNames[0].ToString() });
+
+				// Get paths that were successfully selected
+				SelectedVirtualPaths = PathPicker->GetPaths();
+			}
+		}
+	}
+
+	// Update AssetPickerConfig's selection to match PathPicker
+	if (SelectedVirtualPaths.Num() > 0)
+	{
+		AssetPickerConfig.Filter.PackagePaths = { FName(*SelectedVirtualPaths[0]) };
+	}
+
 	AssetPicker = StaticCastSharedRef<SAssetPicker>(FContentBrowserSingleton::Get().CreateAssetPicker(AssetPickerConfig));
+
+	// Update AssetDialog's path to match PathPicker
+	if (SelectedVirtualPaths.Num() > 0)
+	{
+		const FName DefaultVirtualPath = IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(*DefaultPath);
+		if (DefaultVirtualPath != *SelectedVirtualPaths[0])
+		{
+			SetCurrentlySelectedPath(SelectedVirtualPaths[0], EContentBrowserPathType::Virtual);
+		}
+	}
 
 	FContentBrowserCommands::Register();
 	BindCommands();

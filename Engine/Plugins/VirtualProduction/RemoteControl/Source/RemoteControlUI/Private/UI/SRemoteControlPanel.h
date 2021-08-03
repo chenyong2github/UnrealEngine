@@ -178,6 +178,9 @@ private:
 	/** Handle updating the preset name textblock when it's renamed. */
 	void OnAssetRenamed(const FAssetData& Asset, const FString&);
 
+	/** Handle clicking on the setting button. */
+	FReply OnClickSettingsButton();
+
 private:
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;

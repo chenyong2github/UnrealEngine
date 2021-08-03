@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.62";
+        private static string VersionString = "4.64";
 
         public static string Get() { return VersionString; }
     };
@@ -92,6 +92,7 @@ namespace PerfReportTool
 			"       -noWatermarks : don't embed the commandline or version in reports\n"+
 			"       -cleanCsvOut <filename> : write a standard format CSV after event stripping with metadata stripped out.\n"+
 			"          Not available in bulk mode.\n" +
+			"       -noSmooth : disable smoothing on all graphs\n" +
 			"\n" +
 			"Performance args:\n" +
 			"       -perfLog : output performance logging information\n" +
@@ -1303,7 +1304,7 @@ namespace PerfReportTool
 			string statString = String.Join(" ", quoteWrappedStatStrings);
 			double thickness = graphSettings.thickness.value * thicknessMultiplier;
 			float maxy = GetFloatArg("maxy", (float)graphSettings.maxy.value);
-			bool smooth = graphSettings.smooth.value;
+			bool smooth = graphSettings.smooth.value && !GetBoolArg("nosmooth");
 			double smoothKernelPercent = graphSettings.smoothKernelPercent.value;
 			double smoothKernelSize = graphSettings.smoothKernelSize.value;
 			double compression = graphSettings.compression.value;

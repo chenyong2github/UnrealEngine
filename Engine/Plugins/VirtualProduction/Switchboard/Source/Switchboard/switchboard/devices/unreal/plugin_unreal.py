@@ -784,6 +784,13 @@ class DeviceUnreal(Device):
         _, msg = message_protocol.create_fixExeFlags_message(puuid)
         self.unreal_client.send_message(msg)
 
+    def minimize_windows(self):
+        ''' Tries to minimize all windows '''
+
+        _, msg = message_protocol.create_minimize_windows_message()
+        self.unreal_client.send_message(msg)
+
+
     @property
     def executable_filename(self):
         return DeviceUnreal.csettings["ue4_exe"].get_value()

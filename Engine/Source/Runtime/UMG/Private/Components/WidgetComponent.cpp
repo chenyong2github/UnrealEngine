@@ -1218,24 +1218,24 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 
 void UWidgetComponent::UpdateWidgetOnScreen()
 {
-	if (Space == EWidgetSpace::Screen && !bAddedToScreen)
+	if ((GetUserWidgetObject() || GetSlateWidget().IsValid()) && Space == EWidgetSpace::Screen)
 	{
-		if (GetUserWidgetObject() || GetSlateWidget().IsValid())
-		{
 			UWorld* ThisWorld = GetWorld();
 			if (ThisWorld && ThisWorld->IsGameWorld())
 			{
 				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
 			APlayerController* PlayerController = TargetPlayer ? ToRawPtr(TargetPlayer->PlayerController) : nullptr;
-
 				if (TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->IsHidden()))
+				{
+				if (!bAddedToScreen)
 				{
 					AddWidgetToScreen(TargetPlayer);
 				}
+				return;
 			}
 		}
 	}
-	else if(bAddedToScreen && Space == EWidgetSpace::World)
+	if (bAddedToScreen)
 	{
 		RemoveWidgetFromScreen();
 	}

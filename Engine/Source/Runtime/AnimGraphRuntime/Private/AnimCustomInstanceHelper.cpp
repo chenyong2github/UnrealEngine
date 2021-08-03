@@ -11,9 +11,11 @@
 bool FAnimCustomInstanceHelper::ShouldCreateCustomInstancePlayer(const USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	const USkeleton*     Skeleton     = SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;
+
 	// create proper anim instance to animate
 	UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
 
 	return (AnimInstance == nullptr || SkeletalMeshComponent->GetAnimationMode() != EAnimationMode::AnimationBlueprint ||
-		AnimInstance->GetClass() != SkeletalMeshComponent->AnimClass || !SkeletalMesh->GetSkeleton()->IsCompatible(AnimInstance->CurrentSkeleton));
+		AnimInstance->GetClass() != SkeletalMeshComponent->AnimClass || !Skeleton || !Skeleton->IsCompatible(AnimInstance->CurrentSkeleton));
 }

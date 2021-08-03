@@ -286,6 +286,7 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 		FVec2((FReal)Cloth->AnimDriveDamping[0], (FReal)Cloth->AnimDriveDamping[1]));
 	ClothConstraints.SetThinShellVolumeProperties((FReal)Cloth->VolumeStiffness);
 	ClothConstraints.SetVolumeProperties((FReal)Cloth->VolumeStiffness);
+	ClothConstraints.SetBackstopProperties(Cloth->bEnableBackstop);
 }
 
 void FClothingSimulationCloth::FLODData::Enable(FClothingSimulationSolver* Solver, bool bEnable) const
@@ -411,6 +412,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, bUseCCD(bInUseCCD)
 	, bUseSelfCollisions(bInUseSelfCollisions)
 	, SelfCollisionThickness(InSelfCollisionThickness)
+	, bEnableBackstop(true)  // Set by clothing interactor
 	, bUseLegacyBackstop(bInUseLegacyBackstop)
 	, bUseLODIndexOverride(bInUseLODIndexOverride)
 	, LODIndexOverride(InLODIndexOverride)

@@ -327,7 +327,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 	if (bShouldShowDetectionWindow)
 	{
 		FCameraCalibrationWidgetHelpers::DisplayTextureInWindowAlmostFullScreen(
-			FCameraCalibrationStepsController::TextureFromCvMat(CvFrame),
+			FOpenCVHelper::TextureFromCvMat(CvFrame),
 			LOCTEXT("CheckerboardDetection", "Checkerboard Detection")
 		);
 	}
@@ -340,7 +340,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		const int32 ResolutionDivider = 4;
 		cv::resize(CvFrame, CvThumbnail, cv::Size(CvFrame.cols / ResolutionDivider, CvFrame.rows / ResolutionDivider));
 
-		if (UTexture2D* ThumbnailTexture = FCameraCalibrationStepsController::TextureFromCvMat(CvThumbnail))
+		if (UTexture2D* ThumbnailTexture = FOpenCVHelper::TextureFromCvMat(CvThumbnail))
 		{
 			Row->Thumbnail = SNew(SSimulcamViewport, ThumbnailTexture);
 		}
@@ -348,9 +348,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 
 	// Validate the new row, show a message if validation fails.
 	{
-		FText ErrorMessage;
-
-		if (!ValidateNewRow(Row, ErrorMessage))
+		if (!ValidateNewRow(Row, OutErrorMessage))
 		{
 			return false;
 		}
@@ -421,12 +419,7 @@ bool UCameraLensDistortionAlgoCheckerboard::ValidateNewRow(TSharedPtr<FCalibrati
 		return false;
 	}
 
-	// FZ inputs are valid
-	if ((!Row->CameraData.LensFileEvalData.Input.Focus.IsSet()) || (!Row->CameraData.LensFileEvalData.Input.Zoom.IsSet()))
-	{
-		OutErrorMessage = LOCTEXT("LutInputsNotValid", "FZ Lut inputs are not valid. Make sure you are providing Focus and Zoom values via LiveLink");
-		return false;
-	}
+	// FZ inputs are always valid, no need to verify them. They could be coming from LiveLink or fallback to a default one
 
 	// Valid image dimensions
 	if ((Row->ImageHeight < 1) || (Row->ImageWidth < 1))
@@ -625,17 +618,13 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 	check(DistortionCoefficients.total() == 5);
 	check((CameraMatrix.rows == 3) && (CameraMatrix.cols == 3));
 
-	// Focus and Zoom validity were verified when adding the calibration rows.
-	checkSlow(LastRow->CameraData.LensFileEvalData.Input.Focus.IsSet());
-	checkSlow(LastRow->CameraData.LensFileEvalData.Input.Zoom.IsSet());
-
 	// Valid image sizes were verified when adding the calibration rows.
 	checkSlow(LastRow->ImageWidth > 0);
 	checkSlow(LastRow->ImageHeight > 0);
 
 	// FZ inputs to LUT
-	OutFocus = *LastRow->CameraData.LensFileEvalData.Input.Focus;
-	OutZoom = *LastRow->CameraData.LensFileEvalData.Input.Zoom;
+	OutFocus = LastRow->CameraData.LensFileEvalData.Input.Focus;
+	OutZoom = LastRow->CameraData.LensFileEvalData.Input.Zoom;
 
 	// FocalLengthInfo
 	OutFocalLengthInfo.FxFy = FVector2D(
@@ -755,28 +744,6 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationActio
 {
 	return SNew(SHorizontalBox)
 
-		+ SHorizontalBox::Slot() // Button to remove last row
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("RemoveLast", "Remove Last"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([&]() -> FReply
-			{
-				if (CalibrationRows.Num())
-				{
-					CalibrationRows.RemoveAt(CalibrationRows.Num() - 1);
-					if (CalibrationListView.IsValid())
-					{
-						CalibrationListView->RequestListRefresh();
-					}
-				}
-
-				return FReply::Handled();
-			})
-		]
-
 		+ SHorizontalBox::Slot() // Button to clear all rows
 		.AutoWidth()
 		[ 
@@ -803,7 +770,45 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationPoint
 			return SNew(CameraLensDistortionAlgoCheckerboard::SCalibrationRowGenerator, OwnerTable)
 				.CalibrationRowData(InItem);
 		})
-		.SelectionMode(ESelectionMode::SingleToggle)
+		.SelectionMode(ESelectionMode::Multi)
+		.OnKeyDownHandler_Lambda([&](const FGeometry& Geometry, const FKeyEvent& KeyEvent) -> FReply
+		{
+			if (!CalibrationListView.IsValid())
+			{
+				return FReply::Unhandled();
+			}
+
+			if (KeyEvent.GetKey() == EKeys::Delete)
+			{
+				// Delete selected items
+
+				const TArray<TSharedPtr<FCalibrationRowData>> SelectedItems = CalibrationListView->GetSelectedItems();
+
+				for (const TSharedPtr<FCalibrationRowData>& SelectedItem : SelectedItems)
+				{
+					CalibrationRows.Remove(SelectedItem);
+				}
+
+				CalibrationListView->RequestListRefresh();
+				return FReply::Handled();
+			}
+			else if (KeyEvent.GetModifierKeys().IsControlDown() && (KeyEvent.GetKey() == EKeys::A))
+			{
+				// Select all items
+
+				CalibrationListView->SetItemSelection(CalibrationRows, true);
+				return FReply::Handled();
+			}
+			else if (KeyEvent.GetKey() == EKeys::Escape)
+			{
+				// Deselect all items
+
+				CalibrationListView->ClearSelection();
+				return FReply::Handled();
+			}
+
+			return FReply::Unhandled();
+		})
 		.HeaderRow
 		(
 			SNew(SHeaderRow)

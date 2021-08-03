@@ -455,30 +455,46 @@ const TCHAR* ReadNumberOrPercentFromBuffer(const TCHAR* Buffer, const FString& T
 	return nullptr;
 }
 
-void WriteDateTimeToBuffer(FString& Buffer, const TCHAR* TokenMarker, const FDateTime& DateTime, const EDateTimeStyle::Type* DateStylePtr, const EDateTimeStyle::Type* TimeStylePtr, const FString& TimeZone, FCulturePtr TargetCulture, const bool bStripPackageNamespace)
+void WriteDateTimeToBuffer(FString& Buffer, const TCHAR* TokenMarker, const FDateTime& DateTime, const EDateTimeStyle::Type* DateStylePtr, const EDateTimeStyle::Type* TimeStylePtr, const FString* CustomPattern, const FString& TimeZone, FCulturePtr TargetCulture, const bool bStripPackageNamespace)
 {
 	auto WriteDateTimeStyle = [](FString& OutValueBuffer, const EDateTimeStyle::Type& InValue)
 	{
 		WriteScopedEnumToBuffer(OutValueBuffer, TEXT("EDateTimeStyle::"), InValue);
 	};
 
+	const bool bIsCustom = DateStylePtr && *DateStylePtr == EDateTimeStyle::Custom;
+	const bool bIsInvariantTz = TimeZone == FText::GetInvariantTimeZone();
+
 	FString Suffix;
-	if (TimeZone == FText::GetInvariantTimeZone())
+	if (bIsCustom)
 	{
-		Suffix = LocalSuffix;
+		Suffix += CustomSuffix;
+	}
+	if (bIsInvariantTz)
+	{
+		Suffix += LocalSuffix;
 	}
 	else
 	{
-		Suffix = UtcSuffix;
+		Suffix += UtcSuffix;
 	}
 
 	// Produces LOCGEN_DATE_UTC(..., ..., "...", "...") or LOCGEN_DATE_LOCAL(..., ..., "...")
 	// Produces LOCGEN_TIME_UTC(..., ..., "...", "...") or LOCGEN_TIME_LOCAL(..., ..., "...")
 	// Produces LOCGEN_DATETIME_UTC(..., ..., ..., "...", "...") or LOCGEN_DATETIME_LOCAL(..., ..., ..., "...")
+	// Produces LOCGEN_DATETIME_CUSTOM_UTC(..., "...", "...", "...") or LOCGEN_DATETIME_CUSTOM_LOCAL(..., "...", "...")
 	Buffer += TokenMarker;
 	Buffer += Suffix;
 	Buffer += TEXT("(");
 	FFormatArgumentValue(DateTime.ToUnixTimestamp()).ToExportedString(Buffer, bStripPackageNamespace);
+	if (bIsCustom)
+	{
+		Buffer += TEXT(", \"");
+		Buffer += CustomPattern ? CustomPattern->ReplaceCharWithEscapedChar() : FString();
+		Buffer += TEXT("\"");
+	}
+	else
+	{
 	if (DateStylePtr)
 	{
 		Buffer += TEXT(", ");
@@ -489,7 +505,8 @@ void WriteDateTimeToBuffer(FString& Buffer, const TCHAR* TokenMarker, const FDat
 		Buffer += TEXT(", ");
 		WriteDateTimeStyle(Buffer, *TimeStylePtr);
 	}
-	if (Suffix == UtcSuffix)
+	}
+	if (!bIsInvariantTz)
 	{
 		Buffer += TEXT(", \"");
 		Buffer += TimeZone.ReplaceCharWithEscapedChar();
@@ -503,7 +520,7 @@ void WriteDateTimeToBuffer(FString& Buffer, const TCHAR* TokenMarker, const FDat
 	Buffer += TEXT("\")");
 }
 
-const TCHAR* ReadDateTimeFromBuffer(const TCHAR* Buffer, const FString& TokenMarker, FDateTime& OutDateTime, EDateTimeStyle::Type* OutDateStylePtr, EDateTimeStyle::Type* OutTimeStylePtr, FString& OutTimeZone, FCulturePtr& OutTargetCulture)
+const TCHAR* ReadDateTimeFromBuffer(const TCHAR* Buffer, const FString& TokenMarker, FDateTime& OutDateTime, EDateTimeStyle::Type* OutDateStylePtr, EDateTimeStyle::Type* OutTimeStylePtr, FString* OutCustomPattern, FString& OutTimeZone, FCulturePtr& OutTargetCulture)
 {
 	auto ReadDateTimeStyle = [](const TCHAR* InValueBuffer, EDateTimeStyle::Type& OutValue) -> const TCHAR*
 	{
@@ -516,7 +533,14 @@ const TCHAR* ReadDateTimeFromBuffer(const TCHAR* Buffer, const FString& TokenMar
 		// Parsing something of the form: LOCGEN_DATE_UTC(..., ..., "...", "...") or LOCGEN_DATE_LOCAL(..., ..., "...")
 		// Parsing something of the form: LOCGEN_TIME_UTC(..., ..., "...", "...") or LOCGEN_TIME_LOCAL(..., ..., "...")
 		// Parsing something of the form: LOCGEN_DATETIME_UTC(..., ..., ..., "...", "...") or LOCGEN_DATETIME_LOCAL(..., ..., ..., "...")
+		// Parsing something of the form: LOCGEN_DATETIME_CUSTOM_UTC(..., "...", "...", "...") or LOCGEN_DATETIME_CUSTOM_LOCAL(..., "...", "...")
 		Buffer += TokenMarker.Len();
+
+		const bool bIsCustom = TEXT_STRINGIFICATION_PEEK_MARKER(CustomSuffix);
+		if (bIsCustom)
+		{
+			TEXT_STRINGIFICATION_SKIP_MARKER_LEN(CustomSuffix);
+		}
 
 		if (TEXT_STRINGIFICATION_PEEK_MARKER(LocalSuffix))
 		{
@@ -559,6 +583,28 @@ const TCHAR* ReadDateTimeFromBuffer(const TCHAR* Buffer, const FString& TokenMar
 			return nullptr;
 		}
 
+		if (bIsCustom)
+		{
+			if (OutDateStylePtr)
+			{
+				*OutDateStylePtr = EDateTimeStyle::Custom;
+			}
+			if (OutTimeStylePtr)
+			{
+				*OutTimeStylePtr = EDateTimeStyle::Custom;
+			}
+
+			// Skip whitespace before the comma, and then step over it
+			TEXT_STRINGIFICATION_SKIP_WHITESPACE_AND_CHAR(',');
+
+			// Skip whitespace before the value, and then read out the quoted custom pattern
+			FString CustomPatternTempString;
+			FString& CustomPatternStringRef = OutCustomPattern ? *OutCustomPattern : CustomPatternTempString;
+			TEXT_STRINGIFICATION_SKIP_WHITESPACE();
+			TEXT_STRINGIFICATION_READ_QUOTED_STRING(CustomPatternStringRef);
+		}
+		else
+		{
 		if (OutDateStylePtr)
 		{
 			// Skip whitespace before the comma, then step over it
@@ -577,6 +623,7 @@ const TCHAR* ReadDateTimeFromBuffer(const TCHAR* Buffer, const FString& TokenMar
 			// Skip any whitespace before the value, and then read the time style
 			TEXT_STRINGIFICATION_SKIP_WHITESPACE();
 			TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(ReadDateTimeStyle, *OutTimeStylePtr);
+		}
 		}
 
 		if (OutTimeZone.IsEmpty())
@@ -2007,6 +2054,10 @@ FTextHistory_AsDate::FTextHistory_AsDate(FDateTime InSourceDateTime, const EDate
 	, TimeZone(MoveTemp(InTimeZone))
 	, TargetCulture(MoveTemp(InTargetCulture))
 {
+	if (DateStyle == EDateTimeStyle::Custom)
+	{
+		DateStyle = EDateTimeStyle::Default;
+	}
 }
 
 FTextHistory_AsDate::FTextHistory_AsDate(FTextHistory_AsDate&& Other)
@@ -2077,14 +2128,14 @@ bool FTextHistory_AsDate::StaticShouldReadFromBuffer(const TCHAR* Buffer)
 const TCHAR* FTextHistory_AsDate::ReadFromBuffer(const TCHAR* Buffer, const TCHAR* TextNamespace, const TCHAR* PackageNamespace, FTextDisplayStringPtr& OutDisplayString)
 {
 	static const FString TokenMarker = TextStringificationUtil::LocGenDateMarker;
-	TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(TextStringificationUtil::ReadDateTimeFromBuffer, TokenMarker, SourceDateTime, &DateStyle, nullptr, TimeZone, TargetCulture);
+	TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(TextStringificationUtil::ReadDateTimeFromBuffer, TokenMarker, SourceDateTime, &DateStyle, nullptr, nullptr, TimeZone, TargetCulture);
 	PrepareDisplayStringForRebuild(OutDisplayString);
 	return Buffer;
 }
 
 bool FTextHistory_AsDate::WriteToBuffer(FString& Buffer, FTextDisplayStringPtr DisplayString, const bool bStripPackageNamespace) const
 {
-	TextStringificationUtil::WriteDateTimeToBuffer(Buffer, TextStringificationUtil::LocGenDateMarker, SourceDateTime, &DateStyle, nullptr, TimeZone, TargetCulture, bStripPackageNamespace);
+	TextStringificationUtil::WriteDateTimeToBuffer(Buffer, TextStringificationUtil::LocGenDateMarker, SourceDateTime, &DateStyle, nullptr, nullptr, TimeZone, TargetCulture, bStripPackageNamespace);
 	return true;
 }
 
@@ -2125,6 +2176,10 @@ FTextHistory_AsTime::FTextHistory_AsTime(FDateTime InSourceDateTime, const EDate
 	, TimeZone(MoveTemp(InTimeZone))
 	, TargetCulture(MoveTemp(InTargetCulture))
 {
+	if (TimeStyle == EDateTimeStyle::Custom)
+	{
+		TimeStyle = EDateTimeStyle::Default;
+	}
 }
 
 FTextHistory_AsTime::FTextHistory_AsTime(FTextHistory_AsTime&& Other)
@@ -2192,14 +2247,14 @@ bool FTextHistory_AsTime::StaticShouldReadFromBuffer(const TCHAR* Buffer)
 const TCHAR* FTextHistory_AsTime::ReadFromBuffer(const TCHAR* Buffer, const TCHAR* TextNamespace, const TCHAR* PackageNamespace, FTextDisplayStringPtr& OutDisplayString)
 {
 	static const FString TokenMarker = TextStringificationUtil::LocGenTimeMarker;
-	TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(TextStringificationUtil::ReadDateTimeFromBuffer, TokenMarker, SourceDateTime, nullptr, &TimeStyle, TimeZone, TargetCulture);
+	TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(TextStringificationUtil::ReadDateTimeFromBuffer, TokenMarker, SourceDateTime, nullptr, &TimeStyle, nullptr, TimeZone, TargetCulture);
 	PrepareDisplayStringForRebuild(OutDisplayString);
 	return Buffer;
 }
 
 bool FTextHistory_AsTime::WriteToBuffer(FString& Buffer, FTextDisplayStringPtr DisplayString, const bool bStripPackageNamespace) const
 {
-	TextStringificationUtil::WriteDateTimeToBuffer(Buffer, TextStringificationUtil::LocGenTimeMarker, SourceDateTime, nullptr, &TimeStyle, TimeZone, TargetCulture, bStripPackageNamespace);
+	TextStringificationUtil::WriteDateTimeToBuffer(Buffer, TextStringificationUtil::LocGenTimeMarker, SourceDateTime, nullptr, &TimeStyle, nullptr, TimeZone, TargetCulture, bStripPackageNamespace);
 	return true;
 }
 
@@ -2238,6 +2293,25 @@ FTextHistory_AsDateTime::FTextHistory_AsDateTime(FDateTime InSourceDateTime, con
 	: SourceDateTime(MoveTemp(InSourceDateTime))
 	, DateStyle(InDateStyle)
 	, TimeStyle(InTimeStyle)
+	, CustomPattern()
+	, TimeZone(MoveTemp(InTimeZone))
+	, TargetCulture(MoveTemp(InTargetCulture))
+{
+	if (DateStyle == EDateTimeStyle::Custom)
+	{
+		DateStyle = EDateTimeStyle::Default;
+	}
+	if (TimeStyle == EDateTimeStyle::Custom)
+	{
+		TimeStyle = EDateTimeStyle::Default;
+}
+}
+
+FTextHistory_AsDateTime::FTextHistory_AsDateTime(FDateTime InSourceDateTime, FString InCustomPattern, FString InTimeZone, FCulturePtr InTargetCulture)
+	: SourceDateTime(MoveTemp(InSourceDateTime))
+	, DateStyle(EDateTimeStyle::Custom)
+	, TimeStyle(EDateTimeStyle::Custom)
+	, CustomPattern(MoveTemp(InCustomPattern))
 	, TimeZone(MoveTemp(InTimeZone))
 	, TargetCulture(MoveTemp(InTargetCulture))
 {
@@ -2248,6 +2322,7 @@ FTextHistory_AsDateTime::FTextHistory_AsDateTime(FTextHistory_AsDateTime&& Other
 	, SourceDateTime(MoveTemp(Other.SourceDateTime))
 	, DateStyle(Other.DateStyle)
 	, TimeStyle(Other.TimeStyle)
+	, CustomPattern(MoveTemp(Other.CustomPattern))
 	, TimeZone(MoveTemp(Other.TimeZone))
 	, TargetCulture(MoveTemp(Other.TargetCulture))
 {
@@ -2261,6 +2336,7 @@ FTextHistory_AsDateTime& FTextHistory_AsDateTime::operator=(FTextHistory_AsDateT
 		SourceDateTime = MoveTemp(Other.SourceDateTime);
 		DateStyle = Other.DateStyle;
 		TimeStyle = Other.TimeStyle;
+		CustomPattern = MoveTemp(Other.CustomPattern);
 		TimeZone = MoveTemp(Other.TimeZone);
 		TargetCulture = MoveTemp(Other.TargetCulture);
 	}
@@ -2286,6 +2362,11 @@ void FTextHistory_AsDateTime::Serialize(FStructuredArchive::FRecord Record)
 	int8 TimeStyleInt8 = (int8)TimeStyle;
 	Record << SA_VALUE(TEXT("TimeStyle"), TimeStyleInt8);
 	TimeStyle = (EDateTimeStyle::Type)TimeStyleInt8;
+
+	if (DateStyle == EDateTimeStyle::Custom)
+	{
+		Record << SA_VALUE(TEXT("CustomPattern"), CustomPattern);
+	}
 
 	Record << SA_VALUE(TEXT("TimeZone"), TimeZone);
 
@@ -2314,14 +2395,14 @@ bool FTextHistory_AsDateTime::StaticShouldReadFromBuffer(const TCHAR* Buffer)
 const TCHAR* FTextHistory_AsDateTime::ReadFromBuffer(const TCHAR* Buffer, const TCHAR* TextNamespace, const TCHAR* PackageNamespace, FTextDisplayStringPtr& OutDisplayString)
 {
 	static const FString TokenMarker = TextStringificationUtil::LocGenDateTimeMarker;
-	TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(TextStringificationUtil::ReadDateTimeFromBuffer, TokenMarker, SourceDateTime, &DateStyle, &TimeStyle, TimeZone, TargetCulture);
+	TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(TextStringificationUtil::ReadDateTimeFromBuffer, TokenMarker, SourceDateTime, &DateStyle, &TimeStyle, &CustomPattern, TimeZone, TargetCulture);
 	PrepareDisplayStringForRebuild(OutDisplayString);
 	return Buffer;
 }
 
 bool FTextHistory_AsDateTime::WriteToBuffer(FString& Buffer, FTextDisplayStringPtr DisplayString, const bool bStripPackageNamespace) const
 {
-	TextStringificationUtil::WriteDateTimeToBuffer(Buffer, TextStringificationUtil::LocGenDateTimeMarker, SourceDateTime, &DateStyle, &TimeStyle, TimeZone, TargetCulture, bStripPackageNamespace);
+	TextStringificationUtil::WriteDateTimeToBuffer(Buffer, TextStringificationUtil::LocGenDateTimeMarker, SourceDateTime, &DateStyle, &TimeStyle, &CustomPattern, TimeZone, TargetCulture, bStripPackageNamespace);
 	return true;
 }
 
@@ -2332,6 +2413,7 @@ bool FTextHistory_AsDateTime::IdenticalTo(const FTextHistory& Other, const EText
 	return SourceDateTime == CastOther.SourceDateTime
 		&& DateStyle == CastOther.DateStyle
 		&& TimeStyle == CastOther.TimeStyle
+		&& CustomPattern == CastOther.CustomPattern
 		&& TimeZone == CastOther.TimeZone
 		&& TargetCulture == CastOther.TargetCulture;
 }
@@ -2342,7 +2424,9 @@ FString FTextHistory_AsDateTime::BuildLocalizedDisplayString() const
 	checkf(I18N.IsInitialized() == true, TEXT("FInternationalization is not initialized. An FText formatting method was likely used in static object initialization - this is not supported."));
 	const FCulture& Culture = TargetCulture.IsValid() ? *TargetCulture : *I18N.GetCurrentLocale();
 
-	return FTextChronoFormatter::AsDateTime(SourceDateTime, DateStyle, TimeStyle, TimeZone, Culture);
+	return DateStyle == EDateTimeStyle::Custom
+		? FTextChronoFormatter::AsDateTime(SourceDateTime, CustomPattern, TimeZone, Culture)
+		: FTextChronoFormatter::AsDateTime(SourceDateTime, DateStyle, TimeStyle, TimeZone, Culture);
 }
 
 FString FTextHistory_AsDateTime::BuildInvariantDisplayString() const
@@ -2351,7 +2435,9 @@ FString FTextHistory_AsDateTime::BuildInvariantDisplayString() const
 	checkf(I18N.IsInitialized() == true, TEXT("FInternationalization is not initialized. An FText formatting method was likely used in static object initialization - this is not supported."));
 	const FCulture& Culture = *I18N.GetInvariantCulture();
 
-	return FTextChronoFormatter::AsDateTime(SourceDateTime, DateStyle, TimeStyle, TimeZone, Culture);
+	return DateStyle == EDateTimeStyle::Custom
+		? FTextChronoFormatter::AsDateTime(SourceDateTime, CustomPattern, TimeZone, Culture)
+		: FTextChronoFormatter::AsDateTime(SourceDateTime, DateStyle, TimeStyle, TimeZone, Culture);
 }
 
 ///////////////////////////////////////

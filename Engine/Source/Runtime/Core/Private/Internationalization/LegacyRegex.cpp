@@ -11,7 +11,7 @@ class FRegexPatternImplementation
 
 };
 
-FRegexPattern::FRegexPattern(const FString& SourceString)
+FRegexPattern::FRegexPattern(const FString& SourceString, ERegexPatternFlags Flags /*= ERegexPatternFlags::None*/)
 	: Implementation(MakeShared<FRegexPatternImplementation>())
 {
 }

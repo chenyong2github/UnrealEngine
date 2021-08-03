@@ -15,6 +15,7 @@ public class Hotfix : ModuleRules
 				"CoreUObject",
 				"Engine",
                 "HTTP",
+				"MoviePlayerProxy",
 				"OnlineSubsystem",
 				"OnlineSubsystemUtils"
 			}

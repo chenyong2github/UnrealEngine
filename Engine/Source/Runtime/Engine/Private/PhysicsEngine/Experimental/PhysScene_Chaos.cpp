@@ -369,13 +369,13 @@ struct FPhysScenePendingComponentTransform_Chaos
 };
 
 FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 	, const FName& DebugName
 #endif
 )
 	: Super(InSolverActor ? InSolverActor->GetWorld() : nullptr
 		, UPhysicsSettings::Get()->bTickPhysicsAsync ? UPhysicsSettings::Get()->AsyncFixedTimeStepSize : -1
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 		, DebugName
 #endif
 	)

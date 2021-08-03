@@ -6,6 +6,7 @@
 #include "Interfaces/IDisplayClusterConfiguratorBlueprintEditor.h"
 
 class ADisplayClusterRootActor;
+class UActorComponent;
 class UDisplayClusterBlueprint;
 class FEditorViewportTabContent;
 class UDisplayClusterConfigurationData;
@@ -19,6 +20,7 @@ class FDisplayClusterConfiguratorViewCluster;
 class FDisplayClusterConfiguratorViewScene;
 class FDisplayClusterConfiguratorToolbar;
 class SDisplayClusterConfiguratorSCSEditorViewport;
+class USCS_Node;
 
 /**
  * nDisplay editor UI (should call functions on the subsystem or UNDisplayAssetEditor)
@@ -35,7 +37,7 @@ public:
 	virtual void InitDisplayClusterBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UDisplayClusterBlueprint* Blueprint);
 
 	//~ Begin IDisplayClusterConfiguratorBlueprintEditor Interface
-	virtual const TArray<UObject*>& GetSelectedObjects() const override;
+	virtual TArray<UObject*> GetSelectedObjects() const override;
 	virtual bool IsObjectSelected(UObject* Obj) const override;
 	//~ End IDisplayClusterConfiguratorBlueprintEditor Interface
 
@@ -206,6 +208,12 @@ private:
 
 	void BindCommands();
 
+	/** Returns normal component name. We get component name from a SCS component template which has _GEN_VARIABLE postfix. */
+	FString GetObjectNameFromSCSNode(const UObject* const Object) const;
+
+	/** Auxiliary recursive function that builds child-parentId components map */
+	void GatherParentComponentsInfo(const USCS_Node* const InNode, TMap<UActorComponent*, FString>& OutParentsMap) const;
+
 private:
 	TSharedPtr<FDisplayClusterConfiguratorViewOutputMapping> ViewOutputMapping;
 	TSharedPtr<FDisplayClusterConfiguratorViewCluster> ViewCluster;
@@ -235,7 +243,7 @@ private:
 	/** Delegate which is raised when the cluster configuration is changed. */
 	FOnClusterChanged OnClusterChanged;
 
-	TArray<UObject*> SelectedObjects;
+	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
 	/** The currently loaded blueprint. */
 	TWeakObjectPtr<UDisplayClusterBlueprint> LoadedBlueprint;

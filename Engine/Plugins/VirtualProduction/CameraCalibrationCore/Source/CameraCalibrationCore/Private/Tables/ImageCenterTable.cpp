@@ -165,6 +165,16 @@ bool FImageCenterTable::DoesZoomPointExists(float InFocus, float InZoom, float I
 	return false;
 }
 
+const FBaseFocusPoint* FImageCenterTable::GetBaseFocusPoint(int32 InIndex) const
+{
+	if (FocusPoints.IsValidIndex(InIndex))
+	{
+		return &FocusPoints[InIndex];
+	}
+
+	return nullptr;
+}
+
 TMap<ELensDataCategory, FLinkPointMetadata> FImageCenterTable::GetLinkedCategories() const
 {
 	static TMap<ELensDataCategory, FLinkPointMetadata> LinkedToCategories =

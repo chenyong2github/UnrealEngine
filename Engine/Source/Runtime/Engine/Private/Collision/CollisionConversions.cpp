@@ -182,7 +182,7 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 		// Currently geom collections are registered with a primitive component user data, but maybe custom should be adapted
 		// to be more general so we can support leaf identification #BGTODO
 		void* UserData = Actor.UserData();
-		UPrimitiveComponent* PossibleOwner = FPhysxUserData::Get<UPrimitiveComponent>(UserData);
+		UPrimitiveComponent* PossibleOwner = FChaosUserData::Get<UPrimitiveComponent>(UserData);
 
 		if(PossibleOwner)
 		{
@@ -578,7 +578,7 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 		// Currently geom collections are registered with a primitive component user data, but maybe custom should be adapted
 		// to be more general so we can support leaf identification #BGTODO
 		void* UserData = Actor.UserData();
-		UPrimitiveComponent* PossibleOwner = FPhysxUserData::Get<UPrimitiveComponent>(UserData);
+		UPrimitiveComponent* PossibleOwner = FChaosUserData::Get<UPrimitiveComponent>(UserData);
 
 		if(PossibleOwner)
 		{

@@ -462,12 +462,15 @@ void FD3D12DynamicRHIModule::FindAdapter()
 	check(ChosenAdapters.Num() == 0);
 
 	// Try to create the DXGIFactory.  This will fail if we're not running Vista.
-	TRefCountPtr<IDXGIFactory4> DXGIFactory;
-	SafeCreateDXGIFactory(DXGIFactory.GetInitReference());
-	if (!DXGIFactory)
+	TRefCountPtr<IDXGIFactory4> DXGIFactory4;
+	SafeCreateDXGIFactory(DXGIFactory4.GetInitReference());
+	if (!DXGIFactory4)
 	{
 		return;
 	}
+
+	TRefCountPtr<IDXGIFactory6> DXGIFactory6;
+	DXGIFactory4->QueryInterface(__uuidof(IDXGIFactory6), (void**)DXGIFactory6.GetInitReference());
 
 	bool bAllowPerfHUD = true;
 
@@ -496,9 +499,20 @@ void FD3D12DynamicRHIModule::FindAdapter()
 	bool bRequestedWARP = D3D12RHI_ShouldCreateWithWarp();
 	bool bAllowSoftwareRendering = D3D12RHI_AllowSoftwareFallback();
 
+	int GpuPreferenceInt = DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE;
+	FParse::Value(FCommandLine::Get(), TEXT("-gpupreference="), GpuPreferenceInt);
+	DXGI_GPU_PREFERENCE GpuPreference;
+	switch(GpuPreferenceInt)
+	{
+	case 1: GpuPreference = DXGI_GPU_PREFERENCE_MINIMUM_POWER; break;
+	case 2: GpuPreference = DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE; break;
+	default: GpuPreference = DXGI_GPU_PREFERENCE_UNSPECIFIED; break;
+	}
+
 	int PreferredVendor = D3D12RHI_PreferAdapterVendor();
+
 	// Enumerate the DXGIFactory's adapters.
-	for (uint32 AdapterIndex = 0; DXGIFactory->EnumAdapters(AdapterIndex, TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
+	for (uint32 AdapterIndex = 0; FD3D12AdapterDesc::EnumAdapters(AdapterIndex, GpuPreference, DXGIFactory4, DXGIFactory6, TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
 	{
 		// Check that if adapter supports D3D12.
 		if (TempAdapter)
@@ -557,7 +571,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description, TEXT("NVIDIA PerfHUD"));
 
-				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, MaxSupportedFeatureLevel, MaxSupportedShaderModel, NumNodes, bIsIntegrated);
+				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, MaxSupportedFeatureLevel, MaxSupportedShaderModel, NumNodes, bIsIntegrated, GpuPreference);
 				
 				// If requested WARP, then reject all other adapters. If WARP not requested, then reject the WARP device if software rendering support is disallowed
 				const bool bSkipWARP = (bRequestedWARP && !bIsWARP) || (!bRequestedWARP && bIsWARP && !bAllowSoftwareRendering);
@@ -1262,7 +1276,7 @@ bool FD3D12DynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& Resolu
 	HRESULT HResult = S_OK;
 	TRefCountPtr<IDXGIAdapter> Adapter;
 	//TODO: should only be called on display out device
-	HResult = ChosenAdapter.GetDXGIFactory()->EnumAdapters(ChosenAdapter.GetAdapterIndex(), Adapter.GetInitReference());
+	HResult = ChosenAdapter.GetDesc().EnumAdapters(ChosenAdapter.GetDXGIFactory(), ChosenAdapter.GetDXGIFactory6(), Adapter.GetInitReference());
 
 	if (DXGI_ERROR_NOT_FOUND == HResult)
 	{

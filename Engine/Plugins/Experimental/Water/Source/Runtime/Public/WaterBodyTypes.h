@@ -12,7 +12,7 @@
 
 class UWaterSplineComponent;
 class UWaterSplineMetadata;
-class AWaterBody;
+class UWaterBodyComponent;
 struct FWaterSplineDataPhysics;
 
 extern TAutoConsoleVariable<float> CVarWaterOceanFallbackDepth;
@@ -95,7 +95,7 @@ struct FWaterBodyQueryResult
 	bool IsInExclusionVolume() const { return bIsInExclusionVolume; }
 
 	void SetQueryFlags(EWaterBodyQueryFlags InFlags) { QueryFlags = InFlags; }
-	float LazilyComputeSplineKey(const AWaterBody& InWaterBody, const FVector& InWorldLocation);
+	float LazilyComputeSplineKey(const UWaterBodyComponent& InWaterBodyComponent, const FVector& InWorldLocation);
 	float LazilyComputeSplineKey(const FWaterSplineDataPhysics& InWaterSpline, const FVector& InWorldLocation);
 	void SetWaterPlaneLocation(const FVector& InValue) { check(QueryFlags & EWaterBodyQueryFlags::ComputeLocation); WaterPlaneLocation = InValue; }
 	void SetWaterSurfaceLocation(const FVector& InValue) { check(QueryFlags & EWaterBodyQueryFlags::ComputeLocation); WaterSurfaceLocation = InValue; }
@@ -182,7 +182,7 @@ struct FSolverSafeWaterBodyData
 	int32 WaterBodyIndex;
 
 	FSolverSafeWaterBodyData() {}
-	WATER_API FSolverSafeWaterBodyData(AWaterBody* WaterBody);
+	WATER_API FSolverSafeWaterBodyData(UWaterBodyComponent* WaterBodyComponent);
 
 	WATER_API FWaterBodyQueryResult QueryWaterInfoClosestToWorldLocation(const FVector& InWorldLocation, EWaterBodyQueryFlags InQueryFlags, float InWaveReferenceTime, const TOptional<float>& InSplineInputKey = TOptional<float>()) const;
 	WATER_API float GetWaterVelocityAtSplineInputKey(float InKey) const;

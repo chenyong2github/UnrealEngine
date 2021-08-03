@@ -405,12 +405,7 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.DiffuseConvolveMipLevel = GDiffuseConvolveMipLevel;
 		const UTextureCube* Cube = CastChecked<UTextureCube>(&Texture);
 		OutBuildSettings.bLongLatSource = (Cube->Source.GetNumSlices() == 1);
-		if (OutBuildSettings.bLongLatSource && Texture.MaxTextureSize <= 0)
-		{
-			// long/lat source use 512 as default
-			OutBuildSettings.MaxTextureResolution = 512;
 		}
-	}
 	else if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
 		OutBuildSettings.bStreamable = GSupportsTexture2DArrayStreaming;
@@ -1086,7 +1081,8 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 				// We want to make sure that any non-streamed mips are coming from the texture asset file, and not from an external bulk file.
 				// But because "r.TextureStreaming" is driven by the project setting as well as the command line option "-NoTextureStreaming", 
 				// is it possible for streaming mips to be loaded in non streaming ways.
-				if (CVarSetTextureStreaming.GetValueOnAnyThread() != 0)
+				// Also check if editor data is available, in which case we are probably loading cooked data in the editor.
+				if (!FPlatformProperties::HasEditorOnlyData() && CVarSetTextureStreaming.GetValueOnAnyThread() != 0)
 				{
 					UE_CLOG(Mip.BulkData.IsInSeparateFile(), LogTexture, Error, TEXT("Loading non-streamed mips from an external bulk file.  This is not desireable.  File %s"),
 						*(Mip.BulkData.GetPackagePath().GetDebugName()) );

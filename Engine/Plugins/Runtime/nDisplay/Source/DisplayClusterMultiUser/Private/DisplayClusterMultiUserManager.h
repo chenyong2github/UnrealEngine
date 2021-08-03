@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ConcertTransactionEvents.h"
-
+#include "IConcertClientTransactionBridge.h"
 
 /**
  * Manager for handling multi user transactions in nDisplay.
@@ -16,5 +16,6 @@ public:
 	virtual ~FDisplayClusterMultiUserManager();
 
 private:
+	void OnApplyRemoteTransaction(ETransactionNotification Notification, const bool bIsSnapshot);
 	ETransactionFilterResult ShouldObjectBeTransacted(UObject* InObject, UPackage* InPackage);
 };

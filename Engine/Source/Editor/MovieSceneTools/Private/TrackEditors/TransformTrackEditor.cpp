@@ -929,25 +929,33 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 
 	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
 
-	TSet<UMovieSceneTrack*> TracksToInterrogate;
+	TArray<FInterrogationChannel> InterrogationChannelsPerOperations;
 	for (const FKeySectionOperation& Operation : SectionsToKey)
 	{
-		if (UMovieSceneTrack* Track = Operation.Section->GetSectionObject()->GetTypedOuter<UMovieSceneTrack>())
+		if (UMovieScenePropertyTrack* Track = Operation.Section->GetSectionObject()->GetTypedOuter<UMovieScenePropertyTrack>())
 		{
-			TracksToInterrogate.Add(Track);
+			const FMovieScenePropertyBinding PropertyBinding = Track->GetPropertyBinding();
+			const FInterrogationChannel InterrogationChannel = Interrogator.AllocateChannel(Component, PropertyBinding);
+			InterrogationChannelsPerOperations.Add(InterrogationChannel);
+			Interrogator.ImportTrack(Track, InterrogationChannel);
+		}
+		else
+		{
+			InterrogationChannelsPerOperations.Add(FInterrogationChannel::Invalid());
 		}
 	}
 
-	// Don't care about the object binding ID for now
-	Interrogator.ImportTracks(TracksToInterrogate.Array(), FGuid(), FInterrogationChannel::Default());
 	Interrogator.AddInterrogation(KeyTime);
 
 	Interrogator.Update();
 
 	TArray<FMovieSceneEntityID> EntitiesPerSection, ValidEntities;
-	for (const FKeySectionOperation& Operation : SectionsToKey)
+	for (int32 Index = 0; Index < SectionsToKey.Num(); ++Index)
 	{
-		FMovieSceneEntityID EntityID = Interrogator.FindEntityFromOwner(FInterrogationKey::Default(), Operation.Section->GetSectionObject(), 0);
+		const FKeySectionOperation& Operation = SectionsToKey[Index];
+		const FInterrogationChannel InterrogationChannel = InterrogationChannelsPerOperations[Index];
+		const FInterrogationKey InterrogationKey(InterrogationChannel, 0);
+		FMovieSceneEntityID EntityID = Interrogator.FindEntityFromOwner(InterrogationKey, Operation.Section->GetSectionObject(), 0);
 
 		EntitiesPerSection.Add(EntityID);
 		if (EntityID)

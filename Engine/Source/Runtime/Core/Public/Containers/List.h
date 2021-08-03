@@ -429,6 +429,8 @@ private:
 
 /**
  * Double linked list.
+ * 
+ * @see TIntrusiveDoubleLinkedList
  */
 template <class ElementType>
 class TDoubleLinkedList

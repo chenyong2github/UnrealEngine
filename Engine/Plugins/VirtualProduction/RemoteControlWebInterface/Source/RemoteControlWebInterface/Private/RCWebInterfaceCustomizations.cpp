@@ -15,7 +15,7 @@
 #include "IRemoteControlUIModule.h"
 #include "ISettingsModule.h"
 #include "RCWebInterfaceProcess.h"
-#include "RCWebInterfaceSettings.h"
+#include "RemoteControlSettings.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlEntity.h"
 #include "ScopedTransaction.h"
@@ -79,19 +79,19 @@ namespace RCWebInterface
 			{
 				if (Struct->IsChildOf(TBaseStructure<FVector>::Get()))
 				{
-					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Dials"), TEXT("Sliders") };
+					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Sliders") };
 				}
 				else if (Struct->IsChildOf(TBaseStructure<FVector2D>::Get()))
 				{
-					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Dials"), TEXT("Sliders") };
+					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Sliders") };
 				}
 				else if (Struct->IsChildOf(TBaseStructure<FRotator>::Get()))
 				{
-					Widgets = { TEXT("Vector"), TEXT("Dials"), TEXT("Sliders") };
+					Widgets = { TEXT("Vector"), TEXT("Sliders") };
 				}
 				else if (Struct->IsChildOf(TBaseStructure<FVector4>::Get()) || Struct->IsChildOf(TBaseStructure<FColor>::Get()) || Struct->IsChildOf(TBaseStructure<FLinearColor>::Get()))
 				{
-					Widgets = { TEXT("Color Picker") };
+					Widgets = { TEXT("Color Picker"), TEXT("Mini Color Picker") };
 				}
 			}
 		}
@@ -249,7 +249,7 @@ FReply FRCWebInterfaceCustomizations::OpenWebApp() const
 {
 	if (WebApp->GetStatus() == FRemoteControlWebInterfaceProcess::EStatus::Running)
 	{
-		const uint32 Port = GetDefault<URemoteControlWebInterfaceSettings>()->RemoteControlWebInterfacePort;
+		const uint32 Port = GetDefault<URemoteControlSettings>()->RemoteControlWebInterfacePort;
 		FString ActivePreset;
 		if (URemoteControlPreset* Preset = IRemoteControlUIModule::Get().GetActivePreset())
 		{

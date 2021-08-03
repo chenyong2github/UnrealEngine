@@ -34,10 +34,10 @@ namespace DisplayClusterRootActorDetailsCustomizationUtils
 			DisplayClusterConfigurationStrings::categories::OCIOCategory,
 			DisplayClusterConfigurationStrings::categories::LightcardCategory,
 			DisplayClusterConfigurationStrings::categories::OverrideCategory,
+			TEXT("Rendering"),
 			DisplayClusterConfigurationStrings::categories::PreviewCategory,
 			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
-			DisplayClusterConfigurationStrings::categories::PreviewCategory,
-			DisplayClusterConfigurationStrings::categories::AdvancedCategory
+			DisplayClusterConfigurationStrings::categories::AdvancedCategory,
 		};
 
 		for (const TPair<FName, IDetailCategoryBuilder*>& Pair : AllCategoryMap)
@@ -75,7 +75,6 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	ForcePropertyWindowRebuildHandle = FEditorSupportDelegates::ForcePropertyWindowRebuild.AddSP(this, &FDisplayClusterRootActorDetailsCustomization::OnForcePropertyWindowRebuild);
 
 	// Hide the following categories, we don't really need them
-	InLayoutBuilder.HideCategory(TEXT("Rendering"));
 	InLayoutBuilder.HideCategory(TEXT("Replication"));
 	InLayoutBuilder.HideCategory(TEXT("Collision"));
 	InLayoutBuilder.HideCategory(TEXT("Input"));
@@ -84,7 +83,6 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	InLayoutBuilder.HideCategory(TEXT("Cooking"));
 	InLayoutBuilder.HideCategory(TEXT("Physics"));
 	InLayoutBuilder.HideCategory(TEXT("Activation"));
-	InLayoutBuilder.HideCategory(TEXT("Tags"));
 	InLayoutBuilder.HideCategory(TEXT("Asset User Data"));
 	InLayoutBuilder.HideCategory(TEXT("Actor Tick"));
 	
@@ -142,29 +140,36 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
 		}
 
-		CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(EnableICVFXEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
+		// Manually add the transform properties' data to the layout builder's property in order to generate property handles for them.
+		InLayoutBuilder.AddObjectPropertyData({EditedObject->DisplayClusterRootComponent}, USceneComponent::GetRelativeLocationPropertyName());
+		InLayoutBuilder.AddObjectPropertyData({EditedObject->DisplayClusterRootComponent}, USceneComponent::GetRelativeRotationPropertyName());
+		InLayoutBuilder.AddObjectPropertyData({EditedObject->DisplayClusterRootComponent}, USceneComponent::GetRelativeScale3DPropertyName());
+
+		CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(EnableICVFXEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums);
 
 		// Manually labeling the ICVFX category because UE4 will automatically put a space after the dash if the label is generated automatically
 		BEGIN_LABELED_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory, LOCTEXT("ICVFXCategoryLabel", "In-Camera VFX"))
 			if (bIsCDO)
 			{
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums);
 			}
 			else
 			{
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable)
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums)
 
 				if (ViewportNames.Num() > 0)
 				{
 					TArray<TSharedPtr<IPropertyHandle>> AllowICVFXHandles;
 					NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.ICVFX.bAllowInnerFrustum"), AllowICVFXHandles);
 
-					BEGIN_GROUP("InnerFrustumEnabledInViewports", LOCTEXT("InnerFrustumEnabledInViewports", "Inner Frustum Visible in Viewports"))
+					BEGIN_GROUP_WITH_TOOLTIP("InnerFrustumEnabledInViewports", LOCTEXT("InnerFrustumEnabledInViewports", "Inner Frustum Visible in Viewports"), LOCTEXT("InnerFrustumEnabledInViewportsTooltip", "Enable/disable inner frustum rendering on each individual viewport for all ICVFX cameras."))
 						for (int32 VPIdx = 0; VPIdx < AllowICVFXHandles.Num(); ++VPIdx)
 						{
 							TSharedPtr<IPropertyHandle>& Handle = AllowICVFXHandles[VPIdx];
 
 							Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
+							Handle->SetToolTipText(FText::FromString(ViewportNames[VPIdx]));
+
 							IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
 							PropertyRow.EditCondition(EnableICVFXEditCondition, nullptr);
 						}
@@ -184,12 +189,14 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				TArray<TSharedPtr<IPropertyHandle>> ScreenPercentageHandles;
 				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.BufferRatio"), ScreenPercentageHandles);
 
-				BEGIN_GROUP("OuterViewportScreenPercentage", LOCTEXT("OuterViewportScreenPercentage", "Viewport Screen Percentage"))
+				BEGIN_GROUP_WITH_TOOLTIP("OuterViewportScreenPercentage", LOCTEXT("OuterViewportScreenPercentage", "Viewport Screen Percentage"), LOCTEXT("OuterViewportScreenPercentageTooltip", "Adjust resolution scaling for an individual viewport.  Viewport Screen Percentage Multiplier is applied to this value."))
 					for (int32 VPIdx = 0; VPIdx < ScreenPercentageHandles.Num(); ++VPIdx)
 					{
 						TSharedPtr<IPropertyHandle>& Handle = ScreenPercentageHandles[VPIdx];
 
 						Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
+						Handle->SetToolTipText(FText::FromString(ViewportNames[VPIdx]));
+
 						CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
 					}
 				END_GROUP();
@@ -197,20 +204,23 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				TArray<TSharedPtr<IPropertyHandle>> OverscanHandles;
 				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.Overscan"), OverscanHandles);
 
-				BEGIN_GROUP("OuterViewportOverscan", LOCTEXT("OuterViewportOverscan", "Viewport Overscan"))
+				BEGIN_GROUP_WITH_TOOLTIP("OuterViewportOverscan", LOCTEXT("OuterViewportOverscan", "Viewport Overscan"), LOCTEXT("OuterViewportOverscanTooltip", "Render a larger frame than specified in the configuration to achieve continuity across displays when using post-processing effects."))
 					for (int32 VPIdx = 0; VPIdx < OverscanHandles.Num(); ++VPIdx)
 					{
 						TSharedPtr<IPropertyHandle>& Handle = OverscanHandles[VPIdx];
 
 						Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
+						Handle->SetToolTipText(FText::FromString(ViewportNames[VPIdx]));
+
 						CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
 					}
 				END_GROUP();
 			}
 
-			BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Entire Cluster"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.ActorLayers)
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.Actors)
+			BEGIN_GROUP_WITH_TOOLTIP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Entire Cluster"), LOCTEXT("HiddenContentGroupTooltip", "Content specified here will not appear anywhere in the nDisplay cluster."))
+
+				ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.ActorLayers, LOCTEXT("HiddenContentLayersTooltip", "Layers hidden from the entire nDisplay cluster."))
+				ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.HideList.Actors, LOCTEXT("HiddenContentActorsTooltip", "Actors hidden from the entire nDisplay cluster."))
 
 				if (bIsCDO)
 				{
@@ -218,9 +228,9 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				}
 			END_GROUP();
 
-			BEGIN_GROUP(TEXT("HiddenOuterViewportsGroup"), LOCTEXT("HiddenOuterViewportsLabel", "Content Hidden from Outer Viewports"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.ActorLayers)
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.Actors)
+			BEGIN_GROUP_WITH_TOOLTIP(TEXT("HiddenOuterViewportsGroup"), LOCTEXT("HiddenOuterViewportsLabel", "Content Hidden from Viewports"), LOCTEXT("HiddenOuterViewportsTooltip", "Content specified here will not appear in the nDisplay viewports, but can appear in the inner frustum."))
+				ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.ActorLayers, LOCTEXT("HiddenViewportsLayersTooltip", "Layers hidden from the nDisplay viewports."))
+				ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.Actors, LOCTEXT("HiddenViewportsActorsTooltip", "Actors hidden from the nDisplay viewports."))
 
 				if (bIsCDO)
 				{
@@ -231,27 +241,35 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OCIOCategory)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bUseOverallClusterOCIOConfiguration)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.AllViewportsOCIOConfiguration)
+			RENAME_NESTED_CONDITIONAL_PROPERTY_AND_TOOLTIP(NestedPropertyHelper,
+				ADisplayClusterRootActor,
+				CurrentConfigData->StageSettings.AllViewportsOCIOConfiguration.OCIOConfiguration.ColorConfiguration,
+				LOCTEXT("AllViewportsColorConfigLabel", "All Viewports Color Configuration"),
+				LOCTEXT("AllViewportsColorConfigTooltip", "Apply this OpenColorIO configuration to all viewports."),
+				CurrentConfigData->StageSettings.bUseOverallClusterOCIOConfiguration)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.PerViewportOCIOProfiles)
 		END_CATEGORY();
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ColorGradingCategory)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bUseOverallClusterPostProcess);
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OverallClusterPostProcessSettings);
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.PerViewportColorGradingProfiles);
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading);
+			RENAME_NESTED_CONDITIONAL_PROPERTY(NestedPropertyHelper,
+				ADisplayClusterRootActor,
+				CurrentConfigData->StageSettings.EntireClusterColorGrading.ColorGradingSettings,
+				LOCTEXT("EntireClusterColorGradingLabel", "Entire Cluster"),
+				CurrentConfigData->StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.PerViewportColorGrading);
 		END_CATEGORY();
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::LightcardCategory)
-			CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(ICVFXEnabledEditCondition,          NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
-			CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(ICVFXLightCardEnabledEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable, CurrentConfigData->StageSettings.Lightcard.bEnable);
+			CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(ICVFXLightCardEnabledEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable);
 
-			ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable, ICVFXEnabledEditCondition)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable)
 			ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode, ICVFXLightCardEnabledEditCondition)
 
-			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Content Visible Only in Viewports"))
+			BEGIN_GROUP_WITH_TOOLTIP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Light Cards Content"), LOCTEXT("LightCardActorsGroupTooltip", "Content specified here will be treated as a Light Card and adhere to the Blending Mode setting."))
 
-				ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers, ICVFXLightCardEnabledEditCondition)
-				ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors, ICVFXLightCardEnabledEditCondition)
+				ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers, LOCTEXT("LightCardLayersTooltip", "Layers containing Light Cards."), ICVFXLightCardEnabledEditCondition)
+				ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors, LOCTEXT("LightCardActorsTooltip", "Light Card Actors"), ICVFXLightCardEnabledEditCondition)
 
 				if (bIsCDO)
 				{
@@ -271,6 +289,25 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				REPLACE_PROPERTY_WITH_CUSTOM_ENABLE_CONDITION(ADisplayClusterRootActor, PreviewNodeId, CreateCustomNodeIdWidget(), PreviewEnabledEditCondition);
 			}
 		END_CATEGORY();
+
+		// Hide unwanted properties from "Rendering" category
+		{
+			IDetailCategoryBuilder& RenderingCategory = InLayoutBuilder.EditCategory(TEXT("Rendering"));
+
+			TArray<TSharedRef<IPropertyHandle>> DefaultProperties;
+			RenderingCategory.GetDefaultProperties(DefaultProperties);
+
+			for (TSharedRef<IPropertyHandle>& PropertyHandle : DefaultProperties)
+			{
+				if (const FProperty* Property = PropertyHandle->GetProperty())
+				{
+					if (Property->GetFName() != TEXT("bHidden")) // "Actor Hidden In Game"
+					{
+						PropertyHandle->MarkHiddenByCustomization();
+					}
+				}
+			}
+		}
 
 		// Hide the Configuration category from level instances, will only be allowed to edit them in the config editor
 		if (!bIsCDO)

@@ -10,6 +10,11 @@
 #include "WaterRuntimeSettings.generated.h"
 
 class UMaterialParameterCollection;
+class UWaterBodyComponent;
+class UWaterBodyRiverComponent;
+class UWaterBodyLakeComponent;
+class UWaterBodyOceanComponent;
+class UWaterBodyCustomComponent;
 
 /**
  * Implements the runtime settings for the Water plugin.
@@ -26,6 +31,15 @@ public:
 
 	FName GetDefaultWaterCollisionProfileName() const { return DefaultWaterCollisionProfileName; }
 
+	TSubclassOf<UWaterBodyRiverComponent> GetWaterBodyRiverComponentClass() const;
+
+	TSubclassOf<UWaterBodyLakeComponent> GetWaterBodyLakeComponentClass() const;
+
+	TSubclassOf<UWaterBodyOceanComponent> GetWaterBodyOceanComponentClass() const;
+
+	TSubclassOf<UWaterBodyCustomComponent> GetWaterBodyCustomComponentClass() const;
+
+	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -56,4 +70,16 @@ private:
 	/** Default collision profile name of water bodies */
 	UPROPERTY(VisibleAnywhere, config, Category = Collision)
 	FName DefaultWaterCollisionProfileName;
+
+	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyRiverComponent"))
+	TSubclassOf<UWaterBodyRiverComponent> WaterBodyRiverComponentClass;
+
+	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyLakeComponent"))
+	TSubclassOf<UWaterBodyLakeComponent> WaterBodyLakeComponentClass;
+
+	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyOceanComponent"))
+	TSubclassOf<UWaterBodyOceanComponent> WaterBodyOceanComponentClass;
+
+	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyCustomComponent"))
+	TSubclassOf<UWaterBodyCustomComponent> WaterBodyCustomComponentClass;
 };

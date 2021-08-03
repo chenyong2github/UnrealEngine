@@ -388,6 +388,8 @@ protected:
 class FDisplayClusterConfiguratorNodeSelection : public TSharedFromThis<FDisplayClusterConfiguratorNodeSelection>
 {
 public:
+	static const FName NAME_ElementToolTip;
+
 	enum EOperationMode
 	{
 		Viewports,
@@ -407,6 +409,12 @@ public:
 
 	void CreateArrayBuilder(const TSharedRef<IPropertyHandle>& InPropertyHandle, IDetailChildrenBuilder& InChildBuilder);
 
+	FDisplayClusterConfiguratorNodeSelection& IsEnabled(const TAttribute<bool>& InIsEnabled)
+	{
+		IsEnabledAttr = InIsEnabled;
+		return *this;
+	}
+
 	static EOperationMode GetOperationModeFromProperty(FProperty* Property);
 
 protected:
@@ -417,6 +425,8 @@ protected:
 	FText GetSelectedOptionText(TSharedRef<IPropertyHandle> InPropertyHandle) const;
 
 private:
+	TAttribute<bool> IsEnabledAttr;
+
 	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> OptionsComboBox;
 	TArray<TSharedPtr<FString>> Options;
 
@@ -451,13 +461,13 @@ private:
 
 
 /**
-* Postprocess Profiles
+* Per viewport Color Grading 
 */
-class FDisplayClusterConfiguratorColorGradingProfileCustomization final
+class FDisplayClusterConfiguratorPerViewportColorGradingCustomization final
 	: public FDisplayClusterConfiguratorTypeCustomization
 {
 public:
-	virtual ~FDisplayClusterConfiguratorColorGradingProfileCustomization() override
+	virtual ~FDisplayClusterConfiguratorPerViewportColorGradingCustomization() override
 	{
 		NodeSelection.Reset();
 	}
@@ -470,7 +480,28 @@ protected:
 
 private:
 	TSharedPtr<FDisplayClusterConfiguratorNodeSelection> NodeSelection;
-	FDisplayClusterConfiguratorNodeSelection::EOperationMode Mode = FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports;
+};
+
+/**
+* Per Node Color Grading
+*/
+class FDisplayClusterConfiguratorPerNodeColorGradingCustomization final
+	: public FDisplayClusterConfiguratorTypeCustomization
+{
+public:
+	virtual ~FDisplayClusterConfiguratorPerNodeColorGradingCustomization() override
+	{
+		NodeSelection.Reset();
+	}
+
+protected:
+	//~ IPropertyTypeCustomization interface begin
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	//~ IPropertyTypeCustomization interface end
+
+private:
+	TSharedPtr<FDisplayClusterConfiguratorNodeSelection> NodeSelection;
 };
 
 

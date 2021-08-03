@@ -16,6 +16,8 @@ public:
 	virtual FOnConcertClientLocalTransactionSnapshot& OnLocalTransactionSnapshot() override;
 	virtual FOnConcertClientLocalTransactionFinalized& OnLocalTransactionFinalized() override;
 	virtual bool CanApplyRemoteTransaction() const override;
+	virtual FOnApplyTransaction& OnApplyTransaction() override;
+
 	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot) override;
 	virtual bool& GetIgnoreLocalTransactionsRef() override;
 
@@ -65,6 +67,9 @@ private:
 
 	/** Called when an transaction is finalized */
 	FOnConcertClientLocalTransactionFinalized OnLocalTransactionFinalizedDelegate;
+
+	/** Called when we are about to apply a transaction. */
+	FOnApplyTransaction OnApplyTransactionDelegate;
 
 	/** True if we have managed to bind to the underlying local transaction events, as they may not have been ready when this instance was started */
 	bool bHasBoundUnderlyingLocalTransactionEvents;

@@ -7,6 +7,7 @@
 #include "UObject/StrongObjectPtr.h"
 
 class ULensFile;
+class FCameraCalibrationStepsController;
 
 
 /**
@@ -22,7 +23,7 @@ class SLensFilePanel : public SCompoundWidget
 	SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs, ULensFile* InLensFile);
+	void Construct(const FArguments& InArgs, ULensFile* InLensFile, const TSharedRef<FCameraCalibrationStepsController>& InCalibrationStepsController);
 
 private:
 

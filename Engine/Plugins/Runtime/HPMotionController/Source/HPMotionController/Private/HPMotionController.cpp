@@ -4,6 +4,7 @@
 #include "InputCoreTypes.h"
 #include "OpenXRCore.h"
 #include "Modules/ModuleManager.h"
+#include "OpenXRAssetDirectory.h"
 
 #define LOCTEXT_NAMESPACE "HPMotionControllerModule"
 
@@ -116,16 +117,45 @@ bool FHPMotionControllerModule::GetRequiredExtensions(TArray<const ANSICHAR*>& O
 	return true;
 }
 
+void FHPMotionControllerModule::PostCreateInstance(XrInstance InInstance)
+{
+	XrResult Result = xrStringToPath(InInstance, "/interaction_profiles/hp/mixed_reality_controller", &InteractionProfile);
+	check(XR_SUCCEEDED(Result));
+
+	XrPath Path;
+	Result = xrStringToPath(InInstance, "/user/hand/left", &Path);
+	check(XR_SUCCEEDED(Result));
+	ControllerModels.Add(Path, FOpenXRAssetDirectory::HPMixedRealityLeft);
+
+	Result = xrStringToPath(InInstance, "/user/hand/right", &Path);
+	check(XR_SUCCEEDED(Result));
+	ControllerModels.Add(Path, FOpenXRAssetDirectory::HPMixedRealityRight);
+}
+
 bool FHPMotionControllerModule::GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics)
 {
 	OutKeyPrefix = "HPMixedRealityController";
-
-	XrResult Result = xrStringToPath(InInstance, "/interaction_profiles/hp/mixed_reality_controller", &OutPath);
-	check(XR_SUCCEEDED(Result));
-
+	OutPath = InteractionProfile;
 	OutHasHaptics = true;
 
 	return true;
+}
+
+bool FHPMotionControllerModule::GetControllerModel(XrInstance InInstance, XrPath InInteractionProfile, XrPath InDevicePath, FSoftObjectPath& OutPath)
+{
+	if (InInteractionProfile == InteractionProfile)
+	{
+		OutPath = ControllerModels[InDevicePath];
+		return true;
+	}
+
+	return false;
+}
+
+void FHPMotionControllerModule::GetControllerModelsForCooking(TArray<FSoftObjectPath>& OutPaths)
+{
+	OutPaths.Add(FOpenXRAssetDirectory::HPMixedRealityLeft);
+	OutPaths.Add(FOpenXRAssetDirectory::HPMixedRealityRight);
 }
 
 #undef LOCTEXT_NAMESPACE

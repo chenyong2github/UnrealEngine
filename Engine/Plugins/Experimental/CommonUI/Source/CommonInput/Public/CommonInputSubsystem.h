@@ -11,9 +11,11 @@
 class UWidget;
 class ULocalPlayer;
 class APlayerController;
+class FCommonInputPreprocessor;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInputMethodChangedDelegate, ECommonInputType, bNewInputType);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FPlatformInputSupportOverrideDelegate, ULocalPlayer*, ECommonInputType, bool&);
+DECLARE_EVENT_OneParam(FCommonInputPreprocessor, FGamepadChangeDetectedEvent, FName);
 
 UCLASS(DisplayName = "CommonInput")
 class COMMONINPUT_API UCommonInputSubsystem : public ULocalPlayerSubsystem
@@ -30,6 +32,8 @@ public:
 
 	DECLARE_EVENT_OneParam(UCommonInputSubsystem, FInputMethodChangedEvent, ECommonInputType);
 	FInputMethodChangedEvent OnInputMethodChangedNative;
+
+	FGamepadChangeDetectedEvent& GetOnGamepadChangeDetected();
 
 	void SetInputTypeFilter(ECommonInputType InputType, FName Reason, bool Filter);
 	bool GetInputTypeFilter(ECommonInputType InputType) const;
@@ -139,7 +143,7 @@ private:
 
 	TOptional<ECommonInputType> CurrentInputLock;
 
-	TSharedPtr<class FCommonInputPreprocessor> CommonInputPreprocessor;
+	TSharedPtr<FCommonInputPreprocessor> CommonInputPreprocessor;
 
 	/** Is the current click simulated by the gamepad's face button down/right (platform dependent) */
 	UPROPERTY(Transient)

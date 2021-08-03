@@ -280,7 +280,7 @@ namespace Chaos
 
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt);
 
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 		void SetDebugName(const FName& Name)
 		{
 			DebugName = Name;
@@ -418,7 +418,7 @@ namespace Chaos
 		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushDataArray) = 0;
 		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) = 0;
 
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 		FName DebugName;
 #endif
 

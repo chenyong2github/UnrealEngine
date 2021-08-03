@@ -1897,10 +1897,23 @@ void AUsdStageActor::PostRegisterAllComponents()
 	ULevel* Level = GetLevel();
 	const bool bIsLevelHidden = !Level || ( !Level->bIsVisible && !Level->bIsAssociatingLevel );
 
+	// This may say fail if our stage happened to not spawn any components, actors or assets, but by that
+	// point "being loaded" doesn't really mean anything anyway
+	const bool bStageIsLoaded = UsdStage && ( ( RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr ) || ( AssetCache && AssetCache->GetNumAssets() > 0 ) );
+
+	// Blocks loading stage when going into PIE, if we already have something loaded (we'll want to duplicate stuff instead).
+	// We need to allow loading when going into PIE when we have nothing loaded yet because the MovieRenderQueue (or other callers)
+	// may directly trigger PIE sessions providing an override world. Without this exception a map saved with a loaded stage
+	// wouldn't load it at all when opening the level in that way
+	UWorld* World = GetWorld();
+	if ( bIsTransitioningIntoPIE && bStageIsLoaded && ( !World || World->WorldType == EWorldType::PIE ) )
+	{
+		return;
+	}
+
 	// We get an inactive world when dragging a ULevel asset
 	// This is just hiding though, so we shouldn't actively load/unload anything
-	UWorld* World = GetWorld();
-	if ( IsTemplate() || bIsTransitioningIntoPIE || !World || World->WorldType == EWorldType::Inactive || bIsLevelHidden || bIsModifyingAProperty || bIsUndoRedoing )
+	if ( IsTemplate() || !World || World->WorldType == EWorldType::Inactive || bIsLevelHidden || bIsModifyingAProperty || bIsUndoRedoing )
 	{
 		return;
 	}
@@ -1922,11 +1935,18 @@ void AUsdStageActor::PostUnregisterAllComponents()
 	}
 #endif // WITH_EDITOR
 
+	const bool bStageIsLoaded = UsdStage && ( ( RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr ) || ( AssetCache && AssetCache->GetNumAssets() > 0 ) );
+
+	UWorld* World = GetWorld();
+	if ( bIsTransitioningIntoPIE && bStageIsLoaded && ( !World || World->WorldType == EWorldType::PIE ) )
+	{
+		return;
+	}
+
 	// We get an inactive world when dragging a ULevel asset
 	// Unlike on PostRegister, we still want to unload our stage if our world is nullptr, as that likely means we were in
 	// a sublevel that got unloaded
-	UWorld* World = GetWorld();
-	if ( IsTemplate() || IsEngineExitRequested() || bIsTransitioningIntoPIE || ( World && World->WorldType == EWorldType::Inactive ) || bIsModifyingAProperty || bIsUndoRedoing )
+	if ( IsTemplate() || IsEngineExitRequested() || ( World && World->WorldType == EWorldType::Inactive ) || bIsModifyingAProperty || bIsUndoRedoing )
 	{
 		return;
 	}

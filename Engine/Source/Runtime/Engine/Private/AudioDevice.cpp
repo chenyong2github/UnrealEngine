@@ -350,7 +350,7 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 
 	DeviceID = InDeviceID;
 
-	InitializeSubsystemCollection();
+	DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FAudioDevice::OnDeviceCreated);
 
 	bool bDeferStartupPrecache = false;
 
@@ -555,6 +555,15 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 	UE_LOG(LogInit, Log, TEXT("FAudioDevice initialized."));
 
 	return true;
+}
+
+void FAudioDevice::OnDeviceCreated(Audio::FDeviceId InDeviceID)
+{
+	if (InDeviceID == DeviceID)
+	{
+		InitializeSubsystemCollection();
+		FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+	}
 }
 
 void FAudioDevice::OnPreGarbageCollect()
@@ -3344,6 +3353,15 @@ void FAudioDevice::ApplyInteriorSettings(FActiveSound& ActiveSound, FSoundParseP
 	});
 }
 
+void FAudioDevice::NotifyPendingDelete(FActiveSound& ActiveSound) const
+{
+	SubsystemCollection.ForEachSubsystem<IActiveSoundUpdateInterface>([&ActiveSound](IActiveSoundUpdateInterface* ActiveSoundUpdate)
+	{
+		ActiveSoundUpdate->OnNotifyPendingDelete(ActiveSound);
+		return true;
+	});
+}
+
 void FAudioDevice::SetBaseSoundMix(USoundMix* NewMix)
 {
 	if (!IsInAudioThread())
@@ -5004,6 +5022,7 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 				}
 				ActiveSound->bAsyncOcclusionPending = false;
 				PendingSoundsToDelete.RemoveAtSwap(i, 1, false);
+				NotifyPendingDelete(*ActiveSound);
 				delete ActiveSound;
 			}
 		}
@@ -5018,13 +5037,14 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 		for (FActiveSound* ActiveSound : PendingSoundsToStopCopy)
 		{
 			check(ActiveSound);
+			bool bDeleteActiveSound = false;
 
 			// If the request was to stop an ActiveSound that
 			// is set to re-trigger but is not playing, remove
 			// and continue
 			if (RemoveVirtualLoop(*ActiveSound))
 			{
-				delete ActiveSound;
+				bDeleteActiveSound = true;
 			}
 			else
 			{
@@ -5045,7 +5065,7 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 				{
 					ActiveSound->bAsyncOcclusionPending = false;
 
-					delete ActiveSound;
+					bDeleteActiveSound = true;
 				}
 				else
 				{
@@ -5054,6 +5074,12 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 				}
 			}
 
+			if (bDeleteActiveSound)
+			{
+				NotifyPendingDelete(*ActiveSound);
+				delete ActiveSound;
+			}
+		
 			// Remove from the list of pending sounds to stop
 			PendingSoundsToStop.Remove(ActiveSound);
 		}

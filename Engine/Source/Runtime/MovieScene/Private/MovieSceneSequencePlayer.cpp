@@ -15,14 +15,40 @@
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
+#include "Algo/BinarySearch.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMovieSceneRepl, Log, All);
+
+DECLARE_STATS_GROUP(TEXT("MovieSceneRepl"), STATGROUP_MovieSceneRepl, STATCAT_Advanced);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumServerSamples"),MovieSceneRepl_NumServerSamples,STATGROUP_MovieSceneRepl);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("SmoothedServerTime"),MovieSceneRepl_SmoothedServerTime,STATGROUP_MovieSceneRepl);
 
 float GSequencerNetSyncThresholdMS = 200;
 static FAutoConsoleVariableRef CVarSequencerNetSyncThresholdMS(
 	TEXT("Sequencer.NetSyncThreshold"),
 	GSequencerNetSyncThresholdMS,
 	TEXT("(Default: 200ms. Defines the threshold at which clients and servers must be forcibly re-synced during playback.")
+	);
+
+int32 GSequencerMaxSmoothedNetSyncSampleAge = 5000;
+static FAutoConsoleVariableRef CVarSequencerMaxSmoothedNetSyncSampleAge(
+	TEXT("Sequencer.SmoothedMaxNetSyncSampleAge"),
+	GSequencerMaxSmoothedNetSyncSampleAge,
+	TEXT("(Default: 5000. Defines the range of samples (in milliseconds) required to perform smoothed net sync. Use 0 to disable smoothing.")
+	);
+
+int32 GSequencerMaxSmoothedNetSyncSampleCount = 50;
+static FAutoConsoleVariableRef CVarSequencerMaxSmoothedNetSyncSampleCount(
+	TEXT("Sequencer.SmoothedMaxNetSyncSampleCount"),
+	GSequencerMaxSmoothedNetSyncSampleCount,
+	TEXT("(Default: 50. The maximum number of samples to keep in memory.")
+	);
+
+float GSequencerSmoothedNetSyncDeviationThreshold = 200;
+static FAutoConsoleVariableRef CVarSequencerSmoothedNetSyncDeviationThreshold(
+	TEXT("Sequencer.SmoothedNetSyncDeviationThreshold"),
+	GSequencerSmoothedNetSyncDeviationThreshold,
+	TEXT("(Default: 200ms. Defines the acceptable deviation for smoothed net sync samples. Samples outside this deviation will be discarded.")
 	);
 
 bool FMovieSceneSequenceLoopCount::SerializeFromMismatchedTag( const FPropertyTag& Tag, FStructuredArchive::FSlot Slot )
@@ -547,7 +573,7 @@ void UMovieSceneSequencePlayer::SetPlaybackPosition(FMovieSceneSequencePlaybackP
 
 	FFrameTime NewPosition = InPlaybackParams.GetPlaybackPosition(this);
 
-	UpdateTimeCursorPosition(NewPosition, InPlaybackParams.UpdateMethod);
+	UpdateTimeCursorPosition(NewPosition, InPlaybackParams.UpdateMethod, InPlaybackParams.bHasJumped);
 
 	TimeController->Reset(GetCurrentTime());
 
@@ -810,11 +836,11 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 	}
 }
 
-void UMovieSceneSequencePlayer::UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method)
+void UMovieSceneSequencePlayer::UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride)
 {
 	if (ensure(!bIsEvaluating))
 	{
-		UpdateTimeCursorPosition_Internal(NewPosition, Method);
+		UpdateTimeCursorPosition_Internal(NewPosition, Method, bHasJumpedOverride);
 	}
 }
 
@@ -839,7 +865,7 @@ FMovieSceneEvaluationRange UpdatePlayPosition(FMovieScenePlaybackPosition& InOut
 	return InOutPlayPosition.JumpTo(NewTime);
 }
 
-void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime NewPosition, EUpdatePositionMethod Method)
+void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride)
 {
 	EMovieScenePlayerStatus::Type StatusOverride = UpdateMethodToStatus(Method);
 
@@ -969,6 +995,7 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 		FMovieSceneEvaluationRange Range = UpdatePlayPosition(PlayPosition, NewPosition, Method);
 		FMovieSceneUpdateArgs Args;
 		Args.bIsAsync = (bIsMainLevelUpdate && !bIsSequenceBlocking);
+		Args.bHasJumped = bHasJumpedOverride;
 
 		PostEvaluationCallbacks.Add(FOnEvaluationCallback::CreateUObject(this, &UMovieSceneSequencePlayer::UpdateNetworkSyncProperties));
 
@@ -1110,6 +1137,106 @@ bool UMovieSceneSequencePlayer::HasAuthority() const
 	return Actor && Actor->HasAuthority() && !IsPendingKillOrUnreachable();
 }
 
+FFrameTime UMovieSceneSequencePlayer::UpdateServerTimeSamples()
+{
+	// Attempt to estimate the server time based on our samples.
+	// We need to reproject the samples to the current wall-clock time, based on when they were taken
+	const double CurrentWallClock = FPlatformTime::Seconds();
+	const double Lifetime         = CurrentWallClock - float(GSequencerMaxSmoothedNetSyncSampleAge) / 1000.f;
+
+	// Cull any old samples that were taken more than GSequencerMaxSmoothedNetSyncSampleAge ms ago by
+	// Finding the index of the first sample younger than this time
+	const int32 FirstValidSample = Algo::LowerBoundBy(ServerTimeSamples, Lifetime, &FServerTimeSample::ReceievedTime);
+	if (FirstValidSample >= ServerTimeSamples.Num())
+	{
+		// Never found a sample that is recent enough, all samples are too old
+		ServerTimeSamples.Reset();
+	}
+	else if (FirstValidSample > 0)
+	{
+		// Remove from the front of the array up until the first valid sample
+		ServerTimeSamples.RemoveAt(0, FirstValidSample);
+	}
+
+	// If we have too many samples, uniformly cull intermediate samples by compacting them into the MaxNumSamples range
+	// Making sure to always keep the most recent sample
+	const int32 MaxNumSamples = GSequencerMaxSmoothedNetSyncSampleCount;
+	if (ServerTimeSamples.Num() > MaxNumSamples)
+	{
+		float Step = FMath::Max(ServerTimeSamples.Num() / float(MaxNumSamples), 1.f);
+
+		for (int Index = 1; Index < MaxNumSamples-1; ++Index)
+		{
+			const int32 RemappedIndex = ServerTimeSamples.Num() - int(Step*Index) - 1;
+			ServerTimeSamples[Index] = ServerTimeSamples[RemappedIndex];
+		}
+		ServerTimeSamples[MaxNumSamples-1] = ServerTimeSamples.Last();
+		ServerTimeSamples.RemoveAt(MaxNumSamples, ServerTimeSamples.Num() - MaxNumSamples, true);
+	}
+
+
+	if (ServerTimeSamples.Num() < 10)
+	{
+		// Fallback to the current time if there are not enough samples
+		return PlayPosition.GetCurrentPosition();
+	}
+
+	// Compute the Standard Deviation so we can understand the variance in the samples
+	double MeanTime = 0;
+	for (const FServerTimeSample& Sample : ServerTimeSamples)
+	{
+		const double ThisSample = Sample.ServerTime + (CurrentWallClock - Sample.ReceievedTime);
+		MeanTime += ThisSample;
+	}
+	MeanTime = MeanTime / ServerTimeSamples.Num();
+
+	
+	double StandardDeviation = 0;
+	for (const FServerTimeSample& Sample : ServerTimeSamples)
+	{
+		const double ThisSample = Sample.ServerTime + (CurrentWallClock - Sample.ReceievedTime);
+		StandardDeviation += FMath::Square(ThisSample - MeanTime);
+	}
+	StandardDeviation = StandardDeviation / ServerTimeSamples.Num();
+	StandardDeviation = FMath::Sqrt(StandardDeviation);
+
+	const int32 OriginalNum = ServerTimeSamples.Num();
+
+	// Possibly need to recompute the mean if we discard any samples
+	double NewMeanTime = MeanTime;
+
+	// If the deviation is greater than our threshold, we start culling samples that lie outside it
+	const double DeviationThreshold = ((GSequencerSmoothedNetSyncDeviationThreshold * 0.001f) * PlayPosition.GetInputRate()).AsDecimal();
+	if (StandardDeviation > DeviationThreshold)
+	{
+		// Discard anything outside the standard deviation in the hopes that future samples will converge
+		for (int32 SampleIndex = ServerTimeSamples.Num()-1; SampleIndex >= 0; --SampleIndex)
+		{
+			const double ThisSample = ServerTimeSamples[SampleIndex].ServerTime + (CurrentWallClock - ServerTimeSamples[SampleIndex].ReceievedTime);
+			if (FMath::Abs(ThisSample - MeanTime) > StandardDeviation)
+			{
+				ServerTimeSamples.RemoveAt(SampleIndex, 1, false);
+			}
+			else
+			{
+				NewMeanTime += ThisSample;
+			}
+		}
+		NewMeanTime = NewMeanTime / ServerTimeSamples.Num();
+	}
+
+	// If we didn't cull too many samples, we have confidence in the data set
+	if (ServerTimeSamples.Num() >= OriginalNum/2)
+	{
+		return NewMeanTime * PlayPosition.GetInputRate();
+	}
+	else
+	{
+		// Not enough confidence in the data
+		return PlayPosition.GetCurrentPosition();
+	}
+}
+
 void UMovieSceneSequencePlayer::RPC_ExplicitServerUpdateEvent_Implementation(EUpdatePositionMethod EventMethod, FFrameTime MarkerTime)
 {
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1120,6 +1247,9 @@ void UMovieSceneSequencePlayer::RPC_ExplicitServerUpdateEvent_Implementation(EUp
 		// Never run network sync operations on authoritative players
 		return;
 	}
+
+	// Explicit RPC call - empty our smoothed server samples
+	ServerTimeSamples.Reset();
 
 #if !NO_LOGGING
 	// Log the sync event if necessary
@@ -1158,6 +1288,9 @@ void UMovieSceneSequencePlayer::RPC_OnStopEvent_Implementation(FFrameTime Stoppe
 		// Never run network sync operations on authoritative players or players that have not been initialized yet
 		return;
 	}
+
+	// Explicit RPC call - empty our smoothed server samples
+	ServerTimeSamples.Reset();
 
 #if !NO_LOGGING
 	if (UE_LOG_ACTIVE(LogMovieSceneRepl, Verbose))
@@ -1274,6 +1407,7 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 	if (bHasStartedPlaying)
 	{
 		// Note: when starting playback, we assume that the client and server were at the same time prior to the server initiating playback
+		ServerTimeSamples.Reset();
 
 		// Initiate playback from our current position
 		PlayInternal();
@@ -1308,7 +1442,24 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 				//			   Difference = 21 - 18 = 3 frames
 				const int32        LoopOffset       = (NetSyncProps.LastKnownNumLoops - CurrentNumLoops) * (bReversePlayback ? -1 : 1);
 				const FFrameTime   OffsetServerTime = (NetSyncProps.LastKnownPosition + PingLag) + GetFrameDuration()*LoopOffset;
-				const FFrameTime   Difference       = FMath::Abs(PlayPosition.GetCurrentPosition() - OffsetServerTime);
+
+				if (LoopOffset != 0)
+				{
+					// If we crossed a loop boundary, reset the samples
+					ServerTimeSamples.Reset();
+				}
+
+				const bool bUseSmoothing = GSequencerMaxSmoothedNetSyncSampleAge != 0;
+				if (bUseSmoothing)
+				{
+					ServerTimeSamples.Add(FServerTimeSample{ OffsetServerTime / PlayPosition.GetInputRate(), FPlatformTime::Seconds() });
+				}
+
+				const FFrameTime SmoothedServerTime = bUseSmoothing ? UpdateServerTimeSamples() : OffsetServerTime;
+				const FFrameTime Difference         = FMath::Abs(PlayPosition.GetCurrentPosition() - SmoothedServerTime);
+
+				SET_DWORD_STAT(MovieSceneRepl_NumServerSamples, ServerTimeSamples.Num());
+				SET_FLOAT_STAT(MovieSceneRepl_SmoothedServerTime, SmoothedServerTime.AsDecimal());
 
 				if (bHasChangedStatus)
 				{
@@ -1329,21 +1480,28 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 							SequenceName += FString::Printf(TEXT(" (client %d)"), GPlayInEditorID - 1);
 						}
 
-						UE_LOG(LogMovieSceneRepl, Log, TEXT("Correcting de-synced play position for sequence %s %s @ frame %d, subframe %f. Server is %s @ frame %d, subframe %f. Client ping is %.2fms."),
+						UE_LOG(LogMovieSceneRepl, Log, TEXT("Correcting de-synced play position for sequence %s %s @ frame %d, subframe %f. Server is %s @ frame %d, subframe %f, (smoothed: frame %d, sf %f). Client ping is %.2fms."),
 							*SequenceName, *UEnum::GetValueAsString(TEXT("MovieScene.EMovieScenePlayerStatus"), Status.GetValue()), CurrentTime.FrameNumber.Value, CurrentTime.GetSubFrame(),
-							*UEnum::GetValueAsString(TEXT("MovieScene.EMovieScenePlayerStatus"), NetSyncProps.LastKnownStatus.GetValue()), NetSyncProps.LastKnownPosition.FrameNumber.Value, NetSyncProps.LastKnownPosition.GetSubFrame(), PingMs);
+							*UEnum::GetValueAsString(TEXT("MovieScene.EMovieScenePlayerStatus"), NetSyncProps.LastKnownStatus.GetValue()),
+							NetSyncProps.LastKnownPosition.FrameNumber.Value, NetSyncProps.LastKnownPosition.GetSubFrame(),
+							SmoothedServerTime.FrameNumber.Value, SmoothedServerTime.GetSubFrame(),
+							PingMs);
 					}
 #endif
 					// We're drastically out of sync with the server so we need to forcibly set the time.
 					// Play to the time only if it is further on in the sequence (in our play direction)
-					const bool bPlayToFrame = bReversePlayback ? NetSyncProps.LastKnownPosition < PlayPosition.GetCurrentPosition() : NetSyncProps.LastKnownPosition > PlayPosition.GetCurrentPosition();
+					const bool bPlayToFrame = bReversePlayback ? SmoothedServerTime < PlayPosition.GetCurrentPosition() : SmoothedServerTime > PlayPosition.GetCurrentPosition();
 					if (bPlayToFrame)
 					{
-						SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Play));
+						FMovieSceneSequencePlaybackParams Params(SmoothedServerTime, EUpdatePositionMethod::Play);
+						// Indicate that the sequence may have jumped a considerable distance.
+						// This especially helps the audio track to stay in-sync after a correction
+						Params.bHasJumped = true;
+						SetPlaybackPosition(Params);
 					}
 					else
 					{
-						SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Jump));
+						SetPlaybackPosition(FMovieSceneSequencePlaybackParams(SmoothedServerTime, EUpdatePositionMethod::Jump));
 					}
 
 					// When playing back we skip this sequence's ticked update to avoid queuing 2 updates this frame
@@ -1364,6 +1522,8 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 
 		if (bHasChangedStatus)
 		{
+			ServerTimeSamples.Reset();
+
 			switch (NetSyncProps.LastKnownStatus)
 			{
 			case EMovieScenePlayerStatus::Paused:    Pause(); break;

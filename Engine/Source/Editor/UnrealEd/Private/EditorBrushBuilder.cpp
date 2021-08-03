@@ -49,6 +49,12 @@ void UEditorBrushBuilder::BeginBrush(bool InMergeCoplanars, FName InLayer)
 bool UEditorBrushBuilder::EndBrush( UWorld* InWorld, ABrush* InBrush )
 {
 	//!!validate
+	
+	if (!GEditor)
+	{
+		return false;
+	}
+
 	check( InWorld != nullptr );
 	ABrush* BuilderBrush = (InBrush != nullptr) ? InBrush : InWorld->GetDefaultBrush();
 
@@ -145,6 +151,7 @@ bool UEditorBrushBuilder::EndBrush( UWorld* InWorld, ABrush* InBrush )
 		GEditor->bspMergeCoplanars( Brush, 0, 1 );
 		FBSPOps::bspValidateBrush( Brush, 1, 1 );
 	}
+
 	Brush->Linked = 1;
 	FBSPOps::bspValidateBrush( Brush, 0, 1 );
 	Brush->BuildBound();

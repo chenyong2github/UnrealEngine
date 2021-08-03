@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_SLATE_WIDGET_TRACKING
-
 #include "Widgets/Accessibility/SlateWidgetTracker.h"
 #include "Types/ISlateMetaData.h"
 #include "Widgets/SWidget.h"
+#include "Misc/MemStack.h"
 
-FSlateWidgetTracker::FSlateWidgetTracker() {}
-FSlateWidgetTracker::~FSlateWidgetTracker() {}
+bool GIsSlateWidgetTrackerEnabled = false;
+FAutoConsoleVariableRef CVarEnableSlateWidgetTracker(
+	TEXT("Slate.EnableSlateWidgetTracker"),
+	GIsSlateWidgetTrackerEnabled,
+	TEXT("Whether or not we enable the tracking of widgets via the Slate Widget Tracker."),
+	ECVF_Default
+);
 
 FSlateWidgetTracker& FSlateWidgetTracker::Get()
 {
@@ -15,106 +19,62 @@ FSlateWidgetTracker& FSlateWidgetTracker::Get()
 	return Singleton;
 }
 
-void FSlateWidgetTracker::AddLooseWidget(const SWidget* LooseWidget)
+bool FSlateWidgetTracker::IsEnabled() const
 {
-	const TArray<TSharedRef<ISlateMetaData>>& MetaDataInterfaces = LooseWidget->GetAllMetaDataInterfaces();
-	for (const TSharedRef<ISlateMetaData>& MetaDataInterface : MetaDataInterfaces)
+	return GIsSlateWidgetTrackerEnabled;
+		}
+
+void FSlateWidgetTracker::AddTrackedWidget(const SWidget* WidgetToTrack, const TArray<FName>& Tags)
+{
+	if (IsEnabled() && WidgetToTrack != nullptr)
 	{
-		TArray<FName> MetaDataTypeIds;
-		MetaDataInterface->GetMetaDataTypeIds(MetaDataTypeIds);
-		for (FName& MetaDataTypeId : MetaDataTypeIds)
+		for (const FName& Tag : Tags)
 		{
-			if (TrackedWidgets.Contains(MetaDataTypeId))
-			{
-				TrackedWidgets[MetaDataTypeId].Add(LooseWidget);
-				NotifyTrackedWidgetsChange(LooseWidget, MetaDataTypeId, ETrackedSlateWidgetOperations::AddedTrackedWidget);
+			AddTrackedWidget(WidgetToTrack, Tag);
 			}
 		}
 	}
-	LooseWidgets.Add(LooseWidget);
-}
 
-void FSlateWidgetTracker::RemoveLooseWidget(const SWidget* LooseWidget)
+void FSlateWidgetTracker::AddTrackedWidget(const SWidget* WidgetToTrack, FName Tag)
 {
-	const TArray<TSharedRef<ISlateMetaData>>& MetaDataInterfaces = LooseWidget->GetAllMetaDataInterfaces();
-	for (const TSharedRef<ISlateMetaData>& MetaDataInterface : MetaDataInterfaces)
+	if (IsEnabled() && WidgetToTrack != nullptr)
 	{
-		TArray<FName> MetaDataTypeIds;
-		MetaDataInterface->GetMetaDataTypeIds(MetaDataTypeIds);
-		for (FName& MetaDataTypeId : MetaDataTypeIds)
+		TrackedWidgets.FindOrAdd(Tag).Add(WidgetToTrack);
+		if (FTrackedWidgetsChangedEvent* TrackedWidgetsChangedEvent = TrackedWidgetsChangedEvents.Find(Tag))
 		{
-			if (TrackedWidgets.Contains(MetaDataTypeId))
-			{
-				TrackedWidgets[MetaDataTypeId].Remove(LooseWidget);
-				NotifyTrackedWidgetsChange(LooseWidget, MetaDataTypeId, ETrackedSlateWidgetOperations::RemovedTrackedWidget);
-			}
-		}
-	}
-	LooseWidgets.Remove(LooseWidget);
-}
-
-void FSlateWidgetTracker::MetaDataAddedToWidget(const SWidget* Widget, const TSharedRef<ISlateMetaData>& AddedMetaData)
-{
-	TArray<FName> MetaDataTypeIds;
-	AddedMetaData->GetMetaDataTypeIds(MetaDataTypeIds);
-	for (FName& MetaDataTypeId : MetaDataTypeIds)
-	{
-		if (TrackedWidgets.Contains(MetaDataTypeId))
-		{
-			TrackedWidgets[MetaDataTypeId].Add(Widget);
-			NotifyTrackedWidgetsChange(Widget, MetaDataTypeId, ETrackedSlateWidgetOperations::AddedTrackedWidget);
+			TrackedWidgetsChangedEvent->Broadcast(WidgetToTrack, Tag, ETrackedSlateWidgetOperations::AddedTrackedWidget);
 		}
 	}
 }
 
-void FSlateWidgetTracker::MetaDataRemovedFromWidget(const SWidget* Widget, const TSharedRef<ISlateMetaData>& RemovedMetaData)
+void FSlateWidgetTracker::RemoveTrackedWidget(const SWidget* WidgetToStopTracking)
 {
-	TArray<FName> MetaDataTypeIds;
-	RemovedMetaData->GetMetaDataTypeIds(MetaDataTypeIds);
-	for (FName& MetaDataTypeId : MetaDataTypeIds)
+	if (IsEnabled() && WidgetToStopTracking != nullptr)
 	{
-		if (TrackedWidgets.Contains(MetaDataTypeId))
+		FMemMark Mark(FMemStack::Get());
+		TArray<FName, TMemStackAllocator<>> AllTags;
+		TrackedWidgets.GenerateKeyArray(AllTags);
+		for (const FName& Tag : AllTags)
 		{
-			TrackedWidgets[MetaDataTypeId].Remove(Widget);
-			NotifyTrackedWidgetsChange(Widget, MetaDataTypeId, ETrackedSlateWidgetOperations::RemovedTrackedWidget);
-		}
-	}
+			if (TArray<const SWidget*>* TrackedWidgetsOfTag = TrackedWidgets.Find(Tag))
+{
+				TrackedWidgetsOfTag->Remove(WidgetToStopTracking);
+
+				if (TrackedWidgetsOfTag->Num() == 0)
+{
+					TrackedWidgets.Remove(Tag);
 }
 
-const TArray<const SWidget*>* FSlateWidgetTracker::GetTrackedWidgetsWithMetaData_Internal(const FName& MetaDataTypeId)
+				if (FTrackedWidgetsChangedEvent* TrackedWidgetsChangedEvent = TrackedWidgetsChangedEvents.Find(Tag))
 {
-	return TrackedWidgets.Find(MetaDataTypeId);
-}
-
-void FSlateWidgetTracker::NotifyTrackedWidgetsChange(const SWidget* TrackedWidget, const FName& MetaDataTypeId, ETrackedSlateWidgetOperations Operation)
-{
-	if (FTrackedWidgetListener* TrackedWidgetListener = TrackedWidgetListeners.Find(MetaDataTypeId))
-	{
-		TrackedWidgetListener->Broadcast(TrackedWidget, MetaDataTypeId, Operation);
-	}
-}
-
-void FSlateWidgetTracker::RegisterTrackedMetaData(const FName& MetaDataTypeId)
-{
-	if (!TrackedWidgets.Contains(MetaDataTypeId))
-	{
-		TrackedWidgets.Add(MetaDataTypeId, {});
-		for (const SWidget* Widget : LooseWidgets)
-		{
-			if (ensure(Widget))
-			{
-				if (Widget->GetAllMetaDataInterfaces().ContainsByPredicate([&MetaDataTypeId](const TSharedRef<ISlateMetaData>& MetaData) { return MetaData->IsOfTypeName(MetaDataTypeId); }))
-				{
-					TrackedWidgets[MetaDataTypeId].Add(Widget);
+					TrackedWidgetsChangedEvent->Broadcast(WidgetToStopTracking, Tag, ETrackedSlateWidgetOperations::RemovedTrackedWidget);
 				}
 			}
 		}
 	}
 }
 
-void FSlateWidgetTracker::UnregisterTrackedMetaData(const FName& MetaDataTypeId)
+FTrackedWidgetsChangedEvent& FSlateWidgetTracker::OnTrackedWidgetsChanged(const FName& Tag)
 {
-	TrackedWidgets.Remove(MetaDataTypeId);
+	return TrackedWidgetsChangedEvents.FindOrAdd(Tag);
 }
-
-#endif //WITH_SLATE_WIDGET_TRACKING

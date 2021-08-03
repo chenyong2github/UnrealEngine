@@ -139,6 +139,16 @@ bool FSTMapTable::DoesZoomPointExists(float InFocus, float InZoom, float InputTo
 	return false;
 }
 
+const FBaseFocusPoint* FSTMapTable::GetBaseFocusPoint(int32 InIndex) const
+{
+	if (FocusPoints.IsValidIndex(InIndex))
+	{
+		return &FocusPoints[InIndex];
+	}
+
+	return nullptr;
+}
+
 UScriptStruct* FSTMapTable::GetScriptStruct() const
 {
 	return StaticStruct();

@@ -60,6 +60,7 @@
 #include "TextureCompiler.h"
 #include "RenderCaptureInterface.h"
 #include "SimpleMeshDrawCommandPass.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -589,7 +590,7 @@ public:
 
 		AddSimpleMeshPass(GraphBuilder, PassParameters, SceneInterface->GetRenderScene(), *View, nullptr, RDG_EVENT_NAME("LandscapeGrass"), View->UnscaledViewRect,
 			[&View, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-			{
+		{
 				FLandscapeGrassWeightMeshProcessor PassMeshProcessor(
 					nullptr,
 					View,
@@ -709,6 +710,11 @@ public:
 
 		TMap<ULandscapeComponent*, TUniquePtr<FLandscapeComponentGrassData>, TInlineSetAllocator<1>> Results;
 		Results.Reserve(ComponentInfos.Num());
+		
+		// Local data will be moved in contiguous array at the end of export (to minimize slack waste)
+		TArray<uint16> HeightData;
+		TMap<ULandscapeGrassType*, TArray<uint8>> WeightData;
+
 		for (auto& ComponentInfo : ComponentInfos)
 		{
 			ULandscapeComponent* Component = ComponentInfo.Component;
@@ -718,25 +724,26 @@ public:
 
 			if (FirstHeightMipsPassIndex > 0)
 			{
-				NewGrassData->HeightData.Empty(FMath::Square(ComponentSizeVerts));
+				HeightData.Empty(FMath::Square(ComponentSizeVerts));
 			}
 			else
 			{
-				NewGrassData->HeightData.Empty(0);
+				HeightData.Empty(0);
 			}
 			NewGrassData->HeightMipData.Empty(HeightMips.Num());
 
+			WeightData.Empty();
 			TArray<TArray<uint8>*> GrassWeightArrays;
 			GrassWeightArrays.Empty(GrassTypes.Num());
 			for (auto GrassType : GrassTypes)
 			{
-				NewGrassData->WeightData.Add(GrassType);
+				WeightData.Add(GrassType);
 			}
 
 			// need a second loop because the WeightData map will reallocate its arrays as grass types are added
 			for (auto GrassType : GrassTypes)
 			{
-				TArray<uint8>* DataArray = NewGrassData->WeightData.Find(GrassType);
+				TArray<uint8>* DataArray = WeightData.Find(GrassType);
 				check(DataArray);
 				DataArray->Empty(FMath::Square(ComponentSizeVerts));
 				GrassWeightArrays.Add(DataArray);
@@ -767,7 +774,7 @@ public:
 							{
 								FColor& Sample = SampleData[x + y * TargetSize.X];
 								uint16 Height = (((uint16)Sample.R) << 8) + (uint16)(Sample.G);
-								NewGrassData->HeightData.Add(Height);
+								HeightData.Add(Height);
 								if (GrassTypes.Num() > 0)
 								{
 									GrassWeightArrays[0]->Add(Sample.B);
@@ -823,10 +830,10 @@ public:
 			}
 
 			// remove null grass type if we had one (can occur if the node has null entries)
-			NewGrassData->WeightData.Remove(nullptr);
+			WeightData.Remove(nullptr);
 
 			// Remove any grass data that is entirely weight 0
-			for (auto Iter(NewGrassData->WeightData.CreateIterator()); Iter; ++Iter)
+			for (auto Iter(WeightData.CreateIterator()); Iter; ++Iter)
 			{
 				if (Iter->Value.IndexOfByPredicate([&](const int8& Weight) { return Weight != 0; }) == INDEX_NONE)
 				{
@@ -834,6 +841,7 @@ public:
 				}
 			}
 
+			NewGrassData->InitializeFrom(HeightData, WeightData);
 			Results.Add(Component, MoveTemp(NewGrassData));
 		}
 
@@ -1064,7 +1072,7 @@ TArray<uint16> ULandscapeComponent::RenderWPOHeightmap(int32 LOD)
 			FLandscapeGrassWeightExporter Exporter(GetLandscapeProxy(), MoveTemp(LandscapeComponents), MoveTemp(GrassTypes), true, {});
 			TMap<ULandscapeComponent*, TUniquePtr<FLandscapeComponentGrassData>, TInlineSetAllocator<1>> TempGrassData;
 			TempGrassData = Exporter.FetchResults();
-			Results = MoveTemp(TempGrassData[this]->HeightData);
+			Results = TArray<uint16>(TempGrassData[this]->GetHeightData());
 		}
 		else
 		{
@@ -1344,19 +1352,86 @@ void ULandscapeGrassType::PostEditChangeProperty(FPropertyChangedEvent& Property
 //
 SIZE_T FLandscapeComponentGrassData::GetAllocatedSize() const
 {
-	SIZE_T WeightSize = 0; 
-	for (auto It = WeightData.CreateConstIterator(); It; ++It)
-	{
-		WeightSize += It.Value().GetAllocatedSize();
-	}
-	return sizeof(*this)
-		+ HeightData.GetAllocatedSize()
-		+ WeightData.GetAllocatedSize() + WeightSize;
+	return sizeof(*this) + HeightWeightData.GetAllocatedSize() + WeightOffsets.GetAllocatedSize();
 }
+
+bool FLandscapeComponentGrassData::HasWeightData() const
+	{
+	return !!WeightOffsets.Num();
+	}
+
+TArrayView<uint8> FLandscapeComponentGrassData::GetWeightData(const ULandscapeGrassType* GrassType)
+{
+	if (int32* OffsetPtr = WeightOffsets.Find(GrassType))
+	{
+		int32 Offset = *OffsetPtr;
+		check(Offset + NumElements <= HeightWeightData.Num());
+		check(NumElements);
+		return MakeArrayView<uint8>(&HeightWeightData[Offset], NumElements);
+	}
+
+	return TArrayView<uint8>();
+}
+
+bool FLandscapeComponentGrassData::Contains(ULandscapeGrassType* GrassType) const
+{
+	return WeightOffsets.Contains(GrassType);
+}
+
+TArrayView<uint16> FLandscapeComponentGrassData::GetHeightData()
+{
+	check(NumElements <= HeightWeightData.Num());
+	if (NumElements == 0)
+	{
+		return TArrayView<uint16>();
+	}
+	return MakeArrayView<uint16>((uint16*)&HeightWeightData[0], NumElements);
+}
+
+void FLandscapeComponentGrassData::InitializeFrom(const TArray<uint16>& HeightData, const TMap<ULandscapeGrassType*, TArray<uint8>>& WeightData)
+{
+#if WITH_EDITORONLY_DATA
+	WeightOffsets.Empty(WeightData.Num());
+
+	// If weight data is empty make sure we don't have any memory allocated to grass
+	if (WeightData.Num() == 0)
+	{
+		NumElements = 0;
+		HeightWeightData.Empty();
+		return;
+	}
+
+	NumElements = HeightData.Num();
+	HeightWeightData.SetNumUninitialized(NumElements * sizeof(uint16) + NumElements * WeightData.Num() * sizeof(uint8));
+
+	uint8* CopyDest = HeightWeightData.GetData();
+	int32 CopyOffset = 0;
+	int32 CopySize = HeightData.Num() * sizeof(uint16);
+
+	check((CopyOffset + CopySize) <= HeightWeightData.Num());
+
+	FMemory::Memcpy(&CopyDest[CopyOffset], HeightData.GetData(), CopySize);
+
+	CopyOffset += CopySize;
+	CopySize = NumElements * sizeof(uint8);
+		
+	for (const TPair<ULandscapeGrassType*,TArray<uint8>>& Pair : WeightData)
+	{
+		WeightOffsets.Add(Pair.Key, CopyOffset);
+		check(Pair.Value.Num() == NumElements);
+		check((CopyOffset + CopySize) <= HeightWeightData.Num());
+
+		FMemory::Memcpy(&CopyDest[CopyOffset], Pair.Value.GetData(), CopySize);
+		CopyOffset += CopySize;
+	}
+#endif
+}
+
 
 FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 {
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
 	if (!Ar.IsFilterEditorOnly())
@@ -1381,11 +1456,13 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 			Ar << Data.RotationForWPO;
 		}
 	}
-#endif
 
-	Data.HeightData.BulkSerialize(Ar);
+	TArray<uint16> DeprecatedHeightData;
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::LandscapeGrassSingleArray)
+	{
+		DeprecatedHeightData.BulkSerialize(Ar);
+	}
 
-#if WITH_EDITORONLY_DATA
 	if (!Ar.IsFilterEditorOnly())
 	{
 		if (Ar.CustomVer(FLandscapeCustomVersion::GUID) >= FLandscapeCustomVersion::CollisionMaterialWPO)
@@ -1403,7 +1480,7 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 				CollisionHeightData.BulkSerialize(Ar);
 				if (CollisionHeightData.Num())
 				{
-					const int32 ComponentSizeQuads = FMath::Sqrt(static_cast<float>(Data.HeightData.Num())) - 1;
+					const int32 ComponentSizeQuads = FMath::Sqrt(static_cast<float>(Data.GetHeightData().Num())) - 1;
 					const int32 CollisionSizeQuads = FMath::Sqrt(static_cast<float>(CollisionHeightData.Num())) - 1;
 					const int32 CollisionMip = FMath::FloorLog2(ComponentSizeQuads / CollisionSizeQuads);
 					Data.HeightMipData.Add(CollisionMip, MoveTemp(CollisionHeightData));
@@ -1413,7 +1490,7 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 				SimpleCollisionHeightData.BulkSerialize(Ar);
 				if (SimpleCollisionHeightData.Num())
 				{
-					const int32 ComponentSizeQuads = FMath::Sqrt(static_cast<float>(Data.HeightData.Num())) - 1;
+					const int32 ComponentSizeQuads = FMath::Sqrt(static_cast<float>(Data.GetHeightData().Num())) - 1;
 					const int32 SimpleCollisionSizeQuads = FMath::Sqrt(static_cast<float>(SimpleCollisionHeightData.Num())) - 1;
 					const int32 SimpleCollisionMip = FMath::FloorLog2(ComponentSizeQuads / SimpleCollisionSizeQuads);
 					Data.HeightMipData.Add(SimpleCollisionMip, MoveTemp(SimpleCollisionHeightData));
@@ -1421,10 +1498,21 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 			}
 		}
 	}
-#endif
 
-	// Each weight data array, being 1 byte will be serialized in bulk.
-	Ar << Data.WeightData;
+	TMap<ULandscapeGrassType*, TArray<uint8>> DeprecatedWeightData;
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::LandscapeGrassSingleArray)
+	{
+		Ar << DeprecatedWeightData;
+
+		Data.InitializeFrom(DeprecatedHeightData, DeprecatedWeightData);
+	}
+	else
+#endif
+	{
+		Ar << Data.NumElements;
+		Ar << Data.WeightOffsets;
+		Ar << Data.HeightWeightData;
+	}
 
 	return Ar;
 }
@@ -1433,21 +1521,51 @@ void FLandscapeComponentGrassData::ConditionalDiscardDataOnLoad()
 {
 	if (!GIsEditor && GGrassDiscardDataOnLoad)
 	{
+		bool bRemoved = false;
 		// Remove data for grass types which have scalability enabled
-		for (auto GrassTypeIt = WeightData.CreateIterator(); GrassTypeIt; ++GrassTypeIt)
+		for (auto GrassTypeIt = WeightOffsets.CreateIterator(); GrassTypeIt; ++GrassTypeIt)
 		{
 			if (!GrassTypeIt.Key() || GrassTypeIt.Key()->bEnableDensityScaling)
 			{
 				GrassTypeIt.RemoveCurrent();
+				bRemoved = true;
 			}
 		}
 
 		// If all grass types have been removed, discard the height data too.
-		if (WeightData.Num() == 0)
+		if (WeightOffsets.Num() == 0)
 		{
-			HeightData.Empty();
 			*this = FLandscapeComponentGrassData();
 		}
+		else if (bRemoved)
+		{
+			TMap<ULandscapeGrassType*, int32> PreviousOffsets(MoveTemp(WeightOffsets));
+			TArray<uint8> PreviousHeightWeightData(MoveTemp(HeightWeightData));
+			HeightWeightData.SetNumUninitialized(NumElements * sizeof(uint16) + NumElements * PreviousOffsets.Num() * sizeof(uint8), /*bAllowShrinking*/ true);
+
+			uint8* CopyDest = HeightWeightData.GetData();
+			uint8* CopySrc = PreviousHeightWeightData.GetData();
+			int32 CopyOffset = 0;
+			int32 CopySize = NumElements * sizeof(uint16);
+
+			check((CopyOffset + CopySize) <= HeightWeightData.Num());
+
+			FMemory::Memcpy(&CopyDest[CopyOffset], PreviousHeightWeightData.GetData(), CopySize);
+
+			CopyOffset += CopySize;
+			CopySize = NumElements * sizeof(uint8);
+
+			for (const TPair<ULandscapeGrassType*, int32>& Pair : PreviousOffsets)
+			{
+				int32 PreviousOffset = Pair.Value;
+				WeightOffsets.Add(Pair.Key, CopyOffset);
+				check((CopyOffset + CopySize) <= HeightWeightData.Num());
+				check((PreviousOffset + CopySize) <= PreviousHeightWeightData.Num());
+
+				FMemory::Memcpy(&CopyDest[CopyOffset], &CopySrc[PreviousOffset], CopySize);
+				CopyOffset += CopySize;
+	}
+}
 	}
 }
 
@@ -1538,14 +1656,14 @@ struct FLandscapeComponentGrassAccess
 {
 	FLandscapeComponentGrassAccess(const ULandscapeComponent* InComponent, const ULandscapeGrassType* GrassType)
 	: GrassData(InComponent->GrassData)
-	, HeightData(InComponent->GrassData->HeightData)
-	, WeightData(InComponent->GrassData->WeightData.Find(GrassType))
+	, HeightData(InComponent->GrassData->GetHeightData())
+	, WeightData(InComponent->GrassData->GetWeightData(GrassType))
 	, Stride(InComponent->ComponentSizeQuads + 1)
 	{}
 
 	bool IsValid()
 	{
-		return WeightData && WeightData->Num() == FMath::Square(Stride) && HeightData.Num() == FMath::Square(Stride);
+		return WeightData.Num() == FMath::Square(Stride) && HeightData.Num() == FMath::Square(Stride);
 	}
 
 	FORCEINLINE float GetHeight(int32 IdxX, int32 IdxY)
@@ -1554,7 +1672,7 @@ struct FLandscapeComponentGrassAccess
 	}
 	FORCEINLINE float GetWeight(int32 IdxX, int32 IdxY)
 	{
-		return ((float)(*WeightData)[IdxX + Stride*IdxY]) / 255.f;
+		return ((float)WeightData[IdxX + Stride*IdxY]) / 255.f;
 	}
 
 	FORCEINLINE int32 GetStride()
@@ -1564,8 +1682,8 @@ struct FLandscapeComponentGrassAccess
 
 private:
 	TSharedRef<FLandscapeComponentGrassData, ESPMode::ThreadSafe> GrassData;
-	TArray<uint16>& HeightData;
-	TArray<uint8>* WeightData;
+	TArrayView<uint16> HeightData;
+	TArrayView<uint8> WeightData;
 	int32 Stride;
 };
 
@@ -2584,7 +2702,7 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 			for (ULandscapeComponent* Component : LandscapeComponents)
 			{
 				// skip if we have no data and no way to generate it
-				if (Component == nullptr || (World->IsGameWorld() && Component->GrassData->WeightData.Num() == 0))
+				if (Component == nullptr || (World->IsGameWorld() && !Component->GrassData->HasWeightData()))
 				{
 					continue;
 				}
@@ -2638,7 +2756,7 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 				{
 					if (GrassType)
 					{
-						if (World->IsGameWorld() && Component->GrassData->WeightData.Find(GrassType) == nullptr)
+						if (World->IsGameWorld() && !Component->GrassData->Contains(GrassType))
 						{
 							continue;
 						}
@@ -2873,6 +2991,7 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 
 											for (auto& LOD : HierarchicalInstancedStaticMeshComponent->LODData)
 											{
+												// This trasient OverrideMapBuildData will be cleaned up by UMapBuildDataRegistry::CleanupTransientOverrideMapBuildData() if the underlying MeshMapBuildData is gone
 												LOD.OverrideMapBuildData = MakeUnique<FMeshMapBuildData>();
 												LOD.OverrideMapBuildData->LightMap = GrassLightMap;
 												LOD.OverrideMapBuildData->ShadowMap = GrassShadowMap;

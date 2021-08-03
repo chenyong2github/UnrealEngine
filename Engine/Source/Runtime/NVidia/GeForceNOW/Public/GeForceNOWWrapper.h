@@ -30,6 +30,9 @@ public:
 	/** Load and Initialize the GeforceNOW SDK dll. */
 	GfnRuntimeError Initialize();
 
+	/** Initializes the Action Zone Processor.Returns true if the initialization was a success. */
+	bool InitializeActionZoneProcessor();
+
 	/** Unload the GeforceNOW SDK dlls. */
 	GfnRuntimeError Shutdown();
 

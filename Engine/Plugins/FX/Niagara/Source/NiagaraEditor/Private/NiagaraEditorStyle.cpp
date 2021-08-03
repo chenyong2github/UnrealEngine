@@ -168,7 +168,6 @@ void InitActionMenu(TSharedRef< FSlateStyleSet > Style)
 
 	const FTableRowStyle ActionMenuRowStyle = FTableRowStyle()
             .SetEvenRowBackgroundBrush(FSlateNoResource())
-            .SetEvenRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
             .SetOddRowBackgroundBrush(FSlateNoResource())
             .SetOddRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
             .SetSelectorFocusedBrush(BORDER_CORE_BRUSH("Common/Selector", FMargin(4.f / 16.f), FStarshipCoreStyle::GetCoreStyle().GetSlateColor("SelectorColor")))
@@ -332,8 +331,12 @@ void InitSelectedEmitter(TSharedRef< FSlateStyleSet > Style)
 
 void InitToolbarIcons(TSharedRef< FSlateStyleSet > Style)
 {
+	Style->Set("NiagaraEditor.Apply", new IMAGE_BRUSH("Icons/icon_Niagara_Apply_40x", Icon40x40));
+	Style->Set("NiagaraEditor.Apply.Small", new IMAGE_BRUSH("Icons/icon_Niagara_Apply_40x", Icon20x20));
 	Style->Set("NiagaraEditor.ApplyScratchPadChanges", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_ApplyScratchPadChanges_40x", Icon40x40));
 	Style->Set("NiagaraEditor.ApplyScratchPadChanges.Small", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_ApplyScratchPadChanges_40x", Icon20x20));
+	Style->Set("NiagaraEditor.Compile", new IMAGE_BRUSH("Icons/icon_compile_40x", Icon40x40));
+	Style->Set("NiagaraEditor.Compile.Small", new IMAGE_BRUSH("Icons/icon_compile_40x", Icon20x20));
 	Style->Set("NiagaraEditor.AddEmitter", new IMAGE_BRUSH("Icons/icon_AddObject_40x", Icon40x40));
 	Style->Set("NiagaraEditor.AddEmitter.Small", new IMAGE_BRUSH("Icons/icon_AddObject_40x", Icon20x20));
 	Style->Set("NiagaraEditor.UnlockToChanges", new IMAGE_BRUSH("Icons/icon_levels_unlocked_40x", Icon40x40));
@@ -384,6 +387,7 @@ void InitAssetColors(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("NiagaraEditor.AssetColors.ParameterCollection", FLinearColor(1.0f, 1.0f, 0.3f));
 	Style->Set("NiagaraEditor.AssetColors.ParameterCollectionInstance", FLinearColor(1.0f, 1.0f, 0.7f));
 	Style->Set("NiagaraEditor.AssetColors.ParameterDefinitions", FLinearColor(0.57f, 0.82f, 0.06f));
+	Style->Set("NiagaraEditor.AssetColors.EffectType", FLinearColor(1.f, 1.f, 1.f));
 }
 
 void InitThumbnails(TSharedRef< FSlateStyleSet > Style)
@@ -433,13 +437,10 @@ void InitPlatformSet(TSharedRef< FSlateStyleSet > Style)
 	const FString SmallRoundedButtonMiddle(TEXT("Common/SmallRoundedButtonCentre"));
 	const FString SmallRoundedButtonEnd(TEXT("Common/SmallRoundedButtonRight"));
 
-	const FSlateColor SelectionColor = FEditorStyle::GetSlateColor("SelectionColor");
-	const FSlateColor SelectionColor_Pressed = FEditorStyle::GetSlateColor("SelectionColor_Pressed");
-
 	Style->Set("NiagaraEditor.Module.Pin.TypeSelector.Button", FButtonStyle()
 		.SetNormal(FSlateNoResource())
-		.SetPressed(BOX_CORE_BRUSH("Common/Button_Pressed", 8.0f / 32.0f, SelectionColor_Pressed))
-		.SetHovered(BOX_CORE_BRUSH("Common/Button_Hovered", 8.0f / 32.0f, SelectionColor))
+		.SetPressed(BOX_CORE_BRUSH("Common/Button_Pressed", 8.0f / 32.0f, FStyleColors::PrimaryPress))
+		.SetHovered(BOX_CORE_BRUSH("Common/Button_Hovered", 8.0f / 32.0f, FStyleColors::PrimaryHover))
 		.SetNormalPadding(FMargin(0, 0, 0, 0))
 		.SetPressedPadding(FMargin(0, 0, 0, 0)));
 	{
@@ -448,29 +449,29 @@ void InitPlatformSet(TSharedRef< FSlateStyleSet > Style)
 		Style->Set("NiagaraEditor.PlatformSet.StartButton", FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), NormalColor))
-			.SetUncheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), SelectionColor_Pressed))
-			.SetUncheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), SelectionColor_Pressed))
-			.SetCheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), SelectionColor))
-			.SetCheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), SelectionColor))
-			.SetCheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), SelectionColor)));
+			.SetUncheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), FStyleColors::PrimaryPress))
+			.SetUncheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), FStyleColors::PrimaryHover))
+			.SetCheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), FStyleColors::SelectHover))
+			.SetCheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), FStyleColors::Select))
+			.SetCheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonStart, FMargin(7.f / 16.f), FStyleColors::Select)));
 
 		Style->Set("NiagaraEditor.PlatformSet.MiddleButton", FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), NormalColor))
-			.SetUncheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), SelectionColor_Pressed))
-			.SetUncheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), SelectionColor_Pressed))
-			.SetCheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), SelectionColor))
-			.SetCheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), SelectionColor))
-			.SetCheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), SelectionColor)));
+			.SetUncheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), FStyleColors::PrimaryPress))
+			.SetUncheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), FStyleColors::PrimaryHover))
+			.SetCheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), FStyleColors::SelectHover))
+			.SetCheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), FStyleColors::Select))
+			.SetCheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonMiddle, FMargin(7.f / 16.f), FStyleColors::Select)));
 
 		Style->Set("NiagaraEditor.PlatformSet.EndButton", FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), NormalColor))
-			.SetUncheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), SelectionColor_Pressed))
-			.SetUncheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), SelectionColor_Pressed))
-			.SetCheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), SelectionColor))
-			.SetCheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), SelectionColor))
-			.SetCheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), SelectionColor)));
+			.SetUncheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), FStyleColors::SelectHover))
+			.SetUncheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), FStyleColors::SelectHover))
+			.SetCheckedHoveredImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), FStyleColors::SelectHover))
+			.SetCheckedPressedImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), FStyleColors::Select))
+			.SetCheckedImage(BOX_CORE_BRUSH(*SmallRoundedButtonEnd, FMargin(7.f / 16.f), FStyleColors::Select)));
 	}
 
 	Style->Set("NiagaraEditor.PlatformSet.Include", new IMAGE_CORE_BRUSH("Icons/PlusSymbol_12x", Icon12x12));
@@ -485,8 +486,8 @@ void InitPlatformSet(TSharedRef< FSlateStyleSet > Style)
 		.SetOddRowBackgroundBrush(FSlateNoResource())
 		.SetOddRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
 		.SetSelectorFocusedBrush(FSlateNoResource())
-		.SetActiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-		.SetActiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+		.SetActiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, FStyleColors::Select))
+		.SetActiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, FStyleColors::Select))
 		.SetInactiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
 		.SetInactiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive)));
 
@@ -542,6 +543,59 @@ void InitCommonColors(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("NiagaraEditor.CommonColors.System", FLinearColor(FColor(1, 202, 252)));
 	Style->Set("NiagaraEditor.CommonColors.Emitter", FLinearColor(FColor(241, 99, 6)));
 	Style->Set("NiagaraEditor.CommonColors.Particle", FLinearColor(FColor(131, 218, 9)));
+}
+
+void InitToolbar(TSharedRef< FSlateStyleSet > Style)
+{
+	const FTextBlockStyle NormalText = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
+
+	// Overview Thumbnail toolbar
+	// The ToolbarBuilder requires a specific set of resources with specific names. Do not change names lightly.
+	{
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Background", new FSlateNoResource() );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Icon", new IMAGE_CORE_BRUSH( "Icons/icon_tab_toolbar_16px", Icon16x16 ) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Expand", new IMAGE_CORE_BRUSH( "Icons/toolbar_expand_16x", Icon16x16) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.SubMenuIndicator", new IMAGE_CORE_BRUSH( "Common/SubmenuArrow", Icon8x8 ) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.SToolBarComboButtonBlock.Padding", FMargin(4.0f,0.0f));
+		Style->Set( "OverviewStackNodeThumbnailToolBar.SToolBarButtonBlock.Padding", FMargin(4.0f,0.0f));
+		Style->Set( "OverviewStackNodeThumbnailToolBar.SToolBarCheckComboButtonBlock.Padding", FMargin(4.0f,0.0f));
+		Style->Set( "OverviewStackNodeThumbnailToolBar.SToolBarButtonBlock.CheckBox.Padding", FMargin(4.0f,0.0f) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.SToolBarComboButtonBlock.ComboButton.Color", FCoreStyle::Get().GetSlateColor("DefaultForeground") );
+
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Block.IndentedPadding", FMargin( 18.0f, 2.0f, 4.0f, 4.0f ) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Block.Padding", FMargin( 2.0f, 2.0f, 4.0f, 4.0f ) );
+
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Separator", new FSlateColorBrush( FLinearColor(FColor(96, 96, 96)) ) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Separator.Padding", FMargin( 1.f, 0.f, 1.f, 0.f) );
+
+		const FButtonStyle Button = FButtonStyle()
+			.SetNormal( BOX_CORE_BRUSH( "Common/Button", FVector2D(32,32), 8.0f/32.0f ) )
+			.SetHovered( BOX_CORE_BRUSH( "Common/Button_Hovered", FVector2D(32,32), 8.0f/32.0f ) )
+			.SetPressed( BOX_CORE_BRUSH( "Common/Button_Pressed", FVector2D(32,32), 8.0f/32.0f ) )
+			.SetNormalPadding( FMargin( 2,2,2,2 ) )
+			.SetPressedPadding( FMargin( 2,3,2,1 ) );
+		
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Button", FButtonStyle(Button)
+			.SetNormal ( FSlateNoResource() )
+			.SetPressed( BOX_CORE_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, FStyleColors::PrimaryPress ) )
+			.SetHovered( BOX_CORE_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, FStyleColors::PrimaryHover ) )
+		);
+		
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Button.Normal", new FSlateNoResource() );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Button.Pressed", new BOX_CORE_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, FStyleColors::PrimaryPress ) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Button.Hovered", new BOX_CORE_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, FStyleColors::PrimaryHover ) );
+
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Button.Checked", new BOX_CORE_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, FStyleColors::PrimaryPress ) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Button.Checked_Hovered", new BOX_CORE_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, FStyleColors::PrimaryPress ) );
+		Style->Set( "OverviewStackNodeThumbnailToolBar.Button.Checked_Pressed", new BOX_CORE_BRUSH( "Common/RoundedSelection_16x",  4.0f/16.0f, FStyleColors::Select ) );
+
+		// The Wrap combo button of the toolbar requires these to be set with these names
+		Style->Set("Menu.Background", new BOX_CORE_BRUSH( "Common/GroupBorder", FMargin(4.0f/16.0f) ));
+		Style->Set( "Menu.Block.IndentedPadding", FMargin( 18.0f, 2.0f, 4.0f, 4.0f ) );
+		Style->Set( "Menu.Block.Padding", FMargin( 2.0f, 2.0f, 4.0f, 4.0f ) );
+		Style->Set( "Menu.Label", FTextBlockStyle(NormalText) .SetFont( DEFAULT_FONT( "Regular", 9 ) ) );
+	}
 }
 
 void InitOutlinerStyle(TSharedRef< FSlateStyleSet > Style)
@@ -623,6 +677,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	InitCodeView(Style);
 	InitSelectedEmitter(Style);
 	InitToolbarIcons(Style);
+	InitToolbar(Style);
 	InitIcons(Style);
 	InitEmitterDetails(Style);
 	InitAssetColors(Style);

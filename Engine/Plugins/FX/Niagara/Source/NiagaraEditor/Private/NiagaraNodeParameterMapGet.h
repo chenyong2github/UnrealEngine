@@ -45,6 +45,9 @@ public:
 
 	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_MODULE_STR; }
 
+	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
+	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_Output; };
+
 protected:
 	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
@@ -60,9 +63,6 @@ protected:
 	
 	/** Properly set up the default input pin for an output pin.*/
 	UEdGraphPin* CreateDefaultPin(UEdGraphPin* OutputPin);
-
-	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
-	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_Output; };
 
 	/** Returns the metadata for the given variable or nullptr if no metadata is available */
 	UNiagaraScriptVariable* GetScriptVariable(FName VariableName) const;

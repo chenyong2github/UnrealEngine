@@ -376,6 +376,7 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 
 	check(MaxPacket > 0 && PacketOverhead > 0);
 
+	bLoggedFlushNetQueuedBitsOverflow = false;
 
 	// Reset Handler
 	Handler.Reset(NULL);
@@ -411,9 +412,9 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 	if (Driver->IsServer() && !IsReplay())
 	{
 		RPCDoS.Init(Driver->NetDriverName, AnalyticsAggregator,
-			[Driver = InDriver]() -> UWorld*
+			[WorldPtr = TWeakObjectPtr<UWorld>(InDriver->GetWorld())]() -> UWorld*
 			{
-				return Driver->GetWorld();
+				return WorldPtr.IsValid() ? WorldPtr.Get() : nullptr;
 			},
 			[this]() -> FString
 			{
@@ -1635,7 +1636,11 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		int32 NewQueuedBits = 0;
 		const bool bWouldOverflow = UE_NetConnectionPrivate::Add_DetectOverflow_Clamp(QueuedBits, PacketBytes * 8, NewQueuedBits);
 		
-		ensureMsgf(!bWouldOverflow, TEXT("UNetConnection::FlushNet: QueuedBits overflow detected! QueuedBits: %d, PacketBytes: %d"), QueuedBits, PacketBytes);
+		if (bWouldOverflow && !bLoggedFlushNetQueuedBitsOverflow)
+		{
+			UE_LOG(LogNet, Log, TEXT("UNetConnection::FlushNet: QueuedBits overflow detected! QueuedBits: %d, PacketBytes: %d. %s"), QueuedBits, PacketBytes, *Describe());
+			bLoggedFlushNetQueuedBitsOverflow = true;
+		}
 
 		QueuedBits = NewQueuedBits;
 
@@ -2869,6 +2874,13 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				Close();
 				return;
 			}
+
+			// In replay, if the bunch generated an error but the channel isn't actually open, clean it up so the channel index remains free
+			if (IsInternalAck() && Bunch.IsError() && Channel && !Channel->OpenedLocally && !Channel->OpenAcked)
+			{
+				UE_LOG(LogNetTraffic, Warning, TEXT("Replay cleaning up channel that couldn't be opened: %s"), *Channel->Describe());
+				Channel->ConditionalCleanUp(true, EChannelCloseReason::Destroyed);
+			}
 		}
 	}
 
@@ -2946,25 +2958,18 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 	UE_NET_TRACE_PACKET_RECV(NetTraceId, GetConnectionId(), InPacketId, Reader.GetNumBits());
 }
 
-void UNetConnection::SetAllowExistingChannelIndex(bool bAllow)
+void UNetConnection::RestoreRemappedChannel(const int32 ChIndex)
 {
-	check(IsInternalAck() && IsReplay());
-
-	bAllowExistingChannelIndex = bAllow;
-	IgnoringChannels.Reset();
-
-	if (!bAllow)
+	if (ChannelIndexMap.Contains(ChIndex))
 	{
-		// We could have remapped a channel that remained open because we were temporarily using its index before it was closed
-		// Go ahead and restore those indices now (Channels + InReliable)
-		ChannelIndexMap.KeySort(TLess<int32>());
+		const int32 RemappedIndex = ChannelIndexMap[ChIndex];
 
-		for (auto& It : ChannelIndexMap)
+		if (UChannel* Channel = Channels[ChIndex])
 		{
 			// It is possible the index we want to swap back to wasn't cleaned up because the channel was marked broken by backwards compatibility
-			if (Channels[It.Key] && Channels[It.Key]->Broken)
+			if (Channel->Broken)
 			{
-				if (UActorChannel* ActorChannel = Cast<UActorChannel>(Channels[It.Key]))
+				if (UActorChannel* ActorChannel = Cast<UActorChannel>(Channel))
 				{
 					// look for a queued close bunch
 					for (FInBunch* InBunch : ActorChannel->QueuedBunches)
@@ -2986,14 +2991,49 @@ void UNetConnection::SetAllowExistingChannelIndex(bool bAllow)
 				}
 			}
 
-			// this channel should still exist, but the location we want to swap it back to should be empty
-			if (ensureMsgf(Channels[It.Value] && !Channels[It.Key], TEXT("Source should exist: [%s] Destination should be null: [%s]"), Channels[It.Value] ? *Channels[It.Value]->Describe() : TEXT("null"), Channels[It.Key] ? *Channels[It.Key]->Describe() : TEXT("null")))
+			if (Channels[ChIndex] != nullptr)
 			{
-				Channels[It.Value]->ChIndex = It.Key;
-
-				Swap(Channels[It.Key], Channels[It.Value]);
-				Swap(InReliable[It.Key], InReliable[It.Value]);
+				// this map be part of a chain of remapped channel indices
+				if (const int32* Key = ChannelIndexMap.FindKey(ChIndex))
+				{
+					RestoreRemappedChannel(*Key);
+				}
 			}
+		}
+
+		UChannel* SrcChannel = Channels[RemappedIndex];
+		UChannel* DstChannel = Channels[ChIndex];
+
+			// this channel should still exist, but the location we want to swap it back to should be empty
+		if (ensureMsgf(SrcChannel && !DstChannel, TEXT("Source should exist: [%s] Destination should be null: [%s]"), SrcChannel ? *SrcChannel->Describe() : TEXT("null"), DstChannel ? *DstChannel->Describe() : TEXT("null")))
+			{
+			SrcChannel->ChIndex = ChIndex;
+
+			Swap(Channels[ChIndex], Channels[RemappedIndex]);
+			Swap(InReliable[ChIndex], InReliable[RemappedIndex]);
+
+			ChannelIndexMap.Remove(ChIndex);
+			}
+		}
+	}
+
+void UNetConnection::SetAllowExistingChannelIndex(bool bAllow)
+{
+	check(IsInternalAck() && IsReplay());
+
+	bAllowExistingChannelIndex = bAllow;
+	IgnoringChannels.Reset();
+
+	if (!bAllow)
+	{
+		// We could have remapped a channel that remained open because we were temporarily using its index before it was closed
+		// Go ahead and restore those indices now (Channels + InReliable)
+		TArray<int32> RemappedKeys;
+		ChannelIndexMap.GenerateKeyArray(RemappedKeys);
+
+		for (const int32 Key : RemappedKeys)
+		{
+			RestoreRemappedChannel(Key);
 		}
 	}
 

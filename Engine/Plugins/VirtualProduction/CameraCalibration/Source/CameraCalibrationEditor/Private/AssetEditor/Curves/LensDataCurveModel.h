@@ -28,6 +28,15 @@ public:
 	virtual const FRichCurve& GetReadOnlyRichCurve() const override;
 	//~ End FRichCurveEditorModel
 
+	//~ Begin FCurveModel
+	virtual UObject* GetOwningObject() const override;
+	//~ End FCurveModel
+
+	virtual FText GetKeyLabel() const;
+	virtual FText GetValueLabel() const;
+	virtual FText GetValueUnitPrefixLabel() const;
+	virtual FText GetValueUnitSuffixLabel() const;
+
 public:
 	/** View ID that identifies the registered view type */
 	static ECurveEditorViewID ViewId;

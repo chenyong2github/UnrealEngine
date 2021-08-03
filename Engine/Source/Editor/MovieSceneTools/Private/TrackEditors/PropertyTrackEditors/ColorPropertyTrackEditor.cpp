@@ -107,14 +107,15 @@ bool FColorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *O
 
 		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
 
-		Interrogator.ImportTrack(ColorTrack, FInterrogationChannel::Default());
+		const FInterrogationChannel InterrogationChannel = Interrogator.AllocateChannel(Object, ColorTrack->GetPropertyBinding());
+		Interrogator.ImportTrack(ColorTrack, InterrogationChannel);
 		Interrogator.AddInterrogation(KeyTime);
 
 		Interrogator.Update();
 
 		const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
 		TArray<FIntermediateColor> InterrogatedValues;
-		Interrogator.QueryPropertyValues(ComponentTypes->Color, InterrogatedValues);
+		Interrogator.QueryPropertyValues(ComponentTypes->Color, InterrogationChannel, InterrogatedValues);
 
 		FLinearColor Val = InterrogatedValues[0].GetLinearColor();
 		FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();

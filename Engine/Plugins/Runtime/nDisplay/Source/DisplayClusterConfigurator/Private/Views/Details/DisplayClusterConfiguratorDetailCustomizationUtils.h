@@ -42,6 +42,13 @@ class IPropertyHandle;
 	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
 }
 
+#define HIDE_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	PropertyHandle->MarkHiddenByCustomization(); \
+}
+
 #define ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath) { \
 	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
 	check(PropertyHandle.IsValid()); \
@@ -63,6 +70,29 @@ class IPropertyHandle;
 	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).DisplayName(NewPropertyName); \
 }
 
+#define RENAME_NESTED_PROPERTY_AND_TOOLTIP(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, NewPropertyTooltip) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).DisplayName(NewPropertyName).ToolTip(NewPropertyTooltip); \
+}
+
+#define RENAME_NESTED_CONDITIONAL_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, ConditionalPropertyPath) { \
+	CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(Conditional, NestedPropertyHelper, ClassName, ConditionalPropertyPath); \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).DisplayName(NewPropertyName).EditCondition(Conditional, nullptr); \
+}
+
+#define RENAME_NESTED_CONDITIONAL_PROPERTY_AND_TOOLTIP(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, NewTooltip, ConditionalPropertyPath) { \
+	CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(Conditional, NestedPropertyHelper, ClassName, ConditionalPropertyPath); \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).DisplayName(NewPropertyName).ToolTip(NewTooltip).EditCondition(Conditional, nullptr); \
+}
+
 #define REPLACE_PROPERTY_WITH_CUSTOM(ClassName, PropertyName, Widget) { \
 	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
 	check(PropertyHandle->IsValidHandle()); \
@@ -72,6 +102,16 @@ class IPropertyHandle;
 
 #define BEGIN_GROUP(GroupName, GroupLabel) { \
 	IDetailGroup& CurrentGroup = CurrentCategory.AddGroup(GroupName, GroupLabel, false, true);
+
+#define BEGIN_GROUP_WITH_TOOLTIP(GroupName, GroupLabel, GroupTooltip) { \
+	IDetailGroup& CurrentGroup = CurrentCategory.AddGroup(GroupName, GroupLabel, false, true); \
+	CurrentGroup.HeaderRow() \
+	[ \
+		SNew(STextBlock) \
+		.Font(IDetailLayoutBuilder::GetDetailFont()) \
+		.Text(GroupLabel) \
+		.ToolTipText(GroupTooltip) \
+	]; \
 
 #define END_GROUP() }
 
@@ -91,6 +131,14 @@ class IPropertyHandle;
 	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
 	check(PropertyHandle.IsValid()); \
 	check(PropertyHandle->IsValidHandle()); \
+	CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()).ShouldAutoExpand(true); \
+}
+
+#define ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP(NestedPropertyHelper, ClassName, PropertyPath, Tooltip) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	PropertyHandle->SetToolTipText(Tooltip); \
 	CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()).ShouldAutoExpand(true); \
 }
 
@@ -147,6 +195,13 @@ class IPropertyHandle;
 	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr);\
 }
 
+#define ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, Tooltip, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	PropertyHandle->SetToolTipText(Tooltip); \
+	IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr);\
+}
+
 #define RENAME_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, PropertyRowEditCondition) { \
 	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
 	IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()); \
@@ -173,11 +228,26 @@ class IPropertyHandle;
 	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr);\
 }
 
+#define ADD_NESTED_PROPERTY_WITH_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, Tooltip, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	PropertyHandle->SetToolTipText(Tooltip); \
+	IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr);\
+}
+
 #define RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, PropertyRowEditCondition) { \
 	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
 	IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
 	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr); \
 	PropertyRow.DisplayName(NewPropertyName); \
+}
+
+#define RENAME_NESTED_PROPERTY_AND_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, NewToolTipText, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr); \
+	PropertyRow.DisplayName(NewPropertyName); \
+	PropertyRow.ToolTip(NewToolTipText); \
 }
 
 // Support IsEnabled

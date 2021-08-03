@@ -261,6 +261,8 @@ private:
 	static FText MakeCurrentText(const FNiagaraVariableBase& BaseVar, const FNiagaraVariableBase& ChildVar);
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
+	TSharedPtr<SComboButton> MaterialParameterButton;
+	TSharedPtr<SComboButton> NiagaraParameterButton;
 	class UNiagaraSystem* BaseSystem;
 	class UNiagaraEmitter* BaseEmitter;
 	class UNiagaraRendererProperties* RenderProps;

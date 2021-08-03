@@ -287,7 +287,7 @@ bool FRCFieldPathSegment::IsResolved() const
 FString FRCFieldPathSegment::ToString(bool bDuplicateContainer) const
 {
 	FString Output;
-	FString IndexString = ArrayIndex == INDEX_NONE ? FString::FromInt(ArrayIndex) : MapKey;
+	FString IndexString = ArrayIndex != INDEX_NONE ? FString::FromInt(ArrayIndex) : MapKey;
 
 	if (ArrayIndex == INDEX_NONE && MapKey.IsEmpty())
 	{
@@ -300,7 +300,7 @@ FString FRCFieldPathSegment::ToString(bool bDuplicateContainer) const
 		{
 			if (ValuePropertyName.IsEmpty())
 			{
-				Output = FString::Printf(TEXT("%s.%s[%s]"), *Name.ToString(), *Name.ToString(), ArrayIndex == INDEX_NONE ? *FString::FromInt(ArrayIndex) : *MapKey);
+				Output = FString::Printf(TEXT("%s.%s[%s]"), *Name.ToString(), *Name.ToString(), *IndexString);
 			}
 			else
 			{
@@ -325,7 +325,7 @@ FString FRCFieldPathSegment::ToString(bool bDuplicateContainer) const
 		}
 		else
 		{
-			Output = FString::Printf(TEXT("%s[%s]"), *Name.ToString(), *(ArrayIndex != INDEX_NONE ? FString::FromInt(ArrayIndex) : MapKey));
+			Output = FString::Printf(TEXT("%s[%s]"), *Name.ToString(), *IndexString);
 		}
 	}
 	return Output;

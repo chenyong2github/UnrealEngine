@@ -13,15 +13,21 @@ void UDMXFixtureComponentColor::Initialize()
 {
 	Super::Initialize();
 
-	TargetColorArray.Init(FLinearColor(1.f, 1.f, 1.f, 0.f), Cells.Num());
+	const FLinearColor& DefaultColor = FLinearColor::White;
+	TargetColorArray.Init(DefaultColor, Cells.Num());
+	
 	CurrentTargetColorRef = &TargetColorArray[0];
 
 	InitializeComponent();
+
+	SetColorNoInterp(DefaultColor);
 }
 
 void UDMXFixtureComponentColor::SetCurrentCell(int Index)
 {
-	if (Index < TargetColorArray.Num())
+	if (CurrentTargetColorRef &&
+		TargetColorArray.IsValidIndex(Index) &&
+		Index < TargetColorArray.Num())
 	{
 		CurrentTargetColorRef = &TargetColorArray[Index];
 	}
@@ -29,7 +35,8 @@ void UDMXFixtureComponentColor::SetCurrentCell(int Index)
 
 bool UDMXFixtureComponentColor::IsColorValid(const FLinearColor& NewColor) const
 {
-	if (!CurrentTargetColorRef->Equals(NewColor, SkipThreshold))
+	if (CurrentTargetColorRef &&
+		!CurrentTargetColorRef->Equals(NewColor, SkipThreshold))
 	{
 		return true;
 	}
@@ -39,8 +46,15 @@ bool UDMXFixtureComponentColor::IsColorValid(const FLinearColor& NewColor) const
 
 void UDMXFixtureComponentColor::SetTargetColor(const FLinearColor& NewColor)
 {
+	if (CurrentTargetColorRef &&
+		IsColorValid(NewColor))
+	{
+		// Never interpolated
 	CurrentTargetColorRef->R = NewColor.R;
 	CurrentTargetColorRef->G = NewColor.G;
 	CurrentTargetColorRef->B = NewColor.B;
 	CurrentTargetColorRef->A = NewColor.A;
+
+		SetColorNoInterp(NewColor);
+	}
 }

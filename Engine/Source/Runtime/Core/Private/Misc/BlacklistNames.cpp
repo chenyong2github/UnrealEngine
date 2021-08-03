@@ -547,6 +547,67 @@ bool FBlacklistPaths::Append(const FBlacklistPaths& Other)
 	return bFilterChanged;
 }
 
+FBlacklistPaths FBlacklistPaths::CombinePathFilters(const FBlacklistPaths& OtherFilter) const
+{
+	FBlacklistPaths Result;
+
+	if (IsBlacklistAll() || OtherFilter.IsBlacklistAll())
+	{
+		Result.AddBlacklistAll(NAME_None);
+	}
+
+	for (const TPair<FString, FBlacklistOwners>& It : GetBlacklist())
+	{
+		for (const FName OwnerName : It.Value)
+		{
+			Result.AddBlacklistItem(OwnerName, It.Key);
+		}
+	}
+
+	for (const TPair<FString, FBlacklistOwners>& It : OtherFilter.GetBlacklist())
+	{
+		for (const FName OwnerName : It.Value)
+		{
+			Result.AddBlacklistItem(OwnerName, It.Key);
+		}
+	}
+
+	if (GetWhitelist().Num() > 0 || OtherFilter.GetWhitelist().Num() > 0)
+	{
+		for (const TPair<FString, FBlacklistOwners>& It : GetWhitelist())
+		{
+			const FString& Path = It.Key;
+			if (OtherFilter.PassesStartsWithFilter(Path, true))
+			{
+				for (const FName OwnerName : It.Value)
+				{
+					Result.AddWhitelistItem(OwnerName, Path);
+				}
+			}
+		}
+
+		for (const TPair<FString, FBlacklistOwners>& It : OtherFilter.GetWhitelist())
+		{
+			const FString& Path = It.Key;
+			if (PassesStartsWithFilter(Path, true))
+			{
+				for (const FName OwnerName : It.Value)
+				{
+					Result.AddWhitelistItem(OwnerName, Path);
+				}
+			}
+		}
+
+		// Block everything if none of the whitelisted paths passed
+		if (Result.GetWhitelist().Num() == 0)
+		{
+			Result.AddBlacklistAll(NAME_None);
+		}
+	}
+
+	return Result;
+}
+
 bool FBlacklistPaths::UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FBlacklistPaths& FiltersToAdd)
 {
 	bool bFilterChanged = false;

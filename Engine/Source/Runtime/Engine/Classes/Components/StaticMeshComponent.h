@@ -97,7 +97,11 @@ struct FStaticMeshComponentLODInfo
 	/** Used during deserialization to temporarily store legacy lightmap data. */
 	FMeshMapBuildData* LegacyMapBuildData;
 
-	/** Transient override lightmap data, used by landscape grass. */
+	/** 
+	 * Transient override lightmap data, used by landscape grass.
+	 * Be sure to add your component to UMapBuildDataRegistry::CleanupTransientOverrideMapBuildData() for proper cleanup
+	 * so that you don't get stale rendering resource references if the underlying MapBuildData is gone (lighting scenario changes, new static lighting build, etc.)
+	 */
 	TUniquePtr<FMeshMapBuildData> OverrideMapBuildData;
 
 	/** Vertex data cached at the time this LOD was painted, if any */

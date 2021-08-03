@@ -67,7 +67,7 @@ namespace SolidworksDatasmith
 		}
 
 		public static float Rad2Deg { get { return (float)(180.0 / Math.PI); } }
-		public static float Deg2Rad { get { return (float)(180.0 / Math.PI); } }
+		public static float Deg2Rad { get { return (float)(Math.PI / 180.0); } }
 
 		public static Vec3 BarycentricToPoint(Vec3 bary, Vec3 v1, Vec3 v2, Vec3 v3)
 		{

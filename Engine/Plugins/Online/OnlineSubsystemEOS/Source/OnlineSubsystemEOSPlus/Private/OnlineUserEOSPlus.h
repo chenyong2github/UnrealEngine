@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Online/CoreOnline.h"
 #include "OnlineSubsystem.h"
+#include "Interfaces/OnlineUserInterface.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
@@ -365,13 +366,27 @@ public:
  * Interface for combining platform users with EOS/EAS users
  */
 class FOnlineUserEOSPlus :
+	public IOnlineUser,
 	public IOnlineIdentity,
 	public IOnlineFriends,
-	public IOnlinePresence
+	public IOnlinePresence,
+	public TSharedFromThis<FOnlineUserEOSPlus, ESPMode::ThreadSafe>
 {
 public:
 	FOnlineUserEOSPlus() = delete;
 	virtual ~FOnlineUserEOSPlus();
+
+	void Initialize();
+
+// IOnlineUser Interface
+	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef>& UserIds) override;
+	virtual bool GetAllUserInfo(int32 LocalUserNum, TArray<TSharedRef<FOnlineUser>>& OutUsers) override;
+	virtual TSharedPtr<FOnlineUser> GetUserInfo(int32 LocalUserNum, const FUniqueNetId& UserId) override;
+	virtual bool QueryUserIdMapping(const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FOnQueryUserMappingComplete& Delegate = FOnQueryUserMappingComplete()) override;
+	virtual bool QueryExternalIdMappings(const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FOnQueryExternalIdMappingsComplete& Delegate = FOnQueryExternalIdMappingsComplete()) override;
+	virtual void GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<FUniqueNetIdPtr>& OutIds) override;
+	virtual FUniqueNetIdPtr GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) override;
+// ~IOnlineUser Interface
 
 // IOnlineIdentity Interface
 	virtual bool Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials) override;
@@ -427,6 +442,11 @@ PACKAGE_SCOPE:
 	FOnlineUserEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem);
 
 	// Delegates to rebroadcast things back out
+
+	// User delegates
+	void OnQueryUserInfoCompleteBase(int32 LocalUserNum, bool bWasSuccessful, const TArray< FUniqueNetIdRef >& UserIds, const FString& ErrorStr);
+
+	// Identity delegates
 	void OnLoginChanged(int32 LocalUserNum);
 	void OnEOSLoginChanged(int32 LocalUserNum);
 	void OnLoginStatusChanged(int32 LocalUserNum, ELoginStatus::Type OldStatus, ELoginStatus::Type NewStatus, const FUniqueNetId& NewId);
@@ -434,9 +454,12 @@ PACKAGE_SCOPE:
 	void OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error);
 	void OnBaseLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorStr);
 	void OnLogoutComplete(int32 LocalUserNum, bool bWasSuccessful);
+
+	// Presence delegates
 	void OnPresenceReceived(const FUniqueNetId& UserId, const TSharedRef<FOnlineUserPresence>& Presence);
 	void OnPresenceArrayUpdated(const FUniqueNetId& UserId, const TArray<TSharedRef<FOnlineUserPresence>>& NewPresenceArray);
-	// Friends delegates to rebroadcast things back out
+
+	// Friends delegates 
 	void OnFriendsChanged();
 	void OnOutgoingInviteSent();
 	void OnInviteReceived(const FUniqueNetId& UserId, const FUniqueNetId& FriendId);
@@ -463,6 +486,8 @@ private:
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;
 
+	IOnlineUserPtr BaseUserInterface;
+	//IOnlineUserPtr EOSUserInterface; // No EOS mirroring yet
 	IOnlineIdentityPtr BaseIdentityInterface;
 	IOnlineIdentityPtr EOSIdentityInterface;
 	IOnlineFriendsPtr BaseFriendsInterface;

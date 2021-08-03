@@ -16,6 +16,7 @@
 class UMaterialInterface;
 class UMaterialParameterCollection;
 class UStaticMesh;
+class UWaterBodyComponent;
 class UWaterWavesBase;
 class AWaterLandscapeBrush;
 
@@ -35,6 +36,22 @@ struct WATEREDITOR_API FWaterBrushActorDefaults
 	UPROPERTY(EditAnywhere, config, Category = Terrain)
 	TMap<FName, FWaterBodyWeightmapSettings> LayerWeightmapSettings;
 }; 
+
+USTRUCT()
+struct WATEREDITOR_API FWaterMeshActorDefaults
+{
+	GENERATED_BODY()
+
+	FWaterMeshActorDefaults();
+
+	UMaterialInterface* GetFarDistanceMaterial() const;
+
+	UPROPERTY(EditAnywhere, config, Category = Mesh)
+	float FarDistanceMeshExtent = 4000000.0f;
+protected:
+	UPROPERTY(EditAnywhere, Config, Category = Mesh)
+	TSoftObjectPtr<UMaterialInterface> FarDistanceMaterial;
+};
 
 
 USTRUCT()
@@ -214,6 +231,9 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Brush)
 	TSoftObjectPtr<UMaterialParameterCollection> LandscapeMaterialParameterCollection;
 
+	/** Default values for base WaterMesh actor*/
+	UPROPERTY(EditAnywhere, config, Category = ActorDefaults)
+	FWaterMeshActorDefaults WaterMeshActorDefaults;
 	/** Default values for base WaterBodyRiver actor */
 	UPROPERTY(EditAnywhere, config, Category = ActorDefaults)
 	FWaterBodyRiverDefaults WaterBodyRiverDefaults;

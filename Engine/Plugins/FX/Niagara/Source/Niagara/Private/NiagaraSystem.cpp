@@ -193,53 +193,53 @@ FNiagaraAsyncCompileTask::FNiagaraAsyncCompileTask(FString InAssetPath, const FE
 void FNiagaraAsyncCompileTask::ProcessCurrentState()
 {
 	SCOPE_CYCLE_COUNTER(STAT_Niagara_System_CompileScriptTaskGT);
-	if (IsDone())
-	{
-		return;
-	}
-
+		if (IsDone())
+		{
+			return;
+		}
+	
 	if (CurrentState == ENiagaraCompilationState::CheckDDC)
 	{
 		// check if the DDC data is ready
 		CheckDDCResult();
 	}
 	else if (CurrentState == ENiagaraCompilationState::Precompile)
-	{
-		// gather precompile data
-		StartCompileTime = FPlatformTime::Seconds();
-		PrecompileData();
-		MoveToState(ENiagaraCompilationState::StartCompileJob);
-	}
-	else if (CurrentState == ENiagaraCompilationState::StartCompileJob)
-	{
-		// start the async compile job
-		StartCompileJob();
-		MoveToState(ENiagaraCompilationState::AwaitResult);
-	}
-	else if (CurrentState == ENiagaraCompilationState::AwaitResult)
-	{
-		if (AwaitResult())
 		{
-			MoveToState(ENiagaraCompilationState::ProcessResult);
-		}
-	}
+			// gather precompile data
+		StartCompileTime = FPlatformTime::Seconds();
+				PrecompileData();
+				MoveToState(ENiagaraCompilationState::StartCompileJob);
+			}
+	else if (CurrentState == ENiagaraCompilationState::StartCompileJob)
+			{
+			// start the async compile job
+				StartCompileJob();
+				MoveToState(ENiagaraCompilationState::AwaitResult);
+			}
+	else if (CurrentState == ENiagaraCompilationState::AwaitResult)
+			{
+				if (AwaitResult())
+				{
+					MoveToState(ENiagaraCompilationState::ProcessResult);
+				}
+			}
 	else if (CurrentState == ENiagaraCompilationState::ProcessResult)
-	{
-		// save the result from the compile job
-		ProcessResult();
+		{
+			// save the result from the compile job
+				ProcessResult();
 		MoveToState(ENiagaraCompilationState::PutToDDC);
-	}
+			}
 	else if (CurrentState == ENiagaraCompilationState::PutToDDC)
-	{
+			{
 		// put the result from the compile job into the ddc
 		PutToDDC();
 		MoveToState(ENiagaraCompilationState::Finished);
+		}
+		else
+		{
+			check(false);
+		}
 	}
-	else
-	{
-		check(false);
-	}
-}
 
 void FNiagaraAsyncCompileTask::MoveToState(ENiagaraCompilationState NewState)
 {
@@ -278,7 +278,7 @@ void FNiagaraAsyncCompileTask::MoveToState(ENiagaraCompilationState NewState)
 
 	UE_LOG(LogNiagara, Verbose, TEXT("Changing state %i -> %i for for %s!"), CurrentState, NewState, *AssetPath);
 	CurrentState = NewState;
-}
+	}
 
 bool FNiagaraAsyncCompileTask::IsDone() const
 {
@@ -382,7 +382,7 @@ void FNiagaraAsyncCompileTask::WaitAndResolveResult()
 		ProcessCurrentState();
 	}
 }
-
+	
 void FNiagaraAsyncCompileTask::AbortTask()
 {
 	MoveToState(ENiagaraCompilationState::Aborted);
@@ -407,16 +407,16 @@ void FNiagaraAsyncCompileTask::CheckDDCResult()
 				ScriptPair.bResultsReady = true;
 				MoveToState(ENiagaraCompilationState::Finished);
 				UE_LOG(LogNiagara, Verbose, TEXT("Compilation data for %s could be pulled from the ddc."), *AssetPath);
-			}
+}
 			else
-			{
+{
 				UE_LOG(LogNiagara, Warning, TEXT("Unable to create exec data from ddc data for script %s, going to recompile it from scratch. DDC might be corrupted or there is a problem with script serialization."), *AssetPath);
 				ExeData.Reset();
 				MoveToState(ENiagaraCompilationState::Precompile);
 			}
 		}
 		else
-		{
+	{
 			MoveToState(ENiagaraCompilationState::Precompile);
 			UE_LOG(LogNiagara, Verbose, TEXT("No compilation data for %s found in the ddc."), *AssetPath);
 		}
@@ -428,7 +428,7 @@ void FNiagaraAsyncCompileTask::CheckDDCResult()
 void FNiagaraAsyncCompileTask::PutToDDC()
 {
 	if (DDCOutData.Num() > 0)
-	{
+{
 		UE_LOG(LogNiagara, Verbose, TEXT("Writing data for %s to the ddc"), *AssetPath);
 		GetDerivedDataCache()->Put(*DDCKey, DDCOutData, *AssetPath, true);
 	}
@@ -1092,6 +1092,11 @@ void UNiagaraSystem::PostLoad()
 	if (bIsTemplateAsset_DEPRECATED)
 	{
 		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
+	}
+	
+	if(bExposeToLibrary_DEPRECATED)
+	{
+		LibraryVisibility = ENiagaraScriptLibraryVisibility::Unexposed;
 	}
 #endif // WITH_EDITORONLY_DATA
 
@@ -2392,7 +2397,7 @@ bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& Compi
 void UNiagaraSystem::PreProcessWaitingDDCTasks(bool bProcessForWait)
 {
 	if (!bProcessForWait)
-	{
+{
 		return;
 	}
 	for (FNiagaraSystemCompileRequest& CompileRequest : ActiveCompilations)
@@ -2400,12 +2405,12 @@ void UNiagaraSystem::PreProcessWaitingDDCTasks(bool bProcessForWait)
 		for (auto& AsyncTask : CompileRequest.DDCTasks)
 		{
 			AsyncTask->bWaitForCompileJob = true;
-			// before we start to wait for the compile results, we start the compilation of all remaining tasks
+				// before we start to wait for the compile results, we start the compilation of all remaining tasks
 			while (!AsyncTask->IsDone() && AsyncTask->CurrentState < ENiagaraCompilationState::AwaitResult)
-			{
-				AsyncTask->ProcessCurrentState();
+				{
+					AsyncTask->ProcessCurrentState();
+				}
 			}
-		}
 	}
 }
 
@@ -2438,7 +2443,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 			if (bWait)
 			{
 				AsyncTask->WaitAndResolveResult();
-			}
+				}
 			else
 			{
 				bAreWeWaitingForAnyResults = true;
@@ -2448,18 +2453,18 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		// Make sure that we aren't waiting for any results to come back.
 		if (bAreWeWaitingForAnyResults)
 		{
-			return false;
-		}
-		// if we've gotten all the results, run a quick check to see if the data is valid, if it's not then that indicates that
-		// we've run into a compatibility issue and so we should see if we should issue a full rebuild
-		const bool ResultsValid = CompilationResultsValid(CompileRequest);
-		if (!ResultsValid && !CompileRequest.bForced)
-		{
-			CompileRequest.RootObjects.Empty();
-			ActiveCompilations.RemoveAt(0);
-			RequestCompile(true, nullptr);
-			return false;
-		}
+				return false;
+			}
+			// if we've gotten all the results, run a quick check to see if the data is valid, if it's not then that indicates that
+			// we've run into a compatibility issue and so we should see if we should issue a full rebuild
+			const bool ResultsValid = CompilationResultsValid(CompileRequest);
+			if (!ResultsValid && !CompileRequest.bForced)
+			{
+				CompileRequest.RootObjects.Empty();
+				ActiveCompilations.RemoveAt(0);
+				RequestCompile(true, nullptr);
+				return false;
+			}
 
 		// In the world of do not apply, we're exiting the system completely so let's just kill any active compilations altogether.
 		if (bDoNotApply || CompileRequest.bIsValid == false)
@@ -2577,7 +2582,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		ResolveScalabilitySettings();
 
 		const float ElapsedWallTime = (float)(FPlatformTime::Seconds() - CompileRequest.StartTime);
-		
+
 		if (bHasCompiledJobs)
 		{
 			UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (time since issued), %f sec (combined shader worker time)."),
@@ -3108,7 +3113,7 @@ TStatId UNiagaraSystem::GetStatID(bool bGameThread, bool bConcurrent)const
 		}
 	}
 #endif
-	return TStatId();
+	return static_cast<const UObjectBaseUtility*>(this)->GetStatID();
 }
 
 void UNiagaraSystem::AddToInstanceCountStat(int32 NumInstances, bool bSolo)const

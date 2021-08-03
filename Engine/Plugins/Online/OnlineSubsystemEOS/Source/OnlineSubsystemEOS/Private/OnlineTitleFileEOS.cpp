@@ -118,7 +118,7 @@ bool FOnlineTitleFileEOS::EnumerateFiles(const FPagedQuery& Page)
 {
 	FString ErrorStr;
 	bool bStarted = true;
-	TArray<FString> TitleStorageTags = GetDefault<UEOSSettings>()->TitleStorageTags;
+	TArray<FString> TitleStorageTags = UEOSSettings::GetSettings().TitleStorageTags;
 
 	if (TitleStorageTags.Num() == 0)
 	{
@@ -330,7 +330,7 @@ bool FOnlineTitleFileEOS::ReadFile(const FString& FileName)
 	FTCHARToUTF8 FileNameConverter(*FileName);
 	const char* AnsiFileName = FileNameConverter.Get();
 
-	int32 ReadChunkSize = GetDefault<UEOSSettings>()->TitleStorageReadChunkLength;
+	int32 ReadChunkSize = UEOSSettings::GetSettings().TitleStorageReadChunkLength;
 	if (ReadChunkSize <= 0)
 	{
 		UE_LOG_ONLINE_TITLEFILE(Warning, TEXT("ReadFile() invalid size TitleStorageReadChunkLength %d"), ReadChunkSize);

@@ -92,6 +92,13 @@ public:
 
 
 	/**
+	 * Access the last level sequence that was recorded
+	 */
+	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")
+	ULevelSequence* GetLastRecordedLevelSequence() const;
+
+
+	/**
 	 * Access take meta data for this take
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")

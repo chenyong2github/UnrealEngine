@@ -186,7 +186,7 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyPositions(TAr
 				Section->ExpandToFrame(NewTime);
 			}
 		}
-
+		Channel->PostEditChange();
 		CurveModifiedDelegate.Broadcast();
 	}
 }
@@ -359,7 +359,7 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::AddKeys(TArrayView<
 		// We reuse SetKeyAttributes here as there is complex logic determining which parts of the attributes are valid to set.
 		// For now we need to duplicate the new key handle array due to API mismatch. This will auto calculate tangents if needed.
 		SetKeyAttributes(NewKeyHandles, InKeyAttributes);
-
+		Channel->PostEditChange();
 		CurveModifiedDelegate.Broadcast();
 	}
 }
@@ -383,7 +383,7 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::RemoveKeys(TArrayVi
 				ChannelData.RemoveKey(KeyIndex);
 			}
 		}
-
+		Channel->PostEditChange();
 		CurveModifiedDelegate.Broadcast();
 	}
 }

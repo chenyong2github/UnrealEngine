@@ -119,7 +119,7 @@ TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACNSender::TryCreateUnicastSende
 	TSharedPtr<FInternetAddr> NewUnicastInternetAddr = CreateInternetAddr(InUnicastIP, ACN_PORT);
 	if (!NewUnicastInternetAddr.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Invalid Unicast IP %s for DMX Port. Please update your Output Port in Project Settings -> Plugins -> DMX Plugin"), *InNetworkInterfaceIP);
+		UE_LOG(LogDMXProtocol, Error, TEXT("Invalid Unicast IP %s for DMX Port. Please update your Output Port in Project Settings -> Plugins -> DMX Plugin"), *InUnicastIP);
 		return nullptr;
 	}
 

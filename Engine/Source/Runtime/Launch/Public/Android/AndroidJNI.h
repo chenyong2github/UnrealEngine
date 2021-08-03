@@ -133,13 +133,6 @@ public:
 	// Motion controls
 	static jmethodID AndroidThunkJava_EnableMotion;
 
-	// WorkManager and AndroidBackgroundHTTP classes
-	static jclass UEWorkerClass;
-	static jclass UEDownloadWorkerClass;
-	static jclass UEWorkManagerJavaInterfaceClass;
-	static jclass WorkRequestParametersJavaInterfaceClass;
-	static jclass DownloadDescriptionClass;
-
 	// member fields for getting the launch notification
 	static jclass LaunchNotificationClass;
 	static jfieldID LaunchNotificationUsed;

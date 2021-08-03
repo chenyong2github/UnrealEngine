@@ -268,6 +268,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
+	float3 OriginalWorldPosition = WorldPosition;
 
 	// Reflection information
 	float4 ReflectedColor = 0.0;
@@ -1020,7 +1021,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 			TransmissionRay.Origin = View.WorldCameraOrigin;
 			TransmissionRay.Direction = CameraDirection;
 			TransmissionRay.TMin = 0.0;
-			TransmissionRay.TMax = length(WorldPosition - View.WorldCameraOrigin);
+			TransmissionRay.TMax = dot(OriginalWorldPosition - View.WorldCameraOrigin, CameraDirection) - 0.1;
 			float3 Inscattering = 0.0;
 			float Transmission = Transmit(TransmissionRay, PixelCoord, Inscattering);
 			//#dxr_todo: add Inscattering support (this is emission only so far)

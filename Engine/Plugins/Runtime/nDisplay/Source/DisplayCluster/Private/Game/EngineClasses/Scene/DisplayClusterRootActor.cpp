@@ -176,6 +176,15 @@ void ADisplayClusterRootActor::UpdateConfigDataInstance(UDisplayClusterConfigura
 					NAME_None,
 					IsTemplate() ? RF_ArchetypeObject | CommonFlags : CommonFlags);
 			}
+
+			if (CurrentConfigData->Scene == nullptr)
+			{
+				CurrentConfigData->Scene = NewObject<UDisplayClusterConfigurationScene>(
+					CurrentConfigData,
+					UDisplayClusterConfigurationScene::StaticClass(),
+					NAME_None,
+					IsTemplate() ? RF_ArchetypeObject | CommonFlags : CommonFlags);
+		}
 		}
 		else if (bForceRecreate)
 		{
@@ -324,12 +333,9 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 
 	OutPrimitives.Empty();
 
-#if WITH_EDITOR
-
 	if (CurrentConfigData)
 	{
-		//@todo: Add more rules to hide components used in config
-		// Hide all static meshes assigned into configuration:
+		// Add warp meshes assigned in the configuration into hide lists
 		TArray<FString> WarpMeshNames;
 		CurrentConfigData->GetReferencedMeshNames(WarpMeshNames);
 		if (WarpMeshNames.Num() > 0)
@@ -337,6 +343,8 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 			GetTypedPrimitives<UStaticMeshComponent>(OutPrimitives, &WarpMeshNames);
 		}
 	}
+
+#if WITH_EDITOR
 
 	// Hide all visualization components from RootActor
 	{
@@ -597,14 +605,69 @@ void ADisplayClusterRootActor::BeginDestroy()
 
 void ADisplayClusterRootActor::RerunConstructionScripts()
 {
+	IDisplayClusterConfiguration& Config = IDisplayClusterConfiguration::Get();
+	if (!Config.IsTransactingSnapshot())
+	{
 	Super::RerunConstructionScripts();
-
 #if WITH_EDITOR
 	RerunConstructionScripts_Editor();
 #endif
+}
 }
 
 UDisplayClusterCameraComponent* ADisplayClusterRootActor::GetDefaultCamera() const
 {
 	return DefaultViewPoint;
+}
+
+bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplace)
+{
+	IDisplayCluster& Display = IDisplayCluster::Get();
+
+	UDisplayClusterConfigurationData* ConfigData = GetConfigData();
+
+	if (!ConfigData)
+	{
+		UE_LOG(LogDisplayClusterGame, Warning, TEXT("RootActor's ConfigData was null"));
+		return false;
+	}
+
+	const FString NodeId = Display.GetClusterMgr()->GetNodeId();
+	const UDisplayClusterConfigurationClusterNode* Node = ConfigData->GetClusterNode(NodeId);
+
+	if (Node)
+	{
+		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : Node->Viewports)
+		{
+			if (ViewportItem.Value)
+			{
+				ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
+			}
+		}
+	}
+	else if (ConfigData->Cluster)
+	{
+		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeItem : ConfigData->Cluster->Nodes)
+		{
+			if (!NodeItem.Value)
+			{
+				continue;
+			}
+
+			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : NodeItem.Value->Viewports)
+			{
+				if (ViewportItem.Value)
+				{
+					ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
+				}
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterGame, Warning, TEXT("ConfigData's Cluster was null"));
+		return false;
+	}
+
+	return true;
 }

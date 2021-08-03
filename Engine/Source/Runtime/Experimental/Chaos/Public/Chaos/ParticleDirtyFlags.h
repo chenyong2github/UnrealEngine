@@ -16,6 +16,10 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
+#ifndef CHAOS_DEBUG_NAME
+#define CHAOS_DEBUG_NAME 0
+#endif
+
 class FName;
 
 namespace Chaos
@@ -430,7 +434,7 @@ public:
 		SetGeometry(Other.SharedGeometryLowLevel());
 		SetUniqueIdx(Other.UniqueIdx());
 		SetSpatialIdx(Other.SpatialIdx());
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 		SetDebugName(Other.DebugName());
 #endif
 	}
@@ -440,11 +444,7 @@ public:
 	{
 		return Geometry() == Other.Geometry()
 			&& UniqueIdx() == Other.UniqueIdx()
-			&& SpatialIdx() == Other.SpatialIdx()
-#if CHAOS_CHECKED
-			&& DebugName() == Other.DebugName()
-#endif
-			;
+			&& SpatialIdx() == Other.SpatialIdx();
 	}
 
 	bool operator==(const FParticleNonFrequentData& Other) const
@@ -466,17 +466,17 @@ public:
 	FSpatialAccelerationIdx SpatialIdx() const { return MSpatialIdx; }
 	void SetSpatialIdx(FSpatialAccelerationIdx InIdx){ MSpatialIdx = InIdx; }
 
-#if CHAOS_CHECKED
-	FName DebugName() const { return MDebugName; }
-	void SetDebugName(FName InName) { MDebugName = InName; }
+#if CHAOS_DEBUG_NAME
+	const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName() const { return MDebugName; }
+	void SetDebugName(const TSharedPtr<FString, ESPMode::ThreadSafe>& InName) { MDebugName = InName; }
 #endif
 private:
 	TSharedPtr<const FImplicitObject,ESPMode::ThreadSafe> MGeometry;
 	FUniqueIdx MUniqueIdx;
 	FSpatialAccelerationIdx MSpatialIdx;
 
-#if CHAOS_CHECKED
-	FName MDebugName;
+#if CHAOS_DEBUG_NAME
+	TSharedPtr<FString, ESPMode::ThreadSafe> MDebugName;
 #endif
 };
 
@@ -1399,42 +1399,7 @@ void TRemoteProperty<T>::Write(FDirtyPropertiesManager& Manager,const T& Val)
 template <typename T>
 class TPropertyPool;
 
-template <typename T>
-class TPropertyRef
-{
-public:
-	TPropertyRef() = default;
-	TPropertyRef(TPropertyRef<T>&& Other)
-	: IdxPlusOne(Other.IdxPlusOne)
-	{
-		Other.IdxPlusOne = 0;
-	}
-	TPropertyRef(const TPropertyRef<T>& Other) = delete;	//use AddRef on TPropertyPool
-
-	~TPropertyRef() { ensure(!IsSet()); }	//use ReleaseRef on TPropertyPool before destructor is called
-
-	const bool IsSet() const { return IdxPlusOne != 0; }
-	const int32 GetIdx() const { return IdxPlusOne - 1; }
-
-	void SetRefFrom(const TPropertyRef<T>& Other, TPropertyPool<T>& Pool);
-private:
-
-	void SetIdx(const int32 InIdx)
-	{
-		IdxPlusOne = InIdx + 1;
-	}
-
-	int32 IdxPlusOne = 0;	//use 0 so that we can treat zeroed entries as invalid (Element is in Elements[IdxPlusOne-1])
-
-	template <typename R>
-	friend class TPropertyPool;
-
-	TPropertyRef(const int32 InIdx)
-	: IdxPlusOne(InIdx+1)
-	{}
-
-};
-
+using FPropertyIdx = int32;
 
 template <typename T>
 class TPropertyPool
@@ -1442,57 +1407,34 @@ class TPropertyPool
 	static_assert(sizeof(TPropertyTypeTrait<T>::PoolIdx), "Property type must be registered. Is it in PropertiesTypes.inl?");
 public:
 
-	void AddElement(const T& Val, TPropertyRef<T>& OutRef)
+	T& AddElement(FPropertyIdx& OutIdx)
 	{
-		//About to lose reference so make sure it's released (if set)
-		if(OutRef.IsSet())
-		{
-			DecRef(OutRef);
-		}
-
 		if(FreeList.Num())
 		{
-			const int32 Idx = FreeList.Pop();
-			Elements[Idx] = FPropertyAndCount(Val);
-			OutRef.SetIdx(Idx);
+			OutIdx = FreeList.Pop();
+			return Elements[OutIdx];
 		}
 		else
 		{
-			OutRef.SetIdx(Elements.Add(Val));
+			OutIdx = Elements.AddDefaulted(1);
+			return Elements[OutIdx];
 		}
 	}
 
-	void IncRef(const TPropertyRef<T>& Ref)
+	void RemoveElement(const FPropertyIdx Idx)
 	{
-		ensure(Elements[Ref.GetIdx()].Count);	//must be that someone else is still holding a reference
-		++Elements[Ref.GetIdx()].Count;
+		Elements[Idx] = T();
+		FreeList.Push(Idx);
 	}
 
-	void DecRef(TPropertyRef<T>& Ref)
+	T& GetElement(const FPropertyIdx Idx)
 	{
-		ensure(Ref.IsSet());	//double release?
-		ensure(Elements[Ref.GetIdx()].Count > 0);	//double release?
-		
-		if(--Elements[Ref.GetIdx()].Count == 0)
-		{
-			//Can't use destructor because using TArray by value - this should be cheap anyway
-			Elements[Ref.GetIdx()] = FPropertyAndCount();
-			FreeList.Add(Ref.GetIdx());
+		return Elements[Idx];
 		}
 
-		Ref.SetIdx(INDEX_NONE);
-	}
-
-	const T& GetElement(const TPropertyRef<T>& Ref) const
+	const T& GetElement(const FPropertyIdx Idx) const
 	{
-		ensure(Elements[Ref.GetIdx()].Count > 0);	//deleted ref?
-		return Elements[Ref.GetIdx()].Val;
-	}
-
-	T& GetElement(const TPropertyRef<T>& Ref)
-	{
-		ensure(Elements[Ref.GetIdx()].Count > 0);	//deleted ref?
-		return Elements[Ref.GetIdx()].Val;
+		return Elements[Idx];
 	}
 
 	~TPropertyPool()
@@ -1502,21 +1444,9 @@ public:
 
 private:
 
-	struct FPropertyAndCount
-	{
-		FPropertyAndCount() = default;
-		FPropertyAndCount(const T& InVal)
-		: Val(InVal)
-		, Count(1)
-		{}
-
-		T Val;
-		int32 Count = 0;
+	TArray<T> Elements;
+	TArray<FPropertyIdx> FreeList;
 	};
-
-	TArray<FPropertyAndCount> Elements;
-	TArray<int32> FreeList;
-};
 
 //Similar to FDirtyPropertiesManager but is not needed to be used across threads
 //This means we just have one big pool per property that you can new/free into
@@ -1559,25 +1489,5 @@ private:
 #include "ParticleProperties.inl"
 #undef PARTICLE_PROPERTY
 };
-
-template <typename T>
-void TPropertyRef<T>::SetRefFrom(const TPropertyRef<T>& Other, TPropertyPool<T>& Pool)
-{
-	//don't do anything unless different
-	if(IdxPlusOne != Other.IdxPlusOne)
-	{
-		if(IsSet())
-		{
-			Pool.DecRef(*this);
-		}
-
-		if(Other.IsSet())
-		{
-			Pool.IncRef(Other);
-		}
-
-		IdxPlusOne = Other.IdxPlusOne;
-	}
-}
 
 }

@@ -67,7 +67,7 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 			SNew(SCheckBox)
 			.IsChecked_Lambda([&bAddViewport]() { return bAddViewport ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 			.OnCheckStateChanged_Lambda([&bAddViewport](ECheckBoxState NewState) { bAddViewport = NewState == ECheckBoxState::Checked; })
-			.ToolTipText(LOCTEXT("AddNewClusterNode_AddViewportToolTip", "When checked, adds a new viewport to the cluster node when created that matches the size of the node"))
+			.ToolTipText(LOCTEXT("AddNewClusterNode_AddViewportToolTip", "When checked, adds a new viewport to the cluster node when created that matches the size of the Node application window"))
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("AddNewClusterNode_AddViewportLabel", "Add Viewport to New Cluster Node"))
@@ -162,7 +162,7 @@ UDisplayClusterConfigurationViewport* FDisplayClusterConfiguratorClusterUtils::C
 			SNew(SCheckBox)
 			.IsChecked_Lambda([&bAutoposition]() { return bAutoposition ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 			.OnCheckStateChanged_Lambda([&bAutoposition](ECheckBoxState NewState) { bAutoposition = NewState == ECheckBoxState::Checked; })
-			.ToolTipText(LOCTEXT("AddNewViewport_AutoPositionToolTip", "When checked, auto-positions the new viewport to prevent overlap with other viewports in the same cluster node"))
+			.ToolTipText(LOCTEXT("AddNewViewport_AutoPositionToolTip", "When checked, auto-positions the new Viewport to prevent overlap with other Viewports in the same cluster Node"))
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("AddNewViewport_AutoPositionLabel", "Adjust Viewport Position to Prevent Overlap"))
@@ -176,7 +176,7 @@ UDisplayClusterConfigurationViewport* FDisplayClusterConfiguratorClusterUtils::C
 			SNew(SCheckBox)
 			.IsChecked_Lambda([&bExpandClusterNode]() { return bExpandClusterNode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 			.OnCheckStateChanged_Lambda([&bExpandClusterNode](ECheckBoxState NewState) { bExpandClusterNode = NewState == ECheckBoxState::Checked; })
-			.ToolTipText(LOCTEXT("AddNewViewport_ExpandClusterNodeToolTip", "When checked, expands the parent cluster node to contain the new viewport"))
+			.ToolTipText(LOCTEXT("AddNewViewport_ExpandClusterNodeToolTip", "When checked, expands the parent cluster Node to contain the new Viewport"))
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("AddNewViewport_ExpandClusterNodeLabel", "Expand Cluster Node to Fit New Viewport"))

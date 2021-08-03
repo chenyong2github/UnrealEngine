@@ -91,15 +91,22 @@ private:
 
 public:
 	SLATE_BEGIN_ARGS(SNewLevelDialog)
+		: _ParentWindowClientSize(FVector2D::ZeroVector)
 		{}
 		/** A pointer to the parent window */
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
+
+
+		/** Initial size of the parent window */
+		SLATE_ARGUMENT( FVector2D, ParentWindowClientSize )
+
 		SLATE_ATTRIBUTE(TArray<FTemplateMapInfo>, Templates)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs)
 	{
 		ParentWindowPtr = InArgs._ParentWindow.Get();
+		InitialWindowSize = InArgs._ParentWindowClientSize;
 
 		OutTemplateMapPackageName = TEXT("");
 		bUserClickedOkay = false;
@@ -139,7 +146,7 @@ public:
 					.Padding(15)
 					[
 						SAssignNew(TemplatesWrapBox, SWrapBox)
-						.PreferredSize(DEFAULT_WINDOW_SIZE.X - 35.0)   // apparently no way to auto size the width of wrap boxes
+						.PreferredSize(InitialWindowSize.X - 35.0)   // apparently no way to auto size the width of wrap boxes
 					]
 				]
 				+SVerticalBox::Slot()
@@ -185,7 +192,7 @@ private:
 	TSharedRef<SWidget> GetWidgetForTemplate(TSharedPtr<FTemplateListItem> Template)
 	{
 		TSharedPtr<SWidget> Image;
-		FText Text = FText::GetEmpty();
+		FText Text = Template->TemplateMapInfo.DisplayName;
 		if (Template->bIsNewLevelItem)
 		{
 			// New level item
@@ -196,13 +203,21 @@ private:
 		{
 			// Level with thumbnail
 			Image = SNew(STexture2DView, Template->TemplateMapInfo.ThumbnailTexture);
+
+			if (Text.IsEmpty())
+			{
 			Text = FText::FromString(Template->TemplateMapInfo.ThumbnailTexture->GetName().Replace(TEXT("_"), TEXT(" ")));
+		}
 		}
 		else
 		{
 			// Level with no thumbnail
 			Image = SNew(SImage).Image(FEditorStyle::GetBrush(TEXT("NewLevelDialog.Default")));
+
+			if (Text.IsEmpty())
+			{
 			Text = FText::FromString(FPackageName::GetShortName(Template->TemplateMapInfo.Map).Replace(TEXT("_"), TEXT(" ")));
+		}
 		}
 
 		Image->SetCursor(EMouseCursor::Hand);
@@ -293,6 +308,9 @@ private:
 	/** Pointer to the parent window, so we know to destroy it when done */
 	TWeakPtr<SWindow> ParentWindowPtr;
 
+	/** Initial size of the parent window */
+	FVector2D InitialWindowSize;
+
 	TArray<TSharedPtr<FTemplateListItem>> TemplateItemsList;
 	TSharedPtr<SWrapBox> TemplatesWrapBox;
 	FString OutTemplateMapPackageName;
@@ -319,16 +337,22 @@ void FNewLevelDialogModule::ShutdownModule()
 bool FNewLevelDialogModule::CreateAndShowNewLevelDialog( const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName )
 {
 	TArray<FTemplateMapInfo> EmptyTemplates;
-	return CreateAndShowTemplateDialog(ParentWidget, LOCTEXT("WindowHeader", "New Level"), GUnrealEd ? GUnrealEd->TemplateMapInfos : EmptyTemplates, OutTemplateMapPackageName);
+	return CreateAndShowTemplateDialog(ParentWidget, LOCTEXT("WindowHeader", "New Level"), GUnrealEd ? GUnrealEd->GetTemplateMapInfos() : EmptyTemplates, OutTemplateMapPackageName);
 }
 
 bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const SWidget> ParentWidget, const FText& Title, const TArray<FTemplateMapInfo>& Templates, FString& OutTemplateMapPackageName )
 {
+	// Open larger window if there are enough templates
+	FVector2D WindowClientSize(SNewLevelDialog::DEFAULT_WINDOW_SIZE);
+	if (Templates.Num() > 9)
+	{
+		WindowClientSize = FVector2D(1008, 566);
+	}
 	
 	TSharedPtr<SWindow> NewLevelWindow =
 		SNew(SWindow)
 		.Title(Title)
-		.ClientSize(SNewLevelDialog::DEFAULT_WINDOW_SIZE)
+		.ClientSize(WindowClientSize)
 		.SizingRule( ESizingRule::UserSized )
 		.SupportsMinimize(false)
 		.SupportsMaximize(false);
@@ -336,6 +360,7 @@ bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const 
 	TSharedRef<SNewLevelDialog> NewLevelDialog =
 		SNew(SNewLevelDialog)
 		.ParentWindow(NewLevelWindow)
+		.ParentWindowClientSize(WindowClientSize)
 		.Templates(Templates);
 
 	NewLevelWindow->SetContent(NewLevelDialog);

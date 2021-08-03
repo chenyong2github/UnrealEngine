@@ -133,6 +133,7 @@ Texture3D<float4> SHCoefficients0G;
 Texture3D<float4> SHCoefficients1G;
 Texture3D<float4> SHCoefficients0B;
 Texture3D<float4> SHCoefficients1B;
+Texture3D<UNORM float> DirectionalLightShadowing;
 
 RWTexture3D<float3> OutAmbientVector;
 RWTexture3D<UNORM float4> OutSHCoefficients0R;
@@ -141,6 +142,7 @@ RWTexture3D<UNORM float4> OutSHCoefficients0G;
 RWTexture3D<UNORM float4> OutSHCoefficients1G;
 RWTexture3D<UNORM float4> OutSHCoefficients0B;
 RWTexture3D<UNORM float4> OutSHCoefficients1B;
+RWTexture3D<UNORM float> OutDirectionalLightShadowing;
 
 uint FrameNumber;
 
@@ -228,6 +230,49 @@ UNORM float4 DilateWithValidityMask(RWTexture3D<UNORM float4> Texture, Texture3D
 	return Value / max(AccumulatedWeight, 0.00001f);
 }
 
+UNORM float4 DilateWithValidityMask(RWTexture3D<UNORM float> Texture, Texture3D<float4> CoverageMask, float3 UVW)
+{
+	int3 Coord = UVW;
+	float3 CoordinateFraction = frac(UVW);
+	float AccumulatedWeight = 0.0f;
+	float Value = 0;
+	
+	float BrickSize;
+	const int PaddedBrickSize = 5;
+	
+	{
+		float3 IndirectionTextureUVW = UVW;
+		int3 IndirectionTextureCoordinates = floor(IndirectionTextureUVW);
+		uint4 IndirectionTextureValue = IndirectionTexture[IndirectionTextureCoordinates];
+		BrickSize = IndirectionTextureValue.w;
+	}
+	
+	for (int z = -1; z <= 1; z++)
+	{
+		for (int y = -1; y <= 1; y++)
+		{
+			for (int x = -1; x <= 1; x++)
+			{
+				float3 IndirectionTextureUVW = UVW + int3(x, y, z) / BrickSize / 4.0f;
+				int3 IndirectionTextureCoordinates = floor(IndirectionTextureUVW);
+				uint4 IndirectionTextureValue = IndirectionTexture[IndirectionTextureCoordinates];
+				
+				int3 BrickOrigin = (IndirectionTextureCoordinates / IndirectionTextureValue.w) * IndirectionTextureValue.w; // Integer Div
+				float3 BrickUVW = IndirectionTextureValue.xyz * PaddedBrickSize + frac(IndirectionTextureUVW / IndirectionTextureValue.w) * 4;
+			
+				int3 Coord = BrickUVW;
+				if (asuint(CoverageMask[Coord].w) >= FrameNumber / 3)
+				{
+					Value += Texture[Coord];
+					AccumulatedWeight += 1;
+				}
+			}
+		}
+	}
+	
+	return Value / max(AccumulatedWeight, 0.00001f);
+}
+
 float3 ManualTrilinearFilter(RWTexture3D<float3> Texture, float3 UVW)
 {
 	int3 Coord = UVW;
@@ -276,6 +321,30 @@ UNORM float4 ManualTrilinearFilter(RWTexture3D<UNORM float4> Texture, float3 UVW
 	return Value;
 }
 
+float3 ManualTrilinearFilter(RWTexture3D<UNORM float> Texture, float3 UVW)
+{
+	int3 Coord = UVW;
+	float3 CoordinateFraction = frac(UVW);
+	float3 Weight;
+	float Value = 0;
+	
+	for (int z = 0; z <= 1; z++)
+	{
+		Weight.z = (z == 0 ? 1 - CoordinateFraction.z : CoordinateFraction.z);
+		for (int y = 0; y <= 1; y++)
+		{
+			Weight.y = (y == 0 ? 1 - CoordinateFraction.y : CoordinateFraction.y);
+			for (int x = 0; x <= 1; x++)
+			{
+				Weight.x = (x == 0 ? 1 - CoordinateFraction.x : CoordinateFraction.x);
+				Value += Texture[Coord + int3(x, y, z)] * Weight.x * Weight.y * Weight.z;
+			}
+		}
+	}
+	
+	return Value;
+}
+
 int NumTotalBricks;
 int BrickBatchOffset;
 
@@ -300,6 +369,7 @@ void StitchBorderCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupT
 		OutSHCoefficients1G[VoxelPos] = DilateWithValidityMask(OutSHCoefficients1G, AmbientVector, IndirectionTextureUVW);
 		OutSHCoefficients0B[VoxelPos] = DilateWithValidityMask(OutSHCoefficients0B, AmbientVector, IndirectionTextureUVW);
 		OutSHCoefficients1B[VoxelPos] = DilateWithValidityMask(OutSHCoefficients1B, AmbientVector, IndirectionTextureUVW);
+		OutDirectionalLightShadowing[VoxelPos] = DilateWithValidityMask(OutDirectionalLightShadowing, AmbientVector, IndirectionTextureUVW);
 	}
 	
 	for (int dx = -1; dx <= 1; dx++)
@@ -322,6 +392,7 @@ void StitchBorderCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupT
 					OutSHCoefficients1G[VoxelPos] = ManualTrilinearFilter(OutSHCoefficients1G, BrickUVW);
 					OutSHCoefficients0B[VoxelPos] = ManualTrilinearFilter(OutSHCoefficients0B, BrickUVW);
 					OutSHCoefficients1B[VoxelPos] = ManualTrilinearFilter(OutSHCoefficients1B, BrickUVW);
+					OutDirectionalLightShadowing[VoxelPos] = ManualTrilinearFilter(OutDirectionalLightShadowing, BrickUVW);
 				}
 			}
 		}
@@ -363,5 +434,6 @@ void FinalizeBrickResultsCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : S
 		OutSHCoefficients1G[VoxelPos] = (SHCoefficients1G[VoxelPos] / SampleCount) * InvAmbient.g * CoefficientNormalizationScale1 * 0.5f + 0.5f;
 		OutSHCoefficients0B[VoxelPos] = (SHCoefficients0B[VoxelPos] / SampleCount) * InvAmbient.b * CoefficientNormalizationScale0 * 0.5f + 0.5f;
 		OutSHCoefficients1B[VoxelPos] = (SHCoefficients1B[VoxelPos] / SampleCount) * InvAmbient.b * CoefficientNormalizationScale1 * 0.5f + 0.5f;
+		OutDirectionalLightShadowing[VoxelPos] = DirectionalLightShadowing[VoxelPos];
 	}
 }

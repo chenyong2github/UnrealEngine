@@ -324,20 +324,23 @@ void UpdateBufferStats(EBufferUsageFlags InUsageFlags, int64 RequestedSize)
 }
 
 #if NV_AFTERMATH
-void D3D12RHI::FD3DGPUProfiler::RegisterCommandList(GFSDK_Aftermath_ContextHandle context)
+void D3D12RHI::FD3DGPUProfiler::RegisterCommandList(ID3D12GraphicsCommandList* CommandList, GFSDK_Aftermath_ContextHandle ContextHandle)
 {
 	FScopeLock Lock(&AftermathLock);
 
-	AftermathContexts.Push(context);
+	AftermathContexts.Push(ContextHandle);
+	AftermathCommandLists.Push(CommandList);
 }
 
-void D3D12RHI::FD3DGPUProfiler::UnregisterCommandList(GFSDK_Aftermath_ContextHandle context)
+void D3D12RHI::FD3DGPUProfiler::UnregisterCommandList(GFSDK_Aftermath_ContextHandle ContextHandle)
 {
 	FScopeLock Lock(&AftermathLock);
 
-	int32 Item = AftermathContexts.Find(context);
+	int32 Item = AftermathContexts.Find(ContextHandle);
+	check(Item != INDEX_NONE);
 
 	AftermathContexts.RemoveAt(Item);
+	AftermathCommandLists.RemoveAt(Item);
 }
 #endif
 
@@ -371,28 +374,23 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 				if (Result == GFSDK_Aftermath_Result_Success)
 				{
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Scanning %d command lists for dumps"), ContextDataOut.Num());
-					for (GFSDK_Aftermath_ContextData& ContextData : ContextDataOut)
+					for (int ContextIdx = 0; ContextIdx < ContextDataOut.Num(); ++ContextIdx)
 					{
-						if (ContextData.status == GFSDK_Aftermath_Context_Status_Executing || Status == GFSDK_Aftermath_Device_Status_PageFault)
-						{
-							uint32 NumCRCs = ContextData.markerSize / sizeof(uint32);
+						GFSDK_Aftermath_ContextData& ContextData = ContextDataOut[ContextIdx];
+						uint32 NumMarkers = ContextData.markerSize / sizeof(uint32);
 							uint32* Data = (uint32*)ContextData.markerData;
-							if (NumCRCs > 0)
+
+						const TCHAR* StatusNames[] = { TEXT("NotStarted"), TEXT("Executing"), TEXT("Finished"), TEXT("Invalid") };
+						const TCHAR* ContextStatusName = ContextData.status < UE_ARRAY_COUNT(StatusNames) ? StatusNames[ContextData.status] : TEXT("UNKNOWN");
+						UE_LOG(LogRHI, Error, TEXT("[Aftermath] Context %d, command list %016llX, status %s, %u markers. Begin GPU Stack Dump"), ContextIdx, AftermathCommandLists[ContextIdx], ContextStatusName, NumMarkers);
+						for (uint32 MarkerIdx = 0; MarkerIdx < NumMarkers; ++MarkerIdx)
 							{
-								UE_LOG(LogRHI, Error, TEXT("[Aftermath] Begin GPU Stack Dump"));
-								for (uint32 i = 0; i < NumCRCs; i++)
-								{
-									const FString* Frame = CachedEventStrings.Find(Data[i]);
-									if (Frame != nullptr)
-									{
-										UE_LOG(LogRHI, Error, TEXT("[Aftermath] %i: %s"), i, *(*Frame));
-									}
+							const FString* MarkerName = CachedEventStrings.Find(Data[MarkerIdx]);
+							UE_LOG(LogRHI, Error, TEXT("[Aftermath] %d: %s"), MarkerIdx, MarkerName ? *(*MarkerName) : TEXT("NULL"));
 								}
 								UE_LOG(LogRHI, Error, TEXT("[Aftermath] End GPU Stack Dump"));
 							}
 						}
-					}
-				}
 				else
 				{
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Failed to get Aftermath stack data"));

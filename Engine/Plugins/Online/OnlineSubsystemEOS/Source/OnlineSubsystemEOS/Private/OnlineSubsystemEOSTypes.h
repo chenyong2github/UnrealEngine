@@ -8,11 +8,10 @@
 #include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "Interfaces/OnlineUserInterface.h"
+#include "EOSShared.h"
 #include "IPAddress.h"
 
 #include "OnlineSubsystemEOSPackage.h"
-
-#include "IPAddress.h"
 
 #if WITH_EOS_SDK
 	#if defined(EOS_PLATFORM_BASE_FILE_NAME)
@@ -26,7 +25,7 @@
 #define EOS_CONNECTION_URL_PREFIX TEXT("EOS")
 #define EOS_URL_SEPARATOR TEXT(":")
 
-#define EOS_OSS_STRING_BUFFER_LENGTH 256
+#define EOS_OSS_STRING_BUFFER_LENGTH 256 + 1 // 256 plus null terminator
 
 class FOnlineSubsystemEOS;
 
@@ -433,47 +432,17 @@ protected:
 	FDateTime LastSeenTime;
 };
 
-static inline FString MakeStringFromProductUserId(EOS_ProductUserId UserId)
-{
-	FString StringId;
-
-	char ProductIdString[EOS_PRODUCTUSERID_MAX_LENGTH + 1];
-	ProductIdString[0] = '\0';
-	int32_t BufferSize = EOS_PRODUCTUSERID_MAX_LENGTH + 1;
-	EOS_EResult Result = EOS_ProductUserId_ToString(UserId, ProductIdString, &BufferSize);
-	ensure(Result == EOS_EResult::EOS_Success);
-	StringId += ProductIdString;
-
-	return StringId;
-}
-
-static inline FString MakeStringFromEpicAccountId(EOS_EpicAccountId AccountId)
-{
-	FString StringId;
-
-	char AccountIdString[EOS_EPICACCOUNTID_MAX_LENGTH + 1];
-	AccountIdString[0] = '\0';
-	int32_t BufferSize = EOS_EPICACCOUNTID_MAX_LENGTH + 1;
-	EOS_EResult Result = EOS_EpicAccountId_ToString(AccountId, AccountIdString, &BufferSize);
-	ensure(Result == EOS_EResult::EOS_Success);
-	StringId += AccountIdString;
-
-	return StringId;
-}
-
 static inline FString MakeNetIdStringFromIds(EOS_EpicAccountId AccountId, EOS_ProductUserId UserId)
 {
-	FString NetId;
+	FString NetId = LexToString(AccountId);
 
-	if (EOS_EpicAccountId_IsValid(AccountId) == EOS_TRUE)
-	{
-		NetId = MakeStringFromEpicAccountId(AccountId);
-	}
 	// Only add this when the product user id is valid for more consistent net id string generation
 	// across different code paths
-	if (EOS_ProductUserId_IsValid(UserId) == EOS_TRUE)
+	const FString ProductIdStr = LexToString(UserId);
+	if (!ProductIdStr.IsEmpty())
 	{
-		NetId += EOS_ID_SEPARATOR + MakeStringFromProductUserId(UserId);
+		NetId += EOS_ID_SEPARATOR;
+		NetId += ProductIdStr;
 	}
 
 	return NetId;

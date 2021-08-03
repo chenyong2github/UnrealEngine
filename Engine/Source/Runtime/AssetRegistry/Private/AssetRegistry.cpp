@@ -123,8 +123,11 @@ FAssetRegistryInterface GAssetRegistryInterface;
 
 // Caching is permanently enabled in editor because memory is not that constrained, disabled by default otherwise
 #define ASSETREGISTRY_CACHE_ALWAYS_ENABLED (WITH_EDITOR)
-// Enable loading premade asset registry in monolithic editor builds
-#define ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR (WITH_EDITOR && IS_MONOLITHIC)
+
+// Disable premade asset registry until the target specifies it in UBT
+#ifndef ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR
+	#define ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 0
+#endif
 
 DEFINE_LOG_CATEGORY(LogAssetRegistry);
 

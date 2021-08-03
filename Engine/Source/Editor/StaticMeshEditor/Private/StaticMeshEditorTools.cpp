@@ -773,6 +773,7 @@ void FMeshBuildSettingsLayout::GenerateChildContent( IDetailChildrenBuilder& Chi
 
 	{
 		ChildrenBuilder.AddCustomRow( LOCTEXT("ApplyChanges", "Apply Changes") )
+		.RowTag("ApplyChanges")
 		.ValueContent()
 		.HAlign(HAlign_Left)
 		[
@@ -1448,6 +1449,7 @@ void FMeshReductionSettingsLayout::GenerateChildContent( IDetailChildrenBuilder&
 
 	{
 		ChildrenBuilder.AddCustomRow( LOCTEXT("ApplyChanges", "Apply Changes") )
+			.RowTag("ApplyChanges")
 			.ValueContent()
 			.HAlign(HAlign_Left)
 			[
@@ -3195,6 +3197,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 	];
 	
 	LODSettingsCategory.AddCustomRow( LOCTEXT("LODImport", "LOD Import") )
+	.RowTag("LODImport")
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -3272,6 +3275,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 	// Add Number of LODs slider.
 	const int32 MinAllowedLOD = 1;
 	LODSettingsCategory.AddCustomRow( LOCTEXT("NumberOfLODs", "Number of LODs") )
+	.RowTag("NumberOfLODs")
 	.NameContent()
 	[
 		SNew(STextBlock)
@@ -3308,6 +3312,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 	];
 
 	LODSettingsCategory.AddCustomRow( LOCTEXT("ApplyChanges", "Apply Changes") )
+	.RowTag("ApplyChanges")
 	.ValueContent()
 	.HAlign(HAlign_Left)
 	[

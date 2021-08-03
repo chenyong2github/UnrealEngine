@@ -291,6 +291,51 @@ UTexture2D* UTextureRenderTarget2D::ConstructTexture2D(UObject* Outer, const FSt
 	// The r2t resource will be needed to read its surface contents
 	FRenderTarget* RenderTarget = GameThread_GetRenderTargetResource();
 
+	const ETextureSourceFormat TextureFormat = GetTextureFormatForConversionToTexture2D();
+
+	// exit if source is not compatible.
+	if (bIsValidSize == false || RenderTarget == NULL || TextureFormat == TSF_Invalid)
+	{
+		return Result;
+	}
+
+	// Create the 2d texture
+	Result = NewObject<UTexture2D>(Outer, FName(*NewTexName), InObjectFlags);
+	
+	UpdateTexture2D(Result, TextureFormat, Flags, AlphaOverride);
+
+	// if render target gamma used was 1.0 then disable SRGB for the static texture
+	if (FMath::Abs(RenderTarget->GetDisplayGamma() - 1.0f) < KINDA_SMALL_NUMBER)
+	{
+		Flags &= ~CTF_SRGB;
+	}
+
+	Result->SRGB = (Flags & CTF_SRGB) != 0;
+	Result->MipGenSettings = TMGS_FromTextureGroup;
+
+	if ((Flags & CTF_AllowMips) == 0)
+	{
+		Result->MipGenSettings = TMGS_NoMipmaps;
+	}
+
+	if (Flags & CTF_Compress)
+	{
+		// Set compression options.
+		Result->DeferCompression = (Flags & CTF_DeferCompression) ? true : false;
+	}
+	else
+	{
+		// Disable compression
+		Result->CompressionNone = true;
+		Result->DeferCompression = false;
+	}
+	Result->PostEditChange();
+#endif
+	return Result;
+}
+
+ETextureSourceFormat UTextureRenderTarget2D::GetTextureFormatForConversionToTexture2D() const
+{
 	const EPixelFormat PixelFormat = GetFormat();
 	ETextureSourceFormat TextureFormat = TSF_Invalid;
 	switch (PixelFormat)
@@ -311,46 +356,7 @@ UTexture2D* UTextureRenderTarget2D::ConstructTexture2D(UObject* Outer, const FSt
 	}
 	}
 
-	// exit if source is not compatible.
-	if (bIsValidSize == false || RenderTarget == NULL || TextureFormat == TSF_Invalid)
-	{
-		return Result;
-	}
-
-	// create the 2d texture
-	Result = NewObject<UTexture2D>(Outer, FName(*NewTexName), InObjectFlags);
-	
-	UpdateTexture2D(Result, TextureFormat, Flags, AlphaOverride);
-
-	// if render target gamma used was 1.0 then disable SRGB for the static texture
-	if (FMath::Abs(RenderTarget->GetDisplayGamma() - 1.0f) < KINDA_SMALL_NUMBER)
-	{
-		Flags &= ~CTF_SRGB;
-	}
-
-	Result->SRGB = (Flags & CTF_SRGB) != 0;
-	Result->MipGenSettings = TMGS_FromTextureGroup;
-
-	if ((Flags & CTF_AllowMips) == 0)
-	{
-		Result->MipGenSettings = TMGS_NoMipmaps;
-	}
-
-
-	if (Flags & CTF_Compress)
-	{
-		// Set compression options.
-		Result->DeferCompression = (Flags & CTF_DeferCompression) ? true : false;
-	}
-	else
-	{
-		// Disable compression
-		Result->CompressionNone = true;
-		Result->DeferCompression = false;
-	}
-	Result->PostEditChange();
-#endif
-	return Result;
+	return TextureFormat;
 }
 
 void UTextureRenderTarget2D::UpdateTexture2D(UTexture2D* InTexture2D, ETextureSourceFormat InTextureFormat, uint32 Flags, TArray<uint8>* AlphaOverride)

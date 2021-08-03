@@ -20,6 +20,8 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdateOuterVie
 	{
 		for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : StageSettings.PerViewportOCIOProfiles)
 		{
+			if (OCIOProfileIt.bIsEnabled)
+			{
 			for (const FString& ViewportNameIt : OCIOProfileIt.ApplyOCIOToObjects)
 			{
 				if (DstViewport.GetId().Compare(ViewportNameIt, ESearchCase::IgnoreCase) == 0)
@@ -34,12 +36,16 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdateOuterVie
 				}
 			}
 		}
+		}
 
 		// use all viewports OCIO RootActor
-		if (ImplUpdate(DstViewport, StageSettings.AllViewportsOCIOConfiguration))
+		if (StageSettings.AllViewportsOCIOConfiguration.bIsEnabled)
+		{
+			if (ImplUpdate(DstViewport, StageSettings.AllViewportsOCIOConfiguration.OCIOConfiguration))
 		{
 			return true;
 		}
+	}
 	}
 
 	// No valid OCIO for ICVX, disable
@@ -83,6 +89,8 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateICVFXCameraV
 		{
 			for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : CameraSettings.PerNodeOCIOProfiles)
 			{
+				if (OCIOProfileIt.bIsEnabled)
+				{
 				for (const FString& ClusterNodeIt : OCIOProfileIt.ApplyOCIOToObjects)
 				{
 					if (ClusterNodeId.Compare(ClusterNodeIt, ESearchCase::IgnoreCase) == 0)
@@ -98,9 +106,10 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateICVFXCameraV
 				}
 			}
 		}
+		}
 
 		// cluster node OCIO override not found, use all nodes configuration
-		if (ImplUpdate(DstViewport, CameraSettings.AllNodesOCIOConfiguration))
+		if (ImplUpdate(DstViewport, CameraSettings.AllNodesOCIOConfiguration.OCIOConfiguration))
 		{
 			return true;
 		}

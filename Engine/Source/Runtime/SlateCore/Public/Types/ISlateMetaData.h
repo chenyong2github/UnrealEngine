@@ -10,28 +10,24 @@
 class ISlateMetaData
 {
 public:
-
-	/** Get the metadata's Type ID and those of its parents. */
-	virtual void GetMetaDataTypeIds(TArray<FName>& OutMetaDataTypeIds) const { }
-
-	/**
-	 * Checks whether this metadata is of specified type.
-	 */
-	virtual bool IsOfTypeName(const FName& Type) const
-	{
-		return false;
-	}
-
 	/** Check if this metadata operation can cast safely to the specified template type */
 	template<class TType>
 	bool IsOfType() const
 	{
-		return IsOfTypeName(TType::GetTypeId());
+		return IsOfTypeImpl(TType::GetTypeId());
 	}
 
 	/** Virtual destructor. */
 	virtual ~ISlateMetaData() { }
 
+protected:
+	/**
+	 * Checks whether this drag and drop operation can cast safely to the specified type.
+	 */
+	virtual bool IsOfTypeImpl(const FName& Type) const
+	{
+		return false;
+	}
 };
 
 /**
@@ -46,8 +42,7 @@ public:
  */
 #define SLATE_METADATA_TYPE(TYPE, BASE) \
 	static const FName& GetTypeId() { static FName Type(TEXT(#TYPE)); return Type; } \
-	virtual void GetMetaDataTypeIds(TArray<FName>& OutMetaDataTypeIds) const override { OutMetaDataTypeIds.Add(GetTypeId()); BASE::GetMetaDataTypeIds(OutMetaDataTypeIds); } \
-	virtual bool IsOfTypeName(const FName& Type) const override { return GetTypeId() == Type || BASE::IsOfTypeName(Type); }
+	virtual bool IsOfTypeImpl(const FName& Type) const override { return GetTypeId() == Type || BASE::IsOfTypeImpl(Type); }
 
  /**
   * Simple tagging metadata
@@ -59,8 +54,7 @@ public:
 
 		FTagMetaData(FName InTag)
 		: Tag(InTag)
-	{
-	}
+	{}
 
 	/** Tag name for a widget */
 	FName Tag;

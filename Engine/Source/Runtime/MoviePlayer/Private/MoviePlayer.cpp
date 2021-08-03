@@ -127,3 +127,4 @@ bool IsMoviePlayerEnabled()
 
 	return bEnabled;
 }
+

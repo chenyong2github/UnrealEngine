@@ -846,17 +846,27 @@ void FLevelSequenceEditorToolkit::HandleTrackMenuExtensionAddTrack(FMenuBuilder&
 	{
 		AddTrackMenuBuilder.BeginSection("Components", LOCTEXT("ComponentsSection", "Components"));
 		{
+			TMap<FString, UActorComponent*> SortedComponents;
 			for (UActorComponent* Component : Actor->GetComponents())
 			{
 				if (Component)
 				{
-					FUIAction AddComponentAction(FExecuteAction::CreateSP(this, &FLevelSequenceEditorToolkit::HandleAddComponentActionExecute, Component));
-					FText AddComponentLabel = FText::FromString(Component->GetName());
-					FText AddComponentToolTip = FText::Format(LOCTEXT("ComponentToolTipFormat", "Add {0} component"), FText::FromString(Component->GetName()));
+					SortedComponents.Add(Component->GetName(), Component);
+				}
+			}
+			SortedComponents.KeySort([](const FString& A, const FString& B) 
+			{
+				return A < B;
+			});
+			
+			for (const TPair<FString, UActorComponent*>& Component : SortedComponents)
+			{
+				FUIAction AddComponentAction(FExecuteAction::CreateSP(this, &FLevelSequenceEditorToolkit::HandleAddComponentActionExecute, Component.Value));
+				FText AddComponentLabel = FText::FromString(Component.Key);
+				FText AddComponentToolTip = FText::Format(LOCTEXT("ComponentToolTipFormat", "Add {0} component"), AddComponentLabel);
 					AddTrackMenuBuilder.AddMenuEntry(AddComponentLabel, AddComponentToolTip, FSlateIcon(), AddComponentAction);
 				}
 			}
-		}
 		AddTrackMenuBuilder.EndSection();
 	}
 	else

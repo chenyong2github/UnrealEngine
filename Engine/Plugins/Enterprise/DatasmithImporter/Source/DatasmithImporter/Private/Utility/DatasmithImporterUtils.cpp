@@ -75,7 +75,7 @@ namespace DatasmithImporterUtilsImpl
 
 int32 GDatasmithMaxAssetPathLength = 260-100; // a base value that should suits most cases
 static FAutoConsoleVariableRef CVarDatasmithMaxAssetPathLength(
-	TEXT("Datasmith.MaxAssetPathLength"),
+	TEXT("ds.MaxAssetPathLength"),
 	GDatasmithMaxAssetPathLength,
 	TEXT("Datasmith will try to limit asset path length to this value. Default: 160")
 );

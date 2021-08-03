@@ -360,7 +360,7 @@ void UTakeRecorderActorSource::StartRecording(const FTimecode& InSectionStartTim
 void UTakeRecorderActorSource::CreateSectionRecordersRecursive(UObject* ObjectToRecord, UActorRecorderPropertyMap* PropertyMap, TArray<UObject*>& TraversedObjects)
 {
 	if (TraversedObjects.Contains(ObjectToRecord))
-	{
+{
 		return;
 	}
 

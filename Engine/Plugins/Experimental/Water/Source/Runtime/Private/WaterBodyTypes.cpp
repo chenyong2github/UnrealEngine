@@ -8,12 +8,12 @@
 #include "Landscape/Classes/LandscapeInfo.h"
 #include "Landscape/Classes/LandscapeProxy.h"
 
-float FWaterBodyQueryResult::LazilyComputeSplineKey(const AWaterBody& InWaterBody, const FVector& InWorldLocation)
+float FWaterBodyQueryResult::LazilyComputeSplineKey(const UWaterBodyComponent& InWaterBodyComponent, const FVector& InWorldLocation)
 {
 	// only compute if not done (or set) before : 
 	if (!SplineInputKey.IsSet())
 	{
-		SplineInputKey = TOptional<float>(InWaterBody.FindInputKeyClosestToWorldLocation(InWorldLocation));
+		SplineInputKey = TOptional<float>(InWaterBodyComponent.FindInputKeyClosestToWorldLocation(InWorldLocation));
 	}
 	return SplineInputKey.GetValue();
 }
@@ -112,13 +112,14 @@ FWaterSplineDataPhysics& FWaterSplineDataPhysics::operator=(const UWaterSplineCo
 	return *this;
 }
 
-FSolverSafeWaterBodyData::FSolverSafeWaterBodyData(AWaterBody* WaterBody)
+FSolverSafeWaterBodyData::FSolverSafeWaterBodyData(UWaterBodyComponent* WaterBodyComponent)
 {
-	if (WaterBody)
+	if (WaterBodyComponent)
 	{
-		World = WaterBody->GetWorld();
+		World = WaterBodyComponent->GetWorld();
 		check(World); // ?
-		if (ALandscapeProxy* LandscapeProxyActor = WaterBody->FindLandscape())
+
+		if (ALandscapeProxy* LandscapeProxyActor = WaterBodyComponent->FindLandscape())
 		{
 			if (ULandscapeInfo* Info = LandscapeProxyActor->GetLandscapeInfo())
 			{
@@ -128,19 +129,19 @@ FSolverSafeWaterBodyData::FSolverSafeWaterBodyData(AWaterBody* WaterBody)
 				}
 			}
 		}
-		WaterSpline = WaterBody->GetWaterSpline();
-		WaterSplineMetadata = WaterBody->GetWaterSplineMetadata();
-		Location = WaterBody->GetActorLocation();
-		WaterBodyType = WaterBody->GetWaterBodyType();
-		OceanHeightOffset = WaterBody->MaxWaveHeightOffset;
-		if (const UGerstnerWaterWaves* WavesObject = Cast< UGerstnerWaterWaves>(WaterBody->GetWaterWaves()))
+		WaterSpline = WaterBodyComponent->GetWaterSpline();
+		WaterSplineMetadata = WaterBodyComponent->GetWaterSplineMetadata();
+		Location = WaterBodyComponent->GetComponentLocation();
+		WaterBodyType = WaterBodyComponent->GetWaterBodyType();
+		OceanHeightOffset = WaterBodyComponent->MaxWaveHeightOffset;
+		if (const UGerstnerWaterWaves* WavesObject = Cast< UGerstnerWaterWaves>(WaterBodyComponent->GetWaterWaves()))
 		{
 			WaveParams = WavesObject->GetGerstnerWaves();
 		}
 		WaveSpeedFactor = 1.f;
-		TargetWaveMaskDepth = WaterBody->TargetWaveMaskDepth;
-		MaxWaveHeight = WaterBody->GetMaxWaveHeight();
-		WaterBodyIndex = WaterBody->WaterBodyIndex;
+		TargetWaveMaskDepth = WaterBodyComponent->TargetWaveMaskDepth;
+		MaxWaveHeight = WaterBodyComponent->GetMaxWaveHeight();
+		WaterBodyIndex = WaterBodyComponent->GetWaterBodyIndex();
 	}
 }
 

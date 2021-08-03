@@ -233,10 +233,6 @@ void FRenderDocPluginModule::StartupModule()
 	Loader.Initialize();
 	RenderDocAPI = nullptr;
 
-#if WITH_EDITOR
-	EditorExtensions = nullptr;
-#endif // WITH_EDITOR
-
 	if (Loader.RenderDocAPI == nullptr)
 	{
 		return;
@@ -307,15 +303,22 @@ void FRenderDocPluginModule::StartupModule()
 		TEXT("Starts a PIE session and captures the specified number of frames from the start."),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FRenderDocPluginModule::CapturePIE)
 	);
-
-	if (!IsRunningCommandlet())
-	{
-		EditorExtensions = new FRenderDocPluginEditorExtension(this);
-	}
 #endif // WITH_EDITOR
+
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRenderDocPluginModule::OnPostEngineInit);
 
 	UE_LOG(RenderDocPlugin, Log, TEXT("RenderDoc plugin is ready!"));
 #endif // !UE_BUILD_SHIPPING
+}
+
+void FRenderDocPluginModule::OnPostEngineInit()
+	{
+#if WITH_EDITOR
+	if (FSlateApplication::IsInitialized() && !IsRunningCommandlet())
+	{
+		EditorExtension = MakeShared<FRenderDocPluginEditorExtension>(this);
+	}
+#endif // WITH_EDITOR
 }
 
 void FRenderDocPluginModule::BeginFrameCapture()
@@ -634,7 +637,7 @@ void FRenderDocPluginModule::ShutdownModule()
 	IModularFeatures::Get().UnregisterModularFeature(IRenderCaptureProvider::GetModularFeatureName(), (IRenderCaptureProvider*)this);
 
 #if WITH_EDITOR
-	delete EditorExtensions;
+	EditorExtension.Reset();
 #endif // WITH_EDITOR
 
 	Loader.Release();

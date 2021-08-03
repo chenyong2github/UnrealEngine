@@ -126,7 +126,7 @@ void CreateCameraCutTrack(ULevelSequence* LevelSequence, const FGuid& RecordedCa
 	}
 
 	UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(CameraCutTrack->CreateNewSection());
-	CameraCutSection->SetCameraBindingID(UE::MovieScene::FRelativeObjectBindingID(RecordedCameraGuid));
+	CameraCutSection->SetCameraBindingID(UE::MovieScene::FRelativeObjectBindingID(RecordedCameraGuid, SequenceID));
 	CameraCutSection->SetRange(InRange);
 	CameraCutTrack->AddSection(*CameraCutSection);
 }

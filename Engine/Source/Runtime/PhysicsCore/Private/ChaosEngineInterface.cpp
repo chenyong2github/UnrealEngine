@@ -1637,8 +1637,8 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 	// the particle is added to the scene later.
 	Body_External.SetX(InParams.InitialTM.GetLocation(), /*bInvalidate=*/false);	//do not generate wake event since this is part of initialization
 	Body_External.SetR(InParams.InitialTM.GetRotation(), /*bInvalidate=*/false);
-#if CHAOS_CHECKED
-	Body_External.SetDebugName(InParams.DebugName);
+#if CHAOS_DEBUG_NAME
+	Body_External.SetDebugName(MakeShareable(new FString(InParams.DebugName)));
 #endif
 }
 

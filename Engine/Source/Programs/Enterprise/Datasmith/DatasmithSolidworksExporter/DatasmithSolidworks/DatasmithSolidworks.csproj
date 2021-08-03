@@ -198,16 +198,16 @@
     <Compile Include="..\..\..\..\..\..\Binaries\Win64\DatasmithFacadeCSharp\Public\*.cs">
       <Link>DatasmithSwigFacade\%(Filename)%(Extension)</Link>
     </Compile>
-    <None Include="ToolbarLarge.bmp" />
-    <None Include="ToolbarSmall.bmp" />
-    <None Include="MainIconLarge.bmp" />
-    <None Include="MainIconSmall.bmp" />
+    <EmbeddedResource Include="ToolbarLarge.bmp" />
+    <EmbeddedResource Include="ToolbarSmall.bmp" />
+    <EmbeddedResource Include="MainIconLarge.bmp" />
+    <EmbeddedResource Include="MainIconSmall.bmp" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <EngineDir>$(ProjectDir)..\..\..\..\..\..</EngineDir>
     <InstallerDir>$(ProjectDir)..\Installer</InstallerDir>
-    <PostBuildEvent>
+     <PostBuildEvent>
 "$(FrameworkSdkDir)\bin\NETFX 4.6 Tools\tlbexp.exe" "$(TargetDir)$(TargetName)$(TargetExt)" /out:"$(TargetDir)$(TargetName).tlb"
 "$(EngineDir)\Source\ThirdParty\WiX\3.8\heat.exe" file "$(TargetDir)$(TargetName)$(TargetExt)" -gg -o "$(TargetDir)asm_SolidworksToUnreal.wxs"
 "$(EngineDir)\Source\ThirdParty\WiX\3.8\heat.exe" file "$(TargetDir)$(TargetName).tlb" -gg -o "$(TargetDir)tlb_SolidworksToUnreal.wxs"

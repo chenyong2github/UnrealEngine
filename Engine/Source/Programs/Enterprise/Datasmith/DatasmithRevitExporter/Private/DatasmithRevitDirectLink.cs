@@ -22,6 +22,8 @@ namespace DatasmithRevitExporter
 			public Queue<KeyValuePair<ElementId, FDocumentData.FBaseElementData>>	ElementsWithoutMetadata = new Queue<KeyValuePair<ElementId, FDocumentData.FBaseElementData>>();
 			public HashSet<ElementId>												ExportedElements = new HashSet<ElementId>();
 			public HashSet<ElementId>												ModifiedElements = new HashSet<ElementId>();
+			public Dictionary<string, FDatasmithFacadeActor>						ExportedActorsMap = new Dictionary<string, FDatasmithFacadeActor>();
+
 			public Dictionary<ElementId, FCachedDocumentData>						LinkedDocumentsCache = new Dictionary<ElementId, FCachedDocumentData>();
 		
 			public FCachedDocumentData(Document InDocument)
@@ -86,6 +88,7 @@ namespace DatasmithRevitExporter
 					CachedElements.Remove(ElemId);
 					ElementData.Parent?.ChildElements.Remove(ElementData);
 					DatasmithScene.RemoveActor(ElementData.ElementActor);
+					ExportedActorsMap.Remove(ElementData.ElementActor.GetName());
 				}
 			}
 		};
@@ -215,6 +218,19 @@ namespace DatasmithRevitExporter
 				{
 					DirectLink.ModifiedLinkedDocuments.Add((ModifiedElement as RevitLinkInstance).GetLinkDocument());
 				}
+				else
+				{
+					// Handles a case where Revit won't notify us about modified mullions and their transform remains obsolte, thus wrong.
+					ElementCategoryFilter Filter = new ElementCategoryFilter(BuiltInCategory.OST_CurtainWallMullions);
+					IList<ElementId> DependentElements = ModifiedElement.GetDependentElements(Filter);
+					if (DependentElements != null && DependentElements.Count > 0)
+					{
+						foreach (ElementId DepElemId in DependentElements)
+						{
+							DirectLink.RootCache.ModifiedElements.Add(DepElemId);
+						}
+					}
+				}
 
 				DirectLink.RootCache.ModifiedElements.Add(ElemId);
 			}
@@ -313,6 +329,15 @@ namespace DatasmithRevitExporter
 				CurrentCache.CachedElements[InElement.Id] = InElementData;
 				CurrentCache.ElementsWithoutMetadata.Enqueue(new KeyValuePair<ElementId, FDocumentData.FBaseElementData>(InElement.Id, InElementData));
 			}
+			CacheActorType(InElementData.ElementActor);
+		}
+
+		public void CacheActorType(FDatasmithFacadeActor InActor)
+		{
+			if (CurrentCache != null)
+			{
+				CurrentCache.ExportedActorsMap[InActor.GetName()] = InActor;
+			}
 		}
 
 		public FDocumentData.FBaseElementData GetCachedElement(Element InElement)
@@ -328,6 +353,16 @@ namespace DatasmithRevitExporter
 				}
 			}
 			return Result;
+		}
+
+		public FDatasmithFacadeActor GetCachedActor(string InActorName)
+		{
+			FDatasmithFacadeActor Actor = null;
+			if (CurrentCache != null)
+			{
+				CurrentCache.ExportedActorsMap.TryGetValue(InActorName, out Actor);
+			}
+			return Actor;
 		}
 
 		public bool IsElementCached(Element InElement)

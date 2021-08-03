@@ -21,7 +21,9 @@ inline FD3D12UnorderedAccessView* CreateUAV(D3D12_UNORDERED_ACCESS_VIEW_DESC& De
 		if (bNeedsCounterResource)
 		{
 			const FRHIGPUMask Node = Device->GetGPUMask();
-			Device->GetParentAdapter()->CreateBuffer(D3D12_HEAP_TYPE_DEFAULT, Node, Node, 4, &CounterResource,  TEXT("Counter"), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+			const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, Node.GetNative(), Node.GetNative());
+			const D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			Device->GetParentAdapter()->CreateBuffer(HeapProps, Node, InitialState, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 4, &CounterResource,  TEXT("Counter"), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 		}
 
 		return new FD3D12UnorderedAccessView(Device, Desc, Resource, CounterResource);

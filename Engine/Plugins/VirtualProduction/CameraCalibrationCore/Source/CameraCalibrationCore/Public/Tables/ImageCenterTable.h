@@ -69,6 +69,7 @@ protected:
 	virtual TMap<ELensDataCategory, FLinkPointMetadata> GetLinkedCategories() const override;
 	virtual bool DoesFocusPointExists(float InFocus) const override;
 	virtual bool DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance = KINDA_SMALL_NUMBER) const override;
+	virtual const FBaseFocusPoint* GetBaseFocusPoint(int32 InIndex) const override;
 	//~ End FBaseDataTable Interface
 	
 public:

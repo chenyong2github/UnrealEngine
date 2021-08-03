@@ -44,6 +44,8 @@ private:
 	void CapturePIE(const TArray<FString>& Args);
 #endif // WITH_EDITOR
 
+	void OnPostEngineInit();
+
 	void DoFrameCaptureCurrentViewport(FViewport* InViewport, uint32 InFlags, FString const& InDestFileName);
 
 	void BeginFrameCapture();
@@ -74,7 +76,7 @@ private:
 	FString CaptureFileName; // Store the capture file name that is known at BeginCapture() for use at EndCapture()
 
 #if WITH_EDITOR
-	FRenderDocPluginEditorExtension* EditorExtensions;
+	TSharedPtr<FRenderDocPluginEditorExtension> EditorExtension;
 	int StartPIEDelayFrames = -1;
 #endif // WITH_EDITOR
 };

@@ -877,6 +877,7 @@ void FAndroidInputInterface::SendControllerEvents()
 						CurrentDevice.bMapZRZToTriggers = false;
 						CurrentDevice.bRightStickZRZ = true;
 						CurrentDevice.bRightStickRXRY = false;
+						CurrentDevice.bMapRXRYToTriggers = false;
 
 						// Use device name to decide on mapping scheme
 						if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("Amazon")))
@@ -958,6 +959,9 @@ void FAndroidInputInterface::SendControllerEvents()
 							CurrentDevice.ControllerClass = ControllerClassType::PlaystationWireless;
 							CurrentDevice.bSupportsHat = true;
 							CurrentDevice.bRightStickZRZ = true;
+							CurrentDevice.bMapRXRYToTriggers = true;
+							CurrentDevice.LTAnalogRangeMinimum = -1.0f;
+							CurrentDevice.RTAnalogRangeMinimum = -1.0f;
 						}
 						else if (CurrentDevice.DeviceInfo.Name.StartsWith(TEXT("glap QXPGP001")))
 						{
@@ -1309,31 +1313,38 @@ void FAndroidInputInterface::JoystickAxisEvent(int32 deviceId, int32 axisId, flo
 	if (deviceId == -1)
 		return;
 
-	// Left trigger may need range correction
-	if (axisId == AMOTION_EVENT_AXIS_LTRIGGER && DeviceMapping[deviceId].LTAnalogRangeMinimum != 0.0f)
+	auto RemapTriggerFunction = [](const float Minimum, const float Value)
 	{
-		const float AdjustMin = DeviceMapping[deviceId].LTAnalogRangeMinimum;
-		const float AdjustMax = 1.0f - AdjustMin;
-		NewControllerData[deviceId].LTAnalog = FMath::Clamp(axisValue - AdjustMin, 0.0f, AdjustMax) / AdjustMax;
-		return;
-	}
-
-	// Right trigger may need range correction
-	if (axisId == AMOTION_EVENT_AXIS_RTRIGGER && DeviceMapping[deviceId].RTAnalogRangeMinimum != 0.0f)
+		if(Minimum != 0.0f)
 	{
-		const float AdjustMin = DeviceMapping[deviceId].RTAnalogRangeMinimum;
+			const float AdjustMin = Minimum;
 		const float AdjustMax = 1.0f - AdjustMin;
-		NewControllerData[deviceId].RTAnalog = FMath::Clamp(axisValue - AdjustMin, 0.0f, AdjustMax) / AdjustMax;
-		return;
+			return FMath::Clamp(Value - AdjustMin, 0.0f, AdjustMax) / AdjustMax;
 	}
+		return Value;
+	};
 
 	// Deal with left stick and triggers (generic)
 	switch (axisId)
 	{
 		case AMOTION_EVENT_AXIS_X:			NewControllerData[deviceId].LXAnalog =  axisValue; return;
 		case AMOTION_EVENT_AXIS_Y:			NewControllerData[deviceId].LYAnalog = -axisValue; return;
-		case AMOTION_EVENT_AXIS_LTRIGGER:	NewControllerData[deviceId].LTAnalog =  axisValue; return;
-		case AMOTION_EVENT_AXIS_RTRIGGER:	NewControllerData[deviceId].RTAnalog =  axisValue; return;
+		case AMOTION_EVENT_AXIS_LTRIGGER:
+			{
+				if (!(DeviceMapping->bMapZRZToTriggers || DeviceMapping->bMapRXRYToTriggers))
+				{
+					NewControllerData[deviceId].LTAnalog = RemapTriggerFunction(DeviceMapping[deviceId].LTAnalogRangeMinimum, axisValue);
+					return;
+				}
+			}
+		case AMOTION_EVENT_AXIS_RTRIGGER:
+			{
+				if (!(DeviceMapping->bMapZRZToTriggers || DeviceMapping->bMapRXRYToTriggers))
+				{
+					NewControllerData[deviceId].RTAnalog = RemapTriggerFunction(DeviceMapping[deviceId].RTAnalogRangeMinimum, axisValue);
+					return;
+				}
+			}
 	}
 
 	// Deal with right stick Z/RZ events
@@ -1361,8 +1372,17 @@ void FAndroidInputInterface::JoystickAxisEvent(int32 deviceId, int32 axisId, flo
 	{
 		switch (axisId)
 		{
-			case AMOTION_EVENT_AXIS_Z:		NewControllerData[deviceId].LTAnalog =  axisValue; return;
-			case AMOTION_EVENT_AXIS_RZ:		NewControllerData[deviceId].RTAnalog =  axisValue; return;
+			case AMOTION_EVENT_AXIS_Z:		NewControllerData[deviceId].LTAnalog = RemapTriggerFunction(DeviceMapping[deviceId].LTAnalogRangeMinimum, axisValue); return;
+			case AMOTION_EVENT_AXIS_RZ:		NewControllerData[deviceId].RTAnalog = RemapTriggerFunction(DeviceMapping[deviceId].RTAnalogRangeMinimum, axisValue); return;
+		}
+	}
+
+	if (DeviceMapping[deviceId].bMapRXRYToTriggers)
+	{
+		switch (axisId)
+		{
+			case AMOTION_EVENT_AXIS_RX:		NewControllerData[deviceId].LTAnalog = RemapTriggerFunction(DeviceMapping[deviceId].LTAnalogRangeMinimum, axisValue); return;
+			case AMOTION_EVENT_AXIS_RY:		NewControllerData[deviceId].RTAnalog = RemapTriggerFunction(DeviceMapping[deviceId].RTAnalogRangeMinimum, axisValue); return;
 		}
 	}
 

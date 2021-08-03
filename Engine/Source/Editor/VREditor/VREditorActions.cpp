@@ -439,7 +439,7 @@ void FVREditorActionCallbacks::SetSelectionRangeStart(UVREditorMode* InVRMode)
 	ISequencer* CurrentSequencer = InVRMode->GetCurrentSequencer();
 	if (CurrentSequencer != nullptr)
 	{
-		CurrentSequencer->SetSelectionRangeStart();
+		CurrentSequencer->SetSelectionRangeStart(CurrentSequencer->GetLocalTime().Time);
 	}
 }
 
@@ -448,7 +448,7 @@ void FVREditorActionCallbacks::SetSelectionRangeEnd(UVREditorMode* InVRMode)
 	ISequencer* CurrentSequencer = InVRMode->GetCurrentSequencer();
 	if (CurrentSequencer != nullptr)
 	{
-		CurrentSequencer->SetSelectionRangeEnd();
+		CurrentSequencer->SetSelectionRangeEnd(CurrentSequencer->GetLocalTime().Time);
 	}
 }
 

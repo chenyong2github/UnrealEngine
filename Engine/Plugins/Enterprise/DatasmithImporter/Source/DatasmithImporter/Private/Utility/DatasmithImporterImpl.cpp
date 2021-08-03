@@ -701,8 +701,15 @@ void FDatasmithImporterImpl::FinalizeComponents(FDatasmithImportContext& ImportC
 void FDatasmithImporterImpl::PublicizeSubObjects(UObject& SourceObject, UObject& DestinationObject, TMap< UObject*, UObject* >& ReferencesToRemap, TArray<uint8>& ReusableBuffer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporterImpl::PublicizeSubObjects);
-	ForEachObjectWithOuter( &SourceObject, [&ReferencesToRemap, &ReusableBuffer, &DestinationObject](UObject* SourceSubObject)
+	TArray<UObject*> SourceSubObjects;
+	ForEachObjectWithOuter( &SourceObject, [&SourceSubObjects](UObject* SourceSubObject)
 		{
+			SourceSubObjects.Add(SourceSubObject);
+		}
+		, false );
+
+	for(UObject* SourceSubObject : SourceSubObjects)
+	{
 			// We don't want to deal with components since this done in finalize components
 			if ( !SourceSubObject->IsA<UActorComponent>() && !SourceSubObject->HasAnyFlags( RF_Transient | RF_TextExportTransient | RF_DuplicateTransient | RF_BeginDestroyed | RF_FinishDestroyed ) )
 			{
@@ -725,8 +732,8 @@ void FDatasmithImporterImpl::PublicizeSubObjects(UObject& SourceObject, UObject&
 
 				PublicizeSubObjects( *SourceSubObject, *DestinationSubObject, ReferencesToRemap, ReusableBuffer );
 			}
+
 		}
-		, false );
 }
 
 void FDatasmithImporterImpl::CopyObject(UObject& Source, UObject& Destination, TArray<uint8>& TempBuffer)

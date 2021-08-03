@@ -49,6 +49,8 @@ private:
 
 	FText OnGetSectionTitle(int32 InSection);
 
+	FSlateColor OnGetWidgetColor(FLinearColor InDefaultColor, FIsSelected InIsActionSelectedDelegate);
+
 	TSharedRef<SWidget> ConstructAddActionMenu();
 	TSharedPtr<SWidget> OnContextMenuOpening();
 	TSharedPtr<SSearchBox> FilterBox;

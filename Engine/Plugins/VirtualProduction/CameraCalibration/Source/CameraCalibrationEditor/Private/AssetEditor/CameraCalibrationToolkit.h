@@ -68,9 +68,6 @@ private:
 	/** Handle spawning the tab that holds the current evaluated data */
 	TSharedRef<SDockTab> HandleSpawnLensEvaluationTab(const FSpawnTabArgs& Args) const;
 
-	/** Temporary tab to view the details panel of the lens file */
-	TSharedRef<SDockTab> HandleSpawnLensDetailsPanelTab(const FSpawnTabArgs& Args) const;
-
 	FCachedFIZData GetFIZData() const;
 
 	/** Extend Toolkit Menu */

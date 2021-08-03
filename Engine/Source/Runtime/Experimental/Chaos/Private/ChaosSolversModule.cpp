@@ -181,7 +181,7 @@ void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 }
 
 Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::FReal InAsyncDt, Chaos::EThreadingMode InThreadingMode
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 	, const FName& DebugName
 #endif
 )
@@ -199,7 +199,7 @@ Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(UObject* InOwner, Cha
 	TArray<FPhysicsSolverBase*>& OwnerSolverList = SolverMap.FindOrAdd(InOwner);
 	OwnerSolverList.Add(NewSolver);
 
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
     // Add solver number to solver name
 	const FName NewDebugName = *FString::Printf(TEXT("%s (%d)"), DebugName == NAME_None ? TEXT("Solver") : *DebugName.ToString(), AllSolvers.Num() - 1);
 	NewSolver->SetDebugName(NewDebugName);

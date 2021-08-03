@@ -142,7 +142,7 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX12_CreateContextHandle(CommandList, &AftermathHandle);
 
 		check(Result == GFSDK_Aftermath_Result_Success);
-		ParentDevice->GetGPUProfiler().RegisterCommandList(AftermathHandle);
+		ParentDevice->GetGPUProfiler().RegisterCommandList(CommandList, AftermathHandle);
 	}
 #endif
 

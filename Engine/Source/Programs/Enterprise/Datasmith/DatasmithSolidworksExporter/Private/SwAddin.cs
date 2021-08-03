@@ -336,8 +336,7 @@ namespace SolidworksDatasmith
 				iBmp = new BitmapHandler();
 			Assembly thisAssembly;
 			int cmdIndex0, cmdIndex1;
-			string Title = "Unreal", ToolTip = "SolidWorks to Unreal";
-
+			string Title = "Datasmith", ToolTip = "Unreal Datasmith Exporter for Solidworks";
 
 			int[] docTypes = new int[]{(int)swDocumentTypes_e.swDocASSEMBLY,
 									   (int)swDocumentTypes_e.swDocDRAWING,
@@ -370,7 +369,7 @@ namespace SolidworksDatasmith
 			cmdGroup.SmallMainIcon = iBmp.CreateFileFromResourceBitmap("SolidworksDatasmith.MainIconSmall.bmp", thisAssembly);
 
 			int menuToolbarOption = (int)(swCommandItemType_e.swMenuItem | swCommandItemType_e.swToolbarItem);
-			cmdIndex0 = cmdGroup.AddCommandItem2("Direct Link Update", -1, "Update the Direct Link connection", "Update Direct Link", 1, "DirectLinkUpdate", "DirectLinkUpdateStatus", mainItemID1, menuToolbarOption);
+			cmdIndex0 = cmdGroup.AddCommandItem2("Direct Link Update", -1, "Update the Direct Link connection", "Synchronize", 1, "DirectLinkUpdate", "DirectLinkUpdateStatus", mainItemID1, menuToolbarOption);
 			cmdIndex1 = cmdGroup.AddCommandItem2("Direct Link On/Off", 0, "Enable/Disable the Direct Link connection", "Enable/Disable Direct Link", 0, "EnableDisableLink", "EnableDisableLinkStatus", mainItemID1, menuToolbarOption);
 			//cmdIndex1 = cmdGroup.AddCommandItem2("Show PMP", -1, "Display sample property manager", "Show PMP", 2, "ShowPMP", "EnablePMP", mainItemID2, menuToolbarOption);
 
@@ -379,8 +378,6 @@ namespace SolidworksDatasmith
 			cmdGroup.Activate();
 
 			bool bResult;
-
-
 
 			//FlyoutGroup flyGroup = iCmdMgr.CreateFlyoutGroup(flyoutGroupID, "Dynamic Flyout", "Flyout Tooltip", "Flyout Hint",
 			//  cmdGroup.SmallMainIcon, cmdGroup.LargeMainIcon, cmdGroup.SmallIconList, cmdGroup.LargeIconList, "FlyoutCallback", "FlyoutEnable");

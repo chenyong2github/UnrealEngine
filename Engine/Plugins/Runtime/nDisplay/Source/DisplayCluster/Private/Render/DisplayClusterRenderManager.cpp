@@ -406,79 +406,70 @@ void FDisplayClusterRenderManager::GetRegisteredProjectionPolicies(TArray<FStrin
 }
 
 
-bool FDisplayClusterRenderManager::RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& InOperation, int InPriority /* = 0 */)
+bool FDisplayClusterRenderManager::RegisterPostProcessFactory(const FString& InPostProcessType, TSharedPtr<IDisplayClusterPostProcessFactory>& InFactory)
 {
-	IDisplayClusterRenderManager::FDisplayClusterPPInfo PPInfo(InOperation, InPriority);
-	return RegisterPostprocessOperation(InName, PPInfo);
-}
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registering factory for postprocess type: %s"), *InPostProcessType);
 
-bool FDisplayClusterRenderManager::RegisterPostprocessOperation(const FString& InName, IPDisplayClusterRenderManager::FDisplayClusterPPInfo& InPPInfo)
+	if (!InFactory.IsValid())
 {
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registering post-process operation: %s"), *InName);
-
-	if (!InPPInfo.Operation.IsValid())
-	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Trying to set invalid post-process operation"));
-		return false;
-	}
-
-	if (InName.IsEmpty())
-	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Invalid name of a post-process operation"));
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Invalid factory object"));
 		return false;
 	}
 
 	{
 		FScopeLock Lock(&CritSecInternals);
 
-		if (PostProcessOperations.Contains(InName))
+		if (PostProcessFactories.Contains(InPostProcessType))
 		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Post-process operation '%s' exists"), *InName);
-			return false;
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("A new factory for '%s' postprocess was set"), *InPostProcessType);
 		}
 
-		// Store new operation
-		PostProcessOperations.Emplace(InName, InPPInfo);
-
-		// Sort operations by priority
-		PostProcessOperations.ValueSort([](const FDisplayClusterPPInfo& Left, const FDisplayClusterPPInfo& Right)
-		{
-			return Left.Priority < Right.Priority;
-		});
+		PostProcessFactories.Emplace(InPostProcessType, InFactory);
 	}
 
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registered post-process operation: %s"), *InName);
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registered factory for postprocess type: %s"), *InPostProcessType);
 
 	return true;
 }
 
-bool FDisplayClusterRenderManager::UnregisterPostprocessOperation(const FString& InName)
+bool FDisplayClusterRenderManager::UnregisterPostProcessFactory(const FString& InPostProcessType)
 {
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistering post-process operation: %s"), *InName);
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistering factory for postprocess: %s"), *InPostProcessType);
 
 	{
 		FScopeLock Lock(&CritSecInternals);
 
-		if (!PostProcessOperations.Contains(InName))
+		if (!PostProcessFactories.Contains(InPostProcessType))
 		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Post-process operation <%s> not found"), *InName);
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("A handler for '%s' postprocess type not found"), *InPostProcessType);
 			return false;
 		}
-		else
-		{
-			PostProcessOperations.Remove(InName);
-		}
-	}
 
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistered post-process operation: %s"), *InName);
+		PostProcessFactories.Remove(InPostProcessType);
+		}
+
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistered factory for postprocess: %s"), *InPostProcessType);
 
 	return true;
-}
+	}
 
-TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> FDisplayClusterRenderManager::GetRegisteredPostprocessOperations() const
+TSharedPtr<IDisplayClusterPostProcessFactory> FDisplayClusterRenderManager::GetPostProcessFactory(const FString& InPostProcessType)
 {
 	FScopeLock Lock(&CritSecInternals);
-	return PostProcessOperations;
+
+	TSharedPtr<IDisplayClusterPostProcessFactory> Factory;
+	if (!DisplayClusterHelpers::map::template ExtractValue(PostProcessFactories, InPostProcessType, Factory))
+	{
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No factory found for postprocess: %s"), *InPostProcessType);
+	}
+
+	return Factory;
+}
+
+void FDisplayClusterRenderManager::GetRegisteredPostProcess(TArray<FString>& OutPostProcessIDs) const
+{
+	FScopeLock Lock(&CritSecInternals);
+	PostProcessFactories.GetKeys(OutPostProcessIDs);
 }
 
 IDisplayClusterViewportManager* FDisplayClusterRenderManager::GetViewportManager() const

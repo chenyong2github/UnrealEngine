@@ -163,6 +163,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static void EmptySelection();
 
+	/** Set the selection range start frame. */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetSelectionRangeStart(int32 NewFrame);
+
+	/** Set the selection range end frame. */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetSelectionRangeEnd(int32 NewFrame);
+
+	/** Get the selection range start frame. */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static int32 GetSelectionRangeStart();
+
+	/** Get the selection range end frame. */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static int32 GetSelectionRangeEnd();
+
 public:
 
 	/** Refresh Sequencer UI. */

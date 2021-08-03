@@ -774,6 +774,17 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		Mode = EResetMode::ReInit;
 	}
 
+	// Remove any existing proxy from the batcher
+	// This MUST be done before the emitters array is re-initialized
+	if (SystemGpuComputeProxy.IsValid())
+	{
+		if (IsComplete() || (Mode != EResetMode::ResetSystem))
+		{
+			FNiagaraSystemGpuComputeProxy* Proxy = SystemGpuComputeProxy.Release();
+			Proxy->RemoveFromBatcher(GetBatcher(), true);
+		}
+	}
+
 	// Depending on the rest mode we may need to bind or can possibly skip it
 	// We must bind if we were previously complete as unbind will have been called, we can not get here if the system was disabled
 	bool bBindParams = IsComplete();
@@ -821,13 +832,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		{
 			InstanceParameters.Tick();//Make sure the owner has flushed it's parameters by now. Especially it's DIs.
 			InitDataInterfaces();
-
-			// Kill the current proxy as we are reinitializing the system
-			if (SystemGpuComputeProxy.IsValid())
-			{
-				FNiagaraSystemGpuComputeProxy* Proxy = SystemGpuComputeProxy.Release();
-				Proxy->RemoveFromBatcher(GetBatcher(), true);
-			}
 		}
 
 		//Interface init can disable the system.

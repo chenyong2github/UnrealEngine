@@ -10,7 +10,7 @@
 #include "UObject/StructOnScope.h"
 
 
-void SLensFilePanel::Construct(const FArguments& InArgs, ULensFile* InLensFile)
+void SLensFilePanel::Construct(const FArguments& InArgs, ULensFile* InLensFile, const TSharedRef<FCameraCalibrationStepsController>& InCalibrationStepsController)
 {
 	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
 	CachedFIZ = InArgs._CachedFIZData;
@@ -21,7 +21,7 @@ void SLensFilePanel::Construct(const FArguments& InArgs, ULensFile* InLensFile)
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Fill)
 		[
-			SNew(SLensDataViewer, InLensFile)
+			SNew(SLensDataViewer, InLensFile, InCalibrationStepsController)
 			.CachedFIZData(InArgs._CachedFIZData)
 		]
 	];

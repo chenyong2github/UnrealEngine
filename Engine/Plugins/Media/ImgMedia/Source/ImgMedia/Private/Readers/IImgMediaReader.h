@@ -55,10 +55,10 @@ struct FImgMediaFrame
 	FImgMediaFrameInfo Info;
 
 	/** Bitmask of which mipmaps are present. */
-	int32 MipMapsPresent;
+	int32 MipMapsPresent = 0;
 
 	/** The frame's horizontal stride (in bytes). */
-	uint32 Stride;
+	uint32 Stride = 0;
 
 	/** Uncompressed EXR files are read faster via plain read and GPU swizzling. This value is used by ExrImgMediaReaderGpu.*/
 	FTexture2DRHIRef Texture;

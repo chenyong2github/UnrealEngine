@@ -591,7 +591,17 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 
 							if (View.State)
 							{
-								TemporalHistory = &static_cast<FSceneViewState*>(View.State)->LightShaftBloomHistoryRTs.FindOrAdd(LightSceneProxy.GetLightComponent());
+								FSceneViewState* ViewState = static_cast<FSceneViewState*>(View.State);
+								TUniquePtr<FTemporalAAHistory>* Entry = ViewState->LightShaftBloomHistoryRTs.Find(LightSceneProxy.GetLightComponent());
+								if (Entry == nullptr)
+								{
+									TemporalHistory = new FTemporalAAHistory;
+									ViewState->LightShaftBloomHistoryRTs.Emplace(LightSceneProxy.GetLightComponent(), TemporalHistory);
+							}
+								else
+								{
+									TemporalHistory = Entry->Get();
+								}
 							}
 
 							FScreenPassTexture LightShafts = AddLightShaftSetupPass(
@@ -617,7 +627,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 
 void FSceneViewState::TrimHistoryRenderTargets(const FScene* Scene)
 {
-	for (TMap<const ULightComponent*, FTemporalAAHistory>::TIterator It(LightShaftBloomHistoryRTs); It; ++It)
+	for (TMap<const ULightComponent*, TUniquePtr<FTemporalAAHistory>>::TIterator It(LightShaftBloomHistoryRTs); It; ++It)
 	{
 		bool bLightIsUsed = false;
 

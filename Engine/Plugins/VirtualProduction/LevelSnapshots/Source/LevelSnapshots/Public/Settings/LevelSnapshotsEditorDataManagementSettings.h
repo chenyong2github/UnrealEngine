@@ -16,9 +16,6 @@ public:
 	const FString& GetNameOverride() const;
 	void SetNameOverride(const FString& InName);
 
-	const FString& GetSaveDirOverride() const;
-	void SetSaveDirOverride(const FString& InPath);
-	
 	void ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
 	
 	static void SanitizePathInline(FString& InPath, const bool bSkipForwardSlash);
@@ -27,10 +24,11 @@ public:
 	void SanitizeAllProjectSettingsPaths(const bool bSkipForwardSlash);
 	
 	static FFormatNamedArguments GetFormatNamedArguments(const FString& InWorldName);
-	static FText ParseTokensInText(const FText& InTextToParse, const FString& InWorldName);
+
+	UFUNCTION(BlueprintCallable, Category = "Level Snapshots")
+	static FText ParseLevelSnapshotsTokensInText(const FText& InTextToParse, const FString& InWorldName);
 
 	bool IsNameOverridden() const;
-	bool IsPathOverridden() const;
 
 	// Must be a directory in the Game Content folder ("/Game/"). For best results, use the picker.  
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots", meta = (RelativeToGameContentDir, ContentDir))
@@ -61,9 +59,6 @@ public:
 	FString DefaultLevelSnapshotName;
 
 private:
-	
-	/* If the user overrides the Save Dir in the creation form, the override will be saved here so it can be recalled. */
-	FString LevelSnapshotSaveDirOverride;
 	
 	/* If the user overrides the Name field in the creation form, the override will be saved here so it can be recalled. */
 	FString LevelSnapshotNameOverride;

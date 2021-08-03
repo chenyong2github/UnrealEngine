@@ -128,6 +128,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCombineLUTParameters, )
 	SHADER_PARAMETER(float, FilmShoulder)
 	SHADER_PARAMETER(float, FilmBlackClip)
 	SHADER_PARAMETER(float, FilmWhiteClip)
+	SHADER_PARAMETER(uint32, bUseMobileTonemapper)
+	SHADER_PARAMETER(uint32, bIsTemperatureWhiteBalance)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FColorRemapParameters, ColorRemap)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FTonemapperOutputDeviceParameters, OutputDevice)
 END_SHADER_PARAMETER_STRUCT()
@@ -170,6 +172,7 @@ void GetCombineLUTParameters(
 	Parameters.ColorRemap = GetColorRemapParameters();
 
 	// White balance
+	Parameters.bIsTemperatureWhiteBalance = Settings.TemperatureType == ETemperatureMethod::TEMP_WhiteBalance;
 	Parameters.WhiteTemp = Settings.WhiteTemp;
 	Parameters.WhiteTint = Settings.WhiteTint;
 
@@ -220,7 +223,8 @@ public:
 	static const int32 GroupSize = 8;
 
 	class FBlendCount : SHADER_PERMUTATION_RANGE_INT("BLENDCOUNT", 1, 5);
-	using FPermutationDomain = TShaderPermutationDomain<FBlendCount>;
+	class FSkipTemperature : SHADER_PERMUTATION_BOOL("SKIP_TEMPERATURE");
+	using FPermutationDomain = TShaderPermutationDomain<FBlendCount, FSkipTemperature>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -424,6 +428,9 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 	FLUTBlenderShader::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FLUTBlenderShader::FBlendCount>(LocalCount);
 
+	const float DefaultTemperature = 6500;
+	const float DefaultTint = 0;
+
 	if (bUseComputePass)
 	{
 		FLUTBlenderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLUTBlenderCS::FParameters>();
@@ -431,6 +438,9 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 		PassParameters->OutputExtentInverse = FVector2D(1.0f, 1.0f) / FVector2D(OutputViewSize);
 		PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(OutputTexture);
 
+		const bool ShouldSkipTemperature = FMath::IsNearlyEqual(PassParameters->CombineLUT.WhiteTemp, DefaultTemperature) && FMath::IsNearlyEqual(PassParameters->CombineLUT.WhiteTint, DefaultTint);
+
+		PermutationVector.Set<FLUTBlenderShader::FSkipTemperature>(ShouldSkipTemperature);
 		TShaderMapRef<FLUTBlenderCS> ComputeShader(View.ShaderMap, PermutationVector);
 
 		const uint32 GroupSizeXY = FMath::DivideAndRoundUp(OutputViewSize.X, FLUTBlenderCS::GroupSize);
@@ -449,6 +459,9 @@ FRDGTextureRef AddCombineLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 		GetCombineLUTParameters(PassParameters->CombineLUT, View, LocalTextures, LocalWeights, LocalCount);
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
 
+		const bool ShouldSkipTemperature = FMath::IsNearlyEqual(PassParameters->CombineLUT.WhiteTemp, DefaultTemperature) && FMath::IsNearlyEqual(PassParameters->CombineLUT.WhiteTint, DefaultTint);
+
+		PermutationVector.Set<FLUTBlenderShader::FSkipTemperature>(ShouldSkipTemperature);
 		TShaderMapRef<FLUTBlenderPS> PixelShader(View.ShaderMap, PermutationVector);
 
 		GraphBuilder.AddPass(

@@ -13,6 +13,7 @@ class NIAGARA_API UNiagaraDataInterfaceArrayFunctionLibrary : public UBlueprintF
 {
 	GENERATED_BODY()
 
+public:
 	/** Sets Niagara Array Float Data. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta=(DisplayName = "Niagara Set Float Array"))
 	static void SetNiagaraArrayFloat(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<float>& ArrayData);

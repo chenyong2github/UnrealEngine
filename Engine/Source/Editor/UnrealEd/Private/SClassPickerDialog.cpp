@@ -44,7 +44,7 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 	if (InArgs._Options.bShowDefaultClasses)
 	{
 		// Load in default settings
-		for (const FClassPickerDefaults& DefaultObj : GUnrealEd->GetUnrealEdOptions()->NewAssetDefaultClasses)
+		for (const FClassPickerDefaults& DefaultObj : GUnrealEd->GetUnrealEdOptions()->GetNewAssetDefaultClasses())
 		{
 			UClass* AssetType = LoadClass<UObject>(NULL, *DefaultObj.AssetClass, NULL, LOAD_None, NULL);
 

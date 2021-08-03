@@ -459,7 +459,7 @@ private:
 	FSharedBuffer TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) const;
 	/** Attempt to decompress the source data from Jpeg format. All failures will be logged and result in the method returning false */
 	FSharedBuffer TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) const;
-
+	
 	/** Return true if the source art is not png compressed but could be. */
 	bool CanPNGCompress() const;
 	/** Removes source data. */
@@ -859,7 +859,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Compression, AdvancedDisplay)
 	TEnumAsByte<ETextureLossyCompressionAmount> LossyCompressionAmount;
 
-	/** The maximum resolution for generated textures. A value of 0 means the maximum size for the format on each platform, except HDR long/lat cubemaps, which default to a resolution of 512. */ 
+	/** The maximum resolution for generated textures. A value of 0 means the maximum size for the format on each platform. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Compression, meta=(DisplayName="Maximum Texture Size", ClampMin = "0.0"), AdvancedDisplay)
 	int32 MaxTextureSize;
 

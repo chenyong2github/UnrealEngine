@@ -466,6 +466,25 @@ void UMovieSceneSubSection::GetSnapTimes(TArray<FFrameNumber>& OutSnapTimes, boo
 	}
 }
 
+void UMovieSceneSubSection::MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate)
+{
+	if (Parameters.StartFrameOffset.Value > 0)
+	{
+		FFrameNumber NewStartFrameOffset = ConvertFrameTime(FFrameTime(Parameters.StartFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		Parameters.StartFrameOffset = NewStartFrameOffset;
+	}
+	if (Parameters.EndFrameOffset.Value > 0)
+	{
+		FFrameNumber NewEndFrameOffset = ConvertFrameTime(FFrameTime(Parameters.EndFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		Parameters.EndFrameOffset = NewEndFrameOffset;
+	}
+	if (Parameters.FirstLoopStartFrameOffset.Value > 0)
+	{
+		FFrameNumber NewFirstLoopStartFrameOffset = ConvertFrameTime(FFrameTime(Parameters.FirstLoopStartFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		Parameters.FirstLoopStartFrameOffset = NewFirstLoopStartFrameOffset;
+	}
+}
+
 FMovieSceneSubSequenceData UMovieSceneSubSection::GenerateSubSequenceData(const FSubSequenceInstanceDataParams& Params) const
 {
 	return FMovieSceneSubSequenceData(*this);

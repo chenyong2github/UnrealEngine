@@ -89,7 +89,7 @@ struct FNetworkPhysicsState
 		Ar << Physics.AngularVelocity;
 
 #if NETWORK_PHYSICS_REPLICATE_EXTRAS
-		for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+		for (int32 i=(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++i)
 		{
 			Ar << DebugState[i].Force;
 			Ar << DebugState[i].Torque;
@@ -106,7 +106,7 @@ struct FNetworkPhysicsState
 	AActor* OwningActor = nullptr;
 
 #if NETWORK_PHYSICS_REPLICATE_EXTRAS
-	FDebugPhysicsState	DebugState[(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases];
+	FDebugPhysicsState	DebugState[(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases];
 #endif
 };
 
@@ -190,7 +190,7 @@ private:
 
 	void TickDrawDebug();
 
-	FNetworkPhysicsRewindCallback* RewindCallback;
+	FNetworkPhysicsRewindCallback* RewindCallback=nullptr;
 
 	FDelegateHandle PostTickDispatchHandle; // NetRecv
 	FDelegateHandle TickFlushHandle; // NetSend

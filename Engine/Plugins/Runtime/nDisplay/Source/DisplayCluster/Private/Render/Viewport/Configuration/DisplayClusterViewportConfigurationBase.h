@@ -24,7 +24,9 @@ public:
 
 public:
 	void Update(const TArray<FString>& InClusterNodeIds);
+	void UpdateClusterNodePostProcess(const FString& ClusterNodeId);
 
+public:
 	static bool UpdateViewportConfiguration(FDisplayClusterViewportManager& ViewportManager, ADisplayClusterRootActor& RootActor, FDisplayClusterViewport* DesiredViewport, const UDisplayClusterConfigurationViewport* ConfigurationViewport);
 
 private:
@@ -32,4 +34,3 @@ private:
 	FDisplayClusterViewportManager& ViewportManager;
 	const UDisplayClusterConfigurationData& ConfigurationData;
 };
-

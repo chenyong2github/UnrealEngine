@@ -556,7 +556,7 @@ UObject* UAssetToolsImpl::CreateAssetWithDialog(UClass* AssetClass, UFactory* Fa
 }
 
 
-UObject* UAssetToolsImpl::CreateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext)
+UObject* UAssetToolsImpl::CreateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext, const bool bCallConfigureProperties)
 {
 	FGCObjectScopeGuard DontGCFactory(Factory);
 	if(Factory)
@@ -571,13 +571,19 @@ UObject* UAssetToolsImpl::CreateAssetWithDialog(const FString& AssetName, const 
 		FString SaveObjectPath = ContentBrowserModule.Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
 		if (!SaveObjectPath.IsEmpty())
 		{
+			bool bCreateAsset = true;
+			if (bCallConfigureProperties)
+			{
 			FEditorDelegates::OnConfigureNewAssetProperties.Broadcast(Factory);
-			if (Factory->ConfigureProperties())
+				bCreateAsset = Factory->ConfigureProperties();
+			}
+
+			if (bCreateAsset)
 			{
 				const FString SavePackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
 				const FString SavePackagePath = FPaths::GetPath(SavePackageName);
 				const FString SaveAssetName = FPaths::GetBaseFilename(SavePackageName);
-				FEditorDirectories::Get().SetLastDirectory(ELastDirectory::NEW_ASSET, PackagePath);
+				FEditorDirectories::Get().SetLastDirectory(ELastDirectory::NEW_ASSET, SavePackagePath);
 
 				return CreateAsset(SaveAssetName, SavePackagePath, AssetClass, Factory, CallingContext);
 			}
@@ -607,7 +613,7 @@ UObject* UAssetToolsImpl::DuplicateAssetWithDialogAndTitle(const FString& AssetN
 		const FString SavePackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
 		const FString SavePackagePath = FPaths::GetPath(SavePackageName);
 		const FString SaveAssetName = FPaths::GetBaseFilename(SavePackageName);
-		FEditorDirectories::Get().SetLastDirectory(ELastDirectory::NEW_ASSET, PackagePath);
+		FEditorDirectories::Get().SetLastDirectory(ELastDirectory::NEW_ASSET, SavePackagePath);
 
 		return PerformDuplicateAsset(SaveAssetName, SavePackagePath, OriginalObject, true);
 	}

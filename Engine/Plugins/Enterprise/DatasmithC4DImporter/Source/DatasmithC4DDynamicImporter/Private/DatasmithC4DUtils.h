@@ -28,7 +28,43 @@
 
 // CINEWARE_UPDATED
 DATASMITH_C4D_PUSH_WARNINGS
+// Including cineware.h is introducing IsMaximized and IsMinimized as defines which are not desired
+// They must be taken care of
+// TODO: See with the Maxon team how to take care of this on their side.
+#ifdef IsMaximized
+#define __IsMaximized_Cache__ IsMaximized
+#undef IsMaximized
+#endif
+
+#ifdef IsMinimized
+#define __IsMinimized_Cache__ IsMinimized
+#undef IsMinimized
+#endif
+
 #include "cineware.h"
+
+#if defined(IsMaximized) && defined(__IsMaximized_Cache__)
+#undef IsMaximized
+#define IsMaximized __IsMaximized_Cache__
+#undef __IsMaximized_Cache__
+#elif defined(__IsMaximized_Cache__)
+#define IsMaximized __IsMaximized_Cache__
+#undef __IsMaximized_Cache__
+#elif defined(IsMaximized)
+#undef IsMaximized
+#endif
+
+#if defined(IsMinimized) && defined(__IsMinimized_Cache__)
+#undef IsMinimized
+#define IsMinimized __IsMinimized_Cache__
+#undef __IsMinimized_Cache__
+#elif defined(__IsMinimized_Cache__)
+#define IsMinimized __IsMinimized_Cache__
+#undef __IsMinimized_Cache__
+#elif defined(IsMinimized)
+#undef IsMinimized
+#endif
+
 DATASMITH_C4D_POP_WARNINGS
 /**
  * Retrieves the value of a DA_LONG parameter of a melange object as a cineware::Int32,

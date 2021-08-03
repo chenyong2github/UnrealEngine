@@ -200,14 +200,14 @@ protected:
 		// Try create chromakey render on demand
 		if (ChromakeySettings.bEnable && ChromakeySettings.ChromakeyRenderTexture.bEnable)
 		{
-			if (ChromakeySettings.ChromakeyRenderTexture.Override.bAllowOverride && ChromakeySettings.ChromakeyRenderTexture.Override.SourceTexture == nullptr)
+			if (ChromakeySettings.ChromakeyRenderTexture.Replace.bAllowReplace && ChromakeySettings.ChromakeyRenderTexture.Replace.SourceTexture == nullptr)
 			{
 				// ChromakeyRenderTexture.Override require source texture.
 				return false;
 			}
 
 			bool bIsChromakeyHasAnyRenderComponent = FDisplayClusterViewportConfigurationHelpers_Visibility::IsValid(ChromakeySettings.ChromakeyRenderTexture.ShowOnlyList);
-			if (ChromakeySettings.ChromakeyRenderTexture.Override.bAllowOverride == false && !bIsChromakeyHasAnyRenderComponent)
+			if (ChromakeySettings.ChromakeyRenderTexture.Replace.bAllowReplace == false && !bIsChromakeyHasAnyRenderComponent)
 			{
 				// ChromakeyRenderTexture requires actors for render.
 				return false;
@@ -297,8 +297,6 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 	{
 		ImplBeginReallocateViewports(*ViewportManager);
 
-		if (StageSettings.bEnable)
-		{
 			TArray<FDisplayClusterViewport*> TargetViewports;
 			const EDisplayClusterViewportICVFXFlags TargetViewportsFlags = ImplGetTargetViewports(*ViewportManager, TargetViewports);
 
@@ -370,7 +368,6 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 					}
 				}
 			}
-		}
 
 		ImplFinishReallocateViewports(*ViewportManager);
 	}
@@ -383,8 +380,6 @@ void FDisplayClusterViewportConfigurationICVFX::PostUpdate()
 	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
 	if (ViewportManager)
 	{
-		if (StageSettings.bEnableICVFXVisibility)
-		{
 			// Update visibility for icvfx viewports and cameras
 			UpdateHideList(*ViewportManager);
 
@@ -392,7 +387,6 @@ void FDisplayClusterViewportConfigurationICVFX::PostUpdate()
 			UpdateCameraHideList(*ViewportManager);
 		}
 	}
-}
 
 void FDisplayClusterViewportConfigurationICVFX::UpdateCameraHideList(FDisplayClusterViewportManager& ViewportManager)
 {

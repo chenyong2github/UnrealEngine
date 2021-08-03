@@ -15,6 +15,8 @@
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraScriptHighlight.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformAtomics.h"
 
 #include "NiagaraScript.generated.h"
 
@@ -273,6 +275,68 @@ public:
 #endif
 };
 
+USTRUCT()
+struct NIAGARA_API FNiagaraVMExecutableByteCode
+{
+	GENERATED_USTRUCT_BODY()
+private:
+	UPROPERTY()
+	TArray<uint8> Data;
+
+	UPROPERTY()
+	int32 UncompressedSize = INDEX_NONE;
+
+public:
+	bool HasByteCode() const;
+	bool IsCompressed() const;
+	bool Compress();
+	bool Uncompress();
+
+	void Reset();
+
+	void SetData(const TArray<uint8>& InData);
+	void SetData(TArray<uint8>&& InData);
+
+	const TArray<uint8>& GetData() const { return Data; }
+	TArray<uint8>& GetData() { return Data; }
+	const uint8* GetDataPtr() const { return Data.GetData(); }
+	int32 GetLength() const { return Data.Num(); }
+
+	void Reserve(int32 Number) { Data.Reserve(Number); }
+	void Shrink() { Data.Shrink(); }
+
+	/** Used to upgrade a serialized property to our own struct */
+	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+};
+
+template<>
+struct TStructOpsTypeTraits<FNiagaraVMExecutableByteCode> : public TStructOpsTypeTraitsBase2<FNiagaraVMExecutableByteCode>
+{
+	enum
+	{
+		WithStructuredSerializeFromMismatchedTag = true,
+	};
+};
+
+// Carrier for uncompressed, and optimmized bytecode returned from optimization task
+struct NIAGARA_API FNiagaraVMExecutableByteCodeOptimizationTaskResult
+{
+	TOptional<FNiagaraVMExecutableByteCode> SourceByteCode;
+	TOptional<FNiagaraVMExecutableByteCode> OptimizedByteCode;
+};
+using FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr = TSharedPtr<FNiagaraVMExecutableByteCodeOptimizationTaskResult, ESPMode::ThreadSafe>;
+
+// Encapsulates the task and tracking state for bytecode optimization
+struct NIAGARA_API FNiagaraVMExecutableByteCodeOptimizationTaskState
+{
+	FNiagaraVMExecutableByteCodeOptimizationTaskState(bool bIsCompleted = false)
+		: bCompleted(bIsCompleted) { }
+
+	TSharedFuture<FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr> SharedTask;
+	bool bCompleted;
+	FRWLock RWLock;
+};
+
 /** Struct containing all of the data needed to run a Niagara VM executable script.*/
 USTRUCT()
 struct NIAGARA_API FNiagaraVMExecutableData
@@ -281,13 +345,16 @@ struct NIAGARA_API FNiagaraVMExecutableData
 public:
 	FNiagaraVMExecutableData();
 
-	/** Byte code to execute for this system */
+	/** Byte code to execute for this system. */
 	UPROPERTY()
-	TArray<uint8> ByteCode;
+	FNiagaraVMExecutableByteCode ByteCode;
 
-	/** Runtime optimized byte code, specific to the system we are running on, currently can not be serialized */
-	UPROPERTY(transient)
-	TArray<uint8> OptimizedByteCode;
+	/** Optimized version of the byte code to execute for this system */
+	UPROPERTY(Transient)
+	FNiagaraVMExecutableByteCode OptimizedByteCode;
+
+	/** Async task state for the byte code optimization */
+	TSharedPtr<FNiagaraVMExecutableByteCodeOptimizationTaskState, ESPMode::ThreadSafe> OptimizationTask;
 
 	/** Number of temp registers used by this script. */
 	UPROPERTY()
@@ -408,6 +475,9 @@ public:
 
 	UPROPERTY()
 	uint32 bNeedsGPUContextInit : 1;
+
+	void WaitOnOptimizeCompletion();
+	void ApplyFinishedOptimization(const FNiagaraVMExecutableByteCodeOptimizationTaskResultPtr& Result);
 
 	void SerializeData(FArchive& Ar, bool bDDCData);
 	
@@ -963,6 +1033,7 @@ public:
 
 	NIAGARA_API TArray<UNiagaraParameterCollection*>& GetCachedParameterCollectionReferences();
 	TArray<FNiagaraScriptDataInterfaceInfo>& GetCachedDefaultDataInterfaces() { return CachedDefaultDataInterfaces; }
+	TConstArrayView<FNiagaraScriptDataInterfaceInfo> GetCachedDefaultDataInterfaces() const { return MakeArrayView(CachedDefaultDataInterfaces); }
 
 #if STATS
 	TArrayView<const TStatId> GetStatScopeIDs() const { return MakeArrayView(StatScopesIDs); }
@@ -995,7 +1066,7 @@ private:
 	TOptional<ENiagaraSimTarget> GetSimTarget() const;
 
 	/** Kicks off an async job to convert the ByteCode into an optimized version for the platform we are running on. */
-	void AsyncOptimizeByteCode();
+	void AsyncOptimizeByteCode(bool bIsInPostLoad = false);
 
 	/** Generates all of the function bindings for DI that don't require user data */
 	void GenerateDefaultFunctionBindings();
@@ -1092,6 +1163,9 @@ private:
 #if WITH_EDITORONLY_DATA
 		void ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, UNiagaraEmitter* Emitter, UNiagaraSystem* EmitterOwner, ENiagaraRendererSourceDataMode InSourceMode) const;
 #endif
+
+public:
+	static void AsyncOptimizeAllScriptsForComponent(UNiagaraComponent* Component);
 };
 
 // Forward decl FVersionedNiagaraScriptWeakPtr to suport FVersionedNiagaraScript::ToWeakPtr().

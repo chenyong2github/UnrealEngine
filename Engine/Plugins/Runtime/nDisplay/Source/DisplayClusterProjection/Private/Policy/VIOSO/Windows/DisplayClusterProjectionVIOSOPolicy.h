@@ -46,8 +46,12 @@ public:
 	virtual bool ShouldUseAdditionalTargetableResource() const override
 	{ return true; }
 
+	virtual bool ShouldUseSourceTextureWithMips() const override
+	{ return true; }
+
 protected:
 	bool ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy);
+	void ImplRelease();
 
 protected:
 	FViosoPolicyConfiguration ViosoConfigData;

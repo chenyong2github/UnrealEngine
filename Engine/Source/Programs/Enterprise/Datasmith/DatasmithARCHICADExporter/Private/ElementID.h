@@ -51,10 +51,9 @@ class FElementID
 	// Initialize element header with element guid
 	void InitHeader(const API_Guid& InGuid)
 	{
-		bFullElementFetched = false;
-		Zap(&APIElement.header);
-		APIElement.header.guid = InGuid;
-		UE_AC_TestGSError(ACAPI_Element_GetHeader(&APIElement.header, 0));
+		Zap(&APIElementHeader);
+		APIElementHeader.guid = InGuid;
+		UE_AC_TestGSError(ACAPI_Element_GetHeader(&APIElementHeader, 0));
 	}
 
 	// Set the Sync Data associated to the current element
@@ -70,11 +69,9 @@ class FElementID
 	bool IsSurface() const;
 
 	// Return the element's header
-	const API_Elem_Head& GetHeader() const { return APIElement.header; }
+	const API_Elem_Head& GetHeader() const { return APIElementHeader; }
 
-	// Return the complete element
-	const API_Element& GetAPIElement();
-
+	// Return the mesh class based on hash of 3D ModelerAPI::BaseElemId
 	FMeshClass* GetMeshClass();
 
 	// Return the lib part info if this element come from it
@@ -83,9 +80,11 @@ class FElementID
 	// Current synchronisation context
 	const FSyncContext& SyncContext;
 
+	// Return the element name
 	const utf8_t* GetElementName();
 
   private:
+	// Connect childs of this parent
 	void CollectDependantElementsType(API_ElemTypeID TypeID) const;
 
 	// 3D element index
@@ -93,21 +92,21 @@ class FElementID
 	// 3D element
 	ModelerAPI::Element Element3D;
 
-	// APIElement contain all values (by opposition to header only)
-	bool bFullElementFetched;
-	// AC API Element
-	API_Element APIElement;
+	// Basic AC API Element header
+	API_Elem_Head APIElementHeader;
 
 	// Sync data associated to the current element
 	FSyncData* SyncData;
 
-	FMeshClass* Instance;
+	// Mesh class based on hash of 3D ModelerAPI::BaseElemId
+	FMeshClass* MeshClass;
 
 	// Lib part info have been fetched
 	bool bLibPartInfoFetched;
 	// LibPartInfo != nullptr if element come from it
 	const FLibPartInfo* LibPartInfo;
 
+	// The element name
 	utf8_string ElementName;
 };
 

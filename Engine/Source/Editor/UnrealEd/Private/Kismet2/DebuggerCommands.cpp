@@ -258,7 +258,7 @@ static void LeaveDebuggingMode()
 //////////////////////////////////////////////////////////////////////////
 // FPlayWorldCommands
 
-TSharedPtr<FUICommandList> FPlayWorldCommands::GlobalPlayWorldActions;
+TSharedPtr<FUICommandList> FPlayWorldCommands::GlobalPlayWorldActions(new FUICommandList());
 
 TWeakPtr<SGlobalPlayWorldActions> FPlayWorldCommands::ActiveGlobalPlayWorldActionsWidget;
 
@@ -382,9 +382,9 @@ void FPlayWorldCommands::AddPIEPreviewDeviceCommands()
 
 void FPlayWorldCommands::BindGlobalPlayWorldCommands()
 {
-	check(!GlobalPlayWorldActions.IsValid());
-
-	GlobalPlayWorldActions = MakeShareable(new FUICommandList);
+	static bool bInitializedGlobalPlayWorldCommands = false;
+	check(!bInitializedGlobalPlayWorldCommands);
+	bInitializedGlobalPlayWorldCommands = true;
 
 	const FPlayWorldCommands& Commands = FPlayWorldCommands::Get();
 	FUICommandList& ActionList = *GlobalPlayWorldActions;

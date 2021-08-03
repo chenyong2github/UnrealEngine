@@ -5,6 +5,7 @@
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "MovieScene.h"
 #include "UObject/EditorObjectVersion.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Sections/MovieSceneSubSection.h"
@@ -139,6 +140,7 @@ void UMovieSceneSequence::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 }

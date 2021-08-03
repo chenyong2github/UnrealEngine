@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4.download.datastructs;
+package com.epicgames.unreal.download.datastructs;
 
 import android.content.Context;
 import android.util.Log;
@@ -9,11 +9,11 @@ import androidx.annotation.Nullable;
 import androidx.work.Data;
 import androidx.work.WorkerParameters;
 
-import com.epicgames.ue4.Logger;
+import com.epicgames.unreal.Logger;
 
-import com.epicgames.ue4.download.datastructs.DownloadDescription;
-import com.epicgames.ue4.download.datastructs.DownloadWorkerParameterKeys;
-import com.epicgames.ue4.download.DownloadProgressListener;
+import com.epicgames.unreal.download.datastructs.DownloadDescription;
+import com.epicgames.unreal.download.datastructs.DownloadWorkerParameterKeys;
+import com.epicgames.unreal.download.DownloadProgressListener;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -29,6 +29,31 @@ public class DownloadQueueDescription
 	public DownloadQueueDescription(@NonNull Data data, @NonNull Context context, @Nullable Logger Log)
 	{		
 		//Parse DownloadDescriptions 
+		String DownloadDescriptionListFileName = GetDownloadDescriptionListFileName(data, Log);
+		if (DownloadDescriptionListFileName != null)
+		{
+			ParseDownloadDescriptionString(DownloadDescriptionListFileName, Log);
+		}
+		
+		MaxConcurrentDownloads = data.getInt(DownloadWorkerParameterKeys.DOWNLOAD_MAX_CONCURRENT_REQUESTS_KEY, DEFAULT_MAX_CONCURRENT_DOWNLOADS);
+	}
+
+	//Saves changes to our DownloadDescriptions list for future worker calls
+	public void ResaveDownloadDescriptionListToDisk(@NonNull Data data, @Nullable Logger Log)
+	{
+		if (DownloadDescriptions.size() > 0)
+		{
+			String DownloadDescriptionListFileName = GetDownloadDescriptionListFileName(data, Log);
+			if (DownloadDescriptionListFileName != null)
+			{
+				DownloadDescription.WriteDownloadDescriptionListToFile(DownloadDescriptionListFileName, DownloadDescriptions);
+			}
+		}
+	}
+
+	public static String GetDownloadDescriptionListFileName(@NonNull Data data, @Nullable Logger Log)
+	{
+		//Parse DownloadDescriptions 
 		String DownloadDescriptionListString = data.getString(DownloadWorkerParameterKeys.DOWNLOAD_DESCRIPTION_LIST_KEY);
 		if (null == DownloadDescriptionListString)
 		{
@@ -37,12 +62,8 @@ public class DownloadQueueDescription
 				Log.error(DownloadWorkerParameterKeys.NOTIFICATION_CHANNEL_ID_KEY + " key returned null list! No downloads to process in WorkerParameters!");
 			}
 		}
-		else
-		{
-			ParseDownloadDescriptionString(DownloadDescriptionListString, Log);
-		}
 		
-		MaxConcurrentDownloads = data.getInt(DownloadWorkerParameterKeys.DOWNLOAD_MAX_CONCURRENT_REQUESTS_KEY, DEFAULT_MAX_CONCURRENT_DOWNLOADS);
+		return DownloadDescriptionListString;
 	}
 
 	//Parses our DownloadDescriptions member based on the passed in JSONObject file
@@ -81,7 +102,7 @@ public class DownloadQueueDescription
 		}
 	}
 
-	public List<DownloadDescription> DownloadDescriptions = new ArrayList<DownloadDescription>();
+	public ArrayList<DownloadDescription> DownloadDescriptions = new ArrayList<DownloadDescription>();
 	public DownloadProgressListener ProgressListener = null;
 	public int DownloadGroupID = 0;
 	public int MaxConcurrentDownloads = 4;

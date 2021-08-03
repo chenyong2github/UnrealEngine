@@ -29,29 +29,50 @@ TSharedRef<IPropertyTypeCustomization> FDMXOutputPortConfigCustomization::MakeIn
 	return MakeShared<FDMXOutputPortConfigCustomization>();
 }
 
-FName FDMXOutputPortConfigCustomization::GetProtocolNamePropertyNameChecked() const
+FName FDMXOutputPortConfigCustomization::GetProtocolNamePropertyName() const
 {
 	return FDMXOutputPortConfig::GetProtocolNamePropertyNameChecked();
 }
 
-FName FDMXOutputPortConfigCustomization::GetCommunicationTypePropertyNameChecked() const
+FName FDMXOutputPortConfigCustomization::GetCommunicationTypePropertyName() const
 {
 	return FDMXOutputPortConfig::GetCommunicationTypePropertyNameChecked();
 }
 
-FName FDMXOutputPortConfigCustomization::GetDeviceAddressPropertyNameChecked() const
+FName FDMXOutputPortConfigCustomization::GetDeviceAddressPropertyName() const
 {
 	return FDMXOutputPortConfig::GetDeviceAddressPropertyNameChecked();
 }
 
-FName FDMXOutputPortConfigCustomization::GetPortGuidPropertyNameChecked() const
+FName FDMXOutputPortConfigCustomization::GetDestinationAddressPropertyName() const
+{
+	return FDMXOutputPortConfig::GetDestinationAddressPropertyNameChecked();
+}
+
+FName FDMXOutputPortConfigCustomization::GetPriorityStrategyPropertyName() const
+{
+	// Doesn't exist for output ports
+	return NAME_None;
+}
+
+FName FDMXOutputPortConfigCustomization::GetPriorityPropertyName() const
+{
+	return FDMXOutputPortConfig::GetPriorityPropertyNameChecked();
+}
+
+FName FDMXOutputPortConfigCustomization::GetPortGuidPropertyName() const
 {
 	return FDMXOutputPortConfig::GetPortGuidPropertyNameChecked();
 }
 
 const TArray<EDMXCommunicationType> FDMXOutputPortConfigCustomization::GetSupportedCommunicationTypes() const
 {
-	return GetProtocolChecked()->GetOutputPortCommunicationTypes();
+	if (IDMXProtocolPtr Protocol = GetProtocol())
+	{
+		return Protocol->GetOutputPortCommunicationTypes();
+	}
+
+	return TArray<EDMXCommunicationType>();
 }
 
 #undef LOCTEXT_NAMESPACE

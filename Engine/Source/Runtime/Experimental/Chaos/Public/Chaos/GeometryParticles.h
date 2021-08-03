@@ -357,7 +357,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MWeakParticleHandle);
 			TArrayCollection::AddArray(&MParticleConstraints);
 
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 			TArrayCollection::AddArray(&MDebugName);
 #endif
 
@@ -417,7 +417,7 @@ namespace Chaos
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 			TArrayCollection::AddArray(&MDebugName);
 #endif
 
@@ -455,7 +455,7 @@ namespace Chaos
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
 #endif
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 			TArrayCollection::AddArray(&MDebugName);
 #endif
 
@@ -561,13 +561,13 @@ namespace Chaos
 			return MSpatialIdx[Index];
 		}
 
-#if CHAOS_CHECKED
-		const FName& DebugName(const int32 Index) const
+#if CHAOS_DEBUG_NAME
+		const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName(const int32 Index) const
 		{
 			return MDebugName[Index];
 		}
 
-		FName& DebugName(const int32 Index)
+		TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName(const int32 Index)
 		{
 			return MDebugName[Index];
 		}
@@ -799,8 +799,8 @@ public:
 #if CHAOS_DETERMINISTIC
 		TArrayCollectionArray<FParticleID> MParticleIDs;
 #endif
-#if CHAOS_CHECKED
-		TArrayCollectionArray<FName> MDebugName;
+#if CHAOS_DEBUG_NAME
+		TArrayCollectionArray<TSharedPtr<FString, ESPMode::ThreadSafe>> MDebugName;
 #endif
 	};
 

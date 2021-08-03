@@ -21,10 +21,20 @@ public class RemoteControlWebInterface : ModuleRules
 			}
 			);
 
+		PrivateDependencyModuleNames.AddRange(
+			new string[] 
+			{
+				"RemoteControlCommon",
+			}
+		);
+
+
 		if (Target.Type == TargetType.Editor)
 		{
 			PrivateDependencyModuleNames.AddRange(
-				new string[] {
+				new string[] 
+				{
+					"DeveloperSettings",
 					"EditorStyle",
 					"EditorWidgets",
 					"PropertyEditor",

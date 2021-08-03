@@ -81,8 +81,11 @@ private:
 	/** Whether the tracked camera has a LiveLink Camera Controller */
 	bool bCameraControllerExists = false;
 
-	/** Whether LiveLink is used */
-	bool bCanEvaluateLensFile = false;
+	/** Flags used to know what data is valid or not and adjust UI */
+	bool bCouldEvaluateDistortion = false;
+	bool bCouldEvaluateFocalLength = false;
+	bool bCouldEvaluateImageCenter = false;
+	bool bCouldEvaluateNodalOffset = false;
 
 	/** Calibration steps controller, which provides a selected target camera and livelink camera controller */
 	TWeakPtr<FCameraCalibrationStepsController> WeakStepsController;

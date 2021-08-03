@@ -5,6 +5,7 @@
 #include "CameraCalibrationEditorLog.h"
 #include "LensFile.h"
 
+#define LOCTEXT_NAMESPACE "LensDistortionParametersCurveModel"
 
 
 FLensDistortionParametersCurveModel::FLensDistortionParametersCurveModel(ULensFile* InOwner, float InFocus, int32 InParameterIndex)
@@ -78,4 +79,14 @@ void FLensDistortionParametersCurveModel::SetKeyAttributes(TArrayView<const FKey
 	}
 }
 
+FText FLensDistortionParametersCurveModel::GetValueLabel() const
+{
+	if (ParameterIndex != INDEX_NONE)
+	{
+		return LOCTEXT("ParameterValueLabel", "(unitless)");
+	}
+	return FText();
+}
+
+#undef LOCTEXT_NAMESPACE
 

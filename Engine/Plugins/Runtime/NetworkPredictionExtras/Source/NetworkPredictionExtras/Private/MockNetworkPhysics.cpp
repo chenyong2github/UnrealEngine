@@ -108,7 +108,7 @@ FMockState_PT
 
 namespace UE_NETWORK_PHYSICS
 {
-	NETSIM_DEVCVAR_SHIPCONST_INT(bEnableMock, 0, "np2.Mock.Enable", "Enable Mock implementation");
+	NETSIM_DEVCVAR_SHIPCONST_INT(bEnableMock, 1, "np2.Mock.Enable", "Enable Mock implementation");
 }
 
 void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, const float DeltaSeconds, const int32 SimulationFrame, const int32 LocalStorageFrame, const TArray<FSingleParticlePhysicsProxy*>& BallProxies)
@@ -320,13 +320,19 @@ void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, 
 				{
 					PT->AddForce(InputCmd.Force * GT_State.ForceMultiplier * UE_NETWORK_PHYSICS::MovementK());
 
-					// Auto Turn
-					const float CurrentYaw = PT->R().Rotator().Yaw + (PT->W().Z * UE_NETWORK_PHYSICS::TurnDampK());
-					const float DesiredYaw = InputCmd.Force.Rotation().Yaw;
-					const float DeltaYaw = FRotator::NormalizeAxis( DesiredYaw - CurrentYaw );
-					
-					PT->AddTorque(FVector(0.f, 0.f, DeltaYaw * UE_NETWORK_PHYSICS::TurnK()));
 				}
+					
+				// Rotation
+				if (InputCmd.Torque.SizeSquared() > 0.001f)
+				{
+					PT->AddTorque(InputCmd.Torque* GT_State.ForceMultiplier* UE_NETWORK_PHYSICS::RotationK());
+				}
+
+				// Auto Turn to target yaw
+				const float CurrentYaw = PT->R().Rotator().Yaw + (PT->W().Z * GT_State.AutoFaceTargetYawDamp);
+				const float DesiredYaw = FMath::DegreesToRadians(InputCmd.TargetYaw);
+				const float DeltaYaw = FRotator::NormalizeAxis(InputCmd.TargetYaw - CurrentYaw );
+				PT->AddTorque(FVector(0.f, 0.f, DeltaYaw * GT_State.AutoFaceTargetYawStrength));
 			}
 
 			// Drag force
@@ -338,6 +344,18 @@ void FMockManagedState::AsyncTick(UWorld* World, Chaos::FPhysicsSolver* Solver, 
 				PT->AddForce(Drag);
 			}
 			
+
+			//  angular velocity limit
+			FVector W = PT->W();
+			{
+				const float MaxAngularVelocitySq = UE_NETWORK_PHYSICS::MaxAngularVelocity() * UE_NETWORK_PHYSICS::MaxAngularVelocity();
+				if (W.SizeSquared() > MaxAngularVelocitySq)
+				{
+					W = W.GetUnsafeNormal() * UE_NETWORK_PHYSICS::MaxAngularVelocity();
+					PT->SetW(W);
+				}
+			}
+
 			PT_State.JumpCooldownMS = FMath::Max( PT_State.JumpCooldownMS - (int32)(DeltaSeconds* 1000.f), 0);
 			if (PT_State.JumpCooldownMS != 0)
 			{
@@ -970,16 +988,61 @@ void UNetworkPhysicsComponent::InitializeComponent()
 		return;
 	}
 	
+	// Test is component is valid for Network Physics. Needs a valid physics ActorHandle
+	auto ValidComponent = [](UActorComponent* Component)
+	{
+		bool bValid = false;
+		if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component))
+		{
+			bValid = FPhysicsInterface::IsValid(PrimComp->BodyInstance.ActorHandle);
+		}
+		return bValid;
+	};
+
+	auto SelectComponent = [&ValidComponent](const TArray<UActorComponent*>& Components)
+	{
+		UPrimitiveComponent* Pc = nullptr;
+		for (UActorComponent* Ac : Components)
+		{
+			if (ValidComponent(Ac))
+			{
+				Pc = (UPrimitiveComponent*)Ac;
+				break;
+			}
+
+		}
+		return Pc;
+	};
+	
 	UPrimitiveComponent* PrimitiveComponent = nullptr;
 	if (AActor* MyActor = GetOwner())
 	{
-		if (UPrimitiveComponent* RootPrimitive = Cast<UPrimitiveComponent>(MyActor->GetRootComponent()))
+		// Explicitly tagged component
+		if (ManagedComponentTag != NAME_None)
 		{
-			PrimitiveComponent = RootPrimitive;
+			if (UPrimitiveComponent* FoundComponent = SelectComponent(MyActor->GetComponentsByTag(UPrimitiveComponent::StaticClass(), ManagedComponentTag)))
+			{
+				PrimitiveComponent = FoundComponent;
 		}
-		else if (UPrimitiveComponent* FoundPrimitive = MyActor->FindComponentByClass<UPrimitiveComponent>())
+			else
 		{
-			PrimitiveComponent = FoundPrimitive;
+				UE_LOG(LogNetworkPhysics, Warning, TEXT("Actor %s: could not find a valid Primitive Component with Tag %s"), *MyActor->GetPathName(), *ManagedComponentTag.ToString());
+			}
+		}
+
+		// Root component
+		if (!PrimitiveComponent && ValidComponent(MyActor->GetRootComponent()))
+		{
+			PrimitiveComponent = CastChecked<UPrimitiveComponent>(MyActor->GetRootComponent());
+		}
+
+		// Any other valid primitive component?
+		if (!PrimitiveComponent)
+		{
+			if (UPrimitiveComponent* FoundComponent = SelectComponent(MyActor->K2_GetComponentsByClass(UPrimitiveComponent::StaticClass())))
+			{
+				PrimitiveComponent = FoundComponent;
+			}
 		}
 	}
 

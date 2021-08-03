@@ -6,6 +6,8 @@
 #include "CoreMinimal.h"
 
 #include "ActorFactories/ActorFactory.h"
+#include "CalibrationPointComponent.h"
+#include "CalibrationPointComponentDetails.h"
 #include "DistortionHandlerPickerDetailCustomization.h"
 #include "Editor.h"
 #include "IPlacementModeModule.h"
@@ -22,7 +24,16 @@ DEFINE_LOG_CATEGORY(LogCameraCalibrationCoreEditor);
 void FCameraCalibrationCoreEditorModule::StartupModule()
 {
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyEditorModule.RegisterCustomPropertyTypeLayout(FDistortionHandlerPicker::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDistortionHandlerPickerDetailCustomization::MakeInstance));
+
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(
+		FDistortionHandlerPicker::StaticStruct()->GetFName(), 
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDistortionHandlerPickerDetailCustomization::MakeInstance)
+	);
+
+	PropertyEditorModule.RegisterCustomClassLayout(
+		UCalibrationPointComponent::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FCalibrationPointComponentDetails::MakeInstance)
+	);
 
 	RegisterPlacementModeItems();
 }
@@ -32,7 +43,10 @@ void FCameraCalibrationCoreEditorModule::ShutdownModule()
 	if (!IsEngineExitRequested() && GEditor && UObjectInitialized())
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
 		PropertyModule.UnregisterCustomClassLayout(ULensFile::StaticClass()->GetFName());
+		PropertyModule.UnregisterCustomClassLayout(UCalibrationPointComponent::StaticClass()->GetFName());
+
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FDistortionHandlerPicker::StaticStruct()->GetFName());
 
 		UnregisterPlacementModeItems();
@@ -128,6 +142,41 @@ void FCameraCalibrationCoreEditorModule::RegisterPlacementModeItems()
 			PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda(RegisterPlaceActors);
 		}
 	}
+}
+
+void FCameraCalibrationCoreEditorModule::RegisterCalibrationPointDetailsRow(const TWeakPtr<ICalibrationPointComponentDetailsRow> Row)
+{
+	// Take the opportunity to clean up the list
+	RegisteredCalibrationPointComponentDetailsRows.RemoveAll([](TWeakPtr<ICalibrationPointComponentDetailsRow> Elem) {
+		return !Elem.IsValid();
+	});
+
+	if (!Row.IsValid() || RegisteredCalibrationPointComponentDetailsRows.Contains(Row))
+	{
+		return;
+	}
+
+	RegisteredCalibrationPointComponentDetailsRows.Add(Row);
+}
+
+void FCameraCalibrationCoreEditorModule::UnregisterCalibrationPointDetailsRow(const TWeakPtr<ICalibrationPointComponentDetailsRow> Row)
+{
+	// Take the opportunity to clean up the list
+	RegisteredCalibrationPointComponentDetailsRows.RemoveAll([](TWeakPtr<ICalibrationPointComponentDetailsRow> Elem) {
+		return !Elem.IsValid();
+	});
+
+	if (!Row.IsValid())
+	{
+		return;
+	}
+
+	RegisteredCalibrationPointComponentDetailsRows.Remove(Row);
+}
+
+TArray<TWeakPtr<ICalibrationPointComponentDetailsRow>> FCameraCalibrationCoreEditorModule::GetRegisteredCalibrationPointComponentDetailsRows()
+{
+	return RegisteredCalibrationPointComponentDetailsRows;
 }
 
 IMPLEMENT_MODULE(FCameraCalibrationCoreEditorModule, CameraCalibrationCoreEditor);

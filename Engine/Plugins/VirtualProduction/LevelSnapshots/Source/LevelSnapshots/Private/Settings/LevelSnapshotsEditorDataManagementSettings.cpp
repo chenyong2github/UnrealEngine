@@ -8,7 +8,6 @@ ULevelSnapshotsEditorDataManagementSettings::ULevelSnapshotsEditorDataManagement
 {
 	RootLevelSnapshotSaveDir.Path = "/Game/LevelSnapshots";
 	LevelSnapshotSaveDir = "{map}/{year}-{month}-{day}";
-	LevelSnapshotSaveDirOverride = LevelSnapshotSaveDir;
 	DefaultLevelSnapshotName = "{map}_{user}_{time}";
 	LevelSnapshotNameOverride = DefaultLevelSnapshotName;
 }
@@ -21,16 +20,6 @@ const FString& ULevelSnapshotsEditorDataManagementSettings::GetNameOverride() co
 void ULevelSnapshotsEditorDataManagementSettings::SetNameOverride(const FString& InName)
 {
 	LevelSnapshotNameOverride = InName;
-}
-
-const FString& ULevelSnapshotsEditorDataManagementSettings::GetSaveDirOverride() const
-{
-	return LevelSnapshotSaveDirOverride;
-}
-
-void ULevelSnapshotsEditorDataManagementSettings::SetSaveDirOverride(const FString& InPath)
-{
-	LevelSnapshotSaveDirOverride = InPath;
 }
 
 void ULevelSnapshotsEditorDataManagementSettings::ValidateRootLevelSnapshotSaveDirAsGameContentRelative()
@@ -64,7 +53,6 @@ void ULevelSnapshotsEditorDataManagementSettings::SanitizeAllProjectSettingsPath
 {
 	SanitizePathInline(RootLevelSnapshotSaveDir.Path, bSkipForwardSlash);
 	SanitizePathInline(LevelSnapshotSaveDir, bSkipForwardSlash);
-	SanitizePathInline(LevelSnapshotSaveDirOverride, bSkipForwardSlash);
 	SanitizePathInline(DefaultLevelSnapshotName, bSkipForwardSlash);
 }
 
@@ -90,7 +78,7 @@ FFormatNamedArguments ULevelSnapshotsEditorDataManagementSettings::GetFormatName
 	return FormatArguments;
 }
 
-FText ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(const FText& InTextToParse, const FString& InWorldName)
+FText ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(const FText& InTextToParse, const FString& InWorldName)
 {
 	const FFormatNamedArguments& FormatArguments = GetFormatNamedArguments(InWorldName);
 
@@ -100,9 +88,4 @@ FText ULevelSnapshotsEditorDataManagementSettings::ParseTokensInText(const FText
 bool ULevelSnapshotsEditorDataManagementSettings::IsNameOverridden() const
 {
 	return !LevelSnapshotNameOverride.Equals(DefaultLevelSnapshotName);
-}
-
-bool ULevelSnapshotsEditorDataManagementSettings::IsPathOverridden() const
-{
-	return !LevelSnapshotSaveDirOverride.Equals(LevelSnapshotSaveDir);
 }

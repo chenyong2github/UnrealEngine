@@ -201,6 +201,7 @@ public:
 	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> GetDateFormatter(const EDateTimeStyle::Type DateStyle, const FString& TimeZone);
 	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> GetTimeFormatter(const EDateTimeStyle::Type TimeStyle, const FString& TimeZone);
 	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> GetDateTimeFormatter(const EDateTimeStyle::Type DateStyle, const EDateTimeStyle::Type TimeStyle, const FString& TimeZone);
+	TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> GetDateTimeFormatter(const FString& CustomPattern, const FString& TimeZone);
 
 private:
 	icu::Locale ICULocale;

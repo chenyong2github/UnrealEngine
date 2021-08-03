@@ -23,10 +23,6 @@
 
 #include "Misc/Paths.h"
 
-#if WITH_EDITOR
-#include "HAL/IConsoleManager.h"
-#endif
-
 const FBoxSphereBounds DefaultBounds(FVector::ZeroVector, FVector(2000), 1000);
 const TCHAR* EmptyScene = TEXT("Nothing Loaded");
 
@@ -34,31 +30,14 @@ const TCHAR* EmptyScene = TEXT("Nothing Loaded");
 std::atomic_bool ADatasmithRuntimeActor::bImportingScene(false);
 
 TUniquePtr<DatasmithRuntime::FTranslationThread> ADatasmithRuntimeActor::TranslationThread;
-TArray<TStrongObjectPtr<UDatasmithOptionsBase>> DatasmithRuntime::FTranslationThread::AllOptions;
-FDatasmithTessellationOptions* DatasmithRuntime::FTranslationThread::TessellationOptions = nullptr;
 
-void ADatasmithRuntimeActor::OnStartupModule(bool bCADRuntimeSupported)
+void ADatasmithRuntimeActor::OnStartupModule()
 {
-	using namespace DatasmithRuntime;
-
-#if PLATFORM_WINDOWS && PLATFORM_64BITS
-	if (bCADRuntimeSupported)
-	{
-		FTranslationThread::AllOptions.Add(Datasmith::MakeOptions<UDatasmithImportOptions>());
-
-		TStrongObjectPtr<UDatasmithCommonTessellationOptions> CommonTessellationOptions = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-		FTranslationThread::AllOptions.Add(CommonTessellationOptions);
-		FTranslationThread::TessellationOptions = &CommonTessellationOptions->Options;
-	}
-#endif
-
-	TranslationThread = MakeUnique<FTranslationThread>();
+	TranslationThread = MakeUnique<DatasmithRuntime::FTranslationThread>();
 }
 
 void ADatasmithRuntimeActor::OnShutdownModule()
 {
-	DatasmithRuntime::FTranslationThread::AllOptions.Empty();
-	DatasmithRuntime::FTranslationThread::TessellationOptions = nullptr;
 	TranslationThread.Reset();
 }
 
@@ -76,8 +55,6 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	PrimaryActorTick.TickInterval = 0.1f;
-
-	ImportOptions.TessellationOptions = FDatasmithTessellationOptions(0.3f, 0.0f, 30.0f, EDatasmithCADStitchingTechnique::StitchingSew);
 }
 
 void ADatasmithRuntimeActor::Tick(float DeltaTime)
@@ -92,20 +69,6 @@ void ADatasmithRuntimeActor::Tick(float DeltaTime)
 
 			if (Translator.IsValid())
 			{
-
-#if WITH_EDITOR
-				if (EnableThreadedImport != MAX_int32)
-				{
-					IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableThreadedImport"));
-					CVar->Set(EnableThreadedImport);
-				}
-
-				if (EnableCADCache != MAX_int32)
-				{
-					IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableCADCache"));
-					CVar->Set(EnableCADCache);
-				}
-#endif
 				SceneImporter->SetTranslator(Translator);
 				ApplyNewScene();
 			}
@@ -348,34 +311,11 @@ bool ADatasmithRuntimeActor::LoadFile(const FString& FilePath)
 
 	// Temporarily manually disable load of ifc, gltf, PlmXml, Rhino and wire files
 	FString Extension = FPaths::GetExtension(FilePath);
-	bool bUnsupported = Extension.Equals(TEXT("3dm"), ESearchCase::IgnoreCase)
-						|| Extension.Equals(TEXT("ifc"), ESearchCase::IgnoreCase)
-						|| Extension.Equals(TEXT("glb"), ESearchCase::IgnoreCase)
-						|| Extension.Equals(TEXT("gltf"), ESearchCase::IgnoreCase)
-						|| Extension.Equals(TEXT("xml"), ESearchCase::IgnoreCase)
-						|| Extension.Equals(TEXT("plmxml"), ESearchCase::IgnoreCase)
-						|| Extension.Equals(TEXT("wire"), ESearchCase::IgnoreCase);
-	if (bUnsupported)
+	if (!Extension.Equals(TEXT("udatasmith"), ESearchCase::IgnoreCase))
 	{
-		UE_LOG(LogDatasmithRuntime, Log, TEXT("Extension %s is not supported yet."), *Extension);
+		UE_LOG(LogDatasmithRuntime, Log, TEXT("Extension %s is not supported."), *Extension);
 		return false;
 	}
-
-#if WITH_EDITOR
-	EnableThreadedImport = MAX_int32;
-	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableThreadedImport")))
-	{
-		EnableThreadedImport = CVar->GetInt();
-		CVar->Set(0);
-	}
-
-	EnableCADCache = MAX_int32;
-	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableCADCache")))
-	{
-		EnableCADCache = CVar->GetInt();
-		CVar->Set(0);
-	}
-#endif
 
 	CloseConnection();
 
@@ -435,33 +375,14 @@ namespace DatasmithRuntime
 
 		RuntimeActor->OnOpenDelta();
 
-		FDatasmithTessellationOptions DefaultTessellation;
-		if (FTranslationThread::AllOptions.Num() > 0)
-		{
-			DefaultTessellation = *FTranslationThread::TessellationOptions;
-			*FTranslationThread::TessellationOptions = RuntimeActor->ImportOptions.TessellationOptions;
-
-			Translator->SetSceneImportOptions(FTranslationThread::AllOptions);
-		}
-
 		RuntimeActor->LoadedScene = Source.GetSceneName();
 
 		TSharedRef<IDatasmithScene> SceneElement = FDatasmithSceneFactory::CreateScene(*RuntimeActor->LoadedScene);
 
 		if (!Translator->LoadScene( SceneElement ))
 		{
-			if (FTranslationThread::AllOptions.Num() > 0)
-			{
-				*FTranslationThread::TessellationOptions = DefaultTessellation;
-			}
-
 			RuntimeActor->LoadedScene = TEXT("Loading failed");
 			return false;
-		}
-
-		if (FTranslationThread::AllOptions.Num() > 0)
-		{
-			*FTranslationThread::TessellationOptions = DefaultTessellation;
 		}
 
 		DirectLink::BuildIndexForScene(&SceneElement.Get());

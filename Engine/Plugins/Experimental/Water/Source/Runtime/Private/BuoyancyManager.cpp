@@ -358,6 +358,6 @@ void FBuoyancyManagerAsyncCallback::OnPreSimulate_Internal()
 
 		TUniquePtr<FBuoyancyComponentAsyncAux>* AuxPtr = BuoyancyComponentToAux_Internal.Find(Body_Internal->UniqueIdx());
 		FBuoyancyComponentAsyncAux* Aux = AuxPtr ? AuxPtr->Get() : nullptr;
-		Output.Outputs[ObjectIdx] = BuoyancyComponentInput.PreSimulate(World, GetDeltaTime_Internal(), GetSimTime_Internal(), Aux, Input->WaterBodyToSolverData);
+		Output.Outputs[ObjectIdx] = BuoyancyComponentInput.PreSimulate(World, GetDeltaTime_Internal(), GetSimTime_Internal(), Aux, Input->WaterBodyComponentToSolverData);
 	}
 }

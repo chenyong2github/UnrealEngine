@@ -147,37 +147,41 @@ namespace DatasmithRevitExporter
 				if (MeshActor != null && MeshActor.GetMeshName().Length == 0)
 				{
 					ElementActor = new FDatasmithFacadeActor(MeshActor.GetName());
-					ElementActor.SetLabel(MeshActor.GetLabel());
-
-					float X, Y, Z, W;
-					MeshActor.GetTranslation(out X, out Y, out Z);
-					ElementActor.SetTranslation(X, Y, Z);
-					MeshActor.GetScale(out X, out Y, out Z);
-					ElementActor.SetScale(X, Y, Z);
-					MeshActor.GetRotation(out X, out Y, out Z, out W);
-					ElementActor.SetRotation(X, Y, Z, W);
-
-					ElementActor.SetLayer(MeshActor.GetLayer());
-
-					for (int TagIndex = 0; TagIndex < MeshActor.GetTagsCount(); ++TagIndex)
-					{
-						ElementActor.AddTag(MeshActor.GetTag(TagIndex));
-					}
-
-					ElementActor.SetIsComponent(MeshActor.IsComponent());
-					ElementActor.SetVisibility(MeshActor.GetVisibility());
-
-					for (int ChildIndex = 0; ChildIndex < MeshActor.GetChildrenCount(); ++ChildIndex)
-					{
-						ElementActor.AddChild(MeshActor.GetChild(ChildIndex));
-					}
-
-					ElementMetaData?.SetAssociatedElement(ElementActor);
-
+					CopyActorData(MeshActor, ElementActor);
 					return true;
 				}
 
 				return !(ElementActor is FDatasmithFacadeActorMesh || ElementActor is FDatasmithFacadeActorLight || ElementActor is FDatasmithFacadeActorCamera);
+			}
+
+			void CopyActorData(FDatasmithFacadeActor InFromActor, FDatasmithFacadeActor InToActor)
+			{
+				InToActor.SetLabel(InFromActor.GetLabel());
+
+					float X, Y, Z, W;
+				InFromActor.GetTranslation(out X, out Y, out Z);
+				InToActor.SetTranslation(X, Y, Z);
+				InFromActor.GetScale(out X, out Y, out Z);
+				InToActor.SetScale(X, Y, Z);
+				InFromActor.GetRotation(out X, out Y, out Z, out W);
+				InToActor.SetRotation(X, Y, Z, W);
+
+				InToActor.SetLayer(InFromActor.GetLayer());
+
+				for (int TagIndex = 0; TagIndex < InFromActor.GetTagsCount(); ++TagIndex)
+					{
+					InToActor.AddTag(InFromActor.GetTag(TagIndex));
+					}
+
+				InToActor.SetIsComponent(InFromActor.IsComponent());
+				InToActor.SetVisibility(InFromActor.GetVisibility());
+
+				for (int ChildIndex = 0; ChildIndex < InFromActor.GetChildrenCount(); ++ChildIndex)
+					{
+					InToActor.AddChild(InFromActor.GetChild(ChildIndex));
+					}
+
+				ElementMetaData?.SetAssociatedElement(InToActor);
 			}
 
 			public void AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InParent, bool bInSkipChildren, bool bInForceAdd = false)
@@ -203,6 +207,20 @@ namespace DatasmithRevitExporter
 					ThisElement != null && 
 					ThisElement.IsValidObject && 
 					(DocumentData.DirectLink?.IsElementCached(ThisElement) ?? false);
+
+				// Check if actor type has changed for this element (f.e. static mesh actor -> regular actor),
+				// and re-created if needed.
+				if (bIsCached && bIsModified && ElementActor != null)
+				{
+					FDatasmithFacadeActor CachedActor = DocumentData.DirectLink.GetCachedActor(ElementActor.GetName());
+
+					if (CachedActor != null && CachedActor.GetType() != ElementActor.GetType())
+					{
+						InScene.RemoveActor(CachedActor);
+						DocumentData.DirectLink.CacheActorType(ElementActor);
+						bIsCached = false;
+					}
+				}
 
 				if ((!bIsCached && bIsModified) || bInForceAdd)
 				{
@@ -254,6 +272,13 @@ namespace DatasmithRevitExporter
 			public void UpdateMeshName()
 			{
 				FDatasmithFacadeActorMesh MeshActor = ElementActor as FDatasmithFacadeActorMesh;
+				if (MeshActor == null && DocumentData.DirectLink != null)
+				{
+					// We have valid mesh but the actor is not a mesh actor -- the type of element has changed (DirectLink).
+					MeshActor = new FDatasmithFacadeActorMesh(ElementActor.GetName());
+					CopyActorData(ElementActor, MeshActor);
+					ElementActor = MeshActor;
+				}
 				MeshActor?.SetMesh(DatasmithMeshElement.GetName());
 				bOptimizeHierarchy = false;
 			}
@@ -1136,8 +1161,10 @@ namespace DatasmithRevitExporter
 						// Remove children that are instances: they will be re-created;
 						// The reason is that we cannot uniquely identify family instances (no id) and when element changes,
 						// we need to export all of its child instances anew.
-						if (ExistingActor != null && ElementData.ChildElements.Count > 0)
+						if (ExistingActor != null)
 						{
+							if (ElementData.ChildElements.Count > 0)
+							{
 							List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
 					
 							for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
@@ -1161,7 +1188,10 @@ namespace DatasmithRevitExporter
 							}
 						}
 
-						ExistingActor?.ResetTags();
+							ExistingActor.ResetTags();
+							(ExistingActor as FDatasmithFacadeActorMesh)?.SetMesh(null);
+						}
+
 						ElementData.InitializePivotPlacement(ref InWorldTransform);
 						ElementData.InitializeElement(InWorldTransform, ElementData);
 						ElementData.MeshMaterialsMap.Clear();

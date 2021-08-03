@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
+#include "GameFeatureStateChangeObserver.h"
 #include "GameplayTagContainer.h"
 #include "ConversationDatabase.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -67,7 +68,7 @@ DECLARE_MULTICAST_DELEGATE(FAvailableConversationsChangedEvent);
  * A registry that can answer questions about all available dialogue assets
  */
 UCLASS()
-class COMMONCONVERSATIONRUNTIME_API UConversationRegistry : public UWorldSubsystem
+class COMMONCONVERSATIONRUNTIME_API UConversationRegistry : public UWorldSubsystem, public IGameFeatureStateChangeObserver
 {
 	GENERATED_BODY()
 
@@ -104,7 +105,11 @@ private:
 	void BuildDependenciesGraph();
 	void GetAllDependenciesForConversation(const FSoftObjectPath& Parent, TSet<FSoftObjectPath>& OutConversationsToLoad) const;
 
-	void HandlePluginActivationChanged(const FString& GameFeatureName, const UGameFeatureData* GameFeatureData);
+	void GameFeatureStateModified();
+
+	virtual void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData) override;
+
+	virtual void OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, FGameFeatureDeactivatingContext& Context) override;
 
 private:
 	TMap<FSoftObjectPath, TArray<FSoftObjectPath>> RuntimeDependencyGraph;

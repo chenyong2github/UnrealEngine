@@ -549,6 +549,11 @@ ULevelSequence* STakeRecorderPanel::GetLevelSequence() const
 	}
 }
 
+ULevelSequence* STakeRecorderPanel::GetLastRecordedLevelSequence() const
+{
+	return LastRecordedLevelSequence;
+}
+
 ETakeRecorderMode STakeRecorderPanel::GetTakeRecorderMode() const
 {
 	if (RecordIntoLevelSequence != nullptr)

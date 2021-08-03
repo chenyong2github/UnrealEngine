@@ -9,7 +9,7 @@
 
 
 /**
- * Simple projection screen component
+ * Simple projection policy screen component
  */
 UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Screen"))
 class DISPLAYCLUSTER_API UDisplayClusterScreenComponent
@@ -44,7 +44,7 @@ protected:
 	friend class FDisplayClusterConfiguratorScreenDetailCustomization;
 
 	/** Adjust the size of the screen. */
-	UPROPERTY(EditAnywhere, Category = "Screen Size", meta = (DisplayName = "Size", AllowPreserveRatio))
+	UPROPERTY(EditDefaultsOnly, Category = "Screen Size", meta = (DisplayName = "Size", AllowPreserveRatio))
 	FVector2D Size;
 #endif
 };

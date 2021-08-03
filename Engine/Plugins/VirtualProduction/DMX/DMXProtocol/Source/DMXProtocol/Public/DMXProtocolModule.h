@@ -21,30 +21,32 @@ struct FDMXProtocolRegistrationParams
 };
 
 
-DECLARE_EVENT_OneParam(FDMXProtocolModule, FDMXOnRequestProtocolRegistrationDelegate, TArray<FDMXProtocolRegistrationParams>& /** InOutProtocolRegistrationParamsArray */);
-DECLARE_EVENT_OneParam(FDMXProtocolModule, FDMXOnRequestProtocolBlacklistDelegate, TArray<FName>& /** InOutBlacklistedProtocols */);
 
-/** Implements the Protocol Module, that enables specific Protocol implementations */
+/** 
+ * Implements the Protocol Module, that enables specific Protocol implementations.
+ * 
+ * For use in Engine, see comments in DMXPortManager.h
+ * For protocol development, see comments in IDMXProtocol.h
+ */
 class DMXPROTOCOL_API FDMXProtocolModule 
 	: public IModuleInterface
 {
 
 public:
-	/** Delegate for Protocol implementations to register themself with the Protocol Module. Broadcast at the end of the PreDefault loading phase. See DMXProtocolArtNet for an example. */
-	static FDMXOnRequestProtocolRegistrationDelegate& GetOnRequestProtocolRegistration()
-	{
-		static FDMXOnRequestProtocolRegistrationDelegate OnRequestProtocolRegistration;
-		return OnRequestProtocolRegistration;
-	};
+	/** 
+	 * Event Broadcast when protocols need to register with the Protocol Module. 
+	 * The event is broadcast at the end of the end of the PreDefault loading phase, so all protocol implementations should be implemented as PreDefault loading phase modules.
+	 * 
+	 * See DMXProtocolArtNet for an example of a Protocol implementation.
+	 */
+	DECLARE_EVENT_OneParam(FDMXProtocolModule, FDMXOnRequestProtocolRegistrationEvent, TArray<FDMXProtocolRegistrationParams>& /** InOutProtocolRegistrationParamsArray */);
+	static FDMXOnRequestProtocolRegistrationEvent& GetOnRequestProtocolRegistration();
 
-	/** Delegate for other Plugins that want to disable a specific protocol */
-	static FDMXOnRequestProtocolBlacklistDelegate& GetOnRequestProtocolBlacklistDelegate()
-	{
-		static FDMXOnRequestProtocolBlacklistDelegate OnRequestProtocolBlacklistDelegate;
-		return OnRequestProtocolBlacklistDelegate;
-	};
+	/** Event broadcast so other Plugins can block specific protocols from registering. */
+	DECLARE_EVENT_OneParam(FDMXProtocolModule, FDMXOnRequestProtocolBlocklistEvent, TArray<FName>& /** InOutBlocklistedProtocols */);
+	static FDMXOnRequestProtocolBlocklistEvent& GetOnRequestProtocolBlocklist();
 
-	UE_DEPRECATED(4.27, "Use the OnRequestProtocolRegistration delegate please.")
+	UE_DEPRECATED(4.27, "Please use the OnRequestProtocolRegistration event instead.")
 	void RegisterProtocol(const FName& ProtocolName, IDMXProtocolFactory* Factory);
 
 	void UnregisterProtocol(const FName& ProtocolName);
@@ -70,6 +72,9 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface implementation
 
+	static const FName DefaultProtocolArtNetName;
+	static const FName DefaultProtocolSACNName;
+
 private:
 	/** Called after each loading phase during startup */
 	void OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful);
@@ -78,8 +83,8 @@ private:
 	void ShutdownAllDMXProtocols();
 
 private:
-	static const FName DefaultProtocolArtNetName;
-	static const FName DefaultProtocolSACNName;
+	static FDMXOnRequestProtocolRegistrationEvent OnRequestProtocolRegistrationEvent;
+	static FDMXOnRequestProtocolBlocklistEvent OnRequestProtocolBlocklistEvent;
 
 	TMap<FName, IDMXProtocolFactory*> DMXProtocolFactories;
 	TMap<FName, IDMXProtocolPtr> DMXProtocols;

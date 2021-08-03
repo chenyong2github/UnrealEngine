@@ -64,6 +64,15 @@ struct FGLQueryBatcher
 			NewBatch->BatchContents.Add(FQueryItem(Query));
 		}
 	}
+
+	void AddSingle(FRHIRenderQuery* Query)
+	{
+		FGLQueryBatch* SingleBatch = new FGLQueryBatch();
+		SingleBatch->FrameNumberRenderThread = NextFrameNumberRenderThread;
+		SingleBatch->BatchContents.Add(FQueryItem(Query));
+		Batches.Add(SingleBatch);
+	}
+
 	void Waited()
 	{
 		for (int32 Index = 0; Index < Batches.Num(); Index++)
@@ -197,6 +206,7 @@ struct FGLQueryBatcher
 		NewBatch = new FGLQueryBatch();
 		NewBatch->FrameNumberRenderThread = NextFrameNumberRenderThread;
 	}
+
 	void EndBatch(FOpenGLDynamicRHI& RHI)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FGLQueryBatcher_EndBatch);
@@ -275,6 +285,10 @@ void FOpenGLDynamicRHI::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 	if (Query)
 	{
 		EndRenderQuery_OnThisThread(Query);
+		if (Query->QueryType == RQT_AbsoluteTime)
+		{
+			GBatcher.AddSingle(Query);
+		}
 	}
 }
 
@@ -1142,13 +1156,87 @@ void FOpenGLDisjointTimeStampQuery::ReleaseResources()
 	}
 }
 
-
-
 // Fence implementation
+struct FOpenGLGPUFenceProxy
+{
+	FOpenGLGPUFenceProxy()
+		: Fence(0)
+		, bIsSignaled(false)
+	{
+	}
+
+	~FOpenGLGPUFenceProxy()
+	{
+		AllOpenGLGPUFences.RemoveSwap(this);
+
+		if (Fence != 0)
+		{
+			FOpenGL::DeleteSync(Fence);
+		}
+	}
+
+	void Write()
+	{
+		checkf(Fence == 0, TEXT("Fence must be cleared before re-using it."))
+		
+		if (Fence != 0)
+		{
+			FOpenGL::DeleteSync(Fence);
+		}
+		else
+		{
+			AllOpenGLGPUFences.Add(this);
+		}
+
+		Fence = FOpenGL::FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+		bIsSignaled = false;
+	}
+	
+	void Poll()
+	{
+		if (Fence != 0 && !bIsSignaled)
+		{
+			FOpenGLBase::EFenceResult Result = (FOpenGL::ClientWaitSync(Fence, 0, 0));
+			bIsSignaled = (Result == FOpenGLBase::FR_AlreadySignaled || Result == FOpenGLBase::FR_ConditionSatisfied);
+		}
+	}
+
+	UGLsync Fence;
+	bool bIsSignaled;
+
+	//
+	static TArray<FOpenGLGPUFenceProxy*> AllOpenGLGPUFences;
+	
+	static void PollAllFences()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FOpenGLGPUFence_PollAllFences);
+
+		for (int32 FenceIdx = 0; FenceIdx < AllOpenGLGPUFences.Num(); ++FenceIdx)
+		{
+			AllOpenGLGPUFences[FenceIdx]->Poll();
+		}
+	}
+};
+
+TArray<FOpenGLGPUFenceProxy*> FOpenGLGPUFenceProxy::AllOpenGLGPUFences;
+
+void BeginFrame_PollAllFences()
+{
+	if (IsRunningRHIInSeparateThread())
+	{
+		FOpenGLGPUFenceProxy::PollAllFences();
+	}
+}
 
 FGPUFenceRHIRef FOpenGLDynamicRHI::RHICreateGPUFence(const FName &Name)
 {
 	return new FOpenGLGPUFence(Name);
+}
+
+FOpenGLGPUFence::FOpenGLGPUFence(FName InName)
+	: FRHIGPUFence(InName)
+{
+	Proxy = new FOpenGLGPUFenceProxy();
 }
 
 FOpenGLGPUFence::~FOpenGLGPUFence()
@@ -1167,39 +1255,29 @@ void FOpenGLGPUFence::Clear()
 				VERIFY_GL_SCOPE();
 				delete Proxy;
 			});
+
 	Proxy = new FOpenGLGPUFenceProxy();
 }
+
 bool FOpenGLGPUFence::Poll() const
 {
+	if (Proxy->bIsSignaled)
+	{
+		return true;
+	}
+
 	RunOnGLRenderContextThread([Proxy = Proxy]()
 		{
 			VERIFY_GL_SCOPE();
 			check(Proxy != nullptr);
-			if (Proxy->bValidSync)
-			{
-				FOpenGLBase::EFenceResult Result = (FOpenGL::ClientWaitSync(Proxy->Fence, 0, 0));
-				Proxy->bIsSignaled = (Result == FOpenGLBase::FR_AlreadySignaled || Result == FOpenGLBase::FR_ConditionSatisfied);
-			}
+		Proxy->Poll();
 		});
+
 	return Proxy->bIsSignaled;
-
-
 }
 
 void FOpenGLGPUFence::WriteInternal()
 {
-	RunOnGLRenderContextThread([Proxy = Proxy]()
-		{
-			check(Proxy != nullptr);
 			VERIFY_GL_SCOPE();
-			if (Proxy->bValidSync)
-			{
-				FOpenGL::DeleteSync(Proxy->Fence);
-				Proxy->bValidSync = false;
-				Proxy->bIsSignaled = false;
-			}
-
-			Proxy->Fence = FOpenGL::FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-			Proxy->bValidSync = true;
-		});
+	Proxy->Write();
 }

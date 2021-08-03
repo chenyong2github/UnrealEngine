@@ -119,14 +119,15 @@ bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *
 
 		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
 
-		Interrogator.ImportTrack(VectorTrack, FInterrogationChannel::Default());
+		const FInterrogationChannel InterrogationChannel = Interrogator.AllocateChannel(Object, VectorTrack->GetPropertyBinding());
+		Interrogator.ImportTrack(VectorTrack, InterrogationChannel);
 		Interrogator.AddInterrogation(KeyTime);
 
 		Interrogator.Update();
 
 		const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
 		TArray<FIntermediateVector> InterrogatedValues;
-		Interrogator.QueryPropertyValues(ComponentTypes->Vector, InterrogatedValues);
+		Interrogator.QueryPropertyValues(ComponentTypes->Vector, InterrogationChannel, InterrogatedValues);
 
 		switch (VectorTrack->GetNumChannelsUsed())
 		{

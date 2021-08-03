@@ -34,10 +34,6 @@ public:
 	const TArray<FNiagaraVariable>& GetAssignmentTargets() const { return AssignmentTargets; }
 	const TArray<FString>& GetAssignmentDefaults() const { return AssignmentDefaultValues; }
 
-	void MergeUp();
-	void CollectAddExistingActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutAddExistingActions);
-	void CollectCreateNewActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutCreateNewActions);
-
 	//~ Begin EdGraphNode Interface
 	virtual void PostLoad() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -56,6 +52,8 @@ public:
 	virtual FText GetTooltipText() const override;
 
 	FSimpleMulticastDelegate& OnAssignmentTargetsChanged() { return AssignmentTargetsChangedDelegate; }
+
+	TSharedRef<SWidget> CreateAddParameterMenu(const TSharedPtr<SComboButton>& AddButton);
 
 protected:
 

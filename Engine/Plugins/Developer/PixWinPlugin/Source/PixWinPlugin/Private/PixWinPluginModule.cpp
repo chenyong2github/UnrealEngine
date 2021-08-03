@@ -20,6 +20,9 @@ DEFINE_LOG_CATEGORY_STATIC(PixWinPlugin, Log, All);
 namespace Impl
 {
 #if PIX_PLUGIN_ENABLED
+	// Dynamic load DXGIGetDebugInterface1 because it's not available on Windows 7.
+	typedef HRESULT(WINAPI* FDXGIGetDebugInterface1)(UINT, REFIID, void**);
+
 	// UUID hook into PIX for windows, temporary until we get the header dependency for <DXProgrammableCapture.h> which is included in the windows 10 SDK
 	interface DECLSPEC_UUID("9f251514-9d4d-4902-9d60-18988ab7d4b5") DECLSPEC_NOVTABLE
 	IDXGraphicsAnalysis : public IUnknown
@@ -36,8 +39,27 @@ namespace Impl
 		FPixGraphicsAnalysisInterface()
 		{
 #if PIX_PLUGIN_ENABLED
-			DXGIGetDebugInterface1(0, IID_PPV_ARGS(&GAPtr));
-#endif
+			// DXGIGetDebugInterface1 is Windows 8 and above.
+			if (FPlatformMisc::VerifyWindowsVersion(6, 2))
+			{
+				FDXGIGetDebugInterface1 DXGIGetDebugInterface1FnPtr = nullptr;
+
+				HMODULE DxgiDLL = LoadLibraryA("dxgi.dll");
+				if (DxgiDLL)
+				{
+#pragma warning(push)
+#pragma warning(disable: 4191) // disable the "unsafe conversion from 'FARPROC' to 'blah'" warning
+					DXGIGetDebugInterface1FnPtr = (FDXGIGetDebugInterface1)(GetProcAddress(DxgiDLL, "DXGIGetDebugInterface1"));
+#pragma warning(pop)
+					FreeLibrary(DxgiDLL);
+				}
+
+				if (DXGIGetDebugInterface1FnPtr)
+				{
+					DXGIGetDebugInterface1FnPtr(0, IID_PPV_ARGS(&GAPtr));
+				}
+			}
+#endif // PIX_PLUGIN_ENABLED
 		}
 
 		bool IsValid()

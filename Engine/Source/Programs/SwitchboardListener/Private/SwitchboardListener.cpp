@@ -33,6 +33,7 @@
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <Windows.h>
+#include <WinUser.h>
 #include <shellapi.h>
 #include "nvapi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -473,6 +474,11 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		{
 			const FSwitchboardRefreshMosaicsTask& Task = static_cast<const FSwitchboardRefreshMosaicsTask&>(InTask);
 			return Task_RefreshMosaics(Task);
+		}
+		case ESwitchboardTaskType::MinimizeWindows:
+		{
+			const FSwitchboardMinimizeWindowsTask& Task = static_cast<const FSwitchboardMinimizeWindowsTask&>(InTask);
+			return Task_MinimizeWindows(Task);
 		}
 		default:
 		{
@@ -1908,6 +1914,45 @@ bool FSwitchboardListener::Task_RefreshMosaics(const FSwitchboardRefreshMosaicsT
 	return true;
 #else
 	SendMessage(CreateTaskDeclinedMessage(InRefreshMosaicsTask, "Platform not supported", {}), InRefreshMosaicsTask.Recipient);
+	return false;
+#endif // PLATFORM_WINDOWS
+}
+
+bool FSwitchboardListener::Task_MinimizeWindows(const FSwitchboardMinimizeWindowsTask& InTask)
+{
+#if PLATFORM_WINDOWS
+
+	// Reject request if an equivalent one is already in our future
+	if (EquivalentTaskFutureExists(InTask.GetEquivalenceHash()))
+	{
+		SendMessage(
+			CreateTaskDeclinedMessage(InTask, TEXT("Duplicate"), {}),
+			InTask.Recipient
+		);
+
+		return false;
+	}
+
+	// Create our future
+	FSwitchboardMessageFuture TaskFuture;
+	TaskFuture.EquivalenceHash = InTask.GetEquivalenceHash();
+	TaskFuture.Future = Async(EAsyncExecution::ThreadPool,
+		[]()
+		{
+			if (const HWND HWnd = ::FindWindowA("Shell_TrayWnd", NULL))
+			{
+				::SendMessageA(HWnd, WM_COMMAND, (WPARAM)419, 0);
+			}
+
+			return FString();
+		}
+	);
+
+	MessagesFutures.Emplace(MoveTemp(TaskFuture));
+
+	return true;
+#else
+	SendMessage(CreateTaskDeclinedMessage(InTask, "Platform not supported", {}), InTask.Recipient);
 	return false;
 #endif // PLATFORM_WINDOWS
 }

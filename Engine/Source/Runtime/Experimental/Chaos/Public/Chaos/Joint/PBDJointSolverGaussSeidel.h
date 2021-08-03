@@ -177,7 +177,6 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
-
 		void ApplyPositionDelta(
 			const int32 BodyIndex,
 			const FVec3& DP);
@@ -210,6 +209,10 @@ namespace Chaos
 			const FVec3& DV1,
 			const FVec3& DW1);
 
+		void ApplyAngularVelocityDelta(
+			const FVec3& DW0,
+			const FVec3& DW1);
+
 		void ApplyPositionConstraint(
 			const FReal JointStiffness,
 			const FVec3& Axis,
@@ -229,19 +232,22 @@ namespace Chaos
 		void ApplyRotationConstraint(
 			const FReal JointStiffness,
 			const FVec3& Axis,
-			const FReal Angle);
+			const FReal Angle,
+			const int32 AngularHardLambdaIndex = -1);
 
 		void ApplyRotationConstraintKD(
 			const int32 KIndex,
 			const int32 DIndex,
 			const FReal JointStiffness,
 			const FVec3& Axis,
-			const FReal Angle);
+			const FReal Angle,
+			const int32 AngularHardLambdaIndex = -1);
 
 		void ApplyRotationConstraintDD(
 			const FReal JointStiffness,
 			const FVec3& Axis,
-			const FReal Angle);
+			const FReal Angle,
+			const int32 AngularHardLambdaIndex = -1);
 
 		void ApplyRotationConstraintSoft(
 			const FReal Dt,
@@ -462,9 +468,9 @@ namespace Chaos
 			const FVec3& DP1,
 			const FVec3& DR1);
 
-		void ApplyVelocityConstraint(
+		void ApplyLinearVelocityConstraint(
 			const FReal Stiffness,
-			const FVec3& DeltaV);
+			const FVec3& Axis);
 
 		void ApplyPointVelocityConstraint(
 			const FReal Dt,
@@ -490,6 +496,53 @@ namespace Chaos
 			const EJointMotionType AxialMotion,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
+
+		void ApplyTwistVelocityConstraint(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const bool bUseSoftLimit);
+
+		void ApplyConeVelocityConstraint(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const bool bUseSoftLimit);
+
+		// One Swing axis is free, and the other locked. This applies the lock: Body1 Twist axis is confined to a plane.
+		void ApplySingleLockedSwingVelocityConstraint(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const bool bUseSoftLimit);
+
+		// One Swing axis is free, and the other limited. This applies the limit: Body1 Twist axis is confined to space between two cones.
+		void ApplyDualConeSwingVelocityConstraint(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const bool bUseSoftLimit);
+
+		// One swing axis is locked, the other limited or locked. This applies the Limited axis (ApplyDualConeSwingConstraint is used for the locked axis).
+		void ApplySwingVelocityConstraint(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const EJointAngularConstraintIndex SwingConstraintIndex,
+			const bool bUseSoftLimit);
+
+		void ApplyAngularVelocityConstraint(
+			const FReal Stiffness,
+			const FVec3& Axis);
+
+		void ApplyLockedRotationVelocityConstraints(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			const bool bApplyTwist,
+			const bool bApplySwing);
 
 		void CalculateLinearConstraintPadding(
 			const FReal Dt,
@@ -604,9 +657,12 @@ namespace Chaos
 		FVec3 NetLinearImpulse;
 		FVec3 NetAngularImpulse;
 
-		// Lagrange multiplers of the position constraints.
+		// Lagrange multipliers of the position constraints.
 		// Currently these are only used in ApplyCylindricalVelocityConstraints
 		FVec3 LinearHardLambda;
+		// Lagrange multipliers of the rotation constraints
+		// Currently these are used in ApplyAngularVelocityConstraints
+		FVec3 AngularHardLambda;
 
 		// XPBD Accumulators (net impulse for each soft constraint/drive)
 		FReal LinearSoftLambda;

@@ -18,6 +18,7 @@
 #include "UObject/ReferenceChainSearch.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
+#include "Async/ParallelFor.h"
 
 namespace UE
 {
@@ -1514,6 +1515,53 @@ namespace Cook
 		check(PackageData);
 		return *PackageData;
 	}
+
+
+	void FPackageDatas::AddExistingPackageDatasForPlatform(const TArray<FName>& ExistingPackages, const ITargetPlatform* TargetPlatform)
+	{
+		TArray<FPackageData*> NewPackageDataObjects;
+		NewPackageDataObjects.AddZeroed(ExistingPackages.Num());
+
+		// parallelize the read-only operations (and filling out NewPackageDataObjects by index which has no threading issues)
+		ParallelFor(ExistingPackages.Num(), [&ExistingPackages, TargetPlatform, &NewPackageDataObjects, this](int Index)
+		{
+			const FName& PackageFilename = ExistingPackages[Index];
+
+			FName FileName(FPackageNameCache::GetStandardFileName(PackageFilename));
+			if (FileName.IsNone())
+			{
+				return;
+			}
+
+			FPackageData** PackageDataMapAddr = FileNameToPackageData.Find(FileName);
+			if (PackageDataMapAddr != nullptr)
+			{
+				(*PackageDataMapAddr)->AddCookedPlatforms({ TargetPlatform }, true);
+				return;
+			}
+
+			// we expect all of these to already be in the PackageNameCache from earlier in the AR load process
+			const FName* PackageName = PackageNameCache.FindExistingCachedPackageNameFromStandardFileName(FileName);
+			checkf(PackageName != nullptr, TEXT("AddExistingPackageDatasForPlatform should only be used when the PackageCache has already been filled out with the packages"));
+
+			// create the pacakge data and remember it for updating caches after the the ParallelFor
+			FPackageData* PackageData = new FPackageData(*this, *PackageName, FileName);
+			NewPackageDataObjects[Index] = PackageData;
+			PackageData->AddCookedPlatforms({ TargetPlatform }, true /* Succeeded */);
+		});
+
+		// update cache for all newly created objects (taken fropm CreatePackageData)
+		for (FPackageData* PackageData : NewPackageDataObjects)
+		{
+			if (PackageData)
+			{
+				PackageDatas.Add(PackageData);
+				PackageNameToPackageData.Add(PackageData->PackageName, PackageData);
+				FileNameToPackageData.Add(PackageData->FileName, PackageData);
+			}
+		}
+	}
+
 
 	FPackageData* FPackageDatas::UpdateFileName(const FName& PackageName)
 	{
