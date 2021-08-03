@@ -517,11 +517,22 @@ const FCustomSerializationData* FWorldSnapshotData::GetCustomSubobjectData_ForAc
 
 void FWorldSnapshotData::AddClassDefault(UClass* Class)
 {
-	if (!ClassDefaults.Contains(Class))
+	if (!ensure(Class) || ClassDefaults.Contains(Class))
 	{
-		FObjectSnapshotData& ClassData = ClassDefaults.Add(Class);
-		FTakeClassDefaultObjectSnapshotArchive::SaveClassDefaultObject(ClassData, *this, Class->GetDefaultObject());
+		return;
 	}
+
+	UObject* ClassDefault = Class->GetDefaultObject();
+	if (!ensure(ClassDefault))
+	{
+		return;
+	}
+	
+	FClassDefaultObjectSnapshotData ClassData;
+	FTakeClassDefaultObjectSnapshotArchive::SaveClassDefaultObject(ClassData, *this, ClassDefault);
+	
+	// Copy in case AddClassDefault was called recursively, which may reallocate ClassDefaults.
+	ClassDefaults.Emplace(Class, MoveTemp(ClassData));
 }
 
 UObject* FWorldSnapshotData::GetClassDefault(UClass* Class)

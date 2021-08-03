@@ -17,6 +17,7 @@
 #include "Serialization/ObjectWriter.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
+#include "Util/PropertyUtil.h"
 
 namespace
 {
@@ -25,7 +26,7 @@ namespace
 		using Super = FObjectWriter;
 
 		const FPropertySelection& PropertiesToSerialize;
-		const UObject* SnapshotObject;
+		UObject* SnapshotObject;
 
 		bool IsWorldObjectProperty(const FProperty* InProperty) const
 		{
@@ -43,15 +44,12 @@ namespace
 			}
 
 			const FArchiveSerializedPropertyChain* PropertyChain = GetSerializedPropertyChain();
-			const void* ContainerPtr = SnapshotObject;
-			for (int32 i = 0; PropertyChain && i < PropertyChain->GetNumProperties(); ++i)
+			const bool bContainsWorldReference = SnapshotUtil::Property::FollowPropertyChainUntilPredicateIsTrue(SnapshotObject, PropertyChain, InProperty, [this, ObjectProperty](void* LeafValuePtr)
 			{
-				ContainerPtr = PropertyChain->GetPropertyFromRoot(i)->ContainerPtrToValuePtr<void>(ContainerPtr);
-			}
-
-			const void* LeafValuePtr = InProperty->ContainerPtrToValuePtr<void>(ContainerPtr);
-			const UObject* ContainedPtr = ObjectProperty->GetObjectPropertyValue(LeafValuePtr);
-			return ContainerPtr ? ContainedPtr->IsInA(UWorld::StaticClass()) : false;
+				const UObject* ContainedPtr = ObjectProperty->GetObjectPropertyValue(LeafValuePtr);
+				return LeafValuePtr ? ContainedPtr->IsInA(UWorld::StaticClass()) : false;
+			});
+			return bContainsWorldReference;
 		}
 				
 	public:
