@@ -1807,7 +1807,7 @@ void FMemoryImage::Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSe
 	{
 		// Find unique sections
 		// precompute hashes in parallel
-		ParallelFor(Sections.Num(), [this](int32 Index) { Sections[Index]->ComputeHash(); });
+		ParallelFor(Sections.Num(), [this](int32 Index) { Sections[Index]->ComputeHash(); }, EParallelForFlags::Unbalanced);
 
 		TMap<FSHAHash, int32> HashToSectionIndex;
 		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
