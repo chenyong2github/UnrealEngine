@@ -166,6 +166,13 @@ void UMovieScene::Serialize( FArchive& Ar )
 #endif
 }
 
+void UMovieScene::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	RemoveNullTracks();
+}
+
 // @todo sequencer: Some of these methods should only be used by tools, and should probably move out of MovieScene!
 FGuid UMovieScene::AddSpawnable( const FString& Name, UObject& ObjectTemplate )
 {

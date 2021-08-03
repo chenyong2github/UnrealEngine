@@ -387,6 +387,10 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif
+
 public:
 
 	/**
