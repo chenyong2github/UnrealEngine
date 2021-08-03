@@ -89,7 +89,7 @@ namespace BuildScripts.Automation
 
 							Message.AppendFormat("\n    ({0} {1})", Pair.Value.Count, (Pair.Value.Count == 1) ? "file" : "files");
 						}
-						LogError(Message.ToString());
+						LogWarning(Message.ToString());
 						NumIssues++;
 					}
 
