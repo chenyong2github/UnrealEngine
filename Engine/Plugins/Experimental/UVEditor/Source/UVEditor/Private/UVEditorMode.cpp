@@ -23,6 +23,7 @@
 #include "UVEditorSubsystem.h"
 #include "UVEditorToolUtil.h"
 #include "UVToolContextObjects.h"
+#include "UVEditorBackgroundPreview.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
@@ -35,11 +36,7 @@ namespace UVEditorModeLocals
 {
 	// TODO: This is temporary. We need to be able to configure the layer we look at,
 	// and ideally show multiple layers at a time.
-	const int32 UVLayerIndex = 0;
-
-	FColor TriangleColor = FColor(50, 194, 219);
-	FColor WireframeColor = FColor(50, 100, 219);
-	FColor IslandBorderColor = FColor(103, 52, 235);
+	const int32 UVLayerIndex = 0;	
 }
 
 const FToolTargetTypeRequirements& UUVEditorMode::GetToolTargetRequirements()
@@ -67,6 +64,11 @@ void UUVEditorMode::Enter()
 {
 	Super::Enter();
 
+	BackgroundVisualization = NewObject<UUVEditorBackgroundPreview>(this);
+	BackgroundVisualization->CreateInWorld(GetWorld(), FTransform::Identity);
+
+	EditorModeToolkit->SetBackgroundSettings(BackgroundVisualization->Settings);
+
 	RegisterTools();
 
 	ActivateDefaultTool();
@@ -89,7 +91,7 @@ void UUVEditorMode::RegisterTools()
 
 void UUVEditorMode::CreateToolkit()
 {
-	Toolkit = MakeShared<FUVEditorModeToolkit>();
+	Toolkit = EditorModeToolkit = MakeShared<FUVEditorModeToolkit>();
 }
 
 void UUVEditorMode::ActivateDefaultTool()
@@ -111,6 +113,11 @@ void UUVEditorMode::Exit()
 		ToolInput->Shutdown();
 	}
 	ToolInputObjects.Reset();
+
+	if (BackgroundVisualization)
+	{
+		BackgroundVisualization->Disconnect();
+	}
 
 	Super::Exit();
 }
@@ -170,7 +177,8 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 			0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
 				GetToolManager(),
 				(FLinearColor)TriangleColor,
-				0)); //depth offset
+				2,  //depth offset
+				TriangleOpacity));
 
 		// Initialize our timestamp so we can later detect changes
 		MeshChangeStamps.Add(ToolInputObject->UnwrapCanonical->GetShapeTimestamp());
@@ -179,7 +187,7 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 		UMeshElementsVisualizer* WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
 		WireframeDisplay->CreateInWorld(GetWorld(), FTransform::Identity);
 
-		WireframeDisplay->Settings->DepthBias = 0.5;
+		WireframeDisplay->Settings->DepthBias = 2.5;
 		WireframeDisplay->Settings->bAdjustDepthBiasUsingMeshSize = false;
 		WireframeDisplay->Settings->bShowWireframe = true;
 		WireframeDisplay->Settings->bShowBorders = true;
@@ -291,6 +299,44 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 			WireframeDisplay->OnTick(DeltaTime);
 		}
 	}
+
+	if (BackgroundVisualization)
+	{
+		BackgroundVisualization->OnTick(DeltaTime);
+		if(BackgroundVisualization->Settings->IsPropertySetEnabled())
+		{
+			BackgroundVisualization->Settings->CheckAndUpdateWatched();
+		}
+		else
+		{
+			BackgroundVisualization->Settings->SilentUpdateWatched();
+		}
+
+        // We adjust the mesh opacity depending on whether we're layered over the background or not.
+		if (BackgroundVisualization->Settings->bVisible)
+		{
+			TriangleOpacity = 0.25;
+		}
+		else
+		{
+			TriangleOpacity = 1.0;
+		}
+
+        // Modify the material of the unwrapped mesh to account for the presence/absence of the background, 
+        // changing the opacity as set just above.
+		for (UUVEditorToolMeshInput* ToolInputObject : ToolInputObjects)
+		{
+			ToolInputObject->UnwrapPreview->PreviewMesh->SetMaterial(
+				0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
+					GetToolManager(),
+					(FLinearColor)TriangleColor,
+					2,  //depth offset
+					TriangleOpacity));
+		}
+		
+	}
+
+
 }
 
 #undef LOCTEXT_NAMESPACE

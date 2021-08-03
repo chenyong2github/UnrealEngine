@@ -11,6 +11,10 @@
 #include "UVEditorCommands.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
+#include "UVEditorMode.h"
+#include "UVEditorBackgroundPreview.h"
+
+#include "EdModeInteractiveToolsContext.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorModeToolkit"
 
@@ -26,6 +30,16 @@ FUVEditorModeToolkit::FUVEditorModeToolkit()
 		.Padding(4)
 		[
 			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(ToolMessageArea, STextBlock)
+				.AutoWrapText(true)
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+			.Text(LOCTEXT("UVEditorToolsLabel", "UV Editor Tools"))
+			]
+
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.HAlign(HAlign_Left)
@@ -37,7 +51,7 @@ FUVEditorModeToolkit::FUVEditorModeToolkit()
 			]
 
 			+ SVerticalBox::Slot()
-				.FillHeight(1.0f)
+				.AutoHeight()
 				.Padding(2, 0, 0, 0)
 			[
 				SNew(SVerticalBox)
@@ -67,6 +81,39 @@ FUVEditorModeToolkit::FUVEditorModeToolkit()
 					.Text(FText::GetEmpty())
 				]
 			]
+
+            // Todo: Move this out of here once we figure out how to add menus/UI to the viewport
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2, 0, 0, 0)
+			[
+					SNew(SVerticalBox)
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew(ToolMessageArea, STextBlock)
+						.AutoWrapText(true)
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+						.Text(LOCTEXT("UVEditorSettingsLabel", "UV Editor Settings"))
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew(EditorDetailsContainer, SBorder)
+						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew(BackgroundDetailsContainer, SBorder)
+						.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					]
+
+			]
+
 		];
 }
 
@@ -94,6 +141,29 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 
 	// Hook up the tool detail panel
 	ToolDetailsContainer->SetContent(DetailsView.ToSharedRef());
+
+	// Hook up the editor detail panel
+	EditorDetailsContainer->SetContent(ModeDetailsView.ToSharedRef());
+
+	// Hook up the background detail panel
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+		FDetailsViewArgs BackgroundDetailsViewArgs;
+		BackgroundDetailsViewArgs.bAllowSearch = false;
+		BackgroundDetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+		BackgroundDetailsViewArgs.bHideSelectionTip = true;
+		BackgroundDetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
+		BackgroundDetailsViewArgs.bShowOptions = false;
+		BackgroundDetailsViewArgs.bAllowMultipleTopLevelObjects = true;
+
+		CustomizeDetailsViewArgs(BackgroundDetailsViewArgs);		// allow subclass to customize arguments
+
+		BackgroundDetailsView = PropertyEditorModule.CreateDetailView(BackgroundDetailsViewArgs);
+		UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(OwningEditorMode.Get());
+		BackgroundDetailsContainer->SetContent(BackgroundDetailsView.ToSharedRef());
+	}
+	
 }
 
 FName FUVEditorModeToolkit::GetToolkitFName() const
@@ -105,5 +175,12 @@ FText FUVEditorModeToolkit::GetBaseToolkitName() const
 {
 	return NSLOCTEXT("UVEditorModeToolkit", "DisplayName", "UVEditorMode");
 }
+
+
+void FUVEditorModeToolkit::SetBackgroundSettings(UObject* InSettingsObject)
+{
+	BackgroundDetailsView->SetObject(InSettingsObject);
+}
+
 
 #undef LOCTEXT_NAMESPACE

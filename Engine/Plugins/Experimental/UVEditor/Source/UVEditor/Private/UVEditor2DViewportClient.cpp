@@ -97,7 +97,7 @@ void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInter
 	FVector WorldBoundsMax = View->ScreenToWorld(MaxScreen);
 	FVector WorldBoundsMin = View->ScreenToWorld(MinScreen);
 	FVector ViewLoc = GetViewLocation();
-	ViewLoc.Z = 0.0; // We are treating the scene like a 2D plane, so we'll clamp the Z position here to 
+	ViewLoc.Z = 0.01; // We are treating the scene like a 2D plane, so we'll clamp the Z position here to 
 	               // 0 as a simple projection step just in case.
 
 	// Prevent grid from drawing if we are too close or too far, in order to avoid potential graphical issues.
@@ -122,8 +122,8 @@ void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInter
 	float AxisExtent = FMathf::Max(UVScale, FMathf::Min(WorldBoundsMax.Y, WorldBoundsMax.X));
 
 	// Draw colored axis lines
-	PDI->DrawLine(FVector(0, 0, 0), FVector(AxisExtent, 0, 0), FLinearColor::Red, SDPG_World, AxisThickness, 0, true);
-	PDI->DrawLine(FVector(0, 0, 0), FVector(0, AxisExtent, 0), FLinearColor::Green, SDPG_World, AxisThickness, 0, true);
+	PDI->DrawLine(FVector(0, 0, 0.01), FVector(AxisExtent, 0, 0), FLinearColor::Red, SDPG_World, AxisThickness, 0, true);
+	PDI->DrawLine(FVector(0, 0, 0.01), FVector(0, AxisExtent, 0), FLinearColor::Green, SDPG_World, AxisThickness, 0, true);
 
 	// TODO: Draw a little UV axis thing in the lower left, like the XYZ things that normal viewports have.
 
