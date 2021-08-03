@@ -11,6 +11,11 @@
 #define USE_WAVE_BIT_PREFIX_WORK_DISTRIBUTION 0
 #endif
 
+// Whether to use a special case where all items are expected to have a single instance
+#ifndef LOAD_BALANCER_SINGLE_INSTANCE_MODE
+	#define LOAD_BALANCER_SINGLE_INSTANCE_MODE 0
+#endif
+
 struct FPackedInstanceBatch
 {
 	uint FirstItem_NumItems;
@@ -149,6 +154,14 @@ FInstanceWorkSetup InstanceCullingLoadBalancer_Setup(uint3 GroupId, uint GroupTh
 	// Load work description for whole work group
 	FInstanceBatch GroupBatch = UnpackBatch(BatchBuffer[BatchIndex], ItemDataOffset);
 
+#if LOAD_BALANCER_SINGLE_INSTANCE_MODE
+	// Special case where all items are expected to have a single instance
+	if (GroupBatch.NumItems > GroupThreadIndex)
+	{
+		Setup.Item = UnpackItem(ItemBuffer[GroupBatch.FirstItem + GroupThreadIndex]);
+		Setup.bValid = true;
+	}
+#else
 	// Special case where we have an 1:1 item/thread no need to do prefix sums or whatever
 	// TODO: this case can also store less data per item
 	if (GroupBatch.NumItems == NUM_THREADS_PER_GROUP)
@@ -214,6 +227,8 @@ FInstanceWorkSetup InstanceCullingLoadBalancer_Setup(uint3 GroupId, uint GroupTh
 	// Work out who I am in expansion of  the item in range [0,WorkItem.Count], may be negative when no work at end of batch
 	Setup.LocalItemIndex = int(GroupThreadIndex - Setup.Item.BatchPrefixOffset);
 	Setup.bValid = Setup.LocalItemIndex >= 0 && Setup.LocalItemIndex < int(Setup.Item.NumInstances);
+#endif //LOAD_BALANCER_SINGLE_INSTANCE_MODE
+
 	return Setup;
 }
 

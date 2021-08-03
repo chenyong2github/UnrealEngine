@@ -38,6 +38,17 @@ static const TCHAR* BatchProcessingModeStr[] =
 
 static_assert(UE_ARRAY_COUNT(BatchProcessingModeStr) == uint32(EBatchProcessingMode::Num), "BatchProcessingModeStr length does not match EBatchProcessingMode::Num, these must be kept in sync.");
 
+
+FMeshDrawCommandOverrideArgs GetMeshDrawCommandOverrideArgs(const FInstanceCullingDrawParams& InstanceCullingDrawParams)
+{
+	FMeshDrawCommandOverrideArgs Result;
+	Result.InstanceBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer.GetBuffer() != nullptr ? InstanceCullingDrawParams.InstanceIdOffsetBuffer.GetBuffer()->GetRHI() : nullptr;
+	Result.IndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer.GetBuffer() != nullptr ? InstanceCullingDrawParams.DrawIndirectArgsBuffer.GetBuffer()->GetRHI() : nullptr;
+	Result.InstanceDataByteOffset = InstanceCullingDrawParams.InstanceDataByteOffset;
+	Result.IndirectArgsByteOffset = InstanceCullingDrawParams.IndirectArgsByteOffset;
+	return Result;
+}
+
 FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, enum EInstanceCullingMode InInstanceCullingMode, bool bInDrawOnlyVSMInvalidatingGeometry, EBatchProcessingMode InSingleInstanceProcessingMode) :
 	InstanceCullingManager(InInstanceCullingManager),
 	ViewIds(InViewIds),
@@ -62,7 +73,7 @@ FInstanceCullingContext::~FInstanceCullingContext()
 void FInstanceCullingContext::ResetCommands(int32 MaxNumCommands)
 {
 	IndirectArgs.Empty(MaxNumCommands);
-	//MeshDrawCommandInfos.Empty(MaxNumCommands);
+	MeshDrawCommandInfos.Empty(MaxNumCommands);
 	DrawCommandDescs.Empty(MaxNumCommands);
 	InstanceIdOffsets.Empty(MaxNumCommands);
 	TotalInstances = 0U;
@@ -137,6 +148,7 @@ public:
 
 	// GPUCULL_TODO: remove once buffer is somehow unified
 	class FOutputCommandIdDim : SHADER_PERMUTATION_BOOL("OUTPUT_COMMAND_IDS");
+	class FSingleInstanceModeDim : SHADER_PERMUTATION_BOOL("SINGLE_INSTANCE_MODE");
 	class FCullInstancesDim : SHADER_PERMUTATION_BOOL("CULL_INSTANCES");
 	class FStereoModeDim : SHADER_PERMUTATION_BOOL("STEREO_CULLING_MODE");
 	// This permutation should be used for all debug output etc that adds overhead not wanted in production. 
@@ -145,7 +157,7 @@ public:
 	class FDebugModeDim : SHADER_PERMUTATION_BOOL("DEBUG_MODE");
 	class FBatchedDim : SHADER_PERMUTATION_BOOL("ENABLE_BATCH_MODE");
 
-	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FCullInstancesDim, FStereoModeDim, FDebugModeDim, FBatchedDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FSingleInstanceModeDim, FCullInstancesDim, FStereoModeDim, FDebugModeDim, FBatchedDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -327,8 +339,12 @@ void FInstanceCullingContext::BuildRenderingCommands(
 			GPUData.GetShaderParameters(GraphBuilder, PassParameters->LoadBalancerParameters);
 			PassParameters->CurrentBatchProcessingMode = Mode;
 
+			// UnCulled bucket is used for a single instance mode
+			check(EBatchProcessingMode(Mode) != EBatchProcessingMode::UnCulled || LoadBalancer->HasSingleInstanceItemsOnly());
+
 			FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOutputCommandIdDim>(0);
+			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FSingleInstanceModeDim>(EBatchProcessingMode(Mode) == EBatchProcessingMode::UnCulled);
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(bCullInstances && EBatchProcessingMode(Mode) != EBatchProcessingMode::UnCulled);
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FDebugModeDim>(bUseDebugMode);
@@ -383,6 +399,7 @@ static void MergeInstanceCullingContext(
 
 		MergedContext.BatchInfos.AddDefaulted(Batches.Num());
 		uint32 InstanceIdBufferOffset = 0U;
+		uint32 InstanceDataByteOffset = 0U;
 
 		// Index that maps from each command to the corresponding batch - maybe not the utmost efficiency
 		for (int32 BatchIndex = 0; BatchIndex < Batches.Num(); ++BatchIndex)
@@ -424,6 +441,9 @@ static void MergeInstanceCullingContext(
 				FInstanceProcessingGPULoadBalancer* LoadBalancer = InstanceCullingContext.LoadBalancers[Mode];
 				LoadBalancer->FinalizeBatches();
 
+				// UnCulled bucket is used for a single instance mode
+				check(EBatchProcessingMode(Mode) != EBatchProcessingMode::UnCulled || LoadBalancer->HasSingleInstanceItemsOnly());
+
 				MergedContext.BatchInds[Mode].AddDefaulted(LoadBalancer->GetBatches().Num());
 
 				MergedLoadBalancer->AppendData(*LoadBalancer);
@@ -433,12 +453,13 @@ static void MergeInstanceCullingContext(
 				}
 			}
 
+			FInstanceCullingDrawParams& Result = *BatchItem.Result;
+			Result.InstanceDataByteOffset = InstanceDataByteOffset;
+			Result.IndirectArgsByteOffset = BatchInfo.IndirectArgsOffset * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
+
 			BatchInfo.InstanceDataWriteOffset = InstanceIdBufferOffset;
 			InstanceIdBufferOffset += InstanceCullingContext.TotalInstances * InstanceCullingContext.ViewIds.Num();
-
-
-			FInstanceCullingDrawParams& Result = *BatchItem.Result;
-			Result.DrawCommandDataOffset = BatchInfo.IndirectArgsOffset;
+			InstanceDataByteOffset += InstanceCullingContext.InstanceIdOffsets.Num() * sizeof(uint32);
 		}
 
 		// Finalize culling pass parameters
@@ -600,6 +621,7 @@ void FInstanceCullingContext::BuildRenderingCommandsDeferred(
 
 		FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FBatchedDim>(true);
+		PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FSingleInstanceModeDim>(EBatchProcessingMode(Mode) == EBatchProcessingMode::UnCulled);
 		PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(bCullInstances && EBatchProcessingMode(Mode) != EBatchProcessingMode::UnCulled);
 
 		auto ComputeShader = ShaderMap->GetShader<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs>(PermutationVector);
@@ -728,6 +750,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 	int32 NumDrawCommandsOut = 0;
 	uint32 CurrentIndirectArgsOffset = 0U;
 	const int32 NumViews = ViewIds.Num();
+	const bool bAlwaysUseIndirectDraws = (SingleInstanceProcessingMode != EBatchProcessingMode::UnCulled);
 
 	// Allocate conservatively for all commands, may not use all.
 	for (int32 DrawCommandIndex = 0; DrawCommandIndex < NumDrawCommandsIn; ++DrawCommandIndex)
@@ -737,6 +760,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 
 		const bool bSupportsGPUSceneInstancing = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex);
 		const bool bMaterialMayModifyPosition = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition);
+		const bool bUseIndirectDraw = bAlwaysUseIndirectDraws || (VisibleMeshDrawCommand.NumRuns > 0 || MeshDrawCommand->NumInstances > 1);
 
 		if (bCompactIdenticalCommands && CurrentStateBucketId != -1 && VisibleMeshDrawCommand.StateBucketId == CurrentStateBucketId)
 		{
@@ -745,6 +769,12 @@ void FInstanceCullingContext::SetupDrawCommands(
 			// Update auto-instance count (only needed for logging)
 			CurrentAutoInstanceCount++;
 			MaxInstances = FMath::Max(CurrentAutoInstanceCount, MaxInstances);
+
+			FMeshDrawCommandInfo& RESTRICT DrawCmd = MeshDrawCommandInfos.Last();
+			if (DrawCmd.bUseIndirect == 0)
+			{
+				DrawCmd.IndirectArgsOffsetOrNumInstances += 1;
+			}
 		}
 		else
 		{
@@ -752,17 +782,30 @@ void FInstanceCullingContext::SetupDrawCommands(
 			CurrentAutoInstanceCount = 1;
 
 			// kept 1:1 with the retained (not compacted) mesh draw commands, implicitly clears num instances
-			//FMeshDrawCommandInfo& RESTRICT DrawCmd = MeshDrawCommandInfos.AddZeroed_GetRef();
+			FMeshDrawCommandInfo& RESTRICT DrawCmd = MeshDrawCommandInfos.AddZeroed_GetRef();
 
 			// TODO: redundantly create an indirect arg slot for every draw command (even thoug those that don't support GPU-scene don't need one)
 			//       the unsupported ones are skipped in FMeshDrawCommand::SubmitDrawBegin/End.
 			//       in the future pipe through draw command info to submit, such that they may be skipped.
 			//if (bSupportsGPUSceneInstancing)
 			{
-				//DrawCmd.bUseIndirect = 1U;
+				DrawCmd.bUseIndirect = bUseIndirectDraw;
+				
 				CurrentIndirectArgsOffset = AllocateIndirectArgs(MeshDrawCommand);
-				//DrawCmd.IndirectArgsOffsetOrNumInstances = CurrentIndirectArgsOffset;
 				DrawCommandDescs.Emplace(FDrawCommandDesc{bMaterialMayModifyPosition});
+
+				if (bUseIndirectDraw)
+				{
+					DrawCmd.IndirectArgsOffsetOrNumInstances = CurrentIndirectArgsOffset * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
+				}
+				else
+				{
+					DrawCmd.IndirectArgsOffsetOrNumInstances = 1;
+				}
+
+				// drawcall specific offset into per-instance buffer
+				DrawCmd.InstanceDataByteOffset = InstanceIdOffsets.Num() * sizeof(uint32);
+				
 				InstanceIdOffsets.Emplace(TotalInstances * NumViews);
 			}
 			
@@ -792,7 +835,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 		}
 	}
 	check(bCompactIdenticalCommands || NumDrawCommandsIn == NumDrawCommandsOut);
-	checkf(NumDrawCommandsOut == IndirectArgs.Num(), TEXT("There must be a 1:1 mapping between indirect args and mesh draw commands, as this assumption is made in SubmitGPUInstancedMeshDrawCommandsRange."));
+	checkf(NumDrawCommandsOut == MeshDrawCommandInfos.Num(), TEXT("There must be a 1:1 mapping between MeshDrawCommandInfos and mesh draw commands, as this assumption is made in SubmitDrawCommands."));
 
 	// Setup instancing stats for logging.
 	VisibleMeshDrawCommandsNum = VisibleMeshDrawCommandsInOut.Num();
@@ -800,4 +843,57 @@ void FInstanceCullingContext::SetupDrawCommands(
 
 	// Resize array post-compaction of dynamic instances
 	VisibleMeshDrawCommandsInOut.SetNum(NumDrawCommandsOut, false);
+}
+
+void FInstanceCullingContext::SubmitDrawCommands(
+	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	const FMeshDrawCommandOverrideArgs& OverrideArgs,
+	int32 StartIndex,
+	int32 NumMeshDrawCommands,
+	uint32 InInstanceFactor,
+	FRHICommandList& RHICmdList) const
+{
+	if (VisibleMeshDrawCommands.Num() == 0)
+	{
+		// FIXME: looks like parallel rendering can spawn empty FDrawVisibleMeshCommandsAnyThreadTask
+		return;
+	}
+	
+	if (IsEnabled())
+	{
+		check(MeshDrawCommandInfos.Num() >= (StartIndex + NumMeshDrawCommands));
+	
+		FMeshDrawCommandStateCache StateCache;
+		INC_DWORD_STAT_BY(STAT_MeshDrawCalls, NumMeshDrawCommands);
+
+		for (int32 DrawCommandIndex = StartIndex; DrawCommandIndex < StartIndex + NumMeshDrawCommands; DrawCommandIndex++)
+		{
+			//SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, MeshEvent, GEmitMeshDrawEvent != 0, TEXT("Mesh Draw"));
+			const FVisibleMeshDrawCommand& VisibleMeshDrawCommand = VisibleMeshDrawCommands[DrawCommandIndex];
+			const FMeshDrawCommandInfo& DrawCommandInfo = MeshDrawCommandInfos[DrawCommandIndex];
+			
+			uint32 InstanceFactor = InInstanceFactor;
+			uint32 IndirectArgsByteOffset = 0;
+			FRHIBuffer* IndirectArgsBuffer = nullptr;
+			if (DrawCommandInfo.bUseIndirect)
+			{
+				IndirectArgsByteOffset = OverrideArgs.IndirectArgsByteOffset + DrawCommandInfo.IndirectArgsOffsetOrNumInstances;
+				IndirectArgsBuffer = OverrideArgs.IndirectArgsBuffer;
+			}
+			else
+			{
+				// TODO: need a better way to override number of instances
+				InstanceFactor = InInstanceFactor * DrawCommandInfo.IndirectArgsOffsetOrNumInstances;
+			}
+			
+			const int32 InstanceDataByteOffset = OverrideArgs.InstanceDataByteOffset + DrawCommandInfo.InstanceDataByteOffset;
+
+			FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, GraphicsMinimalPipelineStateSet, OverrideArgs.InstanceBuffer, InstanceDataByteOffset, InstanceFactor, RHICmdList, StateCache, IndirectArgsBuffer, IndirectArgsByteOffset);
+		}
+	}
+	else
+	{
+		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, nullptr, 0, false, StartIndex, NumMeshDrawCommands, InInstanceFactor, RHICmdList);
+	}
 }

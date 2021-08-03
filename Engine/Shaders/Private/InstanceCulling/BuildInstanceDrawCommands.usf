@@ -7,6 +7,12 @@
 #include "../Nanite/HZBCull.ush"
 #include "../WaveOpUtil.ush"
 #include "../ComputeShaderUtils.ush"
+
+#if SINGLE_INSTANCE_MODE
+	// Enable a load balancer optimization where all items are expected to have a single instance
+	#define LOAD_BALANCER_SINGLE_INSTANCE_MODE 1
+#endif
+
 #include "InstanceCullingLoadBalancer.ush"
 
 uint InstanceSceneDataSOAStride;

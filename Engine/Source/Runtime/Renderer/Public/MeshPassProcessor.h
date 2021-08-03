@@ -913,6 +913,22 @@ private:
 		const class FReadOnlyMeshDrawSingleShaderBindings& RESTRICT SingleShaderBindings);
 };
 
+struct FMeshDrawCommandOverrideArgs
+{
+	FRHIBuffer* InstanceBuffer;
+	FRHIBuffer* IndirectArgsBuffer;
+	uint32 InstanceDataByteOffset;
+	uint32 IndirectArgsByteOffset;
+	
+	FMeshDrawCommandOverrideArgs()
+	{
+		InstanceBuffer = nullptr;
+		IndirectArgsBuffer = nullptr;
+		InstanceDataByteOffset = 0u;
+		IndirectArgsByteOffset = 0u;
+	}
+};
+
 /** 
  * FMeshDrawCommand fully describes a mesh pass draw call, captured just above the RHI.  
 		FMeshDrawCommand should contain only data needed to draw.  For InitViews payloads, use FVisibleMeshDrawCommand.

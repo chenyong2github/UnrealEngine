@@ -67,24 +67,13 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandList& RHICmdList, const F
 	{
 		if (bSupportsScenePrimitives)
 		{
-			FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
-			FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
-
-			if (InstanceCullingDrawParams.DrawIndirectArgsBuffer.GetBuffer() != nullptr && InstanceCullingDrawParams.InstanceIdOffsetBuffer.GetBuffer() != nullptr)
-			{
-				DrawIndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer.GetBuffer()->GetRHI();
-				InstanceIdOffsetBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer.GetBuffer()->GetRHI();
-			}
-
-			SubmitGPUInstancedMeshDrawCommandsRange(
+			InstanceCullingContext.SubmitDrawCommands(
 				VisibleMeshDrawCommands,
 				GraphicsMinimalPipelineStateSet,
+				GetMeshDrawCommandOverrideArgs(InstanceCullingDrawParams),
 				0,
 				VisibleMeshDrawCommands.Num(),
 				InstanceFactor,
-				InstanceIdOffsetBuffer,
-				DrawIndirectArgsBuffer,
-				InstanceCullingDrawParams.DrawCommandDataOffset,
 				RHICmdList);
 		}
 		else
