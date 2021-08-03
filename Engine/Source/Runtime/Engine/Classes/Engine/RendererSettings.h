@@ -922,12 +922,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bMobileSupportsGen4TAA : 1;
 
-	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
-		ConsoleVariable = "r.Mobile.EnableHighQualityBRDF", DisplayName = "Mobile High Quality BRDF",
-		ToolTip = "Use the high quality brdf functions on mobile to get better visual effects but adds GPU cost. Changing this setting requires restarting the editor.",
-		ConfigRestartRequired = true))
-		uint32 bMobileEnableHighQualityBRDF : 1;
-
 	UPROPERTY(config, EditAnywhere, Category="Experimental|LOD Streaming|Skeletal Mesh", meta=(
 		DisplayName="Stream LODs by default",
 		ToolTip="Whether to stream skeletal mesh LODs by default."))

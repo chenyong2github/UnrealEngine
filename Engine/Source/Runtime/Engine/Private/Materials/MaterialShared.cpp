@@ -1495,6 +1495,11 @@ bool FMaterialResource::UseLmDirectionality() const
 	return Material->bUseLightmapDirectionality;
 }
 
+bool FMaterialResource::IsMobileHighQualityBRDFEnabled() const
+{
+	return Material->bMobileEnableHighQualityBRDF;
+}
+
 /**
  * Should shaders compiled for this material be saved to disk?
  */
@@ -2047,6 +2052,7 @@ void FMaterial::SetupMaterialEnvironment(
 	OutEnvironment.SetDefine(TEXT("MATERIAL_OUTPUT_OPACITY_AS_ALPHA"), GetBlendableOutputAlpha());
 	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_SHADOW_WITH_MASKED_OPACITY"), GetCastDynamicShadowAsMasked());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USE_ALPHA_TO_COVERAGE"), IsUsingAlphaToCoverage());
+	OutEnvironment.SetDefine(TEXT("MOBILE_HIGH_QUALITY_BRDF"), IsMobileHighQualityBRDFEnabled());
 
 	EMaterialFloatPrecisionMode FloatPrecisionMode = GetMaterialFloatPrecisionMode();
 	if (FloatPrecisionMode == EMaterialFloatPrecisionMode::MFPM_Full)

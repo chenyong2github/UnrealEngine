@@ -1693,6 +1693,7 @@ public:
 	virtual bool IsUsingPlanarForwardReflections() const { return false; }
 	virtual bool IsNonmetal() const { return false; }
 	virtual bool UseLmDirectionality() const { return true; }
+	virtual bool IsMobileHighQualityBRDFEnabled() const { return false; }
 	virtual bool IsMasked() const = 0;
 	virtual bool IsDitherMasked() const { return false; }
 	virtual bool AllowNegativeEmissiveColor() const { return false; }
@@ -2593,6 +2594,7 @@ public:
 	ENGINE_API virtual bool IsUsingPlanarForwardReflections() const override;
 	ENGINE_API virtual bool IsNonmetal() const override;
 	ENGINE_API virtual bool UseLmDirectionality() const override;
+	ENGINE_API virtual bool IsMobileHighQualityBRDFEnabled() const override;
 	ENGINE_API virtual enum EBlendMode GetBlendMode() const override;
 	ENGINE_API virtual enum ERefractionMode GetRefractionMode() const override;
 	ENGINE_API virtual uint32 GetMaterialDecalResponse() const override;

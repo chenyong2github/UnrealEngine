@@ -447,11 +447,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("ENABLE_AMBIENT_OCCLUSION"), IsMobileAmbientOcclusionEnabled(Parameters.Platform) ? 1u : 0u);
 
 		OutEnvironment.SetDefine(TEXT("ENABLE_DISTANCE_FIELD"), IsMobileDistanceFieldEnabled(Parameters.Platform));
-
-		static auto* MobileEnableHighQualityBRDFCVAR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableHighQualityBRDF"));
-		const bool bMobileEnableHighQualityBRDF = (MobileEnableHighQualityBRDFCVAR && MobileEnableHighQualityBRDFCVAR->GetValueOnAnyThread() == 1);
-
-		OutEnvironment.SetDefine(TEXT("MOBILE_HIGH_QUALITY_BRDF"), bMobileEnableHighQualityBRDF ? 1u : 0u);
 	}
 	
 	/** Initialization constructor. */

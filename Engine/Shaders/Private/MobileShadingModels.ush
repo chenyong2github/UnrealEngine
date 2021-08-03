@@ -226,16 +226,29 @@ void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContex
 
 half Vis_SmithJointApprox_Mobile(half a, half NoV, half NoL)
 {
-	half Vis_SmithV = NoL * (NoV * (1 - a) + a);
-	half Vis_SmithL = NoV * (NoL * (1 - a) + a);
-	return 0.5 * rcp(Vis_SmithV + Vis_SmithL);
+	float Vis_SmithV = NoL * (NoV * (1 - a) + a);
+	float Vis_SmithL = NoV * (NoL * (1 - a) + a);
+	return 0.5f * rcp(max(Vis_SmithV + Vis_SmithL, 0.0000153f));
+}
+
+// [Schlick 1994, "An Inexpensive BRDF Model for Physically-Based Rendering"]
+half3 F_Schlick_Mobile(half3 SpecularColor, half VoH)
+{
+	half OneMinusVoH = 1 - VoH;
+	half Fc = OneMinusVoH * OneMinusVoH;
+	Fc = Fc * Fc;
+	Fc = Fc * OneMinusVoH;
+	//return Fc + (1 - Fc) * SpecularColor;		// 1 add, 3 mad
+
+	// Anything less than 2% is physically impossible and is instead considered to be shadowing
+	return saturate(50.0 * SpecularColor.g) * Fc + (1 - Fc) * SpecularColor;
 }
 
 half3 MobileSpecularGGXInner(half D, half3 EnvBrdf, half3 SpecularColor, half Roughness, half NoV, half NoL, half VoH)
 {
 #if MOBILE_HIGH_QUALITY_BRDF
-	half Vis = Vis_SmithJointApprox_Mobile(Pow2(Roughness), NoV, NoL);
-	half3 F = F_Schlick(SpecularColor, VoH);
+	half Vis = Vis_SmithJointApprox_Mobile(Roughness * Roughness, NoV, NoL);
+	half3 F = F_Schlick_Mobile(SpecularColor, VoH);
 #else
 	half Vis = (Roughness * 0.25 + 0.25);
 	half3 F = EnvBrdf;
