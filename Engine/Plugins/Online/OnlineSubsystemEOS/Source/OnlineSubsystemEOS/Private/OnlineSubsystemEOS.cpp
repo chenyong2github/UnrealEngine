@@ -372,6 +372,19 @@ bool FOnlineSubsystemEOS::Init()
 	FString ErrorMessage;
 	SocketSubsystem->Init(ErrorMessage);
 
+	// We set the product id
+	FString ArtifactName;
+	FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
+	FEOSArtifactSettings ArtifactSettings;
+	if (UEOSSettings::GetSettingsForArtifact(ArtifactName, ArtifactSettings))
+	{
+		ProductId = ArtifactSettings.ProductId;
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSubsystemEOS::Init] Failed to find artifact settings object for artifact (%s). ProductIdAnsi not set."), *ArtifactName);
+	}
+
 	UserManager = MakeShareable(new FUserManagerEOS(this));
 	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOS(this));
 	// Set the bucket id to use for all sessions based upon the name and version to avoid upgrade issues

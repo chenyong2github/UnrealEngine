@@ -49,14 +49,6 @@ typedef TSharedPtr<class FOnlineUserCloudEOS, ESPMode::ThreadSafe> FOnlineUserCl
 
 typedef TSharedPtr<FPlatformEOSHelpers, ESPMode::ThreadSafe> FPlatformEOSHelpersPtr;
 
-#ifndef EOS_PRODUCTNAME_MAX_BUFFER_LEN
-	#define EOS_PRODUCTNAME_MAX_BUFFER_LEN 64
-#endif
-
-#ifndef EOS_PRODUCTVERSION_MAX_BUFFER_LEN
-	#define EOS_PRODUCTVERSION_MAX_BUFFER_LEN 64
-#endif
-
 /**
  *	OnlineSubsystemEOS - Implementation of the online subsystem for EOS services
  */
@@ -118,8 +110,7 @@ PACKAGE_SCOPE:
 	FOnlineSubsystemEOS() = delete;
 	explicit FOnlineSubsystemEOS(FName InInstanceName);
 
-	char ProductNameAnsi[EOS_PRODUCTNAME_MAX_BUFFER_LEN];
-	char ProductVersionAnsi[EOS_PRODUCTVERSION_MAX_BUFFER_LEN];
+	FString ProductId;
 
 	IEOSSDKManager* EOSSDKManager;
 
