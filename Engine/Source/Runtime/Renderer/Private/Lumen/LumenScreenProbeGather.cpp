@@ -193,6 +193,14 @@ FAutoConsoleVariableRef GVarLumenScreenProbeFilter(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenProbeTemporalFilterProbes = 0;
+FAutoConsoleVariableRef GVarLumenScreenProbeTemporalFilter(
+	TEXT("r.Lumen.ScreenProbeGather.TemporalFilterProbes"),
+	GLumenScreenProbeTemporalFilterProbes,
+	TEXT("Whether to temporally filter probe traces to reduce noise."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenScreenSpaceBentNormal = 1;
 FAutoConsoleVariableRef GVarLumenScreenSpaceBentNormal(
 	TEXT("r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal"),
@@ -264,6 +272,11 @@ namespace LumenScreenProbeGather
 	bool UseProbeSpatialFilter()
 	{
 		return GLumenScreenProbeGatherReferenceMode ? false : GLumenScreenProbeSpatialFilter != 0;
+	}
+
+	bool UseProbeTemporalFilter()
+	{
+		return GLumenScreenProbeGatherReferenceMode ? false : GLumenScreenProbeTemporalFilterProbes != 0;
 	}
 
 	bool UseRadianceCache(const FViewInfo& View)
@@ -484,7 +497,9 @@ class FScreenProbeDownsampleDepthUniformCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWScreenProbeSceneDepth)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWScreenProbeWorldNormal)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWScreenProbeWorldSpeed)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeTranslatedWorldPosition)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -518,7 +533,9 @@ class FScreenProbeAdaptivePlacementCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWScreenProbeSceneDepth)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWScreenProbeWorldNormal)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWScreenProbeWorldSpeed)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeTranslatedWorldPosition)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWNumAdaptiveScreenProbes)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWAdaptiveScreenProbeData)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWScreenTileAdaptiveProbeHeader)
@@ -737,32 +754,6 @@ class FScreenProbeTemporalReprojectionDepthRejectionPS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FScreenProbeTemporalReprojectionDepthRejectionPS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "ScreenProbeTemporalReprojectionDepthRejectionPS", SF_Pixel);
 
-
-class FCopyDepthPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FCopyDepthPS)
-	SHADER_USE_PARAMETER_STRUCT(FCopyDepthPS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		RENDER_TARGET_BINDING_SLOTS()
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FCopyDepthPS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "CopyDepthPS", SF_Pixel);
-
-
 class FGenerateCompressedGBuffer : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FGenerateCompressedGBuffer)
@@ -816,7 +807,6 @@ void UpdateHistoryScreenProbeGather(
 
 		const FIntPoint BufferSize = SceneTextures.Config.Extent;
 		const FIntRect NewHistoryViewRect = View.ViewRect;
-		FRDGTextureRef NewDepthHistory = GraphBuilder.CreateTexture(SceneTextures.Depth.Resolve->Desc, TEXT("Lumen.ScreenProbeGather.DepthHistory"));
 
 		if (*DiffuseIndirectHistoryState0
 			&& !View.bCameraCut 
@@ -851,7 +841,6 @@ void UpdateHistoryScreenProbeGather(
 				PassParameters->RenderTargets[1] = FRenderTargetBinding(NewRoughSpecularIndirect, ERenderTargetLoadAction::ENoAction);
 				PassParameters->RenderTargets[2] = FRenderTargetBinding(NewHistoryConvergence, ERenderTargetLoadAction::ENoAction);
 
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(NewDepthHistory, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
 				PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
@@ -895,7 +884,7 @@ void UpdateHistoryScreenProbeGather(
 					NewHistoryViewRect,
 					nullptr,
 					nullptr,
-					TStaticDepthStencilState<true, CF_Always>::GetRHI());
+					TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
 				if (!View.bStatePrevViewInfoIsReadOnly)
 				{
@@ -1088,8 +1077,15 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGTextureDesc DownsampledDepthDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ScreenProbeParameters.ScreenProbeSceneDepth = GraphBuilder.CreateTexture(DownsampledDepthDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeSceneDepth"));
 
+	FRDGTextureDesc DownsampledNormalDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_R8G8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	ScreenProbeParameters.ScreenProbeWorldNormal = GraphBuilder.CreateTexture(DownsampledNormalDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeWorldNormal"));
+
 	FRDGTextureDesc DownsampledSpeedDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ScreenProbeParameters.ScreenProbeWorldSpeed = GraphBuilder.CreateTexture(DownsampledSpeedDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeWorldSpeed"));
+
+	FRDGTextureDesc DownsampledWorldPositionDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_A32B32G32R32F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	ScreenProbeParameters.ScreenProbeTranslatedWorldPosition = GraphBuilder.CreateTexture(DownsampledWorldPositionDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeTranslatedWorldPosition"));
+
 
 	FBlueNoise BlueNoise;
 	InitializeBlueNoise(BlueNoise);
@@ -1101,7 +1097,9 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	{
 		FScreenProbeDownsampleDepthUniformCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeDownsampleDepthUniformCS::FParameters>();
 		PassParameters->RWScreenProbeSceneDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeSceneDepth));
+		PassParameters->RWScreenProbeWorldNormal = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeWorldNormal));
 		PassParameters->RWScreenProbeWorldSpeed = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeWorldSpeed));
+		PassParameters->RWScreenProbeTranslatedWorldPosition = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition));
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->SceneTextures = SceneTextureParameters;
@@ -1144,7 +1142,9 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			PlacementDownsampleFactor /= 2;
 			FScreenProbeAdaptivePlacementCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeAdaptivePlacementCS::FParameters>();
 			PassParameters->RWScreenProbeSceneDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeSceneDepth));
+			PassParameters->RWScreenProbeWorldNormal = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeWorldNormal));
 			PassParameters->RWScreenProbeWorldSpeed = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeWorldSpeed));
+			PassParameters->RWScreenProbeTranslatedWorldPosition = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition));
 			PassParameters->RWNumAdaptiveScreenProbes = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(NumAdaptiveScreenProbes, PF_R32_UINT));
 			PassParameters->RWAdaptiveScreenProbeData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(AdaptiveScreenProbeData, PF_R32_UINT));
 			PassParameters->RWScreenTileAdaptiveProbeHeader = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeParameters.ScreenTileAdaptiveProbeHeader));
@@ -1311,7 +1311,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		MeshSDFGridParameters);
 	
 	FScreenProbeGatherParameters GatherParameters;
-	FilterScreenProbes(GraphBuilder, View, ScreenProbeParameters, GatherParameters);
+	FilterScreenProbes(GraphBuilder, View, SceneTextures, ScreenProbeParameters, GatherParameters);
 
 	FScreenSpaceBentNormalParameters ScreenSpaceBentNormalParameters;
 	ScreenSpaceBentNormalParameters.UseScreenBentNormal = 0;

@@ -62,6 +62,22 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherMaxRayIntensity(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenScreenProbeTemporalFilterProbesHistoryDistanceThreshold = 30;
+FAutoConsoleVariableRef CVarLumenScreenProbeTemporalFilterProbesHistoryDistanceThreshold(
+	TEXT("r.Lumen.ScreenProbeGather.TemporalFilterProbes.HistoryDistanceThreshold"),
+	GLumenScreenProbeTemporalFilterProbesHistoryDistanceThreshold,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+	);
+
+float GLumenScreenProbeTemporalFilterProbesHistoryWeight = .5f;
+FAutoConsoleVariableRef CVarLumenScreenProbeTemporalFilterProbesHistoryWeight(
+	TEXT("r.Lumen.ScreenProbeGather.TemporalFilterProbes.HistoryWeight"),
+	GLumenScreenProbeTemporalFilterProbesHistoryWeight,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+	);
+
 class FScreenProbeCompositeTracesWithScatterCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenProbeCompositeTracesWithScatterCS)
@@ -113,6 +129,42 @@ class FScreenProbeCompositeTracesWithScatterCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FScreenProbeCompositeTracesWithScatterCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeCompositeTracesWithScatterCS", SF_Compute);
+
+
+class FScreenProbeTemporallyAccumulateTraceRadianceCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FScreenProbeTemporallyAccumulateTraceRadianceCS)
+	SHADER_USE_PARAMETER_STRUCT(FScreenProbeTemporallyAccumulateTraceRadianceCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeRadiance)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadiance)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
+		SHADER_PARAMETER(FVector4, HistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4, HistoryUVMinMax)
+		SHADER_PARAMETER(float, ProbeTemporalFilterHistoryWeight)
+		SHADER_PARAMETER(float, HistoryDistanceThreshold)
+		SHADER_PARAMETER(float, PrevInvPreExposure)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, HistoryScreenProbeSceneDepth)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, HistoryScreenProbeRadiance)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, HistoryScreenProbeTranslatedWorldPosition)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FScreenProbeTemporallyAccumulateTraceRadianceCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeTemporallyAccumulateTraceRadianceCS", SF_Compute);
 
 
 class FScreenProbeFilterGatherTracesCS : public FGlobalShader
@@ -324,6 +376,7 @@ IMPLEMENT_GLOBAL_SHADER(FScreenProbeGenerateMipLevelCS, "/Engine/Private/Lumen/L
 void FilterScreenProbes(
 	FRDGBuilder& GraphBuilder, 
 	const FViewInfo& View, 
+	const FSceneTextures& SceneTextures,
 	const FScreenProbeParameters& ScreenProbeParameters,
 	FScreenProbeGatherParameters& GatherParameters)
 {
@@ -389,6 +442,67 @@ void FilterScreenProbes(
 			(uint32)EScreenProbeIndirectArgs::GroupPerProbe * sizeof(FRHIDispatchIndirectParameters));
 	}
 
+	const FRDGTextureRef CompositedScreenProbeRadiance = ScreenProbeRadiance;
+
+	const FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
+
+	const bool bUseProbeTemporalFilter = LumenScreenProbeGather::UseProbeTemporalFilter()
+		&& ScreenProbeGatherState.ProbeHistoryScreenProbeRadiance.IsValid()
+		&& ScreenProbeGatherState.HistoryScreenProbeTranslatedWorldPosition.IsValid()
+		&& !View.bCameraCut 
+		&& !View.bPrevTransformsReset
+		&& ScreenProbeGatherState.ProbeHistoryScreenProbeRadiance->GetDesc().Extent == ScreenProbeRadianceDesc.Extent;
+
+	if (bUseProbeTemporalFilter)
+	{
+		FRDGTextureRef TemporallyFilteredScreenProbeRadiance = GraphBuilder.CreateTexture(ScreenProbeRadianceDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeTemporallyFilteredRadiance"));
+
+		FScreenProbeTemporallyAccumulateTraceRadianceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTemporallyAccumulateTraceRadianceCS::FParameters>();
+		PassParameters->RWScreenProbeRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(TemporallyFilteredScreenProbeRadiance));
+		PassParameters->ScreenProbeRadiance = ScreenProbeRadiance;
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
+		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+
+		PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
+		PassParameters->HistoryScreenPositionScaleBias = ScreenProbeGatherState.ProbeHistoryScreenPositionScaleBias;
+
+		const FIntPoint SceneTexturesExtent = GetSceneTextureExtent();
+		const FVector2D InvBufferSize(1.0f / SceneTexturesExtent.X, 1.0f / SceneTexturesExtent.Y);
+
+		// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
+		PassParameters->HistoryUVMinMax = FVector4(
+			(ScreenProbeGatherState.ProbeHistoryViewRect.Min.X + 0.5f) * InvBufferSize.X,
+			(ScreenProbeGatherState.ProbeHistoryViewRect.Min.Y + 0.5f) * InvBufferSize.Y,
+			(ScreenProbeGatherState.ProbeHistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,
+			(ScreenProbeGatherState.ProbeHistoryViewRect.Max.Y - 0.5f) * InvBufferSize.Y);
+
+		PassParameters->HistoryDistanceThreshold = GLumenScreenProbeTemporalFilterProbesHistoryDistanceThreshold;
+		PassParameters->HistoryScreenProbeRadiance = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ProbeHistoryScreenProbeRadiance);
+		PassParameters->HistoryScreenProbeSceneDepth = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.HistoryScreenProbeSceneDepth);
+		PassParameters->HistoryScreenProbeTranslatedWorldPosition = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.HistoryScreenProbeTranslatedWorldPosition);
+		PassParameters->ProbeTemporalFilterHistoryWeight = GLumenScreenProbeTemporalFilterProbesHistoryWeight;
+
+		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTemporallyAccumulateTraceRadianceCS>(0);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("TemporallyAccumulateRadiance"),
+			ComputeShader,
+			PassParameters,
+			ScreenProbeParameters.ProbeIndirectArgs,
+			(uint32)EScreenProbeIndirectArgs::ThreadPerGather * sizeof(FRHIDispatchIndirectParameters));
+
+		ScreenProbeRadiance = TemporallyFilteredScreenProbeRadiance;
+	}
+
+	if (LumenScreenProbeGather::UseProbeTemporalFilter() && !View.bStatePrevViewInfoIsReadOnly)
+	{
+		FScreenProbeGatherTemporalState& ScreenProbeGatherWriteableState = View.ViewState->Lumen.ScreenProbeGatherState;
+		ScreenProbeGatherWriteableState.ProbeHistoryScreenProbeRadiance = GraphBuilder.ConvertToExternalTexture(CompositedScreenProbeRadiance);
+		ScreenProbeGatherWriteableState.HistoryScreenProbeTranslatedWorldPosition = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition);
+	}
+
 	if (LumenScreenProbeGather::UseProbeSpatialFilter() && GLumenScreenProbeSpatialFilterHalfKernelSize > 0)
 	{
 		for (int32 PassIndex = 0; PassIndex < GLumenScreenProbeSpatialFilterNumPasses; PassIndex++)
@@ -420,9 +534,14 @@ void FilterScreenProbes(
 		}
 	}
 
-	FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
-	ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance = GraphBuilder.ConvertToExternalTexture(ScreenProbeRadiance);
-	ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeSceneDepth = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeSceneDepth);
+	if (!View.bStatePrevViewInfoIsReadOnly)
+	{
+		FScreenProbeGatherTemporalState& ScreenProbeGatherWriteableState = View.ViewState->Lumen.ScreenProbeGatherState;
+		ScreenProbeGatherWriteableState.ImportanceSamplingHistoryScreenProbeRadiance = GraphBuilder.ConvertToExternalTexture(ScreenProbeRadiance);
+		ScreenProbeGatherWriteableState.HistoryScreenProbeSceneDepth = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeSceneDepth);
+		ScreenProbeGatherWriteableState.ProbeHistoryViewRect = View.ViewRect;
+		ScreenProbeGatherWriteableState.ProbeHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(GetSceneTextureExtent(), View.ViewRect);
+	}
 
 	const uint32 ConvertToSHThreadGroupSize = FScreenProbeConvertToSphericalHarmonicCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);
 	const int32 RadianceSHBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y;

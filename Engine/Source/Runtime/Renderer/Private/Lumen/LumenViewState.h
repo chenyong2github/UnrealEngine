@@ -39,9 +39,11 @@ public:
 	TRefCountPtr<IPooledRenderTarget> RoughSpecularIndirectHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> HistoryConvergenceStateRT;
 	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
-	FIntRect ImportanceSamplingHistoryViewRect;
-	FVector4 ImportanceSamplingHistoryScreenPositionScaleBias;
-	TRefCountPtr<IPooledRenderTarget> ImportanceSamplingHistoryScreenProbeSceneDepth;
+	FIntRect ProbeHistoryViewRect;
+	FVector4 ProbeHistoryScreenPositionScaleBias;
+	TRefCountPtr<IPooledRenderTarget> HistoryScreenProbeSceneDepth;
+	TRefCountPtr<IPooledRenderTarget> HistoryScreenProbeTranslatedWorldPosition;
+	TRefCountPtr<IPooledRenderTarget> ProbeHistoryScreenProbeRadiance;
 	TRefCountPtr<IPooledRenderTarget> ImportanceSamplingHistoryScreenProbeRadiance;
 	FLumenGatherCvarState LumenGatherCvars;
 
@@ -49,8 +51,8 @@ public:
 	{
 		DiffuseIndirectHistoryViewRect = FIntRect(0, 0, 0, 0);
 		DiffuseIndirectHistoryScreenPositionScaleBias = FVector4(0, 0, 0, 0);
-		ImportanceSamplingHistoryViewRect = FIntRect(0, 0, 0, 0);
-		ImportanceSamplingHistoryScreenPositionScaleBias = FVector4(0, 0, 0, 0);
+		ProbeHistoryViewRect = FIntRect(0, 0, 0, 0);
+		ProbeHistoryScreenPositionScaleBias = FVector4(0, 0, 0, 0);
 	}
 
 	void SafeRelease()
@@ -63,7 +65,9 @@ public:
 		RoughSpecularIndirectHistoryRT.SafeRelease();
 		HistoryConvergenceStateRT.SafeRelease();
 		OctahedralSolidAngleTextureRT.SafeRelease();
-		ImportanceSamplingHistoryScreenProbeSceneDepth.SafeRelease();
+		HistoryScreenProbeSceneDepth.SafeRelease();
+		HistoryScreenProbeTranslatedWorldPosition.SafeRelease();
+		ProbeHistoryScreenProbeRadiance.SafeRelease();
 		ImportanceSamplingHistoryScreenProbeRadiance.SafeRelease();
 	}
 };

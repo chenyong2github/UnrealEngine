@@ -21,6 +21,7 @@ namespace LumenScreenProbeGather
 	extern int32 IsProbeTracingResolutionSupportedForImportanceSampling(int32 TracingResolution);
 	extern bool UseImportanceSampling(const FViewInfo& View);
 	extern bool UseProbeSpatialFilter();
+	extern bool UseProbeTemporalFilter();
 	extern bool UseRadianceCache(const FViewInfo& View);
 }
 
@@ -66,7 +67,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TraceRadiance)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TraceHit)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeSceneDepth)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeWorldNormal)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeWorldSpeed)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeTranslatedWorldPosition)
 
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWTraceRadiance)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWTraceHit)
@@ -136,6 +139,7 @@ void RenderHardwareRayTracingScreenProbe(
 extern void FilterScreenProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	const FSceneTextures& SceneTextures,
 	const FScreenProbeParameters& ScreenProbeParameters,
 	FScreenProbeGatherParameters& GatherParameters);
 

@@ -65,7 +65,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 
-	if (ScreenProbeIndex < GetNumScreenProbes())
+	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
@@ -270,13 +270,12 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 RWTexture2D<float> RWLightingProbabilityDensityFunction;
 
-float4 ImportanceSamplingHistoryScreenPositionScaleBias;
+float4 ProbeHistoryScreenPositionScaleBias;
 float4 ImportanceSamplingHistoryUVMinMax;
 float ImportanceSamplingHistoryDistanceThreshold;
 float PrevInvPreExposure;
 Texture2D<uint> HistoryScreenProbeSceneDepth;
 Texture2D<float3> HistoryScreenProbeRadiance;
-Texture2D VelocityTexture;
 
 groupshared float SharedPDF[LIGHTING_PDF_THREADGROUP_SIZE * LIGHTING_PDF_THREADGROUP_SIZE * 4];
 
@@ -307,6 +306,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 	if (ScreenProbeIndex < GetNumScreenProbes() 
+		&& ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x
 		&& SceneDepth > 0)
 	{
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
@@ -323,7 +323,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 
 			float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 			float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition, ScreenUV, ConvertToDeviceZ(SceneDepth));
-			float2 HistoryScreenUV = HistoryScreenPosition.xy * ImportanceSamplingHistoryScreenPositionScaleBias.xy + ImportanceSamplingHistoryScreenPositionScaleBias.wz;
+			float2 HistoryScreenUV = HistoryScreenPosition.xy * ProbeHistoryScreenPositionScaleBias.xy + ProbeHistoryScreenPositionScaleBias.wz;
 
 			float EffectiveHistoryWeight = 1.0f;
 
@@ -565,7 +565,9 @@ void ScreenProbeGenerateRaysCS(
 
 	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
-	if (ScreenProbeIndex < GetNumScreenProbes() && SceneDepth > 0)
+	if (ScreenProbeIndex < GetNumScreenProbes() 
+		&& ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x 
+		&& SceneDepth > 0)
 	{
 #define UNIFORM_RAY_DISTRIBUTION_DEBUG 0
 #if UNIFORM_RAY_DISTRIBUTION_DEBUG

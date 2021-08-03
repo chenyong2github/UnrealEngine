@@ -110,7 +110,7 @@ class FScreenProbeComputeLightingProbabilityDensityFunctionCS : public FGlobalSh
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER(FVector4, ImportanceSamplingHistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4, ProbeHistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4, ImportanceSamplingHistoryUVMinMax)
 		SHADER_PARAMETER(float, ImportanceSamplingHistoryDistanceThreshold)
 		SHADER_PARAMETER(float, PrevInvPreExposure)
@@ -301,15 +301,15 @@ void GenerateImportanceSamplingRays(
 		FRDGTextureDesc LightingProbabilityDensityFunctionDesc(FRDGTextureDesc::Create2D(LightingProbabilityDensityFunctionBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 		LightingProbabilityDensityFunction = GraphBuilder.CreateTexture(LightingProbabilityDensityFunctionDesc, TEXT("Lumen.ScreenProbeGather.LightingProbabilityDensityFunction"));
 
-		FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
+		const FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
 
-		const FIntPoint ScreenProbeTraceBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
+		const FIntPoint ScreenProbeGatherBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeGatherOctahedronResolution;
 
 		const bool bUseProbeRadianceHistory = GLumenScreenProbeImportanceSampleProbeRadianceHistory != 0 
 			&& ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance.IsValid()
 			&& !View.bCameraCut 
 			&& !View.bPrevTransformsReset
-			&& ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance->GetDesc().Extent == ScreenProbeTraceBufferSize;
+			&& ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance->GetDesc().Extent == ScreenProbeGatherBufferSize;
 
 		{
 			FScreenProbeComputeLightingProbabilityDensityFunctionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeComputeLightingProbabilityDensityFunctionCS::FParameters>();
@@ -324,21 +324,21 @@ void GenerateImportanceSamplingRays(
 				const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 				PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
-				PassParameters->ImportanceSamplingHistoryScreenPositionScaleBias = ScreenProbeGatherState.ImportanceSamplingHistoryScreenPositionScaleBias;
+				PassParameters->ProbeHistoryScreenPositionScaleBias = ScreenProbeGatherState.ProbeHistoryScreenPositionScaleBias;
 
 				const FIntPoint SceneTexturesExtent = GetSceneTextureExtent();
 				const FVector2D InvBufferSize(1.0f / SceneTexturesExtent.X, 1.0f / SceneTexturesExtent.Y);
 
 				// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
 				PassParameters->ImportanceSamplingHistoryUVMinMax = FVector4(
-					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Min.X + 0.5f) * InvBufferSize.X,
-					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Min.Y + 0.5f) * InvBufferSize.Y,
-					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,
-					(ScreenProbeGatherState.ImportanceSamplingHistoryViewRect.Max.Y - 0.5f) * InvBufferSize.Y);
+					(ScreenProbeGatherState.ProbeHistoryViewRect.Min.X + 0.5f) * InvBufferSize.X,
+					(ScreenProbeGatherState.ProbeHistoryViewRect.Min.Y + 0.5f) * InvBufferSize.Y,
+					(ScreenProbeGatherState.ProbeHistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,
+					(ScreenProbeGatherState.ProbeHistoryViewRect.Max.Y - 0.5f) * InvBufferSize.Y);
 
 				PassParameters->ImportanceSamplingHistoryDistanceThreshold = GLumenScreenProbeImportanceSamplingHistoryDistanceThreshold;
 				PassParameters->HistoryScreenProbeRadiance = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance);
-				PassParameters->HistoryScreenProbeSceneDepth = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeSceneDepth);
+				PassParameters->HistoryScreenProbeSceneDepth = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.HistoryScreenProbeSceneDepth);
 			}
 
 			const uint32 ComputeLightingPDFGroupSize = FScreenProbeComputeLightingProbabilityDensityFunctionCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
@@ -359,9 +359,6 @@ void GenerateImportanceSamplingRays(
 				// Spawn a group on every probe
 				(uint32)EScreenProbeIndirectArgs::GroupPerProbe * sizeof(FRHIDispatchIndirectParameters));
 		}
-
-		ScreenProbeGatherState.ImportanceSamplingHistoryViewRect = View.ViewRect;
-		ScreenProbeGatherState.ImportanceSamplingHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(GetSceneTextureExtent(), View.ViewRect);
 	}
 
 	FIntPoint RayInfosForTracingBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;

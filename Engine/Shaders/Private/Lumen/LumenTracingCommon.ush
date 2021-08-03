@@ -1059,7 +1059,7 @@ float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint SceneInstanceIndex
 			while (CardMask != 0)
 			{
 				const uint NextBitIndex = firstbitlow(CardMask);
-				const uint NextBitMask = 1 << NextBitIndex;
+				const uint NextBitMask = 1u << NextBitIndex;
 				CardMask ^= NextBitMask;
 
 				uint CardIndex = MeshCardsData.CardOffset + NextBitIndex;
@@ -1077,7 +1077,7 @@ float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint SceneInstanceIndex
 		while (CardMask != 0)
 		{
 			const uint NextBitIndex = firstbitlow(CardMask);
-			CardMask ^= 1 << NextBitIndex;
+			CardMask ^= 1u << NextBitIndex;
 
 			uint CardIndex = MeshCardsData.CardOffset + NextBitIndex;
 			FLumenCardData LumenCardData = GetLumenCardData(CardIndex);

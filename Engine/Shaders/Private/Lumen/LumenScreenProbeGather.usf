@@ -41,6 +41,8 @@ void OctahedralSolidAngleCS(
 
 RWTexture2D<uint> RWScreenProbeSceneDepth;
 RWTexture2D<float> RWScreenProbeWorldSpeed;
+RWTexture2D<UNORM float2> RWScreenProbeWorldNormal;
+RWTexture2D<float3> RWScreenProbeTranslatedWorldPosition;
 
 struct FScreenProbeGBuffer
 {
@@ -70,18 +72,23 @@ void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, 
 
 	RWScreenProbeSceneDepth[ScreenProbeAtlasCoord] = asuint(EncodedDepth);
 
+	RWScreenProbeWorldNormal[ScreenProbeAtlasCoord] = UnitVectorToOctahedron(ProbeGBuffer.WorldNormal);
+
 	float3 ProbeWorldVelocity;
+	float3 ProbeTranslatedWorldPosition;
 	{
 		float2 ProbeScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
 		float ProbeDeviceZ = ConvertToDeviceZ(ProbeGBuffer.SceneDepth);
 		float3 ProbeHistoryScreenPosition = GetHistoryScreenPosition(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
 
-		float3 ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeGBuffer.SceneDepth, ProbeGBuffer.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeGBuffer.SceneDepth, ProbeGBuffer.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
 	}
 
 	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = length(ProbeWorldVelocity);
+
+	RWScreenProbeTranslatedWorldPosition[ScreenProbeAtlasCoord] = ProbeTranslatedWorldPosition;
 }
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -376,7 +383,7 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 
-	if (ScreenProbeIndex < GetNumScreenProbes())
+	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
@@ -1118,8 +1125,7 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	float4 SVPosition : SV_POSITION,
 	out float4 OutDiffuseIndirect : SV_Target0,
 	out float4 OutRoughSpecularIndirect : SV_Target1,
-	out float4 OutConvergence : SV_Target2,
-	out float OutDepth : SV_Depth)
+	out float4 OutConvergence : SV_Target2)
 {
 	float2 ScreenUV = SVPosition.xy * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
@@ -1232,16 +1238,6 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	OutRoughSpecularIndirect.rgb = -min(-OutRoughSpecularIndirect.rgb, 0.0f);
 
 	OutConvergence = float4(UpdatedConvergence, 0, 0, 0);
-	OutDepth = DeviceZ;
-}
-
-void CopyDepthPS(
-	float4 SVPosition : SV_POSITION,
-	out float OutDepth : SV_Depth)
-{
-	float2 ScreenUV = SVPosition.xy * View.BufferSizeAndInvSize.zw;
-	float SceneDepth = CalcSceneDepth(ScreenUV);
-	OutDepth = SceneDepth;
 }
 
 RWTexture2D<float> RWCompressedDepthBufferOutput;

@@ -39,6 +39,7 @@ int FixedJitterIndex;
 // Screen Probe GBuffers.  These are indexed by ScreenProbeAtlasCoord and adaptive probes are placed at the bottom of the texture.
 // Note: negative if unlit
 Texture2D<uint> ScreenProbeSceneDepth;
+Texture2D<float2> ScreenProbeWorldNormal;
 Texture2D ScreenProbeWorldSpeed;
 
 // Single element, contains the number of adaptive screen probes placed
@@ -84,6 +85,11 @@ float GetScreenProbeDepth(uint2 ScreenProbeAtlasCoord, Texture2D<uint> ProbeScen
 float GetScreenProbeDepth(uint2 ScreenProbeAtlasCoord)
 {
 	return GetScreenProbeDepth(ScreenProbeAtlasCoord, ScreenProbeSceneDepth);
+}
+
+float3 GetScreenProbeNormal(uint2 ScreenProbeAtlasCoord)
+{
+	return OctahedronToUnitVector(ScreenProbeWorldNormal[ScreenProbeAtlasCoord]);
 }
 
 uint GetNumAdaptiveScreenProbes()
