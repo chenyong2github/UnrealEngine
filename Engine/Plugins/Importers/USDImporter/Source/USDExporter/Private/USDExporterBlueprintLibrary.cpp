@@ -7,7 +7,7 @@
 #include "InstancedFoliageActor.h"
 #include "UObject/ObjectMacros.h"
 
-AInstancedFoliageActor* USDExporterBlueprintLibrary::GetInstancedFoliageActorForLevel( bool bCreateIfNone /*= false */, ULevel* Level /*= nullptr */ )
+AInstancedFoliageActor* UUsdExporterBlueprintLibrary::GetInstancedFoliageActorForLevel( bool bCreateIfNone /*= false */, ULevel* Level /*= nullptr */ )
 {
 	if ( !Level )
 	{
@@ -28,7 +28,7 @@ AInstancedFoliageActor* USDExporterBlueprintLibrary::GetInstancedFoliageActorFor
 	return AInstancedFoliageActor::GetInstancedFoliageActorForLevel( Level, bCreateIfNone );
 }
 
-TArray<UFoliageType*> USDExporterBlueprintLibrary::GetUsedFoliageTypes( AInstancedFoliageActor* Actor )
+TArray<UFoliageType*> UUsdExporterBlueprintLibrary::GetUsedFoliageTypes( AInstancedFoliageActor* Actor )
 {
 	TArray<UFoliageType*> Result;
 	if ( !Actor )
@@ -44,7 +44,7 @@ TArray<UFoliageType*> USDExporterBlueprintLibrary::GetUsedFoliageTypes( AInstanc
 	return Result;
 }
 
-UObject* USDExporterBlueprintLibrary::GetSource( UFoliageType* FoliageType )
+UObject* UUsdExporterBlueprintLibrary::GetSource( UFoliageType* FoliageType )
 {
 	if ( FoliageType )
 	{
@@ -54,7 +54,7 @@ UObject* USDExporterBlueprintLibrary::GetSource( UFoliageType* FoliageType )
 	return nullptr;
 }
 
-TArray<FTransform> USDExporterBlueprintLibrary::GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel )
+TArray<FTransform> UUsdExporterBlueprintLibrary::GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel )
 {
 	TArray<FTransform> Result;
 	if ( !Actor || !FoliageType )

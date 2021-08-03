@@ -16,7 +16,7 @@ class ULevel;
  * Library of functions that can be used via Python scripting to help export Unreal scenes and assets to USD
  */
 UCLASS(meta=(ScriptName="USDExporterLibrary"))
-class USDEXPORTER_API USDExporterBlueprintLibrary : public UBlueprintFunctionLibrary
+class USDEXPORTER_API UUsdExporterBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
