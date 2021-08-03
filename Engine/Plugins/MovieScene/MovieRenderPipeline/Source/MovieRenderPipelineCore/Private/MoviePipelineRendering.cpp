@@ -66,8 +66,8 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 	// Figure out how big each sub-region (tile) is.
 	FIntPoint BackbufferResolution = FIntPoint(
-		FMath::CeilToInt(OutputResolution.X / HighResSettings->TileCount),
-		FMath::CeilToInt(OutputResolution.Y / HighResSettings->TileCount));
+		FMath::CeilToInt((float)OutputResolution.X / (float)HighResSettings->TileCount),
+		FMath::CeilToInt((float)OutputResolution.Y / (float)HighResSettings->TileCount));
 
 	// Then increase each sub-region by the overlap amount.
 	BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
@@ -348,7 +348,7 @@ void UMoviePipeline::RenderFrame()
 					SpatialShiftY = r * FMath::Sin(Theta);
 				}
 
-				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt(OutputResolution.X / OriginalTileCount.X), FMath::CeilToInt(OutputResolution.Y / OriginalTileCount.Y));
+				FIntPoint BackbufferResolution = FIntPoint(FMath::CeilToInt((float)OutputResolution.X / (float)OriginalTileCount.X), FMath::CeilToInt((float)OutputResolution.Y / (float)OriginalTileCount.Y));
 				FIntPoint TileResolution = BackbufferResolution;
 
 				// Apply size padding.

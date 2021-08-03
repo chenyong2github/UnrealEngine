@@ -118,8 +118,8 @@ public:
 				}
 
 				FIntPoint TileResolution = FIntPoint(
-					FMath::CeilToInt(OutputSettings->OutputResolution.X / TileCount),
-					FMath::CeilToInt(OutputSettings->OutputResolution.Y / TileCount));
+					FMath::CeilToInt((float)OutputSettings->OutputResolution.X / (float)TileCount),
+					FMath::CeilToInt((float)OutputSettings->OutputResolution.Y / (float)TileCount));
 
 				TileResolution = CalculatePaddedBackbufferSize(TileResolution);
 

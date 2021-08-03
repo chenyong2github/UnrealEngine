@@ -115,10 +115,10 @@ public:
 	{
 		if (Bounds)
 		{
-			CursorClipRect.Min.X = FMath::TruncToInt(Bounds->left);
-			CursorClipRect.Min.Y = FMath::TruncToInt(Bounds->top);
-			CursorClipRect.Max.X = FMath::TruncToInt(Bounds->right) - 1;
-			CursorClipRect.Max.Y = FMath::TruncToInt(Bounds->bottom) - 1;
+			CursorClipRect.Min.X = Bounds->left;
+			CursorClipRect.Min.Y = Bounds->top;
+			CursorClipRect.Max.X = Bounds->right - 1;
+			CursorClipRect.Max.Y = Bounds->bottom - 1;
 		}
 		else
 		{

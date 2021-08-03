@@ -1069,8 +1069,8 @@ float FMeshMergeUtilities::FlattenEmissivescale(TArray<struct FFlattenMaterial>&
 	ParallelFor(NumThreads, [&InMaterialList, MaterialsPerThread, Multiplier, MaxScale]
 	(int32 Index)
 	{
-		int32 StartIndex = FMath::CeilToInt((Index)* MaterialsPerThread);
-		const int32 EndIndex = FMath::Min(FMath::CeilToInt((Index + 1) * MaterialsPerThread), InMaterialList.Num());
+		int32 StartIndex = FMath::CeilToInt((float)Index * (float)MaterialsPerThread);
+		const int32 EndIndex = FMath::Min(FMath::CeilToInt((float)(Index + 1) * (float)MaterialsPerThread), InMaterialList.Num());
 
 		for (; StartIndex < EndIndex; ++StartIndex)
 		{

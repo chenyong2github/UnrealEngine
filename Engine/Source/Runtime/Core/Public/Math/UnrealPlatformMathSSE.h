@@ -30,6 +30,17 @@ namespace SSE
 		return temp;
 	}
 
+	static FORCEINLINE double InvSqrt(double InValue)
+	{
+		const __m128d One = _mm_set_sd(1.0);
+		const __m128d Y0 = _mm_set_sd(InValue);
+		const __m128d X0 = _mm_sqrt_sd(One, Y0);
+		const __m128d R0 = _mm_div_sd(One, X0);
+		double temp;
+		_mm_store_sd(&temp, R0);
+		return temp;
+	}
+
 	static FORCEINLINE float InvSqrtEst(float F)
 	{
 		// Performs one pass of Newton-Raphson iteration on the hardware estimate
@@ -50,9 +61,24 @@ namespace SSE
 		return temp;
 	}
 
+	static FORCEINLINE double InvSqrtEst(double InValue)
+	{		
+		return InvSqrt(InValue);
+	}
+
 	static FORCEINLINE int32 TruncToInt(float F)
 	{
 		return _mm_cvtt_ss2si(_mm_set_ss(F));
+	}
+
+	static FORCEINLINE int32 TruncToInt(double InValue)
+	{
+		return _mm_cvttsd_si32(_mm_set_sd(InValue));
+	}
+
+	static FORCEINLINE int64 TruncToInt64(double InValue)
+	{
+		return _mm_cvttsd_si64(_mm_set_sd(InValue));
 	}
 
 	static FORCEINLINE int32 FloorToInt(float F)
@@ -60,6 +86,16 @@ namespace SSE
 		// Note: unlike the Generic solution and the SSE4 float solution, we implement FloorToInt using a rounding instruction, rather than implementing RoundToInt using a floor instruction.  
 		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
 		return _mm_cvt_ss2si(_mm_set_ss(F + F - 0.5f)) >> 1;
+	}
+
+	static FORCEINLINE int32 FloorToInt(double InValue)
+	{
+		return _mm_cvtsd_si32(_mm_set_sd(InValue + InValue - 0.5)) >> 1;
+	}
+
+	static FORCEINLINE int64 FloorToInt64(double InValue)
+	{
+		return _mm_cvtsd_si64(_mm_set_sd(InValue + InValue - 0.5)) >> 1;
 	}
 
 	static FORCEINLINE int32 RoundToInt(float F)
@@ -72,11 +108,31 @@ namespace SSE
 		return _mm_cvt_ss2si(_mm_set_ss(F + F + 0.5f)) >> 1;
 	}
 
+	static FORCEINLINE int32 RoundToInt(double InValue)
+	{
+		return _mm_cvtsd_si32(_mm_set_sd(InValue + InValue + 0.5)) >> 1;
+	}
+
+	static FORCEINLINE int64 RoundToInt64(double InValue)
+	{
+		return _mm_cvtsd_si64(_mm_set_sd(InValue + InValue + 0.5)) >> 1;
+	}
+
 	static FORCEINLINE int32 CeilToInt(float F)
 	{
 		// Note: unlike the Generic solution and the SSE4 float solution, we implement CeilToInt using a rounding instruction, rather than a dedicated ceil instruction
 		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
 		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
+	}
+
+	static FORCEINLINE int32 CeilToInt(double InValue)
+	{
+		return -(_mm_cvtsd_si32(_mm_set_sd(-0.5 - (InValue + InValue))) >> 1);
+	}
+
+	static FORCEINLINE int64 CeilToInt64(double InValue)
+	{
+		return -(_mm_cvtsd_si64(_mm_set_sd(-0.5 - (InValue + InValue))) >> 1);
 	}
 
 	// https://gist.github.com/rygorous/2156668
@@ -194,13 +250,13 @@ struct TUnrealPlatformMathSSEBase : public Base
 	}
 
 	template<typename T>
-	static FORCEINLINE float InvSqrt(T F)
+	static FORCEINLINE T InvSqrt(T F)
 	{
 		return UE4::SSE::InvSqrt(F);
 	}
 
 	template<typename T>
-	static FORCEINLINE float InvSqrtEst(T F)
+	static FORCEINLINE T InvSqrtEst(T F)
 	{
 		return UE4::SSE::InvSqrtEst(F);
 	}
@@ -214,39 +270,6 @@ struct TUnrealPlatformMathSSEBase : public Base
 	{
 		_mm_storeu_ps(Dst, UE4::SSE::HalfToFloat(_mm_loadu_si64((__m128i*)Src)));
 	}
-
-	// LWC_TODO: Implement vectorized double equivalents. 
-	// LWC_TODO: Default to double variant for non-float types, or just for int64?
-	static FORCEINLINE int32 TruncToInt(double F)
-	{
-		return Base::TruncToInt((float)F);
-	}
-
-	static FORCEINLINE int32 RoundToInt(double F)
-	{
-		return Base::RoundToInt((float)F);
-	}
-
-	static FORCEINLINE int32 FloorToInt(double F)
-	{
-		return Base::FloorToInt((float)F);
-	}
-
-	static FORCEINLINE int32 CeilToInt(double F)
-	{
-		return Base::CeilToInt((float)F);
-	}
-
-	static FORCEINLINE double InvSqrt(double F)
-	{
-		return Base::InvSqrt((float)F);
-	}
-
-	static FORCEINLINE double InvSqrtEst(double F)
-	{
-		return Base::InvSqrtEst((float)F);
-	}
-
 };
 
 #endif // PLATFORM_ENABLE_VECTORINTRINSICS
