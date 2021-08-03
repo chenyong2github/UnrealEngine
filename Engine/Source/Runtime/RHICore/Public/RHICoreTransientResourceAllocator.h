@@ -14,6 +14,20 @@ class FRHITransientResourceAllocator;
 	#define IF_RHICORE_TRANSIENT_ALLOCATOR_DEBUG(Op)
 #endif
 
+inline uint64 ComputeHash(const FRHITextureCreateInfo& InCreateInfo, uint64 HeapOffset)
+{
+	// Make sure all padding is removed.
+	FRHITextureCreateInfo NewInfo;
+	FPlatformMemory::Memzero(&NewInfo, sizeof(FRHITextureCreateInfo));
+	NewInfo = InCreateInfo;
+	return CityHash64WithSeed((const char*)&NewInfo, sizeof(FRHITextureCreateInfo), HeapOffset);
+}
+
+inline uint64 ComputeHash(const FRHIBufferCreateInfo& InCreateInfo, uint64 HeapOffset)
+{
+	return CityHash64WithSeed((const char*)&InCreateInfo, sizeof(FRHIBufferCreateInfo), HeapOffset);
+}
+
 struct FRHITransientMemoryStats
 {
 	FRHITransientMemoryStats() = default;
