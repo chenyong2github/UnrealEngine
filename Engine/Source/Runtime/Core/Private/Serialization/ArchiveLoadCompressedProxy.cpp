@@ -43,12 +43,25 @@ FArchiveLoadCompressedProxy::~FArchiveLoadCompressedProxy()
  */
 void FArchiveLoadCompressedProxy::DecompressMoreData()
 {
+	if ( IsError() )
+	{
+		// don't try to decode more if we hit error
+		TmpData = TmpDataStart;
+		TmpDataEnd = TmpDataStart;
+		return;
+	}
+
 	// This will call Serialize so we need to indicate that we want to serialize from array.
 	bShouldSerializeFromArray = true;
-	SerializeCompressed( TmpDataStart, LOADING_COMPRESSION_CHUNK_SIZE /** it's ignored, but that's how much we serialize */, CompressionFormat, CompressionFlags);
+	int64 DecompressedLength = 0;
+	SerializeCompressedNew( TmpDataStart, LOADING_COMPRESSION_CHUNK_SIZE, CompressionFormat,CompressionFormat, CompressionFlags, false, &DecompressedLength);
+	// last chunk will be partial :
+	//	all chunks before last should have size == LOADING_COMPRESSION_CHUNK_SIZE
+	check( DecompressedLength <= LOADING_COMPRESSION_CHUNK_SIZE );
 	bShouldSerializeFromArray = false;
 	// Buffer is filled again, reset.
 	TmpData = TmpDataStart;
+	TmpDataEnd = TmpDataStart + DecompressedLength;
 }
 
 /**
@@ -61,10 +74,10 @@ void FArchiveLoadCompressedProxy::DecompressMoreData()
 void FArchiveLoadCompressedProxy::Serialize( void* InData, int64 Count )
 {
 	uint8* DstData = (uint8*) InData;
-	// If counter > 1 it means we're calling recursively and therefore need to write to compressed data.
+
 	if( bShouldSerializeFromArray )
 	{
-		// Add space in array and copy data there.
+		// SerializedCompressed reads the compressed data from here
 		check(CurrentIndex+Count<=CompressedData.Num());
 		FMemory::Memcpy( DstData, &CompressedData[CurrentIndex], Count );
 		CurrentIndex += Count;
@@ -94,6 +107,14 @@ void FArchiveLoadCompressedProxy::Serialize( void* InData, int64 Count )
 			{
 				// Decompress more data. This will call Serialize again so we need to handle recursion.
 				DecompressMoreData();
+
+				if ( TmpDataEnd == TmpData )
+				{
+					// wanted more but couldn't get any
+					// avoid infinite loop
+					SetError();
+					return;
+				}
 			}
 		}
 	}
