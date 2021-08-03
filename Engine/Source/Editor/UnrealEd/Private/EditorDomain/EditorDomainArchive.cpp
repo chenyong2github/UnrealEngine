@@ -236,6 +236,8 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 	TUniqueFunction<void(bool bValid)>&& CreateSegmentData,
 	TUniqueFunction<bool(FEditorDomain& EditorDomain)>&& TryCreateFallbackData)
 {
+	using namespace UE::DerivedData;
+
 	{
 		ESource LocalAsyncSource = AsyncSource;
 		if (AsyncSource == ESource::Closed)
@@ -249,28 +251,36 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 
 	ESource NewAsyncSource = ESource::Uninitialized;
 	int32 InitialRequestIndex = -1;
-	if (Params.Status == UE::DerivedData::EStatus::Ok)
+	if (Params.Status == EStatus::Ok)
 	{
-		UE::DerivedData::FCacheRecord& Record = Params.Record;
+		FCacheRecord& Record = Params.Record;
 		uint64 FileSize = Record.GetMeta()["FileSize"].AsUInt64();
-		const UE::DerivedData::FPayload& ValuePayload = Record.GetValuePayload();
+		const FPayload& ValuePayload = Record.GetValuePayload();
 
-		Segments.Reserve(1 + Record.GetAttachmentPayloads().Num());
-		uint64 CompositeSize = 0;
-		uint64 ValueSize = ValuePayload.GetRawSize();
-		if (ValueSize > 0)
+		// Sort the attachment payloads by PayloadId, in case they are not already sorted. EditorDomainPackage attachments
+		// are written with PayloadIds in the same order as the segment order
+		TConstArrayView<FPayload> AttachmentPayloads = Record.GetAttachmentPayloads();
+		TArray<const FPayload*, TInlineAllocator<4>> SortedPayloads;
+		SortedPayloads.Reserve(AttachmentPayloads.Num()+1);
+		if (ValuePayload.GetRawSize() > 0)
 		{
-			Segments.Emplace(ValuePayload.GetId(), CompositeSize);
-			CompositeSize += ValueSize;
+			SortedPayloads.Add(&ValuePayload);
 		}
-		for (const UE::DerivedData::FPayload& Payload : Record.GetAttachmentPayloads())
+		for (const FPayload& Payload : AttachmentPayloads)
 		{
-			uint64 PayloadSize = Payload.GetRawSize();
-			if (PayloadSize > 0)
+			if (Payload.GetRawSize() > 0)
 			{
-				Segments.Emplace(Payload.GetId(), CompositeSize);
-				CompositeSize += PayloadSize;
+				SortedPayloads.Add(&Payload);
 			}
+		}
+		SortedPayloads.Sort([](const FPayload& A, const FPayload& B) { return A.GetId() < B.GetId(); });
+
+		uint64 CompositeSize = 0;
+		Segments.Reserve(SortedPayloads.Num());
+		for (const FPayload* Payload : SortedPayloads)
+		{
+			Segments.Emplace(Payload->GetId(), CompositeSize);
+			CompositeSize += Payload->GetRawSize();
 		}
 
 		if (CompositeSize != FileSize)
@@ -359,13 +369,15 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 
 void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 {
+	using namespace UE::DerivedData;
+
 	// Called from Callback-only until AsyncSource is set, then from Interface-only
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
+	ICache& Cache = GetDerivedDataCacheRef();
 
 	// Note that Segment.Request is Interface-only and so we can write it outside the lock
-	Segment.Request = Cache.GetPayload({ UE::DerivedData::FCachePayloadKey{ UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest), Segment.PayloadId} },
-		PackagePath.GetDebugName(), UE::DerivedData::ECachePolicy::Local, UE::DerivedData::EPriority::Normal,
-		[this, &Segment](UE::DerivedData::FCacheGetPayloadCompleteParams&& Params)
+	Segment.Request = Cache.GetPayload({ FCachePayloadKey{ UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest), Segment.PayloadId} },
+		PackagePath.GetDebugName(), ECachePolicy::Local, EPriority::Normal,
+		[this, &Segment](FCacheGetPayloadCompleteParams&& Params)
 		{
 			if (AsyncSource == ESource::Closed)
 			{
@@ -377,7 +389,7 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 				return;
 			}
 
-			if (Params.Status != UE::DerivedData::EStatus::Ok)
+			if (Params.Status != EStatus::Ok)
 			{
 				UE_LOG(LogEditorDomain, Error, TEXT("Package %s is missing cache data in segment %d."), *PackagePath.GetDebugName(), (int32)(&Segment - &Segments[0]));
 			}

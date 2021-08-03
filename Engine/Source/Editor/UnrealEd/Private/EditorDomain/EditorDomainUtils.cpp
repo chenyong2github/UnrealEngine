@@ -37,11 +37,18 @@ FClassDigestMap& GetClassDigests()
 }
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("D2B58CFE87DA471C95A91F36D2EA9214");
+const TCHAR* EditorDomainVersion = TEXT("D1718C34CA7C47AEB87A1607568E25B0");
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
 const TCHAR* EditorDomainBulkDataListBucketName = TEXT("EditorDomainBulkDataList");
 const TCHAR* EditorDomainBulkDataPayloadIdBucketName = TEXT("EditorDomainBulkDataPayloadId");
+
+static bool GetEditorDomainSaveUnversioned()
+{
+	bool bParsedValue;
+	static bool bEditorDomainSaveUnversioned = GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainSaveUnversioned"), bParsedValue, GEditorIni) ? bParsedValue : true;
+	return bEditorDomainSaveUnversioned;
+}
 
 EPackageDigestResult AppendPackageDigest(FCbWriter& Writer, FString& OutErrorMessage,
 	const FAssetPackageData& PackageData, FName PackageName)
@@ -49,6 +56,7 @@ EPackageDigestResult AppendPackageDigest(FCbWriter& Writer, FString& OutErrorMes
 	int32 CurrentFileVersionUE = GPackageFileUEVersion;
 	int32 CurrentFileVersionLicenseeUE = GPackageFileLicenseeUEVersion;
 	Writer << EditorDomainVersion;
+	Writer << GetEditorDomainSaveUnversioned();
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Writer << const_cast<FGuid&>(PackageData.PackageGuid);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -396,9 +404,7 @@ bool TrySavePackage(UPackage* Package)
 		// | SAVE_KeepGUID;			// Prevent indeterminism by keeping the Guid
 		;
 
-	bool bEditorDomainSaveUnversioned = false;
-	GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainSaveUnversioned"), bEditorDomainSaveUnversioned, GEditorIni);
-	if (bEditorDomainSaveUnversioned)
+	if (GetEditorDomainSaveUnversioned())
 	{
 		// With some exceptions, EditorDomain packages are saved unversioned; 
 		// editors request the appropriate version of the EditorDomain package matching their serialization version
@@ -448,7 +454,7 @@ bool TrySavePackage(UPackage* Package)
 		return FPayloadId(Bytes);
 	};
 
-	int32 AttachmentIndex = 0;
+	int32 AttachmentIndex = 1; // 0 is not a valid value for IntToPayloadId
 	const FSharedBuffer& ExportsBuffer = PackageStoreWriter->GetHeaderAndExports();
 	check(ExportsBuffer.GetSize() > 0); // Header+Exports segment is non-zero in length
 	RecordBuilder.AddAttachment(ExportsBuffer, IntToPayloadId(AttachmentIndex++));
