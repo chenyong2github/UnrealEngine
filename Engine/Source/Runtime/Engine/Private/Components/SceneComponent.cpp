@@ -3185,7 +3185,10 @@ void USceneComponent::OnRep_AttachParent()
 
 void USceneComponent::OnRep_AttachSocketName()
 {
-	bNetUpdateAttachment = true;
+	if (IsValid(AttachParent))
+	{
+		bNetUpdateAttachment = true;
+	}
 }
 
 void USceneComponent::OnRep_AttachChildren()
