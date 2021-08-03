@@ -81,7 +81,33 @@ struct FMeshSceneAdapterBuildOptions
 };
 
 
+class IMeshSpatialWrapper;
 
+
+/**
+ * FMeshSceneRayHit is returned by various ray-intersection functions below
+ */
+struct MODELINGCOMPONENTS_API FMeshSceneRayHit
+{
+	// world ray that was cast, stored here for convenience
+	FRay3d Ray;
+	// distance along ray that intersection occurred at
+	double RayDistance = -1.0;
+	// Actor that was hit, if available
+	AActor* HitActor = nullptr;
+	// Component that was hit, if available
+	UActorComponent* HitComponent = nullptr;
+	// Element Index on hit Component, if available (eg Instance Index on an InstancedStaticMesh)
+	int32 HitComponentElementIndex = -1;
+	// Triangle Index/ID on mesh of hit Component
+	int32 HitMeshTriIndex = -1;
+
+	// SpatialWrapper for the mesh geometry that was hit, if available. This is a pointer to data owned by the FMeshSceneAdapter that was queried
+	IMeshSpatialWrapper* HitMeshSpatialWrapper = nullptr;
+
+	// LocalToWorld Transform on the IMeshSpatialWrapper (for convenience)
+	FTransformSequence3d LocalToWorld;
+};
 
 
 /**
@@ -105,6 +131,9 @@ public:
 
 	/** Calculate the mesh winding number at the given Position. Must be callable in parallel from any thread.  */
 	virtual double FastWindingNumber(const FVector3d& P, const FTransformSequence3d& LocalToWorldTransform) = 0;
+
+	/** Find the nearest ray-intersection with the mesh. Must be callable in parallel from any thread. */
+	virtual bool RayIntersection(const FRay3d& WorldRay, const FTransformSequence3d& LocalToWorldTransform, FMeshSceneRayHit& WorldHitResultOut) = 0;
 
 	/** Collect a set of seed points from this Mesh, mapped through LocalToWorldFunc to world space. Must be callable in parallel from any thread. */
 	virtual void CollectSeedPoints(TArray<FVector3d>& WorldPoints, TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) = 0;
@@ -184,15 +213,15 @@ public:
 };
 
 
+
 /**
  * FMeshSceneAdapter creates an internal representation of an Actor/Component/Asset hierarchy,
  * so that a minimal set of Mesh data structures can be constructed for the unique Meshes (generally Assets).
  * This allows queries against the Actor set to be computed without requiring mesh copies or 
  * duplicates of the mesh data structures (ie, saving memory, at the cost of some computation overhead).
  * 
- * Currenly this builds an AABBTree and FastWindingTree for each unique Mesh,
- * and only FastWinding and "Seed Point" queries are (currently) exposed.
- * (SeedPoint query is necessary for mesh the scalar Winding field)
+ * Currently this builds an AABBTree and FastWindingTree for each unique Mesh, and
+ * supports various queries based on those data structures.
  */
 class MODELINGCOMPONENTS_API FMeshSceneAdapter
 {
@@ -203,11 +232,20 @@ public:
 	FMeshSceneAdapter(const FMeshSceneAdapter&) = delete;		// must delete this due to TArray<TUniquePtr> member
 	FMeshSceneAdapter(FMeshSceneAdapter&&) = delete;
 
-	/** Add the given Actors to our Actor set. */
+	//
+	// Mesh Scene Setup etc
+	//
+
+	/** 
+	 * Add the given Actors to the Mesh Scene 
+	 */
 	void AddActors(const TArray<AActor*>& ActorsSetIn);
 
-	/** Build */
-	void Build(const FMeshSceneAdapterBuildOptions& BuildOptions);
+	/** 
+	 * Add the given Components to the Mesh Scene.
+	 * If multiple Components from the same Actor are passed in, duplicate FActorAdapters will be created
+	 */
+	void AddComponents(const TArray<UActorComponent*>& ComponentSetIn);
 
 	/**
 	 * Generate a new mesh that "caps" the mesh scene on the bottom. This can be used in cases where
@@ -220,7 +258,33 @@ public:
 	void GenerateBaseClosingMesh(double BaseHeight = 1.0, double ExtrudeHeight = 0.0);
 
 	/**
-	 * Statistics about the mesh scene returned by GetGeometryStatistics()
+	 * Build the Mesh Scene. This must be called after the functions above, and before any queries below can be run.
+	 */
+	void Build(const FMeshSceneAdapterBuildOptions& BuildOptions);
+
+	/** 
+	 * Precompute data structures that accelerate spatial evaluation queries. Precondition for calling FastWindingNumber() and FindNearestRayIntersection().
+	 * This can be called after Build() has completed
+	 */
+	virtual void BuildSpatialEvaluationCache();
+
+	/**
+	 * Update the transforms on all the Components in the current Mesh Scene. Requires that Build() has been called.
+	 * This will invalidate any existing SpatialEvaluationCache
+	 * @param bRebuildSpatialCache if true, rebuild the SpatialEvaluationCache
+	 */
+	void FastUpdateTransforms(bool bRebuildSpatialCache);
+
+
+	//
+	// Mesh Scene Queries 	  
+	//
+
+	/** @return bounding box for the Actor set */
+	virtual FAxisAlignedBox3d GetBoundingBox();
+
+	/**
+	 * Statistics about the Mesh Scene returned by GetGeometryStatistics()
 	 */
 	struct FStatistics
 	{
@@ -234,20 +298,32 @@ public:
 	/** @return bounding box for the Actor set */
 	virtual void GetGeometryStatistics(FStatistics& StatsOut);
 
-	/** @return bounding box for the Actor set */
-	virtual FAxisAlignedBox3d GetBoundingBox();
-
 	/** @return a set of points on the surface of the meshes, can be used to initialize the MarchingCubes mesher */
 	virtual void CollectMeshSeedPoints(TArray<FVector3d>& PointsOut);
 
-	/** Precompute data structures that accelerate spatial evaluation queries. Precondition for calling FastWindingNumber() */
-	virtual void BuildSpatialEvaluationCache();
+	/** 
+	 * @return FastWindingNumber computed at WorldPoint across all mesh Actors/Components 
+	 * @param bFastEarlyOutIfPossible if true, then if any Mesh Scene Element returns a Winding Number of 1, the function returns immediately
+	 */
+	virtual double FastWindingNumber(const FVector3d& WorldPoint, bool bFastEarlyOutIfPossible = true);
 
-	/** @return FastWindingNumber computed across all mesh Actors/Components */
-	virtual double FastWindingNumber(const FVector3d& P, bool bFastEarlyOutIfPossible = true);
+	/** 
+	 * Intersect the given Ray with the MeshScene and find the nearest mesh hit
+	 * @param HitResultOut ray-intersection information will be returned here
+	 * @return true if hit was found and HitResultOut is initialized
+	 */
+	virtual bool FindNearestRayIntersection(const FRay3d& WorldRay, FMeshSceneRayHit& HitResultOut);
 
-	/** Append all instance triangles to a single mesh. May be very large. */
+	/** Append all instance triangles to a single mesh. May be **very** large. */
 	virtual void GetAccumulatedMesh(FDynamicMesh3& AccumMesh);
+
+	/** Get all world-space bounding boxes for all Scene Meshes */
+	virtual void GetMeshBoundingBoxes(TArray<FAxisAlignedBox3d>& Bounds);
+
+	/** @return world-space bounding box for the Scene Mesh of the specified Component and ComponentIndex. Requires that SpatialEvaluationCache is available. */
+	virtual FAxisAlignedBox3d GetMeshBoundingBox(UActorComponent* Component, int32 ComponentIndex = -1);
+
+
 
 protected:
 	// top-level list of ActorAdapters, which represent each Actor and set of Components
@@ -263,6 +339,8 @@ protected:
 
 	// Unique set of spatial data structure query interfaces, one for each Mesh object, which is identified by void* pointer
 	TMap<void*, TSharedPtr<FSpatialWrapperInfo>> SpatialAdapters;
+
+	void InitializeSpatialWrappers(const TArray<FActorAdapter*>& NewItemsToProcess);
 
 	bool bSceneIsAllSolids = false;
 
