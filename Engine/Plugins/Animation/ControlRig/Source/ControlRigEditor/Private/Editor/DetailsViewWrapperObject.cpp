@@ -40,6 +40,7 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct)
 	WrapperClass->SetSuperStruct(SuperClass);
 	WrapperClass->ClassWithin = UObject::StaticClass();
 	WrapperClass->ClassConfigName = SuperClass->ClassConfigName;
+	WrapperClass->ClassFlags |= CLASS_NotPlaceable | CLASS_Hidden;
 	WrapperClass->SetMetaData(TEXT("DisplayName"), *InStruct->GetDisplayNameText().ToString());
 
 	struct Local

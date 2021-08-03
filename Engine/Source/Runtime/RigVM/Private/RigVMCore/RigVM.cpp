@@ -144,19 +144,6 @@ void URigVM::Save(FArchive& Ar)
 
 #else
 
-	bool bWorkMemoryStorageObjectValid = WorkMemoryStorageObject != nullptr;
-	Ar << bWorkMemoryStorageObjectValid;
-	if(bWorkMemoryStorageObjectValid)
-	{
-		WorkMemoryStorageObject->Serialize(Ar);
-	}
-	bool bLiteralMemoryStorageObjectValid = LiteralMemoryStorageObject != nullptr;
-	Ar << bLiteralMemoryStorageObjectValid;
-	if(bLiteralMemoryStorageObjectValid)
-	{
-		LiteralMemoryStorageObject->Serialize(Ar);
-	}
-
 	Ar << ExternalPropertyPathDescriptions;
 	
 #endif
@@ -204,51 +191,10 @@ void URigVM::Load(FArchive& Ar)
 
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
-	if(WorkMemoryStorageObject == nullptr)
-	{
-		UClass* StorageClass = URigVMMemoryStorageGeneratorClass::GetStorageClass(GetOutermost(), ERigVMMemoryType::Work);
-		if(StorageClass)
-		{
-			WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, StorageClass, NAME_None, RF_Public);
-		}
-		else
-		{
-			WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, NAME_None, RF_Public);
-		}
-	}
-	if(LiteralMemoryStorageObject == nullptr)
-	{
-		UClass* StorageClass = URigVMMemoryStorageGeneratorClass::GetStorageClass(GetOutermost(), ERigVMMemoryType::Literal);
-		if(StorageClass)
-		{
-			LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, StorageClass, NAME_None, RF_Public);
-		}
-		else
-		{
-			LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, NAME_None, RF_Public);
-		}
-	}
-	if(DebugMemoryStorageObject == nullptr)
-	{
-		DebugMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, NAME_None, RF_Public);
-	}
-
-	bool bWorkMemoryStorageObjectValid = false;
-	Ar << bWorkMemoryStorageObjectValid;
-	if(bWorkMemoryStorageObjectValid)
-	{
-		WorkMemoryStorageObject->Serialize(Ar);
-	}
-	
-	bool bLiteralMemoryStorageObjectValid = false;
-	Ar << bLiteralMemoryStorageObjectValid;
-	if(bLiteralMemoryStorageObjectValid)
-	{
-		LiteralMemoryStorageObject->Serialize(Ar);
-	}
+	// requesting the memory types will create them
+	ClearMemory();
 	
 	Ar << ExternalPropertyPathDescriptions;
-
 	Ar << FunctionNamesStorage;
 	Ar << ByteCodeStorage;
 	Ar << Parameters;
@@ -601,6 +547,8 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 			}
 			else if(TargetMemory->GetClass() != SourceMemory->GetClass())
 			{
+				TargetMemory->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+				TargetMemory->MarkPendingKill();
 				TargetMemory = NewObject<URigVMMemoryStorage>(Outer, SourceMemory->GetClass());
 			}
 
@@ -624,9 +572,11 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 		}
 	};
 
-	CopyMemoryStorage(WorkMemoryStorageObject, InVM->WorkMemoryStorageObject, this);
-	CopyMemoryStorage(LiteralMemoryStorageObject, InVM->LiteralMemoryStorageObject, this);
-	CopyMemoryStorage(DebugMemoryStorageObject, InVM->DebugMemoryStorageObject, this);
+	// we don't need to copy the literals since they are shared
+	// between all instances of the VM
+	LiteralMemoryStorageObject = Cast<URigVMMemoryStorage>(InVM->GetLiteralMemory()->GetClass()->GetDefaultObject());
+	CopyMemoryStorage(WorkMemoryStorageObject, InVM->GetWorkMemory(), this);
+	CopyMemoryStorage(DebugMemoryStorageObject, InVM->GetDebugMemory(), this);
 
 	ExternalPropertyPathDescriptions = InVM->ExternalPropertyPathDescriptions;
 	ExternalPropertyPaths.Reset();
@@ -702,21 +652,82 @@ FString URigVM::GetRigVMFunctionName(int32 InFunctionIndex) const
 
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
-URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType) const
+URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType, bool bCreateIfNeeded)
 {
 	switch(InMemoryType)
 	{
 		case ERigVMMemoryType::Literal:
 		{
-			return GetLiteralMemory();
+			if(bCreateIfNeeded)
+			{
+				if(LiteralMemoryStorageObject == nullptr)
+				{
+					if(UClass* Class = URigVMMemoryStorageGeneratorClass::GetStorageClass(this, InMemoryType))
+					{
+						// for literals we share the CDO between all VMs
+						LiteralMemoryStorageObject = Cast<URigVMMemoryStorage>(Class->GetDefaultObject(true));
+					}
+					else
+					{
+						LiteralMemoryStorageObject = NewObject<URigVMMemoryStorage>(this);
+					}
+				}
+			}
+			return LiteralMemoryStorageObject;
 		}
 		case ERigVMMemoryType::Work:
 		{
-			return GetWorkMemory();
+			if(bCreateIfNeeded)
+			{
+				if(WorkMemoryStorageObject)
+				{
+					if(WorkMemoryStorageObject->GetOuter() != this)
+					{
+						WorkMemoryStorageObject = nullptr;
+					}
+				}
+				if(WorkMemoryStorageObject == nullptr)
+				{
+					if(UClass* Class = URigVMMemoryStorageGeneratorClass::GetStorageClass(this, InMemoryType))
+					{
+						WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, Class);
+					}
+					else
+					{
+						WorkMemoryStorageObject = NewObject<URigVMMemoryStorage>(this);
+					}
+				}
+			}
+			check(WorkMemoryStorageObject->GetOuter() == this);
+			return WorkMemoryStorageObject;
 		}
 		case ERigVMMemoryType::Debug:
 		{
-			return GetDebugMemory();
+			if(bCreateIfNeeded)
+			{
+				if(DebugMemoryStorageObject)
+				{
+					if(DebugMemoryStorageObject->GetOuter() != this)
+					{
+						DebugMemoryStorageObject = nullptr;
+					}
+				}
+				if(DebugMemoryStorageObject == nullptr)
+				{
+#if WITH_EDITOR
+					if(UClass* Class = URigVMMemoryStorageGeneratorClass::GetStorageClass(this, InMemoryType))
+					{
+						DebugMemoryStorageObject = NewObject<URigVMMemoryStorage>(this, Class);
+					}
+					else
+#endif
+					{
+						DebugMemoryStorageObject = NewObject<URigVMMemoryStorage>(this);
+					}
+				}
+			}
+			check(WorkMemoryStorageObject->GetOuter() == this);
+			return DebugMemoryStorageObject;
 		}
 		default:
 		{
@@ -724,6 +735,27 @@ URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType) cons
 		}
 	}
 	return nullptr;
+}
+
+void URigVM::ClearMemory()
+{
+	LiteralMemoryStorageObject = nullptr;
+
+	if(WorkMemoryStorageObject)
+	{
+		WorkMemoryStorageObject->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		WorkMemoryStorageObject->MarkPendingKill();
+		WorkMemoryStorageObject = nullptr;
+	}
+
+	if(DebugMemoryStorageObject)
+	{
+		DebugMemoryStorageObject->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		DebugMemoryStorageObject->MarkPendingKill();
+		DebugMemoryStorageObject = nullptr;
+	}
+
+	InvalidateCachedMemory();
 }
 
 #endif
@@ -2548,7 +2580,7 @@ FString URigVM::DumpByteCodeAsText(const TArray<int32>& InInstructionOrder, bool
 	return FString::Join(DumpByteCodeAsTextArray(InInstructionOrder, bIncludeLineNumbers), TEXT("\n"));
 }
 
-FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FString(const FString& RegisterName, const FString& RegisterOffsetName)> FormatFunction) const
+FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FString(const FString& RegisterName, const FString& RegisterOffsetName)> FormatFunction)
 {
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	
@@ -2714,6 +2746,10 @@ void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecut
 		check(Memory->GetPropertyPaths().IsValidIndex(InArg.GetRegisterOffset()));
 		PropertyPath = &Memory->GetPropertyPaths()[InArg.GetRegisterOffset()];
 	}
+
+	// if you are hitting this it's likely that the VM was created outside of a valid
+	// package. the compiler bases the memory class construction on the package the VM
+	// is in - so a VM under GetTransientPackage() can be created - but not run.
 	uint8* Data = Memory->GetData<uint8>(InArg.GetRegisterIndex());
 	const FProperty* Property = Memory->GetProperties()[InArg.GetRegisterIndex()];
 	const FRigVMMemoryHandle Handle(Data, Property, PropertyPath);

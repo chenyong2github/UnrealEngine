@@ -1881,7 +1881,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 	// build the VM to run this AST
 	TMap<FString, FRigVMOperand> Operands;
-	URigVM* TempVM = NewObject<URigVM>(GetTransientPackage());
+	URigVM* TempVM = NewObject<URigVM>(InGraph);
 	
 	URigVMCompiler* TempCompiler = NewObject<URigVMCompiler>(GetTransientPackage());
 	TempCompiler->Settings.SetupNodeInstructionIndex = false;
@@ -2075,6 +2075,9 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 			ExpressionsToRemove.Add(PreviousVarExpr);
 		}
 	}
+
+	TempVM->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+	TempVM->MarkPendingKill();
 
 	RemoveExpressions(ExpressionsToRemove);
 
