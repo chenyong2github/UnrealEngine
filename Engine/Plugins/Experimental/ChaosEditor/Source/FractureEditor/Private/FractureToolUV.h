@@ -85,12 +85,17 @@ public:
 
 	void ChangeNumUVChannels(int32 Delta);
 
-	UFUNCTION(CallInEditor, Category = UVIslands, meta = (DisplayName = "Box Project UVs"))
-	void BoxProjectUVs();
+	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayName = "Layout UVs", DisplayPriority = 1))
+	void LayoutUVs();
 
-	/** Whether to layout UVs (to ensure unique texels for each face), or just use the existing UVs */
-	UPROPERTY(EditAnywhere, Category = Atlas, meta = (DisplayName = "Do UV Layout"))
-	bool bDoUVLayout = true;
+	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayName = "Bake Texture", DisplayPriority = 2))
+	void BakeTexture();
+
+	UPROPERTY(EditAnywhere, Category = Unwrap)
+	FVector ProjectionScale = FVector(100, 100, 100);
+
+	UFUNCTION(CallInEditor, Category = Unwrap, meta = (DisplayName = "Box Project UVs"))
+	void BoxProjectUVs();
 
 	/** The pixel resolution of the generated map */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
@@ -211,6 +216,9 @@ public:
 
 	// Create new UV islands via box projection for the selected geometry collections
 	void BoxProjectUVs();
+	
+	void LayoutUVs();
+	void BakeTexture();
 
 
 protected:
@@ -218,4 +226,7 @@ protected:
 	TObjectPtr<UFractureAutoUVSettings> AutoUVSettings;
 
 	bool SaveGeneratedTexture(UE::Geometry::TImageBuilder<FVector4f>& ImageBuilder, FString ObjectBaseName, const UObject* RelativeToAsset, bool bPromptToSave, bool bAllowReplace);
+
+	bool LayoutUVsForComponent(UGeometryCollectionComponent* Component);
+	void BakeTextureForComponent(UGeometryCollectionComponent* Component, TFunction<void(int32, const FText&)> Progress = nullptr);
 };
