@@ -23,6 +23,7 @@ public:
 	virtual EStackRowStyle GetStackRowStyle() const override;
 	virtual FText GetTooltipText() const override;
 
+	virtual bool GetCanExpandInOverview() const override { return true; }
 	virtual bool GetIsEnabled() const override;
 	virtual void SetIsEnabled(bool bEnabled) {}
 	virtual bool SupportsChangeEnabled() const { return false; }

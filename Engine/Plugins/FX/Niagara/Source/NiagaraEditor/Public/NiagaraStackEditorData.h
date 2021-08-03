@@ -32,7 +32,7 @@ public:
 	 * @param bIsExpandedDefault The default value to return if the expanded state hasn't been set for the stack entry.
 	 * @param StackItemKey A unique key for the entry.
 	 */
-	bool GetStackEntryIsExpanded(const FString& StackEntryKey, bool bIsExpandedDefault) const;
+	NIAGARAEDITOR_API bool GetStackEntryIsExpanded(const FString& StackEntryKey, bool bIsExpandedDefault) const;
 
 	/*
 	 * Sets whether or not a stack entry is Expanded.
@@ -40,6 +40,20 @@ public:
 	 * @param bIsExpanded Whether or not the entry is expanded.
 	 */
 	void SetStackEntryIsExpanded(const FString& StackEntryKey, bool bIsExpanded);
+
+	/*
+	* Gets whether or not a stack entry is Expanded.
+	* @param bIsExpandedDefault The default value to return if the expanded state hasn't been set for the stack entry.
+	* @param StackItemKey A unique key for the entry.
+	*/
+	NIAGARAEDITOR_API bool GetStackEntryIsExpandedInOverview(const FString& StackEntryKey, bool bIsExpandedDefault) const;
+
+	/*
+	* Sets whether or not a stack entry is Expanded.
+	* @param StackEntryKey A unique key for the entry.
+	* @param bIsExpanded Whether or not the entry is expanded.
+	*/
+	void SetStackEntryIsExpandedInOverview(const FString& StackEntryKey, bool bIsExpanded);
 
 	/*
 	 * Gets whether or not a stack entry was Expanded before triggering a stack search.
@@ -137,6 +151,9 @@ private:
 
 	TMap<FString, bool> StackItemKeyToShowAdvancedMap;
 
+	UPROPERTY()
+	TMap<FString, bool> StackEntryKeyToExpandedOverviewMap;
+	
 	UPROPERTY()
 	TMap<FString, FText> StackEntryKeyToDisplayName;
 

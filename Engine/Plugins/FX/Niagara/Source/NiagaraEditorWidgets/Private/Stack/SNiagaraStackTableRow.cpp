@@ -513,7 +513,6 @@ EVisibility SNiagaraStackTableRow::GetExpanderVisibility() const
 {
 	if (StackEntry->GetCanExpand())
 	{
-		// TODO Cache this and refresh the cache when the entries structure changes.
 		TArray<UNiagaraStackEntry*> Children;
 		StackEntry->GetFilteredChildren(Children);
 		return Children.Num() > 0

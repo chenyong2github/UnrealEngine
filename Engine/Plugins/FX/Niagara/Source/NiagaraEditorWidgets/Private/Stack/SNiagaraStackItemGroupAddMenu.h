@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Styling/SlateTypes.h"
+#include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "Widgets/SItemSelector.h"
 #include "Widgets/SNiagaraFilterBox.h"
 
@@ -20,7 +21,7 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraStackItemGroupAddMenu) { }
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex);
+	void Construct(const FArguments& InArgs, TWeakObjectPtr<UNiagaraStackItemGroup> InItemGroup, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex);
 
 	TSharedPtr<SWidget> GetFilterTextBox();
 
@@ -31,7 +32,7 @@ private:
 
 private:
 	INiagaraStackItemGroupAddUtilities* AddUtilities;
-
+	TWeakObjectPtr<UNiagaraStackItemGroup> StackItemGroup;
 	int32 InsertIndex;
 
 	TSharedPtr<SNiagaraStackAddSelector> ActionSelector;

@@ -89,6 +89,7 @@ public:
 	TArray<UNiagaraStackEntry*>& GetRootEntryAsArray();
 
 	FOnExpansionChanged& OnExpansionChanged();
+	FOnExpansionChanged& OnExpansionInOverviewChanged();
 	FOnStructureChanged& OnStructureChanged();
 	FOnSearchCompleted& OnSearchCompleted();
 	FOnDataObjectChanged& OnDataObjectChanged();
@@ -154,6 +155,7 @@ private:
 	};
 
 	void EntryExpansionChanged();
+	void EntryExpansionInOverviewChanged();
 	void EntryStructureChanged(ENiagaraStructureChangedFlags Flags);
 	void EntryDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 	void EntryRequestFullRefresh();
@@ -184,6 +186,7 @@ private:
 	bool bExternalRootEntry;
 
 	FOnExpansionChanged ExpansionChangedDelegate;
+	FOnExpansionChanged ExpansionInOverviewChangedDelegate;
 	FOnStructureChanged StructureChangedDelegate;
 	FOnDataObjectChanged DataObjectChangedDelegate;
 
