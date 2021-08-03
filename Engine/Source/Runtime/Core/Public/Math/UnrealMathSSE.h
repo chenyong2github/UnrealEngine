@@ -2039,7 +2039,7 @@ FORCEINLINE VectorRegister4Double VectorSet_W0(const VectorRegister4Double& Vec)
 	VectorRegister4Double Result;
 #if !UE_PLATFORM_MATH_USE_AVX
 	Result.XY = Vec.XY;
-	Result.ZW = _mm_castsi128_pd(_mm_move_epi64(_mm_castpd_si128(Vec.ZW)));
+	Result.ZW = _mm_move_sd(_mm_setzero_pd(), Vec.ZW);
 #else
 	Result = _mm256_blend_pd(Vec, VectorZeroDouble(), 0b1000);
 #endif
