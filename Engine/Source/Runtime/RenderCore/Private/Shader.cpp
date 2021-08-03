@@ -1560,11 +1560,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			KeyString += IsMobileDistanceFieldEnabled(Platform) ? TEXT("_MobSDF") : TEXT("");
 		}
-
-		{
-			static IConsoleVariable* MobileEnableHighQualityBRDFCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableHighQualityBRDF"));
-			KeyString += (MobileEnableHighQualityBRDFCVar && MobileEnableHighQualityBRDFCVar->GetInt() != 0) ? TEXT("_HQBRDF") : TEXT("");
-		}
 	}
 	else
 	{

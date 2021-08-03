@@ -2877,12 +2877,3 @@ static TAutoConsoleVariable<int32> CVarMobileSupportsGen4TAA(
 	TEXT("0: Fallback to FXAA")
 	TEXT("1: Support Desktop Gen4 TAA (default)"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarMobileEnableHighQualityBRDF(
-	TEXT("r.Mobile.EnableHighQualityBRDF"),
-	0,
-	TEXT("Use the high quality brdf functions on mobile to get better visual effects but adds GPU cost.\n")
-	TEXT("0: Disabled (More approximations but better performance. [default])\n")
-	TEXT("1: Enabled (More accurate but increases cost on GPU.)\n"),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe
-);

@@ -784,6 +784,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Mobile)
 	uint8 bUseLightmapDirectionality : 1;
 
+	/* Use the high quality brdf functions on mobile to get better visual effects but adds GPU cost. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Mobile, meta = (DisplayName = "Mobile High Quality BRDF"))
+	uint8 bMobileEnableHighQualityBRDF : 1;
+
 	/* Use alpha to coverage for masked material on mobile, make sure MSAA is enabled as well. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Mobile, AdvancedDisplay, meta = (EditCondition = "BlendMode != EBlendMode::BLEND_Opaque"))
 	uint8 bUseAlphaToCoverage : 1;
