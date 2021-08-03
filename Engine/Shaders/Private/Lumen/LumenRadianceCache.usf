@@ -440,7 +440,7 @@ void ScatterScreenProbeBRDFToRadianceProbesCS(
 bool ShouldRefineTraceTile(uint2 TraceTileCoord, uint TraceTileResolution, float LevelPDFThreshold, FThreeBandSHVector BRDF)
 {
 	float2 ProbeUV = (TraceTileCoord + float2(.5f, .5f)) / float(TraceTileResolution);
-	float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
+	float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 	FThreeBandSHVector DirectionSH = SHBasisFunction3(WorldConeDirection);
 	float PDF = max(DotSH3(BRDF, DirectionSH), 0);
 
@@ -675,7 +675,7 @@ void GenerateProbeTraceTilesCS(
 		{
 			float2 ProbeTexelCenter = float2(0.5, 0.5);
 			float2 ProbeUV = (TexelCoord + ProbeTexelCenter) / (float)DebugProbeBRDFOctahedronResolution;
-			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
 			FThreeBandSHVector DirectionSH = SHBasisFunction3(WorldConeDirection);
 			float PDF = max(DotSH3(BRDF, DirectionSH), 0) * .001f;
@@ -858,7 +858,7 @@ void TraceFromProbesCS(
 		{
 			float2 ProbeTexelCenter = float2(0.5, 0.5);
 			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(TraceResolution);
-			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
 			float FinalMinTraceDistance = max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex));
 			float FinalMaxTraceDistance = MaxTraceDistance;
@@ -1034,12 +1034,12 @@ void FilterProbeRadianceWithGatherCS(
 
 				float2 ProbeTexelCenter = float2(0.5, 0.5);
 				float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)RadianceProbeResolution;
-				float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
+				float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
 				float3 NeighborWorldPosition = GetProbeWorldPosition(NeighborCoord, ClipmapIndex, NeighborProbeIndex);
 				float3 NeighborHitPosition = NeighborWorldPosition + WorldConeDirection * NeighborRadianceDepth;
 				float3 ToNeighborHit = NeighborHitPosition - ProbeWorldCenter;
-				uint2 ProbeTexelCoordForNeighborHit = UnitVectorToOctahedron(ToNeighborHit) * RadianceProbeResolution;
+				uint2 ProbeTexelCoordForNeighborHit = ( UnitVectorToOctahedron(ToNeighborHit) * 0.5 + 0.5 ) * RadianceProbeResolution;
 				float ProbeDepthForNeighborHit = DepthProbeAtlasTexture[ProbeTexelCoordForNeighborHit + ProbeAtlasBaseCoord];
 				float VoxelRadius = sqrt(3.0f) / WorldPositionToRadianceProbeCoordScale[ClipmapIndex];
 
@@ -1106,7 +1106,7 @@ void FilterProbeRadianceWithGatherCS(
 
 		float2 ProbeTexelCenter = float2(0.5, 0.5);
 		float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)RadianceProbeResolution;
-		float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
+		float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
 		int3 ProbeCoord = ProbeWorldCenter * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
 
@@ -1141,7 +1141,7 @@ void FilterProbeRadianceWithGatherCS(
 						float OcclusionDistance = max(GetRadianceProbeTMin(ClipmapIndex), VoxelRadius);
 						float3 NeighborOcclusionTestPosition = NeighborWorldPosition + 2 * OcclusionDistance * WorldConeDirection;
 						float3 ToNeighborOcclusionPosition = NeighborOcclusionTestPosition - ProbeWorldCenter;
-						uint2 ProbeTexelCoordForNeighborOcclusionPosition = UnitVectorToOctahedron(ToNeighborOcclusionPosition) * RadianceProbeResolution;
+						uint2 ProbeTexelCoordForNeighborOcclusionPosition = ( UnitVectorToOctahedron(ToNeighborOcclusionPosition) * 0.5 + 0.5 ) * RadianceProbeResolution;
 						float ProbeDepthForNeighborOcclusionPosition = DepthProbeAtlasTexture[ProbeTexelCoordForNeighborOcclusionPosition + ProbeAtlasBaseCoord];
 
 						if (ProbeDepthForNeighborOcclusionPosition * ProbeDepthForNeighborOcclusionPosition < dot(ToNeighborOcclusionPosition, ToNeighborOcclusionPosition))
@@ -1233,7 +1233,7 @@ void CalculateProbeIrradianceCS(
 		{
 			uint2 IrradianceProbeTexelCoord = OctahedralMapWrapBorder(uint2(DestX, DestY), OutputIrradianceProbeResolution, IrradianceBorderSize);
 			float2 IrradianceProbeUV = (IrradianceProbeTexelCoord + float2(0.5f, 0.5f)) / (float)IrradianceProbeResolution;
-			float3 IrradianceDirection = OctahedronToUnitVector(IrradianceProbeUV);
+			float3 IrradianceDirection = OctahedronToUnitVector(IrradianceProbeUV * 2.0 - 1.0);
 			float3 Irradiance = 0;
 			float TotalWeight = 0;
 
@@ -1244,7 +1244,7 @@ void CalculateProbeIrradianceCS(
 				for (uint X = 0; X < SourceProbeResolution; X++)
 				{
 					float2 RadianceProbeUV = (float2(X, Y) + float2(0.5, 0.5)) / (float)SourceProbeResolution;
-					float3 RadianceDirection = OctahedronToUnitVector(RadianceProbeUV);
+					float3 RadianceDirection = OctahedronToUnitVector(RadianceProbeUV * 2.0 - 1.0);
 
 					float NdotL = dot(IrradianceDirection, RadianceDirection);
 

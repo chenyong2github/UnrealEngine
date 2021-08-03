@@ -52,7 +52,7 @@ RWStructuredBuffer<FSortedReflectionRay> RayBuffer;
 
 uint RayDirectionToBin(float3 Direction, uint2 NumBins)
 {
-	float2 OctDirection = UnitVectorToOctahedron(Direction);
+	float2 OctDirection = UnitVectorToOctahedron(Direction) * 0.5 + 0.5;
 	uint2 Bin2D = min((uint2)floor(OctDirection * NumBins), NumBins-1);
 	return MortonEncode(Bin2D);
 }

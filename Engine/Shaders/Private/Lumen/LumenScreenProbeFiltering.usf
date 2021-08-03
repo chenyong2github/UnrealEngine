@@ -367,7 +367,7 @@ void ScreenProbeFilterGatherTracesCS(
 
 			float2 ProbeTexelCenter = float2(0.5, 0.5);
 			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)ScreenProbeGatherOctahedronResolution;
-			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 			float HitDistance = DecodeProbeHitDistanceForFiltering(ScreenProbeHitDistance.Load(int3(DispatchThreadId.xy, 0)).x);
 			float3 TotalRadiance = 0;
 			float TotalWeight = 0;
@@ -453,7 +453,7 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 			{
 				float2 ProbeTexelCenter = float2(0.5, 0.5);
 				float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)ScreenProbeGatherOctahedronResolution;
-				float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV);
+				float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
 				float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeGatherOctahedronResolution);
 				uint2 ReadIndex = ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
