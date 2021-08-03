@@ -566,8 +566,8 @@ void FSubUVDerivedData::Build(UTexture2D* SubUVTexture, int32 SubImages_Horizont
 
 					for (int32 Y = 0; Y < SubImageSizeY; Y++)
 					{
-						int32 GlobalY = FMath::RoundToInt(SubImageY * SubImageSizeYFloat) + Y;
-						int32 NextGlobalY = FMath::RoundToInt(NextSubImageY * SubImageSizeYFloat) + Y;
+						int32 GlobalY = FMath::RoundToInt((float)SubImageY * SubImageSizeYFloat) + Y;
+						int32 NextGlobalY = FMath::RoundToInt((float)NextSubImageY * SubImageSizeYFloat) + Y;
 
 						for (int32 X = 0; X < SubImageSizeX; X++)
 						{

@@ -1086,7 +1086,7 @@ FNavMeshSceneProxy::FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, F
 
 		FMeshBatchElement Element;
 		Element.FirstIndex = IndexBuffer.Indices.Num();
-		Element.NumPrimitives = FMath::FloorToInt(CurrentMeshBuilder.Indices.Num() / 3);
+		Element.NumPrimitives = FMath::FloorToInt((float)CurrentMeshBuilder.Indices.Num() / 3);
 		Element.MinVertexIndex = Vertices.Num();
 		Element.MaxVertexIndex = Element.MinVertexIndex + CurrentMeshBuilder.Vertices.Num() - 1;
 		Element.IndexBuffer = &IndexBuffer;

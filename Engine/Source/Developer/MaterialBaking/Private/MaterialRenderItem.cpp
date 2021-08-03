@@ -136,7 +136,7 @@ void FMeshMaterialRenderItem::QueueMaterial(FCanvasRenderContext& RenderContext,
 	MeshElement.bWireframe = true;
 #endif
 
-	const int32 NumTris = FMath::TruncToInt(Indices.Num() / 3);
+	const int32 NumTris = FMath::TruncToInt((float)Indices.Num() / 3);
 	if (NumTris == 0)
 	{
 		// there's nothing to do here

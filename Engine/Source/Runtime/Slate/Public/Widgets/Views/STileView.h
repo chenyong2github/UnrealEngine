@@ -451,7 +451,7 @@ protected:
 				// Only scroll the item into view if it's not already in the visible range
 				const int32 NumItemsPerLine = GetNumItemsPerLine();
 				const double ScrollLineOffset = this->GetTargetScrollOffset() / NumItemsPerLine;
-				const int32 LineOfItem = FMath::FloorToInt(IndexOfItem / NumItemsPerLine);
+				const int32 LineOfItem = FMath::FloorToInt((float)IndexOfItem / (float)NumItemsPerLine);
 				const int32 NumFullLinesInView = FMath::FloorToInt(ScrollLineOffset + NumLinesInView) - FMath::CeilToInt(ScrollLineOffset);
 				
 				const double MinDisplayedLine = this->bNavigateOnScrollIntoView ? FMath::FloorToDouble(ScrollLineOffset) : FMath::CeilToDouble(ScrollLineOffset);

@@ -217,7 +217,7 @@ void FVisualLoggerCanvasRenderer::DrawHistogramGraphs(class UCanvas* Canvas, cla
 		const FColor GraphsBackgroundColor = ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->GraphsBackgroundColor;
 		const int NumberOfGraphs = CollectedGraphs.Num();
 		const int32 NumberOfColumns = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(NumberOfGraphs)));
-		int32 NumberOfRows = FMath::FloorToInt(NumberOfGraphs / NumberOfColumns);
+		int32 NumberOfRows = FMath::FloorToInt((float)NumberOfGraphs / (float)NumberOfColumns);
 		if (NumberOfGraphs - NumberOfRows * NumberOfColumns > 0)
 		{
 			NumberOfRows += 1;

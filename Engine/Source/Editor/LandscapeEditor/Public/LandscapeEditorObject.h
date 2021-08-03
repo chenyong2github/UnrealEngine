@@ -708,7 +708,7 @@ public:
 	int32 ClampLandscapeSize(int32 InComponentsCount) const
 	{
 		// Max size is either whole components below 8192 verts, or 32 components
-		return FMath::Clamp(InComponentsCount, 1, FMath::Min(32, FMath::FloorToInt(8191 / (NewLandscape_SectionsPerComponent * NewLandscape_QuadsPerSection))));
+		return FMath::Clamp(InComponentsCount, 1, FMath::Min(32, FMath::FloorToInt(8191.0f / (float)(NewLandscape_SectionsPerComponent * NewLandscape_QuadsPerSection))));
 	}
 	
 	int32 CalcComponentsCount(int32 InResolution) const

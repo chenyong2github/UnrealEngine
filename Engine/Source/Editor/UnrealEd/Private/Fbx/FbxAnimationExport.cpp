@@ -739,7 +739,7 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 		if( NextUpdateTime <= 0.0f )
 		{
 			NextUpdateTime = UpdateFrequency;
-			GWarn->StatusUpdate( FMath::RoundToInt( SampleTime ), FMath::RoundToInt(AnimationLength), NSLOCTEXT("FbxExporter", "ExportingToFbxStatus", "Exporting to FBX") );
+			GWarn->StatusUpdate( FMath::RoundToInt( SampleTime ), AnimationLength, NSLOCTEXT("FbxExporter", "ExportingToFbxStatus", "Exporting to FBX") );
 		}
 
 		TArray<FTransform> LocalBoneTransforms = InSkeletalMeshComponent->GetBoneSpaceTransforms();
