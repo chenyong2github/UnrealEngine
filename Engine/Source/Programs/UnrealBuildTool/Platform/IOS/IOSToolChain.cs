@@ -491,7 +491,7 @@ namespace UnrealBuildTool
 				FileItem OutputFile = FileItem.GetItemByFileReference(LinkEnvironment.OutputFilePath);
 
 				Result += " -fembed-bitcode -Xlinker -bitcode_verify -Xlinker -bitcode_hide_symbols -Xlinker -bitcode_symbol_map ";
-				Result += " -Xlinker \"" + Path.GetDirectoryName(OutputFile.AbsolutePath) + "\"";
+				Result += " -Xlinker \\\"" + Path.GetDirectoryName(OutputFile.AbsolutePath) + "\\\"";
 			}
 
 			Result += " -dead_strip";
