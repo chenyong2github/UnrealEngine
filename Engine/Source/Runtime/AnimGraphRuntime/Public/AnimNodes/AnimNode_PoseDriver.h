@@ -164,6 +164,16 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	FBoneReference EvalSpaceBone;
 
+	/**
+	 *	Evaluate SourceBone transform relative from its Reference Pose.
+	 *  This is recommended when using Swing and Twist Angle as Distance Method, since the twist will be computed from RefPose.
+	 * 
+	 *	If not specified, we just use local space of SourceBone (ie relative to parent bone)
+	 *  This mode won't work in conjunction with EvalSpaceBone;
+	 */
+	UPROPERTY(EditAnywhere, Category = PoseDriver)
+	bool bEvalFromRefPose = false;
+
 	/** Parameters used by RBF solver */
 	UPROPERTY(EditAnywhere, Category = PoseDriver, meta=(ShowOnlyInnerProperties))
 	FRBFParams RBFParams;
@@ -242,4 +252,5 @@ private:
 	TSharedPtr<const FRBFSolverData> SolverData;
 	FRBFEntry RBFInput;
 	TArray<FRBFTarget> RBFTargets;
+	TArray<FTransform> RefPoseCompact;
 };
