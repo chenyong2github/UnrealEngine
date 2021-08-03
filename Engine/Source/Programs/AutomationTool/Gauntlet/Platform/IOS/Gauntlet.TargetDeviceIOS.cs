@@ -748,7 +748,7 @@ namespace Gauntlet
 		void KillZombies()
 		{
 
-			if (Globals.IsWorker || ZombiesKilled)
+			if (ZombiesKilled)
 			{
 				return;
 			}
@@ -766,7 +766,7 @@ namespace Gauntlet
 		{
 			get
 			{	
-				return Path.Combine(Globals.TempDir, string.Format("IOSAppCache{0}", Globals.WorkerID == -1 ? "" : Globals.WorkerID.ToString()));
+				return Path.Combine(Globals.TempDir, "IOSAppCache");
 			}
 		}
 

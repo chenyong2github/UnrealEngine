@@ -625,7 +625,7 @@ namespace Gauntlet
 			{
 				DeviceReservationAutoRenew DeviceReservation = null;
 
-				string PoolID = Globals.WorkerPoolID != -1 ? Globals.WorkerPoolID.ToString() : "";
+				string PoolID = Globals.DevicePoolId;
 
 				try
 				{
@@ -1041,12 +1041,6 @@ namespace Gauntlet
 			{
 				UnrealTargetPlatform.PS4, UnrealTargetPlatform.Switch
 			};
-
-			// support Android over wifi, though not on workers
-			if (!Globals.IsWorker)
-			{
-				ServicePlatforms.Add(UnrealTargetPlatform.Android);
-			}
 
 			var Devices = TooFewTotalDevices.Concat(TooFewCurrentDevices);
 			var UnsupportedPlatforms = Devices.Where(D => !ServicePlatforms.Contains(D.Platform.Value) && (!D.Platform.Value.ToString().StartsWith("XboxOne")) && (D.Platform.Value.ToString() != "XSX") && (D.Platform.Value.ToString() != "PS5"));

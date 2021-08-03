@@ -1022,12 +1022,6 @@ namespace Gauntlet
 				Message = string.Format("See Gauntlet.log for details");
 			}
 
-			if (Globals.IsWorker)
-			{
-				// log for worker to parse context
-				Log.Info("GauntletWorker:CreateReportFailure:{0}", Context.WorkerJobID);
-			}
-
 			Log.Warning("CreateReport Failed: {0}", Message);
 		}
 
