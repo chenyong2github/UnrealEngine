@@ -20,8 +20,8 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	{
 		if (StaticMesh->bAllowCPUAccess == false)
 		{
-			UE_LOG(LogDisplayClusterRender, Error, TEXT("Required raised flag AllowCPUAccess for static mesh '%s'"), *StaticMesh->GetName());
-#ifndef WITH_EDITOR
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("If packaging this project, static mesh '%s' requires its AllowCPUAccess flag to be enabled."), *StaticMesh->GetName());
+#if !WITH_EDITOR
 			// Can't access to cooked data from CPU without this flag
 			return;
 #endif
