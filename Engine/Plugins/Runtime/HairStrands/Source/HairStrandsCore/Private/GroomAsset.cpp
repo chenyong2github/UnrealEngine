@@ -1326,6 +1326,7 @@ static bool IsStrandsInterpolationAttributes(const FName PropertyName)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDecimationSettings, VertexDecimation)
 
 		// Add dependency on simulation and per LOD-simulation/global-interoplation to strip-out interoplation data if there are not needed
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableGlobalInterpolation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairSolverSettings, EnableSimulation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, Simulation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, GlobalInterpolation)
@@ -3166,11 +3167,40 @@ bool UGroomAsset::IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex) 
 		(HairGroupsLOD[GroupIndex].LODs[LODIndex].GlobalInterpolation == EGroomOverrideType::Auto && EnableGlobalInterpolation);
 }
 
+bool UGroomAsset::IsSimulationEnable() const
+{
+	for (int32 GroupIndex = 0; GroupIndex < HairGroupsData.Num(); ++GroupIndex)
+	{
+		for (int32 LODIt = 0; LODIt < HairGroupsLOD.Num(); ++LODIt)
+		{
+			if (IsSimulationEnable(GroupIndex, LODIt))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool UGroomAsset::NeedsInterpolationData(int32 GroupIndex) const
 {
 	for (int32 LODIt = 0; LODIt < HairGroupsLOD.Num(); ++LODIt)
 	{
 		if (IsSimulationEnable(GroupIndex, LODIt) || IsGlobalInterpolationEnable(GroupIndex, LODIt))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UGroomAsset::NeedsInterpolationData() const
+{
+	for (int32 GroupIndex = 0; GroupIndex < HairGroupsData.Num(); ++GroupIndex)
+	{
+		if (NeedsInterpolationData(GroupIndex))
 		{
 			return true;
 		}
