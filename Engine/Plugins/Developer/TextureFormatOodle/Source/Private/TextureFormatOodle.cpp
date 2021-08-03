@@ -326,8 +326,10 @@ public:
 		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Subdir / Filename;
 
 		//UE_LOG(LogTextureFormatOodle, Display, TEXT("DumpImage : %s"), *Filename );
+		
+		int32 Quality = ( ImageFormat == EImageFormat::EXR ) ? (int32)EImageCompressionQuality::Uncompressed : (int32)EImageCompressionQuality::Default;
 
-		const TArray64<uint8>& CompressedImage = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Uncompressed);
+		const TArray64<uint8>& CompressedImage = ImageWrapper->GetCompressed(Quality);
 		return FFileHelper::SaveArrayToFile(CompressedImage, *Path);
 	}
 
