@@ -975,10 +975,18 @@ TFuture<FSharedBuffer> FVirtualizedUntypedBulkData::GetPayload() const
 {
 	TPromise<FSharedBuffer> Promise;
 
-	FSharedBuffer UncompressedPayload = GetDataInternal().Decompress();
+	if (Payload)
+	{
+		// Avoid a unnecessary compression and decompression if we already have the uncompressed payload
+		Promise.SetValue(Payload);
+	}
+	else
+	{
+		FSharedBuffer UncompressedPayload = GetDataInternal().Decompress();
 
-	// TODO: Not actually async yet!
-	Promise.SetValue(MoveTemp(UncompressedPayload));
+		// TODO: Not actually async yet!
+		Promise.SetValue(MoveTemp(UncompressedPayload));
+	}
 
 	return Promise.GetFuture();
 }
