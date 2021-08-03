@@ -1368,8 +1368,17 @@ uint8* FTextureSource::LockMipInternal(int32 BlockIndex, int32 LayerIndex, int32
 			LockedMipData = Decompress(nullptr);
 		}
 
-		MipData = LockedMipData.GetDataReadWrite() + CalcMipOffset(BlockIndex, LayerIndex, MipIndex);
+		if (RequestedLockState == ELockState::ReadOnly)
+		{
+			MipData = const_cast<uint8*>(static_cast<const uint8*>(LockedMipData.GetDataReadOnly().GetData()));
+		}
+		else
+		{
+			MipData = LockedMipData.GetDataReadWrite();
+		}
 		
+		MipData += CalcMipOffset(BlockIndex, LayerIndex, MipIndex);
+
 		if (NumLockedMips == 0)
 		{
 			LockState = RequestedLockState;
@@ -1409,13 +1418,12 @@ void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 
 			bPNGCompressed = false;
 			CompressionFormat = TSCF_None;
+
+			ForceGenerateGuid();
 		}
 
 		LockState = ELockState::None;
 		LockedMipData.Reset();
-
-		// TODO: Only call this if the LockState was ELockState::ReadWrite (this would need testing)
-		ForceGenerateGuid();
 	}
 }
 
