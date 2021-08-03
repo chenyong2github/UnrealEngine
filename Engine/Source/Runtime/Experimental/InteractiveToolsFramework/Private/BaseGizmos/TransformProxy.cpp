@@ -192,6 +192,7 @@ void FTransformProxyChange::Apply(UObject* Object)
 	bool bSavedSetPivotMode = Proxy->bSetPivotMode;
 	Proxy->bSetPivotMode = bSetPivotMode;
 	Proxy->SetTransform(To);
+	Proxy->OnTransformChangedUndoRedo.Broadcast(Proxy, To);
 	Proxy->bSetPivotMode = bSavedSetPivotMode;
 }
 
@@ -202,6 +203,7 @@ void FTransformProxyChange::Revert(UObject* Object)
 	bool bSavedSetPivotMode = Proxy->bSetPivotMode;
 	Proxy->bSetPivotMode = bSetPivotMode;
 	Proxy->SetTransform(From);
+	Proxy->OnTransformChangedUndoRedo.Broadcast(Proxy, From);
 	Proxy->bSetPivotMode = bSavedSetPivotMode;
 }
 
