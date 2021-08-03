@@ -62,7 +62,7 @@ public:
 	void OnSetLODModel(int32 InLODSelection);
 
 	void OnViewMode(EHairStrandsDebugMode Mode);
-	bool CanViewMode() const;
+	bool CanViewMode(bool bGuideMode) const;
 
 	void OnCardsGuides();
 	bool CanCardsGuides() const;
