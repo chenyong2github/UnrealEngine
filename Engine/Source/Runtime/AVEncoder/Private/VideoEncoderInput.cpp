@@ -105,14 +105,12 @@ TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForD3D12(void* InApplic
 TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight, bool bIsResizable)
 {
 	TSharedPtr<FVideoEncoderInputImpl> Input = MakeShared<FVideoEncoderInputImpl>();
-#if WITH_CUDA
 	Input->bIsResizable = bIsResizable;
 		
 	if (!Input->SetupForCUDA(reinterpret_cast<CUcontext>(InApplicationContext), InWidth, InHeight))
 	{
 		Input.Reset();
 	}
-#endif
 	return Input;
 }
 
@@ -407,8 +405,6 @@ bool FVideoEncoderInputImpl::SetupForD3D12Shared(void* InApplicationD3DDevice, u
 
 bool FVideoEncoderInputImpl::SetupForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight)
 {
-#if WITH_CUDA
-
 	FrameInfoCUDA.EncoderContextCUDA = static_cast<CUcontext>(InApplicationContext);
 
 	FrameFormat = EVideoFrameFormat::CUDA_R8G8B8A8_UNORM;
@@ -417,10 +413,6 @@ bool FVideoEncoderInputImpl::SetupForCUDA(void* InApplicationContext, uint32 InW
 
 	CollectAvailableEncoders();
 	return true;
-
-#endif
-
-	return false;
 }
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
@@ -689,13 +681,11 @@ void FVideoEncoderInputImpl::SetupFrameVulkan(FVideoEncoderInputFrameImpl* Frame
 
 void FVideoEncoderInputImpl::SetupFrameCUDA(FVideoEncoderInputFrameImpl* Frame)
 {
-#if WITH_CUDA
 	Frame->SetFormat(FrameFormat);
 	Frame->SetWidth(this->Width);
 	Frame->SetHeight(this->Height);
 	FVideoEncoderInputFrame::FCUDA& Data = Frame->GetCUDA();
 	Data.EncoderDevice = FrameInfoCUDA.EncoderContextCUDA;
-#endif
 }
 
 // ---
@@ -712,14 +702,10 @@ TRefCountPtr<ID3D12Device> FVideoEncoderInputImpl::GetD3D12EncoderDevice() const
 }
 #endif
 
-#if WITH_CUDA
-
 CUcontext FVideoEncoderInputImpl::GetCUDAEncoderContext() const
 {
 	return FrameInfoCUDA.EncoderContextCUDA;
 }
-
-#endif
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 void* FVideoEncoderInputImpl::GetVulkanEncoderDevice() const
@@ -768,10 +754,8 @@ FVideoEncoderInputFrame::FVideoEncoderInputFrame(const FVideoEncoderInputFrame& 
 	}
 #endif
 
-#if WITH_CUDA
 	CUDA.EncoderDevice = CloneFrom.CUDA.EncoderDevice;
 	CUDA.EncoderTexture = CloneFrom.CUDA.EncoderTexture;
-#endif
 }
 
 FVideoEncoderInputFrame::~FVideoEncoderInputFrame()
@@ -826,13 +810,11 @@ FVideoEncoderInputFrame::~FVideoEncoderInputFrame()
 	}
 #endif 
 
-#if WITH_CUDA
 	if (CUDA.EncoderTexture)
 	{
 		OnReleaseCUDATexture(CUDA.EncoderTexture);
 		CUDA.EncoderTexture = nullptr;
 	}
-#endif
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	if (Vulkan.EncoderTexture != VK_NULL_HANDLE)
@@ -977,8 +959,6 @@ void FVideoEncoderInputFrame::SetTexture(ID3D12Resource* InTexture, FReleaseD3D1
 }
 #endif
 
-#if WITH_CUDA
-
 void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, FReleaseCUDATextureCallback InOnReleaseTexture)
 {
 	if (Format == EVideoFrameFormat::CUDA_R8G8B8A8_UNORM)
@@ -991,8 +971,6 @@ void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, FReleaseCUDATextureC
 		}
 	}
 }
-
-#endif
 
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE

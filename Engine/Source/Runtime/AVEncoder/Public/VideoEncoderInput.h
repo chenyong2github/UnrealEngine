@@ -5,10 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/RefCounting.h"
 #include "VideoCommon.h"
-
-#if WITH_CUDA
 #include "CudaModule.h"
-#endif
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 #include "vulkan/vulkan_core.h"
@@ -102,9 +99,7 @@ namespace AVEncoder
 		virtual TRefCountPtr<ID3D12Device> GetD3D12EncoderDevice() const = 0;
 	#endif
 
-	#if WITH_CUDA
 		virtual CUcontext GetCUDAEncoderContext() const = 0;
-	#endif
 
 	#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		virtual void* GetVulkanEncoderDevice() const = 0;
@@ -220,13 +215,11 @@ namespace AVEncoder
 
 #endif // PLATFORM_WINDOWS
 
-#if WITH_CUDA
-
 		// --- CUDA
 		struct FCUDA
 		{
-			CUarray		EncoderTexture;
-			CUcontext   EncoderDevice;
+			CUarray		EncoderTexture = nullptr;
+			CUcontext   EncoderDevice = nullptr;
 		};
 
 		const FCUDA& GetCUDA() const { return CUDA; }
@@ -236,8 +229,6 @@ namespace AVEncoder
 		using FReleaseCUDATextureCallback = TFunction<void(CUarray)>;
 
 		void SetTexture(CUarray InTexture, FReleaseCUDATextureCallback InOnReleaseTexture);
-
-#endif // WITH_CUDA
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		// --- Vulkan
@@ -284,10 +275,8 @@ namespace AVEncoder
 		FReleaseD3D12TextureCallback			OnReleaseD3D12Texture;
 #endif
 
-#if WITH_CUDA
 		FCUDA									CUDA;
 		FReleaseCUDATextureCallback				OnReleaseCUDATexture;
-#endif
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		FVulkan									Vulkan;

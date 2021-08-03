@@ -10,69 +10,34 @@ public class CUDA : ModuleRules
 {
 	public CUDA(ReadOnlyTargetRules Target) : base(Target)
 	{
-		// This module is pending TPS approval so for now we make it do nothing.
-		PrivateDependencyModuleNames.AddRange(new string[] {"Core"});
-		PublicDefinitions.Add("WITH_CUDA=0");
-		return;
-
-		// // Early exit on Windows and set WITH_CUDA to 0 so it CUDA module source does nothing.
-		// // Todo: Add CUDA support for Windows. 
-		// // Note: Turning this on will change some code paths in Windows Pixel Streaming and require some fixes.
-		// if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
-		// {
-		// 	PrivateDependencyModuleNames.AddRange(new string[] {"Core"});
-		// 	PublicDefinitions.Add("WITH_CUDA=0");
-		// 	return;
-		// }
-
-		// var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-
-		// PrivateDependencyModuleNames.AddRange(new string[] {
-		// 	"Core",
-		// 	"RenderCore",
-		// 	"RHI",
-		// 	"Engine",
-		// 	"VulkanRHI"
-		// });
-
-		// PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));
-		// PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			"Core",
+			"RenderCore",
+			"RHI",
+			"Engine",
+		});
 		
-		// AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+		PublicDependencyModuleNames.Add("CUDAHeader");
 
-		// // TODO (M84FIX) this could probably be done better	
-		// bool bCudaDirExists = (Environment.GetEnvironmentVariable("CUDA_PATH") != null) || Directory.Exists("/usr/local/cuda");
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{		
+			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
-		// if(bCudaDirExists)
-		// {
-		// 	//if(Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
-		// 	//{
-		// 		// TODO (M84FIX) this could probably be done better
-		// 		// string CudaPath = Environment.GetEnvironmentVariable("CUDA_PATH");
-		// 		// string ArchPath = (Target.Platform == UnrealTargetPlatform.Win64) ? "x64" : "Win32";
-		// 		// PublicIncludePaths.Add(Path.Combine(CudaPath, "include"));
-		// 		// PublicSystemLibraryPaths.Add(Path.Combine(CudaPath, "lib", ArchPath));
-		// 		// PublicSystemLibraries.Add("cuda.lib");
-		// 	//}
-		// 	//else 
-		// 	if (Target.Platform == UnrealTargetPlatform.Linux)
-		// 	{      
-		// 		PublicIncludePaths.Add("/usr/local/cuda/include");
-		// 		PublicSystemLibraryPaths.Add("/lib/x86_64-linux-gnu");
-		// 		PublicSystemLibraries.Add("cuda");
-				
-		// 		PublicDefinitions.Add("WITH_CUDA=1");
-		// 	}
-		// }
-		// else
-		// {
-		// 	if (Target.Platform == UnrealTargetPlatform.Linux)
-		// 	{
-		// 		Log.TraceError("NVIDIA CUDA Toolkit not detected, building with CUDA failed!");
-		// 		throw new FileNotFoundException("NVIDIA CUDA Toolkit not detected, please install the NVIDIA CUDA Toolkit.");
-		// 	}
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			
+			PrivateIncludePathModuleNames.Add("VulkanRHI");
+			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));	
 
-		// 	PublicDefinitions.Add("WITH_CUDA=0");
-		// }
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+			{
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));	
+			} 
+			else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+			{
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));	
+			}
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+		}
 	}
 }

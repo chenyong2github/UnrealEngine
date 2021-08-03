@@ -27,25 +27,24 @@ FVideoCapturer::FVideoCapturer()
 {
 	CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
 
-	if (GDynamicRHI)
+	if(GDynamicRHI)
 	{
 		FString RHIName = GDynamicRHI->GetName();
 
 		bool bIsRHISupported = false;
 
-		if (RHIName == TEXT("Vulkan"))
+		if(RHIName == TEXT("Vulkan"))
 		{
 			if(IsRHIDeviceAMD())
 			{
-				FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);		
-				AVEncoder::FVulkanDataStruct VulkanData = { DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle() };
+				FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
+				AVEncoder::FVulkanDataStruct VulkanData = {DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle()};
 
 				VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForVulkan(&VulkanData, Width, Height, true);
 				bIsRHISupported = true;
 			}
-			else if (IsRHIDeviceNVIDIA())
+			else if(IsRHIDeviceNVIDIA())
 			{
-#if WITH_CUDA
 				if(FModuleManager::Get().IsModuleLoaded("CUDA"))
 				{
 					VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), Width, Height, true);
@@ -55,16 +54,15 @@ FVideoCapturer::FVideoCapturer()
 				{
 					UE_LOG(PixelStreamer, Error, TEXT("CUDA module is not loaded!"));
 				}
-#endif
 			}
 		}
 #if PLATFORM_WINDOWS
-		else if (RHIName == TEXT("D3D11"))
-		{	
+		else if(RHIName == TEXT("D3D11"))
+		{
 			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true, IsRHIDeviceAMD());
 			bIsRHISupported = true;
 		}
-		else if (RHIName == TEXT("D3D12"))
+		else if(RHIName == TEXT("D3D12"))
 		{
 			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true, IsRHIDeviceNVIDIA());
 			bIsRHISupported = true;
@@ -82,16 +80,17 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 {
 	const int64 TimestampUs = rtc::TimeMicros();
 
-	if (!AdaptCaptureFrame(TimestampUs, FrameBuffer->GetSizeXY()))
+	if(!AdaptCaptureFrame(TimestampUs, FrameBuffer->GetSizeXY()))
 	{
 		return;
 	}
 
-	if (CurrentState != webrtc::MediaSourceInterface::SourceState::kLive)
+	if(CurrentState != webrtc::MediaSourceInterface::SourceState::kLive)
 		CurrentState = webrtc::MediaSourceInterface::SourceState::kLive;
 
 	AVEncoder::FVideoEncoderInputFrame* InputFrame = ObtainInputFrame();
-	if(InputFrame == nullptr) return;
+	if(InputFrame == nullptr)
+		return;
 
 	const int32 FrameId = InputFrame->GetFrameID();
 	InputFrame->SetTimestampUs(TimestampUs);
@@ -113,8 +112,8 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 		// FTexture2DRHIRef& DestinationTexture = BackBuffers[InputFrame];
 		// FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
 		// RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
-        // DrawClearQuad(RHICmdList, FLinearColor::Red);
-        // RHICmdList.EndRenderPass();
+		// DrawClearQuad(RHICmdList, FLinearColor::Red);
+		// RHICmdList.EndRenderPass();
 		// We don't do the red frame latency test anymore, but if we want to enable it in future we can uncomment above ^^
 		FLatencyTester::RecordPostCaptureTime(FrameId);
 	}
@@ -124,12 +123,7 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 	// pass to webrtc which will pass it to the correct encoder
 	// TODO couldnt we pass directly to PixelStreamingVideoEncoder here and have it output to the webrtc broadcaster or something?
 	rtc::scoped_refptr<FPixelStreamingFrameBuffer> Buffer = new rtc::RefCountedObject<FPixelStreamingFrameBuffer>(BackBuffers[InputFrame], InputFrame, VideoEncoderInput);
-	webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder().
-		set_video_frame_buffer(Buffer).
-		set_timestamp_us(TimestampUs).
-		set_rotation(webrtc::VideoRotation::kVideoRotation_0).
-		set_id(FrameId).
-		build();
+	webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder().set_video_frame_buffer(Buffer).set_timestamp_us(TimestampUs).set_rotation(webrtc::VideoRotation::kVideoRotation_0).set_id(FrameId).build();
 	OnFrame(Frame);
 
 	InputFrame->Release();
@@ -140,38 +134,39 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 	VideoEncoderInput->SetMaxNumBuffers((uint32)PixelStreamingSettings::CVarPixelStreamingMaxNumBackBuffers.GetValueOnRenderThread());
 	VideoEncoderInput->SetNumFramesUntilStale((uint32)PixelStreamingSettings::CVarPixelStreamingNumFramesUntilBackBufferStale.GetValueOnRenderThread());
 	AVEncoder::FVideoEncoderInputFrame* InputFrame = VideoEncoderInput->ObtainInputFrame();
-	if (InputFrame == nullptr) return nullptr;
+	if(InputFrame == nullptr)
+		return nullptr;
 
-	if (!BackBuffers.Contains(InputFrame))
+	if(!BackBuffers.Contains(InputFrame))
 	{
 #if PLATFORM_WINDOWS
 		FString RHIName = GDynamicRHI->GetName();
-		if (RHIName == TEXT("D3D11"))
+		if(RHIName == TEXT("D3D11"))
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
 			InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [this, InputFrame](ID3D11Texture2D* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
-		else if (RHIName == TEXT("D3D12"))
+		else if(RHIName == TEXT("D3D12"))
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
 			InputFrame->SetTexture((ID3D12Resource*)Texture->GetNativeResource(), [this, InputFrame](ID3D12Resource* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
-		else if (RHIName == TEXT("Vulkan"))
+		else if(RHIName == TEXT("Vulkan"))
 #endif // PLATFORM_WINDOWS
 		{
-			if (IsRHIDeviceNVIDIA())
-			{	
-#if WITH_CUDA
+			if(IsRHIDeviceNVIDIA())
+			{
 				FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 
 				FVulkanDynamicRHI* VulkanDynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
 
 				// Create a texture that can be exposed to external memory
-				FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::Present, CreateInfo);
+				FTexture2DRHIRef Texture =
+					GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::Present, CreateInfo);
 
 				FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
 
@@ -180,16 +175,20 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 				// Get the CUarray to that textures memory making sure the clear it when done
 				int fd;
 
-				{   // Generate VkMemoryGetFdInfoKHR
+				{ 
+					// Generate VkMemoryGetFdInfoKHR
 					VkMemoryGetFdInfoKHR vkMemoryGetFdInfoKHR = {};
 					vkMemoryGetFdInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
 					vkMemoryGetFdInfoKHR.pNext = NULL;
 					vkMemoryGetFdInfoKHR.memory = VulkanTexture->Surface.GetAllocationHandle();
-					vkMemoryGetFdInfoKHR.handleType =
-						VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+					vkMemoryGetFdInfoKHR.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
 
-					auto fpGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)VulkanRHI::vkGetDeviceProcAddr(device, "vkGetMemoryFdKHR");
+					// While this operation is safe (and unavoidable) C4191 has been enabled and this will trigger an error with warnings as errors
+#pragma warning(push)
+#pragma warning(disable : 4191)
+					PFN_vkGetMemoryFdKHR fpGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)VulkanRHI::vkGetDeviceProcAddr(device, "vkGetMemoryFdKHR");
 					VERIFYVULKANRESULT(fpGetMemoryFdKHR(device, &vkMemoryGetFdInfoKHR, &fd));
+#pragma warning(pop)
 				}
 
 				FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
@@ -205,7 +204,7 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 
 					// import external memory
 					auto result = FCUDAModule::CUDA().cuImportExternalMemory(&mappedExternalMemory, &cudaExtMemHandleDesc);
-					if (result != CUDA_SUCCESS)
+					if(result != CUDA_SUCCESS)
 					{
 						UE_LOG(PixelStreamer, Error, TEXT("Failed to import external memory from vulkan error: %d"), result);
 					}
@@ -227,7 +226,7 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 
 					// get the CUarray from the external memory
 					auto result = FCUDAModule::CUDA().cuExternalMemoryGetMappedMipmappedArray(&mappedMipArray, mappedExternalMemory, &mipmapDesc);
-					if (result != CUDA_SUCCESS)
+					if(result != CUDA_SUCCESS)
 					{
 						UE_LOG(PixelStreamer, Error, TEXT("Failed to bind mipmappedArray error: %d"), result);
 					}
@@ -235,59 +234,60 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 
 				// get the CUarray from the external memory
 				CUresult mipMapArrGetLevelErr = FCUDAModule::CUDA().cuMipmappedArrayGetLevel(&mappedArray, mappedMipArray, 0);
-				if (mipMapArrGetLevelErr != CUDA_SUCCESS)
+				if(mipMapArrGetLevelErr != CUDA_SUCCESS)
 				{
 					UE_LOG(PixelStreamer, Error, TEXT("Failed to bind to mip 0."));
 				}
 
 				FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
 
-				InputFrame->SetTexture(mappedArray, [this, mappedArray, mappedMipArray, mappedExternalMemory, InputFrame](CUarray NativeTexture)
-					{
-						// free the cuda types
-						FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
-						
-						if (mappedArray)
-						{
-							auto result = FCUDAModule::CUDA().cuArrayDestroy(mappedArray);
-							if (result != CUDA_SUCCESS)
-							{
-								UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedArray: %d"), result);
-							}
-						}
+				InputFrame->SetTexture(mappedArray,
+				                       [this, mappedArray, mappedMipArray, mappedExternalMemory, InputFrame](CUarray NativeTexture)
+				                       {
+										   // free the cuda types
+										   FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
 
-						if (mappedMipArray)
-						{
-							auto result = FCUDAModule::CUDA().cuMipmappedArrayDestroy(mappedMipArray);
-							if (result != CUDA_SUCCESS)
-							{
-								UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedMipArray: %d"), result);
-							}
-						}
+										   if(mappedArray)
+										   {
+											   auto result = FCUDAModule::CUDA().cuArrayDestroy(mappedArray);
+											   if(result != CUDA_SUCCESS)
+											   {
+												   UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedArray: %d"), result);
+											   }
+										   }
 
-						if (mappedExternalMemory)
-						{
-							auto result = FCUDAModule::CUDA().cuDestroyExternalMemory(mappedExternalMemory);
-							if (result != CUDA_SUCCESS)
-							{
-								UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedExternalMemoryArray: %d"), result);
-							}
-						}
+										   if(mappedMipArray)
+										   {
+											   auto result = FCUDAModule::CUDA().cuMipmappedArrayDestroy(mappedMipArray);
+											   if(result != CUDA_SUCCESS)
+											   {
+												   UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedMipArray: %d"), result);
+											   }
+										   }
 
-						FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
-						
-						// finally remove the input frame
-						BackBuffers.Remove(InputFrame);
-					});
+										   if(mappedExternalMemory)
+										   {
+											   auto result = FCUDAModule::CUDA().cuDestroyExternalMemory(mappedExternalMemory);
+											   if(result != CUDA_SUCCESS)
+											   {
+												   UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedExternalMemoryArray: %d"), result);
+											   }
+										   }
+
+										   FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
+
+										   // finally remove the input frame
+										   BackBuffers.Remove(InputFrame);
+									   });
 				BackBuffers.Add(InputFrame, Texture);
-#endif // WITH_CUDA
 			}
-			else if (IsRHIDeviceAMD())
+			else if(IsRHIDeviceAMD())
 			{
 				FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
-				FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::Present, CreateInfo);
+				FTexture2DRHIRef Texture =
+					GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::Present, CreateInfo);
 				FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
-				
+
 				InputFrame->SetTexture(VulkanTexture->Surface.Image, [this, InputFrame](VkImage NativeTexture) { BackBuffers.Remove(InputFrame); });
 
 				BackBuffers.Add(InputFrame, Texture);
@@ -333,7 +333,7 @@ void FVideoCapturer::CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-		if (DestinationTexture->GetSizeX() != SourceTexture->GetSizeX() || DestinationTexture->GetSizeY() != SourceTexture->GetSizeY())
+		if(DestinationTexture->GetSizeX() != SourceTexture->GetSizeX() || DestinationTexture->GetSizeY() != SourceTexture->GetSizeY())
 		{
 			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Bilinear>::GetRHI(), SourceTexture);
 		}
@@ -342,17 +342,14 @@ void FVideoCapturer::CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture
 			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceTexture);
 		}
 
-		RendererModule->DrawRectangle(
-			RHICmdList,
-			0, 0,									// Dest X, Y
-			DestinationTexture->GetSizeX(),			// Dest Width
-			DestinationTexture->GetSizeY(),			// Dest Height
-			0, 0,									// Source U, V
-			1, 1,									// Source USize, VSize
-			DestinationTexture->GetSizeXY(),		// Target buffer size
-			FIntPoint(1, 1),						// Source texture size
-			VertexShader,
-			EDRF_Default);
+		RendererModule->DrawRectangle(RHICmdList, 0, 0,                // Dest X, Y
+		                              DestinationTexture->GetSizeX(),  // Dest Width
+		                              DestinationTexture->GetSizeY(),  // Dest Height
+		                              0, 0,                            // Source U, V
+		                              1, 1,                            // Source USize, VSize
+		                              DestinationTexture->GetSizeXY(), // Target buffer size
+		                              FIntPoint(1, 1),                 // Source texture size
+		                              VertexShader, EDRF_Default);
 	}
 
 	RHICmdList.EndRenderPass();
@@ -361,19 +358,19 @@ void FVideoCapturer::CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture
 bool FVideoCapturer::AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolution)
 {
 	int outWidth, outHeight, cropWidth, cropHeight, cropX, cropY;
-	if (!AdaptFrame(Resolution.X, Resolution.Y, TimestampUs, &outWidth, &outHeight, &cropWidth, &cropHeight, &cropX, &cropY))
+	if(!AdaptFrame(Resolution.X, Resolution.Y, TimestampUs, &outWidth, &outHeight, &cropWidth, &cropHeight, &cropX, &cropY))
 	{
 		return false;
 	}
 
 	// Set resolution of encoder using user-defined params (i.e. not the back buffer).
-	if (!PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize.GetValueOnRenderThread())
+	if(!PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize.GetValueOnRenderThread())
 	{
 		// set resolution based on cvars
 		FString CaptureSize = PixelStreamingSettings::CVarPixelStreamingCaptureSize.GetValueOnRenderThread();
 		FString TargetWidth, TargetHeight;
 		bool bValidSize = CaptureSize.Split(TEXT("x"), &TargetWidth, &TargetHeight);
-		if (bValidSize)
+		if(bValidSize)
 		{
 			Resolution.X = FCString::Atoi(*TargetWidth);
 			Resolution.Y = FCString::Atoi(*TargetHeight);
@@ -398,11 +395,11 @@ bool FVideoCapturer::AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolu
 void FVideoCapturer::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight)
 {
 	// Check is requested resolution is same as current resolution, if so, do nothing.
-	if (Width == NewCaptureWidth && Height == NewCaptureHeight)
+	if(Width == NewCaptureWidth && Height == NewCaptureHeight)
 		return;
 
 	verifyf(NewCaptureWidth > 0, TEXT("Capture width must be greater than zero."));
-	verifyf(NewCaptureHeight  > 0, TEXT("Capture height must be greater than zero."));
+	verifyf(NewCaptureHeight > 0, TEXT("Capture height must be greater than zero."));
 
 	Width = NewCaptureWidth;
 	Height = NewCaptureHeight;

@@ -6,10 +6,7 @@
 #include "Containers/Queue.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/RefCounting.h"
-
-#if WITH_CUDA
 #include "CudaModule.h"
-#endif
 
 // HACK (M84FIX) need to break these dependencies
 #if PLATFORM_WINDOWS
@@ -89,9 +86,7 @@ public:
 	TRefCountPtr<ID3D12Device> GetD3D12EncoderDevice() const override;
 #endif
 
-#if WITH_CUDA
 	CUcontext GetCUDAEncoderContext() const override;
-#endif
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	void* GetVulkanEncoderDevice() const override;
@@ -131,12 +126,10 @@ private:
 	}								FrameInfoD3D;
 #endif
 
-#if WITH_CUDA
 	struct FFrameInfoCUDA
 	{
 		CUcontext					EncoderContextCUDA;
 	}								FrameInfoCUDA;
-#endif
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	FVulkanDataStruct				FrameInfoVulkan;

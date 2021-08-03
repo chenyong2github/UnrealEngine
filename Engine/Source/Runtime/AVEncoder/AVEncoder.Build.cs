@@ -31,7 +31,8 @@ public class AVEncoder : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"RenderCore",
 			"Core",
-			"RHI"
+			"RHI",
+			"CUDA"
 			// ... add other public dependencies that you statically link with here ...
 		});
 
@@ -68,12 +69,5 @@ public class AVEncoder : ModuleRules
 				});
 			}
 		}
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-		{
-			PrivateDependencyModuleNames.Add("CUDA");
-		}
-
-		// TEMPORARY: set this to zero for all platforms until CUDA TPS review clears
-		PublicDefinitions.Add("WITH_CUDA=0");
 	}
 }

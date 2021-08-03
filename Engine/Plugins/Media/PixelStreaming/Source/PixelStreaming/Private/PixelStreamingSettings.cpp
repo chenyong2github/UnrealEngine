@@ -91,7 +91,7 @@ namespace PixelStreamingSettings
 // Begin WebRTC CVars
 	TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference(
 		TEXT("PixelStreaming.WebRTC.DegradationPreference"),
-		TEXT("MAINTAIN_RESOLUTION"),
+		TEXT("MAINTAIN_FRAMERATE"),
 		TEXT("PixelStreaming degradation preference. Supported modes are `BALANCED`, `MAINTAIN_FRAMERATE`, `MAINTAIN_RESOLUTION`"),
 		ECVF_Default);
 

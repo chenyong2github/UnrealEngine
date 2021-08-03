@@ -111,14 +111,8 @@ namespace AVEncoder
         FNVENCCommon &NVENC;
         EVideoFrameFormat FrameFormat = EVideoFrameFormat::Undefined;
 
-        // TODO (M84FIX) make this neater
-#if PLATFORM_WINDOWS
-        TRefCountPtr<ID3D11Device> EncoderDevice;
-#elif WITH_CUDA
-        CUcontext EncoderDevice;
-#else
+        // this could be ID3D11Device*, CUcontext or void* depending on frame type
         void* EncoderDevice;
-#endif
 
         // event thread for nvenc async (windows only)
         void OnEvent(void *InEvent, TUniqueFunction<void()> &&InCallback);

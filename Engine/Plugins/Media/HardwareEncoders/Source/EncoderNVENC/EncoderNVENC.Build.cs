@@ -33,7 +33,9 @@ public class EncoderNVENC: ModuleRules
 		
 		PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private"));
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
-		
+
+		PrivateDependencyModuleNames.Add("CUDA");
+
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			PublicDependencyModuleNames.Add("D3D12RHI");
@@ -51,11 +53,7 @@ public class EncoderNVENC: ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PrivateDependencyModuleNames.Add("CUDA");
 			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
 		}
-
-		// TEMPORARY: set this to zero for all platforms until CUDA TPS review clears
-		PublicDefinitions.Add("WITH_CUDA=0");
 	}
 }

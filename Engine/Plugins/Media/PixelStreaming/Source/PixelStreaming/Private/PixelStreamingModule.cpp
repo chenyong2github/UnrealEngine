@@ -7,6 +7,7 @@
 #include "PixelStreamerInputComponent.h"
 #include "PixelStreamerDelegates.h"
 #include "SignallingServerConnection.h"
+#include "PixelStreamingSettings.h"
 #include "HUDStats.h"
 #include "PixelStreamingPrivate.h"
 #include "PixelStreamingSettings.h"
@@ -79,6 +80,9 @@ namespace
 
 void FPixelStreamingModule::InitStreamer()
 {
+	// Cap the engine framerate to what WebRTC
+	GEngine->SetMaxFPS(PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps.GetValueOnAnyThread());
+
 	FString StreamerId;
 	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), StreamerId);
 

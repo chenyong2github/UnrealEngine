@@ -24,25 +24,27 @@ public class GameplayMediaEncoder : ModuleRules
 			"Slate",
 			"HTTP",
 			"Json",
-			"AVEncoder",
-			"WebRTC",
-			//"IBMRTMPIngest"
-        });
+			"AVEncoder"
+		});
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PrivateDependencyModuleNames.AddRange(new string[]
-				{
-					"D3D11RHI"
-				});
+		{			
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 
-			PublicDelayLoadDLLs.Add("mfplat.dll");
-			PublicDelayLoadDLLs.Add("mfuuid.dll");
-			PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
+			if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				PrivateDependencyModuleNames.AddRange(new string[]
+					{
+						"D3D11RHI"
+					});
 
-			PublicSystemLibraries.Add("d3d11.lib");
+				PublicDelayLoadDLLs.Add("mfplat.dll");
+				PublicDelayLoadDLLs.Add("mfuuid.dll");
+				PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
+
+				PublicSystemLibraries.Add("d3d11.lib");
+			}
 		}
-
 	}
 }
 
