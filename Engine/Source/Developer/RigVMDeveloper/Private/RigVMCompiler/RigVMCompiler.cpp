@@ -105,7 +105,7 @@ FRigVMPropertyDescription FRigVMCompilerWorkData::GetProperty(const FRigVMOperan
 	return FRigVMPropertyDescription();
 }
 
-int32 FRigVMCompilerWorkData::FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InRootCPPType, const FString& InSegmentPath)
+int32 FRigVMCompilerWorkData::FindOrAddPropertyPath(const FRigVMOperand& InOperand, const FString& InHeadCPPType, const FString& InSegmentPath)
 {
 	if(InSegmentPath.IsEmpty())
 	{
@@ -116,12 +116,12 @@ int32 FRigVMCompilerWorkData::FindOrAddPropertyPath(const FRigVMOperand& InOpera
 	for(int32 Index = 0; Index < Descriptions.Num(); Index++)
 	{
 		const FRigVMPropertyPathDescription& Description = Descriptions[Index]; 
-		if(Description.RootCPPType == InRootCPPType && Description.SegmentPath == InSegmentPath)
+		if(Description.HeadCPPType == InHeadCPPType && Description.SegmentPath == InSegmentPath)
 		{
 			return Index;
 		}
 	}
-	return Descriptions.Add(FRigVMPropertyPathDescription(InOperand.GetRegisterIndex(), InRootCPPType, InSegmentPath));
+	return Descriptions.Add(FRigVMPropertyPathDescription(InOperand.GetRegisterIndex(), InHeadCPPType, InSegmentPath));
 }
 
 #endif

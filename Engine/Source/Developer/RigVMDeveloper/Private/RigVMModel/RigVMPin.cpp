@@ -814,7 +814,7 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 
 		const FProperty* Property = InExternalVariable.Property;
 		const FRigVMPropertyPath PropertyPath(Property, InSegmentPath);
-		Property = PropertyPath.GetTargetProperty();
+		Property = PropertyPath.GetTailProperty();
 
 		FRigVMExternalVariable::GetTypeFromProperty(Property, ExternalCPPType, ExternalCPPTypeObject);
 	}
