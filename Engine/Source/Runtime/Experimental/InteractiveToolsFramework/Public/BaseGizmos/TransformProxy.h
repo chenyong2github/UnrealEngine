@@ -96,6 +96,12 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTransformChanged, UTransformProxy*, FTransform);
 	FOnTransformChanged OnTransformChanged;
 
+	/**
+	 * This delegate is fired whenever the transform is changed by a FTransformProxyChange, ie on undo/redo.
+	 * OnTransformChanged is also fired in those cases, this extra event can be used when undo/redo state changes need to be handled specifically.
+	 */
+	FOnTransformChanged OnTransformChangedUndoRedo;
+
 	/** This delegate is fired when BeginTransformEditSequence() is called to indicate that a sequence of transform updates has started */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBeginTransformEdit, UTransformProxy*);
 	FOnBeginTransformEdit OnBeginTransformEdit;
