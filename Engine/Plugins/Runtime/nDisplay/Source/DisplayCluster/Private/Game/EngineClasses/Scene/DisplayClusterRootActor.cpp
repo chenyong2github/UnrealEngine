@@ -135,6 +135,17 @@ void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfiguration
 	}
 }
 
+void ADisplayClusterRootActor::OverwriteFromConfig(UDisplayClusterConfigurationData* ConfigData)
+{
+	if (ConfigData)
+	{
+		//@todo
+		// 1. overwrite required settings
+		// 2. rebuild hierarchy (in case it's changed)
+		// 3. update preview (in case it's required)
+	}
+}
+
 UDisplayClusterConfigurationViewport* ADisplayClusterRootActor::GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID)
 {
 	if (CurrentConfigData)

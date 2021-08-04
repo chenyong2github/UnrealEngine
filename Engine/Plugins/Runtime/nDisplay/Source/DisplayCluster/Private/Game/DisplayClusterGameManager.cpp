@@ -79,13 +79,18 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 	// Find the first DCRA instance that matches to the specified configuration
 	ADisplayClusterRootActor* RootActor = FindRootActor(InWorld, ConfigData);
 
-	// If no proper DCRA found,
-	// 1. Detect spawn location and rotation
-	// 2. Try to spawn a blueprint from a corresponding asset
-	// 3. If the asset not found, spawn an empty DCRA instance and initialize it with specified configuration data.
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
-		if (!RootActor)
+		// If a corresponding DCRA instance was found, overwrite its settings
+		if (RootActor)
+		{
+			RootActor->OverwriteFromConfig(ConfigData);
+		}
+		// If no proper DCRA found,
+		// 1. Detect spawn location and rotation
+		// 2. Try to spawn a blueprint from a corresponding asset
+		// 3. If the asset not found, spawn an empty DCRA instance and initialize it with specified configuration data.
+		else
 		{
 			// 1. Detect spawn location and rotation
 			FVector  StartLocation = FVector::ZeroVector;
