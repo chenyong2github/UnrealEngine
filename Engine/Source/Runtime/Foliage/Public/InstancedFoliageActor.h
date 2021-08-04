@@ -21,7 +21,7 @@ class UProceduralFoliageComponent;
 typedef TFunction<bool(const UPrimitiveComponent*)> FFoliageTraceFilterFunc;
 
 UCLASS(notplaceable, hidecategories = (Object, Rendering, Mobility), MinimalAPI, NotBlueprintable)
-class AInstancedFoliageActor : public AISMPartitionActor, public ISMInstanceManager
+class AInstancedFoliageActor : public AISMPartitionActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -56,29 +56,30 @@ public:
 	virtual void RerunConstructionScripts() override {}
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 
+public:
+#if WITH_EDITOR
+	bool CanEditFoliageInstance(const FFoliageInstanceId& InstanceId) const;
+	bool CanMoveFoliageInstance(const FFoliageInstanceId& InstanceId, const ETypedElementWorldType WorldType) const;
+	bool GetFoliageInstanceTransform(const FFoliageInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const;
+	bool SetFoliageInstanceTransform(const FFoliageInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace, bool bTeleport);
+	void NotifyFoliageInstanceMovementStarted(const FFoliageInstanceId& InstanceId);
+	void NotifyFoliageInstanceMovementOngoing(const FFoliageInstanceId& InstanceId);
+	void NotifyFoliageInstanceMovementEnded(const FFoliageInstanceId& InstanceId);
+	void NotifyFoliageInstanceSelectionChanged(const FFoliageInstanceId& InstanceId, const bool bIsSelected);
+	bool DeleteFoliageInstances(TArrayView<const FFoliageInstanceId> InstanceIds);
+	bool DuplicateFoliageInstances(TArrayView<const FFoliageInstanceId> InstanceIds, TArray<FFoliageInstanceId>& OutNewInstanceIds);
+
+	UFoliageType* GetFoliageTypeForInfo(const FFoliageInfo* FoliageInfo) const;
+#endif
+
 protected:
+#if WITH_EDITOR
+	void HandleFoliageInstancePreMove(const FFoliageInstanceId& InstanceId);
+	void HandleFoliageInstancePostMove(const FFoliageInstanceId& InstanceId);
+#endif
+
 	//~ ISMInstanceManagerProvider interface
 	virtual ISMInstanceManager* GetSMInstanceManager(const FSMInstanceId& InstanceId) override;
-
-	//~ ISMInstanceManager interface
-	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override;
-	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
-	virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
-	virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) override;
-	virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) override;
-	virtual bool DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds) override;
-	virtual bool DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds) override;
-
-#if WITH_EDITOR
-	void HandleSMInstancePreMove(const FSMInstanceId& InstanceId, FFoliageInfo& FoliageInfo);
-	void HandleSMInstancePostMove(const FSMInstanceId& InstanceId, FFoliageInfo& FoliageInfo, UFoliageType* FoliageType);
-
-	FFoliageInfo* GetFoliageInfoForSMInstance(const FSMInstanceId& InstanceId, UFoliageType** OutFoliageType = nullptr);
-	const FFoliageInfo* GetFoliageInfoForSMInstance(const FSMInstanceId& InstanceId, UFoliageType** OutFoliageType = nullptr) const;
-#endif
 
 	// Default InternalTakeRadialDamage behavior finds and scales damage for the closest component which isn't appropriate for foliage.
 	virtual float InternalTakeRadialDamage(float Damage, struct FRadialDamageEvent const& RadialDamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;

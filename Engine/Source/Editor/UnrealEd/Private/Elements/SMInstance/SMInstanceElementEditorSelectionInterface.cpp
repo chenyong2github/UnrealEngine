@@ -46,25 +46,94 @@ bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedE
 	FTypedElementListConstPtr SelectionSetPtr = InSelectionSet.GetElementList();
 	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
 
-	if (SelectionSetPtr && SMInstance)
+	if (SMInstance && SelectionSetPtr && SelectionSetPtr->Num() > 0)
 	{
-		if (SelectionSetPtr->Num() == 0)
+		// If any element within this group is selected, then the whole group is selected
+		bool bIsSelected = false;
+		SMInstance.ForEachSMInstanceInSelectionGroup([&InSelectionOptions, &SelectionSetPtr, &bIsSelected](FSMInstanceId GroupSMInstance)
+		{
+			if (FTypedElementHandle GroupSMInstanceElement = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(GroupSMInstance, /*bAllowCreate*/false))
+			{
+				if (SelectionSetPtr->Contains(GroupSMInstanceElement))
+				{
+					bIsSelected = true;
+				}
+				else if (InSelectionOptions.AllowIndirect())
+				{
+					if (FTypedElementHandle ISMComponentElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(GroupSMInstance.ISMComponent, /*bAllowCreate*/false))
+					{
+						bIsSelected = SelectionSetPtr->Contains(ISMComponentElement);
+					}
+				}
+			}
+			return !bIsSelected;
+		});
+		return bIsSelected;
+	}
+
+	return false;
+}
+
+bool USMInstanceElementEditorSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+{
+	FTypedElementListPtr SelectionSetPtr = InSelectionSet.GetElementList();
+	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+
+	if (SMInstance && SelectionSetPtr && SelectionSetPtr->Num() > 0)
+	{
+		// If any element within this group is already in the selection set, then we have nothing more to do
+		bool bIsSelected = false;
+		SMInstance.ForEachSMInstanceInSelectionGroup([&SelectionSetPtr, &bIsSelected](FSMInstanceId GroupSMInstance)
+		{
+			if (FTypedElementHandle GroupSMInstanceElement = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(GroupSMInstance, /*bAllowCreate*/false))
+			{
+				if (SelectionSetPtr->Contains(GroupSMInstanceElement))
+				{
+					bIsSelected = true;
+				}
+			}
+			return !bIsSelected;
+		});
+		if (bIsSelected)
 		{
 			return false;
 		}
+	}
 
-		if (SelectionSetPtr->Contains(InElementHandle))
-		{
-			return true;
-		}
+	if (SMInstance && SelectionSetPtr && SelectionSetPtr->Add(InElementHandle))
+	{
+		SMInstance.NotifySMInstanceSelectionChanged(/*bIsSelected*/true);
+		return true;
+	}
 
-		if (InSelectionOptions.AllowIndirect())
+	return false;
+}
+
+bool USMInstanceElementEditorSelectionInterface::DeselectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+{
+	FTypedElementListPtr SelectionSetPtr = InSelectionSet.GetElementList();
+	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+
+	if (SMInstance && SelectionSetPtr && SelectionSetPtr->Num() > 0)
+	{
+		bool bSelectionChanged = false;
+
+		// Deselect every element within this group
+		SMInstance.ForEachSMInstanceInSelectionGroup([&SelectionSetPtr, &bSelectionChanged](FSMInstanceId GroupSMInstance)
 		{
-			if (FTypedElementHandle ISMComponentElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(SMInstance.GetISMComponent(), /*bAllowCreate*/false))
+			if (FTypedElementHandle GroupSMInstanceElement = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(GroupSMInstance, /*bAllowCreate*/false))
 			{
-				return SelectionSetPtr->Contains(ISMComponentElement);
+				bSelectionChanged |= SelectionSetPtr->Remove(GroupSMInstanceElement);
 			}
+			return true;
+		});
+
+		if (bSelectionChanged)
+		{
+			SMInstance.NotifySMInstanceSelectionChanged(/*bIsSelected*/false);
 		}
+
+		return bSelectionChanged;
 	}
 
 	return false;

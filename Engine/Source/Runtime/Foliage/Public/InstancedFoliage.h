@@ -19,6 +19,7 @@ class UHierarchicalInstancedStaticMeshComponent;
 class UFoliageType_InstancedStaticMesh;
 class UPrimitiveComponent;
 class UStaticMesh;
+struct FSMInstanceId;
 struct FFoliageInstanceHash;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogInstancedFoliage, Log, All);
@@ -199,6 +200,8 @@ struct FFoliageImpl
 
 	virtual void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector) {}
 	virtual void Serialize(FArchive& Ar) = 0;
+	virtual void PostSerialize(FArchive& Ar) {}
+	virtual void PostLoad() {}
 
 #if WITH_EDITORONLY_DATA
 	// Not serialized but FFoliageInfo will make sure it stays valid (mostly Undo/Redo)
@@ -230,6 +233,9 @@ struct FFoliageImpl
 	virtual FBox GetSelectionBoundingBox(const TSet<int32>& SelectedIndices) const = 0;
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) = 0;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) = 0;
+
+	virtual void ForEachSMInstance(TFunctionRef<bool(FSMInstanceId)> Callback) const {}
+	virtual void ForEachSMInstance(int32 InstanceIndex, TFunctionRef<bool(FSMInstanceId)> Callback) const {}
 
 	virtual void BeginUpdate() {}
 	virtual void EndUpdate() {}
@@ -294,7 +300,9 @@ struct FFoliageInfo
 	FOLIAGE_API UHierarchicalInstancedStaticMeshComponent* GetComponent() const;
 
 	void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-		
+	void PostSerialize(FArchive& Ar);
+	void PostLoad();
+
 	FOLIAGE_API void CreateImplementation(EFoliageImplType InType);
 	FOLIAGE_API void Initialize(const UFoliageType* FoliageType);
 	FOLIAGE_API void Uninitialize();
@@ -356,10 +364,13 @@ struct FFoliageInfo
 
 	// For debugging. Validate state after editing.
 	void CheckValid();
-		
+	
+	void ForEachSMInstance(TFunctionRef<bool(FSMInstanceId)> Callback) const;
+	void ForEachSMInstance(int32 InstanceIndex, TFunctionRef<bool(FSMInstanceId)> Callback) const;
+
 	FOLIAGE_API void Refresh(bool Async, bool Force);
 	FOLIAGE_API void OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews);
-	FOLIAGE_API void PostEditUndo(AInstancedFoliageActor* InIFA, UFoliageType* FoliageType);
+	FOLIAGE_API void PostEditUndo(UFoliageType* FoliageType);
 	FOLIAGE_API void PreEditUndo(UFoliageType* FoliageType);
 	FOLIAGE_API void EnterEditMode();
 	FOLIAGE_API void ExitEditMode();
@@ -386,6 +397,49 @@ private:
 	void RemoveInstancesImpl(TArrayView<const int32> InInstancesToRemove, bool RebuildFoliageTree, FRemoveImplementationFunc ImplementationFunc);
 };
 
+struct FFoliageInstanceId
+{
+	explicit operator bool() const
+	{
+		return Info != nullptr
+			&& Index != INDEX_NONE;
+	}
+
+	bool operator==(const FFoliageInstanceId& InRHS) const
+	{
+		return Info == InRHS.Info
+			&& Index == InRHS.Index;
+	}
+
+	bool operator!=(const FFoliageInstanceId& InRHS) const
+	{
+		return !(*this == InRHS);
+	}
+
+#if WITH_EDITOR
+	FFoliageInstance* GetInstance() const
+	{
+		return (Info && Info->Instances.IsValidIndex(Index))
+			? &Info->Instances[Index]
+			: nullptr;
+	}
+
+	FFoliageInstance& GetInstanceChecked() const
+	{
+		FFoliageInstance* Instance = GetInstance();
+		check(Instance);
+		return *Instance;
+	}
+#endif
+
+	friend inline uint32 GetTypeHash(const FFoliageInstanceId& InId)
+	{
+		return HashCombine(GetTypeHash(InId.Index), GetTypeHash(InId.Info));
+	}
+
+	FFoliageInfo* Info = nullptr;
+	int32 Index = INDEX_NONE;
+};
 
 #if WITH_EDITORONLY_DATA
 //

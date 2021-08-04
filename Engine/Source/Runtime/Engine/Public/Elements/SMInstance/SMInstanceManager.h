@@ -15,7 +15,7 @@ enum class ETypedElementWorldType : uint8;
  * This exists so that actors that directly manage instances can inject custom logic around the manipulation of the underlying ISM component.
  * @note The static mesh instances given to this API must be valid and belong to this instance manager. The instance manager implementation is free to assert or crash if that contract is broken.
  */
-UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint))
+UINTERFACE()
 class ENGINE_API USMInstanceManager : public UInterface
 {
 	GENERATED_BODY()
@@ -26,6 +26,22 @@ class ENGINE_API ISMInstanceManager
 
 public:
 	/**
+	 * Get the display name of the given static mesh instance.
+	 */
+	virtual FText GetSMInstanceDisplayName(const FSMInstanceId& InstanceId) const
+	{
+		return FText();
+	}
+
+	/**
+	 * Get the tooltip of the given static mesh instance.
+	 */
+	virtual FText GetSMInstanceTooltip(const FSMInstanceId& InstanceId) const
+	{
+		return FText();
+	}
+
+	/**
 	 * Can the given static mesh instance be edited?
 	 * @return True if it can be edited, false otherwise.
 	 */
@@ -35,7 +51,7 @@ public:
 	 * Can the given static mesh instance be moved in the world?
 	 * @return True if it can be moved, false otherwise.
 	 */
-	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const = 0;
+	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType WorldType) const = 0;
 
 	/**
 	 * Attempt to get the transform of the given static mesh instance.
@@ -76,6 +92,24 @@ public:
 	virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) = 0;
 
 	/**
+	 * Enumerate every static mesh instance element within the selection group that the given static mesh instance belongs to (including the given static mesh instance).
+	 * A selection group allows disparate static mesh instances to be considered as a single logical unit for selection, and is mostly used when a manager creates multiple static mesh instances for a single managed instance.
+	 * 
+	 * If *any* static mesh instance within the group is selected, then *all* static mesh instances within the group are considered selected.
+	 * This means that:
+	 *	- Querying the selection state for any static mesh element within the group will be consistent, regardless of which static mesh instance is in the selection set.
+	 *	- Attempting to select a static mesh instance within the group, when another static mesh instance from the group is already selected, will be a no-op.
+	 *	- Attempting to deselect a static mesh instance within the group will deselect all static mesh instances within the group.
+	 * 
+	 * There is no guarantee of which static mesh instance within the group will actually end up in the selection set, nor which static mesh instance within the group NotifySMInstanceSelectionChanged will be called for.
+	 * It is the responsibility of the manager to handle this correctly by treating any static mesh instance within a selection group as one logical unit for all the static mesh instances within the group.
+	 */
+	virtual void ForEachSMInstanceInSelectionGroup(const FSMInstanceId& InstanceId, TFunctionRef<bool(FSMInstanceId)> Callback)
+	{
+		Callback(InstanceId);
+	}
+
+	/**
 	 * Can the given static mesh instance be deleted?
 	 * @return True if it can be deleted, false otherwise.
 	 */
@@ -111,7 +145,7 @@ public:
  * This exists so that actors that indirectly manage instances can provide the correct underlying manager for the specific ISM component and instance.
  * @note The static mesh instances given to this API must be valid. The instance manager provider implementation is free to assert or crash if that contract is broken.
  */
-UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint))
+UINTERFACE()
 class ENGINE_API USMInstanceManagerProvider : public UInterface
 {
 	GENERATED_BODY()
@@ -171,14 +205,17 @@ public:
 	int32 GetISMInstanceIndex() const { return InstanceId.InstanceIndex; }
 
 	//~ ISMInstanceManager interface
+	FText GetSMInstanceDisplayName() const { return InstanceManager->GetSMInstanceDisplayName(InstanceId); }
+	FText GetSMInstanceTooltip() const { return InstanceManager->GetSMInstanceTooltip(InstanceId); }
 	bool CanEditSMInstance() const { return InstanceManager->CanEditSMInstance(InstanceId); }
-	bool CanMoveSMInstance(const ETypedElementWorldType InWorldType) const { return InstanceManager->CanMoveSMInstance(InstanceId, InWorldType); }
+	bool CanMoveSMInstance(const ETypedElementWorldType WorldType) const { return InstanceManager->CanMoveSMInstance(InstanceId, WorldType); }
 	bool GetSMInstanceTransform(FTransform& OutInstanceTransform, bool bWorldSpace = false) const { return InstanceManager->GetSMInstanceTransform(InstanceId, OutInstanceTransform, bWorldSpace); }
 	bool SetSMInstanceTransform(const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) const { return InstanceManager->SetSMInstanceTransform(InstanceId, InstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport); }
-	void NotifySMInstanceMovementStarted() { return InstanceManager->NotifySMInstanceMovementStarted(InstanceId); }
-	void NotifySMInstanceMovementOngoing() { return InstanceManager->NotifySMInstanceMovementOngoing(InstanceId); }
-	void NotifySMInstanceMovementEnded() { return InstanceManager->NotifySMInstanceMovementEnded(InstanceId); }
-	void NotifySMInstanceSelectionChanged(const bool bIsSelected) { return InstanceManager->NotifySMInstanceSelectionChanged(InstanceId, bIsSelected); }
+	void NotifySMInstanceMovementStarted() const { return InstanceManager->NotifySMInstanceMovementStarted(InstanceId); }
+	void NotifySMInstanceMovementOngoing() const { return InstanceManager->NotifySMInstanceMovementOngoing(InstanceId); }
+	void NotifySMInstanceMovementEnded() const { return InstanceManager->NotifySMInstanceMovementEnded(InstanceId); }
+	void NotifySMInstanceSelectionChanged(const bool bIsSelected) const { return InstanceManager->NotifySMInstanceSelectionChanged(InstanceId, bIsSelected); }
+	void ForEachSMInstanceInSelectionGroup(TFunctionRef<bool(FSMInstanceId)> Callback) const { return InstanceManager->ForEachSMInstanceInSelectionGroup(InstanceId, Callback); }
 	bool CanDeleteSMInstance() const { return InstanceManager->CanDeleteSMInstance(InstanceId); }
 	bool DeleteSMInstance() const { return InstanceManager->DeleteSMInstances(MakeArrayView(&InstanceId, 1)); }
 	bool CanDuplicateSMInstance() const { return InstanceManager->CanDuplicateSMInstance(InstanceId); }
@@ -195,5 +232,5 @@ public:
 
 private:
 	FSMInstanceId InstanceId;
-	ISMInstanceManager* InstanceManager;
+	ISMInstanceManager* InstanceManager = nullptr;
 };

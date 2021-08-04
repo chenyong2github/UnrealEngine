@@ -11,7 +11,15 @@
 #include "Components/StaticMeshComponent.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 #include "FoliageInstancedStaticMeshComponent.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 #include "Math/Box.h"
+
+FFoliageISMActor::~FFoliageISMActor()
+{
+#if WITH_EDITOR
+	UnregisterDelegates();
+#endif
+}
 
 void FFoliageISMActor::Serialize(FArchive& Ar)
 {
@@ -20,6 +28,28 @@ void FFoliageISMActor::Serialize(FArchive& Ar)
 	ClientHandle.Serialize(Ar);
 	Ar << ISMDefinition;
 	Ar << ActorClass;
+#endif
+}
+
+void FFoliageISMActor::PostSerialize(FArchive& Ar)
+{
+	FFoliageImpl::PostSerialize(Ar);
+#if WITH_EDITOR
+	if (GIsEditor && IsInitialized() && Ar.IsLoading())
+	{
+		GetIFA()->RegisterClientInstanceManager(ClientHandle, this);
+	}
+#endif
+}
+
+void FFoliageISMActor::PostLoad()
+{
+	FFoliageImpl::PostLoad();
+#if WITH_EDITOR
+	if (GIsEditor && IsInitialized())
+	{
+		RegisterDelegates();
+	}
 #endif
 }
 
@@ -76,7 +106,7 @@ void FFoliageISMActor::Initialize(const UFoliageType* FoliageType)
 
 	AInstancedFoliageActor* IFA = GetIFA();
 
-	FoliageTypeActor = Cast<const UFoliageType_Actor>(FoliageType);
+	const UFoliageType_Actor* FoliageTypeActor = Cast<const UFoliageType_Actor>(FoliageType);
 	ActorClass = FoliageTypeActor->ActorClass ? FoliageTypeActor->ActorClass.Get() : AActor::StaticClass();
 	
 	FActorSpawnParameters SpawnParams;
@@ -92,6 +122,7 @@ void FFoliageISMActor::Initialize(const UFoliageType* FoliageType)
 	SpawnedActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
 
 	ClientHandle = IFA->RegisterClient(Guid);
+	IFA->RegisterClientInstanceManager(ClientHandle, this);
 
 	for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 	{
@@ -159,13 +190,35 @@ void FFoliageISMActor::UnregisterDelegates()
 
 void FFoliageISMActor::OnBlueprintChanged(UBlueprint* InBlueprint)
 {
-	Reapply(FoliageTypeActor);
+	const UFoliageType_Actor* FoliageTypeActor = Cast<UFoliageType_Actor>(GetIFA()->GetFoliageTypeForInfo(Info));
+	if (FoliageTypeActor)
+	{
+		Reapply(FoliageTypeActor);
+	}
+	else if (IsInitialized())
+	{
+		Uninitialize();
+	}
 }
 
 void FFoliageISMActor::Reapply(const UFoliageType* FoliageType)
 {
 	if (IsInitialized())
 	{
+		{
+			// We can't meaningfully re-instance the old static mesh instances to the new within this function, as)
+			//	1) The old instances are destroyed prior to creating the new ones, so they are no longer available to map
+			//	2) The new instances may not be a 1:1 mapping to the old, as they may now be a completely different structure
+			// Instead we just re-instance the old static mesh instances to nothing, so that anything referencing them is cleaned-up
+			TMap<FSMInstanceId, FSMInstanceId> ReplacementSMInstanceIds;
+			GetIFA()->ForEachClientSMInstance(ClientHandle, [&ReplacementSMInstanceIds](FSMInstanceId OldSMInstanceId)
+			{
+				ReplacementSMInstanceIds.Add(OldSMInstanceId, FSMInstanceId());
+				return true;
+			});
+			UEngineElementsLibrary::ReplaceEditorSMInstanceElementHandles(ReplacementSMInstanceIds);
+		}
+
 		Uninitialize();
 	}
 	Initialize(FoliageType);
@@ -249,21 +302,27 @@ void FFoliageISMActor::OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews)
 	}
 
 	// This can give weird results if toggling the visibility of 2 foliage types that share the same meshes. The last one wins for now.
-	TArray<UInstancedStaticMeshComponent*> ClientComponents;
-	GetIFA()->GetClientComponents(ClientHandle, ClientComponents);
-	for (UInstancedStaticMeshComponent* Component : ClientComponents)
+	GetIFA()->ForEachClientComponent(ClientHandle, [InHiddenEditorViews](UInstancedStaticMeshComponent* Component)
 	{
 		if (UFoliageInstancedStaticMeshComponent* FoliageComponent = Cast<UFoliageInstancedStaticMeshComponent>(Component))
 		{
 			FoliageComponent->FoliageHiddenEditorViews = InHiddenEditorViews;
 			FoliageComponent->MarkRenderStateDirty();
 		}
-	}
+		return true;
+	});
+}
+
+void FFoliageISMActor::PreEditUndo(UFoliageType* FoliageType)
+{
+	FFoliageImpl::PreEditUndo(FoliageType);
+	UnregisterDelegates();
 }
 
 void FFoliageISMActor::PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType)
 {
 	FFoliageImpl::PostEditUndo(InInfo, FoliageType);
+	RegisterDelegates();
 }
 
 void FFoliageISMActor::NotifyFoliageTypeWillChange(UFoliageType* FoliageType)
@@ -376,4 +435,163 @@ void FFoliageISMActor::ClearSelection(const TSet<int32>& SelectedIndices)
 	SelectAllInstances(false);
 }
 
+void FFoliageISMActor::ForEachSMInstance(TFunctionRef<bool(FSMInstanceId)> Callback) const
+{
+	if (ClientHandle)
+	{
+		GetIFA()->ForEachClientSMInstance(ClientHandle, Callback);
+	}
+}
+
+void FFoliageISMActor::ForEachSMInstance(int32 InstanceIndex, TFunctionRef<bool(FSMInstanceId)> Callback) const
+{
+	if (ClientHandle)
+	{
+		GetIFA()->ForEachClientSMInstance(ClientHandle, InstanceIndex, Callback);
+	}
+}
+
 #endif // WITH_EDITOR
+
+FText FFoliageISMActor::GetISMPartitionInstanceDisplayName(const FISMClientInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	const FText OwnerDisplayName = FText::FromString(ActorClass ? ActorClass->GetName() : GetIFA()->GetName());
+	return FText::Format(NSLOCTEXT("FoliageISMActor", "DisplayNameFmt", "{0} - Instance {1}"), OwnerDisplayName, FoliageInstanceId.Index);
+#else
+	return FText();
+#endif
+}
+
+FText FFoliageISMActor::GetISMPartitionInstanceTooltip(const FISMClientInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	const FText OwnerDisplayPath = FText::FromString(GetIFA()->GetPathName(GetIFA()->GetWorld())); // stops the path at the level of the world the object is in
+	return FText::Format(NSLOCTEXT("FoliageISMActor", "TooltipFmt", "Instance {0} on {1}"), FoliageInstanceId.Index, OwnerDisplayPath);
+#else
+	return FText();
+#endif
+}
+
+bool FFoliageISMActor::CanEditISMPartitionInstance(const FISMClientInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	return GetIFA()->CanEditFoliageInstance(FoliageInstanceId);
+#else
+	return false;
+#endif
+}
+
+bool FFoliageISMActor::CanMoveISMPartitionInstance(const FISMClientInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	return GetIFA()->CanMoveFoliageInstance(FoliageInstanceId, InWorldType);
+#else
+	return false;
+#endif
+}
+
+bool FFoliageISMActor::GetISMPartitionInstanceTransform(const FISMClientInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	return GetIFA()->GetFoliageInstanceTransform(FoliageInstanceId, OutInstanceTransform, bWorldSpace);
+#else
+	return false;
+#endif
+}
+
+bool FFoliageISMActor::SetISMPartitionInstanceTransform(const FISMClientInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace, bool bTeleport)
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	return GetIFA()->SetFoliageInstanceTransform(FoliageInstanceId, InstanceTransform, bWorldSpace, bTeleport);
+#else
+	return false;
+#endif
+}
+
+void FFoliageISMActor::NotifyISMPartitionInstanceMovementStarted(const FISMClientInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	GetIFA()->NotifyFoliageInstanceMovementStarted(FoliageInstanceId);
+#endif
+}
+
+void FFoliageISMActor::NotifyISMPartitionInstanceMovementOngoing(const FISMClientInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	GetIFA()->NotifyFoliageInstanceMovementOngoing(FoliageInstanceId);
+#endif
+}
+
+void FFoliageISMActor::NotifyISMPartitionInstanceMovementEnded(const FISMClientInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	GetIFA()->NotifyFoliageInstanceMovementEnded(FoliageInstanceId);
+#endif
+}
+
+void FFoliageISMActor::NotifyISMPartitionInstanceSelectionChanged(const FISMClientInstanceId& InstanceId, const bool bIsSelected)
+{
+#if WITH_EDITOR
+	const FFoliageInstanceId FoliageInstanceId = ISMClientInstanceIdToFoliageInstanceId(InstanceId);
+	GetIFA()->NotifyFoliageInstanceSelectionChanged(FoliageInstanceId, bIsSelected);
+#endif
+}
+
+bool FFoliageISMActor::DeleteISMPartitionInstances(TArrayView<const FISMClientInstanceId> InstanceIds)
+{
+#if WITH_EDITOR
+	const TArray<FFoliageInstanceId> FoliageInstanceIds = ISMClientInstanceIdsToFoliageInstanceIds(InstanceIds);
+	return GetIFA()->DeleteFoliageInstances(FoliageInstanceIds);
+#else
+	return false;
+#endif
+}
+
+bool FFoliageISMActor::DuplicateISMPartitionInstances(TArrayView<const FISMClientInstanceId> InstanceIds, TArray<FISMClientInstanceId>& OutNewInstanceIds)
+{
+#if WITH_EDITOR
+	const TArray<FFoliageInstanceId> FoliageInstanceIds = ISMClientInstanceIdsToFoliageInstanceIds(InstanceIds);
+
+	TArray<FFoliageInstanceId> NewFoliageInstanceIds;
+	const bool bDidDuplicate = GetIFA()->DuplicateFoliageInstances(FoliageInstanceIds, NewFoliageInstanceIds);
+
+	OutNewInstanceIds.Reset(NewFoliageInstanceIds.Num());
+	for (const FFoliageInstanceId& NewFoliageInstanceId : NewFoliageInstanceIds)
+	{
+		OutNewInstanceIds.Add(FISMClientInstanceId{ static_cast<FFoliageISMActor&>(*NewFoliageInstanceId.Info->Implementation).ClientHandle, NewFoliageInstanceId.Index });
+	}
+
+	return bDidDuplicate;
+#else
+	return false;
+#endif
+}
+
+#if WITH_EDITOR
+FFoliageInstanceId FFoliageISMActor::ISMClientInstanceIdToFoliageInstanceId(const FISMClientInstanceId& InstanceId) const
+{
+	check(InstanceId.Handle == ClientHandle);
+	return FFoliageInstanceId{ Info, InstanceId.Index };
+}
+
+TArray<FFoliageInstanceId> FFoliageISMActor::ISMClientInstanceIdsToFoliageInstanceIds(TArrayView<const FISMClientInstanceId> InstanceIds) const
+{
+	TArray<FFoliageInstanceId> FoliageInstanceIds;
+	FoliageInstanceIds.Reserve(InstanceIds.Num());
+	for (const FISMClientInstanceId& InstanceId : InstanceIds)
+	{
+		FoliageInstanceIds.Add(ISMClientInstanceIdToFoliageInstanceId(InstanceId));
+	}
+	return FoliageInstanceIds;
+}
+#endif

@@ -118,7 +118,9 @@ void AISMPartitionActor::UnregisterClient(FISMClientHandle& Handle)
 	Modify();
 	check(Handle.Guid == Clients[Handle.Index]);
 	RemoveISMInstances(Handle);
-			
+	
+	ClientInstanceManagers.Remove(Handle.Guid);
+
 	int32 ClientIndex = Handle.Index;
 	Clients[Handle.Index] = FGuid();
 	Handle.Index = -1;
@@ -128,6 +130,22 @@ void AISMPartitionActor::UnregisterClient(FISMClientHandle& Handle)
 	{
 		Clients.RemoveAt(ClientIndex);
 	}
+}
+
+void AISMPartitionActor::RegisterClientInstanceManager(const FISMClientHandle& Handle, IISMPartitionInstanceManager* ClientInstanceManager)
+{
+	check(Handle.Guid == Clients[Handle.Index]);
+
+	FISMClientInstanceManagerData& ClientInstanceManagerData = ClientInstanceManagers.FindOrAdd(Handle.Guid);
+	ClientInstanceManagerData.SetInstanceManager(ClientInstanceManager);
+}
+
+void AISMPartitionActor::RegisterClientInstanceManagerProvider(const FISMClientHandle& Handle, IISMPartitionInstanceManagerProvider* ClientInstanceManagerProvider)
+{
+	check(Handle.Guid == Clients[Handle.Index]);
+
+	FISMClientInstanceManagerData& ClientInstanceManagerData = ClientInstanceManagers.FindOrAdd(Handle.Guid);
+	ClientInstanceManagerData.SetInstanceManagerProvider(ClientInstanceManagerProvider);
 }
 
 int32 AISMPartitionActor::RegisterISMComponentDescriptor(const FISMComponentDescriptor& Descriptor)
@@ -466,8 +484,6 @@ void AISMPartitionActor::SelectISMInstances(const FISMClientHandle& Handle, bool
 				FISMClientData& ClientData = ComponentData.ClientInstances[Handle.Index];
 				if (ClientData.Instances.Num())
 				{
-					ModifyComponent(ComponentData);
-
 					for (int32 SelectIndex : Indices)
 					{
 						FISMClientInstance& ClientInstance = ClientData.Instances[SelectIndex];
@@ -633,26 +649,298 @@ void AISMPartitionActor::UpdateHISMTrees(bool bAsync, bool bForce)
 	}
 }
 
-void AISMPartitionActor::GetClientComponents(const FISMClientHandle& Handle, TArray<UInstancedStaticMeshComponent*>& OutComponents)
+void AISMPartitionActor::ForEachClientComponent(const FISMClientHandle& Handle, TFunctionRef<bool(UInstancedStaticMeshComponent*)> Callback) const
 {
 	check(Handle.Guid == Clients[Handle.Index]);
-	for (FISMComponentData& ComponentData : DescriptorComponents)
+	for (const FISMComponentData& ComponentData : DescriptorComponents)
 	{
 		if (ComponentData.Component)
 		{
-			FISMClientData& ClientData = ComponentData.ClientInstances[Handle.Index];
+			const FISMClientData& ClientData = ComponentData.ClientInstances[Handle.Index];
 			if (ClientData.Instances.Num())
 			{
-				OutComponents.Add(ComponentData.Component);
+				if (!Callback(ComponentData.Component))
+				{
+					return;
+				}
 			}
 		}
 	}
 }
 
+void AISMPartitionActor::ForEachClientSMInstance(const FISMClientHandle& Handle, TFunctionRef<bool(FSMInstanceId)> Callback) const
+{
+	check(Handle.Guid == Clients[Handle.Index]);
+	for (const FISMComponentData& ComponentData : DescriptorComponents)
+	{
+		if (ComponentData.Component)
+		{
+			const FISMClientData& ClientData = ComponentData.ClientInstances[Handle.Index];
+			for (const FISMClientInstance& ClientInstance : ClientData.Instances)
+			{
+				for (int32 ComponentIndex : ClientInstance.ComponentIndices)
+				{
+					if (!Callback(FSMInstanceId{ ComponentData.Component, ComponentIndex }))
+					{
+						return;
+					}
+				}
+			}
+		}
+	}
+}
+
+void AISMPartitionActor::ForEachClientSMInstance(const FISMClientHandle& Handle, int32 InstanceIndex, TFunctionRef<bool(FSMInstanceId)> Callback) const
+{
+	check(Handle.Guid == Clients[Handle.Index]);
+	for (const FISMComponentData& ComponentData : DescriptorComponents)
+	{
+		if (ComponentData.Component)
+		{
+			const FISMClientData& ClientData = ComponentData.ClientInstances[Handle.Index];
+			const FISMClientInstance& ClientInstance = ClientData.Instances[InstanceIndex];
+			for (int32 ComponentIndex : ClientInstance.ComponentIndices)
+			{
+				if (!Callback(FSMInstanceId{ ComponentData.Component, ComponentIndex }))
+				{
+					return;
+				}
+			}
+		}
+	}
+}
+#endif
+
+FText AISMPartitionActor::GetSMInstanceDisplayName(const FSMInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	return InstanceManager.GetISMPartitionInstanceDisplayName();
+#else
+	return FText();
+#endif
+}
+
+FText AISMPartitionActor::GetSMInstanceTooltip(const FSMInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	return InstanceManager.GetISMPartitionInstanceTooltip();
+#else
+	return FText();
+#endif
+}
+
+bool AISMPartitionActor::CanEditSMInstance(const FSMInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	return InstanceManager.CanEditISMPartitionInstance();
+#else
+	return false;
+#endif
+}
+
+bool AISMPartitionActor::CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType WorldType) const
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	return InstanceManager.CanMoveISMPartitionInstance(WorldType);
+#else
+	return false;
+#endif
+}
+
+bool AISMPartitionActor::GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	return InstanceManager.GetISMPartitionInstanceTransform(OutInstanceTransform, bWorldSpace);
+#else
+	return false;
+#endif
+}
+
+bool AISMPartitionActor::SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	return InstanceManager.SetISMPartitionInstanceTransform(InstanceTransform, bWorldSpace, bTeleport);
+#else
+	return false;
+#endif
+}
+
+void AISMPartitionActor::NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	InstanceManager.NotifyISMPartitionInstanceMovementStarted();
+#endif
+}
+
+void AISMPartitionActor::NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	InstanceManager.NotifyISMPartitionInstanceMovementOngoing();
+#endif
+}
+
+void AISMPartitionActor::NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId)
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	InstanceManager.NotifyISMPartitionInstanceMovementEnded();
+#endif
+}
+
+void AISMPartitionActor::NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected)
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	InstanceManager.NotifyISMPartitionInstanceSelectionChanged(bIsSelected);
+#endif
+}
+
+void AISMPartitionActor::ForEachSMInstanceInSelectionGroup(const FSMInstanceId& InstanceId, TFunctionRef<bool(FSMInstanceId)> Callback)
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	ForEachClientSMInstance(InstanceManager.GetInstanceId().Handle, InstanceManager.GetInstanceId().Index, Callback);
+#else
+	Callback(InstanceId);
+#endif
+}
+
+bool AISMPartitionActor::CanDeleteSMInstance(const FSMInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	return InstanceManager.CanDeleteISMPartitionInstance();
+#else
+	return false;
+#endif
+}
+
+bool AISMPartitionActor::DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds)
+{
+#if WITH_EDITOR
+	// Batch by the client manager
+	TMap<IISMPartitionInstanceManager*, TArray<FISMClientInstanceId>> BatchedInstancesToDelete;
+	for (const FSMInstanceId& InstanceId : InstanceIds)
+	{
+		FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+		TArray<FISMClientInstanceId>& ClientInstanceIds = BatchedInstancesToDelete.FindOrAdd(InstanceManager.GetInstanceManager());
+		ClientInstanceIds.Add(InstanceManager.GetInstanceId());
+	}
+
+	bool bDidDelete = false;
+	for (TTuple<IISMPartitionInstanceManager*, TArray<FISMClientInstanceId>>& BatchedInstancesToDeletePair : BatchedInstancesToDelete)
+	{
+		bDidDelete |= BatchedInstancesToDeletePair.Key->DeleteISMPartitionInstances(BatchedInstancesToDeletePair.Value);
+	}
+	return bDidDelete;
+#else
+	return false;
+#endif
+}
+
+bool AISMPartitionActor::CanDuplicateSMInstance(const FSMInstanceId& InstanceId) const
+{
+#if WITH_EDITOR
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+	return InstanceManager.CanDuplicateISMPartitionInstance();
+#else
+	return false;
+#endif
+}
+
+bool AISMPartitionActor::DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds)
+{
+#if WITH_EDITOR
+	// Batch by the client manager
+	TMap<IISMPartitionInstanceManager*, TArray<FISMClientInstanceId>> BatchedInstancesToDuplicate;
+	for (const FSMInstanceId& InstanceId : InstanceIds)
+	{
+		FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManagerChecked(InstanceId);
+		TArray<FISMClientInstanceId>& ClientInstanceIds = BatchedInstancesToDuplicate.FindOrAdd(InstanceManager.GetInstanceManager());
+		ClientInstanceIds.Add(InstanceManager.GetInstanceId());
+	}
+
+	bool bDidDuplicate = false;
+	for (const TTuple<IISMPartitionInstanceManager*, TArray<FISMClientInstanceId>>& BatchedInstancesToDuplicatePair : BatchedInstancesToDuplicate)
+	{
+		TArray<FISMClientInstanceId> NewClientInstanceIds;
+		if (BatchedInstancesToDuplicatePair.Key->DuplicateISMPartitionInstances(BatchedInstancesToDuplicatePair.Value, NewClientInstanceIds))
+		{
+			bDidDuplicate = true;
+
+			OutNewInstanceIds.Reserve(OutNewInstanceIds.Num() + NewClientInstanceIds.Num());
+			for (const FISMClientInstanceId& NewClientInstanceId : NewClientInstanceIds)
+			{
+				for (const FISMComponentData& DescriptorComponent : DescriptorComponents)
+				{
+					if (DescriptorComponent.Component)
+					{
+						const FISMClientData& ClientData = DescriptorComponent.ClientInstances[NewClientInstanceId.Handle.Index];
+						if (ClientData.Instances.IsValidIndex(NewClientInstanceId.Index))
+						{
+							// We only return the first ISMC instance, as all ISMC instances belonging to this client instance are treated as one (see ForEachSMInstanceInSelectionGroup)
+							OutNewInstanceIds.Add(FSMInstanceId{ DescriptorComponent.Component, ClientData.Instances[NewClientInstanceId.Index].ComponentIndices[0] });
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	return bDidDuplicate;
+#else
+	return false;
+#endif
+}
+
+#if WITH_EDITOR
+FISMPartitionInstanceManager AISMPartitionActor::GetISMPartitionInstanceManager(const FSMInstanceId& InstanceId) const
+{
+	if (GIsEditor)
+	{
+		for (const FISMComponentData& DescriptorComponent : DescriptorComponents)
+		{
+			if (DescriptorComponent.Component == InstanceId.ISMComponent)
+			{
+				const FISMComponentInstance& ComponentInstance = DescriptorComponent.Instances[InstanceId.InstanceIndex];
+
+				const FGuid& ClientGuid = Clients[ComponentInstance.ClientIndex];
+				if (const FISMClientInstanceManagerData* ClientInstanceManagerData = ClientInstanceManagers.Find(ClientGuid))
+				{
+					const FISMClientHandle ClientHandle(ComponentInstance.ClientIndex, ClientGuid);
+					return FISMPartitionInstanceManager(FISMClientInstanceId{ ClientHandle, ComponentInstance.InstanceIndex }, ClientInstanceManagerData->ResolveInstanceManager(ClientHandle));
+				}
+			}
+		}
+	}
+
+	return FISMPartitionInstanceManager();
+}
+
+FISMPartitionInstanceManager AISMPartitionActor::GetISMPartitionInstanceManagerChecked(const FSMInstanceId& InstanceId) const
+{
+	FISMPartitionInstanceManager InstanceManager = GetISMPartitionInstanceManager(InstanceId);
+	check(InstanceManager);
+	return InstanceManager;
+}
 #endif
 
 ISMInstanceManager* AISMPartitionActor::GetSMInstanceManager(const FSMInstanceId& InstanceId)
 {
-	// Disable per-instance editing for now...
+#if WITH_EDITOR
+	if (GetISMPartitionInstanceManager(InstanceId))
+	{
+		return this;
+	}
+#endif
+
 	return nullptr;
 }

@@ -54,6 +54,8 @@ public:
 protected:
 
 	//~ ISMInstanceManager interface
+	virtual FText GetSMInstanceDisplayName(const FSMInstanceId& InstanceId) const override;
+	virtual FText GetSMInstanceTooltip(const FSMInstanceId& InstanceId) const override;
 	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override;
 	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
 	virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
