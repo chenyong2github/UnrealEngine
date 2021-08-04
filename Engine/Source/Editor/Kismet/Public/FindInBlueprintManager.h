@@ -610,6 +610,9 @@ public:
 	/** Returns TRUE if we're still inside the initial asset discovery and registration stage */
 	bool IsAssetDiscoveryInProgress() const;
 
+	/** Returns TRUE if there are one or more active asynchronous search queries */
+	bool IsAsyncSearchQueryInProgress() const;
+
 	/** Returns a weak reference to the widget that initiated the current caching operation */
 	TWeakPtr<SFindInBlueprints> GetSourceCachingWidget() const { return SourceCachingWidget; }
 
