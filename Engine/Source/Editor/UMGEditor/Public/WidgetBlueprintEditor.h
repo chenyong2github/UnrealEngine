@@ -207,7 +207,14 @@ protected:
 	virtual void InitalizeExtenders() override;
 	TSharedPtr<FExtender> CreateMenuExtender();
 	void FillFileMenu(FMenuBuilder& MenuBuilder);
+	void FillAssetMenu(FMenuBuilder& MenuBuilder);
 	void BindToolkitCommands();
+
+	void TakeSnapshot();
+	void CaptureThumbnail();
+	void ClearThumbnail();
+	bool IsImageUsedAsThumbnail();
+	bool IsPreviewWidgetInitialized();
 
 	void OpenCreateNativeBaseClassDialog();
 	void OnCreateNativeBaseClassSuccessfully(const FString& InClassName, const FString& InClassPath, const FString& InModuleName);

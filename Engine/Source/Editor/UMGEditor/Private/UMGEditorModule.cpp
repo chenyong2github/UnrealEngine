@@ -39,6 +39,7 @@
 #include "DynamicEntryBoxDetails.h"
 #include "ListViewBaseDetails.h"
 #include "WidgetBlueprintThumbnailRenderer.h"
+#include "WidgetThumbnailCustomization.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -105,7 +106,7 @@ public:
 		PropertyModule.RegisterCustomClassLayout(TEXT("DynamicEntryBoxBase"), FOnGetDetailCustomizationInstance::CreateStatic(&FDynamicEntryBoxBaseDetails::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(TEXT("DynamicEntryBox"), FOnGetDetailCustomizationInstance::CreateStatic(&FDynamicEntryBoxDetails::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(TEXT("ListViewBase"), FOnGetDetailCustomizationInstance::CreateStatic(&FListViewBaseDetails::MakeInstance));
-
+		PropertyModule.RegisterCustomClassLayout(TEXT("WidgetBlueprint"), FOnGetDetailCustomizationInstance::CreateStatic(&FWidgetThumbnailCustomization::MakeInstance));
 	
 		CVarThumbnailRenderEnable->AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&FUMGEditorModule::ThumbnailRenderingEnabled));
 	}
@@ -149,6 +150,12 @@ public:
 		}
 
 		UnregisterSettings();
+
+		FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+		if (PropertyModule != nullptr)
+		{
+			PropertyModule->UnregisterCustomClassLayout(TEXT("WidgetBlueprint"));
+		}
 
 		//// Unregister the setting
 		//ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");

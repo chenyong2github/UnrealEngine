@@ -27,6 +27,9 @@ public:
 	 * UMG Editor Commands
 	 */
 	TSharedPtr< FUICommandInfo > CreateNativeBaseClass;
+	TSharedPtr< FUICommandInfo > ExportAsPNG;
+	TSharedPtr< FUICommandInfo > SetImageAsThumbnail;
+	TSharedPtr< FUICommandInfo > ClearCustomThumbnail;
 
 	/**
 	 * Initialize commands

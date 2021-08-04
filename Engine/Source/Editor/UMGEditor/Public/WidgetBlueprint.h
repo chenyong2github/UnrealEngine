@@ -201,6 +201,18 @@ enum class EWidgetSupportsDynamicCreation : uint8
 	No,
 };
 
+
+UENUM()
+enum class EThumbnailPreviewSizeMode : uint8
+{
+	MatchDesignerMode,
+	FillScreen,
+	Custom,
+	Desired
+};
+
+
+
 /**
  * This represents the tickability of a widget computed at compile time
  * It is designed as a hint so the runtime can determine if ticking needs to be enabled
@@ -308,7 +320,6 @@ public:
 	bool ArePropertyBindingsAllowed() const;
 
 protected:
-#if WITH_EDITOR
 	virtual void LoadModulesRequiredForCompilation() override;
 
 private:
@@ -338,5 +349,14 @@ public:
 	 */
 	UPROPERTY(AssetRegistrySearchable)
 	int32 PropertyBindings;
-#endif
+
+	UPROPERTY(EditDefaultsOnly, Category = ThumbnailSettings)
+	EThumbnailPreviewSizeMode ThumbnailSizeMode;
+
+	UPROPERTY(EditDefaultsOnly, Category = ThumbnailSettings)
+	FVector2D ThumbnailCustomSize;
+
+	UPROPERTY(EditDefaultsOnly, Category = ThumbnailSettings)
+	TObjectPtr<UTexture2D> ThumbnailImage;
+
 };

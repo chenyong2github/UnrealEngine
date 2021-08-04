@@ -29,7 +29,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogImageUtils, Log, All);
  * @param RawData - an array to be filled with pixel data.
  * @return true if RawData has been successfully filled.
  */
-static bool GetRawData(UTextureRenderTarget2D* TexRT, TArray64<uint8>& RawData)
+bool FImageUtils::GetRawData(UTextureRenderTarget2D* TexRT, TArray64<uint8>& RawData)
 {
 	FRenderTarget* RenderTarget = TexRT->GameThread_GetRenderTargetResource();
 	EPixelFormat Format = TexRT->GetFormat();
@@ -517,7 +517,7 @@ public:
 		Format = TexRT->GetFormat();
 
 		TArray64<uint8> RawData;
-		bool bReadSuccess = GetRawData(TexRT, RawData);
+		bool bReadSuccess = FImageUtils::GetRawData(TexRT, RawData);
 		if (bReadSuccess)
 		{
 			WriteHDRImage(RawData, Ar);
