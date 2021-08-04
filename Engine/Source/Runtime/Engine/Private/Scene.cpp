@@ -361,8 +361,6 @@ static void DoPostProcessSettingsSanityCheck()
 		RenameMap.Add(TEXT("FilmGrainHighlightsMin"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainTexelSize"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainTexture"), TEXT(""));
-		RenameMap.Add(TEXT("FilmGrainDecodeMultiply"), TEXT(""));
-		RenameMap.Add(TEXT("FilmGrainDecodeAdd"), TEXT(""));
 		VerifyPostProcessingProperties(TEXT("Film"),
 			TArray<const UStruct*>({FFilmStockSettings::StaticStruct()}),
 			RenameMap);
@@ -519,8 +517,6 @@ FPostProcessSettings::FPostProcessSettings()
 	FilmGrainShadowsMax = 0.09f;
 	FilmGrainHighlightsMin = 0.5f;
 	FilmGrainTexelSize = 1.0f;
-	FilmGrainDecodeMultiply = 1.0f;
-	FilmGrainDecodeAdd = 0.0f;
 
 	// next value might get overwritten by r.DefaultFeature.AmbientOcclusion
 	AmbientOcclusionIntensity = .5f;
@@ -933,8 +929,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, FilmGrainHighlightsMin(Settings.FilmGrainHighlightsMin)
 	, FilmGrainTexelSize(Settings.FilmGrainTexelSize)
 	, FilmGrainTexture(Settings.FilmGrainTexture)
-	, FilmGrainDecodeMultiply(Settings.FilmGrainDecodeMultiply)
-	, FilmGrainDecodeAdd(Settings.FilmGrainDecodeAdd)
 	, AmbientOcclusionIntensity(Settings.AmbientOcclusionIntensity)
 	, AmbientOcclusionStaticFraction(Settings.AmbientOcclusionStaticFraction)
 	, AmbientOcclusionRadius(Settings.AmbientOcclusionRadius)

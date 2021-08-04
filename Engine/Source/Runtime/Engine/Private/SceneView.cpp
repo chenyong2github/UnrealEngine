@@ -1669,8 +1669,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		IF_PP(FilmGrainTexture)
 		{
 			Dest.FilmGrainTexture = Src.FilmGrainTexture;
-			Dest.FilmGrainDecodeMultiply = Src.FilmGrainDecodeMultiply;
-			Dest.FilmGrainDecodeAdd = Src.FilmGrainDecodeAdd;
 		}
 
 		// A continuous blending of this value would result trashing the pre-convolved bloom kernel cache.

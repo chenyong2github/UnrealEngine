@@ -1765,14 +1765,6 @@ struct FPostProcessSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Film Grain", meta = (editcondition = "bOverride_FilmGrainTexture"))
 	TObjectPtr<class UTexture2D> FilmGrainTexture;
 
-	/** Multiply the FilmGrainTexture. DecodedFilmGrainTexture = FilmGrainTexture * FilmGrainDecodeMultiply + FilmGrainDecodeAdd */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Film Grain", meta = (editcondition = "bOverride_FilmGrainTexture"))
-	float FilmGrainDecodeMultiply;
-
-	/** Add to the FilmGrainTexture. DecodedFilmGrainTexture = FilmGrainTexture * FilmGrainDecodeMultiply + FilmGrainDecodeAdd */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Film Grain", meta = (editcondition = "bOverride_FilmGrainTexture"))
-	float FilmGrainDecodeAdd;
-
 	/** 0..1 0=off/no ambient occlusion .. 1=strong ambient occlusion, defines how much it affects the non direct lighting after base pass */
 	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Ambient Occlusion", meta=(ClampMin = "0.0", ClampMax = "1.0", editcondition = "bOverride_AmbientOcclusionIntensity", DisplayName = "Intensity"))
 	float AmbientOcclusionIntensity;
