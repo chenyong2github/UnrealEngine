@@ -52,6 +52,7 @@ void CullCardPagesToShapeCS(
 {
 	uint IndexInIndexBuffer = DispatchThreadId.x;
 
+#if OPERATE_ON_CARD_TILES_MODE != OPERATE_ON_EMPTY_LIST
 #if OPERATE_ON_CARD_TILES_MODE == OPERATE_ON_CARD_TILES_TO_RENDER
 	if (IndexInIndexBuffer < NumCardPagesToRenderIndices)
 	{
@@ -89,6 +90,7 @@ void CullCardPagesToShapeCS(
 			}
 		}
 	}
+#endif
 }
 
 StructuredBuffer<uint> QuadAllocator;

@@ -58,6 +58,8 @@ enum class ECullCardsMode
 	OperateOnCardPagesToRender,
 	OperateOnScene,
 	OperateOnSceneForceUpdateForCardPagesToRender,
+	OperateOnEmptyList,
+	MAX,
 };
 
 enum class ECullCardsShapeType

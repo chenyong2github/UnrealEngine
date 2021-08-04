@@ -51,6 +51,7 @@ namespace Lumen
 
 	// Surface cache
 	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
+	bool IsSurfaceCacheFrozen();
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();

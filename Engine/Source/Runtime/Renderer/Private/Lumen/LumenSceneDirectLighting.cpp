@@ -948,7 +948,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						LumenCardRenderer,
 						LumenCardSceneUniformBuffer,
 						/*bBuildCardTiles*/ true,
-						ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
+						Lumen::IsSurfaceCacheFrozen() ? ECullCardsMode::OperateOnEmptyList : ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
 						GLumenSceneCardDirectLightingUpdateFrequencyScale,
 						ShapeParameters,
 						ShapeType);

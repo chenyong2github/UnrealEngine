@@ -64,6 +64,14 @@ FAutoConsoleVariableRef CVarLumenGIMaxConeSteps(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenSurfaceCacheFreeze = 0;
+FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheFreeze(
+	TEXT("r.LumenScene.SurfaceCache.Freeze"),
+	GLumenSurfaceCacheFreeze,
+	TEXT("Freeze surface cache updates for debugging.\n"),
+	ECVF_RenderThreadSafe
+);
+
 int32 GLumenSceneSurfaceCacheReset = 0;
 FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheReset(
 	TEXT("r.LumenScene.SurfaceCache.Reset"),
@@ -214,6 +222,11 @@ void Lumen::DebugResetSurfaceCache()
 	GLumenSceneSurfaceCacheReset = 1;
 }
 
+bool Lumen::IsSurfaceCacheFrozen()
+{
+	return GLumenSurfaceCacheFreeze != 0;
+}
+
 namespace Lumen
 {
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
@@ -306,7 +319,27 @@ int32 GetCardMaxResolution()
 
 int32 GetMaxLumenSceneCardCapturesPerFrame()
 {
-	return GLumenSceneCardCapturesPerFrame * (GLumenFastCameraMode ? 2 : 1);
+	return FMath::Max(GLumenSceneCardCapturesPerFrame * (GLumenFastCameraMode ? 2 : 1), 0);
+}
+
+int32 GetMaxMeshCardsToAddPerFrame()
+{
+	return 2 * GetMaxLumenSceneCardCapturesPerFrame();
+}
+
+int32 GetMaxTileCapturesPerFrame()
+{
+	if (Lumen::IsSurfaceCacheFrozen())
+	{
+		return 0;
+	}
+
+	if (GLumenSceneRecaptureLumenSceneEveryFrame != 0)
+	{
+		return INT32_MAX;
+	}
+
+	return GetMaxLumenSceneCardCapturesPerFrame();
 }
 
 DECLARE_GPU_STAT(LumenSceneUpdate);
@@ -1438,7 +1471,7 @@ void UpdateSurfaceCachePrimitives(
 		MeshCardsAdds.Sort(FSortBySmallerDistance());
 	}
 
-	const int32 MeshCardsToAddPerFrame = 2 * GetMaxLumenSceneCardCapturesPerFrame();
+	const int32 MeshCardsToAddPerFrame = GetMaxMeshCardsToAddPerFrame();
 
 	for (int32 MeshCardsIndex = 0; MeshCardsIndex < FMath::Min(MeshCardsAdds.Num(), MeshCardsToAddPerFrame); ++MeshCardsIndex)
 	{
@@ -1578,7 +1611,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 		const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps() - 1);
 		const float MaxCardUpdateDistanceFromCamera = ComputeMaxCardUpdateDistanceFromCamera();
-		const int32 MaxTileCapturesPerFrame = GLumenSceneRecaptureLumenSceneEveryFrame != 0 ? INT32_MAX : GetMaxLumenSceneCardCapturesPerFrame();
+		const int32 MaxTileCapturesPerFrame = GetMaxTileCapturesPerFrame();
 
 		if (MaxTileCapturesPerFrame > 0)
 		{

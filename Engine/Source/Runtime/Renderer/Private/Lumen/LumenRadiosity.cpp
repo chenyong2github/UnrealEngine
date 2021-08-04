@@ -719,7 +719,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			LumenCardRenderer,
 			TracingInputs.LumenCardSceneUniformBuffer,
 			/*bBuildCardTiles*/ false,
-			ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
+			Lumen::IsSurfaceCacheFrozen() ? ECullCardsMode::OperateOnEmptyList : ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
 			GLumenSceneCardRadiosityUpdateFrequencyScale,
 			FCullCardsShapeParameters(),
 			ECullCardsShapeType::None);
