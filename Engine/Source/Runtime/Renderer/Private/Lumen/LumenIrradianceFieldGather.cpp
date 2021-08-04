@@ -14,7 +14,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "ScreenSpaceDenoise.h"
 #include "LumenRadianceCache.h"
-#include "LumenSceneUtils.h"
+#include "LumenTracingUtils.h"
 
 int32 GLumenIrradianceFieldGather = 0;
 FAutoConsoleVariableRef CVarLumenIrradianceFieldGather(

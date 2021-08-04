@@ -9,8 +9,8 @@
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
-#include "LumenSceneUtils.h"
 #include "PixelShaderUtils.h"
+#include "LumenSceneLighting.h"
 
 int32 GLumenSceneSurfaceCacheAtlasSize = 4096;
 FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheAtlasSize(

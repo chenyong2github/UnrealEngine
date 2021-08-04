@@ -9,13 +9,13 @@
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
-#include "LumenSceneUtils.h"
 #include "PixelShaderUtils.h"
 #include "ReflectionEnvironment.h"
 #include "SceneTextureParameters.h"
 #include "IndirectLightRendering.h"
 #include "LumenRadianceCache.h"
 #include "GlobalDistanceField.h"
+#include "LumenTracingUtils.h"
 
 FLumenGatherCvarState GLumenGatherCvars;
 

@@ -8,7 +8,6 @@
 #include "RendererPrivate.h"
 #include "MeshCardRepresentation.h"
 #include "ComponentRecreateRenderStateContext.h"
-#include "LumenSceneUtils.h"
 
 float GLumenMeshCardsMinSize = 30.0f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMinSize(

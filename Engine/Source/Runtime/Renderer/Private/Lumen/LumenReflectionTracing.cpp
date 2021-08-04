@@ -14,6 +14,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "LumenReflections.h"
 #include "HairStrands/HairStrandsData.h"
+#include "LumenTracingUtils.h"
 
 int32 GLumenReflectionScreenTraces = 1;
 FAutoConsoleVariableRef CVarLumenReflectionScreenTraces(

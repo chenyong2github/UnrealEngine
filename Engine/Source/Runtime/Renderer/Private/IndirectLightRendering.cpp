@@ -18,12 +18,12 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "VolumetricCloudRendering.h"
 #include "Lumen/LumenSceneData.h"
-#include "Lumen/LumenSceneUtils.h"
 #include "Math/Halton.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "Strata/Strata.h"
 #include "RendererUtils.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Lumen/LumenTracingUtils.h"
 
 // Must match EDynamicGlobalIlluminationMethod
 // Note: Default for new projects set by GameProjectUtils

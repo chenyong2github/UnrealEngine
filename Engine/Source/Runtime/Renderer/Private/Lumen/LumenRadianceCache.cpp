@@ -8,7 +8,6 @@
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
-#include "LumenSceneUtils.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "DistanceFieldAmbientOcclusion.h"

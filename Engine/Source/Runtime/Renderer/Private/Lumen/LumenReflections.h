@@ -10,7 +10,6 @@
 #include "IndirectLightRendering.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
-#include "LumenSceneUtils.h"
 
 const static int32 ReflectionThreadGroupSize2D = 8;
 

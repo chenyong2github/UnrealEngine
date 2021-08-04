@@ -10,7 +10,6 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "VolumeLighting.h"
-#include "LumenSceneUtils.h"
 #include "MeshPassProcessor.inl"
 #include "LumenTranslucencyVolumeLighting.h"
 #include "LumenRadianceCache.h"

@@ -4,17 +4,17 @@
 	LumenSceneDirectLighting.cpp
 =============================================================================*/
 
-#include "LumenSceneDirectLighting.h"
+#include "LumenSceneLighting.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "VolumeLighting.h"
-#include "LumenSceneUtils.h"
 #include "DistanceFieldLightingShared.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 #include "VolumetricCloudRendering.h"
+#include "LumenTracingUtils.h"
 
 int32 GLumenDirectLighting = 1;
 FAutoConsoleVariableRef CVarLumenDirectLighting(

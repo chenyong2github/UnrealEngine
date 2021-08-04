@@ -10,10 +10,10 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "VolumeLighting.h"
-#include "LumenSceneUtils.h"
 #include "DistanceFieldLightingShared.h"
 #include "LumenMeshCards.h"
 #include "GlobalDistanceField.h"
+#include "LumenTracingUtils.h"
 
 int32 GLumenSceneClipmapResolution = 64;
 FAutoConsoleVariableRef CVarLumenSceneClipmapResolution(
