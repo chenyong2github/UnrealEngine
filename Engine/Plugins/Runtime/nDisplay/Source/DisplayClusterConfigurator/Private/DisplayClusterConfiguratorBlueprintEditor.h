@@ -208,12 +208,6 @@ private:
 
 	void BindCommands();
 
-	/** Returns normal component name. We get component name from a SCS component template which has _GEN_VARIABLE postfix. */
-	FString GetObjectNameFromSCSNode(const UObject* const Object) const;
-
-	/** Auxiliary recursive function that builds child-parentId components map */
-	void GatherParentComponentsInfo(const USCS_Node* const InNode, TMap<UActorComponent*, FString>& OutParentsMap) const;
-
 private:
 	TSharedPtr<FDisplayClusterConfiguratorViewOutputMapping> ViewOutputMapping;
 	TSharedPtr<FDisplayClusterConfiguratorViewCluster> ViewCluster;
