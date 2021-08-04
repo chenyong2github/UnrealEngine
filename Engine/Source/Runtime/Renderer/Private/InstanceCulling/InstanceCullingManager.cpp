@@ -14,15 +14,16 @@
 
 #include "InstanceCulling/InstanceCullingContext.h"
 
+static int32 GAllowBatchedBuildRenderingCommands = 1;
+static FAutoConsoleVariableRef CVarAllowBatchedBuildRenderingCommands(
+	TEXT("r.InstanceCulling.AllowBatchedBuildRenderingCommands"),
+	GAllowBatchedBuildRenderingCommands,
+	TEXT("Whether to allow batching BuildRenderingCommands for GPU instance culling"),
+	ECVF_RenderThreadSafe);
+
+
 FInstanceCullingManager::~FInstanceCullingManager()
 {
-	for (auto& LoadBalancer : BatchedCullingScratch.MergedContext.LoadBalancers)
-	{
-		if (LoadBalancer != nullptr)
-		{
-			delete LoadBalancer;
-		}
-	}
 }
 
 int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
@@ -65,7 +66,26 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 	CullingIntermediate.DummyUniformBuffer = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 }
 
+
+bool FInstanceCullingManager::AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene)
+{
+	return GPUScene.IsEnabled() && !!GAllowBatchedBuildRenderingCommands && !FRDGBuilder::IsImmediateMode();
+}
+
+
 void FInstanceCullingManager::BeginDeferredCulling(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
 {
-	FInstanceCullingContext::BuildRenderingCommandsDeferred(GraphBuilder, GPUScene, *this);
+	// Cannot defer pass execution in immediate mode.
+	if (!AllowBatchedBuildRenderingCommands(GPUScene))
+	{
+		return;
+	}
+
+	// If there are no instances, there can be no work to perform later.
+	if (GPUScene.GetNumInstances() == 0 || CullingIntermediate.NumViews == 0)
+	{
+		return;
+	}
+
+	DeferredContext = FInstanceCullingContext::CreateDeferredContext(GraphBuilder, GPUScene, this);
 }
