@@ -245,21 +245,22 @@ public:
 		friend class TLocalQueueRegistry;
 
 	public:
-		TLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType QueueType) : Registry(&InRegistry)
+		TLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType QueueType, FSleepEvent* InSleepEvent) : Registry(&InRegistry), SleepEvent(InSleepEvent)
 		{
 			checkSlow(Registry);
 			StealHazard = FStealHazard(Registry->QueueCollection, Registry->HazardsCollection);
-			Registry->AddLocalQueue(StealHazard, this, QueueType);
+			AffinityIndex = Registry->AddLocalQueue(StealHazard, this, QueueType);
 			for (int32 PriorityIndex = 0; PriorityIndex < int32(ETaskPriority::Count); PriorityIndex++)
 			{
 				DequeueHazards[PriorityIndex] = Registry->OverflowQueues[PriorityIndex].getHeadHazard();
 			}
+			AffinityHazard = AffinityQueue.getHeadHazard();
 		}
 
-		static TLocalQueue* AllocateLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType QueueType)
+		static TLocalQueue* AllocateLocalQueue(TLocalQueueRegistry& InRegistry, ELocalQueueType QueueType, FSleepEvent* InSleepEvent = nullptr)
 		{
 			void* Memory = FMemory::Malloc(sizeof(TLocalQueue), 128u);
-			return new (Memory) TLocalQueue(InRegistry, QueueType);
+			return new (Memory) TLocalQueue(InRegistry, QueueType, InSleepEvent);
 		}
 
 		//delete a queue
@@ -301,7 +302,7 @@ public:
 			return Registry->LessThanHalfWorkersLookingForWork(bBackgroundTask);
 		}
 
-		inline FTask* DequeueLocal(bool GetBackGroundTasks)
+		inline FTask* DequeueLocal(bool GetBackGroundTasks, bool bDisableThrottleStealing)
 		{
 			int32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::ForegroundCount);
 			for (int32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
@@ -315,9 +316,9 @@ public:
 			return nullptr;
 		}
 
-		inline FTask* DequeueGlobal(bool GetBackGroundTasks)
+		inline FTask* DequeueGlobal(bool GetBackGroundTasks, bool bDisableThrottleStealing)
 		{
-			if ((Registry->NumActiveWorkers[GetBackGroundTasks].load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Random.GetUnsignedInt() % 4) == 0))
+			if (bDisableThrottleStealing || (Registry->NumActiveWorkers[GetBackGroundTasks].load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Random.GetUnsignedInt() % 4) == 0))
 			{
 				int32 MaxPriority = GetBackGroundTasks ? int32(ETaskPriority::Count) : int32(ETaskPriority::ForegroundCount);
 				for (int32 PriorityIndex = 0; PriorityIndex < MaxPriority; PriorityIndex++)
@@ -332,9 +333,9 @@ public:
 			return nullptr;
 		}
 
-		inline FTask* DequeueSteal(bool GetBackGroundTasks)
+		inline FTask* DequeueSteal(bool GetBackGroundTasks, bool bDisableThrottleStealing)
 		{
-			if ((Registry->NumActiveWorkers[GetBackGroundTasks].load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Random.GetUnsignedInt() % 4) == 0))
+			if (bDisableThrottleStealing || (Registry->NumActiveWorkers[GetBackGroundTasks].load(std::memory_order_relaxed) >= (2 * Registry->NumWorkersLookingForWork[GetBackGroundTasks].load(std::memory_order_relaxed) - 1)) || ((Random.GetUnsignedInt() % 4) == 0))
 			{
 				if (CachedRandomIndex == InvalidIndex)
 				{
@@ -350,15 +351,46 @@ public:
 			return nullptr;
 		}
 
+		inline FTask* DequeueAffinity(bool GetBackGroundTasks, bool bDisableThrottleStealing)
+		{
+			return AffinityQueue.dequeue(AffinityHazard);
+		}
+
+		uint32 GetAffinityIndex() const
+		{
+			return AffinityIndex;
+		}
+
+	private:
+		inline void EnqueueAffinity(FTask* Item)
+		{
+			check(SleepEvent != nullptr);
+			AffinityQueue.enqueue(Item);
+			
+			ESleepState SleepState = ESleepState::Sleeping;
+			ESleepState DrowsingState = ESleepState::Drowsing;
+			if (SleepEvent->SleepState.compare_exchange_strong(DrowsingState, ESleepState::Affinity, std::memory_order_acquire))
+			{
+			}
+			else if (SleepEvent->SleepState.compare_exchange_strong(SleepState, ESleepState::Drowsing, std::memory_order_acquire))
+			{
+				SleepEvent->SleepEvent->Trigger();
+			}
+		}
+
 	private:
 		static constexpr uint32	InvalidIndex = ~0u;
 		FLocalQueueType			LocalQueues[uint32(ETaskPriority::Count)];
 		DequeueHazard			DequeueHazards[uint32(ETaskPriority::Count)];
+		FOverflowQueueType		AffinityQueue;
+		DequeueHazard			AffinityHazard;
 		FStealHazard			StealHazard;
 		TLocalQueueRegistry*	Registry;
+		FSleepEvent*			SleepEvent;
 		FRandomStream			Random;
 		uint32					CachedRandomIndex = InvalidIndex;
 		uint32					CachedPriorityIndex = 0;
+		uint32					AffinityIndex = ~0;
 	};
 
 	TLocalQueueRegistry()
@@ -368,7 +400,7 @@ public:
 
 private:
 	// add a queue to the Registry
-	void AddLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToAdd, ELocalQueueType QueueType)
+	uint32 AddLocalQueue(FStealHazard& Hazard, TLocalQueue* QueueToAdd, ELocalQueueType QueueType)
 	{
 		if (QueueType != ELocalQueueType::EBusyWait)
 		{
@@ -387,7 +419,7 @@ private:
 			}
 			HazardsCollection.Delete(Previous);
 			Hazard.Retire();
-			return;
+			return Previous->LocalQueues.Num();
 		}
 	}
 
@@ -464,6 +496,19 @@ public:
 		return LessThanHalfWorkersLookingForWork(bBackgroundTask);
 	}
 
+	inline bool EnqueueAffinity(FTask* Item, uint32 AffinityIndex)
+	{
+		FStealHazard Hazard(QueueCollection, HazardsCollection);
+		FLocalQueueCollection* Queues = Hazard.Get();
+
+		if (AffinityIndex < uint32(Queues->LocalQueues.Num()) && Queues->LocalQueues[AffinityIndex]->SleepEvent)
+		{
+			Queues->LocalQueues[AffinityIndex]->EnqueueAffinity(Item);
+			return true;
+		}
+		return false;
+	}
+
 	// grab an Item directy from the Global OverflowQueue
 	FTask* Dequeue()
 	{
@@ -486,8 +531,14 @@ public:
 private:
 	inline bool LessThanHalfWorkersLookingForWork(bool bBackgroundTask) const
 	{
-		return (NumWorkersLookingForWork[bBackgroundTask].load(std::memory_order_acquire) * 2 < NumActiveWorkers[bBackgroundTask].load(std::memory_order_acquire)) 
-			&& (bBackgroundTask || (NumWorkersLookingForWork[true].load(std::memory_order_acquire) * 2 < NumActiveWorkers[true].load(std::memory_order_acquire)));
+		if (bBackgroundTask)
+		{
+			return NumWorkersLookingForWork[true].load(std::memory_order_acquire) * 2 <= NumActiveWorkers[true].load(std::memory_order_acquire);
+		}
+		else
+		{
+			return (NumWorkersLookingForWork[false].load(std::memory_order_acquire) + NumWorkersLookingForWork[true].load(std::memory_order_acquire)) * 2 <= (NumActiveWorkers[false].load(std::memory_order_acquire) + NumActiveWorkers[true].load(std::memory_order_acquire));
+		}
 	}
 
 	FOverflowQueueType	  OverflowQueues[uint32(ETaskPriority::Count)];

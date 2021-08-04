@@ -40,7 +40,7 @@ namespace LowLevelTasks
 		}
 	}
 
-	TUniquePtr<FThread> FScheduler::CreateWorker(FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue, EThreadPriority Priority, bool bPermitBackgroundWork, bool bIsForkable)
+	TUniquePtr<FThread> FScheduler::CreateWorker(FSleepEvent* ExternalWorkerEvent, FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue, EThreadPriority Priority, bool bPermitBackgroundWork, bool bIsForkable)
 	{
 		uint32 WorkerId = NextWorkerId++;
 		const uint32 WaitTimes[8] = { 719, 991, 1361, 1237, 1597, 953, 587, 1439 };
@@ -76,10 +76,9 @@ namespace LowLevelTasks
 		return MakeUnique<FThread>
 		(
 			bPermitBackgroundWork ? *FString::Printf(TEXT("Background Worker #%d"), WorkerId) : *FString::Printf(TEXT("Foreground Worker #%d"), WorkerId),
-			[this, ExternalWorkerLocalQueue, WaitTime, bPermitBackgroundWork]
+			[this, ExternalWorkerEvent, ExternalWorkerLocalQueue, WaitTime, bPermitBackgroundWork]
 			{ 
-				FSleepEvent Event;
-				WorkerMain(&Event, ExternalWorkerLocalQueue, WaitTime, bPermitBackgroundWork);
+				WorkerMain(ExternalWorkerEvent, ExternalWorkerLocalQueue, WaitTime, bPermitBackgroundWork);
 			}, 0, Priority, FThreadAffinity{ ThreadAffinityMask & ProcessorGroups.ThreadAffinities[CpuGroup], CpuGroup }, bIsForkable
 		);
 	}
@@ -100,22 +99,26 @@ namespace LowLevelTasks
 			FScopeLock Lock(&WorkerThreadsCS);
 			check(!WorkerThreads.Num());
 			check(!WorkerLocalQueues.Num());
+			check(!WorkerEvents.Num());		
 			check(NextWorkerId == 0);
 
 			WorkerThreads.Reserve(NumForegroundWorkers + NumBackgroundWorkers);
 			WorkerLocalQueues.Reserve(NumForegroundWorkers + NumBackgroundWorkers);
+			WorkerEvents.Reserve(NumForegroundWorkers + NumBackgroundWorkers);
 			UE::Trace::ThreadGroupBegin(TEXT("Foreground Workers"));
 			for (uint32 WorkerId = 0; WorkerId < NumForegroundWorkers; ++WorkerId)
 			{
-				WorkerLocalQueues.Emplace(QueueRegistry, ELocalQueueType::EForeground);
-				WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), WorkerPriority, false, bIsForkable));
+				WorkerEvents.Emplace();
+				WorkerLocalQueues.Emplace(QueueRegistry, ELocalQueueType::EForeground, &WorkerEvents.Last());
+				WorkerThreads.Add(CreateWorker(&WorkerEvents.Last(), &WorkerLocalQueues.Last(), WorkerPriority, false, bIsForkable));
 			}
 			UE::Trace::ThreadGroupEnd();
 			UE::Trace::ThreadGroupBegin(TEXT("Background Workers"));
 			for (uint32 WorkerId = 0; WorkerId < NumBackgroundWorkers; ++WorkerId)
 			{
-				WorkerLocalQueues.Emplace(QueueRegistry, ELocalQueueType::EBackground);
-				WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), BackgroundPriority, true, bIsForkable));
+				WorkerEvents.Emplace();
+				WorkerLocalQueues.Emplace(QueueRegistry, ELocalQueueType::EBackground, &WorkerEvents.Last());
+				WorkerThreads.Add(CreateWorker(&WorkerEvents.Last(), &WorkerLocalQueues.Last(), BackgroundPriority, true, bIsForkable));
 			}
 			UE::Trace::ThreadGroupEnd();
 		}
@@ -137,6 +140,7 @@ namespace LowLevelTasks
 			NextWorkerId = 0;
 			WorkerThreads.Reset();
 			WorkerLocalQueues.Reset();
+			WorkerEvents.Reset();
 			for (FTask* Task = QueueRegistry.Dequeue(); Task != nullptr; Task = QueueRegistry.Dequeue())
 			{
 				Task->ExecuteTask();
@@ -199,6 +203,15 @@ namespace LowLevelTasks
 		return BusyWaitingDepth != 0;
 	}
 
+	uint32 FSchedulerTls::GetAffinityIndex()
+	{
+		if (LocalQueue)
+		{
+			return LocalQueue->GetAffinityIndex();
+		}
+		return ~0;
+	}
+
 	void FTask::PropagateUserData()
 	{
 		const FTask* ActiveTask = FSchedulerTls::GetActiveTask();
@@ -212,12 +225,12 @@ namespace LowLevelTasks
 		}
 	}
 
-	template<FTask* (FSchedulerTls::FLocalQueueType::*DequeueFunction)(bool), bool bIsBusyWaiting>
-	bool FScheduler::TryExecuteTaskFrom(FSchedulerTls::FLocalQueueType* Queue, FSchedulerTls::FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork)
+	template<FTask* (FSchedulerTls::FLocalQueueType::*DequeueFunction)(bool, bool), bool bIsBusyWaiting>
+	bool FScheduler::TryExecuteTaskFrom(FSchedulerTls::FLocalQueueType* Queue, FSchedulerTls::FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork, bool bDisableThrottleStealing)
 	{
 		for(int i = 0; i < 2; i++) // one retry if we pick up a task that cannot used during busy waiting.
 		{
-			FTask* Task = (Queue->*DequeueFunction)(bPermitBackgroundWork);
+			FTask* Task = (Queue->*DequeueFunction)(bPermitBackgroundWork, bDisableThrottleStealing);
 			if (Task)
 			{	
 				if (bIsBusyWaiting && !Task->AllowBusyWaiting())
@@ -228,7 +241,10 @@ namespace LowLevelTasks
 				if (OutOfWork.Stop())
 				{
 					//if we are ramping up work again we start waking up workers that might not have been woken while a lot of work might have been queued
-					WakeUpWorker(bPermitBackgroundWork);
+					if (!WakeUpWorker(bPermitBackgroundWork) && !FSchedulerTls::IsBackgroundWorker())
+					{
+						WakeUpWorker(!bPermitBackgroundWork);
+					}
 				}
 				FTask* OldTask = FSchedulerTls::ActiveTask;
 				FSchedulerTls::ActiveTask = Task;
@@ -244,13 +260,19 @@ namespace LowLevelTasks
 		return false;
 	}
 
-	void FScheduler::WorkerMain(FSleepEvent* WorkerEvent, FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork)
+	void FScheduler::WorkerMain(FSleepEvent* ExternalWorkerEvent, FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue, uint32 WaitCycles, bool bPermitBackgroundWork)
 	{
 		FTaskTagScope WorkerScope(ETaskTag::EWorkerThread);
 		FSchedulerTls::ActiveScheduler = this;
 
 		FMemory::SetupTLSCachesOnCurrentThread();
 		FSchedulerTls::WorkerType = bPermitBackgroundWork ? FSchedulerTls::EWorkerType::Background : FSchedulerTls::EWorkerType::Foreground;
+
+		FSleepEvent* WorkerEvent = ExternalWorkerEvent;
+		if (!ExternalWorkerEvent)
+		{
+			WorkerEvent = new FSleepEvent();
+		}
 
 		checkSlow(FSchedulerTls::LocalQueue == nullptr);
 		if(ExternalWorkerLocalQueue)
@@ -259,26 +281,34 @@ namespace LowLevelTasks
 		}
 		else
 		{
-			FSchedulerTls::LocalQueue = FSchedulerTls::FLocalQueueType::AllocateLocalQueue(QueueRegistry, bPermitBackgroundWork ? ELocalQueueType::EBackground : ELocalQueueType::EForeground);
+			FSchedulerTls::LocalQueue = FSchedulerTls::FLocalQueueType::AllocateLocalQueue(QueueRegistry, bPermitBackgroundWork ? ELocalQueueType::EBackground : ELocalQueueType::EForeground, WorkerEvent);
 		}
+
 		FSchedulerTls::FLocalQueueType* WorkerLocalQueue = FSchedulerTls::LocalQueue;
 
-		bool Drowsing = false;
+		bool bDrowsing = false;
 		uint32 WaitCount = 0;
 		FSchedulerTls::FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope(bPermitBackgroundWork ? ELocalQueueType::EBackground : ELocalQueueType::EForeground);
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
-			   || TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueGlobal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
+			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal,  false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, bDrowsing)
+			   || TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueGlobal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, bDrowsing))
 			{		
-				Drowsing = false;
+				bDrowsing = false;
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
-			   || TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueSteal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
+			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, bDrowsing)
+			   || TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueSteal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, bDrowsing))
 			{
-				Drowsing = false;
+				bDrowsing = false;
+				WaitCount = 0;
+			}
+
+			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, bDrowsing)
+				|| TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueAffinity, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, true))
+			{
+				bDrowsing = false;
 				WaitCount = 0;
 			}
 
@@ -295,13 +325,18 @@ namespace LowLevelTasks
 				continue;
 			}
 
-			TrySleeping(WorkerEvent, OutOfWork, Drowsing, bPermitBackgroundWork);
+			TrySleeping(WorkerEvent, OutOfWork.Stop(), bDrowsing, bPermitBackgroundWork);
 		}
 
 		while (WakeUpWorker(bPermitBackgroundWork)) {}
 
 		FSchedulerTls::FLocalQueueType::DeleteLocalQueue(WorkerLocalQueue, bPermitBackgroundWork ? ELocalQueueType::EBackground : ELocalQueueType::EForeground, ExternalWorkerLocalQueue != nullptr);
 		FSchedulerTls::LocalQueue = nullptr;
+
+		if (!ExternalWorkerEvent)
+		{
+			delete WorkerEvent;
+		}
 
 		FSchedulerTls::ActiveScheduler = nullptr;
 		FSchedulerTls::WorkerType = FSchedulerTls::EWorkerType::None;
@@ -327,8 +362,8 @@ namespace LowLevelTasks
 		FSchedulerTls::FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope(bPermitBackgroundWork ? ELocalQueueType::EBackground : ELocalQueueType::EForeground);
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
-			   || TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueGlobal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
+			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, true)
+			   || TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueGlobal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, true))
 			{
 				if (Conditional())
 				{
@@ -337,8 +372,18 @@ namespace LowLevelTasks
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
-			   || TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueSteal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
+			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, true)
+			   || TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueSteal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, true))
+			{
+				if (Conditional())
+				{
+					return;
+				}
+				WaitCount = 0;
+			}
+
+			while(TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueLocal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, true)
+				|| TryExecuteTaskFrom<&FSchedulerTls::FLocalQueueType::DequeueAffinity, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork, true))
 			{
 				if (Conditional())
 				{
