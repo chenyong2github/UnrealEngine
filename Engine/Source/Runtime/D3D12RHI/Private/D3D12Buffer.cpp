@@ -5,6 +5,7 @@ D3D12Buffer.cpp: D3D Common code for buffers.
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "D3D12RHIBridge.h"
 
 struct FRHICommandUpdateBufferString
 {
@@ -267,8 +268,12 @@ FD3D12SyncPoint FD3D12Buffer::UploadResourceDataViaCopyQueue(FResourceArrayInter
 	// Close and kick the command list without waiting for it
 	hCopyCommandList.Close();
 	bool bWaitForCompletion = false;
-	FD3D12SyncPoint CopyQueueSyncPoint = Device->GetCopyCommandListManager().ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
 
+	FD3D12SyncPoint CopyQueueSyncPoint;
+	D3D12RHI::ExecuteCodeWithCopyCommandQueueUsage([Device, &hCopyCommandList, bWaitForCompletion, &CopyQueueSyncPoint](ID3D12CommandQueue* D3DCommandQueue) -> void
+	{
+		CopyQueueSyncPoint = Device->GetCopyCommandListManager().ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
+	});
 	// Release command allocator (has the sync point as well)
 	CommandAllocatorManager.ReleaseCommandAllocator(CurrentCommandAllocator);
 

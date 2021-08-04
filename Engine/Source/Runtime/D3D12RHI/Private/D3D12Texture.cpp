@@ -5,6 +5,7 @@
 	=============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "D3D12RHIBridge.h"
 
 int64 FD3D12GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D12GlobalStats::GDedicatedSystemMemory = 0;
@@ -1566,7 +1567,11 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 
 			hCopyCommandList.Close();
 
 			bool bWaitForCompletion = true;
-			Device->GetCopyCommandListManager().ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
+
+			D3D12RHI::ExecuteCodeWithCopyCommandQueueUsage([Device, bWaitForCompletion, &hCopyCommandList](ID3D12CommandQueue* D3DCommandQueue) -> void
+			{
+				Device->GetCopyCommandListManager().ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
+			});
 
 			CommandAllocatorManager.ReleaseCommandAllocator(CurrentCommandAllocator);
 		}
