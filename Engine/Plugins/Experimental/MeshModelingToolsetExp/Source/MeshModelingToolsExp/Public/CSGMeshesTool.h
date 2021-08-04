@@ -28,7 +28,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Operation)
 	ECSGOperation Operation = ECSGOperation::DifferenceAB;
 
-	/** Show boundary edges created by the CSG operation -- often due to numerical error */
+	/** Show boundary edges created by the CSG operation (often due to numerical error) */
 	UPROPERTY(EditAnywhere, Category = Operation)
 	bool bShowNewBoundaryEdges = true;
 

@@ -23,7 +23,7 @@ class MESHMODELINGTOOLSEXP_API UCutMeshWithMeshToolProperties : public UInteract
 {
 	GENERATED_BODY()
 public:
-	/** Show boundary edges created by the Boolean operations -- often due to numerical error */
+	/** Show boundary edges created by the Boolean operations (often due to numerical error) */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowNewBoundaryEdges = true;
 
