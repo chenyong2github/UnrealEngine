@@ -215,6 +215,7 @@ FVirtualizationManager& FVirtualizationManager::Get()
 
 FVirtualizationManager::FVirtualizationManager()
 	: bEnablePayloadPushing(true)
+	, bEnableCacheAfterPull(true)
 	, MinPayloadLength(0)
 	, BackendGraphName(TEXT("ContentVirtualizationBackendGraph_None"))
 	, bForceSingleThreaded(false)
@@ -365,7 +366,11 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 		FCompressedBuffer Payload = PullDataFromBackend(*Backend, Id);
 		if (Payload)
 		{
-			CachePayload(Id, Payload, Backend);
+			if (bEnableCacheAfterPull)
+			{
+				CachePayload(Id, Payload, Backend);
+			}
+			
 			return Payload;
 		}
 	}
@@ -415,6 +420,17 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	else
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].EnablePushToBackend from config file!"));
+	}
+
+	bool bEnableCacheAfterPullFromIni = false;
+	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualization"), TEXT("EnableCacheAfterPull"), bEnableCacheAfterPullFromIni))
+	{
+		bEnableCacheAfterPull = bEnableCacheAfterPullFromIni;
+		UE_LOG(LogVirtualization, Log, TEXT("\tCachePulledPayloads : %s"), bEnableCacheAfterPull ? TEXT("true") : TEXT("false"));
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].EnableCacheAfterPull from config file!"));
 	}
 
 	int64 MinPayloadLengthFromIni = 0;
