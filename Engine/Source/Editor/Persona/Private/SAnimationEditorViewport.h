@@ -478,11 +478,15 @@ private:
 	/** Whether audio from the viewport is attenuated */
 	bool IsAudioAttenuationEnabled() const;
 
-	/** Function to set whether we are previewing root motion */
-	void OnTogglePreviewRootMotion();
-	
-	/** Whether or not we are previewing root motion */
-	bool IsPreviewingRootMotion() const;
+	/** Sets process root motion mode on the debug mesh */
+	void SetProcessRootMotionMode(EProcessRootMotionMode Mode);
+
+	/** Checks whether the supplied mode is set on the debug mesh */
+	bool IsProcessRootMotionModeSet(EProcessRootMotionMode Mode) const;
+
+	/** Whether the supplied mode can be used */
+	bool CanUseProcessRootMotionMode(EProcessRootMotionMode Mode) const;
+
 private:
 	/** Selected Turn Table speed  */
 	EAnimationPlaybackSpeeds::Type SelectedTurnTableSpeed;

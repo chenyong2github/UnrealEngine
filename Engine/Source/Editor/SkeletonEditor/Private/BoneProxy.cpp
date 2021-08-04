@@ -59,6 +59,15 @@ void UBoneProxy::Tick(float DeltaTime)
 				ReferenceRotation = ReferenceTransform.GetRotation().Rotator();
 				ReferenceScale = ReferenceTransform.GetScale3D();
 			}
+
+			// Show mesh relative transform on the details panel so we have a way to visualize the root transform when processing root motion
+			// Note that this doesn't always represent the actual transform of the root in the animation at current time but where root motion has taken us so far
+			// It will not match the root transform at the current time in the animation after lopping multiple times if we are using ProcessRootMotion::Loop
+			// or if we are visualizing a complex section from a montage, for example
+			const FTransform MeshRelativeTransform = Component->GetRelativeTransform();
+			MeshLocation = MeshRelativeTransform.GetLocation();
+			MeshRotation = MeshRelativeTransform.GetRotation().Rotator();
+			MeshScale = MeshRelativeTransform.GetScale3D();
 		}
 	}
 }

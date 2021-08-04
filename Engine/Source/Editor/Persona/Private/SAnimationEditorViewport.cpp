@@ -1007,11 +1007,27 @@ void SAnimationEditorViewportTabBody::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsAudioAttenuationEnabled));
 
+	CommandList.BeginGroup(TEXT("RootMotion"));
+
 	CommandList.MapAction(
-		ViewportShowMenuCommands.ProcessRootMotion,
-		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::OnTogglePreviewRootMotion),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsPreviewingRootMotion));
+		ViewportShowMenuCommands.DoNotProcessRootMotion,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::SetProcessRootMotionMode, EProcessRootMotionMode::Ignore),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::CanUseProcessRootMotionMode, EProcessRootMotionMode::Ignore),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsProcessRootMotionModeSet, EProcessRootMotionMode::Ignore));
+
+	CommandList.MapAction(
+		ViewportShowMenuCommands.ProcessRootMotionLoopAndReset,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::SetProcessRootMotionMode, EProcessRootMotionMode::LoopAndReset),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::CanUseProcessRootMotionMode, EProcessRootMotionMode::LoopAndReset),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsProcessRootMotionModeSet, EProcessRootMotionMode::LoopAndReset));
+
+	CommandList.MapAction(
+		ViewportShowMenuCommands.ProcessRootMotionLoop,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::SetProcessRootMotionMode, EProcessRootMotionMode::Loop),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::CanUseProcessRootMotionMode, EProcessRootMotionMode::Loop),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsProcessRootMotionModeSet, EProcessRootMotionMode::Loop));
+
+	CommandList.EndGroup();
 
 	CommandList.MapAction(
 		ViewportShowMenuCommands.DisablePostProcessBlueprint,
@@ -1899,24 +1915,27 @@ bool SAnimationEditorViewportTabBody::IsAudioAttenuationEnabled() const
 	return GetAnimationViewportClient()->IsUsingAudioAttenuation();
 }
 
-void SAnimationEditorViewportTabBody::OnTogglePreviewRootMotion()
+void SAnimationEditorViewportTabBody::SetProcessRootMotionMode(EProcessRootMotionMode Mode)
 {
-	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
-
-	if (PreviewComponent)
+	if (UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent())
 	{
-		PreviewComponent->SetPreviewRootMotion(!PreviewComponent->GetPreviewRootMotion());
+		PreviewComponent->SetProcessRootMotionMode(Mode);
 	}
 }
 
-bool SAnimationEditorViewportTabBody::IsPreviewingRootMotion() const
+bool SAnimationEditorViewportTabBody::IsProcessRootMotionModeSet(EProcessRootMotionMode Mode) const
 {
-	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	const UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	return PreviewComponent ? (PreviewComponent->GetProcessRootMotionMode() == Mode) : false;
+}
 
-	if (PreviewComponent)
+bool SAnimationEditorViewportTabBody::CanUseProcessRootMotionMode(EProcessRootMotionMode Mode) const
+{
+	if(const UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent())
 	{
-		return PreviewComponent->GetPreviewRootMotion();
+		return PreviewComponent->CanUseProcessRootMotionMode(Mode);
 	}
+
 	return false;
 }
 

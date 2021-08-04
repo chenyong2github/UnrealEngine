@@ -638,7 +638,9 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 				{
 					SubMenuBuilder.BeginSection("AnimViewportRootMotion", LOCTEXT("CharacterMenu_RootMotionLabel", "Root Motion"));
 					{
-						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ProcessRootMotion);
+						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().DoNotProcessRootMotion);
+						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ProcessRootMotionLoop);
+						SubMenuBuilder.AddMenuEntry(FAnimViewportShowCommands::Get().ProcessRootMotionLoopAndReset);
 					}
 					SubMenuBuilder.EndSection();
 

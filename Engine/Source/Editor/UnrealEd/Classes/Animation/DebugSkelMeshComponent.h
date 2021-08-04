@@ -64,6 +64,20 @@ namespace EPersonaTurnTableMode
 	};
 };
 
+/** Different modes for when processing root motion */
+UENUM()
+enum class EProcessRootMotionMode : uint8
+{
+	/** Preview mesh will not consume root motion */
+	Ignore,
+
+	/** Preview mesh will consume root motion continually */
+	Loop,
+
+	/** Preview mesh will consume root motion resetting the position back to the origin every time the animation loops */
+	LoopAndReset
+};
+
 //////////////////////////////////////////////////////////////////////////
 // FDebugSkelMeshSceneProxy
 
@@ -213,8 +227,17 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	UPROPERTY(transient)
 	bool bDisplayVertexColors;
 
+	UE_DEPRECATED(5.0, "This variable is no longer used. Use ProcessRootMotionMode instead.")
+	UPROPERTY()
+	uint32 bPreviewRootMotion_DEPRECATED : 1;
+
+	/** Process root motion mode */
 	UPROPERTY(transient)
-	uint32 bPreviewRootMotion:1;
+	EProcessRootMotionMode ProcessRootMotionMode;
+
+	/** Playback time last time ConsumeRootmotion was called */
+	UPROPERTY(transient)
+	float ConsumeRootMotionPreviousPlaybackTime;
 
 	UPROPERTY(transient)
 	uint32 bShowClothData : 1;
@@ -389,10 +412,27 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	void SetShowClothProperty(bool bState);
 
 	/** Get whether we should be previewing root motion */
-	bool GetPreviewRootMotion() const;
+	UE_DEPRECATED(5.0, "Please use IsProcessingRootMotion or GetProcessRootMotionMode")
+	bool GetPreviewRootMotion() const { return IsProcessingRootMotion(); }
 
 	/** Set whether we should be previewing root motion. Note: disabling root motion preview resets transform. */
-	void SetPreviewRootMotion(bool bInPreviewRootMotion);
+	UE_DEPRECATED(5.0, "Please use SetProcessRootMotionMode")
+	void SetPreviewRootMotion(bool bInPreviewRootMotion) { SetProcessRootMotionMode(bInPreviewRootMotion ? EProcessRootMotionMode::Loop : EProcessRootMotionMode::Ignore); }
+
+	/** Whether we are processing root motion or not */
+	bool IsProcessingRootMotion() const;
+
+	/** Gets process root motion mode */
+	EProcessRootMotionMode GetProcessRootMotionMode() const;
+
+	/** Sets process root motion mode. Note: disabling root motion preview resets transform. */
+	void SetProcessRootMotionMode(EProcessRootMotionMode Mode);
+
+	/** Whether the supplied root motion mode can be used for the current asset */
+	bool CanUseProcessRootMotionMode(EProcessRootMotionMode Mode) const;
+
+	/** Whether the current asset is using root motion */
+	bool DoesCurrentAssetHaveRootMotion() const;
 
 	/** Whether the current LOD of the debug mesh is being synced with the attached (preview) mesh instance. */
 	bool IsTrackingAttachedLOD() const;
@@ -509,7 +549,7 @@ public:
 	EPersonaTurnTableMode::Type TurnTableMode;
 	/** Current turn table speed scaling */
 	float TurnTableSpeedScaling;
-	
+
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 	void RefreshSelectedClothingSkinnedPositions();

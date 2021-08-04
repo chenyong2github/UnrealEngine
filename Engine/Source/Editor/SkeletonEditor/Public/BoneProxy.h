@@ -58,6 +58,18 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Reference Transform")
 	FVector ReferenceScale;
 
+	/** Mesh Location. Non zero when processing root motion */
+	UPROPERTY(VisibleAnywhere, Category = "Mesh Relative Transform")
+	FVector MeshLocation;
+
+	/** Mesh Rotation. Non zero when processing root motion */
+	UPROPERTY(VisibleAnywhere, Category = "Mesh Relative Transform")
+	FRotator MeshRotation;
+
+	/** Mesh Scale */
+	UPROPERTY(VisibleAnywhere, Category = "Mesh Relative Transform")
+	FVector MeshScale;
+
 	/** The skeletal mesh component we glean our transform data from */
 	UPROPERTY()
 	TWeakObjectPtr<UDebugSkelMeshComponent> SkelMeshComponent;

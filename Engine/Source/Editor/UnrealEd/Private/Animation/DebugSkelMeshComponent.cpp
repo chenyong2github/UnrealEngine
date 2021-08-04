@@ -48,6 +48,9 @@ UDebugSkelMeshComponent::UDebugSkelMeshComponent(const FObjectInitializer& Objec
 	BoneRadiusMultiplier = 1.f;
 	
 	CachedClothBounds = FBoxSphereBounds(ForceInit);
+
+	ProcessRootMotionMode = EProcessRootMotionMode::Ignore;
+	ConsumeRootMotionPreviousPlaybackTime = 0.f;
 }
 
 void UDebugSkelMeshComponent::SetDebugForcedLOD(int32 InNewForcedLOD)
@@ -168,45 +171,224 @@ float WrapInRange(float StartVal, float MinVal, float MaxVal)
 
 void UDebugSkelMeshComponent::ConsumeRootMotion(const FVector& FloorMin, const FVector& FloorMax)
 {
-	//Extract root motion regardless of where we use it so that we don't hit
-	//problems with it building up in the instance
-
-	FRootMotionMovementParams ExtractedRootMotion = ConsumeRootMotion_Internal(1.0f);
-
-	if (bPreviewRootMotion)
+	if (PreviewInstance == nullptr)
 	{
-		if (ExtractedRootMotion.bHasRootMotion)
-		{
-			AddLocalTransform(ExtractedRootMotion.GetRootMotionTransform());
+		return;
+	}
 
-			//Handle moving component so that it stays within the editor floor
-			FTransform CurrentTransform = GetRelativeTransform();
-			FVector Trans = CurrentTransform.GetTranslation();
-			Trans.X = WrapInRange(Trans.X, FloorMin.X, FloorMax.X);
-			Trans.Y = WrapInRange(Trans.Y, FloorMin.Y, FloorMax.Y);
-			CurrentTransform.SetTranslation(Trans);
-			SetRelativeTransform(CurrentTransform);
+	// Helper to extract root motion manually from the current asset
+	auto ExtractRootMotionFromAnimationAsset = [](const UAnimationAsset* Animation, float StartPosition, float EndPosition) -> FTransform
+	{
+		if (const UAnimMontage* Anim = Cast<UAnimMontage>(Animation))
+		{
+			return Anim->ExtractRootMotionFromTrackRange(StartPosition, EndPosition);
+		}
+		
+		if (const UAnimComposite* Anim = Cast<UAnimComposite>(Animation))
+		{
+			FRootMotionMovementParams RootMotion;
+			Anim->ExtractRootMotionFromTrack(Anim->AnimationTrack, StartPosition, EndPosition, RootMotion);
+			return RootMotion.GetRootMotionTransform();
+		}
+		
+		if (const UAnimSequence* Anim = Cast<UAnimSequence>(Animation))
+		{
+			return Anim->ExtractRootMotionFromRange(StartPosition, EndPosition);
+		}
+
+		return FTransform::Identity;
+	};
+
+	// Force ProcessRootMotionMode to Ignore if the current asset is not using root motion. 
+	if(ProcessRootMotionMode != EProcessRootMotionMode::Ignore && DoesCurrentAssetHaveRootMotion() == false)
+	{
+		SetProcessRootMotionMode(EProcessRootMotionMode::Ignore);
+	}
+
+	//Extract root motion regardless of where we use it so that we don't hit problems with it building up in the instance
+	FRootMotionMovementParams ExtractedRootMotion = ConsumeRootMotion_Internal(1.0f);
+	
+	const float CurrentTime = PreviewInstance->GetCurrentTime();
+	const float PreviousTime = ConsumeRootMotionPreviousPlaybackTime;
+	ConsumeRootMotionPreviousPlaybackTime = CurrentTime;
+
+	// Ignore Mode: Preview mesh remains in place at the origin regardless of the root motion
+	if (ProcessRootMotionMode == EProcessRootMotionMode::Ignore)
+	{
+		if(!GetRelativeTransform().Equals(FTransform::Identity))
+		{
+			SetRelativeTransform(FTransform::Identity);
+		}
+	}
+	else 
+	{
+		if(PreviewInstance->IsPlaying())
+		{
+			// Loop Mode: Preview mesh will consume root motion continually
+			if (ProcessRootMotionMode == EProcessRootMotionMode::Loop)
+			{
+				AddLocalTransform(ExtractedRootMotion.GetRootMotionTransform());
+
+				//Handle moving component so that it stays within the editor floor
+				FTransform CurrentTransform = GetRelativeTransform();
+				FVector Trans = CurrentTransform.GetTranslation();
+				Trans.X = WrapInRange(Trans.X, FloorMin.X, FloorMax.X);
+				Trans.Y = WrapInRange(Trans.Y, FloorMin.Y, FloorMax.Y);
+				CurrentTransform.SetTranslation(Trans);
+				SetRelativeTransform(CurrentTransform);
+			}
+			// Loop and Reset Mode: Preview mesh will consume root motion resetting the position back to the origin every time the animation loops
+			else if (ProcessRootMotionMode == EProcessRootMotionMode::LoopAndReset)
+			{
+				// In this mode we have to deal with montage explicitly because we can have multiple sections and we want to reset the position when the section loops
+				// and depending on the composition, CurrentTime < PreviousTime (or CurrentTime > PreviousTime when playing in reverse) is not enough
+				if (const UAnimMontage* Montage = Cast<UAnimMontage>(PreviewInstance->CurrentAsset))
+				{
+					const int32 PreviewStartSectionIdx = Montage->CompositeSections.IsValidIndex(PreviewInstance->MontagePreviewStartSectionIdx) ? PreviewInstance->MontagePreviewStartSectionIdx : Montage->GetSectionIndexFromPosition(CurrentTime);
+					const int32 FirstSectionIdx = PreviewInstance->MontagePreview_FindFirstSectionAsInMontage(PreviewStartSectionIdx);
+					const int32 LastSectionIdx = PreviewInstance->MontagePreview_FindLastSection(FirstSectionIdx);
+
+					bool bLooped = false;
+
+					// If FirstSection == LastSection we are previewing a single section
+					// In this case to know if we have looped we just need to check if CurrentTime < PreviousTime (or the oposite if we are playing the montage in reverse)
+					if (FirstSectionIdx == LastSectionIdx)
+					{
+						bLooped = PreviewInstance->IsReverse() ? (CurrentTime > PreviousTime) : (CurrentTime < PreviousTime);
+					}
+					// Otherwise, we are previewing a montage with multiple section. In this case we check if section at CurrentTime is the FirstSection and the section at PreviewTime is the LastSection (or the opposite if we are playing the montage in reverse)
+					else
+					{
+						const int32 SectionIndexPrevTime = Montage->GetSectionIndexFromPosition(PreviousTime);
+						const int32 SectionIndexCurrentTime = Montage->GetSectionIndexFromPosition(CurrentTime);
+						bLooped = PreviewInstance->IsReverse() ? (SectionIndexPrevTime == FirstSectionIdx && SectionIndexCurrentTime == LastSectionIdx) : (SectionIndexPrevTime == LastSectionIdx && SectionIndexCurrentTime == FirstSectionIdx);
+					}
+
+					// If we have looped...
+					if (bLooped)
+					{
+						//... and we are playing in reverse, reset the position of the mesh back to the origin and apply root motion from the end of the LastSection to CurrentTime
+						if (PreviewInstance->IsReverse())
+						{
+							float StartTime, EndTime;
+							Montage->GetSectionStartAndEndTime(LastSectionIdx, StartTime, EndTime);
+							const FTransform RootMotionDelta = ExtractRootMotionFromAnimationAsset(PreviewInstance->CurrentAsset, EndTime, CurrentTime);
+							SetRelativeTransform(RootMotionDelta);
+						}
+						// Otherwise, reset the position of the mesh back to the origin and apply root motion from the beginning of the FirstSection to CurrentTime
+						else
+						{
+							float StartTime, EndTime;
+							Montage->GetSectionStartAndEndTime(FirstSectionIdx, StartTime, EndTime);
+							const FTransform RootMotionDelta = ExtractRootMotionFromAnimationAsset(PreviewInstance->CurrentAsset, StartTime, CurrentTime);
+							SetRelativeTransform(RootMotionDelta);
+						}
+
+					}
+					// we haven't looped, just keep applying the extracted root motion
+					else
+					{
+						AddLocalTransform(ExtractedRootMotion.GetRootMotionTransform());
+					}
+				}
+				else // CurrentAsset is not a Montage
+				{
+					bool bLooped = PreviewInstance->IsReverse() ? (CurrentTime > PreviousTime) : (CurrentTime < PreviousTime);
+					if (bLooped)
+					{
+						if (PreviewInstance->IsReverse())
+						{
+							const FTransform RootMotionDelta = ExtractRootMotionFromAnimationAsset(PreviewInstance->CurrentAsset, PreviewInstance->CurrentAsset->GetPlayLength(), CurrentTime);
+							SetRelativeTransform(RootMotionDelta);
+						}
+						else
+						{
+							const FTransform RootMotionDelta = ExtractRootMotionFromAnimationAsset(PreviewInstance->CurrentAsset, 0.f, CurrentTime);
+							SetRelativeTransform(RootMotionDelta);
+						}
+					}
+					else
+					{
+						AddLocalTransform(ExtractedRootMotion.GetRootMotionTransform());
+					}
+				}
+			}
+		}
+		else // Not Playing. When not playing user can still scrub the time line but animation is not ticking so we have to extract and apply root motion manually
+		{
+			const FTransform RootMotion = ExtractRootMotionFromAnimationAsset(PreviewInstance->CurrentAsset, PreviousTime, CurrentTime);
+			AddLocalTransform(RootMotion);
 		}
 	}
 }
 
-bool UDebugSkelMeshComponent::GetPreviewRootMotion() const
-{
-	return bPreviewRootMotion;
+bool UDebugSkelMeshComponent::IsProcessingRootMotion() const 
+{ 
+	return GetProcessRootMotionMode() != EProcessRootMotionMode::Ignore;
 }
 
-void UDebugSkelMeshComponent::SetPreviewRootMotion(bool bInPreviewRootMotion)
+EProcessRootMotionMode UDebugSkelMeshComponent::GetProcessRootMotionMode() const
 {
-	bPreviewRootMotion = bInPreviewRootMotion;
-	if (!bPreviewRootMotion)
+	return ProcessRootMotionMode;
+}
+
+bool UDebugSkelMeshComponent::DoesCurrentAssetHaveRootMotion() const
+{
+	if(PreviewInstance)
 	{
-		if (TurnTableMode == EPersonaTurnTableMode::Stopped)
+		if(UAnimSequenceBase* AnimSequenceBase = Cast<UAnimSequenceBase>(PreviewInstance->GetCurrentAsset()))
 		{
-			SetWorldTransform(FTransform());
+			return AnimSequenceBase->HasRootMotion();
 		}
-		else
+	}
+
+	return false;
+}
+
+bool UDebugSkelMeshComponent::CanUseProcessRootMotionMode(EProcessRootMotionMode Mode) const
+{
+	if (PreviewInstance == nullptr)
+	{
+		return false;
+	}
+	
+	// Disable Loop modes if the current asset doesn't have root motion
+	if(Mode != EProcessRootMotionMode::Ignore)
+	{
+		if(!DoesCurrentAssetHaveRootMotion())
 		{
-			SetRelativeLocation(FVector::ZeroVector);
+			return false;
+		}
+	}
+
+	// Disable Loop and Reset mode for blend spaces
+	if (Mode == EProcessRootMotionMode::LoopAndReset)
+	{
+		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(PreviewInstance->GetCurrentAsset()))
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+void UDebugSkelMeshComponent::SetProcessRootMotionMode(EProcessRootMotionMode Mode)
+{
+	if(CanUseProcessRootMotionMode(Mode))
+	{
+		ProcessRootMotionMode = Mode;
+
+		if (ProcessRootMotionMode == EProcessRootMotionMode::Ignore)
+		{
+			if (TurnTableMode == EPersonaTurnTableMode::Stopped)
+			{
+				SetWorldTransform(FTransform());
+			}
+			else
+			{
+				SetRelativeLocation(FVector::ZeroVector);
+			}
 		}
 	}
 }
@@ -357,7 +539,14 @@ void UDebugSkelMeshComponent::EnablePreview(bool bEnable, UAnimationAsset* Previ
 		    // restore previous state
 		    bDisableClothSimulation = bPrevDisableClothSimulation;
     
-			PreviewInstance->SetAnimationAsset(PreviewAsset);
+			PreviewInstance->SetAnimationAsset(PreviewAsset); 
+
+			// Reset mesh relative transform. It could be offset from the origin if we are processing root motion
+			if (!GetRelativeTransform().Equals(FTransform::Identity))
+			{
+				SetRelativeTransform(FTransform::Identity);
+			}
+
 		}
 		else if (IsPreviewOn())
 		{
