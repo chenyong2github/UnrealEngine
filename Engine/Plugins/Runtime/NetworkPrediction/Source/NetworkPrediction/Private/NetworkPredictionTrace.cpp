@@ -40,6 +40,7 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SimulationCreated)
 	UE_TRACE_EVENT_FIELD(uint32, SimulationID) // server assigned (shared client<->server)
 	UE_TRACE_EVENT_FIELD(int32, TraceID) // process unique id
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, DebugName)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SimulationConfig)
@@ -78,6 +79,7 @@ UE_TRACE_EVENT_END()
 
 // General system fault. Log message is in attachment
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SystemFault)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Message)
 UE_TRACE_EVENT_END()
 
 // Traces general tick state (called before ticking N sims)
@@ -103,6 +105,7 @@ UE_TRACE_EVENT_BEGIN(NetworkPrediction, ShouldReconcile)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, Reconcile)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, UserString)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, RollbackInject)
@@ -130,18 +133,23 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, OOBStateMod)
 	UE_TRACE_EVENT_FIELD(int32, TraceID)
 	UE_TRACE_EVENT_FIELD(int32, Frame)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Source)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, InputCmd)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Value)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SyncState)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Value)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, AuxState)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Value)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, PhysicsState)
+	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Value)
 UE_TRACE_EVENT_END()
 
 // ---------------------------------------------------------------------------
@@ -150,10 +158,10 @@ void FNetworkPredictionTrace::TraceSimulationCreated_Internal(FNetworkPrediction
 {
 	const uint16 AttachmentSize = Builder.Len() * sizeof(FStringBuilderBase::ElementType);
 
-	UE_TRACE_LOG(NetworkPrediction, SimulationCreated, NetworkPredictionChannel, AttachmentSize)
+	UE_TRACE_LOG(NetworkPrediction, SimulationCreated, NetworkPredictionChannel)
 		<< SimulationCreated.SimulationID((int32)ID)
 		<< SimulationCreated.TraceID(ID.GetTraceID())
-		<< SimulationCreated.Attachment(Builder.ToString(), AttachmentSize);
+		<< SimulationCreated.DebugName(Builder.ToString(), Builder.Len());
 }
 
 void FNetworkPredictionTrace::TraceWorldFrameStart(UGameInstance* GameInstance, float DeltaSeconds)
@@ -209,33 +217,30 @@ void FNetworkPredictionTrace::TraceSimTick(int32 TraceID)
 
 void FNetworkPredictionTrace::TraceUserState_Internal(ETraceUserState StateType, FAnsiStringBuilderBase& Builder)
 {
-	// Due to how string store works on the analysis side, its better to transmit the string with the null terminator
-	const uint16 AttachmentSize = (uint16)((Builder.Len()+1) * sizeof(FAnsiStringBuilderBase::ElementType));
-
 	switch(StateType)
 	{
 		case ETraceUserState::Input:
 		{
-			UE_TRACE_LOG(NetworkPrediction, InputCmd, NetworkPredictionChannel, AttachmentSize)
-				<< InputCmd.Attachment(Builder.GetData(), AttachmentSize);
+			UE_TRACE_LOG(NetworkPrediction, InputCmd, NetworkPredictionChannel)
+				<< InputCmd.Value(Builder.GetData(), Builder.Len());
 			break;
 		}
 		case ETraceUserState::Sync:
 		{
-			UE_TRACE_LOG(NetworkPrediction, SyncState, NetworkPredictionChannel, AttachmentSize)
-				<< SyncState.Attachment(Builder.GetData(), AttachmentSize);
+			UE_TRACE_LOG(NetworkPrediction, SyncState, NetworkPredictionChannel)
+				<< SyncState.Value(Builder.GetData(), Builder.Len());
 			break;
 		}
 		case ETraceUserState::Aux:
 		{
-			UE_TRACE_LOG(NetworkPrediction, AuxState, NetworkPredictionChannel, AttachmentSize)
-				<< AuxState.Attachment(Builder.GetData(), AttachmentSize);
+			UE_TRACE_LOG(NetworkPrediction, AuxState, NetworkPredictionChannel)
+				<< AuxState.Value(Builder.GetData(), Builder.Len());
 			break;
 		}
 		case ETraceUserState::Physics:
 		{
-			UE_TRACE_LOG(NetworkPrediction, PhysicsState, NetworkPredictionChannel, AttachmentSize)
-				<< PhysicsState.Attachment(Builder.GetData(), AttachmentSize);
+			UE_TRACE_LOG(NetworkPrediction, PhysicsState, NetworkPredictionChannel)
+				<< PhysicsState.Value(Builder.GetData(), Builder.Len());
 			break;
 		}
 	}
@@ -250,10 +255,8 @@ void FNetworkPredictionTrace::TraceNetRecv(int32 Frame, int32 TimeMS)
 
 void FNetworkPredictionTrace::TraceReconcile(const FAnsiStringView& StrView)
 {
-	const uint16 AttachmentSize = (uint16)((StrView.Len()+1) * sizeof(FAnsiStringView::ElementType));
-
-	UE_TRACE_LOG(NetworkPrediction, Reconcile, NetworkPredictionChannel, AttachmentSize)
-		<< Reconcile.Attachment(StrView.GetData(), AttachmentSize);
+	UE_TRACE_LOG(NetworkPrediction, Reconcile, NetworkPredictionChannel)
+		<< Reconcile.UserString(StrView.GetData(), StrView.Len());
 }
 
 void FNetworkPredictionTrace::TraceShouldReconcile(int32 TraceID)
@@ -311,12 +314,10 @@ void FNetworkPredictionTrace::TraceProduceInput(int32 TraceID)
 
 void FNetworkPredictionTrace::TraceOOBStateMod(int32 TraceID, int32 Frame, const FAnsiStringView& StrView)
 {
-	const uint16 AttachmentSize = (uint16)((StrView.Len()+1) * sizeof(FAnsiStringView::ElementType));
-
-	UE_TRACE_LOG(NetworkPrediction, OOBStateMod, NetworkPredictionChannel, AttachmentSize)
+	UE_TRACE_LOG(NetworkPrediction, OOBStateMod, NetworkPredictionChannel)
 		<< OOBStateMod.TraceID(TraceID)
 		<< OOBStateMod.Frame(Frame)
-		<< OOBStateMod.Attachment(StrView.GetData(), AttachmentSize);
+		<< OOBStateMod.Source(StrView.GetData(), StrView.Len());
 }
 
 #include "CoreTypes.h"
@@ -362,13 +363,12 @@ void FNetworkPredictionTrace::TraceSystemFault(const TCHAR* Fmt, ...)
 	GROWABLE_LOGF( 
 
 		check(Result >= 0 );
-	const uint16 AttachmentSize = (Result+1) * sizeof(TCHAR);
 
 	UE_LOG(LogNetworkPrediction, Warning, TEXT("SystemFault: %s"), Buffer);
 	);
 
-	UE_TRACE_LOG(NetworkPrediction, SystemFault, NetworkPredictionChannel, AttachmentSize)
-		<< SystemFault.Attachment(Buffer, AttachmentSize);
+	UE_TRACE_LOG(NetworkPrediction, SystemFault, NetworkPredictionChannel)
+		<< SystemFault.Message(Buffer, Result);
 
 	FMemory::SystemFree(AllocatedBuffer);
 }
