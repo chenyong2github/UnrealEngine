@@ -3,6 +3,7 @@
 #include "NetworkPredictionAnalyzer.h"
 #include "NetworkPredictionProvider.h"
 #include "Containers/StringView.h"
+#include "TraceServices/Utils.h"
 
 // As we are tracing from multiple threads and we have trace events that are stringed together we need to track some state per thread to not trace bad data.
 struct FNetworkPredictionAnalyzer::FThreadState
@@ -73,10 +74,8 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 	{
 		FThreadState& ThreadState = GetThreadState(Context.ThreadInfo.GetId());
 
-		// FIXME: we want to trace ANSI strings but are converting them to WIDE here to store them for analysis.
-		// Latest version of insights should have formal ANSI string support so this should be able to go away.
-		const ANSICHAR* AnsiStr = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
-		NetworkPredictionProvider.WriteUserState(ThreadState.TraceID, ThreadState.PendingWriteFrame, this->EngineFrameNumber, Type, ThreadState.PendingUserStateSource, Session.StoreString(StringCast<TCHAR>(AnsiStr).Get()));
+		FString Value = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentString<ANSICHAR>("Value", Context);
+		NetworkPredictionProvider.WriteUserState(ThreadState.TraceID, ThreadState.PendingWriteFrame, this->EngineFrameNumber, Type, ThreadState.PendingUserStateSource, Session.StoreString(*Value));
 	};
 
 	bool bUnhandled = false;
@@ -107,7 +106,7 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			ThreadState.TraceID = EventData.GetValue<int32>("TraceID");
 
 			FSimulationData::FConst& ConstData = NetworkPredictionProvider.WriteSimulationCreated(ThreadState.TraceID);
-			ConstData.DebugName = FString(EventData.GetAttachmentSize() / sizeof(TCHAR), reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+			ConstData.DebugName = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentString<ANSICHAR>("DebugName", Context);
 			ConstData.ID.SimID = EventData.GetValue<uint32>("SimulationID");
 			break;
 		}
@@ -162,7 +161,8 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 
 			FThreadState& ThreadState = GetThreadState(Context.ThreadInfo.GetId());
 
-			const TCHAR* StoredString = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+			FString Message = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentString<WIDECHAR>("Message", Context);
+			const TCHAR* StoredString = Session.StoreString(*Message);
 			ensureMsgf(ThreadState.TraceID > 0, TEXT("Invalid TraceID when analyzing SystemFault: %s"), StoredString);
 
 			NetworkPredictionProvider.WriteSystemFault(
@@ -264,11 +264,8 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			// Valid TraceID should have already been set
 			ensure(ThreadState.TraceID > 0);
 
-			// FIXME: ANSI to TCHAR conversion should be removable. See UserState comment above	
-			const ANSICHAR* AttachmentData = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
-			int32 AttachmentSize = EventData.GetAttachmentSize();
-			
-			NetworkPredictionProvider.WriteReconcileStr(ThreadState.TraceID, Session.StoreString(StringCast<TCHAR>(AttachmentData, AttachmentSize).Get()));
+			FString UserString = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentString<ANSICHAR>("UserString", Context);
+			NetworkPredictionProvider.WriteReconcileStr(ThreadState.TraceID, Session.StoreString(*UserString));
 			break;
 		}
 
@@ -333,11 +330,8 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			ThreadState.PendingUserStateSource = ENP_UserStateSource::OOB;
 			NetworkPredictionProvider.WriteOOBStateMod(ThreadState.TraceID);
 
-			// FIXME: ANSI to TCHAR conversion should be removable. See UserState comment above	
-			const ANSICHAR* AttachmentData = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
-			const int32 AttachmentSize = EventData.GetAttachmentSize();
-			
-			NetworkPredictionProvider.WriteOOBStateModStr(ThreadState.TraceID, Session.StoreString(StringCast<TCHAR>(AttachmentData, AttachmentSize).Get()));
+			FString Source = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentString<ANSICHAR>("Source", Context);
+			NetworkPredictionProvider.WriteOOBStateModStr(ThreadState.TraceID, Session.StoreString(Source));
 			break;
 		}
 	}
