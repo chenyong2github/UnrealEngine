@@ -88,4 +88,18 @@ class ITextureShareCore
 	 * Release all created ITextureShareItem objects
 	 */
 	virtual void ReleaseLib() = 0;
+
+	/** Frame sync scope */
+
+	/**
+	 * Begin global frame sync
+	 * NOT IMPLEMENTED
+	 */
+	virtual bool BeginSyncFrame() = 0;
+
+	/**
+	 * Finalize global frame sync
+	 * NOT IMPLEMENTED
+	 */
+	virtual bool EndSyncFrame() = 0;
 };

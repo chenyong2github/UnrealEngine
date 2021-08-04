@@ -196,4 +196,16 @@ void FTextureShareCoreModule::SetSyncPolicySettings(ETextureShareProcess Process
 	TextureShareItem::FTextureShareItemBase::SetSyncPolicySettings(Process, InSyncPolicySettings);
 }
 
+bool FTextureShareCoreModule::BeginSyncFrame()
+{
+	// NOT IMPLEMENTED
+	return false;
+}
+
+bool FTextureShareCoreModule::EndSyncFrame()
+{
+	// NOT IMPLEMENTED
+	return false;
+}
+
 IMPLEMENT_MODULE(FTextureShareCoreModule, TextureShareCore);

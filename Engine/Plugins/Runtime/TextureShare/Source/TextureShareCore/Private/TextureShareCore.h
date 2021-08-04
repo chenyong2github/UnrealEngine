@@ -26,6 +26,9 @@ public:
 	virtual bool ReleaseTextureShareItem(const FString& ShareName) override;
 	virtual bool GetTextureShareItem(const FString& ShareName, TSharedPtr<ITextureShareItem>& OutShareObject) const override;
 
+	virtual bool BeginSyncFrame() override;
+	virtual bool EndSyncFrame() override;
+
 protected:
 	void InitializeProcessMemory();
 	void ReleaseProcessMemory();

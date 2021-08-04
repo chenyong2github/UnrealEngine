@@ -33,6 +33,7 @@ namespace DisplayClusterConfigurationStrings
 		static constexpr auto ConfigurationCategory        = TEXT("Configuration");
 		static constexpr auto PreviewCategory              = TEXT("Editor Preview");
 		static constexpr auto AdvancedCategory             = TEXT("Advanced");
+		static constexpr auto TextureShareCategory         = TEXT("Texture Share");
 	}
 
 	// Command line arguments

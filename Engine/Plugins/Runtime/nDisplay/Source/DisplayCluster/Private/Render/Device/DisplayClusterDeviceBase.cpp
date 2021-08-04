@@ -30,10 +30,6 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
-#if PLATFORM_WINDOWS
-#include "ITextureShare.h"
-#include "ITextureShareItem.h"
-#endif
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
@@ -493,57 +489,6 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 	{
 		// UE viewport
 		MainViewport = (FViewport*)&Viewport;
-
-#if PLATFORM_WINDOWS
-		/*
-		// Create texture share for render viewports by config line flag
-		//@todo move to right place. add on\off
-		{
-			// Share viewports to external apps
-			for (int ViewportIndex = 0; ViewportIndex < RenderViewports.Num(); ViewportIndex++)
-			{
-				if (RenderViewports[ViewportIndex].IsShared())
-				{
-					static ITextureShare& TextureShareAPI = ITextureShare::Get();
-
-					//@todo: add custom sync setup
-					FTextureShareSyncPolicy SyncPolicy;
-
-					FString ShareName = RenderViewports[ViewportIndex].GetId();
-					EStereoscopicPass PassType = GetViewPassForIndex(IsStereoEnabled(), ViewportIndex);
-
-					// Create shared resource for external app
-					if (!TextureShareAPI.CreateShare(ShareName, SyncPolicy, ETextureShareProcess::Server))
-					{
-						UE_LOG(LogDisplayClusterRender, Error, TEXT("Failed create viewport share '%s'"), *ShareName);
-					}
-					else
-					{
-						// Find viewport stereoscopic pass
-						int ResourceViewportIndex = RenderViewports.Num() - 1;
-
-						// Initialize render callbacks
-						TSharedPtr<ITextureShareItem> ShareItem;
-						if (TextureShareAPI.GetShare(ShareName, ShareItem))
-						{
-							if(TextureShareAPI.LinkSceneContextToShare(ShareItem, PassType, true))
-							{
-								// Map viewport rect to stereoscopic pass
-								TextureShareAPI.SetBackbufferRect(PassType, &RenderViewports[ViewportIndex].GetRect());
-								// Begin share session
-								ShareItem->BeginSession();
-							}
-							else
-							{
-								TextureShareAPI.ReleaseShare(ShareName);
-								UE_LOG(LogDisplayClusterRender, Error, TEXT("failed link scene conext for share '%s'"), *ShareName);
-							}
-						}
-					}
-				}
-			}
-		}*/
-#endif
 	}
 }
 

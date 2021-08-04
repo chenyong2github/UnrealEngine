@@ -54,10 +54,46 @@ void CopyAdditionalData(SrcType& Src, DstType& Dst)
 	//@todo: add more frame data
 }
 
+
+template <typename SrcType, typename DstType>
+void CopyCustomProjectionData(SrcType& Src, DstType& Dst)
+{
+	// Projection matrix
+	CopyMatrix(Src.PrjMatrix, Dst.PrjMatrix);
+
+	CopyVector(Src.ViewLocation, Dst.ViewLocation);
+	CopyRotator(Src.ViewRotation, Dst.ViewRotation);
+	CopyVector(Src.ViewScale, Dst.ViewScale);
+}
+
 ITextureShareCore& ShareCoreAPI()
 {
 	static ITextureShareCore* Singleton = &ITextureShareCore::Get();
 	return *Singleton;
+}
+
+bool FTextureShareInterface::BeginSyncFrame()
+{
+	return ShareCoreAPI().BeginSyncFrame();
+}
+
+bool FTextureShareInterface::EndSyncFrame()
+{
+	return ShareCoreAPI().EndSyncFrame();
+}
+
+bool FTextureShareInterface::SetCustomProjectionData(const TCHAR* ShareName, const FTextureShareSDKCustomProjectionData& InData)
+{
+	TSharedPtr<ITextureShareItem> ShareItem;
+	if (ShareCoreAPI().GetTextureShareItem(FString(ShareName), ShareItem))
+	{
+		// Convert to UE
+		FTextureShareCustomProjectionData Data;
+		CopyCustomProjectionData(InData, Data);
+		return ShareItem->SetCustomProjectionData(Data);
+	}
+
+	return false;
 }
 
 bool FTextureShareInterface::SetLocalAdditionalData(const TCHAR* ShareName, const FTextureShareSDKAdditionalData& InData)

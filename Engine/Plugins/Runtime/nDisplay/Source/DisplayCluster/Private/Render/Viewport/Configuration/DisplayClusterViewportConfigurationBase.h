@@ -24,6 +24,7 @@ public:
 
 public:
 	void Update(const TArray<FString>& InClusterNodeIds);
+	void UpdateTextureShare(const FString& ClusterNodeId);
 	void UpdateClusterNodePostProcess(const FString& ClusterNodeId);
 
 public:
