@@ -127,7 +127,7 @@ namespace LowLevelTasks
 	private:
 		using FTaskDelegate = TTaskDelegate<PLATFORM_CACHE_LINE_SIZE - sizeof(FPackedData) - sizeof(void*), bool>;
 		FTaskDelegate Runnable;
-		mutable void* UserData;
+		mutable void* UserData = nullptr;
 		std::atomic<FPackedData> PackedData { FPackedData() };
 
 	private:
@@ -178,28 +178,16 @@ namespace LowLevelTasks
 		inline bool TryExecute();
 
 		template<typename TRunnable, typename TContinuation>
-		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation, bool bAllowBusyWaiting);
+		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation, bool bAllowBusyWaiting = true);
 
 		template<typename TRunnable>
-		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, bool bAllowBusyWaiting);
+		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, bool bAllowBusyWaiting = true);
 
 		template<typename TRunnable, typename TContinuation>
-		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable, TContinuation&& InContinuation, bool bAllowBusyWaiting);
+		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable, TContinuation&& InContinuation, bool bAllowBusyWaiting = true);
 
 		template<typename TRunnable>
-		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable, bool bAllowBusyWaiting);
-
-		template<typename TRunnable, typename TContinuation>
-		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation);
-
-		template<typename TRunnable>
-		inline void Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable);
-
-		template<typename TRunnable, typename TContinuation>
-		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable, TContinuation&& InContinuation);
-
-		template<typename TRunnable>
-		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable);
+		inline void Init(const TCHAR* InDebugName, TRunnable&& InRunnable, bool bAllowBusyWaiting = true);
 
 		inline const TCHAR* GetDebugName() const;
 		inline ETaskPriority GetPriority() const;
@@ -291,30 +279,6 @@ namespace LowLevelTasks
 		Init(InDebugName, ETaskPriority::Default, Forward<TRunnable>(InRunnable), bAllowBusyWaiting);
 	}
 
-	template<typename TRunnable, typename TContinuation>
-	inline void FTask::Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable, TContinuation&& InContinuation)
-	{
-		Init(InDebugName, InPriority, Forward<TRunnable>(InRunnable), Forward<TContinuation>(InContinuation), true);
-	}
-
-	template<typename TRunnable>
-	inline void FTask::Init(const TCHAR* InDebugName, ETaskPriority InPriority, TRunnable&& InRunnable)
-	{
-		Init(InDebugName, InPriority, Forward<TRunnable>(InRunnable), true);
-	}
-
-	template<typename TRunnable, typename TContinuation>
-	inline void FTask::Init(const TCHAR* InDebugName, TRunnable&& InRunnable, TContinuation&& InContinuation)
-	{
-		Init(InDebugName, ETaskPriority::Default, Forward<TRunnable>(InRunnable), Forward<TContinuation>(InContinuation), true);
-	}
-
-	template<typename TRunnable>
-	inline void FTask::Init(const TCHAR* InDebugName, TRunnable&& InRunnable)
-	{
-		Init(InDebugName, ETaskPriority::Default, Forward<TRunnable>(InRunnable), true);
-	}
-
 	inline FTask::~FTask()
 	{
 		checkf(IsCompleted(), TEXT("State: %d"), PackedData.load(std::memory_order_relaxed).GetState());
@@ -388,5 +352,22 @@ namespace LowLevelTasks
 	inline bool FTask::AllowBusyWaiting() const
 	{
 		return PackedData.load(std::memory_order_relaxed).AllowBusyWaiting();
-	}	
+	}
+
+	enum class ESleepState
+	{
+		Affinity,
+		Running,
+		Drowsing,
+		Sleeping,
+	};
+
+	//the struct is naturally 64 bytes aligned, the extra alignment just 
+	//re-enforces this assumption and will error if it changes in the future
+	struct alignas(64) FSleepEvent
+	{
+		FEventRef SleepEvent;
+		std::atomic<ESleepState> SleepState { ESleepState::Running };
+		FSleepEvent* Next = nullptr;
+	};
 }
