@@ -24,6 +24,7 @@
 #include "RenderingThread.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
 #include "UObject/Package.h"
+#include "Internationalization/Regex.h"
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
@@ -680,7 +681,7 @@ bool UOptimusDeformer::Compile()
 			FKernelWithDataBindings BoundKernel;
 
 			BoundKernel.KernelNodeIndex = UpdateGraph->Nodes.IndexOfByKey(Node);
-			BoundKernel.Kernel = NewObject<UComputeKernel>(this, *KernelNode->KernelName);
+			BoundKernel.Kernel = NewObject<UComputeKernel>(this);
 
 			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(
 				BoundKernel.Kernel,
