@@ -1,0 +1,25 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+RWByteAddressBuffer RWBoundsHierarchy_{ParameterName};
+StructuredBuffer<FSensorInfo> SensorInfo_{ParameterName};
+int3 SensorGridDimensions_{ParameterName};
+int SensorGridWriteIndex_{ParameterName};
+int SensorGridReadIndex_{ParameterName};
+
+void UpdateSensorGpu_{ParameterName}_UEImpureCall(int SensorX, int SensorY, float3 SensorLocation, float SensorRange, bool IsValid)
+{
+	NDIFrostySensorGrid_UpdateSensorGpu(SensorGridDimensions_{ParameterName}, int3(SensorX, SensorY, SensorGridWriteIndex_{ParameterName}), SensorLocation, SensorRange, IsValid, RWBoundsHierarchy_{ParameterName});
+}
+
+void FindNearestGpu_{ParameterName}(int SensorX, int SensorY, out float3 Location, out float Distance, out bool IsValid)
+{
+	Location = float3(0.0f, 0.0f, 0.0f);
+	Distance = 0.0f;
+	IsValid = false;
+
+	if (SensorGridReadIndex_{ParameterName} >= 0)
+	{
+		int3 TargetSensorIndex;
+		NDIFrostySensorGrid_FindNearestGpu(SensorInfo_{ParameterName}, SensorGridDimensions_{ParameterName}, int3(SensorX, SensorY, SensorGridReadIndex_{ParameterName}), Location, Distance, IsValid);
+	}
+}

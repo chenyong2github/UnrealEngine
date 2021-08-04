@@ -1,0 +1,58 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "/Engine/Public/Platform.ush"
+#include "FrostySensorGridCommon.ush"
+
+#define SUBGRID_SIZE 2
+
+RWByteAddressBuffer BoundsHierarchy;
+
+////////////////////////////////////////////////////////////////////////////////
+///// Shader to aggregate the bounds from one level of the hierarchy to the next
+////////////////////////////////////////////////////////////////////////////////
+int3 TargetStrideAndOffset;
+int3 SourceStrideAndOffset;
+
+groupshared float4 CachedBounds[SUBGRID_SIZE * SUBGRID_SIZE];
+
+[numthreads(SUBGRID_SIZE, SUBGRID_SIZE, 1)]
+void AggregateBounds(uint3 DispatchThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex, uint3 GroupID : SV_GroupID)
+{
+	CachedBounds[GroupIndex] = asfloat(BoundsHierarchy.Load4(SourceStrideAndOffset.z + 16 * TiledToLinear(DispatchThreadId, uint3(SourceStrideAndOffset.xy, 0))));
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupIndex == 0)
+	{
+		float ValidCount = 0.0f;
+		float3 Centroid = float3(0.0f, 0.0f, 0.0f);
+
+		int i;
+
+		for (i = 0; i < SUBGRID_SIZE * SUBGRID_SIZE; ++i)
+		{
+			if (CachedBounds[i].w >= 0.0f)
+			{
+				Centroid += CachedBounds[i].xyz;
+				ValidCount += 1.0f;
+			}
+		}
+
+		Centroid *= (1.0f / ValidCount);
+
+		float MaxDistance = -1.0f;
+
+		for (i = 0; i < SUBGRID_SIZE * SUBGRID_SIZE; ++i)
+		{
+			if (CachedBounds[i].w >= 0.0f)
+			{
+				const float3 Delta = Centroid - CachedBounds[i].xyz;
+				MaxDistance = max(MaxDistance, length(Delta) + CachedBounds[i].w);
+			}
+		}
+
+		BoundsHierarchy.Store4(TargetStrideAndOffset.z + 16 * TiledToLinear(GroupID, uint3(TargetStrideAndOffset.xy, 0)), asuint(float4(Centroid, MaxDistance)));
+	}
+}

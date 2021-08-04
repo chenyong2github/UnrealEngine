@@ -1,0 +1,39 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "FrostySensorGridCommon.ush"
+
+////////////////////////////////////////////////////////////////////////////////
+///// Writes a particles location to the BoundsHierarchy
+////////////////////////////////////////////////////////////////////////////////
+void NDIFrostySensorGrid_UpdateSensorGpu(int3 SensorGridDimensions, int3 SensorIndex, float3 SensorLocation, float SensorRange, bool IsValid, RWByteAddressBuffer BoundsHierarchy)
+{
+	if (!IsValid)
+	{
+		SensorLocation = float3(0.0f, 0.0f, 0.0f);
+		SensorRange = -1.0f;
+	}
+
+	BoundsHierarchy.Store4(16 * TiledToLinear(SensorIndex, SensorGridDimensions), asuint(float4(SensorLocation, SensorRange)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///// Searches the SensorInfo for previously calculated closest sensor
+////////////////////////////////////////////////////////////////////////////////
+void NDIFrostySensorGrid_FindNearestGpu(StructuredBuffer<FSensorInfo> SensorInfo, int3 SensorGridDimensions, int3 SourceSensorIndex, out float3 Location, out float Distance, out bool IsValid)
+{
+	if (all(SourceSensorIndex < SensorGridDimensions))
+	{
+		const int LinearSensorIndex = TiledToLinear(SourceSensorIndex, SensorGridDimensions);
+
+		Location = SensorInfo[LinearSensorIndex].LocationAndDistance.xyz;
+		Distance = SensorInfo[LinearSensorIndex].LocationAndDistance.w;
+
+		IsValid = all(SensorInfo[LinearSensorIndex].HitIndex >= 0);
+	}
+	else
+	{
+		IsValid = false;
+	}
+}
