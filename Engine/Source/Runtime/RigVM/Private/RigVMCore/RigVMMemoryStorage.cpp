@@ -298,6 +298,15 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	return Class;
 }
 
+FRigVMMemoryStatistics URigVMMemoryStorageGeneratorClass::GetStatistics() const
+{
+	FRigVMMemoryStatistics Statistics;
+	Statistics.RegisterCount = GetProperties().Num();
+	Statistics.TotalBytes = Statistics.DataBytes + sizeof(URigVMMemoryStorage);
+	Statistics.TotalBytes += sizeof(FProperty) * Statistics.RegisterCount;
+	return Statistics;
+}
+
 FProperty* URigVMMemoryStorageGeneratorClass::AddProperty(URigVMMemoryStorageGeneratorClass* InClass, const FRigVMPropertyDescription& InProperty, FField** LinkToProperty)
 {
 	UClass *SuperClass = URigVMMemoryStorage::StaticClass();

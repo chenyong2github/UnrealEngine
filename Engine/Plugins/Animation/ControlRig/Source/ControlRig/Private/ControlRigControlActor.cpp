@@ -128,41 +128,21 @@ void AControlRigControlActor::Refresh()
 
 	if (ControlRig == nullptr)
 	{
-		for (TObjectIterator<UControlRig> Itr; Itr; ++Itr)
+		TArray<UControlRig*> Rigs = UControlRig::FindControlRigs(ActorToTrack, ControlRigClass);
+		if(Rigs.Num() > 0)
 		{
-			UControlRig* RigInstance = *Itr;
-			if (ControlRigClass == nullptr || RigInstance->GetClass()->IsChildOf(ControlRigClass))
-			{
-				if (TSharedPtr<IControlRigObjectBinding> Binding = RigInstance->GetObjectBinding())
-				{
-					if (AActor* Actor = Binding->GetHostingActor())
-					{
-						if (Actor == ActorToTrack)
-						{
-							ControlRig = RigInstance;
-							RemoveUnbindDelegate();
-							OnUnbindDelegate =Binding->OnControlRigUnbind().AddLambda([ this ]( ) { this->Clear(); this->Refresh(); });
-							break;
-						}
-					}
-				}
-			}
-
-			if(ControlRig == nullptr)
-			{
-				UObject* Outer = RigInstance->GetOuter();
-				if(RigInstance->IsInOuter(ActorToTrack))
-				{
-					ControlRig = RigInstance;
-					RemoveUnbindDelegate();
-					break;
-				}
-			}
+			ControlRig = Rigs[0];
 		}
-
+		
 		if (ControlRig == nullptr)
 		{
 			return;
+		}
+
+		RemoveUnbindDelegate();
+		if (TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding())
+		{
+			OnUnbindDelegate = Binding->OnControlRigUnbind().AddLambda([ this ]( ) { this->Clear(); this->Refresh(); });
 		}
 
 		UControlRigGizmoLibrary* GizmoLibrary = ControlRig->GetGizmoLibrary();

@@ -64,6 +64,9 @@ public:
 
 	static const FName OwnerComponent;
 
+	UFUNCTION(BlueprintCallable, Category = ControlRig)
+	static TArray<UControlRig*> FindControlRigs(UObject* Outer, TSubclassOf<UControlRig> OptionalClass);
+
 private:
 	/** Current delta time */
 	float DeltaTime;
@@ -262,7 +265,8 @@ public:
 
 	/** Set the VM, and bind its commands */
 	void SetVM(URigVM* VM);
-	
+
+	UFUNCTION(BlueprintPure, Category = "Control Rig")
 	URigVM* GetVM();
 
 	/** INodeMappingInterface implementation */
