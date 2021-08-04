@@ -259,6 +259,29 @@ namespace Audio
 		}
 	}
 
+	void FDynamicsProcessor::ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame, float* OutGain)
+	{
+		check(OutGain != nullptr);
+
+		const bool bKeyIsInput = InFrame == InKeyFrame;
+		if (ProcessKeyFrame(InKeyFrame, OutFrame, bKeyIsInput))
+		{
+			const int32 NumChannels = GetNumChannels();
+			for (int32 Channel = 0; Channel < NumChannels; ++Channel)
+			{
+				// Write and read into the look ahead delay line.
+				// We apply the compression output of the direct input to the output of this delay line
+				// This way sharp transients can be "caught" with the gain.
+				float LookaheadOutput = LookaheadDelay[Channel].ProcessAudioSample(InFrame[Channel]);
+
+				// Write into the output with the computed gain value
+				OutFrame[Channel] = Gain[Channel] * LookaheadOutput * OutputGain * InputGain;
+				// Also write the output gain value
+				OutGain[Channel] = Gain[Channel];
+			}
+		}
+	}
+
 	void FDynamicsProcessor::ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer)
 	{
 		const int32 NumChannels = GetNumChannels();
@@ -280,6 +303,33 @@ namespace Audio
 			{
 				const float* KeyFrame = &InBuffer[SampleIndex];
 				ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex], KeyFrame);
+			}
+		}
+	}
+
+	void FDynamicsProcessor::ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, float* OutEnvelope, const float* InKeyBuffer)
+	{
+		const int32 NumChannels = GetNumChannels();
+		const int32 KeyNumChannels = GetKeyNumChannels();
+
+		check(OutEnvelope != nullptr);
+
+		if (InKeyBuffer)
+		{
+			int32 KeySampleIndex = 0;
+			for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex += NumChannels)
+			{
+				const float* KeyFrame = &InKeyBuffer[KeySampleIndex];
+				ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex], KeyFrame, &OutEnvelope[SampleIndex]);
+				KeySampleIndex += KeyNumChannels;
+			}
+		}
+		else
+		{
+			for (int32 SampleIndex = 0; SampleIndex < InNumSamples; SampleIndex += NumChannels)
+			{
+				const float* KeyFrame = &InBuffer[SampleIndex];
+				ProcessAudioFrame(&InBuffer[SampleIndex], &OutBuffer[SampleIndex], KeyFrame, &OutEnvelope[SampleIndex]);
 			}
 		}
 	}
