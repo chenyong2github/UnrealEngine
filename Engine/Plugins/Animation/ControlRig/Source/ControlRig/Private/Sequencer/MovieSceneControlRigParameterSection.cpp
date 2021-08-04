@@ -1722,6 +1722,7 @@ float UMovieSceneControlRigParameterSection::GetTotalWeightValue(FFrameTime InTi
 
 void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlRig* InControlRig, bool bSetDefault)
 {
+	bool bSameControlRig = (ControlRig == InControlRig);
 	SetControlRig(InControlRig);
 	/* Don't delete old tracks but eventually show that they aren't associated.. but
 	then how to delete?
@@ -1734,10 +1735,15 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 	ColorParameterNamesAndCurves.Empty();
 	TransformParameterNamesAndCurves.Empty();
 	*/
-	TArray<bool> OnArray;
-	OnArray.Init(true, ControlRig->AvailableControls().Num());
-	SetControlsMask(OnArray);
 
+	//if we had the same with same number of controls keep the mask otherwise reset it.
+	if (!bSameControlRig || ControlRig->AvailableControls().Num() != ControlsMask.Num())
+	{
+		TArray<bool> OnArray;
+		OnArray.Init(true, ControlRig->AvailableControls().Num());
+		SetControlsMask(OnArray);
+	}
+	
 	TArray<FRigControlElement*> SortedControls;
 	ControlRig->GetControlsInOrder(SortedControls);
 

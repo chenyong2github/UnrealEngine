@@ -1508,49 +1508,71 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 		// Populate each of the output arrays in turn
 		for (int32 Index = 0; Index < Scalars.Num(); ++Index)
 		{
+			const FScalarParameterNameAndCurve& Scalar = this->Scalars[Index];
 			float Value = 0;
 
-			const FScalarParameterNameAndCurve& Scalar = this->Scalars[Index];
 			if (HACK_ChannelMasks->ScalarCurveMask[Index])
 			{
 				Scalar.ParameterCurve.Evaluate(Time, Value);
 			}
-			
+			else
+			{
+				Value = (Section->GetBlendType().Get() == EMovieSceneBlendType::Additive
+					|| Scalar.ParameterCurve.GetDefault().IsSet() == false) ? 0.0f :
+					Scalar.ParameterCurve.GetDefault().GetValue();
+			}
+
 			Values.ScalarValues.Emplace(Scalar.ParameterName, Value);
 		}
 
 		for (int32 Index = 0; Index < Bools.Num(); ++Index)
 		{
 			bool Value = false;
-
 			const FBoolParameterNameAndCurve& Bool = Bools[Index];
 			if (HACK_ChannelMasks->BoolCurveMask[Index])
 			{
 				Bool.ParameterCurve.Evaluate(Time, Value);
+			}
+			else
+			{
+				Value = (Section->GetBlendType().Get() == EMovieSceneBlendType::Additive
+					|| Bool.ParameterCurve.GetDefault().IsSet() == false) ? false :
+					Bool.ParameterCurve.GetDefault().GetValue();
 			}
 
 			Values.BoolValues.Emplace(Bool.ParameterName, Value);
 		}
 		for (int32 Index = 0; Index < Integers.Num(); ++Index)
 		{
-			int32 Value = 0;
-
+			int32  Value = 0;
 			const FIntegerParameterNameAndCurve& Integer = Integers[Index];
 			if (HACK_ChannelMasks->IntegerCurveMask[Index])
 			{
 				Integer.ParameterCurve.Evaluate(Time, Value);
+			}
+			else
+			{
+				Value = (Section->GetBlendType().Get() == EMovieSceneBlendType::Additive
+					|| Integer.ParameterCurve.GetDefault().IsSet() == false) ? 0 :
+					Integer.ParameterCurve.GetDefault().GetValue();
 			}
 
 			Values.IntegerValues.Emplace(Integer.ParameterName, Value);
 		}
 		for (int32 Index = 0; Index < Enums.Num(); ++Index)
 		{
-			uint8 Value = 0;
-
+			uint8  Value = 0;
 			const FEnumParameterNameAndCurve& Enum = Enums[Index];
 			if (HACK_ChannelMasks->EnumCurveMask[Index])
 			{
 				Enum.ParameterCurve.Evaluate(Time, Value);
+			}
+			else
+			{
+				Value = (Section->GetBlendType().Get() == EMovieSceneBlendType::Additive
+					|| Enum.ParameterCurve.GetDefault().IsSet() == false) ? 0 :
+					Enum.ParameterCurve.GetDefault().GetValue();
+
 			}
 			Values.IntegerValues.Emplace(Enum.ParameterName, (int32)Value);
 
@@ -1558,26 +1580,59 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 		for (int32 Index = 0; Index < Vector2Ds.Num(); ++Index)
 		{
 			FVector2D Value(ForceInitToZero);
-
 			const FVector2DParameterNameAndCurves& Vector2D = Vector2Ds[Index];
+
 			if (HACK_ChannelMasks->Vector2DCurveMask[Index])
 			{
 				Vector2D.XCurve.Evaluate(Time, Value.X);
 				Vector2D.YCurve.Evaluate(Time, Value.Y);
 			}
+			else
+			{
+				if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive)
+				{
+					if (Vector2D.XCurve.GetDefault().IsSet())
+					{
+						Value.X = Vector2D.XCurve.GetDefault().GetValue();
+					}
+					if (Vector2D.YCurve.GetDefault().IsSet())
+					{
+						Value.Y = Vector2D.YCurve.GetDefault().GetValue();
+					}
+				}
+			}
 
 			Values.Vector2DValues.Emplace(Vector2D.ParameterName, Value);
 		}
+
 		for (int32 Index = 0; Index < Vectors.Num(); ++Index)
 		{
-			FVector3f Value(ForceInitToZero);
-
+			FVector Value(ForceInitToZero);
 			const FVectorParameterNameAndCurves& Vector = Vectors[Index];
+
 			if (HACK_ChannelMasks->VectorCurveMask[Index])
 			{
 				Vector.XCurve.Evaluate(Time, Value.X);
 				Vector.YCurve.Evaluate(Time, Value.Y);
 				Vector.ZCurve.Evaluate(Time, Value.Z);
+			}
+			else
+			{
+				if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive)
+				{
+					if (Vector.XCurve.GetDefault().IsSet())
+					{
+						Value.X = Vector.XCurve.GetDefault().GetValue();
+					}
+					if (Vector.YCurve.GetDefault().IsSet())
+					{
+						Value.Y = Vector.YCurve.GetDefault().GetValue();
+					}
+					if (Vector.ZCurve.GetDefault().IsSet())
+					{
+						Value.Z = Vector.ZCurve.GetDefault().GetValue();
+					}
+				}
 			}
 
 			Values.VectorValues.Emplace(Vector.ParameterName, Value);
@@ -1585,7 +1640,6 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 		for (int32 Index = 0; Index < Colors.Num(); ++Index)
 		{
 			FLinearColor ColorValue = FLinearColor::White;
-
 			const FColorParameterNameAndCurves& Color = Colors[Index];
 			if (HACK_ChannelMasks->ColorCurveMask[Index])
 			{
@@ -1594,7 +1648,29 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 				Color.BlueCurve.Evaluate(Time, ColorValue.B);
 				Color.AlphaCurve.Evaluate(Time, ColorValue.A);
 			}
-		
+			else
+			{
+				if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive)
+				{
+					if (Color.RedCurve.GetDefault().IsSet())
+					{
+						ColorValue.R = Color.RedCurve.GetDefault().GetValue();
+					}
+					if (Color.GreenCurve.GetDefault().IsSet())
+					{
+						ColorValue.G = Color.GreenCurve.GetDefault().GetValue();
+					}
+					if (Color.BlueCurve.GetDefault().IsSet())
+					{
+						ColorValue.B = Color.BlueCurve.GetDefault().GetValue();
+					}
+					if (Color.AlphaCurve.GetDefault().IsSet())
+					{
+						ColorValue.A = Color.AlphaCurve.GetDefault().GetValue();
+					}
+				}
+			}
+
 			Values.ColorValues.Emplace(Color.ParameterName, ColorValue);
 		}
 
@@ -1602,6 +1678,11 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 		for (int32 Index = 0; Index < Transforms.Num(); ++Index)
 		{
 			FVector3f Translation(ForceInitToZero), Scale(FVector3f::OneVector);
+			if (Section->GetBlendType().Get() == EMovieSceneBlendType::Additive)
+			{
+				Scale = FVector3f(0.0f, 0.0f, 0.0f);
+			}
+
 			FRotator Rotator(0.0f, 0.0f, 0.0f);
 
 			const FTransformParameterNameAndCurves& Transform = Transforms[Index];
@@ -1611,38 +1692,150 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 				{
 					Transform.Translation[0].Evaluate(Time, Translation[0]);
 				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Translation[0].GetDefault().IsSet())
+					{
+						Translation[0] = Transform.Translation[0].GetDefault().GetValue();
+					}
+				}
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationY))
 				{
 					Transform.Translation[1].Evaluate(Time, Translation[1]);
+				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Translation[1].GetDefault().IsSet())
+					{
+						Translation[1] = Transform.Translation[1].GetDefault().GetValue();
+					}
 				}
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationZ))
 				{
 					Transform.Translation[2].Evaluate(Time, Translation[2]);
 				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Translation[2].GetDefault().IsSet())
+					{
+						Translation[2] = Transform.Translation[2].GetDefault().GetValue();
+					}
+				}
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationX))
 				{
 					Transform.Rotation[0].Evaluate(Time, Rotator.Roll);
+				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Rotation[0].GetDefault().IsSet())
+					{
+						Rotator.Roll = Transform.Rotation[0].GetDefault().GetValue();
+					}
 				}
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationY))
 				{
 					Transform.Rotation[1].Evaluate(Time, Rotator.Pitch);
 				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Rotation[1].GetDefault().IsSet())
+					{
+						Rotator.Pitch = Transform.Rotation[1].GetDefault().GetValue();
+					}
+				}
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationZ))
 				{
 					Transform.Rotation[2].Evaluate(Time, Rotator.Yaw);
+				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Rotation[2].GetDefault().IsSet())
+					{
+						Rotator.Yaw = Transform.Rotation[2].GetDefault().GetValue();
+					}
 				}
 				//mz todo quat interp...
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleX))
 				{
 					Transform.Scale[0].Evaluate(Time, Scale[0]);
 				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Scale[0].GetDefault().IsSet())
+					{
+						Scale[0] = Transform.Scale[0].GetDefault().GetValue();
+					}
+				}
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleY))
 				{
 					Transform.Scale[1].Evaluate(Time, Scale[1]);
 				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Scale[1].GetDefault().IsSet())
+					{
+						Scale[1] = Transform.Scale[1].GetDefault().GetValue();
+					}
+				}
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleZ))
 				{
 					Transform.Scale[2].Evaluate(Time, Scale[2]);
+				}
+				else
+				{
+					if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive && Transform.Scale[2].GetDefault().IsSet())
+					{
+						Scale[2] = Transform.Scale[2].GetDefault().GetValue();
+					}
+				}
+			}
+			else //completely masked use default or zeroed, which is already set if additive
+			{
+				if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive)
+				{
+
+					if (Transform.Translation[0].GetDefault().IsSet())
+					{
+						Translation[0] = Transform.Translation[0].GetDefault().GetValue();
+					}
+					if (Transform.Translation[1].GetDefault().IsSet())
+					{
+						Translation[1] = Transform.Translation[1].GetDefault().GetValue();
+					}
+					if (Transform.Translation[2].GetDefault().IsSet())
+					{
+						Translation[2] = Transform.Translation[2].GetDefault().GetValue();
+					}
+
+					if (Transform.Rotation[0].GetDefault().IsSet())
+					{
+						Rotator.Roll = Transform.Rotation[0].GetDefault().GetValue();
+					}
+
+					if (Transform.Rotation[1].GetDefault().IsSet())
+					{
+						Rotator.Pitch = Transform.Rotation[1].GetDefault().GetValue();
+					}
+
+					if (Transform.Rotation[2].GetDefault().IsSet())
+					{
+						Rotator.Yaw = Transform.Rotation[2].GetDefault().GetValue();
+					}
+
+					if (Transform.Scale[0].GetDefault().IsSet())
+					{
+						Scale[0] = Transform.Scale[0].GetDefault().GetValue();
+					}
+
+					if (Transform.Scale[1].GetDefault().IsSet())
+					{
+						Scale[1] = Transform.Scale[1].GetDefault().GetValue();
+					}
+
+					if (Transform.Scale[2].GetDefault().IsSet())
+					{
+						Scale[2] = Transform.Scale[2].GetDefault().GetValue();
+					}
 				}
 			}
 			FTransformParameterStringAndValue NameAndValue(Transform.ParameterName, Translation, Rotator, Scale);

@@ -122,7 +122,7 @@ public:
 	void RefreshObjects();
 
 	/** Get the settings we are using */
-	const UControlRigEditModeSettings* GetSettings() { return Settings; }
+	UControlRigEditModeSettings* GetSettings() const { return Settings; }
 
 	/** Find the edit mode corresponding to the specified world context */
 	static FControlRigEditMode* GetEditModeFromWorldContext(UWorld* InWorldContext);
@@ -326,7 +326,7 @@ public:
 	bool GetOnlySelectRigControls()const;
 
 private:
-
+	TSet<FName> GetActiveControlsFromSequencer(UControlRig* ControlRig);
 	bool CreateGizmoActors(UWorld* World);
 	void DestroyGizmosActors();
 
