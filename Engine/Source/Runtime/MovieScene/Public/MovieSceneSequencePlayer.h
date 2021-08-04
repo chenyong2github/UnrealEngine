@@ -217,6 +217,16 @@ struct FMovieSceneSequencePlaybackParams
 	EUpdatePositionMethod UpdateMethod;
 };
 
+USTRUCT(BlueprintType)
+struct FMovieSceneSequencePlayToParams
+{
+	GENERATED_BODY()
+
+	/** Should the PlayTo time be considered exclusive? Defaults to true as end frames in Sequencer are exclusive by default. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Cinematic")
+	bool bExclusive = true;
+};
+
 template<> struct TStructOpsTypeTraits<FMovieSceneSequencePlaybackSettings> : public TStructOpsTypeTraitsBase2<FMovieSceneSequencePlaybackSettings>
 {
 	enum { WithCopy = true, WithStructuredSerializeFromMismatchedTag = true };
@@ -350,7 +360,7 @@ public:
 	 * @param PlaybackParams The position settings (ie. the position to play to)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams);
+	void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams, FMovieSceneSequencePlayToParams PlayToParams);
 
 	/**
 	 * Set the current time of the player by evaluating from the current time to the specified time, as if the sequence is playing. 
@@ -524,7 +534,12 @@ protected:
 
 	void UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method);
 	bool ShouldStopOrLoop(FFrameTime NewPosition) const;
-	bool ShouldPause(FFrameTime NewPosition) const;
+	/** 
+	* If the current sequence should pause (due to NewPosition overshooting a previously set ShouldPause) 
+	* then a range of time that should be evaluated to reach there will be returned. If we should not pause
+	* then the TOptional will be unset.
+	* */
+	TOptional<TRange<FFrameTime>> GetPauseRange(const FFrameTime& NewPosition) const;
 
 	UWorld* GetPlaybackWorld() const;
 
@@ -688,8 +703,14 @@ private:
 	*/
 	TOptional<float> LastTickGameTimeSeconds;
 
+	struct FPauseOnArgs
+	{
+		FFrameTime Time;
+		bool bExclusive;
+	};
+
 	/** If set, pause playback on this frame */
-	TOptional<FFrameTime> PauseOnFrame;
+	TOptional<FPauseOnArgs> PauseOnFrame;
 
 	/** Pre and post evaluation callbacks, for async evaluations */
 	DECLARE_DELEGATE(FOnEvaluationCallback);
