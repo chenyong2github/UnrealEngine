@@ -661,7 +661,7 @@ void ExportChaosTriMesh(const Chaos::FTriangleMeshImplicitObject* const TriMesh,
 	auto LambdaHelper = [&](const auto& Triangles)
 	{
 		int32 NumTris = Triangles.Num();
-		const FParticles& Vertices = TriMesh->Particles();
+		const Chaos::FTriangleMeshImplicitObject::ParticlesType& Vertices = TriMesh->Particles();
 	
 		VertexBuffer.Reserve(VertexBuffer.Num() + NumTris * 9);
 		IndexBuffer.Reserve(IndexBuffer.Num() + NumTris * 3);

@@ -191,8 +191,7 @@ namespace Chaos
 #endif
 		}
 
-		template<typename operator_T, int operator_d>
-		friend FArchive& operator<<(FArchive& Ar, TParticles<operator_T, operator_d>& InParticles)
+		inline friend FArchive& operator<<(FArchive& Ar, TParticles<T, d>& InParticles)
 		{
 			InParticles.Serialize(Ar);
 			return Ar;

@@ -105,8 +105,11 @@ namespace Chaos
 	public:
 		using FImplicitObject::GetTypeName;
 
+		using ParticlesType = TParticles<FRealSingle, 3>;
+		using ParticleVecType = TVec3<FRealSingle>;
+
 		template <typename IdxType>
-		FTriangleMeshImplicitObject(FParticles&& Particles, TArray<TVec3<IdxType>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
+		FTriangleMeshImplicitObject(ParticlesType&& Particles, TArray<TVec3<IdxType>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
 		: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
 		, MParticles(MoveTemp(Particles))
 		, MElements(MoveTemp(Elements))
@@ -286,7 +289,7 @@ namespace Chaos
 
 		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override;
 
-		const FParticles& Particles() const;
+		const ParticlesType& Particles() const;
 		const FTrimeshIndexBuffer& Elements() const;
 
 		void UpdateVertices(const TArray<FVector>& Positions);
@@ -296,7 +299,7 @@ namespace Chaos
 	private:
 		void RebuildBV();
 
-		FParticles MParticles;
+		ParticlesType MParticles;
 		FTrimeshIndexBuffer MElements;
 		FAABB3 MLocalBoundingBox;
 		TArray<uint16> MaterialIndices;
@@ -308,7 +311,7 @@ namespace Chaos
 
 		// Initialising constructor privately declared for use in CopySlow to copy the underlying BVH
 		template <typename IdxType>
-		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVec3<IdxType>>&& Elements, TArray<uint16>&& InMaterialIndices, const BVHType& InBvhToCopy, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
+		FTriangleMeshImplicitObject(ParticlesType&& Particles, TArray<TVec3<IdxType>>&& Elements, TArray<uint16>&& InMaterialIndices, const BVHType& InBvhToCopy, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
 			: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
 			, MParticles(MoveTemp(Particles))
 			, MElements(MoveTemp(Elements))

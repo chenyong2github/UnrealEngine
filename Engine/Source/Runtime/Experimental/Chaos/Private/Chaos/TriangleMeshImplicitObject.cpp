@@ -39,7 +39,7 @@ void ScaleTransformHelper(const FVec3& TriMeshScale, const FRigidTransform3& Que
 }
 
 template <typename IdxType>
-void TransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const FParticles& Particles,
+void TransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const FTriangleMeshImplicitObject::ParticlesType& Particles,
 	const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
 {
 	OutA = Particles.X(Elements[TriIdx][0]) * TriMeshScale;
@@ -76,7 +76,9 @@ void TransformSweepOutputsHelper(FVec3 TriMeshScale, const FVec3& HitNormal, con
 template <typename IdxType>
 struct FTriangleMeshRaycastVisitor
 {
-	FTriangleMeshRaycastVisitor(const FVec3& InStart, const FVec3& InDir, const FReal InThickness, const FParticles& InParticles, const TArray<TVector<IdxType, 3>>& InElements, bool bInCullsBackFaceRaycast)
+	using ParticlesType = FTriangleMeshImplicitObject::ParticlesType;
+
+	FTriangleMeshRaycastVisitor(const FVec3& InStart, const FVec3& InDir, const FReal InThickness, const ParticlesType& InParticles, const TArray<TVector<IdxType, 3>>& InElements, bool bInCullsBackFaceRaycast)
 	: Particles(InParticles)
 	, Elements(InElements)
 	, StartPoint(InStart)
@@ -251,7 +253,7 @@ struct FTriangleMeshRaycastVisitor
 		return true;
 	}
 
-	const FParticles& Particles;
+	const ParticlesType& Particles;
 	const TArray<TVector<IdxType, 3>>& Elements;
 	const FVec3& StartPoint;
 	const FVec3& Dir;
@@ -912,9 +914,9 @@ template <typename IdxType>
 TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlowImpl(const TArray<TVector<IdxType, 3>>& InElements) const
 {
 	using namespace Chaos;
-
-	TArray<Chaos::FVec3> XArray = MParticles.AllX();
-	FParticles ParticlesCopy(MoveTemp(XArray));
+	
+	TArray<ParticleVecType> XArray = MParticles.AllX();
+	ParticlesType ParticlesCopy(MoveTemp(XArray));
 	TArray<TVector<IdxType, 3>> ElementsCopy(InElements);
 	TArray<uint16> MaterialIndicesCopy = MaterialIndices;
 	TUniquePtr<TArray<int32>> ExternalFaceIndexMapCopy = nullptr;
@@ -983,13 +985,13 @@ FVec3 FTriangleMeshImplicitObject::GetFaceNormal(const int32 FaceIdx) const
 	{
 		auto LambdaHelper = [&](const auto& Elements)
 		{
-			const FVec3& A = MParticles.X(Elements[FaceIdx][0]);
-			const FVec3& B = MParticles.X(Elements[FaceIdx][1]);
-			const FVec3& C = MParticles.X(Elements[FaceIdx][2]);
+			const ParticleVecType& A = MParticles.X(Elements[FaceIdx][0]);
+			const ParticleVecType& B = MParticles.X(Elements[FaceIdx][1]);
+			const ParticleVecType& C = MParticles.X(Elements[FaceIdx][2]);
 
-			const FVec3 AB = B - A;
-			const FVec3 AC = C - A;
-			FVec3 Normal = FVec3::CrossProduct(AB, AC);
+			const ParticleVecType AB = B - A;
+			const ParticleVecType AC = C - A;
+			ParticleVecType Normal = ParticleVecType::CrossProduct(AB, AC);
 			
 			if(Normal.SafeNormalize() < SMALL_NUMBER)
 			{
@@ -998,7 +1000,7 @@ FVec3 FTriangleMeshImplicitObject::GetFaceNormal(const int32 FaceIdx) const
 				return FVec3(0, 0, 1);
 			}
 
-			return Normal;
+			return FVec3(Normal);
 		};
 		
 		if (MElements.RequiresLargeIndices())
@@ -1025,7 +1027,7 @@ uint16 FTriangleMeshImplicitObject::GetMaterialIndex(uint32 HintIndex) const
 	return 0;
 }
 
-const FParticles& FTriangleMeshImplicitObject::Particles() const
+const FTriangleMeshImplicitObject::ParticlesType& FTriangleMeshImplicitObject::Particles() const
 {
 	return MParticles;
 }
