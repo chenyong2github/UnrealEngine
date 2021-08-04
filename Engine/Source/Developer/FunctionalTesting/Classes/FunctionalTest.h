@@ -201,6 +201,10 @@ enum class EFunctionalTestResult : uint8
 	Succeeded
 };
 
+/* Return a readable string of the provided EFunctionalTestResult enum */
+FString FUNCTIONALTESTING_API LexToString(const EFunctionalTestResult TestResult);
+
+
 UENUM(BlueprintType)
 enum class EFunctionalTestLogHandling : uint8
 {
