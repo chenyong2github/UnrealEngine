@@ -121,6 +121,42 @@ FRigUnit_TransformFromControlRigSpline_Execute()
 	}
 }
 
+FRigUnit_TangentFromControlRigSpline_Execute()
+{
+	if (!Spline.SplineData.IsValid())
+	{
+		return;
+	}
+	
+	switch (Context.State)
+	{
+		case EControlRigState::Init:
+		case EControlRigState::Update:
+		{
+			const float ClampedU = FMath::Clamp<float>(U, 0.f, 1.f);
+
+			FVector NewTangent = Spline.TangentAtParam(ClampedU);
+
+			// Check if Tangent can be normalized. If not, keep the same tangent as before.
+			if (!NewTangent.Normalize())
+			{
+				NewTangent = Tangent;
+			}
+			else
+			{
+				Tangent = NewTangent;
+			}
+			
+			break;
+		}
+		default:
+		{
+			checkNoEntry(); // Execute is only defined for Init and Update
+			break;
+		}
+	}
+}
+
 FRigUnit_DrawControlRigSpline_Execute()
 {
 	if (Context.State == EControlRigState::Init)

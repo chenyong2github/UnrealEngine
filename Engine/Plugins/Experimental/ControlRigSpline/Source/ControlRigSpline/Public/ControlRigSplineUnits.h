@@ -21,10 +21,10 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 
 	FRigUnit_ControlRigSplineFromPoints()
 	{
-		SplineMode = ESplineType::BSpline;
+		SplineMode = ESplineType::Hermite;
 		SamplesPerSegment = 16;
-		Compression = 1.f;
-		Stretch = 1.f;
+		Compression = 0.f;
+		Stretch = 0.f;
 	}
 
 	/** Execute logic for this rig unit */
@@ -127,6 +127,31 @@ struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRig
 
 	UPROPERTY(meta = (Output))
 	FTransform Transform;
+};
+
+USTRUCT(meta = (DisplayName = "Tangent From Spline", Category = "Control Rig"))
+struct CONTROLRIGSPLINE_API FRigUnit_TangentFromControlRigSpline : public FRigUnit_ControlRigSplineBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_TangentFromControlRigSpline()
+	{
+		U = 0.f;
+		Tangent = FVector::ZeroVector;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FControlRigSpline Spline;
+
+	UPROPERTY(meta = (Input))
+	float U;
+
+	UPROPERTY(meta = (Output))
+	FVector Tangent;
 };
 
 USTRUCT(meta = (DisplayName = "Draw Spline", Category = "Control Rig"))
