@@ -913,7 +913,7 @@ void FStaticLightingSystem::ValidateSettings(FScene& InScene)
 		InScene.PhotonMappingSettings.bCacheIrradiancePhotonsOnSurfaces = false;
 	}
 	InScene.PhotonMappingSettings.FinalGatherImportanceSampleFraction = FMath::Clamp(InScene.PhotonMappingSettings.FinalGatherImportanceSampleFraction, 0.0f, 1.0f);
-	if (FMath::TruncToInt(InScene.ImportanceTracingSettings.NumHemisphereSamples * (1.0f - InScene.PhotonMappingSettings.FinalGatherImportanceSampleFraction) < 1))
+	if (InScene.ImportanceTracingSettings.NumHemisphereSamples * (1.0f - InScene.PhotonMappingSettings.FinalGatherImportanceSampleFraction) < 1)
 	{
 		// Irradiance caching needs some uniform samples
 		InScene.IrradianceCachingSettings.bAllowIrradianceCaching = false;
@@ -2117,7 +2117,7 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 		{
 			const float AspectRatio = ShadowDepthMap->ShadowMapSizeX / (float)ShadowDepthMap->ShadowMapSizeY;
 			ShadowDepthMap->ShadowMapSizeY = FMath::TruncToInt(FMath::Sqrt(ShadowSettings.StaticShadowDepthMapMaxSamples / AspectRatio));
-			ShadowDepthMap->ShadowMapSizeX = FMath::TruncToInt(ShadowSettings.StaticShadowDepthMapMaxSamples / ShadowDepthMap->ShadowMapSizeY);
+			ShadowDepthMap->ShadowMapSizeX = FMath::TruncToInt((float)ShadowSettings.StaticShadowDepthMapMaxSamples / (float)ShadowDepthMap->ShadowMapSizeY);
 		}
 
 		// Allocate the shadow map
@@ -2209,7 +2209,7 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 		{
 			const float AspectRatio = ShadowDepthMap->ShadowMapSizeX / (float)ShadowDepthMap->ShadowMapSizeY;
 			ShadowDepthMap->ShadowMapSizeY = FMath::TruncToInt(FMath::Sqrt(ShadowSettings.StaticShadowDepthMapMaxSamples / AspectRatio));
-			ShadowDepthMap->ShadowMapSizeX = FMath::TruncToInt(ShadowSettings.StaticShadowDepthMapMaxSamples / ShadowDepthMap->ShadowMapSizeY);
+			ShadowDepthMap->ShadowMapSizeX = FMath::TruncToInt((float)ShadowSettings.StaticShadowDepthMapMaxSamples / (float)ShadowDepthMap->ShadowMapSizeY);
 		}
 
 		ShadowDepthMap->ShadowMap.Empty(ShadowDepthMap->ShadowMapSizeX * ShadowDepthMap->ShadowMapSizeY);
@@ -2296,7 +2296,7 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 		{
 			const float AspectRatio = ShadowDepthMap->ShadowMapSizeX / (float)ShadowDepthMap->ShadowMapSizeY;
 			ShadowDepthMap->ShadowMapSizeY = FMath::TruncToInt(FMath::Sqrt(ShadowSettings.StaticShadowDepthMapMaxSamples / AspectRatio));
-			ShadowDepthMap->ShadowMapSizeX = FMath::TruncToInt(ShadowSettings.StaticShadowDepthMapMaxSamples / ShadowDepthMap->ShadowMapSizeY);
+			ShadowDepthMap->ShadowMapSizeX = FMath::TruncToInt((float)ShadowSettings.StaticShadowDepthMapMaxSamples / (float)ShadowDepthMap->ShadowMapSizeY);
 		}
 
 		// Allocate the shadow map
