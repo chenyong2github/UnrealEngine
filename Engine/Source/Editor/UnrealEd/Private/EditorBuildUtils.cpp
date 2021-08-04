@@ -252,9 +252,6 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 	// Indicates whether the persistent level should be dirtied at the end of a build.
 	bool bDirtyPersistentLevel = true;
 
-	// Stop rendering thread so we're not wasting CPU cycles.
-	StopRenderingThread();
-
 	// Hack: These don't initialize properly and if you pick BuildAll right off the
 	// bat when opening a map you will get incorrect values in them.
 	GSwarmDebugOptions.Touch();
@@ -462,12 +459,6 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 	{
 		GUnrealEd->Exec( InWorld, TEXT("MAP CHECK DONTDISPLAYDIALOG") );
 	}
-
-	// Re-start the rendering thread after build operations completed.
-	if (GUseThreadedRendering)
-	{
-		StartRenderingThread();
-	}	
 
 	if ( bDoBuild )
 	{
