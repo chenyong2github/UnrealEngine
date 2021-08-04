@@ -3,6 +3,7 @@
 #pragma once
 #include "Logging/LogMacros.h"
 #include "TaskDelegate.h"
+#include "HAL/Event.h"
 #include "CoreTypes.h"
 #include <atomic>
 
