@@ -15,6 +15,7 @@
 #include "Containers/Queue.h"
 #include "Tests/Benchmark.h"
 #include "HAL/Thread.h"
+#include "Async/Fundamental/Scheduler.h"
 
 #include <atomic>
 
