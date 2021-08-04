@@ -20,7 +20,13 @@
 #include <limits>
 #include <cmath>
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if !defined (_MSC_VER)
+#include <arm_neon.h>
+#endif
+
+namespace
+{
+//#if WITH_DEV_AUTOMATION_TESTS
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealMathTest, Log, All);
 
@@ -1628,6 +1634,11 @@ bool RunDoubleVectorTest()
 	bool bIsVAGT_TRUE = VectorAnyGreaterThan(V0, V1) != 0;
 	LogTest<double>(TEXT("VectorAnyGreaterThan-true"), bIsVAGT_TRUE);
 
+	V0 = MakeVectorRegister(0.0, -0.0, 1.0, 0.8);
+	V1 = MakeVectorRegister(0.0, 0.0, 0.0, 1.0);
+	bIsVAGT_TRUE = VectorAnyGreaterThan(V0, V1) != 0;
+	LogTest<double>(TEXT("VectorAnyGreaterThan-true"), bIsVAGT_TRUE);
+
 	V0 = MakeVectorRegister(1.0, 3.0, 2.0, 1.0);
 	V1 = MakeVectorRegister(2.0, 4.0, 6.0, 8.0);
 	bool bIsVAGT_FALSE = VectorAnyGreaterThan(V0, V1) == 0;
@@ -1842,6 +1853,20 @@ bool RunDoubleVectorTest()
 
 	return GPassing;
 }
+
+#if !defined (_MSC_VER)
+static float InvSqrt2(float F)
+{
+	float32x2_t	val = vdup_n_f32(F);
+
+	float32x2_t inv_sqrt = vrsqrte_f32(val);
+
+	inv_sqrt = vmul_f32(vrsqrts_f32(vmul_f32(inv_sqrt, inv_sqrt), val), inv_sqrt);
+	inv_sqrt = vmul_f32(vrsqrts_f32(vmul_f32(inv_sqrt, inv_sqrt), val), inv_sqrt);
+
+	return vget_lane_f32(inv_sqrt, 0);
+}
+#endif
 
 /**
  * Run a suite of vector operations to validate vector intrinsics are working on the platform
@@ -2132,6 +2157,11 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V1 = MakeVectorRegister( 4.0f, 3.0f, 2.0f, 1.0f );
 	bool bIsVAGT_TRUE = VectorAnyGreaterThan( V0, V1 ) != 0;
 	LogTest<float>( TEXT("VectorAnyGreaterThan-true"), bIsVAGT_TRUE );
+
+	V0 = MakeVectorRegister(0.0f, -0.0f, 1.0f, 0.8f);
+	V1 = MakeVectorRegister(0.0f, 0.0f, 0.0f, 1.0f);
+	bIsVAGT_TRUE = VectorAnyGreaterThan(V0, V1) != 0;
+	LogTest<float>(TEXT("VectorAnyGreaterThan-true"), bIsVAGT_TRUE);
 
 	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 1.0f );
 	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
@@ -2600,6 +2630,24 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	// Exp, Log tests
 	TestVectorExpLogFunctions<float, VectorRegister4Float>();
+
+#if !defined (_MSC_VER)
+	float Value = 0.1;
+	float Step = 0.1;
+	float LargestDiff = 0.0f;
+	for (int i = 0; i < 10000; ++i)
+	{
+		const float A = FMath::InvSqrt(Value);
+		const float B = InvSqrt2(Value);
+		const float Diff = A - B;
+		if (abs(Diff) > LargestDiff)
+		{
+			LargestDiff = Diff;
+		}
+
+		Value += Step;
+	}
+#endif
 
 	// Quat<->Rotator conversions and equality
 	{
@@ -3497,4 +3545,5 @@ bool FBitCastTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+//#endif //WITH_DEV_AUTOMATION_TESTS
+}

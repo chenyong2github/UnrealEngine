@@ -2198,7 +2198,8 @@ FORCEINLINE int32 VectorAnyGreaterThan(VectorRegister4Double Vec1, VectorRegiste
 {
 	uint16x8_t u16x8_1 = (uint16x8_t)vcgtq_f64(Vec1.XY, Vec2.XY);
 	uint16x8_t u16x8_2 = (uint16x8_t)vcgtq_f64(Vec1.ZW, Vec2.ZW);
-	uint8x8_t u8x8 = (uint8x8_t)vget_low_u16(vuzpq_u16(u16x8_1, u16x8_2).val[0]);
+	uint16x8x2_t tmp = vuzpq_u16(u16x8_1, u16x8_2);
+	uint8x8_t u8x8 = (uint8x8_t)vget_low_u16(vuzpq_u16(tmp.val[0], tmp.val[0]).val[0]);
 	u8x8 = vuzp_u8(u8x8, u8x8).val[0];
 	uint32_t buf[2];
 	vst1_u8((uint8_t*)buf, u8x8);
