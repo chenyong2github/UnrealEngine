@@ -60,21 +60,22 @@ EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName Pa
 void PrecacheClassDigests(TConstArrayView<FName> ClassNames);
 
 /** Get the CacheRequest for the given package from the EditorDomain cache bucket. */
-UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
+void RequestEditorDomainPackage(const FPackagePath& PackagePath,
 	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePolicy SkipFlags,
-	UE::DerivedData::EPriority CachePriority, UE::DerivedData::FOnCacheGetComplete&& Callback);
+	UE::DerivedData::IRequestOwner& Owner, UE::DerivedData::FOnCacheGetComplete&& Callback);
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest);
 
 /** Save the given package into the EditorDomain. */
 bool TrySavePackage(UPackage* Package);
 
 /** Get the CacheRequest for the BulkDataList of the given package. */
-UE::DerivedData::FRequest GetBulkDataList(FName PackageName, TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback);
+void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner,
+	TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback);
 
 /** Write the data for the BulkDataList of the given package to the cache. */
 void PutBulkDataList(FName PackageName, FSharedBuffer Buffer);
 
-UE::DerivedData::FRequest GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId,
+void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::DerivedData::IRequestOwner& Owner,
 	TUniqueFunction<void(FSharedBuffer Buffer)> && Callback);
 
 void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuffer Buffer);

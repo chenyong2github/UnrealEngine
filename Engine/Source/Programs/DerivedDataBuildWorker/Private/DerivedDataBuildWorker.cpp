@@ -45,7 +45,7 @@ public:
 private:
 	void BuildComplete(FBuildActionCompleteParams&& Params) const;
 
-	FRequest ResolveInputData(const FBuildAction& Action, EPriority Priority, FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter) final;
+	void ResolveInputData(const FBuildAction& Action, IRequestOwner& Owner, FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter) final;
 
 	TUniquePtr<FArchive> OpenInput(FStringView ActionPath, const FIoHash& RawHash) const;
 	TUniquePtr<FArchive> OpenOutput(FStringView ActionPath, const FIoHash& RawHash) const;
@@ -204,15 +204,18 @@ bool FBuildWorkerProgram::Build()
 
 	IBuild& BuildSystem = GetDerivedDataBuildRef();
 	FBuildSession Session = BuildSystem.CreateSession(TEXT("BuildWorker"_SV), this);
-	TArray<FRequest> Builds;
+	FRequestGroup Group = BuildSystem.CreateGroup(EPriority::Normal);
 
 	ON_SCOPE_EXIT
 	{
-		for (FRequest& Build : Builds)
-		{
-			Build.Wait();
-		}
+		Group.Wait();
 	};
+
+	if (ActionPaths.IsEmpty())
+	{
+		UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("No build actions to operate on."));
+		return false;
+	}
 
 	for (const FString& ActionPath : ActionPaths)
 	{
@@ -234,15 +237,9 @@ bool FBuildWorkerProgram::Build()
 		}
 		else
 		{
-			Builds.Add(Session.BuildAction(Action.Get(), {}, EBuildPolicy::BuildLocal, EPriority::Normal,
-				[this](FBuildActionCompleteParams&& Params) { BuildComplete(MoveTemp(Params)); }));
+			Session.BuildAction(Action.Get(), {}, EBuildPolicy::BuildLocal, Group,
+				[this](FBuildActionCompleteParams&& Params) { BuildComplete(MoveTemp(Params)); });
 		}
-	}
-
-	if (Builds.IsEmpty())
-	{
-		UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("No build actions to operate on."));
-		return false;
 	}
 
 	return true;
@@ -305,7 +302,7 @@ void FBuildWorkerProgram::BuildComplete(FBuildActionCompleteParams&& Params) con
 	}
 }
 
-FRequest FBuildWorkerProgram::ResolveInputData(const FBuildAction& Action, EPriority Priority, FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter)
+void FBuildWorkerProgram::ResolveInputData(const FBuildAction& Action, IRequestOwner& Owner, FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter)
 {
 	EStatus Status = EStatus::Ok;
 	TArray<FString> InputKeys;
@@ -330,7 +327,6 @@ FRequest FBuildWorkerProgram::ResolveInputData(const FBuildAction& Action, EPrio
 		}
 	});
 	OnResolved({Inputs, Status});
-	return FRequest();
 }
 
 TUniquePtr<FArchive> FBuildWorkerProgram::OpenInput(FStringView ActionPath, const FIoHash& RawHash) const

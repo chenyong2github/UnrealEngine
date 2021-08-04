@@ -880,11 +880,11 @@ public:
 		return true;
 	}
 
-	virtual FRequest Put(
+	virtual void Put(
 		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
 		for (const FCacheRecord& Record : Records)
@@ -913,14 +913,13 @@ public:
 				}
 			}
 		}
-		return FRequest();
 	}
 
-	virtual FRequest Get(
+	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
 		for (const FCacheKey& Key : Keys)
@@ -948,14 +947,13 @@ public:
 				}
 			}
 		}
-		return FRequest();
 	}
 
-	virtual FRequest GetPayload(
+	virtual void GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetPayloadComplete&& OnComplete) override
 	{
 		TArray<FCachePayloadKey, TInlineAllocator<16>> SortedKeys(Keys);
@@ -991,7 +989,6 @@ public:
 				}
 			}
 		}
-		return FRequest();
 	}
 
 	virtual void CancelAll() override

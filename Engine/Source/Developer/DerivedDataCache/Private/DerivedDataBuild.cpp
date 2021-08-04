@@ -12,6 +12,7 @@
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataBuildWorkerRegistry.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataRequest.h"
 #include "Misc/Guid.h"
 
 namespace UE::DerivedData::Private
@@ -70,6 +71,11 @@ public:
 	explicit FBuild(ICache& InCache)
 		: Cache(InCache)
 	{
+	}
+
+	FRequestGroup CreateGroup(EPriority Priority) final
+	{
+		return CreateRequestGroup(Priority);
 	}
 
 	FBuildDefinitionBuilder CreateDefinition(FStringView Name, FStringView Function) final

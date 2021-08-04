@@ -6,8 +6,6 @@
 #include "Containers/StringFwd.h"
 #include "DerivedDataRequest.h"
 
-class FEvent;
-
 template <typename FuncType> class TUniqueFunction;
 
 namespace UE::DerivedData { class FBuildOutput; }
@@ -36,25 +34,18 @@ using FOnBuildJobComplete = TUniqueFunction<void (FBuildJobCompleteParams&& Para
  * The job depends on the build scheduler to move it through its states. That relationship allows
  * the scheduler more control over resources such as: memory, compute, storage, network.
  */
-class IBuildJob : public IRequest
+class IBuildJob
 {
 public:
 	/** Returns the name by which to identify this job for logging and profiling. */
 	virtual FStringView GetName() const = 0;
 	/** Returns the name of the function to build with, or "Unknown" if not resolved yet. */
 	virtual FStringView GetFunction() const = 0;
-	/** Returns the build policy of this job. */
-	virtual EBuildPolicy GetPolicy() const = 0;
-	/** Returns the priority of this job. */
-	virtual EPriority GetPriority() const = 0;
 
 	/** Returns the cache associated with this job. */
 	virtual ICache& GetCache() const = 0;
 	/** Returns the build system associated with this job. */
 	virtual IBuild& GetBuild() const = 0;
-
-	/** Start the build by dispatching it to the scheduler. */
-	virtual void Start(IBuildScheduler& Scheduler, EBuildPolicy Policy, EPriority Priority, FOnBuildJobComplete&& OnComplete) = 0;
 
 	/** Called by the scheduler to continue this job on the calling thread. */
 	virtual void Schedule() = 0;

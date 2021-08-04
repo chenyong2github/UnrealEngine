@@ -9,6 +9,8 @@
 class FCbObject;
 struct FGuid;
 
+template <typename FuncType> class TUniqueFunction;
+
 namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildActionBuilder; }
 namespace UE::DerivedData { class FBuildDefinition; }
@@ -24,12 +26,14 @@ namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuild; }
 namespace UE::DerivedData { class IBuildFunctionRegistry; }
 namespace UE::DerivedData { class IBuildInputResolver; }
-namespace UE::DerivedData { class IBuildJob; }
 namespace UE::DerivedData { class IBuildScheduler; }
 namespace UE::DerivedData { class IBuildWorkerRegistry; }
 namespace UE::DerivedData { class ICache; }
+namespace UE::DerivedData { class IRequestOwner; }
+namespace UE::DerivedData { struct FBuildJobCompleteParams; }
 namespace UE::DerivedData { struct FBuildKey; }
-namespace UE::DerivedData { template <typename RequestType> class TRequest; }
+namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
+namespace UE::DerivedData { using FOnBuildJobComplete = TUniqueFunction<void (FBuildJobCompleteParams&& Params)>; }
 
 namespace UE::DerivedData::Private
 {
@@ -73,9 +77,18 @@ FBuildSession CreateBuildSession(
 	IBuildInputResolver* InputResolver);
 
 // Implemented in DerivedDataBuildJob.cpp
-TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildKey& Key);
-TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildDefinition& Definition);
-TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildAction& Action, const FOptionalBuildInputs& Inputs);
+struct FBuildJobCreateParams
+{
+	ICache& Cache;
+	IBuild& BuildSystem;
+	IBuildScheduler& Scheduler;
+	IBuildInputResolver* InputResolver{};
+	IRequestOwner& Owner;
+	EBuildPolicy Policy{};
+};
+void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildKey& Key, FOnBuildJobComplete&& OnComplete);
+void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildDefinition& Definition, FOnBuildJobComplete&& OnComplete);
+void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildAction& Action, const FOptionalBuildInputs& Inputs, FOnBuildJobComplete&& OnComplete);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

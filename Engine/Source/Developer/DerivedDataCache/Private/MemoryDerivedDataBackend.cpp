@@ -405,11 +405,11 @@ int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecor
 	return int64(TotalSize);
 }
 
-FRequest FMemoryDerivedDataBackend::Put(
+void FMemoryDerivedDataBackend::Put(
 	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
 	for (const FCacheRecord& Record : Records)
@@ -470,14 +470,13 @@ FRequest FMemoryDerivedDataBackend::Put(
 			Status = EStatus::Ok;
 		}
 	}
-	return FRequest();
 }
 
-FRequest FMemoryDerivedDataBackend::Get(
+void FMemoryDerivedDataBackend::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
 	for (const FCacheKey& Key : Keys)
@@ -504,14 +503,13 @@ FRequest FMemoryDerivedDataBackend::Get(
 			}
 		}
 	}
-	return FRequest();
 }
 
-FRequest FMemoryDerivedDataBackend::GetPayload(
+void FMemoryDerivedDataBackend::GetPayload(
 	TConstArrayView<FCachePayloadKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetPayloadComplete&& OnComplete)
 {
 	for (const FCachePayloadKey& PayloadKey : Keys)
@@ -538,7 +536,6 @@ FRequest FMemoryDerivedDataBackend::GetPayload(
 			}
 		}
 	}
-	return FRequest();
 }
 
 } // UE::DerivedData::Backends

@@ -40,7 +40,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataBuildRemoteExecutor, Log, All);
 
 class FRemoteBuildWorkerExecutor;
 
-class FRemoteBuildExecutionRequest final : public IRequest, public FThreadSafeRefCountedObject
+class FRemoteBuildExecutionRequest final : public FRequestBase
 {
 public:
 	FRemoteBuildExecutionRequest(
@@ -48,37 +48,27 @@ public:
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
 		const FBuildWorker& Worker,
+		IBuild& BuildSystem,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildWorkerActionComplete&& OnComplete);
 
-	virtual ~FRemoteBuildExecutionRequest();
+	~FRemoteBuildExecutionRequest() final;
 
 	// IRequest interface
-	virtual void SetPriority(EPriority Priority) override
+	void SetPriority(EPriority Priority) final
 	{
 	}
 
-	virtual void Cancel() override
+	void Cancel() final
 	{
 		bCancelPending.store(true, std::memory_order_relaxed);
 		Wait();
 	}
-	virtual void Wait() override
+
+	void Wait() final
 	{
-		CompletionEvent->Wait(MAX_uint32);
-	}
-	virtual bool Poll() override
-	{
-		return CompletionEvent->Wait(0);
-	}
-	virtual void AddRef() const override
-	{
-		FThreadSafeRefCountedObject::AddRef();
-	}
-	virtual void Release() const override
-	{
-		FThreadSafeRefCountedObject::Release();
+		CompletionEvent->Wait();
 	}
 
 private:
@@ -144,8 +134,9 @@ private:
 		const FBuildAction& BuildAction;
 		const FOptionalBuildInputs& BuildInputs;
 		const FBuildWorker& BuildWorker;
+		IBuild& BuildSystem;
+		IRequestOwner& Owner;
 		EBuildPolicy BuildPolicy;
-		EPriority BuildPriority;
 
 		// Unordered arrays that are indexed into
 		TArray<FMerkleTreeDirectoryBuilder> Directories;
@@ -262,12 +253,13 @@ public:
 		}
 	}
 
-	FRequest BuildAction(
+	void BuildAction(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
 		const FBuildWorker& Worker,
+		IBuild& BuildSystem,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildWorkerActionComplete&& OnComplete) final
 	{
 		{
@@ -296,17 +288,17 @@ public:
 			if (!LimitingHeuristics.PassesPreResolveRequirements(TotalInputSize, TotalMissingInputSize))
 			{
 				OnComplete({Action.GetKey(), {}, {}, EStatus::Error});
-				return FRequest();
+				return;
 			}
 
 			if (!MissingInputViews.IsEmpty())
 			{
 				OnComplete({Action.GetKey(), {}, MissingInputViews, EStatus::Ok});
-				return FRequest();
+				return;
 			}
 		}
 
-		return FRequest(new FRemoteBuildExecutionRequest(*this, Action, Inputs, Worker, Policy, Priority, MoveTemp(OnComplete)));
+		new FRemoteBuildExecutionRequest(*this, Action, Inputs, Worker, BuildSystem, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	TConstArrayView<FStringView> GetHostPlatforms() const final
@@ -478,15 +470,17 @@ FRemoteBuildExecutionRequest::FRemoteBuildExecutionRequest(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
 		const FBuildWorker& Worker,
+		IBuild& BuildSystem,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildWorkerActionComplete&& OnComplete)
-: State {Action, Inputs, Worker, Policy, Priority}
+: State{Action, Inputs, Worker, BuildSystem, Owner, Policy}
 , CompletionCallback(MoveTemp(OnComplete))
 , Executor(InExecutor)
 , bCancelPending(false)
 , bHeuristicBuildStarted(false)
 {
+	Owner.Begin(this);
 	DetermineMissingBlobsAsync()
 		.Next([this] (TPair<FStatus, FFindMissingBlobsResponse>&& Result) { OnMissingBlobsDetermined(MoveTemp(Result.Value)); });
 }
@@ -594,7 +588,8 @@ void FRemoteBuildExecutionRequest::BuildMerkleTreeNodes()
 			WorkerFileMeta.Emplace(Path, false);
 		});
 
-	State.BuildWorker.FindFileData(WorkerFileHashes, EPriority::Normal,
+	FRequestGroup BlockingGroup = State.BuildSystem.CreateGroup(EPriority::Blocking);
+	State.BuildWorker.FindFileData(WorkerFileHashes, BlockingGroup,
 		[this, &WorkerFileMeta] (FBuildWorkerFileDataCompleteParams&& Params)
 		{
 			uint32 MetaIndex = 0;
@@ -605,7 +600,8 @@ void FRemoteBuildExecutionRequest::BuildMerkleTreeNodes()
 				AddMerkleTreeFile(Meta.Key, FIoHash::HashBuffer(DecompressedComposite), DecompressedComposite.GetSize(), Meta.Value, EFileType::Worker, Buffer.DecompressToComposite());
 				++MetaIndex;
 			}
-		}).Wait();
+		});
+	BlockingGroup.Wait();
 
 	State.BuildAction.IterateInputs([this] (FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
@@ -754,7 +750,7 @@ FOptionalBuildOutput FRemoteBuildExecutionRequest::ComposeBuildOutput(FBatchRead
 				return FOptionalBuildOutput();
 			}
 
-			RemoteBuildOutput = GetDerivedDataBuildRef().LoadOutput(State.BuildAction.GetName(), State.BuildAction.GetFunction(), FCbObject(BuildOutputBuffer));
+			RemoteBuildOutput = State.BuildSystem.LoadOutput(State.BuildAction.GetName(), State.BuildAction.GetFunction(), FCbObject(BuildOutputBuffer));
 		}
 		else
 		{
@@ -769,7 +765,7 @@ FOptionalBuildOutput FRemoteBuildExecutionRequest::ComposeBuildOutput(FBatchRead
 		return FOptionalBuildOutput();
 	}
 
-	FBuildOutputBuilder OutputBuilder = GetDerivedDataBuildRef().CreateOutput(State.BuildAction.GetName(), State.BuildAction.GetFunction());
+	FBuildOutputBuilder OutputBuilder = State.BuildSystem.CreateOutput(State.BuildAction.GetName(), State.BuildAction.GetFunction());
 	
 	RemoteBuildOutput.Get().IterateDiagnostics( [&OutputBuilder](const FBuildDiagnostic& Diagnostic)
 	{
@@ -803,9 +799,11 @@ bool FRemoteBuildExecutionRequest::ProcessCancellation()
 {
 	if (bCancelPending.load(std::memory_order_relaxed))
 	{
-		TRefCountPtr<FRemoteBuildExecutionRequest> SelfRef(this);
-		CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Canceled});
-		CompletionEvent->Trigger();
+		State.Owner.End(this, [this]
+		{
+			CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Canceled});
+			CompletionEvent->Trigger();
+		});
 		return true;
 	}
 	return false;
@@ -848,7 +846,8 @@ void FRemoteBuildExecutionRequest::LoadMissingWorkerFileBlobsAsync()
 		}
 	}
 
-	State.BuildWorker.FindFileData(WorkerFileHashes, EPriority::Normal,
+	FRequestGroup BlockingGroup = State.BuildSystem.CreateGroup(EPriority::Blocking);
+	State.BuildWorker.FindFileData(WorkerFileHashes, BlockingGroup,
 		[this, &WorkerFileMapping] (FBuildWorkerFileDataCompleteParams&& Params)
 		{
 			uint32 MetaIndex = 0;
@@ -863,7 +862,8 @@ void FRemoteBuildExecutionRequest::LoadMissingWorkerFileBlobsAsync()
 					State.Files[FileIndex].ContentBytes = UncompressedWorkerFile;
 				}
 			}
-		}).Wait();
+		});
+	BlockingGroup.Wait();
 }
 
 TFuture<TPair<FStatus, FBatchUpdateBlobsResponse>> FRemoteBuildExecutionRequest::UploadMissingBlobsAsync()
@@ -965,17 +965,21 @@ void FRemoteBuildExecutionRequest::OnMissingBlobsDetermined(FFindMissingBlobsRes
 	GatherMissingInputFileBlobs(MissingInputViews);
 	if (!MissingInputViews.IsEmpty())
 	{
-		TRefCountPtr<FRemoteBuildExecutionRequest> SelfRef(this);
-		CompletionCallback({State.BuildAction.GetKey(), {}, MissingInputViews, EStatus::Ok});
-		CompletionEvent->Trigger();
+		State.Owner.End(this, [this, &MissingInputViews]
+		{
+			CompletionCallback({State.BuildAction.GetKey(), {}, MissingInputViews, EStatus::Ok});
+			CompletionEvent->Trigger();
+		});
 		return;
 	}
 
 	if (!Executor.LimitingHeuristics.TryStartNewBuild(Executor.Stats))
 	{
-		TRefCountPtr<FRemoteBuildExecutionRequest> SelfRef(this);
-		CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Error});
-		CompletionEvent->Trigger();
+		State.Owner.End(this, [this]
+		{
+			CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Error});
+			CompletionEvent->Trigger();
+		});
 		return;
 	}
 
@@ -1006,9 +1010,11 @@ void FRemoteBuildExecutionRequest::OnMissingBlobsUploaded(const FBatchUpdateBlob
 	UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Uploaded %d data blobs for remote execution."), State.BatchUpdateBlobsRequest.Requests.Num());
 	if (!ValidateUploadSuccess(Result))
 	{
-		TRefCountPtr<FRemoteBuildExecutionRequest> SelfRef(this);
-		CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Error});
-		CompletionEvent->Trigger();
+		State.Owner.End(this, [this]
+		{
+			CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Error});
+			CompletionEvent->Trigger();
+		});
 		return;
 	}
 
@@ -1035,10 +1041,12 @@ void FRemoteBuildExecutionRequest::OnExecutionCompleted(FExecuteResponse&& Resul
 	}
 	else
 	{
-		TRefCountPtr<FRemoteBuildExecutionRequest> SelfRef(this);
 		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Failed to execute build operation!"));
-		CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Error});
-		CompletionEvent->Trigger();
+		State.Owner.End(this, [this]
+		{
+			CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Error});
+			CompletionEvent->Trigger();
+		});
 	}
 
 }
@@ -1057,9 +1065,11 @@ void FRemoteBuildExecutionRequest::OnOutputBlobsDownloaded(FBatchReadBlobsRespon
 		Executor.Stats.TotalSuccessfulRemoteBuilds.fetch_add(1, std::memory_order_relaxed);
 	}
 
-	TRefCountPtr<FRemoteBuildExecutionRequest> SelfRef(this);
-	CompletionCallback({State.BuildAction.GetKey(), MoveTemp(BuildOutput), {}, BuildStatus});
-	CompletionEvent->Trigger();
+	State.Owner.End(this, [this, &BuildOutput, BuildStatus]() mutable
+	{
+		CompletionCallback({State.BuildAction.GetKey(), MoveTemp(BuildOutput), {}, BuildStatus});
+		CompletionEvent->Trigger();
+	});
 }
 
 } // namespace UE::DerivedData

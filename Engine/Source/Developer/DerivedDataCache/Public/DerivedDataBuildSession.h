@@ -38,21 +38,21 @@ class IBuildSessionInternal
 public:
 	virtual ~IBuildSessionInternal() = default;
 	virtual FStringView GetName() const = 0;
-	virtual FRequest Build(
+	virtual void Build(
 		const FBuildDefinition& Definition,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) = 0;
-	virtual FRequest BuildAction(
+	virtual void BuildAction(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildActionComplete&& OnComplete) = 0;
-	virtual FRequest BuildPayload(
+	virtual void BuildPayload(
 		const FBuildPayloadKey& Payload,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildPayloadComplete&& OnComplete) = 0;
 };
 
@@ -86,16 +86,16 @@ public:
 	 *
 	 * @param Definition   The build function to execute and references to its inputs.
 	 * @param Policy       Flags to control the behavior of the request. See EBuildPolicy.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked when the build completes or is canceled.
 	 */
-	inline FRequest Build(
+	inline void Build(
 		const FBuildDefinition& Definition,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete)
 	{
-		return Session->Build(Definition, Policy, Priority, MoveTemp(OnComplete));
+		Session->Build(Definition, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	/**
@@ -106,17 +106,17 @@ public:
 	 * @param Action       The build function to execute and references to its inputs.
 	 * @param Inputs       The build inputs referenced by the action, if it has any.
 	 * @param Policy       Flags to control the behavior of the request. See EBuildPolicy.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked when the build completes or is canceled.
 	 */
-	inline FRequest BuildAction(
+	inline void BuildAction(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildActionComplete&& OnComplete)
 	{
-		return Session->BuildAction(Action, Inputs, Policy, Priority, MoveTemp(OnComplete));
+		Session->BuildAction(Action, Inputs, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	/**
@@ -126,16 +126,16 @@ public:
 	 *
 	 * @param Payload      The key identifying the build definition and the payload to return.
 	 * @param Policy       Flags to control the behavior of the request. See EBuildPolicy.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked when the build completes or is canceled.
 	 */
-	inline FRequest BuildPayload(
+	inline void BuildPayload(
 		const FBuildPayloadKey& Payload,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildPayloadComplete&& OnComplete)
 	{
-		return Session->BuildPayload(Payload, Policy, Priority, MoveTemp(OnComplete));
+		Session->BuildPayload(Payload, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 private:

@@ -59,11 +59,23 @@ enum class EBuildStatus : uint32
 	BuildLocal      = 1 << 0,
 	/** The build function was executed remotely. */
 	BuildRemote     = 1 << 1,
+	/** The build action and inputs were exported. */
+	BuildExport     = 1 << 2,
+
+	/** An attempt was made to execute the build function remotely. */
+	BuildTryRemote  = 1 << 3,
+	/** An attempt was made to export the build action and inputs. */
+	BuildTryExport  = 1 << 4,
 
 	/** The build made a cache query request. */
-	CacheQuery      = 1 << 2,
+	CacheQuery      = 1 << 5,
 	/** Valid build output was found in the cache. */
-	CacheQueryHit   = 1 << 3,
+	CacheQueryHit   = 1 << 6,
+
+	/** The build made a cache store request. */
+	CacheStore      = 1 << 7,
+	/** Valid build output was stored in the cache. */
+	CacheStoreHit   = 1 << 8,
 };
 
 ENUM_CLASS_FLAGS(EBuildStatus);

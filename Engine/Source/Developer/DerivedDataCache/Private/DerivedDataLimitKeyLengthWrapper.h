@@ -242,34 +242,34 @@ public:
 		return Usage;
 	}
 
-	virtual FRequest Put(
+	virtual void Put(
 		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
-		return InnerBackend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete));
+		return InnerBackend->Put(Records, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	virtual FRequest Get(
+	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
-		return InnerBackend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+		return InnerBackend->Get(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	virtual FRequest GetPayload(
+	virtual void GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetPayloadComplete&& OnComplete) override
 	{
-		return InnerBackend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+		return InnerBackend->GetPayload(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	virtual void CancelAll() override

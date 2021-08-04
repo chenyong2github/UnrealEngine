@@ -343,11 +343,12 @@ TSharedRef<FDerivedDataCacheStatsNode> FDerivedDataBackendAsyncPutWrapper::Gathe
 	return Usage;
 }
 
-class FDerivedDataAsyncWrapperRequest final : public IRequest, private IQueuedWork
+class FDerivedDataAsyncWrapperRequest final : public FRequestBase, private IQueuedWork
 {
 public:
-	inline explicit FDerivedDataAsyncWrapperRequest(TUniqueFunction<void (bool bCancel)>&& InFunction)
-		: Function(MoveTemp(InFunction))
+	inline FDerivedDataAsyncWrapperRequest(IRequestOwner& InOwner, TUniqueFunction<void (bool bCancel)>&& InFunction)
+		: Owner(InOwner)
+		, Function(MoveTemp(InFunction))
 		, DoneEvent(FPlatformProcess::GetSynchEventFromPool(true))
 	{
 	}
@@ -360,7 +361,7 @@ public:
 	inline void Start(EPriority Priority)
 	{
 		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(1);
-		AddRef(); // Keep the request alive until the queued work executes.
+		Owner.Begin(this);
 
 		DoneEvent->Reset();
 		WorkNotFinishedCounter.fetch_add(1, std::memory_order_relaxed);
@@ -370,11 +371,13 @@ public:
 	inline void Execute(bool bCancel)
 	{
 		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
-		Function(/*bCancel*/ false);
-		WorkNotFinishedCounter.fetch_sub(1, std::memory_order_release);
-		DoneEvent->Trigger();
-
-		Release(); // DO NOT ACCESS ANY MEMBERS PAST THIS POINT!
+		Owner.End(this, [this, bCancel]
+		{
+			Function(bCancel);
+			WorkNotFinishedCounter.fetch_sub(1, std::memory_order_release);
+			DoneEvent->Trigger();
+		});
+		// DO NOT ACCESS ANY MEMBERS PAST THIS POINT!
 		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-1);
 	}
 
@@ -390,7 +393,7 @@ public:
 
 	inline void Cancel() final
 	{
-		if (!Poll())
+		if (WorkNotFinishedCounter.load(std::memory_order_acquire) > 0)
 		{
 			if (GDDCIOThreadPool->RetractQueuedWork(this))
 			{
@@ -405,7 +408,7 @@ public:
 
 	inline void Wait() final
 	{
-		if (!Poll())
+		if (WorkNotFinishedCounter.load(std::memory_order_acquire) > 0)
 		{
 			if (GDDCIOThreadPool->RetractQueuedWork(this))
 			{
@@ -416,24 +419,6 @@ public:
 				FScopeCycleCounter Scope(GetStatId());
 				DoneEvent->Wait();
 			}
-		}
-	}
-
-	inline bool Poll() final
-	{
-		return WorkNotFinishedCounter.load(std::memory_order_acquire) == 0;
-	}
-
-	inline void AddRef() const final
-	{
-		ReferenceCount.fetch_add(1, std::memory_order_relaxed);
-	}
-
-	inline void Release() const final
-	{
-		if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
-		{
-			delete this;
 		}
 	}
 
@@ -470,31 +455,33 @@ private:
 	}
 
 private:
-	mutable std::atomic<uint32> ReferenceCount{0};
 	std::atomic<uint32> WorkNotFinishedCounter{0};
+	IRequestOwner& Owner;
 	TUniqueFunction<void (bool bCancel)> Function;
 	FEvent* DoneEvent;
 };
 
-FRequest FDerivedDataBackendAsyncPutWrapper::Put(
+void FDerivedDataBackendAsyncPutWrapper::Put(
 	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
-	if (Priority == EPriority::Blocking)
+	if (Owner.GetPriority() == EPriority::Blocking)
 	{
-		return InnerBackend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete));
+		InnerBackend->Put(Records, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 	else
 	{
-		TRequest<FDerivedDataAsyncWrapperRequest> Request(new FDerivedDataAsyncWrapperRequest(
-			[Backend = InnerBackend, Records = TArray<FCacheRecord>(Records), Context = FString(Context), Policy, Priority, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
+			[this, Records = TArray<FCacheRecord>(Records), Context = FString(Context), Policy, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
 			{
 				if (!bCancel)
 				{
-					Backend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete)).Wait();
+					FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
+					InnerBackend->Put(Records, Context, Policy, BlockingGroup, MoveTemp(OnComplete));
+					BlockingGroup.Wait();
 				}
 				else if (OnComplete)
 				{
@@ -503,31 +490,32 @@ FRequest FDerivedDataBackendAsyncPutWrapper::Put(
 						OnComplete({Record.GetKey(), EStatus::Canceled});
 					}
 				}
-			}));
-		Request->Start(Priority == EPriority::Normal ? EPriority::Low : Priority);
-		return Request;
+			});
+		Request->Start(Owner.GetPriority());
 	}
 }
 
-FRequest FDerivedDataBackendAsyncPutWrapper::Get(
+void FDerivedDataBackendAsyncPutWrapper::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
-	if (Priority == EPriority::Blocking)
+	if (Owner.GetPriority() == EPriority::Blocking)
 	{
-		return InnerBackend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+		InnerBackend->Get(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 	else
 	{
-		TRequest<FDerivedDataAsyncWrapperRequest> Request(new FDerivedDataAsyncWrapperRequest(
-			[&Factory = Factory, Backend = InnerBackend, Keys = TArray<FCacheKey>(Keys), Context = FString(Context), Policy, Priority, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
+			[this, Keys = TArray<FCacheKey>(Keys), Context = FString(Context), Policy, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
 			{
 				if (!bCancel)
 				{
-					Backend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete)).Wait();
+					FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
+					InnerBackend->Get(Keys, Context, Policy, BlockingGroup, MoveTemp(OnComplete));
+					BlockingGroup.Wait();
 				}
 				else if (OnComplete)
 				{
@@ -536,31 +524,32 @@ FRequest FDerivedDataBackendAsyncPutWrapper::Get(
 						OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Canceled});
 					}
 				}
-			}));
-		Request->Start(Priority);
-		return Request;
+			});
+		Request->Start(Owner.GetPriority());
 	}
 }
 
-FRequest FDerivedDataBackendAsyncPutWrapper::GetPayload(
+void FDerivedDataBackendAsyncPutWrapper::GetPayload(
 	TConstArrayView<FCachePayloadKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetPayloadComplete&& OnComplete)
 {
-	if (Priority == EPriority::Blocking)
+	if (Owner.GetPriority() == EPriority::Blocking)
 	{
-		return InnerBackend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+		InnerBackend->GetPayload(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 	else
 	{
-		TRequest<FDerivedDataAsyncWrapperRequest> Request(new FDerivedDataAsyncWrapperRequest(
-			[Backend = InnerBackend, Keys = TArray<FCachePayloadKey>(Keys), Context = FString(Context), Policy, Priority, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
+			[this, Keys = TArray<FCachePayloadKey>(Keys), Context = FString(Context), Policy, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
 			{
 				if (!bCancel)
 				{
-					Backend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete)).Wait();
+					FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
+					InnerBackend->GetPayload(Keys, Context, Policy, BlockingGroup, MoveTemp(OnComplete));
+					BlockingGroup.Wait();
 				}
 				else if (OnComplete)
 				{
@@ -569,9 +558,8 @@ FRequest FDerivedDataBackendAsyncPutWrapper::GetPayload(
 						OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Canceled});
 					}
 				}
-			}));
-		Request->Start(Priority);
-		return Request;
+			});
+		Request->Start(Owner.GetPriority());
 	}
 }
 

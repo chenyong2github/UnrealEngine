@@ -13,6 +13,7 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
+#include "DerivedDataRequest.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/CommandLine.h"
@@ -682,6 +683,8 @@ private:
 public:
 	// ICache Interface
 
+	FRequestGroup CreateGroup(EPriority Priority) final { return CreateRequestGroup(Priority); }
+
 	FCacheBucket CreateBucket(FStringView Name) final { return CreateCacheBucket(Name); }
 
 	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return CreateCacheRecordBuilder(Key); }
@@ -696,34 +699,34 @@ public:
 		return LoadCacheRecord(Package);
 	}
 
-	FRequest Put(
+	void Put(
 		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) final
 	{
-		return FDerivedDataBackend::Get().GetRoot().Put(Records, Context, Policy, Priority, MoveTemp(OnComplete));
+		return FDerivedDataBackend::Get().GetRoot().Put(Records, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	FRequest Get(
+	void  Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) final
 	{
-		return FDerivedDataBackend::Get().GetRoot().Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+		return FDerivedDataBackend::Get().GetRoot().Get(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	FRequest GetPayload(
+	void GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetPayloadComplete&& OnComplete) final
 	{
-		return FDerivedDataBackend::Get().GetRoot().GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+		return FDerivedDataBackend::Get().GetRoot().GetPayload(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	void CancelAll() final

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCacheUsageStats.h"
 #include <atomic>
 
 namespace UE::DerivedData::Backends
@@ -160,40 +161,40 @@ public:
 		return InnerBackend->ApplyDebugOptions(InOptions);
 	}
 
-	virtual FRequest Put(
+	virtual void Put(
 		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
 		ThrottlingScope Scope(this);
 
-		return InnerBackend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete));
+		InnerBackend->Put(Records, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	virtual FRequest Get(
+	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
 		ThrottlingScope Scope(this);
 
-		return InnerBackend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+		InnerBackend->Get(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	virtual FRequest GetPayload(
+	virtual void GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetPayloadComplete&& OnComplete) override
 	{
 		ThrottlingScope Scope(this);
 
-		return InnerBackend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+		InnerBackend->GetPayload(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	virtual void CancelAll() override

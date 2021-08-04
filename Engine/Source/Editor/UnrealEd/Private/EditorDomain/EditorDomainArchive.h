@@ -43,8 +43,8 @@ public:
 		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
 	~FEditorDomainPackageSegments();
 
-	/** Set the CacheRequest handle that will feed this archive. */
-	void SetRequest(const UE::DerivedData::FRequest& InRequest);
+	/** Get the request owner for requests that will feed this archive. */
+	UE::DerivedData::IRequestOwner& GetRequestOwner() { return RequestGroup; }
 	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
 	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params,
 		TUniqueFunction<void(bool bValid)>&& CreateSegmentData,
@@ -108,7 +108,7 @@ private:
 		/** Attachment ID to request from cache for this segment. Read-only. */
 		UE::DerivedData::FPayloadId PayloadId;
 		/** The request that will be (has been) sent for the bytes from cache. Interface-only. */
-		UE::DerivedData::FRequest Request;
+		UE::DerivedData::FOptionalRequestGroup RequestGroup;
 		/** Offset from the start of the entire archive. Read-only. */
 		uint64 Start;
 		/** Payload bytes. Callback-only before bAsyncComplete, Interface-only after. */
@@ -143,7 +143,7 @@ private:
 	 */
 	TRefCountPtr<FEditorDomain::FLocks> EditorDomainLocks;
 	/** Initial Request for the list of segments. Read-only. */
-	UE::DerivedData::FRequest Request;
+	UE::DerivedData::FRequestGroup RequestGroup;
 	/** PackagePath for fallback to WorkspaceDomain. Read-only. */
 	FPackagePath PackagePath;
 	/** Offset to next use in Serialize. Interface-only. */
@@ -196,8 +196,8 @@ public:
 	FEditorDomainReadArchive(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
 
-	/** Set the CacheRequest handle that will feed this archive. */
-	void SetRequest(const UE::DerivedData::FRequest& InRequest);
+	/** Get the request owner for requests that will feed this archive. */
+	UE::DerivedData::IRequestOwner& GetRequestOwner() { return Segments.GetRequestOwner(); }
 	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
 	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
 	/** Get the PackageFormat, which depends on the domain the data is read from. */
@@ -235,8 +235,8 @@ public:
 	FEditorDomainAsyncReadFileHandle(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
 
-	/** Set the CacheRequest handle that will feed this archive. */
-	void SetRequest(const UE::DerivedData::FRequest& InRequest);
+	/** Get the request owner for requests that will feed this archive. */
+	UE::DerivedData::IRequestOwner& GetRequestOwner() { return Segments.GetRequestOwner(); }
 	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
 	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
 

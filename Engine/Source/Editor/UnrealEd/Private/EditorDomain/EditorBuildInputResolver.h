@@ -10,17 +10,16 @@ namespace UE::DerivedData
 {
 
 /** A BuildInputResolver that looks up the process-global inputs registered from package loads or a cache of the package loads. */
-class FEditorBuildInputResolver : public UE::DerivedData::IBuildInputResolver
+class FEditorBuildInputResolver : public IBuildInputResolver
 {
 public:
 	UNREALED_API static FEditorBuildInputResolver& Get();
 
-	virtual FRequest ResolveKey(const FBuildKey& Key, FOnBuildKeyResolved&& OnResolved) override;
-	virtual FRequest ResolveInputMeta(const FBuildDefinition& Definition, EPriority Priority,
+	virtual void ResolveInputMeta(const FBuildDefinition& Definition, IRequestOwner& Owner,
 		FOnBuildInputMetaResolved&& OnResolved) override;
-	virtual FRequest ResolveInputData(const FBuildDefinition& Definition, EPriority Priority,
+	virtual void ResolveInputData(const FBuildDefinition& Definition, IRequestOwner& Owner,
 		FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter = FBuildInputFilter()) override;
-	virtual FRequest ResolveInputData(const FBuildAction& Action, EPriority Priority,
+	virtual void ResolveInputData(const FBuildAction& Action, IRequestOwner& Owner,
 		FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter = FBuildInputFilter()) override;
 };
 

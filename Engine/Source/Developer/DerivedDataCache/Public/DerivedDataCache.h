@@ -18,6 +18,7 @@ class FCacheRecord;
 class FCacheRecordBuilder;
 class FOptionalCacheRecord;
 class FPayload;
+class FRequestGroup;
 struct FCacheGetCompleteParams;
 struct FCacheGetPayloadCompleteParams;
 struct FCachePutCompleteParams;
@@ -102,6 +103,8 @@ class ICacheFactory
 public:
 	virtual ~ICacheFactory() = default;
 
+	virtual FRequestGroup CreateGroup(EPriority Priority) = 0;
+
 	/**
 	 * Create a cache bucket from a name.
 	 *
@@ -155,14 +158,14 @@ public:
 	 * @param Records      The cache records to store. Must have a key.
 	 * @param Context      A description of the request. An object path is typically sufficient.
 	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked for every record as it completes or is canceled.
 	 */
-	virtual FRequest Put(
+	virtual void Put(
 		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
-		ECachePolicy Policy = ECachePolicy::Default,
-		EPriority Priority = EPriority::Normal,
+		ECachePolicy Policy,
+		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) = 0;
 
 	/**
@@ -174,14 +177,14 @@ public:
 	 * @param Keys         The keys identifying the cache records to query.
 	 * @param Context      A description of the request. An object path is typically sufficient.
 	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked for every key as it completes or is canceled.
 	 */
-	virtual FRequest Get(
+	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) = 0;
 
 	/**
@@ -193,14 +196,14 @@ public:
 	 * @param Keys         The keys identifying the cache record payloads to query.
 	 * @param Context      A description of the request. An object path is typically sufficient.
 	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked for every key as it completes or is canceled.
 	 */
-	virtual FRequest GetPayload(
+	virtual void GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetPayloadComplete&& OnComplete) = 0;
 
 	/**

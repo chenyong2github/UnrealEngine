@@ -5,6 +5,7 @@
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildKey.h"
 
+namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildSchedulerParams; }
 
 namespace UE::DerivedData
@@ -36,29 +37,29 @@ public:
 	virtual void UpdateJobPriority(IBuildJob* Job) {}
 
 	/** Dispatch by calling Schedule or SetOutput, either now or later. */
-	virtual void DispatchCacheQuery(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
+	virtual void DispatchCacheQuery(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
 	/** Dispatch by calling Schedule, either now or later. */
-	virtual void DispatchCacheStore(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
+	virtual void DispatchCacheStore(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
 	/** Dispatch by calling Schedule, either now or later. */
-	virtual void DispatchResolveKey(IBuildJob* Job) { Job->Schedule(); }
+	virtual void DispatchResolveKey(IBuildJob* Job, IRequestOwner& Owner) { Job->Schedule(); }
 
 	/** Dispatch by calling Schedule, either now or later. */
-	virtual void DispatchResolveInputMeta(IBuildJob* Job) { Job->Schedule(); }
+	virtual void DispatchResolveInputMeta(IBuildJob* Job, IRequestOwner& Owner) { Job->Schedule(); }
 
 	/**
 	 * Dispatch by calling Schedule, SetOutput, or SkipExecuteRemote, either now or later.
 	 *
 	 * SkipExecuteRemote is only valid to call when MissingRemoteInputsSize is non-zero.
 	 */
-	virtual void DispatchResolveInputData(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
+	virtual void DispatchResolveInputData(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
 	/** Dispatch by calling Schedule, SetOutput, or SkipExecuteRemote, either now or later. */
-	virtual void DispatchExecuteRemote(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
+	virtual void DispatchExecuteRemote(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
 	/** Dispatch by calling Schedule or SetOutput, either now or later. */
-	virtual void DispatchExecuteLocal(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
+	virtual void DispatchExecuteLocal(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
 	/** Set the output of the job. Always called once between BeginJob and EndJob unless canceled. */
 	virtual void SetJobOutput(IBuildJob* Job, const FBuildSchedulerParams& Params, const FBuildOutput& Output) {}

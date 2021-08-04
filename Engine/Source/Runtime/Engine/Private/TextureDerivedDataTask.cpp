@@ -294,9 +294,9 @@ public:
 		return Buffer;
 	}
 
-	FRequest ResolveInputMeta(
+	void ResolveInputMeta(
 		const FBuildDefinition& Definition,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildInputMetaResolved&& OnResolved) final
 	{
 		EStatus Status = EStatus::Ok;
@@ -318,12 +318,11 @@ public:
 			}
 		});
 		OnResolved({Inputs, Status});
-		return FRequest();
 	}
 
-	FRequest ResolveInputData(
+	void ResolveInputData(
 		const FBuildDefinition& Definition,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildInputDataResolved&& OnResolved,
 		FBuildInputFilter&& Filter) final
 	{
@@ -349,7 +348,6 @@ public:
 			}
 		});
 		OnResolved({Inputs, Status});
-		return FRequest();
 	}
 
 private:
@@ -564,8 +562,9 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 				PlaceholderResolver.Emplace(Texture);
 				InputResolver = &PlaceholderResolver.GetValue();
 			}
+			FRequestGroup Group = Build.CreateGroup(EPriority::Blocking);
 			FBuildSession Session = Build.CreateSession(TexturePath, InputResolver);
-			Session.Build(DefinitionBuilder.Build(), EBuildPolicy::Default, EPriority::Blocking,
+			Session.Build(DefinitionBuilder.Build(), EBuildPolicy::Default, Group,
 				[this, &TexturePath, bReplaceExistingDDC] (FBuildCompleteParams&& Params)
 				{
 					#if !NO_LOGGING
@@ -583,7 +582,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 					{
 						ConsumeBuildFunctionOutput(Params.Output, TexturePath, bReplaceExistingDDC);
 					}
-				}).Wait();
+				});
+			Group.Wait();
 		}
 		else
 		{
@@ -996,11 +996,10 @@ public:
 		FStringView FunctionName,
 		FTexturePlatformData& InDerivedData,
 		const FTextureBuildSettings& Settings,
-		EQueuedWorkPriority BasePriority,
+		EQueuedWorkPriority InPriority,
 		ETextureCacheFlags Flags)
-		: ActiveRequest(&Request)
-		, DerivedData(InDerivedData)
-		, Priority(EnumHasAnyFlags(Flags, ETextureCacheFlags::Async) ? ConvertPriority(BasePriority) : UE::DerivedData::EPriority::Blocking)
+		: DerivedData(InDerivedData)
+		, Priority(InPriority)
 		, bCacheHit(false)
 		, bInlineMips(EnumHasAnyFlags(Flags, ETextureCacheFlags::InlineMips))
 		, FirstMipToLoad(Settings.LODBiasWithCinematicMips)
@@ -1020,15 +1019,17 @@ public:
 		IBuildInputResolver* GlobalResolver = GetGlobalBuildInputResolver();
 		BuildSession = Build.CreateSession(TexturePath, GlobalResolver ? GlobalResolver : &InputResolver);
 
+		EPriority GroupPriority = EnumHasAnyFlags(Flags, ETextureCacheFlags::Async) ? ConvertPriority(Priority) : UE::DerivedData::EPriority::Blocking;
+		Group = Build.CreateGroup(GroupPriority);
+
 		FBuildDefinition Definition = CreateDefinition(Build, Texture, TexturePath, FunctionName, KeySuffix, Settings);
 
 		if (!EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild) && Settings.bHasEditorOnlyData)
 		{
-			ActiveRequest.store(&ShippingRequest, std::memory_order_relaxed);
 			FTextureBuildSettings ShippingSettings = Settings;
 			ShippingSettings.bHasEditorOnlyData = false;
 			FBuildDefinition ShippingDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, KeySuffix, ShippingSettings);
-			ShippingRequest = BuildSession.Get().Build(ShippingDefinition, EBuildPolicy::Cache, Priority,
+			BuildSession.Get().Build(ShippingDefinition, EBuildPolicy::Cache, Group.Get(),
 				[this, Definition = MoveTemp(Definition), Flags](FBuildCompleteParams&& Params)
 				{
 					switch (Params.Status)
@@ -1043,7 +1044,6 @@ public:
 		}
 		else
 		{
-			ActiveRequest.store(&Request, std::memory_order_relaxed);
 			BeginBuild(Definition, Flags);
 		}
 	}
@@ -1075,10 +1075,8 @@ public:
 		{
 			BuildPolicy &= ~EBuildPolicy::CacheQuery;
 		}
-		FRequest* Active = ActiveRequest.load(std::memory_order_relaxed);
-		Request = BuildSession.Get().Build(Definition, BuildPolicy, Priority,
+		BuildSession.Get().Build(Definition, BuildPolicy, Group.Get(),
 			[this](FBuildCompleteParams&& Params) { EndBuild(MoveTemp(Params.Output), Params.BuildStatus); });
-		ActiveRequest.compare_exchange_strong(Active, &Request, std::memory_order_release, std::memory_order_relaxed);
 	}
 
 	void EndBuild(UE::DerivedData::FBuildOutput&& Output, UE::DerivedData::EBuildStatus Status)
@@ -1088,7 +1086,6 @@ public:
 		BuildOutputSize = Algo::TransformAccumulate(Output.GetPayloads(),
 			[](const FPayload& Payload) { return Payload.GetData().GetRawSize(); }, uint64(0));
 		WriteDerivedData(MoveTemp(Output));
-		ActiveRequest.store(nullptr, std::memory_order_relaxed);
 	}
 
 	void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) final
@@ -1099,41 +1096,25 @@ public:
 
 	EQueuedWorkPriority GetPriority() const final
 	{
-		return ConvertPriority(Priority);
+		return Priority;
 	}
 
 	bool SetPriority(EQueuedWorkPriority QueuedWorkPriority) final
 	{
-		using namespace UE::DerivedData;
-		const EPriority NewPriority = ConvertPriority(QueuedWorkPriority);
-		if (Priority < EPriority::Blocking)
-		{
-			Priority = NewPriority;
-			if (FRequest* Active = ActiveRequest.load(std::memory_order_acquire))
-			{
-				Active->SetPriority(NewPriority);
-			}
-		}
+		Priority = QueuedWorkPriority;
+		Group.Get().SetPriority(ConvertPriority(QueuedWorkPriority));
 		return true;
 	}
 
 	bool Cancel() final
 	{
-		using namespace UE::DerivedData;
-		while (FRequest* Active = ActiveRequest.load(std::memory_order_acquire))
-		{
-			Active->Cancel();
-		}
+		Group.Get().Cancel();
 		return true;
 	}
 
 	void Wait() final
 	{
-		using namespace UE::DerivedData;
-		while (FRequest* Active = ActiveRequest.load(std::memory_order_acquire))
-		{
-			Active->Wait();
-		}
+		Group.Get().Wait();
 	}
 
 	bool WaitWithTimeout(float TimeLimitSeconds) final
@@ -1157,15 +1138,7 @@ public:
 
 	bool Poll() const final
 	{
-		using namespace UE::DerivedData;
-		while (FRequest* Active = ActiveRequest.load(std::memory_order_acquire))
-		{
-			if (!Active->Poll())
-			{
-				return false;
-			}
-		}
-		return true;
+		return Group.Get().Poll();
 	}
 
 private:
@@ -1276,12 +1249,10 @@ private:
 		return true;
 	}
 
-	std::atomic<UE::DerivedData::FRequest*> ActiveRequest;
 	FTexturePlatformData& DerivedData;
-	UE::DerivedData::FRequest Request;
-	UE::DerivedData::FRequest ShippingRequest;
+	UE::DerivedData::FOptionalRequestGroup Group;
 	UE::DerivedData::FOptionalBuildSession BuildSession;
-	UE::DerivedData::EPriority Priority;
+	EQueuedWorkPriority Priority;
 	bool bCacheHit;
 	bool bInlineMips;
 	int32 FirstMipToLoad;

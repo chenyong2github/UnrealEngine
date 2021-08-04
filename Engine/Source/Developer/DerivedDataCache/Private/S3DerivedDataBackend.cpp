@@ -1177,11 +1177,11 @@ bool FS3DerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	return false;
 }
 
-FRequest FS3DerivedDataBackend::Put(
+void FS3DerivedDataBackend::Put(
 	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -1191,14 +1191,13 @@ FRequest FS3DerivedDataBackend::Put(
 			OnComplete({Record.GetKey(), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
-FRequest FS3DerivedDataBackend::Get(
+void FS3DerivedDataBackend::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -1208,14 +1207,13 @@ FRequest FS3DerivedDataBackend::Get(
 			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
-FRequest FS3DerivedDataBackend::GetPayload(
+void FS3DerivedDataBackend::GetPayload(
 	TConstArrayView<FCachePayloadKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetPayloadComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -1225,7 +1223,6 @@ FRequest FS3DerivedDataBackend::GetPayload(
 			OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
 } // UE::DerivedData::Backends
