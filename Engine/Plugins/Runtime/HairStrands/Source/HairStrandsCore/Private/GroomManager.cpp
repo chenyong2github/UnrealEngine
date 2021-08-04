@@ -125,6 +125,7 @@ static int32 GetCacheGeometryLODIndex(const FCachedGeometry& In)
 static void RunInternalHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView* View,
+	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -359,6 +360,7 @@ static void RunInternalHairStrandsInterpolation(
  			ComputeHairStrandsInterpolation(
 				GraphBuilder, 
 				ShaderMap,
+				ViewUniqueID,
 				ShaderDrawData, 
 				Instance,
 				Instance->Debug.MeshLODIndex,
@@ -370,6 +372,7 @@ static void RunInternalHairStrandsInterpolation(
 static void RunHairStrandsInterpolation_Guide(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView* View,
+	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -385,6 +388,7 @@ static void RunHairStrandsInterpolation_Guide(
 	RunInternalHairStrandsInterpolation(
 		GraphBuilder,
 		View,
+		ViewUniqueID,
 		Instances,
 		SkinCache,
 		ShaderDrawData,
@@ -396,6 +400,7 @@ static void RunHairStrandsInterpolation_Guide(
 static void RunHairStrandsInterpolation_Strands(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView* View,
+	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
@@ -411,6 +416,7 @@ static void RunHairStrandsInterpolation_Strands(
 	RunInternalHairStrandsInterpolation(
 		GraphBuilder,
 		View,
+		ViewUniqueID,
 		Instances,
 		SkinCache,
 		ShaderDrawData,
@@ -892,6 +898,7 @@ void ProcessHairStrandsBookmark(
 		RunHairStrandsInterpolation_Guide(
 			*GraphBuilder,
 			Parameters.View,
+			Parameters.ViewUniqueID,
 			Instances,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,
@@ -910,6 +917,7 @@ void ProcessHairStrandsBookmark(
 		RunHairStrandsInterpolation_Strands(
 			*GraphBuilder,
 			Parameters.View,
+			Parameters.ViewUniqueID,
 			Instances,
 			Parameters.SkinCache,
 			Parameters.DebugShaderData,

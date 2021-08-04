@@ -424,6 +424,7 @@ struct FHairStrandsBookmarkParameters
 	FShaderDrawDebugData* DebugShaderData = nullptr;
 	class FGlobalShaderMap* ShaderMap = nullptr;
 
+	uint32 ViewUniqueID = ~0; // View 0
 	FIntRect ViewRect; // View 0
 	FHairStrandsInstances VisibleInstances;
 	FHairStrandsInstances* Instances = nullptr;

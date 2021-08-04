@@ -432,13 +432,14 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 				Out.VisibleInstances.Add(HairGroupPublicData->Instance);
 			}
 		}
-	}
+	}	
 	Out.DebugShaderData			= ShaderDrawDebug::IsEnabled(View) ? &View.ShaderDrawData : nullptr;
 	Out.SkinCache				= View.Family->Scene->GetGPUSkinCache();
 	Out.ShaderMap				= View.ShaderMap;
 	Out.Instances				= &Scene->HairStrandsSceneData.RegisteredProxies;
 	Out.View					= &View;
 	Out.ViewRect				= View.ViewRect;
+	Out.ViewUniqueID			= View.ViewState ? View.ViewState->UniqueID : ~0;
 	Out.SceneColorTexture		= nullptr;
 	Out.bStrandsGeometryEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands, View.GetShaderPlatform());
 	if (GHairStrandsParameterFunction)

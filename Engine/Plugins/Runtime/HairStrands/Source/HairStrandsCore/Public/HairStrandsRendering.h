@@ -26,6 +26,7 @@ void ResetHairStrandsInterpolation(
 void ComputeHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
+	const uint32 ViewUniqueID,
 	const struct FShaderDrawDebugData* DebugShaderData,
 	struct FHairGroupInstance* Instance,
 	int32 LODIndex,

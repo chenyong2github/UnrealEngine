@@ -289,6 +289,12 @@ struct FHairStrandsDeformedResource : public FHairCommonResource
 	/* Whether the GPU data should be initialized with the asset data or not */
 	uint32 CurrentIndex = 0;
 
+	/* Track the view which has update the formed position. This is used when rendering the same 
+	   instance accross several editor viewport (not views of the same viewport), to prevent 
+	   incorrect motion vector, as editor viewport are refresh not on the same tick, but with a 
+	   throttling mechanism which make the updates not coherent. */
+	uint32 UniqueViewIDs[2] = { 0, 0 };
+
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
 
@@ -306,6 +312,8 @@ struct FHairStrandsDeformedResource : public FHairCommonResource
 	inline const FVector& GetPositionOffset(EFrameType T) const { return PositionOffset[GetIndex(T)]; }
 	inline void SetPositionOffset(EFrameType T, const FVector& Offset)  { PositionOffset[GetIndex(T)] = Offset; }
 	inline void SwapBuffer()									{ CurrentIndex = 1u - CurrentIndex; }
+	inline uint32& GetUniqueViewID(EFrameType T)				{ return UniqueViewIDs[GetIndex(T)]; }
+	inline uint32 GetUniqueViewID(EFrameType T) const			{ return UniqueViewIDs[GetIndex(T)]; }
 	//bool NeedsToUpdateTangent();
 };
 
