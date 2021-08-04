@@ -219,7 +219,7 @@ bool UMovieSceneSubTrack::SupportsMultipleRows() const
 #if WITH_EDITORONLY_DATA
 FText UMovieSceneSubTrack::GetDefaultDisplayName() const
 {
-	return LOCTEXT("TrackName", "Subscenes");
+	return LOCTEXT("TrackName", "Subsequences");
 }
 #endif
 

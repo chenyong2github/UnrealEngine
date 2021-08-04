@@ -313,7 +313,7 @@ FSubTrackEditor::FSubTrackEditor(TSharedRef<ISequencer> InSequencer)
 void FSubTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AddSubTrack", "Subscenes Track"),
+		LOCTEXT("AddSubTrack", "Subsequences Track"),
 		LOCTEXT("AddSubTooltip", "Adds a new track that can contain other sequences."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Tracks.Sub"),
 		FUIAction(
@@ -379,7 +379,7 @@ bool FSubTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& TargetObject
 
 	if (CanAddSubSequence(*Sequence))
 	{
-		const FScopedTransaction Transaction(LOCTEXT("AddSubScene_Transaction", "Add Subscene"));
+		const FScopedTransaction Transaction(LOCTEXT("AddSubSequence_Transaction", "Add Subsequence"));
 
 		int32 RowIndex = INDEX_NONE;
 		AnimatablePropertyChanged(FOnKeyProperty::CreateRaw(this, &FSubTrackEditor::HandleSequenceAdded, Sequence, RowIndex));
