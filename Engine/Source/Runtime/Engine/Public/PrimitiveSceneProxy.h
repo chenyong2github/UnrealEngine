@@ -139,7 +139,10 @@ enum class ERayTracingPrimitiveFlags : uint8
 
 	// Misc flags
 	// Static meshes with multiple LODs will want to select a LOD index based on screen size
-	ComputeLOD = 1 << 4
+	ComputeLOD = 1 << 4, 
+
+	// Primitive is masked as a far field object
+	FarField = 1 << 5,
 };
 ENUM_CLASS_FLAGS(ERayTracingPrimitiveFlags);
 
@@ -624,8 +627,13 @@ public:
 	inline bool IsForceHidden() const {return bForceHidden;}
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
 	inline bool ShouldUpdateGPUSceneTransforms() const { return bShouldUpdateGPUSceneTransforms; }
+	inline bool IsRayTracingFarField() const { return bRayTracingFarField; }
 	inline int32 GetRayTracingGroupId() const { return RayTracingGroupId; }
 	inline uint8 GetRayTracingGroupCullingPriority() const { return RayTracingGroupCullingPriority; }
+	inline bool IsVisibleInPrimaryRayPass() const
+	{
+		return !(IsRayTracingFarField() && (!IsDrawnInGame() || GetScene().IsEditorScene()));
+	}
 
 	static constexpr int32 InvalidRayTracingGroupId = -1;
 
@@ -1147,6 +1155,9 @@ private:
 
 	/** This primitive should be hidden in Scene Capture */
 	uint8 bHiddenInSceneCapture : 1;
+
+	/** This primitive will be available to ray trace as a far field primitive even if hidden. */
+	bool bRayTracingFarField : 1;
 
 	/** Optionally write this stencil value during the CustomDepth pass */
 	uint8 CustomDepthStencilValue;

@@ -23,6 +23,7 @@
 #include "Rendering/NaniteResources.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "NaniteSceneProxy.h"
+#include "RayTracingDefinitions.h"
 
 extern int32 GGPUSceneInstanceClearList;
 extern int32 GGPUSceneInstanceBVH;
@@ -774,6 +775,12 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RH
 				check(SceneInfo->GetIndex() != INDEX_NONE);
 				SceneInfo->CachedRayTracingInstance.DefaultUserData = (uint32)SceneInfo->GetIndex();
 				SceneInfo->CachedRayTracingInstance.Mask = CachedRayTracingInstance.Mask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
+
+				if (SceneInfo->Proxy->IsRayTracingFarField())
+				{
+					SceneInfo->CachedRayTracingInstance.Mask = RAY_TRACING_MASK_FAR_FIELD;
+					Flags |= ERayTracingPrimitiveFlags::FarField;
+				}
 
 				if (CachedRayTracingInstance.bForceOpaque)
 				{

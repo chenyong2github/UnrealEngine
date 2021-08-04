@@ -144,13 +144,19 @@ void InstanceCull(
 #endif // DEBUG_FLAGS
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-		const bool bCastShadows = (PrimitiveData.Flags & 1u) != 0u;
+		const bool bCastShadows = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
 
 		// JonO/Note: Depth-Only pass indicates its a shadow map... but this may not technically always be the case?
 		//if(OnlyCastShadowsPrimitives && !InstanceData.CastShadows) 
 
 		BRANCH
 		if (OnlyCastShadowsPrimitives && !bCastShadows) 
+		{
+			return;
+		}
+
+		BRANCH
+		if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_PRIMARY_RAY_PASS) == 0u)
 		{
 			return;
 		}
@@ -415,10 +421,16 @@ void InstanceCullVSM(
 	}
 
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-	bool bCastShadow = (PrimitiveData.Flags & 1u) != 0u;
+	bool bCastShadow = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
 	
 	BRANCH
 	if (!bCastShadow) 
+	{
+		return;
+	}
+
+	BRANCH
+	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_PRIMARY_RAY_PASS) == 0u)
 	{
 		return;
 	}

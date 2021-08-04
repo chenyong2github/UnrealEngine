@@ -18,6 +18,13 @@
 #include "Engine/TextureStreamingTypes.h"
 #endif
 
+static int32 GRayTracingFarFieldPostLoad = 0;
+static FAutoConsoleVariableRef CVarRaytracingFarFieldPostLoad(
+	TEXT("wp.Render.RaytracingFarFieldPostLoad"),
+	GRayTracingFarFieldPostLoad,
+	TEXT("Enable/Disable HLOD1 ray tracing.\n"),
+	ECVF_ReadOnly);
+
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -70,6 +77,28 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 
 void AWorldPartitionHLOD::RerunConstructionScripts()
 {}
+
+void AWorldPartitionHLOD::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	// Enable / Disable ray tracing for hlod1
+	if (GRayTracingFarFieldPostLoad > 0 && GetSubActorsHLODLayer()->GetLayerType() != EHLODLayerType::Instancing)
+	{
+		UStaticMeshComponent* const StaticMeshComp = Cast<UStaticMeshComponent>(GetHLODComponent());
+		if (StaticMeshComp)
+		{
+			StaticMeshComp->ConditionalPostLoad();
+			if (StaticMeshComp->GetStaticMesh())
+			{
+				StaticMeshComp->bRayTracingFarField = true;
+				StaticMeshComp->GetStaticMesh()->bSupportRayTracing = true;
+			}
+		}
+	}
+#endif
+}
 
 #if WITH_EDITOR
 
