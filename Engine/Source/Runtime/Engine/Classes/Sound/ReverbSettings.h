@@ -45,7 +45,7 @@ enum ReverbPreset
 
 /** Struct encapsulating settings for reverb effects. */
 USTRUCT(BlueprintType)
-struct FReverbSettings
+struct ENGINE_API FReverbSettings
 {
 	GENERATED_USTRUCT_BODY()
 

@@ -35,7 +35,7 @@ enum class EAudioVolumeLocationState : uint8
 
 /** Struct to determine dynamic submix send data for use with audio volumes. */
 USTRUCT(BlueprintType)
-struct FAudioVolumeSubmixSendSettings
+struct ENGINE_API FAudioVolumeSubmixSendSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -52,7 +52,7 @@ struct FAudioVolumeSubmixSendSettings
 };
 
 USTRUCT(BlueprintType)
-struct FAudioVolumeSubmixOverrideSettings
+struct ENGINE_API FAudioVolumeSubmixOverrideSettings
 {
 	GENERATED_USTRUCT_BODY()
 
