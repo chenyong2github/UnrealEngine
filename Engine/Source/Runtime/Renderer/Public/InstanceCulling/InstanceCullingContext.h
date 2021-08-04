@@ -13,9 +13,7 @@ class FInstanceCullingManager;
 class FInstanceCullingDrawParams;
 class FScene;
 class FGPUScenePrimitiveCollector;
-
-
-#define GPUCULL_ENABLE_CONCAT_ON_UPLOAD 0
+class FInstanceCullingDeferredContext;
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceCullingGlobalUniforms, RENDERER_API)
@@ -125,19 +123,18 @@ public:
 
 	/**
 	 * Add a batched BuildRenderingCommands pass. Each batch represents a BuildRenderingCommands call from a mesh pass.
-	 * Batches are gradually added as we walk through the main render function.
+	 * Batches are collected as we walk through the main render setup and are executed when RDG Execute or Drain is called.
+	 * This implicitly ends the deferred context, so if Drain is used, it should be paired with a new call to BeginDeferredCulling.
 	 */
-	static void BuildRenderingCommandsDeferred(
+	static FInstanceCullingDeferredContext *CreateDeferredContext(
 		FRDGBuilder& GraphBuilder,
 		FGPUScene& GPUScene,
-		FInstanceCullingManager& InstanceCullingManager);
-
-	static bool AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene);
+		FInstanceCullingManager* InstanceCullingManager);
 
 	/**
 	 * Helper function to add a pass to zero the instance count in the indirect args.
 	 */
-	static void AddClearIndirectArgInstanceCountPass(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferRef DrawIndirectArgsBuffer);
+	static void AddClearIndirectArgInstanceCountPass(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferRef DrawIndirectArgsBuffer, TFunction<int32()> NumIndirectArgsCallback = TFunction<int32()>());
 
 
 	void SetupDrawCommands(
@@ -207,33 +204,6 @@ public:
 
 	// Set of specialized batches that collect items with different properties each context may have only a subset.
 	//TStaticArray<FBatchProcessor, EBatchProcessingMode::Num> Batches;
-	struct FMergedContext
-	{
-		bool bInitialized = false;
-#if GPUCULL_ENABLE_CONCAT_ON_UPLOAD
-		TArray<TArrayView<const int32>, SceneRenderingAllocator> ViewIds;
-		TArray<TArrayView<const FRHIDrawIndexedIndirectParameters>, SceneRenderingAllocator> IndirectArgs;
-		TArray<TArrayView<const FDrawCommandDesc>, SceneRenderingAllocator> DrawCommandDescs;
-		TArray<TArrayView<const uint32>, SceneRenderingAllocator> InstanceIdOffsets;
-#else // !GPUCULL_ENABLE_CONCAT_ON_UPLOAD
-		TArray<int32, SceneRenderingAllocator> ViewIds;
-		//TArray<FMeshDrawCommandInfo, SceneRenderingAllocator> MeshDrawCommandInfos;
-		TArray<FRHIDrawIndexedIndirectParameters, SceneRenderingAllocator> IndirectArgs;
-		TArray<FDrawCommandDesc, SceneRenderingAllocator> DrawCommandDescs;
-		TArray<uint32, SceneRenderingAllocator> InstanceIdOffsets;
-#endif // GPUCULL_ENABLE_CONCAT_ON_UPLOAD
-		LoadBalancerArray LoadBalancers = LoadBalancerArray(InPlace, nullptr);
-		TStaticArray<TArray<uint32, SceneRenderingAllocator>, static_cast<uint32>(EBatchProcessingMode::Num)> BatchInds;
-		TArray<FInstanceCullingContext::FContextBatchInfo, SceneRenderingAllocator> BatchInfos;
-
-
-		// Counters to sum up all sizes to facilitate pre-sizing
-		uint32 InstanceIdBufferSize = 0U;
-		TStaticArray<int32, uint32(EBatchProcessingMode::Num)> TotalBatches = TStaticArray<int32, uint32(EBatchProcessingMode::Num)>(InPlace, 0);
-		TStaticArray<int32, uint32(EBatchProcessingMode::Num)> TotalItems = TStaticArray<int32, uint32(EBatchProcessingMode::Num)>(InPlace, 0);
-		int32 TotalIndirectArgs = 0;
-		int32 TotalViewIds = 0;
-	};
 
 	// Processing mode to use for single-instance primitives, default to skip culling, as this is already done on CPU. 
 	EBatchProcessingMode SingleInstanceProcessingMode = EBatchProcessingMode::UnCulled;

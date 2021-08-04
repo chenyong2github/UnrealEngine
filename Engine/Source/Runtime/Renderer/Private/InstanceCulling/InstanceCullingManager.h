@@ -69,21 +69,7 @@ struct FInstanceCullingResult
 	}
 };
 
-struct FBatchedInstanceCullingScratchSpace
-{
-	/** Whether we defer and batch GPU instance culling work throughout a frame. */
-	bool bBatchingActive = false;
-
-	FRDGBufferRef DrawIndirectArgsBuffer = nullptr;
-	FRDGBufferRef InstanceIdOffsetBuffer = nullptr;
-	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
-
-	/** GPU instance culling input data merged from multiple batches throughout a frame. */
-	FInstanceCullingContext::FMergedContext MergedContext;
-
-	/** Batches of GPU instance culling input data. */
-	TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator> Batches;
-};
+class FInstanceCullingDeferredContext;
 
 /**
  * Manages allocation of indirect arguments and culling jobs for all instanced draws (use the GPU Scene culling).
@@ -115,21 +101,31 @@ public:
 	}
 	const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> GetDummyInstanceCullingUniformBuffer() const { return CullingIntermediate.DummyUniformBuffer; }
 	
-	/** Starts batching GPU instance culling work items if possible. */
+	static bool AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene);
+
+
+	/**
+	 * Add a deferred, batched, gpu culling pass. Each batch represents a BuildRenderingCommands call from a mesh pass.
+	 * Batches are collected as we walk through the main render setup and call BuildRenderingCommands, and are processed when RDG Execute or Drain is called.
+	 * This implicitly ends the deferred context, so if Drain is used, it should be paired with a new call to BeginDeferredCulling.
+	 */
 	void BeginDeferredCulling(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene);
 
+
 	/** Whether we are actively batching GPU instance culling work. */
-	bool IsDeferredCullingActive() const { return BatchedCullingScratch.bBatchingActive; }
+	bool IsDeferredCullingActive() const { return DeferredContext != nullptr; }
 
 	// Populated by CullInstances, used when performing final culling & rendering 
 	FInstanceCullingIntermediate CullingIntermediate;
 
+	const TArray<Nanite::FPackedView>& GetCullingViews() { return CullingViews; }
 
 private:
-	friend class FInstanceCullingContext;
 
+	friend class FInstanceCullingContext;
+	
 	// Polulated by FInstanceCullingContext::BuildRenderingCommandsDeferred, used to hold instance culling related data that needs to be passed around
-	FBatchedInstanceCullingScratchSpace BatchedCullingScratch;
+	FInstanceCullingDeferredContext *DeferredContext = nullptr;
 
 	FInstanceCullingManager() = delete;
 	FInstanceCullingManager(FInstanceCullingManager &) = delete;
