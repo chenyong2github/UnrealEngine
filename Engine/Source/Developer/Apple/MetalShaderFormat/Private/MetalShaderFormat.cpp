@@ -15,6 +15,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "MetalBackend.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "FileUtilities/ZipArchiveWriter.h"
 #include "MetalDerivedData.h"
 
@@ -386,9 +387,11 @@ static FMetalCompilerToolchain::EMetalToolchainStatus ParseCompilerVersionAndTar
 		int32 Major = 0, Minor = 0, Patch = 0;
 		int32 NumResults = 0;
 #if !PLATFORM_WINDOWS
-		NumResults = sscanf(TCHAR_TO_ANSI(*Version), "Apple LLVM version %d.%d.%d", &Major, &Minor, &Patch);
+		char AppleToolName[PATH_MAX] = { '\0' };
+		NumResults = sscanf(TCHAR_TO_ANSI(*Version), "Apple %s version %d.%d.%d", AppleToolName, &Major, &Minor, &Patch);
 #else
-		NumResults = swscanf_s(*Version, TEXT("Apple LLVM version %d.%d.%d"), &Major, &Minor, &Patch);
+		TCHAR AppleToolName[WINDOWS_MAX_PATH] = { '\0' };
+		NumResults = swscanf_s(*Version, TEXT("Apple %ls version %d.%d.%d"), AppleToolName, WINDOWS_MAX_PATH, &Major, &Minor, &Patch);
 #endif
 		PackedVersionNumber.Major = Major;
 		PackedVersionNumber.Minor = Minor;
@@ -799,7 +802,7 @@ bool FMetalCompilerToolchain::ExecMetalFrontend(EAppleSDKType SDK, const TCHAR* 
 #if PLATFORM_MAC
 	if (this->MetalFrontendBinaryCommand[SDK].IsEmpty())
 	{
-		FString BuiltParams = FString::Printf(TEXT("-sdk %s %s %s"), *SDKToString(SDK), *this->MetalFrontendBinary, Parameters);
+		FString BuiltParams = FString::Printf(TEXT("--sdk %s %s %s"), *SDKToString(SDK), *this->MetalFrontendBinary, Parameters);
 		return ExecGenericCommand(*XcrunPath, *BuiltParams, OutReturnCode, OutStdOut, OutStdErr);
 	}
 	else
@@ -813,7 +816,7 @@ bool FMetalCompilerToolchain::ExecMetalLib(EAppleSDKType SDK, const TCHAR* Param
 #if PLATFORM_MAC
 	if (this->MetalLibBinaryCommand[SDK].IsEmpty())
 	{
-		FString BuiltParams = FString::Printf(TEXT("-sdk %s %s %s"), *SDKToString(SDK), *this->MetalLibraryBinary, Parameters);
+		FString BuiltParams = FString::Printf(TEXT("--sdk %s %s %s"), *SDKToString(SDK), *this->MetalLibraryBinary, Parameters);
 		return ExecGenericCommand(*XcrunPath, *BuiltParams, OutReturnCode, OutStdOut, OutStdErr);
 	}
 	else
