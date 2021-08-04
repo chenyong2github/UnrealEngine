@@ -78,7 +78,7 @@ protected:
 	virtual void DoPostBuild(EToolSide Side, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& InBuilderState);
 	
 	/** Called immediately after a tool's Setup is called. Broadcasts OnToolPostSetup. */
-	virtual void DoPostSetup(EToolSide Side, UInteractiveTool* InInteractiveTool);
+	virtual void DoPostSetup(EToolSide Side, UInteractiveTool* InInteractiveTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& InBuilderState);
 
 public:
 

@@ -56,11 +56,13 @@ void UInteractiveToolManager::Shutdown()
 
 void UInteractiveToolManager::DoPostBuild(EToolSide Side, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& InBuilderState)
 {
+	InToolBuilder->PostBuildTool(InBuiltTool, InBuilderState);
 	OnToolPostBuild.Broadcast(this, Side, InBuiltTool, InToolBuilder, InBuilderState);
 }
 
-void UInteractiveToolManager::DoPostSetup(EToolSide Side, UInteractiveTool* InInteractiveTool)
+void UInteractiveToolManager::DoPostSetup(EToolSide Side, UInteractiveTool* InInteractiveTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& InBuilderState)
 {
+	InToolBuilder->PostSetupTool(InInteractiveTool, InBuilderState);
 	OnToolPostSetup.Broadcast(this, Side, InInteractiveTool);
 }
 
@@ -205,7 +207,7 @@ bool UInteractiveToolManager::ActivateToolInternal(EToolSide Side)
 	DoPostBuild(Side, ActiveLeftTool, ActiveLeftBuilder, InputState);
 
 	ActiveLeftTool->Setup();
-	DoPostSetup(Side, ActiveLeftTool);
+	DoPostSetup(Side, ActiveLeftTool, ActiveLeftBuilder, InputState);
 
 	// register new active input behaviors
 	InputRouter->RegisterSource(ActiveLeftTool);
