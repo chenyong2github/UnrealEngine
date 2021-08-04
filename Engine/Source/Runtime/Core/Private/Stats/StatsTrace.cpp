@@ -22,6 +22,7 @@ UE_TRACE_EVENT_BEGIN(Stats, Spec, NoSync|Important)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Stats, EventBatch)
+	UE_TRACE_EVENT_FIELD(uint8[], Data)
 UE_TRACE_EVENT_END()
 
 struct FStatsTraceInternal
@@ -73,8 +74,8 @@ FStatsTraceInternal::FThreadState* FStatsTraceInternal::InitThreadState()
 
 void FStatsTraceInternal::FlushThreadBuffer(FThreadState* ThreadState)
 {
-	UE_TRACE_LOG(Stats, EventBatch, StatsChannel, ThreadState->BufferSize)
-		<< EventBatch.Attachment(ThreadState->Buffer, ThreadState->BufferSize);
+	UE_TRACE_LOG(Stats, EventBatch, StatsChannel)
+		<< EventBatch.Data(ThreadState->Buffer, ThreadState->BufferSize);
 	ThreadState->BufferSize = 0;
 }
 

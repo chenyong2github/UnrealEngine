@@ -130,9 +130,17 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	}
 	case RouteId_Metadata:
 	{
-		const TCHAR* Key = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-		const TCHAR* Value = reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + EventData.GetValue<uint16>("ValueOffset"));
-		CsvProfilerProvider.SetMetadata(Session.StoreString(Key), Session.StoreString(Value));
+		FString Key, Value;
+		if (EventData.GetString("Key", Key))
+		{
+			EventData.GetString("Value", Value);
+		}
+		else
+		{
+			Key = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
+			Value = reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + EventData.GetValue<uint16>("ValueOffset"));
+		}
+		CsvProfilerProvider.SetMetadata(Session.StoreString(*Key), Session.StoreString(*Value));
 		break;
 	}
 	case RouteId_BeginCapture:
@@ -141,8 +149,9 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		RHIThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context, "RHIThreadId");
 		uint32 CaptureStartFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")));
 		bEnableCounts = EventData.GetValue<bool>("EnableCounts");
-		const TCHAR* Filename = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
-		CsvProfilerProvider.StartCapture(Filename, CaptureStartFrame);
+		FString FileName = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("FileName", Context);
+		const TCHAR* StoredFileName = Session.StoreString(*FileName);
+		CsvProfilerProvider.StartCapture(StoredFileName, CaptureStartFrame);
 		break;
 	}
 	case RouteId_EndCapture:
@@ -401,7 +410,7 @@ void FCsvProfilerAnalyzer::HandleEventEvent(const FOnEventContext& Context)
 	FThreadState& ThreadState = GetThreadState(ThreadId);
 	uint64 Cycle = Context.EventData.GetValue<uint64>("Cycle");
 	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.EventTime.AsSeconds(Cycle));
-	FString EventText = reinterpret_cast<const TCHAR*>(Context.EventData.GetAttachment());
+	FString EventText = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Text", Context);
 	int32 CategoryIndex = Context.EventData.GetValue<int32>("CategoryIndex");
 	if (CategoryIndex > 0)
 	{
