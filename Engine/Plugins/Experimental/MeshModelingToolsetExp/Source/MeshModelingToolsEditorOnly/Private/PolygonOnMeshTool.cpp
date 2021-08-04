@@ -256,7 +256,10 @@ TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshTool::MakeNewOperator()
 	EmbedOp->bDiscardAttributes = false;
 	EmbedOp->Operation = BasicProperties->Operation;
 	EmbedOp->bCutWithBoolean = BasicProperties->bCutWithBoolean;
-	EmbedOp->bAttemptFixHolesOnBoolean = BasicProperties->bAttemptFixHoles;
+	bool bOpLeavesOpenBoundaries =
+		BasicProperties->Operation == EEmbeddedPolygonOpMethod::TrimInside ||
+		BasicProperties->Operation == EEmbeddedPolygonOpMethod::TrimOutside;
+	EmbedOp->bAttemptFixHolesOnBoolean = !bOpLeavesOpenBoundaries && BasicProperties->bTryToFixCracks;
 
 	FFrame3d LocalFrame = DrawPlaneWorld;
 	UE::Geometry::FTransform3d ToLocal = WorldTransform.Inverse();

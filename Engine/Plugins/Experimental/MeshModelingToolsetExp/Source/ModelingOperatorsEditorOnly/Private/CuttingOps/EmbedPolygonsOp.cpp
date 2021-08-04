@@ -176,6 +176,7 @@ void FEmbedPolygonsOp::BooleanPath(FProgressCancel* Progress)
 	int MaxGroupID = ResultMesh->MaxGroupID();
 	FMeshBoolean Boolean(ResultMesh.Get(), &ExtrudePoly, ResultMesh.Get(), BoolOp);
 	Boolean.Progress = Progress;
+	Boolean.bSimplifyAlongNewEdges = true;
 	Boolean.bPutResultInInputSpace = true;
 	bool bBoolSuccess = Boolean.Compute();
 
