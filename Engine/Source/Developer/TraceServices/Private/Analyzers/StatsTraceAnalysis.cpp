@@ -67,8 +67,9 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 	{
 		uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
-		uint64 BufferSize = EventData.GetAttachmentSize();
-		const uint8* BufferPtr = EventData.GetAttachment();
+		TArrayView<const uint8> DataView = FTraceAnalyzerUtils::LegacyAttachmentArray("Data", Context);
+		uint64 BufferSize = DataView.Num();
+		const uint8* BufferPtr = DataView.GetData();
 		const uint8* BufferEnd = BufferPtr + BufferSize;
 		while (BufferPtr < BufferEnd)
 		{

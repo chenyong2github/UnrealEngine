@@ -62,6 +62,7 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(CsvProfiler, Event)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(int32, CategoryIndex)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Text)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CsvProfiler, BeginCapture)
@@ -69,6 +70,7 @@ UE_TRACE_EVENT_BEGIN(CsvProfiler, BeginCapture)
 	UE_TRACE_EVENT_FIELD(uint32, RenderThreadId)
 	UE_TRACE_EVENT_FIELD(uint32, RHIThreadId)
 	UE_TRACE_EVENT_FIELD(bool, EnableCounts)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, FileName)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CsvProfiler, EndCapture)
@@ -76,7 +78,8 @@ UE_TRACE_EVENT_BEGIN(CsvProfiler, EndCapture)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CsvProfiler, Metadata)
-	UE_TRACE_EVENT_FIELD(uint16, ValueOffset)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Value)
 UE_TRACE_EVENT_END()
 
 struct FCsvProfilerTraceInternal
@@ -227,22 +230,20 @@ void FCsvProfilerTrace::OutputCustomStat(const FName& StatName, int32 CategoryIn
 void FCsvProfilerTrace::OutputBeginCapture(const TCHAR* Filename, uint32 RenderThreadId, uint32 RHIThreadId, const char* DefaultWaitStatName, bool bEnableCounts)
 {
 	OutputInlineStat(DefaultWaitStatName, CSV_CATEGORY_INDEX(Exclusive));
-	uint16 NameSize = (uint16)((FCString::Strlen(Filename) + 1) * sizeof(TCHAR));
-	UE_TRACE_LOG(CsvProfiler, BeginCapture, CountersChannel, NameSize)
+	UE_TRACE_LOG(CsvProfiler, BeginCapture, CountersChannel)
 		<< BeginCapture.Cycle(FPlatformTime::Cycles64())
 		<< BeginCapture.RenderThreadId(RenderThreadId)
 		<< BeginCapture.RHIThreadId(RHIThreadId)
 		<< BeginCapture.EnableCounts(bEnableCounts)
-		<< BeginCapture.Attachment(Filename, NameSize);
+		<< BeginCapture.FileName(Filename);
 }
 
 void FCsvProfilerTrace::OutputEvent(const TCHAR* Text, int32 CategoryIndex, uint64 Cycles)
 {
-	uint16 TextSize = (uint16)((FCString::Strlen(Text) + 1) * sizeof(TCHAR));
-	UE_TRACE_LOG(CsvProfiler, Event, CountersChannel, TextSize)
+	UE_TRACE_LOG(CsvProfiler, Event, CountersChannel)
 		<< Event.Cycle(Cycles)
 		<< Event.CategoryIndex(CategoryIndex)
-		<< Event.Attachment(Text, TextSize);
+		<< Event.Text(Text);
 }
 
 void FCsvProfilerTrace::OutputEndCapture()
@@ -253,16 +254,9 @@ void FCsvProfilerTrace::OutputEndCapture()
 
 void FCsvProfilerTrace::OutputMetadata(const TCHAR* Key, const TCHAR* Value)
 {
-	uint16 KeySize = (uint16)((FCString::Strlen(Key) + 1) * sizeof(TCHAR));
-	uint16 ValueSize = (uint16)((FCString::Strlen(Value) + 1) * sizeof(TCHAR));
-	auto Attachment = [Key, KeySize, Value, ValueSize](uint8* Out)
-	{
-		memcpy(Out, Key, KeySize);
-		memcpy(Out + KeySize, Value, ValueSize);
-	};
-	UE_TRACE_LOG(CsvProfiler, Metadata, CountersChannel, KeySize + ValueSize)
-		<< Metadata.ValueOffset(KeySize)
-		<< Metadata.Attachment(Attachment);
+	UE_TRACE_LOG(CsvProfiler, Metadata, CountersChannel)
+		<< Metadata.Key(Key)
+		<< Metadata.Value(Value);
 }
 
 #endif
