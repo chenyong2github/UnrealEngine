@@ -1215,6 +1215,58 @@ bool UControlRig::CanExecute() const
 	return CVarControlRigDisableExecutionAll->GetInt() == 0;
 }
 
+TArray<UControlRig*> UControlRig::FindControlRigs(UObject* Outer, TSubclassOf<UControlRig> OptionalClass)
+{
+	TArray<UControlRig*> Result;
+	
+	if(Outer == nullptr)
+	{
+		return Result; 
+	}
+	
+	AActor* OuterActor = Cast<AActor>(Outer);
+	if(OuterActor == nullptr)
+	{
+		OuterActor = Outer->GetTypedOuter<AActor>();
+	}
+	
+	for (TObjectIterator<UControlRig> Itr; Itr; ++Itr)
+	{
+		UControlRig* RigInstance = *Itr;
+		if (OptionalClass == nullptr || RigInstance->GetClass()->IsChildOf(OptionalClass))
+		{
+			if(RigInstance->IsInOuter(Outer))
+			{
+				Result.Add(RigInstance);
+				continue;
+			}
+
+			if(OuterActor)
+			{
+				if(RigInstance->IsInOuter(OuterActor))
+				{
+					Result.Add(RigInstance);
+					continue;
+				}
+
+				if (TSharedPtr<IControlRigObjectBinding> Binding = RigInstance->GetObjectBinding())
+				{
+					if (AActor* Actor = Binding->GetHostingActor())
+					{
+						if (Actor == OuterActor)
+						{
+							Result.Add(RigInstance);
+							continue;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return Result;
+}
+
 void UControlRig::Serialize(FArchive& Ar)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()

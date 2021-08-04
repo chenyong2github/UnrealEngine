@@ -255,6 +255,9 @@ public:
 	// The property paths stored within this class
 	const TArray<FRigVMPropertyPath>& GetPropertyPaths() const { return PropertyPaths; }
 
+	// returns the statistics information
+	FRigVMMemoryStatistics GetStatistics() const;
+
 protected:
 
 	// Adds a single property to a class.
@@ -346,6 +349,21 @@ public:
 
 	// Creates and returns a new operand for a property (and optionally a property path)
 	FRigVMOperand GetOperandByName(const FName& InName, int32 InPropertyPathIndex = INDEX_NONE) const;
+
+	// returns the statistics information
+	FRigVMMemoryStatistics GetStatistics() const
+	{
+		if(URigVMMemoryStorageGeneratorClass* Class = Cast<URigVMMemoryStorageGeneratorClass>(GetClass()))
+		{
+			return Class->GetStatistics();
+		}
+
+		FRigVMMemoryStatistics Statistics;
+		Statistics.RegisterCount = 0;
+		Statistics.DataBytes = URigVMMemoryStorage::StaticClass()->GetStructureSize();
+		Statistics.TotalBytes = Statistics.DataBytes;
+		return Statistics;
+	}
 
 	// Returns true if the property at a given index is a TArray
 	FORCEINLINE bool IsArray(int32 InPropertyIndex) const

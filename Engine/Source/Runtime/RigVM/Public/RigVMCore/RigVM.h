@@ -650,6 +650,7 @@ public:
 #endif
 
 	// returns the statistics information
+	UFUNCTION(BlueprintPure, Category = "RigVM")
 	FRigVMStatistics GetStatistics() const
 	{
 		FRigVMStatistics Statistics;
@@ -657,6 +658,15 @@ public:
 		Statistics.LiteralMemory = LiteralMemoryPtr->GetStatistics();
 		Statistics.WorkMemory = WorkMemoryPtr->GetStatistics();
 		Statistics.DebugMemory = DebugMemoryPtr->GetStatistics();
+#else
+		if(LiteralMemoryStorageObject)
+		{
+			Statistics.LiteralMemory = LiteralMemoryStorageObject->GetStatistics();
+		}
+		if(WorkMemoryStorageObject)
+		{
+			Statistics.WorkMemory = WorkMemoryStorageObject->GetStatistics();
+		}
 #endif
 		Statistics.ByteCode = ByteCodePtr->GetStatistics();
 		Statistics.BytesForCaching = FirstHandleForInstruction.GetAllocatedSize() + CachedMemoryHandles.GetAllocatedSize();
@@ -665,9 +675,16 @@ public:
 			Statistics.WorkMemory.TotalBytes +
 			Statistics.ByteCode.DataBytes +
 			Statistics.BytesForCaching;
+		
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 		Statistics.BytesPerInstance =
 			Statistics.WorkMemory.TotalBytes +
 			Statistics.BytesForCaching;
+#else
+		Statistics.BytesPerInstance =
+			Statistics.WorkMemory.DataBytes +
+			Statistics.BytesForCaching;
+#endif
 
 		return Statistics;
 	}
