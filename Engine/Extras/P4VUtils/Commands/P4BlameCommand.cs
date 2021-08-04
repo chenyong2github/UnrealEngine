@@ -13,7 +13,7 @@ namespace P4VUtils.Commands
 	{
 		public override string Description => "Prints out who last edited a specific line in a file";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("P4 Blame this file using line number", "%d") 
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Find last edit by line", "%d") 
 		{ 
 			ShowConsole = true,
 			PromptForArgument = true,
@@ -36,7 +36,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			Logger.LogInformation("Blaming line {0} in {1}", LineNumber, FileName);
+			Logger.LogInformation("Finding last edit for line {0} in {1}", LineNumber, FileName);
 
 			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 

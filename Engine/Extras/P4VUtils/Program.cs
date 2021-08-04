@@ -49,7 +49,7 @@ namespace P4VUtils
 		{
 			["describe"] = new DescribeCommand(),
 			["findlastedit"] = new FindLastEditCommand(),
-			["p4blame"] = new P4BlameCommand(),
+			["findlasteditbyline"] = new P4BlameCommand(),
 			["snapshot"] = new SnapshotCommand(),
 			["copyclnum"] = new CopyCLCommand(),
 		};
