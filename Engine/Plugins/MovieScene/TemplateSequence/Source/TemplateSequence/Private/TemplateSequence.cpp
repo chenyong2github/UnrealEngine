@@ -149,7 +149,7 @@ FGuid UTemplateSequence::FindOrAddBinding(UObject* InObject)
 
 		Player->Initialize(this, World, FMovieSceneSequencePlaybackSettings());
 		Player->State.AssignSequence(MovieSceneSequenceID::Root, *this, *Player);
-		Player->PlayTo(FMovieSceneSequencePlaybackParams(MovieScene->GetPlaybackRange().GetLowerBoundValue(), EUpdatePositionMethod::Play));
+		Player->PlayTo(FMovieSceneSequencePlaybackParams(MovieScene->GetPlaybackRange().GetLowerBoundValue(), EUpdatePositionMethod::Play), FMovieSceneSequencePlayToParams());
 
 		FGuid FoundBinding;
 		for (int32 BindingIndex = 0; !FoundBinding.IsValid() && BindingIndex < GetMovieScene()->GetBindings().Num(); ++BindingIndex)
