@@ -282,11 +282,27 @@ public:
 	virtual USkeletalMesh* GetPreviewMesh() const;
 
 #if WITH_EDITOR
+	/** Gets a constraint by its joint name
+	* @param ConstraintName name of the constraint
+	* @return ConstraintInstance accessor to the constraint data
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
 	FConstraintInstanceAccessor GetConstraintByName(FName ConstraintName);
 
+	/** Gets a constraint by its joint name
+	* @param Bone1Name name of the first bone in the joint
+	* @param Bone2Name name of the second bone in the joint
+	* @return ConstraintInstance accessor to the constraint data
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
 	FConstraintInstanceAccessor GetConstraintByBoneNames(FName Bone1Name, FName Bone2Name);
+
+	/** Gets all constraints
+	* @param IncludesTerminated whether or not to return terminated constraints
+	* @param OutConstraints returned list of constraints matching the parameters
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+	void GetConstraints(bool bIncludesTerminated, TArray<FConstraintInstanceAccessor>& OutConstraints);
 
 	FConstraintInstanceAccessor GetConstraintInstanceAccessorByIndex(int32 Index);
 	FConstraintInstance* GetConstraintInstanceByIndex(uint32 Index);

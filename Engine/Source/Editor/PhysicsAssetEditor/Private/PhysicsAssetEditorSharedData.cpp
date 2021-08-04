@@ -240,29 +240,7 @@ void FPhysicsAssetEditorSharedData::CopyConstraintProperties(const UPhysicsConst
 {
 	ToConstraintSetup->Modify();
 	FConstraintInstance OldInstance = ToConstraintSetup->DefaultInstance;
-	ToConstraintSetup->DefaultInstance.CopyConstraintParamsFrom(&FromConstraintSetup->DefaultInstance);
-
-	// recover certain data that we'd like to keep - i.e. bone indices those still should stay.  
-	// frame position offsets taken from old, but, optionally, frame orientations are taken from new source
-	ToConstraintSetup->DefaultInstance.ConstraintIndex = OldInstance.ConstraintIndex;
-#if WITH_PHYSX
-	ToConstraintSetup->DefaultInstance.ConstraintHandle = OldInstance.ConstraintHandle;
-#endif	//WITH_PHYSX
-	ToConstraintSetup->DefaultInstance.JointName = OldInstance.JointName;
-	ToConstraintSetup->DefaultInstance.ConstraintBone1 = OldInstance.ConstraintBone1;
-	ToConstraintSetup->DefaultInstance.ConstraintBone2 = OldInstance.ConstraintBone2;
-	ToConstraintSetup->DefaultInstance.Pos1 = OldInstance.Pos1;
-	ToConstraintSetup->DefaultInstance.Pos2 = OldInstance.Pos2;
-
-	if (bKeepOldRotation)
-	{
-		ToConstraintSetup->DefaultInstance.PriAxis1 = OldInstance.PriAxis1;
-		ToConstraintSetup->DefaultInstance.SecAxis1 = OldInstance.SecAxis1;
-		ToConstraintSetup->DefaultInstance.PriAxis2 = OldInstance.PriAxis2;
-		ToConstraintSetup->DefaultInstance.SecAxis2 = OldInstance.SecAxis2;
-		ToConstraintSetup->DefaultInstance.AngularRotationOffset = OldInstance.AngularRotationOffset;
-	}
-
+	ToConstraintSetup->DefaultInstance.CopyConstraintPhysicalPropertiesFrom(&FromConstraintSetup->DefaultInstance, /*bKeepPosition=*/true, bKeepOldRotation);
 	ToConstraintSetup->UpdateProfileInstance();
 }
 

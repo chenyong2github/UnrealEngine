@@ -631,6 +631,9 @@ public:
 	// @todo document
 	void CopyConstraintParamsFrom(const FConstraintInstance* FromInstance);
 
+	/** Copies non-identifying properties from another constraint instance */
+	void CopyConstraintPhysicalPropertiesFrom(const FConstraintInstance* FromInstance, bool bKeepPosition, bool bKeepRotation);
+
 	// Retrieve the constraint force most recently applied to maintain this constraint. Returns 0 forces if the constraint is not initialized or broken.
 	void GetConstraintForce(FVector& OutLinearForce, FVector& OutAngularForce);
 
@@ -1104,12 +1107,28 @@ public:
 		, Index(0)
 	{}
 
-	FConstraintInstanceAccessor(const TWeakObjectPtr<UObject>& Owner, uint32 Index = 0)
+	FConstraintInstanceAccessor(const TWeakObjectPtr<UObject>& Owner, uint32 Index = 0, TFunction<void(void)> InOnRelease = TFunction<void(void)>())
 		: Owner(Owner)
 		, Index(Index)
+#if WITH_EDITOR
+		, OnRelease(InOnRelease)
+#endif
 	{}
 
+#if WITH_EDITOR
+	~FConstraintInstanceAccessor()
+	{
+		if (OnRelease)
+		{
+			OnRelease();
+		}
+	}
+#endif
+
 	FConstraintInstance* Get() const;
+
+	/** Calls modify on the owner object to make sure the constraint is dirtied */
+	void Modify();
 
 private:
 	UPROPERTY()
@@ -1117,5 +1136,9 @@ private:
 
 	UPROPERTY()
 	uint32 Index;
-	
+
+#if WITH_EDITOR
+	/** Warning: it would be unwieldy to make the accessor move only, so the OnRelease callback should be safe to be called multiple times */
+	TFunction<void(void)> OnRelease;
+#endif
 };
