@@ -113,7 +113,7 @@ FStreamReader* FTidPacketTransport::GetThreadStream(uint32 Index)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FTidPacketTransport::GetThreadId(uint32 Index) const
+uint32 FTidPacketTransport::GetThreadId(uint32 Index) const
 {
 	return Threads[Index].ThreadId;
 }

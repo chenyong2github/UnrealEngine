@@ -22,7 +22,7 @@ public:
 	void					Update();
 	uint32					GetThreadCount() const;
 	FStreamReader*			GetThreadStream(uint32 Index);
-	int32					GetThreadId(uint32 Index) const;
+	uint32					GetThreadId(uint32 Index) const;
 
 private:
 	struct FThreadStream
