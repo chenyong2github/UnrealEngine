@@ -13,6 +13,7 @@ using namespace UE::Geometry;
 
 class AWaterBodyExclusionVolume;
 class AVolume;
+struct FKConvexElem;
 
 
 class FWaterBooleanUtils
