@@ -57,8 +57,8 @@ bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			PLATFORMFILETRACE_WARNING("BeginOpen: Duplicated event!?");
 		}
 		#endif
-		const TCHAR* FileName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-		uint32 FileIndex = FileActivityProvider.GetFileIndex(FileName);
+		const FString FileName = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Path", Context);
+		uint32 FileIndex = FileActivityProvider.GetFileIndex(*FileName);
 		FPendingActivity& Open = PendingOpenMap.Add(ThreadId);
 		Open.ActivityIndex = FileActivityProvider.BeginActivity(FileIndex, FileActivityType_Open, ThreadId, 0, 0, Time);
 		Open.FileIndex = FileIndex;

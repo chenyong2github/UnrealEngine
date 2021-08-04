@@ -20,6 +20,7 @@ UE_TRACE_CHANNEL(FileChannel)
 
 UE_TRACE_EVENT_BEGIN(PlatformFile, BeginOpen)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Path)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(PlatformFile, EndOpen)
@@ -87,9 +88,9 @@ namespace
 void FPlatformFileTrace::BeginOpen(const TCHAR* Path)
 {
 	uint32 PathSize = (FCString::Strlen(Path) + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(PlatformFile, BeginOpen, FileChannel, PathSize)
+	UE_TRACE_LOG(PlatformFile, BeginOpen, FileChannel)
 		<< BeginOpen.Cycle(FPlatformTime::Cycles64())
-		<< BeginOpen.Attachment(Path, PathSize);
+		<< BeginOpen.Path(Path, PathSize);
 }
 
 void FPlatformFileTrace::EndOpen(uint64 FileHandle)
