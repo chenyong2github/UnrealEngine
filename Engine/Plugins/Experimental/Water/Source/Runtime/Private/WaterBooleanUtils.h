@@ -12,6 +12,8 @@
 using namespace UE::Geometry;
 
 class AWaterBodyExclusionVolume;
+class AVolume;
+
 
 class FWaterBooleanUtils
 {
