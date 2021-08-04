@@ -147,6 +147,17 @@ void AControlRigControlActor::Refresh()
 					}
 				}
 			}
+
+			if(ControlRig == nullptr)
+			{
+				UObject* Outer = RigInstance->GetOuter();
+				if(RigInstance->IsInOuter(ActorToTrack))
+				{
+					ControlRig = RigInstance;
+					RemoveUnbindDelegate();
+					break;
+				}
+			}
 		}
 
 		if (ControlRig == nullptr)
