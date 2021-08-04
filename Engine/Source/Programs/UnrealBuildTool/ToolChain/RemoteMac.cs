@@ -1139,7 +1139,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="WorkingDir"></param>
 		/// <param name="Command"></param>
-		/// <param name="bSlient"></param>
+		/// <param name="bSilent"></param>
 		/// <returns></returns>
 		public int Execute(DirectoryReference WorkingDir, string Command, bool bSilent = false)
 		{
@@ -1151,7 +1151,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="WorkingDirectory">The remote working directory</param>
 		/// <param name="Command">Command to be executed</param>
-		/// <param name="bSlient">If true, logging is suppressed</param>
+		/// <param name="bSilent">If true, logging is suppressed</param>
 		/// <returns></returns>
 		protected int Execute(string WorkingDirectory, string Command, bool bSilent = false)
 		{
