@@ -71,6 +71,7 @@ namespace Chaos
 		void SetMaximumDistanceProperties(FReal MaxDistancesMultiplier);
 		void SetAnimDriveProperties(const FVec2& AnimDriveStiffness, const FVec2& AnimDriveDamping);
 		void SetSelfCollisionProperties(FReal SelfCollisionThickness);
+		void SetBackstopProperties(bool bEnabled);
 		// ---- End of Cloth interface ----
 
 		// ---- Debug functions ----

@@ -134,6 +134,9 @@
 		<!-- Build files -->
 		Engine/Build/Build.version
 		Engine/Build/Target.cs.template
+		
+		<!-- Source code and demos for container images -->
+		Engine/Extras/Containers/...
 	</Property>
 	
 	<!-- Files which can exist under any engine or engine-platform directory -->
@@ -388,6 +391,9 @@
 	<Property Name="CopyMacFilter">
 		Engine/Binaries/Mac/BootstrapPackagedGame.app/...
 		Engine/Extras/ThirdPartyNotUE/libimobiledevice/Mac/...
+		<!-- PLCrashReporter needs to be specificed manually as there are two versions of the library -->
+		Engine/Source/ThirdParty/PLCrashReporter/lib/lib-Xcode-11.3.1/Mac/...
+		Engine/Source/ThirdParty/PLCrashReporter/lib/lib-Xcode-12.4/Mac/...
 	</Property>
 	<Property Name="CopyMacExceptions">
 	</Property>
@@ -413,9 +419,12 @@
 		Engine/Source/ThirdParty/Oculus/LibOVRPlatform/LibOVRPlatform/lib/*.so
 		Engine/Source/ThirdParty/Oculus/LibOVRPlatform/*.tps
 		Engine/Source/ThirdParty/Oculus/LibOVRPlatform/*.xml
-		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/lib/*/.so
+		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/lib/*/*.so
+		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/*/*.so
+		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/*.jar
 		Engine/Source/ThirdParty/Oculus/OVRPlugin/*.tps
 		Engine/Source/ThirdParty/Oculus/OVRPlugin/*.xml
+		Engine/Source/ThirdParty/Oculus/OculusOpenXRLoader/OculusOpenXRLoader/Lib/*/*.so
 		Engine/Source/ThirdParty/ResonanceAudioApi/...
 		Engine/Source/ThirdParty/TangoSDK/...
 		Engine/Source/ThirdParty/Vivox/vivox-sdk/Lib/Android/sdk-release.aar
@@ -435,6 +444,7 @@
 		Engine/Source/ThirdParty/libJPG/...
 		Engine/Source/ThirdParty/mtlpp/...
 		Engine/Source/ThirdParty/libSampleRate/...
+		<!-- PLCrashReporter needs to be specificed manually as there are two versions of the library -->
 		Engine/Source/ThirdParty/PLCrashReporter/lib/lib-Xcode-11.3.1/iOS/...
 		Engine/Source/ThirdParty/PLCrashReporter/lib/lib-Xcode-12.4/iOS/...
 	</Property>

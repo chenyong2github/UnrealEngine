@@ -1093,6 +1093,11 @@ void UNiagaraSystem::PostLoad()
 	{
 		TemplateSpecification = bIsTemplateAsset_DEPRECATED ? ENiagaraScriptTemplateSpecification::Template : ENiagaraScriptTemplateSpecification::None;
 	}
+	
+	if(bExposeToLibrary_DEPRECATED)
+	{
+		LibraryVisibility = ENiagaraScriptLibraryVisibility::Unexposed;
+	}
 #endif // WITH_EDITORONLY_DATA
 
 #if !WITH_EDITOR
@@ -3108,7 +3113,7 @@ TStatId UNiagaraSystem::GetStatID(bool bGameThread, bool bConcurrent)const
 		}
 	}
 #endif
-	return TStatId();
+	return static_cast<const UObjectBaseUtility*>(this)->GetStatID();
 }
 
 void UNiagaraSystem::AddToInstanceCountStat(int32 NumInstances, bool bSolo)const

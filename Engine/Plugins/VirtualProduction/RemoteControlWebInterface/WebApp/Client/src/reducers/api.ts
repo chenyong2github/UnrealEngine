@@ -116,7 +116,11 @@ export const _api = {
 
   presets: {
     get: (): Promise<IPreset[]> => _get('/api/presets', API.PRESETS),
-    select: (preset?: IPreset) => _dispatch(API.PRESET_SELECT(preset?.Name)),
+    load: (id: string): Promise<IPreset> => _get(`/api/presets/${id}/load`),
+    select: (preset?: IPreset) => {
+      _api.presets.load(preset?.ID);
+      _dispatch(API.PRESET_SELECT(preset?.ID));
+  },
   },
   views: {
     get: async(preset: string): Promise<IView> => {
@@ -197,7 +201,7 @@ reducer
     return dotProp.merge(state, 'status', status);
   })
   .on(API.PRESETS, (state, presets) => {
-    const presetsMap = _.keyBy(presets, 'Name');
+    const presetsMap = _.keyBy(presets, 'ID');
     state = dotProp.set(state, 'presets', presetsMap);
 
     let { preset } = state;
@@ -218,14 +222,18 @@ reducer
 
       // 3. Load first preset
       if (!preset || !presetsMap[preset])
-        preset = presets[0]?.Name;
+        preset = presets[0]?.ID;
 
       // No available preset
       if (!preset)
         return { ...state, preset: undefined, view: { tabs: null }, payload: {} };
 
-      _api.views.get(preset);
-      _api.payload.get(preset);
+      _api.presets.load(preset)
+          .then(() => Promise.all([
+              _api.views.get(preset),
+              _api.payload.get(preset),
+          ]));
+
       return { ...state, preset, view: { tabs: [] }, payload: {} };
     }
 

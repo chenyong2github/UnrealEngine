@@ -134,13 +134,7 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, SHCoefficients1G)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, SHCoefficients0B)
 		SHADER_PARAMETER_UAV(RWTexture3D<float4>, SHCoefficients1B)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutAmbientVector)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0R)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1R)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0G)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1G)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0B)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
+		SHADER_PARAMETER_UAV(RWTexture3D<float>, DirectionalLightShadowing)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
@@ -159,6 +153,8 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
 		// Subsurface data
 		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FLightShaderParameters>, LightShaderParametersArray)
 	END_SHADER_PARAMETER_STRUCT()
 };
 

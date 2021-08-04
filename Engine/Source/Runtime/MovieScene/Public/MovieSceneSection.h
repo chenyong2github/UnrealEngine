@@ -26,6 +26,7 @@ struct FKeyHandle;
 struct FEasingComponentData;
 struct FMovieSceneChannelProxy;
 struct FMovieSceneEvalTemplatePtr;
+struct FFrameRate;
 
 class UMovieSceneEntitySystemLinker;
 
@@ -474,13 +475,13 @@ public:
 
 	/** Whether or not this section is active. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void SetIsActive(bool bInIsActive) { bIsActive = bInIsActive; }
+	void SetIsActive(bool bInIsActive) { if (TryModify()) { bIsActive = bInIsActive; } }
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	bool IsActive() const { return bIsActive; }
 
 	/** Whether or not this section is locked. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
+	void SetIsLocked(bool bInIsLocked) { Modify(); bIsLocked = bInIsLocked; }
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	bool IsLocked() const { return bIsLocked; }
 
@@ -498,6 +499,9 @@ public:
 
 	/** The optional offset time of this section */
 	virtual TOptional<FFrameTime> GetOffsetTime() const { return TOptional<FFrameTime>(); }
+
+	/* Migrate the frame times of the movie scene section from the source frame rate to the destination frame rate */
+	virtual void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate) {}
 
 	/**
 	 * When guid bindings are updated to allow this section to fix-up any internal bindings

@@ -70,6 +70,8 @@ FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 {
 	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
 
+	ComponentRegistry->NewPropertyType(Margin, TEXT("FMargin Property"));
+
 	ComponentRegistry->NewPropertyType(WidgetTransform, TEXT("FWidgetTransform Property"));
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
@@ -77,6 +79,13 @@ FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 	FMovieSceneTracksComponentTypes::Get()->Accessors.Float.Add(UWidget::StaticClass(), "RenderOpacity", &GetRenderOpacity, &SetRenderOpacity);
 
 	CustomWidgetTransformAccessors.Add(UWidget::StaticClass(), "RenderTransform", &GetRenderTransform, &SetRenderTransform);
+
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Margin)
+	.AddComposite(BuiltInComponents->FloatResult[0], &FMargin::Left)
+	.AddComposite(BuiltInComponents->FloatResult[1], &FMargin::Top)
+	.AddComposite(BuiltInComponents->FloatResult[2], &FMargin::Right)
+	.AddComposite(BuiltInComponents->FloatResult[3], &FMargin::Bottom)
+	.Commit();
 
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(WidgetTransform)
 	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediateWidgetTransform::TranslationX)

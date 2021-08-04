@@ -76,6 +76,13 @@ void UChaosClothingInteractor::SetCollision(float CollisionThickness, float Fric
 	}));
 }
 
+void UChaosClothingInteractor::SetBackstop(bool bEnabled)
+{
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([bEnabled](FClothingSimulationCloth* Cloth)
+	{
+		Cloth->SetBackstopProperties(bEnabled);
+	}));
+}
 void UChaosClothingInteractor::SetDamping(float DampingCoefficient)
 {
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([DampingCoefficient](FClothingSimulationCloth* Cloth)

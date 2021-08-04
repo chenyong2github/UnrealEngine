@@ -370,7 +370,6 @@ void Freeze::DefaultWriteMemoryImageField(FMemoryImageWriter& Writer, const void
 void Freeze::DefaultWriteMemoryImage(FMemoryImageWriter& Writer, const void* Object, const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc)
 {
 	const FPlatformTypeLayoutParameters& TargetLayoutParams = Writer.GetTargetLayoutParams();
-
 	// VTable will be shared with any base class vtable, if present
 	if (ETypeLayoutInterface::HasVTable(TypeDesc.Interface) && TypeDesc.NumVirtualBases == 0u)
 	{

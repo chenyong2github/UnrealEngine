@@ -136,14 +136,14 @@ void SDMXFader::Construct(const FArguments& InArgs)
 						.AutoHeight()
 						[
 							SNew(SBorder)
+							.OnMouseButtonDown(this, &SDMXFader::OnMaxValueBorderClicked)
 							.BorderBackgroundColor(FLinearColor::Black)
 							.Padding(5.0f)
 							[
-								SNew(SInlineEditableTextBlock)
+								SAssignNew(MaxValueEditableTextBlock, SInlineEditableTextBlock)
 								.MultiLine(false)
 								.Text(this, &SDMXFader::GetMaxValueAsText)
 								.Justification(ETextJustify::Center)
-								.OnVerifyTextChanged(this, &SDMXFader::VerifyMaxValue)
 								.OnTextCommitted(this, &SDMXFader::OnMaxValueCommitted)
 								.Style(FCoreStyle::Get(), "InlineEditableTextBlockSmallStyle")
 							]
@@ -160,11 +160,11 @@ void SDMXFader::Construct(const FArguments& InArgs)
 							.BorderBackgroundColor(FLinearColor::Black)
 							[
 								SAssignNew(FaderSpinBox, SSpinBoxVertical<uint8>)
-								.Value(Value)
-								.MinValue(0)
-								.MaxValue(DMX_MAX_VALUE)
+								.Value(FMath::Clamp(Value, MinValue, MaxValue))
+								.MinValue(MinValue)
+								.MaxValue(MaxValue)
 								.MinSliderValue(0)
-								.MaxSliderValue(255)
+								.MaxSliderValue(DMX_MAX_VALUE)
 								.OnValueChanged(this, &SDMXFader::HandleValueChanged)
 								.Style(&OutputFaderStyle)
 								.MinDesiredWidth(30.0f)
@@ -178,14 +178,14 @@ void SDMXFader::Construct(const FArguments& InArgs)
 						.AutoHeight()
 						[
 							SNew(SBorder)
+							.OnMouseButtonDown(this, &SDMXFader::OnMinValueBorderClicked)
 							.BorderBackgroundColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f))
 							.Padding(5.0f)
 							[
-								SNew(SInlineEditableTextBlock)
+								SAssignNew(MinValueEditableTextBlock, SInlineEditableTextBlock)
 								.MultiLine(false)
 								.Text(this, &SDMXFader::GetMinValueAsText)
 								.Justification(ETextJustify::Center)
-								.OnVerifyTextChanged(this, &SDMXFader::VerifyMinValue)
 								.OnTextCommitted(this, &SDMXFader::OnMinValueCommitted)
 								.Style(FCoreStyle::Get(), "InlineEditableTextBlockSmallStyle")
 							]
@@ -210,7 +210,6 @@ void SDMXFader::Select()
 {
 	bSelected = true;
 
-	check(BackgroundBorder.IsValid());
 	BackgroundBorder->SetBorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Highlighted"));
 
 	FSlateApplication::Get().SetKeyboardFocus(SharedThis(this));
@@ -220,7 +219,6 @@ void SDMXFader::Unselect()
 {
 	bSelected = false;
 
-	check(BackgroundBorder.IsValid());
 	BackgroundBorder->SetBorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle"));
 }
 
@@ -316,7 +314,7 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 				SNew(SBorder)
 				.ToolTipText(LOCTEXT("UniverseIDTooltip", "The Universe to which DMX is sent to"))
 				.BorderImage(FEditorStyle::GetBrush("EditableTextBox.Background.Focused"))
-				.OnMouseDoubleClick(this, &SDMXFader::OnUniverseIDBorderDoubleClicked)
+				.OnMouseButtonDown(this, &SDMXFader::OnUniverseIDBorderClicked)
 				[
 					SAssignNew(UniverseIDEditableTextBlock, SInlineEditableTextBlock)						
 					.MultiLine(false)
@@ -324,7 +322,6 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 					.Justification(ETextJustify::Center)
 					.Font(DMXFader::NameFont)
 					.ColorAndOpacity(FLinearColor::Black)
-					.OnVerifyTextChanged(this, &SDMXFader::VerifyUniverseID)
 					.OnTextCommitted(this, &SDMXFader::OnUniverseIDCommitted)
 				]
 			]
@@ -347,7 +344,7 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 				SNew(SBorder)
 				.ToolTipText(LOCTEXT("StartingAdressTooltip", "The Starting Adress of the Channel to which DMX is sent to"))
 				.BorderImage(FEditorStyle::GetBrush("EditableTextBox.Background.Focused"))
-				.OnMouseDoubleClick(this, &SDMXFader::OnStartingAddressBorderDoubleClicked)
+				.OnMouseButtonDown(this, &SDMXFader::OnStartingAddressBorderClicked)
 				[
 					SAssignNew(StartingAddressEditableTextBlock, SInlineEditableTextBlock)
 					.MultiLine(false)
@@ -355,7 +352,6 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 					.Justification(ETextJustify::Center)
 					.Font(DMXFader::NameFont)
 					.ColorAndOpacity(FLinearColor::Black)
-					.OnVerifyTextChanged(this, &SDMXFader::VerifyStartingAddress)
 					.OnTextCommitted(this, &SDMXFader::OnStartingAddressCommitted)
 				]
 			]
@@ -368,7 +364,7 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 				SNew(SBorder)
 				.ToolTipText(LOCTEXT("EndingAdressTooltip", "The Ending Adress of the Channel to which DMX is sent to"))
 				.BorderImage(FEditorStyle::GetBrush("EditableTextBox.Background.Focused"))
-				.OnMouseDoubleClick(this, &SDMXFader::OnEndingAddressBorderDoubleClicked)
+				.OnMouseButtonDown(this, &SDMXFader::OnEndingAddressBorderClicked)
 				[
 					SAssignNew(EndingAddressEditableTextBlock, SInlineEditableTextBlock)					
 					.MultiLine(false)
@@ -376,7 +372,6 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 					.Justification(ETextJustify::Center)
 					.Font(DMXFader::NameFont)
 					.ColorAndOpacity(FLinearColor::Black)
-					.OnVerifyTextChanged(this, &SDMXFader::VerifyEndingAddress)
 					.OnTextCommitted(this, &SDMXFader::OnEndingAddressCommitted)
 				]
 			]
@@ -417,11 +412,34 @@ void SDMXFader::OnFaderNameCommitted(const FText& NewFaderName, ETextCommit::Typ
 	FaderName = NewFaderName.ToString();
 }
 
-FReply SDMXFader::OnUniverseIDBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+FReply SDMXFader::OnMaxValueBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		check(UniverseIDEditableTextBlock.IsValid());
+		MaxValueEditableTextBlock->EnterEditingMode();
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SDMXFader::OnMinValueBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		MinValueEditableTextBlock->EnterEditingMode();
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SDMXFader::OnUniverseIDBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
 		UniverseIDEditableTextBlock->EnterEditingMode();
 		
 		return FReply::Handled();
@@ -430,11 +448,10 @@ FReply SDMXFader::OnUniverseIDBorderDoubleClicked(const FGeometry& InMyGeometry,
 	return FReply::Unhandled();
 }
 
-FReply SDMXFader::OnStartingAddressBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+FReply SDMXFader::OnStartingAddressBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		check(StartingAddressEditableTextBlock.IsValid());
 		StartingAddressEditableTextBlock->EnterEditingMode();
 
 		return FReply::Handled();
@@ -443,11 +460,10 @@ FReply SDMXFader::OnStartingAddressBorderDoubleClicked(const FGeometry& InMyGeom
 	return FReply::Unhandled();
 }
 
-FReply SDMXFader::OnEndingAddressBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+FReply SDMXFader::OnEndingAddressBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		check(EndingAddressEditableTextBlock.IsValid());
 		EndingAddressEditableTextBlock->EnterEditingMode();
 
 		return FReply::Handled();
@@ -468,24 +484,6 @@ const FSlateBrush* SDMXFader::GetBorderImage() const
 	}
 }
 
-bool SDMXFader::VerifyUniverseID(const FText& UniverseIDText, FText& OutErrorText)
-{
-	FString Str = UniverseIDText.ToString();
-	if (Str.Len() >= 0 && Str.IsNumeric())
-	{
-		int32 StrValue;
-		if (LexTryParseString<int32>(StrValue, *Str))
-		{
-			if (StrValue >= 0 && StrValue <= DMX_MAX_UNIVERSE)
-			{
-				return true;
-			}
-		}
-	}
-	OutErrorText = FText::Format(LOCTEXT("InvalidUniverseID", "Universe must be a number between 0 and {0}"), DMX_MAX_UNIVERSE);
-	return false;
-}
-
 void SDMXFader::OnUniverseIDCommitted(const FText& UniverseIDText, ETextCommit::Type InCommit)
 {
 	FString Str = UniverseIDText.ToString();
@@ -493,27 +491,8 @@ void SDMXFader::OnUniverseIDCommitted(const FText& UniverseIDText, ETextCommit::
 	int32 NewUniverseID;
 	if (LexTryParseString<int32>(NewUniverseID, *Str))
 	{
-		UniverseID = NewUniverseID;
-		SanetizeDMXProperties();
+		UniverseID = FMath::Clamp(NewUniverseID, 1, DMX_MAX_UNIVERSE);
 	}
-}
-
-bool SDMXFader::VerifyStartingAddress(const FText& StartingAddressText, FText& OutErrorText)
-{
-	FString Str = StartingAddressText.ToString();
-	if (Str.Len() > 0 && Str.IsNumeric())
-	{
-		int32 StrValue;
-		if (LexTryParseString<int32>(StrValue, *Str))
-		{
-			if (StrValue > 0 && StrValue <= DMX_MAX_UNIVERSE)
-			{
-				return true;
-			}
-		}
-	}
-	OutErrorText = FText::Format(LOCTEXT("InvalidStartingAddress", "Address must be a number between 1 and {0}"), DMX_MAX_ADDRESS);
-	return false;
 }
 
 void SDMXFader::OnStartingAddressCommitted(const FText& StartingAddressText, ETextCommit::Type InCommit)
@@ -524,28 +503,12 @@ void SDMXFader::OnStartingAddressCommitted(const FText& StartingAddressText, ETe
 	{
 		if (StartingAddress != StrValue)
 		{
-			StartingAddress = StrValue;
-			SanetizeDMXProperties();
-		}
-	}
-}
+			const int32 EndingAddressOffset = EndingAddress - StartingAddress;
 
-bool SDMXFader::VerifyEndingAddress(const FText& EndingAddressText, FText& OutErrorText)
-{
-	FString Str = EndingAddressText.ToString();
-	if (Str.Len() > 0 && Str.IsNumeric())
-	{
-		int32 StrValue;
-		if (LexTryParseString<int32>(StrValue, *Str))
-		{
-			if (StrValue > 0 && StrValue <= DMX_MAX_ADDRESS)
-			{
-				return true;
-			}
+			StartingAddress = FMath::Clamp(StrValue, 1, DMX_MAX_ADDRESS);
+			EndingAddress = FMath::Clamp(StartingAddress + EndingAddressOffset, 1, DMX_MAX_ADDRESS);
 		}
 	}
-	OutErrorText = FText::Format(LOCTEXT("InvalidEndingAddress", "Address must be a number between 1 and {0}"), DMX_MAX_ADDRESS);
-	return false;
 }
 
 void SDMXFader::OnEndingAddressCommitted(const FText& EndingAddressText, ETextCommit::Type InCommit)
@@ -556,76 +519,27 @@ void SDMXFader::OnEndingAddressCommitted(const FText& EndingAddressText, ETextCo
 	{
 		if (EndingAddress != StrValue)
 		{
-			EndingAddress = StrValue;
-			SanetizeDMXProperties();
+			EndingAddress = FMath::Clamp(StrValue, 1, DMX_MAX_ADDRESS);
 		}
 	}
-}
-
-bool SDMXFader::VerifyMaxValue(const FText& MaxValueText, FText& OutErrorText)
-{
-	FString Str = MaxValueText.ToString();
-	if (Str.Len() >= 1 && Str.Len() <= 3 && Str.IsNumeric())
-	{
-		int32 StrValue;
-		if (LexTryParseString<int32>(StrValue, *Str))
-		{
-			if (StrValue >= 0 && StrValue <= DMX_MAX_VALUE)
-			{
-				if (StrValue >= MinValue)
-				{
-					return true;
-				}
-			}
-		}
-	}
-	OutErrorText = LOCTEXT("InvalidRangeValue", "Must be a number between 0 and 255");
-	return false;
 }
 
 void SDMXFader::OnMaxValueCommitted(const FText& MaxValueText, ETextCommit::Type InCommit)
 {
-	check(FaderSpinBox.IsValid());
-
 	FString Str = MaxValueText.ToString();
 	int32 StrValue;
 	if (LexTryParseString<int32>(StrValue, *Str))
 	{
-		MaxValue = StrValue;
-		SanetizeDMXProperties();
+		MaxValue = FMath::Clamp(StrValue, 0, DMX_MAX_VALUE);
+		MinValue = FMath::Clamp(MinValue, static_cast<uint8>(0), MaxValue);
 
+		FaderSpinBox->SetMinValue(MinValue);
 		FaderSpinBox->SetMaxValue(MaxValue);
 
-		if (Value > MaxValue)
-		{
-			Value = MaxValue;
-			FaderSpinBox->SetValue(Value);
+		const float NewValue = FMath::Clamp(FaderSpinBox->GetValue(), static_cast<float>(MinValue), static_cast<float>(MaxValue));
+		FaderSpinBox->SetValue(NewValue);
 		}
 	}
-}
-
-bool SDMXFader::VerifyMinValue(const FText& MinValueText, FText& OutErrorText)
-{
-	check(FaderSpinBox.IsValid());
-
-	FString Str = MinValueText.ToString();
-	if (Str.Len() >= 1 && Str.Len() <= 3 && Str.IsNumeric())
-	{
-		int32 StrValue;
-		if (LexTryParseString<int32>(StrValue, *Str))
-		{
-			if (StrValue >= 0 && StrValue <= DMX_MAX_VALUE)
-			{
-				if (StrValue <= MaxValue)
-				{
-					return true;
-				}
-			}
-		}
-	}
-	OutErrorText = LOCTEXT("InvalidRangeValue", "Must be a number between 0 and 255");
-	return false;
-}
 
 void SDMXFader::OnMinValueCommitted(const FText& MinValueText, ETextCommit::Type InCommit)
 {
@@ -635,16 +549,14 @@ void SDMXFader::OnMinValueCommitted(const FText& MinValueText, ETextCommit::Type
 	int32 StrValue;
 	if (LexTryParseString<int32>(StrValue, *Str))
 	{
-		MinValue = StrValue;
-		SanetizeDMXProperties();
+		MinValue = FMath::Clamp(StrValue, 0, DMX_MAX_VALUE);
+		MaxValue = FMath::Clamp(MaxValue, MinValue, static_cast<uint8>(DMX_MAX_VALUE));
 
 		FaderSpinBox->SetMinValue(MinValue);
+		FaderSpinBox->SetMaxValue(MaxValue);
 
-		if (Value < MinValue)
-		{
-			Value = MinValue;
-			FaderSpinBox->SetValue(Value);
-		}
+		const float NewValue = FMath::Clamp(FaderSpinBox->GetValue(), static_cast<float>(MinValue), static_cast<float>(MaxValue));
+		FaderSpinBox->SetValue(NewValue);
 	}
 }
 

@@ -704,6 +704,10 @@ namespace Cook
 		FPackageData* TryAddPackageDataByFileName(const FName& InFileName);
 		/** Return a reference to the PackageData for the given FileName (whether the actual name or an alias). If one does not already exist, verify the FileName on disk and create the PackageData. Asserts if FileName does not exist; caller is claiming it does. */
 		FPackageData& AddPackageDataByFileNameChecked(const FName& FileName);
+
+		/** Optimized version of TryAddPackageDataByFileName for use by DLC when loading up the shipped packages. This expects the PackageNameCache to have already been updated (for instance with AppendCacheResults) */
+		void AddExistingPackageDatasForPlatform(const TArray<FName>& ExistingPackages, const ITargetPlatform* TargetPlatform);
+
 		/**
 		 * Try to find the PackageData for the given PackageName.
 		 * If it exists, change the PackageData's FileName if the current FileName is different and update the map to it.

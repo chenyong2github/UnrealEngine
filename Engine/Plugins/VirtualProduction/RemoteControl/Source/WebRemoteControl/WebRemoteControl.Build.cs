@@ -18,6 +18,7 @@ public class WebRemoteControl : ModuleRules
 			new string[] {
 				"AssetRegistry",
 				"RemoteControl",
+				"RemoteControlCommon",
 				"Serialization",
 				"Sockets",
 				"WebSocketNetworking"
@@ -28,6 +29,7 @@ public class WebRemoteControl : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"DeveloperSettings",
 					"Engine",
 					"ImageWrapper",
 					"RemoteControlUI",

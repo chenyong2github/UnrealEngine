@@ -13,9 +13,9 @@ class UStaticMeshComponent;
 
 
 /**
- * nDisplay Xform component
+ * nDisplay Transform component
  */
-UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Xform"))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Transform"))
 class DISPLAYCLUSTER_API UDisplayClusterXformComponent
 	: public USceneComponent
 	, public IDisplayClusterComponent

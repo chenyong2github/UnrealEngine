@@ -101,8 +101,11 @@ class FSyncData
 	// Attach observer for Auto Sync
 	virtual bool AttachObserver(FAttachObservers* /* IOAttachObservers */) { return false; }
 
+	// Return true if this element need to update tags and metadata
+	virtual bool NeedTagsAndMetaDataUpdate() { return false; }
+
 	// Process meta data. Return true if meta data was updated
-	virtual bool ProcessMetaData(IDatasmithScene* /* InScene */) { return false; };
+	virtual bool ProcessMetaData(FSyncDatabase* /* IOSyncDatabase */) { return false; };
 
 	// Delete this sync data
 	virtual TSharedPtr< IDatasmithElement > GetElement() const = 0;
@@ -234,10 +237,7 @@ class FSyncData::FActor : public FSyncData
 	typedef GS::Array< GS::UniString > FTagsArray;
 
 	// Update tags data
-	void UpdateTags(const FTagsArray& InTags);
-
-	// Add tags data
-	void AddTags(FElementID& InElementID);
+	bool UpdateTags(const FTagsArray& InTags);
 
 	void ReplaceMetaData(IDatasmithScene& IOScene, const TSharedPtr< IDatasmithMetaDataElement >& InNewMetaData);
 
@@ -279,6 +279,9 @@ class FSyncData::FElement : public FSyncData::FActor
 	// Access to the element mesh handle
 	TSharedPtr< IDatasmithMeshElement >& GetMeshElementRef() { return MeshElement; }
 
+	// Add tags data
+	bool AddTags(FSyncDatabase* IOSyncDatabase);
+
   protected:
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
 
@@ -288,13 +291,16 @@ class FSyncData::FElement : public FSyncData::FActor
 	// Attach observer for Auto Sync
 	virtual bool AttachObserver(FAttachObservers* IOAttachObservers) override;
 
+	// Return true if this element need to update tags and metadata
+	virtual bool NeedTagsAndMetaDataUpdate() override;
+
 	// Process meta data. Return true if meta data was updated
-	virtual bool ProcessMetaData(IDatasmithScene* InScene) override;
+	virtual bool ProcessMetaData(FSyncDatabase* IOSyncDatabase) override;
 
 	virtual void SetMesh(FSyncDatabase* IOSyncDatabase, const TSharedPtr< IDatasmithMeshElement >& InMesh) override;
 
 	// Rebuild the meta data of this element
-	void UpdateMetaData(FProcessInfo* IOProcessInfo);
+	bool UpdateMetaData(IDatasmithScene* InScene);
 
 	// Return true if this element and all it's childs have been cut out
 	bool CheckAllCutOut() override;
@@ -302,9 +308,13 @@ class FSyncData::FElement : public FSyncData::FActor
 	// The mesh element if this element is a mesh actor
 	TSharedPtr< IDatasmithMeshElement > MeshElement;
 
+	// True if metadata is updated
+	bool bMetadataProcessed = false;
+
 	// True if we observe this element
 	bool bIsObserved = false;
 
+	// Type of this element
 	API_ElemTypeID TypeID = API_ZombieElemID;
 };
 
@@ -499,6 +509,8 @@ class FSyncData::FInterator
 	};
 	EProcessControl ProcessUntil(double TimeSliceEnd);
 
+	EProcessControl ProcessAll() { return ProcessUntil(std::numeric_limits< double >::max()); }
+
 	virtual EProcessControl Process(FSyncData* InCurrent) = 0;
 
 	// Return the next FSyncData
@@ -509,6 +521,9 @@ class FSyncData::FInterator
 
 	// Return the current count of item processed
 	int32 GetProcessedCount() const { return ProcessedCount; }
+
+	// Return the cumulated process time
+	double GetProcessedTime() const { return ProcessTime; }
 
   private:
 	// Stack element
@@ -522,6 +537,7 @@ class FSyncData::FInterator
 	typedef TArray< FEntry > FEntriesArray;
 	FEntriesArray			 Stack;
 	int32					 ProcessedCount = 0;
+	double					 ProcessTime = 0.0;
 };
 
 // Class to process metadata as idle task (Only for Direct Link synchronization)
@@ -546,9 +562,14 @@ class FSyncData::FProcessMetadata : public FSyncData::FInterator
 	// Tell that we already synced previously processed sync data
 	void CleardMetadataUpdated() { bMetadataUpdated = false; }
 
+	// Count of processed
+	int GetProcessedCount() const { return MetadataProcessedCount; }
+
   private:
 	// My synchronizer
 	FSynchronizer* Synchronizer = nullptr;
+	// Count of processed
+	int MetadataProcessedCount = 0;
 	// True if at least one sync data updated it's meta data
 	bool bMetadataUpdated = false;
 };

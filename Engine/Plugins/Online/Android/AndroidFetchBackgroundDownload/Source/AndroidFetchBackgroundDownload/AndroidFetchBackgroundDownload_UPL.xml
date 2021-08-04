@@ -23,9 +23,28 @@
 		</insert>
 	</buildGradleAdditions>
 
+	<!-- optional additions to proguard -->
+	<proguardAdditions>
+		<insert>
+			# AndroidFetchBackgroundDownload UPL Additions -- START
+			
+			# Android Background HTTP Classes with native calls ...
+			
+			-keep class com.epicgames.ue4.download.UEDownloadWorker {
+			public *;
+			}
+
+			-keep class com.epicgames.ue4.download.datastructs.DownloadDescription {
+			public *;
+			}
+			
+			# AndroidFetchBackgroundDownload UPL Additions -- STOP
+		</insert>
+	</proguardAdditions>
+	
 	<!-- optional files or directories to copy or delete from Intermediate/Android/APK before ndk-build -->
 	<prebuildCopies>
 		<log text="Copying AndroidFetchBackgroundDownload files to staging"/>
-		<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/ue4" />
+		<copyDir src="$S(PluginDir)/Java" dst="$S(BuildDir)/src/com/epicgames/unreal" />
 	</prebuildCopies>
 </root>

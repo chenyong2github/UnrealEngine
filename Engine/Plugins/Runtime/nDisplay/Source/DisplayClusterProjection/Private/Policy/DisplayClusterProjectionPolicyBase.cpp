@@ -80,7 +80,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 	}
 }
 
-void FDisplayClusterProjectionPolicyBase::ReleaseOriginComponent(class IDisplayClusterViewport* InViewport)
+void FDisplayClusterProjectionPolicyBase::ReleaseOriginComponent()
 {
 	PolicyOriginComponentRef.ResetSceneComponent();
 }

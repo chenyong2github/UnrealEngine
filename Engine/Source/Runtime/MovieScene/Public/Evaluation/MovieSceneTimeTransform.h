@@ -190,6 +190,29 @@ inline FMovieSceneTimeTransform operator*(const FMovieSceneTimeTransform& LHS, c
 /** Convert a FFrameTime into a string */
 inline FString LexToString(const FMovieSceneTimeTransform& InTransform)
 {
-	return *FString::Printf(TEXT("[ %+i+%.3f ; x%.3f ]"), 
+	if (InTransform.TimeScale == 1.f)
+	{
+		if (InTransform.Offset.GetSubFrame() == 0.f)
+		{
+			return *FString::Printf(TEXT("[ %+i ]"), InTransform.Offset.FrameNumber.Value);
+		}
+		else
+		{
+			return *FString::Printf(TEXT("[ %+i+%.3f ]"), 
+					InTransform.Offset.FrameNumber.Value, InTransform.Offset.GetSubFrame());
+		}
+	}
+	else
+	{
+		if (InTransform.Offset.GetSubFrame() == 0.f)
+		{
+			return *FString::Printf(TEXT("[ %+i x%.3f ]"), 
+					InTransform.Offset.FrameNumber.Value, InTransform.TimeScale);
+		}
+		else
+		{
+			return *FString::Printf(TEXT("[ %+i+%.3f x%.3f ]"), 
 			InTransform.Offset.FrameNumber.Value, InTransform.Offset.GetSubFrame(), InTransform.TimeScale);
+}
+	}
 }

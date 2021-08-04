@@ -1,15 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkXRSource.h"
-#include "LiveLinkXR.h"
-#include "ILiveLinkClient.h"
-#include "Engine/Engine.h"
+
 #include "Async/Async.h"
+#include "Engine/Engine.h"
+#include "ILiveLinkClient.h"
+#include "LiveLinkXR.h"
 #include "LiveLinkXRSourceSettings.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/ScopeLock.h"
 #include "Roles/LiveLinkTransformRole.h"
 
-#define LOCTEXT_NAMESPACE "LiveLinkXRSourceFactory"
+#define LOCTEXT_NAMESPACE "LiveLinkXRSource"
+
+static TAutoConsoleVariable<float> CVarLiveLinkXRDeviceEnumerationInterval(TEXT("LiveLinkXR.DeviceEnumerationInterval"), 1.0f, TEXT("Interval in seconds at which available SteamVR devices should be verified."));
+
 
 FLiveLinkXRSource::FLiveLinkXRSource(const FLiveLinkXRConnectionSettings& Settings)
 : Client(nullptr)
@@ -22,13 +27,13 @@ FLiveLinkXRSource::FLiveLinkXRSource(const FLiveLinkXRConnectionSettings& Settin
 
 	if (!GEngine->XRSystem.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("LiveLinkXRSource: Couldn't find a valid XR System!"));
+		UE_LOG(LogLiveLinkXR, Error, TEXT("LiveLinkXRSource: Couldn't find a valid XR System!"));
 		return;
 	}
 
 	if (GEngine->XRSystem->GetSystemName() != FName(TEXT("SteamVR")))
 	{
-		UE_LOG(LogTemp, Error, TEXT("LiveLinkXRSource: Couldn't find a compatible XR System - currently, only SteamVR is supported!"));
+		UE_LOG(LogLiveLinkXR, Error, TEXT("LiveLinkXRSource: Couldn't find a compatible XR System - currently, only SteamVR is supported!"));
 		return;
 	}
 
@@ -68,10 +73,20 @@ void FLiveLinkXRSource::InitializeSettings(ULiveLinkSourceSettings* Settings)
 {
 }
 
+void FLiveLinkXRSource::Update()
+{
+	const double CurrentTime = FPlatformTime::Seconds();
+	if((CurrentTime - LastEnumerationTimestamp) > CVarLiveLinkXRDeviceEnumerationInterval.GetValueOnGameThread())
+	{
+		LastEnumerationTimestamp = CurrentTime;
+		EnumerateTrackedDevices();
+	}	
+}
+
 bool FLiveLinkXRSource::IsSourceStillValid() const
 {
 	// Source is valid if we have a valid thread
-	bool bIsSourceValid = !Stopping && (Thread != nullptr);
+	const bool bIsSourceValid = !Stopping && (Thread != nullptr);
 	return bIsSourceValid;
 }
 
@@ -89,10 +104,6 @@ void FLiveLinkXRSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, con
 
 void FLiveLinkXRSource::EnumerateTrackedDevices()
 {
-	TrackedDevices.Empty();
-	TrackedDeviceTypes.Empty();
-	TrackedSubjectNames.Empty();
-
 	if (!GEngine->XRSystem.IsValid())
 	{
 		return;
@@ -111,16 +122,18 @@ void FLiveLinkXRSource::EnumerateTrackedDevices()
 		return;
 	}
 
-	for (int32 Tracker = 0; Tracker < AllTrackedDevices.Num(); Tracker++)
+	FScopeLock Lock(&TrackedDeviceCriticalSection);
+
+	for (int32 TrackerIndex = 0; TrackerIndex < AllTrackedDevices.Num(); TrackerIndex++)
 	{
-		FString SubjectName = GEngine->XRSystem->GetSystemName().ToString();
+		FString SubjectStringId = GEngine->XRSystem->GetSystemName().ToString();
 		bool bValidDevice = false;
-		switch ((int32)GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[Tracker]))
+		switch ((int32)GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[TrackerIndex]))
 		{
 		case (int32)EXRTrackedDeviceType::Other:
 			if (bTrackTrackers)
 			{
-				SubjectName += TEXT("Tracker_");
+				SubjectStringId += TEXT("Tracker_");
 				bValidDevice = true;
 			}
 			break;
@@ -128,7 +141,7 @@ void FLiveLinkXRSource::EnumerateTrackedDevices()
 		case (int32)EXRTrackedDeviceType::HeadMountedDisplay:
 			if (bTrackHMDs)
 			{
-				SubjectName += TEXT("HMD_");
+				SubjectStringId += TEXT("HMD_");
 				bValidDevice = true;
 			}
 			break;
@@ -136,7 +149,7 @@ void FLiveLinkXRSource::EnumerateTrackedDevices()
 		case (int32)EXRTrackedDeviceType::Controller:
 			if (bTrackControllers)
 			{
-				SubjectName += TEXT("Controller_");
+				SubjectStringId += TEXT("Controller_");
 				bValidDevice = true;
 			}
 			break;
@@ -144,14 +157,16 @@ void FLiveLinkXRSource::EnumerateTrackedDevices()
 
 		if (bValidDevice)
 		{
-			SubjectName += GEngine->XRSystem->GetTrackedDevicePropertySerialNumber(AllTrackedDevices[Tracker]);
-			TrackedDevices.Add(AllTrackedDevices[Tracker]);
-			TrackedDeviceTypes.Add(GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[Tracker]));
-			TrackedSubjectNames.Add(SubjectName);
-
-			UE_LOG(LogTemp, Log, TEXT("LiveLinkXRSource: Found a tracked device with DeviceId %d and named it %s"), AllTrackedDevices[Tracker], *SubjectName);
+			SubjectStringId += GEngine->XRSystem->GetTrackedDevicePropertySerialNumber(AllTrackedDevices[TrackerIndex]);
+			const FName SubjectName(SubjectStringId);
+			if(TrackedDevices.ContainsByPredicate([SubjectName](const FTrackedDeviceInfo& Other){ return Other.SubjectName == SubjectName; }) == false)
+			{
+				FTrackedDeviceInfo NewDevice(AllTrackedDevices[TrackerIndex], GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[TrackerIndex]), SubjectName);
+				UE_LOG(LogLiveLinkXR, Log, TEXT("LiveLinkXRSource: Found a tracked device with DeviceId %d and named it %s"), NewDevice.DeviceId, *SubjectStringId);
+				TrackedDevices.Add(MoveTemp(NewDevice));
 		}
 	}
+}
 }
 
 // FRunnable interface
@@ -190,24 +205,31 @@ uint32 FLiveLinkXRSource::Run()
 		{
 			StartTime = FApp::GetCurrentTime();
 
+			// Make a copy of tracked device array to avoid locking for too long
+			TArray<FTrackedDeviceInfo> TrackedDevicesCopy;
+			{
+				FScopeLock Lock(&TrackedDeviceCriticalSection);
+				TrackedDevicesCopy = TrackedDevices;
+			}
+
 			// Send new poses at the user specified update rate
-			for (int32 Tracker = 0; Tracker < TrackedDevices.Num(); Tracker++)
+			for (const FTrackedDeviceInfo& Device : TrackedDevicesCopy)
 			{
 				FQuat Orientation;
 				FVector Position;
 
-				if (GEngine->XRSystem->IsTracking(TrackedDevices[Tracker]) && GEngine->XRSystem->GetCurrentPose(TrackedDevices[Tracker], Orientation, Position))
+				if (GEngine->XRSystem->IsTracking(Device.DeviceId) && GEngine->XRSystem->GetCurrentPose(Device.DeviceId, Orientation, Position))
 				{
 					FLiveLinkFrameDataStruct FrameData(FLiveLinkTransformFrameData::StaticStruct());
 					FLiveLinkTransformFrameData* TransformFrameData = FrameData.Cast<FLiveLinkTransformFrameData>();
 					TransformFrameData->Transform = FTransform(Orientation, Position);
 
 					// These don't change frame to frame, so they really should be in static data. However, there is no MetaData in LiveLink static data :(
-					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceId")), FString::Printf(TEXT("%d"), TrackedDevices[Tracker]));
-					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceType")), GetDeviceTypeName(TrackedDeviceTypes[Tracker]));
-					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceControlId")), TrackedSubjectNames[Tracker]);
+					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceId")), FString::Printf(TEXT("%d"), Device.DeviceId));
+					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceType")), GetDeviceTypeName(Device.DeviceType));
+					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceControlId")), Device.SubjectName.ToString());
 
-					Send(&FrameData, FName(TrackedSubjectNames[Tracker]));
+					Send(&FrameData, Device.SubjectName);
 				}
 			}
 

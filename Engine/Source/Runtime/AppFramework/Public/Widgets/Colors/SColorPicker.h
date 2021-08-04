@@ -191,7 +191,6 @@ public:
 		}
 	}
 
-
 	/** Delegate to override color picker creation behavior */
 	DECLARE_DELEGATE_OneParam(FOnColorPickerCreationOverride, const TSharedRef<SColorPicker>&);
 	static FOnColorPickerCreationOverride OnColorPickerNonModalCreateOverride;

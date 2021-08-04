@@ -90,38 +90,111 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 };
 
 USTRUCT(BlueprintType)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerViewportSettings
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ColorGradingWhiteBalanceSettings
 {
 	GENERATED_BODY()
 
-		FDisplayClusterConfigurationViewport_PerViewportSettings()
-		: bOverride_WhiteTemp(0)
+		FDisplayClusterConfigurationViewport_ColorGradingWhiteBalanceSettings()
+		: bOverride_TemperatureType(0)
+		, bOverride_WhiteTemp(0)
 		, bOverride_WhiteTint(0)
-		, bOverride_AutoExposureBias(0)
 	{};
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_TemperatureType:1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTemp:1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTint:1;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_AutoExposureBias:1;
 
-	// Blend weight
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float BlendWeight = 1.0f;
+	/**
+	* Selects the type of temperature calculation.
+	* White Balance uses the Temperature value to control the virtual camera's White Balance. This is the default selection.
+	* Color Temperature uses the Temperature value to adjust the color temperature of the scene, which is the inverse of the White Balance operation.
+	*/
+	UPROPERTY(interp, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Temperature Type", EditCondition = "bOverride_TemperatureType"))
+	TEnumAsByte<enum ETemperatureMethod> TemperatureType = ETemperatureMethod::TEMP_WhiteBalance;
 
 	// White temperature
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "White Balance", meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp", DisplayName = "Temp"))
 	float WhiteTemp = 6500.0f;
 
 	// White tint
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_WhiteTint"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "White Balance", meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_WhiteTint", DisplayName = "Tint"))
 	float WhiteTint = 0.0f;
+};
+
+USTRUCT(BlueprintType)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ColorGradingMiscSettings
+{
+	GENERATED_BODY()
+
+		FDisplayClusterConfigurationViewport_ColorGradingMiscSettings()
+		: bOverride_BlueCorrection(0)
+		, bOverride_ExpandGamut(0)
+		, bOverride_SceneColorTint(0)
+		, BlueCorrection(0)
+		, ExpandGamut(0)
+		, SceneColorTint(ForceInitToZero)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_BlueCorrection:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_ExpandGamut:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_SceneColorTint:1;
+
+	// Correct for artifacts with "electric" blues due to the ACEScg color space. Bright blue desaturates instead of going to violet.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Misc", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bOverride_BlueCorrection"))
+	float BlueCorrection;
+
+	// Expand bright saturated colors outside the sRGB gamut to fake wide gamut rendering.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Misc", meta = (ClampMin = "0.0", UIMax = "1.0", EditCondition = "bOverride_ExpandGamut"))
+	float ExpandGamut;
+
+	// Scene tint color
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Misc", meta = (EditCondition = "bOverride_SceneColorTint", HideAlphaChannel))
+	FLinearColor SceneColorTint;
+};
+
+USTRUCT(BlueprintType)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings
+{
+	GENERATED_BODY()
+
+		FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings()
+		: bOverride_AutoExposureBias(0)
+		, bOverride_ColorCorrectionHighlightsMin(0)
+		, bOverride_ColorCorrectionShadowsMax(0)
+		, Global()
+		, Shadows()
+		, ColorCorrectionShadowsMax(0)
+		, Midtones()
+		, Highlights()
+		, ColorCorrectionHighlightsMin(0)
+	{
+	}
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_AutoExposureBias:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_ColorCorrectionHighlightsMin:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_ColorCorrectionShadowsMax:1;
+
+	// Not Implemented: Blend weight
+	UPROPERTY()
+	float BlendWeight = 1.0f;
 
 	// Exposure compensation
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "-15.0", UIMax = "15.0", EditCondition = "bOverride_AutoExposureBias"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (UIMin = "-15.0", UIMax = "15.0", EditCondition = "bOverride_AutoExposureBias", DisplayName = "Exposure Compensation"))
 	float AutoExposureBias = 0.0f;
+
+	// White balance
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
+	FDisplayClusterConfigurationViewport_ColorGradingWhiteBalanceSettings WhiteBalance;
 
 	// Global color grading
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
@@ -131,6 +204,9 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Shadows;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_ColorCorrectionShadowsMax", DisplayName = "ShadowsMax"))
+	float ColorCorrectionShadowsMax;
+
 	// Midtones color grading
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Midtones;
@@ -138,38 +214,92 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 	// Highlights color grading
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Highlights;
-};
 
-USTRUCT(Blueprintable)
-struct FDisplayClusterConfigurationViewport_ColorGradingConfiguration
-{
-	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_ColorCorrectionHighlightsMin", DisplayName = "HighlightsMin"))
+	float ColorCorrectionHighlightsMin;
 
-public:
-	// Allow using a separate post process for this viewport
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Viewport Color Grading"))
-	bool bIsEnabled = false;
-
-	// Exclude this viewport from the global cluster post process
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Ignore Entire Cluster Color Grading"))
-	bool bExcludeFromOverallClusterPostProcess = false;
-
-	// Color Grading look configuration
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (EditCondition = "bIsEnabled"))
-	FDisplayClusterConfigurationViewport_PerViewportSettings PostProcessSettings;
-};
-
-USTRUCT(Blueprintable)
-struct FDisplayClusterConfigurationViewport_ColorGradingProfile
-{
-	GENERATED_BODY()
-
-	// Post process settings
+	// Highlights color grading misc settings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
-	FDisplayClusterConfigurationViewport_ColorGradingConfiguration PostProcessSettings;
+	FDisplayClusterConfigurationViewport_ColorGradingMiscSettings Misc;
+};
 
-	/** The data to receive the profile information. This will either be viewports or nodes. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings")
+
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationViewport_EntireClusterColorGrading
+{
+	GENERATED_BODY()
+
+	/** Enable the color grading settings for the entire cluster and add them to nDisplay's color grading stack.  This will affect both the viewports and inner frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
+	bool bEnableEntireClusterColorGrading = true;
+
+	/** Entire Cluster Color Grading */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bEnableEntireClusterColorGrading"))
+	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
+};
+
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationViewport_PerViewportColorGrading
+{
+	GENERATED_BODY()
+
+	/** Enable the color grading settings for the viewport(s) specified and add them to nDisplay's color grading stack.  This will not affect the inner frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Per-Viewport Color Grading"))
+	bool bIsEnabled = true;
+
+	/** Optionally include the Entire Cluster Color Grading settings specified above in nDisplay's color grading stack for these viewports. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Include Entire Cluster Color Grading"))
+	bool bIsEntireClusterEnabled = true;
+
+	/** Color Grading */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bIsEnabled"))
+	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
+
+	/** Specify the viewports to apply these color grading settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings", meta = (DisplayName = "Apply Color Grading to Viewports"))
 	TArray<FString> ApplyPostProcessToObjects;
 };
 
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationViewport_AllNodesColorGrading
+{
+	GENERATED_BODY()
+
+	/** Enable the color grading settings on the inner frustum for the all nodes and add them to nDisplay's color grading stack. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable All Nodes Color Grading"))
+	bool bEnableInnerFrustumAllNodesColorGrading = true;
+
+	/** Optionally include Entire Cluster Color Grading settings specified on the root actor in nDisplay's color grading stack for the inner frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Include Entire Cluster Color Grading"))
+	bool bEnableEntireClusterColorGrading = true;
+
+	/** Color Grading */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (EditCondition = "bIsEnabled", DisplayName = "Color Grading"))
+	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
+};
+
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationViewport_PerNodeColorGrading
+{
+	GENERATED_BODY()
+
+	/** Enable the color grading settings for the node(s) specified and add them to nDisplay's color grading stack. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Per-Node Color Grading"))
+	bool bIsEnabled = true;
+
+	/** Optionally include Entire Cluster Color Grading settings specified on the root actor in nDisplay's color grading stack for these nodes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Include Entire Cluster Color Grading"))
+	bool bEntireClusterColorGrading = true;
+
+	/** Optionally include the All Nodes Color Grading settings specified above in nDisplay's color grading stack for these nodes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Include All Nodes Color Grading"))
+	bool bAllNodesColorGrading = true;
+
+	/** Color Grading */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bIsEnabled"))
+	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
+
+	/** Specify the nodes to apply these color grading settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings", meta = (DisplayName = "Apply Color Grading to Nodes"))
+	TArray<FString> ApplyPostProcessToObjects;
+};

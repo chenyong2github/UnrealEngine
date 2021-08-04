@@ -40,11 +40,11 @@ public:
 
 private:
 	void OpenConnection();
-	void OnFrameDataReady_AnyThread(FLensDataPacket InData);
-	void OnStatusChanged_AnyThread(FMDR3Status InStatus);
-	void OnConnectionLost_AnyThread();
-	void OnConnectionFailed_AnyThread();
-	void UpdateStaticData_AnyThread();
+	void OnFrameDataReady(FLensDataPacket InData);
+	void OnStatusChanged(FMDR3Status InStatus);
+	void OnConnectionLost();
+	void OnConnectionFailed();
+	void UpdateStaticData();
 
 	ILiveLinkClient* Client = nullptr;
 	FSocket* Socket = nullptr;
@@ -57,6 +57,8 @@ private:
 	ULiveLinkPrestonMDRSourceSettings* SavedSourceSettings = nullptr;
 
 	TUniquePtr<FPrestonMDRMessageThread> MessageThread;
+
+	FCriticalSection PrestonSourceCriticalSection;
 
 	std::atomic<double> LastTimeDataReceived;
 

@@ -11,7 +11,7 @@
 
 namespace UE_NETWORK_PHYSICS
 {
-	NETSIM_DEVCVAR_SHIPCONST_INT(bEnableAsync, 1, "np2.Async.Enable", "Enable Async implementation");
+	NETSIM_DEVCVAR_SHIPCONST_INT(bEnableAsync, 0, "np2.Async.Enable", "Enable Async implementation");
 }
 
 struct FTempMockObjModlDef : public UE_NP::TNetworkPredictionModelDefAsync<FTempMockObjModlDef>

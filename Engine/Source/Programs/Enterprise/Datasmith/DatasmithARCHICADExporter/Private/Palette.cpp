@@ -2,7 +2,6 @@
 
 #include "Palette.h"
 #include "Synchronizer.h"
-#include "Preferences.h"
 #include "Utils/TAssValueName.h"
 #include "ResourcesIDs.h"
 #include "Utils/Error.h"

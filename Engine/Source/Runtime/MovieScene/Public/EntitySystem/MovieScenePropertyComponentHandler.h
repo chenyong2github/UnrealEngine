@@ -71,7 +71,11 @@ struct TInitialValueProcessorImpl<PropertyTraits, TPropertyMetaData<MetaDataType
 		WriteContext  = FEntityAllocationWriteContext(Linker->EntityManager);
 
 		check(PropertyDefinition->MetaDataTypes.Num() == PropertyTraits::MetaDataType::Num);
+
+		if (PropertyDefinition->CustomPropertyRegistration)
+		{
 		CustomAccessors = PropertyDefinition->CustomPropertyRegistration->GetAccessors();
+		}
 
 		if (InitialValueCache)
 		{
@@ -495,8 +499,6 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		{
 			FMovieSceneEntityID EntityID = LocalParams.Query.Entities[Index];
 
-			uint8* Result = reinterpret_cast<uint8*>(&OutResults[Index]);
-
 			const float* InitialValueComposite = nullptr;
 			if (InitialValueComponent)
 			{
@@ -504,10 +506,8 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 				InitialValueComposite = reinterpret_cast<const float*>(reinterpret_cast<const uint8*>(&InitialValue) + Composite.CompositeOffset);
 			}
 
-			const float NewComposite = *reinterpret_cast<const float*>(reinterpret_cast<const uint8*>(&InCurrentValue) + Composite.CompositeOffset);
-
-			float* RecomposedComposite = reinterpret_cast<float*>(Result + Composite.CompositeOffset);
-			*RecomposedComposite = AlignedOutput.Value.Recompose(EntityID, NewComposite, InitialValueComposite);
+			float* RecomposedComposite = &OutResults[Index];
+			*RecomposedComposite = AlignedOutput.Value.Recompose(EntityID, InCurrentValue, InitialValueComposite);
 		}
 
 		EntityManager.ReleaseLockDown();

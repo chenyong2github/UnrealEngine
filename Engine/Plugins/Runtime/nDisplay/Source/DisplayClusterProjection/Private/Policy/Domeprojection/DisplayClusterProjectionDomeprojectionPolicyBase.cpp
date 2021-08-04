@@ -66,7 +66,7 @@ void FDisplayClusterProjectionDomeprojectionPolicyBase::HandleEndScene(class IDi
 {
 	check(IsInGameThread());
 
-	ReleaseOriginComponent(InViewport);
+	ReleaseOriginComponent();
 }
 
 

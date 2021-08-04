@@ -436,6 +436,8 @@ typedef TMeshSimplification< FAttrBasedQuadricErrord >  FAttrMeshSimplification;
 typedef TMeshSimplification < FVolPresQuadricErrord >   FVolPresMeshSimplification;
 typedef TMeshSimplification< FQuadricErrord >           FQEMSimplification;
 
+template<>
+void TMeshSimplification<FAttrBasedQuadricErrord>::OnEdgeCollapse(int edgeID, int va, int vb, const FDynamicMesh3::FEdgeCollapseInfo& collapseInfo);
 
 } // end namespace UE::Geometry
 } // end namespace UE

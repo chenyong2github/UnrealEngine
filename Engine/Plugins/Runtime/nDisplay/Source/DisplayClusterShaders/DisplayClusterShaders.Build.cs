@@ -57,7 +57,6 @@ public class DisplayClusterShaders : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architecture.StartsWith("x86_64"))
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "libmpcdi.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(PathLib, "libtinyxml2.a"));
 		}
 
 		// Include paths

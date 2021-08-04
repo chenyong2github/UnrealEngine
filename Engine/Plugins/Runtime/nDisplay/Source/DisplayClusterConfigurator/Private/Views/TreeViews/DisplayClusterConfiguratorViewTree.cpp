@@ -54,7 +54,7 @@ void FDisplayClusterConfiguratorViewTree::OnConfigReloaded()
 
 void FDisplayClusterConfiguratorViewTree::OnObjectSelected()
 {
-	const TArray<UObject*>& SelectedObjects = ToolkitPtr.Pin()->GetSelectedObjects();
+	TArray<UObject*> SelectedObjects = ToolkitPtr.Pin()->GetSelectedObjects();
 
 	if (!SelectedObjects.Num())
 	{

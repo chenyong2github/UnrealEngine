@@ -1466,6 +1466,9 @@ namespace AutomationTool
 			{
 				return false;
 			}
+
+			if (InternalUtils.SafeDirectoryExists(Source))
+			{
 			foreach (var SourceSubDirectory in Directory.GetDirectories(Source))
 			{
 				string DestPath = Dest + GetPathSeparatorChar(PathSeparator.Default) + GetLastDirectoryName(SourceSubDirectory + GetPathSeparatorChar(PathSeparator.Default));
@@ -1482,6 +1485,7 @@ namespace AutomationTool
 				{
 					return false;
 				}
+			}
 			}
 
 			return true;

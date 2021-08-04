@@ -5467,20 +5467,20 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 #endif
 
 		// check the MinLOD values are all within range
-		bool bFixedMinLOD = false;
-		bool bFixedQualityMinLOD = false;
+
 		int32 MinAvailableLOD = FMath::Max<int32>(GetRenderData()->LODResources.Num() - 1, 0);
-		FPerPlatformInt LocalMinLOD = GetMinLOD();
+		
+		if (IsMinLodQualityLevelEnable())
+		{
+		bool bFixedQualityMinLOD = false;
 		FPerQualityLevelInt QualityLocalMinLOD = GetQualityLevelMinLOD();
 
-		if (!GetRenderData()->LODResources.IsValidIndex(LocalMinLOD.Default))
+			if (!GetRenderData()->LODResources.IsValidIndex(QualityLocalMinLOD.Default))
 		{
 			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("MinLOD"), FText::AsNumber(LocalMinLOD.Default));
+				Arguments.Add(TEXT("DefaultMinLOD"), FText::AsNumber(QualityLocalMinLOD.Default));
 			Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
 			TSharedRef<FUObjectToken> TokenRef = FUObjectToken::Create(this);
-			
-			// Make sure Slate gets called from the game thread
 			Async(
 				EAsyncExecution::TaskGraphMainThread,
 				// No choice to MoveTemp here, the SharedRef is not thread safe so it cannot
@@ -5489,38 +5489,55 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 				{
 					FMessageLog("LoadErrors").Warning()
 						->AddToken(Token)
-						->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLOD", "Min LOD value of {MinLOD} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+							->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLOD", "Min LOD value of {DefaultMinLOD} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
 				}
 			);
-
-			LocalMinLOD.Default = MinAvailableLOD;
-			bFixedMinLOD = true;
+				QualityLocalMinLOD.Default = MinAvailableLOD;
+				bFixedQualityMinLOD = true;
 		}
-
-		if (!GetRenderData()->LODResources.IsValidIndex(QualityLocalMinLOD.Default))
+			for (TMap<int32, int32>::TIterator It(QualityLocalMinLOD.PerQuality); It; ++It)
+			{
+				if (!GetRenderData()->LODResources.IsValidIndex(It.Value()))
 		{
 			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("QualityLevelMinLOD"), FText::AsNumber(QualityLocalMinLOD.Default));
+					Arguments.Add(TEXT("QualityLevel"), FText::FromString(QualityLevelProperty::QualityLevelToFName(It.Key()).ToString()));
+					Arguments.Add(TEXT("QualityLevelMinLOD"), FText::AsNumber(It.Value()));
 			Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
+					TSharedRef<FUObjectToken> TokenRef = FUObjectToken::Create(this);
+					Async(
+						EAsyncExecution::TaskGraphMainThread,
+						// No choice to MoveTemp here, the SharedRef is not thread safe so it cannot
+						// be copied to another thread, only moved.
+						[Token = MoveTemp(TokenRef), Arguments]()
+						{
 			FMessageLog("LoadErrors").Warning()
-				->AddToken(FUObjectToken::Create(this))
-				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadQualityLevelMinLOD", "Min LOD value of {QualityLevelMinLOD} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
-
-			QualityLocalMinLOD.Default = MinAvailableLOD;
+								->AddToken(Token)
+								->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLODOverride", "Min LOD override of {QualityLevelMinLOD} for {QualityLevel} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+						}
+					);
+					It.Value() = MinAvailableLOD;
 			bFixedQualityMinLOD = true;
 		}
+			}
 		
-		for (TMap<FName, int32>::TIterator It(LocalMinLOD.PerPlatform); It; ++It)
+			if (bFixedQualityMinLOD)
 		{
-			if (!GetRenderData()->LODResources.IsValidIndex(It.Value()))
+				SetQualityLevelMinLOD(MoveTemp(QualityLocalMinLOD));
+				// Make sure Slate gets called from the game thread
+				Async(EAsyncExecution::TaskGraphMainThread, []() { FMessageLog("LoadErrors").Open(); });
+			}
+		}
+		else 
+			{
+			bool bFixedMinLOD = false;
+			FPerPlatformInt LocalMinLOD = GetMinLOD();
+
+			if (!GetRenderData()->LODResources.IsValidIndex(LocalMinLOD.Default))
 			{
 				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("MinLOD"), FText::AsNumber(It.Value()));
+				Arguments.Add(TEXT("MinLOD"), FText::AsNumber(LocalMinLOD.Default));
 				Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
-				Arguments.Add(TEXT("Platform"), FText::FromString(It.Key().ToString()));
 				TSharedRef<FUObjectToken> TokenRef = FUObjectToken::Create(this);
-
-				// Make sure Slate gets called from the game thread
 				Async(
 					EAsyncExecution::TaskGraphMainThread, 
 					// No choice to MoveTemp here, the SharedRef is not thread safe so it cannot
@@ -5529,29 +5546,34 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 					{ 
 						FMessageLog("LoadErrors").Warning()
 							->AddToken(Token)
-							->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLODOverride", "Min LOD override of {MinLOD} for {Platform} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+							->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLOD", "Min LOD value of {MinLOD} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
 					}
 				);
-				
-				It.Value() = MinAvailableLOD;
+				LocalMinLOD.Default = MinAvailableLOD;
 				bFixedMinLOD = true;
 			}
-		}
-
-		for (TMap<int32, int32>::TIterator It(QualityLocalMinLOD.PerQuality); It; ++It)
+			for (TMap<FName, int32>::TIterator It(LocalMinLOD.PerPlatform); It; ++It)
 		{
 			if (!GetRenderData()->LODResources.IsValidIndex(It.Value()))
 			{
 				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("QualityLevelMinLOD"), FText::AsNumber(It.Value()));
+					Arguments.Add(TEXT("MinLOD"), FText::AsNumber(It.Value()));
 				Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
-				Arguments.Add(TEXT("Quality"), FText::FromString(QualityLevelProperty::QualityLevelToFName(It.Key()).ToString()));
+					Arguments.Add(TEXT("Platform"), FText::FromString(It.Key().ToString()));
+					TSharedRef<FUObjectToken> TokenRef = FUObjectToken::Create(this);
+					Async(
+						EAsyncExecution::TaskGraphMainThread,
+						// No choice to MoveTemp here, the SharedRef is not thread safe so it cannot
+						// be copied to another thread, only moved.
+						[Token = MoveTemp(TokenRef), Arguments]()
+						{
 				FMessageLog("LoadErrors").Warning()
-					->AddToken(FUObjectToken::Create(this))
-					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLODOverride", "Min LOD override of {QualityLevelMinLOD} for {Quality} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
-
+								->AddToken(Token)
+								->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLODOverride", "Min LOD override of {MinLOD} for {Platform} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
+						}
+					);
 				It.Value() = MinAvailableLOD;
-				bFixedQualityMinLOD = true;
+					bFixedMinLOD = true;
 			}
 		}
 
@@ -5561,11 +5583,6 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 			// Make sure Slate gets called from the game thread
 			Async(EAsyncExecution::TaskGraphMainThread, []() { FMessageLog("LoadErrors").Open(); });
 		}
-
-		if (bFixedQualityMinLOD)
-		{
-			SetQualityLevelMinLOD(MoveTemp(QualityLocalMinLOD));
-			FMessageLog("LoadErrors").Open();
 		}
 	}
 

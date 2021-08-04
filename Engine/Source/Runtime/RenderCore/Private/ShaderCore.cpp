@@ -456,7 +456,7 @@ bool ShouldExportShaderDebugInfoAsZip(FName ShaderFormat)
 bool AllowShaderCompiling()
 {
 #if UE_ALLOW_SHADER_COMPILING_BASED_ON_SHADER_DIRECTORY_EXISTENCE
-	static bool bShaderDirectoryExists = FPaths::DirectoryExists(FPaths::Combine(FPaths::EngineDir(), TEXT("Shaders")));
+	static bool bShaderDirectoryExists = FPaths::DirectoryExists(FPaths::Combine(FPaths::EngineDir(), TEXT("Shaders"), TEXT("Public")));
 	// if it doesn't exist, dont allow compiling. otherwise, check the other flags to see if those have disabled it
 	if (!bShaderDirectoryExists)
 	{

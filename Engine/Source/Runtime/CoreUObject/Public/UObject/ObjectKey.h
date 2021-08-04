@@ -88,6 +88,20 @@ public:
 		return WeakPtr.Get();
 	}
 
+	/**
+	 * Attempt to access the object from which this key was constructed, even if it is marked as pending kill.
+	 * @return The object used to construct this key, or nullptr if it is no longer valid
+	 */
+	UObject* ResolveObjectPtrEvenIfPendingKill() const
+	{
+		FWeakObjectPtr WeakPtr;
+		WeakPtr.ObjectIndex = ObjectIndex;
+		WeakPtr.ObjectSerialNumber = ObjectSerialNumber;
+
+		constexpr bool bEvenIfPendingKill = true;
+		return WeakPtr.Get(bEvenIfPendingKill);
+	}
+
 	/** Hash function */
 	friend uint32 GetTypeHash(const FObjectKey& Key)
 	{
@@ -169,6 +183,15 @@ public:
 	InElementType* ResolveObjectPtr() const
 	{
 		return (InElementType*)ObjectKey.ResolveObjectPtr();
+	}
+
+	/**
+	 * Attempt to access the object from which this key was constructed, even if it is marked as pending kill.
+	 * @return The object used to construct this key, or nullptr if it is no longer valid
+	 */
+	InElementType* ResolveObjectPtrEvenIfPendingKill() const
+	{
+		return static_cast<InElementType*>(ObjectKey.ResolveObjectPtrEvenIfPendingKill());
 	}
 
 private:

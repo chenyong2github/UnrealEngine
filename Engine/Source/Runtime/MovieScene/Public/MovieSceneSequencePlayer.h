@@ -180,24 +180,32 @@ struct FMovieSceneSequencePlaybackParams
 	FMovieSceneSequencePlaybackParams()
 		: Time(0.f)
 		, PositionType(EMovieScenePositionType::Frame)
-		, UpdateMethod(EUpdatePositionMethod::Play) {}
+		, UpdateMethod(EUpdatePositionMethod::Play)
+		, bHasJumped(false)
+	{}
 
 	FMovieSceneSequencePlaybackParams(FFrameTime InFrame, EUpdatePositionMethod InUpdateMethod)
 		: Frame(InFrame)
 		, Time(0.f)
 		, PositionType(EMovieScenePositionType::Frame)
-		, UpdateMethod(InUpdateMethod) {}
+		, UpdateMethod(InUpdateMethod)
+		, bHasJumped(false)
+	{}
 
 	FMovieSceneSequencePlaybackParams(float InTime, EUpdatePositionMethod InUpdateMethod)
 		: Time(InTime)
 		, PositionType(EMovieScenePositionType::Time)
-		, UpdateMethod(InUpdateMethod) {}
+		, UpdateMethod(InUpdateMethod)
+		, bHasJumped(false)
+	{}
 
 	FMovieSceneSequencePlaybackParams(const FString& InMarkedFrame, EUpdatePositionMethod InUpdateMethod)
 		: Time(0.f)
 		, MarkedFrame(InMarkedFrame)
 		, PositionType(EMovieScenePositionType::MarkedFrame)
-		, UpdateMethod(InUpdateMethod) {}
+		, UpdateMethod(InUpdateMethod)
+		, bHasJumped(false)
+	{}
 
 	FFrameTime GetPlaybackPosition(UMovieSceneSequencePlayer* Player) const;
 
@@ -215,6 +223,9 @@ struct FMovieSceneSequencePlaybackParams
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Cinematic")
 	EUpdatePositionMethod UpdateMethod;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Cinematic")
+	bool bHasJumped;
 };
 
 USTRUCT(BlueprintType)
@@ -532,7 +543,7 @@ protected:
 	void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped = false);
 	virtual void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args);
 
-	void UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method);
+	void UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride = false);
 	bool ShouldStopOrLoop(FFrameTime NewPosition) const;
 	/** 
 	* If the current sequence should pause (due to NewPosition overshooting a previously set ShouldPause) 
@@ -588,7 +599,7 @@ protected:
 	
 private:
 
-	void UpdateTimeCursorPosition_Internal(FFrameTime NewPosition, EUpdatePositionMethod Method);
+	void UpdateTimeCursorPosition_Internal(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride);
 
 	void RunPreEvaluationCallbacks();
 	void RunPostEvaluationCallbacks();
@@ -616,6 +627,13 @@ private:
 	 * Update the replicated properties required for synchronizing to clients of this sequence player
 	 */
 	void UpdateNetworkSyncProperties();
+
+	/**
+	 * Analyse the set of samples we have estimating the server time if we have confidence over the data.
+	 * Should only be called once per frame.
+	 * @return An estimation of the server time, or the current local time if we cannot make a strong estimate
+	 */
+	FFrameTime UpdateServerTimeSamples();
 
 protected:
 
@@ -670,6 +688,19 @@ protected:
 	FMovieScenePlaybackPosition PlayPosition;
 
 	TSharedPtr<FMovieSceneSpawnRegister> SpawnRegister;
+
+	struct FServerTimeSample
+	{
+		/** The actual server sequence time in seconds, with client ping at the time of the sample baked in */
+		double ServerTime;
+		/** Wall-clock time that the sample was receieved */
+		double ReceievedTime;
+	};
+	/**
+	 * Array of server sequence times in seconds, with ping compensation baked in.
+	 * Samples are sorted chronologically with the oldest samples first
+	 */
+	TArray<FServerTimeSample> ServerTimeSamples;
 
 	/** Replicated playback status and current time that are replicated to clients */
 	UPROPERTY(replicated)

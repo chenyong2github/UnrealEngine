@@ -341,14 +341,14 @@ public:
 //
 //
 // The way the gameplay simulation is defined is:
-//	1. Server-Authoratative ObjectState (the server is authoratative over this state)
-//	2. Client-Authoratative InputCmd (a controlling client is authoratative over this state) [This can be optional]
+//	1. Server-Authoritative ObjectState (the server is authoritative over this state)
+//	2. Client-Authoritative InputCmd (a controlling client is authoritative over this state) [This can be optional]
 //	3. SimulationTick function: a static function that is given input/output state that runs within this framework for you.
 // 
 // 
 // If someone *doesn't* want to use TNetworkPredictionAsyncSystemManager to define thier gameplay simulation, this is what they are left with:
-//	1. If they just define an ISimCallbackObject, they will still particpate in physics rollbacks. E.g they will resim frames but not trigger them.
-//		* They can marshall their data via Input/Output objects however they want between threads.
+//	1. If they just define an ISimCallbackObject, they will still participate in physics rollbacks. E.g they will resim frames but not trigger them.
+//		* They can marshal their data via Input/Output objects however they want between threads.
 //		* They can run their 'Tick' however they want (E.g, their OnPreSimulate_Internal logic)
 //		* They *must* use a form of Persistent Storage which is rollback friendly (TODO)
 //			* This is enforced via const on the ISimCallback API (TODO)
@@ -1016,7 +1016,7 @@ struct FTempMockInputCmd
 
 	// Simple world vector force to be applied
 	UPROPERTY(BlueprintReadWrite,Category="Input")
-	FVector	Force;
+	FVector	Force = FVector::ZeroVector;
 
 	UPROPERTY(BlueprintReadWrite,Category="Input")
 	bool bJumpedPressed = false;

@@ -456,6 +456,14 @@ void UChannel::ReceivedRawBunch( FInBunch & Bunch, bool & bOutSkipAck )
 
 	if ( Connection->IsInternalAck() && Broken )
 	{
+		if (Bunch.bClose && (!Bunch.bPartial || Bunch.bPartialFinal))
+		{
+			UE_LOG(LogNetTraffic, Log, TEXT("Replay handling a close bunch for a broken channel: %s"), *Bunch.ToString());
+
+			Dormant = (Bunch.CloseReason == EChannelCloseReason::Dormancy);
+			ConditionalCleanUp(true, Bunch.CloseReason);
+		}
+
 		return;
 	}
 

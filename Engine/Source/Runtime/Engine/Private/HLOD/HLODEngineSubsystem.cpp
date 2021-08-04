@@ -171,9 +171,10 @@ void UHLODEngineSubsystem::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext
 	// When cooking, make sure that the LODActors are not transient
 	if (InWorld && InWorld->PersistentLevel && ObjectSaveContext.IsCooking())
 	{
-		for (TActorIterator<ALODActor> It(InWorld); It; ++It)
+		for (AActor* Actor : InWorld->PersistentLevel->Actors)
 		{
-			ALODActor* LODActor = *It;
+			if (ALODActor* LODActor = Cast<ALODActor>(Actor))
+			{
 			if (LODActor->WasBuiltFromHLODDesc())
 			{
 				EObjectFlags TransientFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient;
@@ -190,6 +191,7 @@ void UHLODEngineSubsystem::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext
 			}
 		}
 	}
+}
 }
 
 #endif // WITH_EDITOR

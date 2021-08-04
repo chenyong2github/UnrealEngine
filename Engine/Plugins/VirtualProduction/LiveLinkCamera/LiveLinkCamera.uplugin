@@ -34,6 +34,11 @@
 			"Name": "LiveLinkCameraEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LiveLinkCameraRecording",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
 		}
 	]
 }

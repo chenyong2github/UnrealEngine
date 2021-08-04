@@ -8,6 +8,13 @@
 class FRegexPatternImplementation;
 class FRegexMatcherImplementation;
 
+enum class ERegexPatternFlags
+{
+	None = 0,
+	CaseInsensitive = (1 << 0),
+};
+ENUM_CLASS_FLAGS(ERegexPatternFlags);
+
 /**
  * Implements a regular expression pattern.
  * @note DO NOT use this class as a file-level variable as its construction relies on the internationalization system being initialized!
@@ -17,7 +24,7 @@ class CORE_API FRegexPattern
 	friend class FRegexMatcher;
 
 public:
-	explicit FRegexPattern(const FString& SourceString);
+	explicit FRegexPattern(const FString& SourceString, ERegexPatternFlags Flags = ERegexPatternFlags::None);
 
 	FRegexPattern(const FRegexPattern&) = default;
 	FRegexPattern& operator=(const FRegexPattern&) = default;

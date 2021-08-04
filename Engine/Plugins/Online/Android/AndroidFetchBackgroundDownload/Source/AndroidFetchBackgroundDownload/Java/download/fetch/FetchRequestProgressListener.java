@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4.download.fetch;
+package com.epicgames.unreal.download.fetch;
 
 import android.util.Log;
 
@@ -16,8 +16,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
-import com.epicgames.ue4.Logger;
-import com.epicgames.ue4.download.fetch.FetchDownloadProgressOwner;
+import com.epicgames.unreal.Logger;
+import com.epicgames.unreal.download.fetch.FetchDownloadProgressOwner;
 
 //progress listener passed into Fetch2 to update the progress of our downloads. Really just simple wrapper that forwards back to the DownloadProgressOwner.
 //Could just implement FetchListener on our UEDownloadWorker, but not sure that we want to add WorkManager Worker objects as Fetch2 listeners directly.
@@ -33,7 +33,7 @@ final class FetchRequestProgressListener implements FetchListener
 		Deleted;
 	}
 	
-	private static Logger Log = new Logger("UE4", "FetchRequestProgressListener");
+	private static Logger Log = new Logger("UE", "FetchRequestProgressListener");
 	
 	public void BroadcastDownloadQueued(@NonNull Download download)
 	{
@@ -165,14 +165,12 @@ final class FetchRequestProgressListener implements FetchListener
 	public void onAdded(@NonNull Download download)
 	{
 		//For now don't need to do anything in OnAdded, just wait for OnQueued
-		Log.verbose("onAdded -- Empty Implementation");
 	}
 
 	@Override
 	public void onDownloadBlockUpdated(@NonNull Download download, @NonNull DownloadBlock downloadBlock, int i)
 	{
 		//Not currently using this for anything useful
-		Log.verbose("onDownloadBlockUpdated -- Empty Implementation");
 	}
 	
 	FetchRequestProgressListener(@NonNull FetchDownloadProgressOwner Owner)

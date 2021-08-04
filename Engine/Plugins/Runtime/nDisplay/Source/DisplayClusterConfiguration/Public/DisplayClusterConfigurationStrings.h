@@ -27,7 +27,7 @@ namespace DisplayClusterConfigurationStrings
 		static constexpr auto ChromaKeyCategory            = TEXT("Chromakey");
 		static constexpr auto LightcardCategory            = TEXT("Light Cards");
 		static constexpr auto OCIOCategory                 = TEXT("OCIO");
-		static constexpr auto OverrideCategory             = TEXT("Override");
+		static constexpr auto OverrideCategory             = TEXT("Texture Replacement");
 		static constexpr auto ViewportsCategory            = TEXT("Viewports");
 		static constexpr auto ICVFXCategory                = TEXT("In Camera VFX");
 		static constexpr auto ConfigurationCategory        = TEXT("Configuration");

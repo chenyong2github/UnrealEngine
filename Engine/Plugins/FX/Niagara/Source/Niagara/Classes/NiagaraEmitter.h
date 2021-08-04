@@ -428,15 +428,21 @@ public:
 	UPROPERTY()
 	uint32 ThumbnailImageOutOfDate : 1;
 
-	/* If this emitter is exposed to the library. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
-	bool bExposeToLibrary;
+	/** Deprecated library exposure bool. Use the LibraryVisibility enum instead. FNiagaraEditorUtilities has accessor functions that takes deprecation into account */
+	UPROPERTY()
+	bool bExposeToLibrary_DEPRECATED;
 	
+	/** If this emitter is exposed to the library, or should be explicitly hidden. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
+	ENiagaraScriptLibraryVisibility LibraryVisibility = ENiagaraScriptLibraryVisibility::Unexposed;
+	
+	/** Deprecated template asset bool. Use the TemplateSpecification enum instead. */
 	UPROPERTY()
 	bool bIsTemplateAsset_DEPRECATED;
 
+	/** If this emitter is a standard parent emitter, a template or a behavior example. Templates and behavior examples get copied rather than inherited from. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
-	ENiagaraScriptTemplateSpecification TemplateSpecification;
+	ENiagaraScriptTemplateSpecification TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
 	
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	FText TemplateAssetDescription;

@@ -4,16 +4,20 @@
 
 #include "CurveEditor.h"
 #include "CurveEditorCommands.h"
+#include "ITimeSlider.h"
 #include "SCurveKeyDetailPanel.h"
 #include "SGridLineSpacingList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SComboButton.h"
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationCurveEditorPanel"
 
-void SCameraCalibrationCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor)
+void SCameraCalibrationCurveEditorPanel::Construct(const FArguments&, TSharedRef<FCurveEditor> InCurveEditor,
+                                                   TWeakPtr<ITimeSliderController> InTimeSliderControllerWeakPtr)
 {	
-	SCurveEditorPanel::Construct(SCurveEditorPanel::FArguments(), InCurveEditor);
+	SCurveEditorPanel::Construct(
+		SCurveEditorPanel::FArguments()
+			.ExternalTimeSliderController(InTimeSliderControllerWeakPtr.Pin()),
+			InCurveEditor);
 
 	// Cache the curve editor model
 	CurveEditorWeakPtr = InCurveEditor;

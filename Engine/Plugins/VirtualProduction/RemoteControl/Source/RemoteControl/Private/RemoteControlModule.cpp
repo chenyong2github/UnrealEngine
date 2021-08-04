@@ -4,6 +4,8 @@
 #include "IRemoteControlModule.h"
 #include "IStructDeserializerBackend.h"
 #include "IStructSerializerBackend.h"
+#include "Components/LightComponent.h"
+#include "RCPropertyUtilities.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlInterceptionHelpers.h"
 #include "RemoteControlInterceptionProcessor.h"
@@ -50,8 +52,6 @@ namespace RemoteControlUtil
 	const FName NAME_BlueprintGetter(TEXT("BlueprintGetter"));
 	const FName NAME_BlueprintSetter(TEXT("BlueprintSetter"));
 	const FName NAME_AllowPrivateAccess(TEXT("AllowPrivateAccess"));
-
-	TMap<TWeakFieldPtr<FProperty>, TWeakObjectPtr<UFunction>> CachedSetterFunctions;
 
 	bool CompareFunctionName(const FString& FunctionName, const FString& ScriptName)
 	{
@@ -187,8 +187,6 @@ namespace RemoteControlUtil
 
 namespace RemoteControlSetterUtils
 {
-	static TMap<TWeakFieldPtr<FProperty>, TWeakObjectPtr<UFunction>> CachedSetterFunctions;
-
 	struct FConvertToFunctionCallArgs
 	{
 		FConvertToFunctionCallArgs(const FRCObjectReference& InObjectReference, IStructDeserializerBackend& InReaderBackend, FRCCall& OutCall)
@@ -201,85 +199,6 @@ namespace RemoteControlSetterUtils
 		IStructDeserializerBackend& ReaderBackend;
 		FRCCall& Call;
 	};
-
-	UFunction* FindSetterFunction(FProperty* Property)
-	{
-		// UStruct properties cannot have setters.
-		if (!ensure(Property) || !Property->GetOwnerClass())
-		{
-			return nullptr;
-		}
-
-		// Check if the property setter is already cached.
-		TWeakObjectPtr<UFunction> SetterPtr = CachedSetterFunctions.FindRef(Property);
-		if (SetterPtr.IsValid())
-		{
-			return SetterPtr.Get();
-		}
-
-		UFunction* SetterFunction = nullptr;
-#if WITH_EDITOR
-		const FString& SetterName = Property->GetMetaData(*RemoteControlUtil::NAME_BlueprintSetter.ToString());
-		if (!SetterName.IsEmpty())
-		{
-			SetterFunction = Property->GetOwnerClass()->FindFunctionByName(*SetterName);
-		}
-#endif
-
-		FString PropertyName = Property->GetName();
-		if (Property->IsA<FBoolProperty>())
-		{
-			PropertyName.RemoveFromStart("b", ESearchCase::CaseSensitive);
-		}
-
-		static const TArray<FString> SetterPrefixes = {
-			FString("Set"),
-			FString("K2_Set")
-		};
-
-		for (const FString& Prefix : SetterPrefixes)
-		{
-			FName SetterFunctionName = FName(Prefix + PropertyName);
-			SetterFunction = Property->GetOwnerClass()->FindFunctionByName(SetterFunctionName);
-			if (SetterFunction)
-			{
-				break;
-			}
-		}
-
-		if (SetterFunction)
-		{
-			CachedSetterFunctions.Add(Property, SetterFunction);
-		}
-
-		return SetterFunction;
-	}
-
-	FProperty* FindSetterArgument(UFunction* SetterFunction, FProperty* PropertyToModify)
-	{
-		FProperty* SetterArgument = nullptr;
-
-		if (!ensure(SetterFunction))
-		{
-			return nullptr;
-		}
-
-		// Check if the first parameter for the setter function matches the parameter value.
-		for (TFieldIterator<FProperty> PropertyIt(SetterFunction); PropertyIt; ++PropertyIt)
-		{
-			if (PropertyIt->HasAnyPropertyFlags(CPF_Parm) && !PropertyIt->HasAnyPropertyFlags(CPF_ReturnParm))
-			{
-				if (PropertyIt->SameType(PropertyToModify))
-				{
-					SetterArgument = *PropertyIt;
-				}
-
-				break;
-			}
-		}
-
-		return SetterArgument;
-	}
 
 	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InFunction, FStructOnScope&& InFunctionArguments, FRCInterceptionPayload& OutPayload)
 	{
@@ -313,7 +232,7 @@ namespace RemoteControlSetterUtils
 		TOptional<FStructOnScope> OptionalArgsOnScope;
 
 		bool bSuccess = false;
-		if (FProperty* SetterArgument = FindSetterArgument(InSetterFunction, InOutArgs.ObjectReference.Property.Get()))
+		if (FProperty* SetterArgument = RemoteControlPropertyUtilities::FindSetterArgument(InSetterFunction, InOutArgs.ObjectReference.Property.Get()))
 		{
 			FStructOnScope ArgsOnScope{InSetterFunction};
 
@@ -375,7 +294,7 @@ namespace RemoteControlSetterUtils
 			return false;
 		}
 
-		if (UFunction* SetterFunction = FindSetterFunction(InOutArgs.ObjectReference.Property.Get()))
+		if (UFunction* SetterFunction = RemoteControlPropertyUtilities::FindSetterFunction(InOutArgs.ObjectReference.Property.Get(), InOutArgs.ObjectReference.Object->GetClass()))
 		{
 			return ConvertModificationToFunctionCall(InOutArgs, SetterFunction);
 		}
@@ -391,7 +310,7 @@ namespace RemoteControlSetterUtils
 			return false;
 		}
 
-		if (UFunction* SetterFunction = FindSetterFunction(InArgs.ObjectReference.Property.Get()))
+		if (UFunction* SetterFunction = RemoteControlPropertyUtilities::FindSetterFunction(InArgs.ObjectReference.Property.Get(), InArgs.ObjectReference.Object->GetClass()))
 		{
 			return ConvertModificationToFunctionCall(InArgs, SetterFunction, OutPayload);
 		}
@@ -416,22 +335,18 @@ public:
 		AssetRegistry.OnAssetRemoved().AddRaw(this, &FRemoteControlModule::OnAssetRemoved);
 		AssetRegistry.OnAssetRenamed().AddRaw(this, &FRemoteControlModule::OnAssetRenamed);
 
-		if (AssetRegistry.IsLoadingAssets())
-		{
-			AssetRegistry.OnFilesLoaded().AddRaw(this, &FRemoteControlModule::CachePresets);
-		}
-		else
-		{
-			CachePresets();
-		}
-
 		// Instantiate the RCI processor feature on module start
 		RCIProcessor = MakeUnique<FRemoteControlInterceptionProcessor>();
 		// Register the interceptor feature
 		IModularFeatures::Get().RegisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
 
+		if (AssetRegistry.IsLoadingAssets())
+		{
+			AssetRegistry.OnFilesLoaded().AddRaw(this, &FRemoteControlModule::CachePresets);
+		}
+
 #if WITH_EDITOR
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::RegisterEditorDelegates);
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::HandleEnginePostInit);
 #endif
 	}
 
@@ -529,6 +444,7 @@ public:
 
 	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) override
 	{
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Invoke function"));
 		if (InCall.IsValid())
 		{
 			// Check the replication path before apply property values
@@ -549,6 +465,7 @@ public:
 					if (Interceptor)
 					{
 						// Update response flag
+						UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Invoke function - Intercepted"));
 						bShouldIntercept |= (Interceptor->InvokeCall(FunctionMetadata) == ERCIResponse::Intercept);
 					}
 				}
@@ -578,9 +495,13 @@ public:
 						{
 							GEditor->BeginTransaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"));
 						}
+
+						if (ensureAlways(InCall.CallRef.Object.IsValid()))
+						{
 						InCall.CallRef.Object->Modify();
 					}
 				}
+			}
 			}
 			else if (GEditor && InCall.bGenerateTransaction)
 			{
@@ -589,7 +510,10 @@ public:
 			
 #endif
 			FEditorScriptExecutionGuard ScriptGuard;
+			if (ensureAlways(InCall.CallRef.Object.IsValid()))
+			{
 			InCall.CallRef.Object->ProcessEvent(InCall.CallRef.Function.Get(), InCall.ParamStruct.GetStructMemory());
+			}
 
 #if WITH_EDITOR
 			if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
@@ -768,6 +692,7 @@ public:
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::SetObjectProperties);
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Set Object Properties"));
 		// Check the replication path before applying property values
 		if (InPayload.Num() != 0 && ObjectAccess.Object.IsValid())
 		{
@@ -780,7 +705,8 @@ public:
 				RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
 				if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args, InterceptionPayload))
 				{
-					return InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
+					const bool bResult = InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
+					return bResult;
 				}
 			}
 
@@ -808,6 +734,7 @@ public:
 				if (Interceptor)
 				{
 					// Update response flag
+					UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Set Object Properties - Intercepted"));
 					bShouldIntercept |= (Interceptor->SetObjectProperties(PropsMetadata) == ERCIResponse::Intercept);
 				}
 			}
@@ -826,7 +753,8 @@ public:
 			RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
 			if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args))
 			{
-				return InvokeCall(Call);
+				const bool bResult = InvokeCall(Call);
+				return bResult;
 			}
 		}
 
@@ -836,18 +764,38 @@ public:
 			&& ObjectAccess.Property.IsValid()
 			&& ObjectAccess.PropertyPathInfo.IsResolved())
 		{
-			UObject* Object = ObjectAccess.Object.Get();
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
+			FRCObjectReference MutableObjectReference = ObjectAccess;
 
 #if WITH_EDITOR
-			const bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+			const bool bGenerateTransaction = MutableObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
 			if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
 			{
+				FString ObjectPath = MutableObjectReference.Object->GetPathName();
+
 				// If we have a change that hasn't yet generated a post edit change property, do that before handling the next change.
-				if (OngoingModification && GetTypeHash(*OngoingModification) != GetTypeHash(ObjectAccess))
+				if (OngoingModification && GetTypeHash(*OngoingModification) != GetTypeHash(MutableObjectReference))
 				{
 					constexpr bool bForcePostEditChange = true;
 					TestOrFinalizeOngoingChange(true);
+				}
+
+				// This step is necessary because the object might get recreated by a PostEditChange called in TestOrFinalizeOngoingChange.
+				if (!MutableObjectReference.Object.IsValid())
+				{
+					MutableObjectReference.Object = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath);
+					if (MutableObjectReference.Object.IsValid() && MutableObjectReference.PropertyPathInfo.IsResolved())
+					{
+						// Update ContainerAddress as well if the path was resolved.
+						if (MutableObjectReference.PropertyPathInfo.Resolve(MutableObjectReference.Object.Get()))
+						{
+							MutableObjectReference.ContainerAdress = MutableObjectReference.PropertyPathInfo.GetResolvedData().ContainerAddress;
+						}
+					}
+					else
+					{
+						return false;
+					}
 				}
 
 				// Only create the transaction if we have no ongoing change.
@@ -856,50 +804,55 @@ public:
 					if (GEditor && bGenerateTransaction)
 					{
 						GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
+
+						// Call modify since it's not called by PreEditChange until the end of the ongoing change.
+						MutableObjectReference.Object->Modify();
 					}
 				}
+
 			}
 			else 
 			{
-				FEditPropertyChain PreEditChain;
-				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
-				Object->PreEditChange(PreEditChain);
-				
 				if (GEditor && bGenerateTransaction)
 				{
 					GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
 				}
+
+				FEditPropertyChain PreEditChain;
+				MutableObjectReference.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+				MutableObjectReference.Object->PreEditChange(PreEditChain);
+				
 			}
 #endif
 
 			FStructDeserializerPolicies Policies;
-			if (ObjectAccess.Property.IsValid())
+			if (MutableObjectReference.Property.IsValid())
 			{
-				Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
+				Policies.PropertyFilter = [&MutableObjectReference](const FProperty* CurrentProp, const FProperty* ParentProp)
 				{
-					return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
+					return CurrentProp == MutableObjectReference.Property || ParentProp != nullptr;
 				};
 			}
 			else
 			{
-				bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
-				Policies.PropertyFilter = [&ObjectAccess, bObjectInGame](const FProperty* CurrentProp, const FProperty* ParentProp)
+				bool bObjectInGame = !GIsEditor || MutableObjectReference.Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
+				Policies.PropertyFilter = [&MutableObjectReference, bObjectInGame](const FProperty* CurrentProp, const FProperty* ParentProp)
 				{
-					return RemoteControlUtil::IsPropertyAllowed(CurrentProp, ObjectAccess.Access, bObjectInGame) || ParentProp != nullptr;
+					return RemoteControlUtil::IsPropertyAllowed(CurrentProp, MutableObjectReference.Access, bObjectInGame) || ParentProp != nullptr;
 				};
 			}
 
 			//Serialize the element if we're looking for a member or serialize the full object if not
 			bool bSuccess = false;
-			if (ObjectAccess.PropertyPathInfo.IsResolved())
+			if (MutableObjectReference.PropertyPathInfo.IsResolved())
 			{
-				const FRCFieldPathSegment& LastSegment = ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1);
+				const FRCFieldPathSegment& LastSegment = MutableObjectReference.PropertyPathInfo.GetFieldSegment(MutableObjectReference.PropertyPathInfo.GetSegmentCount() - 1);
 				int32 Index = LastSegment.ArrayIndex != INDEX_NONE ? LastSegment.ArrayIndex : LastSegment.ResolvedData.MapIndex;
-				bSuccess = FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
+				bSuccess = FStructDeserializer::DeserializeElement(MutableObjectReference.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
 			}
 			else
 			{
-				bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
+				bSuccess = FStructDeserializer::Deserialize(MutableObjectReference.ContainerAdress, *ContainerType, Backend, Policies);
 			}
 
 #if WITH_EDITOR
@@ -907,32 +860,44 @@ public:
 			{
 				// If we have modified the same object and property in the last frames,
 				// update the triggered flag and snapshot the object to the transaction buffer.
-				if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(ObjectAccess))
+				if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(MutableObjectReference))
 				{
 					OngoingModification->bWasTriggeredSinceLastPass = true;
 					if (OngoingModification->bHasStartedTransaction)
 					{
-						SnapshotTransactionBuffer(ObjectAccess.Object.Get());
+						SnapshotTransactionBuffer(MutableObjectReference.Object.Get());
 					}
+
+					// Update the world lighting if we're modifying a color.
+					if (MutableObjectReference.IsValid() && MutableObjectReference.Property->GetOwnerClass()->IsChildOf(ULightComponentBase::StaticClass()))
+					{
+						UWorld* World = MutableObjectReference.Object->GetWorld();
+						if (World && World->Scene)
+						{
+							if (MutableObjectReference.Object->IsA<ULightComponent>())
+							{
+								World->Scene->UpdateLightColorAndBrightness(Cast<ULightComponent>(MutableObjectReference.Object.Get()));
+							}
+					}
+				}
 				}
 				else
 				{
-					OngoingModification = ObjectAccess;
+					OngoingModification = MutableObjectReference;
 					OngoingModification->bHasStartedTransaction = bGenerateTransaction;
 				}
 			}
 			else
 			{
-				FPropertyChangedEvent PropertyEvent(ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent());
-				Object->PostEditChangeProperty(PropertyEvent);
-				
 				if (GEditor && bGenerateTransaction)
 				{
 					GEditor->EndTransaction();
 				}
+
+				FPropertyChangedEvent PropertyEvent(MutableObjectReference.PropertyPathInfo.ToPropertyChangedEvent());
+				MutableObjectReference.Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif
-			PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
 			return bSuccess;
 		}
 		return false;
@@ -1006,7 +971,6 @@ public:
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif
-			PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
 			return true;
 		}
 		return false;
@@ -1127,15 +1091,10 @@ public:
 		DefaultMetadataInitializers.Remove(MetadataKey);
 	}
 
-	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property) const override
+	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property, UClass* OwnerClass = nullptr) const override
 	{
 		constexpr bool bInGameOrPackage = true;
-		return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlSetterUtils::FindSetterFunction(Property));
-	}
-
-	virtual FOnPostPropertyModifiedRemotely& OnPostPropertyModifiedRemotely() override
-	{
-		return PostPropertyModifiedRemotelyDelegate;
+		return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlPropertyUtilities::FindSetterFunction(Property, OwnerClass));
 	}
 
 private:
@@ -1174,16 +1133,13 @@ private:
 			return;
 		}
 
-		if (URemoteControlPreset* Preset = Cast<URemoteControlPreset>(AssetData.GetAsset()))
+		const FGuid PresetAssetId = RemoteControlUtil::GetPresetId(AssetData);
+		if (PresetAssetId.IsValid())
 		{
-			const FGuid PresetId = Preset->GetPresetId();
-			if (PresetId.IsValid())
-			{
-				CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+			CachedPresetNamesById.Add(PresetAssetId, AssetData.AssetName);
 				CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
 			}
 		}
-	}
 
 	void OnAssetRemoved(const FAssetData& AssetData)
 	{
@@ -1250,7 +1206,7 @@ private:
 			return false;
 		}
 
-		return !!RemoteControlSetterUtils::FindSetterFunction(Property);
+		return !!RemoteControlPropertyUtilities::FindSetterFunction(Property, Object->GetClass());
 	}
 
 #if WITH_EDITOR
@@ -1295,6 +1251,12 @@ private:
 				OngoingModification->bWasTriggeredSinceLastPass = false;
 			}
 		}
+	}
+
+	void HandleEnginePostInit()
+	{
+		CachePresets();
+		RegisterEditorDelegates();
 	}
 
 	void RegisterEditorDelegates()
@@ -1376,9 +1338,6 @@ private:
 	/** Delay before we check if a modification is no longer ongoing. */
 	static constexpr float SecondsBetweenOngoingChangeCheck = 0.2f;
 #endif
-
-	/** Delegate called after modifying a property through SetObjectProperties. */
-	FOnPostPropertyModifiedRemotely PostPropertyModifiedRemotelyDelegate;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

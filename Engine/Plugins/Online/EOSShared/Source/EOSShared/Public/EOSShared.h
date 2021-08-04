@@ -17,8 +17,12 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEOSSDK, Log, All);
 
-inline FString LexToString(EOS_EResult EosResult)
+inline FString LexToString(const EOS_EResult EosResult)
 {
 	return ANSI_TO_TCHAR(EOS_EResult_ToString(EosResult));
 }
+
+FString EOSSHARED_API LexToString(const EOS_ProductUserId UserId);
+FString EOSSHARED_API LexToString(const EOS_EpicAccountId AccountId);
+
 #endif // WITH_EOS_SDK

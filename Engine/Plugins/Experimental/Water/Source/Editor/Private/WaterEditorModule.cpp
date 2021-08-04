@@ -12,6 +12,7 @@
 #include "EngineUtils.h"
 #include "Landscape.h"
 #include "WaterMeshActor.h"
+#include "WaterMeshComponent.h"
 #include "Editor.h"
 #include "ISettingsModule.h"
 #include "WaterEditorSettings.h"
@@ -23,6 +24,7 @@
 #include "LevelEditorViewport.h"
 #include "WaterBodyActorFactory.h"
 #include "WaterBodyIslandActorFactory.h"
+#include "WaterMeshActorFactory.h"
 #include "WaterBodyActorDetailCustomization.h"
 #include "WaterBrushManagerFactory.h"
 #include "IAssetTools.h"
@@ -67,6 +69,7 @@ void FWaterEditorModule::StartupModule()
 
 	if (GEditor)
 	{
+		GEditor->ActorFactories.Add(NewObject<UWaterMeshActorFactory>());
 		GEditor->ActorFactories.Add(NewObject<UWaterBodyIslandActorFactory>());
 		GEditor->ActorFactories.Add(NewObject<UWaterBodyRiverActorFactory>());
 		GEditor->ActorFactories.Add(NewObject<UWaterBodyLakeActorFactory>());
@@ -190,7 +193,12 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 				FActorSpawnParameters SpawnParams;
 				SpawnParams.OverrideLevel = ActorWorld->PersistentLevel;
 				SpawnParams.bAllowDuringConstructionScript = true; // This can be called by construction script if the actor being added to the world is part of a blueprint, for example : 
-				ActorWorld->SpawnActor<AWaterMeshActor>(AWaterMeshActor::StaticClass(), SpawnParams);
+				AWaterMeshActor* WaterMesh = ActorWorld->SpawnActor<AWaterMeshActor>(AWaterMeshActor::StaticClass(), SpawnParams);
+
+				// Set the defaults here because the actor factory isn't triggered on manual SpawnActor.
+				const FWaterMeshActorDefaults& WaterMeshActorDefaults = GetDefault<UWaterEditorSettings>()->WaterMeshActorDefaults;
+				WaterMesh->GetWaterMeshComponent()->FarDistanceMaterial = WaterMeshActorDefaults.GetFarDistanceMaterial();
+				WaterMesh->GetWaterMeshComponent()->FarDistanceMeshExtent = WaterMeshActorDefaults.FarDistanceMeshExtent;
 			}
 		}
 	}

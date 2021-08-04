@@ -15,6 +15,7 @@
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
 #include "IRemoteControlProtocolWidgetsModule.h"
+#include "ISettingsModule.h"
 #include "IStructureDetailsView.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -31,7 +32,7 @@
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
-#include "RemoteControlUISettings.h"
+#include "RemoteControlSettings.h"
 #include "ScopedTransaction.h"
 #include "SClassViewer.h"
 #include "SRCLogger.h"
@@ -118,14 +119,14 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	const TAttribute<float> TreeBindingSplitRatioTop = TAttribute<float>::Create(
 		TAttribute<float>::FGetter::CreateLambda([]()
 		{
-			URemoteControlUISettings* Settings = GetMutableDefault<URemoteControlUISettings>();
+			URemoteControlSettings* Settings = GetMutableDefault<URemoteControlSettings>();
 			return Settings->TreeBindingSplitRatio;
 		}));
 
 	const TAttribute<float> TreeBindingSplitRatioBottom = TAttribute<float>::Create(
 		TAttribute<float>::FGetter::CreateLambda([]()
 		{
-			URemoteControlUISettings* Settings = GetMutableDefault<URemoteControlUISettings>();
+			URemoteControlSettings* Settings = GetMutableDefault<URemoteControlSettings>();
 			return 1.0f - Settings->TreeBindingSplitRatio;
 		}));
 
@@ -235,6 +236,29 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 					.Text(FText::FromName(Preset->GetFName()))
 				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(5.0f, 0.f))
+				[
+					SNew(SSeparator)
+					.Orientation(Orient_Vertical)
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+					.OnClicked_Raw(this, &SRemoteControlPanel::OnClickSettingsButton)
+					[
+						SNew(STextBlock)
+						.ColorAndOpacity(FColor::White)
+						.ToolTipText(LOCTEXT("OpenRemoteControlSettings", "Open Remote Control settings."))
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Text(FEditorFontGlyphs::Cogs)
+					]
+				]
 			]
 		]
 		+ SVerticalBox::Slot()
@@ -267,7 +291,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 						.Value(TreeBindingSplitRatioTop)
 						.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewSize)
 						{
-							URemoteControlUISettings* Settings = GetMutableDefault<URemoteControlUISettings>();
+							URemoteControlSettings* Settings = GetMutableDefault<URemoteControlSettings>();
 							Settings->TreeBindingSplitRatio = InNewSize;
 							Settings->PostEditChange();
 							Settings->SaveConfig();
@@ -322,7 +346,9 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	for (const TSharedRef<SWidget>& Widget : ExtensionWidgets)
 	{
 		// We want to insert the widgets before the edit mode buttons.
-		TopExtensions->InsertSlot(TopExtensions->NumSlots()-6)
+		constexpr int32 NumEditModeWidgets = 2;
+		const int32 ExtensionsPosititon = ExtensionWidgets.Num() - NumEditModeWidgets;
+		TopExtensions->InsertSlot(ExtensionsPosititon)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
@@ -715,6 +741,9 @@ void SRemoteControlPanel::OnMapChange(uint32)
 	}
 
 	UpdateRebindButtonVisibility();
+
+	// Clear the widget cache on map change to make sure we don't keep widgets around pointing to potentially stale objects.
+	WidgetRegistry->Clear();
 }
 
 void SRemoteControlPanel::RegisterEvents()
@@ -1000,9 +1029,12 @@ void SRemoteControlPanel::UpdateActorFunctionPicker()
 {
 	if (GEditor && ActorFunctionPicker)
 	{
-		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakPanelPtr = TWeakPtr<SRemoteControlPanel>(StaticCastSharedRef<SRemoteControlPanel>(AsShared()))]()
 		{
-			ActorFunctionPicker->Refresh();
+			if (TSharedPtr<SRemoteControlPanel> PanelPtr = WeakPanelPtr.Pin())
+			{
+				PanelPtr->ActorFunctionPicker->Refresh();
+			}
 		}));
 	}
 }
@@ -1026,6 +1058,12 @@ void SRemoteControlPanel::OnEntityExposed(URemoteControlPreset* InPreset, const 
 void SRemoteControlPanel::OnEntityUnexposed(URemoteControlPreset* InPreset, const FGuid& InEntityId)
 {
 	CachedExposedProperties.Empty();
+}
+
+FReply SRemoteControlPanel::OnClickSettingsButton()
+{
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Plugins", "Remote Control");
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/

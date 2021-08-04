@@ -112,7 +112,9 @@ namespace UE_NETWORK_PHYSICS
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(InputDecayRate, 0.99f, "np2.InputDecayRate", "Rate of input decay");
 
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(DragK, 200.f, "np2.Mock.DragK", "Drag Coefficient (higher=more drag)");
+	NETSIM_DEVCVAR_SHIPCONST_FLOAT(MaxAngularVelocity, 30.f, "np2.Mock.MaxAngularVelocity", "Limits how fast character can possibly rotate.")
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(MovementK, 1.25, "np2.Mock.MovementK", "Movement Coefficient (higher=faster movement)");
+	NETSIM_DEVCVAR_SHIPCONST_FLOAT(RotationK, 1.25, "np2.Mock.RotationK", "Rotation Coefficient (higher=faster movement)");
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(TurnK, 100000.f, "np2.Mock.TurnK", "Coefficient for automatic turning (higher=quicker turning)");
 	NETSIM_DEVCVAR_SHIPCONST_FLOAT(TurnDampK, 20.f, "np2.Mock.TurnDampK", "Coefficient for damping portion of turn. Higher=more damping but too higher will lead to instability.");
 

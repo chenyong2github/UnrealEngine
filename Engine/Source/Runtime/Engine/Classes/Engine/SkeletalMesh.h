@@ -3031,6 +3031,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	bool IsMaterialUsed(int32 MaterialIndex) const;
+
 public:
 	const TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() const 
 	{

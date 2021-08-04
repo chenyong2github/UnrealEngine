@@ -492,7 +492,9 @@ public:
 			return Data.Find(Hash);
 		}
 	};
+	
 	FVulkanComputePipeline* GetOrCreateComputePipeline(FVulkanComputeShader* ComputeShader);
+	void NotifyDeletedComputePipeline(FVulkanComputePipeline* Pipeline);
 
 private:
 	/** Delegate handlers to track the ShaderPipelineCache precompile. */

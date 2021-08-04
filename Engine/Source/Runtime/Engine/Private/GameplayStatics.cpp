@@ -1725,7 +1725,7 @@ void UGameplayStatics::PrimeSound(USoundBase* InSound)
 		InSoundWave->CachePlatformData(false); // (an ensure told me to do this)
 #endif // WITH_EDITORONLY_DATA
 
-		if (InSoundWave->GetNumChunks() > 1)
+		if (InSoundWave->HasStreamingChunks() && InSoundWave->GetNumChunks() > 1)
 		{
 			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InSoundWave->CreateSoundWaveProxy(), 1, [](EAudioChunkLoadResult) {});
 		}

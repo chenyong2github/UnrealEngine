@@ -1314,6 +1314,7 @@ FString GRHIAdapterName;
 FString GRHIAdapterInternalDriverVersion;
 FString GRHIAdapterUserDriverVersion;
 FString GRHIAdapterDriverDate;
+bool GRHIAdapterDriverBlacklisted = false;
 uint32 GRHIVendorId = 0;
 uint32 GRHIDeviceId = 0;
 uint32 GRHIDeviceRevision = 0;

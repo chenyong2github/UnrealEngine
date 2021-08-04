@@ -30,12 +30,9 @@ FString UDisplayClusterICVFXCameraComponent::GetCameraUniqueId() const
 #if WITH_EDITOR
 bool UDisplayClusterICVFXCameraComponent::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut)
 {
-	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
-	{
-		return RootActor->bEnableICVFXCameraPreview;
-	}
-
-	return Super::GetEditorPreviewInfo(DeltaTime, ViewOut);
+	const bool bEnabled = Super::GetEditorPreviewInfo(DeltaTime, ViewOut);
+	GetDesiredView(ViewOut);
+	return bEnabled;
 }
 #endif
 

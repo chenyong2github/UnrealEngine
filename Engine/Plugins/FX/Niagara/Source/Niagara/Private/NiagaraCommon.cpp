@@ -294,6 +294,16 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 
 	Comp->BeginUpdateContextReset();
 
+	// Ensure we wait for any concurrent work to complete
+	if (FNiagaraSystemInstanceControllerPtr SystemInstanceController = Comp->GetSystemInstanceController())
+	{
+		SystemInstanceController->WaitForConcurrentTickAndFinalize();
+		if (Comp->IsPendingKill())
+		{
+			return;
+		}
+	}
+
 	if (bReInit && bDestroySystemSim)
 	{
 		//Always destroy the system sims on a reinit, even if we're not reactivating the component.
@@ -1381,8 +1391,11 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 		checkf(ScriptToEmitterMap.Find(Script) != nullptr, TEXT("Script to emitter name map must have an entry for each script to be processed."));
 		if (const UNiagaraEmitter* const* Emitter = ScriptToEmitterMap.Find(Script))
 		{
+			if (Script->GetLatestSource())
+			{
 			Script->GetLatestSource()->CleanUpOldAndInitializeNewRapidIterationParameters(*Emitter, Script->GetUsage(), Script->GetUsageId(), ParameterStoreToPrepare);
 		}
+	}
 	}
 
 	// Copy parameters for dependencies.

@@ -494,6 +494,8 @@ namespace UnrealBuildTool
 				);
 			}
 
+			CompileEnvironment.Definitions.Add("UINT64_T_IS_UNSIGNED_LONG=1");
+
 			// link with Linux libraries.
 			LinkEnvironment.SystemLibraries.Add("pthread");
 

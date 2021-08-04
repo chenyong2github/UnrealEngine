@@ -22,6 +22,11 @@
 			"LoadingPhase" : "None"
 		},
 		{
+			"Name": "AndroidDeviceProfileCommandlets",
+			"Type": "Editor",
+			"LoadingPhase": "None"
+		},
+		{
 			"Name" : "AndroidDeviceProfileSelectorRuntime",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostConfigInit",

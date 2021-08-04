@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraScript.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitter.h"
@@ -76,7 +77,7 @@ public:
 
 	FORCEINLINE static bool ShouldSuppressEmitterActivation(const FNiagaraEmitterInstance* EmitterInstance)
 	{
-		if ( bUseSuppressEmitterList || bUseGpuEmitterWhitelist )
+		if ( bUseSuppressEmitterList || bUseGpuEmitterWhitelist || bUseGpuDataInterfaceBlacklist)
 		{
 			const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>();
 
@@ -97,6 +98,20 @@ public:
 			{
 				return true;
 			}
+
+			if ( bUseGpuDataInterfaceBlacklist && (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim) )
+			{
+				if (const UNiagaraScript* GPUComputeScript = CachedEmitter->GetGPUComputeScript())
+				{
+					for (const FNiagaraScriptDataInterfaceInfo& DefaultDIInfo : GPUComputeScript->GetCachedDefaultDataInterfaces())
+					{
+						if (ComponentSettings->GpuDataInterfaceBlacklist.Contains(DefaultDIInfo.Type.GetFName()))
+						{
+							return true;
+						}
+					}
+				}
+			}
 		}
 		return false;
 	}
@@ -111,6 +126,7 @@ public:
 		Config file to tweak individual emitters being disabled. Syntax is as follows for the config file:
 		[/Script/Niagara.NiagaraComponentSettings]
 		SuppressEmitterList=((SystemName="BasicSpriteSystem",EmitterName="BasicSprite001"))
+		+GpuDataInterfaceBlacklist=("NiagaraDataInterfaceCollisionQuery")
 	*/
 	UPROPERTY(config)
 	TSet<FNiagaraEmitterNameSettingsRef> SuppressEmitterList;
@@ -118,8 +134,12 @@ public:
 	UPROPERTY(config)
 	TSet<FNiagaraEmitterNameSettingsRef> GPUEmitterWhitelist;
 
+	UPROPERTY(config)
+	TSet<FName> GpuDataInterfaceBlacklist;
+
 	static int32 bAllowSuppressActivation;
 	static int32 bAllowForceAutoPooling;
 	static int32 bUseSuppressEmitterList;
 	static int32 bUseGpuEmitterWhitelist;
+	static int32 bUseGpuDataInterfaceBlacklist;
 };

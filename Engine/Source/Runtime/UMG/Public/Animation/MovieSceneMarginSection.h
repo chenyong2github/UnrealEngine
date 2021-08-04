@@ -8,7 +8,7 @@
 #include "Curves/RichCurve.h"
 #include "MovieSceneSection.h"
 #include "Layout/Margin.h"
-#include "Evaluation/MovieSceneEvalTemplate.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "MovieSceneMarginSection.generated.h"
 
@@ -18,10 +18,9 @@
 UCLASS(MinimalAPI)
 class UMovieSceneMarginSection 
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
-public:
-	UMG_API const static FMovieSceneInterrogationKey GetMarginInterrogationKey();
 
 public:
 
@@ -40,4 +39,9 @@ public:
 	/** Alpha curve data */
 	UPROPERTY()
 	FMovieSceneFloatChannel BottomCurve;
+
+private:
+
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 };

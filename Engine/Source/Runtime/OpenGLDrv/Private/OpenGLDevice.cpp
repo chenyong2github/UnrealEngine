@@ -151,6 +151,7 @@ bool IsUniformBufferBound( GLuint Buffer )
 extern void BeginFrame_UniformBufferPoolCleanup();
 extern void BeginFrame_VertexBufferCleanup();
 extern void BeginFrame_QueryBatchCleanup();
+extern void BeginFrame_PollAllFences();
 
 
 FOpenGLContextState& FOpenGLDynamicRHI::GetContextStateForCurrentContext(bool bAssertIfInvalid)
@@ -190,6 +191,8 @@ void FOpenGLDynamicRHI::RHIBeginFrame()
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4 //adding #if since not sure if this is required for any other platform.
 	PendingState.DepthStencil = 0 ;
 #endif
+
+	BeginFrame_PollAllFences();
 }
 
 void FOpenGLDynamicRHI::RHIEndFrame()

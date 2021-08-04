@@ -194,6 +194,7 @@ protected:
 
 	void SynchronizeViewportBoneSelection();
 	
+
 	// update the cached modification value
 	void UpdateBoneModification(FName BoneName, const FTransform& Transform);
 

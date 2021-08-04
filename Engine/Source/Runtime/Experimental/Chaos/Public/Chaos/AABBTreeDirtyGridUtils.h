@@ -54,7 +54,7 @@ namespace Chaos
 	}
 
 	template <typename FunctionType>
-	FORCEINLINE_DEBUGGABLE void DoForOverlappedCells(const TAABB<FReal, 3>& AABB, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
+	FORCEINLINE_DEBUGGABLE bool DoForOverlappedCells(const TAABB<FReal, 3>& AABB, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
 	{
 		int32 XsampleCount = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().X, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv) + 1;
 		int32 YsampleCount = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().Y, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv) + 1;
@@ -65,11 +65,15 @@ namespace Chaos
 			FReal CurrentY = AABB.Min().Y;
 			for (int32 YsampleIndex = 0; YsampleIndex < YsampleCount; YsampleIndex++)
 			{
-				Function(HashCoordinates(CurrentX, CurrentY, DirtyElementGridCellSizeInv));
+				if (!Function(HashCoordinates(CurrentX, CurrentY, DirtyElementGridCellSizeInv)))
+				{
+					return false; // early out requested by the lambda
+				}
 				CurrentY += DirtyElementGridCellSize;
 			}
 			CurrentX += DirtyElementGridCellSize;
 		}
+		return true;
 	}
 
 	// Only execute function for new Cells not covered in old (Set difference: {Cells spanned by AABB} - { Cells spanned by AABBExclude})
@@ -105,7 +109,9 @@ namespace Chaos
 				if (!(X >= OldCellStartX && X <= OldCellEndX && Y >= OldCellStartY && Y <= OldCellEndY))
 				{
 					if (!Function(HashCell(X, Y)))
-						return false; // Failure early out
+					{
+						return false; // early out requested by the lambda
+					}
 				}
 			}
 		}

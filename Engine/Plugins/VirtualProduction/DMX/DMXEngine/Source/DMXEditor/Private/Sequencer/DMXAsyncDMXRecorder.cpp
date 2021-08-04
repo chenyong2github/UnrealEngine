@@ -45,42 +45,29 @@ namespace
 
 				if (CellAttributePtr)
 				{
-					const FDMXFixtureCellAttribute& CellAttribute = *CellAttributePtr;
+					TMap<FDMXAttributeName, int32> AttributeChannelMap;
+					FixturePatch->GetMatrixCellChannelsAbsolute(MutableChannelData.GetCellCoordinate(), AttributeChannelMap);
 
-					const EDMXFixtureSignalFormat SignalFormat = CellAttribute.DataType;
-					const bool bUseLSBMode = CellAttribute.bUseLSBMode;
-					const int32 CellIndex = MutableChannelData.GetCellIndex();
+					const int32* ChannelPtr = AttributeChannelMap.Find(MutableChannelData.GetAttributeName());
 
-					const int32 AttributeStartingChannelIndex = [&CellAttribute, &MatrixProperties, CellIndex]()
+					if (ChannelPtr)
 					{
-						int32 SizeOfCell = 0;
-						int32 OffsetWithinCell = 0;
-						for (const FDMXFixtureCellAttribute& OtherCellAttribute : MatrixProperties.CellAttributes)
-						{
-							if (OtherCellAttribute.Attribute.GetName() != CellAttribute.Attribute.GetName())
+						const int32 ChannelIndex = *ChannelPtr - 1;
+						if (ensure(UniverseData.IsValidIndex(ChannelIndex)))
 							{
-								OffsetWithinCell = SizeOfCell;
-							}
-
-							SizeOfCell += CellAttribute.GetNumChannels();
-						}
-
-						int32 MatrixStartingIndex = MatrixProperties.FirstCellChannel - 1;
-
-						return MatrixStartingIndex + SizeOfCell * CellIndex + OffsetWithinCell;
-					}();
-
 					if (bNormalizedValues)
 					{
-						MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToNormalizedValue(CellAttribute.DataType, CellAttribute.bUseLSBMode, &UniverseData[AttributeStartingChannelIndex]);
+								MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToNormalizedValue(CellAttributePtr->DataType, CellAttributePtr->bUseLSBMode, &UniverseData[ChannelIndex]);
 					}
 					else
 					{
-						MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToInt(CellAttribute.DataType, CellAttribute.bUseLSBMode, &UniverseData[AttributeStartingChannelIndex]);
+								MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToInt(CellAttributePtr->DataType, CellAttributePtr->bUseLSBMode, &UniverseData[ChannelIndex]);
 					}
+						}
 
 					bAcquiredValue = true;
 				}
+			}
 			}
 			else
 			{
@@ -161,7 +148,7 @@ FDMXFunctionChannelData::FDMXFunctionChannelData(UDMXEntityFixturePatch* InFixtu
 	, FunctionChannel(InFunctionChannel)
 	, LocalUniverseID(-1)
 	, bCellChannel(false)
-	, CellIndex(INDEX_NONE)
+	, CellCoordinate(FIntPoint(0, 0))
 {
 	if (FunctionChannel && 
 		FixturePatch.IsValid() &&
@@ -173,11 +160,7 @@ FDMXFunctionChannelData::FDMXFunctionChannelData(UDMXEntityFixturePatch* InFixtu
 		
 		if (bCellChannel)
 		{
-			FDMXFixtureMatrix MatrixProperties;
-			if (!FixturePatch->GetMatrixProperties(MatrixProperties))
-			{
-				CellIndex = MatrixProperties.XCells * FunctionChannel->CellCoordinate.Y + FunctionChannel->CellCoordinate.X;
-			}
+			CellCoordinate = FunctionChannel->CellCoordinate;
 		}
 	}	
 }

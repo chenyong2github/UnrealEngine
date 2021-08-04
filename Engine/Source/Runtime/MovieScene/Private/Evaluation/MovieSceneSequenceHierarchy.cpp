@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
+#include "Evaluation/MovieSceneEvaluationTreeFormatter.h"
+#include "MovieSceneSequenceID.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
+#include "UObject/ReleaseObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData()
 	: Sequence(nullptr)
@@ -178,3 +182,96 @@ void FMovieSceneSequenceHierarchy::Remove(TArrayView<const FMovieSceneSequenceID
 		IDsToRemove.RemoveAt(0, NumRemaining);
 	}
 }
+
+void FMovieSceneSequenceHierarchy::AddRange(const TRange<FFrameNumber>& RootSpaceRange, FMovieSceneSequenceIDRef InSequenceID, ESectionEvaluationFlags InFlags, FMovieSceneWarpCounter RootToSequenceWarpCounter)
+{
+	Tree.Data.AddUnique(RootSpaceRange, FMovieSceneSubSequenceTreeEntry{ InSequenceID, InFlags, RootToSequenceWarpCounter });
+}
+
+FArchive& operator<<(FArchive& Ar, FMovieSceneSubSequenceTreeEntry& InOutEntry)
+{
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	Ar << InOutEntry.SequenceID << InOutEntry.Flags;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::AddedSubSequenceEntryWarpCounter ||
+		Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::AddedSubSequenceEntryWarpCounter)
+	{
+		FMovieSceneWarpCounter::StaticStruct()->SerializeTaggedProperties(
+				Ar, (uint8*)&InOutEntry.RootToSequenceWarpCounter, FMovieSceneWarpCounter::StaticStruct(), nullptr);
+	}
+
+	return Ar;
+}
+
+bool operator==(const FMovieSceneSubSequenceTreeEntry& A, const FMovieSceneSubSequenceTreeEntry& B)
+{
+	return A.SequenceID == B.SequenceID 
+		&& A.Flags == B.Flags
+		&& A.RootToSequenceWarpCounter == B.RootToSequenceWarpCounter;
+}
+
+#if !NO_LOGGING
+void FMovieSceneSequenceHierarchy::LogHierarchy() const
+{
+	using FNodeInfo = TTuple<FMovieSceneSequenceID, const FMovieSceneSequenceHierarchyNode*, uint32>;
+
+	TArray<FNodeInfo> NodeInfoStack;
+	NodeInfoStack.Add(FNodeInfo{MovieSceneSequenceID::Root, &RootNode, 0});
+
+	while (NodeInfoStack.Num() > 0)
+	{
+		const FNodeInfo CurNodeInfo = NodeInfoStack.Pop();
+
+		const FMovieSceneSequenceID CurSequenceID = CurNodeInfo.Get<0>();
+		const FMovieSceneSequenceHierarchyNode* CurNode = CurNodeInfo.Get<1>();
+		const uint32 CurDepth = CurNodeInfo.Get<2>();
+
+		if (CurSequenceID == MovieSceneSequenceID::Root)
+		{
+			UE_LOG(LogMovieScene, Log, TEXT("ROOT SEQUENCE"));
+		}
+		else
+		{
+			const FMovieSceneSubSequenceData* CurData = SubSequences.Find(CurSequenceID);
+
+			FString Indent;
+			Indent.Append(TEXT(" "), CurDepth * 2);
+			UE_LOG(LogMovieScene, Log, TEXT("%s%s Loop=%s HEasing=%s HBias=%d UnwarpedRange=%s Transform=%s"), 
+					*Indent, *CurData->GetSequence()->GetName(),
+					*LexToString(CurData->bCanLoop),
+					*LexToString(CurData->bHasHierarchicalEasing),
+					CurData->HierarchicalBias,
+					*LexToString(CurData->UnwarpedPlayRange.Value),
+					*LexToString(CurData->RootToSequenceTransform));
+		}
+
+		const TArray<FMovieSceneSequenceID> CurNodeChildren = CurNodeInfo.Get<1>()->Children;
+		for (int32 Index = CurNodeChildren.Num() - 1; Index >= 0; --Index)
+		{
+			const FMovieSceneSequenceID CurChildID = CurNodeChildren[Index];
+			const FMovieSceneSequenceHierarchyNode* CurChild = Hierarchy.Find(CurChildID);
+			if (ensure(CurChild && CurChild->ParentID == CurSequenceID))
+			{
+				NodeInfoStack.Add(FNodeInfo{CurChildID, CurChild, CurDepth + 1});
+			}
+		}
+	}
+}
+
+void FMovieSceneSequenceHierarchy::LogSubSequenceTree() const
+{
+	using TreeFormatter = TMovieSceneEvaluationTreeFormatter<FMovieSceneSubSequenceTreeEntry>;
+	TreeFormatter Formatter(Tree.Data);
+	Formatter.DataFormatter = TreeFormatter::FOnFormatData::CreateLambda(
+			[](const FMovieSceneSubSequenceTreeEntry& Entry, TStringBuilder<256>& Builder)
+			{
+				Builder.Appendf(TEXT("ID=%d Warps=%s"), 
+						Entry.SequenceID.GetInternalValue(),
+						*LexToString(Entry.RootToSequenceWarpCounter));
+			});
+	Formatter.LogTree();
+}
+#endif
+

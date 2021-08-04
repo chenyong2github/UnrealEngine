@@ -254,7 +254,7 @@ public:
 
 	/**
 	 * Set the custom code to execute for saving visual state in this tab.
-	 * e.g. ContentBrowser saves the visible filters.
+	 * e.g. ContentBrowser saves the visible filters.OnExtendContextMenu
 	 */
 	void SetOnPersistVisualState( const FOnPersistVisualState& Handler );
 

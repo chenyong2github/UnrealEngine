@@ -78,6 +78,15 @@
 			"Enabled": true
 		},
 		{
+			"Name": "MagicLeapPassableWorld",
+			"Enabled": false,
+			"SupportedTargetPlatforms": [
+				"Lumin",
+				"Mac",
+				"Win64"
+			]
+		},
+		{
 			"Name": "OculusVR",
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
@@ -87,13 +96,25 @@
 			]
 		},
 		{
-			"Name": "OpenXR",
-			"Enabled": true,
+			"Name": "OpenXREyeTracker",
+			"Enabled": false,
 			"SupportedTargetPlatforms": [
 				"Win32",
 				"Win64",
-				"Android",
-				"HoloLens"
+				"Linux",
+				"HoloLens",
+				"Android"
+			]
+		},
+		{
+			"Name": "OpenXRHandTracking",
+			"Enabled": false,
+			"SupportedTargetPlatforms": [
+				"Win32",
+				"Win64",
+				"Linux",
+				"HoloLens",
+				"Android"
 			]
 		},
 		{
@@ -101,16 +122,6 @@
 			"Enabled": false,
 			"SupportedTargetPlatforms": [
 				"Win32",
-				"Win64",
-				"Linux"
-			]
-		},
-		{
-			"Name": "MagicLeapPassableWorld",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Lumin",
-				"Mac",
 				"Win64"
 			]
 		}

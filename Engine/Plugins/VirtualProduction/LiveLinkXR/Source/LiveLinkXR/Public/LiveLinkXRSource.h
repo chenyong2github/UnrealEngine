@@ -31,6 +31,7 @@ public:
 	
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
 	virtual void InitializeSettings(ULiveLinkSourceSettings* Settings) override;
+	virtual void Update() override;
 
 	virtual bool IsSourceStillValid() const override;
 
@@ -57,6 +58,10 @@ public:
 
 	void Send(FLiveLinkFrameDataStruct* FrameDataToSend, FName SubjectName);
 	const FString GetDeviceTypeName(EXRTrackedDeviceType DeviceType);
+
+private:
+	// Enumerate and save all connected and trackable XR devices
+	void EnumerateTrackedDevices();
 
 private:
 	ILiveLinkClient* Client;
@@ -100,15 +105,30 @@ private:
 	// Update rate (in Hz) at which to read the tracking data for each device
 	uint32 LocalUpdateRateInHz;
 
-	// Array of DeviceIDs for local SteamVR tracked devices
-	TArray<int32> TrackedDevices;
+	struct FTrackedDeviceInfo
+	{
+		FTrackedDeviceInfo(int32 InDeviceId, EXRTrackedDeviceType InType, FName InName)
+			: DeviceId(InDeviceId)
+			, DeviceType(InType)
+			, SubjectName(InName)
+		{}
 
-	// Array of device types for local SteamVR tracked devices
-	TArray<EXRTrackedDeviceType> TrackedDeviceTypes;
+		// Device Id for local SteamVR
+		int32 DeviceId = INDEX_NONE;
 
-	// Array of Tracker Subject Names
-	TArray<FString> TrackedSubjectNames;
+		// Device type
+		EXRTrackedDeviceType DeviceType = EXRTrackedDeviceType::Invalid;
 
-	// Enumerate and save all connected and trackable XR devices
-	void EnumerateTrackedDevices();
+		// Subject name of this device
+		FName SubjectName;
+	};
+
+	// Array of found devices
+	TArray<FTrackedDeviceInfo> TrackedDevices;
+
+	// Critical section protection tracked devices
+	FCriticalSection TrackedDeviceCriticalSection;
+	
+	// Timestamp when we last enumerated devices
+	double LastEnumerationTimestamp = 0.0;
 };

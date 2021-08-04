@@ -139,6 +139,15 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 	{
 		IconColor = FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName()));
 	}
+
+	FName IconName = FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(StackEntry->GetExecutionSubcategoryName(), bIsCategoryIconHighlighted);
+	const FSlateBrush* IconBrush = nullptr;
+
+	if(IconName != NAME_None)
+	{
+		IconBrush = FNiagaraEditorWidgetsStyle::Get().GetBrush(IconName);
+	}
+	
 	TSharedRef<SHorizontalBox> NameContent = SNew(SHorizontalBox)
 	.Clipping(EWidgetClipping::OnDemand)
 	// Indent
@@ -183,7 +192,7 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 		[
 			SNew(SImage)
 			.Visibility(this, &SNiagaraStackTableRow::GetExecutionCategoryIconVisibility)
-			.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(StackEntry->GetExecutionSubcategoryName(), bIsCategoryIconHighlighted)))
+			.Image(IconBrush ? IconBrush : FCoreStyle::Get().GetDefaultBrush())
 			.ColorAndOpacity(IconColor)
 		]
 	]

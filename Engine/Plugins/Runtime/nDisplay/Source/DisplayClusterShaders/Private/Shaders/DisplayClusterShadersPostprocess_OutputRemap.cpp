@@ -18,8 +18,13 @@
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
+#include "ShaderParameterStruct.h"
 
+#include "ClearQuad.h"
+
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 #include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
+#include "Render/Containers/DisplayClusterRender_MeshComponentProxyData.h"
 #include "Render/Containers/DisplayClusterRender_MeshGeometry.h"
 
 #define OutputRemapShaderFileName TEXT("/Plugin/nDisplay/Private/OutputRemapShaders.usf")
@@ -42,76 +47,53 @@ static TAutoConsoleVariable<int32> CVarOutputRemapShaderType(
 	,ECVF_RenderThreadSafe
 );
 
+BEGIN_SHADER_PARAMETER_STRUCT(FOutputRemapVertexShaderParameters, )
+END_SHADER_PARAMETER_STRUCT()
 
-class FOutputRemapVS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FOutputRemapVS, Global);
-
-public:
-	/** Default constructor. */
-	FOutputRemapVS() 
-	{ }
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{ return true; }
-
-	/** Initialization constructor. */
-	FOutputRemapVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-	}
-};
+BEGIN_SHADER_PARAMETER_STRUCT(FOutputRemapPixelShaderParameters, )
+	SHADER_PARAMETER_TEXTURE(Texture2D,    PostprocessInput0)
+	SHADER_PARAMETER_SAMPLER(SamplerState, PostprocessInput0Sampler)
+END_SHADER_PARAMETER_STRUCT()
 
 class FOutputRemapPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FOutputRemapPS, Global);
-
 public:
-	FOutputRemapPS()
-	{ }
+	DECLARE_GLOBAL_SHADER(FOutputRemapPS);
+	SHADER_USE_PARAMETER_STRUCT(FOutputRemapPS, FGlobalShader);
 
-	FOutputRemapPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessInputParameter0.Bind(Initializer.ParameterMap, TEXT("PostprocessInput0"));
-		PostprocessInputParameterSampler0.Bind(Initializer.ParameterMap, TEXT("PostprocessInput0Sampler"));
-	}
+	using FParameters = FOutputRemapPixelShaderParameters;
 
-public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-public:
-	template<typename TShaderRHIParamRef>
-	void SetParameters(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, FRHITexture2D* SourceTexture)
-	{
-		SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter0, SourceTexture);
-		RHICmdList.SetShaderSampler(ShaderRHI, PostprocessInputParameterSampler0.GetBaseIndex(), TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, PostprocessInputParameter0)
-	LAYOUT_FIELD(FShaderResourceParameter, PostprocessInputParameterSampler0)
+	{ return true; }
 };
 
-// Implement shaders inside UE
-IMPLEMENT_SHADER_TYPE(, FOutputRemapVS, OutputRemapShaderFileName, TEXT("OutputRemap_VS"), SF_Vertex);
 IMPLEMENT_SHADER_TYPE(, FOutputRemapPS, OutputRemapShaderFileName, TEXT("OutputRemap_PS"), SF_Pixel);
 
+class FOutputRemapVS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FOutputRemapVS);
+	SHADER_USE_PARAMETER_STRUCT(FOutputRemapVS, FGlobalShader);
+
+	using FParameters = FOutputRemapVertexShaderParameters;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+};
+
+IMPLEMENT_SHADER_TYPE(, FOutputRemapVS, OutputRemapShaderFileName, TEXT("OutputRemap_VS"), SF_Vertex);
 
 DECLARE_GPU_STAT_NAMED(nDisplay_PostProcess_OutputRemap, TEXT("nDisplay PostProcess::OutputRemap"));
 
 bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const FDisplayClusterRender_MeshComponentProxy& InMeshProxy)
 {
 	check(IsInRenderingThread());
+	if (InSourceTexture == nullptr || InRenderTargetableDestTexture == nullptr)
+	{
+		return false;
+	}
 
 	FDisplayClusterRender_MeshComponentProxy const* MeshProxy = &InMeshProxy;
 
@@ -121,8 +103,18 @@ bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRema
 		case EVarOutputRemapShaderType::Passthrough:
 		{
 			// Use simple 1:1 test mesh for shader forwarding
-			static FDisplayClusterRender_MeshComponentProxy* TestMesh_Passthrough = new FDisplayClusterRender_MeshComponentProxy(FDisplayClusterRender_MeshGeometry(EDisplayClusterRender_MeshGeometryCreateType::Passthrough));
-			MeshProxy = TestMesh_Passthrough;
+			static FDisplayClusterRender_MeshComponent TestMesh_Passthrough;
+			if (TestMesh_Passthrough.GetProxy())
+			{
+				if (!TestMesh_Passthrough.GetProxy()->IsValid_RenderThread())
+				{
+					FDisplayClusterRender_MeshGeometry PassthroughMeshGeometry(EDisplayClusterRender_MeshGeometryCreateType::Passthrough);
+					FDisplayClusterRender_MeshComponentProxyData ProxyData(FDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace, PassthroughMeshGeometry);
+					TestMesh_Passthrough.GetProxy()->UpdateRHI_RenderThread(RHICmdList, &ProxyData);
+				}
+
+				MeshProxy = TestMesh_Passthrough.GetProxy();
+			}
 			break;
 		}
 
@@ -139,37 +131,45 @@ bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRema
 	SCOPED_GPU_STAT(RHICmdList, nDisplay_PostProcess_OutputRemap);
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_PostProcess_OutputRemap);
 
-	FIntRect DstRect(FIntPoint(0, 0), InRenderTargetableDestTexture->GetSizeXY());
+	const ERHIFeatureLevel::Type RenderFeatureLevel = GMaxRHIFeatureLevel;
+	const auto GlobalShaderMap = GetGlobalShaderMap(RenderFeatureLevel);
 
-	// Single render pass remap
-	FRHIRenderPassInfo RPInfo(InRenderTargetableDestTexture, ERenderTargetActions::Clear_Store);
+	const FIntPoint TargetSizeXY = InRenderTargetableDestTexture->GetSizeXY();
+
+	TShaderMapRef<FOutputRemapVS> VertexShader(GlobalShaderMap);
+	TShaderMapRef<FOutputRemapPS> PixelShader(GlobalShaderMap);
+
+	FRHIRenderPassInfo RPInfo(InRenderTargetableDestTexture, ERenderTargetActions::DontLoad_Store);
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_OutputRemap"));
 	{
-		// Set the graphic pipeline state.
+		// Do clear
+		RHICmdList.SetViewport(0, 0, 0.0f, InRenderTargetableDestTexture->GetSizeXY().X, InRenderTargetableDestTexture->GetSizeXY().Y, 1.0f);
+		DrawClearQuad(RHICmdList, FLinearColor::Black);
+	}
+	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-		RHICmdList.SetViewport(0, 0, 0.0f, DstRect.Max.X, DstRect.Max.Y, 1.0f);
-
 		if (MeshProxy->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit))
 		{
-
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Never>::GetRHI();
 			GraphicsPSOInit.BlendState = TStaticBlendState <>::GetRHI();
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-			FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-			TShaderMapRef<FOutputRemapVS> VertexShader(ShaderMap);
-			TShaderMapRef<FOutputRemapPS> PixelShader(ShaderMap);
-
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;// GetVertexDeclarationFVector4();
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			PixelShader->SetParameters(RHICmdList, PixelShader.GetPixelShader(), InSourceTexture);
+			FOutputRemapPixelShaderParameters PSParameters;
+			{
+				PSParameters.PostprocessInput0 = InSourceTexture;
+				PSParameters.PostprocessInput0Sampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			}
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PSParameters);
 
 			MeshProxy->FinishRender_RenderThread(RHICmdList);
 			bResult = true;

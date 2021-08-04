@@ -676,7 +676,7 @@ void FConcertTakeRecorderManager::OnSessionConnectionChanged(IConcertClientSessi
 
 void FConcertTakeRecorderManager::ReportRecordingError(FText &OutputError)
 {
-	if(IsTakeSyncEnabled() && !CanAnyRecord())
+	if(WeakSession.IsValid() && IsTakeSyncEnabled() && !CanAnyRecord())
 	{
 		OutputError = LOCTEXT("ErrorWidget_NoRecorder", "No clients are available to record.");
 	}

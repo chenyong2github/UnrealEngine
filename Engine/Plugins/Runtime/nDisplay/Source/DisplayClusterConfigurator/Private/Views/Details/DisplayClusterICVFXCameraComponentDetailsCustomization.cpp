@@ -13,6 +13,8 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailGroup.h"
+#include "DetailWidgetRow.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterICVFXCameraComponentDetailsCustomization"
 
@@ -142,19 +144,22 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumRotation)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumOffset)
 
-		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndMipsEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.GenerateMips.bAutoGenerateMips);
+		ADD_NESTED_PROPERTY_ENABLE_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips, CameraEnabledEditCondition)
+		HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MipsAddressU)
+		HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MipsAddressV)
 	
-		ADD_NESTED_PROPERTY_ENABLE_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MaxNumMips, CameraAndMipsEditCondition)
+		if (!bIsCDO)
+		{
+			HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.bEnabledMaxNumMips)
+			HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MaxNumMips)
+		}
 
 		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraMotionBlur, CameraEnabledEditCondition)
 
-		ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.PostprocessBlur, CameraEnabledEditCondition)
-		ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips, CameraEnabledEditCondition)
+		BEGIN_GROUP_WITH_TOOLTIP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Inner Frustum"), LOCTEXT("HiddenContentGroupTooltip", "Content specified here will not appear in the inner frustum, but can appear in the nDisplay viewports."))
 
-		BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Camera"))
-		
-			ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.ActorLayers, CameraEnabledEditCondition)
-			ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.Actors, CameraEnabledEditCondition)
+			ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.ActorLayers, LOCTEXT("HiddenContentLayersTooltip", "Layers hidden from the inner frustum."), CameraEnabledEditCondition)
+			ADD_GROUP_NESTED_PROPERTY_WITH_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.Actors, LOCTEXT("HiddenContentActorsTooltip", "Actors hidden from the inner frustum."), CameraEnabledEditCondition)
 
 			if (bIsCDO)
 			{
@@ -169,36 +174,37 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 
 		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.bEnable, CameraEnabledEditCondition)
 		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyColor, CameraAndChromakeyEditCondition)
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyRenderTexture, CameraAndChromakeyEditCondition)
 		ADD_EXPANDED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyMarkers, CameraAndChromakeyEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyRenderTexture, CameraAndChromakeyEditCondition)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OCIOCategory)
-		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndOCIOEnabledEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.AllNodesOCIOConfiguration.bIsEnabled);
+		CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(OCIOEnabledEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesOCIOConfiguration.bIsEnabled);
 
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesOCIOConfiguration.bIsEnabled, LOCTEXT("bEnableInnerFrustumOCIOLabel", "Enable Inner Frustum OCIO"), CameraEnabledEditCondition)
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesOCIOConfiguration.ColorConfiguration, LOCTEXT("AllNodesColorConfigurationGroupLabel", "All Nodes Color Configuration"), CameraAndOCIOEnabledEditCondition)
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeOCIOProfiles, CameraAndOCIOEnabledEditCondition)
+		RENAME_NESTED_PROPERTY_AND_TOOLTIP(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesOCIOConfiguration.bIsEnabled, LOCTEXT("bEnableInnerFrustumOCIOLabel", "Enable Inner Frustum OCIO"), LOCTEXT("bEnableInnerFrustumOCIOTooltip", "Enable the application of an OpenColorIO configuration to all nodes."))
+		RENAME_NESTED_PROPERTY_AND_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesOCIOConfiguration.OCIOConfiguration.ColorConfiguration, LOCTEXT("AllNodesColorConfigurationGroupLabel", "All Nodes Color Configuration"), LOCTEXT("AllNodesColorConfigurationGroupTooltip", "Apply this OpenColorIO configuration to all nodes."), OCIOEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeOCIOProfiles, OCIOEnabledEditCondition)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory)
-		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndColorGradingEnabledEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.AllNodesColorGradingConfiguration.bIsEnabled);
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGrading.bEnableInnerFrustumAllNodesColorGrading);
 
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.bIsEnabled, LOCTEXT("bEnableCameraColorGrandingLabel", "Enable Inner Frustum Color Granding"), CameraEnabledEditCondition)
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.bExcludeFromOverallClusterPostProcess, LOCTEXT("bExcludeAllNodesColorConfigurationGroupLabel", "Ignore Entire Cluster Color Granding"), CameraAndColorGradingEnabledEditCondition)
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.PostProcessSettings, LOCTEXT("AllNodesColorGrandingGroupLabel", "All Nodes Color Granding"), CameraAndColorGradingEnabledEditCondition)
-
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGradingProfiles, CameraAndColorGradingEnabledEditCondition)
+		RENAME_NESTED_CONDITIONAL_PROPERTY(NestedPropertyHelper,
+			UDisplayClusterICVFXCameraComponent,
+			CameraSettings.AllNodesColorGrading,
+			LOCTEXT("AllNodesColorGradingLabel", "All Nodes"),
+			CameraSettings.AllNodesColorGrading.bEnableInnerFrustumAllNodesColorGrading)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGrading);
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OverrideCategory)
-		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndOverrideEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Override.bAllowOverride);
-		CREATE_NESTED_PROPERTY_EDITCONDITION_3ARG(TextureRegionEditCondition,     NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Override.bAllowOverride, CameraSettings.RenderSettings.Override.bShouldUseTextureRegion);
+		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndOverrideEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Replace.bAllowReplace);
+		CREATE_NESTED_PROPERTY_EDITCONDITION_3ARG(TextureRegionEditCondition,     NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Replace.bAllowReplace, CameraSettings.RenderSettings.Replace.bShouldUseTextureRegion);
 
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.bAllowOverride, LOCTEXT("bAllowOverrideLabel", "Enable Inner Frustum Override"), CameraEnabledEditCondition)
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.SourceTexture, CameraAndOverrideEditCondition)
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.bShouldUseTextureRegion, CameraAndOverrideEditCondition)
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.TextureRegion, TextureRegionEditCondition)
+		RENAME_NESTED_PROPERTY_AND_TOOLTIP_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Replace.bAllowReplace, LOCTEXT("bAllowReplaceLabel", "Enable Inner Frustum Texture Replacement"), LOCTEXT("bAllowReplaceLabelTooltip", "Set to True to replace the entire inner frustum with the specified texture."),  CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Replace.SourceTexture, CameraAndOverrideEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Replace.bShouldUseTextureRegion, CameraAndOverrideEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Replace.TextureRegion, TextureRegionEditCondition)
 	END_CATEGORY();
 }
 

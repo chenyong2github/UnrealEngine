@@ -44,6 +44,9 @@ public:
 	void AddParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin);
 	void AddParameter(const UNiagaraScriptVariable* ScriptVar, const UEdGraphPin* AddPin);
 
+	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
+	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_MAX; };
+
 protected:
 	virtual bool AllowDynamicPins() const { return true; }
 
@@ -78,9 +81,6 @@ protected:
 	virtual void MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToMove);
 
 	virtual bool OnVerifyTextChanged(const FText& NewText, FText& OutMessage) { return true; };
-
-	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
-	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_MAX; };
 
 	bool IsValidPinToCompile(UEdGraphPin* Pin) const override;
 

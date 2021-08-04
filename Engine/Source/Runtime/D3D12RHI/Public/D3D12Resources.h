@@ -175,6 +175,7 @@ private:
 	D3D12_HEAP_TYPE HeapType;
 	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress;
 	void* ResourceBaseAddress;
+	int32 NumMapCalls = 0;
 	FName DebugName;
 
 #if NV_AFTERMATH
@@ -220,9 +221,17 @@ public:
 
 	inline void* Map(const D3D12_RANGE* ReadRange = nullptr)
 	{
+		if (NumMapCalls == 0)
+		{
 		check(Resource);
 		check(ResourceBaseAddress == nullptr);
 		VERIFYD3D12RESULT(Resource->Map(0, ReadRange, &ResourceBaseAddress));
+		}
+		else
+		{
+			check(ResourceBaseAddress);
+		}
+		++NumMapCalls;
 
 		return ResourceBaseAddress;
 	}
@@ -231,9 +240,14 @@ public:
 	{
 		check(Resource);
 		check(ResourceBaseAddress);
-		Resource->Unmap(0, nullptr);
+		check(NumMapCalls > 0);
 
+		--NumMapCalls;
+		if (NumMapCalls == 0)
+		{
+		Resource->Unmap(0, nullptr);
 		ResourceBaseAddress = nullptr;
+	}
 	}
 
 	ID3D12Pageable* GetPageable();

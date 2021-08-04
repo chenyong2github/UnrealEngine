@@ -1171,6 +1171,9 @@ FInitBodiesHelperBase::FInitBodiesHelperBase(TArray<FBodyInstance*>& InBodies, T
 	, PrimitiveComp(InPrimitiveComp)
 	, PhysScene(InRBScene)
 	, Aggregate(InAggregate)
+#if USE_BODYINSTANCE_DEBUG_NAMES
+	, DebugName(new FString())
+#endif
 	, bInstanceSimulatePhysics(false)
 	, InstanceBlendWeight(-1.f)
 	, SkelMeshComp(nullptr)
@@ -1178,7 +1181,7 @@ FInitBodiesHelperBase::FInitBodiesHelperBase(TArray<FBodyInstance*>& InBodies, T
 	, DisableQueryOnlyActors(!!CDisableQueryOnlyActors.GetValueOnGameThread())
 {
 #if USE_BODYINSTANCE_DEBUG_NAMES
-	PhysXName = GetDebugDebugName(PrimitiveComp, BodySetup, DebugName);
+	PhysXName = GetDebugDebugName(PrimitiveComp, BodySetup, *DebugName);
 #endif
 }
 
@@ -1281,8 +1284,10 @@ bool FInitBodiesHelperBase::CreateShapesAndActors()
 
 #if !USE_BODYINSTANCE_DEBUG_NAMES
 		FString DebugName;
-#endif
 		FBodyInstance::ValidateTransform(Transform, DebugName, BodySetup);
+#else
+		FBodyInstance::ValidateTransform(Transform, *DebugName, BodySetup);
+#endif
 
 		Instance->OwnerComponent = PrimitiveComp;
 		Instance->BodySetup = BodySetup;
@@ -1359,6 +1364,9 @@ bool FInitBodiesHelperBase::CreateShapesAndActors()
 		}
 
 		FPhysicsInterface::SetActorUserData_AssumesLocked(Instance->ActorHandle, &Instance->PhysicsUserData);
+#if USE_BODYINSTANCE_DEBUG_NAMES
+		Instance->ActorHandle->GetParticle_LowLevel()->SetDebugName(DebugName);
+#endif
 	}
 	return true;
 }

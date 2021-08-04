@@ -35,4 +35,30 @@ cannot undefine the value.
 #endif
 
 #define OPENCV_INCLUDES_END THIRD_PARTY_INCLUDES_END UE_POP_MACRO("check")
-	
+	#if WITH_OPENCV
+
+class UTexture2D;
+class FString;
+class FName;
+
+namespace cv
+{
+	class Mat;
+};
+
+class OPENCVHELPER_API FOpenCVHelper
+{
+public:
+		/**
+	 * Creates a Texture from the given Mat, if its properties (e.g. pixel format) are supported.
+	 * 
+	 * @param Mat The OpenCV Mat to convert.
+	 * @param PackagePath Optional path to a package to create the texture in.
+	 * @param TextureName Optional name for the texture. Required if PackagePath is not nullptr.
+	 * 
+	 * @return Texture created out of the given OpenCV Mat.
+	 */
+	static UTexture2D* TextureFromCvMat(cv::Mat& Mat, const FString* PackagePath = nullptr, const FName* TextureName = nullptr);
+};
+
+#endif //WITH_OPENCV

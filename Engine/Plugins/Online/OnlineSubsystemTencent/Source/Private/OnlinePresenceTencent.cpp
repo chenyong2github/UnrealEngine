@@ -264,7 +264,11 @@ void FOnlinePresenceTencent::QueryPresence(const FUniqueNetId& User, const FOnPr
 				PresenceSessionIdData->GetValue(SessionIdStr);
 				if (!SessionIdStr.IsEmpty())
 				{
-					(*Cached)->SessionId = FUniqueNetIdString::Create(SessionIdStr);
+					FOnlineSessionTencentPtr SessionInt = StaticCastSharedPtr<FOnlineSessionTencent>(StrongThis->TencentSubsystem->GetSessionInterface());
+					if (SessionInt.IsValid())
+					{
+						(*Cached)->SessionId = SessionInt->CreateSessionIdFromString(SessionIdStr);
+					}
 				}
 			}
 			else

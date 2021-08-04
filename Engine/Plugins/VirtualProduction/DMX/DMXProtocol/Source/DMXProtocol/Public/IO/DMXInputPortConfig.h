@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DMXProtocolModule.h"
 #include "DMXProtocolTypes.h"
 
 #include "CoreMinimal.h"
@@ -63,7 +64,7 @@ struct DMXPROTOCOL_API FDMXInputPortConfig
 
 public:
 	/** Default constructor, only for Default Objects */
-	FDMXInputPortConfig() = default;
+	FDMXInputPortConfig();
 
 	/** Constructs a config from the guid */
 	explicit FDMXInputPortConfig(const FGuid& InPortGuid);
@@ -77,7 +78,7 @@ public:
 	FORCEINLINE const FString& GetPortName() const { return PortName; }
 	FORCEINLINE const FName& GetProtocolName() const { return ProtocolName; }
 	FORCEINLINE EDMXCommunicationType GetCommunicationType() const { return CommunicationType; }
-	FORCEINLINE const FString& GetDeviceAddress() const { return DeviceAddress; }
+	FString GetDeviceAddress() const;
 	FORCEINLINE int32 GetLocalUniverseStart() const { return LocalUniverseStart; }
 	FORCEINLINE int32 GetNumUniverses() const { return NumUniverses; }
 	FORCEINLINE int32 GetExternUniverseStart() const { return ExternUniverseStart; }
@@ -89,6 +90,8 @@ public:
 	static FName GetProtocolNamePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, ProtocolName); }
 	static FName GetCommunicationTypePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, CommunicationType); }
 	static FName GetDeviceAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, DeviceAddress); }
+	static FName GetPriorityStrategyPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, PriorityStrategy); }
+	static FName GetPriorityPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, Priority); }
 	static FName GetPortGuidPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, PortGuid); }
 #endif // WITH_EDITOR
 
@@ -99,30 +102,30 @@ protected:
 
 	/** DMX Protocol */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	FName ProtocolName;
+	FName ProtocolName = FDMXProtocolModule::DefaultProtocolArtNetName;
 
 	/** The type of communication used with this port */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	EDMXCommunicationType CommunicationType;
+	EDMXCommunicationType CommunicationType = EDMXCommunicationType::InternalOnly;
 
 	/** The Network Interface Card's IP Adress, over which DMX is received */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
-	FString DeviceAddress; 
+	FString DeviceAddress = TEXT("127.0.0.1");
 
 	/** Local Start Universe */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	int32 LocalUniverseStart;
+	int32 LocalUniverseStart = 1;
 
 	/** Number of Universes */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Amount of Universes"))
-	int32 NumUniverses;
+	int32 NumUniverses = 10;
 
 	/** 
 	 * The start address this being transposed to. 
 	 * E.g. if LocalUniverseStart is 1 and this is 100, Local Universe 1 is sent/received as Universe 100.
 	 */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	int32 ExternUniverseStart;
+	int32 ExternUniverseStart = 1;
 
 	/** How to deal with the priority value */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")

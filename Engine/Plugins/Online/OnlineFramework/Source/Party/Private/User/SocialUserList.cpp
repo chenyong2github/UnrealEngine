@@ -46,6 +46,7 @@ void FSocialUserList::InitializeList()
 		break;
 	case ESocialRelationship::PartyInvite:
 		OwnerToolkit->OnPartyInviteReceived().AddSP(this, &FSocialUserList::HandlePartyInviteReceived);
+		OwnerToolkit->OnPartyInviteRemoved().AddSP(this, &FSocialUserList::HandlePartyInviteRemoved);
 		break;
 	case ESocialRelationship::Friend:
 		OwnerToolkit->OnFriendshipEstablished().AddSP(this, &FSocialUserList::HandleFriendshipEstablished);
@@ -153,6 +154,12 @@ void FSocialUserList::HandleOwnerToolkitReset()
 void FSocialUserList::HandlePartyInviteReceived(USocialUser& InvitingUser)
 {
 	TryAddUser(InvitingUser);
+	UpdateListInternal();
+}
+
+void FSocialUserList::HandlePartyInviteRemoved(USocialUser& InvitingUser)
+{
+	TryRemoveUser(InvitingUser);
 	UpdateListInternal();
 }
 
@@ -289,7 +296,7 @@ void FSocialUserList::TryAddUserFast(USocialUser& User)
 		else if (!bCanAdd && ListConfig.RelevantSubsystems.Contains(RelationshipSubsystem))
 		{
 			// Even if the user does not qualify for the list now due to presence filters, we still want to know about any changes to their presence to reevaluate
-			if (HasPresenceFilters() && !User.OnUserPresenceChanged().IsBoundToObject(this))
+			if ((HasPresenceFilters() || ListConfig.OnCustomFilterUser.IsBound()) && !User.OnUserPresenceChanged().IsBoundToObject(this))
 			{
 				User.OnUserPresenceChanged().AddSP(this, &FSocialUserList::HandleUserPresenceChanged, &User);
 			}
@@ -641,6 +648,7 @@ void FSocialUserList::UpdateListInternal()
 
 void FSocialUserList::HandlePartyJoined(USocialParty& Party)
 {
+	Party.OnPartyLeft().AddSP(this, &FSocialUserList::HandlePartyLeft, &Party);
 	Party.OnPartyMemberCreated().AddSP(this, &FSocialUserList::HandlePartyMemberCreated);
 
 	for (UPartyMember* PartyMember : Party.GetPartyMembers())
@@ -654,20 +662,40 @@ void FSocialUserList::HandlePartyJoined(USocialParty& Party)
 	UpdateNow();
 }
 
+void FSocialUserList::HandlePartyLeft(EMemberExitedReason Reason, USocialParty* LeftParty)
+{
+	if (LeftParty)
+	{
+		for (UPartyMember* ExistingMember : LeftParty->GetPartyMembers())
+		{
+			HandlePartyMemberLeft(EMemberExitedReason::Left, ExistingMember, false);
+		}
+
+		LeftParty->OnPartyLeft().RemoveAll(this);
+		LeftParty->OnPartyMemberCreated().RemoveAll(this);
+
+		UpdateNow();
+	}
+}
+
 void FSocialUserList::HandlePartyMemberCreated(UPartyMember& Member)
 {
-	Member.OnLeftParty().AddSP(this, &FSocialUserList::HandlePartyMemberLeft, &Member);
+	Member.OnLeftParty().AddSP(this, &FSocialUserList::HandlePartyMemberLeft, &Member, true);
 	MarkPartyMemberAsDirty(Member);
 	UpdateNow();
 }
 
-void FSocialUserList::HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMember* Member)
+void FSocialUserList::HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMember* Member, bool bUpdateNow)
 {
 	if (ensure(Member))
 	{
 		MarkPartyMemberAsDirty(*Member);
+
+		if (bUpdateNow)
+		{
+			UpdateNow();
 	}
-	UpdateNow();
+	}
 }
 
 USocialUser* FSocialUserList::FindOwnersRelationshipTo(UPartyMember& TargetPartyMember) const

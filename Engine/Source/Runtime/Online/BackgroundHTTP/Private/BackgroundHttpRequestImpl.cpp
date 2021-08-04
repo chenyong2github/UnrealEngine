@@ -49,6 +49,10 @@ void FBackgroundHttpRequestImpl::ResumeRequest()
 
 void FBackgroundHttpRequestImpl::OnBackgroundDownloadComplete()
 {
+	//The complete delegate should only be firing on the game thread 
+	//so that requestors don't have to worry about thread safety unexpectedly
+	ensureAlwaysMsgf(IsInGameThread(), TEXT("Called from un-expected thread! Potential error in an implementation of background downloads!"));
+
 	FBackgroundHttpModule::Get().GetBackgroundHttpManager()->RemoveRequest(SharedThis(this));
 
 	//Determine if this was a success or not

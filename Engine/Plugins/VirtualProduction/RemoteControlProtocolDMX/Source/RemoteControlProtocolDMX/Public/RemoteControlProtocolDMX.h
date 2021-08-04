@@ -6,13 +6,12 @@
 
 #include "DMXProtocolCommon.h"
 #include "RemoteControlProtocolBinding.h"
-#include "Tickable.h"
 #include "IO/DMXInputPortReference.h"
+#include "Library/DMXEntityFixtureType.h"
 
 #include "RemoteControlProtocolDMX.generated.h"
 
 class FRemoteControlProtocolDMX;
-enum class EDMXFixtureSignalFormat : uint8;
 
 /**
  * Using as an inner struct for details customization.
@@ -45,6 +44,7 @@ public:
 	//~ Begin FRemoteControlProtocolEntity interface
 	virtual FName GetRangePropertyName() const override { return NAME_UInt32Property; }
 	virtual uint8 GetRangePropertySize() const override;
+	virtual const FString& GetRangePropertyMaxValue() const override;
 	//~ End FRemoteControlProtocolEntity interface
 
 	/** Initialize struct and delegates */
@@ -64,11 +64,11 @@ public:
 	 * Most Fixtures use MSB (Most Significant Byte).
 	 */
 	UPROPERTY(EditAnywhere, Category = Mapping)
-	bool bUseLSB;
+	bool bUseLSB = false;
 
 	/** Defines the used number of channels (bytes) */
 	UPROPERTY(EditAnywhere, Category = Mapping)
-	EDMXFixtureSignalFormat DataType;
+	EDMXFixtureSignalFormat DataType = EDMXFixtureSignalFormat::E8Bit;
 
 	/** Extra protocol settings. Primary using for customization */
 	UPROPERTY(EditAnywhere, Category = Mapping, meta=(ShowOnlyInnerProperties))

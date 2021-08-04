@@ -3081,8 +3081,7 @@ static void SendMemoryWarningContext()
 	else
 	{
 		const FAndroidMemoryWarningContext& Context = GAndroidMemoryWarningContext;
-		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. %d, %d %d %d"), Context.LastTrimMemoryState
-			   , Context.LastNativeMemoryAdvisorState, Context.MemoryAdvisorEstimatedAvailableMemoryMB, Context.OomScore);
+		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. Last Trim Memory State: %d"), Context.LastTrimMemoryState);
 	}
 }
 
@@ -3104,21 +3103,6 @@ FORCEINLINE bool ValueOutsideThreshold(float Value, float BaseLine, float Thresh
 {
 	return Value > BaseLine * (1.0f + Threshold)
 		|| Value < BaseLine * (1.0f - Threshold);
-}
-
-void FAndroidMisc::UpdateMemoryAdvisorState(int State, int EstimateAvailableMB, int OOMScore)
-{
-	bool bUpdate = GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState != State;
-	bUpdate |= ValueOutsideThreshold(EstimateAvailableMB, GAndroidMemoryWarningContext.MemoryAdvisorEstimatedAvailableMemoryMB, GAndroidMemoryStateChangeThreshold);
-	bUpdate |= ValueOutsideThreshold(OOMScore, GAndroidMemoryWarningContext.OomScore, GAndroidMemoryStateChangeThreshold);
-
-	if (bUpdate)
-	{
-		GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState = State;
-		GAndroidMemoryWarningContext.MemoryAdvisorEstimatedAvailableMemoryMB = EstimateAvailableMB;
-		GAndroidMemoryWarningContext.OomScore = OOMScore;
-		SendMemoryWarningContext();
-	}
 }
 
 void FAndroidMisc::SetMemoryWarningHandler(void (*InHandler)(const FGenericMemoryWarningContext& Context))

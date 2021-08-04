@@ -18,14 +18,6 @@ class IDMXSender;
 
 
 /**
- * Delegate used when a network interface has been changed
- *
- * @param InMessage Error message
- */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkInterfaceChanged, const FString& /*InMessage*/);
-typedef FOnNetworkInterfaceChanged::FDelegate FOnNetworkInterfaceChangedDelegate;
-
-/**  
  * Serves as a higher level abstraction of a specific protocol such as Art-Net or sACN with the purpose to hide its complexity. 
  * 
  * By that the commonly expected responsability of the implementation is to:
@@ -36,42 +28,28 @@ typedef FOnNetworkInterfaceChanged::FDelegate FOnNetworkInterfaceChangedDelegate
  * For an overview for DMX and protocol developers, see DMXPortManager (in IO folder)
  * For an exemplary implementation, see DMXProtocolArtNet (in ProtocolArtNetModule)
  *
- * FOR PROTOCOL DEVELOPERS
- * =======================
- *
- * * Naming Guideline/Terminology
- * ============================
- *
- * Senders, Receivers		Send and Receive Protocol specific DMX. For protocol implementations only, should not be publicly exposed.
- * InputPorts, OutputPorts	Send and Receive Protocol agnostic DMX.
- * Listeners				Listen to DMX traffic of Ports and input heard DMX into the engine. 
- *
  * DMX Protocol Life-Cycle 
  * =======================
  *
  * Startup:
  *
- *  1. DMX Protocol Module gets instantiated (Pre-Default).
- *		- DMX Protocol Manager gets created
- *		- DMX Protocol Settings CDO gets created
+ *  1. All DMX Modules should be set to load in the Predefault loading phase and bind to FDMXProtocolModule::GetOnRequestProtocolRegistration().
  *
- *  2. Modules that implement actual protocol (e.g. DMXProtocolArtNet) are instantiated. 
- *		- Each module registeres itself with the Protocol Module via IDMXProtocolModule::RegisterProtocol
- *		- The module waits for all protocols being registered
- *		- A check is hit if more protocol modules register itself than expected 
- *		  To add a new protocol you need to increase the counter in DMXProtocolModule.
+ *  2. At the end of the Pre-Default loading phase DMXProtocol Broadcasts GetOnRequestProtocolRegistration.
+ *     Protocol should now provide their Name and DMXProtocolFactory.
+ *     All protocols registered can be selected in Project Settings -> Plugins -> DMX -> Communication settings
  *
- *  3. DMX Port Manager gets started
- *		- Looks up DMX Protocol Settings instantiates DMX Ports according to the DMX Port Config Arrays
- *		- Calls FDMXPort::Initialize on each port right after instantiation.
+ *  3. When a Input Port of a specific Protocol is created in Project Settings:
+ *		a) The input Port calls IDMXProtocol::RegisterInputPort. 
+ *         If the Protocol cannot handle the Input Port, e.g. because the network interface is not reachable, the protocol needs to return false.
+ *		b) The Protocol should pass received DMX by calling DMXInputPort::SingleProducerInputDMXSignal to the Input Ports. 
+ *		   Note: The Input Ports do the required filtering for relevant universes.
  *
- *  4. The DMX Ports register themselves with their protocol by calling IDMXProtocol::RegisterInputPort resp. IDMXProtocol::RegisterOutputPort.
- *		- Pass received DMX by calling DMXInputPort::SingleProducerInputDMXSignal on all Input Ports.
- *		  The Input Ports do the required filtering for relevant data, you don't need to do it.
- *		- The protocol needs to return an object that implements IDMXSender for each registered OutputPort.
- *		- If an Input Port cannot be registered, e.g. because the network interface is not reachable, the protocol needs to return false.
- *		- If an Output Port cannot be registered, e.g. because the network interface is not reachable, the protocol needs to return nullptr.
- *		(see DMXProtocolArtNet for an example)
+ *	   When an Output port of a specific Protocol is created in Project Settings:
+ *		a) The protocol needs to return an object that implements IDMXSender for each registered OutputPort.
+ *         If the Protocol cannot handle the Output Port, e.g. because the network interface is not reachable, the protocol needs to return nullptr.
+ *
+ *	See DMXProtocolArtNet for an example of a Protocol implementation.
  *
  */
 class DMXPROTOCOL_API IDMXProtocol 
@@ -129,6 +107,14 @@ public:
 	 * @return						Array of communication types the user can select from, when defining output ports in editor.
 	 */
 	virtual const TArray<EDMXCommunicationType> GetOutputPortCommunicationTypes() const = 0;
+
+
+	/**
+	 * Returns true if the Protocol supports a priority setting to filter inbound and outbound signals
+	 * 
+	 * @return						Whether the protocol supports Priority settings.
+	 */
+	virtual bool SupportsPrioritySettings() const = 0;
 
 	/** 
 	 * Called to register a DMXInputPort with the protocol. 

@@ -30,6 +30,7 @@ protected:
 	virtual void OnNewClassSet(UBlueprintGeneratedClass* ClassToUse) override;
 	virtual void PreCompile() override;
 	virtual void CopyTermDefaultsToDefaultObject(UObject* DefaultObject) override;
+	virtual void OnPostCDOCompiled() override;
 	/** ~FKismetCompilerContext interface */
 
 	/**

@@ -165,7 +165,13 @@ void UDisplayClusterConfiguratorFactory::SetupNewBlueprint(UDisplayClusterBluepr
 	
 	FDisplayClusterConfiguratorVersionUtils::SetToLatestVersion(NewBlueprint);
 	NewBlueprint->SetConfigData(UDisplayClusterConfigurationData::CreateNewConfigData());
-	// Setup default components.
+	
+	check(NewBlueprint->GeneratedClass);
+	UClass* SuperClass = NewBlueprint->GeneratedClass->GetSuperClass();
+	check(SuperClass);
+
+	// Setup default components only on newly created blueprints that aren't child blueprints.
+	if (SuperClass == ADisplayClusterRootActor::StaticClass())
 	{
 		// We add a screen component only. The DCRA already has a default camera (view point).
 		{
@@ -209,23 +215,30 @@ UDisplayClusterConfiguratorReimportFactory::UDisplayClusterConfiguratorReimportF
 
 bool UDisplayClusterConfiguratorReimportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	if (UDisplayClusterBlueprint* ConfiguratorEditorData = Cast<UDisplayClusterBlueprint>(Obj))
+	if (UDisplayClusterBlueprint* Blueprint = Cast<UDisplayClusterBlueprint>(Obj))
 	{
-		const FString& Path = ConfiguratorEditorData->GetConfigPath();
+		if(UDisplayClusterConfigurationData* ConfigData = Blueprint->GetConfig())
+		{
+			const FString& Path = ConfigData->ImportedPath;
 		if (!Path.IsEmpty())
 		{
 			OutFilenames.Add(Path);
 			return true;
 		}
 	}
+	}
 	return false;
 }
 
 void UDisplayClusterConfiguratorReimportFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
 {
-	if (UDisplayClusterBlueprint* ConfiguratorEditorData = Cast<UDisplayClusterBlueprint>(Obj))
+	if (UDisplayClusterBlueprint* Blueprint = Cast<UDisplayClusterBlueprint>(Obj))
 	{
-		ConfiguratorEditorData->SetConfigPath(NewReimportPaths[0]);
+		check(NewReimportPaths.Num() > 0);
+		Blueprint->SetConfigPath(NewReimportPaths[0]);
+		UDisplayClusterConfigurationData* ConfigData = Blueprint->GetConfig();
+		check(ConfigData);
+		ConfigData->ImportedPath = NewReimportPaths[0];
 	}
 }
 

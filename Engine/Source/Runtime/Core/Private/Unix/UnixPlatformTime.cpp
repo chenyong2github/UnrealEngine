@@ -15,14 +15,14 @@ char FUnixTime::CalibrationLog[4096] = {0};
 
 namespace FUnixTimeInternal
 {
-	FORCEINLINE double TimeValToMicroSec(timeval & tv)
+	constexpr double TimeValToMicroSec(timeval & tv)
 	{
 		return static_cast<double>(tv.tv_sec) * 1e6 + static_cast<double>(tv.tv_usec);
 	}
 
-	FORCEINLINE uint64 TimeSpecToMicroSec(timespec &ts)
+	constexpr uint64 TimeSpecToNanoSec(timespec &ts)
 	{
-		return static_cast<uint64>(ts.tv_sec) * 1000000000ULL + static_cast<uint64>(ts.tv_nsec);
+		return static_cast<uint64>(ts.tv_sec) * 1e9 + static_cast<uint64>(ts.tv_nsec);
 	}
 
 	constexpr double MicroSecondsToSeconds(double MicroSec)
@@ -49,14 +49,16 @@ double FUnixTime::InitTiming()
 		// Only ever set this ClockSource once
 		ClockSource = FUnixTime::CalibrateAndSelectClock();
 	}
+	SecondsPerCycle = 1e-6;
+	SecondsPerCycle64 = 1e-7;
 
-	return FGenericPlatformTime::InitTiming();
+	return FPlatformTime::Seconds();
 }
 
 FCPUTime FUnixTime::GetCPUTime()
 {
-	// minimum delay between checks to minimize overhead (and also match Windows version)
-	constexpr double MinDelayBetweenChecksMicroSec = 25 * 1e3;
+	// 250ms minimum delay between checks to minimize overhead (and also match Windows version)
+	constexpr double MinDelayBetweenChecksNanoSec = 250 * 1e6;
 	
 	if (UNLIKELY(ClockSource < 0))
 	{
@@ -66,13 +68,14 @@ FCPUTime FUnixTime::GetCPUTime()
 	struct timespec ts;
 	if (0 == clock_gettime(ClockSource, &ts))
 	{
-		const double CurrentTimeNanoSec = static_cast<double>(ts.tv_sec) * 1e9 + static_cast<double>(ts.tv_nsec);
+		const double CurrentTimeNanoSec = static_cast<double>(FUnixTimeInternal::TimeSpecToNanoSec(ts));
 
 		// see if we need to update the values
-		double TimeSinceLastUpdateMicroSec = ( CurrentTimeNanoSec - FUnixTimeInternal::PreviousUpdateTimeNanoSec ) / 1e3;
-		if (TimeSinceLastUpdateMicroSec >= MinDelayBetweenChecksMicroSec)
+		double TimeSinceLastUpdateNanoSec = CurrentTimeNanoSec - FUnixTimeInternal::PreviousUpdateTimeNanoSec;
+		if (TimeSinceLastUpdateNanoSec >= MinDelayBetweenChecksNanoSec)
 		{
-			UpdateCPUTime(TimeSinceLastUpdateMicroSec);
+			const float DeltaTimeInMs = MinDelayBetweenChecksNanoSec / 1e6;
+			UpdateCPUTime(DeltaTimeInMs);
 			FUnixTimeInternal::PreviousUpdateTimeNanoSec = CurrentTimeNanoSec;
 		}
 	}
@@ -80,27 +83,28 @@ FCPUTime FUnixTime::GetCPUTime()
 	return FCPUTime(FUnixTimeInternal::CurrentCpuUtilizationNormalized, FUnixTimeInternal::CurrentCpuUtilization);
 }
 
-bool FUnixTime::UpdateCPUTime(float DeltaTime)
+bool FUnixTime::UpdateCPUTime(float DeltaTimeInMs)
 {
 	struct rusage Usage;
 	if (0 == getrusage(RUSAGE_SELF, &Usage))
 	{
 		// Get delta between last two calls if the passed DeltaTime is zero
-		if (DeltaTime <= 0.0)
+		if (DeltaTimeInMs <= 0.0)
 		{
 			struct timespec ts;
 			if (0 == clock_gettime(ClockSource, &ts))
 			{
-				const double CurrentTimeNanoSec = static_cast<double>(ts.tv_sec) * 1e9 + static_cast<double>(ts.tv_nsec);
-				DeltaTime = (CurrentTimeNanoSec - FUnixTimeInternal::PreviousUpdateTimeNanoSec) / 1e3;
+				const double CurrentTimeNanoSec = static_cast<double>(FUnixTimeInternal::TimeSpecToNanoSec(ts));
+				DeltaTimeInMs = (CurrentTimeNanoSec - FUnixTimeInternal::PreviousUpdateTimeNanoSec) / 1e6;
 				FUnixTimeInternal::PreviousUpdateTimeNanoSec = CurrentTimeNanoSec;
 			}
 		}
 
+		const double DeltaTimeInMicroSec = DeltaTimeInMs * 1e3;
 		const double CurrentSystemAndUserProcessTimeMicroSec = FUnixTimeInternal::TimeValToMicroSec(Usage.ru_utime) + FUnixTimeInternal::TimeValToMicroSec(Usage.ru_stime); // holds all usages on all cores
 		const double CpuTimeDuringPeriodMicroSec = CurrentSystemAndUserProcessTimeMicroSec - FUnixTimeInternal::PreviousSystemAndUserProcessTimeMicroSec;
 
-		double CurrentCpuUtilizationHighPrec = CpuTimeDuringPeriodMicroSec / DeltaTime * 100.0;
+		double CurrentCpuUtilizationHighPrec = (CpuTimeDuringPeriodMicroSec / DeltaTimeInMicroSec) * 100.0;
 
 		// recalculate the values
 		FUnixTimeInternal::CurrentCpuUtilizationNormalized = static_cast<float>(CurrentCpuUtilizationHighPrec / static_cast<double>(FPlatformMisc::NumberOfCoresIncludingHyperthreads()));
@@ -130,7 +134,7 @@ uint64 FUnixTime::CallsPerSecondBenchmark(clockid_t BenchClockId, const char * B
 	}
 
 	// from now on we'll assume that clock_gettime cannot fail
-	uint64 StartTimestamp = FUnixTimeInternal::TimeSpecToMicroSec(ts);
+	uint64 StartTimestamp = FUnixTimeInternal::TimeSpecToNanoSec(ts);
 	uint64 EndTimeStamp = StartTimestamp;
 
 	uint64 NumCalls = 1;	// account for starting timestamp
@@ -140,7 +144,7 @@ uint64 FUnixTime::CallsPerSecondBenchmark(clockid_t BenchClockId, const char * B
 	{
 		clock_gettime(BenchClockId, &ts);
 
-		uint64 NewEndTimeStamp = FUnixTimeInternal::TimeSpecToMicroSec(ts);
+		uint64 NewEndTimeStamp = FUnixTimeInternal::TimeSpecToNanoSec(ts);
 		++NumCalls;
 
 		if (NewEndTimeStamp < EndTimeStamp)

@@ -104,6 +104,9 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Default Camera"), Category = "NDisplay|Components")
 	UDisplayClusterCameraComponent* GetDefaultCamera() const;
 
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Render")
+	bool SetReplaceTextureFlagForAllViewports(bool bReplace);
+
 	template <typename TComp>
 	TComp* GetComponentByName(const FString& ComponentName) const
 	{
@@ -184,6 +187,7 @@ private:
 	void GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames = nullptr, bool bCollectChildrenVisualizationComponent = true) const;
 
 public:
+	/** Set the priority for inner frustum rendering if there is any overlap when enabling multiple ICVFX cameras. */
 	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera VFX", meta = (TitleProperty = "Name"))
 	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
 
@@ -200,33 +204,29 @@ public:
 	}
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// EDITOR STUFF
+// EDITOR RELATED SETTINGS
 //////////////////////////////////////////////////////////////////////////////////////////////
 #if WITH_EDITORONLY_DATA
 public:
-	// Allow preview render
+	/** Render the scene and display it as a preview on the nDisplay root actor in the editor.  This will impact editor performance. */
 	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Enable Editor Preview"))
 	bool bPreviewEnable = true;
 	
-	// Render single node preview or whole cluster
+	/** Selectively preview a specific viewport or show all/none. */
 	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Node", EditCondition = "bPreviewEnable"))
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
-	// Preview Render mode for PIE
+	/** Render Mode */
 	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (EditCondition = "bPreviewEnable"))
 	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
 
-	// Update preview texture period in tick
+	/** Tick Per Frame */
 	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200", EditCondition = "bPreviewEnable"))
 	int TickPerFrame = 1;
 
-	// Preview texture size get from viewport, and scaled by this value
+	/** Adjust resolution scaling for the editor preview. */
 	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1", EditCondition = "bPreviewEnable"))
 	float PreviewRenderTargetRatioMult = 0.25;
-
-	/* Enable the on-screen camera preview widget when selecting this actor. Changing this value requires reselecting the actor. */
-	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Enable Inner Frustum Preview", EditCondition = "bPreviewEnable"))
-	bool bEnableICVFXCameraPreview = false;
 
 private:
 	UPROPERTY(Transient)

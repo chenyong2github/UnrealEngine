@@ -40,6 +40,21 @@ void ThrowAssertionFail(const utf8_t* InFile, int InLineNo)
 static std::set< ITraceListener* > STraceListeners;
 GS::Lock						   STraceListenersAccessControl;
 
+// Insure we aren't listeneing after being deleted
+ITraceListener::~ITraceListener()
+{
+    if (RemoveTraceListener(this) != 0)
+    {
+        UE_AC_DebugF("ITraceListener inheritor must be removed before\n");
+    }
+}
+
+// A new trace message
+void ITraceListener::NewTrace(EP2DB /* InTraceLevel */, const utf8_string& /* InMsg */)
+{
+    printf("ITraceListener::NewTrace - We must not come here\n");
+}
+
 // Add to set of listeners (deadlock risk if you call it from your NewTrace implementation)
 void ITraceListener::AddTraceListener(ITraceListener* InTraceListener)
 {
@@ -48,10 +63,10 @@ void ITraceListener::AddTraceListener(ITraceListener* InTraceListener)
 }
 
 // Remove from set of listeners (deadlock risk if you call it from a NewTrace implementation)
-void ITraceListener::RemoveTraceListener(ITraceListener* InTraceListener)
+size_t ITraceListener::RemoveTraceListener(ITraceListener* InTraceListener)
 {
 	GS::Guard< GS::Lock > lck(STraceListenersAccessControl);
-	STraceListeners.erase(InTraceListener);
+	return STraceListeners.erase(InTraceListener);
 }
 
 // Write string to log file

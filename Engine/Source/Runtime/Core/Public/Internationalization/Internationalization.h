@@ -366,6 +366,17 @@ namespace UE4LocGen_Private
 #define LOCGEN_DATETIME_LOCAL(InUnixTime, InDateStyle, InTimeStyle, InCulture) FText::AsDateTime(FDateTime::FromUnixTimestamp(InUnixTime), InDateStyle, InTimeStyle, FText::GetInvariantTimeZone(), UE4LocGen_Private::GetCultureImpl(TEXT(InCulture)))
 
 /**
+  * Generate an FText representation of the given timestamp as a date and time (alias for FText::AsDateTime).
+  * This macro exists to allow UHT to parse C++ default FText arguments in UFunctions (as this macro matches the syntax used by FTextStringHelper when exporting/importing stringified FText) and should not be used generally.
+  * @param InUnixTime	The Unix timestamp to generate the FText from.
+  * @param InPattern	The custom strftime-like pattern for the date/time string (see FDateTime::ToFormattedString).
+  * @param InTimeZone	The timezone to display the timestamp in.
+  * @param InCulture		The culture code to use, or an empty string to use the active locale.
+  */
+#define LOCGEN_DATETIME_CUSTOM_UTC(InUnixTime, InPattern, InTimeZone, InCulture) FText::AsDateTime(FDateTime::FromUnixTimestamp(InUnixTime), TEXT(InPattern), TEXT(InTimeZone), UE4LocGen_Private::GetCultureImpl(TEXT(InCulture)))
+#define LOCGEN_DATETIME_CUSTOM_LOCAL(InUnixTime, InPattern, InCulture) FText::AsDateTime(FDateTime::FromUnixTimestamp(InUnixTime), TEXT(InPattern), FText::GetInvariantTimeZone(), UE4LocGen_Private::GetCultureImpl(TEXT(InCulture)))
+
+/**
  * Generate an FText representation of the given FText when transformed into upper-case (alias for FText::ToUpper).
  * This macro exists to allow UHT to parse C++ default FText arguments in UFunctions (as this macro matches the syntax used by FTextStringHelper when exporting/importing stringified FText) and should not be used generally.
  */

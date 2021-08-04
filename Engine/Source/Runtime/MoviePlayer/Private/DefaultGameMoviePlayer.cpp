@@ -11,6 +11,7 @@
 #include "Input/HittestGrid.h"
 #include "Widgets/Layout/SBox.h"
 #include "GlobalShader.h"
+#include "MoviePlayerProxy.h"
 #include "MoviePlayerThreading.h"
 #include "MoviePlayerSettings.h"
 #include "ShaderCompiler.h"
@@ -22,6 +23,8 @@
 #include "Widgets/SVirtualWindow.h"
 #include "Rendering/SlateDrawBuffer.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Http.h"
+#include "HttpManager.h"
 #include "Widgets/Layout/SDPIScaler.h"
 #include "Engine/UserInterfaceSettings.h"
 
@@ -114,6 +117,8 @@ FDefaultGameMoviePlayer::FDefaultGameMoviePlayer()
 	, LastPlayTime(0.0)
 	, bInitialized(false)
 	, ViewportDPIScale(1.0f)
+	, BlockingRefCount(0)
+	, LastBlockingTickTime(0.0)
 {
 	FCoreDelegates::IsLoadingMovieCurrentlyPlaying.BindRaw(this, &FDefaultGameMoviePlayer::IsMovieCurrentlyPlaying);
     FCoreDelegates::RegisterMovieStreamerDelegate.AddRaw(this, &FDefaultGameMoviePlayer::RegisterMovieStreamer);
@@ -177,11 +182,9 @@ void FDefaultGameMoviePlayer::Initialize(FSlateRenderer& InSlateRenderer, TShare
 		GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
 	}
 
-	// Add a delegate to start playing movies when we start loading a map
-	FCoreUObjectDelegates::PreLoadMap.AddRaw( this, &FDefaultGameMoviePlayer::OnPreLoadMap );
-	
 	// Shutdown the movie player if the app is exiting
 	FCoreDelegates::OnPreExit.AddRaw( this, &FDefaultGameMoviePlayer::Shutdown );
+	FMoviePlayerProxy::RegisterServer(this);
 
 	FPlatformSplash::Hide();
 
@@ -242,6 +245,7 @@ void FDefaultGameMoviePlayer::Shutdown()
 {
 	UE_LOG(LogMoviePlayer, Log, TEXT("Shutting down movie player"));
 
+	FMoviePlayerProxy::UnregisterServer();
 	TSharedPtr<SWindow> MainWindowShared = MainWindow.Pin();
 	if (MainWindowShared.IsValid())
 	{
@@ -262,8 +266,6 @@ void FDefaultGameMoviePlayer::Shutdown()
 	bInitialized = false;
 
 	FCoreDelegates::OnPreExit.RemoveAll(this);
-	FCoreUObjectDelegates::PreLoadMap.RemoveAll( this );
-	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 
 	LoadingScreenContents.Reset();
 	UserWidgetHolder.Reset();
@@ -393,6 +395,8 @@ bool FDefaultGameMoviePlayer::PlayMovie()
 			}
 
 			bBeganPlaying = true;
+			LastBlockingTickTime = FPlatformTime::Seconds();
+			OnAsyncLoadingFlushUpdateDelegateHandle = FCoreDelegates::OnAsyncLoadingFlushUpdate.AddRaw(this, &FDefaultGameMoviePlayer::BlockingTick);
 		}
 
 		//Allow anything that set up this LoadingScreenAttribute to know the loading screen is now displaying
@@ -552,6 +556,8 @@ void FDefaultGameMoviePlayer::WaitForMovieToFinish(bool bAllowEngineTick)
 
 		LoadingIsDone.Set(1);
 		IsMoviePlaying = false;
+		FCoreDelegates::OnAsyncLoadingFlushUpdate.Remove(OnAsyncLoadingFlushUpdateDelegateHandle);
+		OnAsyncLoadingFlushUpdateDelegateHandle.Reset();
 
 		IXRLoadingScreen* LoadingScreen;
 		if (GEngine && GEngine->XRSystem.IsValid() && (LoadingScreen = GEngine->XRSystem->GetLoadingScreen()) != nullptr && SyncMechanism == nullptr)
@@ -608,10 +614,55 @@ bool FDefaultGameMoviePlayer::IsMovieStreamingFinished() const
 	return MovieStreamingIsDone.GetValue() != 0;
 }
 
+void FDefaultGameMoviePlayer::BlockingStarted()
+{
+	UE_LOG(LogMoviePlayer, Verbose, TEXT("BlockingStarted %d"), BlockingRefCount);
+	BlockingRefCount++;
+	PlayMovie();
+}
+
+void FDefaultGameMoviePlayer::BlockingTick()
+{
+	check(IsInGameThread());
+	if (IsMovieCurrentlyPlaying())
+	{
+		// Has enough time passed since the last tick?
+		double Time = FPlatformTime::Seconds();
+		double DeltaTime = Time - LastBlockingTickTime;
+		if (DeltaTime > 0.1f)
+		{
+			// Yes. Time for another tick.
+			LastBlockingTickTime = Time;
+			FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
+			HttpManager.Tick(0.0f);
+			UE_LOG(LogMoviePlayer, VeryVerbose, TEXT("BlockingTick deltatime:%f"), DeltaTime);
+		}
+	}
+}
+
+void FDefaultGameMoviePlayer::BlockingFinished()
+{
+	UE_LOG(LogMoviePlayer, Verbose, TEXT("BlockingFinished. Refcount: %d."), BlockingRefCount);
+	
+	// Uopdate ref count.
+	ensureMsgf(BlockingRefCount > 0, TEXT("MoviePlayer blockingrefcount <= 0."), BlockingRefCount);
+	BlockingRefCount--;
+	if (BlockingRefCount <= 0)
+	{
+		// Only call WaitForMovieToFinish if we are playing a movie,
+		// as WaitForMovieToFinish has side effects if a movie is not playing,
+		// and this can cause a hang.
+		if (LoadingScreenIsPrepared() && IsMovieCurrentlyPlaying())
+		{
+			WaitForMovieToFinish();
+		}
+	}
+}
+
 void FDefaultGameMoviePlayer::Tick( float DeltaTime )
 {
 	check(IsInRenderingThread());
-	if (MainWindow.IsValid() && VirtualRenderWindow.IsValid() && !IsLoadingFinished())
+	if (MainWindow.IsValid() && VirtualRenderWindow.IsValid() && !IsLoadingFinished() && GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
 	{
 		FScopeLock SyncMechanismLock(&SyncMechanismCriticalSection);
 		if(SyncMechanism)
@@ -820,25 +871,6 @@ FReply FDefaultGameMoviePlayer::OnAnyDown()
 	}
 
 	return FReply::Handled();
-}
-
-void FDefaultGameMoviePlayer::OnPreLoadMap(const FString& LevelName)
-{
-	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
-
-	if( PlayMovie() )
-	{
-		FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FDefaultGameMoviePlayer::OnPostLoadMap );
-	}
-}
-
-void FDefaultGameMoviePlayer::OnPostLoadMap(UWorld* LoadedWorld)
-{
-	if (!LoadingScreenAttributes.bAllowEngineTick)
-	{
-		// If engine tick is enabled, we don't want to tick here and instead want to run from the WaitForMovieToFinish call in LaunchEngineLoop
-		WaitForMovieToFinish();
-	}
 }
 
 void FDefaultGameMoviePlayer::SetSlateOverlayWidget(TSharedPtr<SWidget> NewOverlayWidget)

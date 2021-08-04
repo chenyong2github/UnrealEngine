@@ -59,8 +59,8 @@ public:
 			ServerConfig->bCleanWorkingDir |= FParse::Param(CommandLine, TEXT("CONCERTCLEAN"));
 			FParse::Bool(CommandLine, TEXT("-CONCERTCLEAN="), ServerConfig->bCleanWorkingDir);
 
-			ServerConfig->EndpointSettings.bEnableLogging |= FParse::Param(CommandLine, TEXT("CONCERTENABLELOGGING"));
-			FParse::Bool(CommandLine, TEXT("-CONCERTENABLELOGGING="), ServerConfig->EndpointSettings.bEnableLogging);
+			ServerConfig->EndpointSettings.bEnableLogging |= FParse::Param(CommandLine, TEXT("CONCERTLOGGING"));
+			FParse::Bool(CommandLine, TEXT("-CONCERTLOGGING="), ServerConfig->EndpointSettings.bEnableLogging);
 		}
 
 		return ServerConfig;

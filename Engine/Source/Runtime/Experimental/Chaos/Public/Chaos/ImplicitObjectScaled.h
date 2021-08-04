@@ -570,7 +570,14 @@ public:
 			{
 				//We double check that NewTime < Length because of potential precision issues. When that happens we always keep the shortest hit first
 				const T NewTime = LengthScaleInv * UnscaledTime;
-				if (NewTime < Length && NewTime != 0) // Normal/Position output may be uninitialized with TOI 0.
+				if (NewTime == 0) // Normal/Position output may be uninitialized with TOI 0 so we use ray information for that as the ray origin is likely inside the shape
+				{
+					OutPosition = StartPoint;
+					OutNormal = -Dir;
+					OutTime = NewTime;
+					return true;
+				}
+				else if (NewTime < Length) 
 				{
 					OutPosition = MScale * UnscaledPosition;
 					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal(TNumericLimits<T>::Min());

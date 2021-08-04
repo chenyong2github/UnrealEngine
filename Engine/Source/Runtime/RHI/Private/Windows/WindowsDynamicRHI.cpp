@@ -228,9 +228,16 @@ static TOptional<WindowsRHI> ChooseForcedRHI()
 		UE_LOG(LogRHI, Fatal, TEXT("-d3d12, -d3d11, -vulkan, and -opengl are mutually exclusive options, but more than one was specified on the command-line."));
 	}
 
-#if	!WITH_EDITOR
+#if	!WITH_EDITOR && UE_BUILD_SHIPPING
+	// In Shipping builds we can limit ES31 on Windows to only DX11. All RHIs are allowed by default.
+	bool bES31DXOnly = false;
+	if (!GIsEditor)
+	{
+		GConfig->GetBool(TEXT("PerformanceMode"), TEXT("bES31DXOnly"), bES31DXOnly, GEngineIni);
+	}
+
 	// FeatureLevelES31 is also a command line override, so it will determine the underlying RHI unless one is specified
-	if (FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")))
+	if (bES31DXOnly && FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")))
 	{
 		if (ForcedRHI == WindowsRHI::OpenGL)
 		{
@@ -255,7 +262,7 @@ static TOptional<WindowsRHI> ChooseForcedRHI()
 			ForcedRHI = WindowsRHI::D3D11;
 		}
 	}
-#endif// !WITH_EDITOR
+#endif //!WITH_EDITOR && UE_BUILD_SHIPPING
 
 	return ForcedRHI;
 }

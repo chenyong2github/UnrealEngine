@@ -5,12 +5,14 @@
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "IRemoteControlModule.h"
+#include "Math/NumericLimits.h"
 #include "RemoteControlObjectVersion.h"
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlBinding.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlPropertyHandle.h"
 #include "UObject/Class.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
 
@@ -193,9 +195,50 @@ TSharedPtr<IRemoteControlPropertyHandle> FRemoteControlProperty::GetPropertyHand
 	return FRemoteControlPropertyHandle::GetPropertyHandle(ThisPtr, Property, ParentProperty, ParentFieldPath, ArrayIndex);
 }
 
+void FRemoteControlProperty::EnableEditCondition()
+{
+#if WITH_EDITOR
+	if (FProperty* Property = GetProperty())
+	{
+		FRCFieldPathInfo EditConditionPath;
+
+		if (CachedEditConditionPath.GetSegmentCount())
+		{
+			EditConditionPath = CachedEditConditionPath;
+		}
+		else
+		{
+			const FString EditConditionPropertyName = Property->GetMetaData("EditCondition");
+			if (!EditConditionPropertyName.IsEmpty())
+			{
+				EditConditionPath = FieldPathInfo;
+				EditConditionPath.Segments.Pop();
+				EditConditionPath.Segments.Emplace(EditConditionPropertyName);
+				CachedEditConditionPath = EditConditionPath;
+			}
+		}
+
+		for (UObject* Object : GetBoundObjects())
+		{
+			if (EditConditionPath.Resolve(Object))
+			{
+				FRCFieldResolvedData Data = EditConditionPath.GetResolvedData();
+				if (ensure(Data.IsValid() && Data.Field->IsA(FBoolProperty::StaticClass())))
+				{
+					if (!Data.Field->HasAnyPropertyFlags(CPF_EditConst))
+					{
+						CastFieldChecked<FBoolProperty>(Data.Field)->SetPropertyValue_InContainer(Data.ContainerAddress, true);
+					}
+				}
+			}
+		}
+	}
+#endif
+}
+
 bool FRemoteControlProperty::IsEditableInPackaged() const
 {
-	return bIsEditableInPackaged || IRemoteControlModule::Get().PropertySupportsRawModificationWithoutEditor(GetProperty());
+	return bIsEditableInPackaged || IRemoteControlModule::Get().PropertySupportsRawModificationWithoutEditor(GetProperty(), GetSupportedBindingClass());
 }
 
 bool FRemoteControlProperty::Serialize(FArchive& Ar)
@@ -508,6 +551,7 @@ uint32 FRemoteControlFunction::HashFunctionArguments(UFunction* InFunction)
 FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 {
 	Ar.UsingCustomVersion(FRemoteControlObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	FRemoteControlFunction::StaticStruct()->SerializeTaggedProperties(Ar, (uint8*)&RCFunction, FRemoteControlFunction::StaticStruct(), nullptr);
 
@@ -520,16 +564,67 @@ FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 		}
 #endif
 		
+		int32 CustomVersion = Ar.CustomVer(FReleaseObjectVersion::GUID);
+		int64 NumSerializedBytesFromArchive = 0;
+
+		if (CustomVersion >= FReleaseObjectVersion::RemoteControlSerializeFunctionArgumentsSize)
+		{
+			Ar << NumSerializedBytesFromArchive;
+		}
+		
+		int64 ArgsBegin = Ar.Tell();
 		if (UFunction* Function = RCFunction.GetFunction())
 		{
 			RCFunction.FunctionArguments = MakeShared<FStructOnScope>(Function);
 			Function->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), Function, nullptr);
+
+			if (ArgsBegin != INDEX_NONE
+				&& NumSerializedBytesFromArchive != 0
+				&& (Ar.Tell() - ArgsBegin) != NumSerializedBytesFromArchive)
+			{
+				UE_LOG(LogRemoteControl, Warning, TEXT("Arguments size mismatch from size serialized in asset. Expected %d, Actual: %d"), NumSerializedBytesFromArchive, Ar.Tell() - ArgsBegin);
+				Ar.SetError();
 		}
+	}
+		else
+		{
+			UE_LOG(LogRemoteControl, Warning, TEXT("%s could not be loaded while deserialzing a Remote Control Function."), *RCFunction.FunctionPath.ToString());
+			Ar.SetError();
+			if (NumSerializedBytesFromArchive > 0)
+			{
+				// Skip over chunk of data if we were unable to resolve the class.
+				Ar.Seek(Ar.Tell() + NumSerializedBytesFromArchive);
+			}
+		}
+		
 	}
 	else if (RCFunction.CachedFunction.IsValid())
 	{
+		// The following code serializes the size of the arguments to serialize so that when loading,
+		// we can skip over it if the function could not be loaded.
+		const int64 ArgumentsSizePos = Ar.Tell();
+
+		// Serialize a temporary value for the delta in order to end up with an archive of the right size.
+		int64 ArgumentsSize = 0;
+		Ar << ArgumentsSize;
+
+		// Then serialize the arguments in order to get its size.
+		const int64 ArgsBegin = Ar.Tell();
 		RCFunction.CachedFunction->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), RCFunction.CachedFunction.Get(), nullptr);	
+
+		// Only go back and serialize the number of argument bytes if there is actually an underlying buffer to seek to.
+		if (ArgumentsSizePos != INDEX_NONE)
+		{
+			const int64 ArgsEnd = Ar.Tell();
+			ArgumentsSize = (ArgsEnd - ArgsBegin);
+
+			// Come back to the temporary value we wrote and overwrite it with the arguments size we just calculated.
+			Ar.Seek(ArgumentsSizePos);
+			Ar << ArgumentsSize;
+
+			// And finally seek back to the end.
+			Ar.Seek(ArgsEnd);
+		}
 	}
-		
 	return Ar;
 }

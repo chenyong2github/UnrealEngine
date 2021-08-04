@@ -21,6 +21,7 @@ const FString FAndroidPlatformBackgroundHttpRequest::GroupIDKey = "GroupId";
 
 FAndroidPlatformBackgroundHttpRequest::FAndroidPlatformBackgroundHttpRequest()
 	: bIsCompleted(false)
+	, bIsPaused(false)
 	, DownloadProgress(0)
 	, DownloadProgressSinceLastUpdateSent(0)
 {
@@ -123,6 +124,10 @@ void FAndroidPlatformBackgroundHttpRequest::UpdateDownloadProgress(int64_t Total
 
 void FAndroidPlatformBackgroundHttpRequest::SendDownloadProgressUpdate()
 {
+	//The download progress delegate should only be firing on the game thread 
+	//so that requestors don't have to worry about thread safety unexpectidly
+	ensureAlwaysMsgf(IsInGameThread(), TEXT("Called from un-expected thread! Potential error in an implementation of background downloads!"));
+
 	volatile int64 DownloadProgressCopy = FPlatformAtomics::AtomicRead(&DownloadProgress);
 
 	//Don't send any updates if we haven't updated anything since we last sent an update

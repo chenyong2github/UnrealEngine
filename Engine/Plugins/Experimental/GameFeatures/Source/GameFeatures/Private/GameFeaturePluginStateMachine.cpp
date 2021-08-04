@@ -593,7 +593,7 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 			float Progress = ProgressTracker->GetCurrentCombinedProgress().ProgressPercent;
 			UpdateProgress(Progress);
 
-			UE_LOG(LogGameFeatures, Display, TEXT("Download Progress: %f for PluginURL(%s)"), Progress, *StateProperties.PluginURL);
+			//UE_LOG(LogGameFeatures, Display, TEXT("Download Progress: %f for PluginURL(%s)"), Progress, *StateProperties.PluginURL);
 		}
 
 		return true;

@@ -86,6 +86,9 @@ public:
 	/** UObject interface */
 	virtual void BeginDestroy() override;
 
+	/** Disable this sequence player by removing any of its animation data from the entity manager */
+	void RemoveEvaluationData();
+
 	void TearDown();
 
 	DECLARE_EVENT_OneParam(UUMGSequencePlayer, FOnSequenceFinishedPlaying, UUMGSequencePlayer&);

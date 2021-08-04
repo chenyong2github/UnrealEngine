@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOpenCVHelperModule.h"
+#include "Containers/Set.h"
+#include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h" // for IMPLEMENT_MODULE()
 #include "Interfaces/IPluginManager.h"
 #include "HAL/PlatformProcess.h"
@@ -17,13 +19,35 @@ namespace OpenCVHelperModule
 {
 #if WITH_OPENCV
 
+	static TSet<void*> UnrealAllocationsSet;
+	static FCriticalSection UnrealAllocationsSetMutex;
+
 	static void* UnrealMalloc(size_t Count, uint32_t Alignment)
 	{
-		return FMemory::Malloc(static_cast<SIZE_T>(Count), static_cast<uint32>(Alignment));
+		void* Address = FMemory::Malloc(static_cast<SIZE_T>(Count), static_cast<uint32>(Alignment));
+
+		{
+			FScopeLock Lock(&UnrealAllocationsSetMutex);
+			UnrealAllocationsSet.Add(Address);
+		}
+
+		return Address;
 	}
 
 	static void UnrealFree(void* Original)
 	{
+		// Only free allocations made by Unreal. Any allocations made before new/delete was overridden will have to leak.
+		{
+			FScopeLock Lock(&UnrealAllocationsSetMutex);
+
+			if (!UnrealAllocationsSet.Contains(Original))
+			{
+				return;
+			}
+
+			UnrealAllocationsSet.Remove(Original);
+		}
+
 		FMemory::Free(Original);
 	}
 

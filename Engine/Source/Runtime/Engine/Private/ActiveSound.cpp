@@ -31,12 +31,12 @@ FAutoConsoleVariableRef CVarGatherInteriorDataFromAudioVolumes(
 	TEXT("0: Disabled, 1: Enabled (default)"),
 	ECVF_Default);
 
-static int32 GatherInteriorDataFromIActiveSoundUpdateCVar = 0;
+static int32 GatherInteriorDataFromIActiveSoundUpdateCVar = 1;
 FAutoConsoleVariableRef CVarGatherInteriorDataFromIActiveSoundUpdate(
 	TEXT("au.InteriorData.UseIActiveSoundUpdate"),
 	GatherInteriorDataFromIActiveSoundUpdateCVar,
 	TEXT("When set to 1, allows gathering of interior data from subsystems that implement the IActiveSoundUpdate interface.\n")
-	TEXT("0: Disabled (default), 1: Enabled"),
+	TEXT("0: Disabled, 1: Enabled (default)"),
 	ECVF_Default);
 
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;

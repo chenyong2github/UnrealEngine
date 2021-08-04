@@ -689,6 +689,21 @@ FText FText::AsDateTime(const FDateTime& DateTime, const EDateTimeStyle::Type Da
 	return Result;
 }
 
+FText FText::AsDateTime(const FDateTime& DateTime, const FString& CustomPattern, const FString& TimeZone, const FCulturePtr& TargetCulture)
+{
+	FInternationalization& I18N = FInternationalization::Get();
+	checkf(I18N.IsInitialized() == true, TEXT("FInternationalization is not initialized. An FText formatting method was likely used in static object initialization - this is not supported."));
+	const FCulture& Culture = TargetCulture.IsValid() ? *TargetCulture : *I18N.GetCurrentLocale();
+
+	FString ChronoString = FTextChronoFormatter::AsDateTime(DateTime, CustomPattern, TimeZone, Culture);
+	FText Result = FText(MakeShared<TGeneratedTextData<FTextHistory_AsDateTime>, ESPMode::ThreadSafe>(MoveTemp(ChronoString), FTextHistory_AsDateTime(DateTime, CustomPattern, TimeZone, TargetCulture)));
+	if (!GIsEditor)
+	{
+		Result.Flags |= ETextFlag::Transient;
+	}
+	return Result;
+}
+
 FText FText::AsTime(const FDateTime& DateTime, const EDateTimeStyle::Type TimeStyle, const FString& TimeZone, const FCulturePtr& TargetCulture)
 {
 	FInternationalization& I18N = FInternationalization::Get();
@@ -1968,6 +1983,7 @@ bool LexTryParseString(EDateTimeStyle::Type& OutValue, const TCHAR* Buffer)
 	ENUM_CASE_FROM_STRING(Medium);
 	ENUM_CASE_FROM_STRING(Long);
 	ENUM_CASE_FROM_STRING(Full);
+	ENUM_CASE_FROM_STRING(Custom);
 #undef ENUM_CASE_FROM_STRING
 	return false;
 }
@@ -1988,6 +2004,7 @@ const TCHAR* LexToString(EDateTimeStyle::Type InValue)
 		ENUM_CASE_TO_STRING(Medium);
 		ENUM_CASE_TO_STRING(Long);
 		ENUM_CASE_TO_STRING(Full);
+		ENUM_CASE_TO_STRING(Custom);
 #undef ENUM_CASE_TO_STRING
 	default:
 		return TEXT("<Unknown EDateTimeStyle>");

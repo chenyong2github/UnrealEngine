@@ -28,7 +28,7 @@ public:
 	 * @param ActiveSound	The active sound affected
 	 * @param ParseParams	The parameters to apply to the wave instances
 	 */
-	virtual void GatherInteriorData(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) = 0;
+	virtual void GatherInteriorData(const FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) = 0;
 
 	/**
 	 * Applies interior data previously collected to the active sound and parse parameters.
@@ -36,5 +36,12 @@ public:
 	 * @param ActiveSound	The active sound affected
 	 * @param ParseParams	The parameters to apply to the wave instances
 	 */
-	virtual void ApplyInteriorSettings(FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) const = 0;
+	virtual void ApplyInteriorSettings(const FActiveSound& ActiveSound, FSoundParseParameters& ParseParams) = 0;
+
+	/**
+	 * Called when the active sound is being removed from the audio engine
+	 *
+	 * @param ActiveSound	The active sound
+	 */
+	virtual void OnNotifyPendingDelete(const FActiveSound& ActiveSound) = 0;
 };

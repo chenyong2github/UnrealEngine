@@ -361,6 +361,12 @@ void FDisplayClusterConfiguratorViewCluster::DeleteSelectedNodes()
 	// parts of the UI update as well
 	GetEditorData()->MarkPackageDirty();
 	ToolkitPtr.Pin()->ClusterChanged();
+
+	// Clear the selection to ensure the deleted cluster item isn't still being displayed in the details panel
+	ClearSelection();
+
+	TArray<UObject*> Selection;
+	ToolkitPtr.Pin()->SelectObjects(Selection);
 }
 
 bool FDisplayClusterConfiguratorViewCluster::CanDeleteSelectedNodes() const

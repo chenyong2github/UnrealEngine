@@ -3,7 +3,7 @@
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_Frustum.h"
 
 #include "Render/IDisplayClusterRenderTexture.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 
 #include "Misc/DisplayClusterHelpers.h"
 
@@ -83,7 +83,7 @@ bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_FULL_WarpMesh()
 
 	bool bAllPointsInFrustum = true;
 
-	const FStaticMeshLODResources* WarpMeshResource = GeometryContext.GeometryProxy.WarpMesh->GetWarpMeshLodResource();
+	const FStaticMeshLODResources* WarpMeshResource = GeometryContext.GeometryProxy.WarpMesh->GetStaticMeshLODResource();
 	if (WarpMeshResource == nullptr)
 	{
 		return false;

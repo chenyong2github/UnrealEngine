@@ -512,14 +512,14 @@ bool FCommonAnalogCursor::IsUsingGamepad() const
 
 void FCommonAnalogCursor::HideCursor()
 {
-	TSharedPtr<FSlateUser> SlateUser = FSlateApplication::Get().GetUser(GetOwnerUserIndex());
-	UWorld* World = ActionRouter.GetWorld();
+	const TSharedPtr<FSlateUser> SlateUser = FSlateApplication::Get().GetUser(GetOwnerUserIndex());
+	const UWorld* World = ActionRouter.GetWorld();
 	if (SlateUser && World && World->IsGameWorld())
 	{
 		UGameViewportClient* GameViewport = World->GetGameViewport();
-		if (GameViewport && GameViewport->GetWindow().IsValid())
+		if (GameViewport && GameViewport->GetWindow().IsValid() && GameViewport->Viewport)
 		{
-			FVector2D TopLeftPos = GameViewport->Viewport->ViewportToVirtualDesktopPixel(FVector2D(0.025f, 0.025f));
+			const FVector2D TopLeftPos = GameViewport->Viewport->ViewportToVirtualDesktopPixel(FVector2D(0.025f, 0.025f));
 			SlateUser->SetCursorPosition(TopLeftPos);
 			SlateUser->SetCursorVisibility(false);
 		}

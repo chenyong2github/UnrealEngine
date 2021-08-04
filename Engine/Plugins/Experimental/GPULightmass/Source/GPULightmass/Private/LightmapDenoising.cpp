@@ -121,6 +121,11 @@ void DenoiseLightSampleData(FIntPoint Size, TArray<FLightSampleData>& LightSampl
 				LightSampleData[Y * Size.X + X].Coefficients[0][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0];
 				LightSampleData[Y * Size.X + X].Coefficients[0][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
 				LightSampleData[Y * Size.X + X].Coefficients[0][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
+
+				// Copy to LQ coefficients
+				LightSampleData[Y * Size.X + X].Coefficients[2][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0];
+				LightSampleData[Y * Size.X + X].Coefficients[2][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
+				LightSampleData[Y * Size.X + X].Coefficients[2][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
 			}
 		}
 	}
@@ -149,6 +154,11 @@ void DenoiseLightSampleData(FIntPoint Size, TArray<FLightSampleData>& LightSampl
 				LightSampleData[Y * Size.X + X].Coefficients[1][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0];
 				LightSampleData[Y * Size.X + X].Coefficients[1][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
 				LightSampleData[Y * Size.X + X].Coefficients[1][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
+
+				// Copy to LQ coefficients
+				LightSampleData[Y * Size.X + X].Coefficients[3][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0];
+				LightSampleData[Y * Size.X + X].Coefficients[3][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
+				LightSampleData[Y * Size.X + X].Coefficients[3][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
 			}
 		}
 	}

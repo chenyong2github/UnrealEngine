@@ -178,7 +178,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 
 	virtual const void* GetQueryData() const override
 	{
-		return &QueryFilterData;
+		return &QueryFilterDataConcrete;
 	}
 
 private:
@@ -454,7 +454,7 @@ struct TBPVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 
 	virtual const void* GetQueryData() const override
 	{
-		return &QueryFilterData;
+		return &QueryFilterDataConcrete;
 	}
 
 private:

@@ -29,6 +29,10 @@ public:
 	/************************************************************************/
 	/* IOpenXRExtensionPlugin                                               */
 	/************************************************************************/
+	virtual FString GetDisplayName() override
+	{
+		return FString(TEXT("OpenXRMsftHandInteraction"));
+	}
 	virtual bool GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
 	virtual bool GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics) override;
 };

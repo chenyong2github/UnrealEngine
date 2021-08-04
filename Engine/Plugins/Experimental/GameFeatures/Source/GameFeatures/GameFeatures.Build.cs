@@ -22,7 +22,6 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"AssetRegistry",
-					"GameplayAbilities",
 					"GameplayTags",
 					"InstallBundleManager",
 					"Json",

@@ -577,11 +577,6 @@ void FLevelEditorActionCallbacks::AttachToSocketSelection(const FName SocketName
 
 void FLevelEditorActionCallbacks::SetMaterialQualityLevel( EMaterialQualityLevel::Type NewQualityLevel )
 {
-	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
-	Settings->MaterialQualityLevel = NewQualityLevel;
-	Settings->PostEditChange();
-
-	//Ensure the material quality cvar is also set.
 	static IConsoleVariable* MaterialQualityLevelVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MaterialQualityLevel"));
 	MaterialQualityLevelVar->Set(NewQualityLevel, ECVF_SetByScalability);
 

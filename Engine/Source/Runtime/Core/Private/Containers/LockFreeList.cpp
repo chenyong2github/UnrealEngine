@@ -205,16 +205,27 @@ private:
 	FLockFreePointerListLIFORoot<PLATFORM_CACHE_LINE_SIZE> GlobalFreeListBundles;
 };
 
-static LockFreeLinkAllocator_TLSCache GLockFreeLinkAllocator;
+static LockFreeLinkAllocator_TLSCache& GetLockFreeAllocator()
+{
+	// make memory that will not go away, a replacement for TLazySingleton, which will still get destructed
+	alignas(LockFreeLinkAllocator_TLSCache) static unsigned char Data[sizeof(LockFreeLinkAllocator_TLSCache)];
+	static bool bIsInitialized = false;
+	if (!bIsInitialized)
+	{
+		new(Data)LockFreeLinkAllocator_TLSCache();
+		bIsInitialized = true;
+	}
+	return *(LockFreeLinkAllocator_TLSCache*)Data;
+}
 
 void FLockFreeLinkPolicy::FreeLockFreeLink(FLockFreeLinkPolicy::TLinkPtr Item)
 {
-	GLockFreeLinkAllocator.Push(Item);
+	GetLockFreeAllocator().Push(Item);
 }
 
 FLockFreeLinkPolicy::TLinkPtr FLockFreeLinkPolicy::AllocLockFreeLink() TSAN_SAFE
 {
-	FLockFreeLinkPolicy::TLinkPtr Result = GLockFreeLinkAllocator.Pop();
+	FLockFreeLinkPolicy::TLinkPtr Result = GetLockFreeAllocator().Pop();
 	// this can only really be a mem stomp
 	checkLockFreePointerList(Result && !FLockFreeLinkPolicy::DerefLink(Result)->DoubleNext.GetPtr() && !FLockFreeLinkPolicy::DerefLink(Result)->Payload && !FLockFreeLinkPolicy::DerefLink(Result)->SingleNext);
 	return Result;

@@ -120,7 +120,7 @@ FTransform FTransform::GetRelativeTransformReverse(const FTransform& Other) cons
 	VectorRegister VR = VectorQuaternionRotateVector(VRotation, Translation);
 
 	// Translation = T(B)-S(B)/S(A) *[Q(B)*Q(A)(-1)*T(A)*Q(A)*Q(B)(-1)]	
-	VectorRegister VTranslation = VectorSet_W0(VectorSubtract(Other.Translation, VectorMultiply(VScale3D, VR)));
+	VectorRegister VTranslation = VectorSet_W0(VectorNegateMultiplyAdd(VScale3D, VR, Other.Translation));
 
 	Result.Scale3D = VScale3D;	
 	Result.Translation = VTranslation;

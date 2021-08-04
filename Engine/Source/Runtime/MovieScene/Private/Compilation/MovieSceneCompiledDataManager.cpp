@@ -135,12 +135,20 @@ struct FGatherParameters
 
 	FGatherParameters CreateForSubData(const FMovieSceneSubSequenceData& SubData, FMovieSceneSequenceID InSubSequenceID) const
 	{
+		return CreateForSubData(SubData, InSubSequenceID, FMovieSceneTimeWarping::InvalidWarpCount);
+	}
+
+	FGatherParameters CreateForSubData(const FMovieSceneSubSequenceData& SubData, FMovieSceneSequenceID InSubSequenceID, uint32 WarpIndex) const
+	{
 		FGatherParameters SubParams = *this;
 
 		SubParams.RootToSequenceTransform   = SubData.RootToSequenceTransform;
 		SubParams.HierarchicalBias          = SubData.HierarchicalBias;
+		SubParams.bHasHierarchicalEasing    = SubData.bHasHierarchicalEasing;
 		SubParams.SequenceID                = InSubSequenceID;
 		SubParams.LocalClampRange           = SubData.RootToSequenceTransform.TransformRangeUnwarped(SubParams.RootClampRange);
+
+		SubParams.RootToSequenceWarpCounter.AddWarpingLevel(WarpIndex);
 
 		return SubParams;
 	}
@@ -171,6 +179,9 @@ struct FGatherParameters
 	/** Transform from the root time-space to the current sequence's time-space */
 	FMovieSceneSequenceTransform RootToSequenceTransform;
 
+	/** Loop counts from the root to the current sequence */
+	FMovieSceneWarpCounter RootToSequenceWarpCounter;
+
 	/** Current accumulated hierarchical bias */
 	int16 HierarchicalBias;
 
@@ -187,10 +198,10 @@ struct FTrackGatherParameters : FGatherParameters
 		: TemplateGenerator(InCompiledDataManager)
 	{}
 
-	FTrackGatherParameters CreateForSubData(const FMovieSceneSubSequenceData& SubData, FMovieSceneSequenceID InSubSequenceID) const
+	FTrackGatherParameters CreateForSubData(const FMovieSceneSubSequenceData& SubData, FMovieSceneSequenceID InSubSequenceID, uint32 WarpIndex) const
 	{
 		FTrackGatherParameters SubParams = *this;
-		static_cast<FGatherParameters&>(SubParams) = FGatherParameters::CreateForSubData(SubData, InSubSequenceID);
+		static_cast<FGatherParameters&>(SubParams) = FGatherParameters::CreateForSubData(SubData, InSubSequenceID, WarpIndex);
 
 		return SubParams;
 	}
@@ -783,6 +794,25 @@ void UMovieSceneCompiledDataManager::Compile(FMovieSceneCompiledDataID DataID, U
 
 	CompiledDataEntries[DataID.Value] = Entry;
 	++ReallocationVersion;
+
+#if 0
+#if !NO_LOGGING
+	if (bHasHierarchy)
+	{
+		FMovieSceneSequenceHierarchy* HierarchyToLog = Hierarchies.Find(DataID.Value);
+		if (ensure(HierarchyToLog))
+		{
+			UE_LOG(LogMovieScene, Log, TEXT("Newly compiled sequence hierarchy:"));
+			HierarchyToLog->LogHierarchy();
+			HierarchyToLog->LogSubSequenceTree();
+		}
+	}
+	else
+	{
+		UE_LOG(LogMovieScene, Log, TEXT("No sequence hierarchy"));
+}
+#endif
+#endif
 }
 
 
@@ -843,7 +873,7 @@ void UMovieSceneCompiledDataManager::CompileSubSequences(const FMovieSceneSequen
 	for ( int32 ItIndex = 0; SubSequenceIt && SubSequenceIt.Range().Overlaps(Params.RootClampRange); ++SubSequenceIt, ++ItIndex)
 	{
 		// Iterate all sub sequences in the current range
-		for (FMovieSceneSubSequenceTreeEntry SubSequenceEntry : SubSequenceTree.GetAllData(SubSequenceIt.Node()))
+		for (const FMovieSceneSubSequenceTreeEntry& SubSequenceEntry : SubSequenceTree.GetAllData(SubSequenceIt.Node()))
 		{
 			FMovieSceneSequenceID SubSequenceID = SubSequenceEntry.SequenceID;
 
@@ -853,7 +883,8 @@ void UMovieSceneCompiledDataManager::CompileSubSequences(const FMovieSceneSequen
 			UMovieSceneSequence* SubSequence = SubData->GetSequence();
 			if (SubSequence)
 			{
-				FTrackGatherParameters SubSectionGatherParams = Params.CreateForSubData(*SubData, SubSequenceID);
+				const uint32 LastSubSequenceEntryWarpCount = SubSequenceEntry.RootToSequenceWarpCounter.LastWarpCount();
+				FTrackGatherParameters SubSectionGatherParams = Params.CreateForSubData(*SubData, SubSequenceID, LastSubSequenceEntryWarpCount);
 				SubSectionGatherParams.Flags |= SubSequenceEntry.Flags;
 				SubSectionGatherParams.SetClampRange(SubSequenceIt.Range());
 
@@ -1051,7 +1082,7 @@ void UMovieSceneCompiledDataManager::PopulateMetaData(const FMovieSceneSequenceH
 		OutMetaData->ActiveSequences.Reset();
 		OutMetaData->ActiveSequences.Add(MovieSceneSequenceID::Root);
 
-		for (FMovieSceneSubSequenceTreeEntry SubSequenceEntry : SubSequences)
+		for (const FMovieSceneSubSequenceTreeEntry& SubSequenceEntry : SubSequences)
 		{
 			OutMetaData->ActiveSequences.Add(SubSequenceEntry.SequenceID);
 		}
@@ -1212,7 +1243,7 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 		// Iterate everything in the field
 		for (const FMovieSceneTrackEvaluationFieldEntry& Entry : EvaluationField.Entries)
 		{
-			FMovieSceneSequenceTransform SequenceToRootTransform  = Params.RootToSequenceTransform.InverseLinearOnly();
+			FMovieSceneSequenceTransform SequenceToRootTransform  = Params.RootToSequenceTransform.InverseFromWarp(Params.RootToSequenceWarpCounter);
 			TRange<FFrameNumber>         ClampedRangeRoot         = Params.ClampRoot(SequenceToRootTransform.TransformRangeUnwarped(Entry.Range));
 			UMovieSceneSection*          Section                  = Entry.Section;
 
@@ -1359,7 +1390,8 @@ bool UMovieSceneCompiledDataManager::GenerateSubSequenceData(UMovieSceneSubTrack
 		FSubSequenceInstanceDataParams InstanceParams{ InnerSequenceID, Operand };
 		FMovieSceneSubSequenceData     NewSubData = SubSection->GenerateSubSequenceData(InstanceParams);
 
-		// LocalClampRange here is in SubTrack's space, so we need to multiply that by the OuterToInnerTransform (which is the same as RootToSequenceTransform here before we transform it)
+		// LocalClampRange here is in SubTrack's space, so we need to multiply that by the OuterToInnerTransform 
+		// (which is the same as RootToSequenceTransform here before we transform it)
 		TRange<FFrameNumber> InnerClampRange = NewSubData.RootToSequenceTransform.TransformRangeUnwarped(Params.LocalClampRange);
 
 		NewSubData.PlayRange               = TRange<FFrameNumber>::Intersection(InnerClampRange, NewSubData.PlayRange.Value);
@@ -1419,6 +1451,8 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSequence
 
 void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
 {
+	using namespace UE::MovieScene;
+
 	check(SubTrack && RootPath);
 
 	const bool bTrackMatchesFlags = ( Params.Flags == ESectionEvaluationFlags::None )
@@ -1431,6 +1465,12 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack
 	}
 
 	if (SubTrack->IsEvalDisabled())
+	{
+		return;
+	}
+
+	UMovieSceneSequence* OuterSequence = SubTrack->GetTypedOuter<UMovieSceneSequence>();
+	if (!OuterSequence)
 	{
 		return;
 	}
@@ -1454,7 +1494,7 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack
 			continue;
 		}
 
-		TRange<FFrameNumber> EffectiveRange = Params.ClampRoot(Entry.Range * Params.RootToSequenceTransform.InverseLinearOnly());
+		TRange<FFrameNumber> EffectiveRange = Params.ClampRoot(Entry.Range * Params.RootToSequenceTransform.InverseFromWarp(Params.RootToSequenceWarpCounter));
 		if (EffectiveRange.IsEmpty())
 		{
 			continue;
@@ -1465,19 +1505,112 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack
 
 		checkf(SubData, TEXT("Unable to locate sub-data for a sub section that appears in the track's evaluation field - this indicates that the section is being evaluated even though it is not active"));
 
-		// Add the sub sequence to the tree
-		InOutHierarchy->AddRange(SubSequenceID, EffectiveRange, Entry.Flags | Params.Flags);
+		const FMovieSceneFrameRange& SubSectionRange = SubSection->SectionRange;
+		const FMovieSceneSectionParameters& SubSectionParams = SubSection->Parameters;
 
-		// Recurse into the sub sequence
-		RootPath->PushGeneration(SubSequenceID, SubData->DeterministicSequenceID);
+		const ESectionEvaluationFlags SubEntryFlags = Entry.Flags | Params.Flags;
+
+		if (!SubSectionParams.bCanLoop)
 		{
 			FGatherParameters SubParams = Params.CreateForSubData(*SubData, SubSequenceID);
 			SubParams.SetClampRange(EffectiveRange);
 			SubParams.Flags |= Entry.Flags;
 			SubParams.NetworkMask = NewMask;
 
+			// The section isn't looping, so we can just add it to the tree.
+			InOutHierarchy->AddRange(EffectiveRange, SubSequenceID, SubEntryFlags, SubParams.RootToSequenceWarpCounter);
+
+			// Recurse into the sub sequence
+			RootPath->PushGeneration(SubSequenceID, SubData->DeterministicSequenceID);
+			{
 			PopulateSubSequenceTree(SubData->GetSequence(), SubParams, RootPath, InOutHierarchy);
 		}
 		RootPath->PopGenerations(1);
 	}
+		else
+		{
+			// The section is looping so we need to add its contents to the tree as many times as it has loops.
+			const FMovieSceneSequenceTransform SequenceToRootTransform = Params.RootToSequenceTransform.InverseFromWarp(Params.RootToSequenceWarpCounter);
+
+			const float RootToSubSequenceTimeScale = Params.RootToSequenceTransform.GetTimeScale();
+			const float SubSequenceToRootTimeScale = (RootToSubSequenceTimeScale != 0.f) ? 1.0f / RootToSubSequenceTimeScale : 1.f;
+
+			UMovieSceneSequence* SubSequence = SubData->GetSequence();
+
+			const TRange<FFrameNumber> SubSequencePlaybackRange = SubSequence->GetMovieScene()->GetPlaybackRange();
+			const FFrameNumber SubSequenceLength = DiscreteSize(SubSequencePlaybackRange);
+			const FFrameTime RootLoopLength = FMath::Max(
+					FFrameTime(SubSequenceLength - SubSectionParams.StartFrameOffset - SubSectionParams.EndFrameOffset) * SubSequenceToRootTimeScale,
+					FFrameTime(1));
+			const FFrameTime FirstRootLoopLength = FMath::Max(
+					RootLoopLength - SubSectionParams.FirstLoopStartFrameOffset * SubSequenceToRootTimeScale,
+					FFrameTime(1));
+			const TOptional<FFrameNumber> LocalSectionExclusiveEndTime = GetLoopingSubSectionEndTime(OuterSequence, SubSection, Params);
+
+			if (LocalSectionExclusiveEndTime.IsSet() && !SubSectionRange.GetLowerBound().IsOpen())
+			{
+				uint32 LoopCount = 0;
+				FFrameTime CurRootRangeStart = DiscreteInclusiveLower(SubSectionRange.GetLowerBound()) * SequenceToRootTransform;
+				TRange<FFrameNumber> CurRootRange(CurRootRangeStart.FloorToFrame(), (CurRootRangeStart + FirstRootLoopLength).CeilToFrame());
+				const FFrameNumber RootSectionEndTime = (LocalSectionExclusiveEndTime.GetValue() * SequenceToRootTransform).CeilToFrame();
+
+				while (CurRootRange.GetLowerBoundValue() < RootSectionEndTime)
+				{
+					if (CurRootRange.Overlaps(Params.RootClampRange))
+					{
+						FGatherParameters CurLoopParams = Params.CreateForSubData(*SubData, SubSequenceID, LoopCount);
+						CurLoopParams.SetClampRange(EffectiveRange);
+						CurLoopParams.Flags |= Entry.Flags;
+						CurLoopParams.NetworkMask = NewMask;
+
+						// Add the section to the tree for the current loop.
+						const TRange<FFrameNumber> ClampedCurRootRange = TRange<FFrameNumber>::Intersection(CurRootRange, Params.RootClampRange);
+						InOutHierarchy->AddRange(ClampedCurRootRange, SubSequenceID, SubEntryFlags, CurLoopParams.RootToSequenceWarpCounter);
+
+						// Recurse into this loop's sub sequence.
+						RootPath->PushGeneration(SubSequenceID, SubData->DeterministicSequenceID);
+						{
+							PopulateSubSequenceTree(SubData->GetSequence(), CurLoopParams, RootPath, InOutHierarchy);
+						}
+						RootPath->PopGenerations(1);
+					}
+					CurRootRangeStart = CurRootRange.GetUpperBoundValue();
+					CurRootRange = TRange<FFrameNumber>(CurRootRangeStart.FloorToFrame(), (CurRootRangeStart + RootLoopLength).FloorToFrame());
+					if (CurRootRange.GetUpperBoundValue() > RootSectionEndTime)
+						CurRootRange.SetUpperBoundValue(RootSectionEndTime);
+					++LoopCount;
+				}
+			}
+			// Faced with the cosmic horror or infinites, we choose to shield our sanity and skip this sub-section.
+			// (it either has an open-ended start time, which means we needed to loop since before time began, which means
+			//  we don't know where loops are in the present... or it means the section and root sequence have open-ended
+			//  end times, which means we would need to compile loops forever)
+		}
+	}
+}
+
+TOptional<FFrameNumber> UMovieSceneCompiledDataManager::GetLoopingSubSectionEndTime(const UMovieSceneSequence* InRootSequence, const UMovieSceneSubSection* SubSection, const FGatherParameters& Params)
+{
+	using namespace UE::MovieScene;
+
+	TRangeBound<FFrameNumber> SectionRangeEnd = SubSection->SectionRange.GetUpperBound();
+	if (!SectionRangeEnd.IsOpen())
+	{
+		return DiscreteExclusiveUpper(SectionRangeEnd);
+	}
+
+	// This section is open ended... we don't want to compile its sub-sequence in an infinite loop so we'll bound
+	// that by the playback end of is own sequence.
+	if (const UMovieScene* MovieScene = InRootSequence->GetMovieScene())
+	{
+		const TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
+		if (!PlaybackRange.GetUpperBound().IsOpen())
+		{
+			return DiscreteExclusiveUpper(PlaybackRange.GetUpperBound());
+		}
+	}
+
+	// Sadly, the root sequence is also open ended, so we effectively would need to loop the sub-sequence
+	// indefinitely... we don't support that yet.
+	return TOptional<FFrameNumber>();
 }

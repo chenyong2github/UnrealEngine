@@ -473,15 +473,21 @@ public:
 	UPROPERTY()
 	uint32 ThumbnailImageOutOfDate : 1;
 
-	/* If this system is exposed to the library. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable, meta = (SkipSystemResetOnChange = "true"))
-	bool bExposeToLibrary;
+	/** Deprecated library exposure bool. Use the LibraryVisibility enum instead. FNiagaraEditorUtilities has accessor functions that takes deprecation into account */
+	UPROPERTY()
+	bool bExposeToLibrary_DEPRECATED;
 
+	/** If this system is exposed to the library, or should be explicitly hidden. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable, meta = (SkipSystemResetOnChange = "true"))
+	ENiagaraScriptLibraryVisibility LibraryVisibility = ENiagaraScriptLibraryVisibility::Unexposed;
+
+	/** Deprecated template asset bool. Use the TemplateSpecification enum instead. */
 	UPROPERTY()
 	bool bIsTemplateAsset_DEPRECATED;
 
+	/** If this system is a regular system, a template or a behavior example. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable, meta = (SkipSystemResetOnChange = "true"))
-	ENiagaraScriptTemplateSpecification TemplateSpecification;;
+	ENiagaraScriptTemplateSpecification TemplateSpecification = ENiagaraScriptTemplateSpecification::None;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable, meta = (SkipSystemResetOnChange = "true"))
 	FText TemplateAssetDescription;
@@ -845,7 +851,6 @@ protected:
 	/** Total active instances of this system. */
 	int32 ActiveInstances;
 };
-
 FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
 {
 	++ActiveInstances;

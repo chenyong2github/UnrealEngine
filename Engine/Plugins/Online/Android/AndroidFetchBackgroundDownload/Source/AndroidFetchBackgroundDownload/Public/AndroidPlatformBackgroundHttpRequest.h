@@ -42,6 +42,7 @@ private:
 	static const FString GroupIDKey;
 
 private:
+	volatile int32 bIsPaused;
 	volatile int32 bIsCompleted;
 	volatile int64 DownloadProgress;
 	volatile int64 DownloadProgressSinceLastUpdateSent;

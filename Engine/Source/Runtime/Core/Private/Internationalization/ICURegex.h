@@ -23,7 +23,7 @@ public:
 	static bool IsInitialized();
 	static FICURegexManager& Get();
 
-	TWeakPtr<const icu::RegexPattern> CreateRegexPattern(const FString& InSourceString);
+	TWeakPtr<const icu::RegexPattern> CreateRegexPattern(const FString& InSourceString, uint32_t InICURegexFlags);
 	void DestroyRegexPattern(TWeakPtr<const icu::RegexPattern>& InICURegexPattern);
 
 	TWeakPtr<icu::RegexMatcher> CreateRegexMatcher(const icu::RegexPattern* InPattern, const icu::UnicodeString* InInputString);

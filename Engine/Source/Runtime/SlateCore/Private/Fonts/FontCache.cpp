@@ -133,12 +133,41 @@ FShapedGlyphSequence::FShapedGlyphSequence(TArray<FShapedGlyphEntry> InGlyphsToR
 		// Update the measured width
 		SequenceWidth += CurrentGlyph.XAdvance;
 
-		// Track reverse look-up data
 		FSourceIndexToGlyphData* SourceIndexToGlyphData = SourceIndicesToGlyphData.GetGlyphData(CurrentGlyph.SourceIndex);
-		UE_CLOG(!SourceIndexToGlyphData, LogSlate, Warning, TEXT("Glyph Index out of range! Index: %i. Valid: [%i, %i] "),
+		
+		// Skip if index is invalid or hidden
+		if (!SourceIndexToGlyphData)
+		{
+		// Track reverse look-up data
+			UE_LOG(LogSlate, Warning, TEXT("No Gylph! Index %i. Valid %i, %i, Valid Glyph %i, Visible %i, Num %i, Grapheme %i, Dir %u"),
 			CurrentGlyph.SourceIndex,
 			SourceIndicesToGlyphData.GetSourceTextStartIndex(),
-			SourceIndicesToGlyphData.GetSourceTextEndIndex());
+				SourceIndicesToGlyphData.GetSourceTextEndIndex(),
+				CurrentGlyph.HasValidGlyph(),
+				CurrentGlyph.bIsVisible,
+				CurrentGlyph.NumCharactersInGlyph,
+				CurrentGlyph.NumGraphemeClustersInGlyph,
+				CurrentGlyph.TextDirection);
+
+#if WITH_FREETYPE
+			// Track font info if possible
+			if (CurrentGlyph.FontFaceData.IsValid())
+			{
+				if (TSharedPtr<FFreeTypeFace> FontFacePtr = CurrentGlyph.FontFaceData->FontFace.Pin())
+				{
+					FT_Face FontFace = FontFacePtr->GetFace();
+					UE_LOG(LogSlate, Warning, TEXT("Font missing Gylph. Valid %i, Loading %i"),
+						FontFacePtr->IsFaceValid(),
+						FontFacePtr->IsFaceLoading());
+				}
+			}
+#endif // WITH_FREETYPE
+			
+			if (!CurrentGlyph.HasValidGlyph() || !CurrentGlyph.bIsVisible)
+			{
+				continue;
+			}
+		}
 
 		checkSlow(SourceIndexToGlyphData);
 		if (SourceIndexToGlyphData->IsValid())

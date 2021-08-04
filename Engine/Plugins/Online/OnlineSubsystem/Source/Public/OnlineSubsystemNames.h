@@ -61,14 +61,6 @@
 #define PS4SERVER_SUBSYSTEM FName(TEXT("PS4SERVER"))
 #endif
 
-#ifndef LIVE_SUBSYSTEM
-#define LIVE_SUBSYSTEM FName(TEXT("LIVE"))
-#endif
-
-#ifndef LIVESERVER_SUBSYSTEM
-#define LIVESERVER_SUBSYSTEM FName(TEXT("LIVESERVER"))
-#endif
-
 #ifndef THUNDERHEAD_SUBSYSTEM
 #define THUNDERHEAD_SUBSYSTEM FName(TEXT("THUNDERHEAD"))
 #endif
@@ -87,6 +79,8 @@
 
 UE_DEPRECATED(4.27, "OnlineSubsystemWeChat has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName WECHAT_SUBSYSTEM;
 UE_DEPRECATED(4.27, "OnlineSubsystemTwitch has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName TWITCH_SUBSYSTEM;
+UE_DEPRECATED(4.27, "OnlineSubsystemLive has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName LIVE_SUBSYSTEM;
+UE_DEPRECATED(4.27, "OnlineSubsystemLiveServer has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName LIVESERVER_SUBSYSTEM;
 
 #ifndef SWITCH_SUBSYSTEM
 #define SWITCH_SUBSYSTEM FName(TEXT("SWITCH"))

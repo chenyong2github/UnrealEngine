@@ -31,6 +31,9 @@ float LUTWeights[5];
 half3 ColorScale;
 half4 OverlayColor;
 
+uint bUseMobileTonemapper;
+uint bIsTemperatureWhiteBalance;
+
 static const float LUTSize = 32;
 
 float WhiteTemp;
@@ -48,6 +51,13 @@ float3 WhiteBalance( float3 LinearColor )
 		// Offset along isotherm
 		float2 Isothermal = PlanckianIsothermal( WhiteTemp, WhiteTint ) - SrcWhitePlankian;
 		SrcWhite += Isothermal;
+	}
+
+	if (!bIsTemperatureWhiteBalance)
+	{
+		float2 Temp = SrcWhite;
+		SrcWhite = D65White;
+		D65White = Temp;
 	}
 
 	float3x3 WhiteBalanceMat = ChromaticAdaptation( SrcWhite, D65White );
@@ -208,9 +218,16 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	}
 	// Decode log values
 	else
+	{
 		LinearColor = LogToLin( LUTEncodedColor ) - LogToLin( 0 );
+	}
 
+#if !SKIP_TEMPERATURE
 	float3 BalancedColor = WhiteBalance( LinearColor );
+#else
+	float3 BalancedColor = LinearColor;
+#endif
+
 	float3 ColorAP1 = mul( sRGB_2_AP1, BalancedColor );
 
 	// Expand bright saturated colors outside the sRGB gamut to fake wide gamut rendering.

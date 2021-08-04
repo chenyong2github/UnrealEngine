@@ -2008,14 +2008,14 @@ struct FRootMotionSourceDeleter
 	}
 };
 
-void FRootMotionSourceGroup::NetSerializeRMSArray(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, TArray< TSharedPtr<FRootMotionSource> >& RootMotionSourceArray)
+void FRootMotionSourceGroup::NetSerializeRMSArray(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, TArray< TSharedPtr<FRootMotionSource> >& RootMotionSourceArray, uint8 MaxNumRootMotionSourcesToSerialize/* = MAX_uint8*/)
 {
 	uint8 SourcesNum;
 	if (Ar.IsSaving())
 	{
-		UE_CLOG(RootMotionSourceArray.Num() > MAX_uint8, LogRootMotion, Warning, TEXT("Too many root motion sources (%d!) to net serialize. Clamping to %d"), 
-			RootMotionSourceArray.Num(), MAX_uint8);
-		SourcesNum = FMath::Min<int32>(RootMotionSourceArray.Num(), MAX_uint8);
+		UE_CLOG(RootMotionSourceArray.Num() > MaxNumRootMotionSourcesToSerialize, LogRootMotion, Warning, TEXT("Too many root motion sources (%d!) to net serialize. Clamping to %d"),
+			RootMotionSourceArray.Num(), MaxNumRootMotionSourcesToSerialize);
+		SourcesNum = FMath::Min<int32>(RootMotionSourceArray.Num(), MaxNumRootMotionSourcesToSerialize);
 	}
 	Ar << SourcesNum;
 	if (Ar.IsLoading())
@@ -2097,7 +2097,7 @@ void FRootMotionSourceGroup::NetSerializeRMSArray(FArchive& Ar, class UPackageMa
 
 }
 
-bool FRootMotionSourceGroup::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+bool FRootMotionSourceGroup::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, uint8 MaxNumRootMotionSourcesToSerialize/* = MAX_uint8*/)
 {
 	FArchive_Serialize_BitfieldBool(Ar, bHasAdditiveSources);
 	FArchive_Serialize_BitfieldBool(Ar, bHasOverrideSources);
@@ -2106,8 +2106,10 @@ bool FRootMotionSourceGroup::NetSerialize(FArchive& Ar, class UPackageMap* Map, 
 	FArchive_Serialize_BitfieldBool(Ar, bIsAdditiveVelocityApplied);
 	Ar << LastAccumulatedSettings.Flags;
 
-	NetSerializeRMSArray(Ar, Map, bOutSuccess, RootMotionSources);
-	NetSerializeRMSArray(Ar, Map, bOutSuccess, PendingAddRootMotionSources);
+	uint8 NumRootMotionSourcesToSerialize = FMath::Min<int32>(RootMotionSources.Num(), MaxNumRootMotionSourcesToSerialize);
+	uint8 NumPendingAddRootMotionSourcesToSerialize = NumRootMotionSourcesToSerialize < MaxNumRootMotionSourcesToSerialize ? MaxNumRootMotionSourcesToSerialize - NumRootMotionSourcesToSerialize : 0;
+	NetSerializeRMSArray(Ar, Map, bOutSuccess, RootMotionSources, NumRootMotionSourcesToSerialize);
+	NetSerializeRMSArray(Ar, Map, bOutSuccess, PendingAddRootMotionSources, NumPendingAddRootMotionSourcesToSerialize);
 
 	if (Ar.IsError())
 	{

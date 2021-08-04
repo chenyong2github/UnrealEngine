@@ -4,6 +4,9 @@
 
 #if WITH_EOS_RTC
 
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
+
 #include "Windows/eos_Windows.h"
 
 FWindowsEOSVoiceChat::FWindowsEOSVoiceChat(IEOSSDKManager& InSDKManager, const IEOSPlatformHandlePtr& InPlatformHandle)

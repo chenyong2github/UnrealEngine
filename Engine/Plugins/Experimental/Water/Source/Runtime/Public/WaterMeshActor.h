@@ -15,6 +15,7 @@ class WATER_API AWaterMeshActor : public AActor
 
 public:
 
+	UWaterMeshComponent* GetWaterMeshComponent() { return WaterMesh; }
 	const UWaterMeshComponent* GetWaterMeshComponent() const { return WaterMesh; }
 
 	void MarkWaterMeshComponentForRebuild();

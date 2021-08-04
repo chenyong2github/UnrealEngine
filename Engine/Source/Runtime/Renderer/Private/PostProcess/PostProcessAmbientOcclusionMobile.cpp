@@ -55,7 +55,7 @@ static TAutoConsoleVariable<int32> CVarMobileAmbientOcclusionQuality(
 
 static TAutoConsoleVariable<int32> CVarMobileAmbientOcclusionShaderType(
 	TEXT("r.Mobile.AmbientOcclusionShaderType"),
-	0,
+	2,
 	TEXT("0: ComputeShader.\n")
 	TEXT("1: Seperate ComputeShader.\n")
 	TEXT("2: PixelShader.\n"),
@@ -459,8 +459,8 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 	static const auto GTAONumAnglesCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.NumAngles"));
 	const uint32 DownsampleFactor = 2;
 
-	const int32 MobileGTAOPreIntegratedTextureType = CVarMobileGTAOPreIntegratedTextureType.GetValueOnRenderThread();
-	const int32 MobileAmbientOcclusionQuality = CVarMobileAmbientOcclusionQuality.GetValueOnRenderThread();
+	const int32 MobileGTAOPreIntegratedTextureType = FMath::Min(CVarMobileGTAOPreIntegratedTextureType.GetValueOnRenderThread(), 2);
+	const int32 MobileAmbientOcclusionQuality = FMath::Min(CVarMobileAmbientOcclusionQuality.GetValueOnRenderThread(), 3);
 
 	FRDGTextureUAVRef AmbientOcclusionTextureUAV = GraphBuilder.CreateUAV(AmbientOcclusionTexture);
 
@@ -895,7 +895,7 @@ static void AddMobileAmbientOcclusionPass(
 		PassParameters->RenderTargets.DepthStencil = DepthStencilBinding;
 	}
 
-	const int32 MobileAmbientOcclusionQuality = CVarMobileAmbientOcclusionQuality.GetValueOnRenderThread() - 1; 
+	const int32 MobileAmbientOcclusionQuality = FMath::Min(CVarMobileAmbientOcclusionQuality.GetValueOnRenderThread(), 3) - 1; 
 	FMobileAmbientOcclusionPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FMobileAmbientOcclusionPS::FShaderQualityDim>(MobileAmbientOcclusionQuality);
 

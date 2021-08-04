@@ -264,7 +264,24 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, c
 			MovieSceneBlendType->GetDisplayNameTextByIndex(NameIndex),
 			MovieSceneBlendType->GetToolTipTextByIndex(NameIndex),
 			FSlateIcon("EditorStyle", EnumValueName),
-			FUIAction(FExecuteAction::CreateLambda(Execute, BlendType))
+			FUIAction(
+				FExecuteAction::CreateLambda(Execute, BlendType),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([InSections, BlendType]
+				{
+					int32 NumActiveBlendTypes = 0;
+					for (TWeakObjectPtr<UMovieSceneSection> WeakSection : InSections)
+					{
+						UMovieSceneSection* Section = WeakSection.Get();
+						if (Section && Section->GetBlendType() == BlendType)
+						{
+							++NumActiveBlendTypes;
+						}
+					}
+					return NumActiveBlendTypes == InSections.Num();
+				})),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 }

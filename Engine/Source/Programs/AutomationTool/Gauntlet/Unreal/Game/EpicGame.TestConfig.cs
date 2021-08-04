@@ -131,6 +131,7 @@ namespace EpicGame
 			if (ConfigRole.RoleType.IsClient() || ConfigRole.RoleType.IsServer())
 			{
 				string McpString = "";
+				bool bIsBuildMachine = CommandUtils.IsBuildMachine; 
 
 				if (ConfigRole.RoleType.IsServer())
 				{
@@ -140,6 +141,11 @@ namespace EpicGame
 					McpString += string.Format(" -beaconport={0}", BeaconPort);
 
 					AppConfig.CommandLine += " -net.forcecompatible";
+
+					if (!bIsBuildMachine || !NoMCP)
+					{
+						AppConfig.CommandLineParams.Add("UseLocalIPs");
+					}
 				}
 
 				// Default to the first address with a valid prefix

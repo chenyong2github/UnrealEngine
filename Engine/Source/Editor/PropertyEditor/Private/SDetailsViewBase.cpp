@@ -52,7 +52,7 @@ SDetailsViewBase::SDetailsViewBase() :
 		CurrentFilter.bShowOnlyModified = ViewConfig->bShowOnlyModified;
 	}
 
-	PropertyWhitelistedChangedDelegate = FPropertyEditorWhitelist::Get().WhitelistUpdatedDelegate.AddRaw(this, &SDetailsViewBase::ForceRefresh);
+	PropertyWhitelistedChangedDelegate = FPropertyEditorWhitelist::Get().WhitelistUpdatedDelegate.AddLambda([this](TSoftObjectPtr<UStruct> Struct, FName Owner) { ForceRefresh(); });
 	PropertyWhitelistedEnabledDelegate = FPropertyEditorWhitelist::Get().WhitelistEnabledDelegate.AddRaw(this, &SDetailsViewBase::ForceRefresh);
 }
 

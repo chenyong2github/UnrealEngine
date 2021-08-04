@@ -125,7 +125,7 @@ namespace UnrealBuildTool
 				{
 					// On an m1 mac this appears to be where the brand is.
 					string BrandOutput = Utils.RunLocalProcessAndReturnStdOut("/usr/sbin/sysctl", "-n machdep.cpu.brand_string");
-					IsRunningOnAppleArchitectureVar = BrandOutput.StartsWith("Apple") || IsRunningUnderRosetta;
+					IsRunningOnAppleArchitectureVar = BrandOutput.Contains("Apple") || IsRunningUnderRosetta;
 				}
 
 				return IsRunningOnAppleArchitectureVar.Value;

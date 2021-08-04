@@ -271,4 +271,3 @@ MOVIEPLAYER_API IGameMoviePlayer& GetMoviePlayerRef();
 
 /** Returns true if the movie player is enabled. */
 bool MOVIEPLAYER_API IsMoviePlayerEnabled();
-

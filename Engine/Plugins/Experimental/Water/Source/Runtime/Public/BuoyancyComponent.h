@@ -7,7 +7,7 @@
 #include "BuoyancyManager.h"
 #include "BuoyancyComponent.generated.h"
 
-class AWaterBody;
+class UWaterBodyComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPontoonEnteredWater, const FSphericalPontoon&, Pontoon);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPontoonExitedWater, const FSphericalPontoon&, Pontoon);
@@ -57,11 +57,11 @@ public:
 	FVector ComputeLinearDragForce(const FVector& PhyiscsVelocity) const;
 	FVector ComputeAngularDragTorque(const FVector& AngularVelocity) const;
 
-	void EnteredWaterBody(AWaterBody* WaterBody);
-	void ExitedWaterBody(AWaterBody* WaterBody);
+	void EnteredWaterBody(UWaterBodyComponent* WaterBodyComponent);
+	void ExitedWaterBody(UWaterBodyComponent* WaterBodyComponent);
 
-	const TArray<AWaterBody*>& GetCurrentWaterBodies() const { return CurrentWaterBodies; }
-	TArray<AWaterBody*>& GetCurrentWaterBodies() { return CurrentWaterBodies; }
+	const TArray<UWaterBodyComponent*>& GetCurrentWaterBodyComponents() const { return CurrentWaterBodyComponents; }
+	TArray<UWaterBodyComponent*>& GetCurrentWaterBodyComponents() { return CurrentWaterBodyComponents; }
 
 	bool IsOverlappingWaterBody() const { return bIsOverlappingWaterBody; }
 
@@ -75,9 +75,9 @@ public:
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BuoyancyData.Pontoons instead."))
 	TArray<FSphericalPontoon> Pontoons_DEPRECATED;
 
-	void GetWaterSplineKey(FVector Location, TMap<const AWaterBody*, float>& OutMap, TMap<const AWaterBody*, float>& OutSegmentMap) const;
-	float GetWaterHeight(FVector Position, const TMap<const AWaterBody*, float>& SplineKeyMap, float DefaultHeight, AWaterBody*& OutWaterBody, float& OutWaterDepth, FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, FVector& OutWaterSurfacePosition, FVector& OutWaterVelocity, int32& OutWaterBodyIdx, bool bShouldIncludeWaves = true);
-	float GetWaterHeight(FVector Position, const TMap<const AWaterBody*, float>& SplineKeyMap, float DefaultHeight, bool bShouldIncludeWaves = true);
+	void GetWaterSplineKey(FVector Location, TMap<const UWaterBodyComponent*, float>& OutMap, TMap<const UWaterBodyComponent*, float>& OutSegmentMap) const;
+	float GetWaterHeight(FVector Position, const TMap<const UWaterBodyComponent*, float>& SplineKeyMap, float DefaultHeight, UWaterBodyComponent*& OutWaterBodyComponent, float& OutWaterDepth, FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, FVector& OutWaterSurfacePosition, FVector& OutWaterVelocity, int32& OutWaterBodyIdx, bool bShouldIncludeWaves = true);
+	float GetWaterHeight(FVector Position, const TMap<const UWaterBodyComponent*, float>& SplineKeyMap, float DefaultHeight, bool bShouldIncludeWaves = true);
 
 	UFUNCTION(BlueprintCallable, Category = Cosmetic)
 	void OnPontoonEnteredWater(const FSphericalPontoon& Pontoon);
@@ -104,7 +104,7 @@ protected:
 	void ComputePontoonCoefficients();
 
 	UPROPERTY(Transient)
-	TArray<AWaterBody*> CurrentWaterBodies;
+	TArray<UWaterBodyComponent*> CurrentWaterBodyComponents;
 
 	// Primitive component that will be used for physics simulation.
 	UPROPERTY()

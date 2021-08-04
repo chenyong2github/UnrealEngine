@@ -61,7 +61,7 @@ protected:
 	/** Holds item information a given calibrator point in the calibrator model */
 	struct FCalibratorPointData
 	{
-		FCalibratorPointData(FString&& InName)
+		FCalibratorPointData(FString& InName)
 			: Name(InName)
 		{}
 
@@ -183,8 +183,15 @@ protected:
 	/** Clears the list of calibration sample rows */
 	void ClearCalibrationRows();
 
-	/** Retrieves by name the UCalibrationPointComponent of the currently selected calibrator */
-	const UCalibrationPointComponent* GetCalibrationPointComponentFromName(const FString& Name) const;
+	/** 
+	 * Retrieves by name the calibration point data of the currently selected calibrator.
+	 * 
+	 * @param Name The name of the point (namespaced if it is a subpoint).
+	 * @param CalibratorPointCache This data structure will be populated with the information found.
+	 * 
+	 * @return True if successful.
+	 */
+	bool CalibratorPointCacheFromName(const FString& Name, FCalibratorPointCache& CalibratorPointCache) const;
 
 	/** Returns the world 3d location of the currently selected calibrator */
 	bool GetCurrentCalibratorPointLocation(FVector& OutLocation);
@@ -205,11 +212,105 @@ protected:
 	bool ApplyNodalOffsetToCalibratorParent();
 
 	/** Does basic checks on the data before performing the actual calibration */
-	bool BasicCalibrationChecksPass(FText& OutErrorMessage) const;
+	bool BasicCalibrationChecksPass(const TArray<TSharedPtr<FCalibrationRowData>>& Rows, FText& OutErrorMessage) const;
 
-	/** Calculates the optimal camera component pose that minimizes the reprojection error */
-	bool CalculatedOptimalCameraComponentPose(FTransform& OutDesiredCameraTransform, FText& OutErrorMessage) const;
-
-	/** Gets the step controller and the lens file */
+	/** 
+	 * Gets the step controller and the lens file. 
+	 *
+	 * @param OutStepsController Steps Controller
+	 * @param OutLensFile Lens File
+	 * 
+	 * @return True if successful
+	 */
 	bool GetStepsControllerAndLensFile(const FCameraCalibrationStepsController** OutStepsController, const ULensFile** OutLensFile) const;
+
+	/** 
+	 * Calculates the optimal camera component pose that minimizes the reprojection error 
+	 * 
+	 * @param OutDesiredCameraTransform The camera transform in world coordinates that minimizes the reprojection error.
+	 * @param Rows Calibration samples.
+	 * @param OutErrorMessage Documents any error that may have happened.
+	 * 
+	 * @return True if successful.
+	 */
+	bool CalculatedOptimalCameraComponentPose(
+		FTransform& OutDesiredCameraTransform, 
+		const TArray<TSharedPtr<FCalibrationRowData>>& Rows, 
+		FText& OutErrorMessage) const;
+
+	/**
+	 * Calculates nodal offset based on a single camera pose 
+	 * 
+	 * @param OutNodalOffset Camera nodal offset
+	 * @param OutFocus Focus distance associated with this nodal offset
+	 * @param OutZoom Focal length associated with this nodal offset
+	 * @param OutError Reprojection error
+	 * @param Rows Calibration samples
+	 * @param OutErrorMessage Describes any error that may have happened
+	 * 
+	 * @return True if successful
+	 */
+	bool GetNodalOffsetSinglePose(
+		FNodalPointOffset& OutNodalOffset, 
+		float& OutFocus, 
+		float& OutZoom, 
+		float& OutError, 
+		const TArray<TSharedPtr<FCalibrationRowData>>& Rows, 
+		FText& OutErrorMessage) const;
+
+	/**
+	 * Groups the calibration samples by camera pose.
+	 *
+	 * @param OutSamePoseRowGroups Output array of arrays of samples, where the samples in each group have the same camera pose.
+	 * @param Rows Ungrouped calibration samples.
+	 */
+	void GroupRowsByCameraPose(
+		TArray<TSharedPtr<TArray<TSharedPtr<FCalibrationRowData>>>>& OutSamePoseRowGroups, 
+		const TArray<TSharedPtr<FCalibrationRowData>>& Rows) const;
+
+	/** 
+	 * Detects if the calibrator moved significantly in the given sample points 
+	 * 
+	 * @param OutSamePoseRowGroups Array of array of calibration samples.
+	 * 
+	 * @return True if the calibrator moved significantly across all the samples.
+	 */
+	bool CalibratorMovedAcrossGroups(const TArray<TSharedPtr<TArray<TSharedPtr<FCalibrationRowData>>>>& OutSamePoseRowGroups) const;
+
+	/**
+	 * Detects if the calibrator moved significantly in the given sample points
+	 *
+	 * @param Rows Array of calibration samples.
+	 *
+	 * @return True if the calibrator moved significantly across all the samples.
+	 */
+	bool CalibratorMovedInAnyRow(const TArray<TSharedPtr<FCalibrationRowData>>& Rows) const;
+
+	/**
+	 * Calculates the optimal camera parent transform that minimizes the reprojection of the sample points.
+	 * 
+	 * @param Rows The calibration points
+	 * @param OutTransform The optimal camera parent transform
+	 * @param OutErrorMessage Describes any errors encountered
+	 * 
+	 * @return True if successful
+	 */
+	bool CalcTrackingOriginPoseForSingleCamPose(
+		const TArray<TSharedPtr<FCalibrationRowData>>& Rows,
+		FTransform& OutTransform,
+		FText& OutErrorMessage);
+
+	/**
+	 * Calculates the optimal calibrator transform that minimizes the reprojection of the sample points.
+	 *
+	 * @param Rows The calibration points
+	 * @param OutTransform The optimal calibrator transform
+	 * @param OutErrorMessage Describes any errors encountered
+	 *
+	 * @return True if successful
+	 */
+	bool CalcCalibratorPoseForSingleCamPose(
+		const TArray<TSharedPtr<FCalibrationRowData>>& Rows,
+		FTransform& OutTransform,
+		FText& OutErrorMessage);
 };

@@ -756,7 +756,7 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 			FbxNode* CurrentBoneNode = BoneNodes[BoneIndex];
 
 			// Create the AnimCurves
-			FbxAnimCurve* Curves[6];
+			FbxAnimCurve* Curves[9];
 			Curves[0] = CurrentBoneNode->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
 			Curves[1] = CurrentBoneNode->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
 			Curves[2] = CurrentBoneNode->LclTranslation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
@@ -765,7 +765,11 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 			Curves[4] = CurrentBoneNode->LclRotation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
 			Curves[5] = CurrentBoneNode->LclRotation.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
 
-			for(int32 i = 0; i < 6; ++i)
+			Curves[6] = CurrentBoneNode->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_X, true);
+			Curves[7] = CurrentBoneNode->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
+			Curves[8] = CurrentBoneNode->LclScaling.GetCurve(AnimLayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
+
+			for(int32 i = 0; i < 9; ++i)
 			{
 				Curves[i]->KeyModifyBegin();
 			}
@@ -779,10 +783,11 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 
 			FbxVector4 Translation = Converter.ConvertToFbxPos(BoneTransform.GetLocation());
 			FbxVector4 Rotation = Converter.ConvertToFbxRot(BoneTransform.GetRotation().Euler());
+			FbxVector4 Scale = Converter.ConvertToFbxScale(BoneTransform.GetScale3D());
 
 			int32 lKeyIndex;
 
-			for(int32 i = 0, j=3; i < 3; ++i, ++j)
+			for(int32 i = 0, j=3, k=6; i < 3; ++i, ++j, ++k)
 			{
 				lKeyIndex = Curves[i]->KeyAdd(ExportTime);
 				Curves[i]->KeySetValue(lKeyIndex, Translation[i]);
@@ -791,9 +796,13 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 				lKeyIndex = Curves[j]->KeyAdd(ExportTime);
 				Curves[j]->KeySetValue(lKeyIndex, Rotation[i]);
 				Curves[j]->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
+
+				lKeyIndex = Curves[k]->KeyAdd(ExportTime);
+				Curves[k]->KeySetValue(lKeyIndex, Scale[i]);
+				Curves[k]->KeySetInterpolation(lKeyIndex, FbxAnimCurveDef::eInterpolationCubic);
 			}
 
-			for(int32 i = 0; i < 6; ++i)
+			for(int32 i = 0; i < 9; ++i)
 			{
 				Curves[i]->KeyModifyEnd();
 			}

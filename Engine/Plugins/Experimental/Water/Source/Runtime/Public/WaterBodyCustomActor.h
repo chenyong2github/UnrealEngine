@@ -6,22 +6,17 @@
 #include "WaterBodyActor.h"
 #include "WaterBodyCustomActor.generated.h"
 
+class UDEPRECATED_CustomMeshGenerator;
 class UStaticMeshComponent;
 
 // ----------------------------------------------------------------------------------
 
 UCLASS(MinimalAPI)
-class UCustomMeshGenerator : public UWaterBodyGenerator
+class UDEPRECATED_CustomMeshGenerator : public UDEPRECATED_WaterBodyGenerator
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void Reset() override;
-	virtual void OnUpdateBody(bool bWithExclusionVolumes) override;
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
-	WATER_API void SetMaterial(UMaterialInterface* Material);
-
-private:
 	UPROPERTY(NonPIEDuplicateTransient)
 	UStaticMeshComponent* MeshComp;
 };
@@ -32,23 +27,16 @@ UCLASS(Blueprintable)
 class WATER_API AWaterBodyCustom : public AWaterBody
 {
 	GENERATED_UCLASS_BODY()
-
-public:
-	/** AWaterBody Interface */
-	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Transition; }
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
-
 protected:
-	/** AWaterBody Interface */
-	virtual void InitializeBody() override;
-	virtual bool IsBodyInitialized() const override { return !!CustomGenerator; }
-	virtual void BeginUpdateWaterBody() override;
-	virtual void UpdateWaterBody(bool bWithExclusionVolumes) override;
+	virtual void PostLoad() override;
+	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Transition; }
 
 #if WITH_EDITOR
 	virtual bool IsIconVisible() const override;
 #endif
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(NonPIEDuplicateTransient)
-	UCustomMeshGenerator* CustomGenerator;
+	UDEPRECATED_CustomMeshGenerator* CustomGenerator_DEPRECATED;
+#endif
 };

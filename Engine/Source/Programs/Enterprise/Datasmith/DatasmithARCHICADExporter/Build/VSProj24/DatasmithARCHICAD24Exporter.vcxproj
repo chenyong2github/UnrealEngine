@@ -257,7 +257,6 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClInclude Include="..\..\Private\GeometryUtil.h" />
     <ClInclude Include="..\..\Private\Menus.h" />
     <ClInclude Include="..\..\Private\MetaData.h" />
-    <ClInclude Include="..\..\Private\Options.h" />
     <ClInclude Include="..\..\Private\Palette.h" />
     <ClInclude Include="..\..\Private\ProjectEvent.h" />
     <ClInclude Include="..\..\Private\ReportWindow.h" />
@@ -268,7 +267,6 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClInclude Include="..\..\Private\Element2StaticMesh.h" />
     <ClInclude Include="..\..\Private\ElementID.h" />
     <ClInclude Include="..\..\Private\MaterialsDatabase.h" />
-    <ClInclude Include="..\..\Private\Preferences.h" />
     <ClInclude Include="..\..\Private\SyncContext.h" />
     <ClInclude Include="..\..\Private\SyncData.h" />
     <ClInclude Include="..\..\Private\SyncDatabase.h" />
@@ -282,15 +280,14 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClInclude Include="..\..\Private\Utils\Element2String.h" />
     <ClInclude Include="..\..\Private\Utils\ElementTools.h" />
     <ClInclude Include="..\..\Private\Utils\Error.h" />
-    <ClInclude Include="..\..\Private\Utils\IdleTask.h" />
     <ClInclude Include="..\..\Private\Utils\LibPartInfo.h" />
     <ClInclude Include="..\..\Private\Utils\LocalizeTools.h" />
     <ClInclude Include="..\..\Private\Utils\Pasteboard.h" />
     <ClInclude Include="..\..\Private\Utils\Progression.h" />
     <ClInclude Include="..\..\Private\Utils\ResourcesUtils.h" />
-    <ClInclude Include="..\..\Private\Utils\SaverReader.h" />
     <ClInclude Include="..\..\Private\Utils\SceneValidator.h" />
     <ClInclude Include="..\..\Private\Utils\ShellOpenDocument.h" />
+    <ClInclude Include="..\..\Private\Utils\TaskCalledFromEventLoop.h" />
     <ClInclude Include="..\..\Private\Utils\TaskMgr.h" />
     <ClInclude Include="..\..\Private\Utils\TAssValueName.h" />
     <ClInclude Include="..\..\Private\Utils\TimeStat.h" />
@@ -308,9 +305,7 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClCompile Include="..\..\Private\GeometryUtil.cpp" />
     <ClCompile Include="..\..\Private\Menus.cpp" />
     <ClCompile Include="..\..\Private\MetaData.cpp" />
-    <ClCompile Include="..\..\Private\Options.cpp" />
     <ClCompile Include="..\..\Private\Palette.cpp" />
-    <ClCompile Include="..\..\Private\Preferences.cpp" />
     <ClCompile Include="..\..\Private\ProjectEvent.cpp" />
     <ClCompile Include="..\..\Private\ReportWindow.cpp" />
     <ClCompile Include="..\..\Private\Synchronizer.cpp" />
@@ -329,13 +324,13 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClCompile Include="..\..\Private\Utils\Element2String.cpp" />
     <ClCompile Include="..\..\Private\Utils\ElementTools.cpp" />
     <ClCompile Include="..\..\Private\Utils\Error.cpp" />
-    <ClCompile Include="..\..\Private\Utils\IdleTask.cpp" />
     <ClCompile Include="..\..\Private\Utils\LibPartInfo.cpp" />
     <ClCompile Include="..\..\Private\Utils\LocalizeTools.cpp" />
     <ClCompile Include="..\..\Private\Utils\Pasteboard.cpp" />
     <ClCompile Include="..\..\Private\Utils\Progression.cpp" />
     <ClCompile Include="..\..\Private\Utils\SceneValidator.cpp" />
     <ClCompile Include="..\..\Private\Utils\ShellOpenDocument.cpp" />
+    <ClCompile Include="..\..\Private\Utils\TaskCalledFromEventLoop.cpp" />
     <ClCompile Include="..\..\Private\Utils\TaskMgr.cpp" />
     <ClCompile Include="..\..\Private\Utils\TAssValueName.cpp" />
     <ClCompile Include="..\..\Private\Utils\TimeStat.cpp" />

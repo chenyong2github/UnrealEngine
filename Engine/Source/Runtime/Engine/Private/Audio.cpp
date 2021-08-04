@@ -549,15 +549,13 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 			Params.NormalizedOmniRadius = 0.0f;
 		}
 
+		Params.EmitterPosition = EmitterPosition;
+
 		if (Buffer->NumChannels == 2)
 		{
 			Params.LeftChannelPosition = AudioDevice->GetListenerTransformedDirection(LeftChannelSourceLocation, nullptr);
 			Params.RightChannelPosition = AudioDevice->GetListenerTransformedDirection(RightChannelSourceLocation, nullptr);
-			Params.EmitterPosition = FVector::ZeroVector;
-		}
-		else
-		{
-			Params.EmitterPosition = EmitterPosition;
+
 		}
 	}
 	else

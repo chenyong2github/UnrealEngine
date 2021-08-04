@@ -224,8 +224,6 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 		for (FDisplayClusterRenderFrame::FFrameViewFamily& DCViewFamily : DCRenderTarget.ViewFamilies)
 		{
-			if (DCViewFamily.NumViewsForRender > 0)
-			{
 				// Create the view family for rendering the world scene to the viewport's render target
 				FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(DCRenderTarget.RenderTargetPtr, MyWorld->Scene, EngineShowFlags)
 					.SetRealtimeUpdate(true)
@@ -291,14 +289,20 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 				for (FDisplayClusterRenderFrame::FFrameView& DCView : DCViewFamily.Views)
 				{
-					if (DCView.bDisableRender == false)
-					{
 						const FDisplayClusterViewport_Context ViewportContext = DCView.Viewport->GetContexts()[DCView.ContextNum];
 
 						// Calculate the player's view information.
 						FVector		ViewLocation;
 						FRotator	ViewRotation;
 						FSceneView* View = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, InViewport, nullptr, ViewportContext.StereoscopicPass);
+
+				if (View && DCView.bDisableRender)
+				{
+					ViewFamily.Views.Remove(View);
+
+					delete View;
+					View = nullptr;
+				}
 
 						if (View)
 						{
@@ -419,12 +423,12 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 							MyWorld->ViewLocationsRenderedLastFrame.Add(View->ViewMatrices.GetViewOrigin());
 						}
 					}
-				}
 
 #if CSV_PROFILER
 				UpdateCsvCameraStats(PlayerViewMap);
 #endif
-
+			if (ViewFamily.Views.Num() > 0)
+			{
 				FinalizeViews(&ViewFamily, PlayerViewMap);
 
 				// Force screen percentage show flag to be turned off if not supported.

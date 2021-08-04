@@ -2489,7 +2489,7 @@ public:
 	/**
 	 * Prompts the user to save the current map if necessary, then creates a new (blank) map.
 	 */
-	void CreateNewMapForEditing();
+	void CreateNewMapForEditing(bool bPromptUserToSave = true);
 
 	/**
 	 * If a PIE world exists, give the user the option to terminate it.

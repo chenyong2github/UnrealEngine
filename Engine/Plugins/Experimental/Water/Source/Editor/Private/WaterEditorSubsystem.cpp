@@ -114,13 +114,11 @@ void UWaterEditorSubsystem::UpdateWaterTextures(
 			// The water bodies' material instances are referencing the water velocity texture so they need to be in sync : 
 			if (FoundMeshActor->WaterVelocityTexture != PreviousTexture)
 			{
-				for (TActorIterator<AWaterBody> WaterBodyActorIt(World); WaterBodyActorIt; ++WaterBodyActorIt)
+				UWaterSubsystem::ForEachWaterBodyComponent(World, [this](UWaterBodyComponent* WaterBodyComponent)
 				{
-					if (AWaterBody* WaterBody = WaterBodyActorIt ? *WaterBodyActorIt : nullptr)
-					{
-						WaterBody->UpdateMaterialInstances();
-					}
-				}
+					WaterBodyComponent->UpdateMaterialInstances();
+					return true;
+				});
 			}
 
 			OutWaterVelocityTexture = FoundMeshActor->WaterVelocityTexture;

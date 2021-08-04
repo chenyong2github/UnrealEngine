@@ -151,13 +151,27 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 					DictionaryInfo = Dictionary;
 					break;
 				}
+
+				for (const TPair<FString, FVector>& SubPoint: CalibrationPoint->SubPoints)
+				{
+					if (SubPoint.Key.StartsWith(FString::Printf(TEXT("%s-"), *Dictionary.Name)))
+					{
+						DictionaryInfo = Dictionary;
+						break;
 			}
+				}
 
 			if (!DictionaryInfo.Dict.empty())
 			{
 				break;
 			}
 		}
+
+			if (!DictionaryInfo.Dict.empty())
+			{
+				break;
+			}
+	}
 	}
 
 	if (DictionaryInfo.Dict.empty())
@@ -214,7 +228,7 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 		cv::cvtColor(CvFrame, CvFrame, cv::COLOR_RGB2RGBA);
 
 		FCameraCalibrationWidgetHelpers::DisplayTextureInWindowAlmostFullScreen(
-			FCameraCalibrationStepsController::TextureFromCvMat(CvFrame),
+			FOpenCVHelper::TextureFromCvMat(CvFrame),
 			LOCTEXT("ArucoMarkerDetection", "ArucoMarkerDetection")
 		);
 	}
@@ -242,10 +256,9 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 			// Build calibrator point name based on the detected marker
 			const FString MarkerName = FString::Printf(TEXT("%s-%d-%s"), *DictionaryInfo.Name, MarkerIds[MarkerIdx], *CornerNames[CornerIdx]); //-V557
 
-			// Find the corresponding calibrator point
-			const UCalibrationPointComponent* CalibrationPointComponent = GetCalibrationPointComponentFromName(MarkerName);
+			FCalibratorPointCache PointCache;
 
-			if (!CalibrationPointComponent)
+			if (!CalibratorPointCacheFromName(MarkerName, PointCache))
 			{
 				continue;
 			}
@@ -257,21 +270,14 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 			Row->Point2D.X = float(MarkerCorners[MarkerIdx][CornerIdx].x) / Size.X;
 			Row->Point2D.Y = float(MarkerCorners[MarkerIdx][CornerIdx].y) / Size.Y;
 
-			Row->CalibratorPointData.Location = CalibrationPointComponent->GetComponentLocation();
+			Row->CalibratorPointData.Location = PointCache.Location;
 			Row->CalibratorPointData.Name = MarkerName;
 			Row->CalibratorPointData.bIsValid = true;
 
 			Row->CameraData = LastCameraData;
 
-			// Validate the new row, show a message if validation fails.
+			if (!ValidateNewRow(Row, OutErrorMessage))
 			{
-				FText ErrorMessage;
-
-				if (!ValidateNewRow(Row, ErrorMessage))
-				{
-					const FText TitleError = LOCTEXT("NewRowError", "New Row Error");
-					FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
-
 					// Notify the ListView of the new data
 					if (CalibrationListView.IsValid())
 					{
@@ -280,7 +286,6 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 
 					return false;
 				}
-			}
 
 			CalibrationRows.Add(Row);
 		}

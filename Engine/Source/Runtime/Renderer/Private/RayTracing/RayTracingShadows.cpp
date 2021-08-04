@@ -43,16 +43,16 @@ static TAutoConsoleVariable<int32> CVarRayTracingShadowsEnableTwoSidedGeometry(
 
 static TAutoConsoleVariable<int32> CVarRayTracingTransmissionSamplingDistanceCulling(
 	TEXT("r.RayTracing.Transmission.TransmissionSamplingDistanceCulling"),
-	0,
-	TEXT("Enables visibility testing to cull transmission sampling distance (default = 0)"),
+	1,
+	TEXT("Enables visibility testing to cull transmission sampling distance (default = 1)"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarRayTracingTransmissionSamplingTechnique(
 	TEXT("r.RayTracing.Transmission.SamplingTechnique"),
-	0,
-	TEXT("0: Uses constant tracking of an infinite homogeneous medium (default)\n")
-	TEXT("1: Uses constant tracking of a finite homogeneous medium whose extent is determined by transmission sampling distance"),
+	1,
+	TEXT("0: Uses constant tracking of an infinite homogeneous medium\n")
+	TEXT("1: Uses constant tracking of a finite homogeneous medium whose extent is determined by transmission sampling distance (default)"),
 	ECVF_RenderThreadSafe
 );
 

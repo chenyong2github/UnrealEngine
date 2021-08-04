@@ -237,6 +237,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	bCanShowFolders = InArgs._CanShowFolders;
 
+	bCanShowReadOnlyFolders = InArgs._CanShowReadOnlyFolders;
+
 	bFilterRecursivelyWithBackendFilter = InArgs._FilterRecursivelyWithBackendFilter;
 		
 	bCanShowRealTimeThumbnails = InArgs._CanShowRealTimeThumbnails;
@@ -322,6 +324,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetClassBlacklist = AssetToolsModule.Get().GetAssetClassBlacklist();
 	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
+	WritableFolderBlacklist = AssetToolsModule.Get().GetWritableFolderBlacklist();
 
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 	TSharedRef<SWidget> AssetDiscoveryIndicator = EditorWidgetsModule.CreateAssetDiscoveryIndicator(EAssetDiscoveryIndicatorScaleMode::Scale_Vertical);
@@ -1779,7 +1782,8 @@ FContentBrowserDataFilter SAssetView::CreateBackendDataFilter() const
 		| (IsShowingDevelopersContent() ? EContentBrowserItemAttributeFilter::IncludeDeveloper : EContentBrowserItemAttributeFilter::IncludeNone)
 		| (IsShowingLocalizedContent() ? EContentBrowserItemAttributeFilter::IncludeLocalized : EContentBrowserItemAttributeFilter::IncludeNone);
 
-	ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(BackendFilter, AssetClassBlacklist, FolderBlacklist, DataFilter);
+	TSharedPtr<FBlacklistPaths> CombinedFolderBlacklist = ContentBrowserUtils::GetCombinedFolderBlacklist(FolderBlacklist, IsShowingReadOnlyFolders() ? nullptr : WritableFolderBlacklist);
+	ContentBrowserUtils::AppendAssetFilterToContentBrowserFilter(BackendFilter, AssetClassBlacklist, CombinedFolderBlacklist, DataFilter);
 
 	if (bHasCollections && !SourcesData.IsDynamicCollection())
 	{
@@ -1855,6 +1859,9 @@ void SAssetView::RefreshSourceItems()
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
 		for (const FName& DataSourcePath : DataSourcePaths)
 		{
+			// Ensure paths do not contain trailing slash
+			ensure(DataSourcePath == RootPath || !FStringView(FNameBuilder(DataSourcePath)).EndsWith(TEXT('/')));
+
 			ContentBrowserData->EnumerateItemsUnderPath(DataSourcePath, DataFilter, [this, &PreviousAvailableBackendItems](FContentBrowserItemData&& InItemData)
 			{
 				const FContentBrowserItemKey ItemDataKey(InItemData);
@@ -2720,6 +2727,11 @@ bool SAssetView::IsToggleShowFoldersAllowed() const
 bool SAssetView::IsShowingFolders() const
 {
 	return IsToggleShowFoldersAllowed() && GetDefault<UContentBrowserSettings>()->DisplayFolders;
+}
+
+bool SAssetView::IsShowingReadOnlyFolders() const
+{
+	return bCanShowReadOnlyFolders;
 }
 
 void SAssetView::ToggleShowEmptyFolders()

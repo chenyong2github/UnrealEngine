@@ -10,7 +10,7 @@
 #include "GameFeaturesSubsystem.generated.h"
 
 class UGameFeaturePluginStateMachine;
-class UGameFeatureStateChangeObserver;
+class IGameFeatureStateChangeObserver;
 struct FStreamableHandle;
 struct FAssetIdentifier;
 class UGameFeatureData;
@@ -43,18 +43,13 @@ private:
 };
 
 GAMEFEATURES_API DECLARE_LOG_CATEGORY_EXTERN(LogGameFeatures, Log, All);
+/** Notification that a game feature plugin install/register/load/unload has finished */
+DECLARE_DELEGATE_OneParam(FGameFeaturePluginChangeStateComplete, const UE::GameFeatures::FResult& /*Result*/);
 
-/** Notification that a game feature plugin load has finished */
-DECLARE_DELEGATE_OneParam(FGameFeaturePluginLoadComplete, const UE::GameFeatures::FResult& /*Result*/);
-
-/** Notification that a game feature plugin deactivate has finished.*/
-DECLARE_DELEGATE_OneParam(FGameFeaturePluginDeactivateComplete, const UE::GameFeatures::FResult& /*Result*/);
-
-/** Notification that a game feature plugin unload has finished.*/
-DECLARE_DELEGATE_OneParam(FGameFeaturePluginUnloadComplete, const UE::GameFeatures::FResult& /*Result*/);
-
-/** Notification that a game feature plugin uninstall has finished.*/
-DECLARE_DELEGATE_OneParam(FGameFeaturePluginUninstallComplete, const UE::GameFeatures::FResult& /*Result*/);
+using FGameFeaturePluginLoadComplete = FGameFeaturePluginChangeStateComplete;
+using FGameFeaturePluginDeactivateComplete = FGameFeaturePluginChangeStateComplete;
+using FGameFeaturePluginUnloadComplete = FGameFeaturePluginChangeStateComplete;
+using FGameFeaturePluginUninstallComplete = FGameFeaturePluginChangeStateComplete;
 
 /** Notification that a game feature plugin load has finished successfully and feeds back the GameFeatureData*/
 DECLARE_MULTICAST_DELEGATE_TwoParams(FGameFeaturePluginLoadCompleteDataReady, const FString& /*Name*/, const UGameFeatureData* /*Data*/);
@@ -65,6 +60,15 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FGameFeaturePluginDeativated, const FString
 enum class EBuiltInAutoState : uint8
 {
 	Invalid,
+	Installed,
+	Registered,
+	Loaded,
+	Active
+};
+
+UENUM(BlueprintType)
+enum class EGameFeatureTargetState : uint8
+{
 	Installed,
 	Registered,
 	Loaded,
@@ -109,8 +113,8 @@ public:
 	/** Loads the specified game feature data and its bundles */
 	static TSharedPtr<FStreamableHandle> LoadGameFeatureData(const FString& GameFeatureToLoad);
 
-	void AddObserver(UGameFeatureStateChangeObserver* Observer);
-	void RemoveObserver(UGameFeatureStateChangeObserver* Observer);
+	void AddObserver(UObject* Observer);
+	void RemoveObserver(UObject* Observer);
 
 	/**
 	 * Calls the compile-time lambda on each active game feature data of the specified type
@@ -176,6 +180,9 @@ public:
 	/** Loads a single game feature plugin and activates it. */
 	void LoadAndActivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate);
 
+	/** Changes the target state of a game feature plugin */
+	void ChangeGameFeatureTargetState(const FString& PluginURL, EGameFeatureTargetState TargetState, const FGameFeaturePluginChangeStateComplete& CompleteDelegate);
+
 	/** Gets the Install_Percent for single game feature plugin if it is active. */
 	bool GetGameFeaturePluginInstallPercent(const FString& PluginURL, float& Install_Percent) const;
 
@@ -235,12 +242,6 @@ public:
 	/** Removes assets that are in plugins we know to be inactive.  Order is not maintained. */
 	void FilterInactivePluginAssets(TArray<FAssetData>& AssetsToFilter) const;
 
-    /** Broadcasts when a plugin is activated and the GameFeatureData is available */
-	static FGameFeaturePluginLoadCompleteDataReady& OnPluginLoadCompleteDataReady() { return PluginLoadedGameFeatureDataReadyDelegate; }
-
-	/** Broadcasts when a plugin is deactivated */
-	static FGameFeaturePluginDeativated& OnPluginDeactivatedDataReady() { return PluginDeactivatedDelegate; }
-
 	/** Returns the current state of the state machine for the specified plugin URL */
 	EGameFeaturePluginState GetPluginState(const FString& PluginURL);
 
@@ -299,20 +300,11 @@ private:
 	/** Notification that a game feature has finished loading, and whether it was successful */
 	void LoadGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result);
 
-	/** Notification that a game feature that was requested by LoadAndActivateGameFeaturePlugin has finished loading, and whether it was successful */
-	void LoadExternallyRequestedGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginLoadComplete CompleteDelegate);
-
-	/** Notification that a game feature that was requested to be deactivated has finished deactivating, and whether it was successful. */
-	void DeactivateGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginDeactivateComplete CompleteDelegate);
-
-	/** Notification that a game feature that was requested to be unloaded has finished unloading, and whether it was successful. */
-	void UnloadGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUnloadComplete CompleteDelegate);
-
-	/** Notification that a game feature that was requested to be uninstalled has finished uninstalling, and whether it was successful. */
-	void UninstallGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate);
-
 	/** Notification that a game feature that was requested to be terminate has finished terminating, and whether it was successful. */
 	void TerminateGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate);
+
+	/** Generic notification that calls the Complete delegate without broadcasting anything else.*/
+	void ChangeGameFeatureTargetStateComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate);
 
 	/** Handler for when a state machine requests its dependencies. Returns false if the dependencies could not be read */
 	bool HandleRequestPluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines);
@@ -327,14 +319,11 @@ private:
 
 	TMap<FString, FString> GameFeaturePluginNameToPathMap;
 
-	UPROPERTY(Transient)
-	TArray<UGameFeatureStateChangeObserver*> Observers;
+	UPROPERTY()
+	TArray<UObject*> Observers;
 
 	UPROPERTY(Transient)
 	UGameFeaturesProjectPolicies* GameSpecificPolicies;
 
 	bool bInitializedPolicyManager = false;
-	
-	static FGameFeaturePluginLoadCompleteDataReady PluginLoadedGameFeatureDataReadyDelegate;
-	static FGameFeaturePluginDeativated PluginDeactivatedDelegate;
 };

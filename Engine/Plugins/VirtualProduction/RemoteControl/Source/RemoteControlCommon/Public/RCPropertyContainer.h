@@ -20,6 +20,30 @@ public:
 	/** Sets the value from the incoming raw data. Provide size for array, string, etc. */
 	void SetValue(const uint8* InData, const SIZE_T& InSize = 0);
 
+	/** Sets the value as ValueType, Not necessarily valid if using incorrect ValueType. */
+	template <typename ValueType>
+	void SetValue(const ValueType& InValue)
+	{
+#if WITH_EDITOR
+		Modify();
+		FProperty* Property = GetValueProperty();
+		FEditPropertyChain EditChain;
+		EditChain.AddHead(Property);
+		PreEditChange(EditChain);
+#endif	
+
+		GetValueProperty()->CopyCompleteValue(
+			GetValueProperty()->ContainerPtrToValuePtr<ValueType>(this),
+			&InValue);
+
+#if WITH_EDITOR
+		FPropertyChangedEvent EditPropertyChangeEvent(Property, EPropertyChangeType::ValueSet);
+		PostEditChangeProperty(EditPropertyChangeEvent);
+		FPropertyChangedChainEvent EditChangeChainEvent(EditChain, EditPropertyChangeEvent);
+		PostEditChangeChainProperty(EditChangeChainEvent);
+#endif
+	}
+
 	/** Writes to the provided raw data pointer. Returns size for array, string, etc. */
 	SIZE_T GetValue(uint8* OutData);
 

@@ -228,7 +228,7 @@ void UConversationTaskNode::GatherStaticChoices(FConversationBranchPointBuilder&
 	}
 }
 
-void UConversationTaskNode::GatherStaticExtraData(const FConversationContext& Context, TArray<FConversationNodeParameterPair>& InOutExtraData) const
+void UConversationTaskNode::GatherStaticExtraData_Implementation(const FConversationContext& Context, TArray<FConversationNodeParameterPair>& InOutExtraData) const
 {
 	
 }

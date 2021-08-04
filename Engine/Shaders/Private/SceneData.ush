@@ -100,27 +100,17 @@ struct FPrimitiveSceneData
 
 float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemIndex)
 {
-#if USE_GLOBAL_GPU_SCENE_DATA
-
-	// BEGIN: Workaround for UE-115402
-
-	// Check the read is in-bounds
-	uint NumElements, Stride;
-	GPUScenePrimitiveSceneData.GetDimensions(NumElements, Stride);
-
 	uint TargetIdx = PrimitiveIndex + ItemIndex;
-	if (TargetIdx >= NumElements)
-	{
-		return float4(0, 0, 0, 0);
-	}
 
-	// END: Workaround for UE-115402
-
+#if USE_GLOBAL_GPU_SCENE_DATA
+	checkStructuredBufferAccessSlow(GPUScenePrimitiveSceneData, TargetIdx);
 	return GPUScenePrimitiveSceneData[TargetIdx];
 #elif USE_GLOBAL_GPU_SCENE_DATA_RW
-	return GPUScenePrimitiveSceneDataRW[PrimitiveIndex + ItemIndex];
+	checkStructuredBufferAccessSlow(GPUScenePrimitiveSceneDataRW, TargetIdx);
+	return GPUScenePrimitiveSceneDataRW[TargetIdx];
 #else
-	return View.PrimitiveSceneData[PrimitiveIndex + ItemIndex];
+	checkStructuredBufferAccessSlow(View.PrimitiveSceneData, TargetIdx);
+	return View.PrimitiveSceneData[TargetIdx];
 #endif
 }
 

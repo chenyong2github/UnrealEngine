@@ -86,12 +86,13 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic)
 	void ExecuteClientEffects(const FConversationContext& Context) const;
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintAuthorityOnly)
+	void GatherStaticExtraData(const FConversationContext& Context, TArray<FConversationNodeParameterPair>& InOutExtraData) const;
+
 	virtual void GatherChoices(FConversationBranchPointBuilder& BranchBuilder, const FConversationContext& Context) const;
 
 	virtual void GatherStaticChoices(FConversationBranchPointBuilder& BranchBuilder, const FConversationContext& Context) const;
 	virtual void GatherDynamicChoices(FConversationBranchPointBuilder& BranchBuilder, const FConversationContext& Context) const;
-
-	virtual void GatherStaticExtraData(const FConversationContext& Context, TArray<FConversationNodeParameterPair>& InOutExtraData) const;
 
 protected:
 #if WITH_EDITORONLY_DATA

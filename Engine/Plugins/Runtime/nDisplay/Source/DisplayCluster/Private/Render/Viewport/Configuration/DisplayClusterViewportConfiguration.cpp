@@ -88,8 +88,7 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
 
-			ImplUpdateConfiguration_PostProcess(InClusterNodeId, *ConfigurationData);
-
+			ConfigurationBase.UpdateClusterNodePostProcess(InClusterNodeId);
 			if (!RenderFrameSettings.bIsRenderingInEditor)
 			{
 				// TextureShare not supported in Editor Preview
@@ -189,32 +188,6 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 		RenderFrameSettings.bIsRenderingInEditor = true;
 	}
 #endif /*WITH_EDITOR*/
-}
-
-void FDisplayClusterViewportConfiguration::ImplUpdateConfiguration_PostProcess(const FString& InClusterNodeId, const UDisplayClusterConfigurationData& ConfigurationData)
-{
-	const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.GetClusterNode(InClusterNodeId);
-
-	if (ClusterNode)
-	{
-		// Now post-process dynamic re-configuration not implemented
-		static bool bInitialized = false;
-		if (!bInitialized)
-		{
-			bInitialized = true;
-
-			// Initialize all local postprocess operations
-			TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> Postprocess = GDisplayCluster->GetPrivateRenderMgr()->GetRegisteredPostprocessOperations();
-
-			for (const TPair<FString, FDisplayClusterConfigurationPostprocess>& PostprocessIt : ClusterNode->Postprocess)
-			{
-				if (Postprocess.Contains(PostprocessIt.Value.Type))
-				{
-					Postprocess[PostprocessIt.Value.Type].Operation->InitializePostProcess(ViewportManager, PostprocessIt.Value.Parameters);
-				}
-			}
-		}
-	}
 }
 
 #if WITH_EDITOR

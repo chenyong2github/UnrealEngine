@@ -2,8 +2,7 @@
 
 #include "RCWebInterfaceProcess.h"
 #include "RCWebInterfacePrivate.h"
-#include "RCWebInterfaceSettings.h"
-#include "WebRemoteControlSettings.h"
+#include "RemoteControlSettings.h"
 #include "Interfaces/IPluginManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
@@ -98,15 +97,14 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 		return 0;
 	}
 
-	const URemoteControlWebInterfaceSettings* RCWebSettings = GetDefault<URemoteControlWebInterfaceSettings>();
-	const UWebRemoteControlSettings* RCSettings = GetDefault<UWebRemoteControlSettings>();
+	const URemoteControlSettings* RCSettings = GetDefault<URemoteControlSettings>();
 
 	FString Args = FString::Printf(TEXT("--port %d --uews %d --uehttp %d --monitor "),
-									RCWebSettings->RemoteControlWebInterfacePort,
+									RCSettings->RemoteControlWebInterfacePort,
 									RCSettings->RemoteControlWebSocketServerPort,
 									RCSettings->RemoteControlHttpServerPort);
 
-	if (RCWebSettings->bForceWebAppBuildAtStartup)
+	if (RCSettings->bForceWebAppBuildAtStartup)
 	{
 		Args.Append(TEXT("--build "));
 	}

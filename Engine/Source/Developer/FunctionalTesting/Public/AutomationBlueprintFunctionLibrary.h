@@ -73,6 +73,7 @@ class FUNCTIONALTESTING_API UAutomationBlueprintFunctionLibrary : public UBluepr
 	GENERATED_UCLASS_BODY()
 	
 public:
+	UFUNCTION(BlueprintCallable, Category = "Automation")
 	static void FinishLoadingBeforeScreenshot();
 
 	static bool TakeAutomationScreenshotInternal(UObject* WorldContextObject, const FString& ScreenShotName, const FString& Notes, FAutomationScreenshotOptions Options);

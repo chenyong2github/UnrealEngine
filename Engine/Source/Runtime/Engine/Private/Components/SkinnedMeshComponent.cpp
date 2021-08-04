@@ -1031,7 +1031,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool USkinnedMeshComponent::GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const
 {
-	if (SkeletalMesh)
+	if (SkeletalMesh && SkeletalMesh->IsMaterialUsed(MaterialIndex))
 	{
 		MaterialData.Material = GetMaterial(MaterialIndex);
 		MaterialData.UVChannelData = SkeletalMesh->GetUVChannelData(MaterialIndex);

@@ -57,8 +57,7 @@ void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJ
 				UMoviePipelineGameOverrideSetting* GameOverrideSetting = CastChecked<UMoviePipelineGameOverrideSetting>(Setting);
 				if (GameOverrideSetting->GameModeOverride)
 				{
-					FString GameModeOverride = FPackageName::GetShortName(*GameOverrideSetting->GameModeOverride->GetPathName());
-					MapOptions = TEXT("?game=") + GameModeOverride;
+					MapOptions = TEXT("?game=") + GameOverrideSetting->GameModeOverride->GetPathName();
 				}
 
 			}

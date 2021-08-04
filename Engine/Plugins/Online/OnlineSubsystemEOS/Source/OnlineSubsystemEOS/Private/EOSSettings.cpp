@@ -52,7 +52,7 @@ inline bool ContainsWhitespace(const FString& Source)
 	return false;
 }
 
-FEOSArtifactSettings FArtifactSettings::ToNative() const
+/*FEOSArtifactSettings FArtifactSettings::ToNative() const
 {
 	FEOSArtifactSettings Native;
 
@@ -65,7 +65,7 @@ FEOSArtifactSettings FArtifactSettings::ToNative() const
 	Native.SandboxId = SandboxId;
 
 	return Native;
-}
+}*/
 
 inline FString StripQuotes(const FString& Source)
 {
@@ -121,44 +121,50 @@ void FEOSArtifactSettings::ParseRawArrayEntry(const FString& RawLine)
 	}
 }
 
-FEOSSettings UEOSSettings::GetSettings()
+const FEOSSettings& UEOSSettings::GetSettings()
 {
-	if (UObjectInitialized())
+	/*if (UObjectInitialized())
 	{
 		return UEOSSettings::AutoGetSettings();
-	}
+	}*/
+
 	return UEOSSettings::ManualGetSettings();
 }
 
-FEOSSettings UEOSSettings::AutoGetSettings()
+/*FEOSSettings UEOSSettings::AutoGetSettings()
 {
 	return GetDefault<UEOSSettings>()->ToNative();
-}
+}*/
 
-FEOSSettings UEOSSettings::ManualGetSettings()
+const FEOSSettings& UEOSSettings::ManualGetSettings()
 {
-	FEOSSettings Native;
+	static TOptional<FEOSSettings> CachedSettings;
 
-	GConfig->GetString(INI_SECTION, TEXT("CacheDir"), Native.CacheDir, GEngineIni);
-	GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), Native.DefaultArtifactName, GEngineIni);
-	GConfig->GetInt(INI_SECTION, TEXT("TickBudgetInMilliseconds"), Native.TickBudgetInMilliseconds, GEngineIni);
-	GConfig->GetInt(INI_SECTION, TEXT("TitleStorageReadChunkLength"), Native.TitleStorageReadChunkLength, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bEnableOverlay"), Native.bEnableOverlay, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bEnableSocialOverlay"), Native.bEnableSocialOverlay, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bShouldEnforceBeingLaunchedByEGS"), Native.bShouldEnforceBeingLaunchedByEGS, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bUseEAS"), Native.bUseEAS, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bUseEOSConnect"), Native.bUseEOSConnect, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bUseEOSSessions"), Native.bUseEOSSessions, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bMirrorStatsToEOS"), Native.bMirrorStatsToEOS, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bMirrorAchievementsToEOS"), Native.bMirrorAchievementsToEOS, GEngineIni);
-	GConfig->GetBool(INI_SECTION, TEXT("bMirrorPresenceToEAS"), Native.bMirrorPresenceToEAS, GEngineIni);
+	if (!CachedSettings.IsSet())
+	{
+		CachedSettings.Emplace();
+
+		GConfig->GetString(INI_SECTION, TEXT("CacheDir"), CachedSettings->CacheDir, GEngineIni);
+		GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), CachedSettings->DefaultArtifactName, GEngineIni);
+		GConfig->GetInt(INI_SECTION, TEXT("TickBudgetInMilliseconds"), CachedSettings->TickBudgetInMilliseconds, GEngineIni);
+		GConfig->GetInt(INI_SECTION, TEXT("TitleStorageReadChunkLength"), CachedSettings->TitleStorageReadChunkLength, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bEnableOverlay"), CachedSettings->bEnableOverlay, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bEnableSocialOverlay"), CachedSettings->bEnableSocialOverlay, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bShouldEnforceBeingLaunchedByEGS"), CachedSettings->bShouldEnforceBeingLaunchedByEGS, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bUseEAS"), CachedSettings->bUseEAS, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bUseEOSConnect"), CachedSettings->bUseEOSConnect, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bUseEOSSessions"), CachedSettings->bUseEOSSessions, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bMirrorStatsToEOS"), CachedSettings->bMirrorStatsToEOS, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bMirrorAchievementsToEOS"), CachedSettings->bMirrorAchievementsToEOS, GEngineIni);
+		GConfig->GetBool(INI_SECTION, TEXT("bMirrorPresenceToEAS"), CachedSettings->bMirrorPresenceToEAS, GEngineIni);
 	// Artifacts explicitly skipped
-	GConfig->GetArray(INI_SECTION, TEXT("TitleStorageTags"), Native.TitleStorageTags, GEngineIni);
+		GConfig->GetArray(INI_SECTION, TEXT("TitleStorageTags"), CachedSettings->TitleStorageTags, GEngineIni);
+	}
 
-	return Native;
+	return *CachedSettings;
 }
 
-FEOSSettings UEOSSettings::ToNative() const
+/*FEOSSettings UEOSSettings::ToNative() const
 {
 	FEOSSettings Native;
 
@@ -179,23 +185,32 @@ FEOSSettings UEOSSettings::ToNative() const
 	Native.TitleStorageTags = TitleStorageTags;
 
 	return Native;
-}
+}*/
 
 bool UEOSSettings::GetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
 {
-	if (UObjectInitialized())
+	/*if (UObjectInitialized())
 	{
 		return UEOSSettings::AutoGetSettingsForArtifact(ArtifactName, OutSettings);
-	}
+	}*/
 	return UEOSSettings::ManualGetSettingsForArtifact(ArtifactName, OutSettings);
 }
 
 bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
 {
-	FString DefaultArtifactName;
-	GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), DefaultArtifactName, GEngineIni);
+	static TOptional<FString> CachedDefaultArtifactName;
+	static TOptional<TArray<FEOSArtifactSettings>> CachedArtifactSettings;
 
-	TArray<FEOSArtifactSettings> ArtifactSettings;
+	if (!CachedDefaultArtifactName.IsSet())
+	{
+		CachedDefaultArtifactName.Emplace();
+
+		GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), *CachedDefaultArtifactName, GEngineIni);
+	}
+
+	if (!CachedArtifactSettings.IsSet())
+	{
+		CachedArtifactSettings.Emplace();
 
 	TArray<FString> Artifacts;
 	GConfig->GetArray(INI_SECTION, TEXT("Artifacts"), Artifacts, GEngineIni);
@@ -203,7 +218,8 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 	{
 		FEOSArtifactSettings Artifact;
 		Artifact.ParseRawArrayEntry(Line);
-		ArtifactSettings.Add(Artifact);
+			CachedArtifactSettings->Add(Artifact);
+	}
 	}
 
 	FString ArtifactNameOverride;
@@ -213,8 +229,9 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 	{
 		ArtifactNameOverride = ArtifactName;
 	}
+
 	// Search by name and then default if not found
-	for (const FEOSArtifactSettings& Artifact : ArtifactSettings)
+	for (const FEOSArtifactSettings& Artifact : *CachedArtifactSettings)
 	{
 		if (Artifact.ArtifactName == ArtifactNameOverride)
 		{
@@ -222,18 +239,20 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 			return true;
 		}
 	}
-	for (const FEOSArtifactSettings& Artifact : ArtifactSettings)
+
+	for (const FEOSArtifactSettings& Artifact : *CachedArtifactSettings)
 	{
-		if (Artifact.ArtifactName == DefaultArtifactName)
+		if (Artifact.ArtifactName == *CachedDefaultArtifactName)
 		{
 			OutSettings = Artifact;
 			return true;
 		}
 	}
+
 	return false;
 }
 
-bool UEOSSettings::AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
+/*bool UEOSSettings::AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
 {
 	const UEOSSettings* This = GetDefault<UEOSSettings>();
 	FString ArtifactNameOverride;
@@ -261,7 +280,7 @@ bool UEOSSettings::AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSA
 	}
 	UE_LOG_ONLINE(Error, TEXT("UEOSSettings::AutoGetSettingsForArtifact() failed due to missing config object specified. Check your project settings"));
 	return false;
-}
+}*/
 
 #if WITH_EDITOR
 void UEOSSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

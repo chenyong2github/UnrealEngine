@@ -448,7 +448,16 @@ public:
 	/** Write this ConfigFile to the given Filename, constructed the text from the config sections in *this, prepended by the optional PrefixText */
 	CORE_API bool Write( const FString& Filename, bool bDoRemoteWrite=true, const FString& PrefixText=FString());
 
-	/** Write a ConfigFile to the ginve Filename, constructed from the given SectionTexts, in the given order, with sections in *this overriding sections in SectionTexts
+	/** Write this ConfigFile to the given string, constructed the text from the config sections in *this, prepended by the optional PrefixText 
+	 * @param SimulatedFilename - If writing a default hierarchal ini, can be used to correctly deduce position in the hierarchy
+	 */
+	CORE_API void WriteToString(FString& InOutText, const FString& SimulatedFilename = FString(), const FString& PrefixText = FString());
+
+private:
+	/** Determine if writing a default hierarchal ini, and deduce position in the hierarchy */
+	bool IsADefaultIniWrite(const FString& Filename, int32& OutIniCombineThreshold) const;
+
+	/** Write a ConfigFile to the given Filename, constructed from the given SectionTexts, in the given order, with sections in *this overriding sections in SectionTexts
 	 * @param Filename - The file to write to
 	 * @param bDoRemoteWrite - If true, also write the file to FRemoteConfig::Get()
 	 * @param InOutSectionTexts - A map from section name to existing text for that section; text does not include the name of the section.
@@ -460,7 +469,24 @@ public:
 	 *  Duplicate entries are ignored; the first found index is used.
 	 * @return TRUE if the write was successful
 	 */
-	CORE_API bool Write(const FString& Filename, bool bDoRemoteWrite, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder);
+	bool WriteInternal(const FString& Filename, bool bDoRemoteWrite, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder);
+
+	/** Write a ConfigFile to InOutText, constructed from the given SectionTexts, in the given order, with sections in *this overriding sections in SectionTexts
+	 * @param InOutText - The string to write to
+	 * @param bIsADefaultIniWrite - If true, force all properties to be written
+	 * @param IniCombineThreshold - Cutoff level for combining ini (to prevent applying changes from the same ini that we're writing)
+	 * @param InOutSectionTexts - A map from section name to existing text for that section; text does not include the name of the section.
+	 *  Entries in the TMap that also exist in *this will be updated.
+	 *  If the empty string is present, it will be written out first (it is interpreted as a prefix before the first section)
+	 * @param InSectionOrder - List of section names in the order in which each section should be written to disk, from e.g. the existing file.
+	 *  Any section in this array that is not found in InOutSectionTexts will be ignored.
+	 *  Any section in InOutSectionTexts that is not in this array will be appended to the end.
+	 *  Duplicate entries are ignored; the first found index is used.
+	 * @return TRUE if the write was successful
+	 */
+	void WriteToStringInternal(FString& InOutText, bool bIsADefaultIniWrite, int32 IniCombineThreshold, TMap<FString, FString>& InOutSectionTexts, const TArray<FString>& InSectionOrder);
+
+public:
 	CORE_API void Dump(FOutputDevice& Ar);
 
 	CORE_API bool GetString( const TCHAR* Section, const TCHAR* Key, FString& Value ) const;
@@ -520,7 +546,7 @@ public:
 	 * @param Filename Name of the .ini file the contents came from
 	 * @param Contents Contents of the .ini file
 	 */
-	CORE_API void ProcessInputFileContents(const FString& Contents);
+	CORE_API void ProcessInputFileContents(FStringView Contents);
 
 
 	/** Adds any properties that exist in InSourceFile that this config file is missing */

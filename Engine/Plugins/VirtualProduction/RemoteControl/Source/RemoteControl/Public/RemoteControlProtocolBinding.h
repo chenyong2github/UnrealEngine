@@ -390,6 +390,9 @@ public:
 	/** Get Size of the range property value */
 	virtual uint8 GetRangePropertySize() const;
 
+	/** Get the upper most value for the range property type, used for normalization */
+	virtual const FString& GetRangePropertyMaxValue() const;
+
 	/** Get the state of the binding. */
 	bool IsEnabled() const { return bIsEnabled; }
 

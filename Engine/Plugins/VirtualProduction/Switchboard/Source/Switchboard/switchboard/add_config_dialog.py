@@ -70,7 +70,7 @@ class AddConfigDialog(QtWidgets.QDialog):
         super().__init__(parent=parent, f=QtCore.Qt.WindowCloseButtonHint)
 
         self.config_path = None
-        self.uproject = None
+        self.uproject = ''
         self.engine_dir = None
 
         self.setStyleSheet(stylesheet)
@@ -185,7 +185,18 @@ class AddConfigDialog(QtWidgets.QDialog):
         error messages are offered about how to fix it, in which cases the
         dialog is *not* dismissed.
         '''
+        uproject_path_str = self.uproject_line_edit.text().strip()
         config_path_str = self.config_path_line_edit.text().strip()
+
+        if not uproject_path_str:
+            warning_msg = QtWidgets.QMessageBox(self)
+            msg_result = warning_msg.warning(self, 'Continue without uproject?',
+                'Are you sure you want to continue without specifying a .uproject?',
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
+
+            if msg_result != QtWidgets.QMessageBox.Yes:
+                return
+
         try:
             config_path = config.get_absolute_config_path(config_path_str)
         except Exception as e:
@@ -542,6 +553,6 @@ class AddConfigDialog(QtWidgets.QDialog):
     def update_button_box(self):
         self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
         if (self.config_path_line_edit.hasAcceptableInput() and
-                self.uproject and os.path.exists(self.uproject) and
+                ((not self.uproject) or os.path.exists(self.uproject)) and
                 self.engine_dir and os.path.exists(self.engine_dir)):
             self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)

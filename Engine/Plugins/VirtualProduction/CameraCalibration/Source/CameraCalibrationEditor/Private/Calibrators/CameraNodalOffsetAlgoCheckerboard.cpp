@@ -209,15 +209,8 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 
 			Row->CameraData = LastCameraData;
 
-			// Validate the new row, show a message if validation fails.
-			{
-				FText ErrorMessage;
-
-				if (!ValidateNewRow(Row, ErrorMessage))
+			if (!ValidateNewRow(Row, OutErrorMessage))
 				{
-					const FText TitleError = LOCTEXT("NewRowError", "New Row Error");
-					FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
-
 					// Notify the ListView of the new data
 					if (CalibrationListView.IsValid())
 					{
@@ -226,7 +219,6 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 
 					return false;
 				}
-			}
 
 			CalibrationRows.Add(Row);
 		}

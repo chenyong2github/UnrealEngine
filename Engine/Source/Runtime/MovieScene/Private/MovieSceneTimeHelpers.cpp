@@ -84,15 +84,7 @@ void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate, UMovie
 		Section->SetPostRollFrames(NewPostRollFrameCount.Value);
 	}
 
-	if (Section->IsA(UMovieSceneSubSection::StaticClass()))
-	{
-		UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
-		if (SubSection->Parameters.StartFrameOffset.Value > 0)
-		{
-			FFrameNumber NewStartFrameOffset = ConvertFrameTime(FFrameTime(SubSection->Parameters.StartFrameOffset), SourceRate, DestinationRate).FloorToFrame();
-			SubSection->Parameters.StartFrameOffset = NewStartFrameOffset;
-		}
-	}
+	Section->MigrateFrameTimes(SourceRate, DestinationRate);
 
 	Section->Easing.AutoEaseInDuration    = ConvertFrameTime(Section->Easing.AutoEaseInDuration,    SourceRate, DestinationRate).FloorToFrame().Value;
 	Section->Easing.AutoEaseOutDuration   = ConvertFrameTime(Section->Easing.AutoEaseOutDuration,   SourceRate, DestinationRate).FloorToFrame().Value;

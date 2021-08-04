@@ -762,6 +762,10 @@ namespace EpicGames.MCP.Automation
 			/// </summary>
 			public string FileAttributeList;
 			/// <summary>
+			/// List of artifact ids which will be used to generate patches, if this is left blank all artifact ids will be used
+			/// </summary>
+			public string WhitelistedArtifactIds;
+			/// <summary>
 			/// Specifies the client id allocated to you by Epic for uploading binaries to Epic's services.
 			/// </summary>
 			public string ClientId;
@@ -881,6 +885,55 @@ namespace EpicGames.MCP.Automation
 			/// File path to a file containing parameters for bpt to use (can be used in combination with parameters above, no duplicates)
 			/// </summary>
 			public string CommandLineFile;
+		}
+
+
+		public class BinaryDeltaOptimizeOptions
+		{
+			public BinaryDeltaOptimizeOptions()
+			{
+			}
+
+			/// <summary>
+			/// The id of the artifact.
+			/// </summary>
+			public string ArtifactId;
+			/// <summary>
+			/// The build version to generate optimized deltas from 
+			/// </summary>
+			public string BuildVersionA;
+			/// <summary>
+			/// The build version to generate optimized deltas to 
+			/// </summary>
+			public string BuildVersionB;
+			/// <summary>
+			/// Specifies the client id allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientId;
+			/// <summary>
+			/// Specifies the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecret;
+			/// <summary>
+			/// Specifies the name of an environment variable containing the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecretEnvVar;
+			/// <summary>
+			/// Specifies the id of the organization that this product belongs to.
+			/// </summary>
+			public string OrganizationId;
+			/// <summary>
+			/// Specifies the id of the product being uploaded.
+			/// </summary>
+			public string ProductId;
+			/// <summary>
+			/// File path to a file containing parameters for bpt to use (can be used in combination with parameters above, no duplicates)
+			/// </summary>
+			public string CommandLineFile;
+			/// <summary>
+			/// The directory which will receive the generated manifest and chunks.
+			/// </summary>
+			public string CloudDir;
 		}
 
 		public class ListBinariesOptions
@@ -1496,6 +1549,13 @@ namespace EpicGames.MCP.Automation
 		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
 		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
 		public abstract void Execute(CopyBinaryOptions Opts, ToolVersion Version = ToolVersion.Online_Live);
+
+		/// <summary>
+		/// Runs the Build Patch Tool executable to generate optimized deltas between the two binaries provided
+		/// </summary>
+		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
+		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
+		public abstract void Execute(BinaryDeltaOptimizeOptions Opts, ToolVersion Version = ToolVersion.Online_Live);
 
 		/// <summary>
 		/// Runs the Build Patch Tool executable to compactify a cloud directory using the supplied parameters.

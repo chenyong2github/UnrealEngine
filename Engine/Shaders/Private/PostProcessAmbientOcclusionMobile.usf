@@ -1150,7 +1150,6 @@ void MainPSandCS(in float4 UVAndScreenPos, float4 SvPosition, out float4 OutColo
 		// recombined result from multiple resolutions
 		OutColor.r = lerp(OutColor.r, Filtered.r, ComputeLerpFactor());
 	}
-	return;//
 
 	if(!bDebugLookups)
 	{

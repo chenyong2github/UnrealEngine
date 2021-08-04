@@ -50,7 +50,7 @@ TAutoConsoleVariable<int32> CVar_ApplyProjectSettings(TEXT("p.Chaos.Simulation.A
 FChaosScene::FChaosScene(
 	UObject* OwnerPtr
 	, Chaos::FReal InAsyncDt
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 	, const FName& DebugName
 #endif
 )
@@ -69,7 +69,7 @@ FChaosScene::FChaosScene(
 	Chaos::EThreadingMode ThreadingMode = bForceSingleThread ? Chaos::EThreadingMode::SingleThread : Chaos::EThreadingMode::TaskGraph;
 
 	SceneSolver = ChaosModule->CreateSolver(OwnerPtr, InAsyncDt, ThreadingMode
-#if CHAOS_CHECKED
+#if CHAOS_DEBUG_NAME
 		,DebugName
 #endif
 		);

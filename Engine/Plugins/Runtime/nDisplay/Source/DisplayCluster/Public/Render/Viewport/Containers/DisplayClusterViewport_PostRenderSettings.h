@@ -19,7 +19,7 @@ public:
 
 	void SetParameters(const FDisplayClusterViewport_PostRenderSettings& InPostRenderSettings)
 	{
-		Override.SetParameters(InPostRenderSettings.Override);
+		Replace.SetParameters(InPostRenderSettings.Replace);
 		PostprocessBlur = InPostRenderSettings.PostprocessBlur;
 		GenerateMips = InPostRenderSettings.GenerateMips;
 	}
@@ -27,13 +27,13 @@ public:
 public:
 	inline void BeginUpdateSettings()
 	{
-		Override.Reset();
+		Replace.Reset();
 		PostprocessBlur.Reset();
 		GenerateMips.Reset();
 	}
 
 public:
-	FDisplayClusterShaderParameters_Override        Override;
+	FDisplayClusterShaderParameters_Override        Replace;
 	FDisplayClusterShaderParameters_PostprocessBlur PostprocessBlur;
 	FDisplayClusterShaderParameters_GenerateMips    GenerateMips;
 };

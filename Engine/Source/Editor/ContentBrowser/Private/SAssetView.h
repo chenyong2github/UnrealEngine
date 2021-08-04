@@ -64,6 +64,7 @@ public:
 		, _AllowThumbnailEditMode(false)
 		, _CanShowClasses(true)
 		, _CanShowFolders(false)
+		, _CanShowReadOnlyFolders(true)
 		, _FilterRecursivelyWithBackendFilter(true)
 		, _CanShowRealTimeThumbnails(false)
 		, _CanShowDevelopersFolder(false)
@@ -160,6 +161,9 @@ public:
 
 		/** Indicates if the 'Show Folders' option should be enabled or disabled */
 		SLATE_ARGUMENT( bool, CanShowFolders )
+
+		/** Indicates if this view is allowed to show folders that cannot be written to */
+		SLATE_ARGUMENT( bool, CanShowReadOnlyFolders )
 
 		/** If true, recursive filtering will be caused by applying a backend filter */
 		SLATE_ARGUMENT( bool, FilterRecursivelyWithBackendFilter )
@@ -440,6 +444,9 @@ private:
 
 	/** @return true when we are showing folders */
 	bool IsShowingFolders() const;
+
+	/** @return true when we are showing read-only folders */
+	bool IsShowingReadOnlyFolders() const;
 
 	/** Toggle whether empty folders should be shown or not */
 	void ToggleShowEmptyFolders();
@@ -827,6 +834,7 @@ private:
 	FARFilter BackendFilter;
 	TSharedPtr<FBlacklistNames> AssetClassBlacklist;
 	TSharedPtr<FBlacklistPaths> FolderBlacklist;
+	TSharedPtr<FBlacklistPaths> WritableFolderBlacklist;
 	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
 
 	/** Show path view filters submenu in view options menu  */
@@ -964,6 +972,9 @@ private:
 
 	/** Indicates if the 'Show Folders' option should be enabled or disabled */
 	bool bCanShowFolders;
+
+	/** Indicates if this view is allowed to show folders that cannot be written to */
+	bool bCanShowReadOnlyFolders;
 
 	/** If true, recursive filtering will be caused by applying a backend filter */
 	bool bFilterRecursivelyWithBackendFilter;

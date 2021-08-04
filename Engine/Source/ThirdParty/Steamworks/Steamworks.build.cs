@@ -11,6 +11,11 @@ public class Steamworks : ModuleRules
 	{
         // The current SDK version number.
         double SteamVersionNumber = 1.51;
+        if (Target.Platform == UnrealTargetPlatform.Mac)
+        {
+            // 1.51 on Mac is crashing on 4.27, quick fix to make sure Steam still works on Mac
+            SteamVersionNumber = 1.47;
+        }
 
         // Mark the current version of the Steam SDK
         string SteamVersion = String.Format(CultureInfo.InvariantCulture, "v{0}", SteamVersionNumber).Replace(".", "");

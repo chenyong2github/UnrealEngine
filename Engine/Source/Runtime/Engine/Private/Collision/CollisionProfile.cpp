@@ -149,7 +149,8 @@ bool UCollisionProfile::CheckRedirect(FName ProfileName, FBodyInstance& BodyInst
 			// if new profile name exists
 			if ( *NewName != NAME_None )
 			{
-				check (FindProfileData(Profiles, *NewName, Template));
+				const bool bSuccessfullyFoundProfileData = FindProfileData(Profiles, *NewName, Template);
+				check(bSuccessfullyFoundProfileData);
 			}
 
 			return true;

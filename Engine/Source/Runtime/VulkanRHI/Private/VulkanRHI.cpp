@@ -783,6 +783,8 @@ void FVulkanDynamicRHI::InitInstance()
 		GMaxTextureMipCount = FPlatformMath::CeilLogTwo( GMaxTextureDimensions ) + 1;
 		GMaxTextureMipCount = FPlatformMath::Min<int32>( MAX_TEXTURE_MIP_COUNT, GMaxTextureMipCount );
 		GMaxCubeTextureDimensions = Props.limits.maxImageDimensionCube;
+		GMaxVolumeTextureDimensions = Props.limits.maxImageDimension3D;
+		GMaxWorkGroupInvocations = Props.limits.maxComputeWorkGroupInvocations;
 		GMaxTextureArrayLayers = Props.limits.maxImageArrayLayers;
 		GRHISupportsBaseVertexIndex = true;
 		GSupportsSeparateRenderTargetBlendState = true;

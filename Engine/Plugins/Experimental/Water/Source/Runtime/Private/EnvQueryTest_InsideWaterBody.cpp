@@ -4,7 +4,9 @@
 #include "UObject/UObjectHash.h"
 #include "GameFramework/Volume.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
-#include "WaterBodyActor.h"
+#include "WaterBodyComponent.h"
+#include "WaterBodyManager.h"
+#include "WaterSubsystem.h"
 
 UEnvQueryTest_InsideWaterBody::UEnvQueryTest_InsideWaterBody(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer)
@@ -17,19 +19,15 @@ UEnvQueryTest_InsideWaterBody::UEnvQueryTest_InsideWaterBody(const FObjectInitia
 void UEnvQueryTest_InsideWaterBody::RunTest(FEnvQueryInstance& QueryInstance) const
 {	
 	BoolValue.BindData(QueryInstance.Owner.Get(), QueryInstance.QueryID);
-	bool bWantsInside = BoolValue.GetValue();
-
-	TArray<UObject*> WaterBodies;
-	GetObjectsOfClass(AWaterBody::StaticClass(), WaterBodies, true, RF_ClassDefaultObject, EInternalObjectFlags::PendingKill);
+	const bool bWantsInside = BoolValue.GetValue();
 
 	for (FEnvQueryInstance::ItemIterator It(this, QueryInstance); It; ++It)
 	{
 		const FVector ItemLocation = GetItemLocation(QueryInstance, It.GetIndex());
 
 		bool bInside = false;
-		for (UObject* ObjectIter : WaterBodies)
+		UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [this, ItemLocation, &bInside](UWaterBodyComponent* WaterBodyComponent)
 		{
-			const AWaterBody& WaterBody = *CastChecked<AWaterBody>(ObjectIter);
 			EWaterBodyQueryFlags QueryFlags = EWaterBodyQueryFlags::ComputeImmersionDepth;
 			if (bIncludeWaves)
 			{
@@ -46,14 +44,15 @@ void UEnvQueryTest_InsideWaterBody::RunTest(FEnvQueryInstance& QueryInstance) co
 				QueryFlags |= EWaterBodyQueryFlags::IgnoreExclusionVolumes;
 			}
 
-			const FWaterBodyQueryResult QueryResult = WaterBody.QueryWaterInfoClosestToWorldLocation(ItemLocation, QueryFlags);
-
+			const FWaterBodyQueryResult QueryResult = WaterBodyComponent->QueryWaterInfoClosestToWorldLocation(ItemLocation, QueryFlags);
 			if (QueryResult.IsInWater())
 			{
 				bInside = true;
-				break;
+				return false;
 			}
-		}
+
+			return true;
+		});
 
 		It.SetScore(TestPurpose, FilterType, bInside, bWantsInside);
 	}

@@ -418,6 +418,12 @@ void UNiagaraEmitter::PostLoad()
 	{
 		TemplateSpecification = ENiagaraScriptTemplateSpecification::Template;
 	}
+
+	if(bExposeToLibrary_DEPRECATED)
+	{
+		LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
+	}
+	
 #endif
 
 	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
@@ -972,7 +978,14 @@ TArray<UNiagaraScriptSourceBase*> UNiagaraEmitter::GetAllSourceScripts()
 	GetScripts(Scripts, false);
 	for (UNiagaraScript* Script : Scripts)
 	{
-		OutScriptSources.Add(Script->GetLatestSource());
+		if (Script != nullptr)
+		{
+			UNiagaraScriptSourceBase* LatestSource = Script->GetLatestSource();
+			if (LatestSource != nullptr)
+			{
+				OutScriptSources.Add(LatestSource);
+			}
+		}
 	}
 	return OutScriptSources;
 }

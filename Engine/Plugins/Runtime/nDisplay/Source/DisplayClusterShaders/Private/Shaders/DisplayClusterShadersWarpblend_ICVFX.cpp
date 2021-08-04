@@ -14,6 +14,7 @@
 #include "ShaderParameterStruct.h"
 #include "ShaderPermutation.h"
 
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 #include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
 
 #include "ShaderParameters/DisplayClusterShaderParameters_WarpBlend.h"
@@ -193,6 +194,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 
 	SHADER_PARAMETER(float, ChromakeyMarkerScale)
 	SHADER_PARAMETER(float, ChromakeyMarkerDistance)
+	SHADER_PARAMETER(FVector2D, ChromakeyMarkerOffset)
 END_SHADER_PARAMETER_STRUCT()
 
 class FIcvfxWarpVS : public FGlobalShader
@@ -603,6 +605,7 @@ public:
 
 			RenderPassData.PSParameters.ChromakeyMarkerScale    = Camera.ChromakeyMarkersScale;
 			RenderPassData.PSParameters.ChromakeyMarkerDistance = Camera.ChromakeyMarkersDistance;
+			RenderPassData.PSParameters.ChromakeyMarkerOffset   = Camera.ChromakeyMarkersOffset;
 
 			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderChromakeyMarker>(true);
 			return true;
@@ -651,10 +654,14 @@ public:
 
 			case EDisplayClusterWarpGeometryType::WarpMesh:
 			{
-				const FDisplayClusterRender_MeshComponentProxy* WarpMesh = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				const FDisplayClusterRender_MeshComponent* DCWarpMeshComponent = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				if (DCWarpMeshComponent)
+				{
+					const FDisplayClusterRender_MeshComponentProxy* WarpMesh = DCWarpMeshComponent->GetProxy();
 				if (WarpMesh)
 				{
 					return WarpMesh->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit);
+				}
 				}
 				break;
 			}
@@ -679,10 +686,14 @@ public:
 
 			case EDisplayClusterWarpGeometryType::WarpMesh:
 			{
-				const FDisplayClusterRender_MeshComponentProxy* WarpMesh = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				const FDisplayClusterRender_MeshComponent* DCWarpMeshComponent = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				if (DCWarpMeshComponent)
+				{
+					const FDisplayClusterRender_MeshComponentProxy* WarpMesh = DCWarpMeshComponent->GetProxy();
 				if (WarpMesh)
 				{
 					return WarpMesh->FinishRender_RenderThread(RHICmdList);
+				}
 				}
 				break;
 			}

@@ -5,6 +5,7 @@
 #include "CameraCalibrationEditorLog.h"
 #include "LensFile.h"
 
+#define LOCTEXT_NAMESPACE "LensNodalOffsetCurveModel"
 
 
 FLensNodalOffsetCurveModel::FLensNodalOffsetCurveModel(ULensFile* InOwner, float InFocus, int32 InParameterIndex, EAxis::Type InAxis)
@@ -83,4 +84,30 @@ void FLensNodalOffsetCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> I
 	}
 }
 
+FText FLensNodalOffsetCurveModel::GetValueLabel() const
+{
+	if (ParameterIndex == 0)
+	{
+		return LOCTEXT("LocationValueLabel", "(cm)");
+	}
+	if (ParameterIndex == 1)
+	{
+		return LOCTEXT("RotationValueLabel", "(deg)");
+	}
+	return FText();
+}
 
+FText FLensNodalOffsetCurveModel::GetValueUnitSuffixLabel() const
+{
+	if (ParameterIndex == 0)
+	{
+		return LOCTEXT("UnitSuffixLabelLocation", "cm");
+	}
+	if (ParameterIndex == 1)
+	{
+		return LOCTEXT("UnitSuffixLabelRotation", "deg");
+	}
+	return FText();
+}
+
+#undef LOCTEXT_NAMESPACE

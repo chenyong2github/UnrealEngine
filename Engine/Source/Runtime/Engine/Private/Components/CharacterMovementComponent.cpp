@@ -238,6 +238,10 @@ namespace CharacterMovementCVars
 		TEXT("p.AsyncCharacterMovement"),
 		AsyncCharacterMovement, TEXT("1 enables asynchronous simulation of character movement on physics thread. Toggling this at runtime is not recommended."));
 
+	int32 BasedMovementMode = 0;
+	FAutoConsoleVariableRef CVarBasedMovementMode(
+		TEXT("p.BasedMovementMode"),
+		BasedMovementMode, TEXT("0 means always on regular tick (default); 1 means only if not deferring updates; 2 means update and save based movement both on regular ticks and post physics when on a physics base."));
 
 #if !UE_BUILD_SHIPPING
 
@@ -1996,7 +2000,14 @@ void UCharacterMovementComponent::SimulateMovement(float DeltaSeconds)
 	// Call custom post-movement events. These happen after the scoped movement completes in case the events want to use the current state of overlaps etc.
 	CallMovementUpdateDelegate(DeltaSeconds, OldLocation, OldVelocity);
 
-	SaveBaseLocation();
+	if (CharacterMovementCVars::BasedMovementMode == 0)
+	{
+		SaveBaseLocation(); // behaviour before implementing this fix
+	}
+	else
+	{
+		MaybeSaveBaseLocation();
+	}
 	UpdateComponentVelocity();
 	bJustTeleported = false;
 
@@ -2062,6 +2073,11 @@ void UCharacterMovementComponent::MaybeUpdateBasedMovement(float DeltaSeconds)
 				PostPhysicsTickFunction.SetTickFunctionEnable(true);
 				MovementBaseUtility::RemoveTickDependency(PrimaryComponentTick, MovementBase);
 			}
+
+			if (CharacterMovementCVars::BasedMovementMode == 2)
+			{
+				UpdateBasedMovement(DeltaSeconds);
+			}
 		}
 	}
 	else
@@ -2076,7 +2092,7 @@ void UCharacterMovementComponent::MaybeUpdateBasedMovement(float DeltaSeconds)
 
 void UCharacterMovementComponent::MaybeSaveBaseLocation()
 {
-	if (!bDeferUpdateBasedMovement)
+	if (CharacterMovementCVars::BasedMovementMode == 2 || !bDeferUpdateBasedMovement)
 	{
 		SaveBaseLocation();
 	}
@@ -2565,7 +2581,14 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 	// Call external post-movement events. These happen after the scoped movement completes in case the events want to use the current state of overlaps etc.
 	CallMovementUpdateDelegate(DeltaSeconds, OldLocation, OldVelocity);
 
-	SaveBaseLocation();
+	if (CharacterMovementCVars::BasedMovementMode == 0)
+	{
+		SaveBaseLocation(); // behaviour before implementing this fix
+	}
+	else
+	{
+		MaybeSaveBaseLocation();
+	}
 	UpdateComponentVelocity();
 
 	const bool bHasAuthority = CharacterOwner && CharacterOwner->HasAuthority();
@@ -9805,7 +9828,7 @@ bool FCharacterMoveResponseDataContainer::Serialize(UCharacterMovementComponent&
 		{
 			if (FRootMotionSourceGroup* RootMotionSourceGroup = GetRootMotionSourceGroup(CharacterMovement))
 			{
-				RootMotionSourceGroup->NetSerialize(Ar, PackageMap, bLocalSuccess);
+				RootMotionSourceGroup->NetSerialize(Ar, PackageMap, bLocalSuccess, 3 /*MaxNumRootMotionSourcesToSerialize*/);
 			}
 		}
 

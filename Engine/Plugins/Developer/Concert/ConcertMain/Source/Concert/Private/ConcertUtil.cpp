@@ -4,6 +4,7 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertLogger.h"
 
 bool ConcertUtil::DeleteDirectoryTree(const TCHAR* InDirectoryToDelete, const TCHAR* InMoveToDirBeforeDelete)
 {
@@ -50,5 +51,10 @@ bool ConcertUtil::Copy(FArchive& DstAr, FArchive& SrcAr, int64 Size)
 	DstAr.Serialize(DataChunk.GetData(), Remaining); // Write.
 
 	return !SrcAr.IsError() && !DstAr.IsError();
+}
+
+void ConcertUtil::SetVerboseLogging(bool bInState)
+{
+	FConcertLogger::SetVerboseLogging(bInState);
 }
 

@@ -1107,7 +1107,7 @@ void LogExecuteCommandLists(uint32 NumCommandLists, ID3D12CommandList* const* pp
 	for (uint32 i = 0; i < NumCommandLists; i++)
 	{
 		ID3D12CommandList* const pCurrentCommandList = ppCommandLists[i];
-		UE_LOG(LogD3D12RHI, Log, TEXT("*** EXECUTE (CmdList: %016llX) %u/%u ***"), pCurrentCommandList, i + 1, NumCommandLists);
+		UE_LOG(LogD3D12RHI, Log, TEXT("*** [tid:%08x] EXECUTE (CmdList: %016llX) %u/%u ***"), FPlatformTLS::GetCurrentThreadId(), pCurrentCommandList, i + 1, NumCommandLists);
 	}
 }
 

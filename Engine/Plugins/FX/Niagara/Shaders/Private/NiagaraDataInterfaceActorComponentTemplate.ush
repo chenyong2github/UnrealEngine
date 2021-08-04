@@ -1,0 +1,20 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+bool			Valid_{ParameterName};
+float4x4		Matrix_{ParameterName};
+float4			Rotation_{ParameterName};
+float3			Scale_{ParameterName};
+
+void GetMatrix_{ParameterName}(out bool bOutValid, out float4x4 OutMatrix)
+{
+	bOutValid = Valid_{ParameterName};
+	OutMatrix = Matrix_{ParameterName};
+}
+
+void GetTransform_{ParameterName}(out bool bOutValid, out float3 OutPosition, out float4 OutRotation, out float3 OutScale)
+{
+	bOutValid = Valid_{ParameterName};
+	OutPosition = Matrix_{ParameterName}[3].xyz;
+	OutRotation = Rotation_{ParameterName};
+	OutScale = Scale_{ParameterName};
+}

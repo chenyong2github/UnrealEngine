@@ -15,7 +15,7 @@
 #include "UObject/Package.h"
 #include "Engine/World.h"
 
-DECLARE_CYCLE_STAT(TEXT("Legacy Template Cost"), MovieSceneEval_LegacyTemplateCost, STATGROUP_MovieSceneEval);
+DECLARE_CYCLE_STAT(TEXT("Entire Evaluation Cost"), MovieSceneEval_EntireEvaluationCost, STATGROUP_MovieSceneEval);
 
 
 FMovieSceneRootEvaluationTemplateInstance::FMovieSceneRootEvaluationTemplateInstance()
@@ -138,12 +138,7 @@ void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& 
 
 void FMovieSceneRootEvaluationTemplateInstance::Evaluate(FMovieSceneContext Context, IMovieScenePlayer& Player)
 {
-#if STATS || ENABLE_STATNAMEDEVENTS
-	const bool bShouldTrackObject = Stats::IsThreadCollectingData();
-	FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? WeakRootSequence.Get() : nullptr);
-#endif
-
-	SCOPE_CYCLE_COUNTER(MovieSceneEval_LegacyTemplateCost);
+	SCOPE_CYCLE_COUNTER(MovieSceneEval_EntireEvaluationCost);
 
 	check(EntitySystemLinker);
 

@@ -158,8 +158,6 @@ static int GTrimMemoryBackgroundLevel = 0;
 CSV_DEFINE_STAT(AndroidMemory, TrimMemoryBackgroundLevel);
 static int GTrimMemoryForegroundLevel = 0;
 CSV_DEFINE_STAT(AndroidMemory, TrimMemoryForegroundLevel);
-static int GMemoryWarningStatus = 0;
-CSV_DEFINE_STAT(AndroidMemory, MemoryWarningState);
 
 void FAndroidStats::Init(bool bEnableHWCPipe)
 {
@@ -239,11 +237,6 @@ void FAndroidStats::OnTrimMemory(int TrimLevel)
 }
 }
 
-void FAndroidStats::SetMemoryWarningState(int Status)
-{
-	GMemoryWarningStatus = Status;
-}
-
 void FAndroidStats::UpdateAndroidStats()
 {
 	if (GAndroidCPUStatsUpdateRate <= 0.0f)
@@ -265,7 +258,6 @@ void FAndroidStats::UpdateAndroidStats()
 	CSV_CUSTOM_STAT_DEFINED(ThermalStatus, GThermalStatus, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_DEFINED(TrimMemoryBackgroundLevel, GTrimMemoryBackgroundLevel, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT_DEFINED(TrimMemoryForegroundLevel, GTrimMemoryForegroundLevel, ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT_DEFINED(MemoryWarningState, GMemoryWarningStatus, ECsvCustomStatOp::Set);
 
 	static const uint32 MaxFrequencyGroupStats = 4;
 	const int32 MaxCoresStatsSupport = 16;

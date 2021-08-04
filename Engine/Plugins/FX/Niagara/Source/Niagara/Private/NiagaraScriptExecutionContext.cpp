@@ -139,11 +139,15 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 #if STATS
 		CreateStatScopeData();
 #endif
-		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
+
+		FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
+		ExecData.WaitOnOptimizeCompletion();
+
+		check(ExecData.ByteCode.HasByteCode() || ExecData.OptimizedByteCode.HasByteCode());
 
 		VectorVM::FVectorVMExecArgs ExecArgs;
-		ExecArgs.ByteCode = ExecData.ByteCode.GetData();
-		ExecArgs.OptimizedByteCode = ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr;
+		ExecArgs.ByteCode = ExecData.ByteCode.GetDataPtr();
+		ExecArgs.OptimizedByteCode = ExecData.OptimizedByteCode.HasByteCode() ? ExecData.OptimizedByteCode.GetDataPtr(): nullptr;
 		ExecArgs.NumTempRegisters = ExecData.NumTempRegisters;
 		ExecArgs.ConstantTableCount = ConstantBufferTable.Buffers.Num();
 		ExecArgs.ConstantTable = ConstantBufferTable.Buffers.GetData();
@@ -185,11 +189,6 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 	}
 
 	return true;//TODO: Error cases?
-}
-
-bool FNiagaraScriptExecutionContextBase::CanExecute()const
-{
-	return Script && Script->GetVMExecutableData().IsValid() && Script->GetVMExecutableData().ByteCode.Num() > 0;
 }
 
 TArrayView<const uint8> FNiagaraScriptExecutionContextBase::GetScriptLiterals() const
@@ -245,8 +244,18 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 					int32 UserPtrIdx = ScriptExecutableData.DataInterfaceInfo[i].UserPtrIdx;
 					if (UserPtrIdx != INDEX_NONE)
 					{
-						void* InstData = ParentSystemInstance->FindDataInterfaceInstanceData(Interface);
+						if (void* InstData = ParentSystemInstance->FindDataInterfaceInstanceData(Interface))
+						{
 						UserPtrTable[UserPtrIdx] = InstData;
+					}
+						else
+						{
+							UE_LOG(LogNiagara, Warning, TEXT("Failed to resolve User Pointer for UserPtrTable[%d] looking for DI: %s for system: %s"),
+								UserPtrIdx,
+								*Interface->GetName(),
+								*ParentSystemInstance->GetSystem()->GetName());
+							return false;
+						}
 					}
 				}
 			}

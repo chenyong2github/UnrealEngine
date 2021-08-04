@@ -7,6 +7,7 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
+#include "Misc/FrameRate.h"
 
 #if WITH_EDITOR
 
@@ -93,6 +94,15 @@ EMovieSceneChannelProxyType  UMovieSceneAudioSection::CacheChannelProxy()
 TOptional<FFrameTime> UMovieSceneAudioSection::GetOffsetTime() const
 {
 	return TOptional<FFrameTime>(StartFrameOffset);
+}
+
+void UMovieSceneAudioSection::MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate)
+{
+	if (StartFrameOffset.Value > 0)
+	{
+		FFrameNumber NewStartFrameOffset = ConvertFrameTime(FFrameTime(StartFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		StartFrameOffset = NewStartFrameOffset;
+	}
 }
 
 void UMovieSceneAudioSection::PostLoad()

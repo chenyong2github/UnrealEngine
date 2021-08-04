@@ -220,6 +220,8 @@ public:
 			MeshPaintModule->RegisterGeometryAdapterFactory(SpriteMeshPaintAdapterFactory.ToSharedRef());
 		}
 
+		if (!IsRunningCommandlet())
+		{
 		// Register Paper2D tutorial category with the tutorial browser
 		FTutorialCategory Paper2DCategory = FTutorialCategory();
 		Paper2DCategory.Identifier = "Paper2D";
@@ -231,6 +233,7 @@ public:
 
 		IIntroTutorials& IntroTutorials = FModuleManager::GetModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
 		IntroTutorials.RegisterCategory(Paper2DCategory);
+		}
 
 		//
 		RegisterSettings();

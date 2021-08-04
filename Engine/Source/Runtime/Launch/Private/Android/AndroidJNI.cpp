@@ -171,13 +171,6 @@ void FJavaWrapper::FindClassesAndMethods(JNIEnv* Env)
 	// the rest are optional
 	bIsOptional = true;
 
-	// Work Manager / AndroidBackgroundHTTP classes
-	UEWorkerClass = FindClassGlobalRef(Env, "com/epicgames/ue4/workmanager/UEWorker", bIsOptional);
-	UEDownloadWorkerClass = FindClassGlobalRef(Env, "com/epicgames/ue4/download/UEDownloadWorker", bIsOptional);
-	UEWorkManagerJavaInterfaceClass = FindClassGlobalRef(Env, "com/epicgames/ue4/workmanager/UEWorkManagerJavaInterface", bIsOptional);
-	WorkRequestParametersJavaInterfaceClass = FindClassGlobalRef(Env, "com/epicgames/ue4/workmanager/UEWorkManagerJavaInterface$FWorkRequestParametersJavaInterface", bIsOptional);
-	DownloadDescriptionClass = FindClassGlobalRef(Env, "com/epicgames/ue4/download/datastructs/DownloadDescription", bIsOptional);
-
 	// SurfaceView functionality for view scaling on some devices
 	AndroidThunkJava_UseSurfaceViewWorkaround = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_UseSurfaceViewWorkaround", "()V", bIsOptional);
 	AndroidThunkJava_SetDesiredViewSize = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_SetDesiredViewSize", "(II)V", bIsOptional);
@@ -468,12 +461,6 @@ jmethodID FJavaWrapper::AndroidThunkJava_GetNativeDisplayRefreshRate;
 jmethodID FJavaWrapper::AndroidThunkJava_SetNativeDisplayRefreshRate;
 
 jmethodID FJavaWrapper::AndroidThunkJava_EnableMotion;
-
-jclass FJavaWrapper::UEWorkerClass;
-jclass FJavaWrapper::UEDownloadWorkerClass;
-jclass FJavaWrapper::UEWorkManagerJavaInterfaceClass;
-jclass FJavaWrapper::WorkRequestParametersJavaInterfaceClass;
-jclass FJavaWrapper::DownloadDescriptionClass;
 
 jclass FJavaWrapper::LaunchNotificationClass;
 jfieldID FJavaWrapper::LaunchNotificationUsed;
@@ -2097,12 +2084,6 @@ JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnTrimMemory(JNIEnv
 {
 	FAndroidMisc::UpdateOSMemoryStatus(FAndroidMisc::EOSMemoryStatusCategory::OSTrim, MemoryTrimValue);
 	FAndroidStats::OnTrimMemory(MemoryTrimValue);
-}
-
-JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetMemoryAdvisorState(JNIEnv* jenv, jobject thiz, jint State, jint EstimateAvailableMB, jint OOMScore)
-{
-	FAndroidStats::SetMemoryWarningState(State);
-	FAndroidMisc::UpdateMemoryAdvisorState(State, EstimateAvailableMB, OOMScore);
 }
 
 

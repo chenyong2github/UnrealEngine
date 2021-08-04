@@ -10,6 +10,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "HAL/CriticalSection.h"
 #include "Misc/Guid.h"
 #include "ReferenceSkeleton.h"
 #include "Animation/PreviewAssetAttachComponent.h"
@@ -732,6 +733,9 @@ public:
 	}
 
 	typedef TArray<FBoneNode> FBoneTreeType;
+
+	//Use this Lock everytime you change or access LinkupCache and SkelMesh2LinkupCache member.
+	FCriticalSection LinkupCacheLock;
 
 	/** Non-serialised cache of linkups between different skeletal meshes and this Skeleton. */
 	TArray<struct FSkeletonToMeshLinkup> LinkupCache;

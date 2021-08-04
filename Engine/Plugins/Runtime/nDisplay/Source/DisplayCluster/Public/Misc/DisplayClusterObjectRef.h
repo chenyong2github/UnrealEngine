@@ -35,7 +35,7 @@ public:
 public:
 	bool IsDefinedSceneActor() const
 	{
-		return !ActorPtr.IsExplicitlyNull() && !WorldPtr.IsExplicitlyNull() && !ActorClassName.IsEmpty() && !ActorName.IsNone();
+		return !ActorClassName.IsEmpty() && !ActorName.IsNone();
 	}
 
 	// Return actor object ptr.
@@ -143,8 +143,6 @@ private:
 	// Find actor new object ptr by name and save to ActorPtr
 	bool UpdateActorClassPtr() const
 	{
-		if (!ActorClassPtr.IsValid())
-		{
 			UClass* ActorClass = ActorClassName.IsEmpty() ? nullptr : StaticLoadClass(UObject::StaticClass(), nullptr, *ActorClassName, NULL, LOAD_None, NULL);
 			if (!ActorClass)
 			{
@@ -153,7 +151,6 @@ private:
 			}
 
 			ActorClassPtr = TWeakObjectPtr<UClass>(ActorClass);
-		}
 
 		return true;
 	}
@@ -197,7 +194,7 @@ public:
 public:
 	bool IsDefinedSceneComponent() const
 	{
-		return !ComponentPtr.IsExplicitlyNull() && !ComponentName.IsNone() && IsDefinedSceneActor();
+		return !ComponentName.IsNone() && IsDefinedSceneActor();
 	}
 
 	// Return component object ptr.

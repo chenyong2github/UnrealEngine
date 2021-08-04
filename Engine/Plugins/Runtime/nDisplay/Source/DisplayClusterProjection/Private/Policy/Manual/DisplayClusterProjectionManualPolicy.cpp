@@ -18,6 +18,8 @@
 FDisplayClusterProjectionManualPolicy::FDisplayClusterProjectionManualPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
+	ProjectionMatrix[0] = FMatrix(FPlane(1.0f, 0.0f, 0.0f, 0.0f), FPlane(0.0f, 1.0f, 0.0f, 0.0f), FPlane(0.0f, 0.0f, 0.0f, 1.0f), FPlane(0.0f, 0.0f, 1.0f, 0.0f));
+	ProjectionMatrix[1] = ProjectionMatrix[0];
 }
 
 FDisplayClusterProjectionManualPolicy::~FDisplayClusterProjectionManualPolicy()
@@ -31,8 +33,18 @@ FDisplayClusterProjectionManualPolicy::~FDisplayClusterProjectionManualPolicy()
 bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
-
 	UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Initializing internals for the viewport '%s'"), *InViewport->GetId());
+
+	FString DataTypeInString;
+	if(DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Type), DataTypeInString))
+	{
+		DataType = DataTypeFromString(DataTypeInString);
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Undefined manual type '%s'"), *DataTypeInString);
+		return false;
+	}	
 
 	// Get view rotation
 	if (!DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Rotation), ViewRotation))
@@ -40,71 +52,55 @@ bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClust
 		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No rotation specified for projection policy of viewport '%s'"), *InViewport->GetId());
 	}
 
-	static const int ViewsAmount = 2;
+	FString RenderType;
+	DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Rendering), RenderType);
 
-	// Get matrix data
-	bool bDataTypeDetermined = false;
-	if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Matrix),     ProjectionMatrix[0]) ||
-		DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::MatrixLeft), ProjectionMatrix[0]))
+
+	if (DataType == EManualDataType::Matrix)
 	{
-		if (ViewsAmount == 2)
+		if (RenderType == DisplayClusterProjectionStrings::cfg::manual::RenderingType::Mono)
 		{
-			if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::MatrixRight), ProjectionMatrix[1]))
-			{
-				bDataTypeDetermined = true;
-				DataType = EManualDataType::Matrix;
+			DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Matrix), ProjectionMatrix[0]);
 			}
-		}
-		else
+		else // stereo cases
 		{
-			bDataTypeDetermined = true;
-			DataType = EManualDataType::Matrix;
+			DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::MatrixLeft), ProjectionMatrix[0]);
+			DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::MatrixRight), ProjectionMatrix[1]);
 		}
 	}
-
-	if (!bDataTypeDetermined)
+	else if (DataType == EManualDataType::FrustumAngles)
 	{
 		FString AnglesLeft;
+		FString AnglesRight;
 
-		if (DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Frustum),     AnglesLeft) ||
-			DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::FrustumLeft), AnglesLeft))
+		if (RenderType == DisplayClusterProjectionStrings::cfg::manual::RenderingType::Mono)
 		{
+			DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::Frustum), AnglesLeft);
+
+			if (!ExtractAngles(AnglesLeft, FrustumAngles[0]))
+			{
+				UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesLeft);
+				return false;
+			}
+		}
+		else // stereo cases
+		{
+			DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::FrustumLeft), AnglesLeft);
+			DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::FrustumRight), AnglesRight);
+
 			if (!ExtractAngles(AnglesLeft, FrustumAngles[0]))
 			{
 				UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesLeft);
 				return false;
 			}
 
-			if (ViewsAmount == 2)
-			{
-				FString AnglesRight;
-
-				if (DisplayClusterHelpers::map::template ExtractValue(GetParameters(), FString(DisplayClusterProjectionStrings::cfg::manual::FrustumRight), AnglesRight))
-				{
 					if (!ExtractAngles(AnglesRight, FrustumAngles[1]))
 					{
 						UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Couldn't extract frustum angles from value '%s'"), *AnglesRight);
 						return false;
 					}
-
-					bDataTypeDetermined = true;
-					DataType = EManualDataType::FrustumAngles;
-				}
-			}
-			else
-			{
-				bDataTypeDetermined = true;
-				DataType = EManualDataType::FrustumAngles;
 			}
 		}
-
-	}
-
-	if (!bDataTypeDetermined)
-	{
-		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("No mandatory data specified for projection policy of viewport '%s'"), *InViewport->GetId());
-		return false;
-	}
 
 	return true;
 }
@@ -189,4 +185,22 @@ bool FDisplayClusterProjectionManualPolicy::ExtractAngles(const FString& InAngle
 	OutAngles.Bottom = Bottom;
 
 	return true;
+}
+
+FDisplayClusterProjectionManualPolicy::EManualDataType FDisplayClusterProjectionManualPolicy::DataTypeFromString(const FString& DataTypeInString) const
+{
+	if (DataTypeInString == DisplayClusterProjectionStrings::cfg::manual::FrustumType::Matrix)
+	{
+		return EManualDataType::Matrix;
+	}
+	else if (DataTypeInString == DisplayClusterProjectionStrings::cfg::manual::FrustumType::Angles)
+	{
+		return EManualDataType::FrustumAngles;
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterProjectionManual, Log, TEXT("Undefined manual type '%s'. Matrix by default"), *DataTypeInString);
+	}
+
+	return EManualDataType::Matrix;
 }

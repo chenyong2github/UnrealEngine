@@ -415,8 +415,7 @@ void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
 				Temp = VectorSubtract( ViewOriginZ, OriginZ );
 				DistSq = VectorMultiplyAdd( Temp, Temp, DistSq );
 
-				DistSqMinusRadiusSq = VectorMultiply( Radius, Radius );
-				DistSqMinusRadiusSq = VectorSubtract( DistSq, DistSqMinusRadiusSq );
+				DistSqMinusRadiusSq = VectorNegateMultiplyAdd( Radius, Radius, DistSq );
 				// This can be negative here!!!
 			}
 

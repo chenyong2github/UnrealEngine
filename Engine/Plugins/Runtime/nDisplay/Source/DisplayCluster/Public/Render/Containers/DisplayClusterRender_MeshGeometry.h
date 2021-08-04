@@ -29,7 +29,7 @@ public:
 	// Load geometry from OBJ file
 	bool LoadFromFile(const FString& FullPathFileName, EDisplayClusterRender_MeshGeometryFormat Format = EDisplayClusterRender_MeshGeometryFormat::OBJ);
 	// Test purpose: create square geometry
-	bool CreatePassthrough();
+	void CreatePassthrough();
 
 public:
 	TArray<FVector>   Vertices;

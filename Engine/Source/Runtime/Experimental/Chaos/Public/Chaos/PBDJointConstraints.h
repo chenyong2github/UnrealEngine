@@ -263,6 +263,18 @@ namespace Chaos
 		void SetSolverType(EConstraintSolverType InSolverType)
 		{
 			SolverType = InSolverType;
+			if (InSolverType == EConstraintSolverType::GbfPbd)
+			{
+				SetUpdateVelocityInApplyConstraints(true);
+			}
+			else if (InSolverType == EConstraintSolverType::StandardPbd)
+			{
+				SetUpdateVelocityInApplyConstraints(false);
+			}
+			else if (InSolverType == EConstraintSolverType::QuasiPbd)
+			{
+				SetUpdateVelocityInApplyConstraints(false);
+			}
 		}
 
 	protected:

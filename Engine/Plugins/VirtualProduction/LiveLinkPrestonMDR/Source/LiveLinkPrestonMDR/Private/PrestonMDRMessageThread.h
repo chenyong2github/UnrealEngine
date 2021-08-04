@@ -4,6 +4,7 @@
 
 #include "Containers/Queue.h"
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/Runnable.h"
 #include "LiveLinkPrestonMDRSourceSettings.h"
 #include "Misc/FrameRate.h"
@@ -95,6 +96,12 @@ struct FMDRProtocol
 	static constexpr uint32 HeaderSize = 6;
 	static constexpr uint32 FooterSize = 3;
 
+	// These values represent the static length of each request message type
+	static const uint8 StatusMessageLength;
+	static const uint8 DataMessageLength;
+	static const uint8 TimeMessageLength;
+	static const uint8 TimecodeMessageLength;
+
 	// These values represent the static length of the payload in each message type
 	static constexpr uint32 NumPayloadBytesInStatusMessage = 2;
 	static constexpr uint32 NumPayloadBytesInTimeMessage = 9;
@@ -166,22 +173,22 @@ public:
 	 *
 	 * @return The delegate.
 	 */
-	FOnFrameDataReady& OnFrameDataReady_AnyThread()
+	FOnFrameDataReady& OnFrameDataReady()
 	{
 		return FrameDataReadyDelegate;
 	}
 
-	FOnStatusChanged& OnStatusChanged_AnyThread()
+	FOnStatusChanged& OnStatusChanged()
 	{
 		return StatusChangedDelegate;
 	}
 
-	FOnConnectionLost& OnConnectionLost_AnyThread()
+	FOnConnectionLost& OnConnectionLost()
 	{
 		return ConnectionLostDelegate;
 	}
 
-	FOnConnectionFailed& OnConnectionFailed_AnyThread()
+	FOnConnectionFailed& OnConnectionFailed()
 	{
 		return ConnectionFailedDelegate;
 	}
@@ -194,9 +201,11 @@ public:
 	virtual void Stop() override;
 	// End FRunnable Interface
 
-	void SoftReset_AnyThread();
-	void SetSocket_AnyThread(FSocket* InSocket);
-	void SetIncomingDataMode_AnyThread(EFIZDataMode InDataMode);
+	void SetSocket(FSocket* InSocket);
+
+	void SoftReset();
+
+	void SetIncomingDataMode_GameThread(EFIZDataMode InDataMode);
 
 private:
 
@@ -212,7 +221,7 @@ private:
 
 	void BuildStaticMessages();
 	void UpdateDataDescriptionMessage_AnyThread();
-	void InitializeCommandQueue_AnyThread();
+	void InitializeCommandQueue();
 	void HardReset();
 
 	// Conversion functions to translate between data bytes and ASCII-encoded bytes
@@ -233,6 +242,8 @@ private:
 	FOnStatusChanged StatusChangedDelegate;
 	FOnConnectionLost ConnectionLostDelegate;
 	FOnConnectionFailed ConnectionFailedDelegate;
+
+	FCriticalSection PrestonCriticalSection;
 
 	TQueue<EMDRCommand> CommandQueue;
 	TArray<uint8> StatusRequestMessage;

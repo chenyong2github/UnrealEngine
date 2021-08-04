@@ -241,8 +241,7 @@ namespace DatasmithConsumerUtils
 const FString UDatasmithConsumer::ConsumerMarkerID = TEXT("DatasmithConsumer_UniqueID");
 
 UDatasmithConsumer::UDatasmithConsumer()
-	: DatasmithScene(nullptr)
-	, WorkingWorld(nullptr)
+	: WorkingWorld(nullptr)
 	, PrimaryLevel(nullptr)
 {
 	if(!HasAnyFlags(RF_NeedLoad|RF_ClassDefaultObject))
@@ -270,22 +269,30 @@ void UDatasmithConsumer::PostLoad()
 			LevelName = GetOuter()->GetName() + TEXT("_Map");
 		}
 
-		if(OutputLevelSoftObject.GetAssetPathString().Len() == 0)
+		if (OutputLevelSoftObject_DEPRECATED.GetAssetPathString().Len() > 0)
 		{
-			OutputLevelSoftObject = FSoftObjectPath(FPaths::Combine(TargetContentFolder, LevelName) + "." + LevelName);
+			OutputLevelObjectPath = OutputLevelSoftObject_DEPRECATED.GetAssetPathString();
+			OutputLevelSoftObject_DEPRECATED.Reset();
+
+			bMarkDirty = true;
+		}
+
+		if(OutputLevelObjectPath.Len() == 0)
+		{
+			OutputLevelObjectPath = FPaths::Combine(TargetContentFolder, LevelName) + "." + LevelName;
+		}
+
+		if (DatasmithScene_DEPRECATED.GetAssetName().Len() > 0)
+		{
+			DatasmithSceneObjectPath = DatasmithScene_DEPRECATED.ToString();
+			DatasmithScene_DEPRECATED.Reset();
 
 			bMarkDirty = true;
 		}
 
 		if(bMarkDirty)
 		{
-			const FText AssetName = FText::FromString( GetOuter()->GetName() );
-			const FText WarningMessage = FText::Format( LOCTEXT( "DataprepConsumerOldVersion", "{0} is from an old version and has been updated. Please save asset to complete update."), AssetName );
-			const FText NotificationText = FText::Format( LOCTEXT( "DataprepConsumerOldVersionNotif", "{0} is from an old version and has been updated."), AssetName );
-			LogWarning(WarningMessage);
-			//DataprepCorePrivateUtils::LogMessage( EMessageSeverity::Warning, WarningMessage, NotificationText );
-
-			GetOutermost()->SetDirtyFlag(true);
+			UE_LOG(LogDatasmithImport, Warning, TEXT("%s is from an old version and has been updated. Please save asset to complete update."), *GetOuter()->GetName());
 		}
 	}
 }
@@ -301,7 +308,7 @@ void UDatasmithConsumer::PostInitProperties()
 			LevelName = GetOuter()->GetName() + TEXT("_Map");
 		}
 
-		OutputLevelSoftObject = FSoftObjectPath(FPaths::Combine( TargetContentFolder, LevelName) + TEXT(".") + LevelName);
+		OutputLevelObjectPath = FPaths::Combine( TargetContentFolder, LevelName) + TEXT(".") + LevelName;
 	}
 }
 
@@ -320,16 +327,13 @@ bool UDatasmithConsumer::Initialize()
 	UpdateScene();
 
 	// Re-create the DatasmithScene if not in memory yet
-	if ( !DatasmithScene.IsValid() )
+	if ( !DatasmithSceneWeakPtr.IsValid() )
 	{
 		// Check if DatasmithScene can be loaded in memory
-		if( !DatasmithScene.IsNull() )
-		{
-			DatasmithScene.LoadSynchronous();
-		}
+		DatasmithSceneWeakPtr = Cast<UDatasmithScene>(FSoftObjectPath(DatasmithSceneObjectPath).TryLoad());
 
 		// Still not in memory, re-create it
-		if(!DatasmithScene.IsValid())
+		if(!DatasmithSceneWeakPtr.IsValid())
 		{
 			FString PackageName = FPaths::Combine( GetTargetPackagePath(), GetOuter()->GetName() + DatasmithSceneSuffix );
 
@@ -338,25 +342,25 @@ bool UDatasmithConsumer::Initialize()
 
 			FString DatasmithSceneName = FPaths::GetBaseFilename( Package->GetFullName(), true );
 
-			DatasmithScene = NewObject< UDatasmithScene >( Package, *DatasmithSceneName, GetFlags() | RF_Standalone | RF_Public | RF_Transactional );
-			check( DatasmithScene.IsValid() );
+			DatasmithSceneWeakPtr = NewObject< UDatasmithScene >( Package, *DatasmithSceneName, GetFlags() | RF_Standalone | RF_Public | RF_Transactional );
+			check( DatasmithSceneWeakPtr.IsValid() );
 
-			FAssetRegistryModule::AssetCreated( DatasmithScene.Get() );
+			FAssetRegistryModule::AssetCreated( DatasmithSceneWeakPtr.Get() );
 
-			DatasmithScene->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithScene.Get(), UDatasmithSceneImportData::StaticClass() );
-			check( DatasmithScene->AssetImportData );
+			DatasmithSceneWeakPtr->AssetImportData = NewObject< UDatasmithSceneImportData >( DatasmithSceneWeakPtr.Get(), UDatasmithSceneImportData::StaticClass() );
+			check( DatasmithSceneWeakPtr->AssetImportData );
 
 			// Store a Dataprep asset pointer into the scene asset in order to be able to later re-execute the dataprep pipeline
-			if ( DatasmithScene->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
+			if ( DatasmithSceneWeakPtr->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
 			{
-				if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( DatasmithScene.Get() ) )
+				if ( IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >( DatasmithSceneWeakPtr.Get() ) )
 				{
 					UDataprepAssetUserData* DataprepAssetUserData = AssetUserDataInterface->GetAssetUserData< UDataprepAssetUserData >();
 
 					if ( !DataprepAssetUserData )
 					{
 						EObjectFlags Flags = RF_Public;
-						DataprepAssetUserData = NewObject< UDataprepAssetUserData >( DatasmithScene.Get(), NAME_None, Flags );
+						DataprepAssetUserData = NewObject< UDataprepAssetUserData >( DatasmithSceneWeakPtr.Get(), NAME_None, Flags );
 						AssetUserDataInterface->AddAssetUserData( DataprepAssetUserData );
 					}
 
@@ -367,14 +371,16 @@ bool UDatasmithConsumer::Initialize()
 				}
 			}
 
-			DatasmithScene->MarkPackageDirty();
+			DatasmithSceneWeakPtr->MarkPackageDirty();
 
 			// Make package dirty for new DatasmithScene been archived
-			FProperty* Property = FindFProperty<FProperty>( StaticClass(), TEXT("DatasmithScene") );
+			FProperty* Property = FindFProperty<FProperty>( StaticClass(), TEXT("DatasmithSceneWeakPtr") );
 			FPropertyChangedEvent PropertyUpdateStruct( Property );
 			PostEditChangeProperty( PropertyUpdateStruct );
 
 			MarkPackageDirty();
+
+			DatasmithSceneObjectPath = FSoftObjectPath(DatasmithSceneWeakPtr.Get()).GetAssetPathString();
 		}
 	}
 
@@ -548,7 +554,7 @@ bool UDatasmithConsumer::FinalizeRun()
 
 	// Save all assets
 	TArray<UPackage*> PackagesToSave;
-	PackagesToSave.Add(DatasmithScene->GetOutermost());
+	PackagesToSave.Add(DatasmithSceneWeakPtr->GetOutermost());
 
 	DatasmithConsumerUtils::CollectAssetsToSave(SceneAsset->Textures, PackagesToSave);
 	DatasmithConsumerUtils::CollectAssetsToSave(SceneAsset->MaterialFunctions, PackagesToSave);
@@ -604,7 +610,7 @@ bool UDatasmithConsumer::CreateWorld()
 				FSoftObjectPath LevelWorldPath(LevelWorld);
 
 				// If paths differ, remove level with same name from world
-				if(LevelWorldPath != OutputLevelSoftObject)
+				if(LevelWorldPath.GetAssetPathString() != OutputLevelObjectPath)
 				{
 					if(DatasmithConsumerUtils::GetMarker(Level, ConsumerMarkerID) == UniqueID)
 					{
@@ -699,15 +705,15 @@ const FText& UDatasmithConsumer::GetDescription() const
 
 bool UDatasmithConsumer::BuildContexts()
 {
-	const FString FilePath = FPaths::Combine( FPaths::ProjectIntermediateDir(), ( DatasmithScene->GetName() + TEXT( ".udatasmith" ) ) );
+	const FString FilePath = FPaths::Combine( FPaths::ProjectIntermediateDir(), ( DatasmithSceneWeakPtr->GetName() + TEXT( ".udatasmith" ) ) );
 
 	ImportContextPtr = MakeUnique< FDatasmithImportContext >( FilePath, false, TEXT("DatasmithImport"), LOCTEXT("DatasmithImportFactoryDescription", "Datasmith") );
 
 	// Update import context with consumer's data
 	ImportContextPtr->Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;
-	ImportContextPtr->SceneAsset = DatasmithScene.Get();
+	ImportContextPtr->SceneAsset = DatasmithSceneWeakPtr.Get();
 	ImportContextPtr->ActorsContext.ImportWorld = Context.WorldPtr.Get();
-	ImportContextPtr->Scene = FDatasmithSceneFactory::CreateScene( *DatasmithScene->GetName() );
+	ImportContextPtr->Scene = FDatasmithSceneFactory::CreateScene( *DatasmithSceneWeakPtr->GetName() );
 	ImportContextPtr->SceneName = ImportContextPtr->Scene->GetName();
 
 	// Convert all incoming Datasmith scene actors as regular actors
@@ -721,7 +727,7 @@ bool UDatasmithConsumer::BuildContexts()
 	FDatasmithImporterUtils::FillSceneElement( ImportContextPtr->Scene, RootActors );
 
 	// Initialize context
-	FString SceneOuterPath = DatasmithScene->GetOutermost()->GetName();
+	FString SceneOuterPath = DatasmithSceneWeakPtr->GetOutermost()->GetName();
 	FString RootPath = FPackageName::GetLongPackagePath( SceneOuterPath );
 
 	if ( Algo::Count( RootPath, TEXT('/') ) > 1 )
@@ -947,7 +953,7 @@ bool UDatasmithConsumer::SetTargetContentFolderImplementation(const FString& InT
 		const FText Message = FText::Format( LOCTEXT("DatasmithConsumer_SetTargetContentFolder", "Package path {0} different from path previously used. Previous content will not be updated."), FText::FromString( TargetContentFolder ) );
 		LogInfo(Message);
 
-		DatasmithScene.Reset();
+		DatasmithSceneWeakPtr.Reset();
 
 		return SetOutputLevel( LevelName );
 	}
@@ -958,16 +964,18 @@ bool UDatasmithConsumer::SetTargetContentFolderImplementation(const FString& InT
 void UDatasmithConsumer::UpdateScene()
 {
 	// Nothing to check if DatasmithScene is explicitly pointing to no object
-	if( DatasmithScene.IsNull() )
+	if( !DatasmithSceneWeakPtr.IsValid() )
 	{
 		return;
 	}
 
 	// If name of owning Dataprep asset has changed, remove reference to UDatasmithScene 
 	// #ueent_todo: Listen to asset renaming event to detect when owning Dataprep's name changes
-	if( !DatasmithScene.GetAssetName().StartsWith(GetOuter()->GetName() + DatasmithSceneSuffix) )
+	FString AssetName;
+	DatasmithSceneObjectPath.Split(TEXT("."), nullptr, &AssetName, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+	if( !AssetName.StartsWith(GetOuter()->GetName() + DatasmithSceneSuffix) )
 	{
-		if (UDatasmithScene* OldDatasmithScene = DatasmithScene.Get())
+		if (UDatasmithScene* OldDatasmithScene = DatasmithSceneWeakPtr.Get())
 		{
 			// Remove reference to Dataprep asset. The old UDatasmithScene cannot be re-imported anymore
 			if ( OldDatasmithScene->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) )
@@ -986,7 +994,7 @@ void UDatasmithConsumer::UpdateScene()
 		}
 
 		// Force re-creation of Datasmith scene
-		DatasmithScene.Reset();
+		DatasmithSceneWeakPtr.Reset();
 	}
 }
 
@@ -996,7 +1004,7 @@ bool UDatasmithConsumer::SetOutputLevel(const FString& InLevelName)
 	{
 		Modify();
 
-		OutputLevelSoftObject = FSoftObjectPath(FPaths::Combine( TargetContentFolder, InLevelName) + TEXT(".") + InLevelName);
+		OutputLevelObjectPath = FPaths::Combine( TargetContentFolder, InLevelName) + TEXT(".") + InLevelName;
 
 		MarkPackageDirty();
 

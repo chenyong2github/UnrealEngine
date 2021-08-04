@@ -46,6 +46,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Matrix Fixture")
 	float MatrixDepth;
 
+	/** If set to true, ignores the distribution set in the patch (hence the distribution becomes visible when not left to right, top to bottom) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = "DMX Matrix Fixture")
+	bool bIgnorePixelMappingDistributionOfFixturePatch = false;
+
 	void GenerateMatrixMesh();
 	void GenerateMatrixCells();
 	void GenerateMatrixBeam();

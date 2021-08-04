@@ -78,10 +78,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttributeMap);
 
-protected:
-	/** Sets the fixture in a defaulted state using default values of its Fixture Components */
-	void SetDefaultFixtureState();
-	
 public:
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void InterpolateDMXComponents(float DeltaSeconds);
@@ -140,16 +136,16 @@ public:
 
 	// MATERIALS ---------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "DMX Light Fixture")
 	UMaterialInstance* LensMaterialInstance;
 
-	UPROPERTY(EditDefaultsOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "DMX Light Fixture")
 	UMaterialInstance* BeamMaterialInstance;
 
-	UPROPERTY(EditDefaultsOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "DMX Light Fixture")
 	UMaterialInstance* SpotLightMaterialInstance;
 
-	UPROPERTY(EditDefaultsOnly, Category = "DMX Light Fixture")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "DMX Light Fixture")
 	UMaterialInstance* PointLightMaterialInstance;
 
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")

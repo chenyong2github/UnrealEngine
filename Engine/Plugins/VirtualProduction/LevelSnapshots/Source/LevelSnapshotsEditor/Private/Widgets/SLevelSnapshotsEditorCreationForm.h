@@ -41,14 +41,9 @@ public:
 	void SetNameOverrideText(const FText& InNewText, ETextCommit::Type InCommitType);
 	void SetDescriptionText(const FText& InNewText, ETextCommit::Type InCommitType);
 
-	FText GetPathOverrideText() const;
-	void SetPathOverrideText(const FText& InNewText, ETextCommit::Type InCommitType);
-
 	EVisibility GetNameDiffersFromDefaultAsVisibility() const;
-	EVisibility GetDirDiffersFromDefaultAsVisibility() const;
 
 	FReply OnResetNameClicked();
-	FReply OnResetDirClicked();
 	FReply OnCreateButtonPressed();
 
 	void OnWindowClosed(const TSharedRef<SWindow>& ParentWindow) const;
@@ -62,7 +57,6 @@ private:
 	TWeakObjectPtr<ULevelSnapshotsEditorDataManagementSettings> DataManagementSettingsObjectPtr;
 
 	bool bNameDiffersFromDefault = false;
-	bool bDirDiffersFromDefault = false;
 	bool bWasCreateSnapshotPressed = false;
 
 	FText DescriptionText;

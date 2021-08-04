@@ -169,16 +169,20 @@ public:
 	FDisplayClusterConfigurationMasterNodePorts();
 
 public:
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	/** Advanced: network port for Cluster Sync Events */
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 ClusterSync;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	/** Advanced: network port for Render Sync Events */
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 RenderSync;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	/** Advanced: network port for Json Cluster Events */
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 ClusterEventsJson;
 
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	/** Advanced: network port for Binary Cluster Events */
+	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "1024", ClampMax = "65535", UIMin = "1024", UIMax = "65535"))
 	uint16 ClusterEventsBinary;
 };
 
@@ -235,34 +239,30 @@ public:
 	FDisplayClusterConfigurationNetworkSettings();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Advanced: amount of times nDisplay tries to reconnect before dropping */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", ClampMax = "99", UIMin = "1", UIMax = "99"))
 	int32 ConnectRetriesAmount;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Advanced: delay in between connection retries */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", ClampMax = "5000", UIMin = "1", UIMax = "5000"))
 	int32 ConnectRetryDelay;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Advanced: timeout for Game Thread Barrier */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "5000", UIMin = "5000"))
 	int32 GameStartBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Advanced: timeout value for Start Frame Barrier */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", UIMin = "1"))
 	int32 FrameStartBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Advanced: timeout value for End Frame Barrier */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", UIMin = "1"))
 	int32 FrameEndBarrierTimeout;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	/** Advanced: timeout value for Render Sync */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (ClampMin = "1", UIMin = "1"))
 	int32 RenderSyncBarrierTimeout;
 };
-
-
-
-USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostprocess
-	: public FDisplayClusterConfigurationPolymorphicEntity
-{
-	GENERATED_BODY()
-};
-
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationExternalImage
@@ -298,19 +298,24 @@ private:
 #endif
 
 public:
+	/** IP address of this specific cluster Node */
 	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration", meta = (DisplayName = "Host IP Address"))
 	FString Host;
 
+	/** Enables or disables sound on nDisplay primary Node */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Enable Sound"))
 	bool bIsSoundEnabled;
 
+	/** Enables application window native fullscreen support */
 	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration", meta = (DisplayName = "Fullscreen"))
 	bool bIsFullscreen;
 
+	/** Defines the application window size in pixels */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Window"))
 	FDisplayClusterConfigurationRectangle WindowRect;
 
 #if WITH_EDITORONLY_DATA
+	/** Locks the application window aspect ratio for easier resizing */
 	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bFixedAspectRatio;
 #endif
@@ -318,7 +323,7 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = "Configuration", meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Configuration", meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Custom Output Settings", DisplayThumbnail = false, ShowInnerProperties))
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
 
 #if WITH_EDITORONLY_DATA
@@ -328,6 +333,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
 	bool bIsEnabled;
 
+	/** Binds a background preview image for easier output mapping */
 	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
 	FDisplayClusterConfigurationExternalImage PreviewImage;
 #endif
@@ -357,24 +363,31 @@ private:
 	#endif
 
 public:
+	/** Custom name for the Host PC. No effect on nDisplay */
 	UPROPERTY(EditAnywhere, Category = "Configuration")
 	FText HostName;
 
+	/** Arbitrary position of the Host PC in 2D workspace. No effect on nDisplay */
 	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (EditCondition = "bAllowManualPlacement"))
 	FVector2D Position;
 
+	/** Disables the automatic placement of Host PCs */
 	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bAllowManualPlacement;
 
+	/** Resolution of Host PC in pixels */
 	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (EditCondition = "bAllowManualSizing"))
 	FVector2D HostResolution;
 
+	/** Allows to manually resize the Host PC resolution */
 	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bAllowManualSizing;
 
+	/** Specify coordinates of the Host PC origin in relation to OS configuration */
 	UPROPERTY(EditAnywhere, Category = "Configuration")
 	FVector2D Origin;
 
+	/** Specify custom and arbitrary color for a given Host PC */
 	UPROPERTY(EditAnywhere, Category = "Configuration")
 	FLinearColor Color;
 	
@@ -455,7 +468,34 @@ public:
 	const UDisplayClusterConfigurationClusterNode* GetClusterNode(const FString& NodeId) const;
 	const UDisplayClusterConfigurationViewport*    GetViewport(const FString& NodeId, const FString& ViewportId) const;
 
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
 	UDisplayClusterConfigurationViewport* GetViewportConfiguration(const FString& NodeId, const FString& ViewportId);
+
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
+	UDisplayClusterConfigurationClusterNode* GetClusterNodeConfiguration(const FString& NodeId) const;
+
+	/**
+	* Update\Create node postprocess
+	*
+	* @param PostprocessId - Unique postprocess name
+	* @param Type          - Postprocess type id
+	* @param Parameters    - Postprocess parameters
+	* @param Order         - Control the rendering order of post-processing. Larger value is displayed last
+	*
+	* @return - true, if success
+	*/
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
+	bool AssignPostprocess(const FString& NodeId, const FString& PostprocessId, const FString& Type, TMap<FString, FString> Parameters, int32 Order = -1);
+
+	/**
+	* Delet node postprocess
+	*
+	* @param PostprocessId - Unique postprocess name
+	*
+	* @return - true, if success
+	*/
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
+	bool RemovePostprocess(const FString& NodeId, const FString& PostprocessId);
 
 	bool GetPostprocess(const FString& NodeId, const FString& PostprocessId, FDisplayClusterConfigurationPostprocess& OutPostprocess) const;
 	bool GetProjectionPolicy(const FString& NodeId, const FString& ViewportId, FDisplayClusterConfigurationProjection& OutProjection) const;
@@ -469,7 +509,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
 	FDisplayClusterConfigurationInfo Info;
 
-	UPROPERTY()
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Instanced, Category = Advanced)
 	UDisplayClusterConfigurationScene* Scene;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Instanced, Category = Advanced, meta = (DisplayThumbnail = false, ShowInnerProperties))
@@ -500,6 +540,10 @@ public:
 public:
 	UPROPERTY(config)
 	FString PathToConfig;
+
+	/** The path used when originally importing. */
+	UPROPERTY()
+	FString ImportedPath;
 
 public:
 	const static TSet<FString> RenderSyncPolicies;

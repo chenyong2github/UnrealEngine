@@ -104,14 +104,11 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 	SpotLight->SetMaterial(0, DynamicMaterialSpotLight);
 	PointLight->SetMaterial(0, DynamicMaterialPointLight);
 
-	// Initialize components
+	// Initialize fixture components
 	for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
 	{
 		DMXComponent->Initialize();
 	}
-
-	// Start with default values for all DMX channels
-	SetDefaultFixtureState();
 
 	HasBeenInitialized = true;
 }
@@ -213,7 +210,7 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 		for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
 		{
 			// Components without matrix data
-			if (DMXComponent->bIsEnabled && !DMXComponent->bUsingMatrixData)
+			if (DMXComponent->bIsEnabled)
 			{
 				if (UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent))
 				{
@@ -221,63 +218,31 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 					const float* TargetValuePtr = ValuePerAttribute.Map.Find(SingleComponent->DMXChannel.Name);
 					if (TargetValuePtr)
 					{
-						float RemappedValue = SingleComponent->GetInterpolatedValue(*TargetValuePtr);
-						 
-						if (SingleComponent->IsTargetValid(RemappedValue))
-						{
-							if (SingleComponent->bUseInterpolation)
-							{
+						const float RemappedValue = SingleComponent->NormalizedToAbsoluteValue(*TargetValuePtr);
 								SingleComponent->SetTargetValue(RemappedValue);
 							}
-							else
-							{
-								SingleComponent->SetTargetValue(RemappedValue);
-								SingleComponent->SetValueNoInterp(RemappedValue);
 							}
-						}
-					}
-				}
 				else if (UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent))
 				{	
 					// DoubleChannel Component
 					const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel1.Name);
 					if (FirstTargetValuePtr)
 					{
-						float Channel1RemappedValue = DoubleComponent->GetInterpolatedValue(0, *FirstTargetValuePtr);
+						float Channel1RemappedValue = DoubleComponent->NormalizedToAbsoluteValue(0, *FirstTargetValuePtr);
 
-						if (DoubleComponent->IsTargetValid(0, Channel1RemappedValue))
-						{
-							if (DoubleComponent->bUseInterpolation)
-							{
-								DoubleComponent->SetTargetValue(0, Channel1RemappedValue);
+						constexpr int32 FirstChannelIndex = 0;
+						DoubleComponent->SetTargetValue(FirstChannelIndex, *FirstTargetValuePtr);
 							}
-							else
-							{
-								DoubleComponent->SetTargetValue(0, Channel1RemappedValue);
-								DoubleComponent->SetChannel1ValueNoInterp(Channel1RemappedValue);
-							}
-						}
-					}
 
 					const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel2.Name);
 					if (SecondTargetValuePtr)
 					{
-						float Channel2RemappedValue = DoubleComponent->GetInterpolatedValue(1, *SecondTargetValuePtr);
+						float Channel2RemappedValue = DoubleComponent->NormalizedToAbsoluteValue(1, *SecondTargetValuePtr);
 
-						if (DoubleComponent->IsTargetValid(1, Channel2RemappedValue))
-						{
-							if (DoubleComponent->bUseInterpolation)
-							{
-								DoubleComponent->SetTargetValue(1, Channel2RemappedValue);
+						constexpr int32 SecondChannelIndex = 1;
+						DoubleComponent->SetTargetValue(SecondChannelIndex, *SecondTargetValuePtr);
 							}
-							else
-							{
-								DoubleComponent->SetTargetValue(1, Channel2RemappedValue);
-								DoubleComponent->SetChannel2ValueNoInterp(Channel2RemappedValue);
-							}
-						}
 					}
-				}
 				else if(UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
 				{
 					// Color Component
@@ -288,7 +253,7 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 						const float* ThirdTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->DMXChannel3);
 						const float* FourthTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->DMXChannel4);
 
-						// 1.f if channel not found
+						// Current color if channel not found
 						const float r = (FirstTargetValuePtr) ? *FirstTargetValuePtr : CurrentTargetColorPtr->R;
 						const float g = (SecondTargetValuePtr) ? *SecondTargetValuePtr : CurrentTargetColorPtr->G;
 						const float b = (ThirdTargetValuePtr) ? *ThirdTargetValuePtr : CurrentTargetColorPtr->B;
@@ -298,47 +263,10 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 						if (ColorComponent->IsColorValid(NewTargetColor))
 						{
 							ColorComponent->SetTargetColor(NewTargetColor);
-							ColorComponent->SetColorNoInterp(NewTargetColor);
-						}
-					}
 				}
 			}
 		}
 	}
 }
-
-void ADMXFixtureActor::SetDefaultFixtureState()
-{
-	// Get current components (supports PIE)
-	TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
-	GetComponents<UDMXFixtureComponent>(DMXComponents);
-
-	for (auto& DMXComponent : DMXComponents)
-	{
-		if (UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent))
-		{		
-			// SingleChannel Component
-			float TargetValue = SingleComponent->DMXChannel.DefaultValue;
-
-			SingleComponent->SetTargetValue(TargetValue);
-			SingleComponent->SetValueNoInterp(TargetValue);
-		}
-		else if (UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent))
-		{
-			// DoubleChannel Component
-			float Channel1TargetValue = DoubleComponent->DMXChannel1.DefaultValue;
-			float Channel2TargetValue = DoubleComponent->DMXChannel2.DefaultValue;
-
-			DoubleComponent->SetTargetValue(0, Channel1TargetValue);
-			DoubleComponent->SetTargetValue(1, Channel2TargetValue);
-		}
-		else if (UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
-		{
-			// Color Component 
-			const FLinearColor& DefaultColor = FLinearColor::White;
-
-			ColorComponent->SetTargetColor(DefaultColor);
-			ColorComponent->SetColorNoInterp(DefaultColor);
-		}
 	}
 }

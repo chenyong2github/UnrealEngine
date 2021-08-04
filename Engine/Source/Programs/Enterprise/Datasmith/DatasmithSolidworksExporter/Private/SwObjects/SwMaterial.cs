@@ -855,7 +855,7 @@ namespace SolidworksDatasmith.SwObjects
 			{
 				Vec3 vecZ = Vec3.Cross(uDir, vDir);
 				Vec3 centerPoint = CenterPoint;
-				Matrix4 rotateMatrix = Matrix4.FromRotationAxisAngle(vecZ, (float)(RotationAngle * Utility.Deg2Rad));
+				Matrix4 rotateMatrix = Matrix4.FromRotationAxisAngle(vecZ, (float)RotationAngle);
 				uvPlane.UDirection = (rotateMatrix.TransformVector(uDir)).Normalized();
 				uvPlane.VDirection = (rotateMatrix.TransformVector(vDir)).Normalized();
 			}

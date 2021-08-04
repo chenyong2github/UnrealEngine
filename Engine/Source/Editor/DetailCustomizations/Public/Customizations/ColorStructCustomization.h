@@ -28,8 +28,7 @@ public:
 protected:
 
 	FColorStructCustomization()
-		: ActiveTransaction(INDEX_NONE)
-		, bIgnoreAlpha(false)
+		: bIgnoreAlpha(false)
 		, bIsInlineColorPickerVisible(false)
 		, bIsInteractive(false)
 		, bDontUpdateWhileEditing(false)
@@ -72,6 +71,11 @@ protected:
 	 */
 	void OnSetColorFromColorPicker(FLinearColor NewColor);
 	
+	/**
+	 * Called to reset all colors to before the color picker spawned
+	 */
+	void ResetColors();
+
 	/**
 	 * Called when the user clicks cancel in the color picker
 	 * The values are reset to their original state when this happens
@@ -155,8 +159,6 @@ protected:
 
 	TSharedPtr<SWidget > ColorWidgetBackgroundBorder;
 
-	int32 ActiveTransaction;
-
 	/** Overrides the default state of the sRGB check box */
 	TOptional<bool> sRGBOverride;
 
@@ -171,6 +173,9 @@ protected:
 
 	/** True if the user is performing an interactive color change */
 	bool bIsInteractive;
+
+	/** Last color set from color picker as string*/
+	FString LastPickerColorString;
 
 
 	/** The value won;t be updated while editing */

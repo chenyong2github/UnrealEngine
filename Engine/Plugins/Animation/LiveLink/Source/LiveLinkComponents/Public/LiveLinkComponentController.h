@@ -29,7 +29,7 @@ public:
 #endif
 
 	/** Instanced controllers used to control the desired role */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "LiveLink", Instanced, NoClear, meta = (ShowOnlyInnerProperties))
+	UPROPERTY(Interp, BlueprintReadOnly, EditAnywhere, Category = "LiveLink", Instanced, NoClear, meta = (ShowOnlyInnerProperties))
 	TMap<TSubclassOf<ULiveLinkRole>, TObjectPtr<ULiveLinkControllerBase>> ControllerMap;
 
 	UPROPERTY(EditAnywhere, Category="LiveLink", AdvancedDisplay)

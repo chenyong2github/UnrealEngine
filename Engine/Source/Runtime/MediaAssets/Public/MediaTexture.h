@@ -73,7 +73,7 @@ class MEDIAASSETS_API UMediaTexture
 	uint8 NumMips;
 
 	/** Enable new style output (default = false). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaTexture", meta = (DisplayName = "Enable new style output"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaTexture", meta = (DisplayName = "Enable new style output"))
 	bool NewStyleOutput;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaTexture", meta = (DisplayName = "Output format (new style)"))
@@ -141,6 +141,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaTexture")
 	void SetMediaPlayer(UMediaPlayer* NewMediaPlayer);
+
+	/**
+	 * Creates a new resource for the texture, and updates any cached references to the resource.
+	 * This obviously is just an override to expose to blueprints.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaTexture")
+	virtual void UpdateResource() override  { Super::UpdateResource(); }
 
 	/**
 	 * Caches the next available sample time from the queue when last rendering was made

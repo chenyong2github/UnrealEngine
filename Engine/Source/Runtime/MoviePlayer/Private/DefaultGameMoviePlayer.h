@@ -13,6 +13,7 @@
 #include "Widgets/SWindow.h"
 #include "Widgets/Layout/SBorder.h"
 #include "MoviePlayer.h"
+#include "MoviePlayerProxyServer.h"
 #include "TickableObjectRenderThread.h"
 
 #include "Misc/CoreDelegates.h"
@@ -53,7 +54,7 @@ private:
 
 /** An implementation of the movie player/loading screen we will use */
 class FDefaultGameMoviePlayer : public FTickableObjectRenderThread, public IGameMoviePlayer,
-	public TSharedFromThis<FDefaultGameMoviePlayer>
+	public IMoviePlayerProxyServer, public TSharedFromThis<FDefaultGameMoviePlayer>
 {
 public:
 	static void Create()
@@ -98,6 +99,11 @@ public:
 	virtual FOnMoviePlaybackFinished& OnMoviePlaybackFinished() override { return OnMoviePlaybackFinishedDelegate; }
 	virtual FOnMovieClipFinished& OnMovieClipFinished() override { return OnMovieClipFinishedDelegate; }
 
+	/** IMoviePlayerProxyServer interface. */
+	virtual void BlockingStarted() override;
+	virtual void BlockingTick() override;
+	virtual void BlockingFinished() override;
+
 	/** FTickableObjectRenderThread interface */
 	virtual void Tick( float DeltaTime ) override;
 	virtual TStatId GetStatId() const override;
@@ -139,12 +145,6 @@ private:
 	FOptionalSize GetMovieHeight() const;
 	EVisibility GetSlateBackgroundVisibility() const;
 	EVisibility GetViewportVisibility() const;	
-	
-	/** Called via a delegate in the engine when maps start to load */
-	void OnPreLoadMap(const FString& LevelName);
-	
-	/** Called via a delegate in the engine when maps finish loading */
-	void OnPostLoadMap(UWorld* LoadedWorld);
 	
 	/** Check if the device can render on a parallel thread on the initial loading*/
 	bool CanPlayMovie() const;
@@ -215,6 +215,13 @@ private:
 
 	/** Scale used by UserWidgetDPIScaler. */
 	float ViewportDPIScale;
+
+	/** Counts blocking starts - blocking finishes. */
+	int32 BlockingRefCount;
+	/** Last time we were able to tick during blocking. */
+	double LastBlockingTickTime;
+	/** Handle to our async loading update function. */
+	FDelegateHandle OnAsyncLoadingFlushUpdateDelegateHandle;
 
 private:
 	/** Singleton handle */

@@ -156,6 +156,9 @@ struct FAndroidGamepadDeviceMapping
 
 	// Right stick on RX/RY
 	bool bRightStickRXRY;
+
+	// Map RX and RY to LTAnalog and RTAnalog
+	bool bMapRXRYToTriggers;
 };
 
 struct TouchInput

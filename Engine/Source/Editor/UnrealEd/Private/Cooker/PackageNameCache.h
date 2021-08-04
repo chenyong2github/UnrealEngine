@@ -12,6 +12,28 @@
 /* This class has marked all of its functions const and its variables mutable so that CookOnTheFlyServer can use its functions from const functions */
 struct FPackageNameCache
 {
+	struct FCachedPackageFilename
+	{
+		FCachedPackageFilename(FString&& InStandardFilename, FName InStandardFileFName)
+			: StandardFileNameString(MoveTemp(InStandardFilename))
+			, StandardFileName(InStandardFileFName)
+		{
+		}
+
+		FCachedPackageFilename(const FCachedPackageFilename& In) = default;
+		FCachedPackageFilename& operator=(const FCachedPackageFilename& Other) = default;
+		FCachedPackageFilename() = default;
+
+		FCachedPackageFilename(FCachedPackageFilename&& In)
+			: StandardFileNameString(MoveTemp(In.StandardFileNameString))
+			, StandardFileName(In.StandardFileName)
+		{
+		}
+
+		FString		StandardFileNameString;
+		FName		StandardFileName;
+	};
+
 	bool			HasCacheForPackageName(const FName& PackageName) const;
 
 	FString			GetCachedStandardFileNameString(const UPackage* Package) const;
@@ -19,13 +41,15 @@ struct FPackageNameCache
 	FName			GetCachedStandardFileName(const FName& PackageName, bool bRequireExists=true, bool bCreateAsMap=false) const;
 	FName			GetCachedStandardFileName(const UPackage* Package) const;
 
+	
+	const FName*	FindExistingCachedPackageNameFromStandardFileName(const FName& NormalizedFileName, FName* FoundFileName = nullptr) const;
 	const FName*	GetCachedPackageNameFromStandardFileName(const FName& NormalizedFileName, bool bExactMatchRequired=true, FName* FoundFileName = nullptr) const;
 
 	void			ClearPackageFileNameCache(IAssetRegistry* InAssetRegistry) const;
 	bool			ClearPackageFileNameCacheForPackage(const UPackage* Package) const;
 	bool			ClearPackageFileNameCacheForPackage(const FName& PackageName) const;
 
-	void			AppendCacheResults(TArray<TTuple<FName, FString>>&& PackageToStandardFileNames) const;
+	void			AppendCacheResults(TArray<TTuple<FName, FCachedPackageFilename>>&& PackageToCachedFileNames) const;
 
 	bool			TryCalculateCacheData(FName PackageName, FString& OutStandardFilename, FName& OutStandardFileFName,
 										bool bRequireExists = true, bool bCreateAsMap = false) const;
@@ -39,27 +63,7 @@ struct FPackageNameCache
 	static FName	GetStandardFileName(const FName& FileName);
 	static FName	GetStandardFileName(const FStringView& FileName);
 
-
 private:
-	struct FCachedPackageFilename
-	{
-		FCachedPackageFilename(FString&& InStandardFilename, FName InStandardFileFName)
-			: StandardFileNameString(MoveTemp(InStandardFilename))
-			, StandardFileName(InStandardFileFName)
-		{
-		}
-
-		FCachedPackageFilename(const FCachedPackageFilename& In) = default;
-
-		FCachedPackageFilename(FCachedPackageFilename&& In)
-			: StandardFileNameString(MoveTemp(In.StandardFileNameString))
-			, StandardFileName(In.StandardFileName)
-		{
-		}
-
-		FString		StandardFileNameString;
-		FName		StandardFileName;
-	};
 
 	bool DoesPackageExist(const FName& PackageName, FString* OutFilename) const;
 	const FCachedPackageFilename& Cache(const FName& PackageName, bool bRequireExists, bool bCreateAsMap) const;
@@ -97,17 +101,16 @@ inline bool FPackageNameCache::ClearPackageFileNameCacheForPackage(const UPackag
 	return ClearPackageFileNameCacheForPackage(Package->GetFName());
 }
 
-inline void FPackageNameCache::AppendCacheResults(TArray<TTuple<FName, FString>>&& PackageToStandardFileNames) const
+inline void FPackageNameCache::AppendCacheResults(TArray<TTuple<FName, FCachedPackageFilename>>&& PackageToStandardFileNames) const
 {
 	check(IsInGameThread());
 	for (auto& Entry : PackageToStandardFileNames)
 	{
 		FName PackageName = Entry.Get<0>();
-		FString& StandardFilename = Entry.Get<1>();
+		FCachedPackageFilename& CachedPackageFilename = Entry.Get<1>();
 
-		FName StandardFileFName(*StandardFilename);
-		PackageFilenameToPackageFNameCache.Add(StandardFileFName, PackageName);
-		PackageFilenameCache.Emplace(PackageName, FCachedPackageFilename(MoveTemp(StandardFilename), StandardFileFName));
+		PackageFilenameToPackageFNameCache.Add(CachedPackageFilename.StandardFileName, PackageName);
+		PackageFilenameCache.Emplace(PackageName, MoveTemp(CachedPackageFilename));
 	}
 }
 
@@ -247,9 +250,8 @@ inline const FPackageNameCache::FCachedPackageFilename& FPackageNameCache::Cache
 	return PackageFilenameCache.Emplace(PackageName, FCachedPackageFilename(MoveTemp(FileNameString), FileName));
 }
 
-inline const FName* FPackageNameCache::GetCachedPackageNameFromStandardFileName(const FName& NormalizedFileName, bool bExactMatchRequired, FName* FoundFileName) const
+inline const FName* FPackageNameCache::FindExistingCachedPackageNameFromStandardFileName(const FName& NormalizedFileName, FName* FoundFileName) const
 {
-	check(IsInGameThread());
 	const FName* Result = PackageFilenameToPackageFNameCache.Find(NormalizedFileName);
 	if (Result)
 	{
@@ -257,6 +259,18 @@ inline const FName* FPackageNameCache::GetCachedPackageNameFromStandardFileName(
 		{
 			*FoundFileName = NormalizedFileName;
 		}
+		return Result;
+	}
+
+	return nullptr;
+}
+
+inline const FName* FPackageNameCache::GetCachedPackageNameFromStandardFileName(const FName& NormalizedFileName, bool bExactMatchRequired, FName* FoundFileName) const
+{
+	check(IsInGameThread());
+	const FName* Result = FindExistingCachedPackageNameFromStandardFileName(NormalizedFileName, FoundFileName);
+	if (Result)
+	{
 		return Result;
 	}
 

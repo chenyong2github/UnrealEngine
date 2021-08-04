@@ -43,6 +43,9 @@ struct FAudioPlayerInterface_InstanceData
 
 	int32 MaxPlaysPerTick = 0;
 	bool bStopWhenComponentIsDestroyed = true;
+#if WITH_EDITORONLY_DATA
+	bool bOnlyActiveDuringGameplay = false;
+#endif
 
 	// we track if at least one particle played a sound to prevent problems where sounds keep on playing when scalability culls an emitter (which the DI does not notice otherwise)
 	bool bHadPersistentAudioUpdateThisTick = false;
@@ -84,6 +87,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
 	bool bStopWhenComponentIsDestroyed = true;
 
+#if WITH_EDITORONLY_DATA
+	/** If true then this data interface only processes sounds during active gameplay. This is useful when you are working in the preview window and the sounds annoy you. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
+	bool bOnlyActiveDuringGameplay = false;
+#endif
+	
 	//UObject Interface
 	virtual void PostInitProperties() override;
 	//UObject Interface End

@@ -30,6 +30,12 @@ FString FTextChronoFormatter::AsDateTime( const FDateTime& DateTime, const EDate
 	return DateTime.ToString(TEXT("%Y.%m.%d-%H.%M.%S"));
 }
 
+FString FTextChronoFormatter::AsDateTime(const FDateTime& DateTime, const FString& CustomPattern, const FString& TimeZone, const FCulture& TargetCulture)
+{
+	checkf(FInternationalization::Get().IsInitialized() == true, TEXT("FInternationalization is not initialized. An FText formatting method was likely used in static object initialization - this is not supported."));
+	return DateTime.ToFormattedString(*CustomPattern);
+}
+
 FString FTextTransformer::ToLower(const FString& InStr)
 {
 	return InStr.ToLower();

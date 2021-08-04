@@ -151,4 +151,12 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 	}
 }
 
+void FDisplayClusterConfiguratorKismetCompilerContext::OnPostCDOCompiled()
+{
+	// Clear the undo buffer; since the root actor's CDO was just recreated, any pointers to its UObject children such as CurrentConfigData
+	// are now stale, such as those that may be in the undo buffer. This is a temporary measure since UE's undo system doesn't currently easily
+	// support UObject subobjects that aren't flagged as DefaultSubObject, and can't handle TMaps of subobjects well.
+	GEditor->ResetTransaction(LOCTEXT("ResetUndoBufferOnCompile", "nDisplay Config Compiled"));
+}
+
 #undef LOCTEXT_NAMESPACE

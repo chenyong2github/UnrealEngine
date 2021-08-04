@@ -138,7 +138,7 @@ void FImageTilePlane::AccumulateSinglePlane(const TArray64<float> & InRawData, i
 				VectorRegister4Float SrcVec = VectorLoad((float*)(SrcVecRow + 16 * VecIter));
 				VectorRegister4Float DstVec = VectorLoad((float*)(DstVecRow + 16 * VecIter));
 
-				DstVec = VectorAdd(DstVec, VectorMultiply(SrcVec, VecScale));
+				DstVec = VectorMultiplyAdd(SrcVec, VecScale, DstVec);
 
 				VectorStore(DstVec, (float*)(DstVecRow + 16 * VecIter));
 			}

@@ -87,6 +87,11 @@ int32 FDMXProtocolSACN::MakeValidUniverseID(int32 DesiredUniverseID) const
 	return FMath::Clamp(DesiredUniverseID, static_cast<int32>(ACN_MIN_UNIVERSE), static_cast<int32>(ACN_MAX_UNIVERSE));
 }
 
+bool FDMXProtocolSACN::SupportsPrioritySettings() const
+{
+	return true;
+}
+
 bool FDMXProtocolSACN::RegisterInputPort(const TSharedRef<FDMXInputPort, ESPMode::ThreadSafe>& InputPort)
 {
 	check(!InputPort->IsRegistered());
@@ -177,7 +182,7 @@ TSharedPtr<IDMXSender> FDMXProtocolSACN::RegisterOutputPort(const TSharedRef<FDM
 	else
 	{
 		// Invalid Communication Type
-		checkNoEntry();
+		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create DMX Protocol sACN Sender. The communication type specified is not supported."));
 	}
 	
 

@@ -5,8 +5,6 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogToolMenus, Log, All);
-
 class IToolMenusModule : public IModuleInterface
 {
 public:

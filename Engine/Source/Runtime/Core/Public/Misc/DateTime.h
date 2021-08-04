@@ -511,11 +511,53 @@ public:
 	/**
 	 * Returns the string representation of this date.
 	 *
+	 * ToString uses a non-standard format syntax (see below). If you need strftime-like syntax, then use ToFormattedString:
+	 *		%a - am or pm
+	 *		%A - AM or PM
+	 *		%d - Day, 01-31
+	 *		%D - Day of the Year, 001-366
+	 *		%m - Month, 01-12
+	 *		%y - Year, YY
+	 *		%Y - Year, YYYY
+	 *		%h - 12h Hour, 01-12
+	 *		%H - 24h Hour, 00-23
+	 *		%M - Minute, 00-59
+	 *		%S - Second, 00-60
+	 *		%s - Millisecond, 000-999
+	 * 
 	 * @param Format The format of the returned string.
 	 * @return String representation.
 	 * @see Parse, ToIso8601
 	 */
 	CORE_API FString ToString(const TCHAR* Format) const;
+
+	/**
+	 * Returns the string representation of this date.
+	 *
+	 * Uses strftime-like syntax:
+	 *		%a - Weekday, eg) Sun
+	 *		%A - Weekday, eg) Sunday
+	 *		%w - Weekday, 0-6 (Sunday is 0)
+	 *		%y - Year, YY
+	 *		%Y - Year, YYYY
+	 *		%b - Month, eg) Jan
+	 *		%B - Month, eg) January
+	 *		%m - Month, 01-12
+	 *		%d - Day, 01-31
+	 *		%e - Day, 1-31
+	 *		%l - 12h Hour, 1-12
+	 *		%I - 12h Hour, 01-12
+	 *		%H - 24h Hour, 00-23
+	 *		%M - Minute, 00-59
+	 *		%S - Second, 00-60
+	 *		%p - AM or PM
+	 *		%P - am or PM
+	 *		%j - Day of the Year, 001-366
+	 * 
+	 * @param Format The format of the returned string.
+	 * @return String representation.
+	 */
+	CORE_API FString ToFormattedString(const TCHAR* Format) const;
 
 	/**
 	 * Returns this date as the number of seconds since the Unix Epoch (January 1st of 1970).
@@ -759,6 +801,14 @@ protected:
 
 	/** Holds the cumulative days per month in a non-leap year. */
 	static const int32 DaysToMonth[];
+
+	/** Holds the long and short day names. */
+	static const TCHAR* ShortDayNames[];
+	static const TCHAR* LongDayNames[];
+
+	/** Holds the long and short month names. */
+	static const TCHAR* ShortMonthNames[];
+	static const TCHAR* LongMonthNames[];
 
 private:
 	friend struct Z_Construct_UScriptStruct_FDateTime_Statics;

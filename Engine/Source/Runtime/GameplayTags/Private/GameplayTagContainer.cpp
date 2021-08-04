@@ -606,7 +606,6 @@ FORCEINLINE_DEBUGGABLE void FGameplayTagContainer::AddParentsForTag(const FGamep
 		}
 	}
 }
-
 void FGameplayTagContainer::FillParentTags()
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_FillParentTags);

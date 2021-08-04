@@ -146,7 +146,32 @@ bool UNiagaraNodeWithDynamicPins::CanRemovePin(const UEdGraphPin* Pin) const
 
 bool UNiagaraNodeWithDynamicPins::CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const
 {
-	return IsAddPin(Pin) == false;
+	if(IsAddPin(Pin) || IsParameterMapPin(Pin) || Pin->bOrphanedPin)
+	{
+		return false;
+	}
+	
+	TArray<const UEdGraphPin*> PinArray;
+	if(Pin->Direction == EGPD_Output)
+	{
+		GetOutputPins(PinArray);
+	}
+	else
+	{
+		GetInputPins(PinArray);
+	}
+
+	int32 Index = PinArray.Find(Pin);
+	if(PinArray.IsValidIndex(Index + DirectionToMove))
+	{
+		const UEdGraphPin* PinToMoveTo = PinArray[Index + DirectionToMove];
+		if(IsAddPin(PinToMoveTo) || IsParameterMapPin(PinToMoveTo) || PinToMoveTo->bOrphanedPin)
+		{
+			return false;
+		}
+}
+
+	return true;
 }
 
 void UNiagaraNodeWithDynamicPins::MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToMove)
@@ -308,11 +333,10 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 		UNiagaraGraph* Graph = GetNiagaraGraph();
 		checkf(Graph != nullptr, TEXT("Failed to get niagara graph when adding pin!"));
 
-		// Resolve the unique parameter name before adding to the graph as the pin needs to be created first to resolve the parameter metadata usage.
+		// Resolve the unique parameter name before adding to the graph if the current parameter name is not reserved.
 		if (FNiagaraConstants::FindEngineConstant(Parameter) == nullptr)
 		{
-			TObjectPtr<UNiagaraScriptVariable>* FoundScriptVariable = Graph->GetAllMetaData().Find(Parameter);
-			if (!FoundScriptVariable)
+			if(Graph->GetAllMetaData().Contains(Parameter) == false)
 			{
 				Parameter.SetName(Graph->MakeUniqueParameterName(Parameter.GetName()));
 			}

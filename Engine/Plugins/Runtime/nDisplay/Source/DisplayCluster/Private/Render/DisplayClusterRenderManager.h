@@ -7,13 +7,13 @@
 #include "Render/IPDisplayClusterRenderManager.h"
 
 class IDisplayClusterPostProcess;
+class IDisplayClusterPostProcessFactory; 
 class IDisplayClusterProjectionPolicy;
 class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
 class IDisplayClusterRenderSyncPolicy;
 class IDisplayClusterRenderSyncPolicyFactory;
 class UDisplayClusterCameraComponent;
-
 
 /**
  * Render manager. Responsible for everything related to the visuals.
@@ -55,10 +55,10 @@ public:
 	virtual TSharedPtr<IDisplayClusterProjectionPolicyFactory> GetProjectionPolicyFactory(const FString& InProjectionType) override;
 	virtual void GetRegisteredProjectionPolicies(TArray<FString>& OutPolicyIDs) const override;
 	// Post-process
-	virtual bool RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& InOperation, int InPriority = 0) override;
-	virtual bool RegisterPostprocessOperation(const FString& InName, IPDisplayClusterRenderManager::FDisplayClusterPPInfo& InPPInfo) override;
-	virtual bool UnregisterPostprocessOperation(const FString& InName) override;
-	virtual TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const override;
+	virtual bool RegisterPostProcessFactory(const FString& InPostProcessType, TSharedPtr<IDisplayClusterPostProcessFactory>& InFactory) override;
+	virtual bool UnregisterPostProcessFactory(const FString& InPostProcessType) override;
+	virtual TSharedPtr<IDisplayClusterPostProcessFactory> GetPostProcessFactory(const FString& InPostProcessType) override;
+	virtual void GetRegisteredPostProcess(TArray<FString>& OutPostProcessIDs) const override;
 
 	virtual IDisplayClusterViewportManager* GetViewportManager() const override;
 
@@ -98,9 +98,8 @@ private:
 	// Projection internals
 	TMap<FString, TSharedPtr<IDisplayClusterProjectionPolicyFactory>> ProjectionPolicyFactories;
 
-private:
-	// Post-process internals
-	TMap<FString, FDisplayClusterPPInfo> PostProcessOperations;
+	// Postprocess internals
+	TMap<FString, TSharedPtr<IDisplayClusterPostProcessFactory>> PostProcessFactories;
 
 private:
 	// Internal data access synchronization

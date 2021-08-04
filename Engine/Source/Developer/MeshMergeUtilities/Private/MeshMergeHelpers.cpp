@@ -72,6 +72,12 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMeshComponent* Component, i
 
 	for (const FStaticMeshSection& MeshSection : StaticMesh->GetRenderData()->LODResources[LODIndex].Sections)
 	{
+		// Skip empty sections
+		if (MeshSection.NumTriangles == 0)
+		{
+			continue;
+		}
+
 		// Retrieve material for this section
 		UMaterialInterface* StoredMaterial = Component->GetMaterial(MeshSection.MaterialIndex);
 

@@ -820,7 +820,6 @@ FSlateColor SDockTab::GetFlashColor() const
 	return FLinearColor::White;
 }
 
-
 float SDockTab::GetOverlapWidth() const
 {
 	return GetCurrentStyle().OverlapWidth;

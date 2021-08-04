@@ -293,7 +293,7 @@ float SDataprepGraphTrackWidget::InterSlotSpacing = 16.f;
 float SDataprepGraphTrackWidget::TrackDesiredHeight = 40.f;
 float SDataprepGraphTrackWidget::LineTopPadding = 10.f;
 float SDataprepGraphTrackWidget::NodeTopOffset = 25.f;
-float SDataprepGraphTrackWidget::TrackSlotTopOffset = -15.f;
+float SDataprepGraphTrackWidget::TrackSlotTopOffset = -11.f;
 
 void SDataprepGraphTrackNode::Construct(const FArguments& InArgs, UDataprepGraphRecipeNode* InNode)
 {
@@ -1390,8 +1390,8 @@ void SDataprepGraphTrackWidget::CreateHelperWidgets()
 		.Padding(0.f)
 		[
 			SNew(SBox)
-			.WidthOverride(32.f)
-			.HeightOverride(32.f)
+			.WidthOverride(22.f)
+			.HeightOverride(22.f)
 		]
 		+SOverlay::Slot()
 		.VAlign(VAlign_Fill)
@@ -1410,8 +1410,8 @@ void SDataprepGraphTrackWidget::CreateHelperWidgets()
 		.Padding(0.f)
 		[
 			SNew(SBox)
-			.WidthOverride(32.f)
-			.HeightOverride(32.f)
+			.WidthOverride(22.f)
+			.HeightOverride(22.f)
 		]
 		+SOverlay::Slot()
 		.VAlign(VAlign_Fill)
@@ -1494,7 +1494,7 @@ void SDataprepGraphTrackWidget::RefreshLayout()
 	ActionSlots[SlotCount]->SetOffset( FMargin(DropSlotOffset.Left, NodeTopPadding, 0., 0.));
 	ActionSlots[SlotCount]->AttachWidget(SNullWidget::NullWidget);
 
-	TrackSlots[SlotCount]->SetOffset( FMargin(DropSlotOffset.Left + SDataprepGraphActionNode::DefaultWidth * 0.5f - 16.f, LineTopPadding + TrackSlotTopOffset, 32, 32));
+	TrackSlots[SlotCount]->SetOffset( FMargin(DropSlotOffset.Left + SDataprepGraphActionNode::DefaultWidth * 0.5f - 11.f, LineTopPadding + TrackSlotTopOffset, 22, 22));
 	TrackSlots[SlotCount]->AttachWidget(SNullWidget::NullWidget);
 
 	WorkingSize.X = DropSlotOffset.Left + SDataprepGraphActionNode::DefaultWidth + InterSlotSpacing;

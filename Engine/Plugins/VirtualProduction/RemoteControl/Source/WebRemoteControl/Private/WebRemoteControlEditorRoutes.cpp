@@ -161,6 +161,7 @@ bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerReq
 				FName ResourceName = ThumbnailBrush->GetResourceName();
 				if (FFileHelper::LoadFileToArray(Response->Body, *ResourceName.ToString()))
 				{
+					WebRemoteControlUtils::AddContentTypeHeaders(Response.Get(), TEXT("image/png"));
 					Response->Code = EHttpServerResponseCodes::Ok;
 				}
 			}

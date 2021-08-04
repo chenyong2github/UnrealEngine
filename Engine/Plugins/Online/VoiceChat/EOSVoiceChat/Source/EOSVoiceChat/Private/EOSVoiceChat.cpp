@@ -226,14 +226,14 @@ void FEOSVoiceChat::Initialize(const FOnVoiceChatInitializeCompleteDelegate& Ini
 					FString ConfigOverrideCountryCode;
 					FString ConfigOverrideLocaleCode;
 
-					GConfig->GetString(TEXT("EOSSDK"), TEXT("ProductId"), ConfigProductId, GEngineIni);
-					GConfig->GetString(TEXT("EOSSDK"), TEXT("SandboxId"), ConfigSandboxId, GEngineIni);
-					GConfig->GetString(TEXT("EOSSDK"), TEXT("DeploymentId"), ConfigDeploymentId, GEngineIni);
-					GConfig->GetString(TEXT("EOSSDK"), TEXT("ClientId"), ConfigClientId, GEngineIni);
-					GConfig->GetString(TEXT("EOSSDK"), TEXT("ClientSecret"), ConfigClientSecret, GEngineIni);
-					GConfig->GetString(TEXT("EOSSDK"), TEXT("EncryptionKey"), ConfigEncryptionKey, GEngineIni);
-					GConfig->GetString(TEXT("EOSSDK"), TEXT("OverrideCountryCode"), ConfigOverrideCountryCode, GEngineIni);
-					GConfig->GetString(TEXT("EOSSDK"), TEXT("OverrideLocaleCode"), ConfigOverrideLocaleCode, GEngineIni);
+					GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("ProductId"), ConfigProductId, GEngineIni);
+					GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("SandboxId"), ConfigSandboxId, GEngineIni);
+					GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("DeploymentId"), ConfigDeploymentId, GEngineIni);
+					GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("ClientId"), ConfigClientId, GEngineIni);
+					GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("ClientSecret"), ConfigClientSecret, GEngineIni);
+					GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("EncryptionKey"), ConfigEncryptionKey, GEngineIni);
+					GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("OverrideCountryCode"), ConfigOverrideCountryCode, GEngineIni);
+					GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("OverrideLocaleCode"), ConfigOverrideLocaleCode, GEngineIni);
 
 					const FTCHARToUTF8 Utf8ProductId(*ConfigProductId);
 					const FTCHARToUTF8 Utf8SandboxId(*ConfigSandboxId);

@@ -331,6 +331,32 @@ void FSyncData::FScene::UpdateInfo(FProcessInfo* IOProcessInfo)
 		}
 	}
 
+    FAutoChangeDatabase AutoRestoreDB(APIWind_3DModelID);
+    API_Coord DbOffset = {0.0, 0.0};
+    GSErrCode  GSErr = ACAPI_Database(APIDb_GetOffsetID, &DbOffset);
+    if (GSErr == NoError)
+    {
+        InfoMetaData.AddStringProperty(TEXT("VirtualToWorldOffset.X"), GS::ValueToUniString(DbOffset.x));
+        InfoMetaData.AddStringProperty(TEXT("VirtualToWorldOffset.Y"), GS::ValueToUniString(DbOffset.y));
+    }
+    else
+    {
+        UE_AC_DebugF("FSyncData::FScene::UpdateInfo - APIDb_GetOffsetID return error %s", GetErrorName(GSErr));
+    }
+
+    API_Coord3D LocOrigo = {0.0, 0.0, 0.0};
+    GSErr = ACAPI_Database(APIDb_GetLocOrigoID, &LocOrigo);
+    if (GSErr == NoError)
+    {
+        InfoMetaData.AddStringProperty(TEXT("UserOrigin.X"), GS::ValueToUniString(LocOrigo.x));
+        InfoMetaData.AddStringProperty(TEXT("UserOrigin.Y"), GS::ValueToUniString(LocOrigo.y));
+        InfoMetaData.AddStringProperty(TEXT("UserOrigin.Z"), GS::ValueToUniString(LocOrigo.z));
+    }
+    else
+    {
+        UE_AC_DebugF("FSyncData::FScene::UpdateInfo - APIDb_GetLocOrigoID return error %s", GetErrorName(GSErr));
+    }
+
 	SceneInfoActorElement->SetLabel(GSStringToUE(GS::UniString(projectName + " Project Informations")));
 
 	InfoMetaData.SetOrUpdate(&SceneInfoMetaData, &IOProcessInfo->SyncContext.GetScene());
@@ -402,7 +428,7 @@ void FSyncData::FActor::SetActorElement(const TSharedPtr< IDatasmithActorElement
 }
 
 // Add tags data
-void FSyncData::FActor::UpdateTags(const FTagsArray& InTags)
+bool FSyncData::FActor::UpdateTags(const FTagsArray& InTags)
 {
 	int32 Count = (int32)InTags.GetSize();
 	int32 Index = 0;
@@ -414,7 +440,7 @@ void FSyncData::FActor::UpdateTags(const FTagsArray& InTags)
 		}
 		if (Index == Count)
 		{
-			return; // All Tags unchanged
+			return false; // All Tags unchanged
 		}
 	}
 
@@ -423,119 +449,7 @@ void FSyncData::FActor::UpdateTags(const FTagsArray& InTags)
 	{
 		ActorElement->AddTag(GSStringToUE(InTags[Index]));
 	}
-}
-
-// Add tags data
-void FSyncData::FActor::AddTags(FElementID& InElementID)
-{
-	UE_AC_Assert(ActorElement.IsValid());
-	const API_Elem_Head& Header = InElementID.GetHeader();
-
-	FTagsArray Tags(10);
-
-	static const GS::UniString PrefixTagUniqueID("Archicad.Element.UniqueID.");
-	Tags.Push(PrefixTagUniqueID + ElementId.ToUniString());
-
-	static const GS::UniString PrefixTagType("Archicad.Element.Type.");
-	GS::UniString			   ElementTypeName(FElementTools::TypeName(Header.typeID), CC_UTF8);
-	Tags.Push(PrefixTagType + ElementTypeName);
-
-	const FLibPartInfo* LibPartInfo = InElementID.GetLibPartInfo();
-	if (LibPartInfo != nullptr)
-	{
-		static const GS::UniString PrefixLibPartMain("Archicad.Element.LibPart.Main.");
-		Tags.Push(PrefixLibPartMain + LibPartInfo->Guid.Main.ToUniString());
-
-		static const GS::UniString PrefixLibPartRev("Archicad.Element.LibPart.Rev.");
-		Tags.Push(PrefixLibPartRev + LibPartInfo->Guid.Rev.ToUniString());
-
-		static const GS::UniString PrefixLibPartName("Archicad.Element.LibPart.Name.");
-		Tags.Push(PrefixLibPartName + LibPartInfo->Name);
-
-		if (Header.typeID == API_ObjectID || Header.typeID == API_LampID || Header.typeID == API_WindowID ||
-			Header.typeID == API_DoorID)
-		{
-			const API_Element& APIElement = InElementID.GetAPIElement();
-
-			if (APIElement.header.typeID == API_ObjectID || APIElement.header.typeID == API_LampID)
-			{
-				if (APIElement.object.useObjMaterials)
-				{
-					static const GS::UniString TagUseObjectMaterial("Archicad.Element.UseObjectMaterial");
-					Tags.Push(TagUseObjectMaterial);
-				}
-				if (APIElement.object.reflected)
-				{
-					static const GS::UniString TagObjectReflected("Archicad.Element.Reflected");
-					Tags.Push(TagObjectReflected);
-				}
-			}
-			else if (APIElement.header.typeID == API_WindowID || APIElement.header.typeID == API_DoorID)
-			{
-				if (APIElement.window.openingBase.reflected)
-				{
-					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.Y");
-					Tags.Push(TagObjectReflected);
-				}
-				if (APIElement.window.openingBase.oSide)
-				{
-					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.X");
-					Tags.Push(TagObjectReflected);
-				}
-				if (APIElement.window.openingBase.refSide)
-				{
-					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.X.Same");
-					Tags.Push(TagObjectReflected);
-				}
-			}
-		}
-	}
-
-#if 0 // IfcType and Classification only as metadata
-	GS::UniString IfcType;
-	GS::UniString TypeObjectIfcType;
-	GSErrCode GSErr = ACAPI_Element_GetIFCType(Header.guid, &IfcType, &TypeObjectIfcType);
-	if (GSErr == NoError)
-	{
-		if (!IfcType.IsEmpty())
-		{
-			static const GS::UniString PrefixIfcType("Archicad.IfcType.");
-			Tags.Push(PrefixIfcType + IfcType);
-		}
-		if (!TypeObjectIfcType.IsEmpty())
-		{
-			static const GS::UniString PrefixTypeObjectIfcType("Archicad.TypeObjectIfcType.");
-			Tags.Push(PrefixTypeObjectIfcType + TypeObjectIfcType);
-		}
-	}
-	else
-	{
-		UE_AC_DebugF("FSyncData::AddTags - ACAPI_Element_GetIFCType returned error %s", GetErrorName(GSErr));
-	}
-
-	GS::Array< GS::Pair< API_ClassificationSystem, API_ClassificationItem > > ApiClassifications;
-	GSErr = FElementTools::GetElementClassifications(ApiClassifications, Header.guid);
-
-	if (GSErr == NoError)
-	{
-		static const GS::UniString PrefixTagClassificationID("Archicad.Classification.");
-		static const GS::UniString StringID(".ID.");
-		for (const GS::Pair< API_ClassificationSystem, API_ClassificationItem >& Classification : ApiClassifications)
-		{
-			GS::UniString TagClassificationID(PrefixTagClassificationID + Classification.first.name + StringID + Classification.second.id);
-			if (!Tags.Contains(TagClassificationID))
-			{
-				Tags.Push(TagClassificationID);
-			}
-		}
-	}
-	else
-	{
-		UE_AC_DebugF("FSyncData::AddTags - FElementTools::GetElementClassifications returned error %s", GetErrorName(GSErr));
-	}
-#endif
-
-	UpdateTags(Tags);
+	return true; // Tags changed
 }
 
 // Replace the current meta data by this new one
@@ -849,10 +763,10 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			NewActor->SetIsAComponent(bIsAComponent);
 
 			SetActorElement(NewActor);
-			if (IOProcessInfo->bProcessMetaData || MetaData.IsValid())
+			bMetadataProcessed = false;
+			if (IOProcessInfo->bProcessMetaData)
 			{
-				AddTags(IOProcessInfo->ElementID);
-				UpdateMetaData(IOProcessInfo);
+				ProcessMetaData(&IOProcessInfo->SyncContext.GetSyncDatabase());
 			}
 		}
 	}
@@ -909,10 +823,10 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 			ActorElement->SetLayer(
 				*IOProcessInfo->SyncContext.GetSyncDatabase().GetLayerName(IOProcessInfo->ElementID.GetHeader().layer));
 
-			if (IOProcessInfo->bProcessMetaData || MetaData.IsValid())
+			bMetadataProcessed = false;
+			if (IOProcessInfo->bProcessMetaData)
 			{
-				AddTags(IOProcessInfo->ElementID);
-				UpdateMetaData(IOProcessInfo);
+				ProcessMetaData(&IOProcessInfo->SyncContext.GetSyncDatabase());
 			}
 
 			FMeshClass* MeshClass = IOProcessInfo->ElementID.GetMeshClass();
@@ -939,36 +853,117 @@ void FSyncData::FElement::Process(FProcessInfo* IOProcessInfo)
 	}
 }
 
-// Called from process meta data idle task
-bool FSyncData::FElement::ProcessMetaData(IDatasmithScene* InScene)
+// Add tags data
+bool FSyncData::FElement::AddTags(FSyncDatabase* IOSyncDatabase)
 {
-	// We already have meta data, so we do nothing
-	if (MetaData.IsValid())
-	{
-		return false; // Metadata hasn't changed
-	}
+	UE_AC_Assert(ActorElement.IsValid());
 
-	// Add some object and lamp meta data
-	FMetaData MetaDataExporter(ActorElement);
-	MetaDataExporter.ExportMetaData(ElementId);
+	FTagsArray Tags(10);
+
+	static const GS::UniString PrefixTagUniqueID("Archicad.Element.UniqueID.");
+	Tags.Push(PrefixTagUniqueID + ElementId.ToUniString());
+
+	static const GS::UniString PrefixTagType("Archicad.Element.Type.");
+	GS::UniString			   ElementTypeName(FElementTools::TypeName(TypeID), CC_UTF8);
+	Tags.Push(PrefixTagType + ElementTypeName);
+
+	if (TypeID == API_ObjectID || TypeID == API_LampID || TypeID == API_WindowID || TypeID == API_DoorID)
+	{
+		API_Element APIElement;
+		Zap(&APIElement);
+		APIElement.header.guid = GSGuid2APIGuid(ElementId);
+		GSErrCode GSErr = ACAPI_Element_Get(&APIElement, 0);
+		UE_AC_Assert(APIElement.header.typeID == TypeID);
+
+		if (GSErr != NoError)
+		{
+			GS::Int32 LibPartIndex = 0;
+			switch (TypeID)
+			{
+				case API_ObjectID:
+					LibPartIndex = APIElement.object.libInd;
+					break;
+				case API_LampID:
+					LibPartIndex = APIElement.lamp.libInd;
+					break;
+				case API_WindowID:
+					LibPartIndex = APIElement.window.openingBase.libInd;
+					break;
+				case API_DoorID:
+					LibPartIndex = APIElement.door.openingBase.libInd;
+					break;
+				default:
+					UE_AC_Assert(false);
+					break;
+	}
+			FLibPartInfo* LibPartInfo = IOSyncDatabase->GetLibPartInfo(LibPartIndex);
+			if (LibPartInfo != nullptr)
+			{
+				static const GS::UniString PrefixLibPartMain("Archicad.Element.LibPart.Main.");
+				Tags.Push(PrefixLibPartMain + LibPartInfo->Guid.Main.ToUniString());
+
+				static const GS::UniString PrefixLibPartRev("Archicad.Element.LibPart.Rev.");
+				Tags.Push(PrefixLibPartRev + LibPartInfo->Guid.Rev.ToUniString());
+
+				static const GS::UniString PrefixLibPartName("Archicad.Element.LibPart.Name.");
+				Tags.Push(PrefixLibPartName + LibPartInfo->Name);
+			}
+
 	if (TypeID == API_ObjectID || TypeID == API_LampID)
 	{
-		FAutoMemo AutoMemo(GSGuid2APIGuid(ElementId), APIMemoMask_AddPars);
-		if (AutoMemo.GSErr == NoError)
+				UE_AC_Assert(offsetof(API_Element, object.reflected) == offsetof(API_Element, lamp.reflected));
+				if (APIElement.object.useObjMaterials)
 		{
-			if (AutoMemo.Memo.params) // Can be null
+					static const GS::UniString TagUseObjectMaterial("Archicad.Element.UseObjectMaterial");
+					Tags.Push(TagUseObjectMaterial);
+				}
+				if (APIElement.object.reflected)
 			{
-				GS::UniString EscapeAssetId;
-				if (GetParameter(AutoMemo.Memo.params, "enscapeAssetId", &EscapeAssetId))
+					static const GS::UniString TagObjectReflected("Archicad.Element.Reflected");
+					Tags.Push(TagObjectReflected);
+				}
+			}
+			else if (TypeID == API_WindowID || TypeID == API_DoorID)
 				{
-					MetaDataExporter.AddProperty(TEXT("EnscapeAssetId"), EDatasmithKeyValuePropertyType::String,
-												 EscapeAssetId);
+				UE_AC_Assert(offsetof(API_Element, window.openingBase) == offsetof(API_Element, door.openingBase));
+				if (APIElement.window.openingBase.reflected)
+				{
+					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.Y");
+					Tags.Push(TagObjectReflected);
+				}
+				if (APIElement.window.openingBase.oSide)
+				{
+					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.X");
+					Tags.Push(TagObjectReflected);
+				}
+				if (APIElement.window.openingBase.refSide)
+				{
+					static const GS::UniString TagObjectReflected("Archicad.Element.Mirror.X.Same");
+					Tags.Push(TagObjectReflected);
 				}
 			}
 		}
 	}
 
-	return MetaDataExporter.SetOrUpdate(&MetaData, InScene);
+	return UpdateTags(Tags);
+}
+
+// Return true if this element need to update tags and metadata
+bool FSyncData::FElement::NeedTagsAndMetaDataUpdate()
+{
+	return !bMetadataProcessed;
+}
+
+// Called from process meta data idle task
+bool FSyncData::FElement::ProcessMetaData(FSyncDatabase* IOSyncDatabase)
+{
+	if (bMetadataProcessed)
+	{
+		return false;
+}
+
+	bMetadataProcessed = true;
+	return AddTags(IOSyncDatabase) | UpdateMetaData(&IOSyncDatabase->GetScene().Get());
 }
 
 void FSyncData::FElement::SetMesh(FSyncDatabase* IOSyncDatabase, const TSharedPtr< IDatasmithMeshElement >& InMesh)
@@ -1033,11 +1028,12 @@ void FSyncData::FElement::DeleteMe(FSyncDatabase* IOSyncDatabase)
 }
 
 // Rebuild the meta data of this element
-void FSyncData::FElement::UpdateMetaData(FProcessInfo* IOProcessInfo)
+bool FSyncData::FElement::UpdateMetaData(IDatasmithScene* IOScene)
 {
 	FMetaData MetaDataExporter(ActorElement);
 	MetaDataExporter.ExportMetaData(ElementId);
-	API_ElemTypeID TypeID = IOProcessInfo->ElementID.GetHeader().typeID;
+
+	// Add some object and lamp meta data
 	if (TypeID == API_ObjectID || TypeID == API_LampID)
 	{
 		FAutoMemo AutoMemo(GSGuid2APIGuid(ElementId), APIMemoMask_AddPars);
@@ -1054,7 +1050,7 @@ void FSyncData::FElement::UpdateMetaData(FProcessInfo* IOProcessInfo)
 			}
 		}
 	}
-	MetaDataExporter.SetOrUpdate(&MetaData, &IOProcessInfo->SyncContext.GetScene());
+	return MetaDataExporter.SetOrUpdate(&MetaData, IOScene);
 }
 
 #pragma mark -
@@ -1311,8 +1307,8 @@ void FSyncData::FLight::Process(FProcessInfo* IOProcessInfo)
 					break;
 			}
 			AreaLightElement.SetLightType(AreaLightType);
-			AreaLightElement.SetWidth(float(Parameters.AreaSize.x * IOProcessInfo->SyncContext.ScaleLength));
-			AreaLightElement.SetLength(float(Parameters.AreaSize.y * IOProcessInfo->SyncContext.ScaleLength));
+			AreaLightElement.SetWidth(float(Parameters.AreaSize.y * IOProcessInfo->SyncContext.ScaleLength));
+			AreaLightElement.SetLength(float(Parameters.AreaSize.x * IOProcessInfo->SyncContext.ScaleLength));
 		}
 		if (!Parameters.IESFileName.IsEmpty())
 		{
@@ -1637,6 +1633,7 @@ void FSyncData::FInterator::Start(FSyncData* Root)
 	Stop();
 	Stack.Add({Root, 0});
 	ProcessedCount = 0;
+	ProcessTime = 0.0;
 }
 
 // Stop processing
@@ -1648,6 +1645,7 @@ void FSyncData::FInterator::Stop()
 
 FSyncData::FInterator::EProcessControl FSyncData::FInterator::ProcessUntil(double TimeSliceEnd)
 {
+	double			startTime = FTimeStat::RealTimeClock();
 	EProcessControl ProcessControl = kContinue;
 	while (FTimeStat::RealTimeClock() < TimeSliceEnd && ProcessControl == kContinue)
 	{
@@ -1658,6 +1656,7 @@ FSyncData::FInterator::EProcessControl FSyncData::FInterator::ProcessUntil(doubl
 	{
 		Stop();
 	}
+	ProcessTime += FTimeStat::RealTimeClock() - startTime;
 	return ProcessControl;
 }
 
@@ -1705,6 +1704,7 @@ FSyncData::FChildsArray::SizeType FSyncData::FInterator::GetCurrentIndex()
 void FSyncData::FProcessMetadata::Start(FSyncData* Root)
 {
 	FSyncData::FInterator::Start(Root);
+	MetadataProcessedCount = 0;
 	bMetadataUpdated = false;
 }
 
@@ -1716,7 +1716,11 @@ FSyncData::FInterator::EProcessControl FSyncData::FProcessMetadata::Process(FSyn
 		return FInterator::kDone;
 	}
 
-	bMetadataUpdated |= InCurrent->ProcessMetaData(&Synchronizer->GetSyncDatabase()->GetScene().Get());
+	if (InCurrent->NeedTagsAndMetaDataUpdate())
+	{
+		++MetadataProcessedCount;
+		bMetadataUpdated |= InCurrent->ProcessMetaData(Synchronizer->GetSyncDatabase());
+	}
 
 	return FInterator::kContinue;
 }

@@ -214,6 +214,7 @@ public:
 		FLinearColor ChromakeyMarkersColor = FLinearColor::Black;
 		float ChromakeyMarkersScale;
 		float ChromakeyMarkersDistance;
+		FVector2D ChromakeyMarkersOffset;
 		FTextureRHIRef ChromakeMarkerTextureRHI;
 
 		int RenderOrder = -1;

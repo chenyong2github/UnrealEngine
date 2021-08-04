@@ -153,7 +153,8 @@ namespace PerfSummaries
 			List<Column> filteredColumns = new List<Column>();
 			foreach (Column col in columns)
 			{
-				if (csvStats.GetStat(col.statName) != null)
+				if (csvStats.GetStat(col.statName) != null
+					&& (String.IsNullOrWhiteSpace(col.otherStatName) || csvStats.GetStat(col.otherStatName) != null))
 				{
 					filteredColumns.Add(col);
 				}
@@ -169,7 +170,7 @@ namespace PerfSummaries
 			foreach (Column col in filteredColumns)
 			{
 				List<float> statValues = csvStats.GetStat(col.statName).samples;
-				List<float> otherStatValues = csvStats.GetStat(col.otherStatName)?.samples;
+				List<float> otherStatValues = String.IsNullOrWhiteSpace(col.otherStatName) ? null : csvStats.GetStat(col.otherStatName).samples;
 				double value = 0.0;
 				double totalFrameWeight = 0.0;
 				int colEndFrame = col.applyEndOffset ? endFrame : endEventFrame;

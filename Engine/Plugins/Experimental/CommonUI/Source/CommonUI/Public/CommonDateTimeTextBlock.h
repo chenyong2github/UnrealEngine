@@ -13,6 +13,9 @@ class COMMONUI_API UCommonDateTimeTextBlock : public UCommonTextBlock
 public:
 	UCommonDateTimeTextBlock(const FObjectInitializer& ObjectInitializer);
 
+	DECLARE_EVENT(UCommonDateTimeTextBlock, FOnTimeCountDownCompletion);
+	FOnTimeCountDownCompletion& OnTimeCountDownCompletion() const { return OnTimeCountDownCompletionEvent; }
+
 #if WITH_EDITOR
 	const FText GetPaletteCategory() override;
 #endif // WITH_EDITOR
@@ -56,6 +59,8 @@ private:
 
 	bool bUseCountdownCompletionText;
 	FText CountdownCompletionText;
+
+	mutable FOnTimeCountDownCompletion OnTimeCountDownCompletionEvent;
 
 	void TimerTick();
 };

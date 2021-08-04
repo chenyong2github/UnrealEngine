@@ -85,7 +85,6 @@ float3 WorldToSimVec(float3 InVector, float4x4 LocalToWorld)
 	
 	return InVector;
 }
-
 #define MESH_FACING_DEFAULT 0
 #define MESH_FACING_VELOCITY 1
 #define MESH_FACING_CAMERA_POSITION 2

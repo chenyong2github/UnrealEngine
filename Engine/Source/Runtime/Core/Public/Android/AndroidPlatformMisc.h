@@ -168,7 +168,6 @@ public:
 	// called when OS (via JNI) reports memory trouble, triggers MemoryWarningHandler callback on game thread if set.
 	enum class EOSMemoryStatusCategory { OSTrim };
 	static void UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value);
-	static void UpdateMemoryAdvisorState(int State, int EstimateAvailableMB, int OOMScore);
 
 	static void SetVersionInfo(FString AndroidVersion, int32 InTargetSDKVersion, FString DeviceMake, FString DeviceModel, FString DeviceBuildNumber, FString OSLanguage);
 	static const FString GetAndroidVersion();

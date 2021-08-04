@@ -19,7 +19,7 @@ public:
 
 private:
 	/** Handle Web Interface settings modifications. */
-	bool OnSettingsModified();
+	void OnSettingsModified(UObject* Settings, struct FPropertyChangedEvent& PropertyChangedEvent);
 
 private:
 	/** The actual process that runs the middleman server. */

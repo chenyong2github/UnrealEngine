@@ -94,6 +94,10 @@ struct FTemplateMapInfo
 	UPROPERTY(config)
 	FString Map;
 
+	/** Optional display name override for this map template  */
+	UPROPERTY()
+	FText DisplayName;
+
 	FTemplateMapInfo()
 		: ThumbnailTexture(NULL)
 	{
@@ -916,6 +920,16 @@ public:
 	UE_DEPRECATED(5.0, "Use HasMountWritePermissionForPackage instead")
 	bool HasMountWritePersmissionForPackage(const FString& PackageName);
 
+	/* Delegate to override TemplateMapInfos */
+	DECLARE_DELEGATE_RetVal(const TArray<FTemplateMapInfo>&, FGetTemplateMapInfos);
+	FGetTemplateMapInfos& OnGetTemplateMapInfos() { return GetTemplateMapInfosDelegate; }
+
+	/** List template maps */
+	const TArray<FTemplateMapInfo>& GetTemplateMapInfos() const
+	{
+		return GetTemplateMapInfosDelegate.IsBound() ? GetTemplateMapInfosDelegate.Execute() : TemplateMapInfos;
+	}
+
 protected:
 
 	/** Called when global editor selection changes */
@@ -970,6 +984,9 @@ private:
 
 	/** Weak Pointer to the write permission warning toast. */
 	TWeakPtr<SNotificationItem> WritePermissionWarningNotificationWeakPtr;
+
+	/* Delegate to override TemplateMapInfos */
+	FGetTemplateMapInfos GetTemplateMapInfosDelegate;
 
 	/**
 	* Internal helper function to count how many dirty packages require checkout.

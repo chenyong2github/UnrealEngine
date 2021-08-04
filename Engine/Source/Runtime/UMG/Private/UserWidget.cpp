@@ -442,6 +442,17 @@ void UUserWidget::TearDownAnimations()
 	StoppedSequencePlayers.Empty();
 }
 
+void UUserWidget::DisableAnimations()
+{
+	for (UUMGSequencePlayer* Player : ActiveSequencePlayers)
+	{
+		if (Player)
+		{
+			Player->RemoveEvaluationData();
+		}
+	}
+}
+
 void UUserWidget::Invalidate()
 {
 	Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
@@ -1361,6 +1372,11 @@ void UUserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 #endif
 		if (bTickAnimations)
 		{
+			if (AnimationTickManager)
+			{
+				AnimationTickManager->OnWidgetTicked(this);
+			}
+
 			if (!CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
 			{
 				TickActionsAndAnimation(InDeltaTime);

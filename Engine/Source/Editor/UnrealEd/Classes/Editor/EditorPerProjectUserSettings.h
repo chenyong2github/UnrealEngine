@@ -158,9 +158,6 @@ public:
 	UPROPERTY(config)
 	FString AssetViewerProfileName;
 
-	UPROPERTY(config)
-	int32 MaterialQualityLevel;
-
 	/** The feature level we should use when loading or creating a new world */
 	UPROPERTY(config)
 	int32 PreviewFeatureLevel;

@@ -32,7 +32,7 @@ public:
 	virtual class FRHITexture* GetTexture(EDisplayClusterWarpBlendTextureType TextureType) const = 0;
 	virtual float              GetAlphaMapEmbeddedGamma() const = 0;
 
-	virtual const class FDisplayClusterRender_MeshComponentProxy* GetWarpMesh() const = 0;
+	virtual const class FDisplayClusterRender_MeshComponent* GetWarpMesh() const = 0;
 
 	// Return current warp profile type
 	virtual EDisplayClusterWarpProfileType  GetWarpProfileType() const = 0;
@@ -40,5 +40,5 @@ public:
 	// Return current warp resource type
 	virtual EDisplayClusterWarpGeometryType GetWarpGeometryType() const = 0;
 
-	virtual bool ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData) const = 0;
+	virtual bool ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData, uint32 InMaxDimension = 0) const = 0;
 };

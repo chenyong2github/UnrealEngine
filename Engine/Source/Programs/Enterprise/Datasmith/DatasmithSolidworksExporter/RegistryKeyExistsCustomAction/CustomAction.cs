@@ -8,8 +8,6 @@ using Microsoft.Deployment.WindowsInstaller;
 using Microsoft.Win32;
 using System.Diagnostics;
 
-
-
 namespace RegistryKeyExistsCustomAction
 {
 	public class CustomActions
@@ -39,13 +37,20 @@ namespace RegistryKeyExistsCustomAction
 						result = fullPath;
 					}
 					else
+					{
 						session.Log("*ERROR* SOLIDWORKS FILES NOT FOUND");
 				}
+				}
 				else
+				{
 					session.Log("*ERROR* SOLIDWORKS INSTALL FOLDER REGISTRY INFORMATION NOT FOUND");
 			}
+			}
 			else
+			{
 				session.Log("*ERROR* SOLIDWORKS INSTALL FOLDER REGISTRY KEY INFO NOT FOUND");
+			}
+
 			return result;
 		}
 
@@ -58,6 +63,7 @@ namespace RegistryKeyExistsCustomAction
 				session["SOLIDWORKSTOOLSPATH"] = tools2021;
 			else if (!string.IsNullOrEmpty(tools2020))
 				session["SOLIDWORKSTOOLSPATH"] = tools2020;
+
 			return ActionResult.Success;
 		}
 	}

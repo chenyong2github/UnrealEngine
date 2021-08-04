@@ -8,5 +8,4 @@ public:
 	static void UpdateAndroidStats();
 	static void OnThermalStatusChanged(int Status);
 	static void OnTrimMemory(int TrimLevel);
-	static void SetMemoryWarningState(int Status);
 };

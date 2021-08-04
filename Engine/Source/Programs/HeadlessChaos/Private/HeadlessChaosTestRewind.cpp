@@ -175,21 +175,16 @@ namespace ChaosTest {
 
 	struct FRewindCallbackTestHelper : public IRewindCallback
 	{
-		FRewindCallbackTestHelper(const int32 InNumPhysicsSteps, const int32 InRewindToStep = 0)
-			: NumPhysicsSteps(InNumPhysicsSteps)
+		FRewindCallbackTestHelper(const int32 InStepToRewindOn, const int32 InRewindToStep = 0)
+			: StepToRewindOn(InStepToRewindOn)
 			, RewindToStep(InRewindToStep)
 		{
 		}
 
-		virtual int32 TriggerRewindIfNeeded_Internal(int32 LatestStepCompleted) override
+		virtual int32 TriggerRewindIfNeeded_Internal(int32 PhysStep) override
 		{
-			if (LatestStepCompleted + 1 == NumPhysicsSteps && bRewound == false)
-			{
-				return RewindToStep;
+			return bRewound ? INDEX_NONE : TriggerRewindFunc(PhysStep);
 			}
-
-			return INDEX_NONE;
-		}
 
 		virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
 		{
@@ -207,17 +202,21 @@ namespace ChaosTest {
 			bRewound = false;
 		}
 
-		int32 NumPhysicsSteps;
+		int32 StepToRewindOn;
 		int32 RewindToStep;
 		bool bRewound = false;
 		TFunction<void(int32, bool)> ProcessInputsFunc = [](int32, bool) {};
 		TFunction<void(int32)> PostFunc = [](int32) {};
+		TFunction<int32(int32)> TriggerRewindFunc = [this](int32 PhysicsStep) -> int32
+		{ 
+			return PhysicsStep == StepToRewindOn ? RewindToStep : INDEX_NONE;
+		};
 	};
 
 	template <typename TSolver>
-	FRewindCallbackTestHelper* RegisterCallbackHelper(TSolver* Solver, const int32 NumPhysicsSteps, const int32 RewindTo = 0)
+	FRewindCallbackTestHelper* RegisterCallbackHelper(TSolver* Solver, const int32 NumStepsBeforeRewind = 0, const int32 RewindTo = 0)
 	{
-		auto Callback = MakeUnique<FRewindCallbackTestHelper>(NumPhysicsSteps, RewindTo);
+		auto Callback = MakeUnique<FRewindCallbackTestHelper>(NumStepsBeforeRewind - 1, RewindTo);
 		FRewindCallbackTestHelper* Result = Callback.Get();
 		Solver->SetRewindCallback(MoveTemp(Callback));
 		return Result;
@@ -412,12 +411,8 @@ namespace ChaosTest {
 		//change object state on physics thread, and make sure the state change is properly recorded in rewind data
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 			{
-				struct FRewindCallback : public IRewindCallback
-				{
-					FSingleParticlePhysicsProxy* Proxy;
-					FRewindData* RewindData;
-
-					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver);
+				Helper->ProcessInputsFunc = [Proxy, RewindData = Solver->GetRewindData()](int32 PhysicsStep, bool bResim)
 					{
 						for (int32 Step = 0; Step < PhysicsStep; ++Step)
 						{
@@ -436,18 +431,9 @@ namespace ChaosTest {
 						{
 							Proxy->GetPhysicsThreadAPI()->SetObjectState(EObjectStateType::Sleeping);
 						}
-					}
 				};
 
 				const int32 LastGameStep = 32;
-				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
-
-				auto UniqueRewindCallback = MakeUnique<FRewindCallback>();
-				auto RewindCallback = UniqueRewindCallback.Get();
-				RewindCallback->Proxy = Proxy;
-				RewindCallback->RewindData = Solver->GetRewindData();
-
-				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
 
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Particle.SetGravityEnabled(false);
@@ -467,13 +453,8 @@ namespace ChaosTest {
 		//rewind data should give us the velocity _before_ the sim callback (i.e. the solver is not stomping with the wrong PreV)
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 			{
-				struct FRewindCallback : public IRewindCallback
-				{
-					FSingleParticlePhysicsProxy* Proxy;
-					FRewindData* RewindData;
-					FReal SimDt;
-
-					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver);
+				Helper->ProcessInputsFunc = [Proxy, RewindData = Solver->GetRewindData(), SimDt](int32 PhysicsStep, bool bResim)
 					{
 						if (SimDt * PhysicsStep == 4)
 						{
@@ -510,19 +491,10 @@ namespace ChaosTest {
 								EXPECT_NEAR(OldV, -(Time - 4), 1e-2);
 							}
 						}
-					}
 				};
 
 				const int32 LastGameStep = 32;
 				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
-
-				auto UniqueRewindCallback = MakeUnique<FRewindCallback>();
-				auto RewindCallback = UniqueRewindCallback.Get();
-				RewindCallback->Proxy = Proxy;
-				RewindCallback->RewindData = Solver->GetRewindData();
-				RewindCallback->SimDt = SimDt;
-
-				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
 
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Particle.SetGravityEnabled(true);
@@ -547,14 +519,21 @@ namespace ChaosTest {
 		// Test resim when object spawned earlier as part of correction
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 			{
-				struct FRewindCallback : public IRewindCallback
-				{
-					FSingleParticlePhysicsProxy* Proxy;
-					FSingleParticlePhysicsProxy* Floor = nullptr;
-					FRewindData* RewindData;
-					FReal SimDt;
+				FSingleParticlePhysicsProxy* Floor = nullptr;
+				bool bHasResimmed = false;
 
-					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver);
+				Helper->TriggerRewindFunc = [&Floor, &bHasResimmed](int32 PhysicsStep) -> int32
+				{
+					if(!bHasResimmed && Floor)
+				{
+						bHasResimmed = true;
+						return 0;
+					}
+					return INDEX_NONE;
+				};
+
+				Helper->ProcessInputsFunc = [Proxy, RewindData = Solver->GetRewindData(), SimDt, &Floor, &bHasResimmed](int32 PhysicsStep, bool bIsResimming)
 					{
 						const FReal Time = PhysicsStep * SimDt;
 
@@ -567,7 +546,7 @@ namespace ChaosTest {
 						}
 
 
-						if (!bIsResimming || Time < 4.5)
+					if (!bHasResimmed || Time < 4.5)
 						{
 							//simply movement without hitting floor because it's spawned too late
 							EXPECT_NEAR(Proxy->GetPhysicsThreadAPI()->X()[2], 14.5 - Time, 1e-2);
@@ -577,34 +556,11 @@ namespace ChaosTest {
 							//floor spawned earlier so we hit it
 							EXPECT_GE(Proxy->GetPhysicsThreadAPI()->X()[2], 10 - 1e-2);
 						}
-					}
-
-					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
-					{
-						if (!bIsResimming && Floor)
-						{
-							bIsResimming = true;
-							return 0;
-						}
-
-						return INDEX_NONE;
-					}
-
-					bool bIsResimming = false;
 				};
 
 				const int32 LastGameStep = 32;
-				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
-
-				auto UniqueRewindCallback = MakeUnique<FRewindCallback>();
-				auto RewindCallback = UniqueRewindCallback.Get();
-				RewindCallback->Proxy = Proxy;
-				RewindCallback->RewindData = Solver->GetRewindData();
-				RewindCallback->SimDt = SimDt;
 
 				auto FloorGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal,3>(FVec3(-100, -100, -1), FVec3(100, 100, 0)));
-
-				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
 
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Particle.SetGravityEnabled(false);
@@ -620,12 +576,11 @@ namespace ChaosTest {
 					//spawn floor way late to ensure no collision on first run
 					if (Step == 12)
 					{
-						auto Floor = FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
+						Floor = FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
 						auto& FloorParticle = Floor->GetGameThreadAPI();
 						FloorParticle.SetGeometry(FloorGeom);
 						Solver->RegisterObject(Floor);
 						ChaosTest::SetParticleSimDataToCollide({ Floor->GetParticle_LowLevel() });
-						RewindCallback->Floor = Floor;
 					}
 				}
 
@@ -645,17 +600,28 @@ namespace ChaosTest {
 					return;
 				}
 
-				struct FRewindCallback : public IRewindCallback
-				{
-					FSingleParticlePhysicsProxy* Proxy;
-					FRewindData* RewindData;
-					FReal SimDt;
+				const FReal ResimTime = 20;
+				const FReal SleepTime = 12;
 
-					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+				bool bHasResimmed = false;
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver);
+				Helper->TriggerRewindFunc = [&bHasResimmed, ResimTime, SimDt](int32 PhysicsStep) -> int32
+				{
+					const FReal Time = PhysicsStep * SimDt;
+					if (!bHasResimmed && Time == ResimTime)
+				{
+						bHasResimmed = true;
+						return 2;
+					}
+
+					return INDEX_NONE;
+				};
+
+				Helper->ProcessInputsFunc = [Proxy, RewindData = Solver->GetRewindData(), SimDt, ResimTime, SleepTime, &bHasResimmed](int32 PhysicsStep, bool bIsResimming)
 					{
 						const FReal Time = PhysicsStep * SimDt;
 
-						if (bIsResimming)
+					if (bHasResimmed)
 						{
 							
 
@@ -673,39 +639,14 @@ namespace ChaosTest {
 								Proxy->GetPhysicsThreadAPI()->SetObjectState(EObjectStateType::Sleeping);
 							}
 						}
-					}
-
-					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
-					{
-						const FReal Time = LastCompletedStep * SimDt;
-						if (!bIsResimming && Time == ResimTime)
-						{
-							bIsResimming = true;
-							return 2;
-						}
-
-						return INDEX_NONE;
-					}
-
-					bool bIsResimming = false;
-					FReal ResimTime = 20;
-					FReal SleepTime = 12;
 				};
 
 				const int32 LastGameStep = 64;
-				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
-
-				auto UniqueRewindCallback = MakeUnique<FRewindCallback>();
-				auto RewindCallback = UniqueRewindCallback.Get();
-				RewindCallback->Proxy = Proxy;
-				RewindCallback->RewindData = Solver->GetRewindData();
-				RewindCallback->SimDt = SimDt;
 
 				auto FloorGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, -1), FVec3(100, 100, 0)));
 
 				const FReal LeashTime = 3;
 
-				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
 				Solver->GetResultsManager().SetResimInterpTime(LeashTime);
 
 				auto& Particle = Proxy->GetGameThreadAPI();
@@ -717,9 +658,9 @@ namespace ChaosTest {
 				const FReal StartMovingTime = 4;
 				const FReal StartMovingTimeDiscrete = FMath::FloorToInt(StartMovingTime / SimDt) * SimDt;
 				const FReal GTDt = 1;
-				const FReal InterpStartTime = RewindCallback->ResimTime + SimDt;
-				const FReal InterpEndTime = RewindCallback->ResimTime + LeashTime + SimDt;
-				const FReal SleepLocation = RewindCallback->SleepTime - StartMovingTimeDiscrete;
+				const FReal InterpStartTime = ResimTime + SimDt;
+				const FReal InterpEndTime = ResimTime + LeashTime + SimDt;
+				const FReal SleepLocation = SleepTime - StartMovingTimeDiscrete;
 				const FReal CorrectedLocation = SimDt <= 1 ? 0 : 4;
 				FReal PrevZDuringInterp = SleepLocation;	//shouldn't be further then this because already interpolating back to 0
 
@@ -747,7 +688,7 @@ namespace ChaosTest {
 						else
 						{
 							//simple movement with constant velocity until goes to sleep
-							if(InterpolatedTime >= RewindCallback->SleepTime)
+							if(InterpolatedTime >= SleepTime)
 							{
 								EXPECT_NEAR(Particle.X()[2], SleepLocation, 1e-2);
 							}
@@ -1004,7 +945,7 @@ namespace ChaosTest {
 				};
 
 				auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
-				auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
+				auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 				Proxy->GetGameThreadAPI().SetGeometry(MoveTemp(Sphere));
 				Solver->RegisterObject(Proxy);
 
@@ -1086,7 +1027,7 @@ namespace ChaosTest {
 				};
 
 				auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
-				auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
+				auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
 				Proxy->GetGameThreadAPI().SetGeometry(MoveTemp(Sphere));
 				Solver->RegisterObject(Proxy);
 
@@ -1116,12 +1057,10 @@ namespace ChaosTest {
 		// Test puting object to sleep during Resim
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 			{
-				struct FRewindCallback : public IRewindCallback
-				{
-					FSingleParticlePhysicsProxy* Proxy;
-					FRewindData* RewindData;
-
-					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+				int32 ExpectedSleepFrame = INDEX_NONE;
+				const int32 ResimStartFrame = 1;
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver, 11, ResimStartFrame);
+				Helper->ProcessInputsFunc = [&ExpectedSleepFrame, ResimStartFrame, Proxy, RewindData = Solver->GetRewindData()](const int32 PhysicsStep, bool bIsResimming)
 					{
 						if (bIsResimming)
 						{
@@ -1150,51 +1089,13 @@ namespace ChaosTest {
 								EXPECT_EQ(OldState, EObjectStateType::Dynamic);								
 							}
 						}
-					}
-
-					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
-					{
-						if (!bIsResimming && LastCompletedStep == ResimEndFrame)
-						{
-							bIsResimming = true;
-							return ResimStartFrame;
-						}
-
-						return INDEX_NONE;
-					}
-
-					void PostResimStep_Internal(int32 PhysicsStep) override
-					{
-						if (ResimEndFrame == PhysicsStep)
-						{
-							bIsResimming = false;
-						}
-					}
-
-					
-					
-					bool bIsResimming = false;
-					int32 ResimStartFrame = 1;
-					int32 ResimEndFrame = 10;
-
-					int32 ExpectedSleepFrame = INDEX_NONE;
 				};
-
-				const int32 LastGameStep = 32;
-				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
-
-				auto UniqueRewindCallback = MakeUnique<FRewindCallback>();
-				auto RewindCallback = UniqueRewindCallback.Get();
-				RewindCallback->Proxy = Proxy;
-				RewindCallback->RewindData = Solver->GetRewindData();
-
-				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
 
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Particle.SetGravityEnabled(false);
 				Particle.SetV(FVec3(0, 0, 1));
 
-				for (int Step = 0; Step <= LastGameStep; ++Step)
+				for (int Step = 0; Step <= 32; ++Step)
 				{
 					TickSolverHelper(Solver);
 				}
@@ -1337,12 +1238,8 @@ namespace ChaosTest {
 		//Makes sure that we record the forces applied during sim callback
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 			{
-				struct FRewindCallback : public IRewindCallback
-				{
-					FSingleParticlePhysicsProxy* Proxy;
-					FRewindData* RewindData;
-
-					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver);
+				Helper->ProcessInputsFunc = [Proxy, RewindData = Solver->GetRewindData()](const int32 PhysicsStep, bool bIsResimming)
 					{
 						if (PhysicsStep == 3)
 						{
@@ -1350,10 +1247,10 @@ namespace ChaosTest {
 							Proxy->GetPhysicsThreadAPI()->AddTorque(FVec3(0, 0, 10));
 						}
 
-						for (int32 Step = 0; Step <= PhysicsStep; ++Step)	//up to and including Step because should read from head in that case
+					for (int32 Step = 0; Step < PhysicsStep; ++Step)
 						{
 							{
-								FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FParticleHistoryEntry::EParticleHistoryPhase::PostCallbacks);
+							FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FFrameAndPhase::EParticleHistoryPhase::PostCallbacks);
 								if (Step == 3)
 								{
 									EXPECT_EQ(State.F()[2], 11);	//1 from GT + 10 from callback
@@ -1368,45 +1265,25 @@ namespace ChaosTest {
 
 							{
 								//Before push no force or torque at all
-								FGeometryParticleState PrePushState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FParticleHistoryEntry::EParticleHistoryPhase::PrePushData);
+							FGeometryParticleState PrePushState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FFrameAndPhase::EParticleHistoryPhase::PrePushData);
 								EXPECT_EQ(PrePushState.F()[2], 0);
 								EXPECT_EQ(PrePushState.Torque()[2], 0);
 							}
 
 							{
 								//After push (but before callback) only see GT force, and no torque
-								FGeometryParticleState PostPushState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FParticleHistoryEntry::EParticleHistoryPhase::PostPushData);
+							FGeometryParticleState PostPushState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FFrameAndPhase::EParticleHistoryPhase::PostPushData);
 								EXPECT_EQ(PostPushState.F()[2], 1);	//GT always sets force of 1
 								EXPECT_EQ(PostPushState.Torque()[2], 0);	//GT never sets torque
 							}
 							
 						}
-					}
-
-					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
-					{
-						return INDEX_NONE;
-					}
-
-					void PostResimStep_Internal(int32 PhysicsStep) override
-					{
-					}
 				};
-
-				const int32 LastGameStep = 32;
-				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
-
-				auto UniqueRewindCallback = MakeUnique<FRewindCallback>();
-				auto RewindCallback = UniqueRewindCallback.Get();
-				RewindCallback->Proxy = Proxy;
-				RewindCallback->RewindData = Solver->GetRewindData();
-
-				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
 
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Particle.SetGravityEnabled(false);
 
-				for (int Step = 0; Step <= LastGameStep; ++Step)
+				for (int Step = 0; Step <= 32; ++Step)
 				{
 					Particle.AddForce(FVec3(0, 0, 1));
 					TickSolverHelper(Solver);
@@ -1626,7 +1503,6 @@ namespace ChaosTest {
 				{
 					ExpectedVZ = 0;
 					ExpectedXZ = 10;
-
 				}
 
 				EXPECT_NEAR(ParticleState.X()[2], ExpectedXZ, 1e-4);
@@ -2143,7 +2019,7 @@ namespace ChaosTest {
 			
 			FPhysicsThreadContextScope Scope(true);
 			FRewindData* RewindData = Solver->GetRewindData();
-			RewindData->RewindToFrame(0);
+			//RewindData->RewindToFrame(0);
 			Solver->DisableAsyncMode();	//during resim we sim directly at fixed dt
 
 			auto& Particle = *Proxy->GetPhysicsThreadAPI();
@@ -2190,147 +2066,6 @@ namespace ChaosTest {
 		});
 	}
 
-	GTEST_TEST(AllTraits, RewindTest_ApplyRewind)
-	{
-		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
-		{
-			const int32 LastGameStep = 20;
-			{
-				auto& Particle = Proxy->GetGameThreadAPI();
-				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
-				Particle.SetGravityEnabled(true);
-				Particle.SetX(FVec3(0, 0, 100));
-
-				for (int Step = 0; Step <= LastGameStep; ++Step)
-				{
-					//teleport from GT
-					if (Step == 5)
-					{
-						Particle.SetX(FVec3(0, 0, 10));
-						Particle.SetV(FVec3(0, 0, 0));
-					}
-
-					TickSolverHelper(Solver);
-				}
-			}
-			
-			FPhysicsThreadContextScope Scope(true);
-			auto& Particle = *Proxy->GetPhysicsThreadAPI();
-			FRewindData* RewindData = Solver->GetRewindData();
-			RewindData->RewindToFrame(0);
-			Solver->DisableAsyncMode();	//during resim we sim directly at fixed dt
-
-			const int32 LastSimStep = LastGameStep / SimDt;
-			//make sure recorded data is still valid even at head
-			{
-				float ExpectedVZ = 0;
-				float ExpectedXZ = 100;
-
-				for (int Step = 0; Step < LastSimStep; ++Step)
-				{
-					const FReal SimStart = SimDt * Step;
-					const FReal SimEnd = SimDt * (Step + 1);
-					if (SimStart <= 5 && SimEnd > 5)
-					{
-						ExpectedVZ = 0;
-						ExpectedXZ = 10;
-					}
-
-#if REWIND_DESYNC
-					FGeometryParticleState State(*Proxy->GetHandle_LowLevel());
-					const EFutureQueryResult Status = RewindData->GetFutureStateAtFrame(State, Step);
-					EXPECT_EQ(Status, EFutureQueryResult::Ok);
-					EXPECT_EQ(State.X()[2], ExpectedXZ);
-					EXPECT_EQ(State.V()[2], ExpectedVZ);
-#endif
-					ExpectedVZ -= SimDt;
-					ExpectedXZ += ExpectedVZ * SimDt;
-				}
-			}
-
-			//rewind to each frame and make sure data is recorded
-			{
-				FReal ExpectedVZ = 0;
-				FReal ExpectedXZ = 100;
-
-				for (int Step = 0; Step < LastSimStep - 1; ++Step)
-				{
-					const float SimStart = SimDt * Step;
-					const float SimEnd = SimDt * (Step + 1);
-					if (SimStart <= 5 && SimEnd > 5)
-					{
-						ExpectedVZ = 0;
-						ExpectedXZ = 10;
-					}
-
-					EXPECT_TRUE(RewindData->RewindToFrame(Step));
-					EXPECT_NEAR(Particle.X()[2], ExpectedXZ, 1e-4);
-					EXPECT_NEAR(Particle.V()[2], ExpectedVZ, 1e-4);
-
-					ExpectedVZ -= SimDt;
-					ExpectedXZ += ExpectedVZ * SimDt;
-				}
-			}
-
-#if REWIND_DESYNC
-			//no desync so should be empty
-			const TArray<FDesyncedParticleInfo> DesyncedParticles = RewindData->ComputeDesyncInfo();
-			EXPECT_EQ(DesyncedParticles.Num(), 0);
-#endif
-
-			//can't rewind earlier than latest rewind
-			EXPECT_FALSE(RewindData->RewindToFrame(1));
-		});
-	}
-
-	GTEST_TEST(AllTraits, RewindTest_BufferLimit)
-	{
-		//test that we are getting as much of the history buffer as possible and that we properly wrap around
-		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
-		{
-			auto& Particle = Proxy->GetGameThreadAPI();
-			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
-			Particle.SetGravityEnabled(true);
-			Particle.SetX(FVec3(0, 0, 100));
-
-			FRewindData* RewindData = Solver->GetRewindData();
-
-			const int32 ExpectedNumSimSteps = RewindData->Capacity() + 10;
-			const int32 NumGTSteps = ExpectedNumSimSteps * SimDt;
-			const int32 NumSimSteps = NumGTSteps / SimDt;
-
-			for (int Step = 0; Step < NumGTSteps; ++Step)
-			{
-				TickSolverHelper(Solver);
-			}
-
-			FReal ExpectedVZ = 0;
-			FReal ExpectedXZ = 100;
-
-			const int32 LastValidStep = NumSimSteps - 1;
-			const int32 FirstValid = NumSimSteps - RewindData->Capacity() + 1;	//we lose 1 step because we have to save head (should the API include this automatically?)
-			for (int Step = 0; Step <= LastValidStep; ++Step)
-			{
-				if (Step < FirstValid)
-				{
-					//can't go back that far
-					FPhysicsThreadContextScope Scope(true);
-					EXPECT_FALSE(RewindData->RewindToFrame(Step));
-				}
-				else
-				{
-					FPhysicsThreadContextScope Scope(true);
-					EXPECT_TRUE(RewindData->RewindToFrame(Step));
-					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->X()[2], ExpectedXZ);
-					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->V()[2], ExpectedVZ);
-				}
-
-				ExpectedVZ -= SimDt;
-				ExpectedXZ += ExpectedVZ * SimDt;
-			}
-		}, 10);	//don't want 200 default steps
-	}
-
 	GTEST_TEST(AllTraits, RewindTest_NumDirty)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
@@ -2345,7 +2080,6 @@ namespace ChaosTest {
 
 			//note: this 5 is just a suggestion, there could be more frames saved than that
 			Solver->EnableRewindCapture(5, !!Optimization);
-
 
 			// Make particles
 			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
@@ -2437,11 +2171,6 @@ namespace ChaosTest {
 					}
 					
 				}
-
-			};
-
-			Helper->PostFunc = [](const int32 Step)
-			{
 
 			};
 
@@ -2605,7 +2334,7 @@ namespace ChaosTest {
 			FPhysicsThreadContextScope Scope(true);
 			auto& Particle = *Proxy->GetPhysicsThreadAPI();
 			FRewindData* RewindData = Solver->GetRewindData();
-			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 			for (int Step = RewindStep; Step <= LastStep; ++Step)
 			{
@@ -2700,7 +2429,7 @@ namespace ChaosTest {
 
 			FPhysicsThreadContextScope Scope(true);
 			FRewindData* RewindData = Solver->GetRewindData();
-			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 			auto& Particle = *Proxy->GetPhysicsThreadAPI();
 
 			for (int Step = RewindStep; Step <= LastStep; ++Step)
@@ -2843,56 +2572,6 @@ namespace ChaosTest {
 #endif
 	}
 
-	GTEST_TEST(AllTraits, RewindTest_DeltaTimeRecord)
-	{
-		for (int Optimization = 0; Optimization < 2; ++Optimization)
-		{
-			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
-
-			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-
-			// Make a solver
-			auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
-			InitSolverSettings(Solver);
-			
-			Solver->EnableRewindCapture(7, !!Optimization);
-
-			// Make particles
-			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
-			auto& Particle = Proxy->GetGameThreadAPI();
-
-			Particle.SetGeometry(Sphere);
-			Solver->RegisterObject(Proxy);
-			Particle.SetGravityEnabled(true);
-
-			const int LastStep = 11;
-			TArray<FReal> DTs;
-			FReal Dt = 1;
-			for (int Step = 0; Step <= LastStep; ++Step)
-			{
-				DTs.Add(Dt);
-				TickSolverHelper(Solver, Dt);
-				Dt += 0.1;
-			}
-
-			const int RewindStep = 5;
-
-			FPhysicsThreadContextScope Scope(true);
-			FRewindData* RewindData = Solver->GetRewindData();
-			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
-
-			for (int Step = RewindStep; Step <= LastStep; ++Step)
-			{
-				EXPECT_EQ(DTs[Step], RewindData->GetDeltaTimeForFrame(Step));
-			}
-
-			// Throw out the proxy
-			Solver->UnregisterObject(Proxy);
-
-			Module->DestroySolver(Solver);
-		}
-	}
-
 	GTEST_TEST(AllTraits, DISABLED_RewindTest_ResimDesyncFromChangeForce)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
@@ -2941,7 +2620,7 @@ namespace ChaosTest {
 			FPhysicsThreadContextScope Scope(true);
 			{
 				FRewindData* RewindData = Solver->GetRewindData();
-				EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+				//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 				for (int Step = RewindStep; Step <= LastStep; ++Step)
 				{
@@ -2972,7 +2651,7 @@ namespace ChaosTest {
 			//rewind to exactly step 7 to make sure force is not already applied for us
 			{
 				FRewindData* RewindData = Solver->GetRewindData();
-				EXPECT_TRUE(RewindData->RewindToFrame(7));
+				//EXPECT_TRUE(RewindData->RewindToFrame(7));
 				EXPECT_EQ(Particle.F()[1], 0);
 			}
 
@@ -3135,7 +2814,7 @@ namespace ChaosTest {
 			auto& Kinematic = *KinematicProxy->GetPhysicsThreadAPI();
 
 			FRewindData* RewindData = Solver->GetRewindData();
-			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 			//force collision
 			Kinematic.SetX(FVec3(0, 0, 0));
@@ -3226,7 +2905,7 @@ namespace ChaosTest {
 			const int RewindStep = 0;
 
 			FRewindData* RewindData = Solver->GetRewindData();
-			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 			//force collision
 			Kinematic.SetX(FVec3(0, 0, 0));
@@ -3575,7 +3254,7 @@ namespace ChaosTest {
 			const int RewindStep = 8;
 
 			FRewindData* RewindData = Solver->GetRewindData();
-			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 			//remove from collision, should wakeup entire island and force a soft desync
 			Kinematic.SetX(FVec3(0, 0, -10000));
@@ -3684,7 +3363,7 @@ namespace ChaosTest {
 		const int RewindStep = 0;
 
 		FRewindData* RewindData = Solver->GetRewindData();
-		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+		//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 		//mark kinematic as desynced (this should give us identical results which will trigger all particles in island to be soft desync)
 
@@ -3791,7 +3470,7 @@ namespace ChaosTest {
 		const int RewindStep = 0;
 
 		FRewindData* RewindData = Solver->GetRewindData();
-		EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+		//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 		//move kinematic very close but do not alter dynamic
 		//should be soft desync while in island and then get back to in sync
@@ -3875,7 +3554,7 @@ namespace ChaosTest {
 
 			FPhysicsThreadContextScope Scope(true);
 			FRewindData* RewindData = UnitTest.Solver->GetRewindData();
-			EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
+			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
 			//GC doesn't marshal data from GT to PT so at the moment all we get is the GT data immediately after rewind, but it doesn't make it over to PT or collection
 			//Not sure if I can even access GT particle so can't verify that, but saw it in debugger at least

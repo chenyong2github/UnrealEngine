@@ -36,7 +36,7 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 	RenderFrameManager = MakeUnique<FDisplayClusterRenderFrameManager>();
 
 	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>();
-	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>();
+	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>(*this);
 
 	ViewportManagerProxy = new FDisplayClusterViewportManagerProxy(*this);
 }
@@ -107,6 +107,11 @@ void FDisplayClusterViewportManager::StartScene(UWorld* InWorld)
 			Viewport->HandleStartScene();
 		}
 	}
+
+	if (PostProcessManager.IsValid())
+	{
+		PostProcessManager->HandleStartScene();
+	}
 }
 
 void FDisplayClusterViewportManager::EndScene()
@@ -119,6 +124,11 @@ void FDisplayClusterViewportManager::EndScene()
 		{
 			Viewport->HandleEndScene();
 		}
+	}
+
+	if (PostProcessManager.IsValid())
+	{
+		PostProcessManager->HandleEndScene();
 	}
 
 	CurrentWorldRef.Reset();
@@ -249,6 +259,12 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 
 	// Send updated viewports data to render thread proxy
 	ViewportManagerProxy->ImplUpdateViewports(Viewports);
+
+	// Update postprocess data from game thread
+	PostProcessManager->Tick();
+
+	// Send updated postprocess data to rendering thread
+	PostProcessManager->FinalizeNewFrame();
 }
 
 void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& ViewFamily)

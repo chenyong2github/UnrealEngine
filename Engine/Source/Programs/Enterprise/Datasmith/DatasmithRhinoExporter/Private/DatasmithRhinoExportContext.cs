@@ -537,9 +537,13 @@ namespace DatasmithRhino
 		/// </summary>
 		public HashSet<int> MaterialIndexes { get; } = new HashSet<int>();
 
-		public DatasmithMaterialInfo(Material InRhinoMaterial, string InName, string InUniqueLabel, string InBaseLabel)
+		private List<string> InternalTextureHashes;
+		public IReadOnlyList<string> TextureHashes { get => InternalTextureHashes; }
+
+		public DatasmithMaterialInfo(Material InRhinoMaterial, string InName, string InUniqueLabel, string InBaseLabel, List<string> InTextureHashes)
 			: base(InRhinoMaterial, InName, InUniqueLabel, InBaseLabel)
 		{
+			InternalTextureHashes = new List<string>(InTextureHashes);
 		}
 
 		public override void ApplyDiffs(DatasmithInfoBase OtherInfo)
@@ -553,6 +557,9 @@ namespace DatasmithRhino
 
 				MaterialIndexes.Clear();
 				MaterialIndexes.UnionWith(OtherMaterialInfo.MaterialIndexes);
+
+				InternalTextureHashes.Clear();
+				InternalTextureHashes.AddRange(OtherMaterialInfo.TextureHashes);
 			}
 			else
 			{
@@ -1698,6 +1705,15 @@ namespace DatasmithRhino
 						// If existing material is no longer used by any material index.
 						if (ExistingMaterialInfo.MaterialIndexes.Count == 0)
 						{
+							// Remove any texture that is no longer valid.
+							foreach (string TextureHash in ExistingMaterialInfo.TextureHashes)
+							{
+								if (TextureHashToTextureInfo.TryGetValue(TextureHash, out DatasmithTextureInfo TextureInfo)
+									&& TextureInfo.RhinoTexture.Disposed)
+								{
+									TextureInfo.ApplyDeletedStatus();
+								}
+							}
 
 							if (ModifiedMaterialInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Created)
 							{
@@ -1809,19 +1825,21 @@ namespace DatasmithRhino
 				string UniqueLabel = MaterialLabelGenerator.GenerateUniqueName(RhinoMaterial);
 				string Name = FDatasmithFacadeElement.GetStringHash(UniqueLabel);
 
-				Result = new DatasmithMaterialInfo(RhinoMaterial, Name, UniqueLabel, BaseLabel);
-				MaterialHashToMaterialInfo.Add(MaterialHash, Result);
-
 				Texture[] MaterialTextures = RhinoMaterial.GetTextures();
+				List<string> TextureHashes = new List<string>(MaterialTextures.Length);
 				for (int TextureIndex = 0; TextureIndex < MaterialTextures.Length; ++TextureIndex)
 				{
 					Texture RhinoTexture = MaterialTextures[TextureIndex];
 					if(RhinoTexture != null)
 					{
 						string TextureHash = DatasmithRhinoUtilities.GetTextureHash(RhinoTexture);
+						TextureHashes.Add(TextureHash);
 						AddTextureHashMapping(TextureHash, RhinoTexture);
 					}
 				}
+
+				Result = new DatasmithMaterialInfo(RhinoMaterial, Name, UniqueLabel, BaseLabel, TextureHashes);
+				MaterialHashToMaterialInfo.Add(MaterialHash, Result);
 			}
 			else if (Result.DirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion)
 			{

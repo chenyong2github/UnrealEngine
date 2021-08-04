@@ -106,6 +106,9 @@ bool UNiagaraDataInterfaceAudioPlayer::InitPerInstanceData(void* PerInstanceData
 		PIData->MaxPlaysPerTick = MaxPlaysPerTick;
 	}
 	PIData->bStopWhenComponentIsDestroyed = bStopWhenComponentIsDestroyed;
+#if WITH_EDITORONLY_DATA
+	PIData->bOnlyActiveDuringGameplay = bOnlyActiveDuringGameplay;
+#endif
 	return true;
 }
 
@@ -152,6 +155,17 @@ bool UNiagaraDataInterfaceAudioPlayer::PerInstanceTickPostSimulate(void* PerInst
 {
 	FAudioPlayerInterface_InstanceData* PIData = (FAudioPlayerInterface_InstanceData*) PerInstanceData;
 	UNiagaraSystem* System = SystemInstance->GetSystem();
+	UWorld* World = SystemInstance->GetWorldManager()->GetWorld();
+
+#if WITH_EDITORONLY_DATA
+	if (World->HasBegunPlay() == false && PIData->bOnlyActiveDuringGameplay)
+	{
+		PIData->PlayAudioQueue.Empty();
+		PIData->PersistentAudioMapping.Empty();
+		return false;
+	}
+#endif
+	
 	if (!PIData->PlayAudioQueue.IsEmpty() && System)
 	{
 		//Drain the queue into an array here
@@ -167,7 +181,8 @@ bool UNiagaraDataInterfaceAudioPlayer::PerInstanceTickPostSimulate(void* PerInst
 				break;
 			}
 		}
-		TGraphTask<FNiagaraAudioPlayerAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(PIData->SoundToPlay, PIData->Attenuation, PIData->Concurrency, Data, SystemInstance->GetWorldManager()->GetWorld());
+		
+		TGraphTask<FNiagaraAudioPlayerAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(PIData->SoundToPlay, PIData->Attenuation, PIData->Concurrency, Data, World);
 	}
 
 	if (!PIData->bHadPersistentAudioUpdateThisTick)
@@ -829,5 +844,8 @@ bool UNiagaraDataInterfaceAudioPlayer::CopyToInternal(UNiagaraDataInterface* Des
 	OtherTyped->MaxPlaysPerTick = MaxPlaysPerTick;
 	OtherTyped->ParameterNames = ParameterNames;
 	OtherTyped->bStopWhenComponentIsDestroyed = bStopWhenComponentIsDestroyed;
+#if WITH_EDITORONLY_DATA
+	OtherTyped->bOnlyActiveDuringGameplay = bOnlyActiveDuringGameplay;
+#endif
 	return true;
 }

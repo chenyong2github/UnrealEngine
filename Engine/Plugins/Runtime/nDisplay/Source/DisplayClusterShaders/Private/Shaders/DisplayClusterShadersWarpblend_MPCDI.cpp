@@ -18,6 +18,7 @@
 #include "ShaderPermutation.h"
 #include "ShaderParameterStruct.h"
 
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 #include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
 #include "WarpBlend/IDisplayClusterWarpBlend.h"
 
@@ -345,10 +346,14 @@ public:
 
 			case EDisplayClusterWarpGeometryType::WarpMesh:
 			{
-				const FDisplayClusterRender_MeshComponentProxy* WarpMesh = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				const FDisplayClusterRender_MeshComponent* DCWarpMeshComponent = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				if (DCWarpMeshComponent)
+				{
+					const FDisplayClusterRender_MeshComponentProxy* WarpMesh = DCWarpMeshComponent->GetProxy();
 				if (WarpMesh)
 				{
 					return WarpMesh->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit);
+				}
 				}
 				break;
 			}
@@ -373,10 +378,14 @@ public:
 
 			case EDisplayClusterWarpGeometryType::WarpMesh:
 			{
-				const FDisplayClusterRender_MeshComponentProxy* WarpMesh = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				const FDisplayClusterRender_MeshComponent* DCWarpMeshComponent = WarpBlendParameters.WarpInterface->GetWarpMesh();
+				if (DCWarpMeshComponent)
+				{
+					const FDisplayClusterRender_MeshComponentProxy* WarpMesh = DCWarpMeshComponent->GetProxy();
 				if (WarpMesh)
 				{
 					return WarpMesh->FinishRender_RenderThread(RHICmdList);
+				}
 				}
 				break;
 			}

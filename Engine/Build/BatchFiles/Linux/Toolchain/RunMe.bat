@@ -1,6 +1,6 @@
 @REM @echo off
 
-set TOOLCHAIN_VERSION=v18
+set TOOLCHAIN_VERSION=v19
 set LLVM_VERSION=11.0.1
 
 set SVN_BINARY=%CD%\..\..\..\..\Binaries\ThirdParty\svn\Win64\svn.exe

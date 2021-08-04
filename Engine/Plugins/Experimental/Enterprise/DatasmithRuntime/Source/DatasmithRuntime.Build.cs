@@ -63,52 +63,5 @@ public class DatasmithRuntime : ModuleRules
 		{
 			PublicDefinitions.Add("DIRECTLINK_LOG");
 		}
-
-		// Add dependency to CoreTech to enable load of CAD files on Windows
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			string CADRuntimeDllPath = EngineDirectory + "/Plugins/Enterprise/DatasmithCADImporter/Binaries/Win64";
-
-			if (Target.Type == TargetType.Game)
-            {
-				PublicDefinitions.Add("USE_CAD_RUNTIME_DLL");
-			}
-
-			PublicDefinitions.Add("DATASMITH_CAD_IGNORE_CACHE");
-
-			PrivateDependencyModuleNames.AddRange(
-				new string[] {
-					"CADInterfaces",
-					"DatasmithCADTranslator",
-					// Temporarily remove dependency to Rhino and Wire translators
-					//"DatasmithWireTranslator",
-					//"DatasmithOpenNurbsTranslator",
-					"DatasmithDispatcher",
-				}
-			);
-
-			if (System.Type.GetType("CoreTech") != null)
-			{
-				PublicDependencyModuleNames.Add("CoreTech");
-				
-				CADRuntimeDllPath = Path.Combine(CADRuntimeDllPath, "DatasmithCADRuntime.dll");
-				if (File.Exists(CADRuntimeDllPath))
-                {
-					RuntimeDependencies.Add(CADRuntimeDllPath);
-				}
-			}
-			else
-            {
-				if (File.Exists(Path.Combine(CADRuntimeDllPath, "DatasmithCADRuntime.dll")))
-				{
-					string[] CADRuntimeDlls = new string[] { "kernel_io.dll", "mimalloc-override.dll", "mimalloc-redirect.dll", "oda_translator.exe", "DatasmithCADRuntime.dll" };
-
-					foreach (string DllName in CADRuntimeDlls)
-					{
-						RuntimeDependencies.Add(Path.Combine(CADRuntimeDllPath, DllName));
-					}
-				}
-			}
-		}
 	}
 }

@@ -36,10 +36,6 @@
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
 #endif
 
-#if WITH_SLATE_WIDGET_TRACKING
-#include "Widgets/Accessibility/SlateWidgetTracker.h"
-#endif //WITH_SLATE_WIDGET_TRACKING
-
 // Enabled to assign FindWidgetMetaData::FoundWidget to the widget that has the matching reflection data 
 #ifndef UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA
 	#define UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA 0
@@ -274,11 +270,6 @@ SWidget::~SWidget()
 #if WITH_ACCESSIBILITY
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetRemoved(this);
 #endif
-
-#if WITH_SLATE_WIDGET_TRACKING
-		FSlateWidgetTracker::Get().RemoveLooseWidget(this);
-#endif //WITH_SLATE_WIDGET_TRACKING
-
 		// Only clear if initialized because SNullWidget's destructor may be called after annotations are deleted
 		ClearSparseAnnotationsForWidget(this);
 	}
@@ -390,9 +381,6 @@ void SWidget::SWidgetConstruct(const FSlateBaseNamedArgs& Args)
 	}
 #endif //WITH_ACCESSIBILITY
 
-#if WITH_SLATE_WIDGET_TRACKING
-	FSlateWidgetTracker::Get().AddLooseWidget(this);
-#endif //WITH_SLATE_WIDGET_TRACKING
 }
 
 FReply SWidget::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
@@ -1824,19 +1812,10 @@ void SWidget::SetOnMouseLeave(FSimpleNoReplyPointerEventHandler EventHandler)
 	Private::FindOrAddMouseEventsMetaData(this)->MouseLeaveHandler = EventHandler;
 }
 
-const TArray<TSharedRef<ISlateMetaData>>& SWidget::GetAllMetaDataInterfaces() const
-{
-	return MetaData;
-}
-
 void SWidget::AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe)
 {
 	int32 Index = MetaData.Add(AddMe);
 	checkf(Index != 0 || !HasRegisteredSlateAttribute(), TEXT("The first slot is reserved for SlateAttribute"));
-
-#if WITH_SLATE_WIDGET_TRACKING
-	FSlateWidgetTracker::Get().MetaDataAddedToWidget(this, AddMe);
-#endif //WITH_SLATE_WIDGET_TRACKING
 
 #if UE_WITH_SLATE_DEBUG_FIND_WIDGET_REFLECTION_METADATA || UE_SLATE_TRACE_ENABLED
 	if (AddMe->IsOfType<FReflectionMetaData>())
@@ -1853,13 +1832,6 @@ void SWidget::AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe)
 #endif
 	}
 #endif
-}
-
-void SWidget::NotifyMetaDataRemoved(const TSharedRef<ISlateMetaData>& RemovedMetaData)
-{
-#if WITH_SLATE_WIDGET_TRACKING
-	FSlateWidgetTracker::Get().MetaDataRemovedFromWidget(this, RemovedMetaData);
-#endif //WITH_SLATE_WIDGET_TRACKING
 }
 
 #if WITH_ACCESSIBILITY

@@ -3,7 +3,7 @@
 #include "Library/DMXEntityFixturePatchCache.h"
 #include "Modulators/DMXModulator.h"
 
-#include "DMXUtils.h"
+#include "DMXRuntimeUtils.h"
 
 
 FDMXEntityFixturePatchCache::FDMXEntityFixturePatchCache()
@@ -82,7 +82,7 @@ FDMXEntityFixturePatchCache::FDMXEntityFixturePatchCache(int32 InStartingChannel
 		{
 			UnorderedCellIndicies.Add(IndexCell);
 		}
-		FDMXUtils::PixelMappingDistributionSort(FixtureMatrix.PixelMappingDistribution, FixtureMatrix.XCells, FixtureMatrix.YCells, UnorderedCellIndicies, OrderedCellIndicies);
+		FDMXRuntimeUtils::PixelMappingDistributionSort(FixtureMatrix.PixelMappingDistribution, FixtureMatrix.XCells, FixtureMatrix.YCells, UnorderedCellIndicies, OrderedCellIndicies);
 	}
 
 	// Compute the final Data Size from Mode and Matrix

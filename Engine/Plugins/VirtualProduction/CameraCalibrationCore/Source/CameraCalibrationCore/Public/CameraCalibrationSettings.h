@@ -194,6 +194,12 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Settings")
 	FLensDataCategoryEditorColor CategoryColor;
 
+	/**
+	 * Time slider enable flag
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Settings", Meta = (ToolTip = "Enable or Disable Time input driven by Live Link."))
+	bool bEnableTimeSlider = true;
+
 private:
 
 	/** 

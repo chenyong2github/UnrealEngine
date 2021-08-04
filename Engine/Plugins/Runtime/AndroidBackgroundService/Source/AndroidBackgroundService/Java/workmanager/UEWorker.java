@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4.workmanager;
+package com.epicgames.unreal.workmanager;
 
 import android.content.Context;
 import android.util.Log;
@@ -12,16 +12,16 @@ import androidx.work.WorkerParameters;
 
 import java.util.Set;
 
-import com.epicgames.ue4.Logger;
+import com.epicgames.unreal.Logger;
 
-import com.epicgames.ue4.GameActivity;
+import com.epicgames.unreal.GameActivity;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
 //Base implementation for custom UE Workers
 public class UEWorker extends Worker
 {
-	public Logger Log = new Logger("UE4", "UEWorker");
+	public Logger Log = new Logger("UE", "UEWorker");
 	
 	public UEWorker(@NonNull Context context,@NonNull WorkerParameters params)
 	{
@@ -33,6 +33,8 @@ public class UEWorker extends Worker
 	@Override
 	public final Result doWork()
 	{
+		Log.debug("doWork Starting for Worker:" + GetWorkID());
+
 		try
 		{
 			InitWorker();
@@ -40,6 +42,8 @@ public class UEWorker extends Worker
 		}
 		catch(Exception exp)
 		{
+			Log.error("Exception hit during doWork for Worker:" + GetWorkID());
+
 			//Only want to fail on exception if we haven't already recieved a result from UE4.
 			//Want to honor the UE4 result even if we hit an exception after it finished since it represents expected behavior
             if (!bReceivedResult)
@@ -52,6 +56,7 @@ public class UEWorker extends Worker
 		}
 		finally
 		{
+			Log.debug("doWork ending for Worker:" + GetWorkID() + " with CachedResult:" + CachedResult);
 			//Should be set by either the exception or through a callback to this object from the UE native code
 			return CachedResult;
 		}
@@ -216,5 +221,5 @@ public class UEWorker extends Worker
     protected Result CachedResult;
 
     //flags if we are still using the original cached result or if the native code successfully set a result
-    protected boolean bReceivedResult;
+    protected volatile boolean bReceivedResult;
 }

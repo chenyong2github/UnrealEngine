@@ -44,6 +44,7 @@
 #include "IXRInput.h"
 #include "GameFramework/TouchInterface.h"
 #include "DisplayDebugHelpers.h"
+#include "MoviePlayerProxy.h"
 #include "Engine/ActorChannel.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/SpectatorPawn.h"
@@ -4460,6 +4461,8 @@ void APlayerController::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 
 void APlayerController::SetPlayer( UPlayer* InPlayer )
 {
+	FMoviePlayerProxy::BlockingStarted();
+
 	check(InPlayer!=NULL);
 
 	const bool bIsSameLevel = InPlayer->PlayerController && (InPlayer->PlayerController->GetLevel() == GetLevel());
@@ -4509,6 +4512,8 @@ void APlayerController::SetPlayer( UPlayer* InPlayer )
 
 	// notify script that we've been assigned a valid player
 	ReceivedPlayer();
+
+	FMoviePlayerProxy::BlockingFinished();
 }
 
 ULocalPlayer* APlayerController::GetLocalPlayer() const

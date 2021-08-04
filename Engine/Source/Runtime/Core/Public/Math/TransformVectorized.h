@@ -964,7 +964,6 @@ public:
 		// SourceAtom = Atom * BlendWeight;
 		VectorRegister4Float BlendWeightFloat = MakeVectorRegisterFloatFromDouble(BlendWeight.Value);
 		const VectorRegister4Float BlendedRotation = VectorMultiply(Atom.Rotation, BlendWeightFloat);
-		const VectorRegister BlendedTranslation = VectorMultiply(Atom.Translation, BlendWeight.Value);
 		const VectorRegister BlendedScale = VectorMultiply(Atom.Scale3D, BlendWeight.Value);
 
 		const VectorRegister4Float RotationW = VectorReplicate(BlendedRotation, 3);
@@ -979,7 +978,7 @@ public:
 
 		// Translation += SourceAtom.Translation;
 		// Scale *= SourceAtom.Scale;
-		Translation = VectorAdd(Translation, BlendedTranslation);
+		Translation = VectorMultiplyAdd(Atom.Translation, BlendWeight.Value, Translation);
 		Scale3D = VectorMultiply(Scale3D, BlendedScale);
 
 		DiagnosticCheckNaN_All();
@@ -1030,8 +1029,6 @@ public:
 
 		// SourceAtom = Atom * BlendWeight;
 		const VectorRegister4Float BlendedRotation = VectorMultiply(Atom.Rotation, MakeVectorRegisterFloatFromDouble(BlendWeight.Value));
-		const VectorRegister BlendedScale = VectorMultiply(Atom.Scale3D, BlendWeight.Value);
-		const VectorRegister BlendedTranslation = VectorMultiply(Atom.Translation, BlendWeight.Value);
 
 		const VectorRegister4Float RotationW = VectorReplicate(BlendedRotation, 3);
 
@@ -1045,8 +1042,8 @@ public:
 
 		// Translation += SourceAtom.Translation;
 		// Scale *= SourceAtom.Scale;
-		Translation = VectorAdd(Translation, BlendedTranslation);
-		Scale3D = VectorMultiply(Scale3D, VectorAdd(DefaultScale, BlendedScale));
+		Translation = VectorMultiplyAdd(Atom.Translation, BlendWeight.Value, Translation);
+		Scale3D = VectorMultiply(Scale3D, VectorMultiplyAdd(Atom.Scale3D, BlendWeight.Value, DefaultScale));
 
 		DiagnosticCheckNaN_All();
 	}

@@ -81,13 +81,17 @@ GfnRuntimeError GeForceNOWWrapper::Initialize()
  	const GfnRuntimeError ErrorCode = GfnInitializeSdkFromPath(gfnDefaultLanguage, *GFNDllFullPath);
 	bIsInitialized = ErrorCode == gfnSuccess || ErrorCode == gfnInitSuccessClientOnly;
 
+	return ErrorCode;
+}
+
+bool GeForceNOWWrapper::InitializeActionZoneProcessor()
+{
 	if (bIsInitialized)
 	{
 		ActionZoneProcessor = MakeShared<GeForceNOWActionZoneProcessor>();
-		ActionZoneProcessor->Initialize();
+		return ActionZoneProcessor->Initialize();
 	}
-
-	return ErrorCode;
+	return false;
 }
 
 GfnRuntimeError GeForceNOWWrapper::Shutdown()

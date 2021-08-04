@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "LevelSnapshotsFilterPreset.h"
 #include "AssetRegistry/AssetData.h"
 #include "UObject/Object.h"
 #include "FilterLoader.generated.h"
 
-class UDisjunctiveNormalFormFilter;
+class ULevelSnapshotsFilterPreset;
 
 /* Handles saving and loading of UDisjunctiveNormalFormFilter. */
 UCLASS()
@@ -26,7 +28,7 @@ public:
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	//~ End UObject Interface
 	
-	DECLARE_EVENT_OneParam(UFilterLoader, FOnLoadedFilters, UDisjunctiveNormalFormFilter*);
+	DECLARE_EVENT_OneParam(UFilterLoader, FOnLoadedFilters, ULevelSnapshotsFilterPreset*);
 	/* Called to notify everybody that the user now wants to edit this filter. */
 	FOnLoadedFilters OnFilterChanged;
 
@@ -37,15 +39,15 @@ public:
 private:
 
 	friend class ULevelSnapshotsEditorData;
-	void SetAssetBeingEdited(UDisjunctiveNormalFormFilter* NewAssetBeingEdited);
+	void SetAssetBeingEdited(ULevelSnapshotsFilterPreset* NewAssetBeingEdited);
 
-	void OnSaveOrLoadAssetOnDisk(UDisjunctiveNormalFormFilter* AssetOnDisk);
-	void SetAssetLastSavedOrLoaded(UDisjunctiveNormalFormFilter* NewAsset);
+	void OnSaveOrLoadAssetOnDisk(ULevelSnapshotsFilterPreset* AssetOnDisk);
+	void SetAssetLastSavedOrLoaded(ULevelSnapshotsFilterPreset* NewAsset);
 	
 	/* Set once user either has used RequestSaveAs or SetPickedAsset. */
 	UPROPERTY()
 	FSoftObjectPath AssetLastSavedOrLoaded = nullptr;
 
 	UPROPERTY()
-	UDisjunctiveNormalFormFilter* AssetBeingEdited;
+	ULevelSnapshotsFilterPreset* AssetBeingEdited;
 };

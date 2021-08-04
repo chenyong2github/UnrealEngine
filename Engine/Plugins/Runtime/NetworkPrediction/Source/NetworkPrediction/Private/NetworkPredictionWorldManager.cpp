@@ -183,7 +183,8 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 			if (bDoPhysics)
 			{
 				PhysicsFrame = RollbackFrame + FixedTickState.PhysicsOffset;
-				npEnsure(FixedTickState.PhysicsRewindData->RewindToFrame(PhysicsFrame));
+				check(false);
+				//npEnsure(FixedTickState.PhysicsRewindData->RewindToFrame(PhysicsFrame));
 
 				PreThreading = Physics.Solver->GetThreadingMode();
 				Physics.Solver->SetThreadingMode_External(Chaos::EThreadingModeTemp::SingleThread);

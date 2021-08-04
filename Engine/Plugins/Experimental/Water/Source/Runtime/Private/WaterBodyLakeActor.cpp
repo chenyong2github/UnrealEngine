@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyLakeActor.h"
-#include "WaterSplineComponent.h"
-#include "WaterSubsystem.h"
-#include "Components/SplineMeshComponent.h"
-#include "PhysicsEngine/ConvexElem.h"
-#include "Engine/StaticMesh.h"
+#include "WaterBodyLakeComponent.h"
 #include "LakeCollisionComponent.h"
+#include "Engine/StaticMesh.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -17,162 +14,41 @@
 AWaterBodyLake::AWaterBodyLake(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	WaterBodyType = GetWaterBodyType();
+	WaterBodyType = EWaterBodyType::Lake;
 
 #if WITH_EDITOR
 	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyLakeSprite"));
 #endif
-
-	// @todo_water : Remove these checks (Once AWaterBody is no more Blueprintable, these methods should become PURE_VIRTUAL and this class should overload them)
-	check(IsFlatSurface());
-	check(IsWaterSplineClosedLoop());
-	check(!IsHeightOffsetSupported());
 }
 
-void AWaterBodyLake::InitializeBody()
+void AWaterBodyLake::PostLoad()
 {
-	if (!LakeGenerator)
-	{
-		LakeGenerator = NewObject<ULakeGenerator>(this, TEXT("LakeGenerator"));
-	}
-}
+	Super::PostLoad();
 
-TArray<UPrimitiveComponent*> AWaterBodyLake::GetCollisionComponents() const
+#if WITH_EDITORONLY_DATA
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyComponentRefactor)
 {
-	if (LakeGenerator)
+		UWaterBodyLakeComponent* LakeComponent = CastChecked<UWaterBodyLakeComponent>(WaterBodyComponent);
+		if (LakeGenerator_DEPRECATED)
 	{
-		return LakeGenerator->GetCollisionComponents();
+			LakeComponent->LakeMeshComp = LakeGenerator_DEPRECATED->LakeMeshComp;
+			if (LakeComponent->LakeMeshComp)
+{
+				LakeComponent->LakeMeshComp->SetupAttachment(LakeComponent);
 	}
-	return Super::GetCollisionComponents();
+			LakeComponent->LakeCollision = LakeGenerator_DEPRECATED->LakeCollision;
+			if (LakeComponent->LakeCollision)
+{
+				LakeComponent->LakeCollision->SetupAttachment(LakeComponent);
 }
-
-void AWaterBodyLake::UpdateWaterBody(bool bWithExclusionVolumes)
-{
-	if (LakeGenerator)
-	{
-		LakeGenerator->UpdateBody(bWithExclusionVolumes);
 	}
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 // ----------------------------------------------------------------------------------
 
-ULakeGenerator::ULakeGenerator(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_LakeGenerator::UDEPRECATED_LakeGenerator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-{
-}
-
-void ULakeGenerator::Reset()
-{
-	AWaterBody* OwnerBody = GetOuterAWaterBody();
-	TArray<UStaticMeshComponent*> MeshComponents;
-	OwnerBody->GetComponents(MeshComponents);
-
-	for (UStaticMeshComponent* MeshComponent : MeshComponents)
-	{
-		MeshComponent->DestroyComponent();
-	}
-
-	if (LakeCollision)
-	{
-		LakeCollision->DestroyComponent();
-	}
-
-	LakeCollision = nullptr;
-	LakeMeshComp = nullptr;
-}
-
-void ULakeGenerator::OnUpdateBody(bool bWithExclusionVolumes)
-{
-	AWaterBody* OwnerBody = GetOuterAWaterBody();
-	if (!LakeMeshComp)
-	{
-		LakeMeshComp = NewObject<UStaticMeshComponent>(OwnerBody, TEXT("LakeMeshComponent"));
-		LakeMeshComp->SetupAttachment(OwnerBody->GetRootComponent());
-		LakeMeshComp->RegisterComponent();
-	}
-
-	if (OwnerBody->bGenerateCollisions)
-	{
-		if (!LakeCollision)
 		{
-			LakeCollision = NewObject<ULakeCollisionComponent>(OwnerBody, TEXT("LakeCollisionComponent"));
-			LakeCollision->SetNetAddressable(); // it's deterministically named so it's addressable over network (needed for collision)
-			LakeCollision->SetupAttachment(OwnerBody->GetRootComponent());
-			LakeCollision->RegisterComponent();
-		}
-	}
-	else
-	{
-		if (LakeCollision)
-		{
-			LakeCollision->DestroyComponent();
-		}
-		LakeCollision = nullptr;
-	}
-
-	if (UWaterSplineComponent* WaterSpline = OwnerBody->GetWaterSpline())
-	{
-	UStaticMesh* WaterMesh = OwnerBody->GetWaterMeshOverride() ? OwnerBody->GetWaterMeshOverride() : UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultLakeMesh;
-
-	const FVector SplineExtent = WaterSpline->Bounds.BoxExtent;
-
-	FVector WorldLoc(WaterSpline->Bounds.Origin);
-	WorldLoc.Z = OwnerBody->GetActorLocation().Z;
-
-	if (WaterMesh)
-	{
-		FTransform MeshCompToWorld = WaterSpline->GetComponentToWorld();
-		// Scale the water mesh so that it is the size of the bounds
-		FVector MeshExtent = WaterMesh->GetBounds().BoxExtent;
-		MeshExtent.Z = 1.0f;
-
-		const FVector LocalSplineExtent = WaterSpline->Bounds.TransformBy(MeshCompToWorld.Inverse()).BoxExtent;
-
-		const FVector ScaleRatio = SplineExtent / MeshExtent;
-		LakeMeshComp->SetWorldScale3D(FVector(ScaleRatio.X, ScaleRatio.Y, 1));
-		LakeMeshComp->SetWorldLocation(WorldLoc);
-		LakeMeshComp->SetWorldRotation(FQuat::Identity);
-		LakeMeshComp->SetAbsolute(false, false, true);
-		LakeMeshComp->SetStaticMesh(WaterMesh);
-		LakeMeshComp->SetMaterial(0, OwnerBody->GetWaterMaterial());
-		LakeMeshComp->SetCastShadow(false);
-		LakeMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-
-	LakeMeshComp->SetMobility(OwnerBody->GetRootComponent()->Mobility);
-
-	if (LakeCollision)
-	{
-		check(OwnerBody->bGenerateCollisions);
-		LakeCollision->bFillCollisionUnderneathForNavmesh = OwnerBody->bFillCollisionUnderWaterBodiesForNavmesh;
-		LakeCollision->SetMobility(OwnerBody->GetRootComponent()->Mobility);
-		LakeCollision->SetCollisionProfileName(OwnerBody->GetCollisionProfileName());
-		LakeCollision->SetGenerateOverlapEvents(true);
-
-		const float Depth = OwnerBody->GetChannelDepth() / 2;
-			FVector Scale = OwnerBody->GetActorScale();
-			// Avoid dividing by 0 but keep the scale's sign :
-			Scale = Scale.GetSignVector() * FVector::Max(Scale.GetAbs(), FVector::OneVector * 0.001f);
-			FVector LakeCollisionExtent = FVector(SplineExtent.X, SplineExtent.Y, Depth) / Scale;
-		LakeCollision->SetWorldLocation(WorldLoc + FVector(0, 0, -Depth));
-		LakeCollision->UpdateCollision(LakeCollisionExtent, true);
-	}
-}
-}
-
-void ULakeGenerator::PostLoad()
-{
-	Super::PostLoad();
-
-	LakeCollisionComp_DEPRECATED = nullptr;
-}
-
-TArray<UPrimitiveComponent*> ULakeGenerator::GetCollisionComponents() const
-{
-	TArray<UPrimitiveComponent*> Result;
-	if (LakeCollision != nullptr)
-	{
-		Result.Add(LakeCollision);
-	}
-	return Result;
 }

@@ -275,7 +275,6 @@ public:
 public:
 	//~ USubsystem interface begin
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
 	//~ USubsystem interface end
 
 private:
@@ -289,6 +288,7 @@ public:
 	/** Delegate broadcast when all dmx library assets were loaded */
 	FSimpleMulticastDelegate OnAllDMXLibraryAssetsLoaded;
 
+#if WITH_EDITOR
 	/** Delegate broadcast when a dmx library asset was added */
 	FDMXOnDMXLibraryAssetDelegate OnDMXLibraryAssetAdded;
 
@@ -296,10 +296,6 @@ public:
 	FDMXOnDMXLibraryAssetDelegate OnDMXLibraryAssetRemoved;
 
 private:
-	/** Called when asset registry finished loading files */
-	UFUNCTION()
-	void OnAssetRegistryFinishedLoadingFiles();
-
 	/** Called when asset registry added an asset */
 	UFUNCTION()
 	void OnAssetRegistryAddedAsset(const FAssetData& Asset);
@@ -307,6 +303,7 @@ private:
 	/** Called when asset registry removed an asset */
 	UFUNCTION()
 	void OnAssetRegistryRemovedAsset(const FAssetData& Asset);
+#endif 
 
 private:
 	/** Strongly references all libraries at all times */

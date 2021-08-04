@@ -51,7 +51,7 @@ void FOnlineAchievementsEOSPlus::WriteAchievements(const FUniqueNetId& PlayerId,
 	{
 		BaseAchievementsInterface->WriteAchievements(*NetIdPlus->GetBaseNetId(), WriteObject, Delegate);
 	}
-	if (GetDefault<UEOSSettings>()->bMirrorAchievementsToEOS)
+	if (UEOSSettings::GetSettings().bMirrorAchievementsToEOS)
 	{
 		if (NetIdPlus->GetEOSNetId().IsValid())
 		{

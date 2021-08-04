@@ -144,6 +144,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 	{
 		FBlackListEntry BlackListEntry = DetectedGPUHardware.FindDriverBlacklistEntry();
 
+		GRHIAdapterDriverBlacklisted = BlackListEntry.IsValid();
 		FGenericCrashContext::SetEngineData(TEXT("RHI.DriverBlacklisted"), BlackListEntry.IsValid() ? TEXT("true") : TEXT("false"));
 
 		if (BlackListEntry.IsValid())

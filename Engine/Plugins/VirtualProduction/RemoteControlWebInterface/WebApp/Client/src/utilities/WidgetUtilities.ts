@@ -1,4 +1,4 @@
-import { IPreset, PropertyType, WidgetType, WidgetTypes } from "src/shared";
+import { ColorProperty, IPreset, PropertyType, VectorProperty, WidgetType, WidgetTypes, IHsvColor } from "src/shared";
 
 
 type Range = {
@@ -87,7 +87,7 @@ export class WidgetUtilities {
     }
   }
 
-  static getPropertyPercision(propertyType: PropertyType) {
+  static getPropertyPrecision(propertyType: PropertyType) {
     switch (propertyType) {
       case PropertyType.Float:
       case PropertyType.Double:
@@ -148,15 +148,103 @@ export class WidgetUtilities {
 
       case PropertyType.Vector4:
       case PropertyType.LinearColor:
+      case PropertyType.Color:
         return [WidgetTypes.ColorPicker, WidgetTypes.MiniColorPicker];
 
       case PropertyType.Rotator:
         return [WidgetTypes.Vector, WidgetTypes.Sliders];
     }
 
-    if (propertyType?.startsWith('TEnum'))
+    if (propertyType && (propertyType.startsWith('TEnum') || propertyType.startsWith('E')))
       return [WidgetTypes.Dropdown];
 
     return [];
+  }
+
+  static colorToRgb(color: ColorProperty | VectorProperty, max: number) {
+    const rgb = color as ColorProperty;
+    const vector = color as VectorProperty;
+
+    max = max || 1;
+    return {
+      R: (vector?.X ?? rgb?.R) * 255 / max,
+      G: (vector?.Y ?? rgb?.G) * 255 / max,
+      B: (vector?.Z ?? rgb?.B) * 255 / max,
+      A: 1
+    };
+  }
+
+  static rgbToColor = (rgb: ColorProperty, max: number, vector = true): ColorProperty | VectorProperty => {
+    const a = rgb.R / 255 * max;
+    const b = rgb.G / 255 * max;
+    const c = rgb.B / 255 * max;
+
+    if (vector)
+      return { X: a, Y: b, Z: c, W: 1 };
+
+    return { R: a, G: b, B: c, A: 1 };
+  }
+
+  static rgb2Hsv(color: ColorProperty): IHsvColor {
+    const r = color?.R / 255 ?? 1;
+    const g = color?.G / 255 ?? 1;
+    const b = color?.B / 255 ?? 1;
+
+    const min = Math.min(r, g, b);
+    const max = Math.max(r, g, b);
+
+    let h = 0, s = 0, v = max;
+    let d = max - min;
+    s = max === 0 ? 0 : d / max;
+
+    if (max !== min) {
+      switch (max) {
+        case r:
+          h = (g - b) / d + (g < b ? 6 : 0);
+          break;
+
+        case g:
+          h = (b - r) / d + 2;
+          break;
+
+        case b:
+          h = (r - g) / d + 4;
+          break;
+      }
+
+      h /= 6;
+    }
+
+    return { h, s, v, a: color?.A };
+  }
+
+  static hsv2rgb({ h, s, v, a }: IHsvColor): ColorProperty {
+    let r: number, g: number, b: number;
+
+    let i = Math.floor(h * 6);
+    let f = h * 6 - i;
+    let p = v * (1 - s);
+    let q = v * (1 - f * s);
+    let t = v * (1 - (1 - f) * s);
+
+    if (i % 6 === 0)
+      ([r, g, b] = [v, t, p]);
+
+    if (i % 6 === 1)
+      ([r, g, b] = [q, v, p]);
+
+    if (i % 6 === 2)
+      ([r, g, b] = [p, v, t]);
+
+    if (i % 6 === 3)
+      ([r, g, b] = [p, q, v]);
+
+    if (i % 6 === 4)
+      ([r, g, b] = [t, p, v]);
+
+    if (i % 6 === 5)
+      ([r, g, b] = [v, p, q]);
+
+    return { R: r * 255, G: g * 255, B: b * 255, A: a };
   }
 }

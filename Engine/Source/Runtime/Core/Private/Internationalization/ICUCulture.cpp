@@ -892,6 +892,78 @@ TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation
 	}
 }
 
+TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation::GetDateTimeFormatter(const FString& CustomPattern, const FString& TimeZone)
+{
+#if WITH_ICU_V64
+	// createInstanceForSkeleton was added in ICU 55, so we need to make sure we're using a newer version of ICU (prior to ICU 64 we used ICU 53)
+	{
+		auto DateTimePatternToICUSkeleton = [](const TCHAR* Format) -> FString
+		{
+			TStringBuilder<32> Result;
+
+			while (*Format != TCHAR('\0'))
+			{
+				if ((*Format == TCHAR('%')) && (*(++Format) != TCHAR('\0')))
+				{
+					switch (*Format)
+					{
+					case TCHAR('a'): Result.Append(TEXT("EEE")); break;
+					case TCHAR('A'): Result.Append(TEXT("EEEE")); break;
+					case TCHAR('w'): Result.Append(TEXT("e")); break;
+					case TCHAR('y'): Result.Append(TEXT("yy")); break;
+					case TCHAR('Y'): Result.Append(TEXT("yyyy")); break;
+					case TCHAR('b'): Result.Append(TEXT("MMM")); break;
+					case TCHAR('B'): Result.Append(TEXT("MMMM")); break;
+					case TCHAR('m'): Result.Append(TEXT("MM")); break;
+					case TCHAR('d'): Result.Append(TEXT("dd")); break;
+					case TCHAR('e'): Result.Append(TEXT("d")); break;
+					case TCHAR('l'): Result.Append(TEXT("h")); break;
+					case TCHAR('I'): Result.Append(TEXT("hh")); break;
+					case TCHAR('H'): Result.Append(TEXT("HH")); break;
+					case TCHAR('M'): Result.Append(TEXT("mm")); break;
+					case TCHAR('S'): Result.Append(TEXT("ss")); break;
+					case TCHAR('p'): Result.Append(TEXT("a")); break;
+					case TCHAR('P'): Result.Append(TEXT("a")); break;
+					case TCHAR('j'): Result.Append(TEXT("D")); break;
+					default:		 Result.Append(*Format);
+					}
+				}
+				else
+				{
+					Result.Append(*Format);
+				}
+
+				// move to the next one
+				Format++;
+			}
+
+			return Result.ToString();
+		};
+
+		const FString DateTimeSkeleton = DateTimePatternToICUSkeleton(*CustomPattern);
+
+		UErrorCode ICUStatus = U_ZERO_ERROR;
+		TSharedPtr<icu::DateFormat, ESPMode::ThreadSafe> Formatter;
+		
+		Formatter = MakeShareable(icu::DateFormat::createInstanceForSkeleton(ICUUtilities::ConvertString(DateTimeSkeleton), ICULocale, ICUStatus));
+		if (!Formatter)
+		{
+			Formatter = MakeShareable(icu::DateFormat::createInstanceForSkeleton(ICUUtilities::ConvertString(DateTimeSkeleton), GetInvariantLocale(), ICUStatus));
+		}
+
+		if (Formatter)
+		{
+			const FString SanitizedTimezoneCode = ICUUtilities::SanitizeTimezoneCode(TimeZone);
+			Formatter->adoptTimeZone(SanitizedTimezoneCode.IsEmpty() ? icu::TimeZone::createDefault() : icu::TimeZone::createTimeZone(ICUUtilities::ConvertString(SanitizedTimezoneCode, false)));
+
+			return Formatter.ToSharedRef();
+		}
+	}
+#endif	// WITH_ICU_V64
+
+	return GetDateTimeFormatter(EDateTimeStyle::Default, EDateTimeStyle::Default, TimeZone);
+}
+
 namespace
 {
 

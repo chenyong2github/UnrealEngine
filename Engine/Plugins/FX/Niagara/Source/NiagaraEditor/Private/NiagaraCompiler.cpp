@@ -1168,7 +1168,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 		if (CompileResults.bVMSucceeded)
 		{
 			*(CompileResults.Data) = CompilationJob->TranslatorOutput.ScriptData;
-			CompileResults.Data->ByteCode.Empty();
+			CompileResults.Data->ByteCode.Reset();
 			CompileResults.bComputeSucceeded = true;
 		}
 		CompileResults.Data->LastHlslTranslationGPU = TranslatedHLSL;
@@ -1221,7 +1221,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	if (!bJobScheduled)
 	{
 
-		CompileResults.Data->ByteCode.Empty();
+		CompileResults.Data->ByteCode.Reset();
 		CompileResults.Data->Attributes.Empty();
 		CompileResults.Data->Parameters.Empty();
 		CompileResults.Data->InternalParameters.Empty();
@@ -1355,7 +1355,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 	if (!Results.bVMSucceeded)
 	{
 		//For now we just copy the shader code over into the script. 
-		Results.Data->ByteCode.Empty();
+		Results.Data->ByteCode.Reset();
 		Results.Data->Attributes.Empty();
 		Results.Data->Parameters.Empty();
 		Results.Data->InternalParameters.Empty();
@@ -1367,7 +1367,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			//Build internal parameters
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslCompiler_CompileShader_VectorVMSucceeded);
 		*Results.Data = CompilationJob->TranslatorOutput.ScriptData;
-		Results.Data->ByteCode = CompilationOutput.ByteCode;
+		Results.Data->ByteCode.SetData(CompilationOutput.ByteCode);
 		Results.Data->NumTempRegisters = CompilationOutput.MaxTempRegistersUsed + 1;
 		Results.Data->LastAssemblyTranslation = CompilationOutput.AssemblyAsString;
 		FixupVMAssembly(Results.Data->LastAssemblyTranslation);

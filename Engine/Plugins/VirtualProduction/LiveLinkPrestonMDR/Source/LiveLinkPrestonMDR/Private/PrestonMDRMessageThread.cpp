@@ -6,6 +6,7 @@
 
 #include "HAL/RunnableThread.h"
 #include "Misc/DateTime.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/Timecode.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPrestonMDRMessageThread, Log, All);
@@ -13,6 +14,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogPrestonMDRMessageThread, Log, All);
 const uint8 FMDRProtocol::STX = 0x02;
 const uint8 FMDRProtocol::ETX = 0x03;
 const uint8 FMDRProtocol::ACK = 0x06;
+
+const uint8 FMDRProtocol::StatusMessageLength = 8;
+const uint8 FMDRProtocol::DataMessageLength = 10;
+const uint8 FMDRProtocol::TimeMessageLength = 10;
+const uint8 FMDRProtocol::TimecodeMessageLength = 8;
 
 FPrestonMDRMessageThread::FPrestonMDRMessageThread(FSocket* InSocket) :
 	Socket(InSocket)
@@ -27,7 +33,7 @@ FPrestonMDRMessageThread::~FPrestonMDRMessageThread()
 	}
 }
 
-void FPrestonMDRMessageThread::SetSocket_AnyThread(FSocket* InSocket)
+void FPrestonMDRMessageThread::SetSocket(FSocket* InSocket)
 {
 	Socket = InSocket;
 	bSoftResetTriggered = false;
@@ -35,7 +41,7 @@ void FPrestonMDRMessageThread::SetSocket_AnyThread(FSocket* InSocket)
 	LastTimeDataReceived = FPlatformTime::Seconds();
 }
 
-void FPrestonMDRMessageThread::SetIncomingDataMode_AnyThread(EFIZDataMode InDataMode)
+void FPrestonMDRMessageThread::SetIncomingDataMode_GameThread(EFIZDataMode InDataMode)
 {
 	DataDescriptionSettings.LensDataMode = InDataMode;
 	UpdateDataDescriptionMessage_AnyThread();
@@ -63,7 +69,7 @@ uint32 FPrestonMDRMessageThread::Run()
 	BuildStaticMessages();
 
 	// Fill the command queue with a message sequence to start the communication flow with the MDR
-	InitializeCommandQueue_AnyThread();
+	InitializeCommandQueue();
 
 	// Reserve space in the FIZ data array to hold the current values of the Focus, Iris, Zoom, and AUX motors
 	constexpr uint8 MaxNumFIZDataPoints = 4;
@@ -153,7 +159,8 @@ uint32 FPrestonMDRMessageThread::Run()
 		}
 		else if (Socket->GetConnectionState() != ESocketConnectionState::SCS_Connected)
 		{
-			HardReset();
+			ConnectionFailedDelegate.ExecuteIfBound();
+			break;
 		}
 
 		// If the amount of time since the last packet was received from the server exceeds the timeout, assume that the communication flow is broken and attempt to reset it
@@ -163,7 +170,7 @@ uint32 FPrestonMDRMessageThread::Run()
 			if (bSoftResetTriggered == false)
 			{
 				bSoftResetTriggered = true;
-				SoftReset_AnyThread();
+				SoftReset();
 			}
 			// If a soft reset does not work, assume that the connection to the socket is broken and trigger a hard reset to establish a new connection
 			else if (bHardResetTriggered == false)
@@ -180,8 +187,7 @@ uint32 FPrestonMDRMessageThread::Run()
 void FPrestonMDRMessageThread::BuildStaticMessages()
 {
 	// Begin Status Message
-	constexpr uint8 StatusMessageLength = 8;
-	StatusRequestMessage.Reserve(StatusMessageLength);
+	StatusRequestMessage.Reserve(FMDRProtocol::StatusMessageLength);
 
 	StatusRequestMessage.Add(FMDRProtocol::STX);
 
@@ -202,8 +208,11 @@ void FPrestonMDRMessageThread::BuildStaticMessages()
 	// End Status Message
 
 	// Begin Data Message
-	constexpr uint8 DataMessageLength = 10;
-	DataRequestMessage.Reserve(DataMessageLength);
+	{
+		// DataRequesetMessage may be written to from the GameThread when the data mode is changed
+		FScopeLock Lock(&PrestonCriticalSection);
+
+		DataRequestMessage.Reserve(FMDRProtocol::DataMessageLength);
 
 	DataRequestMessage.Add(FMDRProtocol::STX);
 
@@ -227,11 +236,11 @@ void FPrestonMDRMessageThread::BuildStaticMessages()
 	DataRequestMessage.Add(DataChecksum.ByteLow);
 
 	DataRequestMessage.Add(FMDRProtocol::ETX);
+	}
 	// End Data Message
 
 	// Begin Time Message
-	constexpr uint8 TimeMessageLength = 10;
-	TimeRequestMessage.Reserve(TimeMessageLength);
+	TimeRequestMessage.Reserve(FMDRProtocol::TimeMessageLength);
 
 	TimeRequestMessage.Add(FMDRProtocol::STX);
 
@@ -257,8 +266,7 @@ void FPrestonMDRMessageThread::BuildStaticMessages()
 	// End Time Message
 
 	// Begin Timecode Message
-	constexpr uint8 TimecodeMessageLength = 8;
-	TimecodeRequestMessage.Reserve(TimecodeMessageLength);
+	TimecodeRequestMessage.Reserve(FMDRProtocol::TimecodeMessageLength);
 
 	TimecodeRequestMessage.Add(FMDRProtocol::STX);
 
@@ -281,6 +289,10 @@ void FPrestonMDRMessageThread::BuildStaticMessages()
 
 void FPrestonMDRMessageThread::UpdateDataDescriptionMessage_AnyThread()
 {
+	FScopeLock Lock(&PrestonCriticalSection);
+
+	if (DataRequestMessage.Num() == FMDRProtocol::DataMessageLength)
+	{
 	constexpr uint32 DataDescriptionByte = FMDRProtocol::FirstPayloadByte - 1;
 	FAsciiByte DataDescription = HexToAscii(GetDataDescritionSettings());
 	DataRequestMessage[DataDescriptionByte + 0] = DataDescription.ByteHigh;
@@ -290,8 +302,9 @@ void FPrestonMDRMessageThread::UpdateDataDescriptionMessage_AnyThread()
 	DataRequestMessage[DataRequestMessage.Num() + FMDRProtocol::ChecksumByte + 0] = DataChecksum.ByteHigh;
 	DataRequestMessage[DataRequestMessage.Num() + FMDRProtocol::ChecksumByte + 1] = DataChecksum.ByteLow;
 }
+}
 
-void FPrestonMDRMessageThread::InitializeCommandQueue_AnyThread()
+void FPrestonMDRMessageThread::InitializeCommandQueue()
 {
 	CommandQueue.Empty();
 
@@ -325,6 +338,8 @@ void FPrestonMDRMessageThread::SendNextCommandToServer()
 
 	if (NextCommand == EMDRCommand::Data)
 	{
+		// DataRequesetMessage may be written to from the GameThread when the data mode is changed
+		FScopeLock Lock(&PrestonCriticalSection);
 		SendMessageToServer(DataRequestMessage.GetData(), DataRequestMessage.Num());
 	}
 	else if (NextCommand == EMDRCommand::Status)
@@ -459,7 +474,7 @@ void FPrestonMDRMessageThread::ParseDataMessage(const uint8* const InData, const
 	uint8 DataDescription = AsciiToHex(&InData[FMDRProtocol::FirstPayloadByte]);
 
 	// Each bit in the data description byte represents a data field that follows in the message
-	const uint32 NumDataFields = FGenericPlatformMath::CountBits(DataDescription & 0x7F); // Ignore the MDRStatus
+	const uint32 NumDataFields = FGenericPlatformMath::CountBits(DataDescription & 0x3F); // Ignore the MDRStatus
 	constexpr uint32 NumBytesPerDataField = 2;
 
 	ensureMsgf((NumDataFields * NumBytesPerDataField) == (InNumDataBytes - 1),
@@ -559,9 +574,9 @@ void FPrestonMDRMessageThread::ParseTimecodeStatusMessage(const uint8* const InD
 	bIsDropFrameRate = true ? (TimecodeStatus & 0x80) > 0 : false;
 }
 
-void FPrestonMDRMessageThread::SoftReset_AnyThread()
+void FPrestonMDRMessageThread::SoftReset()
 {
-	InitializeCommandQueue_AnyThread();
+	InitializeCommandQueue();
 
 	// Reset the timer so that another reset does not immediately trigger
 	LastTimeDataReceived = FPlatformTime::Seconds();

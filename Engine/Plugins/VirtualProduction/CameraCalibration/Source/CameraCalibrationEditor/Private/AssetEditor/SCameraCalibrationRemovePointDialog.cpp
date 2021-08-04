@@ -337,8 +337,18 @@ void SCameraCalibrationRemovePointDialog::Construct(const FArguments& InArgs, co
 	Zoom = InZoom;
 	OnDataRemoved = InArgs._OnDataRemoved;
 
-	const FBaseLensTable& BaseDataTable = WeakLensFile.Get()->GetDataTable(Category);
-	const FText DialogText = FText::Format(LOCTEXT("DialogTextLabel", "Select points to remove which have same raw input than {0}"), FText::FromName(BaseDataTable.GetScriptStruct()->GetFName()));
+	const FBaseLensTable* const BaseDataTable = InLensFile->GetDataTable(Category);
+	if (!ensure(BaseDataTable))
+	{
+		ChildSlot
+		[
+			SNew(STextBlock).Text(LOCTEXT("NoBaseTableErrorLabel", "No Base Table Error"))
+		];
+		
+		return;
+	}
+	
+	const FText DialogText = FText::Format(LOCTEXT("DialogTextLabel", "Select points to remove which have same raw input than {0}"), FText::FromName(BaseDataTable->GetScriptStruct()->GetFName()));
 
 	const TSharedPtr<SWidget> ButtonsWidget = [this]()
 	{
@@ -444,7 +454,11 @@ void SCameraCalibrationRemovePointDialog::RefreshRemoveItemsTree()
 	// Empty the array of data model
 	RemoveItems.Empty();
 
-	const FBaseLensTable& BaseDataTable = WeakLensFile.Get()->GetDataTable(Category);
+	const FBaseLensTable* const BaseDataTable = WeakLensFile.Get()->GetDataTable(Category);
+	if (!ensure(BaseDataTable))
+	{
+		return;	
+	}
 
 	// If removing zoom point only
 	if (Zoom.IsSet())
@@ -457,7 +471,7 @@ void SCameraCalibrationRemovePointDialog::RefreshRemoveItemsTree()
 		RemoveItems.Add(ZoomItem);
 
 		// Generate list for Linked Category
-		BaseDataTable.ForEachLinkedFocusPoint([this, ZoomValue](const FBaseFocusPoint& InFocusPoint, ELensDataCategory InCategory, FLinkPointMetadata LinkPointMeta)
+		BaseDataTable->ForEachLinkedFocusPoint([this, ZoomValue](const FBaseFocusPoint& InFocusPoint, ELensDataCategory InCategory, FLinkPointMetadata LinkPointMeta)
 		{
 			for(int32 Index = 0; Index < InFocusPoint.GetNumPoints(); ++Index)
 			{
@@ -478,7 +492,7 @@ void SCameraCalibrationRemovePointDialog::RefreshRemoveItemsTree()
 	else
 	{
 		// Generate list of Focus and Zoom for this category
-		BaseDataTable.ForEachFocusPoint([this](const FBaseFocusPoint& InFocusPoint)
+		BaseDataTable->ForEachFocusPoint([this](const FBaseFocusPoint& InFocusPoint)
 		{
 			//Add entry for focus
 			constexpr bool bChecked = true;
@@ -495,7 +509,7 @@ void SCameraCalibrationRemovePointDialog::RefreshRemoveItemsTree()
 		}, Focus);
 
 		// Generate for Linked Category
-		BaseDataTable.ForEachLinkedFocusPoint([this](const FBaseFocusPoint& InFocusPoint, ELensDataCategory InCategory, FLinkPointMetadata LinkPointMeta)
+		BaseDataTable->ForEachLinkedFocusPoint([this](const FBaseFocusPoint& InFocusPoint, ELensDataCategory InCategory, FLinkPointMetadata LinkPointMeta)
 		{		
 			//Add entry for focus
 			const TSharedPtr<FFocusRemoveLensDataListItem> RemoveFocus = MakeShared<FFocusRemoveLensDataListItem>(WeakLensFile.Get(), InCategory, LinkPointMeta.bRemoveByDefault, InFocusPoint.GetFocus());

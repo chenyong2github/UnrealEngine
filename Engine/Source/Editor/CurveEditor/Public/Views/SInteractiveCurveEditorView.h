@@ -109,6 +109,7 @@ protected:
 	FText GetCurveCaption() const;
 
 private:
+	void HandleDirectKeySelectionByMouse(TSharedPtr<FCurveEditor> CurveEditor, const FPointerEvent& MouseEvent, TOptional<FCurvePointHandle> MouseDownPoint);
 
 	void CreateContextMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 

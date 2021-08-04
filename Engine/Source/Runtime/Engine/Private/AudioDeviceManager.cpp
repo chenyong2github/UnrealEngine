@@ -582,6 +582,11 @@ bool FAudioDeviceManager::CreateMainAudioDevice()
 			return false;
 		}
 
+		if (GWorld)
+		{
+			GWorld->SetAudioDevice(MainAudioDeviceHandle);
+		}
+
 		FAudioThread::StartAudioThread();
 	}
 	return true;

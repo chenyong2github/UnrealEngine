@@ -44,17 +44,18 @@ public:
 protected:
 	struct FFrustumAngles
 	{
-		float Left   = 0.f;
-		float Right  = 0.f;
-		float Top    = 0.f;
-		float Bottom = 0.f;
+		float Left   = -30.f;
+		float Right  = 30.f;
+		float Top    = 30.f;
+		float Bottom = -30.f;
 	};
 
 	virtual bool ExtractAngles(const FString& InAngles, FFrustumAngles& OutAngles);
-
+private:
+	EManualDataType DataTypeFromString(const FString& DataTypeInString) const;
 private:
 	// Current data type (matrix, frustum angle, ...)
-	EManualDataType DataType;
+	EManualDataType DataType = EManualDataType::Matrix;
 	// View rotation
 	FRotator ViewRotation = FRotator::ZeroRotator;
 	// Projection matrix

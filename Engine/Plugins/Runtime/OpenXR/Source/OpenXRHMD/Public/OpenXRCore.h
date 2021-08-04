@@ -104,12 +104,6 @@ FORCEINLINE XrExtent2Df ToXrExtent2D(FVector2D Vector, float Scale = 1.0f)
 	return XrExtent2Df{ Vector.X / Scale, Vector.Y / Scale };
 }
 
-// On some platforms the XrPath type becomes ambigious for overloading
-FORCEINLINE uint32 GetTypeHash(const TPair<XrPath, XrPath>& Pair)
-{
-	return HashCombine(GetTypeHash((uint64)Pair.Key), GetTypeHash((uint64)Pair.Value));
-}
-
 /** List all OpenXR global entry points used by Unreal. */
 #define ENUM_XR_ENTRYPOINTS_GLOBAL(EnumMacro) \
 	EnumMacro(PFN_xrEnumerateApiLayerProperties,xrEnumerateApiLayerProperties) \

@@ -7,6 +7,7 @@
 #include "Menus.h"
 #include "Utils/Pasteboard.h"
 #include "Utils/Error.h"
+#include "Utils/TaskCalledFromEventLoop.h"
 
 DISABLE_SDK_WARNINGS_START
 #include "DGDialog.hpp"
@@ -49,6 +50,7 @@ class FReportDialog : public DG::Palette,
 	virtual void PanelCloseRequested(const DG::PanelCloseRequestEvent& /* ev */, bool* /* accepted */) override
 	{
 		Hide();
+        FTaskCalledFromEventLoop::CallFunctorFromEventLoop([]() { FReportWindow::Delete(); });
 	}
 
 	virtual void PanelResized(const DG::PanelResizeEvent& ev) override
@@ -84,16 +86,12 @@ class FReportDialog : public DG::Palette,
 		}
 		else if (ev.GetSource() == &ClearButton)
 		{
-			{
-				GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
-				FTraceListener::Get().Traces.clear();
-			}
+            FTraceListener::Get().Clear();
 			MessagesTextEdit.SetText(GS::UniString(""));
 		}
 		else if (ev.GetSource() == &CopyAllButton)
 		{
-			GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
-			SetPasteboardWithString(FTraceListener::Get().Traces.c_str());
+			SetPasteboardWithString(MessagesTextEdit.GetText().ToUtf8());
 		}
 		else if (ev.GetSource() == &CopySelectionButton)
 		{
@@ -107,26 +105,17 @@ class FReportDialog : public DG::Palette,
 	// Update the text content with the collected traces
 	void Update()
 	{
-		GS::UniString NewText;
+        if (FTraceListener::Get().HasUpdate())
 		{
-			GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
-			const utf8_string&	  Traces = FTraceListener::Get().Traces;
-			if (Traces.size() != LastSize)
-			{
-				LastSize = Traces.size();
-				NewText = GS::UniString(Traces.c_str(), CC_UTF8);
-			}
-		}
-		if (!NewText.IsEmpty())
-		{
+            GS::UniString Traces = FTraceListener::Get().GetTraces();
 			DG::CharRange Selection(MessagesTextEdit.GetSelection());
 
-			MessagesTextEdit.SetText(NewText);
+            MessagesTextEdit.SetText(Traces);
 
 			// On empty selection, we set selection to the end, otherwise we restore previous one
 			if (Selection.GetLength() == 0)
 			{
-				Selection.SetWithLength(NewText.GetLength(), 0);
+                Selection.SetWithLength(Traces.GetLength(), 0);
 			}
 			MessagesTextEdit.SetSelection(Selection);
 		}
@@ -143,9 +132,10 @@ FReportDialog::FReportDialog()
 {
 	Attach(*this);
 	AttachToAllItems(*this);
-	MessagesTextEdit.SetText(GS::UniString(FTraceListener::Get().Traces.c_str(), CC_UTF8));
 	bool SendForInactiveApp = false;
 	EnableIdleEvent(SendForInactiveApp);
+    BeginEventProcessing();
+    Show();
 }
 
 FReportDialog::~FReportDialog()
@@ -156,99 +146,56 @@ FReportDialog::~FReportDialog()
 
 GS::Guid FReportDialog::PaletteGuid("CA0A0905-1FDA-401B-97F7-B00EEB3254C6");
 
-static FReportWindow* ReportWindow;
+static FReportDialog* ReportDialog = nullptr;
 
 void FReportWindow::Create()
 {
-	if (ReportWindow == nullptr)
+	if (ReportDialog == nullptr)
 	{
-		new FReportWindow();
+        ReportDialog = new FReportDialog();
 	}
-	if (ReportWindow != nullptr)
-	{
-		ReportWindow->ReportDialog->Show();
-		ReportWindow->ReportDialog->BringToFront();
-	}
+    ReportDialog->Show();
+    ReportDialog->BringToFront();
 }
 
 void FReportWindow::Delete()
 {
-	if (ReportWindow != nullptr)
-	{
-		ReportWindow->Stop();
-	}
-}
-
-void FReportWindow::Update()
-{
-	if (ReportWindow != nullptr)
-	{
-		ReportWindow->ReportDialog->Update();
-	}
-}
-
-FReportWindow::FReportWindow()
-{
-	ReportWindow = this;
-	ReportDialog = new FReportDialog();
-	Start();
-}
-
-FReportWindow::~FReportWindow()
+	if (ReportDialog != nullptr)
 {
 	delete ReportDialog;
 	ReportDialog = nullptr;
-	ReportWindow = nullptr;
+}
 }
 
-void FReportWindow::Start()
-{
-	ReportDialog->BeginEventProcessing();
-	ReportDialog->Show();
-}
-
-void FReportWindow::Stop()
-{
-	//	ReportDialog->SendCloseRequest();
-	//	ReportDialog->EndEventProcessing();
-	delete this;
-}
-
-enum : GSType
-{
-	UEACTraces = 'UETr'
-};
-enum : Int32
-{
-	CmdUpdateTraces = 1
-};
-
-static std::unique_ptr< FTraceListener > TraceListener;
+static FTraceListener* TraceListener;
 
 FTraceListener& FTraceListener::Get()
 {
-	if (!TraceListener)
+	if (TraceListener == nullptr)
 	{
-		TraceListener = std::make_unique< FTraceListener >();
+		TraceListener = new FTraceListener();
 	}
 	return *TraceListener;
 }
 
 void FTraceListener::Delete()
 {
-	TraceListener.reset();
+    delete TraceListener;
+    TraceListener = nullptr;
 }
 
-// Register service
-GSErrCode FTraceListener::Register()
+GS::UniString FTraceListener::GetTraces()
 {
-	// register supported command
-	GSErrCode GSErr = ACAPI_Register_SupportedService(UEACTraces, CmdUpdateTraces);
-	if (GSErr != NoError)
+    GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
+    bHasUpdate = false;
+    return GS::UniString(Traces.c_str(), CC_UTF8);
+}
+
+void FTraceListener::Clear()
 	{
-		UE_AC_DebugF("CVersionChecker::Register - Error %d\n", GSErr);
-	}
-	return GSErr;
+    GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
+    Traces.clear();
+    bHasUpdate = false;
 }
 
 FTraceListener::FTraceListener()
@@ -256,16 +203,11 @@ FTraceListener::FTraceListener()
 {
 	Traces.reserve(100 * 1024);
 	AddTraceListener(this);
-	// register supported command
-	GSErrCode err = ACAPI_Install_ModulCommandHandler(UEACTraces, CmdUpdateTraces, UpdateTraces);
-	if (err == NoError)
-	{
-		ACAPI_KeepInMemory(true);
 	}
-	else
+
+FTraceListener::~FTraceListener()
 	{
-		UE_AC_DebugF("FTraceListener::FTraceListener - Error %d\n", err);
-	}
+    RemoveTraceListener(this);
 }
 
 void FTraceListener::NewTrace(EP2DB InTraceLevel, const utf8_string& InMsg)
@@ -278,7 +220,6 @@ void FTraceListener::NewTrace(EP2DB InTraceLevel, const utf8_string& InMsg)
 
 	if (InTraceLevel <= MessageLevel)
 	{
-		{
 			GS::Guard< GS::Lock > lck(AccessControl);
 
 			if (InTraceLevel != kP2DB_Report)
@@ -286,37 +227,8 @@ void FTraceListener::NewTrace(EP2DB InTraceLevel, const utf8_string& InMsg)
 				Traces.append("* ");
 			}
 			Traces.append(InMsg);
+        bHasUpdate = true;
 		}
-
-		if (bScheduledForUpdate == false)
-		{
-			// Update content on the main thread
-			API_ModulID mdid;
-			Zap(&mdid);
-			mdid.developerID = kEpicGamesDevId;
-			mdid.localID = kDatasmithExporterId;
-			GSHandle h = BMAllocateHandle(sizeof(this), 0, 0);
-			**reinterpret_cast< FTraceListener*** >(h) = this;
-			GSErrCode err = ACAPI_Command_CallFromEventLoop(&mdid, UEACTraces, CmdUpdateTraces, h, false, nullptr);
-			if (err != NoError)
-			{
-				printf("FTraceListener::NewTrace - ACAPI_Command_CallFromEventLoop error %d\n", err);
-			}
-			bScheduledForUpdate = true;
-		}
-	}
-}
-
-GSErrCode FTraceListener::UpdateTraces(GSHandle paramHandle, GSPtr /*resultData*/, bool /*silentMode*/)
-{
-	if (paramHandle)
-	{
-		FTraceListener* TracesListener = **reinterpret_cast< FTraceListener*** >(paramHandle);
-		FReportWindow::Update();
-		TracesListener->bScheduledForUpdate = false;
-		return NoError;
-	}
-	return ErrParam;
 }
 
 END_NAMESPACE_UE_AC

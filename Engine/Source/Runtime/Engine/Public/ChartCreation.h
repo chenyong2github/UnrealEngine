@@ -232,6 +232,7 @@ public:
 	uint64 MaxVirtualMemory;
 	uint64 MinPhysicalMemory;
 	uint64 MinVirtualMemory;
+	uint64 MinAvailablePhysicalMemory;
 	uint64 TotalPhysicalMemoryUsed;
 	uint64 TotalVirtualMemoryUsed;
 

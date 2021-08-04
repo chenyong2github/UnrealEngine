@@ -21,8 +21,10 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/Stack/INiagaraStackItemGroupAddUtilities.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/TNiagaraViewModelManager.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SNiagaraParameterName.h"
 #include "NiagaraCustomVersion.h"
@@ -68,6 +70,16 @@ FText UNiagaraNodeAssignment::GetTooltipText() const
 	}
 
 	return FText::Join(FText::FromString("\n"), TargetNames);
+}
+
+TSharedRef<SWidget> UNiagaraNodeAssignment::CreateAddParameterMenu(const TSharedPtr<SComboButton>& AddButton)
+{
+	TSharedPtr<FNiagaraSystemToolkitParameterPanelViewModel> ParameterPanelViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemToolkitParameterPanelViewModel>::GetExistingViewModelForObject(GetTypedOuter<UNiagaraSystem>());
+	if (ParameterPanelViewModel.IsValid())
+	{
+		return ParameterPanelViewModel->CreateAddParameterMenuForAssignmentNode(this, AddButton);
+	}
+	return SNullWidget::NullWidget;
 }
 
 bool UNiagaraNodeAssignment::RefreshFromExternalChanges()
@@ -249,151 +261,6 @@ void UNiagaraNodeAssignment::GenerateScript()
 		InitializeScript(FunctionScript);
 		UpdateUsageBitmaskFromOwningScript();
 		ComputeNodeName();
-	}
-}
-
-void UNiagaraNodeAssignment::MergeUp()
-{
-	//NiagaraStackUtilities::
-}
-
-void UNiagaraNodeAssignment::CollectAddExistingActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutAddExistingActions)
-{
-	UNiagaraSystem* OwningSystem = GetTypedOuter<UNiagaraSystem>();
-	if (OwningSystem == nullptr)
-	{
-		return;
-	}
-
-	UNiagaraSystemEditorData* OwningSystemEditorData = Cast<UNiagaraSystemEditorData>(OwningSystem->GetEditorData());
-	if (OwningSystemEditorData == nullptr)
-	{
-		return;
-	}
-
-	bool bOwningSystemIsPlaceholder = OwningSystemEditorData->GetOwningSystemIsPlaceholder();
-
-	TOptional<FName> StackContextOverride = InGraphOutputNode->GetStackContextOverride();
-
-	TArray<FNiagaraVariable> AvailableParameters;
-	TArray<FName> CustomIterationNamespaces;
-	FNiagaraStackGraphUtilities::GetAvailableParametersForScript(*InGraphOutputNode, AvailableParameters, CustomIterationNamespaces);
-
-	TArray<FName> AvailableWriteNamespaces;
-	FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(
-		bOwningSystemIsPlaceholder ? FNiagaraStackGraphUtilities::EStackEditContext::Emitter : FNiagaraStackGraphUtilities::EStackEditContext::System,
-		InUsage, StackContextOverride, AvailableWriteNamespaces);
-
-	// Now check to see if any of the available write namespaces have overlap with the iteration namespaces. If so, we need to exclude them if they aren't the active stack context.
-	// This is for situations like Emitter.Grid2DCollection.TestValue which should only be written if in the sim stage scripts and not emitter scripts, which would normally be allowed.
-	TArray<FName> ExclusionList;
-	for (const FName& IterationNamespace : CustomIterationNamespaces)
-	{
-		FNiagaraVariableBase TempVar(FNiagaraTypeDefinition::GetFloatDef(), IterationNamespace);
-		for (const FName& AvailableWriteNamespace : AvailableWriteNamespaces)
-		{
-			if (TempVar.IsInNameSpace(AvailableWriteNamespace))
-			{
-				if (!StackContextOverride.IsSet() || (StackContextOverride.IsSet() && IterationNamespace != StackContextOverride.GetValue()))
-					ExclusionList.AddUnique(IterationNamespace);
-			}
-		}
-	}
-
-	for (const FNiagaraVariable& AvailableParameter : AvailableParameters)
-	{
-		bool bFound = false;
-		// Now check to see if the variable is possible to write to
-		for (const FName& AvailableWriteNamespace : AvailableWriteNamespaces)
-		{
-			if (AvailableParameter.IsInNameSpace(AvailableWriteNamespace))
-			{
-				bFound = true;
-				break;
-			}
-		}
-
-		if (!bFound)
-			continue;
-
-		// Now double-check that it doesn't overlap with a sub-namespace we're not allowed to write to
-		bFound = false;
-		for (const FName& ExcludedNamespace : ExclusionList)
-		{
-			if (AvailableParameter.IsInNameSpace(ExcludedNamespace))
-			{
-				bFound = true;
-				break;
-			}
-		}
-
-		if (bFound)
-			continue;
-
-		const FText NameText = FText::FromName(AvailableParameter.GetName());
-		FText VarDesc = FNiagaraConstants::GetAttributeDescription(AvailableParameter);
-		FString VarDefaultValue = FNiagaraConstants::GetAttributeDefaultValue(AvailableParameter);
-		const FText TooltipDesc = FText::Format(LOCTEXT("SetFunctionPopupTooltip", "Description: Set the parameter {0}. {1}"), NameText, VarDesc);
-		FText Category = LOCTEXT("ModuleSetCategory", "Set Specific Parameters");
-		bool bCanExecute = AssignmentTargets.Contains(AvailableParameter) == false; 
-
-		TSharedRef<FNiagaraMenuAction> AddExistingAction = MakeShareable<FNiagaraMenuAction>(new FNiagaraMenuAction(
-			Category, NameText, TooltipDesc,
-			0, FText(),
-			FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, AvailableParameter, VarDefaultValue),
-			FNiagaraMenuAction::FCanExecuteStackAction::CreateLambda([bCanExecute] { return bCanExecute; })));
-		AddExistingAction->SetParameterVariable(AvailableParameter);
-		OutAddExistingActions.Add(AddExistingAction);
-	}
-}
-
-void UNiagaraNodeAssignment::CollectCreateNewActions(ENiagaraScriptUsage InUsage, UNiagaraNodeOutput* InGraphOutputNode, TArray<TSharedPtr<FNiagaraMenuAction>>& OutCreateNewActions)
-{
-	// Generate actions for creating new typed parameters.
-	TOptional<FName> NewParameterNamespace = FNiagaraStackGraphUtilities::GetNamespaceForOutputNode(InGraphOutputNode);
-	if (NewParameterNamespace.IsSet())
-	{
-		// Collect all parameter names for ensuring new param has unique name
-		TArray<const UNiagaraGraph*> Graphs;
-		InGraphOutputNode->GetNiagaraGraph()->GetAllReferencedGraphs(Graphs);
-		TSet<FName> Names;
-		for (const UNiagaraGraph* Graph : Graphs)
-		{
-			for (const TPair<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ParameterElement : Graph->GetParameterReferenceMap())
-			{
-				Names.Add(ParameterElement.Key.GetName());
-			}
-		}
-
-		TArray<FNiagaraTypeDefinition> AvailableTypes;
-		FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes, NewParameterNamespace.GetValue());
-		for (const FNiagaraTypeDefinition& AvailableType : AvailableTypes)
-		{
-			// Make generic new parameter name
-			const FString NewParameterNameString = NewParameterNamespace.GetValue().ToString() + ".New" + AvailableType.GetName();
-			const FName NewParameterName = FName(*NewParameterNameString);
-
-			// Make NewParameterName unique  
-			const FName UniqueNewParameterName = FNiagaraUtilities::GetUniqueName(NewParameterName, Names);
-
-			// Create the new param
-			FNiagaraVariable NewParameter = FNiagaraVariable(AvailableType, UniqueNewParameterName);
-			FString VarDefaultValue = FNiagaraConstants::GetAttributeDefaultValue(NewParameter);
-			
-			// Tooltip and menu entry Text
-			FText VarDesc = FNiagaraConstants::GetAttributeDescription(NewParameter);
-			const FText TypeText = AvailableType.GetNameText();
-			const FText TooltipDesc = FText::Format(LOCTEXT("NewParameterModuleDescriptionFormat", "Description: Create a new {0} parameter. {1}"), TypeText, VarDesc);
-			FText Category = LOCTEXT("NewParameterModuleCategory", "Create New Parameter");
-			FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(NewParameter);
-			FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
-
-			TSharedRef<FNiagaraMenuAction> CreateNewAction = MakeShareable<FNiagaraMenuAction>(new FNiagaraMenuAction(
-				FullCategory, TypeText, TooltipDesc,
-				0, FText(),
-				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, NewParameter, VarDefaultValue)));
-			OutCreateNewActions.Add(CreateNewAction);
-		}
 	}
 }
 

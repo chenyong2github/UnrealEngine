@@ -389,7 +389,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 #if WITH_EDITOR
 void FNiagaraShaderScript::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, FStableShaderKeyAndValue& SaveKeyVal)
 {
-	if (GameThreadShaderMap)
+	if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
 	{
 		FString FeatureLevelName;
 		GetFeatureLevelName(FeatureLevel, FeatureLevelName);

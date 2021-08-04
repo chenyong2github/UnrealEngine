@@ -7,11 +7,14 @@
 #include "GroomImportOptions.h"
 #include "HairStrandsImporter.h"
 #include "HairStrandsTranslator.h"
+#include "Logging/LogMacros.h"
 #include "Misc/ScopedSlowTask.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 
 #define LOCTEXT_NAMESPACE "GroomCacheImporter"
+
+DEFINE_LOG_CATEGORY_STATIC(LogGroomCacheImporter, Log, All);
 
 static UGroomCache* CreateGroomCache(EGroomCacheType Type, UObject*& InParent, const FString& ObjectName, const EObjectFlags Flags)
 {
@@ -102,6 +105,8 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 		FScopedSlowTask SlowTask(NumFrames, LOCTEXT("ImportGroomCache", "Importing GroomCache frames"));
 		SlowTask.MakeDialog();
 
+		const TArray<FHairGroupData>& GroomHairGroupsData = GroomAssetForCache->HairGroupsData;
+
 		// Each frame is translated into a HairDescription and processed into HairGroupData
 		for (int32 FrameIndex = AnimInfo.StartFrame; FrameIndex < AnimInfo.EndFrame + 1; ++FrameIndex)
 		{
@@ -131,6 +136,32 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 					const FHairDescriptionGroup& HairGroup = HairDescriptionGroups.HairGroups[GroupIndex];
 					FHairDescriptionGroup& HairGroupData = HairGroupsData[GroupIndex];
 					FGroomBuilder::BuildData(HairGroup, GroomAssetForCache->HairGroupsInterpolation[GroupIndex], HairGroupsInfo[GroupIndex], HairGroupData.Strands, HairGroupData.Guides);
+				}
+
+				// Validate that the GroomCache has the same topology as the static groom
+				if (HairGroupsData.Num() == GroomHairGroupsData.Num())
+				{
+					for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+					{
+						if (HairGroupsData[GroupIndex].Strands.GetNumPoints() != GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumPoints())
+						{
+							bSuccess = false;
+							UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache frame %d does not have the same number of vertices as the static groom (%u instead of %u). Aborting GroomCache import."),
+								FrameIndex, HairGroupsData[GroupIndex].Strands.GetNumPoints(), GroomHairGroupsData[GroupIndex].Strands.BulkData.GetNumPoints());
+							break;
+						}
+					}
+				}
+				else
+				{
+					bSuccess = false;
+					UE_LOG(LogGroomCacheImporter, Warning, TEXT("GroomCache does not have the same number of groups as the static groom (%d instead of %d). Aborting GroomCache import."),
+						HairGroupsData.Num(), GroomHairGroupsData.Num());
+				}
+
+				if (!bSuccess)
+				{
+					break;
 				}
 
 				// The HairGroupData is converted into animated groom data by the GroomCacheProcessor

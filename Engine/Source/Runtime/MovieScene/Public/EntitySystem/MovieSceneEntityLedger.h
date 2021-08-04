@@ -27,7 +27,7 @@ namespace MovieScene
  * An entity ledger is responsible for tracking the entites that have been imported for the currently relevant frame of a sequence instance.
  * It is responsible for linking and unlinking new and expired entities in the linker's entity manager based on the current set of entities required for evaluation.
  */
-struct FEntityLedger
+struct MOVIESCENE_API FEntityLedger
 {
 	/**
 	 * To be called any time this ledger's instance is to be evaluated with a different set of entities - updates the set of entities that are required for the current evaluation environment

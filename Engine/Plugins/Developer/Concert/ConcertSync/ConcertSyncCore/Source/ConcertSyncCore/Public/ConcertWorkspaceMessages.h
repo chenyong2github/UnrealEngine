@@ -93,6 +93,15 @@ struct FConcertSyncEventResponse
 };
 
 USTRUCT()
+struct FConcertServerLogging
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bLoggingEnabled = false;
+};
+
+USTRUCT()
 struct FConcertPackageUpdateEvent
 {
 	GENERATED_BODY()

@@ -628,6 +628,13 @@ uint8 FRemoteControlProtocolEntity::GetRangePropertySize() const
 	return 0;
 }
 
+const FString& FRemoteControlProtocolEntity::GetRangePropertyMaxValue() const
+{
+	// returns an empty string by default, so the max value isn't clamped.
+	static FString Empty = "";
+	return Empty;
+}
+
 bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtocolValue)
 {
 	if (Mappings.Num() <= 1)

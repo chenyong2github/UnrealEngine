@@ -11,6 +11,115 @@
 #include "DMXUtils.h"
 
 
+
+#if WITH_EDITOR
+int32 FDMXFixtureMode::AddOrInsertFunction(int32 IndexOfFunction, const FDMXFixtureFunction& InFunction)
+{
+	int32 Index = 0;
+	FDMXFixtureFunction FunctionToAdd = InFunction;
+
+	// Shift the insert function channel
+	uint8 DataTypeBytes = UDMXEntityFixtureType::NumChannelsToOccupy(InFunction.DataType);
+	FunctionToAdd.Channel = InFunction.Channel + DataTypeBytes;
+
+	if (Functions.IsValidIndex(IndexOfFunction + 1))
+	{
+		Index = Functions.Insert(InFunction, IndexOfFunction + 1);
+
+		// Shift all function after this by size of insert function
+		for (int32 FunctionIndex = Index + 1; FunctionIndex < Functions.Num(); FunctionIndex++)
+		{
+			FDMXFixtureFunction& Function = Functions[FunctionIndex];
+			Function.Channel = Function.Channel + DataTypeBytes;
+		}
+	}
+	else
+	{
+		Index = Functions.Add(InFunction);
+	}
+
+	return Index;
+}
+#endif // WITH_EDITOR
+
+bool FDMXFixtureMatrix::GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttributeName Attribute, TArray<int32>& Channels) const
+{
+	Channels.Reset();
+
+	TArray<int32> AllChannels;
+
+	if (CellCoordinate.X < 0 || CellCoordinate.X >= XCells)
+	{
+		return false;
+	}
+
+	if (CellCoordinate.Y < 0 || CellCoordinate.Y >= YCells)
+	{
+		return false;
+	}
+
+	for (int32 YCell = 0; YCell < YCells; YCell++)
+	{
+		for (int32 XCell = 0; XCell < XCells; XCell++)
+		{
+			AllChannels.Add(XCell + YCell * XCells);
+		}
+	}
+
+	TArray<int32> OrderedChannels;
+	FDMXRuntimeUtils::PixelMappingDistributionSort(PixelMappingDistribution, XCells, YCells, AllChannels, OrderedChannels);
+
+	check(AllChannels.Num() == OrderedChannels.Num());
+
+	int32 CellSize = 0;
+	int32 CellAttributeIndex = -1;
+	int32 CellAttributeSize = 0;
+	for (const FDMXFixtureCellAttribute& CellAttribute : CellAttributes)
+	{
+		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+		if (CellAttribute.Attribute.GetAttribute() == Attribute.GetAttribute())
+		{
+			CellAttributeIndex = CellSize;
+			CellAttributeSize = CurrentFunctionSize;
+		}
+		CellSize += CurrentFunctionSize;
+	}
+
+	// no function found
+	if (CellAttributeIndex < 0 || CellAttributeSize == 0)
+	{
+		return false;
+	}
+
+	int32 ChannelBase = FirstCellChannel + (OrderedChannels[CellCoordinate.Y + CellCoordinate.X * YCells] * CellSize) + CellAttributeIndex;
+
+	for (int32 ChannelIndex = 0; ChannelIndex < CellAttributeSize; ChannelIndex++)
+	{
+		Channels.Add(ChannelBase + ChannelIndex);
+	}
+
+	return true;
+}
+
+int32 FDMXFixtureMatrix::GetFixtureMatrixLastChannel() const
+{
+	int32 CellAttributeSize = 0;
+	for (const FDMXFixtureCellAttribute& Attribute : CellAttributes)
+	{
+		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(Attribute.DataType);
+		CellAttributeSize += CurrentFunctionSize;
+	}
+	int32 AllCells = XCells * YCells * CellAttributeSize;
+	if (AllCells == 0)
+	{
+		return FirstCellChannel;
+	}
+
+	int32 LastChannel = FirstCellChannel + AllCells - 1;
+
+	return LastChannel;
+}
+
 #if WITH_EDITOR
 	/** Editor only data type change delegate */
 FDataTypeChangeDelegate UDMXEntityFixtureType::DataTypeChangeDelegate;
@@ -186,84 +295,6 @@ void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureFunction& InFunction, uin
 }
 
 #endif // WITH_EDITOR
-
-bool FDMXFixtureMatrix::GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttributeName Attribute, TArray<int32>& Channels) const
-{
-	Channels.Reset();
-
-	TArray<int32> AllChannels;
-
-	if (CellCoordinate.X < 0 || CellCoordinate.X >= XCells)
-	{
-		return false;
-	}
-
-	if (CellCoordinate.Y < 0 || CellCoordinate.Y >= YCells)
-	{
-		return false;
-	}
-
-	for (int32 YCell = 0; YCell < YCells; YCell++)
-	{
-		for (int32 XCell = 0; XCell < XCells; XCell++)
-		{
-			AllChannels.Add(XCell + YCell * XCells);
-		}
-	}
-
-	TArray<int32> OrderedChannels;
-	FDMXUtils::PixelMappingDistributionSort(PixelMappingDistribution, XCells, YCells, AllChannels, OrderedChannels);
-
-	check(AllChannels.Num() == OrderedChannels.Num());
-
-	int32 CellSize = 0;
-	int32 CellAttributeIndex = -1;
-	int32 CellAttributeSize = 0;
-	for (const FDMXFixtureCellAttribute& CellAttribute : CellAttributes)
-	{
-		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
-		if (CellAttribute.Attribute.GetAttribute() == Attribute.GetAttribute())
-		{
-			CellAttributeIndex = CellSize;
-			CellAttributeSize = CurrentFunctionSize;
-		}
-		CellSize += CurrentFunctionSize;
-	}
-
-	// no function found
-	if (CellAttributeIndex < 0 || CellAttributeSize == 0)
-	{
-		return false;
-	}
-
-	int32 ChannelBase = FirstCellChannel + (OrderedChannels[CellCoordinate.Y + CellCoordinate.X * YCells] * CellSize) + CellAttributeIndex;
-
-	for (int32 ChannelIndex = 0; ChannelIndex < CellAttributeSize; ChannelIndex++)
-	{
-		Channels.Add(ChannelBase + ChannelIndex);
-	}
-
-	return true;
-}
-
-int32 FDMXFixtureMatrix::GetFixtureMatrixLastChannel() const
-{
-	int32 CellAttributeSize = 0;
-	for (const FDMXFixtureCellAttribute& Attribute : CellAttributes)
-	{
-		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(Attribute.DataType);
-		CellAttributeSize += CurrentFunctionSize;
-	}
-	int32 AllCells = XCells * YCells * CellAttributeSize;
-	if (AllCells == 0)
-	{
-		return FirstCellChannel;
-	}
-
-	int32 LastChannel = FirstCellChannel + AllCells - 1;
-
-	return LastChannel;
-}
 
 uint8 UDMXEntityFixtureType::GetFunctionLastChannel(const FDMXFixtureFunction& Function)
 {
@@ -467,27 +498,7 @@ void UDMXEntityFixtureType::PostEditChangeProperty(FPropertyChangedEvent& Proper
 		}
 	}
 
-	// Update the cache of the library's patches if relevant data changed
-	const FProperty* Property = PropertyChangedEvent.Property;
-	const UScriptStruct* ModeStruct = FDMXFixtureMode::StaticStruct();
-	const UScriptStruct* FunctionStruct = FDMXFixtureFunction::StaticStruct();
-	const UScriptStruct* FixtureMatrixStruct = FDMXFixtureMatrix::StaticStruct();
-	const UStruct* PropertyOwnerStruct = Property ? Property->GetOwnerStruct() : nullptr;
-
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bFixtureMatrixEnabled) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, InputModulators) ||
-		(PropertyOwnerStruct == ModeStruct) ||
-		(PropertyOwnerStruct == FunctionStruct))
-	{
-		if (UDMXLibrary* Library = ParentLibrary.Get())
-		{
-			for (UDMXEntityFixturePatch* FixturePatch : Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>())
-			{
-				FixturePatch->RebuildCache();
-			}
-		}
-	}
+	RebuildFixturePatchCaches();
 }
 #endif // WITH_EDITOR
 
@@ -622,8 +633,9 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 	}
 
 	// Keep Fixture Patches' ActiveMode value valid
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes) &&
-		(PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes))
+	{
+		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
 	{		
 		if (ParentLibrary != nullptr)
 		{
@@ -636,6 +648,16 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 			});
 		}
 	}
+
+		int32 ChangedModeIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
+		if (Modes.IsValidIndex(ChangedModeIndex))
+		{
+			// Notify DataType changes
+			DataTypeChangeDelegate.Broadcast(this, Modes[ChangedModeIndex]);
+		}
+	}
+
+	RebuildFixturePatchCaches();
 }
 #endif // WITH_EDITOR
 
@@ -650,6 +672,8 @@ void UDMXEntityFixtureType::PostEditUndo()
 	}
 
 	Super::PostEditUndo();
+
+	RebuildFixturePatchCaches();
 }
 #endif // WITH_EDITOR
 
@@ -658,6 +682,7 @@ void UDMXEntityFixtureType::UpdateModeChannelProperties(FDMXFixtureMode& Mode)
 {
 	// DEPRECATED 4.27
 	UpdateChannelSpan(Mode);
+	RebuildFixturePatchCaches();
 }
 #endif // WITH_EDITOR
 
@@ -724,6 +749,8 @@ void UDMXEntityFixtureType::UpdateChannelSpan(FDMXFixtureMode& Mode)
 		// Notify DataType changes
 		DataTypeChangeDelegate.Broadcast(this, Mode);
 	}
+
+	RebuildFixturePatchCaches();
 }
 #endif // WITH_EDITOR
 
@@ -747,33 +774,17 @@ void UDMXEntityFixtureType::UpdateXCellsFromYCells(FDMXFixtureMode& Mode)
 }
 #endif // WITH_EDITOR
 
-#if WITH_EDITOR
-int32 FDMXFixtureMode::AddOrInsertFunction(int32 IndexOfFunction, const FDMXFixtureFunction& InFunction)
+void UDMXEntityFixtureType::RebuildFixturePatchCaches()
 {
-	int32 Index = 0;
-	FDMXFixtureFunction FunctionToAdd = InFunction;
-
-	// Shift the insert function channel
-	uint8 DataTypeBytes = UDMXEntityFixtureType::NumChannelsToOccupy(InFunction.DataType);
-	FunctionToAdd.Channel = InFunction.Channel + DataTypeBytes;
-	
-	if (Functions.IsValidIndex(IndexOfFunction + 1))
+	if (UDMXLibrary* Library = ParentLibrary.Get())
 	{
-		Index = Functions.Insert(InFunction, IndexOfFunction + 1);
-
-		// Shift all function after this by size of insert function
-		for (int32 FunctionIndex = Index + 1; FunctionIndex < Functions.Num(); FunctionIndex++)
+		for (UDMXEntityFixturePatch* FixturePatch : Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>())
 		{
-			FDMXFixtureFunction& Function = Functions[FunctionIndex];
-			Function.Channel = Function.Channel + DataTypeBytes;
+			if (FixturePatch->GetFixtureType() == this)
+			{
+				FixturePatch->RebuildCache();
 		}
 	}
-	else
-	{
-		Index = Functions.Add(InFunction);
 	}
-
-	return Index;
 }
 
-#endif // WITH_EDITOR

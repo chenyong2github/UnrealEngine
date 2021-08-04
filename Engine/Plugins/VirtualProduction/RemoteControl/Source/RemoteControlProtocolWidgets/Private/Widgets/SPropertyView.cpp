@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPropertyView.h"
 
@@ -114,6 +114,7 @@ void SPropertyView::Construct(const FArguments& InArgs)
 	if (GEditor)
 	{
 		OnObjectReplacedHandle = FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &SPropertyView::OnObjectReplaced);
+		OnObjectPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &SPropertyView::OnObjectPropertyChanged);
 		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP(this, &SPropertyView::OnObjectTransacted);
 	}
 
@@ -177,6 +178,7 @@ SPropertyView::~SPropertyView()
 	{
 		FCoreUObjectDelegates::OnObjectsReplaced.Remove(OnObjectReplacedHandle);
 		FCoreUObjectDelegates::OnObjectTransacted.Remove(OnObjectTransactedHandle);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnObjectPropertyChangedHandle);
 	}
 }
 
@@ -230,7 +232,7 @@ void SPropertyView::Refresh()
 {
 	// forces CustomPrepass to be called, recreating widgets ie. for array items. Without this array items won't add/remove.
 	// @note: that this breaks current property handle references
-	Invalidate(EInvalidateWidgetReason::Prepass);
+	MarkPrepassAsDirty();
 	bRefreshObjectToDisplay = true;
 }
 
@@ -508,6 +510,14 @@ void SPropertyView::CreateDefaultWidget(const FPropertyWidgetCreationArgs& InCre
 	];
 }
 
+// @note: this broadcasts, rather than overloads handling, for use cases where the object property is changed outside of this widget
+void SPropertyView::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent)
+{
+	if(IsValid(InObject) && InObject == Object.Get())
+	{
+		OnFinishedChangingProperties().Broadcast(InEvent);
+	}
+}
 
 void SPropertyView::OnPropertyChanged(const FPropertyChangedEvent& InEvent)
 {

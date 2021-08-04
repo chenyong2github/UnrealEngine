@@ -511,12 +511,11 @@ public:
 
 		FString EntireFile;
 		char Buffer[1024];
-		Buffer[1023] = '\0';
 		int BytesRead = 1023;
 		while ( BytesRead == 1023 )
 		{
 			BytesRead = read(Handle, Buffer, 1023);
-			check( Buffer[1023] == '\0');
+			Buffer[BytesRead] = '\0';
 			EntireFile.Append(FString(UTF8_TO_TCHAR(Buffer)));
 		}
 

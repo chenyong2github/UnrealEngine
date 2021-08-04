@@ -2,6 +2,7 @@
 
 #include "SNiagaraGraphPinAdd.h"
 
+#include "EdGraphSchema_Niagara.h"
 #include "NiagaraConstants.h"
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraNodeParameterMapBase.h"
@@ -99,6 +100,27 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 		TSharedPtr<FNiagaraScriptViewModel> ScriptViewModel = ExistingViewModels[0];
 		const bool bSkipSubscribedLibraries = false;
 
+		// Collect all parameter names that are already on this map node and cull them from the add menu to be summoned.
+		TArray<UEdGraphPin*> Pins;
+		if (OwningNode->GetPinDirectionForNewParameters() == EEdGraphPinDirection::EGPD_Input)
+		{
+			OwningNode->GetInputPins(Pins);
+		}
+		else // PinDirectionForNewParameters == EEdGraphPinDirection::EGDP_Output
+		{
+			OwningNode->GetOutputPins(Pins);
+		}
+
+		TSet<FName> AdditionalCulledParameterNames;
+		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+		for (UEdGraphPin* Pin : Pins)
+		{
+			if (OwningNode->IsAddPin(Pin) == false && Schema->PinToTypeDefinition(Pin) != FNiagaraTypeDefinition::GetParameterMapDef())
+			{
+				AdditionalCulledParameterNames.Add(Pin->GetFName());
+			}
+		}
+
 		// Create the add menu
 		TSharedRef<SNiagaraAddParameterFromPanelMenu> MenuWidget = SNew(SNiagaraAddParameterFromPanelMenu)
 		.Graphs(InGraphs)
@@ -113,7 +135,8 @@ TSharedRef<SWidget> SNiagaraGraphPinAdd::OnGetAddButtonMenuContent()
 		.ShowGraphParameters(true)
 		.AutoExpandMenu(false)
 		.IsParameterRead(AddPin->Direction == EEdGraphPinDirection::EGPD_Input ? false : true)
-		.ForceCollectEngineNamespaceParameterActions(true);
+		.ForceCollectEngineNamespaceParameterActions(true)
+		.AdditionalCulledParameterNames(AdditionalCulledParameterNames);
 
 		AddButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
 		return MenuWidget;

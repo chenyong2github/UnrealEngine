@@ -143,6 +143,8 @@ void UCompositeCurveTable::UpdateCachedRowMap(bool bWarnOnInvalidChildren)
 				}
 			};
 
+			FScopeLock ScopeLock(&UCurveTable::GetCurveTableChangeCriticalSection());
+
 			// If we are using simple curves we know all our parents are also simple
 			if (CurveTableMode == ECurveTableMode::SimpleCurves)
 			{

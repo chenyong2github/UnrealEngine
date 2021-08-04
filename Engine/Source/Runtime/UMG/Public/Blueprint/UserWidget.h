@@ -1335,6 +1335,8 @@ protected:
 
 	void TearDownAnimations();
 
+	void DisableAnimations();
+
 	UE_DEPRECATED(4.21, "You now need to provide the reason you're invalidating.")
 	void Invalidate();
 

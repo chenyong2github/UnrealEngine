@@ -163,6 +163,9 @@ FTicker::~FTicker()
 
 FDelegateHandle FTicker::AddTicker(const FTickerDelegate& InDelegate, float InDelay)
 {
+	// not currently threadsafe
+	check(IsInGameThread());
+
 	// We can add elements safely even during tick.
 	Elements.Emplace(CurrentTime + InDelay, InDelay, InDelegate);
 	// @todo this needs a unique handle for each add call to allow you to register the same delegate twice with a different delay safely.

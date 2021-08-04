@@ -372,7 +372,7 @@ public:
 	/** @return		True if viewport is in realtime mode, false otherwise. */
 	bool IsRealtime() const
 	{ 
-		return (RealtimeOverrides.Num() > 0 ? RealtimeOverrides.Last().Key : bIsRealtime) || GFrameCounter < RealTimeUntilFrameNumber;
+		return (RealtimeOverrides.Num() > 0 ? RealtimeOverrides.Last().bIsRealtime : bIsRealtime) || GFrameCounter < RealTimeUntilFrameNumber;
 	}
 
 	/**
@@ -1768,8 +1768,15 @@ protected:
 	 * Temporary realtime overrides and user messages that are not saved between editor sessions.
 	 * If any value has been pushed into the container, this viewport determines realtime from the last item,
 	 * otherwise it reads the real realtime value.
-	 * */
-	TArray<TPair<bool, FText>> RealtimeOverrides;
+	 */
+	struct FRealtimeOverride
+	{
+		FText SystemDisplayName;
+		bool bIsRealtime = false;
+
+		FRealtimeOverride(bool bInIsRealtime, FText InSystemDisplayName);
+	};
+	TArray<FRealtimeOverride> RealtimeOverrides;
 	
 	/** Custom override function that will be called every ::Draw() until override is disabled */
 	TUniqueFunction<void(FEngineShowFlags&)> OverrideShowFlagsFunc;

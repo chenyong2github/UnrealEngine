@@ -127,6 +127,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "GameFramework/HUD.h"
 #include "GameFramework/Character.h"
 #include "GameDelegates.h"
+#include "MoviePlayerProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/LevelStreamingVolume.h"
 #include "Engine/LevelScriptActor.h"
@@ -13142,6 +13143,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	NETWORK_PROFILER(GNetworkProfiler.TrackSessionChange(true,URL));
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapStart( URL.Map ) );
+	FMoviePlayerProxy::BlockingStarted();
 	Error = TEXT("");
 
 	FLoadTimeTracker::Get().ResetRawLoadTimes();
@@ -13154,6 +13156,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	// send a callback message
 	FCoreUObjectDelegates::PreLoadMap.Broadcast(URL.Map);
+	FMoviePlayerProxy::BlockingTick();
 
 	// make sure there is a matching PostLoadMap() no matter how we exit
 	struct FPostLoadMapCaller
@@ -13167,6 +13170,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 			if (!bCalled)
 			{
 				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(nullptr);
+				FMoviePlayerProxy::BlockingFinished();
 			}
 		}
 
@@ -13176,6 +13180,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 			{
 				bCalled = true;
 				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(World);
+				FMoviePlayerProxy::BlockingFinished();
 			}
 		}
 
@@ -13362,6 +13367,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 
 #endif
+	FMoviePlayerProxy::BlockingTick();
 
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapMid( URL.Map ); )
 
@@ -13621,6 +13627,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 			WorldContext.World()->DuplicateRequestedLevels(FName(*URL.Map));
 		}
 	}
+	FMoviePlayerProxy::BlockingTick();
 
 #if WITH_EDITOR
 	// Gives a chance to any assets being used for PIE/game to complete
@@ -13650,6 +13657,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	{
 		WorldContext.LastRemoteURL = URL;
 	}
+	FMoviePlayerProxy::BlockingTick();
 
 	// Spawn play actors for all active local players
 	if (WorldContext.OwningGameInstance != NULL)

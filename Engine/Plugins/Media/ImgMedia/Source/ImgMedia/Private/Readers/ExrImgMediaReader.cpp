@@ -149,7 +149,7 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMedi
 
 void FExrImgMediaReader::CancelFrame(int32 FrameNumber)
 {
-	UE_LOG(LogImgMedia, Warning, TEXT("Reader %p: Canceling Frame. %i"), this, FrameNumber);
+	UE_LOG(LogImgMedia, Verbose, TEXT("Reader %p: Canceling Frame. %i"), this, FrameNumber);
 	FScopeLock RegionScopeLock(&CanceledFramesCriticalSection);
 	CanceledFrames.Add(FrameNumber);
 }

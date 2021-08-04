@@ -239,6 +239,7 @@ public:
 	FWorldSceneViewExtension(const FAutoRegister& AutoReg, UWorld* InWorld);
 protected:
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
+	UWorld* GetWorld() const { return World.Get(); }
 private:
 	/** The world of this view extension. */
 	TWeakObjectPtr<UWorld> World;

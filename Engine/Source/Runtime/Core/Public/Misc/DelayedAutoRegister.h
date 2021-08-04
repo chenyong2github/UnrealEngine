@@ -11,6 +11,7 @@ enum class EDelayedRegisterRunPhase : uint8
 	StatSystemReady,
 	IniSystemReady,
 	TaskGraphSystemReady,
+	EarliestPossiblePluginsLoaded,
 	ShaderTypesReady,
 	PreObjectSystemReady,
 	ObjectSystemReady,

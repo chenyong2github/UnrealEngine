@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Layout/Margin.h"
 #include "Slate/WidgetTransform.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
@@ -27,13 +28,16 @@ struct FIntermediateWidgetTransform
 UMG_API void ConvertOperationalProperty(const FIntermediateWidgetTransform& In, FWidgetTransform& Out);
 UMG_API void ConvertOperationalProperty(const FWidgetTransform& In, FIntermediateWidgetTransform& Out);
 
+using FMarginTraits = TDirectPropertyTraits<FMargin>;
 using FWidgetTransformPropertyTraits = TIndirectPropertyTraits<FWidgetTransform, FIntermediateWidgetTransform>;
 
 struct UMG_API FMovieSceneUMGComponentTypes
 {
 	~FMovieSceneUMGComponentTypes();
 
+	TPropertyComponents<FMarginTraits> Margin;
 	TPropertyComponents<FWidgetTransformPropertyTraits> WidgetTransform;
+
 	TCustomPropertyRegistration<FWidgetTransformPropertyTraits, 1> CustomWidgetTransformAccessors;
 
 	static void Destroy();

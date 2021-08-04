@@ -210,12 +210,6 @@ struct FMetalGraphicsPipelineKey
 			ETextureCreateFlags Flags = (ETextureCreateFlags)Init.RenderTargetFlags[i];
 			if (EnumHasAnyFlags(Flags, TexCreate_SRGB))
 			{
-#if PLATFORM_MAC // Expand as R8_sRGB is iOS only.
-				if (MetalFormat == mtlpp::PixelFormat::R8Unorm)
-				{
-					MetalFormat = mtlpp::PixelFormat::RGBA8Unorm;
-				}
-#endif
 				MetalFormat = ToSRGBFormat(MetalFormat);
 			}
 			
@@ -655,12 +649,6 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 		ETextureCreateFlags Flags = (ETextureCreateFlags)Init.RenderTargetFlags[ActiveTargetIndex];
 		if (EnumHasAnyFlags(Flags, TexCreate_SRGB))
 		{
-#if PLATFORM_MAC // Expand as R8_sRGB is iOS only.
-			if (MetalFormat == mtlpp::PixelFormat::R8Unorm)
-			{
-				MetalFormat = mtlpp::PixelFormat::RGBA8Unorm;
-			}
-#endif
 			MetalFormat = ToSRGBFormat(MetalFormat);
 		}
 		

@@ -373,6 +373,7 @@ bool UNiagaraDataInterfaceSpline::InitPerInstanceData(void* PerInstanceData, FNi
 	FNDISpline_InstanceData* InstData = new (PerInstanceData) FNDISpline_InstanceData();
 
 	InstData->Component.Reset();
+	InstData->TransformQuat = FQuat::Identity;
 	InstData->Transform = FMatrix::Identity;
 	InstData->TransformInverseTransposed = FMatrix::Identity;
 
@@ -453,7 +454,9 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 	//Re-evaluate source in case it's changed?
 	if (SplineComponent != nullptr)
 	{
-		InstData->Transform = SplineComponent->GetComponentToWorld().ToMatrixWithScale();
+		const FTransform& SplineTransform = SplineComponent->GetComponentToWorld();
+		InstData->TransformQuat = SplineTransform.GetRotation();
+		InstData->Transform = SplineTransform.ToMatrixWithScale();
 		InstData->TransformInverseTransposed = InstData->Transform.InverseFast().GetTransposed();
 		InstData->ComponentTransform = SplineComponent->GetComponentTransform();
 		InstData->DefaultUpVector = SplineComponent->DefaultUpVector;
@@ -676,9 +679,9 @@ void UNiagaraDataInterfaceSpline::SampleSplinePositionByUnitDistance(FVectorVMEx
 template<typename TransformHandlerType, typename SplineSampleType>
 void UNiagaraDataInterfaceSpline::SampleSplineRotationByUnitDistance(FVectorVMExternalFunctionContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDISpline_InstanceData> InstData(Context);
 	TransformHandlerType TransformHandler;
 	SplineSampleType SplineSampleParam(Context);
-	VectorVM::FUserPtrHandler<FNDISpline_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutQuatX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutQuatY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutQuatZ(Context);
@@ -686,7 +689,7 @@ void UNiagaraDataInterfaceSpline::SampleSplineRotationByUnitDistance(FVectorVMEx
 
 	if (InstData->IsValid())
 	{
-		const FQuat TransformQuat = InstData->Transform.ToQuat();
+		const FQuat TransformQuat = InstData->TransformQuat;
 		const float SplineLength = InstData->GetSplineLength();
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{

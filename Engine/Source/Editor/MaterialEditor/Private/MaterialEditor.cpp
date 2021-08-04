@@ -6189,10 +6189,11 @@ void FMaterialEditor::RefreshExpressionPreview(UMaterialExpression* MaterialExpr
 			FMatExpressionPreview* ExpressionPreview = ExpressionPreviews[PreviewIndex];
 			if( ExpressionPreview->GetExpression() == MaterialExpression )
 			{
-				// we need to make sure the rendering thread isn't drawing this tile
-				//SCOPED_SUSPEND_RENDERING_THREAD(true);
+				// We need to make sure we don't hold any other references before queuing the deferred delete as it may execute immediately (e.g. -onethread, or just very fast RT).
+				// There's no danger in releasing the last reference to FMaterial as this doesn't delete it anyway, it needs to be deleted manually via DeferredDelete.
 				ExpressionPreviews.RemoveAt(PreviewIndex);
 				FMaterial::DeferredDelete(ExpressionPreview);
+				ExpressionPreview = nullptr;
 				MaterialExpression->bNeedToUpdatePreview = false;
 
 				if (bRecompile)

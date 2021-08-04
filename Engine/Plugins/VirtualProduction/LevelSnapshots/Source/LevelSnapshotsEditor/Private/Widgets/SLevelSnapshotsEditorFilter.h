@@ -10,7 +10,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SFilterCheckBox;
+class SLevelSnapshotsFilterCheckBox;
 class SClickableText;
 class FLevelSnapshotsEditorFilters;
 class ULevelSnapshotsEditorData;
@@ -63,7 +63,7 @@ private:
 	bool bShouldHighlightFilter = false;;
 	
 	/** The button to toggle the filter on or off */
-	TSharedPtr<SFilterCheckBox> ToggleButtonPtr;
+	TSharedPtr<SLevelSnapshotsFilterCheckBox> ToggleButtonPtr;
 	/* Displays filter name and shows details panel when clicked. */
 	TSharedPtr<SClickableText> FilterNamePtr;
 

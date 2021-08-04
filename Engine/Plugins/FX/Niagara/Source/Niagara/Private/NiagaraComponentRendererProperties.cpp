@@ -128,6 +128,7 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 	AttributeBindings.Reserve(2);
 	AttributeBindings.Add(&EnabledBinding);
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
+	IsSetterMappingDirty.store(true);
 }
 
 UNiagaraComponentRendererProperties::~UNiagaraComponentRendererProperties()
@@ -361,7 +362,10 @@ void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
 
 FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
 {
+	if (IsSetterMappingDirty.exchange(false))
+	{
 	UpdateSetterFunctions();
+	}
 	EmitterPtr = Emitter->GetCachedEmitter();
 
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererComponents(FeatureLevel, this, Emitter);
@@ -442,7 +446,7 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 			TemplateComponent = nullptr;
 		}
 	}
-	UpdateSetterFunctions(); // to refresh the default values for the setter parameters
+	IsSetterMappingDirty = true; // to refresh the default values for the setter parameters
 	Super::PostEditChangeProperty(e);
 }
 

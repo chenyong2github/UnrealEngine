@@ -834,12 +834,6 @@ UUnrealEdKeyBindings::UUnrealEdKeyBindings(const FObjectInitializer& ObjectIniti
 {
 }
 
-UUnrealEdOptions::UUnrealEdOptions(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-
 void UUnrealEdOptions::PostInitProperties()
 {
 	Super::PostInitProperties();

@@ -1318,6 +1318,9 @@ private:
 
 	/** List of dormant actors that should be removed from the client */
 	TArray<FCachedDormantDestructInfo> PendingDormantDestructList;
+
+	/** Set used to guard against double adds into PendingDormantDestructList */
+	TSet<FNetworkGUID> TrackedDormantDestructionInfos;
 };
 
 // --------------------------------------------------------------------------------------------------------------------------------------------

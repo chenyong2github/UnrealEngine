@@ -13,7 +13,7 @@
 DEFINE_LOG_CATEGORY_STATIC(PyAutomationTest, Log, Log)
 
 bool UPyAutomationTestLibrary::IsRunningPyLatentCommand = false;
-float UPyAutomationTestLibrary::PyLatentCommandTimeout = 120.0f;
+float UPyAutomationTestLibrary::PyLatentCommandTimeout = 300.0f;
 
 void UPyAutomationTestLibrary::SetIsRunningPyLatentCommand(bool isRunning)
 {
@@ -38,7 +38,7 @@ float UPyAutomationTestLibrary::GetPyLatentCommandTimeout()
 void UPyAutomationTestLibrary::ResetPyLatentCommand()
 {
 	IsRunningPyLatentCommand = false;
-	PyLatentCommandTimeout = 120.0f;
+	PyLatentCommandTimeout = 300.0f;
 }
 
 

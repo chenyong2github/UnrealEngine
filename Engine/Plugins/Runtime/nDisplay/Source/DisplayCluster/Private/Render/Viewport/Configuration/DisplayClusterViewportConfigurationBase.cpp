@@ -4,6 +4,7 @@
 
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
+#include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessManager.h"
 
 #include "DisplayClusterViewportConfigurationHelpers.h"
 #include "DisplayClusterConfigurationTypes.h"
@@ -64,6 +65,52 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InC
 		else
 		{
 			ViewportManager.CreateViewport(CfgIt.Key, CfgIt.Value);
+		}
+	}
+}
+
+void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(const FString& InClusterNodeId)
+{
+	const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.GetClusterNode(InClusterNodeId);
+	if (ClusterNode)
+	{
+		TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PPManager = ViewportManager.GetPostProcessManager();
+		if (PPManager.IsValid())
+		{
+			{
+				// Find unused PP:
+				TArray<FString> UnusedPP;
+				for (const FString& It : PPManager->GetPostprocess())
+				{
+					if (!ClusterNode->Postprocess.Contains(It))
+					{
+						UnusedPP.Add(It);
+					}
+				}
+
+				// Delete unused PP:
+				for (const FString& It : UnusedPP)
+				{
+					PPManager->RemovePostprocess(It);
+				}
+			}
+
+			// Create and update PP
+			for (const TPair<FString, FDisplayClusterConfigurationPostprocess>& It : ClusterNode->Postprocess)
+			{
+				TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> ExistPostProcess = PPManager->FindPostProcess(It.Key);
+				if (ExistPostProcess.IsValid())
+				{
+					if (ExistPostProcess->IsConfigurationChanged(&It.Value))
+					{
+						PPManager->UpdatePostprocess(It.Key, &It.Value);
+					}
+				}
+				else
+				{
+					PPManager->CreatePostprocess(It.Key, &It.Value);
+				}
+			}
 		}
 	}
 }

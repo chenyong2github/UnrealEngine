@@ -36,6 +36,7 @@ enum class ELensDataMode : uint8
 };
 
 /** Data categories manipulated in the camera calibration tools */
+UENUM(BlueprintType)
 enum class ELensDataCategory : uint8
 {
 	Focus,
@@ -76,30 +77,39 @@ public:
 	//~ End FTickableGameObject
 	
 	/** Returns interpolated distortion parameters */
+	UFUNCTION(BlueprintPure, Category = "Utility")
 	bool EvaluateDistortionParameters(float InFocus, float InZoom, FDistortionInfo& OutEvaluatedValue) const;
 
 	/** Returns interpolated focal length */
+	UFUNCTION(BlueprintPure, Category = "Utility")
 	bool EvaluateFocalLength(float InFocus, float InZoom, FFocalLengthInfo& OutEvaluatedValue) const;
 
 	/** Returns interpolated image center parameters based on input focus and zoom */
+	UFUNCTION(BlueprintPure, Category = "Utility")
 	bool EvaluateImageCenterParameters(float InFocus, float InZoom, FImageCenterInfo& OutEvaluatedValue) const;
 
 	/** Draws the distortion map based on evaluation point*/
+	UFUNCTION(BlueprintPure, Category = "Utility")
 	bool EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler) const;
 
 	/** Returns interpolated nodal point offset based on input focus and zoom */
+	UFUNCTION(BlueprintPure, Category = "Utility")
 	bool EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue) const;
 
 	/** Whether focus encoder mapping is configured */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
 	bool HasFocusEncoderMapping() const;
 
 	/** Returns interpolated focus based on input normalized value and mapping */
+	UFUNCTION(BlueprintPure, Category = "Utility")
 	float EvaluateNormalizedFocus(float InNormalizedValue) const;
 
 	/** Whether iris encoder mapping is configured */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
 	bool HasIrisEncoderMapping() const;
 
 	/** Returns interpolated iris based on input normalized value and mapping */
+	UFUNCTION(BlueprintPure, Category = "Utility")
 	float EvaluateNormalizedIris(float InNormalizedValue) const;
 
 	/** Callbacked when stmap derived data has completed */
@@ -114,38 +124,88 @@ public:
 	/** Update the input tolerance used when adding points to calibration tables */
 	void UpdateInputTolerance(const float NewTolerance);
 
+	/** Gets all Distortion points struct with focus, zoom and info  */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	TArray<FDistortionPointInfo> GetDistortionPoints() const;
+
+	/** Gets all Focal Length points struct with focus, zoom and info  */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	TArray<FFocalLengthPointInfo> GetFocalLengthPoints() const;
+
+	/** Gets all ST Map points struct with focus, zoom and info  */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	TArray<FSTMapPointInfo> GetSTMapPoints() const;
+
+	/** Gets all Image Center points struct with focus, zoom and info  */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	TArray<FImageCenterPointInfo> GetImageCenterPoints() const;
+
+	/** Gets all Nodal Offset points struct with focus, zoom and info  */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	TArray<FNodalOffsetPointInfo> GetNodalOffsetPoints() const;
+
+	/** Gets a Distortion point by given focus and zoom, if point does not exists returns false */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	bool GetDistortionPoint(float InFocus, float InZoom, FDistortionInfo& OutDistortionInfo) const;
+
+	/** Gets a Focal Length point by given focus and zoom, if point does not exists returns false */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	bool GetFocalLengthPoint(float InFocus, float InZoom, FFocalLengthInfo& OutFocalLengthInfo) const;
+
+	/** Gets a Image Center point by given focus and zoom, if point does not exists returns false */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	bool GetImageCenterPoint(float InFocus, float InZoom, FImageCenterInfo& OutImageCenterInfo) const;
+
+	/** Gets a Nodal Offset point by given focus and zoom, if point does not exists returns false */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	bool GetNodalOffsetPoint(float InFocus, float InZoom, FNodalPointOffset& OutNodalPointOffset) const;
+
+	/** Gets a ST Map point by given focus and zoom, if point does not exists returns false */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
+	bool GetSTMapPoint(float InFocus, float InZoom, FSTMapInfo& OutSTMapInfo) const;
+
 	/** Adds a distortion point in our map. If a point already exist at the location, it is updated */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewPoint, const FFocalLengthInfo& NewFocalLength);
 
 	/** Adds a focal length point in our map. If a point already exist at the location, it is updated */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void AddFocalLengthPoint(float NewFocus, float NewZoom, const FFocalLengthInfo& NewFocalLength);
 
 	/** Adds an ImageCenter point in our map. If a point already exist at the location, it is updated */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void AddImageCenterPoint(float NewFocus, float NewZoom, const FImageCenterInfo& NewPoint);
 
 	/** Adds an NodalOffset point in our map. If a point already exist at the location, it is updated */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void AddNodalOffsetPoint(float NewFocus, float NewZoom, const FNodalPointOffset& NewPoint);
 
 	/** Adds an STMap point in our map. If a point already exist at the location, it is updated */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void AddSTMapPoint(float NewFocus, float NewZoom, const FSTMapInfo& NewPoint);
 
 	/** Removes a focus point */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void RemoveFocusPoint(ELensDataCategory InDataCategory, float InFocus);
 
 	/** Removes a zoom point */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void RemoveZoomPoint(ELensDataCategory InDataCategory, float InFocus, float InZoom);
 
 	/** Removes all points of all tables */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void ClearAll();
 
 	/** Removes table associated to data category */
+	UFUNCTION(BlueprintCallable, Category = "Lens Table")
 	void ClearData(ELensDataCategory InDataCategory);
 
 	/** Returns whether a category has data samples */
+	UFUNCTION(BlueprintPure, Category = "Lens Table")
 	bool HasSamples(ELensDataCategory InDataCategory) const;
 
 	/** Get data table reference based on given category */
-	const FBaseLensTable& GetDataTable(ELensDataCategory InDataCategory) const;
+	const FBaseLensTable* GetDataTable(ELensDataCategory InDataCategory) const;
 	
 protected:
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
@@ -169,15 +229,15 @@ protected:
 public:
 
 	/** Lens information */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lens info")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens info")
 	FLensInfo LensInfo;
 
 	/** Type of data used for lens mapping */
-	UPROPERTY(EditAnywhere, Category = "Lens mapping")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens mapping")
 	ELensDataMode DataMode = ELensDataMode::Parameters;
 
 	/** Metadata user could enter for its lens */
-	UPROPERTY(EditAnywhere, Category = "Metadata")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metadata")
 	TMap<FString, FString> UserMetadata;
 
 	/** Encoder mapping table */
@@ -268,13 +328,13 @@ struct FLensFileEvalData
 	struct
 	{
 		/** Focus input */
-		TOptional<float> Focus;
+		float Focus;
 
 		/** Iris input */
-		TOptional<float> Iris;
+		float Iris;
 
 		/** Zoom input */
-		TOptional<float> Zoom;
+		float Zoom;
 	} Input;
 
 	/** Information about the camera associated with the lens evaluation */
@@ -288,6 +348,9 @@ struct FLensFileEvalData
 	{
 		/** True if distortion was applied (and the lens distortion handler updated its state) */
 		bool bWasEvaluated;
+
+		/** The filmback used when evaluating the distortion data */
+		FVector2D Filmback;
 	} Distortion;
 
 	/** Information about the nodal offset evaluation */
@@ -302,9 +365,11 @@ struct FLensFileEvalData
 	{
 		LensFile = nullptr;
 
-		Input.Focus.Reset();
-		Input.Iris.Reset();
-		Input.Zoom.Reset();
+		Input.Focus = 0.0f;
+		Input.Iris = 0.0f;
+		Input.Zoom = 0.0f;
+
+		Distortion.Filmback = FVector2D(0);
 
 		Camera.UniqueId = INDEX_NONE;
 		Distortion.bWasEvaluated = false;

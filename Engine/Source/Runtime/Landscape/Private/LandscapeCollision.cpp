@@ -690,8 +690,12 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 				// Register materials
 				for(UPhysicalMaterial* PhysicalMaterial : CookedPhysicalMaterials)
 				{
+					//TODO: Figure out why we are getting into a state like this (PhysicalMaterial == nullptr) in the first place. Potentially a loading issue
+					if (PhysicalMaterial)
+					{
 					//todo: total hack until we get landscape fully converted to chaos
 					HeightfieldRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
+				}
 				}
 
 				// Release cooked collison data

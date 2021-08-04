@@ -30,6 +30,10 @@ public:
 	/* IOpenXRExtensionPlugin                                               */
 	/************************************************************************/
 
+	virtual FString GetDisplayName() override
+	{
+		return FString(TEXT("OpenXREyeTracker"));
+	}
 	virtual bool GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
 	virtual bool GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics) override;
 	virtual void AddActions(XrInstance Instance, TFunction<XrAction(XrActionType InActionType, const FName& InName, const TArray<XrPath>& InSubactionPaths)> AddAction) override;

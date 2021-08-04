@@ -208,8 +208,10 @@ void FDisplayClusterProjectionSimplePolicy::ReleaseMeshData(class IDisplayCluste
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyPreview
 //////////////////////////////////////////////////////////////////////////////////////////////
-UMeshComponent* FDisplayClusterProjectionSimplePolicy::GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport)
+UMeshComponent* FDisplayClusterProjectionSimplePolicy::GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 {
+	bOutIsRootActorComponent = true;
+
 	USceneComponent* SceneComponent = ScreenCompRef.GetOrFindSceneComponent();
 
 	if (SceneComponent)

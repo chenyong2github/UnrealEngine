@@ -25,6 +25,12 @@ static volatile int32 RebaseEstimatedUtcNowViaDelegate = false;
 const int32 FDateTime::DaysPerMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 const int32 FDateTime::DaysToMonth[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 };
 
+const TCHAR* FDateTime::ShortDayNames[] = { TEXT("Mon"), TEXT("Tue"), TEXT("Wed"), TEXT("Thu"), TEXT("Fri"), TEXT("Sat"), TEXT("Sun") };
+const TCHAR* FDateTime::LongDayNames[] = { TEXT("Monday"), TEXT("Tuesday"), TEXT("Wednesday"), TEXT("Thursday"), TEXT("Friday"), TEXT("Saturday"), TEXT("Sunday") };
+
+const TCHAR* FDateTime::ShortMonthNames[] = { TEXT("Jan"), TEXT("Feb"), TEXT("Mar"), TEXT("Apr"), TEXT("May"), TEXT("Jun"), TEXT("Jul"), TEXT("Aug"), TEXT("Sep"), TEXT("Oct"), TEXT("Nov"), TEXT("Dec") };
+const TCHAR* FDateTime::LongMonthNames[] = { TEXT("January"), TEXT("February"), TEXT("March"), TEXT("April"), TEXT("May"), TEXT("June"), TEXT("July"), TEXT("August"), TEXT("September"), TEXT("October"), TEXT("November"), TEXT("December") };
+
 
 /* FDateTime structors
  *****************************************************************************/
@@ -207,39 +213,9 @@ bool FDateTime::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuc
 
 FString FDateTime::ToHttpDate() const
 {
-	FString DayStr;
-	FString MonthStr;
-
-	switch (GetDayOfWeek())
-	{
-		case EDayOfWeek::Monday:	DayStr = TEXT("Mon");	break;
-		case EDayOfWeek::Tuesday:	DayStr = TEXT("Tue");	break;
-		case EDayOfWeek::Wednesday:	DayStr = TEXT("Wed");	break;
-		case EDayOfWeek::Thursday:	DayStr = TEXT("Thu");	break;
-		case EDayOfWeek::Friday:	DayStr = TEXT("Fri");	break;
-		case EDayOfWeek::Saturday:	DayStr = TEXT("Sat");	break;
-		case EDayOfWeek::Sunday:	DayStr = TEXT("Sun");	break;
-	}
-
-	switch (GetMonthOfYear())
-	{
-		case EMonthOfYear::January:		MonthStr = TEXT("Jan");	break;
-		case EMonthOfYear::February:	MonthStr = TEXT("Feb");	break;
-		case EMonthOfYear::March:		MonthStr = TEXT("Mar");	break;
-		case EMonthOfYear::April:		MonthStr = TEXT("Apr");	break;
-		case EMonthOfYear::May:			MonthStr = TEXT("May");	break;
-		case EMonthOfYear::June:		MonthStr = TEXT("Jun");	break;
-		case EMonthOfYear::July:		MonthStr = TEXT("Jul");	break;
-		case EMonthOfYear::August:		MonthStr = TEXT("Aug");	break;
-		case EMonthOfYear::September:	MonthStr = TEXT("Sep");	break;
-		case EMonthOfYear::October:		MonthStr = TEXT("Oct");	break;
-		case EMonthOfYear::November:	MonthStr = TEXT("Nov");	break;
-		case EMonthOfYear::December:	MonthStr = TEXT("Dec");	break;
-	}
-
 	FString Time = FString::Printf(TEXT("%02i:%02i:%02i"), GetHour(), GetMinute(), GetSecond());
 
-	return FString::Printf(TEXT("%s, %02d %s %d %s GMT"), *DayStr, GetDay(), *MonthStr, GetYear(), *Time);
+	return FString::Printf(TEXT("%s, %02d %s %d %s GMT"), ShortDayNames[(int32)GetDayOfWeek()], GetDay(), ShortMonthNames[(int32)GetMonthOfYear() - 1], GetYear(), *Time);
 }
 
 
@@ -257,7 +233,7 @@ FString FDateTime::ToString() const
 
 FString FDateTime::ToString(const TCHAR* Format) const
 {
-	FString Result;
+	TStringBuilder<32> Result;
 
 	if (Format != nullptr)
 	{
@@ -267,24 +243,24 @@ FString FDateTime::ToString(const TCHAR* Format) const
 			{
 				switch (*Format)
 				{
-				case TCHAR('a'): Result += IsMorning() ? TEXT("am") : TEXT("pm"); break;
-				case TCHAR('A'): Result += IsMorning() ? TEXT("AM") : TEXT("PM"); break;
-				case TCHAR('d'): Result += FString::Printf(TEXT("%02i"), GetDay()); break;
-				case TCHAR('D'): Result += FString::Printf(TEXT("%03i"), GetDayOfYear()); break;
-				case TCHAR('m'): Result += FString::Printf(TEXT("%02i"), GetMonth()); break;
-				case TCHAR('y'): Result += FString::Printf(TEXT("%02i"), GetYear() % 100); break;
-				case TCHAR('Y'): Result += FString::Printf(TEXT("%04i"), GetYear()); break;
-				case TCHAR('h'): Result += FString::Printf(TEXT("%02i"), GetHour12()); break;
-				case TCHAR('H'): Result += FString::Printf(TEXT("%02i"), GetHour()); break;
-				case TCHAR('M'): Result += FString::Printf(TEXT("%02i"), GetMinute()); break;
-				case TCHAR('S'): Result += FString::Printf(TEXT("%02i"), GetSecond()); break;
-				case TCHAR('s'): Result += FString::Printf(TEXT("%03i"), GetMillisecond()); break;
-				default:		 Result += *Format;
+				case TCHAR('a'): Result.Append(IsMorning() ? TEXT("am") : TEXT("pm")); break;
+				case TCHAR('A'): Result.Append(IsMorning() ? TEXT("AM") : TEXT("PM")); break;
+				case TCHAR('d'): Result.Appendf(TEXT("%02i"), GetDay()); break;
+				case TCHAR('D'): Result.Appendf(TEXT("%03i"), GetDayOfYear()); break;
+				case TCHAR('m'): Result.Appendf(TEXT("%02i"), GetMonth()); break;
+				case TCHAR('y'): Result.Appendf(TEXT("%02i"), GetYear() % 100); break;
+				case TCHAR('Y'): Result.Appendf(TEXT("%04i"), GetYear()); break;
+				case TCHAR('h'): Result.Appendf(TEXT("%02i"), GetHour12()); break;
+				case TCHAR('H'): Result.Appendf(TEXT("%02i"), GetHour()); break;
+				case TCHAR('M'): Result.Appendf(TEXT("%02i"), GetMinute()); break;
+				case TCHAR('S'): Result.Appendf(TEXT("%02i"), GetSecond()); break;
+				case TCHAR('s'): Result.Appendf(TEXT("%03i"), GetMillisecond()); break;
+				default:		 Result.Append(*Format);
 				}
 			}
 			else
 			{
-				Result += *Format;
+				Result.Append(*Format);
 			}
 
 			// move to the next one
@@ -292,7 +268,53 @@ FString FDateTime::ToString(const TCHAR* Format) const
 		}
 	}
 
-	return Result;
+	return Result.ToString();
+}
+
+FString FDateTime::ToFormattedString(const TCHAR* Format) const
+{
+	TStringBuilder<32> Result;
+
+	if (Format != nullptr)
+	{
+		while (*Format != TCHAR('\0'))
+		{
+			if ((*Format == TCHAR('%')) && (*(++Format) != TCHAR('\0')))
+			{
+				switch (*Format)
+				{
+				case TCHAR('a'): Result.Append(ShortDayNames[(int32)GetDayOfWeek()]); break;
+				case TCHAR('A'): Result.Append(LongDayNames[(int32)GetDayOfWeek()]); break;
+				case TCHAR('w'): Result.Appendf(TEXT("%i"), ((int32)GetDayOfWeek() + 1) % 7); break;
+				case TCHAR('y'): Result.Appendf(TEXT("%02i"), GetYear() % 100); break;
+				case TCHAR('Y'): Result.Appendf(TEXT("%04i"), GetYear()); break;
+				case TCHAR('b'): Result.Append(ShortMonthNames[(int32)GetMonthOfYear() - 1]); break;
+				case TCHAR('B'): Result.Append(LongMonthNames[(int32)GetMonthOfYear() - 1]); break;
+				case TCHAR('m'): Result.Appendf(TEXT("%02i"), GetMonth()); break;
+				case TCHAR('d'): Result.Appendf(TEXT("%02i"), GetDay()); break;
+				case TCHAR('e'): Result.Appendf(TEXT("%i"), GetDay()); break;
+				case TCHAR('l'): Result.Appendf(TEXT("%i"), GetHour12()); break;
+				case TCHAR('I'): Result.Appendf(TEXT("%02i"), GetHour12()); break;
+				case TCHAR('H'): Result.Appendf(TEXT("%02i"), GetHour()); break;
+				case TCHAR('M'): Result.Appendf(TEXT("%02i"), GetMinute()); break;
+				case TCHAR('S'): Result.Appendf(TEXT("%02i"), GetSecond()); break;
+				case TCHAR('p'): Result.Append(IsMorning() ? TEXT("AM") : TEXT("PM")); break;
+				case TCHAR('P'): Result.Append(IsMorning() ? TEXT("am") : TEXT("pm")); break;
+				case TCHAR('j'): Result.Appendf(TEXT("%03i"), GetDayOfYear()); break;
+				default:		 Result.Append(*Format);
+				}
+			}
+			else
+			{
+				Result.Append(*Format);
+			}
+
+			// move to the next one
+			Format++;
+		}
+	}
+
+	return Result.ToString();
 }
 
 

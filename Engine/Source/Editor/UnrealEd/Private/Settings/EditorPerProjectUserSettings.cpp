@@ -14,7 +14,6 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 	: Super(ObjectInitializer)
 {
 	//Default to high quality
-	MaterialQualityLevel = 1;
 	BlueprintFavorites = CreateDefaultSubobject<UBlueprintPaletteFavorites>(TEXT("BlueprintFavorites"));
 	SCSViewportCameraSpeed = 4;
 	AssetViewerProfileIndex = 0;
@@ -38,10 +37,6 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 void UEditorPerProjectUserSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
-
-	//Ensure the material quality cvar is set to the settings loaded.
-	static IConsoleVariable* MaterialQualityLevelVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MaterialQualityLevel"));
-	MaterialQualityLevelVar->Set(MaterialQualityLevel, ECVF_SetByScalability);
 
 	// if we last saved as the default or we somehow are loading a preview feature level higher than we can support,
 	// fall back to the current session's maximum feature level

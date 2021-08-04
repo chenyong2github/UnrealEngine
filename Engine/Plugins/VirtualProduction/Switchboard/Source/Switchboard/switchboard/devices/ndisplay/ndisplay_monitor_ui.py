@@ -41,6 +41,11 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
             "This is preferable to the normal kill button because it ensures the nodes exit properly")
         self.btnSoftKill.clicked.connect(monitor.btnSoftKill_clicked)
 
+        self.btnMinimizeWindows = QPushButton("Minimize")
+        self.btnMinimizeWindows.setToolTip("Minimizes all windows in the nodes.")
+        self.btnMinimizeWindows.clicked.connect(monitor.btnMinimizeWindows_clicked)
+
+
         # arrange them in a horizontal layout
         layout_buttons = QHBoxLayout()
         layout_buttons.addWidget(self.labelConsoleExec)
@@ -49,6 +54,7 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
         layout_buttons.addStretch(1)
         layout_buttons.addWidget(self.btnRefreshMosaics)
         layout_buttons.addWidget(self.btnFixExeFlags)
+        layout_buttons.addWidget(self.btnMinimizeWindows)
         layout_buttons.addWidget(self.btnSoftKill)
 
         # create table

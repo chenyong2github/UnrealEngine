@@ -89,7 +89,7 @@ namespace JSON427
 	UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::ConvertDataToInternalTypes()
 	{
 		UDisplayClusterConfigurationData* Config = UDisplayClusterConfigurationData::CreateNewConfigData(ConfigDataOwner, RF_MarkAsRootSet);
-		check(Config && Config->Cluster);
+		check(Config && Config->Scene && Config->Cluster);
 
 		// Fill metadata
 		Config->Meta.ImportDataSource = EDisplayClusterConfigurationDataSource::Json;
@@ -105,6 +105,57 @@ namespace JSON427
 		// Misc
 		Config->bFollowLocalPlayerCamera = CfgJson.Misc.bFollowLocalPlayerCamera;
 		Config->bExitOnEsc = CfgJson.Misc.bExitOnEsc;
+
+		// Scene
+		{
+			// Cameras
+			for (const TPair<FString, FDisplayClusterConfigurationJsonSceneComponentCamera_427>& CfgComp : CfgJson.Scene.Cameras)
+			{
+				UDisplayClusterConfigurationSceneComponentCamera* Comp = NewObject<UDisplayClusterConfigurationSceneComponentCamera>(Config->Scene, *CfgComp.Key, RF_Transactional);
+				check(Comp);
+
+				// General
+				Comp->ParentId = CfgComp.Value.ParentId;
+				Comp->Location = FDisplayClusterConfigurationJsonVector_427::ToVector(CfgComp.Value.Location);
+				Comp->Rotation = FDisplayClusterConfigurationJsonRotator_427::ToRotator(CfgComp.Value.Rotation);
+				// Camera specific
+				Comp->InterpupillaryDistance = CfgComp.Value.InterpupillaryDistance;
+				Comp->bSwapEyes = CfgComp.Value.SwapEyes;
+				Comp->StereoOffset = DisplayClusterConfigurationJsonHelpers::FromString<EDisplayClusterConfigurationEyeStereoOffset>(CfgComp.Value.StereoOffset);
+
+				Config->Scene->Cameras.Emplace(CfgComp.Key, Comp);
+			}
+
+			// Screens
+			for (const TPair<FString, FDisplayClusterConfigurationJsonSceneComponentScreen_427>& CfgComp : CfgJson.Scene.Screens)
+			{
+				UDisplayClusterConfigurationSceneComponentScreen* Comp = NewObject<UDisplayClusterConfigurationSceneComponentScreen>(Config->Scene, *CfgComp.Key, RF_Transactional);
+				check(Comp);
+
+				// General
+				Comp->ParentId = CfgComp.Value.ParentId;
+				Comp->Location = FDisplayClusterConfigurationJsonVector_427::ToVector(CfgComp.Value.Location);
+				Comp->Rotation = FDisplayClusterConfigurationJsonRotator_427::ToRotator(CfgComp.Value.Rotation);
+				// Screen specific
+				Comp->Size = FDisplayClusterConfigurationJsonSizeFloat_427::ToVector(CfgComp.Value.Size);
+
+				Config->Scene->Screens.Emplace(CfgComp.Key, Comp);
+			}
+
+			// Xforms
+			for (const TPair<FString, FDisplayClusterConfigurationJsonSceneComponentXform_427>& CfgComp : CfgJson.Scene.Xforms)
+			{
+				UDisplayClusterConfigurationSceneComponentXform* Comp = NewObject<UDisplayClusterConfigurationSceneComponentXform>(Config->Scene, *CfgComp.Key, RF_Transactional);
+				check(Comp);
+
+				// General
+				Comp->ParentId = CfgComp.Value.ParentId;
+				Comp->Location = FDisplayClusterConfigurationJsonVector_427::ToVector(CfgComp.Value.Location);
+				Comp->Rotation = FDisplayClusterConfigurationJsonRotator_427::ToRotator(CfgComp.Value.Rotation);
+
+				Config->Scene->Xforms.Emplace(CfgComp.Key, Comp);
+			}
+		}
 
 		// Cluster
 		{
@@ -158,7 +209,7 @@ namespace JSON427
 			}
 
 			// Cluster nodes
-			for (const auto& CfgNode : CfgJson.Cluster.Nodes)
+			for (const TPair<FString, FDisplayClusterConfigurationJsonClusterNode_427>& CfgNode : CfgJson.Cluster.Nodes)
 			{
 				UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config->Cluster, *CfgNode.Key, RF_Transactional);
 				check(Node);
@@ -170,7 +221,7 @@ namespace JSON427
 				Node->WindowRect = FDisplayClusterConfigurationRectangle(CfgNode.Value.Window.X, CfgNode.Value.Window.Y, CfgNode.Value.Window.W, CfgNode.Value.Window.H);
 
 				// Viewports
-				for (const auto& CfgViewport : CfgNode.Value.Viewports)
+				for (const TPair<FString, FDisplayClusterConfigurationJsonViewport_427>& CfgViewport : CfgNode.Value.Viewports)
 				{
 					UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Node, *CfgViewport.Key, RF_Transactional | RF_ArchetypeObject | RF_Public);
 					check(Viewport);
@@ -190,7 +241,7 @@ namespace JSON427
 				}
 
 				// Postprocess
-				for (const auto& CfgPostprocess : CfgNode.Value.Postprocess)
+				for (const TPair<FString, FDisplayClusterConfigurationJsonPostprocess_427>& CfgPostprocess : CfgNode.Value.Postprocess)
 				{
 					FDisplayClusterConfigurationPostprocess PostprocessOperation;
 
@@ -218,7 +269,7 @@ namespace JSON427
 
 	bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UDisplayClusterConfigurationData* Config)
 	{
-		if (!(Config && Config->Cluster))
+		if (!(Config && Config->Scene && Config->Cluster))
 		{
 			UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("nullptr detected in the configuration data"));
 			return false;
@@ -234,6 +285,54 @@ namespace JSON427
 		// Misc
 		Json.Misc.bFollowLocalPlayerCamera = Config->bFollowLocalPlayerCamera;
 		Json.Misc.bExitOnEsc = Config->bExitOnEsc;
+
+		// Scene
+		{
+			// Cameras
+			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentCamera*>& Comp : Config->Scene->Cameras)
+			{
+				FDisplayClusterConfigurationJsonSceneComponentCamera_427 CfgComp;
+
+				// General
+				CfgComp.ParentId = Comp.Value->ParentId;
+				CfgComp.Location = FDisplayClusterConfigurationJsonVector_427::FromVector(Comp.Value->Location);
+				CfgComp.Rotation = FDisplayClusterConfigurationJsonRotator_427::FromRotator(Comp.Value->Rotation);
+				// Camera specific
+				CfgComp.InterpupillaryDistance = Comp.Value->InterpupillaryDistance;
+				CfgComp.SwapEyes = Comp.Value->bSwapEyes;
+				CfgComp.StereoOffset = DisplayClusterConfigurationJsonHelpers::ToString(Comp.Value->StereoOffset);
+
+				Json.Scene.Cameras.Emplace(Comp.Key, CfgComp);
+			}
+
+			// Screens
+			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentScreen*>& Comp : Config->Scene->Screens)
+			{
+				FDisplayClusterConfigurationJsonSceneComponentScreen_427 CfgComp;
+
+				// General
+				CfgComp.ParentId = Comp.Value->ParentId;
+				CfgComp.Location = FDisplayClusterConfigurationJsonVector_427::FromVector(Comp.Value->Location);
+				CfgComp.Rotation = FDisplayClusterConfigurationJsonRotator_427::FromRotator(Comp.Value->Rotation);
+				// Screen specific
+				CfgComp.Size = FDisplayClusterConfigurationJsonSizeFloat_427::FromVector(Comp.Value->Size);
+
+				Json.Scene.Screens.Emplace(Comp.Key, CfgComp);
+			}
+
+			// Xforms
+			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentXform*>& Comp : Config->Scene->Xforms)
+			{
+				FDisplayClusterConfigurationJsonSceneComponentScreen_427 CfgComp;
+
+				// General
+				CfgComp.ParentId = Comp.Value->ParentId;
+				CfgComp.Location = FDisplayClusterConfigurationJsonVector_427::FromVector(Comp.Value->Location);
+				CfgComp.Rotation = FDisplayClusterConfigurationJsonRotator_427::FromRotator(Comp.Value->Rotation);
+
+				Json.Scene.Xforms.Emplace(Comp.Key, CfgComp);
+			}
+		}
 
 		// Cluster
 		{
@@ -279,7 +378,7 @@ namespace JSON427
 			}
 
 			// Cluster nodes
-			for (const auto& CfgNode : Config->Cluster->Nodes)
+			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& CfgNode : Config->Cluster->Nodes)
 			{
 				FDisplayClusterConfigurationJsonClusterNode_427 Node;
 
@@ -290,7 +389,7 @@ namespace JSON427
 				Node.Window = FDisplayClusterConfigurationJsonRectangle_427(CfgNode.Value->WindowRect.X, CfgNode.Value->WindowRect.Y, CfgNode.Value->WindowRect.W, CfgNode.Value->WindowRect.H);
 
 				// Viewports
-				for (const auto& CfgViewport : CfgNode.Value->Viewports)
+				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& CfgViewport : CfgNode.Value->Viewports)
 				{
 					FDisplayClusterConfigurationJsonViewport_427 Viewport;
 
@@ -311,7 +410,7 @@ namespace JSON427
 				}
 
 				// Postprocess
-				for (const auto& CfgPostprocess : CfgNode.Value->Postprocess)
+				for (const TPair<FString, FDisplayClusterConfigurationPostprocess>& CfgPostprocess : CfgNode.Value->Postprocess)
 				{
 					FDisplayClusterConfigurationJsonPostprocess_427 PostprocessOperation;
 

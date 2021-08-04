@@ -53,6 +53,19 @@ struct FClassPickerDefaults
 {
 	GENERATED_USTRUCT_BODY()
 
+	FClassPickerDefaults()
+	{}
+
+	FClassPickerDefaults(const FString& InClassName, const FString& InAssetClass)
+		: ClassName(InClassName)
+		, AssetClass(InAssetClass)
+	{}
+
+	FClassPickerDefaults(FString&& InClassName, FString&& InAssetClass)
+		: ClassName(MoveTemp(InClassName))
+		, AssetClass(MoveTemp(InAssetClass))
+	{}
+
 	/** The name of the class to select */
 	UPROPERTY()
 	FString ClassName;
@@ -71,7 +84,8 @@ struct FClassPickerDefaults
 UCLASS(Config=Editor)
 class UNREALED_API UUnrealEdOptions : public UObject
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+public:
 
 	/** Categories of commands. */
 	UPROPERTY(config)
@@ -93,8 +107,16 @@ class UNREALED_API UUnrealEdOptions : public UObject
 	UPROPERTY(config)
 	TArray<FClassPickerDefaults> NewAssetDefaultClasses;
 
+	/* Delegate to override NewAssetDefaultClasses */
+	DECLARE_DELEGATE_RetVal(const TArray<FClassPickerDefaults>&, FGetNewAssetDefaultClasses);
+	FGetNewAssetDefaultClasses& OnGetNewAssetDefaultClasses() { return GetNewAssetDefaultClassesDelegate; }
 
-public:
+	/** Get default objects in the blueprint class dialog */
+	const TArray<FClassPickerDefaults>& GetNewAssetDefaultClasses() const
+	{
+		return GetNewAssetDefaultClassesDelegate.IsBound() ? GetNewAssetDefaultClassesDelegate.Execute() : NewAssetDefaultClasses;
+	}
+
 	/** Mapping of command name's to array index. */
 	TMap<FName, int32>	CommandMap;
 
@@ -117,6 +139,11 @@ public:
 	 * @param EditorSet		Set of bindings to search in.
 	 */
 	FString GetExecCommand(FKey Key, bool bAltDown, bool bCtrlDown, bool bShiftDown, FName EditorSet);
+
+private:
+
+	/* Delegate to override NewAssetDefaultClasses */
+	FGetNewAssetDefaultClasses GetNewAssetDefaultClassesDelegate;
 };
 
 

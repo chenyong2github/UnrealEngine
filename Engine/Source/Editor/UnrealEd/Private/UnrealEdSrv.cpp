@@ -1312,9 +1312,9 @@ bool UUnrealEdEngine::AnyContentPackagesAreDirty() const
 
 bool UUnrealEdEngine::IsTemplateMap( const FString& MapName ) const
 {
-	for (TArray<FTemplateMapInfo>::TConstIterator It(TemplateMapInfos); It; ++It)
+	for (const FTemplateMapInfo& It : GetTemplateMapInfos())
 	{
-		if (It->Map == MapName)
+		if (It.Map == MapName)
 		{
 			return true;
 		}

@@ -2,7 +2,6 @@
 
 #include "IO/DMXInputPortConfig.h"
 
-#include "DMXProtocolModule.h"
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolUtils.h"
 #include "Interfaces/IDMXProtocol.h"
@@ -21,13 +20,13 @@ FDMXInputPortConfigParams::FDMXInputPortConfigParams(const FDMXInputPortConfig& 
 	, ExternUniverseStart(InputPortConfig.GetExternUniverseStart())
 {}
 
+
+FDMXInputPortConfig::FDMXInputPortConfig()
+	: PortGuid(FGuid::NewGuid())
+{}
+
 FDMXInputPortConfig::FDMXInputPortConfig(const FGuid& InPortGuid)
-	: CommunicationType(EDMXCommunicationType::InternalOnly)
-	, DeviceAddress(TEXT("127.0.0.1"))
-	, LocalUniverseStart(1)
-	, NumUniverses(10)
-	, ExternUniverseStart(1)
-	, PortGuid(InPortGuid)
+	: PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
 	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
@@ -60,11 +59,16 @@ FDMXInputPortConfig::FDMXInputPortConfig(const FGuid& InPortGuid, const FDMXInpu
 
 void FDMXInputPortConfig::MakeValid()
 {
-	checkf(PortGuid.IsValid(), TEXT("The port guid has to be valid to make a valid config. Use related constructor."))
+	if (!ensureAlwaysMsgf(PortGuid.IsValid(), TEXT("Invalid GUID for Input Port %s. Generating a new one. Blueprint nodes referencing the port will no longer be functional."), *PortName))
+	{
+		PortGuid = FGuid::NewGuid();
+	}
 
-	// Test the protocol name and make it valid if needed
 	IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
-	if (!Protocol.IsValid())
+
+	// Try to restore the protocol if it is not valid.
+	// Allow NAME_None as an option if no protocol should be loaded (e.g. in projects that play a dmx show from sequencer only).
+	if (!Protocol.IsValid() && !ProtocolName.IsNone())
 	{
 		const TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
 		if (ProtocolNames.Num() > 0)
@@ -72,9 +76,19 @@ void FDMXInputPortConfig::MakeValid()
 			ProtocolName = ProtocolNames[0];
 			Protocol = IDMXProtocol::Get(ProtocolName);
 		}
-	}
-	checkf(Protocol.IsValid(), TEXT("Protocols not loaded or no protocols available. Use of port configs is only supported after the engine is fully loaded (PostEngineInit)."));
 
+		if (!Protocol.IsValid())
+		{
+			// Mind, while it makes sense for output ports to specify no protocol to internally loopback,  
+			// there is no reason to have an input port but no use for it. To the opposite, it may cause
+			// undesired behaviour as in 3rd party interference. Hence this is logged as a warning. 
+			UE_LOG(LogDMXProtocol, Warning, TEXT("No valid DMX Protocol specified for Input Port %s. The Port cannot be used."), *PortName);
+			return;
+		}
+	}
+
+	if (Protocol.IsValid())
+	{
 	// If the extern universe ID is out of the protocol's supported range, mend it.
 	ExternUniverseStart = Protocol->MakeValidUniverseID(ExternUniverseStart);
 
@@ -99,6 +113,20 @@ void FDMXInputPortConfig::MakeValid()
 			CommunicationType = EDMXCommunicationType::InternalOnly;
 		}
 	}	
+}
+}
+
+FString FDMXInputPortConfig::GetDeviceAddress() const
+{
+	// Allow to override the listener ip from commandline
+	const FString DMXInputPortCommandLine = FString::Printf(TEXT("dmxinputportip=%s:"), *PortName);
+	FString OverrideIP;
+	FParse::Value(FCommandLine::Get(), *DMXInputPortCommandLine, OverrideIP);
+	if (!OverrideIP.IsEmpty())
+	{
+		return OverrideIP;
+	}
+	return DeviceAddress;
 }
 
 void FDMXInputPortConfig::GenerateUniquePortName()

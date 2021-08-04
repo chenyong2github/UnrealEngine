@@ -490,3 +490,18 @@ TArray<typename FGenericPlatformMemoryStats::FPlatformSpecificStat> FGenericPlat
 {
 	return TArray<FPlatformSpecificStat>();
 }
+
+uint64 FGenericPlatformMemoryStats::GetAvailablePhysical(bool bExcludeExtraDevMemory) const
+{
+	uint64 BytesAvailable = AvailablePhysical;
+
+#if !UE_BUILD_SHIPPING
+	if (bExcludeExtraDevMemory)
+	{
+		// FMath:Min to clamp at zero when ExtraDevelopmentMemory > AvailablePhysical
+		BytesAvailable -= FMath::Min(FPlatformMemory::GetExtraDevelopmentMemorySize(), BytesAvailable);
+	}
+#endif
+
+	return BytesAvailable;
+}

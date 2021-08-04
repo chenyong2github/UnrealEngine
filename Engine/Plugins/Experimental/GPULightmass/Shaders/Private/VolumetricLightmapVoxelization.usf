@@ -113,11 +113,11 @@ void VLMVoxelizationGS(triangle FVLMVoxelizationVSToGS Inputs[3], inout Triangle
 		Vertices[0].ScreenPosition.xyz - Vertices[2].ScreenPosition.xyz
 	};
 	
-	float2 SemiDiagonalVectors[4] = {
-		{ sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim,  sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim},
-		{ sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, -sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim},
-		{-sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim,  sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim},
-		{-sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, -sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim}
+	float3 SemiDiagonalVectors[4] = {
+		{ sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim,  sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, 0.0f},
+		{ sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, -sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, 0.0f},
+		{-sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim,  sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, 0.0f},
+		{-sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, -sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, 0.0f}
 	};
 	
 	float MaxProj[3] = {0, 0, 0};

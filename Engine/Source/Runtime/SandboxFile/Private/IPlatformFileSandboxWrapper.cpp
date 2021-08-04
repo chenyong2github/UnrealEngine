@@ -249,7 +249,7 @@ FString FSandboxPlatformFile::ConvertToSandboxPath( const TCHAR* Filename ) cons
 			{
 				// replace the start with InjectedTargetDirectory
 				FString NewPath = InjectedTargetDirectory + SandboxPath.Mid(InjectedSourceDirectory.Len());
-				UE_LOG(LogInit, Display, TEXT("%s -->  %s"), *SandboxPath, *NewPath);
+				UE_LOG(LogInit, Verbose, TEXT("Injected %s -->  %s"), *SandboxPath, *NewPath);
 
 				// if (LowerLevel->DirectoryExists(*FPaths::GetPath(InjectedTargetDirectory)))
 				{

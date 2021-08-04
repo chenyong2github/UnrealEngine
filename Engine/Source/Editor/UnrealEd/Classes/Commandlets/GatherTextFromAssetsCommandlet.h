@@ -18,7 +18,7 @@ class UGatherTextFromAssetsCommandlet : public UGatherTextCommandletBase
 
 	void ProcessGatherableTextDataArray(const TArray<FGatherableTextData>& GatherableTextDataArray);
 	void CalculateDependenciesForPackagesPendingGather();
-	bool HasExceededMemoryLimit();
+	bool HasExceededMemoryLimit(const bool bLog);
 	void PurgeGarbage(const bool bPurgeReferencedPackages);
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
@@ -71,11 +71,11 @@ private:
 
 	TArray<FPackagePendingGather> PackagesPendingGather;
 
-	/** The number of packages to process per-batch */
-	int32 PackagesPerBatchCount;
+	/** Run a GC if the free system memory is less than this value (or zero to disable) */
+	uint64 MinFreeMemoryBytes;
 
-	/** Max memory we should use before forcing a full GC */
-	uint64 MaxMemoryAllowanceBytes;
+	/** Run a GC if the used process memory is greater than this value (or zero to disable) */
+	uint64 MaxUsedMemoryBytes;
 
 	/** Array of objects that should be kept alive during the next call to CollectGarbage (used by PurgeGarbage and AddReferencedObjects) */
 	TSet<UObject*> ObjectsToKeepAlive;

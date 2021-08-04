@@ -40,6 +40,7 @@ int32 UNiagaraSystemAuditCommandlet::Main(const FString& Params)
 
 	FParse::Value(*Params, TEXT("FilterCollection="), FilterCollection);
 
+	INiagaraModule& NiagaraModule = FModuleManager::LoadModuleChecked<INiagaraModule>("Niagara");
 	// User Data Interfaces to Find
 	{
 		FString UserDataInterfacesToFindString;

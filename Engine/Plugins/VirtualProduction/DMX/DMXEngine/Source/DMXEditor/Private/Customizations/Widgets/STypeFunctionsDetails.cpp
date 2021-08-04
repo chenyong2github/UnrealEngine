@@ -525,19 +525,16 @@ FText SDMXFunctionItemListViewBox::GetCellAttributesHeader() const
 	if (CurrentModeHandle.IsValid())
 	{
 		TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
-		check(FixtureMatrixConfigHandle.IsValid());
-
 		TSharedPtr<IPropertyHandle> XCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, XCells));
-		check(XCellsHandle.IsValid());
-
 		TSharedPtr<IPropertyHandle> YCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, YCells));
-		check(YCellsHandle.IsValid());
 
 		int32 XCells = 0;
-		ensure(XCellsHandle->GetValue(XCells) == FPropertyAccess::Success);
 		int32 YCells = 0;
-		ensure(YCellsHandle->GetValue(YCells) == FPropertyAccess::Success);
 
+		// Try to access the properties. May fail when removing modes
+		if (XCellsHandle->GetValue(XCells) == FPropertyAccess::Success &&
+			YCellsHandle->GetValue(YCells) == FPropertyAccess::Success)
+		{
 		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
 		check(CellAttributesHandle.IsValid());
 
@@ -558,6 +555,7 @@ FText SDMXFunctionItemListViewBox::GetCellAttributesHeader() const
 
 		return FText::FromString(FString::Printf(TEXT("Cell Functions %d elements"), NumElements));
 	}
+	}
 	
 	return FText();
 }
@@ -572,10 +570,12 @@ FText SDMXFunctionItemListViewBox::GetFixtureMatrixWarning() const
 		TSharedPtr<IPropertyHandle> YCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, YCells));
 
 		int32 XCells = 0;
-		ensure(XCellsHandle->GetValue(XCells) == FPropertyAccess::Success);
 		int32 YCells = 0;
-		ensure(YCellsHandle->GetValue(YCells) == FPropertyAccess::Success);
 
+		// Try to get the values, may fail when removing modes
+		if (XCellsHandle->GetValue(XCells) == FPropertyAccess::Success &&
+			YCellsHandle->GetValue(YCells) == FPropertyAccess::Success)
+		{
 		if (XCells == 0 || YCells == 0)
 		{
 			return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixCellsPresentWarning", "Invalid Fixture Matrix: 0 Cells");
@@ -591,6 +591,7 @@ FText SDMXFunctionItemListViewBox::GetFixtureMatrixWarning() const
 		{
 			return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixAttributesPresentWarning", "Invalid Fixture Matrix: No Attributes added");
 		}
+	}
 	}
 
 	return FText::GetEmpty();

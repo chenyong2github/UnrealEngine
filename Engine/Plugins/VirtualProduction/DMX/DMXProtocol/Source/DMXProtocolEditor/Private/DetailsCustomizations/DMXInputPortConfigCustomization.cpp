@@ -29,29 +29,49 @@ TSharedRef<IPropertyTypeCustomization> FDMXInputPortConfigCustomization::MakeIns
 	return MakeShared<FDMXInputPortConfigCustomization>();
 }
 
-FName FDMXInputPortConfigCustomization::GetProtocolNamePropertyNameChecked() const
+FName FDMXInputPortConfigCustomization::GetProtocolNamePropertyName() const
 {
 	return FDMXInputPortConfig::GetProtocolNamePropertyNameChecked();
 }
 
-FName FDMXInputPortConfigCustomization::GetCommunicationTypePropertyNameChecked() const
+FName FDMXInputPortConfigCustomization::GetCommunicationTypePropertyName() const
 {
 	return FDMXInputPortConfig::GetCommunicationTypePropertyNameChecked();
 }
 
-FName FDMXInputPortConfigCustomization::GetDeviceAddressPropertyNameChecked() const
+FName FDMXInputPortConfigCustomization::GetDeviceAddressPropertyName() const
 {
 	return FDMXInputPortConfig::GetDeviceAddressPropertyNameChecked();
 }
 
-FName FDMXInputPortConfigCustomization::GetPortGuidPropertyNameChecked() const
+FName FDMXInputPortConfigCustomization::GetDestinationAddressPropertyName() const
+{
+	return NAME_None;
+}
+
+FName FDMXInputPortConfigCustomization::GetPriorityStrategyPropertyName() const
+{
+	return FDMXInputPortConfig::GetPriorityStrategyPropertyNameChecked();
+}
+
+FName FDMXInputPortConfigCustomization::GetPriorityPropertyName() const
+{
+	return FDMXInputPortConfig::GetPriorityPropertyNameChecked();
+}
+
+FName FDMXInputPortConfigCustomization::GetPortGuidPropertyName() const
 {
 	return FDMXInputPortConfig::GetPortGuidPropertyNameChecked();
 }
 
 const TArray<EDMXCommunicationType> FDMXInputPortConfigCustomization::GetSupportedCommunicationTypes() const
 {
-	return GetProtocolChecked()->GetInputPortCommunicationTypes();
+	if (IDMXProtocolPtr Protocol = GetProtocol())
+	{
+		return Protocol->GetInputPortCommunicationTypes();
+	}
+
+	return TArray<EDMXCommunicationType>();
 }
 
 #undef LOCTEXT_NAMESPACE

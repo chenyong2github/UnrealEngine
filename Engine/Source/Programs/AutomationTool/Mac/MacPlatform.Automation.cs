@@ -480,7 +480,7 @@ public class MacPlatform : Platform
 					Directory.Delete(TargetPath, true);
 				}
 
-				// First, move all files and folders inside he app bundle
+				// First, move all files and folders inside the app bundle
 				string[] StagedFiles = Directory.GetFiles(SC.ArchiveDirectory.FullName, "*", SearchOption.TopDirectoryOnly);
 				foreach (string FilePath in StagedFiles)
 				{
@@ -545,6 +545,52 @@ public class MacPlatform : Platform
 				// to fail to load, and isn't needed
 				Directory.CreateDirectory(CombinePaths(TargetPath, "Engine", "Binaries", "Mac"));
 				Directory.CreateDirectory(CombinePaths(TargetPath, SC.ShortProjectName, "Binaries", "Mac"));
+			}
+
+			// Find any dSYM files in the Manifest_DebugFiles_Mac file, move them to the archive directory, and remove them from the manifest.
+			string[] DebugManifests = CommandUtils.FindFiles("Manifest_DebugFiles_Mac.txt", true, SC.ArchiveDirectory.FullName);
+			if ( DebugManifests.Count() > 0 )
+			{
+				string DebugManifest=DebugManifests[0];
+
+				List<string> ManifestLines = new List<string>(File.ReadAllLines(DebugManifest));
+				bool ModifyManifest = false;
+				for (int ManifestLineIndex = ManifestLines.Count - 1; ManifestLineIndex >= 0; ManifestLineIndex--)
+				{
+					string ManifestLine = ManifestLines[ManifestLineIndex];
+					int TabIndex = ManifestLine.IndexOf('\t');
+					if (TabIndex > 0)
+					{
+						string FoundDebugFile = ManifestLine.Substring(0, TabIndex);
+						if (FoundDebugFile.Contains(".dSYM"))
+						{
+							FoundDebugFile = CommandUtils.CombinePaths(TargetPath, FoundDebugFile);
+							string MovedDebugFile = CombinePaths(SC.ArchiveDirectory.FullName, Path.GetFileName(FoundDebugFile));
+
+							File.Move(FoundDebugFile, MovedDebugFile);
+
+							Log.TraceInformation("Moving debug file: '{0}')", FoundDebugFile);
+							ManifestLines.RemoveAt(ManifestLineIndex);
+							ModifyManifest = true;
+						}
+					}
+				}
+				if (ModifyManifest)
+				{
+					File.WriteAllLines(DebugManifest, ManifestLines.ToArray());
+				}
+			}
+
+			// If there is a dSYM matching the exe name rename it so it matches the project name
+			string ExeDSYMName = CombinePaths(SC.ArchiveDirectory.FullName, ExeName + ".dSYM");
+			string ProjectDSYMName = CombinePaths(SC.ArchiveDirectory.FullName, SC.ShortProjectName + ".dSYM");
+
+			if (ExeDSYMName != ProjectDSYMName)
+			{
+				if (File.Exists(ExeDSYMName))
+				{
+					File.Move(ExeDSYMName, ProjectDSYMName);
+				}
 			}
 
 			Run("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f " + BundlePath, null, ERunOptions.Default);

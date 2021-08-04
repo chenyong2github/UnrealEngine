@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_SLATE_WIDGET_TRACKING
-
 #include "CoreMinimal.h"
 
 class SWidget;
@@ -15,87 +13,53 @@ enum class ETrackedSlateWidgetOperations : uint8
 	RemovedTrackedWidget
 };
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FTrackedWidgetListener, const SWidget*, const FName&, ETrackedSlateWidgetOperations)
+DECLARE_EVENT_ThreeParams(FSlateWidgetTracker, FTrackedWidgetsChangedEvent, const SWidget*, const FName&, ETrackedSlateWidgetOperations)
 
+/**
+ * The Slate Widget Tracker tracks widgets by tags and notifies listeners when widgets of a certain tag are added or removed.
+ * Widgets can be added to the tracker using the FTrackedMetaData.
+ */
 class SLATECORE_API FSlateWidgetTracker
 {
 
 public:
 
-	virtual ~FSlateWidgetTracker();
+	/** Get the Singleton instance of the Slate Widget Tracker. */
 	static FSlateWidgetTracker& Get();
 
-	void AddLooseWidget(const SWidget* LooseWidget);
-	void RemoveLooseWidget(const SWidget* LooseWidget);
+	/** Return true if Slate.EnableSlateWidgetTracker was set to true via config files or C++. */
+	bool IsEnabled() const;
 
-	void MetaDataAddedToWidget(const SWidget* Widget, const TSharedRef<ISlateMetaData>& AddedMetaData);
-	void MetaDataRemovedFromWidget(const SWidget* Widget, const TSharedRef<ISlateMetaData>& RemovedMetaData);
+	/** Adds a tracked Widget for the specified tags. */
+	void AddTrackedWidget(const SWidget* WidgetToTrack, const TArray<FName>& Tags);
+	/** Adds a tracked Widget for the specified tag. */
+	void AddTrackedWidget(const SWidget* WidgetToTrack, FName Tag);
+
+	/** Removes a tracked Widget for all tags. */
+	void RemoveTrackedWidget(const SWidget* WidgetToStopTracking);
+
+	/** Returns an event that gets called when widgets tagged with the passed tag are added or removed from the tracker. */
+	FTrackedWidgetsChangedEvent& OnTrackedWidgetsChanged(const FName& Tag);
+
+	/** Calls Predicate for each of the tracked widgets of the specified tag. */
+	template<class Predicate>
+	void ForEachTrackedWidget(FName Tag, Predicate Pred)
+	{
+		if (TArray<const SWidget*>* Widgets = TrackedWidgets.Find(Tag))
+	{
+			for (const SWidget* Widget : *Widgets)
+	{
+				Pred(Widget);
+				}
+			}
+		}
 
 private:
 
-	/** Singleton access only. */
-	FSlateWidgetTracker();
-
-	const TArray<const SWidget*>* GetTrackedWidgetsWithMetaData_Internal(const FName& MetaDataTypeId);
-
-	void NotifyTrackedWidgetsChange(const SWidget* TrackedWidget, const FName& MetaDataTypeId, ETrackedSlateWidgetOperations Operation);
-
-	void RegisterTrackedMetaData(const FName& MetaDataTypeId);
-	void UnregisterTrackedMetaData(const FName& MetaDataTypeId);
+	FSlateWidgetTracker() = default;
+	~FSlateWidgetTracker() = default;
 
 	TMap<FName, TArray<const SWidget*>> TrackedWidgets;
-	TArray<const SWidget*> LooseWidgets;
+	TMap<FName, FTrackedWidgetsChangedEvent> TrackedWidgetsChangedEvents;
 
-	TMap<FName, FTrackedWidgetListener> TrackedWidgetListeners;
-
-public:
-
-	template <typename TMetaDataType>
-	const TArray<const SWidget*>* GetTrackedWidgetsWithMetaData()
-	{
-		return GetTrackedWidgetsWithMetaData_Internal(TMetaDataType::GetTypeId());
-	}
-
-	template <typename TMetaData>
-	FTrackedWidgetListener& AddTrackedWidgetListener()
-	{
-		RegisterTrackedMetaData(TMetaData::GetTypeId());
-		return TrackedWidgetListeners.FindOrAdd(TMetaData::GetTypeId());
-	}
-
-	template <typename TMetaData>
-	void RemoveTrackedWidgetListener(FDelegateHandle Handle)
-	{
-		if (Handle.IsValid())
-		{
-			if (FTrackedWidgetListener* TrackedWidgetListener = TrackedWidgetListeners.Find(TMetaData::GetTypeId()))
-			{
-				TrackedWidgetListener->Remove(Handle);
-				if (!TrackedWidgetListener->IsBound())
-				{
-					UnregisterTrackedMetaData(TMetaData::GetTypeId());
-					TrackedWidgetListeners.Remove(TMetaData::GetTypeId());
-				}
-			}
-		}
-	}
-
-	template <typename TMetaData, typename TListenerOwner>
-	void RemoveAllTrackedWidgetListenersForObject(TListenerOwner* OwnerObject)
-	{
-		if (OwnerObject != nullptr)
-		{
-			if (FTrackedWidgetListener* TrackedWidgetListener = TrackedWidgetListeners.Find(TMetaData::GetTypeId()))
-			{
-				TrackedWidgetListener->RemoveAll(OwnerObject);
-				if (!TrackedWidgetListener->IsBound())
-				{
-					UnregisterTrackedMetaData(TMetaData::GetTypeId());
-					TrackedWidgetListeners.Remove(TMetaData::GetTypeId());
-				}
-			}
-		}
-	}
 };
-
-#endif //WITH_SLATE_WIDGET_TRACKING

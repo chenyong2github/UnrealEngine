@@ -10,8 +10,19 @@
 class FRegexPatternImplementation
 {
 public:
-	FRegexPatternImplementation(const FString& SourceString)
-		: ICURegexPattern(FICURegexManager::Get().CreateRegexPattern(SourceString))
+	static uint32_t GetICURegexFlags(ERegexPatternFlags Flags)
+	{
+		uint32_t OutFlags = 0;
+		if (EnumHasAnyFlags(Flags, ERegexPatternFlags::CaseInsensitive))
+	{
+			OutFlags |= UREGEX_CASE_INSENSITIVE;
+		}
+
+		return OutFlags;
+	}
+
+	FRegexPatternImplementation(const FString& SourceString, ERegexPatternFlags Flags)
+		: ICURegexPattern(FICURegexManager::Get().CreateRegexPattern(SourceString, GetICURegexFlags(Flags)))
 	{
 	}
 
@@ -94,13 +105,13 @@ FICURegexManager& FICURegexManager::Get()
 	return *Singleton;
 }
 
-TWeakPtr<const icu::RegexPattern> FICURegexManager::CreateRegexPattern(const FString& InSourceString)
+TWeakPtr<const icu::RegexPattern> FICURegexManager::CreateRegexPattern(const FString& InSourceString, uint32_t InICURegexFlags)
 {
 	icu::UnicodeString ICUSourceString;
 	ICUUtilities::ConvertString(InSourceString, ICUSourceString);
 
 	UErrorCode ICUStatus = U_ZERO_ERROR;
-	TSharedPtr<const icu::RegexPattern> ICURegexPattern = MakeShareable(icu::RegexPattern::compile(ICUSourceString, 0, ICUStatus));
+	TSharedPtr<const icu::RegexPattern> ICURegexPattern = MakeShareable(icu::RegexPattern::compile(ICUSourceString, InICURegexFlags, ICUStatus));
 
 	if (ICURegexPattern.IsValid())
 	{
@@ -153,8 +164,8 @@ void FICURegexManager::DestroyRegexMatcher(TWeakPtr<icu::RegexMatcher>& InICUReg
 }
 
 
-FRegexPattern::FRegexPattern(const FString& SourceString) 
-	: Implementation(MakeShared<FRegexPatternImplementation>(SourceString))
+FRegexPattern::FRegexPattern(const FString& SourceString, ERegexPatternFlags Flags /*= ERegexPatternFlags::None*/) 
+	: Implementation(MakeShared<FRegexPatternImplementation>(SourceString, Flags))
 {
 }
 

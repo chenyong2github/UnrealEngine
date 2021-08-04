@@ -73,8 +73,8 @@ public:
 			FParse::Bool(CommandLine, TEXT("-CONCERTISHEADLESS="), ClientConfig->bIsHeadless);
 			ClientConfig->bIsHeadless |= !FSlateNotificationManager::Get().AreNotificationsAllowed();
 
-			ClientConfig->EndpointSettings.bEnableLogging |= FParse::Param(CommandLine, TEXT("CONCERTENABLELOGGING"));
-			FParse::Bool(CommandLine, TEXT("-CONCERTENABLELOGGING="), ClientConfig->EndpointSettings.bEnableLogging);
+			ClientConfig->EndpointSettings.bEnableLogging |= FParse::Param(CommandLine, TEXT("CONCERTLOGGING"));
+			FParse::Bool(CommandLine, TEXT("-CONCERTLOGGING="), ClientConfig->EndpointSettings.bEnableLogging);
 
 			// CONCERTTAGS
 			{

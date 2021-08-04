@@ -43,6 +43,8 @@ void FDisplayClusterProjectionCameraPolicy::HandleEndScene(class IDisplayCluster
 
 APlayerCameraManager* const GetCurPlayerCameraManager(IDisplayClusterViewport* InViewport)
 {
+	if (InViewport)
+	{
 	UWorld* World = InViewport->GetOwner().GetCurrentWorld();
 	if (World)
 	{
@@ -52,14 +54,13 @@ APlayerCameraManager* const GetCurPlayerCameraManager(IDisplayClusterViewport* I
 			return CurPlayerController->PlayerCameraManager;
 		}
 	}
+	}
 
 	return nullptr;
 }
 
 UCameraComponent* FDisplayClusterProjectionCameraPolicy::GetCameraComponent()
 {
-	if (CameraRef.IsDefinedSceneComponent())
-	{
 		USceneComponent* SceneComponent = CameraRef.GetOrFindSceneComponent();
 		if (SceneComponent)
 		{
@@ -69,7 +70,6 @@ UCameraComponent* FDisplayClusterProjectionCameraPolicy::GetCameraComponent()
 				return CameraComponent;
 			}
 		}
-	}
 	
 	return  nullptr;
 }

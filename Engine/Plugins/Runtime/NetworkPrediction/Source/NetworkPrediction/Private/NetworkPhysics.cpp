@@ -36,12 +36,12 @@ namespace UE_NETWORK_PHYSICS
 	NP_DEVCVAR_INT(LogImpulses, -1, "np2.LogImpulses", "Logs all recorded F/T/LI/AI");
 
 	NP_DEVCVAR_FLOAT(X, 1.0f, "np2.Tolerance.X", "Location Tolerance");
-	NP_DEVCVAR_FLOAT(R, 0.1f, "np2.Tolerance.R", "Rotation Tolerance");
+	NP_DEVCVAR_FLOAT(R, 0.00f, "np2.Tolerance.R", "Rotation Tolerance");
 	NP_DEVCVAR_FLOAT(V, 1.0f, "np2.Tolerance.V", "Velocity Tolerance");
 	NP_DEVCVAR_FLOAT(W, 1.0f, "np2.Tolerance.W", "Rotational Velocity Tolerance");
 
 	NP_DEVCVAR_INT(Debug, 0, "np2.Debug", "Debug mode for in world drawing");
-	NP_DEVCVAR_INT(DebugTolerance, 0, "np2.Debug.Tolerance", "If enabled, only draw large corrections in world.");
+	NP_DEVCVAR_INT(DebugTolerance, 1, "np2.Debug.Tolerance", "If enabled, only draw large corrections in world.");
 	NP_DEVCVAR_FLOAT(DebugDrawTolerance_X, 5.0, "np2.Debug.Tolerance.X",  "Location Debug Drawing Toleration");
 	NP_DEVCVAR_FLOAT(DebugDrawTolerance_R, 2.0, "np2.Debug.Tolerance.R",  "Simple distance based LOD");
 		
@@ -51,12 +51,20 @@ namespace UE_NETWORK_PHYSICS
 	NP_DEVCVAR_INT(FixedLocalFrameOffset, -1, "np2.FixedLocalFrameOffset", "When > 0, use hardcoded frame offset on client from head");	
 	NP_DEVCVAR_INT(FixedLocalFrameOffsetTolerance, 3, "np2.FixedLocalFrameOffsetTolerance", "Tolerance when using np2.FixedLocalFrameOffset");
 
-	NP_DEVCVAR_INT(EnableLOD, 0, "np2.EnableLOD", "Enable local LOD mode");
-	NP_DEVCVAR_FLOAT(LODDistance, 2400.f, "np2.LODDistance", "Simple distance based LOD");
+	// NOTE: These have temporarily been switched to regular CVar style variables, because the NP_DECVAR_* macros
+	// can only make ECVF_Cheat variables, which cannot be hotfixed with DefaultEngine.ini. Instead they use
+	// ConsoleVariables.ini, which isn't loaded in shipping.
+	int32 EnableLOD=0;
+	FAutoConsoleVariableRef CVarEnableLOD(TEXT("np2.bEnableLOD"), EnableLOD, TEXT("Enable local LOD mode"));
+	int32 MinLODForNonLocal=0;
+	FAutoConsoleVariableRef CVarMinLODForNonLocal(TEXT("np2.MinLODForNonLocal"), MinLODForNonLocal, TEXT("Force LOD to this value for actors who are not locally controlled (0 to skip)"));
+	float LODDistance=2400.f;
+	FAutoConsoleVariableRef CVarLODDistance(TEXT("np2.LODDistance"), LODDistance, TEXT("Simple distance based LOD"));
 
 	NP_DEVCVAR_INT(ResimForSleep, 0, "np2.ResimForSleep", "Triggers resim if only sleep state differs. Otherwise we only match server sleep state if XRVW differ.");
 		
 	// Time dilation CVars
+	NP_DEVCVAR_INT(TimeDilationEnabled, 1, "np2.TimeDilationEnabled", "Enable clientside TimeDilation");
 	NP_DEVCVAR_FLOAT(MaxTargetNumBufferedCmds, 5.0, "np2.MaxTargetNumBufferedCmds", "");
 	NP_DEVCVAR_FLOAT(MaxTimeDilationMag, 0.01f, "np2.MaxTimeDilationMag", "Maximum time dilation that client will use to slow down / catch up with server");
 	NP_DEVCVAR_FLOAT(TimeDilationAlpha, 0.1f, "np2.TimeDilationAlpha", "");
@@ -162,7 +170,11 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 	}
 	bool CompareQuat(const FQuat& A, const FQuat& B, const float D, const TCHAR* Str)
 	{
-		const bool b = D == 0 ? A != B : FQuat::ErrorAutoNormalize(A, B) > D;
+		const float Error = FQuat::ErrorAutoNormalize(A, B);
+		const bool b = D == 0 ? A != B : Error > D;
+
+		//UE_LOG(LogTemp, Warning, TEXT("Error: %f"), Error);
+
 		UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0 && b && Str, LogNetworkPhysics, Log, TEXT("%s correction. Server: %s. Local: %s. Delta: %f"), Str, *A.ToString(), *B.ToString(), FQuat::ErrorAutoNormalize(A, B));
 		return b;
 	}
@@ -249,11 +261,13 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 				Stats.MaxFrameChecked = FMath::Max(Stats.MaxFrameChecked, Obj.Frame);
 				Stats.NumChecked++;
 
+				//UE_LOG(LogTemp, Warning, TEXT("Reconcile Obj 0x%X at frame %d"), (int64)Proxy, Obj.Frame);
+
 
 #if NETWORK_PHYSICS_REPLICATE_EXTRAS
 				if (UE_NETWORK_PHYSICS::LogImpulses > 0)
 				{
-					for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+					for (int32 i=(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++i)
 					{
 						if (Obj.DebugState[i].LinearImpulse.SizeSquared() > 0.f)
 						{
@@ -262,6 +276,10 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					}
 				}
 #endif
+				
+				//UE_LOG(LogTemp, Warning, TEXT("0x%X P.ObjectState(): %d. R: %s [%s]"), (int64)Proxy,  P.ObjectState(), *P.R().ToString(), *Obj.Physics.Rotation.ToString());
+				//UE_LOG(LogTemp, Warning, TEXT("			R: %s [%s]"), *FRotator(P.R()).ToString(), *FRotator(Obj.Physics.Rotation).ToString());
+
 				
 				if ((UE_NETWORK_PHYSICS::ResimForSleep && CompareObjState(Obj.Physics.ObjectState, P.ObjectState(), TEXT("ObjectState"))) ||
 					CompareVec(Obj.Physics.Location, P.X(), UE_NETWORK_PHYSICS::X, TEXT("Location")) ||
@@ -289,9 +307,9 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					if (UE_NETWORK_PHYSICS::LogCorrections > 0 && Obj.Frame-1 >= RewindData->GetEarliestFrame_Internal())
 					{
 						const int32 PreSimulationFrame = SimulationFrame-1;
-						for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+						for (int32 i=(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++i)
 						{
-							const auto LocalPreFrameData = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Obj.Frame-1, (Chaos::FParticleHistoryEntry::EParticleHistoryPhase)i);
+							const auto LocalPreFrameData = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Obj.Frame-1, (Chaos::FFrameAndPhase::EParticleHistoryPhase)i);
 							if (Obj.DebugState[i].Force != LocalPreFrameData.F())
 							{
 								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] FORCE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.F().ToString(), *Obj.DebugState[i].Force.ToString());
@@ -360,6 +378,10 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					break;
 				}
 
+				// TODO: This nullcheck is to avoid null access crash in Editor Tests.
+				// Should re-evaluate whether/why this is occurring in the first place.
+				if (CorrectionState.Proxy)
+				{
 				if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
 				{
 					UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d). Location: %s"), CorrectionState.Frame, PhysicsStep, *FVector(CorrectionState.Physics.Location).ToString());
@@ -369,14 +391,17 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					PT->SetR(CorrectionState.Physics.Rotation, false);
 					PT->SetW(CorrectionState.Physics.AngularVelocity, false);
 					
+						//Solver->GetParticles().MarkTransientDirtyParticle(PT->GetProxy()->GetHandle_LowLevel());
+
 					//if (PT->ObjectState() != CorrectionState.Physics.ObjectState)
 					{
 						ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
-						UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
+							UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0 && PT->ObjectState() != CorrectionState.Physics.ObjectState, LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
 						PT->SetObjectState(CorrectionState.Physics.ObjectState);
 					}
 				}
 			}
+		}
 		}
 
 		// Marhsall data back to GT based on what was requested for networking
@@ -409,9 +434,9 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					const int32 PreStorageFrame = PhysicsStep - 1;
 					if (EarliestFrame < PreStorageFrame)
 					{
-						for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+						for (int32 i=(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++i)
 						{
-							Chaos::FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), PreStorageFrame, (Chaos::FParticleHistoryEntry::EParticleHistoryPhase)i);
+							Chaos::FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), PreStorageFrame, (Chaos::FFrameAndPhase::EParticleHistoryPhase)i);
 							Obj.DebugState[i].Force = State.F();
 							Obj.DebugState[i].Torque = State.Torque();
 							Obj.DebugState[i].LinearImpulse = State.LinearImpulse();
@@ -705,7 +730,10 @@ void UNetworkPhysicsManager::PostNetRecv()
 
 				float RealTimeDilation = UE_NETWORK_PHYSICS::DeQuantizeTimeDilation(ClientFrameInfo.QuantizedTimeDilation);
 
+				if (UE_NETWORK_PHYSICS::TimeDilationEnabled > 0)
+				{
 				PhysScene->SetNetworkDeltaTimeScale(RealTimeDilation);
+				}
 
 				if (LatestAckdClientFrame != INDEX_NONE)
 				{
@@ -775,10 +803,22 @@ void UNetworkPhysicsManager::PostNetRecv()
 					if (PhysicsState->Proxy)
 					{
 						int32 CalculatedLOD = 0;
-						const FVector Location = PhysicsState->Proxy->GetGameThreadAPI().X();
-						if (FVector::DistSquared(Location, LocalViewLoc) > LODDistSq)
+
+						if (UE_NETWORK_PHYSICS::MinLODForNonLocal != 0)
 						{
-							CalculatedLOD = 1;
+							if (PhysicsState->OwningActor)
+							{
+								if (PhysicsState->OwningActor->GetLocalRole() == ROLE_SimulatedProxy)
+								{
+									CalculatedLOD = FMath::Max(CalculatedLOD, UE_NETWORK_PHYSICS::MinLODForNonLocal);
+								}
+							}
+						}
+
+						const FVector Location = PhysicsState->Proxy->GetGameThreadAPI().X();
+						if (LODDistSq > 0.f && FVector::DistSquared(Location, LocalViewLoc) > LODDistSq)
+						{
+							CalculatedLOD = FMath::Max(CalculatedLOD, 1);
 						}
 					
 						if (PhysicsState->LocalLOD != CalculatedLOD)
@@ -790,12 +830,15 @@ void UNetworkPhysicsManager::PostNetRecv()
 						{
 							CreateMarshalledCopy();
 
+							if (PhysicsState->OwningActor)
+							{
 							PhysicsState->OwningActor->GetReplicatedMovement_Mutable().bRepPhysics = false;
 							PhysicsState->OwningActor->SetReplicateMovement(false);
 						}
+						}
 						else
 						{
-							if (ensure(PhysicsState->OwningActor))
+							if (PhysicsState->OwningActor)
 							{
 								FRepMovement& RepMovement = PhysicsState->OwningActor->GetReplicatedMovement_Mutable();
 								RepMovement.Location = PhysicsState->Physics.Location;
@@ -927,7 +970,7 @@ void UNetworkPhysicsManager::PreNetSend(float DeltaSeconds)
 						ManagedState->Physics = Obj.Physics;					
 						ManagedState->Frame = Obj.Frame;
 #if NETWORK_PHYSICS_REPLICATE_EXTRAS
-						for (int32 i=(int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FParticleHistoryEntry::EParticleHistoryPhase::NumPhases; ++i)
+						for (int32 i=(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++i)
 						{
 							ManagedState->DebugState[i] = Obj.DebugState[i];
 						}
@@ -1126,6 +1169,12 @@ void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsSte
 void UNetworkPhysicsManager::RegisterPhysicsProxy(FNetworkPhysicsState* State)
 {
 	checkSlow(State);
+
+	if (!ensureMsgf(State->Proxy, TEXT("No proxy set on FNetworkPhysicsState")))
+	{
+		return;
+	}
+
 	State->LocalManagedHandle = ++UniqueHandleCounter;
 	ManagedHandleToIndexMap.Add(UniqueHandleCounter) = ManagedPhysicsStates.EmplaceAtLowestFreeIndex(LastFreeIndex, State);
 }
@@ -1258,6 +1307,9 @@ void UNetworkPhysicsManager::TickDrawDebug()
 				{
 					(*Func)(P);
 				}
+
+
+				DrawDebugString(ThisWorld, P.Loc + FVector(0.f, 0.f, 100.f), LexToString(State->Frame), nullptr, FColor::White, 0.f);
 			}
 		}
 	}

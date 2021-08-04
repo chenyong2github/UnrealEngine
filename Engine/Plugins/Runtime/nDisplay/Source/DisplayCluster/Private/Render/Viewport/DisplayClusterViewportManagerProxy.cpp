@@ -238,8 +238,25 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 				// Iterate over visible viewports:
 				if (ViewportProxy->GetRenderSettings_RenderThread().bVisible)
 				{
+					bool bShouldApplyWarpBlend = bWarpBlendEnabled;
+					if (bShouldApplyWarpBlend)
+					{
+						// Support warp blend logic
+						if (ViewportProxy->GetPostRenderSettings_RenderThread().Replace.IsEnabled())
+						{
+							// When used override texture, disable warp blend
+							bShouldApplyWarpBlend = false;
+						}
+						else
+						{
+							
+							// Projection policy must support warp blend op
 					const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
-					if (bWarpBlendEnabled && PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported())
+							bShouldApplyWarpBlend = PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
+						}
+					}
+
+					if (bShouldApplyWarpBlend)
 					{
 						WarpBlendViewports.Add(ViewportProxy);
 					}

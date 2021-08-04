@@ -198,6 +198,12 @@ void FMeshCacheIndexor::ReadFromFile()
 	bChanged = false;
 	IO::File  Reader(IO::Location(UEToGSString(*IndexFilePath)), IO::File::Fail);
 	GSErrCode GSErr = Reader.Open(IO::File::ReadMode);
+	if (GSErr == IO::FileErrors)
+	{
+		// Missing file is normal for the first time on a new cache folder or when exporting
+		UE_AC_TraceF("FMeshCacheIndexor::ReadFromFile - Can't open \"%s\"\n", TCHAR_TO_UTF8(*IndexFilePath));
+		return;
+	}
 	NoErrorCall(GSErr, Reader.GetStatus());
 	int32 NbEntries = 0;
 	NoErrorCall(GSErr, Reader.Read(NbEntries));
@@ -622,20 +628,20 @@ void FSyncDatabase::ReportMeshClasses() const
 		{
 			if (MeshClass.InstancesCount != MeshClass.TransformCount)
 			{
-				UE_AC_TraceF("FSynchronizer::ScanElements - %u instances of %s for hash %u, TransfoCount=%u\n",
+				UE_AC_TraceF("FSyncDatabase::ReportMeshClasses - %u instances of %s for hash %u, TransfoCount=%u\n",
 							 MeshClass.InstancesCount, FElementID::GetTypeName(MeshClass.ElementType), MeshClass.Hash,
 							 MeshClass.TransformCount);
 			}
 			else
 			{
-				UE_AC_VerboseF("FSynchronizer::ScanElements - %u instances of %s for hash %u\n",
+				UE_AC_VerboseF("FSyncDatabase::ReportMeshClasses - %u instances of %s for hash %u\n",
 							   MeshClass.InstancesCount, FElementID::GetTypeName(MeshClass.ElementType),
 							   MeshClass.Hash);
 			}
 		}
 		else if (MeshClass.InstancesCount == 1 && MeshClass.TransformCount == 1)
 		{
-			UE_AC_VerboseF("FSynchronizer::ScanElements - %s for hash %u has transform\n",
+			UE_AC_VerboseF("FSyncDatabase::ReportMeshClasses - %s for hash %u has transform\n",
 						   FElementID::GetTypeName(MeshClass.ElementType), MeshClass.Hash);
 		}
 	}

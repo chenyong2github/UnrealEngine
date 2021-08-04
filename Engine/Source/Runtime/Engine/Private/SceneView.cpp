@@ -1340,6 +1340,10 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		FFinalPostProcessSettings& Dest = FinalPostProcessSettings;
 
 		// The following code needs to be adjusted when settings in FPostProcessSettings change.
+		if (Src.bOverride_TemperatureType)
+		{
+			Dest.TemperatureType = Src.TemperatureType;
+		}
 		LERP_PP(WhiteTemp);
 		LERP_PP(WhiteTint);
 

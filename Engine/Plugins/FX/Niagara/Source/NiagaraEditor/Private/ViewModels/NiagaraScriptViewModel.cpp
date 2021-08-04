@@ -192,7 +192,7 @@ void FNiagaraScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, T
 		UNiagaraScript* Script = VersionedScript.Script;
 		check(Script);
 		ENiagaraScriptCompileStatus ScriptStatus = Script->GetLastCompileStatus();
-		if (Script->IsCompilable() && Script->GetVMExecutableData().IsValid() && Script->GetVMExecutableData().ByteCode.Num() == 0) // This is either a brand new script or failed in the past. Since we create a default working script, assume invalid.
+		if (Script->IsCompilable() && Script->GetVMExecutableData().IsValid() && !Script->GetVMExecutableData().ByteCode.HasByteCode()) // This is either a brand new script or failed in the past. Since we create a default working script, assume invalid.
 		{
 			Message = TEXT("Please recompile for full error stack.");
 			GraphViewModel->SetErrorTextToolTip(Message);

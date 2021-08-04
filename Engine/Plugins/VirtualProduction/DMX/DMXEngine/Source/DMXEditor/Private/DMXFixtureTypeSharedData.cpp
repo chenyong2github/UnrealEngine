@@ -10,6 +10,64 @@
 
 #define LOCTEXT_NAMESPACE "DMXFixtureTypeSharedData"
 
+namespace 
+{
+	namespace FDMXFixtureTypeSharedDataDetails
+	{
+		// Helper to raise a mode Pre/PostEditChangeChainPropertyEvent with array index
+		struct FDMXScopedModeEditChangeChainProperty
+		{
+			FDMXScopedModeEditChangeChainProperty(UDMXEntityFixtureType* InFixtureType)
+			{
+				check(InFixtureType);
+
+				FixtureType = InFixtureType;
+
+				FProperty* ModesProperty = UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes));
+				check(ModesProperty);
+
+				FEditPropertyChain PropertyChain;
+				PropertyChain.AddHead(ModesProperty);
+				PropertyChain.SetActivePropertyNode(ModesProperty);
+
+				FixtureType->PreEditChange(PropertyChain);
+				FixtureType->Modify();
+			}
+
+			~FDMXScopedModeEditChangeChainProperty()
+			{
+				if (FixtureType.IsValid())
+				{
+					FProperty* ModesProperty = UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes));
+					check(ModesProperty);
+
+					FEditPropertyChain PropertyChain;
+					PropertyChain.AddHead(ModesProperty);
+					PropertyChain.SetActivePropertyNode(ModesProperty);
+
+					TMap<FString, int32> IndexMap;
+					TArray<UObject*> ObjectsBeingEdited = { FixtureType.Get() };
+
+					FPropertyChangedEvent PropertyChangedEvent(ModesProperty->GetOwnerProperty(), EPropertyChangeType::ArrayAdd, MakeArrayView(ObjectsBeingEdited));
+					FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
+
+					IndexMap.Add(FString(ModesProperty->GetName()), FixtureType->Modes.Num() - 1);
+
+					TArray<TMap<FString, int32>> IndexPerObject;
+					IndexPerObject.Add(IndexMap);
+
+					PropertyChangedChainEvent.SetArrayIndexPerObject(IndexPerObject);
+					PropertyChangedChainEvent.ObjectIteratorIndex = 0;
+
+					FixtureType->PostEditChangeChainProperty(PropertyChangedChainEvent);
+				}
+			}
+
+		private:
+			TWeakObjectPtr<UDMXEntityFixtureType> FixtureType;
+		};
+	}
+}
 
 FDMXFixtureModeItem::FDMXFixtureModeItem(const TWeakPtr<FDMXFixtureTypeSharedData>& InSharedDataPtr, const TSharedPtr<IPropertyHandle>& InModeNameHandle)
 	: SharedDataPtr(InSharedDataPtr)
@@ -344,15 +402,12 @@ void FDMXFixtureTypeSharedData::AddMode(const FScopedTransaction& TransactionSco
 		}
 		NewMode.ModeName = FDMXEditorUtils::GenerateUniqueNameFromExisting(ModeNames, LOCTEXT("DMXFixtureTypeSharedData.DefaultModeName", "Mode").ToString());
 
-		// Transaction
-		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("DMXFixtureTypeSharedData.ModeDuplicated", "DMX Editor: Duplicated Fixture Type Mode"));
+		FProperty* ModesProperty = UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes));
+		check(ModesProperty);
 
-		FixtureType->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes)));
-		FixtureType->Modify();
+		const FDMXFixtureTypeSharedDataDetails::FDMXScopedModeEditChangeChainProperty ScopedChange = FDMXFixtureTypeSharedDataDetails::FDMXScopedModeEditChangeChainProperty(FixtureType.Get());
 
 		FixtureType->Modes.Add(NewMode);		
-
-		FixtureType->PostEditChange();
 	}
 }
 
@@ -413,8 +468,7 @@ void FDMXFixtureTypeSharedData::DuplicateModes(const TArray<TSharedPtr<FDMXFixtu
 		// Transaction
 		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("DMXFixtureTypeSharedData.ModeDuplicated", "DMX Editor: Duplicated Fixture Type Mode"));
 
-		ModeRef.FixtureType->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes)));
-		ModeRef.FixtureType->Modify();
+		const FDMXFixtureTypeSharedDataDetails::FDMXScopedModeEditChangeChainProperty ScopedChange = FDMXFixtureTypeSharedDataDetails::FDMXScopedModeEditChangeChainProperty(ModeRef.FixtureType.Get());
 
 		if (ModeRef.FixtureType->Modes.IsValidIndex(ModeIndex + 1))
 		{
@@ -424,8 +478,6 @@ void FDMXFixtureTypeSharedData::DuplicateModes(const TArray<TSharedPtr<FDMXFixtu
 		{
 			ModeRef.FixtureType->Modes.Add(NewMode);
 		}
-
-		ModeRef.FixtureType->PostEditChange();
 	}
 }
 
@@ -448,12 +500,9 @@ void FDMXFixtureTypeSharedData::DeleteModes(const TArray<TSharedPtr<FDMXFixtureM
 		// Transaction
 		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("DMXFixtureTypeSharedData.ModeDeleted", "DMX Editor: Deleted Fixture Type Mode"));
 
-		ModeRef.FixtureType->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes)));
-		ModeRef.FixtureType->Modify();
+		const FDMXFixtureTypeSharedDataDetails::FDMXScopedModeEditChangeChainProperty ScopedChange = FDMXFixtureTypeSharedDataDetails::FDMXScopedModeEditChangeChainProperty(ModeRef.FixtureType.Get());
 
 		ModeRef.FixtureType->Modes.RemoveAt(ModeIndex);
-
-		ModeRef.FixtureType->PostEditChange();
 	}
 }
 
@@ -705,6 +754,7 @@ void FDMXFixtureTypeSharedData::DeleteFunctions(const TArray<TSharedPtr<FDMXFixt
 
 	FPropertyChangedEvent PropertyChangedEvent(FunctionsProperty, EPropertyChangeType::ArrayRemove);
 	FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
+
 	FixtureType->PostEditChangeChainProperty(PropertyChangedChainEvent);
 
 	FDMXEditorUtils::AutoAssignedAddresses(FixtureType);

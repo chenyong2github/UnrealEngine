@@ -59,20 +59,21 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_OverlayR
 
 void FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Override(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationPostRender_Override& InOverride)
 {
-	DstViewport.PostRenderSettings.Override.TextureRHI.SafeRelease();
+	DstViewport.PostRenderSettings.Replace.TextureRHI.SafeRelease();
 
-	if (InOverride.bAllowOverride && InOverride.SourceTexture != nullptr)
+	if (InOverride.bAllowReplace && InOverride.SourceTexture != nullptr)
 	{
 		FTextureResource* TextureResource = InOverride.SourceTexture->GetResource();
 		if(TextureResource)
 		{
 			FTextureRHIRef& TextureRHI = TextureResource->TextureRHI;
+
 			if (TextureRHI.IsValid())
 			{
-				DstViewport.PostRenderSettings.Override.TextureRHI = TextureRHI;
+				DstViewport.PostRenderSettings.Replace.TextureRHI = TextureRHI;
 				FIntVector Size = TextureRHI->GetSizeXYZ();
 
-				DstViewport.PostRenderSettings.Override.Rect = DstViewport.GetValidRect((InOverride.bShouldUseTextureRegion) ? InOverride.TextureRegion.ToRect() : FIntRect(FIntPoint(0, 0), FIntPoint(Size.X, Size.Y)), TEXT("Configuration Override"));
+				DstViewport.PostRenderSettings.Replace.Rect = DstViewport.GetValidRect((InOverride.bShouldUseTextureRegion) ? InOverride.TextureRegion.ToRect() : FIntRect(FIntPoint(0, 0), FIntPoint(Size.X, Size.Y)), TEXT("Configuration Override"));
 			}
 		}
 	}
@@ -141,7 +142,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Generate
 		DstViewport.PostRenderSettings.GenerateMips.MipsAddressU = InGenerateMips.MipsAddressU;
 		DstViewport.PostRenderSettings.GenerateMips.MipsAddressV = InGenerateMips.MipsAddressV;
 
-		DstViewport.PostRenderSettings.GenerateMips.MaxNumMipsLimit = (InGenerateMips.bOverride_MaxNumMips) ? InGenerateMips.MaxNumMips : 100;
+		DstViewport.PostRenderSettings.GenerateMips.MaxNumMipsLimit = (InGenerateMips.bEnabledMaxNumMips) ? InGenerateMips.MaxNumMips : -1;
 	}
 	else
 	{
@@ -183,7 +184,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 
 		UpdateViewportSetting_Overscan(DstViewport, InRenderSettings.Overscan);
 
-		UpdateViewportSetting_Override(DstViewport, InRenderSettings.Override);
+		UpdateViewportSetting_Override(DstViewport, InRenderSettings.Replace);
 		UpdateViewportSetting_PostprocessBlur(DstViewport, InRenderSettings.PostprocessBlur);
 		UpdateViewportSetting_GenerateMips(DstViewport, InRenderSettings.GenerateMips);
 

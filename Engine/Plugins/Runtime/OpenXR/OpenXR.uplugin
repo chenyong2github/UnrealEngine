@@ -53,6 +53,14 @@
 				"Android",
 				"HoloLens"
 			]
+		},
+		{
+			"Name": "OpenXREditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
 		}
 	]
 }

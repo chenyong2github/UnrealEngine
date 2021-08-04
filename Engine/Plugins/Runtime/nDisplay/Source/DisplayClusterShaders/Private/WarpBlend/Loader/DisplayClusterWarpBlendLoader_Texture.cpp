@@ -30,6 +30,10 @@ THIRD_PARTY_INCLUDES_END
 
 IDisplayClusterRenderTexture* ImplCreateTexture(EPixelFormat InPixelFormat, uint32_t InWidth, uint32_t InHeight, const void* InTextureData, bool bInHasCPUAccess = false)
 {
+	check(InTextureData);
+	check(InWidth > 0);
+	check(InHeight > 0);
+
 	FDisplayClusterRenderTexture* pTexture = new FDisplayClusterRenderTexture();
 	pTexture->CreateTexture(InPixelFormat, InWidth, InHeight, InTextureData, bInHasCPUAccess);
 

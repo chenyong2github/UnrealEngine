@@ -36,6 +36,8 @@ namespace Gauntlet
 		/// </summary>
 		public class LogEntry
 		{
+			public string Prefix { get; private set; }
+
 			/// <summary>
 			/// Category of the entry. E.g for "LogNet" this will be "Net"
 			/// </summary>
@@ -57,7 +59,16 @@ namespace Gauntlet
 			/// <returns></returns>
 			public override string ToString()
 			{
-				return string.Format("Log{0}: {1}: {2}", Category, Level, Message);
+				// LogFoo: Display: Some Message
+				// Match how Unreal does not display the level for 'Log' level messages
+				if (Level == LogLevel.Log)
+				{
+					return string.Format("{0}{1}: {2}", Prefix, Category, Message);
+				}
+				else
+				{
+					return string.Format("{0}{1}: {2}: {3}", Prefix, Category, Level, Message);
+			}
 			}
 
 			/// <summary>
@@ -66,8 +77,9 @@ namespace Gauntlet
 			/// <param name="InCategory"></param>
 			/// <param name="InLevel"></param>
 			/// <param name="InMessage"></param>
-			public LogEntry(string InCategory, LogLevel InLevel, string InMessage)
+			public LogEntry(string InPrefix, string InCategory, LogLevel InLevel, string InMessage)
 			{
+				Prefix = InPrefix;
 				Category = InCategory;
 				Level = InLevel;
 				Message = InMessage;
@@ -225,13 +237,15 @@ namespace Gauntlet
 			// convert linefeed to remove \r which is captured in regex's :(
 			Content = InContent.Replace(Environment.NewLine, "\n");
 
-			// Search for LogFoo:< optional Display|Error etc:> Message
-			MatchCollection MC = Regex.Matches(Content, @"Log(?<category>[\w\d]+):\s*(?:(?<level>Display|Verbose|VeryVerbose|Warning|Error|Fatal):\s)?(?<message>.*)");
+			// Search for LogFoo: <Display|Error|etc>: Message
+			// Also need to handle 'Log' not always being present, and the category being empty for a level of 'Log'
+			MatchCollection MC = Regex.Matches(Content, @"(?<prefix>Log)?(?<category>[A-Za-z][\w\d]+):\s(?<level>Display|Verbose|VeryVerbose|Warning|Error|Fatal)?(?::\s)?(?<message>.*)");
 
 			List<UnrealLog.LogEntry> ParsedEntries = new List<UnrealLog.LogEntry>();
 
 			foreach (Match M in MC)
 			{
+				string Prefix = M.Groups["prefix"].ToString();
 				string Category = M.Groups["category"].ToString();
 				string LevelStr = M.Groups["level"].ToString();
 				string Message = M.Groups["message"].ToString();
@@ -251,7 +265,7 @@ namespace Gauntlet
 					}
 				}
 
-				ParsedEntries.Add(new UnrealLog.LogEntry(Category, Level, Message));
+				ParsedEntries.Add(new UnrealLog.LogEntry(Prefix, Category, Level, Message));
 			}
 
 			LogEntries = ParsedEntries;

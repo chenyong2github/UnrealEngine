@@ -1310,7 +1310,7 @@ FPooledRenderTarget* FRenderTargetPool::GetElementById(uint32 Id) const
 
 void FRenderTargetPool::CompactPool()
 {
-	for (uint32 i = 0, Num = (uint32)PooledRenderTargets.Num(); i < Num; ++i)
+	for (uint32 i = 0, Num = (uint32)PooledRenderTargets.Num(); i < Num; )
 	{
 		FPooledRenderTarget* Element = PooledRenderTargets[i];
 
@@ -1319,6 +1319,10 @@ void FRenderTargetPool::CompactPool()
 			PooledRenderTargets.RemoveAtSwap(i);
 			PooledRenderTargetHashes.RemoveAtSwap(i);
 			--Num;
+		}
+		else
+		{
+			++i;
 		}
 	}
 }

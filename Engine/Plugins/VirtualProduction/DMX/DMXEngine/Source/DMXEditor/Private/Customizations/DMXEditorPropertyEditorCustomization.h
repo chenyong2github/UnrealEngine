@@ -12,6 +12,8 @@
 #include "Templates/SubclassOf.h"
 #include "Widgets/SNameListPicker.h"
 
+struct FDMXFixtureMode;
+
 class FDMXEditor;
 class UDMXLibrary;
 class UDMXEntity;
@@ -166,6 +168,9 @@ private:
 	/** Called when the bAutoAssignAddress Property changed */
 	void OnAutoAssignAddressChanged();
 
+	/** Called when modes in the parent fixture type changed */
+	void OnModesChanged(const UDMXEntityFixtureType* FixtureType, const FDMXFixtureMode& Mode);
+
 	/** Fill the ActiveModeOptions array with the modes for the selected patches */
 	void GenerateActiveModeOptions();
 	
@@ -177,7 +182,6 @@ private:
 	TSharedRef<SWidget> GenerateActiveModeOptionWidget(const TSharedPtr<uint32> InMode) const;
 	void OnActiveModeChanged(const TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo);
 
-	void OnActiveComboBoxOpening();
 	FText GetCurrentActiveModeLabel() const;
 
 private:
@@ -188,6 +192,8 @@ private:
 	TSharedPtr<IPropertyHandle> AutoAssignAddressHandle;
 
 	TSharedPtr< SComboBox< TSharedPtr<uint32> > > ActiveModeOptionsWidget;
+
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 };
 
 /**  Customization for any property that should be displayed as a dropdown of options from a FName array */

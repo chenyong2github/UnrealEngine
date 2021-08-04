@@ -379,6 +379,11 @@ void USocialToolkit::NotifyPartyInviteReceived(USocialUser& SocialUser, const IO
 	OnPartyInviteReceived().Broadcast(SocialUser);
 }
 
+void USocialToolkit::NotifyPartyInviteRemoved(USocialUser& SocialUser, const IOnlinePartyJoinInfo& Invite)
+{
+	OnPartyInviteRemoved().Broadcast(SocialUser);
+}
+
 void USocialToolkit::QueueUserDependentAction(const FUniqueNetIdRepl& UserId, TFunction<void(USocialUser&)>&& UserActionFunc, bool bExecutePostInit)
 {
 	ESocialSubsystem CompatibleSubsystem = ESocialSubsystem::MAX;

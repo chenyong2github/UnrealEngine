@@ -90,11 +90,11 @@ public:
 
 	// Baking speed multiplier when Realtime is enabled in the viewer.
 	// Setting this too high can cause the editor to become unresponsive with heavy scenes.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = System, DisplayName = "Slow Mode Speed", meta = (ClampMin = "1", ClampMax = "64"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = System, DisplayName = "Realtime Workload Factor", meta = (ClampMin = "1", ClampMax = "64"))
 	int32 TilePassesInSlowMode = 1;
 
 	// Baking speed multiplier when Realtime is disabled in the viewer.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = System, DisplayName = "Full Speed", meta = (ClampMin = "1", ClampMax = "64"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = System, DisplayName = "Non-Realtime Workload Factor", meta = (ClampMin = "1", ClampMax = "64"))
 	int32 TilePassesInFullSpeedMode = 8;
 
 	// GPU Lightmass manages a pool for calculations of visible tiles. The pool size should be set based on the size of the

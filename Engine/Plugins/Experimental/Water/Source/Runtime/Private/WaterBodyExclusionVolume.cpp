@@ -4,6 +4,9 @@
 #include "Components/BrushComponent.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "EngineUtils.h"
+#include "WaterSubsystem.h"
+#include "UObject/UObjectIterator.h"
+#include "WaterBodyComponent.h"
 
 #if WITH_EDITOR
 #include "Components/BillboardComponent.h"
@@ -29,36 +32,38 @@ void AWaterBodyExclusionVolume::UpdateOverlappingWaterBodies()
 	GetWorld()->OverlapMultiByObjectType(Overlaps, Bounds.Origin, FQuat::Identity, FCollisionObjectQueryParams::AllObjects, FCollisionShape::MakeBox(Bounds.BoxExtent));
 
 	// Find any new overlapping bodies and notify them that this exclusion volume influences them
-	TSet<AWaterBody*> ExistingOverlappingBodies;
-	TSet<TWeakObjectPtr<AWaterBody>> NewOverlappingBodies;
+	TSet<UWaterBodyComponent*> ExistingOverlappingBodies;
+	TSet<TWeakObjectPtr<UWaterBodyComponent>> NewOverlappingBodies;
 
 	TLazyObjectPtr<AWaterBodyExclusionVolume> LazyThis(this);
 
 	// Fixup overlapping bodies (iterating on actors on post-load will fail, but this is fine as this exclusion volume should not yet be referenced by an existing water body upon loading) : 
-	for (AWaterBody* WaterBody : TActorRange<AWaterBody>(GetWorld()))
+	UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [LazyThis, &ExistingOverlappingBodies](UWaterBodyComponent* WaterBodyComponent)
 	{
-		if (WaterBody->ContainsExclusionVolume(LazyThis))
+		if (WaterBodyComponent->ContainsExclusionVolume(LazyThis))
 		{
-			ExistingOverlappingBodies.Add(WaterBody);
+			ExistingOverlappingBodies.Add(WaterBodyComponent);
 		}
-	}
+		return true;
+	});
 
 	for (const FOverlapResult& Result : Overlaps)
 	{
 		AWaterBody* WaterBody = Result.OverlapObjectHandle.FetchActor<AWaterBody>();
 		if (WaterBody && (bIgnoreAllOverlappingWaterBodies || WaterBodiesToIgnore.Contains(WaterBody)))
 		{
-			NewOverlappingBodies.Add(WaterBody);
+			UWaterBodyComponent* WaterBodyComponent = WaterBody->GetWaterBodyComponent();
+			NewOverlappingBodies.Add(WaterBodyComponent);
 			// If the water body is not already overlapping then notify
-			if (!ExistingOverlappingBodies.Contains(WaterBody))
+			if (!ExistingOverlappingBodies.Contains(WaterBodyComponent))
 			{
-				WaterBody->AddExclusionVolume(this);
+				WaterBodyComponent->AddExclusionVolume(this);
 			}
 		}
 	}
 
 	// Find existing bodies that are no longer overlapping and remove them
-	for (AWaterBody* ExistingBody : ExistingOverlappingBodies)
+	for (UWaterBodyComponent* ExistingBody : ExistingOverlappingBodies)
 	{
 		if (ExistingBody && !NewOverlappingBodies.Contains(ExistingBody))
 		{
@@ -104,9 +109,14 @@ void AWaterBodyExclusionVolume::Destroyed()
 	Super::Destroyed();
 
 	// No need for water bodies to keep a pointer to ourselves, even if a lazy one :
-	for (AWaterBody* WaterBody : TActorRange<AWaterBody>(GetWorld()))
+	// Use a TObjectRange here instead of the Manager for each because it may not be valid
+	UWorld* World = GetWorld();
+	for (UWaterBodyComponent* WaterBodyComponent : TObjectRange<UWaterBodyComponent>())
 	{
-		WaterBody->RemoveExclusionVolume(this);
+		if (WaterBodyComponent && WaterBodyComponent->GetWorld() == World)
+		{
+			WaterBodyComponent->RemoveExclusionVolume(this);
+		}
 	}
 }
 

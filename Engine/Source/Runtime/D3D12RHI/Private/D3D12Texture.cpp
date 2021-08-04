@@ -3010,7 +3010,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 	if (Format == PF_NV12)
 	{
 		// Check here to ensure callers aren't trying to do the wrong thing in the specific case of this format.
-		check(!bCreateRTV && !bCreateShaderResource);
+		checkSlow(!bCreateRTV && !bCreateShaderResource);
 		bCreateRTV = false;
 		bCreateShaderResource = false;
 	}

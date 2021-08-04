@@ -28,6 +28,7 @@
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
@@ -41,12 +42,13 @@ void SNiagaraOverviewStackNode::Construct(const FArguments& InArgs, UNiagaraOver
 	StackViewModel = nullptr;
 	OverviewSelectionViewModel = nullptr;
 	bIsHoveringThumbnail = false;
-	bThumbnailBarRefreshPending = true;
+	bTopContentBarRefreshPending = true;
 	CurrentIssueIndex = -1;
 
 	EmitterHandleViewModelWeak.Reset();
 
-	ThumbnailBar = SNew(SHorizontalBox);
+	TopContentBar = SNew(SHorizontalBox);
+	
 	if (OverviewStackNode->GetOwningSystem() != nullptr)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::Get().LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
@@ -254,10 +256,10 @@ void SNiagaraOverviewStackNode::Tick(const FGeometry& AllottedGeometry, const do
 			OverviewStackNode->RenameStarted();
 		}
 
-		if (bThumbnailBarRefreshPending)
+		if (bTopContentBarRefreshPending)
 		{
-			FillThumbnailBar();
-			bThumbnailBarRefreshPending = false;
+			FillTopContentBar();
+			bTopContentBarRefreshPending = false;
 		}
 	}
 }
@@ -285,7 +287,7 @@ void SNiagaraOverviewStackNode::OnMaterialCompiled(class UMaterialInterface* Mat
 
 		if (bUsingThisMaterial)
 		{
-			bThumbnailBarRefreshPending = true;
+			bTopContentBarRefreshPending = true;
 		}
 	}
 }
@@ -306,7 +308,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 		ContentWidget = SNullWidget::NullWidget;
 	}
 
-	FillThumbnailBar();
+	FillTopContentBar();
 
 	// NODE CONTENT AREA
 	TSharedRef<SWidget> NodeWidget = SNew(SBorder)
@@ -322,7 +324,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 			.VAlign(VAlign_Center)
 			.Padding(2.0f, 2.0f)
 			[
-				ThumbnailBar.ToSharedRef()
+				TopContentBar.ToSharedRef()
 			]
 			+ SVerticalBox::Slot()
 			.FillHeight(1.0f)
@@ -367,7 +369,7 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 
 void SNiagaraOverviewStackNode::StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags)
 {
-	bThumbnailBarRefreshPending = true;
+	bTopContentBarRefreshPending = true;
 }
 
 void SNiagaraOverviewStackNode::StackViewModelDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
@@ -376,23 +378,23 @@ void SNiagaraOverviewStackNode::StackViewModelDataObjectChanged(TArray<UObject*>
 	{
 		if (ChangedObject->IsA<UNiagaraRendererProperties>())
 		{
-			bThumbnailBarRefreshPending = true;
+			bTopContentBarRefreshPending = true;
 			break;
 		}
 	}
 }
 
-void SNiagaraOverviewStackNode::FillThumbnailBar()
+void SNiagaraOverviewStackNode::FillTopContentBar()
 {
-	if (ThumbnailBar.IsValid() && ThumbnailBar->GetChildren())
+	if (TopContentBar.IsValid() && TopContentBar->GetChildren())
 	{
-		ThumbnailBar->ClearChildren();
+		TopContentBar->ClearChildren();
 	}
 	if (EmitterHandleViewModelWeak.IsValid())
 	{
 	
 		// Isolate toggle button
-		ThumbnailBar->AddSlot()
+		TopContentBar->AddSlot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
@@ -416,8 +418,14 @@ void SNiagaraOverviewStackNode::FillThumbnailBar()
 
 		EmitterHandleViewModelWeak.Pin()->GetRendererEntries(PreviewStackEntries);
 		FNiagaraEmitterInstance* InInstance = EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetSimulation().IsValid() ? EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetSimulation().Pin().Get() : nullptr;
-		for (UNiagaraStackEntry* Entry : PreviewStackEntries)
+
+		FToolBarBuilder ToolBarBuilder(nullptr, FMultiBoxCustomization::None, nullptr, true);
+		ToolBarBuilder.SetStyle(&FNiagaraEditorStyle::Get(), FName("OverviewStackNodeThumbnailToolBar"));
+		ToolBarBuilder.SetLabelVisibility(EVisibility::Collapsed);
+		
+		for (int32 StackEntryIndex = 0; StackEntryIndex < PreviewStackEntries.Num(); StackEntryIndex++)
 		{
+			UNiagaraStackEntry* Entry = PreviewStackEntries[StackEntryIndex];
 			if (UNiagaraStackRendererItem* RendererItem = Cast<UNiagaraStackRendererItem>(Entry))
 			{
 				TArray<TSharedPtr<SWidget>> Widgets;
@@ -426,28 +434,40 @@ void SNiagaraOverviewStackNode::FillThumbnailBar()
 				RendererItem->GetRendererProperties()->GetRendererTooltipWidgets(InInstance, TooltipWidgets, UThumbnailManager::Get().GetSharedThumbnailPool());
 				for (int32 WidgetIndex = 0; WidgetIndex < Widgets.Num(); WidgetIndex++)
 				{
-					ThumbnailBar->AddSlot()
-						.AutoWidth()
-						.HAlign(HAlign_Left)
+					ToolBarBuilder.AddWidget(
+						SNew(SBox)
 						.VAlign(VAlign_Center)
-						.Padding(2.0f, 2.0f, 4.0f, 4.0f)
-						.MaxWidth(ThumbnailSize)
-						[
-							SNew(SBox)
+						.HAlign(HAlign_Center)
 							.MinDesiredHeight(ThumbnailSize)
+						.MinDesiredWidth(ThumbnailSize)
 							.MaxDesiredHeight(ThumbnailSize)
-							.MinDesiredWidth(ThumbnailSize)
+						.MaxDesiredWidth(ThumbnailSize)
 							.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
 							[
 								CreateThumbnailWidget(Entry, Widgets[WidgetIndex], TooltipWidgets[WidgetIndex])
 							]
-						];
+					);
 				}
+
+				// if we had a widget for this entry, add a separator for the next entry's widgets, except for the last entry
+				if(Widgets.Num() > 0 && StackEntryIndex < PreviewStackEntries.Num() - 1)
+				{
+					ToolBarBuilder.AddSeparator();
 			}
 		}
 	}
 
-	ThumbnailBar->AddSlot()
+		TopContentBar->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.MaxWidth(300.f)
+		[
+			ToolBarBuilder.MakeWidget()
+		];
+	}
+
+	TopContentBar->AddSlot()
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
 		.FillWidth(1.0f)

@@ -46,6 +46,7 @@
 #include <libproc.h>
 #include <notify.h>
 #include <uuid/uuid.h>
+#include <spawn.h>
 #include "Apple/PostAppleSystemHeaders.h"
 
 extern CORE_API bool GIsGPUCrashed;
@@ -2311,54 +2312,62 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 	if(bCanRunCrashReportClient)
 	{
 		// create a crash-specific directory
-		char CrashInfoFolder[PATH_MAX] = {};
-		FCStringAnsi::Strncpy(CrashInfoFolder, GMacAppInfo.CrashReportPath, PATH_MAX);
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "/CrashReport-UE4-");
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, GMacAppInfo.AppNameUTF8);
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "-pid-");
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(getpid(), 10));
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "-");
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GMacAppInfo.RunUUID.A, 16));
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GMacAppInfo.RunUUID.B, 16));
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GMacAppInfo.RunUUID.C, 16));
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GMacAppInfo.RunUUID.D, 16));
+		FString CrashInfoFolder = FString::Printf(TEXT("%s/CrashReport-UE4-%s-pid-%d-%s"), UTF8_TO_TCHAR(GMacAppInfo.CrashReportPath), UTF8_TO_TCHAR(GMacAppInfo.AppNameUTF8), (int32)getpid(), *GMacAppInfo.RunUUID.ToString());
 		
-		GenerateInfoInFolder(CrashInfoFolder);
+		GenerateInfoInFolder(TCHAR_TO_UTF8(*CrashInfoFolder));
 
-		// try launching the tool and wait for its exit, if at all
-		// Use vfork() & execl() as they are async-signal safe, CreateProc can fail in Cocoa
-		int32 ReturnCode = 0;
-		FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "/");
-		pid_t ForkPID = vfork();
-		if(ForkPID == 0)
-		{
-			// Child
+		CrashInfoFolder += TEXT("/");
+
+		pid_t		CrcPID;
+		int32		Status		= -1;
+		const char *Argv[16]	= { NULL };
+		int32		Argc		= 0;
+
+		Argv[Argc++] = "CrashReportClient";
+		Argv[Argc++] = TCHAR_TO_UTF8(*CrashInfoFolder);
+
 			if (bImplicitSend)
 			{
-				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", "-ImplicitSend", NULL);
+			Argv[Argc++] = "-Unattended";
+			Argv[Argc++] = "-ImplicitSend";
 			}
 			else if(GMacAppInfo.bIsUnattended)
 			{
-				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", NULL);
+			Argv[Argc++] ="-Unattended";
 			}
 			else
 			{
-				if (bSendUsageData)
+			if (!bSendUsageData)
 				{
-					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
+				Argv[Argc++] = "-NoAnalytics";
+			}
 				}
-				// If the editor setting has been disabled to not send analytics extend this to the CRC
-				else
+
+		posix_spawn_file_actions_t FileActions;
+		posix_spawn_file_actions_init(&FileActions);
+
+		posix_spawnattr_t SpawnAttr;
+		posix_spawnattr_init(&SpawnAttr);
+
 				{
-					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-NoAnalytics", NULL);
+			uint32 SpawnFlags = POSIX_SPAWN_SETPGROUP;
+			posix_spawnattr_setflags(&SpawnAttr, SpawnFlags);
 				}
+
+		extern char **environ; // provided by libc
+
+		// Use posix_spawn() as it is async-signal safe, CreateProc can fail in Cocoa.
+		Status = posix_spawn(&CrcPID, GMacAppInfo.CrashReportClient, &FileActions, &SpawnAttr, (char *const *)Argv, environ);
+
+		posix_spawn_file_actions_destroy(&FileActions);
+		posix_spawnattr_destroy(&SpawnAttr);
+
+		if (Status != 0)
+		{
+			UE_LOG(LogHAL, Fatal, TEXT("FMacPlatformMisc::GenerateCrashInfoAndLaunchReporter: posix_spawn() failed (%d, %s)"), Status, UTF8_TO_TCHAR(strerror(Status)));
 			}
 		}
 
-		// We no longer wait here because on return the OS will scribble & crash again due to the behaviour of the XPC function
-		// macOS uses internally to launch/wait on the CrashReportClient. It is simpler, easier & safer to just die here like a good little Mac.app.
-	}
-	
 	// Sandboxed applications re-raise the signal to trampoline into the system crash reporter as suppressing it may fall foul of Apple's Mac App Store rules.
 	// @todo Submit an application to the MAS & see whether Apple's reviewers highlight our crash reporting or trampolining to the system reporter.
 	if(GMacAppInfo.bIsSandboxed)

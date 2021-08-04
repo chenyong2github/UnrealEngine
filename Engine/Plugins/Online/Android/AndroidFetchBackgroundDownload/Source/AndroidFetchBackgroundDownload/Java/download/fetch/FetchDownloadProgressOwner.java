@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4.download.fetch;
+package com.epicgames.unreal.download.fetch;
 
 import androidx.annotation.NonNull;
 
-import com.epicgames.ue4.download.DownloadProgressListener;
-import com.epicgames.ue4.download.fetch.FetchRequestProgressListener;
+import com.epicgames.unreal.download.DownloadProgressListener;
+import com.epicgames.unreal.download.fetch.FetchRequestProgressListener;
 
 import com.tonyodev.fetch2.Download;
 import com.tonyodev.fetch2.Error;

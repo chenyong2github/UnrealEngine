@@ -465,6 +465,11 @@ void UNiagaraNode::SetIsPinRenamePending(const UEdGraphPin* Pin, bool bInIsRenam
 	}
 }
 
+bool UNiagaraNode::IsParameterMapPin(const UEdGraphPin* Pin) const
+{
+	return	UEdGraphSchema_Niagara::PinToTypeDefinition(Pin) == FNiagaraTypeDefinition::GetParameterMapDef();
+}
+
 TSharedPtr<SGraphNode> UNiagaraNode::CreateVisualWidget() 
 {
 	return SNew(SNiagaraGraphNode, this);

@@ -383,6 +383,7 @@ private:
 
 	ENGINE_API void ReleaseResources(const TSet<FGuid>* ResourcesToKeep = nullptr);
 	ENGINE_API void EmptyLevelData(const TSet<FGuid>* ResourcesToKeep = nullptr);
+	ENGINE_API void CleanupTransientOverrideMapBuildData();
 
 	TMap<FGuid, FMeshMapBuildData> MeshBuildData;
 	TMap<FGuid, FPrecomputedLightVolumeData*> LevelPrecomputedLightVolumeBuildData;

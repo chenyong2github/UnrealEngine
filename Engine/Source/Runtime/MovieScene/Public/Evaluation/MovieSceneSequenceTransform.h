@@ -86,6 +86,21 @@ struct FMovieSceneWarpCounter
 		AddWarpingLevel(FMovieSceneTimeWarping::InvalidWarpCount);
 	}
 
+	int32 NumWarpCounts() const
+	{
+		return WarpCounts.Num();
+	}
+
+	uint32 LastWarpCount() const
+	{
+		return WarpCounts.Num() > 0 ? WarpCounts[WarpCounts.Num() - 1] : FMovieSceneTimeWarping::InvalidWarpCount;
+	}
+
+	friend bool operator==(const FMovieSceneWarpCounter& A, const FMovieSceneWarpCounter& B)
+	{
+		return A.WarpCounts == B.WarpCounts;
+	}
+
 	UPROPERTY()
 	TArray<uint32> WarpCounts;
 };
@@ -573,17 +588,8 @@ inline FMovieSceneSequenceTransform operator*(const FMovieSceneSequenceTransform
 }
 
 /** Convert a FMovieSceneSequenceTransform into a string */
-inline FString LexToString(const FMovieSceneSequenceTransform& InTransform)
-{
-	if (InTransform.NestedTransforms.Num() == 0)
-	{
-		return LexToString(InTransform.LinearTransform);
-	}
-	else
-	{
-		return *FString::Printf(TEXT("%s (+%d nested loops)"),
-				*LexToString(InTransform.LinearTransform),
-				InTransform.NestedTransforms.Num());
-	}
-}
+FString LexToString(const FMovieSceneSequenceTransform& InTransform);
+
+/** Convert a FMovieSceneWarpCounter into a string */
+FString LexToString(const FMovieSceneWarpCounter& InCounter);
 

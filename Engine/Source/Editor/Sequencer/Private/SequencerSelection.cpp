@@ -10,6 +10,7 @@ FSequencerSelection::FSequencerSelection()
 	: SerialNumber(0)
 	, SuspendBroadcastCount(0)
 	, bOutlinerNodeSelectionChangedBroadcastPending(false)
+	, bEmptySelectedOutlinerNodesWithSectionsPending(false)
 {
 }
 
@@ -121,10 +122,17 @@ void FSequencerSelection::AddToSelection(const FSequencerSelectedKey& Key)
 	{
 		OnKeySelectionChanged.Broadcast();
 		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
-	}
 
 	// Deselect any outliner nodes that aren't within the trunk of this key
-	EmptySelectedOutlinerNodesWithoutSection(Key.Section);
+		TArray<UMovieSceneSection*> Sections;
+		Sections.Add(Key.Section);
+
+		EmptySelectedOutlinerNodesWithoutSections(Sections);
+}
+	else
+	{	
+		bEmptySelectedOutlinerNodesWithSectionsPending = true;
+	}
 }
 
 void FSequencerSelection::AddToSelection(UMovieSceneSection* Section)
@@ -136,12 +144,19 @@ void FSequencerSelection::AddToSelection(UMovieSceneSection* Section)
 	{
 		OnSectionSelectionChanged.Broadcast();
 		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
-	}
 
 	// Deselect any outliner nodes that aren't within the trunk of this section
 	if (Section)
 	{
-		EmptySelectedOutlinerNodesWithoutSection(Section);
+			TArray<UMovieSceneSection*> Sections;
+			Sections.Add(Section);
+		
+			EmptySelectedOutlinerNodesWithoutSections(Sections);
+	}
+}
+	else
+	{	
+		bEmptySelectedOutlinerNodesWithSectionsPending = true;
 	}
 }
 
@@ -344,7 +359,7 @@ bool FSequencerSelection::IsBroadcasting()
 	return SuspendBroadcastCount == 0;
 }
 
-void FSequencerSelection::EmptySelectedOutlinerNodesWithoutSection(UMovieSceneSection* Section)
+void FSequencerSelection::EmptySelectedOutlinerNodesWithoutSections(const TArray<UMovieSceneSection*>& Sections)
 {
 	TSet<TSharedRef<FSequencerDisplayNode>> LocalSelectedOutlinerNodes = SelectedOutlinerNodes;
 
@@ -364,7 +379,7 @@ void FSequencerSelection::EmptySelectedOutlinerNodesWithoutSection(UMovieSceneSe
 
 			for (auto SectionIt = AllSections.CreateConstIterator(); SectionIt && !bFoundMatch; ++SectionIt)
 			{
-				if (*SectionIt == Section)
+				if (Sections.Contains(*SectionIt))
 				{
 					bFoundMatch = true;
 					break;
@@ -399,6 +414,30 @@ void FSequencerSelection::Tick()
 	{
 		bOutlinerNodeSelectionChangedBroadcastPending = false;
 		OnOutlinerNodeSelectionChanged.Broadcast();
+	}
+
+	if ( bEmptySelectedOutlinerNodesWithSectionsPending && IsBroadcasting() )
+	{
+		bEmptySelectedOutlinerNodesWithSectionsPending = false;
+
+		TArray<UMovieSceneSection*> Sections;
+		for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : SelectedSections)
+		{
+			if (SelectedSection.IsValid())
+			{
+				Sections.Add(SelectedSection.Get());
+			}
+		}
+
+		for (FSequencerSelectedKey SelectedKey : SelectedKeys)
+		{
+			if (SelectedKey.IsValid() && !Sections.Contains(SelectedKey.Section))
+			{
+				Sections.Add(SelectedKey.Section);
+			}
+		}
+
+		EmptySelectedOutlinerNodesWithoutSections(Sections);
 	}
 }
 

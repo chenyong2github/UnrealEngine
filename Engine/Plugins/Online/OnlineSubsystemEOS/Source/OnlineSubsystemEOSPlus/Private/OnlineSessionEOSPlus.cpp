@@ -242,6 +242,16 @@ void FOnlineSessionEOSPlus::OnSessionFailure(const FUniqueNetId& Player, ESessio
 
 void FOnlineSessionEOSPlus::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
+	// If this gets called after a successful base interface session creation, we'll set the LobbyId as a custom parameter and update the session
+	FNamedOnlineSession* BaseSession = BaseSessionInterface->GetNamedSession(SessionName);
+	if (BaseSession != nullptr)
+	{
+		FNamedOnlineSession* EOSSession = EOSSessionInterface->GetNamedSession(SessionName);
+
+		BaseSession->SessionSettings.Set(TEXT("EOSSessionId"), EOSSession->SessionInfo->GetSessionId().ToString(), EOnlineDataAdvertisementType::ViaOnlineService);
+		BaseSessionInterface->UpdateSession(SessionName, BaseSession->SessionSettings, true);
+	}
+
 	TriggerOnCreateSessionCompleteDelegates(SessionName, bWasSuccessful);
 }
 

@@ -24,7 +24,6 @@ namespace CameraCalibrationToolkitUtils
 	const FName LensTabId(TEXT("LensFileEditorTab"));
 	const FName LensEvaluationTabId(TEXT("LensEvaluationTab"));
 	const FName CalibrationStepsTabId(TEXT("CalibrationStepsTab"));
-	const FName LensDetailsTabId(TEXT("LensFileDetailsTab"));
 }
 
 
@@ -54,10 +53,10 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 
 	LensEvaluationWidget = SNew(SLensEvaluation, CalibrationStepsController, InLensFile);
 	CalibrationStepsTab = CalibrationStepsController->BuildUI();
-	LensEditorTab = SNew(SLensFilePanel, LensFile)
+	LensEditorTab = SNew(SLensFilePanel, LensFile, CalibrationStepsController.ToSharedRef())
 		.CachedFIZData(TAttribute<FCachedFIZData>::Create(TAttribute<FCachedFIZData>::FGetter::CreateSP(LensEvaluationWidget.ToSharedRef(), &SLensEvaluation::GetLastEvaluatedData)));
 		
-	TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout("CameraCalibrationToolLayout_v0.7")
+	TSharedRef<FTabManager::FLayout> NewLayout = FTabManager::NewLayout("CameraCalibrationToolLayout_v0.8")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -79,7 +78,6 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 					FTabManager::NewStack()
 					->AddTab(CameraCalibrationToolkitUtils::CalibrationStepsTabId, ETabState::OpenedTab)
 					->AddTab(CameraCalibrationToolkitUtils::LensTabId, ETabState::OpenedTab)
-					->AddTab(CameraCalibrationToolkitUtils::LensDetailsTabId, ETabState::ClosedTab)
 				)
 			)
 			->Split
@@ -156,11 +154,6 @@ void FCameraCalibrationToolkit::RegisterTabSpawners(const TSharedRef<class FTabM
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
 
-	InTabManager->RegisterTabSpawner(CameraCalibrationToolkitUtils::LensDetailsTabId, FOnSpawnTab::CreateSP(this, &FCameraCalibrationToolkit::HandleSpawnLensDetailsPanelTab))
-		.SetDisplayName(LOCTEXT("LensDetailsTab", "Lens DetailsPanel"))
-		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
-	
 	InTabManager->RegisterTabSpawner(CameraCalibrationToolkitUtils::CalibrationStepsTabId, FOnSpawnTab::CreateSP(this, &FCameraCalibrationToolkit::HandleSpawnNodalOffsetTab))
 		.SetDisplayName(LOCTEXT("CalibrationStepsTab", "Calibration Steps"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
@@ -176,7 +169,6 @@ void FCameraCalibrationToolkit::UnregisterTabSpawners(const TSharedRef<class FTa
 {
 	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::LensTabId);
 	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::CalibrationStepsTabId);
-	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::LensDetailsTabId);
 	InTabManager->UnregisterTabSpawner(CameraCalibrationToolkitUtils::LensEvaluationTabId);
 	Super::UnregisterTabSpawners(InTabManager);
 }
@@ -228,24 +220,6 @@ TSharedRef<SDockTab> FCameraCalibrationToolkit::HandleSpawnLensEditorTab(const F
 		.TabColorScale(GetTabColorScale())
 		[
 			LensEditorTab.ToSharedRef()
-		];
-}
-
-TSharedRef<SDockTab> FCameraCalibrationToolkit::HandleSpawnLensDetailsPanelTab(const FSpawnTabArgs& Args) const
-{
-	check(Args.GetTabId() == CameraCalibrationToolkitUtils::LensDetailsTabId);
-
-	FDetailsViewArgs DetailsViewArg;
-	DetailsViewArg.bHideSelectionTip = true;
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	TSharedPtr<IDetailsView> DetailsView = PropertyModule.CreateDetailView(DetailsViewArg);
-	DetailsView->SetObject(LensFile);
-
-	return SNew(SDockTab)
-		.Label(LOCTEXT("LensDetailsViewTab", "Lens DetailsPanel"))
-		.TabColorScale(GetTabColorScale())
-		[
-			DetailsView.ToSharedRef()
 		];
 }
 

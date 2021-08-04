@@ -22,6 +22,19 @@ IMPLEMENT_MODULE( FDMXProtocolModule, DMXProtocol );
 const FName FDMXProtocolModule::DefaultProtocolArtNetName = "Art-Net";
 const FName FDMXProtocolModule::DefaultProtocolSACNName = "sACN";
 
+FDMXProtocolModule::FDMXOnRequestProtocolRegistrationEvent FDMXProtocolModule::OnRequestProtocolRegistrationEvent;
+FDMXProtocolModule::FDMXOnRequestProtocolBlocklistEvent FDMXProtocolModule::OnRequestProtocolBlocklistEvent;
+
+FDMXProtocolModule::FDMXOnRequestProtocolRegistrationEvent& FDMXProtocolModule::GetOnRequestProtocolRegistration()
+{
+	return OnRequestProtocolRegistrationEvent;
+}
+
+FDMXProtocolModule::FDMXOnRequestProtocolBlocklistEvent& FDMXProtocolModule::GetOnRequestProtocolBlocklist()
+{
+	return OnRequestProtocolBlocklistEvent;
+}
+
 void FDMXProtocolModule::RegisterProtocol(const FName& ProtocolName, IDMXProtocolFactory* Factory)
 {
 	// DEPRECATED 4.27
@@ -128,9 +141,9 @@ void FDMXProtocolModule::OnPluginLoadingPhaseComplete(ELoadingPhase::Type Loadin
 {
 	if (bPhaseSuccessful && LoadingPhase == ELoadingPhase::PreDefault)
 	{
-		// Request other plugins to provide their protocol blacklist
-		TArray<FName> ProtocolBlacklist;
-		GetOnRequestProtocolBlacklistDelegate().Broadcast(ProtocolBlacklist);
+		// Request other plugins to provide their blocked protocols
+		TArray<FName> ProtocolBlocklist;
+		GetOnRequestProtocolBlocklist().Broadcast(ProtocolBlocklist);
 
 		// Request protocols to register themselves
 		TArray<FDMXProtocolRegistrationParams> ProtocolRegistrationParamsArray;
@@ -146,9 +159,9 @@ void FDMXProtocolModule::OnPluginLoadingPhaseComplete(ELoadingPhase::Type Loadin
 		// Register all protocols that joined in
 		for (const FDMXProtocolRegistrationParams& RegistrationParams : ProtocolRegistrationParamsArray)
 		{
-			if (ProtocolBlacklist.Contains(RegistrationParams.ProtocolName))
+			if (ProtocolBlocklist.Contains(RegistrationParams.ProtocolName))
 			{
-				UE_LOG_DMXPROTOCOL(Log, TEXT("Ignored blacklisted DMX Protocol %s"), *RegistrationParams.ProtocolName.ToString());
+				UE_LOG_DMXPROTOCOL(Log, TEXT("Blocked registration of DMX Protocol %s as requested per Protocol Blocklist."), *RegistrationParams.ProtocolName.ToString());
 			}
 			else if (ensureMsgf(RegistrationParams.ProtocolFactory, TEXT("No Protocol Factory provided for Protocol %s, protocol cannot be loaded."), *RegistrationParams.ProtocolName.ToString()))
 			{

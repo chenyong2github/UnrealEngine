@@ -141,6 +141,27 @@ UObject* USoundFactory::FactoryCreateBinary
 	{
 		SoundObject = CreateObject(Class, InParent, Name, Flags, Context, FileType, Buffer, BufferEnd, Warn);
 	}
+#if WITH_SNDFILE_IO
+	else
+	{
+		// Read raw audio data
+		TArray<uint8> RawAudioData;
+		RawAudioData.Empty(BufferEnd - Buffer);
+		RawAudioData.AddUninitialized(BufferEnd - Buffer);
+		FMemory::Memcpy(RawAudioData.GetData(), Buffer, RawAudioData.Num());
+
+		// Convert audio data to a wav file in memory
+		TArray<uint8> RawWaveData;
+		if (Audio::ConvertAudioToWav(RawAudioData, RawWaveData))
+		{
+			const uint8* Ptr = &RawWaveData[0];
+
+			// Perpetuate the setting of the suppression flag to avoid
+			// user notification if we attempt to call CreateObject twice
+			SoundObject = CreateObject(Class, InParent, Name, Flags, Context, TEXT("WAV"), Ptr, Ptr + RawWaveData.Num(), Warn);
+		}
+	}
+#endif
 
 	if (!SoundObject)
 	{

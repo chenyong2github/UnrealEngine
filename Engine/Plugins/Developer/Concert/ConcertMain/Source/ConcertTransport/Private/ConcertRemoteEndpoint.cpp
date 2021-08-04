@@ -64,8 +64,7 @@ void FConcertRemoteEndpoint::QueueMessageToSend(const TSharedRef<IConcertMessage
 
 void FConcertRemoteEndpoint::QueueMessageToReceive(const FConcertMessageContext& Context)
 {
-	// Update the last message received
-	LastReceivedMessageTime = Context.UtcNow;
+	UpdateLastMessageReceivedTime(Context.UtcNow);
 
 	// Keep alive messages only need to update LastReceivedMessageTime so we can discard those now
 	if (Context.MessageType->IsChildOf(FConcertKeepAlive::StaticStruct()))

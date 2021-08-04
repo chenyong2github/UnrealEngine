@@ -28,7 +28,7 @@ public:
 	using FOnClusterChangedDelegate = FOnClusterChanged::FDelegate;
 
 public:
-	virtual const TArray<UObject*>& GetSelectedObjects() const = 0;
+	virtual TArray<UObject*> GetSelectedObjects() const = 0;
 
 	virtual bool IsObjectSelected(UObject* Obj) const = 0;
 };

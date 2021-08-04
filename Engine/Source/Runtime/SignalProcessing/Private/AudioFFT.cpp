@@ -187,8 +187,8 @@ namespace Audio
 				const VectorRegister4Float C = VectorLoad(&YRealBuffer[Iteration * 4]);
 				const VectorRegister4Float D = VectorLoad(&YImagBuffer[Iteration * 4]);
 
-				const VectorRegister4Float ResultReal = VectorSubtract(VectorMultiply(A, C), VectorMultiply(B, D));
-				const VectorRegister4Float ResultImag = VectorAdd(VectorMultiply(A, D), VectorMultiply(B, C));
+				const VectorRegister4Float ResultReal = VectorNegateMultiplyAdd(B, D, VectorMultiply(A, C));
+				const VectorRegister4Float ResultImag = VectorMultiplyAdd(A, D, VectorMultiply(B, C));
 
 				VectorStore(ResultReal, &YRealBuffer[Iteration * 4]);
 				VectorStore(ResultImag, &YImagBuffer[Iteration * 4]);
@@ -230,8 +230,8 @@ namespace Audio
 				const VectorRegister4Float A = VectorLoad(&XRealBuffer[Iteration * 4]);
 				const VectorRegister4Float B = VectorLoad(&XImagBuffer[Iteration * 4]);
 
-				const VectorRegister4Float ResultReal = VectorSubtract(VectorMultiply(A, C), VectorMultiply(B, D));
-				const VectorRegister4Float ResultImag = VectorAdd(VectorMultiply(A, D), VectorMultiply(B, C));
+				const VectorRegister4Float ResultReal = VectorNegateMultiplyAdd(B, D, VectorMultiply(A, C));
+				const VectorRegister4Float ResultImag = VectorMultiplyAdd(A, D, VectorMultiply(B, C));
 
 				VectorStore(ResultReal, &XRealBuffer[Iteration * 4]);
 				VectorStore(ResultImag, &XImagBuffer[Iteration * 4]);
@@ -273,8 +273,8 @@ namespace Audio
 				const VectorRegister4Float C = VectorLoad(&YRealBuffer[Iteration * 4]);
 				const VectorRegister4Float D = VectorLoad(&YImagBuffer[Iteration * 4]);
 
-				const VectorRegister4Float ResultReal = VectorAdd(VectorMultiply(A, C), VectorMultiply(B, D));
-				const VectorRegister4Float ResultImag = VectorSubtract(VectorMultiply(B, C), VectorMultiply(A, D));
+				const VectorRegister4Float ResultReal = VectorMultiplyAdd(A, C, VectorMultiply(B, D));
+				const VectorRegister4Float ResultImag = VectorNegateMultiplyAdd(A, D, VectorMultiply(B, C));
 
 				VectorStore(ResultReal, &ZRealBuffer[Iteration * 4]);
 				VectorStore(ResultImag, &ZImagBuffer[Iteration * 4]);

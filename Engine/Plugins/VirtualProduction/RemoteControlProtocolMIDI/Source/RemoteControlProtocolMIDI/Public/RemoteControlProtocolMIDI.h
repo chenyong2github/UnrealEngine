@@ -55,7 +55,7 @@ public:
 
 	/** Midi Device Selector */
 	UPROPERTY(EditAnywhere, Category = Mapping)
-	ERemoteControlMIDIDeviceSelector DeviceSelector;
+	ERemoteControlMIDIDeviceSelector DeviceSelector = ERemoteControlMIDIDeviceSelector::ProjectSettings;
 	
 	/** Midi Resolved Device Id. Distinct from the user specified Device Id. */
 	UPROPERTY(VisibleAnywhere, Category = Mapping, meta = (ClampMin = 0, UIMin = 0))

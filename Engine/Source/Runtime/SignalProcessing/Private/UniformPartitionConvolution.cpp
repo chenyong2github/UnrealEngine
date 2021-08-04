@@ -298,11 +298,8 @@ namespace Audio
 			Temp1 = VectorMultiply(Temp1, Temp3);
 
 			// Temp1 = -A1iB1i, A1rB1i, -A2iB2i, A2rb2i
-			Temp1 = VectorMultiply(Temp1, SignFlip);
-
-
 			// Temp1 = A1rB1r - A1iB1i, A1iB1r + A1rB1i, A2rB2r - A2iB2i, A2iB2r + A2rB2i
-			Temp1 = VectorAdd(VectorInA, Temp1);
+			Temp1 = VectorMultiplyAdd(Temp1, SignFlip, VectorInA);
 
 			// VectorOut = O1r + A1rB1r - A1iB1i, O1i + A1iB1r + A1rB1i, O2r + A2rB2r - A2iB2i, O2i + A2iB2r + A2rB2i
 			VectorRegister VectorOut = VectorLoadAligned(&OutData[i]);

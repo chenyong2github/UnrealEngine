@@ -4950,7 +4950,7 @@ void UDemoNetDriver::CleanupOutstandingRewindActors()
 				if (AActor* Actor = Cast<AActor>(CacheObject->Object))
 				{
 					// Destroy the actor before removing entries from the GuidCache so its entries are still valid in NotifyActorDestroyed.
-					World->DestroyActor(Actor);
+					World->DestroyActor(Actor, true);
 
 					ensureMsgf(GuidCache->NetGUIDLookup.Remove(CacheObject->Object) > 0, TEXT("CleanupOutstandingRewindActors: No entry found for %d in NetGUIDLookup"), NetGUID.Value);
 					GuidCache->ObjectLookup.Remove(NetGUID);

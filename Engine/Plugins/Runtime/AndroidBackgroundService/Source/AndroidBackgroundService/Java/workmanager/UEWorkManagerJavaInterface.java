@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-package com.epicgames.ue4.workmanager;
+package com.epicgames.unreal.workmanager;
 
 import android.content.Context;
 
@@ -22,7 +22,7 @@ import androidx.work.Configuration;
 import androidx.annotation.Nullable;
 import androidx.annotation.NonNull;
 
-import com.epicgames.ue4.workmanager.UEWorker;
+import com.epicgames.unreal.workmanager.UEWorker;
 
 //Helper class to manage our different work requests and callbacks
 public class UEWorkManagerJavaInterface
@@ -197,6 +197,13 @@ public class UEWorkManagerJavaInterface
 
 	public static void AndroidThunkJava_CancelWork(Context AppContext, String TaskID)
 	{
+		try 
+		{
 		WorkManager.getInstance(AppContext.getApplicationContext()).cancelUniqueWork(TaskID);
+	}
+		catch(Exception exp)
+		{
+			exp.printStackTrace();
+		}		
 	}
 }

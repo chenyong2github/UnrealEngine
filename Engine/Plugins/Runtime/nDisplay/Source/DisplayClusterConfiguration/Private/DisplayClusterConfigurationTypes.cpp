@@ -29,6 +29,11 @@
 	SAVE_MAP_TO_ARRAY(Map, OutObjects); \
 	
 
+FIntRect FDisplayClusterReplaceTextureCropRectangle::ToRect() const
+{
+	return FIntRect(FIntPoint(Origin.X, Origin.Y), FIntPoint(Origin.X + Size.W, Origin.Y + Size.H));
+}
+
 FIntRect FDisplayClusterConfigurationRectangle::ToRect() const
 {
 	return FIntRect(FIntPoint(X, Y), FIntPoint(X + W, Y + H));
@@ -36,7 +41,45 @@ FIntRect FDisplayClusterConfigurationRectangle::ToRect() const
 
 UDisplayClusterConfigurationData::UDisplayClusterConfigurationData()
 {
-	Scene   = CreateDefaultSubobject<UDisplayClusterConfigurationScene>(TEXT("Scene"));
+}
+
+bool UDisplayClusterConfigurationData::AssignPostprocess(const FString& NodeId, const FString& PostprocessId, const FString& Type, TMap<FString, FString> Parameters, int32 Order)
+{
+	if (Cluster && Cluster->Nodes.Contains(NodeId))
+	{
+		if (!PostprocessId.IsEmpty())
+		{
+			FDisplayClusterConfigurationPostprocess PostprocessData;
+			PostprocessData.Type = Type;
+			PostprocessData.Parameters.Append(Parameters);
+			PostprocessData.Order = Order;
+
+			Cluster->Nodes[NodeId]->Postprocess.Emplace(PostprocessId, PostprocessData);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UDisplayClusterConfigurationData::RemovePostprocess(const FString& NodeId, const FString& PostprocessId)
+{
+	if (Cluster && Cluster->Nodes.Contains(NodeId))
+	{
+		if (Cluster->Nodes[NodeId]->Postprocess.Contains(PostprocessId))
+		{
+			Cluster->Nodes[NodeId]->Postprocess.Remove(PostprocessId);
+			return true;
+}
+	}
+
+	return false;
+}
+
+UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData::GetClusterNodeConfiguration(const FString& NodeId) const
+{
+	return Cluster->Nodes.Contains(NodeId) ? Cluster->Nodes[NodeId] : nullptr;
 }
 
 const UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData::GetClusterNode(const FString& NodeId) const
@@ -131,8 +174,9 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 	Type = TEXT("simple");
 }
 
-FDisplayClusterConfigurationICVFX_StageSettings::FDisplayClusterConfigurationICVFX_StageSettings()
+FDisplayClusterConfigurationPostprocess::FDisplayClusterConfigurationPostprocess()
 {
+	Type = TEXT("OutputRemap");
 }
 
 const float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;
@@ -326,6 +370,9 @@ UDisplayClusterConfigurationData* UDisplayClusterConfigurationData::CreateNewCon
 	UDisplayClusterConfigurationData* NewConfigData = NewObject<UDisplayClusterConfigurationData>(Owner ? Owner : GetTransientPackage(), NAME_None,
 		ObjectFlags | RF_ArchetypeObject | RF_Public | RF_Transactional);
 	
+	NewConfigData->Scene = NewObject<UDisplayClusterConfigurationScene>(NewConfigData, NAME_None,
+		RF_ArchetypeObject | RF_Public | RF_Transactional);
+
 	NewConfigData->Cluster = NewObject<UDisplayClusterConfigurationCluster>(NewConfigData, NAME_None,
 		RF_ArchetypeObject | RF_Public | RF_Transactional);
 
@@ -336,4 +383,19 @@ FDisplayClusterConfigurationICVFX_CameraRenderSettings::FDisplayClusterConfigura
 {
 	// Setup incamera defaults:
 	GenerateMips.bAutoGenerateMips = true;
+}
+
+FDisplayClusterConfigurationOCIOConfiguration::FDisplayClusterConfigurationOCIOConfiguration()
+{
+	OCIOConfiguration.bIsEnabled = true;
+}
+
+FDisplayClusterConfigurationOCIOProfile::FDisplayClusterConfigurationOCIOProfile()
+{
+	OCIOConfiguration.bIsEnabled = true;
+}
+
+FDisplayClusterConfigurationICVFX_CameraSettings::FDisplayClusterConfigurationICVFX_CameraSettings()
+{
+	AllNodesColorGrading.bEnableEntireClusterColorGrading = true;
 }

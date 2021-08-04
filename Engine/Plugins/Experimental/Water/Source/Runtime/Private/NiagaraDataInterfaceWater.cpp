@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceWater.h"
-#include "WaterBodyActor.h"
+#include "WaterBodyComponent.h"
 #include "WaterSplineComponent.h"
 #include "WaterModule.h"
 
@@ -72,8 +72,8 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceWater, GetWaveParamLookupTabl
 
 struct FNDIWater_InstanceData
 {
-	//Cached ptr to actor we sample from. 
-	TWeakObjectPtr<AWaterBody> WaterBodyActor;
+	//Cached ptr to component we sample from. 
+	TWeakObjectPtr<UWaterBodyComponent> WaterBodyComponent;
 };
 
 void UNiagaraDataInterfaceWater::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
@@ -103,7 +103,7 @@ bool UNiagaraDataInterfaceWater::Equals(const UNiagaraDataInterface* Other) cons
 		return false;
 	}
 	const UNiagaraDataInterfaceWater* OtherTyped = CastChecked<const UNiagaraDataInterfaceWater>(Other);
-	return OtherTyped->SourceBody == SourceBody;
+	return OtherTyped->SourceBodyComponent == SourceBodyComponent;
 }
 
 bool UNiagaraDataInterfaceWater::CopyTo(UNiagaraDataInterface* Destination) const
@@ -114,7 +114,7 @@ bool UNiagaraDataInterfaceWater::CopyTo(UNiagaraDataInterface* Destination) cons
 	}
 
 	UNiagaraDataInterfaceWater* OtherTyped = CastChecked<UNiagaraDataInterfaceWater>(Destination);
-	OtherTyped->SourceBody = SourceBody;
+	OtherTyped->SourceBodyComponent = SourceBodyComponent;
 
 	return true;
 }
@@ -128,7 +128,7 @@ bool UNiagaraDataInterfaceWater::InitPerInstanceData(void* PerInstanceData, FNia
 {
 	FNDIWater_InstanceData* InstData = new (PerInstanceData) FNDIWater_InstanceData();
 
-	InstData->WaterBodyActor = SourceBody;
+	InstData->WaterBodyComponent = SourceBodyComponent;
 
 	return true;
 }
@@ -144,9 +144,9 @@ bool UNiagaraDataInterfaceWater::PerInstanceTick(void* PerInstanceData, FNiagara
 	check(SystemInstance);
 	FNDIWater_InstanceData* InstData = (FNDIWater_InstanceData*)PerInstanceData;
 
-	if (InstData->WaterBodyActor != SourceBody)
+	if (InstData->WaterBodyComponent != SourceBodyComponent)
 	{
-		InstData->WaterBodyActor = SourceBody;
+		InstData->WaterBodyComponent = SourceBodyComponent;
 	}
 
 	return false;
@@ -181,10 +181,10 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionCo
 	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceNormalY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceNormalZ(Context);
 
-	AWaterBody* Actor = InstData->WaterBodyActor.Get();
-	if (Actor == nullptr)
+	UWaterBodyComponent* Component = InstData->WaterBodyComponent.Get();
+	if (Component == nullptr)
 	{
-		UE_LOG(LogWater, Warning, TEXT("NiagaraDataInterfaceWater: GetWaterData called with no water body actor set"));
+		UE_LOG(LogWater, Warning, TEXT("NiagaraDataInterfaceWater: GetWaterData called with no water body component set"));
 	}
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
@@ -192,10 +192,10 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionCo
 		FWaterBodyQueryResult QueryResult;
 		
 		bool bIsValid = false;
-		if (Actor != nullptr)
+		if (Component != nullptr)
 		{
 			FVector WorldPos(WorldX.Get(), WorldY.Get(), WorldZ.Get());
-			QueryResult = Actor->QueryWaterInfoClosestToWorldLocation(WorldPos,
+			QueryResult = Component->QueryWaterInfoClosestToWorldLocation(WorldPos,
 				EWaterBodyQueryFlags::ComputeLocation
 				| EWaterBodyQueryFlags::ComputeVelocity
 				| EWaterBodyQueryFlags::ComputeNormal
@@ -237,11 +237,11 @@ void UNiagaraDataInterfaceWater::GetWaveParamLookupTableOffset(FVectorVMExternal
 
 	// Outputs
 	VectorVM::FExternalFuncRegisterHandler<int> OutLookupTableOffset(Context);
-	if (AWaterBody* Actor = InstData->WaterBodyActor.Get())
+	if (UWaterBodyComponent* Component = InstData->WaterBodyComponent.Get())
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
-			*OutLookupTableOffset.GetDestAndAdvance() = Actor->WaterBodyIndex;
+			*OutLookupTableOffset.GetDestAndAdvance() = Component->GetWaterBodyIndex();
 		}
 	}
 	else

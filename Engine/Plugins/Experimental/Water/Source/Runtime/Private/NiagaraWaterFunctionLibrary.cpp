@@ -8,15 +8,26 @@
 
 void UNiagaraWaterFunctionLibrary::SetWaterBody(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, AWaterBody* WaterBody)
 {
-	if (!NiagaraSystem)
+	if (!WaterBody)
 	{
-		UE_LOG(LogWater, Warning, TEXT("NiagaraSystem in \"Set Water Body\" is NULL, OverrideName \"%s\" and WaterBody \"%s\", skipping."), *OverrideName, WaterBody ? *WaterBody->GetName() : TEXT("NULL"));
+		UE_LOG(LogWater, Warning, TEXT("WaterBody in \"Set Water Body Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
 		return;
 	}
 
-	if (!WaterBody)
+	SetWaterBodyComponent(NiagaraSystem, OverrideName, WaterBody->GetWaterBodyComponent());
+}
+
+void UNiagaraWaterFunctionLibrary::SetWaterBodyComponent(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UWaterBodyComponent* WaterBodyComponent)
+{
+	if (!NiagaraSystem)
 	{
-		UE_LOG(LogWater, Warning, TEXT("WaterBody in \"Set Water Body\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogWater, Warning, TEXT("NiagaraSystem in \"Set Water Body Component\" is NULL, OverrideName \"%s\" and WaterBodyComponent \"%s\", skipping."), *OverrideName, WaterBodyComponent ? *WaterBodyComponent->GetName() : TEXT("NULL"));
+		return;
+	}
+
+	if (!WaterBodyComponent)
+	{
+		UE_LOG(LogWater, Warning, TEXT("WaterBodyComponent in \"Set Water Body Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
 		return;
 	}
 
@@ -39,6 +50,5 @@ void UNiagaraWaterFunctionLibrary::SetWaterBody(UNiagaraComponent* NiagaraSystem
 		return;
 	}
 
-	WaterInterface->SetWaterBody(WaterBody);
+	WaterInterface->SetWaterBodyComponent(WaterBodyComponent);
 }
-

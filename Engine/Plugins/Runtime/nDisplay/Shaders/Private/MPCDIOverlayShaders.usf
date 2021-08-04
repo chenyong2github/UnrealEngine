@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MPCDIUtils.ush"
 
+static const float DefaultChromakeyTileMultiplier = 10.0;
 
 OutputVS IcvfxWarpVS(InputVS IN)
 {
@@ -51,6 +52,37 @@ float3 ComposeIcvfxOverlay(float3 OutColor, float2 OverlayUV)
 	return FinalColor;
 }
 
+float2 TileUV(float2 InUV, float InScale)
+{
+    return frac(InUV * InScale);
+}
+
+float4 GetChromakeyMarkerColor(float2 InMarkersUV)
+{
+	// Tile scale is inversely proprotional to the distance
+	float TileScale = DefaultChromakeyTileMultiplier / ChromakeyMarkerDistance;
+	
+	// Invert vertical axis for more intuitive controls
+	float2 InvertedChromakeyMarkerOffset = ChromakeyMarkerOffset;
+	InvertedChromakeyMarkerOffset.y = -ChromakeyMarkerOffset.y;
+
+	float2 ChromakeyMarkerUV = TileUV(InMarkersUV - InvertedChromakeyMarkerOffset/TileScale, TileScale);
+
+	// Scale individual tile from its center, and independently from the distance
+	float2 HalfTile = float2(0.5, 0.5);
+	ChromakeyMarkerUV -= HalfTile;
+	ChromakeyMarkerUV *= ChromakeyMarkerDistance / ChromakeyMarkerScale;
+	float4 ChromakeyMarkerTextureColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV + HalfTile);
+
+	// Anything outside scaled UV bounds is untextured
+	if(any(abs(ChromakeyMarkerUV) > HalfTile))
+	{
+		return float4(ChromakeyMarkerColor.xyz, 0);
+	}
+
+	return float4(ChromakeyMarkerColor.xyz, ChromakeyMarkerTextureColor.w);
+}
+
 float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 {
 	// Transform WarpedUV to Camera ScreenSpaceUV
@@ -93,19 +125,10 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 #endif
 
 #if CHROMAKEY_MARKER
-	float2 MarkerUV = frac(IN.UV_Chromakey.xy * ChromakeyMarkerScale) * (1+ChromakeyMarkerDistance);
-	float2 ChromakeyMarkerUV = saturate(MarkerUV);
-	// Border pixels always invisible
-	float ChromakeyAlphaMult = 1.f;
-	if(any(ChromakeyMarkerUV - MarkerUV))
-	{
-		ChromakeyAlphaMult = 0.f;
-	}
-	float4 ChromakeyMarkerTextureColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV);
+	float4 ChromakeyMarkerTextureColor = GetChromakeyMarkerColor(IN.UV_Chromakey.xy);
 	
-	float4 OverlayChromakeyMarkerColor = float4(ChromakeyMarkerColor.xyz, ChromakeyMarkerTextureColor.w);
-	
-	OverlayChromakeyColor.xyz = lerp(OverlayChromakeyColor.xyz, OverlayChromakeyMarkerColor.xyz, OverlayChromakeyMarkerColor.w * ChromakeyAlphaMult);
+	// Blend marker color with chromakey
+	OverlayChromakeyColor.xyz = lerp(OverlayChromakeyColor.xyz, ChromakeyMarkerTextureColor.xyz, ChromakeyMarkerTextureColor.w);
 #endif
 
 	CameraColor.xyz = lerp(CameraColor.xyz, OverlayChromakeyColor.xyz, 1-OverlayChromakeyColor.w);

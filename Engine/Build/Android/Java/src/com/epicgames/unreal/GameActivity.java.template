@@ -158,7 +158,6 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.games.Games;
-import com.google.android.apps.internal.games.memoryadvice.MemoryAdvisor;
 
 import com.google.android.gms.plus.Plus;
 
@@ -518,19 +517,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	
 	private StoreHelper IapStoreHelper;
 	
-	private MemoryAdvisor MemAdvisor;
-	private static final int MemoryAdvisorPollDelayMs = 5000;
-	private static final int MemoryAdvisorStateDecreaseDelayMs = 10000;
-	private static final int ProcessMemoryInfoPollDelayMs = 10000;
-	private long LastMemoryInfoPollTime;
-	private long LastMemAdvisorStateUpdateTime;
-	private MemoryAdvisor.MemoryState MemState = MemoryAdvisor.MemoryState.UNKNOWN;
-
-	public MemoryAdvisor GetMemoryAdvisor()
-	{
-		return MemAdvisor;
-	}
-
 //$${gameActivityClassAdditions}$$
 
 	@Override
@@ -2274,7 +2260,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public void onCreate(Bundle savedInstanceState)
 	{
 		_activity = this;
-		MemAdvisor = new MemoryAdvisor(this);
 		InternalFilesDir = getFilesDir().getAbsolutePath() + "/";
 		ExternalFilesDir = getExternalFilesDir(null).getAbsolutePath() + "/";
 		//$${gameActivityOnCreateBeginningAdditions}$$
@@ -2391,53 +2376,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			Logger.SuppressLogs();
 		}
 		
-		LastMemoryInfoPollTime = System.currentTimeMillis();
-
 		// update memory stats every 10 seconds
 		memoryRunnable = new Runnable() {
 			@Override
 			public void run()
 			{
-				JSONObject Advice = MemAdvisor.getAdvice();
-				MemoryAdvisor.MemoryState CurrentMemoryState = MemoryAdvisor.getMemoryState(Advice);
-				final int MB = 1024 * 1024;
-				int AvailableEstimateMB = (int)(MemoryAdvisor.availabilityEstimate(Advice) / MB);
-				int OOMScore = Advice.optJSONObject("metrics").optJSONObject("proc").optInt("oom_score", -1);
-
-				long CurrentTimeMs = System.currentTimeMillis();
-				boolean StateChanged = CurrentMemoryState != MemState;
-				boolean NewStateIsHigher = CurrentMemoryState.ordinal() > MemState.ordinal();
-				boolean StateDecreaseTimePassed = CurrentTimeMs - LastMemAdvisorStateUpdateTime >= MemoryAdvisorStateDecreaseDelayMs;
-				// Prevent reporting state change every time when state is oscillating between two states with high frequency
-				if (StateChanged && (NewStateIsHigher || StateDecreaseTimePassed))
-				{
-					switch (CurrentMemoryState)
-					{
-						case OK:
-							Log.debug("[MemoryAdvisor] Significant amount of memory is available for allocation. Estimate is " + AvailableEstimateMB + " MB");
-							break;
-						case APPROACHING_LIMIT:
-							Log.warn("[MemoryAdvisor] Approaching memory limit. Estimated available memory is " + AvailableEstimateMB + " MB");
-							break;
-						case CRITICAL:
-							Log.warn("[MemoryAdvisor] Critical memory limit. Estimated available memory is " + AvailableEstimateMB + " MB");
-							break;
-						case UNKNOWN:
-						default:
-							Log.error("[MemoryAdvisor] Unexpected memory state: " + CurrentMemoryState);
-							break;
-					}
-					
-					MemState = CurrentMemoryState;
-					LastMemAdvisorStateUpdateTime = CurrentTimeMs;	
-				}
-				
-				nativeSetMemoryAdvisorState(CurrentMemoryState.ordinal() - 1, AvailableEstimateMB, OOMScore);
-
-				
 				int ProcessMemory = 0;
-				if (CurrentTimeMs - LastMemoryInfoPollTime >= ProcessMemoryInfoPollDelayMs)
-				{
+					
 					ActivityManager activityManager = (ActivityManager)_activity.getSystemService(Context.ACTIVITY_SERVICE);
 					int pid = android.os.Process.myPid();
 					int pids[] = new int[] { pid };
@@ -2456,8 +2401,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 						}
 					}
 					Log.debug("Used memory: " + ProcessMemory + " ("+FindLineFromStatus("VmRSS:")+")");
-					LastMemoryInfoPollTime = CurrentTimeMs;
-				}
 				
 				synchronized(_activity)
 				{
@@ -2468,7 +2411,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					
 					if (_activity.memoryHandler != null)
 					{
-						_activity.memoryHandler.postDelayed(this, _activity.MemoryAdvisorPollDelayMs);
+						_activity.memoryHandler.postDelayed(this, 10000);
 					}
 				}
 			}
@@ -6541,7 +6484,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	
 	public native void nativeOnThermalStatusChangedListener(int status);
 	public native void nativeOnTrimMemory(int MemoryTrimValue);
-	public native void nativeSetMemoryAdvisorState(int State, int EstimateAvailableMB, int OOMScore);
 
 	static
 	{

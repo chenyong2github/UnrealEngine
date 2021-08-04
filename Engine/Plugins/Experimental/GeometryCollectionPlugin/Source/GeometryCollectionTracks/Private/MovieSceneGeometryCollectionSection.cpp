@@ -6,6 +6,7 @@
 #include "MovieScene.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Misc/FrameRate.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneGeometryCollectionSection"
 
@@ -35,6 +36,21 @@ UMovieSceneGeometryCollectionSection::UMovieSceneGeometryCollectionSection( cons
 TOptional<FFrameTime> UMovieSceneGeometryCollectionSection::GetOffsetTime() const
 {
 	return TOptional<FFrameTime>(Params.StartFrameOffset);
+}
+
+void UMovieSceneGeometryCollectionSection::MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate)
+{
+	if (Params.StartFrameOffset.Value > 0)
+	{
+		FFrameNumber NewStartFrameOffset = ConvertFrameTime(FFrameTime(Params.StartFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		Params.StartFrameOffset = NewStartFrameOffset;
+	}
+
+	if (Params.EndFrameOffset.Value > 0)
+	{
+		FFrameNumber NewEndFrameOffset = ConvertFrameTime(FFrameTime(Params.EndFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		Params.EndFrameOffset = NewEndFrameOffset;
+	}
 }
 
 FFrameNumber GetStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, const FMovieSceneGeometryCollectionParams& Params, FFrameNumber StartFrame, FFrameRate FrameRate)

@@ -6,6 +6,7 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneGeometryCacheTemplate.h"
+#include "Misc/FrameRate.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneGeometryCacheSection"
 
@@ -40,6 +41,26 @@ UMovieSceneGeometryCacheSection::UMovieSceneGeometryCacheSection(const FObjectIn
 TOptional<FFrameTime> UMovieSceneGeometryCacheSection::GetOffsetTime() const
 {
 	return TOptional<FFrameTime>(Params.FirstLoopStartFrameOffset);
+}
+
+void UMovieSceneGeometryCacheSection::MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate)
+{
+	if (Params.StartFrameOffset.Value > 0)
+	{
+		FFrameNumber NewStartFrameOffset = ConvertFrameTime(FFrameTime(Params.StartFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		Params.StartFrameOffset = NewStartFrameOffset;
+	}
+
+	if (Params.EndFrameOffset.Value > 0)
+	{
+		FFrameNumber NewEndFrameOffset = ConvertFrameTime(FFrameTime(Params.EndFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		Params.EndFrameOffset = NewEndFrameOffset;
+	}
+	if (Params.FirstLoopStartFrameOffset.Value > 0)
+	{
+		FFrameNumber NewFirstLoopStartFrameOffset = ConvertFrameTime(FFrameTime(Params.FirstLoopStartFrameOffset), SourceRate, DestinationRate).FloorToFrame();
+		Params.FirstLoopStartFrameOffset = NewFirstLoopStartFrameOffset;
+	}
 }
 
 void UMovieSceneGeometryCacheSection::PostLoad()

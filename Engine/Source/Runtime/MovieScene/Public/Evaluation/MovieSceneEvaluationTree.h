@@ -14,6 +14,7 @@ struct FMovieSceneEvaluationTree;
 struct FMovieSceneEvaluationTreeNode;
 struct FMovieSceneEvaluationTreeRangeIterator;
 template<typename DataType> struct TMovieSceneEvaluationTreeDataIterator;
+template<typename DataType> struct TMovieSceneEvaluationTreeFormatter;
 
 /** A structure that uniquely identifies an entry within a TEvaluationTreeEntryContainer */
 struct FEvaluationTreeEntryHandle
@@ -50,6 +51,7 @@ struct FEvaluationTreeEntryHandle
 
 private:
 	template<typename T> friend struct TEvaluationTreeEntryContainer;
+	template<typename T> friend struct TMovieSceneEvaluationTreeFormatter;
 	FEvaluationTreeEntryHandle(int32 InEntryIndex) : EntryIndex(InEntryIndex) {}
 
 	/** Specifies an index into TEvaluationTreeEntryContainer<T>::Entries */
@@ -744,6 +746,8 @@ private:
 	/** Tree data container that corresponds to FMovieSceneEvaluationTreeNode::DataID */
 	TEvaluationTreeEntryContainer<DataType> Data;
 
+	friend struct TMovieSceneEvaluationTreeFormatter<DataType>;
+
 private:
 	/** Operator that adds data to nodes provided it doesn't already exist on the node */
 	struct FAddUniqueOperator : IMovieSceneEvaluationTreeNodeOperator
@@ -916,6 +920,7 @@ void TEvaluationTreeEntryContainer<ElementType>::Insert(FEvaluationTreeEntryHand
 		void* NewLocation = &Items[Entry.StartIndex + Index + 1];
 
 		RelocateConstructItems<ElementType, ElementType>(NewLocation, OldLocation, Entry.Size - Index);
+		DefaultConstructItems<ElementType>((void*)OldLocation, 1);
 	}
 
 	// Assign the new element
@@ -965,6 +970,7 @@ void TEvaluationTreeEntryContainer<ElementType>::ReserveEntry(FEvaluationTreeEnt
 	const ElementType* OldLocation = &Items[Entry.StartIndex];
 	void* NewLocation = &Items[NewStartIndex];
 	RelocateConstructItems<ElementType, ElementType>(NewLocation, OldLocation, Entry.Size);
+	DefaultConstructItems<ElementType>((void*)OldLocation, Entry.Size);
 
 	Entry.StartIndex = NewStartIndex;
 }

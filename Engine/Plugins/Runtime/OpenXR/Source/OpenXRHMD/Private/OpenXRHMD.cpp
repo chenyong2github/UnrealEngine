@@ -9,6 +9,7 @@
 #include "IOpenXRARModule.h"
 
 #include "Misc/App.h"
+#include "Misc/Parse.h"
 #include "Modules/ModuleManager.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
@@ -448,11 +449,11 @@ bool FOpenXRHMDPlugin::EnableExtensions(const TArray<const ANSICHAR*>& RequiredE
 	{
 		if (AvailableExtensions.Contains(Ext))
 		{
-			UE_LOG(LogHMD, Verbose, TEXT("Required extension %s enabled"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Verbose, TEXT("Required extension %S enabled"), Ext);
 		}
 		else
 		{
-			UE_LOG(LogHMD, Warning, TEXT("Required extension %s is not available"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Warning, TEXT("Required extension %S is not available"), Ext);
 			ExtensionMissing = true;
 		}
 	}
@@ -471,12 +472,12 @@ bool FOpenXRHMDPlugin::EnableExtensions(const TArray<const ANSICHAR*>& RequiredE
 	{
 		if (AvailableExtensions.Contains(Ext))
 		{
-			UE_LOG(LogHMD, Verbose, TEXT("Optional extension %s enabled"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Verbose, TEXT("Optional extension %S enabled"), Ext);
 			OutExtensions.Add(Ext);
 		}
 		else
 		{
-			UE_LOG(LogHMD, Log, TEXT("Optional extension %s is not available"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Log, TEXT("Optional extension %S is not available"), Ext);
 		}
 	}
 
@@ -627,7 +628,8 @@ bool FOpenXRHMDPlugin::InitInstance()
 		if (!EnableExtensions(RequiredExtensions, OptionalExtensions, Extensions))
 		{
 			// Ignore the plugin if the required extension could not be enabled
-			UE_LOG(LogHMD, Log, TEXT("Could not enable all required OpenXR extensions for OpenXRExtensionPlugin on current system. This plugin will be loaded but ignored, but will be enabled on a target platform that supports the required extension."));
+			FString ModuleName = Plugin->GetDisplayName();
+			UE_LOG(LogHMD, Log, TEXT("Could not enable all required OpenXR extensions for %s on current system. This plugin will be loaded but ignored, but will be enabled on a target platform that supports the required extension."), *ModuleName);
 			continue;
 		}
 		ExtensionSet.Append(Extensions);
@@ -710,7 +712,11 @@ bool FOpenXRHMDPlugin::InitInstance()
 	XrResult Result = xrCreateInstance(&Info, &Instance);
 	if (XR_FAILED(Result))
 	{
-		UE_LOG(LogHMD, Log, TEXT("Failed to create an OpenXR instance, result is %s. Please check if you have an OpenXR runtime installed."), OpenXRResultToString(Result));
+		UE_LOG(LogHMD, Log, TEXT("Failed to create an OpenXR instance, result is %s. Please check if you have an OpenXR runtime installed. The following extensions were enabled:"), OpenXRResultToString(Result));
+		for (const char* Extension : EnabledExtensions)
+		{
+			UE_LOG(LogHMD, Log, TEXT("- %S"), Extension);
+		}
 		return false;
 	}
 
@@ -718,6 +724,11 @@ bool FOpenXRHMDPlugin::InitInstance()
 	{
 		UE_LOG(LogHMD, Log, TEXT("Failed to initialize core functions. Please check that you have a valid OpenXR runtime installed."));
 		return false;
+	}
+
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		Module->PostCreateInstance(Instance);
 	}
 
 	return true;
@@ -1462,7 +1473,10 @@ void FOpenXRHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHIC
 
 bool FOpenXRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
-	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
+	// Don't activate the SVE if xr is being used for tracking only purposes
+	static const bool bXrTrackingOnly = FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly"));
+
+	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport) && !bXrTrackingOnly;
 }
 
 bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProps)
@@ -2028,12 +2042,13 @@ bool FOpenXRHMD::OnStereoTeardown()
 void FOpenXRHMD::DestroySession()
 {
 	FWriteScopeLock DeviceLock(DeviceMutex);
+	
+	// FlushRenderingCommands must be called outside of SessionLock since some rendering threads will also lock this mutex.
+	FlushRenderingCommands();
 	FWriteScopeLock SessionLock(SessionHandleMutex);
 
 	if (Session != XR_NULL_HANDLE)
 	{
-		FlushRenderingCommands();
-
 		// We need to reset all swapchain references to ensure there are no attempts
 		// to destroy swapchain handles after the session is already destroyed.
 		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
@@ -2052,6 +2067,10 @@ void FOpenXRHMD::DestroySession()
 		PipelinedLayerStateRHI.ColorSwapchain.Reset();
 		PipelinedLayerStateRHI.DepthSwapchain.Reset();
 		PipelinedLayerStateRHI.QuadSwapchains.Reset();
+
+		// VRFocus must be reset so FWindowsApplication::PollGameDeviceState does not incorrectly short-circuit.
+		FApp::SetUseVRFocus(false);
+		FApp::SetHasVRFocus(false);
 
 		// Destroy device spaces, they will be recreated
 		// when the session is created again.

@@ -161,6 +161,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 		}
 	}
 
+	TAttribute<FMargin> OverlayDisabledPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetBlockDisabledPadding));
 	TAttribute<FMargin> OverlayPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetBlockPadding));
 	TAttribute<FMargin> ArrowOverlayPadding = TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetArrowPadding));
 	TAttribute<FSlateColor> BlockColorAndOpacity = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDataprepGraphActionStepNode::GetBlockOverlayColor));
@@ -174,7 +175,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 
 		+SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(20.f, 0.f)
+		.Padding(FMargin(5.0f, 0.0f, 10.0f, 0.0f))
 		[
 			SNew( SSeparator )
 			.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
@@ -215,10 +216,10 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 			+ SOverlay::Slot()
 			.VAlign(VAlign_Fill)
 			.HAlign(HAlign_Fill)
-			.Padding(OverlayPadding)
+			.Padding(OverlayDisabledPadding)
 			[
 				SNew(SImage)
-				.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f))
+				.ColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f))
 				.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.Node.Body"))
 				.Visibility_Raw( this, &SDataprepGraphActionStepNode::GetDisabledOverlayVisbility )
 			]
@@ -278,7 +279,7 @@ void SDataprepGraphActionStepNode::UpdateGraphNode()
 				+ SOverlay::Slot()
 				[
 					SNew(SImage)
-					.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f))
+					.ColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f))
 					.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.ActionStepNode.ArrowNext"))
 					.Visibility_Lambda([&]() 
 					{
@@ -342,6 +343,14 @@ FMargin SDataprepGraphActionStepNode::GetBlockPadding()
 {
 	static const FMargin Selected = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Selected.Padding" );
 	static const FMargin Regular = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Regular.Padding" );
+
+	return IsSelected() ? Selected : Regular;
+}
+
+FMargin SDataprepGraphActionStepNode::GetBlockDisabledPadding()
+{
+	static const FMargin Selected = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Selected.Padding" );
+	static const FMargin Regular = FDataprepEditorStyle::GetMargin( "DataprepActionStep.Outter.Disabled.Padding" );
 
 	return IsSelected() ? Selected : Regular;
 }

@@ -743,11 +743,6 @@ namespace UnrealBuildTool
 		public bool bCompileWithAccessibilitySupport = true;
 
 		/// <summary>
-		/// Whether to allow the Slate Widget Tracker to track registered Widgets.
-		/// </summary>
-		public bool bCompileWithSlateWidgetTracking = false;
-
-		/// <summary>
 		/// Whether to include PerfCounters support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -838,6 +833,11 @@ namespace UnrealBuildTool
 		/// Whether to compile performance automation tests.
 		/// </summary>
 		public bool bForceCompilePerformanceAutomationTests = false;
+
+		/// <summary>
+		/// Whether to override the defaults for automation tests (Debug/Development configs)
+		/// </summary>
+		public bool bForceDisableAutomationTests = false;
 
 		/// <summary>
 		/// If true, event driven loader will be used in cooked builds. @todoio This needs to be replaced by a runtime solution after async loading refactor.
@@ -2297,10 +2297,6 @@ namespace UnrealBuildTool
 			get { return Inner.bCompileWithAccessibilitySupport; }
 		}
 
-		public bool bCompileWithSlateWidgetTracking
-		{
-			get { return Inner.bCompileWithSlateWidgetTracking; }
-		}
 		public bool bWithPerfCounters
 		{
 			get { return Inner.bWithPerfCounters; }
@@ -2369,6 +2365,10 @@ namespace UnrealBuildTool
 		public bool bForceCompilePerformanceAutomationTests
 		{
 			get { return Inner.bForceCompilePerformanceAutomationTests; }
+		}
+		public bool bForceDisableAutomationTests
+		{
+			get { return Inner.bForceDisableAutomationTests; }
 		}
 
 		public bool bUseXGEController

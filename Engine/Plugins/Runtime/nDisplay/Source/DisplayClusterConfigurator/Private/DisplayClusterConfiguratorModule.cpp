@@ -290,11 +290,19 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 	}
 
 	{
-		const FName LayoutName = FDisplayClusterConfigurationViewport_ColorGradingProfile::StaticStruct()->GetFName();
+		const FName LayoutName = FDisplayClusterConfigurationViewport_PerViewportColorGrading::StaticStruct()->GetFName();
 		RegisteredPropertyLayoutNames.Add(LayoutName);
 
 		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
-			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorColorGradingProfileCustomization::MakeInstance<FDisplayClusterConfiguratorColorGradingProfileCustomization>));
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorPerViewportColorGradingCustomization::MakeInstance<FDisplayClusterConfiguratorPerViewportColorGradingCustomization>));
+	}
+
+	{
+		const FName LayoutName = FDisplayClusterConfigurationViewport_PerNodeColorGrading::StaticStruct()->GetFName();
+		RegisteredPropertyLayoutNames.Add(LayoutName);
+
+		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorPerNodeColorGradingCustomization::MakeInstance<FDisplayClusterConfiguratorPerNodeColorGradingCustomization>));
 	}
 }
 

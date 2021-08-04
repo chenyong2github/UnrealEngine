@@ -10,6 +10,7 @@
 #include "PerPlatformProperties.h"
 #include "LandscapePhysicalMaterial.h"
 #include "LandscapeWeightmapUsage.h"
+#include "Containers/ArrayView.h"
 #include "Engine/StreamableRenderAsset.h"
 
 #include "LandscapeComponent.generated.h"
@@ -248,7 +249,6 @@ struct FLandscapeComponentGrassData
 	FQuat RotationForWPO;
 #endif
 
-	TArray<uint16> HeightData;
 #if WITH_EDITORONLY_DATA
 	// Height data for LODs 1+, keyed on LOD index
 	TMap<int32, TArray<uint16>> HeightMipData;
@@ -256,7 +256,12 @@ struct FLandscapeComponentGrassData
 	// Grass data was updated but not saved yet
 	bool bIsDirty;
 #endif
-	TMap<ULandscapeGrassType*, TArray<uint8>> WeightData;
+
+	// Elements per contiguous array (for validation)
+	int32 NumElements = 0;
+	// Serialized in one block to prevent Slack waste
+	TMap<ULandscapeGrassType*, int32> WeightOffsets;
+	TArray<uint8> HeightWeightData;
 
 	FLandscapeComponentGrassData()
 #if WITH_EDITORONLY_DATA
@@ -270,12 +275,19 @@ struct FLandscapeComponentGrassData
 
 	bool HasData()
 	{
-		return HeightData.Num() > 0 ||
+		return HeightWeightData.Num() > 0 
 #if WITH_EDITORONLY_DATA
-			HeightMipData.Num() > 0 ||
+			|| HeightMipData.Num() > 0
 #endif
-			WeightData.Num() > 0;
+			;
 	}
+
+	void InitializeFrom(const TArray<uint16>& HeightData, const TMap<ULandscapeGrassType*, TArray<uint8>>& WeightData);
+
+	bool HasWeightData() const;
+	TArrayView<uint8> GetWeightData(const ULandscapeGrassType* GrassType);
+	bool Contains(ULandscapeGrassType* GrassType) const;
+	TArrayView<uint16> GetHeightData();
 
 	SIZE_T GetAllocatedSize() const;
 

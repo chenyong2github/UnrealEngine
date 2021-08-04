@@ -249,7 +249,7 @@ class CORE_API FMallocBinned2 : public FMalloc
 	PoolHashBucket* HashBucketFreeList;
 	uint64 NumPoolsPerPage;
 
-#if !PLATFORM_UNIX
+#if !PLATFORM_UNIX && !PLATFORM_ANDROID
 #if UE_USE_VERYLARGEPAGEALLOCATOR
 	FCachedOSVeryLargePageAllocator CachedOSPageAllocator;
 #else

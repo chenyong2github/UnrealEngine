@@ -196,17 +196,13 @@ FPrimitiveSceneProxy* UOceanCollisionComponent::CreateSceneProxy()
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-
-
-
-
 bool UOceanCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
 	const AWaterBody* OwningBody = GetTypedOuter<AWaterBody>();
-	if (CachedBodySetup && OwningBody)
+	if (CachedBodySetup && OwningBody && OwningBody->GetWaterBodyComponent())
 	{
 		FTransform GeomTransform(GetComponentTransform());
-		GeomTransform.AddToTranslation(OwningBody->GetWaterNavCollisionOffset());
+		GeomTransform.AddToTranslation(OwningBody->GetWaterBodyComponent()->GetWaterNavCollisionOffset());
 		GeomExport.ExportRigidBodySetup(*CachedBodySetup, GeomTransform);
 		return false;
 	}
@@ -214,11 +210,7 @@ bool UOceanCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometr
 	return true;
 }
 
-
-
-
-
-
+// ----------------------------------------------------------------------------------
 
 UOceanBoxCollisionComponent::UOceanBoxCollisionComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -228,10 +220,10 @@ UOceanBoxCollisionComponent::UOceanBoxCollisionComponent(const FObjectInitialize
 bool UOceanBoxCollisionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
 	const AWaterBody* OwningBody = GetTypedOuter<AWaterBody>();
-	if (ShapeBodySetup && OwningBody)
+	if (ShapeBodySetup && OwningBody && OwningBody->GetWaterBodyComponent())
 	{
 		FTransform GeomTransform(GetComponentTransform());
-		GeomTransform.AddToTranslation(OwningBody->GetWaterNavCollisionOffset());
+		GeomTransform.AddToTranslation(OwningBody->GetWaterBodyComponent()->GetWaterNavCollisionOffset());
 		GeomExport.ExportRigidBodySetup(*ShapeBodySetup, GeomTransform);
 		return false;
 	}

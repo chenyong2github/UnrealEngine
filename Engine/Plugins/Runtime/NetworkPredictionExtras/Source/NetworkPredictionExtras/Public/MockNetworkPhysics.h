@@ -23,6 +23,13 @@ struct FMockPhysInputCmd
 	FVector	Force;
 
 	UPROPERTY(BlueprintReadWrite, Category="Input")
+	FVector	Torque;
+
+	/** Target yaw of character (Degrees). Torque will be applied to rotate character towards target. */
+	UPROPERTY(BlueprintReadWrite, Category = "Input")
+	float TargetYaw;
+
+	UPROPERTY(BlueprintReadWrite, Category="Input")
 	bool bJumpedPressed = false;
 
 	UPROPERTY(BlueprintReadWrite, Category="Input")
@@ -31,6 +38,8 @@ struct FMockPhysInputCmd
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << Force;
+		Ar << Torque;
+		Ar << TargetYaw;
 		Ar << bJumpedPressed;
 		Ar << bBrakesPressed;
 		return true;
@@ -47,7 +56,10 @@ struct FMockPhysInputCmd
 	//	The bad consequence here is that corrections are going to happen whenever a client InputCmd changes.
 	bool ShouldReconcile(const FMockPhysInputCmd& AuthState) const
 	{
-		return FVector::DistSquared(Force, AuthState.Force) > 0.1f || bJumpedPressed != AuthState.bJumpedPressed || 
+		return FVector::DistSquared(Force, AuthState.Force) > 0.1f
+			|| FVector::DistSquared(Torque, AuthState.Torque) > 0.1f
+			|| !FMath::IsNearlyEqual(TargetYaw, AuthState.TargetYaw, 1.0f)
+			|| bJumpedPressed != AuthState.bJumpedPressed || 
 			bBrakesPressed != AuthState.bBrakesPressed;
 	}
 
@@ -59,7 +71,7 @@ struct FMockPhysInputCmd
 
 	void ToString(FStringBuilderBase& Out)
 	{
-		Out.Appendf(TEXT("%s. bJumpedPressed: %d. bBrakesPressed: %d."), *Force.ToString(), (int32)bJumpedPressed, (int32)bBrakesPressed);
+		Out.Appendf(TEXT("Force: %s. Torque: %s. TargetYaw: %f bJumpedPressed: %d. bBrakesPressed: %d."), *Force.ToString(), *Torque.ToString(), TargetYaw, (int32)bJumpedPressed, (int32)bBrakesPressed);
 	}
 };
 
@@ -89,19 +101,30 @@ struct FMockState_GT
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	float ForceMultiplier = 125000.f;
 
+	UPROPERTY(BlueprintReadWrite, Category = "Mock Object")
+	float AutoFaceTargetYawStrength = 200000.f;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Mock Object")
+	float AutoFaceTargetYawDamp = 20.f;
+
 	// Arbitrary data that doesn't affect sim but could still trigger rollback
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	int32 RandValue = 0;
 
 	bool ShouldReconcile(const FMockState_GT& AuthState) const
 	{
-		return ForceMultiplier != AuthState.ForceMultiplier || RandValue != AuthState.RandValue;
+		return ForceMultiplier != AuthState.ForceMultiplier
+			|| RandValue != AuthState.RandValue
+			|| AutoFaceTargetYawStrength != AuthState.AutoFaceTargetYawStrength
+			|| AutoFaceTargetYawDamp != AuthState.AutoFaceTargetYawDamp;
 	}
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		Ar << ForceMultiplier;
 		Ar << RandValue;
+		Ar << AutoFaceTargetYawStrength;
+		Ar << AutoFaceTargetYawDamp;
 		return true;
 	}
 };
@@ -383,6 +406,10 @@ public:
 	bool bCanBeKicked=false;
 
 protected:
+
+	// Which component's physics body to manage if there are multiple PrimitiveComponent and not the root component.
+	UPROPERTY(EditDefaultsOnly, Category = "Network Physics")
+	FName ManagedComponentTag=NAME_None;
 
 	// Managed state should not be publically exposed
 	UPROPERTY(Replicated, transient)

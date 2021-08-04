@@ -2873,7 +2873,7 @@ namespace AutomationScripts
 
 							IoStoreCommands.Add(GetIoStoreCommandArguments(
 								IoStoreResponseFile,
-								PakParams.PakName,
+								OutputLocation.GetFileNameWithoutAnyExtensions(),
 								OutputLocation,
 								bCompressContainers,
 								CryptoSettings,
