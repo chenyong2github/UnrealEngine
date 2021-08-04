@@ -18,6 +18,11 @@
 #include "Rendering/Texture2DResource.h"
 #include "Math/Halton.h"
 
+bool SupportsFilmGrain(EShaderPlatform Platform)
+{
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+}
+
 namespace
 {
 TAutoConsoleVariable<float> CVarTonemapperSharpen(
@@ -92,6 +97,11 @@ TAutoConsoleVariable<float> CVarGamma(
 TAutoConsoleVariable<int32> CVarFilmGrainSequenceLength(
 	TEXT("r.FilmGrain.SequenceLength"), 97,
 	TEXT("Length of the random sequence for film grain (preferably a prime number, default=97)."),
+	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarFilmGrainCacheTextureConstants(
+	TEXT("r.FilmGrain.CacheTextureConstants"), 1,
+	TEXT("Wether the constants related to the film grain should be cached."),
 	ECVF_RenderThreadSafe);
 
 const int32 GTonemapComputeTileSizeX = 8;
@@ -229,8 +239,14 @@ FDesktopDomain RemapPermutation(FDesktopDomain PermutationVector, ERHIFeatureLev
 		PermutationVector.Set<FTonemapperGrainQuantizationDim>(false);
 	else
 		PermutationVector.Set<FTonemapperGrainQuantizationDim>(true);
-	
+
+	if (FeatureLevel < ERHIFeatureLevel::SM5)
+	{
+		CommonPermutationVector.Set<FTonemapperFilmGrainDim>(false);
+	}
+
 	PermutationVector.Set<FCommonDomain>(CommonPermutationVector);
+
 	return PermutationVector;
 }
 
@@ -312,16 +328,15 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 
 BEGIN_SHADER_PARAMETER_STRUCT(FFilmGrainParameters, )
 	SHADER_PARAMETER(FVector3f, GrainRandomFull)
-	SHADER_PARAMETER(float, FilmGrainMul)
-	SHADER_PARAMETER(float, FilmGrainAdd)
 	SHADER_PARAMETER(float, FilmGrainIntensityShadows)
 	SHADER_PARAMETER(float, FilmGrainIntensityMidtones)
 	SHADER_PARAMETER(float, FilmGrainIntensityHighlights)
 	SHADER_PARAMETER(float, FilmGrainShadowsMax)
 	SHADER_PARAMETER(float, FilmGrainHighlightsMin)
-	SHADER_PARAMETER_TEXTURE(Texture2D, FilmGrainTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilmGrainTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, FilmGrainSampler)
 	SHADER_PARAMETER(FScreenTransform, ScreenPosToFilmGrainTextureUV)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, FilmGrainTextureConstants)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
@@ -363,6 +378,42 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, EyeAdaptationBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
+class FFilmGrainReduceCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FFilmGrainReduceCS);
+	SHADER_USE_PARAMETER_STRUCT(FFilmGrainReduceCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, FilmGrainTextureSize)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilmGrainTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Output)
+	END_SHADER_PARAMETER_STRUCT()
+	
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return SupportsFilmGrain(Parameters.Platform);
+	}
+};
+
+class FFilmGrainPackConstantsCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FFilmGrainPackConstantsCS);
+	SHADER_USE_PARAMETER_STRUCT(FFilmGrainPackConstantsCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, OriginalFilmGrainTextureSize)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ReducedFilmGrainTexture)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWTexture2D<float4>, FilmGrainConstantsOutput)
+	END_SHADER_PARAMETER_STRUCT()
+	
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return SupportsFilmGrain(Parameters.Platform);
+	}
+};
+
 class FTonemapVS : public FGlobalShader
 {
 public:
@@ -385,8 +436,6 @@ public:
 		return true;
 	}
 };
-
-IMPLEMENT_GLOBAL_SHADER(FTonemapVS, "/Engine/Private/PostProcessTonemap.usf", "MainVS", SF_Vertex);
 
 class FTonemapPS : public FGlobalShader
 {
@@ -416,10 +465,9 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
 
 		OutEnvironment.SetDefine(TEXT("SUPPORTS_BLOOM_APPLY_PARAMETERS"), FBloomOutputs::SupportsApplyParametersBuffer(Parameters.Platform) ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("SUPPORTS_FILM_GRAIN"), SupportsFilmGrain(Parameters.Platform) ? 1 : 0);
 	}
 };
-
-IMPLEMENT_GLOBAL_SHADER(FTonemapPS, "/Engine/Private/PostProcessTonemap.usf", "MainPS", SF_Pixel);
 
 class FTonemapCS : public FGlobalShader
 {
@@ -457,10 +505,76 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
 
 		OutEnvironment.SetDefine(TEXT("SUPPORTS_BLOOM_APPLY_PARAMETERS"), FBloomOutputs::SupportsApplyParametersBuffer(Parameters.Platform) ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("SUPPORTS_FILM_GRAIN"), SupportsFilmGrain(Parameters.Platform) ? 1 : 0);
 	}
 };
 
+IMPLEMENT_GLOBAL_SHADER(FFilmGrainReduceCS,        "/Engine/Private/PostProcessing/FilmGrainReduce.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FFilmGrainPackConstantsCS, "/Engine/Private/PostProcessing/FilmGrainPackConstants.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTonemapVS, "/Engine/Private/PostProcessTonemap.usf", "MainVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FTonemapPS, "/Engine/Private/PostProcessTonemap.usf", "MainPS", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FTonemapCS, "/Engine/Private/PostProcessTonemap.usf", "MainCS", SF_Compute);
+
+static
+FRDGBufferRef BuildFilmGrainConstants(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef FilmGrainTexture)
+{
+	RDG_EVENT_SCOPE(GraphBuilder, "FilmGrain BuildTextureConstants");
+
+	FRDGTextureRef ReducedFilmGrainTexture = FilmGrainTexture;
+
+	for (int32 PassId = 0; ReducedFilmGrainTexture->Desc.Extent.X > 1 && ReducedFilmGrainTexture->Desc.Extent.Y > 1; PassId++)
+	{
+		FRDGTextureRef NewReducedFilmGrainTexture;
+		{
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				FIntPoint::DivideAndRoundUp(ReducedFilmGrainTexture->Desc.Extent, 8),
+				PF_A32B32G32R32F,
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV);
+
+			NewReducedFilmGrainTexture = GraphBuilder.CreateTexture(Desc, TEXT("FilmGrain.Reduce"));
+		}
+
+		FFilmGrainReduceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFilmGrainReduceCS::FParameters>();
+		PassParameters->FilmGrainTextureSize = ReducedFilmGrainTexture->Desc.Extent;
+		PassParameters->FilmGrainTexture = ReducedFilmGrainTexture;
+		PassParameters->Output = GraphBuilder.CreateUAV(NewReducedFilmGrainTexture);
+
+		TShaderMapRef<FFilmGrainReduceCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("FilmGrain Reduce %dx%d -> %dx%d",
+				ReducedFilmGrainTexture->Desc.Extent.X, ReducedFilmGrainTexture->Desc.Extent.Y,
+				NewReducedFilmGrainTexture->Desc.Extent.X, NewReducedFilmGrainTexture->Desc.Extent.Y),
+			ComputeShader,
+			PassParameters,
+			FIntVector(NewReducedFilmGrainTexture->Desc.Extent.X, NewReducedFilmGrainTexture->Desc.Extent.Y, 1));
+
+		ReducedFilmGrainTexture = NewReducedFilmGrainTexture;
+	}
+
+	FRDGBufferRef FilmGrainConstantsBuffer;
+	{
+		FilmGrainConstantsBuffer = GraphBuilder.CreateBuffer(
+			FRDGBufferDesc::CreateStructuredDesc(sizeof(FLinearColor), /* NumElements = */ 1),
+			TEXT("FilmGrain.TextureConstants"));
+
+		FFilmGrainPackConstantsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFilmGrainPackConstantsCS::FParameters>();
+		PassParameters->OriginalFilmGrainTextureSize = FilmGrainTexture->Desc.Extent;
+		PassParameters->ReducedFilmGrainTexture = ReducedFilmGrainTexture;
+		PassParameters->FilmGrainConstantsOutput = GraphBuilder.CreateUAV(FilmGrainConstantsBuffer);
+
+		TShaderMapRef<FFilmGrainPackConstantsCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("FilmGrain PackConstants"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
+	}
+
+	return FilmGrainConstantsBuffer;
+}
 
 FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FTonemapInputs& Inputs)
 {
@@ -577,18 +691,37 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 	if (View.FilmGrainTexture)
 	{
-		check(View.FilmGrainTexture);
+		check(SupportsFilmGrain(View.GetShaderPlatform()));
+
+		FRHITexture* FilmGrainTextureRHI = View.FilmGrainTexture->GetTexture2DRHI();
+		FRDGTextureRef FilmGrainTexture = RegisterExternalTexture(GraphBuilder, FilmGrainTextureRHI, TEXT("FilmGrain.OriginalTexture"));
+
+
+		FRDGBufferRef FilmGrainConstantsBuffer;
+		if (View.ViewState && View.ViewState->FilmGrainCache.TextureRHI == FilmGrainTextureRHI && CVarFilmGrainCacheTextureConstants.GetValueOnRenderThread() != 0)
+		{
+			FilmGrainConstantsBuffer = GraphBuilder.RegisterExternalBuffer(View.ViewState->FilmGrainCache.ConstantsBuffer, TEXT("FilmGrain.TextureConstants"));
+		}
+		else
+		{
+			FilmGrainConstantsBuffer = BuildFilmGrainConstants(GraphBuilder, View, FilmGrainTexture);
+
+			if (View.ViewState)
+			{
+				View.ViewState->FilmGrainCache.Texture = View.FinalPostProcessSettings.FilmGrainTexture;
+				View.ViewState->FilmGrainCache.TextureRHI = FilmGrainTextureRHI;
+				GraphBuilder.QueueBufferExtraction(FilmGrainConstantsBuffer, &View.ViewState->FilmGrainCache.ConstantsBuffer);
+			}
+		}
 
 		// (FilmGrainTexture * FilmGrainDecodeMultiply + FilmGrainDecodeAdd)
-		CommonParameters.FilmGrain.FilmGrainMul = View.FinalPostProcessSettings.FilmGrainDecodeMultiply;
-		CommonParameters.FilmGrain.FilmGrainAdd = View.FinalPostProcessSettings.FilmGrainDecodeAdd;
 		CommonParameters.FilmGrain.FilmGrainIntensityShadows    = View.FinalPostProcessSettings.FilmGrainIntensity * View.FinalPostProcessSettings.FilmGrainIntensityShadows;
 		CommonParameters.FilmGrain.FilmGrainIntensityMidtones   = View.FinalPostProcessSettings.FilmGrainIntensity * View.FinalPostProcessSettings.FilmGrainIntensityMidtones;
 		CommonParameters.FilmGrain.FilmGrainIntensityHighlights = View.FinalPostProcessSettings.FilmGrainIntensity * View.FinalPostProcessSettings.FilmGrainIntensityHighlights;
 		CommonParameters.FilmGrain.FilmGrainShadowsMax = View.FinalPostProcessSettings.FilmGrainShadowsMax;
 		CommonParameters.FilmGrain.FilmGrainHighlightsMin = View.FinalPostProcessSettings.FilmGrainHighlightsMin;
 
-		CommonParameters.FilmGrain.FilmGrainTexture = View.FilmGrainTexture->GetTexture2DRHI();
+		CommonParameters.FilmGrain.FilmGrainTexture = FilmGrainTexture;
 		CommonParameters.FilmGrain.FilmGrainSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI();
 
 		int32 RandomSequenceLength = CVarFilmGrainSequenceLength.GetValueOnRenderThread();
@@ -604,19 +737,38 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		CommonParameters.FilmGrain.ScreenPosToFilmGrainTextureUV = 
 			FScreenTransform::ScreenPosToViewportUV *
 			((OutputSizeF / TextureSize) * (1.0f / View.FinalPostProcessSettings.FilmGrainTexelSize)) + RandomGrainTextureUVOffset;
+
+		CommonParameters.FilmGrain.FilmGrainTextureConstants = GraphBuilder.CreateSRV(FilmGrainConstantsBuffer);
 	}
 	else
 	{
-		CommonParameters.FilmGrain.FilmGrainMul = 0.0f;
-		CommonParameters.FilmGrain.FilmGrainAdd = 1.0f;
+		// Release the film grain cache
+		if (View.ViewState)
+		{
+			View.ViewState->FilmGrainCache.SafeRelease();
+		}
+
 		CommonParameters.FilmGrain.FilmGrainIntensityShadows = 0.0f;
 		CommonParameters.FilmGrain.FilmGrainIntensityMidtones = 0.0f;
 		CommonParameters.FilmGrain.FilmGrainIntensityHighlights = 0.0f;
 		CommonParameters.FilmGrain.FilmGrainShadowsMax = 0.09f;
 		CommonParameters.FilmGrain.FilmGrainHighlightsMin = 0.5f;
-		CommonParameters.FilmGrain.FilmGrainTexture = GWhiteTexture->TextureRHI;
+		CommonParameters.FilmGrain.FilmGrainTexture = GSystemTextures.GetWhiteDummy(GraphBuilder);
 		CommonParameters.FilmGrain.FilmGrainSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI();
 		CommonParameters.FilmGrain.ScreenPosToFilmGrainTextureUV = FScreenTransform::ScreenPosToViewportUV;
+
+		// Set a dummy texture constants
+		if (SupportsFilmGrain(View.GetShaderPlatform()))
+		{
+			FRDGBufferRef DummyFilmGrainTextureConstants = GSystemTextures.GetDefaultStructuredBuffer(
+				GraphBuilder, sizeof(FVector4), FVector4(FLinearColor::White));
+
+			CommonParameters.FilmGrain.FilmGrainTextureConstants = GraphBuilder.CreateSRV(DummyFilmGrainTextureConstants);
+		}
+		else
+		{
+			CommonParameters.FilmGrain.FilmGrainTextureConstants = nullptr;
+		}
 	}
 
 	CommonParameters.OutputDevice = GetTonemapperOutputDeviceParameters(ViewFamily);

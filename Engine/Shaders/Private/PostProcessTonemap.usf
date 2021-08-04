@@ -76,8 +76,6 @@ float4 TonemapperParams;
 float3 GrainRandomFull;
 
 // Film grain
-float FilmGrainMul;
-float FilmGrainAdd;
 float FilmGrainIntensityShadows;
 float FilmGrainIntensityMidtones;
 float FilmGrainIntensityHighlights;
@@ -86,6 +84,9 @@ float FilmGrainHighlightsMin;
 Texture2D<half3> FilmGrainTexture;
 SamplerState FilmGrainSampler;
 float4 ScreenPosToFilmGrainTextureUV;
+#if SUPPORTS_FILM_GRAIN
+	StructuredBuffer<float4> FilmGrainTextureConstants;
+#endif // SUPPORTS_FILM_GRAIN
 
 float EditorNITLevel;
 
@@ -641,12 +642,14 @@ float4 TonemapCommonPS(
 
 		#if USE_FILM_GRAIN
 		{
+			float3 FilmGrainDecodeMultiply = FilmGrainTextureConstants[0].rgb;
+
 			half FilmGrainIntensity = ComputeFilmGrainIntensity(LinearColor);
 
 			float2 FilmGrainUV = ApplyScreenTransform(ScreenPos, ScreenPosToFilmGrainTextureUV);
 
 			half3 RawGrain = FilmGrainTexture.SampleLevel(FilmGrainSampler, FilmGrainUV, 0);
-			half3 FinalGrain = RawGrain * half(FilmGrainMul) + half(FilmGrainAdd);
+			half3 FinalGrain = RawGrain * half3(FilmGrainDecodeMultiply);
 
 			LinearColor.rgb *= lerp(1.0, FinalGrain, FilmGrainIntensity);
 		}

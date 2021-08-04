@@ -8,6 +8,9 @@
 #include "OverridePassSequence.h"
 #include "Math/Halton.h"
 
+
+bool SupportsFilmGrain(EShaderPlatform Platform);
+
 // You must update values in PostProcessTonemap.usf when changing this enum.
 enum class ETonemapperOutputDevice
 {
@@ -75,35 +78,3 @@ struct FTonemapInputs
 };
 
 FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FTonemapInputs& Inputs);
-
-struct FMobileTonemapperInputs
-{
-	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
-	FScreenPassRenderTarget OverrideOutput;
-
-	// [Required] HDR scene color to tonemap.
-	FScreenPassTexture SceneColor;
-
-	// [Required] Filtered bloom texture to composite with tonemapped scene color. This should be transparent black for no bloom.
-	FScreenPassTexture BloomOutput;
-
-	FScreenPassTexture DofOutput;
-
-	FScreenPassTexture SunShaftAndDof;
-
-	FRDGBufferRef EyeAdaptationBuffer = nullptr;
-
-	// [Raster Only, Mobile] Flips the image vertically on output.
-	bool bFlipYAxis = false;
-
-	// Whether to leave the final output in HDR.
-	bool bOutputInHDR = false;
-
-	bool bMetalMSAAHDRDecode = false;
-
-	bool bUseEyeAdaptation = false;
-
-	bool bSRGBAwareTarget = false;
-};
-
-FScreenPassTexture AddMobileTonemapperPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileTonemapperInputs& Inputs);

@@ -26,6 +26,7 @@
 #include "PostProcess/TemporalAA.h"
 #include "PostProcess/PostProcessUpscale.h"
 #include "PostProcess/PostProcessing.h"
+#include "PostProcess/PostProcessTonemap.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "SceneViewExtension.h"
@@ -338,6 +339,11 @@ static FAutoConsoleVariableRef CVarParallelCmdListInheritBreadcrumbs(
 	ECVF_ReadOnly
 );
 
+static TAutoConsoleVariable<int32> CVarFilmGrain(
+	TEXT("r.FilmGrain"), 1,
+	TEXT("Whether to enable film grain."),
+	ECVF_RenderThreadSafe);
+
 #if !UE_BUILD_SHIPPING
 
 static TAutoConsoleVariable<int32> CVarTestInternalViewRectOffset(
@@ -447,7 +453,6 @@ bool IsStaticLightingAllowed()
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	return CVar->GetValueOnRenderThread() != 0;
 }
-
 
 TSharedPtr<FVirtualShadowMapClipmap> FVisibleLightInfo::FindShadowClipmapForView(const FViewInfo* View) const
 {
@@ -2389,14 +2394,16 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 		}
 
 		// Handle the film grain texture
-		if (ViewInfo->FinalPostProcessSettings.FilmGrainIntensity > 0.0f)
+		if (ViewInfo->FinalPostProcessSettings.FilmGrainIntensity > 0.0f &&
+			ViewFamily.EngineShowFlags.Grain &&
+			CVarFilmGrain.GetValueOnGameThread() != 0 &&
+			SupportsFilmGrain(ViewFamily.GetShaderPlatform()))
 		{
-			GEngine->LoadDefaultFilmGrainTexture();
-
-			UTexture2D* FilmGrainTexture = GEngine->DefaultFilmGrainTexture;
-			if (ViewInfo->FinalPostProcessSettings.FilmGrainTexture)
+			UTexture2D* FilmGrainTexture = ViewInfo->FinalPostProcessSettings.FilmGrainTexture;
+			if (FilmGrainTexture == nullptr)
 			{
-				FilmGrainTexture = ViewInfo->FinalPostProcessSettings.FilmGrainTexture;
+				GEngine->LoadDefaultFilmGrainTexture();
+				FilmGrainTexture = GEngine->DefaultFilmGrainTexture;
 			}
 
 			bool bIsValid = PreparePostProcessSettingTextureForRenderer(*ViewInfo, FilmGrainTexture, TEXT("film grain"));
@@ -2407,13 +2414,6 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 				if (TextureResource)
 				{
 					ViewInfo->FilmGrainTexture = TextureResource->GetTexture2DResource();
-				}
-
-				if (FilmGrainTexture == GEngine->DefaultFilmGrainTexture)
-				{
-					// Decode Texture2D'/Engine/EngineResources/FilmGrains/Marcie_Grain_v3_128_M2_000.Marcie_Grain_v3_128_M2_000'
-					ViewInfo->FinalPostProcessSettings.FilmGrainDecodeMultiply = 2.000f;
-					ViewInfo->FinalPostProcessSettings.FilmGrainDecodeAdd = 0.0f;
 				}
 			}
 		}

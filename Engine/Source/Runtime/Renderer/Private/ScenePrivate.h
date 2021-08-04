@@ -965,6 +965,8 @@ public:
 		/// @cond DOXYGEN_WARNINGS
 		void SafeRelease()
 		{
+			Physical = nullptr;
+			PhysicalRHI = nullptr;
 			Spectral.SafeRelease();
 			ConstantsBuffer.SafeRelease();
 		}
@@ -989,6 +991,23 @@ public:
 		// Mip level of the physical space source texture used when caching the spectral space texture.
 		uint32 PhysicalMipLevel;
 	} BloomFFTKernel;
+
+	// Film grain
+	struct
+	{
+		/// @cond DOXYGEN_WARNINGS
+		void SafeRelease()
+		{
+			Texture = nullptr;
+			TextureRHI = nullptr;
+			ConstantsBuffer.SafeRelease();
+		}
+		/// @endcond
+
+		UTexture2D* Texture = nullptr;
+		FRHITexture* TextureRHI = nullptr;
+		TRefCountPtr<FRDGPooledBuffer> ConstantsBuffer;
+	} FilmGrainCache;
 
 	// Cached material texture samplers
 	float MaterialTextureCachedMipBias;
@@ -1375,6 +1394,11 @@ public:
 		if (BloomFFTKernel.Physical)
 		{
 			Collector.AddReferencedObject(BloomFFTKernel.Physical);
+		}
+
+		if (FilmGrainCache.Texture)
+		{
+			Collector.AddReferencedObject(FilmGrainCache.Texture);
 		}
 	}
 
