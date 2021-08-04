@@ -109,7 +109,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 {
 	// TODO: This function is too big. Split up.
 	
-	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter, FName(*(KernelName + TEXT("_Src"))));
+	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter);
 
 	FShaderParamTypeDefinition IndexParamDef;
 	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);

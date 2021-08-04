@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "OptimusDiagnostic.generated.h"
 
 UENUM()
 enum class EOptimusDiagnosticLevel : uint8
