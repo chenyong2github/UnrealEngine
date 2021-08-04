@@ -44,7 +44,7 @@ namespace Chaos
 			}
 
 			// Build particle list #BG Maybe allow TParticles to copy vectors?
-			Chaos::TParticles<Chaos::FReal, 3> TriMeshParticles;
+			Chaos::FTriangleMeshImplicitObject::ParticlesType TriMeshParticles;
 			TriMeshParticles.AddParticles(FinalVerts.Num());
 
 			const int32 NumVerts = FinalVerts.Num();
@@ -216,7 +216,7 @@ namespace Chaos
 			}
 
 			// Build particle list #BG Maybe allow TParticles to copy vectors?
-			Chaos::TParticles<Chaos::FReal, 3> TriMeshParticles;
+			Chaos::FTriangleMeshImplicitObject::ParticlesType TriMeshParticles;
 			TriMeshParticles.AddParticles(FinalVerts.Num());
 
 			const int32 NumVerts = FinalVerts.Num();

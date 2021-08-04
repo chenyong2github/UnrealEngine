@@ -73,7 +73,7 @@ namespace ChaosTest {
 
 		bool VisitRaycast(const TSpatialVisitorData<FPayload>& Data, FQueryFastData& CurData)
 		{
-			float OutTime = 0;
+			FReal OutTime = 0;
 			FVec3 OutPos;
 			FVec3 OutNorm;
 			int32 FaceIdx;

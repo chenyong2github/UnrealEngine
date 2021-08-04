@@ -1201,7 +1201,7 @@ namespace ChaosTest
 
 			FConvex ConvexBox(MoveTemp(ConvexBoxSurfaceParticles), 0.0f);
 
-			FParticles TrimeshParticles(
+			FTriangleMeshImplicitObject::ParticlesType TrimeshParticles(
 				{
 					{50.0000000, 50.0000000, -8.04061356e-15},
 					{50.0000000, -50.0000000, 8.04061356e-15},
