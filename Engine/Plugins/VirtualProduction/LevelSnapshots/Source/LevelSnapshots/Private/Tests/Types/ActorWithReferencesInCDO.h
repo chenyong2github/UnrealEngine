@@ -27,8 +27,7 @@ struct FExternalReferenceDummy
 		return Lhs.Object == RHS.Object;
 	}
 
-	FExternalReferenceDummy() = default;
-	FExternalReferenceDummy(UObject* Object)
+	FExternalReferenceDummy(UObject* Object = nullptr)
 		:
 		Object(Object)
 	{}
@@ -66,8 +65,8 @@ public:
 	/******************** External references  ********************/
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UStaticMesh* CubeMesh;
+	UStaticMesh* CubeMesh = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UStaticMesh* CylinderMesh;
+	UStaticMesh* CylinderMesh = nullptr;
 };
