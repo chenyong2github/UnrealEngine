@@ -294,3 +294,34 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitChainToSplineCurve : public FRigUnit_Hig
 	UPROPERTY(transient)
 	FRigUnit_FitChainToCurve_WorkData WorkData;
 };
+
+/**
+ * Fits a given spline curve to a chain.
+ */
+USTRUCT(meta=(DisplayName="Fit Spline Curve on Chain", Category="Hierarchy", Keywords="Fit,Resample,Spline"))
+struct CONTROLRIGSPLINE_API FRigUnit_FitSplineCurveToChain : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_FitSplineCurveToChain()
+	{
+		
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/** 
+	 * The items to align to
+	 */
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection Items;
+
+	/** 
+	 * The curve to align
+	 */
+	UPROPERTY(meta = (Input, Output))
+	FControlRigSpline Spline;
+
+	
+};
