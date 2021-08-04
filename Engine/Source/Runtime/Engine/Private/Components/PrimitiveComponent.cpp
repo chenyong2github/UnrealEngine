@@ -330,6 +330,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
 	RayTracingGroupId = FPrimitiveSceneProxy::InvalidRayTracingGroupId;
 	RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_4_DEFAULT;
+	bRayTracingFarField = false;
 
 	LDMaxDrawDistance = 0.f;
 	CachedMaxDrawDistance = 0.f;
@@ -614,7 +615,7 @@ void UPrimitiveComponent::SendRenderTransform_Concurrent()
 
 	// If the primitive isn't hidden update its transform.
 	const bool bDetailModeAllowsRendering	= DetailMode <= GetCachedScalabilityCVars().DetailMode;
-	if( bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow))
+	if( bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow || bRayTracingFarField))
 	{
 		// Update the scene info's transform for this primitive.
 		GetWorld()->Scene->UpdatePrimitiveTransform(this);
@@ -1484,7 +1485,7 @@ void UPrimitiveComponent::SetOnlyOwnerSee(bool bNewOnlyOwnerSee)
 bool UPrimitiveComponent::ShouldComponentAddToScene() const
 {
 	bool bSceneAdd = USceneComponent::ShouldComponentAddToScene();
-	return bSceneAdd && (ShouldRender() || bCastHiddenShadow);
+	return bSceneAdd && (ShouldRender() || bCastHiddenShadow || bRayTracingFarField);
 }
 
 bool UPrimitiveComponent::ShouldCreatePhysicsState() const

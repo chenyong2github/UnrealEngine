@@ -185,6 +185,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bRenderCustomDepth(InComponent->bRenderCustomDepth)
 ,	bVisibleInSceneCaptureOnly(InComponent->bVisibleInSceneCaptureOnly)
 ,	bHiddenInSceneCapture(InComponent->bHiddenInSceneCapture)
+,	bRayTracingFarField(InComponent->bRayTracingFarField)
 ,	CustomDepthStencilValue(InComponent->CustomDepthStencilValue)
 ,	CustomDepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->CustomDepthStencilWriteMask))
 ,	LightingChannelMask(GetLightingChannelMaskForStruct(InComponent->LightingChannels))
@@ -426,6 +427,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.NumInstanceSceneDataEntries(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceSceneDataEntries() : 0)
 				.InstancePayloadDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataOffset() : INDEX_NONE)
 				.InstancePayloadDataStride(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataStride() : 0)
+				.VisibleInPrimaryRayPass(IsVisibleInPrimaryRayPass())
 			.Build();
 
 		if (UniformBuffer.GetReference())

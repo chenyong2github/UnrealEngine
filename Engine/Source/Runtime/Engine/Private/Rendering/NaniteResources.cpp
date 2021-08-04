@@ -1021,7 +1021,8 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance)
 {
-	if (GRayTracingNaniteProxyMeshes == 0 || RayTracingGeometry->Initializer.TotalPrimitiveCount == 0 || !bHasRayTracingInstances || !(IsVisibleInRayTracing() && ShouldRenderInMainPass() && IsDrawnInGame()))
+	const bool bShouldRender = (IsVisibleInRayTracing() && ShouldRenderInMainPass() && IsDrawnInGame()) || IsRayTracingFarField();
+	if (GRayTracingNaniteProxyMeshes == 0 || RayTracingGeometry->Initializer.TotalPrimitiveCount == 0 || !bHasRayTracingInstances || !bShouldRender)
 	{
 		return ERayTracingPrimitiveFlags::Excluded;
 	}

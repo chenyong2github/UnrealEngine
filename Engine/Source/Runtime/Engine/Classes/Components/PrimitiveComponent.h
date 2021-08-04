@@ -595,6 +595,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (DisplayName = "Hidden In Scene Capture", ToolTip = "When true, will not be captured by Scene Capture"))
 	uint8 bHiddenInSceneCapture : 1;
 
+	/** If true, this component will be available to ray trace as a far field primitive even if hidden. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = RayTracing)
+	uint8 bRayTracingFarField : 1;
+
 protected:
 	/** Result of last call to AreAllCollideableDescendantsRelative(). */
 	uint8 bCachedAllCollideableDescendantsRelative : 1;

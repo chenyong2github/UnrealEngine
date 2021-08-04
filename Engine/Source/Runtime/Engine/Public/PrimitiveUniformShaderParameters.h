@@ -64,6 +64,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_0				0x400
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1				0x800
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
+#define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_PRIMARY_RAY_PASS		0x2000
 
 #define NANITE_INVALID_RESOURCE_ID			0xFFFFFFFFu
 #define NANITE_INVALID_HIERARCHY_OFFSET		0xFFFFFFFFu
@@ -76,6 +77,7 @@ public:
 		// Flags defaulted on
 		bCastShadow									= true;
 		bCastContactShadow							= true;
+		bVisibleInPrimaryRayPass					= true;
 
 		// Flags defaulted off
 		bReceivesDecals								= false;
@@ -121,6 +123,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			DrawsVelocity);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			OutputVelocity);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastShadow);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInPrimaryRayPass);
 
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstanceSceneDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NumInstanceSceneDataEntries);
@@ -224,6 +227,7 @@ public:
 		Parameters.Flags |= ((LightingChannels & 0x1) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_0 : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x2) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1 : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x4) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2 : 0u;
+		Parameters.Flags |= bVisibleInPrimaryRayPass ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_PRIMARY_RAY_PASS : 0u;
 
 		Parameters.WorldToLocal = Parameters.LocalToWorld.Inverse();
 
@@ -280,6 +284,7 @@ private:
 	uint32 bHasPreSkinnedLocalBounds : 1;
 	uint32 bHasCustomData : 1;
 	uint32 bHasPreviousLocalToWorld : 1;
+	uint32 bVisibleInPrimaryRayPass : 1;
 };
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(

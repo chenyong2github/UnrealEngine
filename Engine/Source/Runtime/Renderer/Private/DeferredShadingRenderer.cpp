@@ -210,6 +210,13 @@ static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
 	TEXT("Forces all ray tracing geometry instances to be opaque, effectively disabling any-hit shaders. This is useful for debugging and profiling. (default = 0)")
 );
 
+static int32 GRayTracingFarField = 0;
+static FAutoConsoleVariableRef CVarRaytracingFarField(
+	TEXT("r.RayTracing.FarField"),
+	GRayTracingFarField,
+	TEXT("Enable/Disable far field ray tracing.\n"),
+	ECVF_RenderThreadSafe);
+
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
 	TEXT("r.Test.ForceBlackVelocityBuffer"), 0,
@@ -608,7 +615,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 
 			const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
 
-			if (CullInRayTracing > 0)
+			// Skip far field if not enabled
+			const bool bIsRayTracingFarField = EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::FarField);
+			if (!GRayTracingFarField && bIsRayTracingFarField)
+			{
+				continue;
+			}
+
+			if (CullInRayTracing > 0 && !bIsRayTracingFarField)
 			{
 				const FBoxSphereBounds ObjectBounds = Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds;
 				const float ObjectRadius = ObjectBounds.SphereRadius;
