@@ -33,8 +33,14 @@ public:
 	/** Option to use audio attenuation in the viewport */
 	TSharedPtr< FUICommandInfo > UseAudioAttenuation;
 
-	/** Option to show root motion in viewport */
-	TSharedPtr< FUICommandInfo > ProcessRootMotion;
+	/** Option to set ProcessRootMotionMode to Ignore (Preview mesh will not consume root motion) */
+	TSharedPtr< FUICommandInfo > DoNotProcessRootMotion;
+
+	/** Option to set ProcessRootMotionMode to LoopAndReset (Preview mesh will consume root motion resetting the position back to the origin every time the animation loops) */
+	TSharedPtr< FUICommandInfo > ProcessRootMotionLoopAndReset;
+
+	/** Option to set ProcessRootMotionMode to Loop (Preview mesh will consume root motion continually) */
+	TSharedPtr< FUICommandInfo > ProcessRootMotionLoop;
 
 	/** Option to enable/disable post process anim blueprint evaluation */
 	TSharedPtr< FUICommandInfo > DisablePostProcessBlueprint;
