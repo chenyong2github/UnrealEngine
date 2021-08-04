@@ -306,6 +306,9 @@ void UDisplayClusterBlueprint::PrepareConfigForExport()
 		// Store the object
 		Data->Scene->Xforms.Emplace(GetObjectNameFromSCSNode(SceneComp), SceneComp);
 	}
+
+	// Avoid empty string keys in the config data maps
+	CleanupConfigMaps(Data);
 }
 
 FString UDisplayClusterBlueprint::GetObjectNameFromSCSNode(const UObject* const Object) const
@@ -344,5 +347,50 @@ void UDisplayClusterBlueprint::GatherParentComponentsInfo(const USCS_Node* const
 
 			GatherParentComponentsInfo(ChildNode, OutParentsMap);
 		}
+	}
+}
+
+void UDisplayClusterBlueprint::CleanupConfigMaps(UDisplayClusterConfigurationData* Data) const
+{
+	check(Data && Data->Cluster);
+
+	static const FString InvalidKey = FString();
+
+	// Set of the maps we're going to process
+	TSet<TMap<FString, FString>*> MapsToProcess;
+	// Pre-allocate some memory. Not a precise amount of elements, but should be enough in most cases
+	MapsToProcess.Reserve(3 + 4 * Data->Cluster->Nodes.Num());
+
+	// Add single instance maps
+	MapsToProcess.Add(&Data->CustomParameters);
+	MapsToProcess.Add(&Data->Cluster->Sync.InputSyncPolicy.Parameters);
+	MapsToProcess.Add(&Data->Cluster->Sync.RenderSyncPolicy.Parameters);
+
+	// Add per-node and per-viewport maps
+	Data->Cluster->Nodes.Remove(InvalidKey);
+	for (TPair<FString, UDisplayClusterConfigurationClusterNode*> Node : Data->Cluster->Nodes)
+	{
+		check(Node.Value);
+
+		// Per-node maps
+		Node.Value->Postprocess.Remove(InvalidKey);
+		for (TPair<FString, FDisplayClusterConfigurationPostprocess> PostOpIt : Node.Value->Postprocess)
+		{
+			MapsToProcess.Add(&PostOpIt.Value.Parameters);
+		}
+
+		// Per-viewport maps
+		Node.Value->Viewports.Remove(InvalidKey);
+		for (TPair<FString, UDisplayClusterConfigurationViewport*> ViewportIt : Node.Value->Viewports)
+		{
+			check(ViewportIt.Value);
+			MapsToProcess.Add(&ViewportIt.Value->ProjectionPolicy.Parameters);
+		}
+	}
+
+	// Finally, remove all the pairs with empty keys
+	for (TMap<FString, FString>* Map : MapsToProcess)
+	{
+		Map->Remove(InvalidKey);
 	}
 }
