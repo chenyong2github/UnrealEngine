@@ -2,69 +2,63 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
 #include "Templates/UniquePtr.h"
 
-#if USE_USD_SDK
-
-#include "USDIncludesStart.h"
-	#include "pxr/pxr.h"
-#include "USDIncludesEnd.h"
-
-PXR_NAMESPACE_OPEN_SCOPE
-	class UsdStage;
-	template< typename T > class TfRefPtr;
-	template< typename T > class TfWeakPtr;
-
-	using UsdStageRefPtr = TfRefPtr< UsdStage >;
-	using UsdStageWeakPtr = TfWeakPtr< UsdStage >;
-PXR_NAMESPACE_CLOSE_SCOPE
-
-#endif // #if USE_USD_SDK
+#include "UsdWrappers/ForwardDeclarations.h"
 
 namespace UE
 {
-	class FSdfLayer;
 	class FSdfPath;
 	class FUsdPrim;
-	class FUsdStage;
 	class FVtValue;
 
 	namespace Internal
 	{
-		class FUsdStageImpl;
+		template< typename PtrType > class FUsdStageImpl;
 	}
 
 	/**
-	 * Minimal pxr::UsdStageRefPtr wrapper for Unreal that can be used from no-rtti modules.
+	 * Minimal pxr::UsdStage pointer wrapper for Unreal that can be used from no-rtti modules.
+	 * Use the aliases FUsdStage and FUsdStageWeak instead (defined on ForwardDeclarations.h)
 	 */
-	class UNREALUSDWRAPPER_API FUsdStage
+	template< typename PtrType >
+	class UNREALUSDWRAPPER_API FUsdStageBase
 	{
 	public:
-		FUsdStage();
-		FUsdStage( const FUsdStage& Other );
-		FUsdStage( FUsdStage&& Other );
+		FUsdStageBase();
 
-		FUsdStage& operator=( const FUsdStage& Other );
-		FUsdStage& operator=( FUsdStage&& Other );
+		FUsdStageBase( const FUsdStage& Other );
+		FUsdStageBase( FUsdStage&& Other );
+		FUsdStageBase( const FUsdStageWeak& Other );
+		FUsdStageBase( FUsdStageWeak&& Other );
 
-		~FUsdStage();
+		FUsdStageBase& operator=( const FUsdStage& Other );
+		FUsdStageBase& operator=( FUsdStage&& Other );
+		FUsdStageBase& operator=( const FUsdStageWeak& Other );
+		FUsdStageBase& operator=( FUsdStageWeak&& Other );
+
+		~FUsdStageBase();
 
 		explicit operator bool() const;
 
-		bool operator==( const FUsdStage& Other ) const;
-		bool operator!=( const FUsdStage& Other ) const;
+		bool operator==( const FUsdStageBase& Other ) const;
+		bool operator!=( const FUsdStageBase& Other ) const;
 
-	// Auto conversion from/to pxr::UsdStageRefPtr
+		// Auto conversion from/to PtrType. We use concrete pointer types here
+		// because we should also be able to convert between them
 	public:
 #if USE_USD_SDK
-		explicit FUsdStage( const pxr::UsdStageRefPtr& InUsdStageRefPtr );
-		explicit FUsdStage( pxr::UsdStageRefPtr&& InUsdStageRefPtr );
+		explicit FUsdStageBase( const pxr::UsdStageRefPtr& InUsdPtr );
+		explicit FUsdStageBase( pxr::UsdStageRefPtr&& InUsdPtr );
+		explicit FUsdStageBase( const pxr::UsdStageWeakPtr& InUsdPtr );
+		explicit FUsdStageBase( pxr::UsdStageWeakPtr&& InUsdPtr );
 
-		operator pxr::UsdStageRefPtr&();
-		operator const pxr::UsdStageRefPtr&() const;
-		operator pxr::UsdStageWeakPtr() const;
-#endif // #if USE_USD_SDK
+		operator PtrType&();
+		operator const PtrType&() const;
+
+		operator pxr::UsdStageRefPtr ( ) const;
+		operator pxr::UsdStageWeakPtr ( ) const;
+#endif // USE_USD_SDK
 
 	// Wrapped pxr::UsdStage functions, refer to the USD SDK documentation
 	public:
@@ -99,6 +93,10 @@ namespace UE
 		bool RemovePrim( const FSdfPath& Path );
 
 	private:
-		TUniquePtr< Internal::FUsdStageImpl > Impl;
+		// So we can use the Other's Impl on copy constructor/operators
+		friend FUsdStage;
+		friend FUsdStageWeak;
+
+		TUniquePtr< Internal::FUsdStageImpl<PtrType> > Impl;
 	};
 }

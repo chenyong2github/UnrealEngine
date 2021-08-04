@@ -33,9 +33,9 @@ public:
 class USDSTAGEEDITORVIEWMODELS_API FUsdPrimViewModel : public IUsdTreeViewItem, public TSharedFromThis< FUsdPrimViewModel >
 {
 public:
-	FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStage& InUsdStage, const UE::FUsdPrim& InUsdPrim );
+	FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const UE::FUsdPrim& InUsdPrim );
 
-	FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStage& InUsdStage );
+	FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage );
 
 	TArray< FUsdPrimViewModelRef >& UpdateChildren();
 
@@ -61,7 +61,7 @@ public:
 	void ClearReferences();
 
 public:
-	UE::FUsdStage UsdStage;
+	UE::FUsdStageWeak UsdStage;
 	UE::FUsdPrim UsdPrim;
 	FUsdPrimViewModel* ParentItem;
 

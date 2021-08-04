@@ -5,6 +5,7 @@
 #if USE_USD_SDK
 
 #include "USDMemory.h"
+#include "UsdWrappers/ForwardDeclarations.h"
 
 #include "USDIncludesStart.h"
 	#include "pxr/pxr.h"
@@ -26,8 +27,6 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 namespace UE
 {
-	class FSdfLayer;
-	class FUsdStage;
 	struct FSdfLayerOffset;
 }
 

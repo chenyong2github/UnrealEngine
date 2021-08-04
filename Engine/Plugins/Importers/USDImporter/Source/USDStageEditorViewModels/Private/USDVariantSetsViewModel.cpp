@@ -53,7 +53,7 @@ void FUsdVariantSetViewModel::SetVariantSelection( const TSharedPtr< FString >& 
 #endif // #if USE_USD_SDK
 }
 
-void FUsdVariantSetsViewModel::UpdateVariantSets( const UE::FUsdStage& InUsdStage, const TCHAR* PrimPath )
+void FUsdVariantSetsViewModel::UpdateVariantSets( const UE::FUsdStageWeak& InUsdStage, const TCHAR* PrimPath )
 {
 #if USE_USD_SDK
 	VariantSets.Reset();

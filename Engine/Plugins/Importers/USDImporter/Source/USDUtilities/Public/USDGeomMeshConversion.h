@@ -6,11 +6,11 @@
 
 #include "CoreMinimal.h"
 
+#include "UsdWrappers/ForwardDeclarations.h"
+
 #include "USDIncludesStart.h"
-
-#include "pxr/usd/usd/timeCode.h"
-#include "pxr/usd/usdShade/tokens.h"
-
+	#include "pxr/usd/usd/timeCode.h"
+	#include "pxr/usd/usdShade/tokens.h"
 #include "USDIncludesEnd.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -30,10 +30,6 @@ namespace UsdUtils
 {
 	struct FDisplayColorMaterial;
 	struct FUsdPrimMaterialAssignmentInfo;
-}
-namespace UE
-{
-	class FUsdStage;
 }
 
 namespace UsdToUnreal

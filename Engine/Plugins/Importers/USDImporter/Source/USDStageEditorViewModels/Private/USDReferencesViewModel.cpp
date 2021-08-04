@@ -18,7 +18,7 @@
 
 #endif // #if USE_USD_SDK
 
-void FUsdReferencesViewModel::UpdateReferences( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
+void FUsdReferencesViewModel::UpdateReferences( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
 	References.Reset();
 

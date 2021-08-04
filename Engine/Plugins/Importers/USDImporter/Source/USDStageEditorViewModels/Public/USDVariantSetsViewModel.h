@@ -28,10 +28,10 @@ private:
 class USDSTAGEEDITORVIEWMODELS_API FUsdVariantSetsViewModel
 {
 public:
-	void UpdateVariantSets( const UE::FUsdStage& InUsdStage, const TCHAR* PrimPath );
+	void UpdateVariantSets( const UE::FUsdStageWeak& InUsdStage, const TCHAR* PrimPath );
 
 public:
-	UE::FUsdStage UsdStage;
+	UE::FUsdStageWeak UsdStage;
 	UE::FUsdPrim UsdPrim;
 
 	TArray< TSharedPtr< FUsdVariantSetViewModel > > VariantSets;

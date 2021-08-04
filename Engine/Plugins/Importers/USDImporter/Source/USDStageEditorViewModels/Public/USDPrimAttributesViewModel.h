@@ -43,7 +43,7 @@ public:
 	void Refresh( const TCHAR* InPrimPath, float TimeCode );
 
 public:
-	UE::FUsdStage UsdStage;
+	UE::FUsdStageWeak UsdStage;
 	TArray< TSharedPtr< FUsdPrimAttributeViewModel > > PrimAttributes;
 
 private:

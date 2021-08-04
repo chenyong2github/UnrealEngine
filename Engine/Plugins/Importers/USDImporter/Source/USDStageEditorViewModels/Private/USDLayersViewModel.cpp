@@ -23,7 +23,7 @@
 
 #endif // #if USE_USD_SDK
 
-FUsdLayerViewModel::FUsdLayerViewModel( FUsdLayerViewModel* InParentItem, const UE::FUsdStage& InUsdStage, const FString& InLayerIdentifier )
+FUsdLayerViewModel::FUsdLayerViewModel( FUsdLayerViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const FString& InLayerIdentifier )
 	: LayerModel( MakeShared< FUsdLayerModel >() )
 	, ParentItem( InParentItem )
 	, UsdStage( InUsdStage )

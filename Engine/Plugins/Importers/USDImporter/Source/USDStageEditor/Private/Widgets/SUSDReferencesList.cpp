@@ -55,7 +55,7 @@ TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& Co
 		];
 }
 
-void SUsdReferencesList::Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
+void SUsdReferencesList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
 	ViewModel.UpdateReferences( UsdStage, PrimPath );
 
@@ -79,7 +79,7 @@ TSharedRef< ITableRow > SUsdReferencesList::OnGenerateRow( TSharedPtr< FUsdRefer
 	return SNew( SUsdReferenceRow, InDisplayNode, OwnerTable );
 }
 
-void SUsdReferencesList::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
+void SUsdReferencesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
 	ViewModel.UpdateReferences( UsdStage, PrimPath );
 	RequestListRefresh();

@@ -5,13 +5,12 @@
 #include "CoreMinimal.h"
 #include "Misc/TVariant.h"
 
+#include "UsdWrappers/ForwardDeclarations.h"
 #include "UsdWrappers/UsdAttribute.h"
 
 namespace UE
 {
 	class FVtValue;
-	class FUsdStage;
-	class FSdfLayer;
 }
 
 namespace UsdUtils

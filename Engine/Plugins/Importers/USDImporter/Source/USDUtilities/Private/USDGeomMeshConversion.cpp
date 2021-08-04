@@ -1430,7 +1430,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		pxr::UsdStageRefPtr MaterialStage;
 		if ( StageForMaterialAssignments )
 		{
-			MaterialStage = *StageForMaterialAssignments;
+			MaterialStage = static_cast< pxr::UsdStageRefPtr >( *StageForMaterialAssignments );
 		}
 		else
 		{
