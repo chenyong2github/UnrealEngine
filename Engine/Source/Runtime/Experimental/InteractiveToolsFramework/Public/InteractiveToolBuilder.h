@@ -45,6 +45,29 @@ public:
 		return nullptr;
 	}
 
+
+	/**
+	 * PostBuildTool is called by the ToolManager after a new Tool instance has been built.
+	 * This allows clients to extend a ToolBuilder with additional customization/etc, instead of having to entirely replace the existing BuildTool()
+	 * @param Tool the new Tool instance
+	 * @param SceneState the scene state used to create the new Tool
+	 */
+	virtual void PostBuildTool(UInteractiveTool* Tool, const FToolBuilderState& SceneState) const
+	{
+		return;
+	}
+
+	/**
+	 * PostBuildTool is called by the ToolManager after a new Tool instance has been built and Setup() has been called.
+	 * This allows clients to make modifications to Tools like changing initial parameters without subclassing the Tool
+	 * @param Tool the new Tool instance
+	 * @param SceneState the scene state used to create the new Tool
+	 */
+	virtual void PostSetupTool(UInteractiveTool* Tool, const FToolBuilderState& SceneState) const
+	{
+		return;
+	}
+
 protected:
 	/**
 	 * Gives the target requirements of the associated tool. Usually, it is the tool builder
