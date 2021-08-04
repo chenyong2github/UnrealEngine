@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using HordeServer.Models;
 
 namespace HordeServer.Api
 {
@@ -95,6 +97,12 @@ namespace HordeServer.Api
 		[Required]
 		public string Name { get; set; } = null!;
 
+		/// <summary>
+		/// The name for the new pool
+		/// </summary>
+		[Required]
+		public DevicePoolType PoolType { get; set; }
+
 	}
 
 	/// <summary>
@@ -132,13 +140,19 @@ namespace HordeServer.Api
 		public string Name { get; set; }
 
 		/// <summary>
+		/// Type of the device pool
+		/// </summary>
+		public DevicePoolType PoolType { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetDevicePoolResponse(string Id, string Name)
+		public GetDevicePoolResponse(string Id, string Name, DevicePoolType PoolType)
 		{
 			this.Id = Id;
 			this.Name = Name;
-		}
+            this.PoolType = PoolType;
+        }
 	}
 
 	// Devices 
@@ -204,6 +218,47 @@ namespace HordeServer.Api
 			this.Id = Id;
 		}
 	}
+
+	/// <summary>
+	/// Get response object which describes a device
+	/// </summary>
+	public class GetDeviceUtilizationResponse
+	{
+		/// <summary>
+		/// The job id which utilized device
+		/// </summary>
+		public string? JobId { get; set;}
+
+		/// <summary>
+		/// The job's step id
+		/// </summary>
+		public string? StepId { get; set;}
+
+		/// <summary>
+		/// The time device was reserved
+		/// </summary>
+		public DateTime ReservationStartUtc { get; set;}
+
+		/// <summary>
+		/// The time device was freed
+		/// </summary>
+		public DateTime? ReservationFinishUtc { get; set;}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Telemetry"></param>
+		public GetDeviceUtilizationResponse(DeviceUtilizationTelemetry Telemetry)
+		{
+			this.JobId = Telemetry.JobId;
+			this.StepId = Telemetry.StepId;
+			this.ReservationStartUtc = Telemetry.ReservationStartUtc;
+			this.ReservationFinishUtc = Telemetry.ReservationFinishUtc;
+		}
+
+	}
+
+
 	/// <summary>
 	/// Get response object which describes a device
 	/// </summary>
@@ -259,11 +314,31 @@ namespace HordeServer.Api
 		/// </summary>
 		public DateTime? MaintenanceTime { get; set; }
 
+		/// <summary>
+		/// The user id that has the device checked out
+		/// </summary>
+		public string? CheckedOutByUserId { get; set; }
 
 		/// <summary>
-		/// Device response constructor
+		/// The last time the device was checked out
 		/// </summary>
-		public GetDeviceResponse(string Id, string PlatformId, string PoolId, string Name, bool Enabled, string? Address, string? ModelId, string? Notes, DateTime? ProblemTime, DateTime? MaintenanceTime)
+		public DateTime? CheckOutTime { get; set; }
+
+		/// <summary>
+		/// The last user to modifiy the device
+		/// </summary>
+		public string? ModifiedByUser { get; set; }
+
+		/// <summary>
+		///  Device Utilization data
+		/// </summary>
+		public List<GetDeviceUtilizationResponse>? Utilization { get; set;}
+
+
+	/// <summary>
+	/// Device response constructor
+	/// </summary>
+	public GetDeviceResponse(string Id, string PlatformId, string PoolId, string Name, bool Enabled, string? Address, string? ModelId, string? ModifiedByUser, string? Notes, DateTime? ProblemTime, DateTime? MaintenanceTime, List<DeviceUtilizationTelemetry>? Utilization, string? CheckedOutByUser = null, DateTime? CheckOutTime = null)
 		{
 			this.Id = Id;
 			this.Name = Name;
@@ -272,10 +347,14 @@ namespace HordeServer.Api
 			this.Enabled = Enabled;
 			this.Address = Address;
 			this.ModelId = ModelId;
-			this.Notes = Notes;
+            this.ModifiedByUser = ModifiedByUser;
+            this.Notes = Notes;
 			this.ProblemTime = ProblemTime;
 			this.MaintenanceTime = MaintenanceTime;
-		}
+			this.Utilization = Utilization?.Select(U => new GetDeviceUtilizationResponse(U)).ToList();
+            this.CheckedOutByUserId = CheckedOutByUser;
+            this.CheckOutTime = CheckOutTime;
+        }
 	}
 
 	/// <summary>
@@ -322,8 +401,19 @@ namespace HordeServer.Api
 		/// Whether to set or clear any device problem state
 		/// </summary>
 		public bool? Problem { get; set; }
-
 	}
+
+	/// <summary>
+	/// Device checkout request object
+	/// </summary>
+	public class CheckoutDeviceRequest
+	{
+		/// <summary>
+        /// Whether to checkout or in the device
+        /// </summary>
+        public bool Checkout { get; set; }
+    }
+
 
 	/// <summary>
 	/// Device reservation request object
@@ -478,6 +568,17 @@ namespace HordeServer.Api
 		/// The PoolId of reservation request 
 		/// </summary>
 		public string? PoolId { get; set; } = null;
+
+		/// <summary>
+		/// The JobId of reservation request 
+		/// </summary>
+		public string? JobId { get; set; } = null;
+
+		/// <summary>
+		/// The StepId of reservation request 
+		/// </summary>
+		public string? StepId { get; set; } = null;
+
 	}
 
 	/// <summary>
@@ -514,6 +615,17 @@ namespace HordeServer.Api
 		/// </summary>
 		[Required]
 		public string Duration { get; set; } = null!;
+
+		/// <summary>
+		/// The JobId of reservation request 
+		/// </summary>
+		public string? JobId { get; set; } = null;
+
+		/// <summary>
+		/// The StepId of reservation request 
+		/// </summary>
+		public string? StepId { get; set; } = null;
+
 
 		/// <summary>
 		/// The legacy guid of the reservation

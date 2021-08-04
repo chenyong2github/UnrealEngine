@@ -63,6 +63,9 @@ namespace HordeServer.Collections.Impl
 			public DevicePoolId Id { get; set; }
 
 			[BsonRequired]
+            public DevicePoolType PoolType { get; set; }
+
+            [BsonRequired]
 			public string Name { get; set; } = null!;
 
 			[BsonIgnoreIfNull]
@@ -71,14 +74,14 @@ namespace HordeServer.Collections.Impl
 			[BsonConstructor]
 			private DevicePoolDocument()
 			{
+            }
 
-			}
-
-			public DevicePoolDocument(DevicePoolId Id, string Name)
+			public DevicePoolDocument(DevicePoolId Id, string Name, DevicePoolType PoolType)
 			{
 				this.Id = Id;
 				this.Name = Name;
-			}
+                this.PoolType = PoolType;
+            }
 
 
 		}
@@ -98,21 +101,21 @@ namespace HordeServer.Collections.Impl
 			public DevicePoolId PoolId { get; set; }
 
 			[BsonIgnoreIfNull]
-			public ObjectId? JobId { get; }
+			public string? JobId { get; set; }
 
 			[BsonIgnoreIfNull]
-			public SubResourceId? StepId { get; }
+			public string? StepId { get; set; }
 
-			/// <summary>
-			/// Reservations held by a user, requires a token like download code
-			/// </summary>
-			[BsonIgnoreIfNull]
-			public ObjectId? UserId { get; }
+            /// <summary>
+            /// Reservations held by a user, requires a token like download code
+            /// </summary>
+            [BsonIgnoreIfNull]
+			public ObjectId? UserId { get; set; }
 
-			/// <summary>
-			/// The hostname of the machine which has made the reservation
-			/// </summary>
-			[BsonIgnoreIfNull]
+            /// <summary>
+            /// The hostname of the machine which has made the reservation
+            /// </summary>
+            [BsonIgnoreIfNull]
 			public string? Hostname { get; set; }
 
 			/// <summary>
@@ -139,7 +142,7 @@ namespace HordeServer.Collections.Impl
 
 			}
 
-			public DeviceReservationDocument(ObjectId Id, DevicePoolId PoolId, List<DeviceId> Devices, DateTime CreateTimeUtc, string? Hostname, string? ReservationDetails)
+			public DeviceReservationDocument(ObjectId Id, DevicePoolId PoolId, List<DeviceId> Devices, DateTime CreateTimeUtc, string? Hostname, string? ReservationDetails, string? JobId, string? StepId)
 			{
 				this.Id = Id;
 				this.PoolId = PoolId;
@@ -148,8 +151,10 @@ namespace HordeServer.Collections.Impl
 				this.UpdateTimeUtc = CreateTimeUtc;
 				this.Hostname = Hostname;
 				this.ReservationDetails = ReservationDetails;
+                this.JobId = JobId;
+                this.StepId = StepId;
 
-				this.LegacyGuid = Guid.NewGuid().ToString();
+                this.LegacyGuid = Guid.NewGuid().ToString();
 
 			}
 
@@ -179,6 +184,12 @@ namespace HordeServer.Collections.Impl
 			public string? Address { get; set; }
 
 			[BsonIgnoreIfNull]
+			public string? CheckedOutByUser { get; set; }
+
+			[BsonIgnoreIfNull]
+			public DateTime? CheckOutTime { get; set; }
+
+			[BsonIgnoreIfNull]
 			public DateTime? ProblemTimeUtc { get; set; }
 
 			[BsonIgnoreIfNull]
@@ -197,6 +208,9 @@ namespace HordeServer.Collections.Impl
 			public string? Notes { get; set; }
 
 			[BsonIgnoreIfNull]
+			public List<DeviceUtilizationTelemetry>? Utilization { get; set; }
+
+			[BsonIgnoreIfNull]
 			public Acl? Acl { get; set; }
 
 			[BsonConstructor]
@@ -205,7 +219,7 @@ namespace HordeServer.Collections.Impl
 
 			}
 
-			public DeviceDocument(DeviceId Id, DevicePlatformId PlatformId, DevicePoolId PoolId, string Name, bool Enabled, string? Address, string? ModelId)
+			public DeviceDocument(DeviceId Id, DevicePlatformId PlatformId, DevicePoolId PoolId, string Name, bool Enabled, string? Address, string? ModelId, ObjectId? UserId)
 			{
 				this.Id = Id;
 				this.PlatformId = PlatformId;
@@ -214,8 +228,8 @@ namespace HordeServer.Collections.Impl
 				this.Enabled = Enabled;
 				this.Address = Address;
 				this.ModelId = ModelId;
-
-			}
+                this.ModifiedByUser = UserId?.ToString();
+            }
 
 		}
 
@@ -246,9 +260,9 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId)
+		public async Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, ObjectId? UserId)
 		{
-			DeviceDocument NewDevice = new DeviceDocument(Id, PlatformId, PoolId, Name, Enabled ?? true, Address, ModelId);
+			DeviceDocument NewDevice = new DeviceDocument(Id, PlatformId, PoolId, Name, Enabled ?? true, Address, ModelId, UserId);
 			await Devices.InsertOneAsync(NewDevice);
 			return NewDevice;
 		}
@@ -306,9 +320,9 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDevicePool?> TryAddPoolAsync(DevicePoolId Id, string Name)
+		public async Task<IDevicePool?> TryAddPoolAsync(DevicePoolId Id, string Name, DevicePoolType PoolType)
 		{
-			DevicePoolDocument NewPool = new DevicePoolDocument(Id, Name);
+			DevicePoolDocument NewPool = new DevicePoolDocument(Id, Name, PoolType);
 
 			try
 			{
@@ -372,13 +386,38 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance)
+		public async Task CheckoutDeviceAsync(DeviceId DeviceId, ObjectId? CheckedOutByUserId)
+		{
+			UpdateDefinitionBuilder<DeviceDocument> UpdateBuilder = Builders<DeviceDocument>.Update;
+
+			List<UpdateDefinition<DeviceDocument>> Updates = new List<UpdateDefinition<DeviceDocument>>();
+
+            string? UserId = CheckedOutByUserId?.ToString();
+
+            Updates.Add(UpdateBuilder.Set(x => x.CheckedOutByUser, string.IsNullOrEmpty(UserId) ? null : UserId));
+
+			if (CheckedOutByUserId != null)
+			{
+				Updates.Add(UpdateBuilder.Set(x => x.CheckOutTime, DateTime.UtcNow));
+			}
+
+			await Devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == DeviceId, UpdateBuilder.Combine(Updates));
+		}
+
+
+		/// <inheritdoc/>
+		public async Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance, ObjectId? ModifiedByUserId = null)
 		{
 			UpdateDefinitionBuilder<DeviceDocument> UpdateBuilder = Builders<DeviceDocument>.Update;
 
 			List<UpdateDefinition<DeviceDocument>> Updates = new List<UpdateDefinition<DeviceDocument>>();
 
 			DateTime UtcNow = DateTime.UtcNow;
+
+			if (ModifiedByUserId != null)
+			{
+				Updates.Add(UpdateBuilder.Set(x => x.ModifiedByUser, ModifiedByUserId.ToString()));
+			}
 
 			if (NewPoolId != null)
 			{
@@ -459,7 +498,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId PoolId, List<DeviceRequestData> Request, string? Hostname, string? ReservationDetails)
+		public async Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId PoolId, List<DeviceRequestData> Request, string? Hostname, string? ReservationDetails, string? JobId, string? StepId)
 		{
 
 			if (Request.Count == 0)
@@ -467,27 +506,34 @@ namespace HordeServer.Collections.Impl
 				return null;
 			}
 
+			DevicePoolDocument? Pool = await Pools.Find<DevicePoolDocument>(x => x.Id == PoolId).FirstOrDefaultAsync();
 
+			if (Pool == null || Pool.PoolType != DevicePoolType.Automation)
+			{
+                return null;
+            }
+			
 			HashSet<DeviceId> Allocated = new HashSet<DeviceId>();
 
 			List<DeviceReservationDocument> PoolReservations = await Reservations.Find(x => x.PoolId == PoolId).ToListAsync();
 
-			DateTime UtcNow = DateTime.UtcNow;
+			DateTime ReservationTimeUtc = DateTime.UtcNow;
 
 			// Get available devices
 			List<DeviceDocument> PoolDevices = await Devices.Find(x =>
 				x.PoolId == PoolId &&
-				x.Enabled &&				
+				x.Enabled &&
 				x.MaintenanceTimeUtc == null).ToListAsync();
 
 			// filter out problem devices
-			PoolDevices = PoolDevices.FindAll(x => (x.ProblemTimeUtc == null || ((UtcNow - x.ProblemTimeUtc).Value.TotalMinutes > 30)));			
+			PoolDevices = PoolDevices.FindAll(x => (x.ProblemTimeUtc == null || ((ReservationTimeUtc - x.ProblemTimeUtc).Value.TotalMinutes > 30)));
 
 			// filter out currently reserved devices
 			PoolDevices = PoolDevices.FindAll(x => PoolReservations.FirstOrDefault(p => p.Devices.Contains(x.Id)) == null);
 
 			// sort to use last reserved first to cycle devices
-			PoolDevices.Sort((A, B) => {
+			PoolDevices.Sort((A, B) =>
+			{
 				DateTime? ATime = A.ReservationTimeUtc;
 				DateTime? BTime = B.ReservationTimeUtc;
 
@@ -542,12 +588,39 @@ namespace HordeServer.Collections.Impl
 				Allocated.Add(Device.Id);
 			}
 
-			// update reservation time for allocated devices
-			await Devices.UpdateManyAsync(Builders<DeviceDocument>.Filter.In(x => x.Id, Allocated), Builders<DeviceDocument>.Update.Set(x => x.ReservationTimeUtc, UtcNow));
+			// update reservation time and utilization for allocated devices 
+			foreach (DeviceId Id in Allocated)
+			{
+				DeviceDocument Device = PoolDevices.First((Device) => Device.Id == Id);
+
+				List<DeviceUtilizationTelemetry>? Utilization = Device.Utilization;
+
+				if (Utilization == null)
+				{
+					Utilization = new List<DeviceUtilizationTelemetry>();
+				}
+
+				// keep up to 100, maintaining order
+				if (Utilization.Count > 99)
+				{
+					Utilization.Take(99);
+				}
+
+				Utilization.Insert(0, new DeviceUtilizationTelemetry(ReservationTimeUtc) { JobId = JobId, StepId = StepId });
+
+				UpdateDefinitionBuilder<DeviceDocument> DeviceBuilder = Builders<DeviceDocument>.Update;
+				List<UpdateDefinition<DeviceDocument>> DeviceUpdates = new List<UpdateDefinition<DeviceDocument>>();
+
+				DeviceUpdates.Add(DeviceBuilder.Set(x => x.ReservationTimeUtc, ReservationTimeUtc));
+				DeviceUpdates.Add(DeviceBuilder.Set(x => x.Utilization, Utilization));
+
+				await Devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == Id, DeviceBuilder.Combine(DeviceUpdates));
+			}
 
 			// Create new reservation
-			DeviceReservationDocument NewReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), PoolId, Allocated.ToList(), DateTime.UtcNow, Hostname, ReservationDetails);
+			DeviceReservationDocument NewReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), PoolId, Allocated.ToList(), ReservationTimeUtc, Hostname, ReservationDetails, JobId, StepId);
 			await Reservations.InsertOneAsync(NewReservation);
+
 			return NewReservation;
 
 		}
@@ -573,16 +646,16 @@ namespace HordeServer.Collections.Impl
 		public async Task<bool> ExpireReservationsAsync()
 		{
 			List<IDeviceReservation> Reserves = await Reservations.Find(A => true).ToListAsync<DeviceReservationDocument, IDeviceReservation>();
-		
+
 			DateTime UtcNow = DateTime.UtcNow;
 
-			Reserves = Reserves.FindAll(R => ( UtcNow - R.UpdateTimeUtc ).TotalMinutes > 10).ToList();			
+			Reserves = Reserves.FindAll(R => (UtcNow - R.UpdateTimeUtc).TotalMinutes > 10).ToList();
 
 			if (Reserves.Count > 0)
 			{
 				DeleteResult Result = await Reservations.DeleteManyAsync(Builders<DeviceReservationDocument>.Filter.In(x => x.Id, Reserves.Select(y => y.Id)));
 				return (Result.DeletedCount > 0);
-			}			
+			}
 
 			return false;
 

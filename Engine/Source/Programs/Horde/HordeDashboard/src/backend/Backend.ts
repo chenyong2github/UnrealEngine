@@ -1131,6 +1131,17 @@ export class Backend {
         });        
     }
 
+    checkoutDevice(deviceId: string, checkout:boolean): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            this.backend.put(`/api/v2/devices/${deviceId}/checkout`, {checkout: checkout}).then(() => {
+                resolve();
+            }).catch(reason => {
+                reject(reason);
+            });
+        });        
+    }
+
+
     modifyDevice(deviceId: string, request: UpdateDeviceRequest): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             this.backend.put(`/api/v2/devices/${deviceId}`, request).then((value) => {
