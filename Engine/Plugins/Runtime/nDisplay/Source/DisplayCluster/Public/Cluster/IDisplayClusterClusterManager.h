@@ -30,15 +30,21 @@ public:
 	virtual ~IDisplayClusterClusterManager() = default;
 
 public:
-	/** Returns true if current node is master. */
+	/** Returns true if current node has master role. */
 	virtual bool IsMaster() const = 0;
-	/** Returns true if current node is slave. */
+	/** Returns true if current node has slave role. */
 	virtual bool IsSlave()  const = 0;
+	/** Returns true if current node has backup role. */
+	virtual bool IsBackup() const = 0;
+	/** Returns cluster node role. */
+	virtual EDisplayClusterNodeRole GetClusterRole() const = 0;
 
 	/** Returns current cluster node ID. */
 	virtual FString GetNodeId() const = 0;
 	/** Returns amount of cluster nodes in the cluster. */
 	virtual uint32 GetNodesAmount() const = 0;
+	/** Returns IDs of available cluster nodes. */
+	virtual void GetNodeIds(TArray<FString>& OutNodeIds) const = 0;
 
 
 	/** Registers object to synchronize. */

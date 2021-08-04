@@ -33,11 +33,6 @@ public:
 	virtual bool Initialize() override final;
 	virtual void Release() override final;
 
-	virtual bool IsMaster() const override final
-	{
-		return !IsSlave();
-	}
-
 	virtual FString GetNodeId() const override final
 	{
 		return NodeName;

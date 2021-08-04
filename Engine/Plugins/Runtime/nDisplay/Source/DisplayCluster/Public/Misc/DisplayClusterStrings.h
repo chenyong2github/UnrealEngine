@@ -21,6 +21,16 @@ namespace DisplayClusterStrings
 		static constexpr auto Cluster    = TEXT("dc_cluster");
 		static constexpr auto Node       = TEXT("dc_node");
 		static constexpr auto Config     = TEXT("dc_cfg");
+		static constexpr auto NodeList   = TEXT("dc_nodes");
+		static constexpr auto NodeRole   = TEXT("dc_role");
+
+		// Cluster node roles
+		namespace role
+		{
+			static constexpr auto Master = TEXT("master");
+			static constexpr auto Slave  = TEXT("slave");
+			static constexpr auto Backup = TEXT("backup");
+		}
 
 		// Stereo device types (command line values)
 		namespace dev

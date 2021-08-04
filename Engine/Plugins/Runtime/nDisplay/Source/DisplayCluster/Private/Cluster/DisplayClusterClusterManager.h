@@ -40,8 +40,10 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterClusterManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool IsMaster()     const override;
-	virtual bool IsSlave()      const override;
+	virtual bool IsMaster() const override;
+	virtual bool IsSlave()  const override;
+	virtual bool IsBackup() const override;
+	virtual EDisplayClusterNodeRole GetClusterRole() const override;
 
 	virtual FString GetNodeId() const override
 	{
@@ -50,8 +52,10 @@ public:
 
 	virtual uint32 GetNodesAmount() const override
 	{
-		return NodesAmount;
+		return static_cast<uint32>(ClusterNodeIds.Num());
 	}
+
+	virtual void GetNodeIds(TArray<FString>& OutNodeIds) const override;
 
 	virtual void RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj, EDisplayClusterSyncGroup SyncGroup) override;
 	virtual void UnregisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj) override;
@@ -99,8 +103,9 @@ private:
 private:
 	// Controller implementation
 	TUniquePtr<IDisplayClusterNodeController> Controller;
-	// Cluster/node props
-	uint32 NodesAmount = 0;
+
+	// Custom list of cluster nodes
+	TArray<FString> ClusterNodeIds;
 
 	// Current operation mode
 	EDisplayClusterOperationMode CurrentOperationMode;

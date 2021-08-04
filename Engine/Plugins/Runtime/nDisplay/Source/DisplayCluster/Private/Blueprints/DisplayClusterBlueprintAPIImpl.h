@@ -38,6 +38,16 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is slave node"), Category = "NDisplay|Cluster")
 	virtual bool IsSlave() const override;
 
+	/** Returns true if current node is a backup node in a cluster. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is backup node"), Category = "NDisplay|Cluster")
+	virtual bool IsBackup() const override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get cluster role"), Category = "NDisplay|Cluster")
+	virtual EDisplayClusterNodeRole GetClusterRole() const override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get cluster node IDs"), Category = "NDisplay|Cluster")
+	virtual void GetNodeIds(TArray<FString>& OutNodeIds) const override;
+
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get node ID"), Category = "NDisplay|Cluster")
 	virtual FString GetNodeId() const override;
 
