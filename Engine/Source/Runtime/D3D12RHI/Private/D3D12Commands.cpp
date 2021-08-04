@@ -5,6 +5,7 @@ D3D12Commands.cpp: D3D RHI commands implementation.
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "D3D12RHIBridge.h"
 #include "StaticBoundShaderState.h"
 #include "GlobalShader.h"
 #include "OneColorShader.h"
@@ -2390,7 +2391,12 @@ void FD3D12CommandContext::RHIBroadcastTemporalEffect(const FName& InEffectName,
 	hCopyCommandList.Close();
 
 	bool bWaitForCompletion = false;
-	CopyCommandListManager.ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
+
+	D3D12RHI::ExecuteCodeWithCopyCommandQueueUsage([bWaitForCompletion, &CopyCommandListManager, &hCopyCommandList](ID3D12CommandQueue* D3DCommandQueue) -> void
+	{
+		CopyCommandListManager.ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
+	});
+
 	CopyCommandAllocatorManager.ReleaseCommandAllocator(CopyCommandAllocator);
 
 	// Signal again once the copy queue copy is complete.
