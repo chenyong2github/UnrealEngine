@@ -259,14 +259,11 @@ class FSampleShadowMapCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
-		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
-		SHADER_PARAMETER(float, TwoSidedMeshDistanceBias)
 		SHADER_PARAMETER(float, StepFactor)
 		SHADER_PARAMETER(float, TanLightSourceAngle)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(float, SurfaceBias)
 		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
-		SHADER_PARAMETER(float, SDFSurfaceBiasScale)
 		SHADER_PARAMETER(float, VirtualShadowMapSurfaceBias)
 		SHADER_PARAMETER(int32, VirtualShadowMapId)
 		SHADER_PARAMETER(uint32, ForceShadowMaps)
@@ -752,7 +749,6 @@ void SampleShadowMap(
 		PassParameters->StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
 		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
-		PassParameters->SDFSurfaceBiasScale = FMath::Clamp(GOffscreenShadowingSDFSurfaceBiasScale, .01f, 100.0f);
 		PassParameters->VirtualShadowMapSurfaceBias = FMath::Clamp(GLumenDirectLightingVirtualShadowMapBias, .01f, 100.0f);
 		PassParameters->ForceOffscreenShadowing = GLumenDirectLightingForceOffscreenShadowing;
 		PassParameters->ForceShadowMaps = GLumenDirectLightingForceForceShadowMaps;

@@ -119,33 +119,49 @@ void SampleShadowMapCS(
 				ShadowMaskRay.bShadowFactorComplete = false;
 				bool bVSMValid = false;
 
-				#if VIRTUAL_SHADOW_MAP
+				const float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
+
+				// Shadow maps are culled so only query points inside the view frustum are valid
+				if (all(PostProjectionPosition.xy < PostProjectionPosition.w && PostProjectionPosition.xy > -PostProjectionPosition.w))
 				{
-					// Bias only ray start to maximize chances of hitting an allocated page
-					FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSurfaceBias, WorldNormal);
-
-					bVSMValid = VirtualShadowMapSample.bValid;
-					ShadowMaskRay.ShadowFactor = VirtualShadowMapSample.ShadowFactor;
-					ShadowMaskRay.bShadowFactorComplete = VirtualShadowMapSample.bValid && ShadowMaskRay.ShadowFactor < 0.01f;
-				}
-				#endif
-
-				if (!ShadowMaskRay.bShadowFactorComplete)
-				{
-					float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
-
-					#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
+					#if VIRTUAL_SHADOW_MAP
 					{
-						#if DYNAMICALLY_SHADOWED
+						// Bias only ray start to maximize chances of hitting an allocated page
+						FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSurfaceBias, WorldNormal);
+
+						bVSMValid = VirtualShadowMapSample.bValid;
+						ShadowMaskRay.ShadowFactor = VirtualShadowMapSample.ShadowFactor;
+						ShadowMaskRay.bShadowFactorComplete = VirtualShadowMapSample.bValid && ShadowMaskRay.ShadowFactor < 0.01f;
+					}
+					#endif
+
+					if (!ShadowMaskRay.bShadowFactorComplete)
+					{
+						float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
+
+						#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
 						{
-							float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
+							#if DYNAMICALLY_SHADOWED
+							{
+								float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
 
+								bool bShadowingFromValidUVArea = false;
+								float NewShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
+
+								if (bShadowingFromValidUVArea)
+								{
+									ShadowMaskRay.ShadowFactor *= NewShadowFactor;
+									ShadowMaskRay.bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
+								}
+							}
+							#endif
+						}
+						#else
+						{
 							bool bShadowingFromValidUVArea = false;
-							float NewShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
+							float NewShadowFactor = ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
 
-							float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
-							// CSM's are culled so only query points inside the view are valid
-							if (bShadowingFromValidUVArea && all(PostProjectionPosition.xy < PostProjectionPosition.w && PostProjectionPosition.xy > -PostProjectionPosition.w))
+							if (bShadowingFromValidUVArea) 
 							{
 								ShadowMaskRay.ShadowFactor *= NewShadowFactor;
 								ShadowMaskRay.bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
@@ -153,18 +169,6 @@ void SampleShadowMapCS(
 						}
 						#endif
 					}
-					#else
-					{
-						bool bShadowingFromValidUVArea = false;
-						float NewShadowFactor = ComputeVolumeShadowing(WorldPositionForShadowing, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bShadowingFromValidUVArea);
-
-						if (bShadowingFromValidUVArea) 
-						{
-							ShadowMaskRay.ShadowFactor *= NewShadowFactor;
-							ShadowMaskRay.bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
-						}
-					}
-					#endif
 				}
 			}
 		}
