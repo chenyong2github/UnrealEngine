@@ -19,7 +19,7 @@ UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitial
 #endif
 {}
 
-void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
+void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunctionRef<void(FWorldPartitionActorDesc*)> PreRegister)
 {
 	check(!World || World == InWorld);
 	World = InWorld;
@@ -109,6 +109,12 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 		}
 	}
 
+	for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	{
+		PreRegister(*ActorDescIterator);
+		ActorDescIterator->OnRegister();
+	}
+
 	RegisterEditorDelegates();
 
 	bContainerInitialized = true;
@@ -154,25 +160,7 @@ void UActorDescContainer::BeginDestroy()
 #if WITH_EDITOR
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 {
-	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel) && Actor->IsMainPackageActor())
-	{
-		// Only handle assets that belongs to our level
-		auto RemoveAfterFirstDot = [](const FString& InValue)
-		{
-			int32 DotIndex;
-			if (InValue.FindChar(TEXT('.'), DotIndex))
-			{
-				return InValue.LeftChop(InValue.Len() - DotIndex);
-			}
-			return InValue;
-		};
-
-		const FString ThisLevelPath = ContainerPackageName.ToString();
-		const FString AssetLevelPath = RemoveAfterFirstDot(Actor->GetPathName());
-		return (ThisLevelPath == AssetLevelPath);
-	}
-
-	return false;
+	return Actor && Actor->IsMainPackageActor() && (Actor->GetLevel() != nullptr) && (Actor->GetLevel()->GetPackage()->GetFName() == ContainerPackageName);
 }
 
 void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext)
@@ -206,7 +194,6 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 				{
 					FWorldPartitionActorDesc* const AddedActorDesc = AddActor(Actor);
 					OnActorDescAdded(AddedActorDesc);
-					OnActorDescAddedEvent.Broadcast(AddedActorDesc);
 				}
 			}
 		}
@@ -245,8 +232,6 @@ void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 {
 	if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(ActorGuid))
 	{
-		OnActorDescRemovedEvent.Broadcast(ExistingActorDesc->Get());
-
 		OnActorDescRemoved(ExistingActorDesc->Get());
 		RemoveActorDescriptor(ExistingActorDesc->Get());
 		ExistingActorDesc->Reset();
@@ -328,11 +313,15 @@ void UActorDescContainer::UnregisterEditorDelegates()
 
 void UActorDescContainer::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 {
+	NewActorDesc->OnRegister();
+
 	OnActorDescAddedEvent.Broadcast(NewActorDesc);
 }
 
 void UActorDescContainer::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 {
 	OnActorDescRemovedEvent.Broadcast(ActorDesc);
+
+	ActorDesc->OnUnregister();
 }
 #endif

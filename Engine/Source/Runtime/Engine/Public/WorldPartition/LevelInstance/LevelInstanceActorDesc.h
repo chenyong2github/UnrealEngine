@@ -31,6 +31,8 @@ protected:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
 	virtual void RegisterContainer();
+	virtual void OnRegister();
+	virtual void OnUnregister();
 
 	FName LevelPackage;
 	FTransform LevelInstanceTransform;

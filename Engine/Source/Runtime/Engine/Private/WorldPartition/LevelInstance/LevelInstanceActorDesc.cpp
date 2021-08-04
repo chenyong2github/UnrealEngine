@@ -26,8 +26,6 @@ void FLevelInstanceActorDesc::Init(const AActor* InActor)
 	LevelPackage = *LevelInstanceActor->GetWorldAssetPackage();
 	LevelInstanceTransform = LevelInstanceActor->GetActorTransform();
 	DesiredRuntimeBehavior = LevelInstanceActor->GetDesiredRuntimeBehavior();
-
-	RegisterContainer();
 }
 
 void FLevelInstanceActorDesc::Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData)
@@ -36,8 +34,18 @@ void FLevelInstanceActorDesc::Init(UActorDescContainer* InContainer, const FWorl
 	DesiredRuntimeBehavior = CDO->GetDefaultRuntimeBehavior();
 
 	FWorldPartitionActorDesc::Init(InContainer, DescData);
-		
+}
+
+void FLevelInstanceActorDesc::OnRegister()
+{
+	FWorldPartitionActorDesc::OnRegister();
 	RegisterContainer();
+}
+
+void FLevelInstanceActorDesc::OnUnregister()
+{
+	FWorldPartitionActorDesc::OnUnregister();
+	LevelInstanceContainer = nullptr;
 }
 
 void FLevelInstanceActorDesc::RegisterContainer()
