@@ -90,6 +90,12 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 
 			ConfigurationBase.UpdateClusterNodePostProcess(InClusterNodeId);
 
+			if (!RenderFrameSettings.bIsRenderingInEditor)
+			{
+				// TextureShare not supported in Editor Preview
+				ConfigurationBase.UpdateTextureShare(InClusterNodeId);
+			}
+
 			return true;
 		}
 	}

@@ -231,8 +231,6 @@ namespace JSON427
 					Viewport->Camera = CfgViewport.Value.Camera;
 					Viewport->Region = FDisplayClusterConfigurationRectangle(CfgViewport.Value.Region.X, CfgViewport.Value.Region.Y, CfgViewport.Value.Region.W, CfgViewport.Value.Region.H);
 					Viewport->GPUIndex = CfgViewport.Value.GPUIndex;
-					Viewport->bIsShared = CfgViewport.Value.IsShared;
-					//Viewport->bAllowCrossGPUTransfer = CfgViewport.Value.AllowCrossGPUTransfer;
 
 					// Projection policy
 					Viewport->ProjectionPolicy.Type = CfgViewport.Value.ProjectionPolicy.Type;
@@ -399,7 +397,7 @@ namespace JSON427
 					Viewport.Camera = CfgViewport.Value->Camera;
 					Viewport.Region = FDisplayClusterConfigurationJsonRectangle_427(CfgViewport.Value->Region.X, CfgViewport.Value->Region.Y, CfgViewport.Value->Region.W, CfgViewport.Value->Region.H);
 					Viewport.GPUIndex = CfgViewport.Value->GPUIndex;
-					Viewport.IsShared = CfgViewport.Value->bIsShared;
+					//Viewport.IsShared = CfgViewport.Value->bIsShared;
 					Viewport.BufferRatio = CfgViewport.Value->RenderSettings.BufferRatio;
 					//Viewport.AllowCrossGPUTransfer = CfgViewport.Value->bAllowCrossGPUTransfer;
 

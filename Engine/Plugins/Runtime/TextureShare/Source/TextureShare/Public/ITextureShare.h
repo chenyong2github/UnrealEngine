@@ -91,7 +91,7 @@ public:
 	 *
 	 * @return True if the success
 	 */
-	virtual bool SetBackbufferRect(int StereoscopicPass, FIntRect* BackbufferRect) = 0;
+	virtual bool SetBackbufferRect(int StereoscopicPass, const FIntRect* BackbufferRect) = 0;
 
 	/**
 	 * Register/Update texture info for share
@@ -158,4 +158,10 @@ public:
 	 * @return True if the success
 	 */
 	virtual bool ReceiveTexture_RenderThread(FRHICommandListImmediate& RHICmdList, const TSharedPtr<ITextureShareItem>& ShareItem, const FString& TextureName, FRHITexture* DstTexture, const FIntRect* DstTextureRect = nullptr) = 0;
+
+	/**
+	 * Cast internal structures bp<->cpp
+	 *
+	 */
+	virtual void CastTextureShareBPSyncPolicy(const struct FTextureShareBPSyncPolicy& InSyncPolicy, struct FTextureShareSyncPolicy& OutSyncPolicy) = 0;
 };

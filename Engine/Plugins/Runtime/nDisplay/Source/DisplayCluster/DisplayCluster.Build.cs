@@ -23,21 +23,29 @@ public class DisplayCluster : ModuleRules
 				"Engine"
 			});
 
-		PrivateDependencyModuleNames.AddRange(
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"HeadMountedDisplay",
-				"InputCore",
-				"Json",
-				"JsonUtilities",
-				"Networking",
-				"OpenColorIO",
-				"Renderer",
-				"RenderCore",
-				"RHI",
-				"Slate",
-				"SlateCore",
-				"Sockets",
+				"TextureShare"
 			});
+		}
+
+		PrivateDependencyModuleNames.AddRange(
+		new string[] {
+			"HeadMountedDisplay",
+			"InputCore",
+			"Json",
+			"JsonUtilities",
+			"Networking",
+			"OpenColorIO",
+			"Renderer",
+			"RenderCore",
+			"RHI",
+			"Slate",
+			"SlateCore",
+			"Sockets",
+		});
 
 		if (Target.bBuildEditor == true)
 		{

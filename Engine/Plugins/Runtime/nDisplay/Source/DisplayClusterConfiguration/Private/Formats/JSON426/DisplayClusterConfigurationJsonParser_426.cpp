@@ -197,8 +197,6 @@ namespace JSON426
 					Viewport->Camera = CfgViewport.Value.Camera;
 					Viewport->Region = FDisplayClusterConfigurationRectangle(CfgViewport.Value.Region.X, CfgViewport.Value.Region.Y, CfgViewport.Value.Region.W, CfgViewport.Value.Region.H);
 					Viewport->GPUIndex = CfgViewport.Value.GPUIndex;
-					Viewport->bIsShared = CfgViewport.Value.IsShared;
-					//Viewport->bAllowCrossGPUTransfer = CfgViewport.Value.AllowCrossGPUTransfer;
 
 					// Projection policy
 					Viewport->ProjectionPolicy.Type = CfgViewport.Value.ProjectionPolicy.Type;

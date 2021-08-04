@@ -51,6 +51,9 @@ namespace TextureShareItem
 		virtual bool SetLocalAdditionalData(const FTextureShareAdditionalData& InAdditionalData) override;
 		virtual bool GetRemoteAdditionalData(FTextureShareAdditionalData& OutAdditionalData) override;
 
+		virtual bool SetCustomProjectionData(const FTextureShareCustomProjectionData& InCustomProjectionData) override;
+
+
 		virtual ETextureShareDevice GetDeviceType() const override
 			{ return ETextureShareDevice::Undefined; }
 		virtual ITextureShareItemD3D11* GetD3D11() override

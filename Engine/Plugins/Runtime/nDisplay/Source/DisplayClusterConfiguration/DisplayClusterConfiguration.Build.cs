@@ -20,8 +20,16 @@ public class DisplayClusterConfiguration : ModuleRules
 			new string[] {
 				"CinematicCamera",
 				"ActorLayerUtilities",
-				"OpenColorIO",
+				"OpenColorIO"
 			});
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"TextureShare"
+			});
+		}
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

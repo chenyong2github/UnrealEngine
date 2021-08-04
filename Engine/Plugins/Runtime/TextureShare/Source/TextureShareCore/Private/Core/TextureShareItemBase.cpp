@@ -359,6 +359,12 @@ namespace TextureShareItem
 		return false;
 	}
 
+	bool FTextureShareItemBase::SetCustomProjectionData(const FTextureShareCustomProjectionData& InCustomProjectionData)
+	{
+		// NOT IMPLEMETED
+		return false;
+	}
+
 
 	bool FTextureShareItemBase::BeginTextureOp(FSharedResourceTexture& LocalTextureData)
 	{

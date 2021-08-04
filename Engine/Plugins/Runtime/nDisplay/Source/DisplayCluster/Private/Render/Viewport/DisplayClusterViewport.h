@@ -5,6 +5,7 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
 #include "Render/Viewport/DisplayClusterViewport_VisibilitySettings.h"
+#include "Render/Viewport/DisplayClusterViewport_TextureShare.h"
 
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_CameraMotionBlur.h"
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_Overscan.h"
@@ -166,6 +167,9 @@ public:
 
 	// OCIO wrapper
 	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OpenColorIODisplayExtension;
+
+	//TextureShare
+	FDisplayClusterViewport_TextureShare TextureShare;
 
 public:
 	// Projection policy instance that serves this viewport

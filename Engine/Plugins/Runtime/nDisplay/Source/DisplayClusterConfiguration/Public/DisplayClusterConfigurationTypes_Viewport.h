@@ -11,6 +11,8 @@
 #include "DisplayClusterConfigurationTypes_PostRender.h"
 #include "DisplayClusterConfigurationTypes_Postprocess.h"
 
+#include "DisplayClusterConfigurationTypes_TextureShare.h"
+
 #include "OpenColorIOColorSpace.h"
 #include "Engine/Scene.h"
 
@@ -156,7 +158,7 @@ public:
 
 	/** Enable or disable compatibility with inter process GPU Texture share */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Shared Texture"))
-	bool bIsShared = false;
+	FDisplayClusterConfigurationTextureShare_Viewport TextureShare;
 
 #if WITH_EDITORONLY_DATA
 	/** Locks the Viewport aspect ratio for easier resizing */
