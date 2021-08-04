@@ -25,14 +25,11 @@
 #include "HAL/CriticalSection.h"
 #include "HAL/Event.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformProcess.h"
-#include "HAL/PlatformMath.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Guid.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
-#include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -41,7 +38,6 @@
 #include "String/ParseTokens.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
-#include <atomic>
 
 namespace UE::DerivedData::Private
 {
@@ -97,11 +93,11 @@ class FBuildJob final : public IBuildJob
 {
 public:
 	/** Resolve the key to a definition, then build like the definition constructor. */
-	FBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildKey& Key);
+	FBuildJob(const FBuildJobCreateParams& Params, const FBuildKey& Key, FOnBuildJobComplete&& OnComplete);
 	/** Resolve the definition to an action, then build like the action constructor. */
-	FBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildDefinition& Definition);
+	FBuildJob(const FBuildJobCreateParams& Params, const FBuildDefinition& Definition, FOnBuildJobComplete&& OnComplete);
 	/** Query the cache, attempt remote execution, resolve inputs, fall back to local execution, store to the cache. */
-	FBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildAction& Action, const FOptionalBuildInputs& Inputs);
+	FBuildJob(const FBuildJobCreateParams& Params, const FBuildAction& Action, const FOptionalBuildInputs& Inputs, FOnBuildJobComplete&& OnComplete);
 
 	/** Destroy the job, which must be complete or not started. */
 	~FBuildJob();
@@ -110,26 +106,15 @@ public:
 
 	inline FStringView GetName() const final { return Name; }
 	inline FStringView GetFunction() const final { return FunctionName; }
-	inline EBuildPolicy GetPolicy() const final { return BuildPolicy; }
-	inline EPriority GetPriority() const final { return Priority; }
 
 	inline ICache& GetCache() const final { return Cache; }
 	inline IBuild& GetBuild() const final { return BuildSystem; }
 
-	void Start(IBuildScheduler& Scheduler, EBuildPolicy Policy, EPriority Priority, FOnBuildJobComplete&& OnComplete) final;
-
 	void Schedule() final;
 
-	// IRequest Interface
-
-	void SetPriority(EPriority Priority) final;
-	void Cancel() final;
-	void Wait() final;
-	bool Poll() final;
-	void AddRef() const final;
-	void Release() const final;
-
 private:
+	FBuildJob(const FBuildJobCreateParams& Params, FStringView Name, FStringView FunctionName, FOnBuildJobComplete&& OnComplete);
+
 	void BeginJob();
 	void EndJob();
 
@@ -167,13 +152,10 @@ private:
 	void SetAction(FBuildAction&& Action);
 	void SetInputs(FBuildInputs&& Inputs);
 	void SetOutput(const FBuildOutput& Output) final;
-	void SetOutputNoCheck(FBuildOutput&& Output);
+	void SetOutputNoCheck(FBuildOutput&& Output, EBuildJobState NewState = EBuildJobState::CacheStore);
 
 	/** Terminate the job and send the error to the output complete callback. */
 	void CompleteWithError(FStringView Error);
-
-	/** Start execution of an async operation that is managed by a request. */
-	void ExecuteAsync(TFunctionRef<FRequest ()> Operation);
 
 	/** Advance to the new state, dispatching to the scheduler and invoking callbacks as appropriate. */
 	void AdvanceToState(EBuildJobState NewState);
@@ -202,24 +184,13 @@ private:
 	/** Next state for the job. Used to handle re-entrant calls to AdvanceToState. */
 	EBuildJobState NextState{EBuildJobState::NotStarted};
 
-	EBuildPolicy BuildPolicy{};
-	EPriority Priority{};
-
-	/** True if the build was canceled before it was complete. */
-	bool bIsCanceled{};
-	/** True if the build was retrieved from or stored to the cache. */
-	bool bIsCached{};
-	/** True if AdvanceToState is executing. */
-	bool bInAdvanceToState{};
-	/** True if remote execution was attempted, whether or not it failed. */
-	bool bTriedRemoteExecution{};
-	/** True if the build action and inputs are being exported. */
-	bool bIsExportingBuild{};
-
 	/** Status flags that are added to as the job moves through its states. */
 	EBuildStatus BuildStatus{EBuildStatus::None};
+	/** Policy requested and/or configured for the job. */
+	EBuildPolicy BuildPolicy{EBuildPolicy::None};
 
-	mutable std::atomic<uint32> ReferenceCount{0};
+	/** True if AdvanceToState is executing. */
+	bool bInAdvanceToState{};
 
 	/** Available in [ResolveKey, Complete] for jobs created from a key or definition. */
 	FBuildKey DefinitionKey;
@@ -240,14 +211,12 @@ private:
 
 	FBuildSchedulerParams SchedulerParams;
 
-	/** Lock to synchronize writes to State, NextState, bIsCanceled, Event, WaitRequest, Scheduler. */
+	/** Lock to synchronize writes to State, NextState, bInAdvanceToState. */
 	FRWLock Lock;
-	/** Event used by and created by Wait(). Null until Wait() has been called on an incomplete job. */
-	FEvent* Event{};
-	/** Request that the job is waiting on in its wait states. Null outside of states that use it. */
-	FRequest WaitRequest;
+	/** Owner used to synchronize every async operation executed by the job. */
+	IRequestOwner& Owner;
 	/** Scheduler that the job is scheduled on. Null before Schedule() and after completion. */
-	IBuildScheduler* Scheduler{};
+	IBuildScheduler& Scheduler;
 	/** Resolver for definitions and inputs. May be null for a job with nothing to resolve. */
 	IBuildInputResolver* InputResolver{};
 	/** Worker to use for remote execution. Available in [ExecuteRemote, ExecuteRemoteRetryWait]. */
@@ -297,50 +266,54 @@ const TCHAR* LexToString(EBuildJobState State)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FBuildJob::FBuildJob(
-	ICache& InCache,
-	IBuild& InBuildSystem,
-	IBuildInputResolver* InInputResolver,
-	const FBuildKey& InKey)
-	: Name(WriteToString<64>(TEXT("Resolve: "_SV), InKey))
-	, DefinitionKey(InKey)
-	, OutputBuilder(InBuildSystem.CreateOutput(Name, FunctionName))
-	, InputResolver(InInputResolver)
-	, Cache(InCache)
-	, BuildSystem(InBuildSystem)
+	const FBuildJobCreateParams& Params,
+	FStringView InName,
+	FStringView InFunctionName,
+	FOnBuildJobComplete&& InOnComplete)
+	: Name(InName)
+	, FunctionName(InFunctionName)
+	, BuildPolicy(Params.Policy)
+	, OutputBuilder(Params.BuildSystem.CreateOutput(Name, FunctionName))
+	, Owner(Params.Owner)
+	, Scheduler(Params.Scheduler)
+	, InputResolver(Params.InputResolver)
+	, OnComplete(MoveTemp(InOnComplete))
+	, Cache(Params.Cache)
+	, BuildSystem(Params.BuildSystem)
 {
 }
 
 FBuildJob::FBuildJob(
-	ICache& InCache,
-	IBuild& InBuildSystem,
-	IBuildInputResolver* InInputResolver,
-	const FBuildDefinition& InDefinition)
-	: Name(InDefinition.GetName())
-	, FunctionName(InDefinition.GetFunction())
-	, DefinitionKey(InDefinition.GetKey())
-	, Definition(InDefinition)
-	, OutputBuilder(InBuildSystem.CreateOutput(Name, FunctionName))
-	, InputResolver(InInputResolver)
-	, Cache(InCache)
-	, BuildSystem(InBuildSystem)
+	const FBuildJobCreateParams& Params,
+	const FBuildKey& InKey,
+	FOnBuildJobComplete&& InOnComplete)
+	: FBuildJob(Params, WriteToString<64>(TEXT("Resolve: "_SV), InKey), TEXT("Unknown"_SV), MoveTemp(InOnComplete))
 {
+	DefinitionKey = InKey;
+	AdvanceToState(EBuildJobState::ResolveKey);
 }
 
 FBuildJob::FBuildJob(
-	ICache& InCache,
-	IBuild& InBuildSystem,
-	IBuildInputResolver* InInputResolver,
+	const FBuildJobCreateParams& Params,
+	const FBuildDefinition& InDefinition,
+	FOnBuildJobComplete&& InOnComplete)
+	: FBuildJob(Params, InDefinition.GetName(), InDefinition.GetFunction(), MoveTemp(InOnComplete))
+{
+	DefinitionKey = InDefinition.GetKey();
+	Definition = InDefinition;
+	AdvanceToState(EBuildJobState::ResolveKey);
+}
+
+FBuildJob::FBuildJob(
+	const FBuildJobCreateParams& Params,
 	const FBuildAction& InAction,
-	const FOptionalBuildInputs& InInputs)
-	: Name(InAction.GetName())
-	, FunctionName(InAction.GetFunction())
-	, Action(InAction)
-	, Inputs(InInputs)
-	, OutputBuilder(InBuildSystem.CreateOutput(Name, FunctionName))
-	, InputResolver(InInputResolver)
-	, Cache(InCache)
-	, BuildSystem(InBuildSystem)
+	const FOptionalBuildInputs& InInputs,
+	FOnBuildJobComplete&& InOnComplete)
+	: FBuildJob(Params, InAction.GetName(), InAction.GetFunction(), MoveTemp(InOnComplete))
 {
+	Action = InAction;
+	Inputs = InInputs;
+	AdvanceToState(EBuildJobState::ResolveKey);
 }
 
 FBuildJob::~FBuildJob()
@@ -351,23 +324,6 @@ FBuildJob::~FBuildJob()
 	checkf(!OnComplete,
 		TEXT("Job in state %s must invoke its completion callback before being destroyed for build of '%s' by %s."),
 		LexToString(State), *Name, *FunctionName);
-	FPlatformProcess::ReturnSynchEventToPool(Event);
-}
-
-void FBuildJob::Start(
-	IBuildScheduler& InScheduler,
-	EBuildPolicy InPolicy,
-	EPriority InPriority,
-	FOnBuildJobComplete&& InOnComplete)
-{
-	checkf(State == EBuildJobState::NotStarted,
-		TEXT("Job in state %s was previously scheduled for build of '%s' by %s."),
-		LexToString(State), *Name, *FunctionName);
-	Scheduler = &InScheduler;
-	BuildPolicy = InPolicy;
-	Priority = InPriority;
-	OnComplete = MoveTemp(InOnComplete);
-	return AdvanceToState(EBuildJobState::ResolveKey);
 }
 
 void FBuildJob::Schedule()
@@ -392,140 +348,15 @@ void FBuildJob::Schedule()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FBuildJob::SetPriority(EPriority InPriority)
-{
-	IBuildScheduler* LocalScheduler;
-	{
-		FWriteScopeLock WriteLock(Lock);
-		Priority = InPriority;
-		LocalScheduler = Scheduler;
-		WaitRequest.SetPriority(InPriority);
-	}
-	if (LocalScheduler)
-	{
-		LocalScheduler->UpdateJobPriority(this);
-	}
-}
-
-void FBuildJob::Cancel()
-{
-	FRequest LocalRequest;
-	IBuildScheduler* LocalScheduler;
-	TRefCountPtr<FBuildJobContext> LocalContext;
-	if (FReadScopeLock ReadLock(Lock); State == EBuildJobState::Complete)
-	{
-		return;
-	}
-	else
-	{
-		bIsCanceled = true;
-		LocalRequest = WaitRequest;
-		LocalScheduler = Scheduler;
-		if (State == EBuildJobState::ExecuteLocalWait)
-		{
-			LocalContext = Context;
-		}
-	}
-
-	// Cancel the job on the scheduler, which invokes Schedule if the job was queued.
-	if (LocalScheduler)
-	{
-		LocalScheduler->CancelJob(this);
-	}
-
-	// Cancel the request, which invokes End[State] if the request is not complete.
-	if (LocalRequest)
-	{
-		LocalRequest.Cancel();
-	}
-
-	// Cancel the async build, which invokes EndExecuteLocal if the build is not complete.
-	if (LocalContext)
-	{
-		LocalContext->GetFunction().CancelAsyncBuild(*LocalContext);
-	}
-
-	// Most jobs will be complete at this point, but it is possible for a job to reach this point
-	// because of a race with the scheduler. A job can be removed from every scheduler queue, and
-	// missed by CancelJob, but not yet have called back into the job.
-	Wait();
-}
-
-void FBuildJob::Wait()
-{
-	FEvent* LocalEvent;
-
-	if (FReadScopeLock ReadLock(Lock); State == EBuildJobState::Complete)
-	{
-		return;
-	}
-	else
-	{
-		LocalEvent = Event;
-	}
-
-	SetPriority(EPriority::Blocking);
-
-	if (!LocalEvent)
-	{
-		if (FWriteScopeLock WriteLock(Lock); State == EBuildJobState::Complete)
-		{
-			return;
-		}
-		else if (Event)
-		{
-			LocalEvent = Event;
-		}
-		else
-		{
-			LocalEvent = Event = FPlatformProcess::GetSynchEventFromPool(/*bIsManualReset*/ true);
-		}
-	}
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::Wait);
-	LocalEvent->Wait();
-}
-
-bool FBuildJob::Poll()
-{
-	FReadScopeLock ReadLock(Lock);
-	return State == EBuildJobState::Complete;
-}
-
-void FBuildJob::AddRef() const
-{
-	ReferenceCount.fetch_add(1, std::memory_order_relaxed);
-}
-
-void FBuildJob::Release() const
-{
-	if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
-	{
-		delete this;
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FBuildJob::BeginJob()
 {
-	AddRef();
-	Scheduler->BeginJob(this);
+	Scheduler.BeginJob(this);
 }
 
 void FBuildJob::EndJob()
 {
-	ON_SCOPE_EXIT { Release(); };
-
-	if (Event)
-	{
-		Event->Trigger();
-	}
-	Scheduler->EndJob(this);
-
-	FWriteScopeLock WriteLock(Lock);
-	Scheduler = nullptr;
-	InputResolver = nullptr;
+	Scheduler.EndJob(this);
+	delete this;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -560,11 +391,10 @@ void FBuildJob::CreateContext()
 	else
 	{
 		const FCacheKey CacheKey{Cache.CreateBucket(FunctionName), Action.Get().GetKey().Hash};
-		Context = new FBuildJobContext(*this, CacheKey, *Function, OutputBuilder, BuildPolicy,
-			[this] { EndExecuteLocal(); });
+		Context = new FBuildJobContext(*this, CacheKey, *Function, OutputBuilder, BuildPolicy);
 		Function->Configure(*Context);
 		BuildPolicy = Context->GetBuildPolicy();
-		bIsExportingBuild = ShouldExportBuild();
+		EnumAddFlags(BuildStatus, ShouldExportBuild() ? EBuildStatus::BuildTryExport : EBuildStatus::None);
 	}
 
 	// Populate the scheduler params with the information that is available now.
@@ -603,27 +433,23 @@ void FBuildJob::EnterCacheQuery()
 void FBuildJob::BeginCacheQuery()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::CacheQuery);
-	return ExecuteAsync([this]
+	ECachePolicy CachePolicy = Context->GetCachePolicy();
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::SkipData))
 	{
-		ECachePolicy CachePolicy = Context->GetCachePolicy();
-		if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::SkipData))
-		{
-			CachePolicy |= ECachePolicy::SkipAttachments;
-		}
-		return Cache.Get({Context->GetCacheKey()}, Name, CachePolicy, Priority,
-			[this](FCacheGetCompleteParams&& Params) { EndCacheQuery(MoveTemp(Params)); });
-	});
+		EnumAddFlags(CachePolicy, ECachePolicy::SkipAttachments);
+	}
+	EnumAddFlags(BuildStatus, EBuildStatus::CacheQuery);
+	Cache.Get({Context->GetCacheKey()}, Name, CachePolicy, Owner,
+		[this](FCacheGetCompleteParams&& Params) { EndCacheQuery(MoveTemp(Params)); });
 }
 
 void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
 {
-	BuildStatus |= EBuildStatus::CacheQuery;
 	if (Params.Status == EStatus::Ok)
 	{
-		BuildStatus |= EBuildStatus::CacheQueryHit;
 		if (FOptionalBuildOutput CacheOutput = BuildSystem.LoadOutput(Name, FunctionName, Params.Record))
 		{
-			bIsCached = true;
+			EnumAddFlags(BuildStatus, EBuildStatus::CacheQueryHit);
 			return SetOutputNoCheck(MoveTemp(CacheOutput).Get());
 		}
 	}
@@ -635,9 +461,9 @@ void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
 void FBuildJob::EnterCacheStore()
 {
 	ECachePolicy CachePolicy = Context ? Context->GetCachePolicy() : ECachePolicy::None;
-	if (bIsCached ||
-		!EnumHasAnyFlags(CachePolicy, ECachePolicy::Store) ||
+	if (!EnumHasAnyFlags(CachePolicy, ECachePolicy::Store) ||
 		!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheStore) ||
+		EnumHasAnyFlags(BuildStatus, EBuildStatus::CacheQueryHit) ||
 		Output.Get().HasError())
 	{
 		return AdvanceToState(EBuildJobState::Complete);
@@ -647,19 +473,19 @@ void FBuildJob::EnterCacheStore()
 void FBuildJob::BeginCacheStore()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::CacheStore);
-	return ExecuteAsync([this]
-	{
-		FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(Context->GetCacheKey());
-		Output.Get().Save(RecordBuilder);
-		return Cache.Put({RecordBuilder.Build()}, Name, Context->GetCachePolicy(),
-			FMath::Min(Priority, EPriority::Highest),
-			[this](FCachePutCompleteParams&& Params) { EndCacheStore(MoveTemp(Params)); });
-	});
+	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(Context->GetCacheKey());
+	Output.Get().Save(RecordBuilder);
+	EnumAddFlags(BuildStatus, EBuildStatus::CacheStore);
+	Cache.Put({RecordBuilder.Build()}, Name, Context->GetCachePolicy(), Owner,
+		[this](FCachePutCompleteParams&& Params) { EndCacheStore(MoveTemp(Params)); });
 }
 
 void FBuildJob::EndCacheStore(FCachePutCompleteParams&& Params)
 {
-	bIsCached = Params.Status == EStatus::Ok;
+	if (Params.Status == EStatus::Ok)
+	{
+		EnumAddFlags(BuildStatus, EBuildStatus::CacheStoreHit);
+	}
 	return AdvanceToState(EBuildJobState::Complete);
 }
 
@@ -688,11 +514,8 @@ void FBuildJob::EnterResolveKey()
 void FBuildJob::BeginResolveKey()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::ResolveKey);
-	return ExecuteAsync([this]
-	{
-		return InputResolver->ResolveKey(DefinitionKey,
-			[this](FBuildKeyResolvedParams&& Params) { EndResolveKey(MoveTemp(Params)); });
-	});
+	InputResolver->ResolveKey(DefinitionKey, Owner,
+		[this](FBuildKeyResolvedParams&& Params) { EndResolveKey(MoveTemp(Params)); });
 }
 
 void FBuildJob::EndResolveKey(FBuildKeyResolvedParams&& Params)
@@ -724,11 +547,8 @@ void FBuildJob::EnterResolveInputMeta()
 void FBuildJob::BeginResolveInputMeta()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::ResolveInputMeta);
-	return ExecuteAsync([this]
-	{
-		return InputResolver->ResolveInputMeta(Definition.Get(), Priority,
-			[this](FBuildInputMetaResolvedParams&& Params) { EndResolveInputMeta(MoveTemp(Params)); });
-	});
+	InputResolver->ResolveInputMeta(Definition.Get(), Owner,
+		[this](FBuildInputMetaResolvedParams&& Params) { EndResolveInputMeta(MoveTemp(Params)); });
 }
 
 void FBuildJob::EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params)
@@ -789,21 +609,18 @@ void FBuildJob::EnterResolveInputData()
 void FBuildJob::BeginResolveInputData()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::ResolveInputData);
-	return ExecuteAsync([this]
+	if (Definition)
 	{
-		if (Definition)
-		{
-			return InputResolver->ResolveInputData(Definition.Get(), Priority,
-				[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
-				[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); });
-		}
-		else
-		{
-			return InputResolver->ResolveInputData(Action.Get(), Priority,
-				[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
-				[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); });
-		}
-	});
+		InputResolver->ResolveInputData(Definition.Get(), Owner,
+			[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
+			[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); });
+	}
+	else
+	{
+		InputResolver->ResolveInputData(Action.Get(), Owner,
+			[this](FBuildInputDataResolvedParams&& Params) { EndResolveInputData(MoveTemp(Params)); },
+			[this](FStringView Key) { return !!Algo::Find(MissingInputs, Key); });
+	}
 }
 
 void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
@@ -835,7 +652,8 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 
 void FBuildJob::EnterExecuteRemote()
 {
-	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildRemote) || bIsExportingBuild)
+	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildRemote) ||
+		EnumHasAnyFlags(BuildStatus, EBuildStatus::BuildTryExport))
 	{
 		return AdvanceToState(EBuildJobState::ResolveInputData);
 	}
@@ -860,19 +678,16 @@ void FBuildJob::BeginExecuteRemote()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::ExecuteRemote);
 	checkf(Worker && WorkerExecutor, TEXT("Job requires a worker in state %s for build of '%s' by %s."),
 		LexToString(State), *Name, *FunctionName);
-	bTriedRemoteExecution = true;
-	return ExecuteAsync([this]
-	{
-		return WorkerExecutor->BuildAction(Action.Get(), Inputs, *Worker, BuildPolicy, Priority,
-			[this](FBuildWorkerActionCompleteParams&& Params) { EndExecuteRemote(MoveTemp(Params)); });
-	});
+	EnumAddFlags(BuildStatus, EBuildStatus::BuildTryRemote);
+	WorkerExecutor->BuildAction(Action.Get(), Inputs, *Worker, BuildSystem, BuildPolicy, Owner,
+		[this](FBuildWorkerActionCompleteParams&& Params) { EndExecuteRemote(MoveTemp(Params)); });
 }
 
 void FBuildJob::EndExecuteRemote(FBuildWorkerActionCompleteParams&& Params)
 {
 	if (Params.Output)
 	{
-		BuildStatus |= EBuildStatus::BuildRemote;
+		EnumAddFlags(BuildStatus, EBuildStatus::BuildRemote);
 		return SetOutputNoCheck(MoveTemp(Params.Output).Get());
 	}
 	else
@@ -913,9 +728,10 @@ void FBuildJob::SkipExecuteRemote()
 
 void FBuildJob::EnterExecuteLocal()
 {
-	if (bIsExportingBuild)
+	if (EnumHasAnyFlags(BuildStatus, EBuildStatus::BuildTryExport))
 	{
 		ExportBuild();
+		EnumAddFlags(BuildStatus, EBuildStatus::BuildExport);
 	}
 	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildLocal))
 	{
@@ -923,7 +739,7 @@ void FBuildJob::EnterExecuteLocal()
 		{
 			return CompleteWithError(TEXT("Failed because build policy does not allow local or remote execution."_SV));
 		}
-		else if (bTriedRemoteExecution)
+		else if (EnumHasAnyFlags(BuildStatus, EBuildStatus::BuildTryRemote))
 		{
 			return CompleteWithError(TEXT("Failed because build policy does not allow local execution, ")
 				TEXT("and remote execution failed to build."_SV));
@@ -960,20 +776,12 @@ void FBuildJob::EnterExecuteLocal()
 void FBuildJob::BeginExecuteLocal()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::ExecuteLocal);
-	return ExecuteAsync([this]
-	{
-		Context->GetFunction().Build(*Context);
-		if (!Context->IsAsyncBuild())
-		{
-			EndExecuteLocal();
-		}
-		return FRequest();
-	});
+	Context->BeginBuild(Owner, [this] { EndExecuteLocal(); });
 }
 
 void FBuildJob::EndExecuteLocal()
 {
-	BuildStatus |= EBuildStatus::BuildLocal;
+	EnumAddFlags(BuildStatus, EBuildStatus::BuildLocal);
 	return SetOutputNoCheck(OutputBuilder.Build());
 }
 
@@ -1055,25 +863,25 @@ void FBuildJob::SetOutput(const FBuildOutput& InOutput)
 	return SetOutputNoCheck(FBuildOutput(InOutput));
 }
 
-void FBuildJob::SetOutputNoCheck(FBuildOutput&& InOutput)
+void FBuildJob::SetOutputNoCheck(FBuildOutput&& InOutput, EBuildJobState NewState)
 {
 	checkf(Output.IsNull(), TEXT("Job already has an output for build of '%s' by %s."), *Name, *FunctionName);
 	Output = MoveTemp(InOutput);
 
-	if (!bIsCanceled)
+	if (!Owner.IsCanceled())
 	{
-		Scheduler->SetJobOutput(this, SchedulerParams, Output.Get());
+		Scheduler.SetJobOutput(this, SchedulerParams, Output.Get());
 	}
 
 	if (OnComplete)
 	{
 		const FCacheKey& CacheKey = Context ? Context->GetCacheKey() : FCacheKey::Empty;
-		const EStatus Status = bIsCanceled ? EStatus::Canceled : Output.Get().HasError() ? EStatus::Error : EStatus::Ok;
+		const EStatus Status = Owner.IsCanceled() ? EStatus::Canceled : Output.Get().HasError() ? EStatus::Error : EStatus::Ok;
 		OnComplete({*this, CacheKey, FBuildOutput(Output.Get()), BuildStatus, Status});
 		OnComplete = nullptr;
 	}
 
-	return AdvanceToState(EBuildJobState::CacheStore);
+	return AdvanceToState(NewState);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1085,30 +893,7 @@ void FBuildJob::CompleteWithError(FStringView Error)
 		return;
 	}
 	OutputBuilder.AddError(TEXT("LogDerivedDataBuild"_SV), Error);
-	return SetOutputNoCheck(OutputBuilder.Build());
-}
-
-void FBuildJob::ExecuteAsync(TFunctionRef<FRequest ()> Operation)
-{
-	// An operation may complete and advance to another state before its request has been stored.
-	// Hold a reference to allow access to this after starting the operation.
-	const TRequest Self(this);
-	const EBuildJobState LocalState = State;
-	if (FRequest LocalRequest = Operation())
-	{
-		if (FWriteScopeLock WriteLock(Lock); LocalState == State && !bIsCanceled)
-		{
-			// The state flow through the job requires any previous WaitRequest to be complete by
-			// the time that ExecuteAsync is called because the completion of the async operation
-			// will request the state transition that leads to another new async operation. It is
-			// not possible to poll the previous request to validate that it is complete, because
-			// execution likely reached this point from the completion callback, and a request is
-			// not complete until its completion callback has returned.
-			WaitRequest = MoveTemp(LocalRequest);
-		}
-		// Cancel the request if it was not moved above due to cancellation or change of state.
-		LocalRequest.Cancel();
-	}
+	return SetOutputNoCheck(OutputBuilder.Build(), EBuildJobState::Complete);
 }
 
 void FBuildJob::AdvanceToState(EBuildJobState NewState)
@@ -1122,7 +907,7 @@ void FBuildJob::AdvanceToState(EBuildJobState NewState)
 		//	TEXT("Job in state %s is requesting an invalid transition from %s to %s for build of '%s' by %s."),
 		//	LexToString(State), LexToString(NextState), LexToString(NewState), *Name, *FunctionName);
 
-		if (bIsCanceled)
+		if (Owner.IsCanceled())
 		{
 			NewState = EBuildJobState::Complete;
 		}
@@ -1234,15 +1019,15 @@ void FBuildJob::ExecuteState(EBuildJobState NewState)
 {
 	switch (NewState)
 	{
-	case EBuildJobState::ResolveKey:                 return Scheduler->DispatchResolveKey(this);
-	case EBuildJobState::ResolveInputMeta:           return Scheduler->DispatchResolveInputMeta(this);
-	case EBuildJobState::CacheQuery:                 return Scheduler->DispatchCacheQuery(this, SchedulerParams);
-	case EBuildJobState::ExecuteRemote:              return Scheduler->DispatchExecuteRemote(this, SchedulerParams);
-	case EBuildJobState::ResolveRemoteInputData:     return Scheduler->DispatchResolveInputData(this, SchedulerParams);
-	case EBuildJobState::ExecuteRemoteRetry:         return Scheduler->DispatchExecuteRemote(this, SchedulerParams);
-	case EBuildJobState::ResolveInputData:           return Scheduler->DispatchResolveInputData(this, SchedulerParams);
-	case EBuildJobState::ExecuteLocal:               return Scheduler->DispatchExecuteLocal(this, SchedulerParams);
-	case EBuildJobState::CacheStore:                 return Scheduler->DispatchCacheStore(this, SchedulerParams);
+	case EBuildJobState::ResolveKey:                 return Scheduler.DispatchResolveKey(this, Owner);
+	case EBuildJobState::ResolveInputMeta:           return Scheduler.DispatchResolveInputMeta(this, Owner);
+	case EBuildJobState::CacheQuery:                 return Scheduler.DispatchCacheQuery(this, Owner, SchedulerParams);
+	case EBuildJobState::ExecuteRemote:              return Scheduler.DispatchExecuteRemote(this, Owner, SchedulerParams);
+	case EBuildJobState::ResolveRemoteInputData:     return Scheduler.DispatchResolveInputData(this, Owner, SchedulerParams);
+	case EBuildJobState::ExecuteRemoteRetry:         return Scheduler.DispatchExecuteRemote(this, Owner, SchedulerParams);
+	case EBuildJobState::ResolveInputData:           return Scheduler.DispatchResolveInputData(this, Owner, SchedulerParams);
+	case EBuildJobState::ExecuteLocal:               return Scheduler.DispatchExecuteLocal(this, Owner, SchedulerParams);
+	case EBuildJobState::CacheStore:                 return Scheduler.DispatchCacheStore(this, Owner, SchedulerParams);
 	}
 }
 
@@ -1346,19 +1131,19 @@ TArray<FName> FBuildJob::ParseExportBuildTypes(bool& bOutExportAll)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildKey& Key)
+void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildKey& Key, FOnBuildJobComplete&& OnComplete)
 {
-	return TRequest(new FBuildJob(Cache, BuildSystem, InputResolver, Key));
+	new FBuildJob(Params, Key, MoveTemp(OnComplete));
 }
 
-TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildDefinition& Definition)
+void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildDefinition& Definition, FOnBuildJobComplete&& OnComplete)
 {
-	return TRequest(new FBuildJob(Cache, BuildSystem, InputResolver, Definition));
+	new FBuildJob(Params, Definition, MoveTemp(OnComplete));
 }
 
-TRequest<IBuildJob> CreateBuildJob(ICache& Cache, IBuild& BuildSystem, IBuildInputResolver* InputResolver, const FBuildAction& Action, const FOptionalBuildInputs& Inputs)
+void CreateBuildJob(const FBuildJobCreateParams& Params, const FBuildAction& Action, const FOptionalBuildInputs& Inputs, FOnBuildJobComplete&& OnComplete)
 {
-	return TRequest(new FBuildJob(Cache, BuildSystem, InputResolver, Action, Inputs));
+	new FBuildJob(Params, Action, Inputs, MoveTemp(OnComplete));
 }
 
 } // UE::DerivedData::Private

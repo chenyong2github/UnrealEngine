@@ -466,13 +466,17 @@ public:
 		return Usage;
 	}
 
-	virtual FRequest Put(
+	virtual void Put(
 		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
+		FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
+		FRequestGroup AsyncGroup = Factory.CreateGroup(Owner.GetPriority());
+		AsyncGroup.KeepAlive();
+
 		TSet<FCacheKey> RecordsOk;
 
 		{
@@ -485,7 +489,7 @@ public:
 					// Every record must put synchronously before switching to async calls.
 					if (RecordsOk.Num() < Records.Num())
 					{
-						InnerBackends[PutCacheIndex]->Put(Records, Context, Policy, Priority,
+						InnerBackends[PutCacheIndex]->Put(Records, Context, Policy, BlockingGroup,
 							[&OnComplete, &RecordsOk](FCachePutCompleteParams&& Params)
 							{
 								if (Params.Status == EStatus::Ok)
@@ -497,11 +501,12 @@ public:
 										OnComplete(MoveTemp(Params));
 									}
 								}
-							}).Wait();
+							});
+						BlockingGroup.Wait();
 					}
 					else
 					{
-						AsyncPutInnerBackends[PutCacheIndex]->Put(Records, Context, Policy, Priority);
+						AsyncPutInnerBackends[PutCacheIndex]->Put(Records, Context, Policy, AsyncGroup);
 					}
 				}
 			}
@@ -517,15 +522,13 @@ public:
 				}
 			}
 		}
-
-		return FRequest();
 	}
 
-	virtual FRequest Get(
+	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
 		const bool bQueryLocal = bHasLocalBackends && EnumHasAnyFlags(Policy, ECachePolicy::QueryLocal);
@@ -534,6 +537,7 @@ public:
 		const bool bStoreRemote = bHasWritableRemoteBackends && EnumHasAnyFlags(Policy, ECachePolicy::StoreRemote);
 		const bool bStoreLocalCopy = bStoreLocal && bHasMultipleLocalBackends && !EnumHasAnyFlags(Policy, ECachePolicy::SkipLocalCopy);
 
+		FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
 		TArray<FCacheKey, TInlineAllocator<16>> RemainingKeys(Keys);
 
 		TSet<FCacheKey> KeysOk;
@@ -553,13 +557,15 @@ public:
 				const ECachePolicy FillPolicy = bFill ? (Policy & ~ECachePolicy::SkipData) : Policy;
 
 				// Block on this because backends in this hierarchy are not expected to be asynchronous.
-				InnerBackends[GetCacheIndex]->Get(RemainingKeys, Context, Policy, Priority,
-					[this, Context, GetCacheIndex, bStoreLocal, bStoreRemote, bStoreLocalCopy, bIsLocalGet, bFill, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
+				InnerBackends[GetCacheIndex]->Get(RemainingKeys, Context, Policy, BlockingGroup,
+					[this, Context, GetCacheIndex, bStoreLocal, bStoreRemote, bStoreLocalCopy, bIsLocalGet, bFill, &Owner, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
 					{
 						if (Params.Status == EStatus::Ok)
 						{
 							if (bFill)
 							{
+								FRequestGroup AsyncGroup = Factory.CreateGroup(Owner.GetPriority());
+								AsyncGroup.KeepAlive();
 								for (int32 FillCacheIndex = 0; FillCacheIndex < InnerBackends.Num(); ++FillCacheIndex)
 								{
 									if (GetCacheIndex != FillCacheIndex)
@@ -567,7 +573,7 @@ public:
 										const bool bIsLocalFill = InnerBackends[FillCacheIndex]->GetSpeedClass() == ESpeedClass::Local;
 										if ((bIsLocalFill && bStoreLocal && bIsLocalGet <= bStoreLocalCopy) || (!bIsLocalFill && bStoreRemote))
 										{
-											AsyncPutInnerBackends[FillCacheIndex]->Put({Params.Record}, Context);
+											AsyncPutInnerBackends[FillCacheIndex]->Put({Params.Record}, Context, ECachePolicy::Default, AsyncGroup);
 										}
 									}
 								}
@@ -579,7 +585,8 @@ public:
 								OnComplete(MoveTemp(Params));
 							}
 						}
-					}).Wait();
+					});
+				BlockingGroup.Wait();
 
 				RemainingKeys.RemoveAll([&KeysOk](const FCacheKey& Key) { return KeysOk.Contains(Key); });
 			}
@@ -592,17 +599,16 @@ public:
 				OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
 			}
 		}
-
-		return FRequest();
 	}
 
-	virtual FRequest GetPayload(
+	virtual void GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetPayloadComplete&& OnComplete) override
 	{
+		FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
 		TArray<FCachePayloadKey, TInlineAllocator<16>> RemainingKeys(Keys);
 
 		TSet<FCachePayloadKey> KeysOk;
@@ -612,7 +618,7 @@ public:
 
 			for (int32 GetCacheIndex = 0; GetCacheIndex < InnerBackends.Num() && !RemainingKeys.IsEmpty(); ++GetCacheIndex)
 			{
-				InnerBackends[GetCacheIndex]->GetPayload(RemainingKeys, Context, Policy, Priority,
+				InnerBackends[GetCacheIndex]->GetPayload(RemainingKeys, Context, Policy, BlockingGroup,
 					[&OnComplete, &KeysOk](FCacheGetPayloadCompleteParams&& Params)
 					{
 						if (Params.Status == EStatus::Ok)
@@ -623,7 +629,8 @@ public:
 								OnComplete(MoveTemp(Params));
 							}
 						}
-					}).Wait();
+					});
+				BlockingGroup.Wait();
 
 				RemainingKeys.RemoveAll([&KeysOk](const FCachePayloadKey& Key) { return KeysOk.Contains(Key); });
 			}
@@ -636,8 +643,6 @@ public:
 				OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
 			}
 		}
-
-		return FRequest();
 	}
 
 	virtual void CancelAll() override

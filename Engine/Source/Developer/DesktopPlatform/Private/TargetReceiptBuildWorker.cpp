@@ -57,7 +57,7 @@ private:
 	FTargetReceiptBuildWorker* Worker;
 };
 
-class FTargetReceiptBuildWorkerFactory : public UE::DerivedData::IBuildWorkerFactory
+class FTargetReceiptBuildWorkerFactory final : public UE::DerivedData::IBuildWorkerFactory
 {
 public:
 	const FTargetReceiptBuildWorker* GetWorker()
@@ -65,7 +65,7 @@ public:
 		return (FTargetReceiptBuildWorker*)((uintptr_t)this - offsetof(class FTargetReceiptBuildWorker, InternalFactory));
 	}
 
-	void Build(UE::DerivedData::FBuildWorkerBuilder& Builder)
+	void Build(UE::DerivedData::FBuildWorkerBuilder& Builder) final
 	{
 		const FTargetReceiptBuildWorker* Worker = GetWorker();
 		Builder.SetName(Worker->Name);
@@ -90,7 +90,7 @@ public:
 		}
 	}
 
-	UE::DerivedData::FRequest FindFileData(TConstArrayView<FIoHash> RawHashes, UE::DerivedData::EPriority Priority, UE::DerivedData::FOnBuildWorkerFileDataComplete&& OnComplete)
+	void FindFileData(TConstArrayView<FIoHash> RawHashes, UE::DerivedData::IRequestOwner& Owner, UE::DerivedData::FOnBuildWorkerFileDataComplete&& OnComplete) final
 	{
 		if (OnComplete)
 		{
@@ -134,8 +134,6 @@ public:
 				OnComplete(MoveTemp(CompleteParams));
 			}
 		}
-
-		return UE::DerivedData::FRequest();
 	}
 };
 

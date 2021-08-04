@@ -41,7 +41,7 @@ public:
 	FPayloadId AddAttachment(const FPayload& Payload) final;
 
 	FCacheRecord Build() final;
-	FRequest BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority) final;
+	void BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete) final;
 
 	FCacheKey Key;
 	FCbObject Meta;
@@ -258,13 +258,12 @@ FCacheRecord FCacheRecordBuilderInternal::Build()
 	return CreateCacheRecord(new FCacheRecordInternal(MoveTemp(*this)));
 }
 
-FRequest FCacheRecordBuilderInternal::BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority)
+void FCacheRecordBuilderInternal::BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete)
 {
 	ON_SCOPE_EXIT { delete this; };
 	checkf(OnComplete, TEXT("Failed to build cache record for %s because the completion callback is null."),
 		*WriteToString<96>(Key));
 	OnComplete(Build());
-	return FRequest();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

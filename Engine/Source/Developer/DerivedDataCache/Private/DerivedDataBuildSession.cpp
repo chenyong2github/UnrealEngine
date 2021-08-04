@@ -31,23 +31,23 @@ public:
 
 	FStringView GetName() const final { return Name; }
 
-	FRequest Build(
+	void Build(
 		const FBuildDefinition& Definition,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) final;
 
-	FRequest BuildAction(
+	void BuildAction(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildActionComplete&& OnComplete) final;
 
-	FRequest BuildPayload(
+	void BuildPayload(
 		const FBuildPayloadKey& Payload,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildPayloadComplete&& OnComplete) final;
 
 	FString Name;
@@ -59,13 +59,12 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FRequest FBuildSessionInternal::Build(
+void FBuildSessionInternal::Build(
 	const FBuildDefinition& Definition,
 	EBuildPolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnBuildComplete&& OnComplete)
 {
-	TRequest Job(CreateBuildJob(Cache, BuildSystem, InputResolver, Definition));
 	FOnBuildJobComplete OnJobComplete;
 	if (OnComplete)
 	{
@@ -74,18 +73,16 @@ FRequest FBuildSessionInternal::Build(
 			OnComplete({Definition.GetKey(), Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus, Params.Status});
 		};
 	}
-	Job->Start(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
-	return Job;
+	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner, Policy}, Definition, MoveTemp(OnJobComplete));
 }
 
-FRequest FBuildSessionInternal::BuildAction(
+void FBuildSessionInternal::BuildAction(
 	const FBuildAction& Action,
 	const FOptionalBuildInputs& Inputs,
 	EBuildPolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnBuildActionComplete&& OnComplete)
 {
-	TRequest Job(CreateBuildJob(Cache, BuildSystem, InputResolver, Action, Inputs));
 	FOnBuildJobComplete OnJobComplete;
 	if (OnComplete)
 	{
@@ -94,18 +91,16 @@ FRequest FBuildSessionInternal::BuildAction(
 			OnComplete({Action.GetKey(), Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus, Params.Status});
 		};
 	}
-	Job->Start(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
-	return Job;
+	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner, Policy}, Action, Inputs, MoveTemp(OnJobComplete));
 }
 
-FRequest FBuildSessionInternal::BuildPayload(
+void FBuildSessionInternal::BuildPayload(
 	const FBuildPayloadKey& PayloadKey,
 	EBuildPolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnBuildPayloadComplete&& OnComplete)
 {
 	// This requests the entire output to get one payload. It will be optimized later to request only one payload.
-	TRequest Job(CreateBuildJob(Cache, BuildSystem, InputResolver, PayloadKey.BuildKey));
 	FOnBuildJobComplete OnJobComplete;
 	if (OnComplete)
 	{
@@ -125,8 +120,7 @@ FRequest FBuildSessionInternal::BuildPayload(
 			OnComplete({PayloadKey.BuildKey, MoveTemp(Payload), Status});
 		};
 	}
-	Job->Start(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
-	return Job;
+	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner, Policy}, PayloadKey.BuildKey, MoveTemp(OnJobComplete));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

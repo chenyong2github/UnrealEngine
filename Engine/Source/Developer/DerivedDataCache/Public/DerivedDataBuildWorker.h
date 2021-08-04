@@ -20,6 +20,7 @@ template <typename FuncType> class TUniqueFunction;
 namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
+namespace UE::DerivedData { class IBuild; }
 namespace UE::DerivedData { struct FBuildWorkerActionCompleteParams; }
 namespace UE::DerivedData { struct FBuildWorkerFileDataCompleteParams; }
 namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
@@ -38,7 +39,7 @@ public:
 	virtual FStringView GetPath() const = 0;
 	virtual FStringView GetHostPlatform() const = 0;
 	virtual FGuid GetBuildSystemVersion() const = 0;
-	virtual FRequest FindFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) const = 0;
+	virtual void FindFileData(TConstArrayView<FIoHash> RawHashes, IRequestOwner& Owner, FOnBuildWorkerFileDataComplete&& OnComplete) const = 0;
 	virtual void IterateFunctions(TFunctionRef<void (FStringView Name, const FGuid& Version)> Visitor) const = 0;
 	virtual void IterateFiles(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
 	virtual void IterateExecutables(TFunctionRef<void (FStringView Path, const FIoHash& RawHash, uint64 RawSize)> Visitor) const = 0;
@@ -65,7 +66,7 @@ public:
 	virtual ~IBuildWorkerFactory() = default;
 
 	virtual void Build(FBuildWorkerBuilder& Builder) = 0;
-	virtual FRequest FindFileData(TConstArrayView<FIoHash> RawHashes, EPriority Priority, FOnBuildWorkerFileDataComplete&& OnComplete) = 0;
+	virtual void FindFileData(TConstArrayView<FIoHash> RawHashes, IRequestOwner& Owner, FOnBuildWorkerFileDataComplete&& OnComplete) = 0;
 
 	/** Returns the name of the build worker factory modular feature. */
 	static FName GetFeatureName()
@@ -79,12 +80,13 @@ class IBuildWorkerExecutor : public IModularFeature
 public:
 	virtual ~IBuildWorkerExecutor() = default;
 
-	virtual FRequest BuildAction(
+	virtual void BuildAction(
 		const FBuildAction& Action,
 		const FOptionalBuildInputs& Inputs,
 		const FBuildWorker& Worker,
+		IBuild& BuildSystem,
 		EBuildPolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildWorkerActionComplete&& OnComplete) = 0;
 
 	virtual TConstArrayView<FStringView> GetHostPlatforms() const = 0;

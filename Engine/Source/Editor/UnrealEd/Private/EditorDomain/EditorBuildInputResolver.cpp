@@ -5,7 +5,9 @@
 #include "Async/Future.h"
 #include <atomic>
 #include "Containers/ArrayView.h"
+#include "DerivedDataBuildAction.h"
 #include "HAL/Event.h"
+#include "Misc/StringBuilder.h"
 #include "Serialization/BulkDataRegistry.h"
 #include "Templates/Tuple.h"
 
@@ -17,12 +19,12 @@ namespace UE::DerivedData
  * and calls the Resolve callback after all the futures complete
  */
 template <class BulkPayloadType, class CallbackPayloadType, class CallbackType>
-class TResolveInputRequest : public IRequest, public FThreadSafeRefCountedObject
+class TResolveInputRequest final : public FRequestBase
 {
 public:
 	typedef TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType> ThisType;
 
-	TResolveInputRequest(const FBuildDefinition& InDefinition, CallbackType&& InOnResolved);
+	TResolveInputRequest(const FBuildDefinition& InDefinition, IRequestOwner& InOwner, CallbackType&& InOnResolved);
 
 	// IRequest interface
 	virtual void SetPriority(EPriority Priority) override
@@ -30,15 +32,6 @@ public:
 	}
 	virtual void Cancel() override;
 	virtual void Wait() override;
-	virtual bool Poll() override;
-	virtual void AddRef() const override
-	{
-		FThreadSafeRefCountedObject::AddRef();
-	}
-	virtual void Release() const override
-	{
-		FThreadSafeRefCountedObject::Release();
-	}
 
 	/** Stores the full set of Payload Futures and completes the creation of this IRequest */
 	void SetPayloads(TArrayView<TTuple<FString, TFuture<BulkPayloadType>>> BulkPayloads, EStatus OtherStatus);
@@ -74,6 +67,7 @@ private:
 
 	// Data written during creation that is read-only during Cancel and CallOnResolved
 	FBuildDefinition Definition;
+	IRequestOwner& Owner;
 #if DO_CHECK
 	bool bCreationComplete = false;
 #endif
@@ -116,14 +110,7 @@ FEditorBuildInputResolver& FEditorBuildInputResolver::Get()
 	return Singleton;
 }
 
-FRequest FEditorBuildInputResolver::ResolveKey(const FBuildKey& Key, FOnBuildKeyResolved&& OnResolved)
-{
-	// Not yet implemented
-	OnResolved({ Key, {}, EStatus::Error });
-	return FRequest();
-}
-
-FRequest FEditorBuildInputResolver::ResolveInputMeta(const FBuildDefinition& Definition, EPriority Priority,
+void FEditorBuildInputResolver::ResolveInputMeta(const FBuildDefinition& Definition, IRequestOwner& Owner,
 	FOnBuildInputMetaResolved&& OnResolved)
 {
 	EStatus OtherStatus = EStatus::Ok;
@@ -155,16 +142,11 @@ FRequest FEditorBuildInputResolver::ResolveInputMeta(const FBuildDefinition& Def
 			OtherStatus = EStatus::Error;
 		});
 
-	TRequest Request(new FResolveInputMetaRequest(Definition, MoveTemp(OnResolved)));
+	TRefCountPtr Request(new FResolveInputMetaRequest(Definition, Owner, MoveTemp(OnResolved)));
 	Request->SetPayloads(BulkPayloads, OtherStatus);
-	if (Priority == EPriority::Blocking)
-	{
-		Request->Wait();
-	}
-	return Request;
 }
 
-FRequest FEditorBuildInputResolver::ResolveInputData(const FBuildDefinition& Definition, EPriority Priority,
+void FEditorBuildInputResolver::ResolveInputData(const FBuildDefinition& Definition, IRequestOwner& Owner,
 	FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter)
 {
 	EStatus OtherStatus = EStatus::Ok;
@@ -199,29 +181,26 @@ FRequest FEditorBuildInputResolver::ResolveInputData(const FBuildDefinition& Def
 			OtherStatus = EStatus::Error;
 		});
 
-	TRequest Request(new FResolveInputDataRequest(Definition, MoveTemp(OnResolved)));
+	TRefCountPtr Request(new FResolveInputDataRequest(Definition, Owner, MoveTemp(OnResolved)));
 	Request->SetPayloads(BulkPayloads, OtherStatus);
-	if (Priority == EPriority::Blocking)
-	{
-		Request->Wait();
-	}
-	return Request;
 }
 
-FRequest FEditorBuildInputResolver::ResolveInputData(const FBuildAction& Action, EPriority Priority,
+void FEditorBuildInputResolver::ResolveInputData(const FBuildAction& Action, IRequestOwner& Owner,
 	FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter)
 {
-	// Not yet implemented
-	OnResolved({ {}, EStatus::Error });
-	return FRequest();
+	UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver does not implement ResolveInputData from FBuildAction. ")
+		TEXT("Failed to resolve input data for build of '%s' by %s."),
+		*WriteToString<128>(Action.GetName()), *WriteToString<32>(Action.GetFunction()));
+	OnResolved({{}, EStatus::Error});
 }
 
 
 template <class BulkPayloadType, class CallbackPayloadType, class CallbackType>
 TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::TResolveInputRequest(
-	const FBuildDefinition& InDefinition, CallbackType&& InOnResolved)
+	const FBuildDefinition& InDefinition, IRequestOwner& InOwner, CallbackType&& InOnResolved)
 	: OnResolved(MoveTemp(InOnResolved))
 	, Definition(InDefinition)
+	, Owner(InOwner)
 	, CallbackComplete(EEventMode::ManualReset)
 {
 }
@@ -232,9 +211,11 @@ void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::C
 	check(bCreationComplete);
 	if (bCallbackCalled.exchange(true) == false)
 	{
-		TArray<CallbackPayloadType> EmptyPayloads;
-		OnResolved({ EmptyPayloads, EStatus::Canceled });
-		CallbackComplete->Trigger();
+		Owner.End(this, [this]
+		{
+			OnResolved({{}, EStatus::Canceled});
+			CallbackComplete->Trigger();
+		});
 	}
 	else
 	{
@@ -254,23 +235,6 @@ void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::W
 		}
 	}
 	CallbackComplete->Wait();
-}
-
-template <class BulkPayloadType, class CallbackPayloadType, class CallbackType>
-bool TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::Poll()
-{
-	check(bCreationComplete);
-	if (!bCallbackCalled)
-	{
-		for (FPayloadData& PayloadData : PayloadDatas)
-		{
-			if (!PayloadData.Future.IsReady())
-			{
-				return false;
-			}
-		}
-	}
-	return CallbackComplete->Wait(0, /* bIgnoreThreadIdleStats */ true);
 }
 
 template <class BulkPayloadType, class CallbackPayloadType, class CallbackType>
@@ -320,9 +284,14 @@ void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::S
 	check(!bCreationComplete);
 	bCreationComplete = true;
 #endif
+	Owner.Begin(this);
 	if (--RemainingInputCount == 0)
 	{
 		CallOnResolved();
+	}
+	else if (Owner.GetPriority() == EPriority::Blocking)
+	{
+		Wait();
 	}
 }
 
@@ -331,16 +300,11 @@ void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::C
 {
 	if (bCallbackCalled.exchange(true) == false)
 	{
-		if (OnResolved)
+		Owner.End(this, [this]
 		{
-			OnResolved({ Payloads, EStatus::Ok });
-		}
-		else
-		{
-			TArray<CallbackPayloadType> EmptyPayloads;
-			OnResolved({ EmptyPayloads, EStatus::Error });
-		}
-		CallbackComplete->Trigger();
+			OnResolved({Payloads, EStatus::Ok});
+			CallbackComplete->Trigger();
+		});
 	}
 }
 

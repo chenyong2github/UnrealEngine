@@ -441,11 +441,11 @@ TSharedRef<FDerivedDataCacheStatsNode> FPakFileDerivedDataBackend::GatherUsageSt
 	return Usage;
 }
 
-FRequest FPakFileDerivedDataBackend::Put(
+void FPakFileDerivedDataBackend::Put(
 	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -455,14 +455,13 @@ FRequest FPakFileDerivedDataBackend::Put(
 			OnComplete({Record.GetKey(), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
-FRequest FPakFileDerivedDataBackend::Get(
+void FPakFileDerivedDataBackend::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -472,14 +471,13 @@ FRequest FPakFileDerivedDataBackend::Get(
 			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
-FRequest FPakFileDerivedDataBackend::GetPayload(
+void FPakFileDerivedDataBackend::GetPayload(
 	TConstArrayView<FCachePayloadKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetPayloadComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -489,7 +487,6 @@ FRequest FPakFileDerivedDataBackend::GetPayload(
 			OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
 FCompressedPakFileDerivedDataBackend::FCompressedPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting)

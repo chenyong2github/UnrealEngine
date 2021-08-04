@@ -4,6 +4,7 @@
 
 #include "Serialization/BulkDataRegistry.h"
 #include "Compression/CompressedBuffer.h"
+#include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheRecord.h"
 #include "EditorBuildInputResolver.h"
 #include "EditorDomain/EditorDomainUtils.h"
@@ -380,23 +381,21 @@ void FBulkDataRegistryEditorDomain::WritePayloadIdToCache(FName PackageName, con
 }
 
 void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, TArray<TRefCountPtr<FPendingPayloadId>>&& OldPendings,
-	TArray<TPair<TRefCountPtr<FPendingPayloadId>, UE::DerivedData::FRequest>>&& NewPendings)
+	TArray<TRefCountPtr<FPendingPayloadId>>&& NewPendings)
 {
 	// Cancel any old requests for the Guids in NewPendings; we are about to overwrite them
-	// This cancelation has to occur outside of any lock, since the task may be in progress and
+	// This cancellation has to occur outside of any lock, since the task may be in progress and
 	// and to enter the lock and Cancel will wait on it
 	for (TRefCountPtr<FPendingPayloadId>& OldPending : OldPendings)
 	{
-		OldPending->GetRequest().Cancel();
+		OldPending->Cancel();
 	}
 	OldPendings.Empty();
-	for (TPair<TRefCountPtr<FPendingPayloadId>, UE::DerivedData::FRequest>& NewPair : NewPendings)
+	for (TRefCountPtr<FPendingPayloadId>& NewPending : NewPendings)
 	{
-		TRefCountPtr<FPendingPayloadId>& NewPending = NewPair.Get<0>();
 		// Creation of the Request has to occur outside of any lock, because the request
 		// may execute immediately on this thread and need to enter the lock; our locks are non-reentrant
-		UE::DerivedData::FRequest& Request = NewPair.Get<1>();
-		Request = UE::EditorDomain::GetBulkDataPayloadId(PackageName, NewPending->GetBulkDataId(),
+		UE::EditorDomain::GetBulkDataPayloadId(PackageName, NewPending->GetBulkDataId(), NewPending->GetRequestGroup(),
 			[this, PackageName, NewPending](FSharedBuffer Buffer)
 		{
 			if (Buffer.IsNull())
@@ -458,27 +457,19 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 		FWriteScopeLock RegistryScopeLock(RegistryLock);
 		if (!bActive)
 		{
-			for (TPair<TRefCountPtr<FPendingPayloadId>, UE::DerivedData::FRequest>& NewPair : NewPendings)
+			for (TRefCountPtr<FPendingPayloadId>& NewPending : NewPendings)
 			{
-				OldPendings.Add(MoveTemp(NewPair.Get<0>()));
+				OldPendings.Add(MoveTemp(NewPending));
 			}
 		}
 		else
 		{
-			for (TPair<TRefCountPtr<FPendingPayloadId>, UE::DerivedData::FRequest>& NewPair : NewPendings)
+			for (TRefCountPtr<FPendingPayloadId>& NewPending : NewPendings)
 			{
-				TRefCountPtr<FPendingPayloadId>& NewPending = NewPair.Get<0>();
-				UE::DerivedData::FRequest& Request = NewPair.Get<1>();
-
 				TRefCountPtr<FPendingPayloadId>* ExistingPending = PendingPayloadIds.Find(NewPending->GetBulkDataId());
 				if (!ExistingPending || *ExistingPending != NewPending)
 				{
 					OldPendings.Add(MoveTemp(NewPending));
-				}
-				else
-				{
-					check(NewPending->GetRequest().IsNull());
-					NewPending->GetRequest() = Request;
 				}
 			}
 		}
@@ -486,19 +477,20 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 	NewPendings.Empty();
 	for (TRefCountPtr<FPendingPayloadId>& OldPending : OldPendings)
 	{
-		OldPending->GetRequest().Cancel();
+		OldPending->Cancel();
 	}
 	OldPendings.Empty();
 }
 
 FPendingPackage::FPendingPackage(FName InPackageName, FBulkDataRegistryEditorDomain* InOwner)
 	: PackageName(InPackageName)
+	, BulkDataListCacheRequest(GetDerivedDataCacheRef().CreateGroup(UE::DerivedData::EPriority::Low))
 	, Owner(InOwner)
 {
 	PendingOperations = Flag_EndLoad | Flag_BulkDataListResults;
 
-	BulkDataListCacheRequest = UE::EditorDomain::GetBulkDataList(PackageName, [this](FSharedBuffer Buffer)
-		{ OnBulkDataListResults(Buffer); });
+	UE::EditorDomain::GetBulkDataList(PackageName, BulkDataListCacheRequest,
+		[this](FSharedBuffer Buffer) { OnBulkDataListResults(Buffer); });
 }
 
 void FPendingPackage::Cancel()
@@ -545,6 +537,10 @@ void FPendingPackage::OnBulkDataListResults(FSharedBuffer Buffer)
 	{
 		WriteCache();
 
+		// Removing *this from its owner will delete it, which will attempt to Cancel this request.
+		// Direct the group to keep requests alive to avoid a deadlock.
+		BulkDataListCacheRequest.KeepAlive();
+
 		FScopeLock PendingPackageScopeLock(&Owner->PendingPackageLock);
 		Owner->PendingPackages.Remove(PackageName);
 		// *this has been deleted and can no longer be accessed
@@ -559,7 +555,7 @@ void FPendingPackage::ReadCache()
 	}
 
 	TArray<TRefCountPtr<FPendingPayloadId>> OldPendings;
-	TArray<TPair<TRefCountPtr<FPendingPayloadId>, UE::DerivedData::FRequest>> NewPendings;
+	TArray<TRefCountPtr<FPendingPayloadId>> NewPendings;
 
 	// Add each CachedBulkData to the Registry, updating RawHash if it is missing.
 	// For every BulkData in this package in the Registry after the CachedBulkData has been added, 
@@ -597,22 +593,18 @@ void FPendingPackage::ReadCache()
 
 			if (bCachedLocationMatches && TargetBulkData.HasPlaceholderPayloadId())
 			{
-				NewPendings.Emplace(MakeTuple(new FPendingPayloadId(BulkDataId), UE::DerivedData::FRequest()));
+				NewPendings.Emplace(new FPendingPayloadId(BulkDataId));
 			}
 		}
 
-		if (NewPendings.Num())
+		for (TRefCountPtr<FPendingPayloadId>& NewPending : NewPendings)
 		{
-			for (TPair<TRefCountPtr<FPendingPayloadId>, UE::DerivedData::FRequest>& NewPair : NewPendings)
+			TRefCountPtr<FPendingPayloadId>& ExistingPending = Owner->PendingPayloadIds.FindOrAdd(NewPending->GetBulkDataId());
+			if (ExistingPending.IsValid())
 			{
-				TRefCountPtr<FPendingPayloadId>& NewPending = NewPair.Get<0>();
-				TRefCountPtr<FPendingPayloadId>& ExistingPending = Owner->PendingPayloadIds.FindOrAdd(NewPending->GetBulkDataId());
-				if (ExistingPending.IsValid())
-				{
-					OldPendings.Add(MoveTemp(ExistingPending));
-				}
-				ExistingPending = NewPending;
+				OldPendings.Add(MoveTemp(ExistingPending));
 			}
+			ExistingPending = NewPending;
 		}
 	}
 
@@ -736,6 +728,12 @@ void FUpdatePayloadWorker::DoWork()
 	{
 		Requester(bValid, Buffer);
 	}
+}
+
+FPendingPayloadId::FPendingPayloadId(const FGuid& InBulkDataId)
+	: BulkDataId(InBulkDataId)
+	, Request(GetDerivedDataCacheRef().CreateGroup(UE::DerivedData::EPriority::Low))
+{
 }
 
 void FPendingPayloadId::Cancel()

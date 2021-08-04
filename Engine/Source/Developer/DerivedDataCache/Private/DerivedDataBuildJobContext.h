@@ -8,10 +8,11 @@
 #include "Containers/UnrealString.h"
 #include "DerivedDataBuildFunction.h"
 #include "DerivedDataCacheKey.h"
+#include "DerivedDataRequest.h"
+#include "HAL/Event.h"
 #include "Memory/MemoryFwd.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/Function.h"
-#include <atomic>
 
 namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class IBuildJob; }
@@ -21,26 +22,25 @@ namespace UE::DerivedData { enum class ECachePolicy : uint8; }
 namespace UE::DerivedData::Private
 {
 
-class FBuildJobContext final : public FBuildContext, public FBuildConfigContext
+class FBuildJobContext final : public FBuildContext, public FBuildConfigContext, public FRequestBase
 {
 public:
 	FBuildJobContext(
-		IBuildJob& InJob,
-		const FCacheKey& InCacheKey,
-		const IBuildFunction& InFunction,
-		FBuildOutputBuilder& InOutputBuilder,
-		EBuildPolicy InBuildPolicy,
-		TUniqueFunction<void ()>&& InOnEndAsyncBuild);
+		IBuildJob& Job,
+		const FCacheKey& CacheKey,
+		const IBuildFunction& Function,
+		FBuildOutputBuilder& OutputBuilder,
+		EBuildPolicy BuildPolicy);
+
+	void BeginBuild(IRequestOwner& Owner, TUniqueFunction<void ()>&& OnEndBuild);
 
 	FStringView GetName() const final;
 
 	inline const FCacheKey& GetCacheKey() const { return CacheKey; }
-	inline const IBuildFunction& GetFunction() const { return Function; }
 
 	inline ECachePolicy GetCachePolicy() const final { return CachePolicy; }
 	inline EBuildPolicy GetBuildPolicy() const final { return BuildPolicy; }
 
-	inline bool IsAsyncBuild() const { return bIsAsyncBuild; }
 	inline bool ShouldCheckDeterministicOutput() const { return bDeterministicOutputCheck; }
 
 	void AddConstant(FStringView Key, FCbObject&& Value);
@@ -58,6 +58,7 @@ private:
 	void AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer) final;
 	void AddPayload(const FPayloadId& Id, const FCbObject& Object) final;
 
+	void EndBuild();
 	void BeginAsyncBuild() final;
 	void EndAsyncBuild() final;
 
@@ -67,19 +68,9 @@ private:
 	void SetBuildPolicy(EBuildPolicy Policy) final;
 	void SkipDeterministicOutputCheck() { bDeterministicOutputCheck = false; }
 
-public:
-	void AddRef() const
-	{
-		ReferenceCount.fetch_add(1, std::memory_order_relaxed);
-	}
-
-	void Release() const
-	{
-		if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
-		{
-			delete this;
-		}
-	}
+	void SetPriority(EPriority Priority) final;
+	void Cancel() final;
+	void Wait() final;
 
 private:
 	IBuildJob& Job;
@@ -88,13 +79,14 @@ private:
 	FBuildOutputBuilder& OutputBuilder;
 	TMap<FString, FCbObject> Constants;
 	TMap<FString, FCompressedBuffer> Inputs;
-	TUniqueFunction<void ()> OnEndAsyncBuild;
+	FEventRef BuildCompleteEvent{EEventMode::ManualReset};
+	TUniqueFunction<void ()> OnEndBuild;
+	IRequestOwner* Owner{};
 	ECachePolicy CachePolicy;
 	EBuildPolicy BuildPolicy;
 	bool bIsAsyncBuild{false};
 	bool bIsAsyncBuildComplete{false};
 	bool bDeterministicOutputCheck{true};
-	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
 } // UE::DerivedData::Private

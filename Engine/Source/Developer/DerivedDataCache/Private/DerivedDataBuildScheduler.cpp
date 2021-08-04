@@ -11,95 +11,103 @@
 namespace UE::DerivedData::Private
 {
 
+class FBuildSchedulerRequest : public FRequestBase
+{
+public:
+	FBuildSchedulerRequest(IBuildJob* InJob, IRequestOwner& InOwner, const TCHAR* DebugName)
+		: Job(InJob)
+		, Owner(InOwner)
+	{
+		Tasks::FTaskEvent TaskEvent(TEXT("FBuildSchedulerRequest"));
+		Task = Tasks::Launch(DebugName, [this] { Schedule(); }, TaskEvent, Tasks::ETaskPriority::BackgroundNormal);
+		Owner.Begin(this);
+		TaskEvent.Trigger();
+	}
+
+	void Schedule()
+	{
+		Owner.End(this, [this] { Job->Schedule(); });
+	}
+
+	void SetPriority(EPriority Priority) final
+	{
+	}
+
+	void Cancel() final
+	{
+		Task.Wait();
+	}
+
+	void Wait() final
+	{
+		Task.Wait();
+	}
+
+private:
+	IBuildJob* Job;
+	IRequestOwner& Owner;
+	Tasks::FTask Task;
+};
+
 class FBuildScheduler final : public IBuildScheduler
 {
 public:
-	void DispatchCacheQuery(IBuildJob* Job, const FBuildSchedulerParams& Params) final;
-	void DispatchCacheStore(IBuildJob* Job, const FBuildSchedulerParams& Params) final;
-	void DispatchResolveKey(IBuildJob* Job) final;
-	void DispatchResolveInputMeta(IBuildJob* Job) final;
-	void DispatchResolveInputData(IBuildJob* Job, const FBuildSchedulerParams& Params) final;
-	void DispatchExecuteRemote(IBuildJob* Job, const FBuildSchedulerParams& Params) final;
-	void DispatchExecuteLocal(IBuildJob* Job, const FBuildSchedulerParams& Params) final;
+	void DispatchCacheQuery(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) final;
+	void DispatchCacheStore(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) final;
+	void DispatchResolveKey(IBuildJob* Job, IRequestOwner& Owner) final;
+	void DispatchResolveInputMeta(IBuildJob* Job, IRequestOwner& Owner) final;
+	void DispatchResolveInputData(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) final;
+	void DispatchExecuteRemote(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) final;
+	void DispatchExecuteLocal(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) final;
+
+private:
+	void Dispatch(IBuildJob* Job, IRequestOwner& Owner, const TCHAR* DebugName);
 };
 
-void FBuildScheduler::DispatchCacheQuery(IBuildJob* Job, const FBuildSchedulerParams& Params)
+void FBuildScheduler::DispatchCacheQuery(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params)
 {
 	Job->Schedule();
 }
 
-void FBuildScheduler::DispatchCacheStore(IBuildJob* Job, const FBuildSchedulerParams& Params)
+void FBuildScheduler::DispatchCacheStore(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params)
 {
 	Job->Schedule();
 }
 
-void FBuildScheduler::DispatchResolveKey(IBuildJob* Job)
+void FBuildScheduler::DispatchResolveKey(IBuildJob* Job, IRequestOwner& Owner)
 {
-	if (Job->GetPriority() == EPriority::Blocking)
-	{
-		Job->Schedule();
-	}
-	else
-	{
-		Tasks::Launch(TEXT("FBuildScheduler::DispatchResolveKey"),
-			[Job = TRequest(Job)] { Job->Schedule(); },
-			LowLevelTasks::ETaskPriority::BackgroundNormal);
-	}
+	Dispatch(Job, Owner, TEXT("FBuildScheduler::DispatchResolveKey"));
 }
 
-void FBuildScheduler::DispatchResolveInputMeta(IBuildJob* Job)
+void FBuildScheduler::DispatchResolveInputMeta(IBuildJob* Job, IRequestOwner& Owner)
 {
-	if (Job->GetPriority() == EPriority::Blocking)
-	{
-		Job->Schedule();
-	}
-	else
-	{
-		Tasks::Launch(TEXT("FBuildScheduler::DispatchResolveInputMeta"),
-			[Job = TRequest(Job)] { Job->Schedule(); },
-			LowLevelTasks::ETaskPriority::BackgroundNormal);
-	}
+	Dispatch(Job, Owner, TEXT("FBuildScheduler::DispatchResolveInputMeta"));
 }
 
-void FBuildScheduler::DispatchResolveInputData(IBuildJob* Job, const FBuildSchedulerParams& Params)
+void FBuildScheduler::DispatchResolveInputData(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params)
 {
-	if (Job->GetPriority() == EPriority::Blocking)
-	{
-		Job->Schedule();
-	}
-	else
-	{
-		Tasks::Launch(TEXT("FBuildScheduler::DispatchResolveInputData"),
-			[Job = TRequest(Job)] { Job->Schedule(); },
-			LowLevelTasks::ETaskPriority::BackgroundNormal);
-	}
+	Dispatch(Job, Owner, TEXT("FBuildScheduler::DispatchResolveInputData"));
 }
 
-void FBuildScheduler::DispatchExecuteRemote(IBuildJob* Job, const FBuildSchedulerParams& Params)
+void FBuildScheduler::DispatchExecuteRemote(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params)
 {
-	if (Job->GetPriority() == EPriority::Blocking)
-	{
-		Job->Schedule();
-	}
-	else
-	{
-		Tasks::Launch(TEXT("FBuildScheduler::DispatchExecuteRemote"),
-			[Job = TRequest(Job)] { Job->Schedule(); },
-			LowLevelTasks::ETaskPriority::BackgroundNormal);
-	}
+	Dispatch(Job, Owner, TEXT("FBuildScheduler::DispatchExecuteRemote"));
 }
 
-void FBuildScheduler::DispatchExecuteLocal(IBuildJob* Job, const FBuildSchedulerParams& Params)
+void FBuildScheduler::DispatchExecuteLocal(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params)
 {
-	if (Job->GetPriority() == EPriority::Blocking)
+	Dispatch(Job, Owner, TEXT("FBuildScheduler::DispatchExecuteLocal"));
+}
+
+void FBuildScheduler::Dispatch(IBuildJob* Job, IRequestOwner& Owner, const TCHAR* DebugName)
+{
+	if (Owner.GetPriority() == EPriority::Blocking)
 	{
 		Job->Schedule();
 	}
 	else
 	{
-		Tasks::Launch(TEXT("FBuildScheduler::DispatchExecuteLocal"),
-			[Job = TRequest(Job)] { Job->Schedule(); },
-			LowLevelTasks::ETaskPriority::BackgroundNormal);
+		new FBuildSchedulerRequest(Job, Owner, DebugName);
 	}
 }
 

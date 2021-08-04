@@ -20,6 +20,7 @@
 FEditorDomainPackageSegments::FEditorDomainPackageSegments(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
 	: EditorDomainLocks(InLocks)
+	, RequestGroup(GetDerivedDataCacheRef().CreateGroup(UE::DerivedData::EPriority::Normal))
 	, PackagePath(InPackagePath)
 	, PackageSource(InPackageSource)
 	, PackageDigest(InPackageSource->Digest)
@@ -29,11 +30,6 @@ FEditorDomainPackageSegments::FEditorDomainPackageSegments(const TRefCountPtr<FE
 FEditorDomainPackageSegments::~FEditorDomainPackageSegments()
 {
 	Close();
-}
-
-void FEditorDomainPackageSegments::SetRequest(const UE::DerivedData::FRequest& InRequest)
-{
-	Request = InRequest;
 }
 
 FEditorDomainPackageSegments::ESource FEditorDomainPackageSegments::GetSource() const
@@ -52,7 +48,7 @@ void FEditorDomainPackageSegments::WaitForReady() const
 	{
 		return;
 	}
-	Request.Wait();
+	const_cast<UE::DerivedData::FRequestGroup&>(RequestGroup).Wait();
 	Source = AsyncSource;
 }
 
@@ -81,10 +77,13 @@ void FEditorDomainPackageSegments::Close()
 {
 	// Called from Interface-only
 	AsyncSource = ESource::Closed;
-	Request.Cancel();
+	RequestGroup.Cancel();
 	for (FSegment& Segment : Segments)
 	{
-		Segment.Request.Cancel();
+		if (Segment.RequestGroup)
+		{
+			Segment.RequestGroup.Get().Cancel();
+		}
 	}
 
 	Segments.Reset();
@@ -198,7 +197,7 @@ FEditorDomainPackageSegments::FSegment* FEditorDomainPackageSegments::EnsureSegm
 	{
 		if (!Segment->bComplete)
 		{
-			if (!Segment->Request.IsValid())
+			if (!Segment->RequestGroup.IsValid())
 			{
 				SendSegmentRequest(*Segment);
 			}
@@ -221,7 +220,10 @@ FEditorDomainPackageSegments::FSegment* FEditorDomainPackageSegments::EnsureSegm
 		{
 			if (!Segment->bComplete)
 			{
-				Segment->Request.Wait();
+				if (Segment->RequestGroup)
+				{
+					Segment->RequestGroup.Get().Wait();
+				}
 				check(Segment->bAsyncComplete);
 				Segment->bComplete = true;
 			}
@@ -374,9 +376,10 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 	// Called from Callback-only until AsyncSource is set, then from Interface-only
 	ICache& Cache = GetDerivedDataCacheRef();
 
-	// Note that Segment.Request is Interface-only and so we can write it outside the lock
-	Segment.Request = Cache.GetPayload({ FCachePayloadKey{ UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest), Segment.PayloadId} },
-		PackagePath.GetDebugName(), ECachePolicy::Local, EPriority::Normal,
+	// Note that Segment.RequestGroup is Interface-only and so we can write it outside the lock
+	Segment.RequestGroup = Cache.CreateGroup(UE::DerivedData::EPriority::Normal);
+	Cache.GetPayload({ FCachePayloadKey{ UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest), Segment.PayloadId} },
+		PackagePath.GetDebugName(), ECachePolicy::Local, Segment.RequestGroup.Get(),
 		[this, &Segment](FCacheGetPayloadCompleteParams&& Params)
 		{
 			if (AsyncSource == ESource::Closed)
@@ -414,11 +417,6 @@ FEditorDomainReadArchive::FEditorDomainReadArchive(const TRefCountPtr<FEditorDom
 {
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
-}
-
-void FEditorDomainReadArchive::SetRequest(const UE::DerivedData::FRequest& InRequest)
-{
-	Segments.SetRequest(InRequest);
 }
 
 void FEditorDomainReadArchive::WaitForReady() const
@@ -711,11 +709,6 @@ FEditorDomainAsyncReadFileHandle::FEditorDomainAsyncReadFileHandle(const TRefCou
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
 	: Segments(InLocks, InPackagePath, InPackageSource)
 {
-}
-
-void FEditorDomainAsyncReadFileHandle::SetRequest(const UE::DerivedData::FRequest& InRequest)
-{
-	Segments.SetRequest(InRequest);
 }
 
 void FEditorDomainAsyncReadFileHandle::OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params)

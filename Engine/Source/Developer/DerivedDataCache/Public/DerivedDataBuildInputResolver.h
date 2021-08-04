@@ -89,66 +89,64 @@ public:
 	 * Asynchronous request to resolve a definition from a key.
 	 *
 	 * @param Key          The key of the definition to resolve.
+	 * @param Owner        The owner to execute the resolve request within.
 	 * @param OnResolved   A required callback invoked when resolving completes or is canceled.
 	 */
-	virtual FRequest ResolveKey(
+	virtual void ResolveKey(
 		const FBuildKey& Key,
+		IRequestOwner& Owner,
 		FOnBuildKeyResolved&& OnResolved)
 	{
 		OnResolved({Key, {}, EStatus::Error});
-		return FRequest();
 	}
 
 	/**
 	 * Asynchronous request to resolve metadata for the inputs from the definition.
 	 *
 	 * @param Definition   The definition to resolve input metadata for.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the resolve request within.
 	 * @param OnResolved   A required callback invoked when resolving completes or is canceled.
 	 */
-	virtual FRequest ResolveInputMeta(
+	virtual void ResolveInputMeta(
 		const FBuildDefinition& Definition,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildInputMetaResolved&& OnResolved)
 	{
 		OnResolved({{}, EStatus::Error});
-		return FRequest();
 	}
 
 	/**
 	 * Asynchronous request to resolve data for the inputs from the definition.
 	 *
 	 * @param Definition   The definition to resolve input data for.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the resolve request within.
 	 * @param OnResolved   A required callback invoked when resolving completes or is canceled.
 	 * @param Filter       An optional predicate to filter which input keys have data resolved.
 	 */
-	virtual FRequest ResolveInputData(
+	virtual void ResolveInputData(
 		const FBuildDefinition& Definition,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildInputDataResolved&& OnResolved,
 		FBuildInputFilter&& Filter = FBuildInputFilter())
 	{
 		OnResolved({{}, EStatus::Error});
-		return FRequest();
 	}
 
 	/**
 	 * Asynchronous request to resolve data for the inputs from the action.
 	 *
 	 * @param Action       The action to resolve input data for.
-	 * @param Priority     A priority to consider when scheduling the request. See EPriority.
+	 * @param Owner        The owner to execute the resolve request within.
 	 * @param OnResolved   A required callback invoked when resolving completes or is canceled.
 	 * @param Filter       An optional predicate to filter which input keys have data resolved.
 	 */
-	virtual FRequest ResolveInputData(
+	virtual void ResolveInputData(
 		const FBuildAction& Action,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnBuildInputDataResolved&& OnResolved,
 		FBuildInputFilter&& Filter = FBuildInputFilter())
 	{
 		OnResolved({{}, EStatus::Error});
-		return FRequest();
 	}
 };
 

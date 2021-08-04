@@ -234,7 +234,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 	}
 
-	UE::DerivedData::FRequest Request;
+	UE::DerivedData::FOptionalRequestGroup RequestGroup;
 	int64 FileSize = -1;
 	{
 		FScopeLock ScopeLock(&Locks->Lock);
@@ -244,7 +244,6 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 			return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 		}
 
-		UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
 		auto MetaDataGetComplete =
 			[&FileSize, &PackageSource, &PackagePath, PackageSegment, Locks=this->Locks, OutUpdatedPath]
 			(UE::DerivedData::FCacheGetCompleteParams&& Params)
@@ -278,10 +277,10 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		};
 		// Fetch meta-data only
 		ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
-		Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest, SkipFlags,
-			EPriority::Highest, MoveTemp(MetaDataGetComplete));
+		RequestGroup = GetDerivedDataCacheRef().CreateGroup(EPriority::Highest);
+		RequestEditorDomainPackage(PackagePath, PackageSource->Digest, SkipFlags, RequestGroup.Get(), MoveTemp(MetaDataGetComplete));
 	}
-	Request.Wait();
+	RequestGroup.Get().Wait();
 	return FileSize;
 }
 
@@ -311,14 +310,13 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 
 	// Fetch only meta-data in the initial request
 	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
-	FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSourceDigest,
-		SkipFlags, EPriority::Normal,
+	RequestEditorDomainPackage(PackagePath, PackageSourceDigest,
+		SkipFlags, Result->GetRequestOwner(),
 		[Result](FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainReadArchive waits for this callback to be called, so Result cannot dangle
 			Result->OnRecordRequestComplete(MoveTemp(Params));
 		});
-	Result->SetRequest(Request);
 
 	// Precache the exports segment
 	// EDITOR_DOMAIN_TODO: Skip doing this for OpenReadPackage calls from bulk data
@@ -354,14 +352,13 @@ IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& Pa
 	// Fetch meta-data only in the initial request
 	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
 	FEditorDomainAsyncReadFileHandle* Result = new FEditorDomainAsyncReadFileHandle(Locks, PackagePath, PackageSource);
-	FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
-		SkipFlags, EPriority::Normal,
+	RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
+		SkipFlags, Result->GetRequestOwner(),
 		[Result](FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainAsyncReadFileHandle waits for this callback to be called, so Result cannot dangle
 			Result->OnRecordRequestComplete(MoveTemp(Params));
 		});
-	Result->SetRequest(Request);
 
 	return Result;
 }

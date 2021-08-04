@@ -74,7 +74,7 @@ private:
 	FName PackageName;
 	TArray<UE::Virtualization::FVirtualizedUntypedBulkData> BulkDatas;
 	TArray<UE::Virtualization::FVirtualizedUntypedBulkData> CachedBulkDatas;
-	UE::DerivedData::FRequest BulkDataListCacheRequest;
+	UE::DerivedData::FRequestGroup BulkDataListCacheRequest;
 	FBulkDataRegistryEditorDomain* Owner;
 	/**
 	 * When PendingOperations reaches zero, we can remove the FPendingPackage.
@@ -136,16 +136,14 @@ struct FUpdatingPayload
 class FPendingPayloadId : public FThreadSafeRefCountedObject
 {
 public:
-	FPendingPayloadId(const FGuid& InBulkDataId)
-		:BulkDataId(InBulkDataId)
-	{
-	}
+	explicit FPendingPayloadId(const FGuid& InBulkDataId);
+
 	FPendingPayloadId(FPendingPayloadId&& Other) = delete;
 	FPendingPayloadId(const FPendingPayloadId& Other) = delete;
 
 	void Cancel();
 
-	UE::DerivedData::FRequest& GetRequest()
+	UE::DerivedData::FRequestGroup& GetRequestGroup()
 	{
 		return Request;
 	}
@@ -156,7 +154,7 @@ public:
 
 private:
 	FGuid BulkDataId;
-	UE::DerivedData::FRequest Request;
+	UE::DerivedData::FRequestGroup Request;
 };
 
 /** Implementation of a BulkDataRegistry that stores its persistent data in a DDC bucket. */
@@ -186,7 +184,7 @@ private:
 	void OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages);
 	void WritePayloadIdToCache(FName PackageName, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) const;
 	void ReadPayloadIdsFromCache(FName PackageName, TArray<TRefCountPtr<FPendingPayloadId>>&& OldPendings,
-		TArray<TPair<TRefCountPtr<FPendingPayloadId>, UE::DerivedData::FRequest>>&& NewPendings);
+		TArray<TRefCountPtr<FPendingPayloadId>>&& NewPendings);
 
 	friend class FPendingPackage;
 	friend class FUpdatePayloadWorker;

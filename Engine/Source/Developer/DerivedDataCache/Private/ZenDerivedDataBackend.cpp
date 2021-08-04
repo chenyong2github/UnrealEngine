@@ -24,7 +24,7 @@ TRACE_DECLARE_INT_COUNTER(ZenDDC_PutHit,		TEXT("ZenDDC Put Hit"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_BytesReceived, TEXT("ZenDDC Bytes Received"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_BytesSent,		TEXT("ZenDDC Bytes Sent"));
 
-namespace UE::DerivedData {
+namespace UE::DerivedData::Backends {
 
 //----------------------------------------------------------------------------------------------------------
 // FZenDerivedDataBackend
@@ -485,11 +485,11 @@ bool FZenDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	return false;
 }
 
-FRequest FZenDerivedDataBackend::Put(
-	TConstArrayView<UE::DerivedData::FCacheRecord> Records,
+void FZenDerivedDataBackend::Put(
+	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
 	for (const FCacheRecord& Record : Records)
@@ -523,17 +523,16 @@ FRequest FZenDerivedDataBackend::Put(
 			}
 		}
 	}
-	return FRequest();
 }
 
-FRequest FZenDerivedDataBackend::Get(
-	TConstArrayView<UE::DerivedData::FCacheKey> Keys,
+void FZenDerivedDataBackend::Get(
+	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
-	UE::DerivedData::ECachePolicy Policy,
-	UE::DerivedData::EPriority Priority,
-	UE::DerivedData::FOnCacheGetComplete&& OnComplete)
+	ECachePolicy Policy,
+	IRequestOwner& Owner,
+	FOnCacheGetComplete&& OnComplete)
 {
-	for (const UE::DerivedData::FCacheKey& Key : Keys)
+	for (const FCacheKey& Key : Keys)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_Get);
 		TRACE_COUNTER_ADD(ZenDDC_Get, int64(1));
@@ -570,15 +569,14 @@ FRequest FZenDerivedDataBackend::Get(
 			}
 		}
 	}
-	return FRequest();
 }
 
-FRequest FZenDerivedDataBackend::GetPayload(
-	TConstArrayView<UE::DerivedData::FCachePayloadKey> Keys,
+void FZenDerivedDataBackend::GetPayload(
+	TConstArrayView<FCachePayloadKey> Keys,
 	FStringView Context,
-	UE::DerivedData::ECachePolicy Policy,
-	UE::DerivedData::EPriority Priority,
-	UE::DerivedData::FOnCacheGetPayloadComplete&& OnComplete)
+	ECachePolicy Policy,
+	IRequestOwner& Owner,
+	FOnCacheGetPayloadComplete&& OnComplete)
 {
 	if (bCacheRecordEndpointEnabled)
 	{
@@ -663,7 +661,6 @@ FRequest FZenDerivedDataBackend::GetPayload(
 			}
 		}
 	}
-	return FRequest();
 }
 
 void FZenDerivedDataBackend::CancelAll()
@@ -987,6 +984,6 @@ void FZenDerivedDataBackend::LegacyMakePayloadKey(const FCacheKey& CacheKey, con
 }
 
 
-} // namespace UE::DerivedData
+} // namespace UE::DerivedData::Backends
 
 #endif //WITH_HTTP_DDC_BACKEND

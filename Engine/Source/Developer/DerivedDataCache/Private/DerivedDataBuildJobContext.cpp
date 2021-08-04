@@ -20,13 +20,11 @@ FBuildJobContext::FBuildJobContext(
 	const FCacheKey& InCacheKey,
 	const IBuildFunction& InFunction,
 	FBuildOutputBuilder& InOutputBuilder,
-	EBuildPolicy InBuildPolicy,
-	TUniqueFunction<void ()>&& InOnEndAsyncBuild)
+	EBuildPolicy InBuildPolicy)
 	: Job(InJob)
 	, CacheKey(InCacheKey)
 	, Function(InFunction)
 	, OutputBuilder(InOutputBuilder)
-	, OnEndAsyncBuild(MoveTemp(InOnEndAsyncBuild))
 	, CachePolicy(ECachePolicy::Default)
 	, BuildPolicy(InBuildPolicy)
 {
@@ -112,11 +110,30 @@ void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCbObject& Object)
 	AddPayload(FPayload(Id, FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel)));
 }
 
+void FBuildJobContext::BeginBuild(IRequestOwner& InOwner, TUniqueFunction<void ()>&& InOnEndBuild)
+{
+	Owner = &InOwner;
+	OnEndBuild = MoveTemp(InOnEndBuild);
+	Function.Build(*this);
+	if (!bIsAsyncBuild)
+	{
+		EndBuild();
+	}
+}
+
+void FBuildJobContext::EndBuild()
+{
+	OnEndBuild();
+	BuildCompleteEvent->Trigger();
+	Owner = nullptr;
+}
+
 void FBuildJobContext::BeginAsyncBuild()
 {
 	checkf(!bIsAsyncBuild, TEXT("BeginAsyncBuild may only be called once for build of '%s' by %s."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	bIsAsyncBuild = true;
+	Owner->Begin(this);
 }
 
 void FBuildJobContext::EndAsyncBuild()
@@ -126,7 +143,7 @@ void FBuildJobContext::EndAsyncBuild()
 	checkf(!bIsAsyncBuildComplete, TEXT("EndAsyncBuild may only be called once for build of '%s' by %s."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	bIsAsyncBuildComplete = true;
-	OnEndAsyncBuild();
+	Owner->End(this, [this] { EndBuild(); });
 }
 
 FCacheBucket FBuildJobContext::CreateCacheBucket(FStringView Name) const
@@ -162,6 +179,22 @@ void FBuildJobContext::SetBuildPolicy(EBuildPolicy Policy)
 		TEXT("Flags for skipping the data may only be set through the build session."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	BuildPolicy = Policy;
+}
+
+void FBuildJobContext::SetPriority(EPriority Priority)
+{
+}
+
+void FBuildJobContext::Cancel()
+{
+	checkf(bIsAsyncBuild, TEXT("Cancel may only be called after BeginAsyncBuild for build of '%s' by %s."),
+		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+	Function.CancelAsyncBuild(*this);
+}
+
+void FBuildJobContext::Wait()
+{
+	BuildCompleteEvent->Wait();
 }
 
 } // UE::DerivedData::Private

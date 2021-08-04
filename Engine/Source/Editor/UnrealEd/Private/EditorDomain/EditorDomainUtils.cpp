@@ -223,16 +223,16 @@ UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuid
 	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataPayloadIdBucket, PackageAndGuidDigest };
 }
 
-UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
-	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePolicy SkipFlags, UE::DerivedData::EPriority CachePriority,
+void RequestEditorDomainPackage(const FPackagePath& PackagePath,
+	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePolicy SkipFlags, UE::DerivedData::IRequestOwner& Owner,
 	UE::DerivedData::FOnCacheGetComplete&& Callback)
 {
 	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
 	checkf((SkipFlags & (~UE::DerivedData::ECachePolicy::SkipData)) == UE::DerivedData::ECachePolicy::None,
 		TEXT("SkipFlags should only contain ECachePolicy::Skip* flags"));
-	return Cache.Get({ GetEditorDomainPackageKey(PackageDigest) },
+	Cache.Get({ GetEditorDomainPackageKey(PackageDigest) },
 		PackagePath.GetDebugName(),
-		SkipFlags | UE::DerivedData::ECachePolicy::QueryLocal, CachePriority, MoveTemp(Callback));
+		SkipFlags | UE::DerivedData::ECachePolicy::QueryLocal, Owner, MoveTemp(Callback));
 }
 
 /** Stores data from SavePackage in accessible fields */
@@ -473,15 +473,14 @@ bool TrySavePackage(UPackage* Package)
 	MetaData.EndObject();
 
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
-	FCacheRecord Record = RecordBuilder.Build();
-	Cache.Put(MakeArrayView(&Record, 1), Package->GetName(), ECachePolicy::Local);
+	FRequestGroup Group = Cache.CreateGroup(EPriority::Normal);
+	Cache.Put({RecordBuilder.Build()}, Package->GetName(), ECachePolicy::Local, Group);
+	Group.KeepAlive();
 	return true;
 }
 
-UE::DerivedData::FRequest GetBulkDataList(FName PackageName, TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
+void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
 {
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
-
 	FString ErrorMessage;
 	FPackageDigest PackageDigest;
 	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), PackageName, PackageDigest,
@@ -493,23 +492,23 @@ UE::DerivedData::FRequest GetBulkDataList(FName PackageName, TUniqueFunction<voi
 	default:
 	{
 		Callback(FSharedBuffer());
-		return UE::DerivedData::FRequest();
+		return;
 	}
 	}
 
-	return Cache.Get({ GetBulkDataListKey(PackageDigest) },
-		WriteToString<128>(PackageName), UE::DerivedData::ECachePolicy::Default, UE::DerivedData::EPriority::Low,
-		[InnerCallback = MoveTemp(Callback)](UE::DerivedData::FCacheGetCompleteParams&& Params)
+	using namespace UE::DerivedData;
+	ICache& Cache = GetDerivedDataCacheRef();
+	Cache.Get({ GetBulkDataListKey(PackageDigest) },
+		WriteToString<128>(PackageName), ECachePolicy::Default, Owner,
+		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 		{
-			bool bOk = Params.Status == UE::DerivedData::EStatus::Ok;
+			bool bOk = Params.Status == EStatus::Ok;
 			InnerCallback(bOk ? Params.Record.GetValue() : FSharedBuffer());
 		});
 }
 
 void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 {
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
-
 	FString ErrorMessage;
 	FPackageDigest PackageDigest;
 	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), PackageName, PackageDigest,
@@ -524,10 +523,13 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	}
 	}
 
-	UE::DerivedData::FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataListKey(PackageDigest));
+	using namespace UE::DerivedData;
+	ICache& Cache = GetDerivedDataCacheRef();
+	FRequestGroup Group = Cache.CreateGroup(EPriority::Normal);
+	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataListKey(PackageDigest));
 	RecordBuilder.SetValue(Buffer);
-	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
-	Cache.Put(MakeArrayView(&Record, 1), WriteToString<128>(PackageName));
+	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Group);
+	Group.KeepAlive();
 }
 
 FIoHash GetPackageAndGuidDigest(FCbWriter& Builder, const FGuid& BulkDataId)
@@ -536,11 +538,9 @@ FIoHash GetPackageAndGuidDigest(FCbWriter& Builder, const FGuid& BulkDataId)
 	return Builder.Save().GetRangeHash();
 }
 
-UE::DerivedData::FRequest GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId,
+void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::DerivedData::IRequestOwner& Owner,
 	TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
 {
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
-
 	FString ErrorMessage;
 	FCbWriter Builder;
 	EPackageDigestResult FindHashResult = AppendPackageDigest(*IAssetRegistry::Get(), PackageName, Builder, ErrorMessage);
@@ -551,24 +551,24 @@ UE::DerivedData::FRequest GetBulkDataPayloadId(FName PackageName, const FGuid& B
 	default:
 	{
 		Callback(FSharedBuffer());
-		return UE::DerivedData::FRequest();
+		return;
 	}
 	}
 	FIoHash PackageAndGuidDigest = GetPackageAndGuidDigest(Builder, BulkDataId);
 
-	return Cache.Get({ GetBulkDataPayloadIdKey(PackageAndGuidDigest) },
-		WriteToString<192>(PackageName, TEXT("/"), BulkDataId), UE::DerivedData::ECachePolicy::Default, UE::DerivedData::EPriority::Low,
-		[InnerCallback = MoveTemp(Callback)](UE::DerivedData::FCacheGetCompleteParams&& Params)
+	using namespace UE::DerivedData;
+	ICache& Cache = GetDerivedDataCacheRef();
+	Cache.Get({ GetBulkDataPayloadIdKey(PackageAndGuidDigest) },
+		WriteToString<192>(PackageName, TEXT("/"), BulkDataId), ECachePolicy::Default, Owner,
+		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 	{
-		bool bOk = Params.Status == UE::DerivedData::EStatus::Ok;
+		bool bOk = Params.Status == EStatus::Ok;
 		InnerCallback(bOk ? Params.Record.GetValue() : FSharedBuffer());
 	});
 }
 
 void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuffer Buffer)
 {
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
-
 	FString ErrorMessage;
 	FCbWriter Builder;
 	EPackageDigestResult FindHashResult = AppendPackageDigest(*IAssetRegistry::Get(), PackageName, Builder, ErrorMessage);
@@ -583,10 +583,12 @@ void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuf
 	}
 	FIoHash PackageAndGuidDigest = GetPackageAndGuidDigest(Builder, BulkDataId);
 
-	UE::DerivedData::FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataPayloadIdKey(PackageAndGuidDigest));
+	using namespace UE::DerivedData;
+	ICache& Cache = GetDerivedDataCacheRef();
+	FRequestGroup Group = Cache.CreateGroup(EPriority::Normal);
+	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataPayloadIdKey(PackageAndGuidDigest));
 	RecordBuilder.SetValue(Buffer);
-	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
-	Cache.Put(MakeArrayView(&Record, 1), WriteToString<128>(PackageName));
+	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Group);
 }
 
 

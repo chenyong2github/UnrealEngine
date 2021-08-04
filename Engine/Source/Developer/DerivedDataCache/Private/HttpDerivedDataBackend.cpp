@@ -2431,11 +2431,11 @@ TSharedRef<FDerivedDataCacheStatsNode> FHttpDerivedDataBackend::GatherUsageStats
 	return Usage;
 }
 
-FRequest FHttpDerivedDataBackend::Put(
+void FHttpDerivedDataBackend::Put(
 	TConstArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -2445,14 +2445,13 @@ FRequest FHttpDerivedDataBackend::Put(
 			OnComplete({Record.GetKey(), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
-FRequest FHttpDerivedDataBackend::Get(
+void FHttpDerivedDataBackend::Get(
 	TConstArrayView<FCacheKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -2462,14 +2461,13 @@ FRequest FHttpDerivedDataBackend::Get(
 			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
-FRequest FHttpDerivedDataBackend::GetPayload(
+void FHttpDerivedDataBackend::GetPayload(
 	TConstArrayView<FCachePayloadKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
-	EPriority Priority,
+	IRequestOwner& Owner,
 	FOnCacheGetPayloadComplete&& OnComplete)
 {
 	if (OnComplete)
@@ -2479,7 +2477,6 @@ FRequest FHttpDerivedDataBackend::GetPayload(
 			OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
 		}
 	}
-	return FRequest();
 }
 
 } // UE::DerivedData::Backends

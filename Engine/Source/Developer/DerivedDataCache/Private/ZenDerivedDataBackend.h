@@ -40,7 +40,7 @@ namespace UE::DerivedData {
 	struct FPayloadId;
 }
 
-namespace UE::DerivedData {
+namespace UE::DerivedData::Backends {
 
 /**
  * Backend for a HTTP based caching service (Zen)
@@ -89,25 +89,25 @@ public:
 
 	// ICacheStore
 
-	virtual FRequest Put(
+	virtual void Put(
 		TConstArrayView<FCacheRecord> Records,
 		FStringView Context,
-		ECachePolicy Policy = ECachePolicy::Default,
-		EPriority Priority = EPriority::Normal,
+		ECachePolicy Policy,
+		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) override;
 
-	virtual FRequest Get(
+	virtual void Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override;
 
-	virtual FRequest GetPayload(
+	virtual void GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		EPriority Priority,
+		IRequestOwner& Owner,
 		FOnCacheGetPayloadComplete&& OnComplete) override;
 
 	virtual void CancelAll() override;
@@ -175,6 +175,6 @@ private:
 	TSet<FName> DebugMissedKeys;
 };
 
-} // namespace UE::DerivedData
+} // namespace UE::DerivedData::Backends
 
 #endif // WITH_ZEN_DDC_BACKEND
