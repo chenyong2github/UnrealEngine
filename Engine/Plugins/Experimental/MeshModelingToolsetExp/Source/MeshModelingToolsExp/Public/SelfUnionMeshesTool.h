@@ -31,7 +31,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bCollapseExtraEdges = true;
 
-	/** Show boundary edges created by the union operation -- often due to numerical error */
+	/** Show boundary edges created by the union operation (often due to numerical error) */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowNewBoundaryEdges = true;
 
