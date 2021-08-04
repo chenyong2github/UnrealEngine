@@ -9,7 +9,7 @@
 #include "Memory/SharedBuffer.h"
 #include "Misc/AssertionMacros.h"
 
-namespace zen {
+namespace UE::Zen {
 
 /** Copy Size bytes from Source at offset SourceOffset into Dest at offset 0. */
 inline void Memcpy(void* Dest, const FCompositeBuffer& Source, size_t SourceOffset, size_t Size)
@@ -50,5 +50,4 @@ inline void Memcpy(void* Dest, const FCompositeBuffer& Source, size_t SourceOffs
 	check(Offset == EndOffset);
 }
 
-
-} // namespace zen
+} // namespace UE::Zen

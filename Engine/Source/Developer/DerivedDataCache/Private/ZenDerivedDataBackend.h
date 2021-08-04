@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 
+#include "ZenServerInterface.h"
+
 // Macro for whether to enable the S3 backend. libcurl is not currently available on Mac.
-#if PLATFORM_WINDOWS
+#if UE_WITH_ZEN
 #	define WITH_ZEN_DDC_BACKEND 1
 #else
 #	define WITH_ZEN_DDC_BACKEND 0
@@ -26,7 +28,7 @@ class FCbWriter;
 class FCompositeBuffer;
 struct FIoHash;
 
-namespace zen {
+namespace UE::Zen {
 	enum class EContentType;
 	struct FRequestPool;
 }
@@ -120,7 +122,7 @@ private:
 	EGetResult GetZenData(const TCHAR* Uri, TArray<uint8>* OutData) const;
 
 	// TODO: need ability to specify content type
-	FDerivedDataBackendInterface::EPutStatus PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, zen::EContentType ContentType);
+	FDerivedDataBackendInterface::EPutStatus PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen::EContentType ContentType);
 	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
 
 	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy);
@@ -159,9 +161,10 @@ private:
 	FString Domain;
 	FString Namespace;
 	mutable FDerivedDataCacheUsageStats UsageStats;
-	TUniquePtr<struct zen::FRequestPool> RequestPool;
+	TUniquePtr<UE::Zen::FRequestPool> RequestPool;
 	bool bIsUsable = false;
 	uint32 FailedLoginAttempts = 0;
+	uint32 MaxAttempts = 4;
 	bool bCacheRecordEndpointEnabled = false;
 
 	/** Debug Options */
