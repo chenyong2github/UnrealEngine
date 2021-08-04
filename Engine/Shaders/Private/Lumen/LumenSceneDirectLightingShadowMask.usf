@@ -43,7 +43,7 @@ StructuredBuffer<uint> CardTileData;
 RWStructuredBuffer<uint> RWShadowMaskTiles;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void SampleShadowMapCS(
+void LumenSceneDirectLightingSampleShadowMapCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
@@ -250,7 +250,7 @@ float TraceOffscreenShadows(float3 WorldPosition, float3 L, float3 ToLight, floa
 }
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void TraceDistanceFieldShadowsCS(
+void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)

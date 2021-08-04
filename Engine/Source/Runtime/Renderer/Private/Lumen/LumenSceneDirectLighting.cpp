@@ -244,10 +244,10 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FLumenCardDirectLightingPS, TEXT("/Engine/Private/Lumen/LumenSceneDirectLighting.usf"), TEXT("LumenCardDirectLightingPS"), SF_Pixel);
 
-class FSampleShadowMapCS : public FGlobalShader
+class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FSampleShadowMapCS)
-	SHADER_USE_PARAMETER_STRUCT(FSampleShadowMapCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FLumenDirectLightingSampleShadowMapCS)
+	SHADER_USE_PARAMETER_STRUCT(FLumenDirectLightingSampleShadowMapCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
@@ -293,12 +293,12 @@ class FSampleShadowMapCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FSampleShadowMapCS, "/Engine/Private/Lumen/LumenSceneDirectLightingShadowMask.usf", "SampleShadowMapCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FLumenDirectLightingSampleShadowMapCS, "/Engine/Private/Lumen/LumenSceneDirectLightingShadowMask.usf", "LumenSceneDirectLightingSampleShadowMapCS", SF_Compute);
 
-class FTraceDistanceFieldShadowsCS : public FGlobalShader
+class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FTraceDistanceFieldShadowsCS)
-	SHADER_USE_PARAMETER_STRUCT(FTraceDistanceFieldShadowsCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FLumenSceneDirectLightingTraceDistanceFieldShadowsCS)
+	SHADER_USE_PARAMETER_STRUCT(FLumenSceneDirectLightingTraceDistanceFieldShadowsCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
@@ -354,7 +354,7 @@ class FTraceDistanceFieldShadowsCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FTraceDistanceFieldShadowsCS, "/Engine/Private/Lumen/LumenSceneDirectLightingShadowMask.usf", "TraceDistanceFieldShadowsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FLumenSceneDirectLightingTraceDistanceFieldShadowsCS, "/Engine/Private/Lumen/LumenSceneDirectLightingShadowMask.usf", "LumenSceneDirectLightingTraceDistanceFieldShadowsCS", SF_Compute);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardDirectLighting, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardTilesVS::FParameters, VS)
@@ -718,7 +718,7 @@ void SampleShadowMap(
 		ShadowSetup.DenseShadowMap = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo);
 	}
 
-	FSampleShadowMapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSampleShadowMapCS::FParameters>();
+	FLumenDirectLightingSampleShadowMapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenDirectLightingSampleShadowMapCS::FParameters>();
 	{
 		PassParameters->IndirectArgBuffer = CardScatterContext.CardTileParameters.DispatchIndirectArgs;
 		PassParameters->RWShadowMaskTiles = GraphBuilder.CreateUAV(LumenLight.ShadowMaskTiles);
@@ -754,11 +754,11 @@ void SampleShadowMap(
 		PassParameters->ForceShadowMaps = GLumenDirectLightingForceForceShadowMaps;
 	}
 
-	FSampleShadowMapCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FSampleShadowMapCS::FLightType>(LumenLight.Type);
-	PermutationVector.Set<FSampleShadowMapCS::FDynamicallyShadowed>(bDynamicallyShadowed);
-	PermutationVector.Set<FSampleShadowMapCS::FVirtualShadowMap>(bUseVirtualShadowMap);
-	TShaderRef<FSampleShadowMapCS> ComputeShader = View.ShaderMap->GetShader<FSampleShadowMapCS>(PermutationVector);
+	FLumenDirectLightingSampleShadowMapCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FLightType>(LumenLight.Type);
+	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FDynamicallyShadowed>(bDynamicallyShadowed);
+	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FVirtualShadowMap>(bUseVirtualShadowMap);
+	TShaderRef<FLumenDirectLightingSampleShadowMapCS> ComputeShader = View.ShaderMap->GetShader<FLumenDirectLightingSampleShadowMapCS>(PermutationVector);
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
@@ -800,7 +800,7 @@ void TraceDistanceFieldShadows(
 		CullMeshSDFsForLightCards(GraphBuilder, Scene, View, LumenLight.LightSceneInfo, ObjectBufferParameters, WorldToMeshSDFShadowValue, CulledObjectBufferParameters, LightTileIntersectionParameters);
 	}
 
-	FTraceDistanceFieldShadowsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTraceDistanceFieldShadowsCS::FParameters>();
+	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FParameters>();
 	{
 		PassParameters->IndirectArgBuffer = CardScatterContext.CardTileParameters.DispatchIndirectArgs;
 		PassParameters->RWShadowMaskTiles = GraphBuilder.CreateUAV(LumenLight.ShadowMaskTiles);
@@ -829,12 +829,12 @@ void TraceDistanceFieldShadows(
 		PassParameters->SDFSurfaceBiasScale = FMath::Clamp(GOffscreenShadowingSDFSurfaceBiasScale, .01f, 100.0f);
 	}
 
-	FTraceDistanceFieldShadowsCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FTraceDistanceFieldShadowsCS::FLightType>(LumenLight.Type);
-	PermutationVector.Set<FTraceDistanceFieldShadowsCS::FTraceMeshSDFs>(bTraceMeshSDFs);
-	PermutationVector = FTraceDistanceFieldShadowsCS::RemapPermutation(PermutationVector);
+	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FLightType>(LumenLight.Type);
+	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceMeshSDFs>(bTraceMeshSDFs);
+	PermutationVector = FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::RemapPermutation(PermutationVector);
 
-	TShaderRef<FTraceDistanceFieldShadowsCS> ComputeShader = View.ShaderMap->GetShader<FTraceDistanceFieldShadowsCS>(PermutationVector);
+	TShaderRef<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS> ComputeShader = View.ShaderMap->GetShader<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS>(PermutationVector);
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
