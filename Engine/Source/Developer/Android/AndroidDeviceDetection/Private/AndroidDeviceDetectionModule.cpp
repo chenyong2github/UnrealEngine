@@ -14,6 +14,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Logging/LogMacros.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "HAL/Runnable.h"
