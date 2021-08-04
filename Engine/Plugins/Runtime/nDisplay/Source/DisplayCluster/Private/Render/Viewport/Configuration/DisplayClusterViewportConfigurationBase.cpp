@@ -81,3 +81,18 @@ bool FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(FDisp
 	return true;
 }
 
+void FDisplayClusterViewportConfigurationBase::UpdateTextureShare(const FString& ClusterNodeId)
+{
+	for (FDisplayClusterViewport* ViewportIt : ViewportManager.ImplGetViewports())
+	{
+		if (ViewportIt)
+		{
+			const UDisplayClusterConfigurationViewport* ViewportCfg = ConfigurationData.GetViewport(ClusterNodeId, ViewportIt->GetId());
+			if (ViewportCfg)
+			{
+				ViewportIt->TextureShare.UpdateConfiguration(*ViewportIt, ViewportCfg->TextureShare);
+			}
+		}
+	}
+}
+

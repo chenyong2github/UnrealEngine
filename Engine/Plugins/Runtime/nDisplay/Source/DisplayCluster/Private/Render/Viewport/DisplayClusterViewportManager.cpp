@@ -208,6 +208,12 @@ bool FDisplayClusterViewportManager::BeginNewFrame(class FViewport* InViewport, 
 		return false;
 	}
 
+	// Update TextureShare links
+	for (FDisplayClusterViewport* Viewport : Viewports)
+	{
+		Viewport->TextureShare.UpdateLinkSceneContextToShare(*Viewport);
+	}
+
 	// Update desired views number
 	OutRenderFrame.UpdateDesiredNumberOfViews();
 

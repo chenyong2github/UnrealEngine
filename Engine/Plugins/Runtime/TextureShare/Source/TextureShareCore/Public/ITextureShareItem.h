@@ -66,6 +66,10 @@ public:
 	virtual bool SetLocalAdditionalData(const FTextureShareAdditionalData& InAdditionalData) = 0;
 	virtual bool GetRemoteAdditionalData(FTextureShareAdditionalData& OutAdditionalData) = 0;
 
+	// NOT IMPLEMENTED
+	// Set custom projection data (override UE4 matrix)
+	virtual bool SetCustomProjectionData(const FTextureShareCustomProjectionData& InCustomProjectionData) = 0;
+
 	// Release this object
 	virtual void Release() = 0;
 };

@@ -49,5 +49,10 @@ public:
 	TEXTURE_SHARE_SDK_API static bool LockTextureD3D12_RenderThread(ID3D12Device* pD3D12Device, const TCHAR* ShareName, const TCHAR* TextureName, ID3D12Resource*& OutD3D12Resource);
 
 	TEXTURE_SHARE_SDK_API static bool UnlockTexture_RenderThread(const TCHAR* ShareName, const TCHAR* TextureName);
+
+	TEXTURE_SHARE_SDK_API static bool SetCustomProjectionData(const TCHAR* ShareName, const FTextureShareSDKCustomProjectionData& InData);
+
+	TEXTURE_SHARE_SDK_API static bool BeginSyncFrame();
+	TEXTURE_SHARE_SDK_API static bool EndSyncFrame();
 };
 

@@ -246,7 +246,6 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(ID
 		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bAllowRendering)
 		REPLACE_PROPERTY_WITH_CUSTOM(UDisplayClusterConfigurationViewport, Camera, CreateCustomCameraWidget())
 		ADD_PROPERTY(UDisplayClusterConfigurationViewport, ProjectionPolicy)
-		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bIsShared)
 		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bFixedAspectRatio)
 		ADD_PROPERTY(UDisplayClusterConfigurationViewport, Region)
 		ADD_PROPERTY(UDisplayClusterConfigurationViewport, GPUIndex)
@@ -256,6 +255,9 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(ID
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.RenderTargetRatio)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.BufferRatio)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.Overscan)
+#if PLATFORM_WINDOWS
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, TextureShare)
+#endif
 	END_CATEGORY();
 
 	// Update the metadata for the viewport's region. Must set this here instead of in the UPROPERTY specifier because

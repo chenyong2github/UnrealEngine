@@ -24,6 +24,7 @@ public:
 
 public:
 	void Update(const TArray<FString>& InClusterNodeIds);
+	void UpdateTextureShare(const FString& ClusterNodeId);
 
 	static bool UpdateViewportConfiguration(FDisplayClusterViewportManager& ViewportManager, ADisplayClusterRootActor& RootActor, FDisplayClusterViewport* DesiredViewport, const UDisplayClusterConfigurationViewport* ConfigurationViewport);
 

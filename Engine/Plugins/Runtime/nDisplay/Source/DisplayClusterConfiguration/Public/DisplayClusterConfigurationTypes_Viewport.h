@@ -11,6 +11,8 @@
 #include "DisplayClusterConfigurationTypes_PostRender.h"
 #include "DisplayClusterConfigurationTypes_Postprocess.h"
 
+#include "DisplayClusterConfigurationTypes_TextureShare.h"
+
 #include "OpenColorIOColorSpace.h"
 #include "Engine/Scene.h"
 
@@ -151,7 +153,7 @@ public:
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Shared Texture"))
-	bool bIsShared = false;
+	FDisplayClusterConfigurationTextureShare_Viewport TextureShare;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = "Configuration")
