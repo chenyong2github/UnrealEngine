@@ -118,8 +118,8 @@ void FFullStaticLightingVertex::ApplyVertexModifications(int32 ElementIndex, boo
 
 void FStaticLightingTextureMapping::Initialize(FStaticLightingSystem& System)
 {
-	SurfaceCacheSizeX = FMath::Max(FMath::TruncToInt(CachedSizeX / System.GeneralSettings.MappingSurfaceCacheDownsampleFactor), 6);
-	SurfaceCacheSizeY = FMath::Max(FMath::TruncToInt(CachedSizeY / System.GeneralSettings.MappingSurfaceCacheDownsampleFactor), 6);
+	SurfaceCacheSizeX = FMath::Max(FMath::TruncToInt((float)CachedSizeX / (float)System.GeneralSettings.MappingSurfaceCacheDownsampleFactor), 6);
+	SurfaceCacheSizeY = FMath::Max(FMath::TruncToInt((float)CachedSizeY / (float)System.GeneralSettings.MappingSurfaceCacheDownsampleFactor), 6);
 }
 
 /** Caches irradiance photons on a single texture mapping. */
@@ -2545,7 +2545,7 @@ void FStaticLightingSystem::CalculateDirectSignedDistanceFieldLightingTextureMap
 			{
 				const float AspectRatio = ShadowMapSizeX / (float)ShadowMapSizeY;
 				ShadowMapSizeY = FMath::TruncToInt(FMath::Sqrt(ShadowDepthMapMaxSamples / AspectRatio));
-				ShadowMapSizeX = FMath::TruncToInt(ShadowDepthMapMaxSamples / ShadowMapSizeY);
+				ShadowMapSizeX = ShadowDepthMapMaxSamples / ShadowMapSizeY;
 			}
 
 			TArray<float> ShadowMap;
