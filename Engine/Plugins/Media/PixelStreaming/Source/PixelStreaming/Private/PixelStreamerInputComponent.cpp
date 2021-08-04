@@ -9,6 +9,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "GameFramework/GameUserSettings.h"
+#include "PixelStreamingPrivate.h"
 
 UPixelStreamerInputComponent::UPixelStreamerInputComponent()
 	: PixelStreamingModule(FModuleManager::Get().GetModulePtr<IPixelStreamingModule>("PixelStreaming"))
