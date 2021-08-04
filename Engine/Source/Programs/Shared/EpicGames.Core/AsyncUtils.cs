@@ -26,7 +26,7 @@ namespace EpicGames.Core
 				if (Tasks[Idx].IsCompleted)
 				{
 					AggregateException? Exception = Tasks[Idx].Exception;
-					if(Exception != null)
+					if (Exception != null)
 					{
 						Exceptions.AddRange(Exception.InnerExceptions);
 					}
@@ -42,7 +42,7 @@ namespace EpicGames.Core
 			}
 			Tasks.RemoveRange(OutIdx, Tasks.Count - OutIdx);
 
-			if(Exceptions.Count > 0)
+			if (Exceptions.Count > 0)
 			{
 				throw new AggregateException(Exceptions);
 			}

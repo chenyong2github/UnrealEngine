@@ -20,7 +20,7 @@ namespace UnrealBuildTool
 		/// Maximum processor count for local execution. 
 		/// </summary>
 		[XmlConfigFile]
-		public static int MaxProcessorCount = int.MaxValue;
+		private static int MaxProcessorCount = int.MaxValue;
 
 		/// <summary>
 		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
@@ -29,33 +29,33 @@ namespace UnrealBuildTool
 		/// This value is ignored if the CPU does not support hyper-threading.
 		/// </summary>
 		[XmlConfigFile]
-		public static double ProcessorCountMultiplier = 1.0;
+		private static double ProcessorCountMultiplier = 1.0;
 
 		/// <summary>
 		/// Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved.
 		/// Set to 0 to disable free memory checking.
 		/// </summary>
 		[XmlConfigFile]
-		static double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
+		private static readonly double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
 
 		/// <summary>
 		/// When enabled, will stop compiling targets after a compile error occurs.
 		/// </summary>
 		[XmlConfigFile]
-		bool bStopCompilationAfterErrors = false;
+		private static readonly bool bStopCompilationAfterErrors = false;
 
 		/// <summary>
 		/// Whether to show compilation times along with worst offenders or not.
 		/// </summary>
 		[XmlConfigFile]
-		bool bShowCompilationTimes = false;
+		private static readonly bool bShowCompilationTimes = false;
 
 		/// <summary>
 		/// How many processes that will be executed in parallel
 		/// </summary>
 		public int NumParallelProcesses { get; private set; }
 
-		private static char[] LineEndingSplit = new char[] { '\n', '\r' };
+		private static readonly char[] LineEndingSplit = new char[] { '\n', '\r' };
 
 		public static int GetDefaultNumParallelProcesses()
 		{
@@ -157,7 +157,7 @@ namespace UnrealBuildTool
 			}
 
 			// Wait for all tasks to complete
-			Task.WaitAll(AllTasks.ToArray());
+			Task.WaitAll(AllTasks.ToArray(), CancellationToken);
 
 			if (bShowCompilationTimes)
 			{
@@ -174,7 +174,7 @@ namespace UnrealBuildTool
 					Log.TraceInformation("");
 					foreach (var Pair in Tasks.OrderByDescending(x => x.Value.Result.ExecutionTime).Take(20))
 					{
-						string Description = $"{(Pair.Key.Inner.CommandDescription != null ? Pair.Key.Inner.CommandDescription : Pair.Key.Inner.CommandPath.GetFileNameWithoutExtension())} {Pair.Key.Inner.StatusDescription}".Trim();
+						string Description = $"{(Pair.Key.Inner.CommandDescription ?? Pair.Key.Inner.CommandPath.GetFileNameWithoutExtension())} {Pair.Key.Inner.StatusDescription}".Trim();
 						if (Pair.Value.Result.ProcessorTime.Ticks > 0)
 						{
 							Log.TraceInformation("{0} [ Wall Time {1:0.00} s / CPU Time {2:0.00} s ]", Description, Pair.Value.Result.ExecutionTime.TotalSeconds, Pair.Value.Result.ProcessorTime.TotalSeconds);
@@ -222,18 +222,17 @@ namespace UnrealBuildTool
 
 				CancellationToken.ThrowIfCancellationRequested();
 
-				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.CommandPath.FullName, Action.CommandArguments, Action.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal))
-				{
-					MemoryStream StdOutStream = new MemoryStream();
-					await Process.CopyToAsync(StdOutStream, CancellationToken);
-					CancellationToken.ThrowIfCancellationRequested();
+				using ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.CommandPath.FullName, Action.CommandArguments, Action.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal);
 
-					List<string> LogLines = Console.OutputEncoding.GetString(StdOutStream.GetBuffer(), 0, Convert.ToInt32(StdOutStream.Length)).Split(LineEndingSplit, StringSplitOptions.RemoveEmptyEntries).ToList();
-					int ExitCode = Process.ExitCode;
-					TimeSpan ProcessorTime = Process.TotalProcessorTime;
-					TimeSpan ExecutionTime = Process.ExitTime - Process.StartTime;
-					return new ExecuteResults(LogLines, ExitCode, ExecutionTime, ProcessorTime);
-				}
+				MemoryStream StdOutStream = new MemoryStream();
+				await Process.CopyToAsync(StdOutStream, CancellationToken);
+				CancellationToken.ThrowIfCancellationRequested();
+
+				List<string> LogLines = Console.OutputEncoding.GetString(StdOutStream.GetBuffer(), 0, Convert.ToInt32(StdOutStream.Length)).Split(LineEndingSplit, StringSplitOptions.RemoveEmptyEntries).ToList();
+				int ExitCode = Process.ExitCode;
+				TimeSpan ProcessorTime = Process.TotalProcessorTime;
+				TimeSpan ExecutionTime = Process.ExitTime - Process.StartTime;
+				return new ExecuteResults(LogLines, ExitCode, ExecutionTime, ProcessorTime);
 			}
 			catch (OperationCanceledException)
 			{
@@ -267,11 +266,11 @@ namespace UnrealBuildTool
 			string Description = string.Empty;
 			if (Action.bShouldOutputStatusDescription || LogLines.Count == 0)
 			{
-				Description = $"{(Action.CommandDescription != null ? Action.CommandDescription : Action.CommandPath.GetFileNameWithoutExtension())} {Action.StatusDescription}".Trim();
+				Description = $"{(Action.CommandDescription ?? Action.CommandPath.GetFileNameWithoutExtension())} {Action.StatusDescription}".Trim();
 			}
 			else if (LogLines.Count > 0)
 			{
-				Description = $"{(Action.CommandDescription != null ? Action.CommandDescription : Action.CommandPath.GetFileNameWithoutExtension())} {LogLines[0]}".Trim();
+				Description = $"{(Action.CommandDescription ?? Action.CommandPath.GetFileNameWithoutExtension())} {LogLines[0]}".Trim();
 			}
 
 			lock (ProgressWriter)

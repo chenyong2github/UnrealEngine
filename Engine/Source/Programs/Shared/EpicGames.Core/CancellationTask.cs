@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,12 +14,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Completion source for the task
 		/// </summary>
-		TaskCompletionSource<bool> CompletionSource;
+		readonly TaskCompletionSource<bool> CompletionSource;
 
 		/// <summary>
 		/// Registration handle with the cancellation token
 		/// </summary>
-		CancellationTokenRegistration Registration;
+		readonly CancellationTokenRegistration Registration;
 
 		/// <summary>
 		/// Constructor

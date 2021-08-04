@@ -3,9 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 #nullable disable
 
@@ -55,13 +52,13 @@ namespace EpicGames.Core
 		public static T[] ReadArray<T>(this BinaryReader Reader, Func<T> ReadElement)
 		{
 			int NumItems = Reader.ReadInt32();
-			if(NumItems < 0)
+			if (NumItems < 0)
 			{
 				return null;
 			}
 
 			T[] Items = new T[NumItems];
-			for(int Idx = 0; Idx < NumItems; Idx++)
+			for (int Idx = 0; Idx < NumItems; Idx++)
 			{
 				Items[Idx] = ReadElement();
 			}
@@ -100,13 +97,13 @@ namespace EpicGames.Core
 		public static List<T> ReadList<T>(this BinaryReader Reader, Func<T> ReadElement)
 		{
 			int NumItems = Reader.ReadInt32();
-			if(NumItems < 0)
+			if (NumItems < 0)
 			{
 				return null;
 			}
 
 			List<T> Items = new List<T>(NumItems);
-			for(int Idx = 0; Idx < NumItems; Idx++)
+			for (int Idx = 0; Idx < NumItems; Idx++)
 			{
 				Items.Add(ReadElement());
 			}
@@ -124,13 +121,13 @@ namespace EpicGames.Core
 		public static Dictionary<K, V> ReadDictionary<K, V>(this BinaryReader Reader, Func<K> ReadKey, Func<V> ReadValue)
 		{
 			int NumItems = Reader.ReadInt32();
-			if(NumItems < 0)
+			if (NumItems < 0)
 			{
 				return null;
 			}
 
 			Dictionary<K, V> Items = new Dictionary<K, V>(NumItems);
-			for(int Idx = 0; Idx < NumItems; Idx++)
+			for (int Idx = 0; Idx < NumItems; Idx++)
 			{
 				K Key = ReadKey();
 				V Value = ReadValue();
@@ -148,7 +145,7 @@ namespace EpicGames.Core
 		/// <returns>Object instance or null</returns>
 		public static T ReadNullable<T>(this BinaryReader Reader, Func<T> ReadItem) where T : class
 		{
-			if(Reader.ReadBoolean())
+			if (Reader.ReadBoolean())
 			{
 				return ReadItem();
 			}
@@ -166,40 +163,40 @@ namespace EpicGames.Core
 		/// <returns>The value read from the stream</returns>
 		public static object ReadObject(this BinaryReader Reader, Type ObjectType)
 		{
-			if(ObjectType == typeof(string))
+			if (ObjectType == typeof(string))
 			{
 				return Reader.ReadString();
 			}
-			else if(ObjectType == typeof(bool))
+			else if (ObjectType == typeof(bool))
 			{
 				return Reader.ReadBoolean();
 			}
-			else if(ObjectType == typeof(int))
+			else if (ObjectType == typeof(int))
 			{
 				return Reader.ReadInt32();
 			}
-			else if(ObjectType == typeof(float))
+			else if (ObjectType == typeof(float))
 			{
 				return Reader.ReadSingle();
 			}
-			else if(ObjectType == typeof(double))
+			else if (ObjectType == typeof(double))
 			{
 				return Reader.ReadDouble();
 			}
-			else if(ObjectType == typeof(string[]))
+			else if (ObjectType == typeof(string[]))
 			{
 				return Reader.ReadStringArray();
 			}
-			else if(ObjectType == typeof(bool?))
+			else if (ObjectType == typeof(bool?))
 			{
 				int Value = Reader.ReadInt32();
-				return (Value == -1)? (bool?)null : (Value == 0)? (bool?)false : (bool?)true;
+				return (Value == -1) ? (bool?)null : (Value == 0) ? (bool?)false : (bool?)true;
 			}
 			else if (ObjectType == typeof(FileReference))
 			{
 				return Reader.ReadFileReference();
 			}
-			else if(ObjectType.IsEnum)
+			else if (ObjectType.IsEnum)
 			{
 				return Enum.ToObject(ObjectType, Reader.ReadInt32());
 			}

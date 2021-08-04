@@ -3,10 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
 
 #nullable disable
 
@@ -36,7 +34,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Instance of the ReferenceComparer class which can be shared by all archive writers
 		/// </summary>
-		static ReferenceComparer ReferenceComparerInstance = new ReferenceComparer();
+		static readonly ReferenceComparer ReferenceComparerInstance = new ReferenceComparer();
 
 		/// <summary>
 		/// The output stream being written to
@@ -56,7 +54,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Map of object instance to unique id
 		/// </summary>
-		Dictionary<object, int> ObjectToUniqueId = new Dictionary<object, int>(ReferenceComparerInstance);
+		readonly Dictionary<object, int> ObjectToUniqueId = new Dictionary<object, int>(ReferenceComparerInstance);
 
 		/// <summary>
 		/// Constructor
@@ -84,7 +82,7 @@ namespace EpicGames.Core
 		{
 			Flush();
 
-			if(Stream != null)
+			if (Stream != null)
 			{
 				Stream.Dispose();
 				Stream = null;
@@ -96,7 +94,7 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Flush()
 		{
-			if(BufferPos > 0)
+			if (BufferPos > 0)
 			{
 				Stream.Write(Buffer, 0, BufferPos);
 				BufferPos = 0;
@@ -109,10 +107,10 @@ namespace EpicGames.Core
 		/// <param name="NumBytes">Minimum amount of space required in the output buffer</param>
 		private void EnsureSpace(int NumBytes)
 		{
-			if(BufferPos + NumBytes > Buffer.Length)
+			if (BufferPos + NumBytes > Buffer.Length)
 			{
 				Flush();
-				if(NumBytes > Buffer.Length)
+				if (NumBytes > Buffer.Length)
 				{
 					Buffer = new byte[NumBytes];
 				}
@@ -125,7 +123,7 @@ namespace EpicGames.Core
 		/// <param name="Value">Value to write</param>
 		public void WriteBool(bool Value)
 		{
-			WriteByte(Value? (byte)1 : (byte)0);
+			WriteByte(Value ? (byte)1 : (byte)0);
 		}
 
 		/// <summary>
@@ -234,7 +232,7 @@ namespace EpicGames.Core
 		public void WriteString(string Value)
 		{
 			byte[] Bytes;
-			if(Value == null)
+			if (Value == null)
 			{
 				Bytes = null;
 			}
@@ -278,7 +276,7 @@ namespace EpicGames.Core
 		/// <param name="Data">Data to write. May be null.</param>
 		private void WritePrimitiveArray<T>(T[] Data, int ElementSize) where T : struct
 		{
-			if(Data == null)
+			if (Data == null)
 			{
 				WriteInt(-1);
 			}
@@ -332,9 +330,9 @@ namespace EpicGames.Core
 		/// <param name="Size">Size of the data, in bytes</param>
 		private void WriteBulkData(Array Data, int Size)
 		{
-			if(Size > 0)
+			if (Size > 0)
 			{
-				for(int Pos = 0;; )
+				for (int Pos = 0; ;)
 				{
 					int CopySize = Math.Min(Size - Pos, Buffer.Length - BufferPos);
 
@@ -342,7 +340,7 @@ namespace EpicGames.Core
 					BufferPos += CopySize;
 					Pos += CopySize;
 
-					if(Pos == Size)
+					if (Pos == Size)
 					{
 						break;
 					}
@@ -360,14 +358,14 @@ namespace EpicGames.Core
 		/// <param name="WriteElement">Writes an individual element to the archive</param>
 		public void WriteArray<T>(T[] Items, Action<T> WriteElement)
 		{
-			if(Items == null)
+			if (Items == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
 				WriteInt(Items.Length);
-				for(int Idx = 0; Idx < Items.Length; Idx++)
+				for (int Idx = 0; Idx < Items.Length; Idx++)
 				{
 					WriteElement(Items[Idx]);
 				}
@@ -382,14 +380,14 @@ namespace EpicGames.Core
 		/// <param name="WriteElement">Writes an individual element to the archive</param>
 		public void WriteList<T>(IReadOnlyList<T> Items, Action<T> WriteElement)
 		{
-			if(Items == null)
+			if (Items == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
 				WriteInt(Items.Count);
-				for(int Idx = 0; Idx < Items.Count; Idx++)
+				for (int Idx = 0; Idx < Items.Count; Idx++)
 				{
 					WriteElement(Items[Idx]);
 				}
@@ -404,14 +402,14 @@ namespace EpicGames.Core
 		/// <param name="WriteElement">Delegate used to read a single element</param>
 		public void WriteHashSet<T>(HashSet<T> Set, Action<T> WriteElement)
 		{
-			if(Set == null)
+			if (Set == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
 				WriteInt(Set.Count);
-				foreach(T Element in Set)
+				foreach (T Element in Set)
 				{
 					WriteElement(Element);
 				}
@@ -428,14 +426,14 @@ namespace EpicGames.Core
 		/// <param name="WriteValue">Delegate used to read a single value</param>
 		public void WriteDictionary<K, V>(IDictionary<K, V> Dictionary, Action<K> WriteKey, Action<V> WriteValue)
 		{
-			if(Dictionary == null)
+			if (Dictionary == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
 				WriteInt(Dictionary.Count);
-				foreach(KeyValuePair<K, V> Pair in Dictionary)
+				foreach (KeyValuePair<K, V> Pair in Dictionary)
 				{
 					WriteKey(Pair.Key);
 					WriteValue(Pair.Value);
@@ -451,7 +449,7 @@ namespace EpicGames.Core
 		/// <param name="WriteValue">Delegate used to write a value</param>
 		public void WriteNullable<T>(Nullable<T> Item, Action<T> WriteValue) where T : struct
 		{
-			if(Item.HasValue)
+			if (Item.HasValue)
 			{
 				WriteBool(true);
 				WriteValue(Item.Value);
@@ -470,7 +468,7 @@ namespace EpicGames.Core
 		/// <param name="WriteObject">Delegate used to write the object</param>
 		public void WriteOptionalObject<T>(T Object, Action WriteObject) where T : class
 		{
-			if(Object == null)
+			if (Object == null)
 			{
 				WriteBool(false);
 			}
@@ -496,14 +494,13 @@ namespace EpicGames.Core
 		/// <param name="WriteObject">Delegate used to write the object</param>
 		public void WriteObjectReference(object Object, Action WriteObject)
 		{
-			if(Object == null)
+			if (Object == null)
 			{
 				WriteInt(-1);
 			}
 			else
 			{
-				int Index;
-				if(ObjectToUniqueId.TryGetValue(Object, out Index))
+				if (ObjectToUniqueId.TryGetValue(Object, out int Index))
 				{
 					WriteInt(Index);
 				}
