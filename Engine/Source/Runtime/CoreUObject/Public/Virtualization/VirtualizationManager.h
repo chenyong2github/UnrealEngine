@@ -141,6 +141,9 @@ private:
 	/** Are payloads allowed to be virtualized. Defaults to true. */
 	bool bEnablePayloadPushing;
 
+	/** Should payloads be cached locally after being pulled from persistent storage? Defaults to true. */
+	bool bEnableCacheAfterPull;
+
 	/** The minimum length for a payload to be considered for virtualization. Defaults to 0 bytes. */
 	int64 MinPayloadLength;
 
