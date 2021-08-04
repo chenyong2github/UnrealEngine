@@ -399,11 +399,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
 		const FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName();
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Initialize);
-			UActorDescContainer::Initialize(World, PackageName);
-		}
-		check(bContainerInitialized);
 
 		bool bIsInstanced = (bEditorOnly && !IsRunningCommandlet()) ? OuterWorld->PersistentLevel->IsInstancedLevel() : bPIEWorldTravel;
 
@@ -418,33 +413,33 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			const FString DestWorldName = FPaths::GetBaseFilename(LevelPackage->GetFName().ToString());
 
 			ReplaceFrom = SourceWorldName + TEXT(".") + SourceWorldName;
-			
+
 			// In PIE UWorld::PostLoad will not rename the world to match its package name so use SourceWorldName instead
 			ReplaceTo = DestWorldName + TEXT(".") + (bPIEWorldTravel ? SourceWorldName : DestWorldName);
 		}
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(HashActorDescs);
-			for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+			TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Initialize);
+			UActorDescContainer::Initialize(World, PackageName, [&](FWorldPartitionActorDesc* ActorDesc)
 			{
+				// This will get called by UActorDescContainer after having initialized all ActorDescs and before calling OnRegister on the ActorDesc
 				if (bIsInstanced)
 				{
-					const FString LongActorPackageName = ActorDescIterator->ActorPackage.ToString();
+					const FString LongActorPackageName = ActorDesc->ActorPackage.ToString();
 					const FString ActorPackageName = FPaths::GetBaseFilename(LongActorPackageName);
 					const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorPackageName);
 
 					InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-					ActorDescIterator->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
+					ActorDesc->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
 				}
-
-				ActorDescIterator->OnRegister();
 
 				if (bEditorOnly)
 				{
-					HashActorDesc(*ActorDescIterator);
+					HashActorDesc(ActorDesc);
 				}
-			}
+			});
+			check(bContainerInitialized);
 		}
 	}
 
@@ -1016,10 +1011,10 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 
 void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 {
+	Super::OnActorDescAdded(NewActorDesc);
+
 	HashActorDesc(NewActorDesc);
-
-	NewActorDesc->OnRegister();
-
+		
 	if (WorldPartitionEditor)
 	{
 		WorldPartitionEditor->Refresh();
@@ -1028,8 +1023,9 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 
 void UWorldPartition::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 {
+	Super::OnActorDescRemoved(ActorDesc);
+	
 	UnhashActorDesc(ActorDesc);
-	ActorDesc->OnUnregister();
 		
 	if (WorldPartitionEditor)
 	{

@@ -18,7 +18,7 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 	friend class FWorldPartitionActorDesc;
 
 public:
-	void Initialize(UWorld* World, FName InPackageName);
+	void Initialize(UWorld* World, FName InPackageName, TFunctionRef<void(FWorldPartitionActorDesc*)> PreRegister = [](FWorldPartitionActorDesc*) {});
 	virtual void Uninitialize();
 	
 	virtual UWorld* GetWorld() const override;
