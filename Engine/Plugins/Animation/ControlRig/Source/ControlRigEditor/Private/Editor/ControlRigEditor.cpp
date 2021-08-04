@@ -3629,6 +3629,13 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 			{
 				const int32 CapsuleIndex = InIndices[Index];
 				const int32 HierarchyIndex = CapsuleToHierarchyIndex.FindChecked(CapsuleIndex);
+
+				if (!Hierarchy->IsValidIndex(HierarchyIndex) || !OutCapsules.IsValidIndex(CapsuleIndex))
+				{
+					UpdateCapsules();
+					return;
+				}
+				
 				check(Hierarchy->IsValidIndex(HierarchyIndex));
 				check(OutCapsules.IsValidIndex(CapsuleIndex));
 

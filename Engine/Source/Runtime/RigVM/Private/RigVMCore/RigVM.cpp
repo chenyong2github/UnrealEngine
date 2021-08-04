@@ -1344,7 +1344,7 @@ bool URigVM::ShouldHaltAtInstruction(const uint16 InstructionIndex)
 			{
 				if (DifferenceIndex == INDEX_NONE)
 				{
-					if (CurrentCallstack->Last() != PreviousCallstack.Last())
+					if (!CurrentCallstack->IsEmpty() && !PreviousCallstack.IsEmpty() && CurrentCallstack->Last() != PreviousCallstack.Last())
 					{
 						NewBreakpointNode = CurrentCallstack->operator[](FMath::Min(PreviousCallstack.Num(), CurrentCallstack->Num()-1));
 					}

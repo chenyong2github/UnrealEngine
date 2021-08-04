@@ -584,3 +584,54 @@ FRigUnit_FitChainToSplineCurve_Execute()
 		Context.DrawInterface->DrawPoints(DebugSettings.WorldOffset, CurvePositions, DebugSettings.Scale * 4.f, DebugSettings.SegmentsColor);
 	}
 }
+
+FRigUnit_FitSplineCurveToChain_Execute()
+{
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+	if (Hierarchy == nullptr)
+	{
+		return;
+	}
+
+	if (!Spline.SplineData.IsValid())
+	{
+		return;
+	}
+
+	if (Context.State == EControlRigState::Init)
+	{
+		return;
+	}
+
+	// 1.- Create spline from chain
+	TArray<FVector> AuxControlPoints;
+	AuxControlPoints.SetNumUninitialized(Items.Num());	
+	for (int32 i = 0; i < Items.Num(); ++i)
+	{
+		const FRigElementKey& Key = Items[i];
+		AuxControlPoints[i] = Hierarchy->GetGlobalTransform(Key).GetLocation();
+	}
+    FControlRigSpline AuxSpline;
+	const TArrayView<const FVector> PointsView(AuxControlPoints.GetData(), AuxControlPoints.Num());
+	AuxSpline.SetControlPoints(PointsView, ESplineType::Hermite, Spline.SplineData->SamplesPerSegment);
+	
+
+	// 2.-  for each control point in the original spline
+	//			figure out its u in the original spline (preprocess)
+	//			query position at u on the new spline
+	const TArray<FVector>& ControlPoints = Spline.SplineData->ControlPoints;
+	TArray<FVector> NewControlPoints;
+	NewControlPoints.SetNumUninitialized(ControlPoints.Num());
+	for (int32 i = 0; i < ControlPoints.Num(); ++i)
+	{
+		float U = i / (float)(ControlPoints.Num() - 1);
+		FVector NewPosition = AuxSpline.PositionAtParam(U);
+		NewControlPoints[i] = NewPosition;
+	}
+
+	const TArrayView<const FVector> NewPointsView(NewControlPoints.GetData(), NewControlPoints.Num());
+	Spline.SetControlPoints(NewPointsView, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
+}
+

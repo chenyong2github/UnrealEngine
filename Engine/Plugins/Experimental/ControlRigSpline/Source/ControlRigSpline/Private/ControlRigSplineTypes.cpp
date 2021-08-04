@@ -110,33 +110,6 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 					}
 				}
 
-				// Correct length of samples
-				if (!bSplineModeChanged && !bSamplesCountChanged && !bNumControlPointsChanged)
-				{
-					if (SplineData->InitialLengths.Num() > 0)
-					{
-						TArray<FVector> SamplesBeforeCorrect = SplineData->SamplesArray;
-						for (int32 i = 0; i < ControlPointsCount - 1; ++i)
-						{
-							for (int32 j = (i == 0) ? 1 : 0; j < SamplesPerSegment; ++j)
-							{
-								// Get direction from samples before correction
-								FVector Dir = SamplesBeforeCorrect[i * SamplesPerSegment + j] - SamplesBeforeCorrect[i * SamplesPerSegment + j - 1];
-								Dir.Normalize();
-
-								float InitialLength = SplineData->InitialLengths[i * SamplesPerSegment + j - 1];
-								// Current length as the projection on the Dir vector (might be negative)
-								float CurrentLength = (SplineData->SamplesArray[i * SamplesPerSegment + j] - SplineData->SamplesArray[i * SamplesPerSegment + j - 1]).Dot(Dir);
-								float FixedLength = FMath::Clamp(CurrentLength,
-									(Compression > 0.f) ? InitialLength * Compression : CurrentLength,
-									(Stretch > 0.f) ? InitialLength * Stretch : CurrentLength);
-
-								SplineData->SamplesArray[i * SamplesPerSegment + j] = SplineData->SamplesArray[i * SamplesPerSegment + j - 1] + Dir * FixedLength;
-							}
-						}
-					}
-				}
-
 				// tinySpline will allocate the samples array, but does not free that memory. We need to take care of that.
 				free(SamplesPtr);
 
@@ -160,33 +133,6 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 				// tinySpline will allocate the samples array, but does not free that memory. We need to take care of that.
 				free(SamplesPtr);
 
-				// Correct length of samples
-				if (!bSplineModeChanged && !bSamplesCountChanged && !bNumControlPointsChanged)
-				{
-					if (SplineData->InitialLengths.Num() > 0)
-					{
-						TArray<FVector> SamplesBeforeCorrect = SplineData->SamplesArray;
-						for (int32 i = 0; i < ControlPointsCount - 1; ++i)
-						{
-							for (int32 j = (i == 0) ? 1 : 0; j < SamplesPerSegment; ++j)
-							{
-								// Get direction from samples before correction
-								FVector Dir = SamplesBeforeCorrect[i * SamplesPerSegment + j] - SamplesBeforeCorrect[i * SamplesPerSegment + j - 1];
-								Dir.Normalize();
-
-								float InitialLength = SplineData->InitialLengths[i * SamplesPerSegment + j - 1];
-								// Current length as the projection on the Dir vector (might be negative)
-								float CurrentLength = (SplineData->SamplesArray[i * SamplesPerSegment + j] - SplineData->SamplesArray[i * SamplesPerSegment + j - 1]).Dot(Dir);
-								float FixedLength = FMath::Clamp(CurrentLength,
-                                	(Compression > 0.f) ? InitialLength * Compression : CurrentLength,
-                                	(Stretch > 0.f) ? InitialLength * Stretch : CurrentLength);
-
-								SplineData->SamplesArray[i * SamplesPerSegment + j] = SplineData->SamplesArray[i * SamplesPerSegment + j - 1] + Dir * FixedLength;
-							}
-						}
-					}
-				}
-
 				break;
 			}
 			default:
@@ -196,21 +142,50 @@ void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoin
 			}
 		}
 
-		// Cache accumulated length at sample array
-		SplineData->AccumulatedLenth.SetNumUninitialized(SplineData->SamplesArray.Num(), false);
-		SplineData->AccumulatedLenth[0] = 0.f;
-		if (bSplineModeChanged || bSamplesCountChanged || bNumControlPointsChanged)
+		// Correct length of samples
+		if (!bSplineModeChanged && !bSamplesCountChanged && !bNumControlPointsChanged)
 		{
-			SplineData->InitialLengths.SetNumUninitialized(SplineData->SamplesArray.Num() - 1);
+			if (SplineData->InitialLengths.Num() > 0)
+			{
+				TArray<FVector> SamplesBeforeCorrect = SplineData->SamplesArray;
+				for (int32 i = 0; i < ControlPointsCount - 1; ++i)
+				{
+					for (int32 j = (i == 0) ? 1 : 0; j < SamplesPerSegment; ++j)
+					{
+						// Get direction from samples before correction
+						FVector Dir = SamplesBeforeCorrect[i * SamplesPerSegment + j] - SamplesBeforeCorrect[i * SamplesPerSegment + j - 1];
+						Dir.Normalize();
+
+						float InitialLength = SplineData->InitialLengths[i * SamplesPerSegment + j - 1];
+						// Current length as the projection on the Dir vector (might be negative)
+						float CurrentLength = (SplineData->SamplesArray[i * SamplesPerSegment + j] - SplineData->SamplesArray[i * SamplesPerSegment + j - 1]).Dot(Dir);
+						float FixedLength = FMath::Clamp(CurrentLength,
+							(Compression > 0.f) ? InitialLength * Compression : CurrentLength,
+							(Stretch > 0.f) ? InitialLength * Stretch : CurrentLength);
+
+						SplineData->SamplesArray[i * SamplesPerSegment + j] = SplineData->SamplesArray[i * SamplesPerSegment + j - 1] + Dir * FixedLength;
+					}
+				}
+			}
 		}
-		for (int32 i = 1; i < SplineData->SamplesArray.Num(); ++i)
+
+		// Cache accumulated length at sample array
 		{
-			float CurrentLength = FVector::Distance(SplineData->SamplesArray[i - 1], SplineData->SamplesArray[i]);
+			SplineData->AccumulatedLenth.SetNumUninitialized(SplineData->SamplesArray.Num(), false);
+			SplineData->AccumulatedLenth[0] = 0.f;
 			if (bSplineModeChanged || bSamplesCountChanged || bNumControlPointsChanged)
 			{
-				SplineData->InitialLengths[i-1] = CurrentLength;
+				SplineData->InitialLengths.SetNumUninitialized(SplineData->SamplesArray.Num() - 1);
 			}
-			SplineData->AccumulatedLenth[i] = SplineData->AccumulatedLenth[i - 1] + CurrentLength;
+			for (int32 i = 1; i < SplineData->SamplesArray.Num(); ++i)
+			{
+				float CurrentLength = FVector::Distance(SplineData->SamplesArray[i - 1], SplineData->SamplesArray[i]);
+				if (bSplineModeChanged || bSamplesCountChanged || bNumControlPointsChanged)
+				{
+					SplineData->InitialLengths[i-1] = CurrentLength;
+				}
+				SplineData->AccumulatedLenth[i] = SplineData->AccumulatedLenth[i - 1] + CurrentLength;
+			}
 		}
 	}	
 }
