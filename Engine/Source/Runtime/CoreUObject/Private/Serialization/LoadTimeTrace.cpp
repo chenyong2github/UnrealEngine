@@ -31,6 +31,7 @@ UE_TRACE_EVENT_BEGIN(LoadTime, PackageSummary)
 	UE_TRACE_EVENT_FIELD(uint32, TotalHeaderSize)
 	UE_TRACE_EVENT_FIELD(uint32, ImportCount)
 	UE_TRACE_EVENT_FIELD(uint32, ExportCount)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginCreateExport)
@@ -169,14 +170,14 @@ void FLoadTimeProfilerTracePrivate::OutputDestroyAsyncPackage(const void* AsyncP
 void FLoadTimeProfilerTracePrivate::OutputPackageSummary(const void* AsyncPackage, const FName& PackageName, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount)
 {
 	TCHAR Buffer[FName::StringBufferSize];
-	uint16 NameSize = (PackageName.ToString(Buffer) + 1) * sizeof(TCHAR);
+	uint32 NameLength = PackageName.ToString(Buffer);
 
-	UE_TRACE_LOG(LoadTime, PackageSummary, LoadTimeChannel, NameSize)
+	UE_TRACE_LOG(LoadTime, PackageSummary, LoadTimeChannel)
 		<< PackageSummary.AsyncPackage(AsyncPackage)
 		<< PackageSummary.TotalHeaderSize(TotalHeaderSize)
 		<< PackageSummary.ImportCount(ImportCount)
 		<< PackageSummary.ExportCount(ExportCount)
-		<< PackageSummary.Attachment(Buffer, NameSize);
+		<< PackageSummary.Name(Buffer, NameLength);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputAsyncPackageRequestAssociation(const void* AsyncPackage, uint64 RequestId)

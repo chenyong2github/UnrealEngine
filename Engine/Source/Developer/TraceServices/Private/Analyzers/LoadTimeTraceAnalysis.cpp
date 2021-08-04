@@ -114,10 +114,10 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 		if (AsyncPackage)
 		{
 			FAnalysisSessionEditScope _(Session);
-			if (EventData.GetAttachmentSize())
+			FString PackageName = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
+			if (PackageName.Len())
 			{
-				const TCHAR* PackageName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-				AsyncPackage->PackageInfo->Name = Session.StoreString(PackageName);
+				AsyncPackage->PackageInfo->Name = Session.StoreString(*PackageName);
 			}
 			FPackageSummaryInfo& Summary = AsyncPackage->PackageInfo->Summary;
 			Summary.TotalHeaderSize = EventData.GetValue<uint32>("TotalHeaderSize");
@@ -281,11 +281,22 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 	}
 	case RouteId_BeginRequestGroup:
 	{
+		FString FormatString;
+		const uint8* FormatArgs;
+		if (EventData.GetString("Format", FormatString))
+		{
+			FormatArgs = EventData.GetArrayView<uint8>("FormatArgs").GetData();
+		}
+		else
+		{
+			const TCHAR* FormatStringPtr = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
+			FormatArgs = EventData.GetAttachment() + (FCString::Strlen(FormatStringPtr) + 1) * sizeof(TCHAR);
+			FormatString = FormatStringPtr;
+		}
+
 		FAnalysisSessionEditScope _(Session);
 		TSharedRef<FRequestGroupState> GroupState = MakeShared<FRequestGroupState>();
-		const TCHAR* FormatString = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-		const uint8* FormatArgs = EventData.GetAttachment() + (FCString::Strlen(FormatString) + 1) * sizeof(TCHAR);
-		FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, FormatString, FormatArgs);
+		FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, *FormatString, FormatArgs);
 		GroupState->Name = Session.StoreString(FormatBuffer);
 		uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 		FThreadState& ThreadState = GetThreadState(ThreadId);
