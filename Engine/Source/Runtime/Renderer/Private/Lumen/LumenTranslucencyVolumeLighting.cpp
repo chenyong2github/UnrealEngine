@@ -11,11 +11,11 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "VolumeLighting.h"
-#include "LumenSceneUtils.h"
 #include "DistanceFieldLightingShared.h"
 #include "LumenMeshCards.h"
 #include "Math/Halton.h"
 #include "DistanceFieldAmbientOcclusion.h"
+#include "LumenTracingUtils.h"
 
 int32 GLumenTranslucencyVolume = 1;
 FAutoConsoleVariableRef CVarLumenTranslucencyVolume(

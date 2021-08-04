@@ -10,7 +10,6 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "ReflectionEnvironment.h"
-#include "LumenSceneUtils.h"
 #include "LumenMeshCards.h"
 #include "LumenRadianceCache.h"
 #include "DynamicMeshBuilder.h"

@@ -5,13 +5,13 @@
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
-#include "LumenSceneUtils.h"
 #include "PixelShaderUtils.h"
 #include "ReflectionEnvironment.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "SceneTextureParameters.h"
 #include "IndirectLightRendering.h"
 #include "LumenRadianceCache.h"
+#include "LumenTracingUtils.h"
 
 int32 GLumenProbeHierarchyTraceMeshSDFs = 1;
 FAutoConsoleVariableRef GVarLumenProbeHierarchyTraceMeshSDFs(

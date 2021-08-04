@@ -9,10 +9,10 @@
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
-#include "LumenSceneUtils.h"
 #include "PixelShaderUtils.h"
 #include "DistanceFieldLightingShared.h"
 #include "LumenMeshCards.h"
+#include "LumenTracingUtils.h"
 
 int32 GMeshSDFAverageCulledCount = 512;
 FAutoConsoleVariableRef CVarMeshSDFAverageCulledCount(

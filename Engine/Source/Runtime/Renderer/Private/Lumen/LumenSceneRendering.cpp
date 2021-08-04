@@ -18,8 +18,9 @@
 #include "PixelShaderUtils.h"
 #include "Lumen.h"
 #include "LumenMeshCards.h"
-#include "LumenSceneUtils.h"
 #include "LumenSurfaceCacheFeedback.h"
+#include "LumenSceneLighting.h"
+#include "LumenTracingUtils.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -1804,7 +1805,7 @@ class FClearLumenCardsPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneUtils.usf", "ClearLumenCardsPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenCardsParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)

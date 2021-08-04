@@ -11,7 +11,7 @@
 #include "ScreenSpaceRayTracing.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
-#include "LumenSceneUtils.h"
+#include "LumenTracingUtils.h"
 
 extern int32 GLumenScreenProbeGatherNumMips;
 

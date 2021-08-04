@@ -7,7 +7,6 @@
 #include "ScreenSpaceRayTracing.h"
 #include "DeferredShadingRenderer.h"
 #include "RendererModule.h" 
-#include "Lumen/LumenSceneUtils.h"
 #include "Math/Halton.h"
 
 
