@@ -688,16 +688,30 @@ public:
 	);
 
 	/** Gets the drive params for the angular drive.
-*	@param Accessor				Constraint accessor to query
-*	@param OutPositionStrength	Positional strength for the drive (stiffness)
-*	@param OutVelocityStrength 	Velocity strength of the drive (damping)
-*	@param OutForceLimit		Max force applied by the drive
-*/
+	*	@param Accessor				Constraint accessor to query
+	*	@param OutPositionStrength	Positional strength for the drive (stiffness)
+	*	@param OutVelocityStrength 	Velocity strength of the drive (damping)
+	*	@param OutForceLimit		Max force applied by the drive
+	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target orientation velocity strength max force"))
 	static void GetAngularDriveParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		float OutPositionStrength,
 		float OutVelocityStrength,
 		float OutForceLimit
+	);
+
+	/** Copies all properties from one constraint to another
+	* @param Accessor	Constraint accessor to write to
+	* @param SourceAccessor Constraint accessor to read from
+	* @param bKeepPosition	Whether to keep original constraint positions
+	* @param bKeepRotation	Whether to keep original constraint rotations
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+	static void CopyParams(
+		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
+		UPARAM(ref) FConstraintInstanceAccessor& SourceAccessor,
+		bool bKeepPosition = true,
+		bool bKeepRotation = true
 	);
 };

@@ -600,6 +600,38 @@ void FConstraintInstance::CopyConstraintParamsFrom(const FConstraintInstance* Fr
 	*this = *FromInstance;
 }
 
+void FConstraintInstance::CopyConstraintPhysicalPropertiesFrom(const FConstraintInstance* FromInstance, bool bKeepPosition, bool bKeepRotation)
+{
+	check(FromInstance);
+
+	FConstraintInstance OldInstance = *this;
+	CopyConstraintParamsFrom(FromInstance);
+
+	// Recover internal data we'd like to keep - i.e. bone indices, etc.
+	ConstraintIndex = OldInstance.ConstraintIndex;
+#if WITH_PHYSX
+	ConstraintHandle = OldInstance.ConstraintHandle;
+#endif	//WITH_PHYSX
+	JointName = OldInstance.JointName;
+	ConstraintBone1 = OldInstance.ConstraintBone1;
+	ConstraintBone2 = OldInstance.ConstraintBone2;
+
+	if (bKeepPosition)
+	{
+		Pos1 = OldInstance.Pos1;
+		Pos2 = OldInstance.Pos2;
+	}
+
+	if (bKeepRotation)
+	{
+		PriAxis1 = OldInstance.PriAxis1;
+		SecAxis1 = OldInstance.SecAxis1;
+		PriAxis2 = OldInstance.PriAxis2;
+		SecAxis2 = OldInstance.SecAxis2;
+		AngularRotationOffset = OldInstance.AngularRotationOffset;
+	}
+}
+
 FTransform FConstraintInstance::GetRefFrame(EConstraintFrame::Type Frame) const
 {
 	FTransform Result;
@@ -1211,6 +1243,14 @@ FConstraintInstance* FConstraintInstanceAccessor::Get() const
 #endif
 	}
 	return nullptr;
+}
+
+void FConstraintInstanceAccessor::Modify()
+{
+	if (Owner.IsValid())
+	{
+		Owner->Modify();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

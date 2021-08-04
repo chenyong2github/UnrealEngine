@@ -867,7 +867,9 @@ FConstraintInstanceAccessor UPhysicsAsset::GetConstraintInstanceAccessorByIndex(
 
 	if (ConstraintSetup[ConstraintIndex])
 	{
-		return FConstraintInstanceAccessor(this, ConstraintIndex);
+		// Implementation note: Any changes on the constraint must be propagated from the instance to its profile
+		return FConstraintInstanceAccessor(this, ConstraintIndex, [this, ConstraintIndex]() {
+			ConstraintSetup[ConstraintIndex]->UpdateProfileInstance(); });
 	}
 
 	return FConstraintInstanceAccessor();
@@ -881,6 +883,23 @@ FConstraintInstanceAccessor UPhysicsAsset::GetConstraintByName(FName ConstraintN
 FConstraintInstanceAccessor UPhysicsAsset::GetConstraintByBoneNames(FName Bone1Name, FName Bone2Name)
 {
 	return GetConstraintInstanceAccessorByIndex(FindConstraintIndex(Bone1Name, Bone2Name));
+}
+
+void UPhysicsAsset::GetConstraints(bool bIncludesTerminated, TArray<FConstraintInstanceAccessor>& OutConstraints)
+{
+	for (int32 i = 0; i < ConstraintSetup.Num(); ++i)
+	{
+		if (ConstraintSetup[i])
+		{
+			if (bIncludesTerminated || ConstraintSetup[i]->DefaultInstance.IsTerminated())
+			{
+				// Implementation note: Any changes on the constraint must be propagated from the instance to its profile
+				OutConstraints.Emplace(this, i, [this, i]() {
+					ConstraintSetup[i]->UpdateProfileInstance();
+					});
+			}
+		}
+	}
 }
 
 FConstraintInstance* UPhysicsAsset::GetConstraintInstanceByIndex(uint32 Index)

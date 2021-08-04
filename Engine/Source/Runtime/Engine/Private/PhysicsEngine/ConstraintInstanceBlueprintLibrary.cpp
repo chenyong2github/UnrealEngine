@@ -32,6 +32,7 @@ void UConstraintInstanceBlueprintLibrary::SetDisableCollision(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetDisableCollision(bDisableCollision);
 	}
 }
@@ -54,6 +55,7 @@ void UConstraintInstanceBlueprintLibrary::SetProjectionParams(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetProjectionParams(bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha);
 	}
 }
@@ -85,6 +87,8 @@ void UConstraintInstanceBlueprintLibrary::SetParentDominates(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
+
 		if (bParentDominates)
 		{
 			ConstraintInstance->EnableParentDominates();
@@ -121,6 +125,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearLimits(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetLinearLimits(XMotion, YMotion, ZMotion, Limit);
 	}
 }
@@ -160,6 +165,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearSoftLimitParams(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetSoftLinearLimitParams(bSoftLinearLimit, LinearLimitStiffness, LinearLimitDamping, LinearLimitRestitution, LinearLimitContactDistance);
 	}
 }
@@ -200,6 +206,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearBreakable(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetLinearBreakable(bLinearBreakable, LinearBreakThreshold);
 	}
 }
@@ -231,6 +238,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearPlasticity(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetLinearPlasticity(bLinearPlasticity, LinearPlasticityThreshold,PlasticityType);
 	}
 }
@@ -274,6 +282,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularLimits(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularSwing1Limit(Swing1MotionType, Swing1LimitAngle);
 		ConstraintInstance->SetAngularSwing2Limit(Swing2MotionType, Swing2LimitAngle);
 		ConstraintInstance->SetAngularTwistLimit(TwistMotionType, TwistLimitAngle);
@@ -321,6 +330,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularSoftSwingLimitParams(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetSoftSwingLimitParams(bSoftSwingLimit, SwingLimitStiffness, SwingLimitDamping, SwingLimitRestitution, SwingLimitContactDistance);
 	}
 }
@@ -364,6 +374,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularSoftTwistLimitParams(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetSoftTwistLimitParams(bSoftTwistLimit, TwistLimitStiffness, TwistLimitDamping, TwistLimitRestitution, TwistLimitContactDistance);
 	}
 }
@@ -404,6 +415,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularBreakable(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularBreakable(bAngularBreakable, AngularBreakThreshold);
 	}
 }
@@ -435,6 +447,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularPlasticity(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularPlasticity(bAngularPlasticity, AngularPlasticityThreshold);
 	}
 }
@@ -473,6 +486,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearPositionDrive(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetLinearPositionDrive(bEnableDriveX, bEnableDriveY, bEnableDriveZ);
 	}
 }
@@ -507,6 +521,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearVelocityDrive(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetLinearVelocityDrive(bEnableDriveX, bEnableDriveY, bEnableDriveZ);
 	}
 }
@@ -539,6 +554,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearPositionTarget(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetLinearPositionTarget(InPosTarget);
 	}
 }
@@ -566,6 +582,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearVelocityTarget(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetLinearVelocityTarget(InVelTarget);
 	}
 }
@@ -594,6 +611,7 @@ void UConstraintInstanceBlueprintLibrary::SetLinearDriveParams(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetLinearDriveParams(PositionStrength, VelocityStrength, InForceLimit);
 	}
 }
@@ -632,6 +650,7 @@ void UConstraintInstanceBlueprintLibrary::SetOrientationDriveTwistAndSwing(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetOrientationDriveTwistAndSwing(bEnableTwistDrive, bEnableSwingDrive);
 	}
 }
@@ -660,6 +679,7 @@ void UConstraintInstanceBlueprintLibrary::SetOrientationDriveSLERP(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetOrientationDriveSLERP(bEnableSLERP);
 	}
 }
@@ -687,6 +707,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularVelocityDriveTwistAndSwing(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularVelocityDriveTwistAndSwing(bEnableTwistDrive, bEnableSwingDrive);
 	}
 }
@@ -715,6 +736,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularVelocityDriveSLERP(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularVelocityDriveSLERP(bEnableSLERP);
 	}
 }
@@ -741,6 +763,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularDriveMode(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularDriveMode(DriveMode);
 	}
 }
@@ -768,6 +791,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularOrientationTarget(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularOrientationTarget(InPosTarget.Quaternion());
 	}
 }
@@ -794,6 +818,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularVelocityTarget(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularVelocityTarget(InVelTarget);
 	}
 }
@@ -822,6 +847,7 @@ void UConstraintInstanceBlueprintLibrary::SetAngularDriveParams(
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
+		Accessor.Modify();
 		ConstraintInstance->SetAngularDriveParams(PositionStrength, VelocityStrength, InForceLimit);
 	}
 }
@@ -842,5 +868,22 @@ void UConstraintInstanceBlueprintLibrary::GetAngularDriveParams(
 		OutPositionStrength = 0.0f;
 		OutVelocityStrength = 0.0f;
 		OutForceLimit = 0.0f;
+	}
+}
+
+void UConstraintInstanceBlueprintLibrary::CopyParams(
+	FConstraintInstanceAccessor& Accessor,
+	FConstraintInstanceAccessor& SourceAccessor,
+	bool bKeepPosition,
+	bool bKeepRotation
+)
+{
+	FConstraintInstance* Target = Accessor.Get();
+	FConstraintInstance* Source = SourceAccessor.Get();
+
+	if(Target && Source)
+	{
+		Accessor.Modify();
+		Target->CopyConstraintPhysicalPropertiesFrom(Source, bKeepPosition, bKeepRotation);
 	}
 }
