@@ -41,11 +41,14 @@
 #include "Components/NamedSlotInterface.h"
 #include "K2Node_Variable.h"
 
+#include "Engine/TextureRenderTarget2D.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "Input/HittestGrid.h"
 #include "Interfaces/ISlateRHIRendererModule.h"
 #include "Interfaces/ISlate3DRenderer.h"
 #include "Rendering/SlateDrawBuffer.h"
+#include "Slate/WidgetRenderer.h"
+#include "Widgets/SVirtualWindow.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -1931,17 +1934,18 @@ int32 FWidgetBlueprintEditorUtils::UpdateHittestGrid(FHittestGrid& HitTestGrid, 
 	return MaxLayerId;
 }
 
-TTuple<FVector2D, FVector2D> FWidgetBlueprintEditorUtils::GetWidgetPreviewAreaAndSize(UUserWidget* UserWidget, FVector2D DesiredSize, FVector2D PreviewSize)
+TTuple<FVector2D, FVector2D> FWidgetBlueprintEditorUtils::GetWidgetPreviewAreaAndSize(UUserWidget* UserWidget, FVector2D DesiredSize, FVector2D PreviewSize, EDesignPreviewSizeMode SizeMode, TOptional<FVector2D> ThumbnailCustomSize)
 {
 	FVector2D Size(PreviewSize.X, PreviewSize.Y);
 	FVector2D Area(PreviewSize.X, PreviewSize.Y);
 
 	if (UserWidget)
 	{
-		switch (UserWidget->DesignSizeMode)
+
+		switch (SizeMode)
 		{
 		case EDesignPreviewSizeMode::Custom:
-			Area = UserWidget->DesignTimeSize;
+			Area = ThumbnailCustomSize.IsSet()? ThumbnailCustomSize.GetValue() : UserWidget->DesignTimeSize;
 			// If the custom size is 0 in some dimension, use the desired size instead.
 			if (Area.X == 0)
 			{
@@ -1954,7 +1958,7 @@ TTuple<FVector2D, FVector2D> FWidgetBlueprintEditorUtils::GetWidgetPreviewAreaAn
 			Size = Area;
 			break;
 		case EDesignPreviewSizeMode::CustomOnScreen:
-			Size = UserWidget->DesignTimeSize;
+			Size = ThumbnailCustomSize.IsSet() ? ThumbnailCustomSize.GetValue() : UserWidget->DesignTimeSize;
 
 			// If the custom size is 0 in some dimension, use the desired size instead.
 			if (Size.X == 0)
@@ -1995,7 +1999,7 @@ float FWidgetBlueprintEditorUtils::GetWidgetPreviewDPIScale(UUserWidget* UserWid
 }
 
 
-FVector2D FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(FVector2D DesiredSize, UUserWidget* UserWidget)
+FVector2D FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(FVector2D DesiredSize, UUserWidget* UserWidget, TOptional<FVector2D> ThumbnailCustomSize, EThumbnailPreviewSizeMode ThumbnailSizeMode)
 {
 
 	checkf(DesiredSize.X > 0.f && DesiredSize.Y > 0.f, TEXT("The size should have been previously checked to be > 0."));
@@ -2009,9 +2013,18 @@ FVector2D FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(FVecto
 
 	FVector2D PreviewSize(PreviewWidth, PreviewHeight);
 
-	TTuple<FVector2D, FVector2D> AreaAndSize = GetWidgetPreviewAreaAndSize(UserWidget, DesiredSize, PreviewSize);
+	TTuple<FVector2D, FVector2D> AreaAndSize = GetWidgetPreviewAreaAndSize(UserWidget, DesiredSize, PreviewSize, ConvertThumbnailSizeModeToDesignerSizeMode(ThumbnailSizeMode, UserWidget), ThumbnailCustomSize.IsSet() ? ThumbnailCustomSize.GetValue() : TOptional<FVector2D>());
 
-	float DPIScale = GetWidgetPreviewDPIScale(UserWidget, PreviewSize);
+	float DPIScale;
+	if (ThumbnailCustomSize.IsSet())
+	{
+		DPIScale = 1.0f;
+	}
+	else 
+	{
+		DPIScale = GetWidgetPreviewDPIScale(UserWidget, PreviewSize);
+
+	}
 
 	if (ensure(DPIScale > 0.f))
 	{
@@ -2021,4 +2034,155 @@ FVector2D FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(FVecto
 	return FinalSize;
 
 }
+
+EDesignPreviewSizeMode FWidgetBlueprintEditorUtils::ConvertThumbnailSizeModeToDesignerSizeMode(EThumbnailPreviewSizeMode ThumbnailSizeMode, UUserWidget* WidgetInstance)
+{
+	switch (ThumbnailSizeMode)
+	{
+	case EThumbnailPreviewSizeMode::MatchDesignerMode:
+		return WidgetInstance->DesignSizeMode;
+	case EThumbnailPreviewSizeMode::FillScreen:
+		return EDesignPreviewSizeMode::FillScreen;
+	case EThumbnailPreviewSizeMode::Custom:
+		return EDesignPreviewSizeMode::Custom;
+	case EThumbnailPreviewSizeMode::Desired:
+		return EDesignPreviewSizeMode::Desired;
+	default:
+		return EDesignPreviewSizeMode::Desired;
+	}
+}
+
+TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTarget(UUserWidget* WidgetInstance, UTextureRenderTarget2D* RenderTarget2D)
+{
+	return DrawSWidgetInRenderTargetInternal(WidgetInstance, RenderTarget2D, FVector2D(256.f,256.f), false, TOptional<FVector2D>(), EThumbnailPreviewSizeMode::MatchDesignerMode);
+}
+
+TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(UUserWidget* WidgetInstance, UTextureRenderTarget2D* RenderTarget2D, FVector2D ThumbnailSize, TOptional<FVector2D> ThumbnailCustomSize, EThumbnailPreviewSizeMode ThumbnailSizeMode)
+{
+	return DrawSWidgetInRenderTargetInternal(WidgetInstance, RenderTarget2D, ThumbnailSize, true, ThumbnailCustomSize, ThumbnailSizeMode);
+}
+
+TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>  FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetInternal(UUserWidget* WidgetInstance, UTextureRenderTarget2D* RenderTarget2D, FVector2D ThumbnailSize, bool bIsForThumbnail, TOptional<FVector2D> ThumbnailCustomSize,EThumbnailPreviewSizeMode ThumbnailSizeMode)
+{
+	//Create Window
+	FVector2D Offset(0.f,0.f);
+	FVector2D ScaledSize(0.f, 0.f);
+	TSharedPtr<SWidget> WindowContent = WidgetInstance->TakeWidget();
+
+	if (!WindowContent)
+	{
+		return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>();
+	}
+
+	TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(ThumbnailSize);
+	TUniquePtr<FHittestGrid> HitTestGrid = MakeUnique<FHittestGrid>();
+	Window->SetContent(WindowContent.ToSharedRef());
+	Window->Resize(ThumbnailSize);
+
+	// Store the desired size to maintain the aspect ratio later
+	FGeometry WindowGeometry = FGeometry::MakeRoot(ThumbnailSize, FSlateLayoutTransform(1.0f));
+	Window->SlatePrepass(1.0f);
+	FVector2D DesiredSizeWindow = Window->GetDesiredSize();
+
+
+	if (DesiredSizeWindow.X < SMALL_NUMBER || DesiredSizeWindow.Y < SMALL_NUMBER)
+	{
+		return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>();
+	}
+
+	FVector2D UnscaledSize = FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(DesiredSizeWindow, WidgetInstance, ThumbnailCustomSize,ThumbnailSizeMode);
+	if (UnscaledSize.X < SMALL_NUMBER || UnscaledSize.Y < SMALL_NUMBER)
+	{
+		return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>();
+	}
+
+	float Scale;
+	// Create Renderer Target and WidgetRenderer
+	bool bApplyGammaCorrection = false;
+	FWidgetRenderer* WidgetRenderer = new FWidgetRenderer(bApplyGammaCorrection);
+	const bool bIsLinearSpace = !bApplyGammaCorrection;
+
+	// Change some configuration if it is for thumbnail creation
+	if (bIsForThumbnail) 
+	{
+		TTuple<float, FVector2D> ScaleAndOffset = FWidgetBlueprintEditorUtils::GetThumbnailImageScaleAndOffset(UnscaledSize, ThumbnailSize);
+		Scale = ScaleAndOffset.Get<0>();
+		Offset = ScaleAndOffset.Get<1>();
+	}
+	else
+	{
+		RenderTarget2D->Filter = TF_Bilinear;
+		RenderTarget2D->ClearColor = FLinearColor::Transparent;
+		RenderTarget2D->SRGB = true;
+		RenderTarget2D->RenderTargetFormat = RTF_RGBA8;
+		Scale = 1.f;
+		Offset = FVector2D(0.f, 0.f);
+		WidgetRenderer->SetIsPrepassNeeded(false);
+	}
+
+	ScaledSize = UnscaledSize * Scale;
+
+	const EPixelFormat RequestedFormat = FSlateApplication::Get().GetRenderer()->GetSlateRecommendedColorFormat();
+	RenderTarget2D->InitCustomFormat(ScaledSize.X, ScaledSize.Y, RequestedFormat, false);
+	WidgetRenderer->DrawWindow(RenderTarget2D, *HitTestGrid, Window, Scale, ScaledSize, 0.1f);
+
+	if (WidgetRenderer)
+	{
+		BeginCleanup(WidgetRenderer);
+		WidgetRenderer = nullptr;
+	}
+
+	return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>(FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties{ ScaledSize,Offset });
+}
+
+TTuple<float, FVector2D> FWidgetBlueprintEditorUtils::GetThumbnailImageScaleAndOffset(FVector2D WidgetSize, FVector2D ThumbnailSize)
+{
+	// Scale the widget blueprint image to fit in the thumbnail
+
+	checkf(WidgetSize.X > 0.f && WidgetSize.Y > 0.f, TEXT("The size should have been previously checked to be > 0."));
+
+	float Scale;
+	float XOffset = 0;
+	float YOffset = 0;
+	if (WidgetSize.X > WidgetSize.Y)
+	{
+		Scale = ThumbnailSize.X / WidgetSize.X;
+		WidgetSize *= Scale;
+		YOffset = (ThumbnailSize.Y - WidgetSize.Y) / 2.f;
+	}
+	else
+	{
+		Scale = ThumbnailSize.Y / WidgetSize.Y;
+		WidgetSize *= Scale;
+		XOffset = (ThumbnailSize.X - WidgetSize.X) / 2.f;
+	}
+
+	return TTuple<float, FVector2D>(Scale, FVector2D(XOffset, YOffset));
+}
+
+void FWidgetBlueprintEditorUtils::SetTextureAsAssetThumbnail(UWidgetBlueprint* WidgetBlueprint, UTexture2D* ThumbnailTexture)
+{
+	const TCHAR* ThumbnailName = TEXT("Thumbnail");
+	UTexture2D* ExistingThumbnail = FindObject<UTexture2D>(WidgetBlueprint, ThumbnailName, false);
+	if (ExistingThumbnail)
+	{
+		ExistingThumbnail->Rename(nullptr, GetTransientPackage());
+	}
+	if (!ThumbnailTexture)
+	{
+		WidgetBlueprint->ThumbnailImage = nullptr;
+		return;
+	}
+	FVector2D TextureSize(ThumbnailTexture->GetSizeX(), ThumbnailTexture->GetSizeY());
+	if (TextureSize.X < SMALL_NUMBER || TextureSize.Y < SMALL_NUMBER)
+	{
+		WidgetBlueprint->ThumbnailImage = nullptr;
+	}
+	else
+	{
+		ThumbnailTexture->Rename(ThumbnailName, WidgetBlueprint, REN_NonTransactional | REN_DontCreateRedirectors);
+		WidgetBlueprint->ThumbnailImage = ThumbnailTexture;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

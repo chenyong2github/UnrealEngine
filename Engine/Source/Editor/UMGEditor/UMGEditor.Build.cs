@@ -72,6 +72,7 @@ public class UMGEditor : ModuleRules
 				"ToolMenus",
 				"SlateReflector",
 				"DeveloperSettings",
+				"ImageWrapper"
 			}
 			);
 	}

@@ -58,6 +58,15 @@
 
 #include "SPaletteViewModel.h"
 
+#include "DesktopPlatformModule.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "IDesktopPlatform.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "ImageUtils.h"
+#include "Serialization/BufferArchive.h"
+#include "Widgets/SVirtualWindow.h"
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 FWidgetBlueprintEditor::FWidgetBlueprintEditor()
@@ -179,13 +188,31 @@ TSharedPtr<FExtender> FWidgetBlueprintEditor::CreateMenuExtender()
 		GetToolkitCommands(),
 		FMenuExtensionDelegate::CreateSP(this, &FWidgetBlueprintEditor::FillFileMenu));
 	
+	MenuExtender->AddMenuExtension(
+		"AssetEditorActions",
+		EExtensionHook::After,
+		GetToolkitCommands(),
+		FMenuExtensionDelegate::CreateSP(this, &FWidgetBlueprintEditor::FillAssetMenu));
+
 	return MenuExtender;
 }
 
 void FWidgetBlueprintEditor::FillFileMenu(FMenuBuilder& MenuBuilder)
 {
+	MenuBuilder.BeginSection(TEXT("Import/Export"), LOCTEXT("Import/Export", "Import/Export"));
+	MenuBuilder.AddMenuEntry(FUMGEditorCommands::Get().ExportAsPNG);
+	MenuBuilder.EndSection();
+
 	MenuBuilder.BeginSection(TEXT("WidgetBlueprint"), LOCTEXT("WidgetBlueprint", "Widget Blueprint"));
 	MenuBuilder.AddMenuEntry(FUMGEditorCommands::Get().CreateNativeBaseClass);
+	MenuBuilder.EndSection();
+}
+
+void FWidgetBlueprintEditor::FillAssetMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection(TEXT("Thumbnail"), LOCTEXT("Thumbnail", "Thumbnail"));
+	MenuBuilder.AddMenuEntry(FUMGEditorCommands::Get().SetImageAsThumbnail);
+	MenuBuilder.AddMenuEntry(FUMGEditorCommands::Get().ClearCustomThumbnail);
 	MenuBuilder.EndSection();
 }
 
@@ -199,6 +226,122 @@ void FWidgetBlueprintEditor::BindToolkitCommands()
 			FCanExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::IsParentClassNative)
 		)
 	);
+
+	GetToolkitCommands()->MapAction(FUMGEditorCommands::Get().ExportAsPNG,
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::TakeSnapshot),
+			FCanExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::IsPreviewWidgetInitialized)
+		)
+	);
+
+	GetToolkitCommands()->MapAction(FUMGEditorCommands::Get().SetImageAsThumbnail,
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::CaptureThumbnail)
+		)
+	);
+
+	GetToolkitCommands()->MapAction(FUMGEditorCommands::Get().ClearCustomThumbnail,
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::ClearThumbnail),
+			FCanExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::IsImageUsedAsThumbnail)
+		)
+	);
+}
+
+void FWidgetBlueprintEditor::TakeSnapshot()
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform)
+	{
+		TSharedPtr<SWindow> ParentWindow = FGlobalTabmanager::Get()->GetRootWindow();
+		const void* ParentWindowWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(ParentWindow);
+		TArray<FString> SaveFilenames;
+		const bool bOpened = DesktopPlatform->SaveFileDialog(
+			ParentWindowWindowHandle,
+			LOCTEXT("ExportWidgetBlueprintDialogTitle", "Save Widget Blueprint Screenshot").ToString(),
+			FPaths::GameAgnosticSavedDir(),
+			TEXT(""),
+			TEXT("PNG (*.png)|*.png"),
+			EFileDialogFlags::None,
+			SaveFilenames
+		);
+		if (SaveFilenames.Num() > 0)
+		{
+			TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*SaveFilenames[0]));
+			if (Ar)
+			{
+				TSharedPtr<SWidget> WindowContent;
+				UUserWidget* PreviewWidget = GetPreview();
+
+				UTextureRenderTarget2D* RenderTarget2D = NewObject<UTextureRenderTarget2D>();
+				TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTarget(PreviewWidget, RenderTarget2D);
+
+				if (!ScaleAndOffset.IsSet())
+				{
+					FMessageLog("Blueprint").Warning(LOCTEXT("ExportWidgetBlueprint_ImageSourceFailedToCreate", "ExportWidgetBlueprint: Failed to create image source."));
+					return;
+				}
+
+				FBufferArchive Buffer;
+				bool bSuccess = FImageUtils::ExportRenderTarget2DAsPNG(RenderTarget2D, Buffer);
+				if (bSuccess)
+				{
+					Ar->Serialize(const_cast<uint8*>(Buffer.GetData()), Buffer.Num());
+				}
+			}
+		}
+	}
+
+
+}
+
+void FWidgetBlueprintEditor::CaptureThumbnail()
+{
+	TSharedPtr<SWidget> WindowContent;
+	UUserWidget* PreviewWidget = GetPreview();
+
+	if (!PreviewWidget)
+	{
+		return;
+	}
+
+	UTextureRenderTarget2D* RenderTarget2D = NewObject<UTextureRenderTarget2D>();
+	RenderTarget2D->Filter = TF_Bilinear;
+	RenderTarget2D->ClearColor = FLinearColor::Transparent;
+	RenderTarget2D->SRGB = true;
+	RenderTarget2D->TargetGamma = 1;
+
+	TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(PreviewWidget, RenderTarget2D, FVector2D(256.f, 256.f), TOptional<FVector2D>());
+
+	if (!ScaleAndOffset.IsSet())
+	{
+		return;
+	}
+
+	TArray64<uint8> RawData;
+	FImageUtils::GetRawData(RenderTarget2D, RawData);
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+	TSharedPtr<IImageWrapper> PNGImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+	PNGImageWrapper->SetRaw(RawData.GetData(), RawData.GetAllocatedSize(), RenderTarget2D->SizeX, RenderTarget2D->SizeY, ERGBFormat::BGRA, 8);
+	const TArray64<uint8> PNGData = PNGImageWrapper->GetCompressed(100);
+
+	UTexture2D* ThumbnailTexture = FImageUtils::ImportBufferAsTexture2D(PNGData);
+	FWidgetBlueprintEditorUtils::SetTextureAsAssetThumbnail(GetWidgetBlueprintObj(), ThumbnailTexture);
+}
+
+void FWidgetBlueprintEditor::ClearThumbnail() 
+{
+	GetWidgetBlueprintObj()->ThumbnailImage = nullptr;
+}
+
+bool FWidgetBlueprintEditor::IsImageUsedAsThumbnail()
+{
+	return GetWidgetBlueprintObj()->ThumbnailImage != nullptr;
+}
+
+bool FWidgetBlueprintEditor::IsPreviewWidgetInitialized()
+{
+	return GetPreview() != nullptr;
 }
 
 void FWidgetBlueprintEditor::OpenCreateNativeBaseClassDialog()

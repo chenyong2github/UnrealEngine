@@ -30,123 +30,87 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 		0.0f, 0.0f, SizeOfUV, SizeOfUV,
 		GrayBackgroundColor);
 
-
 	// Convert the object from UObject to SWidget
 	UWidgetBlueprint* WidgetBlueprintToRender = Cast<UWidgetBlueprint>(Object);
 
-	const bool bIsBlueprintValid = IsValid(WidgetBlueprintToRender)
-		&& IsValid(WidgetBlueprintToRender->GeneratedClass)
-		&& WidgetBlueprintToRender->bHasBeenRegenerated
-		//&& Blueprint->IsUpToDate() - This condition makes the thumbnail blank whenever the BP is dirty. It seems too strict.
-		&& !WidgetBlueprintToRender->bBeingCompiled
-		&& !WidgetBlueprintToRender->HasAnyFlags(RF_Transient);
-
-	TSharedPtr<SWidget> WindowContent;
-	UClass* ClassToGenerate = WidgetBlueprintToRender->GeneratedClass;
-	UUserWidget* WidgetInstance = nullptr;
-	if (bIsBlueprintValid && ClassToGenerate->IsChildOf(UWidget::StaticClass()))
+	// check if an image is used instead of auto generating the thumbnail
+	if (WidgetBlueprintToRender->ThumbnailImage)
 	{
-		WidgetInstance = NewObject<UUserWidget>(GetTransientPackage(), ClassToGenerate);
-		if (WidgetInstance)
-		{
-			WidgetInstance->Initialize();
-			WidgetInstance->SetDesignerFlags(EWidgetDesignFlags::Designing | EWidgetDesignFlags::ExecutePreConstruct);
+		FVector2D TextureSize(WidgetBlueprintToRender->ThumbnailImage->GetSizeX(), WidgetBlueprintToRender->ThumbnailImage->GetSizeY());
+		if (TextureSize.X > SMALL_NUMBER && TextureSize.Y > SMALL_NUMBER) {
+			TTuple<float, FVector2D> ScaleAndOffset = FWidgetBlueprintEditorUtils::GetThumbnailImageScaleAndOffset(TextureSize, FVector2D(Width, Height));
+			float Scale = ScaleAndOffset.Get<0>();
+			FVector2D Offset = ScaleAndOffset.Get<1>();
+			FVector2D ThumbnailImageOffset = Offset;
+			FVector2D ThumbnailImageScaledSize = Scale * TextureSize;
 
-
-			WindowContent = WidgetInstance->TakeWidget();
+			FCanvasTileItem CanvasTile(ThumbnailImageOffset, WidgetBlueprintToRender->ThumbnailImage->GetResource(), ThumbnailImageScaledSize, FLinearColor::White);
+			CanvasTile.BlendMode = SE_BLEND_Translucent;
+			CanvasTile.Draw(Canvas);
 		}
-	}
-
-	if (WindowContent == nullptr || WidgetInstance == nullptr)
-	{
-		return;
-	}
-
-
-	//Create Window
-	FVector2D ThumbnailSize(Width, Height);
-	TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(ThumbnailSize);
-	TUniquePtr<FHittestGrid> HitTestGrid = MakeUnique<FHittestGrid>();
-	Window->SetContent(WindowContent.ToSharedRef());
-	Window->Resize(ThumbnailSize);
-
-	// Store the desired size to maintain the aspect ratio later
-	FGeometry WindowGeometry = FGeometry::MakeRoot(ThumbnailSize, FSlateLayoutTransform(1.0f));
-	Window->SlatePrepass(1.0f);
-	FVector2D DesiredSizeWindow = Window->GetDesiredSize();
-
-
-	if (DesiredSizeWindow.X < SMALL_NUMBER || DesiredSizeWindow.Y < SMALL_NUMBER)
-	{
-		return;
-	}
-
-	FVector2D UnscaledSize = FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(DesiredSizeWindow, WidgetInstance);
-	if (UnscaledSize.X < SMALL_NUMBER || UnscaledSize.Y < SMALL_NUMBER)
-	{
-		return;
-	}
-	TTuple<float, FVector2D> ScaleAndOffset = GetScaleAndOffset(UnscaledSize, ThumbnailSize);
-	float Scale = ScaleAndOffset.Get<0>();
-	FVector2D Offset = ScaleAndOffset.Get<1>();
-	FVector2D ScaledSize = UnscaledSize * Scale;
-
-	// Create Renderer Target and WidgetRenderer
-	bool bApplyGammaCorrection = false;
-	FWidgetRenderer* WidgetRenderer = new FWidgetRenderer(bApplyGammaCorrection);
-	const bool bIsLinearSpace = !bApplyGammaCorrection;
-
-	if (!RenderTarget2D)
-	{
-		RenderTarget2D = NewObject<UTextureRenderTarget2D>();
-		RenderTarget2D->Filter = TF_Bilinear;
-		RenderTarget2D->ClearColor = FLinearColor::Transparent;
-		RenderTarget2D->SRGB = true;
-		RenderTarget2D->TargetGamma = 1;
-	}
-
-	const EPixelFormat RequestedFormat = FSlateApplication::Get().GetRenderer()->GetSlateRecommendedColorFormat();
-	RenderTarget2D->InitCustomFormat(ScaledSize.X, ScaledSize.Y, RequestedFormat, true);
-	WidgetRenderer->DrawWindow(RenderTarget2D, *HitTestGrid, Window, Scale, ScaledSize, 0.1f);
-
-	// Draw the SWidget on canvas
-	FCanvasTileItem CanvasTile(FVector2D(X + Offset.X, Y + Offset.Y), RenderTarget2D->GetResource(), ScaledSize, FLinearColor::White);
-	CanvasTile.BlendMode = SE_BLEND_Translucent;
-	FlushRenderingCommands();
-	CanvasTile.Draw(Canvas);
-
-	if (WidgetRenderer)
-	{
-		BeginCleanup(WidgetRenderer);
-		WidgetRenderer = nullptr;
-	}
-	
-
-}
-
-TTuple<float, FVector2D> UWidgetBlueprintThumbnailRenderer::GetScaleAndOffset(FVector2D WidgetSize, FVector2D ThumbnailSize) const
-{
-	// Scale the widget blueprint image to fit in the thumbnail
-
-	checkf(WidgetSize.X > 0.f && WidgetSize.Y > 0.f, TEXT("The size should have been previously checked to be > 0."));
-
-	float Scale;
-	float XOffset = 0;
-	float YOffset = 0;
-	if (WidgetSize.X > WidgetSize.Y)
-	{
-		Scale = ThumbnailSize.X / WidgetSize.X;
-		WidgetSize *= Scale;
-		YOffset = (ThumbnailSize.Y - WidgetSize.Y) / 2.f;
 	}
 	else
 	{
-		Scale = ThumbnailSize.Y / WidgetSize.Y;
-		WidgetSize *= Scale;
-		XOffset = (ThumbnailSize.X - WidgetSize.X) / 2.f;
+		const bool bIsBlueprintValid = IsValid(WidgetBlueprintToRender)
+			&& IsValid(WidgetBlueprintToRender->GeneratedClass)
+			&& WidgetBlueprintToRender->bHasBeenRegenerated
+			//&& Blueprint->IsUpToDate() - This condition makes the thumbnail blank whenever the BP is dirty. It seems too strict.
+			&& !WidgetBlueprintToRender->bBeingCompiled
+			&& !WidgetBlueprintToRender->HasAnyFlags(RF_Transient);
+
+		TSharedPtr<SWidget> WindowContent;
+		UClass* ClassToGenerate = WidgetBlueprintToRender->GeneratedClass;
+		UUserWidget* WidgetInstance = nullptr;
+		if (bIsBlueprintValid && ClassToGenerate->IsChildOf(UWidget::StaticClass()))
+		{
+			WidgetInstance = NewObject<UUserWidget>(GetTransientPackage(), ClassToGenerate);
+			if (WidgetInstance)
+			{
+				WidgetInstance->Initialize();
+				WidgetInstance->SetDesignerFlags(EWidgetDesignFlags::Designing | EWidgetDesignFlags::ExecutePreConstruct);
+			}
+		}
+
+		if (WidgetInstance == nullptr)
+		{
+			return;
+		}
+		FVector2D ThumbnailSize(Width, Height);
+
+		if (!RenderTarget2D)
+		{
+			RenderTarget2D = NewObject<UTextureRenderTarget2D>();
+			RenderTarget2D->Filter = TF_Bilinear;
+			RenderTarget2D->ClearColor = FLinearColor::Transparent;
+			RenderTarget2D->SRGB = true;
+			RenderTarget2D->TargetGamma = 1;
+		}
+
+		TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> ScaleAndOffset;
+
+		if (WidgetBlueprintToRender->ThumbnailSizeMode == EThumbnailPreviewSizeMode::Custom)
+		{
+			ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(WidgetInstance, RenderTarget2D, ThumbnailSize, WidgetBlueprintToRender->ThumbnailCustomSize, WidgetBlueprintToRender->ThumbnailSizeMode);
+		}
+		else
+		{
+			ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(WidgetInstance, RenderTarget2D, ThumbnailSize, TOptional<FVector2D>(), WidgetBlueprintToRender->ThumbnailSizeMode);
+
+		}
+		if (!ScaleAndOffset.IsSet())
+		{
+			return;
+		}
+		FVector2D Offset = ScaleAndOffset.GetValue().Offset;
+		FVector2D ScaledSize = ScaleAndOffset.GetValue().ScaledSize;
+
+		// Draw the SWidget on canvas
+		FCanvasTileItem CanvasTile(FVector2D(X + Offset.X, Y + Offset.Y), RenderTarget2D->GetResource(), ScaledSize, FLinearColor::White);
+		CanvasTile.BlendMode = SE_BLEND_Translucent;
+		FlushRenderingCommands();
+		CanvasTile.Draw(Canvas);
 	}
 
-	return TTuple<float, FVector2D>(Scale, FVector2D(XOffset, YOffset));
 }
 
 
