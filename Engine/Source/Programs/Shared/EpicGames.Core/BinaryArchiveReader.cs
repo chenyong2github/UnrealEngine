@@ -4,9 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 #nullable disable
 
@@ -32,11 +30,11 @@ namespace EpicGames.Core
 		/// Current position within the buffer
 		/// </summary>
 		int BufferPos;
-		
+
 		/// <summary>
 		/// List of previously serialized objects
 		/// </summary>
-		List<object> Objects = new List<object>();
+		readonly List<object> Objects = new List<object>();
 
 		/// <summary>
 		/// Constructor
@@ -71,7 +69,7 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Dispose()
 		{
-			if(Stream != null)
+			if (Stream != null)
 			{
 				Stream.Dispose();
 				Stream = null;
@@ -176,7 +174,7 @@ namespace EpicGames.Core
 		public string ReadString()
 		{
 			byte[] Bytes = ReadByteArray();
-			if(Bytes == null)
+			if (Bytes == null)
 			{
 				return null;
 			}
@@ -221,7 +219,7 @@ namespace EpicGames.Core
 		private T[] ReadPrimitiveArray<T>(int ElementSize) where T : struct
 		{
 			int Length = ReadInt();
-			if(Length < 0)
+			if (Length < 0)
 			{
 				return null;
 			}
@@ -295,14 +293,14 @@ namespace EpicGames.Core
 		public T[] ReadArray<T>(Func<T> ReadElement)
 		{
 			int Count = ReadInt();
-			if(Count < 0)
+			if (Count < 0)
 			{
 				return null;
 			}
 			else
 			{
 				T[] Result = new T[Count];
-				for(int Idx = 0; Idx < Count; Idx++)
+				for (int Idx = 0; Idx < Count; Idx++)
 				{
 					Result[Idx] = ReadElement();
 				}
@@ -319,14 +317,14 @@ namespace EpicGames.Core
 		public List<T> ReadList<T>(Func<T> ReadElement)
 		{
 			int Count = ReadInt();
-			if(Count < 0)
+			if (Count < 0)
 			{
 				return null;
 			}
 			else
 			{
 				List<T> Result = new List<T>(Count);
-				for(int Idx = 0; Idx < Count; Idx++)
+				for (int Idx = 0; Idx < Count; Idx++)
 				{
 					Result.Add(ReadElement());
 				}
@@ -343,14 +341,14 @@ namespace EpicGames.Core
 		public HashSet<T> ReadHashSet<T>(Func<T> ReadElement)
 		{
 			int Count = ReadInt();
-			if(Count < 0)
+			if (Count < 0)
 			{
 				return null;
 			}
 			else
 			{
 				HashSet<T> Result = new HashSet<T>();
-				for(int Idx = 0; Idx < Count; Idx++)
+				for (int Idx = 0; Idx < Count; Idx++)
 				{
 					Result.Add(ReadElement());
 				}
@@ -368,14 +366,14 @@ namespace EpicGames.Core
 		public HashSet<T> ReadHashSet<T>(Func<T> ReadElement, IEqualityComparer<T> Comparer)
 		{
 			int Count = ReadInt();
-			if(Count < 0)
+			if (Count < 0)
 			{
 				return null;
 			}
 			else
 			{
 				HashSet<T> Result = new HashSet<T>(Comparer);
-				for(int Idx = 0; Idx < Count; Idx++)
+				for (int Idx = 0; Idx < Count; Idx++)
 				{
 					Result.Add(ReadElement());
 				}
@@ -394,14 +392,14 @@ namespace EpicGames.Core
 		public Dictionary<K, V> ReadDictionary<K, V>(Func<K> ReadKey, Func<V> ReadValue)
 		{
 			int Count = ReadInt();
-			if(Count < 0)
+			if (Count < 0)
 			{
 				return null;
 			}
 			else
 			{
 				Dictionary<K, V> Result = new Dictionary<K, V>(Count);
-				for(int Idx = 0; Idx < Count; Idx++)
+				for (int Idx = 0; Idx < Count; Idx++)
 				{
 					Result.Add(ReadKey(), ReadValue());
 				}
@@ -421,14 +419,14 @@ namespace EpicGames.Core
 		public Dictionary<K, V> ReadDictionary<K, V>(Func<K> ReadKey, Func<V> ReadValue, IEqualityComparer<K> Comparer)
 		{
 			int Count = ReadInt();
-			if(Count < 0)
+			if (Count < 0)
 			{
 				return null;
 			}
 			else
 			{
 				Dictionary<K, V> Result = new Dictionary<K, V>(Count, Comparer);
-				for(int Idx = 0; Idx < Count; Idx++)
+				for (int Idx = 0; Idx < Count; Idx++)
 				{
 					Result.Add(ReadKey(), ReadValue());
 				}
@@ -443,7 +441,7 @@ namespace EpicGames.Core
 		/// <param name="ReadValue">Delegate used to read a value</param>
 		public Nullable<T> ReadNullable<T>(Func<T> ReadValue) where T : struct
 		{
-			if(ReadBool())
+			if (ReadBool())
 			{
 				return new Nullable<T>(ReadValue());
 			}
@@ -461,7 +459,7 @@ namespace EpicGames.Core
 		/// <returns>The object instance</returns>
 		public T ReadOptionalObject<T>(Func<T> Read) where T : class
 		{
-			if(ReadBool())
+			if (ReadBool())
 			{
 				return Read();
 			}
@@ -483,13 +481,13 @@ namespace EpicGames.Core
 		public T ReadObjectReference<T>(Func<T> CreateObject, Action<T> ReadObject) where T : class
 		{
 			int Index = ReadInt();
-			if(Index < 0)
+			if (Index < 0)
 			{
 				return null;
 			}
 			else
 			{
-				if(Index == Objects.Count)
+				if (Index == Objects.Count)
 				{
 					T Object = CreateObject();
 					Objects.Add(Object);
@@ -509,19 +507,19 @@ namespace EpicGames.Core
 		public T ReadObjectReference<T>(Func<T> ReadObject) where T : class
 		{
 			int Index = ReadInt();
-			if(Index < 0)
+			if (Index < 0)
 			{
 				return null;
 			}
 			else
 			{
 				// Temporarily add the reader to the object list, so we can detect invalid recursive references. 
-				if(Index == Objects.Count)
+				if (Index == Objects.Count)
 				{
 					Objects.Add(null);
 					Objects[Index] = ReadObject();
 				}
-				if(Objects[Index] == null)
+				if (Objects[Index] == null)
 				{
 					throw new InvalidOperationException("Attempt to serialize reference to object recursively.");
 				}

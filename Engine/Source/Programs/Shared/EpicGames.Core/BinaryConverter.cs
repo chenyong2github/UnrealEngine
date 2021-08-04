@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 
 #nullable enable
 
@@ -51,7 +48,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Map from type to the converter type
 		/// </summary>
-		static ConcurrentDictionary<Type, Type> TypeToConverterType = new ConcurrentDictionary<Type, Type>();
+		static readonly ConcurrentDictionary<Type, Type> TypeToConverterType = new ConcurrentDictionary<Type, Type>();
 
 		/// <summary>
 		/// Explicitly register the converter for a type. If Type is a generic type, the converter should also be a generic type with the same type arguments.
@@ -74,8 +71,7 @@ namespace EpicGames.Core
 		/// <returns>True if a converter was found</returns>
 		public static bool TryGetConverterType(Type Type, out Type? ConverterType)
 		{
-			Type? CustomConverterType;
-			if (TypeToConverterType.TryGetValue(Type, out CustomConverterType))
+			if (TypeToConverterType.TryGetValue(Type, out Type? CustomConverterType))
 			{
 				ConverterType = CustomConverterType;
 				return true;

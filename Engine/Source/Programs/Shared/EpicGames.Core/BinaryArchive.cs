@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text;
 
 #nullable enable
 
@@ -77,7 +76,7 @@ namespace EpicGames.Core
 			}
 		}
 
-		static ConcurrentDictionary<Type, TypeSerializer> TypeToSerializerInfo = new ConcurrentDictionary<Type, TypeSerializer>()
+		static readonly ConcurrentDictionary<Type, TypeSerializer> TypeToSerializerInfo = new ConcurrentDictionary<Type, TypeSerializer>()
 		{
 			[typeof(byte)] = TypeSerializer.Create(Reader => Reader.ReadByte(), (Writer, Value) => Writer.WriteByte(Value)),
 			[typeof(sbyte)] = TypeSerializer.Create(Reader => Reader.ReadSignedByte(), (Writer, Value) => Writer.WriteSignedByte(Value)),
@@ -90,8 +89,8 @@ namespace EpicGames.Core
 			[typeof(string)] = TypeSerializer.Create(Reader => Reader.ReadString(), (Writer, Value) => Writer.WriteString(Value))
 		};
 
-		static ConcurrentDictionary<Type, ContentHash> TypeToDigest = new ConcurrentDictionary<Type, ContentHash>();
-		static ConcurrentDictionary<ContentHash, Type> DigestToType = new ConcurrentDictionary<ContentHash, Type>();
+		static readonly ConcurrentDictionary<Type, ContentHash> TypeToDigest = new ConcurrentDictionary<Type, ContentHash>();
+		static readonly ConcurrentDictionary<ContentHash, Type> DigestToType = new ConcurrentDictionary<ContentHash, Type>();
 
 		static MethodInfo GetMethodInfo(Expression<Action> Expr)
 		{
@@ -108,14 +107,14 @@ namespace EpicGames.Core
 			return ((MethodCallExpression)Expr.Body).Method.GetGenericMethodDefinition();
 		}
 
-		static MethodInfo ReadBoolMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadBool());
-		static MethodInfo ReadIntMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadInt());
-		static MethodInfo ReadArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveReader, Func<int>>((x, y) => x.ReadArray(y));
-		static MethodInfo ReadPolymorphicObjectMethodInfo = GetMethodInfo(() => ReadObject(null!));
-		static MethodInfo WriteBoolMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteBool(false));
-		static MethodInfo WriteIntMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteInt(0));
-		static MethodInfo WriteArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveWriter, Action<int>>((x, y) => x.WriteArray(null!, y));
-		static MethodInfo WritePolymorphicObjectMethodInfo = GetMethodInfo(() => WritePolymorphicObject(null!, null!));
+		static readonly MethodInfo ReadBoolMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadBool());
+		static readonly MethodInfo ReadIntMethodInfo = GetMethodInfo<BinaryArchiveReader>(x => x.ReadInt());
+		static readonly MethodInfo ReadArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveReader, Func<int>>((x, y) => x.ReadArray(y));
+		static readonly MethodInfo ReadPolymorphicObjectMethodInfo = GetMethodInfo(() => ReadObject(null!));
+		static readonly MethodInfo WriteBoolMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteBool(false));
+		static readonly MethodInfo WriteIntMethodInfo = GetMethodInfo<BinaryArchiveWriter>(x => x.WriteInt(0));
+		static readonly MethodInfo WriteArrayMethodInfo = GetGenericMethodInfo<BinaryArchiveWriter, Action<int>>((x, y) => x.WriteArray(null!, y));
+		static readonly MethodInfo WritePolymorphicObjectMethodInfo = GetMethodInfo(() => WritePolymorphicObject(null!, null!));
 
 		/// <summary>
 		/// Reads an arbitrary value from the given archive.
@@ -238,8 +237,7 @@ namespace EpicGames.Core
 			Type SerializerKey = ConverterType ?? Type;
 
 			// Get the serializer info
-			TypeSerializer? SerializerInfo;
-			if (!TypeToSerializerInfo.TryGetValue(SerializerKey, out SerializerInfo))
+			if (!TypeToSerializerInfo.TryGetValue(SerializerKey, out TypeSerializer? SerializerInfo))
 			{
 				lock (TypeToSerializerInfo)
 				{
@@ -290,8 +288,7 @@ namespace EpicGames.Core
 			}
 
 			// Get the default converter type
-			Type? DefaultConverterType;
-			if(BinaryConverter.TryGetConverterType(Type, out DefaultConverterType))
+			if (BinaryConverter.TryGetConverterType(Type, out Type? DefaultConverterType))
 			{
 				return FindOrAddSerializerInfo(Type, DefaultConverterType);
 			}
@@ -380,10 +377,10 @@ namespace EpicGames.Core
 					WritePropertyMethod = FindOrAddSerializerInfo(Property.PropertyType, Converter?.Type).WriteMethodInfo;
 				}
 
-				Generator.Emit(OpCodes.Ldarg_0);											// [0] = Arg0 (BinaryArchiveWriter)
-				Generator.Emit(OpCodes.Ldarg_1);											// [1] = Arg1 (Instance)
-				Generator.EmitCall(OpCodes.Call, Property.GetGetMethod(true)!, null);		// [1] = GetMethod(Instance)
-				Generator.EmitCall(OpCodes.Call, WritePropertyMethod, null);		        // [EMPTY] Write(BinaryArchiveWriter, GetMethod(Instance));
+				Generator.Emit(OpCodes.Ldarg_0);                                            // [0] = Arg0 (BinaryArchiveWriter)
+				Generator.Emit(OpCodes.Ldarg_1);                                            // [1] = Arg1 (Instance)
+				Generator.EmitCall(OpCodes.Call, Property.GetGetMethod(true)!, null);       // [1] = GetMethod(Instance)
+				Generator.EmitCall(OpCodes.Call, WritePropertyMethod, null);                // [EMPTY] Write(BinaryArchiveWriter, GetMethod(Instance));
 			}
 
 			// Return
@@ -426,7 +423,7 @@ namespace EpicGames.Core
 				Generator.Emit(OpCodes.Dup);                                                // [1] = new Type()
 
 				Generator.Emit(OpCodes.Ldarg_0);                                            // [2] = Arg1 (Reader)
-				Generator.Emit(OpCodes.Call, ReadPropertyMethod);	                        // [2] = Reader.ReadMethod() or ReadMethod(Reader)
+				Generator.Emit(OpCodes.Call, ReadPropertyMethod);                           // [2] = Reader.ReadMethod() or ReadMethod(Reader)
 
 				Generator.Emit(OpCodes.Call, Property.GetSetMethod(true)!);                 // SetMethod(new Type(), ReadMethod(Reader))
 			}

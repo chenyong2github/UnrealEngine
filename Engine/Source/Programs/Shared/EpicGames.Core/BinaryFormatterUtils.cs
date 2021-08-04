@@ -1,12 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EpicGames.Core
 {
@@ -22,11 +17,9 @@ namespace EpicGames.Core
 		/// <returns>Instance of the object that was read from disk</returns>
 		public static T Load<T>(FileReference Location)
 		{
-			using (FileStream Stream = new FileStream(Location.FullName, FileMode.Open, FileAccess.Read))
-			{
-				BinaryFormatter Formatter = new BinaryFormatter();
-				return (T)Formatter.Deserialize(Stream);
-			}
+			using FileStream Stream = new FileStream(Location.FullName, FileMode.Open, FileAccess.Read);
+			BinaryFormatter Formatter = new BinaryFormatter();
+			return (T)Formatter.Deserialize(Stream);
 		}
 
 		/// <summary>
@@ -37,11 +30,9 @@ namespace EpicGames.Core
 		public static void Save(FileReference Location, object Object)
 		{
 			DirectoryReference.CreateDirectory(Location.Directory);
-			using (FileStream Stream = new FileStream(Location.FullName, FileMode.Create, FileAccess.Write))
-			{
-				BinaryFormatter Formatter = new BinaryFormatter();
-				Formatter.Serialize(Stream, Object);
-			}
+			using FileStream Stream = new FileStream(Location.FullName, FileMode.Create, FileAccess.Write);
+			BinaryFormatter Formatter = new BinaryFormatter();
+			Formatter.Serialize(Stream, Object);
 		}
 
 		/// <summary>
@@ -52,7 +43,7 @@ namespace EpicGames.Core
 		public static void SaveIfDifferent(FileReference Location, object Object)
 		{
 			byte[] Contents;
-			using(MemoryStream Stream = new MemoryStream())
+			using (MemoryStream Stream = new MemoryStream())
 			{
 				BinaryFormatter Formatter = new BinaryFormatter();
 				Formatter.Serialize(Stream, Object);

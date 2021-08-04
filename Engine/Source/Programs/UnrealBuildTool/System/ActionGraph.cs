@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
-using EpicGames.Core;
 using System.Text;
-using System.Threading.Tasks;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -58,8 +57,7 @@ namespace UnrealBuildTool
 				Action.PrerequisiteActions = new HashSet<LinkedAction>();
 				foreach(FileItem PrerequisiteItem in Action.PrerequisiteItems)
 				{
-					LinkedAction? PrerequisiteAction;
-					if(ItemToProducingAction.TryGetValue(PrerequisiteItem, out PrerequisiteAction))
+					if (ItemToProducingAction.TryGetValue(PrerequisiteItem, out LinkedAction? PrerequisiteAction))
 					{
 						Action.PrerequisiteActions.Add(PrerequisiteAction);
 					}
@@ -83,8 +81,7 @@ namespace UnrealBuildTool
 			{
 				foreach(FileItem ProducedItem in Action.ProducedItems)
 				{
-					IExternalAction? ExistingAction;
-					if(ItemToProducingAction.TryGetValue(ProducedItem, out ExistingAction))
+					if (ItemToProducingAction.TryGetValue(ProducedItem, out IExternalAction? ExistingAction))
 					{
 						bResult &= CheckForConflicts(ExistingAction, Action);
 					}
@@ -428,8 +425,7 @@ namespace UnrealBuildTool
 						bool bActionOnlyDependsOnNonCyclicalActions = true;
 						foreach (FileItem PrerequisiteItem in Action.PrerequisiteItems)
 						{
-							LinkedAction? ProducingAction;
-							if (ItemToProducingAction.TryGetValue(PrerequisiteItem, out ProducingAction))
+							if (ItemToProducingAction.TryGetValue(PrerequisiteItem, out LinkedAction? ProducingAction))
 							{
 								if (!ActionIsNonCyclical.ContainsKey(ProducingAction))
 								{
@@ -589,7 +585,6 @@ namespace UnrealBuildTool
 			}
 
 			// Determine the last time the action was run based on the write times of its produced files.
-			string? LatestUpdatedProducedItemName = null;
 			DateTimeOffset LastExecutionTimeUtc = DateTimeOffset.MaxValue;
 			foreach (FileItem ProducedItem in RootAction.ProducedItems)
 			{
@@ -619,7 +614,6 @@ namespace UnrealBuildTool
 					if (ProducedItem.LastWriteTimeUtc < LastExecutionTimeUtc)
 					{
 						LastExecutionTimeUtc = ProducedItem.LastWriteTimeUtc;
-						LatestUpdatedProducedItemName = ProducedItem.AbsolutePath;
 					}
 				}
 				else
@@ -682,17 +676,16 @@ namespace UnrealBuildTool
 			// Check the dependency list
 			if(!bIsOutdated && RootAction.DependencyListFile != null)
 			{
-				List<FileItem>? DependencyFiles;
-				if(!CppDependencies.TryGetDependencies(RootAction.DependencyListFile, out DependencyFiles))
+				if (!CppDependencies.TryGetDependencies(RootAction.DependencyListFile, out List<FileItem>? DependencyFiles))
 				{
 					Log.TraceLog("{0}: Missing dependency list file \"{1}\"", RootAction.StatusDescription, RootAction.DependencyListFile);
 					bIsOutdated = true;
 				}
 				else
 				{
-					foreach(FileItem DependencyFile in DependencyFiles)
+					foreach (FileItem DependencyFile in DependencyFiles)
 					{
-						if(!DependencyFile.Exists || DependencyFile.LastWriteTimeUtc > LastExecutionTimeUtc)
+						if (!DependencyFile.Exists || DependencyFile.LastWriteTimeUtc > LastExecutionTimeUtc)
 						{
 							Log.TraceLog(
 								"{0}: Dependency {1} is newer than the last execution of the action: {2} vs {3}",
@@ -775,7 +768,7 @@ namespace UnrealBuildTool
 						Dependencies.Add(Action.DependencyListFile);
 					}
 				}
-				Parallel.ForEach(Dependencies, File => { List<FileItem>? Temp; CppDependencies.TryGetDependencies(File, out Temp); });
+				Parallel.ForEach(Dependencies, File => { CppDependencies.TryGetDependencies(File, out _); });
 			}
 
 			using(Timeline.ScopeEvent("Cache outdated actions"))
@@ -856,37 +849,35 @@ namespace UnrealBuildTool
 		public static void ExportJson(IEnumerable<LinkedAction> Actions, FileReference OutputFile)
 		{
 			DirectoryReference.CreateDirectory(OutputFile.Directory);
-			using (JsonWriter Writer = new JsonWriter(OutputFile))
+			using JsonWriter Writer = new JsonWriter(OutputFile);
+			Writer.WriteObjectStart();
+
+			Writer.WriteObjectStart("Environment");
+			foreach (object? Object in Environment.GetEnvironmentVariables())
+			{
+				System.Collections.DictionaryEntry Pair = (System.Collections.DictionaryEntry)Object!;
+				if (!UnrealBuildTool.InitialEnvironment!.Contains(Pair.Key) || (string)(UnrealBuildTool.InitialEnvironment![Pair.Key]!) != (string)(Pair.Value!))
+				{
+					Writer.WriteValue((string)Pair!.Key, (string)Pair.Value!);
+				}
+			}
+			Writer.WriteObjectEnd();
+
+			Dictionary<LinkedAction, int> ActionToId = new Dictionary<LinkedAction, int>();
+			foreach (LinkedAction Action in Actions)
+			{
+				ActionToId[Action] = ActionToId.Count;
+			}
+
+			Writer.WriteArrayStart("Actions");
+			foreach (LinkedAction Action in Actions)
 			{
 				Writer.WriteObjectStart();
-
-				Writer.WriteObjectStart("Environment");
-				foreach (object? Object in Environment.GetEnvironmentVariables())
-				{
-					System.Collections.DictionaryEntry Pair = (System.Collections.DictionaryEntry)Object!;
-					if (!UnrealBuildTool.InitialEnvironment!.Contains(Pair.Key) || (string)(UnrealBuildTool.InitialEnvironment![Pair.Key]!) != (string)(Pair.Value!))
-					{
-						Writer.WriteValue((string)Pair!.Key, (string)Pair.Value!);
-					}
-				}
-				Writer.WriteObjectEnd();
-
-				Dictionary<LinkedAction, int> ActionToId = new Dictionary<LinkedAction, int>();
-				foreach (LinkedAction Action in Actions)
-				{
-					ActionToId[Action] = ActionToId.Count;
-				}
-
-				Writer.WriteArrayStart("Actions");
-				foreach (LinkedAction Action in Actions)
-				{
-					Writer.WriteObjectStart();
-					Action.ExportJson(ActionToId, Writer);
-					Writer.WriteObjectEnd();
-				}
-				Writer.WriteArrayEnd();
+				Action.ExportJson(ActionToId, Writer);
 				Writer.WriteObjectEnd();
 			}
+			Writer.WriteArrayEnd();
+			Writer.WriteObjectEnd();
 		}
 	}
 }

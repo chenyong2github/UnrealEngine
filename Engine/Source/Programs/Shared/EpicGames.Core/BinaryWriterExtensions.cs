@@ -3,9 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 #nullable disable
 
@@ -66,14 +63,14 @@ namespace EpicGames.Core
 		/// <param name="WriteElement">Delegate to call to serialize each element</param>
 		public static void Write<T>(this BinaryWriter Writer, T[] Items, Action<T> WriteElement)
 		{
-			if(Items == null)
+			if (Items == null)
 			{
 				Writer.Write(-1);
 			}
 			else
 			{
 				Writer.Write(Items.Length);
-				for(int Idx = 0; Idx < Items.Length; Idx++)
+				for (int Idx = 0; Idx < Items.Length; Idx++)
 				{
 					WriteElement(Items[Idx]);
 				}
@@ -136,14 +133,14 @@ namespace EpicGames.Core
 		/// <returns>Dictionary of objects, as serialized. May be null.</returns>
 		public static void Write<K, V>(this BinaryWriter Writer, Dictionary<K, V> Items, Action<K> WriteKey, Action<V> WriteValue)
 		{
-			if(Items == null)
+			if (Items == null)
 			{
 				Writer.Write(-1);
 			}
 			else
 			{
 				Writer.Write(Items.Count);
-				foreach(KeyValuePair<K, V> Item in Items)
+				foreach (KeyValuePair<K, V> Item in Items)
 				{
 					WriteKey(Item.Key);
 					WriteValue(Item.Value);
@@ -160,7 +157,7 @@ namespace EpicGames.Core
 		/// <returns>Object instance or null</returns>
 		public static void WriteNullable<T>(this BinaryWriter Writer, T Item, Action WriteItem) where T : class
 		{
-			if(Item == null)
+			if (Item == null)
 			{
 				Writer.Write(false);
 			}
@@ -179,38 +176,38 @@ namespace EpicGames.Core
 		/// <param name="Value">The value to output</param>
 		public static void Write(this BinaryWriter Writer, Type FieldType, object Value)
 		{
-			if(FieldType == typeof(string))
+			if (FieldType == typeof(string))
 			{
 				Writer.Write((string)Value);
 			}
-			else if(FieldType == typeof(bool))
+			else if (FieldType == typeof(bool))
 			{
 				Writer.Write((bool)Value);
 			}
-			else if(FieldType == typeof(int))
+			else if (FieldType == typeof(int))
 			{
 				Writer.Write((int)Value);
 			}
-			else if(FieldType == typeof(float))
+			else if (FieldType == typeof(float))
 			{
 				Writer.Write((float)Value);
 			}
-			else if(FieldType == typeof(double))
+			else if (FieldType == typeof(double))
 			{
 				Writer.Write((double)Value);
 			}
-			else if(FieldType.IsEnum)
+			else if (FieldType.IsEnum)
 			{
 				Writer.Write((int)Value);
 			}
-			else if(FieldType == typeof(string[]))
+			else if (FieldType == typeof(string[]))
 			{
 				Writer.Write((string[])Value);
 			}
-			else if(FieldType == typeof(bool?))
+			else if (FieldType == typeof(bool?))
 			{
 				bool? NullableValue = (bool?)Value;
-				Writer.Write(NullableValue.HasValue? NullableValue.Value? 1 : 0 : -1);
+				Writer.Write(NullableValue.HasValue ? NullableValue.Value ? 1 : 0 : -1);
 			}
 			else if (FieldType == typeof(FileReference))
 			{
