@@ -234,6 +234,22 @@ void ALightWeightInstanceStaticMeshManager::ClearStaticMesh()
 	OnStaticMeshSet();
 }
 
+FText ALightWeightInstanceStaticMeshManager::GetSMInstanceDisplayName(const FSMInstanceId& InstanceId) const
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	const FText OwnerDisplayName = FText::FromString(RepresentedClass ? RepresentedClass->GetName() : AActor::GetName());
+	return FText::Format(NSLOCTEXT("LightWeightInstanceStaticMeshManager", "DisplayNameFmt", "{0} - Instance {1}"), OwnerDisplayName, InstanceId.InstanceIndex);
+}
+
+FText ALightWeightInstanceStaticMeshManager::GetSMInstanceTooltip(const FSMInstanceId& InstanceId) const
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+	
+	const FText OwnerDisplayPath = FText::FromString(GetPathName(GetWorld())); // stops the path at the level of the world the object is in
+	return FText::Format(NSLOCTEXT("LightWeightInstanceStaticMeshManager", "TooltipFmt", "Instance {0} on {1}"), InstanceId.InstanceIndex, OwnerDisplayPath);
+}
+
 bool ALightWeightInstanceStaticMeshManager::CanEditSMInstance(const FSMInstanceId& InstanceId) const
 {
 	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);

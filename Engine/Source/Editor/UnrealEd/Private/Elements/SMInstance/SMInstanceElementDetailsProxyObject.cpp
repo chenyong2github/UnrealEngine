@@ -107,38 +107,35 @@ UClass* FSMInstanceElementDetailsProxyObjectNameEditSink::GetSupportedClass() co
 
 FText FSMInstanceElementDetailsProxyObjectNameEditSink::GetObjectDisplayName(UObject* Object) const
 {
-	FText DisplayName;
 	USMInstanceElementDetailsProxyObject* ProxyObject = CastChecked<USMInstanceElementDetailsProxyObject>(Object);
-	FSMInstanceManager SMInstance = ProxyObject->GetSMInstance();
-	if (!SMInstance)
+	if (FSMInstanceManager SMInstance = ProxyObject->GetSMInstance())
 	{
-		return LOCTEXT("ProxyObjectDisplayNameUnknown", "Unknown Instanced Static Mesh");
+		FText DisplayName = SMInstance.GetSMInstanceDisplayName();
+		if (DisplayName.IsEmpty())
+		{
+			const UStaticMesh* StaticMesh = SMInstance.GetISMComponent()->GetStaticMesh();
+			const FText OwnerDisplayName = FText::FromString(StaticMesh ? StaticMesh->GetName() : SMInstance.GetISMComponent()->GetName());
+			DisplayName = FText::Format(LOCTEXT("ProxyObjectDisplayNameFmt", "{0} - Instance {1}"), OwnerDisplayName, SMInstance.GetInstanceId().InstanceIndex);
+		}
+		return DisplayName;
 	}
-	TObjectPtr<UStaticMesh> StaticMesh = SMInstance.GetISMComponent()->GetStaticMesh();
-	if (StaticMesh)
-	{
-		DisplayName = FText::FromString(StaticMesh->GetName());
-	}
-	else
-	{
-		DisplayName = LOCTEXT("ProxyObjectDisplayNameUnassigned", "Static Mesh Unassigned");
-	}
-	DisplayName = FText::Format(LOCTEXT("ProxyObjectDisplayNameFmt", "{0} - Instance {1}"), DisplayName, SMInstance.GetInstanceId().InstanceIndex);
-	return DisplayName;
+	return FText();
 }
 
 FText FSMInstanceElementDetailsProxyObjectNameEditSink::GetObjectNameTooltip(UObject* Object) const
 {
 	USMInstanceElementDetailsProxyObject* ProxyObject = CastChecked<USMInstanceElementDetailsProxyObject>(Object);
-	FSMInstanceManager SMInstance = ProxyObject->GetSMInstance();
-	if (!SMInstance)
+	if (FSMInstanceManager SMInstance = ProxyObject->GetSMInstance())
 	{
-		return LOCTEXT("ProxyObjectTooltipUnknown", "Unknown Instanced Static Mesh");;
+		FText Tooltip = SMInstance.GetSMInstanceTooltip();
+		if (Tooltip.IsEmpty())
+		{
+			const FText OwnerDisplayPath = FText::FromString(SMInstance.GetISMComponent()->GetPathName(SMInstance.GetISMComponent()->GetWorld())); // stops the path at the level of the world the object is in
+			Tooltip = FText::Format(LOCTEXT("ProxyObjectTooltipFmt", "Instance {0} on {1}"), SMInstance.GetInstanceId().InstanceIndex, OwnerDisplayPath);
+		}
+		return Tooltip;
 	}
-	return FText::Format(LOCTEXT("ProxyObjectTooltipFmt", "Instance {0} on {1}"),
-		SMInstance.GetInstanceId().InstanceIndex,
-		// stops the path at the level of the world the object is in
-		FText::FromString(SMInstance.GetISMComponent()->GetPathName(SMInstance.GetISMComponent()->GetWorld())));
+	return FText();
 }
 
 #undef LOCTEXT_NAMESPACE

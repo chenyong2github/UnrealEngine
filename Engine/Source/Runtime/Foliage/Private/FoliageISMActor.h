@@ -13,26 +13,28 @@ class UPrimitiveComponent;
 class UBlueprint;
 class UFoliageType_Actor;
 
-struct FFoliageISMActor : public FFoliageImpl
+struct FFoliageISMActor : public FFoliageImpl, public IISMPartitionInstanceManager
 {
 	FFoliageISMActor(FFoliageInfo* Info)
 		: FFoliageImpl(Info)
 #if WITH_EDITORONLY_DATA
 		, Guid(FGuid::NewGuid())
 		, ActorClass(nullptr)
-		, FoliageTypeActor(nullptr)
 #endif
 	{
 	}
+
+	virtual ~FFoliageISMActor();
 
 #if WITH_EDITORONLY_DATA
 	FGuid Guid;
 	FISMClientHandle ClientHandle;
 	TSortedMap<int32, TArray<FTransform>> ISMDefinition;
 	UClass* ActorClass;
-	const UFoliageType_Actor* FoliageTypeActor;
 #endif
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostSerialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 		
 #if WITH_EDITOR
 	virtual void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector) override;
@@ -56,10 +58,14 @@ struct FFoliageISMActor : public FFoliageImpl
 	virtual void ApplySelection(bool bApply, const TSet<int32>& SelectedIndices) override;
 	virtual void ClearSelection(const TSet<int32>& SelectedIndices) override;
 
+	virtual void ForEachSMInstance(TFunctionRef<bool(FSMInstanceId)> Callback) const override;
+	virtual void ForEachSMInstance(int32 InstanceIndex, TFunctionRef<bool(FSMInstanceId)> Callback) const override;
+
 	virtual void BeginUpdate() override;
 	virtual void EndUpdate() override;
 	virtual void Refresh(bool bAsync, bool bForce) override;
 	virtual void OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews) override;
+	virtual void PreEditUndo(UFoliageType* FoliageType) override;
 	virtual void PostEditUndo(FFoliageInfo* InInfo, UFoliageType* FoliageType) override;
 	virtual void NotifyFoliageTypeWillChange(UFoliageType* FoliageType) override;
 	virtual void NotifyFoliageTypeChanged(UFoliageType* FoliageType, bool bSourceChanged) override;
@@ -68,5 +74,25 @@ private:
 	void RegisterDelegates();
 	void UnregisterDelegates();
 	void OnBlueprintChanged(UBlueprint* InBlueprint);
+#endif
+
+private:
+	//~ IISMPartitionInstanceManager interface
+	virtual FText GetISMPartitionInstanceDisplayName(const FISMClientInstanceId& InstanceId) const override;
+	virtual FText GetISMPartitionInstanceTooltip(const FISMClientInstanceId& InstanceId) const override;
+	virtual bool CanEditISMPartitionInstance(const FISMClientInstanceId& InstanceId) const override;
+	virtual bool CanMoveISMPartitionInstance(const FISMClientInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
+	virtual bool GetISMPartitionInstanceTransform(const FISMClientInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
+	virtual bool SetISMPartitionInstanceTransform(const FISMClientInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bTeleport = false) override;
+	virtual void NotifyISMPartitionInstanceMovementStarted(const FISMClientInstanceId& InstanceId) override;
+	virtual void NotifyISMPartitionInstanceMovementOngoing(const FISMClientInstanceId& InstanceId) override;
+	virtual void NotifyISMPartitionInstanceMovementEnded(const FISMClientInstanceId& InstanceId) override;
+	virtual void NotifyISMPartitionInstanceSelectionChanged(const FISMClientInstanceId& InstanceId, const bool bIsSelected) override;
+	virtual bool DeleteISMPartitionInstances(TArrayView<const FISMClientInstanceId> InstanceIds) override;
+	virtual bool DuplicateISMPartitionInstances(TArrayView<const FISMClientInstanceId> InstanceIds, TArray<FISMClientInstanceId>& OutNewInstanceIds) override;
+
+#if WITH_EDITOR
+	FFoliageInstanceId ISMClientInstanceIdToFoliageInstanceId(const FISMClientInstanceId& InstanceId) const;
+	TArray<FFoliageInstanceId> ISMClientInstanceIdsToFoliageInstanceIds(TArrayView<const FISMClientInstanceId> InstanceIds) const;
 #endif
 };
