@@ -247,6 +247,10 @@ protected:
 	/** Animation asset enter pressed */
 	void OnAnimationAssetEnterPressedForFK(const TArray<FAssetData>& AssetData, FGuid ObjectBinding, UMovieSceneControlRigParameterSection* Section);
 
+	/** Select controls channels from selected pressed*/
+	void ShowSelectedControlsChannels();
+	/** Show all control channels*/
+	void ShowAllControlsChannels();
 
 	/** The sequencer which is controlling this section. */
 	TWeakPtr<ISequencer> WeakSequencer;

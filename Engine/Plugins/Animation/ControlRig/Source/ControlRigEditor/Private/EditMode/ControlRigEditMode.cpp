@@ -53,6 +53,9 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Settings/ControlRigSettings.h"
 #include "ToolMenus.h"
+#include "Sequencer/MovieSceneControlRigParameterTrack.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
+
 
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
@@ -513,6 +516,101 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 		}
 	}
 }
+//Hit proxy for FK Rigs and bones.
+struct  HFKRigBoneProxy : public HHitProxy
+{
+	DECLARE_HIT_PROXY()
+
+	FName BoneName;
+	UControlRig* ControlRig;
+
+	HFKRigBoneProxy()
+		: HHitProxy(HPP_Foreground)
+		, BoneName(NAME_None)
+		, ControlRig(nullptr)
+	{}
+
+	HFKRigBoneProxy(FName InBoneName, UControlRig *InControlRig)
+		: HHitProxy(HPP_Foreground)
+		, BoneName(InBoneName)
+		, ControlRig(InControlRig)
+	{
+	}
+
+	// HHitProxy interface
+	virtual EMouseCursor::Type GetMouseCursor() override { return EMouseCursor::Crosshairs; }
+	// End of HHitProxy interface
+};
+
+IMPLEMENT_HIT_PROXY(HFKRigBoneProxy, HHitProxy)
+
+
+TSet<FName> FControlRigEditMode::GetActiveControlsFromSequencer(UControlRig* ControlRig)
+{
+	TSet<FName> ActiveControls;
+	if (WeakSequencer.IsValid() == false)
+	{
+		return ActiveControls;
+	}
+	if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+	{
+		USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
+		if (!Component)
+		{
+			return ActiveControls;
+		}
+		const bool bCreateHandleIfMissing = false;
+		FName CreatedFolderName = NAME_None;
+		FGuid ObjectHandle = WeakSequencer.Pin()->GetHandleToObject(Component, bCreateHandleIfMissing);
+		if (!ObjectHandle.IsValid())
+		{
+			UObject* ActorObject = Component->GetOwner();
+			ObjectHandle = WeakSequencer.Pin()->GetHandleToObject(ActorObject, bCreateHandleIfMissing);
+			if (!ObjectHandle.IsValid())
+			{
+				return ActiveControls;
+			}
+		}
+		bool bCreateTrack = false;
+		UMovieScene* MovieScene = WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene();
+		if (!MovieScene)
+		{
+			return ActiveControls;
+		}
+		if (FMovieSceneBinding* Binding = MovieScene->FindBinding(ObjectHandle))
+		{
+			for (UMovieSceneTrack* Track : Binding->GetTracks())
+			{
+				if (UMovieSceneControlRigParameterTrack* ControlRigParameterTrack = Cast<UMovieSceneControlRigParameterTrack>(Track))
+				{
+					if (ControlRigParameterTrack->GetControlRig() == ControlRig)
+					{
+						UMovieSceneControlRigParameterSection* ActiveSection = Cast<UMovieSceneControlRigParameterSection>(ControlRigParameterTrack->GetSectionToKey());
+						if (ActiveSection)
+						{
+							TArray<FRigControlElement*> Controls;
+							ControlRig->GetControlsInOrder(Controls);
+							TArray<bool> Mask = ActiveSection->GetControlsMask();
+
+							TArray<FName> Names;
+							int Index = 0;
+							for (FRigControlElement* ControlElement : Controls)
+							{
+								if (Mask[Index])
+								{
+									ActiveControls.Add(ControlElement->GetName());
+								}
+								++Index;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return ActiveControls;
+}
+
 
 void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {	
@@ -539,7 +637,14 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 		if (Settings->bDisplayHierarchy)
 		{
-			Hierarchy->ForEach<FRigTransformElement>([PDI, Hierarchy, ComponentTransform](FRigTransformElement* TransformElement) -> bool
+			const bool bHasFKRig = (ControlRig->IsA<UAdditiveControlRig>() || ControlRig->IsA<UFKControlRig>());
+			const bool bBoolSetHitProxies = PDI && PDI->IsHitTesting() && bHasFKRig;
+			TSet<FName> ActiveControlName;
+			if (bHasFKRig)
+			{
+				ActiveControlName = GetActiveControlsFromSequencer(ControlRig);
+			}
+			Hierarchy->ForEach<FRigTransformElement>([PDI, Hierarchy, ComponentTransform,ControlRig, bHasFKRig, bBoolSetHitProxies, ActiveControlName](FRigTransformElement* TransformElement) -> bool
 			{
 				const FTransform Transform = Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
 
@@ -548,12 +653,57 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				{
 					if(FRigTransformElement* ParentTransformElement = Cast<FRigTransformElement>(ParentElement))
 					{
+						FLinearColor Color = FLinearColor::White;
+						if (bHasFKRig)
+						{
+							FName ControlName = UFKControlRig::GetControlName(ParentTransformElement->GetName());
+							if (ActiveControlName.Num() > 0 && ActiveControlName.Contains(ControlName) == false)
+							{
+								continue;
+							}
+							if (ControlRig->IsControlSelected(ControlName))
+							{
+								Color = FLinearColor::Yellow;
+							}
+						}
 						const FTransform ParentTransform = Hierarchy->GetTransform(ParentTransformElement, ERigTransformType::CurrentGlobal);
-                        PDI->DrawLine(ComponentTransform.TransformPosition(Transform.GetLocation()),ComponentTransform.TransformPosition(ParentTransform.GetLocation()), FLinearColor::White, SDPG_Foreground);
+						const bool bHitTesting = bBoolSetHitProxies && (ParentTransformElement->GetType() == ERigElementType::Bone);
+						if (bHitTesting)
+						{
+							PDI->SetHitProxy(new HFKRigBoneProxy(ParentTransformElement->GetName(), ControlRig));
+						}
+                        PDI->DrawLine(ComponentTransform.TransformPosition(Transform.GetLocation()),ComponentTransform.TransformPosition(ParentTransform.GetLocation()), Color, SDPG_Foreground);
+						if (bHitTesting)
+						{
+							PDI->SetHitProxy(nullptr);
+						}
 					}
                 }
 
-				PDI->DrawPoint(ComponentTransform.TransformPosition(Transform.GetLocation()), FLinearColor::White, 5.0f, SDPG_Foreground);
+				FLinearColor Color = FLinearColor::White;
+				if (bHasFKRig)
+				{
+					FName ControlName = UFKControlRig::GetControlName(TransformElement->GetName());
+					if (ActiveControlName.Num() > 0 && ActiveControlName.Contains(ControlName) == false)
+					{
+						return true;
+					}
+					if (ControlRig->IsControlSelected(ControlName))
+					{
+						Color = FLinearColor::Yellow;
+					}
+				}
+				const bool bHitTesting = PDI && PDI->IsHitTesting() && bBoolSetHitProxies && (TransformElement->GetType() == ERigElementType::Bone);
+				if (bHitTesting)
+				{
+					PDI->SetHitProxy(new HFKRigBoneProxy(TransformElement->GetName(), ControlRig));
+				}
+				PDI->DrawPoint(ComponentTransform.TransformPosition(Transform.GetLocation()), Color, 5.0f, SDPG_Foreground);
+
+				if (bHitTesting)
+				{
+					PDI->SetHitProxy(nullptr);
+				}
 
 				return true;
 			});
@@ -919,9 +1069,18 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 								{
 									FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);
 
-									if (Click.IsShiftDown() || Click.IsControlDown())
+									if (Click.IsShiftDown()) //guess we just select
 									{
 										SetRigElementSelection(ERigElementType::Control, ControlName, true);
+									}
+									else if (Click.IsControlDown()) //if ctrl we toggle selection
+									{
+										UControlRig* InteractionRig = GetControlRig(true);
+										if (InteractionRig)
+										{
+											bool bIsSelected = InteractionRig->IsControlSelected(ControlName);
+											SetRigElementSelection(ERigElementType::Control, ControlName, !bIsSelected);
+										}
 									}
 									else
 									{
@@ -935,6 +1094,34 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 					}
 				}
 			}
+		}
+	}
+	else if (HFKRigBoneProxy* FKBoneProxy = HitProxyCast<HFKRigBoneProxy>(HitProxy))
+	{
+		FName ControlName(*(FKBoneProxy->BoneName.ToString() + TEXT("_CONTROL")));
+		if (FKBoneProxy->ControlRig->FindControl(ControlName))
+		{
+			FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);
+
+			if (Click.IsShiftDown()) //guess we just select
+			{
+				SetRigElementSelection(ERigElementType::Control, ControlName, true);
+			}
+			else if (Click.IsControlDown()) //if ctrl we toggle selection
+			{
+				UControlRig* InteractionRig = GetControlRig(true);
+				if (InteractionRig)
+				{
+					bool bIsSelected = InteractionRig->IsControlSelected(ControlName);
+					SetRigElementSelection(ERigElementType::Control, ControlName, !bIsSelected);
+				}
+			}
+			else
+			{
+				ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
+				SetRigElementSelection(ERigElementType::Control, ControlName, true);
+			}
+			return true;
 		}
 	}
 	else if(HPersonaSelectionHitProxy* CapsuleHitProxy = HitProxyCast<HPersonaSelectionHitProxy>(HitProxy))
@@ -1682,7 +1869,7 @@ void FControlRigEditMode::HandleSelectionChanged()
 			bIsChangingGizmoTransform = false;
 		}
 	}
-	
+
 	// update the pivot transform of our selected objects (they could be animating)
 	RecalcPivotTransform();
 }

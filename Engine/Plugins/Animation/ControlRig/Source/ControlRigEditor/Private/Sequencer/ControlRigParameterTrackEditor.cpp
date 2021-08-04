@@ -76,7 +76,7 @@
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Toolkits/IToolkitHost.h"
-
+#include "ControlRigEditModeSettings.h"
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
 static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject, TSharedPtr<ISequencer> SequencerPtr)
@@ -1939,6 +1939,17 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 		});
 	}
 
+	//if fk rig show hierarchy.
+	if (Subject->IsA<UFKControlRig>())
+	{
+		FControlRigEditMode* EditMode = GetEditMode();
+		if (EditMode)
+		{
+			EditMode->GetSettings()->bDisplayHierarchy = true;
+		}
+
+	}
+
 	if (bIsDoingSelection)
 	{
 		return;
@@ -1964,7 +1975,7 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 		{
 			return;
 		}
-
+		
 		FFindOrCreateTrackResult TrackResult = FindOrCreateControlRigTrackForObject(ObjectHandle, Subject, ControlRigName, bCreateTrack);
 		UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
 		if (Track)
@@ -3099,24 +3110,19 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 		};
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("RigSectionActiveChannels", "Active Channels"));
 		{
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("ToggleRigControlsText", "Rig Controls"), LOCTEXT("ToggleRigControlsText_Tooltip", "Causes this section to affect all rig controls"),
-				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
-				int32 Index = 0;
-				for (FRigControlElement* ControlElement : Controls)
-				{
-					const FName RigName = ControlElement->GetName();
-					FText Name = FText::FromName(RigName);
-					FText Text = FText::Format(LOCTEXT("RigControlToggle", "{0}"), Name);
-					FText TooltipText = FText::Format(LOCTEXT("RigControlToggleTooltip", "Causes this section to affect rig control {0}"), Name);
-					SubMenuBuilder.AddMenuEntry(
-						Text, TooltipText,
-						FSlateIcon(), ToggleControls(Index++), NAME_None, EUserInterfaceActionType::ToggleButton);
-				}
-			}),
-				ToggleControls(-1),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("SetFromSelectedControls", "Set From Selected Controls"),
+				LOCTEXT("SetFromSelectedControls_ToolTip", "Set active channels from the current control selection"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([=] { ShowSelectedControlsChannels(); }))
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ShowAllControls", "Show All Controls"),
+				LOCTEXT("ShowAllControls_ToolTip", "Set active channels from all controls"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([=] { return ShowAllControlsChannels(); }))
+			);
 
 			MenuBuilder.AddSubMenu(
 				LOCTEXT("AllTranslation", "Translation"), LOCTEXT("AllTranslation_ToolTip", "Causes this section to affect the translation of rig control transforms"),
@@ -3175,6 +3181,47 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 				FSlateIcon(), MakeUIAction(EMovieSceneTransformChannel::Weight), NAME_None, EUserInterfaceActionType::ToggleButton);
 		}
 		MenuBuilder.EndSection();
+	}
+}
+
+void FControlRigParameterSection::ShowSelectedControlsChannels()
+{
+	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
+	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+	UControlRig* ControlRig = ParameterSection ? ParameterSection->GetControlRig() : nullptr;
+
+	if (ParameterSection && ControlRig && SequencerPtr.IsValid())
+	{
+		FScopedTransaction Transaction(LOCTEXT("ShowSelecedControlChannels", "Show Selected Control Channels"));
+		ParameterSection->Modify();
+		ParameterSection->FillControlsMask(false);
+
+		TArray<FRigControlElement*> Controls;
+		ControlRig->GetControlsInOrder(Controls);
+		int32 Index = 0;
+		for (const FRigControlElement* RigControl : Controls)
+		{
+			const FName RigName = RigControl->GetName();
+			if (ControlRig->IsControlSelected(RigName))
+			{
+				ParameterSection->SetControlsMask(Index, true);
+			}
+			++Index;
+		}
+		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+	}
+}
+
+void FControlRigParameterSection::ShowAllControlsChannels()
+{
+	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
+	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+	if (ParameterSection && SequencerPtr.IsValid())
+	{
+		FScopedTransaction Transaction(LOCTEXT("ShowAllControlChannels", "Show All Control Channels"));
+		ParameterSection->Modify();
+		ParameterSection->FillControlsMask(true);
+		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 	}
 }
 
