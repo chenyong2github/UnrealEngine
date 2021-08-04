@@ -6,6 +6,8 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
+#include "UsdWrappers/ForwardDeclarations.h"
+
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
@@ -22,7 +24,6 @@ namespace UE
 {
 	class FSdfPath;
 	class FUsdAttribute;
-	class FUsdStage;
 
 	namespace Internal
 	{

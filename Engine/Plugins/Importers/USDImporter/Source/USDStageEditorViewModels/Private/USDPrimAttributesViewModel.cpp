@@ -303,6 +303,11 @@ void FUsdPrimAttributesViewModel::Refresh( const TCHAR* InPrimPath, float TimeCo
 			}
 		}
 	}
+
+	PrimAttributes.Sort([](const TSharedPtr<FUsdPrimAttributeViewModel>& A, const TSharedPtr<FUsdPrimAttributeViewModel>& B)
+	{
+		return A->Label < B->Label;
+	});
 #endif // #if USE_USD_SDK
 }
 

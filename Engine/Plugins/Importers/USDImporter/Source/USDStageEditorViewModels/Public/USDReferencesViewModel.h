@@ -4,10 +4,7 @@
 
 #include "Templates/SharedPointer.h"
 
-namespace UE
-{
-	class FUsdStage;
-}
+#include "UsdWrappers/ForwardDeclarations.h"
 
 class USDSTAGEEDITORVIEWMODELS_API FUsdReference : public TSharedFromThis< FUsdReference >
 {
@@ -18,7 +15,7 @@ public:
 class USDSTAGEEDITORVIEWMODELS_API FUsdReferencesViewModel
 {
 public:
-	void UpdateReferences( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
+	void UpdateReferences( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
 public:
 	TArray< TSharedPtr< FUsdReference > > References;

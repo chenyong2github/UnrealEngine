@@ -29,7 +29,7 @@
 
 #endif // #if USE_USD_SDK
 
-FUsdPrimViewModel::FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStage& InUsdStage, const UE::FUsdPrim& InUsdPrim )
+FUsdPrimViewModel::FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const UE::FUsdPrim& InUsdPrim )
 	: FUsdPrimViewModel( InParentItem, InUsdStage )
 {
 	UsdPrim = InUsdPrim;
@@ -38,7 +38,7 @@ FUsdPrimViewModel::FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE:
 	FillChildren();
 }
 
-FUsdPrimViewModel::FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStage& InUsdStage )
+FUsdPrimViewModel::FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage )
 	: UsdStage( InUsdStage )
 	, ParentItem( InParentItem )
 	, RowData( MakeShared< FUsdPrimModel >() )

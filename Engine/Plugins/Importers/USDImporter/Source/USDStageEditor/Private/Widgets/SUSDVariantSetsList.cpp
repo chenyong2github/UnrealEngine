@@ -84,7 +84,7 @@ void SUsdVariantRow::OnSelectionChanged( TSharedPtr< FString > NewValue, ESelect
 	OnVariantSelectionChanged.ExecuteIfBound( VariantSet.ToSharedRef(), NewValue );
 }
 
-void SVariantsList::Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
+void SVariantsList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
 	PrimPath = InPrimPath;
 
@@ -115,7 +115,7 @@ TSharedRef< ITableRow > SVariantsList::OnGenerateRow( TSharedPtr< FUsdVariantSet
 			.OnVariantSelectionChanged( this, &SVariantsList::OnVariantSelectionChanged );
 }
 
-void SVariantsList::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
+void SVariantsList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
 	PrimPath = InPrimPath;
 	ViewModel.UpdateVariantSets( UsdStage, *PrimPath );

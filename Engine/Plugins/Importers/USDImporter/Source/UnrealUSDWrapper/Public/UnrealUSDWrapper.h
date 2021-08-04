@@ -9,6 +9,8 @@
 #include "UObject/ObjectMacros.h"
 #include "USDMemory.h"
 
+#include "UsdWrappers/ForwardDeclarations.h"
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -40,7 +42,6 @@ class FUsdDiagnosticDelegate;
 namespace UE
 {
 	class FUsdAttribute;
-	class FUsdStage;
 }
 
 enum class EUsdInterpolationMethod

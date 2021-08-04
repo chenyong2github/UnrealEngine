@@ -4,7 +4,6 @@
 
 #include "SUSDLayersTreeView.h"
 #include "SUSDPrimInfo.h"
-#include "SUSDStageInfo.h"
 #include "SUSDStageTreeView.h"
 #include "UnrealUSDWrapper.h"
 #include "USDErrorUtils.h"
@@ -96,7 +95,6 @@ namespace SUSDStageImpl
 
 void SUsdStage::Construct( const FArguments& InArgs )
 {
-	OnStageActorPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP( SharedThis( this ), &SUsdStage::OnStageActorPropertyChanged );
 	OnActorLoadedHandle = AUsdStageActor::OnActorLoaded.AddSP( SharedThis( this ), &SUsdStage::OnStageActorLoaded );
 
 	OnViewportSelectionChangedHandle = USelection::SelectionChangedEvent.AddRaw( this, &SUsdStage::OnViewportSelectionChanged );
@@ -203,11 +201,6 @@ void SUsdStage::SetupStageActorDelegates()
 					 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
 				{
 					this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), *PrimPath );
-				}
-
-				if ( PrimPath == TEXT("/") && this->UsdStageInfoWidget )
-				{
-					this->UsdStageInfoWidget->RefreshStageInfos( ViewModel.UsdStageActor.Get() );
 				}
 			}
 		);
@@ -789,11 +782,6 @@ void SUsdStage::Refresh()
 		UsdLayersTreeView->Refresh( StageActor, true );
 	}
 
-	if (UsdStageInfoWidget)
-	{
-		UsdStageInfoWidget->RefreshStageInfos( StageActor );
-	}
-
 	if (UsdStageTreeView)
 	{
 		UsdStageTreeView->Refresh( StageActor );
@@ -815,17 +803,6 @@ void SUsdStage::OnStageActorLoaded( AUsdStageActor* InUsdStageActor )
 	// Refresh here because we may be receiving an actor that has a stage already loaded,
 	// like during undo/redo
 	Refresh();
-}
-
-void SUsdStage::OnStageActorPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
-{
-	if ( ObjectBeingModified == ViewModel.UsdStageActor )
-	{
-		if ( UsdStageInfoWidget )
-		{
-			UsdStageInfoWidget->RefreshStageInfos( ViewModel.UsdStageActor.Get() );
-		}
-	}
 }
 
 void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )

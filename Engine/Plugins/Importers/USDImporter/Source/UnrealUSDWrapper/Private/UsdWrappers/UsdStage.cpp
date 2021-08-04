@@ -23,338 +23,507 @@ namespace UE
 {
 	namespace Internal
 	{
+		template<typename PtrType>
 		class FUsdStageImpl
 		{
 		public:
 			FUsdStageImpl() = default;
 
-#if USE_USD_SDK
-			explicit FUsdStageImpl( const pxr::UsdStageRefPtr& InUsdStageRefPtr )
-				: PxrUsdStageRefPtr( InUsdStageRefPtr )
+			explicit FUsdStageImpl( const PtrType& InUsdPtr )
+				: UsdPtr( InUsdPtr )
 			{
 			}
 
-			explicit FUsdStageImpl( pxr::UsdStageRefPtr&& InUsdStageRefPtr )
-				: PxrUsdStageRefPtr( MoveTemp( InUsdStageRefPtr ) )
+			explicit FUsdStageImpl( PtrType&& InUsdPtr )
+				: UsdPtr( MoveTemp( InUsdPtr ) )
 			{
 			}
 
-			TUsdStore< pxr::UsdStageRefPtr > PxrUsdStageRefPtr;
-#endif // #if USE_USD_SDK
+			PtrType& GetInner()
+			{
+				return UsdPtr.Get();
+			}
+
+			const PtrType& GetInner() const
+			{
+				return UsdPtr.Get();
+			}
+
+			TUsdStore< PtrType > UsdPtr;
 		};
 	}
 
-	FUsdStage::FUsdStage()
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase()
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl =  MakeUnique< Internal::FUsdStageImpl >();
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >();
 	}
 
-	FUsdStage::FUsdStage( const FUsdStage& Other )
-#if USE_USD_SDK
-		: Impl( MakeUnique< Internal::FUsdStageImpl >( Other.Impl->PxrUsdStageRefPtr.Get() ) )
-#endif // #if USE_USD_SDK
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase( const FUsdStage& Other )
+		: Impl( MakeUnique< Internal::FUsdStageImpl<PtrType> >( Other.Impl->GetInner() ) )
 	{
 	}
 
-	FUsdStage::FUsdStage( FUsdStage&& Other ) = default;
-
-	FUsdStage& FUsdStage::operator=( const FUsdStage& Other )
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase( FUsdStage&& Other )
+		: Impl( MakeUnique< Internal::FUsdStageImpl<PtrType> >( MoveTemp( Other.Impl->GetInner() ) ) )
 	{
-#if USE_USD_SDK
+	}
+
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase( const FUsdStageWeak& Other )
+		: Impl( MakeUnique< Internal::FUsdStageImpl<PtrType> >( Other.Impl->GetInner() ) )
+	{
+	}
+
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase( FUsdStageWeak&& Other )
+		: Impl( MakeUnique< Internal::FUsdStageImpl<PtrType> >( MoveTemp( Other.Impl->GetInner() ) ) )
+	{
+	}
+
+	template<typename PtrType>
+	FUsdStageBase<PtrType>& FUsdStageBase<PtrType>::operator=( const FUsdStage& Other )
+	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FUsdStageImpl >( Other.Impl->PxrUsdStageRefPtr.Get() );
-#endif // #if USE_USD_SDK
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >( Other.Impl->GetInner() );
 		return *this;
 	}
 
-	FUsdStage& FUsdStage::operator=( FUsdStage&& Other )
+	template<typename PtrType>
+	FUsdStageBase<PtrType>& FUsdStageBase<PtrType>::operator=( FUsdStage&& Other )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MoveTemp( Other.Impl );
-
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >( MoveTemp( Other.Impl->GetInner() ) );
 		return *this;
 	}
 
-	FUsdStage::operator bool() const
+	template<typename PtrType>
+	FUsdStageBase<PtrType>& FUsdStageBase<PtrType>::operator=( const FUsdStageWeak& Other )
 	{
-#if USE_USD_SDK
-		return (bool)Impl->PxrUsdStageRefPtr.Get();
-#else
-		return false;
-#endif // #if USE_USD_SDK
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >( Other.Impl->GetInner() );
+		return *this;
 	}
 
-	bool FUsdStage::operator==( const FUsdStage& Other ) const
+	template<typename PtrType>
+	FUsdStageBase<PtrType>& FUsdStageBase<PtrType>::operator=( FUsdStageWeak&& Other )
 	{
-#if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get() == Other.Impl->PxrUsdStageRefPtr.Get();
-#else
-		return false;
-#endif // #if USE_USD_SDK
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >( MoveTemp( Other.Impl->GetInner() ) );
+		return *this;
 	}
 
-	bool FUsdStage::operator!=( const FUsdStage& Other ) const
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::operator bool() const
+	{
+		return ( bool ) Impl->GetInner();
+	}
+
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::operator==( const FUsdStageBase<PtrType>& Other ) const
+	{
+		return Impl->GetInner() == Other.Impl->GetInner();
+	}
+
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::operator!=( const FUsdStageBase<PtrType>& Other ) const
 	{
 		return !( *this == Other );
 	}
 
-	FUsdStage::~FUsdStage()
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::~FUsdStageBase()
 	{
 		FScopedUnrealAllocs UnrealAllocs;
 		Impl.Reset();
 	}
 
+	// Auto conversion from/to PtrType
 #if USE_USD_SDK
-	FUsdStage::FUsdStage( const pxr::UsdStageRefPtr& InUsdStageRefPtr )
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase( const pxr::UsdStageRefPtr& InUsdPtr )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FUsdStageImpl >( InUsdStageRefPtr );
+
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >( InUsdPtr );
 	}
 
-	FUsdStage::FUsdStage( pxr::UsdStageRefPtr&& InUsdStageRefPtr )
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase( pxr::UsdStageRefPtr&& InUsdPtr )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FUsdStageImpl >( MoveTemp( InUsdStageRefPtr ) );
+
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >( InUsdPtr );
 	}
 
-	FUsdStage::operator pxr::UsdStageRefPtr&()
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase( const pxr::UsdStageWeakPtr& InUsdPtr )
 	{
-		return Impl->PxrUsdStageRefPtr.Get();
+		FScopedUnrealAllocs UnrealAllocs;
+
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >( InUsdPtr );
 	}
 
-	FUsdStage::operator const pxr::UsdStageRefPtr&() const
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::FUsdStageBase( pxr::UsdStageWeakPtr&& InUsdPtr )
 	{
-		return Impl->PxrUsdStageRefPtr.Get();
+		FScopedUnrealAllocs UnrealAllocs;
+
+		Impl = MakeUnique< Internal::FUsdStageImpl<PtrType> >( InUsdPtr );
 	}
 
-	FUsdStage::operator pxr::UsdStageWeakPtr() const
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::operator PtrType& ( )
 	{
-		return pxr::UsdStageWeakPtr( Impl->PxrUsdStageRefPtr.Get() );
+		return Impl->GetInner();
 	}
-#endif // #if USE_USD_SDK
 
-	FSdfLayer FUsdStage::GetRootLayer() const
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::operator const PtrType& ( ) const
 	{
-#if USE_USD_SDK
-		return FSdfLayer( Impl->PxrUsdStageRefPtr.Get()->GetRootLayer() );
-#else
-		return FSdfLayer();
-#endif // #if USE_USD_SDK
+		return Impl->GetInner();
 	}
 
-	FSdfLayer FUsdStage::GetSessionLayer() const
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::operator pxr::UsdStageRefPtr ( ) const
 	{
-#if USE_USD_SDK
-		return FSdfLayer( Impl->PxrUsdStageRefPtr.Get()->GetSessionLayer() );
-#else
-		return FSdfLayer();
-#endif // #if USE_USD_SDK
+		return Impl->GetInner();
 	}
 
-	bool FUsdStage::HasLocalLayer( const FSdfLayer& Layer ) const
+	template<typename PtrType>
+	FUsdStageBase<PtrType>::operator pxr::UsdStageWeakPtr ( ) const
 	{
-#if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->HasLocalLayer( pxr::SdfLayerRefPtr( Layer ) );
-#else
-		return false;
-#endif // #if USE_USD_SDK
+		return Impl->GetInner();
 	}
+#endif // USE_USD_SDK
 
-	FUsdPrim FUsdStage::GetPseudoRoot() const
-	{
-#if USE_USD_SDK
-		return FUsdPrim( Impl->PxrUsdStageRefPtr.Get()->GetPseudoRoot() );
-#else
-		return FUsdPrim();
-#endif // #if USE_USD_SDK
-	}
-
-	FUsdPrim FUsdStage::GetDefaultPrim() const
+	template<typename PtrType>
+	FSdfLayer FUsdStageBase<PtrType>::GetRootLayer() const
 	{
 #if USE_USD_SDK
-		return FUsdPrim( Impl->PxrUsdStageRefPtr.Get()->GetDefaultPrim() );
-#else
-		return FUsdPrim();
-#endif // #if USE_USD_SDK
-	}
-
-	FUsdPrim FUsdStage::GetPrimAtPath( const FSdfPath& Path ) const
-	{
-#if USE_USD_SDK
-		return FUsdPrim( Impl->PxrUsdStageRefPtr.Get()->GetPrimAtPath( Path ) );
-#else
-		return FUsdPrim();
-#endif // #if USE_USD_SDK
-	}
-
-	bool FUsdStage::IsEditTargetValid() const
-	{
-#if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->GetEditTarget().IsValid();
-#else
-		return false;
-#endif // #if USE_USD_SDK
-	}
-
-	void FUsdStage::SetEditTarget( const FSdfLayer& Layer )
-	{
-#if USE_USD_SDK
-		FScopedUsdAllocs UsdAllocs;
-
-		pxr::SdfLayerRefPtr LayerRef( Layer );
-		const pxr::UsdEditTarget EditTarget = Impl->PxrUsdStageRefPtr.Get()->GetEditTargetForLocalLayer( LayerRef );
-
-		Impl->PxrUsdStageRefPtr.Get()->SetEditTarget( EditTarget );
-#endif // #if USE_USD_SDK
-	}
-
-	FSdfLayer FUsdStage::GetEditTarget() const
-	{
-#if USE_USD_SDK
-		if ( IsEditTargetValid() )
+		if ( PtrType& Ptr = Impl->GetInner() )
 		{
-			return FSdfLayer( Impl->PxrUsdStageRefPtr.Get()->GetEditTarget().GetLayer() );
+			return FSdfLayer( Ptr->GetRootLayer() );
 		}
-		else
-		{
-			return FSdfLayer();
-		}
-#else
+#endif // #if USE_USD_SDK
 		return FSdfLayer();
-#endif // #if USE_USD_SDK
 	}
 
-	bool FUsdStage::GetMetadata( const TCHAR* Key, UE::FVtValue& Value ) const
+	template<typename PtrType>
+	FSdfLayer FUsdStageBase<PtrType>::GetSessionLayer() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->GetMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) }, &Value.GetUsdValue() );
-#else
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return FSdfLayer( Ptr->GetSessionLayer() );
+		}
+#endif // #if USE_USD_SDK
+
+		return FSdfLayer();
+	}
+
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::HasLocalLayer( const FSdfLayer & Layer ) const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->HasLocalLayer( pxr::SdfLayerRefPtr( Layer ) );
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	bool FUsdStage::HasMetadata( const TCHAR* Key ) const
+	template<typename PtrType>
+	FUsdPrim FUsdStageBase<PtrType>::GetPseudoRoot() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->HasMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) } );
-#else
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return FUsdPrim( Ptr->GetPseudoRoot() );
+		}
+#endif // #if USE_USD_SDK
+
+		return FUsdPrim();
+	}
+
+	template<typename PtrType>
+	FUsdPrim FUsdStageBase<PtrType>::GetDefaultPrim() const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return FUsdPrim( Ptr->GetDefaultPrim() );
+		}
+#endif // #if USE_USD_SDK
+
+		return FUsdPrim();
+	}
+
+	template<typename PtrType>
+	FUsdPrim FUsdStageBase<PtrType>::GetPrimAtPath( const FSdfPath & Path ) const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return FUsdPrim( Ptr->GetPrimAtPath( Path ) );
+		}
+#endif // #if USE_USD_SDK
+
+		return FUsdPrim();
+	}
+
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::IsEditTargetValid() const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetEditTarget().IsValid();
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
+	}
+
+	template<typename PtrType>
+	void FUsdStageBase<PtrType>::SetEditTarget( const FSdfLayer & Layer )
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+
+			pxr::SdfLayerRefPtr LayerRef( Layer );
+			const pxr::UsdEditTarget EditTarget = Ptr->GetEditTargetForLocalLayer( LayerRef );
+
+			Ptr->SetEditTarget( EditTarget );
+		}
 #endif // #if USE_USD_SDK
 	}
 
-	bool FUsdStage::SetMetadata( const TCHAR* Key, const UE::FVtValue& Value ) const
+	template<typename PtrType>
+	FSdfLayer FUsdStageBase<PtrType>::GetEditTarget() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->SetMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) }, Value.GetUsdValue() );
-#else
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			if ( IsEditTargetValid() )
+			{
+				return FSdfLayer( Ptr->GetEditTarget().GetLayer() );
+			}
+		}
+#endif // #if USE_USD_SDK
+
+		return FSdfLayer();
+	}
+
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::GetMetadata( const TCHAR * Key, UE::FVtValue & Value ) const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) }, &Value.GetUsdValue() );
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	bool FUsdStage::ClearMetadata( const TCHAR* Key ) const
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::HasMetadata( const TCHAR * Key ) const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->ClearMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) } );
-#else
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->HasMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) } );
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	double FUsdStage::GetStartTimeCode() const
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::SetMetadata( const TCHAR * Key, const UE::FVtValue & Value ) const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->GetStartTimeCode();
-#else
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->SetMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) }, Value.GetUsdValue() );
+		}
+#endif // #if USE_USD_SDK
+
+		return false;
+	}
+
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::ClearMetadata( const TCHAR * Key ) const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->ClearMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) } );
+		}
+#endif // #if USE_USD_SDK
+
+		return false;
+	}
+
+	template<typename PtrType>
+	double FUsdStageBase<PtrType>::GetStartTimeCode() const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetStartTimeCode();
+		}
+#endif // #if USE_USD_SDK
+
 		return 0.0;
-#endif // #if USE_USD_SDK
 	}
 
-	double FUsdStage::GetEndTimeCode() const
+	template<typename PtrType>
+	double FUsdStageBase<PtrType>::GetEndTimeCode() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->GetEndTimeCode();
-#else
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetEndTimeCode();
+		}
+#endif // #if USE_USD_SDK
+
 		return 0.0;
-#endif // #if USE_USD_SDK
 	}
 
-	void FUsdStage::SetStartTimeCode( double TimeCode )
+	template<typename PtrType>
+	void FUsdStageBase<PtrType>::SetStartTimeCode( double TimeCode )
 	{
 #if USE_USD_SDK
-		if ( !FMath::IsNearlyEqual( TimeCode, Impl->PxrUsdStageRefPtr.Get()->GetStartTimeCode() ) )
+		if ( PtrType& Ptr = Impl->GetInner() )
 		{
-			Impl->PxrUsdStageRefPtr.Get()->SetStartTimeCode( TimeCode );
+			if ( !FMath::IsNearlyEqual( TimeCode, Ptr->GetStartTimeCode() ) )
+			{
+				Ptr->SetStartTimeCode( TimeCode );
+			}
 		}
 #endif // #if USE_USD_SDK
 	}
 
-	void FUsdStage::SetEndTimeCode( double TimeCode )
+	template<typename PtrType>
+	void FUsdStageBase<PtrType>::SetEndTimeCode( double TimeCode )
 	{
 #if USE_USD_SDK
-		if ( !FMath::IsNearlyEqual( TimeCode, Impl->PxrUsdStageRefPtr.Get()->GetEndTimeCode() ) )
+		if ( PtrType& Ptr = Impl->GetInner() )
 		{
-			Impl->PxrUsdStageRefPtr.Get()->SetEndTimeCode( TimeCode );
+			if ( !FMath::IsNearlyEqual( TimeCode, Ptr->GetEndTimeCode() ) )
+			{
+				Ptr->SetEndTimeCode( TimeCode );
+			}
 		}
 #endif // #if USE_USD_SDK
 	}
 
-	double FUsdStage::GetTimeCodesPerSecond() const
+	template<typename PtrType>
+	double FUsdStageBase<PtrType>::GetTimeCodesPerSecond() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->GetTimeCodesPerSecond();
-#else
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetTimeCodesPerSecond();
+		}
+#endif // #if USE_USD_SDK
+
 		return 24.0;
-#endif // #if USE_USD_SDK
 	}
 
-	void FUsdStage::SetTimeCodesPerSecond( double TimeCodesPerSecond )
+	template<typename PtrType>
+	void FUsdStageBase<PtrType>::SetTimeCodesPerSecond( double TimeCodesPerSecond )
 	{
 #if USE_USD_SDK
-		pxr::UsdEditContext EditContext( Impl->PxrUsdStageRefPtr.Get(), Impl->PxrUsdStageRefPtr.Get()->GetRootLayer() );
-		Impl->PxrUsdStageRefPtr.Get()->SetTimeCodesPerSecond( TimeCodesPerSecond );
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs Allocs;
+
+			pxr::UsdEditContext EditContext( Ptr, Ptr->GetRootLayer() );
+			Ptr->SetTimeCodesPerSecond( TimeCodesPerSecond );
+		}
 #endif
 	}
 
-	double FUsdStage::GetFramesPerSecond() const
+	template<typename PtrType>
+	double FUsdStageBase<PtrType>::GetFramesPerSecond() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->GetFramesPerSecond();
-#else
-		return 24.0;
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetFramesPerSecond();
+		}
 #endif // #if USE_USD_SDK
+
+		return 24.0;
 	}
 
-	void FUsdStage::SetFramesPerSecond( double FramesPerSecond )
+	template<typename PtrType>
+	void FUsdStageBase<PtrType>::SetFramesPerSecond( double FramesPerSecond )
 	{
 #if USE_USD_SDK
-		pxr::UsdEditContext EditContext( Impl->PxrUsdStageRefPtr.Get(), Impl->PxrUsdStageRefPtr.Get()->GetRootLayer() );
-		Impl->PxrUsdStageRefPtr.Get()->SetFramesPerSecond( FramesPerSecond );
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs Allocs;
+
+			pxr::UsdEditContext EditContext( Ptr, Ptr->GetRootLayer() );
+			Ptr->SetFramesPerSecond( FramesPerSecond );
+		}
 #endif
 	}
 
-	void FUsdStage::SetDefaultPrim( const FUsdPrim& Prim )
+	template<typename PtrType>
+	void FUsdStageBase<PtrType>::SetDefaultPrim( const FUsdPrim & Prim )
 	{
 #if USE_USD_SDK
-		Impl->PxrUsdStageRefPtr.Get()->SetDefaultPrim( Prim );
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			Ptr->SetDefaultPrim( Prim );
+		}
 #endif // #if USE_USD_SDK
 	}
 
-	FUsdPrim FUsdStage::DefinePrim( const FSdfPath& Path, const TCHAR* TypeName )
+	template<typename PtrType>
+	FUsdPrim FUsdStageBase<PtrType>::DefinePrim( const FSdfPath & Path, const TCHAR * TypeName )
 	{
 #if USE_USD_SDK
-		return FUsdPrim( Impl->PxrUsdStageRefPtr.Get()->DefinePrim( Path, pxr::TfToken( TCHAR_TO_ANSI( TypeName ) ) ) );
-#else
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return FUsdPrim( Ptr->DefinePrim( Path, pxr::TfToken( TCHAR_TO_ANSI( TypeName ) ) ) );
+		}
+#endif // #if USE_USD_SDK
+
 		return FUsdPrim();
-#endif // #if USE_USD_SDK
 	}
 
-	bool FUsdStage::RemovePrim( const FSdfPath& Path )
+	template<typename PtrType>
+	bool FUsdStageBase<PtrType>::RemovePrim( const FSdfPath & Path )
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdStageRefPtr.Get()->RemovePrim( Path );
-#else
-		return false;
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->RemovePrim( Path );
+		}
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
+
+#if USE_USD_SDK
+	template class UNREALUSDWRAPPER_API FUsdStageBase<pxr::UsdStageRefPtr>;
+	template class UNREALUSDWRAPPER_API FUsdStageBase<pxr::UsdStageWeakPtr>;
+#else
+	template class UNREALUSDWRAPPER_API FUsdStageBase<FDummyRefPtrType>;
+	template class UNREALUSDWRAPPER_API FUsdStageBase<FDummyWeakPtrType>;
+#endif // #if USE_USD_SDK
 }

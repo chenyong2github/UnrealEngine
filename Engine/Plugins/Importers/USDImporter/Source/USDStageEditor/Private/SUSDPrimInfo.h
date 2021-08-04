@@ -5,10 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-namespace UE
-{
-	class FUsdStage;
-}
+#include "UsdWrappers/ForwardDeclarations.h"
 
 #if USE_USD_SDK
 
@@ -20,13 +17,13 @@ public:
 	SLATE_BEGIN_ARGS( SUsdPrimInfo ) {}
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
+	void Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
-	void SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
+	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
 protected:
-	TSharedRef< SWidget > GenerateVariantSetsWidget( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
-	TSharedRef< SWidget > GenerateReferencesListWidget( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
+	TSharedRef< SWidget > GenerateVariantSetsWidget( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
+	TSharedRef< SWidget > GenerateReferencesListWidget( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
 private:
 	TSharedPtr< class SUsdPrimPropertiesList > PropertiesList;

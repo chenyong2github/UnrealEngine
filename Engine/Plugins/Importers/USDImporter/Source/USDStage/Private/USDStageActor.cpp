@@ -20,10 +20,11 @@
 #include "USDTransactor.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfChangeBlock.h"
+#include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdGeomXformable.h"
-#include "UsdWrappers/SdfLayer.h"
-#include "UsdWrappers/SdfChangeBlock.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "Async/ParallelFor.h"
 #include "CineCameraActor.h"

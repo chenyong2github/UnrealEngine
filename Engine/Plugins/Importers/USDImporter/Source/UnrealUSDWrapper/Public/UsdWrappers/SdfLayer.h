@@ -4,21 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#if USE_USD_SDK
-
-#include "USDIncludesStart.h"
-	#include "pxr/pxr.h"
-#include "USDIncludesEnd.h"
-
-PXR_NAMESPACE_OPEN_SCOPE
-	class SdfLayer;
-	class SdfLayerOffset;
-
-	template< typename T > class TfRefPtr;
-	using SdfLayerRefPtr = TfRefPtr< SdfLayer >;
-PXR_NAMESPACE_CLOSE_SCOPE
-
-#endif // #if USE_USD_SDK
+#include "UsdWrappers/ForwardDeclarations.h"
 
 namespace UE
 {
@@ -26,7 +12,7 @@ namespace UE
 
 	namespace Internal
 	{
-		class FSdfLayerImpl;
+		template < typename PtrType > class FSdfLayerImpl;
 	}
 
 	struct UNREALUSDWRAPPER_API FSdfLayerOffset
@@ -43,36 +29,53 @@ namespace UE
 	};
 
 	/**
-	 * Minimal pxr::SdfLayerRefPtr wrapper for Unreal that can be used from no-rtti modules.
+	 * Minimal pxr::SdfLayer pointer wrapper for Unreal that can be used from no-rtti modules.
+	 * Use the aliases FSdfLayer and FSdfLayerWeak instead (defined on ForwardDeclarations.h)
 	 */
-	class UNREALUSDWRAPPER_API FSdfLayer
+	template< typename PtrType >
+	class UNREALUSDWRAPPER_API FSdfLayerBase
 	{
 	public:
-		FSdfLayer();
+		FSdfLayerBase();
 
-		FSdfLayer( const FSdfLayer& Other );
-		FSdfLayer( FSdfLayer&& Other );
-		~FSdfLayer();
+		FSdfLayerBase( const FSdfLayer& Other );
+		FSdfLayerBase( FSdfLayer&& Other );
+		FSdfLayerBase( const FSdfLayerWeak& Other );
+		FSdfLayerBase( FSdfLayerWeak&& Other );
 
-		FSdfLayer& operator=( const FSdfLayer& Other );
-		FSdfLayer& operator=( FSdfLayer&& Other );
+		~FSdfLayerBase();
 
-		bool operator==( const FSdfLayer& Other ) const;
-		bool operator!=( const FSdfLayer& Other ) const;
+		FSdfLayerBase& operator=( const FSdfLayer& Other );
+		FSdfLayerBase& operator=( FSdfLayer&& Other );
+		FSdfLayerBase& operator=( const FSdfLayerWeak& Other );
+		FSdfLayerBase& operator=( FSdfLayerWeak&& Other );
+
+		bool operator==( const FSdfLayerBase& Other ) const;
+		bool operator!=( const FSdfLayerBase& Other ) const;
 
 		explicit operator bool() const;
 
-	// Auto conversion from/to pxr::SdfLayerRefPtr
+		// Auto conversion from/to PtrType. We use concrete pointer types here
+		// because we should also be able to convert between them
 	public:
 #if USE_USD_SDK
-		explicit FSdfLayer( const pxr::SdfLayerRefPtr& InSdfLayer );
-		explicit FSdfLayer( pxr::SdfLayerRefPtr&& InSdfLayer );
+		explicit FSdfLayerBase( const pxr::SdfLayerRefPtr& InSdfLayer );
+		explicit FSdfLayerBase( pxr::SdfLayerRefPtr&& InSdfLayer );
+		explicit FSdfLayerBase( const pxr::SdfLayerWeakPtr& InSdfLayer );
+		explicit FSdfLayerBase( pxr::SdfLayerWeakPtr&& InSdfLayer );
 
-		FSdfLayer& operator=( const pxr::SdfLayerRefPtr& InSdfLayer );
-		FSdfLayer& operator=( pxr::SdfLayerRefPtr&& InSdfLayer );
+		FSdfLayerBase& operator=( const pxr::SdfLayerRefPtr& InSdfLayer );
+		FSdfLayerBase& operator=( pxr::SdfLayerRefPtr&& InSdfLayer );
+		FSdfLayerBase& operator=( const pxr::SdfLayerWeakPtr& InSdfLayer );
+		FSdfLayerBase& operator=( pxr::SdfLayerWeakPtr&& InSdfLayer );
 
-		operator pxr::SdfLayerRefPtr&();
-		operator const pxr::SdfLayerRefPtr&() const;
+		// We can provide reference cast operators for the type we do have, but
+		// need to settle on providing copy cast operators for the other types
+		operator PtrType&();
+		operator const PtrType&() const;
+
+		operator pxr::SdfLayerRefPtr() const;
+		operator pxr::SdfLayerWeakPtr() const;
 #endif // #if USE_USD_SDK
 
 	// Wrapped pxr::SdfLayer functions, refer to the USD SDK documentation
@@ -121,7 +124,10 @@ namespace UE
 		void SetMuted(bool bMuted);
 
 	private:
-		TUniquePtr< Internal::FSdfLayerImpl > Impl;
+		friend FSdfLayer;
+		friend FSdfLayerWeak;
+
+		TUniquePtr< Internal::FSdfLayerImpl<PtrType> > Impl;
 	};
 
 	/**

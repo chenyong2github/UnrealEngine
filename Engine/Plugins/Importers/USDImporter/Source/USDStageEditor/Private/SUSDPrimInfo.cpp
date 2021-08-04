@@ -34,7 +34,7 @@ namespace UsdPrimInfoWidgetConstants
 	const FMargin CategoryHeaderPadding( 4.0f, 4.0f, 4.0f, 4.0f );
 }
 
-void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
+void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
 	TSharedRef< SWidget > VariantSetsWidget = GenerateVariantSetsWidget( UsdStage, PrimPath );
 	TSharedRef< SWidget > ReferencesListWidget = GenerateReferencesListWidget( UsdStage, PrimPath );
@@ -77,7 +77,7 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStage& Usd
 	SetPrimPath( UsdStage, PrimPath );
 }
 
-void SUsdPrimInfo::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
+void SUsdPrimInfo::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
 	if ( PropertiesList )
 	{
@@ -100,7 +100,7 @@ void SUsdPrimInfo::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* Prim
 	}
 }
 
-TSharedRef< SWidget > SUsdPrimInfo::GenerateVariantSetsWidget( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
+TSharedRef< SWidget > SUsdPrimInfo::GenerateVariantSetsWidget( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
 	TSharedRef< SWidget > VariantSetsWidget = SNullWidget::NullWidget;
 
@@ -125,7 +125,7 @@ TSharedRef< SWidget > SUsdPrimInfo::GenerateVariantSetsWidget( const UE::FUsdSta
 	return VariantSetsWidget;
 }
 
-TSharedRef< SWidget > SUsdPrimInfo::GenerateReferencesListWidget( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
+TSharedRef< SWidget > SUsdPrimInfo::GenerateReferencesListWidget( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
 {
 	TSharedRef< SWidget > ReferencesListWidget = SNullWidget::NullWidget;
 

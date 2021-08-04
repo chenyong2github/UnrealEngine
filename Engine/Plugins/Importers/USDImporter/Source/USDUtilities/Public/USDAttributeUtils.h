@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 
+#include "UsdWrappers/ForwardDeclarations.h"
+
 #if USE_USD_SDK
 
 namespace UE
 {
-	class FSdfLayer;
 	class FUsdAttribute;
-	class FUsdStage;
 }
 
 namespace UsdUtils

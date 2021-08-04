@@ -8,11 +8,6 @@
 #include "USDTreeItemViewModel.h"
 #include "UsdWrappers/UsdStage.h"
 
-namespace UE
-{
-	class FSdfLayer;
-}
-
 class USDSTAGEEDITORVIEWMODELS_API FUsdLayerModel : public TSharedFromThis< FUsdLayerModel >
 {
 public:
@@ -26,7 +21,7 @@ public:
 class USDSTAGEEDITORVIEWMODELS_API FUsdLayerViewModel : public IUsdTreeViewItem
 {
 public:
-	explicit FUsdLayerViewModel( FUsdLayerViewModel* InParentItem, const UE::FUsdStage& InUsdStage, const FString& InLayerIdentifier );
+	explicit FUsdLayerViewModel( FUsdLayerViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const FString& InLayerIdentifier );
 
 	bool IsValid() const;
 
@@ -54,6 +49,6 @@ public:
 	FUsdLayerViewModel* ParentItem;
 	TArray< TSharedRef< FUsdLayerViewModel > > Children;
 
-	UE::FUsdStage UsdStage;
+	UE::FUsdStageWeak UsdStage;
 	FString LayerIdentifier;
 };

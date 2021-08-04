@@ -45,8 +45,8 @@ class SVariantsList : public SListView< TSharedPtr< FUsdVariantSetViewModel > >
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath );
-	void SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath );
+	void Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );
+	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );
 
 protected:
 	void UpdateVariantSets( const TCHAR* InPrimPath );

@@ -7,6 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 
 #include "USDMemory.h"
+#include "UsdWrappers/ForwardDeclarations.h"
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -39,9 +40,7 @@ class UUsdAssetImportData;
 enum class EUsdUpAxis : uint8;
 namespace UE
 {
-	class FSdfLayer;
 	class FUsdPrim;
-	class FUsdStage;
 	class FSdfPath;
 }
 

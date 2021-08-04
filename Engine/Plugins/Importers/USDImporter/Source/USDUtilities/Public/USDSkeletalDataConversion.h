@@ -8,6 +8,7 @@
 #include "UObject/ObjectMacros.h"
 
 #include "USDConversionUtils.h"
+#include "UsdWrappers/ForwardDeclarations.h"
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -38,10 +39,6 @@ namespace SkeletalMeshImportData
 namespace UsdUtils
 {
 	struct FUsdPrimMaterialSlot;
-}
-namespace UE
-{
-	class FUsdStage;
 }
 
 #endif // #if USE_USD_SDK

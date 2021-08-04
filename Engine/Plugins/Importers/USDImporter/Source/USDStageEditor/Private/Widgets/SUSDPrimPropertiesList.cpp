@@ -650,7 +650,7 @@ void SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged( ECheckBoxState NewState )
 	UsdPrimAttribute->SetAttributeValue( NewValue );
 }
 
-void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
+void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
 	GeneratePropertiesList( UsdStage, InPrimPath );
 
@@ -681,14 +681,14 @@ TSharedRef< ITableRow > SUsdPrimPropertiesList::OnGenerateRow( TSharedPtr< FUsdP
 	return SNew( SUsdPrimPropertyRow, InDisplayNode, OwnerTable );
 }
 
-void SUsdPrimPropertiesList::GeneratePropertiesList( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
+void SUsdPrimPropertiesList::GeneratePropertiesList( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
 	float TimeCode = 0.f;
 	ViewModel.UsdStage = UsdStage;
 	ViewModel.Refresh( InPrimPath, TimeCode );
 }
 
-void SUsdPrimPropertiesList::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* InPrimPath )
+void SUsdPrimPropertiesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
 	GeneratePropertiesList( UsdStage, InPrimPath );
 	RequestListRefresh();

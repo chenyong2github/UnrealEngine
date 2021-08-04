@@ -59,14 +59,12 @@ protected:
 	void Refresh();
 
 	void OnStageActorLoaded( AUsdStageActor* InUsdStageActor );
-	void OnStageActorPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent );
 
 	void OnMapChanged( UWorld* World, EMapChangeType ChangeType );
 
 	void OnViewportSelectionChanged( UObject* NewSelection );
 
 protected:
-	TSharedPtr< class SUsdStageInfo > UsdStageInfoWidget;
 	TSharedPtr< class SUsdStageTreeView > UsdStageTreeView;
 	TSharedPtr< class SUsdPrimInfo > UsdPrimInfoWidget;
 	TSharedPtr< class SUsdLayersTreeView > UsdLayersTreeView;
@@ -75,7 +73,6 @@ protected:
 	FDelegateHandle OnActorDestroyedHandle;
 	FDelegateHandle OnStageActorPropertyChangedHandle;
 	FDelegateHandle OnStageChangedHandle;
-	FDelegateHandle OnStageInfoChangedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
 	FDelegateHandle OnPrimChangedHandle;
 

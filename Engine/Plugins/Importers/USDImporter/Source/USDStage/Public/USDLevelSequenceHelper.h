@@ -4,15 +4,12 @@
 
 #include "CoreMinimal.h"
 
+#include "UsdWrappers/ForwardDeclarations.h"
+
 class AUsdStageActor;
 class FUsdLevelSequenceHelperImpl;
 class ULevelSequence;
 class UUsdPrimTwin;
-
-namespace UE
-{
-	class FUsdStage;
-}
 
 /**
  * Builds and maintains the level sequence and subsequences for a Usd Stage

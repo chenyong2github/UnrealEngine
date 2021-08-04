@@ -6,14 +6,10 @@
 #include "Containers/Map.h"
 #include "Delegates/Delegate.h"
 
+#include "UsdWrappers/ForwardDeclarations.h"
 #include "UsdWrappers/VtValue.h"
 
 class FUsdListenerImpl;
-
-namespace UE
-{
-	class FUsdStage;
-}
 
 namespace UsdUtils
 {

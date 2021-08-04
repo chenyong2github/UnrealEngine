@@ -19,128 +19,216 @@ namespace UE
 {
 	namespace Internal
 	{
+		template<typename PtrType>
 		class FSdfLayerImpl
 		{
 		public:
 			FSdfLayerImpl() = default;
 
-#if USE_USD_SDK
-			explicit FSdfLayerImpl( const pxr::SdfLayerRefPtr& InSdfLayer )
-				: PxrSdfLayer( InSdfLayer )
+			explicit FSdfLayerImpl( const PtrType& InUsdPtr )
+				: UsdPtr( InUsdPtr )
 			{
 			}
 
-			explicit FSdfLayerImpl( pxr::SdfLayerRefPtr&& InSdfLayer )
-				: PxrSdfLayer( MoveTemp( InSdfLayer ) )
+			explicit FSdfLayerImpl( PtrType&& InUsdPtr )
+				: UsdPtr( MoveTemp( InUsdPtr ) )
 			{
 			}
 
-			TUsdStore< pxr::SdfLayerRefPtr > PxrSdfLayer;
-#endif // #if USE_USD_SDK
+			PtrType& GetInner()
+			{
+				return UsdPtr.Get();
+			}
+
+			const PtrType& GetInner() const
+			{
+				return UsdPtr.Get();
+			}
+
+			TUsdStore< PtrType > UsdPtr;
 		};
 	}
 
-	FSdfLayer::FSdfLayer()
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase()
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FSdfLayerImpl >();
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >();
 	}
 
-	FSdfLayer::FSdfLayer( const FSdfLayer& Other )
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase( const FSdfLayer& Other )
 	{
-#if USE_USD_SDK
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FSdfLayerImpl >( Other.Impl->PxrSdfLayer.Get() );
-#endif // #if USE_USD_SDK
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( Other.Impl->GetInner() );
 	}
 
-	FSdfLayer::FSdfLayer( FSdfLayer&& Other ) = default;
-
-	FSdfLayer& FSdfLayer::operator=( const FSdfLayer& Other )
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase( FSdfLayer&& Other )
 	{
-#if USE_USD_SDK
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FSdfLayerImpl >( Other.Impl->PxrSdfLayer.Get() );
-#endif // #if USE_USD_SDK
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( MoveTemp( Other.Impl->GetInner() ) );
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase( const FSdfLayerWeak& Other )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( Other.Impl->GetInner() );
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase( FSdfLayerWeak&& Other )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( MoveTemp( Other.Impl->GetInner() ) );
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>& FSdfLayerBase<PtrType>::operator=( const FSdfLayer& Other )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( Other.Impl->GetInner() );
 		return *this;
 	}
 
-	FSdfLayer& FSdfLayer::operator=( FSdfLayer&& Other )
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>& FSdfLayerBase<PtrType>::operator=( FSdfLayer&& Other )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MoveTemp( Other.Impl );
-
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( MoveTemp( Other.Impl->GetInner() ) );
 		return *this;
 	}
 
-	FSdfLayer::~FSdfLayer()
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>& FSdfLayerBase<PtrType>::operator=( const FSdfLayerWeak& Other )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( Other.Impl->GetInner() );
+		return *this;
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>& FSdfLayerBase<PtrType>::operator=( FSdfLayerWeak&& Other )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( MoveTemp( Other.Impl->GetInner() ) );
+		return *this;
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::~FSdfLayerBase()
 	{
 		FScopedUnrealAllocs UnrealAllocs;
 		Impl.Reset();
 	}
 
-	bool FSdfLayer::operator==( const FSdfLayer& Other ) const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::operator==( const FSdfLayerBase& Other ) const
 	{
-#if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get() == Other.Impl->PxrSdfLayer.Get();
-#else
-		return false;
-#endif // #if USE_USD_SDK
+		return Impl->GetInner() == Other.Impl->GetInner();
 	}
 
-	bool FSdfLayer::operator!=( const FSdfLayer& Other ) const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::operator!=( const FSdfLayerBase& Other ) const
 	{
 		return !( *this == Other );
 	}
 
-	FSdfLayer::operator bool() const
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::operator bool() const
 	{
-#if USE_USD_SDK
-		return (bool)Impl->PxrSdfLayer.Get();
-#else
-		return false;
-#endif // #if USE_USD_SDK
+		return ( bool ) Impl->GetInner();
 	}
 
 #if USE_USD_SDK
-	FSdfLayer::FSdfLayer( const pxr::SdfLayerRefPtr& InSdfLayer )
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase( const pxr::SdfLayerRefPtr& InSdfLayer )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FSdfLayerImpl >( InSdfLayer );
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( InSdfLayer );
 	}
 
-	FSdfLayer::FSdfLayer( pxr::SdfLayerRefPtr&& InSdfLayer )
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase( pxr::SdfLayerRefPtr&& InSdfLayer )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FSdfLayerImpl >( MoveTemp( InSdfLayer ) );
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( InSdfLayer );
 	}
 
-	FSdfLayer& FSdfLayer::operator=( const pxr::SdfLayerRefPtr& InSdfLayer )
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase( const pxr::SdfLayerWeakPtr& InSdfLayer )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FSdfLayerImpl >( InSdfLayer );
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( InSdfLayer );
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::FSdfLayerBase( pxr::SdfLayerWeakPtr&& InSdfLayer )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( InSdfLayer );
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>& FSdfLayerBase<PtrType>::operator=( const pxr::SdfLayerRefPtr& InSdfLayer )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( InSdfLayer );
 		return *this;
 	}
 
-	FSdfLayer& FSdfLayer::operator=( pxr::SdfLayerRefPtr&& InSdfLayer )
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>& FSdfLayerBase<PtrType>::operator=( pxr::SdfLayerRefPtr&& InSdfLayer )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique< Internal::FSdfLayerImpl >( MoveTemp( InSdfLayer ) );
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( InSdfLayer );
 		return *this;
 	}
 
-	FSdfLayer::operator pxr::SdfLayerRefPtr&()
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>& FSdfLayerBase<PtrType>::operator=( const pxr::SdfLayerWeakPtr& InSdfLayer )
 	{
-		return Impl->PxrSdfLayer.Get();
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( InSdfLayer );
+		return *this;
 	}
 
-	FSdfLayer::operator const pxr::SdfLayerRefPtr&() const
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>& FSdfLayerBase<PtrType>::operator=( pxr::SdfLayerWeakPtr&& InSdfLayer )
 	{
-		return Impl->PxrSdfLayer.Get();
+		FScopedUnrealAllocs UnrealAllocs;
+		Impl = MakeUnique< Internal::FSdfLayerImpl<PtrType> >( InSdfLayer );
+		return *this;
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::operator PtrType&()
+	{
+		return Impl->GetInner();
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::operator const PtrType&() const
+	{
+		return Impl->GetInner();
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::operator pxr::SdfLayerRefPtr() const
+	{
+		return Impl->GetInner();
+	}
+
+	template<typename PtrType>
+	FSdfLayerBase<PtrType>::operator pxr::SdfLayerWeakPtr() const
+	{
+		return Impl->GetInner();
 	}
 #endif // #if USE_USD_SDK
 
-	FSdfLayer FSdfLayer::FindOrOpen( const TCHAR* Identifier )
+	template<typename PtrType>
+	FSdfLayer FSdfLayerBase<PtrType>::FindOrOpen( const TCHAR* Identifier )
 	{
 #if USE_USD_SDK
 		return FSdfLayer( pxr::SdfLayer::FindOrOpen( TCHAR_TO_ANSI( Identifier ) ) );
@@ -149,192 +237,268 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
-	bool FSdfLayer::Save( bool bForce ) const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::Save( bool bForce ) const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->Save( bForce );
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->Save( bForce );
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	FString FSdfLayer::GetRealPath() const
+	template<typename PtrType>
+	FString FSdfLayerBase<PtrType>::GetRealPath() const
 	{
 #if USE_USD_SDK
-		FScopedUsdAllocs UsdAllocs;
-		return FString( ANSI_TO_TCHAR( Impl->PxrSdfLayer.Get()->GetRealPath().c_str() ) );
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+			return FString( ANSI_TO_TCHAR( Ptr->GetRealPath().c_str() ) );
+		}
+#endif // #if USE_USD_SDK
+
 		return FString();
-#endif // #if USE_USD_SDK
 	}
 
-	FString FSdfLayer::GetIdentifier() const
+	template<typename PtrType>
+	FString FSdfLayerBase<PtrType>::GetIdentifier() const
 	{
 #if USE_USD_SDK
-		FScopedUsdAllocs UsdAllocs;
-		return FString( ANSI_TO_TCHAR( Impl->PxrSdfLayer.Get()->GetIdentifier().c_str() ) );
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+			return FString( ANSI_TO_TCHAR( Ptr->GetIdentifier().c_str() ) );
+		}
+#endif // #if USE_USD_SDK
+
 		return FString();
-#endif // #if USE_USD_SDK
 	}
 
-	FString FSdfLayer::GetDisplayName() const
+	template<typename PtrType>
+	FString FSdfLayerBase<PtrType>::GetDisplayName() const
 	{
 #if USE_USD_SDK
-		FScopedUsdAllocs UsdAllocs;
-		return FString( ANSI_TO_TCHAR( Impl->PxrSdfLayer.Get()->GetDisplayName().c_str() ) );
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
+			return FString( ANSI_TO_TCHAR( Ptr->GetDisplayName().c_str() ) );
+		}
+#endif // #if USE_USD_SDK
+
 		return FString();
-#endif // #if USE_USD_SDK
 	}
 
-	bool FSdfLayer::HasStartTimeCode() const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::HasStartTimeCode() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->HasStartTimeCode();
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->HasStartTimeCode();
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	bool FSdfLayer::HasEndTimeCode() const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::HasEndTimeCode() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->HasEndTimeCode();
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->HasEndTimeCode();
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	int64 FSdfLayer::GetNumSubLayerPaths() const
+	template<typename PtrType>
+	int64 FSdfLayerBase<PtrType>::GetNumSubLayerPaths() const
 	{
 #if USE_USD_SDK
-		return (int64)Impl->PxrSdfLayer.Get()->GetNumSubLayerPaths();
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return ( int64 ) Ptr->GetNumSubLayerPaths();
+		}
+#endif // #if USE_USD_SDK
+
 		return 0;
-#endif // #if USE_USD_SDK
 	}
 
-	double FSdfLayer::GetStartTimeCode() const
+	template<typename PtrType>
+	double FSdfLayerBase<PtrType>::GetStartTimeCode() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->GetStartTimeCode();
-#else
-		return 0.0;
-#endif // #if USE_USD_SDK
-	}
-
-	double FSdfLayer::GetEndTimeCode() const
-	{
-#if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->GetEndTimeCode();
-#else
-		return 0.0;
-#endif // #if USE_USD_SDK
-	}
-
-	void FSdfLayer::SetStartTimeCode( double TimeCode )
-	{
-#if USE_USD_SDK
-		if ( !Impl->PxrSdfLayer.Get()->HasStartTimeCode() || !FMath::IsNearlyEqual( TimeCode, Impl->PxrSdfLayer.Get()->GetStartTimeCode() ) )
+		if ( const PtrType& Ptr = Impl->GetInner() )
 		{
-			Impl->PxrSdfLayer.Get()->SetStartTimeCode( TimeCode );
+			return Ptr->GetStartTimeCode();
+		}
+#endif // #if USE_USD_SDK
+
+		return 0.0;
+	}
+
+	template<typename PtrType>
+	double FSdfLayerBase<PtrType>::GetEndTimeCode() const
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetEndTimeCode();
+		}
+#endif // #if USE_USD_SDK
+
+		return 0.0;
+	}
+
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::SetStartTimeCode( double TimeCode )
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			if ( !Ptr->HasStartTimeCode() || !FMath::IsNearlyEqual( TimeCode, Ptr->GetStartTimeCode() ) )
+			{
+				Ptr->SetStartTimeCode( TimeCode );
+			}
 		}
 #endif // #if USE_USD_SDK
 	}
 
-	void FSdfLayer::SetEndTimeCode( double TimeCode )
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::SetEndTimeCode( double TimeCode )
 	{
 #if USE_USD_SDK
-		if ( !Impl->PxrSdfLayer.Get()->HasEndTimeCode() || !FMath::IsNearlyEqual( TimeCode, Impl->PxrSdfLayer.Get()->GetEndTimeCode() ) )
+		if ( PtrType& Ptr = Impl->GetInner() )
 		{
-			Impl->PxrSdfLayer.Get()->SetEndTimeCode( TimeCode );
+			if ( !Ptr->HasEndTimeCode() || !FMath::IsNearlyEqual( TimeCode, Ptr->GetEndTimeCode() ) )
+			{
+				Ptr->SetEndTimeCode( TimeCode );
+			}
 		}
 #endif // #if USE_USD_SDK
 	}
 
-	bool FSdfLayer::HasTimeCodesPerSecond() const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::HasTimeCodesPerSecond() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->HasTimeCodesPerSecond();
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->HasTimeCodesPerSecond();
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	double FSdfLayer::GetTimeCodesPerSecond() const
+	template<typename PtrType>
+	double FSdfLayerBase<PtrType>::GetTimeCodesPerSecond() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->GetTimeCodesPerSecond();
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetTimeCodesPerSecond();
+		}
+#endif // #if USE_USD_SDK
+
 		return 0.0;
+	}
+
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::SetTimeCodesPerSecond( double TimeCodesPerSecond )
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->SetTimeCodesPerSecond( TimeCodesPerSecond );
+		}
 #endif // #if USE_USD_SDK
 	}
 
-	void FSdfLayer::SetTimeCodesPerSecond( double TimeCodesPerSecond )
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::HasFramesPerSecond() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->SetTimeCodesPerSecond( TimeCodesPerSecond );
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->HasFramesPerSecond();
+		}
 #endif // #if USE_USD_SDK
-	}
 
-	bool FSdfLayer::HasFramesPerSecond() const
-	{
-#if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->HasFramesPerSecond();
-#else
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	double FSdfLayer::GetFramesPerSecond() const
+	template<typename PtrType>
+	double FSdfLayerBase<PtrType>::GetFramesPerSecond() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->GetFramesPerSecond();
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->GetFramesPerSecond();
+		}
+#endif // #if USE_USD_SDK
+
 		return 0.0;
-#endif // #if USE_USD_SDK
 	}
 
-	void FSdfLayer::SetFramesPerSecond( double FramesPerSecond )
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::SetFramesPerSecond( double FramesPerSecond )
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->SetFramesPerSecond( FramesPerSecond );
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->SetFramesPerSecond( FramesPerSecond );
+		}
 #endif // #if USE_USD_SDK
 	}
 
-	TArray< FString > FSdfLayer::GetSubLayerPaths() const
+	template<typename PtrType>
+	TArray< FString > FSdfLayerBase<PtrType>::GetSubLayerPaths() const
 	{
 		TArray< FString > SubLayerPaths;
 
 #if USE_USD_SDK
-		FScopedUsdAllocs UsdAllocs;
-
-		for ( const std::string& SubLayerPath : Impl->PxrSdfLayer.Get()->GetSubLayerPaths() )
+		if ( const PtrType& Ptr = Impl->GetInner() )
 		{
-			SubLayerPaths.Emplace( ANSI_TO_TCHAR( SubLayerPath.c_str() ) );
+			FScopedUsdAllocs UsdAllocs;
+
+			for ( const std::string& SubLayerPath : Ptr->GetSubLayerPaths() )
+			{
+				SubLayerPaths.Emplace( ANSI_TO_TCHAR( SubLayerPath.c_str() ) );
+			}
 		}
 #endif // #if USE_USD_SDK
 
 		return SubLayerPaths;
 	}
 
-	TArray< FSdfLayerOffset > FSdfLayer::GetSubLayerOffsets() const
+	template<typename PtrType>
+	TArray< FSdfLayerOffset > FSdfLayerBase<PtrType>::GetSubLayerOffsets() const
 	{
 		TArray< FSdfLayerOffset > SubLayerOffsets;
 
 #if USE_USD_SDK
-		FScopedUsdAllocs UsdAllocs;
-
-		for ( const pxr::SdfLayerOffset& SubLayerOffset : Impl->PxrSdfLayer.Get()->GetSubLayerOffsets() )
+		if ( const PtrType& Ptr = Impl->GetInner() )
 		{
-			if ( SubLayerOffset.IsValid() )
+			FScopedUsdAllocs UsdAllocs;
+
+			for ( const pxr::SdfLayerOffset& SubLayerOffset : Ptr->GetSubLayerOffsets() )
 			{
-				SubLayerOffsets.Emplace( SubLayerOffset.GetOffset(), SubLayerOffset.GetScale() );
-			}
-			else
-			{
-				SubLayerOffsets.AddDefaulted();
+				if ( SubLayerOffset.IsValid() )
+				{
+					SubLayerOffsets.Emplace( SubLayerOffset.GetOffset(), SubLayerOffset.GetScale() );
+				}
+				else
+				{
+					SubLayerOffsets.AddDefaulted();
+				}
 			}
 		}
 #endif // #if USE_USD_SDK
@@ -342,75 +506,103 @@ namespace UE
 		return SubLayerOffsets;
 	}
 
-	void FSdfLayer::SetSubLayerOffset( const FSdfLayerOffset& LayerOffset, int32 Index )
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::SetSubLayerOffset( const FSdfLayerOffset& LayerOffset, int32 Index )
 	{
 #if USE_USD_SDK
-		FScopedUsdAllocs UsdAllocs;
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs UsdAllocs;
 
-		pxr::SdfLayerOffset UsdLayerOffset( LayerOffset.Offset, LayerOffset.Scale );
-		Impl->PxrSdfLayer.Get()->SetSubLayerOffset( MoveTemp( UsdLayerOffset ), Index );
+			pxr::SdfLayerOffset UsdLayerOffset( LayerOffset.Offset, LayerOffset.Scale );
+			Ptr->SetSubLayerOffset( MoveTemp( UsdLayerOffset ), Index );
+		}
 #endif // #if USE_USD_SDK
 	}
 
-	bool FSdfLayer::HasSpec( const FSdfPath& Path ) const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::HasSpec( const FSdfPath& Path ) const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->HasSpec( Path );
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->HasSpec( Path );
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
-#endif // #if USE_USD_SDK
 	}
 
-	TSet< double > FSdfLayer::ListTimeSamplesForPath( const FSdfPath& Path ) const
+	template<typename PtrType>
+	TSet< double > FSdfLayerBase<PtrType>::ListTimeSamplesForPath( const FSdfPath& Path ) const
 	{
 		TSet< double > TimeSamples;
 
 #if USE_USD_SDK
-		FScopedUsdAllocs UsdAllocs;
-
-		std::set< double > UsdTimeSamples = Impl->PxrSdfLayer.Get()->ListTimeSamplesForPath( Path );
-
-		for ( double UsdTimeSample : UsdTimeSamples )
+		if ( const PtrType& Ptr = Impl->GetInner() )
 		{
-			TimeSamples.Add( UsdTimeSample );
+			FScopedUsdAllocs UsdAllocs;
+
+			std::set< double > UsdTimeSamples = Ptr->ListTimeSamplesForPath( Path );
+
+			for ( double UsdTimeSample : UsdTimeSamples )
+			{
+				TimeSamples.Add( UsdTimeSample );
+			}
 		}
 #endif // #if USE_USD_SDK
 
 		return TimeSamples;
 	}
 
-	void FSdfLayer::EraseTimeSample( const FSdfPath& Path, double Time )
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::EraseTimeSample( const FSdfPath& Path, double Time )
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->EraseTimeSample( Path, Time );
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->EraseTimeSample( Path, Time );
+		}
 #endif // #if USE_USD_SDK
 	}
 
-	bool FSdfLayer::IsEmpty() const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::IsEmpty() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->IsEmpty();
-#else
-		return false;
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->IsEmpty();
+		}
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
-	bool FSdfLayer::IsAnonymous() const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::IsAnonymous() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->IsAnonymous();
-#else
-		return false;
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->IsAnonymous();
+		}
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
-	bool FSdfLayer::Export( const TCHAR* Filename ) const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::Export( const TCHAR* Filename ) const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->Export( TCHAR_TO_ANSI( Filename ) );
-#else
-		return false;
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->Export( TCHAR_TO_ANSI( Filename ) );
+		}
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
 	FString FSdfLayerUtils::SdfComputeAssetPathRelativeToLayer( const FSdfLayer& Anchor, const TCHAR* AssetPath )
@@ -423,19 +615,35 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
-	bool FSdfLayer::IsMuted() const
+	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::IsMuted() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->IsMuted();
-#else
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->IsMuted();
+		}
+#endif // #if USE_USD_SDK
+
 		return false;
+	}
+
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::SetMuted( bool bMuted )
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->SetMuted( bMuted );
+		}
 #endif // #if USE_USD_SDK
 	}
 
-	void FSdfLayer::SetMuted( bool bMuted )
-	{
 #if USE_USD_SDK
-		return Impl->PxrSdfLayer.Get()->SetMuted( bMuted );
+	template class UNREALUSDWRAPPER_API FSdfLayerBase<pxr::SdfLayerRefPtr>;
+	template class UNREALUSDWRAPPER_API FSdfLayerBase<pxr::SdfLayerWeakPtr>;
+#else
+	template class UNREALUSDWRAPPER_API FSdfLayerBase<FDummyRefPtrType>;
+	template class UNREALUSDWRAPPER_API FSdfLayerBase<FDummyWeakPtrType>;
 #endif // #if USE_USD_SDK
-	}
 }

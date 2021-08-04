@@ -358,24 +358,15 @@ void SUsdStageTreeView::OnGetChildren( FUsdPrimViewModelRef InParent, TArray< FU
 
 void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 {
-	UE::FUsdStage OldStage = RootItems.Num() > 0 ? RootItems[0]->UsdStage : UE::FUsdStage();
-	UE::FUsdStage NewStage = InUsdStageActor ? static_cast< const AUsdStageActor* >( InUsdStageActor )->GetUsdStage() : UE::FUsdStage();
+	UE::FUsdStageWeak OldStage = RootItems.Num() > 0 ? RootItems[0]->UsdStage : UE::FUsdStageWeak();
+	UE::FUsdStageWeak NewStage = InUsdStageActor
+		? static_cast< UE::FUsdStageWeak > ( static_cast< const AUsdStageActor* >( InUsdStageActor )->GetUsdStage() )
+		: UE::FUsdStageWeak();
 
 	RootItems.Empty();
 	if ( UsdStageActor.Get() != InUsdStageActor || NewStage != OldStage )
 	{
-		// This is very important: Internally the tree will store FUsdPrimViewModelRef in its SparseItemInfos member if we have
-		// any member manually expanded/collapsed. These can prevent the FUsdPrimViewModels from being collected, and prevent the
-		// stage from being fully closed, so we must do this whenever the stage changes
-		ClearExpandedItems();
 		TreeItemExpansionStates.Reset();
-
-		// Clear other things that may hold FUsdPrimViewModelRefs
-		LinearizedItems.Empty();
-		SelectorItem = SUsdStageTreeView::NullableItemType(nullptr);
-		RangeSelectionStart = SUsdStageTreeView::NullableItemType(nullptr);
-		ItemToScrollIntoView = SUsdStageTreeView::NullableItemType(nullptr);
-		ItemToNotifyWhenInView = SUsdStageTreeView::NullableItemType(nullptr);
 	}
 
 	UsdStageActor = InUsdStageActor;
@@ -1027,7 +1018,7 @@ void SUsdStageTreeView::OnPrimNameUpdated(const FUsdPrimViewModelRef& TreeItem, 
 	}
 
 	{
-		const UE::FUsdStage& Stage = TreeItem->UsdStage;
+		const UE::FUsdStageWeak& Stage = TreeItem->UsdStage;
 		if ( !Stage )
 		{
 			return;

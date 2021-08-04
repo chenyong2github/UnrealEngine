@@ -7,11 +7,7 @@
 #if USE_USD_SDK
 
 #include "USDReferencesViewModel.h"
-
-namespace UE
-{
-	class FUsdStage;
-}
+#include "UsdWrappers/ForwardDeclarations.h"
 
 class SUsdReferenceRow : public SMultiColumnTableRow< TSharedPtr< FUsdReference > >
 {
@@ -35,8 +31,8 @@ class SUsdReferencesList : public SListView< TSharedPtr< FUsdReference > >
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
-	void SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath );
+	void Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
+	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
 protected:
 	TSharedRef< ITableRow > OnGenerateRow( TSharedPtr< FUsdReference > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable );
