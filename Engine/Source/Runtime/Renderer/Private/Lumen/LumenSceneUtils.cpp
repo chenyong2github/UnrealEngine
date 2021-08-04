@@ -255,7 +255,7 @@ class FCullCardPagesToShapeCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCullCardsShapeParameters, ShapeParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FOperateOnCardPagesMode : SHADER_PERMUTATION_INT("OPERATE_ON_CARD_TILES_MODE", 3);
+	class FOperateOnCardPagesMode : SHADER_PERMUTATION_ENUM_CLASS("OPERATE_ON_CARD_TILES_MODE", ECullCardsMode);
 	class FShapeType : SHADER_PERMUTATION_INT("SHAPE_TYPE", 4);
 	using FPermutationDomain = TShaderPermutationDomain<FOperateOnCardPagesMode, FShapeType>;
 
@@ -408,7 +408,7 @@ void FLumenCardScatterContext::Build(
 		PassParameters->CardLightingUpdateMinFrequency = GLumenSceneLightingForceFullUpdate ? 1 : GLumenSceneLightingMinUpdateFrequency;
 
 		FCullCardPagesToShapeCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FCullCardPagesToShapeCS::FOperateOnCardPagesMode>((uint32)CardsCullMode);
+		PermutationVector.Set<FCullCardPagesToShapeCS::FOperateOnCardPagesMode>(CardsCullMode);
 		PermutationVector.Set<FCullCardPagesToShapeCS::FShapeType>((int32)ShapeType);
 		auto ComputeShader = View.ShaderMap->GetShader< FCullCardPagesToShapeCS >(PermutationVector);
 
@@ -777,7 +777,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				LumenCardRenderer,
 				TracingInputs.LumenCardSceneUniformBuffer,
 				/*bBuildCardTiles*/ true,
-				ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
+				Lumen::IsSurfaceCacheFrozen() ? ECullCardsMode::OperateOnEmptyList : ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
 				GLumenSceneCardDirectLightingUpdateFrequencyScale,
 				FCullCardsShapeParameters(),
 				ECullCardsShapeType::None);
