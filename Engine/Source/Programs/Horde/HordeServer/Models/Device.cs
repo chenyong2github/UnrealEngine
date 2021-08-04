@@ -2,6 +2,8 @@
 
 using System;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+
 using System.Collections.Generic;
 
 using DeviceId = HordeServer.Utilities.StringId<HordeServer.Models.IDevice>;
@@ -29,12 +31,12 @@ namespace HordeServer.Models
 		/// <summary>
 		/// JobID holding reservation
 		/// </summary>
-		public ObjectId? JobId { get; }
+		public string? JobId { get; }
 
 		/// <summary>
 		/// Job step id holding reservation
 		/// </summary>
-		public SubResourceId? StepId { get; }
+		public string? StepId { get; }
 
 		/// <summary>
 		/// Reservations held by a user, requires a token
@@ -95,11 +97,27 @@ namespace HordeServer.Models
 
 	}
 
+    /// <summary>
+    /// The type of device pool
+    /// </summary>
+    public enum DevicePoolType
+    {
+        /// <summary>
+        /// Available to CIS jobs
+        /// </summary>
+        Automation,
 
-	/// <summary>
-	/// A logical pool of devices
-	/// </summary>
-	public interface IDevicePool
+        /// <summary>
+        /// Shared by users with remote checking and checkouts
+        /// </summary>
+        Shared
+
+    }
+
+    /// <summary>
+    /// A logical pool of devices
+    /// </summary>
+    public interface IDevicePool
 	{
 		/// <summary>
 		/// Unique identifier of pool
@@ -107,15 +125,65 @@ namespace HordeServer.Models
 		public DevicePoolId Id { get; }
 
 		/// <summary>
-		/// Friendly name of the pool
+		/// The type of pool 
 		/// </summary>
-		string Name { get; }
+		public DevicePoolType PoolType { get; }
+
+        /// <summary>
+        /// Friendly name of the pool
+        /// </summary>
+        string Name { get; }
 
 		/// <summary>
 		/// Acl access to the pool
 		/// </summary>
 		public Acl? Acl { get; }
 	}
+
+	/// <summary>
+	/// A device utilization snapshot
+	/// </summary>
+	public class DeviceUtilizationTelemetry
+	{
+		/// <summary>
+		/// The job id which utilized device
+		/// </summary>
+		public string? JobId { get; set;}
+
+		/// <summary>
+		/// The job's step id
+		/// </summary>
+		public string? StepId { get; set;}
+
+		/// <summary>
+		/// The time device was reserved
+		/// </summary>
+		public DateTime ReservationStartUtc { get; set;}
+
+		/// <summary>
+		/// The time device was freed
+		/// </summary>
+		public DateTime? ReservationFinishUtc { get; set;}
+
+		/// <summary>
+		/// Private constructor
+		/// </summary>
+		[BsonConstructor]
+		private DeviceUtilizationTelemetry()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="ReservationStartUtc"></param>
+		public DeviceUtilizationTelemetry( DateTime ReservationStartUtc )
+		{
+			this.ReservationStartUtc = ReservationStartUtc;
+		}
+
+	}
+
 
 	/// <summary>
 	/// A physical device
@@ -159,9 +227,20 @@ namespace HordeServer.Models
 		public bool Enabled { get; }
 
 		/// <summary>
-		/// Name of the user that last modified this device
+		/// Id of the user that last modified this device
 		/// </summary>
 		public string? ModifiedByUser { get; }
+
+		/// <summary>
+		/// Id of the user that has this device checked out
+		/// </summary>
+		public string? CheckedOutByUser { get; }
+
+		/// <summary>
+		/// The last time this device was checked out
+		/// </summary>
+		public DateTime? CheckOutTime { get; }
+
 
 		/// <summary>
 		/// The last time a problem was reported
@@ -177,6 +256,11 @@ namespace HordeServer.Models
 		/// Markdown notes for device if any 
 		/// </summary>
 		public string? Notes { get; }
+
+		/// <summary>
+		/// Device job utilization history 
+		/// </summary>
+		public List<DeviceUtilizationTelemetry>? Utilization { get; set; }
 
 		/// <summary>
 		/// ACL for modifying this device

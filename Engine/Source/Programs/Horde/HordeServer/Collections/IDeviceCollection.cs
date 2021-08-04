@@ -83,7 +83,8 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Id">The id of the new pool</param>
 		/// <param name="Name">The friendly name of the new pool</param>
-		Task<IDevicePool?> TryAddPoolAsync(DevicePoolId Id, string Name);
+        /// <param name="PoolType">The pool type</param>
+		Task<IDevicePool?> TryAddPoolAsync(DevicePoolId Id, string Name, DevicePoolType PoolType);
 
 		/// <summary>
 		/// Get a pool by id
@@ -123,7 +124,8 @@ namespace HordeServer.Collections
 		/// <param name="Enabled">Whather the device is enabled by default</param>
 		/// <param name="Address">The network address or hostname the device can be reached at</param>
 		/// <param name="ModelId">The vendor model id of the device</param>
-		Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId);
+        /// <param name="UserId">The user adding the device</param>
+		Task<IDevice?> TryAddDeviceAsync(DeviceId Id, string Name, DevicePlatformId PlatformId, DevicePoolId PoolId, bool? Enabled, string? Address, string? ModelId, ObjectId? UserId);
 
 		/// <summary>
 		/// Update a device
@@ -137,7 +139,8 @@ namespace HordeServer.Collections
 		/// <param name="NewEnabled">Whether the device is enabled or not</param>
 		/// <param name="NewProblem">Whether to set or clear problem state</param>
 		/// <param name="NewMaintenance">Whether to set or clear maintenance state</param>
-		Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance);
+        /// <param name="ModifiedByUserId">The user who is updating the device</param>
+		Task UpdateDeviceAsync(DeviceId DeviceId, DevicePoolId? NewPoolId, string? NewName, string? NewAddress, string? NewModelId, string? NewNotes, bool? NewEnabled, bool? NewProblem, bool? NewMaintenance, ObjectId? ModifiedByUserId = null);
 
 		/// <summary>
 		/// Delete a device from the collection
@@ -145,16 +148,26 @@ namespace HordeServer.Collections
 		/// <param name="DeviceId">The id of the device to delete</param>
 		Task<bool> DeleteDeviceAsync(DeviceId DeviceId);
 
-		// RESERVATIONS
-
 		/// <summary>
-		/// Create a new reseveration in the pool with the specified devices
-		/// </summary>
-		/// <param name="PoolId">The pool of devices to use for the new reservation</param>
-		/// <param name="Request">The requested devices for the reservation</param>
-		/// <param name="Hostname">The hostname of the machine making the reservation</param>
-		/// <param name="ReservationDetails">The details of the reservation</param>
-		Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId PoolId, List<DeviceRequestData> Request, string? Hostname, string? ReservationDetails);
+        /// Checkout or checkin the specified device
+        /// </summary>
+        /// <param name="DeviceId"></param>
+        /// <param name="CheckedOutByUserId"></param>
+        /// <returns></returns>
+        Task CheckoutDeviceAsync(DeviceId DeviceId, ObjectId? CheckedOutByUserId);
+
+        // RESERVATIONS
+
+        /// <summary>
+        /// Create a new reseveration in the pool with the specified devices
+        /// </summary>
+        /// <param name="PoolId">The pool of devices to use for the new reservation</param>
+        /// <param name="Request">The requested devices for the reservation</param>
+        /// <param name="Hostname">The hostname of the machine making the reservation</param>
+        /// <param name="ReservationDetails">The details of the reservation</param>
+        /// <param name="JobId">The Job Id associated with the job</param>
+        /// <param name="StepId">The Step Id associated with the job</param>
+        Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId PoolId, List<DeviceRequestData> Request, string? Hostname, string? ReservationDetails, string? JobId, string? StepId);
 
 		/// <summary>
 		/// Gets a reservation by guid for legacy clients

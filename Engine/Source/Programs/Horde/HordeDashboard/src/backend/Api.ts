@@ -2785,11 +2785,23 @@ export type GetDevicePlatformResponse = {
 }
 
 
+export enum DevicePoolType {
+
+	/** Used in CIS jobs */
+	Automation = "Automation",
+
+	/** User devices which can be checked out and in */
+	Shared = "Shared"
+}
+
 /** Device pool response object */
 export type GetDevicePoolResponse = {
 
 	/**  Id of  the device pool */
 	id: string;
+
+	/** The type of the pool */
+	poolType: DevicePoolType;
 
 	/**  Name of the device pool */
 	name: string;
@@ -2825,6 +2837,22 @@ export type CreateDeviceResponse = {
 
 }
 
+/// Get response object which describes a device
+export type GetDeviceUtilizationResponse = {
+	/// The job id which utilized device
+	jobId?: string;
+
+	/// The job's step id
+	stepId?: string;
+
+	/// The time device was reserved
+	reservationStartUtc: Date | string;
+
+	/// The time device was freed
+	reservationFinishUtc?: Date | string;
+}
+
+
 /** Get response object which describes a device */
 export type GetDeviceResponse = {
 
@@ -2858,7 +2886,28 @@ export type GetDeviceResponse = {
 	/** The UTC time when a device was set for maintenance */
 	maintenanceTime?: Date | string;
 
+	/// The user id that has the device checked out, pass "" to clear checkout
+	checkedOutByUserId?: string;
+
+	/// The last time the device was checked out
+	checkOutTime?: Date | string;
+
+	/** Id of the user which last modified this device */
+	modifiedByUser?: string;
+
+	/** Utilization info */
+	utilization?: GetDeviceUtilizationResponse[];
+
 }
+
+/** Device checkout request object */
+export type CheckoutDeviceRequest = {
+
+	/** Whether to checkout or in the device */
+	checkout: boolean;
+}
+
+
 
 /** Request object for updating a device */
 export type UpdateDeviceRequest = {
