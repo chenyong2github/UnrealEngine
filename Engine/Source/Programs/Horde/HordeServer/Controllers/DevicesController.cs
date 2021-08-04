@@ -678,7 +678,7 @@ namespace HordeServer.Controllers
 
 			string? PoolId = Request.PoolId;
 
-			if (PoolId == null)
+			if (string.IsNullOrEmpty(PoolId))
 			{
                 PoolId = "fnue5";
             }			
