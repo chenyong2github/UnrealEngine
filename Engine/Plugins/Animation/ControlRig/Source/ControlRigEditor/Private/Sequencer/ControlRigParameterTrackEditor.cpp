@@ -1975,7 +1975,7 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 		{
 			return;
 		}
-		
+
 		FFindOrCreateTrackResult TrackResult = FindOrCreateControlRigTrackForObject(ObjectHandle, Subject, ControlRigName, bCreateTrack);
 		UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
 		if (Track)
