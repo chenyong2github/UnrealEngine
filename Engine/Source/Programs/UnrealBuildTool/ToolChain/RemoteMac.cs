@@ -763,13 +763,13 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Escapes spaces in a shell command argument
+		/// Escapes spaces and brackets in a shell command argument
 		/// </summary>
 		/// <param name="Argument">The argument to escape</param>
 		/// <returns>The escaped argument</returns>
 		private static string EscapeShellArgument(string Argument)
 		{
-			return Argument.Replace(" ", "\\ ");
+			return Argument.Replace(" ", "\\ ").Replace("[", "\\\\[").Replace("]", "\\\\]");
 		}
 
 		/// <summary>
@@ -978,12 +978,12 @@ namespace UnrealBuildTool
 				}
 			}
 
-			Execute("/", String.Format("rm -rf {0}/Intermediate/IOS/*.plist", GetRemotePath(UnrealBuildTool.EngineDirectory)));
-			Execute("/", String.Format("rm -rf {0}/Intermediate/TVOS/*.plist", GetRemotePath(UnrealBuildTool.EngineDirectory)));
+			Execute("/", String.Format("rm -rf {0}/Intermediate/IOS/*.plist", GetRemotePath(UnrealBuildTool.EngineDirectory)), true);
+			Execute("/", String.Format("rm -rf {0}/Intermediate/TVOS/*.plist", GetRemotePath(UnrealBuildTool.EngineDirectory)), true);
 			if (ProjectFile != null)
 			{
-				Execute("/", String.Format("rm -rf {0}/Intermediate/IOS/*.plist", GetRemotePath(ProjectFile.Directory)));
-				Execute("/", String.Format("rm -rf {0}/Intermediate/TVOS/*.plist", GetRemotePath(ProjectFile.Directory)));
+				Execute("/", String.Format("rm -rf {0}/Intermediate/IOS/*.plist", GetRemotePath(ProjectFile.Directory)), true);
+				Execute("/", String.Format("rm -rf {0}/Intermediate/TVOS/*.plist", GetRemotePath(ProjectFile.Directory)), true);
 			}
 
 			// Convert CRLF to LF for all shell scripts
@@ -1139,10 +1139,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="WorkingDir"></param>
 		/// <param name="Command"></param>
+		/// <param name="bSlient"></param>
 		/// <returns></returns>
-		public int Execute(DirectoryReference WorkingDir, string Command)
+		public int Execute(DirectoryReference WorkingDir, string Command, bool bSilent = false)
 		{
-			return Execute(GetRemotePath(WorkingDir), Command);
+			return Execute(GetRemotePath(WorkingDir), Command, bSilent);
 		}
 
 		/// <summary>
@@ -1150,8 +1151,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="WorkingDirectory">The remote working directory</param>
 		/// <param name="Command">Command to be executed</param>
+		/// <param name="bSlient">If true, logging is suppressed</param>
 		/// <returns></returns>
-		protected int Execute(string WorkingDirectory, string Command)
+		protected int Execute(string WorkingDirectory, string Command, bool bSilent = false)
 		{
 			string FullCommand = String.Format("cd {0} && {1}", EscapeShellArgument(WorkingDirectory), Command);
 			using (Process SSHProcess = new Process())
@@ -1162,8 +1164,11 @@ namespace UnrealBuildTool
 				SSHProcess.StartInfo.FileName = SshExe.FullName;
 				SSHProcess.StartInfo.WorkingDirectory = SshExe.Directory.FullName;
 				SSHProcess.StartInfo.Arguments = String.Format("{0} {1}", String.Join(" ", CommonSshArguments), FullCommand);
-				SSHProcess.OutputDataReceived += OutputHandler;
-				SSHProcess.ErrorDataReceived += ErrorHandler;
+				if (!bSilent)
+				{
+					SSHProcess.OutputDataReceived += OutputHandler;
+					SSHProcess.ErrorDataReceived += ErrorHandler;
+				}
 
 				Log.TraceLog("[SSH] {0} {1}", Utils.MakePathSafeToUseWithCommandLine(SSHProcess.StartInfo.FileName), SSHProcess.StartInfo.Arguments);
 				return Utils.RunLocalProcess(SSHProcess);
