@@ -29,7 +29,7 @@ enum class ESplitNormalMethod : uint8
 	FaceGroupID,
 	/** Set each triangle-vertex to have the face normal of that triangle's plane */
 	PerTriangle,
-	/** Set each vertex to have a fully shared normal, ie no split normals  */
+	/** Set each vertex to have a fully shared normal, i.e. no split normals  */
 	PerVertex
 };
 
