@@ -67,8 +67,10 @@ namespace Audio
 		void SetProcessingMode(const EDynamicsProcessingMode::Type ProcessingMode);
 
 		void ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame);
+		void ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame, float* OutGain);
 		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer = nullptr);
-
+		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, float* OutEnvelope, const float* InKeyBuffer = nullptr);
+		 
 
 	protected:
 
