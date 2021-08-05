@@ -362,6 +362,15 @@ namespace UnrealBuildTool
 			{
 				Graph.AddFileToWorkingSet(File);
 			}
+
+			HashSet<FileItem> CandidateAdaptiveFiles = new HashSet<FileItem>();
+			CandidateAdaptiveFiles.UnionWith(CPPFiles);
+			CandidateAdaptiveFiles.UnionWith(HeaderFiles);
+
+			foreach (FileItem File in CandidateAdaptiveFiles)
+			{
+				Graph.AddCandidateForWorkingSet(File);
+			}
 		}
 
 		static void AddUniqueDiagnostic(TargetMakefile Makefile, string Message)
