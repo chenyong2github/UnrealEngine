@@ -7,12 +7,8 @@
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
 
-// MATERIAL_CULLING_METHOD 0: no culling
-// MATERIAL_CULLING_METHOD 1: cull full screen passes (32bit mask)
-// MATERIAL_CULLING_METHOD 2: cull individual tiles   (32bit mask)
-// MATERIAL_CULLING_METHOD 3: cull individual tiles   (range load)
-// MATERIAL_CULLING_METHOD 4: cull individual tiles   (64bit mask)
-// MATERIAL_CULLING_METHOD 5: cull individual indirect tiles
+#define NANITE_MAX_MATERIAL_SLOTS (16u * 1024u)
+#define NANITE_MAX_MATERIAL_BINS (NANITE_MAX_MATERIAL_SLOTS / 32u)
 
 Texture2D<UlongType> VisBuffer64;
 ByteAddressBuffer MaterialSlotTable;
@@ -24,164 +20,14 @@ RWStructuredBuffer<uint> MaterialTileRemap;
 // .xy = min, .zw = max
 uint4 ViewRect;
 
-uint MaterialRemapCount;
-uint MaterialTileCount;
-uint MaterialSlotCount;
-uint MaterialBinCount;
+uint  MaterialRemapCount;
+uint  MaterialTileCount;
+uint  MaterialSlotCount;
+uint  MaterialBinCount;
 
-#if MATERIAL_CULLING_METHOD == 1 || MATERIAL_CULLING_METHOD == 2
-
-RWStructuredBuffer<uint> VisibleMaterials;
-
-[numthreads(8, 8, 1)]
-void ClassifyMaterials(uint3 PixelPos : SV_DispatchThreadID)
-{
-	const UlongType VisPixel = VisBuffer64[PixelPos.xy];
-
-	uint DepthInt = 0;
-	uint VisibleClusterIndex = 0;
-	uint TriIndex = 0;
-	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
-
-	const bool TileHasNanite = WaveActiveAnyTrue(VisibleClusterIndex != 0xFFFFFFFF);
-	if (TileHasNanite)
-	{
-		float MaterialDepthValue = 0.0f;
-
-		if (VisibleClusterIndex != 0xFFFFFFFF)
-		{
-			const FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
-			const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
-			MaterialDepthValue = asfloat(MaterialDepthId);
-		}
-
-		GroupMemoryBarrierWithGroupSync();
-
-		uint MaterialBucketId = GetMaterialBucketIdFromDepth(MaterialDepthValue);
-
-		uint2 ViewportSize       = ViewRect.zw - ViewRect.xy;
-		uint2 MaterialGridSize   = uint2(8, 4); // 32 bits, 1 bit per tile
-		float2 MaterialTileSize  = (float2)ViewportSize / (float2)MaterialGridSize;
-		uint2 MaterialGridPos    = (uint2)floor((float2)(PixelPos.xy - ViewRect.xy) / MaterialTileSize);
-		uint MaterialTileIndex   = MaterialGridPos.x + MaterialGridPos.y * MaterialGridSize.x;
-		uint VisibleMaterialMask = 1u << MaterialTileIndex;
-		uint ThisLaneIndex       = WaveGetLaneIndex();
-		bool bThisLaneActive     = true;
-		while (bThisLaneActive)
-		{
-			if (MaterialBucketId == WaveReadLaneFirst(MaterialBucketId))
-			{
-				uint ActiveVisibleMaterialMask = WaveActiveBitOr(VisibleMaterialMask);
-				if (ThisLaneIndex == WaveGetActiveLaneIndexFirst())
-				{
-					InterlockedOr(VisibleMaterials[MaterialBucketId], ActiveVisibleMaterialMask);
-				}
-				bThisLaneActive = false;
-			}
-		}
-	}
-}
-
-#elif MATERIAL_CULLING_METHOD == 3 || MATERIAL_CULLING_METHOD == 4
-
+uint  RowTileCount;
 uint2 FetchClamp;
-RWTexture2D<uint2> MaterialRange;
 
-groupshared uint2 TileMinMax;
-
-[numthreads(16, 16, 1)]
-void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupIndex : SV_GroupID)
-{
-	uint2 PixelPos = ThreadIndex.xy + GroupIndex.xy * 64u + ViewRect.xy;
-
-	if (all(ThreadIndex.xy == 0u))
-	{
-	#if MATERIAL_CULLING_METHOD == 3
-		TileMinMax.x = 0xffffffff;
-		TileMinMax.y = 0x0;
-	#else
-		TileMinMax.x = 0x0;
-		TileMinMax.y = 0x0;
-	#endif
-	}
-
-	GroupMemoryBarrierWithGroupSync();
-
-	for (uint BlockY = 0; BlockY < 64u; BlockY += 16)
-	{
-		for (uint BlockX = 0; BlockX < 64u; BlockX += 16)
-		{
-			uint2 FetchPos = PixelPos + uint2(BlockX, BlockY);
-
-			FetchPos = min(FetchPos, FetchClamp);
-
-			UlongType VisPixel = VisBuffer64[FetchPos];
-
-			uint DepthInt = 0;
-			uint VisibleClusterIndex = 0;
-			uint TriIndex = 0;
-			UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
-
-			const bool ValidClusterIndex = (VisibleClusterIndex != 0xFFFFFFFF);
-		#if COMPILER_SUPPORTS_WAVE_VOTE
-			const bool TileHasNanite = WaveActiveAnyTrue(ValidClusterIndex);
-			if (TileHasNanite)
-		#endif
-			{
-				if (ValidClusterIndex)
-				{
-					FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-					FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
-					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-					const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-					const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
-
-				#if MATERIAL_CULLING_METHOD == 3
-					InterlockedMin(TileMinMax.x, MaterialDepthId);
-					InterlockedMax(TileMinMax.y, MaterialDepthId);
-				#else
-					const uint MaterialBucket = GetMaterialBucketIdFromDepth(asfloat(MaterialDepthId));
-
-					uint2 MaterialMask = uint2(0, 0);
-					if ((MaterialBucket >> 5u) & 1u)
-					{
-						MaterialMask.y = 1u << (MaterialBucket & 0x1F);
-					}
-					else
-					{
-						MaterialMask.x = 1u << (MaterialBucket & 0x1F);
-					}
-
-					InterlockedOr(TileMinMax.x, MaterialMask.x);
-					InterlockedOr(TileMinMax.y, MaterialMask.y);
-				#endif
-				}
-			}
-		}
-	}
-
-	GroupMemoryBarrierWithGroupSync();
-
-	if (all(ThreadIndex.xy == 0u))
-	{
-		MaterialRange[GroupIndex.xy] = TileMinMax;
-	}
-}
-
-#elif MATERIAL_CULLING_METHOD == 5
-
-#define NANITE_MAX_MATERIAL_SLOTS (16u * 1024u)
-#define NANITE_MAX_MATERIAL_BINS (NANITE_MAX_MATERIAL_SLOTS / 32u)
-
-uint2 FetchClamp;
-uint RowTileCount;
-
-RWTexture2D<uint2> MaterialRange;
-
-groupshared uint2 TileMinMax;
 groupshared uint  TileMaterialCount;
 groupshared uint  TileMaterialBins[NANITE_MAX_MATERIAL_BINS]; // 16384 material slot max (1 bit per material slot)
 
@@ -197,8 +43,6 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 	if (all(ThreadIndex.xy == 0u))
 	{
 		TileMaterialCount = 0;
-		TileMinMax.x = 0x0;
-		TileMinMax.y = 0x0;
 	}
 
 	if (TileBin1Offset < MaterialBinCount)
@@ -217,7 +61,6 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 		for (uint BlockX = 0; BlockX < 64u; BlockX += 16)
 		{
 			uint2 FetchPos = GroupPixelStart + uint2(BlockX, BlockY);
-
 			FetchPos = min(FetchPos, FetchClamp);
 
 			UlongType VisPixel = VisBuffer64[FetchPos];
@@ -265,6 +108,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 					}
 				#endif
 
+					// TODO: Pull out depth into custom HiZ?
 					//const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 				}
 			}
@@ -327,8 +171,6 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 		}
 	}
 }
-
-#endif
 
 uint TopologyIndexCount;
 

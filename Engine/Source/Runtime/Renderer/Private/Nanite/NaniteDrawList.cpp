@@ -11,7 +11,7 @@ int32 GNaniteMaterialSortMode = 2;
 static FAutoConsoleVariableRef CVarNaniteMaterialSortMode(
 	TEXT("r.Nanite.MaterialSortMode"),
 	GNaniteMaterialSortMode,
-	TEXT("Method of sorting Nanite material draws. 0=disabled, 1=shader, 2=sortkey"),
+	TEXT("Method of sorting Nanite material draws. 0=disabled, 1=shader, 2=sortkey, 3=refcount"),
 	ECVF_RenderThreadSafe
 );
 
@@ -448,6 +448,11 @@ static void BuildNaniteMaterialPassCommands(
 					PassCommand.SortKey = StateSortKey;
 				}
 			}
+		}
+		else if (MaterialSortMode == 3)
+		{
+			// Use reference count as the sort key
+			PassCommand.SortKey = uint64(Command.Value.ReferenceCount.load());
 		}
 
 		OutNaniteMaterialPassCommands.Emplace(PassCommand);

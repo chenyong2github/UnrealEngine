@@ -425,13 +425,15 @@ void FullScreenVS(
 
 )
 {
-	const uint  CullMode = Nanite.MaterialConfig.x;
+	const bool bIndirect = Nanite.MaterialConfig.x != 0;
 	const uint2 GridSize = Nanite.MaterialConfig.yz;
 
 	Output = (FVertexFactoryInterpolantsVSToPS)0;
 
 	uint TileIndex = InstanceIndex;
-	if (CullMode == 5)
+
+	BRANCH
+	if (bIndirect)
 	{
 		const uint TargetTileCount = TileIndex + 1;
 
@@ -507,55 +509,4 @@ void FullScreenVS(
 	const uint MaterialBucketId = GetMaterialBucketIdFromDepth(Depth);
 
 	Position = float4(TilePosition.x * 2.0 - 1.0, 1.0 - 2.0 * TilePosition.y, Depth, 1);
-
-	// Mode 0: no culling
-	// Mode 1: cull full screen passes (32bit mask)
-	// Mode 2: cull individual tiles   (32bit mask)
-	// Mode 3: cull individual tiles   (range load)
-	// Mode 4: cull individual tiles   (64bit mask)
-
-	if (CullMode == 1 || CullMode == 2)
-	{
-		const uint VisibleMask = Nanite.VisibleMaterials[MaterialBucketId];
-
-		if (CullMode == 1 && VisibleMask == 0)
-		{
-			Position.x = asfloat(0xFFFFFFFF);
-		}
-		else if (CullMode == 2 && (VisibleMask & (1u << TileIndex)) == 0)
-		{
-			Position.x = asfloat(0xFFFFFFFF);
-		}
-	}
-	else if (CullMode == 3)
-	{
-		const float2 Range = asfloat(Nanite.MaterialRange.Load(uint3(GridPos, 0)));
-		if (Depth < Range.x || Depth > Range.y)
-		{
-			Position.x = asfloat(0xFFFFFFFF);
-		}
-	}
-	else if (CullMode == 4)
-	{
-		const uint2 TileMask = Nanite.MaterialRange.Load(uint3(GridPos, 0));
-
-		uint2 MaterialMask = uint2(0, 0);
-		if ((MaterialBucketId >> 5) & 1u)
-		{
-			MaterialMask.y = 1u << (MaterialBucketId & 0x1f);
-		}
-		else
-		{
-			MaterialMask.x = 1u << (MaterialBucketId & 0x1f);
-		}
-
-		if (!any(TileMask & MaterialMask))
-		{
-			Position.x = asfloat(0xFFFFFFFF);
-		}
-	}
-	else if (CullMode == 5)
-	{
-		// Nothing to do yet
-	}
 }
