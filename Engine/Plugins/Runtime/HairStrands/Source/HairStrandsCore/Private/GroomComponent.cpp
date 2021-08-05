@@ -2222,8 +2222,15 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	{
 		if (USkeletalMeshComponent* ParentSkelMeshComponent = Cast<USkeletalMeshComponent>(ParentMeshComponent))
 		{
-			// Validate that if we are bound to a skel. mesh, and we have binding, and the binding type is set to skinning, that the skin cache is enabled for these
-			#if 0
+			ValidatedMeshComponent = ParentSkelMeshComponent->SkeletalMesh ? ParentMeshComponent : nullptr;
+		}
+	}
+
+	// Validate that if we are bound to a skel. mesh, and we have binding, and the binding type is set to skinning, that the skin cache is enabled for these
+	if (bHasNeedSkinningBinding && ParentMeshComponent)
+	{
+		if (USkeletalMeshComponent* ParentSkelMeshComponent = Cast<USkeletalMeshComponent>(ParentMeshComponent))
+		{
 			if (BindingAsset)
 			{
 				const uint32 SkelLODCount = ParentSkelMeshComponent->GetNumLODs();
@@ -2231,25 +2238,23 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				{
 					for (uint32 LODIt = 0, LODCount = GroomAsset->GetLODCount(); LODIt < LODCount; ++LODIt)
 					{
-						const uint32 EffectiveLODIt = FMath::Clamp(LODIt, 0, SkelLODCount-1);
+						const uint32 EffectiveLODIt = FMath::Clamp(LODIt, 0, SkelLODCount - 1);
 						const bool bSupportSkinCache = ParentSkelMeshComponent->IsSkinCacheAllowed(EffectiveLODIt);
 						const EGroomBindingType BindingType = GroomAsset->GetBindingType(GroupIt, LODIt);
 
 						if (BindingType == EGroomBindingType::Skinning && !bSupportSkinCache)
 						{
-							UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Groom asset (Group:%d/%d) is set to use Skinning at LOD %d/%d while the parent skel. mesh does not support skin. cache for this LOD - Groom:%s - Skel.Mesh:%s"),
+							UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Groom asset (Group:%d/%d) is set to use Skinning at LOD %d/%d while the parent skel. mesh does not support skin. cache at this LOD - Groom:%s - Skel.Mesh:%s"),
 								GroupIt,
 								GroupCount,
 								LODIt,
 								LODCount,
-								ComponentIt->GroomAsset ? *GroomAsset->GetPathName() : TEXT("."),
-								ParentMeshComponent->GetPathName());
+								*GroomAsset->GetPathName(),
+								*ParentMeshComponent->GetPathName());
 						}
 					}
 				}
 			}
-			#endif
-			ValidatedMeshComponent = ParentSkelMeshComponent->SkeletalMesh ? ParentMeshComponent : nullptr;
 		}
 	}
 
