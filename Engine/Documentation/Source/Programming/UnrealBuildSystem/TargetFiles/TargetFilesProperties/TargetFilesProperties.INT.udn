@@ -122,8 +122,6 @@ $ bCompileWithPluginSupport (Boolean): Whether to include plugin support.
 
 $ bCompileWithAccessibilitySupport (Boolean): Whether to allow accessibility code in both Slate and the OS layer.
 
-$ bCompileWithSlateWidgetTracking (Boolean): Whether to allow the Slate Widget Tracker to track registered Widgets.
-
 $ bUseDebugLiveCodingConsole (Boolean): Whether to enable support for live coding
 
 $ bWithDirectXMath (Boolean): Whether to enable support for DirectX Math LWC_TODO: No longer supported. Needs removing.
@@ -145,6 +143,8 @@ $ bCompileForSize (Boolean): True if we want to favor optimizing size over speed
 $ bForceCompileDevelopmentAutomationTests (Boolean): Whether to compile development automation tests.
 
 $ bForceCompilePerformanceAutomationTests (Boolean): Whether to compile performance automation tests.
+
+$ bForceDisableAutomationTests (Boolean): Whether to override the defaults for automation tests (Debug/Development configs)
 
 $ bEventDrivenLoader (Boolean): If true, event driven loader will be used in cooked builds. @todoio This needs to be replaced by a runtime solution after async loading refactor.
 
