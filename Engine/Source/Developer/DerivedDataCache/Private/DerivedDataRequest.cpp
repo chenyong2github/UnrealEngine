@@ -19,11 +19,11 @@ struct FRequestBarrierEvent : public FRefCountBase
 	FEventRef Event{EEventMode::ManualReset};
 };
 
-class FRequestGroupOwner final : public FRequestGroupBase
+class FRequestOwnerShared final : public FRequestOwnerSharedBase
 {
 public:
-	explicit FRequestGroupOwner(EPriority Priority);
-	~FRequestGroupOwner() final = default;
+	explicit FRequestOwnerShared(EPriority Priority);
+	~FRequestOwnerShared() final = default;
 
 	void Begin(IRequest* Request) final;
 	TRefCountPtr<IRequest> End(IRequest* Request) final;
@@ -54,7 +54,7 @@ private:
 	bool bKeepAlive{false};
 };
 
-FRequestGroupOwner::FRequestGroupOwner(EPriority NewPriority)
+FRequestOwnerShared::FRequestOwnerShared(EPriority NewPriority)
 	: Priority(NewPriority)
 	, bPriorityChangedInBarrier(false)
 	, bBeginExecuted(false)
@@ -62,7 +62,7 @@ FRequestGroupOwner::FRequestGroupOwner(EPriority NewPriority)
 	AddRef(); // Release is called by Destroy.
 }
 
-void FRequestGroupOwner::Begin(IRequest* Request)
+void FRequestOwnerShared::Begin(IRequest* Request)
 {
 	AddRef();
 	EPriority NewPriority;
@@ -92,7 +92,7 @@ void FRequestGroupOwner::Begin(IRequest* Request)
 	}
 }
 
-TRefCountPtr<IRequest> FRequestGroupOwner::End(IRequest* Request)
+TRefCountPtr<IRequest> FRequestOwnerShared::End(IRequest* Request)
 {
 	ON_SCOPE_EXIT { Release(); };
 	FWriteScopeLock WriteLock(Lock);
@@ -104,14 +104,14 @@ TRefCountPtr<IRequest> FRequestGroupOwner::End(IRequest* Request)
 	return RequestRef;
 }
 
-void FRequestGroupOwner::BeginBarrier()
+void FRequestOwnerShared::BeginBarrier()
 {
 	AddRef();
 	FWriteScopeLock WriteLock(Lock);
 	++BarrierCount;
 }
 
-void FRequestGroupOwner::EndBarrier()
+void FRequestOwnerShared::EndBarrier()
 {
 	ON_SCOPE_EXIT { Release(); };
 	TRefCountPtr<FRequestBarrierEvent> LocalBarrierEvent;
@@ -127,7 +127,7 @@ void FRequestGroupOwner::EndBarrier()
 	}
 }
 
-void FRequestGroupOwner::SetPriority(EPriority NewPriority)
+void FRequestOwnerShared::SetPriority(EPriority NewPriority)
 {
 	TArray<TRefCountPtr<IRequest>, TInlineAllocator<16>> LocalRequests;
 	if (FWriteScopeLock WriteLock(Lock); Priority == NewPriority)
@@ -147,7 +147,7 @@ void FRequestGroupOwner::SetPriority(EPriority NewPriority)
 	}
 }
 
-void FRequestGroupOwner::Cancel()
+void FRequestOwnerShared::Cancel()
 {
 	for (;;)
 	{
@@ -187,7 +187,7 @@ void FRequestGroupOwner::Cancel()
 	}
 }
 
-void FRequestGroupOwner::Wait()
+void FRequestOwnerShared::Wait()
 {
 	for (;;)
 	{
@@ -226,19 +226,19 @@ void FRequestGroupOwner::Wait()
 	}
 }
 
-bool FRequestGroupOwner::Poll() const
+bool FRequestOwnerShared::Poll() const
 {
 	FReadScopeLock ReadLock(Lock);
 	return Requests.IsEmpty() && BarrierCount == 0;
 }
 
-void FRequestGroupOwner::KeepAlive()
+void FRequestOwnerShared::KeepAlive()
 {
 	FWriteScopeLock WriteLock(Lock);
 	bKeepAlive = true;
 }
 
-void FRequestGroupOwner::Destroy()
+void FRequestOwnerShared::Destroy()
 {
 	const bool bLocalKeepAlive = (FWriteScopeLock(Lock), bKeepAlive);
 	if (!bLocalKeepAlive)
@@ -248,9 +248,14 @@ void FRequestGroupOwner::Destroy()
 	Release();
 }
 
-FRequestGroup CreateRequestGroup(EPriority Priority)
+} // UE::DerivedData::Private
+
+namespace UE::DerivedData
 {
-	return FRequestGroup(new FRequestGroupOwner(Priority));
+
+FRequestOwner::FRequestOwner(EPriority Priority)
+	: Owner(new Private::FRequestOwnerShared(Priority))
+{
 }
 
-} // UE::DerivedData::Private
+} // UE::DerivedData

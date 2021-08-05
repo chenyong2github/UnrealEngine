@@ -19,7 +19,7 @@
 FEditorDomainPackageSegments::FEditorDomainPackageSegments(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
 	: EditorDomainLocks(InLocks)
-	, RequestGroup(UE::DerivedData::GetCache().CreateGroup(UE::DerivedData::EPriority::Normal))
+	, RequestOwner(UE::DerivedData::EPriority::Normal)
 	, PackagePath(InPackagePath)
 	, PackageSource(InPackageSource)
 	, PackageDigest(InPackageSource->Digest)
@@ -47,7 +47,7 @@ void FEditorDomainPackageSegments::WaitForReady() const
 	{
 		return;
 	}
-	const_cast<UE::DerivedData::FRequestGroup&>(RequestGroup).Wait();
+	const_cast<UE::DerivedData::FRequestOwner&>(RequestOwner).Wait();
 	Source = AsyncSource;
 }
 
@@ -76,12 +76,12 @@ void FEditorDomainPackageSegments::Close()
 {
 	// Called from Interface-only
 	AsyncSource = ESource::Closed;
-	RequestGroup.Cancel();
+	RequestOwner.Cancel();
 	for (FSegment& Segment : Segments)
 	{
-		if (Segment.RequestGroup)
+		if (Segment.RequestOwner)
 		{
-			Segment.RequestGroup.Get().Cancel();
+			Segment.RequestOwner->Cancel();
 		}
 	}
 
@@ -196,7 +196,7 @@ FEditorDomainPackageSegments::FSegment* FEditorDomainPackageSegments::EnsureSegm
 	{
 		if (!Segment->bComplete)
 		{
-			if (!Segment->RequestGroup.IsValid())
+			if (!Segment->RequestOwner)
 			{
 				SendSegmentRequest(*Segment);
 			}
@@ -219,9 +219,9 @@ FEditorDomainPackageSegments::FSegment* FEditorDomainPackageSegments::EnsureSegm
 		{
 			if (!Segment->bComplete)
 			{
-				if (Segment->RequestGroup)
+				if (Segment->RequestOwner)
 				{
-					Segment->RequestGroup.Get().Wait();
+					Segment->RequestOwner->Wait();
 				}
 				check(Segment->bAsyncComplete);
 				Segment->bComplete = true;
@@ -375,10 +375,10 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 	// Called from Callback-only until AsyncSource is set, then from Interface-only
 	ICache& Cache = GetCache();
 
-	// Note that Segment.RequestGroup is Interface-only and so we can write it outside the lock
-	Segment.RequestGroup = Cache.CreateGroup(UE::DerivedData::EPriority::Normal);
+	// Note that Segment.RequestOwner is Interface-only and so we can write it outside the lock
+	Segment.RequestOwner.Emplace(UE::DerivedData::EPriority::Normal);
 	Cache.GetPayload({ FCachePayloadKey{ UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest), Segment.PayloadId} },
-		PackagePath.GetDebugName(), ECachePolicy::Local, Segment.RequestGroup.Get(),
+		PackagePath.GetDebugName(), ECachePolicy::Local, *Segment.RequestOwner,
 		[this, &Segment](FCacheGetPayloadCompleteParams&& Params)
 		{
 			if (AsyncSource == ESource::Closed)

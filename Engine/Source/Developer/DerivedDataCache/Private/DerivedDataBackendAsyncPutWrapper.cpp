@@ -479,9 +479,9 @@ void FDerivedDataBackendAsyncPutWrapper::Put(
 			{
 				if (!bCancel)
 				{
-					FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
-					InnerBackend->Put(Records, Context, Policy, BlockingGroup, MoveTemp(OnComplete));
-					BlockingGroup.Wait();
+					FRequestOwner BlockingOwner(EPriority::Blocking);
+					InnerBackend->Put(Records, Context, Policy, BlockingOwner, MoveTemp(OnComplete));
+					BlockingOwner.Wait();
 				}
 				else if (OnComplete)
 				{
@@ -513,9 +513,9 @@ void FDerivedDataBackendAsyncPutWrapper::Get(
 			{
 				if (!bCancel)
 				{
-					FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
-					InnerBackend->Get(Keys, Context, Policy, BlockingGroup, MoveTemp(OnComplete));
-					BlockingGroup.Wait();
+					FRequestOwner BlockingOwner(EPriority::Blocking);
+					InnerBackend->Get(Keys, Context, Policy, BlockingOwner, MoveTemp(OnComplete));
+					BlockingOwner.Wait();
 				}
 				else if (OnComplete)
 				{
@@ -547,9 +547,9 @@ void FDerivedDataBackendAsyncPutWrapper::GetPayload(
 			{
 				if (!bCancel)
 				{
-					FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
-					InnerBackend->GetPayload(Keys, Context, Policy, BlockingGroup, MoveTemp(OnComplete));
-					BlockingGroup.Wait();
+					FRequestOwner BlockingOwner(EPriority::Blocking);
+					InnerBackend->GetPayload(Keys, Context, Policy, BlockingOwner, MoveTemp(OnComplete));
+					BlockingOwner.Wait();
 				}
 				else if (OnComplete)
 				{

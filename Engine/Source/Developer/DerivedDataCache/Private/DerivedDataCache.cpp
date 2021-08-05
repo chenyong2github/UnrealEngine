@@ -14,7 +14,6 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
-#include "DerivedDataRequest.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/CommandLine.h"
@@ -683,8 +682,6 @@ private:
 
 public:
 	// ICache Interface
-
-	FRequestGroup CreateGroup(EPriority Priority) final { return CreateRequestGroup(Priority); }
 
 	FCacheBucket CreateBucket(FStringView Name) final { return CreateCacheBucket(Name); }
 

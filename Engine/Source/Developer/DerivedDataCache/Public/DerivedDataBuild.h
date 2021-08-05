@@ -18,7 +18,6 @@ namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
-namespace UE::DerivedData { class FRequestGroup; }
 namespace UE::DerivedData { class IBuildFunctionRegistry; }
 namespace UE::DerivedData { class IBuildInputResolver; }
 namespace UE::DerivedData { class IBuildScheduler; }
@@ -49,8 +48,6 @@ class IBuild
 {
 public:
 	virtual ~IBuild() = default;
-
-	virtual FRequestGroup CreateGroup(EPriority Priority) = 0;
 
 	/**
 	 * Create a build definition builder.

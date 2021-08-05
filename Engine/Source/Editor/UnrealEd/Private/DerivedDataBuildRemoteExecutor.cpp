@@ -588,8 +588,8 @@ void FRemoteBuildExecutionRequest::BuildMerkleTreeNodes()
 			WorkerFileMeta.Emplace(Path, false);
 		});
 
-	FRequestGroup BlockingGroup = State.BuildSystem.CreateGroup(EPriority::Blocking);
-	State.BuildWorker.FindFileData(WorkerFileHashes, BlockingGroup,
+	FRequestOwner BlockingOwner(EPriority::Blocking);
+	State.BuildWorker.FindFileData(WorkerFileHashes, BlockingOwner,
 		[this, &WorkerFileMeta] (FBuildWorkerFileDataCompleteParams&& Params)
 		{
 			uint32 MetaIndex = 0;
@@ -601,7 +601,7 @@ void FRemoteBuildExecutionRequest::BuildMerkleTreeNodes()
 				++MetaIndex;
 			}
 		});
-	BlockingGroup.Wait();
+	BlockingOwner.Wait();
 
 	State.BuildAction.IterateInputs([this] (FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
@@ -846,8 +846,8 @@ void FRemoteBuildExecutionRequest::LoadMissingWorkerFileBlobsAsync()
 		}
 	}
 
-	FRequestGroup BlockingGroup = State.BuildSystem.CreateGroup(EPriority::Blocking);
-	State.BuildWorker.FindFileData(WorkerFileHashes, BlockingGroup,
+	FRequestOwner BlockingOwner(EPriority::Blocking);
+	State.BuildWorker.FindFileData(WorkerFileHashes, BlockingOwner,
 		[this, &WorkerFileMapping] (FBuildWorkerFileDataCompleteParams&& Params)
 		{
 			uint32 MetaIndex = 0;
@@ -863,7 +863,7 @@ void FRemoteBuildExecutionRequest::LoadMissingWorkerFileBlobsAsync()
 				}
 			}
 		});
-	BlockingGroup.Wait();
+	BlockingOwner.Wait();
 }
 
 TFuture<TPair<FStatus, FBatchUpdateBlobsResponse>> FRemoteBuildExecutionRequest::UploadMissingBlobsAsync()

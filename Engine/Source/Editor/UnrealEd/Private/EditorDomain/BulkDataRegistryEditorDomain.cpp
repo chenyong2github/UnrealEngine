@@ -395,7 +395,8 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 	{
 		// Creation of the Request has to occur outside of any lock, because the request
 		// may execute immediately on this thread and need to enter the lock; our locks are non-reentrant
-		UE::EditorDomain::GetBulkDataPayloadId(PackageName, NewPending->GetBulkDataId(), NewPending->GetRequestGroup(),
+		UE::DerivedData::FRequestBarrier Barrier(NewPending->GetRequestOwner());
+		UE::EditorDomain::GetBulkDataPayloadId(PackageName, NewPending->GetBulkDataId(), NewPending->GetRequestOwner(),
 			[this, PackageName, NewPending](FSharedBuffer Buffer)
 		{
 			if (Buffer.IsNull())
@@ -484,7 +485,7 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 
 FPendingPackage::FPendingPackage(FName InPackageName, FBulkDataRegistryEditorDomain* InOwner)
 	: PackageName(InPackageName)
-	, BulkDataListCacheRequest(UE::DerivedData::GetCache().CreateGroup(UE::DerivedData::EPriority::Low))
+	, BulkDataListCacheRequest(UE::DerivedData::EPriority::Low)
 	, Owner(InOwner)
 {
 	PendingOperations = Flag_EndLoad | Flag_BulkDataListResults;
@@ -538,7 +539,7 @@ void FPendingPackage::OnBulkDataListResults(FSharedBuffer Buffer)
 		WriteCache();
 
 		// Removing *this from its owner will delete it, which will attempt to Cancel this request.
-		// Direct the group to keep requests alive to avoid a deadlock.
+		// Direct the owner to keep requests alive to avoid a deadlock.
 		BulkDataListCacheRequest.KeepAlive();
 
 		FScopeLock PendingPackageScopeLock(&Owner->PendingPackageLock);
@@ -732,7 +733,7 @@ void FUpdatePayloadWorker::DoWork()
 
 FPendingPayloadId::FPendingPayloadId(const FGuid& InBulkDataId)
 	: BulkDataId(InBulkDataId)
-	, Request(UE::DerivedData::GetCache().CreateGroup(UE::DerivedData::EPriority::Low))
+	, Request(UE::DerivedData::EPriority::Low)
 {
 }
 
