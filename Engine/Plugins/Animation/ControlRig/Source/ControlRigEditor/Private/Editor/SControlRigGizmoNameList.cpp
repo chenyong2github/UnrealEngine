@@ -128,8 +128,15 @@ void SControlRigGizmoNameList::OnNameListChanged(TSharedPtr<FString> NewSelectio
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
-		FString NewValue = *NewSelection.Get();
-		SetNameListText(FText::FromString(NewValue), ETextCommit::OnEnter);
+		if (NewSelection.IsValid())
+		{
+			FString NewValue = *NewSelection.Get();
+			SetNameListText(FText::FromString(NewValue), ETextCommit::OnEnter);
+		}
+		else
+		{
+			SetNameListText(FText(), ETextCommit::OnEnter);
+		}
 	}
 }
 
