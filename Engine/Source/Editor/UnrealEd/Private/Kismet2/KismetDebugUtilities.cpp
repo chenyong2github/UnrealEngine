@@ -907,7 +907,6 @@ void FKismetDebugUtilities::RemoveBreakpointFromNode(const UEdGraphNode* OwnerNo
 			return Breakpoint.GetLocation() == OwnerNode;
 		}
 	);
-	SaveBreakpoints();
 #endif	//#if WITH_EDITORONLY_DATA
 }
 
