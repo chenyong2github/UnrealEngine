@@ -12,6 +12,7 @@ public class IntelTBB : ModuleRules
 		string IntelTBBPath = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel/TBB/IntelTBB-2019u8");
 		string IntelTBBIncludePath = Path.Combine(IntelTBBPath, "include");
 		string IntelTBBLibPath = Path.Combine(IntelTBBPath, "lib");
+		string IntelTBBBinaries = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Intel", "TBB", Target.Platform.ToString());
 
 		PublicSystemIncludePaths.Add(IntelTBBIncludePath);		
 
@@ -38,13 +39,16 @@ public class IntelTBB : ModuleRules
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
+				PublicDefinitions.Add("TBB_USE_DEBUG=1");
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBB, "tbb_debug.lib"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBBMalloc, "tbbmalloc_debug.lib"));
+				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.dll"), Path.Combine(LibDirTBB, "tbb_debug.dll"));
 			}
 			else
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBB, "tbb.lib"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBBMalloc, "tbbmalloc.lib"));
+				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -52,6 +56,9 @@ public class IntelTBB : ModuleRules
 			string LibDir = Path.Combine(IntelTBBLibPath, "Mac");
 			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libtbb.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libtbbmalloc.a"));
+
+			PublicDelayLoadDLLs.Add(Path.Combine(IntelTBBBinaries, "libtbb.dylib"));
+			RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.dylib"));
 		}
 	}
 }
