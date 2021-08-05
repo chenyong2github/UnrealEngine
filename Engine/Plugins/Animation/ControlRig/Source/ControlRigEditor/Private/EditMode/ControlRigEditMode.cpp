@@ -176,6 +176,8 @@ FControlRigEditMode::~FControlRigEditMode()
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 #endif
+
+	OnControlRigAddedOrRemovedDelegate.Clear();
 }
 
 void FControlRigEditMode::SetObjects(const TWeakObjectPtr<>& InSelectedObject,  UObject* BindingObject, TWeakPtr<ISequencer> InSequencer)
@@ -387,6 +389,7 @@ void FControlRigEditMode::Exit()
 		DelegateHelper->RemoveDelegates();
 		DelegateHelper.Reset();
 	}
+	OnControlRigAddedOrRemovedDelegate.Clear();
 
 	//clear delegates
 	FEditorModeTools* ModeManager = GetModeManager();
