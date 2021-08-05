@@ -366,7 +366,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 			}
 
 			FVector BoxCenter, BoxExtents;
-			Region->GetActorBounds(true, BoxCenter, BoxExtents);
+			Region->GetBounds(BoxCenter, BoxExtents);
 
 			// If bounding box is zero, then we don't need to do anything.
 			if (BoxExtents.IsNearlyZero())

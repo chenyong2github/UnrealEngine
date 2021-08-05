@@ -95,6 +95,7 @@ public:
 #if WITH_EDITOR
 	/** Called when any of the properties are changed. */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 #endif
 
 	/** To handle play in Editor, PIE and Standalone. These methods aggregate objects in play mode similarly to 
@@ -105,12 +106,29 @@ public:
 
 	virtual void BeginDestroy() override;
 
+	virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction);
+	virtual bool ShouldTickIfViewportsOnly() const;
+
 	/** 
 	* We have to manage the lifetime of the region ourselves, because EndPlay is not guaranteed to be called 
 	* and BeginDestroy could be called from GC when it is too late.
 	*/
 	void Cleanup();
 
+	/**
+	* This is used on render thread, and not atomic on purpose to avoid stalling Render thread even for a little bit. 
+	*/
+	void GetBounds(FVector& InOutOrigin, FVector& InOutBoxExtent) const
+	{
+		InOutOrigin = BoxOrigin;
+		InOutBoxExtent = BoxExtent;
+	};
+
 private:
 	UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem;
+
+	FVector BoxOrigin;
+	FVector BoxExtent;
+
+	FTransform PreviousFrameTransform;
 };

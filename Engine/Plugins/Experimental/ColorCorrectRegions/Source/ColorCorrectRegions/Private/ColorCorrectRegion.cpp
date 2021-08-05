@@ -19,7 +19,7 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	, ExcludeStencil(false)
 	, ColorCorrectRegionsSubsystem(nullptr)
 {
-
+	PrimaryActorTick.bCanEverTick = true;
 }
 
 void AColorCorrectRegion::BeginPlay()
@@ -57,6 +57,22 @@ void AColorCorrectRegion::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+bool AColorCorrectRegion::ShouldTickIfViewportsOnly() const
+{
+	return true;
+}
+
+void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction)
+{
+	Super::Tick(DeltaTime);
+	FTransform CurrentFrameTransform = GetTransform();
+	if (!PreviousFrameTransform.Equals(CurrentFrameTransform))
+	{
+		PreviousFrameTransform = CurrentFrameTransform;
+		GetActorBounds(true, BoxOrigin, BoxExtent);
+	}
+}
+
 void AColorCorrectRegion::Cleanup()
 {
 	ColorCorrectRegionsSubsystem = nullptr;
@@ -66,7 +82,6 @@ void AColorCorrectRegion::Cleanup()
 void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Priority))
 	{
@@ -75,6 +90,7 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 			ColorCorrectRegionsSubsystem->SortRegionsByPriority();
 		}
 	}
+	GetActorBounds(true, BoxOrigin, BoxExtent);
 }
 #endif //WITH_EDITOR
 
