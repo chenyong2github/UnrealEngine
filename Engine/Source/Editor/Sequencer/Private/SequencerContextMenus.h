@@ -70,8 +70,6 @@ private:
 
 	bool CanSetInterpTangentMode() const;
 
-	bool IsInterpTangentModeSelected(ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode) const;
-
 	void ToggleSectionActive();
 
 	bool IsSectionActive() const;
