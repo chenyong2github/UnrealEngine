@@ -33,14 +33,14 @@ float SlopeScaledSurfaceBias;
 float VirtualShadowMapSurfaceBias;
 int VirtualShadowMapId;
 
-// Some debug variables
+// Debug variables
 uint ForceShadowMaps;
 uint ForceOffscreenShadowing;
 
 StructuredBuffer<uint> CardTileAllocator;
 StructuredBuffer<uint> CardTileData;
-
-RWStructuredBuffer<uint> RWShadowMaskTiles;
+uint CardScatterInstanceIndex;
+uint MaxCardTilesPerScatterInstance;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void LumenSceneDirectLightingSampleShadowMapCS(
@@ -57,7 +57,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 
 	uint CardTileIndex = GroupId.x;
 	uint2 CoordInCardTile = GroupThreadId.xy;
-	FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+	FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
 	uint2 TexelInCardPageCoord = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
 	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
@@ -188,7 +188,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 
 	if (GroupThreadId.x < 4 && GroupThreadId.y == 0)
 	{
-		RWShadowMaskTiles[4 * CardTileIndex + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
+		RWShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
 	}
 }
 
@@ -259,12 +259,12 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 
 	if (GroupThreadId.x < 4 && GroupThreadId.y == 0)
 	{
-		SharedShadowMask[GroupThreadId.x] = RWShadowMaskTiles[4 * CardTileIndex + GroupThreadId.x];
+		SharedShadowMask[GroupThreadId.x] = RWShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + GroupThreadId.x];
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
-	FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+	FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
 	uint2 CoordInCardTile = GroupThreadId.xy;
 	uint2 TexelInCardPageCoord = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
@@ -306,6 +306,6 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 
 	if (GroupThreadId.x < 4 && GroupThreadId.y == 0)
 	{
-		RWShadowMaskTiles[4 * CardTileIndex + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
+		RWShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + GroupThreadId.x] = SharedShadowMask[GroupThreadId.x];
 	}
 }

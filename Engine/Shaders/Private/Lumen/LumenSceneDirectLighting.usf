@@ -46,17 +46,7 @@ float GetLightFunction(float3 WorldPosition)
 	return GreyScale;
 }
 
-float MaxTraceDistance;
-float StepFactor;
-float SurfaceBias;
-float TanLightSourceAngle;
-float SlopeScaledSurfaceBias;
-float SDFSurfaceBiasScale;
-float VirtualShadowMapSurfaceBias;
-uint ForceOffscreenShadowing;
 uint UseIESProfile;
-
-StructuredBuffer<uint> ShadowMaskTiles;
 
 void LumenCardDirectLightingPS(
 	FCardVSToPS CardInterpolants,
@@ -71,7 +61,7 @@ void LumenCardDirectLightingPS(
 	#if SHADOW_MASK
 	{
 		uint2 CoordInCardTile = SvPosition.xy % CARD_TILE_SIZE;
-		ReadShadowMaskRay(ShadowMaskTiles, CardInterpolants.CardTileIndex, CoordInCardTile, ShadowMaskRay);
+		ReadShadowMaskRay(CardInterpolants.CardTileIndex, CoordInCardTile, ShadowMaskRay);
 	}
 	#else
 	{

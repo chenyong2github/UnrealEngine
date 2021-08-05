@@ -59,6 +59,7 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
+		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 
 		// Constants
@@ -73,6 +74,7 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowMaskTiles)
+		SHADER_PARAMETER(uint32, ShadowMaskTilesOffset)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -101,9 +103,12 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenLight& LumenLight,
-	const FLumenCardScatterContext& CardScatterContext)
+	const FLumenCardScatterContext& CardScatterContext,
+	FRDGBufferUAVRef ShadowMaskTilesUAV)
 {
 #if RHI_RAYTRACING
+	check(LumenLight.HasShadowMask());
+
 	FLumenDirectLightingHardwareRayTracingBatchedRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenDirectLightingHardwareRayTracingBatchedRGS::FParameters>();
 	SetLumenHardwareRayTracingSharedParameters(
 		GraphBuilder,
@@ -114,6 +119,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	);
 
 	PassParameters->CardScatterParameters = CardScatterContext.CardTileParameters;
+	PassParameters->CardScatterInstanceIndex = LumenLight.CardScatterInstanceIndex;
 	Lumen::SetDirectLightingDeferredLightUniformBuffer(View, LumenLight.LightSceneInfo, PassParameters->DeferredLightUniforms);
 
 	PassParameters->PullbackBias = 0.0f;
@@ -126,7 +132,8 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	PassParameters->SlopeScaledSurfaceBias = 1.0f;
 
 	// Output
-	PassParameters->RWShadowMaskTiles = GraphBuilder.CreateUAV(LumenLight.ShadowMaskTiles);
+	PassParameters->RWShadowMaskTiles = ShadowMaskTilesUAV;
+	PassParameters->ShadowMaskTilesOffset = LumenLight.ShadowMaskTilesOffset;
 
 	TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>();
 
