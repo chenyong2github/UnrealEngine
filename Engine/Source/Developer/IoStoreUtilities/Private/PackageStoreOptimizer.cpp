@@ -817,8 +817,8 @@ void FPackageStoreOptimizer::OptimizeExportBundles(const TMap<FPackageId, FPacka
 	FPackageStorePackage* PreviousPackage = nullptr;
 	for (FPackageStorePackage::FExportBundleGraphNode* Node : LoadOrder)
 	{
-		check(Node->Package);
 		FPackageStorePackage* Package = Node->Package;
+		check(Package);
 		if (PreviousPackage != Package || !Package->CurrentBundle)
 		{
 			if (Package->GraphData.ExportBundles.IsEmpty())

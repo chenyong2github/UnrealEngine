@@ -42,6 +42,11 @@ namespace UE
 
 			FString FFbxHelper::GetMeshUniqueID(FbxGeometryBase* Mesh)
 			{
+				if (!Mesh)
+				{
+					return {};
+				}
+
 				FString MeshUniqueID;
 				if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
 				{

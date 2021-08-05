@@ -178,7 +178,7 @@ void SDisplayClusterConfiguratorComponentClassCombo::GenerateFilteredComponentLi
 				if ( TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(FriendlyComponentName)) )
 				{
 					// Add the heading first if it hasn't already been added
-					if (LastHeadingIndex != INDEX_NONE)
+					if (LastHeadingPtr && LastHeadingIndex != INDEX_NONE)
 					{
 						FilteredComponentClassList.Insert(*LastHeadingPtr, LastHeadingIndex);
 						LastHeadingIndex = INDEX_NONE;
