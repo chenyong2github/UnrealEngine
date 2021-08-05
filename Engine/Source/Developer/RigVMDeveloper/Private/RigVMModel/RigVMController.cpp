@@ -8949,6 +8949,33 @@ bool URigVMController::CanAddNode(URigVMNode* InNode, bool bReportErrors, bool b
 			}
 		}
 	}
+	else if(URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode))
+	{
+		if (URigVMPin* NamePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+		{
+			FString VarName = NamePin->GetDefaultValue();
+			if (!VarName.IsEmpty())
+			{
+				for (auto LocalVar : Graph->GetLocalVariables())
+				{
+					if (LocalVar.Name.ToString() == VarName)
+					{
+						return true;
+					}
+				}
+
+				for (auto ExternalVar : Graph->GetExternalVariables())
+				{
+					if (ExternalVar.Name.ToString() == VarName)
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}
+		}
+	}
 
 	return true;
 }
