@@ -17,6 +17,16 @@
 
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 
+#include "Channels/MovieSceneChannelProxy.h"
+#include "Channels/MovieSceneChannel.h"
+
+int32 GMovieSceneRemoveMutedTracksOnCook = 0;
+static FAutoConsoleVariableRef CVarMovieSceneRemoveMutedTracksOnCook(
+	TEXT("MovieScene.RemoveMutedTracksOnCook"),
+	GMovieSceneRemoveMutedTracksOnCook,
+	TEXT("If 1 remove muted tracks on cook, otherwise leave as is."),
+	ECVF_Default);
+
 UMovieSceneTrack::UMovieSceneTrack(const FObjectInitializer& InInitializer)
 	: Super(InInitializer)
 {
@@ -270,6 +280,42 @@ bool UMovieSceneTrack::FixRowIndices()
 	}
 	return bFixesMade;
 }
+
+#if WITH_EDITOR
+
+ECookOptimizationFlags UMovieSceneTrack::GetCookOptimizationFlags() const
+{
+	const int RemoveMutedTracksOnCook = CVarMovieSceneRemoveMutedTracksOnCook->GetInt();
+
+	if (RemoveMutedTracksOnCook && IsEvalDisabled())
+	{
+		return ECookOptimizationFlags::RemoveTrack;
+	}
+	return ECookOptimizationFlags::None; 
+}
+
+void UMovieSceneTrack::RemoveForCook()
+{
+	for (UMovieSceneSection* Section : GetAllSections())
+	{
+		if (Section)
+		{
+			for (const FMovieSceneChannelEntry& Entry : Section->GetChannelProxy().GetAllEntries())
+			{
+				for (FMovieSceneChannel* Channel : Entry.GetChannels())
+				{
+					if (Channel)
+					{
+						Channel->Reset();
+					}
+				}
+			}
+		}
+	}
+	RemoveAllAnimationData();
+}
+
+#endif
 
 bool UMovieSceneTrack::IsRowEvalDisabled(int32 RowIndex) const
 {

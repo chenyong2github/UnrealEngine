@@ -22,6 +22,18 @@ struct IMovieSceneTemplateGenerator;
 
 template<typename> struct TMovieSceneEvaluationTree;
 
+/** Flags used to perform cook-time optimization of movie scene data */
+enum class ECookOptimizationFlags
+{
+	/** Perform no cook optimization */
+	None 			= 0,
+	/** Remove this track since its of no consequence to runtime */
+	RemoveTrack		= 1 << 0,
+	/** Remove this track's object since its of no consequence to runtime */
+	RemoveObject	= 1 << 1,
+};
+ENUM_CLASS_FLAGS(ECookOptimizationFlags)
+
 /** Generic evaluation options for any track */
 USTRUCT()
 struct FMovieSceneTrackEvalOptions
@@ -383,6 +395,21 @@ public:
 	 * @param SectionIndex The section index to remove.
 	 */
 	virtual void RemoveSectionAt(int32 SectionIndex) PURE_VIRTUAL(UMovieSceneSection::RemoveSectionAt, );
+
+#if WITH_EDITOR
+
+	/**
+	 * Called when this track's movie scene is being cooked to determine if/how this track should be cooked.
+	 * @return ECookOptimizationFlags detailing how to optimize this track
+	 */
+	MOVIESCENE_API virtual ECookOptimizationFlags GetCookOptimizationFlags() const;
+
+	/**
+	 * Called when this track should be removed for cooking
+	 */
+	MOVIESCENE_API virtual void RemoveForCook();
+
+#endif
 
 #if WITH_EDITORONLY_DATA
 
