@@ -149,6 +149,12 @@ public:
 	{
 		TPersistentObjectPtr<FUniqueObjectGuid>::operator=(InObjectID);
 	}
+
+	/** Fixes up this FLazyObjectPtr to target the right UID as set in PIEGuidMap */
+	FORCEINLINE void FixupForPIE(int32 PIEInstance)
+	{
+		*this = GetUniqueID().FixupForPIE(PIEInstance);
+	}
 	
 	/** Called by UObject::Serialize so that we can save / load the Guid possibly associated with an object */
 	COREUOBJECT_API static void PossiblySerializeObjectGuid(UObject* Object, FStructuredArchive::FRecord Record);

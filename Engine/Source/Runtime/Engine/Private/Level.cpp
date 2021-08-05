@@ -59,6 +59,7 @@ Level.cpp: Level-related functions
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
 #include "AssetData.h"
+#include "PieFixupSerializer.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/LevelStreaming.h"
@@ -2761,51 +2762,7 @@ bool ULevel::CanEditChange(const FProperty* PropertyThatWillChange) const
 
 void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> InCustomFixupFunction)
 {
-	struct FSoftPathPIEFixupSerializer : public FArchiveUObject
-	{
-		FSoftPathPIEFixupSerializer(UObject* InRoot, int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> InCustomFixupFunction)
-			: Root(InRoot)
-			, PIEInstanceID(InPIEInstanceID)
-			, CustomFixupFunction(InCustomFixupFunction)
-		{
-			this->SetIsSaving(true);
-			this->ArShouldSkipBulkData = true;
-		}
-
-		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
-		{
-			return InProperty->IsA<FMulticastDelegateProperty>() || FArchiveUObject::ShouldSkipProperty(InProperty);
-		}
-
-		virtual FArchive& operator<<(UObject*& Object) override
-		{
-			if (Object && Object->IsIn(Root) && !VisitedObjects.Contains(Object))
-			{
-				VisitedObjects.Add(Object);
-
-				// Skip instanced static mesh component as their impact on serialization is enormous and they don't contain lazy ptrs.
-				if (!Cast<UInstancedStaticMeshComponent>(Object))
-				{
-					Object->Serialize(*this);
-				}
-			}
-			return *this;
-		}
-
-		FArchive& operator<<(FSoftObjectPath& Value)
-		{
-			Value.FixupForPIE(PIEInstanceID, CustomFixupFunction);
-			return *this;
-		}
-
-		UObject* Root;
-		TSet<UObject*> VisitedObjects;
-
-		int32 PIEInstanceID;
-		TFunctionRef<void(int32, FSoftObjectPath&)> CustomFixupFunction;
-	};
-
-	FSoftPathPIEFixupSerializer FixupSerializer(this, InPIEInstanceID, InCustomFixupFunction);
+	FPIEFixupSerializer FixupSerializer(this, InPIEInstanceID, InCustomFixupFunction);
 	Serialize(FixupSerializer);
 }
 

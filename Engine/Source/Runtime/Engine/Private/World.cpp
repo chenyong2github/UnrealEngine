@@ -106,9 +106,9 @@
 	#include "ObjectTools.h"
 	#include "Engine/LODActor.h"
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
-	#include "Editor/FixupLazyObjectPtrForPIEArchive.h"
 	#include "AssetCompilingManager.h"
 	#include "WorldPartition/DataLayer/WorldDataLayers.h"
+	#include "PieFixupSerializer.h"
 #endif
 
 
@@ -3394,8 +3394,8 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 
 	{
 		// The owning world may contain lazy pointers to actors in the sub-level we just duplicated so make sure they are fixed up with the PIE GUIDs
-		FFixupLazyObjectPtrForPIEArchive FixupLazyPointersAr;
-		FixupLazyPointersAr << OwningWorld;
+		FPIEFixupSerializer FixupSerializer(OwningWorld, PIEInstanceID);
+		FixupSerializer << OwningWorld;
 	}
 
 
