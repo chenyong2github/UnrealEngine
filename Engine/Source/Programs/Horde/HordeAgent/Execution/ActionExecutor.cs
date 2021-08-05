@@ -248,20 +248,22 @@ namespace HordeAgent
 		{
 			DirectoryReference.CreateDirectory(OutputDir);
 
-			await ParallelTask.ForEachAsync(InputDirectory.Files, async FileNode =>
+			async Task DownloadFile(FileNode FileNode)
 			{
 				ReadOnlyMemory<byte> Data = await Storage.GetBulkDataAsync(InstanceName, FileNode.Digest);
 				FileReference File = FileReference.Combine(OutputDir, FileNode.Name);
 				Logger.LogInformation("Writing {File} (digest: {Digest}, size: {Size})", File, FileNode.Digest.Hash, FileNode.Digest.SizeBytes);
 				await FileReference.WriteAllBytesAsync(File, Data.ToArray());
-			});
-
-			await ParallelTask.ForEachAsync(InputDirectory.Directories, async DirectoryNode =>
+			}
+			await Task.WhenAll(InputDirectory.Files.Select(x => Task.Run(() => DownloadFile(x))));
+			
+			async Task DownloadDir(DirectoryNode DirectoryNode)
 			{
 				Directory InputSubDirectory = await Storage.GetProtoMessageAsync<Directory>(InstanceName, DirectoryNode.Digest);
 				DirectoryReference OutputSubDirectory = DirectoryReference.Combine(OutputDir, DirectoryNode.Name);
 				await SetupSandboxAsync(InputSubDirectory, OutputSubDirectory);
-			});
+			}
+			await Task.WhenAll(InputDirectory.Directories.Select(x => Task.Run(() => DownloadDir(x))));
 		}
 
 		/// <summary>
