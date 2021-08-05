@@ -51,6 +51,7 @@ public:
 
 		if (!NextFree)
 		{
+			LLM_SCOPE(ELLMTag::FileSystem);
 			//TODO: Virtual alloc
 			FBlock* Block = new FBlock;
 
