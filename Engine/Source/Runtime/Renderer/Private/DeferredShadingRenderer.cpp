@@ -2222,7 +2222,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		{
 			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-			InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
+			InitViewsAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
 		}
 
 		{

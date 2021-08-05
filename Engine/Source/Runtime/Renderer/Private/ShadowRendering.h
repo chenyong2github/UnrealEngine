@@ -574,11 +574,11 @@ public:
 	/**
 	 * Adds a primitive to the shadow's subject list.
 	 */
-	void AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, TArray<FViewInfo>* ViewArray, bool bRecordShadowSubjectForMobileShading);
+	void AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, TArrayView<FViewInfo> ViewArray, bool bRecordShadowSubjectForMobileShading);
 
 	uint64 AddSubjectPrimitive_AnyThread(
 		const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact,
-		TArray<FViewInfo>* ViewArray,
+		TArrayView<FViewInfo> ViewArray,
 		ERHIFeatureLevel::Type FeatureLevel,
 		struct FAddSubjectPrimitiveStats& OutStats,
 		struct FAddSubjectPrimitiveOverflowedIndices& OverflowBuffer) const;
@@ -587,7 +587,7 @@ public:
 
 	void FinalizeAddSubjectPrimitive(
 		struct FAddSubjectPrimitiveOp const& Op,
-		TArray<FViewInfo>* ViewArray,
+		TArrayView<FViewInfo> ViewArray,
 		struct FFinalizeAddSubjectPrimitiveContext& Context);
 
 	/**

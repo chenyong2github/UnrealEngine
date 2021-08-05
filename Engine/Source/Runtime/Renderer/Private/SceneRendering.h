@@ -61,6 +61,7 @@ struct FSceneTexturesConfig;
 struct FMinimalSceneTextures;
 struct FSceneTextures;
 struct FCustomDepthTextures;
+struct FDynamicShadowsTaskData;
 
 namespace DistanceField
 {
@@ -1985,6 +1986,8 @@ protected:
 
 	// Shared functionality between all scene renderers
 
+	FDynamicShadowsTaskData* BeginInitDynamicShadows(bool bRunningEarly);
+	void FinishInitDynamicShadows(FRHICommandListImmediate& RHICmdList, FDynamicShadowsTaskData* TaskData, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager);
 	void InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager);
 
 	void SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands, FInstanceCullingManager& InstanceCullingManager);
@@ -2066,10 +2069,8 @@ protected:
 	bool CheckForProjectedShadows(const FLightSceneInfo* LightSceneInfo) const;
 
 	/** Gathers the list of primitives used to draw various shadow types */
-	void GatherShadowPrimitives(
-		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& PreShadows,
-		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& ViewDependentWholeSceneShadows,
-		bool bReflectionCaptureScene);
+	void BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData);
+	void FinishGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData);
 
 	void RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager);
 	void RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder);

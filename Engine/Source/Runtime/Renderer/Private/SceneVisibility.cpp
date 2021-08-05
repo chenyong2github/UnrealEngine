@@ -151,6 +151,14 @@ static FAutoConsoleVariableRef CVarILCUpdatePrimitivesTask(
 	ECVF_RenderThreadSafe
 	);
 
+static int32 GEarlyInitDynamicShadows = 1;
+static FAutoConsoleVariableRef CVarEarlyInitDynamicShadows(
+	TEXT("r.EarlyInitDynamicShadows"),
+	GEarlyInitDynamicShadows,
+	TEXT("Starts shadow culling tasks earlier in the frame."),
+	ECVF_RenderThreadSafe
+);
+
 static int32 GFramesNotOcclusionTestedToExpandBBoxes = 5;
 static FAutoConsoleVariableRef CVarFramesNotOcclusionTestedToExpandBBoxes(
 	TEXT("r.GFramesNotOcclusionTestedToExpandBBoxes"),
@@ -4581,6 +4589,8 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 		AverageViewPosition += View.ViewMatrices.GetViewOrigin() / Views.Num();
 	}
 
+	InitViewsBeforePrepass(GraphBuilder, InstanceCullingManager);
+
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_InitViews_InitRHIResources);
 		// initialize per-view uniform buffer.
@@ -4672,9 +4682,24 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 	}
 }
 
-void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
+void FDeferredShadingSceneRenderer::InitViewsBeforePrepass(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager)
 {
-	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViewsPossiblyAfterPrepass, FColor::Emerald);
+	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
+
+	if (GEarlyInitDynamicShadows &&
+		CurrentDynamicShadowsTaskData == nullptr &&
+		ViewFamily.EngineShowFlags.DynamicShadows
+		&& !IsSimpleForwardShadingEnabled(ShaderPlatform)
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !bHasRayTracedOverlay)
+	{
+		CurrentDynamicShadowsTaskData = BeginInitDynamicShadows(true);
+	}
+}
+
+void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
+{
+	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViewsAfterPrepass, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsPossiblyAfterPrepass);
 
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
@@ -4687,7 +4712,15 @@ void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRDGBuilder& G
 		&& !bHasRayTracedOverlay)
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager);
+		if (CurrentDynamicShadowsTaskData)
+		{
+			FinishInitDynamicShadows(RHICmdList, CurrentDynamicShadowsTaskData, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager);
+			CurrentDynamicShadowsTaskData = nullptr;
+		}
+		else
+		{
+			InitDynamicShadows(RHICmdList, DynamicIndexBufferForInitShadows, DynamicVertexBufferForInitShadows, DynamicReadBufferForInitShadows, InstanceCullingManager);
+		}
 
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
