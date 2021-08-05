@@ -941,6 +941,43 @@ FGuid FVirtualizedUntypedBulkData::GetIdentifier() const
 	return BulkDataId;
 }
 
+void FVirtualizedUntypedBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID, FName InCompressionFormat)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::UpdatePayloadImpl);
+
+	UnloadData();
+
+	// Make sure that we own the memory in the shared buffer
+	Payload = InPayload.MakeOwned();
+	PayloadSize = (int64)Payload.GetSize();
+	PayloadContentId = MoveTemp(InPayloadID);
+
+	EnumRemoveFlags(Flags, EFlags::IsVirtualized |
+		EFlags::DisablePayloadCompression |
+		EFlags::ReferencesLegacyFile |
+		EFlags::LegacyFileIsCompressed |
+		EFlags::LegacyKeyWasGuidDerived);
+
+	SetCompressionFormat(InCompressionFormat);
+
+	PackagePath.Empty();
+	PackageSegment = EPackageSegment::Header;
+	OffsetInFile = INDEX_NONE;
+
+	if (PayloadSize > 0)
+	{
+		if (!BulkDataId.IsValid())
+		{
+			BulkDataId = FGuid::NewGuid();
+		}
+		Register(nullptr);
+	}
+	else
+	{
+		Unregister();
+	}
+}
+
 FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::GetDataInternal);
@@ -1006,38 +1043,19 @@ TFuture<FCompressedBuffer>FVirtualizedUntypedBulkData::GetCompressedPayload() co
 void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBuffer InPayload, FName InCompressionFormat)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::UpdatePayload);
+	FPayloadId NewPayloadId(InPayload);
+	UpdatePayloadImpl(MoveTemp(InPayload), MoveTemp(NewPayloadId), InCompressionFormat);
+}
 
-	UnloadData();
+FVirtualizedUntypedBulkData::FSharedBufferWithID::FSharedBufferWithID(FSharedBuffer InPayload)
+	: Payload(MoveTemp(InPayload))
+	, PayloadId(Payload)
+{
+}
 
-	// Make sure that we own the memory in the shared buffer
-	Payload = InPayload.MakeOwned();
-	PayloadSize = (int64)Payload.GetSize();
-	PayloadContentId = FPayloadId(Payload);
-
-	EnumRemoveFlags(Flags,	EFlags::IsVirtualized | 
-							EFlags::DisablePayloadCompression |
-							EFlags::ReferencesLegacyFile |
-							EFlags::LegacyFileIsCompressed |
-							EFlags::LegacyKeyWasGuidDerived);
-
-	SetCompressionFormat(InCompressionFormat);
-	
-	PackagePath.Empty();
-	PackageSegment = EPackageSegment::Header;
-	OffsetInFile = INDEX_NONE;
-
-	if (PayloadSize > 0)
-	{
-		if (!BulkDataId.IsValid())
-		{
-			BulkDataId = FGuid::NewGuid();
-		}
-		Register(nullptr);
-	}
-	else
-	{
-		Unregister();
-	}
+void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBufferWithID InPayload, FName InCompressionFormat)
+{
+	UpdatePayloadImpl(MoveTemp(InPayload.Payload), MoveTemp(InPayload.PayloadId), InCompressionFormat);
 }
 
 void FVirtualizedUntypedBulkData::SetCompressionFormat(FName InCompressionFormat)
