@@ -1071,7 +1071,8 @@ void FAnalyzerHub::OnEvent(
 		return;
 	}
 
-	ForEachRoute(RouteIndex, false, [&] (IAnalyzer* Analyzer, uint16 RouteId)
+	bool bScoped = (Style != IAnalyzer::EStyle::Normal);
+	ForEachRoute(RouteIndex, bScoped, [&] (IAnalyzer* Analyzer, uint16 RouteId)
 	{
 		if (!Analyzer->OnEvent(RouteId, Style, Context))
 		{
