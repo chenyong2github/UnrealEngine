@@ -109,7 +109,7 @@ private:
 
 protected:
 
-	virtual void UpdateLayer(LayerType& Layer, uint32 LayerId, bool bIsValid) const
+	virtual void UpdateLayer(LayerType& Layer, uint32 LayerId, bool bIsValid)
 	{}
 
 	bool GetStereoLayersDirty()

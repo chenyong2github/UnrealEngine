@@ -260,7 +260,7 @@ public:
 	virtual void OnEndPlay(FWorldContext& InWorldContext) override;
 
 	/** IStereoLayers */
-	virtual void UpdateLayer(FOpenXRLayer& Layer, uint32 LayerId, bool bIsValid) const override;
+	virtual void UpdateLayer(FOpenXRLayer& Layer, uint32 LayerId, bool bIsValid) override;
 	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const override { return true; }
 
 public:

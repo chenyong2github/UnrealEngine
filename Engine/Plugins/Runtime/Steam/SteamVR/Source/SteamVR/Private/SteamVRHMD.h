@@ -542,7 +542,7 @@ private:
 	};
 	FChaperoneBounds ChaperoneBounds;
 	
-	virtual void UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool bIsValid) const override;
+	virtual void UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool bIsValid) override;
 
 	void UpdateStereoLayers_RenderThread();
 
