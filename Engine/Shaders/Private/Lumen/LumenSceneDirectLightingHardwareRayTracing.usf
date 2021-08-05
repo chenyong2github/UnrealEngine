@@ -44,7 +44,8 @@ float SlopeScaledSurfaceBias;
 
 StructuredBuffer<uint> CardTileAllocator;
 StructuredBuffer<uint> CardTileData;
-RWStructuredBuffer<uint> RWShadowMaskTiles;
+uint MaxCardTilesPerScatterInstance;
+uint CardScatterInstanceIndex;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 {
@@ -54,15 +55,15 @@ RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 
 	uint2 CoordInCardTile = uint2(ThreadIndex % CARD_TILE_SIZE, ThreadIndex / CARD_TILE_SIZE);
 
-	for (uint CardTileIndex = DispatchRaysIndex().y; CardTileIndex < CardTileAllocator[0]; CardTileIndex += GroupCount)
+	for (uint CardTileIndex = DispatchRaysIndex().y; CardTileIndex < CardTileAllocator[CardScatterInstanceIndex]; CardTileIndex += GroupCount)
 	{
-		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
 		uint2 TexelInCardPageCoord = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
 		if (all(CoordInCardTile < CARD_TILE_SIZE))
 		{
 			FShadowMaskRay ShadowMaskRay;
-			ReadShadowMaskRay(RWShadowMaskTiles, CardTileIndex, CoordInCardTile, ShadowMaskRay);
+			ReadShadowMaskRayRW(CardTileIndex, CoordInCardTile, ShadowMaskRay);
 
 			// Trace visibility ray
 			if (!ShadowMaskRay.bShadowFactorComplete)
@@ -122,7 +123,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 
 				ShadowMaskRay.bShadowFactorComplete = true;
 
-				WriteShadowMaskRay(ShadowMaskRay, CardTileIndex, CoordInCardTile, RWShadowMaskTiles);
+				WriteShadowMaskRay(ShadowMaskRay, CardTileIndex, CoordInCardTile);
 			}
 		}
 	}

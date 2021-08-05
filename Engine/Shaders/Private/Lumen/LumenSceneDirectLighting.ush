@@ -14,6 +14,10 @@
 
 groupshared uint SharedShadowMask[4];
 
+RWStructuredBuffer<uint> RWShadowMaskTiles;
+StructuredBuffer<uint> ShadowMaskTiles;
+uint ShadowMaskTilesOffset;
+
 struct FShadowMaskRay
 {
 	float ShadowFactor;
@@ -31,22 +35,22 @@ void ReadSharedShadowMaskRay(uint2 CoordInCardTile, inout FShadowMaskRay ShadowM
 	ShadowMaskRay.bShadowFactorComplete = ShadowMask & 0x2 ? true : false;
 }
 
-void ReadShadowMaskRay(RWStructuredBuffer<uint> ShadowMaskBuffer, uint CardTileIndex, uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
+void ReadShadowMaskRayRW(uint CardTileIndex, uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
 {
 	uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
 
-	uint ShadowMask = ShadowMaskBuffer[4 * CardTileIndex + BitOffset / 32];
+	uint ShadowMask = RWShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + BitOffset / 32];
 	ShadowMask = (ShadowMask >> (BitOffset % 32)) & 0x3;
 
 	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
 	ShadowMaskRay.bShadowFactorComplete = ShadowMask & 0x2 ? true : false;
 }
 
-void ReadShadowMaskRay(StructuredBuffer<uint> ShadowMaskBuffer, uint CardTileIndex, uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
+void ReadShadowMaskRay(uint CardTileIndex, uint2 CoordInCardTile, inout FShadowMaskRay ShadowMaskRay)
 {
 	uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
 
-	uint ShadowMask = ShadowMaskBuffer[4 * CardTileIndex + BitOffset / 32];
+	uint ShadowMask = ShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + BitOffset / 32];
 	ShadowMask = (ShadowMask >> (BitOffset % 32)) & 0x3;
 
 	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
@@ -74,7 +78,7 @@ void WriteSharedShadowMaskRay(FShadowMaskRay Ray, uint2 CoordInCardTile)
 	}
 }
 
-void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCardTile, RWStructuredBuffer<uint> ShadowMaskBuffer)
+void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCardTile)
 {
 	if (Ray.bShadowFactorComplete)
 	{
@@ -91,7 +95,7 @@ void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCar
 		}
 
 		uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
-		InterlockedOr(ShadowMaskBuffer[4 * CardTileIndex + BitOffset / 32], Mask << (BitOffset % 32));
+		InterlockedOr(RWShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + BitOffset / 32], Mask << (BitOffset % 32));
 	}
 }
 

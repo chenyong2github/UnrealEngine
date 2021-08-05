@@ -755,6 +755,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 
 			PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 			PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
+			PassParameters->VS.CardScatterInstanceIndex = 0;
 			PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 
 			SetupTraceFromTexelParameters(GraphBuilder, Views[0], TracingInputs, LumenSceneData, PassParameters->PS.TraceFromTexelParameters);

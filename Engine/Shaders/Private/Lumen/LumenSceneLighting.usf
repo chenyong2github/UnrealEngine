@@ -36,6 +36,7 @@ void GetCardAABB(FLumenCardData LumenCardData, out float3 WorldCardCenter, out f
 
 uint MaxQuadsPerScatterInstance;
 uint MaxCardTilesPerScatterInstance;
+uint CardScatterInstanceIndex;
 
 // Resources for LumenCardUpdate
 uint NumCardPagesToRenderIndices;
@@ -81,11 +82,11 @@ void CullCardPagesToShapeCS(
 				&& ShouldUpdateCardPage(CardPageIndex, Card, CardUpdateResources, CardUpdateOptions))
 			{
 				uint QuadDataInsertIndex;
-				InterlockedAdd(RWQuadAllocator[0], 1, QuadDataInsertIndex);
+				InterlockedAdd(RWQuadAllocator[CardScatterInstanceIndex], 1, QuadDataInsertIndex);
 
 				if (QuadDataInsertIndex < MaxQuadsPerScatterInstance)
 				{
-					RWQuadData[QuadDataInsertIndex] = CardPageIndex;
+					RWQuadData[CardScatterInstanceIndex * MaxQuadsPerScatterInstance + QuadDataInsertIndex] = CardPageIndex;
 				}
 			}
 		}
@@ -106,11 +107,11 @@ void BuildCardTilesCS(
 {
 	uint QuadIndex = GroupId.x;
 	uint2 TileInQuadBaseCoord = 2 * GroupThreadId.xy;
-	uint NumQuads = QuadAllocator[0];
+	uint NumQuads = QuadAllocator[CardScatterInstanceIndex];
 
 	if (QuadIndex < NumQuads)
 	{
-		uint CardPageIndex = QuadData[QuadIndex];
+		uint CardPageIndex = QuadData[CardScatterInstanceIndex * MaxQuadsPerScatterInstance + QuadIndex];
 
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
 		if (CardPage.CardIndex >= 0)
@@ -147,11 +148,11 @@ void BuildCardTilesCS(
 						if (bLightAffectsCard)
 						{
 							uint NextTileOffset = 0;
-							InterlockedAdd(RWCardTileAllocator[0], 1, NextTileOffset);
+							InterlockedAdd(RWCardTileAllocator[CardScatterInstanceIndex], 1, NextTileOffset);
 
 							if (NextTileOffset < MaxCardTilesPerScatterInstance)
 							{
-								RWCardTileData[NextTileOffset] = PackCardTileData(CardTile);
+								RWCardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + NextTileOffset] = PackCardTileData(CardTile);
 							}
 						}
 					}
@@ -170,20 +171,24 @@ uint VertexCountPerInstanceIndirect;
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void InitializeCardPageIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	if (DispatchThreadId.x == 0)
+	uint ScatterInstanceIndex = DispatchThreadId.x;
+
+	if (ScatterInstanceIndex < MaxScatterInstanceCount)
 	{
-		uint NumQuads = QuadAllocator[0];
+		uint NumQuads = QuadAllocator[ScatterInstanceIndex];
 
 		// FRHIDrawIndirectParameters
-		RWDrawCardPagesIndirectArgs[0] = VertexCountPerInstanceIndirect;
-		RWDrawCardPagesIndirectArgs[1] = NumQuads;
-		RWDrawCardPagesIndirectArgs[2] = 0;
-		RWDrawCardPagesIndirectArgs[3] = 0;
+		uint ArgOffset = 4 * ScatterInstanceIndex;
+		RWDrawCardPagesIndirectArgs[ArgOffset + 0] = VertexCountPerInstanceIndirect;
+		RWDrawCardPagesIndirectArgs[ArgOffset + 1] = NumQuads;
+		RWDrawCardPagesIndirectArgs[ArgOffset + 2] = 0;
+		RWDrawCardPagesIndirectArgs[ArgOffset + 3] = 0;
 
 		// FRHIDispatchIndirectParameters
-		RWBuildTilesIndirectArgs[0] = NumQuads;
-		RWBuildTilesIndirectArgs[1] = 1;
-		RWBuildTilesIndirectArgs[2] = 1;
+		ArgOffset = 3 * ScatterInstanceIndex;
+		RWBuildTilesIndirectArgs[ArgOffset + 0] = NumQuads;
+		RWBuildTilesIndirectArgs[ArgOffset + 1] = 1;
+		RWBuildTilesIndirectArgs[ArgOffset + 2] = 1;
 	}
 }
 
@@ -209,16 +214,15 @@ void RasterizeToCardsVS(
 	TexCoord.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? 1.0f : 0.0f;
 	TexCoord.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? 1.0f : 0.0f;
 
-	uint InstanceIndex = InstanceId.x;
-	uint NumQuads = QuadAllocator[0];
+	uint QuadIndex = InstanceId.x;
+	uint NumQuads = QuadAllocator[CardScatterInstanceIndex];
 
 	CardInterpolants = (FCardVSToPS)0;
 	OutPosition = 0;
 
-	if (InstanceIndex < NumQuads)
+	if (QuadIndex < NumQuads)
 	{
-		uint QuadIndex = InstanceIndex;
-		uint CardPageIndex = QuadData[QuadIndex];
+		uint CardPageIndex = QuadData[CardScatterInstanceIndex * MaxQuadsPerScatterInstance + QuadIndex];
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
 		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 
@@ -287,14 +291,14 @@ void RasterizeToCardTilesVS(
 	TexCoord.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? 1.0f : 0.0f;
 
 	uint CardTileIndex = InstanceId.x;
-	uint NumCardTiles = CardTileAllocator[0];
+	uint NumCardTiles = CardTileAllocator[CardScatterInstanceIndex];
 
 	CardInterpolants = (FCardVSToPS)0;
 	OutPosition = 0;
 
 	if (CardTileIndex < NumCardTiles)
 	{
-		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardTileIndex]);
+		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
 
 		float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * CARD_TILE_SIZE * (CardTile.TileCoord + TexCoord);

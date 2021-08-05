@@ -68,6 +68,13 @@ enum class ECullCardsShapeType
 	RectLight
 };
 
+class FLumenCardScatterInstance
+{
+public:
+	FCullCardsShapeParameters ShapeParameters;
+	ECullCardsShapeType ShapeType;
+};
+
 class FLumenCardScatterContext
 {
 public:
@@ -75,6 +82,7 @@ public:
 	int32 MaxQuadsPerScatterInstance = 0;
 	int32 MaxCardTilesPerScatterInstance = 0;
 	int32 NumCardPagesToOperateOn = 0;
+	int32 MaxScatterInstanceCount = 0;
 	ECullCardsMode CardsCullMode;
 
 	FLumenCardScatterParameters CardPageParameters;
@@ -91,6 +99,18 @@ public:
 		float UpdateFrequencyScale,
 		FCullCardsShapeParameters ShapeParameters,
 		ECullCardsShapeType ShapeType);
+
+	void Build(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FLumenSceneData& LumenSceneData,
+		const FLumenCardRenderer& LumenCardRenderer,
+		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
+		bool InBuildCardTiles,
+		ECullCardsMode InCardsCullMode,
+		float UpdateFrequencyScale,
+		const TArray<FLumenCardScatterInstance, SceneRenderingAllocator>& ScatterInstances,
+		int32 InMaxScatterInstanceCount);
 };
 
 class FRasterizeToCardsVS : public FGlobalShader
@@ -101,6 +121,7 @@ class FRasterizeToCardsVS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardScatterParameters, CardScatterParameters)
+		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
 		SHADER_PARAMETER(FVector4, InfluenceSphere)
 		SHADER_PARAMETER(FVector2D, DownsampledInputAtlasSize)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, RectMinMaxBuffer)
@@ -124,6 +145,7 @@ class FRasterizeToCardTilesVS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
+		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
 	END_SHADER_PARAMETER_STRUCT()
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
@@ -169,7 +191,8 @@ void DrawQuadsToAtlas(
 	FGlobalShaderMap* GlobalShaderMap,
 	FRHIBlendState* BlendState,
 	FRHICommandList& RHICmdList,
-	SetParametersLambdaType&& SetParametersLambda)
+	SetParametersLambdaType&& SetParametersLambda,
+	uint32 DrawIndirectArgOffset = 0)
 {
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -192,7 +215,7 @@ void DrawQuadsToAtlas(
 	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 	SetParametersLambda(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
-	RHICmdList.DrawPrimitiveIndirect(PassParameters->VS.CardScatterParameters.DrawIndirectArgs->GetIndirectRHICallBuffer(), 0);
+	RHICmdList.DrawPrimitiveIndirect(PassParameters->VS.CardScatterParameters.DrawIndirectArgs->GetIndirectRHICallBuffer(), DrawIndirectArgOffset);
 }
 
 // Must match LIGHT_TYPE_* in LumenSceneDirectLighting.usf
@@ -220,7 +243,8 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenLight& LumenLight,
-	const FLumenCardScatterContext& CardScatterContext);
+	const FLumenCardScatterContext& CardScatterContext,
+	FRDGBufferUAVRef ShadowMaskTilesUAV);
 
 class FLumenLight
 {
@@ -228,7 +252,13 @@ public:
 	FString Name;
 	ELumenLightType Type;
 	const FLightSceneInfo* LightSceneInfo = nullptr;
-	FRDGBufferRef ShadowMaskTiles = nullptr;
+	uint32 CardScatterInstanceIndex = 0;
+	uint32 ShadowMaskTilesOffset = UINT32_MAX;
+
+	bool HasShadowMask() const
+	{
+		return ShadowMaskTilesOffset != UINT32_MAX;
+	}
 };
 
 namespace Lumen
