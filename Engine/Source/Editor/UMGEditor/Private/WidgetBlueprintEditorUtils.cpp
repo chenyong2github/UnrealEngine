@@ -688,6 +688,13 @@ bool FWidgetBlueprintEditorUtils::ReplaceNamedSlotHostContent(UWidget* WidgetTem
 		{
 			if (SlotContent == WidgetTemplate)
 			{
+				NamedSlotHost.GetObject()->Modify();
+				if (UPanelWidget* NamedSlot = WidgetTemplate->GetParent())
+				{
+					// Make sure we also mark the named slot as modified to properly track changes in it.
+					NamedSlot->Modify();
+				}
+
 				if (NewContentWidget)
 				{
 					NewContentWidget->Modify();
@@ -697,7 +704,6 @@ bool FWidgetBlueprintEditorUtils::ReplaceNamedSlotHostContent(UWidget* WidgetTem
 						NewContentWidget->RemoveFromParent();
 					}
 				}
-				NamedSlotHost.GetObject()->Modify();
 				NamedSlotHost->SetContentForSlot(SlotName, NewContentWidget);
 				return true;
 			}
