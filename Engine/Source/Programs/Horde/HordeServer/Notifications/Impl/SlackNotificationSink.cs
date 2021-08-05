@@ -1001,6 +1001,7 @@ namespace HordeServer.Notifications.Impl
 				Uri JobStepLogLink = new Uri($"{Settings.DashboardUrl}log/{Step.LogId}");
 				
 				Attachment.FallbackText += $" - {Stream.Name} - {GetJobChangeText(Job)} - {Job.Name} - {Node.Name}";
+				Attachment.Blocks.Add(new HeaderBlock($"{Message}", false, false));
 				Attachment.Blocks.Add(new SectionBlock($"*<{JobStepLink}|{Stream.Name} - {GetJobChangeText(Job)} - {Job.Name} - {Node.Name}>*"));
 				Attachment.Blocks.Add(new SectionBlock($"<{JobStepLogLink}|View Job Step Log>"));
 			}

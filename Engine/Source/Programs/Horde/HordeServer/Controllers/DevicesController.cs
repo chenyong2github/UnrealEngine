@@ -684,7 +684,7 @@ namespace HordeServer.Controllers
                 Message = $"No pool specified for device reservation request, defaulting to UE5FN (will soon be an error)";
                 Logger.LogError(Message + $" JobId: {Request.JobId}, StepId: {Request.StepId}");
 				await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
-				PoolId = "ue5fn";
+				PoolId = "fnue5";
                 //return BadRequest(Message);
             }			
 
