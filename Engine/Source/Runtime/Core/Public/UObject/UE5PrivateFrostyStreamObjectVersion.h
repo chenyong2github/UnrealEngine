@@ -21,6 +21,9 @@ struct CORE_API FUE5PrivateFrostyStreamObjectVersion
 		// Add the long range attachment tethers to the cloth asset to avoid a large hitch during the cloth's initialization.
 		ChaosClothAddTethersToCachedData,
 
+		// Always serialize the actor label in cooked builds
+		SerializeActorLabelInCookedBuilds,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
