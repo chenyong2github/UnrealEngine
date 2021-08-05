@@ -3289,6 +3289,18 @@ void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigV
 	TargetPtr = ArrayHelper.GetRawPtr(AddedIndex);
 	TargetProperty = TargetArrayProperty->Inner;
 
+	if(InArg.GetMemoryType() == ERigVMMemoryType::External)
+	{
+		if(ExternalVariables.IsValidIndex(InArg.GetRegisterIndex()))
+		{
+			FRigVMExternalVariable& ExternalVariable = ExternalVariables[InArg.GetRegisterIndex()];
+			const FProperty* SourceProperty = ExternalVariable.Property;
+			const uint8* SourcePtr = ExternalVariable.Memory;
+			URigVMMemoryStorage::CopyProperty(TargetProperty, TargetPtr, SourceProperty, SourcePtr);
+		}
+		return;
+	}
+
 	URigVMMemoryStorage* SourceMemory = GetMemoryByType(InArg.GetMemoryType());
 	if(SourceMemory == nullptr)
 	{

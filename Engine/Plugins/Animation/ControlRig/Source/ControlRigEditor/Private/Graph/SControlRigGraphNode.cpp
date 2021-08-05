@@ -897,8 +897,11 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 								DefaultValues = Memory.GetRegisterValueAsString(*WatchOperand, ModelPin->GetCPPType(), ModelPin->GetCPPTypeObject());
 #else
 								URigVMMemoryStorage* Memory = ActiveObject->GetVM()->GetDebugMemory();
-								const FString DebugValue = Memory->GetDataAsString(WatchOperand->GetRegisterIndex());
-								DefaultValues = URigVMPin::SplitDefaultValue(DebugValue);
+								const FString DebugValue = Memory->GetDataAsStringSafe(WatchOperand->GetRegisterIndex());
+								if(!DebugValue.IsEmpty())
+								{
+									DefaultValues = URigVMPin::SplitDefaultValue(DebugValue);
+								}
 #endif
 							}
 						}
