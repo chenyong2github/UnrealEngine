@@ -3170,7 +3170,7 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 	};
 
 	FString PackageName = PackageData.GetPackageName().ToString();
-	OutPackage = FindObject<UPackage>(ANY_PACKAGE, *PackageName);
+	OutPackage = FindObject<UPackage>(nullptr, *PackageName);
 
 	FString FileName(LoadFromFilename ? *LoadFromFilename : PackageData.GetFileName().ToString());
 	FString ReportingFileName(ReportingPackageData ? ReportingPackageData->GetFileName().ToString() : FileName);
