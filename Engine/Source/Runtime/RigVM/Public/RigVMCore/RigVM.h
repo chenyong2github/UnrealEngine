@@ -160,6 +160,12 @@ public:
 	// resets the container and clones the input VM
 	void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false);
 
+	// sets the max array size allowed by this VM
+	FORCEINLINE void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
+	{
+		Context.SetRuntimeSettings(InRuntimeSettings);
+	}
+
 	// Initializes all execute ops and their memory.
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	bool Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments);

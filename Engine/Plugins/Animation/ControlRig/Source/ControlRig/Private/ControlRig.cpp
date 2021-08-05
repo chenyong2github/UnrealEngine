@@ -216,6 +216,9 @@ void UControlRig::InitializeFromCDO()
 
 		// copy draw container
 		DrawContainer = CDO->DrawContainer;
+
+		// copy vm settings
+		VMRuntimeSettings = CDO->VMRuntimeSettings; 
 	}
 }
 
@@ -786,37 +789,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					*Entry.Message
 				);
 
-			if(LoggedMessages.Contains(PerInstructionMessage))
-			{
-				continue;
-			}
-
-			switch (Entry.Severity)
-			{
-				case EMessageSeverity::CriticalError:
-				case EMessageSeverity::Error:
-				{
-					UE_LOG(LogControlRig, Error, TEXT("%s"), *PerInstructionMessage);
-					break;
-				}
-				case EMessageSeverity::PerformanceWarning:
-				case EMessageSeverity::Warning:
-				{
-					UE_LOG(LogControlRig, Warning, TEXT("%s"), *PerInstructionMessage);
-					break;
-				}
-				case EMessageSeverity::Info:
-				{
-					UE_LOG(LogControlRig, Display, TEXT("%s"), *PerInstructionMessage);
-					break;
-				}
-				default:
-				{
-					break;
-				}
-			}
-
-			LoggedMessages.Add(PerInstructionMessage, true);
+			LogOnce(Entry.Severity, Entry.InstructionIndex, PerInstructionMessage);
 		}
 	}
 
@@ -1118,6 +1091,7 @@ void UControlRig::SetVM(URigVM* NewVM)
 	if (VM)
 	{
 		VM->ExecutionReachedExit().RemoveAll(this);
+		VM->SetRuntimeSettings(FRigVMRuntimeSettings());
 	}
 	
 	if (NewVM)
@@ -1126,6 +1100,13 @@ void UControlRig::SetVM(URigVM* NewVM)
 		{
 			NewVM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
 		}
+
+		// setup array handling and error reporting on the VM
+		VMRuntimeSettings.LogFunction = [this](EMessageSeverity::Type InSeverity, int32 InInstructionIndex, const FString& Message)
+		{
+			LogOnce(InSeverity, InInstructionIndex, Message);
+		};
+		NewVM->SetRuntimeSettings(VMRuntimeSettings);
 	}
 
 	VM = NewVM;
@@ -2574,6 +2555,41 @@ URigVM* UControlRig::GetSnapshotVM(bool bCreateIfNeeded)
 #else
 	return nullptr;
 #endif
+}
+
+void UControlRig::LogOnce(EMessageSeverity::Type InSeverity, int32 InInstructionIndex, const FString& InMessage)
+{
+	if(LoggedMessages.Contains(InMessage))
+	{
+		return;
+	}
+
+	switch (InSeverity)
+	{
+		case EMessageSeverity::CriticalError:
+		case EMessageSeverity::Error:
+		{
+			UE_LOG(LogControlRig, Error, TEXT("%s"), *InMessage);
+			break;
+		}
+		case EMessageSeverity::PerformanceWarning:
+		case EMessageSeverity::Warning:
+		{
+			UE_LOG(LogControlRig, Warning, TEXT("%s"), *InMessage);
+			break;
+		}
+		case EMessageSeverity::Info:
+		{
+			UE_LOG(LogControlRig, Display, TEXT("%s"), *InMessage);
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	LoggedMessages.Add(InMessage, true);
 }
 
 void UControlRig::AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode, uint16 InDepth)

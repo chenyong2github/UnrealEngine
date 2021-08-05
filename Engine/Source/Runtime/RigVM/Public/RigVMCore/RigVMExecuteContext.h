@@ -6,6 +6,7 @@
 #include "RigVMDefines.h"
 #include "RigVMArray.h"
 #include "RigVMExternalVariable.h"
+#include "RigVMModule.h"
 #include "RigVMExecuteContext.generated.h"
 
 USTRUCT()
@@ -147,6 +148,24 @@ private:
 	int32 Index;
 };
 
+USTRUCT()
+struct RIGVM_API FRigVMRuntimeSettings
+{
+	GENERATED_BODY()
+
+	/**
+	* The largest allowed size for arrays within the Control Rig VM.
+	* Accessing or creating larger arrays will cause runtime errors in the rig.
+	*/
+	UPROPERTY(EditAnywhere, Category = "VM")
+	int32 MaximumArraySize = 2048;
+
+	/*
+	 * The function to use for logging anything from the VM to the host
+	 */
+	TFunction<void(EMessageSeverity::Type,int32,const FString&)> LogFunction = nullptr;
+};
+
 /**
  * The execute context is used for mutable nodes to
  * indicate execution order.
@@ -160,6 +179,7 @@ struct RIGVM_API FRigVMExecuteContext
 		: EventName(NAME_None)
 		, FunctionName(NAME_None)
 		, InstructionIndex(0)
+		, RuntimeSettings() 
 	{
 		Reset();
 	}
@@ -178,6 +198,7 @@ struct RIGVM_API FRigVMExecuteContext
 		EventName = Other.EventName;
 		FunctionName = Other.FunctionName;
 		InstructionIndex = Other.InstructionIndex;
+		RuntimeSettings = Other.RuntimeSettings;
 		ExternalVariables = Other.ExternalVariables;
 		OpaqueArguments = Other.OpaqueArguments;
 		Slices = Other.Slices;
@@ -243,9 +264,67 @@ struct RIGVM_API FRigVMExecuteContext
 		return nullptr;
 	}
 
+	FORCEINLINE void Log(EMessageSeverity::Type InSeverity, const FString& InMessage) const
+	{
+		if(RuntimeSettings.LogFunction)
+		{
+			RuntimeSettings.LogFunction(InSeverity, InstructionIndex, InMessage);
+		}
+		else
+		{
+			if(InSeverity == EMessageSeverity::Error)
+			{
+				UE_LOG(LogRigVM, Error, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
+			}
+			else if(InSeverity == EMessageSeverity::Warning)
+			{
+				UE_LOG(LogRigVM, Warning, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
+			}
+			else
+			{
+				UE_LOG(LogRigVM, Display, TEXT("Instruction %d: %s"), InstructionIndex, *InMessage);
+			}
+		}
+	}
+
+	template <typename FmtType, typename... Types>
+	FORCEINLINE void Logf(EMessageSeverity::Type InSeverity, const FmtType& Fmt, Types... Args) const
+	{
+		Log(InSeverity, FString::Printf(Fmt, Args...));
+	}
+
+	FORCEINLINE bool IsValidArrayIndex(int32 InIndex, int32 InArraySize)
+	{
+		if(InIndex < 0 || InIndex >= InArraySize)
+		{
+			static const TCHAR OutOfBoundsFormat[] = TEXT("Array Index (%d) out of bounds (count %d).");
+			Logf(EMessageSeverity::Error, OutOfBoundsFormat, InIndex, InArraySize);
+			return false;
+		}
+		return true;
+	}
+
+	FORCEINLINE bool IsValidArraySize(int32 InSize) const
+	{
+		if(InSize < 0 || InSize > RuntimeSettings.MaximumArraySize)
+		{
+			static const TCHAR OutOfBoundsFormat[] = TEXT("Array Size (%d) larger than allowed maximum (%d).\nCheck VMRuntimeSettings in class settings.");
+			Logf(EMessageSeverity::Error, OutOfBoundsFormat, InSize, RuntimeSettings.MaximumArraySize);
+			return false;
+		}
+		return true;
+	}
+
+	FORCEINLINE void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
+	{
+		RuntimeSettings = InRuntimeSettings;
+		check(RuntimeSettings.MaximumArraySize > 0);
+	}
+
 	FName EventName;
 	FName FunctionName;
 	uint16 InstructionIndex;
+	FRigVMRuntimeSettings RuntimeSettings;
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	FRigVMFixedArray<void*> OpaqueArguments;
 #else
