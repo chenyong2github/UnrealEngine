@@ -1310,6 +1310,7 @@ void UChaosWheeledVehicleMovementComponent::CreateWheels()
 	}
 
 	WheelStatus.SetNum(WheelSetups.Num());
+	CachedState.SetNum(WheelSetups.Num());
 
 	RecalculateAxles();
 }
@@ -1439,6 +1440,21 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicle(TUniquePtr<Chaos::FSimp
 
 	// Setup Suspension
 	SetupSuspension(PVehicle);
+}
+
+void UChaosWheeledVehicleMovementComponent::ResetVehicleState()
+{
+	UChaosVehicleMovementComponent::ResetVehicleState();
+
+	for (FWheelStatus& WheelInfo : WheelStatus)
+	{
+		WheelInfo.Init();
+	}
+	
+	for (FCachedState& State : CachedState)
+	{
+		State.bIsValid = false;
+	}
 }
 
 void UChaosWheeledVehicleMovementComponent::SetupVehicleShapes()
@@ -2559,47 +2575,60 @@ float UChaosWheeledVehicleMovementComponent::GetSuspensionOffset(int WheelIndex)
 				{
 					Offset = -Wheel->SuspensionMaxDrop;
 				}
+
+				CachedState[WheelIndex].bIsValid = true;
+				CachedState[WheelIndex].WheelOffset = Offset;
+
 			}
 			else
 			{
-				ECollisionChannel SpringCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
-				FCollisionResponseParams ResponseParams;
-				ResponseParams.CollisionResponse = WheelTraceCollisionResponses;
-
-				TArray<AActor*> ActorsToIgnore;
-				ActorsToIgnore.Add(GetPawnOwner()); // ignore self in scene query
-
-				FCollisionQueryParams TraceParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(), false, nullptr);
-				TraceParams.bReturnPhysicalMaterial = true;	// we need this to get the surface friction coefficient
-				TraceParams.AddIgnoredActors(ActorsToIgnore);
-				TraceParams.bTraceComplex = (Wheels[WheelIndex]->SweepType == ESweepType::ComplexSweep);
-
-				FVector LocalDirection = Wheel->SuspensionAxis;
-				FVector WorldLocation = VehicleWorldTransform.TransformPosition(GetWheelRestingPosition(WheelSetup));
-				FVector WorldDirection = VehicleWorldTransform.TransformVector(LocalDirection);
-
-				FVector TraceStart = WorldLocation - WorldDirection * (Wheel->SuspensionMaxRaise);
-				FVector TraceEnd = WorldLocation + WorldDirection * (Wheel->SuspensionMaxDrop + Wheel->WheelRadius);
-
-				FHitResult HitResult;
-				GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, SpringCollisionChannel, TraceParams, ResponseParams);
-
-				if (HitResult.bBlockingHit)
+				if (VehicleState.bSleeping && CachedState[WheelIndex].bIsValid)
 				{
-					FVector LocalPos = GetWheelRestingPosition(WheelSetup);
-					FVector LocalHitPoint = VehicleWorldTransform.InverseTransformPosition(HitResult.ImpactPoint);
-					Offset = LocalHitPoint.Z - LocalPos.Z + Wheel->WheelRadius;
-					Offset = FMath::Clamp(Offset, -Wheel->SuspensionMaxDrop, Wheel->SuspensionMaxRaise);
+					Offset = CachedState[WheelIndex].WheelOffset;
 				}
 				else
 				{
-					Offset = -Wheel->SuspensionMaxDrop;
-				}
+					ECollisionChannel SpringCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
+					FCollisionResponseParams ResponseParams;
+					ResponseParams.CollisionResponse = WheelTraceCollisionResponses;
 
+					TArray<AActor*> ActorsToIgnore;
+					ActorsToIgnore.Add(GetPawnOwner()); // ignore self in scene query
+
+					FCollisionQueryParams TraceParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(), false, nullptr);
+					TraceParams.bReturnPhysicalMaterial = true;	// we need this to get the surface friction coefficient
+					TraceParams.AddIgnoredActors(ActorsToIgnore);
+					TraceParams.bTraceComplex = (Wheels[WheelIndex]->SweepType == ESweepType::ComplexSweep);
+
+					FVector LocalDirection = Wheel->SuspensionAxis;
+					FVector WorldLocation = VehicleWorldTransform.TransformPosition(GetWheelRestingPosition(WheelSetup));
+					FVector WorldDirection = VehicleWorldTransform.TransformVector(LocalDirection);
+
+					FVector TraceStart = WorldLocation - WorldDirection * (Wheel->SuspensionMaxRaise);
+					FVector TraceEnd = WorldLocation + WorldDirection * (Wheel->SuspensionMaxDrop + Wheel->WheelRadius);
+
+					FHitResult HitResult;
+					GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, SpringCollisionChannel, TraceParams, ResponseParams);
+
+					if (HitResult.bBlockingHit)
+					{
+						FVector LocalPos = GetWheelRestingPosition(WheelSetup);
+						FVector LocalHitPoint = VehicleWorldTransform.InverseTransformPosition(HitResult.ImpactPoint);
+						Offset = LocalHitPoint.Z - LocalPos.Z + Wheel->WheelRadius;
+						Offset = FMath::Clamp(Offset, -Wheel->SuspensionMaxDrop, Wheel->SuspensionMaxRaise);
+					}
+					else
+					{
+						Offset = -Wheel->SuspensionMaxDrop;
+					}
+
+					CachedState[WheelIndex].bIsValid = true;
+					CachedState[WheelIndex].WheelOffset = Offset;
+				}
 			}
 		}
 	}
-
+	
 	return Offset;
 }
 

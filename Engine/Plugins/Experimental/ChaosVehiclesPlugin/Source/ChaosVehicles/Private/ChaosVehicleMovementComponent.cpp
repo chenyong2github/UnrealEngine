@@ -1769,6 +1769,11 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 #endif
 }
 
+void UChaosVehicleMovementComponent::ResetVehicleState()
+{
+	ClearRawInput();
+}
+
 void UChaosVehicleMovementComponent::FinalizeSimCallbackData(FChaosVehicleManagerAsyncInput& Input)
 {
 	bool bIsPhysicsStateCreated = true;

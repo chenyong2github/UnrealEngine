@@ -1041,6 +1041,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	bool IsParked() const;
 
+	/** Reset some vehicle state - call this if you are say creating pool of vehicles that get reused and you don't want to carry over the previous state */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void ResetVehicle() { ResetVehicleState(); }
+
 	/** Grab a snapshot of the vehicle instance dynamic state */
 	void GetBaseSnapshot(FBaseSnapshotData& SnapshotOut) const;
 
@@ -1072,6 +1076,8 @@ public:
 	void SetCurrentAsyncInputOutputInternal(FChaosVehicleAsyncInput* CurInput, int32 InputIdx, FChaosVehicleManagerAsyncOutput* CurOutput, FChaosVehicleManagerAsyncOutput* NextOutput, float Alpha, int32 VehicleManagerTimestamp);
 
 	virtual void Update(float DeltaTime);
+
+	virtual void ResetVehicleState();
 
 	// Get output data from Physics Thread
 	virtual void ParallelUpdate(float DeltaSeconds);
