@@ -16,6 +16,9 @@ ULensDistortionComponent::ULensDistortionComponent()
 
 	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
+		//Hook up to PostActorTick to handle nodal offset
+		FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &ULensDistortionComponent::OnPostActorTick);
+
 		DistortionProducerID = FGuid::NewGuid();
 	}
 }
@@ -25,6 +28,12 @@ void ULensDistortionComponent::OnRegister()
 	Super::OnRegister();
 
 	InitDefaultCamera();
+
+	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
+	{
+		LastRotation = CineCameraComponent->GetRelativeRotation();
+		LastLocation = CineCameraComponent->GetRelativeLocation();
+	}
 }
 
 void ULensDistortionComponent::DestroyComponent(bool bPromoteChildren /*= false*/)
@@ -39,6 +48,10 @@ void ULensDistortionComponent::DestroyComponent(bool bPromoteChildren /*= false*
 		{
 			SubSystem->UnregisterDistortionModelHandler(CineCameraComponent, ProducedLensDistortionHandler);
 		}
+
+		// Restore the target camera's location and rotation (undo nodal offset)
+		CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
+		CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
 	}
 }
 
@@ -126,11 +139,9 @@ void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 				const float OverscanFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * OriginalFocalLength)));
 				CineCameraComponent->SetFieldOfView(OverscanFOV);
 
-				if (CineCameraComponent->CurrentFocalLength < CineCameraComponent->LensSettings.MinFocalLength)
-				{
-					LensDistortionHandler->SetOverscanFactor(OverscanFactor * (CineCameraComponent->CurrentFocalLength / CineCameraComponent->LensSettings.MinFocalLength));
-					CineCameraComponent->CurrentFocalLength = CineCameraComponent->LensSettings.MinFocalLength;
-				}
+				// Update the minimum and maximum focal length of the camera (if needed)
+				CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->CurrentFocalLength);
+				CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, CineCameraComponent->CurrentFocalLength);
 
 				SubSystem->UpdateOverscanFocalLength(CineCameraComponent, CineCameraComponent->CurrentFocalLength);
 
@@ -161,6 +172,22 @@ void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEve
  			}
  		}
  	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensDistortionComponent, bApplyNodalOffset))
+	{
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
+		{
+			if (bApplyNodalOffset)
+			{
+				OriginalCameraRotation = CineCameraComponent->GetRelativeRotation();
+				OriginalCameraLocation = CineCameraComponent->GetRelativeLocation();
+			}
+			else
+			{
+				CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
+				CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
+			}
+		}
+	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensDistortionComponent, bEvaluateLensFileForDistortion))
 	{
 		if (bEvaluateLensFileForDistortion)
@@ -190,6 +217,13 @@ void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEve
 			}
 
 			ProducedLensDistortionHandler = nullptr;
+
+			// Restore the target camera's location and rotation (undo nodal offset)
+			if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
+			{
+				CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
+				CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
+			}
 		}
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensDistortionComponent, TargetCameraComponent))
@@ -209,6 +243,10 @@ void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEve
 
 				ProducedLensDistortionHandler = nullptr;
 			}
+
+			// Restore the last camera's location and rotation (undo nodal offset)
+			LastCameraComponent->SetRelativeLocation(OriginalCameraLocation);
+			LastCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
 		}
 
 		LastCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner()));
@@ -218,6 +256,13 @@ void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEve
 		if (bEvaluateLensFileForDistortion)
 		{
 			CreateDistortionHandlerForLensFile();
+		}
+
+		// Cache the rotation and location of the new target camera component
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
+		{
+			LastRotation = OriginalCameraRotation = CineCameraComponent->GetRelativeRotation();
+			LastLocation = OriginalCameraLocation = CineCameraComponent->GetRelativeLocation();
 		}
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, LensFile))
@@ -272,6 +317,20 @@ void ULensDistortionComponent::PostLoad()
 	}
 }
 
+void ULensDistortionComponent::OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds)
+{
+	if (World == GetWorld())
+	{
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
+		{
+			if (ULensFile* CurrentLensFile = LensFilePicker.GetLensFile())
+			{
+				ApplyNodalOffset(CurrentLensFile, CineCameraComponent);
+			}
+		}
+	}
+}
+
 void ULensDistortionComponent::CleanupDistortion(UCineCameraComponent* const CineCameraComponent)
 {
 	if (bIsDistortionSetup)
@@ -286,6 +345,10 @@ void ULensDistortionComponent::CleanupDistortion(UCineCameraComponent* const Cin
 		// Restore the original FOV of the target camera
 		const float UndistortedFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(CineCameraComponent->Filmback.SensorWidth / (2.0f * OriginalFocalLength)));
 		CineCameraComponent->SetFieldOfView(UndistortedFOV);
+
+		// Update the minimum and maximum focal length of the camera (if needed)
+		CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, CineCameraComponent->CurrentFocalLength);
+		CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, CineCameraComponent->CurrentFocalLength);
 
 		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 		if (SubSystem)
@@ -309,6 +372,9 @@ void ULensDistortionComponent::InitDefaultCamera()
 		{
 			TargetCameraComponent.ComponentProperty = CineCameraComponents[0]->GetFName();
 			LastCameraComponent = CineCameraComponents[0];
+
+			OriginalCameraRotation = LastCameraComponent->GetRelativeRotation();
+			OriginalCameraLocation = LastCameraComponent->GetRelativeLocation();
 		}
 	}
 }
@@ -333,5 +399,69 @@ void ULensDistortionComponent::CreateDistortionHandlerForLensFile()
 		{
 			ProducedLensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(DistortionSource, LensFile->LensInfo.LensModel);
 		}
+	}
+}
+
+void ULensDistortionComponent::ApplyNodalOffset(ULensFile* SelectedLensFile, UCineCameraComponent* CineCameraComponent)
+{
+	if (CineCameraComponent)
+	{
+		const FRotator CurrentRotator = CineCameraComponent->GetRelativeRotation();
+		const FVector CurrentTranslation = CineCameraComponent->GetRelativeLocation();
+
+		//Verify if something was set by user / programmatically and update original values
+		if (CurrentRotator != LastRotation)
+		{
+			if (CurrentRotator.Pitch != LastRotation.Pitch)
+			{
+				OriginalCameraRotation.Pitch = CurrentRotator.Pitch;
+			}
+
+			if (CurrentRotator.Yaw != LastRotation.Yaw)
+			{
+				OriginalCameraRotation.Yaw = CurrentRotator.Yaw;
+			}
+
+			if (CurrentRotator.Roll != LastRotation.Roll)
+			{
+				OriginalCameraRotation.Roll = CurrentRotator.Roll;
+			}
+		}
+
+		if (CurrentTranslation != LastLocation)
+		{
+			if (CurrentTranslation.X != LastLocation.X)
+			{
+				OriginalCameraLocation.X = CurrentTranslation.X;
+			}
+			if (CurrentTranslation.Y != LastLocation.Y)
+			{
+				OriginalCameraLocation.Y = CurrentTranslation.Y;
+			}
+			if (CurrentTranslation.Z != LastLocation.Z)
+			{
+				OriginalCameraLocation.Z = CurrentTranslation.Z;
+			}
+		}
+
+		if (bEvaluateLensFileForDistortion && bApplyNodalOffset && SelectedLensFile)
+		{
+			FNodalPointOffset Offset;
+
+			SelectedLensFile->EvaluateNodalPointOffset(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, Offset);
+
+			CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
+			CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
+			CineCameraComponent->AddLocalOffset(Offset.LocationOffset);
+			CineCameraComponent->AddLocalRotation(Offset.RotationOffset);
+		}
+
+		LastLocation = CineCameraComponent->GetRelativeLocation();
+		LastRotation = CineCameraComponent->GetRelativeRotation();
+	}
+	else
+	{
+		LastLocation = FVector::OneVector;
+		LastRotation = FRotator::ZeroRotator;
 	}
 }
