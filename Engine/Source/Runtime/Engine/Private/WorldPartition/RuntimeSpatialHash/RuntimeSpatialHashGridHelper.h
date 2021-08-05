@@ -224,22 +224,33 @@ struct FSquare2DGridHelper
 			const FBox Box(InSphere.Center - FVector(InSphere.W), InSphere.Center + FVector(InSphere.W));
 
 			ForEachIntersectingCells(Box, [this, &InSphere, &InOperation, &NumCells](const FIntVector2& Coords)
+			{
+				const int32 CellIndex = Coords.Y * GridSize + Coords.X;
+
+				FBox2D CellBounds;
+				GetCellBounds(CellIndex, CellBounds);
+
+				FVector2D Delta = FVector2D(InSphere.Center) - FVector2D::Max(CellBounds.GetCenter() - CellBounds.GetExtent(), FVector2D::Min(FVector2D(InSphere.Center), CellBounds.GetCenter() + CellBounds.GetExtent()));
+				if ((Delta.X * Delta.X + Delta.Y * Delta.Y) < (InSphere.W * InSphere.W))
 				{
-					const int32 CellIndex = Coords.Y * GridSize + Coords.X;
-
-					FBox2D CellBounds;
-					GetCellBounds(CellIndex, CellBounds);
-
-					FVector2D Delta = FVector2D(InSphere.Center) - FVector2D::Max(CellBounds.GetCenter() - CellBounds.GetExtent(), FVector2D::Min(FVector2D(InSphere.Center), CellBounds.GetCenter() + CellBounds.GetExtent()));
-					if ((Delta.X * Delta.X + Delta.Y * Delta.Y) < (InSphere.W * InSphere.W))
-					{
-						InOperation(Coords);
-						NumCells++;
-					}
-				});
+					InOperation(Coords);
+					NumCells++;
+				}
+			});
 
 			return NumCells;
 		}
+		
+		/**
+		 * Runs a function on all intersecting cells for the provided spherical sector
+		 *
+		 * @return the number of intersecting cells
+		 */
+		int32 ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector2&)> InOperation) const;
+
+	private:
+
+		bool DoesCircleSectorIntersectsCell(const FIntVector2& Coords, const FVector2D& SectorCenter, float SectorRadiusSquared, const FVector2D& SectorStartVector, const FVector2D& SectorEndVector, float SectorAngle) const;
 	};
 
 	struct FGridLevel : public FGrid2D
@@ -445,6 +456,13 @@ struct FSquare2DGridHelper
 	 * @return the number of intersecting cells
 	 */
 	int32 ForEachIntersectingCells(const FSphere& InSphere, TFunctionRef<void(const FIntVector&)> InOperation) const;
+
+	/**
+	 * Runs a function on all intersecting cells for the provided spherical sector
+	 *
+	 * @return the number of intersecting cells
+	 */
+	int32 ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector&)> InOperation) const;
 
 #if WITH_EDITOR
 	// Validates that actor is not referenced by multiple cells

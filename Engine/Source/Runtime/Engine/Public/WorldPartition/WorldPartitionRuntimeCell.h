@@ -5,6 +5,7 @@
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #include "Algo/AnyOf.h"
 #include "WorldPartitionRuntimeCell.generated.h"
@@ -112,6 +113,16 @@ class UWorldPartitionRuntimeCell : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+	struct FStreamingSourceInfo
+	{
+		FStreamingSourceInfo(const FWorldPartitionStreamingSource& InSource, const FSphericalSector& InSourceShape)
+			: Source(InSource)
+			, SourceShape(InSourceShape)
+		{}
+		const FWorldPartitionStreamingSource& Source;
+		const FSphericalSector& SourceShape;
+	};
+
 	virtual void Load() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Load,);
 	virtual void Unload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Unload,);
 	virtual void Activate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Activate,);
@@ -131,7 +142,7 @@ class UWorldPartitionRuntimeCell : public UObject
 	virtual int32 SortCompare(const UWorldPartitionRuntimeCell* Other) const;
 	virtual FName GetGridName() const { return GridName; }
 	/** Caches information on streaming source that will be used later on to sort cell. Returns true if cache was reset, else returns false. */
-	virtual bool CacheStreamingSourceInfo(const struct FWorldPartitionStreamingSource& Source) const;
+	virtual bool CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const;
 
 	static void DirtyStreamingSourceCacheEpoch() { ++UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch; }
 

@@ -38,9 +38,9 @@ void UWorldPartitionRuntimeSpatialHashCell::PostDuplicate(bool bDuplicateForPIE)
 }
 #endif
 
-bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const FWorldPartitionStreamingSource& Source) const
+bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const
 {
-	const bool bWasCacheDirtied = Super::CacheStreamingSourceInfo(Source);
+	const bool bWasCacheDirtied = Super::CacheStreamingSourceInfo(Info);
 	if (bWasCacheDirtied)
 	{
 		CachedIsBlockingSource = false;
@@ -48,12 +48,12 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const FWorl
 	}
 
 	const float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
-	const float SqrDistance = FVector::DistSquared(Source.Location, Position);
+	const float SqrDistance = FVector::DistSquared(Info.SourceShape.GetCenter(), Position);
 	float AngleFactor = 1.f;
 	if (!FMath::IsNearlyZero(AngleContribution))
 	{
-		const FVector2D SourceForward(Source.Rotation.Quaternion().GetForwardVector());
-		const FVector2D SourceToCell(Position - Source.Location);
+		const FVector2D SourceForward(Info.SourceShape.GetAxis());
+		const FVector2D SourceToCell(Position - Info.SourceShape.GetCenter());
 		const float Dot = FVector2D::DotProduct(SourceForward.GetSafeNormal(), SourceToCell.GetSafeNormal());
 		const float NormalizedAngle = FMath::Clamp(FMath::Abs(FMath::Acos(Dot) / PI), 0.f, 1.f);
 		AngleFactor = FMath::Pow(NormalizedAngle, AngleContribution);
@@ -65,7 +65,7 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const FWorl
 	CachedSourceMinSortDistance = bWasCacheDirtied ? ModulatedDistance : FMath::Min(ModulatedDistance, CachedSourceMinSortDistance);
 	
 	// Only consider blocking sources
-	if (Source.bBlockOnSlowLoading)
+	if (Info.Source.bBlockOnSlowLoading)
 	{
 		CachedIsBlockingSource = true;
 		CachedBlockingMinDistanceSquare = FMath::Min(SqrDistance, CachedBlockingMinDistanceSquare);

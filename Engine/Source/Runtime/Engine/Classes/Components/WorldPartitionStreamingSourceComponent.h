@@ -8,6 +8,9 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartitionStreamingSourceComponent.generated.h"
 
+class FSceneView;
+class FPrimitiveDrawInterface;
+
 UCLASS(Meta = (BlueprintSpawnableComponent), HideCategories = (Tags, Sockets, ComponentTick, ComponentReplication, Activation, Cooking, Events, AssetUserData, Collision))
 class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponent, public IWorldPartitionStreamingSourceProvider
 {
@@ -30,6 +33,27 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 
 	// IWorldPartitionStreamingSourceProvider interface
 	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) override;
+
+	/** Returns true if streaming is completed for this streaming source component. */
+	UFUNCTION(BlueprintCallable, Category = "Streaming")
+	bool IsStreamingCompleted() const;
+
+	/** Displays a debug visualizer of the streaming source. Useful when using Shapes. */
+	void DrawVisualization(const FSceneView* View, FPrimitiveDrawInterface* PDI) const;
+
+#if WITH_EDITORONLY_DATA
+	/** Value used by debug visualizer when grid loading range is chosen. */
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	float DefaultVisualizerLoadingRange;
+#endif
+
+	/** Optional target grid affected by streaming source. When none chosen, affects all grids. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
+	FName TargetGrid;
+
+	/** Optional aggregated shape list used to build a custom shape for the streaming source. When empty, fallbacks sphere shape with a radius equal to grid's loading range. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
+	TArray<FStreamingSourceShape> Shapes;
 
 private:
 	/** Whether this component is enabled or not */

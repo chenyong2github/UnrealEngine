@@ -33,6 +33,7 @@
 #include "Algo/Transform.h"
 #include "Algo/Copy.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Components/LineBatchComponent.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
@@ -142,23 +143,25 @@ void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySour
 	};
 
 	const FSquare2DGridHelper& Helper = GetGridHelper();
-		// Spatial Query
+	// Spatial Query
 	if (QuerySource.bSpatialQuery)
 	{
-		const FSphere GridSphere(QuerySource.Location, QuerySource.bUseLoadingRangeRadius ? GetLoadingRange() : QuerySource.Radius);
-		Helper.ForEachIntersectingCells(GridSphere, [&](const FIntVector& Coords)
+		QuerySource.ForEachShape(GetLoadingRange(), GridName, /*bProjectIn2D*/ true, [&](const FSphericalSector& Shape)
 		{
-			if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
+			Helper.ForEachIntersectingCells(Shape, [&](const FIntVector& Coords)
 			{
-				const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
-				for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
+				if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
 				{
-					if (ShouldAddCell(Cell, QuerySource))
+					const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
+					for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
 					{
-						OutCells.Add(Cell);
+						if (ShouldAddCell(Cell, QuerySource))
+						{
+							OutCells.Add(Cell);
+						}
 					}
 				}
-			}
+			});
 		});
 	}
 
@@ -179,36 +182,41 @@ void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySour
 void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const UDataLayerSubsystem* DataLayerSubsystem, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSpatialHashStreamingGrid::GetCells);
-
+	
+	const float GridLoadingRange = GetLoadingRange();
 	const FSquare2DGridHelper& Helper = GetGridHelper();
 	for (const FWorldPartitionStreamingSource& Source : Sources)
 	{
-		const FSphere GridSphere(Source.Location, GetLoadingRange());
-		Helper.ForEachIntersectingCells(GridSphere, [&](const FIntVector& Coords)
+		Source.ForEachShape(GridLoadingRange, GridName, /*bProjectIn2D*/ true, [&](const FSphericalSector& Shape)
 		{
-			if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
-			{
-				const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
-				for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
+			UWorldPartitionRuntimeCell::FStreamingSourceInfo Info(Source, Shape);
+
+			Helper.ForEachIntersectingCells(Shape, [&](const FIntVector& Coords)
+			{ 
+				if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
 				{
-					if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Activated)))
+					const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
+					for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
 					{
-						if (Source.TargetState == EStreamingSourceTargetState::Loaded)
+						if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Activated)))
 						{
-							OutLoadCells.AddCell(Cell, Source);
+							if (Source.TargetState == EStreamingSourceTargetState::Loaded)
+							{
+								OutLoadCells.AddCell(Cell, Info);
+							}
+							else
+							{
+								check(Source.TargetState == EStreamingSourceTargetState::Activated);
+								OutActivateCells.AddCell(Cell, Info);
+							}
 						}
-						else
+						else if (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Loaded))
 						{
-							check(Source.TargetState == EStreamingSourceTargetState::Activated);
-							OutActivateCells.AddCell(Cell, Source);
+							OutLoadCells.AddCell(Cell, Info);
 						}
-					}
-					else if (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Loaded))
-					{
-						OutLoadCells.AddCell(Cell, Source);
 					}
 				}
-			}
+			});
 		});
 	}
 
@@ -279,9 +287,10 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 	int32 MaxGridLevel = FMath::Clamp<int32>(MinGridLevel + GShowRuntimeSpatialHashGridLevelCount - 1, 0, GridLevels.Num() - 1);
 	const float GridViewMinimumSizeInCellCount = 5.f;
 	const float GridViewLoadingRangeExtentRatio = 1.5f;
-	const float Radius = GetLoadingRange();
-	const float GridSideDistance = FMath::Max((2.f * Radius * GridViewLoadingRangeExtentRatio), CellSize * GridViewMinimumSizeInCellCount);
+	const float GridLoadingRange = GetLoadingRange();
+	const FVector MinExtent(CellSize * GridViewMinimumSizeInCellCount);
 	TArray<const UWorldPartitionRuntimeCell*> FilteredCells;
+	TSet<const UWorldPartitionRuntimeCell*> DrawnCells;
 
 	for (const FWorldPartitionStreamingSource& Source : Sources)
 	{
@@ -294,8 +303,9 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 			Z = Hit.ImpactPoint.Z;
 		}
 
-		FSphere Sphere(Source.Location, GridSideDistance * 0.5f);
-		const FBox Region(Sphere.Center - Sphere.W, Sphere.Center + Sphere.W);
+		FBox Region = Source.CalcBounds(GridLoadingRange, GridName);
+		Region += FBox(Region.GetCenter() - MinExtent, Region.GetCenter() + MinExtent);
+
 		for (int32 GridLevel = MinGridLevel; GridLevel <= MaxGridLevel; ++GridLevel)
 		{
 			Helper.Levels[GridLevel].ForEachIntersectingCells(Region, [&](const FIntVector2& Coords)
@@ -316,6 +326,13 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 
 				for (const UWorldPartitionRuntimeCell* Cell : FilteredCells)
 				{
+					bool bIsAlreadyInSet = false;
+					DrawnCells.Add(Cell, &bIsAlreadyInSet);
+					if (bIsAlreadyInSet)
+					{
+						continue;
+					}
+
 					// Draw Cell using its debug color
 					FColor CellColor = Cell->GetDebugColor().ToFColor(false).WithAlpha(16);
 					DrawDebugSolidBox(World, CellBox, CellColor, Transform, false, -1.f, 255);
@@ -341,10 +358,38 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 			});
 		}
 
-		// Draw Loading Ranges
-		FVector SphereLocation(FVector2D(Source.Location), Z);
-		SphereLocation = Transform.TransformPosition(SphereLocation);
-		DrawDebugSphere(World, SphereLocation, Radius, 32, FColor::White, false, -1.f, 0, 20.f);
+		// Draw Streaming Source
+		const FColor Color = Source.GetDebugColor();
+		Source.ForEachShape(GetLoadingRange(), GridName, /*bProjectIn2D*/ true, [&Color, &Z, &Transform, &World, this](const FSphericalSector& Shape)
+		{
+			FSphericalSector ZOffsettedShape = Shape;
+			ZOffsettedShape.SetCenter(FVector(FVector2D(ZOffsettedShape.GetCenter()), Z));
+			DrawStreamingSource3D(World, ZOffsettedShape, Transform, Color);
+		});
+	}
+}
+
+void FSpatialHashStreamingGrid::DrawStreamingSource3D(UWorld* World, const FSphericalSector& InShape, const FTransform& InTransform, const FColor& InColor) const
+{
+	if (InShape.IsSphere())
+	{
+		FVector Location = InTransform.TransformPosition(InShape.GetCenter());
+		DrawDebugSphere(World, Location, InShape.GetRadius(), 32, InColor, false, -1.f, 0, 20.f);
+	}
+	else if (ULineBatchComponent* const LineBatcher = World ? World->LineBatcher : nullptr)
+	{
+		FSphericalSector Shape = InShape;
+		Shape.SetAxis(InTransform.TransformVector(Shape.GetAxis()));
+		Shape.SetCenter(InTransform.TransformPosition(Shape.GetCenter()));
+
+		TArray<TPair<FVector, FVector>> Lines = Shape.BuildDebugMesh();
+		TArray<FBatchedLine> BatchedLines;
+		BatchedLines.Empty(Lines.Num());
+		for (const auto& Line : Lines)
+		{
+			BatchedLines.Emplace(FBatchedLine(Line.Key, Line.Value, InColor, LineBatcher->DefaultLifeTime, 20.f, SDPG_World));
+		};
+		LineBatcher->DrawLines(BatchedLines);
 	}
 }
 
@@ -469,38 +514,15 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, UWorld* World, const TAr
 			}
 		});
 
-		// Draw Loading Ranges
-		float Range = GetLoadingRange();
-
-		FCanvasLineItem LineItem;
-		LineItem.LineThickness = 2;
-
+		// Draw Streaming Sources
+		const float GridLoadingRange = GetLoadingRange();
 		for (const FWorldPartitionStreamingSource& Source : Sources)
 		{
-			LineItem.SetColor(Source.GetDebugColor());
-
-			TArray<FVector> LinePoints;
-			LinePoints.SetNum(2);
-
-			float Sin, Cos;
-			FMath::SinCos(&Sin, &Cos, (63.0f / 64.0f) * 2.0f * PI);
-			FVector2D LineStart(Sin * Range, Cos * Range);
-
-			for (int32 i = 0; i < 64; i++)
+			const FColor Color = Source.GetDebugColor();
+			Source.ForEachShape(GridLoadingRange, GridName, /*bProjectIn2D*/ true, [&Color, &Canvas, &WorldToScreen, this](const FSphericalSector& Shape)
 			{
-				FMath::SinCos(&Sin, &Cos, (i / 64.0f) * 2.0f * PI);
-				FVector2D LineEnd(Sin * Range, Cos * Range);
-				LineItem.Draw(CanvasObject, WorldToScreen(FVector2D(Source.Location) + LineStart), WorldToScreen(FVector2D(Source.Location) + LineEnd));
-				LineStart = LineEnd;
-			}
-
-			FVector2D SourceDir = FVector2D(Source.Rotation.Vector());
-			if (SourceDir.Size())
-			{
-				SourceDir.Normalize();
-				FVector2D ConeCenter(FVector2D(Source.Location));
-				LineItem.Draw(CanvasObject, WorldToScreen(ConeCenter), WorldToScreen(ConeCenter + SourceDir * Range));
-			}
+				DrawStreamingSource2D(Canvas, Shape, WorldToScreen, Color);
+			});
 		}
 
 		FCanvasBoxItem Box(GridScreenBounds.Min, GridScreenBounds.GetSize());
@@ -521,6 +543,43 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, UWorld* World, const TAr
 	Box.SetColor(FColor::Yellow);
 	Box.BlendMode = SE_BLEND_Translucent;
 	Canvas->DrawItem(Box);
+}
+
+void FSpatialHashStreamingGrid::DrawStreamingSource2D(UCanvas* Canvas, const FSphericalSector& Shape, TFunctionRef<FVector2D(const FVector2D&)> WorldToScreen, const FColor& Color) const
+{
+	check(!Shape.IsNearlyZero())
+
+	FCanvasLineItem LineItem;
+	LineItem.LineThickness = 2;
+	LineItem.SetColor(Color);
+
+	// Spherical Sector
+	const FVector2D Center2D(FVector2D(Shape.GetCenter()));
+	const FSphericalSector::FReal Angle = Shape.GetAngle();
+	const int32 MaxSegments = FMath::Max(4, FMath::CeilToInt(64 * Angle / 360.f));
+	const float AngleIncrement = Angle / MaxSegments;
+	const FVector2D Axis = FVector2D(Shape.GetAxis());
+	const FVector Startup = FRotator(0, -0.5f * Angle, 0).RotateVector(Shape.GetScaledAxis());
+	FCanvas* CanvasObject = Canvas->Canvas;
+
+	FVector2D LineStart = FVector2D(Startup);
+	if (!Shape.IsSphere())
+	{
+		// Draw sector start axis
+		LineItem.Draw(CanvasObject, WorldToScreen(Center2D), WorldToScreen(Center2D + LineStart));
+	}
+	// Draw sector Arc
+	for (int32 i = 1; i <= MaxSegments; i++)
+	{
+		FVector2D LineEnd = FVector2D(FRotator(0, AngleIncrement * i, 0).RotateVector(Startup));
+		LineItem.Draw(CanvasObject, WorldToScreen(Center2D + LineStart), WorldToScreen(Center2D + LineEnd));
+		LineStart = LineEnd;
+	}
+	// If sphere, close circle, else draw sector end axis
+	LineItem.Draw(CanvasObject, WorldToScreen(Center2D + LineStart), WorldToScreen(Center2D + (Shape.IsSphere() ? FVector2D(Startup) : FVector2D::ZeroVector)));
+
+	// Draw direction vector
+	LineItem.Draw(CanvasObject, WorldToScreen(Center2D), WorldToScreen(Center2D + Axis * Shape.GetRadius()));
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1201,7 +1260,6 @@ void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 	const float GridMaxScreenSize = CanvasMaxScreenSize / FilteredStreamingGrids.Num();
 	const float GridEffectiveScreenRatio = 1.f;
 	const float GridEffectiveScreenSize = FMath::Min(GridMaxScreenSize, PartitionCanvasSize.Y) - 10.f;
-	const float GridViewLoadingRangeExtentRatio = 1.5f;
 	const float GridViewMinimumSizeInCellCount = 5.f;
 	const FVector2D GridScreenExtent = FVector2D(GridEffectiveScreenSize, GridEffectiveScreenSize);
 	const FVector2D GridScreenHalfExtent = 0.5f * GridScreenExtent;
@@ -1217,17 +1275,18 @@ void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 		// Take into consideration GShowRuntimeSpatialHashGridLevel when using CellSize
 		int32 MinGridLevel = FMath::Clamp<int32>(GShowRuntimeSpatialHashGridLevel, 0, StreamingGrid->GridLevels.Num() - 1);
 		int32 CellSize = (1 << MinGridLevel) * StreamingGrid->CellSize;
-		const float GridSideDistance = FMath::Max((2.f * StreamingGrid->GetLoadingRange() * GridViewLoadingRangeExtentRatio), CellSize * GridViewMinimumSizeInCellCount);
-		FSphere AverageSphere(ForceInit);
+		const FVector MinExtent(CellSize * GridViewMinimumSizeInCellCount);
+		FBox Region(ForceInit);
 		for (const FWorldPartitionStreamingSource& Source : Sources)
 		{
-			AverageSphere += FSphere(FVector(Source.Location.X, Source.Location.Y, 0.f), 0.5f * GridSideDistance);
+			Region += Source.CalcBounds(StreamingGrid->GetLoadingRange(), StreamingGrid->GridName, /*bCalcIn2D*/ true);
 		}
-		const FVector2D GridReferenceWorldPos = FVector2D(AverageSphere.Center);
-		const FBox Region(AverageSphere.Center - AverageSphere.W, AverageSphere.Center + AverageSphere.W);
+		Region += FBox(Region.GetCenter() - MinExtent, Region.GetCenter() + MinExtent);
+		const FVector2D GridReferenceWorldPos = FVector2D(Region.GetCenter());
+		const float RegionExtent = FVector2D(Region.GetExtent()).Size();
 		const FVector2D GridScreenOffset = GridScreenInitialOffset + ((float)GridIndex * FVector2D(GridMaxScreenSize, 0.f)) + GridScreenHalfExtent;
 		const FBox2D GridScreenBounds(GridScreenOffset - GridScreenHalfExtent, GridScreenOffset + GridScreenHalfExtent);
-		const float WorldToScreenScale = (0.5f * GridEffectiveScreenSize) / AverageSphere.W;
+		const float WorldToScreenScale = (0.5f * GridEffectiveScreenSize) / RegionExtent;
 		auto WorldToScreen = [&](const FVector2D& WorldPos) { return (WorldToScreenScale * (WorldPos - GridReferenceWorldPos)) + GridScreenOffset; };
 
 		StreamingGrid->Draw2D(Canvas, World, Sources, Region, GridScreenBounds, WorldToScreen);
