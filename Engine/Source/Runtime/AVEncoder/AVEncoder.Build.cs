@@ -55,18 +55,22 @@ public class AVEncoder : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			PublicDependencyModuleNames.Add("D3D12RHI");
+			PrivateDependencyModuleNames.AddRange(new string[] {
+				"D3D11RHI",
+				"D3D12RHI"
+			});
 
 			if (Target.Platform != UnrealTargetPlatform.XboxOne)
 			{
-				// d3d to be able to use NVENC
 				PublicSystemLibraries.AddRange(new string[] {
-					"dxgi.lib",
+					"DXGI.lib",
 					"d3d11.lib",
-					"d3d12.lib",
-					"mfplat.lib",
-					"mfuuid.lib"
+					"d3d12.lib"
 				});
+				
+				PublicDelayLoadDLLs.Add("mfplat.dll");
+				PublicDelayLoadDLLs.Add("mfuuid.dll");
+				PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
 			}
 		}
 	}
