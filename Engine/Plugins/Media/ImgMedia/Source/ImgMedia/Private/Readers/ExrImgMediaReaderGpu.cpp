@@ -37,11 +37,7 @@
 #define READ_IN_CHUNKS 1
 #define EXR_ENABLE_MIPS 1
 
-class CustomFence : public FD3D12GPUFence
-{
-public:
-	void ResetValue() { Value = 0; }
-};
+DECLARE_GPU_STAT_NAMED(ExrImgMediaReaderGpu, TEXT("ExrImgMediaReaderGpu"));
 
 namespace {
 	/** This function is similar to DrawScreenPass in OpenColorIODisplayExtension.cpp except it is catered for Viewless texture rendering. */
@@ -94,6 +90,7 @@ FExrImgMediaReaderGpu::~FExrImgMediaReaderGpu()
 	ENQUEUE_RENDER_COMMAND(DeletePooledBuffers)([this, &bUnlocked](FRHICommandListImmediate& RHICmdList)
 	{
 		FScopeLock ScopeLock(&AllocatorCriticalSecion);
+		SCOPED_DRAW_EVENT(RHICmdList, FExrImgMediaReaderGpu_ReleaseMemoryPool);
 		TArray<uint32> KeysForIteration;
 		MemoryPool.GetKeys(KeysForIteration);
 		for (uint32 Key : KeysForIteration)
@@ -205,6 +202,9 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 	OutFrame->Stride = LargestDim.X * PixelSize;
 	auto RenderThreadSwizzler = [this, BufferDataArray, LargestDim, FrameId, NumChannels, NumMipLevels](FRHICommandListImmediate& RHICmdList, FTexture2DRHIRef RenderTargetTextureRHI)->bool
 	{
+		SCOPED_DRAW_EVENT(RHICmdList, FExrImgMediaReaderGpu_Convert);
+		SCOPED_GPU_STAT(RHICmdList, ExrImgMediaReaderGpu);
+
 		FIntPoint Dim = LargestDim;
 		for (int32 MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 		{
@@ -215,7 +215,6 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 				{
 					continue;
 				}
-
 				// This flag will indicate that we should wait for poll to complete.
 				BufferData->bWillBeSignaled = true;
 
@@ -377,6 +376,7 @@ FStructuredBufferPoolItemSharedPtr FExrImgMediaReaderGpu::AllocateGpuBufferFromP
 			ENQUEUE_RENDER_COMMAND(CreatePooledBuffer)([AllocatedBuffer, AllocSize, &bInitDone, this, bWait](FRHICommandListImmediate& RHICmdList)
 			{
 				FScopeLock ScopeLock(&AllocatorCriticalSecion);
+				SCOPED_DRAW_EVENT(RHICmdList, FExrImgMediaReaderGpu_AllocateBuffer);
 				FRHIResourceCreateInfo CreateInfo;
 				AllocatedBuffer->BufferRef = RHICreateStructuredBuffer(sizeof(uint16) * 2., AllocSize, BUF_ShaderResource | BUF_Dynamic | BUF_FastVRAM | BUF_Transient, CreateInfo);
 				AllocatedBuffer->MappedBuffer = static_cast<uint16*>(RHILockStructuredBuffer(AllocatedBuffer->BufferRef, 0, AllocSize, RLM_WriteOnly));
@@ -407,6 +407,8 @@ void FExrImgMediaReaderGpu::ReturnGpuBufferToStagingPool(uint32 AllocSize, FStru
 	{
 		ENQUEUE_RENDER_COMMAND(DeletePooledBuffers)([this, Buffer](FRHICommandListImmediate& RHICmdList)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, FExrImgMediaReaderGpu_ReleaseBuffer);
+
 			// By this point we don't need a lock because the destructor was already called and it 
 			// is guaranteed that this buffer is no longer used anywhere else.
 			RHIUnlockStructuredBuffer(Buffer->BufferRef);
@@ -428,6 +430,7 @@ void FExrImgMediaReaderGpu::TransferFromStagingBuffer()
 	ENQUEUE_RENDER_COMMAND(CreatePooledBuffer)([&, this](FRHICommandListImmediate& RHICmdList)
 	{
 		FScopeLock ScopeLock(&AllocatorCriticalSecion);
+		SCOPED_DRAW_EVENT(RHICmdList, FExrImgMediaReaderGpu_TransferFromStagingBuffer);
 
 		TArray<uint32> KeysForIteration;
 		StagingMemoryPool.GetKeys(KeysForIteration);
