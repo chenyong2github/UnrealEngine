@@ -90,6 +90,43 @@ void UMovieScene::Serialize( FArchive& Ar )
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
 	Ar.UsingCustomVersion(FSequencerObjectVersion::GUID);
 
+#if WITH_EDITOR
+
+	// Perform optimizations for cooking
+	if (Ar.IsCooking())
+	{
+		for (int32 MasterTrackIndex = 0; MasterTrackIndex < MasterTracks.Num(); )
+		{
+			UMovieSceneTrack* MasterTrack = MasterTracks[MasterTrackIndex];
+			if (MasterTrack && MasterTrack->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
+			{				
+				MasterTrack->RemoveForCook();
+				RemoveMasterTrack(*MasterTrack);
+				UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *MasterTrack->GetDisplayName().ToString(), *GetPathName());
+				continue;
+			}
+			++MasterTrackIndex;
+		}
+
+		for (FMovieSceneBinding& ObjectBinding : ObjectBindings)
+		{
+			for (int32 TrackIndex = 0; TrackIndex < ObjectBinding.GetTracks().Num(); )
+			{
+				UMovieSceneTrack* Track = ObjectBinding.GetTracks()[TrackIndex];
+				if (Track && Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
+				{
+					Track->RemoveForCook();
+					ObjectBinding.RemoveTrack(*Track);
+					UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *Track->GetDisplayName().ToString(), *GetPathName());
+					continue;
+				}
+				++TrackIndex;
+			}
+		}
+	}
+
+#endif // WITH_EDITOR
+
 	// Serialize the MovieScene
 	Super::Serialize(Ar);
 
