@@ -132,6 +132,11 @@ namespace UnrealBuildTool
 						Rules.DynamicallyLoadedModuleNames.Add("LuminTargetPlatform");
 					}
 				}
+
+				if (ModuleName == "UnrealEd")
+				{
+					Rules.DynamicallyLoadedModuleNames.Add("LuminPlatformEditor");
+				}
 			}
 		}
 
