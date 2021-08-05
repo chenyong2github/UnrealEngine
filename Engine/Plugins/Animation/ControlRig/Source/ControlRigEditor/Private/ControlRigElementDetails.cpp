@@ -188,6 +188,7 @@ void FRigElementKeyDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStruct
 				.OptionsSource(&ElementNameList)
 				.OnSelectionChanged(this, &FRigElementKeyDetails::OnElementNameChanged)
 				.OnGenerateWidget(this, &FRigElementKeyDetails::OnGetElementNameWidget)
+				.IsEnabled(!NameHandle->IsEditConst())
 				.Content()
 				[
 					SNew(STextBlock)

@@ -91,6 +91,7 @@
 #include "ControlRig/Private/Units/Execution/RigUnit_SequenceExecution.h"
 #include "ControlRigContextMenuContext.h"
 #include "Types/ISlateMetaData.h"
+#include "ControlRigGraphDetails.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -981,6 +982,8 @@ void FControlRigEditor::SetExecutionMode(const EControlRigExecutionModeType InEx
 		HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
 		HaltedAtNode = nullptr;
 	}
+
+	RefreshDetailView();
 }
 
 int32 FControlRigEditor::GetExecutionModeComboValue() const
@@ -1268,6 +1271,8 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 			EditMode->SetObjects(nullptr,  nullptr,nullptr);
 		}
 	}
+
+	RefreshDetailView();
 }
 
 FString FControlRigEditor::GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const
@@ -1401,11 +1406,31 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 				// create a struct matching this node
 				TSharedPtr<FStructOnScope> StructInstance  = UnitNode->ConstructStructInstance(false);
 
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+				// check if we know the dynamic class already
+				bool bClassCreated = UDetailsViewWrapperObject::GetClassForStruct(NodeDetailStruct, false) == nullptr;
+
+#endif
+
 				// create the wrapper object
 				UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(
 					NodeDetailStruct, StructInstance->GetStructMemory(), UnitNode);
 				WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
 				WrapperObject->AddToRoot();
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+				if(bClassCreated)
+				{
+					UClass* WrapperClass = UDetailsViewWrapperObject::GetClassForStruct(NodeDetailStruct, false);
+					check(WrapperClass);
+
+					FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+					EditModule.RegisterCustomClassLayout(WrapperClass->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigWrappedNodeDetails::MakeInstance));
+				}
+
+#endif
 				
 				FilteredObjects.Add(WrapperObject);
 				continue;
@@ -2633,9 +2658,11 @@ void FControlRigEditor::HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* I
 		CompilerResultsListing->ClearMessages();
 		CompilerResultsListing->AddMessages(RigBlueprint->CompileLog.Messages);
 		RigBlueprint->CompileLog.Messages.Reset();
-		RigBlueprint->CompileLog.NumErrors = RigBlueprint->CompileLog.NumWarnings = 0;  
+		RigBlueprint->CompileLog.NumErrors = RigBlueprint->CompileLog.NumWarnings = 0;
 	}
 
+	RefreshDetailView();
+	
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	
 	TArray<FName> TabIds;

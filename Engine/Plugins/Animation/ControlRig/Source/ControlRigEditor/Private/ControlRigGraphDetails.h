@@ -12,6 +12,7 @@
 #include "SGraphPin.h"
 #include "Graph/SControlRigGraphNode.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "DetailsViewWrapperObject.h"
 
 class IDetailLayoutBuilder;
 
@@ -197,3 +198,19 @@ private:
 
 	static TArray<TSharedPtr<FString>> AccessSpecifierStrings;
 };
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+/** Customization for editing a Control Rig node */
+class FControlRigWrappedNodeDetails : public IDetailCustomization
+{
+public:
+
+	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+	// IDetailCustomization interface
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+};
+
+#endif
