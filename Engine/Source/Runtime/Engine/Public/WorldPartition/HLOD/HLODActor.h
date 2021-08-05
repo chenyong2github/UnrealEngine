@@ -64,7 +64,6 @@ protected:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void RerunConstructionScripts() override;
-	virtual void PostLoad() override;
 	//~ End UObject Interface.
 
 	//~ Begin AActor Interface.
