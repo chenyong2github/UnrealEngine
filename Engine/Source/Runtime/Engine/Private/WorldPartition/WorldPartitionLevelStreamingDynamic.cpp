@@ -14,7 +14,6 @@
 #include "ContentStreaming.h"
 #include "GameFramework/WorldSettings.h"
 #include "UnrealEngine.h"
-#include "Editor/FixupLazyObjectPtrForPIEArchive.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
@@ -329,16 +328,7 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 		check(PIEInstanceID != INDEX_NONE);
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FixupLazyObjectPtr);
-			// PIE Fixup LazyObjectPtrs
-			FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
-			FFixupLazyObjectPtrForPIEArchive FixupLazyPointersAr;
-			FixupLazyPointersAr << RuntimeLevel;
-		}
-
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FixupSoftObjectPath);
-			// PIE Fixup SoftObjectPaths
+			TRACE_CPUPROFILER_EVENT_SCOPE(FixupIDsForPIE);
 			RuntimeLevel->FixupForPIE(PIEInstanceID, [&](int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
 			{
 				// Remap Runtime Level's SoftObjectPath before each PIE Fixup to avoid doing 2 passes of serialization
