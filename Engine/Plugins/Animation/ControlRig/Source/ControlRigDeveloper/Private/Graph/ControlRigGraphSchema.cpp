@@ -948,8 +948,41 @@ bool UControlRigGraphSchema::TryDeleteGraph(UEdGraph* GraphToDelete) const
 								}
 							}
 						}
+
+						bool bSetupUndoRedo = true;
+
+						// if the element to remove is a function, check if it is public and referenced. If so,
+						// warn the user about a bulk remove
+						if (URigVMFunctionLibrary* Library = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
+						{
+							const FName& FunctionName = LibraryNode->GetFName();
+							if (RigBlueprint->IsFunctionPublic(FunctionName))
+							{
+								for (auto Reference : Library->GetReferencesForFunction(FunctionName))
+								{
+									if (Reference.IsValid())
+									{
+										UControlRigBlueprint* OtherBlueprint = Reference->GetTypedOuter<UControlRigBlueprint>(); 
+										if (OtherBlueprint != RigBlueprint)
+										{											
+											if(RigBlueprint->OnRequestBulkEditDialog().IsBound())
+											{
+												URigVMController* FunctionController = RigBlueprint->GetController(LibraryNode->GetContainedGraph());
+												FRigVMController_BulkEditResult Result = RigBlueprint->OnRequestBulkEditDialog().Execute(RigBlueprint, FunctionController, LibraryNode, ERigVMControllerBulkEditType::RemoveFunction);
+												if(Result.bCanceled)
+												{
+													return false;
+												}
+												bSetupUndoRedo = Result.bSetupUndoRedo;
+											}
+											break;	
+										}
+									}
+								}
+							}
+						}
 						
-						return Controller->RemoveNode(LibraryNode, true, false, true);
+						return Controller->RemoveNode(LibraryNode, bSetupUndoRedo, false, true);
 					}
 				}
 			}
