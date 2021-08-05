@@ -1208,7 +1208,7 @@ private:
 		}
 
 		Writer.BeginObject();
-		Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId()));
+		Writer.AddObjectId("Id"_ASV, Payload.GetId());
 		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 		if (bStoreInline)
 		{
@@ -1227,7 +1227,7 @@ private:
 
 	FPayload GetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FCbObject& Object, bool bAlwaysLoadInlineData = false) const
 	{
-		const FPayloadId Id(Object.FindView("Id"_ASV).AsObjectId());
+		const FPayloadId Id = Object.FindView("Id"_ASV).AsObjectId();
 		const uint64 RawSize = Object.FindView("RawSize"_ASV).AsUInt64(MAX_uint64);
 		const FIoHash RawHash = Object.FindView("RawHash"_ASV).AsHash();
 		FIoHash CompressedHash = Object.FindView("CompressedHash"_ASV).AsHash();

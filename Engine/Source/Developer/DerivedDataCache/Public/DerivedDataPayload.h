@@ -4,13 +4,15 @@
 
 #include "CoreTypes.h"
 #include "Compression/CompressedBuffer.h"
-#include "Containers/StringConv.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
-#include "Hash/xxhash.h"
 #include "IO/IoHash.h"
 #include "Memory/MemoryView.h"
 #include "String/BytesToHex.h"
+
+#define UE_API DERIVEDDATACACHE_API
+
+class FCbObjectId;
 
 namespace UE::DerivedData
 {
@@ -30,14 +32,20 @@ public:
 	inline explicit FPayloadId(const ByteArray& Id);
 
 	/** Construct an ID from a view of 12 bytes. */
-	inline explicit FPayloadId(FMemoryView Id);
+	UE_API explicit FPayloadId(FMemoryView Id);
+
+	/** Construct an ID from a Compact Binary Object ID. */
+	UE_API FPayloadId(const FCbObjectId& Id);
+
+	/** Returns the ID as a Compact Binary Object ID. */
+	UE_API operator FCbObjectId() const;
 
 	/** Construct an ID from a non-zero hash. */
-	[[nodiscard]] static inline FPayloadId FromHash(const FIoHash& Hash);
+	[[nodiscard]] UE_API static FPayloadId FromHash(const FIoHash& Hash);
 
 	/** Construct an ID from a non-empty name. */
-	[[nodiscard]] static inline FPayloadId FromName(FAnsiStringView Name);
-	[[nodiscard]] static inline FPayloadId FromName(FWideStringView Name);
+	[[nodiscard]] UE_API static FPayloadId FromName(FAnsiStringView Name);
+	[[nodiscard]] UE_API static FPayloadId FromName(FWideStringView Name);
 
 	/** Returns a reference to the raw byte array for the ID. */
 	inline const ByteArray& GetBytes() const { return Bytes; }
@@ -131,32 +139,6 @@ inline FPayloadId::FPayloadId(const ByteArray& Id)
 	FMemory::Memcpy(Bytes, Id, sizeof(ByteArray));
 }
 
-inline FPayloadId::FPayloadId(const FMemoryView Id)
-{
-	checkf(Id.GetSize() == sizeof(ByteArray),
-		TEXT("FPayloadId cannot be constructed from a view of %" UINT64_FMT " bytes."), Id.GetSize());
-	FMemory::Memcpy(Bytes, Id.GetData(), sizeof(ByteArray));
-}
-
-inline FPayloadId FPayloadId::FromHash(const FIoHash& Hash)
-{
-	checkf(!Hash.IsZero(), TEXT("FPayloadId requires a non-zero hash."));
-	return FPayloadId(MakeMemoryView(Hash.GetBytes()).Left(sizeof(ByteArray)));
-}
-
-inline FPayloadId FPayloadId::FromName(const FAnsiStringView Name)
-{
-	checkf(!Name.IsEmpty(), TEXT("FPayloadId requires a non-empty name."));
-	uint8 HashBytes[16];
-	FXxHash128::HashBuffer(Name.GetData(), Name.Len()).ToByteArray(HashBytes);
-	return FPayloadId(MakeMemoryView(HashBytes, sizeof(ByteArray)));
-}
-
-inline FPayloadId FPayloadId::FromName(const FWideStringView Name)
-{
-	return FPayloadId::FromName(FTCHARToUTF8(Name));
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 inline FPayload::FPayload(const FPayloadId& InId)
@@ -247,3 +229,5 @@ inline bool operator<(const FPayload& A, const FPayload& B)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // UE::DerivedData
+
+#undef UE_API
