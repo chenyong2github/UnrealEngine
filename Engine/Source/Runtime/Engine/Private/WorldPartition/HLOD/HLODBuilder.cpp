@@ -57,6 +57,14 @@ void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InH
 
 		HLODPrimitive->bComputeFastLocalBounds = true;
 		HLODPrimitive->bComputeBoundsOnceDuringCook = true;
+
+		if (InHLODLayer->GetLayerType() != EHLODLayerType::Instancing)
+		{
+			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(HLODPrimitive))
+			{
+				StaticMeshComponent->bRayTracingFarField = (StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->bSupportRayTracing);
+			}
+		}
 	}
 
 	if (!HLODPrimitives.IsEmpty())
