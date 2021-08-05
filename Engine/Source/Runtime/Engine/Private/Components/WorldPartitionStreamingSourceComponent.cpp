@@ -71,6 +71,7 @@ bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartition
 		OutStreamingSource.Rotation = Actor->GetActorRotation();
 		OutStreamingSource.TargetState = TargetState;
 		OutStreamingSource.TargetGrid = TargetGrid;
+		OutStreamingSource.TargetHLODLayer = TargetHLODLayer;
 		OutStreamingSource.Shapes = Shapes;
 		return true;
 	}
@@ -132,3 +133,14 @@ void UWorldPartitionStreamingSourceComponent::DrawVisualization(const FSceneView
 	});
 #endif
 }
+
+#if WITH_EDITOR
+bool UWorldPartitionStreamingSourceComponent::CanEditChange(const FProperty* InProperty) const
+{
+	if (InProperty && InProperty->GetName() == GET_MEMBER_NAME_STRING_CHECKED(UWorldPartitionStreamingSourceComponent, TargetGrid))
+	{
+		return TargetHLODLayer == nullptr;
+	}
+	return Super::CanEditChange(InProperty);
+}
+#endif

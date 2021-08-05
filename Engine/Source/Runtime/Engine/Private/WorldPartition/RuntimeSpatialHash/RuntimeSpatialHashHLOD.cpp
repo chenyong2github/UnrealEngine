@@ -311,6 +311,7 @@ static void GatherHLODGrids(UWorldPartition* WorldPartition, TMap<FName, FSpatia
 		HLODGrid.DebugColor = FLinearColor::Red;
 		HLODGrid.GridName = HLODLayer->GetRuntimeGrid(InitialHLODLevel);
 		HLODGrid.bClientOnlyVisible = true;
+		HLODGrid.HLODLayer = HLODLayer;
 
 		OutHLODGrids.Emplace(HLODGrid.GridName, HLODGrid);
 
@@ -423,7 +424,7 @@ static void UpdateHLODGridsActors(UWorld* World, const TMap<FName, FSpatialHashR
 		if (GridActor->ActorHasTag(HLODGridTag))
 		{
 			const FSpatialHashRuntimeGrid* HLODGrid = HLODGrids.Find(GridActor->GridSettings.GridName);
-			if (HLODGrid && GridActor->GridSettings.Priority)
+			if (HLODGrid && GridActor->GridSettings.Priority && GridActor->GridSettings.HLODLayer)
 			{
 				ExistingGridActors.Emplace(GridActor->GridSettings.GridName, GridActor);
 			}

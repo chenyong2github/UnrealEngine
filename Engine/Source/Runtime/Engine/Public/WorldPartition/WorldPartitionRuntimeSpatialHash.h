@@ -9,6 +9,7 @@
 
 #include "WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartitionRuntimeHash.h"
 #include "WorldPartitionRuntimeSpatialHashCell.h"
 #include "WorldPartitionRuntimeSpatialHashGridPreviewer.h"
@@ -118,6 +119,9 @@ struct FSpatialHashStreamingGrid
 	UPROPERTY()
 	bool bClientOnlyVisible;
 
+	UPROPERTY()
+	TObjectPtr<const UHLODLayer> HLODLayer;
+
 	float OverrideLoadingRange;
 
 	float GetLoadingRange() const
@@ -189,6 +193,9 @@ struct FSpatialHashRuntimeGrid
 
 	UPROPERTY()
 	bool bClientOnlyVisible;
+
+	UPROPERTY()
+	TObjectPtr<const UHLODLayer> HLODLayer;
 #endif
 };
 

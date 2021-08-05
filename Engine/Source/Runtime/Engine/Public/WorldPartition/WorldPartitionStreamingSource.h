@@ -157,6 +157,16 @@ class FStreamingSourceShapeHelper
 {
 public:
 
+	FORCEINLINE static bool IsSourceAffectingGrid(FName InSourceTargetGrid, const FSoftObjectPath& InSourceTargetHLODLayer, FName InGridName, const FSoftObjectPath& InGridHLODLayer)
+	{
+		if ((InSourceTargetGrid.IsNone() && InSourceTargetHLODLayer.IsNull()) ||
+			(InSourceTargetHLODLayer.IsNull() && (InSourceTargetGrid == InGridName)) ||
+			(!InSourceTargetHLODLayer.IsNull() && (InSourceTargetHLODLayer == InGridHLODLayer)))
+		{
+			return true;
+		}
+		return false;
+	}
 	FORCEINLINE static void ForEachShape(float InGridLoadingRange, float InDefaultRadius, bool bInProjectIn2D, const FVector& InLocation, const FRotator& InRotation, const TArray<FStreamingSourceShape>& InShapes, TFunctionRef<void(const FSphericalSector&)> InOperation)
 	{
 		const FTransform Transform(bInProjectIn2D ? FRotator(0, InRotation.Yaw, 0) : InRotation, InLocation);
@@ -250,12 +260,18 @@ struct FWorldPartitionStreamingQuerySource
 	/* Reserved settings used by UWorldPartitionStreamingSourceComponent::IsStreamingCompleted. */
 	FRotator Rotation;
 	FName TargetGrid;
+	FSoftObjectPath TargetHLODLayer;
 	TArray<FStreamingSourceShape> Shapes;
 
 	/** Helper method that iterates over all shapes. If none is provided, it will still pass a sphere shape using Radius or grid's loading range (see bUseGridLoadingRange). */
-	FORCEINLINE void ForEachShape(float InGridLoadingRange, FName InGridName, bool bInProjectIn2D, TFunctionRef<void(const FSphericalSector&)> InOperation) const
+	FORCEINLINE void ForEachShape(float InGridLoadingRange, FName InGridName, const FSoftObjectPath& InGridHLODLayer, bool bInProjectIn2D, TFunctionRef<void(const FSphericalSector&)> InOperation) const
 	{
-		if (bSpatialQuery && (TargetGrid.IsNone() || TargetGrid == InGridName))
+		if (!bSpatialQuery)
+		{
+			return;
+		}
+
+		if (FStreamingSourceShapeHelper::IsSourceAffectingGrid(TargetGrid, TargetHLODLayer, InGridName, InGridHLODLayer))
 		{
 			FStreamingSourceShapeHelper::ForEachShape(InGridLoadingRange, bUseGridLoadingRange ? InGridLoadingRange : Radius, bInProjectIn2D, Location, Rotation, Shapes, InOperation);
 		}
@@ -322,17 +338,20 @@ struct ENGINE_API FWorldPartitionStreamingSource
 	/** Source velocity (computed automatically). */
 	float Velocity;
 
-	/** When set, will only affect streaming on the provided target runtime streaming grid. When none is provided, applies to all runtime streaming grid. */
+	/** When set, will only affect streaming on the provided target runtime streaming grid. */
 	FName TargetGrid;
+
+	/** When set, will only affect streaming on HLODs associated to the provided target HLODLayer. */
+	FSoftObjectPath TargetHLODLayer;
 
 	/** Source internal shapes. When none are provided, a sphere is automatically used. It's radius is equal to grid's loading range and center equals source's location. */
 	TArray<FStreamingSourceShape> Shapes;
 
 	/** Returns a box encapsulating all shapes. */
-	FORCEINLINE FBox CalcBounds(float InGridLoadingRange, FName InGridName, bool bCalcIn2D = false) const
+	FORCEINLINE FBox CalcBounds(float InGridLoadingRange, FName InGridName, const FSoftObjectPath& InGridHLODLayer, bool bCalcIn2D = false) const
 	{
 		FBox OutBounds(ForceInit);
-		ForEachShape(InGridLoadingRange, InGridName, bCalcIn2D, [&OutBounds](const FSphericalSector& Sector)
+		ForEachShape(InGridLoadingRange, InGridName, InGridHLODLayer, bCalcIn2D, [&OutBounds](const FSphericalSector& Sector)
 		{
 			OutBounds += Sector.CalcBounds();
 		});
@@ -340,9 +359,9 @@ struct ENGINE_API FWorldPartitionStreamingSource
 	}
 
 	/** Helper method that iterates over all shapes. If none is provided, it will still pass a sphere shape using grid's loading range. */
-	FORCEINLINE void ForEachShape(float InGridLoadingRange, FName InGridName, bool bInProjectIn2D, TFunctionRef<void(const FSphericalSector&)> InOperation) const
+	FORCEINLINE void ForEachShape(float InGridLoadingRange, FName InGridName, const FSoftObjectPath& InGridHLODLayer, bool bInProjectIn2D, TFunctionRef<void(const FSphericalSector&)> InOperation) const
 	{
-		if (TargetGrid.IsNone() || TargetGrid == InGridName)
+		if (FStreamingSourceShapeHelper::IsSourceAffectingGrid(TargetGrid, TargetHLODLayer, InGridName, InGridHLODLayer))
 		{
 			FStreamingSourceShapeHelper::ForEachShape(InGridLoadingRange, InGridLoadingRange, bInProjectIn2D, Location, Rotation, Shapes, InOperation);
 		}
