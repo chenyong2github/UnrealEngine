@@ -12,7 +12,6 @@ public class IntelTBB : ModuleRules
 		string IntelTBBPath = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel/TBB/IntelTBB-2019u8");
 		string IntelTBBIncludePath = Path.Combine(IntelTBBPath, "include");
 		string IntelTBBLibPath = Path.Combine(IntelTBBPath, "lib");
-		string IntelTBBBinaries = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Intel", "TBB", Target.Platform.ToString());
 
 		PublicSystemIncludePaths.Add(IntelTBBIncludePath);		
 
@@ -20,6 +19,7 @@ public class IntelTBB : ModuleRules
 			(Target.Platform == UnrealTargetPlatform.HoloLens))
 		{
 			string PlatformSubPath = "Win64";
+			string IntelTBBBinaries = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Intel", "TBB", "Win64");
 			
 			string LibDirTBB = Path.Combine(IntelTBBLibPath, PlatformSubPath, "vc14");
 			string LibDirTBBMalloc = LibDirTBB;
@@ -54,6 +54,8 @@ public class IntelTBB : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			string LibDir = Path.Combine(IntelTBBLibPath, "Mac");
+			string IntelTBBBinaries = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Intel", "TBB", "Mac");
+			
 			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libtbb.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libtbbmalloc.a"));
 
