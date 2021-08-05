@@ -681,6 +681,7 @@ class DevicenDisplay(DeviceUnreal):
 
             # No name match, no node. Renaming nodes in Switchboard is not currently supported.
             if node is None:
+                LOGGER.warning(f'Skipped "{device.name}" because it did not match any node in the nDisplay configuration')
                 continue
 
             # override ip address
