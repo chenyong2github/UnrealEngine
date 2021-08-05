@@ -34,6 +34,7 @@
 #include "ToolTargetManager.h"
 #include "WeldMeshEdgesTool.h"
 #include "ToolTargets/SkeletalMeshComponentToolTarget.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogOptimusToolsSkelMeshEditorMode, Log, All);
 
@@ -158,6 +159,9 @@ void UOptimusToolsSkelMeshEditorMode::Enter()
 
 	StylusStateTracker = MakeUnique<FStylusStateTracker>();
 		
+	// register gizmo helper
+	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(ToolsContext.Get());
+
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
 
 	/*
