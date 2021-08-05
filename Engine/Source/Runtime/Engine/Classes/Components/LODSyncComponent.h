@@ -73,6 +73,10 @@ class ENGINE_API ULODSyncComponent : public UActorComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LOD)
 	int32 ForcedLOD = -1;
 
+	// Minimum LOD to use when syncing components
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LOD)
+	int32 MinLOD = 0;
+
 	/** 
 	 *	Array of components whose LOD may drive or be driven by this component.
 	 *  Components that are flagged as 'Drive' are treated as being in priority order, with the last component having highest priority. The highest priority

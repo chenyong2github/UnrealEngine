@@ -242,7 +242,7 @@ void ULODSyncComponent::UpdateLOD()
 		if (bHaveValidSetting)
 		{
 			// ensure current WorkingLOD is with in the range
-			HighestPriLOD = FMath::Clamp(HighestPriLOD, 0, CurrentNumLODs - 1);
+			HighestPriLOD = FMath::Clamp(HighestPriLOD, MinLOD, CurrentNumLODs - 1);
 			UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync : Current LOD (%d)"), HighestPriLOD);
 			for (UPrimitiveComponent* Component : SubComponents)
 			{
