@@ -15,7 +15,7 @@ class UDetailsViewWrapperObject : public UObject
 public:
 	GENERATED_BODY()
 
-	static UClass* GetClassForStruct(UScriptStruct* InStruct);
+	static UClass* GetClassForStruct(UScriptStruct* InStruct, bool bCreateIfNeeded = true);
 	static UDetailsViewWrapperObject* MakeInstance(UScriptStruct* InStruct, uint8* InStructMemory, UObject* InOuter = nullptr);
 	UScriptStruct* GetWrappedStruct() const;
 	FStructProperty* GetStructProperty() const;

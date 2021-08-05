@@ -22,6 +22,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "EditorCategoryUtils.h"
+#include "IPropertyUtilities.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphDetails"
 
@@ -1057,5 +1058,247 @@ TSharedRef<ITableRow> FControlRigGraphDetails::HandleGenerateRowAccessSpecifier(
                 .Text(FText::FromString(*SpecifierName.Get()) )
         ];
 }
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+TSharedRef<IDetailCustomization> FControlRigWrappedNodeDetails::MakeInstance()
+{
+	return MakeShareable(new FControlRigWrappedNodeDetails);
+}
+
+void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+{
+	TArray<TWeakObjectPtr<UObject>> Objects;
+	DetailLayout.GetObjectsBeingCustomized(Objects);
+
+	TArray<UDetailsViewWrapperObject*> Wrappers;
+	TArray<URigVMNode*> Nodes;
+	for(const TWeakObjectPtr<UObject>& Object : Objects)
+	{
+		UDetailsViewWrapperObject* Wrapper = CastChecked<UDetailsViewWrapperObject>(Object);
+		Wrappers.Add(Wrapper);
+
+		URigVMNode* Node = Wrapper->GetTypedOuter<URigVMNode>();
+		if(Node == nullptr)
+		{
+			return;
+		}
+		Nodes.Add(Node);
+	}
+
+	UDetailsViewWrapperObject* FirstWrapper = Wrappers[0];
+	URigVMNode* FirstNode = Nodes[0];
+
+	TArray<FName> Categories;
+	DetailLayout.GetCategoryNames(Categories);
+	
+	IDetailCategoryBuilder& DefaultsCategory = DetailLayout.EditCategory(Categories[0]);
+
+	TSharedPtr<IPropertyHandle> StoredStructHandle = DetailLayout.GetProperty(TEXT("StoredStruct"));
+	for(URigVMPin* Pin : FirstNode->GetPins())
+	{
+		bool bHasAnyInputLink = false;
+		for(URigVMNode* EachNode : Nodes)
+		{
+			if(URigVMPin* EachPin = EachNode->FindPin(Pin->GetName()))
+			{
+				if(EachPin->GetSourceLinks(true).Num() > 0)
+				{
+					bHasAnyInputLink = true;
+					break;
+				}
+			}
+		}
+
+		TSharedPtr<IPropertyHandle> PinHandle = StoredStructHandle->GetChildHandle(Pin->GetFName());
+		if(PinHandle.IsValid())
+		{
+			static const TCHAR DisabledFormat[] = TEXT("%s\n\nNote: Editing disabled since pin has an input link.");
+
+			DefaultsCategory.AddProperty(PinHandle)
+			.DisplayName(FText::FromName(Pin->GetDisplayName()))
+			.IsEnabled(!bHasAnyInputLink)
+			.ToolTip(FText::FromString(FString::Printf(DisabledFormat, *Pin->GetToolTipText().ToString())));
+		}
+	}
+
+	DetailLayout.HideProperty(StoredStructHandle);
+
+	UControlRigBlueprint* Blueprint = FirstNode->GetTypedOuter<UControlRigBlueprint>();
+	if(Blueprint == nullptr)
+	{
+		return;
+	}
+
+	if(Objects.Num() > 1)
+	{
+		return;
+	}
+
+	UControlRig* DebuggedRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged());
+	if(DebuggedRig == nullptr)
+	{
+		return;
+	}
+
+	URigVM* VM = DebuggedRig->GetVM();
+	if(VM == nullptr)
+	{
+		return;
+	}
+
+	TSharedPtr<FRigVMParserAST> AST = FirstNode->GetGraph()->GetRuntimeAST(Blueprint->VMCompileSettings.ASTSettings, false);
+	if(!AST.IsValid())
+	{
+		return;
+	}
+
+	FRigVMByteCode& ByteCode = VM->GetByteCode();
+	if(ByteCode.GetFirstInstructionIndexForSubject(FirstNode) == INDEX_NONE)
+	{
+		return;
+	}
+	
+	IDetailCategoryBuilder& DebugCategory = DetailLayout.EditCategory("DebugLiveValues", LOCTEXT("DebugLiveValues", "Inspect Live Values"), ECategoryPriority::Uncommon);
+	DebugCategory.InitiallyCollapsed(true);
+
+	for(URigVMPin* Pin : FirstNode->GetPins())
+	{
+		// only show hidden pins in debug mode
+		if(Pin->GetDirection() == ERigVMPinDirection::Hidden)
+		{
+			if(!DebuggedRig->IsInDebugMode())
+			{
+				continue;
+			}
+		}
+		
+		URigVMPin* SourcePin = Pin;
+		if(Blueprint->VMCompileSettings.ASTSettings.bFoldAssignments)
+		{
+			do
+			{
+				TArray<URigVMPin*> SourcePins = Pin->GetLinkedSourcePins(false);
+				if(SourcePins.Num() > 0)
+				{
+					SourcePin = SourcePins[0];
+				}
+				else
+				{
+					break;
+				}
+			}
+			while(SourcePin->GetNode()->IsA<URigVMRerouteNode>());
+		}
+		
+		TArray<const FRigVMExprAST*> Expressions = AST->GetExpressionsForSubject(SourcePin);
+		if(Expressions.Num() == 0 && SourcePin != Pin)
+		{
+			SourcePin = Pin;
+			Expressions = AST->GetExpressionsForSubject(Pin);
+		}
+
+		bool bHasVar = false;
+		for(const FRigVMExprAST* Expression : Expressions)
+		{
+			if(Expression->IsA(FRigVMExprAST::EType::Literal))
+			{
+				continue;
+			}
+			else if(Expression->IsA(FRigVMExprAST::EType::Var))
+			{
+				bHasVar = true;
+				break;
+			}
+		}
+
+		TArray<const FRigVMExprAST*> FilteredExpressions;
+		for(const FRigVMExprAST* Expression : Expressions)
+		{
+			if(Expression->IsA(FRigVMExprAST::EType::Literal))
+			{
+				if(bHasVar)
+				{
+					continue;
+				}
+				FilteredExpressions.Add(Expression);
+			}
+			else if(Expression->IsA(FRigVMExprAST::EType::Var))
+			{
+				FilteredExpressions.Add(Expression);
+			}
+			else if(Expression->IsA(FRigVMExprAST::EType::CachedValue))
+			{
+				const FRigVMCachedValueExprAST* CachedValueExpr = Expression->To<FRigVMCachedValueExprAST>();
+				FilteredExpressions.Add(CachedValueExpr->GetVarExpr());
+			}
+		}
+
+		bool bAddedProperty = false;
+		int32 SuffixIndex = 1;
+		FString NameSuffix;
+
+		TArray<FRigVMOperand> KnownOperands; 
+		for(const FRigVMExprAST* Expression : FilteredExpressions)
+		{
+			const FRigVMVarExprAST* VarExpr = Expression->To<FRigVMVarExprAST>();
+
+			FString PinHash = URigVMCompiler::GetPinHash(SourcePin, VarExpr, false);
+			const FRigVMOperand* Operand = Blueprint->PinToOperandMap.Find(PinHash);
+			if(Operand)
+			{
+				if(Operand->GetRegisterOffset() != INDEX_NONE)
+				{
+					continue;
+				}
+				if(KnownOperands.Contains(*Operand))
+				{
+					continue;
+				}
+				
+				URigVMMemoryStorage* Memory = VM->GetMemoryByType(Operand->GetMemoryType());
+				if(Memory == nullptr)
+				{
+					continue;
+				}
+
+				if(!Memory->IsValidIndex(Operand->GetRegisterIndex()))
+				{
+					continue;
+				}
+				
+				const FProperty* Property = Memory->GetProperty(Operand->GetRegisterIndex());
+				if(Property == nullptr)
+				{
+					continue;
+				}
+
+				TArray<UObject*> ExternalObjects;
+				ExternalObjects.Add(Memory);
+				DebugCategory.AddExternalObjectProperty(ExternalObjects, Property->GetFName(), EPropertyLocation::Default, FAddPropertyParams().ForceShowProperty())
+				->DisplayName(FText::FromString(FString::Printf(TEXT("%s%s"), *Pin->GetName(), *NameSuffix)))
+				.IsEnabled(false);
+
+				SuffixIndex++;
+				bAddedProperty = true;
+				NameSuffix = FString::Printf(TEXT("_%d"), SuffixIndex);
+				KnownOperands.Add(*Operand);
+			}
+		}
+
+		if(!bAddedProperty)
+		{
+			TSharedPtr<IPropertyHandle> PinHandle = StoredStructHandle->GetChildHandle(Pin->GetFName());
+			if(PinHandle.IsValid())
+			{
+				DefaultsCategory.AddProperty(PinHandle)
+				.DisplayName(FText::FromName(Pin->GetDisplayName()))
+				.IsEnabled(false);
+			}
+		}
+	}
+}
+
+#endif
 
 #undef LOCTEXT_NAMESPACE

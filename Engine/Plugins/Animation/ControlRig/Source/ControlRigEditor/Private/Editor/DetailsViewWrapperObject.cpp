@@ -12,7 +12,7 @@
 TMap<UScriptStruct*, UClass*> UDetailsViewWrapperObject::StructToClass;
 TMap<UClass*, UScriptStruct*> UDetailsViewWrapperObject::ClassToStruct;
 
-UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct)
+UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct, bool bCreateIfNeeded)
 {
 	check(InStruct != nullptr);
 
@@ -20,6 +20,11 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct)
 	if(ExistingClass)
 	{
 		return *ExistingClass;
+	}
+
+	if(!bCreateIfNeeded)
+	{
+		return nullptr;
 	}
 
 	UClass *SuperClass = UDetailsViewWrapperObject::StaticClass();
@@ -79,16 +84,24 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct)
 	
 	// Make sure the variables show up in the details panel
 	Property->SetPropertyFlags(CPF_Edit);
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	Property->SetMetaData(TEXT("ShowOnlyInnerProperties"), TEXT("true"));
+#else
+	// for non-nodes - show the properties directly under the details panel main category 
+	if(!InStruct->IsChildOf(FRigUnit::StaticStruct()))
+	{
+		Property->SetMetaData(TEXT("ShowOnlyInnerProperties"), TEXT("true"));
+	}
+#endif
 
-	// For rig units mark all inputs as edit
+	// For rig units
 	if(InStruct->IsChildOf(FRigUnit::StaticStruct()))
 	{
 		// mark all input properties with editanywhere
 		for (TFieldIterator<FProperty> PropertyIt(InStruct); PropertyIt; ++PropertyIt)
 		{
 			FProperty* ChildProperty = *PropertyIt;
-			if (!ChildProperty ->HasMetaData(TEXT("Input")))
+			if (!ChildProperty->HasMetaData(TEXT("Input")) && !ChildProperty->HasMetaData(TEXT("Visible")))
 			{
 				continue;
 			}
@@ -100,12 +113,6 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct)
 				{
 					continue;
 				}
-			}
-
-			// only do this for input pins
-			if(!ChildProperty->HasMetaData(TEXT("Input")))
-			{
-				continue;
 			}
 			
 			ChildProperty->SetPropertyFlags(ChildProperty->GetPropertyFlags() | CPF_Edit);

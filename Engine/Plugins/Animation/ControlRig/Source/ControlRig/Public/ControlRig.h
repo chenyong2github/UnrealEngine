@@ -701,6 +701,7 @@ private:
 public:
 
 	void SetIsInDebugMode(const bool bValue) { bIsInDebugMode = bValue; }
+	bool IsInDebugMode() const { return bIsInDebugMode; }
 	
 	/** Adds a breakpoint in the VM at the InstructionIndex for the Node */
 	void AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode, uint16 InDepth);
