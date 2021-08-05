@@ -99,6 +99,18 @@ enum class ERigVMOpCode : uint8
 	Exit, // exit the execution loop
 	BeginBlock, // begins a new memory slice / block
 	EndBlock, // ends the last memory slice / block
+	ArrayReset, // reads and returns the size of an array (unary op, in out array)
+	ArrayGetNum, // reads and returns the size of an array (binary op, in array, out int32) 
+	ArraySetNum, // resizes an array (binary op, in out array, in int32)
+	ArrayGetAtIndex, // returns an array element by index (ternary op, in array, in int32, out element)  
+	ArraySetAtIndex, // sets an array element by index (ternary op, in out array, in int32, in element)
+	ArrayAdd, // adds an element to an array (ternary op, in out array, in element, out int32 index)
+	ArrayInsert, // inserts an element to an array (ternary op, in out array, in int32, in element)
+	ArrayRemove, // removes an element from an array (binary op, in out array, in inindex)
+	ArrayFind, // finds and returns the index of an element (quaternery op, in array, in element, out int32 index, out bool success)
+	ArrayAppend, // appends an array to another (binary op, in out array, in array)
+	ArrayClone, // clones an array (binary op, in array, out array)
+	ArrayIterator, // iterates over an array (senary op, in array, out element, out index, out count, out ratio, out continue)
 	Invalid
 };
 
@@ -172,7 +184,8 @@ struct RIGVM_API FRigVMUnaryOp : public FRigVMBaseOp
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpAbsoluteIf) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpForwardIf) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpBackwardIf) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ChangeType)
+			uint8(InOpCode) == uint8(ERigVMOpCode::ChangeType) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReset)
 		);
 	}
 
@@ -186,7 +199,7 @@ struct RIGVM_API FRigVMUnaryOp : public FRigVMBaseOp
 	}
 };
 
-// operator used for beginblock
+// operator used for beginblock and array reset
 USTRUCT()
 struct RIGVM_API FRigVMBinaryOp : public FRigVMBaseOp
 {
@@ -205,7 +218,12 @@ struct RIGVM_API FRigVMBinaryOp : public FRigVMBaseOp
 		, ArgB(InArgB)
 	{
 		ensure(
-			uint8(InOpCode) == uint8(ERigVMOpCode::BeginBlock)
+			uint8(InOpCode) == uint8(ERigVMOpCode::BeginBlock) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayGetNum) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArraySetNum) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayAppend) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayClone) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayRemove)
 		);
 	}
 
@@ -214,6 +232,172 @@ struct RIGVM_API FRigVMBinaryOp : public FRigVMBaseOp
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMBinaryOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+};
+
+// operator used for some array operations
+USTRUCT()
+struct RIGVM_API FRigVMTernaryOp : public FRigVMBaseOp
+{
+	GENERATED_USTRUCT_BODY()
+
+	FRigVMTernaryOp()
+		: FRigVMBaseOp(ERigVMOpCode::Invalid)
+		, ArgA()
+		, ArgB()
+		, ArgC()
+	{
+	}
+
+	FRigVMTernaryOp(ERigVMOpCode InOpCode, FRigVMOperand InArgA, FRigVMOperand InArgB, FRigVMOperand InArgC)
+		: FRigVMBaseOp(InOpCode)
+		, ArgA(InArgA)
+		, ArgB(InArgB)
+		, ArgC(InArgC)
+	{
+		ensure(
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayAdd) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayGetAtIndex) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArraySetAtIndex) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayInsert)
+		);
+	}
+
+	FRigVMOperand ArgA;
+	FRigVMOperand ArgB;
+	FRigVMOperand ArgC;
+
+	void Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMTernaryOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+};
+
+// operator used for some array operations
+USTRUCT()
+struct RIGVM_API FRigVMQuaternaryOp : public FRigVMBaseOp
+{
+	GENERATED_USTRUCT_BODY()
+
+	FRigVMQuaternaryOp()
+		: FRigVMBaseOp(ERigVMOpCode::Invalid)
+		, ArgA()
+		, ArgB()
+		, ArgC()
+		, ArgD()
+	{
+	}
+
+	FRigVMQuaternaryOp(ERigVMOpCode InOpCode, FRigVMOperand InArgA, FRigVMOperand InArgB, FRigVMOperand InArgC, FRigVMOperand InArgD)
+		: FRigVMBaseOp(InOpCode)
+		, ArgA(InArgA)
+		, ArgB(InArgB)
+		, ArgC(InArgC)
+		, ArgD(InArgD)
+	{
+		ensure(
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayFind)
+		);
+	}
+
+	FRigVMOperand ArgA;
+	FRigVMOperand ArgB;
+	FRigVMOperand ArgC;
+	FRigVMOperand ArgD;
+
+	void Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMQuaternaryOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+};
+
+// operator used for some array operations
+USTRUCT()
+struct RIGVM_API FRigVMQuinaryOp : public FRigVMBaseOp
+{
+	GENERATED_USTRUCT_BODY()
+
+	FRigVMQuinaryOp()
+		: FRigVMBaseOp(ERigVMOpCode::Invalid)
+		, ArgA()
+		, ArgB()
+		, ArgC()
+		, ArgD()
+		, ArgE()
+	{
+	}
+
+	FRigVMQuinaryOp(ERigVMOpCode InOpCode, FRigVMOperand InArgA, FRigVMOperand InArgB, FRigVMOperand InArgC, FRigVMOperand InArgD, FRigVMOperand InArgE)
+		: FRigVMBaseOp(InOpCode)
+		, ArgA(InArgA)
+		, ArgB(InArgB)
+		, ArgC(InArgC)
+		, ArgD(InArgD)
+		, ArgE(InArgE)
+	{
+	}
+
+	FRigVMOperand ArgA;
+	FRigVMOperand ArgB;
+	FRigVMOperand ArgC;
+	FRigVMOperand ArgD;
+	FRigVMOperand ArgE;
+
+	void Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMQuinaryOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+};
+
+// operator used for some array operations
+USTRUCT()
+struct RIGVM_API FRigVMSenaryOp : public FRigVMBaseOp
+{
+	GENERATED_USTRUCT_BODY()
+
+	FRigVMSenaryOp()
+		: FRigVMBaseOp(ERigVMOpCode::Invalid)
+		, ArgA()
+		, ArgB()
+		, ArgC()
+		, ArgD()
+		, ArgE()
+		, ArgF()
+	{
+	}
+
+	FRigVMSenaryOp(ERigVMOpCode InOpCode, FRigVMOperand InArgA, FRigVMOperand InArgB, FRigVMOperand InArgC, FRigVMOperand InArgD, FRigVMOperand InArgE, FRigVMOperand InArgF)
+		: FRigVMBaseOp(InOpCode)
+		, ArgA(InArgA)
+		, ArgB(InArgB)
+		, ArgC(InArgC)
+		, ArgD(InArgD)
+		, ArgE(InArgE)
+		, ArgF(InArgF)
+	{
+		ensure(
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayIterator)
+		);
+	}
+
+	FRigVMOperand ArgA;
+	FRigVMOperand ArgB;
+	FRigVMOperand ArgC;
+	FRigVMOperand ArgD;
+	FRigVMOperand ArgE;
+	FRigVMOperand ArgF;
+
+	void Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMSenaryOp& P)
 	{
 		P.Serialize(Ar);
 		return Ar;
@@ -631,6 +815,42 @@ public:
 	// adds an operator to end the last memory slice
 	uint64 AddEndBlockOp();
 
+	// adds an array reset operator
+	uint64 AddArrayResetOp(FRigVMOperand InArrayArg);
+
+	// adds an array get num operator
+	uint64 AddArrayGetNumOp(FRigVMOperand InArrayArg, FRigVMOperand InNumArg);
+
+	// adds an array set num operator
+	uint64 AddArraySetNumOp(FRigVMOperand InArrayArg, FRigVMOperand InNumArg);
+
+	// adds an array get at index operator
+	uint64 AddArrayGetAtIndexOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg);
+
+	// adds an array set at index operator
+	uint64 AddArraySetAtIndexOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg);
+
+	// adds an array add operator
+	uint64 AddArrayAddOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg);
+
+	// adds an array insert operator
+	uint64 AddArrayInsertOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg);
+
+	// adds an array remove operator
+	uint64 AddArrayRemoveOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg);
+
+	// adds an array find operator
+	uint64 AddArrayFindOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg, FRigVMOperand InSuccessArg);
+
+	// adds an array append operator
+	uint64 AddArrayAppendOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg);
+
+	// adds an array clone operator
+	uint64 AddArrayCloneOp(FRigVMOperand InArrayArg, FRigVMOperand InClonedArrayArg);
+
+	// adds an array iterator operator
+	uint64 AddArrayIteratorOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg, FRigVMOperand InCountArg, FRigVMOperand InRatioArg, FRigVMOperand InContinueArg);
+	
 	// returns an instruction array for iterating over all operators
 	FORCEINLINE FRigVMInstructionArray GetInstructions() const
 	{

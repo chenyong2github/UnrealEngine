@@ -430,6 +430,7 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 			case ERigVMOpCode::BoolTrue:
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
+			case ERigVMOpCode::ArrayReset:
 			{
 				const FRigVMUnaryOp& Op = ByteCodeStorage.GetOpAt<FRigVMUnaryOp>(ByteCodeInstruction);
 				CheckOperandValidity(Op.Arg);
@@ -460,10 +461,46 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 				break;
 			}
 			case ERigVMOpCode::BeginBlock:
+			case ERigVMOpCode::ArrayGetNum:
+			case ERigVMOpCode::ArraySetNum:
+			case ERigVMOpCode::ArrayAppend:
+			case ERigVMOpCode::ArrayClone:
+			case ERigVMOpCode::ArrayRemove:
 			{
 				const FRigVMBinaryOp& Op = ByteCodeStorage.GetOpAt<FRigVMBinaryOp>(ByteCodeInstruction);
 				CheckOperandValidity(Op.ArgA);
 				CheckOperandValidity(Op.ArgB);
+				break;
+			}
+			case ERigVMOpCode::ArrayAdd:
+			case ERigVMOpCode::ArrayGetAtIndex:
+			case ERigVMOpCode::ArraySetAtIndex:
+			case ERigVMOpCode::ArrayInsert:
+			{
+				const FRigVMTernaryOp& Op = ByteCodeStorage.GetOpAt<FRigVMTernaryOp>(ByteCodeInstruction);
+				CheckOperandValidity(Op.ArgA);
+				CheckOperandValidity(Op.ArgB);
+				CheckOperandValidity(Op.ArgC);
+				break;
+			}
+			case ERigVMOpCode::ArrayFind:
+			{
+				const FRigVMQuaternaryOp& Op = ByteCodeStorage.GetOpAt<FRigVMQuaternaryOp>(ByteCodeInstruction);
+				CheckOperandValidity(Op.ArgA);
+				CheckOperandValidity(Op.ArgB);
+				CheckOperandValidity(Op.ArgC);
+				CheckOperandValidity(Op.ArgD);
+				break;
+			}
+			case ERigVMOpCode::ArrayIterator:
+			{
+				const FRigVMSenaryOp& Op = ByteCodeStorage.GetOpAt<FRigVMSenaryOp>(ByteCodeInstruction);
+				CheckOperandValidity(Op.ArgA);
+				CheckOperandValidity(Op.ArgB);
+				CheckOperandValidity(Op.ArgC);
+				CheckOperandValidity(Op.ArgD);
+				CheckOperandValidity(Op.ArgE);
+				CheckOperandValidity(Op.ArgF);
 				break;
 			}
 			case ERigVMOpCode::Invalid:
@@ -1093,6 +1130,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 			case ERigVMOpCode::BoolTrue:
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
+			case ERigVMOpCode::ArrayReset:
 			{
 				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instructions[InstructionIndex]);
 				CacheSingleMemoryHandle(Op.Arg);
@@ -1159,10 +1197,49 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 				break;
 			}
 			case ERigVMOpCode::BeginBlock:
+			case ERigVMOpCode::ArrayGetNum:
+			case ERigVMOpCode::ArraySetNum:
+			case ERigVMOpCode::ArrayAppend:
+			case ERigVMOpCode::ArrayClone:
+			case ERigVMOpCode::ArrayRemove:
 			{
 				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instructions[InstructionIndex]);
 				CacheSingleMemoryHandle(Op.ArgA);
 				CacheSingleMemoryHandle(Op.ArgB);
+				InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayAdd:
+			case ERigVMOpCode::ArrayGetAtIndex:
+			case ERigVMOpCode::ArraySetAtIndex:
+			case ERigVMOpCode::ArrayInsert:
+			{
+				const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instructions[InstructionIndex]);
+				CacheSingleMemoryHandle(Op.ArgA);
+				CacheSingleMemoryHandle(Op.ArgB);
+				CacheSingleMemoryHandle(Op.ArgC);
+				InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayFind:
+			{
+				const FRigVMQuaternaryOp& Op = ByteCode.GetOpAt<FRigVMQuaternaryOp>(Instructions[InstructionIndex]);
+				CacheSingleMemoryHandle(Op.ArgA);
+				CacheSingleMemoryHandle(Op.ArgB);
+				CacheSingleMemoryHandle(Op.ArgC);
+				CacheSingleMemoryHandle(Op.ArgD);
+				InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayIterator:
+			{
+				const FRigVMSenaryOp& Op = ByteCode.GetOpAt<FRigVMSenaryOp>(Instructions[InstructionIndex]);
+				CacheSingleMemoryHandle(Op.ArgA);
+				CacheSingleMemoryHandle(Op.ArgB);
+				CacheSingleMemoryHandle(Op.ArgC);
+				CacheSingleMemoryHandle(Op.ArgD);
+				CacheSingleMemoryHandle(Op.ArgE);
+				CacheSingleMemoryHandle(Op.ArgF);
 				InstructionIndex++;
 				break;
 			}
@@ -1695,6 +1772,17 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 			case ERigVMOpCode::BeginBlock:
 			case ERigVMOpCode::EndBlock:
 			case ERigVMOpCode::Exit:
+			case ERigVMOpCode::ArrayGetNum:
+			case ERigVMOpCode::ArraySetNum:
+			case ERigVMOpCode::ArrayAppend:
+			case ERigVMOpCode::ArrayClone:
+			case ERigVMOpCode::ArrayGetAtIndex:
+			case ERigVMOpCode::ArraySetAtIndex:
+			case ERigVMOpCode::ArrayInsert:
+			case ERigVMOpCode::ArrayRemove:
+			case ERigVMOpCode::ArrayAdd:
+			case ERigVMOpCode::ArrayFind:
+			case ERigVMOpCode::ArrayIterator:
 			{
 				break;
 			}
@@ -2280,6 +2368,264 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 			case ERigVMOpCode::EndBlock:
 			{
 				Context.EndSlice();
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayReset:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]; 					
+				FScriptArrayHelper ArrayHelper(CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty()), ArrayHandle.GetData());
+				ArrayHelper.Resize(0);
+#endif	
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayGetNum:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]; 					
+				FScriptArrayHelper ArrayHelper(CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty()), ArrayHandle.GetData());
+				int32& Count = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
+				Count = ArrayHelper.Num();
+#endif	
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArraySetNum:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]; 					
+				FScriptArrayHelper ArrayHelper(CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty()), ArrayHandle.GetData());
+				const int32 Count = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
+				if(Context.IsValidArraySize(Count))
+				{
+					ArrayHelper.Resize(Count);
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayAppend:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]; 					
+				FRigVMMemoryHandle& OtherArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty()); 
+				const FArrayProperty* OtherArrayProperty = CastFieldChecked<FArrayProperty>(OtherArrayHandle.GetProperty()); 
+
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+				FScriptArrayHelper OtherArrayHelper(OtherArrayProperty, OtherArrayHandle.GetData());
+
+				if(OtherArrayHelper.Num() > 0)
+				{
+					if(Context.IsValidArraySize(ArrayHelper.Num() + OtherArrayHelper.Num()))
+					{
+						const FProperty* TargetProperty = ArrayProperty->Inner;
+						const FProperty* SourceProperty = OtherArrayProperty->Inner;
+
+						int32 TargetIndex = ArrayHelper.AddValues(OtherArrayHelper.Num());
+						for(int32 SourceIndex = 0; SourceIndex < OtherArrayHelper.Num(); SourceIndex++, TargetIndex++)
+						{
+							uint8* TargetMemory = ArrayHelper.GetRawPtr(TargetIndex);
+							const uint8* SourceMemory = OtherArrayHelper.GetRawPtr(SourceIndex);
+							URigVMMemoryStorage::CopyProperty(TargetProperty, TargetMemory, SourceProperty, SourceMemory);
+						}
+					}
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayClone:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]; 					
+				FRigVMMemoryHandle& ClonedArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty()); 
+				const FArrayProperty* ClonedArrayProperty = CastFieldChecked<FArrayProperty>(ClonedArrayHandle.GetProperty()); 
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+				FScriptArrayHelper ClonedArrayHelper(ClonedArrayProperty, ClonedArrayHandle.GetData());
+
+				ClonedArrayHelper.Resize(ArrayHelper.Num());
+				if(ArrayHelper.Num() > 0)
+				{
+					const FProperty* TargetProperty = ClonedArrayProperty->Inner;
+					const FProperty* SourceProperty = ArrayProperty->Inner;
+					for(int32 ElementIndex = 0; ElementIndex < ArrayHelper.Num(); ElementIndex++)
+					{
+						uint8* TargetMemory = ClonedArrayHelper.GetRawPtr(ElementIndex);
+						const uint8* SourceMemory = ArrayHelper.GetRawPtr(ElementIndex);
+						URigVMMemoryStorage::CopyProperty(TargetProperty, TargetMemory, SourceProperty, SourceMemory);
+					}
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayGetAtIndex:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty());
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+				const int32 Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
+				if(Context.IsValidArrayIndex(Index, ArrayHelper.Num()))
+				{
+					FRigVMMemoryHandle& ElementHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2];
+					uint8* TargetMemory = ElementHandle.GetData();
+					const uint8* SourceMemory = ArrayHelper.GetRawPtr(Index);
+					URigVMMemoryStorage::CopyProperty(ElementHandle.GetProperty(), TargetMemory, ArrayProperty->Inner, SourceMemory);
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArraySetAtIndex:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty());
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+				const int32 Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
+				if(Context.IsValidArrayIndex(Index, ArrayHelper.Num()))
+				{
+					FRigVMMemoryHandle& ElementHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2];
+					uint8* TargetMemory = ArrayHelper.GetRawPtr(Index);
+					const uint8* SourceMemory = ElementHandle.GetData();
+					URigVMMemoryStorage::CopyProperty(ArrayProperty->Inner, TargetMemory, ElementHandle.GetProperty(), SourceMemory);
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayInsert:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty());
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+				if(Context.IsValidArraySize(ArrayHelper.Num() + 1))
+				{
+					int32 Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
+					Index = FMath::Clamp<int32>(Index, 0, ArrayHelper.Num());
+					ArrayHelper.InsertValues(Index, 1);
+
+					FRigVMMemoryHandle& ElementHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2];
+					uint8* TargetMemory = ArrayHelper.GetRawPtr(Index);
+					const uint8* SourceMemory = ElementHandle.GetData();
+					URigVMMemoryStorage::CopyProperty(ArrayProperty->Inner, TargetMemory, ElementHandle.GetProperty(), SourceMemory);
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayRemove:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty());
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+				const int32 Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
+				if(Context.IsValidArrayIndex(Index, ArrayHelper.Num()))
+				{
+					ArrayHelper.RemoveValues(Index, 1);
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayAdd:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty());
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+				int32& Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData()));
+				if(Context.IsValidArraySize(ArrayHelper.Num() + 1))
+				{
+					FRigVMMemoryHandle& ElementHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
+					Index = ArrayHelper.AddValue();
+
+					uint8* TargetMemory = ArrayHelper.GetRawPtr(Index);
+					const uint8* SourceMemory = ElementHandle.GetData();
+					URigVMMemoryStorage::CopyProperty(ArrayProperty->Inner, TargetMemory, ElementHandle.GetProperty(), SourceMemory);
+				}
+				else
+				{
+					Index = INDEX_NONE;
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayFind:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty());
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+
+				FRigVMMemoryHandle& ElementHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
+				int32& FoundIndex = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData()));
+				bool& bFound = (*((bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3].GetData()));
+
+				FoundIndex = INDEX_NONE;
+				bFound = false;
+
+				const FProperty* PropertyA = ElementHandle.GetProperty();
+				const FProperty* PropertyB = ArrayProperty->Inner;
+
+				if(PropertyA->SameType(PropertyB))
+				{
+					const uint8* MemoryA = ElementHandle.GetData();
+
+					for(int32 Index = 0; Index < ArrayHelper.Num(); Index++)
+					{
+						const uint8* MemoryB = ArrayHelper.GetRawPtr(Index);
+						if(PropertyA->Identical(MemoryA, MemoryB))
+						{
+							FoundIndex = Index;
+							bFound = true;
+							break;
+						}
+					}
+				}
+				else
+				{
+					static const TCHAR IncompatibleTypes[] = TEXT("Array('%s') doesn't support searching for element('%$s').");
+					Context.Logf(EMessageSeverity::Error, IncompatibleTypes, *PropertyB->GetCPPType(), *PropertyA->GetCPPType());
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayIterator:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]];
+				const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty());
+				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
+
+				FRigVMMemoryHandle& ElementHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1];
+				const int32& Index = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2].GetData()));
+				int32& Count = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3].GetData()));
+				float& Ratio = (*((float*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4].GetData()));
+				bool& bContinue = (*((bool*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 5].GetData()));
+
+				Count = ArrayHelper.Num();
+				bContinue = Index >=0 && Index < Count;
+
+				if((Count <= 0) || !bContinue)
+				{
+					Ratio = 0.f;
+				}
+				else
+				{
+					Ratio = float(Index) / float(Count - 1);
+				}
+
+#endif
 				Context.InstructionIndex++;
 				break;
 			}

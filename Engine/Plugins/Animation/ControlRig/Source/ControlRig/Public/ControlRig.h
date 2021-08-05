@@ -240,6 +240,9 @@ public:
 	UPROPERTY(transient)
 	ERigExecutionType ExecutionType;
 
+	UPROPERTY(EditAnywhere, Category = "VM")
+	FRigVMRuntimeSettings VMRuntimeSettings;
+
 	/** Execute */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void Execute(const EControlRigState State, const FName& InEventName);
@@ -693,6 +696,7 @@ private:
 
 	FRigVMDebugInfo DebugInfo;
 	TMap<FString, bool> LoggedMessages;
+	void LogOnce(EMessageSeverity::Type InSeverity, int32 InInstructionIndex, const FString& InMessage);
 	
 public:
 
