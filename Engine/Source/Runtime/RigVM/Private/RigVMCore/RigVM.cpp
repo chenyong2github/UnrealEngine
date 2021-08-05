@@ -25,7 +25,7 @@ void FRigVMParameter::Serialize(FArchive& Ar)
 	}
 	else
 	{
-		checkNoEntry();
+		// remove due to FPIEFixupSerializer hitting this checkNoEntry();
 	}
 }
 
@@ -126,7 +126,7 @@ void URigVM::Serialize(FArchive& Ar)
 	}
 	else
 	{
-		checkNoEntry();
+		// remove due to FPIEFixupSerializer hitting this checkNoEntry();
 	}
 }
 
