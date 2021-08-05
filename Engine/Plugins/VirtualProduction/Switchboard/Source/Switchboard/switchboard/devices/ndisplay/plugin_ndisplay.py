@@ -19,6 +19,8 @@ from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, DeviceWidgetU
 from switchboard.devices.unreal.uassetparser import UassetParser
 from switchboard.switchboard_logging import LOGGER
 
+import switchboard.switchboard_widgets as sb_widgets
+
 from .ndisplay_monitor_ui import nDisplayMonitorUI
 from .ndisplay_monitor    import nDisplayMonitor
 
@@ -219,9 +221,18 @@ class AddnDisplayDialog(AddDeviceDialog):
         cfg_file = self.current_config_path()
         try:
             (devices, _) = DevicenDisplay.parse_config(cfg_file)
+
             if len(devices) == 0:
                 LOGGER.error(f"Could not read any devices from nDisplay config file {cfg_file}")
+
+            # Initialize from the config our setting that identifies which device is the master
+            for node in devices:
+                if node['master']:
+                    DevicenDisplay.csettings['master_device_name'].update_value(node['name'])
+                    break
+
             return devices
+
         except (IndexError, KeyError):
             LOGGER.error(f"Error parsing nDisplay config file {cfg_file}")
             return []
@@ -230,7 +241,50 @@ class AddnDisplayDialog(AddDeviceDialog):
         return self.existing_ndisplay_devices
 
 class DeviceWidgetnDisplay(DeviceWidgetUnreal):
-    pass
+
+    signal_device_widget_master = QtCore.Signal(object)
+
+    def add_widget_to_layout(self, widget):
+        ''' DeviceWidget base class method override. '''
+
+        if widget == self.name_line_edit:
+            self.add_master_button()
+
+            # shorten the widget to account for the inserted master button
+            btn_added_width = \
+                max(self.master_button.iconSize().width(), self.master_button.minimumSize().width()) \
+                + 2 * self.layout.spacing() \
+                + self.master_button.contentsMargins().left() \
+                + self.master_button.contentsMargins().right()
+
+            le_maxwidth = self.name_line_edit.maximumWidth() - btn_added_width
+            self.name_line_edit.setMaximumWidth(le_maxwidth)
+
+        super().add_widget_to_layout(widget)
+
+    def add_master_button(self):
+        ''' Adds to the layout a button to select which device should be the master device in the cluster '''
+
+        self.master_button = sb_widgets.ControlQPushButton.create(
+                               ':/icons/images/star_yellow_off.png',
+            icon_disabled    = ':/icons/images/star_yellow_off.png',
+            icon_hover       = ':/icons/images/star_yellow_off.png',
+            icon_disabled_on = ':/icons/images/star_yellow_off.png',
+            icon_on          = ':/icons/images/star_yellow.png',
+            icon_hover_on    = ':/icons/images/star_yellow.png',
+            icon_size        = QtCore.QSize(16, 16),
+            tool_tip         = 'Select as master node'
+        )
+
+        self.add_widget_to_layout(self.master_button)
+
+        self.master_button.clicked.connect(self.on_master_button_clicked)
+
+    def on_master_button_clicked(self):
+        ''' Called when master_button is clicked '''
+
+        self.signal_device_widget_master.emit(self)
+
 
 class DevicenDisplay(DeviceUnreal):
 
@@ -320,6 +374,13 @@ class DevicenDisplay(DeviceUnreal):
             value=True,
             tool_tip="Minimizes windows before launch",
             show_ui=True,
+        ),
+        'master_device_name': Setting(
+            attr_name='master_device_name',
+            nice_name="Master Device",
+            value='',
+            tool_tip="Identifies which nDisplay device should be the master in the cluster",
+            show_ui=False,
         ),
     }
 
@@ -640,6 +701,23 @@ class DevicenDisplay(DeviceUnreal):
         except KeyError:
             LOGGER.error(f'Error parsing "refresh mosaics" response ({message})')
 
+    def device_widget_registered(self, device_widget):
+        ''' Device interface method '''
+
+        super().device_widget_registered(device_widget)
+
+        # hook to its master_button clicked event
+        device_widget.signal_device_widget_master.connect(self.select_as_master)
+
+        # update the state of the button depending on whether this device is the master or not
+        is_master = (self.name == DevicenDisplay.csettings['master_device_name'].get_value())
+        device_widget.master_button.setChecked(is_master)
+
+    def select_as_master(self):
+        ''' Selects this node as the master in the nDisplay cluster '''
+
+        self.__class__.select_device_as_master(self)
+
     @classmethod
     def extract_configexport_from_uasset(cls, cfg_file) -> str:
         ''' Extract the configexport from the config uasset '''
@@ -655,6 +733,19 @@ class DevicenDisplay(DeviceUnreal):
 
         raise ValueError('Invalid nDisplay config .uasset')
 
+    @classmethod 
+    def select_device_as_master(cls, device):
+        ''' Selects the given devices as the master of the nDisplay cluster'''
+
+        DevicenDisplay.csettings['master_device_name'].update_value(device.name)
+
+        devices = [dev for dev in cls.active_unreal_devices if dev.device_type == 'nDisplay']
+
+        for dev in devices:
+            if dev.device_widget:
+                checked = (dev.name == device.name)
+                dev.device_widget.master_button.setChecked(checked)
+
     @classmethod
     def apply_local_overrides_to_config(cls, cfg_content, cfg_ext):
         ''' Applies supported local settings overrides to configuration '''
@@ -665,6 +756,7 @@ class DevicenDisplay(DeviceUnreal):
         data = json.loads(cfg_content)
 
         nodes = data['nDisplay']['cluster']['nodes']
+        masternodeid = data['nDisplay']['cluster']['masterNode']['id']
 
         activenodes = {}
 
@@ -690,7 +782,12 @@ class DevicenDisplay(DeviceUnreal):
             # add to active nodes
             activenodes[device.name] = node
 
+            # override master node by name
+            if device.name == DevicenDisplay.csettings['master_device_name'].get_value():
+                masternodeid = device.name
+
         data['nDisplay']['cluster']['nodes'] = activenodes
+        data['nDisplay']['cluster']['masterNode']['id'] = masternodeid
 
         return json.dumps(data)
 
@@ -879,20 +976,29 @@ class DevicenDisplay(DeviceUnreal):
 
     @classmethod
     def send_cluster_event(cls, devices, cluster_event):
-        # find the master nodes (only one expected to be master)
-        masters = [dev for dev in devices if dev.nodeconfig.get('master',False)]
-                
-        if len(masters) != 1:
-            LOGGER.warning(f"{len(masters)} masters detected but there can only be one")
-            raise ValueError
+        ''' Sends a cluster event (to the master, which will replicate to the rest of the cluster) '''
 
-        master = masters[0]
+        # find the master node
+        
+        master = None
+        
+        for device in devices:
+            if device.name == DevicenDisplay.csettings['master_device_name'].get_value():
+                master = device
+                break
+
+        if master is None:
+            LOGGER.warning(f"Could not find master device when trying to send cluster event")
+            raise ValueError
 
         msg = bytes(json.dumps(cluster_event), 'utf-8')
         msg = struct.pack('I', len(msg)) + msg
 
+        # We copy the original master's cluster event port (port_ce) to the config of all nodes, so we can use the port from the overridden master
         port = master.nodeconfig['port_ce']
-        ip = master.nodeconfig['ip_address']
+
+        # Use the overridden ip address of this node
+        ip = master.ip_address
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((ip, port))
@@ -941,5 +1047,3 @@ class DevicenDisplay(DeviceUnreal):
                 device.device_qt_handler.signal_device_closing.emit(device)
         except:
             LOGGER.warning("Could not soft kill the cluster")
-        
-
