@@ -43,6 +43,7 @@ public class TargetPlatform : ModuleRules
             DynamicallyLoadedModuleNames.Add("ShaderFormatVectorVM");
             DynamicallyLoadedModuleNames.Add("ImageWrapper");
 
+			// @todo: should move all of this to specific UEBuild*.cs files
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				DynamicallyLoadedModuleNames.Add("TextureFormatIntelISPCTexComp");
@@ -59,14 +60,6 @@ public class TargetPlatform : ModuleRules
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
 					DynamicallyLoadedModuleNames.Add("AudioFormatBink");
-				}
-
-				if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
-				{
-					DynamicallyLoadedModuleNames.Add("AndroidTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("IOSTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("TVOSTargetPlatform");
-					DynamicallyLoadedModuleNames.Add("MacTargetPlatform");
 				}
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)

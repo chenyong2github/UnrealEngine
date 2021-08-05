@@ -317,6 +317,11 @@ namespace UnrealBuildTool
 						//Rules.DynamicallyLoadedModuleNames.Add("ShaderFormatAndroid");		//@todo android: ShaderFormatAndroid
 					}
 				}
+
+				if (ModuleName == "UnrealEd")
+				{
+					Rules.DynamicallyLoadedModuleNames.Add("AndroidPlatformEditor");
+				}
 			}
 		}
 

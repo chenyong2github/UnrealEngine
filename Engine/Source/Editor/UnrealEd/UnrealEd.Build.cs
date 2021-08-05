@@ -282,21 +282,6 @@ public class UnrealEd : ModuleRules
 			);
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac)
-		{
-			DynamicallyLoadedModuleNames.Add("IOSPlatformEditor");
-		}
-
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
-		{
-			DynamicallyLoadedModuleNames.Add("AndroidPlatformEditor");
-		}
-
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac)
-		{
-			DynamicallyLoadedModuleNames.Add("LuminPlatformEditor");
-		}
-
 		CircularlyReferencedDependentModules.AddRange(
 			new string[] {
 				"Documentation",
