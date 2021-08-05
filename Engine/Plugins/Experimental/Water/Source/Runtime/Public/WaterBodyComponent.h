@@ -141,6 +141,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Water)
 	UWaterSplineComponent* GetWaterSpline() const;
 
+	UFUNCTION(BlueprintCallable, Category = Water)
 	UWaterWavesBase* GetWaterWaves() const;
 
 	/** Returns the unique id of this water body for accessing data in GPU buffers */
