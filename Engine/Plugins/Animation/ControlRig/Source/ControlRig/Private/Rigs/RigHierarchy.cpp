@@ -255,7 +255,10 @@ void URigHierarchy::Reset()
 	ResetPoseHash = INDEX_NONE;
 	ResetPoseHasFilteredChildren.Reset();
 
-	Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
+	if(!IsGarbageCollecting())
+	{
+		Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
+	}
 }
 
 void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
