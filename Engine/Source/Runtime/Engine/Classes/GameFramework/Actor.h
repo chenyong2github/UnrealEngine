@@ -40,6 +40,10 @@ struct FNetworkObjectInfo;
 class UDataLayer;
 class AWorldDataLayers;
 
+// By default, debug and development builds (even cooked) will keep actor labels. Manually define this if you want to make a local build
+// that keep actor labels for Test or Shipping builds.
+#define ACTOR_HAS_LABELS (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
+
 /** Chooses a method for actors to update overlap state (objects it is touching) on initialization, currently only used during level streaming. */
 UENUM(BlueprintType)
 enum class EActorUpdateOverlapsMethod : uint8
@@ -2267,6 +2271,23 @@ public:
 		return bOptimizeBPComponentData;
 	}
 #endif		// WITH_EDITOR
+
+#if !WITH_EDITOR && ACTOR_HAS_LABELS
+private:
+	FString ActorLabel;
+
+public:
+	const FString& GetActorLabel() const { return ActorLabel; }
+#endif
+
+	const FString GetActorNameOrLabel() const
+	{
+#if WITH_EDITORONLY_DATA || (!WITH_EDITOR && ACTOR_HAS_LABELS)
+		return ActorLabel.IsEmpty() ? GetName() : ActorLabel;
+#else
+		return GetName();
+#endif
+	}
 
 	/**
 	 * Function used to prioritize actors when deciding which to replicate

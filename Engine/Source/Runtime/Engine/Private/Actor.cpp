@@ -17,6 +17,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/LocalPlayer.h"
@@ -722,6 +723,7 @@ bool AActor::IsReadyForFinishDestroy()
 void AActor::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
 
 #if WITH_EDITOR
 	// Prior to load, map natively-constructed component instances for Blueprint-generated class types to any serialized properties that might reference them.
@@ -787,6 +789,23 @@ void AActor::Serialize(FArchive& Ar)
 #endif
 
 	Super::Serialize(Ar);
+
+	// Always serialize the actor label in cooked builds
+	if(Ar.IsPersistent() && (Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) >= FUE5PrivateFrostyStreamObjectVersion::SerializeActorLabelInCookedBuilds))
+	{
+		bool bIsCooked = Ar.IsCooking();
+		Ar << bIsCooked;
+
+		if (bIsCooked)
+		{
+#if !ACTOR_HAS_LABELS
+			// In non-development builds, just skip over the actor labels. We need to figure out a way to either strip that data from shipping builds,
+			// or skip over the string data without doing any memory allocations, probably with a custom FString::SerializeToNull implementation.
+			FString ActorLabel;
+#endif
+			Ar << ActorLabel;
+		}
+	}
 
 #if WITH_EDITOR
 	// Fixup actor guids
