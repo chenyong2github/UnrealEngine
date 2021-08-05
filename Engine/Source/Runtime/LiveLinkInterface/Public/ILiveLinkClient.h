@@ -135,11 +135,19 @@ public:
 	/** Is the source been added */
 	virtual bool HasSourceBeenAdded(TSharedPtr<ILiveLinkSource> Source) const = 0;
 
-	/** Get a list of all the sources */
-	virtual TArray<FGuid> GetSources() const = 0;
+	/**
+	 * Get a list of all the sources
+	 * @param bEvenIfPendingKill Whether or not to include sources that are pending kill.
+	 * @return the list of sources.
+	 */
+	virtual TArray<FGuid> GetSources(bool bEvenIfPendingKill = false) const = 0;
 
-	/** Get a list of all the VirtualSubjects sources */
-	virtual TArray<FGuid> GetVirtualSources() const = 0;
+	/**
+	 * Get a list of all the VirtualSubjects sources
+	 * @param bEvenIfPendingKill Whether or not to include sources that are pending kill.
+	 * @return the list of sources.
+	 */
+	virtual TArray<FGuid> GetVirtualSources(bool bEvenIfPendingKill = false) const = 0;
 
 	/** Get the source preset from the live link client. The settings will be duplicated into DuplicatedObjectOuter. */
 	virtual FLiveLinkSourcePreset GetSourcePreset(FGuid SourceGuid, UObject* DuplicatedObjectOuter) const = 0;

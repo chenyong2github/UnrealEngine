@@ -80,8 +80,8 @@ public:
 	virtual void RemoveSource(TSharedPtr<ILiveLinkSource> Source) override;
 	virtual void RemoveSource(FGuid InEntryGuid) override;
 	virtual bool HasSourceBeenAdded(TSharedPtr<ILiveLinkSource> Source) const override;
-	virtual TArray<FGuid> GetSources() const override;
-	virtual TArray<FGuid> GetVirtualSources() const override;
+	virtual TArray<FGuid> GetSources(bool bEvenIfPendingKill = false) const override;
+	virtual TArray<FGuid> GetVirtualSources(bool bEvenIfPendingKill = false) const override;
 	virtual FLiveLinkSourcePreset GetSourcePreset(FGuid SourceGuid, UObject* DuplicatedObjectOuter) const override;
 	virtual FText GetSourceType(FGuid EntryGuid) const override;
 

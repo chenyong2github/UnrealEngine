@@ -457,14 +457,14 @@ bool FLiveLinkClient::HasSourceBeenAdded(TSharedPtr<ILiveLinkSource> InSource) c
 	return false;
 }
 
-TArray<FGuid> FLiveLinkClient::GetSources() const
+TArray<FGuid> FLiveLinkClient::GetSources(bool bEvenIfPendingKill) const
 {
 	check(Collection);
 
 	TArray<FGuid> Result;
 	for (const FLiveLinkCollectionSourceItem& SourceItem : Collection->GetSources())
 	{
-		if (!SourceItem.bPendingKill && !SourceItem.IsVirtualSource())
+		if ((!SourceItem.bPendingKill || bEvenIfPendingKill) && !SourceItem.IsVirtualSource())
 		{
 			Result.Add(SourceItem.Guid);
 		}
@@ -472,14 +472,14 @@ TArray<FGuid> FLiveLinkClient::GetSources() const
 	return Result;
 }
 
-TArray<FGuid> FLiveLinkClient::GetVirtualSources() const
+TArray<FGuid> FLiveLinkClient::GetVirtualSources(bool bEvenIfPendingKill) const
 {
 	check(Collection);
 
 	TArray<FGuid> Result;
 	for (const FLiveLinkCollectionSourceItem& SourceItem : Collection->GetSources())
 	{
-		if (!SourceItem.bPendingKill && SourceItem.IsVirtualSource())
+		if ((!SourceItem.bPendingKill || bEvenIfPendingKill) && SourceItem.IsVirtualSource())
 		{
 			Result.Add(SourceItem.Guid);
 		}
