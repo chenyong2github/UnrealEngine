@@ -721,11 +721,6 @@ void SRigHierarchy::RefreshTreeView(bool bRebuildContent)
                 bContinue = true;
             });
 
-			for (const auto& Pair : ElementMap)
-			{
-				TreeView->RestoreSparseItemInfos(Pair.Value);
-			}
-
 			// expand all elements upon the initial construction of the tree
 			if (ExpansionState.Num() == 0)
 			{
@@ -733,6 +728,11 @@ void SRigHierarchy::RefreshTreeView(bool bRebuildContent)
 				{
 					SetExpansionRecursive(RootElement, false, true);
 				}
+			}
+
+			for (const auto& Pair : ElementMap)
+			{
+				TreeView->RestoreSparseItemInfos(Pair.Value);
 			}
 
 			if (RootElements.Num() > 0)
