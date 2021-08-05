@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Components/ActorComponent.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartitionStreamingSourceComponent.generated.h"
 
 class FSceneView;
@@ -47,13 +48,21 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 	float DefaultVisualizerLoadingRange;
 #endif
 
-	/** Optional target grid affected by streaming source. When none chosen, affects all grids. */
+	/** Optional target grid affected by streaming source. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
 	FName TargetGrid;
+
+	/** Optional target HLODLayer affected by the streaming source. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
+	TObjectPtr<const UHLODLayer> TargetHLODLayer;
 
 	/** Optional aggregated shape list used to build a custom shape for the streaming source. When empty, fallbacks sphere shape with a radius equal to grid's loading range. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
 	TArray<FStreamingSourceShape> Shapes;
+
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+#endif
 
 private:
 	/** Whether this component is enabled or not */
