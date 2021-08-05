@@ -11,6 +11,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Traits/ElementType.h"
 #include "Containers/Array.h"
+#include "Math/UnrealMathUtility.h"
 
 namespace ArrayViewPrivate
 {
@@ -327,15 +328,95 @@ public:
 
 	/**
 	 * Returns a sliced view
+	   The is similar to Mid(), but with a narrow contract, i.e. slicing outside of the range of the view is illegal.
 	 *
 	 * @param Index starting index of the new view
 	 * @param InNum number of elements in the new view
 	 * @returns Sliced view
+	 *
+	 * @see Mid
 	 */
-	FORCEINLINE TArrayView Slice(SizeType Index, SizeType InNum) const
+	[[nodiscard]] FORCEINLINE TArrayView Slice(SizeType Index, SizeType InNum) const
 	{
 		SliceRangeCheck(Index, InNum);
 		return TArrayView(DataPtr + Index, InNum);
+	}
+
+	/** Returns the left-most part of the view by taking the given number of elements from the left. */
+	[[nodiscard]] inline TArrayView Left(SizeType Count) const
+	{
+		return TArrayView(DataPtr, FMath::Clamp(Count, 0, ArrayNum));
+	}
+
+	/** Returns the left-most part of the view by chopping the given number of elements from the right. */
+	[[nodiscard]] inline TArrayView LeftChop(SizeType Count) const
+	{
+		return TArrayView(DataPtr, FMath::Clamp(ArrayNum - Count, 0, ArrayNum));
+	}
+
+	/** Returns the right-most part of the view by taking the given number of elements from the right. */
+	[[nodiscard]] inline TArrayView Right(SizeType Count) const
+	{
+		const SizeType OutLen = FMath::Clamp(Count, 0, ArrayNum);
+		return TArrayView(DataPtr + ArrayNum - OutLen, OutLen);
+	}
+
+	/** Returns the right-most part of the view by chopping the given number of elements from the left. */
+	[[nodiscard]] inline TArrayView RightChop(SizeType Count) const
+	{
+		const SizeType OutLen = FMath::Clamp(ArrayNum - Count, 0, ArrayNum);
+		return TArrayView(DataPtr + ArrayNum - OutLen, OutLen);
+	}
+
+	/** Returns the middle part of the view by taking up to the given number of elements from the given position. */
+	[[nodiscard]] inline TArrayView Mid(SizeType Index, SizeType Count = TNumericLimits<SizeType>::Max()) const
+	{
+		const ElementType* CurrentStart  = GetData();
+		const SizeType     CurrentLength = Num();
+
+		// Clamp minimum index at the start of the range, adjusting the length down if necessary
+		const SizeType NegativeIndexOffset = (Index < 0) ? Index : 0;
+		Count += NegativeIndexOffset;
+		Index -= NegativeIndexOffset;
+
+		// Clamp maximum index at the end of the range
+		Index = (Index > CurrentLength) ? CurrentLength : Index;
+
+		// Clamp count between 0 and the distance to the end of the range
+		Count = FMath::Clamp(Count, 0, (CurrentLength - Index));
+
+		TArrayView Result = TArrayView(CurrentStart + Index, Count);
+		return Result;
+	}
+
+	/** Modifies the view to be the given number of elements from the left. */
+	inline void LeftInline(SizeType CharCount)
+	{
+		*this = Left(CharCount);
+	}
+
+	/** Modifies the view by chopping the given number of elements from the right. */
+	inline void LeftChopInline(SizeType CharCount)
+	{
+		*this = LeftChop(CharCount);
+	}
+
+	/** Modifies the view to be the given number of elements from the right. */
+	inline void RightInline(SizeType CharCount)
+	{
+		*this = Right(CharCount);
+	}
+
+	/** Modifies the view by chopping the given number of elements from the left. */
+	inline void RightChopInline(SizeType CharCount)
+	{
+		*this = RightChop(CharCount);
+	}
+
+	/** Modifies the view to be the middle part by taking up to the given number of elements from the given position. */
+	inline void MidInline(SizeType Position, SizeType CharCount = TNumericLimits<SizeType>::Max())
+	{
+		*this = Mid(Position, CharCount);
 	}
 
 	/**
