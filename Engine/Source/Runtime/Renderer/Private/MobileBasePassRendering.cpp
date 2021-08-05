@@ -55,8 +55,7 @@ static TAutoConsoleVariable<int32> CVarMobilePropagateAlpha(
 	TEXT("r.Mobile.PropagateAlpha"),
 	0,
 	TEXT("0: Disabled")
-	TEXT("1: Propagate Full Alpha Propagate")
-	TEXT("2: Propagate Full Alpha Propagate + Premultiply"),
+	TEXT("1: Propagate Full Alpha Propagate"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 
