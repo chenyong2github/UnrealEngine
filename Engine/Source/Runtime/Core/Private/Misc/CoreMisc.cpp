@@ -120,36 +120,6 @@ FDerivedDataCacheInterface& GetDerivedDataCacheRef()
 	return *Cache;
 }
 
-UE::DerivedData::IBuild* GetDerivedDataBuild()
-{
-	static UE::DerivedData::IBuild* const* Build;
-	static bool bInitialized = false;
-	if (!bInitialized)
-	{
-		if (!FPlatformProperties::RequiresCookedData())
-		{
-			check(IsInGameThread());
-			bInitialized = true;
-			if (IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
-			{
-				Build = Module->CreateOrGetBuild();
-			}
-		}
-	}
-	return Build ? *Build : nullptr;
-}
-
-UE::DerivedData::IBuild& GetDerivedDataBuildRef()
-{
-	UE::DerivedData::IBuild* Build = GetDerivedDataBuild();
-	if (!Build)
-	{
-		UE_LOG(LogInit, Fatal, TEXT("Derived Data Build was requested, but not available."));
-		CA_ASSUME(Build); // Suppress static analysis warning in unreachable code (fatal error)
-	}
-	return *Build;
-}
-
 class ITargetPlatformManagerModule* GetTargetPlatformManager(bool bFailOnInitErrors)
 {
 	static class ITargetPlatformManagerModule* SingletonInterface = NULL;

@@ -9,6 +9,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "DDCCleanup.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCache.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
@@ -163,7 +164,7 @@ namespace UE::DerivedData::Private
  * Implementation of the derived data cache
  * This API is fully threadsafe
 **/
-class FDerivedDataCache final : public FDerivedDataCacheInterface
+class FDerivedDataCache final : public FDerivedDataCacheInterface, public ICache
 {
 
 	/** 
@@ -735,9 +736,14 @@ public:
 	}
 };
 
-FDerivedDataCacheInterface* CreateCache()
+ICache* CreateCache(FDerivedDataCacheInterface** OutLegacyCache)
 {
-	return new FDerivedDataCache();
+	FDerivedDataCache* Cache = new FDerivedDataCache;
+	if (OutLegacyCache)
+	{
+		*OutLegacyCache = Cache;
+	}
+	return Cache;
 }
 
 } // UE::DerivedData::Private

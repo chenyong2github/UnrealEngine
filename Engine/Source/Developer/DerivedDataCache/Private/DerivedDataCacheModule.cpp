@@ -2,6 +2,7 @@
 
 #include "DerivedDataCacheModule.h"
 
+#include "CoreGlobals.h"
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCache.h"
@@ -13,8 +14,9 @@
 namespace UE::DerivedData::Private
 {
 
-static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
-static IBuild* GDerivedDataBuildInstance;
+static FDerivedDataCacheInterface* GDerivedDataLegacyCache;
+static ICache* GDerivedDataCache;
+static IBuild* GDerivedDataBuild;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
@@ -28,32 +30,39 @@ public:
 
 	FDerivedDataCacheInterface* const* CreateOrGetCache() final
 	{
-		FScopeLock Lock(&CreateLock);
-		if (!GDerivedDataCacheInstance)
-		{
-			GDerivedDataCacheInstance = CreateCache();
-			check(GDerivedDataCacheInstance);
-		}
-		return &GDerivedDataCacheInstance;
+		CreateCacheOnce();
+		check(GDerivedDataLegacyCache);
+		return &GDerivedDataLegacyCache;
 	}
 
-	IBuild* const* CreateOrGetBuild() final
+	void CreateCacheOnce()
 	{
 		FScopeLock Lock(&CreateLock);
-		if (!GDerivedDataBuildInstance)
+		if (!GDerivedDataCache)
 		{
-			GDerivedDataBuildInstance = CreateBuild(**CreateOrGetCache());
-			check(GDerivedDataBuildInstance);
+			GDerivedDataCache = CreateCache(&GDerivedDataLegacyCache);
+			check(GDerivedDataCache);
 		}
-		return &GDerivedDataBuildInstance;
+	}
+
+	void CreateBuildOnce()
+	{
+		CreateCacheOnce();
+		FScopeLock Lock(&CreateLock);
+		if (!GDerivedDataBuild)
+		{
+			GDerivedDataBuild = CreateBuild(*GDerivedDataCache);
+			check(GDerivedDataBuild);
+		}
 	}
 
 	void ShutdownModule() final
 	{
-		delete GDerivedDataBuildInstance;
-		GDerivedDataBuildInstance = nullptr;
-		delete GDerivedDataCacheInstance;
-		GDerivedDataCacheInstance = nullptr;
+		delete GDerivedDataBuild;
+		GDerivedDataBuild = nullptr;
+		delete GDerivedDataCache;
+		GDerivedDataLegacyCache = nullptr;
+		GDerivedDataCache = nullptr;
 	}
 
 private:
@@ -62,6 +71,54 @@ private:
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+static FDerivedDataCacheModule* GetModule()
+{
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		check(IsInGameThread());
+		if (IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
+		{
+			return static_cast<FDerivedDataCacheModule*>(Module);
+		}
+	}
+	return nullptr;
+}
+
 } // UE::DerivedData::Private
+
+namespace UE::DerivedData
+{
+
+ICache& GetCache()
+{
+	if (ICache* Cache = Private::GDerivedDataCache)
+	{
+		return *Cache;
+	}
+	if (Private::FDerivedDataCacheModule* Module = Private::GetModule())
+	{
+		Module->CreateCacheOnce();
+	}
+	ICache* Cache = Private::GDerivedDataCache;
+	check(Cache);
+	return *Cache;
+}
+
+IBuild& GetBuild()
+{
+	if (IBuild* Build = Private::GDerivedDataBuild)
+	{
+		return *Build;
+	}
+	if (Private::FDerivedDataCacheModule* Module = Private::GetModule())
+	{
+		Module->CreateBuildOnce();
+	}
+	IBuild* Build = Private::GDerivedDataBuild;
+	check(Build);
+	return *Build;
+}
+
+} // UE::DerivedData
 
 IMPLEMENT_MODULE(UE::DerivedData::Private::FDerivedDataCacheModule, DerivedDataCache);

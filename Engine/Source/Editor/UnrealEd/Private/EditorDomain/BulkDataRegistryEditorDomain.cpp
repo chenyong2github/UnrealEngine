@@ -4,7 +4,7 @@
 
 #include "Serialization/BulkDataRegistry.h"
 #include "Compression/CompressedBuffer.h"
-#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCache.h"
 #include "DerivedDataCacheRecord.h"
 #include "EditorBuildInputResolver.h"
 #include "EditorDomain/EditorDomainUtils.h"
@@ -484,7 +484,7 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 
 FPendingPackage::FPendingPackage(FName InPackageName, FBulkDataRegistryEditorDomain* InOwner)
 	: PackageName(InPackageName)
-	, BulkDataListCacheRequest(GetDerivedDataCacheRef().CreateGroup(UE::DerivedData::EPriority::Low))
+	, BulkDataListCacheRequest(UE::DerivedData::GetCache().CreateGroup(UE::DerivedData::EPriority::Low))
 	, Owner(InOwner)
 {
 	PendingOperations = Flag_EndLoad | Flag_BulkDataListResults;
@@ -732,7 +732,7 @@ void FUpdatePayloadWorker::DoWork()
 
 FPendingPayloadId::FPendingPayloadId(const FGuid& InBulkDataId)
 	: BulkDataId(InBulkDataId)
-	, Request(GetDerivedDataCacheRef().CreateGroup(UE::DerivedData::EPriority::Low))
+	, Request(UE::DerivedData::GetCache().CreateGroup(UE::DerivedData::EPriority::Low))
 {
 }
 

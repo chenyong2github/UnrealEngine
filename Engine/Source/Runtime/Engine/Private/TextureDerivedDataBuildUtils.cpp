@@ -231,7 +231,7 @@ bool TryFindTextureBuildFunction(FStringBuilderBase& OutFunctionName, const FTex
 	}
 
 	const FStringView FunctionName = OutFunctionName.ToView().RightChop(NameIndex);
-	return GetDerivedDataBuildRef().GetFunctionRegistry().FindFunctionVersion(FunctionName).IsValid();
+	return UE::DerivedData::GetBuild().GetFunctionRegistry().FindFunctionVersion(FunctionName).IsValid();
 }
 
 FCbObject SaveTextureBuildSettings(const FString& KeySuffix, const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips)

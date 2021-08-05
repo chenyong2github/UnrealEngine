@@ -13,13 +13,14 @@ namespace UE::DerivedData { class FCacheBucket; }
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FCacheRecordBuilder; }
 namespace UE::DerivedData { class FOptionalCacheRecord; }
+namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { struct FCacheKey; }
 
 namespace UE::DerivedData::Private
 {
 
 // Implemented in DerivedDataCache.cpp
-FDerivedDataCacheInterface* CreateCache();
+ICache* CreateCache(FDerivedDataCacheInterface** OutLegacyCache);
 
 // Implemented in DerivedDataCacheKey.cpp
 FCacheBucket CreateCacheBucket(FStringView Name);

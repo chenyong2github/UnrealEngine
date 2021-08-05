@@ -4,6 +4,8 @@
 
 #include "Containers/StringFwd.h"
 
+#define UE_API DERIVEDDATACACHE_API
+
 class FCbObject;
 struct FGuid;
 
@@ -145,4 +147,8 @@ public:
 	virtual IBuildWorkerRegistry& GetWorkerRegistry() const = 0;
 };
 
+UE_API IBuild& GetBuild();
+
 } // UE::DerivedData
+
+#undef UE_API

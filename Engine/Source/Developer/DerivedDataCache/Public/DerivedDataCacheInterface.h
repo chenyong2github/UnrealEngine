@@ -6,7 +6,6 @@
 #include "CoreMinimal.h"
 #include "Containers/BitArray.h"
 #include "Containers/StringView.h"
-#include "DerivedDataCache.h"
 #include "DerivedDataCacheModule.h"
 
 class FDerivedDataCacheUsageStats;
@@ -19,12 +18,10 @@ struct FDerivedDataCacheSummaryStats;
  * Interface for the derived data cache
  * This API is fully threadsafe (with the possible exception of the system interface: NotfiyBootComplete, etc).
  */
-class FDerivedDataCacheInterface : public UE::DerivedData::ICache
+class FDerivedDataCacheInterface
 {
 public:
 	virtual ~FDerivedDataCacheInterface() = default;
-
-	using UE::DerivedData::ICache::Put;
 
 	//--------------------
 	// High Level Interface

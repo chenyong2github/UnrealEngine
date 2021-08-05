@@ -137,7 +137,15 @@ public class Launch : ModuleRules
 			});
 
 			PublicDependencyModuleNames.Add("SessionServices");
-			PrivateIncludePathModuleNames.Add("DerivedDataCache");
+
+			if (Target.bBuildWithEditorOnlyData)
+			{
+				PrivateDependencyModuleNames.Add("DerivedDataCache");
+			}
+			else
+			{
+				PrivateIncludePathModuleNames.Add("DerivedDataCache");
+			}
 
 			// LaunchEngineLoop.cpp will still attempt to load XMPP but not all projects require it so it will silently fail unless referenced by the project's build.cs file.
 			// DynamicallyLoadedModuleNames.Add("XMPP");

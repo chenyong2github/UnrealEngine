@@ -13,8 +13,6 @@
 #include "CoreGlobals.h"
 #include "HAL/ThreadSingleton.h"
 
-namespace UE::DerivedData { class IBuild; }
-
 /**
  * Exec handler that registers itself and is being routed via StaticExec.
  * Note: Not intended for use with UObjects!
@@ -72,12 +70,6 @@ CORE_API class FDerivedDataCacheInterface* GetDerivedDataCache();
 
 /** Returns the derived data cache interface, or fatal error if it is not available. */
 CORE_API class FDerivedDataCacheInterface& GetDerivedDataCacheRef();
-
-/** Return the derived data build interface if it is available, otherwise null. */
-CORE_API UE::DerivedData::IBuild* GetDerivedDataBuild();
-
-/** Return the derived data build interface, or fatal error if it is not available. */
-CORE_API UE::DerivedData::IBuild& GetDerivedDataBuildRef();
 
 /**
  * Return the Target Platform Manager interface, if it is available, otherwise return nullptr.
