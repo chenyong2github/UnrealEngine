@@ -1388,7 +1388,6 @@ void UBlueprint::BeginDestroy()
 	Super::BeginDestroy();
 
 	FBlueprintEditorUtils::RemoveAllLocalBookmarks(this);
-	WatchViewer::ClearWatchListFromBlueprint(this);
 }
 
 #endif // WITH_EDITOR

@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
-#include "WorkflowOrientedApp/WorkflowTabFactory.h"
-
 struct FAssetData;
 class UBlueprint;
 
-namespace WatchViewer
+UE_DEPRECATED(5.0, "WatchViewer has been deprecated, use SKismetDebuggingView instead");
+namespace DEPRICATED_WatchViewer
 {
 	// updates the instanced watch values, these are only valid while execution is paused
 	void KISMET_API UpdateInstancedWatchDisplay();

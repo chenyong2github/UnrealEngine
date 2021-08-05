@@ -16,14 +16,12 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Views/STreeView.h"
-
-#include "WorkspaceMenuStructure.h"
-#include "WorkspaceMenuStructureModule.h"
+#include "ToolMenus.h"
 
 // So that we can poll the running state:
 #include "Editor/UnrealEdEngine.h"
+#include "Kismet2/DebuggerCommands.h"
 extern UNREALED_API UUnrealEdEngine* GUnrealEd;
 
 #define LOCTEXT_NAMESPACE "CallStackViewer"
@@ -587,14 +585,31 @@ void CallStackViewer::RegisterTabSpawner(FTabManager& TabManager)
 {
 	const auto SpawnCallStackViewTab = []( const FSpawnTabArgs& Args )
 	{
+		static const FName ToolbarName = TEXT("Kismet.DebuggingViewToolBar");
+		FToolMenuContext MenuContext(FPlayWorldCommands::GlobalPlayWorldActions);
+		TSharedRef<SWidget> ToolbarWidget = UToolMenus::Get()->GenerateWidget(ToolbarName, MenuContext);
 		return SNew(SDockTab)
 			.TabRole( ETabRole::PanelTab )
 			.Label( LOCTEXT("TabTitle", "Call Stack") )
 			[
-				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				[
-					SNew(SCallStackViewer, &Private_CallStackSource)
+					SNew(SBorder)
+					.BorderImage( FEditorStyle::GetBrush( TEXT("NoBorder") ) )
+					[
+						ToolbarWidget
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SBorder)
+					.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+					[
+						SNew(SCallStackViewer, &Private_CallStackSource)
+					]
 				]
 			];
 	};

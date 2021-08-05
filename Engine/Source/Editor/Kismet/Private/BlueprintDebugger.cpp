@@ -10,7 +10,6 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Layout/WidgetPath.h"
-#include "WatchPointViewer.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
@@ -35,15 +34,13 @@ struct FBlueprintDebuggerCommands : public TCommands<FBlueprintDebuggerCommands>
 	// End of TCommand<> interface
 
 	TSharedPtr<FUICommandInfo> ShowCallStackViewer;
-	TSharedPtr<FUICommandInfo> ShowWatchViewer;
 	TSharedPtr<FUICommandInfo> ShowExecutionTrace;
 };
 
 void FBlueprintDebuggerCommands::RegisterCommands()
 {
 	UI_COMMAND(ShowCallStackViewer, "Call Stack", "Toggles visibility of the Call Stack window", EUserInterfaceActionType::Check, FInputChord());
-	UI_COMMAND(ShowWatchViewer, "Watches", "Toggles visibility of the Watches window", EUserInterfaceActionType::Check, FInputChord());
-	UI_COMMAND(ShowExecutionTrace, "Execution Flow", "Toggles visibility of the Execution Flow window", EUserInterfaceActionType::Check, FInputChord());
+	UI_COMMAND(ShowExecutionTrace, "Data Flow", "Toggles visibility of the Data Flow window", EUserInterfaceActionType::Check, FInputChord());
 }
 
 struct FBlueprintDebuggerImpl
@@ -124,7 +121,6 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 
 	const FName ExecutionFlowTabName = FName(TEXT("ExecutionFlowApp"));
 	const FName CallStackTabName = CallStackViewer::GetTabName();
-	const FName WatchViewerTabName = WatchViewer::GetTabName();
 
 	TWeakPtr<FTabManager> DebuggingToolsTabManagerWeak = DebuggingToolsTabManager;
 	// On tab close will save the layout if the debugging window itself is closed,
@@ -150,22 +146,23 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 			FOnSpawnTab::CreateStatic(
 				[](const FSpawnTabArgs&)->TSharedRef<SDockTab>
 				{
+				const TSharedPtr<SKismetDebuggingView> KismetDebuggingView = SNew(SKismetDebuggingView)
+					.BlueprintToWatch(nullptr);
 				return SNew(SDockTab)
 					.TabRole(ETabRole::PanelTab)
-					.Label(NSLOCTEXT("BlueprintExecutionFlow", "TabTitle", "Execution Flow"))
+					.Label_Raw(KismetDebuggingView.Get(), &SKismetDebuggingView::GetTabLabel)
 					[
-						SNew(SKismetDebuggingView)
+						KismetDebuggingView.ToSharedRef()
 					];
 				}
 			)
 		)
-		.SetDisplayName(NSLOCTEXT("BlueprintDebugger", "ExecutionFlowTabTitle", "Blueprint Execution Flow"))
-		.SetTooltipText(NSLOCTEXT("BlueprintDebugger", "ExecutionFlowTooltipText", "Open the Blueprint Execution Flow tab."));
+		.SetDisplayName(NSLOCTEXT("BlueprintDebugger", "ExecutionFlowTabTitle", "Blueprint Data Flow"))
+		.SetTooltipText(NSLOCTEXT("BlueprintDebugger", "ExecutionFlowTooltipText", "Open the Blueprint Data Flow tab."));
 
-		CallStackViewer::RegisterTabSpawner(*DebuggingToolsTabManager);
-		WatchViewer::RegisterTabSpawner(*DebuggingToolsTabManager);
+		CallStackViewer::RegisterTabSpawner(*DebuggingToolsTabManager); 
 
-		BlueprintDebuggerLayout = FTabManager::NewLayout("Standalone_BlueprintDebugger_Layout_v1")
+		BlueprintDebuggerLayout = FTabManager::NewLayout("Standalone_BlueprintDebugger_Layout_v2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -176,7 +173,6 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 				->SetSizeCoefficient(.4f)
 				->SetHideTabWell(true)
 				->AddTab(CallStackTabName, ETabState::OpenedTab)
-				->AddTab(WatchViewerTabName, ETabState::OpenedTab)
 				->AddTab(ExecutionFlowTabName, ETabState::OpenedTab)
 				->SetForegroundTab(CallStackTabName)
 			)
@@ -237,23 +233,6 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 	);
 
 	CommandList->MapAction(
-		FBlueprintDebuggerCommands::Get().ShowWatchViewer,
-		FExecuteAction::CreateStatic(
-			ToggleTabVisibility,
-			DebuggingToolsManagerWeak,
-			WatchViewerTabName
-		),
-		FCanExecuteAction::CreateStatic(
-			[]() { return true; }
-		),
-		FIsActionChecked::CreateStatic(
-			IsTabVisible,
-			DebuggingToolsManagerWeak,
-			WatchViewerTabName
-		)
-	);
-
-	CommandList->MapAction(
 		FBlueprintDebuggerCommands::Get().ShowExecutionTrace,
 		FExecuteAction::CreateStatic(
 			ToggleTabVisibility,
@@ -292,7 +271,6 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 						MenuBuilder.PushCommandList(InCommandList.ToSharedRef());
 						{
 							MenuBuilder.AddMenuEntry(FBlueprintDebuggerCommands::Get().ShowCallStackViewer);
-							MenuBuilder.AddMenuEntry(FBlueprintDebuggerCommands::Get().ShowWatchViewer);
 							MenuBuilder.AddMenuEntry(FBlueprintDebuggerCommands::Get().ShowExecutionTrace);
 						}
 						MenuBuilder.PopCommandList();
