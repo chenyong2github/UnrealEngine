@@ -59,7 +59,7 @@ void FRigBaseElement::Serialize(FArchive& Ar, URigHierarchy* Hierarchy, ESeriali
 	}
 	else
 	{
-		checkNoEntry();
+		// remove due to FPIEFixupSerializer hitting this checkNoEntry();
 	}
 }
 

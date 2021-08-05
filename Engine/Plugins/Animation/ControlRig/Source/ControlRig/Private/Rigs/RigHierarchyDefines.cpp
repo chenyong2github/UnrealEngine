@@ -19,7 +19,7 @@ void FRigElementKey::Serialize(FArchive& Ar)
 	}
 	else
 	{
-		checkNoEntry();
+		// remove due to FPIEFixupSerializer hitting this checkNoEntry();
 	}
 }
 
