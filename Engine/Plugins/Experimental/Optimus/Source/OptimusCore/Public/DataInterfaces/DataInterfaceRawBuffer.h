@@ -74,6 +74,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Buffer")
 	int32 ElementStride = 4;
 	UPROPERTY(BlueprintReadWrite, Category = "Buffer")
+	int32 NumInvocations = 1;
+	UPROPERTY(BlueprintReadWrite, Category = "Buffer")
 	int32 NumElements = 1;
 	UPROPERTY(BlueprintReadWrite, Category = "Buffer")
 	bool bClearBeforeUse = true;
@@ -82,7 +84,7 @@ public:
 class FTransientBufferDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FTransientBufferDataProviderProxy(int32 InElementStride, int32 InNumElements, bool bInClearBeforeUse);
+	FTransientBufferDataProviderProxy(int32 InElementStride, int32 InNumInvocations, int32 InNumElements, bool bInClearBeforeUse);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
@@ -91,6 +93,7 @@ public:
 
 private:
 	int32 ElementStride;
+	int32 NumInvocations;
 	int32 NumElements;
 	bool bClearBeforeUse;
 

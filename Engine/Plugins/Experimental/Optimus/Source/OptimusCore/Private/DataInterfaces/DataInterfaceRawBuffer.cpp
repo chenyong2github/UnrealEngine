@@ -152,6 +152,7 @@ UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject*
 		{
 			FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMesh->MeshObject->GetSkeletalMeshRenderData();
 			FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+			Provider->NumInvocations = LodRenderData->RenderSections.Num();
 			// todo[CF]: Over allocating here until the logic for correct buffer size is handled.
 			Provider->NumElements = LodRenderData->GetNumVertices() * 8;
 		}
@@ -163,12 +164,13 @@ UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject*
 
 FComputeDataProviderRenderProxy* UTransientBufferDataProvider::GetRenderProxy()
 {
-	return new FTransientBufferDataProviderProxy(ElementStride, NumElements, bClearBeforeUse);
+	return new FTransientBufferDataProviderProxy(ElementStride, NumInvocations, NumElements, bClearBeforeUse);
 }
 
 
-FTransientBufferDataProviderProxy::FTransientBufferDataProviderProxy(int32 InElementStride, int32 InNumElements, bool bInClearBeforeUse)
+FTransientBufferDataProviderProxy::FTransientBufferDataProviderProxy(int32 InElementStride, int32 InNumInvocations, int32 InNumElements, bool bInClearBeforeUse)
 	: ElementStride(InElementStride)
+	, NumInvocations(InNumInvocations)
 	, NumElements(InNumElements)
 	, bClearBeforeUse(bInClearBeforeUse)
 {
@@ -177,7 +179,7 @@ FTransientBufferDataProviderProxy::FTransientBufferDataProviderProxy(int32 InEle
 void FTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
 	// todo[CF]: Need to know number of invocations and size for each invocation
-	for (int32 Index = 0; Index < 3; ++Index)
+	for (int32 Index = 0; Index < NumInvocations; ++Index)
 	{
 		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(ElementStride, NumElements), TEXT("TransientBuffer"), ERDGBufferFlags::None));
 		BufferSRV.Add(GraphBuilder.CreateSRV(Buffer[Index]));
