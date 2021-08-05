@@ -782,7 +782,7 @@ public:
 	void AnyThreadTask()
 	{
 		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-		TRACE_CPUPROFILER_EVENT_SCOPE(MeshDrawCommandPassSetupTask);
+		SCOPED_NAMED_EVENT(MeshDrawCommandPassSetupTask, FColor::Magenta);
 		// Mobile base pass is a special case, as final lists is created from two mesh passes based on CSM visibility.
 		const bool bMobileShadingBasePass = Context.ShadingPath == EShadingPath::Mobile && Context.PassType == EMeshPass::BasePass;
 		// On SM5 Mobile platform, still want the same sorting
@@ -1143,7 +1143,7 @@ bool FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled()
 
 void FParallelMeshDrawCommandPass::WaitForMeshPassSetupTask(EWaitThread WaitThread) const
 {
-	if (TaskEventRef.IsValid())
+	if (TaskEventRef.IsValid() && WaitThread != EWaitThread::TaskAlreadyWaited)
 	{
 		// Need to wait on GetRenderThread_Local, as mesh pass setup task can wait on rendering thread inside InitResourceFromPossiblyParallelRendering().
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_WaitForMeshPassSetupTask);
@@ -1241,7 +1241,7 @@ public:
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-		TRACE_CPUPROFILER_EVENT_SCOPE(DrawVisibleMeshCommandsAnyThreadTask);
+		SCOPED_NAMED_EVENT_TEXT("DrawVisibleMeshCommandsAnyThreadTask", FColor::Magenta);
 		checkSlow(RHICmdList.IsInsideRenderPass());
 
 		// FDrawVisibleMeshCommandsAnyThreadTasks must only run on RT if RHISupportsMultithreadedShaderCreation is not supported!

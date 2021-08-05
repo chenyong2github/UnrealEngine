@@ -141,7 +141,8 @@ public:
 	enum class EWaitThread
 	{
 		Render,
-		Task
+		Task,
+		TaskAlreadyWaited,
 	};
 
 	FParallelMeshDrawCommandPass()
@@ -209,6 +210,7 @@ public:
 	static bool IsOnDemandShaderCreationEnabled();
 
 	FInstanceCullingContext* GetInstanceCullingContext() { return &TaskContext.InstanceCullingContext; }
+	const FGraphEventRef& GetTaskEvent() const { return TaskEventRef; }
 
 private:
 	FPrimitiveIdVertexBufferPoolEntry PrimitiveIdVertexBufferPoolEntry;
