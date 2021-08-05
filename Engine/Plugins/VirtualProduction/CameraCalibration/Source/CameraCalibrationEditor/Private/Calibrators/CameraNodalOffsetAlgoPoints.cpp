@@ -9,18 +9,19 @@
 #include "CameraCalibrationEditorLog.h"
 #include "CameraCalibrationUtils.h"
 #include "CineCameraComponent.h"
+#include "DistortionRenderingUtils.h"
 #include "Editor.h"
 #include "GameFramework/Actor.h"
 #include "Input/Events.h"
 #include "Internationalization/Text.h"
 #include "Layout/Geometry.h"
+#include "LensDistortionModelHandlerBase.h"
 #include "LensFile.h"
 #include "Math/Vector.h"
 #include "Misc/MessageDialog.h"
 #include "PropertyCustomizationHelpers.h"
 #include "UI/SFilterableActorPicker.h"
 #include "ScopedTransaction.h"
-#include "SphericalLensDistortionModelHandler.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
@@ -640,13 +641,6 @@ bool UCameraNodalOffsetAlgoPoints::BasicCalibrationChecksPass(const TArray<TShar
 		}
 	}
 
-	// Only parameters data mode supported at the moment.
-	if (LensFile->DataMode != ELensDataMode::Parameters)
-	{
-		OutErrorMessage = LOCTEXT("OnlyParametersDataModeSupported", "Only Parameters Data Mode supported");
-		return false;
-	}
-
 	return true;
 }
 
@@ -669,20 +663,15 @@ bool UCameraNodalOffsetAlgoPoints::CalculatedOptimalCameraComponentPose(
 		return false;
 	}
 
-	const USphericalLensDistortionModelHandler* SphericalHandler = Cast<USphericalLensDistortionModelHandler>(StepsController->GetDistortionHandler());
-
-	if (!SphericalHandler)
+	const ULensDistortionModelHandlerBase* DistortionHandler = StepsController->GetDistortionHandler();
+	if (!DistortionHandler)
 	{
-		OutErrorMessage = LOCTEXT("OnlySphericalDistortionSupported", "Only spherical distortion is currently supported.");
+		OutErrorMessage = LOCTEXT("DistortionHandlerNotFound", "No distortion source found");
 		return false;
 	}
 
 	// Get parameters from the handler
-	FLensDistortionState DistortionState = SphericalHandler->GetCurrentDistortionState();
-
-	// Extract named distortion parameters
-	FSphericalDistortionParameters SphericalParameters;
-	USphericalLensModel::StaticClass()->GetDefaultObject<ULensModel>()->FromArray(DistortionState.DistortionInfo.Parameters, SphericalParameters);
+	FLensDistortionState DistortionState = DistortionHandler->GetCurrentDistortionState();
 
 #if WITH_OPENCV
 
@@ -692,6 +681,8 @@ bool UCameraNodalOffsetAlgoPoints::CalculatedOptimalCameraComponentPose(
 
 	std::vector<cv::Point3f> Points3d;
 	std::vector<cv::Point2f> Points2d;
+
+	TArray<FVector2D> ImagePoints;
 
 	for (const TSharedPtr<FCalibrationRowData>& Row : Rows)
 	{
@@ -709,10 +700,7 @@ bool UCameraNodalOffsetAlgoPoints::CalculatedOptimalCameraComponentPose(
 			Transform.GetLocation().Y,
 			Transform.GetLocation().Z));
 
-		// Image 2d points
-		Points2d.push_back(cv::Point2f(
-			Row->Point2D.X,
-			Row->Point2D.Y));
+		ImagePoints.Add(FVector2D(Row->Point2D.X, Row->Point2D.Y));
 	}
 
 	// Populate camera matrix
@@ -729,26 +717,29 @@ bool UCameraNodalOffsetAlgoPoints::CalculatedOptimalCameraComponentPose(
 	CameraMatrix.at<double>(0, 0) = DistortionState.FocalLengthInfo.FxFy.X;
 	CameraMatrix.at<double>(1, 1) = DistortionState.FocalLengthInfo.FxFy.Y;
 
-	CameraMatrix.at<double>(0, 2) = DistortionState.ImageCenter.PrincipalPoint.X;
-	CameraMatrix.at<double>(1, 2) = DistortionState.ImageCenter.PrincipalPoint.Y;
+	// The displacement map will correct for image center offset
+	CameraMatrix.at<double>(0, 2) = 0.5;
+	CameraMatrix.at<double>(1, 2) = 0.5;
 
-	// Populate distortion coefficients
-	// Note: solvePnP expects k1, k2, p1, p2, k3
+	// Manually undistort the 2D image points
+	TArray<FVector2D> UndistortedPoints;
+	UndistortedPoints.AddZeroed(ImagePoints.Num());
+	DistortionRenderingUtils::UndistortImagePoints(DistortionHandler->GetDistortionDisplacementMap(), ImagePoints, UndistortedPoints);
 
-	cv::Mat DistortionCoefficients(5, 1, cv::DataType<double>::type);
-
-	DistortionCoefficients.at<double>(0) = SphericalParameters.K1;
-	DistortionCoefficients.at<double>(1) = SphericalParameters.K2;
-	DistortionCoefficients.at<double>(2) = SphericalParameters.P1;
-	DistortionCoefficients.at<double>(3) = SphericalParameters.P2;
-	DistortionCoefficients.at<double>(4) = SphericalParameters.K3;
+	Points2d.reserve(UndistortedPoints.Num());
+	for (FVector2D Point : UndistortedPoints)
+	{
+		Points2d.push_back(cv::Point2f(
+			Point.X,
+			Point.Y));
+	}
 
 	// Solve for camera position
-
 	cv::Mat Rrod = cv::Mat::zeros(3, 1, cv::DataType<double>::type); // Rotation vector in Rodrigues notation. 3x1.
 	cv::Mat Tobj = cv::Mat::zeros(3, 1, cv::DataType<double>::type); // Translation vector. 3x1.
 
-	if (!cv::solvePnP(Points3d, Points2d, CameraMatrix, DistortionCoefficients, Rrod, Tobj))
+	// We send no distortion parameters, because Points2d was manually undistorted already
+	if (!cv::solvePnP(Points3d, Points2d, CameraMatrix, cv::noArray(), Rrod, Tobj))
 	{
 		OutErrorMessage = LOCTEXT("SolvePnpFailed", "Failed to resolve a camera position given the data in the calibration rows. Please retry the calibration.");
 		return false;
