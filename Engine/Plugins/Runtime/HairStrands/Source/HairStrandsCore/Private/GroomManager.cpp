@@ -76,7 +76,7 @@ static bool IsInstanceFrustumCullingEnable()
 bool NeedsUpdateCardsMeshTriangles();
 
 // Returns the cached geometry of the underlying geometry on which a hair instance is attached to
-static FCachedGeometry GetCacheGeometryForHair(
+FCachedGeometry GetCacheGeometryForHair(
 	FRDGBuilder& GraphBuilder, 
 	FHairGroupInstance* Instance, 
 	const FGPUSkinCache* SkinCache, 

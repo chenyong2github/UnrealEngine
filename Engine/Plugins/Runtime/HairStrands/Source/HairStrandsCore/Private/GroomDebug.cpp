@@ -767,6 +767,12 @@ static const TCHAR* ToString(EHairBindingType In)
 	return TEXT("None");
 }
 
+FCachedGeometry GetCacheGeometryForHair(
+	FRDGBuilder& GraphBuilder,
+	FHairGroupInstance* Instance,
+	const FGPUSkinCache* SkinCache,
+	FGlobalShaderMap* ShaderMap);
+
 void RunHairStrandsDebug(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -797,10 +803,11 @@ void RunHairStrandsDebug(
 			float Y = ClusterY;
 			const FLinearColor InactiveColor(0.5, 0.5, 0.5);
 			const FLinearColor DebugColor(1, 1, 0);
-			const FLinearColor DebugGroupColor(0.5f, 0, 0);
+			const FLinearColor DebugGroupColor(1, 0.5f, 0);
+			const FLinearColor DebugWarningColor(0.75f, 0, 0);
 			FString Line;
 			// Active groom
-			// Name | Group x / x | LOD x / x | GeometryType | BindingType | Sim | RBF | VertexCount
+			// Name | Group x / x | LOD x / x | GeometryType | BindingType | Sim | RBF | VertexCount | Warning
 
 			Line = FString::Printf(TEXT("----------------------------------------------------------------"));
 			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugColor);
@@ -811,6 +818,25 @@ void RunHairStrandsDebug(
 			for (FHairStrandsInstance* AbstractInstance : Instances)
 			{
 				FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
+
+				// Check if a groom request a Skinning binding for the current LOD, that the parent has its skin cache enabled
+				bool bInvaliSkinBinding = false;
+				{
+					const int32 GroomLODIndex = Instance->HairGroupPublicData->LODIndex;
+					EHairBindingType OriginalBindingType = Instance->HairGroupPublicData->GetBindingType(GroomLODIndex);
+
+					if (OriginalBindingType == EHairBindingType::Skinning)
+					{
+						bool bHasValidSkinCacheData = false;
+						FHairStrandsProjectionMeshData::LOD MeshDataLOD;
+						const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap);
+						for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
+						{
+							if (Section.LODIndex >= 0) { bHasValidSkinCacheData = true; break; }
+						}
+						bInvaliSkinBinding = !bHasValidSkinCacheData;
+					}
+				}
 
 				Line = FString::Printf(TEXT(" * Group:%d/%d | LOD:%1.2f/%d | GeometryType:%s | BindingType:%s | Sim:%d | RBF:%d | VertexCount:%d | Name: %s"),
 					Instance->Debug.GroupIndex,
@@ -825,7 +851,15 @@ void RunHairStrandsDebug(
 					Instance->Guides.bHasGlobalInterpolation,
 					Instance->HairGroupPublicData->VertexCount,
 					*Instance->Debug.GroomAssetName);
-				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugGroupColor);
+				int32 XOffset = Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), DebugGroupColor);
+
+				// Warning/error
+				if (bInvaliSkinBinding)
+				{
+					Line = FString::Printf(TEXT(" - Warning: Request SKINNING binding but skel. mesh has no Skin Cache (%s)"),						
+						*Instance->Debug.MeshComponentName);
+					Canvas.DrawShadowedString(X + XOffset, Y += YStep, *Line, GetStatsFont(), DebugWarningColor);
+				}
 			}
 
 			const bool bFlush = false;
