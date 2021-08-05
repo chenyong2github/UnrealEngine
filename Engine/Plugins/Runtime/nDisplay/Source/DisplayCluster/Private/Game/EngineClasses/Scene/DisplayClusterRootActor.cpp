@@ -135,15 +135,42 @@ void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfiguration
 	}
 }
 
-void ADisplayClusterRootActor::OverwriteFromConfig(UDisplayClusterConfigurationData* ConfigData)
+void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationData* ConfigData)
 {
-	if (ConfigData)
+	check(ConfigData);
+	check(ConfigData->Scene);
+	check(ConfigData->Cluster);
+
+	// Override base types and structures
+	CurrentConfigData->Meta = ConfigData->Meta;
+	CurrentConfigData->Info = ConfigData->Info;
+	CurrentConfigData->CustomParameters = ConfigData->CustomParameters;
+	CurrentConfigData->Diagnostics = ConfigData->Diagnostics;
+	CurrentConfigData->bFollowLocalPlayerCamera = ConfigData->bFollowLocalPlayerCamera;
+	CurrentConfigData->bExitOnEsc = ConfigData->bExitOnEsc;
+
+	// Scene UObject
+	if (ConfigData->Scene)
 	{
-		//@todo
-		// 1. overwrite required settings
-		// 2. rebuild hierarchy (in case it's changed)
-		// 3. update preview (in case it's required)
+		CurrentConfigData->Scene = DuplicateObject(ConfigData->Scene, CurrentConfigData);
 	}
+
+	// Cluster UObject
+	if (ConfigData->Cluster)
+	{
+		CurrentConfigData->Cluster = DuplicateObject(ConfigData->Cluster, CurrentConfigData);
+	}
+
+	// There is no sense to call BuildHierarchy because it works for non-BP root actors.
+	// On the other hand, OverwriteFromConfig method is called for BP root actors only by nature.
+
+	// And update preview stuff in Editor
+#if WITH_EDITOR
+	if (GIsEditor && GetWorld())
+	{
+		UpdatePreviewComponents();
+	}
+#endif
 }
 
 UDisplayClusterConfigurationViewport* ADisplayClusterRootActor::GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID)
@@ -436,16 +463,6 @@ void ADisplayClusterRootActor::InitializeRootActor()
 			UpdatePreviewComponents();
 #endif
 			return;
-		}
-		
-		IPDisplayClusterConfigManager* const ConfigMgr = (GDisplayCluster ? GDisplayCluster->GetPrivateConfigMgr() : nullptr);
-		if (ConfigMgr)
-		{
-			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
-			if (ConfigData)
-			{
-				InitializeFromConfig(ConfigData);
-			}
 		}
 	}
 #if WITH_EDITOR

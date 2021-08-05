@@ -64,7 +64,7 @@ public:
 	 *
 	 * @param ConfigData - Configuration data
 	 */
-	void OverwriteFromConfig(UDisplayClusterConfigurationData* ConfigData);
+	void OverrideFromConfig(UDisplayClusterConfigurationData* ConfigData);
 
 	/**
 	 * Update or create the config data object. The config sub object is only instantiated once.

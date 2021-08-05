@@ -71,8 +71,7 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 {
 	FScopeLock Lock(&InternalsSyncScope);
 
-	check(InWorld);
-	check(ConfigData);
+	check(InWorld && ConfigData);
 
 	CurrentWorld = InWorld;
 
@@ -84,7 +83,7 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 		// If a corresponding DCRA instance was found, overwrite its settings
 		if (RootActor)
 		{
-			RootActor->OverwriteFromConfig(ConfigData);
+			RootActor->OverrideFromConfig(ConfigData);
 		}
 		// If no proper DCRA found,
 		// 1. Detect spawn location and rotation
@@ -104,7 +103,7 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 				StartRotation = (*It)->GetActorRotation();
 			}
 
-			// 2. Spawn the DCRA PB from a corresponding asset
+			// 2. Spawn the DCRA BP from a corresponding asset
 			UObject* ActorToSpawn = Cast<UObject>(StaticLoadObject(UObject::StaticClass(), NULL, *ConfigData->Info.AssetPath));
 			if (ActorToSpawn)
 			{
@@ -112,8 +111,12 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 				UClass* ClassToSpawn = ActorToSpawn->StaticClass();
 				if (ClassToSpawn && GeneratedBP)
 				{
+					// Spawn an asset
 					AActor* NewActor = CurrentWorld->SpawnActor<AActor>(GeneratedBP->GeneratedClass, StartLocation, StartRotation, FActorSpawnParameters());
 					RootActor = Cast<ADisplayClusterRootActor>(NewActor);
+
+					// Override actor settings in case the config file contains some updates
+					RootActor->OverrideFromConfig(ConfigData);
 				}
 			}
 
