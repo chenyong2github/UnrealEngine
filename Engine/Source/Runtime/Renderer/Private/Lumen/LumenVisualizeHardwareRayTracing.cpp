@@ -651,7 +651,7 @@ void VisualizeHardwareRayTracing(
 			RDG_EVENT_NAME("VisualizeHardwareRayTracing %ux%u", DispatchResolution.X, DispatchResolution.Y),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, DeferredMaterialBufferResolution](FRHIRayTracingCommandList& RHICmdList)
+			[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
@@ -934,7 +934,7 @@ void VisualizeHardwareRayTracing(
 			RDG_EVENT_NAME("VisualizeHardwareRayTracing[retrace for far-field] %ux%u", DispatchResolution.X, DispatchResolution.Y),
 			PassParameters,
 			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, DispatchResolution, PermutationSettings](FRHIRayTracingCommandList& RHICmdList)
+			[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
