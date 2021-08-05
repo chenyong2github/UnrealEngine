@@ -31,6 +31,7 @@ enum class ERigVMControllerBulkEditType : uint8
     RemoveVariable,
 	RenameVariable,
     ChangeVariableType,
+	RemoveFunction,
     Max UMETA(Hidden),
 };
 

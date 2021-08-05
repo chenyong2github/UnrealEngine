@@ -4335,7 +4335,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 								TSoftObjectPtr<URigVMLibraryNode>());
 
 							FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
-							RepopulatePinsOnNode(FunctionReferencePtr.Get(), false, true);
+							RemoveNode(FunctionReferencePtr.Get());
 						}
 						FunctionReferencePtr->ReferencedNodePtr.ResetWeakPtr();
 					}
