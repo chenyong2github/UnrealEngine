@@ -139,6 +139,8 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 	UMaterialFunctionInstance* FunctionInstance = Cast<UMaterialFunctionInstance>(Function);
 	if (FunctionInstance)
 	{
+		// If a material has function instances, it also needs to use material layer code paths
+		bHasMaterialLayers = true;
 		for (const FScalarParameterValue& Param : FunctionInstance->ScalarParameterValues)
 		{
 			const FMaterialParameterInfo ParameterInfo(Param.ParameterInfo.Name, Association, ParameterIndex);
@@ -275,6 +277,11 @@ bool FMaterialCachedExpressionData::UpdateForLayerFunctions(const FMaterialCache
 		{
 			bResult = false;
 		}
+	}
+
+	if (LayerFunctions.Layers.Num() > 0 || LayerFunctions.Blends.Num() > 0)
+	{
+		bHasMaterialLayers = true;
 	}
 
 	return bResult;

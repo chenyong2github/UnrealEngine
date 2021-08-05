@@ -110,12 +110,10 @@ static void GetVectorParameter(const FUniformExpressionSet& UniformExpressionSet
 	bool bNeedsDefaultValue = false;
 	if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetVectorValue(Parameter.ParameterInfo, &ParameterValue, Context))
 	{
-		const bool bOveriddenParameterOnly = Parameter.ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter;
-
 		if (Context.Material.HasMaterialLayers())
 		{
 			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetVectorParameterDefaultValue(Parameter.ParameterInfo, ParameterValue, bOveriddenParameterOnly))
+			if (!Interface || !Interface->GetVectorParameterDefaultValue(Parameter.ParameterInfo, ParameterValue))
 			{
 				bNeedsDefaultValue = true;
 			}
@@ -147,12 +145,10 @@ static void GetScalarParameter(const FUniformExpressionSet& UniformExpressionSet
 	bool bNeedsDefaultValue = false;
 	if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetScalarValue(Parameter.ParameterInfo, &ParameterValue, Context))
 	{
-		const bool bOveriddenParameterOnly = Parameter.ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter;
-
 		if (Context.Material.HasMaterialLayers())
 		{
 			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetScalarParameterDefaultValue(Parameter.ParameterInfo, ParameterValue, bOveriddenParameterOnly))
+			if (!Interface || !Interface->GetScalarParameterDefaultValue(Parameter.ParameterInfo, ParameterValue))
 			{
 				bNeedsDefaultValue = true;
 			}

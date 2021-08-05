@@ -232,6 +232,7 @@ struct FMaterialCachedExpressionData
 		, bHasPerInstanceCustomData(false)
 		, bHasPerInstanceRandom(false)
 		, bHasVertexInterpolator(false)
+		, bHasMaterialLayers(false)
 	{}
 
 #if WITH_EDITOR
@@ -299,6 +300,9 @@ struct FMaterialCachedExpressionData
 
 	UPROPERTY()
 	uint32 bHasVertexInterpolator : 1;
+
+	UPROPERTY()
+	uint32 bHasMaterialLayers : 1;
 
 	/** Each bit corresponds to EMaterialProperty connection status. */
 	UPROPERTY()

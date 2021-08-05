@@ -1718,7 +1718,7 @@ bool FMaterialResource::HasRuntimeVirtualTextureOutput() const
 
 bool FMaterialResource::HasMaterialLayers() const
 {
-	return Material->GetCachedExpressionData().DefaultLayers.Num() > 0;
+	return Material->GetCachedExpressionData().bHasMaterialLayers;
 }
 
 bool FMaterialResource::CastsRayTracedShadows() const
