@@ -3,7 +3,9 @@
 #pragma once
 
 #include "ZenServerInterface.h"
+
 #include "Containers/StaticArray.h"
+#include "Containers/UnrealString.h"
 
 class FCompositeBuffer;
 class FCbPackage;
