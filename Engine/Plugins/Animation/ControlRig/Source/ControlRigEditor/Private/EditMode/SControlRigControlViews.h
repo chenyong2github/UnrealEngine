@@ -74,7 +74,8 @@ private:
 	TSharedRef<SWidget> GetThumbnailWidget();
 
 	TWeakObjectPtr<UControlRigPoseAsset> PoseAsset;
-	
+	TWeakObjectPtr<UControlRig> CurrentControlRig;
+
 	TSharedPtr<STextBlock> TextStatusBlock1;
 	TSharedPtr<STextBlock> TextStatusBlock2;
 

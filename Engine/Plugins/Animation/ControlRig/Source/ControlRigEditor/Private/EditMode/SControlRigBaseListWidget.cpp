@@ -39,6 +39,10 @@
 #include "SControlRigUpdatePose.h"
 #include "SControlRigRenamePoseControls.h"
 #include "Dialogs/Dialogs.h"
+#include "ControlRigSequencerEditorLibrary.h"
+#include "LevelSequence.h"
+#include "LevelSequenceEditorBlueprintLibrary.h"
+
 
 #define LOCTEXT_NAMESPACE "ControlRigBaseListWidget"
 
@@ -1319,6 +1323,22 @@ void SControlRigBaseListWidget::ExecuteSelectControls(UControlRigPoseAsset* Pose
 		const FScopedTransaction Transaction(LOCTEXT("SelectControls", "Select Controls"));
 		ControlRigEditMode->GetControlRig(true)->Modify();
 		PoseAsset->SelectControls(ControlRigEditMode->GetControlRig(true));
+	}
+	else
+	{
+		ULevelSequence *LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+		if (LevelSequence)
+		{
+			TArray<FControlRigSequencerBindingProxy> Proxies = UControlRigSequencerEditorLibrary::GetControlRigs(LevelSequence);
+			if (Proxies.Num() > 0)
+			{
+				//MZ TODO when we have Mutliple Control Rig's active select more than one.
+				if (Proxies[0].ControlRig)
+				{
+					PoseAsset->SelectControls(Proxies[0].ControlRig);
+				}
+			}
+		}
 	}
 }
 

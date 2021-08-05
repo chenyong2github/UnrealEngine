@@ -455,6 +455,13 @@ SControlRigPoseView::~SControlRigPoseView()
 			EditMode->GetControlRig(true)->ControlSelected().RemoveAll(this);
 		}
 	}
+	else
+	{
+		if (CurrentControlRig.IsValid())
+		{
+			(CurrentControlRig.Get())->ControlSelected().RemoveAll(this);
+		}
+	}
 }
 
 void SControlRigPoseView::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
@@ -613,11 +620,21 @@ TSharedRef<SWidget> SControlRigPoseView::GetThumbnailWidget()
 
 UControlRig* SControlRigPoseView::GetControlRig()
 {
+	UControlRig* NewControlRig = nullptr;
 	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 	{
-		return EditMode->GetControlRig(true);
+		NewControlRig =  EditMode->GetControlRig(true);
 	}
-	return nullptr;
+	if (NewControlRig != CurrentControlRig)
+	{
+		if (CurrentControlRig.IsValid())
+		{
+			(CurrentControlRig.Get())->ControlSelected().RemoveAll(this);
+
+		}
+	}
+	CurrentControlRig = NewControlRig;
+	return NewControlRig;
 }
 
 /* We may want to list the Controls in it (design said no but animators said yes)
@@ -641,6 +658,7 @@ void SControlRigPoseView::HandleControlAdded(UControlRig* ControlRig, bool bIsAd
 		{
 			(ControlRig)->ControlSelected().RemoveAll(this);
 			(ControlRig)->ControlSelected().AddRaw(this, &SControlRigPoseView::HandleControlSelected);
+			CurrentControlRig = ControlRig;
 		}
 		else
 		{
