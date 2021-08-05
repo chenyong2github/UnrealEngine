@@ -251,6 +251,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 BEGIN_SHADER_PARAMETER_STRUCT(FSkeletalMeshReadDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, NumVertices)
 	SHADER_PARAMETER(uint32, NumTriangles)
+	SHADER_PARAMETER(uint32, NumBoneInfluences)
 	SHADER_PARAMETER(uint32, NumTexCoords)
 	SHADER_PARAMETER(uint32, IndexBufferStart)
 	SHADER_PARAMETER(uint32, InputStreamStart)
@@ -356,7 +357,7 @@ void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHA
 
 	FSkinWeightVertexBuffer const* WeightBuffer = LodRenderData->GetSkinWeightVertexBuffer();
 	FRHIShaderResourceView* SkinWeightBufferSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
-	const bool bUnlimitedBoneInfluences = FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences();
+	const bool bUnlimitedBoneInfluences = WeightBuffer->GetBoneInfluenceType() == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence;
 	FRHIShaderResourceView* InputWeightLookupStreamSRV = bUnlimitedBoneInfluences ? WeightBuffer->GetLookupVertexBuffer()->GetSRV() : nullptr;
 		
 	const TArray<FMatrix44f>& RefToLocals = SkeletalMeshObject->GetReferenceToLocalMatrices();
@@ -367,6 +368,7 @@ void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHA
 
 	Parameters.NumVertices = RenderSection.NumVertices;
 	Parameters.NumTriangles = RenderSection.NumTriangles;
+	Parameters.NumBoneInfluences = WeightBuffer->GetMaxBoneInfluences();
 	Parameters.NumTexCoords = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 	Parameters.IndexBufferStart = RenderSection.BaseIndex;
 	Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
