@@ -1093,7 +1093,7 @@ namespace UnrealBuildTool
 										{
 											continue;
 										}
-										else if (Compiler == WindowsCompiler.VisualStudio2019 && Version < Version2019)
+										else if (Compiler == WindowsCompiler.VisualStudio2019 && (Version < Version2019 || Version >= Version2022))
 										{
 											continue;
 										}
@@ -1164,6 +1164,12 @@ namespace UnrealBuildTool
 
 						// Check for installations bundled with Visual Studio 2019
 						foreach (VisualStudioInstallation Installation in FindVisualStudioInstallations(WindowsCompiler.VisualStudio2019))
+						{
+							AddClangToolChain(DirectoryReference.Combine(Installation.BaseDir, "VC", "Tools", "Llvm"), ToolChains);
+						}
+
+						// Check for installations bundled with Visual Studio 2022
+						foreach (VisualStudioInstallation Installation in FindVisualStudioInstallations(WindowsCompiler.VisualStudio2022))
 						{
 							AddClangToolChain(DirectoryReference.Combine(Installation.BaseDir, "VC", "Tools", "Llvm"), ToolChains);
 						}
