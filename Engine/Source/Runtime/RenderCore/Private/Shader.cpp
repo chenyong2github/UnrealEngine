@@ -1531,20 +1531,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 
 		{
-			static FShaderPlatformCachedIniValue<int32> MobilePropagateAlphaIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.PropagateAlpha"));
-			int MobilePropagateAlphaIniValueInt = MobilePropagateAlphaIniValue.Get((EShaderPlatform)Platform);
-
-			if (MobilePropagateAlphaIniValueInt == 1)
-			{
-				KeyString += TEXT("_MbPropA");
-			}
-			else if (MobilePropagateAlphaIniValueInt == 2)
-			{
-				KeyString += TEXT("_MbPrePropA");
-			}
-		}
-
-		{
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.ShadingPath"));
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_MobDSh") : TEXT("");
 		}
@@ -1675,10 +1661,25 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
-		if (CVar && CVar->GetValueOnAnyThread() > 0)
+		int PropagateAlphaType = 0;
+		if (IsMobilePlatform(Platform))
 		{
-			if (CVar->GetValueOnAnyThread() == 2)
+			static FShaderPlatformCachedIniValue<int32> MobilePropagateAlphaIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.PropagateAlpha"));
+			int MobilePropagateAlphaIniValueInt = MobilePropagateAlphaIniValue.Get((EShaderPlatform)Platform);
+			PropagateAlphaType = MobilePropagateAlphaIniValueInt > 0 ? 2 : 0;
+		}
+		else
+		{
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
+			if (CVar)
+			{
+				PropagateAlphaType = CVar->GetValueOnAnyThread();
+			}
+		}
+
+		if (PropagateAlphaType > 0)
+		{
+			if (PropagateAlphaType == 2)
 			{
 				KeyString += TEXT("_SA2");
 			}
