@@ -138,7 +138,7 @@ struct FTextureSource
 		const FTextureSourceBlock* InBlocks,
 		int32 InNumLayers,
 		int32 InNumBlocks,
-		FSharedBuffer NewData);
+		UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData);
 
 	ENGINE_API void InitLayered(
 		int32 NewSizeX,
@@ -157,7 +157,7 @@ struct FTextureSource
 		int32 NewNumLayers,
 		int32 NewNumMips,
 		const ETextureSourceFormat* NewLayerFormat,
-		FSharedBuffer NewData
+		UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData
 	);
 
 	/**
@@ -193,7 +193,7 @@ struct FTextureSource
 		int32 NewNumSlices,
 		int32 NewNumMips,
 		ETextureSourceFormat NewFormat,
-		FSharedBuffer NewData
+		UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData
 	);
 
 	/**

@@ -1099,7 +1099,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	const FTextureSourceBlock* InBlocks,
 	int32 InNumLayers,
 	int32 InNumBlocks,
-	FSharedBuffer NewData)
+	UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData)
 {
 	InitBlockedImpl(InLayerFormats, InBlocks, InNumLayers, InNumBlocks);
 
@@ -1150,7 +1150,7 @@ void FTextureSource::InitLayered(
 	int32 NewNumLayers,
 	int32 NewNumMips,
 	const ETextureSourceFormat* NewLayerFormat,
-	FSharedBuffer NewData)
+	UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData)
 {
 	InitLayeredImpl(
 		NewSizeX,
@@ -1182,10 +1182,10 @@ void FTextureSource::Init(
 	int32 NewNumSlices,
 	int32 NewNumMips,
 	ETextureSourceFormat NewFormat,
-	FSharedBuffer NewData
+	UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID NewData
 )
 {
-	InitLayered(NewSizeX, NewSizeY, NewNumSlices, 1, NewNumMips, &NewFormat, NewData);
+	InitLayered(NewSizeX, NewSizeY, NewNumSlices, 1, NewNumMips, &NewFormat, MoveTemp(NewData));
 }
 
 void FTextureSource::Init2DWithMipChain(

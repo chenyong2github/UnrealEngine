@@ -12,6 +12,7 @@
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "Virtualization/VirtualizedBulkData.h"
 
 #include "InterchangeTextureFactory.generated.h"
 
@@ -22,6 +23,21 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		, TOptional<FImportBlockedImage>
 		, TOptional<FImportSlicedImage>
 		, TOptional<FImportLightProfile>>;
+
+	struct FProcessedPayload
+	{
+		FProcessedPayload() = default;
+		FProcessedPayload(FProcessedPayload&&) = default;
+		FProcessedPayload& operator=(FProcessedPayload&&) = default;
+
+		FProcessedPayload(const FProcessedPayload&) = delete;
+		FProcessedPayload& operator=(const FProcessedPayload&) = delete;
+
+		FProcessedPayload& operator=(UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant&& InPayloadVariant);
+
+		UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant SettingsFromPayload;
+		UE::Virtualization::FVirtualizedUntypedBulkData::FSharedBufferWithID PayloadAndId;
+	};
 }
 
 UCLASS(BlueprintType)
@@ -41,7 +57,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 private:
-	UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant TexturePayload;
+	UE::Interchange::Private::InterchangeTextureFactory::FProcessedPayload ProcessedPayload;
 };
 
 

@@ -140,6 +140,50 @@ public:
 	 */
 	void UpdatePayload(FSharedBuffer InPayload, FName CompressionFormat = NAME_Default);
 
+	/**
+	 * Utility struct used to compute the Payload ID before calling UpdatePayload
+	 */
+	struct COREUOBJECT_API FSharedBufferWithID
+	{
+		FSharedBufferWithID(FSharedBuffer InPayload);
+
+		FSharedBufferWithID() = default;
+		FSharedBufferWithID(FSharedBufferWithID&&) = default;
+		FSharedBufferWithID& operator=(FSharedBufferWithID&&) = default;
+
+		FSharedBufferWithID(const FSharedBufferWithID&) = delete;
+		FSharedBufferWithID& operator=(const FSharedBufferWithID&) = delete;
+
+	private:
+		friend FVirtualizedUntypedBulkData;
+
+		FSharedBuffer Payload;
+		FPayloadId PayloadId;
+	};
+
+	/**
+	 * Allows the existing payload to be replaced with a new one.
+	 *
+	 * 
+	 * To pass in a raw pointer use 'FSharedBuffer::...(Data, Size)' to create a valid FSharedBuffer.
+	 * Use 'FSharedBuffer::MakeView' if you want to retain ownership on the data being passed in, and use
+	 * 'FSharedBuffer::TakeOwnership' if you are okay with the bulkdata object taking over ownership of it.
+	 * The bulkdata object must own its internal buffer, so if you pass in a non-owned FSharedBuffer (ie
+	 * by using 'FSharedBuffer::MakeView') then a clone of the data will be created internally and assigned
+	 * to the bulkdata object.
+	 * 
+	 * Use this override if you want compute PayloadId before updating the bulkdata
+	 *
+	 * @param InPayload				The payload to update the bulkdata with
+	 * @param InCompressionFormat	The compression format to use, NAME_None indicates that the
+	 *								payload is already in a compressed format and will not gain from being 
+	 *								compressed again. These payloads will never be compressed. NAME_Default 
+	 *								will apply whichever compression format that the underlying code deems 
+	 *								appropriate. Other specific compression formats may be allowed, see the 
+	 *								documentation of FCompressedBuffer for details.
+	 */
+	void UpdatePayload(FSharedBufferWithID InPayload, FName CompressionFormat = NAME_Default);
+
 	/** 
 	 * Allows the compression format to be specified that will be applied the next time that the bulkdata
 	 * is saved. For non-virtualized payloads this will occur when the package is next saved. For 
@@ -234,6 +278,8 @@ private:
 	};
 
 	FRIEND_ENUM_CLASS_FLAGS(EFlags);
+
+	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID, FName CompressionFormat = NAME_Default);
 
 	FCompressedBuffer GetDataInternal() const;
 
