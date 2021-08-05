@@ -656,6 +656,44 @@ class DevicenDisplay(DeviceUnreal):
         raise ValueError('Invalid nDisplay config .uasset')
 
     @classmethod
+    def apply_local_overrides_to_config(cls, cfg_content, cfg_ext):
+        ''' Applies supported local settings overrides to configuration '''
+
+        if cfg_ext.lower() != '.ndisplay':
+            return cfg_content
+
+        data = json.loads(cfg_content)
+
+        nodes = data['nDisplay']['cluster']['nodes']
+
+        activenodes = {}
+
+        devices = [dev for dev in cls.active_unreal_devices if dev.device_type == 'nDisplay']
+
+        for device in devices:
+
+            # We exclude devices by disconnecting from them
+            if device.is_disconnected:
+                continue
+
+            # Match local node with config by name
+            node = nodes.get(device.name, None)
+
+            # No name match, no node. Renaming nodes in Switchboard is not currently supported.
+            if node is None:
+                continue
+
+            # override ip address
+            node['host'] = device.ip_address
+
+            # add to active nodes
+            activenodes[device.name] = node
+
+        data['nDisplay']['cluster']['nodes'] = activenodes
+
+        return json.dumps(data)
+
+    @classmethod
     def parse_config_uasset(cls, cfg_file):
         ''' Parses nDisplay config file of type uasset '''
         jsstr = cls.extract_configexport_from_uasset(cfg_file)
@@ -780,6 +818,14 @@ class DevicenDisplay(DeviceUnreal):
         else:
             with open(cfg_file, 'rb') as f:
                 cfg_content = f.read()
+
+        # Apply local overrides to configuration (e.g. ip addresses)
+        try:
+            cfg_content = self.__class__.apply_local_overrides_to_config(cfg_content, cfg_ext).encode('utf-8')
+        except:
+            LOGGER.error(f'Could not parse config data when trying to override with local settings')
+            self.widget._close()
+            return            
 
         cfg_destination = f"%TEMP%/ndisplay/%RANDOM%{cfg_ext}"
 
