@@ -840,6 +840,8 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** Allocate and setup the Chaos vehicle */
 	virtual void SetupVehicle(TUniquePtr<Chaos::FSimpleWheeledVehicle>& PVehicle) override;
 
+	virtual void ResetVehicleState() override;
+
 protected:
 
 	//////////////////////////////////////////////////////////////////////////
@@ -902,13 +904,22 @@ protected:
 	void DrawDial(UCanvas* Canvas, FVector2D Pos, float Radius, float CurrentValue, float MaxValue);
 #endif
 
+	struct FCachedState
+	{
+		FCachedState() : WheelOffset(0.f), bIsValid(false)
+		{ }
+
+		float WheelOffset;
+		bool bIsValid;
+	};
+
 	static EDebugPages DebugPage;
 	uint32 NumDrivenWheels; /** The number of wheels that have engine enabled checked */
 	FVector2D WheelTrackDimensions;	// Wheelbase (X) and track (Y) dimensions
 	TMap<UChaosVehicleWheel*, TArray<int>> AxleToWheelMap;
 	TArray<FPhysicsConstraintHandle> ConstraintHandles;
 	TArray<FWheelStatus> WheelStatus; /** Wheel output status */
-
+	TArray<FCachedState> CachedState;
 	Chaos::FPerformanceMeasure PerformanceMeasure;
 };
 
