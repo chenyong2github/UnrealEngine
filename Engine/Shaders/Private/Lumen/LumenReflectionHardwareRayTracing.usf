@@ -104,36 +104,36 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 		}
 	}
 
-	bool bHit = false;
-	float3 Radiance = 0;
+	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
 	if (bTraceRay)
 	{
 		bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 		if (bUseMinimalPayload)
 		{
-			bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, TraceHitDistance, Radiance);
+
+			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 		}
 		else
 		{
-			bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, TraceHitDistance, Radiance);
+			Result = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
 		}
 	}
 
-	if (!bHit)
+	if (!Result.bIsHit)
 	{
 		FConeTraceResult TraceResult;
-		TraceResult.Lighting = Radiance;
+		TraceResult.Lighting = Result.Radiance;
 		TraceResult.Transparency = 1;
 
 		EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
 
-		Radiance = TraceResult.Lighting;
-		TraceHitDistance = MaxTraceDistance;
+		Result.Radiance = TraceResult.Lighting;
+		Result.TraceHitDistance = MaxTraceDistance;
 	}
 
-	Radiance *= View.PreExposure;
-	RWTraceRadiance[ReflectionTracingCoord] = Radiance;
-	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(TraceHitDistance, bHit);
+	Result.Radiance *= View.PreExposure;
+	RWTraceRadiance[ReflectionTracingCoord] = Result.Radiance;
+	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(Result.TraceHitDistance, Result.bIsHit);
 }
 
 RWStructuredBuffer<FDeferredMaterialPayload> RWDeferredMaterialBuffer;

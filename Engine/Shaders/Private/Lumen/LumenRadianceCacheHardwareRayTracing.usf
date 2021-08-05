@@ -83,19 +83,21 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 			float3 SampleRadiance = 0.0;
 			float SampleHitDistance = MaxHalfFloat;
 
-			bool bIsHit = false;
+			FRayTracedLightingResult Result;
 			bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE);
 			if (bUseMinimalPayload)
 			{
-				bIsHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, SampleHitDistance, SampleRadiance);
+				Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 			}
 			else
 			{
-				bIsHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, SampleHitDistance, SampleRadiance);
+				Result = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
 			}
+			SampleHitDistance = Result.TraceHitDistance;
+			SampleRadiance = Result.Radiance;
 
 			// Apply environment contribution on miss
-			if (!bIsHit)
+			if (!Result.bIsHit)
 			{
 				FConeTraceResult TraceResult = (FConeTraceResult)0;
 				TraceResult.Transparency = 1;

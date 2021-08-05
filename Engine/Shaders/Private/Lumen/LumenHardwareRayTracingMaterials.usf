@@ -19,7 +19,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(LumenHardwareRayTracingMaterialCHS,
 	const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
 	Payload.SetInstanceIndex(PrimitiveInstanceIndex);
 
-	uint bIsTranslucent = GetHitGroupUserData() & 0x1;
+	uint MaterialShaderIndex = GetHitGroupUserData() & 0x7FFFFFFF;
+	Payload.SetMaterialShaderIndex(MaterialShaderIndex);
+
+	uint bIsTranslucent = (GetHitGroupUserData() >> 31) & 0x1;
 	Payload.SetIsTranslucent(bIsTranslucent);
 
 	float3 WorldNormal = ComputeWorldNormal(PrimitiveIndex());

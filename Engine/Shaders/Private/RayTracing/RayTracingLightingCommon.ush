@@ -15,6 +15,10 @@
 #include "RayTracingSkyLightEvaluation.ush"
 #include "RayTracingLightCullingCommon.ush"
 
+#ifndef ENABLE_FAR_FIELD_TRACING
+#define ENABLE_FAR_FIELD_TRACING 0
+#endif // ENABLE_FAR_FIELD_TRACING
+
 // Light types: should match SceneTypes.h until there is a common header
 #define LIGHT_TYPE_DIRECTIONAL		0 
 #define LIGHT_TYPE_POINT			1 
@@ -476,9 +480,21 @@ float3 ComputeDirectLighting(
 		// Since closest hit execution is disabled using a ray flag, it is safe to pack custom data here.
 		Payload.HitT = asfloat(LightIndex);
 
+		bool bMissFarField = true;
+#if ENABLE_FAR_FIELD_TRACING
+		{
+			FDefaultPayload DefaultPayload = (FDefaultPayload)0;
+			TraceRay(TLAS, RayFlags, RAY_TRACING_MASK_FAR_FIELD, RAY_TRACING_SHADER_SLOT_SHADOW, RAY_TRACING_NUM_SHADER_SLOTS, RAY_TRACING_MISS_SHADER_SLOT_DEFAULT, ShadowRay, DefaultPayload);
+			bMissFarField = DefaultPayload.IsMiss();
+		}
+#endif // ENABLE_FAR_FIELD_TRACING
+
 		// use the bound miss shader lighting evaluation if lighting, else nothing
-		uint MissShaderIndex = Lit ? RAY_TRACING_MISS_SHADER_SLOT_LIGHTING : RAY_TRACING_MISS_SHADER_SLOT_DEFAULT;
-		TraceShadowRayMissShaderLighting(ShadowRay, RayFlags, InstanceInclusionMask, TLAS, MissShaderIndex, PixelCoord, Payload);
+		if (bMissFarField)
+		{
+			uint MissShaderIndex = Lit ? RAY_TRACING_MISS_SHADER_SLOT_LIGHTING : RAY_TRACING_MISS_SHADER_SLOT_DEFAULT;
+			TraceShadowRayMissShaderLighting(ShadowRay, RayFlags, InstanceInclusionMask, TLAS, MissShaderIndex, PixelCoord, Payload);
+		}
 	}
 
 	DirectLighting = Payload.GetRadiance();

@@ -10,56 +10,464 @@
 
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
-#include "LumenReflectionCommon.ush"
-#include "LumenHardwareRayTracingCommon.ush"
 
-#ifndef DIM_DEFERRED_MATERIAL_MODE
-#define DIM_DEFERRED_MATERIAL_MODE 0
-#endif 
+#ifndef THREADGROUP_SIZE_2D
+#define THREADGROUP_SIZE_2D 8
+#endif
+
+#ifndef THREADGROUP_SIZE_1D
+#define THREADGROUP_SIZE_1D THREADGROUP_SIZE_2D * THREADGROUP_SIZE_2D
+#endif
+
+struct FTileData
+{
+	uint2 TileCoord;
+};
+
+FTileData CreateTileData(uint2 TileCoord)
+{
+	FTileData TileData;
+	TileData.TileCoord = TileCoord;
+
+	return TileData;
+}
+
+struct FTileDataPacked
+{
+	uint PackedData;
+};
+
+FTileDataPacked PackTileData(FTileData TileData)
+{
+	FTileDataPacked TileDataPacked;
+	TileDataPacked.PackedData = ((TileData.TileCoord.y & 0xFFFF) << 16) | (TileData.TileCoord.x & 0xFFFF);
+
+	return TileDataPacked;
+}
+
+FTileData UnpackTileData(FTileDataPacked TileDataPacked)
+{
+	FTileData TileData;
+	TileData.TileCoord.x = TileDataPacked.PackedData & 0xFFFF;
+	TileData.TileCoord.y = (TileDataPacked.PackedData >> 16) & 0xFFFF;
+
+	return TileData;
+}
+
+RWBuffer<uint> RWTileAllocator;
+RWStructuredBuffer<FTileDataPacked> RWTileDataPacked;
+
+groupshared uint SharedTileNeedsTracing;
+
+[numthreads(THREADGROUP_SIZE_2D, THREADGROUP_SIZE_2D, 1)]
+void FLumenVisualizeCreateTilesCS(
+	uint2 GroupId : SV_GroupID,
+	uint2 GroupThreadId : SV_GroupThreadID,
+	uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	SharedTileNeedsTracing = 0;
+	GroupMemoryBarrierWithGroupSync();
+
+	uint2 TraceCoord = DispatchThreadId;
+	uint2 ScreenCoord = TraceCoord + View.ViewRectMin.xy;
+	if (all(ScreenCoord < (uint2)View.ViewSizeAndInvSize.xy))
+	{
+		// TODO: hi-Z culling based on MaxTraceDistance
+		{
+			SharedTileNeedsTracing = 1;
+		}
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId.x == 0 && GroupThreadId.y == 0 && SharedTileNeedsTracing > 0)
+	{
+		uint TileOffset;
+		InterlockedAdd(RWTileAllocator[0], 1, TileOffset);
+
+		FTileData TileData = CreateTileData(GroupId);
+		FTileDataPacked TileDataPacked = PackTileData(TileData);
+		RWTileDataPacked[TileOffset] = TileDataPacked;
+	}
+}
+
+struct FRayData
+{
+	uint2 TraceCoord;
+};
+
+FRayData CreateRayData(uint2 TraceCoord)
+{
+	FRayData RayData;
+	RayData.TraceCoord = TraceCoord;
+
+	return RayData;
+}
+
+struct FRayDataPacked
+{
+	uint PackedData;
+};
+
+FRayDataPacked PackRayData(FRayData RayData)
+{
+	FRayDataPacked RayDataPacked;
+	RayDataPacked.PackedData = (RayData.TraceCoord.x & 0xFFFF) |
+		((RayData.TraceCoord.y & 0xFFFF) << 16);
+
+	return RayDataPacked;
+}
+
+FRayData UnpackRayData(FRayDataPacked RayDataPacked)
+{
+	FRayData RayData;
+	RayData.TraceCoord.x = RayDataPacked.PackedData & 0xFFFF;
+	RayData.TraceCoord.y = (RayDataPacked.PackedData >> 16) & 0xFFFF;
+
+	return RayData;
+}
+
+float3 CreateRayDirection(float2 UV)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+
+	float4 A = mul(float4(ScreenPosition, 1, 1), View.ClipToTranslatedWorld); // near 
+	float4 B = mul(float4(ScreenPosition, 0, 1), View.ClipToTranslatedWorld); // far
+	float3 RayDirection = normalize(A.w * B.xyz - B.w * A.xyz);
+	return RayDirection;
+}
+
+StructuredBuffer<FTileDataPacked> TileDataPacked;
+float MaxTraceDistance;
+
+RWBuffer<uint> RWRayAllocator;
+RWStructuredBuffer<FRayDataPacked> RWRayDataPacked;
+
+groupshared uint SharedGroupOffset;
+groupshared uint SharedRayAllocator;
+groupshared FRayDataPacked SharedRayDataPacked[THREADGROUP_SIZE_1D];
+
+[numthreads(THREADGROUP_SIZE_1D, 1, 1)]
+void FLumenVisualizeCreateRaysCS(
+	uint GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID,
+	uint DispatchThreadId : SV_DispatchThreadID)
+{
+	SharedRayAllocator = 0;
+	GroupMemoryBarrierWithGroupSync();
+
+	uint2 ThreadIndex = uint2(GroupThreadId % THREADGROUP_SIZE_2D, GroupThreadId / THREADGROUP_SIZE_2D);
+	FTileData TileData = UnpackTileData(TileDataPacked[GroupId]);
+	uint2 TraceCoord = TileData.TileCoord * THREADGROUP_SIZE_2D + ThreadIndex;
+	uint2 ScreenCoord = TraceCoord + View.ViewRectMin.xy;
+	if (all(ScreenCoord < View.BufferSizeAndInvSize.xy))
+	{
+		float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScreenCoord, 0)).x);
+		bool bIsRayValid = SceneDepth < MaxTraceDistance;
+		if (bIsRayValid)
+		{
+			uint ThreadOffset;
+			InterlockedAdd(SharedRayAllocator, 1, ThreadOffset);
+
+			SharedRayDataPacked[ThreadOffset] = PackRayData(CreateRayData(TraceCoord));
+		}
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId == 0)
+	{
+		InterlockedAdd(RWRayAllocator[0], SharedRayAllocator, SharedGroupOffset);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId < SharedRayAllocator)
+	{
+		FRayDataPacked RayDataPacked = SharedRayDataPacked[GroupThreadId];
+		RWRayDataPacked[SharedGroupOffset + GroupThreadId] = RayDataPacked;
+	}
+}
+
+RWTexture2D<float3> RWRadiance;
+
+[numthreads(THREADGROUP_SIZE_2D, THREADGROUP_SIZE_2D, 1)]
+void FLumenVisualizeApplySkylightCS(
+	uint2 DispatchThreadId : SV_DispatchThreadID
+)
+{
+	uint2 ScreenCoord = DispatchThreadId.xy + View.ViewRectMin.xy;
+	float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScreenCoord, 0)).x);
+
+	bool bIsRayValid = SceneDepth < MaxTraceDistance;
+	if (!bIsRayValid)
+	{
+		float2 ScreenUV = (ScreenCoord + 0.5) * View.BufferSizeAndInvSize.zw;
+		float3 RayDirection = CreateRayDirection(ScreenUV);
+
+		FConeTraceResult TraceResult = (FConeTraceResult)0;
+		if (VisualizeMode == 0)
+		{
+			TraceResult.Transparency = 1;
+			EvaluateSkyRadianceForCone(RayDirection, 0.0f, TraceResult);
+		}
+
+		RWRadiance[ScreenCoord] = TraceResult.Lighting * View.PreExposure;
+	}
+}
+
+Buffer<uint> RayAllocator;
+RWBuffer<uint> RWCompactRaysIndirectArgs;
+
+[numthreads(1, 1, 1)]
+void FLumenVisualizeCompactRaysIndirectArgsCS()
+{
+	RWCompactRaysIndirectArgs[0] = (RayAllocator[0] + THREADGROUP_SIZE_1D - 1) / THREADGROUP_SIZE_1D;
+	RWCompactRaysIndirectArgs[1] = 1;
+	RWCompactRaysIndirectArgs[2] = 1;
+}
+
+/**
+ * TraceData can represent three types of rays:
+ * 1) Rays that hit an object with a valid surface-cache entry
+ * 2) Rays that hit an object with an invalid surface-cache entry
+ * 3) Rays that do not hit an object after having traveled 'TraceDistance' units
+ *
+ * NOTE: Miss rays need additional data and must be determined by the caller.
+ */
+struct FTraceData
+{
+	float TraceDistance;
+	uint MaterialId;
+
+	bool bIsHit;
+	bool bIsValidMeshCardIndex;
+};
+
+struct FTraceDataPacked
+{
+	uint PackedData[2];
+};
+
+FTraceData CreateTraceData(float TraceDistance, uint MaterialId, bool bIsHit, bool bIsValidMeshCardIndex)
+{
+	FTraceData TraceData;
+	TraceData.TraceDistance = TraceDistance;
+	TraceData.MaterialId = MaterialId;
+	TraceData.bIsHit = bIsHit;
+	TraceData.bIsValidMeshCardIndex = bIsValidMeshCardIndex;
+
+	return TraceData;
+}
+
+FTraceDataPacked PackTraceData(FTraceData TraceData)
+{
+	FTraceDataPacked TraceDataPacked;
+	TraceDataPacked.PackedData[0] =
+		(asint(TraceData.TraceDistance) & 0xFFFFFFFC)
+		| (TraceData.bIsHit & 0x01)
+		| ((TraceData.bIsValidMeshCardIndex & 0x01) << 1);
+	TraceDataPacked.PackedData[1] = TraceData.MaterialId;
+
+	return TraceDataPacked;
+}
+
+FTraceData UnpackTraceData(FTraceDataPacked TraceDataPacked)
+{
+	FTraceData TraceData;
+	TraceData.TraceDistance = asfloat(asint(TraceDataPacked.PackedData[0] & 0xFFFFFFFc));
+	TraceData.bIsHit = (TraceDataPacked.PackedData[0] & 0x01) != 0;
+	TraceData.bIsValidMeshCardIndex = (TraceDataPacked.PackedData[0] & 0x02) != 0;
+	TraceData.MaterialId = TraceDataPacked.PackedData[1];
+
+	return TraceData;
+}
+
+StructuredBuffer<FRayDataPacked> RayDataPacked;
+StructuredBuffer<FTraceDataPacked> TraceDataPacked;
+
+uint MaxRayAllocationCount;
+
+RWBuffer<uint> RWCompactedRayAllocator;
+RWStructuredBuffer<FRayDataPacked> RWCompactedRayDataPacked;
+RWStructuredBuffer<FTraceDataPacked> RWCompactedTraceDataPacked;
+
+groupshared FTraceDataPacked SharedTraceDataPacked[THREADGROUP_SIZE_1D];
+
+#define COMPACT_MODE_HIT_LIGHTING_RETRACE 0
+#define COMPACT_MODE_FAR_FIELD_RETRACE 1
+#define COMPACT_MODE_DEBUG_FORCE_HIT_LIGHTING 2
+
+
+[numthreads(THREADGROUP_SIZE_1D, 1, 1)]
+void FLumenVisualizeCompactRaysCS(
+	uint GroupThreadId : SV_GroupThreadID,
+	uint DispatchThreadId : SV_DispatchThreadID)
+{
+	SharedRayAllocator = 0;
+	GroupMemoryBarrierWithGroupSync();
+
+	uint RayIndex = DispatchThreadId;
+	FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
+#if DIM_COMPACT_MODE == COMPACT_MODE_HIT_LIGHTING_RETRACE
+	bool bIsRayValid = TraceData.bIsHit && !TraceData.bIsValidMeshCardIndex;
+#elif DIM_COMPACT_MODE == COMPACT_MODE_DEBUG_FORCE_HIT_LIGHTING
+	bool bIsRayValid = TraceData.bIsHit;
+#else // DIM_COMPACT_MODE == COMPACT_MODE_FAR_FIELD_RETRACE
+	bool bIsRayValid = !TraceData.bIsHit;
+#endif // DIM_COMPACT_MODE
+	if (bIsRayValid)
+	{
+		// Allocate rays to re-trace with hit lighting
+		uint ThreadOffset;
+		InterlockedAdd(SharedRayAllocator, 1, ThreadOffset);
+
+		SharedRayDataPacked[ThreadOffset] = RayDataPacked[RayIndex];
+		SharedTraceDataPacked[ThreadOffset] = TraceDataPacked[RayIndex];
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId == 0)
+	{
+		InterlockedAdd(RWCompactedRayAllocator[0], SharedRayAllocator, SharedGroupOffset);
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId < SharedRayAllocator)
+	{
+		FRayDataPacked RayDataPacked = SharedRayDataPacked[GroupThreadId];
+		RWCompactedRayDataPacked[SharedGroupOffset + GroupThreadId] = RayDataPacked;
+		RWCompactedTraceDataPacked[SharedGroupOffset + GroupThreadId] = SharedTraceDataPacked[GroupThreadId];
+	}
+}
+
+RWBuffer<uint> RWBucketRaysByMaterialIdIndirectArgs;
+
+#ifndef ELEMENTS_PER_THREAD
+#define ELEMENTS_PER_THREAD 16
+#endif // ELEMENTS_PER_THREAD
+
+[numthreads(1, 1, 1)]
+void FLumenVisualizeBucketRaysByMaterialIdIndirectArgsCS()
+{
+	const uint ElementsPerGroup = THREADGROUP_SIZE_1D * ELEMENTS_PER_THREAD;
+	RWBucketRaysByMaterialIdIndirectArgs[0] = (RayAllocator[0] + ElementsPerGroup - 1) / ElementsPerGroup;
+	RWBucketRaysByMaterialIdIndirectArgs[1] = 1;
+	RWBucketRaysByMaterialIdIndirectArgs[2] = 1;
+}
+
+RWStructuredBuffer<FTraceDataPacked> RWTraceDataPacked;
+
+#define NUM_BINS (THREADGROUP_SIZE_1D / 2)
+groupshared uint BinSize[NUM_BINS];
+groupshared uint BinOffset[NUM_BINS];
+
+#define NUM_ELEMENTS THREADGROUP_SIZE_1D * ELEMENTS_PER_THREAD
+
+[numthreads(THREADGROUP_SIZE_1D, 1, 1)]
+void FLumenVisualizeBucketRaysByMaterialIdCS(
+	uint GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
+{
+	const uint GroupOffset = GroupId * NUM_ELEMENTS;
+
+	if (GroupThreadId < NUM_BINS)
+	{
+		BinSize[GroupThreadId] = 0;
+		BinOffset[GroupThreadId] = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint Hash[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
+	FRayDataPacked RayDataPackedCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
+	FTraceData TraceDataCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
+
+	for (int i = GroupThreadId; i < NUM_ELEMENTS; i += THREADGROUP_SIZE_1D)
+	{
+		uint RayIndex = GroupOffset + i;
+		if (RayIndex < RayAllocator[0])
+		{
+			RayDataPackedCache[i / THREADGROUP_SIZE_1D] = RayDataPacked[RayIndex];
+			TraceDataCache[i / THREADGROUP_SIZE_1D] = UnpackTraceData(TraceDataPacked[RayIndex]);
+			uint BinIndex = TraceDataCache[i / THREADGROUP_SIZE_1D].MaterialId % NUM_BINS;
+
+			InterlockedAdd(BinSize[BinIndex], 1, Hash[i / THREADGROUP_SIZE_1D]);
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId < NUM_BINS)
+	{
+		for (int i = 0; i < GroupThreadId; ++i)
+		{
+			BinOffset[GroupThreadId] += BinSize[i];
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	for (int i = GroupThreadId; i < NUM_ELEMENTS; i += THREADGROUP_SIZE_1D)
+	{
+		uint RayIndex = GroupOffset + i;
+		if (RayIndex < RayAllocator[0])
+		{
+			uint BinIndex = TraceDataCache[i / THREADGROUP_SIZE_1D].MaterialId % NUM_BINS;
+			uint OutputIndex = GroupOffset + BinOffset[BinIndex] + Hash[i / THREADGROUP_SIZE_1D];
+
+			RWRayDataPacked[OutputIndex] = RayDataPackedCache[i / THREADGROUP_SIZE_1D];
+			RWTraceDataPacked[OutputIndex] = PackTraceData(TraceDataCache[i / THREADGROUP_SIZE_1D]);
+		}
+	}
+}
+
+#if LUMEN_HARDWARE_RAYTRACING
+#include "LumenHardwareRayTracingCommon.ush"
 
 #ifndef DIM_LIGHTING_MODE
 #define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
 #endif
 
-RWTexture2D<float> RWTraceHit;
-RWTexture2D<float3> RWRadiance;
+#define TRACE_MODE_DEFAULT_TRACE 0
+#define TRACE_MODE_HIT_LIGHTING_RETRACE 1
+#define TRACE_MODE_FAR_FIELD_RETRACE 2
 
 RaytracingAccelerationStructure TLAS;
-StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
 
-int LightingMode;
-int MaxTranslucentSkipCount;
-int bIsDeferredMaterial;
-int VisualizeHiResSurface;
-float MaxTraceDistance;
+uint ThreadCount;
+uint GroupCount;
+uint VisualizeHiResSurface;
+uint MaxTranslucentSkipCount;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 {
-	uint2 TraceCoord = 0;
-	FDeferredMaterialPayload DeferredMaterialPayload;
-	if (DIM_DEFERRED_MATERIAL_MODE)
-	{
-		DeferredMaterialPayload = DeferredMaterialBuffer[DispatchRaysIndex().x];
-		TraceCoord.x = DeferredMaterialPayload.PixelCoordinates & 0xFFFF;
-		TraceCoord.y = DeferredMaterialPayload.PixelCoordinates >> 16;
+	uint ThreadIndex = DispatchRaysIndex().x;
+	uint GroupIndex = DispatchRaysIndex().y;
 
-		if (DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID)
+	uint DispatchedThreads = ThreadCount * GroupCount;
+	uint IterationCount = (RayAllocator[0] + DispatchedThreads - 1) / DispatchedThreads;
+	for (uint Iteration = 0; Iteration < IterationCount; ++Iteration)
+	{
+		uint IterationIndex = Iteration * DispatchedThreads + GroupIndex * ThreadCount + ThreadIndex;
+		if (IterationIndex >= RayAllocator[0])
 		{
-			RWRadiance[TraceCoord] = 0;
 			return;
 		}
-	}
-	else
-	{
-		TraceCoord = View.ViewRectMin.xy + DispatchRaysIndex().xy;
-	}
 
-	// Viewport guard
-	if (all(TraceCoord < View.BufferSizeAndInvSize.xy))
-	{
-		float2 ScreenUV = (TraceCoord + 0.5) * View.BufferSizeAndInvSize.zw;
+		uint RayIndex = IterationIndex;
+		FRayData RayData = UnpackRayData(RayDataPacked[RayIndex]);
+		uint2 TraceCoord = RayData.TraceCoord;
+		uint2 ScreenCoord = TraceCoord + View.ViewRectMin.xy;
+		float2 ScreenUV = (ScreenCoord + 0.5) * View.BufferSizeAndInvSize.zw;
+
 		RayDesc Ray = CreatePrimaryRay(ScreenUV);
 		Ray.TMax = min(Ray.TMax, MaxTraceDistance);
+#if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
+		const float Epsilon = 0.5;
+		float TraceDistance = UnpackTraceData(TraceDataPacked[RayIndex]).TraceDistance;
+		Ray.TMin = TraceDistance - Epsilon;
+		Ray.TMax = TraceDistance + Epsilon;
+#elif DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
+		Ray.TMin = UnpackTraceData(TraceDataPacked[RayIndex]).TraceDistance;
+#endif // DIM_TRACE_MODE
 
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
@@ -76,125 +484,44 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			bCullBackFacingTriangles,
 			MaxTranslucentSkipCount,
 			bHiResSurface);
+#if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
+		Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
+#endif // DIM_TRACE_MODE
 
-		bool bTraceRay = true;
-		if (DIM_DEFERRED_MATERIAL_MODE)
-		{
-			// Clip 
-			bTraceRay = DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
-			if (bTraceRay)
-			{
-				float Epsilon = 0.5;
-				Ray.TMin = max(0, DeferredMaterialPayload.HitT - Epsilon);
-				// Note: adjusting TMax will not properly account for masked materials because of restricted any-hit length
-				Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
-			}
-		}
+#if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+#else
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING);
+#endif // DIM_TRACE_MODE
 
-		bool bHit = false;
-		float3 Radiance = 0;
-		if (bTraceRay)
-		{
-			float HitDistance;
-			bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
-			if (bUseMinimalPayload)
-			{
-				FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
-				bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+		// Trace segmentation visualization
+#if 0
+#if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
+		if (Result.bIsHit && Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX) Result.Radiance = float3(1, 1, 0);
+#elif DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
+		if (Result.bIsHit) Result.Radiance = float3(1, 0, 0);
+#elif DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
+		if (Result.bIsHit) Result.Radiance = float3(0, 1, 1);
+#endif
+#endif
 
-				int TranslucentSkipCount = 0;
-				while (bHit && Payload.IsTranslucent() && TranslucentSkipCount < Context.TranslucentSkipCountMax)
-				{
-					float Epsilon = 0.01;
-					Ray.TMin = Payload.HitT + Epsilon;
-					bHit = TraceLumenMinimalRay(Ray, Context, Payload);
-					TranslucentSkipCount++;
-				}
-
-				if (bHit)
-				{
-					float3 WorldPosition = Ray.Origin + Ray.Direction * Payload.HitT;
-
-					if (VisualizeMode == VISUALIZE_MODE_LOCAL_POSITION)
-					{
-						uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-						float3 LocalPosition = CalcLocalPositionFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
-						// Debug: Modify visualization remapping here
-						LocalPosition = frac(LocalPosition * 0.001);
-						Radiance = abs(LocalPosition);
-						Radiance *= View.OneOverPreExposure;
-					}
-					else if (VisualizeMode == VISUALIZE_MODE_VELOCITY)
-					{
-						uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-						//float3 WorldVelocity = CalcVelocityFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
-						float3 PrevWorldPosition = CalcPrevWorldPositionFromGPUSceneInstanceIndex(WorldPosition, GPUSceneInstanceIndex);
-
-						float4 ScreenPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
-						float4 PrevScreenPosition = mul(float4(PrevWorldPosition, 1.0), View.WorldToClip);
-						float3 ScreenVelocity = Calculate3DVelocity(ScreenPosition, PrevScreenPosition);
-						Radiance = EncodeVelocityToTexture(ScreenVelocity).xyz;
-						Radiance *= View.OneOverPreExposure;
-					}
-					else // Visualize surface-cache property
-					{
-						uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-						Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Payload.HitT, GPUSceneInstanceIndex);
-					}
-				}
-			}
-			else
-			{
-				bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, HitDistance, Radiance);
-			}
-		}
-
-		// Apply SkyLight when visualizing final lighting
-		if (!bHit && VisualizeMode == 0)
+#if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
+		if (VisualizeMode == 0 && !Result.bIsHit)
 		{
 			FConeTraceResult TraceResult = (FConeTraceResult)0;
 			TraceResult.Transparency = 1;
 			EvaluateSkyRadianceForCone(Ray.Direction, 0.0f, TraceResult);
-			Radiance = TraceResult.Lighting;
+			Result.Radiance = TraceResult.Lighting;
 		}
+#endif // DIM_TRACE_MODE
 
-		Radiance *= View.PreExposure;
-		RWRadiance[TraceCoord] = Radiance;
+#if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
+		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX));
+#endif // DIM_TRACE_MODE
+
+		Result.Radiance *= View.PreExposure;
+		RWRadiance[ScreenCoord] = Result.Radiance;
 	}
 }
 
-RWStructuredBuffer<FDeferredMaterialPayload> RWDeferredMaterialBuffer;
-int2 DeferredMaterialBufferResolution;
-uint TileSize;
-
-RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingDeferredMaterialRGS)
-{
-	uint2 TraceCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
-	uint LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
-
-	FDeferredMaterialPayload DeferredMaterialPayload = (FDeferredMaterialPayload)0;
-	DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
-	if (all(TraceCoord < View.BufferSizeAndInvSize.xy))
-	{
-		float2 ScreenUV = (TraceCoord + 0.5) * View.BufferSizeAndInvSize.zw;
-		RayDesc Ray = CreatePrimaryRay(ScreenUV);
-
-		FRayCone RayCone = (FRayCone)0;
-		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
-
-		const bool bCullBackFacingTriangles = true;
-		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles);
-		TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
-	}
-
-	// Rearrange in tiled blocks to extract spatial coherence
-	uint2 BlockCoord = TraceCoord / TileSize;
-	uint BlocksPerRow = DeferredMaterialBufferResolution.x / TileSize;
-	uint BlockIndex = BlockCoord.y * BlocksPerRow + BlockCoord.x;
-	uint2 TileCoord = TraceCoord % TileSize;
-	uint TileIndex = TileCoord.y * TileSize + TileCoord.x;
-	uint BlockSize = TileSize * TileSize;
-	uint DeferredMaterialBufferIndex = BlockIndex * BlockSize + TileIndex;
-
-	RWDeferredMaterialBuffer[DeferredMaterialBufferIndex] = DeferredMaterialPayload;
-}
+#endif // LUMEN_HARDWARE_RAYTRACING

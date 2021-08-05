@@ -506,7 +506,7 @@ void VisBufferShadingCS(
 				bool bHiResSurface = false;
 				uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
 
-				float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(
+				FLumenMeshCardsSample FLumenMeshCardsSample = SampleLumenMeshCardsWithWeight(
 					ScreenCoord,
 					TraceSDFData.SceneInstanceIndex,
 					InterpolatePosition,
@@ -518,7 +518,7 @@ void VisBufferShadingCS(
 					AtlasId);
 
 				uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
-				RWVoxelLighting[WriteCoord] = LightingAndWeight;
+				RWVoxelLighting[WriteCoord] = FLumenMeshCardsSample.LightingAndWeight;
 			}
 		}
 	}

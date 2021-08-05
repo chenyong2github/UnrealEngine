@@ -1018,16 +1018,24 @@ void SampleLumenCard(
 	}
 }
 
-float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
+struct FLumenMeshCardsSample
+{
+	float3 Lighting;
+	float4 LightingAndWeight;
+	uint MeshCardsIndex;
+};
+
+FLumenMeshCardsSample SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
 	FCardSampleAccumulator CardSampleAccumulator;
 	InitCardSampleAccumulator(CardSampleAccumulator);
 
-	uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
+	FLumenMeshCardsSample LumenMeshCardsSample;
+	LumenMeshCardsSample.MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
 
-	if (MeshCardsIndex < LumenCardScene.NumMeshCards)
+	if (LumenMeshCardsSample.MeshCardsIndex < LumenCardScene.NumMeshCards)
 	{
-		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
+		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(LumenMeshCardsSample.MeshCardsIndex);
 
 		float3 LocalSamplePosition = mul(float4(SamplePosition, 1.0f), MeshCardsData.WorldToLocal).xyz;
 		float3 LocalSampleNormal = normalize(mul(float4(SampleNormal, 0.0f), transpose(MeshCardsData.LocalToWorld)).xyz);
@@ -1048,7 +1056,7 @@ float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint SceneInstanceIndex
 		{
 			CardMask |= MeshCardsData.CardLookup[LocalSampleNormal.z < 0.0f ? 4 : 5];
 		}
-
+		
 		// Cull cards by AABB
 		{
 			uint CulledCardMask = 0;
@@ -1127,19 +1135,21 @@ float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint SceneInstanceIndex
 		#endif
 	}
 
-	return float4(CardSampleAccumulator.Lighting, CardSampleAccumulator.Weight);
+	LumenMeshCardsSample.LightingAndWeight = float4(CardSampleAccumulator.Lighting, CardSampleAccumulator.Weight);
+	LumenMeshCardsSample.Lighting = CardSampleAccumulator.Lighting;
+	return LumenMeshCardsSample;
 }
 
-float3 SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
+FLumenMeshCardsSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
-	float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(ScreenCoord, SceneInstanceIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, bHiResSurface, AtlasId);
+	FLumenMeshCardsSample LumenMeshCardsSample = SampleLumenMeshCardsWithWeight(ScreenCoord, SceneInstanceIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, bHiResSurface, AtlasId);
 
-	if (LightingAndWeight.w > 0)
+	if (LumenMeshCardsSample.LightingAndWeight.w > 0)
 	{
-		LightingAndWeight.xyz = LightingAndWeight.xyz / max(LightingAndWeight.w, 0.01f);
+		LumenMeshCardsSample.Lighting = LumenMeshCardsSample.LightingAndWeight.xyz / max(LumenMeshCardsSample.LightingAndWeight.w, 0.01f);
 	}
 
-	return LightingAndWeight.xyz;
+	return LumenMeshCardsSample;
 }
 
 void ConeTraceMeshSDFsAndInterpolateFromCards(
@@ -1185,7 +1195,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 		//OutResult.Lighting = frac(InterpolatePosition / 1000);
 	
 		uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
-		OutResult.Lighting = SampleLumenMeshCards(
+		FLumenMeshCardsSample LumenMeshCardsSample = SampleLumenMeshCards(
 			TraceInput.ScreenCoord,
 			TraceSDFData.SceneInstanceIndex,
 			InterpolatePosition,
@@ -1195,6 +1205,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 			TraceInput.CardInterpolateDepthVisibilityRadius,
 			TraceInput.bHiResSurface,
 			AtlasId);
+		OutResult.Lighting = LumenMeshCardsSample.Lighting;
 		OutResult.Transparency = 0;
 		OutResult.WorldVelocity = TraceSDFData.WorldVelocity;
 	}

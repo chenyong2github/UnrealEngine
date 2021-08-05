@@ -122,22 +122,25 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			float3 Radiance = 0.0;
 			if (bTraceRay)
 			{
+				FRayTracedLightingResult Result;
 				bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 				if (bUseMinimalPayload)
 				{
-					float3 HitWorldVelocity;
-					bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, TraceHitDistance, HitWorldVelocity, Radiance);
+					Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 
-					if (bHit)
+					if (Result.bIsHit)
 					{
 						float3 HitWorldPosition = Ray.Origin + Ray.Direction * TraceHitDistance;
-						bMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitWorldPosition, HitWorldVelocity);
+						bMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitWorldPosition, Result.WorldVelocity);
 					}
 				}
 				else
 				{
-					bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, TraceHitDistance, Radiance);
+					Result = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
 				}
+				bHit = Result.bIsHit;
+				TraceHitDistance = Result.TraceHitDistance;
+				Radiance = Result.Radiance;
 			}
 			Radiance *= View.PreExposure;
 			RWTraceRadiance[ScreenProbeTracingCoord] = Radiance;

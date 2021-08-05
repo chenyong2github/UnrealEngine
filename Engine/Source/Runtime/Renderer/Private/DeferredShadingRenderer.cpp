@@ -250,6 +250,20 @@ namespace Nanite
 	extern void ListStatFilters(FSceneRenderer* SceneRenderer);
 }
 
+#if RHI_RAYTRACING
+
+int32 GetRayTracingCulling()
+{
+	return CVarRayTracingCulling.GetValueOnRenderThread();
+}
+
+float GetRayTracingCullingRadius()
+{
+	return CVarRayTracingCullingRadius.GetValueOnRenderThread();
+}
+
+#endif // RHI_RAYTRACING
+
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
 
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer UpdateDownsampledDepthSurface"), STAT_FDeferredShadingSceneRenderer_UpdateDownsampledDepthSurface, STATGROUP_SceneRendering);
@@ -584,8 +598,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_RelevantPrimitives);
 
 		int32 BroadIndex = 0;
-		const int32 CullInRayTracing = CVarRayTracingCulling.GetValueOnRenderThread();
-		const float CullingRadius = CVarRayTracingCullingRadius.GetValueOnRenderThread();
+		const int32 CullInRayTracing = GetRayTracingCulling();
+		const float CullingRadius = GetRayTracingCullingRadius();
 		const float CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
 		const float AngleThresholdRatio = FMath::Tan(FMath::Min(89.99f, CullAngleThreshold) * PI / 180.0f);
 		const FVector ViewOrigin = View.ViewMatrices.GetViewOrigin();
