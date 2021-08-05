@@ -518,7 +518,7 @@ static void LaunchUnrealTraceInternal()
 
 	if (!bOk)
 	{
-		UE_LOG(LogCore, Warning, TEXT("UnrealTraceServer: Unable to launch the trace store from '%s' (%08x)"), *BinPath, GetLastError());
+		UE_LOG(LogCore, Display, TEXT("UnrealTraceServer: Unable to launch the trace store from '%s' (%08x)"), *BinPath, GetLastError());
 		return;
 	}
 
