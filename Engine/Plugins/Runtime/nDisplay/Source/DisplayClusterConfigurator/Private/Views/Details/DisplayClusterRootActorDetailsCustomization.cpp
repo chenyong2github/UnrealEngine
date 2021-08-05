@@ -276,8 +276,6 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 					ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.RootActorComponentNames, ICVFXLightCardEnabledEditCondition)
 				}
 			END_GROUP();
-
-			ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.RenderSettings, ICVFXLightCardEnabledEditCondition)
 		END_CATEGORY();
 
 		// Add custom properties and lay out/order properties into their correct categories.
