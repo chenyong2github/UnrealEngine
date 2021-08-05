@@ -679,7 +679,7 @@ namespace HordeServer.Collections.Impl
 		public async Task<IDeviceReservation?> TryGetDeviceReservationAsync(DeviceId Id)
 		{
 			List<DeviceReservationDocument> Results = await Reservations.Find(x => true).ToListAsync();
-            return Results.FirstOrDefault(R => R.Devices.FirstOrDefault(D => D == Id) != null);
+			return Results.FirstOrDefault(R => R.Devices.Contains(Id));
         }
 
 	}
