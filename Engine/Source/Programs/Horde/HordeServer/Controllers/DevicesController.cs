@@ -53,7 +53,7 @@ namespace HordeServer.Controllers
 		{
             this.UserCollection = UserCollection;
             this.DeviceService = DeviceService;
-			this.Logger = Logger;
+            this.Logger = Logger;
 		}
 
 		// DEVICES
@@ -676,18 +676,26 @@ namespace HordeServer.Controllers
 			List<IDevicePool> Pools = await DeviceService.GetPoolsAsync();
 			List<IDevicePlatform> Platforms = await DeviceService.GetPlatformsAsync();
 
-			string? PoolId = Request.PoolId;
+            string Message;
+            string? PoolId = Request.PoolId;
 
 			if (string.IsNullOrEmpty(PoolId))
 			{
-                PoolId = "fnue5";
+                Message = $"No pool specified for device reservation request";				
+                Logger.LogError(Message);
+				await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
+
+                return BadRequest(Message);
             }			
 
 			DevicePoolId PoolIdValue = DevicePoolId.Sanitize(PoolId);
 			IDevicePool? Pool = Pools.FirstOrDefault(x => x.Id == PoolIdValue);
 			if (Pool == null)
 			{
-				return BadRequest($"Unknown pool {PoolId} on device reservation request");
+                Message = $"Unknown pool {PoolId} on device reservation request";
+				Logger.LogError(Message);
+				await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
+                return BadRequest(Message);
 			}
 
 			List<DeviceRequestData> RequestedDevices = new List<DeviceRequestData>();
@@ -713,14 +721,20 @@ namespace HordeServer.Controllers
 
 				if (!PlatformMap.TryGetValue(PlatformName, out PlatformId))
 				{
-					return BadRequest($"Unknown platform for device type {PlatformName} on device reservation request");
+                    Message = $"Unknown platform for device type {PlatformName} on device reservation request";
+					Logger.LogError(Message);
+					await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
+                    return BadRequest(Message);
 				}
 
 				IDevicePlatform? Platform = Platforms.FirstOrDefault(x => x.Id == PlatformId);
 
 				if (Platform == null)
 				{
-					return BadRequest($"Unknown platform {PlatformId} on device reservation request");
+                    Message = $"Unknown platform {PlatformId} on device reservation request";
+					Logger.LogError(Message);
+					await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
+                    return BadRequest(Message);
 				}
 
 				List<string> IncludeModels = new List<string>();
@@ -884,16 +898,28 @@ namespace HordeServer.Controllers
 
 			if (Device == null)
 			{
+				Logger.LogError($"Device error reported for unknown device {DeviceName}");
 				return BadRequest($"Unknown device {DeviceName}");
-			}
+			}			
 
 			await DeviceService.UpdateDeviceAsync(Device.Id, NewProblem: true);
 
+            IDeviceReservation? Reservation = await DeviceService.TryGetDeviceReservation(Device.Id);
+
+            string? JobId = null;
+            string? StepId = null;
+            if (Reservation != null) 
+			{
+				JobId = !string.IsNullOrEmpty(Reservation.JobId) ? Reservation.JobId : null;
+                StepId = !string.IsNullOrEmpty(Reservation.StepId) ? Reservation.StepId : null;
+            }
+
+			Logger.LogError($"Device error reported for {DeviceName}, Job {JobId}, StepId {StepId}");
+
+            await DeviceService.NotifyDeviceServiceAsync("Device reported an error", Device.Id, JobId, StepId);
 
 			return Ok();
 
 		}
-
-
 	}
 }

@@ -68,5 +68,17 @@ namespace HordeServer.Notifications
 		/// </summary>
 		/// <param name="Issue">The new issue that was created</param>
 		void NotifyIssueUpdated(IIssue Issue);
-	}
+
+		/// <summary>
+        /// Send a device service notification
+        /// </summary>
+        /// <param name="Message">The message to send</param>
+        /// <param name="Device">The device</param>
+        /// <param name="Pool">The pool</param>
+        /// <param name="Stream"></param>
+        /// <param name="Job"></param>
+        /// <param name="Step"></param>
+        /// <param name="Node"></param>
+        void NotifyDeviceService(string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null);
+    }
 }

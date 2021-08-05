@@ -526,7 +526,7 @@ namespace HordeServer.Collections.Impl
 				x.MaintenanceTimeUtc == null).ToListAsync();
 
 			// filter out problem devices
-			PoolDevices = PoolDevices.FindAll(x => (x.ProblemTimeUtc == null || ((ReservationTimeUtc - x.ProblemTimeUtc).Value.TotalMinutes > 30)));
+			PoolDevices = PoolDevices.FindAll(x => (x.ProblemTimeUtc == null || ((ReservationTimeUtc - x.ProblemTimeUtc).Value.TotalMinutes > 120)));
 
 			// filter out currently reserved devices
 			PoolDevices = PoolDevices.FindAll(x => PoolReservations.FirstOrDefault(p => p.Devices.Contains(x.Id)) == null);
@@ -672,8 +672,14 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<IDeviceReservation?> TryGetReservationFromLegacyGuidAsync(string LegacyGuid)
 		{
-			return await Reservations.Find<DeviceReservationDocument>(x => x.LegacyGuid == LegacyGuid).FirstOrDefaultAsync();
+			return await Reservations.Find<DeviceReservationDocument>(R => R.LegacyGuid == LegacyGuid).FirstOrDefaultAsync();
 		}
+
+		/// <inheritdoc/>
+		public async Task<IDeviceReservation?> TryGetDeviceReservationAsync(DeviceId Id)
+		{
+            return await Reservations.Find<DeviceReservationDocument>(R => R.Devices.FirstOrDefault(D => D == Id) != null).FirstOrDefaultAsync();
+        }
 
 	}
 

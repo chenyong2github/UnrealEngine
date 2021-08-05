@@ -80,5 +80,18 @@ namespace HordeServer.Notifications
 		/// <param name="Description"></param>
 		/// <returns></returns>
 		Task NotifyConfigUpdateFailureAsync(string ErrorMessage, string FileName, int? Change = null, IUser? Author = null, string? Description = null);
-	}
+		
+		/// <summary>
+		/// Notification for device service
+		/// </summary>
+		/// <param name="Message"></param>
+		/// <param name="Device"></param>
+		/// <param name="Pool"></param>
+		/// <param name="Stream"></param>
+		/// <param name="Job"></param>
+        /// <param name="Step"></param>
+        /// <param name="Node"></param>
+		/// <returns></returns>
+        Task NotifyDeviceServiceAsync(string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null);
+    }
 }

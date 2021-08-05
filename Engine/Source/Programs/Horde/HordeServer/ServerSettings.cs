@@ -354,6 +354,11 @@ namespace HordeServer
 		public string? UpdateStreamsNotificationChannel { get; set; }
 
 		/// <summary>
+		/// Channel to send device notifications to
+		/// </summary>
+		public string? DeviceServiceNotificationChannel { get; set; }
+
+		/// <summary>
 		/// URI to the SmtpServer to use for sending email notifications
 		/// </summary>
 		public string? SmtpServer { get; set; }
