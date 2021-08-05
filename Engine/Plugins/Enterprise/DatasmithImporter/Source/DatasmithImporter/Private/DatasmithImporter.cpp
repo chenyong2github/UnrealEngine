@@ -1245,7 +1245,7 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 		ForEachObjectWithOuter( DestinationActor, [&ReferencesToRemap](UObject* InObject)
 			{
 				FDatasmithImporterImpl::FixReferencesForObject( InObject, ReferencesToRemap );
-		
+
 				InObject->PostEditImport();
 				InObject->PostEditChange();
 			});
@@ -1746,12 +1746,18 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 				}
 			}
 
+			TArray<UMaterialFunctionInterface*> FinalizableFunctions;
 			for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)
 			{
 				if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
 				{
-					FinalizeMaterial(MaterialFunctionInfo.Function, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, nullptr, &ReferencesToRemap);
+					FinalizableFunctions.Add(MaterialFunctionInfo.Function);
 				}
+			}
+
+			for (UMaterialFunctionInterface* Function : FinalizableFunctions)
+			{
+				FinalizeMaterial(Function, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, nullptr, &ReferencesToRemap);
 			}
 		}
 
