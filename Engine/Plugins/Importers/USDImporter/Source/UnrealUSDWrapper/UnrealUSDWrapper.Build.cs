@@ -34,7 +34,6 @@ namespace UnrealBuildTool.Rules
 				var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 				var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python3", Target.Platform.ToString());
 				var PythonBinaryTPSDir = Path.Combine(EngineDir, "Binaries", "ThirdParty", "Python3", Target.Platform.ToString());
-				string IntelTBBLibs = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel", "TBB", "IntelTBB-2019u8", "lib", Target.Platform.ToString());
 				string IntelTBBBinaries = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Intel", "TBB", Target.Platform.ToString());
 				string IntelTBBIncludes = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel", "TBB", "IntelTBB-2019u8", "include");
 				string USDLibsDir = Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "lib");
@@ -42,6 +41,9 @@ namespace UnrealBuildTool.Rules
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
 					PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=1");
+
+					// TBB
+					// Don't need to handle it for Windows or Mac as IntelTBB.Build.cs already does it
 
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
@@ -107,8 +109,7 @@ namespace UnrealBuildTool.Rules
 					List<string> RuntimeModulePaths = new List<string>();
 
 					// TBB
-					RuntimeModulePaths.Add(Path.Combine(IntelTBBBinaries, "libtbb.dylib"));
-					RuntimeModulePaths.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.dylib"));
+					// Don't need to handle it for Windows or Mac as IntelTBB.Build.cs already does it
 
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
