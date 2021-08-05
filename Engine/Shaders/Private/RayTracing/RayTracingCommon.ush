@@ -13,6 +13,7 @@
 #include "/Engine/Public/ShaderVersion.ush"
 
 #include "../ShadingCommon.ush"
+#include "../OctahedralCommon.ush"
 #include "/Engine/Shared/RayTracingDefinitions.h"
 
 #ifdef OVERRIDE_RAYTRACING_USH
@@ -142,18 +143,29 @@ struct FLumenMinimalPayload : FMinimalPayload
 		return bIsTranslucent;
 	}
 
+	void SetMaterialShaderIndex(uint MaterialShaderIndex)
+	{
+		PackedData[3] = (PackedData[3] & 0x80000000) | (MaterialShaderIndex & 0x7FFFFFFF);
+	}
+
+	uint GetMaterialShaderIndex()
+	{
+		uint MaterialShaderIndex = PackedData[3] & 0x7FFFFFFF;
+		return MaterialShaderIndex;
+	}
+
 	void SetWorldNormal(float3 WorldNormal)
 	{
-		PackedData[2] = (f32tof16(WorldNormal.x) << 16) | f32tof16(WorldNormal.y);
-		PackedData[3] = (PackedData[3] & 0xFFFF0000) | f32tof16(WorldNormal.z);
+		float2 WorldNormalAsOctahedron = UnitVectorToOctahedron(WorldNormal);
+		uint2 QuantizedOctahedron = clamp(round((WorldNormalAsOctahedron * 0.5 + 0.5) * 65536.0), 0.0, 65536.0);
+		PackedData[2] = (QuantizedOctahedron.x & 0xFFFF) << 16 | (QuantizedOctahedron.y & 0xFFFF);
 	}
 
 	float3 GetWorldNormal()
 	{
-		float3 WorldNormal;
-		WorldNormal.x = f16tof32(PackedData[2] >> 16);
-		WorldNormal.y = f16tof32(PackedData[2]);
-		WorldNormal.z = f16tof32(PackedData[3]);
+		uint2 QuantizedOctahedron = uint2((PackedData[2] >> 16) & 0xFFFF, PackedData[2] & 0xFFFF);
+		float2 WorldNormalAsOctahedron = ((QuantizedOctahedron / 65536.0) - 0.5) * 2.0;
+		float3 WorldNormal = OctahedronToUnitVector(WorldNormalAsOctahedron);
 		return WorldNormal;
 	}
 
