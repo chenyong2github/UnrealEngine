@@ -1969,7 +1969,6 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 						if (BlueprintLibPtr)
 						{
 							StandardLibraries.AddUnique(BlueprintLibPtr);
-							WatchViewer::UpdateWatchListFromBlueprint(BlueprintLibPtr);
 						}
 
 						const double ElapsedTime = FPlatformTime::Seconds() - StartTime;

@@ -18,6 +18,7 @@
 #include "AssetRegistryModule.h"
 
 #include "Editor.h"
+#include "ToolMenus.h"
 
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -29,6 +30,7 @@
 
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "Kismet2/DebuggerCommands.h"
 
 #include "KismetNodes/KismetNodeInfoContext.h"
 #include "Stats/Stats.h"
@@ -255,7 +257,7 @@ namespace
 
 		if (IsPaused())
 		{
-			WatchViewer::UpdateInstancedWatchDisplay();
+			DEPRICATED_WatchViewer::UpdateInstancedWatchDisplay();
 		}
 
 		// Notify subscribers:
@@ -581,29 +583,29 @@ void SWatchViewer::HandleGetChildren(TSharedRef<FWatchRow> InWatchRow, TArray<TS
 
 void SWatchViewer::HandleWatchedPinsChanged(UBlueprint* BlueprintObj)
 {
-	WatchViewer::UpdateWatchListFromBlueprint(BlueprintObj);
+	DEPRICATED_WatchViewer::UpdateWatchListFromBlueprint(BlueprintObj);
 }
 
 void SWatchViewer::HandleResumePIE(bool)
 {
 	// swap to displaying the unpaused watches
-	WatchViewer::ContinueExecution();
+	DEPRICATED_WatchViewer::ContinueExecution();
 }
 
 void SWatchViewer::HandleEndPIE(bool)
 {
 	// show the unpaused watches in case we stopped PIE while at a breakpoint
-	WatchViewer::ContinueExecution();
+	DEPRICATED_WatchViewer::ContinueExecution();
 }
 
 void SWatchViewer::HandleAssetRemoved(const FAssetData& InAssetData)
 {
-	WatchViewer::RemoveWatchesForAsset(InAssetData);
+	DEPRICATED_WatchViewer::RemoveWatchesForAsset(InAssetData);
 }
 
 void SWatchViewer::HandleAssetRenamed(const FAssetData& InAssetData, const FString& InOldName)
 {
-	WatchViewer::OnRenameAsset(InAssetData, InOldName);
+	DEPRICATED_WatchViewer::OnRenameAsset(InAssetData, InOldName);
 }
 
 void SWatchViewer::UpdateWatches(TArray<TSharedRef<FWatchRow>>* Watches)
@@ -761,7 +763,7 @@ TSharedRef<SWidget> SWatchTreeWidgetItem::GenerateWidgetForColumn(const FName& C
 	}
 }
 
-void WatchViewer::UpdateInstancedWatchDisplay()
+void DEPRICATED_WatchViewer::UpdateInstancedWatchDisplay()
 {
 #if DO_BLUEPRINT_GUARD
 	{
@@ -885,19 +887,19 @@ void WatchViewer::UpdateInstancedWatchDisplay()
 #endif
 }
 
-void WatchViewer::ContinueExecution()
+void DEPRICATED_WatchViewer::ContinueExecution()
 {
 	// Notify subscribers:
 	WatchListSubscribers.Broadcast(&Private_WatchSource);
 }
 
-FName WatchViewer::GetTabName()
+FName DEPRICATED_WatchViewer::GetTabName()
 {
 	const FName TabName = TEXT("WatchViewer");
 	return TabName;
 }
 
-void WatchViewer::RemoveWatchesForBlueprint(TWeakObjectPtr<UBlueprint> BlueprintObj)
+void DEPRICATED_WatchViewer::RemoveWatchesForBlueprint(TWeakObjectPtr<UBlueprint> BlueprintObj)
 {
 	if (!ensure(BlueprintObj.IsValid()))
 	{
@@ -918,14 +920,14 @@ void WatchViewer::RemoveWatchesForBlueprint(TWeakObjectPtr<UBlueprint> Blueprint
 
 	if (IsPaused())
 	{
-		WatchViewer::UpdateInstancedWatchDisplay();
+		DEPRICATED_WatchViewer::UpdateInstancedWatchDisplay();
 	}
 
 	// Notify subscribers
 	WatchListSubscribers.Broadcast(&Private_WatchSource);
 }
 
-void WatchViewer::RemoveWatchesForAsset(const struct FAssetData& AssetData)
+void DEPRICATED_WatchViewer::RemoveWatchesForAsset(const struct FAssetData& AssetData)
 {
 	for (TSharedRef<FWatchRow> WatchRow : Private_WatchSource)
 	{
@@ -937,7 +939,7 @@ void WatchViewer::RemoveWatchesForAsset(const struct FAssetData& AssetData)
 	}
 }
 
-void WatchViewer::OnRenameAsset(const struct FAssetData& AssetData, const FString& OldAssetName)
+void DEPRICATED_WatchViewer::OnRenameAsset(const struct FAssetData& AssetData, const FString& OldAssetName)
 {
 	FString OldPackageName;
 	FString OldBPName;
@@ -962,7 +964,7 @@ void WatchViewer::OnRenameAsset(const struct FAssetData& AssetData, const FStrin
 
 			if (IsPaused())
 			{
-				WatchViewer::UpdateInstancedWatchDisplay();
+				DEPRICATED_WatchViewer::UpdateInstancedWatchDisplay();
 			}
 
 			// Notify subscribers if necessary
@@ -971,17 +973,17 @@ void WatchViewer::OnRenameAsset(const struct FAssetData& AssetData, const FStrin
 	}
 }
 
-void WatchViewer::UpdateWatchListFromBlueprint(TWeakObjectPtr<UBlueprint> BlueprintObj)
+void DEPRICATED_WatchViewer::UpdateWatchListFromBlueprint(TWeakObjectPtr<UBlueprint> BlueprintObj)
 {
 	UpdateWatchListFromBlueprintImpl(BlueprintObj, true);
 }
 
-void WatchViewer::ClearWatchListFromBlueprint(TWeakObjectPtr<UBlueprint> BlueprintObj)
+void DEPRICATED_WatchViewer::ClearWatchListFromBlueprint(TWeakObjectPtr<UBlueprint> BlueprintObj)
 {
 	UpdateWatchListFromBlueprintImpl(BlueprintObj, false);
 }
 
-void WatchViewer::RegisterTabSpawner(FTabManager& TabManager)
+void DEPRICATED_WatchViewer::RegisterTabSpawner(FTabManager& TabManager)
 {
 	const auto SpawnWatchViewTab = []( const FSpawnTabArgs& Args )
 	{
@@ -990,20 +992,38 @@ void WatchViewer::RegisterTabSpawner(FTabManager& TabManager)
 		{
 			Source = &Private_InstanceWatchSource;
 		}
+		
+		static const FName ToolbarName = TEXT("Kismet.DebuggingViewToolBar");
+		FToolMenuContext MenuContext(FPlayWorldCommands::GlobalPlayWorldActions);
+		TSharedRef<SWidget> ToolbarWidget = UToolMenus::Get()->GenerateWidget(ToolbarName, MenuContext);
 
 		return SNew(SDockTab)
 			.TabRole( ETabRole::PanelTab )
 			.Label( LOCTEXT("TabTitle", "Watches") )
 			[
-				SNew(SBorder)
-				.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				[
-					SNew(SWatchViewer, Source)
+					SNew(SBorder)
+					.BorderImage( FEditorStyle::GetBrush( TEXT("NoBorder") ) )
+					[
+						ToolbarWidget
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SBorder)
+					.BorderImage( FEditorStyle::GetBrush("Docking.Tab.ContentAreaBrush") )
+					[
+						SNew(SWatchViewer, Source)
+					]
 				]
 			];
 	};
 	
-	TabManager.RegisterTabSpawner( WatchViewer::GetTabName(), FOnSpawnTab::CreateStatic(SpawnWatchViewTab) )
+	TabManager.RegisterTabSpawner( DEPRICATED_WatchViewer::GetTabName(), FOnSpawnTab::CreateStatic(SpawnWatchViewTab) )
 		.SetDisplayName( LOCTEXT("SpawnerTitle", "Watch Window") )
 		.SetTooltipText( LOCTEXT("SpawnerTooltipText", "Open the watch window tab") );
 }

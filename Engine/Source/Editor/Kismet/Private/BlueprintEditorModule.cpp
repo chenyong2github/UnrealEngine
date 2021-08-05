@@ -278,11 +278,6 @@ TSharedRef<IBlueprintEditor> FBlueprintEditorModule::CreateBlueprintEditor(const
 		NewBlueprintEditor->RegisterSCSEditorCustomization(It->Key, It->Value.Execute(NewBlueprintEditor));
 	}
 
-	for (UBlueprint* Blueprint : BlueprintsToEdit)
-	{
-		WatchViewer::UpdateWatchListFromBlueprint(Blueprint);
-	}
-
 	EBlueprintType const BPType = ( (BlueprintsToEdit.Num() > 0) && (BlueprintsToEdit[0] != NULL) ) 
 		? (EBlueprintType) BlueprintsToEdit[0]->BlueprintType
 		: BPTYPE_Normal;
