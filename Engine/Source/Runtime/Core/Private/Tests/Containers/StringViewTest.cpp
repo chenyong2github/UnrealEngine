@@ -854,6 +854,109 @@ bool FStringViewTestFindLastChar::RunTest(const FString& Parameters)
 	return true; 
 }
 
+void TestSlicing(FAutomationTestBase& Test, const FString& Str)
+{
+	const FStringView View = Str;
+	const int32       Len  = Str.Len();
+
+	// Left tests
+	{
+		// Try all lengths of the string, including +/- 5 either side
+		for (int32 Index = -5; Index != Len + 5; ++Index)
+		{
+			FString     Substring = Str .Left(Index);
+			FStringView Subview   = View.Left(Index);
+
+			Test.TestEqual(FString::Printf(TEXT("FStringView(\"%s\")::Left(%d)"), *Str, Index), FString(Subview), Substring);
+		}
+	}
+
+	// LeftChop tests
+	{
+		// Try all lengths of the string, including +/- 5 either side
+		for (int32 Index = -5; Index != Len + 5; ++Index)
+		{
+			FString     Substring = Str .LeftChop(Index);
+			FStringView Subview   = View.LeftChop(Index);
+
+			Test.TestEqual(FString::Printf(TEXT("FStringView(\"%s\")::LeftChop(%d)"), *Str, Index), FString(Subview), Substring);
+		}
+	}
+
+	// Right tests
+	{
+		// Try all lengths of the string, including +/- 5 either side
+		for (int32 Index = -5; Index != Len + 5; ++Index)
+		{
+			FString     Substring = Str .Right(Index);
+			FStringView Subview   = View.Right(Index);
+
+			Test.TestEqual(FString::Printf(TEXT("FStringView(\"%s\")::Right(%d)"), *Str, Index), FString(Subview), Substring);
+		}
+	}
+
+	// RightChop tests
+	{
+		// Try all lengths of the string, including +/- 5 either side
+		for (int32 Index = -5; Index != Len + 5; ++Index)
+		{
+			FString     Substring = Str .RightChop(Index);
+			FStringView Subview   = View.RightChop(Index);
+
+			Test.TestEqual(FString::Printf(TEXT("FStringView(\"%s\").RightChop(%d)"), *Str, Index), FString(Subview), Substring);
+		}
+	}
+
+	// Mid tests
+	{
+		// Try all lengths of the string, including +/- 5 either side
+		for (int32 Index = -5; Index != Len + 5; ++Index)
+		{
+			for (int32 Count = -5; Count != Len + 5; ++Count)
+			{
+				FString     Substring = Str .Mid(Index, Count);
+				FStringView Subview   = View.Mid(Index, Count);
+
+				Test.TestEqual(FString::Printf(TEXT("FStringView(\"%s\")::Mid(%d, %d)"), *Str, Index, Count), FString(Subview), Substring);
+			}
+		}
+
+		// Test near limits of int32
+		for (int32 IndexOffset = 0; IndexOffset != Len + 5; ++IndexOffset)
+		{
+			for (int32 CountOffset = 0; CountOffset != Len + 5; ++CountOffset)
+			{
+				int32 Index = MIN_int32 + IndexOffset;
+				int32 Count = MAX_int32 - CountOffset;
+
+				FString     Substring = Str .Mid(Index, Count);
+				FStringView Subview   = View.Mid(Index, Count);
+
+				Test.TestEqual(FString::Printf(TEXT("FStringView(\"%s\")::Mid(%d, %d)"), *Str, Index, Count), FString(Subview), Substring);
+			}
+		}
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringViewTestSlice, TEST_NAME_ROOT ".Slice", TestFlags)
+bool FStringViewTestSlice::RunTest(const FString& Parameters)
+{
+	// We assume that FString has already passed its tests, and we just want views to be consistent with it
+
+	// Test an aribtrary string
+	TestSlicing(*this, TEXT("Test string"));
+
+	// Test an empty string
+	TestSlicing(*this, FString());
+
+	// Test an null-terminator-only empty string
+	FString TerminatorOnly;
+	TerminatorOnly.GetCharArray().Add('\0');
+	TestSlicing(*this, TerminatorOnly);
+
+	return true; 
+}
+
 #undef TEST_NAME_ROOT
 
 #endif //WITH_DEV_AUTOMATION_TESTS

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
 #include "Traits/IntType.h"
 
 template <typename CharType>
@@ -47,10 +48,22 @@ inline TStringView<CharType> TStringView<CharType>::RightChop(SizeType CharCount
 template <typename CharType>
 inline TStringView<CharType> TStringView<CharType>::Mid(SizeType Position, SizeType CharCount) const
 {
-	using USizeType = TUnsignedIntType_T<sizeof(SizeType)>;
-	Position = FMath::Clamp<USizeType>(Position, 0, Size);
-	CharCount = FMath::Clamp<USizeType>(CharCount, 0, Size - Position);
-	return ViewType(DataPtr + Position, CharCount);
+	const CharType* CurrentStart  = GetData();
+	const SizeType  CurrentLength = Len();
+
+	// Clamp minimum position at the start of the string, adjusting the length down if necessary
+	const SizeType NegativePositionOffset = (Position < 0) ? Position : 0;
+	CharCount += NegativePositionOffset;
+	Position  -= NegativePositionOffset;
+
+	// Clamp maximum position at the end of the string
+	Position = (Position > CurrentLength) ? CurrentLength : Position;
+
+	// Clamp count between 0 and the distance to the end of the string
+	CharCount = FMath::Clamp(CharCount, 0, (CurrentLength - Position));
+
+	ViewType Result = ViewType(CurrentStart + Position, CharCount);
+	return Result;
 }
 
 template <typename CharType>
