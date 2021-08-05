@@ -65,24 +65,18 @@ DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 //==============================================================================
 
 FGeometryCollectionResults::FGeometryCollectionResults()
-	: BaseIndex(0)
-	, NumParticlesAdded(0)
-	, IsObjectDynamic(false)
+	: IsObjectDynamic(false)
 	, IsObjectLoading(false)
-	, WorldBounds(ForceInit)
 {}
 
 void FGeometryCollectionResults::Reset()
 {
 	SolverDt = 0.0f;
-	BaseIndex = 0;
-	NumParticlesAdded = 0;
 	DisabledStates.SetNum(0);
 	GlobalTransforms.SetNum(0);
 	ParticleToWorldTransforms.SetNum(0);
 	IsObjectDynamic = false;
 	IsObjectLoading = false;
-	WorldBounds = FBoxSphereBounds(ForceInit);
 }
 
 //==============================================================================
@@ -1504,13 +1498,8 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 	if (TargetResults.NumTransformGroup() != NumTransformGroupElements)
 	{
 		TargetResults.InitArrays(PhysicsThreadCollection);
-
-		// Base particle index to calculate index from a global particle index on the game thread
-		TargetResults.BaseIndex = BaseParticleIndex;
-		TargetResults.NumParticlesAdded = NumParticles;
 	}
 
-	
 	const FTransform& ActorToWorld = Parameters.WorldTransform;
 	const TManagedArray<int32>& Parent = PhysicsThreadCollection.Parent;
 	const TManagedArray<TSet<int32>>& Children = PhysicsThreadCollection.Children;
@@ -1518,14 +1507,12 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 	if(NumTransformGroupElements > 0)
 	{ 
 		SCOPE_CYCLE_COUNTER(STAT_CalcParticleToWorld);
-
-		// initialize Target Results
-		TargetResults.Transforms.Init(PhysicsThreadCollection.Transform);
-		TargetResults.Children.Init(PhysicsThreadCollection.Children);
-		TargetResults.Parent.Init(PhysicsThreadCollection.Parent);
-
+		
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransformGroupElements; ++TransformGroupIndex)
 		{
+			TargetResults.Transforms[TransformGroupIndex] = PhysicsThreadCollection.Transform[TransformGroupIndex];
+			TargetResults.Parent[TransformGroupIndex] = PhysicsThreadCollection.Parent[TransformGroupIndex];
+
 			TargetResults.DisabledStates[TransformGroupIndex] = true;
 			Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Handle = SolverParticleHandles[TransformGroupIndex];
 			if (!Handle)
@@ -1667,24 +1654,15 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolv
 			PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.DisabledStates[TransformGroupIndex];
 		}    // end for
 	}        // STAT_CalcParticleToWorld scope
-
+	
 	// If object is dynamic, compute global matrices	
 	if (IsObjectDynamic || TargetResults.GlobalTransforms.Num() == 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CalcGlobalGCMatrices);
 		check(TargetResults.Transforms.Num() == TargetResults.Parent.Num());
 		GeometryCollectionAlgo::GlobalMatrices(TargetResults.Transforms, TargetResults.Parent, TargetResults.GlobalTransforms);
-
-		// Compute world bounds.  This is a loose bounds based on the circumscribed box 
-		// of a bounding sphere for the geometry.		
-		SCOPE_CYCLE_COUNTER(STAT_CalcGlobalGCBounds);
-		FBox BoundingBox(ForceInit);
-		for (int i = 0; i < ValidGeometryBoundingBoxes.Num(); ++i)
-		{
-			BoundingBox += ValidGeometryBoundingBoxes[i].TransformBy(FTransform(TargetResults.GlobalTransforms[ValidGeometryTransformIndices[i]]) * ActorToWorld);
-		}
-		TargetResults.WorldBounds = FBoxSphereBounds(BoundingBox);
 	}
+	
 
 	// Advertise to game thread
 	TargetResults.IsObjectDynamic = IsObjectDynamic;

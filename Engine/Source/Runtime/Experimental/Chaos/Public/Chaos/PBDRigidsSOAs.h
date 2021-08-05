@@ -725,6 +725,8 @@ public:
 	 */
 	void UpdateGeometryCollectionViews(const bool ForceUpdateViews=false)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateGeometryCollectionViews);
+
 		if (!GeometryCollectionParticles)
 		{
 			if (ForceUpdateViews)
