@@ -2,10 +2,17 @@
 
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Common.RemoteExecution;
 using Grpc.Core;
 using HordeAgent;
+using HordeCommon.Rpc.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Directory = System.IO.Directory;
 
 namespace HordeAgentTests
 {
@@ -13,6 +20,12 @@ namespace HordeAgentTests
 	public class ActionExecutorTest
 	{
 		private readonly string TempDir;
+		private readonly ILogger Logger = CreateLogger();
+		private readonly string AgentName = "myAgentName";
+		private readonly string InstanceName = "myInstanceName";
+		private readonly FakeCasClient CasClient = new FakeCasClient();
+		private readonly FakeActionRpcClient ActionRpcClient = new FakeActionRpcClient();
+
 
 		public ActionExecutorTest()
 		{
@@ -54,6 +67,59 @@ namespace HordeAgentTests
 			Assert.AreEqual("1/2/qux", Resolved[3].RelativePath);
 			Assert.AreEqual(Path.Join(TempDir, "1", "2", "3", "waldo"), Resolved[4].FileRef.FullName);
 			Assert.AreEqual("1/2/3/waldo", Resolved[4].RelativePath);
+		}
+
+		[TestMethod]
+		public async Task ExecuteAction()
+		{
+			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
+			ActionTask ActionTask = TaskTest.CreateActionTask(InstanceName, CasClient);
+			await Executor.ExecuteActionAsync("myLeaseId1", ActionTask, new DirectoryReference(TempDir), DateTimeOffset.UtcNow, CancellationToken.None);
+		}
+
+		[TestMethod]
+		public async Task ExecuteActionMissingBinary()
+		{
+			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
+			ActionTask ActionTask = TaskTest.CreateActionTask(InstanceName, CasClient, UploadBin: false);
+			await Assert.ThrowsExceptionAsync<DigestNotFoundException>(() => Executor.ExecuteActionAsync("myLeaseId1", ActionTask,
+				new DirectoryReference(TempDir), DateTimeOffset.UtcNow, CancellationToken.None));
+		}
+		
+		[TestMethod]
+		public async Task ExecuteActionMissingDirectory()
+		{
+			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
+			ActionTask ActionTask = TaskTest.CreateActionTask(InstanceName, CasClient, UploadDir: false);
+			await Assert.ThrowsExceptionAsync<DigestNotFoundException>(() => Executor.ExecuteActionAsync("myLeaseId1", ActionTask,
+				new DirectoryReference(TempDir), DateTimeOffset.UtcNow, CancellationToken.None));
+		}
+		
+		[TestMethod]
+		public async Task ExecuteActionMissingAction()
+		{
+			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
+			ActionTask ActionTask = TaskTest.CreateActionTask(InstanceName, CasClient, UploadAction: false);
+			await Assert.ThrowsExceptionAsync<DigestNotFoundException>(() => Executor.ExecuteActionAsync("myLeaseId1", ActionTask,
+				new DirectoryReference(TempDir), DateTimeOffset.UtcNow, CancellationToken.None));
+		}
+		
+		[TestMethod]
+		public async Task ExecuteActionMissingCommand()
+		{
+			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
+			ActionTask ActionTask = TaskTest.CreateActionTask(InstanceName, CasClient, UploadCommand: false);
+			await Assert.ThrowsExceptionAsync<DigestNotFoundException>(() => Executor.ExecuteActionAsync("myLeaseId1", ActionTask,
+				new DirectoryReference(TempDir), DateTimeOffset.UtcNow, CancellationToken.None));
+		}
+		
+		private static ILogger CreateLogger()
+		{
+			LoggerFactory LoggerFactory = new LoggerFactory();
+			ConsoleLoggerOptions LoggerOptions = new ConsoleLoggerOptions();
+			TestOptionsMonitor<ConsoleLoggerOptions> LoggerOptionsMon = new TestOptionsMonitor<ConsoleLoggerOptions>(LoggerOptions);
+			LoggerFactory.AddProvider(new ConsoleLoggerProvider(LoggerOptionsMon));
+			return LoggerFactory.CreateLogger<ActionExecutor>();
 		}
 
 		[TestCleanup]

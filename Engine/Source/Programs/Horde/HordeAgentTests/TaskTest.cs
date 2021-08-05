@@ -88,7 +88,7 @@ namespace HordeAgentTests
 		{
 			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
 			
-			ActionTask ActionTask = CreateActionTask();
+			ActionTask ActionTask = CreateActionTask(InstanceName, Cas);
 			Assert.IsNull(ActionRpc.ActionResultRequest);
 			LeaseOutcome Outcome = await Ws.HandleLeasePayloadAsync(RpcConnection, "my-agent-id", CreateLeaseInfo(ActionTask));
 			Assert.AreEqual(LeaseOutcome.Success, Outcome);
@@ -102,14 +102,14 @@ namespace HordeAgentTests
 		{
 			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
 			
-			ActionTask ActionTask = CreateActionTask();
+			ActionTask ActionTask = CreateActionTask(InstanceName, Cas);
 			LeaseOutcome Outcome = await Ws.HandleLeasePayloadAsync(RpcConnection, "my-agent-id", CreateLeaseInfo(ActionTask));
 			Assert.AreEqual(LeaseOutcome.Failed, Outcome);
 			Assert.IsNotNull(ActionRpc.ActionResultRequest);
 			Assert.IsNull(ActionRpc.ActionResultRequest!.Error);
 		}
 		
-		private string GetHash(byte[] data)
+		private static string GetHash(byte[] data)
 		{
 			using System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create();
 			byte[] hashBytes = md5.ComputeHash(data);
@@ -121,20 +121,34 @@ namespace HordeAgentTests
 			return sb.ToString();
 		}
 
-		private Build.Bazel.Remote.Execution.V2.Digest GetDigest(byte[] data)
+		private static Build.Bazel.Remote.Execution.V2.Digest GetDigest(byte[] data)
 		{
 			return new Build.Bazel.Remote.Execution.V2.Digest {Hash = GetHash(data), SizeBytes = data.Length};
 		}
 
-		private ActionTask CreateActionTask()
+		/// <summary>
+		/// Create an action task with the remote exec test binary
+		/// Will populate the CAS as well. Flags for uploading allow tests to verify different failure scenarios.
+		/// </summary>
+		/// <param name="InstanceName">Instance name</param>
+		/// <param name="Cas">The content-addressable store being used</param>
+		/// <param name="UploadBin">True to upload the remote exec test binary to CAS</param>
+		/// <param name="UploadDir">True to upload directory to CAS</param>
+		/// <param name="UploadCommand">True to upload the command to CAS</param>
+		/// <param name="UploadAction">True to upload action to CAS</param>
+		/// <returns>An ActionTask populated in CAS</returns>
+		public static ActionTask CreateActionTask(string InstanceName, FakeCasClient Cas, bool UploadBin = true, bool UploadDir = true, bool UploadCommand = true, bool UploadAction = true)
 		{
 			string BinName = "remote-exec-test-bin.exe";
 			string AssemblyPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
 			string BinPath = Path.Combine(AssemblyPath, "remote-exec-test-bin", BinName);
-			
+
 			byte[] ExeFileData = File.ReadAllBytes(BinPath);
-			Cas.SetBlob(InstanceName, GetHash(ExeFileData), ByteString.CopyFrom(ExeFileData));
-				
+			if (UploadBin)
+			{
+				Cas.SetBlob(InstanceName, GetHash(ExeFileData), ByteString.CopyFrom(ExeFileData));
+			}
+
 			Build.Bazel.Remote.Execution.V2.FileNode ExeFile = new Build.Bazel.Remote.Execution.V2.FileNode();
 			ExeFile.Digest = GetDigest(ExeFileData);
 			ExeFile.Name = BinName;
@@ -143,21 +157,29 @@ namespace HordeAgentTests
 			Build.Bazel.Remote.Execution.V2.Directory Dir = new Build.Bazel.Remote.Execution.V2.Directory();
 			Dir.Files.Add(ExeFile);
 			byte[] DirData = Dir.ToByteArray();
-			Cas.SetBlob(InstanceName, GetHash(DirData), ByteString.CopyFrom(DirData));
-			
+			if (UploadDir)
+			{
+				Cas.SetBlob(InstanceName, GetHash(DirData), ByteString.CopyFrom(DirData));
+			}
+
 			Build.Bazel.Remote.Execution.V2.Command Command = new Build.Bazel.Remote.Execution.V2.Command();
 			Command.Arguments.Add(ExeFile.Name);
 			byte[] CommandData = Command.ToByteArray();
-			Cas.SetBlob(InstanceName, GetHash(CommandData), ByteString.CopyFrom(CommandData));
-			
-			
+			if (UploadCommand)
+			{
+				Cas.SetBlob(InstanceName, GetHash(CommandData), ByteString.CopyFrom(CommandData));
+			}
+
 			Build.Bazel.Remote.Execution.V2.Action Action = new Build.Bazel.Remote.Execution.V2.Action();
 			Action.CommandDigest = GetDigest(CommandData);
 			Action.InputRootDigest = GetDigest(DirData);
 			Action.DoNotCache = true;
 			
 			byte[] ActionData = Action.ToByteArray();
-			Cas.SetBlob(InstanceName, GetHash(ActionData), ByteString.CopyFrom(ActionData));
+			if (UploadAction)
+			{
+				Cas.SetBlob(InstanceName, GetHash(ActionData), ByteString.CopyFrom(ActionData));
+			}
 
 			ActionTask ActionTask = new ActionTask();
 			ActionTask.Digest = GetDigest(ActionData);

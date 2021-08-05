@@ -4,13 +4,21 @@ using Build.Bazel.Remote.Execution.V2;
 using EpicGames.Core;
 using Google.Protobuf;
 using System;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Google.Rpc;
 using ContentAddressableStorageClient = Build.Bazel.Remote.Execution.V2.ContentAddressableStorage.ContentAddressableStorageClient;
 using Digest = Build.Bazel.Remote.Execution.V2.Digest;
 
 namespace EpicGames.Horde.Common.RemoteExecution
 {
+	public class DigestNotFoundException : Exception
+	{
+		public DigestNotFoundException(string InstanceName, Digest Digest, Status Status)
+			: base($"Failed getting digest {Digest}. Code={Status.Code} Message={Status.Message} InstanceName={InstanceName}")
+		{}
+	}
 	public static class StorageExtensions
 	{
 		public static async Task<byte[]> GetBulkDataAsync(this ContentAddressableStorageClient Storage, string InstanceName, Digest Digest)
@@ -19,8 +27,15 @@ namespace EpicGames.Horde.Common.RemoteExecution
 			Request.InstanceName = InstanceName;
 			Request.Digests.Add(Digest);
 
-			BatchReadBlobsResponse Response = await Storage.BatchReadBlobsAsync(Request);
-			return Response.Responses[0].Data.ToByteArray();
+			BatchReadBlobsResponse BatchResponse = await Storage.BatchReadBlobsAsync(Request);
+			BatchReadBlobsResponse.Types.Response Res = BatchResponse.Responses[0];
+			
+			if (Res.Status.Code != (int)Google.Rpc.Code.Ok)
+			{
+				throw new DigestNotFoundException(InstanceName, Digest, Res.Status);
+			}
+
+			return Res.Data.ToByteArray();
 		}
 
 		public static async Task<Digest> PutBulkDataAsync(this ContentAddressableStorageClient Storage, string InstanceName, byte[] Data)
@@ -47,7 +62,7 @@ namespace EpicGames.Horde.Common.RemoteExecution
 			BatchReadBlobsResponse Response = await Storage.BatchReadBlobsAsync(Request);
 			if (Response.Responses[0].Status.Code != (int)Google.Rpc.Code.Ok)
 			{
-				throw new Exception($"Failed getting digest {Digest}. Code={Response.Responses[0].Status.Code} Message={Response.Responses[0].Status.Message}");
+				throw new DigestNotFoundException(InstanceName, Digest, Response.Responses[0].Status);
 			}
 
 			T Item = new T();
