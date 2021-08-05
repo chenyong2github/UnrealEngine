@@ -5,17 +5,18 @@
 #include "CoreMinimal.h"
 
 #include "Containers/ArrayView.h"
+#include "CookOnTheSide/CookLog.h"
+#include "INetworkFileSystemModule.h"
+#include "IPlatformFileSandboxWrapper.h"
 #include "Misc/EnumClassFlags.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/Package.h"
 #include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
-#include "IPlatformFileSandboxWrapper.h"
-#include "INetworkFileSystemModule.h"
-#include "CookOnTheSide/CookLog.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+
 #include "CookOnTheFlyServer.generated.h"
 
 class FAssetRegistryGenerator;
@@ -114,11 +115,11 @@ namespace UE::Cook
 	class FSaveCookedPackageContext;
 	class ICookOnTheFlyRequestManager;
 	struct FCookerTimer;
+	struct FGeneratorPackage;
 	struct FPackageData;
 	struct FPackageDatas;
 	struct FPackageTracker;
 	struct FPendingCookedPlatformData;
-	struct FGeneratorPackage;
 	struct FPlatformManager;
 	struct FPopulatePackageContext;
 	struct FTickStackData;
