@@ -1673,7 +1673,7 @@ namespace Audio
 		else if (MixerSubmix && MixerSubmix->IsExternalEndpointSubmix())
 		{
 			FScopeLock ScopeLock(&EndpointSubmixesMutationLock);
-			ExternalEndpointSubmixes.Add(MixerSubmix);
+			ExternalEndpointSubmixes.Remove(MixerSubmix);
 		}
 
 		Submixes.Remove(InSoundSubmix.GetUniqueID());

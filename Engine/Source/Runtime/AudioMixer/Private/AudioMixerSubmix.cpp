@@ -905,6 +905,18 @@ namespace Audio
 		return !ParentSubmix.IsValid() && IsSoundfieldSubmix();
 	}
 
+	bool FMixerSubmix::IsDummyEndpointSubmix() const
+	{
+		if (EndpointData.NonSoundfieldEndpoint.IsValid())
+		{
+			return EndpointData.NonSoundfieldEndpoint->IsImplemented();
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	FName FMixerSubmix::GetSoundfieldFormat() const
 	{
 		if (IsSoundfieldSubmix())
@@ -1525,6 +1537,14 @@ namespace Audio
 	void FMixerSubmix::ProcessAudioAndSendToEndpoint()
 	{
 		check(MixerDevice);
+
+		//If this endpoint should no-op, just set the buffer to zero and return
+		if (IsDummyEndpointSubmix())
+		{
+			EndpointData.AudioBuffer.Reset();
+			EndpointData.AudioBuffer.AddZeroed(MixerDevice->GetNumOutputFrames() * MixerDevice->GetNumDeviceChannels());
+			return;
+		}
 
 		if (IsSoundfieldSubmix())
 		{

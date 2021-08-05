@@ -292,6 +292,9 @@ namespace Audio
 		// returns true if this submix sends its audio to an ISoundfieldEndpoint.
 		bool IsSoundfieldEndpointSubmix() const;
 
+		//Returns true if this is an endpoint type that should no-op for this platform
+		bool IsDummyEndpointSubmix() const;
+
 		// Get a unique key for this submix's format and settings.
 		// If another submix has an identical format and settings it will have an equivalent key.
 		FSoundfieldEncodingKey GetKeyForSubmixEncoding();
@@ -305,7 +308,7 @@ namespace Audio
 		FSoundfieldSpeakerPositionalData GetDefaultPositionalDataForAudioDevice();
 
 	protected:
-		// Initialize the submix internal 
+		// Initialize the submix internal
 		void InitInternal();
 
 		// Down mix the given buffer to the desired down mix channel count
@@ -327,7 +330,7 @@ namespace Audio
 
 		void UpdateListenerRotation(const FQuat& InRotation);
 
-		// Calls ProcessAudio on the child submix, performs all neccessary conversions and mixes in it's resulting audio.
+		// Calls ProcessAudio on the child submix, performs all necessary conversions and mixes in it's resulting audio.
 		void MixInChildSubmix(FChildSubmixInfo& Child, ISoundfieldAudioPacket& PacketToSumTo);
 
 		FName GetSoundfieldFormat() const;
