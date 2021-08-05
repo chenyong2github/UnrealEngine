@@ -50,7 +50,6 @@ class FReportDialog : public DG::Palette,
 	virtual void PanelCloseRequested(const DG::PanelCloseRequestEvent& /* ev */, bool* /* accepted */) override
 	{
 		Hide();
-        FTaskCalledFromEventLoop::CallFunctorFromEventLoop([]() { FReportWindow::Delete(); });
 	}
 
 	virtual void PanelResized(const DG::PanelResizeEvent& ev) override
