@@ -114,8 +114,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::GetProjectionMatrix
 bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int InContextNum, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures)
 {
 	FD3D11DynamicRHI* d3d11RHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
-	FViewport* MainViewport = GEngine->GameViewport->Viewport;
-	if (d3d11RHI == nullptr || MainViewport == nullptr)
+	if (d3d11RHI == nullptr)
 	{
 		return false;
 	}

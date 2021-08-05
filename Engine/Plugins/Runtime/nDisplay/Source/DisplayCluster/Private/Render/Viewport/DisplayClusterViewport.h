@@ -232,4 +232,7 @@ protected:
 	TArray<FDisplayClusterTextureResource*> MipsShaderResources;
 
 	FDisplayClusterViewportManager& Owner;
+
+private:
+	bool bProjectionPolicyCalculateViewWarningOnce = false;
 };
