@@ -146,7 +146,7 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	Meta.MakeOwned();
 	for (FCbFieldView Payload : InOutput["Payloads"_ASV])
 	{
-		const FPayloadId Id(Payload["Id"_ASV].AsObjectId());
+		const FPayloadId Id = Payload["Id"_ASV].AsObjectId();
 		const FIoHash& RawHash = Payload["RawHash"_ASV].AsAttachment();
 		if (Id.IsNull() || RawHash.IsZero() || !Payload["RawSize"_ASV].IsInteger())
 		{
@@ -216,7 +216,7 @@ void FBuildOutputInternal::Save(FCbWriter& Writer) const
 		for (const FPayload& Payload : Payloads)
 		{
 			Writer.BeginObject();
-			Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId()));
+			Writer.AddObjectId("Id"_ASV, Payload.GetId());
 			Writer.AddBinaryAttachment("RawHash"_ASV, Payload.GetRawHash());
 			Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 			Writer.EndObject();

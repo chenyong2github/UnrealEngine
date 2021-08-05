@@ -781,7 +781,7 @@ bool FZenDerivedDataBackend::LegacyPutCachePayload(const FCacheKey& Key, FString
 	}
 
 	Writer.BeginObject();
-	Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId().GetView()));
+	Writer.AddObjectId("Id"_ASV, Payload.GetId());
 	Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 	if (bStoreInline)
 	{
@@ -921,7 +921,7 @@ FPayload FZenDerivedDataBackend::LegacyGetCachePayload(const FCacheKey& Key, FSt
 	const FCbObject& Object, bool bAlwaysLoadInlineData) const
 {
 	// TODO: Temporary function copied from FFileSystemDerivedDataBackend, helper for CreateRecord
-	const FPayloadId Id(Object.FindView("Id"_ASV).AsObjectId().GetView());
+	const FPayloadId Id = Object.FindView("Id"_ASV).AsObjectId();
 	const uint64 RawSize = Object.FindView("RawSize"_ASV).AsUInt64(MAX_uint64);
 	const FIoHash RawHash = Object.FindView("RawHash"_ASV).AsHash();
 	FIoHash CompressedHash = Object.FindView("CompressedHash"_ASV).AsHash();

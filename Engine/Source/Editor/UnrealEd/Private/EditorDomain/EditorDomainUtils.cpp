@@ -445,10 +445,9 @@ bool TrySavePackage(UPackage* Package)
 	// the exports with offsets that expect all attachment segments to exist in the segmented archive.
 	auto IntToPayloadId = [](int32 Value)
 	{
-		FPayloadId::ByteArray Bytes;
+		alignas(int32) FPayloadId::ByteArray Bytes{};
 		static_assert(sizeof(Bytes) >= sizeof(int32), "We are storing an int32 counter in the Bytes array");
-		FMemory::Memset(&Bytes, 0, sizeof(Bytes));
-		int32* IntView = reinterpret_cast<int32*>(&Bytes);
+		int32* IntView = reinterpret_cast<int32*>(Bytes);
 		IntView[0] = Value;
 		return FPayloadId(Bytes);
 	};
