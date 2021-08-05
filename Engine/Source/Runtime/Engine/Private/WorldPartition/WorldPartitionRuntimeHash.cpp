@@ -310,10 +310,10 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeHash::GetStreamingPerf
 	return StreamingPerformance;
 }
 
-void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPartitionRuntimeCell* InCell, const FWorldPartitionStreamingSource& InSource)
+void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPartitionRuntimeCell* Cell, const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info)
 {
-	InCell->CacheStreamingSourceInfo(InSource);
-	Cells.Add(InCell);
+	Cell->CacheStreamingSourceInfo(Info);
+	Cells.Add(Cell);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -10,6 +10,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Components/DecalComponent.h"
+#include "Components/WorldPartitionStreamingSourceComponent.h"
 #include "PhysicsEngine/RadialForceComponent.h"
 #include "UnrealEdGlobals.h"
 
@@ -32,6 +33,7 @@
 #include "SensingComponentVisualizer.h"
 #include "SpringComponentVisualizer.h"
 #include "StereoLayerComponentVisualizer.h"
+#include "WorldPartitionStreamingSourceComponentVisualizer.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
 #include "PhysicsEngine/PhysicalAnimationComponent.h"
 #include "Components/StereoLayerComponent.h"
@@ -56,6 +58,7 @@ void FComponentVisualizersModule::StartupModule()
 	RegisterComponentVisualizer(UPhysicsSpringComponent::StaticClass()->GetFName(), MakeShareable(new FSpringComponentVisualizer));
 	RegisterComponentVisualizer(UDecalComponent::StaticClass()->GetFName(), MakeShareable(new FDecalComponentVisualizer));
 	RegisterComponentVisualizer(UStereoLayerComponent::StaticClass()->GetFName(), MakeShareable(new FStereoLayerComponentVisualizer));
+	RegisterComponentVisualizer(UWorldPartitionStreamingSourceComponent::StaticClass()->GetFName(), MakeShareable(new FWorldPartitionStreamingSourceComponentVisualizer));
 }
 
 void FComponentVisualizersModule::ShutdownModule()

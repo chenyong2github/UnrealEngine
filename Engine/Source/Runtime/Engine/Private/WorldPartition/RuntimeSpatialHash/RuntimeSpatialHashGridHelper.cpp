@@ -95,6 +95,18 @@ int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphere& InSphere, TFu
 	return NumCells;
 }
 
+int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector&)> InOperation) const
+{
+	int32 NumCells = 0;
+
+	for (int32 Level = 0; Level < Levels.Num(); Level++)
+	{
+		NumCells += Levels[Level].ForEachIntersectingCells(InShape, [Level, InOperation](const FIntVector2& Coord) { InOperation(FIntVector(Coord.X, Coord.Y, Level)); });
+	}
+
+	return NumCells;
+}
+
 #if WITH_EDITOR
 void FSquare2DGridHelper::ValidateSingleActorReferer()
 {
@@ -268,3 +280,92 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 }
 
 #endif // #if WITH_EDITOR
+
+FORCEINLINE static bool IsClockWise(const FVector2D& V1, const FVector2D& V2) 
+{
+	return (V1 ^ V2) < 0;
+}
+
+FORCEINLINE static bool IsVectorInsideVectorPair(const FVector2D& TestVector, const FVector2D& V1, const FVector2D& V2)
+{
+	return IsClockWise(V1, TestVector) && !IsClockWise(V2, TestVector);
+}
+
+FORCEINLINE static bool IsPointInsideSector(const FVector2D& TestPoint, const FVector2D& SectorCenter, float SectorRadiusSquared, const FVector2D& SectorStart, const FVector2D& SectorEnd, float SectorAngle)
+{
+	const FVector2D TestVector = TestPoint - SectorCenter;
+	if (TestVector.SizeSquared() > SectorRadiusSquared)
+	{
+		return false;
+	}
+	
+	if (SectorAngle <= 180.0f)
+	{
+		return IsVectorInsideVectorPair(TestVector, SectorStart, SectorEnd);
+	}
+	else
+	{
+		return !IsVectorInsideVectorPair(TestVector, SectorEnd, SectorStart);
+	}
+}
+
+bool FSquare2DGridHelper::FGrid2D::DoesCircleSectorIntersectsCell(const FIntVector2& Coords, const FVector2D& SectorCenter, float SectorRadiusSquared, const FVector2D& SectorStartVector, const FVector2D& SectorEndVector, float SectorAngle) const
+{
+	const int32 CellIndex = Coords.Y * GridSize + Coords.X;
+	FBox2D CellBounds;
+	GetCellBounds(CellIndex, CellBounds);
+
+	// Test whether any cell corners are inside sector
+	if (IsPointInsideSector(FVector2D(CellBounds.Min.X, CellBounds.Min.Y), SectorCenter, SectorRadiusSquared, SectorStartVector, SectorEndVector, SectorAngle) ||
+		IsPointInsideSector(FVector2D(CellBounds.Max.X, CellBounds.Min.Y), SectorCenter, SectorRadiusSquared, SectorStartVector, SectorEndVector, SectorAngle) ||
+		IsPointInsideSector(FVector2D(CellBounds.Max.X, CellBounds.Max.Y), SectorCenter, SectorRadiusSquared, SectorStartVector, SectorEndVector, SectorAngle) ||
+		IsPointInsideSector(FVector2D(CellBounds.Min.X, CellBounds.Max.Y), SectorCenter, SectorRadiusSquared, SectorStartVector, SectorEndVector, SectorAngle))
+	{
+		return true;
+	}
+
+	// Test whether any sector point lies inside the cell bounds
+	if (CellBounds.IsInside(SectorCenter) ||
+		CellBounds.IsInside(SectorCenter + SectorStartVector) ||
+		CellBounds.IsInside(SectorCenter + SectorEndVector))
+	{
+		return true;
+	}
+
+	// Test whether closest point on cell from center is inside sector
+	if (IsPointInsideSector(CellBounds.GetClosestPointTo(SectorCenter), SectorCenter, SectorRadiusSquared, SectorStartVector, SectorEndVector, SectorAngle))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+int32 FSquare2DGridHelper::FGrid2D::ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector2&)> InOperation) const
+{
+	check(!InShape.IsNearlyZero());
+	const bool bIsSphere = InShape.IsSphere();
+	const FVector ScaledAxis = FVector(FVector2D(InShape.GetAxis()), 0).GetSafeNormal() * InShape.GetRadius();
+	const FVector SectorStart = FRotator(0, 0.5f * InShape.GetAngle(), 0).RotateVector(ScaledAxis);
+	const FVector SectorEnd = FRotator(0, -0.5f * InShape.GetAngle(), 0).RotateVector(ScaledAxis);
+
+	const FVector2D Center2D(InShape.GetCenter());
+	const FVector2D SectorStart2D = FVector2D(SectorStart);
+	const FVector2D SectorEnd2D = FVector2D(SectorEnd);
+	const float SectorRadiusSquared = InShape.GetRadius() * InShape.GetRadius();
+
+	int32 NumCells = 0;
+	const FSphere Sphere(InShape.GetCenter(), InShape.GetRadius());
+	ForEachIntersectingCells(Sphere, [this, bIsSphere, Center2D, SectorRadiusSquared, SectorStart2D, SectorEnd2D, SectorAngle = InShape.GetAngle(), InOperation, &NumCells](const FIntVector2& Coords)
+	{
+		// If sector, filter coords that intersect sector
+		if (bIsSphere || DoesCircleSectorIntersectsCell(Coords, Center2D, SectorRadiusSquared, SectorStart2D, SectorEnd2D, SectorAngle))
+		{
+			InOperation(Coords);
+			NumCells++;
+		}
+	});
+
+	return NumCells;
+}
+

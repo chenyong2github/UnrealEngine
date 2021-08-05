@@ -73,7 +73,7 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 
 #endif
 
-bool UWorldPartitionRuntimeCell::CacheStreamingSourceInfo(const FWorldPartitionStreamingSource& Source) const
+bool UWorldPartitionRuntimeCell::CacheStreamingSourceInfo(const UWorldPartitionRuntimeCell::FStreamingSourceInfo& Info) const
 {
 	bool bWasCacheDirtied = false;
 	if (CachedSourceInfoEpoch != UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch)
@@ -83,7 +83,7 @@ bool UWorldPartitionRuntimeCell::CacheStreamingSourceInfo(const FWorldPartitionS
 	}
 
 	// If cache was dirtied, use value, else use minimum with existing cached value
-	CachedSourcePriority = bWasCacheDirtied ? (int32)Source.Priority : FMath::Min((int32)Source.Priority, CachedSourcePriority);
+	CachedSourcePriority = bWasCacheDirtied ? (int32)Info.Source.Priority : FMath::Min((int32)Info.Source.Priority, CachedSourcePriority);
 	return bWasCacheDirtied;
 }
 
