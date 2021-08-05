@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ZenServerInterface.h"
+
+#if UE_WITH_ZEN
+
 #include "DerivedDataBackendInterface.h"
 #include "ZenBackendUtils.h"
 
@@ -19,8 +22,6 @@
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/MemoryReader.h"
-
-#if UE_WITH_ZEN
 
 namespace UE::Zen {
 
