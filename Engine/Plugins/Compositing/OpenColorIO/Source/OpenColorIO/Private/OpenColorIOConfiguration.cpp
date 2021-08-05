@@ -377,14 +377,20 @@ void UOpenColorIOConfiguration::LoadConfigurationFile()
 			LoadedConfig.reset();
 
 			FString FullPath;
-			if (!FPaths::IsRelative(ConfigurationFile.FilePath))
+			FString ConfigurationFilePath = ConfigurationFile.FilePath;
+			if (ConfigurationFilePath.Contains(TEXT("{Engine}")))
 			{
-				FullPath = ConfigurationFile.FilePath;
+				ConfigurationFilePath = FPaths::ConvertRelativePathToFull(ConfigurationFilePath.Replace(TEXT("{Engine}"), *FPaths::EngineDir()));
+			}    
+
+			if (!FPaths::IsRelative(ConfigurationFilePath))
+			{
+				FullPath = ConfigurationFilePath;
 			}
 			else
 			{
 				const FString AbsoluteGameDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-				FullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, ConfigurationFile.FilePath));
+				FullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, ConfigurationFilePath));
 			}
 
 			OCIO_NAMESPACE::ConstConfigRcPtr NewConfig = OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*FullPath).Get());
