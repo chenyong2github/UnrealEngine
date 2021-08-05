@@ -961,6 +961,56 @@ namespace HordeServer.Notifications.Impl
 
 		#endregion
 
+		#region Device notifications
+
+		/// <inheritdoc/>
+		public async Task NotifyDeviceServiceAsync(string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null)
+		{
+			Logger.LogDebug("Sending device service failure notification for {DeviceName} in pool {PoolName}", Device?.Name, Pool?.Name);
+			if (Settings.DeviceServiceNotificationChannel != null)
+			{
+				await SendDeviceServiceMessage($"#{Settings.DeviceServiceNotificationChannel}", Message, Device, Pool, Stream, Job, Step, Node);
+			}
+		}
+
+		/// <summary>
+		/// Creates a Slack message about a completed step job.
+		/// </summary>
+		/// <param name="Recipient"></param>
+        /// <param name="Message"></param>
+        /// <param name="Device"></param>
+        /// <param name="Pool"></param>
+		/// <param name="Stream"></param>
+		/// <param name="Job">The job that contains the step that completed.</param>
+		/// <param name="Step">The job step that completed.</param>
+		/// <param name="Node">The node for the job step.</param>
+		private Task SendDeviceServiceMessage(string Recipient, string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null)
+		{
+			BlockKitAttachment Attachment = new BlockKitAttachment();
+
+			Attachment.FallbackText = $"{Message}";
+
+			if (Device != null && Pool != null)
+			{
+                Attachment.FallbackText += $" - Device: {Device.Name} Pool: {Pool.Name}";
+            }
+
+			if (Stream != null && Job != null && Step != null && Node != null)
+			{
+				Uri JobStepLink = new Uri($"{Settings.DashboardUrl}job/{Job.Id}?step={Step.Id}");
+				Uri JobStepLogLink = new Uri($"{Settings.DashboardUrl}log/{Step.LogId}");
+				
+				Attachment.FallbackText += $" - {Stream.Name} - {GetJobChangeText(Job)} - {Job.Name} - {Node.Name}";
+				Attachment.Blocks.Add(new SectionBlock($"*<{JobStepLink}|{Stream.Name} - {GetJobChangeText(Job)} - {Job.Name} - {Node.Name}>*"));
+				Attachment.Blocks.Add(new SectionBlock($"<{JobStepLogLink}|View Job Step Log>"));
+			}
+
+			return SendMessageAsync(Recipient, Attachments: new[] { Attachment });
+		}
+		
+		#endregion
+
+
 		const int MaxJobStepEvents = 5;
 
 		static string GetJobChangeText(IJob Job)

@@ -229,6 +229,12 @@ namespace HordeServer.Notifications.Impl
 			EnqueueTasks(Sink => Sink.NotifyConfigUpdateFailureAsync(ErrorMessage, FileName, Change, User, Description));
 		}
 
+		/// <inheritdoc/>
+		public void NotifyDeviceService(string Message, IDevice? Device = null, IDevicePool? Pool = null, IStream? Stream = null, IJob? Job = null, IJobStep? Step = null, INode? Node = null)
+		{
+			EnqueueTasks(Sink => Sink.NotifyDeviceServiceAsync(Message, Device, Pool, Stream, Job, Step, Node));
+		}
+
 		/// <summary>
 		/// Enqueues an async task
 		/// </summary>

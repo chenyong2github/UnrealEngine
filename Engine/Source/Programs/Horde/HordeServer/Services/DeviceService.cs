@@ -18,6 +18,8 @@ using DevicePlatformId = HordeServer.Utilities.StringId<HordeServer.Models.IDevi
 using DevicePoolId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePool>;
 using System.Security.Claims;
 using System.Diagnostics.CodeAnalysis;
+using HordeServer.Notifications;
+using System.Linq;
 
 namespace HordeServer.Services
 {
@@ -32,6 +34,22 @@ namespace HordeServer.Services
 		AclService AclService;
 
 		/// <summary>
+		/// Instance of the notification service
+		/// </summary>
+		INotificationService NotificationService;
+
+
+		/// <summary>
+		/// Singleton instance of the job service
+		/// </summary>
+		JobService JobService;
+
+		/// <summary>
+		/// Singleton instance of the stream service
+		/// </summary>
+		StreamService StreamService;
+
+		/// <summary>
 		/// Log output writer
 		/// </summary>
 		ILogger<DeviceService> Logger;
@@ -44,12 +62,15 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(IDeviceCollection Devices, AclService AclService, ILogger<DeviceService> Logger)
+		public DeviceService(IDeviceCollection Devices, JobService JobService, StreamService StreamService, AclService AclService, INotificationService NotificationService, ILogger<DeviceService> Logger)
 			: base(TimeSpan.FromMinutes(1.0), Logger)
 		{
 			this.Devices = Devices;
-			this.AclService = AclService;
-			this.Logger = Logger;
+            this.JobService = JobService;
+            this.StreamService = StreamService;
+            this.AclService = AclService;
+            this.NotificationService = NotificationService;
+            this.Logger = Logger;
 		}
 
 		/// <summary>
@@ -219,12 +240,79 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
+		/// Get a reservation from a device id
+		/// </summary>
+		public Task<IDeviceReservation?> TryGetDeviceReservation(DeviceId DeviceId)
+		{
+			return Devices.TryGetDeviceReservationAsync(DeviceId);
+		}
+
+		/// <summary>
 		/// Get a list of existing device reservations
 		/// </summary>
 		public Task<List<IDeviceReservation>> GetReservationsAsync()
 		{
 			return Devices.FindAllReservationsAsync();
 		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Message"></param>
+		/// <param name="DeviceId"></param>
+		/// <param name="JobId"></param>
+		/// <param name="StepId"></param>
+		public async Task NotifyDeviceServiceAsync(string Message, DeviceId? DeviceId = null, string? JobId = null, string? StepId = null)
+		{
+			try 
+			{
+				IDevice? Device = null;
+				IDevicePool? Pool = null;
+				IJob? Job = null;
+				IJobStep? Step = null;
+				INode? Node = null;
+				IStream? Stream = null;
+
+				if (DeviceId.HasValue)
+				{
+					Device = await GetDeviceAsync(DeviceId.Value);
+					Pool = await GetPoolAsync(Device!.PoolId);
+				}
+
+				if (JobId != null)
+				{
+					Job = await JobService.GetJobAsync(new ObjectId(JobId));
+
+					if (Job != null)
+					{
+						Stream = await StreamService.GetStreamAsync(Job.StreamId);
+
+						if (StepId != null)
+						{
+							IGraph Graph = await JobService.GetGraphAsync(Job)!;
+
+							SubResourceId StepIdValue = SubResourceId.Parse(StepId);
+							IJobStepBatch Batch = Job.Batches.FirstOrDefault(B => B.Steps.FirstOrDefault(S => S.Id == StepIdValue) != null);
+							if (Batch != null)
+							{
+								Step = Batch.Steps.FirstOrDefault(S => S.Id == StepIdValue)!;
+								INodeGroup Group = Graph.Groups[Batch.GroupIdx];
+								Node = Group.Nodes[Step.NodeIdx];
+							}
+						}
+					}
+				}
+
+				NotificationService.NotifyDeviceService(Message, Device, Pool, Stream, Job, Step, Node);
+
+			}
+			catch (Exception Ex)
+			{
+                Logger.LogError($"Error on device notification {Ex.Message}");
+            }
+        }
+
+
 
 		/// <summary>
 		/// Authorize device action
