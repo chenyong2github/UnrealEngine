@@ -9,17 +9,17 @@ public class TextureBuild : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
 			"CoreUObject",
-			"DerivedDataCache",
 			"Engine",
 		});
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"ImageCore",
-				"ImageWrapper",
-				"TextureCompressor",
-				"TextureFormat",
-			});
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"DerivedDataCache",
+			"ImageCore",
+			"ImageWrapper",
+			"TextureCompressor",
+			"TextureFormat",
+		});
 	}
 }

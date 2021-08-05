@@ -7,7 +7,6 @@
 #include "Async/AsyncFileHandleNull.h"
 #include "Containers/UnrealString.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheRecord.h"
 #include "EditorDomain/EditorDomainArchive.h"
 #include "EditorDomain/EditorDomainSave.h"
@@ -277,7 +276,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		};
 		// Fetch meta-data only
 		ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
-		RequestGroup = GetDerivedDataCacheRef().CreateGroup(EPriority::Highest);
+		RequestGroup = GetCache().CreateGroup(EPriority::Highest);
 		RequestEditorDomainPackage(PackagePath, PackageSource->Digest, SkipFlags, RequestGroup.Get(), MoveTemp(MetaDataGetComplete));
 	}
 	RequestGroup.Get().Wait();

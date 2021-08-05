@@ -5,7 +5,6 @@
 #include "AssetRegistry/AssetData.h"
 #include "Async/AsyncFileHandleNull.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
 #include "EditorDomain/EditorDomainSave.h"
@@ -20,7 +19,7 @@
 FEditorDomainPackageSegments::FEditorDomainPackageSegments(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
 	: EditorDomainLocks(InLocks)
-	, RequestGroup(GetDerivedDataCacheRef().CreateGroup(UE::DerivedData::EPriority::Normal))
+	, RequestGroup(UE::DerivedData::GetCache().CreateGroup(UE::DerivedData::EPriority::Normal))
 	, PackagePath(InPackagePath)
 	, PackageSource(InPackageSource)
 	, PackageDigest(InPackageSource->Digest)
@@ -374,7 +373,7 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 	using namespace UE::DerivedData;
 
 	// Called from Callback-only until AsyncSource is set, then from Interface-only
-	ICache& Cache = GetDerivedDataCacheRef();
+	ICache& Cache = GetCache();
 
 	// Note that Segment.RequestGroup is Interface-only and so we can write it outside the lock
 	Segment.RequestGroup = Cache.CreateGroup(UE::DerivedData::EPriority::Normal);

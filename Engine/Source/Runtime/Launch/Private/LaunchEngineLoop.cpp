@@ -133,6 +133,10 @@
 #if WITH_ENGINE && !UE_BUILD_SHIPPING
 	#include "IAutomationControllerModule.h"
 #endif // WITH_ENGINE && !UE_BUILD_SHIPPING
+#if WITH_EDITORONLY_DATA
+	#include "DerivedDataBuild.h"
+	#include "DerivedDataCache.h"
+#endif // WITH_EDITORONLY_DATA
 	#include "DerivedDataCacheInterface.h"
 	#include "ShaderCompiler.h"
 	#include "DistanceFieldAtlas.h"
@@ -2850,9 +2854,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (!FPlatformProperties::RequiresCookedData())
 	{
+#if WITH_EDITORONLY_DATA
 		// Ensure that DDC is initialized from the game thread.
+		UE::DerivedData::GetBuild();
+		UE::DerivedData::GetCache();
 		GetDerivedDataCacheRef();
-		GetDerivedDataBuildRef();
+#endif
 
 #if WITH_EDITOR
 		// Make sure that FVirtualizationManager is first called from the game thread

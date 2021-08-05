@@ -543,7 +543,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 			using namespace UE::DerivedData;
 			// Compress the texture by calling the DDC2 build function.  May be executed locally or remotely.
 			// The FBuildDefinition in the future will replace both the cache get/put as well as execution.
-			IBuild& Build = GetDerivedDataBuildRef();
+			IBuild& Build = GetBuild();
 			FString TexturePath = Texture.GetPathName();
 			FBuildDefinitionBuilder DefinitionBuilder = Build.CreateDefinition(TexturePath, BuildFunctionName);
 
@@ -1015,7 +1015,7 @@ public:
 		TStringBuilder<256> TexturePath;
 		Texture.GetPathName(nullptr, TexturePath);
 
-		IBuild& Build = GetDerivedDataBuildRef();
+		IBuild& Build = GetBuild();
 		IBuildInputResolver* GlobalResolver = GetGlobalBuildInputResolver();
 		BuildSession = Build.CreateSession(TexturePath, GlobalResolver ? GlobalResolver : &InputResolver);
 

@@ -7,7 +7,6 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Containers/Array.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
 #include "Editor.h"
@@ -204,21 +203,21 @@ EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName Pa
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainPackageCacheBucket =
-		GetDerivedDataCacheRef().CreateBucket(EditorDomainPackageBucketName);
+		UE::DerivedData::GetCache().CreateBucket(EditorDomainPackageBucketName);
 	return UE::DerivedData::FCacheKey{EditorDomainPackageCacheBucket, PackageDigest};
 }
 
 UE::DerivedData::FCacheKey GetBulkDataListKey(const FPackageDigest& PackageDigest)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainBulkDataListBucket =
-		GetDerivedDataCacheRef().CreateBucket(EditorDomainBulkDataListBucketName);
+		UE::DerivedData::GetCache().CreateBucket(EditorDomainBulkDataListBucketName);
 	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataListBucket, PackageDigest };
 }
 
 UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuidDigest)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainBulkDataPayloadIdBucket =
-		GetDerivedDataCacheRef().CreateBucket(EditorDomainBulkDataPayloadIdBucketName);
+		UE::DerivedData::GetCache().CreateBucket(EditorDomainBulkDataPayloadIdBucketName);
 
 	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataPayloadIdBucket, PackageAndGuidDigest };
 }
@@ -227,7 +226,7 @@ void RequestEditorDomainPackage(const FPackagePath& PackagePath,
 	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePolicy SkipFlags, UE::DerivedData::IRequestOwner& Owner,
 	UE::DerivedData::FOnCacheGetComplete&& Callback)
 {
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
+	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
 	checkf((SkipFlags & (~UE::DerivedData::ECachePolicy::SkipData)) == UE::DerivedData::ECachePolicy::None,
 		TEXT("SkipFlags should only contain ECachePolicy::Skip* flags"));
 	Cache.Get({ GetEditorDomainPackageKey(PackageDigest) },
@@ -437,7 +436,7 @@ bool TrySavePackage(UPackage* Package)
 		return false;
 	}
 
-	ICache& Cache = GetDerivedDataCacheRef();
+	ICache& Cache = GetCache();
 	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetEditorDomainPackageKey(PackageDigest));
 
 	// We use a counter for PayloadIds rather than hashes of the Attachments. We do this because
@@ -497,7 +496,7 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 	}
 
 	using namespace UE::DerivedData;
-	ICache& Cache = GetDerivedDataCacheRef();
+	ICache& Cache = GetCache();
 	Cache.Get({ GetBulkDataListKey(PackageDigest) },
 		WriteToString<128>(PackageName), ECachePolicy::Default, Owner,
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
@@ -524,7 +523,7 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	}
 
 	using namespace UE::DerivedData;
-	ICache& Cache = GetDerivedDataCacheRef();
+	ICache& Cache = GetCache();
 	FRequestGroup Group = Cache.CreateGroup(EPriority::Normal);
 	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataListKey(PackageDigest));
 	RecordBuilder.SetValue(Buffer);
@@ -557,7 +556,7 @@ void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::Derive
 	FIoHash PackageAndGuidDigest = GetPackageAndGuidDigest(Builder, BulkDataId);
 
 	using namespace UE::DerivedData;
-	ICache& Cache = GetDerivedDataCacheRef();
+	ICache& Cache = GetCache();
 	Cache.Get({ GetBulkDataPayloadIdKey(PackageAndGuidDigest) },
 		WriteToString<192>(PackageName, TEXT("/"), BulkDataId), ECachePolicy::Default, Owner,
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
@@ -584,7 +583,7 @@ void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuf
 	FIoHash PackageAndGuidDigest = GetPackageAndGuidDigest(Builder, BulkDataId);
 
 	using namespace UE::DerivedData;
-	ICache& Cache = GetDerivedDataCacheRef();
+	ICache& Cache = GetCache();
 	FRequestGroup Group = Cache.CreateGroup(EPriority::Normal);
 	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataPayloadIdKey(PackageAndGuidDigest));
 	RecordBuilder.SetValue(Buffer);
