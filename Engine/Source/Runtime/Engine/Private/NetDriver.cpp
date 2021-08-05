@@ -336,6 +336,13 @@ static FAutoConsoleVariableRef CVarNetControlChannelDestructionInfo(
 	TEXT("0: Old behavior, use an actor channel. 1: New behavior, use the control channel"),
 	ECVF_Default);
 
+static int32 GNetResetAckStatePostSeamlessTravel = 0;
+static FAutoConsoleVariableRef CVarNetResetAckStatePostSeamlessTravel(
+	TEXT("net.ResetAckStatePostSeamlessTravel"),
+	GNetResetAckStatePostSeamlessTravel,
+	TEXT("If 1, the server will reset the ack state of the package map after seamless travel. Increases bandwidth usage, but may resolve some issues with GUIDs not being available on clients after seamlessly traveling."),
+	ECVF_Default);
+
 
 /*-----------------------------------------------------------------------------
 	UNetDriver implementation.
@@ -5694,6 +5701,20 @@ void UNetDriver::CleanPackageMaps()
 	if ( GuidCache.IsValid() )
 	{ 
 		GuidCache->CleanReferences();
+	}
+
+	if (GNetResetAckStatePostSeamlessTravel)
+	{
+		for (UNetConnection* Connection : ClientConnections)
+		{
+			if (Connection)
+			{ 
+				if (UPackageMapClient* PackageMapClient = Cast<UPackageMapClient>(Connection->PackageMap))
+				{
+					PackageMapClient->ResetAckState();
+				}
+			}
+		}
 	}
 }
 

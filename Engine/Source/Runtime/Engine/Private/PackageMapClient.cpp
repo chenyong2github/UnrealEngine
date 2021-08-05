@@ -1914,6 +1914,12 @@ void UPackageMapClient::OverridePackageMapExportAckStatus( FPackageMapAckState* 
 	OverrideAckState = NewState ? NewState : &AckState;
 }
 
+void UPackageMapClient::ResetAckState()
+{
+	AckState.Reset();
+	PendingAckGUIDs.Empty();
+}
+
 //--------------------------------------------------------------------
 //
 //	Network - ACKing

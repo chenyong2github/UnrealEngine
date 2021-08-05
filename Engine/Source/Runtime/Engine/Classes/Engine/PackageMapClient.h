@@ -500,6 +500,9 @@ public:
 	void RestorePackageMapExportAckStatus( const FPackageMapAckState& InState );
 	void OverridePackageMapExportAckStatus( FPackageMapAckState* NewState );
 
+	/** Resets the AckState and empties the PendingAckGuids, not meant to reset the OverrideAckState. */
+	void ResetAckState();
+
 	/** Functions to help with exporting/importing net field info */
 	TSharedPtr< FNetFieldExportGroup >	GetNetFieldExportGroup( const FString& PathName );
 	void								AddNetFieldExportGroup( const FString& PathName, TSharedPtr< FNetFieldExportGroup > NewNetFieldExportGroup );
