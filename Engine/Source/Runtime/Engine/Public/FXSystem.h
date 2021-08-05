@@ -127,7 +127,7 @@ public:
 	/**
 	 * Create an effects system instance.
 	 */
-	ENGINE_API static FFXSystemInterface* Create(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform);
+	ENGINE_API static FFXSystemInterface* Create(ERHIFeatureLevel::Type InFeatureLevel, FSceneInterface* Scene);
 
 	/**
 	 * Destroy an effects system instance.
@@ -263,6 +263,9 @@ public:
 
 	virtual void SetSceneTexturesUniformBuffer(FRHIUniformBuffer* InSceneTexturesUniformParams) {}
 
+	FORCEINLINE FScene* GetScene()const { return Scene; }
+	FORCEINLINE void SetScene(FScene* InScene) { Scene = InScene; }
+
 protected:
 	
 	friend class FFXSystemSet;
@@ -277,6 +280,8 @@ protected:
 private:
 
 	bool bIsPendingKill = false;
+
+	class FScene* Scene = nullptr;
 
 	static TMap<FName, FCreateCustomFXSystemDelegate> CreateCustomFXDelegates;
 };

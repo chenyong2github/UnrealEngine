@@ -8,8 +8,14 @@
 
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 
+// ray input structure for Niagara ray traces
+struct FNiagaraRayData : FBasicRayData
+{
+	uint CollisionGroup;
+};
+
 // payload structure for Niagara ray traces
-struct FNiagaraRayTracingPayload : FMinimalPayload
+struct FNiagaraRayTracingPayload : FDefaultPayload
 {
 	float3 WorldPosition;
 	float3 WorldNormal;

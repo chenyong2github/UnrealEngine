@@ -199,6 +199,22 @@ public:
 		SetUAVParameter(RHICmdList, ComputeShader, TargetBufferParam, nullptr);
 	}
 
+	void Execute(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader, FRWBufferStructured& Buffer, int32 Value)
+	{
+		const uint32 THREAD_COUNT = 64;
+		const uint32 NumInts = Buffer.NumBytes / sizeof(int32);
+		const uint32 ThreadGroups = FMath::DivideAndRoundUp(NumInts, THREAD_COUNT);
+
+		SetComputePipelineState(RHICmdList, ComputeShader);
+
+		SetUAVParameter(RHICmdList, ComputeShader, TargetBufferParam, Buffer.UAV);
+		SetShaderValue(RHICmdList, ComputeShader, FillValueParam, Value);
+		SetShaderValue(RHICmdList, ComputeShader, BufferSizeParam, NumInts);
+
+		DispatchComputeShader(RHICmdList, this, ThreadGroups, 1, 1);
+
+		SetUAVParameter(RHICmdList, ComputeShader, TargetBufferParam, nullptr);
+	}
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, TargetBufferParam);
 	LAYOUT_FIELD(FShaderParameter, FillValueParam);
@@ -208,6 +224,13 @@ private:
 IMPLEMENT_GLOBAL_SHADER(NiagaraFillIntBufferCS, "/Plugin/FX/Niagara/Private/NiagaraFillIntBuffer.usf", "FillIntBuffer", SF_Compute);
 
 void NiagaraFillGPUIntBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRWBuffer& Buffer, int32 Value)
+{
+	TShaderMapRef<NiagaraFillIntBufferCS> FillCS(GetGlobalShaderMap(FeatureLevel));
+	FRHIComputeShader* ComputeShader = FillCS.GetComputeShader();
+	FillCS->Execute(RHICmdList, ComputeShader, Buffer, Value);
+}
+
+void NiagaraFillGPUIntBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRWBufferStructured& Buffer, int32 Value)
 {
 	TShaderMapRef<NiagaraFillIntBufferCS> FillCS(GetGlobalShaderMap(FeatureLevel));
 	FRHIComputeShader* ComputeShader = FillCS.GetComputeShader();

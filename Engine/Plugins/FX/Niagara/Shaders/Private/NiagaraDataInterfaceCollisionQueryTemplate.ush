@@ -3,7 +3,7 @@
 #if NIAGARA_USE_RAYTRACING
 bool											RayTracingEnabled_{ParameterName};
 uint                                            MaxRayTraceCount_{ParameterName};
-RWStructuredBuffer<FBasicRayData>               RWRayRequests_{ParameterName};
+RWStructuredBuffer<FNiagaraRayData>               RWRayRequests_{ParameterName};
 StructuredBuffer<FNiagaraRayTracingPayload>     IntersectionResults_{ParameterName};
 RWBuffer<uint>                                  RWRayTraceCounts_{ParameterName};
 #endif

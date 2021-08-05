@@ -90,6 +90,24 @@ public:
 
 	static bool GetVectorVMFastPathExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FVMExternalFunction &OutFunc);
 
+
+	//Functions providing access to HWRT collision specific features
+
+	/** Sets the Niagara GPU ray traced collision group for the give primitive component. */
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara collision ray tracing", WorldContext = "WorldContextObject"))
+	static void SetComponentNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, UPrimitiveComponent* Primitive, int32 CollisionGroup);
+	
+	/** Sets the Niagara GPU ray traced collision group for all primitive components on the given actor. */
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara collision ray tracing", WorldContext = "WorldContextObject"))
+	static void SetActorNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, AActor* Actor, int32 CollisionGroup);
+
+	/** Returns a free collision group for use in HWRT collision group filtering. Returns -1 on failure. */
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara collision ray tracing", WorldContext = "WorldContextObject"))
+	static int32 AcquireNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject);
+
+	/** Releases a collision group back to the system for use by ohers. */
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara collision ray tracing", WorldContext = "WorldContextObject"))
+	static void ReleaseNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, int32 CollisionGroup);
 private:
 	static void InitVectorVMFastPathOps();
 	static TArray<FNiagaraFunctionSignature> VectorVMOps;

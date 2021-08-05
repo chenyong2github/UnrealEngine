@@ -16,12 +16,25 @@ class FRHIUniformBuffer;
 class FRHIUnorderedAccessView;
 struct FRWBuffer;
 
+//c++ mirror of the ray struct defined in NiagaraRayTracingCommon.ush
+struct FNiagaraRayData : public FBasicRayData
+{
+	int32 CollisionGroup;
+};
+
 // c++ mirror of the struct defined in NiagaraRayTracingCommon.ush
 struct FNiagaraRayTracingPayload
 {
-	float	HitT;            // Distance from ray origin to the intersection point in the ray direction. Negative on miss.
-	float	WorldPosition[3];
-	float	WorldNormal[3];
+	float HitT;
+
+	uint32 PrimitiveIndex;
+	uint32 InstanceIndex;
+	float Barycentrics[2];
+
+	uint32 InstanceID;
+
+	float WorldPosition[3];
+	float WorldNormal[3];
 };
 
 class NIAGARASHADER_API FNiagaraRayTracingHelper
@@ -35,9 +48,16 @@ class NIAGARASHADER_API FNiagaraRayTracingHelper
 
 		void Reset();
 		void BuildRayTracingSceneInfo(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views);
-		void IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const;
+		void IssueRayTraces(FRHICommandList& RHICmdList, FScene* Scene, const FIntPoint& RayTraceCounts, uint32 MaxRetraces, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const;
 		bool IsValid() const;
 
+		/** Adds a primitive to a collision group. This data is sent to the GPU on the start of the next frame. */
+		void SetPrimitiveCollisionGroup(FPrimitiveSceneInfo& Primitive, uint32 CollisionGroup);
+
+		/** Pushes cpu side copy of the collision group map to the GPU. */
+		void UpdateCollisionGroupMap(FRHICommandList& RHICmdList, FScene* Scene, ERHIFeatureLevel::Type FeatureLevel);
+
+		void RefreshPrimitiveInstanceData();
 	private:
 		const EShaderPlatform ShaderPlatform;
 
@@ -45,6 +65,21 @@ class NIAGARASHADER_API FNiagaraRayTracingHelper
 		mutable FRHIRayTracingScene* RayTracingScene = nullptr;
 		mutable FRHIShaderResourceView* RayTracingSceneView = nullptr;
 		mutable FRHIUniformBuffer* ViewUniformBuffer = nullptr;
+
+		/**
+		CPU side copy of the PrimID to Collision Group Map.
+		This is uploaded to the GPU and used in Niagara RG shader to filter self collisions between objects of the same group.
+		*/
+		TMap<FPrimitiveComponentId, uint32> CollisionGroupMap;
+		
+		/** Hash table. 
+		 PrimIdHashTable is the main hash table that maps GPUSceneInstanceIndex to and Index we can use to store Collision Groups inside HashToCollisionGroups.
+*/
+		FRWBufferStructured PrimIdHashTable;
+		uint32 HashTableSize = 0;
+		FRWBuffer HashToCollisionGroups;
+
+		bool bCollisionGroupMapDirty = true;
 };
 
 #endif

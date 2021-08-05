@@ -158,9 +158,17 @@ public:
 	FNiagaraGpuReadbackManager* GetGpuReadbackManager() const { return GpuReadbackManagerPtr.Get(); }
 
 #if RHI_RAYTRACING
-	void IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const;
+	void IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, uint32 MaxRetraces, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const;
 	bool HasRayTracingScene() const;
+
+	void SetPrimitiveRayTracingCollisionGroup(UPrimitiveComponent* PrimitiveComponent, uint32 Group);
+
+	int32 AcquireGPURayTracedCollisionGroup(); 
+	void ReleaseGPURayTracedCollisionGroup(int32 CollisionGroup);
 #endif
+
+	void OnPrimitiveGPUSceneInstancesAllocated();
+	void OnPrimitiveGPUSceneInstancesFreed();
 
 private:
 	void DumpDebugFrame();
@@ -299,4 +307,7 @@ private:
 	void BroadcastTemporalEffect(FRHICommandList& RHICmdList);
 #endif // WITH_MGPU
 
+	/** Pool of free GPU ray traced collision groups. */
+	TArray<int32> FreeGPURayTracedCollisionGroups;
+	int32 NumGPURayTracedCollisionGroups = 0;
 };

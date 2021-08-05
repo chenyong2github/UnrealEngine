@@ -35,6 +35,7 @@ bool HashTableAdd( uint Key, out uint Index )
 	Key++;
 
 	LOOP
+	[allow_uav_condition]
 	for( Index = MurmurMix( Key );; Index++ )
 	{
 		//Index &= HashTableSize - 1;
@@ -69,6 +70,7 @@ bool HashTableFind( uint Key, out uint Index )
 	Key++;
 
 	LOOP
+	[allow_uav_condition]
 	for( Index = MurmurMix( Key );; Index++ )
 	{
 		//Index &= HashTableSize - 1;
@@ -79,7 +81,9 @@ bool HashTableFind( uint Key, out uint Index )
 		{
 			if( StoredKey != 0 )
 				continue;
-
+		}
+		else
+		{
 			return true;
 		}
 

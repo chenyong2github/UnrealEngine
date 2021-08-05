@@ -1,18 +1,55 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Private/Common.ush"
+#include "/Engine/Private/SceneData.ush"
 #include "/Engine/Private/ShadingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
 #include "NiagaraRayTracingCommon.ush"
+#include "/Engine/Private/HashTable.ush"
 
 RaytracingAccelerationStructure               TLAS;
-StructuredBuffer<FBasicRayData>               Rays;
+StructuredBuffer<FNiagaraRayData>               Rays;
 RWStructuredBuffer<FNiagaraRayTracingPayload> CollisionOutput;
 
 #if NIAGARA_RAYTRACE_FAKE_INDIRECT
 Buffer<uint>                                  RayTraceCounts;
 #endif
+
+Buffer<uint> HashToCollisionGroups;
+uint MaxRetraces;
+uint TestParam;
+uint TestControl;
+
+uint GetGPUSceneInstanceIndex(uint PrimitiveIndex, uint InstanceIndex)
+{
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	FPrimitiveSceneData PrimData = GetPrimitiveData(PrimitiveIndex);
+	// Handle ray tracing auto instancing which can cause PrimitiveInstanceIndex to be above 0 for meshes with a single instance
+	if (PrimData.NumInstanceSceneDataEntries == 1)
+	{
+		InstanceIndex = 0;
+	}
+
+	return PrimData.InstanceSceneDataOffset + InstanceIndex;
+#else
+
+	return 0;
+#endif
+}
+
+bool FindCollisionGroup(int GPUSceneIndexId, out int CollisionGroup)
+{
+	int Index;
+	if (HashTableFind(GPUSceneIndexId, Index))
+	{
+		CollisionGroup = HashToCollisionGroups[Index];
+		return true;
+	}
+
+	return false;
+}
+
 
 RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 {
@@ -25,7 +62,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	}
 #endif
 
-	FBasicRayData InputRay = Rays[RayIndex];
+	FNiagaraRayData InputRay = Rays[RayIndex];
 
 	RayDesc Ray;
 	Ray.Origin = InputRay.Origin;
@@ -33,26 +70,69 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	Ray.TMin = 0.0f;
 	Ray.TMax = InputRay.TFar;
 
-	uint RayFlags = RAY_FLAG_FORCE_OPAQUE; // don't run anyhit shader
+	uint RayFlags = RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES; // don't run anyhit shader
 
 	FNiagaraRayTracingPayload Payload = (FNiagaraRayTracingPayload)0;
+	uint RayCollisionGroup = InputRay.CollisionGroup;
+	if (RayCollisionGroup != -1)
+	{
+		uint NumCasts = 0;
+		LOOP
+		while (NumCasts++ <= MaxRetraces)
+		{
+			Payload = (FNiagaraRayTracingPayload)0;
+			TraceRay(
+				TLAS,   // AccelerationStructure
+				RayFlags,
+				RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
+				RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+				RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
+				0,      // MissShaderIndex
+				Ray,    // RayDesc
+				Payload // Payload
+			);
 
-	TraceRay(
-		TLAS,   // AccelerationStructure
-		RayFlags,
-		RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
-		RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
-		RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
-		0,      // MissShaderIndex
-		Ray,    // RayDesc
-		Payload // Payload
-	);
+			uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.PrimitiveIndex, Payload.InstanceIndex);
+			uint PrimCollisionGroup;
+			if (FindCollisionGroup(GPUSceneInstanceIndex, PrimCollisionGroup))
+			{
+				//If we collide with something of a different group to the Ray then break and allow the collision. Otherwise loop and attempt to recast just infront of the hit we're discarding.
+				if (PrimCollisionGroup == RayCollisionGroup)
+				{
+					Ray.TMin = asfloat(asuint(Payload.HitT) + 1);
+					//Clear the hit state on the payload in case we don't attempt a retrace
+					Payload.HitT = -1;
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		TraceRay(
+			TLAS,   // AccelerationStructure
+			RayFlags,
+			RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
+			RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
+			0,      // MissShaderIndex
+			Ray,    // RayDesc
+			Payload // Payload
+		);
+	}
 
 	CollisionOutput[RayIndex].HitT = Payload.HitT;
 	if (CollisionOutput[RayIndex].IsHit())
 	{
 		CollisionOutput[RayIndex].WorldPosition = Payload.WorldPosition;
 		CollisionOutput[RayIndex].WorldNormal = Payload.WorldNormal;
+
+		CollisionOutput[RayIndex].PrimitiveIndex = Payload.PrimitiveIndex;
+		CollisionOutput[RayIndex].InstanceIndex = Payload.InstanceIndex;
+		CollisionOutput[RayIndex].InstanceID = Payload.InstanceID;
 	}
 }
 
@@ -69,14 +149,20 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(NiagaraCollisionRayTraceCH,
 {
 	Payload.HitT = RayTCurrent();
 
+	const int Primitive = GetInstanceUserData();
+	Payload.PrimitiveIndex = Primitive;
+
+	const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
+	Payload.InstanceIndex = PrimitiveInstanceIndex;
+
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
 	float3 LocalPosition = GetBarycentricPosition(Attributes, Tri);
 	float3 LocalEdges[2] = { Tri.LocalPositions[1] - Tri.LocalPositions[0], Tri.LocalPositions[2] - Tri.LocalPositions[0] };
 	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
 	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
 
-	Payload.WorldPosition = mul(float4(LocalPosition, 1.0f), ObjectToWorld4x3()).xyz;
-	Payload.WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
+	Payload.WorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+	Payload.WorldNormal = WorldRayDirection();
 }
 
 RAY_TRACING_ENTRY_MISS(NiagaraCollisionRayTraceMiss, FNiagaraRayTracingPayload, Payload)

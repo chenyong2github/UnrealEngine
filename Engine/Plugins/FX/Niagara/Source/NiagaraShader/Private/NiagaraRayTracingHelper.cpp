@@ -10,9 +10,49 @@
 #include "Renderer/Private/ScenePrivate.h"
 #include "Renderer/Private/SceneRendering.h"
 #include "ShaderParameterStruct.h"
+#include "NiagaraShaderParticleID.h"
+
+//////////////////////////////////////////////////////////////////////////
+
+class FNiagaraUpdateCollisionGroupMapCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FNiagaraUpdateCollisionGroupMapCS);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraUpdateCollisionGroupMapCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<UINT>, RWHashTable)		
+		SHADER_PARAMETER(uint32, HashTableSize)
+		SHADER_PARAMETER_UAV(Buffer<UINT>, RWHashToCollisionGroups)
+		SHADER_PARAMETER_SRV(Buffer<UINT>, NewPrimIdCollisionGroupPairs)
+		SHADER_PARAMETER(uint32, NumNewPrims)
+	END_SHADER_PARAMETER_STRUCT()
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), THREAD_COUNT);
+	}
+
+	static constexpr uint32 THREAD_COUNT = 64;
+};
+IMPLEMENT_GLOBAL_SHADER(FNiagaraUpdateCollisionGroupMapCS, "/Plugin/FX/Niagara/Private/NiagaraRayTraceCollisionGroupShaders.usf", "UpdatePrimIdToCollisionGroupMap", SF_Compute);
+
+//////////////////////////////////////////////////////////////////////////
 
 /// TODO
 ///  -get geometry masking working when an environmental mask is implemented
+
+BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneParameters, )
+SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
+END_SHADER_PARAMETER_STRUCT()
 
 class FNiagaraCollisionRayTraceRG : public FGlobalShader
 {
@@ -20,10 +60,16 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FNiagaraCollisionRayTraceRG, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RaytracingAccelerationStructure, TLAS)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FBasicRayData>, Rays)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNiagaraRayTracingPayload>, CollisionOutput)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<UINT>, RayTraceCounts)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
+		SHADER_PARAMETER_SRV(StructuredBuffer<UINT>, HashTable)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<UINT>,RWHashTable)
+		SHADER_PARAMETER(uint32, HashTableSize)
+		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_SRV(StructuredBuffer<FNiagaraRayData>, Rays)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<FNiagaraRayTracingPayload>, CollisionOutput)
+		SHADER_PARAMETER_SRV(Buffer<UINT>, RayTraceCounts)
+		SHADER_PARAMETER_SRV(Buffer<UINT>, HashToCollisionGroups)
+		SHADER_PARAMETER(uint32, MaxRetraces)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FFakeIndirectDispatch : SHADER_PERMUTATION_BOOL("NIAGARA_RAYTRACE_FAKE_INDIRECT");
@@ -38,14 +84,21 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("NIAGARA_SUPPORTS_RAY_TRACING"), 1);
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 	}
 
-	static FRHIRayTracingShader* GetShader(FGlobalShaderMap* ShaderMap)
+	static TShaderRef< FNiagaraCollisionRayTraceRG> GetShader(FGlobalShaderMap* ShaderMap)
 	{
 		FPermutationDomain PermutationVector;
 		PermutationVector.Set<FFakeIndirectDispatch>(!SupportsIndirectDispatch());
 
-		return ShaderMap->GetShader<FNiagaraCollisionRayTraceRG>(PermutationVector).GetRayTracingShader();
+		return ShaderMap->GetShader<FNiagaraCollisionRayTraceRG>(PermutationVector);
+	}
+
+	static FRHIRayTracingShader* GetRayTracingShader(FGlobalShaderMap* ShaderMap)
+	{
+		return GetShader(ShaderMap).GetRayTracingShader();
 	}
 
 	static bool SupportsIndirectDispatch()
@@ -190,6 +243,104 @@ static void BindNiagaraRayTracingMeshCommands(
 		bCopyDataToInlineStorage);
 }
 
+void FNiagaraRayTracingHelper::SetPrimitiveCollisionGroup(FPrimitiveSceneInfo& Primitive, uint32 CollisionGroup)
+{
+	CollisionGroupMap.FindOrAdd(Primitive.PrimitiveComponentId) = CollisionGroup;
+	bCollisionGroupMapDirty = true;
+}
+
+void FNiagaraRayTracingHelper::RefreshPrimitiveInstanceData()
+{
+	bCollisionGroupMapDirty = true;
+}
+
+void FNiagaraRayTracingHelper::UpdateCollisionGroupMap(FRHICommandList& RHICmdList, FScene* Scene, ERHIFeatureLevel::Type FeatureLevel)
+{
+	if (bCollisionGroupMapDirty)
+	{
+		SCOPED_DRAW_EVENT(RHICmdList, NiagaraUpdateCollisionGroupsMap);
+		bCollisionGroupMapDirty = false;
+
+		uint32 MinBufferInstances = FNiagaraUpdateCollisionGroupMapCS::THREAD_COUNT;
+		uint32 NeededInstances = FMath::Max((uint32)CollisionGroupMap.Num(), MinBufferInstances);
+		uint32 AllocInstances = Align(NeededInstances, FNiagaraUpdateCollisionGroupMapCS::THREAD_COUNT);
+
+		//We can probably be smarter here but for now just push the whole map over to the GPU each time it's dirty.
+		//Ideally this should be a small amount of data and updated infrequently.
+		FReadBuffer NewPrimIdCollisionGroupPairs;		
+		NewPrimIdCollisionGroupPairs.Initialize(TEXT("NewPrimIdCollisionGroupPairs"), sizeof(uint32) * 2, AllocInstances, EPixelFormat::PF_R32G32_UINT, BUF_Volatile);
+
+		uint32* PrimIdCollisionGroupPairPtr = (uint32*)RHILockBuffer(NewPrimIdCollisionGroupPairs.Buffer, 0, AllocInstances * sizeof(uint32) * 2, RLM_WriteOnly);
+		FMemory::Memset(PrimIdCollisionGroupPairPtr, 0, AllocInstances * sizeof(uint32) * 2);
+
+		for (auto Entry : CollisionGroupMap)
+		{
+			FPrimitiveComponentId PrimId = Entry.Key;
+			uint32 CollisionGroup = Entry.Value;
+			
+			uint32 GPUSceneInstanceIndex = INDEX_NONE;
+			//Ugh this is a bit pants. Maybe try to rework things so I can use the direct prim index.
+			int32 PrimIndex = Scene->PrimitiveComponentIds.Find(PrimId);
+			if (PrimIndex != INDEX_NONE)
+			{
+				GPUSceneInstanceIndex = Scene->Primitives[PrimIndex]->GetInstanceSceneDataOffset();
+			}
+
+			PrimIdCollisionGroupPairPtr[0] = GPUSceneInstanceIndex;
+			PrimIdCollisionGroupPairPtr[1] = CollisionGroup;
+			PrimIdCollisionGroupPairPtr += 2;
+		}
+		RHIUnlockBuffer(NewPrimIdCollisionGroupPairs.Buffer);
+
+		//Init the hash table if needed
+		if (HashTableSize < AllocInstances)
+		{
+			HashTableSize = AllocInstances;
+
+			PrimIdHashTable.Release();
+			PrimIdHashTable.Initialize(
+				TEXT("NiagaraPrimIdHashTable"),
+				sizeof(uint32),
+				AllocInstances,
+				BUF_Static,
+				false /*bUseUavCounter*/,
+				false /*bAppendBuffer*/,
+				ERHIAccess::UAVCompute);
+
+			HashToCollisionGroups.Release();
+			HashToCollisionGroups.Initialize(TEXT("NiagaraPrimIdHashToCollisionGroups"), sizeof(uint32), AllocInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
+		}
+
+		RHICmdList.Transition(FRHITransitionInfo(PrimIdHashTable.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(HashToCollisionGroups.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+
+		//First we have to clear the buffers. Can probably do this better.
+		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, PrimIdHashTable, 0);
+		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, HashToCollisionGroups, INDEX_NONE);
+
+		TShaderMapRef<FNiagaraUpdateCollisionGroupMapCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
+
+		FNiagaraUpdateCollisionGroupMapCS::FParameters Params;
+		Params.RWHashTable = PrimIdHashTable.UAV;
+		Params.HashTableSize = HashTableSize;
+		Params.RWHashToCollisionGroups = HashToCollisionGroups.UAV;
+		Params.NewPrimIdCollisionGroupPairs = NewPrimIdCollisionGroupPairs.SRV;
+		Params.NumNewPrims = CollisionGroupMap.Num();
+
+		// To simplify the shader code, the size of the table must be a multiple of the thread count.
+		check(HashTableSize % FNiagaraUpdateCollisionGroupMapCS::THREAD_COUNT == 0);
+
+		RHICmdList.SetComputeShader(ShaderRHI);
+		SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, Params);
+		RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp(CollisionGroupMap.Num(), (int32)FNiagaraUpdateCollisionGroupMapCS::THREAD_COUNT), 1, 1);
+		UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
+
+		RHICmdList.Transition(FRHITransitionInfo(PrimIdHashTable.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(HashToCollisionGroups.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+	}
+}
+
 void FNiagaraRayTracingHelper::BuildRayTracingSceneInfo(FRHICommandList& RHICmdList, TConstArrayView<FViewInfo> Views)
 {
 	check(Views.Num() > 0);
@@ -204,7 +355,7 @@ void FNiagaraRayTracingHelper::BuildRayTracingSceneInfo(FRHICommandList& RHICmdL
 		ViewUniformBuffer = ReferenceView.ViewUniformBuffer;
 
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ShaderPlatform);
-		auto RayGenShader = FNiagaraCollisionRayTraceRG::GetShader(ShaderMap);
+		auto RayGenShader = FNiagaraCollisionRayTraceRG::GetRayTracingShader(ShaderMap);
 		auto ClosestHitShader = ShaderMap->GetShader<FNiagaraCollisionRayTraceCH>().GetRayTracingShader();
 		auto MissShader = ShaderMap->GetShader<FNiagaraCollisionRayTraceMiss>().GetRayTracingShader();
 
@@ -234,18 +385,33 @@ void FNiagaraRayTracingHelper::BuildRayTracingSceneInfo(FRHICommandList& RHICmdL
 	}
 }
 
-void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const
+void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, FScene* Scene, const FIntPoint& RayTraceCounts, uint32 MaxRetraces, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const
 {
+	SCOPED_DRAW_EVENT(RHICmdList, NiagaraIssueCollisionRayTraces);
 	check(RayTracingPipelineState);
 	check(RayTracingScene);
 	check(RayTracingSceneView);
+	check(Scene);
 
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ShaderPlatform);
 
-	FRayTracingShaderBindings GlobalBindings;
-	GlobalBindings.SRVs[0] = RayTracingSceneView;
-	GlobalBindings.SRVs[1] = RayTraceRequests;
-	GlobalBindings.UAVs[0] = RayTraceResults;
+	TShaderRef<FNiagaraCollisionRayTraceRG> RGShader = FNiagaraCollisionRayTraceRG::GetShader(ShaderMap);
+
+	FNiagaraCollisionRayTraceRG::FParameters Params;
+
+	Params.GPUSceneParameters.GPUSceneInstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
+	Params.GPUSceneParameters.GPUScenePrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
+	Params.GPUSceneParameters.GPUSceneFrameNumber = Scene->GPUScene.GetSceneFrameNumber();
+
+	Params.HashTable = PrimIdHashTable.SRV;
+	Params.HashTableSize = HashTableSize;
+	Params.TLAS = RayTracingSceneView;
+	Params.Rays = RayTraceRequests;
+	Params.CollisionOutput = RayTraceResults;
+	Params.HashToCollisionGroups = HashToCollisionGroups.SRV;
+	Params.MaxRetraces = MaxRetraces;
+	FRayTracingShaderBindingsWriter GlobalResources;
+	SetShaderParameters(GlobalResources, RGShader, Params);
 
 	if (FNiagaraCollisionRayTraceRG::SupportsIndirectDispatch())
 	{
@@ -253,9 +419,9 @@ void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, const
 
 		RHICmdList.RayTraceDispatchIndirect(
 			RayTracingPipelineState,
-			FNiagaraCollisionRayTraceRG::GetShader(ShaderMap),
+			RGShader.GetRayTracingShader(),
 			RayTracingScene,
-			GlobalBindings,
+			GlobalResources,
 			IndirectArgsBuffer->Buffer,
 			IndirectArgsOffset);
 
@@ -264,13 +430,13 @@ void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, const
 	else
 	{
 		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
-		GlobalBindings.SRVs[2] = IndirectArgsBuffer->SRV;
+		GlobalResources.SetSRV(2, IndirectArgsBuffer->SRV);
 
 		RHICmdList.RayTraceDispatch(
 			RayTracingPipelineState,
-			FNiagaraCollisionRayTraceRG::GetShader(ShaderMap),
+			RGShader.GetRayTracingShader(),
 			RayTracingScene,
-			GlobalBindings,
+			GlobalResources,
 			RayTraceCounts.X,
 			RayTraceCounts.Y
 		);
