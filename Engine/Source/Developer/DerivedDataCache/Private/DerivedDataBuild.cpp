@@ -12,7 +12,6 @@
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataBuildWorkerRegistry.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataRequest.h"
 #include "Misc/Guid.h"
 
 namespace UE::DerivedData::Private
@@ -58,7 +57,7 @@ DEFINE_LOG_CATEGORY(LogDerivedDataBuild);
  * - Resolves FBuildDefinition to Key->(RawHash, RawSize, OptionalBuffer)
  * IBuildJob:
  * - From FBuildKey or FBuildDefinition or FBuildAction+FBuildInputs via FBuildSession
- * - Represents an executing build request and implements IRequest
+ * - Represents an executing build request
  * IBuildScheduler:
  * - Schedules execution of the operations on IBuildJob
  * FBuildSession:
@@ -71,11 +70,6 @@ public:
 	explicit FBuild(ICache& InCache)
 		: Cache(InCache)
 	{
-	}
-
-	FRequestGroup CreateGroup(EPriority Priority) final
-	{
-		return CreateRequestGroup(Priority);
 	}
 
 	FBuildDefinitionBuilder CreateDefinition(FStringView Name, FStringView Function) final

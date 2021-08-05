@@ -562,9 +562,9 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 				PlaceholderResolver.Emplace(Texture);
 				InputResolver = &PlaceholderResolver.GetValue();
 			}
-			FRequestGroup Group = Build.CreateGroup(EPriority::Blocking);
+			FRequestOwner Owner(EPriority::Blocking);
 			FBuildSession Session = Build.CreateSession(TexturePath, InputResolver);
-			Session.Build(DefinitionBuilder.Build(), EBuildPolicy::Default, Group,
+			Session.Build(DefinitionBuilder.Build(), EBuildPolicy::Default, Owner,
 				[this, &TexturePath, bReplaceExistingDDC] (FBuildCompleteParams&& Params)
 				{
 					#if !NO_LOGGING
@@ -583,7 +583,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 						ConsumeBuildFunctionOutput(Params.Output, TexturePath, bReplaceExistingDDC);
 					}
 				});
-			Group.Wait();
+			Owner.Wait();
 		}
 		else
 		{
@@ -1019,8 +1019,7 @@ public:
 		IBuildInputResolver* GlobalResolver = GetGlobalBuildInputResolver();
 		BuildSession = Build.CreateSession(TexturePath, GlobalResolver ? GlobalResolver : &InputResolver);
 
-		EPriority GroupPriority = EnumHasAnyFlags(Flags, ETextureCacheFlags::Async) ? ConvertPriority(Priority) : UE::DerivedData::EPriority::Blocking;
-		Group = Build.CreateGroup(GroupPriority);
+		Owner.Emplace(EnumHasAnyFlags(Flags, ETextureCacheFlags::Async) ? ConvertPriority(Priority) : UE::DerivedData::EPriority::Blocking);
 
 		FBuildDefinition Definition = CreateDefinition(Build, Texture, TexturePath, FunctionName, KeySuffix, Settings);
 
@@ -1029,7 +1028,7 @@ public:
 			FTextureBuildSettings ShippingSettings = Settings;
 			ShippingSettings.bHasEditorOnlyData = false;
 			FBuildDefinition ShippingDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, KeySuffix, ShippingSettings);
-			BuildSession.Get().Build(ShippingDefinition, EBuildPolicy::Cache, Group.Get(),
+			BuildSession.Get().Build(ShippingDefinition, EBuildPolicy::Cache, *Owner,
 				[this, Definition = MoveTemp(Definition), Flags](FBuildCompleteParams&& Params)
 				{
 					switch (Params.Status)
@@ -1075,7 +1074,7 @@ public:
 		{
 			BuildPolicy &= ~EBuildPolicy::CacheQuery;
 		}
-		BuildSession.Get().Build(Definition, BuildPolicy, Group.Get(),
+		BuildSession.Get().Build(Definition, BuildPolicy, *Owner,
 			[this](FBuildCompleteParams&& Params) { EndBuild(MoveTemp(Params.Output), Params.BuildStatus); });
 	}
 
@@ -1102,19 +1101,19 @@ public:
 	bool SetPriority(EQueuedWorkPriority QueuedWorkPriority) final
 	{
 		Priority = QueuedWorkPriority;
-		Group.Get().SetPriority(ConvertPriority(QueuedWorkPriority));
+		Owner->SetPriority(ConvertPriority(QueuedWorkPriority));
 		return true;
 	}
 
 	bool Cancel() final
 	{
-		Group.Get().Cancel();
+		Owner->Cancel();
 		return true;
 	}
 
 	void Wait() final
 	{
-		Group.Get().Wait();
+		Owner->Wait();
 	}
 
 	bool WaitWithTimeout(float TimeLimitSeconds) final
@@ -1138,7 +1137,7 @@ public:
 
 	bool Poll() const final
 	{
-		return Group.Get().Poll();
+		return Owner->Poll();
 	}
 
 private:
@@ -1250,7 +1249,7 @@ private:
 	}
 
 	FTexturePlatformData& DerivedData;
-	UE::DerivedData::FOptionalRequestGroup Group;
+	TOptional<UE::DerivedData::FRequestOwner> Owner;
 	UE::DerivedData::FOptionalBuildSession BuildSession;
 	EQueuedWorkPriority Priority;
 	bool bCacheHit;

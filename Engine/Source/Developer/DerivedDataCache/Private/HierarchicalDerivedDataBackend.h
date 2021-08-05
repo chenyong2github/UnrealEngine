@@ -473,9 +473,9 @@ public:
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
-		FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
-		FRequestGroup AsyncGroup = Factory.CreateGroup(Owner.GetPriority());
-		AsyncGroup.KeepAlive();
+		FRequestOwner AsyncOwner(Owner.GetPriority());
+		FRequestBarrier AsyncBarrier(AsyncOwner);
+		AsyncOwner.KeepAlive();
 
 		TSet<FCacheKey> RecordsOk;
 
@@ -489,7 +489,8 @@ public:
 					// Every record must put synchronously before switching to async calls.
 					if (RecordsOk.Num() < Records.Num())
 					{
-						InnerBackends[PutCacheIndex]->Put(Records, Context, Policy, BlockingGroup,
+						FRequestOwner BlockingOwner(EPriority::Blocking);
+						InnerBackends[PutCacheIndex]->Put(Records, Context, Policy, BlockingOwner,
 							[&OnComplete, &RecordsOk](FCachePutCompleteParams&& Params)
 							{
 								if (Params.Status == EStatus::Ok)
@@ -502,11 +503,11 @@ public:
 									}
 								}
 							});
-						BlockingGroup.Wait();
+						BlockingOwner.Wait();
 					}
 					else
 					{
-						AsyncPutInnerBackends[PutCacheIndex]->Put(Records, Context, Policy, AsyncGroup);
+						AsyncPutInnerBackends[PutCacheIndex]->Put(Records, Context, Policy, AsyncOwner);
 					}
 				}
 			}
@@ -537,7 +538,6 @@ public:
 		const bool bStoreRemote = bHasWritableRemoteBackends && EnumHasAnyFlags(Policy, ECachePolicy::StoreRemote);
 		const bool bStoreLocalCopy = bStoreLocal && bHasMultipleLocalBackends && !EnumHasAnyFlags(Policy, ECachePolicy::SkipLocalCopy);
 
-		FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
 		TArray<FCacheKey, TInlineAllocator<16>> RemainingKeys(Keys);
 
 		TSet<FCacheKey> KeysOk;
@@ -557,15 +557,16 @@ public:
 				const ECachePolicy FillPolicy = bFill ? (Policy & ~ECachePolicy::SkipData) : Policy;
 
 				// Block on this because backends in this hierarchy are not expected to be asynchronous.
-				InnerBackends[GetCacheIndex]->Get(RemainingKeys, Context, Policy, BlockingGroup,
+				FRequestOwner BlockingOwner(EPriority::Blocking);
+				InnerBackends[GetCacheIndex]->Get(RemainingKeys, Context, Policy, BlockingOwner,
 					[this, Context, GetCacheIndex, bStoreLocal, bStoreRemote, bStoreLocalCopy, bIsLocalGet, bFill, &Owner, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
 					{
 						if (Params.Status == EStatus::Ok)
 						{
 							if (bFill)
 							{
-								FRequestGroup AsyncGroup = Factory.CreateGroup(Owner.GetPriority());
-								AsyncGroup.KeepAlive();
+								FRequestOwner AsyncOwner(Owner.GetPriority());
+								AsyncOwner.KeepAlive();
 								for (int32 FillCacheIndex = 0; FillCacheIndex < InnerBackends.Num(); ++FillCacheIndex)
 								{
 									if (GetCacheIndex != FillCacheIndex)
@@ -573,7 +574,7 @@ public:
 										const bool bIsLocalFill = InnerBackends[FillCacheIndex]->GetSpeedClass() == ESpeedClass::Local;
 										if ((bIsLocalFill && bStoreLocal && bIsLocalGet <= bStoreLocalCopy) || (!bIsLocalFill && bStoreRemote))
 										{
-											AsyncPutInnerBackends[FillCacheIndex]->Put({Params.Record}, Context, ECachePolicy::Default, AsyncGroup);
+											AsyncPutInnerBackends[FillCacheIndex]->Put({Params.Record}, Context, ECachePolicy::Default, AsyncOwner);
 										}
 									}
 								}
@@ -586,7 +587,7 @@ public:
 							}
 						}
 					});
-				BlockingGroup.Wait();
+				BlockingOwner.Wait();
 
 				RemainingKeys.RemoveAll([&KeysOk](const FCacheKey& Key) { return KeysOk.Contains(Key); });
 			}
@@ -608,7 +609,6 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetPayloadComplete&& OnComplete) override
 	{
-		FRequestGroup BlockingGroup = Factory.CreateGroup(EPriority::Blocking);
 		TArray<FCachePayloadKey, TInlineAllocator<16>> RemainingKeys(Keys);
 
 		TSet<FCachePayloadKey> KeysOk;
@@ -618,7 +618,8 @@ public:
 
 			for (int32 GetCacheIndex = 0; GetCacheIndex < InnerBackends.Num() && !RemainingKeys.IsEmpty(); ++GetCacheIndex)
 			{
-				InnerBackends[GetCacheIndex]->GetPayload(RemainingKeys, Context, Policy, BlockingGroup,
+				FRequestOwner BlockingOwner(EPriority::Blocking);
+				InnerBackends[GetCacheIndex]->GetPayload(RemainingKeys, Context, Policy, BlockingOwner,
 					[&OnComplete, &KeysOk](FCacheGetPayloadCompleteParams&& Params)
 					{
 						if (Params.Status == EStatus::Ok)
@@ -630,7 +631,7 @@ public:
 							}
 						}
 					});
-				BlockingGroup.Wait();
+				BlockingOwner.Wait();
 
 				RemainingKeys.RemoveAll([&KeysOk](const FCachePayloadKey& Key) { return KeysOk.Contains(Key); });
 			}

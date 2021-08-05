@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/Invoke.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 #include <atomic>
 
-namespace UE::DerivedData { class FRequestGroup; }
-namespace UE::DerivedData { enum class EPriority : uint8; }
-namespace UE::DerivedData::Private { class FRequestGroupBase; }
-namespace UE::DerivedData::Private { FRequestGroup CreateRequestGroup(EPriority Priority); }
+#define UE_API DERIVEDDATACACHE_API
+
+namespace UE::DerivedData::Private { class FRequestOwnerSharedBase; }
 
 namespace UE::DerivedData
 {
@@ -66,14 +66,14 @@ enum class EStatus : uint8
 /**
  * Interface to an asynchronous request that can be prioritized or canceled.
  *
- * Use IRequestOwner, typically FRequestGroup, to reference requests between its Begin and End.
+ * Use IRequestOwner, typically FRequestOwner, to reference requests between its Begin and End.
  *
  * Requests typically invoke a callback on completion, and must not return from Cancel or Wait on
  * any thread until any associated callbacks have finished executing. This property is crucial to
  * allowing requests to be chained or nested by creating new requests from within callbacks.
  *
  * @see FRequestBase
- * @see FRequestGroup
+ * @see FRequestOwner
  * @see IRequestOwner
  */
 class IRequest
@@ -148,7 +148,7 @@ private:
  * The owner is responsible for keeping itself alive while it has active requests or barriers.
  *
  * @see FRequestBarrier
- * @see FRequestGroup
+ * @see FRequestOwner
  */
 class IRequestOwner
 {
@@ -216,8 +216,8 @@ private:
 	IRequestOwner& Owner;
 };
 
-/** Private base for a request group, which is both an owner and a request. */
-class Private::FRequestGroupBase : public IRequestOwner, public FRequestBase
+/** Private base for a shared request owner, which is both an owner and a request. */
+class Private::FRequestOwnerSharedBase : public IRequestOwner, public FRequestBase
 {
 public:
 	virtual bool Poll() const = 0;
@@ -226,81 +226,47 @@ public:
 };
 
 /**
- * A request group is both a request owner and a request.
+ * A concrete request owner that also presents as a request.
  *
- * Request groups may be moved but not copied, and cancel any outstanding requests on destruction
+ * Request owners may be moved but not copied, and cancel any outstanding requests on destruction
  * unless KeepAlive has been called.
- *
- * Create with ICache::CreateGroup or IBuild::CreateGroup.
  *
  * @see IRequestOwner
  */
-class FRequestGroup
+class FRequestOwner
 {
 public:
-	FRequestGroup(FRequestGroup&&) = default;
-	FRequestGroup& operator=(FRequestGroup&&) = default;
+	/** Construct a request owner with the given priority. */
+	UE_API explicit FRequestOwner(EPriority Priority);
 
-	FRequestGroup(const FRequestGroup&) = delete;
-	FRequestGroup& operator=(const FRequestGroup&) = delete;
+	FRequestOwner(FRequestOwner&&) = default;
+	FRequestOwner& operator=(FRequestOwner&&) = default;
 
-	/** Keep requests in the group alive until complete, even after destruction of the group. */
+	FRequestOwner(const FRequestOwner&) = delete;
+	FRequestOwner& operator=(const FRequestOwner&) = delete;
+
+	/** Keep requests in the owner alive until complete, even after destruction of the owner. */
 	inline void KeepAlive() { Owner->KeepAlive(); }
 
 	/** Returns the priority that new requests are expected to inherit. */
 	inline EPriority GetPriority() const { return Owner->GetPriority(); }
-	/** Set the priority of active and future requests in the group. */
+	/** Set the priority of active and future requests in the owner. */
 	inline void SetPriority(EPriority Priority) { Owner->SetPriority(Priority); }
-	/** Cancel any active and future requests in the group. */
+	/** Cancel any active and future requests in the owner. */
 	inline void Cancel() { Owner->Cancel(); }
-	/** Wait for any active and future requests or barriers in the group. */
+	/** Wait for any active and future requests or barriers in the owner. */
 	inline void Wait() { Owner->Wait(); }
-	/** Poll whether the group has any active requests or barriers. */
+	/** Poll whether the owner has any active requests or barriers. */
 	inline bool Poll() const { return Owner->Poll(); }
 
-	/** Access the group as a request owner. */
+	/** Access as a request owner. */
 	inline operator IRequestOwner&() { return *Owner; }
-	/** Access the group as a request. */
+	/** Access as a request. */
 	inline operator IRequest*() { return Owner.Get(); }
 
 private:
-	friend class FOptionalRequestGroup;
-	friend FRequestGroup Private::CreateRequestGroup(EPriority Priority);
-
-	/** Construct a request group. Use CreateGroup() on ICache or IBuild. */
-	inline explicit FRequestGroup(Private::FRequestGroupBase* InOwner)
-		: Owner(InOwner)
-	{
-	}
-
-	struct FDeleteOwner { void operator()(Private::FRequestGroupBase* O) const { if (O) { O->Destroy(); } } };
-	TUniquePtr<Private::FRequestGroupBase, FDeleteOwner> Owner;
-};
-
-/**
- * A request group that can be null.
- *
- * @see FRequestGroup
- */
-class FOptionalRequestGroup : private FRequestGroup
-{
-public:
-	inline FOptionalRequestGroup() : FRequestGroup(nullptr) {}
-
-	inline FOptionalRequestGroup(FRequestGroup&& InDefinition) : FRequestGroup(MoveTemp(InDefinition)) {}
-	inline FOptionalRequestGroup& operator=(FRequestGroup&& InDefinition) { FRequestGroup::operator=(MoveTemp(InDefinition)); return *this; }
-
-	/** Returns the request group. The caller must check for null before using this accessor. */
-	inline FRequestGroup& Get() & { return *this; }
-	inline FRequestGroup&& Get() && { return MoveTemp(*this); }
-	inline const FRequestGroup& Get() const & { return *this; }
-
-	inline bool IsNull() const { return !IsValid(); }
-	inline bool IsValid() const { return Owner.IsValid(); }
-	inline explicit operator bool() { return IsValid(); }
-	inline explicit operator bool() const { return IsValid(); }
-
-	inline void Reset() { *this = FOptionalRequestGroup(); }
+	struct FDeleteOwner { void operator()(Private::FRequestOwnerSharedBase* O) const { if (O) { O->Destroy(); } } };
+	TUniquePtr<Private::FRequestOwnerSharedBase, FDeleteOwner> Owner;
 };
 
 template <typename CallbackType, typename... CallbackArgTypes>
@@ -313,3 +279,5 @@ TRefCountPtr<IRequest> IRequestOwner::End(IRequest* Request, CallbackType&& Call
 }
 
 } // UE::DerivedData
+
+#undef UE_API

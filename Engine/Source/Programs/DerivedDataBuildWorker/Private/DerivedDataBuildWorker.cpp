@@ -204,11 +204,11 @@ bool FBuildWorkerProgram::Build()
 
 	IBuild& BuildSystem = GetBuild();
 	FBuildSession Session = BuildSystem.CreateSession(TEXT("BuildWorker"_SV), this);
-	FRequestGroup Group = BuildSystem.CreateGroup(EPriority::Normal);
+	FRequestOwner Owner(EPriority::Normal);
 
 	ON_SCOPE_EXIT
 	{
-		Group.Wait();
+		Owner.Wait();
 	};
 
 	if (ActionPaths.IsEmpty())
@@ -237,7 +237,8 @@ bool FBuildWorkerProgram::Build()
 		}
 		else
 		{
-			Session.BuildAction(Action.Get(), {}, EBuildPolicy::BuildLocal, Group,
+			FRequestBarrier Barrier(Owner);
+			Session.BuildAction(Action.Get(), {}, EBuildPolicy::BuildLocal, Owner,
 				[this](FBuildActionCompleteParams&& Params) { BuildComplete(MoveTemp(Params)); });
 		}
 	}

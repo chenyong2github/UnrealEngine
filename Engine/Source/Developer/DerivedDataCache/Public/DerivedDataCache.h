@@ -20,7 +20,6 @@ class FCacheRecord;
 class FCacheRecordBuilder;
 class FOptionalCacheRecord;
 class FPayload;
-class FRequestGroup;
 struct FCacheGetCompleteParams;
 struct FCacheGetPayloadCompleteParams;
 struct FCachePutCompleteParams;
@@ -104,8 +103,6 @@ class ICacheFactory
 {
 public:
 	virtual ~ICacheFactory() = default;
-
-	virtual FRequestGroup CreateGroup(EPriority Priority) = 0;
 
 	/**
 	 * Create a cache bucket from a name.

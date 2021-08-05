@@ -23,7 +23,6 @@
 #include "DerivedDataBackendCorruptionWrapper.h"
 #include "DerivedDataBackendThrottleWrapper.h"
 #include "DerivedDataBackendVerifyWrapper.h"
-#include "DerivedDataRequest.h"
 #include "DerivedDataUtilsInterface.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Modules/ModuleManager.h"
@@ -1174,11 +1173,6 @@ public:
 		}
 
 		return MakeShared<FDerivedDataCacheStatsNode>(nullptr, TEXT(""));
-	}
-
-	virtual FRequestGroup CreateGroup(EPriority Priority) override
-	{
-		return Private::CreateRequestGroup(Priority);
 	}
 
 	virtual FCacheBucket CreateBucket(FStringView Name) override

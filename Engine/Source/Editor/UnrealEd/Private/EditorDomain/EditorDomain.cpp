@@ -233,7 +233,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 	}
 
-	UE::DerivedData::FOptionalRequestGroup RequestGroup;
+	TOptional<UE::DerivedData::FRequestOwner> Owner;
 	int64 FileSize = -1;
 	{
 		FScopeLock ScopeLock(&Locks->Lock);
@@ -276,10 +276,10 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		};
 		// Fetch meta-data only
 		ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
-		RequestGroup = GetCache().CreateGroup(EPriority::Highest);
-		RequestEditorDomainPackage(PackagePath, PackageSource->Digest, SkipFlags, RequestGroup.Get(), MoveTemp(MetaDataGetComplete));
+		Owner.Emplace(EPriority::Highest);
+		RequestEditorDomainPackage(PackagePath, PackageSource->Digest, SkipFlags, *Owner, MoveTemp(MetaDataGetComplete));
 	}
-	RequestGroup.Get().Wait();
+	Owner->Wait();
 	return FileSize;
 }
 

@@ -74,7 +74,7 @@ private:
 	FName PackageName;
 	TArray<UE::Virtualization::FVirtualizedUntypedBulkData> BulkDatas;
 	TArray<UE::Virtualization::FVirtualizedUntypedBulkData> CachedBulkDatas;
-	UE::DerivedData::FRequestGroup BulkDataListCacheRequest;
+	UE::DerivedData::FRequestOwner BulkDataListCacheRequest;
 	FBulkDataRegistryEditorDomain* Owner;
 	/**
 	 * When PendingOperations reaches zero, we can remove the FPendingPackage.
@@ -143,7 +143,7 @@ public:
 
 	void Cancel();
 
-	UE::DerivedData::FRequestGroup& GetRequestGroup()
+	UE::DerivedData::FRequestOwner& GetRequestOwner()
 	{
 		return Request;
 	}
@@ -154,7 +154,7 @@ public:
 
 private:
 	FGuid BulkDataId;
-	UE::DerivedData::FRequestGroup Request;
+	UE::DerivedData::FRequestOwner Request;
 };
 
 /** Implementation of a BulkDataRegistry that stores its persistent data in a DDC bucket. */

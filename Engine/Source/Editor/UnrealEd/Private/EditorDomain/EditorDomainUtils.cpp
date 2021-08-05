@@ -471,9 +471,9 @@ bool TrySavePackage(UPackage* Package)
 	MetaData.EndObject();
 
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
-	FRequestGroup Group = Cache.CreateGroup(EPriority::Normal);
-	Cache.Put({RecordBuilder.Build()}, Package->GetName(), ECachePolicy::Local, Group);
-	Group.KeepAlive();
+	FRequestOwner Owner(EPriority::Normal);
+	Cache.Put({RecordBuilder.Build()}, Package->GetName(), ECachePolicy::Local, Owner);
+	Owner.KeepAlive();
 	return true;
 }
 
@@ -523,11 +523,11 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
-	FRequestGroup Group = Cache.CreateGroup(EPriority::Normal);
+	FRequestOwner Owner(EPriority::Normal);
 	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataListKey(PackageDigest));
 	RecordBuilder.SetValue(Buffer);
-	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Group);
-	Group.KeepAlive();
+	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Owner);
+	Owner.KeepAlive();
 }
 
 FIoHash GetPackageAndGuidDigest(FCbWriter& Builder, const FGuid& BulkDataId)
@@ -583,10 +583,11 @@ void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuf
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
-	FRequestGroup Group = Cache.CreateGroup(EPriority::Normal);
+	FRequestOwner Owner(EPriority::Normal);
 	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataPayloadIdKey(PackageAndGuidDigest));
 	RecordBuilder.SetValue(Buffer);
-	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Group);
+	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Owner);
+	Owner.KeepAlive();
 }
 
 
