@@ -15,6 +15,8 @@ namespace Chaos
 
 	void FPBDRigidDirtyParticlesBuffer::CaptureSolverData(FPBDRigidsSolver* Solver)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_CaptureSolverData);
+
 		WriteLock();
 		BufferPhysicsResults(Solver);
 		FlipDataOut();

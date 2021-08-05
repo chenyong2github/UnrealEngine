@@ -129,42 +129,25 @@ public:
 
 	void InitArrays(const FGeometryDynamicCollection& Other)
 	{
-		// Managed arrays
-		Transforms.Init(Other.Transform);
-		DynamicState.Init(Other.DynamicState);
-		Parent.Init(Other.Parent);
-		Children.Init(Other.Children);
-		SimulationType.Init(Other.SimulationType);
-
-		// Arrays
 		const int32 NumTransforms = Other.NumElements(FGeometryCollection::TransformGroup);
 		DisabledStates.SetNumUninitialized(NumTransforms);
 		GlobalTransforms.SetNumUninitialized(NumTransforms);
 		ParticleToWorldTransforms.SetNumUninitialized(NumTransforms);
+
+		Transforms.SetNumUninitialized(NumTransforms);
+		Parent.SetNumUninitialized(NumTransforms);
+		DynamicState.SetNumUninitialized(NumTransforms);
 	}
 
 	Chaos::FReal SolverDt;
-	int32 BaseIndex;
-	int32 NumParticlesAdded;
 	TArray<bool> DisabledStates;
 	TArray<FMatrix> GlobalTransforms;
 	TArray<FTransform> ParticleToWorldTransforms;
 
-	TManagedArray<int32> TransformIndex;
-
-	TManagedArray<FTransform> Transforms;
-	TManagedArray<int32> BoneMap;
-	TManagedArray<int32> Parent;
-	TManagedArray<TSet<int32>> Children;
-	TManagedArray<int32> SimulationType;
-	TManagedArray<int32> DynamicState;
-	TManagedArray<float> Mass;
-	TManagedArray<FVector3f> InertiaTensor;
-
-	TManagedArray<int32> ClusterId;
-
+	TArray<FTransform> Transforms;
+	TArray<int32> Parent;
+	TArray<int32> DynamicState;
+	
 	bool IsObjectDynamic;
 	bool IsObjectLoading;
-
-	FBoxSphereBounds WorldBounds;
 };
