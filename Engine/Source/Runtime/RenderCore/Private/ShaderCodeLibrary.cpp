@@ -2571,6 +2571,7 @@ public:
 
 	void PreloadPackageShaderMapsDelegate(TArrayView<const FSHAHash> ShaderMapHashes, FCoreDelegates::FAttachShaderReadRequestFunc AttachShaderReadRequestFunc)
 	{
+		LLM_SCOPE(ELLMTag::Shaders);
 		for (const FSHAHash& ShaderMapHash : ShaderMapHashes)
 		{
 			int32 ShaderMapIndex;
