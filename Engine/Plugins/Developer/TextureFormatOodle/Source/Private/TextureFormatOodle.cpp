@@ -645,7 +645,6 @@ public:
 			return;
 		}
 
-		*bOutDebugColor = bDebugColor;
 
 		int RDOLambda = -1;
 
@@ -696,7 +695,18 @@ public:
 		// EffortLevel might be set to faster modes for previewing vs cooking or something
 		//	but I don't see people setting that per-Texture or in lod groups or any of that
 		//  it's more about cook mode (fast vs final bake)	
+		
+		bool bDoDebugColor = bDebugColor;
 
+		#if 0
+		// turn this on to only debug color with RDO
+		if ( RDOLambda == 0 )
+		{
+			bDoDebugColor = false;
+		}
+		#endif
+
+		*bOutDebugColor = bDoDebugColor;
 		*OutRDOLambda = RDOLambda;
 		*OutEffortLevel = EffortLevel;
 		*OutRDOUniversalTiling = RDOUniversalTiling;
