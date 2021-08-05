@@ -914,9 +914,11 @@ namespace HordeServer.Controllers
                 StepId = !string.IsNullOrEmpty(Reservation.StepId) ? Reservation.StepId : null;
             }
 
-			Logger.LogError($"Device error reported for {DeviceName}, Job {JobId}, StepId {StepId}");
+            string Message = $"Device reported an error, {Device.Name} : {Device.PoolId.ToString().ToUpperInvariant()}";
 
-            await DeviceService.NotifyDeviceServiceAsync("Device reported an error", Device.Id, JobId, StepId);
+            Logger.LogError(Message);
+
+            await DeviceService.NotifyDeviceServiceAsync(Message, Device.Id, JobId, StepId);
 
 			return Ok();
 
