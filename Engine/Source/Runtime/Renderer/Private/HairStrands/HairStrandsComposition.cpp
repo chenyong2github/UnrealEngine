@@ -165,6 +165,9 @@ class FHairVisibilityComposeSamplePS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairVisibilityComposeSamplePS);
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityComposeSamplePS, FGlobalShader);
 
+	class FDebug : SHADER_PERMUTATION_BOOL("PERMUTATION_DEBUG");
+	using FPermutationDomain = TShaderPermutationDomain<FDebug>;
+	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsTilePassVS::FParameters, TileData)
@@ -213,10 +216,13 @@ static void AddHairVisibilityComposeSamplePass(
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-	TShaderMapRef<FHairVisibilityComposeSamplePS> PixelShader(View.ShaderMap);
+	const bool bDebugComposition = View.Family->EngineShowFlags.LODColoration > 0;
+	FHairVisibilityComposeSamplePS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FHairVisibilityComposeSamplePS::FDebug>(bDebugComposition);
+	TShaderMapRef<FHairVisibilityComposeSamplePS> PixelShader(View.ShaderMap, PermutationVector);
 	InternalCommonDrawPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsComposeSample"),
+		RDG_EVENT_NAME("HairStrands::ComposeSample"),
 		View,
 		OutColorTexture->Desc.Extent,
 		EHairStrandsCommonPassType::Composition,
@@ -284,7 +290,7 @@ static FRDGTextureRef AddHairDOFDepthPass(
 	TShaderMapRef<FHairDOFDepthPS> PixelShader(View.ShaderMap);
 	InternalCommonDrawPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsDOFDepth"),
+		RDG_EVENT_NAME("HairStrands::DOFDepth"),
 		View,
 		OutputResolution,
 		EHairStrandsCommonPassType::DOF,
@@ -347,7 +353,7 @@ static void AddHairVisibilityFastResolveMaskPass(
 	TShaderMapRef<FHairVisibilityFastResolveMaskPS> PixelShader(View.ShaderMap);
 	InternalCommonDrawPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsVisibilityMarkTAAFastResolve"),
+		RDG_EVENT_NAME("HairStrands::MarkTAAFastResolve"),
 		View,
 		Resolution,
 		EHairStrandsCommonPassType::TAAFastResolve,
@@ -364,7 +370,6 @@ class FHairVisibilityGBufferWritePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairVisibilityGBufferWritePS);
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityGBufferWritePS, FGlobalShader);
-
 
 	class FOutputType : SHADER_PERMUTATION_INT("PERMUTATION_OUTPUT_TYPE", 2);
 	using FPermutationDomain = TShaderPermutationDomain<FOutputType>;
@@ -453,7 +458,7 @@ static void AddHairVisibilityGBufferWritePass(
 	TShaderMapRef<FHairVisibilityGBufferWritePS> PixelShader(View.ShaderMap, PermutationVector);
 	InternalCommonDrawPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsVisibilityMarkTAAFastResolve"),
+		RDG_EVENT_NAME("HairStrands::GBufferOverride"),
 		View,
 		OutGBufferATexture->Desc.Extent,
 		EHairStrandsCommonPassType::GBuffer,

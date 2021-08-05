@@ -674,8 +674,13 @@ public:
 				{
 					check(Instances[GroupIt]->GetRefCount() > 0);
 
-					FMaterialRenderProxy* Strands_MaterialProxy = nullptr;
-					const EHairStrandsDebugMode DebugMode = GetHairStrandsGeometryDebugMode(Instances[GroupIt]);
+					FMaterialRenderProxy* Debug_MaterialProxy = nullptr;
+					EHairStrandsDebugMode DebugMode = GetHairStrandsGeometryDebugMode(Instances[GroupIt]);
+					if (AllowDebugViewmodes() && View->Family->EngineShowFlags.LODColoration)
+					{
+						DebugMode = EHairStrandsDebugMode::RenderLODColoration;
+					}
+					
 					if (DebugMode != EHairStrandsDebugMode::NoneDebug)
 					{
 						float DebugModeScalar = 0;
@@ -694,6 +699,7 @@ public:
 						case EHairStrandsDebugMode::RenderHairRoughness			: DebugModeScalar = 8.f; break;
 						case EHairStrandsDebugMode::RenderVisCluster			: DebugModeScalar = 0.f; break;
 						case EHairStrandsDebugMode::RenderHairGroup				: DebugModeScalar = 9.f; break;
+						case EHairStrandsDebugMode::RenderLODColoration			: DebugModeScalar = 10.f; break;
 						};
 
 						// TODO: fix this as the radius is incorrect. This code run before the interpolation code, which is where HairRadius is updated.
@@ -702,14 +708,31 @@ public:
 						{
 							HairMaxRadius = FMath::Max(HairMaxRadius, Instance->Strands.Modifier.HairWidth * 0.5f);
 						}
+						
+						// Reuse the HairMaxRadius field to send the LOD index instead of adding yet another variable
+						if (DebugMode == EHairStrandsDebugMode::RenderLODColoration)
+						{
+							HairMaxRadius = Instances[GroupIt]->HairGroupPublicData ? Instances[GroupIt]->HairGroupPublicData->LODIndex : 0;
+						}
 
-						const FVector HairGroupColor = FVector(GetHairGroupDebugColor(GroupIt));
-						auto DebugMaterial = new FHairDebugModeMaterialRenderProxy(Strands_DebugMaterial ? Strands_DebugMaterial->GetRenderProxy() : nullptr, DebugModeScalar, 0, HairMaxRadius, HairGroupColor);
+						FVector HairColor = FVector::ZeroVector;
+						if (DebugMode == EHairStrandsDebugMode::RenderHairGroup)
+						{
+							HairColor = FVector(GetHairGroupDebugColor(GroupIt));
+						}
+						else if (DebugMode == EHairStrandsDebugMode::RenderLODColoration)
+						{
+							int32 LODIndex = Instances[GroupIt]->HairGroupPublicData ? Instances[GroupIt]->HairGroupPublicData->LODIndex : 0;
+							LODIndex = FMath::Clamp(LODIndex, 0, GEngine->LODColorationColors.Num() - 1);
+							const FLinearColor LODColor = GEngine->LODColorationColors[LODIndex];
+							HairColor = FVector(LODColor.R, LODColor.G, LODColor.B);
+						}
+						auto DebugMaterial = new FHairDebugModeMaterialRenderProxy(Strands_DebugMaterial ? Strands_DebugMaterial->GetRenderProxy() : nullptr, DebugModeScalar, 0, HairMaxRadius, HairColor);
 						Collector.RegisterOneFrameMaterialProxy(DebugMaterial);
-						Strands_MaterialProxy = DebugMaterial;
+						Debug_MaterialProxy = DebugMaterial;
 					}
 
-					FMeshBatch* MeshBatch = CreateMeshBatch(View, ViewFamily, Collector, HairGroups[GroupIt], Instances[GroupIt], GroupIt, Strands_MaterialProxy);
+					FMeshBatch* MeshBatch = CreateMeshBatch(View, ViewFamily, Collector, HairGroups[GroupIt], Instances[GroupIt], GroupIt, Debug_MaterialProxy);
 					if (MeshBatch == nullptr)
 					{
 						continue;
@@ -732,7 +755,7 @@ public:
 		const FHairGroup& GroupData,
 		const FHairGroupInstance* Instance,
 		uint32 GroupIndex,
-		FMaterialRenderProxy* Strands_MaterialProxy) const
+		FMaterialRenderProxy* Debug_MaterialProxy) const
 	{
 		const EHairGeometryType GeometryType = Instance->GeometryType;
 		if (GeometryType == EHairGeometryType::NoneGeometry)
@@ -765,7 +788,7 @@ public:
 			NumPrimitive = HairVertexCount / 3;
 			IndexBuffer = &Instance->Meshes.LODs[IntLODIndex].RestResource->IndexBuffer;
 			bUseCulling = false;
-			MaterialRenderProxy = Instance->Meshes.LODs[IntLODIndex].Material->GetRenderProxy();
+			MaterialRenderProxy = Debug_MaterialProxy == nullptr ? Instance->Meshes.LODs[IntLODIndex].Material->GetRenderProxy() : Debug_MaterialProxy;
 		}
 		else if (GeometryType == EHairGeometryType::Cards)
 		{
@@ -781,7 +804,7 @@ public:
 			NumPrimitive = HairVertexCount / 3;
 			IndexBuffer = &Instance->Cards.LODs[IntLODIndex].RestResource->RestIndexBuffer;
 			bUseCulling = false;
-			MaterialRenderProxy = Instance->Cards.LODs[IntLODIndex].Material->GetRenderProxy();
+			MaterialRenderProxy = Debug_MaterialProxy == nullptr ? Instance->Cards.LODs[IntLODIndex].Material->GetRenderProxy() : Debug_MaterialProxy;
 			bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 		}
 		else // if (GeometryType == EHairGeometryType::Strands)
@@ -791,7 +814,7 @@ public:
 			MaxVertexIndex = HairVertexCount * 6;
 			bUseCulling = Instance->Strands.bIsCullingEnabled;
 			NumPrimitive = bUseCulling ? 0 : HairVertexCount * 2;
-			MaterialRenderProxy = Strands_MaterialProxy == nullptr ? Instance->Strands.Material->GetRenderProxy() : Strands_MaterialProxy;
+			MaterialRenderProxy = Debug_MaterialProxy == nullptr ? Instance->Strands.Material->GetRenderProxy() : Debug_MaterialProxy;
 			bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 		}
 
@@ -2199,6 +2222,32 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	{
 		if (USkeletalMeshComponent* ParentSkelMeshComponent = Cast<USkeletalMeshComponent>(ParentMeshComponent))
 		{
+			// Validate that if we are bound to a skel. mesh, and we have binding, and the binding type is set to skinning, that the skin cache is enabled for these
+			if (BindingAsset)
+			{
+				const uint32 SkelLODCount = ParentSkelMeshComponent->GetNumLODs();
+				for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
+				{
+					for (uint32 LODIt = 0, LODCount = GroomAsset->GetLODCount(); LODIt < LODCount; ++LODIt)
+					{
+						const uint32 EffectiveLODIt = FMath::Clamp(LODIt, 0, SkelLODCount-1);
+						const bool bSupportSkinCache = ParentSkelMeshComponent->IsSkinCacheAllowed(EffectiveLODIt);
+						const EGroomBindingType BindingType = GroomAsset->GetBindingType(GroupIt, LODIt);
+
+						if (BindingType == EGroomBindingType::Skinning && !bSupportSkinCache)
+						{
+							UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Groom asset (Group:%d/%d) is set to use Skinning at LOD %d/%d while the parent skel. mesh does not support skin. cache for this LOD - Groom:%s - Skel.Mesh:%s"),
+								GroupIt,
+								GroupCount,
+								LODIt,
+								LODCount,
+								ComponentIt->GroomAsset ? *GroomAsset->GetPathName() : TEXT("."),
+								ParentMeshComponent->GetPathName());
+						}
+					}
+				}
+			}
+
 			ValidatedMeshComponent = ParentSkelMeshComponent->SkeletalMesh ? ParentMeshComponent : nullptr;
 		}
 	}
