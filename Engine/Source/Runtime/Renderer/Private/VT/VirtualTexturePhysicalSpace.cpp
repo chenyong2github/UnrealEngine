@@ -229,12 +229,12 @@ void FVirtualTexturePhysicalSpace::UpdateResidencyTracking(uint32 Frame)
 		ResidencyMipMapBias += AdjustmentRate * (VisiblePageResidency - UpperBound);
 	}
 
-	ResidencyMipMapBias = FMath::Clamp(ResidencyMipMapBias, 0.f, MaxMipMapBias);
-
 	if (ResidencyMipMapBias > 0.f)
 	{
 		LastFrameOversubscribed = Frame;
 	}
+
+	ResidencyMipMapBias = FMath::Clamp(ResidencyMipMapBias, 0.f, MaxMipMapBias);
 
 	if (!bEnableResidencyMipMapBias || LockedPageResidency > LockedUpperBound)
 	{
