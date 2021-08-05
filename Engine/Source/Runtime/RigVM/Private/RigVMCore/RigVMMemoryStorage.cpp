@@ -208,10 +208,37 @@ FString URigVMMemoryStorageGeneratorClass::GetClassName(ERigVMMemoryType InMemor
 URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType)
 {
 	check(InOuter);
-	UPackage* Package = InOuter->GetOutermost();
+
+	TArray<UObject*> PotentialClassContainers;
+	PotentialClassContainers.Add(InOuter);
+	
+	UObject* Outer = InOuter->GetOuter();
+	do
+	{
+		if(Outer->IsA<UPackage>())
+		{
+			break;
+		}
+
+		PotentialClassContainers.Add(Outer);
+		PotentialClassContainers.Add(Outer->GetClass());
+
+		Outer = Outer->GetOuter();
+	}
+	while (Outer);
 
 	const FString ClassName = GetClassName(InMemoryType);
-	return FindObject<URigVMMemoryStorageGeneratorClass>(Package, *ClassName);
+
+	for(UObject* PotentialClassContainer : PotentialClassContainers)
+	{
+		UPackage* Package = PotentialClassContainer->GetOutermost();
+		if(URigVMMemoryStorageGeneratorClass* Class = FindObject<URigVMMemoryStorageGeneratorClass>(Package, *ClassName))
+		{
+			return Class;
+		}
+	}
+
+	return nullptr;
 }
 
 URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStorageClass(
@@ -521,6 +548,21 @@ FString URigVMMemoryStorage::GetDataAsString(const FRigVMOperand& InOperand)
 	const int32 PropertyIndex = InOperand.GetRegisterIndex();
 	check(IsValidIndex(PropertyIndex));
 	return GetDataAsString(PropertyIndex);
+}
+
+FString URigVMMemoryStorage::GetDataAsStringSafe(int32 InPropertyIndex)
+{
+	if(!IsValidIndex(InPropertyIndex))
+	{
+		return FString();
+	}
+	return GetDataAsString(InPropertyIndex);
+}
+
+FString URigVMMemoryStorage::GetDataAsStringSafe(const FRigVMOperand& InOperand)
+{
+	const int32 PropertyIndex = InOperand.GetRegisterIndex();
+	return GetDataAsStringSafe(PropertyIndex);
 }
 
 class FRigVMMemoryStorageImportErrorContext : public FOutputDevice

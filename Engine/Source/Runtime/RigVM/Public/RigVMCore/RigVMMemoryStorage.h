@@ -484,6 +484,19 @@ public:
 	// Returns the exported text for a given operand
 	FString GetDataAsString(const FRigVMOperand& InOperand);
 
+	// Returns the exported text for a given property index
+	FString GetDataAsStringSafe(int32 InPropertyIndex);
+
+	// Returns the exported text for given property name 
+	FORCEINLINE FString GetDataAsStringByNameSafe(const FName& InName)
+	{
+		const int32 PropertyIndex = GetPropertyIndexByName(InName);
+		return GetDataAsStringSafe(PropertyIndex);
+	}
+
+	// Returns the exported text for a given operand
+	FString GetDataAsStringSafe(const FRigVMOperand& InOperand);
+
 	// Sets the content of a property by index given an exported string. Returns true if succeeded
 	bool SetDataFromString(int32 InPropertyIndex, const FString& InValue);
 
