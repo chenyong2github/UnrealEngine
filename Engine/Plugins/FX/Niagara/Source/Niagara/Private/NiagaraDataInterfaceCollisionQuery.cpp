@@ -63,6 +63,8 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 	FRWBuffer RayTraceCounts;
 
 	int32 MaxRayTraceCount = 0;
+
+	uint32 MaxRetraces = 0;
 #endif
 
 	virtual ~FNiagaraDataIntefaceProxyCollisionQuery()
@@ -132,7 +134,7 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 				RHICmdList.Transition(PreTransitions);
 			}
 
-			Context.Batcher->IssueRayTraces(RHICmdList, FIntPoint(MaxRayTraceCount, 1), RayTraceRequests.SRV, &RayTraceCounts, 0, RayTraceIntersections.UAV);
+			Context.Batcher->IssueRayTraces(RHICmdList, FIntPoint(MaxRayTraceCount, 1), MaxRetraces, RayTraceRequests.SRV, &RayTraceCounts, 0, RayTraceIntersections.UAV);
 
 			{
 				FRHITransitionInfo PostTransitions[] =
@@ -147,10 +149,11 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 #endif
 	}
 
-	void RenderThreadInitialize(int32 InMaxRayTraceRequests)
+	void RenderThreadInitialize(int32 InMaxRayTraceRequests, uint32 InMaxRetraces)
 	{
 #if RHI_RAYTRACING
 		MaxRayTraceCount = 0;
+		MaxRetraces = InMaxRetraces;
 
 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceRequests.NumBytes);
 		RayTraceRequests.Release();
@@ -167,7 +170,7 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 
 			RayTraceRequests.Initialize(
 				TEXT("NiagaraRayTraceRequests"),
-				sizeof(FBasicRayData),
+				sizeof(FNiagaraRayData),
 				MaxRayTraceCount,
 				BUF_Static,
 				false /*bUseUavCounter*/,
@@ -956,6 +959,7 @@ bool UNiagaraDataInterfaceCollisionQuery::Equals(const UNiagaraDataInterface* Ot
 
 	const UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<const UNiagaraDataInterfaceCollisionQuery>(Other);
 	return OtherTyped->MaxRayTraceCount == MaxRayTraceCount;
+	return OtherTyped->MaxRetraces == MaxRetraces;
 }
 
 bool UNiagaraDataInterfaceCollisionQuery::CopyToInternal(UNiagaraDataInterface* Destination) const
@@ -967,6 +971,7 @@ bool UNiagaraDataInterfaceCollisionQuery::CopyToInternal(UNiagaraDataInterface* 
 
 	UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<UNiagaraDataInterfaceCollisionQuery>(Destination);
 	OtherTyped->MaxRayTraceCount = MaxRayTraceCount;
+	OtherTyped->MaxRetraces = MaxRetraces;
 	OtherTyped->MarkRenderDataDirty();
 	return true;
 }
@@ -977,9 +982,9 @@ void UNiagaraDataInterfaceCollisionQuery::PushToRenderThreadImpl()
 
 	// Push Updates to Proxy, first release any resources
 	ENQUEUE_RENDER_COMMAND(FUpdateDI)(
-		[RT_Proxy, RT_MaxRayTraceRequests = MaxRayTraceCount](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_MaxRayTraceRequests = MaxRayTraceCount, RT_MaxRetraces = MaxRetraces](FRHICommandListImmediate& RHICmdList)
 		{
-			RT_Proxy->RenderThreadInitialize(RT_MaxRayTraceRequests);
+			RT_Proxy->RenderThreadInitialize(RT_MaxRayTraceRequests, RT_MaxRetraces);
 		});
 }
 

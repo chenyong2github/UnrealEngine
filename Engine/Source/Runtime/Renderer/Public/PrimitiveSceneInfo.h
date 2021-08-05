@@ -635,6 +635,11 @@ private:
 	/** Updates cached transforms in CachedRayTracingInstance */
 	void UpdateCachedRayTracingInstanceTransforms(FMatrix NewPrimitiveLocalToWorld);
 #endif
+
+public:
+	DECLARE_MULTICAST_DELEGATE(FPrimitiveSceneInfoEvent);
+	RENDERER_API static FPrimitiveSceneInfoEvent OnGPUSceneInstancesAllocated;
+	RENDERER_API static FPrimitiveSceneInfoEvent OnGPUSceneInstancesFreed;
 };
 
 /** Defines how the primitive is stored in the scene's primitive octree. */

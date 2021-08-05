@@ -262,6 +262,9 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 	GpuComputeDebugPtr.Reset(new FNiagaraGpuComputeDebug(FeatureLevel));
 #endif
 	GpuReadbackManagerPtr.Reset(new FNiagaraGpuReadbackManager());
+
+	FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.AddRaw(this, &NiagaraEmitterInstanceBatcher::OnPrimitiveGPUSceneInstancesAllocated);
+	FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.AddRaw(this, &NiagaraEmitterInstanceBatcher::OnPrimitiveGPUSceneInstancesFreed);
 }
 
 NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
@@ -272,6 +275,9 @@ NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
 	SystemCBufferLayout = nullptr;
 	OwnerCBufferLayout = nullptr;
 	EmitterCBufferLayout = nullptr;
+
+	FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.RemoveAll(this);
+	FPrimitiveSceneInfo::OnGPUSceneInstancesFreed.RemoveAll(this);
 }
 
 void NiagaraEmitterInstanceBatcher::AddGpuComputeProxy(FNiagaraSystemGpuComputeProxy* ComputeProxy)
@@ -1993,6 +1999,8 @@ void NiagaraEmitterInstanceBatcher::BuildRayTracingSceneInfo(FRHICommandList& RH
 	if (NumProxiesThatRequireRayTracingScene > 0)
 	{
 		RayTracingHelper->BuildRayTracingSceneInfo(RHICmdList, Views);
+
+		RayTracingHelper->UpdateCollisionGroupMap(RHICmdList, GetScene(), FeatureLevel);
 	}
 	else
 	{
@@ -2005,18 +2013,67 @@ void NiagaraEmitterInstanceBatcher::ResetRayTracingSceneInfo()
 	RayTracingHelper->Reset();
 }
 
-void NiagaraEmitterInstanceBatcher::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const
+void NiagaraEmitterInstanceBatcher::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, uint32 MaxRetraces, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const
 {
 	check(NumProxiesThatRequireRayTracingScene > 0);
 
-	RayTracingHelper->IssueRayTraces(RHICmdList, RayTraceCounts, RayTraceRequests, IndirectArgsBuffer, IndirectArgsOffset, RayTraceResults);
+	RayTracingHelper->IssueRayTraces(RHICmdList, GetScene(), RayTraceCounts, MaxRetraces, RayTraceRequests, IndirectArgsBuffer, IndirectArgsOffset, RayTraceResults);
 }
 
 bool NiagaraEmitterInstanceBatcher::HasRayTracingScene() const
 {
 	return NumProxiesThatRequireRayTracingScene && RayTracingHelper->IsValid();
 }
+
+void NiagaraEmitterInstanceBatcher::SetPrimitiveRayTracingCollisionGroup(UPrimitiveComponent* Primitive, uint32 Group)
+{
+	check(IsInGameThread());
+	if (Primitive == nullptr || Primitive->SceneProxy == nullptr)
+	{
+		return;
+	}
+
+	ENQUEUE_RENDER_COMMAND(NiagaraSetPrimHWRTCollisionGroup)(
+		[RT_NiagaraBatcher = this, Proxy = Primitive->SceneProxy, CollisionGroup=Group](FRHICommandListImmediate& RHICmdList)
+		{
+			check(Proxy);
+			RT_NiagaraBatcher->RayTracingHelper->SetPrimitiveCollisionGroup(*Proxy->GetPrimitiveSceneInfo(), CollisionGroup);
+		}
+	);
+}
+
+int32 NiagaraEmitterInstanceBatcher::AcquireGPURayTracedCollisionGroup()
+{
+	check(IsInGameThread());//one of the few batcher functions that should be called from the GT
+	if (FreeGPURayTracedCollisionGroups.Num() > 0)
+	{
+		return FreeGPURayTracedCollisionGroups.Pop();
+	}
+
+	return NumGPURayTracedCollisionGroups++;
+}
+
+void NiagaraEmitterInstanceBatcher::ReleaseGPURayTracedCollisionGroup(int32 CollisionGroup)
+{
+	check(IsInGameThread());//one of the few batcher functions that should be called from the GT
+	FreeGPURayTracedCollisionGroups.Add(CollisionGroup);
+}
+
 #endif
+
+void NiagaraEmitterInstanceBatcher::OnPrimitiveGPUSceneInstancesAllocated()
+{
+#if RHI_RAYTRACING
+	RayTracingHelper->RefreshPrimitiveInstanceData();
+#endif
+}
+
+void NiagaraEmitterInstanceBatcher::OnPrimitiveGPUSceneInstancesFreed()
+{
+#if RHI_RAYTRACING
+	RayTracingHelper->RefreshPrimitiveInstanceData();
+#endif
+}
 
 /* Set shader parameters for data interfaces
  */

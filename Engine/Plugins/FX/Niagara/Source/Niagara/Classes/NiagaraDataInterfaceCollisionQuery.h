@@ -32,6 +32,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Ray Trace")
 	int32 MaxRayTraceCount = 0;
 
+	/** If a collision is rejected, how many times do we attempt to retrace from that collision point forward to find a new, valid collision.*/
+	UPROPERTY(EditAnywhere, Category = "Ray Trace")
+	int32 MaxRetraces = 0;
+
 	FNiagaraSystemInstance *SystemInstance;
 
 	//UObject Interface

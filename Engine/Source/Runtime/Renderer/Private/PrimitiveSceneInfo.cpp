@@ -109,6 +109,9 @@ private:
 	TRefCountPtr<HHitProxy> CurrentHitProxy;
 };
 
+FPrimitiveSceneInfo::FPrimitiveSceneInfoEvent FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated;
+FPrimitiveSceneInfo::FPrimitiveSceneInfoEvent FPrimitiveSceneInfo::OnGPUSceneInstancesFreed;
+
 FPrimitiveFlagsCompact::FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy)
 	: bCastDynamicShadow(Proxy->CastsDynamicShadow())
 	, bStaticLighting(Proxy->HasStaticLighting())
@@ -1002,6 +1005,8 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 				Scene->LumenSceneData->UpdatePrimitiveInstanceOffset(SceneInfo->PackedIndex);
 			}
 		}
+
+		OnGPUSceneInstancesAllocated.Broadcast();
 	}
 }
 
@@ -1040,6 +1045,8 @@ void FPrimitiveSceneInfo::FreeGPUSceneInstances()
 		Scene->GPUScene.FreeInstanceSceneDataSlots(InstanceSceneDataOffset, NumInstanceSceneDataEntries);
 		InstanceSceneDataOffset = INDEX_NONE;
 		NumInstanceSceneDataEntries = 0;
+
+		OnGPUSceneInstancesFreed.Broadcast();
 	}
 }
 

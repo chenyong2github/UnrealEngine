@@ -18,6 +18,7 @@
 #include "NiagaraDataInterfaceVolumeTexture.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/Texture2DArray.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraFunctionLibrary"
 
@@ -1769,4 +1770,92 @@ void UNiagaraFunctionLibrary::InitVectorVMFastPathOps()
 	check(VectorVMOps.Num() == VectorVMOpsHLSL.Num());
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+//GPU Ray Traced Collision Functions
+
+void UNiagaraFunctionLibrary::SetComponentNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, UPrimitiveComponent* Primitive, int32 CollisionGroup)
+{
+#if WITH_RAYTRACING
+	if(UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if(FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		{
+			if(FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())			
+			{
+				if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
+				{
+					Batcher->SetPrimitiveRayTracingCollisionGroup(Primitive, CollisionGroup);
+				}
+			}
+		}
+	}
+#endif
+}
+
+void UNiagaraFunctionLibrary::SetActorNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, AActor* Actor, int32 CollisionGroup)
+{
+#if WITH_RAYTRACING
+	if (Actor == nullptr)
+	{
+		return;
+	}
+
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		{
+			if (FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())
+			{
+				if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
+				{
+					Actor->ForEachComponent<UPrimitiveComponent>(/*bIncludeFromChildActors*/true, [&Batcher, &CollisionGroup](UPrimitiveComponent* PrimitiveComponent)
+					{
+							Batcher->SetPrimitiveRayTracingCollisionGroup(PrimitiveComponent, CollisionGroup);
+					});
+				}
+			}
+		}
+	}
+#endif
+}
+
+int32 UNiagaraFunctionLibrary::AcquireNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject)
+{
+#if WITH_RAYTRACING
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		{
+			if (FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())
+			{
+				if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
+				{
+					return Batcher->AcquireGPURayTracedCollisionGroup();
+				}
+			}
+		}
+	}
+#endif
+	return INDEX_NONE;
+}
+
+void UNiagaraFunctionLibrary::ReleaseNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, int32 CollisionGroup)
+{
+#if WITH_RAYTRACING
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		{
+			if (FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())
+			{
+				if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
+				{
+					Batcher->ReleaseGPURayTracedCollisionGroup(CollisionGroup);
+				}
+			}
+		}
+	}
+#endif
+}
 #undef LOCTEXT_NAMESPACE

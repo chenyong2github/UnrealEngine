@@ -24,8 +24,10 @@ TMap<FName, FCreateCustomFXSystemDelegate> FFXSystemInterface::CreateCustomFXDel
 	External FX system interface.
 -----------------------------------------------------------------------------*/
 
-FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform)
+FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureLevel, FSceneInterface* Scene)
 {
+	check(Scene);
+	EShaderPlatform InShaderPlatform = Scene->GetShaderPlatform();
 	// The FGPUSortManager is currently only being used by FFXSystemInterface implementations.
 	// Because of this, the lifetime management of the GPUSortManager only consists of a ref counter incremented initially 
 	// in the gamethread (in this function) and decremented on the renderthread (when the system interfaces are deleted).
@@ -34,6 +36,9 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 	if (CreateCustomFXDelegates.Num())
 	{
 		FFXSystemSet* Set = new FFXSystemSet(GPUSortManager);
+		Scene->SetFXSystem(Set);
+		Set->SetScene((FScene*)Scene);
+
 		Set->FXSystems.Add(new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager));
 
 		for (TMap<FName, FCreateCustomFXSystemDelegate>::TConstIterator Ite(CreateCustomFXDelegates); Ite; ++Ite)
@@ -41,6 +46,7 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 			FFXSystemInterface* CustomFX = Ite.Value().Execute(InFeatureLevel, InShaderPlatform, GPUSortManager);
 			if (CustomFX)
 			{
+				CustomFX->SetScene((FScene*)Scene);
 				Set->FXSystems.Add(CustomFX);
 			}
 		}
@@ -48,8 +54,12 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 	}
 	else
 	{
-		return new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager);
+		FFXSystemInterface* Ret = new FFXSystem(InFeatureLevel, InShaderPlatform, GPUSortManager);
+		Scene->SetFXSystem(Ret);
+		Ret->SetScene((FScene*)Scene);
+		return Ret;
 	}
+
 }
 void FFXSystemInterface::QueueDestroyGPUSimulation(FFXSystemInterface* FXSystem)
 {
