@@ -192,6 +192,8 @@ public:
 		else
 		{
 			NumberValue = InDefaultValue;
+			GetOrAddCustomParameterValueText();
+			UpdateCustomParameterValueText(FString::SanitizeFloat(static_cast<float>(NumberValue)));
 		}
 	}
 
