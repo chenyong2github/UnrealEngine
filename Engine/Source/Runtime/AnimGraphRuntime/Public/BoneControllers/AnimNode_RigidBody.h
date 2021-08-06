@@ -346,7 +346,6 @@ private:
 	{
 		FSimulationTaskState()
 			: SimulationCompletionEvent(nullptr)
-			, bSimulationPending(false)
 		{
 		}
 
@@ -357,8 +356,7 @@ private:
 			return(*this);
 		}
 
-		FEvent* SimulationCompletionEvent;
-		std::atomic<bool> bSimulationPending;
+		FGraphEventRef SimulationCompletionEvent;
 	};
 	FSimulationTaskState SimulationTaskState;
 
