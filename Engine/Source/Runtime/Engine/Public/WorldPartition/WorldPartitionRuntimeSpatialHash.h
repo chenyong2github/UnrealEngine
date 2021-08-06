@@ -168,6 +168,7 @@ struct FSpatialHashRuntimeGrid
 		, Priority(0)
 		, DebugColor(FLinearColor::MakeRandomColor())
 		, bClientOnlyVisible(false)
+		, HLODLayer(nullptr)
 #endif
 	{}
 
