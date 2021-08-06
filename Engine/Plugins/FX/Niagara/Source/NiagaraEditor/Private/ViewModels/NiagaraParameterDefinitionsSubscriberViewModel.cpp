@@ -39,7 +39,8 @@ void INiagaraParameterDefinitionsSubscriberViewModel::SynchronizeScriptVarWithPa
 {
 	FSynchronizeWithParameterDefinitionsArgs Args = FSynchronizeWithParameterDefinitionsArgs();
 	Args.SpecificDestScriptVarIds.Add(ScriptVarToSynchronize->Metadata.GetVariableGuid());
-	Args.bForceSynchronizeDefinitions = bForce;
+	Args.bForceGatherDefinitions = bForce;
+	Args.bForceSynchronizeParameters = bForce;
 	SynchronizeWithParameterDefinitions(Args); //@todo(ng) error if we failed to find the var
 }
 

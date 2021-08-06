@@ -23,8 +23,11 @@ void INiagaraParameterDefinitionsSubscriber::PostLoadDefinitionsSubscriptions()
 		}
 	}
 
+	// When postloading definition subscriptions, we want to synchronize all parameters with all parameter definitions that are matching by name.
+	// As such; Set bForceGatherDefinitions so that all NiagaraParameterDefinitions assets are gathered to consider for linking, and;
+	// Set bSubscribeAllNameMatchParameters so that name matches are considered for linking parameters to parameter definitions.
 	FSynchronizeWithParameterDefinitionsArgs Args;
-	Args.bForceSynchronizeDefinitions = true;
+	Args.bForceGatherDefinitions = true;
 	Args.bSubscribeAllNameMatchParameters = true;
 	SynchronizeWithParameterDefinitions(Args);
 }
@@ -149,7 +152,7 @@ void INiagaraParameterDefinitionsSubscriber::SynchronizeWithParameterDefinitions
 		if (const FParameterDefinitionsSubscription* Subscription = Subscriptions.FindByPredicate(
 			[&DefinitionAndChangeIdHash](const FParameterDefinitionsSubscription& inSubscription){ return inSubscription.DefinitionsId == DefinitionAndChangeIdHash.Definition->GetDefinitionsUniqueId(); }))
 		{
-			if (Args.bForceSynchronizeDefinitions)
+			if (Args.bForceGatherDefinitions)
 			{
 				TargetDefinitionAndChangeIdHashes.Add(DefinitionAndChangeIdHash);
 				TargetDefinitions.Add(DefinitionAndChangeIdHash.Definition);
