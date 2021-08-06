@@ -170,7 +170,6 @@ export class WidgetUtilities {
       R: (vector?.X ?? rgb?.R) * 255 / max,
       G: (vector?.Y ?? rgb?.G) * 255 / max,
       B: (vector?.Z ?? rgb?.B) * 255 / max,
-      A: 1
     };
   }
 
@@ -180,9 +179,9 @@ export class WidgetUtilities {
     const c = rgb.B / 255 * max;
 
     if (vector)
-      return { X: a, Y: b, Z: c, W: 1 };
+      return { X: a, Y: b, Z: c };
 
-    return { R: a, G: b, B: c, A: 1 };
+    return { R: a, G: b, B: c };
   }
 
   static rgb2Hsv(color: ColorProperty): IHsvColor {
@@ -215,10 +214,10 @@ export class WidgetUtilities {
       h /= 6;
     }
 
-    return { h, s, v, a: color?.A };
+    return { h, s, v };
   }
 
-  static hsv2rgb({ h, s, v, a }: IHsvColor): ColorProperty {
+  static hsv2rgb({ h, s, v }: IHsvColor): ColorProperty {
     let r: number, g: number, b: number;
 
     let i = Math.floor(h * 6);
@@ -245,6 +244,6 @@ export class WidgetUtilities {
     if (i % 6 === 5)
       ([r, g, b] = [v, p, q]);
 
-    return { R: r * 255, G: g * 255, B: b * 255, A: a };
+    return { R: r * 255, G: g * 255, B: b * 255 };
   }
 }
