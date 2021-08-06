@@ -79,6 +79,9 @@ struct FBuildSchedulerParams
 	uint64 MissingLocalInputsSize = 0;
 	/** Total size of inputs that need to be resolved for remote execution. Available in ResolveInputData. */
 	uint64 MissingRemoteInputsSize = 0;
+
+	/** Estimate of the peak memory required to execute the build, including constants and inputs. */
+	uint64 TotalRequiredMemory = 0;
 };
 
 } // UE::DerivedData

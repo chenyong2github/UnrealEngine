@@ -149,6 +149,9 @@ public:
 	/** Overrides the build policy used when executing this build. */
 	virtual void SetBuildPolicy(EBuildPolicy Policy) = 0;
 
+	/** Sets the estimated peak memory required to execute the build, excluding input size. */
+	virtual void SetRequiredMemory(uint64 RequiredMemory) = 0;
+
 	/** Skips verification that this function has deterministic output. */
 	virtual void SkipDeterministicOutputCheck() = 0;
 };
