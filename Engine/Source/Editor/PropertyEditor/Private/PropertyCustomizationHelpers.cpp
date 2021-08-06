@@ -74,7 +74,6 @@ namespace PropertyCustomizationHelpers
 					.ButtonStyle( FAppStyle::Get(), "SimpleButton" )
 					.OnClicked( this, &SPropertyEditorButton::OnClick )
 					.ToolTipText( InArgs._Text )
-					.ForegroundColor( FSlateColor::UseForeground() )
 					.ContentPadding(0)
 					.IsFocusable(InArgs._IsFocusable)
 					[ 
