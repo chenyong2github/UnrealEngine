@@ -30,8 +30,8 @@ public:
 	void Begin(IRequest* Request) final;
 	TRefCountPtr<IRequest> End(IRequest* Request) final;
 
-	void BeginBarrier() final;
-	void EndBarrier() final;
+	void BeginBarrier(ERequestBarrierFlags Flags) final;
+	void EndBarrier(ERequestBarrierFlags Flags) final;
 
 	inline EPriority GetPriority() const final { return Priority; }
 	inline bool IsCanceled() const final { return bIsCanceled; }
@@ -49,6 +49,7 @@ private:
 	TArray<TRefCountPtr<IRequest>, TInlineAllocator<1>> Requests;
 	TRefCountPtr<FRequestBarrierEvent> BarrierEvent;
 	uint32 BarrierCount{0};
+	uint32 PriorityBarrierCount{0};
 	EPriority Priority{EPriority::Normal};
 	uint8 bPriorityChangedInBarrier : 1;
 	uint8 bBeginExecuted : 1;
@@ -106,22 +107,32 @@ TRefCountPtr<IRequest> FRequestOwnerShared::End(IRequest* Request)
 	return RequestRef;
 }
 
-void FRequestOwnerShared::BeginBarrier()
+void FRequestOwnerShared::BeginBarrier(ERequestBarrierFlags Flags)
 {
 	AddRef();
 	FWriteScopeLock WriteLock(Lock);
 	++BarrierCount;
+	if (EnumHasAnyFlags(Flags, ERequestBarrierFlags::Priority))
+	{
+		++PriorityBarrierCount;
+	}
 }
 
-void FRequestOwnerShared::EndBarrier()
+void FRequestOwnerShared::EndBarrier(ERequestBarrierFlags Flags)
 {
 	ON_SCOPE_EXIT { Release(); };
 	TRefCountPtr<FRequestBarrierEvent> LocalBarrierEvent;
-	if (FWriteScopeLock WriteLock(Lock); --BarrierCount == 0)
 	{
-		bPriorityChangedInBarrier = false;
-		LocalBarrierEvent = MoveTemp(BarrierEvent);
-		BarrierEvent = nullptr;
+		FWriteScopeLock WriteLock(Lock);
+		if (EnumHasAnyFlags(Flags, ERequestBarrierFlags::Priority) && --PriorityBarrierCount == 0)
+		{
+			bPriorityChangedInBarrier = false;
+		}
+		if (--BarrierCount == 0)
+		{
+			LocalBarrierEvent = MoveTemp(BarrierEvent);
+			BarrierEvent = nullptr;
+		}
 	}
 	if (LocalBarrierEvent)
 	{
@@ -140,7 +151,7 @@ void FRequestOwnerShared::SetPriority(EPriority NewPriority)
 	{
 		Priority = NewPriority;
 		LocalRequests = Requests;
-		bPriorityChangedInBarrier = (BarrierCount > 0);
+		bPriorityChangedInBarrier = (PriorityBarrierCount > 0);
 	}
 
 	for (IRequest* Request : LocalRequests)
