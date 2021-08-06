@@ -289,23 +289,6 @@ struct FLogScope::FFieldSet<FieldMeta, WideString>
 	}
 };
 
-template <typename FieldMeta>
-struct FLogScope::FFieldSet<FieldMeta, Attachment>
-{
-	template <typename LambdaType>
-	static void Impl(FLogScope* Scope, LambdaType&& Lambda)
-	{
-		uint8* Dest = (uint8*)(Scope->Ptr) + FieldMeta::Offset;
-		Lambda(Dest);
-	}
-
-	static void Impl(FLogScope* Scope, const void* Data, uint32 Size)
-	{
-		uint8* Dest = (uint8*)(Scope->Ptr) + FieldMeta::Offset;
-		::memcpy(Dest, Data, Size);
-	}
-};
-
 } // namespace Private
 } // namespace Trace
 } // namespace UE

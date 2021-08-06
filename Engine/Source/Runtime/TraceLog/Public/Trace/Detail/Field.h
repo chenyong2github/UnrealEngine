@@ -192,15 +192,6 @@ struct TField<InNumFields, InSize, EventProps>
 	};
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// Access to additional data that can be included along with a logged event.
-enum Attachment {};
-template <int InOffset>
-struct TField<0, InOffset, Attachment>
-{
-	enum { Offset = InOffset };
-};
-
 } // namespace Trace
 } // namespace UE
 

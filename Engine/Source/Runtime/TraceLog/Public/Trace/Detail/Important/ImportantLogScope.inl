@@ -196,13 +196,6 @@ struct FImportantLogScope::FFieldSet<FieldMeta, WideString>
 	}
 };
 
-////////////////////////////////////////////////////////////////////////////////
-template <typename FieldMeta>
-struct FImportantLogScope::FFieldSet<FieldMeta, Attachment>
-{
-	static void Impl(...); /* not implemented */
-};
-
 } // namespace Private
 } // namespace Trace
 } // namespace UE
