@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DerivedDataRequest.h"
+#include "DerivedDataRequestOwner.h"
 
 #include "Containers/Array.h"
+#include "DerivedDataRequest.h"
+#include "DerivedDataRequestTypes.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Event.h"
 #include "Misc/ScopeExit.h"
@@ -19,7 +21,7 @@ struct FRequestBarrierEvent : public FRefCountBase
 	FEventRef Event{EEventMode::ManualReset};
 };
 
-class FRequestOwnerShared final : public FRequestOwnerSharedBase
+class FRequestOwnerShared final : public IRequestOwner, public FRequestBase
 {
 public:
 	explicit FRequestOwnerShared(EPriority Priority);
@@ -34,13 +36,13 @@ public:
 	inline EPriority GetPriority() const final { return Priority; }
 	inline bool IsCanceled() const final { return bIsCanceled; }
 
-	void SetPriority(EPriority Priority) final;
-	void Cancel() final;
-	void Wait() final;
-	bool Poll() const final;
+	inline void SetPriority(EPriority Priority) final;
+	inline void Cancel() final;
+	inline void Wait() final;
+	inline bool Poll() const;
 
-	void KeepAlive() final;
-	void Destroy() final;
+	inline void KeepAlive();
+	inline void Destroy();
 
 private:
 	mutable FRWLock Lock;
@@ -253,9 +255,15 @@ void FRequestOwnerShared::Destroy()
 namespace UE::DerivedData
 {
 
-FRequestOwner::FRequestOwner(EPriority Priority)
-	: Owner(new Private::FRequestOwnerShared(Priority))
-{
-}
+FRequestOwner::FRequestOwner(EPriority Priority) : Owner(new Private::FRequestOwnerShared(Priority)) {}
+static Private::FRequestOwnerShared* ToSharedOwner(IRequestOwner* Owner) { return static_cast<Private::FRequestOwnerShared*>(Owner); }
+void FRequestOwner::KeepAlive()                         { return ToSharedOwner(Owner.Get())->KeepAlive(); }
+EPriority FRequestOwner::GetPriority() const            { return ToSharedOwner(Owner.Get())->GetPriority(); }
+void FRequestOwner::SetPriority(EPriority Priority)     { return ToSharedOwner(Owner.Get())->SetPriority(Priority); }
+void FRequestOwner::Cancel()                            { return ToSharedOwner(Owner.Get())->Cancel(); }
+void FRequestOwner::Wait()                              { return ToSharedOwner(Owner.Get())->Wait(); }
+bool FRequestOwner::Poll() const                        { return ToSharedOwner(Owner.Get())->Poll(); }
+FRequestOwner::operator IRequest*()                     { return ToSharedOwner(Owner.Get()); }
+void FRequestOwner::Destroy(IRequestOwner& SharedOwner) { return ToSharedOwner(&SharedOwner)->Destroy(); }
 
 } // UE::DerivedData

@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DerivedDataBackendAsyncPutWrapper.h"
+
+#include "DerivedDataRequest.h"
+#include "DerivedDataRequestOwner.h"
 #include "MemoryDerivedDataBackend.h"
 #include "Tasks/Task.h"
 #include <atomic>

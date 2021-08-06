@@ -32,6 +32,7 @@
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataPayload.h"
+#include "DerivedDataRequestOwner.h"
 #include "Engine/TextureCube.h"
 #include "Engine/VolumeTexture.h"
 #include "GenericPlatform/GenericPlatformMath.h"

@@ -19,7 +19,6 @@
 #include "Containers/StringFwd.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheUsageStats.h"
-#include "DerivedDataRequest.h"
 #include "HAL/CriticalSection.h"
 
 class FCbObject;

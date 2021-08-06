@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
-#include "DerivedDataRequest.h"
+#include "DerivedDataRequestTypes.h"
 
 template <typename FuncType> class TUniqueFunction;
 

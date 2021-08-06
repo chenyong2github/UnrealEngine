@@ -7,13 +7,14 @@
 #include "Containers/StringView.h"
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildKey.h"
-#include "DerivedDataRequest.h"
+#include "DerivedDataRequestTypes.h"
 #include "IO/IoHash.h"
 #include "Templates/Function.h"
 
 struct FGuid;
 
 namespace UE::DerivedData { class FBuildAction; }
+namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildInputDataResolvedParams; }
 namespace UE::DerivedData { struct FBuildInputMetaResolvedParams; }
 namespace UE::DerivedData { struct FBuildKeyResolvedParams; }

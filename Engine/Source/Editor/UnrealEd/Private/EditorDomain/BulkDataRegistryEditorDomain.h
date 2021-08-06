@@ -8,7 +8,7 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/RingBuffer.h"
-#include "DerivedDataRequest.h"
+#include "DerivedDataRequestOwner.h"
 #include "HAL/CriticalSection.h"
 #include "Serialization/BulkDataRegistry.h"
 #include "Templates/RefCounting.h"

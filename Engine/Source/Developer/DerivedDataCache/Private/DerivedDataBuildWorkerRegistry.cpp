@@ -8,7 +8,6 @@
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataBuildWorker.h"
-#include "DerivedDataRequest.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/CriticalSection.h"
 #include "IO/IoHash.h"

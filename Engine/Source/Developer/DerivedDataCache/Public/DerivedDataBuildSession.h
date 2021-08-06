@@ -5,8 +5,8 @@
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
 #include "DerivedDataBuildKey.h"
-#include "DerivedDataBuildPolicy.h"
-#include "DerivedDataRequest.h"
+#include "DerivedDataBuildTypes.h"
+#include "DerivedDataRequestTypes.h"
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 
@@ -16,6 +16,7 @@ namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { class FBuildSession; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
 namespace UE::DerivedData { class FPayload; }
+namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildActionCompleteParams; }
 namespace UE::DerivedData { struct FBuildCompleteParams; }
 namespace UE::DerivedData { struct FBuildPayloadCompleteParams; }

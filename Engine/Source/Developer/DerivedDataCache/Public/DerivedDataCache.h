@@ -4,20 +4,21 @@
 
 #include "CoreTypes.h"
 #include "DerivedDataCacheKey.h"
-#include "DerivedDataRequest.h"
+#include "DerivedDataRequestTypes.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
 
 #define UE_API DERIVEDDATACACHE_API
 
+namespace UE::DerivedData { class FCacheRecord; }
+namespace UE::DerivedData { class FPayload; }
+namespace UE::DerivedData { class IRequestOwner; }
+namespace UE::DerivedData { struct FCacheGetCompleteParams; }
+namespace UE::DerivedData { struct FCacheGetPayloadCompleteParams; }
+namespace UE::DerivedData { struct FCachePutCompleteParams; }
+
 namespace UE::DerivedData
 {
-
-class FCacheRecord;
-class FPayload;
-struct FCacheGetCompleteParams;
-struct FCacheGetPayloadCompleteParams;
-struct FCachePutCompleteParams;
 
 using FOnCachePutComplete = TUniqueFunction<void (FCachePutCompleteParams&& Params)>;
 using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetCompleteParams&& Params)>;

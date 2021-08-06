@@ -6,6 +6,8 @@
 #include <atomic>
 #include "Containers/ArrayView.h"
 #include "DerivedDataBuildAction.h"
+#include "DerivedDataRequest.h"
+#include "DerivedDataRequestOwner.h"
 #include "HAL/Event.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/BulkDataRegistry.h"
