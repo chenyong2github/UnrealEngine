@@ -101,7 +101,13 @@ static FAutoConsoleVariableRef CVarForkedProcessMaxWorkerThreads(
 );
 
 CORE_API int32 GUseNewTaskBackend = 1;
-uint32 GNumForegroundWorkers = 2;
+int32 GNumForegroundWorkers = 2;
+static FAutoConsoleVariableRef CVarNumForegroundWorkers(
+	TEXT("TaskGraph.NumForegroundWorkers"),
+	GNumForegroundWorkers,
+	TEXT("Configures the number of foreground worker threads. Requires the scheduler to be restarted to have an affect")
+);
+
 bool GDisableReserveWorkers = 0;
 
 #if CREATE_HIPRI_TASK_THREADS || CREATE_BACKGROUND_TASK_THREADS
@@ -1867,10 +1873,10 @@ public:
 			int32 NumBackgroundWorkers = FMath::Max(1, NumWorkerThreads - FMath::Min<int>(GNumForegroundWorkers, NumWorkerThreads));
 			int32 NumForegroundWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
 
-			LowLevelTasks::FScheduler::Get().StartWorkers(NumForegroundWorkers, NumBackgroundWorkers, EThreadPriority::TPri_Normal, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
+			LowLevelTasks::FScheduler::Get().StartWorkers(NumForegroundWorkers, NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance(), EThreadPriority::TPri_Normal, EThreadPriority::TPri_BelowNormal);
 			if (!GDisableReserveWorkers)
 			{
-				LowLevelTasks::FReserveScheduler::Get().StartWorkers(LowLevelTasks::FScheduler::Get(), NumForegroundWorkers + NumBackgroundWorkers, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
+				LowLevelTasks::FReserveScheduler::Get().StartWorkers(LowLevelTasks::FScheduler::Get(), NumForegroundWorkers + NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance(), EThreadPriority::TPri_BelowNormal);
 			}
 
 			NumNamedThreads = ENamedThreads::ActualRenderingThread + 1;
@@ -1950,12 +1956,12 @@ public:
 			int32 NumWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
 
 			LowLevelTasks::FScheduler::Get().StopWorkers();
-			LowLevelTasks::FScheduler::Get().StartWorkers(NumWorkers, NumBackgroundWorkers, Pri, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
+			LowLevelTasks::FScheduler::Get().StartWorkers(NumWorkers, NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance(), Pri, EThreadPriority::TPri_BelowNormal);
 
 			if (!GDisableReserveWorkers)
 			{
 				LowLevelTasks::FReserveScheduler::Get().StopWorkers();
-				LowLevelTasks::FReserveScheduler::Get().StartWorkers(LowLevelTasks::FScheduler::Get(), NumWorkers + NumBackgroundWorkers, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
+				LowLevelTasks::FReserveScheduler::Get().StartWorkers(LowLevelTasks::FScheduler::Get(), NumWorkers + NumBackgroundWorkers, FForkProcessHelper::IsForkedMultithreadInstance(), EThreadPriority::TPri_BelowNormal);
 			}
 		}
 	}

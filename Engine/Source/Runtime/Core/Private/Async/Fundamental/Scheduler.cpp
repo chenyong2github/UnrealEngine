@@ -40,7 +40,7 @@ namespace LowLevelTasks
 		}
 	}
 
-	TUniquePtr<FThread> FScheduler::CreateWorker(FSleepEvent* ExternalWorkerEvent, FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue, EThreadPriority Priority, bool bPermitBackgroundWork, bool bIsForkable)
+	TUniquePtr<FThread> FScheduler::CreateWorker(bool bPermitBackgroundWork, bool bIsForkable, FSleepEvent* ExternalWorkerEvent, FSchedulerTls::FLocalQueueType* ExternalWorkerLocalQueue, EThreadPriority Priority, uint64 InAffinity)
 	{
 		uint32 WorkerId = NextWorkerId++;
 		const uint32 WaitTimes[8] = { 719, 991, 1361, 1237, 1597, 953, 587, 1439 };
@@ -49,6 +49,11 @@ namespace LowLevelTasks
 		if (bPermitBackgroundWork && FPlatformAffinity::GetTaskGraphBackgroundTaskMask() != 0xFFFFFFFFFFFFFFFF)
 		{
 			ThreadAffinityMask = FPlatformAffinity::GetTaskGraphBackgroundTaskMask();
+		}
+		if (InAffinity)
+		{
+			// we can override the affinity!
+			ThreadAffinityMask = InAffinity;
 		}
 
 		const FProcessorGroupDesc& ProcessorGroups = FPlatformMisc::GetProcessorGroupDesc();
@@ -83,12 +88,24 @@ namespace LowLevelTasks
 		);
 	}
 
-	void FScheduler::StartWorkers(uint32 NumForegroundWorkers, uint32 NumBackgroundWorkers, EThreadPriority WorkerPriority,  EThreadPriority BackgroundPriority, bool bIsForkable)
+	void FScheduler::StartWorkers(uint32 NumForegroundWorkers, uint32 NumBackgroundWorkers, bool bIsForkable, EThreadPriority InWorkerPriority,  EThreadPriority InBackgroundPriority, uint64 InWorkerAffinity, uint64 InBackgroundAffinity)
 	{
 		if (NumForegroundWorkers == 0 && NumBackgroundWorkers == 0)
 		{
 			NumForegroundWorkers = FMath::Max<int32>(1, FMath::Min<int32>(2, FPlatformMisc::NumberOfWorkerThreadsToSpawn() - 1));
 			NumBackgroundWorkers = FMath::Max<int32>(1, FPlatformMisc::NumberOfWorkerThreadsToSpawn() - NumForegroundWorkers);
+		}
+
+		WorkerPriority = InWorkerPriority;
+		BackgroundPriority = InBackgroundPriority;
+
+		if (InWorkerAffinity)
+		{
+			WorkerAffinity = InWorkerAffinity;
+		}
+		if (InBackgroundAffinity)
+		{
+			BackgroundAffinity = InBackgroundAffinity;
 		}
 
 		const bool bSupportsMultithreading = FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::IsForkedMultithreadInstance();
@@ -110,7 +127,7 @@ namespace LowLevelTasks
 			{
 				WorkerEvents.Emplace();
 				WorkerLocalQueues.Emplace(QueueRegistry, ELocalQueueType::EForeground, &WorkerEvents.Last());
-				WorkerThreads.Add(CreateWorker(&WorkerEvents.Last(), &WorkerLocalQueues.Last(), WorkerPriority, false, bIsForkable));
+				WorkerThreads.Add(CreateWorker(false, bIsForkable, &WorkerEvents.Last(), &WorkerLocalQueues.Last(), WorkerPriority, WorkerAffinity));
 			}
 			UE::Trace::ThreadGroupEnd();
 			UE::Trace::ThreadGroupBegin(TEXT("Background Workers"));
@@ -118,13 +135,13 @@ namespace LowLevelTasks
 			{
 				WorkerEvents.Emplace();
 				WorkerLocalQueues.Emplace(QueueRegistry, ELocalQueueType::EBackground, &WorkerEvents.Last());
-				WorkerThreads.Add(CreateWorker(&WorkerEvents.Last(), &WorkerLocalQueues.Last(), BackgroundPriority, true, bIsForkable));
+				WorkerThreads.Add(CreateWorker(true, bIsForkable, &WorkerEvents.Last(), &WorkerLocalQueues.Last(), BackgroundPriority, BackgroundAffinity));
 			}
 			UE::Trace::ThreadGroupEnd();
 		}
 	}
 
-	void FScheduler::StopWorkers()
+	void FScheduler::StopWorkers(bool DrainGlobalQueue)
 	{
 		uint32 OldActiveWorkers = ActiveWorkers.load(std::memory_order_relaxed);
 		if(OldActiveWorkers != 0 && ActiveWorkers.compare_exchange_strong(OldActiveWorkers, 0, std::memory_order_relaxed))
@@ -141,16 +158,28 @@ namespace LowLevelTasks
 			WorkerThreads.Reset();
 			WorkerLocalQueues.Reset();
 			WorkerEvents.Reset();
-			for (FTask* Task = QueueRegistry.Dequeue(); Task != nullptr; Task = QueueRegistry.Dequeue())
+
+			if (DrainGlobalQueue)
 			{
-				Task->ExecuteTask();
+				for (FTask* Task = QueueRegistry.Dequeue(); Task != nullptr; Task = QueueRegistry.Dequeue())
+				{
+					Task->ExecuteTask();
+				}
 			}
 		}
+	}
+	void FScheduler::RestartWorkers(uint32 NumForegroundWorkers, uint32 NumBackgroundWorkers, bool bIsForkable, EThreadPriority InWorkerPriority, EThreadPriority InBackgroundPriority, uint64 InWorkerAffinity, uint64 InBackgroundAffinity)
+	{
+		FScopeLock Lock(&WorkerThreadsCS);
+		TemporaryShutdown.store(true, std::memory_order_release);
+		StopWorkers(false);
+		StartWorkers(NumForegroundWorkers, NumBackgroundWorkers, bIsForkable, InWorkerPriority, InBackgroundPriority, InWorkerAffinity, InBackgroundAffinity);
+		TemporaryShutdown.store(false, std::memory_order_release);
 	}
 
 	void FScheduler::LaunchInternal(FTask& Task, EQueuePreference QueuePreference, bool bWakeUpWorker)
 	{
-		if (ActiveWorkers.load(std::memory_order_relaxed))
+		if (ActiveWorkers.load(std::memory_order_relaxed) || TemporaryShutdown.load(std::memory_order_acquire))
 		{			
 			const bool bIsBackgroundTask = Task.IsBackgroundTask();
 			const bool bIsBackgroundWorker = FSchedulerTls::IsBackgroundWorker();
