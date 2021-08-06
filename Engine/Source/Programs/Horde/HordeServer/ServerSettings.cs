@@ -409,7 +409,7 @@ namespace HordeServer
 		/// <summary>
 		/// Path to the root config file
 		/// </summary>
-		public string? ConfigPath { get; set; }
+		public string ConfigPath { get; set; } = "Defaults/globals.json";
 
 		/// <summary>
 		/// Settings for remote execution
