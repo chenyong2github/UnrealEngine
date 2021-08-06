@@ -44,6 +44,7 @@ public:
 	//~ Begin FEditorUndoClient interface
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
+	virtual void RefreshEditors(ERefreshBlueprintEditorReason::Type Reason) override;
 	//~ End FEditorUndoClient interface
 
 	virtual void SelectObjects(TArray<UObject*>& InSelectedObjects, bool bFullRefresh = false);

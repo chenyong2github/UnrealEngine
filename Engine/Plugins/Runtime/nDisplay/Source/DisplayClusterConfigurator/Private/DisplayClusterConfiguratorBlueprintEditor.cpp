@@ -225,6 +225,26 @@ void FDisplayClusterConfiguratorBlueprintEditor::PostRedo(bool bSuccess)
 	}
 }
 
+void FDisplayClusterConfiguratorBlueprintEditor::RefreshEditors(ERefreshBlueprintEditorReason::Type Reason)
+{
+	FBlueprintEditor::RefreshEditors(Reason);
+	
+	if (ViewportTabContent.IsValid())
+	{
+		TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> RefreshFunc =
+			[this](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+			{
+				if (Entity.IsValid())
+				{
+					TSharedRef<SDisplayClusterConfiguratorSCSEditorViewport> Viewport = StaticCastSharedRef<SDisplayClusterConfiguratorSCSEditorViewport>(Entity->AsWidget());
+					Viewport->RequestRefresh();
+				}
+			};
+
+		ViewportTabContent->PerformActionOnViewports(RefreshFunc);
+	}
+}
+
 UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::GetEditorData() const
 {
 	if (!LoadedBlueprint.IsValid() || !LoadedBlueprint->GeneratedClass)
