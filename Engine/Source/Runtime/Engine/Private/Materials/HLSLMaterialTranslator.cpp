@@ -1324,8 +1324,8 @@ bool FHLSLMaterialTranslator::Translate()
 
 		MaterialCompilationOutput.UniformExpressionSet.SetParameterCollections(ParameterCollections);
 
-		// Create the material uniform buffer struct.
-		MaterialCompilationOutput.UniformExpressionSet.CreateBufferStruct();
+		// This will be created shortly after the Translate call in FMaterial::BeginCompileShaderMap()
+		//MaterialCompilationOutput.UniformExpressionSet.CreateBufferStruct();
 
 		// Store the number of unique VT samples
 		MaterialCompilationOutput.EstimatedNumVirtualTextureLookups = NumVtSamples;
