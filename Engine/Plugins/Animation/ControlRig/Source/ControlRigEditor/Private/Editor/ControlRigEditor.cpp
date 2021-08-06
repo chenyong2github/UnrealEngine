@@ -1511,7 +1511,13 @@ void FControlRigEditor::SetDetailViewForRigElements()
 			continue;
 		}
 
-		UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(Element->GetElementStruct(), (uint8*)Element, Hierarchy);
+		URigHierarchy* SelectionHierarchy = Hierarchy;
+		if (Hierarchy->HierarchyForSelectionPtr.IsValid())
+		{
+			SelectionHierarchy = Hierarchy->HierarchyForSelectionPtr.Get();
+		}
+
+		UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(Element->GetElementStruct(), (uint8*)Element, SelectionHierarchy);
 		WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
 		WrapperObject->AddToRoot();
 
