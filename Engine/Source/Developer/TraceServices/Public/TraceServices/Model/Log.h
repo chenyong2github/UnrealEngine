@@ -42,5 +42,6 @@ public:
 };
 
 TRACESERVICES_API const ILogProvider& ReadLogProvider(const IAnalysisSession& Session);
+TRACESERVICES_API void FormatString(TCHAR* OutputString, uint32 OutputStringCount, const TCHAR* FormatString, const uint8* FormatArgs);
 
 } // namespace TraceServices

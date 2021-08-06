@@ -174,4 +174,10 @@ const ILogProvider& ReadLogProvider(const IAnalysisSession& Session)
 	return *Session.ReadProvider<ILogProvider>(FLogProvider::ProviderName);
 }
 
+void FormatString(TCHAR* OutputString, uint32 OutputStringCount, const TCHAR* FormatString, const uint8* FormatArgs)
+{
+	TCHAR* TempBuffer = (TCHAR*)FMemory_Alloca(OutputStringCount * sizeof(TCHAR));
+	FFormatArgsHelper::Format(OutputString, OutputStringCount - 1, TempBuffer, OutputStringCount - 1, FormatString, FormatArgs);
+}
+
 } // namespace TraceServices
