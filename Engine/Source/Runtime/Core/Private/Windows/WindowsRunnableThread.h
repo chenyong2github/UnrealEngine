@@ -112,8 +112,8 @@ public:
 
 	virtual bool SetThreadAffinity(const FThreadAffinity& Affinity) override;
 
+	static int TranslateThreadPriority(EThreadPriority Priority);
 protected:
- 	static int TranslateThreadPriority(EThreadPriority Priority);
 
 	virtual bool CreateInternal(FRunnable* InRunnable, const TCHAR* InThreadName,
 		uint32 InStackSize = 0,
