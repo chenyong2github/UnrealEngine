@@ -870,58 +870,64 @@ static UControlRig* GetControlRig(const UMovieSceneControlRigParameterSection* S
 			{
 				if (UControlRigComponent* NewControlRigComponent = Actor->FindComponentByClass<UControlRigComponent>())
 				{
-					if (NewControlRigComponent->GetWorld()->IsGameWorld())
+					if (NewControlRigComponent->GetWorld())
 					{
-						ControlRig = NewControlRigComponent->GetControlRig();
-						if (!ControlRig)
+						if (NewControlRigComponent->GetWorld()->IsGameWorld())
 						{
-							NewControlRigComponent->Initialize();
 							ControlRig = NewControlRigComponent->GetControlRig();
+							if (!ControlRig)
+							{
+								NewControlRigComponent->Initialize();
+								ControlRig = NewControlRigComponent->GetControlRig();
+							}
+							if (ControlRig)
+							{
+								if (ControlRig->GetObjectBinding() == nullptr)
+								{
+									ControlRig->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
+								}
+								if (ControlRig->GetObjectBinding()->GetBoundObject() != NewControlRigComponent)
+								{
+									ControlRig->GetObjectBinding()->BindToObject(BoundObject);
+								}
+							}
 						}
-						if (ControlRig)
+						else if (NewControlRigComponent != ControlRigComponent)
 						{
-							if (ControlRig->GetObjectBinding() == nullptr)
-							{
-								ControlRig->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
-							}
-							if (ControlRig->GetObjectBinding()->GetBoundObject() != NewControlRigComponent)
-							{
-								ControlRig->GetObjectBinding()->BindToObject(BoundObject);							
-							}
+							NewControlRigComponent->SetControlRig(ControlRig);
 						}
-					}
-					else if (NewControlRigComponent != ControlRigComponent)
-					{
-						NewControlRigComponent->SetControlRig(ControlRig);
 					}
 				}
 			}
 		}
 		else if (UControlRigComponent* NewControlRigComponent = Cast<UControlRigComponent>(BoundObject))
 		{
-			if (NewControlRigComponent->GetWorld()->IsGameWorld())
+			if (NewControlRigComponent->GetWorld())
 			{
-				ControlRig = NewControlRigComponent->GetControlRig();
-				if (!ControlRig)
+				if (NewControlRigComponent->GetWorld()->IsGameWorld())
 				{
-					NewControlRigComponent->Initialize();
 					ControlRig = NewControlRigComponent->GetControlRig();
+					if (!ControlRig)
+					{
+						NewControlRigComponent->Initialize();
+						ControlRig = NewControlRigComponent->GetControlRig();
+					}
+					if (ControlRig)
+					{
+						if (ControlRig->GetObjectBinding() == nullptr)
+						{
+							ControlRig->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
+						}
+						if (ControlRig->GetObjectBinding()->GetBoundObject() != NewControlRigComponent)
+						{
+							ControlRig->GetObjectBinding()->BindToObject(BoundObject);
+						}
+					}
 				}
-				if (ControlRig)
+				else if (NewControlRigComponent != ControlRigComponent)
 				{
-					if (ControlRig->GetObjectBinding() == nullptr)
-					{
-						ControlRig->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
-					}
-					if (ControlRig->GetObjectBinding()->GetBoundObject() != NewControlRigComponent)
-					{
-						ControlRig->GetObjectBinding()->BindToObject(BoundObject);
-					}
+					NewControlRigComponent->SetControlRig(ControlRig);
 				}
-			}
-			else if (NewControlRigComponent != ControlRigComponent)
-			{
-				NewControlRigComponent->SetControlRig(ControlRig);
 			}
 		}
 	}
