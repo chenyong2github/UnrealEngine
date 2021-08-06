@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "OctahedralCommon.ush"
+
 #ifndef USE_GLOBAL_GPU_SCENE_DATA
 	#define USE_GLOBAL_GPU_SCENE_DATA 0
 #endif
@@ -299,6 +301,90 @@ float4 LoadInstanceDataElement(uint Index)
 #endif
 }
 
+// [Frisvad 2012, "Building an Orthonormal Basis from a 3D Unit Vector Without Normalization"]
+void GetHemiOrthoBasis( inout float3 BasisX, inout float3 BasisY, float3 BasisZ )
+{
+	float A = 1.0f / ( 1.0f + BasisZ.z );
+	float B = -BasisZ.x * BasisZ.y * A;
+	BasisX = float3( 1.0f - BasisZ.x * BasisZ.x * A, B, -BasisZ.x );
+	BasisY = float3( B, 1.0f - BasisZ.y * BasisZ.y * A, -BasisZ.y );
+}
+
+float4x4 DecodeTransform( uint4 RotationScale, float3 Translation, inout float3 Scale )
+{
+	float4x4 M = 0.0;
+	M[3].xyz = Translation;
+	M[3].w = 1.0;
+
+	// Rotation
+	{
+		float3 Rotation =
+		{
+			( RotationScale[0] >>  0 ) & 0xffff,
+			( RotationScale[0] >> 16 ) & 0xffff,
+			( RotationScale[1] >>  0 ) & 0x7fff
+		};
+
+		float2 OctZ  = ( Rotation.xy - 32768 ) * (1.0f / 32767.0f);
+		float Spin0  = ( Rotation.z  - 16384 ) * (0.70710678f / 16383.0f);	// rsqrt(2)
+		bool bSpinIsX = RotationScale[1] & 0x8000;
+
+		M[2].xyz = HemiOctahedronToUnitVector( OctZ );
+
+		float3 BasisX, BasisY;
+		GetHemiOrthoBasis( BasisX, BasisY, M[2].xyz );
+
+		float Spin1 = sqrt( 1.0f - Spin0 * Spin0 );
+		float X = bSpinIsX ? Spin0 : Spin1;
+		float Y = bSpinIsX ? Spin1 : Spin0;
+
+		M[0].xyz = BasisX * X + BasisY * Y;
+		M[1].xyz = cross( M[2].xyz, M[0].xyz );
+	}
+
+	// Scale
+	{
+		const uint SignMantissaBits	= 16;
+		const uint SignMantissaMask	= (1u << SignMantissaBits) - 1;
+		const uint MantissaBits		= SignMantissaBits - 1;
+
+#if 0
+		uint SharedExp = RotationScale[3] >> 22;
+
+		float ExpScale = asfloat( ( SharedExp - MantissaBits ) << 23 );
+
+		int3 Mantissa =
+		{
+			( RotationScale[2] >> 0 ),
+			( RotationScale[2] >> 18 ) | ( RotationScale[3] << 14 ),
+			( RotationScale[3] >> 4 )
+		};
+#else
+		uint SharedExp = RotationScale[3] >> 16;
+
+		float ExpScale = asfloat( ( SharedExp - MantissaBits ) << 23 );
+
+		uint3 Mantissa =
+		{
+			RotationScale[2] >> 0,
+			RotationScale[2] >> 16,
+			RotationScale[3] >> 0
+		};
+		
+#endif
+		Mantissa &= SignMantissaMask;
+		Scale = Mantissa;
+		Scale -= 1u << MantissaBits;
+		Scale *= ExpScale;
+
+		M[0] *= Scale[0];
+		M[1] *= Scale[1];
+		M[2] *= Scale[2];
+	}
+
+	return M;
+}
+
 // Fetch from scene primitive buffer
 FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 {
@@ -320,6 +406,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 	BRANCH
 	if (InstanceData.ValidInstance)
 	{
+#if 0
 		InstanceData.LocalToWorld			= transpose(float4x4(LoadInstanceDataElement(1 * SOAStride + InstanceId),
 																 LoadInstanceDataElement(2 * SOAStride + InstanceId),
 																 LoadInstanceDataElement(3 * SOAStride + InstanceId),
@@ -351,9 +438,35 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 		InstanceData.DeterminantSign							= CondMask(InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
 
 		InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScale;
+#else
+		uint4  RotationScale									= asuint( LoadInstanceDataElement(1 * SOAStride + InstanceId) );
+		float3 Translation										= LoadInstanceDataElement(2 * SOAStride + InstanceId).xyz;
+		float3 Scale = 0;
+		InstanceData.LocalToWorld = DecodeTransform( RotationScale, Translation, Scale );
 
-		float3 AbsNonUniformScale								= abs(InstanceData.NonUniformScale.xyz);
-		InstanceData.NonUniformScale.w							= max3(AbsNonUniformScale.x, AbsNonUniformScale.y, AbsNonUniformScale.z);
+		uint4  PrevRotationScale								= asuint( LoadInstanceDataElement(3 * SOAStride + InstanceId) );
+		float3 PrevTranslation									= LoadInstanceDataElement(4 * SOAStride + InstanceId).xyz;
+		float3 PrevScale = 0;
+		InstanceData.PrevLocalToWorld = DecodeTransform( PrevRotationScale, PrevTranslation, PrevScale );
+
+		InstanceData.LocalBoundsCenter							= LoadInstanceDataElement(5 * SOAStride + InstanceId).xyz;
+		InstanceData.LocalBoundsExtent.x						= LoadInstanceDataElement(5 * SOAStride + InstanceId).w;
+
+		InstanceData.LocalBoundsExtent.yz						= LoadInstanceDataElement(6 * SOAStride + InstanceId).xy;
+		InstanceData.PayloadDataOffset							= asuint(LoadInstanceDataElement(6 * SOAStride + InstanceId).z);
+
+	#if USES_PER_INSTANCE_RANDOM
+		InstanceData.PerInstanceRandom							= LoadInstanceDataElement(6 * SOAStride + InstanceId).w;
+	#endif
+
+		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceDataElement(7 * SOAStride + InstanceId);
+
+		InstanceData.NonUniformScale.xyz						= abs( Scale );
+		InstanceData.InvNonUniformScale							= rcp( InstanceData.NonUniformScale.xyz );
+		InstanceData.DeterminantSign							= CondMask(InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);	// Scale.x * Scale.y * Scale.z < 0.0 ? -1.0 : 1.0;
+#endif
+
+		InstanceData.NonUniformScale.w							= max3( InstanceData.NonUniformScale.x, InstanceData.NonUniformScale.y, InstanceData.NonUniformScale.z );
 	
 		InstanceData.WorldToLocal								= InstanceData.LocalToWorld;
 		InstanceData.WorldToLocal[0].xyz					   *= Pow2(InstanceData.InvNonUniformScale.x);

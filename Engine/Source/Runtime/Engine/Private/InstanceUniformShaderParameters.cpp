@@ -60,8 +60,11 @@ void FInstanceSceneShaderData::Setup(
 	}
 
 	// Remove shear
-	LocalToWorld.Orthonormalize();
-	PrevLocalToWorld.Orthonormalize();
+	LocalToWorld.Orthogonalize();
+	PrevLocalToWorld.Orthogonalize();
+
+	FCompressedTransform CompressedLocalToWorld( LocalToWorld );
+	FCompressedTransform CompressedPrevLocalToWorld( PrevLocalToWorld );
 
 	uint32 InstanceFlags = Instance.Flags;
 	if (LocalToWorld.RotDeterminant() < 0.0f)
@@ -82,6 +85,7 @@ void FInstanceSceneShaderData::Setup(
 	Data[0].Z  = *(const     float*)&Instance.NaniteHierarchyOffset;
 	Data[0].W  = *(const     float*)&LastUpdateFrame;
 
+#if 0
 	LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
 	PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
 
@@ -97,6 +101,26 @@ void FInstanceSceneShaderData::Setup(
 	Data[8].W  = *(const     float*)&RandomID;
 
 	Data[9]    = *(const  FVector4*)&LightMapShadowMapUVBias;
+#else
+	Data[1]    = *(const FVector4* )&CompressedLocalToWorld.Rotation[0];
+	Data[2]    = *(const FVector3f*)&CompressedLocalToWorld.Translation;
+
+	Data[3]    = *(const FVector4* )&CompressedPrevLocalToWorld.Rotation[0];
+	Data[4]    = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
+
+	const FVector3f BoundsOrigin = Instance.LocalBounds.GetCenter();
+	const FVector3f BoundsExtent = Instance.LocalBounds.GetExtent();
+	
+	Data[5]    = *(const FVector3f*)&BoundsOrigin;
+	Data[5].W  = *(const     float*)&BoundsExtent.X;
+	
+	Data[6].X  = *(const     float*)&BoundsExtent.Y;
+	Data[6].Y  = *(const     float*)&BoundsExtent.Z;
+	Data[6].Z  = *(const     float*)&PayloadDataOffset;
+	Data[6].W  = *(const     float*)&RandomID;
+
+	Data[7]    = *(const  FVector4*)&LightMapShadowMapUVBias;
+#endif
 }
 
 ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()

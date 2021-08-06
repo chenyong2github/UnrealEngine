@@ -44,7 +44,7 @@ struct FPrimitiveInstance
 		if (PrimitiveToWorld.IsScaleNonUniform())
 	#endif
 		{
-			LocalToWorld.Orthonormalize();
+			LocalToWorld.Orthogonalize();
 		}
 
 		return LocalToWorld;
@@ -70,7 +70,7 @@ struct FPrimitiveInstanceDynamicData
 		if (PrevPrimitiveToWorld.IsScaleNonUniform())
 	#endif
 		{
-			PrevLocalToWorld.Orthonormalize();
+			PrevLocalToWorld.Orthogonalize();
 		}
 
 		return PrevLocalToWorld;
@@ -95,7 +95,7 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 struct FInstanceSceneShaderData
 {
 	// Must match GetInstanceSceneData() in SceneData.ush
-	enum { DataStrideInFloat4s = 10 };
+	enum { DataStrideInFloat4s = 8 };
 
 	TStaticArray<FVector4, DataStrideInFloat4s> Data;
 
