@@ -126,7 +126,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::AddProjectionPolicyRow(
 	ChildBuilder->AddCustomRow(TypeHandle->GetPropertyDisplayName())
 	.NameContent()
 	[
-		TypeHandle->CreatePropertyNameWidget()
+		TypeHandle->CreatePropertyNameWidget(FText::GetEmpty(), LOCTEXT("ProjectionPolicyTypeTooltip", "Type of Projection Policy"))
 	]
 	.ValueContent()
 	[
@@ -358,13 +358,17 @@ void FDisplayClusterConfiguratorProjectionCustomization::BuildParametersForPolic
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateSimplePolicy(UDisplayClusterBlueprint* Blueprint)
 {
-	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoComponentCombo>(
+	TSharedPtr<FPolicyParameterInfoComponentCombo> ScreenCombo = MakeShared<FPolicyParameterInfoComponentCombo>(
 		"Screen",
 		DisplayClusterProjectionStrings::cfg::simple::Screen,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		TArray<TSubclassOf<UActorComponent>>{ UDisplayClusterScreenComponent::StaticClass() }));
+		TArray<TSubclassOf<UActorComponent>>{ UDisplayClusterScreenComponent::StaticClass() });
+
+	ScreenCombo->SetParameterTooltip(LOCTEXT("SimplePolicyScreenTooltip", "Target Screen or Display"));
+
+	CustomPolicyParameters.Add(ScreenCombo);
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateCameraPolicy(UDisplayClusterBlueprint* Blueprint)

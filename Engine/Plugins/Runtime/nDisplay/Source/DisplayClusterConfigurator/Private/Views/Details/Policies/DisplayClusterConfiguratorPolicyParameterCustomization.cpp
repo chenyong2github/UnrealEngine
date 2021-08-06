@@ -47,6 +47,7 @@ FPolicyParameterInfo::FPolicyParameterInfo(
 	const FString* InInitialValue)
 {
 	ParamDisplayName = InDisplayName;
+	ParamTooltip = FText::GetEmpty();
 	ParamKey = InKey;
 	BlueprintOwnerPtr = InBlueprint;
 	ConfigurationViewportPtr = InConfigurationViewport;
@@ -143,6 +144,7 @@ void FPolicyParameterInfoCombo::CreateCustomRowWidget(IDetailChildrenBuilder& In
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(this, &FPolicyParameterInfo::GetParameterDisplayName)
+		.ToolTipText(this, &FPolicyParameterInfo::GetParameterTooltip)
 	]
 	.ValueContent()
 	[
