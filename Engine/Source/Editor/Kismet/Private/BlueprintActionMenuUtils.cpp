@@ -456,9 +456,9 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 		FilterFlags |= FBlueprintActionFilter::BPFILTER_RejectGlobalFields;
 	}
 
-	if (bIsContextSensitive && GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+	if ( bIsContextSensitive && ((ClassTargetMask & EContextTargetFlags::TARGET_NonImportedTypes) == 0) )
 	{
-		FilterFlags |= FBlueprintActionFilter::BPFILTER_RejectOutOfScopeMembers;
+		FilterFlags |= FBlueprintActionFilter::BPFILTER_RejectNonImportedFields;
 	}
 
 	if(bIsContextSensitive)
