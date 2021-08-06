@@ -63,40 +63,18 @@ UInteractiveGizmo* UEditorTransformGizmoBuilder::BuildGizmo(const FToolBuilderSt
 
 void UEditorTransformGizmoBuilder::UpdateGizmoForSelection(UInteractiveGizmo* Gizmo, const FToolBuilderState& SceneState)
 {
-	UEditorTransformGizmo* TransformGizmo = Cast<UEditorTransformGizmo>(Gizmo);
-
-	if (ensure(TransformGizmo))
+	if (UEditorTransformGizmo* TransformGizmo = Cast<UEditorTransformGizmo>(Gizmo))
 	{
-		UTransformProxy* TransformProxy = NewObject<UTransformProxy>();
-		bool bVisibility = false;
-
-		ETypedElementWorldType WorldType = (SceneState.World->WorldType == EWorldType::PIE ? ETypedElementWorldType::Game : ETypedElementWorldType::Editor);
-
-		// @todo - once UTransformProxy supports typed elements, update this to use the normalized typed
-		// element selection set.
-		if (UTypedElementSelectionSet* SelectionSet = SceneState.TypedElementSelectionSet.Get())
+		if (UTransformProxy* TransformProxy = FEditorGizmoSelectionBuilderHelper::CreateTransformProxyForSelection(SceneState))
 		{
-			SelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([TransformProxy, &bVisibility, SelectionSet, WorldType](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
-			{
-				if (InWorldElement.CanMoveElement(WorldType))
-				{
-					if (TTypedElement<UTypedElementObjectInterface> ObjectTypedElement = SelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(InWorldElement))
-					{
-						if (AActor* Actor = ObjectTypedElement.GetObjectAs<AActor>())
-						{
-							USceneComponent* SceneComponent = Actor->GetRootComponent();
-							TransformProxy->AddComponent(SceneComponent);
-							bVisibility = true;
-						}
-						return true;
-					}
-				}
-				return false;
-			});
+			TransformGizmo->SetActiveTarget(TransformProxy);
+			TransformGizmo->SetVisibility(true);
 		}
-
-		TransformGizmo->SetActiveTarget(TransformProxy);
-		TransformGizmo->SetVisibility(bVisibility);
+		else
+		{
+			TransformGizmo->SetActiveTarget(nullptr);
+			TransformGizmo->SetVisibility(false);
+		}
 	}
 }
 

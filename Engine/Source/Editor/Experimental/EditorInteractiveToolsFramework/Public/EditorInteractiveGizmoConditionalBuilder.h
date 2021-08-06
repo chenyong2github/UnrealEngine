@@ -54,8 +54,8 @@ struct EDITORINTERACTIVETOOLSFRAMEWORK_API FEditorGizmoTypePriority
 
 /** 
  * Gizmo builders which should be built once a condition is satisfied in the current scene state
- * inherit from UEditorInteractiveGizmoConditionalBuilder or its derived classes. The SatisfiesCondition method
- * should return true whenever the builder is buildable based on Editor scene state, usually based
+ * inherit from UEditorInteractiveGizmoConditionalBuilder. The SatisfiesCondition method
+ * should return true whenever the builder is buildable based on scene state, most commonly based
  * on selection. The builder's priority should be specified such that when more than one builder
  * is discovered, the builder with highest priority will be built.
  */

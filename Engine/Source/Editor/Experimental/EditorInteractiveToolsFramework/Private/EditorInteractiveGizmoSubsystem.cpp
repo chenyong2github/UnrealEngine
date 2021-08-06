@@ -3,7 +3,6 @@
 #include "EditorInteractiveGizmoSubsystem.h"
 #include "EditorGizmos/EditorTransformGizmo.h"
 
-
 #define LOCTEXT_NAMESPACE "UEditorInteractiveGizmoSubsystem"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorInteractiveGizmoSubsystem, Log, All);
@@ -12,104 +11,61 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditorInteractiveGizmoSubsystem, Log, All);
 UEditorInteractiveGizmoSubsystem::UEditorInteractiveGizmoSubsystem()
 	: UEditorSubsystem()
 {
-
+	Registry = NewObject<UEditorInteractiveGizmoRegistry>();
 }
 
 void UEditorInteractiveGizmoSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	if (GEngine && GEngine->IsInitialized())
 	{
-		RegisterBuiltinGizmoSelectionTypes();
+		RegisterBuiltinEditorGizmoTypes();
 	}
 	else
 	{
-		FCoreDelegates::OnPostEngineInit.AddUObject(this, &UEditorInteractiveGizmoSubsystem::RegisterBuiltinGizmoSelectionTypes);
+		FCoreDelegates::OnPostEngineInit.AddUObject(this, &UEditorInteractiveGizmoSubsystem::RegisterBuiltinEditorGizmoTypes);
 	}
 }
 
 void UEditorInteractiveGizmoSubsystem::Deinitialize()
 {
-	DeregisterBuiltinGizmoSelectionTypes();
+	check(Registry);
+	DeregisterBuiltinEditorGizmoTypes();
+	Registry->Shutdown();
 }
 
-void UEditorInteractiveGizmoSubsystem::RegisterBuiltinGizmoSelectionTypes()
+void UEditorInteractiveGizmoSubsystem::RegisterBuiltinEditorGizmoTypes()
 {
+	// Setup gizmo transform builder
+	TransformGizmoBuilder = NewObject<UEditorTransformGizmoBuilder>();
+
 	// Register built-in gizmo types here
-	TObjectPtr<UEditorTransformGizmoBuilder> EditorTransformBuilder = NewObject<UEditorTransformGizmoBuilder>();
-	RegisterGizmoSelectionType(EditorTransformBuilder);
 
-	RegisterEditorGizmoSelectionTypesDelegate.Broadcast();
+	RegisterGlobalEditorGizmoTypesDelegate.Broadcast();
 }
 
-void UEditorInteractiveGizmoSubsystem::DeregisterBuiltinGizmoSelectionTypes()
+void UEditorInteractiveGizmoSubsystem::DeregisterBuiltinEditorGizmoTypes()
 {
-	DeregisterEditorGizmoSelectionTypesDelegate.Broadcast();
-	ClearGizmoSelectionTypeRegistry();
+	DeregisterGlobalEditorGizmoTypesDelegate.Broadcast();
+
+	TransformGizmoBuilder = nullptr;
 }
 
-void UEditorInteractiveGizmoSubsystem::RegisterGizmoSelectionType(const TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> InGizmoSelectionBuilder)
+void UEditorInteractiveGizmoSubsystem::RegisterGlobalEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder)
 {
-	if (ensure(InGizmoSelectionBuilder != nullptr) == false)
-	{
-		return;
-	}
-
-	if (GizmoSelectionBuilders.Contains(InGizmoSelectionBuilder))
-	{
-		UE_LOG(LogEditorInteractiveGizmoSubsystem, Warning,
-			TEXT("UInteractiveGizmoSubsystem::RegisterGizmoSelectionType: type has already been registered %s"), *InGizmoSelectionBuilder->GetName());
-		return;
-	}
-
-	GizmoSelectionBuilders.Add(InGizmoSelectionBuilder);
-	GizmoSelectionBuilders.StableSort(
-		[](UEditorInteractiveGizmoSelectionBuilder& A, UEditorInteractiveGizmoSelectionBuilder& B) {
-			return (A).GetPriority() > (B).GetPriority();
-		});
+	check(Registry);
+	Registry->RegisterEditorGizmoType(InGizmoCategory, InGizmoBuilder);
 }
 
-TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> UEditorInteractiveGizmoSubsystem::GetQualifiedGizmoSelectionBuilders(const FToolBuilderState& InToolBuilderState)
+void UEditorInteractiveGizmoSubsystem::GetQualifiedGlobalEditorGizmoBuilders(EEditorGizmoCategory InGizmoCategory, const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& InFoundBuilders)
 {
-	TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> FoundBuilders;
-	FEditorGizmoTypePriority FoundPriority = 0;
-
-	for (TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> Builder : GizmoSelectionBuilders)
-	{
-		if (Builder->GetPriority() < FoundPriority)
-		{
-			break;
-		}
-
-		if (Builder->SatisfiesCondition(InToolBuilderState))
-		{
-			FoundBuilders.Add(Builder);
-			FoundPriority = Builder->GetPriority();
-		}
-	}
-
-	return FoundBuilders;
+	check(Registry);
+	Registry->GetQualifiedEditorGizmoBuilders(InGizmoCategory, InToolBuilderState, InFoundBuilders);
 }
 
-bool UEditorInteractiveGizmoSubsystem::DeregisterGizmoSelectionType(const TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> InGizmoSelectionBuilder)
+void UEditorInteractiveGizmoSubsystem::DeregisterGlobalEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder)
 {
-	if (ensure(InGizmoSelectionBuilder != nullptr) == false)
-	{
-		return false;
-	}
-
-	if (GizmoSelectionBuilders.Contains(InGizmoSelectionBuilder) == false)
-	{
-		UE_LOG(LogEditorInteractiveGizmoSubsystem, Warning,
-			TEXT("UInteractiveGizmoSubsystem::DeregisterGizmoSelectionType: type has already been registered %s"), *InGizmoSelectionBuilder->GetName());
-		return false;
-	}
-	GizmoSelectionBuilders.Remove(InGizmoSelectionBuilder);
-	return true;
-}
-
-void UEditorInteractiveGizmoSubsystem::ClearGizmoSelectionTypeRegistry()
-{
-	GizmoSelectionBuilders.Reset();
+	check(Registry);
+	Registry->DeregisterEditorGizmoType(InGizmoCategory, InGizmoBuilder);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -3,18 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorInteractiveGizmoRegistry.h"
 #include "InteractiveGizmoManager.h"
 #include "EditorInteractiveGizmoManager.generated.h"
 
 class FEditorModeTools;
-class UEditorInteractiveGizmoSelectionBuilder;
 class UEdModeInteractiveToolsContext;
 class UInteractiveGizmo;
 class IToolsContextRenderAPI;
-class UTypedElementSelectionSet;
 
 USTRUCT()
-struct FActiveSelectionGizmo
+struct FActiveEditorGizmo
 {
 	GENERATED_BODY()
 
@@ -53,32 +52,37 @@ public:
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 
 	/**
-	 * Register a new selection gizmo type
-	 * @param InGizmoSelectionBuilder new auto gizmo builder
+	 * Register a new Editor gizmo type.
+	 * @param InGizmoCategory category in which to register gizmo builder
+	 * @param InGizmonBuilder new Editor gizmo builder
+	 * - Accessory gizmo builders must be inherited from UEditorInteractiveGizmoAccessoryBuilder.
+	 * - Primary gizmo builders must be inherited from UEditorInteractiveGizmoPrimaryBuilder.
 	 */
-	void RegisterGizmoSelectionType(const TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> InGizmoSelectionBuilder);
+	void RegisterEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder);
 
 	/**
-	* Remove a gizmo auto type from the set of known gizmo auto types
-	* @param InGizmoSelectionBuilder same object pointer that was passed to RegisterGizmoSelectionType()
+	* Remove an Editor gizmo type from the set of known Editor gizmo types
+	* @param InGizmoBuilder same object pointer that was passed to RegisterEditorGizmoType()
 	* @return true if gizmo type was found and deregistered
 	*/
-	bool DeregisterGizmoSelectionType(const TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> InGizmoSelectionBuilder);
+	void DeregisterEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder);
 
 	/**
-	 * Get all qualified gizmo auto builders based on the current state. Qualification is determined by the gizmo builder
+	 * Get all qualified Editor gizmo builders for the specified category, based on the current state. Qualification is determined by the gizmo builder
 	 * returning true from SatisfiesCondition() and relative priority. All qualified builders at the highest found priority
 	 * will be returned.
-	 * @return array of qualified Gizmo auto builders based on current state
+	 * @param InGizmoCategory category in which to search for qualified builders
+	 * @param InToolBuilderState current selection and other state
+	 * @return array of qualified Gizmo selection builders based on current state
 	 */
-	virtual TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> GetQualifiedGizmoSelectionBuilders(const FToolBuilderState& InToolBuilderState);
+	void GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory InGizmoCategory, const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& InFoundBuilders);
 
 	/** 
-	 * Set how auto gizmo resolution should occur when CreateSelectionGizmo is invoked. If bSearchLocalOnly is true, only the current
+	 * Set how auto gizmo resolution should occur when CreateGizmosForCurrentState is invoked. If bSearchLocalOnly is true, only the current
 	 * @param bLocalOnly - if true, only the current gizmo manager registry will be searched for candidate gizmos. If false,
 	 *   both the gizmo manager registry and any higher gizmo manager or gizmo subsystem (in the case of selection builders) will be searched
 	 */
-	virtual void SetGizmoSelectionBuilderResolution(bool bLocalOnly)
+	virtual void SetEditorGizmoBuilderResolution(bool bLocalOnly)
 	{
 		bSearchLocalBuildersOnly = bLocalOnly;
 	}
@@ -86,16 +90,22 @@ public:
 	/**
 	 * Returns the current auto gizmo resolution setting 
 	 */
-	virtual bool GetGizmoSelectionBuilderResolution() const
+	virtual bool GetEditorGizmoBuilderResolution() const
 	{
 		return bSearchLocalBuildersOnly;
 	}
 
 	/**
+	 * Try to automatically activate a new Gizmo instance based on the current selection set state
+	 * @return array of new Gizmo instances that have been created and initialized
+	 */
+	virtual TArray<UInteractiveGizmo*> CreateGizmosForCurrentSelectionSet();
+
+	/**
 	 * Try to automatically activate a new Gizmo instance based on the current state
 	 * @return array of new Gizmo instances that have been created and initialized
 	 */
-	virtual TArray<UInteractiveGizmo*> CreateGizmosForCurrentSelectionState();
+	virtual UInteractiveGizmoBuilder* GetTransformGizmoBuilder();
 
 	/**
 	 * Handle Editor selection changes
@@ -108,12 +118,12 @@ public:
 	 * @param Gizmo the Gizmo to shutdown and remove
 	 * @return true if the Gizmo was found and removed
 	 */
-	virtual bool DestroySelectionGizmo(UInteractiveGizmo* Gizmo);
+	virtual bool DestroyEditorGizmo(UInteractiveGizmo* Gizmo);
 
 	/**
 	 * Shutdown and remove all active auto gizmos
 	 */
-	virtual void DestroyAllSelectionGizmos();
+	virtual void DestroyAllEditorGizmos();
 
 protected:
 
@@ -121,36 +131,38 @@ protected:
 	 * Returns true if selection gizmos should be visible. 
 	 * @todo move this to a gizmo context object
 	 */
-	virtual bool GetShowSelectionGizmos();
+	virtual bool GetShowEditorGizmos();
 
 	/**
 	 * Returns true if gizmos should be visible based on the current view's engine show flag.
 	 * @todo move this to a gizmo context object
 	 */
-	virtual bool GetShowSelectionGizmosForView(IToolsContextRenderAPI* RenderAPI);
+	virtual bool GetShowEditorGizmosForView(IToolsContextRenderAPI* RenderAPI);
 
 	/**
 	 * Updates active selection gizmos when show selection state changes
 	 */
-	void UpdateActiveSelectionGizmos();
+	void UpdateActiveEditorGizmos();
 
-protected:
+
+	/** Actual registry */
+	UPROPERTY()
+	TObjectPtr<UEditorInteractiveGizmoRegistry> Registry;
 
 	/** set of Currently-active Gizmos */
 	UPROPERTY()
-	TArray<FActiveSelectionGizmo> ActiveSelectionGizmos;
-
-	/** Current set of GizmoSelectionBuilders */
-	UPROPERTY()
-	TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> GizmoSelectionBuilders;
+	TArray<FActiveEditorGizmo> ActiveEditorGizmos;
 
 	/** If false, only search gizmo builders in current gizmo manager. If true, also search gizmo subsystem */
 	bool bSearchLocalBuildersOnly = false;
 
-private:
-	/** @todo: remove when GetShowSelectionGizmos() is moved to gizmo context object */
+	/** Cache for already built gizmos, currently this only caches the transform */
+	UPROPERTY()
+	TMap<TObjectPtr<UInteractiveGizmoBuilder>, TObjectPtr<UInteractiveGizmo>> CachedGizmoMap;
+
+	/** @todo: remove when GetShowEditorGizmos() is moved to gizmo context object */
 	FEditorModeTools* EditorModeManager = nullptr;
 
-	/** Whether selection gizmos are enabled. UpdateActiveSelectionGizmos() determines this value each tick and updates if it has changed. */
-	bool bShowSelectionGizmos = false;
+	/** Whether Editor gizmos are enabled. UpdateActiveEditorGizmos() determines this value each tick and updates if it has changed. */
+	bool bShowEditorGizmos = false;
 };
