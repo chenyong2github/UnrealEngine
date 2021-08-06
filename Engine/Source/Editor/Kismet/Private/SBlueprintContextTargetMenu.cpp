@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SBlueprintContextTargetMenu.h"
 #include "Engine/Blueprint.h"
@@ -372,6 +372,12 @@ FContextMenuTargetProfile::FContextMenuTargetProfile(const FBlueprintActionConte
 		SavedTargetFlags = 0;
 	}
 
+	if (BpSettings->bEnableNamespaceFilteringFeatures)
+	{
+		// Filter out non-imported types by default, but do so only if namespace filtering features are also enabled.
+		SavedTargetFlags &= ~EContextTargetFlags::TARGET_NonImportedTypes;
+	}
+
 	if (!LoadProfile())
 	{
 		// maybe they were originally using the shared context profile? so let's default to that
@@ -547,6 +553,12 @@ void SBlueprintContextTargetMenu::Construct(const FArguments& InArgs, const FBlu
 		EContextTargetFlags::Type ContextTarget = (EContextTargetFlags::Type)(1 << BitMaskOffset);
 
 		if (TargetEnum && TargetEnum->HasMetaData(TEXT("Hidden"), ContextTarget))
+		{
+			continue;
+		}
+
+		// Keep this target hidden for now unless namespace filtering features are turned on.
+		if (ContextTarget == EContextTargetFlags::TARGET_NonImportedTypes && !GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
 		{
 			continue;
 		}

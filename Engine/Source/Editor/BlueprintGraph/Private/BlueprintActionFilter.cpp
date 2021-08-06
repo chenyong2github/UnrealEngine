@@ -11,7 +11,6 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
-#include "BlueprintNamespaceHelper.h"
 #include "K2Node.h"
 #include "K2Node_Event.h"
 #include "K2Node_CallFunction.h"
@@ -37,6 +36,8 @@
 #include "K2Node_Message.h"
 #include "K2Node_PromotableOperator.h"
 #include "EditorCategoryUtils.h"
+#include "BlueprintEditorModule.h"
+#include "Kismet2/KismetEditorUtilities.h"
 
 /*******************************************************************************
  * Static BlueprintActionFilter Helpers
@@ -230,9 +231,20 @@ namespace BlueprintActionFilterImpl
 	 * 
 	 * @param  Filter			Holds the TagetClass context for this test.
 	 * @param  BlueprintAction	The action you wish to query.
+	 * @param  Flags			Filter flags that may modify this test.
 	 * @return 
 	 */
-	static bool IsRejectedGlobalField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
+	static bool IsRejectedGlobalField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction, uint32 Flags);
+
+	/**
+	 * Rejection test that checks to see if the node-spawner represents a field
+	 * that does NOT exist within the scope of the editor's current import set.
+	 *
+	 * @param  Filter			The filter context for this test.
+	 * @param  BlueprintAction	The action you wish to query.
+	 * @return True if the action is associated with a member field that is not included in any imported or global namespace.
+	 */
+	static bool IsNonImportedField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
 
 	/**
 	 * Rejection test that checks to see if the node-spawner is associated with 
@@ -296,13 +308,6 @@ namespace BlueprintActionFilterImpl
 	 * @return 
 	 */
 	static bool IsOutOfScopeLocalVariable(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
-
-	/**
-	 * Rejection test that checks to see if the action references a member variable or function that is
-	 * outside the scope of the current set of namespaces imported by the current Blueprint context(s).
-	 *
-	 */
-	static bool IsOutOfScopeMemberField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
 
 	/**
 	 * 
@@ -876,13 +881,50 @@ static bool BlueprintActionFilterImpl::IsDeprecated(FBlueprintActionFilter const
 }
 
 //------------------------------------------------------------------------------
-static bool BlueprintActionFilterImpl::IsRejectedGlobalField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
+static bool BlueprintActionFilterImpl::IsNonImportedField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
 {
+	// All fields are considered to be imported if there is no context.
 	bool bIsFilteredOut = false;
+
 	FFieldVariant Field = BlueprintAction.GetAssociatedMemberField();
 	if (Field.IsValid())
 	{
-		bIsFilteredOut = IsGloballyAccessible(Field);
+		// @todo_namespaces - Maybe cache this as part of the filter context, or decouple queries from the editor?
+		TArray<TSharedPtr<IBlueprintEditor>> BlueprintEditors;
+		for (const UBlueprint* Blueprint : Filter.Context.Blueprints)
+		{
+			const bool bOpenEditor = false;
+			TSharedPtr<IBlueprintEditor> BlueprintEditor = FKismetEditorUtilities::GetIBlueprintEditorForObject(Blueprint, bOpenEditor);
+			if (BlueprintEditor.IsValid())
+			{
+				BlueprintEditors.AddUnique(BlueprintEditor);
+			}
+		}
+
+		for (const TSharedPtr<IBlueprintEditor>& BlueprintEditor : BlueprintEditors)
+		{
+			if (BlueprintEditor->IsNonImportedField(Field))
+			{
+				bIsFilteredOut = true;
+				break;
+			}
+		}
+	}
+
+	return bIsFilteredOut;
+}
+
+//------------------------------------------------------------------------------
+static bool BlueprintActionFilterImpl::IsRejectedGlobalField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction, uint32 Flags)
+{
+	const bool bRejectAllGlobalFields = ((Flags & FBlueprintActionFilter::EFlags::BPFILTER_RejectGlobalFields) != 0);
+	const bool bRejectNonImportedFields = ((Flags & FBlueprintActionFilter::EFlags::BPFILTER_RejectNonImportedFields) != 0);
+
+	bool bIsFilteredOut = false;
+	FFieldVariant Field = BlueprintAction.GetAssociatedMemberField();
+	if (Field.IsValid() && IsGloballyAccessible(Field))
+	{
+		bIsFilteredOut = bRejectAllGlobalFields || (bRejectNonImportedFields && IsNonImportedField(Filter, BlueprintAction));
 		
 		UClass* FieldClass = Field.GetOwnerClass();
 		if (bIsFilteredOut && (FieldClass != nullptr))
@@ -1158,36 +1200,6 @@ static bool BlueprintActionFilterImpl::IsOutOfScopeLocalVariable(FBlueprintActio
 				{
 					bIsFilteredOut = true;
 					break;
-				}
-			}
-		}
-	}
-	return bIsFilteredOut;
-}
-
-//------------------------------------------------------------------------------
-static bool BlueprintActionFilterImpl::IsOutOfScopeMemberField(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
-{
-	bool bIsFilteredOut = false;
-	FFieldVariant MemberField = BlueprintAction.GetAssociatedMemberField();
-	if (MemberField.IsValid())
-	{
-		if (const UClass* OwnerClass = MemberField.GetOwnerClass())
-		{
-			// If the owning class was generated from a Blueprint, check to see if its namespace falls within the scope of the filter context.
-			if (const UBlueprint* OwnerBlueprint = UBlueprint::GetBlueprintFromClass(OwnerClass))
-			{
-				bIsFilteredOut = true;
-				for (const UBlueprint* Blueprint : Filter.Context.Blueprints)
-				{
-					// @todo - Cache this as a transient member on the BP itself and/or expose an API to query w/o incurring the cost of recreating this locally
-					FBlueprintNamespaceHelper NamespaceHelper(Blueprint);
-					if (NamespaceHelper.IsIncludedInNamespaceList(OwnerBlueprint->BlueprintNamespace))
-					{
-						// This action's member belongs to a class that falls within the scope of our current import set, so don't filter it out.
-						bIsFilteredOut = false;
-						break;
-					}
 				}
 			}
 		}
@@ -2036,9 +2048,9 @@ FBlueprintActionFilter::FBlueprintActionFilter(uint32 Flags/*= 0x00*/)
 	
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsActionHiddenByConfig));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsFieldCategoryHidden));
-	if (Flags & BPFILTER_RejectGlobalFields)
+	if (Flags & (BPFILTER_RejectGlobalFields | BPFILTER_RejectNonImportedFields))
 	{
-		AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsRejectedGlobalField));
+		AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsRejectedGlobalField, Flags));
 	}
 	
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsFieldInaccessible));
@@ -2060,10 +2072,6 @@ FBlueprintActionFilter::FBlueprintActionFilter(uint32 Flags/*= 0x00*/)
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsNonTargetMember, !(Flags & BPFILTER_RejectGlobalFields)));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsUnBoundBindingSpawner));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsOutOfScopeLocalVariable));
-	if (Flags & BPFILTER_RejectOutOfScopeMembers)
-	{
-		AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsOutOfScopeMemberField));
-	}
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsLevelScriptActionValid));
 
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsHiddenInNonEditorBlueprint));	

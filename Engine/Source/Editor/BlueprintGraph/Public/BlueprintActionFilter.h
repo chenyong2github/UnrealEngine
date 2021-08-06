@@ -193,7 +193,7 @@ public:
 		 * to a struct that exists outside the scope of the current set of
 		 * imported namespaces will be filtered out.
 		 */
-		BPFILTER_RejectOutOfScopeMembers	= (1<<4),
+		BPFILTER_RejectNonImportedFields	= (1<<4),
 
 		/**
 		 * Rejects actions that would spawn nodes with thread safety characteristics

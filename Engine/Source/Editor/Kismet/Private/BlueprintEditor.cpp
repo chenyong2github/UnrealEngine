@@ -10169,6 +10169,47 @@ void FBlueprintEditor::ClearAllGraphEditorQuickJumps()
 	LocalSettings->SaveConfig();
 }
 
+bool FBlueprintEditor::IsNonImportedField(FFieldVariant Field) const
+{
+	bool bNotImported = false;
+
+	const UStruct* FieldType = nullptr;
+	if (Field.IsUObject())
+	{
+		if (const UField* FieldAsUObject = Cast<UField>(Field.ToUObject()))
+		{
+			FieldType = Cast<UStruct>(FieldAsUObject);
+			if (!FieldType)
+			{
+				FieldType = FieldAsUObject->GetOwnerStruct();
+			}
+		}
+	}
+	else
+	{
+		FieldType = Field.ToField()->GetOwnerStruct();
+	}
+
+	if (FieldType)
+	{
+		for (const UObject* EditingObj : GetEditingObjects())
+		{
+			if (const UBlueprint* BP = Cast<UBlueprint>(EditingObj))
+			{
+				// Casting away the 'const' here currently because this is a non-const method that can modify the internally-cached set.
+				TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = const_cast<FBlueprintEditor*>(this)->GetOrCreateNamespaceHelperForBlueprint(BP);
+				if (!NamespaceHelper->IsImportedType(FieldType))
+				{
+					bNotImported = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return bNotImported;
+}
+
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
