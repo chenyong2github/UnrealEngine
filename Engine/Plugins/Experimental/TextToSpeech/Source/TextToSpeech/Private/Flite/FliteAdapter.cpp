@@ -11,7 +11,7 @@
 #include "DSP/SinOsc.h"
 #endif
 // Flite requires the use of certain windows headers
-#if PLATFORM_WINDOWS
+#if UE_FLITE_REQUIRES_WINDOWS_HEADERS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 
@@ -27,7 +27,7 @@ extern "C"
 	cst_voice* register_cmu_us_rms(const char*voxdir);
 	void unregister_cmu_us_rms(cst_voice* v);
 } // extern "C"
-#if PLATFORM_WINDOWS
+#if UE_FLITE_REQUIRES_WINDOWS_HEADERS
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
