@@ -4,6 +4,7 @@
 
 #include "Algo/AllOf.h"
 #include "Containers/Set.h"
+#include "Containers/StringConv.h"
 #include "DerivedDataCachePrivate.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ScopeRWLock.h"

@@ -7,6 +7,7 @@
 #include "ZenBackendUtils.h"
 
 #include "Memory/CompositeBuffer.h"
+#include "Misc/Paths.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
