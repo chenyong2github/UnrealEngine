@@ -9404,9 +9404,15 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, UMovieSceneFol
 				}
 
 				// If the parent doesn't actually exist, clear it.
-				if (!MovieScene->FindPossessable(ParentGuid) && !MovieScene->FindSpawnable(ParentGuid))
+				FMovieScenePossessable* PossessableParent = MovieScene->FindPossessable(ParentGuid);
+				FMovieSceneSpawnable* SpawnableParent = MovieScene->FindSpawnable(ParentGuid);
+				if (!PossessableParent && !SpawnableParent)
 				{
 					Possessable->SetParent(FGuid());
+				}
+				else if (SpawnableParent)
+				{
+					SpawnableParent->AddChildPossessable(PossessableGuid);
 				}
 			}
 		}
