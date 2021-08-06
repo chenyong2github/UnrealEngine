@@ -132,7 +132,7 @@ void FGenericImportAssetsAutomationTest::GetTests(TArray<FString>& OutBeautified
 	FString ImportTestDirectory;
 	check( GConfig );
 	GConfig->GetString( TEXT("AutomationTesting"), TEXT("ImportTestPath"), ImportTestDirectory, GEngineIni );
-
+	ImportTestDirectory = FPaths::Combine(FPaths::ConvertRelativePathToFull(FPaths::EngineDir()), ImportTestDirectory);
 
 	// Find all files in the GenericImport directory
 	TArray<FString> FilesInDirectory;
