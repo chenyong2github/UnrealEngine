@@ -447,7 +447,7 @@ void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
 {
 	if (Params.Status == EStatus::Ok)
 	{
-		if (FOptionalBuildOutput CacheOutput = BuildSystem.LoadOutput(Name, FunctionName, Params.Record))
+		if (FOptionalBuildOutput CacheOutput = FBuildOutput::Load(Name, FunctionName, Params.Record))
 		{
 			EnumAddFlags(BuildStatus, EBuildStatus::CacheQueryHit);
 			return SetOutputNoCheck(MoveTemp(CacheOutput).Get());

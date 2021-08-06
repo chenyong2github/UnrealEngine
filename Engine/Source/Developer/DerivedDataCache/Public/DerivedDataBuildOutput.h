@@ -10,12 +10,16 @@
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
+#define UE_API DERIVEDDATACACHE_API
+
 class FCbObject;
 class FCbWriter;
 
 namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
+namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FCacheRecordBuilder; }
+namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class FPayload; }
 namespace UE::DerivedData { struct FBuildDiagnostic; }
 namespace UE::DerivedData { struct FPayloadId; }
@@ -126,6 +130,17 @@ public:
 		Output->Save(RecordBuilder);
 	}
 
+	/**
+	 * Load a build output.
+	 *
+	 * @param Name       The name by which to identify this output for logging and profiling.
+	 * @param Function   The name of the build function that produced this output.
+	 * @param Output     The saved output to load.
+	 * @return A valid build output, or null on error.
+	 */
+	UE_API static FOptionalBuildOutput Load(FStringView Name, FStringView Function, const FCbObject& Output);
+	UE_API static FOptionalBuildOutput Load(FStringView Name, FStringView Function, const FCacheRecord& Output);
+
 private:
 	friend class FOptionalBuildOutput;
 	friend FBuildOutput Private::CreateBuildOutput(Private::IBuildOutputInternal* Output);
@@ -224,3 +239,5 @@ public:
 };
 
 } // UE::DerivedData
+
+#undef UE_API

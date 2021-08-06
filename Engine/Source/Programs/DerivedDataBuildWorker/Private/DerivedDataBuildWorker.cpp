@@ -230,7 +230,7 @@ bool FBuildWorkerProgram::Build()
 			UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Missing build action '%s'"), *ActionPath);
 			return false;
 		}
-		if (FOptionalBuildAction Action = BuildSystem.LoadAction(ActionPath, MoveTemp(ActionObject)); Action.IsNull())
+		if (FOptionalBuildAction Action = FBuildAction::Load(ActionPath, MoveTemp(ActionObject)); Action.IsNull())
 		{
 			UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Invalid build action '%s'"), *ActionPath);
 			return false;

@@ -9,6 +9,8 @@
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
+#define UE_API DERIVEDDATACACHE_API
+
 class FCbObject;
 class FCbWriter;
 struct FGuid;
@@ -16,6 +18,7 @@ struct FIoHash;
 
 namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildActionBuilder; }
+namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { struct FBuildActionKey; }
 
 namespace UE::DerivedData::Private
@@ -113,6 +116,15 @@ public:
 		return Action->Save(Writer);
 	}
 
+	/**
+	 * Load a build action from compact binary.
+	 *
+	 * @param Name     The name by which to identify this action for logging and profiling.
+	 * @param Action   The saved action to load.
+	 * @return A valid build action, or null on error.
+	 */
+	UE_API static FOptionalBuildAction Load(FStringView Name, FCbObject&& Action);
+
 private:
 	friend class FOptionalBuildAction;
 	friend FBuildAction Private::CreateBuildAction(Private::IBuildActionInternal* Action);
@@ -194,3 +206,5 @@ public:
 };
 
 } // UE::DerivedData
+
+#undef UE_API
