@@ -1633,12 +1633,16 @@ FString FUnrealEdMisc::GenerateURL(const FString& InUDNPage)
 	if( InUDNPage.Len() > 0 )
 	{
 		FInternationalization& I18N = FInternationalization::Get();
-
-		const FString PageURL = FString::Printf( TEXT( "%s/Editor/LevelEditing/MapErrors/index.html" ), *I18N.GetCurrentCulture()->GetUnrealLegacyThreeLetterISOLanguageName() );
+		// The I18N info and version is now stored in MapErrorURL in the ini
+		const FString PageURL =  TEXT("/Editor/LevelEditing/MapErrors/index.html");
 		const FString BookmarkURL = FString::Printf( TEXT( "#%s" ), *InUDNPage );
 
 		// Developers can browse documentation included with the engine distribution, check for file presence...
 		FString MapErrorURL = FString::Printf( TEXT( "%sDocumentation/HTML/%s" ), *FPaths::ConvertRelativePathToFull( FPaths::EngineDir() ), *PageURL );
+
+		static FString Version = FString::FromInt(FEngineVersion::Current().GetMajor()) + TEXT(".") + FString::FromInt(FEngineVersion::Current().GetMinor());
+		const FString PartialPath = FString::Printf(TEXT("%s/%s%s/index.html"), *Version, *(*I18N.GetCurrentCulture()->GetName()), *PageURL);
+		return FString::Printf(TEXT("%sDocumentation/HTML/%s"), *FPaths::ConvertRelativePathToFull(FPaths::EngineDir()), *PartialPath);
 		if (IFileManager::Get().FileSize(*MapErrorURL) != INDEX_NONE)
 		{
 			MapErrorURL = FString::Printf( TEXT( "file://%s%s" ), *MapErrorURL, *BookmarkURL );
@@ -1646,7 +1650,7 @@ FString FUnrealEdMisc::GenerateURL(const FString& InUDNPage)
 		// ... if it's not present, fallback to using the online version, if the full URL is provided...
 		else if(FUnrealEdMisc::Get().GetURL( TEXT("MapErrorURL"), MapErrorURL, true ) && MapErrorURL.EndsWith( TEXT( ".html" ) ))
 		{	
-			MapErrorURL.ReplaceInline( TEXT( "/INT/" ), *FString::Printf( TEXT( "/%s/" ), *I18N.GetCurrentCulture()->GetUnrealLegacyThreeLetterISOLanguageName() ) );
+			FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(MapErrorURL, I18N.GetCurrentCulture());
 			MapErrorURL += BookmarkURL;
 		}
 		// ...otherwise, attempt to create the URL from what we know here...
@@ -1656,6 +1660,9 @@ FString FUnrealEdMisc::GenerateURL(const FString& InUDNPage)
 			{
 				MapErrorURL += TEXT( "/" );
 			}
+
+			// UDNDocsURL is now stored with placeholders for internalization and version to be replaced
+			FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(MapErrorURL, I18N.GetCurrentCulture());
 			MapErrorURL += PageURL;
 			MapErrorURL += BookmarkURL;
 		}
@@ -1951,6 +1958,13 @@ bool FUnrealEdMisc::GetURL( const TCHAR* InKey, FString& OutURL, const bool bChe
 	}
 
 	return bFound;
+}
+
+void FUnrealEdMisc::ReplaceDocumentationURLWildcards(FString& Url, const FCultureRef& Culture)
+{
+	static FString Version = FString::FromInt(FEngineVersion::Current().GetMajor()) + TEXT(".") + FString::FromInt(FEngineVersion::Current().GetMinor());
+	Url.ReplaceInline(TEXT("{VERSION}"), *Version);
+	Url.ReplaceInline(TEXT("{I18N}"), *(Culture->GetName()));
 }
 
 FString FUnrealEdMisc::GetExecutableForCommandlets() const
