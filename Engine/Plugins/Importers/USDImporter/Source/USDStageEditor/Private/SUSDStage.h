@@ -36,6 +36,8 @@ protected:
 	void ClearStageActorDelegates();
 
 	TSharedRef< SWidget > MakeMainMenu();
+	TSharedRef< SWidget > MakeActorPickerMenu();
+	TSharedRef< SWidget > MakeActorPickerMenuContent();
 	void FillFileMenu( FMenuBuilder& MenuBuilder );
 	void FillActionsMenu( FMenuBuilder& MenuBuilder );
 	void FillOptionsMenu( FMenuBuilder& MenuBuilder );
@@ -55,6 +57,8 @@ protected:
 	void OnPrimSelectionChanged( const TArray<FString>& PrimPath );
 
 	void OpenStage( const TCHAR* FilePath );
+
+	void SetActor( AUsdStageActor* InUsdStageActor );
 
 	void Refresh();
 

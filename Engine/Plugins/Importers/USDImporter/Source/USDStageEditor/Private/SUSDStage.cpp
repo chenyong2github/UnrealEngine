@@ -22,16 +22,18 @@
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdStage.h"
 
+#include "ActorTreeItem.h"
 #include "Dialogs/DlgPickPath.h"
 #include "EditorStyleSet.h"
+#include "Engine/Selection.h"
 #include "Engine/World.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
+#include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "Engine/Selection.h"
 
 #define LOCTEXT_NAMESPACE "SUsdStage"
 
@@ -122,7 +124,23 @@ void SUsdStage::Construct( const FArguments& InArgs )
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				MakeMainMenu()
+				SNew( SHorizontalBox )
+				+ SHorizontalBox::Slot()
+				.FillWidth( 1 )
+				[
+					MakeMainMenu()
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew( SBox )
+					.HAlign( HAlign_Right )
+					.VAlign( VAlign_Fill )
+					[
+						MakeActorPickerMenu()
+					]
+				]
 			]
 
 			+SVerticalBox::Slot()
@@ -297,6 +315,51 @@ TSharedRef< SWidget > SUsdStage::MakeMainMenu()
 	MenuBarWidget->SetVisibility( EVisibility::Visible ); // Work around for menu bar not showing on Mac
 
 	return MenuBarWidget;
+}
+
+TSharedRef< SWidget > SUsdStage::MakeActorPickerMenu()
+{
+	return SNew( SComboButton )
+		.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButton" )
+		.OnGetMenuContent( this, &SUsdStage::MakeActorPickerMenuContent )
+		.MenuPlacement( EMenuPlacement::MenuPlacement_BelowRightAnchor )
+		.ToolTipText( LOCTEXT( "ActorPicker_ToolTip", "Switch the active stage actor" ) )
+		.ButtonContent()
+		[
+			SNew( STextBlock )
+			.Text_Lambda( [this]()
+			{
+				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					return FText::FromString( StageActor->GetActorLabel() );
+				}
+
+				return FText::FromString( "None" );
+			})
+		];
+}
+
+TSharedRef< SWidget > SUsdStage::MakeActorPickerMenuContent()
+{
+	FSceneOutlinerInitializationOptions InitOptions;
+	InitOptions.bShowHeaderRow = false;
+	InitOptions.bShowSearchBox = true;
+	InitOptions.bShowCreateNewFolder = false;
+	InitOptions.bFocusSearchBoxWhenOpened = true;
+	InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
+	InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda([]( const AActor* Actor )
+	{
+		return Actor && Actor->IsA<AUsdStageActor>();
+	}));
+
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+	return SceneOutlinerModule.CreateActorPicker(InitOptions, FOnActorPicked::CreateLambda([this](AActor* Actor)
+	{
+		if ( Actor && Actor->IsA<AUsdStageActor>() )
+		{
+			this->SetActor( Cast<AUsdStageActor>( Actor ) );
+		}
+	}));
 }
 
 void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
@@ -759,9 +822,7 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 	if ( !ViewModel.UsdStageActor.IsValid() )
 	{
 		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-		ViewModel.UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
-
-		SetupStageActorDelegates();
+		SetActor( &UsdStageModule.GetUsdStageActor( GWorld ) );
 	}
 
 	// Block writing level sequence changes back to the USD stage until we finished this transaction, because once we do
@@ -770,6 +831,21 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 	ViewModel.UsdStageActor->BlockMonitoringLevelSequenceForThisTransaction();
 
 	ViewModel.OpenStage( FilePath );
+}
+
+void SUsdStage::SetActor( AUsdStageActor* InUsdStageActor )
+{
+	ViewModel.UsdStageActor = InUsdStageActor;
+
+	SetupStageActorDelegates();
+
+	if ( this->UsdPrimInfoWidget && InUsdStageActor )
+	{
+		// Just reset to the pseudoroot for now
+		this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), TEXT( "/" ) );
+	}
+
+	Refresh();
 }
 
 void SUsdStage::Refresh()
