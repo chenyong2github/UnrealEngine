@@ -22,6 +22,7 @@
 #include "GlobalShader.h"
 #include "RHIValidation.h"
 #include "IHeadMountedDisplayModule.h"
+#include "VulkanRenderpass.h"
 
 static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assumes VkStructureType is int32!");
 
@@ -1534,201 +1535,6 @@ void FVulkanBufferView::Destroy()
 	}
 }
 
-static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRenderTargetLayout& RTLayout)
-{
-	VkRenderPassCreateInfo CreateInfo;
-	ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
-	
-	uint32 NumSubpasses = 0;
-	uint32 NumDependencies = 0;
-
-	VkSubpassDescription SubpassDescriptions[8];
-	VkSubpassDependency SubpassDependencies[8];
-
-	//0b11 for 2, 0b1111 for 4, and so on
-	uint32 MultiviewMask = ( 0b1 << RTLayout.GetMultiViewCount() ) - 1;
-
-	const bool bDeferredShadingSubpass = RTLayout.GetSubpassHint() == ESubpassHint::DeferredShadingSubpass;
-	const bool bDepthReadSubpass =  RTLayout.GetSubpassHint() == ESubpassHint::DepthReadSubpass;
-		
-	// main sub-pass
-	{
-		VkSubpassDescription& SubpassDesc = SubpassDescriptions[NumSubpasses++];
-		FMemory::Memzero(&SubpassDesc, sizeof(VkSubpassDescription));
-
-		SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		SubpassDesc.colorAttachmentCount = RTLayout.GetNumColorAttachments();
-		SubpassDesc.pColorAttachments = RTLayout.GetColorAttachmentReferences();
-		SubpassDesc.pResolveAttachments = bDepthReadSubpass ? nullptr : RTLayout.GetResolveAttachmentReferences();
-		SubpassDesc.pDepthStencilAttachment = RTLayout.GetDepthStencilAttachmentReference();
-	}
-
-	// Color write and depth read sub-pass
-	VkAttachmentReference InputAttachments1[MaxSimultaneousRenderTargets + 1];
-	if (bDepthReadSubpass)
-	{
-		VkSubpassDescription& SubpassDesc = SubpassDescriptions[NumSubpasses++];
-		FMemory::Memzero(&SubpassDesc, sizeof(VkSubpassDescription));
-
-		SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		SubpassDesc.colorAttachmentCount = RTLayout.GetNumColorAttachments();
-		SubpassDesc.pColorAttachments = RTLayout.GetColorAttachmentReferences();
-		SubpassDesc.pResolveAttachments = RTLayout.GetResolveAttachmentReferences();
-
-		check(RTLayout.GetDepthStencilAttachmentReference());
-
-		// depth as Input0
-		InputAttachments1[0].attachment = RTLayout.GetDepthStencilAttachmentReference()->attachment;
-		InputAttachments1[0].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-		
-		SubpassDesc.inputAttachmentCount = 1;
-		SubpassDesc.pInputAttachments = InputAttachments1;
-		// depth attachment is same as input attachment
-		SubpassDesc.pDepthStencilAttachment = InputAttachments1;
-						
-		VkSubpassDependency& SubpassDep = SubpassDependencies[NumDependencies++];
-		SubpassDep.srcSubpass = 0;
-		SubpassDep.dstSubpass = 1;
-	    SubpassDep.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-		SubpassDep.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-		SubpassDep.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-		SubpassDep.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-		SubpassDep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-	}
-
-	// Two subpasses for deferred shading
-	VkAttachmentReference InputAttachments2[MaxSimultaneousRenderTargets + 1];
-	VkAttachmentReference DepthStencilAttachment;
-	if (bDeferredShadingSubpass)
-	{
-		// both sub-passes only test DepthStencil
-		DepthStencilAttachment.attachment = RTLayout.GetDepthStencilAttachmentReference()->attachment;
-		DepthStencilAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-
-		const VkAttachmentReference* ColorRef = RTLayout.GetColorAttachmentReferences();
-		uint32 NumColorAttachments = RTLayout.GetNumColorAttachments();
-		check(NumColorAttachments == 4); //current layout is SceneColor, GBufferA/B/C
-
-		// 1. Write to SceneColor and GBuffer, input DepthStencil
-		{
-			VkSubpassDescription& SubpassDesc = SubpassDescriptions[NumSubpasses++];
-			FMemory::Memzero(&SubpassDesc, sizeof(VkSubpassDescription));
-
-			SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-			SubpassDesc.colorAttachmentCount = 4;
-			SubpassDesc.pColorAttachments = ColorRef;
-			SubpassDesc.pDepthStencilAttachment = &DepthStencilAttachment;
-			// depth as Input0
-			SubpassDesc.inputAttachmentCount = 1;
-			SubpassDesc.pInputAttachments = &DepthStencilAttachment;
-						
-			VkSubpassDependency& SubpassDep = SubpassDependencies[NumDependencies++];
-			SubpassDep.srcSubpass = 0;
-			SubpassDep.dstSubpass = 1;
-			SubpassDep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			SubpassDep.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			SubpassDep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			SubpassDep.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-			SubpassDep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-		}
-
-		// 2. Write to SceneColor, input GBuffer and DepthStencil
-		{
-			VkSubpassDescription& SubpassDesc = SubpassDescriptions[NumSubpasses++];
-			FMemory::Memzero(&SubpassDesc, sizeof(VkSubpassDescription));
-
-			SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-			SubpassDesc.colorAttachmentCount = 1; // SceneColor only
-			SubpassDesc.pColorAttachments = ColorRef;
-			SubpassDesc.pDepthStencilAttachment = &DepthStencilAttachment;
-			// GBuffer as Input2/3/4
-			InputAttachments2[0].attachment = DepthStencilAttachment.attachment;
-			InputAttachments2[0].layout = DepthStencilAttachment.layout;
-			InputAttachments2[1].attachment = VK_ATTACHMENT_UNUSED;
-			InputAttachments2[1].layout = VK_IMAGE_LAYOUT_UNDEFINED;
-			for (int32 i = 2; i < 5; ++i)
-			{
-				InputAttachments2[i].attachment = ColorRef[i-1].attachment;
-				InputAttachments2[i].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			}
-			SubpassDesc.inputAttachmentCount = 5;
-			SubpassDesc.pInputAttachments = InputAttachments2;
-
-			VkSubpassDependency& SubpassDep = SubpassDependencies[NumDependencies++];
-			SubpassDep.srcSubpass = 1;
-			SubpassDep.dstSubpass = 2;
-			SubpassDep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			SubpassDep.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			SubpassDep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			SubpassDep.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-			if (GVulkanInputAttachmentShaderRead == 1)
-			{
-				// this is not required, but might flicker on some devices without
-				SubpassDep.dstAccessMask|= VK_ACCESS_SHADER_READ_BIT;
-			}
-			SubpassDep.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-		}
-	}
-	
-	CreateInfo.attachmentCount = RTLayout.GetNumAttachmentDescriptions();
-	CreateInfo.pAttachments = RTLayout.GetAttachmentDescriptions();
-	CreateInfo.subpassCount = NumSubpasses;
-	CreateInfo.pSubpasses = SubpassDescriptions;
-	CreateInfo.dependencyCount = NumDependencies;
-	CreateInfo.pDependencies = SubpassDependencies;
-
-	/*
-	Bit mask that specifies which view rendering is broadcast to
-	0011 = Broadcast to first and second view (layer)
-	*/
-	const uint32_t ViewMask[2] = { MultiviewMask, MultiviewMask };
-
-	/*
-	Bit mask that specifices correlation between views
-	An implementation may use this for optimizations (concurrent render)
-	*/
-	const uint32_t CorrelationMask = MultiviewMask;
-
-	VkRenderPassMultiviewCreateInfo MultiviewInfo;
-	if (RTLayout.GetIsMultiView())
-	{
-		FMemory::Memzero(MultiviewInfo);
-		MultiviewInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO;
-		MultiviewInfo.pNext = nullptr;
-		MultiviewInfo.subpassCount = NumSubpasses;
-		MultiviewInfo.pViewMasks = ViewMask;
-		MultiviewInfo.dependencyCount = 0;
-		MultiviewInfo.pViewOffsets = nullptr;
-		MultiviewInfo.correlationMaskCount = 1;
-		MultiviewInfo.pCorrelationMasks = &CorrelationMask;
-
-		CreateInfo.pNext = &MultiviewInfo;
-	}
-	
-	VkRenderPassFragmentDensityMapCreateInfoEXT FragDensityCreateInfo;
-	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RTLayout.GetHasFragmentDensityAttachment())
-	{
-		ZeroVulkanStruct(FragDensityCreateInfo, VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT);
-		FragDensityCreateInfo.fragmentDensityMapAttachment = *RTLayout.GetFragmentDensityAttachmentReference();
-
-		// Chain fragment density info onto create info and the rest of the pNexts
-		// onto the fragment density info
-		FragDensityCreateInfo.pNext = CreateInfo.pNext;
-		CreateInfo.pNext = &FragDensityCreateInfo;
-	}
-
-#if VULKAN_SUPPORTS_QCOM_RENDERPASS_TRANSFORM
-	if (RTLayout.GetQCOMRenderPassTransform() != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
-	{
-		CreateInfo.flags = VK_RENDER_PASS_CREATE_TRANSFORM_BIT_QCOM;
-	}
-#endif
-
-	VkRenderPass RenderPassHandle;
-	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateRenderPass(InDevice.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &RenderPassHandle));
-	return RenderPassHandle;
-}
-
 FVulkanRenderPass::FVulkanRenderPass(FVulkanDevice& InDevice, const FVulkanRenderTargetLayout& InRTLayout) :
 	Layout(InRTLayout),
 	RenderPass(VK_NULL_HANDLE),
@@ -1736,7 +1542,7 @@ FVulkanRenderPass::FVulkanRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 	Device(InDevice)
 {
 	INC_DWORD_STAT(STAT_VulkanNumRenderPasses);
-	RenderPass = CreateRenderPass(InDevice, InRTLayout);
+	RenderPass = CreateVulkanRenderPass(InDevice, InRTLayout);
 }
 
 FVulkanRenderPass::~FVulkanRenderPass()

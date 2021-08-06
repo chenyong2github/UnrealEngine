@@ -854,6 +854,10 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasDriverProperties = HasExtension(DeviceExtensions, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
 #endif
 
+#if VULKAN_SUPPORTS_RENDERPASS2
+	HasKHRRenderPass2 = HasExtension(DeviceExtensions, VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+#endif
+
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 	HasEXTFragmentDensityMap = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
 #endif

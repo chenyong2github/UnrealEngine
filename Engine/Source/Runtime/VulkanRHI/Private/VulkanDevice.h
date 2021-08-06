@@ -47,6 +47,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasEXTFragmentDensityMap : 1;
 			uint32 HasEXTFragmentDensityMap2 : 1;
 			uint32 HasKHRFragmentShadingRate : 1;
+			uint32 HasKHRRenderPass2 : 1;
 			uint32 HasEXTFullscreenExclusive : 1;
 			uint32 HasKHRImageFormatList : 1;
 			uint32 HasEXTASTCDecodeMode : 1;
