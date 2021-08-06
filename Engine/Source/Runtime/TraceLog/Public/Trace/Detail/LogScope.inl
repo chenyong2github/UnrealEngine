@@ -259,12 +259,12 @@ struct FLogScope::FFieldSet<FieldMeta, AnsiString>
 		Field_WriteStringAnsi(Index, String, Length);
 	}
 
-	static void Impl(FLogScope*, const TCHAR* String, int32 Length=-1)
+	static void Impl(FLogScope*, const WIDECHAR* String, int32 Length=-1)
 	{
 		if (Length < 0)
 		{
 			Length = 0;
-			for (const TCHAR* c = String; *c; ++c, ++Length);
+			for (const WIDECHAR* c = String; *c; ++c, ++Length);
 		}
 
 		static const uint32 Index = FieldMeta::Index & 0x7f;
@@ -276,12 +276,12 @@ struct FLogScope::FFieldSet<FieldMeta, AnsiString>
 template <typename FieldMeta>
 struct FLogScope::FFieldSet<FieldMeta, WideString>
 {
-	static void Impl(FLogScope*, const TCHAR* String, int32 Length=-1)
+	static void Impl(FLogScope*, const WIDECHAR* String, int32 Length=-1)
 	{
 		if (Length < 0)
 		{
 			Length = 0;
-			for (const TCHAR* c = String; *c; ++c, ++Length);
+			for (const WIDECHAR* c = String; *c; ++c, ++Length);
 		}
 
 		static const uint32 Index = FieldMeta::Index & 0x7f;
