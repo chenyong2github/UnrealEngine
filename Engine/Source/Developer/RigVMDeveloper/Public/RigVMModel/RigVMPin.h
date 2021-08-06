@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
 #include "UObject/ObjectMacros.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMByteCode.h"
@@ -112,6 +113,8 @@ public:
 
 	// Splits the default value into name-value pairs
 	static TArray<FString> SplitDefaultValue(const FString& InDefaultValue);
+	// Joins a collection of element DefaultValues into a default value for an array of those elements
+	static FString GetDefaultValueForArray(TConstArrayView<FString> InDefaultValues);
 
 	// Default constructor
 	URigVMPin();

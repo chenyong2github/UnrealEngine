@@ -8,9 +8,10 @@
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "UObject/Package.h"
+#include "Misc/DefaultValueHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/OutputDevice.h"
-#include "Misc/DefaultValueHelper.h"
+#include "Misc/StringBuilder.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
@@ -161,6 +162,22 @@ TArray<FString> URigVMPin::SplitDefaultValue(const FString& InDefaultValue)
 		Parts.Add(Content.Mid(LastPartStartIndex).Replace(TEXT(" "), TEXT("")));
 	}
 	return Parts;
+}
+
+FString URigVMPin::GetDefaultValueForArray(TConstArrayView<FString> DefaultValues)
+{
+	TStringBuilder<256> Builder;
+	Builder << TCHAR('(');
+	if (DefaultValues.Num())
+	{
+		Builder << DefaultValues[0];
+		for (const FString& DefaultValue : DefaultValues.Slice(1, DefaultValues.Num() - 1))
+		{
+			Builder << TCHAR(',') << DefaultValue;
+		}
+	}
+	Builder << TCHAR(')');
+	return FString(Builder);
 }
 
 URigVMPin::URigVMPin()
