@@ -422,7 +422,7 @@ namespace HordeServer.Services
 		{
 			if (Settings.ConfigPath != null)
 			{
-				Uri ConfigUri = CombinePaths(new Uri(FileReference.Combine(Program.DataDir, "_").FullName), Settings.ConfigPath);
+				Uri ConfigUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), Settings.ConfigPath);
 				await UpdateConfigAsync(ConfigUri);
 			}
 			return DateTime.UtcNow + TimeSpan.FromMinutes(1.0);
