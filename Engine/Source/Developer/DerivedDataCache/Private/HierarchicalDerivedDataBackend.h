@@ -8,6 +8,7 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataBackendAsyncPutWrapper.h"
+#include "DerivedDataRequestOwner.h"
 #include "Misc/ScopeRWLock.h"
 #include "Templates/UniquePtr.h"
 #include "Containers/ArrayView.h"

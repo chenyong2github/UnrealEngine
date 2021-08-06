@@ -4,10 +4,11 @@
 
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildOutput.h"
-#include "DerivedDataBuildPolicy.h"
 #include "DerivedDataBuildPrivate.h"
+#include "DerivedDataBuildTypes.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataPayloadPrivate.h"
+#include "DerivedDataRequestOwner.h"
 #include "Hash/Blake3.h"
 #include "Misc/StringBuilder.h"
 #include "UObject/NameTypes.h"

@@ -6,7 +6,7 @@
 #include "Containers/Array.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataPayload.h"
-#include "DerivedDataRequest.h"
+#include "DerivedDataRequestOwner.h"
 #include "EditorDomain/EditorDomain.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"

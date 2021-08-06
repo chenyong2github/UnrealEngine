@@ -6,7 +6,7 @@
 #include "Containers/ArrayView.h"
 #include "Containers/StringFwd.h"
 #include "DerivedDataBuildKey.h"
-#include "DerivedDataRequest.h"
+#include "DerivedDataRequestTypes.h"
 #include "Features/IModularFeature.h"
 #include "UObject/NameTypes.h"
 
@@ -21,6 +21,7 @@ namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuild; }
+namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildWorkerActionCompleteParams; }
 namespace UE::DerivedData { struct FBuildWorkerFileDataCompleteParams; }
 namespace UE::DerivedData { enum class EBuildPolicy : uint8; }

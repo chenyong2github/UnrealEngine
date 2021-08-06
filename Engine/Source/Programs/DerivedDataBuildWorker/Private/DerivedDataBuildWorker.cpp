@@ -11,6 +11,7 @@
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataPayload.h"
+#include "DerivedDataRequestOwner.h"
 #include "HAL/FileManager.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/CommandLine.h"

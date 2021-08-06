@@ -8,6 +8,8 @@
 #include "DerivedDataBuildInputs.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildWorker.h"
+#include "DerivedDataRequest.h"
+#include "DerivedDataRequestOwner.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
