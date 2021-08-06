@@ -24,9 +24,19 @@ DEFINE_LOG_CATEGORY(LogOpenImageDenoise);
 
 IMPLEMENT_MODULE(FOpenImageDenoiseModule, OpenImageDenoise)
 
+enum class EDenoiseMode {
+	OFF = 0,
+	DEFAULT = 1,   // denoise using albedo/normal as provided
+	CLEAN_AUX = 2, // denoise albedo/normal first and pass cleanAux (haven't found a scene where this is clearly better, and it runs much slower)
+	NO_AOVS = 3,   // denoise beauty only
+};
+
 static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTex, FRHITexture2D* AlbedoTex, FRHITexture2D* NormalTex, FRHITexture2D* OutputTex)
 {
-	const int DenoiserMode = 2; // TODO: Expose setting for this
+	static IConsoleVariable* DenoiseModeCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.Denoiser"));
+
+	const int DenoiseModeCVarValue = DenoiseModeCVar ? DenoiseModeCVar->GetInt() : -1;
+	const EDenoiseMode DenoiseMode = DenoiseModeCVarValue >= 0 ? EDenoiseMode(DenoiseModeCVarValue) : EDenoiseMode::DEFAULT;
 
 #if WITH_EDITOR
 	uint64 FilterExecuteTime = 0;
@@ -41,7 +51,7 @@ static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTe
 	FReadSurfaceDataFlags ReadDataFlags(ERangeCompressionMode::RCM_MinMax);
 	ReadDataFlags.SetLinearToGamma(false);
 	RHICmdList.ReadSurfaceData(ColorTex, Rect, RawPixels, ReadDataFlags);
-	if (DenoiserMode >= 2)
+	if (DenoiseMode == EDenoiseMode::DEFAULT || DenoiseMode == EDenoiseMode::CLEAN_AUX)
 	{
 		RHICmdList.ReadSurfaceData(AlbedoTex, Rect, RawAlbedo, ReadDataFlags);
 		RHICmdList.ReadSurfaceData(NormalTex, Rect, RawNormal, ReadDataFlags);
@@ -49,23 +59,45 @@ static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTe
 
 	check(RawPixels.Num() == Size.X * Size.Y);
 
-	uint32_t DestStride;
-	FLinearColor* DestBuffer = (FLinearColor*)RHICmdList.LockTexture2D(OutputTex, 0, RLM_WriteOnly, DestStride, false);
-
 	// create device only once?
 	oidn::DeviceRef OIDNDevice = oidn::newDevice();
 	OIDNDevice.commit();
+
+	if (DenoiseMode == EDenoiseMode::CLEAN_AUX)
+	{
+		oidn::FilterRef OIDNFilter = OIDNDevice.newFilter("RT");
+		OIDNFilter.setImage("albedo", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+		OIDNFilter.setImage("output", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+		OIDNFilter.commit();
+		OIDNFilter.execute();
+	}
+
+	if (DenoiseMode == EDenoiseMode::CLEAN_AUX)
+	{
+		oidn::FilterRef OIDNFilter = OIDNDevice.newFilter("RT");
+		OIDNFilter.setImage("normal", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+		OIDNFilter.setImage("output", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+		OIDNFilter.commit();
+		OIDNFilter.execute();
+	}
+
 	oidn::FilterRef OIDNFilter = OIDNDevice.newFilter("RT");
 	OIDNFilter.setImage("color", RawPixels.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
-	if (DenoiserMode >= 2)
+	if (DenoiseMode == EDenoiseMode::DEFAULT || DenoiseMode == EDenoiseMode::CLEAN_AUX)
 	{
+		// default behavior
 		OIDNFilter.setImage("albedo", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
 		OIDNFilter.setImage("normal", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
 	}
-	if (DenoiserMode >= 3)
+	if (DenoiseMode == EDenoiseMode::CLEAN_AUX)
 	{
+		// +cleanAux
 		OIDNFilter.set("cleanAux", true);
 	}
+
+	uint32_t DestStride;
+	FLinearColor* DestBuffer = (FLinearColor*)RHICmdList.LockTexture2D(OutputTex, 0, RLM_WriteOnly, DestStride, false);
+
 	OIDNFilter.setImage("output", DestBuffer, oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), DestStride);
 	OIDNFilter.set("hdr", true);
 	OIDNFilter.commit();
