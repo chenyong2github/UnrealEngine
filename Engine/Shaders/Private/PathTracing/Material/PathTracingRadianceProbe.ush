@@ -115,7 +115,13 @@ FMaterialSample RadianceProbe_SampleMaterial(
 
 	float3 N_World = GetWorldNormal(Payload);
 
+#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
+	// Use cosine hemisphere sampling for surface lightmaps
 	float4 SampledValue = CosineSampleHemisphereConcentric(RandSample.xy);
+#else
+	// Use uniform hemisphere sampling for volumetric lightmaps (the two hemispheres are meant to be merged)
+	float4 SampledValue = UniformSampleHemisphere(RandSample.xy);
+#endif
 	float3 OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
 	PdfAdjust = max(PdfAdjust, 0.00001f);
@@ -188,8 +194,12 @@ float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Pay
 #endif
 
 	PdfAdjust = max(PdfAdjust, 0.00001f);
+#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
 	float NoL = max(dot(N_World, OutgoingDirection), 0.0);
 	return (NoL / PI) * PdfAdjust;
+#else
+	return 1 / (2 * PI) * PdfAdjust;
+#endif
 }
 
 FMaterialEval RadianceProbe_EvalMaterial(
@@ -260,7 +270,11 @@ FMaterialEval RadianceProbe_EvalMaterial(
 
 	PdfAdjust = max(PdfAdjust, 0.00001f);
 
+#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
 	float OutPdf = NoL / PI * PdfAdjust;
+#else
+	float OutPdf = 1 / (2 * PI) * PdfAdjust;
+#endif
 	// As the name suggests, radiance probe has a combined throughput (Pdf * Weight) == 1
 	float OutWeight = (OutPdf > 0.0f) ? (1.0f / OutPdf) : 0;
 

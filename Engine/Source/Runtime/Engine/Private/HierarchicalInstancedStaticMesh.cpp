@@ -2937,6 +2937,9 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 		}
 		else
 		{
+			// Need to immediately kill the current proxy (instead of waiting until the async tree build is finished) as the underlying lightmap data (from MapBuildRegistry) can be going away
+			MarkRenderStateDirty();
+
 			BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/true);
 		}
 	}

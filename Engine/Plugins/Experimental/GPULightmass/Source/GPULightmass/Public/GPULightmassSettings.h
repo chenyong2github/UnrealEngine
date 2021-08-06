@@ -41,6 +41,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General)
 	EGPULightmassMode Mode;
 
+	// If enabled, denoise the results on the CPU after rendering. On Completion denoises the entire lightmap when it is finished.
+	// During Interactive Preview denoises each tile as it finishes, which is useful for previewing but less efficient.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, DisplayName = "Denoise")
+	EGPULightmassDenoisingOptions DenoisingOptions = EGPULightmassDenoisingOptions::OnCompletion;
+
+	// Whether to compress lightmap textures.  Disabling lightmap texture compression will reduce artifacts but increase memory and disk size by 4x.
+	// Use caution when disabling this.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General)
+	bool bCompressLightmaps = true;
+
 	// Total number of ray paths executed per texel across all bounces.
 	// Set this to the lowest value that gives artifact-free results with the denoiser.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GlobalIllumination, DisplayName = "GI Samples", meta = (ClampMin = "32", ClampMax = "65536", UIMax = "8192"))
@@ -62,10 +72,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GlobalIllumination, meta = (EditCondition = "bUseIrradianceCaching"))
 	bool bUseFirstBounceRayGuiding = false;
 
-	// If enabled, denoise the results on the CPU after rendering. On Completion denoises the entire lightmap when it is finished.
-	// During Interactive Preview denoises each tile as it finishes, which is useful for previewing but less efficient.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General, DisplayName = "Denoise")
-	EGPULightmassDenoisingOptions DenoisingOptions = EGPULightmassDenoisingOptions::OnCompletion;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VolumetricLightmap, DisplayName = "Quality Multiplier", meta = (ClampMin = "1", ClampMax = "256", UIMax = "32"))
+	int32 VolumetricLightmapQualityMultiplier = 4;
+
+	// Size of an Volumetric Lightmap voxel at the highest density (used around geometry), in world space units.
+	// This setting has a large impact on build times and memory, use with caution.
+	// Halving the DetailCellSize can increase memory by up to a factor of 8x.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VolumetricLightmap, DisplayName = "Detail Cell Size", meta = (ClampMin = "1", ClampMax = "20000", UIMax = "2000"))
+	int32 VolumetricLightmapDetailCellSize = 200;
 
 	// Number of samples per Irradiance Cache cell.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IrradianceCaching, DisplayName = "Quality", meta = (EditCondition = "bUseIrradianceCaching", ClampMin = "4", ClampMax = "65536", UIMax = "8192"))
