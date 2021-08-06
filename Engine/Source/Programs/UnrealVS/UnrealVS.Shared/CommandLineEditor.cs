@@ -219,15 +219,12 @@ namespace UnrealVS
 										PropertyNameCaseInsensitive = true
 									});
 
-									if (!string.IsNullOrEmpty(activeDebugProfile))
+									LaunchSettingsJson.LaunchSettingsProfile Profile;
+									if (string.IsNullOrEmpty(activeDebugProfile) || !settings.Profiles.TryGetValue(activeDebugProfile, out Profile))
 									{
-										Text = settings.Profiles[activeDebugProfile].CommandLineArgs ?? "";
+										Profile = settings.Profiles.FirstOrDefault().Value;
 									}
-									else
-									{
-										// if no active debug profile is set then VS uses the first one
-										Text = settings.Profiles.FirstOrDefault().Value?.CommandLineArgs ?? "";
-									}
+									Text = Profile?.CommandLineArgs ?? "";
 								}
 							}
 							// for "Game" projects automatically remove the game project filename from the start of the command line
