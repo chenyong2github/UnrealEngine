@@ -134,35 +134,36 @@ void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 	WinPumpMessages();
 
 	// Determine if application has focus
-	bool HasFocus = FApp::UseVRFocus() ? FApp::HasVRFocus() : FWindowsPlatformApplicationMisc::IsThisApplicationForeground();
-	static bool HadFocus = false;
+	bool bHasFocus = FApp::UseVRFocus() ? FApp::HasVRFocus() : FWindowsPlatformApplicationMisc::IsThisApplicationForeground();
+	static bool bHadFocus = false;
 
 #if WITH_EDITOR
 	// If editor thread doesn't have the focus, don't suck up too much CPU time.
 	if( GIsEditor )
 	{
-		if( !HasFocus )
+		bool bBenchmarking = FApp::IsBenchmarking();
+		if( !bHasFocus && !bBenchmarking )
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE("EditorIsInBackgroundSleep");
 			// Sleep for a bit to not eat up all CPU time.
 			FPlatformProcess::Sleep(0.005f);
 		}
-		HadFocus = HasFocus;
+		bHadFocus = bHasFocus;
 	}
 #endif
 
 #if !UE_SERVER
 	// For non-editor clients, record if the active window is in focus
-	if( HadFocus != HasFocus )
+	if( bHadFocus != bHasFocus )
 	{
-		FGenericCrashContext::SetEngineData(TEXT("Platform.AppHasFocus"), HasFocus ? TEXT("true") : TEXT("false"));
+		FGenericCrashContext::SetEngineData(TEXT("Platform.AppHasFocus"), bHasFocus ? TEXT("true") : TEXT("false"));
 	}
 #endif
 
-	HadFocus = HasFocus;
+	bHadFocus = bHasFocus;
 
 	// if its our window, allow sound, otherwise apply multiplier
-	FApp::SetVolumeMultiplier( HasFocus ? 1.0f : FApp::GetUnfocusedVolumeMultiplier() );
+	FApp::SetVolumeMultiplier( bHasFocus ? 1.0f : FApp::GetUnfocusedVolumeMultiplier() );
 }
 
 void FWindowsPlatformApplicationMisc::PreventScreenSaver()

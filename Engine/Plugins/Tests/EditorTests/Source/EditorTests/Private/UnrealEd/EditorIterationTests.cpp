@@ -54,22 +54,41 @@ void FIterationOpenAssets::GetTests(TArray<FString>& OutBeautifiedNames, TArray<
 
 bool FIterationOpenAssets::RunTest(const FString& LongAssetPath)
 {
+	static uint64 FrameNumber = 0;
+
+	// Setup
 	AddCommand(new FCloseAllAssetEditorsCommand());
+	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
+		TRACE_BOOKMARK(TEXT("LoadAssetAndPIE - %s"), *LongAssetPath);
+		return true;
+		}));
+
+	// Issue Load request
 	AddCommand(new FOpenEditorForAssetCommand(LongAssetPath));
 	AddCommand(new FWaitLatentCommand(0.5f));
+
+	// Wait on all async asset processing
 	AddCommand(new FFunctionLatentCommand([] {
 		return FAssetCompilingManager::Get().GetNumRemainingAssets() == 0;
 	}));
 	AddCommand(new FWaitLatentCommand(0.5f));
-	AddCommand(new FCloseAllAssetEditorsCommand());
-	AddCommand(new FDelayedFunctionLatentCommand([] {
-		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-	}));
 
-	bool bSimulateInEditor = false;
-	AddCommand(new FStartPIECommand(bSimulateInEditor));
-	AddCommand(new FWaitLatentCommand(10.0f));
+	// Do many frames of PIE (not a time span since PIE can take a while to init)
+	AddCommand(new FDelayedFunctionLatentCommand([] {
+		FrameNumber = GFrameCounter;
+		}));
+	AddCommand(new FStartPIECommand(false));
+	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
+		return GFrameCounter > (FrameNumber + 600);
+		}));
 	AddCommand(new FEndPlayMapCommand());
+	AddCommand(new FWaitLatentCommand(0.5f));
+
+	// Teardown
+	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
+		TRACE_BOOKMARK(TEXT("LoadAssetAndPIEComplete - %s"), *LongAssetPath);
+		return true;
+		}));
 
 	return true;
 }
