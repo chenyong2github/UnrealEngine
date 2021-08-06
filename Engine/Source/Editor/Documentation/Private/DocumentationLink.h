@@ -34,8 +34,8 @@ public:
 	{
 		FString Url;
 		FUnrealEdMisc::Get().GetURL( TEXT("UDNURL"), Url, true );
+		FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(Url, Culture);
 
-		Url.ReplaceInline(TEXT("/INT/"), *FString::Printf(TEXT("/%s/"), *(Culture->GetUnrealLegacyThreeLetterISOLanguageName())));
 		return Url;
 	}
 
@@ -50,12 +50,13 @@ public:
 		FString Anchor;
 		FString QueryString;
 		SplitLink(Link, Path, QueryString, Anchor);
-
-		const FString PartialPath = FString::Printf(TEXT("%s%s/index.html"), *(Culture->GetUnrealLegacyThreeLetterISOLanguageName()), *Path);
+		const FString PartialPath = FString::Printf(TEXT("%sindex.html"), *Path);
 		
 		AddSourceInfoToQueryString(QueryString, Source);
-
-		return GetUrlRoot() + PartialPath + QueryString + Anchor;
+		FString URLRoot = GetUrlRoot();
+		FInternationalization& I18N = FInternationalization::Get();
+		FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(URLRoot, I18N.GetCurrentCulture());
+		return URLRoot + PartialPath + QueryString + Anchor;
 	}
 
 	static FString ToFilePath( const FString& Link )
@@ -87,7 +88,8 @@ public:
 		FString QueryString;
 		SplitLink(Link, Path, QueryString, Anchor);
 
-		const FString PartialPath = FString::Printf(TEXT("%s%s/index.html"), *(Culture->GetUnrealLegacyThreeLetterISOLanguageName()), *Path);
+		static FString Version = FString::FromInt(FEngineVersion::Current().GetMajor()) + TEXT(".") + FString::FromInt(FEngineVersion::Current().GetMinor());
+		const FString PartialPath = FString::Printf(TEXT("%s/%s%s/index.html"), *Version, *(Culture->GetName()), *Path);
 		return FString::Printf(TEXT("%sDocumentation/HTML/%s"), *FPaths::ConvertRelativePathToFull(FPaths::EngineDir()), *PartialPath);
 	}
 
