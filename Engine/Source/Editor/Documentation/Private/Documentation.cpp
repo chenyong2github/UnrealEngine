@@ -50,8 +50,7 @@ bool FDocumentation::OpenAPIHome(FDocumentationSourceInfo Source) const
 
 	if (!Url.IsEmpty())
 	{
-		Url.ReplaceInline(TEXT("/INT/"), *FString::Printf(TEXT("/%s/"), *(FInternationalization::Get().GetCurrentCulture()->GetUnrealLegacyThreeLetterISOLanguageName())));
-
+		FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(Url, FInternationalization::Get().GetCurrentCulture());
 		FPlatformProcess::LaunchURL(*Url, nullptr, nullptr);
 
 		return true;

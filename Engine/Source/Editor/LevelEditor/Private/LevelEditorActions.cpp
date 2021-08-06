@@ -94,6 +94,8 @@
 #include "PlatformInfo.h"
 #include "Misc/CoreMisc.h"
 
+#include "Internationalization/Culture.h"
+
 #if WITH_LIVE_CODING
 #include "ILiveCodingModule.h"
 #endif
@@ -180,6 +182,8 @@ void FLevelEditorActionCallbacks::BrowseViewportControls()
 	FString URL;
 	if (FUnrealEdMisc::Get().GetURL(TEXT("ViewportControlsURL"), URL))
 	{
+		// documentation URLS are now stored with placeholders for internationalization and version
+		FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(URL, FInternationalization::Get().GetCurrentCulture());
 		FPlatformProcess::LaunchURL(*URL, NULL, NULL);
 	}
 }
