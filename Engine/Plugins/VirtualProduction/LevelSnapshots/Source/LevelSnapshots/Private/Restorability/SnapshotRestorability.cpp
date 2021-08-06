@@ -74,14 +74,12 @@ namespace
 	}
 }
 
-FLevelSnapshotsModule* FSnapshotRestorability::Module = nullptr;
-
 bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("IsActorDesirableForCapture"), STAT_IsActorDesirableForCapture, STATGROUP_LevelSnapshots);
 	
 	bool bSomebodyAllowed = false;
-	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = Module->GetOverrides(); 
+	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
 	for (const TSharedRef<ISnapshotRestorabilityOverrider>& Override : Overrides)
 	{
 		const ISnapshotRestorabilityOverrider::ERestorabilityOverride Result = Override->IsActorDesirableForCapture(Actor);
@@ -117,7 +115,7 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("IsComponentDesirableForCapture"), STAT_IsComponentDesirableForCapture, STATGROUP_LevelSnapshots);
 	
 	bool bSomebodyAllowed = false;
-	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = Module->GetOverrides(); 
+	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
 	for (const TSharedRef<ISnapshotRestorabilityOverrider>& Override : Overrides)
 	{
 		const ISnapshotRestorabilityOverrider::ERestorabilityOverride Result = Override->IsComponentDesirableForCapture(Component);
@@ -142,12 +140,12 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 
 bool FSnapshotRestorability::IsPropertyBlacklistedForCapture(const FProperty* Property)
 {
-	return Module->IsPropertyBlacklisted(Property);
+	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyBlacklisted(Property);
 }
 
 bool FSnapshotRestorability::IsPropertyWhitelistedForCapture(const FProperty* Property)
 {
-	return Module->IsPropertyWhitelisted(Property);
+	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyWhitelisted(Property);
 }
 
 bool FSnapshotRestorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)
@@ -171,8 +169,9 @@ bool FSnapshotRestorability::IsRestorableProperty(const FProperty* LeafProperty)
 	// Only consider editable properties
 	const uint64 RequiredFlags = CPF_Edit;
 
-	const bool bIsWhitelisted = Module->IsPropertyWhitelisted(LeafProperty);
-	const bool bIsBlacklisted = Module->IsPropertyBlacklisted(LeafProperty);
+	FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
+	const bool bIsWhitelisted = Module.IsPropertyWhitelisted(LeafProperty);
+	const bool bIsBlacklisted = Module.IsPropertyBlacklisted(LeafProperty);
 	const bool bPassesDefaultChecks =
 		!LeafProperty->HasAnyPropertyFlags(UnsavedProperties | InstancedFlags | UneditableFlags)
         && LeafProperty->HasAllPropertyFlags(RequiredFlags);

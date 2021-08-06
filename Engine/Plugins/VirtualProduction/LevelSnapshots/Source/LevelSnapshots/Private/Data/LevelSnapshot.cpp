@@ -123,13 +123,13 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 	SerializedData.ApplyToWorld(TargetWorld, GetPackage(), SelectionSet);
 }
 
-void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
+bool ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TakeLevelSnapshot"), STAT_TakeLevelSnapshot, STATGROUP_LevelSnapshots);
 	if (!ensure(TargetWorld))
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Unable To Snapshot World as World was invalid"));
-		return;
+		return false;
 	}
 
 	if (TargetWorld->WorldType != EWorldType::Editor
@@ -145,11 +145,22 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 #endif
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Level snapshots currently only support editors. Snapshots taken in other world types are experimental any may not function as expected."));
 	}
-	
+
+	FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
+	if (!Module.CanTakeSnapshot({ this }))
+	{
+		return false;
+	}
+	Module.OnPreTakeSnapshot().Broadcast({this});
+
 	EnsureWorldInitialised();
 	MapPath = TargetWorld;
 	CaptureTime = FDateTime::UtcNow();
 	SerializedData.SnapshotWorld(TargetWorld);
+
+	Module.OnPostTakeSnapshot().Broadcast({ this });
+
+	return true;
 }
 
 bool ULevelSnapshot::HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor) const

@@ -6,9 +6,10 @@
 #include "LevelSnapshotsEditorProjectSettings.h"
 #include "Restorability/PropertyComparisonParams.h"
 #include "Restorability/StaticMeshCollisionPropertyComparer.h"
-#include "SnapshotRestorability.h"
 
 #include "EngineUtils.h"
+#include "LevelSnapshotsLog.h"
+#include "Algo/AllOf.h"
 #include "Modules/ModuleManager.h"
 
 namespace
@@ -36,13 +37,16 @@ namespace
 
 FLevelSnapshotsModule& FLevelSnapshotsModule::GetInternalModuleInstance()
 {
-	return FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+	static FLevelSnapshotsModule& ModuleInstance = *[]() -> FLevelSnapshotsModule*
+	{
+		UE_CLOG(!FModuleManager::Get().IsModuleLoaded("LevelSnapshots"), LogLevelSnapshots, Fatal, TEXT("You called GetInternalModuleInstance before the module was initialised."));
+		return &FModuleManager::GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+	}();
+	return ModuleInstance;
 }
 
 void FLevelSnapshotsModule::StartupModule()
 {
-	FSnapshotRestorability::Module = this;
-	
 	const TSharedRef<FBlacklistRestorabilityOverrider> Blacklist = MakeShared<FBlacklistRestorabilityOverrider>(
 		FBlacklistRestorabilityOverrider::FGetBlacklist::CreateLambda([]() -> const FRestorationBlacklist&
 		{
@@ -59,9 +63,17 @@ void FLevelSnapshotsModule::StartupModule()
 
 void FLevelSnapshotsModule::ShutdownModule()
 {
-	FSnapshotRestorability::Module = nullptr;
-	
 	Overrides.Reset();
+}
+
+void FLevelSnapshotsModule::AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate)
+{
+	CanTakeSnapshotDelegates.FindOrAdd(DelegateName) = Delegate;
+}
+
+void FLevelSnapshotsModule::RemoveCanTakeSnapshotDelegate(FName DelegateName)
+{
+	CanTakeSnapshotDelegates.Remove(DelegateName);
 }
 
 void FLevelSnapshotsModule::RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)
@@ -151,6 +163,18 @@ void FLevelSnapshotsModule::RemoveBlacklistedProperties(const TSet<const FProper
 	{
 		BlacklistedProperties.Remove(Property);
 	}
+}
+
+bool FLevelSnapshotsModule::CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const
+{
+	return Algo::AllOf(CanTakeSnapshotDelegates, [&Event](const TTuple<FName,FCanTakeSnapshot>& Pair)
+		{
+			if (Pair.Get<1>().IsBound())
+			{
+				return Pair.Get<1>().Execute(Event);
+			}
+			return true;
+		});
 }
 
 const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& FLevelSnapshotsModule::GetOverrides() const
