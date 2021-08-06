@@ -715,7 +715,7 @@ namespace OldTaskGraphTests
 	}
 }
 
-extern uint32 GNumForegroundWorkers;
+extern int32 GNumForegroundWorkers;
 
 namespace TaskGraphTests
 {

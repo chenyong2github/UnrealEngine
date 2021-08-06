@@ -8,7 +8,7 @@ namespace LowLevelTasks
 
 FReserveScheduler FReserveScheduler::Singleton;
 
-TUniquePtr<FThread> FReserveScheduler::CreateWorker(FSchedulerTls::FLocalQueueType* WorkerLocalQueue, EThreadPriority Priority, bool bIsForkable)
+TUniquePtr<FThread> FReserveScheduler::CreateWorker(bool bIsForkable, FSchedulerTls::FLocalQueueType* WorkerLocalQueue, EThreadPriority Priority)
 {
 	uint32 WorkerId = NextWorkerId++;
 	return MakeUnique<FThread>
@@ -56,7 +56,7 @@ bool FReserveScheduler::DoReserveWorkUntil(FConditional&& Condition)
 	return false;
 }
 
-void FReserveScheduler::StartWorkers(FScheduler& MainScheduler, uint32 NumWorkers, EThreadPriority WorkerPriority, bool bIsForkable)
+void FReserveScheduler::StartWorkers(FScheduler& MainScheduler, uint32 NumWorkers, bool bIsForkable, EThreadPriority WorkerPriority)
 {
 	if (NumWorkers == 0)
 	{
@@ -76,7 +76,7 @@ void FReserveScheduler::StartWorkers(FScheduler& MainScheduler, uint32 NumWorker
 		for (uint32 WorkerId = 0; WorkerId < NumWorkers; ++WorkerId)
 		{
 			WorkerLocalQueues.Emplace(MainScheduler.GetQueueRegistry(), ELocalQueueType::EBusyWait, nullptr);
-			WorkerThreads.Add(CreateWorker(&WorkerLocalQueues.Last(), WorkerPriority, bIsForkable));
+			WorkerThreads.Add(CreateWorker(bIsForkable, &WorkerLocalQueues.Last(), WorkerPriority));
 		}
 		UE::Trace::ThreadGroupEnd();
 	}
