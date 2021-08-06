@@ -9,6 +9,7 @@
 
 class ICustomSceneOutliner;
 class ISceneOutlinerColumn;
+struct FSceneOutlinerInitializationOptions;
 
 /** Delegate used with the Scene Outliner in 'actor picking' mode.  You'll bind a delegate when the
 	outliner widget is created, which will be fired off when an actor is selected in the list */
@@ -113,6 +114,9 @@ private:
 
 	/** Map of column type name -> factory delegate */
 	TMap< FName, FCreateSceneOutlinerColumn > ColumnMap;
+
+	// Function to recreate what originally was FActorInfoColumn as separate columns using FTextInfoColumn
+	void CreateActorInfoColumns(FSceneOutlinerInitializationOptions& InInitOptions) const;
 
 public:
 

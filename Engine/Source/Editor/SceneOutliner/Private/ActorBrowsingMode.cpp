@@ -211,18 +211,10 @@ void FActorBrowsingMode::Rebuild()
 	{
 		UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition();
 		WorldPartition->OnActorDescRemovedEvent.AddRaw(this, &FActorBrowsingMode::OnActorDescRemoved);
+	}
 
-		// Enable the pinned column by default on WP worlds
-		if (!bPinnedColumnActive)
-		{
-			TogglePinnedColumn();
-		}
-	}
-	// Disable it by default on non-WP worlds
-	else if (bPinnedColumnActive)
-	{
-		TogglePinnedColumn();
-	}
+	// Enable the pinned column by default on WP worlds or Disable it by default on non-WP worlds
+	SceneOutliner->SetColumnVisibility(FSceneOutlinerBuiltInColumnTypes::Pinned(), bRepresentingWorldPartitionedWorld);
 }
 
 FText FActorBrowsingMode::GetStatusText() const 
@@ -286,39 +278,6 @@ FSlateColor FActorBrowsingMode::GetStatusTextColor() const
 
 void FActorBrowsingMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowColumnHeading", "Columns"));
-	{
-		// For now hard code this column in.
-		// #todo_Outliner: refactor all info columns out of ActorInfoColumn into toggleable entries of this menu.
-		// could be done with a similar interface to FSceneOutlinerFilterInfo
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("SourceControlColumnName", "Source Control"),
-			LOCTEXT("SourceControlColumnTooltip", ""),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateRaw(this, &FActorBrowsingMode::ToggleActorSCCStatusColumn),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateRaw(this, &FActorBrowsingMode::IsActorSCCStatusColumnActive)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("PinnedColumnName", "Pinned Column"),
-			LOCTEXT("PinnedColumnToolip", "Displays the pinned state of items"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateRaw(this, &FActorBrowsingMode::TogglePinnedColumn),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateRaw(this, &FActorBrowsingMode::IsPinnedColumnActive)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-			);
-	}
-	MenuBuilder.EndSection();
-
 	MenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowWorldHeading", "World"));
 	{
 		MenuBuilder.AddSubMenu(
@@ -1715,31 +1674,4 @@ void FActorBrowsingMode::OnDeleteActorsEnd()
 {
 	SceneOutliner->DeleteFoldersEnd();
 }
-
-void FActorBrowsingMode::ToggleActorSCCStatusColumn()
-{
-	if (bActorSCCStatusColumnActive)
-	{
-		SceneOutliner->RemoveColumn(FSceneOutlinerBuiltInColumnTypes::SourceControl());
-	}
-	else
-	{
-		SceneOutliner->AddColumn(FSceneOutlinerBuiltInColumnTypes::SourceControl(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 30));
-	}
-	bActorSCCStatusColumnActive = !bActorSCCStatusColumnActive;
-}
-
-void FActorBrowsingMode::TogglePinnedColumn()
-{
-	if (bPinnedColumnActive)
-	{
-		SceneOutliner->RemoveColumn(FSceneOutlinerBuiltInColumnTypes::Pinned());
-	}
-	else
-	{
-		SceneOutliner->AddColumn(FSceneOutlinerBuiltInColumnTypes::Pinned(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 5));
-	}
-	bPinnedColumnActive = !bPinnedColumnActive;
-}
-
 #undef LOCTEXT_NAMESPACE

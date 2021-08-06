@@ -101,7 +101,9 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	HeaderRowWidget =
 		SNew( SHeaderRow )
 			// Only show the list header if the user configured the outliner for that
-			.Visibility(InInitOptions.bShowHeaderRow ? EVisibility::Visible : EVisibility::Collapsed);
+			.Visibility(InInitOptions.bShowHeaderRow ? EVisibility::Visible : EVisibility::Collapsed)
+			.CanSelectGeneratedColumn(true)
+			.OnHiddenColumnsListChanged(this, &SSceneOutliner::HandleHiddenColumnsChanged);
 
 	SetupColumns(*HeaderRowWidget);
 
@@ -265,6 +267,11 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &SSceneOutliner::OnAssetReloaded);
 }
 
+void SSceneOutliner::HandleHiddenColumnsChanged()
+{
+	//Todo: Save?
+}
+
 void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 {
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
@@ -288,9 +295,11 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 
 	for (const FName& ID : SortedIDs)
 	{
+		bool bIsVisible = true;
+
 		if (SharedData->ColumnMap[ID].Visibility == ESceneOutlinerColumnVisibility::Invisible)
 		{
-			continue;
+			bIsVisible = false;
 		}
 
 		TSharedPtr<ISceneOutlinerColumn> Column;
@@ -306,22 +315,28 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 
 		if (ensure(Column.IsValid()))
 		{
-			check(Column->GetColumnID() == ID);
-			Columns.Add(Column->GetColumnID(), Column);
+			Columns.Add(ID, Column);
 
 			auto ColumnArgs = Column->ConstructHeaderRowColumn();
 
 			if (Column->SupportsSorting())
 			{
 				ColumnArgs
-					.SortMode(this, &SSceneOutliner::GetColumnSortMode, Column->GetColumnID())
+					.SortMode(this, &SSceneOutliner::GetColumnSortMode, ID)
 					.OnSort(this, &SSceneOutliner::OnColumnSortModeChanged);
+			}
+			
+			ColumnArgs.DefaultLabel(FText::FromName(ID));
+
+			if (!SharedData->ColumnMap[ID].bCanBeHidden)
+			{
+				ColumnArgs.ShouldGenerateWidget(true);
 			}
 
 			HeaderRow.AddColumn(ColumnArgs);
+			HeaderRowWidget->SetShowGeneratedColumn(ID, bIsVisible);
 		}
 	}
-
 	Columns.Shrink();
 	bNeedsColumRefresh = false;
 }
@@ -911,6 +926,14 @@ void SSceneOutliner::RemoveColumn(FName ColumId)
 	{
 		SharedData->ColumnMap.Remove(ColumId);
 		RefreshColums();
+	}
+}
+
+void SSceneOutliner::SetColumnVisibility(FName ColumnId, bool bIsVisible)
+{
+	if (Columns.Contains(ColumnId))
+	{
+		HeaderRowWidget->SetShowGeneratedColumn(ColumnId, bIsVisible);
 	}
 }
 

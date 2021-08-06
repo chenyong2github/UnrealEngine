@@ -109,11 +109,6 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideUnloadedActorsFilter();
 	
-	void ToggleActorSCCStatusColumn();
-	bool IsActorSCCStatusColumnActive() const { return bActorSCCStatusColumnActive; }
-
-	void TogglePinnedColumn();
-	bool IsPinnedColumnActive() const { return bPinnedColumnActive; }
 private:
 	/** Number of actors (including unloaded) which have passed through the filters */
 	uint32 FilteredActorCount = 0;
@@ -125,6 +120,4 @@ private:
 	TSet<TWeakObjectPtr<AActor>> ApplicableActors;
 
 	bool bRepresentingWorldPartitionedWorld = false;
-	bool bActorSCCStatusColumnActive = false;
-	bool bPinnedColumnActive = false;
 };
