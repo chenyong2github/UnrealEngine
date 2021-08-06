@@ -788,12 +788,11 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 		}
 		else if (EnumHasAnyFlags(Flags, TexCreate_NoTiling) && !EnumHasAnyFlags(Flags, TexCreate_FastVRAM|TexCreate_DepthStencilTargetable|TexCreate_RenderTargetable|TexCreate_UAV))
 		{
-#if PLATFORM_MAC
-			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::WriteCombined);
-			Desc.SetStorageMode(mtlpp::StorageMode::Managed);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeWriteCombined|mtlpp::ResourceOptions::StorageModeManaged));
-#else
 			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
+#if PLATFORM_MAC
+			Desc.SetStorageMode(mtlpp::StorageMode::Managed);
+			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModeManaged));
+#else
 			Desc.SetStorageMode(mtlpp::StorageMode::Shared);
 			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModeShared));
 #endif
@@ -821,12 +820,11 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 		else
 		{
 			check(!(Flags & TexCreate_CPUReadback));
-#if PLATFORM_MAC
-			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::WriteCombined);
-			Desc.SetStorageMode(mtlpp::StorageMode::Private);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeWriteCombined|mtlpp::ResourceOptions::StorageModePrivate));
-#else
 			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
+#if PLATFORM_MAC
+			Desc.SetStorageMode(mtlpp::StorageMode::Private);
+			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache|mtlpp::ResourceOptions::StorageModePrivate));
+#else
 			if(GMetalForceIOSTexturesShared)
 			{
 				Desc.SetStorageMode(mtlpp::StorageMode::Shared);

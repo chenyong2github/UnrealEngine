@@ -415,13 +415,6 @@ class FMetalResourceHeap
         NumUsageTypes = 2
     };
     
-    enum CPUCacheMode
-    {
-		Default,
-		WriteCombined,
-		NumCacheModes
-    };
-    
 public:
 	FMetalResourceHeap(void);
 	~FMetalResourceHeap();
@@ -461,7 +454,7 @@ private:
     TArray<FMetalSubBufferHeap*> BufferHeaps[NumUsageTypes][NumAllocTypes][NumHeapSizes];
 	
 	/** Larger buffers (up-to 32MB) that are subject to bucketing & pooling rather than sub-allocation */
-	FMetalBufferPool Buffers[NumAllocTypes][NumCacheModes];
+	FMetalBufferPool Buffers[NumAllocTypes];
 #if PLATFORM_MAC // All managed buffers are bucketed & pooled rather than sub-allocated to avoid memory consistency complexities
 	FMetalBufferPool ManagedBuffers;
 	TArray<FMetalSubBufferLinear*> ManagedSubHeaps;
