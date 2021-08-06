@@ -110,8 +110,9 @@ namespace HordeServer.Tasks
 		/// <param name="LeaseId">The lease id</param>
 		/// <param name="Payload">The lease payload</param>
 		/// <param name="Outcome">Outcome of the lease</param>
+		/// <param name="Output">Output from the task</param>
 		/// <returns>Async task</returns>
-		Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome);
+		Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output);
 	}
 
 	/// <summary>
@@ -127,13 +128,13 @@ namespace HordeServer.Tasks
 		public abstract Task<ITaskListener?> SubscribeAsync(IAgent Agent);
 
 		/// <inheritdoc/>
-		public Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Task, LeaseOutcome Outcome)
+		public Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Task, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
 		{
-			return OnLeaseCompletedAsync(Agent, LeaseId, Task.Unpack<T>(), Outcome);
+			return OnLeaseCompletedAsync(Agent, LeaseId, Task.Unpack<T>(), Outcome, Output);
 		}
 
-		/// <inheritdoc cref="OnLeaseCompletedAsync(IAgent, ObjectId, Any, LeaseOutcome)"/>
-		public virtual Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, T TaskInput, LeaseOutcome Outcome)
+		/// <inheritdoc cref="OnLeaseCompletedAsync(IAgent, ObjectId, Any, LeaseOutcome, ReadOnlyMemory{byte})"/>
+		public virtual Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, T TaskInput, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
 		{
 			return Task.CompletedTask;
 		}
