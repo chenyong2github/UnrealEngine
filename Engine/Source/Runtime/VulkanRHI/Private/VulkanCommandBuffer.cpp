@@ -175,7 +175,7 @@ void FVulkanCmdBuffer::EndRenderPass()
 
 void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, FVulkanRenderPass* RenderPass, FVulkanFramebuffer* Framebuffer, const VkClearValue* AttachmentClearValues)
 {
-	if(bIsUniformBufferBarrierAdded)
+	if (bIsUniformBufferBarrierAdded)
 	{
 		EndUniformUpdateBarrier();
 	}
@@ -201,7 +201,20 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 		Info.pNext = &RPTransformBeginInfoQCOM;
 	}
 #endif
-	VulkanRHI::vkCmdBeginRenderPass(CommandBufferHandle, &Info, VK_SUBPASS_CONTENTS_INLINE);
+
+#if VULKAN_SUPPORTS_RENDERPASS2
+	if (Device->GetOptionalExtensions().HasKHRRenderPass2)
+	{
+		VkSubpassBeginInfo SubpassInfo;
+		ZeroVulkanStruct(SubpassInfo, VK_STRUCTURE_TYPE_SUBPASS_BEGIN_INFO);
+		SubpassInfo.contents = VK_SUBPASS_CONTENTS_INLINE;
+		VulkanRHI::vkCmdBeginRenderPass2KHR(CommandBufferHandle, &Info, &SubpassInfo);
+	}
+	else
+#endif
+	{
+		VulkanRHI::vkCmdBeginRenderPass(CommandBufferHandle, &Info, VK_SUBPASS_CONTENTS_INLINE);
+	}
 
 	State = EState::IsInsideRenderPass;
 
