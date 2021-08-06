@@ -96,7 +96,8 @@
     <None Include="Resources\BatchBuilder.png" />
     <Resource Include="Resources\BatchBuilderBackground.png" />
     <Resource Include="Resources\Icon.ico" />
-    <Content Include="ReleaseNotes.txt">
+    <Content Include="..\ReleaseNotes.txt">
+	  <Visible>false</Visible>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
