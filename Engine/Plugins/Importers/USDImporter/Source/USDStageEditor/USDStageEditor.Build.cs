@@ -21,14 +21,15 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"LevelEditor",
 					"Projects", // So that we can use the IPluginManager, required for our custom style
+					"SceneOutliner",
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
 					"UnrealUSDWrapper",
 					"USDSchemas",
-					"USDStageImporter",
 					"USDStage",
 					"USDStageEditorViewModels",
+					"USDStageImporter",
 					"USDUtilities",
 					"WorkspaceMenuStructure",
 				}
