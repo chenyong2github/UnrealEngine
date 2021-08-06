@@ -7,6 +7,7 @@
 #include "RigVMArray.h"
 #include "RigVMExternalVariable.h"
 #include "RigVMModule.h"
+#include "Logging/TokenizedMessage.h"
 #include "RigVMExecuteContext.generated.h"
 
 USTRUCT()
