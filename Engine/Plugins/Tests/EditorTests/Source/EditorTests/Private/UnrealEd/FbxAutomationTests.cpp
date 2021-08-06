@@ -27,6 +27,7 @@
 #include "SkinWeightsUtilities.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "Misc/Paths.h"
 
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimSequence.h"
@@ -131,7 +132,7 @@ void FFbxImportAssetsAutomationTest::GetTests(TArray<FString>& OutBeautifiedName
 	FString ImportTestDirectory;
 	check(GConfig);
 	GConfig->GetString(TEXT("AutomationTesting.FbxImport"), TEXT("FbxImportTestPath"), ImportTestDirectory, GEngineIni);
-
+	ImportTestDirectory = FPaths::Combine(FPaths::ConvertRelativePathToFull(FPaths::EngineDir()), ImportTestDirectory);
 
 	// Find all files in the GenericImport directory
 	TArray<FString> FilesInDirectory;
