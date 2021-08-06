@@ -828,6 +828,11 @@ void FDatasmithMaxSceneParser::ParseForestNode(INode* ForestNode)
 
 void FDatasmithMaxSceneParser::ParseRailcloneNode(INode* RailCloneNode)
 {
+	if (RailCloneNode == nullptr)
+	{
+		return;
+	}
+
 	TimeValue CurrentTime = GetCOREInterface()->GetTime();
 
 	IRCStaticInterface* RCStaticInterface = GetRCStaticInterface();
@@ -845,42 +850,31 @@ void FDatasmithMaxSceneParser::ParseRailcloneNode(INode* RailCloneNode)
 
 	RCInterface->IRCRenderBegin(CurrentTime);
 
-	ulong RailCloneHandle = RailCloneNode->GetHandle();
-	FString RailCloneName = RailCloneNode->GetName();
-	Matrix3 RailCloneMatrix = RailCloneNode->GetNodeTM(CurrentTime);
-
-	TMap<Mesh*, int>  MeshesIndex;
-
 	int NumInstances;
 	TRCInstance* RCInstance = (TRCInstance *)RCInterface->IRCGetInstances(NumInstances);
 
 	if (RCInstance && NumInstances > 0)
 	{
 		MaterialEnum(RailCloneNode->GetMtl(), true);
-		TArray<FMaxRendereableNode*> SourceNodes;
+		int32 NextMeshIndex = 0;
+		TMap<Mesh*, int32> RenderableNodeIndicesMap;
 		for (int j = 0; j < NumInstances; j++, RCInstance++)
 		{
 			if (RCInstance && RCInstance->mesh)
 			{
-				int* VirtualIndexPtr = MeshesIndex.Find(RCInstance->mesh);
-				int VirtualIndex = VirtualIndexPtr ? *VirtualIndexPtr : -1;
-
-				if (VirtualIndex < 0)
+				if (int32* RenderableNodeIndexPtr = RenderableNodeIndicesMap.Find(RCInstance->mesh))
 				{
-					VirtualIndex = (int)MeshesIndex.Num();
-					MeshesIndex.Add(RCInstance->mesh, VirtualIndex);
-
-					RenderableNodes.Emplace(RailCloneNode, EMaxEntityType::Geometry);
-					RenderableNodes.Last().Instancemode = EMaxExporterInstanceMode::UnrealHISM;
-					RenderableNodes.Last().bIsReadyToExport = true;
-					RenderableNodes.Last().MaxMesh = MakeUnique<Mesh>(*RCInstance->mesh);
-					RenderableNodes.Last().MeshIndex = VirtualIndex;
-					RenderableNodes.Last().InstancesTransformPtr = MakeUnique<TArray<Matrix3>>();
-					SourceNodes.Emplace(&RenderableNodes.Last());
+					RenderableNodes[*RenderableNodeIndexPtr].InstancesTransformPtr->Emplace(RCInstance->tm);
 				}
-				if (VirtualIndex >= 0)
+				else
 				{
-					SourceNodes[VirtualIndex]->InstancesTransformPtr->Emplace(RCInstance->tm);
+					RenderableNodeIndicesMap.Add(RCInstance->mesh, RenderableNodes.Num());
+					FMaxRendereableNode& RenderableNode = RenderableNodes.Emplace_GetRef(RailCloneNode, EMaxEntityType::Geometry);
+					RenderableNode.Instancemode = EMaxExporterInstanceMode::UnrealHISM;
+					RenderableNode.bIsReadyToExport = true;
+					RenderableNode.MaxMesh = MakeUnique<Mesh>(*RCInstance->mesh);
+					RenderableNode.MeshIndex = NextMeshIndex++;
+					RenderableNode.InstancesTransformPtr = MakeUnique<TArray<Matrix3>>();
 				}
 			}
 		}

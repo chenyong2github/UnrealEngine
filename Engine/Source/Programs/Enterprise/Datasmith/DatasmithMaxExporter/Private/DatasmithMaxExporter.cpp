@@ -381,14 +381,19 @@ int FDatasmithMaxExporter::ExportScene(FDatasmithSceneExporter* DatasmithSceneEx
 
 	FDatasmithUniqueNameProvider UniqueNameProvider;
 	TMap < INode *, TSharedPtr< IDatasmithActorElement >> ElementMap;
-
+	int LastDisplayedProgress = -1;
 	for (int i = 0; i < InSceneParser.GetRendereableNodesCount(); i++)
 	{
 		if (InSceneParser.GetEntityType(i) == EMaxEntityType::Geometry && GetCOREInterface()->GetCancel() == false)
 		{
 			const float ProgressRatio = (float(i)) / InSceneParser.GetRendereableNodesCount();
-			FString ProgressText = FString(TEXT("(") + FString::FromInt( int(PercentTakenForMeshes * ProgressRatio) ) + TEXT("%) ") + InSceneParser.GetNode(i)->GetName()).Left(255);
-			ProgressManager->ProgressEvent(ProgressRatio, *ProgressText);
+			int ProgressPct = PercentTakenForMeshes * ProgressRatio;
+			if (ProgressPct != LastDisplayedProgress)
+			{
+				LastDisplayedProgress = ProgressPct;
+				FString ProgressText = InSceneParser.GetNode(i)->GetName();
+				ProgressManager->ProgressEvent(ProgressRatio, *ProgressText);
+			}
 
 			// Export to file
 			FString NodeID = FString::FromInt(InSceneParser.GetNode(i)->GetHandle());
