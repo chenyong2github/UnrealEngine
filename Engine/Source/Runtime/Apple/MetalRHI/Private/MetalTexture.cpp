@@ -916,7 +916,7 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 			FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
 
 			const uint32 MinimumByteAlignment = GetMetalDeviceContext().GetDevice().GetMinimumLinearTextureAlignmentForPixelFormat(MTLFormat);
-			const NSUInteger BytesPerRow = Align(SizeAlign.Size / SizeY, MinimumByteAlignment);
+			const NSUInteger BytesPerRow = Align(Desc.GetWidth() * GPixelFormats[Format].BlockBytes, MinimumByteAlignment);
 			
 			Texture = Buffer.NewTexture(Desc, 0, BytesPerRow);
 		}
