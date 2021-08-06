@@ -138,6 +138,16 @@ struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
 	int32 NodeRunLimit;
 };
 
+USTRUCT()
+struct CONTROLRIGDEVELOPER_API FControlRigPythonSettings
+{
+	GENERATED_BODY();
+
+	FControlRigPythonSettings()
+	{
+	}
+};
+
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
 {
@@ -285,6 +295,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM")
 	FRigVMCompileSettings VMCompileSettings;
+
+	UPROPERTY(EditAnywhere, Category = "Python Log Settings")
+	FControlRigPythonSettings PythonLogSettings;
 
 protected:
 

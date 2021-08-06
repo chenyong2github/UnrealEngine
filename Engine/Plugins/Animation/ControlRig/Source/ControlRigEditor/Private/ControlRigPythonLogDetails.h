@@ -1,21 +1,20 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "RigVMCompiler/RigVMCompiler.h"
 #include "ControlRigBlueprint.h"
 
 class IPropertyHandle;
 
-class FRigVMCompileSettingsDetails : public IPropertyTypeCustomization
+class FControlRigPythonLogDetails : public IPropertyTypeCustomization
 {
 public:
 
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShareable(new FRigVMCompileSettingsDetails);
+		return MakeShareable(new FControlRigPythonLogDetails);
 	}
 
 	/** IPropertyTypeCustomization interface */
@@ -24,11 +23,8 @@ public:
 
 protected:
 
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-	FReply OnInspectMemory(ERigVMMemoryType InMemoryType);
-#endif
-	FReply OnCopyASTClicked();
-	FReply OnCopyByteCodeClicked();
-	
+	FReply OnCopyPythonScriptClicked();
+	FReply OnRunPythonContextClicked();
+
 	UControlRigBlueprint* BlueprintBeingCustomized;
 };
