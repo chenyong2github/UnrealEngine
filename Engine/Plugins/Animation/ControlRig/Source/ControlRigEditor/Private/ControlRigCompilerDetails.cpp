@@ -126,30 +126,6 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 						.Text(LOCTEXT("CopyByteCodeToClipboard", "Copy ByteCode"))
 					]
 				]
-				+ SVerticalBox::Slot()
-				[
-					SNew(SButton)
-					.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyPythonScriptClicked)
-					.ContentPadding(FMargin(2))
-					.Content()
-					[
-						SNew(STextBlock)
-						.Justification(ETextJustify::Center)
-						.Text(LOCTEXT("CopyPythonScript", "Copy Python Script"))
-					]
-				]
-				+ SVerticalBox::Slot()
-				[
-					SNew(SButton)
-					.OnClicked(this, &FRigVMCompileSettingsDetails::OnRunPythonContextClicked)
-					.ContentPadding(FMargin(2))
-					.Content()
-					[
-						SNew(STextBlock)
-						.Justification(ETextJustify::Center)
-						.Text(LOCTEXT("RunPythonContext", "Run Python Context"))
-					]
-				]
 			];
 	}
 }
@@ -198,54 +174,6 @@ FReply FRigVMCompileSettingsDetails::OnCopyByteCodeClicked()
 				FString ByteCodeContent = ControlRig->GetVM()->DumpByteCodeAsText();
 				FPlatformApplicationMisc::ClipboardCopy(*ByteCodeContent);
 			}
-		}
-	}
-	return FReply::Handled();
-}
-
-FReply FRigVMCompileSettingsDetails::OnCopyPythonScriptClicked()
-{
-	if (BlueprintBeingCustomized)
-	{
-		FString NewName = BlueprintBeingCustomized->GetPathName();
-		int32 DotIndex = NewName.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-		if (DotIndex != INDEX_NONE)
-		{
-			NewName = NewName.Left(DotIndex);
-		}
-		
-		TArray<FString> Commands = BlueprintBeingCustomized->GeneratePythonCommands(NewName);
-		FString FullScript = FString::Join(Commands, TEXT("\n"));
-		FPlatformApplicationMisc::ClipboardCopy(*FullScript);
-	}
-	return FReply::Handled();
-}
-
-FReply FRigVMCompileSettingsDetails::OnRunPythonContextClicked()
-{
-	if (BlueprintBeingCustomized)
-	{
-		FString BlueprintName = BlueprintBeingCustomized->GetPathName();
-		int32 DotIndex = BlueprintName.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-		if (DotIndex != INDEX_NONE)
-		{
-			BlueprintName = BlueprintName.Left(DotIndex);
-		}
-		
-		TArray<FString> PyCommands = {
-			TEXT("import unreal"),
-			FString::Printf(TEXT("blueprint = unreal.load_object(name = '%s', outer = None)"), *BlueprintName),
-			TEXT("library = blueprint.get_local_function_library()"),
-			TEXT("library_controller = blueprint.get_controller(library)"),
-			TEXT("hierarchy = blueprint.hierarchy"),
-			TEXT("hierarchy_controller = hierarchy.get_controller()")};
-
-		for (FString& Command : PyCommands)
-		{
-			RigVMPythonUtils::Print(BlueprintBeingCustomized->GetFName().ToString(), Command);
-		
-			// Run the Python commands
-			IPythonScriptPlugin::Get()->ExecPythonCommand(*Command);
 		}
 	}
 	return FReply::Handled();
