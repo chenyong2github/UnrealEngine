@@ -15,10 +15,10 @@
 UENUM()
 enum class EDisplayClusterConfigurationFramePostProcess_OutputRemapSource : uint8
 {
-	/** Use static mesh. */
+	/** Use a Static Mesh reference for output remapping when the Data Source is set to Mesh */
 	StaticMesh     UMETA(DisplayName = "Mesh"),
 
-	/** Load mesh from external file. */
+	/** Use an external .obj file for output remapping when the Data Source is set to File */
 	ExternalFile   UMETA(DisplayName = "External file"),
 };
 
@@ -29,19 +29,19 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationFramePostProc
 	GENERATED_BODY()
 
 public:
-	// Enable window output remapping
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay OutputRemap")
+	/** Enables or disables output remapping */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay OutputRemap", meta = (DisplayName = "Enable Output Remapping"))
 	bool bEnable = false;
 
-	// Remap source type
+	/** Selects either the Static Mesh or External File setting as the source for output remapping */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay OutputRemap")
 	EDisplayClusterConfigurationFramePostProcess_OutputRemapSource DataSource = EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::StaticMesh;
 
-	// Reference to the mesh asset to remap
+	/** The Static Mesh reference to use for output remapping when the Data Source is set to Static Mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NDisplay OutputRemap")
 	class UStaticMesh* StaticMesh;
 
-	// path to the obj file to remap the output
+	/** The external .obj file to use for output remapping when the Data Source is set to File */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay OutputRemap")
 	FString ExternalFile;
 };

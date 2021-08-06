@@ -315,8 +315,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Window"))
 	FDisplayClusterConfigurationRectangle WindowRect;
 
-	/** Configure OtputRemap for this cluster node window frame*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Output Remap"))
+	/** Output remapping settings for the selected cluster node */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Output Remapping"))
 	FDisplayClusterConfigurationFramePostProcess_OutputRemap OutputRemap;
 
 #if WITH_EDITORONLY_DATA
