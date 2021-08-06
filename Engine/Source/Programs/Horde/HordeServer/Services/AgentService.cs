@@ -569,7 +569,7 @@ namespace HordeServer.Services
 							{
 								if (NewLease.State == LeaseState.Cancelled || NewLease.State == LeaseState.Completed)
 								{
-									await RemoveLeaseAsync(Agent, Lease, UtcNow, NewLease.Outcome, NewLease.Result.ToByteArray());
+									await RemoveLeaseAsync(Agent, Lease, UtcNow, NewLease.Outcome, NewLease.Output.ToByteArray());
 									Leases.RemoveAt(Idx--);
 								}
 								else if (NewLease.State == LeaseState.Active && Lease.State == LeaseState.Pending)
