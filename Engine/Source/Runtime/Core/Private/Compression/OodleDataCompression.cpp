@@ -128,7 +128,7 @@ struct OodleDataCompressionDecoders
 
 					OodleDecoders[i].OodleDecoderMutex.Unlock();
 
-					return (int) Result;
+					return (int64) Result;
 				}
 
 				OodleDecoders[i].OodleDecoderMutex.Unlock();
