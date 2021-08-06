@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/EnumClassFlags.h"
 #include "Templates/Invoke.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -15,6 +16,17 @@ namespace UE::DerivedData { enum class EPriority : uint8; }
 
 namespace UE::DerivedData
 {
+
+/** Flags to control the behavior of request barriers. */
+enum class ERequestBarrierFlags : uint32
+{
+	/** A value without any flags set. */
+	None            = 0,
+	/** Within the barrier, calls to SetPriority are replayed to requests in calls to Begin. */
+	Priority        = 1 << 0,
+};
+
+ENUM_CLASS_FLAGS(ERequestBarrierFlags);
 
 /**
  * A request owner manages requests throughout their execution.
@@ -61,8 +73,8 @@ public:
 	inline TRefCountPtr<IRequest> End(IRequest* Request, CallbackType&& Callback, CallbackArgTypes&&... CallbackArgs);
 
 	/** See FRequestBarrier. */
-	virtual void BeginBarrier() = 0;
-	virtual void EndBarrier() = 0;
+	virtual void BeginBarrier(ERequestBarrierFlags Flags) = 0;
+	virtual void EndBarrier(ERequestBarrierFlags Flags) = 0;
 
 	/** Returns the priority that new requests are expected to inherit. */
 	virtual EPriority GetPriority() const = 0;
@@ -126,15 +138,16 @@ private:
 class FRequestBarrier
 {
 public:
-	inline explicit FRequestBarrier(IRequestOwner& InOwner)
+	inline explicit FRequestBarrier(IRequestOwner& InOwner, ERequestBarrierFlags InFlags = ERequestBarrierFlags::None)
 		: Owner(InOwner)
+		, Flags(InFlags)
 	{
-		Owner.BeginBarrier();
+		Owner.BeginBarrier(Flags);
 	}
 
 	inline ~FRequestBarrier()
 	{
-		Owner.EndBarrier();
+		Owner.EndBarrier(Flags);
 	}
 
 	FRequestBarrier(const FRequestBarrier&) = delete;
@@ -142,12 +155,13 @@ public:
 
 private:
 	IRequestOwner& Owner;
+	ERequestBarrierFlags Flags;
 };
 
 template <typename CallbackType, typename... CallbackArgTypes>
 TRefCountPtr<IRequest> IRequestOwner::End(IRequest* Request, CallbackType&& Callback, CallbackArgTypes&&... CallbackArgs)
 {
-	FRequestBarrier Barrier(*this);
+	FRequestBarrier Barrier(*this, ERequestBarrierFlags::Priority);
 	TRefCountPtr<IRequest> RequestRef = End(Request);
 	Invoke(Forward<CallbackType>(Callback), Forward<CallbackArgTypes>(CallbackArgs)...);
 	return RequestRef;

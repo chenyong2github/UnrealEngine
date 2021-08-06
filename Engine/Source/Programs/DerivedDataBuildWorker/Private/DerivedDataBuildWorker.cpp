@@ -217,30 +217,32 @@ bool FBuildWorkerProgram::Build()
 		UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("No build actions to operate on."));
 		return false;
 	}
-
-	for (const FString& ActionPath : ActionPaths)
+	else
 	{
-		UE_LOG(LogDerivedDataBuildWorker, Log, TEXT("Loading build action '%s'"), *ActionPath);
-		FCbObject ActionObject;
-		if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileReader(*ActionPath, FILEREAD_Silent)})
+		FRequestBarrier Barrier(Owner);
+		for (const FString& ActionPath : ActionPaths)
 		{
-			*Ar << ActionObject;
-		}
-		else
-		{
-			UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Missing build action '%s'"), *ActionPath);
-			return false;
-		}
-		if (FOptionalBuildAction Action = FBuildAction::Load(ActionPath, MoveTemp(ActionObject)); Action.IsNull())
-		{
-			UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Invalid build action '%s'"), *ActionPath);
-			return false;
-		}
-		else
-		{
-			FRequestBarrier Barrier(Owner);
-			Session.BuildAction(Action.Get(), {}, EBuildPolicy::BuildLocal, Owner,
-				[this](FBuildActionCompleteParams&& Params) { BuildComplete(MoveTemp(Params)); });
+			UE_LOG(LogDerivedDataBuildWorker, Log, TEXT("Loading build action '%s'"), *ActionPath);
+			FCbObject ActionObject;
+			if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileReader(*ActionPath, FILEREAD_Silent)})
+			{
+				*Ar << ActionObject;
+			}
+			else
+			{
+				UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Missing build action '%s'"), *ActionPath);
+				return false;
+			}
+			if (FOptionalBuildAction Action = FBuildAction::Load(ActionPath, MoveTemp(ActionObject)); Action.IsNull())
+			{
+				UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("Invalid build action '%s'"), *ActionPath);
+				return false;
+			}
+			else
+			{
+				Session.BuildAction(Action.Get(), {}, EBuildPolicy::BuildLocal, Owner,
+					[this](FBuildActionCompleteParams&& Params) { BuildComplete(MoveTemp(Params)); });
+			}
 		}
 	}
 
