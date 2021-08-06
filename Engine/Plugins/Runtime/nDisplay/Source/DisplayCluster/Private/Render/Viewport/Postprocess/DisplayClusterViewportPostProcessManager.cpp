@@ -16,6 +16,8 @@
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 
+#include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessOutputRemap.h"
+
 #include "Misc/DisplayClusterGlobals.h"
 
 #include "DisplayClusterConfigurationTypes.h"
@@ -55,6 +57,12 @@ static TAutoConsoleVariable<int32> CVarPostprocessFrameAfterWarpBlend(
 	TEXT("Enable PP per eye frame after warp&blend (0 = disabled)\n"),
 	ECVF_RenderThreadSafe
 );
+
+FDisplayClusterViewportPostProcessManager::FDisplayClusterViewportPostProcessManager(FDisplayClusterViewportManager& InViewportManager)
+	: ViewportManager(InViewportManager)
+{
+	OutputRemap = MakeShared<FDisplayClusterViewportPostProcessOutputRemap, ESPMode::ThreadSafe>();
+}
 
 bool FDisplayClusterViewportPostProcessManager::HandleStartScene()
 {
@@ -220,6 +228,11 @@ bool FDisplayClusterViewportPostProcessManager::IsPostProcessFrameAfterWarpBlend
 		return (CVarPostprocessFrameAfterWarpBlend.GetValueOnAnyThread() != 0);
 	}
 
+	if (OutputRemap.IsValid() && OutputRemap->IsValid())
+	{
+		return true;
+	}
+
 	return false;
 }
 
@@ -240,6 +253,11 @@ bool FDisplayClusterViewportPostProcessManager::IsAnyPostProcessRequired(const T
 		return true;
 	}
 
+	if (OutputRemap.IsValid() && OutputRemap->IsValid())
+	{
+		return true;
+	}
+
 	return false;
 }
 
@@ -253,6 +271,11 @@ bool FDisplayClusterViewportPostProcessManager::ShouldUseAdditionalFrameTargetab
 		{
 			return IsAnyPostProcessRequired(It);
 		}
+	}
+
+	if (OutputRemap.IsValid() && OutputRemap->IsValid())
+	{
+		return true;
 	}
 
 	return false;
@@ -380,6 +403,13 @@ void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessFrameAfter
 					TArray<FRHITexture2D*>* AdditionalResources = (AdditionalFrameResources.Num() > 0 && It->ShouldUseAdditionalFrameTargetableResource())? &AdditionalFrameResources: nullptr;
 					It->PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, &FrameResources, AdditionalResources);
 				}
+			}
+
+			// Apply OutputRemap after all postprocess
+			if (OutputRemap.IsValid() && OutputRemap->IsValid())
+			{
+				TArray<FRHITexture2D*>* AdditionalResources = (AdditionalFrameResources.Num() > 0) ? &AdditionalFrameResources : nullptr;
+				OutputRemap->PerformPostProcessFrame_RenderThread(RHICmdList, &FrameResources, AdditionalResources);
 			}
 		}
 	}

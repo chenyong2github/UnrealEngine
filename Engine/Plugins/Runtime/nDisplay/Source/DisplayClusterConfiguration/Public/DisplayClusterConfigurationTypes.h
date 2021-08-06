@@ -10,6 +10,7 @@
 #include "DisplayClusterConfigurationTypes_Base.h"
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "DisplayClusterConfigurationTypes_Viewport.h"
+#include "DisplayClusterConfigurationTypes_OutputRemap.h"
 
 #include "DisplayClusterConfigurationVersion.h"
 
@@ -313,6 +314,10 @@ public:
 	/** Defines the application window size in pixels */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Window"))
 	FDisplayClusterConfigurationRectangle WindowRect;
+
+	/** Configure OtputRemap for this cluster node window frame*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Output Remap"))
+	FDisplayClusterConfigurationFramePostProcess_OutputRemap OutputRemap;
 
 #if WITH_EDITORONLY_DATA
 	/** Locks the application window aspect ratio for easier resizing */

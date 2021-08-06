@@ -251,6 +251,16 @@ namespace JSON427
 					Node->Postprocess.Emplace(CfgPostprocess.Key, PostprocessOperation);
 				}
 
+				// Output remap
+				Node->OutputRemap.bEnable = CfgNode.Value.OutputRemap.bEnable;
+				Node->OutputRemap.DataSource = (CfgNode.Value.OutputRemap.DataSource == "file") ? EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::ExternalFile : EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::StaticMesh;
+				Node->OutputRemap.ExternalFile = CfgNode.Value.OutputRemap.ExternalFile;
+
+				if (!CfgNode.Value.OutputRemap.StaticMeshAsset.IsEmpty())
+				{
+					Node->OutputRemap.StaticMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, *CfgNode.Value.OutputRemap.StaticMeshAsset));
+				}
+
 				// Store new cluster node
 				Config->Cluster->Nodes.Emplace(CfgNode.Key, Node);
 			}
@@ -397,9 +407,7 @@ namespace JSON427
 					Viewport.Camera = CfgViewport.Value->Camera;
 					Viewport.Region = FDisplayClusterConfigurationJsonRectangle_427(CfgViewport.Value->Region.X, CfgViewport.Value->Region.Y, CfgViewport.Value->Region.W, CfgViewport.Value->Region.H);
 					Viewport.GPUIndex = CfgViewport.Value->GPUIndex;
-					//Viewport.IsShared = CfgViewport.Value->bIsShared;
 					Viewport.BufferRatio = CfgViewport.Value->RenderSettings.BufferRatio;
-					//Viewport.AllowCrossGPUTransfer = CfgViewport.Value->bAllowCrossGPUTransfer;
 
 					// Projection policy
 					Viewport.ProjectionPolicy.Type = CfgViewport.Value->ProjectionPolicy.Type;
@@ -418,6 +426,18 @@ namespace JSON427
 					PostprocessOperation.Parameters = CfgPostprocess.Value.Parameters;
 
 					Node.Postprocess.Emplace(CfgPostprocess.Key, PostprocessOperation);
+				}
+
+				// OutputRemap
+				{
+					Node.OutputRemap.bEnable = CfgNode.Value->OutputRemap.bEnable;
+					Node.OutputRemap.DataSource = (CfgNode.Value->OutputRemap.DataSource == EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::ExternalFile) ? "file" : "mesh";
+					Node.OutputRemap.ExternalFile = CfgNode.Value->OutputRemap.ExternalFile;
+
+					if (CfgNode.Value->OutputRemap.StaticMesh)
+					{
+						Node.OutputRemap.StaticMeshAsset = CfgNode.Value->OutputRemap.StaticMesh->GetPathName();
+					}
 				}
 
 				// Store new cluster node
