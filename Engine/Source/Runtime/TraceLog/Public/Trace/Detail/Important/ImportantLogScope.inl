@@ -146,12 +146,12 @@ struct FImportantLogScope::FFieldSet<FieldMeta, AnsiString>
 		Scope->Ptr[Scope->AuxCursor] = 0; // null terminator
 	}
 
-	static void Impl(FImportantLogScope* Scope, const TCHAR* String, int32 Length=-1)
+	static void Impl(FImportantLogScope* Scope, const WIDECHAR* String, int32 Length=-1)
 	{
 		if (Length < 0)
 		{
 			Length = 0;
-			for (const TCHAR* c = String; *c; ++c, ++Length);
+			for (const WIDECHAR* c = String; *c; ++c, ++Length);
 		}
 
 		auto* Header = (FAuxHeader*)(Scope->Ptr + Scope->AuxCursor);
@@ -175,15 +175,15 @@ struct FImportantLogScope::FFieldSet<FieldMeta, AnsiString>
 template <typename FieldMeta>
 struct FImportantLogScope::FFieldSet<FieldMeta, WideString>
 {
-	static void Impl(FImportantLogScope* Scope, const TCHAR* String, int32 Length=-1)
+	static void Impl(FImportantLogScope* Scope, const WIDECHAR* String, int32 Length=-1)
 	{
 		if (Length < 0)
 		{
 			Length = 0;
-			for (const TCHAR* c = String; *c; ++c, ++Length);
+			for (const WIDECHAR* c = String; *c; ++c, ++Length);
 		}
 
-		uint32 Size = Length * sizeof(TCHAR);
+		uint32 Size = Length * sizeof(WIDECHAR);
 
 		auto* Header = (FAuxHeader*)(Scope->Ptr + Scope->AuxCursor);
 		Header->Size = Size << 8;

@@ -25,8 +25,8 @@ namespace Private
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_API void Field_WriteAuxData(uint32, const uint8*, int32);
 UE_TRACE_API void Field_WriteStringAnsi(uint32, const ANSICHAR*, int32);
-UE_TRACE_API void Field_WriteStringAnsi(uint32, const TCHAR*, int32);
-UE_TRACE_API void Field_WriteStringWide(uint32, const TCHAR*, int32);
+UE_TRACE_API void Field_WriteStringAnsi(uint32, const WIDECHAR*, int32);
+UE_TRACE_API void Field_WriteStringWide(uint32, const WIDECHAR*, int32);
 
 } // namespace Private
 

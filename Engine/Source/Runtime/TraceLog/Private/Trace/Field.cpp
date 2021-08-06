@@ -77,7 +77,7 @@ void Field_WriteAuxData(uint32 Index, const uint8* Data, int32 Size)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Field_WriteStringAnsi(uint32 Index, const TCHAR* String, int32 Length)
+void Field_WriteStringAnsi(uint32 Index, const WIDECHAR* String, int32 Length)
 {
 	int32 Size = Length;
 	Size &= (FAuxHeader::SizeLimit - 1);
@@ -104,7 +104,7 @@ void Field_WriteStringAnsi(uint32 Index, const ANSICHAR* String, int32 Length)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void Field_WriteStringWide(uint32 Index, const TCHAR* String, int32 Length)
+void Field_WriteStringWide(uint32 Index, const WIDECHAR* String, int32 Length)
 {
 	int32 Size = Length * sizeof(String[0]);
 	Size &= (FAuxHeader::SizeLimit - 1); // (see above)
