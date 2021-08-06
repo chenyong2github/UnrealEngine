@@ -1216,7 +1216,7 @@ FMetalBuffer FMetalBufferPoolPolicyData::CreateResource(CreationArguments Args)
 
 FMetalBufferPoolPolicyData::CreationArguments FMetalBufferPoolPolicyData::GetCreationArguments(FMetalBuffer const& Resource)
 {
-	return FMetalBufferPoolPolicyData::CreationArguments(Resource.GetDevice(), Resource.GetLength(), BUF_None, Resource.GetStorageMode());
+	return FMetalBufferPoolPolicyData::CreationArguments(Resource.GetDevice(), Resource.GetLength(), BUF_None, Resource.GetStorageMode(), Resource.GetCpuCacheMode());
 }
 
 void FMetalBufferPoolPolicyData::FreeResource(FMetalBuffer& Resource)
@@ -1484,6 +1484,11 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBu
 	FMetalBuffer Buffer;
 	uint32 BlockSize = Align(Size, Alignment);
 	mtlpp::StorageMode StorageMode = (mtlpp::StorageMode)(((NSUInteger)Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
+	mtlpp::CpuCacheMode CpuMode = (mtlpp::CpuCacheMode)(((NSUInteger)Options & mtlpp::ResourceCpuCacheModeMask) >> mtlpp::ResourceCpuCacheModeShift);
+	
+	// Write combined should be on a case by case basis
+	check(CpuMode == mtlpp::CpuCacheMode::DefaultCache);
+	
 	if (BlockSize <= 33554432)
 	{
 		switch (StorageMode)
@@ -1518,11 +1523,11 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBu
 				 }
 				 else
 				 {
-                    Buffer = ManagedBuffers.CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode));
-                     if (GMetalResourcePurgeInPool)
-                     {
-                         Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
-                     }
+                    Buffer = ManagedBuffers.CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode, CpuMode));
+					if (GMetalResourcePurgeInPool)
+					{
+						Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+					}
 					DEC_MEMORY_STAT_BY(STAT_MetalBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_MetalPooledBufferUnusedMemory, Buffer.GetLength());
 					INC_MEMORY_STAT_BY(STAT_MetalPooledBufferMemory, Buffer.GetLength());
@@ -1595,8 +1600,7 @@ FMetalBuffer FMetalResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBu
 				else
 				{
 					FScopeLock Lock(&Mutex);
-					mtlpp::CpuCacheMode CpuMode = (mtlpp::CpuCacheMode)(((NSUInteger)Options & mtlpp::ResourceCpuCacheModeMask) >> mtlpp::ResourceCpuCacheModeShift);
-                    Buffer = Buffers[Storage][(NSUInteger)CpuMode].CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode, CpuMode));
+                    Buffer = Buffers[Storage].CreatePooledResource(FMetalPooledBufferArgs(Queue->GetDevice(), BlockSize, Flags, StorageMode, CpuMode));
 					if (GMetalResourcePurgeInPool)
 					{
                    		Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
@@ -1662,7 +1666,7 @@ void FMetalResourceHeap::ReleaseBuffer(FMetalBuffer& Buffer)
 			case mtlpp::StorageMode::Private:
 			case mtlpp::StorageMode::Shared:
 			{
-				Buffers[(NSUInteger)StorageMode][(NSUInteger)Buffer.GetCpuCacheMode()].ReleasePooledResource(Buffer);
+				Buffers[(NSUInteger)StorageMode].ReleasePooledResource(Buffer);
 				break;
 			}
 			default:
@@ -1761,10 +1765,7 @@ void FMetalResourceHeap::Compact(FMetalRenderPass* Pass, bool const bForce)
 
 	for(uint32 AllocTypeIndex = 0;AllocTypeIndex < NumAllocTypes;++AllocTypeIndex)
 	{
-		for(uint32 CacheModeIndex = 0;CacheModeIndex < NumCacheModes;++CacheModeIndex)
-		{
-			Buffers[AllocTypeIndex][CacheModeIndex].DrainPool(bForce);
-		}
+		Buffers[AllocTypeIndex].DrainPool(bForce);
 	}
 	
 #if PLATFORM_MAC
