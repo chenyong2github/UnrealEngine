@@ -390,7 +390,7 @@ void FBuildJob::CreateContext()
 	}
 	else
 	{
-		const FCacheKey CacheKey{Cache.CreateBucket(FunctionName), Action.Get().GetKey().Hash};
+		const FCacheKey CacheKey{FCacheBucket(FunctionName), Action.Get().GetKey().Hash};
 		Context = new FBuildJobContext(*this, CacheKey, *Function, OutputBuilder, BuildPolicy);
 		Function->Configure(*Context);
 		BuildPolicy = Context->GetBuildPolicy();
@@ -473,7 +473,7 @@ void FBuildJob::EnterCacheStore()
 void FBuildJob::BeginCacheStore()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::CacheStore);
-	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(Context->GetCacheKey());
+	FCacheRecordBuilder RecordBuilder(Context->GetCacheKey());
 	Output.Get().Save(RecordBuilder);
 	EnumAddFlags(BuildStatus, EBuildStatus::CacheStore);
 	Cache.Put({RecordBuilder.Build()}, Name, Context->GetCachePolicy(), Owner,
@@ -1037,7 +1037,7 @@ void FBuildJob::ExportBuild() const
 	TStringBuilder<256> ExportPath;
 	const FCacheKey& Key = Context->GetCacheKey();
 	FPathViews::Append(ExportPath, FPaths::ProjectSavedDir(), TEXT("DerivedDataBuildExport"), Key.Bucket);
-	if (FunctionName != Key.Bucket.ToString<TCHAR>())
+	if (!Key.Bucket.ToString().Equals(FunctionName))
 	{
 		FPathViews::Append(ExportPath, FunctionName);
 	}
@@ -1110,7 +1110,7 @@ bool FBuildJob::ShouldExportBuild() const
 	static TArray<FName> ExportTypes = ParseExportBuildTypes(bExportAll);
 	return bExportAll
 		|| Algo::BinarySearch(ExportTypes, FName(FunctionName), FNameFastLess()) != INDEX_NONE
-		|| Algo::BinarySearch(ExportTypes, FName(Context->GetCacheKey().Bucket.ToString<ANSICHAR>()), FNameFastLess()) != INDEX_NONE;
+		|| Algo::BinarySearch(ExportTypes, FName(Context->GetCacheKey().Bucket.ToString()), FNameFastLess()) != INDEX_NONE;
 }
 
 TArray<FName> FBuildJob::ParseExportBuildTypes(bool& bOutExportAll)

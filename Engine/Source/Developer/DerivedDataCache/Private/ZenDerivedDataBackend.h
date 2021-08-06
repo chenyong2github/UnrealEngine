@@ -55,7 +55,7 @@ public:
 	 * @param ServiceUrl	Base url to the service including schema.
 	 * @param Namespace		Namespace to use.
 	 */
-	FZenDerivedDataBackend(ICacheFactory& Factory, const TCHAR* ServiceUrl, const TCHAR* Namespace);
+	FZenDerivedDataBackend(const TCHAR* ServiceUrl, const TCHAR* Namespace);
 
 	~FZenDerivedDataBackend();
 
@@ -157,7 +157,6 @@ private:
 	bool DidSimulateMiss(const TCHAR* InKey);
 	bool ShouldSimulateMiss(const TCHAR* InKey);
 private:
-	ICacheFactory& Factory;
 	FString Domain;
 	FString Namespace;
 	mutable FDerivedDataCacheUsageStats UsageStats;

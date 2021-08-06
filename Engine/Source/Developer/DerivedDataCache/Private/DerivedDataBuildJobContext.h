@@ -62,7 +62,6 @@ private:
 	void BeginAsyncBuild() final;
 	void EndAsyncBuild() final;
 
-	FCacheBucket CreateCacheBucket(FStringView Name) const final;
 	void SetCacheBucket(FCacheBucket Bucket) final;
 	void SetCachePolicy(ECachePolicy Policy) final;
 	void SetBuildPolicy(EBuildPolicy Policy) final;

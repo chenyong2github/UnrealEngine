@@ -28,9 +28,8 @@ public:
 	 * Constructor
 	 * @param	InInnerBackends Backends to call into for actual storage of the cache, first item is the "fastest cache"
 	 */
-	FHierarchicalDerivedDataBackend(ICacheFactory& InFactory, const TArray<FDerivedDataBackendInterface*>& InInnerBackends)
-		: Factory(InFactory)
-		, InnerBackends(InInnerBackends)
+	FHierarchicalDerivedDataBackend(const TArray<FDerivedDataBackendInterface*>& InInnerBackends)
+		: InnerBackends(InInnerBackends)
 		, bIsWritable(false)
 		, bHasLocalBackends(false)
 		, bHasRemoteBackends(false)
@@ -88,7 +87,7 @@ private:
 			// async puts to allow us to fill all levels without holding up the engine
 			// we need to cache inflight puts to avoid having inconsistent miss and redownload on lower cache levels while puts are still async
 			const bool bCacheInFlightPuts = true;
-			AsyncPutInnerBackends.Emplace(new FDerivedDataBackendAsyncPutWrapper(Factory, InnerBackends[CacheIndex], bCacheInFlightPuts));
+			AsyncPutInnerBackends.Emplace(new FDerivedDataBackendAsyncPutWrapper(InnerBackends[CacheIndex], bCacheInFlightPuts));
 		}
 	}
 
@@ -597,7 +596,7 @@ public:
 		{
 			for (const FCacheKey& Key : RemainingKeys)
 			{
-				OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+				OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
 			}
 		}
 	}
@@ -656,7 +655,6 @@ private:
 	/** To avoid race while manipulating the arrays */
 	mutable FRWLock Lock;
 
-	ICacheFactory& Factory;
 	/** Array of backends forming the hierarchical cache...the first element is the fastest cache. **/
 	TArray<FDerivedDataBackendInterface*> InnerBackends;
 	/** Each of the backends wrapped with an async put **/

@@ -108,9 +108,8 @@ public:
 	 * @param InCacheDirectory	directory to store the cache in
 	 * @param bForceReadOnly	if true, do not attempt to write to this cache
 	*/
-	FFileSystemDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InCacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName)
-		: Factory(InFactory)
-		, CachePath(InCacheDirectory)
+	FFileSystemDerivedDataBackend(const TCHAR* InCacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName)
+		: CachePath(InCacheDirectory)
 		, SpeedClass(ESpeedClass::Unknown)
 		, bReadOnly(false)
 		, bTouch(false)
@@ -943,7 +942,7 @@ public:
 			{
 				if (OnComplete)
 				{
-					OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+					OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
 				}
 			}
 		}
@@ -1122,7 +1121,7 @@ private:
 		}
 
 		const FCbObject RecordObject(MoveTemp(Buffer));
-		FCacheRecordBuilder RecordBuilder = Factory.CreateRecord(Key);
+		FCacheRecordBuilder RecordBuilder(Key);
 
 		if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta))
 		{
@@ -1463,7 +1462,6 @@ private:
 		return CachePath / BuildPathForCacheKey(CacheKey);
 	}
 
-	ICacheFactory& Factory;
 	/** Base path we are storing the cache files in. **/
 	FString	CachePath;
 	/** Class of this cache */
@@ -1533,9 +1531,9 @@ private:
 
 };
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(ICacheFactory& Factory, const TCHAR* CacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName /*= nullptr*/)
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName /*= nullptr*/)
 {
-	FFileSystemDerivedDataBackend* FileDDB = new FFileSystemDerivedDataBackend(Factory, CacheDirectory, InParams, InAccessLogFileName);
+	FFileSystemDerivedDataBackend* FileDDB = new FFileSystemDerivedDataBackend(CacheDirectory, InParams, InAccessLogFileName);
 
 	if (!FileDDB->IsUsable())
 	{

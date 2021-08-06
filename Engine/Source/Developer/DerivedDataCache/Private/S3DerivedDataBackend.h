@@ -31,7 +31,7 @@ public:
 	 * @param  InCanaryObjectKey    Key for a canary object used to test whether this backend is usable
 	 * @param  InCachePath          Path to cache the DDC files
 	 */
-	FS3DerivedDataBackend(ICacheFactory& Factory, const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath);
+	FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath);
 	~FS3DerivedDataBackend();
 
 	/**
@@ -94,7 +94,6 @@ private:
 	class FHttpRequest;
 	class FRequestPool;
 
-	ICacheFactory& Factory;
 	FString RootManifestPath;
 	FString BaseUrl;
 	FString Region;

@@ -21,7 +21,7 @@ namespace UE::DerivedData::Backends
 class FMemoryDerivedDataBackend : public FFileBackedDerivedDataBackend
 {
 public:
-	explicit FMemoryDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InName, int64 InMaxCacheSize = -1, bool bCanBeDisabled = false);
+	explicit FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize = -1, bool bCanBeDisabled = false);
 	~FMemoryDerivedDataBackend();
 
 	/** Return a name for this interface */
@@ -142,9 +142,6 @@ private:
 
 	int64 CalcRawCacheRecordSize(const FCacheRecord& Record) const;
 	int64 CalcSerializedCacheRecordSize(const FCacheRecord& Record) const;
-
-	/** Factory used to construct cache records. */
-	ICacheFactory& Factory;
 
 	/** Name of this cache (used for debugging) */
 	FString Name;

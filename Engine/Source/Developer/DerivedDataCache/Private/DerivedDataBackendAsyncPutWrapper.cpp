@@ -163,10 +163,9 @@ public:
 	}
 };
 
-FDerivedDataBackendAsyncPutWrapper::FDerivedDataBackendAsyncPutWrapper(ICacheFactory& InFactory, FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts)
-	: Factory(InFactory)
-	, InnerBackend(InInnerBackend)
-	, InflightCache(bCacheInFlightPuts ? (new FMemoryDerivedDataBackend(Factory, TEXT("InflightMemoryCache"))) : NULL)
+FDerivedDataBackendAsyncPutWrapper::FDerivedDataBackendAsyncPutWrapper(FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts)
+	: InnerBackend(InInnerBackend)
+	, InflightCache(bCacheInFlightPuts ? (new FMemoryDerivedDataBackend(TEXT("InflightMemoryCache"))) : NULL)
 {
 	check(InnerBackend);
 }
@@ -521,7 +520,7 @@ void FDerivedDataBackendAsyncPutWrapper::Get(
 				{
 					for (const FCacheKey& Key : Keys)
 					{
-						OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Canceled});
+						OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Canceled});
 					}
 				}
 			});

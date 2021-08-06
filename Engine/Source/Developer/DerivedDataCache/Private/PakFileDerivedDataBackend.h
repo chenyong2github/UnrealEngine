@@ -25,7 +25,7 @@ namespace UE::DerivedData::Backends
 class FPakFileDerivedDataBackend : public FDerivedDataBackendInterface
 {
 public:
-	FPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting);
+	FPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting);
 	~FPakFileDerivedDataBackend();
 
 	void Close();
@@ -91,7 +91,7 @@ public:
 		return Filename;
 	}
 
-	static bool SortAndCopy(ICacheFactory& InFactory, const FString &InputFilename, const FString &OutputFilename);
+	static bool SortAndCopy(const FString &InputFilename, const FString &OutputFilename);
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 
@@ -145,7 +145,6 @@ private:
 		}
 	};
 
-	ICacheFactory& Factory;
 	/** When set to true, we are a pak writer (we don't do reads). */
 	bool bWriting;
 	/** When set to true, we are a pak writer and we saved, so we shouldn't be used anymore. Also, a read cache that failed to open. */
@@ -168,7 +167,7 @@ private:
 class FCompressedPakFileDerivedDataBackend : public FPakFileDerivedDataBackend
 {
 public:
-	FCompressedPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting);
+	FCompressedPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting);
 
 	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;

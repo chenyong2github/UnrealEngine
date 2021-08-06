@@ -11,9 +11,8 @@
 namespace UE::DerivedData::Backends
 {
 
-FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
-	: Factory(InFactory)
-	, Name(InName)
+FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
+	: Name(InName)
 	, MaxCacheSize(InMaxCacheSize)
 	, bDisabled( false )
 	, CurrentCacheSize( SerializationSpecificDataSize )
@@ -394,7 +393,7 @@ int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecor
 {
 	// Estimate the serialized size of the cache record.
 	uint64 TotalSize = 20;
-	TotalSize += Record.GetKey().Bucket.ToString<TCHAR>().Len();
+	TotalSize += Record.GetKey().Bucket.ToString().Len();
 	TotalSize += Record.GetMeta().GetSize();
 	const auto CalcCachePayloadSize = [](const FPayload& Payload)
 	{
@@ -499,7 +498,7 @@ void FMemoryDerivedDataBackend::Get(
 		{
 			if (OnComplete)
 			{
-				OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+				OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
 			}
 		}
 	}

@@ -1910,15 +1910,13 @@ uint32 FHttpAccessToken::GetSerial() const
 //----------------------------------------------------------------------------------------------------------
 
 FHttpDerivedDataBackend::FHttpDerivedDataBackend(
-	ICacheFactory& InFactory,
 	const TCHAR* InServiceUrl, 
 	const TCHAR* InNamespace, 
 	const TCHAR* InOAuthProvider,
 	const TCHAR* InOAuthClientId,
 	const TCHAR* InOAuthSecret,
 	const bool bInReadOnly)
-	: Factory(InFactory)
-	, Domain(InServiceUrl)
+	: Domain(InServiceUrl)
 	, Namespace(InNamespace)
 	, DefaultBucket(TEXT("default"))
 	, OAuthProvider(InOAuthProvider)
@@ -2458,7 +2456,7 @@ void FHttpDerivedDataBackend::Get(
 	{
 		for (const FCacheKey& Key : Keys)
 		{
-			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+			OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
 		}
 	}
 }
