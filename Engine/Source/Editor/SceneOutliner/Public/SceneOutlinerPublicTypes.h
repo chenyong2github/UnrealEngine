@@ -23,27 +23,27 @@ struct FSceneOutlinerBuiltInColumnTypes
 	/** The gutter column */
 	static const FName& Gutter()
 	{
-		static FName Gutter("Gutter");
+		static FName Gutter("Visibility"); // Renamed "Gutter" to "Visibility" so the purpose is more obvious in editor menus
 		return Gutter;
 	}
 
 	/** The item label column */
 	static const FName& Label()
 	{
-		static FName Label("ItemLabel");
+		static FName Label("Item Label");
 		return Label;
 	}
 
 	/** Generic actor info column */
 	static FName& ActorInfo()
 	{
-		static FName ActorInfo("ActorInfo");
+		static FName ActorInfo("Type"); // Renamed "Actor Info" to "Type" since it has been refactored to only show type information
 		return ActorInfo;
 	}
 
 	static FName& SourceControl()
 	{
-		static FName SourceControl("SourceControl");
+		static FName SourceControl("Source Control");
 		return SourceControl;
 	}
 
@@ -67,19 +67,19 @@ enum class ESceneOutlinerColumnVisibility : uint8
 /** Column information for the scene outliner */
 struct FSceneOutlinerColumnInfo
 {
-	FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility InVisibility, int32 InPriorityIndex, const FCreateSceneOutlinerColumn& InFactory = FCreateSceneOutlinerColumn())
-		: Visibility(InVisibility), PriorityIndex(InPriorityIndex), Factory(InFactory)
+	FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility InVisibility, int32 InPriorityIndex, const FCreateSceneOutlinerColumn& InFactory = FCreateSceneOutlinerColumn(), bool inCanBeHidden = true)
+		: Visibility(InVisibility), PriorityIndex(InPriorityIndex), bCanBeHidden(inCanBeHidden), Factory(InFactory)
 	{}
 
 	FSceneOutlinerColumnInfo() {}
 
 	FSceneOutlinerColumnInfo(const FSceneOutlinerColumnInfo& InColumnInfo)
-		: Visibility(InColumnInfo.Visibility), PriorityIndex(InColumnInfo.PriorityIndex), Factory(InColumnInfo.Factory)
+		: Visibility(InColumnInfo.Visibility), PriorityIndex(InColumnInfo.PriorityIndex), bCanBeHidden(InColumnInfo.bCanBeHidden), Factory(InColumnInfo.Factory)
 	{}
 
 	ESceneOutlinerColumnVisibility 	Visibility;
 	uint8				PriorityIndex;
-
+	bool bCanBeHidden;
 	FCreateSceneOutlinerColumn	Factory;
 };
 

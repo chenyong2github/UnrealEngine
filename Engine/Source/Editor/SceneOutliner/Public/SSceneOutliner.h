@@ -313,6 +313,8 @@ public:
 		*/
 	virtual void RemoveColumn(FName ColumId) override;
 
+	void SetColumnVisibility(FName ColumnId, bool bIsVisible);
+
 	/** Return the name/Id of the columns of the scene outliner */
 	virtual TArray<FName> GetColumnIds() const override;
 
@@ -543,8 +545,12 @@ private:
 	/** Map of columns that are shown on this outliner. */
 	TMap<FName, TSharedPtr<ISceneOutlinerColumn>> Columns;
 
+	TArray<FName> HiddenColumnsList;
+
 	/** Set up the columns required for this outliner */
 	void SetupColumns(SHeaderRow& HeaderRow);
+
+	void HandleHiddenColumnsChanged();
 
 	/** Refresh the scene outliner for when a colum was added or removed */
 	void RefreshColums();
