@@ -59,7 +59,7 @@ namespace HordeServer.Services
 					ISession? Session = await SessionCollection.GetAsync(Lease.SessionId);
 					DateTime FinishTime = Session?.FinishTime ?? DateTime.UtcNow;
 					Logger.LogWarning("Setting finish time for lease {LeaseId} to {FinishTime}", Lease.Id, FinishTime);
-					await LeaseCollection.TrySetOutcomeAsync(Lease.Id, FinishTime, LeaseOutcome.Cancelled);
+					await LeaseCollection.TrySetOutcomeAsync(Lease.Id, FinishTime, LeaseOutcome.Cancelled, null);
 				}
 			}
 

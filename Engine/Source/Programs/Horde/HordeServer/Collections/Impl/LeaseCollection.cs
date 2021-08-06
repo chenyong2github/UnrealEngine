@@ -39,7 +39,11 @@ namespace HordeServer.Collections.Impl
 			public byte[] Payload { get; set; }
 			public LeaseOutcome Outcome { get; set; }
 
+			[BsonIgnoreIfNull]
+			public byte[]? Output { get; set; }
+
 			ReadOnlyMemory<byte> ILease.Payload => Payload;
+			ReadOnlyMemory<byte> ILease.Output => Output;
 
 			[BsonConstructor]
 			private LeaseDocument()
@@ -139,13 +143,18 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> TrySetOutcomeAsync(ObjectId LeaseId, DateTime FinishTime, LeaseOutcome Outcome)
+		public async Task<bool> TrySetOutcomeAsync(ObjectId LeaseId, DateTime FinishTime, LeaseOutcome Outcome, byte[]? Output)
 		{
 			FilterDefinitionBuilder<LeaseDocument> FilterBuilder = Builders<LeaseDocument>.Filter;
 			FilterDefinition<LeaseDocument> Filter = FilterBuilder.Eq(x => x.Id, LeaseId) & FilterBuilder.Eq(x => x.FinishTime, null);
 
 			UpdateDefinitionBuilder<LeaseDocument> UpdateBuilder = Builders<LeaseDocument>.Update;
 			UpdateDefinition<LeaseDocument> Update = UpdateBuilder.Set(x => x.FinishTime, FinishTime).Set(x => x.Outcome, Outcome);
+
+			if(Output != null && Output.Length > 0)
+			{
+				Update = Update.Set(x => x.Output, Output);
+			}
 
 			UpdateResult Result = await Leases.UpdateOneAsync(Filter, Update);
 			return Result.ModifiedCount > 0;
