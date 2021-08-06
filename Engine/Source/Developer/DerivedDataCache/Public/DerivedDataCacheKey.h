@@ -9,6 +9,8 @@
 #include "IO/IoHash.h"
 #include "Templates/TypeHash.h"
 
+#define UE_API DERIVEDDATACACHE_API
+
 namespace UE::DerivedData
 {
 
@@ -17,13 +19,17 @@ namespace UE::DerivedData
 /**
  * An alphanumeric identifier that groups related cache records.
  *
- * Create using ICache::CreateBucket.
+ * A cache bucket name must be alphanumeric, non-empty, and contain fewer than 256 code units.
  */
 class FCacheBucket
 {
 public:
 	/** Construct a null cache bucket. */
 	FCacheBucket() = default;
+
+	/** Create a cache bucket from a name. */
+	UE_API explicit FCacheBucket(FUtf8StringView Name);
+	UE_API explicit FCacheBucket(FWideStringView Name);
 
 	/** Whether this is null. */
 	inline bool IsNull() const { return !Name; }
@@ -38,7 +44,7 @@ public:
 
 	inline bool operator<(FCacheBucket Other) const
 	{
-		return Name != Other.Name && ToString<TCHAR>().Compare(Other.ToString<TCHAR>(), ESearchCase::IgnoreCase) < 0;
+		return Name != Other.Name && ToString().Compare(Other.ToString(), ESearchCase::IgnoreCase) < 0;
 	}
 
 	friend inline uint32 GetTypeHash(FCacheBucket Bucket)
@@ -47,30 +53,13 @@ public:
 	}
 
 	/** Get the name of the cache bucket as a string. */
-	template <typename CharType>
-	inline TStringView<CharType> ToString() const;
-	template <>
-	inline FStringView ToString<TCHAR>() const;
-	template <>
-	inline FAnsiStringView ToString<ANSICHAR>() const;
+	inline FAnsiStringView ToString() const;
 
 protected:
-	explicit FCacheBucket(const TCHAR* InName)
-		: Name(InName)
-	{
-	}
-
 	static constexpr int32 LengthOffset = -1;
-	static constexpr int32 LengthOffset8 = -2;
 
-private:
-	/**
-	 * Name as TCHAR followed by the name as UTF-8, both null-terminated.
-	 *
-	 * The byte preceding the TCHAR name is the number of TCHAR code units excluding the terminator.
-	 * The byte preceding the TCHAR name length is the number of UTF-8 code units.
-	 */
-	const TCHAR* Name = nullptr;
+	/** Name stored as a null-terminated string preceded by one byte containing its length. */
+	const ANSICHAR* Name = nullptr;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,24 +90,15 @@ inline const FCachePayloadKey FCachePayloadKey::Empty;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template <>
-inline FStringView FCacheBucket::ToString<TCHAR>() const
+inline FAnsiStringView FCacheBucket::ToString() const
 {
-	return Name ? FStringView(Name, reinterpret_cast<const uint8*>(Name)[LengthOffset]) : FStringView();
-}
-
-template <>
-inline FAnsiStringView FCacheBucket::ToString<ANSICHAR>() const
-{
-	return Name ? FAnsiStringView(
-		reinterpret_cast<const ANSICHAR*>(Name + reinterpret_cast<const uint8*>(Name)[LengthOffset] + 1),
-		reinterpret_cast<const uint8*>(Name)[LengthOffset8]) : FAnsiStringView();
+	return Name ? FAnsiStringView(Name, reinterpret_cast<const uint8*>(Name)[LengthOffset]) : FAnsiStringView();
 }
 
 template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCacheBucket& Bucket)
 {
-	return Builder << Bucket.ToString<CharType>();
+	return Builder << Bucket.ToString();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -184,3 +164,5 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // UE::DerivedData
+
+#undef UE_API

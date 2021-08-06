@@ -8,17 +8,12 @@
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
 
-class FCbPackage;
-
 #define UE_API DERIVEDDATACACHE_API
 
 namespace UE::DerivedData
 {
 
-class FCacheBucket;
 class FCacheRecord;
-class FCacheRecordBuilder;
-class FOptionalCacheRecord;
 class FPayload;
 struct FCacheGetCompleteParams;
 struct FCacheGetPayloadCompleteParams;
@@ -93,42 +88,6 @@ enum class ECachePolicy : uint8
 };
 
 ENUM_CLASS_FLAGS(ECachePolicy);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * Interface to construct types related to the cache.
- */
-class ICacheFactory
-{
-public:
-	virtual ~ICacheFactory() = default;
-
-	/**
-	 * Create a cache bucket from a name.
-	 *
-	 * A cache bucket name must be alphanumeric, non-empty, and contain fewer than 256 code units.
-	 */
-	virtual FCacheBucket CreateBucket(FStringView Name) = 0;
-
-	/**
-	 * Create a cache record builder from a cache key.
-	 */
-	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) = 0;
-
-	/**
-	 * Save the cache record to a compact binary package.
-	 */
-	virtual FCbPackage SaveRecord(const FCacheRecord& Record) = 0;
-
-	/**
-	 * Load a cache record from compact binary.
-	 *
-	 * @param Package   A package saved from a cache record.
-	 * @return A valid cache record, or null on error.
-	 */
-	virtual FOptionalCacheRecord LoadRecord(const FCbPackage& Package) = 0;
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -222,9 +181,8 @@ public:
  * Interface to the cache.
  *
  * @see ICacheStore for cache record storage.
- * @see ICacheFactory for cache type constructors.
  */
-class ICache : public ICacheStore, public ICacheFactory
+class ICache : public ICacheStore
 {
 public:
 	virtual ~ICache() = default;
@@ -280,6 +238,7 @@ struct FCacheGetPayloadCompleteParams
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/** Returns a reference to the cache. Asserts if not available. */
 UE_API ICache& GetCache();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

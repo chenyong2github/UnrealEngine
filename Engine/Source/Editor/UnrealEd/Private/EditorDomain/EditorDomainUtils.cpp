@@ -202,23 +202,19 @@ EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName Pa
 
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest)
 {
-	static UE::DerivedData::FCacheBucket EditorDomainPackageCacheBucket =
-		UE::DerivedData::GetCache().CreateBucket(EditorDomainPackageBucketName);
+	static UE::DerivedData::FCacheBucket EditorDomainPackageCacheBucket(EditorDomainPackageBucketName);
 	return UE::DerivedData::FCacheKey{EditorDomainPackageCacheBucket, PackageDigest};
 }
 
 UE::DerivedData::FCacheKey GetBulkDataListKey(const FPackageDigest& PackageDigest)
 {
-	static UE::DerivedData::FCacheBucket EditorDomainBulkDataListBucket =
-		UE::DerivedData::GetCache().CreateBucket(EditorDomainBulkDataListBucketName);
+	static UE::DerivedData::FCacheBucket EditorDomainBulkDataListBucket(EditorDomainBulkDataListBucketName);
 	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataListBucket, PackageDigest };
 }
 
 UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuidDigest)
 {
-	static UE::DerivedData::FCacheBucket EditorDomainBulkDataPayloadIdBucket =
-		UE::DerivedData::GetCache().CreateBucket(EditorDomainBulkDataPayloadIdBucketName);
-
+	static UE::DerivedData::FCacheBucket EditorDomainBulkDataPayloadIdBucket(EditorDomainBulkDataPayloadIdBucketName);
 	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataPayloadIdBucket, PackageAndGuidDigest };
 }
 
@@ -437,7 +433,7 @@ bool TrySavePackage(UPackage* Package)
 	}
 
 	ICache& Cache = GetCache();
-	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetEditorDomainPackageKey(PackageDigest));
+	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest));
 
 	// We use a counter for PayloadIds rather than hashes of the Attachments. We do this because
 	// some attachments may be identical, and Attachments are not allowed to have identical PayloadIds.
@@ -524,7 +520,7 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
 	FRequestOwner Owner(EPriority::Normal);
-	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataListKey(PackageDigest));
+	FCacheRecordBuilder RecordBuilder(GetBulkDataListKey(PackageDigest));
 	RecordBuilder.SetValue(Buffer);
 	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Owner);
 	Owner.KeepAlive();
@@ -584,7 +580,7 @@ void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuf
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
 	FRequestOwner Owner(EPriority::Normal);
-	FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataPayloadIdKey(PackageAndGuidDigest));
+	FCacheRecordBuilder RecordBuilder(GetBulkDataPayloadIdKey(PackageAndGuidDigest));
 	RecordBuilder.SetValue(Buffer);
 	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Owner);
 	Owner.KeepAlive();

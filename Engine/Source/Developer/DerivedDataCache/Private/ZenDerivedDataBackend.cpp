@@ -32,11 +32,9 @@ namespace UE::DerivedData::Backends {
 //----------------------------------------------------------------------------------------------------------
 
 FZenDerivedDataBackend::FZenDerivedDataBackend(
-	ICacheFactory& InFactory, 
 	const TCHAR* InServiceUrl,
 	const TCHAR* InNamespace)
-	: Factory(InFactory)
-	, Domain(InServiceUrl)
+	: Domain(InServiceUrl)
 	, Namespace(InNamespace)
 {
 	if (IsServiceReady())
@@ -312,16 +310,13 @@ FString FZenDerivedDataBackend::MakeLegacyZenKey(const TCHAR* CacheKey)
 
 void FZenDerivedDataBackend::AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out)
 {
-	FStringView BucketStr = CacheKey.Bucket.ToString<TCHAR>();
-	Out.Appendf(TEXT("/z$/%.*s/"), BucketStr.Len(), BucketStr.GetData());
-	Out << CacheKey.Hash;
+	Out << TEXT("/z$/") << CacheKey.Bucket << TEXT('/') << CacheKey.Hash;
 }
 
 void FZenDerivedDataBackend::AppendZenUri(const FCacheKey& CacheKey, const FPayloadId& PayloadId, FStringBuilderBase& Out)
 {
 	AppendZenUri(CacheKey, Out);
-	Out << TEXT("/");
-	UE::String::BytesToHexLower(PayloadId.GetBytes(), Out);
+	Out << TEXT('/') << PayloadId;
 }
 
 void FZenDerivedDataBackend::AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Uri)
@@ -566,7 +561,7 @@ void FZenDerivedDataBackend::Get(
 		{
 			if (OnComplete)
 			{
-				OnComplete({ Factory.CreateRecord(Key).Build(), EStatus::Error });
+				OnComplete({ FCacheRecordBuilder(Key).Build(), EStatus::Error });
 			}
 		}
 	}
@@ -671,7 +666,7 @@ void FZenDerivedDataBackend::CancelAll()
 bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy)
 {
 	const FCacheKey& Key = Record.GetKey();
-	FCbPackage Package = Factory.SaveRecord(Record);
+	FCbPackage Package = Record.Save();
 	FCbWriter PackageWriter;
 	Package.Save(PackageWriter);
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(PackageWriter.GetSaveSize());
@@ -708,7 +703,7 @@ FOptionalCacheRecord FZenDerivedDataBackend::GetCacheRecord(const FCacheKey& Key
 		}
 		return FOptionalCacheRecord();
 	}
-	FOptionalCacheRecord Record = Factory.LoadRecord(Package);
+	FOptionalCacheRecord Record = FCacheRecord::Load(Package);
 	if (!Record)
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss with corrupted record (corrupted record) for %s from '%.*s'"),
@@ -873,7 +868,7 @@ FOptionalCacheRecord FZenDerivedDataBackend::LegacyCreateRecord(FSharedBuffer&& 
 	// Eventually We will instead send the Policy to zen sever along with the request for the FCacheKey,
 	// and it will end back all payloads in the response rather than requiring separate requests.
 	const FCbObject RecordObject(MoveTemp(RecordBytes));
-	FCacheRecordBuilder RecordBuilder = Factory.CreateRecord(Key);
+	FCacheRecordBuilder RecordBuilder(Key);
 
 	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta))
 	{
@@ -973,15 +968,13 @@ FPayload FZenDerivedDataBackend::LegacyValidateCachePayload(const FCacheKey& Key
 void FZenDerivedDataBackend::LegacyMakeZenKey(const FCacheKey& CacheKey, FStringBuilderBase& Out) const
 {
 	Out.Reset();
-	FStringView Bucket = CacheKey.Bucket.ToString<TCHAR>();
-	Out.Appendf(TEXT("/z$/%.*s/%s"), Bucket.Len(), Bucket.GetData(), *LexToString(CacheKey.Hash));
+	Out << TEXT("/z$/") << CacheKey;
 }
 
 void FZenDerivedDataBackend::LegacyMakePayloadKey(const FCacheKey& CacheKey, const FIoHash& RawHash, FStringBuilderBase& Out) const
 {
 	Out.Reset();
-	FStringView Bucket = CacheKey.Bucket.ToString<TCHAR>();
-	Out.Appendf(TEXT("/z$/%.*s/%s/%s"), Bucket.Len(), Bucket.GetData(), *LexToString(CacheKey.Hash), *LexToString(RawHash));
+	Out << TEXT("/z$/") << CacheKey << TEXT('/') << RawHash;
 }
 
 

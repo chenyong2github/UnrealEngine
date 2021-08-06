@@ -2,10 +2,6 @@
 
 #include "DerivedDataCacheRecord.h"
 
-#include "Algo/AllOf.h"
-#include "Containers/StringConv.h"
-#include "Containers/UnrealString.h"
-#include "DerivedDataCache.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataPayloadPrivate.h"
@@ -16,7 +12,6 @@
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "UObject/NameTypes.h"
 #include <atomic>
 
 namespace UE::DerivedData::Private
@@ -273,32 +268,27 @@ FCacheRecord CreateCacheRecord(ICacheRecordInternal* Record)
 	return FCacheRecord(Record);
 }
 
-FCacheRecordBuilder CreateCacheRecordBuilder(ICacheRecordBuilderInternal* RecordBuilder)
-{
-	return FCacheRecordBuilder(RecordBuilder);
-}
+} // UE::DerivedData::Private
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCacheRecordBuilder CreateCacheRecordBuilder(const FCacheKey& Key)
+namespace UE::DerivedData
 {
-	return CreateCacheRecordBuilder(new FCacheRecordBuilderInternal(Key));
-}
 
-FCbPackage SaveCacheRecord(const FCacheRecord& Record)
+FCbPackage FCacheRecord::Save() const
 {
 	FCbPackage Package;
 	FCbWriter Writer;
 	Writer.BeginObject();
 	{
-		const FCacheKey& Key = Record.GetKey();
+		const FCacheKey& Key = GetKey();
 		Writer.BeginObject("Key"_ASV);
-		Writer.AddString("Bucket"_ASV, Key.Bucket.ToString<ANSICHAR>());
+		Writer.AddString("Bucket"_ASV, Key.Bucket.ToString());
 		Writer.AddHash("Hash"_ASV, Key.Hash);
 		Writer.EndObject();
 	}
 
-	if (const FCbObject& Meta = Record.GetMeta())
+	if (const FCbObject& Meta = GetMeta())
 	{
 		Writer.AddObject("Meta"_ASV, Meta);
 	}
@@ -310,16 +300,16 @@ FCbPackage SaveCacheRecord(const FCacheRecord& Record)
 		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 		const FCompositeBuffer CompressedBuffer = Payload.GetData().GetCompressed();
 		FCbAttachment AttachedCompressed(CompressedBuffer.Flatten());
-		Writer.AddAttachment("CompressedHash", AttachedCompressed);
+		Writer.AddAttachment("CompressedHash"_ASV, AttachedCompressed);
 		Package.AddAttachment(AttachedCompressed);
 		Writer.EndObject();
 	};
-	if (const FPayload& Value = Record.GetValuePayload())
+	if (const FPayload& Value = GetValuePayload())
 	{
 		Writer.SetName("Value"_ASV);
 		SavePayload(Value);
 	}
-	TConstArrayView<FPayload> Attachments = Record.GetAttachmentPayloads();
+	TConstArrayView<FPayload> Attachments = GetAttachmentPayloads();
 	if (!Attachments.IsEmpty())
 	{
 		Writer.BeginArray("Attachments"_ASV);
@@ -335,28 +325,28 @@ FCbPackage SaveCacheRecord(const FCacheRecord& Record)
 	return Package;
 }
 
-FOptionalCacheRecord LoadCacheRecord(const FCbPackage& Package)
+FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package)
 {
 	FCbObjectView RecordObject = Package.GetObject();
-	
+
 	FCacheKey Key;
 	FCbObjectView KeyObject = RecordObject["Key"_ASV].AsObjectView();
-	auto TrySetBucketName = [](FStringView Name, FCacheKey& Key)
+	auto TrySetBucketName = [](FUtf8StringView Name, FCacheKey& Key)
 	{
-		if (IsValidCacheBucketName(Name))
+		if (Private::IsValidCacheBucketName(Name))
 		{
-			Key.Bucket = CreateCacheBucket(Name);
+			Key.Bucket = FCacheBucket(Name);
 			return true;
 		}
 		return false;
 	};
-	if (!TrySetBucketName(FUTF8ToTCHAR(KeyObject["Bucket"_ASV].AsString()), Key))
+	if (!TrySetBucketName(KeyObject["Bucket"_ASV].AsString(), Key))
 	{
 		return FOptionalCacheRecord();
 	}
 	Key.Hash = KeyObject["Hash"_ASV].AsHash();
 
-	FCacheRecordBuilder Builder = CreateCacheRecordBuilder(Key);
+	FCacheRecordBuilder Builder(Key);
 
 	Builder.SetMeta(Package.GetObject()["Meta"_ASV].AsObject());
 
@@ -410,6 +400,9 @@ FOptionalCacheRecord LoadCacheRecord(const FCbPackage& Package)
 	return Builder.Build();
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+FCacheRecordBuilder::FCacheRecordBuilder(const FCacheKey& Key)
+	: RecordBuilder(new Private::FCacheRecordBuilderInternal(Key))
+{
+}
 
-} // UE::DerivedData::Private
+} // UE::DerivedData

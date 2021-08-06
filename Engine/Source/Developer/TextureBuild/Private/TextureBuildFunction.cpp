@@ -270,7 +270,7 @@ FGuid FTextureBuildFunction::GetVersion() const
 
 void FTextureBuildFunction::Configure(UE::DerivedData::FBuildConfigContext& Context) const
 {
-	Context.SetCacheBucket(Context.CreateCacheBucket(TEXT("Texture"_SV)));
+	Context.SetCacheBucket(UE::DerivedData::FCacheBucket("Texture"_ASV));
 }
 
 void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const

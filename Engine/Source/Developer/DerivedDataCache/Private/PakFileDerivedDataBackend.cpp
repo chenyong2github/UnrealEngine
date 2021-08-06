@@ -8,9 +8,8 @@
 namespace UE::DerivedData::Backends
 {
 
-FPakFileDerivedDataBackend::FPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting)
-	: Factory(InFactory)
-	, bWriting(bInWriting)
+FPakFileDerivedDataBackend::FPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting)
+	: bWriting(bInWriting)
 	, bClosed(false)
 	, Filename(InFilename)
 {
@@ -397,13 +396,13 @@ void FPakFileDerivedDataBackend::MergeCache(FPakFileDerivedDataBackend* OtherPak
 	}
 }
 
-bool FPakFileDerivedDataBackend::SortAndCopy(ICacheFactory& InFactory, const FString &InputFilename, const FString &OutputFilename)
+bool FPakFileDerivedDataBackend::SortAndCopy(const FString &InputFilename, const FString &OutputFilename)
 {
 	// Open the input and output files
-	FPakFileDerivedDataBackend InputPak(InFactory, *InputFilename, false);
+	FPakFileDerivedDataBackend InputPak(*InputFilename, false);
 	if (InputPak.bClosed) return false;
 
-	FPakFileDerivedDataBackend OutputPak(InFactory, *OutputFilename, true);
+	FPakFileDerivedDataBackend OutputPak(*OutputFilename, true);
 	if (OutputPak.bClosed) return false;
 
 	// Sort the key names
@@ -468,7 +467,7 @@ void FPakFileDerivedDataBackend::Get(
 	{
 		for (const FCacheKey& Key : Keys)
 		{
-			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+			OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
 		}
 	}
 }
@@ -489,8 +488,8 @@ void FPakFileDerivedDataBackend::GetPayload(
 	}
 }
 
-FCompressedPakFileDerivedDataBackend::FCompressedPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting)
-	: FPakFileDerivedDataBackend(InFactory, InFilename, bInWriting)
+FCompressedPakFileDerivedDataBackend::FCompressedPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting)
+	: FPakFileDerivedDataBackend(InFilename, bInWriting)
 {
 }
 

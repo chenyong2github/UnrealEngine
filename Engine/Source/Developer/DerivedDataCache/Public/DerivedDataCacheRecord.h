@@ -10,10 +10,13 @@
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
+#define UE_API DERIVEDDATACACHE_API
+
 class FCbObject;
+class FCbPackage;
 
 namespace UE::DerivedData { class FCacheRecord; }
-namespace UE::DerivedData { class FCacheRecordBuilder; }
+namespace UE::DerivedData { class FOptionalCacheRecord; }
 namespace UE::DerivedData { using FOnCacheRecordComplete = TUniqueFunction<void (FCacheRecord&& Record)>; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,8 +56,6 @@ public:
 	virtual FCacheRecord Build() = 0;
 	virtual void BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete) = 0;
 };
-
-FCacheRecordBuilder CreateCacheRecordBuilder(ICacheRecordBuilderInternal* RecordBuilder);
 
 } // UE::DerivedData::Private
 
@@ -105,11 +106,17 @@ public:
 	/** Returns the payload matching the ID, whether value or attachment. Null if no match. Data is null if skipped. */
 	inline const FPayload& GetPayload(const FPayloadId& Id) const { return Record->GetPayload(Id); }
 
+	/** Save the cache record to a compact binary package. */
+	UE_API FCbPackage Save() const;
+
+	/** Load a cache record from a compact binary package. Null on error. */
+	UE_API static FOptionalCacheRecord Load(const FCbPackage& Package);
+
 private:
 	friend class FOptionalCacheRecord;
 	friend FCacheRecord Private::CreateCacheRecord(Private::ICacheRecordInternal* Record);
 
-	/** Construct a cache record. Use Build() or BuildAsync() on a builder from ICache::CreateRecord(). */
+	/** Construct a cache record. Use Build() or BuildAsync() on FCacheRecordBuilder. */
 	inline explicit FCacheRecord(Private::ICacheRecordInternal* InRecord)
 		: Record(InRecord)
 	{
@@ -121,8 +128,8 @@ private:
 /**
  * A cache record builder is used to construct a cache record.
  *
- * Create using ICache::CreateRecord() which must be given a key that uniquely corresponds to the
- * value and attachments for the cache record. Metadata may vary between records of the same key.
+ * Create using a key that uniquely corresponds to the value and attachments for the cache record.
+ * Metadata may vary between records of the same key.
  *
  * The value and attachments can be provided as buffers, which will be compressed, or as payloads
  * which were previously compressed and have an identifier assigned.
@@ -132,6 +139,11 @@ private:
 class FCacheRecordBuilder
 {
 public:
+	/**
+	 * Create a cache record builder from a cache key.
+	 */
+	UE_API explicit FCacheRecordBuilder(const FCacheKey& Key);
+
 	/**
 	 * Set the metadata for the cache record.
 	 *
@@ -221,14 +233,6 @@ public:
 	}
 
 private:
-	friend FCacheRecordBuilder Private::CreateCacheRecordBuilder(Private::ICacheRecordBuilderInternal* RecordBuilder);
-
-	/** Construct a cache record builder. Use ICache::CreateRecord(). */
-	inline explicit FCacheRecordBuilder(Private::ICacheRecordBuilderInternal* InRecordBuilder)
-		: RecordBuilder(InRecordBuilder)
-	{
-	}
-
 	TUniquePtr<Private::ICacheRecordBuilderInternal> RecordBuilder;
 };
 
@@ -280,3 +284,5 @@ struct FCacheRecordKeyFuncs
 };
 
 } // UE::DerivedData
+
+#undef UE_API

@@ -6,8 +6,8 @@
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataCacheInterface.h"
 #include "DerivedDataCachePrivate.h"
+#include "HAL/CriticalSection.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 
@@ -61,8 +61,8 @@ public:
 		delete GDerivedDataBuild;
 		GDerivedDataBuild = nullptr;
 		delete GDerivedDataCache;
-		GDerivedDataLegacyCache = nullptr;
 		GDerivedDataCache = nullptr;
+		GDerivedDataLegacyCache = nullptr;
 	}
 
 private:
@@ -75,7 +75,6 @@ static FDerivedDataCacheModule* GetModule()
 {
 	if (!FPlatformProperties::RequiresCookedData())
 	{
-		check(IsInGameThread());
 		if (IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
 		{
 			return static_cast<FDerivedDataCacheModule*>(Module);
@@ -95,12 +94,13 @@ ICache& GetCache()
 	{
 		return *Cache;
 	}
+	checkf(IsInGameThread(), TEXT("The derived data cache must be created on the main thread."));
 	if (Private::FDerivedDataCacheModule* Module = Private::GetModule())
 	{
 		Module->CreateCacheOnce();
 	}
 	ICache* Cache = Private::GDerivedDataCache;
-	check(Cache);
+	checkf(Cache, TEXT("Failed to create derived data cache."));
 	return *Cache;
 }
 
@@ -110,12 +110,13 @@ IBuild& GetBuild()
 	{
 		return *Build;
 	}
+	checkf(IsInGameThread(), TEXT("The derived data build system must be created on the main thread."));
 	if (Private::FDerivedDataCacheModule* Module = Private::GetModule())
 	{
 		Module->CreateBuildOnce();
 	}
 	IBuild* Build = Private::GDerivedDataBuild;
-	check(Build);
+	checkf(Build, TEXT("Failed to create derived data build system."));
 	return *Build;
 }
 

@@ -11,7 +11,6 @@
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCachePrivate.h"
-#include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -19,7 +18,6 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CookStats.h"
-#include "Serialization/CompactBinaryPackage.h"
 #include "Stats/Stats.h"
 #include "Stats/StatsMisc.h"
 #include <atomic>
@@ -682,20 +680,6 @@ private:
 
 public:
 	// ICache Interface
-
-	FCacheBucket CreateBucket(FStringView Name) final { return CreateCacheBucket(Name); }
-
-	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return CreateCacheRecordBuilder(Key); }
-
-	FCbPackage SaveRecord(const FCacheRecord& Record) final
-	{
-		return SaveCacheRecord(Record);
-	}
-
-	FOptionalCacheRecord LoadRecord(const FCbPackage& Package) final
-	{
-		return LoadCacheRecord(Package);
-	}
 
 	void Put(
 		TConstArrayView<FCacheRecord> Records,

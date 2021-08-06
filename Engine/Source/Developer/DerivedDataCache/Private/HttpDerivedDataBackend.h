@@ -36,7 +36,8 @@ public:
 	 * @param OAuthClientId	OAuth client identifier.
 	 * @param OAuthData		OAuth form data to send to login service. Can either be the raw form data or a Windows network file address (starting with "\\").
 	 */
-	FHttpDerivedDataBackend(ICacheFactory& Factory, const TCHAR* ServiceUrl, 
+	FHttpDerivedDataBackend(
+		const TCHAR* ServiceUrl, 
 		const TCHAR* Namespace, 
 		const TCHAR* OAuthProvider, 
 		const TCHAR* OAuthClientId, 
@@ -103,7 +104,6 @@ public:
 	}
 
 private:
-	ICacheFactory& Factory;
 	FString Domain;
 	FString Namespace;
 	FString DefaultBucket;

@@ -762,9 +762,8 @@ struct FS3DerivedDataBackend::FRootManifest
 // FS3DerivedDataBackend
 //----------------------------------------------------------------------------------------------------------
 
-FS3DerivedDataBackend::FS3DerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath)
-	: Factory(InFactory)
-	, RootManifestPath(InRootManifestPath)
+FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath)
+	: RootManifestPath(InRootManifestPath)
 	, BaseUrl(InBaseUrl)
 	, Region(InRegion)
 	, CanaryObjectKey(InCanaryObjectKey)
@@ -1204,7 +1203,7 @@ void FS3DerivedDataBackend::Get(
 	{
 		for (const FCacheKey& Key : Keys)
 		{
-			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+			OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
 		}
 	}
 }
