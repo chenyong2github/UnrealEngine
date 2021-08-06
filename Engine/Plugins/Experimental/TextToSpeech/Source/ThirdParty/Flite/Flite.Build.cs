@@ -61,6 +61,11 @@ public class Flite : ModuleRules
 	{
 		get { return Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT; }
 	}
+	// Override in child platforms that require the use of Windows headers 
+	protected virtual bool bRequiresWindowsHeaders
+	{
+		get { return Target.Platform == UnrealTargetPlatform.Win64; }
+	}
 
 	public Flite(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -74,5 +79,6 @@ public class Flite : ModuleRules
 			string VSVersion = "VS2019";
 			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath, VSVersion, bUseDebugLibs ? "Debug" : "Release", "libFlite.lib"));
 		}
+		PublicDefinitions.Add("UE_FLITE_REQUIRES_WINDOWS_HEADERS=" + (bRequiresWindowsHeaders ? "1" : "0"));
 	}
 }
