@@ -177,6 +177,90 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 	return Albedo;
 }
 
+void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroughput, float PathRoughness, inout float3 Albedo, inout float3 Normal)
+{
+	const float MaxRoughness = 0.15; // don't bother past this level
+	const float MinRoughness = 0.10; // capture anything below this level
+	if (PathRoughness >= MaxRoughness)
+	{
+		// no point tracking past a certain roughness
+		return;
+	}
+	// figure out how much the current path should contribute to the denoiser aovs
+	PathThroughput *= 1 - saturate((PathRoughness - MinRoughness) / (MaxRoughness - MinRoughness));
+	// figure out how much the specular lobes should contribute to the total (relative to the current PathRoughness)
+	// if we are above the MinRoughness, use the PathRoughness as are lower bound instead so that multiple bounces don't accumulate too much albedo
+	const float RoughnessWeight = saturate((Payload.Roughness - max(MinRoughness, PathRoughness)) / (MaxRoughness - max(MinRoughness, PathRoughness)));
+	float BrdfWeight = 1;
+	bool HasRefraction = false;
+	switch (Payload.BlendingMode)
+	{
+		case RAY_TRACING_BLEND_MODE_TRANSLUCENT:
+#if !SIMPLIFIED_MATERIAL_SHADER
+			if (Payload.Ior != 1.0)
+			{
+				HasRefraction = true;
+			}
+#endif
+			{
+				BrdfWeight = Payload.Opacity;
+			}
+			break;
+		case RAY_TRACING_BLEND_MODE_ADDITIVE:
+			BrdfWeight = Payload.Opacity;
+			break;
+		case RAY_TRACING_BLEND_MODE_MODULATE:
+		case RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT:
+			// In these modes, the light does not interact with the material at all, only passes through
+			return;
+		default:
+			break;
+	}
+
+	switch (Payload.ShadingModelID)
+	{
+	case SHADINGMODELID_UNLIT:
+		// this object does not scatter light
+		return;
+#if SIMPLIFIED_MATERIAL_SHADER
+	case SHADINGMODELID_TWOSIDED_FOLIAGE:
+		Albedo += BrdfWeight * PathThroughput * (Payload.BaseColor + Payload.GetSubsurfaceColor());
+		Normal += Luminance(BrdfWeight * PathThroughput) * Payload.WorldNormal;
+		break;
+#else
+	case SHADINGMODELID_TWOSIDED_FOLIAGE:
+	case SHADINGMODELID_SUBSURFACE:
+	case SHADINGMODELID_PREINTEGRATED_SKIN:
+	case SHADINGMODELID_SUBSURFACE_PROFILE:
+		Albedo += BrdfWeight * PathThroughput * (Payload.DiffuseColor + RoughnessWeight * Payload.SpecularColor + Payload.GetSubsurfaceColor());
+		Normal += Luminance(BrdfWeight * PathThroughput) * Payload.WorldNormal;
+		break;
+	case SHADINGMODELID_DEFAULT_LIT:
+	case SHADINGMODELID_CLEAR_COAT:
+		Albedo += BrdfWeight * PathThroughput * (Payload.DiffuseColor + RoughnessWeight * Payload.SpecularColor);
+		Normal += Luminance(BrdfWeight * PathThroughput) * Payload.WorldNormal;
+		break;
+	case SHADINGMODELID_CLOTH:
+		Albedo += BrdfWeight * PathThroughput * (Payload.DiffuseColor + lerp(RoughnessWeight * Payload.SpecularColor, Payload.CustomData.xyz, Payload.CustomData.w));
+		Normal += Luminance(BrdfWeight * PathThroughput) * Payload.WorldNormal;
+		break;
+#endif
+	default:
+		Albedo += BrdfWeight * PathThroughput * Payload.BaseColor;
+		Normal += Luminance(BrdfWeight * PathThroughput) * Payload.WorldNormal;
+		break;
+	}
+#if !SIMPLIFIED_MATERIAL_SHADER
+	if (HasRefraction)
+	{
+		// glass is currently perfectly clear - so has unit albedo
+		// TODO: estimate some kind of albedo for thin-translucent case since that one uses a color?
+		Albedo += (1 - BrdfWeight) * RoughnessWeight * PathThroughput;
+		Normal += (1 - BrdfWeight) * RoughnessWeight * Luminance(PathThroughput) * Payload.WorldNormal;
+	}
+#endif
+}
+
 void AdjustMaterialRoughness(inout FPathTracingPayload Payload, float PathRoughness)
 {
 #if !SIMPLIFIED_MATERIAL_SHADER

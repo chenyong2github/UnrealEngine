@@ -66,7 +66,7 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance, bool bI
 	TotalRadiance += PathRadiance;
 }
 
-FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance, inout float3 Albedo, inout float3 Normal)
+FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint2 LaunchIndex, uint NumLights, float PathRoughness, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance, inout float3 Albedo, inout float3 Normal)
 {
 	const uint RayFlags = bIsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	const uint MissShaderIndex = 0;
@@ -134,11 +134,9 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsC
 		if (!bLastBounce)
 		{
 			float3 Contrib = PathThroughput * EstimateMaterialAlbedo(HitPayload);
-			if (bIsCameraRay)
-			{
-				Albedo += Contrib;
-				Normal += PathThroughput * (1 - Luminance(Transparency)) * HitPayload.WorldNormal;
-			}
+
+			// accumulate what the denoiser wants into albedo/normal (as long as the current path is rough enough)
+			AccumulateAlbedoNormal(HitPayload, PathThroughput, PathRoughness, Albedo, Normal);
 
 			float SelectionWeight = max3(Contrib.x, Contrib.y, Contrib.z);
 			SelectionWeightSum += SelectionWeight;
@@ -648,6 +646,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		bIncludeEmissive,
 		PathState.PixelIndex,
 		NumVisibleLights,
+		PathState.PathRoughness,
 		PathState.RandSequence,
 		PathState.PathThroughput,
 		PathState.Radiance,
@@ -827,11 +826,8 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	PathState.Ray.TMax = POSITIVE_INFINITY;
 	ApplyRayBias(PathState.Ray, Payload.HitT, MaterialSample.PositionBiasSign * Payload.WorldGeoNormal);
 
-	if (ApproximateCaustics)
-	{
-		// enlarge roughness based on the chosen lobe roughness
-		PathState.PathRoughness = max(PathState.PathRoughness, MaterialSample.Roughness);
-	}
+	// enlarge roughness based on the chosen lobe roughness
+	PathState.PathRoughness = max(PathState.PathRoughness, MaterialSample.Roughness);
 
 	// If we are using Material sampling for lights
 	if (MISMode != 1 && bDoLightLoop)
@@ -840,6 +836,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		// While it would be possible to just loop around and use the indirect ray to do this, it would prevent the application
 		// of shadow ray specific logic for transparent shadows or various per light tricks like shadow casting
 		const bool bUseMIS = MISMode == 2 && LightPickingCdfSum > 0;
+		const float ShadowRayRoughness = ApproximateCaustics ? PathState.PathRoughness : 0.0;
 		for (uint Index = 0, Num = LightLoopCount.NumMISLights; Index < Num; ++Index)
 		{
 			uint LightId = GetLightId(Index, LightLoopCount);
@@ -871,7 +868,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				{
 					RayDesc LightRay = PathState.Ray;
 					LightRay.TMax = LightResult.HitT;
-					LightContrib *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, PathState.PathRoughness);
+					LightContrib *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, ShadowRayRoughness);
 				}
 				// the light made some contribution, and there was nothing along the shadow ray
 				AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
