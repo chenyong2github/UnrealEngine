@@ -3,6 +3,7 @@
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
+using HordeCommon;
 using HordeServer.Models;
 using HordeServer.Services;
 using MongoDB.Bson;
@@ -103,13 +104,14 @@ namespace HordeServer.Tasks
 		Task<ITaskListener?> SubscribeAsync(IAgent Agent);
 
 		/// <summary>
-		/// Force a lease as complete
+		/// Notification that a task has completed
 		/// </summary>
 		/// <param name="Agent">The agent that was allocated to the lease</param>
 		/// <param name="LeaseId">The lease id</param>
 		/// <param name="Payload">The lease payload</param>
+		/// <param name="Outcome">Outcome of the lease</param>
 		/// <returns>Async task</returns>
-		Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, Any Payload);
+		Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome);
 	}
 
 	/// <summary>
@@ -125,19 +127,13 @@ namespace HordeServer.Tasks
 		public abstract Task<ITaskListener?> SubscribeAsync(IAgent Agent);
 
 		/// <inheritdoc/>
-		public Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
+		public Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Task, LeaseOutcome Outcome)
 		{
-			return AbortTaskAsync(Agent, LeaseId, Payload.Unpack<T>());
+			return OnLeaseCompletedAsync(Agent, LeaseId, Task.Unpack<T>(), Outcome);
 		}
 
-		/// <summary>
-		/// Cancels the given task
-		/// </summary>
-		/// <param name="Agent">Agent executing the task</param>
-		/// <param name="LeaseId">The lease id</param>
-		/// <param name="Payload">The task type</param>
-		/// <returns>Async task</returns>
-		protected virtual Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, T Payload)
+		/// <inheritdoc cref="OnLeaseCompletedAsync(IAgent, ObjectId, Any, LeaseOutcome)"/>
+		public virtual Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, T TaskInput, LeaseOutcome Outcome)
 		{
 			return Task.CompletedTask;
 		}

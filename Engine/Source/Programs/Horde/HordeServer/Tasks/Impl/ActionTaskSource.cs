@@ -90,7 +90,7 @@ namespace HordeServer.Tasks.Impl
 	/// <summary>
 	/// Dispatches remote actions. Does not implement any cross-pod communication to satisfy leases; only agents connected to this server instance will be stored.
 	/// </summary>
-	public class ActionTaskSource : ITaskSource
+	public class ActionTaskSource : TaskSourceBase<ActionTask>
 	{
 		/// <summary>
 		/// Number of buckets to create for storing operations. Operations are garbage collected from random buckets.
@@ -344,9 +344,6 @@ namespace HordeServer.Tasks.Impl
 		Random Random = new Random();
 		ILogger Logger;
 		RemoteExecSettings RemoteExecSettings;
-
-		/// <inheritdoc/>
-		public MessageDescriptor Descriptor => ActionTask.Descriptor;
 
 		/// <summary>
 		/// Constructor
@@ -650,7 +647,7 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<ITaskListener?> SubscribeAsync(IAgent Agent)
+		public override Task<ITaskListener?> SubscribeAsync(IAgent Agent)
 		{
 			if (Agent.Leases.Count >= RemoteExecSettings.MaxConcurrentLeasesPerAgent)
 			{
@@ -659,12 +656,6 @@ namespace HordeServer.Tasks.Impl
 			}
 			
 			return Task.FromResult<ITaskListener?>(new Subscription(this, Agent));
-		}
-
-		/// <inheritdoc/>
-		public Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
-		{
-			return Task.CompletedTask;
 		}
 		
 		internal static bool CanBeScheduledOnAgent(IAgent Agent, List<string>? PoolFilter)
