@@ -42,7 +42,7 @@ public:
 
 	inline ECachePolicy GetCachePolicy() const final { return CachePolicy; }
 	inline EBuildPolicy GetBuildPolicy() const final { return BuildPolicy; }
-
+	inline uint64 GetRequiredMemory() const { return RequiredMemory; }
 	inline bool ShouldCheckDeterministicOutput() const { return bDeterministicOutputCheck; }
 
 	void AddConstant(FStringView Key, FCbObject&& Value);
@@ -67,7 +67,8 @@ private:
 	void SetCacheBucket(FCacheBucket Bucket) final;
 	void SetCachePolicy(ECachePolicy Policy) final;
 	void SetBuildPolicy(EBuildPolicy Policy) final;
-	void SkipDeterministicOutputCheck() { bDeterministicOutputCheck = false; }
+	void SetRequiredMemory(uint64 InRequiredMemory) final { RequiredMemory = InRequiredMemory; }
+	void SkipDeterministicOutputCheck() final { bDeterministicOutputCheck = false; }
 
 	void SetPriority(EPriority Priority) final;
 	void Cancel() final;
@@ -83,6 +84,7 @@ private:
 	FEventRef BuildCompleteEvent{EEventMode::ManualReset};
 	TUniqueFunction<void ()> OnEndBuild;
 	IRequestOwner* Owner{};
+	uint64 RequiredMemory{};
 	ECachePolicy CachePolicy;
 	EBuildPolicy BuildPolicy;
 	bool bIsAsyncBuild{false};

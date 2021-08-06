@@ -417,6 +417,7 @@ void FBuildJob::CreateContext()
 			SchedulerParams.ResolvedInputsSize += Buffer.GetRawSize();
 		});
 	}
+	SchedulerParams.TotalRequiredMemory = SchedulerParams.TotalInputsSize + Context->GetRequiredMemory();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
