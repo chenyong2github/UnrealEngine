@@ -358,10 +358,16 @@ FBuildDefinitionBuilder CreateBuildDefinition(FStringView Name, FStringView Func
 	return CreateBuildDefinitionBuilder(new FBuildDefinitionBuilderInternal(Name, Function));
 }
 
-FOptionalBuildDefinition LoadBuildDefinition(FStringView Name, FCbObject&& Definition)
+} // UE::DerivedData::Private
+
+namespace UE::DerivedData
+{
+
+FOptionalBuildDefinition FBuildDefinition::Load(FStringView Name, FCbObject&& Definition)
 {
 	bool bIsValid = false;
-	FOptionalBuildDefinition Out = CreateBuildDefinition(new FBuildDefinitionInternal(Name, MoveTemp(Definition), bIsValid));
+	FOptionalBuildDefinition Out = Private::CreateBuildDefinition(
+		new Private::FBuildDefinitionInternal(Name, MoveTemp(Definition), bIsValid));
 	if (!bIsValid)
 	{
 		Out.Reset();
@@ -369,4 +375,4 @@ FOptionalBuildDefinition LoadBuildDefinition(FStringView Name, FCbObject&& Defin
 	return Out;
 }
 
-} // UE::DerivedData::Private
+} // UE::DerivedData

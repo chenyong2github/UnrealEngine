@@ -316,26 +316,33 @@ FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function)
 	return CreateBuildOutputBuilder(new FBuildOutputBuilderInternal(Name, Function));
 }
 
-FOptionalBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCbObject& Output)
-{
-	bool bIsValid = false;
-	FOptionalBuildOutput Out = CreateBuildOutput(new FBuildOutputInternal(Name, Function, Output, bIsValid));
-	if (!bIsValid)
-	{
-		Out.Reset();
-	}
-	return Out;
-}
-
-FOptionalBuildOutput LoadBuildOutput(FStringView Name, FStringView Function, const FCacheRecord& Output)
-{
-	bool bIsValid = false;
-	FOptionalBuildOutput Out = CreateBuildOutput(new FBuildOutputInternal(Name, Function, Output, bIsValid));
-	if (!bIsValid)
-	{
-		Out.Reset();
-	}
-	return Out;
-}
-
 } // UE::DerivedData::Private
+
+namespace UE::DerivedData
+{
+
+FOptionalBuildOutput FBuildOutput::Load(FStringView Name, FStringView Function, const FCbObject& Output)
+{
+	bool bIsValid = false;
+	FOptionalBuildOutput Out = Private::CreateBuildOutput(
+		new Private::FBuildOutputInternal(Name, Function, Output, bIsValid));
+	if (!bIsValid)
+	{
+		Out.Reset();
+	}
+	return Out;
+}
+
+FOptionalBuildOutput FBuildOutput::Load(FStringView Name, FStringView Function, const FCacheRecord& Output)
+{
+	bool bIsValid = false;
+	FOptionalBuildOutput Out = Private::CreateBuildOutput(
+		new Private::FBuildOutputInternal(Name, Function, Output, bIsValid));
+	if (!bIsValid)
+	{
+		Out.Reset();
+	}
+	return Out;
+}
+
+} // UE::DerivedData

@@ -9,6 +9,8 @@
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
+#define UE_API DERIVEDDATACACHE_API
+
 class FCbObject;
 class FCbWriter;
 struct FGuid;
@@ -16,6 +18,7 @@ struct FIoHash;
 
 namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
+namespace UE::DerivedData { class FOptionalBuildDefinition; }
 namespace UE::DerivedData { struct FBuildKey; }
 namespace UE::DerivedData { struct FBuildPayloadKey; }
 
@@ -135,6 +138,15 @@ public:
 		return Definition->Save(Writer);
 	}
 
+	/**
+	 * Load a build definition from compact binary.
+	 *
+	 * @param Name         The name by which to identify this definition for logging and profiling.
+	 * @param Definition   An object saved from a build definition. Holds a reference and is cloned if not owned.
+	 * @return A valid build definition, or null on error.
+	 */
+	UE_API static FOptionalBuildDefinition Load(FStringView Name, FCbObject&& Definition);
+
 private:
 	friend class FOptionalBuildDefinition;
 	friend FBuildDefinition Private::CreateBuildDefinition(Private::IBuildDefinitionInternal* Definition);
@@ -248,3 +260,5 @@ public:
 };
 
 } // UE::DerivedData
+
+#undef UE_API

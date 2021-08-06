@@ -6,7 +6,6 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
-class FCbObject;
 struct FGuid;
 
 namespace UE::DerivedData { class FBuildActionBuilder; }
@@ -14,10 +13,6 @@ namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { class FBuildInputsBuilder; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FBuildSession; }
-namespace UE::DerivedData { class FCacheRecord; }
-namespace UE::DerivedData { class FOptionalBuildAction; }
-namespace UE::DerivedData { class FOptionalBuildDefinition; }
-namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class IBuildFunctionRegistry; }
 namespace UE::DerivedData { class IBuildInputResolver; }
 namespace UE::DerivedData { class IBuildScheduler; }
@@ -58,30 +53,12 @@ public:
 	virtual FBuildDefinitionBuilder CreateDefinition(FStringView Name, FStringView Function) = 0;
 
 	/**
-	 * Load a build definition from compact binary.
-	 *
-	 * @param Name         The name by which to identify this definition for logging and profiling.
-	 * @param Definition   An object saved from a build definition. Holds a reference and is cloned if not owned.
-	 * @return A valid build definition, or null on error.
-	 */
-	virtual FOptionalBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) = 0;
-
-	/**
 	 * Create a build action builder.
 	 *
 	 * @param Name       The name by which to identify this action for logging and profiling.
 	 * @param Function   The name of the build function that produced this action.
 	 */
 	virtual FBuildActionBuilder CreateAction(FStringView Name, FStringView Function) = 0;
-
-	/**
-	 * Load a build action from compact binary.
-	 *
-	 * @param Name     The name by which to identify this action for logging and profiling.
-	 * @param Action   The saved action to load.
-	 * @return A valid build action, or null on error.
-	 */
-	virtual FOptionalBuildAction LoadAction(FStringView Name, FCbObject&& Action) = 0;
 
 	/**
 	 * Create a build inputs builder.
@@ -97,17 +74,6 @@ public:
 	 * @param Function   The name of the build function that produced this output.
 	 */
 	virtual FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) = 0;
-
-	/**
-	 * Load a build output.
-	 *
-	 * @param Name       The name by which to identify this output for logging and profiling.
-	 * @param Function   The name of the build function that produced this output.
-	 * @param Output     The saved output to load.
-	 * @return A valid build output, or null on error.
-	 */
-	virtual FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) = 0;
-	virtual FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) = 0;
 
 	/**
 	 * Create a build session.
@@ -144,6 +110,7 @@ public:
 	virtual IBuildWorkerRegistry& GetWorkerRegistry() const = 0;
 };
 
+/** Returns a reference to the build system. Asserts if not available. */
 UE_API IBuild& GetBuild();
 
 } // UE::DerivedData

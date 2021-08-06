@@ -750,7 +750,7 @@ FOptionalBuildOutput FRemoteBuildExecutionRequest::ComposeBuildOutput(FBatchRead
 				return FOptionalBuildOutput();
 			}
 
-			RemoteBuildOutput = State.BuildSystem.LoadOutput(State.BuildAction.GetName(), State.BuildAction.GetFunction(), FCbObject(BuildOutputBuffer));
+			RemoteBuildOutput = FBuildOutput::Load(State.BuildAction.GetName(), State.BuildAction.GetFunction(), FCbObject(BuildOutputBuffer));
 		}
 		else
 		{

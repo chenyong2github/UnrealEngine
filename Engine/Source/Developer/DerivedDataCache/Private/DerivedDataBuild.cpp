@@ -77,19 +77,9 @@ public:
 		return CreateBuildDefinition(Name, Function);
 	}
 
-	FOptionalBuildDefinition LoadDefinition(FStringView Name, FCbObject&& Definition) final
-	{
-		return LoadBuildDefinition(Name, MoveTemp(Definition));
-	}
-
 	FBuildActionBuilder CreateAction(FStringView Name, FStringView Function) final
 	{
 		return CreateBuildAction(Name, Function, FunctionRegistry->FindFunctionVersion(Function), Version);
-	}
-
-	FOptionalBuildAction LoadAction(FStringView Name, FCbObject&& Action) final
-	{
-		return LoadBuildAction(Name, MoveTemp(Action));
 	}
 
 	FBuildInputsBuilder CreateInputs(FStringView Name) final
@@ -100,16 +90,6 @@ public:
 	FBuildOutputBuilder CreateOutput(FStringView Name, FStringView Function) final
 	{
 		return CreateBuildOutput(Name, Function);
-	}
-
-	FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCbObject& Output) final
-	{
-		return LoadBuildOutput(Name, Function, Output);
-	}
-
-	FOptionalBuildOutput LoadOutput(FStringView Name, FStringView Function, const FCacheRecord& Output) final
-	{
-		return LoadBuildOutput(Name, Function, Output);
 	}
 
 	FBuildSession CreateSession(FStringView Name, IBuildInputResolver* InputResolver, IBuildScheduler* Scheduler) final

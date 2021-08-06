@@ -264,10 +264,16 @@ FBuildActionBuilder CreateBuildAction(FStringView Name, FStringView Function, co
 	return CreateBuildActionBuilder(new FBuildActionBuilderInternal(Name, Function, FunctionVersion, BuildSystemVersion));
 }
 
-FOptionalBuildAction LoadBuildAction(FStringView Name, FCbObject&& Action)
+} // UE::DerivedData::Private
+
+namespace UE::DerivedData
+{
+
+FOptionalBuildAction FBuildAction::Load(FStringView Name, FCbObject&& Action)
 {
 	bool bIsValid = false;
-	FOptionalBuildAction Out = CreateBuildAction(new FBuildActionInternal(Name, MoveTemp(Action), bIsValid));
+	FOptionalBuildAction Out = Private::CreateBuildAction(
+		new Private::FBuildActionInternal(Name, MoveTemp(Action), bIsValid));
 	if (!bIsValid)
 	{
 		Out.Reset();
@@ -275,4 +281,4 @@ FOptionalBuildAction LoadBuildAction(FStringView Name, FCbObject&& Action)
 	return Out;
 }
 
-} // UE::DerivedData::Private
+} // UE::DerivedData
