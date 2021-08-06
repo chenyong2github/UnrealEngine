@@ -2,7 +2,6 @@
 
 
 #include "EditorInteractiveGizmoManager.h"
-#include "EditorInteractiveGizmoConditionalBuilder.h"
 #include "EditorInteractiveGizmoSelectionBuilder.h"
 #include "EditorInteractiveGizmoSubsystem.h"
 #include "EdModeInteractiveToolsContext.h"
@@ -16,7 +15,6 @@
 #include "InteractiveToolsContext.h"
 #include "Selection.h"
 #include "ToolContextInterfaces.h"
-
 
 #define LOCTEXT_NAMESPACE "UEditorInteractiveGizmoManager"
 
@@ -32,7 +30,7 @@ static TAutoConsoleVariable<int32> CVarUseLegacyWidget(
 UEditorInteractiveGizmoManager::UEditorInteractiveGizmoManager() :
 	UInteractiveGizmoManager()
 {
-
+	Registry = NewObject<UEditorInteractiveGizmoRegistry>();
 }
 
 
@@ -45,126 +43,84 @@ void UEditorInteractiveGizmoManager::InitializeWithEditorModeManager(IToolsConte
 
 void UEditorInteractiveGizmoManager::Shutdown()
 {
-	DestroyAllSelectionGizmos();
+	Registry->Shutdown();
 	Super::Shutdown();
 }
 
-void UEditorInteractiveGizmoManager::RegisterGizmoSelectionType(const TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> InGizmoSelectionBuilder)
+void UEditorInteractiveGizmoManager::RegisterEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder)
 {
-	if (ensure(InGizmoSelectionBuilder))
-	{
-		if (GizmoSelectionBuilders.Contains(InGizmoSelectionBuilder))
-		{
-			DisplayMessage(
-				FText::Format(LOCTEXT("DeregisterFailedMessage", "UInteractiveGizmoSubsystem::DeregisterGizmoSelectionType: type has already been registered {0}"), FText::FromName(InGizmoSelectionBuilder->GetFName())),
-				EToolMessageLevel::Internal);
-			return;
-		}
-
-		GizmoSelectionBuilders.Add(InGizmoSelectionBuilder);
-		GizmoSelectionBuilders.StableSort(
-			[](UEditorInteractiveGizmoSelectionBuilder& A, UEditorInteractiveGizmoSelectionBuilder& B) {
-				return (A).GetPriority() > (B).GetPriority();
-			});
-	}
+	check(Registry);
+	Registry->RegisterEditorGizmoType(InGizmoCategory, InGizmoBuilder);
 }
 
-bool UEditorInteractiveGizmoManager::DeregisterGizmoSelectionType(const TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> InGizmoSelectionBuilder)
+void UEditorInteractiveGizmoManager::DeregisterEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder)
 {
-	if (ensure(InGizmoSelectionBuilder))
-	{
-		if (GizmoSelectionBuilders.Contains(InGizmoSelectionBuilder) == false)
-		{
-			DisplayMessage(
-				FText::Format(LOCTEXT("DeregisterFailedMessage", "UInteractiveGizmoSubsystem::DeregisterGizmoSelectionType: could not find requested type {0}"), FText::FromName(InGizmoSelectionBuilder->GetFName())),
-				EToolMessageLevel::Internal);
-			return false;
-		}
-		GizmoSelectionBuilders.Remove(InGizmoSelectionBuilder);
-
-		return true;
-	}
-
-	return false;
-
+	check(Registry);
+	Registry->DeregisterEditorGizmoType(InGizmoCategory, InGizmoBuilder);
 }
 
-TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> UEditorInteractiveGizmoManager::GetQualifiedGizmoSelectionBuilders(const FToolBuilderState& InToolBuilderState)
+void UEditorInteractiveGizmoManager::GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory InGizmoCategory, const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& InFoundBuilders)
 {
-	TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> FoundBuilders;
+	check(Registry);
+	Registry->GetQualifiedEditorGizmoBuilders(InGizmoCategory, InToolBuilderState, InFoundBuilders);
 
 	FEditorGizmoTypePriority FoundPriority = 0;
-
-	for (TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> Builder : GizmoSelectionBuilders)
-	{
-		if (Builder->GetPriority() < FoundPriority)
-		{
-			break;
-		}
-
-		if (Builder->SatisfiesCondition(InToolBuilderState))
-		{
-			FoundBuilders.Add(Builder);
-			FoundPriority = Builder->GetPriority();
-		}
-	}
 
 	if (!bSearchLocalBuildersOnly)
 	{
 		UEditorInteractiveGizmoSubsystem* GizmoSubsystem = GEditor->GetEditorSubsystem<UEditorInteractiveGizmoSubsystem>();
 		if (ensure(GizmoSubsystem))
 		{
-			TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> FoundSubsystemBuilders = GizmoSubsystem->GetQualifiedGizmoSelectionBuilders(InToolBuilderState);
-
-			FEditorGizmoTypePriority FoundPriority0 = FoundBuilders.Num() > 0 ? FoundBuilders[0]->GetPriority() : 0;
-			FEditorGizmoTypePriority FoundPriority1 = FoundSubsystemBuilders.Num() > 0 ? FoundSubsystemBuilders[0]->GetPriority() : 0;
-
-			if (FoundPriority0 == FoundPriority1)
-			{
-				FoundBuilders.Append(FoundSubsystemBuilders);
-			}
-			else if (FoundPriority0 < FoundPriority1)
-			{
-				FoundBuilders = FoundSubsystemBuilders;
-			}
+			GizmoSubsystem->GetQualifiedGlobalEditorGizmoBuilders(InGizmoCategory, InToolBuilderState, InFoundBuilders);
 		}
 	}
-
-	return FoundBuilders;
 }
 
-TArray<UInteractiveGizmo*> UEditorInteractiveGizmoManager::CreateGizmosForCurrentSelectionState()
+TArray<UInteractiveGizmo*> UEditorInteractiveGizmoManager::CreateGizmosForCurrentSelectionSet()
 {
-	if (bShowSelectionGizmos)
+	if (bShowEditorGizmos)
 	{
-		TArray<UInteractiveGizmo*> NewGizmos;
-
 		FToolBuilderState CurrentSceneState;
 		QueriesAPI->GetCurrentSelectionState(CurrentSceneState);
 
-		TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> FoundBuilders = GetQualifiedGizmoSelectionBuilders(CurrentSceneState);
+		TArray<TObjectPtr<UInteractiveGizmoBuilder>> FoundBuilders;
+		GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory::Primary, CurrentSceneState, FoundBuilders);
 
-		for (TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> FoundBuilder : FoundBuilders)
+		bool bHasPrimaryBuilder = (FoundBuilders.Num() > 0);
+
+		if (!bHasPrimaryBuilder)
 		{
-			UInteractiveGizmo* NewGizmo = FoundBuilder->BuildGizmoForSelection(CurrentSceneState);
-			if (NewGizmo == nullptr)
+			GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory::Accessory, CurrentSceneState, FoundBuilders);
+
+			UInteractiveGizmoBuilder* TransformBuilder = GetTransformGizmoBuilder();
+
+			FoundBuilders.Add(TransformBuilder);
+		}
+
+		TArray<TObjectPtr<UInteractiveGizmo>> NewGizmos;
+
+		for (UInteractiveGizmoBuilder* FoundBuilder : FoundBuilders)
+		{
+			if (UInteractiveGizmo* NewGizmo = FoundBuilder->BuildGizmo(CurrentSceneState))
 			{
-				DisplayMessage(LOCTEXT("CreateGizmoReturnNullMessage", "UEditorInteractiveGizmoManager::CreateGizmo: CreateGizmoForSelectionSet() returned null"), EToolMessageLevel::Internal);
-				return NewGizmos;
+				if (UEditorInteractiveGizmoSelectionBuilder* SelectionBuilder = Cast<UEditorInteractiveGizmoSelectionBuilder>(FoundBuilder))
+				{
+					SelectionBuilder->UpdateGizmoForSelection(NewGizmo, CurrentSceneState);
+				}
+
+				// register new active input behaviors
+				InputRouter->RegisterSource(NewGizmo);
+
+				NewGizmos.Add(NewGizmo);
 			}
-
-			// register new active input behaviors
-			InputRouter->RegisterSource(NewGizmo);
-
-			NewGizmos.Add(NewGizmo);
 		}
 
 		PostInvalidation();
 
 		for (UInteractiveGizmo* NewGizmo : NewGizmos)
 		{
-			FActiveSelectionGizmo ActiveGizmo = { NewGizmo, nullptr };
-			ActiveSelectionGizmos.Add(ActiveGizmo);
+			FActiveEditorGizmo ActiveGizmo = { NewGizmo, nullptr };
+			ActiveEditorGizmos.Add(ActiveGizmo);
 		}
 
 		return NewGizmos;
@@ -173,11 +129,21 @@ TArray<UInteractiveGizmo*> UEditorInteractiveGizmoManager::CreateGizmosForCurren
 	return TArray<UInteractiveGizmo*>();
 }
 
-
-bool UEditorInteractiveGizmoManager::DestroySelectionGizmo(UInteractiveGizmo* Gizmo)
+UInteractiveGizmoBuilder* UEditorInteractiveGizmoManager::GetTransformGizmoBuilder()
 {
-	auto Pred = [Gizmo](const FActiveSelectionGizmo& ActiveSelectionGizmo) {return ActiveSelectionGizmo.Gizmo == Gizmo; };
-	if (!ensure(ActiveSelectionGizmos.FindByPredicate(Pred)))
+	UEditorInteractiveGizmoSubsystem* GizmoSubsystem = GEditor->GetEditorSubsystem<UEditorInteractiveGizmoSubsystem>();
+	if (ensure(GizmoSubsystem))
+	{
+		return GizmoSubsystem->GetTransformGizmoBuilder();
+	}
+
+	return nullptr;
+}
+
+bool UEditorInteractiveGizmoManager::DestroyEditorGizmo(UInteractiveGizmo* Gizmo)
+{
+	auto Pred = [Gizmo](const FActiveEditorGizmo& ActiveEditorGizmo) {return ActiveEditorGizmo.Gizmo == Gizmo; };
+	if (!ensure(ActiveEditorGizmos.FindByPredicate(Pred)))
 	{
 		return false;
 	}
@@ -188,69 +154,69 @@ bool UEditorInteractiveGizmoManager::DestroySelectionGizmo(UInteractiveGizmo* Gi
 
 	InputRouter->DeregisterSource(Gizmo);
 
-	ActiveSelectionGizmos.RemoveAll(Pred);
+	ActiveEditorGizmos.RemoveAll(Pred);
 
 	PostInvalidation();
 
 	return true;
 }
 
-void UEditorInteractiveGizmoManager::DestroyAllSelectionGizmos()
+void UEditorInteractiveGizmoManager::DestroyAllEditorGizmos()
 {
-	for (int i = 0; i < ActiveSelectionGizmos.Num(); i++)
+	for (int i = 0; i < ActiveEditorGizmos.Num(); i++)
 	{
-		UInteractiveGizmo* Gizmo = ActiveSelectionGizmos[i].Gizmo;
+		UInteractiveGizmo* Gizmo = ActiveEditorGizmos[i].Gizmo;
 		if (ensure(Gizmo))
 		{
-			DestroySelectionGizmo(Gizmo);
+			DestroyEditorGizmo(Gizmo);
 		}
 	}
 
-	ActiveSelectionGizmos.Reset();
+	ActiveEditorGizmos.Reset();
 
 	PostInvalidation();
 }
 
 void UEditorInteractiveGizmoManager::HandleEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet)
 {
-	DestroyAllSelectionGizmos();
+	DestroyAllEditorGizmos();
 
 	if (InSelectionSet && InSelectionSet->HasSelectedElements())
 	{
-		CreateGizmosForCurrentSelectionState();
+		CreateGizmosForCurrentSelectionSet();
 	}
 }
 
 // @todo move this to a gizmo context object
-bool UEditorInteractiveGizmoManager::GetShowSelectionGizmos()
+bool UEditorInteractiveGizmoManager::GetShowEditorGizmos()
 {
-	return bShowSelectionGizmos;
+	return bShowEditorGizmos;
 }
 
-bool UEditorInteractiveGizmoManager::GetShowSelectionGizmosForView(IToolsContextRenderAPI* RenderAPI)
+bool UEditorInteractiveGizmoManager::GetShowEditorGizmosForView(IToolsContextRenderAPI* RenderAPI)
 {
 	const bool bEngineShowFlagsModeWidget = (RenderAPI && RenderAPI->GetSceneView() && 
 											 RenderAPI->GetSceneView()->Family &&
 											 RenderAPI->GetSceneView()->Family->EngineShowFlags.ModeWidgets);
-	return bShowSelectionGizmos && bEngineShowFlagsModeWidget;
+	return bShowEditorGizmos && bEngineShowFlagsModeWidget;
 }
 
-void UEditorInteractiveGizmoManager::UpdateActiveSelectionGizmos()
+void UEditorInteractiveGizmoManager::UpdateActiveEditorGizmos()
 {
 	const bool bEditorModeToolsSupportsWidgetDrawing = EditorModeManager ? EditorModeManager->GetShowWidget() : true;
-	const bool bEnableSelectionGizmos = (CVarUseLegacyWidget.GetValueOnGameThread() == 0);
-	const bool bNewShowSelectionGizmos = bEditorModeToolsSupportsWidgetDrawing && bEnableSelectionGizmos;
+	const bool bEnableEditorGizmos = (CVarUseLegacyWidget.GetValueOnGameThread() == 0);
+	const bool bNewShowEditorGizmos = bEditorModeToolsSupportsWidgetDrawing && bEnableEditorGizmos;
 
-	if (bShowSelectionGizmos != bNewShowSelectionGizmos)
+	if (bShowEditorGizmos != bNewShowEditorGizmos)
 	{
-		bShowSelectionGizmos = bNewShowSelectionGizmos;
-		if (bShowSelectionGizmos)
+		bShowEditorGizmos = bNewShowEditorGizmos;
+		if (bShowEditorGizmos)
 		{
-			CreateGizmosForCurrentSelectionState();
+			CreateGizmosForCurrentSelectionSet();
 		}
 		else
 		{
-			DestroyAllSelectionGizmos();
+			DestroyAllEditorGizmos();
 		}
 	}
 }
@@ -259,11 +225,11 @@ void UEditorInteractiveGizmoManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UpdateActiveSelectionGizmos();
+	UpdateActiveEditorGizmos();
 
-	for (FActiveSelectionGizmo& ActiveSelectionGizmo : ActiveSelectionGizmos)
+	for (FActiveEditorGizmo& ActiveEditorGizmo : ActiveEditorGizmos)
 	{
-		ActiveSelectionGizmo.Gizmo->Tick(DeltaTime);
+		ActiveEditorGizmo.Gizmo->Tick(DeltaTime);
 	}
 }
 
@@ -272,11 +238,11 @@ void UEditorInteractiveGizmoManager::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	Super::Render(RenderAPI);
 
-	if (GetShowSelectionGizmosForView(RenderAPI))
+	if (GetShowEditorGizmosForView(RenderAPI))
 	{
-		for (FActiveSelectionGizmo& ActiveSelectionGizmo : ActiveSelectionGizmos)
+		for (FActiveEditorGizmo& ActiveEditorGizmo : ActiveEditorGizmos)
 		{
-			ActiveSelectionGizmo.Gizmo->Render(RenderAPI);
+			ActiveEditorGizmo.Gizmo->Render(RenderAPI);
 		}
 	}
 }
@@ -285,11 +251,11 @@ void UEditorInteractiveGizmoManager::DrawHUD(FCanvas* Canvas, IToolsContextRende
 {
 	Super::DrawHUD(Canvas, RenderAPI);
 
-	if (GetShowSelectionGizmosForView(RenderAPI))
+	if (GetShowEditorGizmosForView(RenderAPI))
 	{
-		for (FActiveSelectionGizmo& ActiveSelectionGizmo : ActiveSelectionGizmos)
+		for (FActiveEditorGizmo& ActiveEditorGizmo : ActiveEditorGizmos)
 		{
-			ActiveSelectionGizmo.Gizmo->DrawHUD(Canvas, RenderAPI);
+			ActiveEditorGizmo.Gizmo->DrawHUD(Canvas, RenderAPI);
 		}
 	}
 }
