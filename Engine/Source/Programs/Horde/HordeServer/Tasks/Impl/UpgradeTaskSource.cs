@@ -18,13 +18,11 @@ using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Serv
 
 namespace HordeServer.Tasks.Impl
 {
-	class UpgradeTaskSource : ITaskSource
+	class UpgradeTaskSource : TaskSourceBase<UpgradeTask>
 	{
 		AgentSoftwareService AgentSoftwareService;
 		ILogFileService LogService;
 		IClock Clock;
-
-		public MessageDescriptor Descriptor => UpgradeTask.Descriptor;
 
 		public UpgradeTaskSource(AgentSoftwareService AgentSoftwareService, ILogFileService LogService, IClock Clock)
 		{
@@ -33,7 +31,7 @@ namespace HordeServer.Tasks.Impl
 			this.Clock = Clock;
 		}
 
-		public async Task<ITaskListener?> SubscribeAsync(IAgent Agent)
+		public async override Task<ITaskListener?> SubscribeAsync(IAgent Agent)
 		{
 			string? RequiredVersion = await GetRequiredSoftwareVersion(Agent);
 			if (RequiredVersion != null && Agent.Version != RequiredVersion)
@@ -54,11 +52,6 @@ namespace HordeServer.Tasks.Impl
 				return TaskSubscription.FromResult(Lease);
 			}
 			return null;
-		}
-
-		public Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
-		{
-			return Task.CompletedTask;
 		}
 
 		/// <summary>

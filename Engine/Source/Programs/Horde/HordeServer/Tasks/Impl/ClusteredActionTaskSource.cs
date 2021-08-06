@@ -26,7 +26,7 @@ namespace HordeServer.Tasks.Impl
 	/// <summary>
 	/// Dispatches remote actions across all agents that are connected to a Horde server in the cluster
 	/// </summary>
-	public class ClusteredActionTaskSource : ITaskSource
+	public class ClusteredActionTaskSource : TaskSourceBase<ActionTask>
 	{
 		/// <summary>
 		/// Tracks an agent waiting for work
@@ -145,9 +145,6 @@ namespace HordeServer.Tasks.Impl
 		private readonly string KeyInProgressOps = "re-inprogress-ops";
 		private readonly string KeyCompletedOps = "re-completed-ops";
 		private readonly string ChannelOps = "re-ops";
-
-		/// <inheritdoc/>
-		public MessageDescriptor Descriptor => ActionTask.Descriptor;
 
 		/// <summary>
 		/// Constructor
@@ -489,16 +486,9 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<ITaskListener?> SubscribeAsync(IAgent Agent)
+		public override Task<ITaskListener?> SubscribeAsync(IAgent Agent)
 		{
 			return Task.FromResult<ITaskListener?>(new AgentSubscription(this, Agent));
-		}
-
-		/// <inheritdoc/>
-		public Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, Any Payload)
-		{
-			// Remotely executed tasks cannot be aborted (for the time being)
-			return Task.CompletedTask;
 		}
 	}
 }

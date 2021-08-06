@@ -211,7 +211,7 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		protected override Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, ConformTask Task)
+		public override Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, ConformTask Task, LeaseOutcome Outcome)
 		{
 			return ReleaseConformLeaseAsync(LeaseId);
 		}

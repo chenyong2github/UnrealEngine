@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 
 using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
+using Google.Protobuf.WellKnownTypes;
+using Google.Protobuf;
 
 namespace HordeServer.Models
 {
@@ -75,5 +77,32 @@ namespace HordeServer.Models
 		/// Outcome of the lease
 		/// </summary>
 		public LeaseOutcome Outcome { get; }
+	}
+
+	/// <summary>
+	/// Extension methods for leases
+	/// </summary>
+	public static class LeaseExtensions
+	{
+		/// <summary>
+		/// Gets the task from a lease, encoded as an Any protobuf object
+		/// </summary>
+		/// <param name="Lease">The lease to query</param>
+		/// <returns>The task definition encoded as a protobuf Any object</returns>
+		public static Any GetTask(this ILease Lease)
+		{
+			return Any.Parser.ParseFrom(Lease.Payload.ToArray());
+		}
+
+		/// <summary>
+		/// Gets a typed task object from a lease
+		/// </summary>
+		/// <typeparam name="T">Type of the protobuf message to return</typeparam>
+		/// <param name="Lease">The lease to query</param>
+		/// <returns>The task definition</returns>
+		public static T GetTask<T>(this ILease Lease) where T : IMessage<T>, new()
+		{
+			return GetTask(Lease).Unpack<T>();
+		}
 	}
 }

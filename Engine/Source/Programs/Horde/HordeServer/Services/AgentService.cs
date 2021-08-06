@@ -843,7 +843,7 @@ namespace HordeServer.Services
 				{
 					if (Any.Is(TaskSource.Descriptor))
 					{
-						await TaskSource.AbortTaskAsync(Agent, Lease.Id, Any);
+						await TaskSource.OnLeaseCompletedAsync(Agent, Lease.Id, Any, Outcome);
 						break;
 					}
 				}

@@ -1009,48 +1009,51 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task AbortTaskAsync(IAgent Agent, ObjectId LeaseId, Any Any)
+		public async Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Any, LeaseOutcome Outcome)
 		{
-			AgentId AgentId = Agent.Id;
-			ExecuteJobTask Task = Any.Unpack<ExecuteJobTask>();
-			ObjectId JobId = Task.JobId.ToObjectId();
-			SubResourceId BatchId = Task.BatchId.ToSubResourceId();
-
-			// Update the batch
-			for (; ; )
+			if (Outcome != LeaseOutcome.Success)
 			{
-				IJob? Job = await Jobs.GetAsync(JobId);
-				if (Job == null)
-				{
-					break;
-				}
+				AgentId AgentId = Agent.Id;
+				ExecuteJobTask Task = Any.Unpack<ExecuteJobTask>();
+				ObjectId JobId = Task.JobId.ToObjectId();
+				SubResourceId BatchId = Task.BatchId.ToSubResourceId();
 
-				int BatchIdx = Job.Batches.FindIndex(x => x.Id == BatchId);
-				if (BatchIdx == -1)
+				// Update the batch
+				for (; ; )
 				{
-					break;
-				}
-
-				IJobStepBatch Batch = Job.Batches[BatchIdx];
-				if (Batch.AgentId != AgentId)
-				{
-					break;
-				}
-
-				int RunningStepIdx = Batch.Steps.FindIndex(x => x.State == JobStepState.Running);
-
-				IGraph Graph = await Graphs.GetAsync(Job.GraphHash);
-				if (await Jobs.TryFailBatchAsync(Job, BatchIdx, Graph))
-				{
-					if (Batch.Error != JobStepBatchError.None)
+					IJob? Job = await Jobs.GetAsync(JobId);
+					if (Job == null)
 					{
-						Logger.LogInformation("Failed job {JobId}, batch {BatchId} with error {Error}", Job.Id, Batch.Id, Batch.Error);
+						break;
 					}
-					if (RunningStepIdx != -1)
+
+					int BatchIdx = Job.Batches.FindIndex(x => x.Id == BatchId);
+					if (BatchIdx == -1)
 					{
-						await JobStepRefs.UpdateAsync(Job, Batch, Batch.Steps[RunningStepIdx], Graph);
+						break;
 					}
-					break;
+
+					IJobStepBatch Batch = Job.Batches[BatchIdx];
+					if (Batch.AgentId != AgentId)
+					{
+						break;
+					}
+
+					int RunningStepIdx = Batch.Steps.FindIndex(x => x.State == JobStepState.Running);
+
+					IGraph Graph = await Graphs.GetAsync(Job.GraphHash);
+					if (await Jobs.TryFailBatchAsync(Job, BatchIdx, Graph))
+					{
+						if (Batch.Error != JobStepBatchError.None)
+						{
+							Logger.LogInformation("Failed job {JobId}, batch {BatchId} with error {Error}", Job.Id, Batch.Id, Batch.Error);
+						}
+						if (RunningStepIdx != -1)
+						{
+							await JobStepRefs.UpdateAsync(Job, Batch, Batch.Steps[RunningStepIdx], Graph);
+						}
+						break;
+					}
 				}
 			}
 		}
