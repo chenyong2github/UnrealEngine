@@ -208,7 +208,7 @@
     <EngineDir>$(ProjectDir)..\..\..\..\..\..</EngineDir>
     <InstallerDir>$(ProjectDir)..\Installer</InstallerDir>
      <PostBuildEvent>
-"$(FrameworkSdkDir)\bin\NETFX 4.6 Tools\tlbexp.exe" "$(TargetDir)$(TargetName)$(TargetExt)" /out:"$(TargetDir)$(TargetName).tlb"
+"$(FrameworkSdkDir)\bin\NETFX 4.8 Tools\tlbexp.exe" "$(TargetDir)$(TargetName)$(TargetExt)" /out:"$(TargetDir)$(TargetName).tlb"
 "$(EngineDir)\Source\ThirdParty\WiX\3.8\heat.exe" file "$(TargetDir)$(TargetName)$(TargetExt)" -gg -o "$(TargetDir)asm_SolidworksToUnreal.wxs"
 "$(EngineDir)\Source\ThirdParty\WiX\3.8\heat.exe" file "$(TargetDir)$(TargetName).tlb" -gg -o "$(TargetDir)tlb_SolidworksToUnreal.wxs"
 "$(ProjectDir)..\bin\$(Configuration)\PreprocessWxs.exe" "$(TargetDir)$(TargetName)$(TargetExt)" "$(TargetDir)asm_SolidworksToUnreal.wxs" "$(TargetDir)tlb_SolidworksToUnreal.wxs" "$(InstallerDir)" "$(EngineDir)"
