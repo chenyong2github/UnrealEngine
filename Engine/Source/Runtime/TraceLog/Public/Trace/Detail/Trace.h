@@ -104,19 +104,9 @@ class FChannel;
 #define TRACE_PRIVATE_EVENT_END() \
 		UE::Trace::EventProps> EventProps_Meta; \
 		EventProps_Meta const EventProps_Private = {}; \
-		typedef UE::Trace::TField<0, EventProps_Meta::Size, UE::Trace::Attachment> Attachment_Meta; \
-		const Attachment_Meta Attachment_Field = {}; \
-		template <typename... Ts> auto Attachment(Ts... ts) const { \
-			AreAttachmentsAllowed<bIsImportant>(); \
-			LogScopeType::FFieldSet<Attachment_Meta, UE::Trace::Attachment>::Impl((LogScopeType*)this, Forward<Ts>(ts)...); \
-			return true; \
-		} \
 		typedef std::conditional<bIsImportant, UE::Trace::Private::FImportantLogScope, UE::Trace::Private::FLogScope>::type LogScopeType; \
 		explicit operator bool () const { return true; } \
 		enum { EventFlags = PartialEventFlags|(EventProps_Meta::NumAuxFields ? UE::Trace::Private::FEventInfo::Flag_MaybeHasAux : 0), }; \
-		template <bool bImportance> static void AreAttachmentsAllowed() { \
-			static_assert(!bImportance, "Important events cannot have attachments"); \
-		} \
 		static_assert( \
 			!bIsImportant || (EventFlags & UE::Trace::Private::FEventInfo::Flag_NoSync), \
 			"Trace events flagged as Important events must be marked NoSync" \
@@ -183,7 +173,6 @@ class FChannel;
 		const FTraceDisabled& FieldName;
 
 #define TRACE_PRIVATE_EVENT_END() \
-		const FTraceDisabled& Attachment; \
 	};
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ...) \
