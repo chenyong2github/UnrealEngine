@@ -48,7 +48,8 @@ bool FReserveScheduler::DoReserveWorkUntil(FConditional&& Condition)
 	if (FYieldedWork* WorkerEvent = EventStack.Pop())
 	{
 		WorkerEvent->CompletedDelegate = MoveTemp(Condition);
-		WorkerEvent->bPermitBackgroundWork = FSchedulerTls::PermitBackgroundWork();
+		// become a background worker if the reserve worker is replacing a blocked background worker
+		WorkerEvent->bPermitBackgroundWork = FSchedulerTls::IsBackgroundWorker();
 		WorkerEvent->SleepEvent->Trigger();
 		return true;
 	}
