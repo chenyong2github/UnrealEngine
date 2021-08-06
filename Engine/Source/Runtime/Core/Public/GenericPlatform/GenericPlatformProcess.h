@@ -6,6 +6,8 @@
 #include "Containers/UnrealString.h"
 #include "Templates/Function.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/EnumClassFlags.h"
+#include "GenericPlatform/GenericPlatformAffinity.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 #if PLATFORM_CPU_X86_FAMILY
@@ -222,6 +224,13 @@ struct CORE_API FGenericPlatformProcess
 	 * @param AffinityMask A bitfield indicating what processors the thread is allowed to run on.
 	 */
 	static void SetThreadAffinityMask( uint64 AffinityMask );
+
+	/**
+	 * Change the thread processor priority
+	 *
+	 * @param NewPriority an EThreadPriority indicating what priority the thread is to run at.
+	 */
+	static void SetThreadPriority( EThreadPriority NewPriority );
 
 	/**
 	 * Helper function to set thread name of the current thread.

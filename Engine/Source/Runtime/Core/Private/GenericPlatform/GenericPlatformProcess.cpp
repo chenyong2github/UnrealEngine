@@ -67,6 +67,11 @@ void FGenericPlatformProcess::SetThreadAffinityMask( uint64 AffinityMask )
 	// Not implemented cross-platform. Each platform may or may not choose to implement this.
 }
 
+void FGenericPlatformProcess::SetThreadPriority(EThreadPriority NewPriority)
+{
+	// Not implemented cross-platform. Each platform may or may not choose to implement this.
+}
+
 uint32 FGenericPlatformProcess::GetStackSize()
 {
 	return 0;
