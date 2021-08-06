@@ -287,7 +287,7 @@ namespace HordeServer.Services
 					foreach (AgentLease Lease in Agent.Leases)
 					{
 						Logger.LogDebug("Removing outstanding lease {LeaseId} during session create...", Lease.Id);
-						await RemoveLeaseAsync(Agent, Lease, UtcNow, LeaseOutcome.Failed);
+						await RemoveLeaseAsync(Agent, Lease, UtcNow, LeaseOutcome.Failed, null);
 					}
 
 					// Create a new session document
@@ -557,7 +557,7 @@ namespace HordeServer.Services
 							HordeCommon.Rpc.Messages.Lease? NewLease;
 							if (!LeaseIdToNewState.TryGetValue(Lease.Id, out NewLease) || NewLease.State == LeaseState.Cancelled || NewLease.State == LeaseState.Completed)
 							{
-								await RemoveLeaseAsync(Agent, Lease, UtcNow, LeaseOutcome.Cancelled);
+								await RemoveLeaseAsync(Agent, Lease, UtcNow, LeaseOutcome.Cancelled, null);
 								Leases.RemoveAt(Idx--);
 								bUpdateLeases = true;
 							}
@@ -569,7 +569,7 @@ namespace HordeServer.Services
 							{
 								if (NewLease.State == LeaseState.Cancelled || NewLease.State == LeaseState.Completed)
 								{
-									await RemoveLeaseAsync(Agent, Lease, UtcNow, NewLease.Outcome);
+									await RemoveLeaseAsync(Agent, Lease, UtcNow, NewLease.Outcome, NewLease.Result.ToByteArray());
 									Leases.RemoveAt(Idx--);
 								}
 								else if (NewLease.State == LeaseState.Active && Lease.State == LeaseState.Pending)
@@ -765,7 +765,7 @@ namespace HordeServer.Services
 				foreach(AgentLease Lease in Leases)
 				{
 					Logger.LogDebug("Removing lease {LeaseId} during session terminate...", Lease.Id);
-					await RemoveLeaseAsync(Agent, Lease, FinishTime, LeaseOutcome.Failed);
+					await RemoveLeaseAsync(Agent, Lease, FinishTime, LeaseOutcome.Failed, null);
 				}
 
 				// Update the session document
@@ -826,8 +826,9 @@ namespace HordeServer.Services
 		/// <param name="Lease">The lease to cancel</param>
 		/// <param name="UtcNow">The current time</param>
 		/// <param name="Outcome">Final status of the lease</param>
+		/// <param name="Output">Output from executing the task</param>
 		/// <returns>Async task</returns>
-		private async Task RemoveLeaseAsync(IAgent Agent, AgentLease Lease, DateTime UtcNow, LeaseOutcome Outcome)
+		private async Task RemoveLeaseAsync(IAgent Agent, AgentLease Lease, DateTime UtcNow, LeaseOutcome Outcome, byte[]? Output)
 		{
 			// Make sure the lease is terminated correctly
 			if (Lease.Payload == null)
@@ -843,7 +844,7 @@ namespace HordeServer.Services
 				{
 					if (Any.Is(TaskSource.Descriptor))
 					{
-						await TaskSource.OnLeaseCompletedAsync(Agent, Lease.Id, Any, Outcome);
+						await TaskSource.OnLeaseCompletedAsync(Agent, Lease.Id, Any, Outcome, Output);
 						break;
 					}
 				}
@@ -861,7 +862,7 @@ namespace HordeServer.Services
 			}
 
 			// Update the lease
-			await Leases.TrySetOutcomeAsync(Lease.Id, FinishTime, Outcome);
+			await Leases.TrySetOutcomeAsync(Lease.Id, FinishTime, Outcome, Output);
 		}
 
 		/// <summary>

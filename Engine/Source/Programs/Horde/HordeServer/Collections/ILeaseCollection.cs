@@ -77,7 +77,8 @@ namespace HordeServer.Collections
 		/// <param name="LeaseId">The lease to update</param>
 		/// <param name="FinishTime">Time at which the lease finished</param>
 		/// <param name="Outcome">Outcome of the lease</param>
+		/// <param name="Output">Output data from the task</param>
 		/// <returns>True if the lease was updated, false otherwise</returns>
-		Task<bool> TrySetOutcomeAsync(ObjectId LeaseId, DateTime FinishTime, LeaseOutcome Outcome);
+		Task<bool> TrySetOutcomeAsync(ObjectId LeaseId, DateTime FinishTime, LeaseOutcome Outcome, byte[]? Output);
 	}
 }
