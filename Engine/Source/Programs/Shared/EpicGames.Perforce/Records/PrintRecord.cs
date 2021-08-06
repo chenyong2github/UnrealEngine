@@ -52,7 +52,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Size of the file in bytes
 		/// </summary>
-		[PerforceTag("fileSize")]
+		[PerforceTag("fileSize", Optional = true)]
 		public long FileSize;
 
 		/// <summary>
