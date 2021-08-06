@@ -21,8 +21,6 @@
 
 #define LOCTEXT_NAMESPACE "FractureToolEmbed"
 
-
-
 FText UFractureToolAddEmbeddedGeometry::GetDisplayText() const
 {
 	return FText(NSLOCTEXT("Fracture", "FractureToolAddEmbeddedGeometry", "Embed"));
@@ -422,7 +420,7 @@ void UFractureToolFlushEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToo
 
 								for (const FTransform& Transform : It->Value)
 								{
-									ActorFactory->CreateActor(LoadedExemplarAsset, TargetWorld->GetCurrentLevel(), ComponentSpace*Transform, SpawnParameters);
+									ActorFactory->CreateActor(LoadedExemplarAsset, TargetWorld->GetCurrentLevel(), Transform * ComponentSpace, SpawnParameters);
 								}
 							}
 
