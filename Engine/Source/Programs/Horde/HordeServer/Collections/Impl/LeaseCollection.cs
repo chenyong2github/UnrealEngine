@@ -43,7 +43,7 @@ namespace HordeServer.Collections.Impl
 			public byte[]? Output { get; set; }
 
 			ReadOnlyMemory<byte> ILease.Payload => Payload;
-			ReadOnlyMemory<byte> ILease.Output => Output;
+			ReadOnlyMemory<byte> ILease.Output => Output ?? Array.Empty<byte>();
 
 			[BsonConstructor]
 			private LeaseDocument()

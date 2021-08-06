@@ -77,6 +77,11 @@ namespace HordeServer.Models
 		/// Outcome of the lease
 		/// </summary>
 		public LeaseOutcome Outcome { get; }
+
+		/// <summary>
+		/// Output from executing the lease
+		/// </summary>
+		public ReadOnlyMemory<byte> Output { get; }
 	}
 
 	/// <summary>
