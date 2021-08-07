@@ -149,16 +149,34 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 	CurrentConfigData->bFollowLocalPlayerCamera = ConfigData->bFollowLocalPlayerCamera;
 	CurrentConfigData->bExitOnEsc = ConfigData->bExitOnEsc;
 
-	// Scene UObject
-	if (ConfigData->Scene)
+	// Override Scene but without changing its name
 	{
-		CurrentConfigData->Scene = DuplicateObject(ConfigData->Scene, CurrentConfigData);
+		FName SceneName = NAME_None;
+
+		if (CurrentConfigData->Scene)
+		{
+			SceneName = CurrentConfigData->Scene->GetFName();
+
+			const FName DeadName = MakeUniqueObjectName(CurrentConfigData, UDisplayClusterConfigurationScene::StaticClass(), "DEAD_DisplayClusterConfigurationScene");
+			CurrentConfigData->Scene->Rename(*DeadName.ToString());
+		}
+
+		CurrentConfigData->Scene = DuplicateObject(ConfigData->Scene, CurrentConfigData, SceneName);
 	}
 
-	// Cluster UObject
-	if (ConfigData->Cluster)
+	// Override Cluster but without changing its name
 	{
-		CurrentConfigData->Cluster = DuplicateObject(ConfigData->Cluster, CurrentConfigData);
+		FName ClusterName = NAME_None;
+
+		if (CurrentConfigData->Cluster)
+		{
+			ClusterName = CurrentConfigData->Cluster->GetFName();
+
+			const FName DeadName = MakeUniqueObjectName(CurrentConfigData, UDisplayClusterConfigurationCluster::StaticClass(), "DEAD_DisplayClusterConfigurationCluster");
+			CurrentConfigData->Cluster->Rename(*DeadName.ToString());
+		}
+
+		CurrentConfigData->Cluster = DuplicateObject(ConfigData->Cluster, CurrentConfigData, ClusterName);
 	}
 
 	// There is no sense to call BuildHierarchy because it works for non-BP root actors.
