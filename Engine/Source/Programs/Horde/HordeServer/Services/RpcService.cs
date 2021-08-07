@@ -21,16 +21,17 @@ using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-using IStream = HordeServer.Models.IStream;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 using HordeServer.Tasks.Impl;
 
 [assembly: InternalsVisibleTo("HordeAgentTests")]
 
 namespace HordeServer.Services
 {
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
+	using IStream = HordeServer.Models.IStream;
+	using StreamId = StringId<IStream>;
+
 	/// <summary>
 	/// Implements the Horde gRPC service for bots updating their status and dequeing work
 	/// </summary>

@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Datadog.Trace;
 using EpicGames.Core;
 using HordeServer.Api;
 using HordeServer.Collections;
@@ -20,8 +19,6 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using Microsoft.Extensions.Logging;
 using HordeServer.Notifications;
 using OpenTracing.Util;
@@ -29,6 +26,9 @@ using OpenTracing;
 
 namespace HordeServer.Controllers
 {
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Controller for the /api/v1/jobs endpoing
 	/// </summary>

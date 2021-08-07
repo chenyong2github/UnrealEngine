@@ -23,9 +23,6 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Datadog.Trace;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using System.Globalization;
 using HordeServer.Tasks.Impl;
 using OpenTracing.Util;
@@ -33,6 +30,9 @@ using OpenTracing;
 
 namespace HordeServer.Services
 {
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Exception thrown when attempting to retry executing a node that does not allow retries
 	/// </summary>

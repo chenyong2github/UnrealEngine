@@ -21,11 +21,11 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
-
 namespace HordeServer.Controllers
 {
+	using PoolId = StringId<IPool>;
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+
 	/// <summary>
 	/// Controller for the /api/v1/agents endpoint
 	/// </summary>

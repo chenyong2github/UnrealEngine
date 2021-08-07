@@ -22,11 +22,11 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-
 namespace HordeServer.Services
 {
+	using ProjectId = StringId<IProject>;
+	using StreamId = StringId<IStream>;
+
 	/// <summary>
 	/// Polls Perforce for stream config changes
 	/// </summary>

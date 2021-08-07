@@ -14,8 +14,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
@@ -24,6 +22,8 @@ using System.IO.Compression;
 
 namespace HordeServer.Services
 {
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+
 	/// <summary>
 	/// Information about a channel
 	/// </summary>

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Amazon.S3.Model.Internal.MarshallTransformations;
-using Datadog.Trace;
 using EpicGames.Core;
 using HordeCommon;
 using HordeServer.Api;
@@ -25,11 +24,12 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using TimeZoneConverter;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 
 namespace HordeServer.Services
 {
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Manipulates schedule instances
 	/// </summary>

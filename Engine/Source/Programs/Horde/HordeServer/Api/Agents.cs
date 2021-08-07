@@ -10,10 +10,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-
 namespace HordeServer.Api
 {
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// Parameters to register a new agent
 	/// </summary>

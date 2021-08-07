@@ -13,12 +13,11 @@ using System.Linq;
 using MongoDB.Bson;
 using System.Collections.Generic;
 
-using DeviceId = HordeServer.Utilities.StringId<HordeServer.Models.IDevice>;
-using DevicePlatformId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePlatform>;
-using DevicePoolId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePool>;
-
 namespace HordeServer.Collections.Impl
 {
+	using DeviceId = StringId<IDevice>;
+	using DevicePlatformId = StringId<IDevicePlatform>;
+	using DevicePoolId = StringId<IDevicePool>;
 
 	/// <summary>
 	/// Collection of device documents

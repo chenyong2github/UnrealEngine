@@ -24,11 +24,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using HordeServer.Utilities;
 
 namespace HordeServer.Tasks.Impl
 {
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// Store either a successful or failed result for an execution
 	/// </summary>

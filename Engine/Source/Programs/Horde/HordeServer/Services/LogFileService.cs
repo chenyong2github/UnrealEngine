@@ -27,7 +27,6 @@ using System.Text.Json;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
-using Datadog.Trace;
 
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using Stream = System.IO.Stream;

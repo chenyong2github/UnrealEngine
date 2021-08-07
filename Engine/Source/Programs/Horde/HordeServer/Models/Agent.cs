@@ -16,15 +16,17 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using Serilog;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using HordeServer.Collections;
 
 namespace HordeServer.Models
 {
+	using PoolId = StringId<IPool>;
+	using StreamId = StringId<IStream>;
+	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+
 	/// <summary>
 	/// Information about a workspace synced to an agent
 	/// </summary>

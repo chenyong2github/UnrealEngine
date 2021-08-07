@@ -10,14 +10,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 using HordeServer.Utilities;
 
 namespace HordeServer.Collections.Impl
 {
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// Collection of JobStepRef documents
 	/// </summary>

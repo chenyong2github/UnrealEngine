@@ -10,10 +10,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-
 namespace HordeServer.Models
 {
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Specifies a pattern of times that this schedule should run. Each schedule may have multiple patterns.
 	/// </summary>

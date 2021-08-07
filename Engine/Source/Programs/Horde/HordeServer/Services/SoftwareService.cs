@@ -18,10 +18,10 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-using SoftwareChannelId = HordeServer.Utilities.StringId<HordeServer.Services.SoftwareVersionsSingleton>;
-
 namespace HordeServer.Services
 {
+	using SoftwareChannelId = StringId<SoftwareVersionsSingleton>;
+
 	/// <summary>
 	/// Singleton document used to track
 	/// </summary>

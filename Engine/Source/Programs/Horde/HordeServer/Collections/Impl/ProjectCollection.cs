@@ -15,10 +15,10 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-
 namespace HordeServer.Collections.Impl
 {
+	using ProjectId = StringId<IProject>;
+
 	/// <summary>
 	/// Wraps functionality for manipulating projects
 	/// </summary>

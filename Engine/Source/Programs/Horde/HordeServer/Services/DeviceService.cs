@@ -12,10 +12,6 @@ using Microsoft.Extensions.Logging;
 using HordeCommon;
 using MongoDB.Bson;
 using System.Collections.Generic;
-
-using DeviceId = HordeServer.Utilities.StringId<HordeServer.Models.IDevice>;
-using DevicePlatformId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePlatform>;
-using DevicePoolId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePool>;
 using System.Security.Claims;
 using System.Diagnostics.CodeAnalysis;
 using HordeServer.Notifications;
@@ -23,6 +19,10 @@ using System.Linq;
 
 namespace HordeServer.Services
 {
+	using DeviceId = StringId<IDevice>;
+	using DevicePlatformId = StringId<IDevicePlatform>;
+	using DevicePoolId = StringId<IDevicePool>;
+
 	/// <summary>
 	/// Device management service
 	/// </summary>

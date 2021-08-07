@@ -25,10 +25,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Datadog.Trace;
-
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using HordeServer.IssueHandlers.Impl;
 using HordeServer.Notifications;
 using OpenTracing;
@@ -36,6 +32,9 @@ using OpenTracing.Util;
 
 namespace HordeServer.Services.Impl
 {
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Detailed issue information
 	/// </summary>

@@ -23,15 +23,9 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using IStream = HordeServer.Models.IStream;
-
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using System.Net.Sockets;
 using MongoDB.Driver.Core.Events;
 using System.Threading;
-using Datadog.Trace;
 using HordeServer.Collections;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
@@ -41,6 +35,11 @@ using OpenTracing;
 
 namespace HordeServer.Services
 {
+	using IStream = HordeServer.Models.IStream;
+	using PoolId = StringId<IPool>;
+	using ProjectId = StringId<IProject>;
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Singleton for accessing the database
 	/// </summary>

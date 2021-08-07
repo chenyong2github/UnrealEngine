@@ -14,15 +14,15 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using System.Linq.Expressions;
-
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using HordeServer.Collections;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace HordeServer.Services
 {
+	using ProjectId = StringId<IProject>;
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Cache of information about stream ACLs
 	/// </summary>

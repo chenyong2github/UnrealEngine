@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Models;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Hosting;
 using MongoDB.Bson;
 using System;
@@ -8,10 +9,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-
 namespace HordeServer.Services
 {
+	using StreamId = StringId<IStream>;
+
 	/// <summary>
 	/// Service which manages build health issues
 	/// </summary>

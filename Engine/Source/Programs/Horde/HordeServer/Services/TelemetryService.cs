@@ -13,10 +13,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-
 namespace HordeServer.Services
 {
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// Service which updates telemetry periodically
 	/// </summary>
