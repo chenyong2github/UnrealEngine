@@ -120,8 +120,8 @@ namespace HordeAgentTests
 
 			WorkerService Ws = GetWorkerService((a, b, c) => Executor);
 			Ws.StepAbortPollInterval = TimeSpan.FromMilliseconds(1);
-			LeaseOutcome Outcome = await Ws.ExecuteJobAsync(RpcConnection, "agentId1", "leaseId1", ExecuteJobTask,
-				WorkerLogger, Token);
+			LeaseOutcome Outcome = (await Ws.ExecuteJobAsync(RpcConnection, "agentId1", "leaseId1", ExecuteJobTask,
+				WorkerLogger, Token)).Outcome;
 
 			Assert.AreEqual(LeaseOutcome.Success, Outcome);
 			Assert.AreEqual(4, Client.UpdateStepRequests.Count);

@@ -664,13 +664,13 @@ namespace HordeAgent.Services
 				{
 					LeaseInfo.Lease.State = LeaseState.Cancelled;
 					LeaseInfo.Lease.Outcome = LeaseOutcome.Failed;
-					LeaseInfo.Lease.Result = null;
+					LeaseInfo.Lease.Output = null;
 				}
 				else
 				{
 					LeaseInfo.Lease.State = (Result.Outcome == LeaseOutcome.Cancelled) ? LeaseState.Cancelled : LeaseState.Completed;
 					LeaseInfo.Lease.Outcome = Result.Outcome;
-					LeaseInfo.Lease.Result = ByteString.CopyFrom(Result.Output);
+					LeaseInfo.Lease.Output = ByteString.CopyFrom(Result.Output);
 				}
 				Logger.LogInformation("Transitioning lease {LeaseId} to {State}, outcome={Outcome}", LeaseInfo.Lease.Id, LeaseInfo.Lease.State, LeaseInfo.Lease.Outcome);
 			}
