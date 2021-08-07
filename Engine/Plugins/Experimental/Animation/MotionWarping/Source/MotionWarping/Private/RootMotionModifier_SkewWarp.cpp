@@ -5,6 +5,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "MotionWarpingComponent.h"
 
 URootMotionModifier_SkewWarp::URootMotionModifier_SkewWarp(const FObjectInitializer& ObjectInitializer)
@@ -29,12 +30,10 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 	{
 		const FTransform CurrentTransform = FTransform(
 			CharacterOwner->GetActorQuat(),
-			CharacterOwner->GetActorLocation() - FVector::UpVector * CharacterOwner->GetSimpleCollisionHalfHeight()
+			CharacterOwner->GetActorLocation() - FVector(0.f, 0.f, CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight())
 		);
 
-		const FTransform MeshRelativeTransform = FTransform(CharacterOwner->GetBaseRotationOffset(), CharacterOwner->GetBaseTranslationOffset());
-		const FTransform MeshTransform = MeshRelativeTransform * CharacterOwner->GetActorTransform();
-		const FTransform RootMotionTotalWorldSpace = RootMotionTotal * MeshTransform;
+		const FTransform RootMotionTotalWorldSpace = CurrentTransform * CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(RootMotionTotal);
 		const FTransform RootMotionDeltaWorldSpace = CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(RootMotionDelta);
 
 		const FVector CurrentLocation = CurrentTransform.GetLocation();
@@ -155,7 +154,7 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 	const int32 DebugLevel = FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread();
 	if (DebugLevel > 0)
 	{
-		PrintLog(TEXT("FRootMotionModifier_Skew"), InRootMotion, FinalRootMotion);
+		PrintLog(TEXT("SkewWarp"), InRootMotion, FinalRootMotion);
 
 		if (DebugLevel >= 2)
 		{
