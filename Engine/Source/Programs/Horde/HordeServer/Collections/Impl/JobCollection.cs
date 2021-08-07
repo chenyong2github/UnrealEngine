@@ -21,6 +21,8 @@ using System.Threading.Tasks;
 using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using OpenTracing.Util;
+using OpenTracing;
 
 namespace HordeServer.Collections.Impl
 {
@@ -467,7 +469,7 @@ namespace HordeServer.Collections.Impl
 			}
 
 			List<JobDocument> Results;
-			using (Scope Scope = Tracer.Instance.StartActive("Jobs.Find"))
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Jobs.Find").StartActive())
 			{
 				IFindFluent<JobDocument, JobDocument> Query = Jobs.Find<JobDocument>(Filter).SortByDescending(x => x.CreateTimeUtc!);
 				if (Index != null)

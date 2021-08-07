@@ -31,6 +31,8 @@ using Datadog.Trace;
 
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 using Stream = System.IO.Stream;
+using OpenTracing.Util;
+using OpenTracing;
 
 [assembly: InternalsVisibleTo("HordeServerTests")]
 
@@ -575,7 +577,7 @@ namespace HordeServer.Services
 		/// <inheritdoc/>
 		public async Task<ILogFile?> WriteLogDataAsync(ILogFile LogFile, long Offset, int LineIndex, ReadOnlyMemory<byte> Data, bool Flush, int MaxChunkLength, int MaxSubChunkLineCount)
 		{
-			using Scope Scope = Tracer.Instance.StartActive("WriteLogDataAsync");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("WriteLogDataAsync").StartActive();
 			Scope.Span.SetTag("LogId", LogFile.Id.ToString());
 			Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
 			Scope.Span.SetTag("Length", Data.Length.ToString(CultureInfo.InvariantCulture));
@@ -878,7 +880,7 @@ namespace HordeServer.Services
 		/// <inheritdoc/>
 		public async Task<ILogEventData> GetEventDataAsync(ILogFile LogFile, int LineIndex, int LineCount)
 		{
-			using Scope Scope = Tracer.Instance.StartActive("GetEventDataAsync");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("GetEventDataAsync").StartActive();
 			Scope.Span.SetTag("LogId", LogFile.Id.ToString());
 			Scope.Span.SetTag("LineIndex", LineIndex.ToString(CultureInfo.InvariantCulture));
 			Scope.Span.SetTag("LineCount", LineCount.ToString(CultureInfo.InvariantCulture));
@@ -1246,7 +1248,7 @@ namespace HordeServer.Services
 			}
 
 			// Save stats for the index creation
-			using Scope Scope = Tracer.Instance.StartActive("CreateIndexAsync");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("CreateIndexAsync").StartActive();
 			Scope.Span.SetTag("LogId", LogFile.Id.ToString());
 			Scope.Span.SetTag("Length", (LastChunk.Offset + LastChunk.Length).ToString(CultureInfo.InvariantCulture));
 
@@ -1523,7 +1525,7 @@ namespace HordeServer.Services
 		{
 			Stopwatch Timer = Stopwatch.StartNew();
 
-			using Scope Scope = Tracer.Instance.StartActive("SearchLogDataAsync");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("SearchLogDataAsync").StartActive();
 			Scope.Span.SetTag("LogId", LogFile.Id.ToString());
 			Scope.Span.SetTag("Text", Text);
 			Scope.Span.SetTag("Count", Count.ToString(CultureInfo.InvariantCulture));
@@ -1553,7 +1555,7 @@ namespace HordeServer.Services
 				LogIndexData? IndexData = await ReadIndexAsync(LogFile, LogFile.IndexLength.Value);
 				if(IndexData != null && FirstLine < IndexData.LineCount)
 				{
-					using Scope IndexScope = Tracer.Instance.StartActive("Indexed");
+					using IScope IndexScope = GlobalTracer.Instance.BuildSpan("Indexed").StartActive();
 					IndexScope.Span.SetTag("LineCount", IndexData.LineCount.ToString(CultureInfo.InvariantCulture));
 
 					foreach(int LineIndex in IndexData.Search(FirstLine, SearchText, SearchStats))

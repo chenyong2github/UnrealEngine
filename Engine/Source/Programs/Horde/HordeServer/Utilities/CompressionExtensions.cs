@@ -3,6 +3,8 @@
 using Datadog.Trace;
 using EpicGames.Core;
 using ICSharpCode.SharpZipLib.BZip2;
+using OpenTracing;
+using OpenTracing.Util;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
@@ -24,7 +26,7 @@ namespace HordeServer.Utilities
 		/// <returns>The compressed data</returns>
 		public static byte[] CompressBzip2(this ReadOnlyMemory<byte> Memory)
 		{
-			using Scope Scope = Tracer.Instance.StartActive("CompressBzip2");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("CompressBzip2").StartActive();
 			Scope.Span.SetTag("DecompressedSize", Memory.Length.ToString(CultureInfo.InvariantCulture));
 
 			byte[] CompressedData;
@@ -54,7 +56,7 @@ namespace HordeServer.Utilities
 		{
 			int DecompressedSize = BinaryPrimitives.ReadInt32LittleEndian(Memory.Span);
 
-			using Scope Scope = Tracer.Instance.StartActive("DecompressBzip2");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("DecompressBzip2").StartActive();
 			Scope.Span.SetTag("CompressedSize", Memory.Length.ToString(CultureInfo.InvariantCulture));
 			Scope.Span.SetTag("DecompressedSize", DecompressedSize.ToString(CultureInfo.InvariantCulture));
 

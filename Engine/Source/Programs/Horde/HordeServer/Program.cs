@@ -22,8 +22,10 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+using OpenTracing.Util;
 using Serilog;
 using Serilog.Configuration;
+using Serilog.Enrichers.OpenTracing;
 using Serilog.Events;
 using Serilog.Filters;
 using Serilog.Formatting.Json;
@@ -146,9 +148,12 @@ namespace HordeServer
 				LogDir = DirectoryReference.Combine(DataDir);
 			}
 
+			GlobalTracer.Register(Datadog.Trace.OpenTracing.OpenTracingTracerFactory.CreateTracer());
+
 			Serilog.Log.Logger = new LoggerConfiguration()
 				.WithHordeConfig(HordeSettings)
 				.Enrich.FromLogContext()
+				.Enrich.WithOpenTracingContext()
 				.WriteTo.Console(HordeSettings)
 				.WriteTo.File(Path.Combine(LogDir.FullName, "Log.txt"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception} [{SourceContext}]", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
 				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(LogDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)

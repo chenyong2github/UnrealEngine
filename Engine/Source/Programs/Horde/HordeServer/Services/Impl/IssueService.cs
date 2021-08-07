@@ -31,6 +31,8 @@ using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using HordeServer.IssueHandlers.Impl;
 using HordeServer.Notifications;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace HordeServer.Services.Impl
 {
@@ -535,7 +537,7 @@ namespace HordeServer.Services.Impl
 		[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
 		public async Task UpdateCompleteStep(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId)
 		{
-			using Scope Scope = Tracer.Instance.StartActive("UpdateCompleteStep");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("UpdateCompleteStep").StartActive();
 			Scope.Span.SetTag("JobId", Job.Id.ToString());
 			Scope.Span.SetTag("BatchId", BatchId.ToString());
 			Scope.Span.SetTag("StepId", StepId.ToString());

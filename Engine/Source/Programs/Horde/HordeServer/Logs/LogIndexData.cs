@@ -3,6 +3,8 @@
 using Datadog.Trace;
 using EpicGames.Core;
 using HordeServer.Utilities;
+using OpenTracing;
+using OpenTracing.Util;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -220,7 +222,7 @@ namespace HordeServer.Logs
 		/// <returns>Index data</returns>
 		public static LogIndexData Merge(IEnumerable<LogIndexData> Indexes)
 		{
-			using Scope Scope = Tracer.Instance.StartActive("LogIndexData.Merge");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("LogIndexData.Merge").StartActive();
 
 			// Create the combined block list
 			LogIndexBlock[] NewBlocks = Indexes.SelectMany(x => x.Blocks).ToArray();

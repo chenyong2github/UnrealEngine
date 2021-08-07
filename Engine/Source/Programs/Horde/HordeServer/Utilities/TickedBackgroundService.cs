@@ -4,6 +4,8 @@ using Datadog.Trace;
 using EpicGames.Core;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTracing;
+using OpenTracing.Util;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -73,7 +75,7 @@ namespace HordeServer.Utilities
 
 					// Run the tick method
 					Timer.Restart();
-					using (Scope Scope = Tracer.Instance.StartActive($"{GetType().Name}.{nameof(TickAsync)}"))
+					using (IScope Scope = GlobalTracer.Instance.BuildSpan($"{GetType().Name}.{nameof(TickAsync)}").StartActive())
 					{
 						try
 						{
