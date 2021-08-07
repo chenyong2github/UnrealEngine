@@ -104,6 +104,7 @@ namespace UnrealVS
 		/// </summary>
 		private void OnInvokedDynamicItem(object sender, EventArgs args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			var MenuCommand = (QuickBuildMenuCommand)sender;
 
 			// Get the project clicked in the solution explorer by accessing the current selection and converting to a Project if possible.
@@ -232,6 +233,8 @@ namespace UnrealVS
 
 		public QuickBuild()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// root menu
 			QuickBuildCommand = new OleMenuCommand(null, null, OnQuickBuildQuery, new CommandID(GuidList.UnrealVSCmdSet, ProjectQuickBuildMenuID));
 			QuickBuildCommand.BeforeQueryStatus += OnQuickBuildQuery;
@@ -263,6 +266,7 @@ namespace UnrealVS
 		/// </summary>
 		private void UpdateActiveState()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			UnrealVSPackage.Instance.SelectionManager.IsCmdUIContextActive(SolutionBuildingUIContextCookie, out int bIsBuilding);
 			bIsActive = bIsBuilding == 0;
 		}
@@ -272,6 +276,8 @@ namespace UnrealVS
 		/// </summary>
 		private void OnQuickBuildQuery(object sender, EventArgs e)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Always cache the list of solution build configs when the project menu is opening
 			CacheBuildConfigs();
 		}
@@ -292,6 +298,8 @@ namespace UnrealVS
 		/// </summary>
 		private void OnSolutionChanged()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			CacheBuildConfigs();
 
 			ActiveConfigurationMenus.Clear();
@@ -310,12 +318,13 @@ namespace UnrealVS
 		/// </summary>
 		private void CacheBuildConfigs()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			SolutionConfigurations SolutionConfigs = UnrealVSPackage.Instance.DTE.Solution.SolutionBuild.SolutionConfigurations;
 
 			SolutionConfigPlatforms = (from SolutionConfiguration2 Sc in SolutionConfigs select Sc.PlatformName).Distinct().ToArray();
 
 			SolutionConfigNames = (from SolutionConfiguration2 Sc in SolutionConfigs select Sc.Name).Distinct().ToArray();
-
 		}
 
 		/// <summary>
@@ -323,6 +332,7 @@ namespace UnrealVS
 		/// </summary>
 		private void OnUIContextChanged(uint CmdUICookie, bool bActive)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			if (SolutionBuildingUIContextCookie == CmdUICookie)
 			{
 				UpdateActiveState();

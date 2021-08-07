@@ -27,21 +27,22 @@ namespace UnrealVS
 
 		private class ProjectReference
 		{
-			public Project Project { get; set; }
+			public Project Project { get; }
+			public string Name { get; }
 
-			public string Name
+			public ProjectReference(Project Project)
 			{
-				get { return (Project != null ? Project.Name : "<invalid>"); }
+				ThreadHelper.ThrowIfNotOnUIThread();
+				this.Project = Project;
+				this.Name = (Project != null) ? Project.Name : "<invalid>";
 			}
 
-			public override string ToString()
-			{
-				return (Project != null ? Project.Name : "<invalid>");
-			}
+			public override string ToString() => Name;
 		}
 
 		public StartupProjectSelector()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			_bIsSolutionOpened = UnrealVSPackage.Instance.DTE.Solution.IsOpen;
 
 			// Create the handlers for our commands
@@ -66,6 +67,7 @@ namespace UnrealVS
 			UnrealVSPackage.Instance.OnSolutionOpened +=
 				delegate
 				{
+					ThreadHelper.ThrowIfNotOnUIThread();
 					Logging.WriteLine("Opened solution " + UnrealVSPackage.Instance.DTE.Solution.FullName);
 					_bIsSolutionOpened = true;
 					UpdateStartupProjectCombo();
@@ -82,6 +84,7 @@ namespace UnrealVS
 			UnrealVSPackage.Instance.OnProjectOpened +=
 				delegate (Project OpenedProject)
 				{
+					ThreadHelper.ThrowIfNotOnUIThread();
 					if (_bIsSolutionOpened)
 					{
 						Logging.WriteLine("Opened project node " + OpenedProject.Name);
@@ -95,6 +98,7 @@ namespace UnrealVS
 			UnrealVSPackage.Instance.OnProjectClosed +=
 				delegate (Project ClosedProject)
 				{
+					ThreadHelper.ThrowIfNotOnUIThread();
 					Logging.WriteLine("Closed project node " + ClosedProject.Name);
 					RemoveFromStartupProjectList(ClosedProject);
 				};
@@ -114,6 +118,8 @@ namespace UnrealVS
 
 		private void OnOptionsChanged(object Sender, EventArgs E)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			UpdateCachedOptions();
 
 			UpdateStartupProjectList(Utils.GetAllProjectsFromDTE());
@@ -127,13 +133,15 @@ namespace UnrealVS
 		/// Rebuild/update the list CachedStartupProjectNames whenever something changes
 		private void UpdateStartupProjectList(params Project[] DirtyProjects)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			foreach (Project Project in DirtyProjects)
 			{
 				if (ProjectPredicate(Project))
 				{
 					if (!_CachedStartupProjects.Any(ProjRef => ProjRef.Project == Project))
 					{
-						_CachedStartupProjects.Add(new ProjectReference { Project = Project });
+						_CachedStartupProjects.Add(new ProjectReference(Project));
 					}
 				}
 				else
@@ -149,6 +157,8 @@ namespace UnrealVS
 
 		private void SortCachedStartupProjects()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Sort projects by game y/n then alphabetically
 			_CachedStartupProjects = (_CachedStartupProjects.OrderBy(ProjectRef => ProjectRef.Name == "UE5" ? 0 : 1)
 				.ThenBy(ProjectRef => Utils.IsGameProject(ProjectRef.Project) ? 0 : 1)
@@ -157,6 +167,8 @@ namespace UnrealVS
 
 		private bool ProjectPredicate(Project Project)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Initialize the cached options if they haven't been read from UnrealVSOptions yet
 			if (!CachedHideNonGameStartupProjects.HasValue)
 			{
@@ -219,6 +231,8 @@ namespace UnrealVS
 		/// <returns>String to display</returns>
 		private string MakeStartupProjectComboText()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			string Text = "";
 
 			// Switch to this project!
@@ -239,6 +253,8 @@ namespace UnrealVS
 		/// Called by combo control to query the text to display or to apply newly-entered text
 		void StartupProjectComboHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			var OleArgs = (OleMenuCmdEventArgs)Args;
 
 			// If OutValue is non-zero, then Visual Studio is querying the current combo value to display
@@ -275,6 +291,8 @@ namespace UnrealVS
 		/// Called by combo control to populate the drop-down list
 		void StartupProjectComboListHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			var OleArgs = (OleMenuCmdEventArgs)Args;
 
 			var CachedStartupProjectNames = (from ProjRef in _CachedStartupProjects select ProjRef.Name).ToArray();

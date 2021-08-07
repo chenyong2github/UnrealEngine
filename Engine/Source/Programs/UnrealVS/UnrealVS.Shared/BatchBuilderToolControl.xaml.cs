@@ -228,6 +228,7 @@ namespace UnrealVS
 
 			public override string ToString()
 			{
+				ThreadHelper.ThrowIfNotOnUIThread();
 				if (Project != null) return Project.Name;
 				return "<None>";
 			}
@@ -482,6 +483,8 @@ namespace UnrealVS
 
 		private static void DisplayBatchOutputText(string Text)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (string.IsNullOrEmpty(Text)) return;
 
 			UnrealVSPackage.Instance.DTE.ExecuteCommand("View.Output");
@@ -506,6 +509,8 @@ namespace UnrealVS
 		/// </summary>
 		public BatchBuilderToolControl(BatchBuilderToolState state)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			_state = state;
 			IsSolutionOpen = UnrealVSPackage.Instance.DTE.Solution.IsOpen;
 
@@ -552,6 +557,7 @@ namespace UnrealVS
 		/// </summary>
 		public void Tick()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			TickBuildQueue();
 		}
 
@@ -587,6 +593,8 @@ namespace UnrealVS
 
 		private void RefreshConfigAndPlatformCollections()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			_ConfigCollection.Clear();
 			_PlatformCollection.Clear();
 
@@ -611,6 +619,8 @@ namespace UnrealVS
 
 		private void AddButtonClick(object Sender, RoutedEventArgs E)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			BuildJob[] Buildables = GetSelectedBuildableOnLeft();
 
 			if (Buildables.Length > 0)
@@ -663,6 +673,8 @@ namespace UnrealVS
 
 		private BuildJob[] GetSelectedBuildableOnLeft()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			BuildJob.BuildJobType JobType = GetSelectedBuildJobType();
 
 			List<BuildJob> Buildables = new List<BuildJob>();
@@ -719,6 +731,7 @@ namespace UnrealVS
 
 		private void OnBuildDone(bool bSucceeded, bool bModified, bool bWasCancelled)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			if (_ActiveBuildJob != null)
 			{
 				if (bWasCancelled)
@@ -804,6 +817,7 @@ namespace UnrealVS
 
 		private void OnStartStopButtonClick(object sender, RoutedEventArgs e)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			if (!IsBusy)
 			{
 				// Start
@@ -831,6 +845,8 @@ namespace UnrealVS
 
 		private void RunBuildJobs()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (BuildJobs == null)
 				throw new ArgumentNullException(nameof(BuildJobs));
 
@@ -878,6 +894,8 @@ namespace UnrealVS
 
 		private void SanityCheckBuildJobs(Project[] CheckProjects)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// check that project, config and platform strings in build jobs are valid
 			// remove invalid ones
 			Utils.GetSolutionConfigsAndPlatforms(out string[] SolutionConfigs, out string[] SolutionPlatforms);
@@ -888,7 +906,9 @@ namespace UnrealVS
 				{
 					BuildJob Job = JobSet.BuildJobs[JobIdx];
 
+#pragma warning disable VSTHRD010 // Invoke single-threaded types on Main thread
 					bool bProjectOkay = CheckProjects.Any(Proj => String.CompareOrdinal(Job.Project.FullName, Proj.FullName) == 0);
+#pragma warning restore VSTHRD010 // Invoke single-threaded types on Main thread
 					bool bConfigOkay = SolutionConfigs.Any(Config => String.CompareOrdinal(Job.Config, Config) == 0);
 					bool bPlatformOkay = SolutionPlatforms.Any(Platform => String.CompareOrdinal(Job.Platform, Platform) == 0);
 
@@ -902,11 +922,14 @@ namespace UnrealVS
 
 		private void SanityCheckBuildJobs()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			SanityCheckBuildJobs(Utils.GetAllProjectsFromDTE());
 		}
 
 		private void TickBuildQueue()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (_ActiveBuildJob != null || _BuildQueue.Count == 0) return;
 
 			while (_ActiveBuildJob == null && _BuildQueue.Count > 0)
@@ -942,6 +965,8 @@ namespace UnrealVS
 
 		private string GetBuildJobOutputText(BuildJob Job, DateTime? StartTime)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			var OutputText = new StringBuilder();
 
 			var Window = UnrealVSPackage.Instance.DTE.Windows.Item(Constants.vsWindowKindOutput);
@@ -992,6 +1017,8 @@ namespace UnrealVS
 
 		private void OpenItemOutputCommandExecuted(object sender, ExecutedRoutedEventArgs e)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (!(e.Parameter is BuildJob Job)) return;
 
 			DisplayBatchOutputText(Job.OutputText);
@@ -999,6 +1026,8 @@ namespace UnrealVS
 
 		private void OnDblClickBuildListItem(object sender, MouseButtonEventArgs e)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (!(sender is FrameworkElement Elem)) return;
 
 			if (!(Elem.DataContext is BuildJob Job)) return;
@@ -1026,6 +1055,8 @@ namespace UnrealVS
 
 		private void OnDblClickBuildingListItem(object sender, MouseButtonEventArgs e)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (!(sender is FrameworkElement Elem)) return;
 
 			if (!(Elem.DataContext is BuildJob Job)) return;
