@@ -843,7 +843,9 @@ public:
 		Mesh.bUseForMaterial  = bUseCardsOrMeshes;
 		Mesh.bUseForDepthPass = bUseCardsOrMeshes;
 		Mesh.SegmentIndex = 0;
+		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		Mesh.VisualizeLODIndex = IntLODIndex;
+		#endif
 
 		FMeshBatchElement& BatchElement = Mesh.Elements[0];
 		BatchElement.IndexBuffer = IndexBuffer;
