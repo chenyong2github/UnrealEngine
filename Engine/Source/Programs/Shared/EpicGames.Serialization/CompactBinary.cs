@@ -940,9 +940,15 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a bool. Returns the provided default on error.
 		/// </summary>
+		/// <returns>Value of the field</returns>
+		public bool AsBool() => AsBool(false);
+
+		/// <summary>
+		/// Access the field as a bool. Returns the provided default on error.
+		/// </summary>
 		/// <param name="Default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public bool AsBool(bool Default = false)
+		public bool AsBool(bool Default)
 		{
 			switch (GetType())
 			{
