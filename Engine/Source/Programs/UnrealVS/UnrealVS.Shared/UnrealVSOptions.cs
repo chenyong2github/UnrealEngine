@@ -36,6 +36,22 @@ namespace UnrealVS
 		[DisplayName("Allow Async Checkout")]
 		[Description("Switches checkout (on edit or manual) to an async method, note if the p4 operation fails the local file will still be writeable")]
 		public bool AllowAsyncP4Checkout { get; set; }
+
+		[Category("Unreal.P4")]
+		[DisplayName("Force P4 Output window to active")]
+		[Description("When set, normal p4 operations will force the output window to the surface")]
+		public bool ForceOutputWindow { get; set; }
+
+		[Category("Unreal.P4")]
+		[DisplayName("Allow Reconcile to Mark for Edit")]
+		[Description("Switches Reconcile from preview mode to marking files for edit in the default CL")]
+		public bool AllowReconcileToMarkForEdit { get; set; }
+
+		[Category("Unreal.P4")]
+		[DisplayName("Reconcile Extensions")]
+		[Description("Reconcile will attempt to resolve these extensions (including wildcards)")]
+		public string ReconcileExtensions { get; set; } = "c*;h*;ini";
+
 		protected override void OnApply(PageApplyEventArgs e)
 		{
 			base.OnApply(e);
