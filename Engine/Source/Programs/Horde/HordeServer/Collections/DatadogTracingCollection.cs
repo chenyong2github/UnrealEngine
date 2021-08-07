@@ -7,6 +7,8 @@ using Datadog.Trace;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace HordeServer.Collections
 {
@@ -50,7 +52,7 @@ namespace HordeServer.Collections
 		public async Task<IAsyncCursor<TResult>> AggregateAsync<TResult>(PipelineDefinition<T, TResult> pipeline, AggregateOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "AggregateAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "AggregateAsync").StartActive();
 			return await Collection.AggregateAsync(pipeline, Options,  CancellationToken);
 		}
 
@@ -58,7 +60,7 @@ namespace HordeServer.Collections
 		public async Task<IAsyncCursor<TResult>> AggregateAsync<TResult>(IClientSessionHandle Session, PipelineDefinition<T, TResult> pipeline, AggregateOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "AggregateAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "AggregateAsync").StartActive();
 			return await Collection.AggregateAsync(Session, pipeline, Options, CancellationToken);
 		}
 
@@ -80,7 +82,7 @@ namespace HordeServer.Collections
 		public async Task<BulkWriteResult<T>> BulkWriteAsync(IEnumerable<WriteModel<T>> requests, BulkWriteOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "BulkWriteAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "BulkWriteAsync").StartActive();
 			return await Collection.BulkWriteAsync(requests, Options,  CancellationToken);
 		}
 
@@ -88,7 +90,7 @@ namespace HordeServer.Collections
 		public async Task<BulkWriteResult<T>> BulkWriteAsync(IClientSessionHandle Session, IEnumerable<WriteModel<T>> requests, BulkWriteOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "BulkWriteAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "BulkWriteAsync").StartActive();
 			return await Collection.BulkWriteAsync(Session, requests, Options,  CancellationToken);
 		}
 
@@ -110,7 +112,7 @@ namespace HordeServer.Collections
 		public async Task<long> CountAsync(FilterDefinition<T> filter, CountOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "CountAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "CountAsync").StartActive();
 			return await Collection.CountAsync(filter, Options,  CancellationToken);
 		}
 
@@ -118,7 +120,7 @@ namespace HordeServer.Collections
 		public async Task<long> CountAsync(IClientSessionHandle Session, FilterDefinition<T> filter, CountOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "CountAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "CountAsync").StartActive();
 			return await Collection.CountAsync(Session, filter, Options,  CancellationToken);
 		}
 
@@ -133,7 +135,7 @@ namespace HordeServer.Collections
 		public long CountDocuments(IClientSessionHandle Session, FilterDefinition<T> filter, CountOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "CountDocumentsAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "CountDocumentsAsync").StartActive();
 			return Collection.CountDocuments(Session, filter, Options,  CancellationToken);
 		}
 
@@ -141,7 +143,7 @@ namespace HordeServer.Collections
 		public async Task<long> CountDocumentsAsync(FilterDefinition<T> filter, CountOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "CountDocumentsAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "CountDocumentsAsync").StartActive();
 			return await Collection.CountDocumentsAsync(filter, Options,  CancellationToken);
 		}
 
@@ -149,7 +151,7 @@ namespace HordeServer.Collections
 		public async Task<long> CountDocumentsAsync(IClientSessionHandle Session, FilterDefinition<T> filter, CountOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "CountDocumentsAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "CountDocumentsAsync").StartActive();
 			return await Collection.CountDocumentsAsync(Session, filter, Options,  CancellationToken);
 		}
 
@@ -176,7 +178,7 @@ namespace HordeServer.Collections
 		/// <inheritdoc />
 		public async Task<DeleteResult> DeleteManyAsync(FilterDefinition<T> filter, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "DeleteManyAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "DeleteManyAsync").StartActive();
 			return await Collection.DeleteManyAsync(filter,  CancellationToken);
 		}
 
@@ -184,7 +186,7 @@ namespace HordeServer.Collections
 		public async Task<DeleteResult> DeleteManyAsync(FilterDefinition<T> filter, DeleteOptions Options,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "DeleteManyAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "DeleteManyAsync").StartActive();
 			return await Collection.DeleteManyAsync(filter, Options,  CancellationToken);
 		}
 
@@ -192,7 +194,7 @@ namespace HordeServer.Collections
 		public async Task<DeleteResult> DeleteManyAsync(IClientSessionHandle Session, FilterDefinition<T> filter, DeleteOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "DeleteManyAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "DeleteManyAsync").StartActive();
 			return await Collection.DeleteManyAsync(Session, filter, Options,  CancellationToken);
 		}
 
@@ -219,7 +221,7 @@ namespace HordeServer.Collections
 		/// <inheritdoc />
 		public async Task<DeleteResult> DeleteOneAsync(FilterDefinition<T> filter, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "DeleteOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "DeleteOneAsync").StartActive();
 			return await Collection.DeleteOneAsync(filter,  CancellationToken);
 		}
 
@@ -227,7 +229,7 @@ namespace HordeServer.Collections
 		public async Task<DeleteResult> DeleteOneAsync(FilterDefinition<T> filter, DeleteOptions Options,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "DeleteOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "DeleteOneAsync").StartActive();
 			return await Collection.DeleteOneAsync(filter, Options,  CancellationToken);
 		}
 
@@ -235,7 +237,7 @@ namespace HordeServer.Collections
 		public Task<DeleteResult> DeleteOneAsync(IClientSessionHandle Session, FilterDefinition<T> filter, DeleteOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "DeleteOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "DeleteOneAsync").StartActive();
 			return Collection.DeleteOneAsync(Session, filter, Options,  CancellationToken);
 		}
 
@@ -257,7 +259,7 @@ namespace HordeServer.Collections
 		public async Task<IAsyncCursor<TField>> DistinctAsync<TField>(FieldDefinition<T, TField> field, FilterDefinition<T> filter, DistinctOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "DistinctAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "DistinctAsync").StartActive();
 			return await Collection.DistinctAsync(field, filter, Options,  CancellationToken);
 		}
 
@@ -265,7 +267,7 @@ namespace HordeServer.Collections
 		public async Task<IAsyncCursor<TField>> DistinctAsync<TField>(IClientSessionHandle Session, FieldDefinition<T, TField> field, FilterDefinition<T> filter,
 			DistinctOptions Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "DistinctAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "DistinctAsync").StartActive();
 			return await Collection.DistinctAsync(Session, field, filter, Options,  CancellationToken);
 		}
 
@@ -280,7 +282,7 @@ namespace HordeServer.Collections
 		public async Task<long> EstimatedDocumentCountAsync(EstimatedDocumentCountOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "EstimatedDocumentCountAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "EstimatedDocumentCountAsync").StartActive();
 			return await Collection.EstimatedDocumentCountAsync(Options,  CancellationToken);
 		}
 
@@ -302,7 +304,7 @@ namespace HordeServer.Collections
 		public async Task<IAsyncCursor<TProjection>> FindAsync<TProjection>(FilterDefinition<T> filter, FindOptions<T, TProjection> Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "FindAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "FindAsync").StartActive();
 			return await Collection.FindAsync(filter, Options,  CancellationToken);
 		}
 
@@ -310,7 +312,7 @@ namespace HordeServer.Collections
 		public async Task<IAsyncCursor<TProjection>> FindAsync<TProjection>(IClientSessionHandle Session, FilterDefinition<T> filter, FindOptions<T, TProjection> Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "FindAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "FindAsync").StartActive();
 			return await Collection.FindAsync(Session, filter, Options,  CancellationToken);
 		}
 
@@ -332,7 +334,7 @@ namespace HordeServer.Collections
 		public async Task<TProjection> FindOneAndDeleteAsync<TProjection>(FilterDefinition<T> filter, FindOneAndDeleteOptions<T, TProjection> Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "FindOneAndDeleteAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "FindOneAndDeleteAsync").StartActive();
 			return await Collection.FindOneAndDeleteAsync(filter, Options,  CancellationToken);
 		}
 
@@ -340,7 +342,7 @@ namespace HordeServer.Collections
 		public async Task<TProjection> FindOneAndDeleteAsync<TProjection>(IClientSessionHandle Session, FilterDefinition<T> filter,
 			FindOneAndDeleteOptions<T, TProjection> Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "FindOneAndDeleteAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "FindOneAndDeleteAsync").StartActive();
 			return await Collection.FindOneAndDeleteAsync(Session, filter, Options,  CancellationToken);
 		}
 
@@ -362,7 +364,7 @@ namespace HordeServer.Collections
 		public async Task<TProjection> FindOneAndReplaceAsync<TProjection>(FilterDefinition<T> filter, T replacement,
 			FindOneAndReplaceOptions<T, TProjection> Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "FindOneAndReplaceAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "FindOneAndReplaceAsync").StartActive();
 			return await Collection.FindOneAndReplaceAsync(filter, replacement, Options,  CancellationToken);
 		}
 
@@ -370,7 +372,7 @@ namespace HordeServer.Collections
 		public async Task<TProjection> FindOneAndReplaceAsync<TProjection>(IClientSessionHandle Session, FilterDefinition<T> filter, T replacement,
 			FindOneAndReplaceOptions<T, TProjection> Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "FindOneAndReplaceAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "FindOneAndReplaceAsync").StartActive();
 			return await Collection.FindOneAndReplaceAsync(Session, filter, replacement, Options,  CancellationToken);
 		}
 
@@ -393,7 +395,7 @@ namespace HordeServer.Collections
 		public async Task<TProjection> FindOneAndUpdateAsync<TProjection>(FilterDefinition<T> filter, UpdateDefinition<T> update,
 			FindOneAndUpdateOptions<T, TProjection> Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "FindOneAndUpdateAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "FindOneAndUpdateAsync").StartActive();
 			return await Collection.FindOneAndUpdateAsync(filter, update, Options,  CancellationToken);
 		}
 
@@ -401,7 +403,7 @@ namespace HordeServer.Collections
 		public async Task<TProjection> FindOneAndUpdateAsync<TProjection>(IClientSessionHandle Session, FilterDefinition<T> filter, UpdateDefinition<T> update,
 			FindOneAndUpdateOptions<T, TProjection> Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "FindOneAndUpdateAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "FindOneAndUpdateAsync").StartActive();
 			return await Collection.FindOneAndUpdateAsync(Session, filter, update, Options,  CancellationToken);
 		}
 
@@ -422,7 +424,7 @@ namespace HordeServer.Collections
 		/// <inheritdoc />
 		public async Task InsertOneAsync( T Document, CancellationToken CancellationToken)
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "InsertOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "InsertOneAsync").StartActive();
 			await Collection.InsertOneAsync(Document, CancellationToken);
 		}
 
@@ -430,7 +432,7 @@ namespace HordeServer.Collections
 		public async Task InsertOneAsync( T Document, InsertOneOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "InsertOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "InsertOneAsync").StartActive();
 			await Collection.InsertOneAsync(Document, Options,  CancellationToken);
 		}
 
@@ -438,7 +440,7 @@ namespace HordeServer.Collections
 		public async Task InsertOneAsync(IClientSessionHandle Session, T Document, InsertOneOptions Options = null!,
 			CancellationToken CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "InsertOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "InsertOneAsync").StartActive();
 			await Collection.InsertOneAsync(Session, Document, Options,  CancellationToken);
 		}
 
@@ -460,7 +462,7 @@ namespace HordeServer.Collections
 		public async Task InsertManyAsync(IEnumerable<T> Documents, InsertManyOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "InsertManyAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "InsertManyAsync").StartActive();
 			await Collection.InsertManyAsync(Documents, Options,  CancellationToken);
 		}
 
@@ -468,7 +470,7 @@ namespace HordeServer.Collections
 		public async Task InsertManyAsync(IClientSessionHandle Session, IEnumerable<T> documents, InsertManyOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "InsertManyAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "InsertManyAsync").StartActive();
 			await Collection.InsertManyAsync(Session, documents, Options,  CancellationToken);
 		}
 
@@ -490,7 +492,7 @@ namespace HordeServer.Collections
 		public async Task<IAsyncCursor<TResult>> MapReduceAsync<TResult>(BsonJavaScript map, BsonJavaScript reduce, MapReduceOptions<T, TResult> Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "MapReduceAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "MapReduceAsync").StartActive();
 			return await Collection.MapReduceAsync(map, reduce, Options,  CancellationToken);
 		}
 
@@ -498,7 +500,7 @@ namespace HordeServer.Collections
 		public async Task<IAsyncCursor<TResult>> MapReduceAsync<TResult>(IClientSessionHandle Session, BsonJavaScript map, BsonJavaScript reduce,
 			MapReduceOptions<T, TResult> Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "MapReduceAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "MapReduceAsync").StartActive();
 			return await Collection.MapReduceAsync(Session, map, reduce, Options,  CancellationToken);
 		}
 
@@ -540,7 +542,7 @@ namespace HordeServer.Collections
 		public async Task<ReplaceOneResult> ReplaceOneAsync(FilterDefinition<T> filter, T replacement, ReplaceOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "ReplaceOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "ReplaceOneAsync").StartActive();
 			return await Collection.ReplaceOneAsync(filter, replacement, Options,  CancellationToken);
 		}
 
@@ -548,7 +550,7 @@ namespace HordeServer.Collections
 		public async Task<ReplaceOneResult> ReplaceOneAsync(FilterDefinition<T> filter, T replacement, UpdateOptions Options,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "ReplaceOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "ReplaceOneAsync").StartActive();
 			return await Collection.ReplaceOneAsync(filter, replacement, Options,  CancellationToken);
 		}
 
@@ -556,7 +558,7 @@ namespace HordeServer.Collections
 		public async Task<ReplaceOneResult> ReplaceOneAsync(IClientSessionHandle Session, FilterDefinition<T> filter, T replacement,
 			ReplaceOptions Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "ReplaceOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "ReplaceOneAsync").StartActive();
 			return await Collection.ReplaceOneAsync(Session, filter, replacement, Options,  CancellationToken);
 		}
 
@@ -564,7 +566,7 @@ namespace HordeServer.Collections
 		public async Task<ReplaceOneResult> ReplaceOneAsync(IClientSessionHandle Session, FilterDefinition<T> filter, T replacement, UpdateOptions Options,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "ReplaceOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "ReplaceOneAsync").StartActive();
 			return await Collection.ReplaceOneAsync(Session, filter, replacement, Options,  CancellationToken);
 		}
 
@@ -586,7 +588,7 @@ namespace HordeServer.Collections
 		public async Task<UpdateResult> UpdateManyAsync(FilterDefinition<T> filter, UpdateDefinition<T> update, UpdateOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "UpdateManyAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "UpdateManyAsync").StartActive();
 			return await Collection.UpdateManyAsync(filter, update, Options,  CancellationToken);
 		}
 
@@ -594,7 +596,7 @@ namespace HordeServer.Collections
 		public async Task<UpdateResult> UpdateManyAsync(IClientSessionHandle Session, FilterDefinition<T> filter, UpdateDefinition<T> update,
 			UpdateOptions Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "UpdateManyAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "UpdateManyAsync").StartActive();
 			return await Collection.UpdateManyAsync(Session, filter, update, Options,  CancellationToken);
 		}
 
@@ -616,7 +618,7 @@ namespace HordeServer.Collections
 		public async Task<UpdateResult> UpdateOneAsync(FilterDefinition<T> filter, UpdateDefinition<T> update, UpdateOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "UpdateOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "UpdateOneAsync").StartActive();
 			return await Collection.UpdateOneAsync(filter, update, Options,  CancellationToken);
 		}
 
@@ -624,7 +626,7 @@ namespace HordeServer.Collections
 		public async Task<UpdateResult> UpdateOneAsync(IClientSessionHandle Session, FilterDefinition<T> filter, UpdateDefinition<T> update,
 			UpdateOptions Options = null!, CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "UpdateOneAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "UpdateOneAsync").StartActive();
 			return await Collection.UpdateOneAsync(Session, filter, update, Options,  CancellationToken);
 		}
 
@@ -646,7 +648,7 @@ namespace HordeServer.Collections
 		public async Task<IChangeStreamCursor<TResult>> WatchAsync<TResult>(PipelineDefinition<ChangeStreamDocument<T>, TResult> pipeline, ChangeStreamOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "WatchAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "WatchAsync").StartActive();
 			return await Collection.WatchAsync(pipeline, Options,  CancellationToken);
 		}
 
@@ -654,7 +656,7 @@ namespace HordeServer.Collections
 		public async Task<IChangeStreamCursor<TResult>> WatchAsync<TResult>(IClientSessionHandle Session, PipelineDefinition<ChangeStreamDocument<T>, TResult> pipeline, ChangeStreamOptions Options = null!,
 			CancellationToken  CancellationToken = new CancellationToken())
 		{
-			using Scope _ = Tracer.Instance.StartActive(Prefix + "WatchAsync");
+			using IScope _ = GlobalTracer.Instance.BuildSpan(Prefix + "WatchAsync").StartActive();
 			return await Collection.WatchAsync(Session, pipeline, Options,  CancellationToken);
 		}
 

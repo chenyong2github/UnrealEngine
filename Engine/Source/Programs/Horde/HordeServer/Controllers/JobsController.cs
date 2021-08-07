@@ -24,6 +24,8 @@ using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using Microsoft.Extensions.Logging;
 using HordeServer.Notifications;
+using OpenTracing.Util;
+using OpenTracing;
 
 namespace HordeServer.Controllers
 {
@@ -575,7 +577,7 @@ namespace HordeServer.Controllers
 			}
 
 			List<IJob> Jobs;
-			using (Scope _ = Tracer.Instance.StartActive("FindJobs"))
+			using (IScope _ = GlobalTracer.Instance.BuildSpan("FindJobs").StartActive())
 			{
 				Jobs = await JobService.FindJobsAsync(JobIdValues, StreamIdValue, Name, TemplateRefIds, MinChange,
 					MaxChange, PreflightChange, PreflightStartedByUserIdValue, StartedByUserIdValue, MinCreateTime?.UtcDateTime, MaxCreateTime?.UtcDateTime, Target, State, Outcome,
@@ -587,11 +589,11 @@ namespace HordeServer.Controllers
 			List<object> Responses = new List<object>();
 			foreach (IJob Job in Jobs)
 			{
-				using Scope JobScope = Tracer.Instance.StartActive("JobIteration");
+				using IScope JobScope = GlobalTracer.Instance.BuildSpan("JobIteration").StartActive();
 				JobScope.Span.SetTag("jobId", Job.Id.ToString());
 				
 				bool ViewJobAuthorized;
-				using (Scope _ = Tracer.Instance.StartActive("AuthorizeViewJob"))
+				using (IScope _ = GlobalTracer.Instance.BuildSpan("AuthorizeViewJob").StartActive())
 				{
 					ViewJobAuthorized = await JobService.AuthorizeAsync(Job, AclAction.ViewJob, User, PermissionsCache);
 				}
@@ -599,18 +601,18 @@ namespace HordeServer.Controllers
 				if (ViewJobAuthorized)
 				{
 					IGraph Graph;
-					using (Scope _ = Tracer.Instance.StartActive("GetGraph"))
+					using (IScope _ = GlobalTracer.Instance.BuildSpan("GetGraph").StartActive())
 					{
 						Graph = await JobService.GetGraphAsync(Job);
 					}
 
 					bool bIncludeAcl;
-					using (Scope _ = Tracer.Instance.StartActive("AuthorizeViewPermissions"))
+					using (IScope _ = GlobalTracer.Instance.BuildSpan("AuthorizeViewPermissions").StartActive())
 					{
 						bIncludeAcl = await JobService.AuthorizeAsync(Job, AclAction.ViewPermissions, User, PermissionsCache);
 					}
 
-					using (Scope _ = Tracer.Instance.StartActive("CreateResponse"))
+					using (IScope _ = GlobalTracer.Instance.BuildSpan("CreateResponse").StartActive())
 					{
 						Responses.Add(Job.ToResponse(Graph, bIncludeAcl, Filter));
 					}

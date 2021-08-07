@@ -28,6 +28,8 @@ using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 using System.Globalization;
 using HordeServer.Tasks.Impl;
+using OpenTracing.Util;
+using OpenTracing;
 
 namespace HordeServer.Services
 {
@@ -866,7 +868,7 @@ namespace HordeServer.Services
 			// Update the step
 			if (await Jobs.TryUpdateStepAsync(Job, Graph, BatchId, StepId, NewState, NewOutcome, NewAbortRequested, NewAbortByUser, NewLogId, NewTriggerId, NewRetryByUser, NewPriority, NewReports, NewProperties))
 			{
-				using Scope DdScope = Tracer.Instance.StartActive("TryUpdateStepAsync");
+				using IScope DdScope = GlobalTracer.Instance.BuildSpan("TryUpdateStepAsync").StartActive();
 				DdScope.Span.SetTag("JobId", Job.Id.ToString());
 				DdScope.Span.SetTag("BatchId", BatchId.ToString());
 				DdScope.Span.SetTag("StepId", StepId.ToString());
@@ -878,7 +880,7 @@ namespace HordeServer.Services
 					// Send any updates for modified badges
 					if (OldLabelStates != null)
 					{
-						using Scope _ = Tracer.Instance.StartActive("Send badge updates");
+						using IScope _ = GlobalTracer.Instance.BuildSpan("Send badge updates").StartActive();
 						IReadOnlyList<(LabelState, LabelOutcome)> NewLabelStates = Job.GetLabelStates(Graph);
 						OnLabelUpdate?.Invoke(Job, OldLabelStates, NewLabelStates);
 						await JobTaskSource.UpdateUgsBadges(Job, Graph, OldLabelStates, NewLabelStates);
@@ -908,14 +910,14 @@ namespace HordeServer.Services
 					// Notify subscribers
 					if (NewState == JobStepState.Completed)
 					{
-						using Scope _ = Tracer.Instance.StartActive("Notify subscribers");
+						using IScope _ = GlobalTracer.Instance.BuildSpan("Notify subscribers").StartActive();
 						OnJobStepComplete?.Invoke(Job, Graph, BatchId, StepId);
 					}
 
 					// Create any downstream jobs
 					if (NewState == JobStepState.Completed && NewOutcome != JobStepOutcome.Failure)
 					{
-						using Scope _ = Tracer.Instance.StartActive("Create downstream jobs");
+						using IScope _ = GlobalTracer.Instance.BuildSpan("Create downstream jobs").StartActive();
 						for (int Idx = 0; Idx < Job.ChainedJobs.Count; Idx++)
 						{
 							IChainedJob JobTrigger = Job.ChainedJobs[Idx];
@@ -933,7 +935,7 @@ namespace HordeServer.Services
 					// Update the jobstep ref if it completed
 					if (NewState == JobStepState.Running || NewState == JobStepState.Completed || NewState == JobStepState.Aborted)
 					{
-						using Scope _ = Tracer.Instance.StartActive("Update job step ref");
+						using IScope _ = GlobalTracer.Instance.BuildSpan("Update job step ref").StartActive();
 						if (Job.TryGetBatch(BatchId, out IJobStepBatch? Batch) && Batch.TryGetStep(StepId, out IJobStep? Step) && Step.StartTimeUtc != null)
 						{
 							await JobStepRefs.UpdateAsync(Job, Batch, Step, Graph);
@@ -945,7 +947,7 @@ namespace HordeServer.Services
 					{
 						if (IssueService != null)
 						{
-							using Scope _ = Tracer.Instance.StartActive("Update issues (V2)");
+							using IScope _ = GlobalTracer.Instance.BuildSpan("Update issues (V2)").StartActive();
 							try
 							{
 								await IssueService.UpdateCompleteStep(Job, Graph, BatchId, StepId);
@@ -958,7 +960,7 @@ namespace HordeServer.Services
 					}
 				}
 
-				using (Scope DispatchScope = Tracer.Instance.StartActive("Update queued jobs"))
+				using (IScope DispatchScope = GlobalTracer.Instance.BuildSpan("Update queued jobs").StartActive())
 				{
 					// Notify the dispatch service that the job has changed
 					JobTaskSource.UpdateQueuedJob(Job, Graph);

@@ -15,6 +15,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using OpenTracing;
+using OpenTracing.Util;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -126,7 +128,7 @@ namespace HordeServer.Services
 			if (!DowntimeService.IsDowntimeActive)
 			{
 				Logger.LogInformation("Updating scheduled triggers...");
-				using (Scope Scope = Tracer.Instance.StartActive("ScheduleService Tick"))
+				using (IScope Scope = GlobalTracer.Instance.BuildSpan("ScheduleService Tick").StartActive())
 				{
 					NextTickTime = await UpdateSchedulesAsync();
 				}

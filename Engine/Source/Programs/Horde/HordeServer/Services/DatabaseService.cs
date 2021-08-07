@@ -36,6 +36,8 @@ using HordeServer.Collections;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Net.NetworkInformation;
+using OpenTracing.Util;
+using OpenTracing;
 
 namespace HordeServer.Services
 {
@@ -120,7 +122,7 @@ namespace HordeServer.Services
 		/// </summary>
 		class MongoDatadogTracer : IEventSubscriber
 		{
-			readonly ConcurrentDictionary<int, Scope> Scopes = new ConcurrentDictionary<int, Scope>();
+			readonly ConcurrentDictionary<int, IScope> Scopes = new ConcurrentDictionary<int, IScope>();
 			private readonly ReflectionEventSubscriber _subscriber;
 
 			public MongoDatadogTracer()
@@ -135,7 +137,7 @@ namespace HordeServer.Services
 			
 			public void Handle(CommandStartedEvent e)
 			{
-				Scope Scope = Tracer.Instance.StartActive("mongodb.command");
+				IScope Scope = GlobalTracer.Instance.BuildSpan("mongodb.command").StartActive();
 				string? DbName = null;
 				string? CollectionName = null;
 				string? Query = null;
@@ -159,7 +161,7 @@ namespace HordeServer.Services
 						break;
 				}
 
-				Scope.Span.Type = "db";
+				Scope.Span.SetTag("Type", "db");
 				Scope.Span.SetTag("Command", e.CommandName);
 				Scope.Span.SetTag("DbName", DbName);
 				Scope.Span.SetTag("Collection", CollectionName);
@@ -169,7 +171,7 @@ namespace HordeServer.Services
 
 			public void Handle(CommandSucceededEvent e)
 			{
-				if (Scopes.TryGetValue(e.RequestId, out Scope? Scope))
+				if (Scopes.TryGetValue(e.RequestId, out IScope? Scope))
 				{
 					Scope.Dispose();
 					Scopes.Remove(e.RequestId, out _);
@@ -178,9 +180,9 @@ namespace HordeServer.Services
 			
 			public void Handle(CommandFailedEvent e)
 			{
-				if (Scopes.TryGetValue(e.RequestId, out Scope? Scope))
+				if (Scopes.TryGetValue(e.RequestId, out IScope? Scope))
 				{
-					Scope.Span.Error = true;
+					Scope.Span.SetTag("Error", true);
 					Scope.Dispose();
 					Scopes.Remove(e.RequestId, out _);
 				}

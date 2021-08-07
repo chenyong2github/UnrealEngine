@@ -14,6 +14,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HordeServer.Utilities;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace HordeServer.Logs.Builder
 {
@@ -84,7 +86,7 @@ namespace HordeServer.Logs.Builder
 
 			if(ChunkOffset == WriteOffset)
 			{
-				using Scope Scope = Tracer.Instance.StartActive("Redis.CreateChunk");
+				using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.CreateChunk").StartActive();
 				Scope.Span.SetTag("LogId", LogId.ToString());
 				Scope.Span.SetTag("Offset", ChunkOffset.ToString(CultureInfo.InvariantCulture));
 				Scope.Span.SetTag("WriteOffset", WriteOffset.ToString(CultureInfo.InvariantCulture));
@@ -104,7 +106,7 @@ namespace HordeServer.Logs.Builder
 			}
 
 			{
-				using Scope Scope = Tracer.Instance.StartActive("Redis.AppendChunk");
+				using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.AppendChunk").StartActive();
 				Scope.Span.SetTag("LogId", LogId.ToString());
 				Scope.Span.SetTag("Offset", ChunkOffset.ToString(CultureInfo.InvariantCulture));
 				Scope.Span.SetTag("WriteOffset", WriteOffset.ToString(CultureInfo.InvariantCulture));
@@ -134,7 +136,7 @@ namespace HordeServer.Logs.Builder
 			ChunkKeys Keys = new ChunkKeys(LogId, Offset);
 			for (; ; )
 			{
-				using Scope Scope = Tracer.Instance.StartActive("Redis.CompleteSubChunk");
+				using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteSubChunk").StartActive();
 				Scope.Span.SetTag("LogId", LogId.ToString());
 				Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
 
@@ -174,7 +176,7 @@ namespace HordeServer.Logs.Builder
 		public async Task CompleteChunkAsync(ObjectId LogId, long Offset)
 		{
 			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
-			using Scope Scope = Tracer.Instance.StartActive("Redis.CompleteChunk");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteChunk").StartActive();
 			Scope.Span.SetTag("LogId", LogId.ToString());
 			Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
 
@@ -196,7 +198,7 @@ namespace HordeServer.Logs.Builder
 		public async Task RemoveChunkAsync(ObjectId LogId, long Offset)
 		{
 			IDatabase RedisDb = RedisConnectionPool.GetDatabase();
-			using Scope Scope = Tracer.Instance.StartActive("Redis.RemoveChunk");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.RemoveChunk").StartActive();
 			Scope.Span.SetTag("LogId", LogId.ToString());
 			Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
 
@@ -221,7 +223,7 @@ namespace HordeServer.Logs.Builder
 			ChunkKeys Keys = new ChunkKeys(LogId, Offset);
 			for (; ; )
 			{
-				using Scope Scope = Tracer.Instance.StartActive("Redis.GetChunk");
+				using IScope Scope = GlobalTracer.Instance.BuildSpan("Redis.GetChunk").StartActive();
 				Scope.Span.SetTag("LogId", LogId.ToString());
 				Scope.Span.SetTag("Offset", Offset.ToString(CultureInfo.InvariantCulture));
 
