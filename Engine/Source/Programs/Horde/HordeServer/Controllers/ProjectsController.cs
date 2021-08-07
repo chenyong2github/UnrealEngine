@@ -13,10 +13,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-
 namespace HordeServer.Controllers
 {
+	using ProjectId = StringId<IProject>;
+
 	/// <summary>
 	/// Controller for the /api/v1/projects endpoint
 	/// </summary>

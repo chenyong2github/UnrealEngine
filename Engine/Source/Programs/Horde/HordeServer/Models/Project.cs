@@ -12,10 +12,10 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-
 namespace HordeServer.Models
 {
+	using ProjectId = StringId<IProject>;
+
 	/// <summary>
 	/// Specifies a category of streams to display on the dashboard
 	/// </summary>

@@ -13,10 +13,10 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-
 namespace HordeServer.Services
 {
+	using ProjectId = StringId<IProject>;
+
 	/// <summary>
 	/// Cache of information about job ACLs
 	/// </summary>

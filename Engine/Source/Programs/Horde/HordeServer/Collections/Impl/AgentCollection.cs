@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Google.Protobuf.WellKnownTypes;
-using HordeServer.Api;
 using HordeCommon;
-using HordeServer.Models;
 using HordeCommon.Rpc.Tasks;
+using HordeServer.Models;
 using HordeServer.Services;
 using HordeServer.Utilities;
 using MongoDB.Bson;
@@ -16,11 +15,11 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
-
 namespace HordeServer.Collections.Impl
 {
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// Collection of agent documents
 	/// </summary>

@@ -20,13 +20,12 @@ using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Transactions;
-using Datadog.Trace;
-
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
 
 namespace HordeServer.Collections
 {
+	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Fingerprint for an issue
 	/// </summary>

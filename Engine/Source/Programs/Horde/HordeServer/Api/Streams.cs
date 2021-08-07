@@ -9,11 +9,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-
 namespace HordeServer.Api
 {
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Query selecting the base changelist to use
 	/// </summary>

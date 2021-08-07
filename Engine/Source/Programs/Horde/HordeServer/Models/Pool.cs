@@ -10,10 +10,10 @@ using System.Linq;
 using System.Security.Permissions;
 using System.Threading.Tasks;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-
 namespace HordeServer.Models
 {
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// A pool of machines
 	/// </summary>

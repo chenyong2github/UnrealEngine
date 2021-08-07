@@ -25,12 +25,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-
-using IStream = HordeServer.Models.IStream;
 using MongoDB.Driver;
 using System.Text.Json;
 using System.Threading;
@@ -40,11 +34,18 @@ using HordeServer.Storage;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using StatsdClient;
-using P4Debugging = Perforce.P4.P4Debugging;
+
 using Amazon.S3;
 
 namespace HordeServer.Controllers
 {
+	using PoolId = StringId<IPool>;
+	using ProjectId = StringId<IProject>;
+	using TemplateRefId = StringId<TemplateRef>;
+	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
+	using IStream = HordeServer.Models.IStream;
+	using P4Debugging = Perforce.P4.P4Debugging;
+
 	/// <summary>
 	/// Public endpoints for the debug controller
 	/// </summary>

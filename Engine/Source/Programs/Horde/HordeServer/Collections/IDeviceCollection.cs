@@ -1,18 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Threading.Tasks;
-
 using HordeServer.Models;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System.Collections.Generic;
-
-using DeviceId = HordeServer.Utilities.StringId<HordeServer.Models.IDevice>;
-using DevicePlatformId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePlatform>;
-using DevicePoolId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePool>;
-using System;
+using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using DeviceId = StringId<IDevice>;
+	using DevicePlatformId = StringId<IDevicePlatform>;
+	using DevicePoolId = StringId<IDevicePool>;
+
 	/// <summary>
 	/// Device reservation request data
 	/// </summary>

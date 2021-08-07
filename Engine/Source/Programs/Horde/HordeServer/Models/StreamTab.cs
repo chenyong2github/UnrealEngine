@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using HordeServer.Api;
+using HordeServer.Utilities;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-
 namespace HordeServer.Models
 {
+	using TemplateRefId = StringId<TemplateRef>;
+
 	/// <summary>
 	/// Information about a page to display in the dashboard for a stream
 	/// </summary>

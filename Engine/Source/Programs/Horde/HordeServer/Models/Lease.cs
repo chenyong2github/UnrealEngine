@@ -10,14 +10,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 using Google.Protobuf.WellKnownTypes;
 using Google.Protobuf;
 
 namespace HordeServer.Models
 {
+	using PoolId = StringId<IPool>;
+	using StreamId = StringId<IStream>;
+
 	/// <summary>
 	/// Document describing a lease. This exists to permanently record a lease; the agent object tracks internal state of any active leases through AgentLease objects.
 	/// </summary>

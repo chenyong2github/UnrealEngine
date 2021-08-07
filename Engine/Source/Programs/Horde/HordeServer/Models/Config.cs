@@ -9,11 +9,11 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
-using ProjectId = HordeServer.Utilities.StringId<HordeServer.Models.IProject>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-
 namespace HordeServer.Models
 {
+	using ProjectId = StringId<IProject>;
+	using StreamId = StringId<IStream>;
+
 	/// <summary>
 	/// Global configuration
 	/// </summary>

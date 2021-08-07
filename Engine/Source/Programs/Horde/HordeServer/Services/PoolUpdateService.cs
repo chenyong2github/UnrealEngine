@@ -10,10 +10,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-
 namespace HordeServer.Services
 {
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// Periodically updates pool documents to contain the correct workspaces
 	/// </summary>

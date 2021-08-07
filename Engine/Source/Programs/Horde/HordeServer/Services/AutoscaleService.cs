@@ -22,12 +22,13 @@ using System.Threading.Tasks;
 using HordeCommon;
 using Microsoft.Extensions.Options;
 using StatsdClient;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 
 [assembly: InternalsVisibleTo("HordeServerTests")]
 
 namespace HordeServer.Services
 {
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// Service for managing the autoscaling of agent pools
 	/// </summary>

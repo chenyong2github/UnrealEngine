@@ -17,10 +17,10 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-
 namespace HordeServer.Collections.Impl
 {
+	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
+
 	/// <summary>
 	/// Collection of agent software documents
 	/// </summary>

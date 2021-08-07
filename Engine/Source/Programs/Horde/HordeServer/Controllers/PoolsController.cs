@@ -13,10 +13,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-
 namespace HordeServer.Controllers
 {
+	using PoolId = StringId<IPool>;
+
 	/// <summary>
 	/// Controller for the /api/v1/pools endpoint
 	/// </summary>

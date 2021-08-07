@@ -34,8 +34,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-
 namespace HordeServer.Notifications.Impl
 {
 	/// <summary>

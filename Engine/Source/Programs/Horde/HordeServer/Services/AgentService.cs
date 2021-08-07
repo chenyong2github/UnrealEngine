@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Datadog.Trace;
 using EpicGames.Core;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
@@ -30,14 +29,15 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using StatsdClient;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using AgentSoftwareVersion = HordeServer.Utilities.StringId<HordeServer.Collections.IAgentSoftwareCollection>;
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace HordeServer.Services
 {
+	using PoolId = StringId<IPool>;
+	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+
 	/// <summary>
 	/// Wraps funtionality for manipulating agents
 	/// </summary>

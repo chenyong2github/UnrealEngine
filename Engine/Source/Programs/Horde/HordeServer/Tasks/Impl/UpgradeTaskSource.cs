@@ -8,16 +8,17 @@ using HordeCommon.Rpc.Tasks;
 using HordeServer.Api;
 using HordeServer.Models;
 using HordeServer.Services;
+using HordeServer.Utilities;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
-
 namespace HordeServer.Tasks.Impl
 {
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+
 	class UpgradeTaskSource : TaskSourceBase<UpgradeTask>
 	{
 		AgentSoftwareService AgentSoftwareService;

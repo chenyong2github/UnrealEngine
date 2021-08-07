@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Datadog.Trace;
 using EpicGames.Core;
 using ICSharpCode.SharpZipLib.BZip2;
 using OpenTracing;

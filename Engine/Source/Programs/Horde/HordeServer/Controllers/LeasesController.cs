@@ -22,11 +22,11 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
-
 namespace HordeServer.Controllers
 {
+	using PoolId = StringId<IPool>;
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+
 	/// <summary>
 	/// Controller for the /api/v1/leases endpoint
 	/// </summary>

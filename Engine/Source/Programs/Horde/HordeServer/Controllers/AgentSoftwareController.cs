@@ -15,10 +15,10 @@ using HordeServer.Models;
 using MongoDB.Bson;
 using HordeServer.Utilities;
 
-using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
-
 namespace HordeServer.Controllers
 {
+	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+
 	/// <summary>
 	/// Controller for the /api/v1/software endpoint
 	/// </summary>

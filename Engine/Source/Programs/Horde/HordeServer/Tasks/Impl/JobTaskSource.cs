@@ -26,13 +26,13 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 using HordeServer.Services;
 
 namespace HordeServer.Tasks.Impl
 {
+	using PoolId = StringId<IPool>;
+	using StreamId = StringId<IStream>;
+
 	/// <summary>
 	/// Background service to dispatch pending work to agents in priority order.
 	/// </summary>

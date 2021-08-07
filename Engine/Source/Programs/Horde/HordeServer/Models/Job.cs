@@ -17,13 +17,13 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-using ReportPlacement = HordeCommon.Rpc.ReportPlacement;
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-using TemplateRefId = HordeServer.Utilities.StringId<HordeServer.Models.TemplateRef>;
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
-
 namespace HordeServer.Models
 {
+	using ReportPlacement = HordeCommon.Rpc.ReportPlacement;
+	using StreamId = StringId<HordeServer.Models.IStream>;
+	using TemplateRefId = StringId<HordeServer.Models.TemplateRef>;
+	using PoolId = StringId<HordeServer.Models.IPool>;
+
 	/// <summary>
 	/// Report for a job or jobstep
 	/// </summary>

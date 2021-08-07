@@ -1,29 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using HordeServer.Services;
-using System.Threading.Tasks;
-
 using HordeServer.Api;
-using HordeServer.Models;
-using MongoDB.Driver;
-using Microsoft.AspNetCore.Mvc;
 using HordeServer.Collections;
-using System;
-using System.Linq;
-
+using HordeServer.Models;
+using HordeServer.Services;
+using HordeServer.Utilities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using MongoDB.Driver;
+using System;
 using System.Collections.Generic;
-
-using DeviceId = HordeServer.Utilities.StringId<HordeServer.Models.IDevice>;
-using DevicePlatformId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePlatform>;
-using DevicePoolId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePool>;
-using Microsoft.AspNetCore.Authorization;
+using System.Linq;
 using System.Text.Json;
-
+using System.Threading.Tasks;
 
 namespace HordeServer.Controllers
 {
+	using DeviceId = StringId<IDevice>;
+	using DevicePlatformId = StringId<IDevicePlatform>;
+	using DevicePoolId = StringId<IDevicePool>;
+
 	/// <summary>
 	/// Controller for device service
 	/// </summary>

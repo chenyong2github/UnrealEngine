@@ -19,10 +19,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
-
 namespace HordeServer.Controllers
 {
+	using StreamId = StringId<IStream>;
+
 	/// <summary>
 	/// Controller for the /api/v1/issues endpoint
 	/// </summary>

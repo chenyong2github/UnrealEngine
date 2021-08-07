@@ -5,14 +5,14 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 using System.Collections.Generic;
-
-using DeviceId = HordeServer.Utilities.StringId<HordeServer.Models.IDevice>;
-using DevicePlatformId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePlatform>;
-using DevicePoolId = HordeServer.Utilities.StringId<HordeServer.Models.IDevicePool>;
+using HordeServer.Utilities;
 
 namespace HordeServer.Models
 {
-	
+	using DeviceId = StringId<IDevice>;
+	using DevicePlatformId = StringId<IDevicePlatform>;
+	using DevicePoolId = StringId<IDevicePool>;
+
 	/// <summary>
 	/// A reservation containing one or more devices
 	/// </summary>
