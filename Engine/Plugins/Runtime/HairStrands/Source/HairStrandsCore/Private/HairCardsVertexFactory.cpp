@@ -217,7 +217,13 @@ void FHairCardsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-	const bool bUseGPUSceneAndPrimitiveIdStream = VF_CARDS_SUPPORT_GPU_SCENE && Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
+	const bool bUseGPUSceneAndPrimitiveIdStream = 
+		VF_CARDS_SUPPORT_GPU_SCENE && 
+		Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && 
+		UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform))
+		// TODO: support GPUScene on mobile
+		&& !IsMobilePlatform(Parameters.Platform);
+
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bUseGPUSceneAndPrimitiveIdStream);
 	OutEnvironment.SetDefine(TEXT("HAIR_CARD_MESH_FACTORY"), TEXT("1"));
 	OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), RHISupportsManualVertexFetch(Parameters.Platform) ? TEXT("1") : TEXT("0"));	
@@ -270,20 +276,13 @@ void FHairCardsVertexFactory::InitResources()
 	// We create different streams based on feature level
 	check(HasValidFeatureLevel());
 
-	// If the platform does not support manual vertex fetching we assume it is a low end platform, and so we don't enable deformation.
-	// VertexFactory needs to be able to support max possible shader platform and feature level
-	// in case if we switch feature level at runtime.
-	const bool bCanUseGPUScene = VF_CARDS_SUPPORT_GPU_SCENE && UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
-
 	FVertexDeclarationElementList Elements;
-	SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, -1);
-	if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
+#if VF_CARDS_SUPPORT_GPU_SCENE
+	if (AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xff))
 	{
-		// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-		Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, sizeof(uint32), VET_UInt, EVertexStreamUsage::Instancing), 13));
-		SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, Elements.Last().StreamIndex);
 		bNeedsDeclaration = true;
 	}
+#endif
 
 	// Note this is a local version of the VF's bSupportsManualVertexFetch, which take into account the feature level
 	const bool bManualFetch = SupportsManualVertexFetch(GetFeatureLevel());

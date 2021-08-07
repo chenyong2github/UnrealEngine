@@ -1279,16 +1279,15 @@ void FLightmapRenderer::RenderMeshBatchesIntoGBuffer(
 		const uint32 InstanceFactor = 1;
 		FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 		const bool bDynamicInstancing = false;
+		const uint32 PrimitiveIdBufferStride = FInstanceCullingContext::GetInstanceIdBufferStride(View->GetFeatureLevel());
 
 		for (FVisibleMeshDrawCommand& Cmd : VisibleMeshDrawCommands)
 		{
 			Cmd.PrimitiveIdInfo.DrawPrimitiveId = Scene->CachedRayTracingScene->InstanceDataOriginalOffsets[MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex] + MeshBatch.Elements[0].UserIndex;
 		}
 
-		TRange<int32> Range = TRange<int32>::Empty();
-		Range.SetLowerBoundValue(INDEX_NONE);
-		SortAndMergeDynamicPassMeshDrawCommands(View->GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor, Range);
-		SubmitMeshDrawCommands(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, InstanceFactor, RHICmdList);
+		SortAndMergeDynamicPassMeshDrawCommands(*View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor, nullptr);
+		SubmitMeshDrawCommands(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, PrimitiveIdBufferStride, 0, bDynamicInstancing, InstanceFactor, RHICmdList);
 	}
 
 	GPrimitiveIdVertexBufferPool.DiscardAll();

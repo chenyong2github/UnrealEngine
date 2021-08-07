@@ -429,13 +429,13 @@ static bool TryAndCreateMaterialInput( UMaterial* UnrealMaterial, EMaterialKind:
 		// There's an ObjectLocalBounds node, but it's a compound node which uses two custom expressions inside to get the
 		// min and max, and it's too much of a hassle to create that from a uasset and then query its outputs by name. Instead,
 		// we'll just use the same custom expressions directly.
-		LocalBoundsMinExpression->Code = TEXT("GetPrimitiveData(Parameters.PrimitiveId).LocalObjectBoundsMin.xyz");
+		LocalBoundsMinExpression->Code = TEXT("GetPrimitiveData(Parameters).LocalObjectBoundsMin.xyz");
 		LocalBoundsMinExpression->OutputType = CMOT_Float3;
 		LocalBoundsMinExpression->Description = TEXT("Local Bounds Min");
 		LocalBoundsMinExpression->MaterialExpressionEditorX = EditorPosX;
 		LocalBoundsMinExpression->MaterialExpressionEditorY = EditorPosY + 100;
 
-		LocalBoundsMaxExpression->Code = TEXT("GetPrimitiveData(Parameters.PrimitiveId).LocalObjectBoundsMax.xyz");
+		LocalBoundsMaxExpression->Code = TEXT("GetPrimitiveData(Parameters).LocalObjectBoundsMax.xyz");
 		LocalBoundsMaxExpression->OutputType = CMOT_Float3;
 		LocalBoundsMaxExpression->Description = TEXT("Local Bounds Max");
 		LocalBoundsMaxExpression->MaterialExpressionEditorX = EditorPosX;

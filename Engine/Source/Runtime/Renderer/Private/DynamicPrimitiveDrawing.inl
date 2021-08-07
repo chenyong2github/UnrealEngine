@@ -223,7 +223,7 @@ inline int32 FViewElementPDI::DrawMesh(const FMeshBatch& Mesh)
 			ENQUEUE_RENDER_COMMAND(FCopyDynamicPrimitiveShaderData)(
 				[NewMesh, DynamicPrimitiveCollectorForRT = DynamicPrimitiveCollector, FeatureLevel](FRHICommandListImmediate& RHICmdList)
 				{
-					const bool bPrimitiveShaderDataComesFromSceneBuffer = NewMesh->VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::Default) >= 0;
+					const bool bPrimitiveShaderDataComesFromSceneBuffer = NewMesh->VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, EVertexInputStreamType::Default) >= 0;
 
 					for (int32 ElementIndex = 0; ElementIndex < NewMesh->Elements.Num(); ElementIndex++)
 					{

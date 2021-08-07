@@ -1139,7 +1139,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 	// GPUCULL_TODO: Move to base proxy
-	// Mobile LandscapeVF does not use GPUScene
+	// Vertex shaders on mobile may still use PrimitiveUB with GPUScene enabled
 	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) || (FeatureLevel == ERHIFeatureLevel::ES3_1);
 	
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
@@ -3161,7 +3161,7 @@ void FLandscapeVertexFactory::InitRHI()
 	// position decls
 	Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 
-	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, 1, Elements);
+	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 1, 0xff);
 	// create the actual device decls
 	InitDeclaration(Elements);
 }

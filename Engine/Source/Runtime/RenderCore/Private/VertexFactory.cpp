@@ -261,13 +261,29 @@ void FVertexFactory::ReleaseRHI()
 	PositionAndNormalStream.Empty();
 }
 
-bool FVertexFactory::AddPrimitiveIdStreamElement(EVertexInputStreamType InputStreamType, uint8 AttributeIndex, FVertexDeclarationElementList& VertexDeclarationElements)
+bool FVertexFactory::AddPrimitiveIdStreamElement(EVertexInputStreamType InputStreamType, FVertexDeclarationElementList& Elements, uint8 AttributeIndex, uint8 AttributeIndex_Mobile)
 {
 	if (GetType()->SupportsPrimitiveIdStream() && UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
 	{
-		// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-		VertexDeclarationElements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), AttributeIndex, InputStreamType));
-		SetPrimitiveIdStreamIndex(InputStreamType, VertexDeclarationElements.Last().StreamIndex);
+		// In the editor add streams for both configurations - mobile and desktop
+		if (AttributeIndex_Mobile != 0xff && (GIsEditor || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1))
+		{
+			constexpr uint32 BufferStride = FPrimitiveIdDummyBufferMobile::BufferStride;
+			// instance transform stream
+			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummyMobile, 0, 16*0, BufferStride, VET_Float4, EVertexStreamUsage::Instancing), AttributeIndex_Mobile+0, InputStreamType));
+			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummyMobile, 0, 16*1, BufferStride, VET_Float4, EVertexStreamUsage::Instancing), AttributeIndex_Mobile+1, InputStreamType));
+			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummyMobile, 0, 16*2, BufferStride, VET_Float4, EVertexStreamUsage::Instancing), AttributeIndex_Mobile+2, InputStreamType));
+			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummyMobile, 0, 16*3, BufferStride, VET_Float4, EVertexStreamUsage::Instancing), AttributeIndex_Mobile+3, InputStreamType));
+			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummyMobile, 0, 16*4, BufferStride, VET_Float4, EVertexStreamUsage::Instancing), AttributeIndex_Mobile+4, InputStreamType));
+			SetPrimitiveIdStreamIndex(ERHIFeatureLevel::ES3_1, InputStreamType, Elements.Last().StreamIndex);
+		}
+		
+		if (GIsEditor || GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1)
+		{
+			// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
+			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), AttributeIndex, InputStreamType));
+			SetPrimitiveIdStreamIndex(GMaxRHIFeatureLevel, InputStreamType, Elements.Last().StreamIndex);
+		}
 		return true;
 	}
 
@@ -332,3 +348,21 @@ void FPrimitiveIdDummyBuffer::InitRHI()
 }
 
 TGlobalResource<FPrimitiveIdDummyBuffer> GPrimitiveIdDummy;
+
+void FPrimitiveIdDummyBufferMobile::InitRHI() 
+{
+	// create a static vertex buffer
+	FRHIResourceCreateInfo CreateInfo(TEXT("FPrimitiveIdDummyBufferMobile"));
+
+	VertexBufferRHI = RHICreateBuffer(BufferStride, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+	FVector4* Vertices = (FVector4*)RHILockBuffer(VertexBufferRHI, 0, BufferStride, RLM_WriteOnly);
+	Vertices[0] = FVector4(0, 0, 0, 0);
+	Vertices[1] = FVector4(1, 0, 0, 0);
+	Vertices[2] = FVector4(0, 1, 0, 0);
+	Vertices[3] = FVector4(0, 0, 1, 0);
+	Vertices[4] = FVector4(0, 0, 0, 0);
+	RHIUnlockBuffer(VertexBufferRHI);
+	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F);
+}
+
+TGlobalResource<FPrimitiveIdDummyBufferMobile> GPrimitiveIdDummyMobile;

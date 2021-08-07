@@ -3,20 +3,62 @@
 #include "Common.ush"
 #include "SceneData.ush"
 
+//  
+// Required VF inputs to support dynamic instancing 
+//
+#if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
+	#define VF_GPUSCENE_DECLARE_INPUT_BLOCK(Attr0) \
+		uint InstanceIdOffset : ATTRIBUTE##Attr0; \
+		uint DrawInstanceId : SV_InstanceID;
+	
+	#define VF_GPUSCENE_GET_INTERMEDIATES(VFInput) \
+		GetSceneDataIntermediates( \
+			VFInput.InstanceIdOffset, \
+			VFInput.DrawInstanceId)
+
+	#define VF_GPUSCENE_GET_LIGHTMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) \
+		GetLightmapData(LightmapDataIndex).LightMapCoordinateScaleBias
+	
+	#define VF_GPUSCENE_GET_SHADOWMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) \
+		GetLightmapData(LightmapDataIndex).ShadowMapCoordinateScaleBias
+
+#elif (VF_USE_PRIMITIVE_SCENE_DATA == 2)	
+	#define VF_GPUSCENE_DECLARE_INPUT_BLOCK(Attr0) \
+		float4 InstanceOrigin : ATTRIBUTE8; \
+		float4 InstanceTransform1 : ATTRIBUTE9; \
+		float4 InstanceTransform2 : ATTRIBUTE10; \
+		float4 InstanceTransform3 : ATTRIBUTE11; \
+		float4 PackedLightmapData : ATTRIBUTE12; \
+		uint DrawInstanceId : SV_InstanceID;
+
+	#define VF_GPUSCENE_GET_INTERMEDIATES(VFInput) \
+		GetSceneDataIntermediates( \
+			VFInput.DrawInstanceId, \
+			VFInput.InstanceOrigin,\
+			VFInput.InstanceTransform1, \
+			VFInput.InstanceTransform2, \
+			VFInput.InstanceTransform3, \
+			VFInput.PackedLightmapData)
+
+	#define VF_GPUSCENE_GET_LIGHTMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) \
+		float4(UnpackUnorm2x16(asuint(VFInput.PackedLightmapData.x)), UnpackSnorm2x16(asuint(VFInput.PackedLightmapData.y)))
+	
+	#define VF_GPUSCENE_GET_SHADOWMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) \
+		float4(UnpackUnorm2x16(asuint(VFInput.PackedLightmapData.z)), UnpackSnorm2x16(asuint(VFInput.PackedLightmapData.w)))
+
+#else
+	#define VF_GPUSCENE_DECLARE_INPUT_BLOCK(Attr0) 
+	#define VF_GPUSCENE_GET_INTERMEDIATES(VFInput) GetSceneDataIntermediates()
+	#define VF_GPUSCENE_GET_LIGHTMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) PrecomputedLightingBuffer.LightMapCoordinateScaleBias
+	#define VF_GPUSCENE_GET_SHADOWMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) PrecomputedLightingBuffer.ShadowMapCoordinateScaleBias
+#endif
+
+
 float3 TransformLocalToWorld(float3 LocalPosition, float4x4 LocalToWorld)
 {
 	//expand the matrix multiply to avoid a code-gen bug on PS4.
 	//invariant code!
 	return INVARIANT((LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz) + LocalToWorld[3].xyz);
-}
-
-float3 TransformLocalToWorld(float3 LocalPosition, uint PrimitiveId)
-{
-	//expand the matrix multiply to avoid a code-gen bug on PS4.
-	//float3 RotatedPosition = mul(LocalPosition.xyz, (float3x3)Primitive.LocalToWorld); 
-	//invariant code!
-	float4x4 LocalToWorld = GetPrimitiveData(PrimitiveId).LocalToWorld;
-	return INVARIANT((LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz) + LocalToWorld[3].xyz);	
 }
 
 float4 TransformLocalToWorld(float3 LocalPosition)
@@ -31,12 +73,6 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition, float4x4 LocalToWor
 	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz), 1.0f);
 }
 
-float4 TransformLocalToTranslatedWorld(float3 LocalPosition, uint PrimitiveId)
-{
-	return TransformLocalToTranslatedWorld(LocalPosition, GetPrimitiveData(PrimitiveId).LocalToWorld);
-}
-
-
 float3 RotateLocalToWorld(float3 LocalDirection, float4x4 LocalToWorld, float3 InvScale)
 {
 	return
@@ -45,34 +81,12 @@ float3 RotateLocalToWorld(float3 LocalDirection, float4x4 LocalToWorld, float3 I
 		InvScale.z * LocalToWorld[2].xyz * LocalDirection.zzz;
 }
 
-#if INSTANCE_SCENE_DATA_SUPPORTED
-
-float4 TransformLocalToTranslatedWorld(float3 LocalPosition, FInstanceSceneData InstanceSceneData)
-{
-	float4x4 LocalToWorld = InstanceSceneData.LocalToWorld;
-	float3 RotatedPosition = LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz;
-	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz), 1);
-}
-
-float3 RotateLocalToWorld(float3 LocalDirection, FInstanceSceneData InstanceSceneData)
-{
-	return RotateLocalToWorld(LocalDirection, InstanceSceneData.LocalToWorld, InstanceSceneData.InvNonUniformScale);
-}
-
-#endif // INSTANCE_SCENE_DATA_SUPPORTED
-
-
 #if !VF_USE_PRIMITIVE_SCENE_DATA
 
 float4 TransformLocalToTranslatedWorld(float3 LocalPosition)
 {
 	float3 RotatedPosition = Primitive.LocalToWorld[0].xyz * LocalPosition.xxx + Primitive.LocalToWorld[1].xyz * LocalPosition.yyy + Primitive.LocalToWorld[2].xyz * LocalPosition.zzz;
 	return float4(RotatedPosition + (Primitive.LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz),1);
-}
-
-float3 RotateLocalToWorld(float3 LocalDirection, uint PrimitiveId)
-{
-	return RotateLocalToWorld(LocalDirection, GetPrimitiveData(PrimitiveId).LocalToWorld, GetPrimitiveData(PrimitiveId).InvNonUniformScale);
 }
 
 float3 RotateLocalToWorld(float3 LocalDirection)

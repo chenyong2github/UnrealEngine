@@ -59,10 +59,12 @@ class FInstanceCullingContext
 {
 public:
 	static constexpr uint32 IndirectArgsNumWords = 5;
+	RENDERER_API static uint32 GetInstanceIdBufferStride(ERHIFeatureLevel::Type FeatureLevel);
 
 	FInstanceCullingContext() {}
 
 	RENDERER_API FInstanceCullingContext(
+		ERHIFeatureLevel::Type FeatureLevel,
 		FInstanceCullingManager* InInstanceCullingManager, 
 		TArrayView<const int32> InViewIds, 
 		EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal, 
@@ -155,6 +157,7 @@ public:
 		FRHICommandList& RHICmdList) const;
 
 	FInstanceCullingManager* InstanceCullingManager = nullptr;
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
 	TArray<int32, TInlineAllocator<6>/*, SceneRenderingAllocator*/> ViewIds;
 	bool bIsEnabled = false;
 	EInstanceCullingMode InstanceCullingMode = EInstanceCullingMode::Normal;

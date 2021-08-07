@@ -212,7 +212,9 @@ void FHairStrandsVertexFactory::ModifyCompilationEnvironment(const FVertexFactor
 	const bool bUseGPUSceneAndPrimitiveIdStream = 
 		VF_STRANDS_SUPPORT_GPU_SCENE
 		&& Parameters.VertexFactoryType->SupportsPrimitiveIdStream() 
-		&& UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
+		&& UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform))
+		// TODO: support GPUScene on mobile
+		&& !IsMobilePlatform(Parameters.Platform);
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bUseGPUSceneAndPrimitiveIdStream);
 	OutEnvironment.SetDefine(TEXT("HAIR_STRAND_MESH_FACTORY"), TEXT("1"));
 }
@@ -267,16 +269,9 @@ void FHairStrandsVertexFactory::InitResources()
 	check(HasValidFeatureLevel());
 
 	FVertexDeclarationElementList Elements;
-	SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, -1);
 #if VF_STRANDS_SUPPORT_GPU_SCENE
-	// VertexFactory needs to be able to support max possible shader platform and feature level
-	// in case if we switch feature level at runtime.
-	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
-	if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
+	if (AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xff))
 	{
-		// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-		Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 13));
-		SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, Elements.Last().StreamIndex);
 		bNeedsDeclaration = true;
 	}
 #endif

@@ -1705,3 +1705,39 @@ void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGP
 		EndReadWriteAccess(GraphBuilder, ERHIAccess::UAVCompute);
 	}
 }
+
+void FGPUSceneCompactInstanceData::Init(const FGPUScenePrimitiveCollector* PrimitiveCollector, int32 PrimitiveId)
+{
+	FMatrix LocalToWorld = FMatrix::Identity;
+	int32 DynamicPrimitiveId = PrimitiveId;
+	if (PrimitiveCollector && PrimitiveCollector->UploadData && !PrimitiveCollector->GetPrimitiveIdRange().IsEmpty())
+	{
+		DynamicPrimitiveId = PrimitiveCollector->GetPrimitiveIdRange().GetLowerBoundValue() + PrimitiveId;
+		if (PrimitiveCollector->GetPrimitiveIdRange().Contains(DynamicPrimitiveId))
+		{
+			const FPrimitiveUniformShaderParameters& PrimitiveData = PrimitiveCollector->UploadData->PrimitiveShaderData[PrimitiveId];
+			LocalToWorld = PrimitiveData.LocalToWorld;
+		}
+	}
+	InstanceOriginAndId		= LocalToWorld.GetOrigin();
+	InstanceTransform1		= LocalToWorld.GetScaledAxis(EAxis::X);
+	InstanceTransform2		= LocalToWorld.GetScaledAxis(EAxis::Y);
+	InstanceTransform3		= LocalToWorld.GetScaledAxis(EAxis::Z);
+	InstanceOriginAndId.W	= *(float*)&DynamicPrimitiveId;
+	PackedLightmapData		= FVector4(0); // FIXME
+}
+
+void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
+{
+	FMatrix LocalToWorld = FMatrix::Identity;
+	if (Scene && PrimitiveId >= 0 && PrimitiveId < Scene->PrimitiveTransforms.Num())
+	{
+		LocalToWorld = Scene->PrimitiveTransforms[PrimitiveId];
+	}
+	InstanceOriginAndId		= LocalToWorld.GetOrigin();
+	InstanceTransform1		= LocalToWorld.GetScaledAxis(EAxis::X);
+	InstanceTransform2		= LocalToWorld.GetScaledAxis(EAxis::Y);
+	InstanceTransform3		= LocalToWorld.GetScaledAxis(EAxis::Z);
+	InstanceOriginAndId.W	= *(float*)&PrimitiveId;
+	PackedLightmapData		= FVector4(0); // FIXME
+}

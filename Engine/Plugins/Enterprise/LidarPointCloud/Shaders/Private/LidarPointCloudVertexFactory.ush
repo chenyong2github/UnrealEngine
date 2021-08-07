@@ -117,7 +117,14 @@ struct FVertexFactoryIntermediates
 	float3 Position;
 	half2 Scale;
 	float SpriteSize;
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
 };
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
 
 struct FPointCloudInstanceData
 {
@@ -321,6 +328,7 @@ FPointCloudInstanceData LidarGetInstanceData(uint VertexId)
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	
 	uint bSelected;
 	uint Classification;
@@ -357,7 +365,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	Intermediates.SpriteSize = SpriteSize;
 	Intermediates.Scale = PrecomputedUV_Quad[Input.VertexId % 4];
-	Intermediates.TangentToWorldSign = GetPrimitive_DeterminantSign(Primitive);
+	Intermediates.TangentToWorldSign = GetPrimitive_DeterminantSign_FromFlags(Primitive.Flags);
 	Intermediates.TangentToWorld = CalcTangentToWorldNoScale(Intermediates.TangentToLocal);
 	
 	// Color
@@ -435,20 +443,20 @@ float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVerte
 float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition) { return TranslatedWorldPosition; }
 float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
-	return RotateLocalToWorld(bUseStaticBuffers ? Input.Normal.xyz : LidarGetInstanceData(Input.VertexId).TangentToLocal[2], 0);
+	return RotateLocalToWorld(bUseStaticBuffers ? Input.Normal.xyz : LidarGetInstanceData(Input.VertexId).TangentToLocal[2]);
 }
 float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
 	if (bUseStaticBuffers)
 	{
-		float4 WorldPosition = TransformLocalToTranslatedWorld(CalcPosition(Input.Position.xyz), 0);
+		float4 WorldPosition = TransformLocalToTranslatedWorld(CalcPosition(Input.Position.xyz));
 		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, PrecomputedUV_Quad[Input.VertexId % 4]);
 		return WorldPosition;
 	}
 	else
 	{
 		FPointCloudInstanceData InstanceData = LidarGetInstanceData(Input.VertexId);
-		float4 WorldPosition = TransformLocalToTranslatedWorld(InstanceData.Position, 0);
+		float4 WorldPosition = TransformLocalToTranslatedWorld(InstanceData.Position);
 		WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, InstanceData.TangentToLocal, PrecomputedUV_Quad[Input.VertexId % 4], InstanceData.SpriteSize);
 		return WorldPosition;
 	}
@@ -458,7 +466,7 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(0).PreviousLocalToWorld;
+	float4x4 PreviousLocalToWorldTranslated = Primitive.PreviousLocalToWorld;
     PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
     PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
     PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;
@@ -469,7 +477,7 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, half3x3 TangentToLocal)
 {
     FMaterialVertexParameters Result = (FMaterialVertexParameters) 0;
-    
+    Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
     Result.TangentToWorld = Intermediates.TangentToWorld;
     Result.PreSkinnedNormal = TangentToLocal[2];

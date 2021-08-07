@@ -189,7 +189,14 @@ struct FVertexFactoryIntermediates
 #if (DYNAMIC_PARAMETERS_MASK & 8)
 	float4 DynamicParameter3;
 #endif
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
 };
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
 
 void GetNiagaraParticlePositionAndDirection(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
 {
@@ -593,6 +600,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
 {
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 	Result.VertexColor = Intermediates.Color;
 	Result.TangentToWorld = mul(TangentToLocal, GetLocalToWorld3x3()); 
@@ -747,7 +755,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 {
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
 	FInterpVtxData InterpVtxData = GetInterpVtxData(Input);
-
+	
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
+	
 	uint RibbonIndex = NiagaraRibbonVFLooseParameters.MultiRibbonIndices[InterpVtxData.RawParticleId0];
 	FSegmentData SegmentData = UnpackPerRibbonDataByIndex(RibbonIndex);
 

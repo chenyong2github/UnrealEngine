@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// TODO: should this be 1 by default so compute always has access to it?
+#ifndef USES_PER_INSTANCE_RANDOM
+	#define USES_PER_INSTANCE_RANDOM 1
+#endif
+
 #include "../Common.ush"
 #include "../SceneData.ush"
+#include "../LightmapData.ush"
 #include "InstanceCullingCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../Nanite/HZBCull.ush"
@@ -56,16 +62,71 @@ int bDrawOnlyVSMInvalidatingGeometry;
 
 
 RWStructuredBuffer<uint> InstanceIdsBufferOut;
+RWBuffer<float4> InstanceIdsBufferOutMobile;
 RWBuffer<uint> DrawIndirectArgsBufferOut;
+
+// this is just to avoid compiling packing code for unrelated shaders
+#define USES_PACKED_INSTANCE_DATA (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1 && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
+
+#if USES_PACKED_INSTANCE_DATA
+
+float4 PackLightmapData(float4 LightmapUVScaleBias, float4 ShadowmapUVScaleBias)
+{
+	float4 Ret;
+	Ret.x = asfloat(PackUnorm2x16(LightmapUVScaleBias.xy));
+	Ret.y = asfloat(PackSnorm2x16(LightmapUVScaleBias.zw));
+	Ret.z = asfloat(PackUnorm2x16(ShadowmapUVScaleBias.xy));
+	Ret.w = asfloat(PackSnorm2x16(ShadowmapUVScaleBias.zw));
+	return Ret;
+}
+
+void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex)
+{
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+	
+	// FIXME: need LODIndex to compute correct LightmapDataIndex
+	uint LightmapDataIndex = PrimitiveData.LightmapDataIndex; // + LODIndex;
+	float4 LightMapUVScaleBias = GetLightmapData(LightmapDataIndex).LightMapCoordinateScaleBias;
+	float4 ShadowMapUVScaleBias = GetLightmapData(LightmapDataIndex).ShadowMapCoordinateScaleBias;
+	if (InstanceData.HasLightShadowUVBias)
+	{
+		LightMapUVScaleBias.zw = InstanceData.LightMapAndShadowMapUVBias.xy;
+		ShadowMapUVScaleBias.zw = InstanceData.LightMapAndShadowMapUVBias.zw;
+	}
+	float4 PackedLightmapData = PackLightmapData(LightMapUVScaleBias, ShadowMapUVScaleBias);
+
+	const uint PackedPrimitiveFlags = ((PrimitiveData.Flags & 0xffff) | (InstanceData.Flags << 16u));
+
+	float4 InstanceOriginAndId = InstanceData.LocalToWorld[3];
+	InstanceOriginAndId.w = asfloat(InstanceData.PrimitiveId);
+
+	float4 InstanceTransform1 = InstanceData.LocalToWorld[0];
+	float4 InstanceTransform2 = InstanceData.LocalToWorld[1];
+	float4 InstanceTransform3 = InstanceData.LocalToWorld[2];
+	
+	InstanceTransform1.w = asfloat(PackedPrimitiveFlags); 
+	InstanceTransform2.w = asfloat(LightmapDataIndex); // TODO: pack something useful here 
+	InstanceTransform3.w = InstanceData.PerInstanceRandom;
+		
+	InstanceIdsBufferOutMobile[Offset*5 + 0] = InstanceOriginAndId;
+	InstanceIdsBufferOutMobile[Offset*5 + 1] = InstanceTransform1;
+	InstanceIdsBufferOutMobile[Offset*5 + 2] = InstanceTransform2;
+	InstanceIdsBufferOutMobile[Offset*5 + 3] = InstanceTransform3;
+	InstanceIdsBufferOutMobile[Offset*5 + 4] = PackedLightmapData;
+}
+#endif
 
 void WriteInstance(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex)
 {
 	checkSlow(InstanceId < GPUSceneNumInstances);
 
+#if USES_PACKED_INSTANCE_DATA
+	WritePackedInstanceData(Offset, InstanceId, InstanceData, ViewIdIndex);
+#else
 	uint PackedId = InstanceId | (ViewIdIndex << 28U);
-
 	checkStructuredBufferAccessSlow(InstanceIdsBufferOut, Offset);
 	InstanceIdsBufferOut[Offset] = PackedId;
+#endif
 }
 
 bool ShouldRenderInstance(FInstanceSceneData InstanceData, FDrawCommandDesc Desc)

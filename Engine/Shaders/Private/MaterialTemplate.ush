@@ -497,22 +497,46 @@ struct FMaterialVertexParameters
 	/** Per-particle properties. Only valid for particle vertex factories. */
 	FMaterialParticleParameters Particle;
 
-	// Index into View.PrimitiveSceneData
-	uint PrimitiveId;
-
 #if WATER_MESH_FACTORY
 	uint WaterWaveParamIndex;
 #endif
 
 	FMaterialAttributes MaterialVertexAttributes;
+
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
+
+	// FIXME: just for compatibility with assets that use custom HLSL expressions, will be removed once we fix up all these assets
+	// Index into View.PrimitiveSceneData
+	uint PrimitiveId;
 };
+
+FPrimitiveSceneData GetPrimitiveData(FMaterialVertexParameters Parameters)
+{
+	return Parameters.SceneData.Primitive;
+}
+
+FPrimitiveSceneData GetPrimitiveData(FMaterialPixelParameters Parameters)
+{
+	return GetPrimitiveData(Parameters.PrimitiveId);
+}
+
+FPrimitiveSceneData GetPrimitiveData(FMaterialTessellationParameters Parameters)
+{
+	return GetPrimitiveData(Parameters.PrimitiveId);
+}
 
 /**
  * Returns the upper 3x3 portion of the LocalToWorld matrix.
  */
-MaterialFloat3x3 GetLocalToWorld3x3(uint PrimitiveId)
+MaterialFloat3x3 GetLocalToWorld3x3(FMaterialVertexParameters Parameters)
 {
-	return (MaterialFloat3x3)GetPrimitiveData(PrimitiveId).LocalToWorld;
+	return (MaterialFloat3x3)GetPrimitiveData(Parameters).LocalToWorld;
+}
+
+MaterialFloat3x3 GetLocalToWorld3x3(FMaterialPixelParameters Parameters)
+{
+	return (MaterialFloat3x3)GetPrimitiveData(Parameters).LocalToWorld;
 }
 
 MaterialFloat3x3 GetLocalToWorld3x3()
@@ -874,33 +898,47 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 	}
 #endif // DECAL_PRIMITIVE && NUM_MATERIAL_TEXCOORDS
 
-#if DECAL_PRIMITIVE
 	/*
 	 * Deferred decal don't have a Primitive uniform buffer, because we don't know on which primitive the decal
 	 * is being projected to. But the user may still need to get the decal's actor world position.
 	 * So instead of setting up a primitive buffer that may cost to much CPU effort to be almost never used,
 	 * we directly fetch this value from the DeferredDecal.usf specific uniform variable DecalToWorld.
 	 */
-	float3 GetActorWorldPosition(uint PrimitiveId)
+	float3 GetActorWorldPosition(FMaterialVertexParameters Parameters)
 	{
+	#if DECAL_PRIMITIVE
 		return DecalToWorld[3].xyz;
+	#else
+		return GetPrimitiveData(Parameters).ActorWorldPosition;
+	#endif
+	}
+
+	float3 GetActorWorldPosition(FMaterialPixelParameters Parameters)
+	{
+	#if DECAL_PRIMITIVE
+		return DecalToWorld[3].xyz;
+	#else
+		return GetPrimitiveData(Parameters).ActorWorldPosition;
+	#endif
 	}
 	
-	float3 GetObjectOrientation(uint PrimitiveId)
+	float3 GetObjectOrientation(FMaterialVertexParameters Parameters)
 	{
+	#if DECAL_PRIMITIVE
 		return DecalOrientation.xyz;
+	#else
+		return GetPrimitiveData(Parameters).ObjectOrientation;
+	#endif
 	}
-#else
-	float3 GetActorWorldPosition(uint PrimitiveId)
+
+	float3 GetObjectOrientation(FMaterialPixelParameters Parameters)
 	{
-		return GetPrimitiveData(PrimitiveId).ActorWorldPosition;
+	#if DECAL_PRIMITIVE
+		return DecalOrientation.xyz;
+	#else
+		return GetPrimitiveData(Parameters).ObjectOrientation;
+	#endif
 	}
-	
-	float3 GetObjectOrientation(uint PrimitiveId)
-	{
-		return GetPrimitiveData(PrimitiveId).ObjectOrientation;
-	}
-#endif // DECAL_PRIMITIVE
 
 #if DECAL_PRIMITIVE
 	float DecalLifetimeOpacity()
@@ -1015,14 +1053,14 @@ MaterialFloat3 TransformLocalVectorToWorld(FMaterialVertexParameters Parameters,
 	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
 		return mul(InLocalVector, (MaterialFloat3x3)Parameters.InstanceLocalToWorld);
 	#else
-		return mul(InLocalVector, GetLocalToWorld3x3(Parameters.PrimitiveId));
+		return mul(InLocalVector, GetLocalToWorld3x3(Parameters));
 	#endif
 }
 
 /** Transforms a vector from local space to world space (PS version) */
 MaterialFloat3 TransformLocalVectorToWorld(FMaterialPixelParameters Parameters,MaterialFloat3 InLocalVector)
 {
-	return mul(InLocalVector, GetLocalToWorld3x3(Parameters.PrimitiveId));
+	return mul(InLocalVector, GetLocalToWorld3x3(Parameters));
 }
 
 /** Transforms a vector from local space to previous frame world space (VS version) */
@@ -1036,7 +1074,7 @@ MaterialFloat3 TransformLocalVectorToPrevWorld(FMaterialVertexParameters Paramet
 /** Transforms a position from local space to absolute world space */
 float3 TransformLocalPositionToWorld(FMaterialPixelParameters Parameters,float3 InLocalPosition)
 {
-	return mul(float4(InLocalPosition, 1), GetPrimitiveData(Parameters.PrimitiveId).LocalToWorld).xyz;
+	return mul(float4(InLocalPosition, 1), GetPrimitiveData(Parameters).LocalToWorld).xyz;
 }
 
 /** Transforms a position from local space to absolute world space */
@@ -1045,7 +1083,7 @@ float3 TransformLocalPositionToWorld(FMaterialVertexParameters Parameters,float3
 	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
 		return mul(float4(InLocalPosition, 1), Parameters.InstanceLocalToWorld).xyz;
 	#else
-		return mul(float4(InLocalPosition, 1), GetPrimitiveData(Parameters.PrimitiveId).LocalToWorld).xyz;
+		return mul(float4(InLocalPosition, 1), GetPrimitiveData(Parameters).LocalToWorld).xyz;
 	#endif
 }
 
@@ -1062,12 +1100,12 @@ float3 TransformLocalPositionToPrevWorld(FMaterialVertexParameters Parameters,fl
 /** Return the object's position in world space */
 float3 GetObjectWorldPosition(FMaterialPixelParameters Parameters)
 {
-	return GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz;
+	return GetPrimitiveData(Parameters).ObjectWorldPositionAndRadius.xyz;
 }
 
 float3 GetObjectWorldPosition(FMaterialTessellationParameters Parameters)
 {
-	return GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz;
+	return GetPrimitiveData(Parameters).ObjectWorldPositionAndRadius.xyz;
 }
 
 /** Return the object's position in world space. For instanced meshes, this returns the instance position. */
@@ -1076,7 +1114,7 @@ float3 GetObjectWorldPosition(FMaterialVertexParameters Parameters)
 	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
 		return Parameters.InstanceLocalToWorld[3].xyz;
 	#else
-		return GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz;
+		return GetPrimitiveData(Parameters).ObjectWorldPositionAndRadius.xyz;
 	#endif
 }
 
@@ -1668,8 +1706,8 @@ float GetSphericalParticleOpacity(FMaterialPixelParameters Parameters, float Den
 
 	// Substitute object attributes if the mesh is not a particle
 	// This is mostly useful for previewing materials using spherical opacity in the material editor
-	float3 ParticleTranslatedWorldPosition = GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz + ResolvedView.PreViewTranslation.xyz;
-	float ParticleRadius = max(0.000001f, GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.w);
+	float3 ParticleTranslatedWorldPosition = GetPrimitiveData(Parameters).ObjectWorldPositionAndRadius.xyz + ResolvedView.PreViewTranslation.xyz;
+	float ParticleRadius = max(0.000001f, GetPrimitiveData(Parameters).ObjectWorldPositionAndRadius.w);
 
 #endif
 
@@ -1738,8 +1776,8 @@ float3 GetSpeedTreeVertexOffsetInner(FMaterialVertexParameters Parameters, int G
 			return float3(0,0,0);
 		}
 	#else
-		float3x3 LocalToWorld = (float3x3)GetPrimitiveData(Parameters.PrimitiveId).LocalToWorld;
-		float3 LocalPosition = mul(float4(GetWorldPosition(Parameters), 1), GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal).xyz;
+		float3x3 LocalToWorld = (float3x3)GetPrimitiveData(Parameters).LocalToWorld;
+		float3 LocalPosition = mul(float4(GetWorldPosition(Parameters), 1), GetPrimitiveData(Parameters).WorldToLocal).xyz;
 	#endif
 
 	float3 TreePos = GetObjectWorldPosition(Parameters);
@@ -1751,7 +1789,7 @@ float3 GetSpeedTreeVertexOffsetInner(FMaterialVertexParameters Parameters, int G
 	{
 		const float Dist = length(TreePos - ResolvedView.WorldCameraOrigin);
         const float ScreenMultiple = 0.5 * max(ResolvedView.ViewToClip[0][0], ResolvedView.ViewToClip[1][1]);
-        const float ScreenRadius = 2.0 * ScreenMultiple * GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPositionAndRadius.w / max(1.0, Dist);
+        const float ScreenRadius = 2.0 * ScreenMultiple * GetPrimitiveData(Parameters).ObjectWorldPositionAndRadius.w / max(1.0, Dist);
         LodInterp = saturate((ScreenRadius - SpeedTreeLODInfo.x) / SpeedTreeLODInfo.z);
 	}
 #endif

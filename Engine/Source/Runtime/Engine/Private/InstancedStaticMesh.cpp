@@ -781,18 +781,6 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
 
-	{
-		const uint8 Index = static_cast<uint8>(EVertexInputStreamType::Default);
-		PrimitiveIdStreamIndex[Index] = -1;
-		const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
-		if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
-		{
-			// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, /*sizeof(uint32)*/0, VET_UInt, EVertexStreamUsage::Instancing), 13));
-			PrimitiveIdStreamIndex[Index] = Elements.Last().StreamIndex;
-		}
-	}
-
 	// only tangent,normal are used by the stream. the binormal is derived in the shader
 	uint8 TangentBasisAttributes[2] = { 1, 2 };
 	for(int32 AxisIndex = 0;AxisIndex < 2;AxisIndex++)
@@ -840,6 +828,40 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 				));
 		}
 	}
+	
+	// on mobile with GPUScene enabled instanced attributes[8-12] are used for a general auto-instancing
+	// so we add them only for desktop or if mobile has GPUScene disabled
+	// FIXME mobile: instanced attributes encode some editor related data as well (selection etc), need to split it into separate SRV as it's not supported with auto-instancing
+	uint8 AutoInstancingAttr_Mobile = 8;
+	const bool bMobileUsesGPUScene = MobileSupportsGPUScene();
+	
+	if (GetFeatureLevel() > ERHIFeatureLevel::ES3_1 || !bMobileUsesGPUScene)
+	{
+		// toss in the instanced location stream
+		check(Data.InstanceOriginComponent.VertexBuffer);
+		if (Data.InstanceOriginComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.InstanceOriginComponent, 8));
+		}
+
+		check(Data.InstanceTransformComponent[0].VertexBuffer);
+		if (Data.InstanceTransformComponent[0].VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[0], 9));
+			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[1], 10));
+			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[2], 11));
+		}
+
+		if (Data.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.InstanceLightmapAndShadowMapUVBiasComponent,12));
+		}
+
+		// Do not add general auto-instancing attributes for mobile
+		AutoInstancingAttr_Mobile = 0xff;
+	}
+	
+	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, AutoInstancingAttr_Mobile);
 
 	if(Data.LightMapCoordinateComponent.VertexBuffer)
 	{
@@ -849,27 +871,7 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	{
 		Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0],15));
 	}
-
-	// toss in the instanced location stream
-	check(Data.InstanceOriginComponent.VertexBuffer);
-	if (Data.InstanceOriginComponent.VertexBuffer)
-	{
-		Elements.Add(AccessStreamComponent(Data.InstanceOriginComponent, 8));
-	}
-
-	check(Data.InstanceTransformComponent[0].VertexBuffer);
-	if (Data.InstanceTransformComponent[0].VertexBuffer)
-	{
-		Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[0], 9));
-		Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[1], 10));
-		Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[2], 11));
-	}
-
-	if (Data.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
-	{
-		Elements.Add(AccessStreamComponent(Data.InstanceLightmapAndShadowMapUVBiasComponent,12));
-	}
-
+		
 	// we don't need per-vertex shadow or lightmap rendering
 	InitDeclaration(Elements);
 

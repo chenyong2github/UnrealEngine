@@ -485,7 +485,7 @@ RENDERCORE_API bool PlatformSupportsSimpleForwardShading(const FStaticShaderPlat
 
 RENDERCORE_API bool IsSimpleForwardShadingEnabled(const FStaticShaderPlatform Platform);
 
-RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform);
+RENDERCORE_API bool MobileSupportsGPUScene();
 
 RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform Platform);
 
@@ -586,7 +586,7 @@ inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatu
 {
 	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
-		return MobileSupportsGPUScene(Platform);
+		return MobileSupportsGPUScene();
 	}
 	
 	// GPU Scene management uses compute shaders

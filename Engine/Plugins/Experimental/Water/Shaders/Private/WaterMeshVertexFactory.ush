@@ -32,9 +32,7 @@ struct FVertexFactoryInput
 	float4 InstanceData2 : ATTRIBUTE10; // Store an HitProxyID per instance
 #endif
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	uint PrimitiveId : ATTRIBUTE13;
-#endif
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
 };
 
 /** 
@@ -47,9 +45,7 @@ struct FPositionOnlyVertexFactoryInput
 	float4 InstanceData0 : ATTRIBUTE8;
 	float4 InstanceData1 : ATTRIBUTE9; 
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	uint PrimitiveId : ATTRIBUTE1;
-#endif
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
 };
 
 /** 
@@ -63,9 +59,7 @@ struct FPositionAndNormalOnlyVertexFactoryInput
 	float4 InstanceData0 : ATTRIBUTE8;
 	float4 InstanceData1 : ATTRIBUTE9; 
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	uint PrimitiveId : ATTRIBUTE1;
-#endif
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
 };
 
 /** 
@@ -78,8 +72,14 @@ struct FVertexFactoryIntermediates
 	float3 OriginalWorldPos;
 	
 	uint WaveParamIndex;
-	uint PrimitiveId;
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
 };
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
 
 uint GetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
@@ -147,6 +147,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 {
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
     
+	Result.SceneData = Intermediates.SceneData; 
 	Result.WorldPosition = WorldPosition;
 	Result.TangentToWorld = float3x3(1,0,0,0,1,0,0,0,1);
 	Result.PreSkinnedPosition = Input.Position.xyz;
@@ -221,11 +222,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// Calculate the world pos
 	Intermediates.OriginalWorldPos = float3(Input.Position.xy, 0.0f) * Scale + Translation;
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	Intermediates.PrimitiveId = Input.PrimitiveId;
-#else
-	Intermediates.PrimitiveId = 0;
-#endif
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	
 	if (ShouldMorph == 1)
 	{
@@ -329,7 +326,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.EyeIndex = 0;
 #endif
 
-	SetPrimitiveId(Interpolants, Intermediates.PrimitiveId);
+	SetPrimitiveId(Interpolants, Intermediates.SceneData.PrimitiveId);
 
 	return Interpolants;
 }

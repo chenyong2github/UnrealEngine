@@ -229,9 +229,9 @@ private:
 };
 
 RENDERER_API extern void SortAndMergeDynamicPassMeshDrawCommands(
-	ERHIFeatureLevel::Type FeatureLevel,
+	const FSceneView& SceneView,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
 	FRHIBuffer*& OutPrimitiveIdVertexBuffer,
 	uint32 InstanceFactor,
-	const TRange<int32>& DynamicPrimitiveIdRange);
+	const FGPUScenePrimitiveCollector* DynamicPrimitiveCollector);

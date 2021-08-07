@@ -43,8 +43,34 @@ FMeshDrawCommandOverrideArgs GetMeshDrawCommandOverrideArgs(const FInstanceCulli
 	return Result;
 }
 
-FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, enum EInstanceCullingMode InInstanceCullingMode, bool bInDrawOnlyVSMInvalidatingGeometry, EBatchProcessingMode InSingleInstanceProcessingMode) :
+static uint32 StepInstanceDataOffset(ERHIFeatureLevel::Type FeatureLevel, uint32 NumStepInstances, uint32 NumStepDraws)
+{
+	// mobile uses one instance step rate, on desktop step is once per draw
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		return NumStepInstances;
+	}
+	else
+	{
+		return NumStepDraws;
+	}
+}
+
+uint32 FInstanceCullingContext::GetInstanceIdBufferStride(ERHIFeatureLevel::Type FeatureLevel)
+{
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		return FPrimitiveIdDummyBufferMobile::BufferStride;
+	}
+	else
+	{
+		return sizeof(uint32);
+	}
+}
+
+FInstanceCullingContext::FInstanceCullingContext(ERHIFeatureLevel::Type InFeatureLevel, FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, enum EInstanceCullingMode InInstanceCullingMode, bool bInDrawOnlyVSMInvalidatingGeometry, EBatchProcessingMode InSingleInstanceProcessingMode) :
 	InstanceCullingManager(InInstanceCullingManager),
+	FeatureLevel(InFeatureLevel),
 	ViewIds(InViewIds),
 	bIsEnabled(InInstanceCullingManager == nullptr || InInstanceCullingManager->IsEnabled()),
 	InstanceCullingMode(InInstanceCullingMode),
@@ -166,6 +192,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("INDIRECT_ARGS_NUM_WORDS"), FInstanceCullingContext::IndirectArgsNumWords);
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_LIGHTMAP_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 		OutEnvironment.SetDefine(TEXT("PRIM_ID_DYNAMIC_FLAG"), GPrimIDDynamicFlag);
 
@@ -177,6 +204,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneLightmapData)
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 		SHADER_PARAMETER(uint32, GPUSceneNumInstances)
@@ -194,6 +222,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, InstanceIdOffsetBuffer)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, InstanceIdsBufferOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, InstanceIdsBufferOutMobile)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, DrawCommandIdsBufferOut)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
@@ -223,12 +252,15 @@ const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> FInstanceCullingConte
 class FInstanceCullingDeferredContext
 {
 public:
-	FInstanceCullingDeferredContext(FInstanceCullingManager* InInstanceCullingManager = nullptr) : InstanceCullingManager(InInstanceCullingManager) {}
+	FInstanceCullingDeferredContext(ERHIFeatureLevel::Type InFeatureLevel, FInstanceCullingManager* InInstanceCullingManager = nullptr) 
+		: InstanceCullingManager(InInstanceCullingManager)
+		, FeatureLevel(InFeatureLevel)
+	{}
 
 	FInstanceCullingManager* InstanceCullingManager;
 
 	FRDGBufferRef DrawIndirectArgsBuffer = nullptr;
-	FRDGBufferRef InstanceIdOffsetBuffer = nullptr;
+	FRDGBufferRef InstanceDataBuffer = nullptr;
 	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
 
 	/** Batches of GPU instance culling input data. */
@@ -244,7 +276,7 @@ public:
 	TStaticArray<TArray<uint32, SceneRenderingAllocator>, static_cast<uint32>(EBatchProcessingMode::Num)> BatchInds;
 	TArray<FInstanceCullingContext::FContextBatchInfo, SceneRenderingAllocator> BatchInfos;
 
-
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
 	// Counters to sum up all sizes to facilitate pre-sizing
 	uint32 InstanceIdBufferSize = 0U;
 	TStaticArray<int32, uint32(EBatchProcessingMode::Num)> TotalBatches = TStaticArray<int32, uint32(EBatchProcessingMode::Num)>(InPlace, 0);
@@ -298,7 +330,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 		if (!DeferredContext->bProcessed)
 		{
 			Results.DrawIndirectArgsBuffer = DeferredContext->DrawIndirectArgsBuffer;
-			Results.InstanceIdOffsetBuffer = DeferredContext->InstanceIdOffsetBuffer;
+			Results.InstanceDataBuffer = DeferredContext->InstanceDataBuffer;
 			Results.UniformBuffer = DeferredContext->UniformBuffer;
 			DeferredContext->Batches.Add(FBatchItem{ this, InstanceCullingDrawParams, DynamicInstanceIdOffset, DynamicInstanceIdNum });
 
@@ -324,15 +356,26 @@ void FInstanceCullingContext::BuildRenderingCommands(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildRenderingCommands(Culling=%s)", bCullInstances ? TEXT("On") : TEXT("Off"));
 
-	const ERHIFeatureLevel::Type FeatureLevel = GPUScene.GetFeatureLevel();
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	// Add any other conditions that needs debug code running here.
 	const bool bUseDebugMode = bDrawOnlyVSMInvalidatingGeometry;
 
 	FRDGBufferRef ViewIdsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.ViewIds"), ViewIds);
-
-	FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
+	FRDGBufferRef InstanceIdsBuffer = nullptr;
+	FRDGBufferUAVRef InstanceIdsBufferUAV = nullptr;
+	const uint32 InstanceIdBufferStride = GetInstanceIdBufferStride(FeatureLevel);
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		// This buffer will be used as per-instance vertex buffer. AFAIK only DX11 does not allow structured buffer to be used as a vertex buffer 
+		InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(InstanceIdBufferStride, InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
+		InstanceIdsBufferUAV = GraphBuilder.CreateUAV(InstanceIdsBuffer, PF_A32B32G32R32F, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+	else
+	{
+		InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(InstanceIdBufferStride, InstanceIdBufferSize), TEXT("InstanceCulling.InstanceIdsBuffer"));
+		InstanceIdsBufferUAV = GraphBuilder.CreateUAV(InstanceIdsBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
 
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters PassParametersTmp;
 
@@ -343,6 +386,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	// Set up global GPU-scene data instead...
 	PassParametersTmp.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 	PassParametersTmp.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
+	PassParametersTmp.GPUSceneLightmapData = GPUScene.LightmapDataBuffer.SRV;
 	PassParametersTmp.InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
 	PassParametersTmp.GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 	PassParametersTmp.GPUSceneNumInstances = GPUScene.GetNumInstances();
@@ -371,8 +415,10 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	}
 	PassParametersTmp.NumViewIds = ViewIds.Num();
 	PassParametersTmp.bDrawOnlyVSMInvalidatingGeometry = bDrawOnlyVSMInvalidatingGeometry;
+	// only one of these will be used in the shader
+	PassParametersTmp.InstanceIdsBufferOut = InstanceIdsBufferUAV;
+	PassParametersTmp.InstanceIdsBufferOutMobile = InstanceIdsBufferUAV;
 
-	PassParametersTmp.InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	PassParametersTmp.DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DrawIndirectArgsRDG, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	PassParametersTmp.InstanceIdOffsetBuffer = GraphBuilder.CreateSRV(InstanceIdOffsetBufferRDG, PF_R32_UINT);
 
@@ -411,13 +457,21 @@ void FInstanceCullingContext::BuildRenderingCommands(
 		}
 	}
 	Results.DrawIndirectArgsBuffer = DrawIndirectArgsRDG;
-	Results.InstanceIdOffsetBuffer = InstanceIdOffsetBufferRDG;
+	
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		Results.InstanceDataBuffer = InstanceIdsBuffer;
+	}
+	else
+	{
+		Results.InstanceDataBuffer = InstanceIdOffsetBufferRDG;
 
-	FInstanceCullingGlobalUniforms* UniformParameters = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
-	UniformParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
-	UniformParameters->PageInfoBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
-	UniformParameters->BufferCapacity = InstanceIdBufferSize;
-	Results.UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+		FInstanceCullingGlobalUniforms* UniformParameters = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
+		UniformParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+		UniformParameters->PageInfoBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+		UniformParameters->BufferCapacity = InstanceIdBufferSize;
+		Results.UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+	}
 }
 
 
@@ -444,6 +498,7 @@ void FInstanceCullingDeferredContext::ProcessBatched(TStaticArray<FBuildInstance
 	BatchInfos.AddDefaulted(Batches.Num());
 	uint32 InstanceIdBufferOffset = 0U;
 	uint32 InstanceDataByteOffset = 0U;
+	const uint32 InstanceIdBufferStride = FInstanceCullingContext::GetInstanceIdBufferStride(FeatureLevel);
 
 	// Index that maps from each command to the corresponding batch - maybe not the utmost efficiency
 	for (int32 BatchIndex = 0; BatchIndex < Batches.Num(); ++BatchIndex)
@@ -496,14 +551,17 @@ void FInstanceCullingDeferredContext::ProcessBatched(TStaticArray<FBuildInstance
 				BatchInds[Mode][Index] = BatchIndex;
 			}
 		}
+		const uint32 BatchTotalInstances = InstanceCullingContext.TotalInstances * InstanceCullingContext.ViewIds.Num();
+		const uint32 BatchTotalDraws = InstanceCullingContext.InstanceIdOffsets.Num();
 
 		FInstanceCullingDrawParams& Result = *BatchItem.Result;
 		Result.InstanceDataByteOffset = InstanceDataByteOffset;
 		Result.IndirectArgsByteOffset = BatchInfo.IndirectArgsOffset * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
 
 		BatchInfo.InstanceDataWriteOffset = InstanceIdBufferOffset;
-		InstanceIdBufferOffset += InstanceCullingContext.TotalInstances * InstanceCullingContext.ViewIds.Num();
-		InstanceDataByteOffset += InstanceCullingContext.InstanceIdOffsets.Num() * sizeof(uint32);
+		InstanceIdBufferOffset += BatchTotalInstances;
+		// Advance offset into per-instance buffer
+		InstanceDataByteOffset += StepInstanceDataOffset(FeatureLevel, BatchTotalInstances, BatchTotalDraws) * InstanceIdBufferStride;
 	}
 
 	// Finalize culling pass parameters
@@ -564,7 +622,9 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 	INST_CULL_CALLBACK_MODE(DeferredContext->ArrayName[Mode].GetData()), \
 	INST_CULL_CALLBACK_MODE(DeferredContext->ArrayName[Mode].Num() * DeferredContext->ArrayName[Mode].GetTypeSize())
 
-	FInstanceCullingDeferredContext* DeferredContext = GraphBuilder.AllocObject<FInstanceCullingDeferredContext>(InstanceCullingManager);
+	const ERHIFeatureLevel::Type FeatureLevel = GPUScene.GetFeatureLevel();
+
+	FInstanceCullingDeferredContext* DeferredContext = GraphBuilder.AllocObject<FInstanceCullingDeferredContext>(FeatureLevel, InstanceCullingManager);
 
 	const bool bCullInstances = CVarCullInstances.GetValueOnRenderThread() != 0;
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildRenderingCommandsDeferred(Culling=%s)", bCullInstances ? TEXT("On") : TEXT("Off"));
@@ -588,26 +648,42 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 	FRDGBufferRef DrawCommandDescsRDG = CreateStructuredBuffer(INST_CULL_CREATE_STRUCT_BUFF_ARGS(DrawCommandDescs));
 	FRDGBufferRef ViewIdsRDG = CreateStructuredBuffer(INST_CULL_CREATE_STRUCT_BUFF_ARGS(ViewIds));
 	FRDGBufferRef BatchInfosRDG = CreateStructuredBuffer(INST_CULL_CREATE_STRUCT_BUFF_ARGS(BatchInfos));
-	FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("InstanceCulling.InstanceIdsBuffer"), INST_CULL_CALLBACK(DeferredContext->InstanceIdBufferSize));
 
 	DeferredContext->DrawIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(), TEXT("InstanceCulling.DrawIndirectArgsBuffer"), INST_CULL_CALLBACK(IndirectArgsNumWords * DeferredContext->IndirectArgs.Num()));
 	GraphBuilder.QueueBufferUpload(DeferredContext->DrawIndirectArgsBuffer, INST_CULL_CALLBACK(DeferredContext->IndirectArgs.GetData()), INST_CULL_CALLBACK(GetArrayDataSize(DeferredContext->IndirectArgs)));
 
-	const ERHIFeatureLevel::Type FeatureLevel = GPUScene.GetFeatureLevel();
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	// Note: we redundantly clear the instance counts here as there is some issue with replays on certain consoles.
 	AddClearIndirectArgInstanceCountPass(GraphBuilder, ShaderMap, DeferredContext->DrawIndirectArgsBuffer, INST_CULL_CALLBACK(DeferredContext->IndirectArgs.Num()));
 
 	// not using structured buffer as we want/have to get at it as a vertex buffer 
-	DeferredContext->InstanceIdOffsetBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("InstanceCulling.InstanceIdOffsetBuffer"), INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.Num()));
-	GraphBuilder.QueueBufferUpload(DeferredContext->InstanceIdOffsetBuffer, INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.GetData()), INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.GetTypeSize() * DeferredContext->InstanceIdOffsets.Num()));
+	FRDGBufferRef InstanceIdOffsetBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("InstanceCulling.InstanceIdOffsetBuffer"), INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.Num()));
+	GraphBuilder.QueueBufferUpload(InstanceIdOffsetBuffer, INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.GetData()), INST_CULL_CALLBACK(DeferredContext->InstanceIdOffsets.GetTypeSize() * DeferredContext->InstanceIdOffsets.Num()));
+
+	FRDGBufferRef InstanceIdsBuffer = nullptr;
+	FRDGBufferUAVRef InstanceIdsBufferUAV = nullptr;
+	const uint32 InstanceIdBufferStride = GetInstanceIdBufferStride(FeatureLevel);
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		// This buffer will be used as per-instance vertex buffer. AFAIK only DX11 does not allow structured buffer to be used as a vertex buffer 
+		InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(InstanceIdBufferStride, 1), TEXT("InstanceCulling.InstanceIdsBuffer"), INST_CULL_CALLBACK(DeferredContext->InstanceIdBufferSize));
+		InstanceIdsBufferUAV = GraphBuilder.CreateUAV(InstanceIdsBuffer, PF_A32B32G32R32F, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		DeferredContext->InstanceDataBuffer = InstanceIdsBuffer;
+	}
+	else
+	{
+		InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(InstanceIdBufferStride, 1), TEXT("InstanceCulling.InstanceIdsBuffer"), INST_CULL_CALLBACK(DeferredContext->InstanceIdBufferSize));
+		InstanceIdsBufferUAV = GraphBuilder.CreateUAV(InstanceIdsBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		DeferredContext->InstanceDataBuffer = InstanceIdOffsetBuffer;
+	}
 
 	// Because the view uniforms are not set up by the time this runs
 	// PassParameters->View = View.ViewUniformBuffer;
 	// Set up global GPU-scene data instead...
 	PassParametersTmp.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 	PassParametersTmp.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
+	PassParametersTmp.GPUSceneLightmapData = GPUScene.LightmapDataBuffer.SRV;
 	PassParametersTmp.InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
 	PassParametersTmp.GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 	PassParametersTmp.GPUSceneNumInstances = GPUScene.GetNumInstances();
@@ -616,10 +692,12 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 	PassParametersTmp.DrawCommandDescs = GraphBuilder.CreateSRV(DrawCommandDescsRDG);
 	PassParametersTmp.BatchInfos = GraphBuilder.CreateSRV(BatchInfosRDG);
 	PassParametersTmp.ViewIds = GraphBuilder.CreateSRV(ViewIdsRDG);
-	PassParametersTmp.InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	// only one of these will be used in the shader
+	PassParametersTmp.InstanceIdsBufferOut = InstanceIdsBufferUAV;
+	PassParametersTmp.InstanceIdsBufferOutMobile = InstanceIdsBufferUAV;
+
 	PassParametersTmp.DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DeferredContext->DrawIndirectArgsBuffer, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
-	PassParametersTmp.InstanceIdOffsetBuffer = GraphBuilder.CreateSRV(DeferredContext->InstanceIdOffsetBuffer, PF_R32_UINT);
-	
+	PassParametersTmp.InstanceIdOffsetBuffer = GraphBuilder.CreateSRV(InstanceIdOffsetBuffer, PF_R32_UINT);
 	if (bCullInstances)
 	{
 		PassParametersTmp.InViews = GraphBuilder.CreateSRV(ViewsRDG);
@@ -670,12 +748,15 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 			PassParameters[Mode],
 			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode]->GetWrappedCsGroupCount()));
 	}
-
-	FInstanceCullingGlobalUniforms* UniformParameters = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
-	UniformParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
-	UniformParameters->PageInfoBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
-	UniformParameters->BufferCapacity = 0U; // TODO: this is not used at the moment, but is intended for range checks so would have been good.
-	DeferredContext->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+	
+	if (FeatureLevel > ERHIFeatureLevel::ES3_1)
+	{
+		FInstanceCullingGlobalUniforms* UniformParameters = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
+		UniformParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+		UniformParameters->PageInfoBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);
+		UniformParameters->BufferCapacity = 0U; // TODO: this is not used at the moment, but is intended for range checks so would have been good.
+		DeferredContext->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+	}
 
 
 #undef INST_CULL_CREATE_STRUCT_BUFF_ARGS
@@ -810,6 +891,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 	uint32 CurrentIndirectArgsOffset = 0U;
 	const int32 NumViews = ViewIds.Num();
 	const bool bAlwaysUseIndirectDraws = (SingleInstanceProcessingMode != EBatchProcessingMode::UnCulled);
+	const uint32 InstanceIdBufferStride = GetInstanceIdBufferStride(FeatureLevel);
 
 	// Allocate conservatively for all commands, may not use all.
 	for (int32 DrawCommandIndex = 0; DrawCommandIndex < NumDrawCommandsIn; ++DrawCommandIndex)
@@ -865,7 +947,12 @@ void FInstanceCullingContext::SetupDrawCommands(
 				// drawcall specific offset into per-instance buffer
 				DrawCmd.InstanceDataByteOffset = InstanceIdOffsets.Num() * sizeof(uint32);
 				
-				InstanceIdOffsets.Emplace(TotalInstances * NumViews);
+				const uint32 CurrentNumInstances = (TotalInstances * NumViews);
+				const uint32 CurrentNumDraws = InstanceIdOffsets.Num();
+				// drawcall specific offset into per-instance buffer
+				DrawCmd.InstanceDataByteOffset = StepInstanceDataOffset(FeatureLevel, CurrentNumInstances, CurrentNumDraws) * InstanceIdBufferStride;
+
+				InstanceIdOffsets.Emplace(CurrentNumInstances);
 			}
 			
 			// Record the last bucket ID (may be -1)
@@ -953,6 +1040,6 @@ void FInstanceCullingContext::SubmitDrawCommands(
 	}
 	else
 	{
-		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, nullptr, 0, false, StartIndex, NumMeshDrawCommands, InInstanceFactor, RHICmdList);
+		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, nullptr, 0, 0, false, StartIndex, NumMeshDrawCommands, InInstanceFactor, RHICmdList);
 	}
 }

@@ -3506,7 +3506,7 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 			Pass.DispatchPassSetup(
 				Scene,
 				View,
-				FInstanceCullingContext(&InstanceCullingManager, ViewIds, InstanceCullingMode, bDrawOnlyVSMInvalidatingGeometry),
+				FInstanceCullingContext(FeatureLevel, &InstanceCullingManager, ViewIds, InstanceCullingMode, bDrawOnlyVSMInvalidatingGeometry),
 				PassType,
 				BasePassDepthStencilAccess,
 				MeshPassProcessor,

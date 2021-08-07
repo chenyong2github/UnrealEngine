@@ -20,12 +20,18 @@ struct FVertexFactoryInput
 /** Cached intermediates that would otherwise have to be computed multiple times. Avoids relying on the compiler to optimize out redundant operations. */
 struct FVertexFactoryIntermediates
 {
-	uint PrimitiveId;
 	float2 LocalUV;
 	float3 VTPos;
 	float3 LocalPos;
 	float3 WorldNormal;
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData; 
 };
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
 
 /** Attributes to interpolate from the vertex shader to the pixel shader. */
 struct FVertexFactoryInterpolantsVSToPS
@@ -66,6 +72,7 @@ float2 MorphVertex(float2 InLocalUV, uint InGridSize, uint InMorphFactorFloor, f
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 
 	const QuadRenderInstance Item = InstanceBuffer[Input.InstanceId];
 	const uint2 Pos = UnpackPos(Item);
@@ -137,8 +144,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	Intermediates.WorldNormal = float3(0, 0, 1);
 
-	Intermediates.PrimitiveId = 0;
-
 	return Intermediates;
 }
 
@@ -147,6 +152,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 {
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
 
+	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 
 	// needs fixing!
@@ -186,7 +192,7 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 /** Computes the world space position of this vertex. */
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 LocalToWorld = GetPrimitiveData(Intermediates.PrimitiveId).LocalToWorld;
+	float4x4 LocalToWorld = GetPrimitiveData(Intermediates).LocalToWorld;
 	float3 RotatedPosition = LocalToWorld[0].xyz * Intermediates.LocalPos.xxx + LocalToWorld[1].xyz * Intermediates.LocalPos.yyy + LocalToWorld[2].xyz * Intermediates.LocalPos.zzz;
 	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz), 1);
 }
@@ -195,9 +201,9 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
 {
 #if 0 // todo: rough vertex cull outside bounds
-	float4x4 WorldToLocal = GetPrimitiveData(Intermediates.PrimitiveId).WorldToLocal;
-	float3 LocalObjectBoundsMin = GetPrimitiveData(Intermediates.PrimitiveId).LocalObjectBoundsMin - 0.05;
-	float3 LocalObjectBoundsMax = GetPrimitiveData(Intermediates.PrimitiveId).LocalObjectBoundsMax + 0.05;
+	float4x4 WorldToLocal = GetPrimitiveData(Intermediates).WorldToLocal;
+	float3 LocalObjectBoundsMin = GetPrimitiveData(Intermediates).LocalObjectBoundsMin - 0.05;
+	float3 LocalObjectBoundsMax = GetPrimitiveData(Intermediates).LocalObjectBoundsMax + 0.05;
 	float3 LocalPos = mul(float4(InWorldPosition.xyz - ResolvedView.PreViewTranslation.xyz, 1), WorldToLocal).xyz;
 	float Divider = (any(LocalPos > LocalObjectBoundsMax) || any(LocalPos < LocalObjectBoundsMin)) ? 0 : 1;
 	return float4(InWorldPosition.xyz, InWorldPosition.w / Divider);
@@ -215,7 +221,7 @@ float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVer
 /** Computes the world space position of this vertex last frame. */
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld;
+	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates).PreviousLocalToWorld;
 	PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
 	PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
 	PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;

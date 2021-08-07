@@ -792,6 +792,34 @@ float4 ConvertTangentSnormToUnorm16(float4 Input)
 #define TangentBias(X)		(X)
 #define TangentUnbias(X)	(X)
 
+uint PackUnorm2x16(float2 v)
+{
+	uint2 sv = uint2(round(clamp(v, 0.0, 1.0) * 65535.0));
+	return (sv.x | (sv.y << 16u));
+}
+
+uint PackSnorm2x16(float2 v)
+{
+	uint2 sv = uint2(round(clamp(v, -1.0, 1.0) * 32767.0));
+	return (sv.x | (sv.y << 16u));
+}
+
+float2 UnpackUnorm2x16(uint p)
+{
+	float2 Ret;
+	Ret.x = (p & 0xffff) * rcp(65535.0f);
+	Ret.y = (p >> 16u) * rcp(65535.0f);
+	return Ret;
+}
+
+float2 UnpackSnorm2x16(uint p)
+{
+	float2 Ret;
+	Ret.x = clamp((p & 0xffff) * rcp(32767.0f), -1.0, 1.0);
+	Ret.y = clamp((p >> 16u) * rcp(32767.0f), -1.0, 1.0);
+	return Ret;
+}
+
 float Square( float x )
 {
 	return x*x;
