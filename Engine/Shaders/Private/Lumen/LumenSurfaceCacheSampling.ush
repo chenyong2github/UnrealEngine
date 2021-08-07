@@ -333,7 +333,6 @@ void SampleLumenCard(
 						#endif
 
 						#if SURFACE_CACHE_SAMPLING_REFERENCE_MODE
-						if (View.GeneralPurposeTweak > 0.5)
 						{
 							FSurfaceCacheSample SurfaceCacheSample = SampleSurfaceCache(CardSampleAccumulator.CardSample, AtlasId);
 							CardSampleAccumulator.Reference.LightingSum += SurfaceCacheSample.Lighting * SampleWeight;
