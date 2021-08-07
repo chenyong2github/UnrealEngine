@@ -114,7 +114,11 @@ namespace UnrealVS
 		/// </summary>
 		private void OnUpdateCommandLineCombo(Object _Source, ElapsedEventArgs _Args)
 		{
-			ThreadHelper.Generic.BeginInvoke(UpdateCommandLineCombo);
+			ThreadHelper.JoinableTaskFactory.Run(async () =>
+			{
+				await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+				UpdateCommandLineCombo();
+			});
 		}
 
 		/// <summary>

@@ -18,7 +18,6 @@ namespace UnrealVS
 		private const int CompileSingleFileButtonID = 0x1075;
 		private const int PreprocessSingleFileButtonID = 0x1076;
 		private const int UBTSubMenuID = 0x3103;
-		private string	  PPLine = "";
 		private string	  FileToCompileOriginalExt = "";
 
 		static readonly List<string> ValidExtensions = new List<string> { ".c", ".cc", ".cpp", ".cxx" };
@@ -182,6 +181,7 @@ namespace UnrealVS
 			DTE.Events.BuildEvents.OnBuildBegin += BuildEvents_OnBuildBegin;
 
 			// Create a delegate for handling output messages
+			string PPLine = String.Empty;
 			void OutputHandler(object Sender, DataReceivedEventArgs Args) 
 			{ 
 				if (Args.Data != null) 
@@ -200,7 +200,6 @@ namespace UnrealVS
 			BuildCommandLine = BuildCommandLine.Replace("$(SolutionDir)", SolutionDir);
 			BuildCommandLine = BuildCommandLine.Replace("$(ProjectName)", VCStartupProject.Name);
 
-			PPLine = "";
 			FileToCompileOriginalExt = FileToCompileExt;
 
 			string PreProcess = bPreProcessOnly ? " -NoXGE -Preprocess " : "";
@@ -221,7 +220,7 @@ namespace UnrealVS
 				// add an event handler to respond to the exit of the preprocess request
 				// and open the generated file if it exists.
 				ChildProcess.EnableRaisingEvents = true;
-				ChildProcess.Exited += new EventHandler(PreprocessExitHandler);
+				ChildProcess.Exited += new EventHandler((s, e) => PreprocessExitHandler(PPLine));
 			}
 			
 			ChildProcess.Start();
@@ -231,31 +230,42 @@ namespace UnrealVS
 			return true;
 		}
 
-		private void PreprocessExitHandler(object sender, System.EventArgs e)
+		private void PreprocessExitHandler(string PPLine)
 		{
 			// not all compile actions support pre-process - check it exists
 			if (PPLine.Contains("PreProcessPath:"))
 			{
 				string PPFullPath = PPLine.Replace("PreProcessPath:", "").Trim();
 
-				IVsOutputWindowPane BuildOutputPane = UnrealVSPackage.Instance.GetOutputPane();
-				DTE DTE = UnrealVSPackage.Instance.DTE;
-
-				BuildOutputPane.OutputString($"1>  PPFullPath: {PPFullPath}{Environment.NewLine}");
-
-				if (File.Exists(PPFullPath))
+				ThreadHelper.JoinableTaskFactory.Run(async () =>
 				{
-					// if the file exists, rename it to isolate the file and have its extension be the original to maintain syntax highlighting
-					string Dir = Path.GetDirectoryName(PPFullPath);
-					string FileName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(PPFullPath)) + "_preprocessed";
+					await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+					OpenPreprocessedFile(PPFullPath);
+				});
+			}
+		}
 
-					string RenamedFile = Path.Combine(Dir, FileName) + FileToCompileOriginalExt;
+		private void OpenPreprocessedFile(string PPFullPath)
+		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 
-					File.Copy(PPFullPath, RenamedFile, true /*overwrite*/);
+			IVsOutputWindowPane BuildOutputPane = UnrealVSPackage.Instance.GetOutputPane();
+			DTE DTE = UnrealVSPackage.Instance.DTE;
 
-					DTE.ExecuteCommand("File.OpenFile", $"\"{RenamedFile}\"");
-				}
-			}	
+			BuildOutputPane.OutputString($"1>  PPFullPath: {PPFullPath}{Environment.NewLine}");
+
+			if (File.Exists(PPFullPath))
+			{
+				// if the file exists, rename it to isolate the file and have its extension be the original to maintain syntax highlighting
+				string Dir = Path.GetDirectoryName(PPFullPath);
+				string FileName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(PPFullPath)) + "_preprocessed";
+
+				string RenamedFile = Path.Combine(Dir, FileName) + FileToCompileOriginalExt;
+
+				File.Copy(PPFullPath, RenamedFile, true /*overwrite*/);
+
+				DTE.ExecuteCommand("File.OpenFile", $"\"{RenamedFile}\"");
+			}
 		}
 
 		private void BuildEvents_OnBuildBegin(vsBuildScope Scope, vsBuildAction Action)
