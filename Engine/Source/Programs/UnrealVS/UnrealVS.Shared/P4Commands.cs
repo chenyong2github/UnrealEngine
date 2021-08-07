@@ -36,6 +36,7 @@ namespace UnrealVS
 		private const int P4DiffinVSButtonID = 0x1454;
 		private const int P4GetLast10ChangesID = 0x1455;
 		private const int P4ShowFileinP4VID = 0x1456;
+		private const int P4FastReconcileCodeFilesID  =0x1457;
 
 		private OleMenuCommand SubMenuCommand;
 
@@ -62,6 +63,7 @@ namespace UnrealVS
 		private string Username = "";
 		private string Port = "";
 		private string Client = "";
+		private string Stream = "";
 		private string UserInfoComplete = "";
 
 		private List<CommandEvents> EventsForce = new List<CommandEvents>();
@@ -146,6 +148,8 @@ namespace UnrealVS
 			P4CommandsList.Add(new P4Command(P4DiffinVSButtonID, P4DiffinVSHandler));
 			P4CommandsList.Add(new P4Command(P4GetLast10ChangesID, P4GetLast10ChangesHandler));
 			P4CommandsList.Add(new P4Command(P4ShowFileinP4VID, P4ShowFileInP4Vandler));
+			P4CommandsList.Add(new P4Command(P4FastReconcileCodeFilesID, P4FastReconcileCodeFiles));
+			
 
 			if (P4VCCmd.Length > 1)
 			{
@@ -515,6 +519,53 @@ namespace UnrealVS
 			}
 		}
 
+		private void P4FastReconcileCodeFiles(object Sender, EventArgs Args)
+		{
+			DTE DTE = UnrealVSPackage.Instance.DTE;
+
+			string[] DefaultExtensions =
+			{
+				"c*",
+				"h*",
+				"ini"
+			};
+
+			string[] Extensions = UnrealVSPackage.Instance.OptionsPage.ReconcileExtensions.Split(';');
+
+			if (Extensions.Length < 1)
+			{
+				Extensions = DefaultExtensions;
+			}
+
+			// generate the changes list
+			string ReconcileDepotPaths = "";
+			string Preview = "-n";
+
+			if (Stream.Length < 1)
+			{
+				PullWorkingDirectory(bPullWorkingDirectoryOn);
+			}
+
+			foreach (string Ext in Extensions)
+			{
+				ReconcileDepotPaths += Stream + "/...." + Ext + " ";
+			}
+
+			if (UnrealVSPackage.Instance.OptionsPage.AllowReconcileToMarkForEdit)
+			{
+				Preview = "";
+			}
+			else
+			{
+				P4OutputPane.OutputString($"PREVIEW{Environment.NewLine}");
+			}
+
+			P4OutputPane.OutputString($"Running Async Reconcile on : {ReconcileDepotPaths}{Environment.NewLine}");
+			P4OutputPane.Activate();
+
+			TryP4CommandAsync($"reconcile -e -m {Preview} {ReconcileDepotPaths}");
+		}
+
 		private void P4ShowFileInP4Vandler(object Sender, EventArgs Args)
 		{
 			ThreadHelper.ThrowIfNotOnUIThread();
@@ -611,14 +662,17 @@ namespace UnrealVS
 			Regex UserPattern = new Regex(@"User name: (?<user>.*)$", RegexOptions.Compiled | RegexOptions.Multiline);
 			Regex PortPattern = new Regex(@"Server address: (?<port>.*)$", RegexOptions.Compiled | RegexOptions.Multiline);
 			Regex ClientPattern = new Regex(@"Client name: (?<client>.*)$", RegexOptions.Compiled | RegexOptions.Multiline);
+			Regex ClientStream = new Regex(@"Client stream: (?<stream>.*)$", RegexOptions.Compiled | RegexOptions.Multiline);
 
 			System.Text.RegularExpressions.Match UserMatch = UserPattern.Match(CaptureP4Output);
 			System.Text.RegularExpressions.Match PortMatch = PortPattern.Match(CaptureP4Output);
-			System.Text.RegularExpressions.Match ClientMath = ClientPattern.Match(CaptureP4Output);
+			System.Text.RegularExpressions.Match ClientMatch = ClientPattern.Match(CaptureP4Output);
+			System.Text.RegularExpressions.Match StreamMatch = ClientStream.Match(CaptureP4Output);
 
 			Port = PortMatch.Groups["port"].Value.Trim();
 			Username = UserMatch.Groups["user"].Value.Trim();
-			Client = ClientMath.Groups["client"].Value.Trim();
+			Client = ClientMatch.Groups["client"].Value.Trim();
+			Stream = StreamMatch.Groups["stream"].Value.Trim();
 
 			UserInfoComplete = string.Format(" -p {0} -u {1} -c {2} ", Port, Username, Client);
 
@@ -698,26 +752,16 @@ namespace UnrealVS
 
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
-			// If there's already a operation in progress, abort... potential issues here
-			// in the OnSave/OnSaveAll operations where we will stall.
-/*			if (ChildProcess != null && !ChildProcess.HasExited)
-			{
-				P4OutputPane.OutputString($"P4 operation already in flight...waiting{Environment.NewLine}");
-				P4OutputPane.Activate();
-				ChildProcess.WaitForExit();
-			}*/
-
-			// Make sure any existing op is stopped
-			//KillChildProcess();
-
 			// Set up the output pane
-			P4OutputPane.Activate();
-			//P4OutputPane.OutputString($"1>------ P4 Operation started{Environment.NewLine}");
-			//P4OutputPane.OutputString($"CWD: {P4WorkingDirectory}{Environment.NewLine}");
-			//P4OutputPane.OutputString($"CMD: {P4Exe} {CommandLine}{Environment.NewLine}");
-
+			if (UnrealVSPackage.Instance.OptionsPage.ForceOutputWindow)
+			{
+				P4OutputPane.Activate();
+			}
+			
+			
 			StringBuilder StdOutSB = new StringBuilder();
 			StringBuilder StdErrSB = new StringBuilder();
+			DateTime Start = DateTime.Now;
 
 			// Spawn the new process
 			System.Diagnostics.Process ChildProcess = new System.Diagnostics.Process()
@@ -754,7 +798,8 @@ namespace UnrealVS
 						P4OutputPane.OutputString(P4OperationStdErr);
 					}
 
-					//P4OutputPane.OutputString($"1>------ P4 Operation complete{Environment.NewLine}");
+					TimeSpan Duration = DateTime.Now - Start;
+					P4OutputPane.OutputString($"complete {Duration.TotalSeconds.ToString()} {Environment.NewLine}");
 
 					ChildProcessList.Remove(ChildProcess);
 				};
@@ -769,6 +814,7 @@ namespace UnrealVS
 			if (bWaitForCompletion)
 			{ 
 				ChildProcess.WaitForExit();
+				TimeSpan Duration = DateTime.Now - Start;
 
 				CaptureP4Output = StdOutSB.ToString();
 				P4OperationStdErr = StdErrSB.ToString();
@@ -783,7 +829,7 @@ namespace UnrealVS
 					P4OutputPane.OutputString(P4OperationStdErr);
 				}
 
-				//P4OutputPane.OutputString($"1>------ P4 Operation complete{Environment.NewLine}");
+				P4OutputPane.OutputString($"complete {((int)Duration.TotalSeconds).ToString()}seconds {Environment.NewLine}");
 
 				ChildProcessList.Remove(ChildProcess);
 
