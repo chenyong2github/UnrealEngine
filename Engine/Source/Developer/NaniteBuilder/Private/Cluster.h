@@ -43,7 +43,7 @@ public:
 	FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes );
 	FCluster( const TArray< const FCluster*, TInlineAllocator<16> >& MergeList );
 
-	float	Simplify( uint32 NumTris );
+	float	Simplify( uint32 TargetNumTris, float TargetError = 0.0f, uint32 TargetErrorMaxNumTris = 0 );
 	void	Split( FGraphPartitioner& Partitioner ) const;
 	void	Bound();
 

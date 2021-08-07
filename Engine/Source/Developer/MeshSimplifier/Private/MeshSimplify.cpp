@@ -922,7 +922,7 @@ void FMeshSimplifier::RemoveDuplicateVerts( uint32 Corner )
 	}
 }
 
-float FMeshSimplifier::Simplify( uint32 TargetNumVerts, uint32 TargetNumTris )
+float FMeshSimplifier::Simplify( uint32 TargetNumVerts, uint32 TargetNumTris, float TargetError, uint32 TargetErrorMaxNumTris )
 {
 	check( TargetNumVerts < NumVerts || TargetNumTris < NumTris );
 
@@ -970,6 +970,13 @@ float FMeshSimplifier::Simplify( uint32 TargetNumVerts, uint32 TargetNumTris )
 		if( RemainingNumVerts <= TargetNumVerts && RemainingNumTris <= TargetNumTris )
 			break;
 
+		if ( RemainingNumVerts <= TargetNumVerts
+			 && RemainingNumTris <= TargetErrorMaxNumTris
+			 && MaxError >= TargetError)
+		{
+			break;
+		}
+
 		for( uint32 PairIndex : ReevaluatePairs )
 		{
 			FPair& Pair = Pairs[ PairIndex ];
@@ -980,7 +987,7 @@ float FMeshSimplifier::Simplify( uint32 TargetNumVerts, uint32 TargetNumTris )
 		ReevaluatePairs.Reset();
 	}
 
-	check( RemainingNumVerts <= TargetNumVerts && RemainingNumTris <= TargetNumTris );
+	check(RemainingNumVerts <= TargetNumVerts && RemainingNumTris <= FMath::Max(TargetNumTris, TargetErrorMaxNumTris));
 	
 	return MaxError;
 }
