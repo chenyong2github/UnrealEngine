@@ -42,8 +42,8 @@ void USinglePropertyView::BuildContentWidget()
 		UObject* ViewedObject = GetObject();
 		if (ViewedObject == nullptr)
 		{
-			bool bIsLazyObjectNull = LazyObject.IsNull();
-			if (bIsLazyObjectNull)
+			bool bIsObjectNull = Object.IsNull();
+			if (bIsObjectNull)
 			{
 				MissingWidgetText = FPropertyViewHelper::UndefinedObjectText;
 			}

@@ -42,8 +42,8 @@ void UDetailsView::BuildContentWidget()
 		UObject* ViewedObject = GetObject();
 		if (ViewedObject == nullptr)
 		{
-			bool bIsLazyObjectNull = LazyObject.IsNull();
-			if (bIsLazyObjectNull)
+			bool bIsObjectNull = Object.IsNull();
+			if (bIsObjectNull)
 			{
 				MissingWidgetText = FPropertyViewHelper::UndefinedObjectText;
 			}
@@ -143,7 +143,6 @@ void UDetailsView::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 			|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDetailsView, bForceHiddenPropertyVisibility)
 			|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDetailsView, ColumnWidth))
 		{
-			SoftObjectPath = LazyObject.Get();
 			BuildContentWidget();
 		}
 	}

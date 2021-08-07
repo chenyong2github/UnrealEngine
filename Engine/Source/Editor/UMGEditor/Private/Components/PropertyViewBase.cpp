@@ -59,16 +59,15 @@ TSharedRef<SWidget> UPropertyViewBase::RebuildWidget()
 
 UObject* UPropertyViewBase::GetObject() const
 {
-	return LazyObject.Get();
+	return Object.Get();
 }
 
 
 void UPropertyViewBase::SetObject(UObject* InObject)
 {
-	if (LazyObject.Get() != InObject)
+	if (Object.Get() != InObject)
 	{
-		LazyObject = InObject;
-		SoftObjectPath = InObject;
+		Object = InObject;
 		OnObjectChanged();
 	}
 }
@@ -82,7 +81,7 @@ void UPropertyViewBase::OnPropertyChangedBroadcast(FName PropertyName)
 
 void UPropertyViewBase::InternalOnAssetLoaded(UObject* AssetLoaded)
 {
-	if (SoftObjectPath.GetAssetPathName() == FSoftObjectPath(AssetLoaded).GetAssetPathName())
+	if(Object.ToSoftObjectPath().GetAssetPathName() == FSoftObjectPath(AssetLoaded).GetAssetPathName())
 	{
 		BuildContentWidget();
 	}
@@ -105,9 +104,14 @@ void UPropertyViewBase::PostLoad()
 {
 	Super::PostLoad();
 
-	if (!LazyObject.IsValid() && SoftObjectPath.IsAsset() && bAutoLoadAsset && !HasAnyFlags(RF_BeginDestroyed))
+	if (Object.IsNull() && !SoftObjectPath_DEPRECATED.IsNull())
 	{
-		LazyObject = SoftObjectPath.TryLoad();
+		Object = SoftObjectPath_DEPRECATED;
+	}
+
+	if(!Object.IsValid() && Object.ToSoftObjectPath().IsAsset() && bAutoLoadAsset && !HasAnyFlags(RF_BeginDestroyed))
+	{
+		Object.LoadSynchronous();
 		BuildContentWidget();
 	}
 }
@@ -115,9 +119,8 @@ void UPropertyViewBase::PostLoad()
 
 void UPropertyViewBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UPropertyViewBase, LazyObject))
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UPropertyViewBase, Object))
 	{
-		SoftObjectPath = LazyObject.Get();
 		OnObjectChanged();
 	}
 
