@@ -84,7 +84,7 @@ FTransform URootMotionModifier_AdjustmentBlendWarp::ProcessRootMotion(const FTra
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread() > 0)
 	{
-		PrintLog(TEXT("FRootMotionModifier_AdjustmentBlend"), InRootMotion, FinalRootMotion);
+		PrintLog(TEXT("AdjustmentBlendWarp"), InRootMotion, FinalRootMotion);
 
 		if (FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread() >= 2)
 		{
