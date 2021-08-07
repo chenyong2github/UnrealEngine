@@ -11,28 +11,17 @@
 #define HAS_CACHE_DATA 0
 #endif //HAS_CACHE_DATA
 
-#if ENABLE_NON_NANITE_VSM
-// GPUCULL_TODO: This is probably ok to just leave on.
-// Marks pages that are not cached (bit 0)
-#define VSM_INVALID_FLAG (1)
-// Marks pages that are allocated (bit 1)
-#define VSM_ALLOCATED_FLAG (2)
-// Super pages are of size 2^SP-Level up to VSM_NUM_SUPER_PAGE_LEVELS
-#define VSM_NUM_SUPER_PAGE_LEVELS (3U)
-#define VSM_NUM_SUPER_START_BIT (1U)
-// Mask inclusive of super pages and the allocated flag, Bits [1,1+VSM_NUM_SUPER_PAGE_LEVELS+1]
-#define VSM_SUPER_PAGE_MASK (((1U << (VSM_NUM_SUPER_PAGE_LEVELS + 1U)) - 1U) << 1U)
-#else //!ENABLE_NON_NANITE_VSM
 // Used in the PageFlags
+// NOTE: These flags are combined hierarchically using bitwise *OR*, so plan/negate them appropriately
 // Marks pages that are allocated
-#define VSM_ALLOCATED_FLAG (1)
+#define VSM_ALLOCATED_FLAG  (1U)
 // Marks pages that are not cached
-#define VSM_INVALID_FLAG (2)
-#endif // ENABLE_NON_NANITE_VSM
+#define VSM_UNCACHED_FLAG   (2U)
+// Marks pages that need non-nanite rendering
+#define VSM_NON_NANITE_FLAG (4U)
 
 // GPUCULL_TODO: These 10 bits don't match Nanite and we may run out what with mip-levels and all!
 #define VSM_PACKED_PAGE_INFO_VIEW_ID_BITS (10U)
-#define VSM_PACKED_PAGE_INFO_SUPER_PAGE_LEVEL_BITS (2U)
 
 struct FPageInfo
 {
@@ -140,9 +129,6 @@ struct FShadowPhysicalPage
 
 #define VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG 0x8000000
 #define VSM_PHYSICAL_PAGE_INVALID 0x00000000
-
-// TODO: Remove this, but need to update cache metadata
-#define VSM_INVALID_PHYSICAL_PAGE_ADDRESS 65535
 
 uint ShadowEncodePageTable(uint2 PhysicalAddress)
 {

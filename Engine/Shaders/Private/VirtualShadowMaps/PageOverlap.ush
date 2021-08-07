@@ -6,7 +6,6 @@
 #include "../Nanite/HZBCull.ush"
 #include "PageAccessCommon.ush"
 
-//Buffer containing VSM_ALLOCATED_FLAG for each page that is allocated and optionally | VSM_INVALID_FLAG if it needs to be rendered (not cached)
 StructuredBuffer<uint> PageFlags;
 StructuredBuffer<uint> HPageFlags;
 StructuredBuffer<uint> ShadowHZBPageTable;
@@ -16,10 +15,14 @@ StructuredBuffer<uint4> PageRectBounds;
 
 // Note: the pixel 'screen' rect in FScreenRect is calculated using only the viewport _size_ as HZB uses a zero-offset buffer.
 // However, the page table is with respect to the entire virtual SM so we need to offset here.
-bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin, FScreenRect Rect, bool bHasMoved )
+// All flags in FlagMask must be set on at least one overlapped page for this to return true
+bool OverlapsAnyValidPage( 
+	uint ShadowMapID, 
+	uint MipLevel, 
+	int2 ViewPortRectMin, 
+	FScreenRect Rect,
+	uint FlagMask = VSM_ALLOCATED_FLAG)
 {
-	// Clusters that has moved must be rendered to any allocated page, whereas static ones only need to be rendered into invalid pages.
-	uint FlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
 	uint4 RectPages = uint4( Rect.Pixels + ViewPortRectMin.xyxy ) >> VSM_LOG2_PAGE_SIZE;
 
 	uint HMipLevel = MipLevelForRect( RectPages, 2 );
@@ -33,7 +36,7 @@ bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin
 		{
 			for( uint x = RectPages.x; x <= RectPages.z; x++ )
 			{
-				if ((PageFlags[PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y))] & FlagMask) != 0)
+				if ((PageFlags[PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y))] & FlagMask) == FlagMask)
 				{
 					return true;
 				}
@@ -56,7 +59,7 @@ bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin
 			for( uint x = RectPages.x; x <= RectPages.z; x++ )
 			{
 				int HPageFlagOffset = HPageLevelOffset + y * HLevelSizePages + x;
-				if( (HPageFlags[ HPageFlagOffset ] & FlagMask) != 0 )
+				if( (HPageFlags[ HPageFlagOffset ] & FlagMask) == FlagMask )
 				{
 					return true;
 				}

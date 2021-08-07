@@ -33,6 +33,7 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	FIntPoint PageSpaceLocation,
 	float LevelRadius,
 	float ViewCenterZ,
+	// NOTE: ViewRadiusZ must be constant for a given clipmap level
 	float ViewRadiusZ)
 {
 	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE);
@@ -45,10 +46,10 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 
 	if (bCacheValid)
 	{
-		bCacheValid = bCacheValid && PageSpaceLocation.X == PrevPageSpaceLocation.X;
-		bCacheValid = bCacheValid && PageSpaceLocation.Y == PrevPageSpaceLocation.Y;
-		if (!bCacheValid)
+		if (PageSpaceLocation.X != PrevPageSpaceLocation.X ||
+			PageSpaceLocation.Y != PrevPageSpaceLocation.Y)
 		{
+			bCacheValid = false;
 			//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) with page space location %d,%d (Prev %d, %d)"),
 			//	VirtualShadowMapId, PageSpaceLocation.X, PageSpaceLocation.Y, PrevPageSpaceLocation.X, PrevPageSpaceLocation.Y);
 		}
@@ -68,6 +69,8 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	if (bCacheValid)
 	{
 		PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
+		// These really should be exact by construction
+		check(ViewRadiusZ == Clipmap.ViewRadiusZ);
 	}
 	else
 	{

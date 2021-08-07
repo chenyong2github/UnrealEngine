@@ -293,7 +293,9 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 		BRANCH
 		if( bVisible && !Cull.bCrossesNearPlane )
 		{
-			bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, DynamicData.bHasMoved );
+			// Clusters that has moved must be rendered to any allocated page, whereas static ones only need to be rendered into invalid pages.
+			uint FlagMask = DynamicData.bHasMoved ? ( VSM_ALLOCATED_FLAG | VSM_UNCACHED_FLAG ) : VSM_ALLOCATED_FLAG;
+			bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, FlagMask );
 
 			uint4 ClusterRectPages = uint4( NaniteView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
 
@@ -383,7 +385,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	uint PageTableLevelOffset = 0;
 	if( bVisible )
 	{
-		const uint PageFlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
+		const uint PageFlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
 
 		PageTableLevelOffset = CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel );
 
@@ -510,7 +512,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 			}
 			else
 			{
-				const uint PageFlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
+				const uint PageFlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
 				for( uint y = RectPages.y; y <= RectPages.w; y++ )
 				{
 					for( uint x = RectPages.x; x <= RectPages.z; x++ )
@@ -647,7 +649,8 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 			BRANCH
 			if( bVisible )
 			{
-				bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, DynamicData.bHasMoved);
+				uint FlagMask = DynamicData.bHasMoved ? ( VSM_ALLOCATED_FLAG | VSM_UNCACHED_FLAG ) : VSM_ALLOCATED_FLAG;
+				bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, FlagMask );
 			}
 #endif
 		}
