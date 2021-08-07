@@ -115,7 +115,6 @@ FPageInfo UnPackPageInfo(uint PackedData)
 	PageInfo.VirtualPage.x = ReadBits(PackedData, BitPos, VSM_LOG2_LEVEL0_DIM_PAGES_XY);
 	PageInfo.VirtualPage.y = ReadBits(PackedData, BitPos, VSM_LOG2_LEVEL0_DIM_PAGES_XY);
 	PageInfo.ViewId = ReadBits(PackedData, BitPos, VSM_PACKED_PAGE_INFO_VIEW_ID_BITS);
-	PageInfo.SuperPageLevel = ReadBits(PackedData, BitPos, VSM_PACKED_PAGE_INFO_SUPER_PAGE_LEVEL_BITS);
 
 	return PageInfo;
 }

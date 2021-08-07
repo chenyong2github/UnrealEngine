@@ -231,7 +231,7 @@ public:
 	FRDGBufferRef PageTableRDG = nullptr;
 		
 	// Buffer that stores flags (uints) marking each page that needs to be rendered and cache status, for all virtual shadow maps.
-	// Flag values defined in PageAccessCommon.ush: VSM_ALLOCATED_FLAG | VSM_INVALID_FLAG
+	// Flag values defined in PageAccessCommon.ush
 	FRDGBufferRef PageFlagsRDG = nullptr;
 	// HPageFlags is a hierarchy over the PageFlags for quick query
 	FRDGBufferRef HPageFlagsRDG = nullptr;

@@ -165,10 +165,12 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 WorldPosition, floa
 		return;
 	}
 
+	uint Flags = VSM_ALLOCATED_FLAG | VSM_NON_NANITE_FLAG;
+
 	float2 PageAddressFloat = ShadowUVz.xy * CalcLevelDimsPages(MipLevel);
 	uint2 PageAddress = uint2(PageAddressFloat);
 	uint PageOffset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
-	OutPageRequestFlags[PageOffset] = 1;
+	OutPageRequestFlags[PageOffset] = Flags;
 
 	// PageDilationBorderSize == 0 implies PageDilationOffset.xy == 0
 	if (PageDilationBorderSize > 0.0f)
@@ -177,13 +179,13 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 WorldPosition, floa
 		uint PageOffset2 = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress2);
 		if (PageOffset2 != PageOffset)
 		{
-			OutPageRequestFlags[PageOffset2] = 1;
+			OutPageRequestFlags[PageOffset2] = Flags;
 		}
 		uint2 PageAddress3 = uint2(max(float2(0, 0), PageAddressFloat - PageDilationOffset));
 		uint PageOffset3 = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress3);
 		if (PageOffset3 != PageOffset)
 		{
-			OutPageRequestFlags[PageOffset3] = 1;
+			OutPageRequestFlags[PageOffset3] = Flags;
 		}
 	}
 }
@@ -311,6 +313,7 @@ void GeneratePageFlagsFromPixels(
 
 uint bMarkCoarsePagesLocal;
 uint ClipmapIndexMask;
+uint bIncludeNonNaniteGeometry;
 
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
 void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
@@ -322,6 +325,10 @@ void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
 	}
 
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+
+	// NOTE: Coarse pages are very large and tend to get invalidated a lot due to anything in the scene moving
+	// Rendering non-nanite geometry into these pages can be very expensive and thus isn't always desirable.
+	uint Flags = VSM_ALLOCATED_FLAG | (bIncludeNonNaniteGeometry != 0 ? VSM_NON_NANITE_FLAG : 0);
 
 	if (ProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
@@ -340,17 +347,17 @@ void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
 			// NOTE: Page addresses round down/truncate normally, so grab the surrounding 4
 			int4 PageAddressLowHigh = int4(floor(PageAddressFloat - 0.5f), ceil(PageAddressFloat - 0.5f));
 
-			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.xy)] = 1;
-			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.xw)] = 1;
-			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.zy)] = 1;
-			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.zw)] = 1;
+			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.xy)] = Flags;
+			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.xw)] = Flags;
+			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.zy)] = Flags;
+			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.zw)] = Flags;
 		}
 	}
 	else if (bMarkCoarsePagesLocal != 0)
 	{
 		// Mark last mip
 		uint PageOffset = CalcPageOffset(VirtualShadowMapId, VSM_MAX_MIP_LEVELS - 1, uint2(0, 0));
-		OutPageRequestFlags[PageOffset] = 1;
+		OutPageRequestFlags[PageOffset] = Flags;
 	}
 }
 
@@ -488,13 +495,19 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 	uint ResultPageFlags = 0;
 
 #if HAS_CACHE_DATA
-	if (PageRequestFlags[GlobalPageOffset] != 0)
+	const uint RequestFlags = PageRequestFlags[GlobalPageOffset];
+	if (RequestFlags != 0)
 	{
 		const uint PrevVirtualShadowMapId = ShadowMapCacheData[VirtualShadowMapId].PrevVirtualShadowMapId;
 		if (PrevVirtualShadowMapId != INDEX_NONE)
 		{
 			uint PrevGlobalOffset = PrevVirtualShadowMapId * VSM_PAGE_TABLE_SIZE + PageOffsetInShadowMap;
-			bool bPrevPageAllocated = PrevPageFlags[PrevGlobalOffset] != 0;
+			const uint PrevFlags = PrevPageFlags[PrevGlobalOffset];
+			bool bPrevPageAllocated = PrevFlags != 0;
+
+			// True if the request matches the cached page in terms of whether it includes nanite geometry
+			bool bMatchesNonNanite = (RequestFlags & VSM_NON_NANITE_FLAG) == (PrevFlags & VSM_NON_NANITE_FLAG);
+
 			// True if the page had moving stuff drawn into it
 			bool bPrevDynamicPageFlag = PrevDynamicCasterPageFlags[PrevGlobalOffset] != 0;
 
@@ -506,7 +519,7 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 			}
 
 			// If it was either rendered or cached previous frame, and not drawn to by a moving thing we may re-use
-			if (bPrevPageAllocated && !bPrevDynamicPageFlag)
+			if (bPrevPageAllocated && !bPrevDynamicPageFlag && bMatchesNonNanite)
 			{
 				uint2 PhysicalAddress = ShadowDecodePageTable(PrevPageTable[PrevGlobalOffset]).PhysicalAddress;
 				uint PhysicalPageIndex = VSMPhysicalPageAddressToIndex(PhysicalAddress);
@@ -521,9 +534,9 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 					// Note that we explicitly do not retain the propogated mip data as that could change this
 					// frame, so we always "repropogate" after mapping.
 					ResultPageTable = ShadowEncodePageTable(PhysicalAddress);
-					ResultPageFlags = VSM_ALLOCATED_FLAG;
+					// Strip "uncached" from previous flags but otherwise maintain them
+					ResultPageFlags = PrevFlags & (~VSM_UNCACHED_FLAG);
 
-					// TODO: Age
 					// Update metadata to mark this page as cached
 					OutPhysicalPageMetaData[PhysicalPageIndex].Age = PrevMetaData.Age + 1;
 					OutPhysicalPageMetaData[PhysicalPageIndex].Flags =
@@ -576,7 +589,8 @@ void AllocateNewPageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId
 	uint ResultPageFlags = 0;
 
 	// Only allocate pages we haven't already allocated
-	if (PageRequestFlags[GlobalPageOffset] != 0 && OutPageFlags[GlobalPageOffset] == 0)
+	uint RequestFlags = PageRequestFlags[GlobalPageOffset];
+	if (RequestFlags != 0 && OutPageFlags[GlobalPageOffset] == 0)
 	{
 		StatsBufferInterlockedAdd(0, 1);	// Total pages
 
@@ -591,9 +605,12 @@ void AllocateNewPageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId
 			uint PhysicalPageIndex = uint(OutFreePhysicalPages[FreeListOffset]);
 			uint2 PhysicalPageAddress = VSMPhysicalIndexToPageAddress(PhysicalPageIndex);
 
+			bool bRequestNonNaniteFlag = (RequestFlags & VSM_NON_NANITE_FLAG) != 0;
+			uint Flags = VSM_ALLOCATED_FLAG | VSM_UNCACHED_FLAG | (bRequestNonNaniteFlag ? VSM_NON_NANITE_FLAG : 0);
+
 			// Mark this page as allocated and not cached (needing rendering)
 			OutPageTable[GlobalPageOffset] = ShadowEncodePageTable(PhysicalPageAddress);
-			OutPageFlags[GlobalPageOffset] = VSM_ALLOCATED_FLAG | VSM_INVALID_FLAG;
+			OutPageFlags[GlobalPageOffset] = Flags;
 
 			OutPhysicalPageMetaData[PhysicalPageIndex].Flags = VSM_PHYSICAL_PAGE_FLAG_ALLOCATED;
 		}

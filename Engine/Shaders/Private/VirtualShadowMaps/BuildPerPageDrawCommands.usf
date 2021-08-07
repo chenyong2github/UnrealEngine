@@ -33,7 +33,6 @@ uint PackPageInfo(FPageInfo PageInfo)
 	WriteBits(PackedData, BitPos, PageInfo.VirtualPage.x, VSM_LOG2_LEVEL0_DIM_PAGES_XY);
 	WriteBits(PackedData, BitPos, PageInfo.VirtualPage.y, VSM_LOG2_LEVEL0_DIM_PAGES_XY);
 	WriteBits(PackedData, BitPos, PageInfo.ViewId, VSM_PACKED_PAGE_INFO_VIEW_ID_BITS);
-	WriteBits(PackedData, BitPos, PageInfo.SuperPageLevel, VSM_PACKED_PAGE_INFO_SUPER_PAGE_LEVEL_BITS);
 
 	return PackedData.x;
 }
@@ -59,7 +58,6 @@ void WriteCmd(uint2 VirtualPage, uint MipViewId, uint InstanceId, uint IndirectA
 	FPageInfo PageInfo;
 	PageInfo.VirtualPage = VirtualPage;
 	PageInfo.ViewId = MipViewId;
-	PageInfo.SuperPageLevel = 0U;
 
 	FVisibleInstanceCmd VisibleInstanceCmd;
 	VisibleInstanceCmd.PackedPageInfo = PackPageInfo(PageInfo);
@@ -102,7 +100,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	// Load relevant instance data
 	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || DrawCommandDesc.bMaterialMayModifyPosition;
-	const uint PageFlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
+	const uint PageFlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
 
 	uint ThreadTotalForAllViews = 0;
 	// Loop over views and output visible instance (i.e., those that overlap a valid page)
@@ -128,7 +126,8 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 				FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
 
-				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, bHasMoved))
+				uint FlagMask = (VSM_ALLOCATED_FLAG | VSM_NON_NANITE_FLAG) | ( bHasMoved ? VSM_UNCACHED_FLAG : 0 );
+				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, FlagMask))
 				{
 					uint4 RectPages = uint4( MipView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
 

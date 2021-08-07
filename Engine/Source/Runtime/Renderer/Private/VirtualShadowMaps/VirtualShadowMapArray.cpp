@@ -103,6 +103,14 @@ TAutoConsoleVariable<int32> CVarMarkCoarsePagesLocal(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarCoarsePagesIncludeNonNanite(
+	TEXT("r.Shadow.Virtual.CoarsePagesIncludeNonNanite"),
+	1,
+	TEXT("Include non-nanite geometry in coarse pages.")
+	TEXT("Rendering non-nanite geometry into large coarse pages can be expensive; disabling this can be a significant performance win."),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarShowClipmapStats(
 	TEXT("r.Shadow.Virtual.ShowClipmapStats"),
 	-1,
@@ -409,6 +417,7 @@ class FMarkCoarsePagesCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
 		SHADER_PARAMETER(uint32, bMarkCoarsePagesLocal)
+		SHADER_PARAMETER(uint32, bIncludeNonNaniteGeometry)
 		SHADER_PARAMETER(uint32, ClipmapIndexMask)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -941,6 +950,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
 					PassParameters->bMarkCoarsePagesLocal = bMarkCoarsePagesLocal ? 1 : 0;
 					PassParameters->ClipmapIndexMask = bMarkCoarsePagesDirectional ? FVirtualShadowMapClipmap::GetCoarsePageClipmapIndexMask() : 0;
+					PassParameters->bIncludeNonNaniteGeometry = CVarCoarsePagesIncludeNonNanite.GetValueOnRenderThread();
 
 					auto ComputeShader = View.ShaderMap->GetShader<FMarkCoarsePagesCS>();
 
