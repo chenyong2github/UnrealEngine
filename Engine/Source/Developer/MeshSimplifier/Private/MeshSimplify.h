@@ -57,7 +57,7 @@ public:
 	QUADRICMESHREDUCTION_API void	SetBoundaryLocked( const TBitArray<>& UnlockedBoundaryEdges );
 	QUADRICMESHREDUCTION_API void	GetBoundaryUnlocked( TBitArray<>& UnlockedBoundaryEdges );
 
-	QUADRICMESHREDUCTION_API float	Simplify( uint32 TargetNumVerts, uint32 TargetNumTris );
+	QUADRICMESHREDUCTION_API float	Simplify( uint32 TargetNumVerts, uint32 TargetNumTris, float TargetError = 0.0f, uint32 TargetErrorMaxNumTris = 0 );
 	QUADRICMESHREDUCTION_API void	Compact();
 
 	uint32		GetRemainingNumVerts() const	{ return RemainingNumVerts; }

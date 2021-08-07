@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("0CB89DB4-27C8-459C-910B-510A67B3159C")
+#define NANITE_DERIVEDDATA_VER TEXT("178FA71A-3EAE-4A16-AA92-4CAFAFC9D52A")
 
 namespace Nanite
 {
@@ -173,12 +173,13 @@ static void BuildCoarseRepresentation(
 	TArray<uint32>& Indexes,
 	TArray<FStaticMeshSection, TInlineAllocator<1>>& Sections,
 	uint32& NumTexCoords,
-	uint32 TargetNumTris
+	uint32 TargetNumTris,
+	float TargetError,
+	uint32 TargetErrorMaxNumTris
 )
 {
-	FCluster CoarseRepresentation = FindDAGCut(Groups, Clusters, TargetNumTris + 4096);
-
-	CoarseRepresentation.Simplify(TargetNumTris);
+	FCluster CoarseRepresentation = FindDAGCut(Groups, Clusters, TargetErrorMaxNumTris + 4096);
+	CoarseRepresentation.Simplify(TargetNumTris, TargetError, TargetErrorMaxNumTris);
 
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
 
@@ -549,7 +550,7 @@ static bool BuildNaniteData(
 	}
 	
 	const int32 OldTriangleCount = Resources.NumInputTriangles;
-	const int32 MinTriCount = 2000; // TODO: Should make this configurable
+	const int32 MinTriCount = 512; // TODO: Should make this configurable
 	// Replace original static mesh data with coarse representation.
 	const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f && OldTriangleCount > MinTriCount;
 
@@ -566,7 +567,7 @@ static bool BuildNaniteData(
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
-	FBounds MeshBounds;
+	FBounds MeshBounds;	
 	TArray<FClusterGroup> Groups;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::DAG.Reduce);
@@ -586,10 +587,12 @@ static bool BuildNaniteData(
 	if (bUseCoarseRepresentation)
 	{
 		const uint32 CoarseStartTime = FPlatformTime::Cycles();
-		int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
+		const int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
+		const float CoarseTargetError = 0.1f;
+		const int32 CoarseTargetErrorMaxTriCount = FMath::Max(CoarseTriCount, 8192);
 
 		TArray<FStaticMeshSection, TInlineAllocator<1>> CoarseSections = Sections;
-		BuildCoarseRepresentation(Groups, Clusters, Verts, Indexes, CoarseSections, NumTexCoords, CoarseTriCount);
+		BuildCoarseRepresentation(Groups, Clusters, Verts, Indexes, CoarseSections, NumTexCoords, CoarseTriCount, CoarseTargetError, CoarseTargetErrorMaxTriCount);
 
 		// Fixup mesh section info with new coarse mesh ranges, while respecting original ordering and keeping materials
 		// that do not end up with any assigned triangles (due to decimation process).
