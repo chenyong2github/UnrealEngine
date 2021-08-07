@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.IO;
@@ -90,7 +90,7 @@ namespace HordeAgentTests
 			
 			ActionTask ActionTask = CreateActionTask(InstanceName, Cas);
 			Assert.IsNull(ActionRpc.ActionResultRequest);
-			LeaseOutcome Outcome = await Ws.HandleLeasePayloadAsync(RpcConnection, "my-agent-id", CreateLeaseInfo(ActionTask));
+			LeaseOutcome Outcome = (await Ws.HandleLeasePayloadAsync(RpcConnection, "my-agent-id", CreateLeaseInfo(ActionTask))).Outcome;
 			Assert.AreEqual(LeaseOutcome.Success, Outcome);
 			Assert.IsNotNull(ActionRpc.ActionResultRequest);
 			Assert.IsNull(ActionRpc.ActionResultRequest!.Error);
@@ -103,7 +103,7 @@ namespace HordeAgentTests
 			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
 			
 			ActionTask ActionTask = CreateActionTask(InstanceName, Cas);
-			LeaseOutcome Outcome = await Ws.HandleLeasePayloadAsync(RpcConnection, "my-agent-id", CreateLeaseInfo(ActionTask));
+			LeaseOutcome Outcome = (await Ws.HandleLeasePayloadAsync(RpcConnection, "my-agent-id", CreateLeaseInfo(ActionTask))).Outcome;
 			Assert.AreEqual(LeaseOutcome.Failed, Outcome);
 			Assert.IsNotNull(ActionRpc.ActionResultRequest);
 			Assert.IsNull(ActionRpc.ActionResultRequest!.Error);
