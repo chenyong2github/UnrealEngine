@@ -17,22 +17,13 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Thread = System.Threading.Thread;
-using System;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Microsoft.VisualStudio.ComponentModelHost;
-using Microsoft.VisualStudio.Editor;
-using Microsoft.VisualStudio.OLE.Interop;
-using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
-using Microsoft.VisualStudio.TextManager.Interop;
 using IOleServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
 using Microsoft.VisualStudio.Utilities;
 using Microsoft.VisualStudio.Text.Projection;
-using Microsoft.VisualStudio;
-using System.Collections.Generic;
 
 namespace UnrealVS
 {
@@ -320,6 +311,7 @@ namespace UnrealVS
 		/// </summary>
 		private void Tick()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			BatchBuilder.Tick();
 		}
 
@@ -328,12 +320,15 @@ namespace UnrealVS
 		/// </summary>
 		public void Dispose()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			Dispose(true);
 		}
 
 		/// IDispose pattern lets us clean up our stuff!
 		protected override void Dispose(bool disposing)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (Ticker != null && Ticker.IsAlive)
 			{
 				Thread.Sleep(TickPeriod + TickPeriod);
@@ -401,6 +396,7 @@ namespace UnrealVS
 		{
 			get
 			{
+				ThreadHelper.ThrowIfNotOnUIThread();
 				if (_DTE2 == null)
 				{
 					// Get the interface when first used.
@@ -607,6 +603,8 @@ namespace UnrealVS
 
 		int IVsSolutionEvents.OnAfterCloseSolution(object pUnkReserved)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			UpdateUnrealLoadedStatus();
 
 			OnSolutionClosed?.Invoke();
@@ -621,6 +619,8 @@ namespace UnrealVS
 
 		int IVsSolutionEvents.OnAfterOpenProject(IVsHierarchy pHierarchy, int fAdded)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// This function is called after a Visual Studio project is opened (or a new project is created.)
 
 			// Get the actual Project object from the IVsHierarchy object that was supplied
@@ -637,6 +637,8 @@ namespace UnrealVS
 
 		int IVsSolutionEvents.OnAfterOpenSolution(object pUnkReserved, int fNewSolution)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			UpdateUnrealLoadedStatus();
 
 			StartTicker();
@@ -648,6 +650,8 @@ namespace UnrealVS
 
 		int IVsSolutionEvents.OnBeforeCloseProject(IVsHierarchy pHierarchy, int fRemoved)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// This function is called after a Visual Studio project is closed
 
 			// Get the actual Project object from the IVsHierarchy object that was supplied
@@ -709,6 +713,8 @@ namespace UnrealVS
 
 		int IVsSelectionEvents.OnElementValueChanged(uint elementid, object varValueOld, object varValueNew)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// This function is called when selection changes in various Visual Studio tool windows
 			// and sub-systems.
 
@@ -828,6 +834,8 @@ namespace UnrealVS
 
 		int IVsPersistSolutionProps.ReadSolutionProps(IVsHierarchy pHierarchy, string pszProjectName, string pszProjectMk, string pszKey, int fPreLoad, IPropertyBag pPropBag)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (!string.Equals(pszKey, GuidList.UnrealVSPackageString, StringComparison.InvariantCultureIgnoreCase))
 				return VSConstants.S_OK;
 
@@ -881,6 +889,8 @@ namespace UnrealVS
 
 		public int OnActiveProjectCfgChange(IVsHierarchy pIVsHierarchy)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// This function is called after a Visual Studio project has its active config changed
 
 			// Check whether the project is the current startup project
@@ -899,6 +909,8 @@ namespace UnrealVS
 
 		private void UpdateUnrealLoadedStatus()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (!DTE.Solution.IsOpen)
 			{
 				IsUESolutionLoaded = false;
@@ -987,6 +999,8 @@ namespace UnrealVS
 		/// Obtains the DTE2 interface for this instance of VS from the RunningObjectTable
 		private static DTE2 GetDTE2ForCurrentInstance(DTE DTE)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Find the ROT entry for visual studio running under current process.
 			int HResult = NativeMethods.GetRunningObjectTable(0, out IRunningObjectTable Rot);
 			if (HResult == 0)

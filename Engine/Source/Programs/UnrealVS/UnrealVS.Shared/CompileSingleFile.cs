@@ -48,6 +48,8 @@ namespace UnrealVS
 
 		void CompileSingleFileButtonHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			MenuCommand SenderSubMenuCommand = (MenuCommand)Sender;
 
 			bool PreprocessOnly = SenderSubMenuCommand.CommandID.ID == PreprocessSingleFileButtonID;
@@ -75,6 +77,7 @@ namespace UnrealVS
 
 		bool TryCompileSingleFile(bool bPreProcessOnly)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			// Activate the output window

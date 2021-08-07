@@ -3,6 +3,7 @@
 using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using System;
 using System.Collections.Generic;
@@ -23,8 +24,12 @@ namespace UnrealVS
 
 			public Project GetProjectSlow()
 			{
+				ThreadHelper.ThrowIfNotOnUIThread();
+
 				Project[] Projects = GetAllProjectsFromDTE();
+#pragma warning disable VSTHRD010 // Invoke single-threaded types on Main thread
 				return Projects.FirstOrDefault(Proj => string.CompareOrdinal(Proj.FullName, FullName) == 0);
+#pragma warning restore VSTHRD010 // Invoke single-threaded types on Main thread
 			}
 		}
 
@@ -35,6 +40,7 @@ namespace UnrealVS
 		/// <returns>IVsHierarchy for the specified project</returns>
 		public static IVsHierarchy ProjectToHierarchyObject(Project Project)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			UnrealVSPackage.Instance.SolutionManager.GetProjectOfUniqueName(Project.FullName, out IVsHierarchy HierarchyObject);
 			return HierarchyObject;
 		}
@@ -47,6 +53,8 @@ namespace UnrealVS
 		/// <returns>Visual Studio project object</returns>
 		public static Project HierarchyObjectToProject(IVsHierarchy HierarchyObject)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Get the actual Project object from the IVsHierarchy object that was supplied
 			HierarchyObject.GetProperty(VSConstants.VSITEMID_ROOT, (int)__VSHPROPID.VSHPROPID_ExtObject, out object ProjectObject);
 			return (Project)ProjectObject;
@@ -59,6 +67,8 @@ namespace UnrealVS
 		/// <returns>Visual Studio project object</returns>
 		public static IVsCfgProvider2 HierarchyObjectToCfgProvider(IVsHierarchy HierarchyObject)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Get the actual Project object from the IVsHierarchy object that was supplied
 			HierarchyObject.GetProperty(VSConstants.VSITEMID_ROOT, (int)__VSHPROPID.VSHPROPID_BrowseObject, out object BrowseObject);
 
@@ -78,6 +88,8 @@ namespace UnrealVS
 
 		private static IVsCfgProvider2 GetCfgProviderFromObject(object SomeObject)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			IVsCfgProvider2 CfgProvider2 = null;
 
 			if (SomeObject is IVsGetCfgProvider GetCfgProvider)
@@ -105,6 +117,8 @@ namespace UnrealVS
 		/// <returns>Property object or null if not found</returns>
 		public static Property GetProjectProperty(Project Project, string PropertyName)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			var Properties = Project.Properties;
 			if (Properties != null)
 			{
@@ -129,6 +143,7 @@ namespace UnrealVS
 		/// <param name="PropertyValue">Value to set for this property</param>
 		public static void SetPropertyValue(Property Property, object PropertyValue)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			Property.Value = PropertyValue;
 
 			// @todo: Not sure if actually needed for command-line property (saved in .user files, not in project)
@@ -146,7 +161,14 @@ namespace UnrealVS
 		{
 			public UIHierarchyItem Item { get; set; }
 			public UITreeItem[] Children { get; set; }
-			public string Name { get { return Item != null ? Item.Name : "None"; } }
+			public string Name
+			{ 
+				get 
+				{
+					ThreadHelper.ThrowIfNotOnUIThread();
+					return Item != null ? Item.Name : "None"; 
+				} 
+			}
 			public object Object { get { return Item?.Object; } }
 		}
 
@@ -155,6 +177,7 @@ namespace UnrealVS
 		/// </summary>
 		public static UITreeItem GetUIHierarchyTree(UIHierarchy Hierarchy)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			return new UITreeItem
 			{
 				Item = null,
@@ -167,6 +190,7 @@ namespace UnrealVS
 		/// </summary>
 		private static UITreeItem GetUIHierarchyTree(UIHierarchyItem HierarchyItem)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			return new UITreeItem
 			{
 				Item = HierarchyItem,
@@ -233,6 +257,7 @@ namespace UnrealVS
 		/// </summary>
 		public static bool IsProjectBuildable(Project Project)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			return Project.Kind == GuidList.VCSharpProjectKindGuidString || Project.Kind == GuidList.VCProjectKindGuidString;
 		}
 
@@ -240,6 +265,8 @@ namespace UnrealVS
 		/// Recurses into items because these are actually in a tree structure
 		public static Project[] GetAllProjectsFromDTE()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			try
 			{
 				List<Project> Projects = new List<Project>();
@@ -274,6 +301,7 @@ namespace UnrealVS
 												Action ExecutingDelegate,
 												Action FailedToStartDelegate)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			IVsHierarchy ProjHierarchy = Utils.ProjectToHierarchyObject(Project);
 
 			if (ProjHierarchy != null)
@@ -362,6 +390,8 @@ namespace UnrealVS
 
 		private static bool LoadConfigFromUBT(Project SelectedProject)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			string ProjectPath = Path.GetDirectoryName(SelectedProject.FullName);
 			string ConfigFileName = Path.Combine(ProjectPath, "UnrealVS.xml");
 
@@ -390,6 +420,8 @@ namespace UnrealVS
 
 		public static List<string> GetExtraDebuggerCommandArguments(string PlatformName, Project SelectedProject)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			List<string> Result = new List<string>();
 
 			if (LoadConfigFromUBT(SelectedProject))
@@ -412,6 +444,7 @@ namespace UnrealVS
 
 		public static bool IsGameProject(Project Project)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			return GetUProjects().ContainsKey(Project.Name);
 		}
 
@@ -425,11 +458,14 @@ namespace UnrealVS
 
 		public static string GetUProjectFileName(Project Project)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			return Project.Name + "." + UProjectExtension;
 		}
 
 		public static string GetAutoUProjectCommandLinePrefix(Project Project)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			var UProjectFileName = GetUProjectFileName(Project);
 			var AllUProjects = GetUProjects();
 
@@ -510,6 +546,8 @@ namespace UnrealVS
 		/// </summary>
 		public static IDictionary<string, string> GetUProjects()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			var Folder = GetSolutionFolder();
 			if (string.IsNullOrEmpty(Folder))
 			{
@@ -566,6 +604,8 @@ namespace UnrealVS
 
 		public static void GetSolutionConfigsAndPlatforms(out string[] SolutionConfigs, out string[] SolutionPlatforms)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			var UniqueConfigs = new List<string>();
 			var UniquePlatforms = new List<string>();
 
@@ -588,6 +628,8 @@ namespace UnrealVS
 
 		public static bool SetActiveSolutionConfiguration(string ConfigName, string PlatformName)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			SolutionConfigurations DteSolutionConfigs = UnrealVSPackage.Instance.DTE.Solution.SolutionBuild.SolutionConfigurations;
 			foreach (SolutionConfiguration2 SolutionConfig in DteSolutionConfigs)
 			{
@@ -603,6 +645,8 @@ namespace UnrealVS
 
 		public static bool SelectProjectInSolutionExplorer(Project Project)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			UnrealVSPackage.Instance.DTE.ExecuteCommand("View.SolutionExplorer");
 			if (Project.ParentProjectItem != null)
 			{
@@ -613,7 +657,9 @@ namespace UnrealVS
 			Utils.UITreeItem SolutionExplorerTree = Utils.GetUIHierarchyTree(SolutionExplorerHierarachy);
 			var UIHierarachyProjects = Utils.GetUITreeItemsByObjectType<Project>(SolutionExplorerTree);
 
+#pragma warning disable VSTHRD010 // Invoke single-threaded types on Main thread
 			var SelectableUIItem = UIHierarachyProjects.FirstOrDefault(uihp => uihp.Object as Project == Project);
+#pragma warning restore VSTHRD010 // Invoke single-threaded types on Main thread
 
 			if (SelectableUIItem != null)
 			{
@@ -634,6 +680,8 @@ namespace UnrealVS
 
 		private static void PrepareOutputPane()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			UnrealVSPackage.Instance.DTE.ExecuteCommand("View.Output");
 
 			var Pane = UnrealVSPackage.Instance.GetOutputPane();
@@ -650,6 +698,8 @@ namespace UnrealVS
 		/// Called by GetAllProjectsFromDTE() to list items from the project tree
 		private static void GetSubProjectsOfProjectItem(ProjectItem Item, List<Project> Projects)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (Item.SubProject != null)
 			{
 				Projects.Add(Item.SubProject);
@@ -673,6 +723,8 @@ namespace UnrealVS
 
 		private static string GetSolutionFolder()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (!UnrealVSPackage.Instance.DTE.Solution.IsOpen)
 			{
 				return string.Empty;

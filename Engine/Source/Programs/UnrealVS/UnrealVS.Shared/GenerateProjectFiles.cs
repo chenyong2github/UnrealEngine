@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.VisualStudio.Shell;
 using System;
 using System.ComponentModel.Design;
 using System.Diagnostics;
@@ -35,6 +36,8 @@ namespace UnrealVS
 		/// Called when 'GenerateProjectFiles' button is clicked
 		void GenerateProjectFilesButtonHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Don't allow a regen if we're already generating projects
 			if (GenerateProjectFilesProcess == null)
 			{
@@ -128,6 +131,8 @@ namespace UnrealVS
 		/// </summary>
 		public void OnOutputFromGenerateProjectFilesProcess(object _Sender, DataReceivedEventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			var Pane = UnrealVSPackage.Instance.GetOutputPane();
 			if (Pane != null)
 			{

@@ -90,6 +90,8 @@ namespace UnrealVS
 
 		private bool IsSolutionLoaded()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			return DTE.Solution.FileName.Length > 0;
@@ -97,6 +99,8 @@ namespace UnrealVS
 
 		private void OnQuickBuildSubMenuQuery(object sender, EventArgs e)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			bool bEnableCommands = UnrealVSPackage.Instance.OptionsPage.AllowUnrealVSP4;
@@ -109,10 +113,12 @@ namespace UnrealVS
 
 		public P4Commands()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// setup callbacks on IDE operations
 			UnrealVSPackage.Instance.OptionsPage.OnOptionsChanged += OnOptionsChanged;
-			UnrealVSPackage.Instance.OnSolutionOpened += SoltuionOpened;
-			UnrealVSPackage.Instance.OnSolutionClosed += SoltuionClosed;
+			UnrealVSPackage.Instance.OnSolutionOpened += SolutionOpened;
+			UnrealVSPackage.Instance.OnSolutionClosed += SolutionClosed;
 
 			// create specific output window for unrealvs.P4
 			P4OutputPane = UnrealVSPackage.Instance.GetP4OutputPane();
@@ -162,14 +168,16 @@ namespace UnrealVS
 
 		}
 		// Called when solutions are loaded or unloaded
-		private void SoltuionOpened()
+		private void SolutionOpened()
 		{
 			// Update the menu visibility
 			UpdateMenuOptions();
 		}
 
-		private void SoltuionClosed()
+		private void SolutionClosed()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Update the menu visibility
 			UpdateMenuOptions();
 
@@ -180,6 +188,8 @@ namespace UnrealVS
 
 		void RegisterCallbackHandler(string CommandName, _dispCommandEvents_BeforeExecuteEventHandler Callback)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Find the command from the passed in name
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 			CommandEvents Event = null;
@@ -208,6 +218,8 @@ namespace UnrealVS
 
 		private void UpdateMenuOptions()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			bool bEnableCommands = UnrealVSPackage.Instance.OptionsPage.AllowUnrealVSP4;
@@ -222,6 +234,7 @@ namespace UnrealVS
 		}
 		private void OnOptionsChanged(object Sender, EventArgs E)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			UpdateMenuOptions();
 		}
 
@@ -245,6 +258,8 @@ namespace UnrealVS
 
 		private void P4CheckoutButtonHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			// Check we've got a file open
@@ -262,6 +277,8 @@ namespace UnrealVS
 		}
 		private void P4AnnotateButtonHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Debug.ListCallStack
 
 			DTE DTE = UnrealVSPackage.Instance.DTE;
@@ -359,6 +376,8 @@ namespace UnrealVS
 		}
 		private void P4ViewSelectedCLButtonHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			if (DTE.ActiveDocument == null)
@@ -389,6 +408,8 @@ namespace UnrealVS
 
 		private void P4IntegrationAwareTimeLapseHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			if (DTE.ActiveDocument == null)
@@ -419,6 +440,8 @@ namespace UnrealVS
 
 		private void P4DiffinVSHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			if (DTE.ActiveDocument == null)
@@ -471,6 +494,8 @@ namespace UnrealVS
 
 		private void P4GetLast10ChangesHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			string TempPath = Path.GetTempPath();
@@ -492,6 +517,8 @@ namespace UnrealVS
 
 		private void P4ShowFileInP4Vandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			if (DTE.ActiveDocument == null)
@@ -600,6 +627,8 @@ namespace UnrealVS
 
 		private void PullWorkingDirectory(bool bPullfromP4Settings)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			bPullWorkingDirectorFromP4Mutex.WaitOne();
 
 			if (IsSolutionLoaded() && (P4WorkingDirectory == null || P4WorkingDirectory.Length < 2))

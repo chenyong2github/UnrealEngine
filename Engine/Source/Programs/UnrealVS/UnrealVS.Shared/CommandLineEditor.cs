@@ -5,6 +5,7 @@ using EnvDTE80;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Threading;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -13,6 +14,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using System.Timers;
 
 namespace UnrealVS
@@ -63,7 +65,11 @@ namespace UnrealVS
 			// Register for events that we care about
 			UnrealVSPackage.Instance.OnSolutionOpened += UpdateCommandLineCombo;
 			UnrealVSPackage.Instance.OnSolutionClosed += UpdateCommandLineCombo;
-			UnrealVSPackage.Instance.OnStartupProjectChanged += (p) => UpdateCommandLineCombo();
+			UnrealVSPackage.Instance.OnStartupProjectChanged += (p) =>
+			{
+				ThreadHelper.ThrowIfNotOnUIThread();
+				UpdateCommandLineCombo();
+			};
 			UnrealVSPackage.Instance.OnStartupProjectPropertyChanged += OnStartupProjectPropertyChanged;
 			UnrealVSPackage.Instance.OnStartupProjectConfigChanged += OnStartupProjectConfigChanged;
 
@@ -75,6 +81,8 @@ namespace UnrealVS
 		/// </summary>
 		public void OnStartupProjectPropertyChanged(UInt32 itemid, Int32 propid, UInt32 flags)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Filter out Helix VS plugin sending thousands of VSHPROPID_StateIconIndex in the solution
 			// This event type is not usefull at all for the commandline editor
 			if (propid == (Int32)__VSHPROPID.VSHPROPID_StateIconIndex)
@@ -148,6 +156,7 @@ namespace UnrealVS
 		/// </summary>
 		private void OnStartupProjectConfigChanged(Project Project)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			UpdateCommandLineCombo();
 		}
 
@@ -156,6 +165,8 @@ namespace UnrealVS
 		/// </summary>
 		private void UpdateCommandLineCombo()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Enable or disable our command-line selector
 			DesiredCommandLine = null;  // clear this state var used by the combo box handler
 			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy);
@@ -181,6 +192,8 @@ namespace UnrealVS
 		/// <returns>String to display</returns>
 		private static string MakeCommandLineComboText()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			string Text = "";
 
 			if (UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy) == VSConstants.S_OK && ProjectHierarchy != null)
@@ -252,6 +265,7 @@ namespace UnrealVS
 		/// Called by combo control to query the text to display or to apply newly-entered text
 		private void ComboHandler(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
 			try
 			{
 				var OleArgs = (OleMenuCmdEventArgs)Args;
@@ -307,6 +321,8 @@ namespace UnrealVS
 
 		private void CommitCommandLineText(string CommandLine)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			if (UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy) == VSConstants.S_OK && ProjectHierarchy != null)
 			{
 				Project SelectedStartupProject = Utils.HierarchyObjectToProject(ProjectHierarchy);
