@@ -1564,6 +1564,7 @@ FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
 	ERHIFeatureLevel::Type FeatureLevel,
 	FIntPoint TextureSize,
+	bool bVisualize,
 	EOutputBufferMode RasterMode,
 	bool bClearTarget,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
@@ -1582,7 +1583,7 @@ FRasterContext InitRasterContext(
 
 	FRasterContext RasterContext{};
 
-	RasterContext.VisualizeActive = VisualizationData.IsActive();
+	RasterContext.VisualizeActive = VisualizationData.IsActive() && bVisualize;
 	if (RasterContext.VisualizeActive)
 	{
 		if (VisualizationData.GetActiveModeID() == 0) // Overview

@@ -2198,6 +2198,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					GraphBuilder,
 					FeatureLevel,
 					DepthStencilAtlasSize,
+					false,
 					Nanite::EOutputBufferMode::VisBuffer,
 					true,
 					CardCaptureRectBufferSRV,
