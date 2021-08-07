@@ -173,6 +173,18 @@ namespace EpicGames.Core
 		/// <typeparam name="T"></typeparam>
 		/// <param name="List"></param>
 		/// <param name="Offset"></param>
+		/// <returns></returns>
+		public static ListSegment<T> Slice<T>(this IList<T> List, int Offset)
+		{
+			return new ListSegment<T>(List, Offset, List.Count - Offset);
+		}
+
+		/// <summary>
+		/// Create a list segment
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="List"></param>
+		/// <param name="Offset"></param>
 		/// <param name="Count"></param>
 		/// <returns></returns>
 		public static ListSegment<T> Slice<T>(this IList<T> List, int Offset, int Count)
