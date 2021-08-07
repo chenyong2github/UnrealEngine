@@ -198,7 +198,7 @@ float3 CalculateSurfaceCacheLighting(
 	// Mode and AtlasId enums are coupled
 	uint AtlasId = GetAtlasId(LightingMode);
 
-	FLumenMeshCardsSample LumenMeshCardsSample = SampleLumenMeshCards(
+	FSurfaceCacheSample SurfaceCacheSample = SampleLumenMeshCards(
 		Context.TraceCoord,
 		SceneInstanceIndex,
 		RayHitWorldPosition,
@@ -209,14 +209,14 @@ float3 CalculateSurfaceCacheLighting(
 		Context.bHiResSurface,
 		AtlasId
 	);
-	MeshCardsIndex = LumenMeshCardsSample.MeshCardsIndex;
+	MeshCardsIndex = SurfaceCacheSample.MeshCardsIndex;
 
 	// Apply shading when evaluating the material
 	if (LightingMode != LIGHTING_FROM_SURFACE_CACHE)
 	{
-		LumenMeshCardsSample.Lighting *= Diffuse_Lambert(DiffuseColor);
+		SurfaceCacheSample.Lighting *= Diffuse_Lambert(DiffuseColor);
 	}
-	Radiance += LumenMeshCardsSample.Lighting;
+	Radiance += SurfaceCacheSample.Lighting;
 
 	return Radiance;
 }
