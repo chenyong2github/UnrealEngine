@@ -14,6 +14,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Process = System.Diagnostics.Process;
 
 namespace UnrealVS
 {
@@ -24,9 +25,6 @@ namespace UnrealVS
 
 		private const bool bOutputStdOutOn = true;
 		private const bool bOutputStdOutOff = false;
-
-		private const bool bWaitForCompletionOn = true;
-		private const bool bWaitForCompletionOff = false;
 
 		private const int P4SubMenuID = 0x3100;
 		private const int P4CheckoutButtonID = 0x1450;
@@ -48,10 +46,6 @@ namespace UnrealVS
 		private string P4WorkingDirectory;
 		private bool bPullWorkingDirectorFromP4 = true;
 		private static Mutex bPullWorkingDirectorFromP4Mutex = new Mutex();
-
-		// stdXX from last operation
-		//private string P4OperationStdOut;
-		private string P4OperationStdErr;
 
 		// Exe paths
 		private string P4Exe = "C:\\Program Files\\Perforce\\p4.exe";
@@ -174,6 +168,8 @@ namespace UnrealVS
 		// Called when solutions are loaded or unloaded
 		private void SolutionOpened()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// Update the menu visibility
 			UpdateMenuOptions();
 		}
@@ -249,7 +245,7 @@ namespace UnrealVS
 
 		private void KillChildProcess()
 		{
-			foreach(var OldProcess in ChildProcessList)
+			foreach (var OldProcess in ChildProcessList)
 			{
 				if (!OldProcess.HasExited)
 				{
@@ -299,12 +295,13 @@ namespace UnrealVS
 				return;
 			}
 
-			string CaptureP4Output = "";
+			string CaptureP4Output;
+			string CaptureP4StdErr;
 
 			// Call annotate itself
-			bool bResult = TryP4Command($"annotate -TcIqu \"{DTE.ActiveDocument.FullName}", out CaptureP4Output, bPullWorkingDirectoryOn, bOutputStdOutOff);
+			bool bResult = TryP4Command($"annotate -TcIqu \"{DTE.ActiveDocument.FullName}", out CaptureP4Output, out CaptureP4StdErr, bPullWorkingDirectoryOn, bOutputStdOutOff);
 
-			if (!bResult || P4OperationStdErr.Length > 0)
+			if (!bResult || CaptureP4StdErr.Length > 0)
 			{
 				P4OutputPane.OutputString($"1>------ P4Annotate call failed");
 				return;
@@ -463,7 +460,7 @@ namespace UnrealVS
 
 			// get the HAVE revision
 			// p4 fstat -T "haveRev" -Olp //UE5/Main/Engine/Source/Programs/UnrealVS/UnrealVS.Shared/P4Commands.cs
-			if (TryP4Command($"fstat -T \"haveRev,depotFile\" -Olp \"{DTE.ActiveDocument.FullName}\"", out CaptureP4Output))
+			if (TryP4Command($"fstat -T \"haveRev,depotFile\" -Olp \"{DTE.ActiveDocument.FullName}\"", out CaptureP4Output, out _))
 			{
 				// expect output of the form
 				//		"... haveRev 5"
@@ -486,7 +483,7 @@ namespace UnrealVS
 				string CaptureP4Output2 = "";
 
 				string VersionPath = $"{depotPath}#{HaveRev}";
-				if (TryP4Command($"-q print \"{VersionPath}\"",out CaptureP4Output2, bPullWorkingDirectoryOn, bOutputStdOutOff))
+				if (TryP4Command($"-q print \"{VersionPath}\"", out CaptureP4Output2, out _, bPullWorkingDirectoryOn, bOutputStdOutOff))
 				{
 					File.WriteAllText(TempFilePath, CaptureP4Output2);
 
@@ -509,7 +506,7 @@ namespace UnrealVS
 			string ChangesTempFilePath = Path.Combine(TempPath, ChangesTempFileName);
 
 			string CaptureP4Output = "";
-			if (TryP4Command($"changes -itls submitted -m 10 {DTE.ActiveDocument.FullName}", out CaptureP4Output, bOutputStdOutOff))
+			if (TryP4Command($"changes -itls submitted -m 10 \"{DTE.ActiveDocument.FullName}\"", out CaptureP4Output, out _, bOutputStdOutOff))
 			{
 				File.WriteAllText(ChangesTempFilePath, CaptureP4Output);
 
@@ -521,6 +518,8 @@ namespace UnrealVS
 
 		private void P4FastReconcileCodeFiles(object Sender, EventArgs Args)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			DTE DTE = UnrealVSPackage.Instance.DTE;
 
 			string[] DefaultExtensions =
@@ -563,7 +562,7 @@ namespace UnrealVS
 			P4OutputPane.OutputString($"Running Async Reconcile on : {ReconcileDepotPaths}{Environment.NewLine}");
 			P4OutputPane.Activate();
 
-			TryP4CommandAsync($"reconcile -e -m {Preview} {ReconcileDepotPaths}");
+			_ = TryP4CommandAsync($"reconcile -e -m {Preview} {ReconcileDepotPaths}");
 		}
 
 		private void P4ShowFileInP4Vandler(object Sender, EventArgs Args)
@@ -577,16 +576,18 @@ namespace UnrealVS
 				return;
 			}
 
-			TryP4VCommand($"-s {DTE.ActiveDocument.FullName}");
+			TryP4VCommand($"-s \"{DTE.ActiveDocument.FullName}\"");
 		}
 		public void OpenForEdit(string FileName, bool CheckOptionsFlag = false)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			// if the callee requested it, honor the enabling of autocheckout option - return if its off
 			if (CheckOptionsFlag && !UnrealVSPackage.Instance.OptionsPage.AllowUnrealVSCheckoutOnEdit)
 			{
 				//P4OutputPane.OutputString($"autocheckout disabled: {FileName}");
 				return;
-			}	
+			}
 
 			// Don't open for edit if the file is already writable
 			if (!File.Exists(FileName) || !File.GetAttributes(FileName).HasFlag(FileAttributes.ReadOnly))
@@ -603,18 +604,19 @@ namespace UnrealVS
 				File.SetAttributes(FileName, NewAttributes);
 
 				// then send a fire and forget p4 edit command - does not lock the UI
-				TryP4CommandAsync($"edit \"{FileName}");
+				_ = TryP4CommandAsync($"edit \"{FileName}\"");
 			}
 			else
 			{
-				string CaptureP4Output = "";
 				// sync edit command - will lock the UI but be safer (no risk of a locally writeable file that is not checked out)
-				TryP4Command($"edit \"{FileName}", out CaptureP4Output);
+				TryP4Command($"edit \"{FileName}\"", out _, out _);
 			}
 		}
 
 		private string ReadWorkingDirectorFromP4Config()
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			string WorkingDirectory = "";
 			//------P4 Operation started
 			//P4CLIENT = andrew.firth_private_frosty2(config 'd:\p4\frosty\p4config.txt')
@@ -625,30 +627,25 @@ namespace UnrealVS
 			//P4_perforce:1666_CHARSET = none(set)
 
 			string CaptureP4Output = "";
-			TryP4Command("set", out CaptureP4Output, bPullWorkingDirectoryOff);
+			TryP4Command("set", out CaptureP4Output, out _, bPullWorkingDirectoryOff);
 
 			bool bSuccess = false;
 
-			if (CaptureP4Output.Length > 0)
+			string[] lines = CaptureP4Output.Split('\n');
+			foreach(string Line in lines)
 			{
-				string[] lines = CaptureP4Output.Split('\n');
-
-				// very brittle - Index assume there is a better way leveraging C#
-				if (lines.Length > 0)
+				System.Text.RegularExpressions.Match Match = Regex.Match(Line, @"^P4CONFIG\s*=.*'([^']+)'\)$");
+				if (Match.Success)
 				{
-					if (lines[0].Contains("p4config.txt"))
-					{
-						string path = lines[0].Split('\'')[1];
-
-						WorkingDirectory = Path.GetDirectoryName(path);
-						bSuccess = true;
-					}
+					WorkingDirectory = Path.GetDirectoryName(Match.Groups[1].Value);
+					bSuccess = true;
+					break;
 				}
 			}
 
 			if (!bSuccess)
 			{
-				P4OutputPane.OutputString($"attempt to pull p4config.txt info failed{Environment.NewLine}");
+				P4OutputPane.OutputString($"attempt to pull P4CONFIG info failed{Environment.NewLine}");
 			}
 
 			return WorkingDirectory;
@@ -656,8 +653,10 @@ namespace UnrealVS
 
 		void SetUserInfoStrings()
 		{
-			string CaptureP4Output = "";
-			TryP4Command($"-s -L \"{P4WorkingDirectory}\" info", out CaptureP4Output, bPullWorkingDirectoryOff);
+			ThreadHelper.ThrowIfNotOnUIThread();
+
+			string CaptureP4Output;
+			TryP4Command($"-s -L \"{P4WorkingDirectory}\" info", out CaptureP4Output, out _, bPullWorkingDirectoryOff);
 
 			Regex UserPattern = new Regex(@"User name: (?<user>.*)$", RegexOptions.Compiled | RegexOptions.Multiline);
 			Regex PortPattern = new Regex(@"Server address: (?<port>.*)$", RegexOptions.Compiled | RegexOptions.Multiline);
@@ -684,81 +683,96 @@ namespace UnrealVS
 			ThreadHelper.ThrowIfNotOnUIThread();
 
 			bPullWorkingDirectorFromP4Mutex.WaitOne();
-
-			if (IsSolutionLoaded() && (P4WorkingDirectory == null || P4WorkingDirectory.Length < 2))
+			try
 			{
-				DTE DTE = UnrealVSPackage.Instance.DTE;
+				if (IsSolutionLoaded() && (P4WorkingDirectory == null || P4WorkingDirectory.Length < 2))
+				{
+					DTE DTE = UnrealVSPackage.Instance.DTE;
 
-				// use the current solution folder as a temp working directory
-				P4WorkingDirectory = Path.GetDirectoryName(DTE.Solution.FileName);
+					// use the current solution folder as a temp working directory
+					P4WorkingDirectory = Path.GetDirectoryName(DTE.Solution.FileName);
 
-				// SetUserInfoStrings 
-				SetUserInfoStrings();
+					// SetUserInfoStrings 
+					SetUserInfoStrings();
+				}
+
+				// if the callee wants us to pull a CWD and it wasn't already done
+				// pull it from the p4 config now
+				if (bPullfromP4Settings && bPullWorkingDirectorFromP4)
+				{
+					string NewWorkingDirectory = ReadWorkingDirectorFromP4Config();
+
+					if (NewWorkingDirectory.Length > 1)
+					{
+						P4WorkingDirectory = NewWorkingDirectory;
+						bPullWorkingDirectorFromP4 = false;
+
+						P4OutputPane.OutputString($"P4WorkingDirectory set to '{P4WorkingDirectory}'{Environment.NewLine}");
+					}
+					else
+					{
+						P4OutputPane.OutputString($"P4WorkingDirectory set failed {Environment.NewLine}");
+					}
+				}
 			}
-
-			// if the callee wants us to pull a CWD and it wasn't already done
-			// pull it from the p4 config now
-			if (bPullfromP4Settings && bPullWorkingDirectorFromP4)
+			finally
 			{
-				string NewWorkingDirectory = ReadWorkingDirectorFromP4Config();
-
-				if (NewWorkingDirectory.Length > 1)
-				{
-					P4WorkingDirectory = NewWorkingDirectory;
-					bPullWorkingDirectorFromP4 = false;
-
-					P4OutputPane.OutputString($"P4WorkingDirectory set to '{P4WorkingDirectory}'{Environment.NewLine}");
-				}
-				else
-				{
-					P4OutputPane.OutputString($"P4WorkingDirectory set failed {Environment.NewLine}");
-				}
+				bPullWorkingDirectorFromP4Mutex.ReleaseMutex();
 			}
-
-			bPullWorkingDirectorFromP4Mutex.ReleaseMutex();
 		}
 
 		public async Task<bool> TryP4CommandAsync(string CommandLine, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn)
 		{
-			string CaptureP4Output;
-			return await System.Threading.Tasks.Task.Run( () => TryP4Command(CommandLine, out CaptureP4Output, bPullWorkingDirectoryNow, bOutputStdOut) );
+			(bool Result, _, _) = await TryP4CommandExAsync(P4Exe, CommandLine, bPullWorkingDirectoryNow, bOutputStdOut);
+			return Result;
 		}
 
-		private bool TryP4Command(string CommandLine, out string CaptureP4Output, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn)
+		private bool TryP4Command(string CommandLine, out string CaptureP4Output, out string CaptureP4StdErr, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn)
 		{
-			return TryP4CommandEx(P4Exe, CommandLine, out CaptureP4Output, bPullWorkingDirectoryNow, bOutputStdOut);
+			return TryP4CommandEx(P4Exe, CommandLine, out CaptureP4Output, out CaptureP4StdErr, bPullWorkingDirectoryNow, bOutputStdOut);
 		}
 
 		private bool TryP4VCCommand(string CommandLine, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn)
 		{
 			if (P4VCCmd.Length > 1)
 			{
-				string ignore;
-				return TryP4CommandEx(P4VCCmd, CommandLine, out ignore, bPullWorkingDirectoryNow, bOutputStdOut);
+				return TryP4CommandEx(P4VCCmd, CommandLine, out _, out _, bPullWorkingDirectoryNow, bOutputStdOut);
 			}
 
 			return false;
 		}
 
-		private bool TryP4VCommand(string CommandLine, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn)
+		private void TryP4VCommand(string CommandLine, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn)
 		{
-			string ignore;
-			return TryP4CommandEx(P4VExe, CommandLine, out ignore, bPullWorkingDirectoryNow, bOutputStdOut, bWaitForCompletionOff);
+			_ = TryP4CommandExAsync(P4VExe, CommandLine, bPullWorkingDirectoryNow, bOutputStdOut);
 		}
 
-		private bool TryP4CommandEx(string CmdPath, string CommandLine, out string CaptureP4Output, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn, bool bWaitForCompletion = bWaitForCompletionOn)
+		private bool TryP4CommandEx(string CmdPath, string CommandLine, out string CaptureP4StdOut, out string CaptureP4StdErr, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn)
 		{
-			PullWorkingDirectory(bPullWorkingDirectoryNow);
+			(bool Result, string StdOut, string StdErr) = ThreadHelper.JoinableTaskFactory.Run(() => TryP4CommandExAsync(CmdPath, CommandLine, bPullWorkingDirectoryNow, bOutputStdOut));
 
-			DTE DTE = UnrealVSPackage.Instance.DTE;
+			CaptureP4StdOut = StdOut;
+			CaptureP4StdErr = StdErr;
 
-			// Set up the output pane
-			if (UnrealVSPackage.Instance.OptionsPage.ForceOutputWindow)
+			return Result;
+		}
+
+		private async Task<(bool Result, string StdOut, string StdErr)> TryP4CommandExAsync(string CmdPath, string CommandLine, bool bPullWorkingDirectoryNow = bPullWorkingDirectoryOn, bool bOutputStdOut = bOutputStdOutOn)
+		{
+			await ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
 			{
-				P4OutputPane.Activate();
-			}
-			
-			
+				await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+				PullWorkingDirectory(bPullWorkingDirectoryNow);
+
+				// Set up the output pane
+				if (UnrealVSPackage.Instance.OptionsPage.ForceOutputWindow)
+				{
+					P4OutputPane.Activate();
+				}
+
+				P4OutputPane.OutputString($"Running \"{CmdPath}\" {CommandLine}{Environment.NewLine}");
+			});
+
 			StringBuilder StdOutSB = new StringBuilder();
 			StringBuilder StdErrSB = new StringBuilder();
 			DateTime Start = DateTime.Now;
@@ -780,66 +794,52 @@ namespace UnrealVS
 			// Create a delegate for handling output messages
 			ChildProcess.OutputDataReceived += (s, a) => { if (a.Data != null) StdOutSB.AppendLine(a.Data); };
 			ChildProcess.ErrorDataReceived += (s, a) => { if (a.Data != null) StdErrSB.AppendLine(a.Data); };
-			if (bWaitForCompletion == false)
-			{
 				ChildProcess.EnableRaisingEvents = true;
-				ChildProcess.Exited += (s, a) =>
-				{
-					string P4Output = StdOutSB.ToString();
-					P4OperationStdErr = StdErrSB.ToString();
 
-					if (P4Output.Length > 0 && bOutputStdOut)
-					{
-						P4OutputPane.OutputString(P4Output);
-					}
+			TaskCompletionSource<bool> ProcessExitTaskSource = new TaskCompletionSource<bool>();
+			ChildProcess.Exited += (s, a) =>
+			{
+				ProcessExitTaskSource.TrySetResult(true);
+			};
 
-					if (P4OperationStdErr.Length > 0)
-					{
-						P4OutputPane.OutputString(P4OperationStdErr);
-					}
-
-					TimeSpan Duration = DateTime.Now - Start;
-					P4OutputPane.OutputString($"complete {Duration.TotalSeconds.ToString()} {Environment.NewLine}");
-
-					ChildProcessList.Remove(ChildProcess);
-				};
+			lock (ChildProcessList)
+			{
+				ChildProcessList.Add(ChildProcess);
 			}
-
-			ChildProcessList.Add(ChildProcess);
 
 			ChildProcess.Start();
 			ChildProcess.BeginOutputReadLine();
 			ChildProcess.BeginErrorReadLine();
 
-			if (bWaitForCompletion)
-			{ 
-				ChildProcess.WaitForExit();
-				TimeSpan Duration = DateTime.Now - Start;
+			await ProcessExitTaskSource.Task;
+			ChildProcess.WaitForExit();
 
-				CaptureP4Output = StdOutSB.ToString();
-				P4OperationStdErr = StdErrSB.ToString();
-
-				if (CaptureP4Output.Length > 0 && bOutputStdOut)
-				{
-					P4OutputPane.OutputString(CaptureP4Output);
-				}
-
-				if (P4OperationStdErr.Length > 0)
-				{
-					P4OutputPane.OutputString(P4OperationStdErr);
-				}
-
-				P4OutputPane.OutputString($"complete {((int)Duration.TotalSeconds).ToString()}seconds {Environment.NewLine}");
-
-				ChildProcessList.Remove(ChildProcess);
-
-				return P4OperationStdErr.Length == 0;
-			}
-			else
+			lock (ChildProcessList)
 			{
-				CaptureP4Output = "async operations do not capture p4 output";
-				return true;
+				ChildProcessList.Remove(ChildProcess);
 			}
+
+			string StdOut = StdOutSB.ToString();
+			string StdErr = StdErrSB.ToString();
+
+			await ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+			{
+				await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+				if (StdOut.Length > 0 && bOutputStdOut)
+				{
+					P4OutputPane.OutputString(StdOut);
+				}
+				if (StdErr.Length > 0)
+				{
+					P4OutputPane.OutputString(StdErr);
+				}
+
+				TimeSpan Duration = DateTime.Now - Start;
+				P4OutputPane.OutputString($"complete {Duration.TotalSeconds.ToString()} {Environment.NewLine}");
+			});
+
+			bool Result = (ChildProcess.ExitCode == 0 && StdErr.Length == 0);
+			return (Result, StdOut, StdErr);
 		}
 	}
 
@@ -858,6 +858,8 @@ namespace UnrealVS
 
 		public int OnBeforeSave(uint DocumentCookie)
 		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+
 			RunningDocumentInfo DocumentInfo = RunningDocumentTable.GetDocumentInfo(DocumentCookie);
 
 			string AbsoluteFilePath = DocumentInfo.Moniker;

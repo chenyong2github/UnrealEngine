@@ -24,6 +24,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using IOleServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
 using Microsoft.VisualStudio.Utilities;
 using Microsoft.VisualStudio.Text.Projection;
+using Microsoft;
 
 namespace UnrealVS
 {
@@ -192,7 +193,6 @@ namespace UnrealVS
 			Logging.WriteLine("Loading UnrealVS extension package...");
 		}
 
-
 		/// <summary>
 		/// Initializes the package right after it's been "sited" into the fully-initialized Visual Studio IDE.
 		/// </summary>
@@ -208,6 +208,7 @@ namespace UnrealVS
 			// Get access to Visual Studio's DTE object.  This object has various hooks into the Visual Studio
 			// shell that are useful for writing extensions.
 			DTE = await GetServiceAsync(typeof(DTE)) as DTE;
+			Assumes.Present(DTE);
 			Logging.WriteLine("DTE version " + DTE.Version);
 
 			//TextManager = await GetServiceAsync(typeof(VsTextManagerClass)) as IVsTextManager3;
@@ -218,18 +219,20 @@ namespace UnrealVS
 			// Get selection manager and register to receive events
 			SelectionManager =
 				await GetServiceAsync(typeof(SVsShellMonitorSelection)) as IVsMonitorSelection;
+			Assumes.Present(SelectionManager);
 			SelectionManager.AdviseSelectionEvents(this, out SelectionEventsHandle);
 
 			// Get solution and register to receive events
 			SolutionManager = await GetServiceAsync(typeof(SVsSolution)) as IVsSolution2;
+			Assumes.Present(SolutionManager);
 			UpdateUnrealLoadedStatus();
 			SolutionManager.AdviseSolutionEvents(this, out SolutionEventsHandle);
 
 			// Grab the solution build manager.  We need this in order to change certain things about the Visual
 			// Studio environment, like what the active startup project is
 			// Get solution build manager
-			SolutionBuildManager =
-				await GetServiceAsync(typeof(SVsSolutionBuildManager)) as IVsSolutionBuildManager2;
+			SolutionBuildManager = await GetServiceAsync(typeof(SVsSolutionBuildManager)) as IVsSolutionBuildManager2;
+			Assumes.Present(SolutionBuildManager);
 			SolutionBuildManager.AdviseUpdateSolutionEvents(this, out UpdateSolutionEventsHandle);
 
 			// Create our command-line editor
@@ -295,7 +298,12 @@ namespace UnrealVS
 				while (true)
 				{
 					if (bCancelTicker != 0) return;
-					ThreadHelper.Generic.BeginInvoke(Tick);
+
+					ThreadHelper.JoinableTaskFactory.Run(async () =>
+					{
+						await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+						Tick();
+					});
 
 					if (bCancelTicker != 0) return;
 					Thread.Sleep(TickPeriod);
@@ -350,6 +358,9 @@ namespace UnrealVS
 
 			CompileSingleFile?.Dispose();
 			CompileSingleFile = null;
+
+			P4CommandsGroup?.Dispose();
+			P4CommandsGroup = null;
 
 			CommandLineEditor?.Dispose();
 			CommandLineEditor = null;
