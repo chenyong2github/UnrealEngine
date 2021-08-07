@@ -18,7 +18,7 @@ enum class EEditorGizmoCategory :uint8
 	Primary
 };
 
-UCLASS()
+UCLASS(Abstract)
 class UEditorGizmoRegistryCategoryEntry : public UObject
 {
 	GENERATED_BODY()
@@ -29,7 +29,7 @@ public:
 	 * @param FoundBuilders inputs qualified builders found so far, and outputs qualified builders for this category
 	 *                      replacing 
 	 */
-	virtual void GetQualifiedGizmoBuilders(const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& InFoundBuilders) PURE_VIRTUAL(UEditorGizmoRegistryCategoryEntry::GetQualifiedGizmoBuilders, return;);
+	virtual void GetQualifiedGizmoBuilders(const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& InFoundBuilders) PURE_VIRTUAL(UEditorGizmoRegistryCategoryEntry::GetQualifiedGizmoBuilders, );
 
 	virtual void RegisterGizmoType(UInteractiveGizmoBuilder* InGizmoBuilder);
 
@@ -49,11 +49,13 @@ protected:
 	UClass* BaseGizmoBuilderType;
 };
 
-UCLASS()
+UCLASS(Abstract)
 class UEditorGizmoRegistryCategoryEntry_Conditional : public UEditorGizmoRegistryCategoryEntry
 {
 	GENERATED_BODY()
 public:
+
+	virtual void GetQualifiedGizmoBuilders(const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& InFoundBuilders) PURE_VIRTUAL(UEditorGizmoRegistryCategoryEntry::GetQualifiedGizmoBuilders, );
 
 	virtual void RegisterGizmoType(UInteractiveGizmoBuilder* InGizmoBuilder);
 };
