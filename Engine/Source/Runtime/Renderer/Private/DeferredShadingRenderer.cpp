@@ -2270,7 +2270,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			Nanite::FRasterState RasterState;
 
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, RasterTextureSize);
+			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, RasterTextureSize, ViewFamily.EngineShowFlags.VisualizeNanite);
 
 			const bool bTwoPassOcclusion = true;
 			const bool bUpdateStreaming = true;

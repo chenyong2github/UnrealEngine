@@ -161,6 +161,7 @@ FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
 	ERHIFeatureLevel::Type FeatureLevel,
 	FIntPoint TextureSize,
+	bool bVisualize,
 	EOutputBufferMode RasterMode = EOutputBufferMode::VisBuffer,
 	bool bClearTarget = true,
 	FRDGBufferSRVRef RectMinMaxBufferSRV = nullptr,

@@ -1464,7 +1464,7 @@ static void RenderShadowDepthAtlasNanite(
 		const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 		TRefCountPtr<IPooledRenderTarget> PrevAtlasHZB = bUseHZB ? PrevAtlasHZBs[AtlasIndex] : nullptr;
 		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, Scene, PrevAtlasHZB, FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false, bPrimaryContext);
-		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, AtlasSize, Nanite::EOutputBufferMode::DepthOnly);
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, AtlasSize, false, Nanite::EOutputBufferMode::DepthOnly);
 
 		bool bExtractStats = false;		
 		if (GNaniteShowStats != 0)
@@ -1710,6 +1710,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 				GraphBuilder,
 				FeatureLevel,
 				VirtualShadowSize,
+				false,
 				Nanite::EOutputBufferMode::DepthOnly,
 				false,	// Clear entire texture
 				nullptr, 0,
@@ -2022,7 +2023,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					
 					TRefCountPtr<IPooledRenderTarget> PrevHZB = (PrevShadowState && bUseHZB) ? PrevShadowState->HZB : nullptr;
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, PrevHZB, ShadowViewRect, true, bUpdateStreaming, false, false, bPrimaryContext);
-					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, TargetSize, Nanite::EOutputBufferMode::DepthOnly);
+					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, TargetSize, false, Nanite::EOutputBufferMode::DepthOnly);
 
 					// Setup packed view
 					TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
