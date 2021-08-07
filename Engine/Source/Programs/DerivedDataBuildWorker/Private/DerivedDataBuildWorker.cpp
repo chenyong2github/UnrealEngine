@@ -86,8 +86,7 @@ bool FBuildWorkerProgram::ParseCommandLine(const TCHAR* CommandLine)
 		{
 			if (Token.StartsWith(Match))
 			{
-				String::ParseTokens(Token.RightChop(Match.Len()), TEXT('+'),
-					[&OutValues](FStringView Value) { OutValues.Emplace(Value); });
+				OutValues.Emplace(Token.RightChop(Match.Len()));
 			}
 		};
 
