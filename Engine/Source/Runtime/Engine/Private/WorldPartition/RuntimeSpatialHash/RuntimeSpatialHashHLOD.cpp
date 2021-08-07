@@ -483,7 +483,9 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
 	// Find all used HLOD grids & build a dependency graph
-	TMap<FName, FSpatialHashRuntimeGrid> HLODGrids;
+	check(HLODGrids.IsEmpty());
+	ON_SCOPE_EXIT { HLODGrids.Empty(); };
+
 	TMap<FName, TSet<FName>>			 HLODGridsGraph;
 	GatherHLODGrids(WorldPartition, HLODGrids, HLODGridsGraph);
 

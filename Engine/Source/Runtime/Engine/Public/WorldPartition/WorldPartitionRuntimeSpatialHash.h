@@ -274,6 +274,9 @@ private:
 	UPROPERTY(Transient)
 	mutable FWorldPartitionRuntimeSpatialHashGridPreviewer GridPreviewer;
 
+	UPROPERTY(Transient)
+	TMap<FName, FSpatialHashRuntimeGrid> HLODGrids;
+
 	TMap<FString, UWorldPartitionRuntimeCell*> PackagesToGenerateForCook;
 #endif
 
