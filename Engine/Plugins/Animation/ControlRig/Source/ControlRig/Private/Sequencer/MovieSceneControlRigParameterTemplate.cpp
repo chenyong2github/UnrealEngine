@@ -829,9 +829,12 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 						in non-game, and if in game (which includes PIE), we don't re-set the 
 						CR Component's CR, but instead grab the CR from it and then use that for evaluation.
 						*/
-						if (ControlRigComponent->GetWorld()->IsGameWorld() == false)
+						if (ControlRigComponent->GetWorld())
 						{
-							ControlRigComponent->SetControlRig(ControlRig);
+							if (ControlRigComponent->GetWorld()->IsGameWorld() == false)
+							{
+								ControlRigComponent->SetControlRig(ControlRig);
+							}
 						}
 					}
 					else
