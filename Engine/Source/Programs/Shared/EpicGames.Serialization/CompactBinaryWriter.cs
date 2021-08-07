@@ -309,6 +309,25 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Writes a boolean value
+		/// </summary>
+		/// <param name="Value"></param>
+		public void WriteBoolValue(bool Value)
+		{
+			WriteField(Value? CbFieldType.BoolTrue : CbFieldType.BoolFalse);
+		}
+
+		/// <summary>
+		/// Writes a boolean value
+		/// </summary>
+		/// <param name="Name">Name of the field</param>
+		/// <param name="Value"></param>
+		public void WriteBool(Utf8String Name, bool Value)
+		{
+			WriteField(Value ? CbFieldType.BoolTrue : CbFieldType.BoolFalse, Name);
+		}
+
+		/// <summary>
 		/// Writes the payload for an integer
 		/// </summary>
 		/// <param name="Value">Value to write</param>
