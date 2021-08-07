@@ -4,18 +4,15 @@
 	LumenVoxelLighting.usf
 =============================================================================*/
 
-#define RASTERIZE_ONTO_WORLD_Z 0
-#define RASTERIZE_ONTO_LARGEST_AXES 1
-#define RASTERIZE_ONTO_FACE_DIRECTION 2
-
-#define RASTERIZE_MODE RASTERIZE_ONTO_FACE_DIRECTION
-
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
+
 // 16 bit render target accumulation
 #define DEPTH_WEIGHTED_OIT_32_BIT 0
 // Faster to always trace highest resolution mip for short voxelization traces, there's rarely empty space to skip
 #define SDF_TRACING_TRAVERSE_MIPS 0
+// Pick best sample instead of using stochastic
+#define SURFACE_CACHE_SAMPLING_METHOD SURFACE_CACHE_SAMPLING_METHOD_BEST_SAMPLE
 #include "LumenTracingCommon.ush"
 
 #ifndef THREADGROUP_SIZE
@@ -253,11 +250,11 @@ void SetupVoxelTracesCS(
 
 	if (all(ObjectGridMax > ObjectGridMin))
 	{
-		for (uint PosZ = ObjectGridMin.z; PosZ < ObjectGridMax.z; ++PosZ)
+		for (int PosZ = ObjectGridMin.z; PosZ < ObjectGridMax.z; ++PosZ)
 		{
-			for (uint PosY = ObjectGridMin.y; PosY < ObjectGridMax.y; ++PosY)
+			for (int PosY = ObjectGridMin.y; PosY < ObjectGridMax.y; ++PosY)
 			{
-				for (uint PosX = ObjectGridMin.x; PosX < ObjectGridMax.x; ++PosX)
+				for (int PosX = ObjectGridMin.x; PosX < ObjectGridMax.x; ++PosX)
 				{
 					const uint3 TileCoord = uint3(PosX, PosY, PosZ);
 					if (UpdateTileMaskTexture[TileCoord] > 0)
@@ -506,7 +503,7 @@ void VisBufferShadingCS(
 				bool bHiResSurface = false;
 				uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
 
-				FLumenMeshCardsSample FLumenMeshCardsSample = SampleLumenMeshCardsWithWeight(
+				FSurfaceCacheSample SurfaceCacheSample = SampleLumenMeshCards(
 					ScreenCoord,
 					TraceSDFData.SceneInstanceIndex,
 					InterpolatePosition,
@@ -518,7 +515,7 @@ void VisBufferShadingCS(
 					AtlasId);
 
 				uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
-				RWVoxelLighting[WriteCoord] = FLumenMeshCardsSample.LightingAndWeight;
+				RWVoxelLighting[WriteCoord] = float4(SurfaceCacheSample.Lighting, SurfaceCacheSample.CardWeight);
 			}
 		}
 	}
