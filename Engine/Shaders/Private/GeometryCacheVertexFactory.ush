@@ -217,12 +217,20 @@ struct FVertexFactoryIntermediates
     
 	// Vertex Color
 	float4 Color;
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
 };
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
 
 /** Converts from vertex factory specific input to a FMaterialVertexParameters, which is used by vertex shader material inputs. */
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
 {
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 	Result.VertexColor = Intermediates.Color;
 	Result.TangentToWorld = Intermediates.TangentToWorld;
@@ -275,7 +283,7 @@ void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates I
 	float3x3 LocalToWorld = GetLocalToWorld3x3();
 
 	// Remove scaling.
-	half3 InvScale = Primitive.InvNonUniformScale;
+	half3 InvScale = GetPrimitiveData(Intermediates).InvNonUniformScale;
 	LocalToWorld[0] *= InvScale.x;
 	LocalToWorld[1] *= InvScale.y;
 	LocalToWorld[2] *= InvScale.z;
@@ -283,13 +291,13 @@ void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates I
 	float3x3 TangentToWorld = mul(Intermediates.TangentToLocal, LocalToWorld);
 
 	TangentToWorld0 = TangentToWorld[0];
-	TangentToWorld2 = float4(TangentToWorld[2], Input.TangentZ.w * GetPrimitive_DeterminantSign_FromFlags(Primitive.Flags));
+	TangentToWorld2 = float4(TangentToWorld[2], Input.TangentZ.w * GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveData(Intermediates).Flags));
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
-	
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	Intermediates.UnpackedPosition = UnpackedPosition(Input);
 
 	// Fill TangentToLocal
@@ -389,7 +397,7 @@ float3 CalcPreviousPosition(FVertexFactoryInput Input, FVertexFactoryIntermediat
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = Primitive.PreviousLocalToWorld;
+	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates).PreviousLocalToWorld;
 	PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
 	PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
 	PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;

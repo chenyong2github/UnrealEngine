@@ -34,7 +34,7 @@ struct FInstanceCullingResult
 {
 	//TRefCountPtr<FRDGPooledBuffer> InstanceIdsBuffer;
 	FRDGBufferRef DrawIndirectArgsBuffer = nullptr;
-	FRDGBufferRef InstanceIdOffsetBuffer = nullptr;
+	FRDGBufferRef InstanceDataBuffer = nullptr;
 	// Offset for both buffers to start fetching data at, used when batching multiple culling jobs in the same buffer
 	uint32 InstanceDataByteOffset = 0U;
 	uint32 IndirectArgsByteOffset = 0U;
@@ -46,7 +46,7 @@ struct FInstanceCullingResult
 	{
 		// GPUCULL_TODO: Maybe get dummy buffers?
 		OutParams.DrawIndirectArgsBuffer = DrawIndirectArgsBuffer;
-		OutParams.InstanceIdOffsetBuffer = InstanceIdOffsetBuffer;
+		OutParams.InstanceIdOffsetBuffer = InstanceDataBuffer;
 		OutParams.InstanceDataByteOffset = InstanceDataByteOffset;
 		OutParams.IndirectArgsByteOffset = IndirectArgsByteOffset;
 		OutParams.InstanceCulling = UniformBuffer;

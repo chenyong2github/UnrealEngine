@@ -5845,8 +5845,9 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 	// Skip primitive uniform buffer if we will be using local vertex factory which gets it's data from GPUScene.
 	// GPUCULL_TODO: Move to base class - all should follow the same pattern here
+	// Vertex shaders on mobile may still use PrimitiveUB with GPUScene enabled
 	const bool bUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
-	bVFRequiresPrimitiveUniformBuffer = !bUseGPUScene;
+	bVFRequiresPrimitiveUniformBuffer = !bUseGPUScene || (FeatureLevel == ERHIFeatureLevel::ES3_1);
 
 	if (bUseGPUScene)
 	{

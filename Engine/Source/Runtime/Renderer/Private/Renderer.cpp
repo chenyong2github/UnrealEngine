@@ -140,7 +140,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 
 		FSinglePrimitiveStructured& SinglePrimitiveStructured = GTilePrimitiveBuffer;
 
-		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::PositionOnly) >= 0)
+		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, EVertexInputStreamType::PositionOnly) >= 0)
 		{
 			FMeshBatchElement& MeshElement = Mesh.Elements[0];
 

@@ -225,7 +225,14 @@ struct FVertexFactoryIntermediates
 	/** Particle Random value */
 	float ParticleRandom;
 #endif
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
 };
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
 
 #if NUM_TEX_COORD_INTERPOLATORS
 bool UVIndexUseZW(int UVIndex)
@@ -354,6 +361,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
 {
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 	Result.VertexColor = Intermediates.Color;
 	Result.TangentToWorld = mul(TangentToLocal, GetLocalToWorld3x3()); 
@@ -811,6 +819,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	const float2 UVScale = GetNiagaraUVScale(ParticleID);
 	const float3 CameraOffset = SafeNormalize(ResolvedView.WorldCameraOrigin - ParticlePosition) * GetNiagaraCameraOffset(ParticleID);
 	
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	Intermediates.Position = ParticlePosition;
 	Intermediates.SizeRotSubImage = float4(ParticleSize.x, ParticleSize.y, ParticleRotation, SubImageIndex);
 	Intermediates.Color	= GetNiagaraParticleColor(ParticleID);

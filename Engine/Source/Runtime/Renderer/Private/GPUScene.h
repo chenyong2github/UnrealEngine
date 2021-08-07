@@ -106,6 +106,7 @@ private:
 
 	friend class FGPUScene;
 	friend class FGPUSceneDynamicContext;
+	friend struct FGPUSceneCompactInstanceData;
 
 	struct FUploadData
 	{
@@ -381,4 +382,16 @@ private:
 	FGPUSceneScopeBeginEndHelper() = delete;
 	FGPUSceneScopeBeginEndHelper(const FGPUSceneScopeBeginEndHelper&) = delete;
 	FGPUScene& GPUScene;
+};
+
+struct FGPUSceneCompactInstanceData
+{
+	FVector4 InstanceOriginAndId;
+	FVector4 InstanceTransform1;
+	FVector4 InstanceTransform2;
+	FVector4 InstanceTransform3;
+	FVector4 PackedLightmapData;
+
+	void Init(const FGPUScenePrimitiveCollector* PrimitiveCollector, int32 PrimitiveId);
+	void Init(const FScene* Scene, int32 PrimitiveId);
 };

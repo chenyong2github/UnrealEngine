@@ -1067,7 +1067,7 @@ RENDERCORE_API bool IsSimpleForwardShadingEnabled(const FStaticShaderPlatform Pl
 	return CVar->GetValueOnAnyThread() != 0 && PlatformSupportsSimpleForwardShading(Platform);
 }
 
-RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform)
+RENDERCORE_API bool MobileSupportsGPUScene()
 {
 	// make it shader platform setting?
 	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));

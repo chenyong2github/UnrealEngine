@@ -208,16 +208,18 @@ void FLocalVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShade
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
 	}
 
-	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)));
+	const bool bVFSupportsPrimtiveSceneData = Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bVFSupportsPrimtiveSceneData);
 }
 
 void FLocalVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
 {
 	if (Type->SupportsPrimitiveIdStream() 
 		&& UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)) 
+		&& !IsMobilePlatform(Platform) // On mobile VS may use PrimtiveUB while GPUScene is enabled
 		&& ParameterMap.ContainsParameterAllocation(FPrimitiveUniformShaderParameters::StaticStructMetadata.GetShaderVariableName()))
 	{
-		OutErrors.AddUnique(*FString::Printf(TEXT("Shader attempted to bind the Primitive uniform buffer even though Vertex Factory %s computes a PrimitiveId per-instance.  This will break auto-instancing.  Shaders should use GetPrimitiveData(Parameters.PrimitiveId).Member instead of Primitive.Member."), Type->GetName()));
+		OutErrors.AddUnique(*FString::Printf(TEXT("Shader attempted to bind the Primitive uniform buffer even though Vertex Factory %s computes a PrimitiveId per-instance.  This will break auto-instancing.  Shaders should use GetPrimitiveData(Parameters).Member instead of Primitive.Member."), Type->GetName()));
 	}
 }
 
@@ -275,7 +277,7 @@ void FLocalVertexFactory::InitRHI()
 	// then initialize PositionStream and PositionDeclaration.
 	if (Data.PositionComponent.VertexBuffer != Data.TangentBasisComponents[0].VertexBuffer)
 	{
-		auto AddDeclaration = [this, bCanUseGPUScene](EVertexInputStreamType InputStreamType, bool bAddNormal)
+		auto AddDeclaration = [this](EVertexInputStreamType InputStreamType, bool bAddNormal)
 		{
 			FVertexDeclarationElementList StreamElements;
 			StreamElements.Add(AccessStreamComponent(Data.PositionComponent, 0, InputStreamType));
@@ -286,12 +288,7 @@ void FLocalVertexFactory::InitRHI()
 				StreamElements.Add(AccessStreamComponent(Data.TangentBasisComponents[1], 2, InputStreamType));
 			}
 
-			if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
-			{
-				// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-				StreamElements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 1, InputStreamType));
-				SetPrimitiveIdStreamIndex(InputStreamType, StreamElements.Last().StreamIndex);
-			}
+			AddPrimitiveIdStreamElement(InputStreamType, StreamElements, 1, 8);
 
 			InitDeclaration(StreamElements, InputStreamType);
 		};
@@ -306,12 +303,7 @@ void FLocalVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
 
-	if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
-	{
-		// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-		Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 13));
-		SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, Elements.Last().StreamIndex);
-	}
+	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 8);
 
 	// Only the tangent and normal are used by the stream; the bitangent is derived in the shader.
 	uint8 TangentBasisAttributes[2] = { 1, 2 };

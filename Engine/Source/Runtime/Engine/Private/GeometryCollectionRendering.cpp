@@ -46,7 +46,8 @@ bool FGeometryCollectionVertexFactory::ShouldCompilePermutation(const FVertexFac
 void FGeometryCollectionVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	const FStaticFeatureLevel MaxSupportedFeatureLevel = GetMaxSupportedFeatureLevel(Parameters.Platform);
-	const bool bUseGPUScene = UseGPUScene(Parameters.Platform, MaxSupportedFeatureLevel);
+	// TODO: support GPUScene on mobile
+	const bool bUseGPUScene = UseGPUScene(Parameters.Platform, MaxSupportedFeatureLevel) && (MaxSupportedFeatureLevel > ERHIFeatureLevel::ES3_1);
 	const bool bSupportsPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream();
 
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
@@ -66,9 +67,10 @@ void FGeometryCollectionVertexFactory::ValidateCompiledResult(const FVertexFacto
 {
 	if (Type->SupportsPrimitiveIdStream()
 		&& UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform))
+		&& !IsMobilePlatform(Platform) // On mobile VS may use PrimtiveUB while GPUScene is enabled
 		&& ParameterMap.ContainsParameterAllocation(FPrimitiveUniformShaderParameters::StaticStructMetadata.GetShaderVariableName()))
 	{
-		OutErrors.AddUnique(*FString::Printf(TEXT("Shader attempted to bind the Primitive uniform buffer even though Vertex Factory %s computes a PrimitiveId per-instance.  This will break auto-instancing.  Shaders should use GetPrimitiveData(Parameters.PrimitiveId).Member instead of Primitive.Member."), Type->GetName()));
+		OutErrors.AddUnique(*FString::Printf(TEXT("Shader attempted to bind the Primitive uniform buffer even though Vertex Factory %s computes a PrimitiveId per-instance.  This will break auto-instancing.  Shaders should use GetPrimitiveData(Parameters).Member instead of Primitive.Member."), Type->GetName()));
 	}
 }
 
@@ -98,7 +100,7 @@ void FGeometryCollectionVertexFactory::InitRHI()
 				StreamElements.Add(AccessStreamComponent(Data.TangentBasisComponents[1], 2, InputStreamType));
 			}
 
-			AddPrimitiveIdStreamElement(InputStreamType, 1, StreamElements);
+			AddPrimitiveIdStreamElement(InputStreamType, StreamElements, 1, 0xff); // TODO: support instancing on mobile
 
 			InitDeclaration(StreamElements, InputStreamType);
 		};
@@ -113,7 +115,7 @@ void FGeometryCollectionVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 	}
 
-	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, 13, Elements);
+	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xff);  // TODO: support instancing on mobile
 
 	// Only the tangent and normal are used by the stream; the bitangent is derived in the shader.
 	uint8 TangentBasisAttributes[2] = { 1, 2 };

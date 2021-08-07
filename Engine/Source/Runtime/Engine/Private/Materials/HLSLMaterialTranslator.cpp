@@ -4954,7 +4954,7 @@ int32 FHLSLMaterialTranslator::ObjectRadius()
 
 int32 FHLSLMaterialTranslator::ObjectBounds()
 {
-	return AddInlinedCodeChunk(MCT_Float3, TEXT("float3(GetPrimitiveData(Parameters.PrimitiveId).ObjectBoundsX, GetPrimitiveData(Parameters.PrimitiveId).ObjectBoundsY, GetPrimitiveData(Parameters.PrimitiveId).ObjectBoundsZ)"));
+	return AddInlinedCodeChunk(MCT_Float3, TEXT("float3(GetPrimitiveData(Parameters).ObjectBoundsX, GetPrimitiveData(Parameters).ObjectBoundsY, GetPrimitiveData(Parameters).ObjectBoundsZ)"));
 }
 
 int32 FHLSLMaterialTranslator::PreSkinnedLocalBounds(int32 OutputIndex)
@@ -4962,9 +4962,9 @@ int32 FHLSLMaterialTranslator::PreSkinnedLocalBounds(int32 OutputIndex)
 	switch (OutputIndex)
 	{
 	case 0: // Half extents
-		return AddInlinedCodeChunk(MCT_Float3, TEXT("((GetPrimitiveData(Parameters.PrimitiveId).PreSkinnedLocalBoundsMax - GetPrimitiveData(Parameters.PrimitiveId).PreSkinnedLocalBoundsMin) / 2.0f)"));
+		return AddInlinedCodeChunk(MCT_Float3, TEXT("((GetPrimitiveData(Parameters).PreSkinnedLocalBoundsMax - GetPrimitiveData(Parameters).PreSkinnedLocalBoundsMin) / 2.0f)"));
 	case 1: // Full extents
-		return AddInlinedCodeChunk(MCT_Float3, TEXT("(GetPrimitiveData(Parameters.PrimitiveId).PreSkinnedLocalBoundsMax - GetPrimitiveData(Parameters.PrimitiveId).PreSkinnedLocalBoundsMin)"));
+		return AddInlinedCodeChunk(MCT_Float3, TEXT("(GetPrimitiveData(Parameters).PreSkinnedLocalBoundsMax - GetPrimitiveData(Parameters).PreSkinnedLocalBoundsMin)"));
 	case 2: // Min point
 		return GetPrimitiveProperty(MCT_Float3, TEXT("PreSkinnedLocalBounds"), TEXT("PreSkinnedLocalBoundsMin"));
 	case 3: // Max point
@@ -4992,11 +4992,11 @@ int32 FHLSLMaterialTranslator::ActorWorldPosition()
 		// material node is used in VS
 		return AddInlinedCodeChunkZeroDeriv(
 			MCT_Float3,
-			TEXT("mul(mul(float4(GetActorWorldPosition(Parameters.PrimitiveId), 1), GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal), Parameters.PrevFrameLocalToWorld)"));
+			TEXT("mul(mul(float4(GetActorWorldPosition(Parameters), 1), GetPrimitiveData(Parameters).WorldToLocal), Parameters.PrevFrameLocalToWorld)"));
 	}
 	else
 	{
-		return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("GetActorWorldPosition(Parameters.PrimitiveId)"));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("GetActorWorldPosition(Parameters)"));
 	}
 }
 
@@ -7840,11 +7840,11 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 				if (bCompilingPreviousFrame)
 				{
 					// uses different prefix than other Prev* names, so can't use <PREV> tag here
-					CodeStr = TEXT("mul(<A>, <MATRIX>(GetPrimitiveData(Parameters.PrimitiveId).PreviousWorldToLocal))");
+					CodeStr = TEXT("mul(<A>, <MATRIX>(GetPrimitiveData(Parameters).PreviousWorldToLocal))");
 				}
 				else
 				{
-					CodeStr = TEXT("mul(<A>, <MATRIX>(GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal))");
+					CodeStr = TEXT("mul(<A>, <MATRIX>(GetPrimitiveData(Parameters).WorldToLocal))");
 				}
 			}
 			else if (DestCoordBasis == MCB_TranslatedWorld)
@@ -8103,7 +8103,7 @@ int32 FHLSLMaterialTranslator::VirtualTextureOutputReplace(int32 Default, int32 
 
 int32 FHLSLMaterialTranslator::ObjectOrientation()
 { 
-	return AddInlinedCodeChunkZeroDeriv(MCT_Float3,TEXT("GetObjectOrientation(Parameters.PrimitiveId)"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float3,TEXT("GetObjectOrientation(Parameters)"));
 }
 
 int32 FHLSLMaterialTranslator::RotateAboutAxis(int32 NormalizedRotationAxisAndAngleIndex, int32 PositionOnAxisIndex, int32 PositionIndex)
@@ -8684,7 +8684,7 @@ int32 FHLSLMaterialTranslator::CustomPrimitiveData(int32 OutputIndex, EMaterialV
 			const int32 CustomDataIndex = CurrentOutputIndex / 4;
 			const int32 ElementIndex = CurrentOutputIndex % 4; // Index x, y, z or w
 
-			HlslCode.Append(FString::Printf(TEXT("GetPrimitiveData(Parameters.PrimitiveId).CustomPrimitiveData[%d][%d]"), CustomDataIndex, ElementIndex));
+			HlslCode.Append(FString::Printf(TEXT("GetPrimitiveData(Parameters).CustomPrimitiveData[%d][%d]"), CustomDataIndex, ElementIndex));
 		}
 		else
 		{
@@ -9866,7 +9866,7 @@ int32 FHLSLMaterialTranslator::GetPrimitiveProperty(EMaterialValueType Type, con
 		return INDEX_NONE;
 	}
 
-	return AddInlinedCodeChunkZeroDeriv(Type, TEXT("GetPrimitiveData(Parameters.PrimitiveId).%s"), HLSLName);
+	return AddInlinedCodeChunkZeroDeriv(Type, TEXT("GetPrimitiveData(Parameters).%s"), HLSLName);
 }
 
 // The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values

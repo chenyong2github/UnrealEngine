@@ -584,9 +584,9 @@ public:
 	FVertexFactory(ERHIFeatureLevel::Type InFeatureLevel) 
 		: FRenderResource(InFeatureLevel)
 	{
-		for (int8& Index : PrimitiveIdStreamIndex)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(PrimitiveIdStreamIndex); ++i)
 		{
-			Index = INDEX_NONE;
+			PrimitiveIdStreamIndex[i] = INDEX_NONE;
 		}
 	}
 
@@ -642,20 +642,18 @@ public:
 		return bSupportsManualVertexFetch && (InFeatureLevel > ERHIFeatureLevel::ES3_1) && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform);
 	}
 
-	inline int32 GetPrimitiveIdStreamIndex(EVertexInputStreamType InputStreamType) const
+	inline int32 GetPrimitiveIdStreamIndex(const FStaticFeatureLevel InFeatureLevel, EVertexInputStreamType InputStreamType) const
 	{
-		return PrimitiveIdStreamIndex[static_cast<uint8>(InputStreamType)];
+		return PrimitiveIdStreamIndex[TranslatePrimitiveIdStreamIndex(InFeatureLevel, InputStreamType)];
 	}
-
 
 protected:
-
-	inline void SetPrimitiveIdStreamIndex(EVertexInputStreamType InputStreamType, int32 StreamIndex)
+	void SetPrimitiveIdStreamIndex(const FStaticFeatureLevel InFeatureLevel, EVertexInputStreamType InputStreamType, int32 StreamIndex)
 	{
-		PrimitiveIdStreamIndex[static_cast<uint8>(InputStreamType)] = StreamIndex;
+		PrimitiveIdStreamIndex[TranslatePrimitiveIdStreamIndex(InFeatureLevel, InputStreamType)] = StreamIndex;
 	}
-
-	bool AddPrimitiveIdStreamElement(EVertexInputStreamType InputStreamType, uint8 AttributeIndex, FVertexDeclarationElementList& VertexDeclarationElements);
+	
+	bool AddPrimitiveIdStreamElement(EVertexInputStreamType InputStreamType, FVertexDeclarationElementList& Elements, uint8 AttributeIndex, uint8 AttributeIndex_Mobile);
 
 	/**
 	 * Creates a vertex element for a vertex stream components.  Adds a unique stream index for the vertex buffer used by the component.
@@ -709,8 +707,6 @@ protected:
 	
 	bool bSupportsManualVertexFetch = false;
 
-	int8 PrimitiveIdStreamIndex[static_cast<int>(EVertexInputStreamType::Count)];
-
 	static constexpr int32 PrimitiveIdStreamStride = 0;
 
 private:
@@ -725,6 +721,22 @@ private:
 	/** The RHI vertex declaration used to render the factory during depth only passes. */
 	FVertexDeclarationRHIRef PositionDeclaration;
 	FVertexDeclarationRHIRef PositionAndNormalDeclaration;
+
+#if WITH_EDITOR
+	// In the editor PrimtiveId streams may differ between mobile and desktop feature levels, so we store them separately
+	int8 PrimitiveIdStreamIndex[(int32)EVertexInputStreamType::Count * 2];
+#else
+	int8 PrimitiveIdStreamIndex[(int32)EVertexInputStreamType::Count];
+#endif
+
+	inline int32 TranslatePrimitiveIdStreamIndex(const FStaticFeatureLevel InFeatureLevel, EVertexInputStreamType InputStreamType) const
+	{
+	#if WITH_EDITOR
+		return static_cast<int32>(InputStreamType) + (InFeatureLevel <= ERHIFeatureLevel::ES3_1 ? static_cast<int32>(EVertexInputStreamType::Count) : 0); 
+	#else
+		return static_cast<int32>(InputStreamType); 
+	#endif
+	}
 };
 
 /**
@@ -747,3 +759,22 @@ public:
 };
 
 extern RENDERCORE_API TGlobalResource<FPrimitiveIdDummyBuffer> GPrimitiveIdDummy;
+
+class FPrimitiveIdDummyBufferMobile : public FVertexBuffer
+{
+public:
+	// float4 * 5
+	static constexpr uint32 BufferStride = 16u * 5u;
+
+	virtual void InitRHI() override;
+
+	virtual void ReleaseRHI() override
+	{
+		VertexBufferSRV.SafeRelease();
+		FVertexBuffer::ReleaseRHI();
+	}
+
+	FShaderResourceViewRHIRef VertexBufferSRV;
+};
+
+extern RENDERCORE_API TGlobalResource<FPrimitiveIdDummyBufferMobile> GPrimitiveIdDummyMobile;

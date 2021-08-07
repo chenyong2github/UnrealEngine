@@ -1022,7 +1022,7 @@ void FPixelShaderInOut_MainPS(
 #else
 	BRANCH
 #endif
-		if ((GetPrimitiveData(MaterialParameters.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
+		if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0)
 		{
 			uint ValidDBufferTargetMask = GetDBufferTargetMask(uint2(In.SvPosition.xy)) & MATERIALDECALRESPONSEMASK;
 
@@ -1052,7 +1052,7 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.GBufferAO = MaterialAO;
 	GBuffer.PerObjectGBufferData = GetPrimitive_PerObjectGBufferData(MaterialParameters.PrimitiveId);
 	GBuffer.Depth = MaterialParameters.ScreenPosition.w;
-	GBuffer.PrecomputedShadowFactors = GetPrecomputedShadowMasks(LightmapVTPageTableResult, Interpolants, MaterialParameters.PrimitiveId, MaterialParameters.AbsoluteWorldPosition, VolumetricLightmapBrickTextureUVs);
+	GBuffer.PrecomputedShadowFactors = GetPrecomputedShadowMasks(LightmapVTPageTableResult, Interpolants, MaterialParameters, VolumetricLightmapBrickTextureUVs);
 
 #if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
 	// Use GBuffer.ShadingModelID after SetGBufferForShadingModel(..) because the ShadingModel input might not be the same as the output
@@ -1081,7 +1081,7 @@ void FPixelShaderInOut_MainPS(
 
 #if WRITES_VELOCITY_TO_GBUFFER
 	BRANCH
-	if ((GetPrimitiveData(MaterialParameters.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0 || View.ForceDrawAllVelocities != 0)
+	if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0 || View.ForceDrawAllVelocities != 0)
 	{
 		// 2d velocity, includes camera an object motion
 	#if !VF_NANITE
@@ -1093,7 +1093,7 @@ void FPixelShaderInOut_MainPS(
 		float4 EncodedVelocity = EncodeVelocityToTexture(Velocity);
 
 		FLATTEN
-		if ((GetPrimitiveData(MaterialParameters.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0 && View.ForceDrawAllVelocities == 0)
+		if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0 && View.ForceDrawAllVelocities == 0)
 		{
 			// TODO: remove one of the DrawsVelocity or OutputVelocity
 			EncodedVelocity = 0.0;
@@ -1316,7 +1316,7 @@ void FPixelShaderInOut_MainPS(
 			#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR) && (!MATERIAL_SHADINGMODEL_SINGLELAYERWATER || FORWARD_SHADING)
 				if (GBuffer.ShadingModelID != SHADINGMODELID_HAIR)
 				{
-					int SingleCaptureIndex = GetPrimitiveData(MaterialParameters.PrimitiveId).SingleCaptureIndex;
+					int SingleCaptureIndex = GetPrimitiveData(MaterialParameters).SingleCaptureIndex;
 
 					half3 ReflectionColor = GetImageBasedReflectionLighting(MaterialParameters, GBuffer.Roughness, GBuffer.SpecularColor, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) 
 						* IndirectOcclusion
@@ -1446,12 +1446,12 @@ void FPixelShaderInOut_MainPS(
 		{
 			float3 ObjectBounds =
 				float3(
-					GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectBoundsX,
-					GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectBoundsY,
-					GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectBoundsZ
+					GetPrimitiveData(MaterialParameters).ObjectBoundsX,
+					GetPrimitiveData(MaterialParameters).ObjectBoundsY,
+					GetPrimitiveData(MaterialParameters).ObjectBoundsZ
 				);
 
-			if (any(abs(MaterialParameters.AbsoluteWorldPosition - GetPrimitiveData(MaterialParameters.PrimitiveId).ObjectWorldPositionAndRadius.xyz) > ObjectBounds + 1))
+			if (any(abs(MaterialParameters.AbsoluteWorldPosition - GetPrimitiveData(MaterialParameters).ObjectWorldPositionAndRadius.xyz) > ObjectBounds + 1))
 			{
 				float Gradient = frac(dot(MaterialParameters.AbsoluteWorldPosition, float3(.577f, .577f, .577f)) / 500.0f);
 				Emissive = lerp(float3(1,1,0), float3(0,1,1), Gradient.xxx > .5f);

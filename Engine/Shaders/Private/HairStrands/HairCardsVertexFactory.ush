@@ -52,9 +52,7 @@ struct FVertexFactoryInput
 	float4 UVs		 : ATTRIBUTE3;
 #endif
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	uint PrimitiveId : ATTRIBUTE13;
-#endif	
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
 };
 
 #if RAYHITGROUPSHADER
@@ -85,18 +83,15 @@ struct FVertexFactoryIntermediates
 	half3x3 TangentToLocal;
 	half3x3 TangentToWorld;
 	half TangentToWorldSign;
-	uint PrimitiveId;
 	uint HairPrimitiveId;
 	float2 HairPrimitiveUV;
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
 };
 
-uint GetPrimitiveId(FVertexFactoryInput Input)
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
 {
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	return Input.PrimitiveId;
-#else
-	return 0;
-#endif
+	return Intermediates.SceneData.Primitive;
 }
 
 uint GetHairVertexFetchId(FVertexFactoryInput Input)
@@ -198,8 +193,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 half3x3 CalcTangentToWorldNoScale(FVertexFactoryIntermediates Intermediates, half3x3 TangentToLocal)
 {
-	half3x3 LocalToWorld = GetLocalToWorld3x3(Intermediates.PrimitiveId);
-	half3 InvScale = GetPrimitiveData(Intermediates.PrimitiveId).InvNonUniformScale;
+	half3x3 LocalToWorld = (half3x3)GetPrimitiveData(Intermediates).LocalToWorld;
+	half3 InvScale = GetPrimitiveData(Intermediates).InvNonUniformScale;
 	LocalToWorld[0] *= InvScale.x;
 	LocalToWorld[1] *= InvScale.y;
 	LocalToWorld[2] *= InvScale.z;
@@ -210,21 +205,21 @@ half3x3 CalcTangentToWorldNoScale(FVertexFactoryIntermediates Intermediates, hal
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, half3x3 TangentToLocal)
 {
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 
 	// does not handle instancing!
 	Result.TangentToWorld = Intermediates.TangentToWorld;
 	
-	Result.PrevFrameLocalToWorld = GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld;
+	Result.PrevFrameLocalToWorld = GetPrimitiveData(Intermediates).PreviousLocalToWorld;
 	Result.PreSkinnedPosition = GetVertexPreviousPosition(Input);
 	Result.PreSkinnedNormal = TangentToLocal[2];
-	Result.PrimitiveId = Intermediates.PrimitiveId;
 	return Result;
 }
 
-float4 CalcWorldPosition(float3 Position, uint PrimitiveId)
+float4 CalcWorldPosition(float3 Position, float4x4 LocalToWorld)
 {
-	return TransformLocalToTranslatedWorld(Position, PrimitiveId);
+	return TransformLocalToTranslatedWorld(Position, LocalToWorld);
 }
 
 half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
@@ -265,12 +260,12 @@ half3x3 CalcTangentToWorld(FVertexFactoryIntermediates Intermediates, half3x3 Ta
 float3 GetTangent(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
-	Intermediates.PrimitiveId = GetPrimitiveId(Input);
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	
 	float TangentSign;
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
 	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates,Intermediates.TangentToLocal);
-	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign(Intermediates.PrimitiveId);
+	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveData(Intermediates).Flags);
 
 	// Hair shader expec the tangent to be stored in place of the normal. This is what the StrandHairComponent is filling in:
 	// [0]: Real normal		| Should be Tangent
@@ -282,7 +277,7 @@ float3 GetTangent(FVertexFactoryInput Input)
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
-	Intermediates.PrimitiveId		= GetPrimitiveId(Input);
+	Intermediates.SceneData			= VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	Intermediates.HairPrimitiveId	= GetHairPrimitiveId(Input);
 	Intermediates.HairPrimitiveUV	= GetVertexPosition(Input).CardsUVs;
 	//Intermediates.HairDensity		= HairStrandsVF_Density;
@@ -291,7 +286,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float TangentSign;
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
 	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates,Intermediates.TangentToLocal);
-	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign(Intermediates.PrimitiveId);	
+	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveData(Intermediates).Flags);	
 	return Intermediates;
 }
 
@@ -312,7 +307,7 @@ half3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFactor
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	const float3 VertexPosition = GetVertexPosition(Input).Position;
-	const float4 WorldPosition = CalcWorldPosition(VertexPosition, Intermediates.PrimitiveId);
+	const float4 WorldPosition = CalcWorldPosition(VertexPosition, GetPrimitiveData(Intermediates).LocalToWorld);
 	return WorldPosition;
 }
 
@@ -348,7 +343,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.HairPrimitiveId = 0;
 	Interpolants.HairPrimitiveUV = GetVertexPosition(Input).CardsUVs;
 #endif
-	SetPrimitiveId(Interpolants, Intermediates.PrimitiveId);
+	SetPrimitiveId(Interpolants, Intermediates.SceneData.PrimitiveId);
 #if NUM_TEX_COORD_INTERPOLATORS 
 	SetUV(Interpolants, 0, Interpolants.HairPrimitiveUV);
 #endif
@@ -365,13 +360,13 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input)
 // @return translated world position (without quad extension/reorientation).This is used only for velocity computation
 float4 VertexFactoryGetWorldPositionRaw(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return CalcWorldPosition(GetVertexPosition(Input).Position, Intermediates.PrimitiveId);
+	return TransformLocalToTranslatedWorld(GetVertexPosition(Input).Position, GetPrimitiveData(Intermediates).LocalToWorld);
 }
 
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld;
+	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates).PreviousLocalToWorld;
 	PreviousLocalToWorldTranslated[3][0] += ResolvedView.PrevPreViewTranslation.x;
 	PreviousLocalToWorldTranslated[3][1] += ResolvedView.PrevPreViewTranslation.y;
 	PreviousLocalToWorldTranslated[3][2] += ResolvedView.PrevPreViewTranslation.z;

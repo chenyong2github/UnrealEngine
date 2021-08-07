@@ -105,10 +105,8 @@ struct FVertexFactoryInput
 	/** Per vertex color */
 	float4 Color : ATTRIBUTE13;
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	uint InstanceIdOffset : ATTRIBUTE16;
-	uint DrawInstanceId : SV_InstanceID;
-#endif
+	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE16
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(16)
 };
 
 #if !GPUSKIN_MORPH_BLEND && GPUSKIN_APEX_CLOTH
@@ -272,10 +270,6 @@ STRONG_TYPE Buffer<float4> PreviousBoneMatrices;
 // Cache data to avoid multiple calculation 
 struct FVertexFactoryIntermediates
 {
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	FSceneDataIntermediates SceneData;
-#endif
-
 	float3 InvNonUniformScale;
 	float DeterminantSign;
 
@@ -303,13 +297,25 @@ struct FVertexFactoryIntermediates
 	
 	FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VERTEX];
 #endif
-
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
 };
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
+
+FInstanceSceneData GetInstanceData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.InstanceData;
+}
 
 /** Converts from vertex factory specific input to a FMaterialVertexParameters, which is used by vertex shader material inputs. */
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
 {
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 	Result.VertexColor = Intermediates.Color;
 	Result.TangentToWorld = mul(TangentToLocal, (float3x3)Intermediates.LocalToWorld);
@@ -327,10 +333,6 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	{
 		Result.TexCoords[CoordinateIndex] = Input.TexCoords[CoordinateIndex];
 	}
-#endif
-
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	Result.PrimitiveId = Intermediates.SceneData.PrimitiveId;
 #endif
 
 	return Result;
@@ -762,23 +764,13 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
-	
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	Intermediates.SceneData = GetSceneDataIntermediates(Input.InstanceIdOffset, Input.DrawInstanceId);
-	Intermediates.InvNonUniformScale = Intermediates.SceneData.InstanceData.InvNonUniformScale;
-	Intermediates.DeterminantSign    = Intermediates.SceneData.InstanceData.DeterminantSign;
-	Intermediates.LocalToWorld = Intermediates.SceneData.InstanceData.LocalToWorld;
-	Intermediates.WorldToLocal = Intermediates.SceneData.InstanceData.WorldToLocal;
-	Intermediates.PrevLocalToWorld = Intermediates.SceneData.InstanceData.PrevLocalToWorld;
-#else
-	Intermediates.InvNonUniformScale = Primitive.InvNonUniformScale;
-	Intermediates.DeterminantSign = GetPrimitive_DeterminantSign_FromFlags(Primitive.Flags);
-	Intermediates.LocalToWorld = Primitive.LocalToWorld;
-	Intermediates.WorldToLocal = Primitive.WorldToLocal;
-	Intermediates.PrevLocalToWorld = Primitive.PreviousLocalToWorld;
-#endif
-
-	Intermediates.UnpackedPosition = UnpackedPosition(Input);
+	Intermediates.SceneData				= VF_GPUSCENE_GET_INTERMEDIATES(Input);
+	Intermediates.InvNonUniformScale	= GetInstanceData(Intermediates).InvNonUniformScale;
+	Intermediates.DeterminantSign		= GetInstanceData(Intermediates).DeterminantSign;
+	Intermediates.LocalToWorld			= GetInstanceData(Intermediates).LocalToWorld;
+	Intermediates.WorldToLocal			= GetInstanceData(Intermediates).WorldToLocal;
+	Intermediates.PrevLocalToWorld		= GetInstanceData(Intermediates).PrevLocalToWorld;
+	Intermediates.UnpackedPosition		= UnpackedPosition(Input);
 
 #if GPUSKIN_APEX_CLOTH
 	SetupClothVertex(Input.ClothVertexID, Intermediates.ClothVertexInfluences);
@@ -821,11 +813,8 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	else
 #endif
 	{
-#if VF_USE_PRIMITIVE_SCENE_DATA
-		return TransformLocalToTranslatedWorld(SkinPosition(Input, Intermediates), Intermediates.SceneData.InstanceData);
-#else
-		return TransformLocalToTranslatedWorld(SkinPosition(Input, Intermediates));
-#endif
+		float4x4 LocalToWorld = Intermediates.SceneData.InstanceData.LocalToWorld;
+		return TransformLocalToTranslatedWorld(SkinPosition(Input, Intermediates), LocalToWorld);
 	}
 }
 

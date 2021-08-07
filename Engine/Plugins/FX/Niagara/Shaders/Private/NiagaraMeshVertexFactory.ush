@@ -238,7 +238,14 @@ struct FVertexFactoryIntermediates
 
 	/** The instance ID when unsorted/culled, otherwise is an index buffer indirection */
 	uint SortedInstanceId;
+	/** Cached primitive and instance data */
+	FSceneDataIntermediates SceneData;
 };
+
+FPrimitiveSceneData GetPrimitiveData(FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.SceneData.Primitive;
+}
 
 float4x4 GetParticleTransform(FVertexFactoryIntermediates Inters)
 {
@@ -369,6 +376,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
 {
 	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.SceneData = Intermediates.SceneData;
 	Result.WorldPosition = WorldPosition;
 	Result.VertexColor = Intermediates.VertexColor;
 	Result.PreSkinnedPosition = Input.Position.xyz;
@@ -670,6 +678,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
 	Input.InstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo
 
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	Intermediates.SortedInstanceId = Input.InstanceId;
 	if (NiagaraMeshVF.SortedIndicesOffset != 0xFFFFFFFF)
 	{

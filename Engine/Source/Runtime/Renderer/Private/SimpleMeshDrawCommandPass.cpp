@@ -22,8 +22,9 @@ FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, F
 		ViewIds.Add(ViewInfo->GetInstancedView()->GPUSceneViewId);
 	}
 
-	InstanceCullingContext = FInstanceCullingContext(InstanceCullingManager, ViewIds, bUsingStereo ? EInstanceCullingMode::Stereo : EInstanceCullingMode::Normal);
-	bDynamicInstancing = IsDynamicInstancingEnabled(ViewInfo->GetFeatureLevel());
+	ERHIFeatureLevel::Type FeatureLevel = ViewInfo->GetFeatureLevel();
+	InstanceCullingContext = FInstanceCullingContext(FeatureLevel, InstanceCullingManager, ViewIds, bUsingStereo ? EInstanceCullingMode::Stereo : EInstanceCullingMode::Normal);
+	bDynamicInstancing = IsDynamicInstancingEnabled(FeatureLevel);
 
 	InstanceFactor = static_cast<uint32>(ViewIds.Num());
 }
@@ -78,7 +79,8 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandList& RHICmdList, const F
 		}
 		else
 		{
-			SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
+			const uint32 PrimitiveIdBufferStride = FInstanceCullingContext::GetInstanceIdBufferStride(InstanceCullingContext.FeatureLevel);
+			SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, PrimitiveIdBufferStride, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
 		}
 	}
 }
