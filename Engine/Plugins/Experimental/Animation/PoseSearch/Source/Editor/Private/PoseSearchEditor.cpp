@@ -8,6 +8,9 @@
 #include "IAnimationEditor.h"
 #include "IPersonaToolkit.h"
 #include "IPersonaPreviewScene.h"
+#include "PoseSearchDebugger.h"
+#include "Trace/PoseSearchTraceAnalyzer.h"
+#include "Trace/PoseSearchTraceModule.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -62,12 +65,24 @@ public:
 
 private:
 	TArray<class IConsoleObject*> ConsoleCommands;
+	
+	/** Creates the view for the Rewind Debugger */
+	TSharedPtr<FDebuggerViewCreator> DebuggerViewCreator;
+	/** Enables dedicated PoseSearch trace module */
+	TSharedPtr<FTraceModule> TraceModule;
 };
 
 void FEditorModule::StartupModule()
 {
 	if (GIsEditor && !IsRunningCommandlet())
 	{
+		FDebugger::Initialize();
+		TraceModule = MakeShared<FTraceModule>();
+		DebuggerViewCreator = MakeShared<FDebuggerViewCreator>();
+
+		IModularFeatures::Get().RegisterModularFeature("RewindDebuggerViewCreator", DebuggerViewCreator.Get());
+		IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, TraceModule.Get());
+		
 		ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("a.PoseSearch.DrawSearchIndex"),
 			TEXT("Draw the search index for the selected asset"),
@@ -84,6 +99,9 @@ void FEditorModule::ShutdownModule()
 		IConsoleManager::Get().UnregisterConsoleObject(ConsoleCmd);
 	}
 	ConsoleCommands.Empty();
+	
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, TraceModule.Get());
+	FDebugger::Shutdown();
 }
 
 }} // namespace UE::PoseSearch

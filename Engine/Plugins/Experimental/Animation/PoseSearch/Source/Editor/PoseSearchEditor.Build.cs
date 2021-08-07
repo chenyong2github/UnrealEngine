@@ -17,16 +17,28 @@ public class PoseSearchEditor : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"PoseSearch",
-				"ToolMenus",
-				"EditorFramework",
+				
+				// Trace-related dependencies
+				"TraceLog",
+				"TraceAnalysis",
+				"TraceServices",
+				"TraceInsights",
+				
+				// UI 
+				"PropertyEditor",
+				"Slate",
+				"SlateCore",
+				"RewindDebuggerInterface",
+				"EditorStyle",
 				"UnrealEd",
+				"InputCore"
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"BlueprintGraph",
+				"BlueprintGraph"
 			}
 		);
 	}

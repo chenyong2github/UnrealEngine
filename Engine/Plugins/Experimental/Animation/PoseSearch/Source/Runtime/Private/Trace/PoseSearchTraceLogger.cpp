@@ -18,6 +18,8 @@ UE_TRACE_EVENT_BEGIN(PoseSearch, MotionMatchingState)
 	UE_TRACE_EVENT_FIELD(uint64, DatabaseId)
 	UE_TRACE_EVENT_FIELD(int32, DbPoseIdx)
 	UE_TRACE_EVENT_FIELD(float[], QueryVector)
+	UE_TRACE_EVENT_FIELD(float[], QueryVectorNormalized)
+	UE_TRACE_EVENT_FIELD(float[], BiasWeights)
 UE_TRACE_EVENT_END()
 
 namespace UE { namespace PoseSearch {
@@ -61,6 +63,8 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, c
 		// Cast to uint32 for event message
 		<< MotionMatchingState.Flags(static_cast<uint32>(State.Flags))
 		<< MotionMatchingState.QueryVector(State.QueryVector.GetData(), State.QueryVector.Num())
+		<< MotionMatchingState.QueryVectorNormalized(State.QueryVectorNormalized.GetData(), State.QueryVectorNormalized.Num())
+		<< MotionMatchingState.BiasWeights(State.BiasWeights.GetData(), State.BiasWeights.Num())
 		<< MotionMatchingState.DbPoseIdx(State.DbPoseIdx)
 		<< MotionMatchingState.DatabaseId(State.DatabaseId);
 }

@@ -1,0 +1,300 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "RewindDebuggerInterface/Public/IRewindDebuggerExtension.h"
+#include "RewindDebuggerInterface/Public/IRewindDebuggerView.h"
+#include "RewindDebuggerInterface/Public/IRewindDebuggerViewCreator.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "PoseSearchDebugger.generated.h"
+
+namespace TraceServices { class IAnalysisSession; }
+class IUnrealInsightsModule;
+class UPoseSearchDatabase;
+class ITableRow;
+class STableViewBase;
+class IDetailsView;
+class SVerticalBox;
+class SHorizontalBox;
+class SScrollBox;
+class SWidgetSwitcher;
+template <typename ItemType> class SListView;
+
+/**
+ * Used by the reflection UObject to encompass a set of features
+ */
+USTRUCT()
+struct FPoseSearchDebuggerFeatureReflection
+{
+	GENERATED_USTRUCT_BODY()
+
+	// @TODO: Should be ideally enumerated based on all possible schema features
+    UPROPERTY(VisibleAnywhere, Category="Query Data")
+	TArray<FVector> Positions;
+    UPROPERTY(VisibleAnywhere, Category="Query Data")
+	TArray<FVector> LinearVelocities;
+    UPROPERTY(VisibleAnywhere, Category="Query Data")
+	TArray<FVector> AngularVelocities;
+
+	/** Empty contents of above arrays */
+	void EmptyAll();
+};
+
+/**
+ * Reflection UObject being observed in the details view panel of the debugger
+ */
+UCLASS()
+class POSESEARCHEDITOR_API UPoseSearchDebuggerReflection : public UObject
+{
+	GENERATED_UCLASS_BODY()
+
+	/** Time since last PoseSearch jump */
+	UPROPERTY(VisibleAnywhere, Category="Motion Matching State")
+	float ElapsedPoseJumpTime = 0.0f;
+
+	/** Whether it is playing the loop following the expended animation runway */
+	UPROPERTY(VisibleAnywhere, Category="Motion Matching State")
+	bool bFollowUpAnimation = false;
+
+	/** Pose features of the current query vector */
+    UPROPERTY(EditAnywhere, Category="Query Data")
+	FPoseSearchDebuggerFeatureReflection PoseFeatures;
+    	
+	/** Time-based trajectory features of the current query vector */
+    UPROPERTY(EditAnywhere, Category="Query Data")
+	FPoseSearchDebuggerFeatureReflection TimeTrajectoryFeatures;
+
+	/** Distance-based trajectory features of the current query vector */
+	UPROPERTY(EditAnywhere, Category="Query Data")
+    FPoseSearchDebuggerFeatureReflection DistanceTrajectoryFeatures;
+};
+
+
+namespace UE { namespace PoseSearch {
+
+namespace DebuggerDatabaseColumns { struct IColumn; }
+struct FTraceMotionMatchingStateMessage;
+class FDebuggerDatabaseRowData;
+
+
+/**
+ * Database panel view widget of the PoseSearch debugger
+ */
+class SDebuggerDatabaseView : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SDebuggerDatabaseView) {}
+	SLATE_END_ARGS()
+	
+	void Construct(const FArguments& InArgs);
+	void Update(const FTraceMotionMatchingStateMessage* State, const UPoseSearchDatabase* Database);
+
+private:
+	void RefreshColumns();
+	void AddColumn(TSharedRef<DebuggerDatabaseColumns::IColumn>&& Column);
+	void CreateRows(const UPoseSearchDatabase* Database);
+	void SortDatabaseRows();
+	void PopulateRows(const FTraceMotionMatchingStateMessage* State, const UPoseSearchDatabase* Database);
+	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
+	float GetColumnWidth(const FName ColumnId) const;
+	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName & ColumnId, const EColumnSortMode::Type InSortMode);
+	void OnColumnWidthChanged(const float NewWidth, FName ColumnId) const;
+	TSharedRef<ITableRow> HandleGenerateDatabaseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
+	TSharedRef<ITableRow> HandleGenerateActiveRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
+
+	/** Current column to sort by */
+	FName SortColumn = "";
+	/** Current sorting mode */
+	EColumnSortMode::Type SortMode = EColumnSortMode::Ascending;
+	
+	/** Column data container, used to emplace defined column structures of various types */
+    TMap<FName, TSharedRef<DebuggerDatabaseColumns::IColumn>> Columns;
+
+	struct FTable
+	{
+		/** Header row*/
+		TSharedPtr<SHeaderRow> HeaderRow;
+
+		/** Widget for displaying the list of row objects */
+		TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>> ListView;
+
+		// @TODO: Explore options for active row other than displaying array of 1 element
+		/** List of row objects */
+		TArray<TSharedRef<FDebuggerDatabaseRowData>> Rows;
+
+		/** Background style for the list view */
+		FTableRowStyle RowStyle;
+
+		/** Row color */
+		FSlateBrush RowBrush;
+
+		/** Scroll bar for the data table */
+		TSharedPtr<SScrollBar> ScrollBar;
+	};
+
+	/** Active row at the top of the view */
+	FTable ActiveView;
+	/** Database listings for all poses */
+	FTable DatabaseView;
+};
+
+/**
+ * Details panel view widget of the PoseSearch debugger
+ */
+class SDebuggerDetailsView : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SDebuggerDetailsView) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UPoseSearchDebuggerReflection* Reflection);
+private:
+	/** Details widget constructed for the MM node */
+	TSharedPtr<IDetailsView> Details;
+};
+
+
+/**
+ * Callback to update the debugger when node selection is changed
+ */
+DECLARE_DELEGATE_TwoParams(FOnSelectionChanged, uint64 AnimInstanceId, int32 NodeId);
+
+/**
+ * Entire view of the PoseSearch debugger, containing all sub-widgets
+ */
+class SDebuggerView : public IRewindDebuggerView
+{
+public:
+	SDebuggerView() = default;
+
+	SLATE_BEGIN_ARGS(SDebuggerView){}
+		SLATE_ATTRIBUTE(const FTraceMotionMatchingStateMessage*, MotionMatchingState)
+		SLATE_ATTRIBUTE(UPoseSearchDebuggerReflection*, Reflection)
+		SLATE_ATTRIBUTE(const UPoseSearchDatabase*, PoseSearchDatabase)
+		SLATE_ATTRIBUTE(TSet<int32>, MotionMatchingNodeIds)
+		SLATE_ATTRIBUTE(bool, IsPIESimulating)
+		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, uint64 InAnimInstanceId);
+	virtual void SetTimeMarker(double InTimeMarker) override;
+	virtual FName GetName() const override;
+	virtual uint64 GetObjectId() const override;
+
+private:
+	void UpdateViews();
+	TSharedRef<SWidget> GenerateReturnButtonView();
+	TSharedRef<SWidget> GenerateNodeDebuggerView();
+
+	/** Gets all MM nodes being traced in this session */
+	TAttribute<TSet<int32>> MotionMatchingNodeIds;
+	/** Retrieves the reflection UObject from the debugger */
+	TAttribute<UPoseSearchDebuggerReflection*> Reflection;
+	/** Retrieves the MM state from the debugger */
+	TAttribute<const FTraceMotionMatchingStateMessage*> MotionMatchingState;
+	/** Retrieves the PoseSearch Database from the debugger */
+	TAttribute<const UPoseSearchDatabase*> PoseSearchDatabase;
+	/** Whether the game is unpaused and currently simulating */
+	TAttribute<bool> IsPIESimulating;
+	/** Update current debugger data when node selection is changed */
+	FOnSelectionChanged OnSelectionChanged;
+
+	/** Active node being debugged */
+	int32 SelectedNode = -1;
+
+	/** List of all nodes being traced (stored for selection) */
+	TSet<int32> ActiveNodes;
+
+	/** Database view of the motion matching node */
+	TSharedPtr<SDebuggerDatabaseView> DatabaseView;
+	/** Details panel for introspecting the motion matching node */
+	TSharedPtr<SDebuggerDetailsView> DetailsView;
+	/** Node debugger view hosts the above two views */
+	TSharedPtr<SSplitter> NodeDebuggerView;
+
+	/** Contains the return to node selection (picked by database name) */
+	TSharedPtr<SHorizontalBox> ReturnButtonView;
+	/** Selection view before node is selected */
+	TSharedPtr<SVerticalBox> SelectionView;
+
+	
+	/** Gray box occluding the debugger view when simulating */
+	TSharedPtr<SVerticalBox> SimulatingView;
+	
+	/** Used to switch between views in the switcher */
+	enum ESwitcherViewType : uint16
+	{
+		Waiting = 0,
+		Selection = 1,
+		Debugger = 2
+	} SwitcherViewType = Waiting;
+	/** Contains all the above, switches between them depending on context */
+	// @TODO: Make this resolve to Waiting when PIE is stopped
+	TSharedPtr<SWidgetSwitcher> Switcher;
+
+	/** Contains the switcher, the entire debugger view */
+	TSharedPtr<SVerticalBox> DebuggerView;
+
+	/** AnimInstance this view was created for */
+	uint64 AnimInstanceId = 0;
+
+	/** Current position of the time marker */
+	double TimeMarker = 0.0;
+};
+
+
+/**
+ * PoseSearch debugger, containing the data to be acquired and relayed to the view
+ */
+class FDebugger : public IRewindDebuggerExtension, public TSharedFromThis<FDebugger>
+{
+public:
+	virtual void Update(float DeltaTime, IRewindDebugger* InRewindDebugger) override;
+	virtual ~FDebugger() = default;
+
+	static FDebugger* Instance() { return InternalInstance; }
+	static void Initialize();
+	static void Shutdown();
+	static const FName ModularFeatureName;
+
+	/** Generates the slate debugger view widget */
+	static TSharedPtr<SDebuggerView> GenerateView(uint64 InAnimInstanceId);
+
+private:
+	// Used for view callbacks
+	static const FTraceMotionMatchingStateMessage* GetMotionMatchingState();
+	static const UPoseSearchDatabase* GetPoseSearchDatabase();
+	static UPoseSearchDebuggerReflection* GetReflection();
+	static bool GetIsPIESimulating();
+	static TSet<int32> GetNodeIds(uint64 AnimInstanceId);
+	void OnSelectionChanged(uint64 AnimInstanceId, int32 NodeId);
+
+	/** Updates the current reflection data relative to the MM state */
+	void UpdateReflection() const;
+	
+	/** Last stored Rewind Debugger */
+	const IRewindDebugger* RewindDebugger = nullptr;
+	/** Last stored MM state (updated from OnSelectionChanged) */
+    const FTraceMotionMatchingStateMessage* MotionMatchingState = nullptr;
+	/** Last updated reflection data relative to MM state */
+	TObjectPtr<UPoseSearchDebuggerReflection> Reflection = nullptr;
+
+	static FDebugger* InternalInstance;
+};
+
+/**
+ * Creates the slate widgets associated with the PoseSearch debugger
+ * when prompted by the Rewind Debugger
+ */
+class FDebuggerViewCreator : public IRewindDebuggerViewCreator
+{
+public:
+	virtual ~FDebuggerViewCreator() = default;
+	virtual FName GetName() const override;
+	virtual FText GetTitle() const override;
+	virtual FSlateIcon GetIcon() const override;
+	virtual FName GetTargetTypeName() const override;
+	virtual TSharedPtr<IRewindDebuggerView> CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const override;
+};
+
+
+}}

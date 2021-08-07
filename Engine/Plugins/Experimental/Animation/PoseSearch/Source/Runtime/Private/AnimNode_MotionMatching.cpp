@@ -38,10 +38,16 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateAssetPlayer);
 
+
 	GetEvaluateGraphExposedInputs().Execute(Context);
 	// Note: What if the input database changes? That's not being handled at all!
 
 	bool bJumpedToPose = false;
+	FPoseSearchBiasWeights QueryBiasWeights;
+	
+#if UE_POSE_SEARCH_TRACE_ENABLED
+	UE::PoseSearch::FTraceMotionMatchingState State;
+#endif
 
 	const float DeltaTime = Context.GetDeltaTime();
 
@@ -90,7 +96,6 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		ComposeQuery(Context);
 
 		// Initialize the pose search query bias weights context
-		FPoseSearchBiasWeights QueryBiasWeights;
 		QueryBiasWeights.Init(BiasWeights, Database->Schema->Layout);
 
 		const FPoseSearchBiasWeightsContext BiasWeightsContext = { &QueryBiasWeights, Database };
@@ -150,6 +155,9 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 					FollowUpResult.TimeOffsetSeconds = FollowUpAssetTime;
 					JumpToPose(Context, FollowUpResult);
 					bJumpedToPose = true;
+#if UE_POSE_SEARCH_TRACE_ENABLED
+					State.Flags |= UE::PoseSearch::FTraceMotionMatchingState::EFlags::FollowupAnimation;
+#endif
 				}
 			}
 		}
@@ -171,9 +179,15 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	Source.Update(Context);
 	
 #if UE_POSE_SEARCH_TRACE_ENABLED
-	UE::PoseSearch::FTraceMotionMatchingState State;
+	if (DbPoseIdx == INDEX_NONE)
+	{
+		return;
+	}
 	State.ElapsedPoseJumpTime = ElapsedPoseJumpTime;
+	// @TODO: Change this to only be the previous query, not persistently updated (i.e. if throttled)?
 	State.QueryVector = ComposedQuery.GetValues();
+	State.QueryVectorNormalized = ComposedQuery.GetNormalizedValues();
+	State.BiasWeights = QueryBiasWeights.Weights;
 	State.DbPoseIdx = DbPoseIdx;
 	State.DatabaseId = FObjectTrace::GetObjectId(Database.Get());
 	UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, State)

@@ -477,6 +477,7 @@ void FPoseSearchBiasWeights::BindSemanticWeight(float Weight, const FPoseSearchF
 		const int32 FirstValueIdx = Feature.ValueOffset;
 		const int32 NumValues = UE::PoseSearch::GetFeatureTypeTraits(FeatureType).NumFloats;
 
+		// NOTE: This enumeration method is currently assumed by the PoseSearch Debugger
 		for (int32 Idx = 0; Idx < NumValues; ++Idx)
 		{
 			Weights[FirstValueIdx + Idx] = Weight;

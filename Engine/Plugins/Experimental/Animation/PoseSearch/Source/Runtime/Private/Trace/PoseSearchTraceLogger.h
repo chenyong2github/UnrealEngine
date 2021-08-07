@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ObjectTrace.h"
-#include "PoseSearch/PoseSearch.h"
 
 // Enable this if object tracing is enabled, mimics animation tracing
 #define UE_POSE_SEARCH_TRACE_ENABLED OBJECT_TRACE_ENABLED
@@ -42,12 +41,19 @@ struct POSESEARCH_API FTraceMotionMatchingState
 
 	/** Feature value array of the query data */
 	TArrayView<const float> QueryVector;
+	TArrayView<const float> QueryVectorNormalized;
+
+	/** Weight bias params for motion matching queries */
+	TArrayView<const float> BiasWeights;
 
 	/** Index of the pose in our database */
 	int32 DbPoseIdx = 0;
 
 	/** Object Id of the database asset */
 	uint64 DatabaseId = 0;
+
+	/** Node Id of the motion matching node associated with this message */
+	int32 NodeId = 0;
 
 	/** Output the current state info to the logger */
 	static void Output(const FAnimationBaseContext& InContext, const FTraceMotionMatchingState& State);
