@@ -11,9 +11,10 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using EpicGames.Core;
-using Serilog.Enrichers.OpenTracing;
 using System.Collections.Generic;
 using System.Threading;
+using OpenTracing.Util;
+using OpenTracing;
 
 namespace HordeAgent
 {
@@ -37,6 +38,13 @@ namespace HordeAgent
 				LogEvent.AddOrUpdateProperty(PropertyFactory.CreateProperty("dd.env", Env));
 				LogEvent.AddOrUpdateProperty(PropertyFactory.CreateProperty("dd.service", "hordeagent"));
 				LogEvent.AddOrUpdateProperty(PropertyFactory.CreateProperty("dd.version", Program.Version));
+
+				ISpan? Span = GlobalTracer.Instance?.ActiveSpan;
+				if (Span != null)
+				{
+					LogEvent.AddPropertyIfAbsent(PropertyFactory.CreateProperty("dd.trace_id", Span.Context.TraceId));
+					LogEvent.AddPropertyIfAbsent(PropertyFactory.CreateProperty("dd.span_id", Span.Context.SpanId));
+				}
 			}
 		}
 		
@@ -89,7 +97,6 @@ namespace HordeAgent
 				.MinimumLevel.Override("Serilog.AspNetCore.RequestLoggingMiddleware", LogEventLevel.Warning)
 				.MinimumLevel.ControlledBy(LogLevelSwitch)
 				.Enrich.FromLogContext()
-				.Enrich.WithOpenTracingContext()
 				.Enrich.With<DatadogLogEnricher>()
 				.WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: Theme)
 				.WriteTo.File(FileReference.Combine(Program.DataDir, "Log-.txt").FullName, fileSizeLimitBytes: 50 * 1024 * 1024, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, retainedFileCountLimit: 10)
