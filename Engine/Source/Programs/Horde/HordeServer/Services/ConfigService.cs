@@ -381,7 +381,7 @@ namespace HordeServer.Services
 			switch(ConfigPath.Scheme)
 			{
 				case FileScheme:
-					return File.ReadAllBytesAsync(ConfigPath.AbsolutePath);
+					return File.ReadAllBytesAsync(ConfigPath.LocalPath);
 				case PerforceScheme:
 					return PerforceService.PrintAsync(ConfigPath.Host, ConfigPath.AbsolutePath);
 				default:
