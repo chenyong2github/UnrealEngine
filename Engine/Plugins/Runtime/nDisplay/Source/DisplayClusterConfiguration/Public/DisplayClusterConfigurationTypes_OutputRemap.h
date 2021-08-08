@@ -39,7 +39,7 @@ public:
 
 	/** The Static Mesh reference to use for output remapping when the Data Source is set to Static Mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NDisplay OutputRemap", meta = (EditCondition = "DataSource == EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::StaticMesh && bEnable"))
-	class UStaticMesh* StaticMesh;
+	class UStaticMesh* StaticMesh = nullptr;
 
 	/** The external .obj file to use for output remapping when the Data Source is set to File */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay OutputRemap", meta = (EditCondition = "DataSource == EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::ExternalFile && bEnable"))
