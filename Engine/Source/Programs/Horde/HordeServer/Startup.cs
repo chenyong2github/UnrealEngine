@@ -77,6 +77,8 @@ using HordeServer.Storage.Backends;
 using HordeServer.Storage.Services;
 using HordeServer.Commits.Impl;
 using HordeServer.Commits;
+using OpenTracing.Contrib.Grpc.Interceptors;
+using OpenTracing.Util;
 
 namespace HordeServer
 {
@@ -293,6 +295,7 @@ namespace HordeServer
 				Options.MaxReceiveMessageSize = 20 * 1024 * 1024; // 20 MB (packaged builds of Horde agent can be large) 
 				Options.Interceptors.Add(typeof(LifetimeGrpcInterceptor));
 				Options.Interceptors.Add(typeof(GrpcExceptionInterceptor));
+				Options.Interceptors.Add<ServerTracingInterceptor>(GlobalTracer.Instance);
 			});
 			Services.AddGrpcReflection();
 
