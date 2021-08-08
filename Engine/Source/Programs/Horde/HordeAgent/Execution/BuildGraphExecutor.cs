@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Datadog.Trace;
 using EpicGames.Core;
 using Grpc.Core;
 using HordeAgent.Execution.Interfaces;
@@ -9,6 +8,8 @@ using HordeAgent.Utility;
 using HordeCommon;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Logging;
+using OpenTracing;
+using OpenTracing.Util;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -600,7 +601,7 @@ namespace HordeAgent.Execution
 		protected async Task<int> ExecuteAutomationToolAsync(BeginStepResponse Step, DirectoryReference WorkspaceDir, string Arguments, IReadOnlyDictionary<string, string> EnvVars, IReadOnlyDictionary<string, string> Credentials, ILogger Logger, CancellationToken CancellationToken)
 		{
 			int Result;
-			using (Scope Scope = Tracer.Instance.StartActive("BuildGraph"))
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("BuildGraph").StartActive())
 			{
 				if (!CompileAutomationTool)
 				{
@@ -832,7 +833,7 @@ namespace HordeAgent.Execution
 							}
 							await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, "Trace.json", TraceFile, Logger, CancellationToken.None);
 
-							CreateTracingData(RootSpan);
+							CreateTracingData(GlobalTracer.Instance.ActiveSpan, RootSpan);
 						}
 					}
 					
@@ -941,27 +942,32 @@ namespace HordeAgent.Execution
 			await RpcConnection.InvokeAsync(x => x.CreateReportAsync(Request), new RpcContext(), CancellationToken.None);
 		}
 
-		private void CreateTracingData(TraceSpan Span)
+		private ISpan CreateTracingData(ISpan Parent, TraceSpan Span)
 		{
-			using (Scope Scope = Tracer.Instance.StartActive(Span.Name, serviceName: Span.Service, startTime: new DateTime(Span.Start, DateTimeKind.Utc)))
+			ISpan NewSpan = GlobalTracer.Instance.BuildSpan(Span.Name)
+				.AsChildOf(Parent)
+				.WithServiceName(Span.Service)
+				.WithResourceName(Span.Resource)
+				.WithStartTimestamp(new DateTime(Span.Start, DateTimeKind.Utc))
+				.Start();
+
+			if (Span.Properties != null)
 			{
-				Scope.Span.ResourceName = Span.Resource;
-				if (Span.Properties != null)
+				foreach (KeyValuePair<string, string> Pair in Span.Properties)
 				{
-					foreach (KeyValuePair<string, string> Pair in Span.Properties)
-					{
-						Scope.Span.SetTag(Pair.Key, Pair.Value);
-					}
+					NewSpan.SetTag(Pair.Key, Pair.Value);
 				}
-				if (Span.Children != null)
-				{
-					foreach (TraceSpan Child in Span.Children)
-					{
-						CreateTracingData(Child);
-					}
-				}
-				Scope.Span.Finish(new DateTime(Span.Finish, DateTimeKind.Utc));
 			}
+			if (Span.Children != null)
+			{
+				foreach (TraceSpan Child in Span.Children)
+				{
+					CreateTracingData(NewSpan, Child);
+				}
+			}
+
+			NewSpan.Finish(new DateTime(Span.Finish, DateTimeKind.Utc));
+			return NewSpan;
 		}
 
 		protected async Task UploadTestDataAsync(string JobStepId, IEnumerable<KeyValuePair<string, object>> TestData)

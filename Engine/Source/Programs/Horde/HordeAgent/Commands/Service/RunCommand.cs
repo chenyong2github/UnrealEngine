@@ -17,10 +17,12 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Datadog.Trace.Configuration;
-using Datadog.Trace;
 using System.IO;
 using System.Reflection;
+using OpenTracing;
+using OpenTracing.Util;
+using Datadog.Trace.Configuration;
+using Datadog.Trace;
 
 namespace HordeAgent.Modes.Service
 {
@@ -149,6 +151,9 @@ namespace HordeAgent.Modes.Service
 			Settings.LogsInjectionEnabled = true;
 
 			Tracer.Instance = new Tracer(Settings);
+
+			ITracer OpenTracer = Datadog.Trace.OpenTracing.OpenTracingTracerFactory.WrapTracer(Tracer.Instance);
+			GlobalTracer.Register(OpenTracer);
 		}
 	}
 }

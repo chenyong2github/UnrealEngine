@@ -11,6 +11,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using EpicGames.Core;
+using Serilog.Enrichers.OpenTracing;
 
 namespace HordeAgent
 {
@@ -82,6 +83,7 @@ namespace HordeAgent
 				.MinimumLevel.Override("Serilog.AspNetCore.RequestLoggingMiddleware", LogEventLevel.Warning)
 				.MinimumLevel.ControlledBy(LogLevelSwitch)
 				.Enrich.FromLogContext()
+				.Enrich.WithOpenTracingContext()
 				.Enrich.With<VersionLogEnricher>()
 				.WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception}", theme: Theme)
 				.WriteTo.File(FileReference.Combine(Program.DataDir, "Log-.txt").FullName, fileSizeLimitBytes: 50 * 1024 * 1024, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, retainedFileCountLimit: 10)
