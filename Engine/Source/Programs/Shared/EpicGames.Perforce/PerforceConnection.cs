@@ -2082,7 +2082,11 @@ namespace EpicGames.Perforce
 			{
 				Arguments.Append(" -l");
 			}
-			foreach(string FileSpec in FileSpecs)
+			if ((Options & ReconcileOptions.UseFileModification) != 0)
+			{
+				Arguments.Append(" -m");
+			}
+			foreach (string FileSpec in FileSpecs)
 			{
 				Arguments.AppendFormat(" \"{0}\"", FileSpec);
 			}
