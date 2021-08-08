@@ -2,11 +2,13 @@
 
 using EpicGames.Core;
 using Grpc.Core;
+using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
+using OpenTracing.Contrib.Grpc.Interceptors;
 using OpenTracing.Util;
 using System;
 using System.Collections.Concurrent;
@@ -670,7 +672,7 @@ namespace HordeAgent.Utility
 		{
 			using (GrpcChannel Channel = CreateGrpcChannel())
 			{
-				HordeRpc.HordeRpcClient Client = new HordeRpc.HordeRpcClient(Channel);
+				HordeRpc.HordeRpcClient Client = new HordeRpc.HordeRpcClient(Channel.Intercept(new ClientTracingInterceptor(GlobalTracer.Instance)));
 
 				RpcSubConnection? SubConnection = null;
 				try
