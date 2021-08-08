@@ -104,10 +104,11 @@ namespace HordeAgent.Modes.Service
 					AgentSettings Settings = new AgentSettings();
 					ConfigSection.Bind(Settings);
 
-					ServerProfile ServerProfile = Settings.GetCurrentServerProfile();
-					ConfigureTracing(ServerProfile.Environment, Program.Version);
+					ITracer OpenTracer = Datadog.Trace.OpenTracing.OpenTracingTracerFactory.CreateTracer();
+					GlobalTracer.Register(OpenTracer);
 
-					Logging.Version = Program.Version;
+					ServerProfile ServerProfile = Settings.GetCurrentServerProfile();
+					Logging.SetEnv(ServerProfile.Environment);
 
 					Services.AddHttpClient(Program.HordeServerClientName, Config =>
 					{
@@ -140,20 +141,6 @@ namespace HordeAgent.Modes.Service
 			}
 
 			return 0;
-		}
-
-		static void ConfigureTracing(string Environment, string Version)
-		{
-			TracerSettings Settings = TracerSettings.FromDefaultSources();
-			Settings.Environment = Environment;
-			Settings.ServiceName = "hordeagent";
-			Settings.ServiceVersion = Version;
-			Settings.LogsInjectionEnabled = true;
-
-			Tracer.Instance = new Tracer(Settings);
-
-			ITracer OpenTracer = Datadog.Trace.OpenTracing.OpenTracingTracerFactory.WrapTracer(Tracer.Instance);
-			GlobalTracer.Register(OpenTracer);
 		}
 	}
 }
