@@ -52,6 +52,8 @@ namespace P4VUtils
 			["findlasteditbyline"] = new P4BlameCommand(),
 			["snapshot"] = new SnapshotCommand(),
 			["copyclnum"] = new CopyCLCommand(),
+			["reconcilecode"] = new FastReconcileCodeEditsCommand(),
+			["reconcileall"] = new FastReconcileAllEditsCommand(),
 		};
 
 		// UEIntegrate Folder commands - complex commands to facilitate integrations/backout

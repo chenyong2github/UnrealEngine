@@ -53,5 +53,10 @@ namespace EpicGames.Perforce
 		/// Display output in local file syntax with relative paths, similar to the workspace-centric view of p4 status.
 		/// </summary>
 		LocalFileSyntax = 64,
+
+		/// <summary>
+		/// use file modification time before digest to optimize
+		/// </summary>
+		UseFileModification = 128,
 	}
 }
