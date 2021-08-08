@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Datadog.Trace;
 using EpicGames.Core;
 using Grpc.Core;
 using Grpc.Net.Client;
 using HordeCommon.Rpc;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTracing;
+using OpenTracing.Util;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -640,7 +641,7 @@ namespace HordeAgent.Utility
 		/// <returns>Async task</returns>
 		async Task HandleConnectionAsync(int ConnectionId, TaskCompletionSource<bool> ReconnectTaskSource)
 		{
-			using Scope Scope = Tracer.Instance.StartActive("RpcConnection {ConnectionId}");
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("RpcConnection {ConnectionId}").StartActive();
 
 			Logger.LogInformation("Connection {ConnectionId}: Creating connection", ConnectionId);
 			try

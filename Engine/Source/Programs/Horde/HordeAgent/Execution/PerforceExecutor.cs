@@ -27,7 +27,8 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
 using Google.Protobuf.WellKnownTypes;
-using Datadog.Trace;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace HordeAgent.Execution
 {
@@ -60,10 +61,8 @@ namespace HordeAgent.Execution
 			// Setup and sync the autosdk workspace
 			if (AutoSdkWorkspaceInfo != null)
 			{
-				using (Scope Scope = Tracer.Instance.StartActive("Workspace"))
+				using (IScope Scope = GlobalTracer.Instance.BuildSpan("Workspace").WithResourceName("AutoSDK").StartActive())
 				{
-					Scope.Span.ResourceName = "AutoSDK";
-
 					AutoSdkWorkspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(AutoSdkWorkspaceInfo, RootDir, Logger, CancellationToken);
 
 					DirectoryReference LegacyDir = DirectoryReference.Combine(AutoSdkWorkspace.MetadataDir, "HostWin64");
@@ -87,10 +86,8 @@ namespace HordeAgent.Execution
 				}
 			}
 
-			using (Scope Scope = Tracer.Instance.StartActive("Workspace"))
+			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Workspace").WithResourceName(WorkspaceInfo.Identifier).StartActive())
 			{
-				Scope.Span.ResourceName = WorkspaceInfo.Identifier;
-
 				// Sync the regular workspace
 				Workspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(WorkspaceInfo, RootDir, Logger, CancellationToken);
 

@@ -42,17 +42,17 @@ using EpicGames.Core;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Datadog.Trace;
 using Serilog.Context;
 using Polly;
 using Microsoft.Extensions.Http;
 using Polly.Extensions.Http;
 using Amazon.Util;
 using Amazon.EC2;
-using Scope = Datadog.Trace.Scope;
 using Amazon.EC2.Model;
 using Status = Grpc.Core.Status;
 using Google.Protobuf;
+using OpenTracing.Util;
+using OpenTracing;
 
 [assembly: InternalsVisibleTo("HordeAgentTests")]
 
@@ -637,12 +637,11 @@ namespace HordeAgent.Services
 		/// <returns>Async task</returns>
 		async Task HandleLeaseAsync(IRpcConnection RpcConnection, string AgentId, LeaseInfo LeaseInfo)
 		{
-			using Scope Scope = Tracer.Instance.StartActive("HandleLease");
-			Scope.Span.ResourceName = LeaseInfo.Lease.Id;
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("HandleLease").WithResourceName(LeaseInfo.Lease.Id).StartActive();
 			Scope.Span.SetTag("LeaseId", LeaseInfo.Lease.Id);
 			Scope.Span.SetTag("AgentId", AgentId);
-			using IDisposable TraceProperty = LogContext.PushProperty("dd.trace_id", CorrelationIdentifier.TraceId.ToString());
-			using IDisposable SpanProperty = LogContext.PushProperty("dd.span_id", CorrelationIdentifier.SpanId.ToString());
+//			using IDisposable TraceProperty = LogContext.PushProperty("dd.trace_id", CorrelationIdentifier.TraceId.ToString());
+//			using IDisposable SpanProperty = LogContext.PushProperty("dd.span_id", CorrelationIdentifier.SpanId.ToString());
 
 			Logger.LogInformation("Handling lease {LeaseId}", LeaseInfo.Lease.Id);
 
@@ -691,7 +690,7 @@ namespace HordeAgent.Services
 			ActionTask ActionTask;
 			if (LeaseInfo.Lease.Payload.TryUnpack(out ActionTask))
 			{
-				Tracer.Instance.ActiveScope?.Span.SetTag("task", "Action");
+				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Action");
 				Func<ILogger, Task<LeaseResult>> Handler = NewLogger => ActionAsync(RpcConnection, LeaseInfo.Lease.Id, ActionTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
 				return await HandleLeasePayloadWithLogAsync(RpcConnection, ActionTask.LogId, AgentId, null, null, Handler, LeaseInfo.CancellationTokenSource.Token);
 			}
@@ -699,7 +698,7 @@ namespace HordeAgent.Services
 			ConformTask ConformTask;
 			if (LeaseInfo.Lease.Payload.TryUnpack(out ConformTask))
 			{
-				Tracer.Instance.ActiveScope.Span.SetTag("task", "Conform");
+				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Conform");
 				Func<ILogger, Task<LeaseResult>> Handler = NewLogger => ConformAsync(RpcConnection, AgentId, LeaseInfo.Lease.Id, ConformTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
 				return await HandleLeasePayloadWithLogAsync(RpcConnection, ConformTask.LogId, AgentId, null, null, Handler, LeaseInfo.CancellationTokenSource.Token);
 			}
@@ -707,7 +706,7 @@ namespace HordeAgent.Services
 			ExecuteJobTask JobTask;
 			if (LeaseInfo.Lease.Payload.TryUnpack(out JobTask))
 			{
-				Tracer.Instance.ActiveScope.Span.SetTag("task", "Job");
+				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Job");
 				Func<ILogger, Task<LeaseResult>> Handler = NewLogger => ExecuteJobAsync(RpcConnection, AgentId, LeaseInfo.Lease.Id, JobTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
 				return await HandleLeasePayloadWithLogAsync(RpcConnection, JobTask.LogId, AgentId, JobTask.JobId, JobTask.BatchId, Handler, LeaseInfo.CancellationTokenSource.Token);
 			}
@@ -715,7 +714,7 @@ namespace HordeAgent.Services
 			UpgradeTask UpgradeTask;
 			if (LeaseInfo.Lease.Payload.TryUnpack(out UpgradeTask))
 			{
-				Tracer.Instance.ActiveScope.Span.SetTag("task", "Upgrade");
+				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Upgrade");
 				Func<ILogger, Task<LeaseResult>> Handler = NewLogger => UpgradeAsync(RpcConnection, AgentId, UpgradeTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
 				return await HandleLeasePayloadWithLogAsync(RpcConnection, UpgradeTask.LogId, AgentId, null, null, Handler, LeaseInfo.CancellationTokenSource.Token);
 			}
@@ -723,7 +722,7 @@ namespace HordeAgent.Services
 			ShutdownTask ShutdownTask;
 			if (LeaseInfo.Lease.Payload.TryUnpack(out ShutdownTask))
 			{
-				Tracer.Instance.ActiveScope.Span.SetTag("task", "Shutdown");
+				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Shutdown");
 				Func<ILogger, Task<LeaseResult>> Handler = NewLogger => ShutdownAsync(RpcConnection, AgentId, ShutdownTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
 				return await HandleLeasePayloadWithLogAsync(RpcConnection, ShutdownTask.LogId, AgentId, null, null, Handler, LeaseInfo.CancellationTokenSource.Token);
 			}
@@ -731,7 +730,7 @@ namespace HordeAgent.Services
 			RestartTask RestartTask;
 			if (LeaseInfo.Lease.Payload.TryUnpack(out RestartTask))
 			{
-				Tracer.Instance.ActiveScope.Span.SetTag("task", "Restart");
+				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Restart");
 				Func<ILogger, Task<LeaseResult>> Handler = NewLogger => RestartAsync(RpcConnection, AgentId, RestartTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
 				return await HandleLeasePayloadWithLogAsync(RpcConnection, RestartTask.LogId, AgentId, null, null, Handler, LeaseInfo.CancellationTokenSource.Token);
 			}
@@ -944,9 +943,9 @@ namespace HordeAgent.Services
 		internal async Task<LeaseResult> ExecuteJobAsync(IRpcConnection RpcClient, string AgentId, string LeaseId, ExecuteJobTask ExecuteTask, ILogger Logger, CancellationToken CancellationToken)
 		{
 			Logger.LogInformation("Executing job \"{JobName}\", jobId {JobId}, batchId {BatchId}, leaseId {LeaseId}", ExecuteTask.JobName, ExecuteTask.JobId, ExecuteTask.BatchId, LeaseId);
-			Tracer.Instance.ActiveScope?.Span.SetTag("jobId", ExecuteTask.JobId.ToString());
-			Tracer.Instance.ActiveScope?.Span.SetTag("jobName", ExecuteTask.JobName.ToString());
-			Tracer.Instance.ActiveScope?.Span.SetTag("batchId", ExecuteTask.BatchId.ToString());	
+			GlobalTracer.Instance.ActiveSpan?.SetTag("jobId", ExecuteTask.JobId.ToString());
+			GlobalTracer.Instance.ActiveSpan?.SetTag("jobName", ExecuteTask.JobName.ToString());
+			GlobalTracer.Instance.ActiveSpan?.SetTag("batchId", ExecuteTask.BatchId.ToString());	
 
 			// Start executing the current batch
 			BeginBatchResponse Batch = await RpcClient.InvokeAsync(x => x.BeginBatchAsync(new BeginBatchRequest(ExecuteTask.JobId, ExecuteTask.BatchId, LeaseId), null, null, CancellationToken), new RpcContext(), CancellationToken);
@@ -1001,7 +1000,7 @@ namespace HordeAgent.Services
 			BatchLogger.LogInformation("Initializing...");
 			using (BatchLogger.BeginIndentScope("  "))
 			{
-				using Scope Scope = Tracer.Instance.StartActive("Initialize");
+				using IScope Scope = GlobalTracer.Instance.BuildSpan("Initialize").StartActive();
 				await Executor.InitializeAsync(BatchLogger, CancellationToken);
 			}
 
@@ -1031,12 +1030,11 @@ namespace HordeAgent.Services
 				BatchLogger.LogInformation("Starting job {JobId}, batch {BatchId}, step {StepId}", ExecuteTask.JobId, ExecuteTask.BatchId, Step.StepId);
 
 				// Create a trace span
-				using Scope Scope = Tracer.Instance.StartActive("Execute");
-				Scope.Span.ResourceName = Step.Name;
+				using IScope Scope = GlobalTracer.Instance.BuildSpan("Execute").WithResourceName(Step.Name).StartActive();
 				Scope.Span.SetTag("stepId", Step.StepId);
 				Scope.Span.SetTag("logId", Step.LogId);
-				using IDisposable TraceProperty = LogContext.PushProperty("dd.trace_id", CorrelationIdentifier.TraceId.ToString());
-				using IDisposable SpanProperty = LogContext.PushProperty("dd.span_id", CorrelationIdentifier.SpanId.ToString());
+//				using IDisposable TraceProperty = LogContext.PushProperty("dd.trace_id", CorrelationIdentifier.TraceId.ToString());
+//				using IDisposable SpanProperty = LogContext.PushProperty("dd.span_id", CorrelationIdentifier.SpanId.ToString());
 
 				// Update the context to include information about this step
 				JobStepOutcome StepOutcome;
@@ -1096,7 +1094,7 @@ namespace HordeAgent.Services
 			BatchLogger.LogInformation("Finalizing...");
 			using (BatchLogger.BeginIndentScope("  "))
 			{
-				using Scope Scope = Tracer.Instance.StartActive("Finalize");
+				using IScope Scope = GlobalTracer.Instance.BuildSpan("Finalize").StartActive();
 				await Executor.FinalizeAsync(BatchLogger, CancellationToken);
 			}
 		}
