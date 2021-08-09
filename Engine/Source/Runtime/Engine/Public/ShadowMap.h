@@ -244,7 +244,7 @@ public:
 	// FShadowMap interface.
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) {}
 	virtual void Serialize(FArchive& Ar);
-	virtual FShadowMapInteraction GetInteraction() const = 0;
+	virtual FShadowMapInteraction GetInteraction(ERHIFeatureLevel::Type InFeatureLevel) const = 0;
 
 	// Runtime type casting.
 	virtual FShadowMap2D* GetShadowMap2D() { return NULL; }
@@ -322,13 +322,24 @@ public:
 	const UTexture2D* GetTexture() const;
 	const FVector2D& GetCoordinateScale() const { check(IsValid()); return CoordinateScale; }
 	const FVector2D& GetCoordinateBias() const { check(IsValid()); return CoordinateBias; }
+	const FVector2D& GetUseLQLightMapAlphaChannel_UVScale() const { check(IsValid()); return UseLQLightMapAlphaChannel_UVScale; }
+	const FVector2D& GetUseLQLightMapAlphaChannel_UVBias() const { check(IsValid()); return UseLQLightMapAlphaChannel_UVBias; }
+	bool IsUseLQLightMapAlphaChannel() const { check(IsValid()); return bUseLQLightMapAlphaChannel; }
+	void SetUseLQLightMapAlphaChannel_UVScaleBias(bool InbUse, const FVector2D& InUVScale = FVector2D(1, 1), const FVector2D& InUVBias = FVector2D(0, 0))
+	{
+		check(IsValid());
+		bUseLQLightMapAlphaChannel = InbUse;
+		UseLQLightMapAlphaChannel_UVScale = InUVScale;
+		UseLQLightMapAlphaChannel_UVBias = InUVBias;
+	}
+
 	bool IsValid() const { return Texture != NULL; }
 	bool IsShadowFactorTexture() const { return false; }
 
 	// FShadowMap interface.
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
 	virtual void Serialize(FArchive& Ar);
-	virtual FShadowMapInteraction GetInteraction() const;
+	virtual FShadowMapInteraction GetInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	// Runtime type casting.
 	virtual FShadowMap2D* GetShadowMap2D() { return this; }
@@ -350,7 +361,7 @@ public:
 protected:
 
 	/** The texture which contains the shadow-map data. */
-	UShadowMapTexture2D* Texture;
+	UTexture2D* Texture;
 
 	/** The scale which is applied to the shadow-map coordinates before sampling the shadow-map textures. */
 	FVector2D CoordinateScale;
@@ -363,6 +374,15 @@ protected:
 
 	/** Stores the inverse of the penumbra size, normalized.  Stores 1 to interpret the shadowmap as a shadow factor directly, instead of as a distance field. */
 	FVector4 InvUniformPenumbraSize;
+
+	/** Whether the shadow-map is stored in the alpha channel of the low-quality light-map. */
+	bool bUseLQLightMapAlphaChannel;
+
+	/** The scale which is applied to the shadow-map coordinates, only available when bUseLQLightMapAlphaChannel is true. */
+	FVector2D UseLQLightMapAlphaChannel_UVScale;
+
+	/** The bias which is applied to the shadow-map coordinates, only available when bUseLQLightMapAlphaChannel is true. */
+	FVector2D UseLQLightMapAlphaChannel_UVBias;
 
 #if WITH_EDITOR
 	/** If true, update the status when encoding light maps */

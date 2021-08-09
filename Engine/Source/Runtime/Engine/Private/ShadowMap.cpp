@@ -500,9 +500,12 @@ TRefCountPtr<FShadowMap2D> FShadowMap2D::AllocateShadowMap(
 }
 
 FShadowMap2D::FShadowMap2D() :
-	Texture(NULL),
-	CoordinateScale(FVector2D(0, 0)),
-	CoordinateBias(FVector2D(0, 0))
+	Texture(NULL)
+	, CoordinateScale(FVector2D(0, 0))
+	, CoordinateBias(FVector2D(0, 0))
+	, bUseLQLightMapAlphaChannel(false)
+	, UseLQLightMapAlphaChannel_UVScale(FVector2D(1, 1))
+	, UseLQLightMapAlphaChannel_UVBias(FVector2D(0, 0))
 {
 	for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 	{
@@ -511,9 +514,12 @@ FShadowMap2D::FShadowMap2D() :
 }
 
 FShadowMap2D::FShadowMap2D(const TMap<ULightComponent*,FShadowMapData2D*>& ShadowMapData) :
-	Texture(NULL),
-	CoordinateScale(FVector2D(0, 0)),
-	CoordinateBias(FVector2D(0, 0))
+	Texture(NULL)
+	, CoordinateScale(FVector2D(0, 0))
+	, CoordinateBias(FVector2D(0, 0))
+	, bUseLQLightMapAlphaChannel(false)
+	, UseLQLightMapAlphaChannel_UVScale(FVector2D(1, 1))
+	, UseLQLightMapAlphaChannel_UVBias(FVector2D(0, 0))
 {
 	for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 	{
@@ -531,6 +537,9 @@ FShadowMap2D::FShadowMap2D(TArray<FGuid> LightGuids)
 	, Texture(nullptr)
 	, CoordinateScale(FVector2D(0, 0))
 	, CoordinateBias(FVector2D(0, 0))
+	, bUseLQLightMapAlphaChannel(false)
+	, UseLQLightMapAlphaChannel_UVScale(FVector2D(1, 1))
+	, UseLQLightMapAlphaChannel_UVBias(FVector2D(0, 0))
 {
 	for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 	{
@@ -550,10 +559,21 @@ void FShadowMap2D::Serialize(FArchive& Ar)
 {
 	FShadowMap::Serialize(Ar);
 	
-	if( Ar.IsCooking() && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DistanceFieldShadows) )
+	if (Ar.IsCooking())
 	{
-		UShadowMapTexture2D* Dummy = NULL;
-		Ar << Dummy;
+		if (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DistanceFieldShadows))
+		{
+			UShadowMapTexture2D* Dummy = NULL;
+			Ar << Dummy;
+		}
+		else if (Ar.CookingTarget()->PlatformName().Contains("Android") && bUseLQLightMapAlphaChannel)
+		{
+			Ar << GEngine->DefaultTexture;
+		}
+		else
+		{
+			Ar << Texture;
+		}
 	}
 	else
 	{
@@ -576,12 +596,23 @@ void FShadowMap2D::Serialize(FArchive& Ar)
 		const float LegacyValue = 1.0f / .05f;
 		InvUniformPenumbraSize = FVector4(LegacyValue, LegacyValue, LegacyValue, LegacyValue);
 	}
+
+	if (Ar.UE4Ver() >= VER_UE4_STATIC_SHADOWMAP_USELQLIGHTMAPALPHACHANNEL)
+	{
+		Ar << bUseLQLightMapAlphaChannel << UseLQLightMapAlphaChannel_UVScale << UseLQLightMapAlphaChannel_UVBias;
+	}
 }
 
-FShadowMapInteraction FShadowMap2D::GetInteraction() const
+FShadowMapInteraction FShadowMap2D::GetInteraction(ERHIFeatureLevel::Type InFeatureLevel) const
 {
 	if (Texture)
 	{
+		bool bHighQuality = AllowHighQualityLightmaps(InFeatureLevel);
+		if (!bHighQuality && bUseLQLightMapAlphaChannel)
+		{
+			return FShadowMapInteraction::Texture(Texture, CoordinateScale * UseLQLightMapAlphaChannel_UVScale, CoordinateBias * UseLQLightMapAlphaChannel_UVScale + UseLQLightMapAlphaChannel_UVBias, bChannelValid, InvUniformPenumbraSize, true);
+		}
+
 		return FShadowMapInteraction::Texture(Texture, CoordinateScale, CoordinateBias, bChannelValid, InvUniformPenumbraSize);
 	}
 	return FShadowMapInteraction::None();

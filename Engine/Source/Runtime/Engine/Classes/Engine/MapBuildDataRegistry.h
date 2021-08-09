@@ -308,6 +308,7 @@ public:
 	ENGINE_API const FMeshMapBuildData* GetMeshBuildData(FGuid MeshId) const;
 	ENGINE_API FMeshMapBuildData* GetMeshBuildData(FGuid MeshId);
 	ENGINE_API FMeshMapBuildData* GetMeshBuildDataDuringBuild(FGuid MeshId);
+	ENGINE_API TMap<FGuid, FMeshMapBuildData>& GetMeshBuildDatas() { return MeshBuildData; }
 
 	/** 
 	 * Allocates a new FPrecomputedLightVolumeData from the registry.

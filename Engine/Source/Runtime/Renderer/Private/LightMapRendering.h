@@ -179,6 +179,7 @@ struct TDistanceFieldShadowsAndLightMapPolicy : public TLightMapPolicy< Lightmap
 	{
 		OutEnvironment.SetDefine(TEXT("STATICLIGHTING_TEXTUREMASK"), 1);
 		OutEnvironment.SetDefine(TEXT("STATICLIGHTING_SIGNEDDISTANCEFIELD"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_LQ_LIGHTMAP_ALPHACHANNEL"), 0);
 		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
@@ -490,7 +491,8 @@ FORCEINLINE_DEBUGGABLE bool UsePermutationWithMobileDeferred(const FMeshMaterial
 }
 
 /** Mobile Specific: Combines a distance field shadow with LQ lightmaps. */
-class FMobileDistanceFieldShadowsAndLQLightMapPolicy : public TDistanceFieldShadowsAndLightMapPolicy<LQ_LIGHTMAP>
+template< bool UseLQLightMapAlphaChannel >
+class TMobileDistanceFieldShadowsAndLQLightMapPolicy : public TDistanceFieldShadowsAndLightMapPolicy<LQ_LIGHTMAP>
 {
 	typedef TDistanceFieldShadowsAndLightMapPolicy<LQ_LIGHTMAP>	Super;
 public:
@@ -505,6 +507,8 @@ public:
 	{
 		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FMobileDirectionalLightCSMPolicy::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("USE_LQ_LIGHTMAP_ALPHACHANNEL"), UseLQLightMapAlphaChannel);
 	}
 
 	static bool RequiresSkylight()
@@ -652,6 +656,7 @@ enum ELightMapPolicyType
 	LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP,
 	// Mobile specific
 	LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP,
+	LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP_ALPHACHANNEL,
 	LMP_MOBILE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT,
 	LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT,
 	LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_WITH_LIGHTMAP,
@@ -778,7 +783,9 @@ public:
 
 		// Mobile specific
 		case LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP:
-			return FMobileDistanceFieldShadowsAndLQLightMapPolicy::ShouldCompilePermutation(Parameters);
+			return TMobileDistanceFieldShadowsAndLQLightMapPolicy<false>::ShouldCompilePermutation(Parameters);
+		case LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP_ALPHACHANNEL:
+			return TMobileDistanceFieldShadowsAndLQLightMapPolicy<true>::ShouldCompilePermutation(Parameters);
 		case LMP_MOBILE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT:
 			return FMobileDirectionalLightAndSHIndirectPolicy::ShouldCompilePermutation(Parameters);
 		case LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT:
@@ -846,7 +853,10 @@ public:
 
 		// Mobile specific
 		case LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP:
-			FMobileDistanceFieldShadowsAndLQLightMapPolicy::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			TMobileDistanceFieldShadowsAndLQLightMapPolicy<false>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			break;
+		case LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP_ALPHACHANNEL:
+			TMobileDistanceFieldShadowsAndLQLightMapPolicy<true>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			break;
 		case LMP_MOBILE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT:
 			FMobileDirectionalLightAndSHIndirectPolicy::ModifyCompilationEnvironment(Parameters, OutEnvironment);

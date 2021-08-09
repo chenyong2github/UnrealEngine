@@ -25,6 +25,7 @@
 #include "UObject/MobileObjectVersion.h"
 #include "EngineStats.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "ShadowMap.h"
 #if WITH_EDITOR
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
@@ -1591,6 +1592,16 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 		{
 			LightmapUVBias = MeshMapBuildData->PerInstanceLightmapData[Index].LightmapUVBias;
 			ShadowmapUVBias = MeshMapBuildData->PerInstanceLightmapData[Index].ShadowmapUVBias;
+
+			if (MeshMapBuildData->ShadowMap != nullptr)
+			{
+				FShadowMap2D* ShadowMap2D = MeshMapBuildData->ShadowMap->GetShadowMap2D();
+				if (ShadowMap2D && ShadowMap2D->IsUseLQLightMapAlphaChannel())
+				{
+					ShadowmapUVBias *= ShadowMap2D->GetUseLQLightMapAlphaChannel_UVScale();
+					ShadowmapUVBias += ShadowMap2D->GetUseLQLightMapAlphaChannel_UVBias();
+				}
+			}
 		}
 	
 		OutData.SetInstance(RenderIndex, InstanceData.Transform, RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);

@@ -587,11 +587,12 @@ public:
 	}
 
 	static FShadowMapInteraction Texture(
-		class UShadowMapTexture2D* InTexture,
+		class UTexture2D* InTexture,
 		const FVector2D& InCoordinateScale,
 		const FVector2D& InCoordinateBias,
 		const bool* InChannelValid,
-		const FVector4& InInvUniformPenumbraSize)
+		const FVector4& InInvUniformPenumbraSize,
+		const bool InbUseLQLightMapAlphaChannel = false)
 	{
 		FShadowMapInteraction Result;
 		Result.Type = SMIT_Texture;
@@ -599,6 +600,7 @@ public:
 		Result.CoordinateScale = InCoordinateScale;
 		Result.CoordinateBias = InCoordinateBias;
 		Result.InvUniformPenumbraSize = InInvUniformPenumbraSize;
+		Result.bUseLQLightMapAlphaChannel = InbUseLQLightMapAlphaChannel;
 
 		for (int Channel = 0; Channel < 4; Channel++)
 		{
@@ -634,7 +636,8 @@ public:
 		ShadowTexture(nullptr),
 		VirtualTexture(nullptr),
 		InvUniformPenumbraSize(FVector4(0, 0, 0, 0)),
-		Type(SMIT_None)
+		Type(SMIT_None),
+		bUseLQLightMapAlphaChannel(false)
 	{
 		for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 		{
@@ -645,7 +648,7 @@ public:
 	// Accessors.
 	EShadowMapInteractionType GetType() const { return Type; }
 
-	UShadowMapTexture2D* GetTexture() const
+	UTexture2D* GetTexture() const
 	{
 		checkSlow(Type == SMIT_Texture);
 		return ShadowTexture;
@@ -680,14 +683,20 @@ public:
 		return InvUniformPenumbraSize;
 	}
 
+	bool IsUseLQLightMapAlphaChannel() const
+	{
+		return bUseLQLightMapAlphaChannel;
+	}
+
 private:
-	UShadowMapTexture2D* ShadowTexture;
+	UTexture2D* ShadowTexture;
 	const ULightMapVirtualTexture2D* VirtualTexture;
 	FVector2D CoordinateScale;
 	FVector2D CoordinateBias;
 	bool bChannelValid[4];
 	FVector4 InvUniformPenumbraSize;
 	EShadowMapInteractionType Type;
+	bool bUseLQLightMapAlphaChannel;
 };
 
 class FLightMap;

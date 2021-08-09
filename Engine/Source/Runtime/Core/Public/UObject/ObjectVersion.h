@@ -641,6 +641,8 @@ enum EUnrealEngineObjectUE4Version
 	VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS,
 	// Fixed corrupt licensee flag in 4.26 assets
 	VER_UE4_CORRECT_LICENSEE_FLAG,
+	// Shadow-map is stored in the alpha channel of the low-quality light-map.
+	VER_UE4_STATIC_SHADOWMAP_USELQLIGHTMAPALPHACHANNEL,
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)

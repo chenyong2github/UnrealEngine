@@ -990,7 +990,7 @@ FShadowMapInteraction FLightCacheInterface::GetShadowMapInteraction(ERHIFeatureL
 	}
 	if (Interaction.GetType() == SMIT_None && ShadowMap)
 	{
-		Interaction = ShadowMap->GetInteraction();
+		Interaction = ShadowMap->GetInteraction(InFeatureLevel);
 	}
 
 	return Interaction;

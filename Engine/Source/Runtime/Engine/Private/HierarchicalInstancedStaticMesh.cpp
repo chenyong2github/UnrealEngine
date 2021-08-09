@@ -32,6 +32,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/AnyOf.h"
+#include "ShadowMap.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -2958,6 +2959,16 @@ void UHierarchicalInstancedStaticMeshComponent::SetPerInstanceLightMapAndEditorD
 			{
 				LightmapUVBias = MeshMapBuildData->PerInstanceLightmapData[Index].LightmapUVBias;
 				ShadowmapUVBias = MeshMapBuildData->PerInstanceLightmapData[Index].ShadowmapUVBias;
+
+				if (MeshMapBuildData->ShadowMap != nullptr)
+				{
+					FShadowMap2D* ShadowMap2D = MeshMapBuildData->ShadowMap->GetShadowMap2D();
+					if (ShadowMap2D && ShadowMap2D->IsUseLQLightMapAlphaChannel())
+					{
+						ShadowmapUVBias *= ShadowMap2D->GetUseLQLightMapAlphaChannel_UVScale();
+						ShadowmapUVBias += ShadowMap2D->GetUseLQLightMapAlphaChannel_UVBias();
+					}
+				}
 
 				PerInstanceData.SetInstanceLightMapData(RenderIndex, LightmapUVBias, ShadowmapUVBias);
 			}
