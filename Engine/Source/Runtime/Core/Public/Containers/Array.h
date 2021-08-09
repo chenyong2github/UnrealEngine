@@ -450,28 +450,6 @@ public:
 	TArray& operator=(const TArrayView<OtherElementType, OtherSizeType>& Other);
 
 private:
-#if !PLATFORM_COMPILER_HAS_IF_CONSTEXPR
-	template <
-		typename FromArrayType,
-		typename ToArrayType,
-		std::enable_if_t<TCanMoveBetweenAllocators<typename FromArrayType::AllocatorType, typename ToArrayType::AllocatorType>::Value>* = nullptr
-	>
-	static FORCEINLINE void MoveAllocatorToEmpty(FromArrayType& FromArray, ToArrayType& ToArray)
-	{
-		ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<typename FromArrayType::AllocatorType>(FromArray.AllocatorInstance);
-	}
-
-	template <
-		typename FromArrayType,
-		typename ToArrayType,
-		std::enable_if_t<!TCanMoveBetweenAllocators<typename FromArrayType::AllocatorType, typename ToArrayType::AllocatorType>::Value>* = nullptr
-	>
-	static FORCEINLINE void MoveAllocatorToEmpty(FromArrayType& FromArray, ToArrayType& ToArray)
-	{
-		ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
-	}
-#endif
-
 	/**
 	 * Moves or copies array. Depends on the array type traits.
 	 *
@@ -486,7 +464,6 @@ private:
 		using FromAllocatorType = typename FromArrayType::AllocatorType;
 		using ToAllocatorType   = typename ToArrayType::AllocatorType;
 
-#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 		if constexpr (TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
 		{
 			ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
@@ -495,9 +472,6 @@ private:
 		{
 			ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
 		}
-#else
-		MoveAllocatorToEmpty(FromArray, ToArray);
-#endif
 
 		ToArray  .ArrayNum = FromArray.ArrayNum;
 		ToArray  .ArrayMax = FromArray.ArrayMax;

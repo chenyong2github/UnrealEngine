@@ -27,53 +27,5 @@ namespace UE
 		struct TAttributeTypeTraits : public TAttributeTypeTraitsBase<AttributeType>
 		{
 		};
-		
-		/** Implemented functionality for retrieving a types trait value for platforms without constexpr support */
-#if !PLATFORM_COMPILER_HAS_IF_CONSTEXPR
-		/**
-		 * Selection of IsBlendableType call.
-		 */
-		template<class AttributeType>
-		FORCEINLINE typename TEnableIf<!TAttributeTypeTraits<AttributeType>::IsBlendable, bool>::Type IsBlendableType()
-		{
-			return false;
-		}
-
-		template<class AttributeType>
-		FORCEINLINE typename TEnableIf<TAttributeTypeTraits<AttributeType>::IsBlendable, bool>::Type IsBlendableType()
-		{
-			return true;
-		}
-
-		/**
-		 * Selection of IsStepInterpolatedType call.
-		 */
-		template<class AttributeType>
-		FORCEINLINE typename TEnableIf<!TAttributeTypeTraits<AttributeType>::StepInterpolate, bool>::Type IsStepInterpolatedType()
-		{
-			return false;
-		}
-
-		template<class AttributeType>
-		FORCEINLINE typename TEnableIf<TAttributeTypeTraits<AttributeType>::StepInterpolate, bool>::Type IsStepInterpolatedType()
-		{
-			return true;
-		}
-
-		/**
-		 * Selection of CustomBlendedType call.
-		 */
-		template<class AttributeType>
-		FORCEINLINE typename TEnableIf<!TAttributeTypeTraits<AttributeType>::WithCustomBlendOperator, bool>::Type CustomBlendedType()
-		{
-			return false;
-		}
-
-		template<class AttributeType>
-		FORCEINLINE typename TEnableIf<TAttributeTypeTraits<AttributeType>::WithCustomBlendOperator, bool>::Type CustomBlendedType()
-		{
-			return true;
-		}
-#endif
 	}
 }
