@@ -41,10 +41,11 @@ class FASTCTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("ASTCTexture"); }
 
-	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{
 		static FGuid Version(TEXT("4788dab5-b99c-479f-bc34-6d7df1cf30e3"));
 		Builder << Version;
+		OutTextureFormatVersioning = FModuleManager::GetModuleChecked<ITextureFormatModule>(TEXT("TextureFormatASTC")).GetTextureFormat();
 	}
 };
 

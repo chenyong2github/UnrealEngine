@@ -7,6 +7,8 @@
 #include "DerivedDataBuildFunction.h"
 #include "DerivedDataBuildVersion.h"
 
+class ITextureFormat;
+
 class FTextureBuildFunction : public UE::DerivedData::IBuildFunction
 {
 public:
@@ -15,5 +17,5 @@ public:
 	TEXTUREBUILD_API virtual void Build(UE::DerivedData::FBuildContext& Context) const override;
 
 protected:
-	virtual void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const = 0;
+	virtual void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const = 0;
 };

@@ -27,10 +27,11 @@ class FDXTTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("DXTTexture"); }
 
-	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{
 		static FGuid Version(TEXT("c2d5dbc5-131c-4525-a332-843230076d99"));
 		Builder << Version;
+		OutTextureFormatVersioning = FModuleManager::GetModuleChecked<ITextureFormatModule>(TEXT("TextureFormatDXT")).GetTextureFormat();
 	}
 };
 

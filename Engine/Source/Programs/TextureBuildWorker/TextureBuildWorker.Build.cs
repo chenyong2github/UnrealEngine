@@ -12,6 +12,32 @@ public abstract class TextureBuildWorkerTarget : DerivedDataBuildWorkerTarget
 	public TextureBuildWorkerTarget(TargetInfo Target) : base(Target)
 	{
 		SolutionDirectory += "/Texture";
+
+		var ProjectDesc = ProjectFile != null ? ProjectDescriptor.FromFile(ProjectFile) : null;
+
+		// Determine if TextureFormatOodle is enabled.
+		var TextureFormatOodleUPluginFile = new FileReference("../Plugins/Developer/TextureFormatOodle/TextureFormatOodle.uplugin");
+		var TextureFormatOodlePlugin = new PluginInfo(TextureFormatOodleUPluginFile, PluginType.Engine);
+
+		bool bTextureFormatOodlePluginEnabled =
+		Plugins.IsPluginEnabledForTarget(TextureFormatOodlePlugin, ProjectDesc, Target.Platform, Target.Configuration, TargetType.Program);
+
+		if (bTextureFormatOodlePluginEnabled)
+		{
+			ExtraModuleNames.Add("TextureFormatOodle");
+		}
+		else
+		{
+			// Check for a project specific Oodle plugin
+			foreach (PluginReferenceDescriptor PluginReference in ProjectDesc.Plugins)
+			{
+				if (String.Compare(PluginReference.Name, "Oodle", true) == 0 && !PluginReference.bOptional)
+				{
+					ExtraModuleNames.Add("OodleDXTTextureFormat");
+					break;
+				}
+			}
+		}
 	}
 }
 
@@ -21,18 +47,5 @@ public class TextureBuildWorker : ModuleRules
 	{
 		PrivateIncludePathModuleNames.Add("DerivedDataCache");
 		PrivateDependencyModuleNames.Add("DerivedDataBuildWorker");
-
-		// Determine if TextureFormatOodle is enabled.
-		var TextureFormatOodleUPluginFile = FileReference.Combine(new DirectoryReference(EngineDirectory), "Plugins/Developer/TextureFormatOodle/TextureFormatOodle.uplugin");
-		var TextureFormatOodlePlugin = new PluginInfo(TextureFormatOodleUPluginFile, PluginType.Engine);
-
-		bool bTextureFormatOodlePluginEnabled =
-		Enum.GetValues(typeof(UnrealTargetConfiguration)).Cast<UnrealTargetConfiguration>().Any(config
-				=> Plugins.IsPluginEnabledForTarget(TextureFormatOodlePlugin, null, Target.Platform, config, TargetType.Program));
-
-		if (bTextureFormatOodlePluginEnabled)
-		{
-			PrivateDependencyModuleNames.Add("TextureFormatOodle");
-		}
 	}
 }
