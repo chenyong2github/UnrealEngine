@@ -669,7 +669,7 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("Sine"), Metasound::StandardNodes::AudioVariant };
+				Info.ClassName = { StandardNodes::Namespace, TEXT("Sine"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = LOCTEXT("Metasound_SineNodeDisplayName", "Sine");
@@ -677,7 +677,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
@@ -792,7 +792,7 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("Saw"), Metasound::StandardNodes::AudioVariant };
+				Info.ClassName = { StandardNodes::Namespace, TEXT("Saw"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = LOCTEXT("Metasound_SawNodeDisplayName", "Saw");
@@ -800,7 +800,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
@@ -1021,7 +1021,7 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("Square"), Metasound::StandardNodes::AudioVariant };
+				Info.ClassName = { StandardNodes::Namespace, TEXT("Square"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = LOCTEXT("Metasound_SquareNodeDisplayName", "Square");
@@ -1029,7 +1029,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
@@ -1135,7 +1135,7 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("Triangle"), Metasound::StandardNodes::AudioVariant };
+				Info.ClassName = { StandardNodes::Namespace, TEXT("Triangle"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = LOCTEXT("Metasound_TriangleNodeDisplayName", "Triangle");
@@ -1143,7 +1143,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
@@ -1205,7 +1205,8 @@ namespace Metasound
 		// Common pins
 		static constexpr const TCHAR* WaveshapePinName = TEXT("Shape");
 		static constexpr const TCHAR* LfoOutPinName = TEXT("Out");
-	
+		static constexpr const TCHAR* TestOutName = TEXT("TestOut");
+
 		static const FVertexInterface& GetVertexInterface()
 		{
 			static const FVertexInterface Interface
@@ -1220,7 +1221,8 @@ namespace Metasound
 					TInputDataVertexModel<float>(FSquareOscilatorNode::FFactory::PulseWidthPinName, LOCTEXT("LfoPulseWidthDescription", "Pulse Width (0..1)"), 0.5f)
 				},
 				FOutputVertexInterface{
-					TOutputDataVertexModel<float>(LfoOutPinName, LOCTEXT("LfoOutputDescription", "Output of the LFO (blockrate)"))
+					TOutputDataVertexModel<float>(LfoOutPinName, LOCTEXT("LfoOutputDescription", "Output of the LFO (blockrate)")),
+// 					TOutputDataVertexModel<FAudioBuffer>(TestOutName, LOCTEXT("LfoOutputDescription2", "Test Output"))
 				}
 			};
 			return Interface;
@@ -1231,15 +1233,15 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("LFO"), Metasound::StandardNodes::AudioVariant };
+				Info.ClassName = { StandardNodes::Namespace, TEXT("LFO"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
-				Info.MinorVersion = 0;
+				Info.MinorVersion = 6;
 				Info.DisplayName = LOCTEXT("Metasound_LfoNodeDisplayName", "LFO");
 				Info.Description = LOCTEXT("Metasound_LfoNodeDescription", "Low frequency oscillator < blockrate");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
@@ -1277,6 +1279,7 @@ namespace Metasound
 			, PhaseOffset{MoveTemp(InPhaseOffset)}
 			, PulseWidth{MoveTemp(InPulseWidth)}
 			, Output{FFloatWriteRef::CreateNew(0.f)}
+			, TestOut(FAudioBufferWriteRef::CreateNew(InSettings))
 		{
 			ResetPhase();
 		}
@@ -1298,6 +1301,7 @@ namespace Metasound
 		{
 			FDataReferenceCollection OutputDataReferences;
 			OutputDataReferences.AddDataReadReference(LfoOutPinName, Output);
+// 			OutputDataReferences.AddDataReadReference(TestOutName, TestOut);
 			return OutputDataReferences;
 		}
 
@@ -1377,7 +1381,7 @@ namespace Metasound
 		FFloatReadRef PhaseOffset;
 		FFloatReadRef PulseWidth;
 		FFloatWriteRef Output;
-
+		FAudioBufferWriteRef TestOut;
 		Generators::FSawPolySmoothGenerator SawGenerator;
 		Generators::FSineWaveTableGenerator SineGenerator;
 		Generators::FTriangleGenerator TriangleGenerator;

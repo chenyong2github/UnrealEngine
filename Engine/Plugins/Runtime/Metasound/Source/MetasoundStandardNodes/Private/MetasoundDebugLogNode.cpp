@@ -18,7 +18,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("Print Log"), InOperatorName, InDataTypeName},
+				FNodeClassName { "Print Log", InOperatorName, InDataTypeName },
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -26,9 +26,9 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{ StandardNodes::DebugUtils },
-				{TEXT("Print Log")},
-				FNodeDisplayStyle{}
+				{ NodeCategories::Debug },
+				{ },
+				FNodeDisplayStyle()
 			};
 
 			return Metadata;

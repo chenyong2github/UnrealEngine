@@ -50,8 +50,8 @@ namespace Metasound
 			// Custom pin-related styles for non-literal types (ex. wire color, pin heads, etc.)
 			static const FName PinSubCategoryTime; // Time type
 
-			static const FText ConvertMenuName;
 			static const FText FunctionMenuName;
+			static const FText GraphMenuName;
 
 			// Adds an EdGraph node to mirror the provided FNodeHandle.
 			static UMetasoundEditorGraphNode* AddNode(UObject& InMetaSound, Frontend::FNodeHandle InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
@@ -61,7 +61,7 @@ namespace Metasound
 			static TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& EdGraph);
 
 			// Validates MetaSound and optionally performs AutoUpdate logic in Frontend with any additional logic required to refresh editor & respective editor object state.
-			static bool ValidateGraph(UObject& InMetaSoundToUpdate, bool bAutoUpdate = true);
+			static bool ValidateGraph(UObject& InMetaSound, bool bAutoUpdate = true, bool bInClearUpdateNotes = false);
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			static void RegisterGraphWithFrontend(UObject& InMetaSound);

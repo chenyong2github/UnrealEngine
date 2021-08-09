@@ -112,7 +112,7 @@ namespace Metasound
 			const FText NodeDescription = LOCTEXT("Metasound_FreqToMidiNodeDescription", "Converts a frequency (Hz) value to a Midi Note value.");
 
 			FNodeClassMetadata Info;
-			Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, DataTypeName };
+			Info.ClassName = { StandardNodes::Namespace, OperatorName, DataTypeName };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = NodeDisplayName;
@@ -120,7 +120,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
-			Info.CategoryHierarchy.Emplace(StandardNodes::Music);
+			Info.CategoryHierarchy.Emplace(NodeCategories::Music);
 
 			return Info;
 		};

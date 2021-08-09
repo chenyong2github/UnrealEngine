@@ -39,7 +39,7 @@ namespace Metasound
 				const FText NodeDescription = LOCTEXT("Metasound_FlangerNodeDescription", "Applies a flanger effect to input audio.");
 
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, TEXT("") };
+				Info.ClassName = { StandardNodes::Namespace, OperatorName, TEXT("") };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = NodeDisplayName;

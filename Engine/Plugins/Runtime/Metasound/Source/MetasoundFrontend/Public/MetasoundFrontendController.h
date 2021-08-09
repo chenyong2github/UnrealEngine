@@ -11,6 +11,8 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundGraph.h"
 
+class IMetaSoundAssetInterface;
+
 /* Metasound Controllers and Handles provide a object oriented interface for  manipulating Metasound Documents. 
  *
  * Each controller interface is associated with a single Metasound entity such as 
@@ -81,6 +83,32 @@ namespace Metasound
 			FGraphClassAccessPtr GraphClass;
 			FGraphAccessPtr Graph;
 			FDocumentAccessPtr Document;
+		};
+
+
+		/** Provides list of interface members that have been added or removed
+		  * when querying if a node's class has been updated */
+		struct FClassInterfaceUpdates
+		{
+			TArray<FMetasoundFrontendClassInput> AddedInputs;
+			TArray<FMetasoundFrontendClassOutput> AddedOutputs;
+			TArray<FMetasoundFrontendClassInput> RemovedInputs;
+			TArray<FMetasoundFrontendClassOutput> RemovedOutputs;
+
+			bool ContainsRemovedMembers() const
+			{
+				return !RemovedInputs.IsEmpty() || !RemovedOutputs.IsEmpty();
+			}
+
+			bool ContainsAddedMembers() const
+			{
+				return !AddedInputs.IsEmpty() || !AddedOutputs.IsEmpty();
+			}
+
+			bool ContainsChanges() const
+			{
+				return ContainsRemovedMembers() || ContainsAddedMembers();
+			}
 		};
 
 
@@ -397,10 +425,18 @@ namespace Metasound
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const = 0;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const = 0;
 
+			/**
+			  * Fills out the provided ClassInterfaceUpdate struct with the differences between
+			  * the registry's version of the class interface and that of the node.
+			  * @return Whether or not the interface was found in the registry.
+			  */
+			virtual bool DiffAgainstRegistryInterface(FClassInterfaceUpdates& OutInterfaceUpdates, bool bInUseHighestMinorVersion) const = 0;
+
 			/** Returns whether the node is eligible for auto-updating (i.e.
 			  * has undergone minor revision or the interface has changed, but
-			  * no higher major revision is available.) */
-			virtual bool CanAutoUpdate() const = 0;
+			  * no higher major revision is available. Optionally provide
+			  * interface updates to be populate with any information regarding interface updates. */
+			virtual bool CanAutoUpdate(const IMetaSoundAssetInterface& AssetInterface, FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const = 0;
 
 			/** Description of the given node. */
 			virtual const FText& GetDescription() const = 0;

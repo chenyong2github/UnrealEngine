@@ -81,7 +81,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("TriggerRoute"), InOperatorName, InDataTypeName},
+				FNodeClassName{ "TriggerRoute", InOperatorName, InDataTypeName},
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -89,9 +89,9 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{StandardNodes::TriggerUtils},
-				{TEXT("TriggerRoute")},
-				FNodeDisplayStyle{}
+				{ NodeCategories::Trigger },
+				{ },
+				FNodeDisplayStyle()
 			};
 
 			return Metadata;

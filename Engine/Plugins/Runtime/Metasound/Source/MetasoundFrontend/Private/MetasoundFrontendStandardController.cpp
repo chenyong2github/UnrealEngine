@@ -4,9 +4,11 @@
 
 #include "Algo/ForEach.h"
 #include "Algo/NoneOf.h"
+#include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
 #include "MetasoundAccessPtr.h"
+#include "MetasoundAssetBase.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -1637,7 +1639,7 @@ namespace Metasound
 				return this->AsShared();
 			}
 
-			const FMetasoundFrontendNodeStyle Style = GetNodeStyle();
+			FMetasoundFrontendNodeStyle Style = GetNodeStyle();
 
 			using FConnectionKey = TPair<FString, FName>;
 
@@ -1740,40 +1742,144 @@ namespace Metasound
 			return ReplacementNode;
 		}
 
-		bool FBaseNodeController::CanAutoUpdate() const
+		bool FBaseNodeController::DiffAgainstRegistryInterface(FClassInterfaceUpdates& OutInterfaceUpdates, bool bInUseHighestMinorVersion) const
 		{
-			const FMetasoundFrontendClassMetadata& Metadata = GetClassMetadata();
+			OutInterfaceUpdates = FClassInterfaceUpdates();
 
-			const FMetasoundFrontendVersionNumber& CurrentVersion = Metadata.GetVersion();
-			Metasound::FNodeClassName NodeClassName = Metadata.GetClassName().ToNodeClassName();
+			const FMetasoundFrontendClassMetadata& NodeClassMetadata = GetClassMetadata();
+			const FMetasoundFrontendClassInterface& NodeClassInterface = GetClassInterface();
 
-			// TODO: Natively defined member should probably be added to the FMetasoundFrontendClass
-			// instead of being an independent member on the INodeRegistryEntry.
-			const FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(Metadata);
-			if (FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey))
+			Metasound::FNodeClassName NodeClassName = NodeClassMetadata.GetClassName().ToNodeClassName();
+
+			const bool bSortByVersion = true;
+
+			FMetasoundFrontendClass RegistryClass;
+			if (bInUseHighestMinorVersion)
 			{
-				return false;
-			}
-
-			FMetasoundFrontendClass ClassWithMajorVersion;
-			if (!ISearchEngine::Get().FindClassWithMajorVersion(NodeClassName, CurrentVersion.Major, ClassWithMajorVersion))
-			{
-				return false;
-			}
-
-			if (ClassWithMajorVersion.Metadata.GetChangeID() == Metadata.GetChangeID())
-			{
-				const FGuid& ChangeID = GetClassInterface().GetChangeID();
-				if (ClassWithMajorVersion.Interface.GetChangeID() == ChangeID)
+				if (!ISearchEngine::Get().FindClassWithMajorVersion(NodeClassName, NodeClassMetadata.GetVersion().Major, RegistryClass))
 				{
+					OutInterfaceUpdates.RemovedInputs = NodeClassInterface.Inputs;
+					OutInterfaceUpdates.RemovedOutputs = NodeClassInterface.Outputs;
 					return false;
+				}
+			}
+			else
+			{
+				const TArray<FMetasoundFrontendClass> Classes = ISearchEngine::Get().FindClassesWithName(NodeClassName, bSortByVersion);
+				const FMetasoundFrontendClass* ExactClass = Classes.FindByPredicate([CurrentVersion = &NodeClassMetadata.GetVersion()](const FMetasoundFrontendClass& AvailableClass)
+				{
+					return AvailableClass.Metadata.GetVersion() == *CurrentVersion;
+				});
+
+				if (!ExactClass)
+				{
+					OutInterfaceUpdates.RemovedInputs = NodeClassInterface.Inputs;
+					OutInterfaceUpdates.RemovedOutputs = NodeClassInterface.Outputs;
+					return false;
+				}
+				RegistryClass = *ExactClass;
+			}
+
+			for (const FMetasoundFrontendClassInput& Input : NodeClassInterface.Inputs)
+			{
+				auto IsFunctionalEquivalent = [NodeClassInput = &Input](const FMetasoundFrontendClassInput& Iter)
+				{
+					return FMetasoundFrontendClassVertex::IsFunctionalEquivalent(*NodeClassInput, Iter);
+				};
+
+				const int32 Index = RegistryClass.Interface.Inputs.FindLastByPredicate(IsFunctionalEquivalent);
+				if (Index == INDEX_NONE)
+				{
+					OutInterfaceUpdates.RemovedInputs.Add(Input);
+				}
+				else
+				{
+					RegistryClass.Interface.Inputs.RemoveAtSwap(Index, 1, false /* bAllowShrinking */);
+				}
+			}
+			OutInterfaceUpdates.AddedInputs = MoveTemp(RegistryClass.Interface.Inputs);
+
+			for (const FMetasoundFrontendClassOutput& Output : NodeClassInterface.Outputs)
+			{
+				auto IsFunctionalEquivalent = [NodeClassOutput = &Output](const FMetasoundFrontendClassOutput& Iter)
+				{
+					return FMetasoundFrontendClassVertex::IsFunctionalEquivalent(*NodeClassOutput, Iter);
+				};
+
+				const int32 Index = RegistryClass.Interface.Outputs.FindLastByPredicate(IsFunctionalEquivalent);
+				if (Index == INDEX_NONE)
+				{
+					OutInterfaceUpdates.RemovedOutputs.Add(Output);
+				}
+				else
+				{
+					RegistryClass.Interface.Outputs.RemoveAtSwap(Index, 1, false /* bAllowShrinking */);
+				}
+			}
+			OutInterfaceUpdates.AddedOutputs = MoveTemp(RegistryClass.Interface.Outputs);
+
+			return true;
+		}
+
+		bool FBaseNodeController::CanAutoUpdate(const IMetaSoundAssetInterface& AssetInterface, FClassInterfaceUpdates* OutInterfaceUpdates) const
+		{
+			const FMetasoundFrontendClassMetadata& NodeClassMetadata = GetClassMetadata();
+			if (!AssetInterface.CanAutoUpdate(NodeClassMetadata.GetClassName()))
+			{
+				return false;
+			}
+
+			FMetasoundFrontendClass RegistryClass;
+			if (!ISearchEngine::Get().FindClassWithMajorVersion(
+				NodeClassMetadata.GetClassName().ToNodeClassName(),
+				NodeClassMetadata.GetVersion().Major,
+				RegistryClass))
+			{
+				return false;
+			}
+
+			if (RegistryClass.Metadata.GetVersion() < NodeClassMetadata.GetVersion())
+			{
+				return false;
+			}
+
+			if (RegistryClass.Metadata.GetVersion() == NodeClassMetadata.GetVersion())
+			{
+				// TODO: Merge these paths.  Shouldn't use different logic to
+				// define changes in native vs asset class definitions.
+				const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(RegistryClass.Metadata);
+				const bool bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+				if (bIsClassNative)
+				{
+					FClassInterfaceUpdates InterfaceUpdates;
+					DiffAgainstRegistryInterface(InterfaceUpdates, true /* bUseHighestMinorVersion */);
+					if (OutInterfaceUpdates)
+					{
+						*OutInterfaceUpdates = InterfaceUpdates;
+					}
+
+					if (!InterfaceUpdates.ContainsChanges())
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if (RegistryClass.Metadata.GetChangeID() == NodeClassMetadata.GetChangeID())
+					{
+						const FGuid& NodeClassInterfaceChangeID = GetClassInterface().GetChangeID();
+						if (RegistryClass.Interface.GetChangeID() == NodeClassInterfaceChangeID)
+						{
+							return false;
+						}
+					}
 				}
 			}
 
 			return true;
 		}
 
-		FDocumentAccess FBaseNodeController::ShareAccess() 
+		FDocumentAccess FBaseNodeController::ShareAccess()
 		{
 			FDocumentAccess Access;
 
@@ -4082,25 +4188,6 @@ namespace Metasound
 					NumDependenciesRemovedThisItr = Document->Dependencies.RemoveAllSwap(IsDependencyUnreferenced);
 				}
 				while (NumDependenciesRemovedThisItr > 0);
-
-				/*
-				FRegistry* Registry = FRegistry::Get();
-				if (ensure(Registry))
-				{
-					// Make sure classes are up-to-date with registered versions of class
-					for (FMetasoundFrontendClass& Class : DocumentPtr->Dependencies)
-					{
-						FMetasoundFrontendClass RegisteredClass;
-						FNodeRegistryKey Key = FRegistry::GetRegistryKey(Class.Metadata);
-						if (Registry->FindFrontendClassFromRegistered(Key, RegisteredClass))
-						{
-							Class = RegisteredClass;
-							// TODO: update nodes for class.
-							// TODO: perform minor version updating.
-						}
-					}
-				}
-				*/
 			}
 		}
 

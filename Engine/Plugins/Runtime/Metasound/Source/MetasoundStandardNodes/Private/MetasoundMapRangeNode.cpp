@@ -6,6 +6,7 @@
 #include "MetasoundFacade.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "Internationalization/Text.h"
@@ -305,7 +306,7 @@ namespace Metasound
 
 				FNodeClassMetadata Metadata
 				{
-					FNodeClassName{FName("MapRange"), OperatorName, FMappingClass::GetDataTypeName()},
+					FNodeClassName { "MapRange", OperatorName, FMappingClass::GetDataTypeName() },
 					1, // Major Version
 					0, // Minor Version
 					FMappingClass::GetNodeName(),
@@ -313,9 +314,9 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{LOCTEXT("MapRangeCategory", "Math")},
-					{TEXT("MapRange")},
-					FNodeDisplayStyle{}
+					{ NodeCategories::Math },
+					{ },
+					FNodeDisplayStyle()
 				};
 				return Metadata;
 			};

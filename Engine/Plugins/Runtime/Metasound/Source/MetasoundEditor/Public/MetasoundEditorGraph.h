@@ -159,7 +159,7 @@ public:
 	bool IsPreviewing() const;
 
 	virtual bool Synchronize() override;
-	virtual bool Validate(bool bInAutoUpdate) override;
+	virtual bool Validate(bool bInAutoUpdate, bool bInClearUpdateNotes) override;
 
 	virtual void RegisterGraphWithFrontend() override;
 

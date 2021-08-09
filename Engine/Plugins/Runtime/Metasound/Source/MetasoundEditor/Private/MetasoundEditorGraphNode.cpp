@@ -38,6 +38,11 @@ namespace Metasound
 				InNode.bHasCompilerMessage = true;
 				InNode.ErrorMsg = InMessage;
 				InNode.ErrorType = InSeverity;
+
+				if (InSeverity == EMessageSeverity::Error)
+				{
+					UE_LOG(LogMetasoundEditor, Error, TEXT("%s"), *InMessage);
+				}
 			}
 		} // namespace GraphNodePrivate
 	} // namespace Editor
@@ -573,7 +578,7 @@ bool UMetasoundEditorGraphExternalNode::CanAutoUpdate() const
 {
 	using namespace Metasound::Frontend;
 
-	return GetConstNodeHandle()->CanAutoUpdate();
+	return GetConstNodeHandle()->CanAutoUpdate(UMetaSoundAssetSubsystem::Get());
 }
 
 UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages)
@@ -612,23 +617,6 @@ UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVe
 	GetGraph()->RemoveNode(this);
 	MetaSound.Modify();
 
-	// TODO: Pare down to SynchronizeNode/NodeConnections call to avoid having to synchronize the entire graph for all version calls
-	FGraphBuilder::SynchronizeGraph(MetaSound);
-
-	if (InitVersion != InNewVersion)
-	{
-		NodeUpgradeMessage = FText::Format(LOCTEXT("NodeVersionUpgradeMessageFormat", "Class interface updated: {0} to {1}"),
-			FText::FromString(*InitVersion.ToString()),
-			FText::FromString(*InNewVersion.ToString())
-		);
-	}
-	else
-	{
-		NodeUpgradeMessage = FText::Format(LOCTEXT("NodeVersionRefreshMessageFormat", "Class interface updated: detected interface change for {0}"),
-			FText::FromString(*InitVersion.ToString())
-		);
-	}
-
 	if (InitNodeID != ReplacementNodeID)
 	{
 		if (bInPropagateErrorMessages)
@@ -649,8 +637,7 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 
 	OutResult = FGraphNodeValidationResult(*this);
 
-	FNodeHandle NodeHandle = GetNodeHandle();
-
+	// 1. Reset ed node validation state
 	if (ErrorType != EMessageSeverity::Info)
 	{
 		ErrorType = EMessageSeverity::Info;
@@ -664,80 +651,166 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 		OutResult.bIsDirty = true;
 	}
 
-	if (bClearUpgradeMessage && !NodeUpgradeMessage.IsEmpty())
+	if (bClearUpgradeMessage)
 	{
-		NodeUpgradeMessage = FText::GetEmpty();
-		OutResult.bIsDirty = true;
-	}
-
-	if (!NodeHandle->IsValid())
-	{
-		GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, TEXT("Class definition missing (If defined in asset, corrisponding graph definition may be invalid)"));
-		OutResult.bIsInvalid = true;
-		OutResult.bIsDirty = true;
-		return !OutResult.bIsInvalid;
-	}
-
-	const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
-	const Metasound::FNodeClassName NodeClassName = Metadata.GetClassName().ToNodeClassName();
-	const TArray<FMetasoundFrontendClass> SortedClasses = ISearchEngine::Get().FindClassesWithName(NodeClassName, true /* bSortByVersion */);
-
-	if (SortedClasses.IsEmpty())
-	{
-		OutResult.MissingClass = NodeClassName.GetFullName();
-		const FString NewErrorMsg = FString::Format(TEXT("Class definition '{0}' missing: {1}"),
-			{
-				*Metadata.GetClassName().ToString(),
-				*Metadata.GetPromptIfMissing().ToString()
-			});
-
-		for (UEdGraphPin* Pin : Pins)
+		if (!NodeUpgradeMessage.IsEmpty())
 		{
-			Pin->bOrphanedPin = true;
-		}
-
-		GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, NewErrorMsg);
-		OutResult.bIsDirty = true;
-		OutResult.bIsInvalid = true;
-		return !OutResult.bIsInvalid;
-	}
-
-	for (UEdGraphPin* Pin : Pins)
-	{
-		if (Pin->bOrphanedPin)
-		{
-			Pin->bOrphanedPin = false;
+			NodeUpgradeMessage = FText::GetEmpty();
 			OutResult.bIsDirty = true;
 		}
 	}
 
+	// 2. Check if node is invalid, version is missing and cache if interface changes exist between the document's records and the registry
+	FNodeHandle NodeHandle = GetNodeHandle();
+	const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
+
+	FClassInterfaceUpdates InterfaceUpdates;
+	if (!NodeHandle->DiffAgainstRegistryInterface(InterfaceUpdates, false /* bUseHighestMinorVersion */))
+	{
+		
+		if (NodeHandle->IsValid())
+		{
+			const FText* PromptIfMissing = nullptr;
+			FString FormattedClassName;
+			if (bIsClassNative)
+			{
+				PromptIfMissing = &Metadata.GetPromptIfMissing();
+				FormattedClassName = FString::Format(TEXT("{0} {1} ({2})"), { *Metadata.GetDisplayName().ToString(), *Metadata.GetVersion().ToString(), *Metadata.GetClassName().ToString() });
+			}
+			else
+			{
+				static const FText AssetPromptIfMissing = LOCTEXT("PromptIfAssetMissing", "Asset may have not been saved, deleted or is not loaded (ex. in an unloaded plugin).");
+				PromptIfMissing = &AssetPromptIfMissing;
+				FormattedClassName = FString::Format(TEXT("{0} {1} ({2})"), { *Metadata.GetDisplayName().ToString(), *Metadata.GetVersion().ToString(), *Metadata.GetClassName().Name.ToString() });
+			}
+
+			const FString NewErrorMsg = FString::Format(TEXT("Class definition '{0}' not found: {1}"),
+			{
+				*FormattedClassName,
+				*PromptIfMissing->ToString()
+			});
+
+			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, NewErrorMsg);
+		}
+		else
+		{
+			if (bIsClassNative)
+			{
+				GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, FString::Format(
+					TEXT("Class '{0}' definition missing for last known natively defined node."),
+					{ *ClassName.ToString() }));
+			}
+			else
+			{
+				GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
+					FString::Format(TEXT("Class definition missing for asset with guid '{0}': Asset is either missing or invalid"),
+					{ *ClassName.Name.ToString() }));
+			}
+		}
+
+		OutResult.bIsDirty = true;
+		OutResult.bIsInvalid = true;
+	}
+
+	// 3. Report if node was nativized
+	const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(Metadata);
+	bool bNewIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+	if (bIsClassNative != bNewIsClassNative)
+	{
+		if (bNewIsClassNative)
+		{
+			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Info, FString::Format(TEXT("Class '{0}' has been nativized."),
+			{
+				*Metadata.GetDisplayName().ToString()
+			}));
+		}
+
+		OutResult.bIsDirty = true;
+		bIsClassNative = bNewIsClassNative;
+	}
+
+	// 4. Report if node was auto-updated
+	FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
+	if (Style.bMessageNodeUpdated)
+	{
+		if (bClearUpgradeMessage)
+		{
+			Style.bMessageNodeUpdated = false;
+			NodeHandle->SetNodeStyle(Style);
+		}
+		else
+		{
+			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Info, FString::Format(TEXT("Node class '{0}' updated to version {1}"),
+			{
+				*Metadata.GetDisplayName().ToString(),
+				*Metadata.GetVersion().ToString()
+			}));
+		}
+
+		OutResult.bIsDirty = true;
+	}
+
+	// 5. Reset pin state (if pin was orphaned or clear if no longer orphaned)
+	for (UEdGraphPin* Pin : Pins)
+	{
+		bool bWasRemoved = false;
+		if (Pin->Direction == EGPD_Input)
+		{
+			FInputHandle Input = FGraphBuilder::GetInputHandleFromPin(Pin);
+			bWasRemoved |= InterfaceUpdates.RemovedInputs.ContainsByPredicate([&](const FMetasoundFrontendClassInput& ClassInput)
+			{
+				return Input->GetName() == ClassInput.Name && Input->GetDataType() == ClassInput.TypeName;
+			});
+		}
+
+		if (Pin->Direction == EGPD_Output)
+		{
+			FOutputHandle Output = FGraphBuilder::GetOutputHandleFromPin(Pin);
+			bWasRemoved |= InterfaceUpdates.RemovedOutputs.ContainsByPredicate([&](const FMetasoundFrontendClassOutput& ClassOutput)
+				{
+					return Output->GetName() == ClassOutput.Name && Output->GetDataType() == ClassOutput.TypeName;
+				});
+		}
+
+		if (Pin->bOrphanedPin != bWasRemoved)
+		{
+			Pin->bOrphanedPin = bWasRemoved;
+			OutResult.bIsDirty = true;
+		}
+	}
+
+	// 6. Find all available versions & report if upgrade available
+	const Metasound::FNodeClassName NodeClassName = Metadata.GetClassName().ToNodeClassName();
+	const TArray<FMetasoundFrontendClass> SortedClasses = ISearchEngine::Get().FindClassesWithName(NodeClassName, true /* bSortByVersion */);
 	const FMetasoundFrontendVersionNumber& CurrentVersion = Metadata.GetVersion();
-	if (SortedClasses[0].Metadata.GetVersion() > CurrentVersion)
+	const FMetasoundFrontendClass& HighestRegistryClass = SortedClasses[0];
+	if (HighestRegistryClass.Metadata.GetVersion() > CurrentVersion)
 	{
 		FMetasoundFrontendClass HighestMinorVersionClass;
 		FString NodeMsg;
 		EMessageSeverity::Type Severity;
 
-		auto ClassVersionExists = [InCurrentVersion = &CurrentVersion](const FMetasoundFrontendClass& AvailableClass)
+		const bool bClassVersionExists = SortedClasses.ContainsByPredicate([InCurrentVersion = &CurrentVersion](const FMetasoundFrontendClass& AvailableClass)
 		{
 			return AvailableClass.Metadata.GetVersion() == *InCurrentVersion;
-		};
-		if (SortedClasses.ContainsByPredicate(ClassVersionExists))
+		});
+		if (bClassVersionExists)
 		{
-			NodeMsg = FString::Format(TEXT("Node class '{0}' out-of-date: Eligible for upgrade to {1}"),
+			NodeMsg = FString::Format(TEXT("Node class '{0} {1}' is prior version: Eligible for upgrade to {2}"),
 			{
 				*Metadata.GetClassName().ToString(),
-				*SortedClasses[0].Metadata.GetVersion().ToString()
+				*Metadata.GetVersion().ToString(),
+				*HighestRegistryClass.Metadata.GetVersion().ToString()
 			});
 			Severity = EMessageSeverity::Warning;
 		}
 		else
 		{
-			NodeMsg = FString::Format(TEXT("Node class '{0} ({1})' is missing.  Highest version ({2}) found."),
+			NodeMsg = FString::Format(TEXT("Node class '{0} {1}' is missing and ineligible for auto-update.  Highest version '{2}' found."),
 			{
 				*Metadata.GetClassName().ToString(),
 				*Metadata.GetVersion().ToString(),
-				*SortedClasses[0].Metadata.GetVersion().ToString()
+				*HighestRegistryClass.Metadata.GetVersion().ToString()
 			});
 			Severity = EMessageSeverity::Error;
 			OutResult.bIsInvalid = true;
@@ -745,13 +818,33 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 
 		GraphNodePrivate::SetGraphNodeMessage(*this, Severity, NodeMsg);
 		OutResult.bIsDirty = true;
-		return !OutResult.bIsInvalid;
 	}
-
-	OutResult.bIsAutoUpdateEligible = CanAutoUpdate();
-
-	const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(Metadata);
-	bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+	else if (HighestRegistryClass.Metadata.GetVersion() == CurrentVersion)
+	{
+		if (InterfaceUpdates.ContainsChanges())
+		{
+			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
+			FString::Format(TEXT("Node & registered class interface mismatch: '{0} {1}'. Class either versioned improperly, class key collision exists, or AutoUpdate disabled in 'MetaSound' Developer Settings."),
+			{
+				*Metadata.GetClassName().ToString(),
+				*Metadata.GetVersion().ToString()
+			}));
+			OutResult.bIsDirty = true;
+			OutResult.bIsInvalid = true;
+		}
+	}
+	else
+	{
+		GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
+			FString::Format(TEXT("Node with class '{0} {1}' interface version higher than that of highest minor revision ({2}) in class registry."),
+			{
+				*Metadata.GetClassName().ToString(),
+				*Metadata.GetVersion().ToString(),
+				*HighestRegistryClass.Metadata.GetVersion().ToString()
+			}));
+		OutResult.bIsDirty = true;
+		OutResult.bIsInvalid = true;
+	}
 
 	return !OutResult.bIsInvalid;
 }

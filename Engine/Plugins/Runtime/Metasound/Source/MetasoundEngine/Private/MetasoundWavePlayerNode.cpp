@@ -300,7 +300,7 @@ namespace Metasound
 
 			if (IsWaveValid())
 			{
-				
+				UE_LOG(LogMetaSound, Verbose, TEXT("Starting Sound: '%s'"), *CurrentWaveAsset->GetFullName());
 				SoundAssetSampleRate = CurrentWaveAsset->GetSampleRate();
 				SoundAssetDurationSeconds = CurrentWaveAsset->GetDuration();
 				SoundAssetNumFrames = CurrentWaveAsset->GetNumFrames();

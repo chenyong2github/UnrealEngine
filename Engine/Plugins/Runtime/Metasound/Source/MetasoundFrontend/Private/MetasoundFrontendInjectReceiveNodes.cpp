@@ -93,7 +93,7 @@ namespace Metasound
 				{
 					FNodeClassMetadata Metadata
 					{
-						FNodeClassName{"MetasoundFrontendInjectReceiveNodes", "ReceiveNodeAddress", ""},
+						FNodeClassName { "MetasoundFrontendInjectReceiveNodes", "ReceiveNodeAddress", "" },
 						1, // MajorVersion
 						0, // MinorVersion
 						FText::GetEmpty(), // DisplayName
@@ -102,8 +102,8 @@ namespace Metasound
 						FText::GetEmpty(), // Prompt If Missing
 						CreateVertexInterface(), // DefaultInterface
 						TArray<FText>(), // CategoryHierachy
-						TArray<FName>(), // Keywoards
-						FNodeDisplayStyle {} // NodeDisplayStyle
+						TArray<FText>(), // Keywords
+						FNodeDisplayStyle() // NodeDisplayStyle
 					}; 
 
 					return Metadata;

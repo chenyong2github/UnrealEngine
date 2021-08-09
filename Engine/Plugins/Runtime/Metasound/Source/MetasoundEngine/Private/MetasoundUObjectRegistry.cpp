@@ -14,6 +14,7 @@
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendTransform.h"
+#include "MetasoundSettings.h"
 #include "MetasoundSource.h"
 #include "UObject/Object.h"
 
@@ -82,6 +83,7 @@ void UMetaSoundAssetSubsystem::PostEngineInit()
 	if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
 	{
 		AssetManager->CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UMetaSoundAssetSubsystem::PostInitAssetScan));
+		RebuildBlacklistCache(*AssetManager);
 	}
 	else
 	{
@@ -177,6 +179,60 @@ void UMetaSoundAssetSubsystem::AddOrUpdateAsset(const FAssetData& InAssetData, b
 
 	const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
 	PathMap.FindOrAdd(RegistryKey) = InAssetData.ObjectPath;
+}
+
+bool UMetaSoundAssetSubsystem::CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const
+{
+	const UMetaSoundSettings* Settings = GetDefault<UMetaSoundSettings>();
+	if (!Settings->bAutoUpdateEnabled)
+	{
+		return false;
+	}
+
+	return !AutoUpdateBlacklistCache.Contains(InClassName.GetFullName());
+}
+
+void UMetaSoundAssetSubsystem::RebuildBlacklistCache(const UAssetManager& InAssetManager)
+{
+	const UMetaSoundSettings* Settings = GetDefault<UMetaSoundSettings>();
+	if (Settings->BlacklistCacheChangeID == AutoUpdateBlacklistChangeID)
+	{
+		return;
+	}
+
+	AutoUpdateBlacklistCache.Reset();
+
+	for (const FMetasoundFrontendClassName& ClassName : Settings->AutoUpdateBlacklist)
+	{
+		AutoUpdateBlacklistCache.Add(ClassName.GetFullName());
+	}
+
+	for (const FDefaultMetaSoundAssetAutoUpdateSettings& UpdateSettings : Settings->AutoUpdateAssetBlacklist)
+	{
+		if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
+		{
+			FAssetData AssetData;
+			if (AssetManager->GetAssetDataForPath(UpdateSettings.MetaSound, AssetData))
+			{
+				FString AssetClassID;
+				if (AssetData.GetTagValue(Metasound::AssetTags::AssetClassID, AssetClassID))
+				{
+					const FMetasoundFrontendClassName ClassName = { FName(), *AssetClassID, FName() };
+					AutoUpdateBlacklistCache.Add(ClassName.GetFullName());
+				}
+			}
+		}
+	}
+
+	AutoUpdateBlacklistChangeID = Settings->BlacklistCacheChangeID;
+}
+
+void UMetaSoundAssetSubsystem::RescanAutoUpdateBlacklist()
+{
+	if (const UAssetManager* AssetManager = UAssetManager::GetIfValid())
+	{
+		RebuildBlacklistCache(*AssetManager);
+	}
 }
 
 FMetasoundAssetBase* UMetaSoundAssetSubsystem::FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const

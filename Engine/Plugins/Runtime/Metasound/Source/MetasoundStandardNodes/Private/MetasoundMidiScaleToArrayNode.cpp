@@ -104,7 +104,7 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("Musical Scale To Note Array"), Metasound::StandardNodes::AudioVariant };
+			Info.ClassName = { StandardNodes::Namespace, TEXT("Musical Scale To Note Array"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("Metasound_ScaleToNoteArray_NodeDisplayName", "Scale to Note Array");
@@ -112,7 +112,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
-			Info.CategoryHierarchy.Emplace(StandardNodes::Music);
+			Info.CategoryHierarchy.Emplace(NodeCategories::Music);
 
 			return Info;
 		};

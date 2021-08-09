@@ -37,6 +37,7 @@ namespace Metasound
 			const FString& GetAudioDeviceHandleVariableName();
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
+			const FString& GetGraphName();
 		}
 
 		// V1.1 of a Metasound Mono source. Uses FAudioBuffer as output.
@@ -50,6 +51,7 @@ namespace Metasound
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
 			const FString& GetInstanceIDName();
+			const FString& GetGraphName();
 		}
 
 		// V1.1 of a Metasound Stereo source. Uses two FAudioBuffers as outputs.
@@ -64,6 +66,7 @@ namespace Metasound
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
 			const FString& GetInstanceIDName();
+			const FString& GetGraphName();
 		}
 
 		// Current version of Metasound Source.
@@ -75,6 +78,7 @@ namespace Metasound
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
 			const FString& GetInstanceIDName();
+			const FString& GetGraphName();
 		}
 
 		// Current version of MetasoundSourceMono

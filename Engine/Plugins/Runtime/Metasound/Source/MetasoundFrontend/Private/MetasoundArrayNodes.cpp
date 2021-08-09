@@ -20,8 +20,8 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{LOCTEXT("ArrayCategory", "Array")},
-				{TEXT("Array")},
+				{ LOCTEXT("ArrayCategory", "Array") },
+				{ LOCTEXT("MetasoundArrayKeyword", "Array") },
 				FNodeDisplayStyle{}
 			};
 

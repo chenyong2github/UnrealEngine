@@ -11,6 +11,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendNodesCategories.h"
 
 #include <type_traits>
 
@@ -72,8 +73,13 @@ namespace Metasound
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
 
-				Info.CategoryHierarchy = { LOCTEXT("Metasound_ConvertNodeCategory", "Conversions") };
-				Info.Keywords = { "Convert", GetMetasoundDataTypeName<FromDataType>(), GetMetasoundDataTypeName<ToDataType>()};
+				Info.CategoryHierarchy.Emplace(NodeCategories::Conversions);
+				Info.Keywords =
+				{
+					LOCTEXT("MetasoundConvertKeyword", "Convert"),
+					FText::FromName(GetMetasoundDataTypeName<FromDataType>()),
+					FText::FromName(GetMetasoundDataTypeName<ToDataType>())
+				};
 
 				return Info;
 			};

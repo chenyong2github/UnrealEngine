@@ -5,6 +5,7 @@
 #include "MetasoundFacade.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundAudioBuffer.h"
 #include "Internationalization/Text.h"
@@ -27,7 +28,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("Max"), InOperatorName, InDataTypeName},
+				FNodeClassName { "Max", InOperatorName, InDataTypeName },
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -35,8 +36,8 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{LOCTEXT("MaxCategory", "Math")},
-				{TEXT("Max")},
+				{ NodeCategories::Math },
+				{ },
 				FNodeDisplayStyle{}
 			};
 

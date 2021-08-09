@@ -27,7 +27,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("Clamp"), InOperatorName, InDataTypeName},
+				FNodeClassName { "Clamp", InOperatorName, InDataTypeName },
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -35,9 +35,9 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{LOCTEXT("ClampCategory", "Math")},
-				{TEXT("Clamp")},
-				FNodeDisplayStyle{}
+				{ LOCTEXT("ClampCategory", "Math") },
+				{ LOCTEXT("ClampKeyword", "Clamp") },
+				FNodeDisplayStyle()
 			};
 
 			return Metadata;

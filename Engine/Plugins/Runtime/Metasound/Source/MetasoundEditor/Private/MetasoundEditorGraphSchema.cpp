@@ -24,9 +24,12 @@
 #include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendNodesCategories.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "ScopedTransaction.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "Toolkits/ToolkitManager.h"
 #include "ToolMenus.h"
 #include "UObject/NoExportTypes.h"
@@ -49,6 +52,9 @@ namespace Metasound
 	{
 		namespace SchemaPrivate
 		{
+			static const FText CategoryDelim = LOCTEXT("MetaSoundActionsCategoryDelim", "|");
+			static const FText KeywordDelim = LOCTEXT("MetaSoundKeywordDelim", " ");
+
 			static const FText InputDisplayNameFormat = LOCTEXT("DisplayNameAddInputFormat", "Get {0}");
 			static const FText InputTooltipFormat = LOCTEXT("TooltipAddInputFormat", "Adds a getter for the input '{0}' to the graph.");
 
@@ -60,7 +66,9 @@ namespace Metasound
 				Default = 0,
 				Inputs,
 				Outputs,
-				External
+				Graphs,
+				Functions,
+				Conversions
 			};
 
 			const FText& GetContextGroupDisplayName(EPrimaryContextGroup InContextGroup)
@@ -69,18 +77,34 @@ namespace Metasound
 				{
 					case EPrimaryContextGroup::Inputs:
 					{
-						static const FText InputGroupName = LOCTEXT("InputActions", "Input Actions");
+						static const FText InputGroupName = LOCTEXT("InputActions", "Inputs");
 						return InputGroupName;
 					}
 					case EPrimaryContextGroup::Outputs:
 					{
-						static const FText OutputGroupName = LOCTEXT("OutputActions", "Output Actions");
+						static const FText OutputGroupName = LOCTEXT("OutputActions", "Outputs");
 						return OutputGroupName;
 					}
 
-					// External nodes & any other group other than those above should not use a primary context group display name
+					case EPrimaryContextGroup::Graphs:
+					{
+						static const FText GraphGroupName = LOCTEXT("GraphActions", "Graphs");
+						return GraphGroupName;
+					}
+
+					case EPrimaryContextGroup::Functions:
+					{
+						static const FText FunctionGroupName = LOCTEXT("FunctionActions", "Functions");
+						return FunctionGroupName;
+					}
+
+					case EPrimaryContextGroup::Conversions:
+					{
+						static const FText ConversionGroupName = LOCTEXT("ConversionActions", "Conversions");
+						return ConversionGroupName;
+					}
+
 					case EPrimaryContextGroup::Default:
-					case EPrimaryContextGroup::External:
 					default:
 					{
 						checkNoEntry();
@@ -173,6 +197,45 @@ namespace Metasound
 	} // namespace Editor
 } // namespace Metasound
 
+
+const FSlateBrush* FMetasoundGraphSchemaAction_NewNode::GetIconBrush() const
+{
+	using namespace Metasound::Frontend;
+
+	if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+	{
+		const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassMetadata);
+		const bool bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+		if (bIsClassNative)
+		{
+			return MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.Node.Class.Native"));
+		}
+
+		return MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.Node.Class.Graph"));
+	}
+
+	return Super::GetIconBrush();
+}
+
+const FLinearColor& FMetasoundGraphSchemaAction_NewNode::GetIconColor() const
+{
+	using namespace Metasound::Frontend;
+
+	if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+	{
+		const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassMetadata);
+		const bool bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+		if (bIsClassNative)
+		{
+			return EditorSettings->NativeNodeTitleColor;
+		}
+
+		return EditorSettings->AssetReferenceNodeTitleColor;
+	}
+
+	return Super::GetIconColor();
+}
+
 UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /* = true */)
 {
 	using namespace Metasound::Editor;
@@ -194,9 +257,28 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 }
 
 FMetasoundGraphSchemaAction_NewInput::FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InNodeID, FText InToolTip, const int32 InGrouping)
-	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+	: FMetasoundGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
 	, NodeID(InNodeID)
 {
+}
+
+const FSlateBrush* FMetasoundGraphSchemaAction_NewInput::GetIconBrush() const
+{
+	if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+	{
+		return MetasoundStyle->GetBrush("MetasoundEditor.Graph.Node.Class.Input");
+	}
+	return Super::GetIconBrush();
+}
+
+const FLinearColor& FMetasoundGraphSchemaAction_NewInput::GetIconColor() const
+{
+	if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+	{
+		return EditorSettings->InputNodeTitleColor;
+	}
+
+	return Super::GetIconColor();
 }
 
 UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D InLocation, bool bSelectNewNode /* = true */)
@@ -239,7 +321,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 }
 
 FMetasoundGraphSchemaAction_PromoteToInput::FMetasoundGraphSchemaAction_PromoteToInput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping)
-	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+	: FMetasoundGraphSchemaAction_NewInput(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), FGuid(), MoveTemp(InToolTip), InGrouping)
 {
 }
 
@@ -294,9 +376,29 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 }
 
 FMetasoundGraphSchemaAction_NewOutput::FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FGuid InOutputNodeID, FText InToolTip, const int32 InGrouping)
-	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+	: FMetasoundGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
 	, NodeID(InOutputNodeID)
 {
+}
+
+const FSlateBrush* FMetasoundGraphSchemaAction_NewOutput::GetIconBrush() const
+{
+	if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+	{
+		return MetasoundStyle->GetBrush("MetasoundEditor.Graph.Node.Class.Output");
+	}
+
+	return Super::GetIconBrush();
+}
+
+const FLinearColor& FMetasoundGraphSchemaAction_NewOutput::GetIconColor() const
+{
+	if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+	{
+		return EditorSettings->OutputNodeTitleColor;
+	}
+
+	return Super::GetIconColor();
 }
 
 UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /* = true */)
@@ -334,7 +436,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 }
 
 FMetasoundGraphSchemaAction_PromoteToOutput::FMetasoundGraphSchemaAction_PromoteToOutput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping)
-	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+	: FMetasoundGraphSchemaAction_NewOutput(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), FGuid(), MoveTemp(InToolTip), InGrouping)
 {
 }
 
@@ -412,6 +514,18 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewComment::PerformAction(UEdGraph* Pa
 	}
 
 	return FEdGraphSchemaAction_NewNode::SpawnNodeFromTemplate<UEdGraphNode_Comment>(ParentGraph, CommentTemplate, SpawnLocation);
+}
+
+const FSlateBrush* FMetasoundGraphSchemaAction_NewComment::GetIconBrush() const
+{
+	// TODO: Implement (Find icon & rig up)
+	return Super::GetIconBrush();
+}
+
+const FLinearColor& FMetasoundGraphSchemaAction_NewComment::GetIconColor() const
+{
+	// TODO: Implement (Set to white when icon found)
+	return Super::GetIconColor();
 }
 
 UEdGraphNode* FMetasoundGraphSchemaAction_Paste::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
@@ -543,10 +657,10 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 			});
 
 			TSharedPtr<FMetasoundGraphSchemaAction_PromoteToOutput> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_PromoteToOutput>(
-				SchemaPrivate::GetContextGroupDisplayName(SchemaPrivate::EPrimaryContextGroup::Inputs),
+				SchemaPrivate::GetContextGroupDisplayName(SchemaPrivate::EPrimaryContextGroup::Outputs),
 				LOCTEXT("PromoteToOutputName", "Promote To Graph Output"),
 				LOCTEXT("PromoteToOutputTooltip", "Promotes node output to graph output"),
-				static_cast<int32>(SchemaPrivate::EPrimaryContextGroup::Inputs));
+				static_cast<int32>(SchemaPrivate::EPrimaryContextGroup::Outputs));
 
 			static_cast<FGraphActionMenuBuilder&>(ContextMenuBuilder).AddAction(NewNodeAction);
 		}
@@ -961,8 +1075,8 @@ void UMetasoundEditorGraphSchema::DroppedAssetsOnNode(const TArray<FAssetData>& 
 void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters, bool bShowSelectedActions) const
 {
 	using namespace Metasound;
+	using namespace Metasound::Editor;
 
-	const FText MenuJoinFormat = LOCTEXT("MetasoundActionsFormatSubCategory", "{0}|{1}");
 	const bool bIncludeDeprecated = static_cast<bool>(EnableDeprecatedMetaSoundNodeClassCreationCVar);
 	const TArray<FMetasoundFrontendClass> FrontendClasses = Frontend::ISearchEngine::Get().FindAllClasses(bIncludeDeprecated);
 	for (const FMetasoundFrontendClass& FrontendClass : FrontendClasses)
@@ -982,14 +1096,16 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 			? Metadata.GetDescription()
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.GetDescription(), Metadata.GetAuthor());
 
-		if (!Metadata.GetCategoryHierarchy().IsEmpty() && !Metadata.GetCategoryHierarchy()[0].CompareTo(Editor::FGraphBuilder::ConvertMenuName))
+		if (!Metadata.GetCategoryHierarchy().IsEmpty() && !Metadata.GetCategoryHierarchy()[0].CompareTo(NodeCategories::Conversions))
 		{
+			FText KeywordsText = FText::Join(SchemaPrivate::KeywordDelim, Metadata.GetKeywords());
 			TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 			(
-				Editor::FGraphBuilder::ConvertMenuName,
+				NodeCategories::Conversions,
 				Metadata.GetDisplayName(),
 				Tooltip,
-				0
+				static_cast<int32>(SchemaPrivate::EPrimaryContextGroup::Conversions),
+				KeywordsText
 			);
 
 			Metadata.SetType(EMetasoundFrontendClassType::External);
@@ -1059,9 +1175,8 @@ void UMetasoundEditorGraphSchema::GetDataTypeOutputNodeActions(FGraphContextMenu
 void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters, bool bShowSelectedActions, Metasound::Frontend::FConstGraphHandle InGraphHandle) const
 {
 	using namespace Metasound::Editor;
+	using namespace Metasound::Editor::SchemaPrivate;
 	using namespace Metasound::Frontend;
-
-	const FText MenuJoinFormat = LOCTEXT("MetasoundActionsFormatSubCategory", "{0}|{1}");
 
 	const UMetaSoundAssetSubsystem& AssetSubsystem = UMetaSoundAssetSubsystem::Get();
 	FMetasoundAssetBase* ParentAsset = nullptr;
@@ -1087,10 +1202,17 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 			continue;
 		}
 
-		if (ParentAsset && FrontendClass.Metadata.GetType() == EMetasoundFrontendClassType::External)
+		if (FrontendClass.Metadata.GetType() != EMetasoundFrontendClassType::External)
+		{
+			continue;
+		}
+
+		const FSoftObjectPath* Path = nullptr;
+		if (ParentAsset)
 		{
 			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(FrontendClass.Metadata);
-			if (const FSoftObjectPath* Path = AssetSubsystem.FindObjectPathFromKey(RegistryKey))
+			Path = AssetSubsystem.FindObjectPathFromKey(RegistryKey);
+			if (Path)
 			{
 				if (ParentAsset->AddingReferenceCausesLoop(*Path, AssetSubsystem))
 				{
@@ -1104,15 +1226,21 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 			? Metadata.GetDescription()
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.GetDescription(), Metadata.GetAuthor());
 
-		if (Metadata.GetCategoryHierarchy().IsEmpty() || Metadata.GetCategoryHierarchy()[0].CompareTo(FGraphBuilder::ConvertMenuName))
+		if (Metadata.GetCategoryHierarchy().IsEmpty() || Metadata.GetCategoryHierarchy()[0].CompareTo(Metasound::NodeCategories::Conversions))
 		{
-			const FText CategoriesText = FText::Join(LOCTEXT("MetasoundActionsCategoryDelim", "|"), Metadata.GetCategoryHierarchy());
+			TArray<FText> CategoryHeirarchy { GetContextGroupDisplayName(Path ? EPrimaryContextGroup::Graphs : EPrimaryContextGroup::Functions) };
+			CategoryHeirarchy.Append(Metadata.GetCategoryHierarchy());
+			const FText KeywordsText = FText::Join(KeywordDelim, Metadata.GetKeywords());
+			const FText CategoryText = FText::Join(CategoryDelim, CategoryHeirarchy);
+			const int32 GroupID = static_cast<int32>(Path ? EPrimaryContextGroup::Graphs : EPrimaryContextGroup::Functions);
+
 			TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 			(
-				FText::Format(MenuJoinFormat, FGraphBuilder::FunctionMenuName, CategoriesText),
+				CategoryText,
 				Metadata.GetDisplayName(),
 				Tooltip,
-				0
+				GroupID,
+				KeywordsText
 			);
 
 			Metadata.SetType(EMetasoundFrontendClassType::External);

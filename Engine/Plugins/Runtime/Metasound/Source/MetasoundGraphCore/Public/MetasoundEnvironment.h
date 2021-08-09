@@ -4,7 +4,12 @@
 
 #include "Containers/SortedMap.h"
 #include "CoreMinimal.h"
+#include "Misc/Build.h"
 #include <type_traits>
+
+#ifndef WITH_METASOUND_DEBUG_ENVIRONMENT
+#define WITH_METASOUND_DEBUG_ENVIRONMENT !UE_BUILD_SHIPPING
+#endif
 
 #define DECLARE_METASOUND_ENVIRONMENT_VARIABLE_TYPE(DLL_API, VarType) \
 	template<> \

@@ -209,7 +209,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("AudioMixer"), InOperatorName, TEXT("")},
+				FNodeClassName { "AudioMixer", InOperatorName, FName() },
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -217,8 +217,8 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{ StandardNodes::Audio },
-				{TEXT("AudioMixer")},
+				{ NodeCategories::Audio },
+				{ LOCTEXT("Metasound_AudioMixerKeyword", "Mixer")},
 				FNodeDisplayStyle{}
 			};
 

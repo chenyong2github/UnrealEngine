@@ -38,7 +38,7 @@ namespace Metasound
 
 				FNodeClassMetadata Metadata
 				{
-					FNodeClassName{FName("SampleAndHold"), TEXT("Sample And Hold"), Metasound::StandardNodes::AudioVariant},
+					FNodeClassName { "SampleAndHold", "Sample And Hold", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
 					LOCTEXT("SampleAndHoldDisplayName", "Sample And Hold"),
@@ -46,9 +46,9 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{StandardNodes::Filters},
-					{TEXT("SampleAndHold")},
-					FNodeDisplayStyle{}
+					{ NodeCategories::Filters },
+					{ },
+					FNodeDisplayStyle()
 				};
 
 				return Metadata;

@@ -12,7 +12,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("TriggerCompare"), InOperatorName, InDataTypeName},
+				FNodeClassName { "TriggerCompare", InOperatorName, InDataTypeName },
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -20,9 +20,9 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{StandardNodes::TriggerUtils},
-				{TEXT("TriggerCompare")},
-				FNodeDisplayStyle{}
+				{ NodeCategories::Trigger },
+				{ },
+				FNodeDisplayStyle()
 			};
 
 			return Metadata;

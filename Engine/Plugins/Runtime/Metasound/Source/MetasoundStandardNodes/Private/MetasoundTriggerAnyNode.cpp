@@ -22,7 +22,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("TriggerAny"), InOperatorName, TEXT("")},
+				FNodeClassName { "TriggerAny", InOperatorName, FName() },
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -30,8 +30,8 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{StandardNodes::TriggerUtils},
-				{TEXT("TriggerAny")},
+				{ NodeCategories::Trigger },
+				{ },
 				FNodeDisplayStyle{}
 			};
 

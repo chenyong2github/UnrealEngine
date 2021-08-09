@@ -168,7 +168,7 @@ namespace Metasound
 			FInt32ReadRef InNoRepeatOrder = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, InputNoRepeatOrderName, InParams.OperatorSettings);
 			FBoolReadRef bInEnableSharedState = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, InputEnableSharedStateName, InParams.OperatorSettings);
 
-			return MakeUnique<TArrayRandomGetOperator>(InParams, InTriggerNext, InTriggerReset, InInputArray, InInputWeightsArray, InSeedValue, InNoRepeatOrder, bInEnableSharedState);
+			return MakeUnique<TArrayRandomGetOperator<ArrayType>>(InParams, InTriggerNext, InTriggerReset, InInputArray, InInputWeightsArray, InSeedValue, InNoRepeatOrder, bInEnableSharedState);
 		}
 
 		TArrayRandomGetOperator(
@@ -190,7 +190,11 @@ namespace Metasound
 			, TriggerOnNext(FTriggerWriteRef::CreateNew(InParams.OperatorSettings))
 			, TriggerOnReset(FTriggerWriteRef::CreateNew(InParams.OperatorSettings))
 			, OutValue(TDataWriteReferenceFactory<ElementType>::CreateAny(InParams.OperatorSettings))
+#if WITH_METASOUND_DEBUG_ENVIRONMENT
+			, GraphName(*InParams.Environment.GetValue<FString>("GraphName"))
+#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
 		{
+
 			// Check to see if this is a global shuffler or a local one. 
 			// Global shuffler will use a namespace to opt into it.
 			PrevSeedValue = *SeedValue;
@@ -228,10 +232,12 @@ namespace Metasound
 					ArrayRandomGet = MakeUnique<FArrayRandomGet>(PrevSeedValue, PrevArraySize, WeightsArray, PrevNoRepeatOrder);
 				}
 			}
+#if WITH_METASOUND_DEBUG_ENVIRONMENT
 			else
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("Array Random Get: Can't retrieve random elements from an empty array"));
+ 				UE_LOG(LogMetaSound, Verbose, TEXT("Array Random Get: Can't retrieve random elements from an empty array in graph '%s'"), *GraphName);
 			}
+#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
 		}
 
 		virtual ~TArrayRandomGetOperator() = default;
@@ -289,7 +295,9 @@ namespace Metasound
 			{
 				if (!bHasLoggedEmptyArrayWarning)
 				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Array Random Get has an empty array input."));
+#if WITH_METASOUND_DEBUG_ENVIRONMENT
+					UE_LOG(LogMetaSound, Verbose, TEXT("Array Random Get: empty array input (Graph '%s')"), *GraphName);
+#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
 					bHasLoggedEmptyArrayWarning = true;
 				}
 				return;
@@ -410,6 +418,10 @@ namespace Metasound
 		FTriggerWriteRef TriggerOnNext;
 		FTriggerWriteRef TriggerOnReset;
 		TDataWriteReference<ElementType> OutValue;
+
+#if WITH_METASOUND_DEBUG_ENVIRONMENT
+		FString GraphName;
+#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
 
 		// Data
 		TUniquePtr<FArrayRandomGet> ArrayRandomGet;

@@ -50,9 +50,6 @@ namespace Metasound
 
 		const FName FGraphBuilder::PinSubCategoryTime = "time";
 
-		const FText FGraphBuilder::ConvertMenuName = LOCTEXT("MetasoundConversionsMenu", "Conversions");
-		const FText FGraphBuilder::FunctionMenuName = LOCTEXT("MetasoundFunctionsMenu", "Functions");
-
 		namespace GraphBuilderPrivate
 		{
 			void DeleteNode(UObject& InMetaSound, Frontend::FNodeHandle InNodeHandle)
@@ -149,49 +146,57 @@ namespace Metasound
 			return NewGraphNode;
 		}
 
-		bool FGraphBuilder::ValidateGraph(UObject& InMetaSoundToUpdate, bool bInAutoUpdate)
+		bool FGraphBuilder::ValidateGraph(UObject& InMetaSound, bool bInAutoUpdate, bool bInClearUpdateNotes)
 		{
 			using namespace Frontend;
 			using namespace GraphBuilderPrivate;
 
-			SynchronizeGraph(InMetaSoundToUpdate);
+			SynchronizeGraph(InMetaSound);
 
 			TSharedPtr<SGraphEditor> GraphEditor;
-			TSharedPtr<FEditor> MetaSoundEditor = GetEditorForMetasound(InMetaSoundToUpdate);
+			TSharedPtr<FEditor> MetaSoundEditor = GetEditorForMetasound(InMetaSound);
 			if (MetaSoundEditor.IsValid())
 			{
 				GraphEditor = MetaSoundEditor->GetGraphEditor();
 			}
 
-			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSoundToUpdate);
+			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
-
-			// Run initial validation pass before updating to capture upgrade message state prior to auto-update
 			UMetasoundEditorGraph& Graph = *CastChecked<UMetasoundEditorGraph>(&MetaSoundAsset->GetGraphChecked());
-			FGraphValidationResults Results;
-			Graph.ValidateInternal(Results);
 
-			bool bAutoUpdated = false;
-			if (Results.IsValid() && bInAutoUpdate)
+			FGraphValidationResults Results;
+
+			auto ValidateGraphInteral = [&]()
 			{
-				check(MetaSoundAsset);
+				Graph.ValidateInternal(Results, bInClearUpdateNotes);
+				for (const FGraphNodeValidationResult& Result : Results.GetResults())
+				{
+					if (GraphEditor.IsValid())
+					{
+						check(Result.Node);
+						GraphEditor->RefreshNode(*Result.Node);
+					}
+				}
+
+				InMetaSound.MarkPackageDirty();
+			};
+
+			if (bInAutoUpdate)
+			{
 				if (MetaSoundAsset->AutoUpdate(UMetaSoundAssetSubsystem::Get(), true /* bMarkDirty*/, true /* bUpdateReferencedAssets*/))
 				{
-					SynchronizeGraph(InMetaSoundToUpdate);
-
-					Graph.ValidateInternal(Results, false /* bClearUpgradeMessaging */);
-					for (const FGraphNodeValidationResult& Result : Results.GetResults())
-					{
-						if (GraphEditor.IsValid())
-						{
-							check(Result.Node);
-							GraphEditor->RefreshNode(*Result.Node);
-							MetaSoundEditor->RefreshInterface();
-						}
-					}
-
-					InMetaSoundToUpdate.MarkPackageDirty();
+					SynchronizeGraph(InMetaSound);
+					ValidateGraphInteral();
 				}
+			}
+			else
+			{
+				ValidateGraphInteral();
+			}
+
+			if (MetaSoundEditor.IsValid())
+			{
+				MetaSoundEditor->RefreshInterface();
 			}
 
 			return Results.IsValid();
@@ -904,10 +909,6 @@ namespace Metasound
 			}
 
 			FNodeHandle NodeHandle = Node->GetNodeHandle();
-			if (!ensure(NodeHandle->IsValid()))
-			{
-				return false;
-			}
 
 			// Remove connects only to pins associated with this EdGraph node
 			// only (Iterate pins and not Frontend representation to preserve

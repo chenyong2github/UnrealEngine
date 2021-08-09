@@ -182,7 +182,7 @@ namespace Metasound
 				const FText NodeDescription = FText::Format(LOCTEXT("ConverterNodeDesc", "Converts from {0} to {1}."), FromTypeText, ToTypeText);
 
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, ClassName, "" };
+				Info.ClassName = { StandardNodes::Namespace, ClassName, "" };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = NodeDisplayName;
@@ -190,7 +190,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetDefaultInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::Conversions);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Conversions);
 
 				return Info;
 			};

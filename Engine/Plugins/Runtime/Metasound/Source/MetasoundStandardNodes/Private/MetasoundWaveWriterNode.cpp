@@ -228,7 +228,7 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("WaveWriter"), Metasound::StandardNodes::AudioVariant };
+				Info.ClassName = { StandardNodes::Namespace, TEXT("WaveWriter"), StandardNodes::AudioVariant };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = LOCTEXT("Metasound_WaveWriterNodeDisplayName", "Wave Writer");
@@ -236,7 +236,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::Io);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Io);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
