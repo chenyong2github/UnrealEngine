@@ -6,11 +6,15 @@
 #include "Math/Plane.h"
 #include "Math/Matrix.h"
 
-/**
- * Mirrors a point about an abitrary plane 
+namespace UE {
+namespace Math {
+
+ /**
+ * Mirrors a point about an arbitrary plane 
  */
-class FMirrorMatrix
-	: public FMatrix
+template<typename T>
+struct TMirrorMatrix
+	: public TMatrix<T>
 {
 public:
 
@@ -19,16 +23,21 @@ public:
 	 * 
 	 * @param Plane source plane for mirroring (assumed normalized)
 	 */
-	FMirrorMatrix( const FPlane& Plane );
+	TMirrorMatrix( const TPlane<T>& Plane );
 };
 
-
-FORCEINLINE FMirrorMatrix::FMirrorMatrix( const FPlane& Plane ) :
+template<typename T>
+FORCEINLINE TMirrorMatrix<T>::TMirrorMatrix( const TPlane<T>& Plane ) :
 FMatrix(
-	FPlane( -2.f*Plane.X*Plane.X + 1.f,	-2.f*Plane.Y*Plane.X,		-2.f*Plane.Z*Plane.X,		0.f ),
-	FPlane( -2.f*Plane.X*Plane.Y,			-2.f*Plane.Y*Plane.Y + 1.f,	-2.f*Plane.Z*Plane.Y,		0.f ),
-	FPlane( -2.f*Plane.X*Plane.Z,			-2.f*Plane.Y*Plane.Z,		-2.f*Plane.Z*Plane.Z + 1.f,	0.f ),
-	FPlane(  2.f*Plane.X*Plane.W,			 2.f*Plane.Y*Plane.W,		 2.f*Plane.Z*Plane.W,		1.f ) )
+	TPlane<T>( -2.f*Plane.X*Plane.X + 1.f,		-2.f*Plane.Y*Plane.X,		-2.f*Plane.Z*Plane.X,		0.f ),
+	TPlane<T>( -2.f*Plane.X*Plane.Y,			-2.f*Plane.Y*Plane.Y + 1.f,	-2.f*Plane.Z*Plane.Y,		0.f ),
+	TPlane<T>( -2.f*Plane.X*Plane.Z,			-2.f*Plane.Y*Plane.Z,		-2.f*Plane.Z*Plane.Z + 1.f,	0.f ),
+	TPlane<T>(  2.f*Plane.X*Plane.W,			 2.f*Plane.Y*Plane.W,		 2.f*Plane.Z*Plane.W,		1.f ) )
 {
 	//check( FMath::Abs(1.f - Plane.SizeSquared()) < KINDA_SMALL_NUMBER && TEXT("not normalized"));
 }
+
+} // namespace Math
+} // namespace UE
+
+DECLARE_LWC_TYPE(MirrorMatrix, 44);

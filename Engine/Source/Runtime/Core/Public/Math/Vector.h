@@ -43,6 +43,8 @@ template<typename T> struct TPlane;
 template<typename T>
 struct TVector
 {
+	static_assert(std::is_floating_point_v<T>, "T must be floating point");
+
 public:
 	using FReal = T;
 

@@ -7,27 +7,36 @@
 #include "Math/Plane.h"
 #include "Math/Matrix.h"
 
-class FTranslationMatrix
-	: public FMatrix
+namespace UE {
+namespace Math {
+
+template<typename T>
+struct TTranslationMatrix
+	: public TMatrix<T>
 {
 public:
 
 	/** Constructor translation matrix based on given vector */
-	FTranslationMatrix(const FVector& Delta);
+	TTranslationMatrix(const TVector<T>& Delta);
 
 	/** Matrix factory. Return an FMatrix so we don't have type conversion issues in expressions. */
-	static FMatrix Make(FVector const& Delta)
+	static TMatrix<T> Make(TVector<T> const& Delta)
 	{
-		return FTranslationMatrix(Delta);
+		return TTranslationMatrix<T>(Delta);
 	}
 };
 
-
-FORCEINLINE FTranslationMatrix::FTranslationMatrix(const FVector& Delta)
-	: FMatrix(
-		FPlane(1.0f,	0.0f,	0.0f,	0.0f),
-		FPlane(0.0f,	1.0f,	0.0f,	0.0f),
-		FPlane(0.0f,	0.0f,	1.0f,	0.0f),
-		FPlane(Delta.X,	Delta.Y,Delta.Z,1.0f)
+template<typename T>
+FORCEINLINE TTranslationMatrix<T>::TTranslationMatrix(const TVector<T>& Delta)
+	: TMatrix<T>(
+		TPlane<T>(1.0f,		0.0f,	0.0f,	0.0f),
+		TPlane<T>(0.0f,		1.0f,	0.0f,	0.0f),
+		TPlane<T>(0.0f,		0.0f,	1.0f,	0.0f),
+		TPlane<T>(Delta.X,	Delta.Y,Delta.Z,1.0f)
 	)
 { }
+	
+} // namespace Math
+} // namespace UE
+
+DECLARE_LWC_TYPE(TranslationMatrix, 44);

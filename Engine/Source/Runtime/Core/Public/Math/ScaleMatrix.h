@@ -6,34 +6,38 @@
 #include "Math/Plane.h"
 #include "Math/Matrix.h"
 
+namespace UE {
+namespace Math {
+
 /**
  * Scale matrix.
  */
-class FScaleMatrix
-	: public FMatrix
+template<typename T>
+struct TScaleMatrix
+	: public TMatrix<T>
 {
 public:
 
 	/**
 	 * @param Scale uniform scale to apply to matrix.
 	 */
-	FScaleMatrix( float Scale );
+	TScaleMatrix( T Scale );
 
 	/**
 	 * @param Scale Non-uniform scale to apply to matrix.
 	 */
-	FScaleMatrix( const FVector& Scale );
+	TScaleMatrix( const TVector<T>& Scale );
 
-	/** Matrix factory. Return an FMatrix so we don't have type conversion issues in expressions. */
-	static FMatrix Make(float Scale)
+	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
+	static TMatrix<T> Make(T Scale)
 	{
-		return FScaleMatrix(Scale);
+		return TScaleMatrix<T>(Scale);
 	}
 
-	/** Matrix factory. Return an FMatrix so we don't have type conversion issues in expressions. */
-	static FMatrix Make(const FVector& Scale)
+	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
+	static TMatrix<T> Make(const TVector<T>& Scale)
 	{
-		return FScaleMatrix(Scale);
+		return TScaleMatrix<T>(Scale);
 	}
 };
 
@@ -41,21 +45,28 @@ public:
 /* FScaleMatrix inline functions
  *****************************************************************************/
 
-FORCEINLINE FScaleMatrix::FScaleMatrix( float Scale )
-	: FMatrix(
-		FPlane(Scale,	0.0f,	0.0f,	0.0f),
-		FPlane(0.0f,	Scale,	0.0f,	0.0f),
-		FPlane(0.0f,	0.0f,	Scale,	0.0f),
-		FPlane(0.0f,	0.0f,	0.0f,	1.0f)
+template<typename T>
+FORCEINLINE TScaleMatrix<T>::TScaleMatrix( T Scale )
+	: TMatrix<T>(
+		TPlane<T>(Scale,	0.0f,	0.0f,	0.0f),
+		TPlane<T>(0.0f,		Scale,	0.0f,	0.0f),
+		TPlane<T>(0.0f,		0.0f,	Scale,	0.0f),
+		TPlane<T>(0.0f,		0.0f,	0.0f,	1.0f)
 	)
 { }
 
 
-FORCEINLINE FScaleMatrix::FScaleMatrix( const FVector& Scale )
-	: FMatrix(
-		FPlane(Scale.X,	0.0f,		0.0f,		0.0f),
-		FPlane(0.0f,	Scale.Y,	0.0f,		0.0f),
-		FPlane(0.0f,	0.0f,		Scale.Z,	0.0f),
-		FPlane(0.0f,	0.0f,		0.0f,		1.0f)
+template<typename T>
+FORCEINLINE TScaleMatrix<T>::TScaleMatrix( const TVector<T>& Scale )
+	: TMatrix<T>(
+		TPlane<T>(Scale.X,	0.0f,		0.0f,		0.0f),
+		TPlane<T>(0.0f,		Scale.Y,	0.0f,		0.0f),
+		TPlane<T>(0.0f,		0.0f,		Scale.Z,	0.0f),
+		TPlane<T>(0.0f,		0.0f,		0.0f,		1.0f)
 	)
 { }
+	
+} // namespace Math
+} // namespace UE
+
+DECLARE_LWC_TYPE(ScaleMatrix, 44);
