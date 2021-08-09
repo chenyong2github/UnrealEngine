@@ -546,7 +546,7 @@ namespace AutomationTool
                 // Target.cs files) has already cached the contents of this 
                 // directory, then we need to invalidate that cache (so 
                 // it'll find/use the new Target.cs file)
-                RulesCompiler.InvalidateRulesFileCache(TempTargetDir);
+                Rules.InvalidateRulesFileCache(TempTargetDir);
             }
 
 			if (CommandUtils.CmdEnv.HasCapabilityToCompile)
@@ -683,7 +683,7 @@ namespace AutomationTool
 				DirPushed = true;
 			}
 			List<DirectoryReference> ExtraSearchDirectories = (ExtraSearchPaths == null)? null : ExtraSearchPaths.Select(x => new DirectoryReference(x)).ToList();
-			List<FileReference> TargetScripts = RulesCompiler.FindAllRulesSourceFiles(RulesCompiler.RulesFileType.Target, GameFolders: GameFolders, ForeignPlugins: null, AdditionalSearchPaths: ExtraSearchDirectories);
+			List<FileReference> TargetScripts = Rules.FindAllRulesSourceFiles(Rules.RulesFileType.Target, GameFolders: GameFolders, ForeignPlugins: null, AdditionalSearchPaths: ExtraSearchDirectories);
 			if (DirPushed)
 			{
 				CommandUtils.PopDir();

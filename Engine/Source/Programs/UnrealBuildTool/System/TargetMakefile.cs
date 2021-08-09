@@ -548,7 +548,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check that no new plugins have been added
-				foreach (FileReference PluginFile in Plugins.EnumeratePlugins(ProjectFile))
+				foreach (FileReference PluginFile in PluginsBase.EnumeratePlugins(ProjectFile))
 				{
 					FileItem PluginFileItem = FileItem.GetItemByFileReference(PluginFile);
 					if(!Makefile.PluginFiles.Contains(PluginFileItem))

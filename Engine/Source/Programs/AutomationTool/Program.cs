@@ -11,17 +11,311 @@ using EpicGames.Core;
 using System.IO;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.Build.Execution;
+using Microsoft.Build.Framework.Profiler;
 using UnrealBuildBase;
 
 namespace AutomationToolDriver
 {
-	public class Program
+	public partial class Program
 	{
+		/// <summary>
+		/// Parses command line parameter.
+		/// </summary>
+		/// <param name="ParamIndex">Parameter index</param>
+		/// <param name="CommandLine">Command line</param>
+		/// <param name="CurrentCommand">Recently parsed command</param>
+		/// <returns>True if the parameter has been successfully parsed.</returns>
+		private static void ParseParam(string CurrentParam, CommandInfo CurrentCommand)
+		{
+			bool bGlobalParam = AutomationToolCommandLine.TrySetGlobal(CurrentParam);
+
+			string Option_ScriptsForProject = "-ScriptsForProject";
+			string Option_ScriptDir = "-ScriptDir";
+
+			// The parameter was not found in the list of global parameters, continue looking...
+			if (CurrentParam.StartsWith(Option_ScriptsForProject + "=", StringComparison.InvariantCultureIgnoreCase))
+			{
+				if (AutomationToolCommandLine.IsSetUnchecked(Option_ScriptsForProject))
+				{
+					throw new Exception("The -ScriptsForProject argument may only be specified once");
+				}
+				string ProjectFileName = CurrentParam.Substring(CurrentParam.IndexOf('=') + 1).Replace("\"", "");
+				if (!File.Exists(ProjectFileName))
+				{
+					throw new Exception($"Project '{ProjectFileName}' does not exist");
+				}
+				AutomationToolCommandLine.SetUnchecked(Option_ScriptsForProject, Path.GetFullPath(ProjectFileName));
+			}
+			else if (CurrentParam.StartsWith(Option_ScriptDir + "=", StringComparison.InvariantCultureIgnoreCase))
+			{
+				string ScriptDir = CurrentParam.Substring(CurrentParam.IndexOf('=') + 1);
+				if (Directory.Exists(ScriptDir))
+				{
+					List<string> OutAdditionalScriptDirectories = (List<string>)AutomationToolCommandLine.GetValueUnchecked(Option_ScriptDir) ?? new List<string>();
+					OutAdditionalScriptDirectories.Add(ScriptDir);
+					AutomationToolCommandLine.SetUnchecked(Option_ScriptDir, OutAdditionalScriptDirectories);
+					Log.TraceVerbose("Found additional script dir: {0}", ScriptDir);
+				}
+				else
+				{
+					throw new Exception($"Specified ScriptDir doesn't exist: {ScriptDir}");
+				}
+			}
+			else if (CurrentParam.StartsWith("-"))
+			{
+				if (CurrentCommand != null)
+				{
+					CurrentCommand.Arguments.Add(CurrentParam.Substring(1));
+				}
+				else if (!bGlobalParam)
+				{
+					throw new Exception($"Unknown parameter {CurrentParam} in the command line that does not belong to any command.");
+				}
+			}
+			else if (CurrentParam.Contains("="))
+			{
+				// Environment variable
+				int ValueStartIndex = CurrentParam.IndexOf('=') + 1;
+				string EnvVarName = CurrentParam.Substring(0, ValueStartIndex - 1);
+				if (String.IsNullOrEmpty(EnvVarName))
+				{
+					throw new Exception($"Unable to parse environment variable that has no name. Error when parsing command line param {CurrentParam}");
+				}
+				string EnvVarValue = CurrentParam.Substring(ValueStartIndex);
+
+				Log.TraceLog($"SetEnvVar {EnvVarName}={EnvVarValue}");
+				Environment.SetEnvironmentVariable(EnvVarName, EnvVarValue);
+			}
+		}
+
+		private static string ParseString(string Key, string Value)
+		{
+			if (!String.IsNullOrEmpty(Key))
+			{
+				if (Value == "true" || Value == "false")
+				{
+					return "-" + Key;
+				}
+				else
+				{
+					string param = "-" + Key + "=";
+					if (Value.Contains(" "))
+					{
+						param += "\"" + Value + "\"";
+					}
+					else
+					{
+						param += Value;
+					}
+					return param;
+				}
+			}
+			else
+			{
+				return Value;
+			}
+		}
+
+		private static string ParseList(string Key, List<object> Value)
+		{
+			string param = "-" + Key + "=";
+			bool bStart = true;
+			foreach (var Val in Value)
+			{
+				if (!bStart)
+				{
+					param += "+";
+				}
+				param += Val as string;
+				bStart = false;
+			}
+			return param;
+		}
+
+		private static void ParseDictionary(Dictionary<string, object> Value, List<string> Arguments)
+		{
+			foreach (var Pair in Value)
+			{
+				if ((Pair.Value as string) != null && !string.IsNullOrEmpty(Pair.Value as string))
+				{
+					Arguments.Add(ParseString(Pair.Key, Pair.Value as string));
+				}
+				else if (Pair.Value.GetType() == typeof(bool))
+				{
+					if ((bool)Pair.Value)
+					{
+						Arguments.Add("-" + Pair.Key);
+					}
+				}
+				else if ((Pair.Value as List<object>) != null)
+				{
+					Arguments.Add(ParseList(Pair.Key, Pair.Value as List<object>));
+				}
+				else if ((Pair.Value as Dictionary<string, object>) != null)
+				{
+					string param = "-" + Pair.Key + "=\"";
+					List<string> Args = new List<string>();
+					ParseDictionary(Pair.Value as Dictionary<string, object>, Args);
+					bool bStart = true;
+					foreach (var Arg in Args)
+					{
+						if (!bStart)
+						{
+							param += " ";
+						}
+						param += Arg.Replace("\"", "\'");
+						bStart = false;
+					}
+					param += "\"";
+					Arguments.Add(param);
+				}
+			}
+		}
+
+		private static void ParseProfile(ref string[] CommandLine)
+		{
+			// find if there is a profile file to read
+			string Profile = "";
+			List<string> Arguments = new List<string>();
+			for (int Index = 0; Index < CommandLine.Length; ++Index)
+			{
+				if (CommandLine[Index].StartsWith("-profile="))
+				{
+					Profile = CommandLine[Index].Substring(CommandLine[Index].IndexOf('=') + 1);
+				}
+				else
+				{
+					Arguments.Add(CommandLine[Index]);
+				}
+			}
+
+			if (!string.IsNullOrEmpty(Profile))
+			{
+				if (File.Exists(Profile))
+				{
+					// find if the command has been specified
+					var text = File.ReadAllText(Profile);
+					var RawObject = fastJSON.JSON.Instance.Parse(text) as Dictionary<string, object>;
+					var Params = RawObject["scripts"] as List<object>;
+					foreach (var Script in Params)
+					{
+						string ScriptName = (Script as Dictionary<string, object>)["script"] as string;
+						if (!string.IsNullOrEmpty(ScriptName) && !Arguments.Contains(ScriptName))
+						{
+							Arguments.Add(ScriptName);
+						}
+						(Script as Dictionary<string, object>).Remove("script");
+						ParseDictionary((Script as Dictionary<string, object>), Arguments);
+					}
+				}
+			}
+
+			CommandLine = Arguments.ToArray();
+		}
+
+		/// <summary>
+		/// Parse the command line and create a list of commands to execute.
+		/// </summary>
+		/// <param name="Arguments">Command line</param>
+		public static void ParseCommandLine(string[] Arguments)
+		{
+			AutomationToolCommandLine = new ParsedCommandLine(
+				new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
+				{
+					{"-Verbose", "Enables verbose logging"},
+					{"-VeryVerbose", "Enables very verbose logging"},
+					{"-TimeStamps", ""},
+					{"-Submit", "Allows UAT command to submit changes"},
+					{"-NoSubmit", "Prevents any submit attempts"},
+					{"-NoP4", "Disables Perforce functionality {default if not run on a build machine}"},
+					{"-P4", "Enables Perforce functionality {default if run on a build machine}"},
+					{"-IgnoreDependencies", ""},
+					{"-Help", "Displays help"},
+					{"-List", "Lists all available commands"},
+					{"-NoKill", "Does not kill any spawned processes on exit"},
+					{"-UTF8Output", ""},
+					{"-AllowStdOutLogVerbosity", ""},
+					{"-NoAutoSDK", ""},
+					{"-Compile", "Force all script modules to be compiled"},
+					{"-IgnoreBuildRecords", "Ignore build record (.uatbuildrecord) files when determining if script modules are up to date" },
+					{"-UseLocalBuildStorage", @"Allows you to use local storage for your root build storage dir {default of P:\Builds {on PC} is changed to Engine\Saved\LocalBuilds}. Used for local testing."},
+					{"-WaitForDebugger", "Waits for a debugger to be attached, and breaks once debugger sucessfully attached."},
+					{"-BuildMachine", "" },
+					{"-WaitForUATMutex", "" }
+				}
+			);
+
+			ParseProfile(ref Arguments);
+
+			Log.TraceInformation("Parsing command line: {0}", CommandLine.FormatCommandLine(Arguments));
+
+			CommandInfo CurrentCommand = null;
+			for (int Index = 0; Index < Arguments.Length; ++Index)
+			{
+				// Guard against empty arguments passed as "" on the command line
+				string Param = Arguments[Index];
+				if(Param.Length > 0) 
+				{
+					if (Param.StartsWith("-") || Param.Contains("="))
+					{
+						ParseParam(Arguments[Index], CurrentCommand);
+					}
+					else
+					{
+						CurrentCommand = new CommandInfo(Arguments[Index]);
+						AutomationToolCommandLine.CommandsToExecute.Add(CurrentCommand);
+					}
+				}
+			}
+
+			// Validate
+			var Result = AutomationToolCommandLine.CommandsToExecute.Count > 0 || AutomationToolCommandLine.IsSetGlobal("-Help") || AutomationToolCommandLine.IsSetGlobal("-List");
+			if (AutomationToolCommandLine.CommandsToExecute.Count > 0)
+			{
+				Log.TraceVerbose("Found {0} scripts to execute:", AutomationToolCommandLine.CommandsToExecute.Count);
+				foreach (var Command in AutomationToolCommandLine.CommandsToExecute)
+				{
+					Log.TraceVerbose("  " + Command.ToString());
+				}
+			}
+			else if (!Result)
+			{
+				throw new Exception("Failed to find scripts to execute in the command line params.");
+			}
+			if (AutomationToolCommandLine.IsSetGlobal("-NoP4") && AutomationToolCommandLine.IsSetGlobal("-P4"))
+			{
+				throw new Exception("'-NoP4' and '-P4' can't be set simultaneously.");
+			}
+			if (AutomationToolCommandLine.IsSetGlobal("-NoSubmit") && AutomationToolCommandLine.IsSetGlobal("-Submit"))
+			{
+				throw new Exception("'-NoSubmit' and '-Submit' can't be set simultaneously.");
+			}
+		}
+
+
+		static ParsedCommandLine AutomationToolCommandLine;
+		static StartupTraceListener StartupListener = new StartupTraceListener();
+
 		// Do not add [STAThread] here. It will cause deadlocks in platform automation code.
 		public static int Main(string[] Arguments)
 		{
+			// Initialize the log system, buffering the output until we can create the log file
+			Trace.Listeners.Add(StartupListener);
+
+			// Populate AutomationToolCommandLine and CommandsToExecute
+			try
+			{
+				ParseCommandLine(Arguments);
+			}
+			catch (Exception Ex)
+			{
+				Log.TraceError("Error: " + Ex.Message);
+				return (int)ExitCode.Error_Arguments;
+			}
+
 			// Wait for a debugger to be attached
-			if (ParseParam(Arguments, "-WaitForDebugger"))
+			if (AutomationToolCommandLine.IsSetGlobal("-WaitForDebugger"))	
 			{
 				Console.WriteLine("Waiting for debugger to be attached...");
 				while (Debugger.IsAttached == false)
@@ -34,27 +328,23 @@ namespace AutomationToolDriver
 			Stopwatch Timer = Stopwatch.StartNew();
 			
 			// Ensure UTF8Output flag is respected, since we are initializing logging early in the program.
-			if (ParseParam(Arguments, "-Utf8output"))
+			if (AutomationToolCommandLine.IsSetGlobal("-UTF8Output"))
             {
                 Console.OutputEncoding = new System.Text.UTF8Encoding(false, false);
             }
 
 			// Parse the log level argument
-			if(ParseParam(Arguments, "-Verbose"))
+			if (AutomationToolCommandLine.IsSetGlobal("-Verbose"))
 			{
 				Log.OutputLevel = LogEventType.Verbose;
 			}
-			if(ParseParam(Arguments, "-VeryVerbose"))
+			if (AutomationToolCommandLine.IsSetGlobal("-VeryVerbose"))
 			{
 				Log.OutputLevel = LogEventType.VeryVerbose;
 			}
 
-			// Initialize the log system, buffering the output until we can create the log file
-			StartupTraceListener StartupListener = new StartupTraceListener();
-			Trace.Listeners.Add(StartupListener);
-
 			// Configure log timestamps
-			Log.IncludeTimestamps = ParseParam(Arguments, "-Timestamps");
+			Log.IncludeTimestamps = AutomationToolCommandLine.IsSetGlobal("-Timestamps");
 
 			// Enter the main program section
             ExitCode ReturnCode = ExitCode.Success;
@@ -62,7 +352,6 @@ namespace AutomationToolDriver
 			{
 				// Set the working directory to the UE4 root
 				Environment.CurrentDirectory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
-
 
 				// Ensure we can resolve any external assemblies as necessary.
 				string PathToBinariesDotNET = Path.GetDirectoryName(Assembly.GetEntryAssembly().GetOriginalLocation());
@@ -84,11 +373,10 @@ namespace AutomationToolDriver
 				FileVersionInfo Version = AssemblyUtils.ExecutableVersion;
 				Log.TraceVerbose("{0} ver. {1}", Version.ProductName, Version.ProductVersion);
 
-				bool bWaitForUATMutex = ParseParam(Arguments, "-WaitForUATMutex");
+				bool bWaitForUATMutex = AutomationToolCommandLine.IsSetGlobal("-WaitForUATMutex");
 
 				// Don't allow simultaneous execution of AT (in the same branch)
-
-				ReturnCode = ProcessSingleton.RunSingleInstance(() => MainProc(Arguments, StartupListener), bWaitForUATMutex);
+				ReturnCode = ProcessSingleton.RunSingleInstance(MainProc, bWaitForUATMutex);
 			}
 			catch (Exception Ex)
             {
@@ -106,35 +394,47 @@ namespace AutomationToolDriver
             return (int)ReturnCode;
         }
 
-		static ExitCode MainProc(string[] Arguments, StartupTraceListener StartupListener)
+		static ExitCode MainProc()
 		{
-			ExitCode Result = AutomationTool.Automation.Process(Arguments, StartupListener);
-			return Result;
-		}
+			string ScriptsForProject = (string)AutomationToolCommandLine.GetValueUnchecked("-ScriptsForProject");
+			List<string> AdditionalScriptDirs = (List<string>) AutomationToolCommandLine.GetValueUnchecked("-ScriptDir");
+			bool bForceCompile = AutomationToolCommandLine.IsSetGlobal("-Compile");
+			bool bUseBuildRecords = !AutomationToolCommandLine.IsSetGlobal("-IgnoreBuildRecords");
+			List<CommandInfo> Commands = AutomationToolCommandLine.IsSetGlobal("-List")
+				? null
+				: AutomationToolCommandLine.CommandsToExecute;
+			bool bBuildSuccess;
+			HashSet<FileReference> ScriptModuleAssemblyPaths = InitializeScriptModules(
+					ScriptsForProject, AdditionalScriptDirs, bForceCompile, bUseBuildRecords, out bBuildSuccess);
 
-		// Code duplicated from CommandUtils.cs
-		/// <summary>
-		/// Parses the argument list for a parameter and returns whether it is defined or not.
-		/// </summary>
-		/// <param name="ArgList">Argument list.</param>
-		/// <param name="Param">Param to check for.</param>
-		/// <returns>True if param was found, false otherwise.</returns>
-		public static bool ParseParam(string[] ArgList, string Param)
-		{
-            string ValueParam = Param;
-            if (!ValueParam.EndsWith("="))
+			if (!bBuildSuccess)
             {
-                ValueParam += "=";
+				return ExitCode.Error_Unknown;
             }
 
-            foreach (string ArgStr in ArgList)
+			Assembly AutomationUtilsAssembly = null;
+			
+			// Load AutomationUtils.Automation.dll
+			foreach (FileReference AssemblyPath in ScriptModuleAssemblyPaths)
 			{
-                if (ArgStr.Equals(Param, StringComparison.InvariantCultureIgnoreCase) || ArgStr.StartsWith(ValueParam, StringComparison.InvariantCultureIgnoreCase))
+				if (AssemblyPath.GetFileNameWithoutExtension().Contains("AutomationUtils.Automation"))
 				{
-					return true;
+					AutomationUtilsAssembly = Assembly.LoadFrom(AssemblyPath.FullName);
+					break;
 				}
 			}
-			return false;
+
+			if (AutomationUtilsAssembly == null)
+            {
+				throw new Exception("Did not find an AutomationUtils.Automation.dll");
+            }
+
+			// Call into AutomationTool.Automation.Process()
+
+			Type AutomationTools_Automation = AutomationUtilsAssembly.GetType("AutomationTool.Automation");
+			MethodInfo Automation_Process = AutomationTools_Automation.GetMethod("Process");
+			return (ExitCode) Automation_Process.Invoke(null,
+				new object[] {AutomationToolCommandLine, StartupListener, ScriptModuleAssemblyPaths});
 		}
 	}
 }

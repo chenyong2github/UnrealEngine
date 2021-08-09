@@ -90,11 +90,11 @@ namespace BuildGraph.Tasks
 			}
 			if (Parameters.Arguments == null || (!Parameters.Arguments.CaseInsensitiveContains("-submit") && !Parameters.Arguments.CaseInsensitiveContains("-nosubmit")))
 			{
-				if(GlobalCommandLine.Submit.IsSet)
+				if(GlobalCommandLine.Submit)
 				{
 					CommandLine.Append("-submit ");
 				}
-				if(GlobalCommandLine.NoSubmit.IsSet)
+				if(GlobalCommandLine.NoSubmit)
 				{
 					CommandLine.Append("-nosubmit ");
 				}

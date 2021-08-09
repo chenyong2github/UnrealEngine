@@ -726,7 +726,7 @@ namespace Gauntlet
 
 				if (bIncludeCompiledScripts)
 				{
-					foreach (Assembly assembly in ScriptCompiler.GetCompiledAssemblies())
+					foreach (Assembly assembly in ScriptManager.GetCompiledAssemblies())
 					{
 						List<Type> AssemblyTypes = assembly.GetTypes().Where(T => typeof(InterfaceType).IsAssignableFrom(T)).ToList();
 						AllTypes.UnionWith(AssemblyTypes);

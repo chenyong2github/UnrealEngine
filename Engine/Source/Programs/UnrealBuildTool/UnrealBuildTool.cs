@@ -47,36 +47,6 @@ namespace UnrealBuildTool
 		public static readonly DirectoryReference EngineSourceDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Source");
 
 		/// <summary>
-		/// Full path to the Engine/Source/Runtime directory
-		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, \"Source/Runtime\") instead.")]
-		public static readonly DirectoryReference EngineSourceRuntimeDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Runtime");
-
-		/// <summary>
-		/// Full path to the Engine/Source/Developer directory
-		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, \"Source/Developer\") instead.")]
-		public static readonly DirectoryReference EngineSourceDeveloperDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Developer");
-
-		/// <summary>
-		/// Full path to the Engine/Source/Editor directory
-		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, \"Source/Editor\") instead.")]
-		public static readonly DirectoryReference EngineSourceEditorDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Editor");
-
-		/// <summary>
-		/// Full path to the Engine/Source/Programs directory
-		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, \"Source/Programs\") instead.")]
-		public static readonly DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(EngineSourceDirectory, "Programs");
-
-		/// <summary>
-		/// Full path to the Engine/Source/ThirdParty directory
-		/// </summary>
-		[Obsolete("Please use UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, \"Source/ThirdParty\") instead.")]
-		public static readonly DirectoryReference EngineSourceThirdPartyDirectory = DirectoryReference.Combine(EngineSourceDirectory, "ThirdParty");
-
-		/// <summary>
 		/// Cached copy of the writable engine directory
 		/// </summary>
 		static DirectoryReference? CachedWritableEngineDirectory;
@@ -128,88 +98,6 @@ namespace UnrealBuildTool
 				}
 				return CachedEngineProgramSavedDirectory;
 			}
-		}
-
-		// cached dictionary of BaseDir to extension directories
-		private static Dictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>> CachedExtensionDirectories = new Dictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>>();
-
-		/// <summary>
-		/// Finds all the extension directories for the given base directory. This includes platform extensions and restricted folders.
-		/// </summary>
-		/// <param name="BaseDir">Location of the base directory</param>
-		/// <param name="bIncludePlatformDirectories">If true, platform subdirectories are included (will return platform directories under Restricted dirs, even if bIncludeRestrictedDirectories is false)</param>
-		/// <param name="bIncludeRestrictedDirectories">If true, restricted (NotForLicensees, NoRedist) subdirectories are included</param>
-		/// <param name="bIncludeBaseDirectory">If true, BaseDir is included</param>
-		/// <returns>List of extension directories, including the given base directory</returns>
-		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true, bool bIncludeBaseDirectory=true)
-		{
-			Tuple<List<DirectoryReference>, List<DirectoryReference>>? CachedDirs;
-			if (!CachedExtensionDirectories.TryGetValue(BaseDir, out CachedDirs))
-			{
-				CachedDirs = Tuple.Create(new List<DirectoryReference>(), new List<DirectoryReference>());
-
-				CachedExtensionDirectories[BaseDir] = CachedDirs;
-
-				DirectoryReference PlatformExtensionBaseDir = DirectoryReference.Combine(BaseDir, "Platforms");
-				if (DirectoryReference.Exists(PlatformExtensionBaseDir))
-				{
-					CachedDirs.Item1.AddRange(DirectoryReference.EnumerateDirectories(PlatformExtensionBaseDir));
-				}
-
-				DirectoryReference RestrictedBaseDir = DirectoryReference.Combine(BaseDir, "Restricted");
-				if (DirectoryReference.Exists(RestrictedBaseDir))
-				{
-					IEnumerable<DirectoryReference> RestrictedDirs = DirectoryReference.EnumerateDirectories(RestrictedBaseDir);
-					CachedDirs.Item2.AddRange(RestrictedDirs);
-
-					// also look for nested platforms in the restricted
-					foreach (DirectoryReference RestrictedDir in RestrictedDirs)
-					{
-						DirectoryReference RestrictedPlatformExtensionBaseDir = DirectoryReference.Combine(RestrictedDir, "Platforms");
-						if (DirectoryReference.Exists(RestrictedPlatformExtensionBaseDir))
-						{
-							CachedDirs.Item1.AddRange(DirectoryReference.EnumerateDirectories(RestrictedPlatformExtensionBaseDir));
-						}
-					}
-				}
-
-				// remove any platform directories in non-engine locations if the engine doesn't have the platform 
-				if (BaseDir != Unreal.EngineDirectory && CachedDirs.Item1.Count > 0)
-				{
-					// if the DDPI.ini file doesn't exist, we haven't synced the platform, so just skip this directory
-					CachedDirs.Item1.RemoveAll(x => DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(x.GetDirectoryName()) == null);
-				}
-			}
-
-			// now return what the caller wanted (always include BaseDir)
-			List<DirectoryReference> ExtensionDirs = new List<DirectoryReference>();
-			if (bIncludeBaseDirectory)
-			{
-				ExtensionDirs.Add(BaseDir);
-			}
-			if (bIncludePlatformDirectories)
-			{
-				ExtensionDirs.AddRange(CachedDirs.Item1);
-			}
-			if (bIncludeRestrictedDirectories)
-			{
-				ExtensionDirs.AddRange(CachedDirs.Item2);
-			}
-			return ExtensionDirs;
-		}
-
-		/// <summary>
-		/// Finds all the extension directories for the given base directory. This includes platform extensions and restricted folders.
-		/// </summary>
-		/// <param name="BaseDir">Location of the base directory</param>
-		/// <param name="SubDir">The subdirectory to find</param>
-		/// <param name="bIncludePlatformDirectories">If true, platform subdirectories are included (will return platform directories under Restricted dirs, even if bIncludeRestrictedDirectories is false)</param>
-		/// <param name="bIncludeRestrictedDirectories">If true, restricted (NotForLicensees, NoRedist) subdirectories are included</param>
-		/// <param name="bIncludeBaseDirectory">If true, BaseDir is included</param>
-		/// <returns>List of extension directories, including the given base directory</returns>
-		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, string SubDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true, bool bIncludeBaseDirectory=true)
-		{
-			return GetExtensionDirs(BaseDir, bIncludePlatformDirectories, bIncludeRestrictedDirectories, bIncludeBaseDirectory).Select(x => DirectoryReference.Combine(x, SubDir)).Where(x => DirectoryReference.Exists(x)).ToList();
 		}
 
 		/// <summary>

@@ -48,7 +48,7 @@ namespace UnrealBuildTool
 						Dictionary<string, FileReference> TargetNameToProjectFile = new Dictionary<string, FileReference>();
 						foreach(FileReference ProjectFile in EnumerateProjectFiles())
 						{
-							foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(ProjectFile.Directory))
+							foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(ProjectFile.Directory))
 							{
 								DirectoryReference SourceDirectory = DirectoryReference.Combine(ExtensionDir, "Source");
 								if (DirectoryLookupCache.DirectoryExists(SourceDirectory))

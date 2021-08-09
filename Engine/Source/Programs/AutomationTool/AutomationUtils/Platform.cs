@@ -90,12 +90,12 @@ namespace AutomationTool
 	public class Platform : CommandUtils
 	{
 		private static Dictionary<TargetPlatformDescriptor, Platform> AllPlatforms = new Dictionary<TargetPlatformDescriptor, Platform>();
-		internal static void InitializePlatforms(Assembly[] AssembliesWithPlatforms = null)
+		internal static void InitializePlatforms(HashSet<Assembly> AssembliesWithPlatforms)
 		{
 			LogVerbose("Creating platforms.");
 
 			// Create all available platforms.
-			foreach (var ScriptAssembly in (AssembliesWithPlatforms != null ? AssembliesWithPlatforms : AppDomain.CurrentDomain.GetAssemblies()))
+			foreach (var ScriptAssembly in AssembliesWithPlatforms)
 			{
 				CreatePlatformsFromAssembly(ScriptAssembly);
 			}
