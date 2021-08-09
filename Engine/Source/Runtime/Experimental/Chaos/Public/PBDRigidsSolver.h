@@ -239,6 +239,11 @@ namespace Chaos
 			return GeometryCollectionPhysicsProxies_Internal;
 		}
 
+		const TArray<FJointConstraintPhysicsProxy*>& GetJointConstraintPhysicsProxies_Internal() const
+		{
+			return JointConstraintPhysicsProxies_Internal;
+		}
+
 		/** Events hooked up to the Chaos material manager */
 		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
 		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
