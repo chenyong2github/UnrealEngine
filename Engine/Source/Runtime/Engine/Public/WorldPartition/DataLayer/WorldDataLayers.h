@@ -13,7 +13,7 @@ class UDataLayer;
 /**
  * Actor containing all data layers for a world
  */
-UCLASS(hidecategories = (Actor, Advanced, Display, Events, Object, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), notplaceable)
+UCLASS(hidecategories = (Actor, HLOD, Cooking, Transform, Advanced, Display, Events, Object, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), notplaceable)
 class ENGINE_API AWorldDataLayers : public AInfo
 {
 	GENERATED_UCLASS_BODY()
@@ -22,7 +22,10 @@ public:
 	virtual void PostLoad() override;
 	virtual void RewindForReplay() override;
 	virtual void BeginPlay() override;
+
 #if WITH_EDITOR
+	virtual bool IsUserManaged() const override { return false; }
+
 	static AWorldDataLayers* Create(UWorld* World);
 	UDataLayer* CreateDataLayer(FName InName = TEXT("DataLayer"), EObjectFlags InObjectFlags = RF_NoFlags);
 	bool RemoveDataLayer(UDataLayer* InDataLayer);
