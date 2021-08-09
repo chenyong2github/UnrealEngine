@@ -23,7 +23,8 @@
 			"WhitelistPlatforms":
 			[
 				"Win64",
-				"Mac"
+				"Mac",
+				"Android",
 			],
 			"BlacklistTargets" :[
 				"Server"

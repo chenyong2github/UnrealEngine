@@ -11,8 +11,9 @@ public class TextToSpeech : ModuleRules
 	{
 		get
 		{
-			// for now only Win64 needs to use Flite. Can be expanded to Android etc in future
-			return Target.Platform == UnrealTargetPlatform.Win64;
+			// Expand to other platforms as needed
+			return Target.Platform == UnrealTargetPlatform.Win64
+				|| Target.IsInPlatformGroup(UnrealPlatformGroup.Android);
 		}
 	}
 
