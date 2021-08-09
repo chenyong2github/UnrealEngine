@@ -465,7 +465,7 @@ void UGameViewportClient::SetEnabledStats(const TArray<FString>& InEnabledStats)
 }
 
 
-void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance* OwningGameInstance)
+void UGameViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance* OwningGameInstance, bool bCreateNewAudioDevice)
 {
 	// set reference to world context
 	WorldContext.AddRef(static_cast<UWorld*&>(World));
