@@ -16,7 +16,8 @@ public class EncoderNVENC: ModuleRules
 			"Engine",
 			"AVEncoder",
 			"VulkanRHI",
-			"nvEncode"
+			"nvEncode",
+			"CUDA"
 		});
 
 		PublicDependencyModuleNames.AddRange(new string[] {
@@ -34,21 +35,17 @@ public class EncoderNVENC: ModuleRules
 		PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private"));
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 
-		PrivateDependencyModuleNames.Add("CUDA");
-
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
+			PublicDependencyModuleNames.Add("D3D11RHI");
 			PublicDependencyModuleNames.Add("D3D12RHI");
 
-			// d3d to be able to use NVENC
 			PublicSystemLibraries.AddRange(new string[] {
-					"dxgi.lib",
-					"d3d11.lib",
-					"d3d12.lib",
-					"mfplat.lib",
-					"mfuuid.lib"
-				});
-			
+				"DXGI.lib",
+				"d3d11.lib",
+				"d3d12.lib"
+			});
+
 			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

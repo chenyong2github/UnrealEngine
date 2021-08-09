@@ -1233,11 +1233,12 @@ namespace AVEncoder
 	static bool GetEncoderInfo(FNVENCCommon& NVENC, FVideoEncoderInfo& EncoderInfo)
 	{
 		bool bSuccess = true;
-		// create a temporary encoder session
 
+		// create a temporary encoder session
 		void* EncoderSession = nullptr;
 
 #if PLATFORM_WINDOWS
+		// if we are under windows we can create a temporary dx11 device to get back infomation about the encoder
 		TRefCountPtr<ID3D11Device> EncoderDevice;
 		TRefCountPtr<ID3D11DeviceContext> EncoderDeviceContext;
 
@@ -1245,14 +1246,31 @@ namespace AVEncoder
 		{
 			bSuccess = false;
 		}
+
 		if((EncoderSession = CreateEncoderSession(NVENC, EncoderDevice)) == nullptr)
 		{
 			bSuccess = false;
 		}
 #endif
-		if(!EncoderSession && FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").IsAvailable())
+		// if we dont already have an encoder session try with CUDA if its avaliable
+		if(!EncoderSession && FModuleManager::GetModulePtr<FCUDAModule>("CUDA"))
 		{
-			EncoderSession = CreateEncoderSession(NVENC, FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
+			FCUDAModule& CUDAModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
+			if(CUDAModule.IsAvailable())
+			{
+				EncoderSession = CreateEncoderSession(NVENC, CUDAModule.GetCudaContext());
+				bSuccess = EncoderSession != nullptr;
+			} 
+			else
+			{
+				bSuccess = false;
+			}
+		}
+
+		// if we dont have a session by now opt out. this will cause NVENC to not register
+		if(!EncoderSession || !bSuccess)
+		{
+			return false;
 		}
 
 		EncoderInfo.CodecType = ECodecType::H264;

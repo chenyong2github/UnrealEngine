@@ -28,6 +28,10 @@
 			"Name": "WmfMedia",
 			"Enabled": true,
 			"BlacklistPlatforms": [ "Linux" ]
+		},
+		{
+			"Name": "HardwareEncoders",
+			"Enabled": true
 		}
 	]
 }
