@@ -72,7 +72,7 @@ namespace UnrealBuildTool
 		/// Construct a merged config section from the given per-file config sections
 		/// </summary>
 		/// <param name="FileSections">Config sections from individual files</param>
-		internal ConfigHierarchySection(IEnumerable<ConfigFileSection> FileSections)
+		public ConfigHierarchySection(IEnumerable<ConfigFileSection> FileSections)
 		{
 			foreach(ConfigFileSection FileSection in FileSections)
 			{
