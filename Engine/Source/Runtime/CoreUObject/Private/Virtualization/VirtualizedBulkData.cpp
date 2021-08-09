@@ -2,6 +2,7 @@
 
 #include "Virtualization/VirtualizedBulkData.h"
 
+#include "Compression/OodleDataCompression.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
@@ -79,6 +80,91 @@ IVirtualizationSourceControlUtilities* GetSourceControlInterface()
 	return (IVirtualizationSourceControlUtilities*)IModularFeatures::Get().GetModularFeatureImplementation(FName("VirtualizationSourceControlUtilities"), 0);
 }
 
+namespace Private
+{
+
+FCompressionSettings::FCompressionSettings()
+	: Compressor(FOodleDataCompression::ECompressor::NotSet)
+	, CompressionLevel(FOodleDataCompression::ECompressionLevel::None)
+	, bIsSet(false)
+{
+
+}
+
+FCompressionSettings::FCompressionSettings(const FCompressedBuffer& Buffer)
+{
+	// Note that if the buffer is using a non-oodle format we consider it
+	// as not set.
+	if (!Buffer.TryGetCompressParameters(Compressor, CompressionLevel))
+	{
+		bIsSet = true;
+		Compressor = FOodleDataCompression::ECompressor::NotSet;
+		CompressionLevel = FOodleDataCompression::ECompressionLevel::None;
+	}
+}
+
+bool FCompressionSettings::operator==(const FCompressionSettings& Other) const
+{
+	return	Compressor == Other.Compressor &&
+			CompressionLevel == Other.CompressionLevel &&
+			bIsSet == Other.bIsSet;
+}
+
+bool FCompressionSettings::operator != (const FCompressionSettings& Other) const
+{
+	return !(*this == Other);
+}
+
+void FCompressionSettings::Reset()
+{
+	Compressor = FOodleDataCompression::ECompressor::NotSet;
+	CompressionLevel = FOodleDataCompression::ECompressionLevel::None;
+	bIsSet = false;
+}
+
+void FCompressionSettings::Set(FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InCompressionLevel)
+{
+	Compressor = InCompressor;
+	CompressionLevel = InCompressionLevel;
+	bIsSet = true;
+}
+
+void FCompressionSettings::SetToDefault()
+{
+	Compressor = FOodleDataCompression::ECompressor::Kraken;
+	CompressionLevel = FOodleDataCompression::ECompressionLevel::Fast;
+	bIsSet = true;
+}
+
+void FCompressionSettings::SetToDisabled()
+{
+	Compressor = FOodleDataCompression::ECompressor::NotSet;
+	CompressionLevel = FOodleDataCompression::ECompressionLevel::None;
+	bIsSet = true;
+}
+
+bool FCompressionSettings::IsSet() const
+{
+	return bIsSet;
+}
+
+bool FCompressionSettings::IsCompressed() const
+{
+	return bIsSet == true && CompressionLevel != FOodleDataCompression::ECompressionLevel::None;
+}
+
+FOodleDataCompression::ECompressor FCompressionSettings::GetCompressor() const
+{
+	return Compressor;
+}
+
+FOodleDataCompression::ECompressionLevel FCompressionSettings::GetCompressionLevel()
+{
+	return CompressionLevel;
+}
+
+} // namespace Private
+
 FVirtualizedUntypedBulkData::FVirtualizedUntypedBulkData(FVirtualizedUntypedBulkData&& Other)
 {
 	*this = MoveTemp(Other);
@@ -94,11 +180,12 @@ FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(FVirtualized
 	PayloadContentId = MoveTemp(Other.PayloadContentId);
 	Payload = MoveTemp(Other.Payload);
 	PayloadSize = MoveTemp(Other.PayloadSize);
-	CompressionFormatToUse = MoveTemp(Other.CompressionFormatToUse);
 	OffsetInFile = MoveTemp(Other.OffsetInFile);
 	PackagePath = MoveTemp(Other.PackagePath);
 	PackageSegment = MoveTemp(Other.PackageSegment);
 	Flags = MoveTemp(Other.Flags);
+	CompressionSettings = MoveTemp(Other.CompressionSettings);
+
 	Other.Reset();
 
 	Register(nullptr);
@@ -140,11 +227,12 @@ FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(const FVirtu
 	PayloadContentId = Other.PayloadContentId;
 	Payload = Other.Payload;
 	PayloadSize = Other.PayloadSize;
-	CompressionFormatToUse = Other.CompressionFormatToUse;
 	OffsetInFile = Other.OffsetInFile;
 	PackagePath = Other.PackagePath;
 	PackageSegment = Other.PackageSegment;
 	Flags = Other.Flags;
+	CompressionSettings = Other.CompressionSettings;
+
 	EnumRemoveFlags(Flags, EFlags::TransientFlags);
 
 	if (bTornOff)
@@ -475,8 +563,10 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 
 							if (CanUnloadData())
 							{
+								this->CompressionSettings.Reset();
 								this->Payload.Reset();
 							}
+
 							// Update our information in the registry
 							// TODO: Pass Owner into Register once the AssetRegistry has been fixed to use the updated PackageGuid from the save
 							Register(nullptr);
@@ -505,6 +595,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 
 			if (CanUnloadData())
 			{
+				this->CompressionSettings.Reset();
 				Payload.Reset();
 			}
 		}
@@ -920,11 +1011,12 @@ void FVirtualizedUntypedBulkData::Reset()
 	PayloadContentId.Reset();
 	Payload.Reset();
 	PayloadSize = 0;
-	CompressionFormatToUse = NAME_Default;
 	OffsetInFile = INDEX_NONE;
 	PackagePath.Empty();
 	PackageSegment = EPackageSegment::Header;
 	Flags = EFlags::None;
+
+	CompressionSettings.Reset();
 }
 
 void FVirtualizedUntypedBulkData::UnloadData()
@@ -941,24 +1033,21 @@ FGuid FVirtualizedUntypedBulkData::GetIdentifier() const
 	return BulkDataId;
 }
 
-void FVirtualizedUntypedBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID, FName InCompressionFormat)
+void FVirtualizedUntypedBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::UpdatePayloadImpl);
 
 	UnloadData();
 
 	// Make sure that we own the memory in the shared buffer
-	Payload = InPayload.MakeOwned();
+	Payload = MoveTemp(InPayload).MakeOwned();
 	PayloadSize = (int64)Payload.GetSize();
 	PayloadContentId = MoveTemp(InPayloadID);
 
-	EnumRemoveFlags(Flags, EFlags::IsVirtualized |
-		EFlags::DisablePayloadCompression |
-		EFlags::ReferencesLegacyFile |
-		EFlags::LegacyFileIsCompressed |
-		EFlags::LegacyKeyWasGuidDerived);
-
-	SetCompressionFormat(InCompressionFormat);
+	EnumRemoveFlags(Flags,	EFlags::IsVirtualized |
+							EFlags::ReferencesLegacyFile |
+							EFlags::LegacyFileIsCompressed |
+							EFlags::LegacyKeyWasGuidDerived);
 
 	PackagePath.Empty();
 	PackageSegment = EPackageSegment::Header;
@@ -1040,11 +1129,11 @@ TFuture<FCompressedBuffer>FVirtualizedUntypedBulkData::GetCompressedPayload() co
 	return Promise.GetFuture();
 }
 
-void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBuffer InPayload, FName InCompressionFormat)
+void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBuffer InPayload)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::UpdatePayload);
 	FPayloadId NewPayloadId(InPayload);
-	UpdatePayloadImpl(MoveTemp(InPayload), MoveTemp(NewPayloadId), InCompressionFormat);
+	UpdatePayloadImpl(MoveTemp(InPayload), MoveTemp(NewPayloadId));
 }
 
 FVirtualizedUntypedBulkData::FSharedBufferWithID::FSharedBufferWithID(FSharedBuffer InPayload)
@@ -1053,17 +1142,40 @@ FVirtualizedUntypedBulkData::FSharedBufferWithID::FSharedBufferWithID(FSharedBuf
 {
 }
 
-void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBufferWithID InPayload, FName InCompressionFormat)
+void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBufferWithID InPayload)
 {
-	UpdatePayloadImpl(MoveTemp(InPayload.Payload), MoveTemp(InPayload.PayloadId), InCompressionFormat);
+	UpdatePayloadImpl(MoveTemp(InPayload.Payload), MoveTemp(InPayload.PayloadId));
 }
 
-void FVirtualizedUntypedBulkData::SetCompressionFormat(FName InCompressionFormat)
+void FVirtualizedUntypedBulkData::SetCompressionOptions(ECompressionOptions Option)
 {
-	//TODO: Should we validate now or let FCompressedBuffer do that later?
-	CompressionFormatToUse = InCompressionFormat;
+	switch (Option)
+	{
+	case ECompressionOptions::Disabled:
+		CompressionSettings.SetToDisabled();
+		break;
+	case ECompressionOptions::Default:
+		CompressionSettings.Reset();
+		break;
+	default:
+		checkNoEntry();
+	}
 
-	if (InCompressionFormat == NAME_None)
+	if (CompressionSettings.GetCompressionLevel() == FOodleDataCompression::ECompressionLevel::None)
+	{
+		EnumAddFlags(Flags, EFlags::DisablePayloadCompression);
+	}
+	else
+	{
+		EnumRemoveFlags(Flags, EFlags::DisablePayloadCompression);
+	}
+}
+
+void FVirtualizedUntypedBulkData::SetCompressionOptions(FOodleDataCompression::ECompressor Compressor, FOodleDataCompression::ECompressionLevel CompressionLevel)
+{
+	CompressionSettings.Set(Compressor, CompressionLevel);
+
+	if (CompressionSettings.GetCompressionLevel() == FOodleDataCompression::ECompressionLevel::None)
 	{
 		EnumAddFlags(Flags, EFlags::DisablePayloadCompression);
 	}
@@ -1104,26 +1216,39 @@ void FVirtualizedUntypedBulkData::UpdateKeyIfNeeded()
 
 void FVirtualizedUntypedBulkData::RecompressForSerialization(FCompressedBuffer& InOutPayload, EFlags PayloadFlags) const
 {
-	const FName CurrentMethod = InOutPayload.GetFormatName();
+	if (!InOutPayload)
+	{
+		return; // Early out if we do not have a valid payload to operate on
+	}
 
-	FName TargetMethod;
-	
+	Private::FCompressionSettings CurrentSettings(InOutPayload);
+	Private::FCompressionSettings TargetSettings;
+
 	if (EnumHasAnyFlags(PayloadFlags, EFlags::DisablePayloadCompression))
 	{
-		TargetMethod = NAME_None;
+		// If the disable payload compression flag is set, then we should not compress the payload
+		TargetSettings.SetToDisabled(); 
 	}
-	else if (CompressionFormatToUse != NAME_Default)
+	else if (CompressionSettings.IsSet())
 	{
-		check(!CompressionFormatToUse.IsNone()); // Should be caught by the DisablePayloadCompression flag
-		TargetMethod = CompressionFormatToUse;
+		// If we have pending compression settings then we can apply them to the payload
+		TargetSettings = CompressionSettings;
+	}
+	else if(!CurrentSettings.IsCompressed()) 
+	{
+		// If we have no settings to apply to the payload and the payload is currently uncompressed then we
+		// should use the default compression settings.
+		TargetSettings.SetToDefault();
 	}
 	else
 	{
-		// TODO: Do we want to add more logic, min size etc?
-		TargetMethod = NAME_LZ4;
+		// If we have no settings to apply to the payload but the payload is already compressed then we can
+		// just keep the existing settings, what ever they are.
+		TargetSettings = CurrentSettings;
 	}
 	
-	if (TargetMethod != CurrentMethod) // No change in compression so we can just return it
+	// Now we will re-compress the input payload if the current compression settings differ from the desired settings
+	if (TargetSettings != CurrentSettings)
 	{
 		FCompositeBuffer DecompressedBuffer = InOutPayload.DecompressToComposite();
 
@@ -1131,7 +1256,8 @@ void FVirtualizedUntypedBulkData::RecompressForSerialization(FCompressedBuffer& 
 		// payload in memory. Compressing it will create a third version so before doing that we should reset
 		// the original compressed buffer in case that we can release it to reduce higher water mark pressure.
 		InOutPayload.Reset();
-		InOutPayload = FCompressedBuffer::Compress(TargetMethod, DecompressedBuffer);
+
+		InOutPayload = FCompressedBuffer::Compress(DecompressedBuffer, TargetSettings.GetCompressor(), TargetSettings.GetCompressionLevel());
 	}
 }
 

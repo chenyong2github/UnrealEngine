@@ -29,6 +29,8 @@
 #include "Interfaces/ITextureFormat.h"
 #include "Interfaces/ITextureFormatModule.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "Compression/OodleDataCompression.h"
+#include "Engine/TextureCube.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
@@ -38,8 +40,6 @@
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
 #endif
-
-#include "Engine/TextureCube.h"
 
 static TAutoConsoleVariable<int32> CVarVirtualTextures(
 	TEXT("r.VirtualTextures"),
@@ -1093,6 +1093,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	}
 
 	BulkData.UpdatePayload(Buffer.MoveToShared());
+	BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
 }
 
 void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
@@ -1104,6 +1105,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 	InitBlockedImpl(InLayerFormats, InBlocks, InNumLayers, InNumBlocks);
 
 	BulkData.UpdatePayload(MoveTemp(NewData));
+	BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
 }
 
 void FTextureSource::InitLayered(
@@ -1141,6 +1143,8 @@ void FTextureSource::InitLayered(
 	{
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(TotalBytes).MoveToShared());
 	}
+
+	BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
 }
 
 void FTextureSource::InitLayered(
@@ -1162,6 +1166,7 @@ void FTextureSource::InitLayered(
 	);
 
 	BulkData.UpdatePayload(MoveTemp(NewData));
+	BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
 }
 
 void FTextureSource::Init(
@@ -1243,10 +1248,18 @@ void FTextureSource::InitWithCompressedSourceData(
 	CompressionFormat = NewSourceFormat;
 
 	checkf(LockState == ELockState::None, TEXT("InitWithCompressedSourceData shouldn't be called in-between LockMip/UnlockMip"));
-	
+
+	BulkData.UpdatePayload(FSharedBuffer::Clone(NewData.GetData(), NewData.Num()));
+
 	// Disable the internal bulkdata compression if the source data is already compressed
-	const FName CompressionName = CompressionFormat == TSCF_None ? NAME_Default : NAME_None;
-	BulkData.UpdatePayload(FSharedBuffer::Clone(NewData.GetData(), NewData.Num()), CompressionName);
+	if (CompressionFormat == TSCF_None)
+	{
+		BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
+	}
+	else
+	{
+		BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Disabled);
+	}
 }
 
 FTextureSource FTextureSource::CopyTornOff() const
@@ -1292,8 +1305,9 @@ void FTextureSource::Compress()
 			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed(PngQuality);
 			if ( CompressedData.Num() > 0 )
 			{
-				BulkData.UpdatePayload(MakeSharedBufferFromArray(MoveTemp(CompressedData)), NAME_None);
-				
+				BulkData.UpdatePayload(MakeSharedBufferFromArray(MoveTemp(CompressedData)));
+				BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Disabled);
+
 				bPNGCompressed = true;
 				CompressionFormat = TSCF_PNG;
 			}
@@ -1306,22 +1320,18 @@ void FTextureSource::Compress()
 		CompressionFormat = TSCF_PNG;
 	}
 
-	// There was a brief period when textures could be saved with the wrong compression flag based on their storage format
-	// so we force set it here so that they will be fixed on resave.
-
-	FName Compressor = NAME_None;
-	if ( CompressionFormat == TSCF_None )
+	if (CompressionFormat == TSCF_PNG && bUseOodleOnPNGz0)
 	{
-		//was NAME_Default which is Zlib
-		Compressor = NAME_Default;
-		// @todo use Oodle for all non-PNG and JPEG
-		//Compressor = NAME_Oodle;
+		BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
 	}
-	else if ( CompressionFormat == TSCF_PNG && bUseOodleOnPNGz0 )
+	else if (CompressionFormat != TSCF_None)
 	{
-		Compressor = NAME_Oodle;
+		// There was a brief period when textures stored with a compressed image format could also have ZLib compression
+		// applied via bulkdata serialization, so we need to call ::SetCompressionFormat directly to make sure that the 
+		// disable compression flag is set internally if the image storage format is compressed.
+		// TODO: We should consider versioning this so that we can remove this code path at some point.
+		BulkData.SetCompressionOptions(FOodleDataCompression::ECompressor::NotSet, FOodleDataCompression::ECompressionLevel::None);
 	}
-	BulkData.SetCompressionFormat(Compressor);
 }
 
 FSharedBuffer FTextureSource::Decompress(IImageWrapperModule* ImageWrapperModule) const
@@ -1415,6 +1425,7 @@ void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 			UE_CLOG(CompressionFormat == TSCF_JPEG, LogTexture, Warning, TEXT("Call to FTextureSource::UnlockMip will cause texture source to lose it's jpeg storage format"));
 
 			BulkData.UpdatePayload(LockedMipData.Release());
+			BulkData.SetCompressionOptions(UE::Virtualization::ECompressionOptions::Default);
 
 			bPNGCompressed = false;
 			CompressionFormat = TSCF_None;
