@@ -67,6 +67,13 @@ static FAutoConsoleVariableRef CVarNaniteComputeRasterization(
 	TEXT("")
 );
 
+int32 GNaniteMeshShaderRasterization = 0;
+FAutoConsoleVariableRef CVarNaniteMeshShaderRasterization(
+	TEXT("r.Nanite.MeshShaderRasterization"),
+	GNaniteMeshShaderRasterization,
+	TEXT("")
+);
+
 int32 GNanitePrimShaderRasterization = 1;
 FAutoConsoleVariableRef CVarNanitePrimShaderRasterization(
 	TEXT("r.Nanite.PrimShaderRasterization"),
@@ -174,6 +181,11 @@ static TAutoConsoleVariable<int32> CVarCompactVSMViews(
 );
 
 extern int32 GNaniteShowStats;
+
+static bool UseMeshShader()
+{
+	return GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShaders;
+}
 
 static bool UsePrimitiveShader()
 {
@@ -794,6 +806,105 @@ class FHWRasterizeVS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FHWRasterizeVS, "/Engine/Private/Nanite/Rasterizer.usf", "HWRasterizeVS", SF_Vertex);
 
+// TODO: Consider making a common base shader class for VS and MS (where possible)
+class FHWRasterizeMS : public FNaniteShader
+{
+	DECLARE_GLOBAL_SHADER(FHWRasterizeMS);
+	SHADER_USE_PARAMETER_STRUCT(FHWRasterizeMS, FNaniteShader);
+
+	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
+	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
+	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
+	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
+	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
+	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
+	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
+	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
+	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FHasPrevDrawData, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
+
+	using FParameters = FRasterizePassParameters;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		if (!DoesPlatformSupportNanite(Parameters.Platform))
+		{
+			return false;
+		}
+
+		if (!FDataDrivenShaderPlatformInfo::GetSupportsMeshShaders(Parameters.Platform))
+		{
+			// Only some platforms support mesh shaders.
+			return false;
+		}
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
+			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		{
+			// Only some platforms support native 64-bit atomics.
+			return false;
+		}
+
+		if ((PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+			&& !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
+		{
+			// Only supporting vendor extensions on PC D3D SM5+
+			return false;
+		}
+
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
+			PermutationVector.Get<FVisualizeDim>())
+		{
+			// Visualization not supported with depth only
+			return false;
+		}
+
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() && !PermutationVector.Get<FMultiViewDim>())
+		{
+			return false;
+		}
+
+		if (PermutationVector.Get<FClusterPerPageDim>() && !PermutationVector.Get<FVirtualTextureTargetDim>())
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
+
+		// Get data from GPUSceneParameters rather than View.
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+
+		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER"), 1);
+
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
+			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12))
+		{
+			// Need to force optimization for driver injection to work correctly.
+			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
+			// https://gpuopen.com/gcn-shader-extensions-for-direct3d-and-vulkan/
+			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
+		}
+
+		// Force shader model 6.0+
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FHWRasterizeMS, "/Engine/Private/Nanite/Rasterizer.usf", "HWRasterizeMS", SF_Mesh);
+
 class FHWRasterizePS : public FNaniteShader
 {
 	DECLARE_GLOBAL_SHADER( FHWRasterizePS );
@@ -801,13 +912,14 @@ class FHWRasterizePS : public FNaniteShader
 
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
+	class FMeshShaderDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FMeshShaderDim, FPrimShaderDim, FVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizePassParameters, Common)
@@ -846,10 +958,23 @@ class FHWRasterizePS : public FNaniteShader
 			return false;
 		}
 
+		if (PermutationVector.Get<FMeshShaderDim>() &&
+			!FDataDrivenShaderPlatformInfo::GetSupportsMeshShaders(Parameters.Platform))
+		{
+			// Only some platforms support mesh shaders.
+			return false;
+		}
+
 		if (PermutationVector.Get<FPrimShaderDim>() &&
 			!FDataDrivenShaderPlatformInfo::GetSupportsPrimitiveShaders(Parameters.Platform))
 		{
 			// Only some platforms support primitive shaders.
+			return false;
+		}
+
+		if (PermutationVector.Get<FMeshShaderDim>() && PermutationVector.Get<FPrimShaderDim>())
+		{
+			// Mutually exclusive.
 			return false;
 		}
 
@@ -981,7 +1106,7 @@ FCullingContext InitCullingContext(
 		CullingContext.RenderFlags |= RENDER_FLAG_FORCE_HW_RASTER;
 	}
 
-	if (UsePrimitiveShader())
+	if (UsePrimitiveShader() || UseMeshShader())
 	{
 		CullingContext.RenderFlags |= RENDER_FLAG_PRIMITIVE_SHADER;
 	}
@@ -1463,14 +1588,84 @@ void AddPass_Rasterize(
 		}
 	}
 
+	FRHIRenderPassInfo RPInfo;
+	RPInfo.ResolveParameters.DestRect.X1 = ViewRect.Min.X;
+	RPInfo.ResolveParameters.DestRect.Y1 = ViewRect.Min.Y;
+	RPInfo.ResolveParameters.DestRect.X2 = ViewRect.Max.X;
+	RPInfo.ResolveParameters.DestRect.Y2 = ViewRect.Max.Y;
+
+	const bool bUseMeshShader = UseMeshShader();
+
+	const bool bUsePrimitiveShader = UsePrimitiveShader() && !bUseMeshShader;
+
+	const bool bUseAutoCullingShader =
+		GRHISupportsPrimitiveShaders &&
+		!bUsePrimitiveShader &&
+		GNaniteAutoShaderCulling != 0;
+
+	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
+	PermutationVectorPS.Set<FHWRasterizePS::FRasterTechniqueDim>(int32(Technique));
+	PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
+	PermutationVectorPS.Set<FHWRasterizePS::FMeshShaderDim>(bUseMeshShader);
+	PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
+	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
+	PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
+	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+	PermutationVectorPS.Set<FHWRasterizePS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
+	auto PixelShader = RasterContext.ShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
+
+	if (bUseMeshShader)
 	{
-		const bool bUsePrimitiveShader = UsePrimitiveShader();
+		FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
+		PermutationVectorMS.Set<FHWRasterizeMS::FRasterTechniqueDim>(int32(Technique));
+		PermutationVectorMS.Set<FHWRasterizeMS::FAddClusterOffset>(bMainPass ? 0 : 1);
+		PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
+		PermutationVectorMS.Set<FHWRasterizeMS::FHasPrevDrawData>(bHavePrevDrawData);
+		PermutationVectorMS.Set<FHWRasterizeMS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
+		PermutationVectorMS.Set<FHWRasterizeMS::FNearClipDim>(bNearClip);
+		PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+		PermutationVectorMS.Set<FHWRasterizeMS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
+		auto MeshShader = RasterContext.ShaderMap->GetShader<FHWRasterizeMS>(PermutationVectorMS);
 
-		const bool bUseAutoCullingShader =
-			GRHISupportsPrimitiveShaders &&
-			!bUsePrimitiveShader &&
-			GNaniteAutoShaderCulling != 0;
+		GraphBuilder.AddPass(
+			bMainPass ? RDG_EVENT_NAME("Main Pass: Rasterize") : RDG_EVENT_NAME("Post Pass: Rasterize"),
+			RasterPassParameters,
+			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+			[MeshShader, PixelShader, RasterPassParameters, ViewRect, RPInfo, bMainPass](FRHICommandList& RHICmdList)
+		{
+			
+			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: Rasterize") : TEXT("Post Pass: Rasterize"));
+			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
 
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			// NOTE: We do *not* use RasterState.CullMode here because HWRasterizeVS already
+			// changes the index order in cases where the culling should be flipped.
+			//GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bUsePrimitiveShaderCulling ? CM_None : CM_CW);
+			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_CW);
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = PT_PointList;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = nullptr;// GEmptyVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.MeshShaderRHI = MeshShader.GetMeshShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+			SetGraphicsPipelineState( RHICmdList, GraphicsPSOInit );
+			
+			SetShaderParameters(RHICmdList, MeshShader, MeshShader.GetMeshShader(), RasterPassParameters->Common);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *RasterPassParameters);
+
+			RHICmdList.SetStreamSource(0, nullptr, 0);
+			
+			// TODO: Different arg format vs. regular draw?
+			RHICmdList.DispatchIndirectMeshShader(RasterPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), 16);
+
+			RHICmdList.EndRenderPass();
+		});
+	}
+	else
+	{
 		FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
 		PermutationVectorVS.Set<FHWRasterizeVS::FRasterTechniqueDim>(int32(Technique));
 		PermutationVectorVS.Set<FHWRasterizeVS::FAddClusterOffset>(bMainPass ? 0 : 1);
@@ -1482,30 +1677,14 @@ void AddPass_Rasterize(
 		PermutationVectorVS.Set<FHWRasterizeVS::FNearClipDim>(bNearClip);
 		PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
-
-		FHWRasterizePS::FPermutationDomain PermutationVectorPS;
-		PermutationVectorPS.Set<FHWRasterizePS::FRasterTechniqueDim>(int32(Technique));
-		PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
-		PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
-		PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
-		PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
-		PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-		PermutationVectorPS.Set<FHWRasterizePS::FClusterPerPageDim>( GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
-
 		auto VertexShader = RasterContext.ShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
-		auto PixelShader  = RasterContext.ShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
 
 		GraphBuilder.AddPass(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: Rasterize") : RDG_EVENT_NAME("Post Pass: Rasterize"),
 			RasterPassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-			[VertexShader, PixelShader, RasterPassParameters, ViewRect, bUsePrimitiveShader, bMainPass](FRHICommandList& RHICmdList)
+			[VertexShader, PixelShader, RasterPassParameters, ViewRect, bUsePrimitiveShader, RPInfo, bMainPass](FRHICommandList& RHICmdList)
 		{
-			FRHIRenderPassInfo RPInfo;
-			RPInfo.ResolveParameters.DestRect.X1 = ViewRect.Min.X;
-			RPInfo.ResolveParameters.DestRect.Y1 = ViewRect.Min.Y;
-			RPInfo.ResolveParameters.DestRect.X2 = ViewRect.Max.X;
-			RPInfo.ResolveParameters.DestRect.Y2 = ViewRect.Max.Y;
 			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: Rasterize") : TEXT("Post Pass: Rasterize"));
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
 
@@ -1524,11 +1703,11 @@ void AddPass_Rasterize(
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			SetGraphicsPipelineState( RHICmdList, GraphicsPSOInit );
-			
+
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), RasterPassParameters->Common);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *RasterPassParameters);
 
-			RHICmdList.SetStreamSource( 0, nullptr, 0 );
+			RHICmdList.SetStreamSource(0, nullptr, 0);
 			RHICmdList.DrawPrimitiveIndirect(RasterPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), 16);
 			RHICmdList.EndRenderPass();
 		});
@@ -1556,7 +1735,8 @@ void AddPass_Rasterize(
 			ComputeShader,
 			CommonPassParameters,
 			CommonPassParameters->IndirectArgs,
-			0);
+			0
+		);
 	}
 }
 

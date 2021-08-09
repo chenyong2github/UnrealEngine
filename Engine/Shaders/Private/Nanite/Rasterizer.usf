@@ -592,7 +592,76 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	return PrimOutput;
 }
 
-#else // NANITE_PRIM_SHADER
+#elif NANITE_MESH_SHADER
+
+struct PrimitiveAttributes
+{
+	nointerpolation uint2 ClusterAndTriangleIndex : TEXCOORD6;
+};
+
+//TODO: Not allowed with D3D12 spec =( MESH_SHADER_TRIANGLE_ATTRIBUTES(256)
+MESH_SHADER_TRIANGLE_ATTRIBUTES(128)
+void HWRasterizeMS(
+	uint GroupThreadID : SV_GroupThreadID,
+	uint GroupID : SV_GroupID,
+	MESH_SHADER_VERTEX_EXPORT(VSOut, 256),
+	MESH_SHADER_PRIMITIVE_EXPORT(PrimitiveAttributes, 128),
+	MESH_SHADER_TRIANGLE_EXPORT(128)
+)
+{
+	uint VisibleIndex = GroupID;
+#if HAS_PREV_DRAW_DATA
+	VisibleIndex += InTotalPrevDrawClusters[0].y;
+#endif
+#if ADD_CLUSTER_OFFSET
+	VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
+#endif
+	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex;
+
+	FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleIndex, VIRTUAL_TEXTURE_TARGET);
+	FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
+
+	FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
+	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+
+	SetMeshOutputCounts(Cluster.NumVerts, Cluster.NumTris);
+
+	if (GroupThreadID < Cluster.NumTris)
+	{
+		uint TriangleIndex = GroupThreadID;
+		uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
+		if (ReverseWindingOrder(InstanceData))
+		{
+			TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+		}
+
+		MESH_SHADER_WRITE_TRIANGLE(TriangleIndex, TriangleIndices);
+
+		PrimitiveAttributes Attributes;
+		Attributes.ClusterAndTriangleIndex = uint2(VisibleIndex, TriangleIndex);
+		MESH_SHADER_WRITE_PRIMITIVE(TriangleIndex, Attributes);
+	}
+
+	const uint Vertex0 = GroupThreadID + 0;
+	const uint Vertex1 = GroupThreadID + 128; // TODO: Unsure if this is permitted or not
+
+	if (Vertex0 < Cluster.NumVerts)
+	{
+		float4 PointClipNoScaling;
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex0, PointClipNoScaling);
+		MESH_SHADER_WRITE_VERTEX(Vertex0, VertexOutput);
+	}
+
+	// TODO: Unsure if this is permitted or not
+	if (Vertex1 < Cluster.NumVerts)
+	{
+		float4 PointClipNoScaling;
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, PointClipNoScaling);
+		MESH_SHADER_WRITE_VERTEX(Vertex1, VertexOutput);
+	}
+}
+
+#else // NANITE_MESH_SHADER / NANITE_PRIM_SHADER
 
 VSOut HWRasterizeVS(
 	uint VertexID		: SV_VertexID,
@@ -644,7 +713,11 @@ VSOut HWRasterizeVS(
 
 #endif // NANITE_PRIM_SHADER
 
+#if NANITE_MESH_SHADER
+void HWRasterizePS(VSOut In, PrimitiveAttributes Primitive)
+#else
 void HWRasterizePS(VSOut In)
+#endif
 {
 	uint2 PixelPos = (uint2)In.Position.xy;
 
@@ -665,6 +738,10 @@ void HWRasterizePS(VSOut In)
 							firstbitlow( Masks.w ) + 96;
 
 	PixelValue += TriangleIndex;
+#endif
+
+#if NANITE_MESH_SHADER
+	PixelValue = ((Primitive.ClusterAndTriangleIndex.x + 1) << 7) | Primitive.ClusterAndTriangleIndex.y;
 #endif
 
 #if VIRTUAL_TEXTURE_TARGET

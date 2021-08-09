@@ -234,6 +234,10 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 	
 	switch (Type->GetFrequency())
 	{
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	case SF_Mesh:
+	case SF_Amplification:
+#endif
 	case SF_Vertex:
 	case SF_Pixel:
 	case SF_Geometry:
