@@ -229,12 +229,12 @@ static mtlpp::PixelFormat AGX_ToSRGBFormat_AppleGPU(mtlpp::PixelFormat MTLFormat
 
 mtlpp::PixelFormat AGXToSRGBFormat(mtlpp::PixelFormat MTLFormat)
 {
-	if([GetAGXDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyApple1])
+	if([GMtlDevice supportsFamily:MTLGPUFamilyApple1])
 	{
 		MTLFormat = AGX_ToSRGBFormat_AppleGPU(MTLFormat);
 	}
 #if !PLATFORM_IOS
-	else if([GetAGXDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyMac1])
+	else if([GMtlDevice supportsFamily:MTLGPUFamilyMac1])
 	{
 		MTLFormat = AGX_ToSRGBFormat_NonAppleMacGPU(MTLFormat);
 	}
@@ -857,7 +857,7 @@ FAGXSurface::FAGXSurface(ERHIResourceType ResourceType, EPixelFormat Format, uin
 			CFRetain(ImageSurfaceRef);
 			{
 #if !COREVIDEO_SUPPORTS_METAL
-				Texture = MTLPP_VALIDATE(mtlpp::Device, GetAGXDeviceContext().GetDevice(), AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTexture(Desc, CVPixelBufferGetIOSurface((CVPixelBufferRef)ImageSurfaceRef), 0));
+				Texture = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTexture(Desc, CVPixelBufferGetIOSurface((CVPixelBufferRef)ImageSurfaceRef), 0));
 #else
 				Texture = CVMetalTextureGetTexture((CVMetalTextureRef)ImageSurfaceRef);
 #endif
@@ -875,7 +875,8 @@ FAGXSurface::FAGXSurface(ERHIResourceType ResourceType, EPixelFormat Format, uin
 			Desc.SetStorageMode(mtlpp::StorageMode::Managed);
 			Desc.SetResourceOptions((mtlpp::ResourceOptions)((Desc.GetResourceOptions() & ~(mtlpp::ResourceStorageModeMask)) | mtlpp::ResourceOptions::StorageModeManaged));
 			
-			Texture = [GetAGXDeviceContext().GetDevice() newTextureWithDescriptor:Desc iosurface : (IOSurfaceRef)ImageSurfaceRef plane : 0];
+			ns::IOSurface MtlppIOSurface((IOSurfaceRef)ImageSurfaceRef, ns::Ownership::AutoRelease);
+			Texture = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTextureWithDescriptor(Desc, MtlppIOSurface, 0));
 			
 			METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([Desc description]));
 			
@@ -893,11 +894,10 @@ FAGXSurface::FAGXSurface(ERHIResourceType ResourceType, EPixelFormat Format, uin
 		}
 		else
 		{
-			mtlpp::Device Device = GetAGXDeviceContext().GetDevice();
-			mtlpp::SizeAndAlign SizeAlign = Device.HeapTextureSizeAndAlign(Desc);
+			mtlpp::SizeAndAlign SizeAlign = GMtlppDevice.HeapTextureSizeAndAlign(Desc);
 
 			// Backing buffer resource options must match the texture we are going to create from it
-			FAGXPooledBufferArgs Args(Device, SizeAlign.Size, BUF_Dynamic, mtlpp::StorageMode::Private, Desc.GetCpuCacheMode());
+			FAGXPooledBufferArgs Args(SizeAlign.Size, BUF_Dynamic, mtlpp::StorageMode::Private, Desc.GetCpuCacheMode());
 			FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(Args);
 
 			Texture = Buffer.NewTexture(Desc, 0, Align(SizeAlign.Size / SizeY, 256));
@@ -1166,8 +1166,7 @@ id <MTLBuffer> FAGXSurface::AllocSurface(uint32 MipIndex, uint32 ArrayIndex, ERe
 	
 	// allocate some temporary memory
 	// This should really be pooled and texture transfers should be their own pool
-	id <MTLDevice> Device = GetAGXDeviceContext().GetDevice();
-	id <MTLBuffer> Buffer = [Device newBufferWithLength:MipBytes options:MTLResourceStorageModeShared];
+	id <MTLBuffer> Buffer = [GMtlDevice newBufferWithLength:MipBytes options:MTLResourceStorageModeShared];
 	Buffer.label = @"Temporary Surface Backing";
 	
 	// Note: while the lock is active, this map owns the backing store.
@@ -1974,7 +1973,7 @@ static FAGXBuffer InternalCopyTexture2DUpdateRegion(FRHITexture2D* TextureRHI, c
 	if(Texture->GetFormat() == PF_G8 && EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB))
 	{
 		const uint32 BufferSize = UpdateRegion.Height * UpdateRegion.Width * sizeof(uint32);		
-		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(GetAGXDeviceContext().GetDevice(), BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
 		InternalExpandR8ToStandardRGBA((uint32*)Buffer.GetContents(), UpdateRegion, InOutSourcePitch, SourceData);
 	}
 
@@ -1982,7 +1981,7 @@ static FAGXBuffer InternalCopyTexture2DUpdateRegion(FRHITexture2D* TextureRHI, c
 #endif
 	{
 		const uint32 BufferSize = UpdateRegion.Height * InSourcePitch;
-		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(GetAGXDeviceContext().GetDevice(), BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
 
 		// Limit copy to line by line by update region pitch otherwise we can go off the end of source data on the last row
 		uint8* pDestRow = (uint8*)Buffer.GetContents();
@@ -2186,7 +2185,7 @@ struct FAGXDynamicRHIUpdateTexture3DCommand final : public FRHICommand<FAGXDynam
 		FAGXTexture Tex = Texture->Surface.Texture;
 		const uint32 BufferSize = UpdateRegion.Height * UpdateRegion.Depth* SourceRowPitch;
 		
-		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(GetAGXDeviceContext().GetDevice(), BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
 		InternalCopyTexture3DUpdateRegionData(Texture, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData, (uint8*)Buffer.GetContents());
 	}
 	
@@ -2257,7 +2256,7 @@ void FAGXDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI,uint32 MipInde
 			SCOPED_AUTORELEASE_POOL;
 
 			const uint32 BufferSize = UpdateRegion.Height * UpdateRegion.Depth * SourceRowPitch;
-			FAGXBuffer IntermediateBuffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(GetAGXDeviceContext().GetDevice(), BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+			FAGXBuffer IntermediateBuffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
 			InternalCopyTexture3DUpdateRegionData(TextureRHI, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData, (uint8*)IntermediateBuffer.GetContents());
 			InternalUpdateTexture3D(ImmediateContext.GetInternalContext(), TextureRHI, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, IntermediateBuffer);
 			GetAGXDeviceContext().ReleaseBuffer(IntermediateBuffer);
@@ -2611,7 +2610,7 @@ void FAGXDynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTexture, FRHIT
 				const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 				const uint32 BytesPerImage = AlignedStride *  SourceSize.height;
 				
-				FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(ImmediateContext.Context->GetDevice(), BytesPerImage, BUF_Dynamic, mtlpp::StorageMode::Shared));
+				FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BytesPerImage, BUF_Dynamic, mtlpp::StorageMode::Shared));
 				
 				check(Buffer);
 				
@@ -2740,7 +2739,7 @@ void FAGXRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITe
 						const uint32 BytesPerImage = AlignedStride *  SourceSize.height;
 						const uint32 DataSize = BytesPerImage * SourceSize.depth;
 						
-						FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(GetInternalContext().GetDevice(), DataSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+						FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(DataSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
 						
 						check(Buffer);
 						

@@ -20,9 +20,8 @@ public:
     };
     
 private:
-    // The device. This object will take a reference.
-    // You must make sure your rendering is on this same device or things will explode horribly.
-    id <MTLDevice> Device;
+	// The current buffer we are suballocating from and the current offset.
+	id <MTLBuffer> CurrentBuffer;
 #if METAL_FRAME_ALLOCATOR_VALIDATION
     // Every buffer that is currently allocated.
     NSMutableArray<id <MTLBuffer>>* AllAllocatedBuffers;
@@ -32,8 +31,6 @@ private:
     // The current set of buffers in use for this frame.
     // Must ONLY be mutated on RHI thread if present.
     NSMutableArray<id <MTLBuffer>>* BuffersInFlight;
-    // The current buffer we are suballocating from and the current offset.
-    id <MTLBuffer> CurrentBuffer;
     uint32 CurrentCursor;
     uint32 CurrentFrame;
     // Lock around AllAllocatedBuffers and AvailableBuffers since they are mutated from a completion handler.
@@ -52,8 +49,7 @@ private:
 public:
     // API
     
-    // This object will hold a reference to TargetDevice for its lifetime.
-    FAGXFrameAllocator(id <MTLDevice> TargetDevice);
+    FAGXFrameAllocator();
     ~FAGXFrameAllocator();
     
     // Sets a target allocation limit.

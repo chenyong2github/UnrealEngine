@@ -147,44 +147,49 @@ static FAutoConsoleVariableRef CVarAGXDefaultTransferAllocation(
 	TEXT("Default size of a single entry in the upload pool."));
 
 
+//------------------------------------------------------------------------------
+
+#pragma mark - AGXRHI Private Globals
+
+
+id<MTLDevice> GMtlDevice = nil;
+
+// Placeholder: TODO: remove
+mtlpp::Device GMtlppDevice;
+
+
+//------------------------------------------------------------------------------
+
+#pragma mark - AGX Device Context Support Routines
+
 
 #if PLATFORM_MAC
-static ns::AutoReleased<ns::Object<id <NSObject>>> GAGXDeviceObserver;
-static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
+static id<NSObject> GAGXDeviceObserver = nil;
+
+static id<MTLDevice> GetMTLDevice(uint32& DeviceIndex)
 {
 #if PLATFORM_MAC_ARM64
-    return mtlpp::Device::CreateSystemDefaultDevice();
+    return MTLCreateSystemDefaultDevice();
 #else
 	SCOPED_AUTORELEASE_POOL;
 	
 	DeviceIndex = 0;
 	
-	ns::Array<mtlpp::Device> DeviceList;
-	
-	if (FPlatformMisc::MacOSXVersionCompare(10, 13, 4) >= 0)
+	NSArray<id<MTLDevice>>* DeviceList = MTLCopyAllDevicesWithObserver(&GAGXDeviceObserver, ^(id<MTLDevice> Device, MTLDeviceNotificationName Notification)
 	{
-			DeviceList = mtlpp::Device::CopyAllDevicesWithObserver(GAGXDeviceObserver, ^(const mtlpp::Device & Device, const ns::String & Notification)
-			{
-				if ([Notification.GetPtr() isEqualToString:MTLDeviceWasAddedNotification])
-				{
-					FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::Added);
-				}
-				else if ([Notification.GetPtr() isEqualToString:MTLDeviceRemovalRequestedNotification])
-				{
-					FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::RemovalRequested);
-				}
-				else if ([Notification.GetPtr() isEqualToString:MTLDeviceWasRemovedNotification])
-				{
-					FPlatformMisc::GPUChangeNotification(Device.GetRegistryID(), FPlatformMisc::EMacGPUNotification::Removed);
-				}
-			});
-	}
-	else
-	{
-		DeviceList = mtlpp::Device::CopyAllDevices();
-	}
-	
-	const int32 NumDevices = DeviceList.GetSize();
+		if ([Notification isEqualToString:MTLDeviceWasAddedNotification])
+		{
+			FPlatformMisc::GPUChangeNotification([Device registryID], FPlatformMisc::EMacGPUNotification::Added);
+		}
+		else if ([Notification isEqualToString:MTLDeviceRemovalRequestedNotification])
+		{
+			FPlatformMisc::GPUChangeNotification([Device registryID], FPlatformMisc::EMacGPUNotification::RemovalRequested);
+		}
+		else if ([Notification isEqualToString:MTLDeviceWasRemovedNotification])
+		{
+			FPlatformMisc::GPUChangeNotification([Device registryID], FPlatformMisc::EMacGPUNotification::Removed);
+		}
+	});
 	
 	TArray<FMacPlatformMisc::FGPUDescriptor> const& GPUs = FPlatformMisc::GetGPUDescriptors();
 	check(GPUs.Num() > 0);
@@ -194,62 +199,45 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 	//        we drop support for 10.12
 	//  NOTE: this means any implementation of GetGraphicsAdapterLuid() for Mac should return an index, and use -1 as a 
 	//        sentinel value representing "no device" (instead of 0, which is used in the LUID case)
-	int32 HmdGraphicsAdapter  = IHeadMountedDisplayModule::IsAvailable() ? (int32)IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : -1;
+	int32 HmdGraphicsAdapter = IHeadMountedDisplayModule::IsAvailable() ? (int32)IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : -1;
  	int32 OverrideRendererId = FPlatformMisc::GetExplicitRendererIndex();
-	
 	int32 ExplicitRendererId = OverrideRendererId >= 0 ? OverrideRendererId : HmdGraphicsAdapter;
-	if(ExplicitRendererId < 0 && GPUs.Num() > 1 && FMacPlatformMisc::MacOSXVersionCompare(10, 11, 5) == 0)
-	{
-		OverrideRendererId = -1;
-		bool bForceExplicitRendererId = false;
-		for(uint32 i = 0; i < GPUs.Num(); i++)
-		{
-			FMacPlatformMisc::FGPUDescriptor const& GPU = GPUs[i];
-			if((GPU.GPUVendorId == 0x10DE))
-			{
-				OverrideRendererId = i;
-				bForceExplicitRendererId = (GPU.GPUMetalBundle && ![GPU.GPUMetalBundle isEqualToString:@"GeForceMTLDriverWeb"]);
-			}
-			else if(!GPU.GPUHeadless && GPU.GPUVendorId != 0x8086)
-			{
-				OverrideRendererId = i;
-			}
-		}
-		if (bForceExplicitRendererId)
-		{
-			ExplicitRendererId = OverrideRendererId;
-		}
-	}
-	
-	mtlpp::Device SelectedDevice;
+
+	id<MTLDevice> SelectedDevice = nil;
 	if (ExplicitRendererId >= 0 && ExplicitRendererId < GPUs.Num())
 	{
 		FMacPlatformMisc::FGPUDescriptor const& GPU = GPUs[ExplicitRendererId];
 		TArray<FString> NameComponents;
-		FString(GPU.GPUName).TrimStart().ParseIntoArray(NameComponents, TEXT(" "));	
-		for (uint32 index = 0; index < NumDevices; index++)
+		FString(GPU.GPUName).TrimStart().ParseIntoArray(NameComponents, TEXT(" "));
+		NSUInteger NumDevices = [DeviceList count];
+		for (NSUInteger index = 0; index < NumDevices; ++index)
 		{
-			mtlpp::Device Device = DeviceList[index];
-			
-			if(MTLPP_CHECK_AVAILABLE(10.13, 11.0, 11.0) && (Device.GetRegistryID() == GPU.RegistryID))
+			id<MTLDevice> Device = [DeviceList objectAtIndex:index];
+
+			if ([Device registryID] == GPU.RegistryID)
 			{
 				DeviceIndex = ExplicitRendererId;
 				SelectedDevice = Device;
 			}
-			else if(([Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x10DE)
-			   || ([Device.GetName().GetPtr() rangeOfString:@"AMD" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x1002)
-			   || ([Device.GetName().GetPtr() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x8086))
+			else
 			{
-				bool bMatchesName = (NameComponents.Num() > 0);
-				for (FString& Component : NameComponents)
+				NSString *DeviceName = [Device name];
+
+				if (    (([DeviceName rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound) && (GPU.GPUVendorId == 0x10DE))
+					 || (([DeviceName rangeOfString:@"AMD"    options:NSCaseInsensitiveSearch].location != NSNotFound) && (GPU.GPUVendorId == 0x1002))
+					 || (([DeviceName rangeOfString:@"Intel"  options:NSCaseInsensitiveSearch].location != NSNotFound) && (GPU.GPUVendorId == 0x8086)) )
 				{
-					bMatchesName &= FString(Device.GetName().GetPtr()).Contains(Component);
-				}
-				if((Device.IsHeadless() == GPU.GPUHeadless || GPU.GPUVendorId != 0x1002) && bMatchesName)
-                {
-					DeviceIndex = ExplicitRendererId;
-					SelectedDevice = Device;
-					break;
+					bool bMatchesName = (NameComponents.Num() > 0);
+					for (FString& Component : NameComponents)
+					{
+						bMatchesName &= FString(DeviceName).Contains(Component);
+					}
+					if (([Device isHeadless] == GPU.GPUHeadless || GPU.GPUVendorId != 0x1002) && bMatchesName)
+					{
+						DeviceIndex = ExplicitRendererId;
+						SelectedDevice = Device;
+						break;
+					}
 				}
 			}
 		}
@@ -261,38 +249,43 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 	if (SelectedDevice == nil)
 	{
 		TArray<FString> NameComponents;
-		SelectedDevice = mtlpp::Device::CreateSystemDefaultDevice();
+		SelectedDevice = MTLCreateSystemDefaultDevice();
 		bool bFoundDefault = false;
 		for (uint32 i = 0; i < GPUs.Num(); i++)
 		{
 			FMacPlatformMisc::FGPUDescriptor const& GPU = GPUs[i];
-			if(MTLPP_CHECK_AVAILABLE(10.13, 11.0, 11.0) && (SelectedDevice.GetRegistryID() == GPU.RegistryID))
+			if ([SelectedDevice registryID] == GPU.RegistryID)
 			{
 				DeviceIndex = i;
 				bFoundDefault = true;
 				break;
 			}
-			else if(([SelectedDevice.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x10DE)
-					|| ([SelectedDevice.GetName().GetPtr() rangeOfString:@"AMD" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x1002)
-					|| ([SelectedDevice.GetName().GetPtr() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x8086))
+			else
 			{
-				NameComponents.Empty();
-				bool bMatchesName = FString(GPU.GPUName).TrimStart().ParseIntoArray(NameComponents, TEXT(" ")) > 0;
-				for (FString& Component : NameComponents)
+				NSString* SelectedDeviceName = [SelectedDevice name];
+
+				if (    (([SelectedDeviceName rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound) && (GPU.GPUVendorId == 0x10DE))
+					 || (([SelectedDeviceName rangeOfString:@"AMD"    options:NSCaseInsensitiveSearch].location != NSNotFound) && (GPU.GPUVendorId == 0x1002))
+					 || (([SelectedDeviceName rangeOfString:@"Intel"  options:NSCaseInsensitiveSearch].location != NSNotFound) && (GPU.GPUVendorId == 0x8086)) )
 				{
-					bMatchesName &= FString(SelectedDevice.GetName().GetPtr()).Contains(Component);
-				}
-				if((SelectedDevice.IsHeadless() == GPU.GPUHeadless || GPU.GPUVendorId != 0x1002) && bMatchesName)
-                {
-					DeviceIndex = i;
-					bFoundDefault = true;
-					break;
+					NameComponents.Empty();
+					bool bMatchesName = FString(GPU.GPUName).TrimStart().ParseIntoArray(NameComponents, TEXT(" ")) > 0;
+					for (FString& Component : NameComponents)
+					{
+						bMatchesName &= FString(SelectedDeviceName).Contains(Component);
+					}
+					if (([SelectedDevice isHeadless] == GPU.GPUHeadless || GPU.GPUVendorId != 0x1002) && bMatchesName)
+					{
+						DeviceIndex = i;
+						bFoundDefault = true;
+						break;
+					}
 				}
 			}
 		}
 		if(!bFoundDefault)
 		{
-			UE_LOG(LogAGX, Warning,  TEXT("Couldn't find Metal device %s in GPU descriptors from IORegistry - capability reporting may be wrong."), *FString(SelectedDevice.GetName().GetPtr()));
+			UE_LOG(LogAGX, Warning,  TEXT("Couldn't find Metal device %s in GPU descriptors from IORegistry - capability reporting may be wrong."), *FString([SelectedDevice name]));
 		}
 	}
 	return SelectedDevice;
@@ -352,16 +345,22 @@ mtlpp::PrimitiveTopologyClass AGXTranslatePrimitiveTopology(uint32 PrimitiveType
 }
 #endif
 
+
+//------------------------------------------------------------------------------
+
+#pragma mark - AGX Device Context Class
+
+
 FAGXDeviceContext* FAGXDeviceContext::CreateDeviceContext()
 {
 	uint32 DeviceIndex = 0;
 #if PLATFORM_IOS
-	mtlpp::Device Device = mtlpp::Device([IOSAppDelegate GetDelegate].IOSView->MetalDevice);
+	GMtlDevice = [IOSAppDelegate GetDelegate].IOSView->MetalDevice;
 #else
-	mtlpp::Device Device = GetMTLDevice(DeviceIndex);
-	if (!Device)
+	GMtlDevice = GetMTLDevice(DeviceIndex);
+	if (!GMtlDevice)
 	{
-		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("The graphics card in this Mac appears to erroneously report support for Metal graphics technology, which is required to run this application, but failed to create a Metal device. The application will now exit."), TEXT("Failed to initialize Metal"));
+		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("Metal device creation failed. The application will now exit."), TEXT("Failed to initialize Metal"));
 		exit(0);
 	}
 #endif
@@ -372,24 +371,26 @@ FAGXDeviceContext* FAGXDeviceContext::CreateDeviceContext()
 	{
 		GAGXRuntimeDebugLevel = MetalDebug;
 	}
+
+	GMtlppDevice = mtlpp::Device(GMtlDevice, ns::Ownership::AutoRelease);
+
+	MTLPP_VALIDATION(mtlpp::ValidatedDevice::Register(GMtlppDevice));
 	
-	MTLPP_VALIDATION(mtlpp::ValidatedDevice::Register(Device));
-	
-	FAGXCommandQueue* Queue = new FAGXCommandQueue(Device, GAGXCommandQueueSize);
+	FAGXCommandQueue* Queue = new FAGXCommandQueue(GAGXCommandQueueSize);
 	check(Queue);
 	
 	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesFences))
 	{
-		FAGXFencePool::Get().Initialise(Device);
+		FAGXFencePool::Get().Init();
 	}
 	
-	return new FAGXDeviceContext(Device, DeviceIndex, Queue);
+	return new FAGXDeviceContext(DeviceIndex, Queue);
 }
 
-FAGXDeviceContext::FAGXDeviceContext(mtlpp::Device MetalDevice, uint32 InDeviceIndex, FAGXCommandQueue* Queue)
-: FAGXContext(MetalDevice, *Queue, true)
+FAGXDeviceContext::FAGXDeviceContext(uint32 InDeviceIndex, FAGXCommandQueue* Queue)
+: FAGXContext(*Queue, true)
 , DeviceIndex(InDeviceIndex)
-, CaptureManager(MetalDevice.GetPtr(), *Queue)
+, CaptureManager(*Queue)
 , SceneFrameCounter(0)
 , FrameCounter(0)
 , ActiveContexts(1)
@@ -431,12 +432,12 @@ FAGXDeviceContext::FAGXDeviceContext(mtlpp::Device MetalDevice, uint32 InDeviceI
 	}
     
     // initialize uniform allocator
-    UniformBufferAllocator = new FAGXFrameAllocator(MetalDevice.GetPtr());
+    UniformBufferAllocator = new FAGXFrameAllocator();
     UniformBufferAllocator->SetTargetAllocationLimitInBytes(GAGXTargetUniformAllocationLimit);
     UniformBufferAllocator->SetDefaultAllocationSizeInBytes(GAGXDefaultUniformBufferAllocation);
     UniformBufferAllocator->SetStatIds(GET_STATID(STAT_AGXUniformAllocatedMemory), GET_STATID(STAT_AGXUniformMemoryInFlight), GET_STATID(STAT_AGXUniformBytesPerFrame));
 	
-	TransferBufferAllocator = new FAGXFrameAllocator(MetalDevice.GetPtr());
+	TransferBufferAllocator = new FAGXFrameAllocator();
 	TransferBufferAllocator->SetTargetAllocationLimitInBytes(GAGXTargetTransferAllocatorLimit);
 	TransferBufferAllocator->SetDefaultAllocationSizeInBytes(GAGXDefaultTransferAllocation);
 	// We won't set StatIds here so it goes to the default frame allocator stats
@@ -458,10 +459,7 @@ FAGXDeviceContext::~FAGXDeviceContext()
     delete UniformBufferAllocator;
 	
 #if PLATFORM_MAC
-	if (FPlatformMisc::MacOSXVersionCompare(10, 13, 4) >= 0)
-	{
-		mtlpp::Device::RemoveDeviceObserver(GAGXDeviceObserver);
-	}
+	MTLRemoveDeviceObserver(GAGXDeviceObserver);
 #endif
 }
 
@@ -878,7 +876,7 @@ FAGXRHICommandContext* FAGXDeviceContext::AcquireContext(int32 NewIndex, int32 N
 	FAGXRHICommandContext* Context = ParallelContexts.Pop();
 	if (!Context)
 	{
-		FAGXContext* AGXContext = new FAGXContext(GetDevice(), GetCommandQueue(), false);
+		FAGXContext* AGXContext = new FAGXContext(GetCommandQueue(), false);
 		check(AGXContext);
 		
 		FAGXRHICommandContext* CmdContext = static_cast<FAGXRHICommandContext*>(RHIGetDefaultContext());
@@ -1020,9 +1018,8 @@ bool FAGXDeviceContext::ValidateIsInactiveBuffer(FAGXBuffer const& Buffer)
 uint32 FAGXContext::CurrentContextTLSSlot = FPlatformTLS::AllocTlsSlot();
 #endif
 
-FAGXContext::FAGXContext(mtlpp::Device InDevice, FAGXCommandQueue& Queue, bool const bIsImmediate)
-: Device(InDevice)
-, CommandQueue(Queue)
+FAGXContext::FAGXContext(FAGXCommandQueue& Queue, bool const bIsImmediate)
+: CommandQueue(Queue)
 , CommandList(Queue, bIsImmediate)
 , StateCache(bIsImmediate)
 , RenderPass(CommandList, StateCache)
@@ -1038,11 +1035,6 @@ FAGXContext::FAGXContext(mtlpp::Device InDevice, FAGXCommandQueue& Queue, bool c
 FAGXContext::~FAGXContext()
 {
 	SubmitCommandsHint(EAGXSubmitFlagsWaitOnCommandBuffer);
-}
-
-mtlpp::Device& FAGXContext::GetDevice()
-{
-	return Device;
 }
 
 FAGXCommandQueue& FAGXContext::GetCommandQueue()

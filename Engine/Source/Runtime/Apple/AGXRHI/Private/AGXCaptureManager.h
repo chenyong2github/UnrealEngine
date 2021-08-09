@@ -11,7 +11,7 @@ class FAGXCommandQueue;
 class FAGXCaptureManager
 {
 public:
-	FAGXCaptureManager(mtlpp::Device Device, FAGXCommandQueue& Queue);
+	FAGXCaptureManager(FAGXCommandQueue& Queue);
 	~FAGXCaptureManager();
 	
 	// Called by the AGXRHI code to trigger the provided capture scopes visible in Xcode.
@@ -23,7 +23,6 @@ public:
 	void EndCapture(void);
 	
 private:
-	mtlpp::Device Device;
 	FAGXCommandQueue& Queue;
 	bool bSupportsCaptureManager;
 	

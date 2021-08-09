@@ -247,7 +247,7 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 				dispatch_data_t GCDBuffer = dispatch_data_create(Buffer, BufferSize, dispatch_get_main_queue(), ^(void) { FMemory::Free(Buffer); } );
 
 				// load up the already compiled shader
-				Library = GetAGXDeviceContext().GetDevice().NewLibrary(GCDBuffer, &AError);
+				Library = GMtlppDevice.NewLibrary(GCDBuffer, &AError);
 				dispatch_release(GCDBuffer);
 
 				if (Library == nil)
@@ -334,7 +334,7 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 			CompileOptions.SetLanguageVersion(MetalVersion);
 
 			ns::AutoReleasedError Error;
-			Library = GetAGXDeviceContext().GetDevice().NewLibrary(NewShaderString, CompileOptions, &Error);
+			Library = GMtlppDevice.NewLibrary(NewShaderString, CompileOptions, &Error);
 			if (Library == nil)
 			{
 				UE_LOG(LogRHI, Error, TEXT("*********** Error\n%s"), *FString(NewShaderString));

@@ -133,18 +133,17 @@ void FAGXFence::Validate(void) const
 }
 #endif
 
-void FAGXFencePool::Initialise(mtlpp::Device const& InDevice)
+void FAGXFencePool::Init()
 {
-	Device = InDevice;
 	for (int32 i = 0; i < FAGXFencePool::NumFences; i++)
 	{
 #if METAL_DEBUG_OPTIONS
 		if (GAGXRuntimeDebugLevel >= EAGXDebugLevelValidation)
 		{
 			FAGXDebugFence* VertexFence = [[FAGXDebugFence new] autorelease];
-			VertexFence.Inner = Device.NewFence();
+			VertexFence.Inner = GMtlppDevice.NewFence();
 			FAGXDebugFence* FragmentFence = [[FAGXDebugFence new] autorelease];
-			FragmentFence.Inner = Device.NewFence();
+			FragmentFence.Inner = GMtlppDevice.NewFence();
 			FAGXFence* F = new FAGXFence;
 			F->Set(mtlpp::RenderStages::Vertex, VertexFence);
 			F->Set(mtlpp::RenderStages::Fragment, FragmentFence);
@@ -155,8 +154,8 @@ void FAGXFencePool::Initialise(mtlpp::Device const& InDevice)
 #endif
 		{
 			FAGXFence* F = new FAGXFence;
-			F->Set(mtlpp::RenderStages::Vertex, Device.NewFence());
-			F->Set(mtlpp::RenderStages::Fragment, Device.NewFence());
+			F->Set(mtlpp::RenderStages::Vertex, GMtlppDevice.NewFence());
+			F->Set(mtlpp::RenderStages::Fragment, GMtlppDevice.NewFence());
 #if METAL_DEBUG_OPTIONS
 			if (GAGXRuntimeDebugLevel >= EAGXDebugLevelValidation)
 			{

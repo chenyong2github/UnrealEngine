@@ -191,24 +191,21 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	bool bSupportsPointLights = false;
 	bool bSupportsRHIThread = false;
 	
-	// get the device to ask about capabilities?
-	mtlpp::Device Device = ImmediateContext.Context->GetDevice();
-		
 #if PLATFORM_IOS
 	// A8 can use 256 bits of MRTs
 #if PLATFORM_TVOS
-	GRHISupportsDrawIndirect = Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily2_v1);
-	GRHISupportsPixelShaderUAVs = Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily2_v1);
+	GRHISupportsDrawIndirect = [GMtlDevice supportsFeatureSet:MTLFeatureSet_tvOS_GPUFamily2_v1];
+	GRHISupportsPixelShaderUAVs = [GMtlDevice supportsFeatureSet:MTLFeatureSet_tvOS_GPUFamily2_v1];
 #else
-	GRHISupportsRWTextureBuffers = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1);
-	GRHISupportsDrawIndirect = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1);
-	GRHISupportsPixelShaderUAVs = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1);
+	GRHISupportsRWTextureBuffers = [GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily4_v1];
+	GRHISupportsDrawIndirect = [GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v1];
+	GRHISupportsPixelShaderUAVs = [GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v1];
 
 	const mtlpp::FeatureSet FeatureSets[] = {
-		mtlpp::FeatureSet::iOS_GPUFamily1_v1,
-		mtlpp::FeatureSet::iOS_GPUFamily2_v1,
-		mtlpp::FeatureSet::iOS_GPUFamily3_v1,
-		mtlpp::FeatureSet::iOS_GPUFamily4_v1
+		MTLFeatureSet_iOS_GPUFamily1_v1,
+		MTLFeatureSet_iOS_GPUFamily2_v1,
+		MTLFeatureSet_iOS_GPUFamily3_v1,
+		MTLFeatureSet_iOS_GPUFamily4_v1
 	};
 		
 	const uint8 FeatureSetVersions[][3] = {
@@ -221,7 +218,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GRHIDeviceId = 0;
 	for (uint32 i = 0; i < 4; i++)
 	{
-		if (FPlatformMisc::IOSVersionCompare(FeatureSetVersions[i][0],FeatureSetVersions[i][1],FeatureSetVersions[i][2]) >= 0 && Device.SupportsFeatureSet(FeatureSets[i]))
+		if (FPlatformMisc::IOSVersionCompare(FeatureSetVersions[i][0],FeatureSetVersions[i][1],FeatureSetVersions[i][2]) >= 0 && [GMtlDevice supportsFeatureSet:FeatureSets[i]])
 		{
 			GRHIDeviceId++;
 		}
@@ -294,7 +291,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	bool bSupportsD24S8 = false;
 	bool bSupportsD16 = false;
 	
-	GRHIAdapterName = FString(Device.GetName());
+	GRHIAdapterName = FString([GMtlDevice name]);
 	
 	// However they don't all support other features depending on the version of the OS.
 	bool bSupportsTiledReflections = false;
@@ -407,7 +404,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	
 	// Change the support depth format if we can
-	bSupportsD24S8 = Device.IsDepth24Stencil8PixelFormatSupported();
+	bSupportsD24S8 = [GMtlDevice isDepth24Stencil8PixelFormatSupported];
 	
 	// Disable tiled reflections on Mac Metal for some GPU drivers that ignore the lod-level and so render incorrectly.
 	if (!bSupportsTiledReflections && !FParse::Param(FCommandLine::Get(),TEXT("metaltiledreflections")))
@@ -442,7 +439,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		
 	if(
 	   #if PLATFORM_MAC
-	   (Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v3) && FPlatformMisc::MacOSXVersionCompare(10,13,0) >= 0)
+	   ([GMtlDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v3] && FPlatformMisc::MacOSXVersionCompare(10,13,0) >= 0)
 	   #elif PLATFORM_IOS || PLATFORM_TVOS
 	   FPlatformMisc::IOSVersionCompare(10,3,0)
 	   #endif
@@ -570,7 +567,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GRHISupportsPipelineFileCache = true;
 
 #if PLATFORM_MAC
-	check(Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v1));
+	check([GMtlDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v1]);
 	GRHISupportsBaseVertexIndex = FPlatformMisc::MacOSXVersionCompare(10,11,2) >= 0 || !IsRHIDeviceAMD(); // Supported on macOS & iOS but not tvOS - broken on AMD prior to 10.11.2
 	GRHISupportsFirstInstance = true; // Supported on macOS & iOS but not tvOS.
 	GMaxTextureDimensions = 16384;
@@ -578,8 +575,8 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GMaxTextureArrayLayers = 2048;
 	GMaxShadowDepthBufferSizeX = GMaxTextureDimensions;
 	GMaxShadowDepthBufferSizeY = GMaxTextureDimensions;
-    bSupportsD16 = !FParse::Param(FCommandLine::Get(),TEXT("nometalv2")) && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
-    GRHISupportsHDROutput = FPlatformMisc::MacOSXVersionCompare(10,14,4) >= 0 && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
+    bSupportsD16 = !FParse::Param(FCommandLine::Get(),TEXT("nometalv2")) && [GMtlDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v2];
+    GRHISupportsHDROutput = FPlatformMisc::MacOSXVersionCompare(10,14,4) >= 0 && [GMtlDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v2];
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
 	// Based on the spec below, the maxTotalThreadsPerThreadgroup is not a fixed number but calculated according to the device current ability, so the available threads could less than the maximum number.
 	// For safety and keep the consistency for all platform, reduce the maximum number to half of the device based.
@@ -595,7 +592,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GRHIHDRDisplayOutputFormat = PF_B8G8R8A8; // must have a default value for non-hdr, just like mac or ios
 #else
 	// Only A9+ can support this, so for now we need to limit this to the desktop-forward renderer only.
-	GRHISupportsBaseVertexIndex = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1) && (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
+	GRHISupportsBaseVertexIndex = [GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v1] && (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
 	GRHISupportsFirstInstance = GRHISupportsBaseVertexIndex;
 	
 	// TODO: Move this into IOSPlatform
@@ -609,7 +606,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	// Based on the spec below, the maxTotalThreadsPerThreadgroup is not a fixed number but calculated according to the device current ability, so the available threads could less than the maximum number.
 	// For safety and keep the consistency for all platform, reduce the maximum number to half of the device based.
 	// https://developer.apple.com/documentation/metal/mtlcomputepipelinedescriptor/2966560-maxtotalthreadsperthreadgroup?language=objc
-	GMaxWorkGroupInvocations = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1) ? 512 : 256;
+	GMaxWorkGroupInvocations = [GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily4_v1] ? 512 : 256;
 #endif
 	GMaxTextureDimensions = 8192;
 	GMaxCubeTextureDimensions = 8192;
@@ -760,9 +757,9 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GPixelFormats[PF_PLATFORM_HDR_0		].Supported			= GRHISupportsHDROutput;
 		
 #if PLATFORM_TVOS
-    if (!Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily2_v1))
+    if (![GMtlDevice supportsFeatureSet:MTLFeatureSet_tvOS_GPUFamily2_v1])
 #else
-	if (!Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2))
+	if (![GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v2])
 #endif
 	{
 		GPixelFormats[PF_FloatRGB			].PlatformFormat 	= (uint32)mtlpp::PixelFormat::RGBA16Float;
@@ -903,9 +900,9 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 #endif
 
-	switch (Device.GetReadWriteTextureSupport())
+	switch ([GMtlDevice readWriteTextureSupport])
 	{
-		case mtlpp::ReadWriteTextureTier::Tier2:
+		case MTLReadWriteTextureTier2:
 			GFormatSupportsTypedUAVLoad[PF_A32B32G32R32F]			= true;
 			GFormatSupportsTypedUAVLoad[PF_R32G32B32A32_UINT]		= true;
 			GFormatSupportsTypedUAVLoad[PF_FloatRGBA]				= true;
@@ -920,13 +917,13 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 			GFormatSupportsTypedUAVLoad[PF_R8_UINT]					= true;
 			// Fall through
 
-		case mtlpp::ReadWriteTextureTier::Tier1:
+		case MTLReadWriteTextureTier1:
 			GFormatSupportsTypedUAVLoad[PF_R32_FLOAT]				= true;
 			GFormatSupportsTypedUAVLoad[PF_R32_UINT]				= true;
 			GFormatSupportsTypedUAVLoad[PF_R32_SINT]				= true;
 			// Fall through
 
-		case mtlpp::ReadWriteTextureTier::None:
+		case MTLReadWriteTextureTierNone:
 			break;
 	};
 
@@ -976,7 +973,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (ImmediateContext.Profiler)
 		ImmediateContext.Profiler->BeginFrame();
 #endif
-	AsyncComputeContext = GSupportsEfficientAsyncCompute ? new FAGXRHIComputeContext(ImmediateContext.Profiler, new FAGXContext(ImmediateContext.Context->GetDevice(), ImmediateContext.Context->GetCommandQueue(), true)) : nullptr;
+	AsyncComputeContext = GSupportsEfficientAsyncCompute ? new FAGXRHIComputeContext(ImmediateContext.Profiler, new FAGXContext(ImmediateContext.Context->GetCommandQueue(), true)) : nullptr;
 
 #if ENABLE_METAL_GPUPROFILE
 		if (ImmediateContext.Profiler)
@@ -1026,7 +1023,7 @@ uint64 FAGXDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format,
 
 uint64 FAGXDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
 {
-	return ImmediateContext.Context->GetDevice().GetMinimumLinearTextureAlignmentForPixelFormat((mtlpp::PixelFormat)GAGXBufferFormats[Format].LinearTextureFormat);
+	return static_cast<uint64>([GMtlDevice minimumLinearTextureAlignmentForPixelFormat:(MTLPixelFormat)GAGXBufferFormats[Format].LinearTextureFormat]);
 }
 
 void FAGXDynamicRHI::Init()
@@ -1230,7 +1227,7 @@ void FAGXDynamicRHI::RHIReleaseThreadOwnership()
 
 void* FAGXDynamicRHI::RHIGetNativeDevice()
 {
-	return (void*)ImmediateContext.Context->GetDevice().GetPtr();
+	return GMtlDevice;
 }
 
 void* FAGXDynamicRHI::RHIGetNativeInstance()
@@ -1253,10 +1250,7 @@ uint16 FAGXDynamicRHI::RHIGetPlatformTextureMaxSampleCount()
 		int sample = *sampleIt;
 
 #if PLATFORM_IOS || PLATFORM_MAC
-		id<MTLDevice> Device = (id<MTLDevice>)RHIGetNativeDevice();
-		check(Device);
-
-		if (![Device supportsTextureSampleCount : sample])
+		if (![GMtlDevice supportsTextureSampleCount:sample])
 		{
 			break;
 		}

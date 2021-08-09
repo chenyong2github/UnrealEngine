@@ -188,7 +188,7 @@ public:
 		return sSelf;
 	}
 	
-	void Initialise(mtlpp::Device const& InDevice);
+	void Init();
 	
 	FAGXFence* AllocateFence();
 	void ReleaseFence(FAGXFence* const InFence);
@@ -199,7 +199,6 @@ public:
 private:
 	int32 Count;
 	int32 Allocated;
-	mtlpp::Device Device;
 #if METAL_DEBUG_OPTIONS
 	TSet<FAGXFence*> Fences;
 	FCriticalSection Mutex;

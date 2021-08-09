@@ -27,54 +27,54 @@ static mtlpp::SamplerMinMagFilter TranslateZFilterMode(ESamplerFilter Filter)
 	}
 }
 
-static mtlpp::SamplerAddressMode TranslateWrapMode(ESamplerAddressMode AddressMode)
+static MTLSamplerAddressMode TranslateWrapMode(ESamplerAddressMode AddressMode)
 {
 	switch (AddressMode)
 	{
-		case AM_Clamp:	return mtlpp::SamplerAddressMode::ClampToEdge;
-		case AM_Mirror: return mtlpp::SamplerAddressMode::MirrorRepeat;
-		case AM_Border: return mtlpp::SamplerAddressMode::ClampToEdge;
-		default:		return mtlpp::SamplerAddressMode::Repeat;
+		case AM_Clamp:	return MTLSamplerAddressModeClampToEdge;
+		case AM_Mirror: return MTLSamplerAddressModeMirrorRepeat;
+		case AM_Border: return MTLSamplerAddressModeClampToEdge;
+		default:		return MTLSamplerAddressModeRepeat;
 	}
 }
 
-static mtlpp::CompareFunction TranslateCompareFunction(ECompareFunction CompareFunction)
+static MTLCompareFunction TranslateCompareFunction(ECompareFunction CompareFunction)
 {
 	switch(CompareFunction)
 	{
-		case CF_Less:			return mtlpp::CompareFunction::Less;
-		case CF_LessEqual:		return mtlpp::CompareFunction::LessEqual;
-		case CF_Greater:		return mtlpp::CompareFunction::Greater;
-		case CF_GreaterEqual:	return mtlpp::CompareFunction::GreaterEqual;
-		case CF_Equal:			return mtlpp::CompareFunction::Equal;
-		case CF_NotEqual:		return mtlpp::CompareFunction::NotEqual;
-		case CF_Never:			return mtlpp::CompareFunction::Never;
-		default:				return mtlpp::CompareFunction::Always;
+		case CF_Less:			return MTLCompareFunctionLess;
+		case CF_LessEqual:		return MTLCompareFunctionLessEqual;
+		case CF_Greater:		return MTLCompareFunctionGreater;
+		case CF_GreaterEqual:	return MTLCompareFunctionGreaterEqual;
+		case CF_Equal:			return MTLCompareFunctionEqual;
+		case CF_NotEqual:		return MTLCompareFunctionNotEqual;
+		case CF_Never:			return MTLCompareFunctionNever;
+		default:				return MTLCompareFunctionAlways;
 	};
 }
 
-static mtlpp::CompareFunction TranslateSamplerCompareFunction(ESamplerCompareFunction SamplerComparisonFunction)
+static MTLCompareFunction TranslateSamplerCompareFunction(ESamplerCompareFunction SamplerComparisonFunction)
 {
 	switch(SamplerComparisonFunction)
 	{
-		case SCF_Less:		return mtlpp::CompareFunction::Less;
-		case SCF_Never:		return mtlpp::CompareFunction::Never;
-		default:			return mtlpp::CompareFunction::Never;
+		case SCF_Less:		return MTLCompareFunctionLess;
+		case SCF_Never:		return MTLCompareFunctionNever;
+		default:			return MTLCompareFunctionNever;
 	};
 }
 
-static mtlpp::StencilOperation TranslateStencilOp(EStencilOp StencilOp)
+static MTLStencilOperation TranslateStencilOp(EStencilOp StencilOp)
 {
 	switch(StencilOp)
 	{
-		case SO_Zero:				return mtlpp::StencilOperation::Zero;
-		case SO_Replace:			return mtlpp::StencilOperation::Replace;
-		case SO_SaturatedIncrement:	return mtlpp::StencilOperation::IncrementClamp;
-		case SO_SaturatedDecrement:	return mtlpp::StencilOperation::DecrementClamp;
-		case SO_Invert:				return mtlpp::StencilOperation::Invert;
-		case SO_Increment:			return mtlpp::StencilOperation::IncrementWrap;
-		case SO_Decrement:			return mtlpp::StencilOperation::DecrementWrap;
-		default:					return mtlpp::StencilOperation::Keep;
+		case SO_Zero:				return MTLStencilOperationZero;
+		case SO_Replace:			return MTLStencilOperationReplace;
+		case SO_SaturatedIncrement:	return MTLStencilOperationIncrementClamp;
+		case SO_SaturatedDecrement:	return MTLStencilOperationDecrementClamp;
+		case SO_Invert:				return MTLStencilOperationInvert;
+		case SO_Increment:			return MTLStencilOperationIncrementWrap;
+		case SO_Decrement:			return MTLStencilOperationDecrementWrap;
+		default:					return MTLStencilOperationKeep;
 	};
 }
 
@@ -219,73 +219,76 @@ private:
 
 static FAGXStateObjectCache<FSamplerStateInitializerRHI, FAGXSampler> Samplers;
 
-static FAGXSampler FindOrCreateSamplerState(mtlpp::Device Device, const FSamplerStateInitializerRHI& Initializer)
+static FAGXSampler FindOrCreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
 {
 	FAGXSampler State = Samplers.Find(Initializer);
 	if (!State.GetPtr())
 	{
-		mtlpp::SamplerDescriptor Desc;
+		MTLSamplerDescriptor* Desc = [[MTLSamplerDescriptor alloc] init];
+		
 		switch(Initializer.Filter)
 		{
 			case SF_AnisotropicLinear:
 			case SF_AnisotropicPoint:
-				Desc.SetMinFilter(mtlpp::SamplerMinMagFilter::Linear);
-				Desc.SetMagFilter(mtlpp::SamplerMinMagFilter::Linear);
-				Desc.SetMipFilter(mtlpp::SamplerMipFilter::Linear);
+				[Desc setMinFilter:MTLSamplerMinMagFilterLinear];
+				[Desc setMagFilter:MTLSamplerMinMagFilterLinear];
+				[Desc setMipFilter:MTLSamplerMipFilterLinear];
 				break;
 			case SF_Trilinear:
-				Desc.SetMinFilter(mtlpp::SamplerMinMagFilter::Linear);
-				Desc.SetMagFilter(mtlpp::SamplerMinMagFilter::Linear);
-				Desc.SetMipFilter(mtlpp::SamplerMipFilter::Linear);
+				[Desc setMinFilter:MTLSamplerMinMagFilterLinear];
+				[Desc setMagFilter:MTLSamplerMinMagFilterLinear];
+				[Desc setMipFilter:MTLSamplerMipFilterLinear];
 				break;
 			case SF_Bilinear:
-				Desc.SetMinFilter(mtlpp::SamplerMinMagFilter::Linear);
-				Desc.SetMagFilter(mtlpp::SamplerMinMagFilter::Linear);
-				Desc.SetMipFilter(mtlpp::SamplerMipFilter::Nearest);
+				[Desc setMinFilter:MTLSamplerMinMagFilterLinear];
+				[Desc setMagFilter:MTLSamplerMinMagFilterLinear];
+				[Desc setMipFilter:MTLSamplerMipFilterNearest];
 				break;
 			case SF_Point:
-				Desc.SetMinFilter(mtlpp::SamplerMinMagFilter::Nearest);
-				Desc.SetMagFilter(mtlpp::SamplerMinMagFilter::Nearest);
-				Desc.SetMipFilter(mtlpp::SamplerMipFilter::Nearest);
+				[Desc setMinFilter:MTLSamplerMinMagFilterNearest];
+				[Desc setMagFilter:MTLSamplerMinMagFilterNearest];
+				[Desc setMipFilter:MTLSamplerMipFilterNearest];
 				break;
 		}
-		Desc.SetMaxAnisotropy(GetMetalMaxAnisotropy(Initializer.Filter, Initializer.MaxAnisotropy));
-		Desc.SetSAddressMode(TranslateWrapMode(Initializer.AddressU));
-		Desc.SetTAddressMode(TranslateWrapMode(Initializer.AddressV));
-		Desc.SetRAddressMode(TranslateWrapMode(Initializer.AddressW));
-		Desc.SetLodMinClamp(Initializer.MinMipLevel);
-		Desc.SetLodMaxClamp(Initializer.MaxMipLevel);
+		[Desc setMaxAnisotropy:GetMetalMaxAnisotropy(Initializer.Filter, Initializer.MaxAnisotropy)];
+		[Desc setSAddressMode:TranslateWrapMode(Initializer.AddressU)];
+		[Desc setTAddressMode:TranslateWrapMode(Initializer.AddressV)];
+		[Desc setRAddressMode:TranslateWrapMode(Initializer.AddressW)];
+		[Desc setLodMinClamp:Initializer.MinMipLevel];
+		[Desc setLodMaxClamp:Initializer.MaxMipLevel];
 #if PLATFORM_TVOS
-		Desc.SetCompareFunction(mtlpp::CompareFunction::Never);	
+		[Desc setCompareFunction:MTLCompareFunctionNever];
 #elif PLATFORM_IOS
-		Desc.SetCompareFunction(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1) ? TranslateSamplerCompareFunction(Initializer.SamplerComparisonFunction) : mtlpp::CompareFunction::Never);
+		[Desc setCompareFunction:[GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v1] ? TranslateSamplerCompareFunction(Initializer.SamplerComparisonFunction) : MTLCompareFunctionNever];
 #else
-		Desc.SetCompareFunction(TranslateSamplerCompareFunction(Initializer.SamplerComparisonFunction));
+		[Desc setCompareFunction:TranslateSamplerCompareFunction(Initializer.SamplerComparisonFunction)];
 #endif
 #if PLATFORM_MAC
-		Desc.SetBorderColor(Initializer.BorderColor == 0 ? mtlpp::SamplerBorderColor::TransparentBlack : mtlpp::SamplerBorderColor::OpaqueWhite);
+		[Desc setBorderColor:Initializer.BorderColor == 0 ? MTLSamplerBorderColorTransparentBlack : MTLSamplerBorderColorOpaqueWhite];
 #endif
 		if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs))
 		{
-			Desc.SetSupportArgumentBuffers(true);
+			[Desc setSupportArgumentBuffers:YES];
 		}
 		
-		State = Device.NewSamplerState(Desc);
+		State = FAGXSampler([GMtlDevice newSamplerStateWithDescriptor:Desc], ns::Ownership::Assign);
+		
+		[Desc release];
 		
 		Samplers.Add(Initializer, State);
 	}
 	return State;
 }
 
-FAGXSamplerState::FAGXSamplerState(mtlpp::Device Device, const FSamplerStateInitializerRHI& Initializer)
+FAGXSamplerState::FAGXSamplerState(const FSamplerStateInitializerRHI& Initializer)
 {
-	State = FindOrCreateSamplerState(Device, Initializer);
+	State = FindOrCreateSamplerState(Initializer);
 #if !PLATFORM_MAC
 	if (GetMetalMaxAnisotropy(Initializer.Filter, Initializer.MaxAnisotropy))
 	{
 		FSamplerStateInitializerRHI Init = Initializer;
 		Init.MaxAnisotropy = 1;
-		NoAnisoState = FindOrCreateSamplerState(Device, Init);
+		NoAnisoState = FindOrCreateSamplerState(Init);
 	}
 #endif
 }
@@ -312,58 +315,63 @@ bool FAGXRasterizerState::GetInitializer(FRasterizerStateInitializerRHI& Init)
 
 static FAGXStateObjectCache<FDepthStencilStateInitializerRHI, mtlpp::DepthStencilState> DepthStencilStates;
 
-FAGXDepthStencilState::FAGXDepthStencilState(mtlpp::Device Device, const FDepthStencilStateInitializerRHI& InInitializer)
+FAGXDepthStencilState::FAGXDepthStencilState(const FDepthStencilStateInitializerRHI& InInitializer)
 {
 	Initializer = InInitializer;
 
 	State = DepthStencilStates.Find(Initializer);
 	if (!State.GetPtr())
 	{
-		mtlpp::DepthStencilDescriptor Desc;
+		MTLDepthStencilDescriptor* Desc = [[MTLDepthStencilDescriptor alloc] init];
 		
-		Desc.SetDepthCompareFunction(TranslateCompareFunction(Initializer.DepthTest));
-		Desc.SetDepthWriteEnabled(Initializer.bEnableDepthWrite);
+		[Desc setDepthCompareFunction:TranslateCompareFunction(Initializer.DepthTest)];
+		[Desc setDepthWriteEnabled:Initializer.bEnableDepthWrite];
 		
 		if (Initializer.bEnableFrontFaceStencil)
 		{
 			// set up front face stencil operations
-			mtlpp::StencilDescriptor Stencil;
-			Stencil.SetStencilCompareFunction(TranslateCompareFunction(Initializer.FrontFaceStencilTest));
-			Stencil.SetStencilFailureOperation(TranslateStencilOp(Initializer.FrontFaceStencilFailStencilOp));
-			Stencil.SetDepthFailureOperation(TranslateStencilOp(Initializer.FrontFaceDepthFailStencilOp));
-			Stencil.SetDepthStencilPassOperation(TranslateStencilOp(Initializer.FrontFacePassStencilOp));
-			Stencil.SetReadMask(Initializer.StencilReadMask);
-			Stencil.SetWriteMask(Initializer.StencilWriteMask);
-			Desc.SetFrontFaceStencil(Stencil);
+			MTLStencilDescriptor* Stencil = [[MTLStencilDescriptor alloc] init];
+			[Stencil setStencilCompareFunction:TranslateCompareFunction(Initializer.FrontFaceStencilTest)];
+			[Stencil setStencilFailureOperation:TranslateStencilOp(Initializer.FrontFaceStencilFailStencilOp)];
+			[Stencil setDepthFailureOperation:TranslateStencilOp(Initializer.FrontFaceDepthFailStencilOp)];
+			[Stencil setDepthStencilPassOperation:TranslateStencilOp(Initializer.FrontFacePassStencilOp)];
+			[Stencil setReadMask:Initializer.StencilReadMask];
+			[Stencil setWriteMask:Initializer.StencilWriteMask];
+			[Desc setFrontFaceStencil:Stencil];
+			[Stencil release];
 		}
 		
 		if (Initializer.bEnableBackFaceStencil)
 		{
 			// set up back face stencil operations
-			mtlpp::StencilDescriptor Stencil;
-			Stencil.SetStencilCompareFunction(TranslateCompareFunction(Initializer.BackFaceStencilTest));
-			Stencil.SetStencilFailureOperation(TranslateStencilOp(Initializer.BackFaceStencilFailStencilOp));
-			Stencil.SetDepthFailureOperation(TranslateStencilOp(Initializer.BackFaceDepthFailStencilOp));
-			Stencil.SetDepthStencilPassOperation(TranslateStencilOp(Initializer.BackFacePassStencilOp));
-			Stencil.SetReadMask(Initializer.StencilReadMask);
-			Stencil.SetWriteMask(Initializer.StencilWriteMask);
-			Desc.SetBackFaceStencil(Stencil);
+			MTLStencilDescriptor* Stencil = [[MTLStencilDescriptor alloc] init];
+			[Stencil setStencilCompareFunction:TranslateCompareFunction(Initializer.BackFaceStencilTest)];
+			[Stencil setStencilFailureOperation:TranslateStencilOp(Initializer.BackFaceStencilFailStencilOp)];
+			[Stencil setDepthFailureOperation:TranslateStencilOp(Initializer.BackFaceDepthFailStencilOp)];
+			[Stencil setDepthStencilPassOperation:TranslateStencilOp(Initializer.BackFacePassStencilOp)];
+			[Stencil setReadMask:Initializer.StencilReadMask];
+			[Stencil setWriteMask:Initializer.StencilWriteMask];
+			[Desc setBackFaceStencil:Stencil];
+			[Stencil release];
 		}
 		else if(Initializer.bEnableFrontFaceStencil)
 		{
 			// set up back face stencil operations to front face in single-face mode
-			mtlpp::StencilDescriptor Stencil;
-			Stencil.SetStencilCompareFunction(TranslateCompareFunction(Initializer.FrontFaceStencilTest));
-			Stencil.SetStencilFailureOperation(TranslateStencilOp(Initializer.FrontFaceStencilFailStencilOp));
-			Stencil.SetDepthFailureOperation(TranslateStencilOp(Initializer.FrontFaceDepthFailStencilOp));
-			Stencil.SetDepthStencilPassOperation(TranslateStencilOp(Initializer.FrontFacePassStencilOp));
-			Stencil.SetReadMask(Initializer.StencilReadMask);
-			Stencil.SetWriteMask(Initializer.StencilWriteMask);
-			Desc.SetBackFaceStencil(Stencil);
+			MTLStencilDescriptor* Stencil = [[MTLStencilDescriptor alloc] init];
+			[Stencil setStencilCompareFunction:TranslateCompareFunction(Initializer.FrontFaceStencilTest)];
+			[Stencil setStencilFailureOperation:TranslateStencilOp(Initializer.FrontFaceStencilFailStencilOp)];
+			[Stencil setDepthFailureOperation:TranslateStencilOp(Initializer.FrontFaceDepthFailStencilOp)];
+			[Stencil setDepthStencilPassOperation:TranslateStencilOp(Initializer.FrontFacePassStencilOp)];
+			[Stencil setReadMask:Initializer.StencilReadMask];
+			[Stencil setWriteMask:Initializer.StencilWriteMask];
+			[Desc setBackFaceStencil:Stencil];
+			[Stencil release];
 		}
 		
 		// bake out the descriptor
-		State = Device.NewDepthStencilState(Desc);
+		State = mtlpp::DepthStencilState([GMtlDevice newDepthStencilStateWithDescriptor:Desc], nullptr, ns::Ownership::Assign);
+		
+		[Desc release];
 		
 		DepthStencilStates.Add(Initializer, State);
 	}
@@ -496,7 +504,7 @@ bool FAGXBlendState::GetInitializer(FBlendStateInitializerRHI& Initializer)
 FSamplerStateRHIRef FAGXDynamicRHI::RHICreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
 {
     @autoreleasepool {
-	return new FAGXSamplerState(ImmediateContext.Context->GetDevice(), Initializer);
+	return new FAGXSamplerState(Initializer);
 	}
 }
 
@@ -510,7 +518,7 @@ FRasterizerStateRHIRef FAGXDynamicRHI::RHICreateRasterizerState(const FRasterize
 FDepthStencilStateRHIRef FAGXDynamicRHI::RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer)
 {
 	@autoreleasepool {
-	return new FAGXDepthStencilState(ImmediateContext.Context->GetDevice(), Initializer);
+	return new FAGXDepthStencilState(Initializer);
 	}
 }
 

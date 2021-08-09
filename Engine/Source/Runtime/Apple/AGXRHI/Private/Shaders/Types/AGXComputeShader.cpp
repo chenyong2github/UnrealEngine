@@ -85,7 +85,7 @@ FAGXShaderPipeline* FAGXComputeShader::GetPipeline()
 			mtlpp::AutoReleasedComputePipelineReflection ComputeReflection;
 
 			NSUInteger ComputeOption = mtlpp::PipelineOption::ArgumentInfo | mtlpp::PipelineOption::BufferTypeInfo;
-			Kernel = GetAGXDeviceContext().GetDevice().NewComputePipelineState(Descriptor, mtlpp::PipelineOption(ComputeOption), &ComputeReflection, &ComputeError);
+			Kernel = GMtlppDevice.NewComputePipelineState(Descriptor, mtlpp::PipelineOption(ComputeOption), &ComputeReflection, &ComputeError);
 			Error = ComputeError;
 			Reflection = ComputeReflection;
 		}
@@ -93,7 +93,7 @@ FAGXShaderPipeline* FAGXComputeShader::GetPipeline()
 #endif // METAL_DEBUG_OPTIONS
 		{
 			ns::AutoReleasedError ComputeError;
-			Kernel = GetAGXDeviceContext().GetDevice().NewComputePipelineState(Descriptor, mtlpp::PipelineOption(0), nil, &ComputeError);
+			Kernel = GMtlppDevice.NewComputePipelineState(Descriptor, mtlpp::PipelineOption(0), nil, &ComputeError);
 			Error = ComputeError;
 		}
 

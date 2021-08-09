@@ -110,7 +110,7 @@ FRHIShaderLibraryRef FAGXDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Plat
 
 					METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewLibraryFile: %s"), *MetalLibraryFilePath)));
 					NSError* Error;
-					mtlpp::Library Library = [GetAGXDeviceContext().GetDevice() newLibraryWithFile:MetalLibraryFilePath.GetNSString() error:&Error];
+					mtlpp::Library Library([GMtlDevice newLibraryWithFile:MetalLibraryFilePath.GetNSString() error:&Error], nullptr, ns::Ownership::Assign);
 					if (Library != nil)
 					{
 						Libraries.Add(Library);

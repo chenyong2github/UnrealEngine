@@ -110,7 +110,7 @@ FAGXQueryBuffer* FAGXQueryBufferPool::GetCurrentQueryBuffer()
 			FMemory::Memzero((((uint8*)Buffer.GetContents())), EQueryBufferMaxSize);
 
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-			AGXLLM::LogAllocBuffer(Context->GetDevice(), Buffer);
+			AGXLLM::LogAllocBuffer(Buffer);
 #endif // STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 		}
 

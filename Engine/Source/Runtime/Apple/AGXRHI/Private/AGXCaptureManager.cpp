@@ -7,16 +7,15 @@
 
 bool GAGXSupportsCaptureManager = false;
 
-FAGXCaptureManager::FAGXCaptureManager(mtlpp::Device InDevice, FAGXCommandQueue& InQueue)
-: Device(InDevice)
-, Queue(InQueue)
+FAGXCaptureManager::FAGXCaptureManager(FAGXCommandQueue& InQueue)
+: Queue(InQueue)
 {
 	MTLPP_IF_AVAILABLE(10.13, 11.0, 11.0)
 	{
 		GAGXSupportsCaptureManager = true;
 		
 		mtlpp::CaptureManager Manager = mtlpp::CaptureManager::SharedCaptureManager();
-		Manager.SetDefaultCaptureScope(Manager.NewCaptureScopeWithDevice(Device));
+		Manager.SetDefaultCaptureScope(Manager.NewCaptureScopeWithDevice(GMtlppDevice));
 		Manager.GetDefaultCaptureScope().SetLabel(@"1 Frame");
 		
 		FAGXCaptureScope DefaultScope;
@@ -31,7 +30,7 @@ FAGXCaptureManager::FAGXCaptureManager(mtlpp::Device InDevice, FAGXCommandQueue&
 		for (uint32 i = 0; i < (sizeof(PresentStepCounts) / sizeof(uint32)); i++)
 		{
 			FAGXCaptureScope Scope;
-			Scope.MTLScope = Manager.NewCaptureScopeWithDevice(Device);
+			Scope.MTLScope = Manager.NewCaptureScopeWithDevice(GMtlppDevice);
 			Scope.MTLScope.SetLabel(FString::Printf(TEXT("%u Frames"), PresentStepCounts[i]).GetNSString());
 			Scope.Type = EAGXCaptureTypePresent;
 			Scope.StepCount = PresentStepCounts[i];
@@ -80,7 +79,7 @@ void FAGXCaptureManager::BeginCapture(void)
 {
 	if (GAGXSupportsCaptureManager)
 	{
-		mtlpp::CaptureManager::SharedCaptureManager().StartCaptureWithDevice(Device);
+		mtlpp::CaptureManager::SharedCaptureManager().StartCaptureWithDevice(GMtlppDevice);
 	}
 }
 

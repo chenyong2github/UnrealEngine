@@ -11,18 +11,16 @@
 
 struct FAGXPooledBufferArgs
 {
-    FAGXPooledBufferArgs() : Device(nil), Size(0), Flags(BUF_None), Storage(mtlpp::StorageMode::Shared) {}
+    FAGXPooledBufferArgs() : Size(0), Flags(BUF_None), Storage(mtlpp::StorageMode::Shared) {}
 	
-    FAGXPooledBufferArgs(mtlpp::Device InDevice, uint32 InSize, EBufferUsageFlags InFlags, mtlpp::StorageMode InStorage, mtlpp::CpuCacheMode InCpuCacheMode = mtlpp::CpuCacheMode::DefaultCache)
-	: Device(InDevice)
-	, Size(InSize)
+    FAGXPooledBufferArgs(uint32 InSize, EBufferUsageFlags InFlags, mtlpp::StorageMode InStorage, mtlpp::CpuCacheMode InCpuCacheMode = mtlpp::CpuCacheMode::DefaultCache)
+	: Size(InSize)
     , Flags(InFlags)
 	, Storage(InStorage)
 	, CpuCacheMode(InCpuCacheMode)
 	{
 	}
 	
-	mtlpp::Device Device;
 	uint32 Size;
 	EBufferUsageFlags Flags;
 	mtlpp::StorageMode Storage;
@@ -38,7 +36,6 @@ public:
 	~FAGXSubBufferHeap();
 	
 	ns::String   GetLabel() const;
-    mtlpp::Device       GetDevice() const;
     mtlpp::StorageMode  GetStorageMode() const;
     mtlpp::CpuCacheMode GetCpuCacheMode() const;
     NSUInteger     GetSize() const;
@@ -80,7 +77,6 @@ public:
 	~FAGXSubBufferLinear();
 	
 	ns::String   GetLabel() const;
-	mtlpp::Device       GetDevice() const;
 	mtlpp::StorageMode  GetStorageMode() const;
 	mtlpp::CpuCacheMode GetCpuCacheMode() const;
 	NSUInteger     GetSize() const;
@@ -109,7 +105,6 @@ public:
 	~FAGXSubBufferMagazine();
 	
 	ns::String   GetLabel() const;
-    mtlpp::Device       GetDevice() const;
     mtlpp::StorageMode  GetStorageMode() const;
     mtlpp::CpuCacheMode GetCpuCacheMode() const;
     NSUInteger     GetSize() const;
@@ -153,7 +148,6 @@ public:
 	FAGXSubBufferRing(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions Options);
 	~FAGXSubBufferRing();
 	
-	mtlpp::Device       GetDevice() const;
 	mtlpp::StorageMode  GetStorageMode() const;
 	mtlpp::CpuCacheMode GetCpuCacheMode() const;
 	NSUInteger     GetSize() const;
@@ -343,7 +337,7 @@ public:
 	FAGXTexturePool(FCriticalSection& PoolMutex);
 	~FAGXTexturePool();
 	
-	FAGXTexture CreateTexture(mtlpp::Device Device, mtlpp::TextureDescriptor Desc);
+	FAGXTexture CreateTexture(mtlpp::TextureDescriptor Desc);
 	void ReleaseTexture(FAGXTexture& Texture);
 	
 	void Drain(bool const bForce);

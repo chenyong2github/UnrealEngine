@@ -20,6 +20,12 @@ THIRD_PARTY_INCLUDES_START
 #include "mtlpp.hpp"
 THIRD_PARTY_INCLUDES_END
 
+// The Metal device object.
+extern id<MTLDevice> GMtlDevice;
+
+// Placeholder: TODO: remove
+extern mtlpp::Device GMtlppDevice;
+
 // Whether the AGX RHI is initialized sufficiently to handle resources
 extern bool GIsAGXInitialized;
 

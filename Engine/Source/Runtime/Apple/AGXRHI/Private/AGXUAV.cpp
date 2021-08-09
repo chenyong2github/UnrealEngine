@@ -465,7 +465,7 @@ void FAGXRHICommandContext::ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* Uno
 	};
 
 	uint32 AlignedSize = Align(Size, BufferOffsetAlignment);
-	FAGXPooledBufferArgs Args(GetAGXDeviceContext().GetDevice(), AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
+	FAGXPooledBufferArgs Args(AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
 	FAGXBuffer Temp = GetAGXDeviceContext().CreatePooledBuffer(Args);
 	uint32* ContentBytes = (uint32*)Temp.GetContents();
 	for (uint32 Element = 0; Element < (AlignedSize >> 2); ++Element)
@@ -616,7 +616,7 @@ void FAGXRHICommandContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, 
 			{
 				AGXSafeReleaseMetalBuffer(ReadbackBuffer);
 			}
-			FAGXPooledBufferArgs ArgsCPU(GetAGXDeviceContext().GetDevice(), NumBytes, BUF_Dynamic, mtlpp::StorageMode::Shared);
+			FAGXPooledBufferArgs ArgsCPU(NumBytes, BUF_Dynamic, mtlpp::StorageMode::Shared);
 			ReadbackBuffer = GetAGXDeviceContext().CreatePooledBuffer(ArgsCPU);
 		}
 

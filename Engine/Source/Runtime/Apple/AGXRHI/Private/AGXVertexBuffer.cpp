@@ -239,7 +239,7 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBuffe
 				FAGXBufferAndViews& Backing = BufferPool[i];
 
 #if METAL_POOL_BUFFER_BACKING
-				FAGXPooledBufferArgs ArgsCPU(GetAGXDeviceContext().GetDevice(), AllocSize, Usage, Mode);
+				FAGXPooledBufferArgs ArgsCPU(AllocSize, Usage, Mode);
 				Backing.Buffer = GetAGXDeviceContext().CreatePooledBuffer(ArgsCPU);
 				Backing.Buffer.SetOwner(nullptr, false);
 #else
@@ -248,11 +248,11 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBuffe
 				
 				METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), AllocSize, Options)));
 				// Allocate one.
-				Backing.Buffer = FAGXBuffer(MTLPP_VALIDATE(mtlpp::Device, GetAGXDeviceContext().GetDevice(), AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(AllocSize, (mtlpp::ResourceOptions) Options)), false);
+				Backing.Buffer = FAGXBuffer(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(AllocSize, (mtlpp::ResourceOptions) Options)), false);
 				
-				#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-					AGXLLM::LogAllocBuffer(GetAGXDeviceContext().GetDevice(), Backing.Buffer);
-				#endif
+#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
+				AGXLLM::LogAllocBuffer(Backing.Buffer);
+#endif
 				INC_MEMORY_STAT_BY(STAT_AGXDeviceBufferMemory, Backing.Buffer.GetLength());
 				
 				if (GAGXBufferZeroFill && Mode != mtlpp::StorageMode::Private)
@@ -319,7 +319,7 @@ FAGXRHIBuffer::~FAGXRHIBuffer()
 void FAGXRHIBuffer::AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, EResourceLockMode LockMode)
 {
 	check(!TransferBuffer);
-	FAGXPooledBufferArgs ArgsCPU(GetAGXDeviceContext().GetDevice(), InSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
+	FAGXPooledBufferArgs ArgsCPU(InSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
 	TransferBuffer = GetAGXDeviceContext().CreatePooledBuffer(ArgsCPU);
 	TransferBuffer.SetOwner(nullptr, false);
 	check(TransferBuffer && TransferBuffer.GetPtr());
@@ -361,7 +361,7 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 			BytesPerElement = 4;
 		}
 
-		const uint32 MinimumByteAlignment = GetAGXDeviceContext().GetDevice().GetMinimumLinearTextureAlignmentForPixelFormat((mtlpp::PixelFormat)GAGXBufferFormats[InFormat].LinearTextureFormat);
+		const uint32 MinimumByteAlignment = GMtlppDevice.GetMinimumLinearTextureAlignmentForPixelFormat((mtlpp::PixelFormat)GAGXBufferFormats[InFormat].LinearTextureFormat);
 		const uint32 MinimumElementAlignment = MinimumByteAlignment / BytesPerElement;
 
 		uint32 Offset = LinearTextureDesc.StartOffsetBytes;
@@ -815,7 +815,7 @@ void FAGXDynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* Dest
 		}
 		else if (TheDstBuffer)
 		{
-			FAGXPooledBufferArgs ArgsCPU(GetAGXDeviceContext().GetDevice(), SrcBuffer->GetSize(), BUF_Dynamic, mtlpp::StorageMode::Shared);
+			FAGXPooledBufferArgs ArgsCPU(SrcBuffer->GetSize(), BUF_Dynamic, mtlpp::StorageMode::Shared);
 			FAGXBuffer TempBuffer = GetAGXDeviceContext().CreatePooledBuffer(ArgsCPU);
 			FMemory::Memcpy(TempBuffer.GetContents(), SrcBuffer->Data->Data, SrcBuffer->GetSize());
 			GetAGXDeviceContext().CopyFromBufferToBuffer(TempBuffer, 0, TheDstBuffer, 0, FMath::Min(SrcBuffer->GetSize(), DstBuffer->GetSize()));
