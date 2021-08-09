@@ -18,10 +18,11 @@ class FUncompressedTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("UncompressedTexture"); }
 
-	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{
 		static FGuid Version(TEXT("c04fe27a-53f6-402e-85b3-648ac6b1ad87"));
 		Builder << Version;
+		OutTextureFormatVersioning = FModuleManager::GetModuleChecked<ITextureFormatModule>(TEXT("TextureFormatUncompressed")).GetTextureFormat();
 	}
 };
 

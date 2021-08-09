@@ -264,7 +264,20 @@ FGuid FTextureBuildFunction::GetVersion() const
 {
 	UE::DerivedData::FBuildVersionBuilder Builder;
 	Builder << TextureDerivedDataVersion;
-	GetVersion(Builder);
+	ITextureFormat* TextureFormat = nullptr;
+	GetVersion(Builder, TextureFormat);
+	if (TextureFormat)
+	{
+		TArray<FName> SupportedFormats;
+		TextureFormat->GetSupportedFormats(SupportedFormats);
+		TArray<uint16> SupportedFormatVersions;
+		for (const FName& SupportedFormat : SupportedFormats)
+		{
+			SupportedFormatVersions.AddUnique(TextureFormat->GetVersion(SupportedFormat));
+		}
+		SupportedFormatVersions.Sort();
+		Builder << SupportedFormatVersions;
+	}
 	return Builder.Build();
 }
 

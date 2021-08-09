@@ -20,10 +20,11 @@ class FETC2TextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("ETC2Texture"); }
 
-	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{
 		static FGuid Version(TEXT("af5192f4-351f-422f-b539-f6bd4abadfae"));
 		Builder << Version;
+		OutTextureFormatVersioning = FModuleManager::GetModuleChecked<ITextureFormatModule>(TEXT("TextureFormatETC2")).GetTextureFormat();
 	}
 };
 

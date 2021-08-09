@@ -202,10 +202,11 @@ class FOodleTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("OodleTexture"); }
 
-	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder, ITextureFormat*& OutTextureFormatVersioning) const final
 	{
 		static FGuid Version(TEXT("e6b8884f-923a-44a1-8da1-298fb48865b2"));
 		Builder << Version;
+		OutTextureFormatVersioning = FModuleManager::GetModuleChecked<ITextureFormatModule>(TEXT("TextureFormatOodle")).GetTextureFormat();
 	}
 };
 
