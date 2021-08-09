@@ -81,15 +81,12 @@ namespace AutomationTool.Benchmark
 				{
 					StartTime = DateTime.Now;
 
-					if (PerformTask())
-					{
-						TaskTime = DateTime.Now - StartTime;
-					}
-					else
+					if (!PerformTask())
 					{
 						FailureString = "Task Failed";
 						Failed = true;
 					}
+					TaskTime = DateTime.Now - StartTime;
 				}
 				else
 				{
@@ -130,7 +127,7 @@ namespace AutomationTool.Benchmark
 			}
 			else
 			{
-				Log.TraceInformation("Task {0}::\t\t\t\tFailed. {1}", GetFullTaskName(), FailureString);
+				Log.TraceInformation("Task {0}::\t\t\t\t{1} Failed. {2}", GetFullTaskName(), TaskTime.ToString(@"hh\:mm\:ss"), FailureString);
 			}
 		}
 
