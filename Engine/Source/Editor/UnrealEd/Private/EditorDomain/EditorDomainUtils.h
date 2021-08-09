@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "Containers/UnrealString.h"
 #include "DerivedDataCache.h"
 #include "EditorDomain/EditorDomain.h"
@@ -32,11 +34,12 @@ enum class EPackageDigestResult
 	MissingClass,
 };
 
-/** A UClass's data that is used in the EditorDomain Digest */
+/** A UClass's data that is used in the EditorDomain Digest, and holds other information about Classes the EditorDomain needs. */
 struct FClassDigestData
 {
 	FBlake3Hash SchemaHash;
-	bool bNative;
+	bool bNative = false;
+	bool bBlacklisted = false;
 };
 
 /** Threadsafe cache of ClassName -> Digest data for calculating EditorDomain Digests */
@@ -51,13 +54,17 @@ struct FClassDigestMap
  * Reads information from the AssetRegistry to compute the digest.
  */
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FPackageDigest& OutPackageDigest, FString& OutErrorMessage);
+	FPackageDigest& OutPackageDigest, bool& bOutIsBlacklisted, FString& OutErrorMessage);
 /** Appends the fields to calculate the packagedigest; call Builder.Save().GetRangeHash() to get digest. */
 EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FCbWriter& Builder, FString& OutErrorMessage);
+	FCbWriter& Builder, bool& bOutIsBlacklisted, FString& OutErrorMessage);
 
 /** For any ClassNames not already in ClassDigests, look up their UStruct and add them. */
-void PrecacheClassDigests(TConstArrayView<FName> ClassNames);
+void PrecacheClassDigests(TConstArrayView<FName> ClassNames, TMap<FName, FClassDigestData>* OutDatas = nullptr);
+
+/** Return the TSet of class fullpath names that was parsed from the Editor.ini:[EditorDomain]:ClassBlacklist array. */
+const TSet<FName>& GetClassBlacklist();
+const TSet<FName>& GetPackageNameBlacklist();
 
 /** Get the CacheRequest for the given package from the EditorDomain cache bucket. */
 void RequestEditorDomainPackage(const FPackagePath& PackagePath,
