@@ -7,9 +7,15 @@
 #include "Math/Plane.h"
 #include "Math/Matrix.h"
 
+// LWC_TODO: FRotator -> TRotator<T>
+
+namespace UE {
+namespace Math {
+ 	
 /** Inverse Rotation matrix */
-class FInverseRotationMatrix
-	: public FMatrix
+template<typename T>
+struct TInverseRotationMatrix
+	: public TMatrix<T>
 {
 public:
 	/**
@@ -17,26 +23,31 @@ public:
 	 *
 	 * @param Rot rotation
 	 */
-	FInverseRotationMatrix(const FRotator& Rot);
+	TInverseRotationMatrix(const FRotator& Rot);
 };
 
-
-FORCEINLINE FInverseRotationMatrix::FInverseRotationMatrix(const FRotator& Rot)
-	: FMatrix(
-		FMatrix( // Yaw
-		FPlane(+FMath::Cos(Rot.Yaw * PI / 180.f), -FMath::Sin(Rot.Yaw * PI / 180.f), 0.0f, 0.0f),
-		FPlane(+FMath::Sin(Rot.Yaw * PI / 180.f), +FMath::Cos(Rot.Yaw * PI / 180.f), 0.0f, 0.0f),
-		FPlane(0.0f, 0.0f, 1.0f, 0.0f),
-		FPlane(0.0f, 0.0f, 0.0f, 1.0f)) *
-		FMatrix( // Pitch
-		FPlane(+FMath::Cos(Rot.Pitch * PI / 180.f), 0.0f, -FMath::Sin(Rot.Pitch * PI / 180.f), 0.0f),
-		FPlane(0.0f, 1.0f, 0.0f, 0.0f),
-		FPlane(+FMath::Sin(Rot.Pitch * PI / 180.f), 0.0f, +FMath::Cos(Rot.Pitch * PI / 180.f), 0.0f),
-		FPlane(0.0f, 0.0f, 0.0f, 1.0f)) *
-		FMatrix( // Roll
-		FPlane(1.0f, 0.0f, 0.0f, 0.0f),
-		FPlane(0.0f, +FMath::Cos(Rot.Roll * PI / 180.f), +FMath::Sin(Rot.Roll * PI / 180.f), 0.0f),
-		FPlane(0.0f, -FMath::Sin(Rot.Roll * PI / 180.f), +FMath::Cos(Rot.Roll * PI / 180.f), 0.0f),
-		FPlane(0.0f, 0.0f, 0.0f, 1.0f))
+template<typename T>
+FORCEINLINE TInverseRotationMatrix<T>::TInverseRotationMatrix(const FRotator& Rot)
+	: TMatrix<T>(
+		TMatrix<T>( // Yaw
+			TPlane<T>(+FMath::Cos(Rot.Yaw * PI / 180.f), -FMath::Sin(Rot.Yaw * PI / 180.f), 0.0f, 0.0f),
+			TPlane<T>(+FMath::Sin(Rot.Yaw * PI / 180.f), +FMath::Cos(Rot.Yaw * PI / 180.f), 0.0f, 0.0f),
+			TPlane<T>(0.0f, 0.0f, 1.0f, 0.0f),
+			TPlane<T>(0.0f, 0.0f, 0.0f, 1.0f)) *
+		TMatrix<T>( // Pitch
+			TPlane<T>(+FMath::Cos(Rot.Pitch * PI / 180.f), 0.0f, -FMath::Sin(Rot.Pitch * PI / 180.f), 0.0f),
+			TPlane<T>(0.0f, 1.0f, 0.0f, 0.0f),
+			TPlane<T>(+FMath::Sin(Rot.Pitch * PI / 180.f), 0.0f, +FMath::Cos(Rot.Pitch * PI / 180.f), 0.0f),
+			TPlane<T>(0.0f, 0.0f, 0.0f, 1.0f)) *
+		TMatrix<T>( // Roll
+			TPlane<T>(1.0f, 0.0f, 0.0f, 0.0f),
+			TPlane<T>(0.0f, +FMath::Cos(Rot.Roll * PI / 180.f), +FMath::Sin(Rot.Roll * PI / 180.f), 0.0f),
+			TPlane<T>(0.0f, -FMath::Sin(Rot.Roll * PI / 180.f), +FMath::Cos(Rot.Roll * PI / 180.f), 0.0f),
+			TPlane<T>(0.0f, 0.0f, 0.0f, 1.0f))
 	)
 { }
+
+} // namespace Math
+} // namespace UE
+
+DECLARE_LWC_TYPE(InverseRotationMatrix, 44);

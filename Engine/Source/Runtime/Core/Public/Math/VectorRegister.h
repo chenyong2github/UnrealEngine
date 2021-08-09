@@ -23,6 +23,11 @@
 
 #define SIMD_ALIGNMENT (alignof(VectorRegister))
 
+
+// Alias which helps resolve a template type (float/double) to the appropriate VectorRegister type (VectorRegister4Float/VectorRegister4Double).
+template<typename T>
+using TVectorRegisterType = std::conditional_t<std::is_same_v<T, float>, VectorRegister4Float, std::conditional_t<std::is_same_v<T, double>, VectorRegister4Double, void> >;
+
 // 'Cross-platform' vector intrinsics (built on the platform-specific ones defined above)
 #include "Math/UnrealMathVectorCommon.h"
 

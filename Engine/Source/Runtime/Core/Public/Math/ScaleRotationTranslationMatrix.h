@@ -6,12 +6,19 @@
 #include "Math/UnrealMathUtility.h"
 #include "Math/Matrix.h"
 
+// LWC_TODO: FRotator -> TRotator<T>
+
+namespace UE {
+namespace Math {
+		
 /** Combined Scale rotation and translation matrix */
-class FScaleRotationTranslationMatrix
-	: public FMatrix
+template<typename T>
+struct TScaleRotationTranslationMatrix
+	: public TMatrix<T>
 {
 public:
-
+	using TMatrix<T>::M;
+	
 	/**
 	 * Constructor.
 	 *
@@ -19,12 +26,13 @@ public:
 	 * @param Rot rotation
 	 * @param Origin translation to apply
 	 */
-	FScaleRotationTranslationMatrix(const FVector& Scale, const FRotator& Rot, const FVector& Origin);
+	TScaleRotationTranslationMatrix(const TVector<T>& Scale, const FRotator& Rot, const TVector<T>& Origin);
 };
 
 namespace
 {
-	void GetSinCos(float& S, float& C, float Degrees)
+	template<typename T>
+	void GetSinCos(T& S, T& C, T Degrees)
 	{
 		if (Degrees == 0.f)
 		{
@@ -53,13 +61,14 @@ namespace
 	}
 }
 
-FORCEINLINE FScaleRotationTranslationMatrix::FScaleRotationTranslationMatrix(const FVector& Scale, const FRotator& Rot, const FVector& Origin)
+template<typename T>
+FORCEINLINE TScaleRotationTranslationMatrix<T>::TScaleRotationTranslationMatrix(const TVector<T>& Scale, const FRotator& Rot, const TVector<T>& Origin)
 {
-	float SP, SY, SR;
-	float CP, CY, CR;
-	GetSinCos(SP, CP, Rot.Pitch);
-	GetSinCos(SY, CY, Rot.Yaw);
-	GetSinCos(SR, CR, Rot.Roll);
+	T SP, SY, SR;
+	T CP, CY, CR;
+	GetSinCos(SP, CP, (T)Rot.Pitch);
+	GetSinCos(SY, CY, (T)Rot.Yaw);
+	GetSinCos(SR, CR, (T)Rot.Roll);
 
 	M[0][0]	= (CP * CY) * Scale.X;
 	M[0][1]	= (CP * SY) * Scale.X;
@@ -81,3 +90,8 @@ FORCEINLINE FScaleRotationTranslationMatrix::FScaleRotationTranslationMatrix(con
 	M[3][2]	= Origin.Z;
 	M[3][3]	= 1.f;
 }
+	
+} // namespace Math
+} // namespace UE
+
+DECLARE_LWC_TYPE(ScaleRotationTranslationMatrix, 44);

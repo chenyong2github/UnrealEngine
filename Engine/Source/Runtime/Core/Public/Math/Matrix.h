@@ -11,6 +11,7 @@
 #include "Math/Plane.h"
 #include "Math/Rotator.h"
 #include "Math/Axis.h"
+#include <type_traits>
 
 #ifdef _MSC_VER
 #pragma warning (push)
@@ -33,6 +34,8 @@ namespace Math
 template<typename T>
 struct TMatrix
 {
+	static_assert(std::is_floating_point_v<T>, "T must be floating point");
+
 public:
 	using FReal = T;
 
