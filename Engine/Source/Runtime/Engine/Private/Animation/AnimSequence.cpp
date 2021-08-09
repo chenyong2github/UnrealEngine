@@ -439,7 +439,7 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	bAllowFrameStripping = true;
 	CompressionErrorThresholdScale = 1.f;
 
-	if (!HasAllFlags(EObjectFlags::RF_ClassDefaultObject))
+	if (!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject| EObjectFlags::RF_NeedLoad))
 	{
 		check(DataModel);
 	}

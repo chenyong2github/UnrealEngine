@@ -295,6 +295,9 @@ protected:
 
 	/** Validates that DataModel contains a valid UAnimDataModel object */
 	void ValidateModel() const;
+	
+	/** Binds to DataModel its modification delegate */
+	void BindToModelModificationEvent();
 
 	/** Replaces the current DataModel, if any, with the provided one */
 	void CopyDataModel(const UAnimDataModel* ModelToDuplicate);
