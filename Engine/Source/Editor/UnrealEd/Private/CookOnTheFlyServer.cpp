@@ -4777,7 +4777,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 		if (COTFS.bTargetDomainEnabled)
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(TargetDomainDependencies);
-			TargetDomainDependencies = UE::TargetDomain::GetDependenciesObject(Package, TargetPlatform, nullptr /* ErrorMessage */);
+			TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, TargetPlatform, nullptr /* ErrorMessage */);
 		}
 
 		IPackageStoreWriter::FCommitPackageInfo Info;
