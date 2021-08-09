@@ -67,6 +67,9 @@ void UEditorSettings::PostEditChangeProperty( struct FPropertyChangedEvent& Prop
 		if (GlobalLocalDDCPath.Path.IsEmpty())
 		{
 			FPlatformMisc::DeleteStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-LocalDataCachePath"));
+			
+			// empty registry key means use environment, so re-fetch it now
+			GlobalLocalDDCPath.Path = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-LocalDataCachePath"));
 		}
 		else
 		{
@@ -78,6 +81,9 @@ void UEditorSettings::PostEditChangeProperty( struct FPropertyChangedEvent& Prop
 		if (GlobalSharedDDCPath.Path.IsEmpty())
 		{
 			FPlatformMisc::DeleteStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-SharedDataCachePath"));
+			
+			// empty registry key means use environment, so re-fetch it now
+			GlobalSharedDDCPath.Path = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-SharedDataCachePath"));
 		}
 		else
 		{
@@ -89,6 +95,9 @@ void UEditorSettings::PostEditChangeProperty( struct FPropertyChangedEvent& Prop
 		if (GlobalS3DDCPath.Path.IsEmpty())
 		{
 			FPlatformMisc::DeleteStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-S3DataCachePath"));
+			
+			// empty registry key means use environment, so re-fetch it now
+			GlobalS3DDCPath.Path = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-S3DataCachePath"));
 		}
 		else
 		{
