@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Internationalization/Text.h"
-#include "MetasoundExecutableOperator.h"
-#include "MetasoundEnumRegistrationMacro.h"
-#include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundPrimitives.h"
-#include "MetasoundStandardNodesNames.h"
-#include "MetasoundAudioBuffer.h"
-#include "MetasoundStandardNodesCategories.h"
-#include "MetasoundFacade.h"
-#include "MetasoundParamHelper.h"
 #include "DSP/Dsp.h"
 #include "DSP/DynamicsProcessor.h"
+#include "Internationalization/Text.h"
+#include "MetasoundAudioBuffer.h"
+#include "MetasoundEnumRegistrationMacro.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
+#include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
+#include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
+#include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_CompressorNode"
 
@@ -122,7 +122,7 @@ namespace Metasound
 
 				FNodeClassMetadata Metadata
 				{
-					FNodeClassName{StandardNodes::Namespace, TEXT("Compressor"), StandardNodes::AudioVariant},
+					FNodeClassName { StandardNodes::Namespace, "Compressor", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
 					LOCTEXT("CompressorDisplayName", "Compressor"),
@@ -130,9 +130,9 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{StandardNodes::Dynamics},
-					{TEXT("Compressor")},
-					FNodeDisplayStyle{}
+					{ NodeCategories::Dynamics },
+					{ },
+					FNodeDisplayStyle()
 				};
 
 				return Metadata;
