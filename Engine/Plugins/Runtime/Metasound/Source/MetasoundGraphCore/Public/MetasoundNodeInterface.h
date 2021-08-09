@@ -110,7 +110,7 @@ namespace Metasound
 		TArray<FText> CategoryHierarchy;
 
 		/** List of keywords for contextual node searching. */
-		TArray<FName> Keywords;
+		TArray<FText> Keywords;
 
 		/** Display style for node when visualized. */
 		FNodeDisplayStyle DisplayStyle;

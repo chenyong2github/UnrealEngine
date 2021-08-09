@@ -446,13 +446,13 @@ bool UMetasoundEditorGraph::Synchronize()
 	return false;
 }
 
-bool UMetasoundEditorGraph::Validate(bool bInAutoUpdate)
+bool UMetasoundEditorGraph::Validate(bool bInAutoUpdate, bool bInClearUpdateNotes)
 {
 	using namespace Metasound::Editor;
 
 	if (UObject* ParentMetasound = GetOuter())
 	{
-		return FGraphBuilder::ValidateGraph(*ParentMetasound, bInAutoUpdate);
+		return FGraphBuilder::ValidateGraph(*ParentMetasound, bInAutoUpdate, bInClearUpdateNotes);
 	}
 
 	return false;

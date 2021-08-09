@@ -307,7 +307,7 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("Stereo Delay"), Metasound::StandardNodes::AudioVariant };
+			Info.ClassName = { StandardNodes::Namespace, TEXT("Stereo Delay"), StandardNodes::AudioVariant };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("Metasound_StereoDelayDisplayName", "Stereo Delay");
@@ -315,7 +315,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
-			Info.CategoryHierarchy.Emplace(StandardNodes::Delays);
+			Info.CategoryHierarchy.Emplace(NodeCategories::Delays);
 			return Info;
 		};
 

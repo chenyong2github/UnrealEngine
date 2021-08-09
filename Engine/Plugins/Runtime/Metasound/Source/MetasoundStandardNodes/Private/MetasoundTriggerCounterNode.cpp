@@ -204,7 +204,7 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = {Metasound::StandardNodes::Namespace, TEXT("Trigger Counter"), TEXT("")};
+			Info.ClassName = {StandardNodes::Namespace, TEXT("Trigger Counter"), TEXT("")};
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("Metasound_TriggerCounterNodeDisplayName", "Trigger Counter");
@@ -212,7 +212,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
-			Info.CategoryHierarchy.Emplace(StandardNodes::TriggerUtils);
+			Info.CategoryHierarchy.Emplace(NodeCategories::Trigger);
 
 			return Info;
 		};

@@ -10,6 +10,9 @@
 
 #include "MetasoundUObjectRegistry.generated.h"
 
+// Forward Declarations
+class UAssetManager;
+
 
 /** The subsystem in charge of the MetaSound asset registry */
 UCLASS()
@@ -34,6 +37,8 @@ public:
 	void RenameAsset(const FAssetData& InAssetData, bool bInReregisterWithFrontend = true);
 	void SynchronizeAssetClassDisplayName(const FAssetData& InAssetData);
 
+	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const override;
+	virtual void RescanAutoUpdateBlacklist() override;
 	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
 	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
 	virtual FMetasoundAssetBase* TryLoadAsset(const FSoftObjectPath& InObjectPath) const override;
@@ -43,6 +48,10 @@ protected:
 	void PostInitAssetScan();
 
 private:
+	void RebuildBlacklistCache(const UAssetManager& InAssetManager);
+
+	int32 AutoUpdateBlacklistChangeID = INDEX_NONE;
+	TSet<FName> AutoUpdateBlacklistCache;
 	TMap<Metasound::Frontend::FNodeRegistryKey, FSoftObjectPath> PathMap;
 };
 

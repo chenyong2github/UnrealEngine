@@ -14,10 +14,10 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"MetasoundGraphCore",
-					"MetasoundGenerator",
 					"AudioExtensions",
 					"AudioCodecEngine",
+					"MetasoundGraphCore",
+					"MetasoundGenerator",
 					"SignalProcessing"
 				}
 			);
@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"CoreUObject",
+					"DeveloperSettings",
 					"Engine",
 					"MetasoundFrontend",
 					"MetasoundStandardNodes",

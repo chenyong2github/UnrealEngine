@@ -229,7 +229,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 	UPROPERTY()	
 	FGuid VertexID;
 
-	// Returns true if vertices have equal name, type and number of IDs.
+	// Returns true if vertices have equal name & type.
 	static bool IsFunctionalEquivalent(const FMetasoundFrontendVertex& InLHS, const FMetasoundFrontendVertex& InRHS);
 };
 
@@ -303,6 +303,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNodeStyle
 	// Display style of a node
 	UPROPERTY()
 	FMetasoundFrontendNodeStyleDisplay Display;
+
+	// Whether or not to display if
+	// the node's version has been updated
+	UPROPERTY()
+	bool bMessageNodeUpdated = false;
 
 	UPROPERTY()
 	bool bIsPrivate = false;
@@ -746,15 +751,15 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 	FMetasoundFrontendClassName(const Metasound::FNodeClassName& InName);
 
 	// Namespace of class.
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(VisibleAnywhere, Category = General)
 	FName Namespace;
 
 	// Name of class.
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(VisibleAnywhere, Category = General)
 	FName Name;
 
 	// Variant of class. The Variant is used to describe an equivalent class which performs the same operation but on differing types.
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(VisibleAnywhere, Category = General)
 	FName Variant;
 
 	// Returns a full name of the class.
@@ -799,19 +804,19 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata
 		UPROPERTY(VisibleAnywhere, Category = Metasound)
 		FText DisplayName;
 
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		UPROPERTY(EditAnywhere, Category = Metasound)
 		FText Description;
 
 		UPROPERTY(VisibleAnywhere, Category = Metasound)
 		FText PromptIfMissing;
 
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		UPROPERTY(EditAnywhere, Category = Metasound)
 		FText Author;
 
 		UPROPERTY(VisibleAnywhere, Category = Metasound)
-		TArray<FName> Keywords;
+		TArray<FText> Keywords;
 
-		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		UPROPERTY(EditAnywhere, Category = Metasound)
 		TArray<FText> CategoryHierarchy;
 
 		// If true, auto-update will manage (add and remove)
@@ -829,6 +834,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata
 		static FName GetAuthorPropertyName()
 		{
 			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, Author);
+		}
+
+		static FName GetCategoryHierarchyPropertyName()
+		{
+			return GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassMetadata, CategoryHierarchy);
 		}
 
 		static FName GetClassNamePropertyName()
@@ -937,12 +947,12 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata
 			ChangeID = FGuid::NewGuid();
 		}
 
-		const TArray<FName>& GetKeywords() const
+		const TArray<FText>& GetKeywords() const
 		{
 			return Keywords;
 		}
 
-		void SetKeywords(const TArray<FName>& InKeywords)
+		void SetKeywords(const TArray<FText>& InKeywords)
 		{
 			Keywords = InKeywords;
 			ChangeID = FGuid::NewGuid();

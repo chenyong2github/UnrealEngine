@@ -30,7 +30,7 @@ public:
 	virtual bool NeedsLoadForEditorGame() const override { return false; }
 
 	virtual bool Synchronize() { return false; }
-	virtual bool Validate(bool bInAutoUpdate) { return false; }
+	virtual bool Validate(bool bInAutoUpdate, bool bInClearUpdateNotes) { return false; }
 	virtual void RegisterGraphWithFrontend() { }
 };
 
@@ -53,7 +53,7 @@ namespace Metasound
 	{
 		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
-			if (MetaSoundGraph->Validate(false /* bAutoUpdate */))
+			if (MetaSoundGraph->Validate(false /* bAutoUpdate */, false /* bClearUpdateNotes */))
 			{
 				MetaSoundGraph->RegisterGraphWithFrontend();
 			}
@@ -83,7 +83,8 @@ namespace Metasound
 		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
 			const bool bAutoUpdate = false;
-			const bool bIsValid = MetaSoundGraph->Validate(bAutoUpdate /* bAutoUpdate */);
+			const bool bClearUpdateNotes = true;
+			const bool bIsValid = MetaSoundGraph->Validate(bAutoUpdate, bClearUpdateNotes);
 			if (bIsValid)
 			{
 				MetaSoundGraph->RegisterGraphWithFrontend();

@@ -151,7 +151,7 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("BPMToSeconds"), TEXT("") };
+			Info.ClassName = { StandardNodes::Namespace, TEXT("BPMToSeconds"), TEXT("") };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("BPMToSecondsDisplayName", "BPM To Seconds");

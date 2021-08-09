@@ -16,19 +16,12 @@ namespace Metasound
 			// Node associated with validation result
 			UMetasoundEditorGraphExternalNode* Node = nullptr;
 
-			// Whether or not the node can be auto-updated
-			bool bIsAutoUpdateEligible = false;
-
 			// Whether associated node is in invalid state (document is corrupt and no Frontend representation could be
 			// found for the node)
 			bool bIsInvalid = false;
 
 			// Whether validation made changes to the node and is now in a dirty state
 			bool bIsDirty = false;
-
-			// If not none, name of GraphNode's missing (not found in Frontend Registry) class as described in the owning
-			// Frontend document model.
-			FName MissingClass;
 
 			FGraphNodeValidationResult(UMetasoundEditorGraphExternalNode& InNode)
 				: Node(&InNode)
@@ -51,24 +44,9 @@ namespace Metasound
 			{
 				auto NodeIsInvalid = [](const FGraphNodeValidationResult& Result)
 				{
-					return Result.bIsInvalid || !Result.MissingClass.IsNone();
+					return Result.bIsInvalid;
 				};
 				return !NodeResults.ContainsByPredicate(NodeIsInvalid);
-			}
-
-			// Returns set of missing class names from the validation results
-			TSet<FName> FindMissingClasses() const
-			{
-				TSet<FName> MissingClasses;
-				for (const FGraphNodeValidationResult& Result : NodeResults)
-				{
-					if (!Result.MissingClass.IsNone())
-					{
-						MissingClasses.Add(Result.MissingClass);
-					}
-				}
-
-				return MissingClasses;
 			}
 		};
 	} // namespace Editor

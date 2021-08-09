@@ -180,7 +180,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
-			Info.CategoryHierarchy.Emplace(StandardNodes::TriggerUtils);
+			Info.CategoryHierarchy.Emplace(NodeCategories::Trigger);
 
 			return Info;
 		};

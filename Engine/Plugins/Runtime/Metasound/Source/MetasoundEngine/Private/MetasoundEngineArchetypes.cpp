@@ -204,6 +204,12 @@ namespace Metasound
 				return SoundIsPreviewSoundName;
 			}
 
+			const FString& GetGraphName()
+			{
+				static const FString SoundGraphName = TEXT("GraphName");
+				return SoundGraphName;
+			}
+
 			FMetasoundFrontendArchetype GetArchetype()
 			{
 				FMetasoundFrontendArchetype Archetype;
@@ -294,6 +300,12 @@ namespace Metasound
 			{
 				static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
 				return SoundIsPreviewSoundName;
+			}
+
+			const FString& GetGraphName()
+			{
+				static const FString SoundGraphName = TEXT("GraphName");
+				return SoundGraphName;
 			}
 
 			const FString& GetInstanceIDName()
@@ -466,6 +478,12 @@ namespace Metasound
 			{
 				static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
 				return SoundIsPreviewSoundName;
+			}
+
+			const FString& GetGraphName()
+			{
+				static const FString SoundGraphName = TEXT("GraphName");
+				return SoundGraphName;
 			}
 
 			const FString& GetInstanceIDName()
@@ -663,6 +681,12 @@ namespace Metasound
 			{
 				check(CurrentMonoVersion::GetInstanceIDName() == CurrentStereoVersion::GetInstanceIDName());
 				return CurrentMonoVersion::GetInstanceIDName();
+			}
+
+			const FString& GetGraphName()
+			{
+				check(CurrentMonoVersion::GetGraphName() == CurrentStereoVersion::GetGraphName());
+				return CurrentMonoVersion::GetGraphName();
 			}
 		}
 

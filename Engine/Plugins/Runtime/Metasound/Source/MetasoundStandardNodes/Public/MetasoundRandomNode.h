@@ -300,7 +300,7 @@ namespace Metasound
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, TRandomNodeSpecialization<ValueType>::GetClassName(), TEXT("") };
+				Info.ClassName = { StandardNodes::Namespace, TRandomNodeSpecialization<ValueType>::GetClassName(), TEXT("") };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = TRandomNodeSpecialization<ValueType>::GetDisplayName();
@@ -308,7 +308,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetDefaultInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::RandomUtils);
+				Info.CategoryHierarchy.Emplace(NodeCategories::RandomUtils);
 
 				return Info;
 			};

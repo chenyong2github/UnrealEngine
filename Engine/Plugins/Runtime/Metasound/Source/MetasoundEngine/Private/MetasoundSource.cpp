@@ -320,6 +320,10 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const FSoun
 	FMetasoundEnvironment Environment = CreateEnvironment();
 	Environment.SetValue<bool>(MetasoundSource::GetIsPreviewSoundName(), InParams.bIsPreviewSound);
 	Environment.SetValue<uint64>(MetasoundSource::GetInstanceIDName(), InParams.InstanceID);
+	
+#if WITH_METASOUND_DEBUG_ENVIRONMENT
+	Environment.SetValue<FString>(MetasoundSource::GetGraphName(), GetFullName());
+#endif // WITH_METASOUND_DEBUG_ENVIRONMENT
 
 	return Environment;
 }

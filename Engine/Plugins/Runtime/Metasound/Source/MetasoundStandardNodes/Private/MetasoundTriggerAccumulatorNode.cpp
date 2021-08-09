@@ -21,7 +21,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("TriggerAccumulator"), InOperatorName, TEXT("")},
+				FNodeClassName { "TriggerAccumulator", InOperatorName, FName() },
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -29,9 +29,9 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{StandardNodes::TriggerUtils},
-				{TEXT("TriggerAccumulator")},
-				FNodeDisplayStyle{}
+				{ NodeCategories::Trigger },
+				{ },
+				FNodeDisplayStyle()
 			};
 
 			return Metadata;

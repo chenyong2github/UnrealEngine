@@ -396,20 +396,19 @@ namespace Metasound
 			RootGraph->IterateNodes([&](FNodeHandle NodeHandle)
 			{
 				using namespace Metasound::Frontend;
-
-				const FMetasoundFrontendClassMetadata& ClassMetadata = NodeHandle->GetClassMetadata();
-
-				if (!NodeHandle->CanAutoUpdate())
+				FClassInterfaceUpdates InterfaceUpdates;
+				if (!NodeHandle->CanAutoUpdate(*AssetInterface, &InterfaceUpdates))
 				{
 					return;
 				}
 
+				const FMetasoundFrontendClassMetadata ClassMetadata = NodeHandle->GetClassMetadata();
 				FMetasoundFrontendVersionNumber UpdateVersion = NodeHandle->FindHighestMinorVersionInRegistry();
 				if (UpdateVersion.IsValid() && UpdateVersion > ClassMetadata.GetVersion())
 				{
 					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating node class '%s': Newer minor version '%s' found."), *ClassMetadata.GetDisplayName().ToString(), *UpdateVersion.ToString());
 				}
-				else
+				else if (InterfaceUpdates.ContainsChanges())
 				{
 					UpdateVersion = ClassMetadata.GetVersion();
 					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating node with class '%s (%s)': Interface change detected."), *ClassMetadata.GetDisplayName().ToString(), *UpdateVersion.ToString());
@@ -442,7 +441,12 @@ namespace Metasound
 				for (const TPair<FNodeHandle, FMetasoundFrontendVersionNumber>& Pair : NodesToUpdate)
 				{
 					FNodeHandle ExistingNode = Pair.Key;
+					FMetasoundFrontendVersionNumber InitialVersion = ExistingNode->GetClassMetadata().GetVersion();
 					FNodeHandle NewNode = ExistingNode->ReplaceWithVersion(Pair.Value);
+					FMetasoundFrontendNodeStyle Style = NewNode->GetNodeStyle();
+					Style.bMessageNodeUpdated = NewNode->GetClassMetadata().GetVersion() > InitialVersion;
+					NewNode->SetNodeStyle(Style);
+
 					bDidEdit |= NewNode->GetID() != ExistingNode->GetID();
 				}
 			}

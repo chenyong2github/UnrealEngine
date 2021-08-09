@@ -38,9 +38,35 @@ namespace Metasound
 	} // namespace Editor
 } // namespace Metasound
 
+USTRUCT()
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	FMetasoundGraphSchemaAction()
+		: FEdGraphSchemaAction()
+	{}
+
+	FMetasoundGraphSchemaAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords = FText::GetEmpty())
+		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords))
+	{}
+
+	virtual const FSlateBrush* GetIconBrush() const
+	{
+		return FEditorStyle::GetBrush("NoBrush");
+	}
+
+	virtual const FLinearColor& GetIconColor() const
+	{
+		static const FLinearColor DefaultColor;
+		return DefaultColor;
+	}
+};
+
+
 /** Action to add an input reference to the graph */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FEdGraphSchemaAction
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FMetasoundGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -48,10 +74,16 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FEdGrap
 	FGuid NodeID;
 
 	FMetasoundGraphSchemaAction_NewInput()
-		: FEdGraphSchemaAction()
+		: FMetasoundGraphSchemaAction()
 	{}
 
 	FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InInputNodeID, FText InToolTip, const int32 InGrouping);
+
+	//~ Begin FMetasoundGraphSchemaAction Interface
+	virtual const FSlateBrush* GetIconBrush() const override;
+
+	virtual const FLinearColor& GetIconColor() const override;
+	//~ End FMetasoundGraphSchemaAction Interface
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
@@ -60,12 +92,12 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FEdGrap
 
 /** Promotes an input to a graph input, using its respective literal value as the default value */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public FEdGraphSchemaAction
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public FMetasoundGraphSchemaAction_NewInput
 {
 	GENERATED_USTRUCT_BODY();
 
 	FMetasoundGraphSchemaAction_PromoteToInput()
-		: FEdGraphSchemaAction()
+		: FMetasoundGraphSchemaAction_NewInput()
 	{}
 
 	FMetasoundGraphSchemaAction_PromoteToInput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping);
@@ -77,7 +109,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public F
 
 /** Adds an output to the graph */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FEdGraphSchemaAction
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FMetasoundGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -85,10 +117,16 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FEdGra
 	FGuid NodeID;
 
 	FMetasoundGraphSchemaAction_NewOutput()
-		: FEdGraphSchemaAction()
+		: FMetasoundGraphSchemaAction()
 	{}
 
 	FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FGuid InOutputNodeID, FText InToolTip, const int32 InGrouping);
+
+	//~ Begin FMetasoundGraphSchemaAction Interface
+	virtual const FSlateBrush* GetIconBrush() const override;
+
+	virtual const FLinearColor& GetIconColor() const override;
+	//~ End FMetasoundGraphSchemaAction Interface
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
@@ -97,12 +135,12 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FEdGra
 
 /** Promotes a node output to a graph output */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToOutput : public FEdGraphSchemaAction
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToOutput : public FMetasoundGraphSchemaAction_NewOutput
 {
 	GENERATED_USTRUCT_BODY();
 
 	FMetasoundGraphSchemaAction_PromoteToOutput()
-		: FEdGraphSchemaAction()
+		: FMetasoundGraphSchemaAction_NewOutput()
 	{}
 
 	FMetasoundGraphSchemaAction_PromoteToOutput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping);
@@ -114,7 +152,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToOutput : public 
 
 /** Action to add a node to the graph */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewNode : public FEdGraphSchemaAction
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewNode : public FMetasoundGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -122,12 +160,18 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewNode : public FEdGraph
 	FMetasoundFrontendClassMetadata ClassMetadata;
 
 	FMetasoundGraphSchemaAction_NewNode() 
-		: FEdGraphSchemaAction()
+		: FMetasoundGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_NewNode(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, const int32 InGrouping)
-		: FEdGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGrouping)
+	FMetasoundGraphSchemaAction_NewNode(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, const int32 InGrouping, FText InKeywords = FText::GetEmpty())
+		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGrouping, InKeywords)
 	{}
+
+	//~ Begin FMetasoundGraphSchemaAction Interface
+	virtual const FSlateBrush* GetIconBrush() const override;
+
+	virtual const FLinearColor& GetIconColor() const override;
+	//~ End FMetasoundGraphSchemaAction Interface
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
@@ -155,17 +199,23 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewFromSelected : public 
 
 /** Action to create new comment */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewComment : public FEdGraphSchemaAction
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewComment : public FMetasoundGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
-	FMetasoundGraphSchemaAction_NewComment() 
-		: FEdGraphSchemaAction()
+	FMetasoundGraphSchemaAction_NewComment()
+		: FMetasoundGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_NewComment(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping)
-		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
+	FMetasoundGraphSchemaAction_NewComment(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, const int32 InGrouping)
+		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGrouping)
 	{}
+
+	//~ Begin FMetasoundGraphSchemaAction Interface
+	virtual const FSlateBrush* GetIconBrush() const override;
+
+	virtual const FLinearColor& GetIconColor() const override;
+	//~ End FMetasoundGraphSchemaAction Interface
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
@@ -174,16 +224,16 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewComment : public FEdGr
 
 /** Action to paste clipboard contents into the graph */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_Paste : public FEdGraphSchemaAction
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_Paste : public FMetasoundGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
 	FMetasoundGraphSchemaAction_Paste() 
-		: FEdGraphSchemaAction()
+		: FMetasoundGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_Paste(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping)
-		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
+	FMetasoundGraphSchemaAction_Paste(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, const int32 InGrouping)
+		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGrouping)
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface

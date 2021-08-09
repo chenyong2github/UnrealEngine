@@ -111,7 +111,7 @@ namespace Metasound
 			const FText NodeDescription = LOCTEXT("Metasound_FrequencyMultiplierToSemitoneDescription", "Converts a frequency multiplier to the corresponding difference in semitones.");
 
 			FNodeClassMetadata Info;
-			Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, DataTypeName };
+			Info.ClassName = { StandardNodes::Namespace, OperatorName, DataTypeName };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = NodeDisplayName;
@@ -119,7 +119,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
-			Info.CategoryHierarchy.Emplace(StandardNodes::Conversions);
+			Info.CategoryHierarchy.Emplace(NodeCategories::Conversions);
 
 			return Info;
 		};

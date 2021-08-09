@@ -6,6 +6,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundTime.h"
@@ -225,7 +226,7 @@ namespace Metasound
 
 				const FNodeClassMetadata Metadata
 				{
-					FNodeClassName{FName("AD Envelope"), OperatorName, DataTypeName},
+					FNodeClassName { "AD Envelope", OperatorName, DataTypeName },
 					1, // Major Version
 					0, // Minor Version
 					NodeDisplayName,
@@ -233,9 +234,9 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{LOCTEXT("EnvelopeCat", "Envelopes")},
-					{TEXT("Envelope")},
-					FNodeDisplayStyle{}
+					{ NodeCategories::Envelopes },
+					{ },
+					FNodeDisplayStyle()
 				};
 
 				return Metadata;

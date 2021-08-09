@@ -250,7 +250,7 @@ namespace Metasound
 		auto InitNodeInfo = []() -> FNodeClassMetadata
 		{
 			FNodeClassMetadata Info;
-			Info.ClassName = { Metasound::StandardNodes::Namespace, TEXT("Stereo Panner"), TEXT("") };
+			Info.ClassName = { StandardNodes::Namespace, TEXT("Stereo Panner"), TEXT("") };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("Metasound_StereoPannerDisplayName", "Stereo Panner");
@@ -258,7 +258,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
-			Info.CategoryHierarchy.Emplace(StandardNodes::Spatalization);
+			Info.CategoryHierarchy.Emplace(NodeCategories::Spatialization);
 			return Info;
 		};
 

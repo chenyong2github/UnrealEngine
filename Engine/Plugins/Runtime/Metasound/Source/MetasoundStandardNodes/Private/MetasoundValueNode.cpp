@@ -14,7 +14,7 @@ namespace Metasound
 		{
 			FNodeClassMetadata Metadata
 			{
-				FNodeClassName{FName("Value"), InOperatorName, InDataTypeName},
+				FNodeClassName{ "Value", InOperatorName, InDataTypeName },
 				1, // Major Version
 				0, // Minor Version
 				InDisplayName,
@@ -22,8 +22,8 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{LOCTEXT("ValueCategory", "Value")},
-				{TEXT("Value")},
+				{ LOCTEXT("ValueCategory", "Value") },
+				{ },
 				FNodeDisplayStyle{}
 			};
 

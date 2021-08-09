@@ -50,8 +50,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/SOverlay.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 
 // This needs to be moved to public directory
 #include "../../GraphEditor/Private/GraphActionNode.h"
@@ -324,7 +324,8 @@ namespace Metasound
 			Metasound = ObjectToEdit;
 
 			const bool bAutoUpdate = true;
-			FGraphBuilder::ValidateGraph(*Metasound, bAutoUpdate);
+			const bool bClearUpdateNotes = false;
+			FGraphBuilder::ValidateGraph(*Metasound, bAutoUpdate, bClearUpdateNotes);
 
 			GEditor->RegisterForUndo(this);
 
@@ -387,6 +388,8 @@ namespace Metasound
 
 			ExtendToolbar();
 			RegenerateMenusAndToolbars();
+
+			FGraphBuilder::ValidateGraph(*Metasound, false /* bAutoUpdate */);
 		}
 
 		UObject* FEditor::GetMetasoundObject() const
@@ -1181,6 +1184,7 @@ namespace Metasound
 								if (MajorUpdateVersion.IsValid() && MajorUpdateVersion > NodeHandle->GetClassMetadata().GetVersion())
 								{
 									ExternalNode->UpdateToVersion(MajorUpdateVersion, false /* bInPropagateErrorMessages */);
+									FGraphBuilder::SynchronizeGraph(*Metasound);
 								}
 							}
 						}
@@ -1746,8 +1750,7 @@ namespace Metasound
 				NotifyUserModifiedBySync();
 			}
 
-			const bool bAutoUpdate = true;
-			FGraphBuilder::ValidateGraph(*Metasound, bAutoUpdate);
+			FGraphBuilder::ValidateGraph(*Metasound);
 
 			if (bNotifyReferenceLoop)
 			{

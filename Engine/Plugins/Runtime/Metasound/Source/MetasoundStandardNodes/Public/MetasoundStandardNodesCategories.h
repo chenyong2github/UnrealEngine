@@ -3,22 +3,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundAutoConverterNode.h"
+
 
 namespace Metasound
 {
-	namespace StandardNodes
+	namespace NodeCategories
 	{
-		extern const FText Generators;
-		extern const FText Filters;
-		extern const FText TriggerUtils;
-		extern const FText Music;
-		extern const FText Audio;
-		extern const FText RandomUtils;
-		extern const FText Conversions;
-		extern const FText DebugUtils;
-		extern const FText Io;
-		extern const FText Delays;
-		extern const FText Spatalization;
-		extern const FText Dynamics;
+		extern const FText METASOUNDSTANDARDNODES_API Audio;
+		extern const FText METASOUNDSTANDARDNODES_API Debug;
+		extern const FText METASOUNDSTANDARDNODES_API Delays;
+		extern const FText METASOUNDSTANDARDNODES_API Dynamics;
+		extern const FText METASOUNDSTANDARDNODES_API Envelopes;
+		extern const FText METASOUNDSTANDARDNODES_API Filters;
+		extern const FText METASOUNDSTANDARDNODES_API Generators;
+		extern const FText METASOUNDSTANDARDNODES_API Io;
+		extern const FText METASOUNDSTANDARDNODES_API Math;
+		extern const FText METASOUNDSTANDARDNODES_API Music;
+		extern const FText METASOUNDSTANDARDNODES_API RandomUtils;
+		extern const FText METASOUNDSTANDARDNODES_API Spatialization;
+		extern const FText METASOUNDSTANDARDNODES_API Trigger;
 	}
 }

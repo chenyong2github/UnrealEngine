@@ -37,7 +37,7 @@ namespace Metasound
 				FText NodeDescription = LOCTEXT("LinearToLogFrequencyDescription", "Converts a linear space input value to log-frequency space.");
 
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, TEXT("") };
+				Info.ClassName = { StandardNodes::Namespace, OperatorName, TEXT("") };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = NodeDisplayName;
@@ -45,7 +45,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(StandardNodes::Music);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Music);
 
 				return Info;
 			};

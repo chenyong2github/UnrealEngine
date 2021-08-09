@@ -56,7 +56,7 @@ namespace Metasound
 
 				FNodeClassMetadata Metadata
 				{
-					FNodeClassName{StandardNodes::Namespace, TEXT("Bitcrusher"), StandardNodes::AudioVariant},
+					FNodeClassName { StandardNodes::Namespace, "Bitcrusher", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
 					LOCTEXT("BitcrusherDisplayName", "Bitcrusher"),
@@ -64,9 +64,9 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{StandardNodes::Filters},
-					{TEXT("Bitcrusher")},
-					FNodeDisplayStyle{}
+					{ NodeCategories::Filters },
+					{ },
+					FNodeDisplayStyle()
 				};
 
 				return Metadata;

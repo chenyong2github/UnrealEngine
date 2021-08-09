@@ -40,8 +40,12 @@ namespace Metasound
 class METASOUNDFRONTEND_API IMetaSoundAssetInterface
 {
 public:
+	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const = 0;
 	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
 	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
+
+	// Rescans settings for blacklisted assets not to run reference auto-update against.
+	virtual void RescanAutoUpdateBlacklist() = 0;
 
 	// Attempts to load an FMetasoundAssetBase from the given path, or returns it if its already loaded
 	virtual FMetasoundAssetBase* TryLoadAsset(const FSoftObjectPath& InObjectPath) const = 0;

@@ -61,7 +61,7 @@ namespace Metasound
 
 				FNodeClassMetadata Metadata
 				{
-					FNodeClassName{StandardNodes::Namespace, TEXT("Mid-Side Decode"), StandardNodes::AudioVariant},
+					FNodeClassName { StandardNodes::Namespace, "Mid-Side Decode", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
 					LOCTEXT("MidSideEncodeDisplayName", "Mid-Side Encode"),
@@ -69,8 +69,8 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{StandardNodes::Spatalization},
-					{TEXT("MidSideEncode")},
+					{ NodeCategories::Spatialization},
+					{ },
 					FNodeDisplayStyle{}
 				};
 
@@ -285,7 +285,7 @@ namespace Metasound
 
 				FNodeClassMetadata Metadata
 				{
-					FNodeClassName{StandardNodes::Namespace, TEXT("Mid-Side Encode"), StandardNodes::AudioVariant},
+					FNodeClassName { StandardNodes::Namespace, "Mid-Side Encode", StandardNodes::AudioVariant },
 					1, // Major Version
 					0, // Minor Version
 					LOCTEXT("MidSideDecodeDisplayName", "Mid-Side Decode"),
@@ -293,9 +293,9 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{StandardNodes::Spatalization},
-					{TEXT("MidSideDecode")},
-					FNodeDisplayStyle{}
+					{ NodeCategories::Spatialization },
+					{ },
+					FNodeDisplayStyle()
 				};
 
 				return Metadata;

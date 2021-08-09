@@ -6,6 +6,7 @@
 #include "MetasoundFacade.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "Internationalization/Text.h"
@@ -189,7 +190,7 @@ namespace Metasound
 
 				FNodeClassMetadata Metadata
 				{
-					FNodeClassName{FName("Crossfade"), OperatorName, DataTypeName},
+					FNodeClassName { "Crossfade", OperatorName, DataTypeName },
 					1, // Major Version
 					0, // Minor Version
 					NodeDisplayName,
@@ -197,9 +198,9 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					NodeInterface,
-					{LOCTEXT("CrossfadeCategory", "Math")},
-					{TEXT("Crossfade")},
-					FNodeDisplayStyle{}
+					{ NodeCategories::Envelopes },
+					{ },
+					FNodeDisplayStyle()
 				};
 				return Metadata;
 			};
