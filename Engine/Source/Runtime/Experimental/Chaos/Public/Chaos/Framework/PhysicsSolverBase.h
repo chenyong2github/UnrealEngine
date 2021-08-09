@@ -126,6 +126,10 @@ namespace Chaos
 		{
 			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.Remove(ProxyBaseIn);
 		}
+		int32 NumDirtyProxies_External()
+		{
+			return MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.NumDirtyProxies();
+		}
 
 		// Batch dirty proxies without checking DirtyIdx.
 		template <typename TProxiesArray>

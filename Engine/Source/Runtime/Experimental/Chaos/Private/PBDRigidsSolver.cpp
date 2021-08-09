@@ -593,8 +593,6 @@ namespace Chaos
 		FJointConstraintPhysicsProxy* JointProxy = new FJointConstraintPhysicsProxy(GTConstraint, nullptr);
 		JointProxy->SetSolver(this);
 
-		JointConstraintPhysicsProxies_Internal.Add(JointProxy);
-
 		AddDirtyProxy(JointProxy);
 	}
 
@@ -1047,6 +1045,7 @@ namespace Chaos
 				const bool bIsNew = !JointProxy->IsInitialized();
 				if (bIsNew)
 				{
+					JointConstraintPhysicsProxies_Internal.Add(JointProxy);
 					JointProxy->InitializeOnPhysicsThread(this);
 					JointProxy->SetInitialized();
 				}
