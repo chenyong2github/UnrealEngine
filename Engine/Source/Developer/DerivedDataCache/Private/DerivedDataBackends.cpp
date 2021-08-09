@@ -561,6 +561,7 @@ public:
 				if (DDCPath.Len() > 0)
 				{
 					Path = DDCPath;
+					UE_LOG( LogDerivedDataCache, Log, TEXT("Found registry key GlobalDataCachePath %s=%s"), *EnvPathOverride, *Path );
 				}
 			}
 		}
@@ -732,7 +733,11 @@ public:
 				FString DDCPath;
 				if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *EnvPathOverride, DDCPath))
 				{
-					CachePath = DDCPath;
+					if ( DDCPath.Len() > 0 )
+					{
+						CachePath = DDCPath;			
+						UE_LOG( LogDerivedDataCache, Log, TEXT("Found registry key GlobalDataCachePath %s=%s"), *EnvPathOverride, *CachePath );
+					}
 				}
 			}
 		}
