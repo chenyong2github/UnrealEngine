@@ -132,12 +132,14 @@ namespace HordeAgentTests
 		/// </summary>
 		/// <param name="InstanceName">Instance name</param>
 		/// <param name="Cas">The content-addressable store being used</param>
+		/// <param name="Timeout">Timeout before killing the command</param>
 		/// <param name="UploadBin">True to upload the remote exec test binary to CAS</param>
 		/// <param name="UploadDir">True to upload directory to CAS</param>
 		/// <param name="UploadCommand">True to upload the command to CAS</param>
 		/// <param name="UploadAction">True to upload action to CAS</param>
 		/// <returns>An ActionTask populated in CAS</returns>
-		public static ActionTask CreateActionTask(string InstanceName, FakeCasClient Cas, bool UploadBin = true, bool UploadDir = true, bool UploadCommand = true, bool UploadAction = true)
+		public static ActionTask CreateActionTask(string InstanceName, FakeCasClient Cas, TimeSpan? CommandSleep = null, int CommandExitCode = 0, TimeSpan? Timeout = null,
+			bool UploadBin = true, bool UploadDir = true, bool UploadCommand = true, bool UploadAction = true)
 		{
 			string BinName = "remote-exec-test-bin.exe";
 			string AssemblyPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
@@ -164,6 +166,16 @@ namespace HordeAgentTests
 
 			Build.Bazel.Remote.Execution.V2.Command Command = new Build.Bazel.Remote.Execution.V2.Command();
 			Command.Arguments.Add(ExeFile.Name);
+
+			int CommandSleepMs = 0;
+			if (CommandSleep != null)
+			{
+				CommandSleepMs = (int) CommandSleep.Value.TotalMilliseconds;
+			}
+			
+			Command.Arguments.Add(CommandSleepMs.ToString());
+			Command.Arguments.Add(CommandExitCode.ToString());
+			
 			byte[] CommandData = Command.ToByteArray();
 			if (UploadCommand)
 			{
@@ -174,6 +186,11 @@ namespace HordeAgentTests
 			Action.CommandDigest = GetDigest(CommandData);
 			Action.InputRootDigest = GetDigest(DirData);
 			Action.DoNotCache = true;
+
+			if (Timeout != null)
+			{
+				Action.Timeout = Duration.FromTimeSpan(Timeout.Value);	
+			}
 			
 			byte[] ActionData = Action.ToByteArray();
 			if (UploadAction)

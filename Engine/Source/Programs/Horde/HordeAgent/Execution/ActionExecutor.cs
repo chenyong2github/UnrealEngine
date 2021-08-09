@@ -86,6 +86,67 @@ namespace HordeAgent
 		}
 
 		/// <summary>
+		/// Read stdout/stderr and wait until process completes
+		/// </summary>
+		/// <param name="Process">The process reading from</param>
+		/// <param name="Timeout">Max execution timeout for process</param>
+		/// <param name="CancelToken">Cancellation token</param>
+		/// <returns>stdout and stderr data</returns>
+		/// <exception cref="RpcException">Raised for either timeout or cancel</exception>
+		private async Task<(byte[] StdOutData, byte[] StdOutErr)> ReadProcessStreams(ManagedProcess Process, TimeSpan Timeout, CancellationToken CancelToken)
+		{
+			using MemoryStream StdOutStream = new MemoryStream();
+			using MemoryStream StdErrStream = new MemoryStream();
+
+			void CheckIfCancelled()
+			{
+				if (CancelToken.IsCancellationRequested)
+				{
+					throw new RpcException(new Grpc.Core.Status(StatusCode.Cancelled, "Action cancelled"));
+				}
+			}
+			
+			try
+			{
+				CheckIfCancelled();
+
+				// Read stdout/stderr without cancellation token.
+				Task StdOutReadTask = Process.StdOut.CopyToAsync(StdOutStream);
+				Task StdErrReadTask = Process.StdErr.CopyToAsync(StdErrStream);
+				
+				// Instead, create a separate task that will wait for either timeout or cancellation
+				// as cancel interruptions are not reliable with Stream.CopyToAsync()
+				Task TimeoutTask = Task.Delay(Timeout, CancelToken);
+				
+				for (;;)
+				{
+					Task t = await Task.WhenAny(StdOutReadTask, StdErrReadTask, TimeoutTask);
+					bool BothStreamsRead = StdOutReadTask.IsCompleted && StdErrReadTask.IsCompleted;
+					
+					if (BothStreamsRead) { break; }
+					else if (t == StdOutReadTask) {} // Ignore, wait for stderr to complete
+					else if (t == StdErrReadTask) {} // Ignore, wait for stdout to complete
+					else if (t == TimeoutTask)
+					{
+						throw new RpcException(new Grpc.Core.Status(StatusCode.DeadlineExceeded, $"Action timed out after {Timeout.TotalMilliseconds} ms"));
+					}
+					else
+					{
+						throw new Exception("Unhandled task condition waiting for process streams");
+					}
+				}
+			}
+			catch (TaskCanceledException)
+			{
+				// Raising an exception will force the Process variable to be disposed and terminated.
+				CheckIfCancelled();
+				throw;
+			}
+
+			return (StdOutStream.ToArray(), StdErrStream.ToArray());
+		}
+		
+		/// <summary>
 		/// Execute an action
 		/// </summary>
 		/// <param name="LeaseId">The lease id</param>
@@ -143,22 +204,13 @@ namespace HordeAgent
 				}
 
 				Logger.LogInformation("Executing {FileName} with arguments {Arguments}", FileName, Arguments);
+
+				TimeSpan Timeout = Action.Timeout == null ? TimeSpan.FromMinutes(5) : Action.Timeout.ToTimeSpan();
 				DateTimeOffset ExecutionStartTime = DateTimeOffset.UtcNow;
 				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, FileName, Arguments, WorkingDirectory, NewEnvironment, ProcessPriorityClass.Normal, ManagedProcessFlags.None))
 				{
-					byte[] StdOutData;
-					byte[] StdErrData;
-					using (MemoryStream StdOutStream = new MemoryStream())
-					using (MemoryStream StdErrStream = new MemoryStream())
-					{
-						await Task.WhenAll(Process.StdOut.CopyToAsync(StdOutStream, CancellationToken), Process.StdErr.CopyToAsync(StdErrStream, CancellationToken));
-						if (CancellationToken.IsCancellationRequested)
-						{
-							throw new RpcException(new Grpc.Core.Status(StatusCode.Cancelled, "Action Cancelled"));
-						}
-						StdOutData = StdOutStream.ToArray();
-						StdErrData = StdErrStream.ToArray();
-					}
+					(byte[] StdOutData, byte[] StdErrData) = await ReadProcessStreams(Process, Timeout, CancellationToken);
+					
 					DateTimeOffset ExecutionCompletedTime = DateTimeOffset.UtcNow;
 						
 
