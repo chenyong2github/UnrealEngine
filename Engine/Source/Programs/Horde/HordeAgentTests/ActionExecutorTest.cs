@@ -113,6 +113,36 @@ namespace HordeAgentTests
 				new DirectoryReference(TempDir), DateTimeOffset.UtcNow, CancellationToken.None));
 		}
 		
+		
+		[TestMethod]
+		public async Task ExecuteActionWithinTimeout()
+		{
+			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
+			ActionTask ActionTask1 = TaskTest.CreateActionTask(InstanceName, CasClient, CommandSleep: TimeSpan.FromMilliseconds(200), Timeout: TimeSpan.FromMilliseconds(1500));
+			await Executor.ExecuteActionAsync("myLeaseId1", ActionTask1, new DirectoryReference(TempDir),
+				DateTimeOffset.UtcNow, CancellationToken.None);
+		}
+		
+		[TestMethod]
+		public async Task ExecuteActionCancel()
+		{
+			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
+			ActionTask ActionTask = TaskTest.CreateActionTask(InstanceName, CasClient, CommandSleep: TimeSpan.FromMilliseconds(15000));
+			CancellationTokenSource Cts = new CancellationTokenSource();
+			Cts.CancelAfter(200);
+			RpcException Ex = await Assert.ThrowsExceptionAsync<RpcException>(() => Executor.ExecuteActionAsync("myLeaseId1", ActionTask, new DirectoryReference(TempDir), DateTimeOffset.UtcNow, Cts.Token));
+			Assert.AreEqual(StatusCode.Cancelled, Ex.Status.StatusCode);
+		}
+		
+		[TestMethod]
+		public async Task ExecuteActionExceedingTimeout()
+		{
+			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
+			ActionTask ActionTask = TaskTest.CreateActionTask(InstanceName, CasClient, CommandSleep: TimeSpan.FromMilliseconds(15000), Timeout: TimeSpan.FromMilliseconds(200));
+			RpcException Ex = await Assert.ThrowsExceptionAsync<RpcException>(() => Executor.ExecuteActionAsync("myLeaseId1", ActionTask, new DirectoryReference(TempDir), DateTimeOffset.UtcNow, CancellationToken.None));
+			Assert.AreEqual(StatusCode.DeadlineExceeded, Ex.Status.StatusCode);
+		}
+		
 		private static ILogger CreateLogger()
 		{
 			LoggerFactory LoggerFactory = new LoggerFactory();
