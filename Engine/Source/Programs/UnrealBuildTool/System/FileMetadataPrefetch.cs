@@ -111,7 +111,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		static void ScanEngineDirectory()
 		{
-			foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory))
+			foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(Unreal.EngineDirectory))
 			{
 				DirectoryItem BaseDirectory = DirectoryItem.GetItemByDirectoryReference(ExtensionDir);
 				BaseDirectory.CacheDirectories();
@@ -139,7 +139,7 @@ namespace UnrealBuildTool
 		/// <param name="ProjectDirectory">The project directory to search</param>
 		static void ScanProjectDirectory(DirectoryItem ProjectDirectory)
 		{
-			foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory))
+			foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(Unreal.EngineDirectory))
 			{
 				DirectoryItem BaseDirectory = DirectoryItem.GetItemByDirectoryReference(ExtensionDir);
 				BaseDirectory.CacheDirectories();

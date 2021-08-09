@@ -1987,7 +1987,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add all the plugins to be tracked
-			foreach(FileReference PluginFile in global::UnrealBuildTool.Plugins.EnumeratePlugins(ProjectFile))
+			foreach(FileReference PluginFile in PluginsBase.EnumeratePlugins(ProjectFile))
 			{
 				FileItem PluginFileItem = FileItem.GetItemByFileReference(PluginFile);
 				Makefile.PluginFiles.Add(PluginFileItem);
@@ -2317,7 +2317,7 @@ namespace UnrealBuildTool
 
 			if(Module.RulesFile != null)
 			{
-				foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory))
+				foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(Unreal.EngineDirectory))
 				{
 					DirectoryReference SourceDeveloperDir = DirectoryReference.Combine(ExtensionDir, "Source/Developer");
 					if(Module.RulesFile.IsUnderDirectory(SourceDeveloperDir))
@@ -2696,15 +2696,15 @@ namespace UnrealBuildTool
 				List<DirectoryReference> Directories = new List<DirectoryReference>();
 				if (TargetType == TargetType.Editor)
 				{
-					Directories.AddRange(UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source/Editor"));
+					Directories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Editor"));
 				}
-				Directories.AddRange(UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source/Runtime"));
+				Directories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Runtime"));
 
 				// Also allow anything in the developer directory in non-shipping configurations (though we blacklist by default unless the PrecompileForTargets
 				// setting indicates that it's actually useful at runtime).
 				if(Rules.bBuildDeveloperTools)
 				{
-					Directories.AddRange(UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source/Developer"));
+					Directories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Developer"));
 				}
 
 				// Find all the modules that are not part of the standard set
@@ -2868,7 +2868,7 @@ namespace UnrealBuildTool
 		/// <returns>The output directory for this target</returns>
 		public static DirectoryReference GetOutputDirectoryForExecutable(DirectoryReference BaseDir, FileReference TargetFile)
 		{
-			return UnrealBuildTool.GetExtensionDirs(BaseDir).Where(x => TargetFile.IsUnderDirectory(x)).OrderByDescending(x => x.FullName.Length).FirstOrDefault() ?? Unreal.EngineDirectory;
+			return Unreal.GetExtensionDirs(BaseDir).Where(x => TargetFile.IsUnderDirectory(x)).OrderByDescending(x => x.FullName.Length).FirstOrDefault() ?? Unreal.EngineDirectory;
 		}
 
 		/// <summary>

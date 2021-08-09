@@ -71,11 +71,6 @@ namespace AutomationTool
 			ProcessManager.SetConsoleCtrlHandler(Handler, true);
 		}
 
-		public override bool IsScriptModuleSupported(string ModuleName)
-		{
-			return true;
-		}
-
 		public override UnrealTargetPlatform HostEditorPlatform
 		{
 			get { return UnrealTargetPlatform.Win64; }

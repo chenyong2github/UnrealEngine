@@ -149,16 +149,6 @@ namespace AutomationTool
 			// @todo: add mono support
 		}
 
-		public override bool IsScriptModuleSupported(string ModuleName)
-		{
-			// @todo: add more unsupported modules here
-			if (ModuleName.StartsWith("Gauntlet", StringComparison.OrdinalIgnoreCase))
-			{
-				return false;
-			}
-			return true;
-		}
-
 		public override UnrealTargetPlatform HostEditorPlatform
 		{
 			get { return UnrealTargetPlatform.Linux; }

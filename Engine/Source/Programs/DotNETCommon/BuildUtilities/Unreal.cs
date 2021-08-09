@@ -4,6 +4,7 @@ using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 
@@ -143,6 +144,129 @@ namespace UnrealBuildBase
 			/// If set, this value will be used to populate Unreal.RootDirectory
 			/// </summary>
 			public static DirectoryReference? RootDirectory = null;
+		}
+
+
+		// A subset of the functionality in DataDrivenPlatformInfo.GetAllPlatformInfos() - finds the DataDrivenPlatformInfo.ini files and records their existence, but does not parse them
+		// (perhaps DataDrivenPlatformInfo.GetAllPlatformInfos() could be modified to use this data to avoid an additional search through the filesystem)
+		public static HashSet<string>? IniPresentForPlatform = null;
+		private static bool DataDrivenPlatformInfoIniIsPresent(string PlatformName)
+		{
+			if (IniPresentForPlatform == null)
+			{
+				IniPresentForPlatform = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+				// find all platform directories (skipping NFL/NoRedist)
+				foreach (DirectoryReference EngineConfigDir in GetExtensionDirs(Unreal.EngineDirectory, "Config", bIncludeRestrictedDirectories: false))
+				{
+					// look through all config dirs looking for the data driven ini file
+					foreach (string FilePath in Directory.EnumerateFiles(EngineConfigDir.FullName, "DataDrivenPlatformInfo.ini", SearchOption.AllDirectories))
+					{
+						FileReference FileRef = new FileReference(FilePath);
+
+						// get the platform name from the path
+						string IniPlatformName;
+						if (FileRef.IsUnderDirectory(DirectoryReference.Combine(Unreal.EngineDirectory, "Config")))
+						{
+							// Foo/Engine/Config/<Platform>/DataDrivenPlatformInfo.ini
+							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(FilePath))!;
+						}
+						else
+						{
+							// Foo/Engine/Platforms/<Platform>/Config/DataDrivenPlatformInfo.ini
+							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(FilePath)))!;
+						}
+
+						// DataDrivenPlatformInfo.GetAllPlatformInfos() checks that [DataDrivenPlatformInfo] section exists as part of validating that the file exists
+						// This code should probably behave the same way.
+
+						IniPresentForPlatform.Add(IniPlatformName);
+					}
+				}
+			}
+			return IniPresentForPlatform.Contains(PlatformName);
+		}
+
+		// cached dictionary of BaseDir to extension directories
+		private static Dictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>> CachedExtensionDirectories = new Dictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>>();
+
+		/// <summary>
+		/// Finds all the extension directories for the given base directory. This includes platform extensions and restricted folders.
+		/// </summary>
+		/// <param name="BaseDir">Location of the base directory</param>
+		/// <param name="bIncludePlatformDirectories">If true, platform subdirectories are included (will return platform directories under Restricted dirs, even if bIncludeRestrictedDirectories is false)</param>
+		/// <param name="bIncludeRestrictedDirectories">If true, restricted (NotForLicensees, NoRedist) subdirectories are included</param>
+		/// <param name="bIncludeBaseDirectory">If true, BaseDir is included</param>
+		/// <returns>List of extension directories, including the given base directory</returns>
+		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true, bool bIncludeBaseDirectory=true)
+		{
+			Tuple<List<DirectoryReference>, List<DirectoryReference>>? CachedDirs;
+			if (!CachedExtensionDirectories.TryGetValue(BaseDir, out CachedDirs))
+			{
+				CachedDirs = Tuple.Create(new List<DirectoryReference>(), new List<DirectoryReference>());
+
+				CachedExtensionDirectories[BaseDir] = CachedDirs;
+
+				DirectoryReference PlatformExtensionBaseDir = DirectoryReference.Combine(BaseDir, "Platforms");
+				if (DirectoryReference.Exists(PlatformExtensionBaseDir))
+				{
+					CachedDirs.Item1.AddRange(DirectoryReference.EnumerateDirectories(PlatformExtensionBaseDir));
+				}
+
+				DirectoryReference RestrictedBaseDir = DirectoryReference.Combine(BaseDir, "Restricted");
+				if (DirectoryReference.Exists(RestrictedBaseDir))
+				{
+					IEnumerable<DirectoryReference> RestrictedDirs = DirectoryReference.EnumerateDirectories(RestrictedBaseDir);
+					CachedDirs.Item2.AddRange(RestrictedDirs);
+
+					// also look for nested platforms in the restricted
+					foreach (DirectoryReference RestrictedDir in RestrictedDirs)
+					{
+						DirectoryReference RestrictedPlatformExtensionBaseDir = DirectoryReference.Combine(RestrictedDir, "Platforms");
+						if (DirectoryReference.Exists(RestrictedPlatformExtensionBaseDir))
+						{
+							CachedDirs.Item1.AddRange(DirectoryReference.EnumerateDirectories(RestrictedPlatformExtensionBaseDir));
+						}
+					}
+				}
+
+				// remove any platform directories in non-engine locations if the engine doesn't have the platform 
+				if (BaseDir != Unreal.EngineDirectory && CachedDirs.Item1.Count > 0)
+				{
+					// if the DDPI.ini file doesn't exist, we haven't synced the platform, so just skip this directory
+					CachedDirs.Item1.RemoveAll(x => DataDrivenPlatformInfoIniIsPresent(x.GetDirectoryName()));
+				}
+			}
+
+			// now return what the caller wanted (always include BaseDir)
+			List<DirectoryReference> ExtensionDirs = new List<DirectoryReference>();
+			if (bIncludeBaseDirectory)
+			{
+				ExtensionDirs.Add(BaseDir);
+			}
+			if (bIncludePlatformDirectories)
+			{
+				ExtensionDirs.AddRange(CachedDirs.Item1);
+			}
+			if (bIncludeRestrictedDirectories)
+			{
+				ExtensionDirs.AddRange(CachedDirs.Item2);
+			}
+			return ExtensionDirs;
+		}
+
+		/// <summary>
+		/// Finds all the extension directories for the given base directory. This includes platform extensions and restricted folders.
+		/// </summary>
+		/// <param name="BaseDir">Location of the base directory</param>
+		/// <param name="SubDir">The subdirectory to find</param>
+		/// <param name="bIncludePlatformDirectories">If true, platform subdirectories are included (will return platform directories under Restricted dirs, even if bIncludeRestrictedDirectories is false)</param>
+		/// <param name="bIncludeRestrictedDirectories">If true, restricted (NotForLicensees, NoRedist) subdirectories are included</param>
+		/// <param name="bIncludeBaseDirectory">If true, BaseDir is included</param>
+		/// <returns>List of extension directories, including the given base directory</returns>
+		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, string SubDir, bool bIncludePlatformDirectories=true, bool bIncludeRestrictedDirectories=true, bool bIncludeBaseDirectory=true)
+		{
+			return GetExtensionDirs(BaseDir, bIncludePlatformDirectories, bIncludeRestrictedDirectories, bIncludeBaseDirectory).Select(x => DirectoryReference.Combine(x, SubDir)).Where(x => DirectoryReference.Exists(x)).ToList();
 		}
 	}
 }

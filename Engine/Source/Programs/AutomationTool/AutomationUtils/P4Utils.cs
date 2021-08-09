@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Collections;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {

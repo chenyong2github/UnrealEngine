@@ -1,9 +1,8 @@
 #!/bin/bash
+## Unreal Engine AutomationTool setup script	
 ## Copyright Epic Games, Inc. All Rights Reserved.
 ##
-## Unreal Engine 4 AutomationTool setup script
-##
-## This script is expecting to exist in the UE4/Engine/Build/BatchFiles directory.  It will not work
+## This script is expecting to exist in the Engine/Build/BatchFiles directory.  It will not work
 ## correctly if you copy it to a different location and run it.
 
 echo
@@ -47,27 +46,10 @@ TermHandler() {
 	fi
 }
 
-# loop over the arguments, quoting spaces to pass to UAT proper
-Args=
-i=0
-for Arg in "$@"
-do
-	# replace all ' ' with '\ '
-	# DISABLED UNTIL FURTHER INVESTIGATION - IT SEEMS IT WASN'T NEEDED AFTER ALL
-	# NewArg=${Arg// /\\ }
-	NewArg=$Arg
-	# append it to the array
-	Args[i]=$NewArg
-	# move to next array entry
-	i=$((i+1))
-done
-
-
 # put ourselves into Engine directory (two up from location of this script)
 SCRIPT_DIR=$(cd "`dirname "$0"`" && pwd)
 cd "$SCRIPT_DIR/../.."
 
-UATDirectory=Binaries/DotNET/
 UATCompileArg=-compile
 
 if [ ! -f Build/BatchFiles/RunUAT.sh ]; then
@@ -77,14 +59,14 @@ if [ ! -f Build/BatchFiles/RunUAT.sh ]; then
 fi
 
 # see if we have the no compile arg
-if echo "${Args[@]}" | grep -q -w -i "\-nocompile"; then
+if echo "$@" | grep -q -w -i "\-nocompile"; then
 	UATCompileArg=
 else
 	UATCompileArg=-compile
 fi
 
 # control toggling of msbuild verbosity for easier debugging
-if echo "${Args[@]}" | grep -q -w -i "\-msbuild-verbose"; then
+if echo "$@" | grep -q -w -i "\-msbuild-verbose"; then
 	MSBuild_Verbosity=normal
 else
 	MSBuild_Verbosity=quiet
@@ -99,7 +81,7 @@ UATDirectory=Binaries/DotNET/AutomationTool
 
 if [ "$(uname)" = "Darwin" ]; then
 	# Setup Environment
-	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" -mono "$SCRIPT_DIR/Mac"
+	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" -mono "$SCRIPT_DIR/Mac" # ~0.4s :(
 	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" $EnvironmentType "$SCRIPT_DIR/Mac"
 fi
 
@@ -109,23 +91,15 @@ if [ "$(uname)" = "Linux" ]; then
 	source "$SCRIPT_DIR/Linux/SetupEnvironment.sh" $EnvironmentType "$SCRIPT_DIR/Linux"
 fi
 
-
 if [ "$UATCompileArg" = "-compile" ]; then
   # see if the .csproj exists to be compiled
 	if [ ! -f Source/Programs/AutomationTool/AutomationTool.csproj ]; then
 		echo No project to compile, attempting to use precompiled AutomationTool
 		UATCompileArg=
 	else
-		echo Building AutomationTool...
-		dotnet msbuild -restore Source/Programs/AutomationTool/AutomationTool.csproj /nologo /property:Configuration=Development /property:AutomationToolProjectOnly=true /verbosity:$MSBuild_Verbosity
+		"$SCRIPT_DIR"/BuildUAT.sh
 		if [ $? -ne 0 ]; then
 			echo RunUAT ERROR: AutomationTool failed to compile.
-			exit 1
-		fi
-		echo Building AutomationTool Plugins...
-		dotnet msbuild -restore Source/Programs/AutomationTool/AutomationTool.proj /nologo  /property:Configuration=Development /verbosity:$MSBuild_Verbosity
-		if [ $? -ne 0 ]; then
-			echo RunUAT ERROR: AutomationTool plugins failed to compile.
 			exit 1
 		fi
 	fi
@@ -147,16 +121,16 @@ fi
 if [ "$UE_DesktopUnrealProcess" = "1" ]; then
 	# you can't set a dotted env var nicely in sh, but env will run a command with
 	# a list of env vars set, including dotted ones
-	echo Start UAT Non-Interactively: ./AutomationTool "${Args[@]}"
+	echo Start UAT Non-Interactively: ./AutomationTool "$@"
 	trap TermHandler SIGTERM SIGINT
-	env uebp_LogFolder="$LogDir" ./AutomationTool "${Args[@]}" &
+	env uebp_LogFolder="$LogDir" ./AutomationTool "$@" &
 	UATPid=$!
 	wait $UATPid
 else
 	# you can't set a dotted env var nicely in sh, but env will run a command with
 	# a list of env vars set, including dotted ones
-	echo Start UAT Interactively: ./AutomationTool "${Args[@]}"
-	env uebp_LogFolder="$LogDir" ./AutomationTool "${Args[@]}"
+	echo Start UAT Interactively: ./AutomationTool "$@"
+	env uebp_LogFolder="$LogDir" ./AutomationTool "$@"
 fi
 
 UATReturn=$?

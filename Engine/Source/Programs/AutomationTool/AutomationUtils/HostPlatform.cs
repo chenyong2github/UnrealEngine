@@ -96,13 +96,6 @@ namespace AutomationTool
 		abstract public void SetConsoleCtrlHandler(ProcessManager.CtrlHandlerDelegate Handler);
 
 		/// <summary>
-		/// Platform specific override to skip loading/compiling unsupported modules
-		/// </summary>
-		/// <param name="ModuleName">Module name</param>
-		/// <returns>True if module should be compiled or loaded</returns>
-		abstract public bool IsScriptModuleSupported(string ModuleName);
-
-		/// <summary>
 		/// Returns the type of the host editor platform.
 		/// </summary>
 		abstract public UnrealBuildTool.UnrealTargetPlatform HostEditorPlatform { get; }

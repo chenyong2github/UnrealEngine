@@ -152,13 +152,12 @@ namespace Turnkey.Commands
 			// split the string, removing empty results
 			List<string> Arguments = Matcher.Split(Params).Where(x => x != "").ToList();
 
-			AutomationTool.CommandInfo BCRCommand = new AutomationTool.CommandInfo();
-			BCRCommand.CommandName = "BuildCookRun";
+			UnrealBuildBase.CommandInfo BCRCommand = new UnrealBuildBase.CommandInfo("BuildCookRun");
 			// chop off the first - character in all the commands (see Automation.ParseParam)
 			BCRCommand.Arguments = Arguments.Select(x => x.Substring(1)).ToList();
 
 			// use the BCR's exitcode as Turnkey's exitcode
-			TurnkeyUtils.ExitCode = Automation.Execute(new List<AutomationTool.CommandInfo>() { BCRCommand }, ScriptCompiler.Commands);
+			TurnkeyUtils.ExitCode = Automation.Execute(new List<UnrealBuildBase.CommandInfo>() { BCRCommand }, ScriptManager.Commands);
 		}
 
 		string GetIniSetting(string Spec, DirectoryReference ProjectDir, UnrealTargetPlatform Platform)

@@ -42,19 +42,6 @@ namespace AutomationTool
 		/// </summary>
 		public bool AlwaysBuildUHT { get; set; }
 
-		public bool HasBuildProduct(string InFile)
-		{
-			string File = CommandUtils.CombinePaths(InFile);
-			foreach (var ExistingFile in BuildProductFiles)
-			{
-				if (ExistingFile.Equals(File, StringComparison.InvariantCultureIgnoreCase))
-				{
-					return true;
-				}
-			}
-			return false;
-		}
-
 		public void AddBuildProduct(string InFile)
 		{
 			string File = CommandUtils.CombinePaths(InFile);
@@ -62,10 +49,7 @@ namespace AutomationTool
 			{
 				throw new UE4BuildException("Specified file to AddBuildProduct {0} does not exist.", File);
 			}
-			if (!HasBuildProduct(InFile))
-			{
-				BuildProductFiles.Add(File);
-			}
+			BuildProductFiles.Add(File);
 		}
 
 		static bool IsBuildReceipt(string FileName)
@@ -1178,7 +1162,7 @@ namespace AutomationTool
 		/// Checks to make sure there was at least one build product, and that all files exist.  Also, logs them all out.
 		/// </summary>
 		/// <param name="BuildProductFiles">List of files</param>
-		public static void CheckBuildProducts(List<string> BuildProductFiles)
+		public static void CheckBuildProducts(HashSet<string> BuildProductFiles)
 		{
 			// Check build products
 			{
@@ -1207,9 +1191,9 @@ namespace AutomationTool
 		/// Adds or edits existing files at head revision, expecting an exclusive lock, resolving by clobbering any existing version
 		/// </summary>
 		/// <param name="Files">List of files to check out</param>
-		public static void AddBuildProductsToChangelist(int WorkingCL, List<string> Files)
+		public static void AddBuildProductsToChangelist(int WorkingCL, IEnumerable<string> Files)
 		{
-			CommandUtils.LogInformation("Adding {0} build products to changelist {1}...", Files.Count, WorkingCL);
+			CommandUtils.LogInformation("Adding {0} build products to changelist {1}...", Files.Count(), WorkingCL);
 			foreach (var File in Files)
 			{
 				CommandUtils.P4.Sync("-f -k " + CommandUtils.MakePathSafeToUseWithCommandLine(File) + "#head"); // sync the file without overwriting local one
@@ -1284,15 +1268,8 @@ namespace AutomationTool
 		/// </summary>
 		public void AddUATFilesToBuildProducts()
 		{
-			// Find all DLLs (scripts and their dependencies)
-            DirectoryReference OutputDir = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Binaries", "DotNET", "AutomationTool");
-			foreach (FileReference OutputFile in DirectoryReference.EnumerateFiles(OutputDir, "*", SearchOption.AllDirectories))
-			{
-				AddBuildProduct(OutputFile.FullName);
-			}
-
 			// All scripts are expected to exist in DotNET/AutomationScripts subfolder.
-			foreach (FileReference BuildProduct in ScriptCompiler.BuildProducts)
+			foreach (FileReference BuildProduct in ScriptManager.BuildProducts)
 			{
 				string UATScriptFilePath = BuildProduct.FullName;
 				if (!CommandUtils.FileExists_NoExceptions(UATScriptFilePath))
@@ -1330,6 +1307,6 @@ namespace AutomationTool
 		}
 
 		// List of everything we built so far
-		public readonly List<string> BuildProductFiles = new List<string>();
+		public readonly HashSet<string> BuildProductFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 	}
 }

@@ -311,7 +311,7 @@ class SyncProject : SyncProjectBase
 				if (ProjectFile != null)
 				{
 					string TargetSourceDir = CommandUtils.CombinePaths(Path.GetDirectoryName(ProjectFile.FullName), "Source");
-					RulesCompiler.InvalidateRulesFileCache(TargetSourceDir);
+					Rules.InvalidateRulesFileCache(TargetSourceDir);
 				}
 
 				BuildEditor BuildCmd = new BuildEditor();

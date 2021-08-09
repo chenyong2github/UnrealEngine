@@ -170,24 +170,6 @@ namespace AutomationTool
 			// @todo: add mono support
 		}
 
-		public override bool IsScriptModuleSupported(string ModuleName)
-		{
-			// @todo: add more unsupported modules here
-			List<string> UnsupportedModules = new List<string>()
-			{
-				"GauntletExtras", "GDK", "WinGDK", "XboxCommon", "XboxCommonGDK", "XboxOneGDK", "XSX",
-				"FortniteGame", "PS4", "PS5", "Switch",
-			};
-			foreach (string UnsupportedModule in UnsupportedModules)
-			{
-				if (ModuleName.StartsWith(UnsupportedModule, StringComparison.OrdinalIgnoreCase))
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-
 		public override UnrealTargetPlatform HostEditorPlatform
 		{
 			get { return UnrealTargetPlatform.Mac; }

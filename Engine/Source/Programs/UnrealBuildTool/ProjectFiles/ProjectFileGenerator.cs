@@ -438,7 +438,7 @@ namespace UnrealBuildTool
 			}
 
 			// Find all the automation modules .csproj files to add
-			List<FileReference> ModuleFiles = RulesCompiler.FindAllRulesSourceFiles(RulesCompiler.RulesFileType.AutomationModule, null, ForeignPlugins: null, AdditionalSearchPaths: BuildFolders);
+			List<FileReference> ModuleFiles = Rules.FindAllRulesSourceFiles(Rules.RulesFileType.AutomationModule, null, ForeignPlugins: null, AdditionalSearchPaths: BuildFolders);
 			foreach (FileReference ProjectFile in ModuleFiles)
 			{
 				if (FileReference.Exists(ProjectFile))
@@ -520,7 +520,7 @@ namespace UnrealBuildTool
 			ProjectDirs.Add(EngineExtras);
 			DiscoverCSharpProgramProjectsRecursively(EngineExtras, FoundProjects);
 
-			List<DirectoryReference> AllEngineDirectories = UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs");
+			List<DirectoryReference> AllEngineDirectories = Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs");
 			ProjectDirs = ProjectDirs.Union(AllEngineDirectories).ToList();
 			foreach (DirectoryReference EngineDir in AllEngineDirectories)
 			{
@@ -530,7 +530,7 @@ namespace UnrealBuildTool
 			foreach (FileReference GameProjectFile in AllGameProjects)
 			{
 				DirectoryReference GameRootFolder = GameProjectFile.Directory;
-				List<DirectoryReference> AllGameDirectories = UnrealBuildTool.GetExtensionDirs(GameRootFolder, "Source/Programs");
+				List<DirectoryReference> AllGameDirectories = Unreal.GetExtensionDirs(GameRootFolder, "Source/Programs");
 				ProjectDirs = ProjectDirs.Union(AllGameDirectories).ToList();
 				foreach (DirectoryReference GameDir in AllGameDirectories)
 				{
@@ -1335,13 +1335,13 @@ namespace UnrealBuildTool
 				{
 					// @todo projectfiles: We have engine localization files, but should we also add GAME localization files?
 
-					foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(GameProjectDirectory))
+					foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(GameProjectDirectory))
 					{
 						GameProject.AddFilesToProject(SourceFileSearch.FindFiles(ExtensionDir, SearchSubdirectories: false), GameProjectDirectory);
 					}
 
 					// Game restricted source files, since they won't be added via a module FileReference
-					foreach (DirectoryReference GameRestrictedSourceDirectory in UnrealBuildTool.GetExtensionDirs(GameProjectDirectory, "Source", bIncludePlatformDirectories: false, bIncludeBaseDirectory: false))
+					foreach (DirectoryReference GameRestrictedSourceDirectory in Unreal.GetExtensionDirs(GameProjectDirectory, "Source", bIncludePlatformDirectories: false, bIncludeBaseDirectory: false))
 					{
 						GameProject.AddFilesToProject(SourceFileSearch.FindFiles(GameRestrictedSourceDirectory), GameRestrictedSourceDirectory);
 					}
@@ -1349,7 +1349,7 @@ namespace UnrealBuildTool
 					// Game config files
 					if (bIncludeConfigFiles)
 					{
-						foreach (DirectoryReference GameConfigDirectory in UnrealBuildTool.GetExtensionDirs(GameProjectDirectory, "Config"))
+						foreach (DirectoryReference GameConfigDirectory in Unreal.GetExtensionDirs(GameProjectDirectory, "Config"))
 						{
 							GameProject.AddFilesToProject(SourceFileSearch.FindFiles(GameConfigDirectory), GameProjectDirectory);
 						}
@@ -1358,7 +1358,7 @@ namespace UnrealBuildTool
 					// Game build files
 					if (bIncludeBuildSystemFiles)
 					{
-						foreach (DirectoryReference GameBuildDirectory in UnrealBuildTool.GetExtensionDirs(GameProjectDirectory, "Build"))
+						foreach (DirectoryReference GameBuildDirectory in Unreal.GetExtensionDirs(GameProjectDirectory, "Build"))
 						{
 							List<string> SubdirectoryNamesToExclude = new List<string>();
 							SubdirectoryNamesToExclude.Add("Receipts");
@@ -1371,7 +1371,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					foreach (DirectoryReference GameShaderDirectory in UnrealBuildTool.GetExtensionDirs(GameProjectDirectory, "Shaders"))
+					foreach (DirectoryReference GameShaderDirectory in Unreal.GetExtensionDirs(GameProjectDirectory, "Shaders"))
 					{
 						GameProject.AddFilesToProject(SourceFileSearch.FindFiles(GameShaderDirectory), GameProjectDirectory);
 					}
@@ -1422,7 +1422,7 @@ namespace UnrealBuildTool
 		{
 			// @todo: this will add the same files to the solution (like the UBT source files that also get added to UnrealBuildTool project).
 			// not sure of a good filtering method here
-			foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory))
+			foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(Unreal.EngineDirectory))
 			{
 				if (ExtensionDir != Unreal.EngineDirectory)
 				{
@@ -1453,7 +1453,7 @@ namespace UnrealBuildTool
 		protected List<FileReference> DiscoverModules(List<FileReference> AllGameProjects)
 		{
 			// Locate all modules (*.Build.cs files)
-			return RulesCompiler.FindAllRulesSourceFiles(RulesCompiler.RulesFileType.Module, GameFolders: AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: null, AdditionalSearchPaths: null);
+			return Rules.FindAllRulesSourceFiles(Rules.RulesFileType.Module, GameFolders: AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: null, AdditionalSearchPaths: null);
 		}
 
 		/// <summary>
@@ -1492,7 +1492,7 @@ namespace UnrealBuildTool
 			List<string> UnsupportedPlatformNameStrings = Utils.MakeListOfUnsupportedPlatforms(SupportedPlatforms, bIncludeUnbuildablePlatforms: true);
 
 			// Locate all targets (*.Target.cs files)
-			List<FileReference> FoundTargetFiles = RulesCompiler.FindAllRulesSourceFiles(RulesCompiler.RulesFileType.Target, AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: null, AdditionalSearchPaths: null, bIncludeTempTargets: bIncludeTempTargets);
+			List<FileReference> FoundTargetFiles = Rules.FindAllRulesSourceFiles(Rules.RulesFileType.Target, AllGameProjects.Select(x => x.Directory).ToList(), ForeignPlugins: null, AdditionalSearchPaths: null, bIncludeTempTargets: bIncludeTempTargets);
 			foreach (FileReference CurTargetFile in FoundTargetFiles)
 			{
 				string CleanTargetFileName = Utils.CleanDirectorySeparators(CurTargetFile.FullName);
@@ -2101,10 +2101,10 @@ namespace UnrealBuildTool
 					// Check if there's a plugin directory here
 					if (!ProjectsWithPlugins.Contains(ProjectFile))
 					{
-						foreach (DirectoryReference PluginFolder in UnrealBuildTool.GetExtensionDirs(BaseFolder, "Plugins"))
+						foreach (DirectoryReference PluginFolder in Unreal.GetExtensionDirs(BaseFolder, "Plugins"))
 						{
 							// Add all the plugin files for this project
-							foreach (FileReference PluginFileName in Plugins.EnumeratePlugins(PluginFolder))
+							foreach (FileReference PluginFileName in PluginsBase.EnumeratePlugins(PluginFolder))
 							{
 								if (!ModProjects.Any(x => x.BaseDir == PluginFileName.Directory))
 								{
@@ -2200,7 +2200,7 @@ namespace UnrealBuildTool
 				}
 
 				// check for engine, or platform extension engine folders
-				foreach (DirectoryReference ExtensionDir in UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory))
+				foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(Unreal.EngineDirectory))
 				{
 					if (Path == ExtensionDir)
 					{
@@ -2280,11 +2280,11 @@ namespace UnrealBuildTool
 					// This is an engine target
 					IsEngineTarget = true;
 
-					if (UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs").Any(x => TargetFilePath.IsUnderDirectory(x)))
+					if (Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source/Programs").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{
 						WantProjectFileForTarget = IncludeEnginePrograms;
 					}
-					else if (UnrealBuildTool.GetExtensionDirs(Unreal.EngineDirectory, "Source").Any(x => TargetFilePath.IsUnderDirectory(x)))
+					else if (Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source").Any(x => TargetFilePath.IsUnderDirectory(x)))
 					{
 						WantProjectFileForTarget = bIncludeEngineSource;
 					}

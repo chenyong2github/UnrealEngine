@@ -1,0 +1,88 @@
+@echo off
+
+rem ## Unreal Engine AutomationTool build script
+rem ## Copyright Epic Games, Inc. All Rights Reserved.
+rem ##
+rem ## This script is expecting to exist in the Engine/Build/BatchFiles directory.  It will not work correctly
+rem ## if you copy it to a different location and run it.
+
+setlocal
+
+rem ## First, make sure the batch file exists in the folder we expect it to.  This is necessary in order to
+rem ## verify that our relative path to the /Engine/Source directory is correct
+if not exist "%~dp0..\..\Source" goto Error_BatchFileInWrongLocation
+
+rem ## Change the CWD to /Engine/Source.
+pushd "%~dp0..\..\Source"
+if not exist ..\Build\BatchFiles\BuildUAT.bat goto Error_BatchFileInWrongLocation
+
+rem Check to see if the files in the AutomationTool, BuildUtilities, EpicGames.Core, or UnrealBuildTool directory have changed.
+rem find ".cs" files to only lines that match those names - excludes lines that will change for uninteresting reasons, like free space
+md ..\Intermediate\Build >nul 2>nul
+
+dir /s^
+ Programs\Shared\EpicGames.Core\*.cs^
+ Programs\Shared\EpicGames.Core\*.csproj^
+ Programs\DotNETCommon\BuildUtilities\*.cs^
+ Programs\DotNETCommon\BuildUtilities\*.csproj^
+ Programs\UnrealBuildTool\*.cs^
+ Programs\UnrealBuildTool\*.csproj^
+ | find ".cs" >..\Intermediate\Build\AutomationToolFiles.txt
+
+rem note: no /s
+dir ^
+ Programs\AutomationTool\*.cs^
+ Programs\AutomationTool\*.csproj^
+ | find ".cs" >>..\Intermediate\Build\AutomationToolFiles.txt
+
+if not exist ..\Binaries\DotNET\AutomationTool\AutomationTool.dll goto Build_AutomationTool
+
+set ARGUMENT=%1
+if not defined %ARGUMENT goto Check_UpToDate
+if /I "%ARGUMENT%" == "FORCE" goto Build_AutomationTool
+
+:Check_UpToDate
+set RUNUAT_EXITCODE=0
+fc /b ..\Intermediate\Build\AutomationToolFiles.txt ..\Intermediate\Build\AutomationToolPrevFiles.txt  >nul 2>nul
+if not errorlevel 1 goto Exit
+
+:Build_AutomationTool
+rem ## Verify that dotnet is present
+call "%~dp0GetDotnetPath.bat"
+if errorlevel 1 goto Error_NoDotnetSDK
+
+echo Building AutomationTool...
+dotnet msbuild /restore /target:build /property:Configuration=Development /nologo Programs\AutomationTool\AutomationTool.csproj /verbosity:quiet
+if errorlevel 1 goto Error_UATCompileFailed
+
+rem record input files - regardless of how we got here, these are now our point of reference
+copy /y ..\Intermediate\Build\AutomationToolFiles.txt ..\Intermediate\Build\AutomationToolPrevFiles.txt >nul
+
+goto Exit
+
+
+:Error_BatchFileInWrongLocation
+echo.
+echo BuildUAT ERROR: The batch file does not appear to be located in the /Engine/Build/BatchFiles directory.  This script must be run from within that directory.
+echo.
+set RUNUAT_EXITCODE=1
+goto Exit
+
+:Error_NoDotnetSDK
+echo.
+echo RunUBT ERROR: Unable to find a install of Dotnet SDK.  Please make sure you have it installed and that `dotnet` is a globally available command.
+echo.
+set RUNUAT_EXITCODE=1
+goto Exit
+
+:Error_UATCompileFailed
+echo.
+echo RunUBT ERROR: UnrealBuildTool failed to compile.
+echo.
+set RUNUAT_EXITCODE=1
+goto Exit
+
+:Exit
+rem ## Restore original CWD in case we change it
+popd
+exit /B %RUNUAT_EXITCODE%
