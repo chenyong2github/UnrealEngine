@@ -39,11 +39,24 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 	if ( !ConvertedMaterial )
 	{
-		FString MaterialPath = UsdUtils::IsMaterialTranslucent( ShadeMaterial )
-			? TEXT( "Material'/USDImporter/Materials/UsdPreviewSurfaceTranslucent.UsdPreviewSurfaceTranslucent'" )
-			: TEXT( "Material'/USDImporter/Materials/UsdPreviewSurface.UsdPreviewSurface'" );
+		const bool bIsTranslucent = UsdUtils::IsMaterialTranslucent( ShadeMaterial );
+		const bool bNeedsVirtualTextures = UsdUtils::IsMaterialUsingUDIMs( ShadeMaterial );
 
-		if ( UMaterialInterface* MasterMaterial = Cast< UMaterialInterface >( FSoftObjectPath( MaterialPath ).TryLoad() ) )
+		FString MasterMaterialName = TEXT("UsdPreviewSurface");
+
+		if ( bIsTranslucent )
+		{
+			MasterMaterialName += TEXT("Translucent");
+		}
+
+		if ( bNeedsVirtualTextures )
+		{
+			MasterMaterialName += TEXT("VT");
+		}
+
+		const FString MasterMaterialPath = FString::Printf( TEXT("Material'/USDImporter/Materials/%s.%s"), *MasterMaterialName, *MasterMaterialName );
+
+		if ( UMaterialInterface* MasterMaterial = Cast< UMaterialInterface >( FSoftObjectPath( MasterMaterialPath ).TryLoad() ) )
 		{
 			FName InstanceName = MakeUniqueObjectName( GetTransientPackage(), UMaterialInstance::StaticClass(), *FPaths::GetBaseFilename( PrimPath.GetString() ) );
 			if ( GIsEditor ) // Also have to prevent Standalone game from going with MaterialInstanceConstants
