@@ -105,7 +105,7 @@ void FTaskTimingSharedState::Tick(Insights::ITimingViewSession& InSession, const
 	{
 		InitCommandList();
 
-		TaskTrack = MakeShared<FTaskTimingTrack>(*this, TEXT("Task Overview Track"), 0);
+		TaskTrack = MakeShared<FTaskTimingTrack>(*this, TEXT("Task Overview"), 0);
 		TaskTrack->SetVisibilityFlag(true);
 		TaskTrack->SetOrder(FTimingTrackOrder::Task);
 
