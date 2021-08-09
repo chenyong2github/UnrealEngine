@@ -14,34 +14,39 @@ class FImageTile
 {
 private:
 	FVector2i Start = FVector2i::Zero();
-	FVector2i End = FVector2i::Zero(); 
+	FVector2i End = FVector2i::Zero();
+	int Width = 0;
+	int Height = 0;
 
 public:
 	FImageTile() = default;
 	FImageTile(const FVector2i& InStart, const FVector2i& InEnd)
-		: Start(InStart), End(InEnd)
+		: Start(InStart)
+		, End(InEnd)
+		, Width(InEnd.X - InStart.X)
+		, Height(InEnd.Y - InStart.Y)
 	{
 	}
 
 	int32 GetWidth() const
 	{
-		return End.X - Start.X;
+		return Width;
 	}
 
 	int32 GetHeight() const
 	{
-		return End.Y - Start.Y;
+		return Height;
 	}
 
 	int64 Num() const
 	{
-		return GetWidth() * GetHeight();
+		return Width * Height;
 	}
 
 	/** @return the linear index for the given local XY coordinates into this tile. */
 	int64 GetIndex(const int32 X, const int32 Y) const
 	{
-		return Y * GetWidth() + X;
+		return Y * Width + X;
 	}
 
 	/** @return the linear index for the given local coordinates into this tile. */
@@ -50,10 +55,29 @@ public:
 		return GetIndex(LocalCoords.X, LocalCoords.Y);
 	}
 
+	/** @return true if the given source coordinates are contained by this tile. */
+	bool Contains(const int32 X, const int32 Y) const
+	{
+		return (X >= Start.X && X < End.X && Y >= Start.Y && Y < End.Y);
+	}
+
+	/** @return the linear index for the given source coordinates. */
+	int64 GetIndexFromSourceCoords(const int32 X, const int32 Y) const
+	{
+		checkSlow(Contains(X, Y));
+		return GetIndex(X - Start.X, Y - Start.Y); 
+	}
+
+	/** @return the linear index for the given source coordinates. */
+	int64 GetIndexFromSourceCoords(const FVector2i& SourceCoords) const
+	{
+		return GetIndexFromSourceCoords(SourceCoords.X, SourceCoords.Y); 
+	}
+
 	/** @return the source image's coordinates given linear index into this tile. */
 	FVector2i GetSourceCoords(const int64 LinearIdx) const
 	{
-		return FVector2i(Start.X + LinearIdx % GetWidth(), Start.Y + LinearIdx / GetWidth());
+		return FVector2i(Start.X + LinearIdx % Width, Start.Y + LinearIdx / Width);
 	}
 
 	/** @return the source image's coordinates given local XY coordinates into this tile. */
