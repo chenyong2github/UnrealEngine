@@ -35,7 +35,7 @@ echo Android Studio Path: %STUDIO_PATH%
 
 set VALUE_NAME=SdkPath
 set STUDIO_SDK_PATH=
-FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set STUDIO_SDK_PATH=%%B)
+FOR /F "tokens=2* usebackq" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set STUDIO_SDK_PATH=%%B)
 
 set ANDROID_LOCAL=%LOCALAPPDATA%\Android\Sdk
 
