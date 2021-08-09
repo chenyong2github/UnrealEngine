@@ -388,16 +388,6 @@ private:
 	UPROPERTY(config, EditAnywhere, Category="Multiplayer Options|Client", meta=(EditCondition = "RunUnderOneProcess"))
 	bool RouteGamepadToSecondWindow;
 
-	/** 
-	* If checked, a separate audio device is created for every player. 
-	
-	* If unchecked, a separate audio device is created for only the first two players and uses the main audio device for more than 2 players.
-	*
-	* Enabling this will allow rendering accurate audio from every player's perspective but will use more CPU. Keep this disabled on lower-perf machines.
-	*/
-	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Client", meta=(EditCondition = "EnableGameSound && RunUnderOneProcess"))
-	bool CreateAudioDeviceForEveryPlayer;
-
 	/** Height to use when spawning additional windows. */
 	UPROPERTY(config, EditAnywhere, Category="Multiplayer Options|Client", meta=(ClampMin = 0))
 	int32 ClientWindowHeight;
@@ -522,7 +512,6 @@ public:
 	bool IsClientWindowSizeActive() const { return PlayNumberOfClients > 1; }
 	bool GetClientWindowSize( FIntPoint &OutClientWindowSize ) const { OutClientWindowSize = FIntPoint(ClientWindowWidth, ClientWindowHeight); return IsClientWindowSizeActive(); }
 	EVisibility GetClientWindowSizeVisibility() const { return (RunUnderOneProcess ? EVisibility::Hidden : EVisibility::Visible); }
-	bool IsCreateAudioDeviceForEveryPlayer() const { return CreateAudioDeviceForEveryPlayer; }
 
 	EBuildConfiguration GetLaunchBuildConfiguration() const
 	{

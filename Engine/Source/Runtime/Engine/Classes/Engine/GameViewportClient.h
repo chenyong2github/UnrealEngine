@@ -148,7 +148,7 @@ public:
 	/* Returns the relevant game instance for this viewport */
 	UGameInstance* GetGameInstance() const;
 
-	virtual void Init(struct FWorldContext& WorldContext, UGameInstance* OwningGameInstance, bool bCreateNewAudioDevice = true);
+	virtual void Init(struct FWorldContext& WorldContext, UGameInstance* OwningGameInstance);
 
 public:
 	//~ Begin UObject Interface
