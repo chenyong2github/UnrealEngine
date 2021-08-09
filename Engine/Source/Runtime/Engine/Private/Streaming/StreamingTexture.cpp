@@ -489,12 +489,23 @@ bool FStreamingRenderAsset::UpdateLoadOrderPriority_Async(int32 MinMipForSplitRe
 	{
 		const bool bIsVisible			= ResidentMips < VisibleWantedMips; // Otherwise it means we are loading mips that are only useful for non visible primitives.
 		const bool bMustLoadFirst		= bForceFullyLoadHeuristic || bIsTerrainTexture || bLoadWithHigherPriority;
-		const bool bMipIsImportant		= WantedMips - ResidentMips > (bLooksLowRes ? 1 : 2);
 
-		if (bIsVisible)				LoadOrderPriority += 1024;
-		if (bMustLoadFirst)			LoadOrderPriority += 512; 
-		if (bMipIsImportant)		LoadOrderPriority += 256;
-		if (!bIsVisible)			LoadOrderPriority += FMath::Clamp<int32>(255 - (int32)LastRenderTime, 1, 255);
+		if (WantedMips > RequestedMips)
+		{
+			const bool bMipIsImportant = WantedMips - ResidentMips > (bLooksLowRes ? 1 : 2);
+
+			if (bIsVisible)				LoadOrderPriority += 1024;
+			if (bMustLoadFirst)			LoadOrderPriority += 512;
+			if (bMipIsImportant)		LoadOrderPriority += 256;
+			if (!bIsVisible)			LoadOrderPriority += FMath::Clamp<int32>(255 - (int32)LastRenderTime, 1, 255);
+		}
+		else // WantedMips < RequestedMips
+		{
+			// For stream out operations, unload mips that we will be less important to load quickly.
+			// Visibility is less relevant here because stream in requests might come from a visibily change.
+			if (!bMustLoadFirst)		LoadOrderPriority += 1024;
+			if (!bIsVisible)			LoadOrderPriority += 512;
+		}
 
 		return true;
 	}
