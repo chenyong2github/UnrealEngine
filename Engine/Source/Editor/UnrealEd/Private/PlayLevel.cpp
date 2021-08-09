@@ -2822,9 +2822,11 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 
 	if (!InPIEParameters.bRunAsDedicated)
 	{
+		bool bCreateNewAudioDevice = InParams.EditorPlaySettings->IsCreateAudioDeviceForEveryPlayer();
+
 		// Create an instance of the Game Viewport Client, with the class specified by the Engine.
 		ViewportClient = NewObject<UGameViewportClient>(this, GameViewportClientClass);
-		ViewportClient->Init(*PieWorldContext, GameInstance);
+		ViewportClient->Init(*PieWorldContext, GameInstance, bCreateNewAudioDevice);
 
 		ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
 		ViewportClient->EngineShowFlags.SetServerDrawDebug(PlayInSettings->ShowServerDebugDrawingByDefault());
