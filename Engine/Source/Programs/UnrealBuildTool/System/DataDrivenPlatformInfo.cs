@@ -44,6 +44,11 @@ namespace UnrealBuildTool
 			/// Entire ini parent chain, ending with this platform
 			/// </summary>
 			public string[]? IniParentChain = null;
+
+			/// <summary>
+			/// The raw DataDrivenPlatformInfo.ini file
+			/// </summary>
+			public ConfigFile? PlatformConfig = null;
 		};
 
 		static Dictionary<string, ConfigDataDrivenPlatformInfo>? PlatformInfos = null;
@@ -126,6 +131,7 @@ namespace UnrealBuildTool
 							}
 
 							// create cache it
+							NewInfo.PlatformConfig = Config;
 							PlatformInfos[IniPlatformName] = NewInfo;
 						}
 					}
