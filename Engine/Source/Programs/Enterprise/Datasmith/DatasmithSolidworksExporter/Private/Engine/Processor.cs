@@ -248,7 +248,7 @@ namespace SolidworksDatasmith.Engine
                             {
                                 if (processor._useDirectLink)
                                 {
-                                    processor.MeshFactory.ExportMeshes(processor);
+                                    processor.MeshFactory.ExportMeshes(processor, false);
                                     processor.DatasmithDirectLink.UpdateScene(processor.DatasmithScene);
                                 }
                             }
@@ -398,7 +398,7 @@ namespace SolidworksDatasmith.Engine
                                     processor.DatasmithScene.SetOutputPath(cmd.Path);
                                     processor.DatasmithScene.SetName(cmd.SceneName);
 
-                                    processor.MeshFactory.ExportMeshes(processor);
+                                    processor.MeshFactory.ExportMeshes(processor, true);
 
                                     processor.DatasmithScene.ExportScene(filePath);
 

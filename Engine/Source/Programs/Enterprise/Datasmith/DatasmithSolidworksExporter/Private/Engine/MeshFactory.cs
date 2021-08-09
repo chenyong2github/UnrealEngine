@@ -191,7 +191,7 @@ namespace SolidworksDatasmith.Engine
             }
         }
 
-        public void ExportMeshes(Processor processor)
+        public void ExportMeshes(Processor processor, bool bForce)
         {
             var moulds = Moulds.ToArray();
             Parallel.For(0, moulds.Length, mm =>
@@ -199,7 +199,7 @@ namespace SolidworksDatasmith.Engine
                 var m = moulds[mm];
                 foreach (var i in m.Value.Instances)
                 {
-                    if (i.Dirty)
+                    if (i.Dirty || bForce)
                     {
                         processor.DatasmithScene.ExportDatasmithMesh(i.MeshElement, i.Mesh);
                         i.Dirty = false;
