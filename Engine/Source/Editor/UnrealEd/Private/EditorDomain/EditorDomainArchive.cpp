@@ -106,16 +106,28 @@ bool FEditorDomainPackageSegments::Serialize(void* V, int64 Length)
 			Length, Size - Pos, *PackagePath.GetDebugName(), Size);
 		return false;
 	}
-	bool bIsReady;
-	FSegment* Segment = EnsureSegmentRange(Pos, End, true, bIsReady);
 	while (Pos < End)
 	{
-		int64 SegmentEnd = Segment < &Segments.Last() ? (Segment + 1)->Start : Size;
-		int64 LengthInSegment = FMath::Min(SegmentEnd, End) - Pos;
-		int64 SegmentPos = Pos - Segment->Start;
-		FMemory::Memcpy(V, static_cast<const uint8*>(Segment->Data.GetData()) + SegmentPos, LengthInSegment);
-		Pos += LengthInSegment;
-		++Segment;
+		if (MRUSegment)
+		{
+			int64 SegmentEnd = MRUSegment < &Segments.Last() ? (MRUSegment + 1)->Start : Size;
+			int64 LengthInSegment = FMath::Min(SegmentEnd, End) - Pos;
+			int64 SegmentPos = Pos - MRUSegment->Start;
+			if (SegmentPos >= 0 && LengthInSegment > 0)
+			{
+				FMemory::Memcpy(V, static_cast<const uint8*>(MRUSegment->Data.GetData()) + SegmentPos, LengthInSegment);
+				Pos += LengthInSegment;
+			}
+			else
+			{
+				MRUSegment = nullptr;
+			}
+		}
+		else
+		{
+			bool bIsReady;
+			MRUSegment = EnsureSegmentRange(Pos, End, true, bIsReady);
+		}
 	}
 	return true;
 }
