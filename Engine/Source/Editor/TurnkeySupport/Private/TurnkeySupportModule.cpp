@@ -1816,7 +1816,7 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 	}
 
 	// don't run UAT from commandlets (like the cooker) that are often launched from UAT and this will go poorly
-	if (IsRunningCommandlet())
+	if (IsRunningCommandlet() || FApp::IsUnattended())
 	{
 		return;
 	}
