@@ -173,8 +173,13 @@ void FOpenGLES::ProcessQueryGLInt()
 	LOG_AND_GET_GL_INT(GL_MAX_COMPUTE_IMAGE_UNIFORMS, 0, MaxComputeUAVUnits);
 	LOG_AND_GET_GL_INT(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, 0, MaxPixelUAVUnits);
 
+	GLint MaxCombinedSSBOUnits = 0;
+	GET_GL_INT(GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS, 0, MaxCombinedSSBOUnits);
+	// UAVs slots in UE are shared between Images and SSBO, so this should be max(GL_MAX_COMBINED_IMAGE_UNIFORMS, GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS)
+	MaxCombinedUAVUnits = FMath::Max(MaxCombinedUAVUnits, MaxCombinedSSBOUnits);
+
 	// clamp UAV units to a sensible limit
-	MaxCombinedUAVUnits = FMath::Min(MaxCombinedUAVUnits, 8);
+	MaxCombinedUAVUnits = FMath::Min(MaxCombinedUAVUnits, 16);
 	MaxComputeUAVUnits = FMath::Min(MaxComputeUAVUnits, 16);
 	// this is split between VS and PS, 4 to each stage
 	MaxPixelUAVUnits = FMath::Min(MaxPixelUAVUnits, 4);
