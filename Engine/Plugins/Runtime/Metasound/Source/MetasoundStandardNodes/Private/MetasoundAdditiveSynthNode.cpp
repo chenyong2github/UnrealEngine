@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Internationalization/Text.h"
-#include "MetasoundFacade.h"
-#include "MetasoundExecutableOperator.h"
-#include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundPrimitives.h"
-#include "MetasoundStandardNodesNames.h"
-#include "MetasoundStandardNodesCategories.h"
-#include "MetasoundParamHelper.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/SineWaveTableOsc.h"
+#include "MetasoundFacade.h"
+#include "Internationalization/Text.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundParamHelper.h"
+#include "MetasoundPrimitives.h"
+#include "MetasoundStandardNodesCategories.h"
+#include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundAdditiveSynthNode"
 
@@ -37,12 +37,12 @@ namespace Metasound
 		{
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
-				const FName OperatorName = TEXT("Additive Synth");
+				const FName OperatorName = "Additive Synth";
 				const FText NodeDisplayName = LOCTEXT("Metasound_AdditiveSynthNodeDisplayName", "Additive Synth");
 				const FText NodeDescription = LOCTEXT("Metasound_AdditiveSynthNodeDescription", "Synthesizes audio output given input array of sinusoids.");
 
 				FNodeClassMetadata Info;
-				Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, TEXT("") };
+				Info.ClassName = { Metasound::StandardNodes::Namespace, OperatorName, FName() };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
 				Info.DisplayName = NodeDisplayName;
