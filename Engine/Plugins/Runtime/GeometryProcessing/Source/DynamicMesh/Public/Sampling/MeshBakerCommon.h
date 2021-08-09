@@ -59,6 +59,11 @@ public:
 		return &Buffer[LinearIdx * PixelSize + 1];
 	}
 
+	const FImageTile& GetTile() const
+	{
+		return Tile;
+	}
+
 private:
 	const FImageTile Tile;
 	const int32 PixelSize;
