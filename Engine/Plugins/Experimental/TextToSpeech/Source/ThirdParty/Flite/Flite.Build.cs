@@ -79,6 +79,11 @@ public class Flite : ModuleRules
 			string VSVersion = "VS2019";
 			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath, VSVersion, bUseDebugLibs ? "Debug" : "Release", "libFlite.lib"));
 		}
-		PublicDefinitions.Add("UE_FLITE_REQUIRES_WINDOWS_HEADERS=" + (bRequiresWindowsHeaders ? "1" : "0"));
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
+        {
+			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath, "ARM64", bUseDebugLibs ? "Debug" : "Release", "libFlite.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath, "x64", bUseDebugLibs ? "Debug" : "Release", "libFlite.a"));
+		}
+			PublicDefinitions.Add("UE_FLITE_REQUIRES_WINDOWS_HEADERS=" + (bRequiresWindowsHeaders ? "1" : "0"));
 	}
 }
