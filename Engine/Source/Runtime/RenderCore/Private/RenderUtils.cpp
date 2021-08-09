@@ -15,6 +15,7 @@
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "RHIShaderFormatDefinitions.inl"
 #endif
 
 FBufferWithRDG::FBufferWithRDG() = default;
@@ -1306,13 +1307,16 @@ RENDERCORE_API void RenderUtilsInit()
 	ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager();
 	if (TargetPlatformManager)
 	{
-		for (uint32 ShaderPlatformIndex = 0; ShaderPlatformIndex < SP_NumPlatforms; ++ShaderPlatformIndex)
+		for (ITargetPlatform* TargetPlatform : TargetPlatformManager->GetTargetPlatforms())
 		{
-			EShaderPlatform ShaderPlatform = EShaderPlatform(ShaderPlatformIndex);
-			FName PlatformName = ShaderPlatformToPlatformName(ShaderPlatform);
-			ITargetPlatform* TargetPlatform = TargetPlatformManager->FindTargetPlatform(PlatformName.ToString());
-			if (TargetPlatform)
+			TArray<FName> PlaformShaderFormats;
+			TargetPlatform->GetAllPossibleShaderFormats(PlaformShaderFormats);
+
+			for (FName Format : PlaformShaderFormats)
 			{
+				EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(Format);
+				uint32 ShaderPlatformIndex = static_cast<uint32>(ShaderPlatform);
+
 				uint64 Mask = 1ull << ShaderPlatformIndex;
 
 				if (TargetPlatform->UsesForwardShading())
