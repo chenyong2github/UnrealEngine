@@ -132,6 +132,7 @@ public:
 				SNew( STextBlock )
 				.Font( IDetailLayoutBuilder::GetDetailFont() )
 				.Text( FText::Format(LOCTEXT("ElementIndex", "Element {ElementIndex}"), Arguments ) )
+				.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 			]
 			+SVerticalBox::Slot()
 			.Padding(0.0f,4.0f)

@@ -44,17 +44,19 @@ public:
 		if (bHasTitleProperty)
 		{
 			NameTextBlock =
-				SNew( STextBlock )
-				.Text( InPropertyEditor, &FPropertyEditor::GetDisplayName )
-				.Font( NameFont );
+				SNew(STextBlock)
+				.Text(InPropertyEditor, &FPropertyEditor::GetDisplayName)
+				.Font(NameFont);
 		}		
 		else
 		{
 			NameTextBlock =
-				SNew( STextBlock )
-				.Text( InPropertyEditor->GetDisplayName() )
-				.Font( NameFont );
+				SNew(STextBlock)
+				.Text(InPropertyEditor->GetDisplayName())
+				.Font(NameFont);
 		}
+
+		NameTextBlock->SetOverflowPolicy(ETextOverflowPolicy::Ellipsis);
 
 		TSharedPtr<SWidget> NameWidget = NameTextBlock;
 		const bool bInArray = PropertyNode->GetProperty() != nullptr && PropertyNode->GetArrayIndex() != INDEX_NONE;
