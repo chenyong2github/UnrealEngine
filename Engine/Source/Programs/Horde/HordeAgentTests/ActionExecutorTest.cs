@@ -129,7 +129,7 @@ namespace HordeAgentTests
 			ActionExecutor Executor = new ActionExecutor(AgentName, InstanceName, CasClient, null!, ActionRpcClient, Logger);
 			ActionTask ActionTask = TaskTest.CreateActionTask(InstanceName, CasClient, CommandSleep: TimeSpan.FromMilliseconds(15000));
 			CancellationTokenSource Cts = new CancellationTokenSource();
-			Cts.CancelAfter(200);
+			Cts.CancelAfter(2000);
 			RpcException Ex = await Assert.ThrowsExceptionAsync<RpcException>(() => Executor.ExecuteActionAsync("myLeaseId1", ActionTask, new DirectoryReference(TempDir), DateTimeOffset.UtcNow, Cts.Token));
 			Assert.AreEqual(StatusCode.Cancelled, Ex.Status.StatusCode);
 		}

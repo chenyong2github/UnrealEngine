@@ -128,6 +128,7 @@ namespace HordeAgent
 					else if (t == StdErrReadTask) {} // Ignore, wait for stdout to complete
 					else if (t == TimeoutTask)
 					{
+						CheckIfCancelled();
 						throw new RpcException(new Grpc.Core.Status(StatusCode.DeadlineExceeded, $"Action timed out after {Timeout.TotalMilliseconds} ms"));
 					}
 					else
