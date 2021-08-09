@@ -84,9 +84,8 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 					const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 
 				// Scalarize tile classify if all lanes ballot the same material slot index
-				// TODO: Untested
-				#if 0 && COMPILER_SUPPORTS_WAVE_VOTE
-					const uint FirstMaterialSlot = WaveReadFirstLane(MaterialSlot);
+				#if COMPILER_SUPPORTS_WAVE_VOTE
+					const uint FirstMaterialSlot = ToScalarMemory(WaveReadLaneFirst(MaterialSlot));
 					if (WaveActiveAllTrue(FirstMaterialSlot == MaterialSlot))
 					{
 						if (WaveIsFirstLane())
@@ -104,7 +103,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 						const uint TileBinOffset = MaterialSlot & 31u;
 						const uint TileBinUsage  = 1u << TileBinOffset;
 						InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
-				#if 0 && COMPILER_SUPPORTS_WAVE_VOTE
+				#if COMPILER_SUPPORTS_WAVE_VOTE
 					}
 				#endif
 
