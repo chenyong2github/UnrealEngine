@@ -19,7 +19,51 @@ class UObject;
 
 namespace UE::Virtualization
 {
-	
+
+namespace Private
+{
+/** A wrapper around the oodle compression settings used by FVirtualizedUntypedBulkData. */
+struct FCompressionSettings
+{
+	COREUOBJECT_API FCompressionSettings();
+	FCompressionSettings(const FCompressedBuffer& Buffer);
+
+	[[nodiscard]] bool operator ==(const FCompressionSettings& Other) const;
+	[[nodiscard]] bool operator != (const FCompressionSettings& Other) const;
+
+	void Reset();
+
+	void Set(FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InCompressionLevel);
+	void SetToDefault();
+	void SetToDisabled();
+
+	[[nodiscard]] bool IsSet() const;
+	[[nodiscard]] bool IsCompressed() const;
+
+	[[nodiscard]] FOodleDataCompression::ECompressor GetCompressor() const;
+	[[nodiscard]] FOodleDataCompression::ECompressionLevel GetCompressionLevel();
+
+private:
+
+	FOodleDataCompression::ECompressor Compressor;
+	FOodleDataCompression::ECompressionLevel CompressionLevel;
+
+	bool bIsSet;
+};
+} // namespace Private
+
+/** 
+ * A set of higher level compression options that avoid the need to set the specific
+ * oodle options.
+ */
+enum class ECompressionOptions : uint8
+{
+	/** Use default compression settings. */
+	Default,
+	/** Disable compression for the bulkdata entirely. */
+	Disabled,
+};
+
 /**
  * The goal of this class is to provide an editor time version of BulkData that will work with the content
  * virtualization system.
@@ -121,8 +165,9 @@ public:
 	TFuture<FCompressedBuffer> GetCompressedPayload() const;
 
 	/**
-	 * Allows the existing payload to be replaced with a new one.
-	 *
+	 * Replaces the existing payload (if any) with a new one. 
+	 * It is important to consider the ownership model of the payload being passed in to the method.
+	 * 
 	 * To pass in a raw pointer use 'FSharedBuffer::...(Data, Size)' to create a valid FSharedBuffer.
 	 * Use 'FSharedBuffer::MakeView' if you want to retain ownership on the data being passed in, and use
 	 * 'FSharedBuffer::TakeOwnership' if you are okay with the bulkdata object taking over ownership of it.
@@ -130,15 +175,9 @@ public:
 	 * by using 'FSharedBuffer::MakeView') then a clone of the data will be created internally and assigned
 	 * to the bulkdata object.
 	 *
-	 * @param InPayload				The payload to update the bulkdata with
-	 * @param InCompressionFormat	The compression format to use, NAME_None indicates that the
-	 *								payload is already in a compressed format and will not gain from being 
-	 *								compressed again. These payloads will never be compressed. NAME_Default 
-	 *								will apply whichever compression format that the underlying code deems 
-	 *								appropriate. Other specific compression formats may be allowed, see the 
-	 *								documentation of FCompressedBuffer for details.
+	 * @param InPayload	The payload that this bulkdata object should reference. @see FSharedBuffer
 	 */
-	void UpdatePayload(FSharedBuffer InPayload, FName CompressionFormat = NAME_Default);
+	void UpdatePayload(FSharedBuffer InPayload);
 
 	/**
 	 * Utility struct used to compute the Payload ID before calling UpdatePayload
@@ -175,34 +214,29 @@ public:
 	 * Use this override if you want compute PayloadId before updating the bulkdata
 	 *
 	 * @param InPayload				The payload to update the bulkdata with
-	 * @param InCompressionFormat	The compression format to use, NAME_None indicates that the
-	 *								payload is already in a compressed format and will not gain from being 
-	 *								compressed again. These payloads will never be compressed. NAME_Default 
-	 *								will apply whichever compression format that the underlying code deems 
-	 *								appropriate. Other specific compression formats may be allowed, see the 
-	 *								documentation of FCompressedBuffer for details.
 	 */
-	void UpdatePayload(FSharedBufferWithID InPayload, FName CompressionFormat = NAME_Default);
+	void UpdatePayload(FSharedBufferWithID InPayload);
 
 	/** 
-	 * Allows the compression format to be specified that will be applied the next time that the bulkdata
-	 * is saved. For non-virtualized payloads this will occur when the package is next saved. For 
-	 * virtualized payloads this will only ever be applied when it is pushed to the local cache. If the
-	 * payload has already been pushed to long term storage backends then the compression is not likely to
-	 * be changed.
+	 * Sets the compression options to be applied to the payload during serialization.
 	 * 
-	 * This method is only exposed as part of the public api so that a long standing bug with FTextureSource
-	 * where older textures may have been saved with the wrong compression setting that needs to be fixed. 
-	 * There shouldn't generally be a need to call this.
+	 * These settings will continue to be used until the bulkdata object is reset, a subsequent
+	 * call to ::SetCompressionOptions is made or the owning package is serialized to disk.
 	 * 
-	 * @param InCompressionFormat	The compression format to use, NAME_None indicates that the
-	 *								payload is already in a compressed format and will not gain from being
-	 *								compressed again. These payloads will never be compressed. NAME_Default
-	 *								will apply whichever compression format that the underlying code deems
-	 *								appropriate. Other specific compression formats may be allowed, see the
-	 *								documentation of FCompressedBuffer for details.
+	 * @param Option	The high level option to use. @see UE::Virtualization::ECompressionOptions
+	 */ 
+	void SetCompressionOptions(ECompressionOptions Option);
+
+	/** 
+	 * Sets the compression options to be applied to the payload during serialization.
+	 * 
+	 * These settings will continue to be used until the bulkdata object is reset, a subsequent
+	 * call to ::SetCompressionOptions is made or the owning package is serialized to disk.
+	 * 
+	 * @param Compressor		The Oodle compressor to use. @see FOodleDataCompression::ECompressor
+	 * @param CompressionLevel	The Oodle compression level to use. @see FOodleDataCompression::ECompressionLevel
 	 */
-	void SetCompressionFormat(FName InCompressionFormat);
+	void SetCompressionOptions(FOodleDataCompression::ECompressor Compressor, FOodleDataCompression::ECompressionLevel CompressionLevel);
 
 	/**
 	* Get the CustomVersions used in the file containing the payload. Currently this is assumed
@@ -279,7 +313,7 @@ private:
 
 	FRIEND_ENUM_CLASS_FLAGS(EFlags);
 
-	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID, FName CompressionFormat = NAME_Default);
+	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID);
 
 	FCompressedBuffer GetDataInternal() const;
 
@@ -323,9 +357,6 @@ private:
 
 	//---- The remaining members are used when the payload is not virtualized.
 	
-	/** The compression algorithm to use when saving the member 'Payload' */
-	FName CompressionFormatToUse = NAME_Default;
-
 	/** Offset of the payload in the file that contains it (INDEX_NONE if the payload does not come from a file)*/
 	int64 OffsetInFile = INDEX_NONE;
 
@@ -337,6 +368,13 @@ private:
 
 	/** A 32bit bitfield of flags */
 	EFlags Flags = EFlags::None;
+
+	/** 
+	 * Compression settings to be applied to the payload when the package is next saved. The settings will be reset if
+	 * the payload is unloaded from memory during serialization (i.e. the payload was virtualized or the package was
+	 * saved to disk.&
+	 */
+	Private::FCompressionSettings CompressionSettings;
 };
 
 ENUM_CLASS_FLAGS(FVirtualizedUntypedBulkData::EFlags);
