@@ -43,6 +43,7 @@
 #include "AssetRegistryModule.h"
 #include "StudioAnalytics.h"
 #include "Cooker/CookProfiling.h"
+#include "Cooker/PackageBuildDependencyTracker.h"
 #include "DerivedDataBuildRemoteExecutor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
@@ -52,8 +53,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
 #include "AnalyticsEventAttribute.h"
 #include "IAnalyticsProviderET.h"
 #include "AnalyticsET.h"
-
-ASSETREGISTRY_API void DumpBuildDependencyTrackerData();
 
 namespace DetailedCookStats
 {
@@ -380,7 +379,7 @@ namespace DetailedCookStats
 			}
 		}
 
-		DumpBuildDependencyTrackerData();
+		DumpBuildDependencyTrackerStats();
 	}
 }
 #endif
