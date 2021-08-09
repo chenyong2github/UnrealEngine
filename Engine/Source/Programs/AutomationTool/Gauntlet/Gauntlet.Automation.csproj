@@ -46,7 +46,7 @@
     </Reference>
     <Reference Include="Newtonsoft.JSON">
       <HintPath>..\..\..\..\Binaries\ThirdParty\Newtonsoft\Newtonsoft.Json.dll</HintPath>
-      <Private>False</Private>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
 
