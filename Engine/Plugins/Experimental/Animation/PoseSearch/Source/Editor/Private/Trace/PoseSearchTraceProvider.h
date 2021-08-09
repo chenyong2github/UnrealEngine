@@ -114,9 +114,11 @@ private:
 
 		TSet<int32> GetNodeIds(uint64 InAnimInstanceId) const
 		{
-			check(AnimInstanceIdToTimelines.Find(InAnimInstanceId));
-			
 			TSet<int32> NodeIds;
+			if (!AnimInstanceIdToTimelines.Find(InAnimInstanceId))
+			{
+				return NodeIds;
+			}
 			const FNodeToTimelineMap& NodeToTimelineMap = AnimInstanceIdToTimelines[InAnimInstanceId];
 
 			// For each node that has a timeline, add the node to the set
