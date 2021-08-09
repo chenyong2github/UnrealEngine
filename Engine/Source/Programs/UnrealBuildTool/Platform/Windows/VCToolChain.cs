@@ -1056,14 +1056,10 @@ namespace UnrealBuildTool
 			}
 
 
-			// Override the PDB page size, if requested (VS2019 16.11 Preview 1 & above)
-			if (Target.WindowsPlatform.PDBPageSize > 0 && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
+			// Add any extra options from the target
+			if (!string.IsNullOrEmpty(Target.WindowsPlatform.AdditionalLinkerOptions))
 			{
-				Version CompilerVersion;
-				if (Version.TryParse(Target.WindowsPlatform.CompilerVersion, out CompilerVersion) && CompilerVersion >= new Version("14.29.30130"))
-				{
-					Arguments.Add($"/PDBPAGESIZE:{Target.WindowsPlatform.PDBPageSize}");
-				}
+				Arguments.Add(Target.WindowsPlatform.AdditionalLinkerOptions);
 			}
 
 
