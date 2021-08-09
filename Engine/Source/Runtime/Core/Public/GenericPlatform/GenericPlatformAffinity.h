@@ -140,6 +140,11 @@ public:
 		return TPri_Normal;
 	}
 
+	static EThreadPriority GetGameThreadPriority()
+	{
+		return TPri_Normal;
+	}
+
 	static EThreadCreateFlags GetRHIThreadFlags()
 	{
 		return EThreadCreateFlags::None;
