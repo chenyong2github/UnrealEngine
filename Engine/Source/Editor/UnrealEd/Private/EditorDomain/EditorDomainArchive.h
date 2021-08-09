@@ -140,13 +140,15 @@ private:
 
 	/**
 	 * Lock from the EditorDomain to allow shutting down this archive if callback outlives editor domain.
-	 * Pointer is read - only, * pointer has internal lock.
+	 * Pointer is read-only, *pointer has internal lock.
 	 */
 	TRefCountPtr<FEditorDomain::FLocks> EditorDomainLocks;
 	/** Initial Request for the list of segments. Read-only. */
 	UE::DerivedData::FRequestOwner RequestOwner;
 	/** PackagePath for fallback to WorkspaceDomain. Read-only. */
 	FPackagePath PackagePath;
+	/** Most recently used Segment in Serialize. Interface-only. */
+	FSegment* MRUSegment = nullptr;
 	/** Offset to next use in Serialize. Interface-only. */
 	int64 Pos = 0;
 	/**
