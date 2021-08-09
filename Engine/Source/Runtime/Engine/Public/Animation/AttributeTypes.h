@@ -51,18 +51,13 @@ namespace UE
 				AttributeTypes::RegisteredTypes.Add(ScriptStruct);
 				AttributeTypes::Operators.Add(MakeUnique<OperatorType>(Forward<OperatorArgs>(args)...));
 
-#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 				if constexpr (!UE::Anim::TAttributeTypeTraits<AttributeType>::StepInterpolate)
-#else
-				if (!UE::Anim::IsStepInterpolatedType<AttributeType>())
-#endif // PLATFORM_COMPILER_HAS_IF_CONSTEXPR	
 				{
 					AttributeTypes::InterpolatableTypes.Add(ScriptStruct);
 				}
 			}
 
 			/** Used for registering an attribute type for which TAttributeTypeTraits::WithCustomBlendOperator is set to false, use RegisterTypeWithOperator() otherwise */
-#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 			template<typename AttributeType>
 			static void RegisterType()
 			{
@@ -83,36 +78,7 @@ namespace UE
 
 				AttributeTypes::Operators.Add(MakeUnique<TAttributeBlendOperator<AttributeType>>());
 			}
-#else
-			template<typename AttributeType>
-			static typename TEnableIf<TAttributeTypeTraits<AttributeType>::IsBlendable, void>::Type RegisterType()
-			{
-				static_assert(!TAttributeTypeTraits<AttributeType>::WithCustomBlendOperator, "Attribute type requires a custom blend operation");
-				static_assert(TModels<CBlendableAttribute, AttributeType>::Value, "Missing arithmetic operators required for Attribute blending");
 
-				UScriptStruct* ScriptStruct = AttributeType::StaticStruct();
-				AttributeTypes::RegisteredTypes.Add(ScriptStruct);
-
-				if (!UE::Anim::IsStepInterpolatedType<AttributeType>())
-				{
-					
-					AttributeTypes::InterpolatableTypes.Add(ScriptStruct);
-				}
-
-				AttributeTypes::Operators.Add(MakeUnique<TAttributeBlendOperator<AttributeType>>());
-			}
-
-			template<typename AttributeType>
-			static typename TEnableIf<!TAttributeTypeTraits<AttributeType>::IsBlendable, void>::Type RegisterType()
-			{
-				static_assert(!TAttributeTypeTraits<AttributeType>::WithCustomBlendOperator, "Attribute type requires a custom blend operation");
-
-				UScriptStruct* ScriptStruct = AttributeType::StaticStruct();
-				AttributeTypes::RegisteredTypes.Add(ScriptStruct);
-
-				AttributeTypes::Operators.Add(MakeUnique<TAttributeBlendOperator<AttributeType>>());
-			}
-#endif			
 			/** Unregisters a specific attribute type and deletes its associated blend operator */
 			template<typename AttributeType>
 			static void UnregisterType()
