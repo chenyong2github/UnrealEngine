@@ -238,7 +238,6 @@ AWorldDataLayers* AWorldDataLayers::Create(UWorld* World)
 	{
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.OverrideLevel = World->PersistentLevel;
-		SpawnParams.bHideFromSceneOutliner = true;
 		SpawnParams.Name = WorldDataLayersName;
 		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
 		WorldDataLayers = World->SpawnActor<AWorldDataLayers>(AWorldDataLayers::StaticClass(), SpawnParams);
@@ -436,6 +435,8 @@ void AWorldDataLayers::PostLoad()
 			DataLayer->SetIsDynamicallyLoadedInEditor(true);
 }
 	}
+
+	bListedInSceneOutliner = true;
 #else
 	// Build acceleration tables
 	for (const UDataLayer* DataLayer : WorldDataLayers)
