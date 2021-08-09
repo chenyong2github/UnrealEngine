@@ -518,9 +518,13 @@ namespace Audio
 
 	const ISoundfieldAudioPacket* FMixerSourceSubmixOutputBuffer::GetSoundfieldPacket(const FSoundfieldEncodingKey& InKey) const
 	{
-		check(EncodedSoundfieldDownmixes.Contains(InKey));
-		const FSoundfieldData& SoundfieldData = EncodedSoundfieldDownmixes[InKey];
-		return SoundfieldData.EncodedPacket.Get();
+		if(EncodedSoundfieldDownmixes.Contains(InKey))
+		{
+			const FSoundfieldData& SoundfieldData = EncodedSoundfieldDownmixes[InKey];
+			return SoundfieldData.EncodedPacket.Get();
+		}
+
+		return nullptr;
 	}
 
 	ISoundfieldAudioPacket* FMixerSourceSubmixOutputBuffer::GetSoundFieldPacket(const FSoundfieldEncodingKey& InKey)
