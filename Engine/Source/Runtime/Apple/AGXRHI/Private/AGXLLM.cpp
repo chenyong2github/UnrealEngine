@@ -184,16 +184,16 @@ static mtlpp::SizeAndAlign TextureSizeAndAlign(mtlpp::TextureType TextureType, u
 	return SizeAlign;
 }
 
-void AGXLLM::LogAllocTexture(mtlpp::Device& Device, mtlpp::TextureDescriptor const& Desc, mtlpp::Texture const& Texture)
+void AGXLLM::LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Texture const& Texture)
 {
-	mtlpp::SizeAndAlign SizeAlign;
+	MTLSizeAndAlign SizeAlign;
 	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesGPUCaptureManager))
 	{
-		SizeAlign = Device.HeapTextureSizeAndAlign(Desc);
+		SizeAlign = [GMtlDevice heapTextureSizeAndAlignWithDescriptor:Desc.GetPtr()];
 	}
 	
 	void* Ptr = (void*)Texture.GetPtr();
-	uint64 Size = SizeAlign.Size;
+	uint64 Size = static_cast<uint64>(SizeAlign.size);
 	
 #if PLATFORM_IOS
 	bool bMemoryless = (Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless);
@@ -248,7 +248,7 @@ void AGXLLM::LogAllocTexture(mtlpp::Device& Device, mtlpp::TextureDescriptor con
 	}
 }
 
-void AGXLLM::LogAllocBuffer(mtlpp::Device& Device, mtlpp::Buffer const& Buffer)
+void AGXLLM::LogAllocBuffer(mtlpp::Buffer const& Buffer)
 {
 	void* Ptr = (void*)Buffer.GetPtr();
 	uint64 Size = Buffer.GetLength();
@@ -274,7 +274,7 @@ void AGXLLM::LogAllocBuffer(mtlpp::Device& Device, mtlpp::Buffer const& Buffer)
 	}
 }
 
-void AGXLLM::LogAllocHeap(mtlpp::Device& Device, mtlpp::Heap const& Heap)
+void AGXLLM::LogAllocHeap(mtlpp::Heap const& Heap)
 {
 	void* Ptr = (void*)Heap.GetPtr();
 	uint64 Size = Heap.GetSize();

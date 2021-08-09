@@ -21,9 +21,8 @@ bool GAGXCommandBufferDebuggingEnabled = 0;
 
 #pragma mark - Public C++ Boilerplate -
 
-FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCommandBuffers /* = 0 */)
-: Device(InDevice)
-, ParallelCommandLists(0)
+FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
+: ParallelCommandLists(0)
 , RuntimeDebuggingLevel(EAGXDebugLevelOff)
 {
 	int32 MaxShaderVersion = 0;
@@ -50,11 +49,11 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 
 	if(MaxNumCommandBuffers == 0)
 	{
-		CommandQueue = Device.NewCommandQueue();
+		CommandQueue = [GMtlDevice newCommandQueue];
 	}
 	else
 	{
-		CommandQueue = Device.NewCommandQueue(MaxNumCommandBuffers);
+		CommandQueue = [GMtlDevice newCommandQueueWithMaxCommandBufferCount:MaxNumCommandBuffers];
 	}
 	check(CommandQueue);
 #if PLATFORM_IOS
@@ -66,7 +65,7 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 #if PLATFORM_TVOS
         Features &= ~(EAGXFeaturesSetBytes);
 		
-		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::tvOS_GPUFamily2_v1))
+		if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_tvOS_GPUFamily2_v1])
 		{
 			Features |= EAGXFeaturesCountingQueries | EAGXFeaturesBaseVertexInstance | EAGXFeaturesIndirectBuffer | EAGXFeaturesMSAADepthResolve | EAGXFeaturesMSAAStoreAndResolve;
 		}
@@ -106,12 +105,12 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 			}
 		}
 #else
-		if (Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v1))
+		if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v1])
 		{
 			Features |= EAGXFeaturesCountingQueries | EAGXFeaturesBaseVertexInstance | EAGXFeaturesIndirectBuffer | EAGXFeaturesMSAADepthResolve;
 		}
 		
-		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily2_v3) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily1_v3))
+		if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v2] || [GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily2_v3] || [GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily1_v3])
 		{
 			if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
 			{
@@ -124,7 +123,7 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 			}
 		}
 		
-		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2))
+		if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v2])
 		{
 			Features |= EAGXFeaturesMSAAStoreAndResolve;
 		}
@@ -166,7 +165,7 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 						Features |= EAGXFeaturesTextureBuffers;
 					}
                     
-                    if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1))
+                    if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily4_v1])
                     {
                         Features |= EAGXFeaturesTileShaders;
                         
@@ -175,7 +174,7 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
                         GAGXCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
                     }
                     
-					if (Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily5_v1))
+					if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily5_v1])
 					{
 						Features |= EAGXFeaturesLayeredRendering;
 					}
@@ -189,51 +188,30 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 		Features = EAGXFeaturesSetBufferOffset;
 	}
 #else // Assume that Mac & other platforms all support these from the start. They can diverge later.
-	const bool bIsNVIDIA = [Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound;
+	const bool bIsNVIDIA = [[GMtlDevice name] rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound;
 	Features = EAGXFeaturesCountingQueries | EAGXFeaturesBaseVertexInstance | EAGXFeaturesIndirectBuffer | EAGXFeaturesLayeredRendering | EAGXFeaturesCubemapArrays;
 	if (!bIsNVIDIA)
 	{
 		Features |= EAGXFeaturesSetBufferOffset;
 	}
-	if (Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2))
+	if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v2])
     {
-        Features |= EAGXFeaturesMSAADepthResolve | EAGXFeaturesMSAAStoreAndResolve;
-        
-        // Assume that set*Bytes only works on macOS Sierra and above as no-one has tested it anywhere else.
-		Features |= EAGXFeaturesSetBytes;
-		
-		FString DeviceName(Device.GetName());
-		// On earlier OS versions Intel Broadwell couldn't suballocate properly
-		if (!(DeviceName.Contains(TEXT("Intel")) && (DeviceName.Contains(TEXT("5300")) || DeviceName.Contains(TEXT("6000")) || DeviceName.Contains(TEXT("6100")))) || FPlatformMisc::MacOSXVersionCompare(10,14,0) >= 0)
-		{
-			// Using Private Memory & BlitEncoders for Vertex & Index data should be *much* faster.
-        	Features |= EAGXFeaturesEfficientBufferBlits;
-        	
-			Features |= EAGXFeaturesBufferSubAllocation;
-					
-	        // On earlier OS versions Vega didn't like non-zero blit offsets
-	        if (!DeviceName.Contains(TEXT("Vega")) || FPlatformMisc::MacOSXVersionCompare(10,13,5) >= 0)
-	        {
-				Features |= EAGXFeaturesPrivateBufferSubAllocation;
-			}
-		}
+        Features |= (   EAGXFeaturesSetBytes
+					  | EAGXFeaturesMSAADepthResolve
+					  | EAGXFeaturesMSAAStoreAndResolve
+					  | EAGXFeaturesEfficientBufferBlits
+					  | EAGXFeaturesBufferSubAllocation
+					  | EAGXFeaturesPrivateBufferSubAllocation
+					  | EAGXFeaturesMaxThreadsPerThreadgroup );
 		
 		GAGXFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
 		
-		// On 10.13.5+ we can use MTLParallelRenderEncoder
-		if (FPlatformMisc::MacOSXVersionCompare(10,13,5) >= 0)
+		if ([[GMtlDevice name] rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location == NSNotFound && !FParse::Param(FCommandLine::Get(),TEXT("nometalparallelencoder")))
 		{
-			// Except on Nvidia for the moment
-			if ([Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location == NSNotFound && !FParse::Param(FCommandLine::Get(),TEXT("nometalparallelencoder")))
-			{
-				Features |= EAGXFeaturesParallelRenderEncoders;
-			}
+			Features |= EAGXFeaturesParallelRenderEncoders;
 		}
 
-		// Turn on Texture Buffers! These are faster on the GPU as we don't need to do out-of-bounds tests but require Metal 2.1 and macOS 10.14
-		if (FPlatformMisc::MacOSXVersionCompare(10,14,0) >= 0)
 		{
-			Features |= EAGXFeaturesMaxThreadsPerThreadgroup;
 			if (MaxShaderVersion >= 4)
 			{
 				Features |= EAGXFeaturesTextureBuffers;
@@ -270,13 +248,13 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 			}
 		}
     }
-    else if ([Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound)
+    else if ([[GMtlDevice name] rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound)
     {
 		// Using set*Bytes fixes bugs on Nvidia for 10.11 so we should use it...
     	Features |= EAGXFeaturesSetBytes;
     }
     
-    if(Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v3) && FPlatformMisc::MacOSXVersionCompare(10,13,0) >= 0)
+    if ([GMtlDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v3])
     {
         Features |= EAGXFeaturesMultipleViewports | EAGXFeaturesPipelineBufferMutability | EAGXFeaturesGPUCaptureManager;
 		
@@ -299,7 +277,7 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 	
 #if !UE_BUILD_SHIPPING
 	Class MTLDebugDevice = NSClassFromString(@"MTLDebugDevice");
-	if ([Device isKindOfClass:MTLDebugDevice])
+	if ([GMtlDevice isKindOfClass:MTLDebugDevice])
 	{
 		Features |= EAGXFeaturesValidation;
 	}
@@ -332,7 +310,11 @@ FAGXCommandQueue::FAGXCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCo
 
 FAGXCommandQueue::~FAGXCommandQueue(void)
 {
-	// void
+	if (CommandQueue != nil)
+	{
+		[CommandQueue release];
+		CommandQueue = nil;
+	}
 }
 	
 #pragma mark - Public Command Buffer Mutators -
@@ -342,8 +324,8 @@ mtlpp::CommandBuffer FAGXCommandQueue::CreateCommandBuffer(void)
 #if PLATFORM_MAC
 	static bool bUnretainedRefs = FParse::Param(FCommandLine::Get(),TEXT("metalunretained"))
 	|| (!FParse::Param(FCommandLine::Get(),TEXT("metalretainrefs"))
-		&& ([Device.GetName() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location == NSNotFound)
-		&& ([Device.GetName() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location == NSNotFound));
+		&& ([[GMtlDevice name] rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location == NSNotFound)
+		&& ([[GMtlDevice name] rangeOfString:@"Intel"  options:NSCaseInsensitiveSearch].location == NSNotFound));
 #else
 	static bool bUnretainedRefs = !FParse::Param(FCommandLine::Get(),TEXT("metalretainrefs"));
 #endif
@@ -351,7 +333,10 @@ mtlpp::CommandBuffer FAGXCommandQueue::CreateCommandBuffer(void)
 	mtlpp::CommandBuffer CmdBuffer;
 	@autoreleasepool
 	{
-		CmdBuffer = bUnretainedRefs ? MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, CommandBufferWithUnretainedReferences()) : MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, CommandBuffer());
+		id<MTLCommandBuffer> MtlCmdBuf = bUnretainedRefs ? [CommandQueue commandBufferWithUnretainedReferences] : [CommandQueue commandBuffer];
+		check(MtlCmdBuf);
+		
+		CmdBuffer = mtlpp::CommandBuffer(MtlCmdBuf);
 		
 		if (RuntimeDebuggingLevel > EAGXDebugLevelOff)
 		{			
@@ -446,11 +431,6 @@ void FAGXCommandQueue::GetCommittedCommandBufferFences(TArray<mtlpp::CommandBuff
 }
 
 #pragma mark - Public Command Queue Accessors -
-	
-mtlpp::Device& FAGXCommandQueue::GetDevice(void)
-{
-	return Device;
-}
 
 mtlpp::ResourceOptions FAGXCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions Options)
 {

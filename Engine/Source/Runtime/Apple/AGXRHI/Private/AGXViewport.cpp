@@ -101,7 +101,7 @@ FAGXViewport::FAGXViewport(void* WindowHandle, uint32 InSizeX, uint32 InSizeY, b
 		Layer.magnificationFilter = kCAFilterNearest;
 		Layer.minificationFilter = kCAFilterNearest;
 
-		[Layer setDevice:GetAGXDeviceContext().GetDevice()];
+		[Layer setDevice:GMtlDevice];
 		
 		[Layer setFramebufferOnly:NO];
 		[Layer removeAllAnimations];

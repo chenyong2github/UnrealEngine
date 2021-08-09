@@ -7,14 +7,13 @@
 
 #pragma mark Constructor/Destructor
 
-FAGXFrameAllocator::FAGXFrameAllocator(id <MTLDevice> TargetDevice)
-    : Device(TargetDevice)
+FAGXFrameAllocator::FAGXFrameAllocator()
+    : CurrentBuffer(nil)
 #if METAL_FRAME_ALLOCATOR_VALIDATION
     , AllAllocatedBuffers(nil)
 #endif
     , AvailableBuffers(nil)
     , BuffersInFlight(nil)
-    , CurrentBuffer(nil)
     , CurrentCursor(0)
     , CurrentFrame(0)
     , TargetAllocationLimit(0)
@@ -23,7 +22,6 @@ FAGXFrameAllocator::FAGXFrameAllocator(id <MTLDevice> TargetDevice)
     , BytesAcquiredInCurrentFrame(0)
     , BytesInFlight(0)
 {
-    check(Device);
 #if METAL_FRAME_ALLOCATOR_VALIDATION
     AllAllocatedBuffers = [NSMutableArray new];
 #endif
@@ -34,8 +32,6 @@ FAGXFrameAllocator::FAGXFrameAllocator(id <MTLDevice> TargetDevice)
     TotalAllocationStat = GET_STATID(STAT_AGXFrameAllocatorAllocatedMemory);
     MemoryInFlightStat = GET_STATID(STAT_AGXFrameAllocatorMemoryInFlight);
     BytesPerFrameStat = GET_STATID(STAT_AGXFrameAllocatorBytesPerFrame);
-    
-    [Device retain];
 }
 
 FAGXFrameAllocator::~FAGXFrameAllocator()
@@ -49,8 +45,6 @@ FAGXFrameAllocator::~FAGXFrameAllocator()
 #if METAL_FRAME_ALLOCATOR_VALIDATION
     [AllAllocatedBuffers release];
 #endif
-    
-    [Device release];
     
     os_unfair_lock_unlock(&UnfairLock);
 }
@@ -153,7 +147,7 @@ id <MTLBuffer> FAGXFrameAllocator::FindOrAllocateBufferUnsafe(uint32 SizeInBytes
     else
     {
         uint32 AllocationSize = FMath::Max(DefaultAllocationSize, SizeInBytes);
-        Found = [Device newBufferWithLength:AllocationSize options:MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined];
+        Found = [GMtlDevice newBufferWithLength:AllocationSize options:MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined];
         [Found setLabel: [NSString stringWithFormat:@"UniformBacking %u", AllocationSize]];
         
         check(Found);
@@ -161,7 +155,7 @@ id <MTLBuffer> FAGXFrameAllocator::FindOrAllocateBufferUnsafe(uint32 SizeInBytes
         this->TotalBytesAllocated += AllocationSize;
         INC_MEMORY_STAT_BY_FName(TotalAllocationStat.GetName(), [Found length]);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-        AGXLLM::LogAllocBuffer(GetAGXDeviceContext().GetDevice(), Found);
+        AGXLLM::LogAllocBuffer(Found);
 #endif
 
 #if METAL_FRAME_ALLOCATOR_VALIDATION

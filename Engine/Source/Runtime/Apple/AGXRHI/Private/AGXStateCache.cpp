@@ -2238,7 +2238,7 @@ FAGXBuffer& FAGXStateCache::GetDebugBuffer()
     {
         // Assume worst case tiling (16x16) and render-target size (4096x4096) on iOS for now
         uint32 NumTiles = PLATFORM_MAC ? 1 : 65536;
-        DebugBuffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(GetAGXDeviceContext().GetDevice(), NumTiles * sizeof(FAGXDebugInfo), BUF_Dynamic, mtlpp::StorageMode::Shared));
+        DebugBuffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(NumTiles * sizeof(FAGXDebugInfo), BUF_Dynamic, mtlpp::StorageMode::Shared));
     }
     return DebugBuffer;
 }

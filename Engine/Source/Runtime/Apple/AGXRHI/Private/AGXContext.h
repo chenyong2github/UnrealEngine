@@ -17,7 +17,6 @@
 #include "IOS/IOSView.h"
 #endif
 #include "Containers/LockFreeList.h"
-#include "device.hpp"
 
 #define NUM_SAFE_FRAMES 4
 
@@ -30,10 +29,9 @@ class FAGXContext
 {
 	friend class FAGXCommandContextContainer;
 public:
-	FAGXContext(mtlpp::Device InDevice, FAGXCommandQueue& Queue, bool const bIsImmediate);
+	FAGXContext(FAGXCommandQueue& Queue, bool const bIsImmediate);
 	virtual ~FAGXContext();
 	
-	mtlpp::Device& GetDevice();
 	FAGXCommandQueue& GetCommandQueue();
 	FAGXCommandList& GetCommandList();
 	mtlpp::CommandBuffer const& GetCurrentCommandBuffer() const;
@@ -135,9 +133,6 @@ public:
 	void TransitionRHIResource(T* InResource);
 
 protected:
-	/** The underlying Metal device */
-	mtlpp::Device Device;
-	
 	/** The wrapper around the device command-queue for creating & committing command buffers to */
 	FAGXCommandQueue& CommandQueue;
 	
@@ -261,7 +256,7 @@ public:
 #endif
 	
 private:
-	FAGXDeviceContext(mtlpp::Device MetalDevice, uint32 DeviceIndex, FAGXCommandQueue* Queue);
+	FAGXDeviceContext(uint32 DeviceIndex, FAGXCommandQueue* Queue);
 	
 private:
 	/** The index into the GPU device list for the selected Metal device */

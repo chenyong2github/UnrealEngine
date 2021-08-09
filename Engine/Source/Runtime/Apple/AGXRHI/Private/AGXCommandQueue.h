@@ -90,7 +90,7 @@ public:
 	 * @param Device The Metal device to create on.
 	 * @param MaxNumCommandBuffers The maximum number of incomplete command-buffers, defaults to 0 which implies the system default.
 	 */
-	FAGXCommandQueue(mtlpp::Device Device, uint32 const MaxNumCommandBuffers = 0);
+	FAGXCommandQueue(uint32 const MaxNumCommandBuffers = 0);
 	
 	/** Destructor */
 	~FAGXCommandQueue(void);
@@ -126,9 +126,6 @@ public:
 	
 #pragma mark - Public Command Queue Accessors -
 	
-	/** @returns The command queue's native device. */
-	mtlpp::Device& GetDevice(void);
-	
 	/** Converts a Metal v1.1+ resource option to something valid on the current version. */
 	static mtlpp::ResourceOptions GetCompatibleResourceOptions(mtlpp::ResourceOptions Options);
 	
@@ -158,8 +155,7 @@ public:
 
 private:
 #pragma mark - Private Member Variables -
-	mtlpp::Device Device;
-	mtlpp::CommandQueue CommandQueue;
+	id<MTLCommandQueue> CommandQueue;
 	TArray<TArray<mtlpp::CommandBuffer>> CommandBuffers;
 	TLockFreePointerListLIFO<mtlpp::CommandBufferFence> CommandBufferFences;
 	uint64 ParallelCommandLists;

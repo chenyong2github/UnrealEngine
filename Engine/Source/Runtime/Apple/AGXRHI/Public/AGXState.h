@@ -81,7 +81,7 @@ public:
 	/** 
 	 * Constructor/destructor
 	 */
-	FAGXSamplerState(mtlpp::Device Device, const FSamplerStateInitializerRHI& Initializer);
+	FAGXSamplerState(const FSamplerStateInitializerRHI& Initializer);
 	~FAGXSamplerState();
 
 	FAGXSampler State;
@@ -112,7 +112,7 @@ public:
 	/**
 	 * Constructor/destructor
 	 */
-	FAGXDepthStencilState(mtlpp::Device Device, const FDepthStencilStateInitializerRHI& Initializer);
+	FAGXDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer);
 	~FAGXDepthStencilState();
 	
 	virtual bool GetInitializer(FDepthStencilStateInitializerRHI& Init) override final;

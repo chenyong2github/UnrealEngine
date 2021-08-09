@@ -119,13 +119,13 @@ struct FAGXHelperFunctions
             mtlpp::CompileOptions CompileOptions;
             ns::AutoReleasedError Error;
 
-			DebugShadersLib = GetAGXDeviceContext().GetDevice().NewLibrary(GAGXDebugShader, CompileOptions, &Error);
+			DebugShadersLib = GMtlppDevice.NewLibrary(GAGXDebugShader, CompileOptions, &Error);
             DebugFunc = DebugShadersLib.NewFunction(@"Main_Debug");
 			
-			DebugComputeShadersLib = GetAGXDeviceContext().GetDevice().NewLibrary(GAGXDebugMarkerComputeShader, CompileOptions, &Error);
+			DebugComputeShadersLib = GMtlppDevice.NewLibrary(GAGXDebugMarkerComputeShader, CompileOptions, &Error);
 			DebugComputeFunc = DebugComputeShadersLib.NewFunction(@"Main_Debug");
 			
-			DebugComputeState = GetAGXDeviceContext().GetDevice().NewComputePipelineState(DebugComputeFunc, &Error);
+			DebugComputeState = GMtlppDevice.NewComputePipelineState(DebugComputeFunc, &Error);
         }
 #endif
     }
@@ -852,7 +852,6 @@ static FAGXShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FAGXGraphic
     if (vertexFunction && ((PixelShader != nullptr) == (fragmentFunction != nil)))
     {
 		ns::Error Error;
-		mtlpp::Device Device = GetAGXDeviceContext().GetDevice();
 
 		uint32 const NumActiveTargets = Init.ComputeNumValidRenderTargets();
         check(NumActiveTargets <= MaxSimultaneousRenderTargets);
@@ -900,7 +899,7 @@ static FAGXShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FAGXGraphic
 		{
 			ns::AutoReleasedError RenderError;
 			METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewRenderPipeline: %s"), TEXT("")/**FString([RenderPipelineDesc.GetPtr() description])*/)));
-			Pipeline->RenderPipelineState = Device.NewRenderPipelineState(RenderPipelineDesc, (mtlpp::PipelineOption)RenderOption, Reflection, &RenderError);
+			Pipeline->RenderPipelineState = GMtlppDevice.NewRenderPipelineState(RenderPipelineDesc, (mtlpp::PipelineOption)RenderOption, Reflection, &RenderError);
 			if (Reflection)
 			{
 				Pipeline->RenderPipelineReflection = *Reflection;
@@ -946,7 +945,7 @@ static FAGXShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FAGXGraphic
 
 			ns::AutoReleasedError RenderError;
 			METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewDebugPipeline: %s"), TEXT("")/**FString([RenderPipelineDesc.GetPtr() description])*/)));
-			Pipeline->DebugPipelineState = Device.NewRenderPipelineState(DebugPipelineDesc, mtlpp::PipelineOption::NoPipelineOption, Reflection, nullptr);
+			Pipeline->DebugPipelineState = GMtlppDevice.NewRenderPipelineState(DebugPipelineDesc, mtlpp::PipelineOption::NoPipelineOption, Reflection, nullptr);
 		}
 #endif
         
