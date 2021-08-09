@@ -272,11 +272,11 @@ namespace Metasound
 
 			if (bUseSidechain)
 			{
-				Compressor.ProcessAudio(AudioInput->GetData(), AudioInput->Num(), AudioOutput->GetData(), EnvelopeOutput->GetData(), SidechainInput->GetData());
+				Compressor.ProcessAudio(AudioInput->GetData(), AudioInput->Num(), AudioOutput->GetData(), SidechainInput->GetData(), EnvelopeOutput->GetData());
 			}
 			else
 			{
-				Compressor.ProcessAudio(AudioInput->GetData(), AudioInput->Num(), AudioOutput->GetData(), EnvelopeOutput->GetData());
+				Compressor.ProcessAudio(AudioInput->GetData(), AudioInput->Num(), AudioOutput->GetData(), nullptr, EnvelopeOutput->GetData());
 			}
 
 			// Calculate Wet/Dry mix

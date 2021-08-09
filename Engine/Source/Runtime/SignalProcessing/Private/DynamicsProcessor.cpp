@@ -284,6 +284,9 @@ namespace Audio
 
 	void FDynamicsProcessor::ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer)
 	{
+		check(nullptr != InBuffer);
+		check(nullptr != OutBuffer);
+
 		const int32 NumChannels = GetNumChannels();
 		const int32 KeyNumChannels = GetKeyNumChannels();
 
@@ -307,12 +310,15 @@ namespace Audio
 		}
 	}
 
-	void FDynamicsProcessor::ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, float* OutEnvelope, const float* InKeyBuffer)
+	void FDynamicsProcessor::ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer, float* OutEnvelope)
 	{
+		check(nullptr != InBuffer);
+		check(nullptr != OutBuffer);
+		check(nullptr != OutEnvelope);
+
 		const int32 NumChannels = GetNumChannels();
 		const int32 KeyNumChannels = GetKeyNumChannels();
 
-		check(OutEnvelope != nullptr);
 
 		if (InKeyBuffer)
 		{
