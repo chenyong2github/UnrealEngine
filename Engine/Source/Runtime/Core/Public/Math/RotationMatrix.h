@@ -6,6 +6,7 @@
 #include "Math/Vector.h"
 #include "Math/Rotator.h"
 #include "Math/Matrix.h"
+#include "Math/RotationTranslationMatrix.h"
 #include "Math/QuatRotationTranslationMatrix.h"
 
 namespace UE {
