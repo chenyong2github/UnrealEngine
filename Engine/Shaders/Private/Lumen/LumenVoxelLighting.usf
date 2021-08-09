@@ -515,7 +515,7 @@ void VisBufferShadingCS(
 					AtlasId);
 
 				uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
-				RWVoxelLighting[WriteCoord] = float4(SurfaceCacheSample.Lighting, SurfaceCacheSample.CardWeight);
+				RWVoxelLighting[WriteCoord] = float4(SurfaceCacheSample.Lighting, SurfaceCacheSample.Opacity);
 			}
 		}
 	}
