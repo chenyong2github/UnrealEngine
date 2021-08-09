@@ -193,9 +193,9 @@ private:
 
 	void TryKeepMips(TArray<int32>& PrioritizedRenderAssets, int64& MemoryBudgeted, const int64 InMemoryBudget);
 
-	void UpdateBudgetedMips_Async(int64& OutMemoryUsed, int64& OutTempMemoryUsed);
+	void UpdateBudgetedMips_Async();
 
-	void UpdateLoadAndCancelationRequests_Async(int64 MemoryUsed, int64 TempMemoryUsed);
+	void UpdateLoadAndCancelationRequests_Async();
 
 	void UpdatePendingStreamingStatus_Async();
 
