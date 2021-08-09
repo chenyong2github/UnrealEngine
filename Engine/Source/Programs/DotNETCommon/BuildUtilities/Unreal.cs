@@ -234,7 +234,7 @@ namespace UnrealBuildBase
 				if (BaseDir != Unreal.EngineDirectory && CachedDirs.Item1.Count > 0)
 				{
 					// if the DDPI.ini file doesn't exist, we haven't synced the platform, so just skip this directory
-					CachedDirs.Item1.RemoveAll(x => DataDrivenPlatformInfoIniIsPresent(x.GetDirectoryName()));
+					CachedDirs.Item1.RemoveAll(x => !DataDrivenPlatformInfoIniIsPresent(x.GetDirectoryName()));
 				}
 			}
 
