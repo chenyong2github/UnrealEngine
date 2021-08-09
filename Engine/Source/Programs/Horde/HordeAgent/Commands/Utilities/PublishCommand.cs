@@ -105,7 +105,13 @@ namespace HordeAgent.Commands.Utilities
 			HttpClient.BaseAddress = new Uri(ServerProfile.Url);
 			HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token);
 
-			using (GrpcChannel RpcChannel = GrpcChannel.ForAddress(ServerProfile.Url, new GrpcChannelOptions { HttpClient = HttpClient }))
+			GrpcChannelOptions ChannelOptions = new GrpcChannelOptions
+			{
+				HttpClient = HttpClient,
+				MaxReceiveMessageSize = 100 * 1024 * 1024, // 100 MB
+				MaxSendMessageSize = 100 * 1024 * 1024 // 100 MB
+			};
+			using (GrpcChannel RpcChannel = GrpcChannel.ForAddress(ServerProfile.Url, ChannelOptions))
 			{
 				HordeRpc.HordeRpcClient RpcClient = new HordeRpc.HordeRpcClient(RpcChannel);
 
