@@ -735,6 +735,10 @@ void FPlacementModeModule::RefreshAllPlaceableClasses()
 			Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(ActorFactory, FAssetData(*ClassIt))));
 		}
 	}
+
+	Category->Items.ValueSort([&](const TSharedPtr<FPlaceableItem>& A, const TSharedPtr<FPlaceableItem>& B) {
+		return A->DisplayName.CompareTo(B->DisplayName) < 0;
+		});
 }
 
 FGuid FPlacementModeModule::CreateID()
