@@ -1772,6 +1772,8 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 void UChaosVehicleMovementComponent::ResetVehicleState()
 {
 	ClearRawInput();
+	StopMovementImmediately();
+	SetTargetGear(0, true);
 }
 
 void UChaosVehicleMovementComponent::FinalizeSimCallbackData(FChaosVehicleManagerAsyncInput& Input)
