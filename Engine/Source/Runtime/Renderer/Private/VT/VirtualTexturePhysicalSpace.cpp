@@ -11,23 +11,23 @@
 
 static TAutoConsoleVariable<float> CVarVTResidencyMaxMipMapBias(
 	TEXT("r.VT.Residency.MaxMipMapBias"),
-	8,
+	4,
 	TEXT("Maximum mip bias to apply to prevent Virtual Texture pool residency over-subscription.\n")
-	TEXT("Default 8"),
+	TEXT("Default 4"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarVTResidencyUpperBound(
 	TEXT("r.VT.Residency.UpperBound"),
-	0.9f,
+	0.95f,
 	TEXT("Virtual Texture pool residency above which we increase mip bias.\n")
 	TEXT("Default 0.95"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarVTResidencyLowerBound(
 	TEXT("r.VT.Residency.LowerBound"),
-	0.75f,
+	0.95f,
 	TEXT("Virtual Texture pool residency below which we decrease mip bias.\n")
-	TEXT("Default 0.85"),
+	TEXT("Default 0.95"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarVTResidencyLockedUpperBound(
@@ -42,7 +42,7 @@ static TAutoConsoleVariable<float> CVarVTResidencyAdjustmentRate(
 	TEXT("r.VT.Residency.AdjustmentRate"),
 	0.2,
 	TEXT("Rate at which we adjust mip bias due to Virtual Texture pool residency.\n")
-	TEXT("Default 0.25"),
+	TEXT("Default 0.2"),
 	ECVF_RenderThreadSafe);
 
 
