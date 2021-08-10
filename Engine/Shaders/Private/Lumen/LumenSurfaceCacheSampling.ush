@@ -6,9 +6,10 @@
 
 #pragma once
 
+Texture2D DirectLightingAtlas;
+Texture2D IndirectLightingAtlas;
 Texture2D FinalLightingAtlas;
-Texture2D IrradianceAtlas;
-Texture2D IndirectIrradianceAtlas;
+
 #define FINAL_LIGHTING_ATLAS_ID 0
 #define IRRADIANCE_ATLAS_ID 1
 #define INDIRECT_IRRADIANCE_ATLAS_ID 2
@@ -41,9 +42,11 @@ Texture2D DepthAtlas;
 	#define VISUALIZE_MODE_NORMALS 3
 	#define VISUALIZE_MODE_EMISSIVE 4
 	#define VISUALIZE_MODE_OPACITY 5
-	#define VISUALIZE_CARD_WEIGHTS 6
-	#define VISUALIZE_MODE_LOCAL_POSITION 7
-	#define VISUALIZE_MODE_VELOCITY 8
+	#define VISUALIZE_MODE_CARD_WEIGHTS 6
+	#define VISUALIZE_MODE_DIRECT_LIGHTING 7
+	#define VISUALIZE_MODE_INDIRECT_LIGHTING 8
+	#define VISUALIZE_MODE_LOCAL_POSITION 9
+	#define VISUALIZE_MODE_VELOCITY 10
 
 	uint VisualizeMode;
 #endif
@@ -62,6 +65,7 @@ struct FLumenCardSample
 {
 	uint CardIndex;
 	float2 PhysicalAtlasUV;
+	float2 IndirectLightingPhysicalAtlasUV;
 	uint2 PackedFeedback;
 	bool bValid;
 };
@@ -120,6 +124,10 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 	// Sample page with a bilinear sampling border
 	float2 PageUV = frac(CardUV * SizeInPages);
 	float2 PhysicalAtlasUV = (PageUV * (AtlasScale - 1.0f) + AtlasBias + 0.5f) * LumenCardScene.InvPhysicalAtlasSize;
+	
+	// Indirect lighting cane be sampled from a downsampled atlas
+	float ILFactor = LumenCardScene.IndirectLightingAtlasDownsampleFactor;
+	float2 IndirectLightingPhysicalAtlasUV = (PageUV * (AtlasScale / ILFactor - 1.0f) + AtlasBias / ILFactor + 0.5f) * ILFactor * LumenCardScene.InvPhysicalAtlasSize;
 
 	// Compute packed feedback buffer value
 	uint2 PackedFeedback = 0;
@@ -140,6 +148,7 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 	FLumenCardSample CardSample;
 	CardSample.CardIndex = CardIndex;
 	CardSample.PhysicalAtlasUV = PhysicalAtlasUV;
+	CardSample.IndirectLightingPhysicalAtlasUV = IndirectLightingPhysicalAtlasUV;
 	CardSample.bValid = ResLevelXY.x > 0;
 	CardSample.PackedFeedback = PackedFeedback;
 	return CardSample;
@@ -183,6 +192,7 @@ void InitCardSampleAccumulator(uint2 ScreenCoord, inout FCardSampleAccumulator C
 	CardSampleAccumulator.CardSample.CardIndex = 0;
 	CardSampleAccumulator.CardSample.PackedFeedback = uint2(0, 0);
 	CardSampleAccumulator.CardSample.PhysicalAtlasUV = float2(0.0f, 0.0f);
+	CardSampleAccumulator.CardSample.IndirectLightingPhysicalAtlasUV = float2(0.0f, 0.0f);
 	CardSampleAccumulator.CardSample.bValid = false;
 }
 
@@ -209,17 +219,27 @@ FSurfaceCacheSample SampleSurfaceCache(FLumenCardSample CardSample, uint AtlasId
 		}
 		else if (AtlasId == IRRADIANCE_ATLAS_ID)
 		{
-			SurfaceCacheSample.Lighting = Texture2DSampleLevel(IrradianceAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
+			float3 DirectLighting = SurfaceCacheSample.Lighting = Texture2DSampleLevel(DirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
+			float3 IndirectLighting = SurfaceCacheSample.Lighting = Texture2DSampleLevel(IndirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).rgb;
+			SurfaceCacheSample.Lighting = DirectLighting + IndirectLighting;
 		}
 		else // if (AtlasId == INDIRECT_IRRADIANCE_ATLAS_ID)
 		{
-			SurfaceCacheSample.Lighting = Texture2DSampleLevel(IndirectIrradianceAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
+			SurfaceCacheSample.Lighting = Texture2DSampleLevel(IndirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).rgb;
 		}
 
 		// Debug visualization
 #if ENABLE_VISUALIZE_MODE == 1
 		{
-			if (VisualizeMode == VISUALIZE_MODE_ALBEDO)
+			if (VisualizeMode == VISUALIZE_MODE_DIRECT_LIGHTING)
+			{
+				SurfaceCacheSample.Lighting = Texture2DSampleLevel(DirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).xyz;
+			}
+			else if (VisualizeMode == VISUALIZE_MODE_INDIRECT_LIGHTING)
+			{
+				SurfaceCacheSample.Lighting = Texture2DSampleLevel(IndirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).xyz;
+			}
+			else if (VisualizeMode == VISUALIZE_MODE_ALBEDO)
 			{
 				SurfaceCacheSample.Lighting = DecodeSurfaceCacheAlbedo(Texture2DSampleLevel(AlbedoAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).xyz) * View.OneOverPreExposure;
 			}
@@ -233,7 +253,7 @@ FSurfaceCacheSample SampleSurfaceCache(FLumenCardSample CardSample, uint AtlasId
 			{
 				SurfaceCacheSample.Lighting = Texture2DSampleLevel(EmissiveAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
 			}
-			else if (VisualizeMode == VISUALIZE_CARD_WEIGHTS)
+			else if (VisualizeMode == VISUALIZE_MODE_CARD_WEIGHTS)
 			{
 				float3 RandomColor;
 				RandomColor.x = (CardSample.CardIndex % 4) / 3.0f;

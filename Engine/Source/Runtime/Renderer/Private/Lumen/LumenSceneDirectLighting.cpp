@@ -138,6 +138,41 @@ float Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance()
 	return FMath::Max(GOffscreenShadowingMaxTraceDistance, 0.0f);
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenCardsParamaters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FClearLumenCardsPS::FParameters, PS)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+void ClearLumenSceneDirectLighting(
+	const FViewInfo& View,
+	FRDGBuilder& GraphBuilder,
+	const FLumenSceneData& LumenSceneData,
+	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardScatterContext& VisibleCardScatterContext)
+{
+	FClearLumenCardsParamaters* PassParameters = GraphBuilder.AllocParameters<FClearLumenCardsParamaters>();
+
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.DirectLightingAtlas, ERenderTargetLoadAction::ENoAction);
+	PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
+	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
+	PassParameters->VS.CardScatterInstanceIndex = 0;
+	PassParameters->VS.IndirectLightingAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
+	PassParameters->PS.View = View.ViewUniformBuffer;
+	PassParameters->PS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("ClearDirectLighting"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandList& RHICmdList)
+	{
+		auto PixelShader = GlobalShaderMap->GetShader<FClearLumenCardsPS>();
+
+		DrawQuadsToAtlas(MaxAtlasSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
+	});
+}
+
 void Lumen::SetDirectLightingDeferredLightUniformBuffer(
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
@@ -575,7 +610,6 @@ void RenderDirectLightIntoLumenCards(
 	const FLumenCardRenderer& LumenCardRenderer,
 	const FEngineShowFlags& EngineShowFlags,
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-	FRDGTextureRef FinalLightingAtlas,
 	const FLumenLight& LumenLight,
 	const FLumenCardScatterContext& CardScatterContext,
 	FRDGBufferSRVRef ShadowMaskTilesSRV)
@@ -584,7 +618,7 @@ void RenderDirectLightIntoLumenCards(
 
 	FLumenCardDirectLighting* PassParameters = GraphBuilder.AllocParameters<FLumenCardDirectLighting>();
 	{
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.DirectLightingAtlas, ERenderTargetLoadAction::ELoad);
 		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.CardTileParameters;
 		PassParameters->VS.CardScatterInstanceIndex = LumenLight.CardScatterInstanceIndex;
@@ -861,7 +895,13 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = TracingInputs.LumenCardSceneUniformBuffer;
-		FRDGTextureRef FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
+
+		ClearLumenSceneDirectLighting(
+			View,
+			GraphBuilder,
+			LumenSceneData,
+			TracingInputs,
+			VisibleCardScatterContext);
 
 		TArray<const FLightSceneInfo*, TInlineAllocator<64>> GatheredLights;
 
@@ -1058,12 +1098,19 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						LumenCardRenderer,
 						ViewFamily.EngineShowFlags,
 						LumenCardSceneUniformBuffer,
-						FinalLightingAtlas,
 						LumenLight,
 						LumenLight.Type == ELumenLightType::Directional ? VisibleCardScatterContext : CardScatterContext,
 						ShadowMaskTilesSRV);
 				}
 			}
 		}
+
+		// Update Final Lighting
+		Lumen::CombineLumenSceneLighting(
+			Scene,
+			View,
+			GraphBuilder,
+			TracingInputs,
+			VisibleCardScatterContext);
 	}
 }

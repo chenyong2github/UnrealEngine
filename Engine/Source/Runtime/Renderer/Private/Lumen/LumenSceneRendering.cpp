@@ -850,36 +850,6 @@ void FCardPageRenderData::PatchView(FRHICommandList& RHICmdList, const FScene* S
 	View->CachedViewUniformShaderParameters->NearPlane = 0;
 }
 
-// @todo Fold into AllocateCardAtlases after changing reallocation boolean to respect optional card atlas state settings
-void AllocateOptionalCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, const FViewInfo& View, bool bReallocateAtlas)
-{
-	const FIntPoint PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
-
-	FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
-	FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::Create2DDesc(PhysicalAtlasSize, PF_FloatR11G11B10, CrazyGreen, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
-	LightingDesc.AutoWritable = false;
-
-	const bool bUseIrradianceAtlas = Lumen::UseIrradianceAtlas(View);
-	if (bUseIrradianceAtlas && (bReallocateAtlas || !LumenSceneData.IrradianceAtlas))
-	{
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.IrradianceAtlas, TEXT("Lumen.SceneIrradiance"), ERenderTargetTransience::NonTransient);
-	}
-	else if (!bUseIrradianceAtlas)
-	{
-		LumenSceneData.IrradianceAtlas = nullptr;
-	}
-
-	const bool bUseIndirectIrradianceAtlas = Lumen::UseIndirectIrradianceAtlas(View);
-	if (bUseIndirectIrradianceAtlas && (bReallocateAtlas || !LumenSceneData.IndirectIrradianceAtlas))
-	{
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.IndirectIrradianceAtlas, TEXT("Lumen.SceneIndirectIrradiance"), ERenderTargetTransience::NonTransient);
-	}
-	else if (!bUseIndirectIrradianceAtlas)
-	{
-		LumenSceneData.IndirectIrradianceAtlas = nullptr;
-	}
-}
-
 void AddCardCaptureDraws(const FScene* Scene,
 	FRHICommandListImmediate& RHICmdList,
 	FCardPageRenderData& CardPageRenderData,
@@ -1643,8 +1613,6 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 		// Atlas reallocation
 		{
-			AllocateOptionalCardAtlases(GraphBuilder, LumenSceneData, View, bReallocateAtlas);
-
 			if (bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
 			{
 				LumenSceneData.AllocateCardAtlases(GraphBuilder, View);
@@ -1747,6 +1715,7 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	OutParameters.MaxConeSteps = GLumenGIMaxConeSteps;	
 	OutParameters.PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
 	OutParameters.InvPhysicalAtlasSize = FVector2D(1.0f) / OutParameters.PhysicalAtlasSize;
+	OutParameters.IndirectLightingAtlasDownsampleFactor = Lumen::GetRadiosityDownsampleFactor();
 	OutParameters.NumDistantCards = LumenSceneData.DistantCardIndices.Num();
 	extern float GLumenDistantSceneMaxTraceDistance;
 	OutParameters.DistantSceneMaxTraceDistance = GLumenDistantSceneMaxTraceDistance;
@@ -1789,10 +1758,10 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 
 DECLARE_GPU_STAT(UpdateCardSceneBuffer);
 
-class FClearLumenCardsPS : public FGlobalShader
+class FClearLumenCardCapturePS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FClearLumenCardsPS);
-	SHADER_USE_PARAMETER_STRUCT(FClearLumenCardsPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FClearLumenCardCapturePS);
+	SHADER_USE_PARAMETER_STRUCT(FClearLumenCardCapturePS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 	END_SHADER_PARAMETER_STRUCT()
@@ -1805,35 +1774,34 @@ class FClearLumenCardsPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FClearLumenCardCapturePS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardCapturePS", SF_Pixel);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenCardsParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenCardCaptureParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FClearLumenCardsPS::FParameters, PS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FClearLumenCardCapturePS::FParameters, PS)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void ClearLumenCards(FRDGBuilder& GraphBuilder,
+void ClearLumenCardCapture(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FCardCaptureAtlas& Atlas,
 	FRDGBufferSRVRef RectCoordBufferSRV,
 	uint32 NumRects)
 {
-	LLM_SCOPE_BYTAG(Lumen);
-
-	FClearLumenCardsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenCardsParameters>();
+	FClearLumenCardCaptureParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenCardCaptureParameters>();
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(Atlas.Albedo, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets[1] = FRenderTargetBinding(Atlas.Normal, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets[2] = FRenderTargetBinding(Atlas.Emissive, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Atlas.DepthStencil, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
-	auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>();
+	auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardCapturePS>();
 
-	FPixelShaderUtils::AddRasterizeToRectsPass<FClearLumenCardsPS>(
+	FPixelShaderUtils::AddRasterizeToRectsPass<FClearLumenCardCapturePS>(
 		GraphBuilder,
 		View.ShaderMap,
-		RDG_EVENT_NAME("ClearLumenCards"),
+		RDG_EVENT_NAME("ClearCardCapture"),
 		PixelShader,
 		PassParameters,
 		Atlas.Size,
@@ -2042,7 +2010,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 						CardCaptureRectArray);
 				CardCaptureRectBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardCaptureRectBuffer, PF_R32G32B32A32_UINT));
 
-				ClearLumenCards(GraphBuilder, View, CardCaptureAtlas, CardCaptureRectBufferSRV, CardPagesToRender.Num());
+				ClearLumenCardCapture(GraphBuilder, View, CardCaptureAtlas, CardCaptureRectBufferSRV, CardPagesToRender.Num());
 			}
 
 			FViewInfo* SharedView = View.CreateSnapshot();

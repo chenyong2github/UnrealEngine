@@ -21,7 +21,6 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 
 	check(LumenSceneData.FinalLightingAtlas);
 
-	FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
 	OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
 	OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
@@ -29,11 +28,9 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 	DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
 
-	auto RegisterOptionalAtlas = [&GraphBuilder, &View](bool (*UseAtlas)(const FViewInfo&), TRefCountPtr<IPooledRenderTarget> Atlas) {
-		return UseAtlas(View) ? GraphBuilder.RegisterExternalTexture(Atlas) : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-	};
-	IrradianceAtlas = RegisterOptionalAtlas(Lumen::UseIrradianceAtlas, LumenSceneData.IrradianceAtlas);
-	IndirectIrradianceAtlas = RegisterOptionalAtlas(Lumen::UseIndirectIrradianceAtlas, LumenSceneData.IndirectIrradianceAtlas);
+	DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
+	IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
+	FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
 
 	if (View.ViewState && View.ViewState->Lumen.VoxelLighting)
 	{
@@ -129,9 +126,9 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.SurfaceCacheFeedbackBufferTileWrapMask = TracingInputs.SurfaceCacheFeedbackBufferTileWrapMask;
 	TracingParameters.SurfaceCacheFeedbackResLevelBias = GLumenSurfaceCacheFeedbackResLevelBias + 0.5f; // +0.5f required for uint to float rounding in shader
 
+	TracingParameters.DirectLightingAtlas = TracingInputs.DirectLightingAtlas;
+	TracingParameters.IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
-	TracingParameters.IrradianceAtlas = TracingInputs.IrradianceAtlas;
-	TracingParameters.IndirectIrradianceAtlas = TracingInputs.IndirectIrradianceAtlas;
 	TracingParameters.AlbedoAtlas = TracingInputs.AlbedoAtlas;
 	TracingParameters.OpacityAtlas = TracingInputs.OpacityAtlas;
 	TracingParameters.NormalAtlas = TracingInputs.NormalAtlas;
