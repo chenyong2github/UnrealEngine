@@ -198,10 +198,9 @@ RWBuffer<uint> RWDispatchCardTilesIndirectArgs;
 StructuredBuffer<uint> CardTileAllocator;
 StructuredBuffer<uint> CardTileData;
 
-float2 DownsampledInputAtlasSize;
-
 Buffer<uint4> RectMinMaxBuffer;
 float2 InvRectMinMaxResolution;
+float2 IndirectLightingAtlasSize;
 
 void RasterizeToCardsVS(
 	uint VertexId : SV_VertexID,
@@ -258,21 +257,18 @@ void RasterizeToCardsVS(
 		}
 		#endif
 
-		// When sampling from a downsampled atlas we need to appropriately clamp input UVs to prevent bilinear reading outside of the valid area
-		if (DownsampledInputAtlasSize.x > 0.0f)
-		{
-			float2 CardWidthInTexels = (CardPage.PhysicalAtlasUVRect.zw - CardPage.PhysicalAtlasUVRect.xy) * DownsampledInputAtlasSize;
-			float2 ClampBorder = 0.5f / CardWidthInTexels;
-
-			TexCoord = clamp(TexCoord, ClampBorder, 1.0f - ClampBorder);
-			AtlasUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, TexCoord);
-		}
+		// When sampling from a downsampled Indirect Lighting atlas we need to appropriately clamp input UVs to prevent bilinear reading outside of the valid area
+		float2 CardWidthInTexels = (CardPage.PhysicalAtlasUVRect.zw - CardPage.PhysicalAtlasUVRect.xy) * IndirectLightingAtlasSize;
+		float2 ClampBorder = 0.5f / CardWidthInTexels;
+		float2 IndirectLightingTexCoord = clamp(TexCoord, ClampBorder, 1.0f - ClampBorder);
+		float2 IndirectLightingAtlasUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, IndirectLightingTexCoord);
 
 		float2 ScreenPosition = float2(2.0f, -2.0f) * ScreenUV + float2(-1.0f, 1.0f);
 		OutPosition = float4(ScreenPosition, 0, 1);
 
 		float2 QuadCorner = -2.0f * TexCoord + 1.0f;
 		CardInterpolants.AtlasUV = AtlasUV;
+		CardInterpolants.IndirectLightingAtlasUV = IndirectLightingAtlasUV;
 		CardInterpolants.CardUV = lerp(CardPage.CardUVRect.xy, CardPage.CardUVRect.zw, TexCoord);
 		CardInterpolants.CardTileIndex = 0;
 		CardInterpolants.CardPageIndex = CardPageIndex;
@@ -308,59 +304,51 @@ void RasterizeToCardTilesVS(
 		OutPosition = float4(ScreenPosition, 0, 1);
 
 		CardInterpolants.AtlasUV = AtlasUV;
+		CardInterpolants.IndirectLightingAtlasUV = float2(0.0f, 0.0f);
 		CardInterpolants.CardUV = CardUV;
 		CardInterpolants.CardTileIndex = CardTileIndex;
 		CardInterpolants.CardPageIndex = CardTile.CardPageIndex;
 	}
 }
 
-Texture2D RadiosityAtlas;
-Texture2D OpacityAtlas;
-
-void LumenCardLightingInitializePS(
-	FCardVSToPS CardInterpolants,
-	out float4 OutColor : SV_Target0)
-{   
-	float3 Radiosity = Texture2DSampleLevel(RadiosityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	
-	// Secure again strange values, as we are writing it to a persistent atlas with a feedback loop
-	Radiosity = max(MakeFinite(Radiosity), float3(0.0f, 0.0f, 0.0f));
-	OutColor = float4(Radiosity, 0);
-}
-
-Texture2D SrcAtlas;
-
-void LumenCardCopyAtlasPS(
-	FCardVSToPS CardInterpolants,
-	out float4 OutValue : SV_Target0)
-{
-	float3 Value = Texture2DSampleLevel(SrcAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	OutValue = float4(Value, 0);
-}
-
 Texture2D AlbedoAtlas;
 Texture2D EmissiveAtlas;
+Texture2D DirectLightingAtlas;
+Texture2D IndirectLightingAtlas;
+Texture2D OpacityAtlas;
+
 float DiffuseReflectivityOverride;
 
-void LumenCardBlendAlbedoPS(
+void CombineLumenSceneLighting(
 	FCardVSToPS CardInterpolants,
-	out float4 OutColor0 DUAL_SOURCE_BLENDING_SLOT(0) : SV_Target0,
-	out float4 OutColor1 DUAL_SOURCE_BLENDING_SLOT(1) : SV_Target1)
+	out float4 OutFinalLighting : SV_Target0)
 {
-	float3 DiffuseColor = DecodeSurfaceCacheAlbedo(Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz);
+	float3 Albedo = DecodeSurfaceCacheAlbedo(Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz);
+	float3 Emissive = Texture2DSampleLevel(EmissiveAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
+	float3 DirectLighting = Texture2DSampleLevel(DirectLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
+	float3 IndirectLighting = Texture2DSampleLevel(IndirectLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.IndirectLightingAtlasUV, 0).xyz;
 
 	if (DiffuseReflectivityOverride > 0.0f)
 	{
-		float DiffuseMaxComponent = max(DiffuseColor.r, max(DiffuseColor.g, DiffuseColor.b));
-		DiffuseColor = saturate(DiffuseColor * max(DiffuseReflectivityOverride / max(DiffuseMaxComponent, .0001f), 1.0f));
+		float AlbedoMaxComponent = max(Albedo.x, max(Albedo.y, Albedo.z));
+		Albedo = saturate(Albedo * max(AlbedoMaxComponent / max(AlbedoMaxComponent, .0001f), 1.0f));
 	}
 
-	float3 Emissive = Texture2DSampleLevel(EmissiveAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz;
-	OutColor0 = float4(Emissive, 0);
-	OutColor1 = float4(Diffuse_Lambert(DiffuseColor), 0);
+	float3 FinalLighting = (DirectLighting + IndirectLighting) * Diffuse_Lambert(Albedo) + Emissive;
+
+	// Secure again strange values, as we are writing it to a persistent atlas with a feedback loop
+	FinalLighting = max(MakeFinite(FinalLighting), float3(0.0f, 0.0f, 0.0f));
+
+	OutFinalLighting = float4(FinalLighting, 0);
 }
 
 void ClearLumenCardsPS(
+	out float4 OutTarget : SV_Target)
+{
+	OutTarget = float4(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+void ClearLumenCardCapturePS(
 	out float4 OutAlbedo : SV_Target0,
 	out float4 OutNormals : SV_Target1,
 	out float4 OutEmissive : SV_Target2

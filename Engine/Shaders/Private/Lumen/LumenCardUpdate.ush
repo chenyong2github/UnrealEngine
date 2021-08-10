@@ -97,6 +97,5 @@ bool ShouldUpdateCardPage(
 
 	//@todo - Better guarantees on even distribution of texels lit each frame
 	return CardPageId % CardUpdateFrequency == Options.FrameId % CardUpdateFrequency;
-
 #endif
 }

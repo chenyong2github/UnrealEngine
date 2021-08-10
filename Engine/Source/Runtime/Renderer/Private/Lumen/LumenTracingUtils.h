@@ -56,9 +56,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER(uint32, SurfaceCacheFeedbackBufferTileWrapMask)
 	SHADER_PARAMETER(FIntPoint, SurfaceCacheFeedbackBufferTileJitter)
 	SHADER_PARAMETER(float, SurfaceCacheFeedbackResLevelBias)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FinalLightingAtlas)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IrradianceAtlas)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectIrradianceAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
@@ -75,15 +75,17 @@ public:
 
 	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCachaFeedback = true);
 
-	FRDGTextureRef FinalLightingAtlas;
-	FRDGTextureRef IrradianceAtlas;
-	FRDGTextureRef IndirectIrradianceAtlas;
 	FRDGTextureRef AlbedoAtlas;
 	FRDGTextureRef OpacityAtlas;
 	FRDGTextureRef NormalAtlas;
 	FRDGTextureRef EmissiveAtlas;
 	FRDGTextureRef DepthAtlas;
+
+	FRDGTextureRef DirectLightingAtlas;
+	FRDGTextureRef IndirectLightingAtlas;
+	FRDGTextureRef FinalLightingAtlas;
 	FRDGTextureRef VoxelLighting;
+
 	FRDGBufferUAVRef SurfaceCacheFeedbackBufferAllocatorUAV;
 	FRDGBufferUAVRef SurfaceCacheFeedbackBufferUAV;
 	uint32 SurfaceCacheFeedbackBufferSize;

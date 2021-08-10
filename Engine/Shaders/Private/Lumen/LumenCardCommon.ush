@@ -199,7 +199,8 @@ float3 TransformFaceToLocal(uint FaceIndex, float3 FacePosition)
 struct FCardVSToPS
 {
 	float2 AtlasUV : ATTRIBUTE0;
-	float2 CardUV : ATTRIBUTE1;
+	float2 IndirectLightingAtlasUV : ATTRIBUTE1;
+	float2 CardUV : ATTRIBUTE2;
 	nointerpolation uint CardTileIndex : CARD_TILE_INDEX;
 	nointerpolation uint CardPageIndex : CARD_PAGE_INDEX;
 };

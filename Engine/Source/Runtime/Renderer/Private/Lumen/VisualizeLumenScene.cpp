@@ -78,8 +78,10 @@ FAutoConsoleVariableRef CVarLumenVisualizeMode(
 	TEXT("4 - Emissive\n")
 	TEXT("5 - Opacity\n")
 	TEXT("6 - Card weights\n")
-	TEXT("7 - Local Position (hardware ray-tracing only)\n")
-	TEXT("8 - Velocity (hardware ray-tracing only)"),
+	TEXT("7 - Direct lighting\n")
+	TEXT("8 - Indirect lighting\n")
+	TEXT("9 - Local Position (hardware ray-tracing only)\n")
+	TEXT("10 - Velocity (hardware ray-tracing only)"),
 	ECVF_RenderThreadSafe
 );
 

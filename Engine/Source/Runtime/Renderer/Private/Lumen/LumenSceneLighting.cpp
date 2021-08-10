@@ -39,29 +39,7 @@ FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
 	ECVF_RenderThreadSafe
 );
 
-namespace Lumen
-{
-	bool UseIrradianceAtlas(const FViewInfo& View)
-	{
-		bool bUsedInReflections = UseHardwareRayTracedReflections() && (GetReflectionsHardwareRayTracingLightingMode(View) == EHardwareRayTracingLightingMode::EvaluateMaterial);
-		bool bUsedInScreenProbeGather = UseHardwareRayTracedScreenProbeGather() && (GetScreenProbeGatherHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterial);
-		bool bUsedInVisualization = ShouldVisualizeHardwareRayTracing() && (GetVisualizeHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterial);
-		return bUsedInReflections || bUsedInScreenProbeGather || bUsedInVisualization;
-	}
-
-	bool UseIndirectIrradianceAtlas(const FViewInfo& View)
-	{
-		bool bUsedInReflections = UseHardwareRayTracedReflections() && (GetReflectionsHardwareRayTracingLightingMode(View) == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
-		bool bUsedInScreenProbeGather = UseHardwareRayTracedScreenProbeGather() && (GetScreenProbeGatherHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
-		bool bUsedInVisualization = ShouldVisualizeHardwareRayTracing() && (GetVisualizeHardwareRayTracingLightingMode() == EHardwareRayTracingLightingMode::EvaluateMaterialAndDirectLighting);
-		return bUsedInReflections || bUsedInScreenProbeGather || bUsedInVisualization;
-	}
-
-	bool UseLumenSceneLightingForceFullUpdate()
-	{
-		return GLumenSceneLightingForceFullUpdate != 0;
-	}
-}
+IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
 
 class FInitializeCardPageIndirectArgsCS : public FGlobalShader
 {
@@ -418,71 +396,19 @@ void FLumenCardScatterContext::Build(
 	}
 }
 
-class FLumenCardLightingInitializePS : public FGlobalShader
+class FLumenCardCombineLightingPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FLumenCardLightingInitializePS);
-	SHADER_USE_PARAMETER_STRUCT(FLumenCardLightingInitializePS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityAtlas)
-	END_SHADER_PARAMETER_STRUCT()
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FLumenCardLightingInitializePS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardLightingInitializePS", SF_Pixel);
-
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardLightingEmissive, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardLightingInitializePS::FParameters, PS)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-class FLumenCardCopyAtlasPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FLumenCardCopyAtlasPS);
-	SHADER_USE_PARAMETER_STRUCT(FLumenCardCopyAtlasPS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcAtlas)
-	END_SHADER_PARAMETER_STRUCT()
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FLumenCardCopyAtlasPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardCopyAtlasPS", SF_Pixel);
-
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardCopyAtlas, )
-SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
-SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardCopyAtlasPS::FParameters, PS)
-RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-class FLumenCardBlendAlbedoPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FLumenCardBlendAlbedoPS);
-	SHADER_USE_PARAMETER_STRUCT(FLumenCardBlendAlbedoPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FLumenCardCombineLightingPS);
+	SHADER_USE_PARAMETER_STRUCT(FLumenCardCombineLightingPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectLightingAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 		SHADER_PARAMETER(float, DiffuseReflectivityOverride)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -494,146 +420,49 @@ class FLumenCardBlendAlbedoPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenCardBlendAlbedoPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardBlendAlbedoPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLumenCardCombineLightingPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CombineLumenSceneLighting", SF_Pixel);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardBlendAlbedo, )
-SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
-SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardBlendAlbedoPS::FParameters, PS)
-RENDER_TARGET_BINDING_SLOTS()
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardCombineLighting, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardCombineLightingPS::FParameters, PS)
+	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void CombineLumenSceneLighting(
+void Lumen::CombineLumenSceneLighting(
 	FScene* Scene, 
-	FViewInfo& View,
+	const FViewInfo& View,
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-	FRDGTextureRef FinalLightingAtlas, 
-	FRDGTextureRef OpacityAtlas, 
-	FRDGTextureRef RadiosityAtlas, 
-	FGlobalShaderMap* GlobalShaderMap,
+	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenCardScatterContext& VisibleCardScatterContext)
 {
 	LLM_SCOPE_BYTAG(Lumen);
-
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	{
-		FLumenCardLightingEmissive* PassParameters = GraphBuilder.AllocParameters<FLumenCardLightingEmissive>();
-		
-		FVector2D DownsampledInputAtlasSize = FVector2D::ZeroVector;
-		if (LumenSceneData.GetRadiosityAtlasSize() != LumenSceneData.GetPhysicalAtlasSize())
-		{
-			DownsampledInputAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
-		}
+	FLumenCardCombineLighting* PassParameters = GraphBuilder.AllocParameters<FLumenCardCombineLighting>();
 
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
-		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
-		PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
-		PassParameters->VS.CardScatterInstanceIndex = 0;
-		PassParameters->VS.DownsampledInputAtlasSize = DownsampledInputAtlasSize;
-		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
-		PassParameters->PS.RadiosityAtlas = RadiosityAtlas;
-		PassParameters->PS.OpacityAtlas = OpacityAtlas;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("LightingCombine"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
-		{
-			FLumenCardLightingInitializePS::FPermutationDomain PermutationVector;
-			auto PixelShader = GlobalShaderMap->GetShader< FLumenCardLightingInitializePS >(PermutationVector);
-
-			DrawQuadsToAtlas(MaxAtlasSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
-		});
-	}
-}
-
-void CopyLumenCardAtlas(
-	FScene* Scene,
-	FViewInfo& View,
-	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-	FRDGTextureRef SrcAtlas,
-	FRDGTextureRef DstAtlas,
-	FGlobalShaderMap* GlobalShaderMap,
-	const FLumenCardScatterContext& VisibleCardScatterContext
-)
-{
-	LLM_SCOPE_BYTAG(Lumen);
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	FLumenCardCopyAtlas* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyAtlas>();
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(DstAtlas, ERenderTargetLoadAction::ENoAction);
-	PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
+	PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
 	PassParameters->VS.CardScatterInstanceIndex = 0;
-	PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
+	PassParameters->VS.IndirectLightingAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 	PassParameters->PS.View = View.ViewUniformBuffer;
-	PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
-	PassParameters->PS.SrcAtlas = SrcAtlas;
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("CopyLumenCardAtlas"),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
-	{
-		FLumenCardCopyAtlasPS::FPermutationDomain PermutationVector;
-		auto PixelShader = GlobalShaderMap->GetShader< FLumenCardCopyAtlasPS >(PermutationVector);
-
-		DrawQuadsToAtlas(MaxAtlasSize,
-			PixelShader,
-			PassParameters,
-			GlobalShaderMap,
-			TStaticBlendState<>::GetRHI(),
-			RHICmdList);
-	});
-}
-
-void ApplyLumenCardAlbedo(
-	FScene* Scene,
-	FViewInfo& View,
-	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-	FRDGTextureRef FinalLightingAtlas,
-	FRDGTextureRef AlbedoAtlas,
-	FRDGTextureRef EmissiveAtlas, 
-	FGlobalShaderMap* GlobalShaderMap,
-	const FLumenCardScatterContext& VisibleCardScatterContext
-)
-{
-	LLM_SCOPE_BYTAG(Lumen);
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	FLumenCardBlendAlbedo* PassParameters = GraphBuilder.AllocParameters<FLumenCardBlendAlbedo>();
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
-	PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
-	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
-	PassParameters->VS.CardScatterInstanceIndex = 0;
-	PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
-	PassParameters->PS.View = View.ViewUniformBuffer;
-	PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
-	PassParameters->PS.AlbedoAtlas = AlbedoAtlas;
-	PassParameters->PS.EmissiveAtlas = EmissiveAtlas;
+	PassParameters->PS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
+	PassParameters->PS.AlbedoAtlas = TracingInputs.AlbedoAtlas;
+	PassParameters->PS.EmissiveAtlas = TracingInputs.EmissiveAtlas;
+	PassParameters->PS.DirectLightingAtlas = TracingInputs.DirectLightingAtlas;
+	PassParameters->PS.IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
+	PassParameters->PS.OpacityAtlas = TracingInputs.OpacityAtlas;
 	PassParameters->PS.DiffuseReflectivityOverride = FMath::Clamp<float>(GLumenSceneSurfaceCacheDiffuseReflectivityOverride, 0.0f, 1.0f);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("ApplyLumenCardAlbedo"),
+		RDG_EVENT_NAME("CombineLighting"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandListImmediate& RHICmdList)
 	{
-		FLumenCardCopyAtlasPS::FPermutationDomain PermutationVector;
-		auto PixelShader = GlobalShaderMap->GetShader< FLumenCardBlendAlbedoPS >(PermutationVector);
+		auto PixelShader = GlobalShaderMap->GetShader<FLumenCardCombineLightingPS>();
 
-		DrawQuadsToAtlas(MaxAtlasSize,
-			PixelShader,
-			PassParameters,
-			GlobalShaderMap,
-			TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_Source1Color>::GetRHI(),	// Add Emissive, multiply accumulated lighting with Albedo which is output to SV_Target1 (dual source blending)
-			RHICmdList);
+		DrawQuadsToAtlas(MaxAtlasSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
 	});
 }
 
@@ -662,24 +491,12 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 		if (LumenSceneData.GetNumCardPages() > 0)
 		{
-			FRDGTextureRef RadiosityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityAtlas, TEXT("Lumen.RadiosityAtlas"));
-
 			if (LumenSceneData.bDebugClearAllCachedState)
 			{
-				AddClearRenderTargetPass(GraphBuilder, RadiosityAtlas);
+				AddClearRenderTargetPass(GraphBuilder, TracingInputs.DirectLightingAtlas);
+				AddClearRenderTargetPass(GraphBuilder, TracingInputs.IndirectLightingAtlas);
 				AddClearRenderTargetPass(GraphBuilder, TracingInputs.FinalLightingAtlas);
-
-				if (Lumen::UseIrradianceAtlas(View))
-				{
-					AddClearRenderTargetPass(GraphBuilder, TracingInputs.IrradianceAtlas);
-				}
-				if (Lumen::UseIndirectIrradianceAtlas(View))
-				{
-					AddClearRenderTargetPass(GraphBuilder, TracingInputs.IndirectIrradianceAtlas);
-				}
 			}
-
-			RenderRadiosityForLumenScene(GraphBuilder, TracingInputs, GlobalShaderMap, RadiosityAtlas);
 
 			FLumenCardScatterContext DirectLightingCardScatterContext;
 			extern float GLumenSceneCardDirectLightingUpdateFrequencyScale;
@@ -697,75 +514,19 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				FCullCardsShapeParameters(),
 				ECullCardsShapeType::None);
 
-			CombineLumenSceneLighting(
-				Scene,
-				View,
-				GraphBuilder,
-				TracingInputs.LumenCardSceneUniformBuffer,
-				TracingInputs.FinalLightingAtlas,
-				TracingInputs.OpacityAtlas,
-				RadiosityAtlas,
-				GlobalShaderMap, 
-				DirectLightingCardScatterContext);
-
-			if (Lumen::UseIndirectIrradianceAtlas(View))
-			{
-				CopyLumenCardAtlas(
-					Scene,
-					View,
-					GraphBuilder,
-					TracingInputs.LumenCardSceneUniformBuffer,
-					TracingInputs.FinalLightingAtlas,
-					TracingInputs.IndirectIrradianceAtlas,
-					GlobalShaderMap,
-					DirectLightingCardScatterContext);
-			}
-
 			RenderDirectLightingForLumenScene(
 				GraphBuilder,
 				TracingInputs,
 				GlobalShaderMap,
 				DirectLightingCardScatterContext);
 
-			if (Lumen::UseIrradianceAtlas(View))
-			{
-				CopyLumenCardAtlas(
-					Scene,
-					View,
-					GraphBuilder,
-					TracingInputs.LumenCardSceneUniformBuffer,
-					TracingInputs.FinalLightingAtlas,
-					TracingInputs.IrradianceAtlas,
-					GlobalShaderMap,
-					DirectLightingCardScatterContext);
-			}
+			RenderRadiosityForLumenScene(GraphBuilder, TracingInputs, GlobalShaderMap, TracingInputs.IndirectLightingAtlas);
 
-			FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.AlbedoAtlas"));
-			FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("Lumen.EmissiveAtlas"));
-			ApplyLumenCardAlbedo(
-				Scene,
-				View,
-				GraphBuilder,
-				TracingInputs.LumenCardSceneUniformBuffer,
-				TracingInputs.FinalLightingAtlas,
-				AlbedoAtlas,
-				EmissiveAtlas,
-				GlobalShaderMap,
-				DirectLightingCardScatterContext);
+			LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.DirectLightingAtlas);
+			LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.IndirectLightingAtlas);
+			LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.FinalLightingAtlas);
 
 			LumenSceneData.bFinalLightingAtlasContentsValid = true;
-
-			LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.FinalLightingAtlas);
-			if (Lumen::UseIrradianceAtlas(View))
-			{
-				LumenSceneData.IrradianceAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.IrradianceAtlas);
-			}
-			if (Lumen::UseIndirectIrradianceAtlas(View))
-			{
-				LumenSceneData.IndirectIrradianceAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.IndirectIrradianceAtlas);
-			}
-
-			LumenSceneData.RadiosityAtlas = GraphBuilder.ConvertToExternalTexture(RadiosityAtlas);
 		}
 
 		ComputeLumenSceneVoxelLighting(GraphBuilder, TracingInputs, GlobalShaderMap);

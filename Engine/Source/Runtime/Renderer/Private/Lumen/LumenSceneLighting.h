@@ -123,7 +123,7 @@ class FRasterizeToCardsVS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardScatterParameters, CardScatterParameters)
 		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
 		SHADER_PARAMETER(FVector4, InfluenceSphere)
-		SHADER_PARAMETER(FVector2D, DownsampledInputAtlasSize)
+		SHADER_PARAMETER(FVector2D, IndirectLightingAtlasSize)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, RectMinMaxBuffer)
 		SHADER_PARAMETER(FVector2D, InvRectMinMaxResolution)
 	END_SHADER_PARAMETER_STRUCT()
@@ -218,6 +218,24 @@ void DrawQuadsToAtlas(
 	RHICmdList.DrawPrimitiveIndirect(PassParameters->VS.CardScatterParameters.DrawIndirectArgs->GetIndirectRHICallBuffer(), DrawIndirectArgOffset);
 }
 
+class FClearLumenCardsPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FClearLumenCardsPS);
+	SHADER_USE_PARAMETER_STRUCT(FClearLumenCardsPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+	END_SHADER_PARAMETER_STRUCT()
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
 // Must match LIGHT_TYPE_* in LumenSceneDirectLighting.usf
 enum class ELumenLightType
 {
@@ -267,4 +285,11 @@ namespace Lumen
 		const FViewInfo& View,
 		const FLightSceneInfo* LightSceneInfo,
 		TUniformBufferBinding<FDeferredLightUniformStruct>& UniformBuffer);
+
+	void CombineLumenSceneLighting(
+		FScene* Scene,
+		const FViewInfo& View,
+		FRDGBuilder& GraphBuilder,
+		const FLumenCardTracingInputs& TracingInputs,
+		const FLumenCardScatterContext& VisibleCardScatterContext);
 };

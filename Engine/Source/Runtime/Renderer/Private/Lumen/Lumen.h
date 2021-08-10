@@ -36,8 +36,6 @@ namespace Lumen
 	float GetDistanceSceneNaniteLODScaleFactor();
 	bool UseMeshSDFTracing();
 	float GetMaxTraceDistance();
-	bool UseIrradianceAtlas(const FViewInfo& View);
-	bool UseIndirectIrradianceAtlas(const FViewInfo& View);
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();
@@ -45,9 +43,11 @@ namespace Lumen
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck = false);
 	bool ShouldVisualizeHardwareRayTracing();
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
-	bool UseLumenSceneLightingForceFullUpdate();
 	bool UseVirtualShadowMaps();
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
+
+	bool IsRadiosityEnabled();
+	uint32 GetRadiosityDownsampleFactor();
 
 	// Surface cache
 	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance();

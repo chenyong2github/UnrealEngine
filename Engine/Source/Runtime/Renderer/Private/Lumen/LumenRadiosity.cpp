@@ -243,14 +243,19 @@ namespace LumenRadiosity
 static constexpr int32 RadiosityProbeResolution = 8;
 static constexpr int32 RadiosityComposedProbeResolution = (RadiosityProbeResolution + 2); // Includes 2 texel border for bilinear filtering
 
-bool IsRadiosityEnabled()
+bool Lumen::IsRadiosityEnabled()
 {
 	return GLumenFastCameraMode ? false : bool(GLumenRadiosity);
 }
 
+uint32 Lumen::GetRadiosityDownsampleFactor()
+{
+	return FMath::RoundUpToPowerOfTwo(FMath::Clamp(GLumenRadiosityDownsampleFactor, 1, 8));
+}
+
 FIntPoint FLumenSceneData::GetRadiosityAtlasSize() const
 {
-	return FIntPoint::DivideAndRoundDown(PhysicalAtlasSize, GLumenRadiosityDownsampleFactor);
+	return FIntPoint::DivideAndRoundDown(PhysicalAtlasSize, Lumen::GetRadiosityDownsampleFactor());
 }
 
 FHemisphereDirectionSampleGenerator RadiosityDirections;
@@ -545,7 +550,7 @@ void RenderRadiosityComputeScatter(
 
 	const int32 TraceBlockMaxSize = 2;
 	extern int32 GLumenSceneLightingForceFullUpdate;
-	const int32 Divisor = TraceBlockMaxSize * GLumenRadiosityDownsampleFactor * (GLumenSceneLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
+	const int32 Divisor = TraceBlockMaxSize * Lumen::GetRadiosityDownsampleFactor() * (GLumenSceneLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
 	const int32 NumTraceBlocksToAllocate = FMath::Max((LumenSceneData.GetPhysicalAtlasSize().X / Divisor) * (LumenSceneData.GetPhysicalAtlasSize().Y / Divisor), 1024);
 	const FIntPoint RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 
@@ -698,12 +703,12 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	const FViewInfo& MainView = Views[0];
+	const FViewInfo& View = Views[0];
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 	extern int32 GLumenSceneRecaptureLumenSceneEveryFrame;
 
-	if (IsRadiosityEnabled() 
+	if (Lumen::IsRadiosityEnabled() 
 		&& !GLumenSceneRecaptureLumenSceneEveryFrame
 		&& LumenSceneData.bFinalLightingAtlasContentsValid
 		&& TracingInputs.NumClipmapLevels > 0)
@@ -715,7 +720,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 		// Build the indirect args to write to the card faces we are going to update radiosity for this frame
 		VisibleCardScatterContext.Build(
 			GraphBuilder,
-			MainView,
+			View,
 			LumenSceneData,
 			LumenCardRenderer,
 			TracingInputs.LumenCardSceneUniformBuffer,
@@ -739,7 +744,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			RenderRadiosityComputeScatter(
 				GraphBuilder,
 				Scene,
-				Views[0],
+				View,
 				bRenderSkylight,
 				LumenSceneData,
 				RadiosityAtlas,
@@ -756,7 +761,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 			PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
 			PassParameters->VS.CardScatterInstanceIndex = 0;
-			PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
+			PassParameters->VS.IndirectLightingAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 
 			SetupTraceFromTexelParameters(GraphBuilder, Views[0], TracingInputs, LumenSceneData, PassParameters->PS.TraceFromTexelParameters);
 
@@ -765,7 +770,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			auto PixelShader = GlobalShaderMap->GetShader<FLumenCardRadiosityPS>(PermutationVector);
 
 			FScene* LocalScene = Scene;
-			const int32 RadiosityDownsampleArea = GLumenRadiosityDownsampleFactor * GLumenRadiosityDownsampleFactor;
+			const int32 RadiosityDownsampleArea = Lumen::GetRadiosityDownsampleFactor() * Lumen::GetRadiosityDownsampleFactor();
 			const FIntPoint RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 
 			GraphBuilder.AddPass(
@@ -778,6 +783,14 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 				DrawQuadsToAtlas(ViewRect, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
 			});
 		}
+
+		// Update Final Lighting
+		Lumen::CombineLumenSceneLighting(
+			Scene,
+			View,
+			GraphBuilder,
+			TracingInputs,
+			VisibleCardScatterContext);
 	}
 	else
 	{

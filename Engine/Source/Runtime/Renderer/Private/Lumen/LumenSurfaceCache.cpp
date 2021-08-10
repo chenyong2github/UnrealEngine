@@ -98,6 +98,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardCopyParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenRectsParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FPixelShaderUtils::FRasterizeToRectsVS::FParameters, VS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FClearLumenCardsPS::FParameters, PS)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
 	RDG_TEXTURE_ACCESS(InputTexture, ERHIAccess::CopySrc)
 	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
@@ -142,20 +148,25 @@ void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FView
 	NormalAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Normal, TEXT("Lumen.SceneNormal"));
 	EmissiveAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Emissive, TEXT("Lumen.SceneEmissive"));
 
-	// FinalLighting
+	// Direct Lighting
 	{
-		const FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
-		FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_FloatR11G11B10, CrazyGreen, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
-		LightingDesc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"), ERenderTargetTransience::NonTransient);
-		bFinalLightingAtlasContentsValid = false;
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		Desc.AutoWritable = false;
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, DirectLightingAtlas, TEXT("Lumen.SceneDirectLighting"), ERenderTargetTransience::NonTransient);
 	}
 
-	// Radiosity
+	// Indirect Lighting
 	{
-		FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
-		RadiosityDesc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, RadiosityDesc, RadiosityAtlas, TEXT("Lumen.SceneRadiosity"), ERenderTargetTransience::NonTransient);
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		Desc.AutoWritable = false;
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, IndirectLightingAtlas, TEXT("Lumen.SceneIndirectLighting"), ERenderTargetTransience::NonTransient);
+	}
+
+	// Final Lighting
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+		Desc.AutoWritable = false;
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"), ERenderTargetTransience::NonTransient);
 	}
 }
 
@@ -180,6 +191,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	FRDGTextureRef OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	FRDGTextureRef NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 	FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
+	FRDGTextureRef IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
 
 	// Create rect buffer
 	FRDGBufferRef SurfaceCacheRectBuffer;
@@ -374,11 +386,39 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 		}
 	}
 
+	// Clear indirect lighting before it will be used as an input to the radiosity pass
+	if (Lumen::IsRadiosityEnabled())
+	{
+		FClearLumenRectsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenRectsParameters>();
+
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(IndirectLightingAtlas, ERenderTargetLoadAction::ENoAction, 0);
+		PassParameters->PS.View = View.ViewUniformBuffer;
+
+		auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>();
+
+		FPixelShaderUtils::AddRasterizeToRectsPass<FClearLumenCardsPS>(GraphBuilder,
+			View.ShaderMap,
+			RDG_EVENT_NAME("Clear IndirectLighting"),
+			PixelShader,
+			PassParameters,
+			LumenSceneData.GetRadiosityAtlasSize(),
+			SurfaceCacheRectBufferSRV,
+			CardPagesToRender.Num(),
+			/*BlendState*/ nullptr,
+			/*RasterizerState*/ nullptr,
+			/*DepthStencilState*/ nullptr,
+			/*StencilRef*/ 0,
+			/*TextureSize*/ LumenSceneData.GetRadiosityAtlasSize(),
+			/*RectUVBufferSRV*/ CardCaptureRectBufferSRV,
+			Lumen::GetRadiosityDownsampleFactor());
+	}
+
 	LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(DepthAtlas);
 	LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(AlbedoAtlas);
 	LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(OpacityAtlas);
 	LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(NormalAtlas);
 	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlas);
+	LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(IndirectLightingAtlas);
 }
 
 class FClearCompressedAtlasCS : public FGlobalShader
@@ -574,17 +614,7 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 	LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(NormalAtlas);
 	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlas);
 
-
+	ClearAtlas(GraphBuilder, LumenSceneData.DirectLightingAtlas);
+	ClearAtlas(GraphBuilder, LumenSceneData.IndirectLightingAtlas);
 	ClearAtlas(GraphBuilder, LumenSceneData.FinalLightingAtlas);
-	ClearAtlas(GraphBuilder, LumenSceneData.RadiosityAtlas);
-
-	if (Lumen::UseIrradianceAtlas(View))
-	{
-		ClearAtlas(GraphBuilder, LumenSceneData.IrradianceAtlas);
-	}
-
-	if (Lumen::UseIndirectIrradianceAtlas(View))
-	{
-		ClearAtlas(GraphBuilder, LumenSceneData.IndirectIrradianceAtlas);
-	}
 }

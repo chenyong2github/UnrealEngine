@@ -39,6 +39,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(uint32, MaxConeSteps)
 	SHADER_PARAMETER(FVector2D, PhysicalAtlasSize)
 	SHADER_PARAMETER(FVector2D, InvPhysicalAtlasSize)
+	SHADER_PARAMETER(float, IndirectLightingAtlasDownsampleFactor)
 	SHADER_PARAMETER(uint32, NumDistantCards)
 	SHADER_PARAMETER(float, DistantSceneMaxTraceDistance)
 	SHADER_PARAMETER(FVector3f, DistantSceneDirection)
@@ -377,18 +378,17 @@ public:
 	// Single card tile per FLumenPageTableEntry. Used for various atlas update operations
 	FRWBufferStructured CardPageBuffer;
 
-	// --- Captured from the triangle scene ---
+	// Captured from the triangle scene
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;
 	TRefCountPtr<IPooledRenderTarget> OpacityAtlas;
 	TRefCountPtr<IPooledRenderTarget> NormalAtlas;
 	TRefCountPtr<IPooledRenderTarget> EmissiveAtlas;
 	TRefCountPtr<IPooledRenderTarget> DepthAtlas;
 
-	// --- Generated ---
-	TRefCountPtr<IPooledRenderTarget> RadiosityAtlas;
+	// Generated
+	TRefCountPtr<IPooledRenderTarget> DirectLightingAtlas;
+	TRefCountPtr<IPooledRenderTarget> IndirectLightingAtlas;
 	TRefCountPtr<IPooledRenderTarget> FinalLightingAtlas;
-	TRefCountPtr<IPooledRenderTarget> IrradianceAtlas;
-	TRefCountPtr<IPooledRenderTarget> IndirectIrradianceAtlas;
 
 	// Virtual surface cache feedback
 	FLumenSurfaceCacheFeedback SurfaceCacheFeedback;
