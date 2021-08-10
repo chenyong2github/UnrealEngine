@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -50,6 +51,12 @@ namespace UnrealBuildTool
 		/// Cached copy of the writable engine directory
 		/// </summary>
 		static DirectoryReference? CachedWritableEngineDirectory;
+
+		/// <summary>
+		/// Cached copy of the source root directory that was used to compile the installed engine
+		/// Used to remap source code paths when debugging.
+		/// </summary>
+		static DirectoryReference? CachedOriginalCompilationRootDirectory;
 
 		/// <summary>
 		/// Writable engine directory. Uses the user's settings folder for installed builds.
@@ -97,6 +104,55 @@ namespace UnrealBuildTool
 					}
 				}
 				return CachedEngineProgramSavedDirectory;
+			}
+		}
+
+		/// <summary>
+		/// The original root directory that was used to compile the installed engine
+		/// Used to remap source code paths when debugging.
+		/// </summary>
+		public static DirectoryReference OriginalCompilationRootDirectory
+		{
+			get
+			{
+				if (CachedOriginalCompilationRootDirectory == null)
+				{
+					if (Unreal.IsEngineInstalled())
+					{
+						// Load Engine\Intermediate\Build\BuildRules\*RulesManifest.json
+						DirectoryReference BuildRules = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "BuildRules");
+						FileReference? RulesManifest = DirectoryReference.EnumerateFiles(BuildRules, "*RulesManifest.json").FirstOrDefault();
+						if (RulesManifest != null)
+						{
+							JsonObject Manifest = JsonObject.Read(RulesManifest);
+							if (Manifest.TryGetStringArrayField("SourceFiles", out string[] SourceFiles))
+							{
+								FileReference? SourceFile = FileReference.FromString(SourceFiles.FirstOrDefault());
+								if (SourceFile != null && !SourceFile.IsUnderDirectory(Unreal.EngineDirectory))
+								{
+									// Walk up parent directory until Engine is found
+									DirectoryReference? Directory = SourceFile.Directory;
+									while (Directory != null && !Directory.IsRootDirectory())
+									{
+										if (Directory.GetDirectoryName() == "Engine" && Directory.ParentDirectory != null)
+										{
+											CachedOriginalCompilationRootDirectory = Directory.ParentDirectory;
+											break;
+										}
+
+										Directory = Directory.ParentDirectory;
+									}
+								}
+							}
+						}
+					}
+
+					if (CachedOriginalCompilationRootDirectory == null)
+					{
+						CachedOriginalCompilationRootDirectory = Unreal.RootDirectory;
+					}
+				}
+				return CachedOriginalCompilationRootDirectory;
 			}
 		}
 
