@@ -71,7 +71,7 @@ void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, 
 
 	RWScreenProbeSceneDepth[ScreenProbeAtlasCoord] = asuint(EncodedDepth);
 
-	RWScreenProbeWorldNormal[ScreenProbeAtlasCoord] = UnitVectorToOctahedron(ProbeGBuffer.WorldNormal);
+	RWScreenProbeWorldNormal[ScreenProbeAtlasCoord] = UnitVectorToOctahedron(ProbeGBuffer.WorldNormal) * 0.5 + 0.5;
 
 	float3 ProbeWorldVelocity;
 	float3 ProbeTranslatedWorldPosition;

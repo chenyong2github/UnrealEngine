@@ -89,7 +89,7 @@ float GetScreenProbeDepth(uint2 ScreenProbeAtlasCoord)
 
 float3 GetScreenProbeNormal(uint2 ScreenProbeAtlasCoord)
 {
-	return OctahedronToUnitVector(ScreenProbeWorldNormal[ScreenProbeAtlasCoord]);
+	return OctahedronToUnitVector(ScreenProbeWorldNormal[ScreenProbeAtlasCoord] * 2.0 - 1.0);
 }
 
 uint GetNumAdaptiveScreenProbes()
