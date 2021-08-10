@@ -75,7 +75,7 @@ private:
 	FSlateColor GetInnerBackgroundColor() const;
 
 	void CreateGlobalExtensionWidgets(TArray<FPropertyRowExtensionButton>& ExtensionButtons) const;
-	TSharedRef<SWidget> CreateExtensionWidget() const;
+	void PopulateExtensionWidget();
 	void OnResetToDefaultClicked() const;
 	bool IsResetToDefaultEnabled() const;
 

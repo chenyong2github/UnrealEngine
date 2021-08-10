@@ -264,6 +264,9 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 		{
 			WidgetRow = Customization->GetWidgetRow();
 
+			// Populate the extension content in the WidgetRow if there's an extension handler.
+			PopulateExtensionWidget();
+
 			TSharedPtr<SWidget> NameWidget = WidgetRow.NameWidget.Widget;
 
 			TSharedPtr<SWidget> ValueWidget =
@@ -273,6 +276,8 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				[
 					WidgetRow.ValueWidget.Widget
 				];
+
+			TSharedPtr<SWidget> ExtensionWidget = WidgetRow.ExtensionWidget.Widget;
 
 			TAttribute<bool> IsEnabledAttribute;
 			if (WidgetRow.IsEnabledAttr.IsSet() || WidgetRow.IsEnabledAttr.IsBound())
@@ -290,8 +295,22 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				IsEnabledAttribute = InOwnerTreeNode->IsPropertyEditingEnabled();
 			}
 
+			TAttribute<bool> IsValueWidgetEnabledAttribute;
+			if (WidgetRow.IsValueEnabledAttr.IsSet() || WidgetRow.IsValueEnabledAttr.IsBound()) {
+				TAttribute<bool> ValueEnabledAttr = WidgetRow.IsValueEnabledAttr;
+				IsValueWidgetEnabledAttribute = TAttribute<bool>::Create(
+					[IsEnabledAttribute, ValueEnabledAttr]()
+					{
+						return IsEnabledAttribute.Get() && ValueEnabledAttr.Get();
+					});
+			}
+			else {
+				IsValueWidgetEnabledAttribute = IsEnabledAttribute;
+			}
+
 			NameWidget->SetEnabled(IsEnabledAttribute);
-			ValueWidget->SetEnabled(IsEnabledAttribute);
+			ValueWidget->SetEnabled(IsValueWidgetEnabledAttribute);
+			ExtensionWidget->SetEnabled(IsEnabledAttribute);
 
 			TSharedRef<SSplitter> Splitter = SNew(SSplitter)
 					.Style(FEditorStyle::Get(), "DetailsView.Splitter")
@@ -396,9 +415,6 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						NameColumnBox
 					];
 
-				TSharedRef<SWidget> ExtensionWidget = CreateExtensionWidget();
-				ExtensionWidget->SetEnabled(IsEnabledAttribute);
-
 				// create Value column:
 				// | Name | Value | Right |
 				Splitter->AddSlot()
@@ -416,12 +432,12 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						]
 						// extension widget
 						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Right)
-						.VAlign(VAlign_Center)
+						.HAlign(WidgetRow.ExtensionWidget.HorizontalAlignment)
+						.VAlign(WidgetRow.ExtensionWidget.VerticalAlignment)
 						.Padding(5,0,0,0)
 						.AutoWidth()
 						[
-							ExtensionWidget
+							ExtensionWidget.ToSharedRef()
 						]
 					];
 			}
@@ -951,10 +967,8 @@ bool SDetailSingleItemRow::IsBlacklistChecked() const
 	return false;
 }
 
-TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget() const
+void SDetailSingleItemRow::PopulateExtensionWidget()
 {
-	TSharedPtr<SWidget> ExtensionWidget = SNullWidget::NullWidget;
-
 	TSharedPtr<FDetailTreeNode> OwnerTreeNodePinned = OwnerTreeNode.Pin();
 	if (OwnerTreeNodePinned.IsValid())
 	{ 
@@ -967,12 +981,10 @@ TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget() const
 			if (Handle->IsValidHandle() && ObjectClass && ExtensionHandler->IsPropertyExtendable(ObjectClass, *Handle))
 			{
 				FDetailLayoutBuilderImpl& DetailLayout = OwnerTreeNodePinned->GetParentCategory()->GetParentLayoutImpl();
-				ExtensionWidget = ExtensionHandler->GenerateExtensionWidget(DetailLayout, ObjectClass, Handle);
+				ExtensionHandler->ExtendWidgetRow(WidgetRow, DetailLayout, ObjectClass, Handle);
 			}
 		}
 	}
-
-	return ExtensionWidget.ToSharedRef();
 }
 
 bool SDetailSingleItemRow::CanFavorite() const

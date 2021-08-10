@@ -512,6 +512,48 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 	}
 }
 
+bool FBlueprintWidgetCustomization::HasPropertyBindings(TWeakPtr<FWidgetBlueprintEditor> InEditor, const TSharedRef<IPropertyHandle>& InPropertyHandle)
+{
+	TArray<UObject*> Objects;
+	InPropertyHandle->GetOuterObjects(Objects);
+
+	UWidgetBlueprint* ThisBlueprint = InEditor.Pin()->GetWidgetBlueprintObj();
+
+	// In the UI, we treat a child property of a struct/array as bound if the parent is bound
+	// E.g., we'll disable the child value widgets as well.
+	// So find the parent property and check if it's bound below.
+	FName ParentPropertyName;
+	for (TSharedPtr<const IPropertyHandle> CurrentPropertyHandle = InPropertyHandle;
+		CurrentPropertyHandle && CurrentPropertyHandle->GetProperty();
+		CurrentPropertyHandle = CurrentPropertyHandle->GetParentHandle())
+	{
+		ParentPropertyName = CurrentPropertyHandle->GetProperty()->GetFName();
+	}
+
+	//TODO UMG O(N) Isn't good for this, needs to be map, but map isn't serialized, need cached runtime map for fast lookups.
+
+	for (const UObject* Object : Objects)
+	{
+		// Ignore null outer objects
+		if (Object == nullptr)
+		{
+			continue;
+		}
+
+		for (const FDelegateEditorBinding& Binding : ThisBlueprint->Bindings)
+		{
+			if (Binding.ObjectName == Object->GetName() && Binding.PropertyName == ParentPropertyName)
+			{
+				return true;
+			}
+		}
+
+		break;
+	}
+
+	return false;
+}
+
 void FBlueprintWidgetCustomization::CreateEventCustomization( IDetailLayoutBuilder& DetailLayout, FDelegateProperty* Property, UWidget* Widget )
 {
 	TSharedRef<IPropertyHandle> DelegatePropertyHandle = DetailLayout.GetProperty(Property->GetFName(), Property->GetOwnerChecked<UClass>());
@@ -809,6 +851,13 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 	// Make sure the old AccessibleText properties are hidden so we don't get duplicate widgets
 	DetailLayout.HideProperty(AccessibleTextPropertyHandle);
 
+	TSharedRef<SWidget> ValueWidget = AccessibleTextPropertyHandle->CreatePropertyValueWidget();
+	TWeakPtr<FWidgetBlueprintEditor> ThisEditor = Editor;
+	ValueWidget->SetEnabled(TAttribute<bool>::Create(
+		[ThisEditor, AccessibleTextPropertyHandle]() {
+			return !HasPropertyBindings(ThisEditor, AccessibleTextPropertyHandle);
+		}));
+
 	TSharedRef<SWidget> BindingWidget = MakePropertyBindingWidget(Editor, AccessibleTextDelegateProperty, AccessibleTextPropertyHandle, false);
 	TSharedRef<SHorizontalBox> CustomTextLayout = SNew(SHorizontalBox)
 	.Visibility(TAttribute<EVisibility>::Create([AccessibleBehaviorPropertyHandle]() -> EVisibility
@@ -820,7 +869,7 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 	+ SHorizontalBox::Slot()
 	.Padding(FMargin(4.0f, 0.0f))
 	[
-		AccessibleTextPropertyHandle->CreatePropertyValueWidget()
+		ValueWidget
 	]
 	+SHorizontalBox::Slot()
 	.AutoWidth()
