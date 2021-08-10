@@ -141,6 +141,7 @@ UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject*
 {
 	UTransientBufferDataProvider *Provider = NewObject<UTransientBufferDataProvider>(InOuter);
 	Provider->ElementStride = ValueType->GetResourceElementSize();
+	Provider->NumElements = 0;
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -164,7 +165,9 @@ UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject*
 
 FComputeDataProviderRenderProxy* UTransientBufferDataProvider::GetRenderProxy()
 {
-	return new FTransientBufferDataProviderProxy(ElementStride, NumInvocations, NumElements, bClearBeforeUse);
+	const bool bValid = NumElements != 0;
+
+	return bValid ? new FTransientBufferDataProviderProxy(ElementStride, NumInvocations, NumElements, bClearBeforeUse) : 0;
 }
 
 

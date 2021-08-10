@@ -300,8 +300,12 @@ UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject
 
 FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
 {
-	// todo[CF]: Support some fallback path for no skeletal mesh being set?
-	const bool bValid = SkeletalMesh != nullptr && SkeletalMesh->MeshObject != nullptr && SkeletalMesh->GetScene() != nullptr;
+	const bool bValid = 
+		SkeletalMesh != nullptr && 
+		SkeletalMesh->MeshObject != nullptr && 
+		SkeletalMesh->GetScene() != nullptr &&
+		SkeletalMesh->GetScene()->GetGPUSkinCache() != nullptr;
+
 	return bValid ? new FSkeletalMeshReadDataProviderProxy(SkeletalMesh) : nullptr;
 }
 
