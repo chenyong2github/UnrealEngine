@@ -6,6 +6,7 @@
 #include "RewindDebuggerInterface/Public/IRewindDebugger.h"
 #include "ObjectTrace.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/Frames.h"
 #include "Trace/PoseSearchTraceProvider.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
@@ -1266,29 +1267,21 @@ void FDebugger::OnSelectionChanged(uint64 AnimInstanceId, int32 NodeId)
 	}
 
 	const double TraceTime = RewindDebugger->CurrentTraceTime();
-	TraceProvider->ReadMotionMatchingStateTimeline(AnimInstanceId, NodeId, [this, TraceTime](const FTraceProvider::FMotionMatchingStateTimeline& TimelineData)
+	TraceProvider->ReadMotionMatchingStateTimeline(AnimInstanceId, NodeId, [this, Session, TraceTime](const FTraceProvider::FMotionMatchingStateTimeline& TimelineData)
 	{
-		double PrecedingValueTime;
-		double FollowingValueTime;
-		const FTraceMotionMatchingStateMessage* PrecedingValue;
-		const FTraceMotionMatchingStateMessage* FollowingValue;
-
-		// Get event data at the trace time
-		TimelineData.FindNearestEvents(
-			TraceTime,
-			PrecedingValue,
-			PrecedingValueTime,
-			FollowingValue,
-			FollowingValueTime
-		);
-
-		// Grab following event if it exists, otherwise get the preceding (mimicking skeletal mesh updates in the Rewind Debugger)
-		if (PrecedingValue || FollowingValue)
+		const TraceServices::IFrameProvider& FrameProvider = TraceServices::ReadFrameProvider(*Session);
+		TraceServices::FFrame Frame;
+		if(FrameProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, TraceTime, Frame))
 		{
-			MotionMatchingState = FollowingValue ? FollowingValue : PrecedingValue;
+			TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime,
+				[this](double InStartTime, double InEndTime, uint32 InDepth, const FTraceMotionMatchingStateMessage& Message)
+				{
+					MotionMatchingState = &Message;
+
+					return TraceServices::EEventEnumerate::Stop;
+				});
 		}
 	});
-
 
 	UpdateReflection();
 }
