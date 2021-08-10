@@ -491,6 +491,9 @@ public:
 	/** disables recording to file and discards all data without saving it to file */
 	void DiscardRecordingToFile();
 
+	/** Starts visual log collecting and recording to insights traces (for Rewind Debugger)*/
+	void SetIsRecordingToTrace(bool InIsRecording);
+
 	void SetIsRecordingOnServer(bool IsRecording) { bIsRecordingOnServer = IsRecording; }
 	bool IsRecordingOnServer() const { return !!bIsRecordingOnServer; }
 
@@ -585,16 +588,16 @@ protected:
 	// redirect the trafic to
 	FChildToOwnerRedirectionMap ChildToOwnerMap;
 	// if set all categories are blocked from logging
-	int32 bBlockedAllCategories : 1;
+	bool bBlockedAllCategories : 1;
 	// if set we are recording to file
-	int32 bIsRecordingToFile : 1;
+	bool bIsRecordingToFile : 1;
+	// if set we are recording to insights trace 
+	bool bIsRecordingToTrace : 1;
 	// variable set (from cheat manager) when logging is active on server
-	int32 bIsRecordingOnServer : 1;
+	bool bIsRecordingOnServer : 1;
 	// controls how we generate log names. When set to TRUE there's a lower 
 	// chance of name conflict, but it's more expensive
-	int32 bForceUniqueLogNames : 1;
-	/** Specifies if the Binary Device is being used */
-	int32 bUseBinaryFileDevice : 1;
+	bool bForceUniqueLogNames : 1;
 	// start recording time
 	float StartRecordingToFileTime;
 	/** Delegate to set project specific file name for vlogs */
