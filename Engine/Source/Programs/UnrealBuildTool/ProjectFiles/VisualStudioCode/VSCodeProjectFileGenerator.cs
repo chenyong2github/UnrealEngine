@@ -1277,7 +1277,7 @@ namespace UnrealBuildTool
 					if (HostPlatform == UnrealTargetPlatform.Win64)
 					{
 						OutFile.AddField("stopAtEntry", false);
-						OutFile.AddField("externalConsole", true);
+						OutFile.AddField("console", "externalTerminal");
 
 						OutFile.AddField("type", "cppvsdbg");
 						OutFile.AddField("visualizerFile", MakeUnquotedPathString(FileReference.Combine(UE4ProjectRoot, "Engine", "Extras", "VisualStudioDebugging", "Unreal.natvis"), EPathType.Absolute));
@@ -1291,6 +1291,17 @@ namespace UnrealBuildTool
 					else
 					{
 						OutFile.AddField("type", "lldb");
+					}
+
+					if (UnrealBuildTool.OriginalCompilationRootDirectory != UE4ProjectRoot)
+					{
+						OutFile.BeginObject("sourceFileMap");
+						{
+							OutFile.AddField(
+								MakeUnquotedPathString(UnrealBuildTool.OriginalCompilationRootDirectory, EPathType.Absolute),
+								MakeUnquotedPathString(UE4ProjectRoot, EPathType.Absolute));
+						}
+						OutFile.EndObject();
 					}
 				}
 				OutFile.EndObject();
