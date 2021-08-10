@@ -3,6 +3,7 @@
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraSystemSimulation.h"
 
 void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 {
@@ -69,10 +70,6 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 	FNiagaraComputeInstanceData* Instances = (FNiagaraComputeInstanceData*)(InstanceData_ParamData_Packed);
 	uint8* ParamDataBufferPtr = InstanceData_ParamData_Packed + PackedDispatchesSizeAligned;
-
-	NumInstancesWithSimStages = 0;
-
-	TotalDispatches = 0;
 
 	// we want to include interpolation parameters (current and previous frame) if any of the emitters in the system
 	// require it
@@ -177,14 +174,6 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 			InstanceData->bUsesSimStages = Emitter->bSimulationStagesEnabled; /* TODO limit to just with stages in the future! Leaving like this so what can convert! && EmitterRaw->GetSimulationStages().Num() > 0*/
 
-			if (InstanceData->bUsesSimStages)
-			{
-				NumInstancesWithSimStages++;
-			}
-
-			check(GPUContext->MaxUpdateIterations > 0);
-			TotalDispatches += FMath::Max<int32>(GPUContext->MaxUpdateIterations, 1);
-
 			// @todo-threadsafety Think of a better way to do this!
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
 			InstanceData->DataInterfaceProxies.Reserve(DataInterfaces.Num());
@@ -201,6 +190,42 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 					InstanceData->IterationDataInterfaceProxies.Add(RWProxy);
 				}
 			}
+
+			// Gather number of iterations for each stage, and if the stage should run or not
+			InstanceData->NumIterationsPerStage.Reserve(GPUContext->SimStageInfo.Num());
+			for ( FSimulationStageMetaData& SimStageMetaData : GPUContext->SimStageInfo )
+			{
+				int32 NumIterations = SimStageMetaData.NumIterations;
+				if (SimStageMetaData.ShouldRunStage(InstanceData->bResetData))
+				{
+					if (!SimStageMetaData.NumIterationsBinding.IsNone())
+					{
+						FNiagaraParameterStore& BoundParamStore = EmitterInstance->GetRendererBoundVariables();
+						if ( const uint8* ParameterData = BoundParamStore.GetParameterData(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.NumIterationsBinding)) )
+						{
+							NumIterations = *reinterpret_cast<const int32*>(ParameterData);
+							NumIterations = FMath::Max(NumIterations, 0);
+						}
+					}
+					if (!SimStageMetaData.EnabledBinding.IsNone())
+					{
+						FNiagaraParameterStore& BoundParamStore = EmitterInstance->GetRendererBoundVariables();
+						if (const uint8* ParameterData = BoundParamStore.GetParameterData(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), SimStageMetaData.EnabledBinding)))
+						{
+							const FNiagaraBool StageEnabled = *reinterpret_cast<const FNiagaraBool*>(ParameterData);
+							NumIterations = StageEnabled.GetValue() ? NumIterations : 0;
+						}
+					}
+				}
+				else
+				{
+					TotalDispatches = 0;
+				}
+
+				InstanceData->TotalDispatches += NumIterations;
+				InstanceData->NumIterationsPerStage.Add(NumIterations);
+			}
+			TotalDispatches += InstanceData->TotalDispatches;
 		}
 	}
 

@@ -617,14 +617,9 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 
 		if (SimStages && NumSimStageNodes)
 		{
-			SpawnOnlyPerStage.Reserve(NumSimStageNodes);
-			PartialParticleUpdatePerStage.Reserve(NumSimStageNodes);
-			NumIterationsPerStage.Reserve(NumSimStageNodes);
-			IterationSourcePerStage.Reserve(NumSimStageNodes);
-			StageGuids.Reserve(NumSimStageNodes);
-			StageNames.Reserve(NumSimStageNodes);
-			const int32 NumProvidedStages = SimStages->Num();
+			CompileSimStageData.Reserve(NumSimStageNodes);
 
+			const int32 NumProvidedStages = SimStages->Num();
 			for (int32 i=0, ActiveStageCount = 0; ActiveStageCount < NumSimStageNodes && i < NumProvidedStages; ++i)
 			{
 				UNiagaraSimulationStageBase* SimStage = (*SimStages)[i];
@@ -635,12 +630,15 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 
 				if ( UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage) )
 				{
-					NumIterationsPerStage.Add(GenericStage->Iterations);
-					IterationSourcePerStage.Add(GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName());
-					SpawnOnlyPerStage.Add(GenericStage->bSpawnOnly);
-					PartialParticleUpdatePerStage.Add(GenericStage->bDisablePartialParticleUpdate == false);
-					StageGuids.Add(GenericStage->Script->GetUsageId());
-					StageNames.Add(GenericStage->SimulationStageName);
+					FCompileSimStageData& SimStageData	= CompileSimStageData.AddDefaulted_GetRef();
+					SimStageData.StageGuid				= GenericStage->Script->GetUsageId();
+					SimStageData.StageName				= GenericStage->SimulationStageName;
+					SimStageData.EnabledBinding			= GenericStage->EnabledBinding.GetName();
+					SimStageData.NumIterations			= GenericStage->Iterations;
+					SimStageData.NumIterationsBinding	= GenericStage->NumIterationsBinding.GetName();
+					SimStageData.IterationSource		= GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+					SimStageData.ExecuteBehavior		= GenericStage->ExecuteBehavior;
+					SimStageData.PartialParticleUpdate	= GenericStage->bDisablePartialParticleUpdate == false;
 
 					++ActiveStageCount;
 				}

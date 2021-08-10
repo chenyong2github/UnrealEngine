@@ -206,29 +206,14 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 				if (ShaderScript != nullptr && ShaderScript->GetBaseVMScript() != nullptr)
 				{
 					TConstArrayView<FSimulationStageMetaData> SimulationStageMetaData = ShaderScript->GetBaseVMScript()->GetSimulationStageMetaData();
-
-					for (int32 iPermutation=0; iPermutation < ShaderScript->GetNumPermutations(); ++iPermutation)
+					for (int32 iSimStageIndex = 0; iSimStageIndex < SimulationStageMetaData.Num(); ++iSimStageIndex)
 					{
-						FNiagaraShaderRef Shader = ShaderScript->GetShaderGameThread(iPermutation);
+						FNiagaraShaderRef Shader = ShaderScript->GetShaderGameThread(iSimStageIndex);
 						if (Shader.IsValid())
 						{
 							FColor DisplayColor = FColor(196, 196, 196);
-							FString StageName = TEXT("Particles");
-							int32 MinStage = 0;
-							int32 MaxStage = 1;
-
-							const int32 ShaderStage = iPermutation - 1;
-							if (SimulationStageMetaData.IsValidIndex(ShaderStage))
-							{
-								if (!SimulationStageMetaData[ShaderStage].SimulationStageName.IsNone())
-								{
-									StageName = SimulationStageMetaData[ShaderStage].SimulationStageName.ToString();
-								}
-								MinStage = SimulationStageMetaData[ShaderStage].MinStage;
-								MaxStage = SimulationStageMetaData[ShaderStage].MaxStage;
-							}
-
-							Canvas->DrawShadowedString(CurrentX + 20.0f, CurrentY, *FString::Printf(TEXT("GPU StageName(%s) Stages(%d - %d) = %u"), *StageName, MinStage, MaxStage, Shader->GetNumInstructions()), Font, DisplayColor);
+							FString StageName = SimulationStageMetaData[iSimStageIndex].SimulationStageName.ToString();
+							Canvas->DrawShadowedString(CurrentX + 20.0f, CurrentY, *FString::Printf(TEXT("GPU StageName(%s) Stage(%d) = %u"), *StageName, iSimStageIndex, Shader->GetNumInstructions()), Font, DisplayColor);
 							CurrentY += FontHeight;
 						}
 					}

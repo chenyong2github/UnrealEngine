@@ -608,7 +608,6 @@ class FNiagaraShaderScript
 			bViewUniformBufferUsed = 0;
 		}
 
-		TArray<TPair<int32, int32>> ShaderStageToPermutation;
 		int32 NumPermutations;
 		uint32 bIsComplete : 1;
 		uint32 bGlobalConstantBufferUsed : 2;
@@ -812,7 +811,6 @@ public:
 	bool IsSame(const FNiagaraShaderMapId& InId) const;
 
 	NIAGARASHADER_API int32 GetNumPermutations() const { return NumPermutations; }
-	NIAGARASHADER_API int32 PermutationIdToShaderStageIndex(int32 PermutationId) const;
 
 	NIAGARASHADER_API bool IsShaderMapComplete() const;
 
@@ -824,7 +822,6 @@ public:
 	FORCEINLINE bool IsEmitterConstantBufferUsed_RenderThread(int32 Index) const { return (CachedData_RenderThread.bEmitterConstantBufferUsed & (1 << Index)) != 0; }
 	FORCEINLINE bool IsExternalConstantBufferUsed_RenderThread(int32 Index) const { return (CachedData_RenderThread.bExternalConstantBufferUsed & (1 << Index)) != 0; }
 	FORCEINLINE bool IsViewUniformBufferUsed_RenderThread() const { return CachedData_RenderThread.bViewUniformBufferUsed != 0; }
-	NIAGARASHADER_API int32 ShaderStageIndexToPermutationId_RenderThread(int32 ShaderStageIndex) const;
 
 protected:
 
@@ -904,7 +901,6 @@ private:
 	uint32 bQueuedForRelease : 1;
 
 	int32 NumPermutations = 0;
-	TArray<TPair<int32, int32>> ShaderStageToPermutation;
 
 	FNiagaraShaderMapCachedData CachedData_RenderThread;
 

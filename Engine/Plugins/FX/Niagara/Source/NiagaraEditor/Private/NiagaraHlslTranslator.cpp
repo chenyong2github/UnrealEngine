@@ -255,17 +255,14 @@ private:
 		FString ConditionString;
 
 		const int32 StageIndexCount = StageIndices.Num();
-		for (int32 i = 0; i < StageIndexCount; ++i)
+		for (int32 i=0; i < StageIndexCount; ++i)
 		{
 			const int32 StageIndex = StageIndices[i];
-
 			if (i)
 			{
 				ConditionString.Append(TEXT(" || "));
 			}
-			ConditionString.Appendf(TEXT("((SimulationStageIndex >= %d) && (SimulationStageIndex < %d))"),
-				TranslationStages[StageIndex].SimulationStageIndexMin,
-				TranslationStages[StageIndex].SimulationStageIndexMax);
+			ConditionString.Appendf(TEXT("(SimulationStageIndex == %d)"), TranslationStages[StageIndex].SimulationStageIndex);
 		}
 
 		return ConditionString;
@@ -567,8 +564,7 @@ void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage Scrip
 	// with so that if we encounter a function implementation for another stage that it will also be added
 	if (OutSig.bRequiresContext && FDeclarationPermutationContext::SupportsBranching(*this))
 	{
-		OutSig.ContextStageMinIndex = TranslationStages[ActiveStageIdx].SimulationStageIndexMin;
-		OutSig.ContextStageMaxIndex = TranslationStages[ActiveStageIdx].SimulationStageIndexMax;
+		OutSig.ContextStageIndex = TranslationStages[ActiveStageIdx].SimulationStageIndex;
 	}
 }
 
@@ -1138,10 +1134,10 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[0].OutputNode = SourceGraph->FindEquivalentOutputNode(ENiagaraScriptUsage::ParticleSpawnScript, TranslationStages[0].UsageId);
 		TranslationStages[1].OutputNode = SourceGraph->FindEquivalentOutputNode(TranslationStages[1].ScriptUsage, TranslationStages[1].UsageId);
 		TranslationStages[1].bInterpolatePreviousParams = true;
-		TranslationStages[0].SimulationStageIndexMin = 0;
-		TranslationStages[0].SimulationStageIndexMax = 1;
-		TranslationStages[1].SimulationStageIndexMin = 0;
-		TranslationStages[1].SimulationStageIndexMax = 1;
+		TranslationStages[0].SimulationStageIndex = 0;
+		TranslationStages[0].NumIterations = 1;
+		TranslationStages[1].SimulationStageIndex = 0;
+		TranslationStages[1].NumIterations = 1;
 		TranslationStages[0].bWritesParticles = true;
 		TranslationStages[1].bWritesParticles = true;
 		ParamMapHistories.AddDefaulted(2);
@@ -1158,26 +1154,35 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[0].OutputNode = SourceGraph->FindEquivalentOutputNode(ENiagaraScriptUsage::ParticleSpawnScript, TranslationStages[0].UsageId);
 		TranslationStages[1].OutputNode = SourceGraph->FindEquivalentOutputNode(TranslationStages[1].ScriptUsage, TranslationStages[1].UsageId);
 		TranslationStages[1].bInterpolatePreviousParams = bHasInterpolatedSpawn;
-		TranslationStages[0].SimulationStageIndexMin = 0;
-		TranslationStages[0].SimulationStageIndexMax = 1;
-		TranslationStages[1].SimulationStageIndexMin = 0;
-		TranslationStages[1].SimulationStageIndexMax = 1;
+		TranslationStages[0].SimulationStageIndex = 0;
+		TranslationStages[0].NumIterations = 1;
+		TranslationStages[1].SimulationStageIndex = 0;
+		TranslationStages[1].NumIterations = 1;
 		TranslationStages[0].bWritesParticles = true;
 		TranslationStages[1].bWritesParticles = true;
 		ParamMapHistories.AddDefaulted(2);
 		ParamMapHistoriesSourceInOtherHistories.AddDefaulted(2);
 		ParamMapSetVariablesToChunks.AddDefaulted(2);
 
+		// Add the spawn / update stage
 		{
-			int32 SimStageStartIndex = 1;
-			int32 SimStageIndex = 0;
+			FSimulationStageMetaData& SimulationStageMetaData = CompilationOutput.ScriptData.SimulationStageMetaData.AddDefaulted_GetRef();
+			SimulationStageMetaData.SimulationStageName = FName("ParticleSpawnUpdate");
+			SimulationStageMetaData.NumIterations = 1;
+			SimulationStageMetaData.bWritesParticles = true;
+			SimulationStageMetaData.bPartialParticleUpdate = false;
+		}
+
+		{
+			int32 SourceSimStageIndex = 0;
 			
 			// OutputNode order in traversal doesn't necessarily match the stack ordering. Use the GUID order to define the actual stages.
 			TArray<const UNiagaraNodeOutput*> FoundOutputNodes;
 			TArray<int32> FoundStageHistories;
 
-			for (const FGuid& StageGuid : InCompileData->StageGuids)
+			for (const auto& CompileSimStageData : InCompileData->CompileSimStageData )
 			{
+				const FGuid& StageGuid = CompileSimStageData.StageGuid;
 				for (int32 FoundHistoryIdx = 0; FoundHistoryIdx < OtherOutputParamMapHistories.Num(); FoundHistoryIdx++)
 				{
 					FNiagaraParameterMapHistory& FoundHistory = OtherOutputParamMapHistories[FoundHistoryIdx];
@@ -1199,14 +1204,14 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 				if (HistoryOutputNode && HistoryOutputNode->ScriptType == ENiagaraScriptUsage::ParticleSimulationStageScript)
 				{
-					bool bSpawnOnly = InCompileData->NumIterationsPerStage.Num() > SimStageIndex ? InCompileData->SpawnOnlyPerStage[SimStageIndex] : false;
-					int32 NumIterationsThisStage = InCompileData->NumIterationsPerStage.Num() > SimStageIndex ? InCompileData->NumIterationsPerStage[SimStageIndex] : 1;
-					FName IterationSrc = InCompileData->IterationSourcePerStage.Num() > SimStageIndex ? InCompileData->IterationSourcePerStage[SimStageIndex] : FName();
-					FString StageName = InCompileData->StageNames.Num() > SimStageIndex ? InCompileData->StageNames[SimStageIndex].ToString() : TEXT("Unnamed");
-					StageName = TEXT("_") + GetSanitizedFunctionNameSuffix(StageName);
-					int32 Index = TranslationStages.Add(FHlslNiagaraTranslationStage(HistoryOutputNode->ScriptType, HistoryOutputNode->ScriptTypeId));
+					const auto& CompileSimStageData = InCompileData->CompileSimStageData[SourceSimStageIndex];
 
-					TranslationStages[Index].PassNamespace = FString::Printf(TEXT("MapSimStage%d%s"), SimStageIndex + 1, *StageName);
+					FString StageName = CompileSimStageData.StageName.ToString();
+					StageName = TEXT("_") + GetSanitizedFunctionNameSuffix(StageName);
+					const int32 Index = TranslationStages.Add(FHlslNiagaraTranslationStage(HistoryOutputNode->ScriptType, HistoryOutputNode->ScriptTypeId));
+
+					const int32 DestSimStageIndex = CompilationOutput.ScriptData.SimulationStageMetaData.Num();
+					TranslationStages[Index].PassNamespace = FString::Printf(TEXT("MapSimStage%d%s"), DestSimStageIndex, *StageName);
 					TranslationStages[Index].ChunkModeIndex = (ENiagaraCodeChunkMode)(((int32)ENiagaraCodeChunkMode::SimulationStageBody) + (Index - 2));
 					if (TranslationStages[Index].ChunkModeIndex >= ENiagaraCodeChunkMode::SimulationStageBodyMax)
 					{
@@ -1218,14 +1223,14 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					ensure(TranslationStages[Index].OutputNode == HistoryOutputNode);
 					TranslationStages[Index].bInterpolatePreviousParams = false;
 					TranslationStages[Index].bCopyPreviousParams = false;
-					TranslationStages[Index].SimulationStageIndexMin = SimStageStartIndex;
-					TranslationStages[Index].SimulationStageIndexMax = SimStageStartIndex + NumIterationsThisStage;
-					TranslationStages[Index].NumIterationsThisStage = NumIterationsThisStage;
-					TranslationStages[Index].bSpawnOnly = bSpawnOnly;
-					TranslationStages[Index].bPartialParticleUpdate = InCompileData->PartialParticleUpdatePerStage.IsValidIndex(SimStageIndex) ? InCompileData->PartialParticleUpdatePerStage[SimStageIndex] : false;
-					TranslationStages[Index].IterationSource = IterationSrc;
-					TranslationStages[Index].SourceSimStage = SimStageIndex;
-					SimStageStartIndex += NumIterationsThisStage;
+					TranslationStages[Index].SimulationStageIndex = DestSimStageIndex;					
+					TranslationStages[Index].EnabledBinding = CompileSimStageData.EnabledBinding;
+					TranslationStages[Index].NumIterations = CompileSimStageData.NumIterations;
+					TranslationStages[Index].ExecuteBehavior = CompileSimStageData.ExecuteBehavior;
+					TranslationStages[Index].bPartialParticleUpdate = CompileSimStageData.PartialParticleUpdate;
+					TranslationStages[Index].IterationSource = CompileSimStageData.IterationSource;
+					TranslationStages[Index].NumIterationsBinding = CompileSimStageData.NumIterationsBinding;
+
 					ParamMapHistories.AddDefaulted(1);
 					ParamMapHistoriesSourceInOtherHistories.AddDefaulted(1);
 
@@ -1282,18 +1287,20 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					
 					// Set up the compile output for the shader stages so that we can properly execute at runtime.
 					FSimulationStageMetaData& SimulationStageMetaData = CompilationOutput.ScriptData.SimulationStageMetaData.AddDefaulted_GetRef();
-					SimulationStageMetaData.SimulationStageName = InCompileData->StageNames.IsValidIndex(SimStageIndex) ? InCompileData->StageNames[SimStageIndex] : FName();
-					SimulationStageMetaData.bSpawnOnly = bSpawnOnly;
-					SimulationStageMetaData.IterationSource = IterationSrc;
-					SimulationStageMetaData.MinStage = TranslationStages[Index].SimulationStageIndexMin;
-					SimulationStageMetaData.MaxStage = TranslationStages[Index].SimulationStageIndexMax;
+					SimulationStageMetaData.SimulationStageName = InCompileData->CompileSimStageData[SourceSimStageIndex].StageName;
+					SimulationStageMetaData.EnabledBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].EnabledBinding;
+					SimulationStageMetaData.ExecuteBehavior = TranslationStages[Index].ExecuteBehavior;
+					SimulationStageMetaData.IterationSource = InCompileData->CompileSimStageData[SourceSimStageIndex].IterationSource;
+					SimulationStageMetaData.NumIterationsBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].NumIterationsBinding;
+					SimulationStageMetaData.NumIterations = TranslationStages[Index].NumIterations;
 					SimulationStageMetaData.bWritesParticles = TranslationStages[Index].bWritesParticles;
 					SimulationStageMetaData.bPartialParticleUpdate = TranslationStages[Index].bPartialParticleUpdate;
 
-					// Other outputs are written to as appropriate data interfaces are found. See HandleDataInterfaceCall for details.
+					// Increment source stage index
+					++SourceSimStageIndex;
 
+					// Other outputs are written to as appropriate data interfaces are found. See HandleDataInterfaceCall for details
 					ParamMapSetVariablesToChunks.AddDefaulted(1);
-					SimStageIndex++;
 				}
 			}
 		}
@@ -1303,18 +1310,18 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[0].PassNamespace = TEXT("Map");
 		TranslationStages[0].OutputNode = SourceGraph->FindEquivalentOutputNode(TranslationStages[0].ScriptUsage, TranslationStages[0].UsageId);
 		TranslationStages[0].ChunkModeIndex = ENiagaraCodeChunkMode::Body;
-		TranslationStages[0].SimulationStageIndexMin = 0;
-		TranslationStages[0].SimulationStageIndexMax = 0;
+		TranslationStages[0].SimulationStageIndex = 0;
+		TranslationStages[0].NumIterations = 1;
 		TranslationStages[0].bWritesParticles = true;
 
 		if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSimulationStageScript)
 		{
-			for (int32 StageIdx = 0; StageIdx < InCompileData->StageGuids.Num(); StageIdx++)
+			for (int32 StageIdx = 0; StageIdx < InCompileData->CompileSimStageData.Num(); StageIdx++)
 			{
-				const FGuid& StageGuid = InCompileData->StageGuids[StageIdx];
-				if (StageGuid == CompileOptions.TargetUsageId && InCompileData->IterationSourcePerStage.IsValidIndex(StageIdx))
+				const FGuid& StageGuid = InCompileData->CompileSimStageData[StageIdx].StageGuid;
+				if (StageGuid == CompileOptions.TargetUsageId && InCompileData->CompileSimStageData.IsValidIndex(StageIdx))
 				{
-					TranslationStages[0].IterationSource = InCompileData->IterationSourcePerStage[StageIdx];
+					TranslationStages[0].IterationSource = InCompileData->CompileSimStageData[StageIdx].IterationSource;
 				}
 			}
 		}
@@ -1876,30 +1883,30 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		// Log out all the information we've built thus far for assistance debugging
 		FString Preamble = TEXT("// Shader generated by Niagara HLSL Translator\n\n");
 		
+		const UEnum* ExecuteBehaviorEnum = StaticEnum<ENiagaraSimStageExecuteBehavior>();
 		for (int32 i = 0; i < CompilationOutput.ScriptData.SimulationStageMetaData.Num(); i++)
 		{
-			Preamble += FString::Printf(TEXT("// SimStage[%d]\n//\t Iteration Src: \"%s\"\n//\tMinIndex: %d  MaxIndex: %d\n//\tbSpawnOnly: %s\n//\tWritesParticles: %s\n//\tPartialParticleUpdate: %s\n"), i,
-				*CompilationOutput.ScriptData.SimulationStageMetaData[i].IterationSource.ToString(),
-				CompilationOutput.ScriptData.SimulationStageMetaData[i].MinStage,
-				CompilationOutput.ScriptData.SimulationStageMetaData[i].MaxStage,
-				CompilationOutput.ScriptData.SimulationStageMetaData[i].bSpawnOnly ? TEXT("True") : TEXT("False"),
-				CompilationOutput.ScriptData.SimulationStageMetaData[i].bWritesParticles ? TEXT("True") : TEXT("False"),
-				CompilationOutput.ScriptData.SimulationStageMetaData[i].bPartialParticleUpdate ? TEXT("True") : TEXT("False")
-			);
-			for (const FName& Dest : CompilationOutput.ScriptData.SimulationStageMetaData[i].OutputDestinations)
+			const FSimulationStageMetaData& SimStageMetaData = CompilationOutput.ScriptData.SimulationStageMetaData[i];
+			Preamble.Appendf(TEXT("// SimStage[%d] = %s\n"), i, *SimStageMetaData.SimulationStageName.ToString());
+			Preamble.Appendf(TEXT("//\tNumIterations = %d\n"), SimStageMetaData.NumIterations);
+			Preamble.Appendf(TEXT("//\tExecuteBehavior = %s\n"), *ExecuteBehaviorEnum->GetNameStringByValue((int64)SimStageMetaData.ExecuteBehavior));
+			Preamble.Appendf(TEXT("//\tWritesParticles = %s\n"), SimStageMetaData.bWritesParticles ? TEXT("True") : TEXT("False"));
+			Preamble.Appendf(TEXT("//\tPartialParticleUpdate = %s\n"), SimStageMetaData.bPartialParticleUpdate ? TEXT("True") : TEXT("False"));
+
+			for (const FName& Dest : SimStageMetaData.OutputDestinations)
 			{
-				Preamble += FString::Printf(TEXT("//\tOutputs to: \"%s\"\n"), *Dest.ToString());
+				Preamble.Appendf(TEXT("//\tOutputs to: \"%s\"\n"), *Dest.ToString());
 			}
 		}
 
 		// Display the computed compile tags in the source hlsl to make checking easier.
 		if (TranslateResults.CompileTags.Num() != 0)
 		{
-			Preamble += FString::Printf(TEXT("//\tCompile Tags: \n"));
+			Preamble.Appendf(TEXT("// Compile Tags: \n"));
 
 			for (const FNiagaraCompilerTag& Tag : TranslateResults.CompileTags)
 			{
-				Preamble += FString::Printf(TEXT("//\t\tVariable: \"%s\" StringValue: \"%s\" \n"), *Tag.Variable.ToString(),  *Tag.StringValue);
+				Preamble.Appendf(TEXT("//\tVariable: \"%s\" StringValue: \"%s\" \n"), *Tag.Variable.ToString(),  *Tag.StringValue);
 			}
 
 		}
@@ -1996,8 +2003,8 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 	// RIght now we need to know if anyone wrote to the IterationSource this stage. That can be one of two ways:
 	// 1) Someone wrote to StackContext.XXXX
 	// 2) Someone called a function that was marked to write 
-	int32 SourceSimStage = TranslationStage.SourceSimStage;
-	ensure(CompilationOutput.ScriptData.SimulationStageMetaData.Num() > SourceSimStage && SourceSimStage >= 0);
+	const int32 SourceSimStage = TranslationStage.SimulationStageIndex;
+	ensure(CompilationOutput.ScriptData.SimulationStageMetaData.IsValidIndex(SourceSimStage));
 	bool bWroteToIterationSource = CompilationOutput.ScriptData.SimulationStageMetaData[SourceSimStage].OutputDestinations.Contains(TranslationStage.IterationSource);
 	if (WriteVars.Num() > 0)
 		bWroteToIterationSource = true;
@@ -2091,10 +2098,11 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 		TArray<FText> GeneratedErrors;
 		bool bPartialWrites = false;
 		
+		const bool bSpawnOnly = TranslationStage.ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset;
 		if (bNeedsSetupAndTeardown)
 		{
-			FString SetupGeneratedHLSL;			
-			if (CDO->GenerateSetupHLSL(DIInstanceInfo, MakeArrayView(Sig.Inputs), TranslationStage.bSpawnOnly, bPartialWrites, GeneratedErrors, SetupGeneratedHLSL) && SetupGeneratedHLSL.Len() > 0)
+			FString SetupGeneratedHLSL;
+			if (CDO->GenerateSetupHLSL(DIInstanceInfo, MakeArrayView(Sig.Inputs), bSpawnOnly, bPartialWrites, GeneratedErrors, SetupGeneratedHLSL) && SetupGeneratedHLSL.Len() > 0)
 			{
 				Sig.Name = *FString::Printf(TEXT("SetupFromIterationSource_%s_GeneratedSetup"), *GetSanitizedFunctionNameSuffix(TranslationStage.PassNamespace));
 				FNiagaraFunctionSignature SignatureOut = Sig;
@@ -2105,7 +2113,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 			}
 
 			FString TeardownGeneratedHLSL;
-			if (CDO->GenerateTeardownHLSL(DIInstanceInfo, MakeArrayView(Sig.Inputs), TranslationStage.bSpawnOnly, bPartialWrites, GeneratedErrors, TeardownGeneratedHLSL) && TeardownGeneratedHLSL.Len() > 0)
+			if (CDO->GenerateTeardownHLSL(DIInstanceInfo, MakeArrayView(Sig.Inputs), bSpawnOnly, bPartialWrites, GeneratedErrors, TeardownGeneratedHLSL) && TeardownGeneratedHLSL.Len() > 0)
 			{
 				Sig.Name = *FString::Printf(TEXT("TeardownFromIterationSource_%s_GeneratedTeardown"), *GetSanitizedFunctionNameSuffix(TranslationStage.PassNamespace));
 				FNiagaraFunctionSignature SignatureOut = Sig;
@@ -2127,7 +2135,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 				AttributeHLSLNames.Emplace(TEXT("Map.") + GetSanitizedSymbolName(Var.GetName().ToString()));
 			}
 
-			if (CDO->GenerateIterationSourceNamespaceReadAttributesHLSL(DIInstanceInfo,  IterationSourceVar, MakeArrayView(Sig.Inputs), MakeArrayView(ReadVars), MakeArrayView(AttributeHLSLNames), TranslationStage.bSpawnOnly, TranslationStage.bSpawnOnly, bPartialWrites, GeneratedErrors, AttributeReadGeneratedHLSL) && AttributeReadGeneratedHLSL.Len() > 0)
+			if (CDO->GenerateIterationSourceNamespaceReadAttributesHLSL(DIInstanceInfo,  IterationSourceVar, MakeArrayView(Sig.Inputs), MakeArrayView(ReadVars), MakeArrayView(AttributeHLSLNames), bSpawnOnly, bSpawnOnly, bPartialWrites, GeneratedErrors, AttributeReadGeneratedHLSL) && AttributeReadGeneratedHLSL.Len() > 0)
 			{
 				Sig.Name = *FString::Printf(TEXT("SetupFromIterationSource_%s_GeneratedReadAttributes"), *GetSanitizedFunctionNameSuffix(TranslationStage.PassNamespace));
 				FNiagaraFunctionSignature SignatureOut = Sig;
@@ -2148,7 +2156,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 				AttributeHLSLNames.Emplace(TEXT("Map.") + GetSanitizedSymbolName(Var.GetName().ToString()));
 			}
 
-			if (CDO->GenerateIterationSourceNamespaceWriteAttributesHLSL(DIInstanceInfo, IterationSourceVar, MakeArrayView(Sig.Inputs), MakeArrayView(WriteVars), MakeArrayView(AttributeHLSLNames), TranslationStage.bSpawnOnly, bPartialWrites, GeneratedErrors, AttributeWriteGeneratedHLSL) && AttributeWriteGeneratedHLSL.Len() > 0)
+			if (CDO->GenerateIterationSourceNamespaceWriteAttributesHLSL(DIInstanceInfo, IterationSourceVar, MakeArrayView(Sig.Inputs), MakeArrayView(WriteVars), MakeArrayView(AttributeHLSLNames), bSpawnOnly, bPartialWrites, GeneratedErrors, AttributeWriteGeneratedHLSL) && AttributeWriteGeneratedHLSL.Len() > 0)
 			{
 				Sig.Name = *FString::Printf(TEXT("TeardownFromIterationSource_%s_GeneratedWriteAttributes"), *GetSanitizedFunctionNameSuffix(TranslationStage.PassNamespace));
 				FNiagaraFunctionSignature SignatureOut = Sig;
@@ -2329,7 +2337,7 @@ void FHlslNiagaraTranslator::GatherComponentsForDataSetAccess(UScriptStruct* Str
 void FHlslNiagaraTranslator::DefinePreviousParametersFunction(FString& HlslOutputString, TArray<TArray<FNiagaraVariable>>& DataSetVariables, TMap<FNiagaraDataSetID, int32>& DataSetReads, TMap<FNiagaraDataSetID, int32>& DataSetWrites)
 {
 	HlslOutputString +=
-		TEXT("#if (((SimulationStageIndex >= 0) && (SimulationStageIndex < 1))) // MapSpawn\n")
+		TEXT("#if (SimulationStageIndex == 0) // MapSpawn\n")
 		TEXT("void HandlePreviousValuesForSpawn(inout FSimulationContext Context)\n{\n");
 	if (UNiagaraScript::IsParticleSpawnScript(CompileOptions.TargetUsage) || UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage))
 	{
@@ -4508,10 +4516,11 @@ FString FHlslNiagaraTranslator::GenerateConstantString(const FNiagaraVariable& C
 bool FHlslNiagaraTranslationStage::ShouldDoSpawnOnlyLogic() const
 {
 	if (UNiagaraScript::IsSpawnScript(ScriptUsage))
+	{
 		return true;
-	if (ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && bSpawnOnly)
-		return true;
-	return false;
+	}
+	
+	return (ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript) && (ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset);
 }
 
 bool FHlslNiagaraTranslationStage::IsExternalConstantNamespace(const FNiagaraVariable& InVar, ENiagaraScriptUsage InTargetUsage, uint32 InTargetBitmask)
@@ -4532,7 +4541,8 @@ bool FHlslNiagaraTranslationStage::IsRelevantToSpawnForStage(const FNiagaraParam
 	{
 		return true;
 	}
-	if (ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && bSpawnOnly)
+
+	if ((ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript) && (ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset))
 	{
 		if (IterationSource == NAME_None)
 		{
@@ -4929,12 +4939,13 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 			{
 				if (Var == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive")))
 				{
-					const int32 OutputStageIndex = ActiveStageIdx - 2;
-					if (CompilationOutput.ScriptData.SimulationStageMetaData.IsValidIndex(OutputStageIndex))
+					const int32 OutputStageIndex = TranslationStages[ActiveStageIdx].SimulationStageIndex;
+					if ( CompilationOutput.ScriptData.SimulationStageMetaData.IsValidIndex(OutputStageIndex) )
 					{
 						CompilationOutput.ScriptData.SimulationStageMetaData[OutputStageIndex].bWritesParticles = true;
 						CompilationOutput.ScriptData.SimulationStageMetaData[OutputStageIndex].bPartialParticleUpdate = false;
 					}
+
 					TranslationStages[ActiveStageIdx].bWritesParticles = true;
 					TranslationStages[ActiveStageIdx].bPartialParticleUpdate = false;
 					TranslationStages[ActiveStageIdx].bWritesAlive = true;
@@ -6586,9 +6597,9 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 			if (bUsesInputData)
 			{
 				// Clear out the ability to use partial particle writes as we can't be sure how InputData is being used
-				for ( int i=0; i < CompileData->PartialParticleUpdatePerStage.Num(); ++i)
+				for (const auto& CompileStageData : CompileData->CompileSimStageData)
 				{
-					CompileData->PartialParticleUpdatePerStage[i] = false;
+					CompileStageData.PartialParticleUpdate = false;
 				}
 				break;
 			}
@@ -6893,14 +6904,14 @@ void FHlslNiagaraTranslator::HandleDataInterfaceCall(FNiagaraScriptDataInterface
 	
 	//UE_LOG(LogNiagaraEditor, Log, TEXT("HandleDataInterfaceCall %d %s %s %s"), ActiveStageIdx, *InMatchingSignature.Name.ToString(), InMatchingSignature.bWriteFunction ? TEXT("true") : TEXT("False"), *Info.Name.ToString());
 
-	if (InMatchingSignature.bWriteFunction && CompilationOutput.ScriptData.SimulationStageMetaData.Num() != 0 && TranslationStages[ActiveStageIdx].SourceSimStage != -1)
+	if (InMatchingSignature.bWriteFunction && CompilationOutput.ScriptData.SimulationStageMetaData.Num() > 1 && TranslationStages[ActiveStageIdx].SimulationStageIndex != -1)
 	{
-		int32 SourceSimStage = TranslationStages[ActiveStageIdx].SourceSimStage;
-		ensure(CompilationOutput.ScriptData.SimulationStageMetaData.Num() > SourceSimStage);
+		const int32 SourceSimStage = TranslationStages[ActiveStageIdx].SimulationStageIndex;
 		CompilationOutput.ScriptData.SimulationStageMetaData[SourceSimStage].OutputDestinations.AddUnique(Info.Name);
 		if (ActiveStageWriteTargets.Num() > 0)
+		{
 			ActiveStageWriteTargets.Top().AddUnique(Info.Name);
-		//UE_LOG(LogNiagaraEditor, Log, TEXT(" Add to %d %d"), ActiveStageIdx, SourceSimStage);
+		}
 	}
 }
 
@@ -7157,12 +7168,9 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 			{
 				for (const FName& Entry : *Entries)
 				{
-					int32 SourceSimStage = TranslationStages[ActiveStageIdx].SourceSimStage;
-					ensure(CompilationOutput.ScriptData.SimulationStageMetaData.Num() > SourceSimStage);
+					const int32 SourceSimStage = TranslationStages[ActiveStageIdx].SimulationStageIndex;
 					CompilationOutput.ScriptData.SimulationStageMetaData[SourceSimStage].OutputDestinations.AddUnique(Entry);
 					ActiveStageWriteTargets.Top().AddUnique(Entry);
-					//UE_LOG(LogNiagaraEditor, Log, TEXT(" Add to %d %d"), ActiveStageIdx, SourceSimStage);
-
 				}
 			}
 		}

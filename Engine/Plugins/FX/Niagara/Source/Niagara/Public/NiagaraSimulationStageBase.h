@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraMergeable.h"
+#include "NiagaraScriptBase.h"
 #include "NiagaraCommon.h"
 #include "NiagaraTypes.h"
 #include "NiagaraConstants.h"
@@ -54,6 +55,10 @@ public:
 	{
 	}
 
+	/** Binding to a bool parameter which dynamically controls if the simulation stage is enabled or not. */
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
+	FNiagaraVariableAttributeBinding EnabledBinding;
+
 	/** Determine which elements this script is iterating over. You are not allowed to */
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	ENiagaraIterationSource IterationSource;
@@ -61,8 +66,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (NoSpinbox = "true", ClampMin = 1, Tooltip = "The number of times we run this simulation stage before moving to the next stage."))
 	int32 Iterations;
 
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "Emitter Reset Only", Tooltip = "When enabled the stage will only run on the first tick after the emitter is reset, only valid for data interface iteration stages", EditCondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
-	uint32 bSpawnOnly : 1;
+	/** Binding to an int parameter which dynamically controls the number of times the simulation stage runs. */
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
+	FNiagaraVariableAttributeBinding NumIterationsBinding;
+
+	UPROPERTY()
+	uint32 bSpawnOnly_DEPRECATED : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (Tooltip = "Controls when the simulation stage should execute, only valid for data interface iteration stages", EditCondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
+	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Simulation Stage", meta = (Tooltip = "Disables the ability to read / write from the same particle buffer, i.e. only update position and no other attributes.  By default this should not be changed and is a debugging tool.", EditCondition = "IterationSource == ENiagaraIterationSource::Particles"))
 	uint32 bDisablePartialParticleUpdate : 1;
@@ -71,6 +83,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
 	FNiagaraVariableDataInterfaceBinding DataInterface;
 
+	virtual void PostInitProperties() override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 #if WITH_EDITOR
 	virtual FName GetStackContextReplacementName() const override; 

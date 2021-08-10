@@ -59,13 +59,35 @@ bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisito
 {
 	Super::AppendCompileHash(InVisitor);
 
+	InVisitor->UpdateString(TEXT("EnabledBinding"), EnabledBinding.GetDataSetBindableVariable().GetName().ToString());
 	InVisitor->UpdatePOD(TEXT("Iterations"), Iterations);
+	InVisitor->UpdateString(TEXT("NumIterationsBinding"), NumIterationsBinding.GetDataSetBindableVariable().GetName().ToString());
 	InVisitor->UpdatePOD(TEXT("IterationSource"), (int32)IterationSource);
-	InVisitor->UpdatePOD(TEXT("bSpawnOnly"), bSpawnOnly ? 1 : 0);
+	InVisitor->UpdatePOD(TEXT("ExecuteBehavior"), (int32)ExecuteBehavior);
 	InVisitor->UpdatePOD(TEXT("bDisablePartialParticleUpdate"), bDisablePartialParticleUpdate ? 1 : 0);
 	InVisitor->UpdateString(TEXT("DataInterface"), DataInterface.BoundVariable.GetName().ToString());
 	InVisitor->UpdateString(TEXT("SimulationStageName"), SimulationStageName.ToString());
 	return true;
+}
+
+void UNiagaraSimulationStageGeneric::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (HasAnyFlags(RF_ClassDefaultObject) == false)
+	{
+		EnabledBinding.Setup(
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), NAME_None),
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), NAME_None),
+			ENiagaraRendererSourceDataMode::Emitter
+		);
+
+		NumIterationsBinding.Setup(
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
+			ENiagaraRendererSourceDataMode::Emitter
+		);
+	}
 }
 
 #if WITH_EDITOR
@@ -80,7 +102,15 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 	}
 
 	bool bNeedsRecompile = false;
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, Iterations))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, EnabledBinding))
+	{
+		bNeedsRecompile = true;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, Iterations))
+	{
+		bNeedsRecompile = true;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, NumIterationsBinding))
 	{
 		bNeedsRecompile = true;
 	}
@@ -88,7 +118,7 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 	{
 		bNeedsRecompile = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bSpawnOnly))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ExecuteBehavior))
 	{
 		bNeedsRecompile = true;
 	}

@@ -8,8 +8,7 @@ UNiagaraScriptBase::UNiagaraScriptBase(const FObjectInitializer& ObjectInitializ
 }
 
 FSimulationStageMetaData::FSimulationStageMetaData()
-	: bSpawnOnly(0)
-	, bWritesParticles(0)
+	: bWritesParticles(0)
 	, bPartialParticleUpdate(0)
 {
 }

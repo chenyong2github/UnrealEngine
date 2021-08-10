@@ -383,10 +383,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	/** When using simulation stages and bRequiresContext is true this will be the index of the stage that is associated with the function. */
 	UPROPERTY()
-	int32 ContextStageMinIndex;
-
-	UPROPERTY()
-	int32 ContextStageMaxIndex;
+	int32 ContextStageIndex;
 
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
@@ -416,8 +413,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bIsCompileTagGenerator(false)
 		, bHidden(false)
 		, ModuleUsageBitmask(0)
-		, ContextStageMinIndex(INDEX_NONE)
-		, ContextStageMaxIndex(INDEX_NONE)
+		, ContextStageIndex(INDEX_NONE)
 	{
 	}
 
@@ -434,8 +430,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bIsCompileTagGenerator(false)
 		, bHidden(false)
 		, ModuleUsageBitmask(0)
-		, ContextStageMinIndex(INDEX_NONE)
-		, ContextStageMaxIndex(INDEX_NONE)
+		, ContextStageIndex(INDEX_NONE)
 	{
 		Inputs.Reserve(InInputs.Num());
 		for (FNiagaraVariable& Var : InInputs)
@@ -479,8 +474,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		bMatches &= bRequiresExecPin == Other.bRequiresExecPin;
 		bMatches &= bMemberFunction == Other.bMemberFunction;
 		bMatches &= OwnerName == Other.OwnerName;
-		bMatches &= ContextStageMinIndex == Other.ContextStageMinIndex;
-		bMatches &= ContextStageMaxIndex == Other.ContextStageMaxIndex;
+		bMatches &= ContextStageIndex == Other.ContextStageIndex;
 		bMatches &= bIsCompileTagGenerator == Other.bIsCompileTagGenerator;
 		return bMatches;
 	}
@@ -966,6 +960,7 @@ struct FNiagaraVariableAttributeBinding
 	NIAGARA_API const FNiagaraVariableBase& GetParamMapBindableVariable() const { return ParamMapVariable; }
 	NIAGARA_API const FNiagaraVariableBase& GetDataSetBindableVariable() const { return DataSetVariable; }
 	NIAGARA_API const FNiagaraTypeDefinition& GetType() const { return DataSetVariable.GetType(); }
+	NIAGARA_API ENiagaraBindingSource GetBindingSourceMode() const { return BindingSourceMode; }
 
 	NIAGARA_API bool IsValid() const {	return DataSetVariable.IsValid();}
 	

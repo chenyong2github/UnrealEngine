@@ -184,10 +184,11 @@ private:
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	TSharedPtr<SComboButton> ComboButton;
-	class UNiagaraEmitter* BaseEmitter;
-	class UNiagaraRendererProperties* RenderProps;
-	struct FNiagaraVariableAttributeBinding* TargetVariableBinding;
-	const struct FNiagaraVariableAttributeBinding* DefaultVariableBinding;
+	class UNiagaraEmitter* BaseEmitter = nullptr;
+	class UNiagaraRendererProperties* RenderProps = nullptr;
+	class UNiagaraSimulationStageBase* SimulationStage = nullptr;
+	struct FNiagaraVariableAttributeBinding* TargetVariableBinding = nullptr;
+	const struct FNiagaraVariableAttributeBinding* DefaultVariableBinding = nullptr;
 };
 
 class FNiagaraUserParameterBindingCustomization : public IPropertyTypeCustomization

@@ -891,6 +891,14 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				Id.AdditionalDefines.Add(GNiagaraForceSafeScriptAttributeTrim ? TEXT("TrimAttributesSafe") : TEXT("TrimAttributes"));
 
 				TArray<FString> PreserveAttributes;
+				auto AddAttributeToPreserve = 
+					[&](FName AttributeName)
+					{
+						if ( !AttributeName.IsNone() )
+						{
+							PreserveAttributes.AddUnique(FString::Printf(TEXT("PreserveAttribute=%s"), *AttributeName.ToString()));
+						}
+					};
 
 				// preserve the attributes that have been defined on the emitter directly
 				for (const FString& Attribute : Emitter->AttributesToPreserve)
@@ -904,8 +912,16 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				{
 					for (const FNiagaraVariable& BoundAttribute : RendererProperty->GetBoundAttributes())
 					{
-						const FString PreserveDefine = TEXT("PreserveAttribute=") + BoundAttribute.GetName().ToString();
-						PreserveAttributes.AddUnique(PreserveDefine);
+						AddAttributeToPreserve(BoundAttribute.GetName());
+					}
+				}
+
+				for (const UNiagaraSimulationStageBase* SimStageBase : Emitter->GetSimulationStages())
+				{
+					if (const UNiagaraSimulationStageGeneric* SimStageGeneric = Cast<const UNiagaraSimulationStageGeneric>(SimStageBase))
+					{
+						AddAttributeToPreserve(SimStageGeneric->EnabledBinding.GetParamMapBindableVariable().GetName());
+						AddAttributeToPreserve(SimStageGeneric->NumIterationsBinding.GetParamMapBindableVariable().GetName());
 					}
 				}
 
@@ -2939,28 +2955,32 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 	}
 
 	// Sync up any simulation stage name references.
-	for (int32 i = 0; i < GetVMExecutableData().SimulationStageMetaData.Num(); i++)
+	for (FSimulationStageMetaData& SimStageMetaData : GetVMExecutableData().SimulationStageMetaData)
 	{
-		if (!GetVMExecutableData().SimulationStageMetaData[i].IterationSource.IsNone())
+		if ( !SimStageMetaData.IterationSource.IsNone() )
 		{
-			FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), GetVMExecutableData().SimulationStageMetaData[i].IterationSource);
-			FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
-			if (NewVar.GetName() != Var.GetName())
-			{
-				GetVMExecutableData().SimulationStageMetaData[i].IterationSource = NewVar.GetName();
-			}
+			FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), SimStageMetaData.IterationSource);
+			SimStageMetaData.IterationSource = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
 		}
 
-		for (int32 DestIdx = 0; DestIdx < GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations.Num(); DestIdx++)
+		if (!SimStageMetaData.EnabledBinding.IsNone())
 		{
-			if (!GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx].IsNone())
+			FNiagaraVariable Var(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.EnabledBinding);
+			SimStageMetaData.EnabledBinding = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
+		}
+
+		if (!SimStageMetaData.NumIterationsBinding.IsNone())
+		{
+			FNiagaraVariable Var(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.NumIterationsBinding);
+			SimStageMetaData.NumIterationsBinding = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
+		}
+
+		for ( FName& OutputDestination : SimStageMetaData.OutputDestinations )
+		{
+			if ( !OutputDestination.IsNone() )
 			{
-				FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx]);
-				FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
-				if (NewVar.GetName() != Var.GetName())
-				{
-					GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx] = NewVar.GetName();
-				}
+				FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), OutputDestination);
+				OutputDestination = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext).GetName();
 			}
 		}
 	}

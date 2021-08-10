@@ -91,12 +91,20 @@ public:
 	virtual void ReleaseCompilationCopies() override;
 
 	// Simulation Stage Variables. Sim stage of 0 is always Spawn/Update
-	TArray<uint32> NumIterationsPerStage;
-	TArray<FName> IterationSourcePerStage;
-	TArray<bool> SpawnOnlyPerStage;
-	mutable TArray<bool> PartialParticleUpdatePerStage;		//-TODO: Remove mutable and communicate that we can do a partial write in another way
-	TArray<FGuid> StageGuids;
-	TArray<FName> StageNames;
+	struct FCompileSimStageData
+	{
+		FGuid							StageGuid;
+		FName							StageName;
+		FName							EnabledBinding;
+		uint32							NumIterations = 1;
+		FName							NumIterationsBinding;
+		FName							IterationSource;
+		ENiagaraSimStageExecuteBehavior	ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
+		mutable bool					PartialParticleUpdate = false;
+	};
+	TArray<FCompileSimStageData> CompileSimStageData;
+
+	//TArray<FName> IterationSourcePerStage;
 
 	TWeakObjectPtr<UNiagaraGraph> NodeGraphDeepCopy;
 	TArray<FNiagaraParameterMapHistory> PrecompiledHistories;
@@ -195,8 +203,7 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraFunctionSignature& Sig)
 		Hash = HashCombine(Hash, GetTypeHash(Var));
 	}
 	Hash = HashCombine(Hash, GetTypeHash(Sig.OwnerName));
-	Hash = HashCombine(Hash, GetTypeHash(Sig.ContextStageMinIndex));
-	Hash = HashCombine(Hash, GetTypeHash(Sig.ContextStageMaxIndex));
+	Hash = HashCombine(Hash, GetTypeHash(Sig.ContextStageIndex));
 	return Hash;
 }
 
@@ -302,11 +309,11 @@ public:
 	bool bCopyPreviousParams = true;
 	ENiagaraCodeChunkMode ChunkModeIndex = (ENiagaraCodeChunkMode)-1;
 	FName IterationSource;
-	int32 SimulationStageIndexMin = -1;
-	int32 SimulationStageIndexMax = -1;
-	int32 NumIterationsThisStage = 1;
-	int32 SourceSimStage = -1;
-	bool bSpawnOnly = false;
+	int32 SimulationStageIndex = -1;
+	FName EnabledBinding;
+	int32 NumIterations = 1;
+	FName NumIterationsBinding;
+	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
 	bool bUsesAlive = false;
 	bool bWritesAlive = false;
 	bool bWritesParticles = false;
