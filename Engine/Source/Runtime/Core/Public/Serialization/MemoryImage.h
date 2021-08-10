@@ -12,6 +12,7 @@
 #include "Serialization/MemoryLayout.h"
 #include "Serialization/MemoryImageWriter.h"
 #include "Templates/RefCounting.h"
+#include "Traits/IsCharType.h"
 
 #if defined(WITH_RTTI) || defined(_CPPRTTI) || defined(__GXX_RTTI) || WITH_EDITOR
 #include <typeinfo>

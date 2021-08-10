@@ -7,6 +7,7 @@
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/UnrealTemplate.h"
+#include "Traits/IsCharType.h"
 
 struct FFormatArgsTrace
 {

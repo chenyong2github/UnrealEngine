@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Templates/EnableIf.h"
+#include "Traits/IsCharType.h"
 #include "GenericPlatform/GenericPlatformStricmp.h"
 #include <type_traits>
 
@@ -45,7 +46,7 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 	template <typename Encoding>
 	static constexpr bool IsFixedWidthEncoding()
 	{
-//		static_assert(TIsCharType<Encoding>::Value, "Encoding is not a char type");
+		static_assert(TIsCharType<Encoding>::Value, "Encoding is not a char type");
 
 		return
 			std::is_same_v<Encoding, ANSICHAR> ||

@@ -25,6 +25,7 @@
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Templates/TypeHash.h"
 #include "Templates/IsFloatingPoint.h"
+#include "Traits/IsCharType.h"
 
 struct FStringFormatArg;
 template<typename InKeyType,typename InValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
