@@ -12,6 +12,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "Framework/Docking/TabManager.h"
 #include "VisualLogger/VisualLoggerBinaryFileDevice.h"
+#include "VisualLogger/VisualLoggerTraceDevice.h"
 #include "VisualLogger/VisualLoggerDebugSnapshotInterface.h"
 #include "Engine/Engine.h"
 #include "TimerManager.h"
@@ -358,6 +359,8 @@ void FVisualLogger::NavigationDataDump(const UObject* Object, const FName& Categ
 FVisualLogger::FVisualLogger()
 {
 	bForceUniqueLogNames = true;
+	bIsRecordingToFile = false;
+	bIsRecordingToTrace = false;
 
 	BlockAllCategories(false);
 	AddDevice(&FVisualLoggerBinaryFileDevice::Get());
@@ -375,11 +378,7 @@ void FVisualLogger::Shutdown()
 {
 	SetIsRecording(false);
 	SetIsRecordingToFile(false);
-
-	if (bUseBinaryFileDevice)
-	{
-		RemoveDevice(&FVisualLoggerBinaryFileDevice::Get());
-	}
+	RemoveDevice(&FVisualLoggerBinaryFileDevice::Get());
 }
 
 void FVisualLogger::Cleanup(UWorld* OldWorld, bool bReleaseMemory)
@@ -584,6 +583,29 @@ void FVisualLogger::SetIsRecordingToFile(bool InIsRecording)
 
 	bIsRecordingToFile = InIsRecording;
 }
+
+void FVisualLogger::SetIsRecordingToTrace(bool InIsRecording)
+{
+	if (!bIsRecording && InIsRecording)
+	{
+		SetIsRecording(true);
+	}
+
+	FVisualLoggerTraceDevice& Device = FVisualLoggerTraceDevice::Get();
+	if (bIsRecordingToTrace && !InIsRecording)
+	{
+		Device.StopRecordingToFile(0.0);
+		RemoveDevice(&Device);
+	}
+	else if (!bIsRecordingToTrace && InIsRecording)
+	{
+		Device.StartRecordingToFile(0.0);
+		AddDevice(&Device);
+	}
+
+	bIsRecordingToTrace = InIsRecording;
+}
+
 
 void FVisualLogger::DiscardRecordingToFile()
 {

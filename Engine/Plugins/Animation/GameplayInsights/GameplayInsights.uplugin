@@ -33,6 +33,11 @@
 			"Name": "RewindDebugger",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RewindDebuggerVLog",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 
 	]
