@@ -292,6 +292,7 @@ void FD3D12CommandContext::ConditionalObtainCommandAllocator()
 {
 	if (CommandAllocator == nullptr)
 	{
+		LLM_SCOPE_BYNAME(TEXT("RHIMisc/ConditionalObtainCommandAllocator"));
 		// Obtain a command allocator if the context doesn't already have one.
 		// This will check necessary fence values to ensure the returned command allocator isn't being used by the GPU, then reset it.
 		CommandAllocator = CommandAllocatorManager.ObtainCommandAllocator();
