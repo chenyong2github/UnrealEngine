@@ -190,7 +190,7 @@ int32 FSwarmInterfaceLocalImpl::OpenConnection( FConnectionCallback InCallbackFu
 		if (MessageEndpoint.IsValid())
 		{
 			MessageEndpoint->Subscribe<FSwarmPingMessage>();
-			MessageEndpoint->Publish(new FSwarmPingMessage(), EMessageScope::Network);
+			MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FSwarmPingMessage>(), EMessageScope::Network);
 
 			// UMB does not allow us to identify early its initialization errors - check that manually.
 			bIsConnected = SwarmInterfaceLocalImpl::CanUseUMB();
@@ -234,7 +234,7 @@ int32 FSwarmInterfaceLocalImpl::SendMessage( const FMessage& Message )
 
 	while (bIsConnected && !Recepient.IsValid())
 	{
-		MessageEndpoint->Publish(new FSwarmPingMessage(), EMessageScope::Network);
+		MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FSwarmPingMessage>(), EMessageScope::Network);
 		
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 		FPlatformProcess::Sleep(0.5f);
@@ -250,17 +250,17 @@ int32 FSwarmInterfaceLocalImpl::SendMessage( const FMessage& Message )
 	if (Message.Type == MESSAGE_INFO)
 	{
 		FInfoMessage* InfoMessage = (FInfoMessage*)&Message;
-		MessageEndpoint->Send(new FSwarmInfoMessage(InfoMessage->TextMessage), Recepient);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmInfoMessage>(InfoMessage->TextMessage), Recepient);
 	}
 	else if (Message.Type == MESSAGE_ALERT)
 	{
 		FAlertMessage* AlertMessage = (FAlertMessage*)&Message;
-		MessageEndpoint->Send(new FSwarmAlertMessage(AlertMessage->JobGuid, AlertMessage->AlertLevel, AlertMessage->ObjectGuid, AlertMessage->TypeId, AlertMessage->TextMessage), Recepient);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmAlertMessage>(AlertMessage->JobGuid, AlertMessage->AlertLevel, AlertMessage->ObjectGuid, AlertMessage->TypeId, AlertMessage->TextMessage), Recepient);
 	}
 	else if (Message.Type == MESSAGE_TIMING)
 	{
 		FTimingMessage* TimingMessage = (FTimingMessage*)&Message;
-		MessageEndpoint->Send(new FSwarmTimingMessage(TimingMessage->State, TimingMessage->ThreadNum), Recepient);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmTimingMessage>(TimingMessage->State, TimingMessage->ThreadNum), Recepient);
 	}
 	else if (Message.Type == MESSAGE_TASK_REQUEST)
 	{
@@ -275,18 +275,18 @@ int32 FSwarmInterfaceLocalImpl::SendMessage( const FMessage& Message )
 			FTaskSpecification TaskSpec = Tasks.Pop();
 			CallbackFunc( (FMessage*)&TaskSpec, CallbackData );
 		}
-		MessageEndpoint->Send(new FSwarmTaskRequestMessage(), Recepient);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmTaskRequestMessage>(), Recepient);
 	}
 	else if (Message.Type == MESSAGE_TASK_REQUEST_RESPONSE)
 	{
 		FTaskRequestResponse* ResponseMessage = (FTaskRequestResponse*)&Message;
 		if (ResponseMessage->ResponseType == RESPONSE_TYPE_RELEASE)
 		{
-			MessageEndpoint->Send(new FSwarmTaskRequestReleaseMessage(), Recepient);
+			MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmTaskRequestReleaseMessage>(), Recepient);
 		}
 		else if (ResponseMessage->ResponseType == RESPONSE_TYPE_RESERVATION)
 		{
-			MessageEndpoint->Send(new FSwarmTaskRequestReservationMessage(), Recepient);
+			MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmTaskRequestReservationMessage>(), Recepient);
 		}
 		else if (ResponseMessage->ResponseType == RESPONSE_TYPE_SPECIFICATION)
 		{
@@ -296,22 +296,22 @@ int32 FSwarmInterfaceLocalImpl::SendMessage( const FMessage& Message )
 			{
 				Dependencies.Add(SpecificationMessage->Dependencies[Index]);
 			}
-			MessageEndpoint->Send(new FSwarmTaskRequestSpecificationMessage(SpecificationMessage->TaskGuid, SpecificationMessage->Parameters, SpecificationMessage->Flags, Dependencies), Recepient);
+			MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmTaskRequestSpecificationMessage>(SpecificationMessage->TaskGuid, SpecificationMessage->Parameters, SpecificationMessage->Flags, Dependencies), Recepient);
 		}
 	}
 	else if (Message.Type == MESSAGE_JOB_STATE)
 	{
 		FJobState* StateMessage = (FJobState*)&Message;
-		MessageEndpoint->Send(new FSwarmJobStateMessage(StateMessage->JobGuid, StateMessage->JobState, StateMessage->JobMessage, StateMessage->JobExitCode, StateMessage->JobRunningTime), Recepient);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmJobStateMessage>(StateMessage->JobGuid, StateMessage->JobState, StateMessage->JobMessage, StateMessage->JobExitCode, StateMessage->JobRunningTime), Recepient);
 	}
 	else if (Message.Type == MESSAGE_TASK_STATE)
 	{
 		FTaskState* StateMessage = (FTaskState*)&Message;
-		MessageEndpoint->Send(new FSwarmTaskStateMessage(StateMessage->TaskGuid, StateMessage->TaskState, StateMessage->TaskMessage, StateMessage->TaskExitCode, StateMessage->TaskRunningTime), Recepient);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmTaskStateMessage>(StateMessage->TaskGuid, StateMessage->TaskState, StateMessage->TaskMessage, StateMessage->TaskExitCode, StateMessage->TaskRunningTime), Recepient);
 	}
 	else if (Message.Type == MESSAGE_QUIT)
 	{
-		MessageEndpoint->Send(new FSwarmQuitMessage(), Recepient);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmQuitMessage>(), Recepient);
 	}
 #endif
 	return 0;
@@ -320,7 +320,7 @@ int32 FSwarmInterfaceLocalImpl::SendMessage( const FMessage& Message )
 #if USE_LOCAL_SWARM_INTERFACE
 void FSwarmInterfaceLocalImpl::HandlePingMessage( const FSwarmPingMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
-	MessageEndpoint->Send(new FSwarmPongMessage(bIsEditor, FPlatformProcess::ComputerName()), Context->GetSender());
+	MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSwarmPongMessage>(bIsEditor, FPlatformProcess::ComputerName()), Context->GetSender());
 }
 
 void FSwarmInterfaceLocalImpl::HandlePongMessage( const FSwarmPongMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )

@@ -61,7 +61,7 @@ void FNiagaraDebugger::ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld)
 	auto SendExecCommand = [&](FNiagaraDebugger::FClientInfo& Client)
 	{
 		UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending console command %s. | Session: %s | Instance: %s |"), Cmd, *Client.SessionId.ToString(), *Client.InstanceId.ToString());
-		MessageEndpoint->Send(new FNiagaraDebuggerExecuteConsoleCommand(Cmd, bRequiresWorld), EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Client.Address), FTimespan::Zero(), FDateTime::MaxValue());
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FNiagaraDebuggerExecuteConsoleCommand>(Cmd, bRequiresWorld), EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Client.Address), FTimespan::Zero(), FDateTime::MaxValue());
 	};
 
 	ForAllConnectedClients(SendExecCommand);
@@ -75,7 +75,7 @@ void FNiagaraDebugger::UpdateDebugHUDSettings()
 		auto SendSettingsUpdate = [&](FNiagaraDebugger::FClientInfo& Client)
 		{
 			//Create the message and copy the current state of the settings into it.
-			FNiagaraDebugHUDSettingsData* Message = new FNiagaraDebugHUDSettingsData();
+			FNiagaraDebugHUDSettingsData* Message = FMessageEndpoint::MakeMessage<FNiagaraDebugHUDSettingsData>();
 			FNiagaraDebugHUDSettingsData::StaticStruct()->CopyScriptStruct(Message, &Settings->Data);
 
 			UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending updated debug HUD settings. | Session: %s | Instance: %s |"), *Client.SessionId.ToString(), *Client.InstanceId.ToString());
@@ -90,7 +90,7 @@ void FNiagaraDebugger::RequestUpdatedClientInfo()
 {
 	auto RequestUpdate = [&](FNiagaraDebugger::FClientInfo& Client)
 	{
-		FNiagaraRequestSimpleClientInfoMessage* Message = new FNiagaraRequestSimpleClientInfoMessage();
+		FNiagaraRequestSimpleClientInfoMessage* Message = FMessageEndpoint::MakeMessage<FNiagaraRequestSimpleClientInfoMessage>();
 		UE_LOG(LogNiagaraDebugger, Log, TEXT("Requesting updated simple client info. | Session: %s | Instance: %s |"), *Client.SessionId.ToString(), *Client.InstanceId.ToString());
 		MessageEndpoint->Send(Message, EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Client.Address), FTimespan::Zero(), FDateTime::MaxValue());
 	};
@@ -108,7 +108,7 @@ void FNiagaraDebugger::TriggerOutlinerCapture()
 			auto SendSettingsUpdate = [&](FNiagaraDebugger::FClientInfo& Client)
 			{
 				//Create the message and copy the current state of the settings into it.
-				FNiagaraOutlinerCaptureSettings* Message = new FNiagaraOutlinerCaptureSettings();
+				FNiagaraOutlinerCaptureSettings* Message = FMessageEndpoint::MakeMessage<FNiagaraOutlinerCaptureSettings>();
 				FNiagaraOutlinerCaptureSettings::StaticStruct()->CopyScriptStruct(Message, &Outliner->CaptureSettings);
 
 				UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending updated outliner settings. | Session: %s | Instance: %s |"), *Client.SessionId.ToString(), *Client.InstanceId.ToString());
@@ -196,7 +196,7 @@ void FNiagaraDebugger::SessionManager_OnInstanceSelectionChanged(const TSharedPt
 				return;
 			}
 
-			FNiagaraDebuggerRequestConnection* ConnectionRequestMessage = new FNiagaraDebuggerRequestConnection(SessionId, InstanceId);
+			FNiagaraDebuggerRequestConnection* ConnectionRequestMessage = FMessageEndpoint::MakeMessage<FNiagaraDebuggerRequestConnection>(SessionId, InstanceId);
 			UE_LOG(LogNiagaraDebugger, Log, TEXT("Establishing connection. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *Instance->GetInstanceName());
 			MessageEndpoint->Publish(ConnectionRequestMessage);
 
@@ -234,7 +234,7 @@ void FNiagaraDebugger::CloseConnection(FGuid SessionId, FGuid InstanceId)
 	{
 		FClientInfo Pending = PendingClients[FoundPending];
 		PendingClients.RemoveAtSwap(FoundPending);
-		MessageEndpoint->Publish(new FNiagaraDebuggerConnectionClosed(Pending.SessionId, Pending.InstanceId));
+		MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FNiagaraDebuggerConnectionClosed>(Pending.SessionId, Pending.InstanceId));
 		UE_LOG(LogNiagaraDebugger, Log, TEXT("Closing pending connection. | Session: %s | Instance: %s |"), *SessionId.ToString(), *InstanceId.ToString());
 
 		OnConnectionClosedDelegate.Broadcast(Pending);
@@ -243,7 +243,7 @@ void FNiagaraDebugger::CloseConnection(FGuid SessionId, FGuid InstanceId)
 	{
 		FClientInfo Active = ConnectedClients[FoundActive];
 		ConnectedClients.RemoveAtSwap(FoundActive);
-		MessageEndpoint->Send(new FNiagaraDebuggerConnectionClosed(Active.SessionId, Active.InstanceId), EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Active.Address), FTimespan::Zero(), FDateTime::MaxValue());
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FNiagaraDebuggerConnectionClosed>(Active.SessionId, Active.InstanceId), EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Active.Address), FTimespan::Zero(), FDateTime::MaxValue());
 		UE_LOG(LogNiagaraDebugger, Log, TEXT("Closing active connection. | Session: %s | Instance: %s |"), *SessionId.ToString(), *InstanceId.ToString());
 
 		OnConnectionClosedDelegate.Broadcast(Active);

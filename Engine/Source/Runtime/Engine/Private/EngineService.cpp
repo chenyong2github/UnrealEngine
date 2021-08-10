@@ -41,7 +41,7 @@ void FEngineService::SendNotification( const TCHAR* NotificationText, const FMes
 {
 	if (MessageEndpoint.IsValid())
 	{
-		MessageEndpoint->Send(new FEngineServiceNotification(NotificationText, FPlatformTime::Seconds() - GStartTime), Recipient);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FEngineServiceNotification>(NotificationText, FPlatformTime::Seconds() - GStartTime), Recipient);
 	}
 }
 

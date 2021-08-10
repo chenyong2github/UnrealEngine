@@ -261,7 +261,7 @@ bool FTargetDeviceProxy::HasVariant(FName InVariant) const
 
 bool FTargetDeviceProxy::TerminateLaunchedProcess(FName InVariant, const FString& ProcessIdentifier)
 {
-	MessageEndpoint->Send(new FTargetDeviceServiceTerminateLaunchedProcess(InVariant, ProcessIdentifier), MessageAddress);
+	MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FTargetDeviceServiceTerminateLaunchedProcess>(InVariant, ProcessIdentifier), MessageAddress);
 
 	return true;
 }
@@ -269,19 +269,19 @@ bool FTargetDeviceProxy::TerminateLaunchedProcess(FName InVariant, const FString
 
 void FTargetDeviceProxy::PowerOff(bool Force)
 {
-	MessageEndpoint->Send(new FTargetDeviceServicePowerOff(FPlatformProcess::UserName(false), Force), MessageAddress);
+	MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FTargetDeviceServicePowerOff>(FPlatformProcess::UserName(false), Force), MessageAddress);
 }
 
 
 void FTargetDeviceProxy::PowerOn()
 {
-	MessageEndpoint->Send(new FTargetDeviceServicePowerOn(FPlatformProcess::UserName(false)), MessageAddress);
+	MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FTargetDeviceServicePowerOn>(FPlatformProcess::UserName(false)), MessageAddress);
 }
 
 
 void FTargetDeviceProxy::Reboot()
 {
-	MessageEndpoint->Send(new FTargetDeviceServiceReboot(FPlatformProcess::UserName(false)), MessageAddress);
+	MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FTargetDeviceServiceReboot>(FPlatformProcess::UserName(false)), MessageAddress);
 }
 
 

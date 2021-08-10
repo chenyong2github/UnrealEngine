@@ -70,7 +70,8 @@ void ULiveLinkMessageBusFinder::PollNetwork()
 
 	PollData.Reset();
 	CurrentPollRequest = FGuid::NewGuid();
-	MessageEndpoint->Publish(new FLiveLinkPingMessage(CurrentPollRequest, ILiveLinkClient::LIVELINK_VERSION));
+	const int32 Version = ILiveLinkClient::LIVELINK_VERSION;
+	MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FLiveLinkPingMessage>(CurrentPollRequest, Version));
 };
 
 void ULiveLinkMessageBusFinder::HandlePongMessage(const FLiveLinkPongMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)

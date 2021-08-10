@@ -68,9 +68,7 @@ private:
 		}
 
 		// @todo sarge: implement actual product GUID
-		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-		void* Memory = FMemory::Malloc(sizeof(FPortalRpcLocateServer));
-		MessageEndpoint->Publish(new(Memory) FPortalRpcLocateServer(FGuid(), EngineVersion, MacAddress, UserId), EMessageScope::Network);
+		MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FPortalRpcLocateServer>(FGuid(), EngineVersion, MacAddress, UserId), EMessageScope::Network);
 
 		return true;
 	}
