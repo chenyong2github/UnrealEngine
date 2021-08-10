@@ -28,6 +28,16 @@ public:
 	{
 	}
 
+	FVector2i GetStart() const
+	{
+		return Start;
+	}
+
+	FVector2i GetEnd() const
+	{
+		return End;
+	}
+
 	int32 GetWidth() const
 	{
 		return Width;
