@@ -67,7 +67,8 @@ namespace CrcAnalyticsProperties
 	//     - V4 -> Stripped ensure callstack from the ensure error message to remove noise in the diagnostic log.
 	//     - V5 -> Measured time to stack-walk, gather files and addded stall count.
 	//     - V6 -> Added MonitorTickCount, MonitorQueryingPipe and App/Death log.
-	constexpr uint32 CrcAnalyticsSummaryVersion = 6;
+	//     - V7 -> Removed MonitorQueryingPipe. It was added to detect if CRC crashed while reading the pipe. Data showed that wasn't the case.
+	constexpr uint32 CrcAnalyticsSummaryVersion = 7;
 
 	/** The exit code of the monitored application. */
 	static const TAnalyticsProperty<int32> MonitoredAppExitCode(TEXT("ExitCode"));
@@ -118,8 +119,6 @@ namespace CrcAnalyticsProperties
 	static const TAnalyticsProperty<uint32> StallCount(TEXT("MonitorStallCount"));
 	/** The worst unattended report time measured (if any). The user is not involved, so it measure how fast CRC can process a crash, especially ensures and stalls. */
 	static const TAnalyticsProperty<float> LonguestUnattendedReportSecs(TEXT("MonitorLongestUnattendedReportSecs"));
-	/** Flags raised when the CRC is reading the pipe. */
-	static const TAnalyticsProperty<bool> ReadingPipeForCrash(TEXT("MonitorQueryingPipe"));
 }
 
 namespace CrashReportClientUtils
@@ -317,7 +316,6 @@ void FCrashReportAnalyticsSessionSummary::Initialize(const FString& ProcessGroup
 				CrcAnalyticsProperties::EnsureCount.Set(PropertyStore.Get(), 0);
 				CrcAnalyticsProperties::AssertCount.Set(PropertyStore.Get(), 0);
 				CrcAnalyticsProperties::StallCount.Set(PropertyStore.Get(), 0);
-				CrcAnalyticsProperties::ReadingPipeForCrash.Set(PropertyStore.Get(), false);
 
 				UpdatePowerStatus();
 				Flush();
@@ -736,10 +734,4 @@ bool FCrashReportAnalyticsSessionSummary::UpdatePowerStatus()
 	}
 
 	return bShouldFlush;
-}
-
-void FCrashReportAnalyticsSessionSummary::OnCheckingForCrash(bool bChecking)
-{
-	CrcAnalyticsProperties::ReadingPipeForCrash.Set(PropertyStore.Get(), bChecking);
-	Flush();
 }
