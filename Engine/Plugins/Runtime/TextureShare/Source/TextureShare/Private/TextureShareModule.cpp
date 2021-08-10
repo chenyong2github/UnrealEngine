@@ -126,14 +126,14 @@ ETextureShareDevice FTextureShareModule::GetTextureShareDeviceType() const
 	return ETextureShareDevice::Undefined;
 };
 
-bool FTextureShareModule::CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process)
+bool FTextureShareModule::CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process, float SyncWaitTime)
 {
 	FScopeLock lock(&DataGuard);
 
 	TSharedPtr<ITextureShareItem> ShareItem;
 	ETextureShareDevice ShareDevice = GetTextureShareDeviceType();
 
-	return ShareCoreAPI.CreateTextureShareItem(ShareName, Process, SyncMode, ShareDevice, ShareItem);
+	return ShareCoreAPI.CreateTextureShareItem(ShareName, Process, SyncMode, ShareDevice, ShareItem, SyncWaitTime);
 }
 
 bool FTextureShareModule::ReleaseShare(const FString& ShareName)

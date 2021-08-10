@@ -64,7 +64,7 @@ class ITextureShareCore
 	 *
 	 * @return True if the success
 	 */
-	virtual bool CreateTextureShareItem(const FString& ShareName, ETextureShareProcess Process, FTextureShareSyncPolicy SyncMode, ETextureShareDevice DeviceType, TSharedPtr<ITextureShareItem>& OutShareObject) = 0;
+	virtual bool CreateTextureShareItem(const FString& ShareName, ETextureShareProcess Process, FTextureShareSyncPolicy SyncMode, ETextureShareDevice DeviceType, TSharedPtr<ITextureShareItem>& OutShareObject, float SyncWaitTime) = 0;
 
 	/**
 	 * Delete ITextureShareItem object
