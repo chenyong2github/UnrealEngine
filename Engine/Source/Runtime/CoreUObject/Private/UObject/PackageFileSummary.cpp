@@ -90,7 +90,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		* The package file version number when this package was saved.
 		*
 		* Lower 16 bits stores the UE3 engine version
-		* Upper 16 bits stores the UE4/licensee version
+		* Upper 16 bits stores the UE licensee version
 		* For newer packages this is -7
 		*		-2 indicates presence of enum-based custom versions
 		*		-3 indicates guid-based custom versions

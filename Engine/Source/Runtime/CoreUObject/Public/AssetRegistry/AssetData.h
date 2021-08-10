@@ -638,7 +638,7 @@ public:
 	/** Total size of this asset on disk */
 	int64 DiskSize;
 
-	/** UE4 file version that the package was saved with */
+	/** UE file version that the package was saved with */
 	int32 FileVersionUE;
 
 	/** Licensee file version that the package was saved with */

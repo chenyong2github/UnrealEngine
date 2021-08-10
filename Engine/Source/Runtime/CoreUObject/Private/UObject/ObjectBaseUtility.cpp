@@ -8,9 +8,9 @@
 #include "UObject/LinkerLoad.h"
 
 /**
- * Returns the UE4 version of the linker for this object.
+ * Returns the UE version of the linker for this object.
  *
- * @return	the UE4 version of the engine's package file when this object
+ * @return	the UEversion of the engine's package file when this object
  *			was last saved, or GPackageFileUEVersion (current version) if
  *			this object does not have a linker, which indicates that
  *			a) this object is a native only class, or

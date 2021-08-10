@@ -129,7 +129,7 @@ protected:
 };
 
 
-namespace UE4VirtualizedBulkData_Private
+namespace UEVirtualizedBulkData_Private
 {
 	/** Wraps access to the FVirtualizedUntypedBulkData data for FVirtualizedBulkDataReader
 	so that it can be done before the FBufferReaderBase constructor is called */
@@ -168,7 +168,7 @@ namespace UE4VirtualizedBulkData_Private
 	};
 }
 
-class FVirtualizedBulkDataReader : protected UE4VirtualizedBulkData_Private::DataAccessWrapper, public FBufferReaderBase
+class FVirtualizedBulkDataReader : protected UEVirtualizedBulkData_Private::DataAccessWrapper, public FBufferReaderBase
 {
 public:
 	FVirtualizedBulkDataReader(FVirtualizedUntypedBulkData& InBulkData, bool bIsPersistent = false)
@@ -182,7 +182,7 @@ public:
 	/** Returns if the FVirtualizedBulkDataReader has a valid bulkdata payload or not */
 	bool IsValid() const 
 	{
-		return UE4VirtualizedBulkData_Private::DataAccessWrapper::IsValid();
+		return UEVirtualizedBulkData_Private::DataAccessWrapper::IsValid();
 	}
 
 	using FArchive::operator<<; // For visibility of the overloads we don't override
