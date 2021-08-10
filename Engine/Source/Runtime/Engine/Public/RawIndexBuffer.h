@@ -92,7 +92,7 @@ class FIndexArrayView
 public:
 	/** Default constructor. */
 	FIndexArrayView()
-		: UntypedIndexData(NULL)
+		: UntypedIndexData(nullptr)
 		, NumIndices(0)
 		, b32Bit(false)
 	{
@@ -398,9 +398,9 @@ public:
 	{
 		IndexBufferRHI = CreateRHIBuffer_RenderThread();
 
-		if (IndexBufferRHI && IsSRVNeeded() && Indices.Num())
+		if (IndexBufferRHI && IsSRVNeeded() && Num())
 		{
-			SRVValue = RHICreateShaderResourceView(Indices.Num() ? IndexBufferRHI : nullptr);
+			SRVValue = RHICreateShaderResourceView(Num() ? IndexBufferRHI : nullptr);
 		}
 	}
 	
@@ -544,6 +544,8 @@ private:
 	{
 		if (CachedNumIndices)
 		{
+			check(CachedNumIndices == Indices.Num());
+
 			// Create the index buffer.
 			FRHIResourceCreateInfo CreateInfo(sizeof(INDEX_TYPE) == 4 ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"), &Indices);
 			EBufferUsageFlags Flags = BUF_Static;
@@ -566,7 +568,6 @@ private:
 				Ret = RHIAsyncCreateIndexBuffer(sizeof(INDEX_TYPE), Size, Flags, CreateInfo);
 			}
 
-			CachedNumIndices = Indices.Num();
 			return Ret;
 		}
 		return nullptr;
