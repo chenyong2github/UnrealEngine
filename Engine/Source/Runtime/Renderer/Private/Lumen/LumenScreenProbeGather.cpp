@@ -1234,9 +1234,9 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				});
 		}
 
-		extern int32 GLumenTranslucencyRadianceCache;
+		extern int32 GLumenTranslucencyReflections;
 
-		if (GLumenTranslucencyRadianceCache != 0)
+		if (GLumenTranslucencyReflections != 0)
 		{
 			const FSceneRenderer& SceneRenderer = *this;
 			FViewInfo& ViewNonConst = View;
@@ -1246,7 +1246,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				const FViewInfo& View,
 				const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 				{
-					LumenTranslucencyRadianceCacheMarkUsedProbes(
+					LumenTranslucencyReflectionsMarkUsedProbes(
 						GraphBuilder,
 						SceneRenderer,
 						ViewNonConst,
@@ -1267,12 +1267,12 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			View.ViewState->RadianceCacheState, 
 			RadianceCacheParameters);
 
-		if (GLumenTranslucencyRadianceCache != 0)
+		if (GLumenTranslucencyReflections != 0)
 		{
 			View.LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters = RadianceCacheParameters;
 
-			extern float GLumenTranslucencyRadianceCacheReprojectionRadiusScale;
-			View.LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters.RadianceCacheInputs.ReprojectionRadiusScale = GLumenTranslucencyRadianceCacheReprojectionRadiusScale;
+			extern float GLumenTranslucencyReflectionsRadianceCacheReprojectionRadiusScale;
+			View.LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters.RadianceCacheInputs.ReprojectionRadiusScale = GLumenTranslucencyReflectionsRadianceCacheReprojectionRadiusScale;
 		}
 	}
 

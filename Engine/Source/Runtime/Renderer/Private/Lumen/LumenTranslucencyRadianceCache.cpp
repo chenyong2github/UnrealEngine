@@ -14,26 +14,26 @@
 #include "LumenTranslucencyVolumeLighting.h"
 #include "LumenRadianceCache.h"
 
-int32 GLumenTranslucencyRadianceCache = 1;
+int32 GLumenTranslucencyReflections = 1;
 FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCache(
-	TEXT("r.Lumen.TranslucencyRadianceCache.Enable"),
-	GLumenTranslucencyRadianceCache,
+	TEXT("r.Lumen.TranslucencyReflections.Enable"),
+	GLumenTranslucencyReflections,
 	TEXT("Whether to use the Radiance Cache to provide Lumen Reflections on Translucent Surfaces."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenTranslucencyRadianceCacheDownsampleFactor = 4;
+int32 GLumenTranslucencyReflectionsMarkDownsampleFactor = 4;
 FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCacheDownsampleFactor(
-	TEXT("r.Lumen.TranslucencyRadianceCache.MarkDownsampleFactor"),
-	GLumenTranslucencyRadianceCacheDownsampleFactor,
+	TEXT("r.Lumen.TranslucencyReflections.MarkDownsampleFactor"),
+	GLumenTranslucencyReflectionsMarkDownsampleFactor,
 	TEXT("Downsample factor for marking translucent surfaces in the Lumen Radiance Cache.  Too low of factors will cause incorrect Radiance Cache coverage.  Should be a power of 2."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenTranslucencyRadianceCacheReprojectionRadiusScale = 10;
+float GLumenTranslucencyReflectionsRadianceCacheReprojectionRadiusScale = 10;
 FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCacheReprojectionRadiusScale(
-	TEXT("r.Lumen.TranslucencyRadianceCache.ReprojectionRadiusScale"),
-	GLumenTranslucencyRadianceCacheReprojectionRadiusScale,
+	TEXT("r.Lumen.TranslucencyReflections.ReprojectionRadiusScale"),
+	GLumenTranslucencyReflectionsRadianceCacheReprojectionRadiusScale,
 	TEXT("Larger values treat the Radiance Cache lighting as more distant."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -209,17 +209,17 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenTranslucencyRadianceCacheMarkParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void LumenTranslucencyRadianceCacheMarkUsedProbes(
+void LumenTranslucencyReflectionsMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FSceneRenderer& SceneRenderer,
 	FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 {
-	check(GLumenTranslucencyRadianceCache != 0);
+	check(GLumenTranslucencyReflections != 0);
 
 	const EMeshPass::Type MeshPass = EMeshPass::LumenTranslucencyRadianceCacheMark;
-	const float ViewportScale = 1.0f / GLumenTranslucencyRadianceCacheDownsampleFactor;
+	const float ViewportScale = 1.0f / GLumenTranslucencyReflectionsMarkDownsampleFactor;
 	FIntRect DownsampledViewRect = GetScaledRect(View.ViewRect, ViewportScale);
 
 	View.BeginRenderView();
@@ -266,7 +266,7 @@ void LumenTranslucencyRadianceCacheMarkUsedProbes(
 		MarkPassParameters.ViewportUVToHZBBufferUV = FVector2D(
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
-		MarkPassParameters.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2((float)GLumenTranslucencyRadianceCacheDownsampleFactor) - 1, 0.0f);
+		MarkPassParameters.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2((float)GLumenTranslucencyReflectionsMarkDownsampleFactor) - 1, 0.0f);
 
 		PassParameters->MarkPass = GraphBuilder.CreateUniformBuffer(&MarkPassParameters);
 	}
@@ -276,7 +276,7 @@ void LumenTranslucencyRadianceCacheMarkUsedProbes(
 	RDG_EVENT_SCOPE(GraphBuilder, "TranslucentSurfacesMarkPass");
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("LumenTranslucencyRadianceCacheMark"),
+		RDG_EVENT_NAME("TranslucencyReflectionsRadianceCacheMark"),
 		PassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandList& RHICmdList)

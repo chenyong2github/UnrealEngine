@@ -1080,6 +1080,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldMipTexture;
 	
 	FRadianceCacheState RadianceCacheState;
+	FRadianceCacheState TranslucencyVolumeRadianceCacheState;
 	FRadianceCacheState RadiosityRadianceCacheState;
 
 	/** Timestamp queries around separate translucency, used for auto-downsampling. */

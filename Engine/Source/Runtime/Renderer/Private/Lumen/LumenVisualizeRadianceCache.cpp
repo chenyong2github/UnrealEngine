@@ -9,6 +9,7 @@
 #include "LumenRadianceCache.h"
 #include "DeferredShadingRenderer.h"
 #include "LumenScreenProbeGather.h"
+#include "LumenTranslucencyVolumeLighting.h"
 
 int32 GLumenRadianceCacheVisualize = 0;
 FAutoConsoleVariableRef CVarLumenRadianceCacheVisualize(
@@ -22,6 +23,14 @@ int32 GLumenVisualizeRadiosityIrradianceCache = 0;
 FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeRadiosity(
 	TEXT("r.LumenScene.Radiosity.IrradianceCache.Visualize"),
 	GLumenVisualizeRadiosityIrradianceCache,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenVisualizeTranslucencyVolumeRadianceCache = 0;
+FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeTranslucencyVolume(
+	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.Visualize"),
+	GLumenVisualizeTranslucencyVolumeRadianceCache,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -113,6 +122,10 @@ LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputs()
 	{
 		return LumenRadiosity::SetupRadianceCacheInputs();
 	}
+	else if (GLumenVisualizeTranslucencyVolumeRadianceCache)
+	{
+		return LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs();
+	}
 	else
 	{
 		if (GLumenIrradianceFieldGather)
@@ -126,6 +139,9 @@ LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputs()
 	}
 }
 
+extern int32 GLumenTranslucencyVolume;
+extern int32 GLumenVisualizeTranslucencyVolumeRadianceCache;
+
 void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures)
 {
 	const FViewInfo& View = Views[0];
@@ -135,12 +151,14 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 	if (Views.Num() == 1
 		&& View.ViewState
 		&& bAnyLumenActive
-		&& LumenScreenProbeGather::UseRadianceCache(Views[0])
+		&& (LumenScreenProbeGather::UseRadianceCache(Views[0]) || (GLumenVisualizeTranslucencyVolumeRadianceCache && GLumenTranslucencyVolume))
 		&& GLumenRadianceCacheVisualize != 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenRadianceCache");
 
-		const FRadianceCacheState& RadianceCacheState = GLumenVisualizeRadiosityIrradianceCache ? Views[0].ViewState->RadiosityRadianceCacheState : Views[0].ViewState->RadianceCacheState;
+		const FRadianceCacheState& RadianceCacheState = GLumenVisualizeRadiosityIrradianceCache 
+			? Views[0].ViewState->RadiosityRadianceCacheState 
+			: (GLumenVisualizeTranslucencyVolumeRadianceCache ? Views[0].ViewState->TranslucencyVolumeRadianceCacheState : Views[0].ViewState->RadianceCacheState);
 
 		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
 		FRDGTextureRef SceneDepth = SceneTextures.Depth.Resolve;
