@@ -117,24 +117,24 @@ UComputeDataProvider* USkeletalMeshSkinCacheDataInterface::CreateDataProvider(UO
 
 FComputeDataProviderRenderProxy* USkeletalMeshSkinCacheDataProvider::GetRenderProxy()
 {
-	return new FSkeletalMeshSkinCacheDataProviderProxy(SkeletalMesh);
+	const bool bValid = 
+		SkeletalMesh != nullptr && 
+		SkeletalMesh->MeshObject != nullptr && 
+		SkeletalMesh->GetScene() != nullptr && 
+		SkeletalMesh->GetScene()->GetGPUSkinCache() !=  nullptr;
+
+	return bValid ? new FSkeletalMeshSkinCacheDataProviderProxy(SkeletalMesh) : nullptr;
 }
 
 
 FSkeletalMeshSkinCacheDataProviderProxy::FSkeletalMeshSkinCacheDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {
-	SkeletalMeshObject = SkeletalMeshComponent != nullptr ? SkeletalMeshComponent->MeshObject : nullptr;
-	FSceneInterface* Scene = SkeletalMeshComponent != nullptr ? SkeletalMeshComponent->GetScene() : nullptr;
-	GPUSkinCache = Scene != nullptr ? Scene->GetGPUSkinCache() : nullptr;
+	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
+	GPUSkinCache = SkeletalMeshComponent->GetScene()->GetGPUSkinCache();
 }
 
 int32 FSkeletalMeshSkinCacheDataProviderProxy::GetInvocationCount() const
 {
-	if (SkeletalMeshObject == nullptr || GPUSkinCache == nullptr)
-	{
-		return 0;
-	}
-
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
 	return LodRenderData->RenderSections.Num();
@@ -160,24 +160,22 @@ void FSkeletalMeshSkinCacheDataProviderProxy::GetBindings(int32 InvocationIndex,
 	FSkinCacheWriteDataInterfaceParameters Parameters;
 	FMemory::Memset(&Parameters, 0, sizeof(FSkinCacheWriteDataInterfaceParameters));
 
-	if (SkeletalMeshObject)
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
+
+	FRWBuffer* OutputPositionBuffer = GPUSkinCache->GetPositionBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
+	FRWBuffer* OutputTangentBuffer = GPUSkinCache->GetTangentBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
+	if (!ensure(OutputPositionBuffer != nullptr && OutputTangentBuffer != nullptr))
 	{
-		FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-		FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
-		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
-
-		FRWBuffer* OutputPositionBuffer = GPUSkinCache->GetPositionBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
-		FRWBuffer* OutputTangentBuffer = GPUSkinCache->GetTangentBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
-		if (!ensure(OutputPositionBuffer != nullptr && OutputTangentBuffer != nullptr))
-		{
-			return;
-		}
-
-		Parameters.NumVertices = RenderSection.GetNumVertices();
-		Parameters.OutputStreamStart = RenderSection.GetVertexBufferIndex();
-		Parameters.PositionBufferUAV = OutputPositionBuffer->UAV;
-		Parameters.TangentBufferUAV = OutputTangentBuffer->UAV;
+		// Don't return a binding. Will trigger another ensure and fail to dispatch shader.
+		return;
 	}
+
+	Parameters.NumVertices = RenderSection.GetNumVertices();
+	Parameters.OutputStreamStart = RenderSection.GetVertexBufferIndex();
+	Parameters.PositionBufferUAV = OutputPositionBuffer->UAV;
+	Parameters.TangentBufferUAV = OutputTangentBuffer->UAV;
 
 	TArray<uint8> ParamData;
 	ParamData.SetNum(sizeof(FSkinCacheWriteDataInterfaceParameters));
