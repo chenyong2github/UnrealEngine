@@ -1109,6 +1109,14 @@ void UControlRig::SetVM(URigVM* NewVM)
 		};
 #endif
 		NewVM->SetRuntimeSettings(VMRuntimeSettings);
+
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+		// ensure memory storage objects are created during initialization in game thread
+		// delaying this step may lead to async uobject creation and causing GC to complain
+		NewVM->GetMemoryByType(ERigVMMemoryType::Work, true);
+		NewVM->GetMemoryByType(ERigVMMemoryType::Literal, true);
+		NewVM->GetMemoryByType(ERigVMMemoryType::Debug, true);
+#endif
 	}
 
 	VM = NewVM;
