@@ -335,6 +335,18 @@ FReply SButton::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEv
 	return Reply;
 }
 
+FReply SButton::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = SBorder::OnMouseButtonDoubleClick(MyGeometry, MouseEvent);
+	if (Reply.IsEventHandled())
+	{
+		return Reply;
+	}
+
+	// We didn't handle the double click, treat it as single click
+	return OnMouseButtonDown(MyGeometry, MouseEvent);
+}
+
 FReply SButton::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
 	FReply Reply = FReply::Unhandled();
