@@ -149,6 +149,16 @@ public:
 	{
 		return EThreadCreateFlags::None;
 	}
+
+	static EThreadPriority GetTaskThreadPriority()
+	{
+		return TPri_SlightlyBelowNormal;
+	}
+
+	static EThreadPriority GetTaskBPThreadPriority()
+	{
+		return TPri_BelowNormal;
+	}
 };
 
 
