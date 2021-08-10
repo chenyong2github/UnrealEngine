@@ -114,7 +114,7 @@ class SyncProject : SyncProjectBase
 		string[] ForceSyncFiles = new string[]
 		{
 			"Engine/Build/Build.version",
-			"Engine/Source/Programs/DotNETCommon/MetaData.cs"
+			"Engine/Source/Programs/Shared/MetaData.cs"
 		};
 
 		// Parse the project filename (as a local path)
