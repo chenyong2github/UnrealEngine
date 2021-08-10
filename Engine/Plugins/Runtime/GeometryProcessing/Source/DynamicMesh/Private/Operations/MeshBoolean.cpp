@@ -673,6 +673,22 @@ bool FMeshBoolean::Compute()
 			bool bWeldSuccess = MergeEdges(IndexMaps, CutMesh, CutBoundaryEdges, AllVIDMatches);
 			bSuccess = bSuccess && bWeldSuccess;
 		}
+		else
+		{
+			CreatedBoundaryEdges = CutBoundaryEdges[0];
+			for (int OldMeshEID : CutBoundaryEdges[1])
+			{
+				if (!CutMesh[1]->IsEdge(OldMeshEID))
+				{
+					ensure(false);
+					continue;
+				}
+				FIndex2i OtherEV = CutMesh[1]->GetEdgeV(OldMeshEID);
+				int MappedEID = Result->FindEdge(IndexMaps.GetNewVertex(OtherEV.A), IndexMaps.GetNewVertex(OtherEV.B));
+				checkSlow(Result->IsBoundaryEdge(MappedEID));
+				CreatedBoundaryEdges.Add(MappedEID);
+			}
+		}
 	}
 	else
 	{
