@@ -22,6 +22,10 @@ void ExportParticleData_{ParameterName}_UEImpureCall(in bool bStoreData, in floa
 			RWWriteBuffer_{ParameterName}[StoreOffset + 6] = asuint(Velocity.z);
 			bSuccess = true;
 		}
+		else
+		{
+			InterlockedAdd(RWWriteBuffer_{ParameterName}[0], -1u, StoreIndex);
+		}
 	}
 }
 
