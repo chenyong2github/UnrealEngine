@@ -91,7 +91,7 @@ Buffer<uint>							InOccludedInstancesArgs;
 
 RWStructuredBuffer<FInstanceDraw>		OutOccludedInstances;
 RWBuffer<uint>							OutOccludedInstancesArgs;
-RWByteAddressBuffer						OutCandidateNodesAndClusters;
+RWByteAddressBuffer						OutMainAndPostNodesAndClusterBatches;
 RWStructuredBuffer<FPersistentState>	OutMainAndPostPassPersistentStates;
 
 #if DEBUG_FLAGS
@@ -294,7 +294,7 @@ void InstanceCull(
 					Node.InstanceId = InstanceId;
 					Node.NodeIndex = 0;
 					Node.EnabledBitmask = BVH_NODE_ENABLE_MASK;
-					StoreCandidateNode( OutCandidateNodesAndClusters, NodeOffset, Node, bIsPostPass );
+					StoreCandidateNode( OutMainAndPostNodesAndClusterBatches, NodeOffset, Node, bIsPostPass );
 				}
 			}
 		}
@@ -554,7 +554,7 @@ void InstanceCullVSM(
 			Node.InstanceId = InstanceId;
 			Node.NodeIndex = 0;
 			Node.EnabledBitmask = BVH_NODE_ENABLE_MASK;
-			StoreCandidateNode( OutCandidateNodesAndClusters, NodeOffset, Node, false );
+			StoreCandidateNode( OutMainAndPostNodesAndClusterBatches, NodeOffset, Node, false );
 			NodeOffset++;
 		}
 	}

@@ -307,11 +307,11 @@ RWByteAddressBuffer					OutInstanceDynamicData;
 uint4 PackVisibleCluster(uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData)
 {
 	uint4 RawData = 0;
-	uint BitPos = 1;	// Start at 1 to make sure RawData.x is always != 0xFFFFFFFFu
-	WriteBits(RawData, BitPos, VisibleCluster.Flags, NUM_CULLING_FLAG_BITS);
-	WriteBits(RawData, BitPos, VisibleCluster.ViewId, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS);
-	WriteBits(RawData, BitPos, VisibleCluster.InstanceId, MAX_INSTANCES_BITS);
-	WriteBits(RawData, BitPos, VisibleCluster.PageIndex, MAX_GPU_PAGES_BITS);
+	uint BitPos = 0;
+	WriteBits(RawData, BitPos, VisibleCluster.Flags,		NUM_CULLING_FLAG_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.ViewId,		MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.InstanceId,	MAX_INSTANCES_BITS);
+	WriteBits(RawData, BitPos, VisibleCluster.PageIndex,	MAX_GPU_PAGES_BITS);
 	WriteBits(RawData, BitPos, VisibleCluster.ClusterIndex, MAX_CLUSTERS_PER_PAGE_BITS);
 	if (bHasPageData)
 	{
@@ -323,7 +323,7 @@ uint4 PackVisibleCluster(uint ClusterIdx, FVisibleCluster VisibleCluster, bool b
 
 FVisibleCluster UnpackVisibleCluster(uint4 RawData, bool bHasPageData = false)
 {
-	uint BitPos = 1;	// Start at 1 to make sure RawData.x is always != 0xFFFFFFFFu
+	uint BitPos = 0;
 	FVisibleCluster VisibleCluster;
 	VisibleCluster.Flags		= ReadBits( RawData, BitPos, NUM_CULLING_FLAG_BITS );
 	VisibleCluster.ViewId		= ReadBits( RawData, BitPos, MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );

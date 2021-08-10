@@ -40,7 +40,6 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Total Instances"), STAT_NaniteInstanceCount
 DECLARE_MEMORY_STAT(TEXT("Nanite Proxy Instance Memory"), STAT_ProxyInstanceMemory, STATGROUP_Nanite);
 
 #define MAX_CLUSTERS	(16 * 1024 * 1024)
-#define MAX_NODES		 (2 * 1024 * 1024)
 
 int32 GNaniteOptimizedRelevance = 1;
 FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
@@ -48,6 +47,14 @@ FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 	GNaniteOptimizedRelevance,
 	TEXT("Whether to optimize Nanite relevance (outside of editor)."),
 	ECVF_RenderThreadSafe
+);
+
+int32 GNaniteMaxNodes = 2 * 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxNodes(
+	TEXT("r.Nanite.MaxNodes"),
+	GNaniteMaxNodes,
+	TEXT("Maximum number of Nanite nodes traversed during a culling pass."),
+	ECVF_ReadOnly
 );
 
 int32 GNaniteMaxCandidateClusters = 8 * 1048576;
@@ -1144,11 +1151,10 @@ void FGlobalResources::ReleaseRHI()
 	{
 		LLM_SCOPE_BYTAG(Nanite);
 
-		MainPassBuffers.CandidateNodesAndClustersBuffer.SafeRelease();
-		PostPassBuffers.CandidateNodesAndClustersBuffer.SafeRelease();
-
 		MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
 		PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
+
+		MainAndPostNodesAndClusterBatchesBuffer.SafeRelease();
 
 		StatsBuffer.SafeRelease();
 
@@ -1206,7 +1212,15 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 uint32 FGlobalResources::GetMaxCandidateClusters()
 {
 	checkf(GNaniteMaxCandidateClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxCandidateClusters must be <= MAX_CLUSTERS"));
-	return GNaniteMaxCandidateClusters;
+	const uint32 MaxCandidateClusters = GNaniteMaxCandidateClusters & -PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
+	return MaxCandidateClusters;
+}
+
+uint32 FGlobalResources::GetMaxClusterBatches()
+{
+	const uint32 MaxCandidateClusters = GetMaxCandidateClusters();
+	check(MaxCandidateClusters % PERSISTENT_CLUSTER_CULLING_GROUP_SIZE == 0);
+	return MaxCandidateClusters / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
 }
 
 uint32 FGlobalResources::GetMaxVisibleClusters()
@@ -1217,7 +1231,7 @@ uint32 FGlobalResources::GetMaxVisibleClusters()
 
 uint32 FGlobalResources::GetMaxNodes()
 {
-	return MAX_NODES;
+	return GNaniteMaxNodes & -MAX_BVH_NODES_PER_GROUP;
 }
 
 TGlobalResource< FGlobalResources > GGlobalResources;
