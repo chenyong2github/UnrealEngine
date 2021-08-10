@@ -4,6 +4,7 @@
 
 #include "Components/ActorComponent.h"
 #include "ComputeFramework/ComputeDataInterface.h"
+#include "ComputeFramework/ComputeDataProvider.h"
 #include "ComputeFramework/ComputeFramework.h"
 #include "ComputeFramework/ComputeKernel.h"
 #include "ComputeFramework/ComputeKernelShared.h"
@@ -79,15 +80,19 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 	return true;
 }
 
-bool UComputeGraph::ValidateBindings(TArrayView< FComputeDataProviderRenderProxy* > DataProviderProxies) const
+bool UComputeGraph::ValidateProviders(TArrayView< TObjectPtr<UComputeDataProvider> > DataProviders) const
 {
-	if (DataInterfaces.Num() != DataProviderProxies.Num())
+	if (DataInterfaces.Num() != DataProviders.Num())
 	{
 		return false;
 	}
 	for (int32 Index = 0; Index < DataInterfaces.Num(); ++Index)
 	{
-		if (DataInterfaces[Index] != nullptr && DataProviderProxies[Index] == nullptr)
+		if (DataProviders[Index] == nullptr && DataInterfaces[Index] != nullptr)
+		{
+			return false;
+		}
+		if (DataProviders[Index] != nullptr && !DataProviders[Index]->IsValid())
 		{
 			return false;
 		}

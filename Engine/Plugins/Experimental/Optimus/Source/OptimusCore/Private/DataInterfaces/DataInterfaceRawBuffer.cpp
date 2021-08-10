@@ -163,11 +163,14 @@ UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject*
 }
 
 
+bool UTransientBufferDataProvider::IsValid() const
+{
+	return NumElements != 0;
+}
+
 FComputeDataProviderRenderProxy* UTransientBufferDataProvider::GetRenderProxy()
 {
-	const bool bValid = NumElements != 0;
-
-	return bValid ? new FTransientBufferDataProviderProxy(ElementStride, NumInvocations, NumElements, bClearBeforeUse) : 0;
+	return new FTransientBufferDataProviderProxy(ElementStride, NumInvocations, NumElements, bClearBeforeUse);
 }
 
 

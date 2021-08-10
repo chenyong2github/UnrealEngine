@@ -127,8 +127,8 @@ public:
 	 */
 	void CreateDataProviders(UObject* InOuter, bool bSetDefaultBindings, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
 
-	/** Returns true if there is a valid DataProviderProxies entry for each of our DataInterfaces. */
-	bool ValidateBindings(TArrayView< FComputeDataProviderRenderProxy* > DataProviderProxies) const;
+	/** Returns true if there is a valid DataProvider entry for each of our DataInterfaces. */
+	bool ValidateProviders(TArrayView< TObjectPtr<UComputeDataProvider> > DataProviders) const;
 
 	/**
 	 * Get unique data interface id.
