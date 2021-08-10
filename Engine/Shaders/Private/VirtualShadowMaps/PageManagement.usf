@@ -675,8 +675,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 				FVirtualShadowMapProjectionShaderData LevelProjectionData = GetVirtualShadowMapProjectionData(ClipmapLevelId);								
 				int2 LevelOffset = OffsetScale * LevelProjectionData.ClipmapCornerOffset;
 
-				const int LevelScale = 1u << ClipmapOffset;
-				int2 LevelPage = (BasePage + LevelScale * LevelOffset) / LevelScale;
+				int2 LevelPage = (BasePage + (LevelOffset << ClipmapOffset)) >> ClipmapOffset;
 
 				if (all(LevelPage >= 0) && all(LevelPage < VSM_LEVEL0_DIM_PAGES_XY))
 				{
