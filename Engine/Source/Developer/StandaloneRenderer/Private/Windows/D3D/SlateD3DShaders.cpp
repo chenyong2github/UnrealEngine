@@ -400,7 +400,7 @@ FSlateDefaultVS::FSlateDefaultVS()
 
 void FSlateDefaultVS::SetViewProjection( const FMatrix& ViewProjectionMatrix )
 {
-	ConstantBuffer.GetBufferData().ViewProjection = ViewProjectionMatrix;
+	ConstantBuffer.GetBufferData().ViewProjection = (FMatrix44f)ViewProjectionMatrix;	// LWC_TODO: Precision loss
 }
 
 void FSlateDefaultVS::SetShaderParams( const FVector4& InShaderParams )
