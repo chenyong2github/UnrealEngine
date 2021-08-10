@@ -423,8 +423,10 @@ private:
 	bool bSupportsControls;
 
 	/** The default skeletal mesh to use when previewing this asset */
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(AssetRegistrySearchable)
 	TSoftObjectPtr<USkeletalMesh> PreviewSkeletalMesh;
+#endif
 
 	/** The skeleton from import into a hierarchy */
 	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)
