@@ -433,7 +433,7 @@ class FTranslucencyVolumeSpatialFilterCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VolumeTraceHitDistance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenTranslucencyLightingVolumeParameters, VolumeParameters)
-		SHADER_PARAMETER(FVector, PreviousFrameJitterOffset)
+		SHADER_PARAMETER(FVector3f, PreviousFrameJitterOffset)
 		SHADER_PARAMETER(FMatrix44f, UnjitteredPrevWorldToClip)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -474,7 +474,7 @@ class FTranslucencyVolumeIntegrateCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VolumeTraceRadiance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VolumeTraceHitDistance)
 		SHADER_PARAMETER(float, HistoryWeight)
-		SHADER_PARAMETER(FVector, PreviousFrameJitterOffset)
+		SHADER_PARAMETER(FVector3f, PreviousFrameJitterOffset)
 		SHADER_PARAMETER(FMatrix44f, UnjitteredPrevWorldToClip)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyGIHistory0)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, TranslucencyGIHistory1)
