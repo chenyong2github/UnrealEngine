@@ -70,6 +70,7 @@ public:
 
 	void ScrubToStart();
 	void ScrubToEnd();
+	void Step(int32 frames);
 	void StepForward();
 	void StepBackward();
 
@@ -131,6 +132,7 @@ private:
 
 	float PlaybackRate;
 	float CurrentScrubTime;
+	int64 ScrubFrameIndex;
 	uint16 RecordingIndex;
 
 	static FRewindDebugger* InternalInstance;

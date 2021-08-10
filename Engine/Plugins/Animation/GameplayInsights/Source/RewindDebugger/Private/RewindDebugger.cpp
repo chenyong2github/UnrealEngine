@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 #include "ObjectTrace.h"
 #include "TraceServices/ITraceServicesModule.h"
+#include "TraceServices/Model/Frames.h"
 #include "LevelEditor.h"
 #include "SLevelViewport.h"
 #include "IRewindDebuggerExtension.h"
@@ -37,6 +38,7 @@ FRewindDebugger::FRewindDebugger()  :
 	bRecording(false),
 	PlaybackRate(1),
 	CurrentScrubTime(0),
+	ScrubFrameIndex(0),
 	RecordingIndex(0),
 	bTargetActorPositionValid(false)
 {
@@ -425,26 +427,46 @@ void FRewindDebugger::ScrubToEnd()
 	}
 }
 
-void FRewindDebugger::StepForward()
+void FRewindDebugger::Step(int frames)
 {
 	if (CanScrub())
 	{
 		Pause();
 
-		SetCurrentScrubTime(FMath::Min(CurrentScrubTime + 1.0f/30.0f, RecordingDuration.Get()));
-		TrackCursorDelegate.ExecuteIfBound(false);
+		if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
+		{
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
+			UWorld* World = GetWorldToVisualize();
+
+			if (const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider"))
+			{
+				if (const IGameplayProvider::RecordingInfoTimeline* Recording = GameplayProvider->GetRecordingInfo(RecordingIndex))
+				{
+					uint64 EventCount = Recording->GetEventCount();
+
+					if (EventCount > 0)
+					{
+						ScrubFrameIndex = FMath::Clamp(ScrubFrameIndex + frames, 0, (int64)EventCount - 1);
+
+						const FRecordingInfoMessage& Event = Recording->GetEvent(ScrubFrameIndex);
+						CurrentScrubTime = Event.ElapsedTime;
+						TraceTime.Set(Event.ProfileTime);
+						TrackCursorDelegate.ExecuteIfBound(false);
+					}
+				}
+			}
+		}
 	}
+}
+
+void FRewindDebugger::StepForward()
+{
+	Step(1);
 }
 
 void FRewindDebugger::StepBackward()
 {
-	if (CanScrub())
-	{
-		Pause();
-		// todo: snap to actual frames from AnimationProvider
-		SetCurrentScrubTime(FMath::Max(CurrentScrubTime - 1.0f/30.0f, 0.0f));
-		TrackCursorDelegate.ExecuteIfBound(true);
-	}
+	Step(-1);
 }
 
 
@@ -502,19 +524,64 @@ void FRewindDebugger::UpdateTraceTime()
 
 				if (EventCount > 0)
 				{
-					uint64 EventIndex;
-
-					for(EventIndex = 0; EventIndex < EventCount-1; EventIndex++)
+					// check if we are outside of the recorded range, and apply the first or last frame
+					const FRecordingInfoMessage& FirstEvent = Recording->GetEvent(0);
+					const FRecordingInfoMessage& LastEvent = Recording->GetEvent(EventCount - 1);
+					if (CurrentScrubTime <= FirstEvent.ElapsedTime)
 					{
-						const FRecordingInfoMessage& Event = Recording->GetEvent(EventIndex);
-						// todo: optimize this linear search (cache current index, and pass it in as a hint)
-						//		 and do interpolation between nearest two frames
-						if (Event.ElapsedTime >= CurrentScrubTime)
+						ScrubFrameIndex = FMath::Min<uint64>(1, EventCount - 1);
+					}
+					else if (CurrentScrubTime >= LastEvent.ElapsedTime)
+					{
+						ScrubFrameIndex = EventCount - 1;
+					}
+					else
+					{
+						// find the two keys surrounding the CurrentScrubTime, and pick the nearest to update ProfileTime
+						if (Recording->GetEvent(ScrubFrameIndex).ElapsedTime > CurrentScrubTime)
 						{
-							break;
+							for (uint64 EventIndex = ScrubFrameIndex; EventIndex > 0; EventIndex--)
+							{
+								const FRecordingInfoMessage& Event = Recording->GetEvent(EventIndex);
+								const FRecordingInfoMessage& NextEvent = Recording->GetEvent(EventIndex - 1);
+								if (Event.ElapsedTime >= CurrentScrubTime && NextEvent.ElapsedTime <= CurrentScrubTime)
+								{
+									if (Event.ElapsedTime - CurrentScrubTime < CurrentScrubTime - NextEvent.ElapsedTime)
+									{
+										ScrubFrameIndex = EventIndex;
+									}
+									else
+									{
+										ScrubFrameIndex = EventIndex - 1;
+									}
+									break;
+								}
+							}
+						}
+						else
+						{
+							for (uint64 EventIndex = ScrubFrameIndex; EventIndex < EventCount - 1; EventIndex++)
+							{
+								const FRecordingInfoMessage& Event = Recording->GetEvent(EventIndex);
+								const FRecordingInfoMessage& NextEvent = Recording->GetEvent(EventIndex + 1);
+								if (Event.ElapsedTime <= CurrentScrubTime && NextEvent.ElapsedTime >= CurrentScrubTime)
+								{
+									if (CurrentScrubTime - Event.ElapsedTime < NextEvent.ElapsedTime - CurrentScrubTime)
+									{
+										ScrubFrameIndex = EventIndex;
+									}
+									else
+									{
+										ScrubFrameIndex = EventIndex + 1;
+									}
+									break;
+								}
+							}
 						}
 					}
-					TraceTime.Set(Recording->GetEvent(EventIndex).ProfileTime);
+
+					const FRecordingInfoMessage& Event = Recording->GetEvent(ScrubFrameIndex);
+					TraceTime.Set(Event.ProfileTime);
 				}
 			}
 		}
@@ -559,7 +626,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 			{
 				if (RecordingDuration.Get() > 0)
 				{
-					UpdateTraceTime(); 
+					UpdateTraceTime();
 
 					if (ControlState == EControlState::Play || ControlState == EControlState::PlayReverse)
 					{
@@ -578,67 +645,64 @@ void FRewindDebugger::Tick(float DeltaTime)
 					uint64 TargetActorId = GetTargetActorId();
 
 					// update pose on all SkeletalMeshComponents (todo: move pose updating into an extension)
-					ULevel* CurLevel = World->GetCurrentLevel();
-					for( AActor* LevelActor : CurLevel->Actors )
+					const TraceServices::IFrameProvider& FrameProvider = TraceServices::ReadFrameProvider(*Session);
+					TraceServices::FFrame Frame;
+					if(FrameProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, CurrentTraceTime, Frame))
 					{
-						if (LevelActor)
+						ULevel* CurLevel = World->GetCurrentLevel();
+						for (AActor* LevelActor : CurLevel->Actors)
 						{
-							bool bIsTargetActor = TargetActorId == FObjectTrace::GetObjectId(LevelActor);
-
-							if (bIsTargetActor)
+							if (LevelActor)
 							{
-								bTargetActorPositionValid = false;
-							}
+								bool bIsTargetActor = TargetActorId == FObjectTrace::GetObjectId(LevelActor);
 
-							TInlineComponentArray<USkeletalMeshComponent*> SkeletalMeshComponents;
-							LevelActor->GetComponents(SkeletalMeshComponents);
-
-							for (USkeletalMeshComponent* MeshComponent : SkeletalMeshComponents)
-							{
-								int64 ObjectId = FObjectTrace::GetObjectId(MeshComponent);
-
-								AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, bIsTargetActor, ObjectId, CurrentTraceTime, MeshComponent, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
+								if (bIsTargetActor)
 								{
-									double PrecedingPoseTime;
-									double FollowingPoseTime;
-									const FSkeletalMeshPoseMessage* PrecedingPose;
-									const FSkeletalMeshPoseMessage* FollowingPose;
+									bTargetActorPositionValid = false;
+								}
 
-									TimelineData.FindNearestEvents(CurrentTraceTime, PrecedingPose, PrecedingPoseTime, FollowingPose, FollowingPoseTime);
+								TInlineComponentArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+								LevelActor->GetComponents(SkeletalMeshComponents);
 
-									if (FollowingPose || PrecedingPose)
-									{	
-										// Ideally we should iterpolate between the two poses here if both are valid (we would need to transform the component space transforms to local space though)
-										const FSkeletalMeshPoseMessage& PoseMessage = FollowingPose ? *FollowingPose : *PrecedingPose;
+								for (USkeletalMeshComponent* MeshComponent : SkeletalMeshComponents)
+								{
+									int64 ObjectId = FObjectTrace::GetObjectId(MeshComponent);
 
-										FTransform ComponentWorldTransform;
-										const FSkeletalMeshInfo* SkeletalMeshInfo = AnimationProvider->FindSkeletalMeshInfo(PoseMessage.MeshId);
-										AnimationProvider->GetSkeletalMeshComponentSpacePose(PoseMessage, *SkeletalMeshInfo, ComponentWorldTransform, MeshComponent->GetEditableComponentSpaceTransforms());
-
-										if (MeshComponentsToReset.Find(ObjectId) == nullptr)
+									AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, Frame, bIsTargetActor, ObjectId, MeshComponent, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
 										{
-											FMeshComponentResetData ResetData;
-											ResetData.Component = MeshComponent;
-											ResetData.RelativeTransform = MeshComponent->GetRelativeTransform();
-											MeshComponentsToReset.Add(ObjectId, ResetData);
-										}
+											TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime,
+												[this, bIsTargetActor, ObjectId, MeshComponent, AnimationProvider](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& PoseMessage)
+												{
+													FTransform ComponentWorldTransform;
+													const FSkeletalMeshInfo* SkeletalMeshInfo = AnimationProvider->FindSkeletalMeshInfo(PoseMessage.MeshId);
+													AnimationProvider->GetSkeletalMeshComponentSpacePose(PoseMessage, *SkeletalMeshInfo, ComponentWorldTransform, MeshComponent->GetEditableComponentSpaceTransforms());
 
-										// todo: we probably need to take into account tick order requirements for attached objects here
-										MeshComponent->SetWorldTransform(ComponentWorldTransform);
-										MeshComponent->SetForcedLOD(PoseMessage.LodIndex + 1);
+													if (MeshComponentsToReset.Find(ObjectId) == nullptr)
+													{
+														FMeshComponentResetData ResetData;
+														ResetData.Component = MeshComponent;
+														ResetData.RelativeTransform = MeshComponent->GetRelativeTransform();
+														MeshComponentsToReset.Add(ObjectId, ResetData);
+													}
 
-										if (bIsTargetActor && !bTargetActorPositionValid)
-										{
-											// until we have actor transforms traced out, the first skeletal mesh component transform will be used as as the actor position 
-											bTargetActorPositionValid = true;
-											TargetActorPosition = ComponentWorldTransform.GetTranslation();
-										}
-									}
-								});
+													// todo: we probably need to take into account tick order requirements for attached objects here
+													MeshComponent->SetWorldTransform(ComponentWorldTransform);
+													MeshComponent->SetForcedLOD(PoseMessage.LodIndex + 1);
 
-								// calling this here, even on meshes which have no recorded data makes meshes with a MasterPoseComponent attach properly during replay
-								// longer term solution: we should be recording those meshes
-								MeshComponent->ApplyEditedComponentSpaceTransforms();
+													if (bIsTargetActor && !bTargetActorPositionValid)
+													{
+														// until we have actor transforms traced out, the first skeletal mesh component transform will be used as as the actor position 
+														bTargetActorPositionValid = true;
+														TargetActorPosition = ComponentWorldTransform.GetTranslation();
+													}
+													return TraceServices::EEventEnumerate::Stop;
+												});
+										});
+
+									// calling this here, even on meshes which have no recorded data makes meshes with a MasterPoseComponent attach properly during replay
+									// longer term solution: we should be recording those meshes
+									MeshComponent->ApplyEditedComponentSpaceTransforms();
+								}
 							}
 						}
 					}

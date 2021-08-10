@@ -12,6 +12,7 @@
 #include "SLevelViewport.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
+#include "TraceServices/Model/Frames.h"
 
 #define LOCTEXT_NAMESPACE "RewindDebuggerCamera"
 
@@ -120,32 +121,31 @@ void FRewindDebuggerCamera::Update(float DeltaTime, IRewindDebugger* RewindDebug
 			// always update the camera actor to the replay values even if it isn't locked
 			if (const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider"))
 			{
-				GameplayProvider->ReadViewTimeline([this, RewindDebugger, CurrentTraceTime](const IGameplayProvider::ViewTimeline& TimelineData)
+				GameplayProvider->ReadViewTimeline([this, RewindDebugger, CurrentTraceTime, Session](const IGameplayProvider::ViewTimeline& TimelineData)
 				{
-					double PrecedingTime;
-					double FollowingTime;
-					const FViewMessage* PrecedingView;
-					const FViewMessage* FollowingView;
-					
-					TimelineData.FindNearestEvents(CurrentTraceTime, PrecedingView, PrecedingTime, FollowingView, FollowingTime);
-
-					if (FollowingView || PrecedingView)
+					const TraceServices::IFrameProvider& FrameProvider = TraceServices::ReadFrameProvider(*Session);
+					TraceServices::FFrame Frame;
+					if(FrameProvider.GetFrameFromTime(ETraceFrameType::TraceFrameType_Game, CurrentTraceTime, Frame))
 					{
-						const FViewMessage& ViewMessage = FollowingView ? *FollowingView : *PrecedingView;
+						TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime,
+							[this, RewindDebugger](double InStartTime, double InEndTime, uint32 InDepth, const FViewMessage& ViewMessage)
+							{
+								if (!CameraActor.IsValid())
+								{
+									FActorSpawnParameters SpawnParameters;
+									SpawnParameters.ObjectFlags |= RF_Transient;
+									CameraActor = RewindDebugger->GetWorldToVisualize()->SpawnActor<ACameraActor>(ViewMessage.Position, ViewMessage.Rotation, SpawnParameters);
+									UCameraComponent* Camera = CameraActor->GetCameraComponent();
+									CameraActor->SetActorLabel("RewindDebuggerCamera"); 
+								}
 
-						if (!CameraActor.IsValid())
-						{
-							FActorSpawnParameters SpawnParameters;
-							SpawnParameters.ObjectFlags |= RF_Transient;
-							CameraActor = RewindDebugger->GetWorldToVisualize()->SpawnActor<ACameraActor>(ViewMessage.Position, ViewMessage.Rotation, SpawnParameters);
-							UCameraComponent* Camera = CameraActor->GetCameraComponent();
-							CameraActor->SetActorLabel("RewindDebuggerCamera"); 
-						}
+								UCameraComponent* Camera = CameraActor->GetCameraComponent();
+								Camera->SetWorldLocationAndRotation(ViewMessage.Position, ViewMessage.Rotation);
+								Camera->SetFieldOfView(ViewMessage.Fov);
+								Camera->SetAspectRatio(ViewMessage.AspectRatio);
 
-						UCameraComponent* Camera = CameraActor->GetCameraComponent();
-						Camera->SetWorldLocationAndRotation(ViewMessage.Position, ViewMessage.Rotation);
-						Camera->SetFieldOfView(ViewMessage.Fov);
-						Camera->SetAspectRatio(ViewMessage.AspectRatio);
+								return TraceServices::EEventEnumerate::Stop;
+							});
 					}
 				});
 			}
