@@ -73,7 +73,7 @@ void FSectionHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer
 		{
 			for (const FMovieSceneChannel* Channel : Entry.GetChannels())
 			{
-				if (Channel->GetNumKeys() != 0)
+				if (Channel && Channel->GetNumKeys() != 0)
 				{
 					InTrackArea.AttemptToActivateTool(FSequencerEditTool_Selection::Identifier);
 					return;
