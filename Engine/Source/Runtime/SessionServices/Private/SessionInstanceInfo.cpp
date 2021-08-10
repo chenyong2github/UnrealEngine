@@ -73,7 +73,7 @@ void FSessionInstanceInfo::ExecuteCommand(const FString& CommandString)
 {
 	if (MessageEndpoint.IsValid() && EngineAddress.IsValid())
 	{
-		MessageEndpoint->Send(new FEngineServiceExecuteCommand(CommandString, FPlatformProcess::UserName(false)), EngineAddress);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FEngineServiceExecuteCommand>(CommandString, FPlatformProcess::UserName(false)), EngineAddress);
 	}
 }
 
@@ -82,7 +82,7 @@ void FSessionInstanceInfo::Terminate()
 {
 	if (MessageEndpoint.IsValid() && EngineAddress.IsValid())
 	{
-		MessageEndpoint->Send(new FEngineServiceTerminate(FPlatformProcess::UserName(false)), EngineAddress);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FEngineServiceTerminate>(FPlatformProcess::UserName(false)), EngineAddress);
 	}
 }
 

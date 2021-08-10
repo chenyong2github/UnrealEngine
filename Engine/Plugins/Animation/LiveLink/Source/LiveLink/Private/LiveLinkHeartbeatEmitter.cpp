@@ -58,7 +58,7 @@ uint32 FLiveLinkHeartbeatEmitter::Run()
 			{
 				if (TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint = Recipient.MessageEndpoint.Pin())
 				{
-					MessageEndpoint->Send(new FLiveLinkHeartbeatMessage(), Recipient.ConnectionAddress);
+					MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FLiveLinkHeartbeatMessage>(), Recipient.ConnectionAddress);
 				}
 			}
 		}

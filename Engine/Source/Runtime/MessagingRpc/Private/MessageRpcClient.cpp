@@ -112,7 +112,7 @@ void FMessageRpcClient::CancelCall(const FGuid& CallId)
 	
 	if (Calls.RemoveAndCopyValue(CallId, Call))
 	{
-		MessageEndpoint->Send(new FMessageRpcCancel(CallId), ServerAddress);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FMessageRpcCancel>(CallId), ServerAddress);
 	}
 }
 

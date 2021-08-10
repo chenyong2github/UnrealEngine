@@ -182,7 +182,7 @@ void FProfilerServiceManager::SetPreviewState( const FMessageAddress& ClientAddr
 				PreviewClients.Add(ClientAddress);
 				Client->Preview = true;
 
-				MessageEndpoint->Send( new FProfilerServicePreviewAck( InstanceId ), ClientAddress );
+				MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FProfilerServicePreviewAck>(InstanceId), ClientAddress);
 			}
 			else
 			{
@@ -248,7 +248,7 @@ bool FProfilerServiceManager::HandlePing( float DeltaTime )
 	// send the ping message
 	if (MessageEndpoint.IsValid() && Clients.Num() > 0)
 	{
-		MessageEndpoint->Send(new FProfilerServicePing(), Clients);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FProfilerServicePing>(), Clients);
 	}
 	return (ClientData.Num() > 0);
 #endif //STATS
@@ -349,7 +349,7 @@ void FProfilerServiceManager::HandleServiceSubscribeMessage( const FProfilerServ
 		ClientData.Add( SenderAddress, Data );
 
 		// Send authorize.
-		MessageEndpoint->Send( new FProfilerServiceAuthorize( SessionId, InstanceId ), SenderAddress );
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FProfilerServiceAuthorize>(SessionId, InstanceId), SenderAddress);
 		// Eventually send the metadata if needed.
 
 		// Initiate the ping callback

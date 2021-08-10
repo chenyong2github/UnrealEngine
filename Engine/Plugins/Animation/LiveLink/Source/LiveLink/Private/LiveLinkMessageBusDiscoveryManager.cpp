@@ -63,7 +63,8 @@ uint32 FLiveLinkMessageBusDiscoveryManager::Run()
 			{
 				LastProviderPoolResults.Reset();
 				LastPingRequest = FGuid::NewGuid();
-				MessageEndpoint->Publish(new FLiveLinkPingMessage(LastPingRequest, ILiveLinkClient::LIVELINK_VERSION));
+				const int32 Version = ILiveLinkClient::LIVELINK_VERSION;
+				MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FLiveLinkPingMessage>(LastPingRequest, Version));
 			}
 		}
 

@@ -62,7 +62,7 @@ void FNiagaraDebuggerClient::UpdateClientInfo()
 {
 	if (MessageEndpoint.IsValid() && Connection.IsValid())
 	{
-		FNiagaraSimpleClientInfo* NewInfo = new FNiagaraSimpleClientInfo();
+		FNiagaraSimpleClientInfo* NewInfo = FMessageEndpoint::MakeMessage<FNiagaraSimpleClientInfo>();
 
 		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
 		{
@@ -119,7 +119,7 @@ void FNiagaraDebuggerClient::HandleConnectionRequestMessage(const FNiagaraDebugg
 		
 		//Accept the connection and inform the debugger we have done so with an accepted message.
 		Connection = Context->GetSender();
-		MessageEndpoint->Send(new FNiagaraDebuggerAcceptConnection(SessionId, InstanceId), EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Connection), FTimespan::Zero(), FDateTime::MaxValue());
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FNiagaraDebuggerAcceptConnection>(SessionId, InstanceId), EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Connection), FTimespan::Zero(), FDateTime::MaxValue());
 		
 		//Also send an initial update of the client info.
 		UpdateClientInfo();		
@@ -231,7 +231,7 @@ void FNiagaraDebuggerClient::CloseConnection()
 {
 	if (MessageEndpoint.IsValid() && Connection.IsValid())
 	{
-		MessageEndpoint->Send(new FNiagaraDebuggerConnectionClosed(SessionId, InstanceId), EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Connection), FTimespan::Zero(), FDateTime::MaxValue());
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FNiagaraDebuggerConnectionClosed>(SessionId, InstanceId), EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Connection), FTimespan::Zero(), FDateTime::MaxValue());
 	}
 
 	OnConnectionClosed();

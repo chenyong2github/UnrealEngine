@@ -12,23 +12,6 @@
 namespace DirectLink
 {
 class FScenePipeBase;
-
-
-// Helper function to allocate a UStruct message which memory will be owned and released
-// through FMessageContext.
-// The explicit FMemory::Malloc will match the FMemory::Free used there.
-// This is useful in scenarios where operator new isn't redirected to FMemory::Malloc.
-//
-// usage:
-//    FMyMessage* Message = NewMessage<FMyMessage>();
-//    Endpoint->Publish(Message); // The FMessageEndpoint now owns the Message allocation
-template<typename T, typename... ArgsType>
-T* NewMessage(ArgsType&&... Args)
-{
-	void* Memory = FMemory::Malloc(sizeof(T), alignof(T));
-	return new (Memory) T(Forward<ArgsType>(Args)...);
-}
-
 } // namespace DirectLink
 
 

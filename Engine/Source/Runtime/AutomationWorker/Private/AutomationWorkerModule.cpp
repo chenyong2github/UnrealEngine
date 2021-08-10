@@ -167,7 +167,7 @@ void FAutomationWorkerModule::ReportNetworkCommandComplete()
 {
 	if (GIsAutomationTesting)
 	{
-		MessageEndpoint->Send(new FAutomationWorkerRequestNextNetworkCommand(ExecutionCount), TestRequesterAddress);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FAutomationWorkerRequestNextNetworkCommand>(ExecutionCount), TestRequesterAddress);
 		if (StopTestEvent.IsBound())
 		{
 			// this is a local test; the message to continue will never arrive, so lets not wait for it
@@ -233,7 +233,7 @@ void FAutomationWorkerModule::ReportTestComplete()
 		else
 		{
 			// send the results to the controller
-			FAutomationWorkerRunTestsReply* Message = new FAutomationWorkerRunTestsReply();
+			FAutomationWorkerRunTestsReply* Message = FMessageEndpoint::MakeMessage<FAutomationWorkerRunTestsReply>();
 
 			Message->TestName = TestName;
 			Message->ExecutionCount = ExecutionCount;
@@ -274,7 +274,7 @@ void FAutomationWorkerModule::ReportTestComplete()
 
 void FAutomationWorkerModule::SendTests( const FMessageAddress& ControllerAddress )
 {
-	FAutomationWorkerRequestTestsReplyComplete* Reply = new FAutomationWorkerRequestTestsReplyComplete();
+	FAutomationWorkerRequestTestsReplyComplete* Reply = FMessageEndpoint::MakeMessage<FAutomationWorkerRequestTestsReplyComplete>();
 	for( int32 TestIndex = 0; TestIndex < TestInfo.Num(); TestIndex++ )
 	{
 		Reply->Tests.Emplace(FAutomationWorkerSingleTestReply(TestInfo[TestIndex]));
@@ -322,7 +322,7 @@ void FAutomationWorkerModule::HandleFindWorkersMessage(const FAutomationWorkerFi
 
 void FAutomationWorkerModule::SendWorkerFound(const FMessageAddress& ControllerAddress)
 {
-	FAutomationWorkerFindWorkersResponse* Response = new FAutomationWorkerFindWorkersResponse();
+	FAutomationWorkerFindWorkersResponse* Response = FMessageEndpoint::MakeMessage<FAutomationWorkerFindWorkersResponse>();
 
 	FString OSMajorVersionString, OSSubVersionString;
 	FPlatformMisc::GetOSVersions(OSMajorVersionString, OSSubVersionString);
@@ -363,7 +363,7 @@ void FAutomationWorkerModule::HandleNextNetworkCommandReplyMessage( const FAutom
 
 void FAutomationWorkerModule::HandlePingMessage( const FAutomationWorkerPing& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
-	MessageEndpoint->Send(new FAutomationWorkerPong(), Context->GetSender());
+	MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FAutomationWorkerPong>(), Context->GetSender());
 }
 
 
@@ -456,7 +456,7 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 	// Send the screen shot if we have a target
 	if (TestRequesterAddress.IsValid())
 	{
-		FAutomationWorkerScreenImage* Message = new FAutomationWorkerScreenImage();
+		FAutomationWorkerScreenImage* Message = FMessageEndpoint::MakeMessage<FAutomationWorkerScreenImage>();
 
 		Message->ScreenShotName = Data.ScreenshotName;
 		Message->ScreenImage = CompressedBitmap;
@@ -533,7 +533,7 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 		UE_LOG(LogAutomationWorker, Warning, TEXT("%s"), *LogMessage);
 
 		// Let the sender know it won't happen
-		FAutomationWorkerRunTestsReply* OutMessage = new FAutomationWorkerRunTestsReply();
+		FAutomationWorkerRunTestsReply* OutMessage = FMessageEndpoint::MakeMessage<FAutomationWorkerRunTestsReply>();
 		OutMessage->TestName = Message.TestName;
 		OutMessage->ExecutionCount = Message.ExecutionCount;
 		OutMessage->Success = false;
@@ -593,7 +593,7 @@ void FAutomationWorkerModule::SendAnalyticsEvents(TArray<FString>& InAnalyticsIt
 
 void FAutomationWorkerModule::HandleTelemetryData(const FString& StorageName, const FString& InTestName, const TArray<FAutomationTelemetryData>& InItems)
 {
-	FAutomationWorkerTelemetryData* Message = new FAutomationWorkerTelemetryData();
+	FAutomationWorkerTelemetryData* Message = FMessageEndpoint::MakeMessage<FAutomationWorkerTelemetryData>();
 
 	Message->Storage = StorageName;
 	Message->Platform = FPlatformProperties::PlatformName();

@@ -14,7 +14,7 @@ public:
 
 	virtual void ConnectTo(const FMessageAddress& Address) const
 	{
-		MessageEndpoint->Send(new FPortalRpcServer(GetAddress().ToString()), Address);
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FPortalRpcServer>(GetAddress().ToString()), Address);
 	}
 
 	virtual IMessageRpcServer* GetMessageServer()

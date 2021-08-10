@@ -242,9 +242,7 @@ bool FTargetDeviceService::Start()
 		ClaimHost = FPlatformProcess::ComputerName();
 		ClaimUser = FPlatformProcess::UserName(false);
 
-		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceClaimed), alignof(FTargetDeviceClaimed));
-		MessageEndpoint->Publish(new(Memory) FTargetDeviceClaimed(DeviceName, ClaimHost, ClaimUser));
+		MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FTargetDeviceClaimed>(DeviceName, ClaimHost, ClaimUser));
 
 		Running = true;
 	}
@@ -258,8 +256,7 @@ void FTargetDeviceService::Stop()
 	if (Running)
 	{
 		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceUnclaimed), alignof(FTargetDeviceUnclaimed));
-		MessageEndpoint->Publish(new(Memory) FTargetDeviceUnclaimed(DeviceName, FPlatformProcess::ComputerName(), FPlatformProcess::UserName(false)));
+		MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FTargetDeviceUnclaimed>(DeviceName, FPlatformProcess::ComputerName(), FPlatformProcess::UserName(false)));
 		FPlatformProcess::SleepNoStats(0.01);
 
 		// Only stop the device if we care about device claiming
@@ -356,9 +353,7 @@ void FTargetDeviceService::HandleClaimedMessage(const FTargetDeviceClaimed& Mess
 	{
 		if (Context->GetSender() != MessageEndpoint->GetAddress())
 		{
-			// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-			void* Memory = FMemory::Malloc(sizeof(FTargetDeviceClaimDenied), alignof(FTargetDeviceClaimDenied));
-			MessageEndpoint->Send(new(Memory) FTargetDeviceClaimDenied(DeviceName, FPlatformProcess::ComputerName(), FPlatformProcess::UserName(false)), Context->GetSender());
+			MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FTargetDeviceClaimDenied>(DeviceName, FPlatformProcess::ComputerName(), FPlatformProcess::UserName(false)), Context->GetSender());
 		}
 	}
 	else
