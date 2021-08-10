@@ -57,6 +57,7 @@ FCbObject CollectDependenciesObject(UPackage* Package, const ITargetPlatform* Ta
 		}
 		Writer.EndArray();
 	}
+	Writer.EndObject();
 	return Writer.Save().AsObject();
 }
 
