@@ -1145,37 +1145,17 @@ FCullingContext InitCullingContext(
 
 	CullingContext.MainAndPostPassPersistentStates		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 20, 2 ), TEXT("Nanite.MainAndPostPassPersistentStates") );
 
-#if NANITE_USE_SCRATCH_BUFFERS
-	if (bPrimaryContext)
-	{
-		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetPrimaryVisibleClustersBufferRef(), TEXT("Nanite.VisibleClustersSWHW"));
-	}
-	else
-	{
-		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchVisibleClustersBufferRef(), TEXT("Nanite.VisibleClustersSWHW"));
-	}
-#else
 	FRDGBufferDesc VisibleClustersDesc			= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxVisibleClusters());	// Max visible clusters * sizeof(uint3)
 	VisibleClustersDesc.Usage					= EBufferUsageFlags(VisibleClustersDesc.Usage | BUF_ByteAddressBuffer);
 
 	CullingContext.VisibleClustersSWHW			= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("Nanite.VisibleClustersSWHW"));
-#endif
 
 	CullingContext.MainRasterizeArgsSWHW		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.MainRasterizeArgsSWHW"));
 	CullingContext.SafeMainRasterizeArgsSWHW	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.SafeMainRasterizeArgsSWHW"));
 	
-	if( CullingContext.bTwoPassOcclusion )
+	if (CullingContext.bTwoPassOcclusion)
 	{
-	#if NANITE_USE_SCRATCH_BUFFERS
-		if (!Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef().IsValid() || Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef()->Desc.NumElements < NumSceneInstancesPo2)
-		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstancesPo2), Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("Nanite.OccludedInstances"));
-		}
-		CullingContext.OccludedInstances		= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("Nanite.OccludedInstances"));
-	#else
 		CullingContext.OccludedInstances		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstancesPo2), TEXT("Nanite.OccludedInstances"));
-	#endif
-
 		CullingContext.OccludedInstancesArgs	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.OccludedInstancesArgs"));
 		CullingContext.PostRasterizeArgsSWHW	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.PostRasterizeArgsSWHW"));
 		CullingContext.SafePostRasterizeArgsSWHW= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.SafePostRasterizeArgsSWHW"));

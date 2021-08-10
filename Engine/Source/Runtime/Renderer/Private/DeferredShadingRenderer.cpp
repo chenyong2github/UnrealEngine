@@ -1819,7 +1819,7 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 
 bool FDeferredShadingSceneRenderer::IsNaniteEnabled() const
 {
-	return UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
+	return UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes && Nanite::GStreamingManager.HasResourceEntries();
 }
 
 void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
@@ -1846,7 +1846,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	bool bVisualizeNanite = false;
 	if (bNaniteEnabled)
 	{
-		Nanite::GGlobalResources.Update(GraphBuilder); // Needed to managed scratch buffers for Nanite.
+		Nanite::GGlobalResources.Update(GraphBuilder);
 		Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
 
 		FNaniteVisualizationData& NaniteVisualization = GetNaniteVisualizationData();

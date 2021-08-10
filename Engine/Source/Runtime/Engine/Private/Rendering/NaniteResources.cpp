@@ -1158,12 +1158,6 @@ void FGlobalResources::ReleaseRHI()
 
 		StatsBuffer.SafeRelease();
 
-#if NANITE_USE_SCRATCH_BUFFERS
-		PrimaryVisibleClustersBuffer.SafeRelease();
-		ScratchVisibleClustersBuffer.SafeRelease();
-		ScratchOccludedInstancesBuffer.SafeRelease();
-#endif
-
 		StructureBufferStride8.SafeRelease();
 
 		delete VertexFactory;
@@ -1174,32 +1168,6 @@ void FGlobalResources::ReleaseRHI()
 void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 {
 	check(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
-
-#if NANITE_USE_SCRATCH_BUFFERS
-	// Any buffer may be released from the pool, so check each individually not just one of them.
-	if (!PrimaryVisibleClustersBuffer.IsValid() || 
-		!ScratchVisibleClustersBuffer.IsValid())
-	{
-		FRDGBufferDesc VisibleClustersBufferDesc = FRDGBufferDesc::CreateStructuredDesc(4, 3 * GetMaxVisibleClusters()); // uint3 per cluster
-		VisibleClustersBufferDesc.Usage = EBufferUsageFlags(VisibleClustersBufferDesc.Usage | BUF_ByteAddressBuffer);
-
-		// Allocate scratch buffers (TODO: RDG should support external non-RDG buffers).
-		// Can't do this in InitRHI as RHICmdList doesn't have a valid context yet.
-
-		if (!PrimaryVisibleClustersBuffer.IsValid())
-		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, PrimaryVisibleClustersBuffer, TEXT("Nanite.VisibleClustersSWHW"));
-		}
-
-		if (!ScratchVisibleClustersBuffer.IsValid())
-		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, ScratchVisibleClustersBuffer, TEXT("Nanite.VisibleClustersSWHW"));
-		}
-
-		check(PrimaryVisibleClustersBuffer.IsValid());
-		check(ScratchVisibleClustersBuffer.IsValid());
-	}
-#endif
 
 	if (!StructureBufferStride8.IsValid())
 	{

@@ -89,9 +89,6 @@
 #define VERTEX_COLOR_MODE_CONSTANT				1
 #define VERTEX_COLOR_MODE_VARIABLE				2
 
-// TODO: Only needed while there are multiple graphs instead of one big one (or a more intelligent resource reuse).
-#define NANITE_USE_SCRATCH_BUFFERS				1
-
 #define NANITE_CLUSTER_FLAG_LEAF				0x1
 
 #define NANITE_PAGE_FLAG_RELATIVE_ENCODING		0x1
@@ -440,12 +437,6 @@ public:
 	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
 	TRefCountPtr<FRDGPooledBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
 
-#if NANITE_USE_SCRATCH_BUFFERS
-	TRefCountPtr<FRDGPooledBuffer>& GetPrimaryVisibleClustersBufferRef() { return PrimaryVisibleClustersBuffer; }
-	TRefCountPtr<FRDGPooledBuffer>& GetScratchVisibleClustersBufferRef() { return ScratchVisibleClustersBuffer; }
-	TRefCountPtr<FRDGPooledBuffer>& GetScratchOccludedInstancesBufferRef() { return ScratchOccludedInstancesBuffer; }
-#endif
-
 	FVertexFactory* GetVertexFactory() { return VertexFactory; }
 	
 private:
@@ -461,13 +452,6 @@ private:
 
 	// Dummy structured buffer with stride8
 	TRefCountPtr<FRDGPooledBuffer> StructureBufferStride8;
-
-#if NANITE_USE_SCRATCH_BUFFERS
-	TRefCountPtr<FRDGPooledBuffer> PrimaryVisibleClustersBuffer;
-	// Used for scratch memory (transient only)
-	TRefCountPtr<FRDGPooledBuffer> ScratchVisibleClustersBuffer;
-	TRefCountPtr<FRDGPooledBuffer> ScratchOccludedInstancesBuffer;
-#endif
 };
 
 extern ENGINE_API TGlobalResource< FGlobalResources > GGlobalResources;
