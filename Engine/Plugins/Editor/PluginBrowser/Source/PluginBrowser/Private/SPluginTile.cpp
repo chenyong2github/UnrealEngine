@@ -310,6 +310,7 @@ void SPluginTile::RecreateWidgets()
 													[
 														SNew(SHorizontalBox)
 														.Visibility((PluginDescriptor.bIsBetaVersion || PluginDescriptor.bIsExperimentalVersion) ? EVisibility::Visible : EVisibility::Collapsed)
+														.ToolTipText(this, &SPluginTile::GetBetaOrExperimentalHelpText)
 														+ SHorizontalBox::Slot()
 															.AutoWidth()
 															.VAlign(VAlign_Bottom)
@@ -326,7 +327,6 @@ void SPluginTile::RecreateWidgets()
 																SNew(STextBlock)
 																	.TextStyle(FPluginStyle::Get(), "PluginTile.BetaText")
 																	.Text(PluginDescriptor.bIsBetaVersion ? LOCTEXT("PluginBetaVersionText", "BETA") : LOCTEXT("PluginExperimentalVersionText", "EXPERIMENTAL"))
-																	.ToolTipText(this, &SPluginTile::GetBetaOrExperimentalHelpText)
 															]
 													]
 
