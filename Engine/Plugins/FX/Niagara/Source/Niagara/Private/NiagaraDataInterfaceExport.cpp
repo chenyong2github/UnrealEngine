@@ -171,6 +171,7 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 				[MaxInstances=InstanceData->WriteBufferInstanceCount, WeakCallbackHandler=InstanceData->WeakCallbackHandler, WeakSystem=InstanceData->WeakSystem](TConstArrayView<TPair<void*, uint32>> Buffers)
 				{
 					const uint32 ReadbackInstanceCount = *reinterpret_cast<uint32*>(Buffers[0].Key);
+					check(ReadbackInstanceCount <= MaxInstances);
 					if (ReadbackInstanceCount > 0)
 					{
 						// Translate float data into Export Data
