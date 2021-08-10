@@ -25,10 +25,4 @@ BOOST_BUILDARGS="toolset=clang cxxflags='$COMPILERFLAGS' linkflags='-stdlib=libc
 
 TBB_BUILDARGS="compiler=clang stdlib=libc++"
 
-python3 src/build_scripts/build_usd.py ./Build --no-docs --no-tests --no-imaging --no-examples --no-tutorials --no-tools --build-args USD,"$BUILDARGS" Boost,"$BOOST_BUILDARGS" TBB,"$TBB_BUILDARGS"
-
-
-
-
-
-
+python3 src/build_scripts/build_usd.py ./Build --no-tests --no-examples --no-tutorials --no-tools --no-docs --no-imaging --build-args USD,"$BUILDARGS" Boost,"$BOOST_BUILDARGS" TBB,"$TBB_BUILDARGS"
