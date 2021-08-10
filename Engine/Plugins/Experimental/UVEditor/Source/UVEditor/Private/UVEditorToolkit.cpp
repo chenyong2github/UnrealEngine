@@ -9,6 +9,7 @@
 #include "Misc/MessageDialog.h"
 #include "PreviewScene.h"
 #include "SAssetEditorViewport.h"
+#include "SUVEditor2DViewport.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "ToolMenus.h"
 #include "UVEditor.h"
@@ -18,6 +19,8 @@
 #include "UVEditor2DViewportClient.h"
 #include "UVToolContextObjects.h"
 #include "Widgets/Docking/SDockTab.h"
+
+#include "SLevelViewport.h"
 
 #include "EdModeInteractiveToolsContext.h"
 
@@ -212,6 +215,19 @@ bool FUVEditorToolkit::OnRequestClose()
 	return FAssetEditorToolkit::OnRequestClose();
 }
 
+// These get called indirectly (via toolkit host) from the mode toolkit when the mode starts or ends a tool,
+// in order to add or remove an accept/cancel overlay.
+void FUVEditorToolkit::AddViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) 
+{
+	TSharedPtr<SUVEditor2DViewport> ViewportWidget = StaticCastSharedPtr<SUVEditor2DViewport>(ViewportTabContent->GetFirstViewport());
+	ViewportWidget->AddOverlayWidget(InViewportOverlayWidget);
+}
+void FUVEditorToolkit::RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget)
+{
+	TSharedPtr<SUVEditor2DViewport> ViewportWidget = StaticCastSharedPtr<SUVEditor2DViewport>(ViewportTabContent->GetFirstViewport());
+	ViewportWidget->RemoveOverlayWidget(InViewportOverlayWidget);
+}
+
 // We override the "Save" button behavior slightly to apply our changes before saving the asset.
 void FUVEditorToolkit::SaveAsset_Execute()
 {
@@ -273,7 +289,7 @@ AssetEditorViewportFactoryFunction FUVEditorToolkit::GetViewportDelegate()
 {
 	AssetEditorViewportFactoryFunction TempViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
-		return SNew(SAssetEditorViewport, InArgs)
+		return SNew(SUVEditor2DViewport, InArgs)
 			.EditorViewportClient(ViewportClient);
 	};
 

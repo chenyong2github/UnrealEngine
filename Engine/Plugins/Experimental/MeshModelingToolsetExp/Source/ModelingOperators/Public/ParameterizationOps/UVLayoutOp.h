@@ -5,12 +5,17 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
+#include "GeometryBase.h"
+
+#include "UVLayoutOp.generated.h"
+
+class UUVLayoutProperties;
 
 namespace UE
 {
 namespace Geometry
 {
-
+	class FDynamicMesh3;
 
 enum class EUVLayoutOpLayoutModes
 {
@@ -19,8 +24,7 @@ enum class EUVLayoutOpLayoutModes
 	StackInUnitRect = 2
 };
 
-
-class MODELINGOPERATORSEDITORONLY_API FUVLayoutOp : public FDynamicMeshOperator
+class MODELINGOPERATORS_API FUVLayoutOp : public FDynamicMeshOperator
 {
 public:
 	virtual ~FUVLayoutOp() {}
@@ -50,3 +54,22 @@ public:
 } // end namespace UE::Geometry
 } // end namespace UE
 
+/**
+ * Can be hooked up to a UMeshOpPreviewWithBackgroundCompute to perform UV Layout operations.
+ */
+UCLASS()
+class MODELINGOPERATORS_API UUVLayoutOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
+{
+	GENERATED_BODY()
+
+public:
+	// IDynamicMeshOperatorFactory API
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
+
+	UPROPERTY()
+	TObjectPtr<UUVLayoutProperties> Settings;
+
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TUniqueFunction<int32()> GetSelectedUVChannel = []() { return 0; };
+	FTransform TargetTransform;
+};

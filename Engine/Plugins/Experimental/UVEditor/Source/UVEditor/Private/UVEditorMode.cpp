@@ -6,6 +6,7 @@
 #include "ContextObjectStore.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "EdModeInteractiveToolsContext.h" //ToolsContext
+#include "Framework/Commands/UICommandList.h"
 #include "InteractiveTool.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "PreviewMesh.h"
@@ -18,13 +19,13 @@
 #include "ToolTargetManager.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "UVEditorCommands.h"
+#include "UVEditorLayoutTool.h"
 #include "UVSelectTool.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
 #include "UVEditorToolUtil.h"
 #include "UVToolContextObjects.h"
 #include "UVEditorBackgroundPreview.h"
-#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
 
@@ -79,14 +80,18 @@ void UUVEditorMode::RegisterTools()
 	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
 
 	// TODO: Other tool registrations go here
-	auto UVSelectToolBuilder = NewObject<UUVSelectToolBuilder>();
+	UUVSelectToolBuilder* UVSelectToolBuilder = NewObject<UUVSelectToolBuilder>();
 	UVSelectToolBuilder->Targets = &ToolInputObjects;
 	RegisterTool(CommandInfos.BeginSelectTool, TEXT("UVSelectTool"), UVSelectToolBuilder);
 
-	auto UVTransformToolBuilder = NewObject<UUVSelectToolBuilder>();
+	UUVSelectToolBuilder* UVTransformToolBuilder = NewObject<UUVSelectToolBuilder>();
 	UVTransformToolBuilder->Targets = &ToolInputObjects;
 	UVTransformToolBuilder->bGizmoEnabled = true;
 	RegisterTool(CommandInfos.BeginTransformTool, TEXT("UVTransformTool"), UVTransformToolBuilder);
+
+	UUVEditorLayoutToolBuilder* UVEditorLayoutToolBuilder = NewObject<UUVEditorLayoutToolBuilder>();
+	UVEditorLayoutToolBuilder->Targets = &ToolInputObjects;
+	RegisterTool(CommandInfos.BeginLayoutTool, TEXT("UVLayoutTool"), UVEditorLayoutToolBuilder);
 }
 
 void UUVEditorMode::CreateToolkit()
@@ -102,12 +107,41 @@ void UUVEditorMode::ActivateDefaultTool()
 
 void UUVEditorMode::BindCommands()
 {
-	// We currently don't have mode-level commands (rather than tool level or asset
-	// editor level), but presumably they would go here if we had them.
+	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
+	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+
+	// Hook up to Enter/Esc key presses
+	CommandList->MapAction(
+		CommandInfos.AcceptActiveTool,
+		FExecuteAction::CreateLambda([this]() { 
+			ToolsContext->EndTool(EToolShutdownType::Accept); 
+			ActivateDefaultTool();
+			}),
+		FCanExecuteAction::CreateLambda([this]() { return ToolsContext->CanAcceptActiveTool(); }),
+		FGetActionCheckState(),
+		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->ActiveToolHasAccept(); }),
+		EUIActionRepeatMode::RepeatDisabled
+	);
+
+	CommandList->MapAction(
+		CommandInfos.CancelActiveTool,
+		FExecuteAction::CreateLambda([this]() { 
+			ToolsContext->EndTool(EToolShutdownType::Cancel);
+			ActivateDefaultTool();
+			}),
+		FCanExecuteAction::CreateLambda([this]() { return ToolsContext->CanCancelActiveTool(); }),
+		FGetActionCheckState(),
+		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->ActiveToolHasAccept(); }),
+		EUIActionRepeatMode::RepeatDisabled
+	);
 }
 
 void UUVEditorMode::Exit()
 {
+	// ToolsContext->EndTool only shuts the tool on the next tick, and ToolsContext->DeactivateActiveTool is
+	// inaccessible, so we end up having to do this to force the shutdown right now.
+	ToolsContext->ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
+
 	for (TObjectPtr<UUVEditorToolMeshInput> ToolInput : ToolInputObjects)
 	{
 		ToolInput->Shutdown();

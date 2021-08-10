@@ -70,6 +70,11 @@ public:
 	virtual void Enter() override;
 	virtual void Exit() override;
 	virtual void ModeTick(float DeltaTime) override;
+	// We're changing visibility of this one to public here so that we can call it from the toolkit
+	// when clicking accept/cancel buttons. We don't want to friend the toolkit because we don't want
+	// it to later get (accidentally) more entangled with mode internals. At the same time, we're not
+	// sure whether we want to make the UEdMode one public. So this is the minimal-impact tweak.
+	virtual void ActivateDefaultTool() override;
 
 	// We don't actually override MouseEnter, etc, because things get forwarded to the input
 	// router via FEditorModeTools, and we don't have any additional input handling to do at the mode level.
@@ -77,14 +82,13 @@ public:
 
 	// Holds the background visualiztion
 	UPROPERTY()
-		TObjectPtr<UUVEditorBackgroundPreview> BackgroundVisualization;
+	TObjectPtr<UUVEditorBackgroundPreview> BackgroundVisualization;
 
 
 protected:
 
 	// UEdMode overrides
 	virtual void CreateToolkit() override;
-	virtual void ActivateDefaultTool() override;
 	// Not sure whether we need these yet
 	virtual void BindCommands() override;
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}

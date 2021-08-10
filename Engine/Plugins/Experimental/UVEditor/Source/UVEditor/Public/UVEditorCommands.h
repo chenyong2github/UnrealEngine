@@ -20,4 +20,8 @@ public:
 
 	TSharedPtr<FUICommandInfo> BeginSelectTool;
 	TSharedPtr<FUICommandInfo> BeginTransformTool;
+	TSharedPtr<FUICommandInfo> BeginLayoutTool;
+
+	TSharedPtr<FUICommandInfo> AcceptActiveTool;
+	TSharedPtr<FUICommandInfo> CancelActiveTool;
 };
