@@ -234,30 +234,30 @@ FORCEINLINE TScopedWriterDetector<RWAccessDetector> MakeScopedWriterAccessDetect
 	return TScopedWriterDetector<RWAccessDetector>(InAccessDetector);
 }
 
-#define MT_DECLARE_RW_ACCESS_DETECTOR(AccessDetector) FRWAccessDetector AccessDetector;
-#define MT_DECLARE_RW_RECURSIVE_ACCESS_DETECTOR(AccessDetector) FRWRecursiveAccessDetector AccessDetector;
-#define MT_DECLARE_RW_FULLY_RECURSIVE_ACCESS_DETECTOR(AccessDetector) FRWFullyRecursiveAccessDetector AccessDetector;
+#define UE_MT_DECLARE_RW_ACCESS_DETECTOR(AccessDetector) FRWAccessDetector AccessDetector;
+#define UE_MT_DECLARE_RW_RECURSIVE_ACCESS_DETECTOR(AccessDetector) FRWRecursiveAccessDetector AccessDetector;
+#define UE_MT_DECLARE_RW_FULLY_RECURSIVE_ACCESS_DETECTOR(AccessDetector) FRWFullyRecursiveAccessDetector AccessDetector;
 
-#define MT_SCOPED_READ_ACCESS(AccessDetector) const FBaseScopedAccessDetector& PREPROCESSOR_JOIN(ScopedMTAccessDetector_,__LINE__) = MakeScopedReaderAccessDetector(AccessDetector);
-#define MT_SCOPED_WRITE_ACCESS(AccessDetector) const FBaseScopedAccessDetector& PREPROCESSOR_JOIN(ScopedMTAccessDetector_,__LINE__) = MakeScopedWriterAccessDetector(AccessDetector);
+#define UE_MT_SCOPED_READ_ACCESS(AccessDetector) const FBaseScopedAccessDetector& PREPROCESSOR_JOIN(ScopedMTAccessDetector_,__LINE__) = MakeScopedReaderAccessDetector(AccessDetector);
+#define UE_MT_SCOPED_WRITE_ACCESS(AccessDetector) const FBaseScopedAccessDetector& PREPROCESSOR_JOIN(ScopedMTAccessDetector_,__LINE__) = MakeScopedWriterAccessDetector(AccessDetector);
 
-#define MT_ACQUIRE_READ_ACCESS(AccessDetector) (AccessDetector).AcquireReadAccess();
-#define MT_RELEASE_READ_ACCESS(AccessDetector) (AccessDetector).ReleaseReadAccess();
-#define MT_ACQUIRE_WRITE_ACCESS(AccessDetector) (AccessDetector).AcquireWriteAccess();
-#define MT_RELEASE_WRITE_ACCESS(AccessDetector) (AccessDetector).ReleaseWriteAccess();
+#define UE_MT_ACQUIRE_READ_ACCESS(AccessDetector) (AccessDetector).AcquireReadAccess();
+#define UE_MT_RELEASE_READ_ACCESS(AccessDetector) (AccessDetector).ReleaseReadAccess();
+#define UE_MT_ACQUIRE_WRITE_ACCESS(AccessDetector) (AccessDetector).AcquireWriteAccess();
+#define UE_MT_RELEASE_WRITE_ACCESS(AccessDetector) (AccessDetector).ReleaseWriteAccess();
 
 #else // ENABLE_MT_DETECTOR
 
-#define MT_DECLARE_RW_ACCESS_DETECTOR(AccessDetector)
-#define MT_DECLARE_RW_RECURSIVE_ACCESS_DETECTOR(AccessDetector)
-#define MT_DECLARE_RW_FULLY_RECURSIVE_ACCESS_DETECTOR(AccessDetector)
+#define UE_MT_DECLARE_RW_ACCESS_DETECTOR(AccessDetector)
+#define UE_MT_DECLARE_RW_RECURSIVE_ACCESS_DETECTOR(AccessDetector)
+#define UE_MT_DECLARE_RW_FULLY_RECURSIVE_ACCESS_DETECTOR(AccessDetector)
 
-#define MT_SCOPED_READ_ACCESS(AccessDetector) 
-#define MT_SCOPED_WRITE_ACCESS(AccessDetector)
+#define UE_MT_SCOPED_READ_ACCESS(AccessDetector) 
+#define UE_MT_SCOPED_WRITE_ACCESS(AccessDetector)
 
-#define MT_ACQUIRE_READ_ACCESS(AccessDetector)
-#define MT_RELEASE_READ_ACCESS(AccessDetector)
-#define MT_ACQUIRE_WRITE_ACCESS(AccessDetector)
-#define MT_RELEASE_WRITE_ACCESS(AccessDetector)
+#define UE_MT_ACQUIRE_READ_ACCESS(AccessDetector)
+#define UE_MT_RELEASE_READ_ACCESS(AccessDetector)
+#define UE_MT_ACQUIRE_WRITE_ACCESS(AccessDetector)
+#define UE_MT_RELEASE_WRITE_ACCESS(AccessDetector)
 
 #endif // ENABLE_MT_DETECTOR
