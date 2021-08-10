@@ -87,6 +87,12 @@ UMovieSceneSequence* FMovieSceneSubSequenceData::GetSequence() const
 	if (!ResolvedSequence)
 	{
 		ResolvedSequence = Cast<UMovieSceneSequence>(Sequence.ResolveObject());
+
+		if (!ResolvedSequence)
+		{
+			ResolvedSequence = Cast<UMovieSceneSequence>(Sequence.TryLoad());
+		}
+
 		CachedSequence = ResolvedSequence;
 	}
 	return ResolvedSequence;
