@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
-#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
-
 #include "../Common.ush"
 #include "../SceneTextureParameters.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"

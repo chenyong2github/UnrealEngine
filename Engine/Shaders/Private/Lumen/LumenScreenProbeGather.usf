@@ -2,7 +2,6 @@
 
 #define USE_HAIR_COMPLEX_TRANSMITTANCE 1
 
-#include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"

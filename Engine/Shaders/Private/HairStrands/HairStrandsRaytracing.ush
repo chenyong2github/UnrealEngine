@@ -6,7 +6,6 @@
 #define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
 //#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR
 
-#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../HairStrands/HairStrandsVoxelPageCommon.ush"
 #include "../HairStrands/HairStrandsVoxelPageTraversal.ush"
 

@@ -1,16 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HairStrandsVisibilityCommonStruct.ush"
-#include "HairStrandsVoxelPageCommonStruct.ush"
-#include "HairStrandsDeepShadowCommonStruct.ush"
-
 #include "../Common.ush"
-#include "../CommonViewUniformBuffer.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../MonteCarlo.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVoxelPageCommon.ush"
-
 #include "HairStrandsCommon.ush"
 #include "HairStrandsDeepShadowCommon.ush"
 #include "HairStrandsDeepTransmittanceCommon.ush"

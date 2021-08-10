@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HairStrandsVoxelPageCommonStruct.ush"
-#include "HairStrandsDeepShadowCommonStruct.ush"
-
 #include "../Common.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"

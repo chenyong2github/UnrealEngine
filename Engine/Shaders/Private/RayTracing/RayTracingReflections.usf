@@ -30,7 +30,6 @@
 #define SAMPLE_PHASE_ACCUM      2
 #define SAMPLE_PHASE_RESOLVE    3
 
-#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 
 #define SUPPORT_CONTACT_SHADOWS		0
