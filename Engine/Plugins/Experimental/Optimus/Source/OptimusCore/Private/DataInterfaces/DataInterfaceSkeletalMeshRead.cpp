@@ -298,15 +298,18 @@ UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject
 }
 
 
-FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
+bool USkeletalMeshReadDataProvider::IsValid() const
 {
-	const bool bValid = 
-		SkeletalMesh != nullptr && 
-		SkeletalMesh->MeshObject != nullptr && 
+	return
+		SkeletalMesh != nullptr &&
+		SkeletalMesh->MeshObject != nullptr &&
 		SkeletalMesh->GetScene() != nullptr &&
 		SkeletalMesh->GetScene()->GetGPUSkinCache() != nullptr;
+}
 
-	return bValid ? new FSkeletalMeshReadDataProviderProxy(SkeletalMesh) : nullptr;
+FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
+{
+	return new FSkeletalMeshReadDataProviderProxy(SkeletalMesh);
 }
 
 

@@ -20,6 +20,9 @@ class ENGINE_API UComputeDataProvider : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Return false if the provider has not been fully initialized. */
+	virtual bool IsValid() const { return true; }
+	
 	/**
 	 * Get an associated render thread proxy object.
 	 * Currently these are created and destroyed per frame by the UComputeGraphComponent.

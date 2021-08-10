@@ -45,4 +45,7 @@ protected:
 	void SendRenderDynamicData_Concurrent() override;
 	bool ShouldCreateRenderState() const override { return true; }
 	//~ End UActorComponent Interface
+
+private:
+	bool bValidProviders = false;
 };

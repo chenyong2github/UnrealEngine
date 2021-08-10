@@ -115,15 +115,18 @@ UComputeDataProvider* USkeletalMeshSkinCacheDataInterface::CreateDataProvider(UO
 }
 
 
+bool USkeletalMeshSkinCacheDataProvider::IsValid() const
+{
+	return
+		SkeletalMesh != nullptr &&
+		SkeletalMesh->MeshObject != nullptr &&
+		SkeletalMesh->GetScene() != nullptr &&
+		SkeletalMesh->GetScene()->GetGPUSkinCache() != nullptr;
+}
+
 FComputeDataProviderRenderProxy* USkeletalMeshSkinCacheDataProvider::GetRenderProxy()
 {
-	const bool bValid = 
-		SkeletalMesh != nullptr && 
-		SkeletalMesh->MeshObject != nullptr && 
-		SkeletalMesh->GetScene() != nullptr && 
-		SkeletalMesh->GetScene()->GetGPUSkinCache() !=  nullptr;
-
-	return bValid ? new FSkeletalMeshSkinCacheDataProviderProxy(SkeletalMesh) : nullptr;
+	return new FSkeletalMeshSkinCacheDataProviderProxy(SkeletalMesh);
 }
 
 

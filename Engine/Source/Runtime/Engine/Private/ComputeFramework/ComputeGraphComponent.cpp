@@ -24,12 +24,23 @@ void UComputeGraphComponent::CreateDataProviders(bool bSetDefaultBindings)
 	{
 		ComputeGraph->CreateDataProviders(this, bSetDefaultBindings, DataProviders);
 	}
+
+	// We only want to queue work after validating the new providers.
+	bValidProviders = false;
 }
 
 void UComputeGraphComponent::QueueExecute()
 {
 	if (ComputeGraph == nullptr || GetScene() == nullptr || GetScene()->GetComputeGraphScheduler() == nullptr)
 	{
+		return;
+	}
+
+	// Don't submit work if we don't have all of the expected bindings.
+	bValidProviders = bValidProviders || ComputeGraph->ValidateProviders(DataProviders);
+	if (!bValidProviders)
+	{
+		// todo[CF]: We should have a default fallback for all cases where we can't submit work.
 		return;
 	}
 
@@ -47,8 +58,9 @@ void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
 {
 	Super::SendRenderDynamicData_Concurrent();
 	
-	if (!ensure(ComputeGraph))
+	if (!bValidProviders)
 	{
+		// Probably we marked for update just before invalidating providers.
 		return;
 	}
 
@@ -66,17 +78,6 @@ void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
 		// Note that we expect GetRenderProxy() to return a pointer that we can own and call delete on.
 		FComputeDataProviderRenderProxy* ProviderProxy = DataProvider != nullptr ? DataProvider->GetRenderProxy() : nullptr;
 		ComputeDataProviderProxies.Add(ProviderProxy);
-	}
-
-	// Don't submit work if we don't have all of the expected bindings.
-	if (!ensure(ComputeGraph->ValidateBindings(ComputeDataProviderProxies)))
-	{
-		for (FComputeDataProviderRenderProxy* ProviderProxy : ComputeDataProviderProxies)
-		{
-			delete ProviderProxy;
-		}
-		// todo[CF]: We should have a default fallback for all cases where we can't submit work.
-		return;
 	}
 
 	FComputeGraphProxy* ComputeGraphProxy = new FComputeGraphProxy();

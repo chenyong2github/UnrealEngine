@@ -21,7 +21,7 @@ public:
 	static const int32 ReadValueInputIndex;
 	static const int32 WriteValueOutputIndex;
 	
-	//~ Begin UComputeDataInterface Interface
+	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
 	
 	/// Returns the list of pins that will map to the shader functions provided by this data interface.
@@ -31,7 +31,7 @@ public:
 	{
 		return false;
 	}
-	//~ End UComputeDataInterface Interface
+	//~ End UOptimusComputeDataInterface Interface
 
 	//~ Begin UComputeDataInterface Interface
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
@@ -68,6 +68,7 @@ class OPTIMUSCORE_API UTransientBufferDataProvider : public UComputeDataProvider
 
 public:
 	//~ Begin UComputeDataProvider Interface
+	bool IsValid() const override;
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 
