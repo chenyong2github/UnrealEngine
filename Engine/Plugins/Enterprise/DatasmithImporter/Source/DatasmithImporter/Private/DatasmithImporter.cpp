@@ -531,7 +531,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 				if ( FutureTexture->IsValid() )
 				{
 					FutureTexture->OnDone(
-						[ TextureElement = FilteredTextureElements[TextureIndex].ToSharedRef(), &ImportContext ]( UE::Interchange::FAssetImportResult& AssetImportResults )
+						[ TextureElement = FilteredTextureElements[TextureIndex].ToSharedRef(), &ImportContext ]( UE::Interchange::FImportResult& AssetImportResults )
 						{
 							ImportMetaDataForObject( ImportContext, TextureElement, AssetImportResults.GetFirstAssetOfClass( UTexture::StaticClass() ) );
 						}
@@ -644,8 +644,8 @@ UTexture* FDatasmithImporter::ImportTexture( FDatasmithImportContext& ImportCont
 		return nullptr;
 	}
 
-	UE::Interchange::FAssetImportResultRef& AssetImportResults = ImportContext.ImportedTextures.Add( TextureElement, MakeShared< UE::Interchange::FAssetImportResult, ESPMode::ThreadSafe >() );
-	AssetImportResults->AddImportedAsset( ImportedTexture );
+	UE::Interchange::FAssetImportResultRef& AssetImportResults = ImportContext.ImportedTextures.Add( TextureElement, MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >() );
+	AssetImportResults->AddImportedObject( ImportedTexture );
 	AssetImportResults->SetDone();
 
 	ImportMetaDataForObject( ImportContext, TextureElement, ImportedTexture );

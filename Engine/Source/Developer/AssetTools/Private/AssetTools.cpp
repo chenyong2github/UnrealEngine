@@ -148,6 +148,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/BlacklistNames.h"
 #include "InterchangeManager.h"
+#include "InterchangeProjectSettings.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
 
@@ -1757,13 +1758,12 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 #if WITH_EDITOR
 	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
-	//Avoid using interchange for scene factory, we did not do the scene import yet
-	//TODO do the scene import and remove this 
+
 	if (bUseInterchangeFramework && Params.SpecifiedFactory)
 	{
 		if (Params.SpecifiedFactory->GetClass()->IsChildOf(USceneImportFactory::StaticClass()))
 		{
-			bUseInterchangeFramework = false;
+			bUseInterchangeFramework = GetDefault<UInterchangeProjectSettings>()->bUseInterchangeWhenImportingIntoLevel;
 		}
 	}
 #endif
@@ -1985,19 +1985,39 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 				ImportAssetParameters.bIsAutomated = bAutomatedImport;
 				ImportAssetParameters.ReimportAsset = nullptr;
 
-				UE::Interchange::FAssetImportResultRef InterchangeResult = (InterchangeManager.ImportAssetAsync(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters));
-				InterchangeResult->OnDone(
+				TFunction<void(UE::Interchange::FImportResult&)> AppendImportResult =
 					// Note: ImportStatus captured by value so that the lambda keeps the shared ptr alive
-					[ImportStatus](UE::Interchange::FAssetImportResult& Result)
+					[ImportStatus](UE::Interchange::FImportResult& Result)
 					{
 						ImportStatus->InterchangeResultsContainer->Append(Result.GetResults());
+					};
+
+				TFunction<void(UE::Interchange::FImportResult&)> AppendAndBroadcastImportResultIfNeeded =
+					// Note: ImportStatus captured by value so that the lambda keeps the shared ptr alive
+					[ImportStatus, AppendImportResult](UE::Interchange::FImportResult& Result)
+					{
+						AppendImportResult(Result);
 						if (--ImportStatus->ImportCount == 0)
 						{
 							UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 							InterchangeManager.OnBatchImportComplete.Broadcast(ImportStatus->InterchangeResultsContainer);
 						}
-					});
+					};
 
+				if (Params.SpecifiedFactory && Params.SpecifiedFactory->GetClass()->IsChildOf(USceneImportFactory::StaticClass()))
+				{
+					TPair<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef> InterchangeResults =
+						InterchangeManager.ImportSceneAsync(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters);
+
+					InterchangeResults.Key->OnDone(AppendImportResult);;
+					InterchangeResults.Value->OnDone(AppendAndBroadcastImportResultIfNeeded);
+				}
+				else
+				{
+					UE::Interchange::FAssetImportResultRef InterchangeResult = (InterchangeManager.ImportAssetAsync(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters));
+					InterchangeResult->OnDone(AppendAndBroadcastImportResultIfNeeded);
+				}
+				
 				InterchangeManager.OnAssetPostImport.Remove(PostImportHandle);
 				//Import done, iterate the next file and destination
 				

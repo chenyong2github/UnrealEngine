@@ -4,6 +4,8 @@
 #include "AssetRegistryModule.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeManager.h"
@@ -36,77 +38,93 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 
 	UInterchangeResultsContainer* Results = AsyncHelper->AssetImportResult->GetResults();
 
-	for (TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
+	auto ForEachImportedObjectForEachSource = [&AsyncHelper, &Results](TMap<int32, TArray<FImportAsyncHelper::FImportedObjectInfo>>& ImportedObjectsPerSourceIndex, bool bIsAsset)
 	{
-		//Verify if the task was cancel
-		if (AsyncHelper->bCancel)
+		for (TPair<int32, TArray<FImportAsyncHelper::FImportedObjectInfo>>& ObjectInfosPerSourceIndexPair : ImportedObjectsPerSourceIndex)
 		{
-			break;
-		}
-
-		const int32 SourceIndex = AssetInfosPerSourceIndexPair.Key;
-		const bool bCallPostImportGameThreadCallback = ensure(AsyncHelper->SourceDatas.IsValidIndex(SourceIndex));
-
-		for (const FImportAsyncHelper::FImportedAssetInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
-		{
-			UObject* Asset = AssetInfo.ImportAsset;
-			//In case Some factory code cannot run outside of the main thread we offer this callback to finish the work before calling post edit change (building the asset)
-			if (bCallPostImportGameThreadCallback && AssetInfo.Factory)
+			//Verify if the task was cancel
+			if (AsyncHelper->bCancel)
 			{
-				UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
-				Arguments.ImportedObject = Asset;
-				Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
-				Arguments.FactoryNode = AssetInfo.FactoryNode;
-				// Should we assert if there is no factory node?
-				Arguments.NodeUniqueID = AssetInfo.FactoryNode ? AssetInfo.FactoryNode->GetUniqueID() : FString();
-				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
-				Arguments.Pipelines = AsyncHelper->Pipelines;
-				Arguments.bIsReimport = AssetInfo.bIsReimport;
-				AssetInfo.Factory->PreImportPreCompletedCallback(Arguments);
+				break;
 			}
 
-			if (Asset == nullptr)
+			const int32 SourceIndex = ObjectInfosPerSourceIndexPair.Key;
+			const bool bCallPostImportGameThreadCallback = ensure(AsyncHelper->SourceDatas.IsValidIndex(SourceIndex));
+
+			for (const FImportAsyncHelper::FImportedObjectInfo& ObjectInfo : ObjectInfosPerSourceIndexPair.Value)
 			{
-				continue;
-			}
+				UObject* ImportedObject = ObjectInfo.ImportedObject;
+				//In case Some factory code cannot run outside of the main thread we offer this callback to finish the work before calling post edit change (building the asset)
+				if (bCallPostImportGameThreadCallback && ObjectInfo.Factory)
+				{
+					UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
+					Arguments.ImportedObject = ImportedObject;
+					Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
+					Arguments.FactoryNode = ObjectInfo.FactoryNode;
+					// Should we assert if there is no factory node?
+					Arguments.NodeUniqueID = ObjectInfo.FactoryNode ? ObjectInfo.FactoryNode->GetUniqueID() : FString();
+					Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+					Arguments.Pipelines = AsyncHelper->Pipelines;
+					ObjectInfo.Factory->PreImportPreCompletedCallback(Arguments);
+				}
 
-			UInterchangeResultSuccess* Message = Results->Add<UInterchangeResultSuccess>();
-			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
-			Message->DestinationAssetName = Asset->GetPathName();
-			Message->AssetType = Asset->GetClass();
+				if (ImportedObject == nullptr)
+				{
+					continue;
+				}
 
-			//Clear any async flag from the created asset
-			const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
-			Asset->ClearInternalFlags(AsyncFlags);
-			//Make sure the package is dirty
-			Asset->MarkPackageDirty();
+				UInterchangeResultSuccess* Message = Results->Add<UInterchangeResultSuccess>();
+				Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
+				Message->DestinationAssetName = ImportedObject->GetPathName();
+				Message->AssetType = ImportedObject->GetClass();
+
+				if (bIsAsset)
+				{
+					//Clear any async flag from the created asset
+					const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
+					ImportedObject->ClearInternalFlags(AsyncFlags);
+					//Make sure the package is dirty
+					ImportedObject->MarkPackageDirty();
 #if WITH_EDITOR
-			//Make sure the asset is built correctly
-			Asset->PostEditChange();
+					//Make sure the asset is built correctly
+					ImportedObject->PostEditChange();
 #endif
-			//Post import broadcast
-			if (!AsyncHelper->TaskData.ReimportObject)
-			{
-				//Notify the asset registry, only when we have created the asset
-				FAssetRegistryModule::AssetCreated(Asset);
-			}
-			AsyncHelper->AssetImportResult->AddImportedAsset(Asset);
-			//In case Some factory code cannot run outside of the main thread we offer this callback to finish the work after calling post edit change (building the asset)
-			//Its possible the build of the asset to be asynchronous, the factory must handle is own asset correctly
-			if (bCallPostImportGameThreadCallback && AssetInfo.Factory)
-			{
-				UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
-				Arguments.ImportedObject = Asset;
-				Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
-				Arguments.FactoryNode = AssetInfo.FactoryNode;
-				Arguments.NodeUniqueID = AssetInfo.FactoryNode ? AssetInfo.FactoryNode->GetUniqueID() : FString();
-				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
-				Arguments.Pipelines = AsyncHelper->Pipelines;
-				Arguments.bIsReimport = AssetInfo.bIsReimport;
-				AssetInfo.Factory->PostImportPreCompletedCallback(Arguments);
+					//Post import broadcast
+					if (!AsyncHelper->TaskData.ReimportObject)
+					{
+						//Notify the asset registry, only when we have created the asset
+						FAssetRegistryModule::AssetCreated(ImportedObject);
+					}
+					AsyncHelper->AssetImportResult->AddImportedObject(ImportedObject);
+				}
+				else
+				{
+					AsyncHelper->SceneImportResult->AddImportedObject(ImportedObject);
+				}
+
+				//In case Some factory code cannot run outside of the main thread we offer this callback to finish the work after calling post edit change (building the asset)
+				//Its possible the build of the asset to be asynchronous, the factory must handle is own asset correctly
+				if (bCallPostImportGameThreadCallback && ObjectInfo.Factory)
+				{
+					UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
+					Arguments.ImportedObject = ImportedObject;
+					Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
+					Arguments.FactoryNode = ObjectInfo.FactoryNode;
+					Arguments.NodeUniqueID = ObjectInfo.FactoryNode ? ObjectInfo.FactoryNode->GetUniqueID() : FString();
+					Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+					Arguments.Pipelines = AsyncHelper->Pipelines;
+					Arguments.bIsReimport = ObjectInfo.bIsReimport;
+					ObjectInfo.Factory->PostImportPreCompletedCallback(Arguments);
+				}
 			}
 		}
-	}
+	};
+
+	bool bIsAsset = true;
+	ForEachImportedObjectForEachSource(AsyncHelper->ImportedAssetsPerSourceIndex, bIsAsset);
+
+	bIsAsset = false;
+	ForEachImportedObjectForEachSource(AsyncHelper->ImportedSceneObjectsPerSourceIndex, bIsAsset);
 }
 
 
@@ -120,7 +138,9 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 
 	//No need anymore of the translators sources
 	AsyncHelper->ReleaseTranslatorsSource();
-	for(TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
+
+	//Broadcast OnAssetPostImport/OnAssetPostReimport for each imported asset
+	for(TPair<int32, TArray<FImportAsyncHelper::FImportedObjectInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
 	{
 		//Verify if the task was cancel
 		if (AsyncHelper->bCancel)
@@ -128,9 +148,9 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 			break;
 		}
 		const int32 SourceIndex = AssetInfosPerSourceIndexPair.Key;
-		for (const FImportAsyncHelper::FImportedAssetInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
+		for (const FImportAsyncHelper::FImportedObjectInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
 		{
-			UObject* Asset = AssetInfo.ImportAsset;
+			UObject* Asset = AssetInfo.ImportedObject;
 			if (AsyncHelper->TaskData.ReimportObject)
 			{
 				InterchangeManager->OnAssetPostReimport.Broadcast(Asset);
@@ -142,15 +162,15 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 		}
 	}
 
-	//If task is cancel, delete all created assets by this task
 	if (AsyncHelper->bCancel)
 	{
-		for (TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
+		//If task is canceled, delete all created assets by this task
+		for (TPair<int32, TArray<FImportAsyncHelper::FImportedObjectInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
 		{
 			const int32 SourceIndex = AssetInfosPerSourceIndexPair.Key;
-			for (const FImportAsyncHelper::FImportedAssetInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
+			for (const FImportAsyncHelper::FImportedObjectInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
 			{
-				UObject* Asset = AssetInfo.ImportAsset;
+				UObject* Asset = AssetInfo.ImportedObject;
 				if (Asset)
 				{
 					//Make any created asset go away
@@ -161,9 +181,27 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 				}
 			}
 		}
+
+		//If task is canceled, remove all actors from their world
+		for (TPair<int32, TArray<FImportAsyncHelper::FImportedObjectInfo>>& SceneObjectInfosPerSourceIndexPair : AsyncHelper->ImportedSceneObjectsPerSourceIndex)
+		{
+			const int32 SourceIndex = SceneObjectInfosPerSourceIndexPair.Key;
+			for (const FImportAsyncHelper::FImportedObjectInfo& SceneObjectInfo : SceneObjectInfosPerSourceIndexPair.Value)
+			{
+				if (AActor* Actor = Cast<AActor>(SceneObjectInfo.ImportedObject))
+				{
+					if (UWorld* ActorWorld = Actor->GetWorld())
+					{
+						const bool bModifyLevel = false; //This isn't undoable
+						ActorWorld->RemoveActor(Actor, bModifyLevel);
+					}
+				}
+			}
+		}
 	}
 
 	AsyncHelper->AssetImportResult->SetDone();
+	AsyncHelper->SceneImportResult->SetDone();
 
 	//Release the async helper
 	AsyncHelper = nullptr;
