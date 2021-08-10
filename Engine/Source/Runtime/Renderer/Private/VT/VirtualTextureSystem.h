@@ -107,13 +107,6 @@ private:
 
 	void UpdateResidencyTracking() const;
 
-#if !UE_BUILD_SHIPPING
-	void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
-
-	FCoreDelegates::FSeverityMessageMap OnScreenMessages;
-	FCriticalSection OnScreenMessageLock;
-#endif
-
 	uint32	Frame;
 
 	static const uint32 MaxNumTasks = 16;
@@ -159,8 +152,17 @@ private:
 	TArray<FVirtualTextureLocalTile> TransientCollectedPages;
 	TArray<IVirtualTextureFinalizer*> Finalizers;
 
+#if !UE_BUILD_SHIPPING
+	void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
+	FCoreDelegates::FSeverityMessageMap OnScreenMessages;
+	FCriticalSection OnScreenMessageLock;
+
+	void UpdateNotifications();
+	void UpdateResidencyNotifications();
+
 	void DrawResidencyHud(class UCanvas*, class APlayerController*);
 	FDelegateHandle	DrawResidencyHudDelegateHandle;
+#endif
 };
 
 
