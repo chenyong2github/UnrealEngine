@@ -397,7 +397,7 @@ UE::Interchange::FAssetImportResultRef FDatasmithTextureImporter::CreateTextureA
 
 	if ( !UInterchangeManager::GetInterchangeManager().CanTranslateSourceData( ScopedSourceData.GetSourceData() ) )
 	{
-		return MakeShared< UE::Interchange::FAssetImportResult, ESPMode::ThreadSafe >();
+		return MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >();
 	}
 
 	const FString ContentPath = ImportContext.AssetsContext.TexturesImportPackage->GetPathName();

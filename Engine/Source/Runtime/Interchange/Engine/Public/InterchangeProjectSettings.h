@@ -30,7 +30,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Interchange)
 	TMap<FName, FInterchangePipelineStack> PipelineStacks;
 
-	/** This tell interchange which pipeline to select when importing.*/
+	/** This tell interchange which pipeline to select when importing assets.*/
 	UPROPERTY(EditAnywhere, config, Category = Interchange)
 	FName DefaultPipelineStack;
 
@@ -41,4 +41,12 @@ public:
 	/** If enabled, the pipeline stacks configuration dialog will show every time interchange must choose a pipeline to import or re-import. If disabled interchange will use the DefaultPipelineStack.*/
 	UPROPERTY(EditAnywhere, config, Category = Interchange)
 	bool bShowPipelineStacksConfigurationDialog;
+
+	/** If checked, will use Interchange when importing into level.*/
+	UPROPERTY(EditAnywhere, config, Category = "Interchange (Experimental)")
+	bool bUseInterchangeWhenImportingIntoLevel;
+
+	/** This tell interchange which pipeline to select when importing scenes.*/
+	UPROPERTY(EditAnywhere, config, Category = "Interchange (Experimental)")
+	FName DefaultScenePipelineStack;
 };

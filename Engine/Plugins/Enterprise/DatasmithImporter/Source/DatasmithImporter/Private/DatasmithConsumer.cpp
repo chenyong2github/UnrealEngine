@@ -1637,8 +1637,8 @@ namespace DatasmithConsumerUtils
 					TSharedRef< IDatasmithTextureElement > TextureElement = FDatasmithSceneFactory::CreateTexture( *AssetTag );
 					TextureElement->SetLabel( *Texture->GetName() );
 
-					UE::Interchange::FAssetImportResultRef& AssetImportResults = ImportContext.ImportedTextures.Add( TextureElement, MakeShared< UE::Interchange::FAssetImportResult, ESPMode::ThreadSafe >() );
-					AssetImportResults->AddImportedAsset( Texture );
+					UE::Interchange::FAssetImportResultRef& AssetImportResults = ImportContext.ImportedTextures.Add( TextureElement, MakeShared< UE::Interchange::FImportResult, ESPMode::ThreadSafe >() );
+					AssetImportResults->AddImportedObject( Texture );
 					AssetImportResults->SetDone();
 
 					ImportContext.Scene->AddTexture( TextureElement );

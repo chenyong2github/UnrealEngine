@@ -8,8 +8,9 @@ namespace UE
 {
 	namespace Interchange
 	{
-		class FAssetImportResult;
+		class FImportResult;
 
-		using FAssetImportResultRef = TSharedRef< FAssetImportResult, ESPMode::ThreadSafe >;
+		using FAssetImportResultRef = TSharedRef< FImportResult, ESPMode::ThreadSafe >;
+		using FSceneImportResultRef = TSharedRef< FImportResult, ESPMode::ThreadSafe >;
 	}
 }

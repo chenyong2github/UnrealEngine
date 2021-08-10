@@ -34,6 +34,16 @@ namespace UnrealBuildTool.Rules
 					"TextureUtilitiesCommon",
 				}
 			);
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"UnrealEd",
+					}
+				);
+			}
 		}
 	}
 }

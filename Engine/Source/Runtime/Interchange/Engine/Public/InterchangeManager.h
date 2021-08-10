@@ -3,9 +3,11 @@
 #pragma once
 
 #include <atomic>
+
+#include "CoreMinimal.h"
+
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Queue.h"
-#include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
 #include "HAL/Thread.h"
 #include "HAL/ThreadSafeBool.h"
@@ -15,11 +17,11 @@
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeWriterBase.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Templates/Tuple.h"
 #include "UObject/Package.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Containers/Queue.h"
 
 #include "InterchangeManager.generated.h"
 
@@ -69,18 +71,18 @@ namespace UE
 			UObject* ReimportObject = nullptr;
 		};
 
-		class INTERCHANGEENGINE_API FAssetImportResult : protected FGCObject
+		class INTERCHANGEENGINE_API FImportResult : protected FGCObject
 		{
 		public:
-			FAssetImportResult();
+			FImportResult();
 
-			FAssetImportResult(FAssetImportResult&&) = delete;
-			FAssetImportResult& operator=(FAssetImportResult&&) = delete;
+			FImportResult(FImportResult&&) = delete;
+			FImportResult& operator=(FImportResult&&) = delete;
 
-			FAssetImportResult(const FAssetImportResult&) = delete;
-			FAssetImportResult& operator=(const FAssetImportResult&) = delete;
+			FImportResult(const FImportResult&) = delete;
+			FImportResult& operator=(const FImportResult&) = delete;
 
-			virtual ~FAssetImportResult() = default;
+			virtual ~FImportResult() = default;
 
 		public:
 			enum class EStatus
@@ -101,7 +103,7 @@ namespace UE
 			// Assets are only made available once they have been completely imported (passed through the entire import pipeline)
 			// While the status isn't EStatus::Done, the list can grow between subsequent calls.
 			// FAssetImportResult holds a reference to the assets so that they aren't garbage collected.
-			const TArray< UObject* >& GetImportedAssets() const;
+			const TArray< UObject* >& GetImportedObjects() const;
 
 			// Helper to get the first asset of a certain class. Use when expecting a single asset of that class to be imported since the order isn't deterministic.
 			UObject* GetFirstAssetOfClass(UClass* InClass) const;
@@ -110,10 +112,10 @@ namespace UE
 			UInterchangeResultsContainer* GetResults() const { return Results; }
 
 			// Adds an asset to the list of imported assets.
-			void AddImportedAsset(UObject* ImportedAsset);
+			void AddImportedObject(UObject* ImportedObject);
 
 			// Callback when the status switches to done.
-			void OnDone(TFunction< void(FAssetImportResult&) > Callback);
+			void OnDone(TFunction< void(FImportResult&) > Callback);
 
 		protected:
 			/* FGCObject interface */
@@ -122,16 +124,17 @@ namespace UE
 		private:
 			std::atomic< EStatus > ImportStatus;
 
-			TArray< UObject* > ImportedAssets;
-			mutable FRWLock ImportedAssetsRWLock;
+			TArray< UObject* > ImportedObjects;
+			mutable FRWLock ImportedObjectsRWLock;
 			UInterchangeResultsContainer* Results;
 
 			FGraphEventRef GraphEvent; // WaitUntilDone waits for this event to be triggered.
 
-			TFunction< void(FAssetImportResult&) > DoneCallback;
+			TFunction< void(FImportResult&) > DoneCallback;
 		};
 
-		using FAssetImportResultRef = TSharedRef< FAssetImportResult, ESPMode::ThreadSafe >;
+		using FAssetImportResultRef = TSharedRef< FImportResult, ESPMode::ThreadSafe >;
+		using FSceneImportResultRef = TSharedRef< FImportResult, ESPMode::ThreadSafe >;
 
 		class FImportAsyncHelper : protected FGCObject
 		{
@@ -160,6 +163,7 @@ namespace UE
 			FGraphEventRef ParsingTask;
 			TArray<FGraphEventRef> CreatePackageTasks;
 			TArray<FGraphEventRef> CreateAssetTasks;
+			TArray<FGraphEventRef> SceneTasks;
 
 			FGraphEventRef PreAsyncCompletionTask;
 			FGraphEventRef PreCompletionTask;
@@ -173,20 +177,24 @@ namespace UE
 			FCriticalSection CreatedFactoriesLock;
 			TMap<FString, UInterchangeFactoryBase*> CreatedFactories;
 
-			struct FImportedAssetInfo
+			struct FImportedObjectInfo
 			{
-				UObject* ImportAsset;
-				UInterchangeFactoryBase* Factory;
-				UInterchangeBaseNode* FactoryNode;
+				UObject* ImportedObject = nullptr; // The object that was imported
+				UInterchangeFactoryBase* Factory = nullptr; //The factory that created the imported object
+				UInterchangeBaseNode* FactoryNode; //The node that describes the object
 				bool bIsReimport;
 			};
 
 			FCriticalSection ImportedAssetsPerSourceIndexLock;
-			TMap<int32, TArray<FImportedAssetInfo>> ImportedAssetsPerSourceIndex;
+			TMap<int32, TArray<FImportedObjectInfo>> ImportedAssetsPerSourceIndex;
+
+			FCriticalSection ImportedSceneObjectsPerSourceIndexLock;
+			TMap<int32, TArray<FImportedObjectInfo>> ImportedSceneObjectsPerSourceIndex;
 
 			FImportAsyncHelperData TaskData;
 
 			FAssetImportResultRef AssetImportResult;
+			FSceneImportResultRef SceneImportResult;
 			
 			//If we cancel the tasks, we set this boolean to true
 			std::atomic<bool> bCancel;
@@ -314,7 +322,10 @@ public:
 	 * @return true if the import succeed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Import Manager")
-	bool ImportScene(const FString& ContentPath, const UInterchangeSourceData* SourceData, bool bIsReimport = false, bool bIsAutomated = false);
+	bool ImportScene(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
+
+	TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef>
+	ImportSceneAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
 
 	/**
 	 * Call this to start an export asset process, the caller must specify a source data.
@@ -425,6 +436,12 @@ protected:
 	 * @param bCancelAllTasks - If true we will start all task but with the cancel state set, so task will complete fast and call the completion task
 	 */
 	void StartQueuedTasks(bool bCancelAllTasks = false);
+
+	/**
+	 * Called by the public Import functions
+	 */
+	TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef>
+	ImportInternal(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters, const UE::Interchange::EImportType ImportType);
 
 private:
 	struct FQueuedTaskData

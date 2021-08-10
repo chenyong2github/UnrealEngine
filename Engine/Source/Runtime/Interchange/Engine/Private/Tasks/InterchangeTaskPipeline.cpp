@@ -58,24 +58,29 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 	}
 	UInterchangePipelineBase* PipelineBase = AsyncHelper->Pipelines[PipelineIndex];
 	TArray<FString> NodeUniqueIDs;
-	TArray<UObject*> ImportAssets;
-	//Create a lock scope to read the Imported asset infos map
-	{
-		FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
-		if (AsyncHelper->ImportedAssetsPerSourceIndex.Contains(SourceIndex))
-		{
-			TArray<UE::Interchange::FImportAsyncHelper::FImportedAssetInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindChecked(SourceIndex);
-			NodeUniqueIDs.Reserve(ImportedInfos.Num());
-			ImportAssets.Reserve(ImportedInfos.Num());
-			for (UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& ImportedInfo : ImportedInfos)
-			{
-				NodeUniqueIDs.Add(ImportedInfo.FactoryNode->GetUniqueID());
-				ImportAssets.Add(ImportedInfo.ImportAsset);
-			}
-		}
-	}
+	TArray<UObject*> ImportedObjects;
 
-	if (!ensure(NodeUniqueIDs.Num() == ImportAssets.Num()))
+	auto FillImportedObjectsFromSource =
+		[&NodeUniqueIDs, &ImportedObjects, this](FCriticalSection& CriticalSection, const TMap<int32, TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>>& ImportedInfosPerSource)
+		{
+			FScopeLock Lock(&CriticalSection);
+			if (ImportedInfosPerSource.Contains(SourceIndex))
+			{
+				const TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = ImportedInfosPerSource.FindChecked(SourceIndex);
+				NodeUniqueIDs.Reserve(ImportedInfos.Num());
+				ImportedObjects.Reserve(ImportedInfos.Num());
+				for (const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ImportedInfo : ImportedInfos)
+				{
+					NodeUniqueIDs.Add(ImportedInfo.FactoryNode->GetUniqueID());
+					ImportedObjects.Add(ImportedInfo.ImportedObject);
+				}
+			}
+		};
+
+	FillImportedObjectsFromSource(AsyncHelper->ImportedAssetsPerSourceIndexLock, AsyncHelper->ImportedAssetsPerSourceIndex);
+	FillImportedObjectsFromSource(AsyncHelper->ImportedSceneObjectsPerSourceIndexLock, AsyncHelper->ImportedSceneObjectsPerSourceIndex);
+
+	if (!ensure(NodeUniqueIDs.Num() == ImportedObjects.Num()))
 	{
 		//We do not execute the script if we cannot give proper parameter
 		return;
@@ -91,8 +96,8 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 	Pipeline->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
 
 	//Call the pipeline outside of the lock, we do this in case the pipeline take a long time. We call it for each asset created by this import
-	for (int32 AssetIndex = 0; AssetIndex < ImportAssets.Num(); ++AssetIndex)
+	for (int32 ObjectIndex = 0; ObjectIndex < ImportedObjects.Num(); ++ObjectIndex)
 	{
-		Pipeline->ScriptedExecutePostImportPipeline(NodeContainer, NodeUniqueIDs[AssetIndex], ImportAssets[AssetIndex]);
+		Pipeline->ScriptedExecutePostImportPipeline(NodeContainer, NodeUniqueIDs[ObjectIndex], ImportedObjects[ObjectIndex]);
 	}
 }
