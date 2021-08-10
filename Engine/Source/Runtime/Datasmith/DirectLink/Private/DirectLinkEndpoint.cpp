@@ -440,7 +440,7 @@ FEndpoint::EOpenStreamResult FEndpoint::OpenStream(const FSourceHandle& SourceId
 		FRWScopeLock _(SharedState.StreamsLock, SLT_Write);
 		FStreamPort StreamPort = ++SharedState.StreamPortIdGenerator;
 
-		FDirectLinkMsg_OpenStreamRequest* Request = NewMessage<FDirectLinkMsg_OpenStreamRequest>();
+		FDirectLinkMsg_OpenStreamRequest* Request = FMessageEndpoint::MakeMessage<FDirectLinkMsg_OpenStreamRequest>();
 		Request->bRequestFromSource = bRequestFromSource;
 		Request->RequestFromStreamPort = StreamPort;
 		Request->SourceGuid = SourceId;
@@ -644,7 +644,7 @@ void FInternalThreadState::Handle_EndpointLifecycle(const FDirectLinkMsg_Endpoin
 			if (!bIsUpToDate)
 			{
 				UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Send FDirectLinkMsg_QueryEndpointState"), *SharedState.NiceName);
-				MessageEndpoint->Send(NewMessage<FDirectLinkMsg_QueryEndpointState>(), RemoteEndpointAddress);
+				MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FDirectLinkMsg_QueryEndpointState>(), RemoteEndpointAddress);
 			}
 			break;
 		}
@@ -703,7 +703,7 @@ void FInternalThreadState::Handle_OpenStreamRequest(const FDirectLinkMsg_OpenStr
 
 	const FMessageAddress& RemoteEndpointAddress = Context->GetSender();
 
-	FDirectLinkMsg_OpenStreamAnswer* Answer = NewMessage<FDirectLinkMsg_OpenStreamAnswer>();
+	FDirectLinkMsg_OpenStreamAnswer* Answer = FMessageEndpoint::MakeMessage<FDirectLinkMsg_OpenStreamAnswer>();
 	Answer->RecipientStreamPort = Message.RequestFromStreamPort;
 
 	auto DenyConnection = [&](const FString& Reason)
@@ -855,7 +855,7 @@ void FInternalThreadState::ReplicateState(const FMessageAddress& RemoteEndpointA
 {
 	if (MessageEndpoint.IsValid())
 	{
-		FDirectLinkMsg_EndpointState* EndpointStateMessage = NewMessage<FDirectLinkMsg_EndpointState>();
+		FDirectLinkMsg_EndpointState* EndpointStateMessage = FMessageEndpoint::MakeMessage<FDirectLinkMsg_EndpointState>();
 		*EndpointStateMessage = ThisDescription;
 
 		if (RemoteEndpointAddress.IsValid())
@@ -1296,7 +1296,7 @@ void FSharedState::CloseStreamInternal(FStreamDescription& Stream, const FRWScop
 	if (bNotifyRemote && Stream.RemoteAddress.IsValid())
 	{
 		UE_CLOG(bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Stream removed"), *NiceName, *Stream.SourcePoint.ToString());
-		FDirectLinkMsg_CloseStreamRequest* Request = NewMessage<FDirectLinkMsg_CloseStreamRequest>();
+		FDirectLinkMsg_CloseStreamRequest* Request = FMessageEndpoint::MakeMessage<FDirectLinkMsg_CloseStreamRequest>();
 		Request->RecipientStreamPort = Stream.RemoteStreamPort;
 
 		UE_CLOG(bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Send FDirectLinkMsg_CloseStreamRequest"), *NiceName);

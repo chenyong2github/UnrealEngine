@@ -156,7 +156,7 @@ void FPipeBase::SendInternal(MessageType* Message, int32 ByteSizeHint)
 
 void FScenePipeToNetwork::SetupScene(FSetupSceneArg& SetupSceneArg)
 {
-	FDirectLinkMsg_DeltaMessage* Message = NewMessage<FDirectLinkMsg_DeltaMessage>(
+	FDirectLinkMsg_DeltaMessage* Message = FMessageEndpoint::MakeMessage<FDirectLinkMsg_DeltaMessage>(
 		FDirectLinkMsg_DeltaMessage::SetupScene, RemoteStreamPort, 0, 0
 	);
 
@@ -177,7 +177,7 @@ void FScenePipeToNetwork::OpenDelta(FOpenDeltaArg& OpenDeltaArg)
 
 	NextMessageNumber = 0;
 
-	FDirectLinkMsg_DeltaMessage* Message = NewMessage<FDirectLinkMsg_DeltaMessage>(
+	FDirectLinkMsg_DeltaMessage* Message = FMessageEndpoint::MakeMessage<FDirectLinkMsg_DeltaMessage>(
 		FDirectLinkMsg_DeltaMessage::OpenDelta,
 		RemoteStreamPort, BatchNumber, NextMessageNumber++
 	);
@@ -219,7 +219,7 @@ void FScenePipeToNetwork::OnSetElement(FSetElementArg& SetElementArg)
 
 void FScenePipeToNetwork::SendSetElementBuffer()
 {
-	FDirectLinkMsg_DeltaMessage* Message = NewMessage<FDirectLinkMsg_DeltaMessage>(
+	FDirectLinkMsg_DeltaMessage* Message = FMessageEndpoint::MakeMessage<FDirectLinkMsg_DeltaMessage>(
 		FDirectLinkMsg_DeltaMessage::SetElements,
 		RemoteStreamPort, BatchNumber, NextMessageNumber++
 	);
@@ -233,7 +233,7 @@ void FScenePipeToNetwork::SendSetElementBuffer()
 
 void FScenePipeToNetwork::RemoveElements(FRemoveElementsArg& RemoveElementsArg)
 {
-	FDirectLinkMsg_DeltaMessage* Message = NewMessage<FDirectLinkMsg_DeltaMessage>(
+	FDirectLinkMsg_DeltaMessage* Message = FMessageEndpoint::MakeMessage<FDirectLinkMsg_DeltaMessage>(
 		FDirectLinkMsg_DeltaMessage::RemoveElements,
 		RemoteStreamPort, BatchNumber, NextMessageNumber++
 	);
@@ -248,7 +248,7 @@ void FScenePipeToNetwork::RemoveElements(FRemoveElementsArg& RemoveElementsArg)
 void FScenePipeToNetwork::OnCloseDelta(FCloseDeltaArg& CloseDeltaArg)
 {
 	SendSetElementBuffer();
-	FDirectLinkMsg_DeltaMessage* Message = NewMessage<FDirectLinkMsg_DeltaMessage>(
+	FDirectLinkMsg_DeltaMessage* Message = FMessageEndpoint::MakeMessage<FDirectLinkMsg_DeltaMessage>(
 		FDirectLinkMsg_DeltaMessage::CloseDelta,
 		RemoteStreamPort, BatchNumber, NextMessageNumber++
 	);
@@ -315,7 +315,7 @@ void FScenePipeFromNetwork::OnOpenHaveList(const FSceneIdentifier& HaveSceneId, 
 	BatchNumber = SyncCycle;
 	NextMessageNumber = 0;
 
-	FDirectLinkMsg_HaveListMessage* Message = NewMessage<FDirectLinkMsg_HaveListMessage>(
+	FDirectLinkMsg_HaveListMessage* Message = FMessageEndpoint::MakeMessage<FDirectLinkMsg_HaveListMessage>(
 		FDirectLinkMsg_HaveListMessage::EKind::OpenHaveList,
 		RemoteStreamPort, BatchNumber, NextMessageNumber++
 	);
@@ -335,7 +335,7 @@ void FScenePipeFromNetwork::OnHaveElement(FSceneGraphId NodeId, FElementHash Hav
 {
 	if (BufferedHaveListContent == nullptr)
 	{
-		BufferedHaveListContent = NewMessage<FDirectLinkMsg_HaveListMessage>(
+		BufferedHaveListContent = FMessageEndpoint::MakeMessage<FDirectLinkMsg_HaveListMessage>(
 			FDirectLinkMsg_HaveListMessage::EKind::HaveListElement,
 			RemoteStreamPort, 0, 0
 		);
@@ -369,7 +369,7 @@ void FScenePipeFromNetwork::OnCloseHaveList()
 {
 	SendHaveElements();
 
-	FDirectLinkMsg_HaveListMessage* Message = NewMessage<FDirectLinkMsg_HaveListMessage>(
+	FDirectLinkMsg_HaveListMessage* Message = FMessageEndpoint::MakeMessage<FDirectLinkMsg_HaveListMessage>(
 		FDirectLinkMsg_HaveListMessage::EKind::CloseHaveList,
 		RemoteStreamPort, BatchNumber, NextMessageNumber++
 	);
@@ -384,7 +384,7 @@ void FScenePipeFromNetwork::DelegateDeltaMessage(FDirectLinkMsg_DeltaMessage& Me
 	UE_LOG(LogDirectLinkNet, Verbose, TEXT("Delta message transmited: b:%d m:%d k:%d"), Message.BatchCode, Message.MessageCode, Message.Kind);
 
 	// acknowledge message (allows the sender to track communication progress)
-	auto* AckMessage = NewMessage<FDirectLinkMsg_HaveListMessage>(
+	auto* AckMessage = FMessageEndpoint::MakeMessage<FDirectLinkMsg_HaveListMessage>(
 		FDirectLinkMsg_HaveListMessage::EKind::AckDeltaMessage,
 		RemoteStreamPort, Message.BatchCode, Message.MessageCode
 	);
