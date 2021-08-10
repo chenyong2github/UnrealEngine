@@ -909,7 +909,7 @@ namespace Audio
 	{
 		if (EndpointData.NonSoundfieldEndpoint.IsValid())
 		{
-			return EndpointData.NonSoundfieldEndpoint->IsImplemented();
+			return !EndpointData.NonSoundfieldEndpoint->IsImplemented();
 		}
 		else
 		{
