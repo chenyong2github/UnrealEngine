@@ -44,6 +44,8 @@
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Rendering/NaniteResources.h"
+#include "Rendering/NaniteStreamingManager.h"
 
 DECLARE_GPU_DRAWCALL_STAT_NAMED(ShadowDepths, TEXT("Shadow Depths"));
 
@@ -1564,7 +1566,8 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 	const bool bNaniteEnabled = 
 		UseNanite(ShaderPlatform) &&
 		ViewFamily.EngineShowFlags.NaniteMeshes &&
-		CVarNaniteShadows.GetValueOnRenderThread() != 0;
+		CVarNaniteShadows.GetValueOnRenderThread() != 0 &&
+		Nanite::GStreamingManager.HasResourceEntries();
 
 	Scene->PrevAtlasHZBs.SetNum(SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num());
 
