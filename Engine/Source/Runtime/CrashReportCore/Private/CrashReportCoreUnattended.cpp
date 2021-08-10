@@ -73,5 +73,5 @@ bool FCrashReportCoreUnattended::Tick(float UnusedDeltaTime)
 
 void FCrashReportCoreUnattended::StartTicker()
 {
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCrashReportCoreUnattended::Tick), 1.f);
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCrashReportCoreUnattended::Tick), 1.f);
 }
