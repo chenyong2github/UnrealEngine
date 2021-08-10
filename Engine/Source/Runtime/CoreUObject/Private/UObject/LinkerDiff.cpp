@@ -90,8 +90,8 @@ void FLinkerDiff::GenerateSummaryDiff(FLinker* LHSLinker, FLinker* RHSLinker)
 
 	// Package Tag, file version
 	COMPARE_MEMBER(LHSSummary, RHSSummary, Tag);
-	//COMPARE_MEMBER(LHSSummary, RHSSummary, FileVersionUE4);
-	//COMPARE_MEMBER(LHSSummary, RHSSummary, FileVersionLicenseeUE4);
+	//COMPARE_MEMBER(LHSSummary, RHSSummary, FileVersionUE);
+	//COMPARE_MEMBER(LHSSummary, RHSSummary, FileVersionLicenseeUE);
 
 	//CustomVersionContainer
 
