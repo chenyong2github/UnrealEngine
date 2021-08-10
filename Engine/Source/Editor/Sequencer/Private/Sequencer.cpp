@@ -1484,6 +1484,7 @@ void FSequencer::DeleteSections(const TSet<TWeakObjectPtr<UMovieSceneSection>>& 
 			Track->SetFlags(RF_Transactional);
 			Track->Modify();
 			Track->RemoveSection(*Section);
+			Track->UpdateEasing();
 		}
 
 		bAnythingRemoved = true;
