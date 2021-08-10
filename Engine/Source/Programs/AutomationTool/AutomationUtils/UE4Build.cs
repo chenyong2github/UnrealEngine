@@ -382,7 +382,7 @@ namespace AutomationTool
 
             {
                 // Use Version.h data to update MetaData.cs so the assemblies match the engine version.
-				FileReference MetaDataFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "DotNETCommon", "MetaData.cs");
+				FileReference MetaDataFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "Shared", "MetaData.cs");
 
 				if (bDoUpdateVersionFiles)
                 {
