@@ -16233,8 +16233,8 @@ void GetDefaultThreadConfigs()
 	RenderThreadConfig.Affinity = FPlatformAffinity::GetRenderingThreadMask();
 	RHIThreadConfig.Affinity = FPlatformAffinity::GetRHIThreadMask();
 
-	TaskThreadConfig.Priority = EThreadPriority::TPri_Normal;
-	TaskBPThreadConfig.Priority = EThreadPriority::TPri_BelowNormal;
+	TaskThreadConfig.Priority = FPlatformAffinity::GetTaskThreadPriority();
+	TaskBPThreadConfig.Priority = FPlatformAffinity::GetTaskBPThreadPriority();
 	GameThreadConfig.Priority = FPlatformAffinity::GetGameThreadPriority();
 	RenderThreadConfig.Priority = FPlatformAffinity::GetRenderingThreadPriority();
 	RHIThreadConfig.Priority = FPlatformAffinity::GetRHIThreadPriority();
