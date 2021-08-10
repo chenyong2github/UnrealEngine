@@ -618,12 +618,23 @@ public:
 	virtual FPropertyAccess::Result GetValue( FQuat& OutValue ) const override;
 	virtual FPropertyAccess::Result SetValue( const FQuat& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) override;
 
-	virtual FPropertyAccess::Result SetX( float InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
-	virtual FPropertyAccess::Result SetY( float InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
-	virtual FPropertyAccess::Result SetZ( float InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
-	virtual FPropertyAccess::Result SetW( float InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
+	virtual FPropertyAccess::Result SetX(double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags);
+	virtual FPropertyAccess::Result SetY(double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags);
+	virtual FPropertyAccess::Result SetZ(double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags);
+	virtual FPropertyAccess::Result SetW(double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags);
 private:
-	TArray< TSharedPtr<FPropertyHandleFloat> > VectorComponents;
+	// LWC_TODO: Replace with FPropertyHandleDouble once all types support it
+	class FPropertyHandleMixed: public FPropertyHandleBase
+	{
+	public:
+		FPropertyHandleMixed(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities);
+		static bool Supports(TSharedRef<FPropertyNode> PropertyNode);
+		virtual FPropertyAccess::Result GetValue(float& OutValue) const override;
+		virtual FPropertyAccess::Result GetValue(double& OutValue) const override;
+		virtual FPropertyAccess::Result SetValue(const float& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
+		virtual FPropertyAccess::Result SetValue(const double& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
+	};
+	TArray< TSharedPtr<FPropertyHandleMixed> > VectorComponents;	
 };
 
 class FPropertyHandleRotator : public FPropertyHandleBase
