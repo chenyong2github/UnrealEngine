@@ -80,13 +80,18 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTra
 	const FViewInfo& ReferenceView = Views[0];
 	const int32 NumTotalBindings = ReferenceView.VisibleRayTracingMeshCommands.Num();
 
+	auto Alloc = [&](uint32 Size, uint32 Align)
+	{
+		return RHICmdList.Bypass()
+			? FMemStack::Get().Alloc(Size, Align)
+			: RHICmdList.Alloc(Size, Align);
+	};
+
 	const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
-	FRayTracingLocalShaderBindings* Bindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
-		? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
-		: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
+	FRayTracingLocalShaderBindings* Bindings = (FRayTracingLocalShaderBindings*)Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings));
 
 	const uint32 NumUniformBuffers = 1;
-	FRHIUniformBuffer** UniformBufferArray = (FRHIUniformBuffer**) RHICmdList.Alloc(sizeof(FRHIUniformBuffer*) * NumUniformBuffers, alignof(FRHIUniformBuffer*));
+	FRHIUniformBuffer** UniformBufferArray = (FRHIUniformBuffer**)Alloc(sizeof(FRHIUniformBuffer*) * NumUniformBuffers, alignof(FRHIUniformBuffer*));
 	UniformBufferArray[0] = ReferenceView.ViewUniformBuffer.GetReference();
 
 	uint32 BindingIndex = 0;

@@ -131,8 +131,8 @@ public:
 
 	uint32 BuffersSize;
 
-	/** Precooked raytracing data*/
-	TResourceArray<uint8> RayTracingData;
+	/** Precooked ray tracing geometry. Used as source data to build skeletal mesh instance ray tracing geometry. */
+	FRayTracingGeometry SourceRayTracingGeometry;
 
 	typename TChooseClass<USE_BULKDATA_STREAMING_TOKEN, FBulkDataStreamingToken, FByteBulkData>::Result StreamingBulkData;
 
