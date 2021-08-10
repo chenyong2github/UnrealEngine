@@ -817,7 +817,7 @@ URigVMMemoryStorage* URigVM::GetMemoryByType(ERigVMMemoryType InMemoryType, bool
 					}
 				}
 			}
-			check(WorkMemoryStorageObject->GetOuter() == this);
+			check(DebugMemoryStorageObject->GetOuter() == this);
 			return DebugMemoryStorageObject;
 		}
 		default:
