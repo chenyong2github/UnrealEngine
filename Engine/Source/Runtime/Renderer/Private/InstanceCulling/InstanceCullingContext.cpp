@@ -209,6 +209,7 @@ public:
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 		SHADER_PARAMETER(uint32, GPUSceneNumInstances)
 		SHADER_PARAMETER(uint32, GPUSceneNumPrimitives)
+		SHADER_PARAMETER(uint32, GPUSceneNumLightmapDataItems)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceProcessingGPULoadBalancer::FShaderParameters, LoadBalancerParameters)
 
@@ -391,6 +392,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	PassParametersTmp.GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 	PassParametersTmp.GPUSceneNumInstances = GPUScene.GetNumInstances();
 	PassParametersTmp.GPUSceneNumPrimitives = GPUScene.GetNumPrimitives();
+	PassParametersTmp.GPUSceneNumLightmapDataItems = GPUScene.GetNumLightmapDataItems();
 	PassParametersTmp.DynamicInstanceIdOffset = DynamicInstanceIdOffset;
 	PassParametersTmp.DynamicInstanceIdMax = DynamicInstanceIdOffset + DynamicInstanceIdNum;
 
@@ -688,6 +690,7 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 	PassParametersTmp.GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 	PassParametersTmp.GPUSceneNumInstances = GPUScene.GetNumInstances();
 	PassParametersTmp.GPUSceneNumPrimitives = GPUScene.GetNumPrimitives();
+	PassParametersTmp.GPUSceneNumLightmapDataItems = GPUScene.GetNumLightmapDataItems();
 
 	PassParametersTmp.DrawCommandDescs = GraphBuilder.CreateSRV(DrawCommandDescsRDG);
 	PassParametersTmp.BatchInfos = GraphBuilder.CreateSRV(BatchInfosRDG);

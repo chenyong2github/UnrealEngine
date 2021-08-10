@@ -293,6 +293,7 @@ public:
 
 	int32 GetNumInstances() const { return InstanceSceneDataAllocator.GetMaxSize(); }
 	int32 GetNumPrimitives() const { return DynamicPrimitivesOffset; }
+	int32 GetNumLightmapDataItems() const { return LightmapDataAllocator.GetMaxSize(); }
 
 	bool bUpdateAllPrimitives;
 
