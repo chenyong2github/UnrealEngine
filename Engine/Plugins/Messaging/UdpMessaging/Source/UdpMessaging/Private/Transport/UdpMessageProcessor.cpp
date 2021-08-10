@@ -896,7 +896,6 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 		TSharedPtr<FUdpMessageSegmenter>* FoundSegmenter = NodeInfo.Segmenters.Find(MessageId);
 		if (!FoundSegmenter)
 		{
-			UE_LOG(LogUdpMessaging, Warning, TEXT("Can't find segmenter for %d"), MessageId);
 			continue;
 		}
 		TSharedPtr<FUdpMessageSegmenter>& Segmenter = *FoundSegmenter;
