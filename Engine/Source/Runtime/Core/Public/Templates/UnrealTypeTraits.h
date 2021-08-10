@@ -97,11 +97,15 @@ struct TNthTypeFromParameterPack<0, T, OtherTypes...>
 /**
  * TIsCharType
  */
-template<typename T> struct TIsCharType           { enum { Value = false }; };
-template<>           struct TIsCharType<ANSICHAR> { enum { Value = true  }; };
-template<>           struct TIsCharType<UCS2CHAR> { enum { Value = true  }; };
-template<>           struct TIsCharType<WIDECHAR> { enum { Value = true  }; };
-template<>           struct TIsCharType<UTF8CHAR> { enum { Value = true  }; };
+template<typename T> struct TIsCharType            { enum { Value = false }; };
+template<>           struct TIsCharType<ANSICHAR>  { enum { Value = true  }; };
+template<>           struct TIsCharType<UCS2CHAR>  { enum { Value = true  }; };
+#if !PLATFORM_UCS2CHAR_IS_UTF16CHAR
+template<>           struct TIsCharType<UTF16CHAR> { enum { Value = true  }; };
+#endif
+template<>           struct TIsCharType<WIDECHAR>  { enum { Value = true  }; };
+template<>           struct TIsCharType<UTF8CHAR>  { enum { Value = true  }; };
+template<>           struct TIsCharType<UTF32CHAR> { enum { Value = true  }; };
 
 /**
  * TFormatSpecifier, only applies to numeric types
