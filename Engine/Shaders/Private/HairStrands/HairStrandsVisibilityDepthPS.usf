@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-
 #include "../SceneTexturesCommon.ush"
 #include "../DeferredShadingCommon.ush"
-#include "HairStrandsVisibilityCommonStruct.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
 // Manual binding of the sample data as the uniform buffer is not created at this point

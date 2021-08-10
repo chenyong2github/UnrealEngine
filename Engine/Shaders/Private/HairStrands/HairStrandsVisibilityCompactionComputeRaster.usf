@@ -3,7 +3,6 @@
 #pragma once
 
 #include "../Common.ush"
-#include "HairStrandsVisibilityCommonStruct.ush" 
 #include "HairStrandsVisibilityCommon.ush" 
 
 #if PERMUTATION_GROUPSIZE == 0

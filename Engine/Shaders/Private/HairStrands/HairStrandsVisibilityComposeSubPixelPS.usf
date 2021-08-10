@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HairStrandsVisibilityCommonStruct.ush" 
 #include "../Common.ush"
-#include "../CommonViewUniformBuffer.ush"
-
 #include "../SceneTexturesCommon.ush"
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"   

@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HairStrandsVisibilityCommonStruct.ush"
 #include "../Common.ush"
 
 // Note, this doesn't work after refactoring, undoing the workaround.

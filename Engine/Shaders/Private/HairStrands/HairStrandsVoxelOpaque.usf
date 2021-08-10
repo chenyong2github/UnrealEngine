@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
-#include "../CommonViewUniformBuffer.ush"
 #include "../SceneTextureParameters.ush"
 #include "../PositionReconstructionCommon.ush" 
-#include "HairStrandsVoxelPageCommonStruct.ush"
 #include "HairStrandsVoxelPageCommon.ush"
 
 #if SHADER_INJECTOPAQUE_VIRTUALVOXEL

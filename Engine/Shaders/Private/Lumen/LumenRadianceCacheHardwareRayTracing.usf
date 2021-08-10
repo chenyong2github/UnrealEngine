@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// TODO: Remove hair dependency
-#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
-
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
 #include "../MortonCode.ush"

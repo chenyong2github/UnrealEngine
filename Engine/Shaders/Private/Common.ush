@@ -61,8 +61,8 @@
 	#define TextureCubeArray TextureCube
 #endif
 
-// Need to get the definition of Nanite packed view for generated uniform buffer (which is pulled in by Common.ush)
-#include "Nanite/PackedNaniteView.ush"
+// Add definition of types used by generated uniform buffers
+#include "GeneratedUniformBufferTypes.ush"
 
 // Generated file that contains uniform buffer declarations needed by the shader being compiled 
 #include "/Engine/Generated/GeneratedUniformBuffers.ush" 

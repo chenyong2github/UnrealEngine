@@ -5,8 +5,6 @@
 =============================================================================*/
 
 #define SUPPORT_CONTACT_SHADOWS 1
-#include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
-#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 #include "../SceneTexturesCommon.ush"
 #include "../DeferredShadingCommon.ush"

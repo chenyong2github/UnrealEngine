@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 
 #include "HairStrandsClusterCommon.ush"
