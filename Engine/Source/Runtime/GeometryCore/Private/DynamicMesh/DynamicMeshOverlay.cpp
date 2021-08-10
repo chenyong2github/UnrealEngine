@@ -363,7 +363,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::InitializeTriangles(int MaxTria
 
 
 template<typename RealType, int ElementSize>
-EMeshResult TDynamicMeshOverlay<RealType, ElementSize>::SetTriangle(int tid, const FIndex3i& tv)
+EMeshResult TDynamicMeshOverlay<RealType, ElementSize>::SetTriangle(int tid, const FIndex3i& tv, bool bAllowElementFreeing)
 {
 	if (IsElement(tv[0]) == false || IsElement(tv[1]) == false || IsElement(tv[2]) == false)
 	{
@@ -376,10 +376,38 @@ EMeshResult TDynamicMeshOverlay<RealType, ElementSize>::SetTriangle(int tid, con
 		return EMeshResult::Failed_InvalidNeighbourhood;
 	}
 
-	InternalSetTriangle(tid, tv, true);
+	InternalSetTriangle(tid, tv, true, bAllowElementFreeing);
 
 	//updateTimeStamp(true);
 	return EMeshResult::Ok;
+}
+
+template<typename RealType, int ElementSize>
+void UE::Geometry::TDynamicMeshOverlay<RealType, ElementSize>::FreeUnusedElements(const TSet<int>* ElementsToCheck)
+{
+	auto FreeIfUnused = [this](int ElementID)
+	{
+		if (ElementsRefCounts.IsValid(ElementID) && ElementsRefCounts.GetRefCount(ElementID) == 1)
+		{
+			ElementsRefCounts.Decrement(ElementID);
+			ParentVertices[ElementID] = FDynamicMesh3::InvalidID;
+		}
+	};
+
+	if (ElementsToCheck)
+	{
+		for (int ElementID : *ElementsToCheck)
+		{
+			FreeIfUnused(ElementID);
+		}
+	}
+	else
+	{
+		for (int ElementID : ElementsRefCounts.Indices())
+		{
+			FreeIfUnused(ElementID);
+		}
+	}
 }
 
 template<typename RealType, int ElementSize>
@@ -405,18 +433,26 @@ void TDynamicMeshOverlay<RealType, ElementSize>::UnsetTriangle(int TriangleID)
 
 
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, const FIndex3i& tv, bool bUpdateRefCounts)
+void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, const FIndex3i& tv, bool bUpdateRefCounts, bool bAllowElementFreeing)
 {
 	if (ensure(ParentMesh) == false)
 	{
 		return;
 	}
 
+	// If we have to decrement refcounts, we will do it at the end, because Decrement() frees
+	// elements as soon as they lose their last reference, so a Decrement followed by Increment
+	// can leave things in an invalid state.
+	bool bNeedToDecrement = false;
+	FIndex3i OldTriElements; // only used if need to decrement.
+
 	int i = 3 * tid;
 
+	// See if triangle existed and make it exist if not
 	if (!ElementTriangles.SetMinimumSize(i + 3, FDynamicMesh3::InvalidID) && bUpdateRefCounts)
 	{
-		UnsetTriangle(tid);
+		OldTriElements = GetTriangle(tid);
+		bNeedToDecrement = (OldTriElements[0] != FDynamicMesh3::InvalidID);
 	}
 
 	ElementTriangles[i + 2] = tv[2];
@@ -428,6 +464,20 @@ void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, co
 		ElementsRefCounts.Increment(tv[0]);
 		ElementsRefCounts.Increment(tv[1]);
 		ElementsRefCounts.Increment(tv[2]);
+
+		if (bNeedToDecrement)
+		{
+			for (int j = 0; j < 3; ++j) 
+			{
+				ElementsRefCounts.Decrement(OldTriElements[j]);
+
+				if (bAllowElementFreeing && ElementsRefCounts.GetRefCount(OldTriElements[j]) == 1)
+				{
+					ElementsRefCounts.Decrement(OldTriElements[j]);
+					ParentVertices[OldTriElements[j]] = FDynamicMesh3::InvalidID;
+				}
+			};
+		}
 	}
 
 	if (tv != FDynamicMesh3::InvalidTriangle)
@@ -1413,10 +1463,11 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::CheckValidity(bool bAllowNonMan
 		}
 	}
 	// verify that refcount list counts are same as actual reference counts
-	for (int elemid : ElementsRefCounts.Indices())
+	for (int32 ElementID = 0; ElementID < RealRefCounts.Num(); ++ElementID)
 	{
-		int CurRefCount = ElementsRefCounts.GetRefCount(elemid);
-		CheckOrFailF(CurRefCount == RealRefCounts[elemid] + 1);
+		int32 CurRefCount = ElementsRefCounts.GetRefCount(ElementID);
+		CheckOrFailF((RealRefCounts[ElementID] == 0 && CurRefCount == 0)
+			|| (RealRefCounts[ElementID] != 0 && CurRefCount == RealRefCounts[ElementID] + 1));
 	}
 
 	return is_ok;
