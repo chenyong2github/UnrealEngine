@@ -70,7 +70,7 @@
   </Choose>
 
   <ItemGroup>
-    <Compile Include="..\DotNETCommon\MetaData.cs">
+    <Compile Include="..\Shared\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
   </ItemGroup>
@@ -97,7 +97,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotNETCommon\BuildUtilities\BuildUtilities.csproj" />
+    <ProjectReference Include="..\Shared\EpicGames.Build\EpicGames.Build.csproj" />
     <ProjectReference Include="..\Shared\EpicGames.Core\EpicGames.Core.csproj" />
   </ItemGroup>
   <ItemGroup>

@@ -16,15 +16,15 @@ rem ## Change the CWD to /Engine/Source.
 pushd "%~dp0..\..\Source"
 if not exist ..\Build\BatchFiles\BuildUAT.bat goto Error_BatchFileInWrongLocation
 
-rem Check to see if the files in the AutomationTool, BuildUtilities, EpicGames.Core, or UnrealBuildTool directory have changed.
+rem Check to see if the files in the AutomationTool, EpicGames.Build, EpicGames.Core, or UnrealBuildTool directory have changed.
 rem find ".cs" files to only lines that match those names - excludes lines that will change for uninteresting reasons, like free space
 md ..\Intermediate\Build >nul 2>nul
 
 dir /s^
  Programs\Shared\EpicGames.Core\*.cs^
  Programs\Shared\EpicGames.Core\*.csproj^
- Programs\DotNETCommon\BuildUtilities\*.cs^
- Programs\DotNETCommon\BuildUtilities\*.csproj^
+ Programs\Shared\EpicGames.Build\*.cs^
+ Programs\Shared\EpicGames.Build\*.csproj^
  Programs\UnrealBuildTool\*.cs^
  Programs\UnrealBuildTool\*.csproj^
  | find ".cs" >..\Intermediate\Build\AutomationToolFiles.txt
