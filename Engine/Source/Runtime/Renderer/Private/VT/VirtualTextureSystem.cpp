@@ -122,6 +122,12 @@ static TAutoConsoleVariable<int32> CVarVTResidencyShow(
 	TEXT("Show on screen HUD for virtual texture physical pool residency"),
 	ECVF_Default
 );
+static TAutoConsoleVariable<int32> CVarVTResidencyNotify(
+	TEXT("r.VT.Residency.Notify"),
+	0,
+	TEXT("Show on screen notifications for virtual texture physical pool residency"),
+	ECVF_Default
+);
 
 static FORCEINLINE uint32 EncodePage(uint32 ID, uint32 vLevel, uint32 vTileX, uint32 vTileY)
 {
@@ -441,8 +447,9 @@ void FVirtualTextureSystem::DumpPoolUsageFromConsole()
 			for (TPair<uint32, uint32> ProducerCount : ProducerCountMap)
 			{
 				// Filter out producers that only have locked page mapped.
+				// Keep all producers for non compressed formats (assuming that we want to avoid these as much as possible).
 				// In future we can add other filters here (count, age etc), or we can dump more info and process off line.
-				if (ProducerCount.Value > 1)
+				if (ProducerCount.Value > 1 || GPixelFormats[PhysicalSpace.GetFormat(0)].BlockSizeX == 1)
 				{
 					SortedProducerCounts.Add(ProducerCount);
 				}
@@ -463,14 +470,6 @@ void FVirtualTextureSystem::DumpPoolUsageFromConsole()
 		}
 	}
 }
-
-#if !UE_BUILD_SHIPPING
-void FVirtualTextureSystem::GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages)
-{
-	FScopeLock Locker(&OnScreenMessageLock);
-	OutMessages.Append(OnScreenMessages);
-}
-#endif
 
 #if WITH_EDITOR
 void FVirtualTextureSystem::SaveAllocatorImagesFromConsole()
@@ -1344,6 +1343,10 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 
 	UpdateResidencyTracking();
 
+#if !UE_BUILD_SHIPPING
+	UpdateNotifications();
+#endif
+
 	ReleasePendingSpaces();
 }
 
@@ -2215,28 +2218,6 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 		INC_DWORD_STAT_BY(STAT_NumStacksRequested, RequestList->GetNumLoadRequests());
 		INC_DWORD_STAT_BY(STAT_NumStacksProduced, NumStacksProduced);
 		INC_DWORD_STAT_BY(STAT_NumPageAllocateFails, NumPageAllocateFails);
-
-#if !UE_BUILD_SHIPPING
-		{
-			FScopeLock Locker(&OnScreenMessageLock);
-			OnScreenMessages.Reset();
-
-			for (int32 SpaceIndex = 0u; SpaceIndex < PhysicalSpaces.Num(); ++SpaceIndex)
-			{
-				const FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[SpaceIndex];
-				// Once a pool fails an allocation, keep displaying the message for a minimum number of frames, to avoid the message quickly flickering on/off
-				if (PhysicalSpace != nullptr && Frame <= PhysicalSpace->GetLastFrameOversubscribed() + 60u)
-				{
-					FString const& FormatString = PhysicalSpace->GetFormatString();
-					const float MipBias = PhysicalSpace->GetResidencyMipMapBias();
-
-					OnScreenMessages.Add(
-						FCoreDelegates::EOnScreenMessageSeverity::Warning, 
-						FText::Format(LOCTEXT("VTOversubscribed", "VT Pool [{0}] is oversubscribed. Setting MipBias {1}"), FText::FromString(FormatString), FText::AsNumber(MipBias)));
-				}
-			}
-		}
-#endif // !UE_BUILD_SHIPPING
 	}
 
 	{
@@ -2360,9 +2341,45 @@ float FVirtualTextureSystem::GetGlobalMipBias() const
 	return UTexture2D::GetGlobalMipMapLODBias() + MaxResidencyMipMapBias;
 }
 
+#if !UE_BUILD_SHIPPING
+
+void FVirtualTextureSystem::GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages)
+{
+	FScopeLock Locker(&OnScreenMessageLock);
+	OutMessages.Append(OnScreenMessages);
+}
+
+void FVirtualTextureSystem::UpdateNotifications()
+{
+	FScopeLock Locker(&OnScreenMessageLock);
+	OnScreenMessages.Reset();
+	UpdateResidencyNotifications();
+}
+
+void FVirtualTextureSystem::UpdateResidencyNotifications()
+{
+	if (CVarVTResidencyNotify.GetValueOnRenderThread() == 0)
+	{
+		return;
+	}
+
+	for (int32 SpaceIndex = 0u; SpaceIndex < PhysicalSpaces.Num(); ++SpaceIndex)
+	{
+		const FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[SpaceIndex];
+		if (PhysicalSpace != nullptr && Frame <= PhysicalSpace->GetLastFrameOversubscribed() + 60u)
+		{
+			FString const& FormatString = PhysicalSpace->GetFormatString();
+			const float MipBias = PhysicalSpace->GetResidencyMipMapBias();
+
+			OnScreenMessages.Add(
+				FCoreDelegates::EOnScreenMessageSeverity::Warning,
+				FText::Format(LOCTEXT("VTOversubscribed", "VT Pool [{0}] is oversubscribed. Setting MipBias {1}"), FText::FromString(FormatString), FText::AsNumber(MipBias)));
+		}
+	}
+}
+
 void FVirtualTextureSystem::DrawResidencyHud(UCanvas* InCanvas, APlayerController* InController)
 {
-#if !UE_BUILD_SHIPPING
 	if (CVarVTResidencyShow.GetValueOnGameThread() == 0)
 	{
 		return;
@@ -2412,7 +2429,7 @@ void FVirtualTextureSystem::DrawResidencyHud(UCanvas* InCanvas, APlayerControlle
 			}
 
 			PhysicalSpace->DrawResidencyGraph(InCanvas->Canvas, CanvasPosition);
-		
+
 			GraphIndex++;
 		}
 	}
@@ -2421,8 +2438,8 @@ void FVirtualTextureSystem::DrawResidencyHud(UCanvas* InCanvas, APlayerControlle
 	InCanvas->Canvas->DrawShadowedString(25, 320, TEXT("MipMap Bias"), GEngine->GetSmallFont(), FLinearColor(0.1f, 0.8f, 0.1f));
 	InCanvas->Canvas->DrawShadowedString(125, 320, TEXT("Page Residency"), GEngine->GetSmallFont(), FLinearColor(0.8f, 0.1f, 0.1f));
 	InCanvas->Canvas->DrawShadowedString(225, 320, TEXT("LockedPage Residency"), GEngine->GetSmallFont(), FLinearColor(0.8f, 0.8f, 0.1f));
-
-#endif
 }
+
+#endif // !UE_BUILD_SHIPPING
 
 #undef LOCTEXT_NAMESPACE
