@@ -160,11 +160,6 @@ bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 		InId.CompilerVersionID == CompilerVersionId;
 }
 
-int32 FNiagaraShaderScript::PermutationIdToShaderStageIndex(int32 PermutationId) const
-{
-	return ShaderStageToPermutation[PermutationId].Key;
-}
-
 bool FNiagaraShaderScript::IsShaderMapComplete() const
 {
 	if (GameThreadShaderMap == nullptr)
@@ -190,25 +185,6 @@ bool FNiagaraShaderScript::IsShaderMapComplete() const
 		}
 	}
 	return true;
-}
-
-int32 FNiagaraShaderScript::ShaderStageIndexToPermutationId_RenderThread(int32 ShaderStageIndex) const
-{
-	check(IsInRenderingThread());
-	if (CachedData_RenderThread.NumPermutations > 1)
-	{
-		for (int32 i = 0; i < CachedData_RenderThread.ShaderStageToPermutation.Num(); ++i)
-		{
-			const TPair<int32, int32> MinMaxStage = CachedData_RenderThread.ShaderStageToPermutation[i];
-			if ((ShaderStageIndex >= MinMaxStage.Key) && (ShaderStageIndex < MinMaxStage.Value))
-			{
-				return i;
-			}
-		}
-		UE_LOG(LogShaders, Fatal, TEXT("FNiagaraShaderScript::ShaderStageIndexToPermutationId_RenderThread: Failed to map from simulation stage(%d) to permutation id."), ShaderStageIndex);
-	}
-
-	return 0;
 }
 
 void FNiagaraShaderScript::GetDependentShaderTypes(EShaderPlatform Platform, TArray<FShaderType*>& OutShaderTypes) const
@@ -321,7 +297,6 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 	Ar << NumPermutations;
-	Ar << ShaderStageToPermutation;
 
 	if (Ar.IsLoading())
 	{
@@ -488,24 +463,12 @@ void FNiagaraShaderScript::UpdateCachedData_PreCompile()
 {
 	if (BaseVMScript)
 	{
-		NumPermutations = 1;
-		ShaderStageToPermutation.Empty();
-
 		TConstArrayView<FSimulationStageMetaData> SimulationStages = BaseVMScript->GetSimulationStageMetaData();
-
-		// We add the number of simulation stages as Stage 0 is always the particle stage currently
-		NumPermutations += SimulationStages.Num();
-
-		ShaderStageToPermutation.Emplace(0, 1);
-		for (const FSimulationStageMetaData& StageMeta : SimulationStages)
-		{
-			ShaderStageToPermutation.Emplace(StageMeta.MinStage, StageMeta.MaxStage);
-		}
+		NumPermutations = SimulationStages.Num();
 	}
 	else
 	{
 		NumPermutations = 0;
-		ShaderStageToPermutation.Empty();
 	}
 }
 
@@ -551,8 +514,6 @@ void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerializ
 	{
 		CachedData.bIsComplete = 0;
 	}
-
-	CachedData.ShaderStageToPermutation = ShaderStageToPermutation;
 
 	if (bCalledFromSerialize)
 	{

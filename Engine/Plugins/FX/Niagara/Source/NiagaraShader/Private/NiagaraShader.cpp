@@ -405,20 +405,16 @@ void FNiagaraShaderType::BeginCompileShader(
 	const bool bUsesSimulationStages = Script->GetUsesSimulationStages();
 	if (bUsesSimulationStages)
 	{
-		const int32 StageIndex = Script->PermutationIdToShaderStageIndex(PermutationId);
 		NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_SHADER_PERMUTATIONS"), 1);
 		NewJob->Input.Environment.SetDefine(TEXT("DefaultSimulationStageIndex"), 0);
-		NewJob->Input.Environment.SetDefine(TEXT("SimulationStageIndex"), StageIndex);
+		NewJob->Input.Environment.SetDefine(TEXT("SimulationStageIndex"), PermutationId);
 		NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), 1);
 
-		if (PermutationId > 0)
+		TConstArrayView<FSimulationStageMetaData> SimStageMetaDataArray = const_cast<FNiagaraShaderScript*>(Script)->GetBaseVMScript()->GetSimulationStageMetaData();
+		const FSimulationStageMetaData& SimStageMetaData = SimStageMetaDataArray[PermutationId];
+		if (SimStageMetaData.bWritesParticles && SimStageMetaData.bPartialParticleUpdate)
 		{
-			TConstArrayView<FSimulationStageMetaData> SimStageMetaDataArray = const_cast<FNiagaraShaderScript*>(Script)->GetBaseVMScript()->GetSimulationStageMetaData();
-			const FSimulationStageMetaData& SimStageMetaData = SimStageMetaDataArray[PermutationId - 1];
-			if (SimStageMetaData.bWritesParticles && SimStageMetaData.bPartialParticleUpdate)
-			{
-				NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_PARTICLE_PARTIAL_ENABLED"), 1);
-			}
+			NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_PARTICLE_PARTIAL_ENABLED"), 1);
 		}
 	}
 	else

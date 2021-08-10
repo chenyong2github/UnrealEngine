@@ -186,22 +186,12 @@ namespace NiagaraScriptStatsLocal
 						for (const auto& ShaderScript : ShaderScripts)
 						{
 							TConstArrayView<FSimulationStageMetaData> SimulationStageMetaData = ShaderScript->GetBaseVMScript()->GetSimulationStageMetaData();
-							for (int32 iPermutation = 0; iPermutation < ShaderScript->GetNumPermutations(); ++iPermutation)
+							for (int32 iSimStageIndex=0; iSimStageIndex < SimulationStageMetaData.Num(); ++iSimStageIndex)
 							{
-								FNiagaraShaderRef Shader = ShaderScript->GetShaderGameThread(iPermutation);
+								FNiagaraShaderRef Shader = ShaderScript->GetShaderGameThread(iSimStageIndex);
 								if ( Shader.IsValid() )
 								{
-									FName StageName;
-									const int32 ShaderStage = iPermutation - 1;
-									if (SimulationStageMetaData.IsValidIndex(ShaderStage))
-									{
-										if (!SimulationStageMetaData[ShaderStage].SimulationStageName.IsNone())
-										{
-											StageName = SimulationStageMetaData[ShaderStage].SimulationStageName;
-										}
-									}
-
-									ResultsString.Appendf(TEXT("GPU: %s = "), StageName.IsNone() ? TEXT("Particles") : *StageName.ToString());
+									ResultsString.Appendf(TEXT("GPU: %s = "), *SimulationStageMetaData[iSimStageIndex].SimulationStageName.ToString());
 									if (Shader->GetNumInstructions() == 0)
 									{
 										ResultsString.Append(TEXT("n/a"));

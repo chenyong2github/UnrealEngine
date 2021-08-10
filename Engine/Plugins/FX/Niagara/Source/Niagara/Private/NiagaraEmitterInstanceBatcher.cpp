@@ -155,17 +155,6 @@ namespace NiagaraEmitterInstanceBatcherLocal
 			AfterTransitionArray.Emplace(IntUAV, AfterState, BeforeState);
 		}
 	}
-
-	static bool ShouldRunStage(FNiagaraComputeExecutionContext* ComputeContext, FNiagaraDataInterfaceProxyRW* IterationInterface, uint32 StageIndex, bool bResetData)
-	{
-		if (!IterationInterface || ComputeContext->SpawnStages.Num() == 0)
-		{
-			return true;
-		}
-
-		const bool bIsSpawnStage = ComputeContext->SpawnStages.Contains(StageIndex);
-		return bResetData == bIsSpawnStage;
-	}
 }
 
 FNiagaraUAVPoolAccessScope::FNiagaraUAVPoolAccessScope(NiagaraEmitterInstanceBatcher& InBatcher)
@@ -739,14 +728,7 @@ void NiagaraEmitterInstanceBatcher::DumpDebugFrame()
 				Builder.Appendf(TEXT("Proxy(%p) "), DispatchInstance.Tick.SystemGpuComputeProxy);
 				Builder.Appendf(TEXT("ComputeContext(%p) "), InstanceData.Context);
 				Builder.Appendf(TEXT("Emitter(%s) "), InstanceData.Context->GetDebugSimName());
-				if (SimStageData.StageMetaData)
-				{
-					Builder.Appendf(TEXT("Stage(%d | %s) "), SimStageData.StageIndex, *SimStageData.StageMetaData->SimulationStageName.ToString());
-				}
-				else
-				{
-					Builder.Appendf(TEXT("Stage(%d) "), SimStageData.StageIndex);
-				}
+				Builder.Appendf(TEXT("Stage(%d | %s) "), SimStageData.StageIndex, *SimStageData.StageMetaData->SimulationStageName.ToString());
 
 				if (InstanceData.bResetData)
 				{
@@ -783,7 +765,7 @@ void NiagaraEmitterInstanceBatcher::DumpDebugFrame()
 				}
 				Builder.Appendf(TEXT("Source(%p 0x%08x %d) "), SimStageData.Source, SimStageData.SourceCountOffset, SimStageData.SourceNumInstances);
 				Builder.Appendf(TEXT("Destination(%p 0x%08x %d) "), SimStageData.Destination, SimStageData.DestinationCountOffset, SimStageData.DestinationNumInstances);
-				Builder.Appendf(TEXT("Iteration(%s) "), SimStageData.AlternateIterationSource ? *SimStageData.AlternateIterationSource->SourceDIName.ToString() : TEXT("Particles"));
+				Builder.Appendf(TEXT("Iteration(%d | %s) "), SimStageData.IterationIndex, SimStageData.AlternateIterationSource ? *SimStageData.AlternateIterationSource->SourceDIName.ToString() : TEXT("Particles"));
 				UE_LOG(LogNiagara, Warning, TEXT("%s"), Builder.ToString());
 			}
 
@@ -961,11 +943,18 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 			}
 #endif
 
+			// Nothing to dispatch?
+			if ( InstanceData.TotalDispatches == 0 )
+			{
+				continue;
+			}
+
 			// Determine this instances start dispatch group, in the case of emitter dependencies (i.e. particle reads) we need to continue rather than starting again
 			iInstanceStartDispatchGroup = InstanceData.bStartNewOverlapGroup ? iInstanceCurrDispatchGroup : iInstanceStartDispatchGroup;
 			iInstanceCurrDispatchGroup = iInstanceStartDispatchGroup;
 
-			GpuDispatchList.PreAllocateGroups(iInstanceCurrDispatchGroup + ComputeContext->MaxUpdateIterations);
+			// Pre-allocator groups
+			GpuDispatchList.PreAllocateGroups(iInstanceCurrDispatchGroup + InstanceData.TotalDispatches);
 
 			// Calculate instance counts
 			const uint32 MaxBufferInstances = ComputeContext->MainDataSet->GetMaxInstanceCount();
@@ -988,73 +977,37 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 
 			bHasFreeIDUpdates |= ComputeContext->MainDataSet->RequiresPersistentIDs();
 
-			// Add particle update / spawn stage
-			{
-				FNiagaraGpuDispatchGroup& DispatchGroup = GpuDispatchList.DispatchGroups[iInstanceCurrDispatchGroup++];
-				FNiagaraGpuDispatchInstance& DispatchInstance = DispatchGroup.DispatchInstances.Emplace_GetRef(Tick, InstanceData);
-				FNiagaraSimStageData& SimStageData = DispatchInstance.SimStageData;
-
-				SimStageData.bFirstStage = true;
-				SimStageData.StageIndex = 0;
-				SimStageData.Source = ComputeContext->bHasTickedThisFrame_RT ? ComputeContext->GetPrevDataBuffer() : ComputeContext->MainDataSet->GetCurrentData();
-				SimStageData.SourceCountOffset = ComputeContext->CountOffset_RT;
-				SimStageData.SourceNumInstances = PrevNumInstances;
-
-				// Validation as a non zero instance count must have a valid count offset
-				check(SimStageData.SourceCountOffset != INDEX_NONE || SimStageData.SourceNumInstances == 0);
-
-				SimStageData.Destination = ComputeContext->GetNextDataBuffer();
-				SimStageData.DestinationCountOffset = GPUInstanceCounterManager.AcquireEntry();
-				SimStageData.DestinationNumInstances = ComputeContext->CurrentNumInstances_RT;
-
-				ComputeContext->AdvanceDataBuffer();
-				ComputeContext->CountOffset_RT = SimStageData.DestinationCountOffset;
-
-				// If we are the last tick then we may want to enqueue for a readback
-				// Note: Do not pull count from SimStageData as a reset tick will be INDEX_NONE
-				if (SimStageData.SourceCountOffset != INDEX_NONE)
-				{
-					if (bEnqueueCountReadback && Tick.bIsFinalTick && (ComputeContext->EmitterInstanceReadback.GPUCountOffset == INDEX_NONE))
-					{
-						bRequiresReadback = true;
-						ComputeContext->EmitterInstanceReadback.CPUCount = SimStageData.SourceNumInstances;
-						ComputeContext->EmitterInstanceReadback.GPUCountOffset = SimStageData.SourceCountOffset;
-					}
-					GpuDispatchList.CountsToRelease.Add(SimStageData.SourceCountOffset);
-				}
-				if (Tick.NumInstancesWithSimStages > 0)
-				{
-					SimStageData.AlternateIterationSource = InstanceData.FindIterationInterface(0);
-				}
-			}
-			ComputeContext->bHasTickedThisFrame_RT = true;
-
 			//-OPT: Do we need this test?  Can remove in favor of MaxUpdateIterations
-			if (Tick.NumInstancesWithSimStages > 0)
+			bool bFirstStage = true;
+			for (int32 SimStageIndex=0; SimStageIndex < ComputeContext->SimStageInfo.Num(); ++SimStageIndex)
 			{
-				for (uint32 SimStageIndex=1; SimStageIndex < ComputeContext->MaxUpdateIterations; ++SimStageIndex)
+				const FSimulationStageMetaData& SimStageMetaData = ComputeContext->SimStageInfo[SimStageIndex];
+				if (InstanceData.NumIterationsPerStage[SimStageIndex] == 0)
 				{
-					// Determine if the iteration is outputting to a custom data size
-					FNiagaraDataInterfaceProxyRW* IterationInterface = InstanceData.FindIterationInterface(SimStageIndex);
-					if (!NiagaraEmitterInstanceBatcherLocal::ShouldRunStage(ComputeContext, IterationInterface, SimStageIndex, InstanceData.bResetData))
-					{
-						continue;
-					}
+					continue;
+				}
 
+				FNiagaraDataInterfaceProxyRW* IterationInterface = InstanceData.FindIterationInterface(SimStageIndex);
+				for ( int32 IterationIndex=0; IterationIndex < InstanceData.NumIterationsPerStage[SimStageIndex]; ++IterationIndex )
+				{
 					// Build SimStage data
 					FNiagaraGpuDispatchGroup& DispatchGroup = GpuDispatchList.DispatchGroups[iInstanceCurrDispatchGroup++];
 					FNiagaraGpuDispatchInstance& DispatchInstance = DispatchGroup.DispatchInstances.Emplace_GetRef(Tick, InstanceData);
 					FNiagaraSimStageData& SimStageData = DispatchInstance.SimStageData;
+					SimStageData.bFirstStage = bFirstStage;
 					SimStageData.StageIndex = SimStageIndex;
-					SimStageData.StageMetaData = ComputeContext->GetSimStageMetaData(SimStageIndex);
+					SimStageData.IterationIndex = IterationIndex;
+					SimStageData.StageMetaData = &SimStageMetaData;
 					SimStageData.AlternateIterationSource = IterationInterface;
 
-					checkf(SimStageData.StageMetaData, TEXT("No simulation stage meta data found for stage '%s' iteration interface '%s'"), SimStageIndex, *(IterationInterface ? IterationInterface->SourceDIName : FName()).ToString());
+					bFirstStage = false;
+
+					FNiagaraDataBuffer* SourceData = ComputeContext->bHasTickedThisFrame_RT ? ComputeContext->GetPrevDataBuffer() : ComputeContext->MainDataSet->GetCurrentData();
 
 					// This stage does not modify particle data, i.e. read only or not related to particles at all
 					if (!SimStageData.StageMetaData->bWritesParticles)
 					{
-						SimStageData.Source = ComputeContext->GetPrevDataBuffer();
+						SimStageData.Source = SourceData;
 						SimStageData.SourceCountOffset = ComputeContext->CountOffset_RT;
 						SimStageData.SourceNumInstances = ComputeContext->CurrentNumInstances_RT;
 						SimStageData.Destination = nullptr;
@@ -1067,27 +1020,38 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 						SimStageData.Source = nullptr;
 						SimStageData.SourceCountOffset = ComputeContext->CountOffset_RT;
 						SimStageData.SourceNumInstances = ComputeContext->CurrentNumInstances_RT;
-						SimStageData.Destination = ComputeContext->GetPrevDataBuffer();
+						SimStageData.Destination = SourceData;
 						SimStageData.DestinationCountOffset = ComputeContext->CountOffset_RT;
 						SimStageData.DestinationNumInstances = ComputeContext->CurrentNumInstances_RT;
 					}
 					// This stage may kill particles, we need to allocate a new destination buffer
 					else
 					{
-						SimStageData.Source = ComputeContext->GetPrevDataBuffer();
+						SimStageData.Source = SourceData;
 						SimStageData.SourceCountOffset = ComputeContext->CountOffset_RT;
-						SimStageData.SourceNumInstances = ComputeContext->CurrentNumInstances_RT;
+						//-TODO: This is a little odd, perhaps we need to change the preallocate
+						SimStageData.SourceNumInstances = SimStageIndex == 0 && IterationIndex == 0 ? PrevNumInstances : ComputeContext->CurrentNumInstances_RT;
 						SimStageData.Destination = ComputeContext->GetNextDataBuffer();
 						SimStageData.DestinationCountOffset = GPUInstanceCounterManager.AcquireEntry();
 						SimStageData.DestinationNumInstances = ComputeContext->CurrentNumInstances_RT;
 
-						if (ensure(SimStageData.SourceCountOffset != INDEX_NONE))
-						{
-							GpuDispatchList.CountsToRelease.Add(SimStageData.SourceCountOffset);
-						}
-
 						ComputeContext->AdvanceDataBuffer();
 						ComputeContext->CountOffset_RT = SimStageData.DestinationCountOffset;
+						ComputeContext->bHasTickedThisFrame_RT = true;
+
+						// If we are the last tick then we may want to enqueue for a readback
+						// Note: Do not pull count from SimStageData as a reset tick will be INDEX_NONE
+						check(SimStageData.SourceCountOffset != INDEX_NONE || SimStageData.SourceNumInstances == 0);
+						if (SimStageData.SourceCountOffset != INDEX_NONE)
+						{
+							if ( bEnqueueCountReadback && Tick.bIsFinalTick && (ComputeContext->EmitterInstanceReadback.GPUCountOffset == INDEX_NONE))
+							{
+								bRequiresReadback = true;
+								ComputeContext->EmitterInstanceReadback.CPUCount = SimStageData.SourceNumInstances;
+								ComputeContext->EmitterInstanceReadback.GPUCountOffset = SimStageData.SourceCountOffset;
+							}
+							GpuDispatchList.CountsToRelease.Add(SimStageData.SourceCountOffset);
+						}
 					}
 				}
 			}
@@ -1340,17 +1304,8 @@ void NiagaraEmitterInstanceBatcher::ExecuteTicks(FRHICommandList& RHICmdList, FR
 			}
 #if STATS
 			if (GPUProfiler.IsProfilingEnabled() && DispatchInstance.Tick.bIsFinalTick)
-			{
-				TStatId StatId;
-				if (const FSimulationStageMetaData* StageMetaData = DispatchInstance.SimStageData.StageMetaData)
-				{
-					StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>("GPU_Stage_" + StageMetaData->SimulationStageName.ToString());
-				}
-				else
-				{
-					static FString DefaultStageName = "GPU_Stage_SpawnUpdate";
-					StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>(DefaultStageName);
-				}
+			{			
+				const TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraDetailed>("GPU_Stage_" + DispatchInstance.SimStageData.StageMetaData->SimulationStageName.ToString());
 				const int32 TimerHandle = GPUProfiler.StartTimer((uint64)DispatchInstance.InstanceData.Context, StatId, RHICmdList);
 				DispatchStage(RHICmdList, ViewUniformBuffer, DispatchInstance.Tick, DispatchInstance.InstanceData, DispatchInstance.SimStageData);
 				GPUProfiler.EndTimer(TimerHandle, RHICmdList);
@@ -1484,17 +1439,17 @@ void NiagaraEmitterInstanceBatcher::DispatchStage(FRHICommandList& RHICmdList, F
 	}
 
 	// Get Shader
-	const int32 PermutationId = Tick.NumInstancesWithSimStages > 0 ? InstanceData.Context->GPUScript_RT->ShaderStageIndexToPermutationId_RenderThread(SimStageData.StageIndex) : 0;
-	const FNiagaraShaderRef ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(PermutationId);
+	const FNiagaraShaderRef ComputeShader = InstanceData.Context->GPUScript_RT->GetShader(SimStageData.StageIndex);
 	FRHIComputeShader* RHIComputeShader = ComputeShader.GetComputeShader();
 	SetComputePipelineState(RHICmdList, RHIComputeShader);
 
 	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS,
-		TEXT("NiagaraGpuSim(%s) DispatchCount(%u) Stage(%s %u) NumInstructions(%u)"),
+		TEXT("NiagaraGpuSim(%s) DispatchCount(%u) Stage(%s %u) Iteration(%d) NumInstructions(%u)"),
 		InstanceData.Context->GetDebugSimName(),
 		DispatchCount,
-		SimStageData.StageMetaData ? *SimStageData.StageMetaData->SimulationStageName.ToString() : TEXT("Particles"),
+		*SimStageData.StageMetaData->SimulationStageName.ToString(),
 		SimStageData.StageIndex,
+		SimStageData.IterationIndex,
 		ComputeShader->GetNumInstructions()
 	);
 	FNiagaraUAVPoolAccessScope UAVPoolAccessScope(*this);
@@ -1557,15 +1512,12 @@ void NiagaraEmitterInstanceBatcher::DispatchStage(FRHICommandList& RHICmdList, F
 			SimulationStageIterationInfo.Y = IterationInstanceCountOffset == INDEX_NONE ? DispatchCount : 0;
 		}
 
-		if (SimStageData.StageMetaData != nullptr)
-		{
-			const int32 NumStages = SimStageData.StageMetaData->MaxStage - SimStageData.StageMetaData->MinStage;
-			ensure((int32(SimStageData.StageIndex) >= SimStageData.StageMetaData->MinStage) && (int32(SimStageData.StageIndex) < SimStageData.StageMetaData->MaxStage));
-			const int32 IterationIndex = SimStageData.StageIndex - SimStageData.StageMetaData->MinStage;
-			SimulationStageIterationInfo.Z = SimStageData.StageIndex - SimStageData.StageMetaData->MinStage;
-			SimulationStageIterationInfo.W = NumStages;
-			SimulationStageNormalizedIterationIndex = NumStages > 1 ? float(IterationIndex) / float(NumStages - 1) : 1.0f;
-		}
+		const int32 NumIterations = InstanceData.NumIterationsPerStage[SimStageData.StageIndex];
+		const int32 IterationIndex = SimStageData.IterationIndex;
+		SimulationStageIterationInfo.Z = IterationIndex;
+		SimulationStageIterationInfo.W = NumIterations;
+		SimulationStageNormalizedIterationIndex = NumIterations > 1 ? float(IterationIndex) / float(NumIterations - 1) : 1.0f;
+
 		SetShaderValue(RHICmdList, RHIComputeShader, ComputeShader->SimulationStageIterationInfoParam, SimulationStageIterationInfo);
 		SetShaderValue(RHICmdList, RHIComputeShader, ComputeShader->SimulationStageNormalizedIterationIndexParam, SimulationStageNormalizedIterationIndex);
 	}

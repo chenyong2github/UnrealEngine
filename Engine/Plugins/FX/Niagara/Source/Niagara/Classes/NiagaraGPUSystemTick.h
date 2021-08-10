@@ -28,7 +28,9 @@ struct FNiagaraComputeInstanceData
 	FNiagaraComputeExecutionContext* Context = nullptr;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
 	TArray<FNiagaraDataInterfaceProxyRW*> IterationDataInterfaceProxies;
+	TArray<int32, TInlineAllocator<1>> NumIterationsPerStage;
 	uint32 ParticleCountFence = INDEX_NONE;
+	uint32 TotalDispatches = 0;
 	uint32 bResetData : 1;
 	uint32 bStartNewOverlapGroup : 1;
 	uint32 bUsesSimStages : 1;
@@ -98,7 +100,6 @@ public:
 	uint8* OwnerParamData = nullptr;
 	uint32 InstanceCount = 0;
 	uint32 TotalDispatches = 0;
-	uint32 NumInstancesWithSimStages = 0;									//-TODO: Remove me
 	bool bIsFinalTick = false;
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST

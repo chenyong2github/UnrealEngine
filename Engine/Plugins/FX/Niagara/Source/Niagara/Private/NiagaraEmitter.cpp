@@ -555,6 +555,22 @@ void UNiagaraEmitter::PostLoad()
 	// there will be no merging or compiling which makes it safe to do so.
 	UpdateEmitterAfterLoad();
 #endif
+
+	//-TODO: should this be a version
+#if WITH_EDITORONLY_DATA
+	// If we have a simulation stage using the old bSpawnOnly we need to modify all generic stages to the new method
+	if ( SimulationStages.ContainsByPredicate([](UNiagaraSimulationStageBase* Stage) { UNiagaraSimulationStageGeneric* StageAsGeneric = Cast<UNiagaraSimulationStageGeneric>(Stage); return StageAsGeneric && StageAsGeneric->bSpawnOnly_DEPRECATED; }) )
+	{
+		for (UNiagaraSimulationStageBase* Stage : SimulationStages)
+		{
+			if ( UNiagaraSimulationStageGeneric* StageAsGeneric = Cast<UNiagaraSimulationStageGeneric>(Stage) )
+			{
+				StageAsGeneric->ExecuteBehavior = StageAsGeneric->bSpawnOnly_DEPRECATED ? ENiagaraSimStageExecuteBehavior::OnSimulationReset : ENiagaraSimStageExecuteBehavior::NotOnSimulationReset;
+				StageAsGeneric->bSpawnOnly_DEPRECATED = false;
+			}
+		}
+	}
+#endif
 }
 
 bool UNiagaraEmitter::IsEditorOnly() const

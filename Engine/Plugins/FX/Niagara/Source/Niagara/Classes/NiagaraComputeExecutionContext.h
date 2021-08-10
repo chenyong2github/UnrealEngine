@@ -33,6 +33,7 @@ struct FNiagaraSimStageData
 	uint32 bSetDataToRender : 1;
 
 	uint32 StageIndex = INDEX_NONE;
+	uint32 IterationIndex = 0;
 
 	FNiagaraDataBuffer* Source = nullptr;
 	uint32 SourceCountOffset = INDEX_NONE;
@@ -191,9 +192,6 @@ public:
 	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
 	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;
 
-	uint32 MaxUpdateIterations = 0;
-	TSet<uint32> SpawnStages;
-
 	bool HasInterpolationParameters = false;
 
 	// Do we have a reset pending, controlled by the game thread and passed to instance data
@@ -229,8 +227,7 @@ public:
 
 	TArray<FSimulationStageMetaData> SimStageInfo;
 
-	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
-	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
+	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const;
+	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const;
 	FNiagaraDataInterfaceProxyRW* FindIterationInterface(const TArray<FNiagaraDataInterfaceProxyRW*>& InProxies, uint32 SimulationStageIndex) const;
-	const FSimulationStageMetaData* GetSimStageMetaData(uint32 SimulationStageIndex) const;
 };

@@ -7,6 +7,17 @@
 
 #include "NiagaraScriptBase.generated.h"
 
+UENUM()
+enum class ENiagaraSimStageExecuteBehavior : uint8
+{
+	/** The stage will run every frame. */
+	Always,
+	/** The stage will only run on the frame when the simulation is reset. */
+	OnSimulationReset,
+	/** The stage will not run on the frame where the simulation is reset. */
+	NotOnSimulationReset,
+};
+
 USTRUCT()
 struct NIAGARASHADER_API FSimulationStageMetaData
 {
@@ -18,13 +29,16 @@ public:
 	UPROPERTY()
 	FName SimulationStageName;
 
+	UPROPERTY()
+	FName EnabledBinding;
+
 	/** The Data Interface that we iterate over for this stage. If None, then use particles.*/
 	UPROPERTY()
 	FName IterationSource;
 
-	/** Is this stage a spawn-only stage? */
+	/** Controls when the simulation stage will execute. */
 	UPROPERTY()
-	uint32 bSpawnOnly : 1;
+	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
 
 	/** Do we write to particles this stage? */
 	UPROPERTY()
@@ -38,13 +52,20 @@ public:
 	UPROPERTY()
 	TArray<FName> OutputDestinations;
 
-	/** Index of the simulation stage where we begin iterating. This is meant to encompass iteration count without having an entry for each iteration.*/
+	/** The number of iterations for the stage. */
 	UPROPERTY()
-	int32 MinStage = 0;
+	int32 NumIterations = 1;
 
-	/** Index of the simulation stage where we end iterating. This is meant to encompass iteration count without having an entry for each iteration.*/
+	/** Optional binding to gather num iterations from. */
 	UPROPERTY()
-	int32 MaxStage = 0;
+	FName NumIterationsBinding;
+
+	inline bool ShouldRunStage(bool bResetData) const
+	{
+		const bool bAlways = ExecuteBehavior == ENiagaraSimStageExecuteBehavior::Always;
+		const bool bResetOnly = ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset;
+		return bAlways || (bResetOnly == bResetData);
+	}
 };
 
 UCLASS(MinimalAPI, abstract)
