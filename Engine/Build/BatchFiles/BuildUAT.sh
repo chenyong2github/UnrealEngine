@@ -19,7 +19,7 @@ if [ ! -f ../Build/BatchFiles/BuildUAT.sh ]; then
   exit 1
 fi
 
-# Check to see if the files in the AutomationTool, BuildUtilities, EpicGames.Core, or UnrealBuildTool
+# Check to see if the files in the AutomationTool, EpicGames.Build, EpicGames.Core, or UnrealBuildTool
 # directory have changed.
 
 mkdir -p ../Intermediate/Build
@@ -35,7 +35,7 @@ elif [ ! -f ../Binaries/DotNET/AutomationTool/AutomationTool.dll ]; then
 
 elif [ -f ../Intermediate/Build/AutomationToolLastBuildTime ]; then
   UPDATED_DEP_FILES="$(find \
-    Programs/Shared/EpicGames.Core Programs/DotNETCommon/BuildUtilities Programs/UnrealBuildTool \
+    Programs/Shared/EpicGames.Core Programs/Shared/EpicGames.Build Programs/UnrealBuildTool \
     -type f \
     \( -iname \*.cs -or -iname \*.csproj \) \
     -newer ../Intermediate/Build/AutomationToolLastBuildTime)"

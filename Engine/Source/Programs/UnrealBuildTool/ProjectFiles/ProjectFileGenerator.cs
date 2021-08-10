@@ -581,7 +581,7 @@ namespace UnrealBuildTool
 				
 				Writer.WriteLine("  <ItemGroup>");
 				Writer.WriteLine("    <ProjectReference Include=\"" + 
-					FileReference.Combine(Unreal.EngineDirectory, "Source/Programs/DotNETCommon/BuildUtilities/BuildUtilities.csproj").MakeRelativeTo(ProjectFilesDirectory) + 
+					FileReference.Combine(Unreal.EngineDirectory, "Source/Programs/Shared/EpicGames.Build/EpicGames.Build.csproj").MakeRelativeTo(ProjectFilesDirectory) + 
 					"\"><Private>false</Private></ProjectReference>"); // <Private>false</Private> to suppress copying of dependencies into output directory
 				Writer.WriteLine("    <ProjectReference Include=\"" + 
 					FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "UnrealBuildTool", "UnrealBuildTool.csproj").MakeRelativeTo(ProjectFilesDirectory) + 

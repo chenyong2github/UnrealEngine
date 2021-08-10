@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <Configuration Condition=" '$(Configuration)' == '' ">Development</Configuration>
@@ -28,7 +28,7 @@
     <DebugType>full</DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\..\DotNETCommon\MetaData.cs">
+    <Compile Include="..\..\Shared\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
   </ItemGroup>

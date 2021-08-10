@@ -39,8 +39,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\EpicGames.Core\EpicGames.Core.csproj" PrivateAssets="All"><Private>true</Private></ProjectReference>
+    <ProjectReference Include="..\..\Shared\EpicGames.Build\EpicGames.Build.csproj" PrivateAssets="All"> <Private>true</Private> </ProjectReference>
     <ProjectReference Include="..\..\UnrealBuildTool\UnrealBuildTool.csproj" PrivateAssets="All"><Private>true</Private></ProjectReference>
-    <ProjectReference Include="..\..\DotNETCommon\BuildUtilities\BuildUtilities.csproj" PrivateAssets="All"> <Private>true</Private> </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />

@@ -55,7 +55,7 @@
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" Condition="'$(IsWindows)'!='true'" />
 
   <ItemGroup>
-    <Compile Include="..\..\DotNETCommon\MetaData.cs">
+    <Compile Include="..\..\Shared\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
   </ItemGroup>

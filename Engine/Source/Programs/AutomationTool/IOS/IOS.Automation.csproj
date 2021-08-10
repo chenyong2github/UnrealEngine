@@ -44,7 +44,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\DotNETCommon\MetaData.cs">
+    <Compile Include="..\..\Shared\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
   </ItemGroup>
