@@ -19,7 +19,6 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, 
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCull, TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM, TEXT("Nanite Instance Cull VSM"));
 DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
-DECLARE_GPU_STAT_NAMED(NaniteClusterCull2, TEXT("Nanite Cluster Cull 2"));
 
 #define CULLING_PASS_NO_OCCLUSION		0
 #define CULLING_PASS_OCCLUSION_MAIN		1
@@ -330,7 +329,7 @@ class FInstanceCull_CS : public FNaniteShader
 		
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InInstanceDraws )
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutCandidateNodesAndClusters )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutMainAndPostNodesAndClusterBatches )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FInstanceDraw >, OutOccludedInstances )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPersistentState >, OutMainAndPostPassPersistentStates )
@@ -418,7 +417,7 @@ class FInstanceCullVSM_CS : public FNaniteShader
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutCandidateNodesAndClusters )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutMainAndPostNodesAndClusterBatches )
 	
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPersistentState >, OutMainAndPostPassPersistentStates )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer )
@@ -458,10 +457,10 @@ class FPersistentClusterCull_CS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >,						OffsetClustersArgsSWHW )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPersistentState >,MainAndPostPassPersistentStates )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					InOutCandidateNodesAndClusters )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					MainAndPostNodesAndClusterBatches )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					MainAndPostCandididateClusters )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					OutVisibleClustersSWHW )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					OutOccludedNodesAndClusters )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FStreamingRequest>,	OutStreamingRequests )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, VisibleClustersArgsSWHW )
 
@@ -510,10 +509,10 @@ class FPersistentClusterCull_CS : public FNaniteShader
 };
 IMPLEMENT_GLOBAL_SHADER(FPersistentClusterCull_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "PersistentClusterCull", SF_Compute);
 
-class FInitCandidateClusters_CS : public FNaniteShader
+class FInitClusterBatches_CS : public FNaniteShader
 {
-	DECLARE_GLOBAL_SHADER( FInitCandidateClusters_CS );
-	SHADER_USE_PARAMETER_STRUCT( FInitCandidateClusters_CS, FNaniteShader );
+	DECLARE_GLOBAL_SHADER( FInitClusterBatches_CS );
+	SHADER_USE_PARAMETER_STRUCT( FInitClusterBatches_CS, FNaniteShader );
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -521,11 +520,12 @@ class FInitCandidateClusters_CS : public FNaniteShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,	OutCandidateNodesAndClusters )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,	OutMainAndPostNodesAndClusterBatches )
 		SHADER_PARAMETER( uint32,								MaxCandidateClusters )
+		SHADER_PARAMETER( uint32,								MaxNodes )
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FInitCandidateClusters_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "InitCandidateClusters", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FInitClusterBatches_CS, "/Engine/Private/Nanite/ClusterCulling.usf", "InitClusterBatches", SF_Compute);
 
 class FInitCandidateNodes_CS : public FNaniteShader
 {
@@ -538,8 +538,7 @@ class FInitCandidateNodes_CS : public FNaniteShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,	OutCandidateNodesAndClusters)
-		SHADER_PARAMETER( uint32,								InitIsPostPass )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,	OutMainAndPostNodesAndClusterBatches )
 		SHADER_PARAMETER( uint32,								MaxCandidateClusters )
 		SHADER_PARAMETER( uint32,								MaxNodes )
 	END_SHADER_PARAMETER_STRUCT()
@@ -1025,20 +1024,15 @@ IMPLEMENT_GLOBAL_SHADER(FHWRasterizePS, "/Engine/Private/Nanite/Rasterizer.usf",
 namespace Nanite
 {
 
-static void AddPassInitCandidateNodesAndClustersUAV( FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAVRef, bool bIsPostPass )
+static void AddPassInitNodesAndClusterBatchesUAV( FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAVRef )
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
 	{
-		const uint32 ThreadsPerGroup = 64;
-		checkf(Nanite::FGlobalResources::GetMaxNodes() % ThreadsPerGroup == 0, TEXT("Max nodes must be divisible by ThreadsPerGroup"));
-
 		FInitCandidateNodes_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitCandidateNodes_CS::FParameters >();
-		PassParameters->OutCandidateNodesAndClusters		= UAVRef;
-		PassParameters->InitIsPostPass						= bIsPostPass ? 1 : 0;
+		PassParameters->OutMainAndPostNodesAndClusterBatches= UAVRef;
 		PassParameters->MaxCandidateClusters				= Nanite::FGlobalResources::GetMaxCandidateClusters();
-
-		const uint32 NumGroups = FMath::DivideAndRoundUp(Nanite::FGlobalResources::GetMaxNodes(), ThreadsPerGroup);
+		PassParameters->MaxNodes							= Nanite::FGlobalResources::GetMaxNodes();
 
 		auto ComputeShader = ShaderMap->GetShader< FInitCandidateNodes_CS >();
 		FComputeShaderUtils::AddPass(
@@ -1046,25 +1040,23 @@ static void AddPassInitCandidateNodesAndClustersUAV( FRDGBuilder& GraphBuilder, 
 			RDG_EVENT_NAME( "Nanite::InitNodes" ),
 			ComputeShader,
 			PassParameters,
-			FIntVector(NumGroups, 1, 1)
+			FComputeShaderUtils::GetGroupCountWrapped(Nanite::FGlobalResources::GetMaxNodes(), 64)
 		);
 	}
 
 	{
-		const uint32 ThreadsPerYGroup = 64 * 256;
-		FInitCandidateClusters_CS::FParameters* PassParameters	= GraphBuilder.AllocParameters< FInitCandidateClusters_CS::FParameters >();
-		PassParameters->OutCandidateNodesAndClusters			= UAVRef;
-		PassParameters->MaxCandidateClusters					= Nanite::FGlobalResources::GetMaxCandidateClusters();
+		FInitClusterBatches_CS::FParameters* PassParameters	= GraphBuilder.AllocParameters< FInitClusterBatches_CS::FParameters >();
+		PassParameters->OutMainAndPostNodesAndClusterBatches= UAVRef;
+		PassParameters->MaxCandidateClusters				= Nanite::FGlobalResources::GetMaxCandidateClusters();
+		PassParameters->MaxNodes							= Nanite::FGlobalResources::GetMaxNodes();
 
-		const uint32 NumYGroups = FMath::DivideAndRoundUp(Nanite::FGlobalResources::GetMaxCandidateClusters(), ThreadsPerYGroup);
-
-		auto ComputeShader = ShaderMap->GetShader< FInitCandidateClusters_CS >();
+		auto ComputeShader = ShaderMap->GetShader< FInitClusterBatches_CS >();
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("Nanite::InitCandidates"),
+			RDG_EVENT_NAME( "Nanite::InitCullingBatches" ),
 			ComputeShader,
 			PassParameters,
-			FIntVector(256, NumYGroups, 1)
+			FComputeShaderUtils::GetGroupCountWrapped(Nanite::FGlobalResources::GetMaxClusterBatches(), 64)
 		);
 	}
 }
@@ -1213,16 +1205,14 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
 	const FGPUSceneParameters &GPUSceneParameters,
-	FRDGBufferRef MainCandidateNodesAndClusters,
-	FRDGBufferRef PostCandidateNodesAndClusters,
+	FRDGBufferRef MainAndPostNodesAndClusterBatchesBuffer,
+	FRDGBufferRef MainAndPostCandididateClustersBuffer,
 	uint32 CullingPass,
 	FVirtualShadowMapArray *VirtualShadowMapArray,
 	FVirtualTargetParameters &VirtualTargetParameters
 	)
 {
 	LLM_SCOPE_BYTAG(Nanite);
-
-	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteClusterCull2);
 
 	checkf(GRHIPersistentThreadGroupCount > 0, TEXT("GRHIPersistentThreadGroupCount must be configured correctly in the RHI."));
 
@@ -1254,7 +1244,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 		check( CullingPass == CULLING_PASS_NO_OCCLUSION );
 		check( CullingContext.InstanceDrawsBuffer == nullptr );
-		PassParameters->OutCandidateNodesAndClusters = GraphBuilder.CreateUAV( MainCandidateNodesAndClusters );
+		PassParameters->OutMainAndPostNodesAndClusterBatches = GraphBuilder.CreateUAV( MainAndPostNodesAndClusterBatchesBuffer );
 		
 		check(CullingContext.ViewsBuffer);
 
@@ -1298,25 +1288,23 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			PassParameters->OutStatsBuffer					= GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
 		}
 
+		PassParameters->OutMainAndPostNodesAndClusterBatches = GraphBuilder.CreateUAV( MainAndPostNodesAndClusterBatchesBuffer );
 		if( CullingPass == CULLING_PASS_NO_OCCLUSION )
 		{
 			if( CullingContext.InstanceDrawsBuffer )
 			{
 				PassParameters->InInstanceDraws			= GraphBuilder.CreateSRV( CullingContext.InstanceDrawsBuffer );
 			}
-			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( MainCandidateNodesAndClusters);
 		}
 		else if( CullingPass == CULLING_PASS_OCCLUSION_MAIN )
 		{
 			PassParameters->OutOccludedInstances		= GraphBuilder.CreateUAV( CullingContext.OccludedInstances );
 			PassParameters->OutOccludedInstancesArgs	= GraphBuilder.CreateUAV( CullingContext.OccludedInstancesArgs );
-			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( MainCandidateNodesAndClusters );
 		}
 		else
 		{
 			PassParameters->InInstanceDraws				= GraphBuilder.CreateSRV( CullingContext.OccludedInstances );
 			PassParameters->InOccludedInstancesArgs		= GraphBuilder.CreateSRV( CullingContext.OccludedInstancesArgs );
-			PassParameters->OutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( PostCandidateNodesAndClusters);
 		}
 		
 		check(CullingContext.ViewsBuffer);
@@ -1379,20 +1367,15 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		}
 
 		PassParameters->MainAndPostPassPersistentStates	= GraphBuilder.CreateUAV( CullingContext.MainAndPostPassPersistentStates );
-		
+		PassParameters->MainAndPostNodesAndClusterBatches = GraphBuilder.CreateUAV(MainAndPostNodesAndClusterBatchesBuffer);
+		PassParameters->MainAndPostCandididateClusters = GraphBuilder.CreateUAV(MainAndPostCandididateClustersBuffer);
+
 		if( CullingPass == CULLING_PASS_NO_OCCLUSION || CullingPass == CULLING_PASS_OCCLUSION_MAIN )
 		{
-			PassParameters->InOutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( MainCandidateNodesAndClusters );
 			PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.MainRasterizeArgsSWHW );
-			
-			if( CullingPass == CULLING_PASS_OCCLUSION_MAIN )
-			{
-				PassParameters->OutOccludedNodesAndClusters	= GraphBuilder.CreateUAV( PostCandidateNodesAndClusters );
-			}
 		}
 		else
 		{
-			PassParameters->InOutCandidateNodesAndClusters	= GraphBuilder.CreateUAV( PostCandidateNodesAndClusters );
 			PassParameters->OffsetClustersArgsSWHW	= GraphBuilder.CreateSRV( CullingContext.MainRasterizeArgsSWHW );
 			PassParameters->VisibleClustersArgsSWHW	= GraphBuilder.CreateUAV( CullingContext.PostRasterizeArgsSWHW );
 		}
@@ -1884,46 +1867,29 @@ FRasterContext InitRasterContext(
 	return RasterContext;
 }
 
-static void AllocateCandidateBuffers(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferRef* MainCandidateNodesAndClustersBufferRef, FRDGBufferRef* PostCandidateNodesAndClustersBufferRef)
+static void AllocateNodesAndBatchesBuffers(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferRef* MainAndPostNodesAndClusterBatchesBufferRef)
 {
-	const uint32 MaxNodes = Nanite::FGlobalResources::GetMaxNodes();
-	const uint32 MaxCandidateClusters = Nanite::FGlobalResources::GetMaxCandidateClusters();
-	const uint32 MaxCullingBatches = MaxCandidateClusters / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
-	check(MaxCandidateClusters % PERSISTENT_CLUSTER_CULLING_GROUP_SIZE == 0);
-	check(MainCandidateNodesAndClustersBufferRef);
+	const uint32 MaxNodes				=	Nanite::FGlobalResources::GetMaxNodes();
+	const uint32 MaxCandidateClusters	=	Nanite::FGlobalResources::GetMaxCandidateClusters();
+	const uint32 MaxCullingBatches		=	Nanite::FGlobalResources::GetMaxClusterBatches();
+	check(MainAndPostNodesAndClusterBatchesBufferRef);
 
-	// Persistent nodes and clusters: Initialize node and cluster array.
-	// They only have to be initialized once as the culling code reverts nodes/clusters to their cleared state after they have been consumed.
+	// Initialize node and cluster batch arrays.
+	// They only have to be initialized once as the culling code reverts nodes/batches to their cleared state after they have been consumed.
 	{
-		TRefCountPtr<FRDGPooledBuffer>& CandidateNodesAndClustersBuffer = Nanite::GGlobalResources.GetMainPassBuffers().CandidateNodesAndClustersBuffer;
-		if (CandidateNodesAndClustersBuffer.IsValid())
+		TRefCountPtr<FRDGPooledBuffer>& MainAndPostNodesAndClusterBatchesBuffer = Nanite::GGlobalResources.GetMainAndPostNodesAndClusterBatchesBuffer();
+		if (MainAndPostNodesAndClusterBatchesBuffer.IsValid())
 		{
-			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.RegisterExternalBuffer(CandidateNodesAndClustersBuffer, TEXT("Nanite.MainPass.CandidateNodesAndClustersBuffer"));
+			*MainAndPostNodesAndClusterBatchesBufferRef = GraphBuilder.RegisterExternalBuffer(MainAndPostNodesAndClusterBatchesBuffer, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"));
+			AddPassInitNodesAndClusterBatchesUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*MainAndPostNodesAndClusterBatchesBufferRef));
 		}
 		else
 		{
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxCandidateClusters * 2 + MaxNodes * 2);
+			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches * 2 + MaxNodes * (2 + 3));
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
-			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainPass.CandidateNodesAndClustersBuffer"));
-			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*MainCandidateNodesAndClustersBufferRef), false);
-			CandidateNodesAndClustersBuffer = GraphBuilder.ConvertToExternalBuffer(*MainCandidateNodesAndClustersBufferRef);
-		}
-	}
-
-	if (PostCandidateNodesAndClustersBufferRef)
-	{
-		TRefCountPtr<FRDGPooledBuffer>& CandidateNodesAndClustersBuffer = Nanite::GGlobalResources.GetPostPassBuffers().CandidateNodesAndClustersBuffer;
-		if (CandidateNodesAndClustersBuffer.IsValid())
-		{
-			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.RegisterExternalBuffer(CandidateNodesAndClustersBuffer, TEXT("Nanite.PostPass.CandidateNodesAndClustersBuffer"));
-		}
-		else
-		{
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxCandidateClusters * 2 + MaxNodes * 3);
-			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
-			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.PostPass.CandidateNodesAndClustersBuffer"));
-			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*PostCandidateNodesAndClustersBufferRef), true);
-			CandidateNodesAndClustersBuffer = GraphBuilder.ConvertToExternalBuffer(*PostCandidateNodesAndClustersBufferRef);
+			*MainAndPostNodesAndClusterBatchesBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"));
+			AddPassInitNodesAndClusterBatchesUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*MainAndPostNodesAndClusterBatchesBufferRef));
+			MainAndPostNodesAndClusterBatchesBuffer = GraphBuilder.ConvertToExternalBuffer(*MainAndPostNodesAndClusterBatchesBufferRef);
 		}
 	}
 }
@@ -2204,10 +2170,18 @@ void CullRasterize(
 		);
 	}
 
-	// Allocate candidate buffers. Lifetime only duration of CullRasterize.
-	FRDGBufferRef MainCandidateNodesAndClustersBuffer = nullptr;
-	FRDGBufferRef PostCandidateNodesAndClustersBuffer = nullptr;
-	AllocateCandidateBuffers(GraphBuilder, CullingContext.ShaderMap, &MainCandidateNodesAndClustersBuffer, CullingContext.bTwoPassOcclusion ? &PostCandidateNodesAndClustersBuffer : nullptr);
+	// Allocate buffer for nodes and cluster batches
+	FRDGBufferRef MainAndPostNodesAndClusterBatchesBuffer = nullptr;
+	AllocateNodesAndBatchesBuffers(GraphBuilder, CullingContext.ShaderMap, &MainAndPostNodesAndClusterBatchesBuffer);
+
+	// Allocate candidate cluster buffer. Lifetime only duration of CullRasterize
+	FRDGBufferRef MainAndPostCandididateClustersBuffer = nullptr;
+	{
+		FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, Nanite::FGlobalResources::GetMaxCandidateClusters() * 2 * 2);
+		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
+		MainAndPostCandididateClustersBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainAndPostCandididateClustersBuffer"));
+	}
+	
 
 	// No Occlusion Pass / Occlusion Main Pass
 	AddPass_InstanceHierarchyAndClusterCull(
@@ -2220,8 +2194,8 @@ void CullRasterize(
 		RasterContext,
 		RasterState,
 		GPUSceneParameters,
-		MainCandidateNodesAndClustersBuffer,
-		PostCandidateNodesAndClustersBuffer,
+		MainAndPostNodesAndClusterBatchesBuffer,
+		MainAndPostCandididateClustersBuffer,
 		CullingContext.bTwoPassOcclusion ? CULLING_PASS_OCCLUSION_MAIN : CULLING_PASS_NO_OCCLUSION,
 		VirtualShadowMapArray,
 		VirtualTargetParameters
@@ -2297,8 +2271,8 @@ void CullRasterize(
 			RasterContext,
 			RasterState,
 			GPUSceneParameters,
-			MainCandidateNodesAndClustersBuffer,
-			PostCandidateNodesAndClustersBuffer,
+			MainAndPostNodesAndClusterBatchesBuffer,
+			MainAndPostCandididateClustersBuffer,
 			CULLING_PASS_OCCLUSION_POST,
 			VirtualShadowMapArray,
 			VirtualTargetParameters

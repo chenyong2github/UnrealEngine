@@ -413,8 +413,6 @@ class FGlobalResources : public FRenderResource
 public:
 	struct PassBuffers
 	{
-		TRefCountPtr<FRDGPooledBuffer> CandidateNodesAndClustersBuffer;
-		
 		// Used for statistics
 		TRefCountPtr<FRDGPooledBuffer> StatsRasterizeArgsSWHWBuffer;
 	};
@@ -430,11 +428,14 @@ public:
 	ENGINE_API void	Update(FRDGBuilder& GraphBuilder); // Called once per frame before any Nanite rendering has occurred.
 
 	ENGINE_API static uint32 GetMaxCandidateClusters();
+	ENGINE_API static uint32 GetMaxClusterBatches();
 	ENGINE_API static uint32 GetMaxVisibleClusters();
 	ENGINE_API static uint32 GetMaxNodes();
 
 	inline PassBuffers& GetMainPassBuffers() { return MainPassBuffers; }
 	inline PassBuffers& GetPostPassBuffers() { return PostPassBuffers; }
+
+	TRefCountPtr<FRDGPooledBuffer>& GetMainAndPostNodesAndClusterBatchesBuffer() { return MainAndPostNodesAndClusterBatchesBuffer; };
 
 	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
 	TRefCountPtr<FRDGPooledBuffer>& GetStructureBufferStride8() { return StructureBufferStride8; }
@@ -452,6 +453,8 @@ private:
 	PassBuffers PostPassBuffers;
 
 	class FVertexFactory* VertexFactory = nullptr;
+
+	TRefCountPtr<FRDGPooledBuffer> MainAndPostNodesAndClusterBatchesBuffer;
 
 	// Used for statistics
 	TRefCountPtr<FRDGPooledBuffer> StatsBuffer;
