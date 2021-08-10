@@ -73,6 +73,14 @@ FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheFreeze(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenSurfaceCacheForceUpdateFrame = -1;
+FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheForceUpdateFrame(
+	TEXT("r.LumenScene.SurfaceCache.ForceUpdateFrame"),
+	GLumenSurfaceCacheForceUpdateFrame,
+	TEXT("Keep updating the same subset of surface cache for debugging.\n"),
+	ECVF_RenderThreadSafe
+);
+
 int32 GLumenSceneSurfaceCacheReset = 0;
 FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheReset(
 	TEXT("r.LumenScene.SurfaceCache.Reset"),

@@ -39,6 +39,8 @@ FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
 	ECVF_RenderThreadSafe
 );
 
+extern int32 GLumenSurfaceCacheForceUpdateFrame;
+
 IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
 
 class FInitializeCardPageIndirectArgsCS : public FGlobalShader
@@ -281,7 +283,7 @@ void FLumenCardScatterContext::Build(
 			PassParameters->NumCardPagesToRenderIndices = LumenCardRenderer.CardPagesToRender.Num();
 			PassParameters->CardPagesToRenderIndices = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(LumenCardRenderer.CardPagesToRenderIndexBuffer, PF_R32_UINT));
 			PassParameters->CardPagesToRenderHashMap = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(LumenCardRenderer.CardPagesToRenderHashMapBuffer, PF_R32_UINT));
-			PassParameters->FrameId = View.ViewState->GetFrameIndex();
+			PassParameters->FrameId = GLumenSurfaceCacheForceUpdateFrame >= 0 ? GLumenSurfaceCacheForceUpdateFrame : View.ViewState->GetFrameIndex();
 			PassParameters->CardLightingUpdateFrequencyScale = GLumenSceneLightingForceFullUpdate ? 0.0f : UpdateFrequencyScale;
 			PassParameters->CardLightingUpdateMinFrequency = GLumenSceneLightingForceFullUpdate ? 1 : GLumenSceneLightingMinUpdateFrequency;
 
