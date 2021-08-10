@@ -219,7 +219,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				}
 				else
 				{
-					TotalDispatches = 0;
+					NumIterations = 0;
 				}
 
 				InstanceData->TotalDispatches += NumIterations;
