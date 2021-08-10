@@ -192,7 +192,7 @@ void UUVEditorToolMeshInput::Shutdown()
 	OriginalAsset = nullptr;
 }
 
-void UUVEditorToolMeshInput::UpdateUnwrapPreviewOverlay(const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
+void UUVEditorToolMeshInput::UpdateUnwrapPreviewOverlayFromPositions(const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
 {
 	UnwrapPreview->PreviewMesh->DeferredEditMesh([this, ChangedVids, ChangedConnectivityTids](FDynamicMesh3& Mesh)
 	{
@@ -217,7 +217,7 @@ void UUVEditorToolMeshInput::UpdateUnwrapPreviewOverlay(const TArray<int32>* Cha
 	}
 }
 
-void UUVEditorToolMeshInput::UpdateUnwrapCanonicalOverlay(const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids)
+void UUVEditorToolMeshInput::UpdateUnwrapCanonicalOverlayFromPositions(const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids)
 {
 	FDynamicMeshUVOverlay* DestOverlay = UnwrapCanonical->Attributes()->PrimaryUV();
 	UVEditorToolUtil::UpdateUVOverlayFromUnwrapMesh(*UnwrapCanonical, *DestOverlay, VertPositionToUV,
@@ -295,112 +295,72 @@ void UUVEditorToolMeshInput::UpdateCanonicalFromPreviews(const TArray<int32>* Ch
 	CopyMeshOverlay(*SourceOverlay, *DestOverlay, ChangedVids, ChangedConnectivityTids);
 }
 
-void UUVEditorToolMeshInput::UpdateAllFromUnwrapPreview(
-	const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
+void UUVEditorToolMeshInput::UpdatePreviewsFromCanonical(const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
 {
-	const FDynamicMesh3* ReferenceMesh = UnwrapPreview->PreviewMesh->GetMesh();
+	using namespace UVEditorToolMeshInputLocals;
 
-	// Update UnwrapCanonical
-	UpdateOtherUnwrap(*ReferenceMesh, *UnwrapCanonical, ChangedVids, ChangedConnectivityTids);
+	// Update UnwrapPreview from UnwrapCanonical
+	UnwrapPreview->PreviewMesh->DeferredEditMesh([this, ChangedVids, ChangedConnectivityTids](FDynamicMesh3& Mesh)
+	{
+		UpdateOtherUnwrap(*UnwrapCanonical, Mesh, ChangedVids, ChangedConnectivityTids);
+	}, false);
+	if (FastRenderUpdateTids) {
+		UnwrapPreview->PreviewMesh->NotifyRegionDeferredEditCompleted(*FastRenderUpdateTids,
+			EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs);
+	}
+	else
+	{
+		UnwrapPreview->PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate,
+			EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs, true);
+	}
 
-	// Update the applied meshes
-	const FDynamicMeshUVOverlay* SourceOverlay = ReferenceMesh->Attributes()->PrimaryUV();
-	UpdateAppliedOverlays(*SourceOverlay, ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids);
+	if (WireframeDisplay)
+	{
+		WireframeDisplay->NotifyMeshChanged();
+	}
+
+	// Update AppliedPreview from AppliedCanonical
+	AppliedPreview->PreviewMesh->DeferredEditMesh([this, ChangedVids, ChangedConnectivityTids](FDynamicMesh3& Mesh)
+	{
+		const FDynamicMeshUVOverlay* SourceOverlay = AppliedCanonical->Attributes()->GetUVLayer(UVLayerIndex);
+		FDynamicMeshUVOverlay* DestOverlay = Mesh.Attributes()->GetUVLayer(UVLayerIndex);
+		CopyMeshOverlay(*SourceOverlay, *DestOverlay, ChangedVids, ChangedConnectivityTids);
+	}, false);
+	if (FastRenderUpdateTids) {
+		AppliedPreview->PreviewMesh->NotifyRegionDeferredEditCompleted(*FastRenderUpdateTids,
+			EMeshRenderAttributeFlags::VertexUVs);
+	}
+	else
+	{
+		AppliedPreview->PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate,
+			EMeshRenderAttributeFlags::VertexUVs, true);
+	}
+}
+
+void UUVEditorToolMeshInput::UpdateAllFromUnwrapPreview(const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
+{
+	UpdateAppliedPreviewFromUnwrapPreview(ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids);
+	UpdateCanonicalFromPreviews(ChangedVids, ChangedConnectivityTids);
 }
 
 void UUVEditorToolMeshInput::UpdateAllFromUnwrapCanonical(
 	const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
 {
-	// Update UnwrapPreview
-	UnwrapPreview->PreviewMesh->DeferredEditMesh([this, ChangedVids, ChangedConnectivityTids](FDynamicMesh3& Mesh)
-	{
-		UpdateOtherUnwrap(*UnwrapCanonical, Mesh, ChangedVids, ChangedConnectivityTids);
-	}, false);
+	using namespace UVEditorToolMeshInputLocals;
 
-	if (FastRenderUpdateTids) {
-		UnwrapPreview->PreviewMesh->NotifyRegionDeferredEditCompleted(*FastRenderUpdateTids,
-			EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs); // Assuming user changed positions and didn't notify yet
-	}
-	else
-	{
-		UnwrapPreview->PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate,
-			EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs, true); // Assuming user changed positions and didn't notify yet
-	}
-
-	// Update the applied meshes
+	// Update AppliedCanonical
 	FDynamicMeshUVOverlay* SourceOverlay = UnwrapCanonical->Attributes()->PrimaryUV();
-	UpdateAppliedOverlays(*SourceOverlay, ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids);
+	FDynamicMeshUVOverlay* DestOverlay = AppliedCanonical->Attributes()->GetUVLayer(UVLayerIndex);
+	CopyMeshOverlay(*SourceOverlay, *DestOverlay, ChangedVids, ChangedConnectivityTids);
 
-	if (WireframeDisplay)
-	{
-		WireframeDisplay->NotifyMeshChanged();
-	}
+	UpdatePreviewsFromCanonical(ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids);
 }
 
 void UUVEditorToolMeshInput::UpdateAllFromAppliedPreview(
 	const TArray<int32>* ChangedElementIDs, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
 {
-	using namespace UVEditorToolMeshInputLocals;
-
-	// Update AppliedCanonical
-	const FDynamicMeshUVOverlay* SourceOverlay = AppliedPreview->PreviewMesh->GetMesh()
-		->Attributes()->GetUVLayer(UVLayerIndex);
-	FDynamicMeshUVOverlay* DestOverlay = AppliedCanonical->Attributes()->GetUVLayer(UVLayerIndex);
-	CopyMeshOverlay(*SourceOverlay, *DestOverlay, ChangedElementIDs, ChangedConnectivityTids);
-
-	// Update UnwrapCanonical
-	UVEditorToolUtil::UpdateUVUnwrapMesh(*SourceOverlay, *UnwrapCanonical, 
-		UVToVertPosition, ChangedElementIDs, ChangedConnectivityTids);
-
-	// Update UnwrapPreview from UnwrapCanonical
-	UnwrapPreview->PreviewMesh->DeferredEditMesh([this, ChangedElementIDs, ChangedConnectivityTids](FDynamicMesh3& Mesh) {
-		UpdateOtherUnwrap(*UnwrapCanonical, Mesh, ChangedElementIDs, ChangedConnectivityTids);
-	}, false);
-
-	if (FastRenderUpdateTids) {
-		UnwrapPreview->PreviewMesh->NotifyRegionDeferredEditCompleted(*FastRenderUpdateTids,
-			EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs); // Assuming user changed positions and didn't notify yet
-	}
-	else
-	{
-		UnwrapPreview->PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate,
-			EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs, true); // Assuming user changed positions and didn't notify yet
-	}
-
-	if (WireframeDisplay)
-	{
-		WireframeDisplay->NotifyMeshChanged();
-	}
-}
-
-/**
- * Helper function. Updates the UV overlays of AppliedCanonical and AppliedPreview.
- */
-void UUVEditorToolMeshInput::UpdateAppliedOverlays(const FDynamicMeshUVOverlay& SourceOverlay,
-	const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
-{
-	using namespace UVEditorToolMeshInputLocals;
-
-	// Update UnwrappedMeshCanonical
-	FDynamicMeshUVOverlay* DestOverlay = AppliedCanonical->Attributes()->GetUVLayer(UVLayerIndex);
-	CopyMeshOverlay(SourceOverlay, *DestOverlay, ChangedVids, ChangedConnectivityTids);
-
-	// Update AppliedPreview
-	AppliedPreview->PreviewMesh->DeferredEditMesh([this, &SourceOverlay, ChangedVids, ChangedConnectivityTids](FDynamicMesh3& Mesh)
-	{
-		FDynamicMeshUVOverlay* DestOverlay = Mesh.Attributes()->GetUVLayer(UVLayerIndex);
-		CopyMeshOverlay(SourceOverlay, *DestOverlay, ChangedVids, ChangedConnectivityTids);
-	}, false);
-
-	if (FastRenderUpdateTids) {
-		AppliedPreview->PreviewMesh->NotifyRegionDeferredEditCompleted(*FastRenderUpdateTids,
-			EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs); // Assuming user changed positions and didn't notify yet
-	}
-	else
-	{
-		AppliedPreview->PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate,
-			EMeshRenderAttributeFlags::VertexUVs, false); // Assuming user changed positions and didn't notify yet
-	}
+	UpdateUnwrapPreviewFromAppliedPreview(ChangedElementIDs, ChangedConnectivityTids, FastRenderUpdateTids);
+	UpdateCanonicalFromPreviews(ChangedElementIDs, ChangedConnectivityTids);
 }
 
 /**

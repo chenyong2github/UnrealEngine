@@ -11,6 +11,7 @@ class FUVEditorPreviewModeManager;
 class IDetailsView;
 class SDockTab;
 class SBorder;
+class SWidget;
 class UInteractiveToolsContext;
 class UInputRouter;
 
@@ -37,6 +38,8 @@ public:
 	virtual void CreateWidgets() override;
 
 	// FAssetEditorToolkit
+	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
+	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
 	virtual void CreateEditorModeManager() override;
 	virtual FText GetToolkitName() const override;
 	virtual FName GetToolkitFName() const override;

@@ -31,6 +31,10 @@ public:
 
 	virtual void SetBackgroundSettings(UObject* InSettingsObject);
 
+	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+
 protected:
 	// The mode's entire toolbox, which gets returned by GetInlineContent()
 	TSharedPtr<SWidget> ToolkitWidget;
@@ -54,4 +58,9 @@ protected:
 
 	// A place for tools to write out any instructions
 	TSharedPtr<STextBlock> ToolMessageArea;
+
+	/** Contains the widget container for the Accept/Cancel buttons for tools. */
+	TSharedPtr<SWidget> ViewportOverlayWidget;
+
+	FText ActiveToolName;
 };

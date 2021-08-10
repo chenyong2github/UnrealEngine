@@ -86,6 +86,10 @@ void UUVSelectTool::Setup()
 			Tree->SetMesh(Target->UnwrapCanonical.Get());
 			TreeStore->Set(Target->UnwrapCanonical.Get(), Tree);
 		}
+		if (!Tree->IsValid())
+		{
+			Tree->Build();
+		}
 		AABBTrees.Add(Tree);
 	}
 
@@ -445,7 +449,7 @@ void UUVSelectTool::ApplyGizmoTransform()
 					MeshIn.SetVertex(MovingVids[i], TransformToApply.TransformPosition(MovingVertOriginalPositions[i]));
 				}
 			}, false);
-		Targets[SelectionTargetIndex]->UpdateUnwrapPreviewOverlay(&MovingVids, nullptr, &SelectedTids);
+		Targets[SelectionTargetIndex]->UpdateUnwrapPreviewOverlayFromPositions(&MovingVids, nullptr, &SelectedTids);
 
 		SelectionMechanic->SetDrawnElementsTransform((FTransform)TransformToApply);
 

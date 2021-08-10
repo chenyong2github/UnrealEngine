@@ -4,10 +4,10 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
-
+#include "Parameterization/MeshUVPacking.h"
+#include "Properties/UVLayoutProperties.h"
 #include "Selections/MeshConnectedComponents.h"
 
-#include "Parameterization/MeshUVPacking.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -90,4 +90,33 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		}
 	}
 
+}
+
+TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
+{
+	TUniquePtr<FUVLayoutOp> Op = MakeUnique<FUVLayoutOp>();
+
+	Op->OriginalMesh = OriginalMesh;
+
+	switch (Settings->LayoutType)
+	{
+	case EUVLayoutType::Transform:
+		Op->UVLayoutMode = EUVLayoutOpLayoutModes::TransformOnly;
+		break;
+	case EUVLayoutType::Stack:
+		Op->UVLayoutMode = EUVLayoutOpLayoutModes::StackInUnitRect;
+		break;
+	case EUVLayoutType::Repack:
+		Op->UVLayoutMode = EUVLayoutOpLayoutModes::RepackToUnitRect;
+		break;
+	}
+
+	Op->UVLayerIndex = GetSelectedUVChannel();
+	Op->TextureResolution = Settings->TextureResolution;
+	Op->bAllowFlips = Settings->bAllowFlips;
+	Op->UVScaleFactor = Settings->UVScaleFactor;
+	Op->UVTranslation = FVector2f(Settings->UVTranslate);
+	Op->SetTransform(TargetTransform);
+
+	return Op;
 }

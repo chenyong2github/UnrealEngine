@@ -15,6 +15,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 
 #include "ParameterizationOps/UVLayoutOp.h"
+#include "Properties/UVLayoutProperties.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -65,12 +66,6 @@ UInteractiveTool* UUVLayoutToolBuilder::BuildTool(const FToolBuilderState& Scene
  * Tool
  */
 
-UUVLayoutToolProperties::UUVLayoutToolProperties()
-{
-
-}
-
-
 UUVLayoutTool::UUVLayoutTool()
 {
 }
@@ -104,7 +99,7 @@ void UUVLayoutTool::Setup()
 		});
 	}
 
-	BasicProperties = NewObject<UUVLayoutToolProperties>(this);
+	BasicProperties = NewObject<UUVLayoutProperties>(this);
 	BasicProperties->RestoreProperties(this);
 	AddToolPropertySource(BasicProperties);
 
@@ -156,12 +151,15 @@ void UUVLayoutTool::UpdateNumPreviews()
 		OriginalDynamicMeshes.SetNum(TargetNumPreview);
 		for (int32 PreviewIdx = CurrentNumPreview; PreviewIdx < TargetNumPreview; PreviewIdx++)
 		{
-			UUVLayoutOperatorFactory *OpFactory = NewObject<UUVLayoutOperatorFactory>();
-			OpFactory->Tool = this;
-			OpFactory->ComponentIndex = PreviewIdx;
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 			FMeshDescriptionToDynamicMesh Converter;
 			Converter.Convert(TargetMeshProviderInterface(PreviewIdx)->GetMeshDescription(), *OriginalDynamicMeshes[PreviewIdx]);
+
+			UUVLayoutOperatorFactory* OpFactory = NewObject<UUVLayoutOperatorFactory>();
+			OpFactory->OriginalMesh = OriginalDynamicMeshes[PreviewIdx];
+			OpFactory->Settings = BasicProperties;
+			OpFactory->TargetTransform = TargetComponentInterface(PreviewIdx)->GetWorldTransform();
+			OpFactory->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
@@ -212,39 +210,6 @@ void UUVLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 		GenerateAsset(Results);
 	}
 }
-
-TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
-{
-	TUniquePtr<FUVLayoutOp> Op = MakeUnique<FUVLayoutOp>();
-
-	FTransform LocalToWorld = Tool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
-	Op->OriginalMesh = Tool->OriginalDynamicMeshes[ComponentIndex];
-
-	switch (Tool->BasicProperties->LayoutType)
-	{
-	case EUVLayoutType::Transform:
-		Op->UVLayoutMode = EUVLayoutOpLayoutModes::TransformOnly;
-		break;
-	case EUVLayoutType::Stack:
-		Op->UVLayoutMode = EUVLayoutOpLayoutModes::StackInUnitRect;
-		break;
-	case EUVLayoutType::Repack:
-		Op->UVLayoutMode = EUVLayoutOpLayoutModes::RepackToUnitRect;
-		break;
-	}
-
-
-	Op->UVLayerIndex = Tool->GetSelectedUVChannel();
-	//Op->bSeparateUVIslands = Tool->BasicProperties->bSeparateUVIslands;
-	Op->TextureResolution = Tool->BasicProperties->TextureResolution;
-	Op->bAllowFlips = Tool->BasicProperties->bAllowFlips;
-	Op->UVScaleFactor = Tool->BasicProperties->UVScaleFactor;
-	Op->UVTranslation = FVector2f(Tool->BasicProperties->UVTranslate);
-	Op->SetTransform(LocalToWorld);
-
-	return Op;
-}
-
 
 int32 UUVLayoutTool::GetSelectedUVChannel() const
 {
