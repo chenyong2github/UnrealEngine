@@ -24,6 +24,7 @@
 uint InstanceSceneDataSOAStride;
 uint GPUSceneNumInstances;
 uint GPUSceneNumPrimitives;
+uint GPUSceneNumLightmapDataItems;
 
 #ifndef BATCH_PROCESSING_MODE_NUM
 	#define BATCH_PROCESSING_MODE_NUM 1
@@ -84,15 +85,27 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 {
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	
+	float4 LightMapUVScaleBias = float4(1,1,0,0);
+	float4 ShadowMapUVScaleBias = float4(1,1,0,0);
+
 	// FIXME: need LODIndex to compute correct LightmapDataIndex
 	uint LightmapDataIndex = PrimitiveData.LightmapDataIndex; // + LODIndex;
-	float4 LightMapUVScaleBias = GetLightmapData(LightmapDataIndex).LightMapCoordinateScaleBias;
-	float4 ShadowMapUVScaleBias = GetLightmapData(LightmapDataIndex).ShadowMapCoordinateScaleBias;
-	if (InstanceData.HasLightShadowUVBias)
+	if (LightmapDataIndex < GPUSceneNumLightmapDataItems)
 	{
-		LightMapUVScaleBias.zw = InstanceData.LightMapAndShadowMapUVBias.xy;
-		ShadowMapUVScaleBias.zw = InstanceData.LightMapAndShadowMapUVBias.zw;
+		LightMapUVScaleBias = GetLightmapData(LightmapDataIndex).LightMapCoordinateScaleBias;
+		ShadowMapUVScaleBias = GetLightmapData(LightmapDataIndex).ShadowMapCoordinateScaleBias;
+		if (InstanceData.HasLightShadowUVBias)
+		{
+			LightMapUVScaleBias.zw = InstanceData.LightMapAndShadowMapUVBias.xy;
+			ShadowMapUVScaleBias.zw = InstanceData.LightMapAndShadowMapUVBias.zw;
+		}
 	}
+	else
+	{
+		// avoid passing invalid lightmap data index into gfx shaders?
+		LightmapDataIndex = 0;
+	}
+
 	float4 PackedLightmapData = PackLightmapData(LightMapUVScaleBias, ShadowMapUVScaleBias);
 
 	const uint PackedPrimitiveFlags = ((PrimitiveData.Flags & 0xffff) | (InstanceData.Flags << 16u));
