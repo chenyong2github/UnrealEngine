@@ -83,8 +83,8 @@ public:
 					AddWarning(Format);
 				}
 			}
+			Format.AppendChar(TEXT('\n'));
 			LocalPrint(*Format);
-			LocalPrint( TEXT("\n") );
 		}
 		else if (Verbosity == ELogVerbosity::SetColor)
 		{
