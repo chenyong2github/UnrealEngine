@@ -2196,7 +2196,8 @@ namespace ObjectTools
 
 					// Revert the file if it is checked out
 					const bool bIsAdded = SourceControlState->IsAdded();
-					if ( SourceControlState->IsCheckedOut() || bIsAdded || SourceControlState->IsDeleted() )
+					const bool bIsCheckedOut = SourceControlState->IsCheckedOut();
+					if ( bIsCheckedOut || bIsAdded || SourceControlState->IsDeleted() )
 					{
 						// Batch the revert operation so that we only make one request to the source control module.
 						SCCFilesToRevert.Add(FullPackageFilename);
@@ -2205,6 +2206,11 @@ namespace ObjectTools
 					if ( bIsAdded )
 					{
 						// The file was open for add and reverted, this leaves the file on disk so here we delete it
+						IFileManager::Get().Delete(*PackageFilename);
+					}
+					else if ((!bIsCheckedOut) && (!IFileManager::Get().IsReadOnly(*PackageFilename)))
+					{
+						// The file was made writable and deleted, so we delete it on disk.
 						IFileManager::Get().Delete(*PackageFilename);
 					}
 					else
