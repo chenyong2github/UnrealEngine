@@ -4,76 +4,18 @@
 	LumenTranslucencyLighting.usf
 =============================================================================*/
 
-// Temporary hack until Lumen gets an improved denoiser for the translucency volume
-#define LEGACY_VOXEL_CONE_TRACING 1
-
 #include "../Common.ush"
 #include "../SHCommon.ush"
+#include "../MonteCarlo.ush"
+#include "../OctahedralCommon.ush"
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
-
-RWTexture3D<float4> RWTranslucencyGI0;
-RWTexture3D<float4> RWTranslucencyGI1;
-RWTexture3D<float4> RWTranslucencyGINewHistory0;
-RWTexture3D<float4> RWTranslucencyGINewHistory1;
-
-uint3 TranslucencyGIGridSize;
-float3 TranslucencyGIGridZParams;
-uint TranslucencyGIGridPixelSizeShift;
-
-float HistoryWeight;
-float3 FrameJitterOffset; 
-float4x4 UnjitteredClipToTranslatedWorld;    
-float4x4 UnjitteredPrevWorldToClip;
-
-Texture3D TranslucencyGIHistory0;
-Texture3D TranslucencyGIHistory1;
-SamplerState TranslucencyGIHistorySampler;
-
-float ConeHalfAngle;
-float MaxTraceDistance;
-float MaxMeshSDFTraceDistance;
-uint NumCones;
-float4 ConeDirections[64];
-float StepFactor;
-float VoxelStepFactor;
-float SampleWeight;
-float VoxelTraceStartDistanceScale;
-
-float ComputeDepthFromZSlice(float ZSlice)
-{
-	float SliceDepth = (exp2(ZSlice / TranslucencyGIGridZParams.z) - TranslucencyGIGridZParams.y) / TranslucencyGIGridZParams.x;
-	return SliceDepth;
-}
-
-float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset, out float SceneDepth)
-{
-	float2 VolumeUV = (GridCoordinate.xy + CellOffset.xy) / TranslucencyGIGridSize.xy;
-	float2 VolumeNDC = (VolumeUV * 2 - 1) * float2(1, -1);
-
-	SceneDepth = ComputeDepthFromZSlice(GridCoordinate.z + CellOffset.z);
-
-	float TileDeviceZ = ConvertToDeviceZ(SceneDepth);
-	float4 CenterPosition = mul(float4(VolumeNDC, TileDeviceZ, 1), UnjitteredClipToTranslatedWorld);
-	return CenterPosition.xyz / CenterPosition.w - View.PreViewTranslation;
-}
-
-float3 ComputeCellWorldPosition(uint3 GridCoordinate, float3 CellOffset)
-{
-	float Unused;
-	return ComputeCellWorldPosition(GridCoordinate, CellOffset, Unused);
-}
-
-float3 ComputeTranslucencyGIVolumeUV(float3 WorldPosition, float4x4 WorldToClip)
-{
-	float4 NDCPosition = mul(float4(WorldPosition, 1), WorldToClip);
-	NDCPosition.xy /= NDCPosition.w;
-	float NormalizedZSlice = log2(NDCPosition.w * TranslucencyGIGridZParams.x + TranslucencyGIGridZParams.y) * TranslucencyGIGridZParams.z / (float)TranslucencyGIGridSize.z;
-	return float3(NDCPosition.xy * float2(.5f, -.5f) + .5f, NormalizedZSlice);
-}
+#include "LumenRadianceCacheCommon.ush"
+#include "LumenRadianceCacheMarkCommon.ush"
+#include "LumenTranslucencyVolumeLightingShared.ush"
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
-void TranslucencyLightingCS(
+void MarkRadianceProbesUsedByTranslucencyVolumeCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
@@ -82,40 +24,265 @@ void TranslucencyLightingCS(
 
 	if (all(GridCoordinate < TranslucencyGIGridSize))
 	{
-		float SceneDepth;
-		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, FrameJitterOffset.xyz, SceneDepth);
+		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, FrameJitterOffset.xyz);
+		uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition);
 
-		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(0, MaxTraceDistance, MaxMeshSDFTraceDistance, false) * VoxelTraceStartDistanceScale;
-
-		FTwoBandSHVectorRGB Lighting = (FTwoBandSHVectorRGB)0;
-
-		for (uint ConeIndex = 0; ConeIndex < NumCones; ConeIndex++)
+		if (IsValidRadianceCacheClipmapForMark(ClipmapIndex) && IsFroxelVisible(GridCoordinate))
 		{
-			float3 WorldConeDirection = ConeDirections[ConeIndex].xyz;
+			MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
+		}
+	}
+}
+
+RWTexture3D<float3> RWVolumeTraceRadiance;
+RWTexture3D<float> RWVolumeTraceHitDistance;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void TranslucencyVolumeTraceVoxelsCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+#define DEINTERLEAVED_VOLUME_TRACING 0
+#if DEINTERLEAVED_VOLUME_TRACING
+	uint3 GridCoordinate = uint3(DispatchThreadId.xy % TranslucencyGIGridSize.xy, DispatchThreadId.z);
+	uint2 TraceTexelCoord = DispatchThreadId.xy / TranslucencyGIGridSize.xy;
+#else
+	uint3 GridCoordinate = uint3(DispatchThreadId.xy / TranslucencyVolumeTracingOctahedronResolution, DispatchThreadId.z);
+	uint2 TraceTexelCoord = DispatchThreadId.xy - GridCoordinate.xy * TranslucencyVolumeTracingOctahedronResolution;
+#endif
+
+	if (all(GridCoordinate < TranslucencyGIGridSize) && all(TraceTexelCoord < TranslucencyVolumeTracingOctahedronResolution))
+	{
+		float3 TraceRadiance = 0;
+		float TraceHitDistance = MaxTraceDistance;
+
+		if (IsFroxelVisible(GridCoordinate))
+		{
+			float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, FrameJitterOffset.xyz);
+
+			float2 ProbeUV;
+			float ConeHalfAngle;
+			GetProbeTracingUV(TraceTexelCoord, GetProbeTexelCenter(GridCoordinate), ProbeUV, ConeHalfAngle);
+
+			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+
+			float TraceDistance = MaxTraceDistance;
+			bool bCoveredByRadianceCache = false;
+#if USE_RADIANCE_CACHE
+			float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, float3(0, 0, 0), bCoveredByRadianceCache);
+			TraceDistance = min(TraceDistance, ProbeOcclusionDistance);
+#endif
+			float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(0, MaxTraceDistance, MaxMeshSDFTraceDistance, false) * VoxelTraceStartDistanceScale;
 
 			FConeTraceInput TraceInput;
-			TraceInput.Setup(WorldPosition, WorldConeDirection, ConeHalfAngle, 0, 0, MaxTraceDistance, StepFactor);
+			TraceInput.Setup(WorldPosition, WorldConeDirection, ConeHalfAngle, 0, 0, TraceDistance, StepFactor);
 			TraceInput.VoxelStepFactor = VoxelStepFactor;
 			TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
 			TraceInput.SDFStepFactor = 1;
 
-			FConeTraceResult TraceResult;
+			FConeTraceResult TraceResult = (FConeTraceResult)0;
+			TraceResult.Transparency = 1;
+
+#if TRACE_FROM_VOLUME
 			ConeTraceVoxels(TraceInput, TraceResult);
+#endif
 
-			EvaluateSkyRadianceForCone(WorldConeDirection, TraceInput.TanConeAngle, TraceResult);
+			if (TraceResult.Transparency <= .5f)
+			{
+				TraceHitDistance = TraceResult.OpaqueHitDistance;
+			}
 
-			Lighting = AddSH(Lighting, MulSH(SHBasisFunction(WorldConeDirection), TraceResult.Lighting * SampleWeight));
+#if USE_RADIANCE_CACHE
+			if (bCoveredByRadianceCache)
+			{
+				SampleRadianceCacheAndApply(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			}
+			else
+#endif
+			{
+				EvaluateSkyRadianceForCone(WorldConeDirection, TraceInput.TanConeAngle, TraceResult);
+			}
+
+			TraceRadiance = TraceResult.Lighting;
+
+			TraceRadiance *= View.PreExposure;
+
+			float MaxLighting = max3(TraceRadiance.x, TraceRadiance.y, TraceRadiance.z);
+
+			if (MaxLighting > MaxRayIntensity)
+			{
+				TraceRadiance *= MaxRayIntensity / MaxLighting;
+			}
 		}
 
-		//Lighting = MakePositiveFinite(Lighting);
+		uint3 WriteCoord = uint3(GridCoordinate.xy * TranslucencyVolumeTracingOctahedronResolution + TraceTexelCoord, GridCoordinate.z);
+		RWVolumeTraceRadiance[WriteCoord] = TraceRadiance;
+		RWVolumeTraceHitDistance[WriteCoord] = min(TraceHitDistance, MaxHalfFloat);
+	}
+}
+
+Texture3D<float3> VolumeTraceRadiance;
+Texture3D<float> VolumeTraceHitDistance;
+
+float3 PreviousFrameJitterOffset;
+float4x4 UnjitteredPrevWorldToClip;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void TranslucencyVolumeSpatialFilterCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint3 GridCoordinate = uint3(DispatchThreadId.xy / TranslucencyVolumeTracingOctahedronResolution, DispatchThreadId.z);
+	uint2 TraceTexelCoord = DispatchThreadId.xy - GridCoordinate.xy * TranslucencyVolumeTracingOctahedronResolution;
+
+	if (all(GridCoordinate < TranslucencyGIGridSize) && all(TraceTexelCoord < TranslucencyVolumeTracingOctahedronResolution))
+	{
+		float3 FilteredRadiance = 0;
+		float TotalWeight = 0;
+
+		int3 Offsets[6];
+		Offsets[0] = int3(-1, 0, 0);
+		Offsets[1] = int3(1, 0, 0);
+		Offsets[2] = int3(0, -1, 0);
+		Offsets[3] = int3(0, 1, 0);
+		Offsets[4] = int3(0, 0, -1);
+		Offsets[5] = int3(0, 0, 1);
+
+		LOOP
+		for (uint OffsetIndex = 0; OffsetIndex < 6; OffsetIndex++)
+		{
+			uint3 NeighborGridCoordinate = GridCoordinate + Offsets[OffsetIndex];
+
+			if (all(NeighborGridCoordinate >= 0 && NeighborGridCoordinate < TranslucencyGIGridSize))
+			{
+				float3 NeighborRadiance = VolumeTraceRadiance[uint3(NeighborGridCoordinate.xy * TranslucencyVolumeTracingOctahedronResolution + TraceTexelCoord, NeighborGridCoordinate.z)];
+				float Weight = 1.0f;
+				FilteredRadiance += NeighborRadiance * Weight;
+				TotalWeight += Weight;
+			}
+		}
+
+#define FILTER_HISTORY_MISS 0
+#if FILTER_HISTORY_MISS
+		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, PreviousFrameJitterOffset), UnjitteredPrevWorldToClip);
+
+		if ((any(HistoryUV < 0) || any(HistoryUV >= 1)) && all(GridCoordinate < TranslucencyGIGridSize))
+		{
+			int3 Offsets2[14];
+			Offsets2[0] = int3(-2, 0, 0);
+			Offsets2[1] = int3(2, 0, 0);
+			Offsets2[2] = int3(0, -2, 0);
+			Offsets2[3] = int3(0, 2, 0);
+			Offsets2[4] = int3(0, 0, -2);
+			Offsets2[5] = int3(0, 0, 2);
+			Offsets2[6] = int3(1, 1, 1);
+			Offsets2[7] = int3(-1, 1, 1);
+			Offsets2[8] = int3(1, -1, 1);
+			Offsets2[9] = int3(-1, -1, 1);
+			Offsets2[10] = int3(1, 1, -1);
+			Offsets2[11] = int3(-1, 1, -1);
+			Offsets2[12] = int3(1, -1, -1);
+			Offsets2[13] = int3(-1, -1, -1);
+
+			LOOP
+			for (uint OffsetIndex = 0; OffsetIndex < 14; OffsetIndex++)
+			{
+				uint3 NeighborGridCoordinate = GridCoordinate + Offsets2[OffsetIndex];
+
+				if (all(NeighborGridCoordinate >= 0 && NeighborGridCoordinate < TranslucencyGIGridSize))
+				{
+					float3 NeighborRadiance = VolumeTraceRadiance[uint3(NeighborGridCoordinate.xy * TranslucencyVolumeTracingOctahedronResolution + TraceTexelCoord, NeighborGridCoordinate.z)];
+					float Weight = 1.0f;
+					FilteredRadiance += NeighborRadiance * Weight;
+					TotalWeight += Weight;
+				}
+			}
+		}
+#endif
+
+		RWVolumeTraceRadiance[DispatchThreadId] = FilteredRadiance / max(TotalWeight, .00001f);
+	}
+}
+
+RWTexture3D<float4> RWTranslucencyGI0;
+RWTexture3D<float4> RWTranslucencyGI1;
+RWTexture3D<float4> RWTranslucencyGINewHistory0;
+RWTexture3D<float4> RWTranslucencyGINewHistory1;
+
+Texture3D TranslucencyGIHistory0;
+Texture3D TranslucencyGIHistory1;
+SamplerState TranslucencyGIHistorySampler;
+
+float HistoryWeight; 
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
+void TranslucencyVolumeIntegrateCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint3 GridCoordinate = DispatchThreadId;
+
+	if (all(GridCoordinate < TranslucencyGIGridSize))
+	{
+		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, FrameJitterOffset.xyz);
+
+		FTwoBandSHVectorRGB Lighting = (FTwoBandSHVectorRGB)0;
+		bool bNewLightingValid = false;
+		float InvTracingOctahedronResolution = 1.0f / (float)TranslucencyVolumeTracingOctahedronResolution;
+
+		if (IsFroxelVisible(GridCoordinate))
+		{
+			float TotalWeight = 0;
+
+			for (uint Y = 0; Y < TranslucencyVolumeTracingOctahedronResolution; Y++)
+			{
+				for (uint X = 0; X < TranslucencyVolumeTracingOctahedronResolution; X++)
+				{
+					float3 TraceRadiance = VolumeTraceRadiance[uint3(GridCoordinate.xy * TranslucencyVolumeTracingOctahedronResolution + uint2(X, Y), GridCoordinate.z)] * View.OneOverPreExposure;
+
+					float2 ProbeTexelCenter = float2(0.5, 0.5);
+					float2 ProbeUV = (float2(X, Y) + ProbeTexelCenter) * InvTracingOctahedronResolution;
+					float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+
+					float SolidAngle = OctahedralSolidAngle(ProbeUV, InvTracingOctahedronResolution);
+					Lighting = AddSH(Lighting, MulSH(SHBasisFunction(WorldConeDirection), TraceRadiance * SolidAngle));
+					TotalWeight += SolidAngle;
+				}
+			}
+
+			
+			Lighting.R.V *= PI / TotalWeight;
+			Lighting.G.V *= PI / TotalWeight;
+			Lighting.B.V *= PI / TotalWeight;
+
+
+			bNewLightingValid = true;
+		}
+
+		
+		/*
+		///////////////
+		Lighting = (FTwoBandSHVectorRGB)0;
+
+		float SceneDepth = ComputeDepthFromZSlice(GridCoordinate.z + FrameJitterOffset.z);
+		//float3 Debug = saturate(FroxelTrilinearFootprintMinSceneDepth / 10000.0f);
+		float3 Debug = FroxelTrilinearFootprintMinSceneDepth > MaxVisibleDepth ? 1 : 0;
+		Lighting.R.V.x = Debug.x * SHAmbientFunction();
+		Lighting.G.V.x = Debug.y * SHAmbientFunction();
+		Lighting.B.V.x = Debug.z * SHAmbientFunction();
+*/
+
 
 		FTwoBandSHVectorRGB NewHistoryLighting = Lighting;
 		
 	#if USE_TEMPORAL_REPROJECTION
-		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
-		float HistoryAlpha = HistoryWeight;
+		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, PreviousFrameJitterOffset), UnjitteredPrevWorldToClip);
+		float HistoryAlpha = bNewLightingValid ? HistoryWeight : 1.0f;
 
-		if (any(HistoryUV < 0) || any(HistoryUV > 1))
+		if (any(HistoryUV < 0) || any(HistoryUV >= 1))
 		{
 			HistoryAlpha = 0;
 		}

@@ -162,7 +162,7 @@ namespace LumenScreenProbeGatherRadianceCache
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
 }
 
-extern void LumenTranslucencyRadianceCacheMarkUsedProbes(
+extern void LumenTranslucencyReflectionsMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FSceneRenderer& SceneRenderer,
 	FViewInfo& View,
