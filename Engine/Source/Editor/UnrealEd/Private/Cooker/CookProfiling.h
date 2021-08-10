@@ -4,8 +4,10 @@
 
 #include "CoreTypes.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "Stats/Stats.h"
 
 #define OUTPUT_COOKTIMING ENABLE_COOK_STATS
+#define PROFILE_NETWORK 0
 
 #if OUTPUT_COOKTIMING
 #include "Trace/Trace.inl"
@@ -79,3 +81,35 @@ UE_TRACE_CHANNEL_EXTERN(CookChannel)
 void OutputHierarchyTimers() {}
 void ClearHierarchyTimers() {}
 #endif
+
+#if ENABLE_COOK_STATS
+namespace DetailedCookStats
+{
+	extern double TickCookOnTheSideTimeSec;
+	extern double TickCookOnTheSideLoadPackagesTimeSec;
+	extern double TickCookOnTheSideResolveRedirectorsTimeSec;
+	extern double TickCookOnTheSideSaveCookedPackageTimeSec;
+	extern double TickCookOnTheSideBeginPrepareSaveTimeSec;
+	extern double TickCookOnTheSideFinishPrepareSaveTimeSec;
+	extern double GameCookModificationDelegateTimeSec;
+
+	// Stats tracked through FAutoRegisterCallback
+	extern uint32 NumPreloadedDependencies;
+	extern int32 PeakRequestQueueSize;
+	extern int32 PeakLoadQueueSize;
+	extern int32 PeakSaveQueueSize;
+}
+#endif
+
+#if PROFILE_NETWORK
+double TimeTillRequestStarted = 0.0;
+double TimeTillRequestForfilled = 0.0;
+double TimeTillRequestForfilledError = 0.0;
+double WaitForAsyncFilesWrites = 0.0;
+FEvent* NetworkRequestEvent = nullptr;
+#endif
+
+DECLARE_STATS_GROUP(TEXT("Cooking"), STATGROUP_Cooking, STATCAT_Advanced);
+
+DECLARE_CYCLE_STAT(TEXT("Precache Derived data for platform"), STAT_TickPrecacheCooking, STATGROUP_Cooking);
+DECLARE_CYCLE_STAT(TEXT("Tick cooking"), STAT_TickCooker, STATGROUP_Cooking);

@@ -100,8 +100,6 @@
 #include "ShaderCodeLibrary.h"
 #include "ShaderCompiler.h"
 #include "ShaderLibraryChunkDataGenerator.h"
-#include "Stats/Stats.h"
-#include "Stats/StatsMisc.h"
 #include "String/Find.h"
 #include "TargetDomain/TargetDomainUtils.h"
 #include "UnrealEdGlobals.h"
@@ -170,54 +168,9 @@ static FAutoConsoleVariableRef CVarCookDisplayWarnBusyTime(
 	TEXT("Controls the time before the cooker will issue a warning that there is a deadlock in a busy queue.\n"),
 	ECVF_Default);
 
-
-#define PROFILE_NETWORK 0
-
-#if PROFILE_NETWORK
-double TimeTillRequestStarted = 0.0;
-double TimeTillRequestForfilled = 0.0;
-double TimeTillRequestForfilledError = 0.0;
-double WaitForAsyncFilesWrites = 0.0;
-FEvent *NetworkRequestEvent = nullptr;
-#endif
-
-#if ENABLE_COOK_STATS
-namespace DetailedCookStats
-{
-	// These times are externable so CookCommandlet can pick them up and merge them with its cook stats
-	double TickCookOnTheSideTimeSec = 0.0;
-	double TickCookOnTheSideLoadPackagesTimeSec = 0.0;
-	double TickCookOnTheSideResolveRedirectorsTimeSec = 0.0;
-	double TickCookOnTheSideSaveCookedPackageTimeSec = 0.0;
-	double TickCookOnTheSideBeginPrepareSaveTimeSec = 0.0;
-	double TickCookOnTheSideFinishPrepareSaveTimeSec = 0.0;
-	double GameCookModificationDelegateTimeSec = 0.0;
-	int32 PeakRequestQueueSize = 0;
-	int32 PeakLoadQueueSize = 0;
-	int32 PeakSaveQueueSize = 0;
-
-	// Stats tracked through FAutoRegisterCallback
-	uint32 NumPreloadedDependencies = 0;
-	FCookStatsManager::FAutoRegisterCallback RegisterCookOnTheFlyServerStats([](FCookStatsManager::AddStatFuncRef AddStat)
-		{
-			AddStat(TEXT("Package.Load"), FCookStatsManager::CreateKeyValueArray(TEXT("NumPreloadedDependencies"), NumPreloadedDependencies));
-			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakRequestQueueSize"), PeakRequestQueueSize));
-			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakLoadQueueSize"), PeakLoadQueueSize));
-			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakSaveQueueSize"), PeakSaveQueueSize));
-		});
-}
-#endif
-
-
-
 ////////////////////////////////////////////////////////////////
 /// Cook on the fly server
 ///////////////////////////////////////////////////////////////
-
-DECLARE_STATS_GROUP(TEXT("Cooking"), STATGROUP_Cooking, STATCAT_Advanced);
-
-DECLARE_CYCLE_STAT(TEXT("Precache Derived data for platform"), STAT_TickPrecacheCooking, STATGROUP_Cooking);
-DECLARE_CYCLE_STAT(TEXT("Tick cooking"), STAT_TickCooker, STATGROUP_Cooking);
 
 constexpr uint32 ExpectedMaxNumPlatforms = 32;
 constexpr float TickCookableObjectsFrameTime = .100f;
@@ -232,28 +185,6 @@ const TCHAR* GeneratedPackageSubPath = TEXT("_Generated_");
 
 /* helper structs functions
  *****************************************************************************/
-
-
-/** Helper to assign to any variable for a scope period */
-template<class T>
-struct FScopeAssign
-{
-private:
-	T* Setting;
-	T OriginalValue;
-public:
-	FScopeAssign(T& InSetting, const T NewValue)
-	{
-		Setting = &InSetting;
-		OriginalValue = *Setting;
-		*Setting = NewValue;
-	}
-	~FScopeAssign()
-	{
-		*Setting = OriginalValue;
-	}
-};
-
 
 class FPackageSearchVisitor : public IPlatformFile::FDirectoryVisitor
 {
@@ -5720,7 +5651,7 @@ void UCookOnTheFlyServer::ProcessAccessedIniSettings(const FConfigFile* Config, 
 
 bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlatform) const
 {
-	FScopeAssign<bool> A = FScopeAssign<bool>(IniSettingRecurse, true);
+	TGuardValue<bool> A(IniSettingRecurse, true);
 
 	FIniSettingContainer OldIniSettings;
 	TMap<FString, FString> OldAdditionalSettings;
@@ -5861,7 +5792,7 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 
 bool UCookOnTheFlyServer::SaveCurrentIniSettings(const ITargetPlatform* TargetPlatform) const
 {
-	FScopeAssign<bool> S = FScopeAssign<bool>(IniSettingRecurse, true);
+	TGuardValue<bool> S(IniSettingRecurse, true);
 
 	TMap<FString, FString> AdditionalIniSettings;
 	GetAdditionalCurrentIniVersionStrings(TargetPlatform, AdditionalIniSettings);

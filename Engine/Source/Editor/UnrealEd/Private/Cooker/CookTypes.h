@@ -6,7 +6,10 @@
 #include "Containers/Set.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h" // ECookTickFlags
 #include "HAL/Platform.h"
+#include "Logging/TokenizedMessage.h"
 #include "Templates/Function.h"
+
+class FString;
 
 #define COOK_CHECKSLOW_PACKAGEDATA 1
 #define DEBUG_COOKONTHEFLY 0
@@ -163,3 +166,5 @@ namespace Cook
 	void SetIsSchedulerThread(bool bValue);
 }
 }
+
+void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);

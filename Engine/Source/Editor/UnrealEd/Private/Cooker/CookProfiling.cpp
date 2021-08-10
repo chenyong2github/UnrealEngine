@@ -170,3 +170,29 @@ void ClearHierarchyTimers()
 	RootTimerInfo.ClearChildren();
 }
 #endif
+
+#if ENABLE_COOK_STATS
+namespace DetailedCookStats
+{
+	double TickCookOnTheSideTimeSec = 0.0;
+	double TickCookOnTheSideLoadPackagesTimeSec = 0.0;
+	double TickCookOnTheSideResolveRedirectorsTimeSec = 0.0;
+	double TickCookOnTheSideSaveCookedPackageTimeSec = 0.0;
+	double TickCookOnTheSideBeginPrepareSaveTimeSec = 0.0;
+	double TickCookOnTheSideFinishPrepareSaveTimeSec = 0.0;
+	double GameCookModificationDelegateTimeSec = 0.0;
+
+	// Stats tracked through FAutoRegisterCallback
+	int32 PeakRequestQueueSize = 0;
+	int32 PeakLoadQueueSize = 0;
+	int32 PeakSaveQueueSize = 0;
+	uint32 NumPreloadedDependencies = 0;
+	FCookStatsManager::FAutoRegisterCallback RegisterCookOnTheFlyServerStats([](FCookStatsManager::AddStatFuncRef AddStat)
+		{
+			AddStat(TEXT("Package.Load"), FCookStatsManager::CreateKeyValueArray(TEXT("NumPreloadedDependencies"), NumPreloadedDependencies));
+			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakRequestQueueSize"), PeakRequestQueueSize));
+			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakLoadQueueSize"), PeakLoadQueueSize));
+			AddStat(TEXT("CookOnTheFlyServer"), FCookStatsManager::CreateKeyValueArray(TEXT("PeakSaveQueueSize"), PeakSaveQueueSize));
+		});
+}
+#endif
