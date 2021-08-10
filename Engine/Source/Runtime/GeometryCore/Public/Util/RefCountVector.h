@@ -105,6 +105,7 @@ public:
 
 	int Increment(int Index, unsigned short IncrementCount = 1)
 	{
+		checkSlow(RefCounts[Index] != INVALID_REF_COUNT);
 		RefCounts[Index] += IncrementCount;
 		return RefCounts[Index];
 	}
@@ -154,7 +155,8 @@ public:
 			{
 				if (FreeIndices[i] == Index)
 				{
-					FreeIndices[i] = INDEX_NONE;
+					FreeIndices[i] = FreeIndices.Back();
+					FreeIndices.PopBack();
 					RefCounts[Index] = 1;
 					UsedCount++;
 					return true;

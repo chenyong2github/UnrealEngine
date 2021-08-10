@@ -246,8 +246,25 @@ public:
 
 	/** Initialize the triangle list to the given size, and set all triangles to InvalidID */
 	void InitializeTriangles(int MaxTriangleID);
-	/** Set the triangle to the given Element index tuple, and increment element reference counts */
-	EMeshResult SetTriangle(int TriangleID, const FIndex3i& TriElements);
+
+	/**
+	 * Set the triangle to the given Element index tuple, and increment element reference counts 
+	 * 
+	 * @param bAllowElementFreeing If true, then any elements that were only referenced by this triangle
+	 *  become immediately unallocated if the triangle no longer references them. This can be set to false
+	 *  when remeshing across existing elements to avoid them being freed while temporarily unreferenced,
+	 *  but then it should eventually be followed by a call to FreeUnusedElements().
+	 */
+	EMeshResult SetTriangle(int TriangleID, const FIndex3i& TriElements, bool bAllowElementFreeing = true);
+
+	/**
+	 * Goes through elements and frees any whose reference counts indicate that they are not being used. This
+	 * is usually not necessary since most operations that remove references will go ahead and do this, but
+	 * it may be used, for instance, after SetTriangle is called with bAllowElementFreeing set to false.
+	 * 
+	 * @param ElementsToCheck If provided, only these element ID's will be checked.
+	 */
+	void FreeUnusedElements(const TSet<int>* ElementsToCheck = nullptr);
 
 	/**
 	 * Set the triangle to have InvalidID element IDs, decrementing element reference counts if needed.
@@ -516,7 +533,7 @@ protected:
 	void SetElementFromBary(int SetElement, int ElementA, int ElementB, int ElementC, const FVector3<double>& BaryCoords);
 
 	/** updates the triangles array and optionally the element reference counts */
-	void InternalSetTriangle(int TriangleID, const FIndex3i& TriElements, bool bUpdateRefCounts);
+	void InternalSetTriangle(int TriangleID, const FIndex3i& TriElements, bool bUpdateRefCounts, bool bAllowElementFreeing = true);
 
 };
 
