@@ -64,7 +64,7 @@ bool FCompiledDataVolatilityManager::HasBeenRecompiled(FMovieSceneCompiledDataID
 		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
 		{
 			FMovieSceneCompiledDataID SubDataID = CompiledDataManager->GetSubDataID(RootDataID, Pair.Key);
-			if (HasSequenceBeenRecompiled(SubDataID, Pair.Key, CompiledDataManager))
+			if (SubDataID.IsValid() && HasSequenceBeenRecompiled(SubDataID, Pair.Key, CompiledDataManager))
 			{
 				return true;
 			}
@@ -124,6 +124,12 @@ void FCompiledDataVolatilityManager::UpdateCachedSignatures(IMovieScenePlayer& P
 		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& SubData : Hierarchy->AllSubSequenceData())
 		{
 			const FMovieSceneCompiledDataID     SubDataID = CompiledDataManager->GetSubDataID(RootDataID, SubData.Key);
+			if (!SubDataID.IsValid())
+			{
+				UE_LOG(LogMovieScene, Error, TEXT("Invalid SubDataID for: %s"), *SubData.Value.Sequence.ToString());
+				continue;
+			}
+
 			const FMovieSceneCompiledDataEntry& SubEntry  = CompiledDataManager->GetEntryRef(SubDataID);
 
 			CachedCompilationSignatures.Add(SubData.Key, SubEntry.CompiledSignature);
