@@ -109,6 +109,7 @@ public:
 	FDetailWidgetRow()
 		: NameWidget( *this, 0.0f, 0.0f, HAlign_Left, VAlign_Center )
 		, ValueWidget( *this, DefaultValueMinWidth, DefaultValueMaxWidth, HAlign_Left, VAlign_Fill )
+		, ExtensionWidget( *this, 0.0f, 0.0f, HAlign_Right, VAlign_Center)
 		, WholeRowWidget( *this, 0.0f, 0.0f, HAlign_Fill, VAlign_Fill )
 		, VisibilityAttr( EVisibility::Visible )
 		, IsEnabledAttr( true )
@@ -122,6 +123,7 @@ public:
 	{
 		NameWidget = FDetailWidgetDecl(*this, Other.NameWidget);
 		ValueWidget = FDetailWidgetDecl(*this, Other.ValueWidget);
+		ExtensionWidget = FDetailWidgetDecl(*this, Other.ExtensionWidget);
 		WholeRowWidget = FDetailWidgetDecl(*this, Other.WholeRowWidget);
 		VisibilityAttr = Other.VisibilityAttr;
 		IsEnabledAttr = Other.IsEnabledAttr;
@@ -176,6 +178,14 @@ public:
 	}
 
 	/**
+     * Assigns content to the extension (right) slot
+	 */
+	FDetailWidgetDecl& ExtensionContent()
+	{
+		return ExtensionWidget;
+	}
+
+	/**
 	 * Sets a string which should be used to filter the content when a user searches
 	 */
 	FDetailWidgetRow& FilterString( const FText& InFilterString )
@@ -199,6 +209,15 @@ public:
 	FDetailWidgetRow& IsEnabled( const TAttribute<bool>& InIsEnabled )
 	{
 		IsEnabledAttr = InIsEnabled;
+		return *this;
+	}
+
+    /**
+     * Sets the enabled state of the value widget only
+     */
+	FDetailWidgetRow& IsValueEnabled( const TAttribute<bool>& InIsEnabled )
+	{
+		IsValueEnabledAttr = InIsEnabled;
 		return *this;
 	}
 
@@ -237,6 +256,11 @@ public:
 	bool HasValueContent() const
 	{
 		return ValueWidget.Widget->GetType() != InvalidDetailWidgetName;
+	}
+
+	bool HasExtensionContent() const
+	{
+		return ExtensionWidget.Widget->GetType() != InvalidDetailWidgetName;
 	}
 
 	/**
@@ -308,12 +332,16 @@ public:
 	FDetailWidgetDecl NameWidget;
 	/** Value column content */
 	FDetailWidgetDecl ValueWidget;
+	/** Extension (right) column content */
+	FDetailWidgetDecl ExtensionWidget;
 	/** Whole row content */
 	FDetailWidgetDecl WholeRowWidget;
 	/** Visibility of the row */
 	TAttribute<EVisibility> VisibilityAttr;
 	/** IsEnabled of the row */
 	TAttribute<bool> IsEnabledAttr;
+    /** IsEnabled of the value widget only */
+	TAttribute<bool> IsValueEnabledAttr;
 	/** String to filter with */
 	FText FilterTextString;
 	/** Action for coping data on this row */

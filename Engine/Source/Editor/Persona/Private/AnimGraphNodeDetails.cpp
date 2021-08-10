@@ -1196,7 +1196,7 @@ bool FAnimGraphNodeBindingExtension::IsPropertyExtendable(const UClass* InObject
 	return false;
 }
 
-TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(const IDetailLayoutBuilder& InDetailBuilder, const UClass* InObjectClass, TSharedPtr<IPropertyHandle> InPropertyHandle)
+void FAnimGraphNodeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, const IDetailLayoutBuilder& InDetailBuilder, const UClass* InObjectClass, TSharedPtr<IPropertyHandle> InPropertyHandle)
 {
 	int32 OptionalPinIndex;
 	UAnimGraphNode_Base* AnimGraphNode;
@@ -1234,7 +1234,10 @@ TSharedRef<SWidget> FAnimGraphNodeBindingExtension::GenerateExtensionWidget(cons
 	UAnimGraphNode_Base::FAnimPropertyBindingWidgetArgs Args(AnimGraphNodes, AnimNodeProperty, PropertyName, OptionalPinIndex);
 	Args.bOnGraphNode = false;
 	
-	return UAnimGraphNode_Base::MakePropertyBindingWidget(Args);
+	InWidgetRow.ExtensionContent()
+	[
+		UAnimGraphNode_Base::MakePropertyBindingWidget(Args)
+	];
 }
 
 #undef LOCTEXT_NAMESPACE
