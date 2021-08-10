@@ -144,7 +144,7 @@ void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 		bool bBenchmarking = FApp::IsBenchmarking();
 		if( !bHasFocus && !bBenchmarking )
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE("EditorIsInBackgroundSleep");
+			TRACE_CPUPROFILER_EVENT_SCOPE(EditorIsInBackgroundSleep);
 			// Sleep for a bit to not eat up all CPU time.
 			FPlatformProcess::Sleep(0.005f);
 		}
