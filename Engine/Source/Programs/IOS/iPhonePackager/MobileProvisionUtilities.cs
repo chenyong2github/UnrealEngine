@@ -46,6 +46,12 @@ namespace iPhonePackager
                 Directory.CreateDirectory(LocalProvisionFolder);
             }
 
+			// Delete any provisions that exist in the folder so we don't keep old files laying around.
+			foreach (string Provision in Directory.GetFiles(LocalProvisionFolder))
+			{
+				File.Delete(Provision);
+			}
+
             // copy all of the provisions from the game directory to the library
             if (!String.IsNullOrEmpty(Config.ProjectFile))
             {
