@@ -2537,7 +2537,7 @@ namespace Audio
 
 	Audio::FPatchOutputStrongPtr FMixerDevice::AddPatchForSubmix(uint32 InObjectId, float InPatchGain)
 	{
-		if (!ensure(!IsInGameThread() && !IsInAudioThread()))
+		if (!ensure(IsAudioRenderingThread()))
 		{
 			return nullptr;
 		}
