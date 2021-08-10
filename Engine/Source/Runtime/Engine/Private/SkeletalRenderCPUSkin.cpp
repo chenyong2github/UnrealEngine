@@ -370,7 +370,6 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 		check(SkelMeshRenderData);
 		check(SkelMeshRenderData->LODRenderData.IsValidIndex(LODIndex));
 		FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData->LODRenderData[LODIndex];
-		FResourceArrayInterface* OfflineData = LODModel.RayTracingData.Num() ? &LODModel.RayTracingData : nullptr;
 		FBufferRHIRef VertexBufferRHI = LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI;
 		FBufferRHIRef IndexBufferRHI = LODModel.MultiSizeIndexContainer.GetIndexBuffer()->IndexBufferRHI;
 		uint32 VertexBufferStride = LODModel.StaticVertexBuffers.PositionVertexBuffer.GetStride();
@@ -384,7 +383,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 
 		TArray<FSkelMeshRenderSection>* RenderSections = &LODModel.RenderSections;
 		ENQUEUE_RENDER_COMMAND(InitSkeletalRenderCPUSkinRayTracingGeometry)(
-			[this, VertexBufferRHI, IndexBufferRHI, VertexBufferStride, TrianglesCount, RenderSections, OfflineData](FRHICommandListImmediate& RHICmdList)
+			[this, VertexBufferRHI, IndexBufferRHI, VertexBufferStride, TrianglesCount, RenderSections, &SourceGeometry = LODModel.SourceRayTracingGeometry](FRHICommandListImmediate& RHICmdList)
 			{
 				FRayTracingGeometryInitializer Initializer;
 				static const FName DebugName("FSkeletalMeshObjectCPUSkin");
@@ -411,12 +410,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 					GeometrySections.Add(Segment);
 				}
 				Initializer.Segments = GeometrySections;
-
-				if (OfflineData)
-				{
-					Initializer.OfflineData = OfflineData;
-					Initializer.bDiscardOfflineData = false; // The RayTracingData can be used for multiple SkeletalMeshObjects , so we need to keep it around
-				}
+				Initializer.SourceGeometry = SourceGeometry.RayTracingGeometryRHI;
 
 				RayTracingGeometry.SetInitializer(Initializer);
 				RayTracingGeometry.InitResource();

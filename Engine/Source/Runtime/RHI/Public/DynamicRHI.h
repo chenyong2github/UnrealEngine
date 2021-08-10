@@ -196,9 +196,11 @@ public:
 	// Offline built geometry data. If null, the geometry will be built by the RHI at runtime.
 	LAYOUT_FIELD_INITIALIZED(FResourceArrayInterface*, OfflineData, nullptr);
 
+	// Pointer to an existing ray tracing geometry which the new geometry is built from.
+	LAYOUT_FIELD_INITIALIZED(FRHIRayTracingGeometry*, SourceGeometry, nullptr);
+
 	LAYOUT_FIELD_INITIALIZED(bool, bFastBuild, false);
 	LAYOUT_FIELD_INITIALIZED(bool, bAllowUpdate, false);
-	LAYOUT_FIELD_INITIALIZED(bool, bDiscardOfflineData, true);
 
 	LAYOUT_FIELD(FName, DebugName);
 };

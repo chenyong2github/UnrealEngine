@@ -262,6 +262,16 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 			BeginInitResource(&MorphTargetVertexInfoBuffers);
 		}
 	}
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		if (SourceRayTracingGeometry.RawData.Num() > 0)
+		{
+			BeginInitResource(&SourceRayTracingGeometry);
+		}
+	}
+#endif
 }
 
 void FSkeletalMeshLODRenderData::ReleaseResources()
@@ -297,6 +307,7 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
+		BeginReleaseResource(&SourceRayTracingGeometry);
 		BeginReleaseResource(&StaticRayTracingGeometry);
 	}
 #endif
@@ -687,7 +698,7 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkeletalMe
 			SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(Owner, LODIdx, true);
 		}
 	}
-	Ar << RayTracingData;
+	Ar << SourceRayTracingGeometry.RawData;
 }
 
 void FSkeletalMeshLODRenderData::SerializeAvailabilityInfo(FArchive& Ar, USkeletalMesh* Owner, int32 LODIdx, bool bAdjacencyDataStripped, bool bNeedsCPUAccess)

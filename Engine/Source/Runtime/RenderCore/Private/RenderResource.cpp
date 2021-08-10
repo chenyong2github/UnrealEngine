@@ -380,11 +380,10 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 	check(RawData.Num() == 0 || Initializer.OfflineData == nullptr);
 	if (RawData.Num())
 	{
-		Initializer.bDiscardOfflineData = true;
 		Initializer.OfflineData = &RawData;
 	}
 
-	bool bAllSegmentsAreValid = Initializer.Segments.Num() > 0;
+	bool bAllSegmentsAreValid = Initializer.Segments.Num() > 0 || Initializer.OfflineData;
 	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 	{
 		if (!Segment.VertexBuffer)
