@@ -141,9 +141,10 @@ private:
 	
 	struct FPerElementConstants
 	{
-		FMatrix ViewProjection;
+		FMatrix44f ViewProjection;
 		FVector4 VertexShaderParams;
 	};
+	static_assert(sizeof(FPerElementConstants) == sizeof(float) * 20, "Size mismatch");	// LWC_TODO: Fix for FVector4f
 
 	FSlateD3DConstantBuffer<FPerElementConstants> ConstantBuffer;
 	TSlateD3DTypedShaderParameter<ID3D11Buffer>* Constants;
@@ -176,11 +177,13 @@ private:
 		uint32 DisableEffect;		//  4 bytes
 		uint32 UNUSED[1];			//  4 bytes
 	};
+	static_assert(sizeof(FPerElementConstants) == sizeof(float) * 8 + sizeof(uint32) * 4, "Size mismatch");	// LWC_TODO: Fix for FVector4f
 
 	MS_ALIGN(16) struct FPerFrameConstants
 	{
 		FVector2D GammaValues;
 	};
+	static_assert(sizeof(FVector2D) == sizeof(float) * 2, "Size mismatch");	// LWC_TODO: Fix for FVector2f
 
 	FSlateD3DConstantBuffer<FPerElementConstants> PerElementConstants;
 	FSlateD3DConstantBuffer<FPerFrameConstants> PerFrameConstants;
