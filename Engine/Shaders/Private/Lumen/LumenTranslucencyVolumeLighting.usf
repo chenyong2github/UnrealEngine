@@ -166,7 +166,7 @@ void TranslucencyVolumeSpatialFilterCS(
 
 #define FILTER_HISTORY_MISS 0
 #if FILTER_HISTORY_MISS
-		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, PreviousFrameJitterOffset), UnjitteredPrevWorldToClip);
+		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
 
 		if ((any(HistoryUV < 0) || any(HistoryUV >= 1)) && all(GridCoordinate < TranslucencyGIGridSize))
 		{
@@ -279,7 +279,7 @@ void TranslucencyVolumeIntegrateCS(
 		FTwoBandSHVectorRGB NewHistoryLighting = Lighting;
 		
 	#if USE_TEMPORAL_REPROJECTION
-		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, PreviousFrameJitterOffset), UnjitteredPrevWorldToClip);
+		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
 		float HistoryAlpha = bNewLightingValid ? HistoryWeight : 1.0f;
 
 		if (any(HistoryUV < 0) || any(HistoryUV >= 1))
