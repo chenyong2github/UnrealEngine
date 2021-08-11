@@ -304,6 +304,7 @@ void AChaosCacheManager::BeginPlay()
 				SolverData->PreSolveHandle  = Solver->AddPreAdvanceCallback(FSolverPreAdvance::FDelegate::CreateUObject(this, &AChaosCacheManager::HandlePreSolve, Solver));
 				SolverData->PreBufferHandle = Solver->AddPreBufferCallback(FSolverPreAdvance::FDelegate::CreateUObject(this, &AChaosCacheManager::HandlePreBuffer, Solver));
 				SolverData->PostSolveHandle = Solver->AddPostAdvanceCallback(FSolverPostAdvance::FDelegate::CreateUObject(this, &AChaosCacheManager::HandlePostSolve, Solver));
+				SolverData->TeardownHandle  = Solver->AddTeardownCallback(FSolverTeardown::FDelegate::CreateUObject(this, &AChaosCacheManager::HandleTeardown, Solver));
 			}
 
 			if (CacheMode == ECacheMode::Play || CacheMode == ECacheMode::None || !CanRecord())
@@ -516,6 +517,12 @@ void AChaosCacheManager::HandlePostSolve(Chaos::FReal InDt, Chaos::FPhysicsSolve
 			}
 		}
 	});
+}
+
+void AChaosCacheManager::HandleTeardown(Chaos::FPhysicsSolver* InSolver)
+{
+	// Solver has been deleted, we remove all reference to it to avoid dereferencing a dangling pointer.
+	PerSolverData.Remove(InSolver);
 }
 
 void AChaosCacheManager::OnStartFrameChanged(Chaos::FReal InTime)

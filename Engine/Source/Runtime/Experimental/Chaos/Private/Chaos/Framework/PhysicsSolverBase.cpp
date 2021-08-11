@@ -48,6 +48,16 @@ namespace Chaos
 		return EventPostSolve.Remove(InHandle);
 	}
 
+	FDelegateHandle FPhysicsSolverBase::AddTeardownCallback(FSolverTeardown::FDelegate InDelegate)
+	{
+		return EventTeardown.Add(InDelegate);
+	}
+
+	bool FPhysicsSolverBase::RemoveTeardownCallback(FDelegateHandle InHandle)
+	{
+		return EventTeardown.Remove(InHandle);
+	}
+
 	FAutoConsoleTaskPriority CPrio_FPhysicsTickTask(
 		TEXT("TaskGraph.TaskPriorities.PhysicsTickTask"),
 		TEXT("Task and thread priotiry for Chaos physics tick"),
