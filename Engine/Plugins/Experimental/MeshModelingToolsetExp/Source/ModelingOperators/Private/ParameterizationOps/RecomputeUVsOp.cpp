@@ -222,7 +222,12 @@ bool FRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 
 	if (bPackUVs)
 	{
-		UVEditor.QuickPack(PackingTextureResolution, PackingGutterWidth);
+		bool bPackingSuccess = UVEditor.QuickPack(PackingTextureResolution, PackingGutterWidth);
+		if (!bPackingSuccess)
+		{
+			NewResultInfo.AddError(FGeometryError(0, LOCTEXT("IslandPackingFailed", "Failed to pack UV islands")));
+			return false;
+		}
 	}
 
 	if (Progress && Progress->Cancelled())
@@ -355,7 +360,12 @@ bool FRecomputeUVsOp::CalculateResult_RegionOptimization(FProgressCancel* Progre
 
 	if (bPackUVs)
 	{
-		UVEditor.QuickPack(PackingTextureResolution, PackingGutterWidth);
+		bool bPackingSuccess = UVEditor.QuickPack(PackingTextureResolution, PackingGutterWidth);
+		if (!bPackingSuccess)
+		{
+			NewResultInfo.AddError(FGeometryError(0, LOCTEXT("IslandPackingFailed", "Failed to pack UV islands")));
+			return false;
+		}
 	}
 
 	if (Progress && Progress->Cancelled())
