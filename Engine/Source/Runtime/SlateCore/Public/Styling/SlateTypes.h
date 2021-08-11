@@ -381,6 +381,24 @@ struct SLATECORE_API FTextBlockStyle : public FSlateWidgetStyle
 	FTextBlockStyle& SetOverflowPolicy(const ETextOverflowPolicy& InOverflowPolicy) { OverflowPolicy = InOverflowPolicy; return *this; }
 
 	/**
+	 * Checks to see whether this style is identical to another.
+	 */
+	bool IsIdenticalTo(const FTextBlockStyle& InOther) const
+	{
+		return Font.IsIdenticalTo(InOther.Font)
+			&& ColorAndOpacity == InOther.ColorAndOpacity
+			&& ShadowOffset == InOther.ShadowOffset
+			&& ShadowColorAndOpacity == InOther.ShadowColorAndOpacity
+			&& SelectedBackgroundColor == InOther.SelectedBackgroundColor
+			&& HighlightColor == InOther.HighlightColor
+			&& HighlightShape == InOther.HighlightShape
+			&& StrikeBrush == InOther.StrikeBrush
+			&& UnderlineBrush == InOther.UnderlineBrush
+			&& TransformPolicy == InOther.TransformPolicy
+			&& OverflowPolicy == InOther.OverflowPolicy;
+	}
+
+	/**
 	 * Unlinks all colors in this style.
 	 * @see FSlateColor::Unlink
 	 */
