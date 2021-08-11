@@ -18,12 +18,12 @@ namespace UE::Core::Private
 	CORE_API int32 GetConvertedLength(const WIDECHAR* Dest, const UTF8CHAR* Src, int32 SrcLen);
 	CORE_API int32 GetConvertedLength(const UCS2CHAR* Dest, const UTF8CHAR* Src, int32 SrcLen);
 
-	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const ANSICHAR* Src, int32 SrcLen, UTF8CHAR BogusChar);
-	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const WIDECHAR* Src, int32 SrcLen, UTF8CHAR BogusChar);
-	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UCS2CHAR* Src, int32 SrcLen, UTF8CHAR BogusChar);
-	CORE_API ANSICHAR* Convert(ANSICHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, ANSICHAR BogusChar);
-	CORE_API WIDECHAR* Convert(WIDECHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, WIDECHAR BogusChar);
-	CORE_API UCS2CHAR* Convert(UCS2CHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen, UCS2CHAR BogusChar);
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const ANSICHAR* Src, int32 SrcLen);
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const WIDECHAR* Src, int32 SrcLen);
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UCS2CHAR* Src, int32 SrcLen);
+	CORE_API ANSICHAR* Convert(ANSICHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen);
+	CORE_API WIDECHAR* Convert(WIDECHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen);
+	CORE_API UCS2CHAR* Convert(UCS2CHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen);
 }
 
 // These will be moved inside GenericPlatformString.cpp when the platform layer handles UTF-16
@@ -34,6 +34,9 @@ namespace UE::Core::Private
 #define LOW_SURROGATE_END_CODEPOINT       ((uint16)0xDFFF)
 #define ENCODED_SURROGATE_START_CODEPOINT ((uint32)0x10000)
 #define ENCODED_SURROGATE_END_CODEPOINT   ((uint32)0x10FFFF)
+
+#define UNICODE_BOGUS_CHAR_CODEPOINT '?'
+static_assert(sizeof(UNICODE_BOGUS_CHAR_CODEPOINT) <= sizeof(ANSICHAR) && (UNICODE_BOGUS_CHAR_CODEPOINT) >= 32 && (UNICODE_BOGUS_CHAR_CODEPOINT) <= 127, "The Unicode Bogus character point is expected to fit in a single ANSICHAR here");
 
 /**
  * Generic string implementation for most platforms
@@ -195,11 +198,10 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 	 * @param DestSize  The size of the destination buffer.
 	 * @param Src       The start of the string to convert.
 	 * @param SrcSize   The number of Src elements to convert.
-	 * @param BogusChar The char to use when the conversion process encounters a character it cannot convert.
 	 * @return          A pointer to one past the last-written element.
 	 */
 	template <typename SourceEncoding, typename DestEncoding>
-	static FORCEINLINE DestEncoding* Convert(DestEncoding* Dest, int32 DestSize, const SourceEncoding* Src, int32 SrcSize, DestEncoding BogusChar = (DestEncoding)'?')
+	static FORCEINLINE DestEncoding* Convert(DestEncoding* Dest, int32 DestSize, const SourceEncoding* Src, int32 SrcSize)
 	{
 		if constexpr (IsCharEncodingCompatibleWith<SourceEncoding, DestEncoding>())
 		{
@@ -227,7 +229,7 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 				{
 					if (!CanConvertChar<DestEncoding>(Src[I]))
 					{
-						Dest[I] = BogusChar;
+						Dest[I] = UNICODE_BOGUS_CHAR_CODEPOINT;
 					}
 				}
 
@@ -238,7 +240,7 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 		}
 		else
 		{
-			return UE::Core::Private::Convert(Dest, DestSize, Src, SrcSize, BogusChar);
+			return UE::Core::Private::Convert(Dest, DestSize, Src, SrcSize);
 		}
 	}
 

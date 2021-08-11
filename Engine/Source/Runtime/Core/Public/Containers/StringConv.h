@@ -22,8 +22,6 @@
 #include <type_traits>
 
 #define DEFAULT_STRING_CONVERSION_SIZE 128u
-#define UNICODE_BOGUS_CHAR_CODEPOINT '?'
-static_assert(sizeof(UNICODE_BOGUS_CHAR_CODEPOINT) <= sizeof(ANSICHAR) && (UNICODE_BOGUS_CHAR_CODEPOINT) >= 32 && (UNICODE_BOGUS_CHAR_CODEPOINT) <= 127, "The Unicode Bogus character point is expected to fit in a single ANSICHAR here");
 
 template <typename From, typename To>
 class TStringConvert
@@ -38,7 +36,7 @@ public:
 	>
 	FORCEINLINE static void Convert(To* Dest, int32 DestLen, const CharType* Source, int32 SourceLen)
 	{
-		To* Result = FPlatformString::Convert(Dest, DestLen, (const FromType*)Source, SourceLen, (To)UNICODE_BOGUS_CHAR_CODEPOINT);
+		To* Result = FPlatformString::Convert(Dest, DestLen, (const FromType*)Source, SourceLen);
 		check(Result);
 	}
 
@@ -1074,7 +1072,7 @@ template <typename To, typename From>
 FORCEINLINE To CharCast(From Ch)
 {
 	To Result;
-	FPlatformString::Convert(&Result, 1, &Ch, 1, (To)UNICODE_BOGUS_CHAR_CODEPOINT);
+	FPlatformString::Convert(&Result, 1, &Ch, 1);
 	return Result;
 }
 
