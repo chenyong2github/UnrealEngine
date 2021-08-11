@@ -63,7 +63,7 @@ public:
 	/** Break on Exceptions allows you to trap Access Nones and other exceptional events in Blueprints. */
 	UPROPERTY(EditAnywhere, config, Category=Blueprints, meta=(DisplayName="Blueprint Break on Exceptions"))
 	bool bBreakOnExceptions;
-	
+
 protected:
 	/** Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor */
 	UPROPERTY(EditAnywhere, config, Category = Blueprints, meta=(AllowAbstract))
@@ -120,6 +120,10 @@ public:
 	/** Enable experimental bulk facial animation importer (found in Developer Tools menu, requires editor restart) */
 	UPROPERTY(EditAnywhere, config, Category = Tools, meta = (ConfigRestartRequired = true))
 	bool bFacialAnimationImporter;
+
+	/** Whether to enable one file per actor support in the engine. */
+	UPROPERTY(EditAnywhere, config, Category = Tools, meta=(DisplayName="Enable One File Per Actor"))
+	bool bEnableOneFilePerActorSupport;
 
 	/** Enable experimental PIE preview device launch */
 	UPROPERTY(EditAnywhere, config, Category = PIE, meta = (DisplayName = "Enable mobile PIE with preview device launch options."))

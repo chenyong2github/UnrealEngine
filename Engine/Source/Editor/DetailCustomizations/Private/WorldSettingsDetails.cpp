@@ -44,7 +44,10 @@ void FWorldSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilde
 
 	AddLightmapCustomization(DetailBuilder);
 
-	AddLevelExternalActorsCustomization(DetailBuilder);
+	if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
+	{
+		AddLevelExternalActorsCustomization(DetailBuilder);
+	}
 
 	DetailBuilder.HideProperty(AActor::GetHiddenPropertyName(), AActor::StaticClass());
 }
