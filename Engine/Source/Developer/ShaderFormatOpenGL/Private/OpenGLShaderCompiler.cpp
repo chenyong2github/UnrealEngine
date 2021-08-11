@@ -1255,13 +1255,13 @@ void WritePackedUBHeader(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, con
 
 	bool bNeedsHeader = true;
 
-	for (const auto Pair : UBNames)
+	for (const auto & Pair : UBNames)
 	{
 		FString Name(Pair.Value.c_str());
 		CCHeaderWriter.WritePackedUB(Name, Pair.Key);
 	}
 
-	for (const auto Pair : UBMemberInfo)
+	for (const auto & Pair : UBMemberInfo)
 	{
 		FString UBName(UBNames[Pair.Key].c_str());
 		
@@ -1382,7 +1382,7 @@ void AddMemberToPackedUB(const std::string & FrequencyPrefix,
 		else
 		{
 			char buff[10];
-			sprintf_s(buff, 10, "mat%dx%d(", type.traits.numeric.matrix.column_count, type.traits.numeric.matrix.row_count);
+			sprintf(buff, "mat%dx%d(", type.traits.numeric.matrix.column_count, type.traits.numeric.matrix.row_count);
 			Name += buff;
 		}
 
@@ -1398,7 +1398,7 @@ void AddMemberToPackedUB(const std::string & FrequencyPrefix,
 			Name += TCHAR_TO_UTF8(*TypeQualifier);
 			
 			char buff[10];
-			sprintf_s(buff, 10, "[%s + %d]", OffsetString.c_str(), i);
+			sprintf(buff, "[%s + %d]", OffsetString.c_str(), i);
 
 			Name += buff;
 

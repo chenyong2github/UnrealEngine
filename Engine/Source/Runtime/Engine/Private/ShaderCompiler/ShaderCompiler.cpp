@@ -53,6 +53,7 @@
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ShaderCore.h"
+#include "Shader.h"
 #include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
 #include "Misc/ScopeRWLock.h"
 #include "Async/ParallelFor.h"
