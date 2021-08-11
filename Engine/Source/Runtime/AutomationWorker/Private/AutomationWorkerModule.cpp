@@ -448,8 +448,8 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 	int32 NewHeight = Data.Height;
 	int32 NewWidth = Data.Width;
 
-	TArray<uint8> CompressedBitmap;
-	FImageUtils::CompressImageArray(NewWidth, NewHeight, RawImageData, CompressedBitmap);
+	TArray64<uint8> CompressedBitmap;
+	FImageUtils::PNGCompressImageArray(NewWidth, NewHeight, TArrayView64<const FColor>(RawImageData.GetData(), RawImageData.Num()), CompressedBitmap);
 
 	FAutomationScreenshotMetadata Metadata(Data);
 		

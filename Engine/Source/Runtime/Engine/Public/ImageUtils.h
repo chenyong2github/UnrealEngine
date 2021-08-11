@@ -141,7 +141,7 @@ public:
 	ENGINE_API static void CropAndScaleImage( int32 SrcWidth, int32 SrcHeight, int32 DesiredWidth, int32 DesiredHeight, const TArray<FColor> &SrcData, TArray<FColor> &DstData  );
 
 	/**
-	 * Compress image to .png uint8 array.
+	 * Compress image to thumbnail enabled format (png or jpg) uint8 array.
 	 *
 	 * @param ImageHeight		Source image width.
 	 * @param ImageWidth		Source image height.
@@ -150,6 +150,17 @@ public:
 	 *
 	 */
 	ENGINE_API static void CompressImageArray( int32 ImageWidth, int32 ImageHeight, const TArray<FColor> &SrcData, TArray<uint8> &DstData );
+
+	/**
+	 * Compress image to PNG format uint8 array.
+	 *
+	 * @param ImageHeight		Source image width.
+	 * @param ImageWidth		Source image height.
+	 * @param SrcData			Raw image array.
+	 * @param DstData			compressed image array.
+	 *
+	 */
+	ENGINE_API static void PNGCompressImageArray(int32 ImageWidth, int32 ImageHeight, const TArrayView64<const FColor>& SrcData, TArray64<uint8>& DstData);
 
 	/**
 	 * Creates a new UTexture2D with a checkerboard pattern.

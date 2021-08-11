@@ -298,7 +298,7 @@ public:
 	FText ErrorMessage;
 
 	/*
-		Error message that can be set during a comparison
+		Version of the image comparision result 
 	*/
 	UPROPERTY()
 	int32 Version;
@@ -363,6 +363,11 @@ public:
 	bool AreSimilar() const
 	{
 		if ( IsNew() )
+		{
+			return false;
+		}
+
+		if (!ErrorMessage.IsEmpty())
 		{
 			return false;
 		}

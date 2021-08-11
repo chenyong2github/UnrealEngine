@@ -397,7 +397,7 @@ void FImageUtils::CompressImageArray( int32 ImageWidth, int32 ImageHeight, const
 {
 	TArray<FColor> MutableSrcData = SrcData;
 
-	// PNGs are saved as RGBA but FColors are stored as BGRA. An option to swap the order upon compression may be added at 
+	// Thumbnails are saved as RGBA but FColors are stored as BGRA. An option to swap the order upon compression may be added at 
 	// some point. At the moment, manually swapping Red and Blue 
 	for ( int32 Index = 0; Index < ImageWidth*ImageHeight; Index++ )
 	{
@@ -415,10 +415,33 @@ void FImageUtils::CompressImageArray( int32 ImageWidth, int32 ImageHeight, const
 	ThumbnailByteArray.AddUninitialized(MemorySize);
 	FMemory::Memcpy(ThumbnailByteArray.GetData(), MutableSrcData.GetData(), MemorySize);
 
-	// Compress data - convert into a .png
+	// Compress data - convert into thumbnail current format
 	TempThumbnail.CompressImageData();
-	TArray<uint8>& CompressedByteArray = TempThumbnail.AccessCompressedImageData();
 	DstData = TempThumbnail.AccessCompressedImageData();
+}
+
+void FImageUtils::PNGCompressImageArray(int32 ImageWidth, int32 ImageHeight, const TArrayView64<const FColor>& SrcData, TArray64<uint8>& DstData)
+{
+	const int64 PixelsNum = ImageWidth * ImageHeight;
+	check(SrcData.Num() == PixelsNum);
+
+	const uint8* SrcFirstByte = static_cast<const uint8*>(static_cast<const void*>(SrcData.GetData()));
+	const int64 MemorySize = PixelsNum * sizeof(FColor);
+
+	DstData.Reset();
+
+	if (SrcData.Num() > 0 && ImageWidth > 0 && ImageHeight > 0)
+	{
+		if (DstData.Num() == 0)
+		{
+			IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+			TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+			if (ImageWrapper.IsValid() && ImageWrapper->SetRaw(SrcFirstByte, MemorySize, ImageWidth, ImageHeight, ERGBFormat::BGRA, 8))
+			{
+				DstData = ImageWrapper->GetCompressed();
+			}
+		}
+	}
 }
 
 UTexture2D* FImageUtils::CreateCheckerboardTexture(FColor ColorOne, FColor ColorTwo, int32 CheckerSize)

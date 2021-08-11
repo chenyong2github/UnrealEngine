@@ -256,8 +256,8 @@ void FAutomationUtilsGameplayAutomationScreenshotInstance::HandleScreenshotData(
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(DeterminedPath), true);
 
 	//Save Image File
-	TArray<uint8> CompressedBitmap;
-	FImageUtils::CompressImageArray(InSizeX, InSizeY, InImageData, CompressedBitmap);
+	TArray64<uint8> CompressedBitmap;
+	FImageUtils::PNGCompressImageArray(InSizeX, InSizeY, TArrayView64<const FColor>(InImageData.GetData(), InImageData.Num()), CompressedBitmap);
 	FFileHelper::SaveArrayToFile(CompressedBitmap, *DeterminedPath);
 	GLog->Log(FString::Printf(TEXT("Saved %d bytes of screenshot image to %s"), CompressedBitmap.Num(), *DeterminedPath));
 
