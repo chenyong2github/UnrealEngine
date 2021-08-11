@@ -60,3 +60,20 @@ public:
 private:
 	TUniquePtr<FUsdLevelSequenceHelperImpl> UsdSequencerImpl;
 };
+
+class USDSTAGE_API FScopedBlockMonitoringChangesForTransaction final
+{
+public:
+	explicit FScopedBlockMonitoringChangesForTransaction( FUsdLevelSequenceHelper& InHelper );
+	~FScopedBlockMonitoringChangesForTransaction();
+
+	FScopedBlockMonitoringChangesForTransaction() = delete;
+	FScopedBlockMonitoringChangesForTransaction( const FScopedBlockMonitoringChangesForTransaction& ) = delete;
+	FScopedBlockMonitoringChangesForTransaction( FScopedBlockMonitoringChangesForTransaction&& ) = delete;
+	FScopedBlockMonitoringChangesForTransaction& operator=( const FScopedBlockMonitoringChangesForTransaction& ) = delete;
+	FScopedBlockMonitoringChangesForTransaction& operator=( FScopedBlockMonitoringChangesForTransaction&& ) = delete;
+
+private:
+	FUsdLevelSequenceHelper& Helper;
+	bool bStoppedMonitoringChanges = false;
+};

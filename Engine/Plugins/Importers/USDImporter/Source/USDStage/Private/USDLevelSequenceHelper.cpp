@@ -1294,10 +1294,9 @@ void FUsdLevelSequenceHelperImpl::BlockMonitoringChangesForThisTransaction()
 		}
 
 		BlockedTransactionGuids.Add( Context.TransactionId );
-	}
 
-	// Also block via the regular way in case we're receiving a notice due to a Python change and the user hasn't manually created a transaction
-	StopMonitoringChanges();
+		StopMonitoringChanges();
+	}
 }
 
 void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event)
@@ -1830,5 +1829,32 @@ TArray< ULevelSequence* > FUsdLevelSequenceHelper::GetSubSequences() const
 	else
 	{
 		return {};
+	}
+}
+
+FScopedBlockMonitoringChangesForTransaction::FScopedBlockMonitoringChangesForTransaction( FUsdLevelSequenceHelper& InHelper )
+	: Helper( InHelper )
+{
+	// If we're transacting we can just call this and the helper will unblock itself once the transaction is finished, because
+	// we need to make sure the unblocking happens after any call to OnObjectTransacted.
+	if ( GUndo )
+	{
+		Helper.BlockMonitoringChangesForThisTransaction();
+	}
+	// If we're not in a transaction we still need to block this (can also happen e.g. if a Python change triggers a stage notice),
+	// but since we don't have to worry about the OnObjectTransacted calls we can just use this RAII object here to wrap over
+	// any potential changes to level sequence assets
+	else
+	{
+		bStoppedMonitoringChanges = true;
+		Helper.StopMonitoringChanges();
+	}
+}
+
+FScopedBlockMonitoringChangesForTransaction::~FScopedBlockMonitoringChangesForTransaction()
+{
+	if ( bStoppedMonitoringChanges )
+	{
+		Helper.StartMonitoringChanges();
 	}
 }

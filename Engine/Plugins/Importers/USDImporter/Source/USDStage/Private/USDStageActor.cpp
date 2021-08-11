@@ -798,8 +798,8 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 	}
 
 	// We may update our levelsequence objects (tracks, moviescene, sections, etc.) due to these changes. We definitely don't want to write anything
-	// back to USD when these objects change though
-	LevelSequenceHelper.BlockMonitoringChangesForThisTransaction();
+	// back to USD when these objects change though.
+	FScopedBlockMonitoringChangesForTransaction BlockMonitoring{ LevelSequenceHelper };
 
 	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
 	TMap< FString, bool > SortedPrimsChangedList;

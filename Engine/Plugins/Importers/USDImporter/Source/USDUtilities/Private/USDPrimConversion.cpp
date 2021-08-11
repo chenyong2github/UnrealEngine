@@ -965,7 +965,6 @@ bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieScen
 		pxr::SdfChangeBlock ChangeBlock;
 
 		// Compensate different orientation for light or camera components
-		// TODO: Handle inverse compensation when the bound component is a child of a light/camera component
 		FTransform AdditionalRotation = FTransform::Identity;
 		if ( UsdPrim.IsA< pxr::UsdGeomCamera >() || UsdPrim.IsA< pxr::UsdLuxLight >() )
 		{
