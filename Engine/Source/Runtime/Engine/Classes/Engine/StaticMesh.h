@@ -1425,16 +1425,6 @@ public:
 		 * Ored with the value of bAllowCpuAccess on the static mesh. Set to false by default.
 		 */
 		bool bAllowCpuAccess;
-
-		/**
-		 * If true, Tangents will be stored at 16 bit vs 8 bit precision. 
-		 */
-		bool bUseHighPrecisionTangentBasis = false;
-
-		/**
-		 * If true, UVs will be stored at full floating point precision.
-		 */
-		bool bUseFullPrecisionUVs = false;
 	};
 
 	/**
