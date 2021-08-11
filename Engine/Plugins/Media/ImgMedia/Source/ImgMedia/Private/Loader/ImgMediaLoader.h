@@ -425,6 +425,8 @@ private:
 
 	/** Index of the previously requested frame. */
 	int32 LastRequestedFrame;
+	/** Counter used to retry loading frames again. */
+	int32 RetryCount;
 
 	/** Collection of frame numbers that need to be read. */
 	TArray<int32> PendingFrameNumbers;
