@@ -97,12 +97,12 @@ const TSharedRef<SWidget> FDataLayerOutlinerIsDynamicallyLoadedColumn::Construct
 							}
 
 							const FScopedTransaction Transaction(LOCTEXT("ToggleDataLayersIsDynamicallyLoadedInEditor", "Toggle Data Layers Dynamically Loaded In Editor Flag"));
-							bSuccess = DataLayerEditorSubsystem->ToggleDataLayersIsDynamicallyLoadedInEditor(AllSelectedDataLayers);
+							bSuccess = DataLayerEditorSubsystem->ToggleDataLayersIsDynamicallyLoadedInEditor(AllSelectedDataLayers, true);
 						}
 						else
 						{
 							const FScopedTransaction Transaction(LOCTEXT("ToggleDataLayerIsDynamicallyLoadedInEditor", "Toggle Data Layer Dynamically Loaded In Editor Flag"));
-							bSuccess = DataLayerEditorSubsystem->ToggleDataLayerIsDynamicallyLoadedInEditor(DataLayer);
+							bSuccess = DataLayerEditorSubsystem->ToggleDataLayerIsDynamicallyLoadedInEditor(DataLayer, true);
 						}
 						if (!bSuccess)
 						{

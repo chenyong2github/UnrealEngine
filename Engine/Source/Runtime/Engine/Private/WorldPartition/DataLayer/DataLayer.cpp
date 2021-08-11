@@ -117,12 +117,13 @@ void UDataLayer::SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded)
 	}
 }
 
-void UDataLayer::SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor)
+void UDataLayer::SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor, bool bInFromUserChange)
 {
 	if (bIsDynamicallyLoadedInEditor != bInIsDynamicallyLoadedInEditor)
 	{
 		Modify(false);
 		bIsDynamicallyLoadedInEditor = bInIsDynamicallyLoadedInEditor;
+		bIsDynamicallyLoadedInEditorChangedByUserOperation |= bInFromUserChange;
 	}
 }
 

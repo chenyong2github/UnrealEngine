@@ -478,9 +478,10 @@ public:
 	 * @param	bIsDynamicallyLoadedInEditor	The new value of the flag IsDynamicallyLoadedInEditor.
 	 *											If the DataLayer is DynamicallyLoaded, the Editor loading will consider this DataLayer to load or not an Actor.
 	 *											An Actor will not be loaded in the Editor if all its DataLayers are DynamicallyLoaded and not DynamicallyLoadedInEditor.
+	 * @param	bIsFromUserChange				If this change originates from a user change or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor);
+	bool SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange);
 
 	/**
 	 * Changes the IsDynamicallyLoadedInEditor flag of the DataLayers to the provided state
@@ -489,25 +490,28 @@ public:
 	 * @param	bIsDynamicallyLoadedInEditor	The new value of the flag IsDynamicallyLoadedInEditor.
 	 *											If the DataLayer is DynamicallyLoaded, the Editor loading will consider this DataLayer to load or not an Actor.
 	 *											An Actor will not be loaded in the Editor if all its DataLayers are DynamicallyLoaded and not DynamicallyLoadedInEditor.
+	 * @param	bIsFromUserChange				If this change originates from a user change or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor);
+	bool SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange);
 
 	/**
 	 * Toggles the DataLayer's IsDynamicallyLoadedInEditor flag
 	 *
-	 * @param DataLayer	The DataLayer to affect
+	 * @param	DataLayer						The DataLayer to affect
+	 * @param	bIsFromUserChange				If this change originates from a user change or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer);
+	bool ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsFromUserChange);
 
 	/**
 	 * Toggles the IsDynamicallyLoadedInEditor flag of all of the DataLayers
 	 *
-	 * @param	DataLayers	The DataLayers to affect
+	 * @param	DataLayers						The DataLayers to affect
+	 * @param	bIsFromUserChange				If this change originates from a user change or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers);
+	bool ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsFromUserChange);
 
 	/**
 	 * Set the visibility of all DataLayers to true
@@ -645,7 +649,7 @@ private:
 	void PostUndoRedo();
 
 	bool SetDataLayerIsDynamicallyLoadedInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded);
-	bool SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor);
+	bool SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange);
 	bool RefreshWorldPartitionEditorCells();
 	void UpdateDataLayerEditorPerProjectUserSettings();
 

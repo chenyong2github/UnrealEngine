@@ -186,17 +186,36 @@ void UDataLayerEditorSubsystem::UpdateDataLayerEditorPerProjectUserSettings()
 {
 	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
+		const TArray<FName>& SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
+		const TArray<FName>& SettingsDataLayersLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersLoadedInEditor(GetWorld());
+
 		TArray<FName> DataLayersNotLoadedInEditor;
 		TArray<FName> DataLayersLoadedInEditor;
-		WorldDataLayers->ForEachDataLayer([&DataLayersNotLoadedInEditor, &DataLayersLoadedInEditor](UDataLayer* DataLayer)
+		WorldDataLayers->ForEachDataLayer([&DataLayersNotLoadedInEditor, &DataLayersLoadedInEditor, &SettingsDataLayersNotLoadedInEditor, &SettingsDataLayersLoadedInEditor](UDataLayer* DataLayer)
 		{
-			if (!DataLayer->IsDynamicallyLoadedInEditor() && DataLayer->IsInitiallyLoadedInEditor())
-			{
-				DataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
+			if (DataLayer->IsDynamicallyLoadedInEditorChangedByUserOperation())
+			{			
+				if (!DataLayer->IsDynamicallyLoadedInEditor() && DataLayer->IsInitiallyLoadedInEditor())
+				{
+					DataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
+				}
+				else if (DataLayer->IsDynamicallyLoadedInEditor() && !DataLayer->IsInitiallyLoadedInEditor())
+				{
+					DataLayersLoadedInEditor.Add(DataLayer->GetFName());
+				}
+
+				DataLayer->ClearDynamicallyLoadedInEditorChangedByUserOperation();
 			}
-			else if (DataLayer->IsDynamicallyLoadedInEditor() && !DataLayer->IsInitiallyLoadedInEditor())
+			else
 			{
-				DataLayersLoadedInEditor.Add(DataLayer->GetFName());
+				if (SettingsDataLayersNotLoadedInEditor.Contains(DataLayer->GetFName()))
+				{
+					DataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
+				}
+				else if (SettingsDataLayersLoadedInEditor.Contains(DataLayer->GetFName()))
+				{
+					DataLayersLoadedInEditor.Add(DataLayer->GetFName());
+				}
 			}
 			return true;
 		});
@@ -992,10 +1011,7 @@ bool UDataLayerEditorSubsystem::SetDataLayersIsDynamicallyLoaded(const TArray<UD
 	bool bRefreshNeeded = false;
 	for (UDataLayer* DataLayer : DataLayers)
 	{
-		if (SetDataLayerIsDynamicallyLoadedInternal(DataLayer, bIsDynamicallyLoaded))
-		{
-			bRefreshNeeded = true;
-		}
+		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInternal(DataLayer, bIsDynamicallyLoaded);
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
 }
@@ -1011,61 +1027,52 @@ bool UDataLayerEditorSubsystem::ToggleDataLayersIsDynamicallyLoaded(const TArray
 	bool bRefreshNeeded = false;
 	for (UDataLayer* DataLayer : DataLayers)
 	{
-		if (SetDataLayerIsDynamicallyLoadedInternal(DataLayer, !DataLayer->IsDynamicallyLoaded()))
-		{
-			bRefreshNeeded = true;
-		}
+		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInternal(DataLayer, !DataLayer->IsDynamicallyLoaded());
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
 }
 
-bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor)
+bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
 {
 	check(DataLayer);
 	if (DataLayer->IsDynamicallyLoadedInEditor() != bIsDynamicallyLoadedInEditor)
 	{
 		DataLayer->Modify(false);
-		DataLayer->SetIsDynamicallyLoadedInEditor(bIsDynamicallyLoadedInEditor);
+		DataLayer->SetIsDynamicallyLoadedInEditor(bIsDynamicallyLoadedInEditor, bIsFromUserChange);
 		DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsDynamicallyLoadedInEditor");
 		return true;
 	}
 	return false;
 }
 
-bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor)
+bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
 {
-	bool bRefreshNeeded = SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, bIsDynamicallyLoadedInEditor);
+	bool bRefreshNeeded = SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, bIsDynamicallyLoadedInEditor, bIsFromUserChange);
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
 }
 
-bool UDataLayerEditorSubsystem::SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor)
+bool UDataLayerEditorSubsystem::SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
 {
 	bool bRefreshNeeded = false;
 	for (UDataLayer* DataLayer : DataLayers)
 	{
-		if (SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, bIsDynamicallyLoadedInEditor))
-		{
-			bRefreshNeeded = true;
-		}
+		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, bIsDynamicallyLoadedInEditor, bIsFromUserChange);
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
 }
 
-bool UDataLayerEditorSubsystem::ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer)
+bool UDataLayerEditorSubsystem::ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsFromUserChange)
 {
 	check(DataLayer);
-	return SetDataLayerIsDynamicallyLoadedInEditor(DataLayer, !DataLayer->IsDynamicallyLoadedInEditor());
+	return SetDataLayerIsDynamicallyLoadedInEditor(DataLayer, !DataLayer->IsDynamicallyLoadedInEditor(), bIsFromUserChange);
 }
 
-bool UDataLayerEditorSubsystem::ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers)
+bool UDataLayerEditorSubsystem::ToggleDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsFromUserChange)
 {
 	bool bRefreshNeeded = false;
 	for (UDataLayer* DataLayer : DataLayers)
 	{
-		if (SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, !DataLayer->IsDynamicallyLoadedInEditor()))
-		{
-			bRefreshNeeded = true;
-		}
+		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, !DataLayer->IsDynamicallyLoadedInEditor(), bIsFromUserChange);
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
 }
@@ -1075,10 +1082,7 @@ bool UDataLayerEditorSubsystem::ResetUserSettings(const TArray<UDataLayer*>& Dat
 	bool bRefreshNeeded = false;
 	for (UDataLayer* DataLayer : DataLayers)
 	{
-		if (SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor()))
-		{
-			bRefreshNeeded = true;
-		}
+		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor(), true);
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
 }
