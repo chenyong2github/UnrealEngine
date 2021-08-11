@@ -125,6 +125,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static FString GetMapPackageName(UMoviePipelineExecutorJob* InJob);
 
+	/** Loads the specified manifest file and converts it into an UMoviePipelineQueue. Use in combination with SaveQueueToManifestFile. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static class UMoviePipelineQueue* LoadManifestFileFromString(const FString& InManifestFilePath);
+
 	/** Scan the provided sequence in the job to see which camera cut sections we would try to render and update the job's shotlist. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	static void UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob, bool& bShotsChanged);

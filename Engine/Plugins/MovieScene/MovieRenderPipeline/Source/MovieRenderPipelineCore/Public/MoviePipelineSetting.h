@@ -47,8 +47,17 @@ public:
 	* allows a setting to provide these when the user wants to run in a separate process. This won't
 	* be used when running in the current process because it is too late to modify the command line.
 	*/
+	UE_DEPRECATED(5.0, "Use BuildNewProcessCommandLineArgs instead.")
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void BuildNewProcessCommandLine(UPARAM(ref) FString& InOutUnrealURLParams, UPARAM(ref) FString& InOutCommandLineArgs) const { BuildNewProcessCommandLineImpl(InOutUnrealURLParams, InOutCommandLineArgs); }
+	void BuildNewProcessCommandLine(UPARAM(ref) FString& InOutUnrealURLParams, UPARAM(ref) FString& InOutCommandLineArgs) const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		BuildNewProcessCommandLineImpl(InOutUnrealURLParams, InOutCommandLineArgs); 
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void BuildNewProcessCommandLineArgs(UPARAM(ref) TArray<FString>& InOutUnrealURLParams, UPARAM(ref) TArray<FString>& InOutCommandLineArgs, UPARAM(ref) TArray<FString>& InOutDeviceProfileCvars, UPARAM(ref) TArray<FString>& InOutExecCmds) const { BuildNewProcessCommandLineArgsImpl(InOutUnrealURLParams, InOutCommandLineArgs, InOutDeviceProfileCvars, InOutExecCmds); }
 
 	/**
 	* Attempt to validate the configuration the user has chosen for this setting. Caches results for fast lookup in UI later.
@@ -114,8 +123,10 @@ public:
 	/** Return Key/Value pairs that you wish to be usable in the Output File Name format string or file metadata. This allows settings to add format strings based on their values. */
 	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const {}
 	
-	/** Modify the Unreal URL and Command Line Arguments when preparing the setting to be run in a new process. */
+	UE_DEPRECATED(5.0, "Use BuildNewProcessCommandLineArgsImpl instead.")
 	virtual void BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const { }
+	/** Modify the Unreal URL and Command Line Arguments when preparing the setting to be run in a new process. */
+	virtual void BuildNewProcessCommandLineArgsImpl(TArray<FString>& InOutUnrealURLParams, TArray<FString>& InOutCommandLineArgs, TArray<FString>& InOutDeviceProfileCvars, TArray<FString>& InOutExecCmds) const { }
 
 	/** Can only one of these settings objects be active in a valid pipeline? */
 	virtual bool IsSolo() const { return true; }

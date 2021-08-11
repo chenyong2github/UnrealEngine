@@ -28,6 +28,8 @@
 #include "MovieSceneSequenceVisitor.h"
 #include "MovieSceneSequenceID.h"
 #include "MoviePipelineUtils.h"
+#include "UObject/UObjectHash.h"
+
 
 // For camera settings
 #include "GameFramework/PlayerController.h"
@@ -342,6 +344,32 @@ FString UMoviePipelineBlueprintLibrary::GetMapPackageName(UMoviePipelineExecutor
 	}
 
 	return InJob->Map.GetLongPackageName();
+}
+
+UMoviePipelineQueue* UMoviePipelineBlueprintLibrary::LoadManifestFileFromString(const FString& InManifestFilePath)
+{
+	FString InFileName = TEXT("QueueManifest");
+	FString InPackagePath = TEXT("/Engine/MovieRenderPipeline/Editor/Transient");
+
+	FString NewPackageName = FPackageName::GetLongPackagePath(InPackagePath) + TEXT("/") + InFileName;
+
+	// Relative paths are considered relative to the game's save directory to avoid having to hard code
+	// game names into relative paths.
+	FString ConfigAssetPath = InManifestFilePath;
+	if (FPaths::IsRelative(InManifestFilePath))
+	{
+		ConfigAssetPath = FPaths::Combine(FPaths::ProjectSavedDir(), InManifestFilePath);
+	}
+
+	UPackage* OuterPackage = CreatePackage(*NewPackageName);
+	UPackage* QueuePackage = LoadPackage(OuterPackage, *ConfigAssetPath, LOAD_None);
+	UMoviePipelineQueue* OutQueue = nullptr;
+	if (QueuePackage)
+	{
+		OutQueue = Cast<UMoviePipelineQueue>((UObject*)FindObjectWithOuter(QueuePackage, UMoviePipelineQueue::StaticClass()));
+	}
+
+	return OutQueue;
 }
 
 

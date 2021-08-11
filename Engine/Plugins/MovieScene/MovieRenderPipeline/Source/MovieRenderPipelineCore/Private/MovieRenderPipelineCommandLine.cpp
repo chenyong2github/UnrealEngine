@@ -16,6 +16,7 @@
 #include "UObject/UObjectHash.h"
 #include "MoviePipelinePythonHostExecutor.h"
 #include "MoviePipelineUtils.h"
+#include "MoviePipelineBlueprintLibrary.h"
 
 #if WITH_EDITOR
 //#include "Editor.h"
@@ -282,25 +283,7 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 		// If they didn't pass a path that started with /Game/, we'll try to see if it is a manifest file.
 		if (InConfigAssetPath.EndsWith(FPackageName::GetTextAssetPackageExtension()))
 		{
-			FString InFileName = TEXT("QueueManifest");
-			FString InPackagePath = TEXT("/Engine/MovieRenderPipeline/Editor/Transient");
-
-			FString NewPackageName = FPackageName::GetLongPackagePath(InPackagePath) + TEXT("/") + InFileName;
-
-			// Relative paths are considered relative to the game's save directory to avoid having to hard code
-			// game names into relative paths.
-			FString ConfigAssetPath = InConfigAssetPath;
-			if (FPaths::IsRelative(InConfigAssetPath))
-			{
-				ConfigAssetPath = FPaths::Combine(FPaths::ProjectSavedDir(), InConfigAssetPath);
-			}
-
-			UPackage* OuterPackage = CreatePackage(*NewPackageName);
-			UPackage* QueuePackage = LoadPackage(OuterPackage, *ConfigAssetPath, LOAD_None);
-			if (QueuePackage)
-			{
-				OutQueue = Cast<UMoviePipelineQueue>((UObject*)FindObjectWithOuter(QueuePackage, UMoviePipelineQueue::StaticClass()));
-			}
+			OutQueue = UMoviePipelineBlueprintLibrary::LoadManifestFileFromString(InConfigAssetPath);
 			
 			if(!OutQueue)
 			{

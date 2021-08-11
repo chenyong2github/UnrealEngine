@@ -223,8 +223,8 @@ void UMoviePipelineWaveOutput::ValidateStateImpl()
 	}
 }
 
-void UMoviePipelineWaveOutput::BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const
+void UMoviePipelineWaveOutput::BuildNewProcessCommandLineArgsImpl(TArray<FString>& InOutUnrealURLParams, TArray<FString>& InOutCommandLineArgs, TArray<FString>& InOutDeviceProfileCvars, TArray<FString>& InOutExecCmds) const 
 {
 	// Always add this even if we're not disabled so that audio is muted, it'll never line up during preview anyways.
-	InOutCommandLineArgs += " -deterministicaudio";
+	InOutCommandLineArgs.Add("-deterministicaudio");
 }

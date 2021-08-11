@@ -52,10 +52,13 @@ public:
 		return OnIndividualShotWorkFinishedDelegateNative;
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetInitializationTime(const FDateTime& InInitializationTime) { CustomInitializationTime = InInitializationTime; }
+
 protected:
 	virtual void Start(const UMoviePipelineExecutorJob* InJob) override;
 
-	
+	virtual void BeginDestroy() override;
 	/**
 	* This should be called after PIE has been shut down for an individual job and it is generally safer to
 	* make modifications to the editor world.
@@ -83,7 +86,7 @@ private:
 	bool bPreviousUseFixedTimeStep;
 	double PreviousFixedTimeStepDelta;
 	TWeakPtr<class SWindow> WeakCustomWindow;
-
+	TOptional<FDateTime> CustomInitializationTime;
 	FMoviePipelineOutputData CachedOutputDataParams;
 
 	/** Deprecated. use OnIndividualJobWorkFinishedDelegate instead. */
