@@ -41,6 +41,12 @@
 
 void FDisplayClusterConfiguratorProjectionCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	if (bMultipleObjectsSelected)
+	{
+		// Do not currently support multiple objects being edited.
+		return;
+	}
+	
 	FDisplayClusterConfiguratorPolymorphicEntityCustomization::CustomizeHeader(InPropertyHandle, InHeaderRow, CustomizationUtils);
 	CustomOption = MakeShared<FString>("Custom");
 
@@ -60,6 +66,12 @@ void FDisplayClusterConfiguratorProjectionCustomization::CustomizeHeader(TShared
 
 void FDisplayClusterConfiguratorProjectionCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	if (bMultipleObjectsSelected)
+	{
+		// Do not currently support multiple objects being edited.
+		return;
+	}
+	
 	FDisplayClusterConfiguratorPolymorphicEntityCustomization::CustomizeChildren(InPropertyHandle, InChildBuilder, CustomizationUtils);
 
 	// Hide properties 

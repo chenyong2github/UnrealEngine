@@ -566,6 +566,7 @@ void FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(TSharedRef<IP
 	if (OuterObjects.Num())
 	{
 		EditingObject = OuterObjects[0];
+		bMultipleObjectsSelected = OuterObjects.Num() > 1;
 	}
 }
 
