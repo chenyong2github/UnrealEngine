@@ -168,11 +168,11 @@ void FBlackboardSelectorDetails::CacheBlackboardData()
 
 	if (!OnBlackboardDataChangedHandle.IsValid())
 	{
-		UBlackboardData::OnBlackboardDataChanged.AddSP(this, &FBlackboardSelectorDetails::OnBlackboardDataChanged);
+		OnBlackboardDataChangedHandle = UBlackboardData::OnBlackboardDataChanged.AddSP(this, &FBlackboardSelectorDetails::OnBlackboardDataChanged);
 	}
 	if (!OnBlackboardOwnerChangedHandle.IsValid())
 	{
-		IBlackboardAssetProvider::OnBlackboardOwnerChanged.AddSP(this, &FBlackboardSelectorDetails::OnBlackboardOwnerChanged);
+		OnBlackboardOwnerChangedHandle = IBlackboardAssetProvider::OnBlackboardOwnerChanged.AddSP(this, &FBlackboardSelectorDetails::OnBlackboardOwnerChanged);
 	}
 
 }
