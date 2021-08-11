@@ -2654,8 +2654,10 @@ void UControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMes
 
 void UControlRig::SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
-	check(InSkeletalMesh);
-	SetBoneInitialTransformsFromRefSkeleton(InSkeletalMesh->GetRefSkeleton());
+	if (ensure(InSkeletalMesh))
+	{ 
+		SetBoneInitialTransformsFromRefSkeleton(InSkeletalMesh->GetRefSkeleton());
+	}
 }
 
 void UControlRig::SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkeleton& InReferenceSkeleton)
