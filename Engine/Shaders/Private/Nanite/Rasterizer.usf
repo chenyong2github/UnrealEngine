@@ -599,6 +599,8 @@ struct PrimitiveAttributes
 	nointerpolation uint2 ClusterAndTriangleIndex : TEXCOORD6;
 };
 
+#if MESHSHADER
+
 MESH_SHADER_TRIANGLE_ATTRIBUTES(NANITE_MESH_SHADER_TG_SIZE)
 void HWRasterizeMS(
 	uint GroupThreadID : SV_GroupThreadID,
@@ -659,6 +661,8 @@ void HWRasterizeMS(
 	}
 #endif
 }
+
+#endif // MESHSHADER
 
 #else // NANITE_MESH_SHADER / NANITE_PRIM_SHADER
 
