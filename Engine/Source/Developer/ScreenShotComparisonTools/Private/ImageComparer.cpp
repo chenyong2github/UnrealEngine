@@ -268,7 +268,7 @@ TSharedPtr<FComparableImage> FImageComparer::Open(const FString& ImagePath, FTex
 	
 	if ( !ImageReader->GetRaw(ERGBFormat::RGBA, 8, Image->Bytes) )
 	{
-		OutError = LOCTEXT("ErrorReadingRawDataA", "Unable decompress ImageA");
+		OutError = LOCTEXT("ErrorReadingRawDataA", "Unable to decompress image");
 		return nullptr;
 	}
 	else
