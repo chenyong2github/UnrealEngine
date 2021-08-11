@@ -388,7 +388,7 @@ namespace CrossCompiler
 		MetaDataPrintf(Strings.UniformBlocks, TEXT("%s(%u)"), ResourceName, BindingIndex);
 	}
 
-	static EPackedTypeName EncodePackedGlobalType(const SpvReflectTypeDescription& TypeDescription)
+	EPackedTypeName FHlslccHeaderWriter::EncodePackedGlobalType(const SpvReflectTypeDescription& TypeDescription)
 	{
 		const SpvReflectTypeFlags ScalarTypeFlagsBitmask =
 		(
@@ -429,16 +429,39 @@ namespace CrossCompiler
 
 	void FHlslccHeaderWriter::WritePackedUB(uint32 BindingIndex)
 	{
-		checkf(Strings.PackedUB.IsEmpty(), TEXT("cannot define @PackedUB attribute more than once"));
-		MetaDataPrintf(Strings.PackedUB, TEXT("Globals(%u): "), BindingIndex);
+		WritePackedUB(TEXT("Globals"), BindingIndex);
 	}
 
 	void FHlslccHeaderWriter::WritePackedUBField(const TCHAR* ResourceName, uint32 ByteOffset, uint32 ByteSize)
 	{
-		checkf(!Strings.PackedUB.IsEmpty(), TEXT("cannot append field without @PackedUB attribute in shader meta data"));
+		WritePackedUBField(TEXT("Globals"), ResourceName, ByteOffset, ByteSize);
+	}
+
+	void FHlslccHeaderWriter::WritePackedUB(const FString& UBName, uint32 BindingIndex)
+	{
+		checkf(Strings.PackedUBs.Find(UBName) == nullptr, TEXT("attempting to add a UB that has already been added"));
+		MetaDataPrintf(Strings.PackedUBs.Add(UBName), TEXT("%s(%u): "), *UBName, BindingIndex);
+	}
+
+	void FHlslccHeaderWriter::WritePackedUBField(const FString& UBName, const TCHAR* ResourceName, uint32 ByteOffset, uint32 ByteSize)
+	{
+		checkf(Strings.PackedUBs.Find(UBName), TEXT("cannot append field without @PackedUB attribute in shader meta data, %s"), *UBName);
 		checkf(ByteOffset % 4 == 0, TEXT("field offset in @PackedUB shader meta data must be a multiple of 4, but got %u"), ByteOffset);
 		checkf(ByteSize % 4 == 0, TEXT("field size in @PackedUB shader meta data must be a multiple of 4, but got %u"), ByteSize);
-		MetaDataPrintf(Strings.PackedUBFields, TEXT("%s(%u,%u)"), ResourceName, ByteOffset / 4, ByteSize / 4);
+		MetaDataPrintf(Strings.PackedUBFields.FindOrAdd(UBName), TEXT("%s(%u,%u)"), ResourceName, ByteOffset / 4, ByteSize / 4);
+	}
+
+	void FHlslccHeaderWriter::WritePackedUBCopy(uint32 SourceCB, uint32 SourceOffset, uint32 DestCBIndex, uint32 DestCBPrecision, uint32 DestOffset, uint32 Size, bool bGroupFlattenedUBs)
+	{
+		if (bGroupFlattenedUBs)
+		{
+			MetaDataPrintf(Strings.PackedUBCopies, TEXT("%u:%u-%u:%c:%u:%u"), SourceCB, SourceOffset, DestCBIndex, DestCBPrecision, DestOffset, Size);
+		}
+		else
+		{
+			check(DestCBIndex == 0);
+			MetaDataPrintf(Strings.PackedUBCopies, TEXT("%u:%u-%c:%u:%u"), SourceCB, SourceOffset, DestCBPrecision, DestOffset, Size);
+		}
 	}
 
 	void FHlslccHeaderWriter::WritePackedUBGlobalCopy(uint32 SourceCB, uint32 SourceOffset, uint32 DestCBIndex, uint32 DestCBPrecision, uint32 DestOffset, uint32 Size, bool bGroupFlattenedUBs)
@@ -546,8 +569,15 @@ namespace CrossCompiler
 		PrintAttributes(TEXT("Inputs"), Strings.InputAttributes);
 		PrintAttributes(TEXT("Outputs"), Strings.OutputAttributes);
 		PrintAttributes(TEXT("UniformBlocks"), Strings.UniformBlocks);
-		PrintAttributes(TEXT("PackedUB"), Strings.PackedUB + Strings.PackedUBFields);
+
 		PrintAttributes(TEXT("PackedGlobals"), Strings.PackedGlobals);
+
+		for (TPair<FString, FString> UBName : Strings.PackedUBs)
+		{
+			PrintAttributes(TEXT("PackedUB"), UBName.Value + Strings.PackedUBFields[UBName.Key]);
+		}
+
+		PrintAttributes(TEXT("PackedUBCopies"), Strings.PackedUBCopies);
 		PrintAttributes(TEXT("PackedUBGlobalCopies"), Strings.PackedUBGlobalCopies);
 		PrintAttributes(TEXT("Samplers"), Strings.SRVs); // Was called "Samplers" in HLSLcc but serves as SRVs
 		PrintAttributes(TEXT("UAVs"), Strings.UAVs);
