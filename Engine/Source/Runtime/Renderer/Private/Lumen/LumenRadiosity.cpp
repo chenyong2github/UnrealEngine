@@ -56,21 +56,45 @@ FAutoConsoleVariableRef CVarLumenRadiosityMinSampleRadius(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenRadiosityMinTraceDistance = 10;
-FAutoConsoleVariableRef CVarLumenRadiosityMinTraceDistance(
-	TEXT("r.LumenScene.Radiosity.MinTraceDistance"),
-	GLumenRadiosityMinTraceDistance,
-	TEXT("."),
+float GLumenRadiosityMinTraceDistanceToSampleSurface = 10.0f;
+FAutoConsoleVariableRef CVarLumenRadiosityMinTraceDistanceToSampleSurface(
+	TEXT("r.LumenScene.Radiosity.MinTraceDistanceToSampleSurface"),
+	GLumenRadiosityMinTraceDistanceToSampleSurface,
+	TEXT("Ray hit distance from which we can start sampling surface cache in order to fix radiosity feedback loop where surface cache texel hits itself every frame."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
+);
 
-float GLumenRadiositySurfaceBias = 5;
+float GLumenRadiosityDistanceFieldSurfaceBias = 10.0f;
 FAutoConsoleVariableRef CVarLumenRadiositySurfaceBias(
-	TEXT("r.LumenScene.Radiosity.SurfaceBias"),
-	GLumenRadiositySurfaceBias,
+	TEXT("r.LumenScene.Radiosity.DistanceFieldSurfaceBias"),
+	GLumenRadiosityDistanceFieldSurfaceBias,
 	TEXT("."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
+);
+
+float GLumenRadiosityDistanceFieldSurfaceSlopeBias = 5.0f;
+FAutoConsoleVariableRef CVarLumenRadiosityDistanceFieldSurfaceBias(
+	TEXT("r.LumenScene.Radiosity.DistanceFieldSurfaceSlopeBias"),
+	GLumenRadiosityDistanceFieldSurfaceBias,
+	TEXT("."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenRadiosityHardwareRayTracingSurfaceBias = 0.1f;
+FAutoConsoleVariableRef CVarLumenRadiosityHardwareRayTracingSurfaceBias(
+	TEXT("r.LumenScene.Radiosity.HardwareRayTracingSurfaceBias"),
+	GLumenRadiosityHardwareRayTracingSurfaceBias,
+	TEXT("."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenRadiosityHardwareRayTracingSurfaceSlopeBias = 0.2f;
+FAutoConsoleVariableRef CVarLumenRadiosityHardwareRayTracingSlopeSurfaceBias(
+	TEXT("r.LumenScene.Radiosity.HardwareRayTracingSlopeSurfaceBias"),
+	GLumenRadiosityHardwareRayTracingSurfaceSlopeBias,
+	TEXT("."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 float GLumenRadiosityConeAngleScale = 1.0f;
 FAutoConsoleVariableRef CVarLumenRadiosityConeAngleScale(
@@ -216,8 +240,38 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeOcclusionNormalBia
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenRadiosityHardwareRayTracing(
+	TEXT("r.LumenScene.Radiosity.HardwareRayTracing"),
+	1,
+	TEXT("Enables hardware ray tracing for radiosity (default = 1)."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenRadiosityHardwareRayTracingUseSurfaceCache(
+	TEXT("r.LumenScene.Radiosity.HardwareRayTracing.UseSurfaceCache"),
+	1,
+	TEXT("Enables surface-cache lookup, otherwise radiosity only includes sky lighting (default = 1)."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenRadiosityHardwareRayTracingGroupCount(
+	TEXT("r.LumenScene.Radiosity.HardwareRayTracing.GroupCount"),
+	32768,
+	TEXT("Number of groups dispatched in the work queue (default = 32768)."),
+	ECVF_RenderThreadSafe
+);
+
 namespace LumenRadiosity
 {
+	constexpr uint32 MaxRadiosityConeDirections = 32;
+	constexpr uint32 RAY_BUFFER_STRIDE_IN_TILES = 512;
+	constexpr uint32 RAY_BUFFER_MICRO_TILE_SIZE = 8;
+
+	uint32 GetRayCountPerTexel()
+	{
+		return FMath::Clamp(FMath::RoundUpToPowerOfTwo(GLumenRadiosityNumTargetCones), 1, MaxRadiosityConeDirections);
+	}
+	
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
 	{
 		LumenRadianceCache::FRadianceCacheInputs Parameters;
@@ -238,6 +292,22 @@ namespace LumenRadiosity
 	}
 }
 
+namespace Lumen
+{
+	static const uint32 RadiosityTraceTileSize2D = 2;
+	static const uint32 RadiosityTraceTileSize1D = RadiosityTraceTileSize2D * RadiosityTraceTileSize2D;
+
+	bool UseHardwareRayTracedRadiosity()
+	{
+#if RHI_RAYTRACING
+		return IsRayTracingEnabled()
+			&& Lumen::UseHardwareRayTracing()
+			&& (CVarLumenRadiosityHardwareRayTracing.GetValueOnRenderThread() != 0);
+#else
+		return false;
+#endif
+	}
+}
 
 // Must match LumenRadiosity.usf
 static constexpr int32 RadiosityProbeResolution = 8;
@@ -327,18 +397,16 @@ IMPLEMENT_GLOBAL_SHADER(FSetupCardTraceBlocksCS, "/Engine/Private/Lumen/LumenRad
 
 uint32 GRadiosityTraceBlocksGroupSize = 64;
 
-class FTraceBlocksIndirectArgsCS : public FGlobalShader
+class FSetupTraceBlocksIndirectArgsCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FTraceBlocksIndirectArgsCS)
-	SHADER_USE_PARAMETER_STRUCT(FTraceBlocksIndirectArgsCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FSetupTraceBlocksIndirectArgsCS)
+	SHADER_USE_PARAMETER_STRUCT(FSetupTraceBlocksIndirectArgsCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
+		SHADER_PARAMETER(uint32, ThreadsPerTexel)
 	END_SHADER_PARAMETER_STRUCT()
-
-	class FIrradianceCache : SHADER_PERMUTATION_BOOL("IRRADIANCE_CACHE");
-	using FPermutationDomain = TShaderPermutationDomain<FIrradianceCache>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -352,8 +420,7 @@ class FTraceBlocksIndirectArgsCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FTraceBlocksIndirectArgsCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "TraceBlocksIndirectArgsCS", SF_Compute);
-
+IMPLEMENT_GLOBAL_SHADER(FSetupTraceBlocksIndirectArgsCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "SetupTraceBlocksIndirectArgsCS", SF_Compute);
 
 class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
 {
@@ -388,9 +455,6 @@ class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByRadiosityCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "MarkRadianceProbesUsedByRadiosityCS", SF_Compute);
 
-
-const static uint32 MaxRadiosityConeDirections = 32;
-
 BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
@@ -398,7 +462,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
-	SHADER_PARAMETER_ARRAY(FVector4, RadiosityConeDirections, [MaxRadiosityConeDirections])
+	SHADER_PARAMETER_ARRAY(FVector4, RadiosityConeDirections, [LumenRadiosity::MaxRadiosityConeDirections])
 	SHADER_PARAMETER(uint32, NumCones)
 	SHADER_PARAMETER(float, SampleWeight)
 	SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
@@ -413,13 +477,12 @@ void SetupTraceFromTexelParameters(
 {
 	GetLumenCardTracingParameters(View, TracingInputs, TraceFromTexelParameters.TracingParameters);
 
-	const float RadiosityMinTraceDistance = FMath::Clamp(GLumenRadiosityMinTraceDistance, .01f, 1000.0f);
 	SetupLumenDiffuseTracingParametersForProbe(TraceFromTexelParameters.IndirectTracingParameters, GetRadiosityConeHalfAngle());
 	TraceFromTexelParameters.IndirectTracingParameters.StepFactor = FMath::Clamp(GRadiosityTraceStepFactor, .1f, 10.0f);
 	TraceFromTexelParameters.IndirectTracingParameters.MinSampleRadius = FMath::Clamp(GLumenRadiosityMinSampleRadius, .01f, 100.0f);
-	TraceFromTexelParameters.IndirectTracingParameters.MinTraceDistance = RadiosityMinTraceDistance;
+	TraceFromTexelParameters.IndirectTracingParameters.SurfaceBias = FMath::Clamp(GLumenRadiosityDistanceFieldSurfaceSlopeBias, 0.0f, 1000.0f);
+	TraceFromTexelParameters.IndirectTracingParameters.MinTraceDistance = FMath::Clamp(GLumenRadiosityDistanceFieldSurfaceBias, 0.0f, 1000.0f);
 	TraceFromTexelParameters.IndirectTracingParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance();
-	TraceFromTexelParameters.IndirectTracingParameters.SurfaceBias = FMath::Clamp(GLumenRadiositySurfaceBias, .01f, 100.0f);
 	TraceFromTexelParameters.IndirectTracingParameters.VoxelStepFactor = FMath::Clamp(GLumenRadiosityVoxelStepFactor, .1f, 10.0f);
 
 	// Trace from this frame's cards
@@ -434,7 +497,7 @@ void SetupTraceFromTexelParameters(
 	RadiosityDirections.GetSampleDirections(SampleDirections, NumSampleDirections);
 	TraceFromTexelParameters.SampleWeight = (GLumenRadiosityIntensity * PI * 2.0f) / (float)NumSampleDirections;
 
-	check(NumSampleDirections <= MaxRadiosityConeDirections);
+	check(NumSampleDirections <= LumenRadiosity::MaxRadiosityConeDirections);
 
 	TraceFromTexelParameters.NumCones = NumSampleDirections;
 	for (int32 i = 0; i < NumSampleDirections; i++)
@@ -479,6 +542,98 @@ class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLumenCardRadiosityTraceBlocksCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "LumenCardRadiosityTraceBlocksCS", SF_Compute);
+
+class FLumenRadiosityResolveRayBufferCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FLumenRadiosityResolveRayBufferCS)
+	SHADER_USE_PARAMETER_STRUCT(FLumenRadiosityResolveRayBufferCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWRadiosityAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, RayBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
+		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
+		SHADER_PARAMETER(uint32, RayCountPerTexel)
+		SHADER_PARAMETER(uint32, RayCountPerTexelShift)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GRadiosityTraceBlocksGroupSize);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FLumenRadiosityResolveRayBufferCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "LumenRadiosityResolveRayBufferCS", SF_Compute);
+
+#if RHI_RAYTRACING
+
+#include "LumenHardwareRayTracingCommon.h"
+
+class FLumenRadiosityHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
+{
+	DECLARE_GLOBAL_SHADER(FLumenRadiosityHardwareRayTracingRGS)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenRadiosityHardwareRayTracingRGS, FLumenHardwareRayTracingRGS)
+
+	class FUseSurfaceCacheDim : SHADER_PERMUTATION_BOOL("DIM_USE_SURFACE_CACHE");
+	using FPermutationDomain = TShaderPermutationDomain<FUseSurfaceCacheDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
+
+		// Constants
+		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
+		SHADER_PARAMETER(uint32, GroupCount)
+
+		SHADER_PARAMETER(float, MinTraceDistance)
+		SHADER_PARAMETER(float, MaxTraceDistance)
+		SHADER_PARAMETER(float, SurfaceBias)
+		SHADER_PARAMETER(float, MinTraceDistanceToSampleSurface)
+		SHADER_PARAMETER(uint32, RayCountPerTexel)
+		SHADER_PARAMETER(uint32, RayCountPerTexelShift)
+
+		// Radiosity-specific bindings
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RadiosityTraceTileAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, RadiosityTraceTileData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, RayDirections)
+
+		// Output
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWRayBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FLumenHardwareRayTracingRGS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), Lumen::RadiosityTraceTileSize2D);
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1);
+		OutEnvironment.SetDefine(TEXT("RADIOSITY_TRACE_TILE_SIZE_1D"), Lumen::RadiosityTraceTileSize1D);
+		OutEnvironment.SetDefine(TEXT("RADIOSITY_TRACE_TILE_SIZE_2D"), Lumen::RadiosityTraceTileSize2D);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FLumenRadiosityHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenRadiosityHardwareRayTracing.usf", "LumenRadiosityHardwareRayTracingRGS", SF_RayGen);
+
+void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadiosityLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+{
+	if (Lumen::UseHardwareRayTracedRadiosity())
+	{
+		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FUseSurfaceCacheDim>(CVarLumenRadiosityHardwareRayTracingUseSurfaceCache.GetValueOnRenderThread() == 1);
+		TShaderRef<FLumenRadiosityHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenRadiosityHardwareRayTracingRGS>(PermutationVector);
+		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+	}
+}
+
+#endif // RHI_RAYTRACING
 
 static void RadianceCacheMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
@@ -587,19 +742,19 @@ void RenderRadiosityComputeScatter(
 	{
 		FRDGBufferUAVRef TraceBlocksIndirectArgsBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(TraceBlocksIndirectArgsBuffer));
 
-		FTraceBlocksIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTraceBlocksIndirectArgsCS::FParameters>();
+		FSetupTraceBlocksIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupTraceBlocksIndirectArgsCS::FParameters>();
 		PassParameters->RWIndirectArgs = TraceBlocksIndirectArgsBufferUAV;
 		PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
+		// Must match THREADS_PER_RADIOSITY_TEXEL in LumenRadiosity.usf
+		PassParameters->ThreadsPerTexel = bUseIrradianceCache ? 1 : 8;
 
-		FTraceBlocksIndirectArgsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FTraceBlocksIndirectArgsCS::FIrradianceCache>(bUseIrradianceCache);
-		auto ComputeShader = GlobalShaderMap->GetShader< FTraceBlocksIndirectArgsCS >(PermutationVector);
+		auto ComputeShader = GlobalShaderMap->GetShader<FSetupTraceBlocksIndirectArgsCS>();
 
 		const FIntVector GroupSize(1, 1, 1);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TraceBlocksIndirectArgsCS"),
+			RDG_EVENT_NAME("SetupTraceBlocksIndirectArgs"),
 			ComputeShader,
 			PassParameters,
 			GroupSize);
@@ -641,6 +796,113 @@ void RenderRadiosityComputeScatter(
 			RadianceCacheParameters);
 	}
 
+	if (Lumen::UseHardwareRayTracedRadiosity())
+	{
+#if RHI_RAYTRACING
+		const uint32 RayCountPerTexel = LumenRadiosity::GetRayCountPerTexel();
+		const uint32 RayCountPerTexelShift = FMath::FloorLog2(RayCountPerTexel);
+		const uint32 NumRayBufferTiles = (NumTraceBlocksToAllocate * TraceBlockMaxSize * TraceBlockMaxSize * RayCountPerTexel) / (LumenRadiosity::RAY_BUFFER_MICRO_TILE_SIZE * LumenRadiosity::RAY_BUFFER_MICRO_TILE_SIZE);
+
+		FIntPoint RayBufferSize;
+		RayBufferSize.X = LumenRadiosity::RAY_BUFFER_STRIDE_IN_TILES * LumenRadiosity::RAY_BUFFER_MICRO_TILE_SIZE;
+		RayBufferSize.Y = ((NumRayBufferTiles + LumenRadiosity::RAY_BUFFER_STRIDE_IN_TILES - 1) / LumenRadiosity::RAY_BUFFER_STRIDE_IN_TILES) * LumenRadiosity::RAY_BUFFER_MICRO_TILE_SIZE;
+
+		FRDGTextureDesc RayBufferDesc(FRDGTextureDesc::Create2D(RayBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		FRDGTextureRef RayBuffer = GraphBuilder.CreateTexture(RayBufferDesc, TEXT("Lumen.Radiosity.RayBuffer"));
+
+		FRDGBufferRef ResolveRayBufferIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.ResolveRayBufferIndirectArgs"));
+		{
+			FSetupTraceBlocksIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupTraceBlocksIndirectArgsCS::FParameters>();
+			PassParameters->RWIndirectArgs = GraphBuilder.CreateUAV(ResolveRayBufferIndirectArgs);
+			PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
+			PassParameters->ThreadsPerTexel = 1;
+
+			auto ComputeShader = GlobalShaderMap->GetShader<FSetupTraceBlocksIndirectArgsCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SetupResolveRayBufferIndirectArgs"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(1, 1, 1));
+		}
+
+		// Trace rays to fill the ray buffer
+		{
+			FLumenRadiosityHardwareRayTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenRadiosityHardwareRayTracingRGS::FParameters>();
+			SetLumenHardwareRayTracingSharedParameters(
+				GraphBuilder,
+				GetSceneTextureParameters(GraphBuilder),
+				View,
+				TracingInputs,
+				&PassParameters->SharedParameters
+			);
+
+			PassParameters->RadiosityTraceTileAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
+			PassParameters->RadiosityTraceTileData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
+
+			int GroupCount = CVarLumenRadiosityHardwareRayTracingGroupCount.GetValueOnRenderThread();
+			PassParameters->GroupCount = GroupCount;
+			PassParameters->SurfaceBias = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceSlopeBias, 0.0f, 1000.0f);
+			PassParameters->MinTraceDistance = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceBias, 0.0f, 1000.0f);
+			PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
+			PassParameters->MinTraceDistanceToSampleSurface = GLumenRadiosityMinTraceDistanceToSampleSurface;
+			PassParameters->RayCountPerTexel = RayCountPerTexel;
+			PassParameters->RayCountPerTexelShift = RayCountPerTexelShift;
+			PassParameters->RadiosityAtlasSize = RadiosityAtlasSize;
+			PassParameters->RWRayBuffer = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RayBuffer));
+
+			FRDGBufferRef RayDirectionsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("LumenScene.Radiosity.RayDirections"), RadiosityDirections.SampleDirections);
+			PassParameters->RayDirections = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RayDirectionsBuffer));
+
+			FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FUseSurfaceCacheDim>(CVarLumenRadiosityHardwareRayTracingUseSurfaceCache.GetValueOnRenderThread() == 1);
+			TShaderRef<FLumenRadiosityHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenRadiosityHardwareRayTracingRGS>(PermutationVector);
+			FIntPoint DispatchResolution = FIntPoint(GroupCount, Lumen::RadiosityTraceTileSize1D);
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("LumenRadiosityHardwareRayTracingRGS %ux%u ", DispatchResolution.X, DispatchResolution.Y),
+				PassParameters,
+				ERDGPassFlags::Compute,
+				[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
+				{
+					FRayTracingShaderBindingsWriter GlobalResources;
+					SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
+
+					FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
+					FRayTracingPipelineState* RayTracingPipeline = View.LumenHardwareRayTracingMaterialPipeline;
+
+					RHICmdList.RayTraceDispatch(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+						DispatchResolution.X, DispatchResolution.Y);
+				}
+			);
+		}
+
+		// Resolve the ray buffer
+		{
+			FLumenRadiosityResolveRayBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenRadiosityResolveRayBufferCS::FParameters>();
+			PassParameters->RWRadiosityAtlas = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadiosityAtlas));
+			PassParameters->RayBuffer = RayBuffer;
+			PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
+			PassParameters->CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
+			PassParameters->IndirectArgs = ResolveRayBufferIndirectArgs;
+			PassParameters->CardBuffer = LumenSceneData.CardBuffer.SRV;
+			PassParameters->CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
+			PassParameters->RadiosityAtlasSize = RadiosityAtlasSize;
+			PassParameters->RayCountPerTexel = RayCountPerTexel;
+
+			auto ComputeShader = GlobalShaderMap->GetShader<FLumenRadiosityResolveRayBufferCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Resolve"),
+				ComputeShader,
+				PassParameters,
+				ResolveRayBufferIndirectArgs,
+				0);
+		}
+#endif // RHI_RAYTRACING
+	}
+	else
 	{
 		FLumenCardRadiosityTraceBlocksCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenCardRadiosityTraceBlocksCS::FParameters>();
 		PassParameters->RWRadiosityAtlas = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadiosityAtlas));
@@ -731,7 +993,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			ECullCardsShapeType::None);
 
 		RadiosityDirections.GenerateSamples(
-			FMath::Clamp(GLumenRadiosityNumTargetCones, 1, (int32)MaxRadiosityConeDirections),
+			LumenRadiosity::GetRayCountPerTexel(),
 			1,
 			GLumenRadiosityNumTargetCones,
 			false,

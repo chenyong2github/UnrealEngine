@@ -1,0 +1,134 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenRadiosityHardwareRayTracing.usf
+=============================================================================*/
+
+// TODO: Remove hair dependency
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
+
+#include "../Common.ush"
+#include "../MonteCarlo.ush"
+#include "../MortonCode.ush"
+#include "../SceneTextureParameters.ush"
+
+#include "LumenCardCommon.ush"
+#include "LumenCardUpdate.ush"
+#include "LumenTracingCommon.ush"
+#include "LumenReflectionCommon.ush"
+#include "LumenRadiosity.ush"
+#include "LumenHardwareRayTracingCommon.ush"
+
+RaytracingAccelerationStructure TLAS;
+
+Buffer<uint> RadiosityTraceTileAllocator;
+Buffer<uint4> RadiosityTraceTileData;
+
+uint GroupCount;
+
+float MinTraceDistance;
+float MaxTraceDistance;
+float MinTraceDistanceToSampleSurface;
+float SurfaceBias;
+uint RayCountPerTexelShift;
+StructuredBuffer<float4> RayDirections;
+
+uint2 RadiosityAtlasSize;
+RWTexture2D<float4> RWRadiosityAtlas;
+RWTexture2D<float3> RWRayBuffer;
+
+float3 CalculateWorldDirection(uint SampleIndex, uint SampleCount, float2 AtlasUV, uint2 AtlasSize, float3 WorldNormal)
+{
+	float3 LocalDirection = RayDirections[SampleIndex].xyz;
+	float3x3 TangentBasis = GetTangentBasisFrisvad(WorldNormal);
+
+	float3 WorldDirection = mul(LocalDirection, TangentBasis);
+	return WorldDirection;
+}
+
+RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
+{
+	uint ThreadIndex = DispatchRaysIndex().y;
+
+	uint2 TexelLocalCoord = uint2(ThreadIndex % RADIOSITY_TRACE_TILE_SIZE_2D, ThreadIndex / RADIOSITY_TRACE_TILE_SIZE_2D);
+	for (uint GroupIndex = DispatchRaysIndex().x; GroupIndex < RadiosityTraceTileAllocator[0] * RayCountPerTexel; GroupIndex += GroupCount)
+	{
+		uint TraceTileIndex = GroupIndex / RayCountPerTexel;
+		uint RayIndex = GroupIndex % RayCountPerTexel;
+
+		TraceTileIndex = GroupIndex >> RayCountPerTexelShift;
+		RayIndex = GroupIndex - TraceTileIndex * RayCountPerTexel;
+
+		uint4 TraceTileData = RadiosityTraceTileData[TraceTileIndex];
+		uint CardPageIndex = TraceTileData.x;
+		uint ProbeIndex = TraceTileData.y;
+		uint TileIndex = TraceTileData.z;
+
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
+		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
+		uint2 NumTilesXY = (CardPageSizeInTexels + RADIOSITY_TRACE_TILE_SIZE_2D - 1) / RADIOSITY_TRACE_TILE_SIZE_2D;
+		uint2 TileOffset = uint2(TileIndex % NumTilesXY.x, TileIndex / NumTilesXY.x);
+		float2 TexelCoord = TileOffset * RADIOSITY_TRACE_TILE_SIZE_2D + TexelLocalCoord;
+
+		if (all(TexelCoord < CardPageSizeInTexels))
+		{
+			float2 CardPageUV = float2(TexelCoord + 0.5) / CardPageSizeInTexels;
+			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
+			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
+			
+			FRayTracedLightingResult RayResult = (FRayTracedLightingResult)0;
+			RayResult.Radiance = float3(0.0f, 0.0f, 0.0f);
+
+			float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+			if (Opacity > 0.0f)
+			{
+				FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+
+				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
+				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
+				float3 WorldDirection = CalculateWorldDirection(RayIndex, RayCountPerTexel, AtlasUV, RadiosityAtlasSize, WorldNormal);
+
+				RayDesc Ray;
+				Ray.Origin = WorldPosition + WorldNormal * SurfaceBias;
+				Ray.Direction = WorldDirection;
+				Ray.TMin = MinTraceDistance;
+				Ray.TMax = MaxTraceDistance;
+
+				FRayCone RayCone = (FRayCone)0;
+				float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(RayCountPerTexel));
+				RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
+
+				const uint LinearCoord = TexelCoord.y * RADIOSITY_TRACE_TILE_SIZE_2D + TexelCoord.x;
+				const bool bCullBackFacingTriangles = true;
+				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TexelCoord, LinearCoord, bCullBackFacingTriangles);
+
+				if (DIM_USE_SURFACE_CACHE)
+				{
+					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+				}
+				else
+				{
+					FLumenMinimalPayload Payload;
+					RayResult.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload);
+				}
+
+				if (RayResult.TraceHitDistance < MinTraceDistanceToSampleSurface)
+				{
+					RayResult.Radiance = 0.0f;
+				}
+
+				if (!RayResult.bIsHit)
+				{
+					FConeTraceResult TraceResult = (FConeTraceResult)0;
+					TraceResult.Transparency = 1;
+					EvaluateSkyRadianceForCone(Ray.Direction, tan(ConeHalfAngle), TraceResult);
+					RayResult.Radiance = TraceResult.Lighting;
+				}
+			}
+
+			uint2 RayBufferWriteCoord = GetRayBufferCoord(TraceTileIndex, TexelLocalCoord, RayIndex);
+			RWRayBuffer[RayBufferWriteCoord] = RayResult.Radiance;
+		}
+	}
+}
