@@ -573,6 +573,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 
 				if (ThisBatchSize > 0)
 				{
+					const FMatrix* RESTRICT BoneTransformsPtr = DynamicData->IsDynamic ? DynamicData->Transforms.GetData() : ConstantData->RestTransforms.GetData();
 	#if INTEL_ISPC
 					uint8* VertexBufferOffset = (uint8*)VertexBufferData + (IndexOffset * VertexBuffer.GetStride());
 					ispc::SetDynamicData_RenderThread(
@@ -580,7 +581,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 						ThisBatchSize, 
 						VertexBuffer.GetStride(), 
 						&ConstantData->BoneMap[IndexOffset], 
-						(ispc::FMatrix*)&DynamicData->Transforms[0], 
+						(ispc::FMatrix*)BoneTransformsPtr,
 						(ispc::FVector*)&ConstantData->Vertices[IndexOffset]);
 	#else
 					for (int32 i = IndexOffset; i < IndexOffset + ThisBatchSize; i++)
