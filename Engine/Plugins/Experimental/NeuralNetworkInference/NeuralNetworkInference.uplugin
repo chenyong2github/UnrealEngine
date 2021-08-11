@@ -1,0 +1,88 @@
+{
+	"FileVersion": 3,
+	"Version": 0.1,
+	"VersionName": "0.1.0-alpha",
+	"FriendlyName": "Neural Network Inference (NNI)",
+	"Description": "Neural Network Inference (NNI) is an experimetal plugin that allows deploying and running deep learning neural network models within Unreal Engine.",
+	"Category": "Experimental",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "http://epicgames.com",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": false,
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "NeuralNetworkInference",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "NeuralNetworkInferenceBackEnd",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NeuralNetworkInferenceCore",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NeuralNetworkInferenceShaders",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "NeuralNetworkInferenceEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NeuralNetworkInferenceQA",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NeuralNetworkInferenceQAEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ONNXRuntime",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "ThirdPartyHelperAndDLLLoader",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ModelProto",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ModelProtoFileReader",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "NeuralNetworkInferenceLegacy",
+			"Type": "RuntimeAndProgram",
+			"LoadingPhase": "Default"
+		}
+	]
+}
