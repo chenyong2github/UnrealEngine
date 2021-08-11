@@ -171,7 +171,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 			if (DataLayer->IsDynamicallyLoadedInEditor() != bLoadedInEditor)
 			{
 				bUpdateEditorCells = true;
-				DataLayer->SetIsDynamicallyLoadedInEditor(bLoadedInEditor);
+				DataLayer->SetIsDynamicallyLoadedInEditor(bLoadedInEditor, false);
 				if (RequiresCommandletRendering() && bLoadedInEditor)
 				{
 					DataLayer->SetIsInitiallyVisible(true);

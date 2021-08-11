@@ -32,10 +32,12 @@ public:
 	void SetVisible(bool bInIsVisible);
 	void SetIsInitiallyVisible(bool bInIsInitiallyVisible);
 	void SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded);
-	void SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor);
+	void SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor, bool bInFromUserChange);
 	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
 
 	bool IsDynamicallyLoadedInEditor() const { return bIsDynamicallyLoadedInEditor; }
+	bool IsDynamicallyLoadedInEditorChangedByUserOperation() const { return bIsDynamicallyLoadedInEditorChangedByUserOperation; }
+	void ClearDynamicallyLoadedInEditorChangedByUserOperation() { bIsDynamicallyLoadedInEditorChangedByUserOperation = false; }
 	bool IsInitiallyLoadedInEditor() const { return bIsInitiallyLoadedInEditor; }
 
 	static FText GetDataLayerText(const UDataLayer* InDataLayer);
@@ -91,6 +93,10 @@ private:
 	/** Wheter the data layer is loaded in editor (user setting) */
 	UPROPERTY(Transient)
 	uint32 bIsDynamicallyLoadedInEditor : 1;
+
+	/** Whether this data layer editor visibility was changed by a user operation */
+	UPROPERTY(Transient)
+	uint32 bIsDynamicallyLoadedInEditorChangedByUserOperation : 1;
 
 	/** Whether this data layer is locked, which means the user can't change actors assignation, remove or rename it */
 	UPROPERTY()

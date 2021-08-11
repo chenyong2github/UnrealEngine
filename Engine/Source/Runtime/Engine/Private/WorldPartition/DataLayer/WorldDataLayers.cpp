@@ -414,7 +414,7 @@ void AWorldDataLayers::PostLoad()
 	// Setup defaults before overriding with user settings
 	for (UDataLayer* DataLayer : WorldDataLayers)
 	{
-		DataLayer->SetIsDynamicallyLoadedInEditor(DataLayer->IsInitiallyLoadedInEditor());
+		DataLayer->SetIsDynamicallyLoadedInEditor(DataLayer->IsInitiallyLoadedInEditor(), false);
 	}
 
 	// Initialize DataLayer's IsDynamicallyLoadedInEditor based on DataLayerEditorPerProjectUserSettings
@@ -423,7 +423,7 @@ void AWorldDataLayers::PostLoad()
 	{
 		if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
 		{
-			DataLayer->SetIsDynamicallyLoadedInEditor(false);
+			DataLayer->SetIsDynamicallyLoadedInEditor(false, false);
 		}
 	}
 
@@ -432,7 +432,7 @@ void AWorldDataLayers::PostLoad()
 	{
 		if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
 		{
-			DataLayer->SetIsDynamicallyLoadedInEditor(true);
+			DataLayer->SetIsDynamicallyLoadedInEditor(true, false);
 }
 	}
 

@@ -406,7 +406,7 @@ void FDesiredLayerStates::ApplyInEditor(FPreAnimatedDataLayerStorage* PreAnimate
 	if (DatalayersNeedingLoad.Num() > 0)
 	{
 		// This blocks while we load data layers
-		SubSystem->SetDataLayersIsDynamicallyLoadedInEditor(DatalayersNeedingLoad, true);
+		SubSystem->SetDataLayersIsDynamicallyLoadedInEditor(DatalayersNeedingLoad, true, false);
 	}
 	if (DatalayersNeedingShow.Num() > 0)
 	{
