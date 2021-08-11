@@ -1330,6 +1330,7 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicle(TUniquePtr<Chaos::FSimp
 	check(PVehicle);
 
 	Super::SetupVehicle(PVehicle);
+	NumDrivenWheels = 0;
 
 	// we are allowed any number of wheels not limited to only 4
 	for (int32 WheelIdx = 0; WheelIdx < WheelSetups.Num(); ++WheelIdx)
