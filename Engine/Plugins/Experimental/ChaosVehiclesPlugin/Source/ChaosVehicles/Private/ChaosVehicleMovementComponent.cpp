@@ -1773,7 +1773,11 @@ void UChaosVehicleMovementComponent::ResetVehicleState()
 {
 	ClearRawInput();
 	StopMovementImmediately();
-	SetTargetGear(0, true);
+
+	OnDestroyPhysicsState();
+	OnCreatePhysicsState();
+
+	SetTargetGear(1, true);
 }
 
 void UChaosVehicleMovementComponent::FinalizeSimCallbackData(FChaosVehicleManagerAsyncInput& Input)
