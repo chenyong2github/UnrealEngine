@@ -35,7 +35,12 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 	FString MaterialHashString = UsdUtils::HashShadeMaterial( ShadeMaterial ).ToString();
 
-	UMaterialInterface* ConvertedMaterial = Cast<UMaterialInterface>( Context->AssetCache->GetCachedAsset( MaterialHashString ) );
+	UMaterialInterface* ConvertedMaterial = nullptr;
+	
+	if ( Context->AssetCache )
+	{
+		ConvertedMaterial = Cast< UMaterialInterface >( Context->AssetCache->GetCachedAsset( MaterialHashString ) );
+	}
 
 	if ( !ConvertedMaterial )
 	{
@@ -94,6 +99,11 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				ConvertedMaterial = NewMaterial;
 			}
 		}
+	}
+	else if ( Context->MaterialToPrimvarToUVIndex && Context->AssetCache )
+	{
+		// Copy the Material -> Primvar -> UV index mapping from the cached material prim path to this prim path
+		Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) = Context->MaterialToPrimvarToUVIndex->FindRef( Context->AssetCache->GetPrimForAsset( ConvertedMaterial ) );
 	}
 
 	if ( ConvertedMaterial )
