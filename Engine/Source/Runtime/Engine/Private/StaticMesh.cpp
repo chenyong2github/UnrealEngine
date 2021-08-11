@@ -5940,8 +5940,6 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::BuildFromMeshDescriptions);
 
-	const int32 NewNumLODs = MeshDescriptions.Num();
-
 	// Set up
 	NeverStream = true;
 
@@ -5976,12 +5974,9 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 		CommitParams.bMarkPackageDirty = Params.bMarkPackageDirty;
 		CommitParams.bUseHashAsGuid = Params.bUseHashAsGuid;
 
-		SetNumSourceModels(NewNumLODs);
-		for (int32 LODIndex = 0; LODIndex < NewNumLODs; LODIndex++)
+		SetNumSourceModels(MeshDescriptions.Num());
+		for (int32 LODIndex = 0; LODIndex < MeshDescriptions.Num(); LODIndex++)
 		{
-			FMeshBuildSettings& LODBuildSettings = GetSourceModel(LODIndex).BuildSettings;
-			LODBuildSettings.bUseHighPrecisionTangentBasis = Params.bUseHighPrecisionTangentBasis;
-			LODBuildSettings.bUseFullPrecisionUVs = Params.bUseFullPrecisionUVs;
 			CreateMeshDescription(LODIndex, *MeshDescriptions[LODIndex]);
 			CommitMeshDescription(LODIndex, CommitParams);
 		}
@@ -5989,14 +5984,12 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	#endif
 
 	SetRenderData(MakeUnique<FStaticMeshRenderData>());
-	GetRenderData()->AllocateLODResources(NewNumLODs);
+	GetRenderData()->AllocateLODResources(MeshDescriptions.Num());
 
 	FStaticMeshLODResourcesArray& LODResourcesArray = GetRenderData()->LODResources;
 	for (int32 LODIndex = 0; LODIndex < LODResourcesArray.Num(); ++LODIndex)
 	{
 		LODResourcesArray[LODIndex].IndexBuffer.TrySetAllowCPUAccess(bAllowCPUAccess || Params.bAllowCpuAccess);
-		LODResourcesArray[LODIndex].VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(Params.bUseHighPrecisionTangentBasis);
-		LODResourcesArray[LODIndex].VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(Params.bUseFullPrecisionUVs);
 	}
 
 	// Build render data from each mesh description
@@ -6005,7 +5998,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	if (Params.bFastBuild)
 #endif
 	{
-		for (int32 LODIndex = 0; LODIndex < NewNumLODs; LODIndex++)
+		for (int32 LODIndex = 0; LODIndex < MeshDescriptions.Num(); LODIndex++)
 		{
 			check(MeshDescriptions[LODIndex] != nullptr);
 			FStaticMeshLODResources& LODResources = GetRenderData()->LODResources[LODIndex];
@@ -6019,7 +6012,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 		GetRenderData()->Bounds = MeshDescriptions[0]->GetBounds();
 		CalculateExtendedBounds();
 
-		for (int32 LOD = 0; LOD < NewNumLODs; ++LOD)
+		for (int32 LOD = 0; LOD < MeshDescriptions.Num(); ++LOD)
 		{
 			// @todo: some way of customizing LOD screen size and/or calculate it based on mesh bounds
 			if (true)
@@ -6066,7 +6059,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 		Build(true);
 	}
 
-	for (int32 LODIndex = 0; LODIndex < NewNumLODs; LODIndex++)
+	for (int32 LODIndex = 0; LODIndex < MeshDescriptions.Num(); LODIndex++)
 	{
 		FStaticMeshLODResources& LODResources = GetRenderData()->LODResources[LODIndex];
 		for (int32 SectionIndex = 0; SectionIndex < LODResources.Sections.Num(); SectionIndex++)
