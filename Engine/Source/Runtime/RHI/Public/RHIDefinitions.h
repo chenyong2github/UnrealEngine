@@ -368,7 +368,9 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bRequiresRenderTargetDuringRaster : 1;
 	uint32 bRequiresDisableForwardLocalLights : 1;
 	uint32 bCompileSignalProcessingPipeline : 1;
-	uint32 bSupportsMeshShaders : 1;
+	uint32 bSupportsMeshShadersTier0 : 1;
+	uint32 bSupportsMeshShadersTier1 : 1;
+	uint32 MaxMeshShaderThreadGroupSize : 10;
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
 	uint32 bSupportsVariableRateShading : 1;
@@ -673,9 +675,19 @@ public:
 		return Infos[Platform].bCompileSignalProcessingPipeline;
 	}
 
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMeshShaders(const FStaticShaderPlatform Platform)
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMeshShadersTier0(const FStaticShaderPlatform Platform)
 	{
-		return Infos[Platform].bSupportsMeshShaders;
+		return Infos[Platform].bSupportsMeshShadersTier0;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMeshShadersTier1(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsMeshShadersTier1;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetMaxMeshShaderThreadGroupSize(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].MaxMeshShaderThreadGroupSize;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsPerPixelDBufferMask(const FStaticShaderPlatform Platform)

@@ -183,7 +183,8 @@ extern int32 GNaniteShowStats;
 
 static bool UseMeshShader()
 {
-	return GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShaders;
+	// We require tier1 support to utilize primitive attributes
+	return GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShadersTier1;
 }
 
 static bool UsePrimitiveShader()
@@ -830,9 +831,9 @@ class FHWRasterizeMS : public FNaniteShader
 			return false;
 		}
 
-		if (!FDataDrivenShaderPlatformInfo::GetSupportsMeshShaders(Parameters.Platform))
+		if (!FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersTier1(Parameters.Platform))
 		{
-			// Only some platforms support mesh shaders.
+			// Only some platforms support mesh shaders with tier1 support
 			return false;
 		}
 
@@ -883,6 +884,10 @@ class FHWRasterizeMS : public FNaniteShader
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
 		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER"), 1);
+
+		const uint32 MSThreadGroupSize = FDataDrivenShaderPlatformInfo::GetMaxMeshShaderThreadGroupSize(Parameters.Platform);
+		check(MSThreadGroupSize == 128 || MSThreadGroupSize == 256);
+		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER_TG_SIZE"), MSThreadGroupSize);
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
@@ -958,9 +963,9 @@ class FHWRasterizePS : public FNaniteShader
 		}
 
 		if (PermutationVector.Get<FMeshShaderDim>() &&
-			!FDataDrivenShaderPlatformInfo::GetSupportsMeshShaders(Parameters.Platform))
+			!FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersTier1(Parameters.Platform))
 		{
-			// Only some platforms support mesh shaders.
+			// Only some platforms support mesh shaders with tier1 support.
 			return false;
 		}
 

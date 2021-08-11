@@ -1439,7 +1439,7 @@ void FWindowsD3D12Adapter::CreateCommandSignatures()
 		VERIFYD3D12RESULT(Device->CreateCommandSignature(&CommandSignatureDesc, nullptr, IID_PPV_ARGS(DispatchIndirectComputeCommandSignature.GetInitReference())));
 
 #if PLATFORM_SUPPORTS_MESH_SHADERS
-		if (GRHISupportsMeshShaders)
+		if (GRHISupportsMeshShadersTier0)
 		{
 			IndirectParameterDesc[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
 			CommandSignatureDesc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);

@@ -216,12 +216,25 @@ inline RHI_API bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Pla
 	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
 }
 
-/** Can this platform compile mesh shaders.
- *  To use at runtime, also check GRHISupportsMeshShaders.
+/** Can this platform compile mesh shaders with tier0 capability.
+ *  To use at runtime, also check GRHISupportsMeshShadersTier0.
  **/
-inline bool RHISupportsMeshShaders(const FStaticShaderPlatform Platform)
+inline bool RHISupportsMeshShadersTier0(const FStaticShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetSupportsMeshShaders(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersTier0(Platform);
+}
+
+/** Can this platform compile mesh shaders with tier1 capability.
+ *  To use at runtime, also check GRHISupportsMeshShadersTier1.
+ **/
+inline bool RHISupportsMeshShadersTier1(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsMeshShadersTier1(Platform);
+}
+
+inline uint32 RHIMaxMeshShaderThreadGroupSize(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetMaxMeshShaderThreadGroupSize(Platform);
 }
 
 /** Can this platform compile shaders that use shader model 6.0 wave intrinsics.
@@ -684,8 +697,11 @@ extern RHI_API bool GRHISupportsStencilRefFromPixelShader;
 /** Whether current RHI supports overestimated conservative rasterization. */
 extern RHI_API bool GRHISupportsConservativeRasterization;
 
-/** true if the RHI supports Mesh and Amplification shaders */
-extern RHI_API bool GRHISupportsMeshShaders;
+/** true if the RHI supports Mesh and Amplification shaders with tier0 capability */
+extern RHI_API bool GRHISupportsMeshShadersTier0;
+
+/** true if the RHI supports Mesh and Amplification shaders with tier1 capability */
+extern RHI_API bool GRHISupportsMeshShadersTier1;
 
 /**
 * True if the RHI supports reading system timer in shaders via GetShaderTimestamp().

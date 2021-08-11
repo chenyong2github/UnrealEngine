@@ -599,8 +599,7 @@ struct PrimitiveAttributes
 	nointerpolation uint2 ClusterAndTriangleIndex : TEXCOORD6;
 };
 
-//TODO: Not allowed with D3D12 spec =( MESH_SHADER_TRIANGLE_ATTRIBUTES(256)
-MESH_SHADER_TRIANGLE_ATTRIBUTES(128)
+MESH_SHADER_TRIANGLE_ATTRIBUTES(NANITE_MESH_SHADER_TG_SIZE)
 void HWRasterizeMS(
 	uint GroupThreadID : SV_GroupThreadID,
 	uint GroupID : SV_GroupID,
@@ -643,8 +642,6 @@ void HWRasterizeMS(
 	}
 
 	const uint Vertex0 = GroupThreadID + 0;
-	const uint Vertex1 = GroupThreadID + 128; // TODO: Unsure if this is permitted or not
-
 	if (Vertex0 < Cluster.NumVerts)
 	{
 		float4 PointClipNoScaling;
@@ -652,13 +649,15 @@ void HWRasterizeMS(
 		MESH_SHADER_WRITE_VERTEX(Vertex0, VertexOutput);
 	}
 
-	// TODO: Unsure if this is permitted or not
+#if NANITE_MESH_SHADER_TG_SIZE == 128
+	const uint Vertex1 = GroupThreadID + 128;
 	if (Vertex1 < Cluster.NumVerts)
 	{
 		float4 PointClipNoScaling;
 		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, PointClipNoScaling);
 		MESH_SHADER_WRITE_VERTEX(Vertex1, VertexOutput);
 	}
+#endif
 }
 
 #else // NANITE_MESH_SHADER / NANITE_PRIM_SHADER
