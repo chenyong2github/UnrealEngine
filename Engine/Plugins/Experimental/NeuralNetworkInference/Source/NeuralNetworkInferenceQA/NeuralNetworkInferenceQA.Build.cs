@@ -29,6 +29,7 @@ public class NeuralNetworkInferenceQA : ModuleRules
 			(
 			new string[] {
 				"ModelProto",
+				"NeuralNetworkInference",
 				"NeuralNetworkInferenceCore",
 				"NeuralNetworkInferenceLegacy"
 			}
@@ -37,13 +38,6 @@ public class NeuralNetworkInferenceQA : ModuleRules
 		// Win64-only
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PrivateDependencyModuleNames.AddRange
-				(
-				new string[] {
-					"NeuralNetworkInference"
-				}
-			);
-
 			// Editor-only (to be deprecated)
 			if (Target.bBuildEditor)
 			{

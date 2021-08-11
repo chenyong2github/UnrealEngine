@@ -8,7 +8,6 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include <numeric> // std::accumulate
-#include "RedirectCoutAndCerrToUeLog.h"
 
 //#define WITH_NNI_CPU_NOT_RECOMMENDED // Only for debugging purposes
 
@@ -16,13 +15,17 @@
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
-#include "onnxruntime/core/session/onnxruntime_cxx_api.h"
-#ifdef PLATFORM_WIN64
-#include "onnxruntime/core/providers/dml/dml_provider_factory.h"
-#endif
-#ifdef WITH_NNI_CPU_NOT_RECOMMENDED
-#include "onnxruntime/core/providers/nni_cpu/nni_cpu_provider_factory.h"
-#endif //WITH_NNI_CPU_NOT_RECOMMENDED
+#ifdef WITH_FULL_NNI_SUPPORT
+	#include "RedirectCoutAndCerrToUeLog.h"
+
+	#include "onnxruntime/core/session/onnxruntime_cxx_api.h"
+	#ifdef PLATFORM_WIN64
+	#include "onnxruntime/core/providers/dml/dml_provider_factory.h"
+	#endif
+	#ifdef WITH_NNI_CPU_NOT_RECOMMENDED
+	#include "onnxruntime/core/providers/nni_cpu/nni_cpu_provider_factory.h"
+	#endif //WITH_NNI_CPU_NOT_RECOMMENDED
+#endif //WITH_FULL_NNI_SUPPORT
 NNI_THIRD_PARTY_INCLUDES_END
 
 
@@ -32,6 +35,7 @@ NNI_THIRD_PARTY_INCLUDES_END
 
 struct UNeuralNetwork::FImpl
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	TUniquePtr<Ort::Env> Environment;
 	TUniquePtr<Ort::Session> Session;
 	TUniquePtr<Ort::AllocatorWithDefaultOptions> Allocator;
@@ -42,8 +46,10 @@ struct UNeuralNetwork::FImpl
 	bool ConfigureMembers(const ENeuralDeviceType InDeviceType);
 
 	void ConfigureTensors(FNeuralTensors& OutTensors, TArray<bool>* InAreInputTensorSizesVariable = nullptr);
+#endif //WITH_FULL_NNI_SUPPORT
 };
 
+#ifdef WITH_FULL_NNI_SUPPORT
 bool UNeuralNetwork::FImpl::InitializedAndConfigureMembers(TSharedPtr<FImpl>& InOutImpl, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 {
 	// Initialize InOutImpl
@@ -215,6 +221,7 @@ void UNeuralNetwork::FImpl::ConfigureTensors(FNeuralTensors& OutTensors, TArray<
 
 	OutTensors.SetFromNetwork(TensorNames, TensorDataTypes, TensorSizes);
 }
+#endif //WITH_FULL_NNI_SUPPORT
 
 
 
@@ -244,6 +251,7 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 	// Clean previous networks
 	bIsLoaded = false;
 
+#ifdef WITH_FULL_NNI_SUPPORT
 	if (InModelFilePath.IsEmpty())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Input model path was empty."));
@@ -331,14 +339,20 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 //		return Load();
 //	}
 //	// Else
-//	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("Unknown file format \"%s\" used."), *FileExtension);
+//	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Unknown file format \"%s\" used."), *FileExtension);
 //	return false;
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet."));
+	return false;
+#endif //WITH_FULL_NNI_SUPPORT
 }
 #endif //WITH_EDITOR
 
 
 bool UNeuralNetwork::Load()
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	// Clean previous networks
 	bIsLoaded = false;
 
@@ -369,6 +383,11 @@ bool UNeuralNetwork::Load()
 
 	bIsLoaded = true;
 	return bIsLoaded;
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet."));
+	return false;
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 bool UNeuralNetwork::IsLoaded() const
@@ -439,6 +458,7 @@ const FNeuralTensors& UNeuralNetwork::GetOutputTensors() const
 
 void UNeuralNetwork::Run()
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	// Sanity checks
 	if (!bIsLoaded)
 	{
@@ -457,6 +477,10 @@ void UNeuralNetwork::Run()
 	Impl->Session->Run(Ort::RunOptions{ nullptr },
 		InputTensors.GetTensorNames(), InputTensors.GetONNXRuntimeTensors(), InputTensors.GetNumberTensors(),
 		OutputTensors.GetTensorNames(), OutputTensors.GetONNXRuntimeTensors(), OutputTensors.GetNumberTensors());
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Platform or Operating System not suported yet."));
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 

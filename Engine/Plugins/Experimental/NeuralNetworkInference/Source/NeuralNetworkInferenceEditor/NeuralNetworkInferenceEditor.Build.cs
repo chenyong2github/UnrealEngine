@@ -27,20 +27,10 @@ public class NeuralNetworkInferenceEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
+				"NeuralNetworkInference",
 				"NeuralNetworkInferenceLegacy",
 				"UnrealEd"
 			}
 		);
-
-		// Win64-only
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PrivateDependencyModuleNames.AddRange
-				(
-				new string[] {
-					"NeuralNetworkInference"
-				}
-			);
-		}
 	}
 }

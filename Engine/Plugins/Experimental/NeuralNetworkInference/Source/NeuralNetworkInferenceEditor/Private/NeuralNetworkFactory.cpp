@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetworkFactory.h"
-#if PLATFORM_WINDOWS
 #include "NeuralNetwork.h"
-#endif
 #include "NeuralNetworkInferenceEditorUtils.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Misc/Paths.h"
@@ -15,7 +13,6 @@
 
 UNeuralNetworkFactory::UNeuralNetworkFactory()
 {
-#if PLATFORM_WINDOWS
 	SupportedClass = UNeuralNetwork::StaticClass();
 	Formats.Add(TEXT("onnx;ONNX file"));
 	Formats.Add(TEXT("ort;ONNX Runtime (ORT) file"));
@@ -24,7 +21,6 @@ UNeuralNetworkFactory::UNeuralNetworkFactory()
 	bEditorImport = true;
 	bEditAfterNew = true;
 	bText = false;
-#endif
 }
 
 
@@ -34,18 +30,13 @@ UNeuralNetworkFactory::UNeuralNetworkFactory()
 
 UObject* UNeuralNetworkFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags InFlags, UObject* InContext, FFeedbackContext* InWarn)
 {
-#if PLATFORM_WINDOWS
 	// If created with right-click on Content Browser --> Neural Network
 	return NewObject<UNeuralNetwork>(InParent, InName, InFlags);
-#else
-	return nullptr;
-#endif
 }
 
 UObject* UNeuralNetworkFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags InFlags,
 	const FString& InFilename, const TCHAR* Params, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
-#if PLATFORM_WINDOWS
 	// If created by dragging a new file into the UE Editor Content Browser
 	if (InFilename.Len() > 0)
 	{
@@ -70,9 +61,7 @@ UObject* UNeuralNetworkFactory::FactoryCreateFile(UClass* InClass, UObject* InPa
 		// If created with right-click on Content Browser --> NeuralNetwork
 		return NewObject<UNeuralNetwork>(InParent, InName, InFlags);
 	}
-#else
 	return nullptr;
-#endif
 }
 
 bool UNeuralNetworkFactory::CanCreateNew() const
@@ -84,20 +73,12 @@ bool UNeuralNetworkFactory::CanCreateNew() const
 
 bool UNeuralNetworkFactory::DoesSupportClass(UClass * Class)
 {
-#if PLATFORM_WINDOWS
 	return (Class == UNeuralNetwork::StaticClass());
-#else
-	return false;
-#endif
 }
 
 UClass* UNeuralNetworkFactory::ResolveSupportedClass()
 {
-#if PLATFORM_WINDOWS
 	return UNeuralNetwork::StaticClass();
-#else
-	return nullptr;
-#endif
 }
 
 bool UNeuralNetworkFactory::FactoryCanImport(const FString& InFilename)

@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetworkReimportFactory.h"
-#if PLATFORM_WINDOWS
 #include "NeuralNetwork.h"
-#endif
 #include "NeuralNetworkInferenceEditorUtils.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
@@ -15,7 +13,6 @@
 
 UNeuralNetworkReimportFactory::UNeuralNetworkReimportFactory()
 {
-#if PLATFORM_WINDOWS
 	SupportedClass = UNeuralNetwork::StaticClass();
 	Formats.Add(TEXT("onnx;ONNX file"));
 	Formats.Add(TEXT("ort;ONNX Runtime (ORT) file"));
@@ -25,7 +22,6 @@ UNeuralNetworkReimportFactory::UNeuralNetworkReimportFactory()
 
 	// Required to allow other re importers to do their CanReimport checks first, and if they fail this re importer will catch it.
 	ImportPriority = DefaultImportPriority - 1;
-#endif
 }
 
 
@@ -46,7 +42,6 @@ bool UNeuralNetworkReimportFactory::FactoryCanImport(const FString& Filename)
 
 bool UNeuralNetworkReimportFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-#if PLATFORM_WINDOWS
 	UNeuralNetwork* Network = Cast<UNeuralNetwork>(Obj);
 	if (Network)
 	{
@@ -66,13 +61,11 @@ bool UNeuralNetworkReimportFactory::CanReimport(UObject* Obj, TArray<FString>& O
 		}
 		return true;
 	}
-#endif
 	return false;
 }
 
 void UNeuralNetworkReimportFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
 {
-#if PLATFORM_WINDOWS
 	UNeuralNetwork* Network = Cast<UNeuralNetwork>(Obj);
 	if (Network && ensure(NewReimportPaths.Num() == 1))
 	{
@@ -86,12 +79,10 @@ void UNeuralNetworkReimportFactory::SetReimportPaths(UObject* Obj, const TArray<
 			UE_LOG(LogNeuralNetworkInferenceEditor, Warning, TEXT("UNeuralNetworkReimportFactory::Reimport(): AssetImportData was nullptr."));
 		}
 	}
-#endif
 }
 
 EReimportResult::Type UNeuralNetworkReimportFactory::Reimport(UObject* Obj)
 {
-#if PLATFORM_WINDOWS
 	UNeuralNetwork* Network = Cast<UNeuralNetwork>(Obj);
 	if (!Network)
 	{
@@ -128,7 +119,6 @@ EReimportResult::Type UNeuralNetworkReimportFactory::Reimport(UObject* Obj)
 		AssetImportData->Update(ImportedFilename);
 		return EReimportResult::Succeeded;
 	}
-#endif
 	UE_LOG(LogNeuralNetworkInferenceEditor, Warning, TEXT("UNeuralNetworkReimportFactory::Reimport(): Load failed."));
 	return EReimportResult::Failed;
 }

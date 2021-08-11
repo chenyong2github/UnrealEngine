@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetworkAssetTypeActions.h"
-#if PLATFORM_WINDOWS
 #include "NeuralNetwork.h"
-#endif
 #include "NeuralNetworkInferenceEditorModule.h"
 #include "EditorFramework/AssetImportData.h"
 
@@ -20,11 +18,7 @@ FColor FNeuralNetworkAssetTypeActions::GetTypeColor() const
 
 UClass* FNeuralNetworkAssetTypeActions::GetSupportedClass() const
 {
-#if PLATFORM_WINDOWS
 	return UNeuralNetwork::StaticClass();
-#else
-	return nullptr;
-#endif
 }
 
 bool FNeuralNetworkAssetTypeActions::HasActions(const TArray<UObject*>& InObjects) const
@@ -47,7 +41,6 @@ bool FNeuralNetworkAssetTypeActions::IsImportedAsset() const
 
 void FNeuralNetworkAssetTypeActions::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const
 {
-#if PLATFORM_WINDOWS
 	// Collects the resolved source paths for the imported assets
 	for (UObject* Asset : TypeAssets)
 	{
@@ -61,5 +54,4 @@ void FNeuralNetworkAssetTypeActions::GetResolvedSourceFilePaths(const TArray<UOb
 			OutSourceFilePaths.Add(TEXT(""));
 		}
 	}
-#endif
 }
