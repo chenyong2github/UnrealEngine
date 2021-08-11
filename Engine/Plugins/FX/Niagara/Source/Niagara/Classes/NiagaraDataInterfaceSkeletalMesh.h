@@ -1009,6 +1009,7 @@ public:
 
 	void SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse);
 	void SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions);
+	void SetWholeMeshLODFromBlueprints(int32 MeshLODLevel);
 };
 
 
