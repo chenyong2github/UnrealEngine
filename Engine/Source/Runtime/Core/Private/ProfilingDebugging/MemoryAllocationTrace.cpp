@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilingDebugging/MemoryAllocationTrace.h"
+#include "HAL/PlatformTime.h"
 
 #if UE_MEMORY_TRACE_ENABLED
 
