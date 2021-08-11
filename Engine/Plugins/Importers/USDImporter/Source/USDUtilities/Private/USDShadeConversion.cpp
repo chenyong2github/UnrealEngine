@@ -784,9 +784,10 @@ namespace UE
 			{
 #if WITH_EDITOR
 				FGetExpressionForValueVisitor Visitor{ Material };
-				Visit( Visitor, ParameterValue );
-#endif // WITH_EDITOR
+				return Visit( Visitor, ParameterValue );
+#else
 				return nullptr;
+#endif // WITH_EDITOR
 			}
 
 			void SetScalarParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, float ParameterValue )
@@ -1733,32 +1734,36 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	// Base color
 	{
 		const bool bIsNormalMap = false;
-		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex );
-		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
+		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			Material.BaseColor.Expression = Expression;
-			SetOutputIndex( ParameterValue, Material.BaseColor.OutputIndex );
+			if (UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue(Material, ParameterValue))
+			{
+				Material.BaseColor.Expression = Expression;
+				SetOutputIndex(ParameterValue, Material.BaseColor.OutputIndex);
 
-			bHasMaterialInfo = true;
+				bHasMaterialInfo = true;
+			}
 		}
 	}
 
 	// Emissive color
 	{
 		const bool bIsNormalMap = false;
-		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::EmissiveColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex );
-		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
+		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::EmissiveColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			Material.EmissiveColor.Expression = Expression;
-			SetOutputIndex( ParameterValue, Material.EmissiveColor.OutputIndex );
+			if (UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue(Material, ParameterValue))
+			{
+				Material.EmissiveColor.Expression = Expression;
+				SetOutputIndex(ParameterValue, Material.EmissiveColor.OutputIndex);
 
-			bHasMaterialInfo = true;
+				bHasMaterialInfo = true;
+			}
 		}
 	}
 
 	// Metallic
+	if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 	{
-		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex );
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Metallic.Expression = Expression;
@@ -1769,8 +1774,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	}
 
 	// Roughness
+	if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 	{
-		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex );
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Roughness.Expression = Expression;
@@ -1781,8 +1786,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	}
 
 	// Opacity
+	if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 	{
-		UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex );
 		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
 		{
 			Material.Opacity.Expression = Expression;
@@ -1796,13 +1801,15 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	// Normal
 	{
 		const bool bIsNormalMap = true;
-		UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex );
-		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
+		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			Material.Normal.Expression = Expression;
-			SetOutputIndex( ParameterValue, Material.Normal.OutputIndex );
+			if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
+			{
+				Material.Normal.Expression = Expression;
+				SetOutputIndex(ParameterValue, Material.Normal.OutputIndex);
 
-			bHasMaterialInfo = true;
+				bHasMaterialInfo = true;
+			}
 		}
 	}
 

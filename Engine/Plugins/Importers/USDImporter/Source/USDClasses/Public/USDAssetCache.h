@@ -28,6 +28,10 @@ public:
 	void LinkAssetToPrim( const FString& PrimPath, UObject* Asset );
 	void RemoveAssetPrimLink( const FString& PrimPath );
 	UObject* GetAssetForPrim( const FString& PrimPath ) const;
+
+	/** Returns the first prim path associated with an asset (see TMap::FindKey) */
+	FString GetPrimForAsset( UObject* Asset ) const;
+
 	TMap< FString, UObject* > GetAssetPrimLinks() const { return PrimPathToAssets; }; // Can't return a reference as it wouldn't be thread-safe
 
 	bool IsAssetOwnedByCache( UObject* Asset ) const { return OwnedAssets.Contains( Asset ); }

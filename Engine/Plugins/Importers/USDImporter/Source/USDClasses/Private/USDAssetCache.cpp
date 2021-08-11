@@ -153,6 +153,22 @@ UObject* UUsdAssetCache::GetAssetForPrim( const FString& PrimPath ) const
 	return nullptr;
 }
 
+FString UUsdAssetCache::GetPrimForAsset( UObject* Asset ) const
+{
+	FString PrimForAsset;
+
+	{
+		FScopeLock Lock( &CriticalSection );
+
+		if ( const FString* KeyPtr = PrimPathToAssets.FindKey( Asset ) )
+		{
+			PrimForAsset = *KeyPtr;
+		}
+	}
+
+	return PrimForAsset;
+}
+
 void UUsdAssetCache::Reset()
 {
 	FScopeLock Lock( &CriticalSection );
