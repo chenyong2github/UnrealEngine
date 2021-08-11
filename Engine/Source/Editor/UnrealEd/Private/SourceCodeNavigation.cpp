@@ -1810,7 +1810,7 @@ FText FSourceCodeNavigation::GetSuggestedSourceCodeIDE(bool bShortIDEName)
 #elif PLATFORM_MAC
 	return LOCTEXT("SuggestedCodeIDE_Mac", "Xcode");
 #elif PLATFORM_LINUX
-	return LOCTEXT("SuggestedCodeIDE_Linux", "NullSourceCodeAccessor");
+	return LOCTEXT("SuggestedCodeIDE_Linux", "Visual Studio Code");
 #else
 	return LOCTEXT("SuggestedCodeIDE_Generic", "an IDE to edit source code");
 #endif
@@ -1845,6 +1845,9 @@ FString FSourceCodeNavigation::GetSuggestedSourceCodeIDEDownloadURL()
 #elif PLATFORM_MAC
 	// Xcode
 	FUnrealEdMisc::Get().GetURL( TEXT("SourceCodeIDEURL_Mac"), SourceCodeIDEURL );
+#elif PLATFORM_LINUX
+	// VSCode
+	FUnrealEdMisc::Get().GetURL( TEXT("SourceCodeIDEURL_Linux"), SourceCodeIDEURL );
 #else
 	// Unknown platform, just link to wikipedia page on IDEs
 	FUnrealEdMisc::Get().GetURL( TEXT("SourceCodeIDEURL_Other"), SourceCodeIDEURL );
