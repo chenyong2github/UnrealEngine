@@ -22,7 +22,7 @@ namespace Metasound
 	{
 		METASOUND_PARAM(InputAudio, "Audio", "Incoming audio signal to compress.");
 		METASOUND_PARAM(InputRatio, "Ratio", "Amount of gain reduction. 1 = no reduction, higher = more reduction.");
-		METASOUND_PARAM(InputThreshold, "Threshold", "Amplitude threshold (dB) above which gain will be reduced.");
+		METASOUND_PARAM(InputThreshold, "Threshold dB", "Amplitude threshold (dB) above which gain will be reduced.");
 		METASOUND_PARAM(InputAttackTime, "Attack Time", "How long it takes for audio above the threshold to reach its compressed volume level.");
 		METASOUND_PARAM(InputReleaseTime, "Release Time", "How long it takes for audio below the threshold to return to its original volume level.");
 		METASOUND_PARAM(InputKnee, "Knee", "How hard or soft the gain reduction blends from no gain reduction to gain reduction. 0 dB = no blending.");
@@ -59,7 +59,7 @@ namespace Metasound
 		FCompressorOperator(const FOperatorSettings& InSettings,
 			const FAudioBufferReadRef& InAudio,
 			const FFloatReadRef& InRatio,
-			const FFloatReadRef& InThreshold,
+			const FFloatReadRef& InThresholdDb,
 			const FTimeReadRef& InAttackTime,
 			const FTimeReadRef& InReleaseTime,
 			const FFloatReadRef& InKnee,
@@ -70,7 +70,7 @@ namespace Metasound
 			const FFloatReadRef& InWetDryMix)
 			: AudioInput(InAudio)
 			, RatioInput(InRatio)
-			, ThresholdInput(InThreshold)
+			, ThresholdDbInput(InThresholdDb)
 			, AttackTimeInput(InAttackTime)
 			, ReleaseTimeInput(InReleaseTime)
 			, KneeInput(InKnee)
@@ -82,18 +82,14 @@ namespace Metasound
 			, EnvelopeOutput(FAudioBufferWriteRef::CreateNew(InSettings))
 			, Compressor()
 			, bUseSidechain(bInUseSidechain)
-			, PrevRatio(FMath::Max(*InRatio, 1.0f))
-			, PrevThreshold(*InThreshold)
+			, PrevThresholdDb(*InThresholdDb)
 			, PrevAttackTime(FMath::Max(FTime::ToMilliseconds(*InAttackTime), 0.0))
 			, PrevReleaseTime(FMath::Max(FTime::ToMilliseconds(*InReleaseTime), 0.0))
-			, PrevKnee(*InKnee)
-			, PrevEnvMode(*InEnvelopeMode)
-			, PrevIsAnalog(*bInIsAnalog)
 		{
 			Compressor.Init(InSettings.GetSampleRate(), 1);
 			Compressor.SetKeyNumChannels(1);
-			Compressor.SetRatio(PrevRatio);
-			Compressor.SetThreshold(*ThresholdInput);
+			Compressor.SetRatio(FMath::Max(*InRatio, 1.0f));
+			Compressor.SetThreshold(*ThresholdDbInput);
 			Compressor.SetAttackTime(PrevAttackTime);
 			Compressor.SetReleaseTime(PrevReleaseTime);
 			Compressor.SetKneeBandwidth(*KneeInput);
@@ -176,7 +172,7 @@ namespace Metasound
 
 			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
 			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputRatio), RatioInput);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputThreshold), ThresholdInput);
+			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputThreshold), ThresholdDbInput);
 			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAttackTime), AttackTimeInput);
 			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputReleaseTime), ReleaseTimeInput);
 			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputKnee), KneeInput);
@@ -209,7 +205,7 @@ namespace Metasound
 
 			FAudioBufferReadRef AudioIn = Inputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InputAudio), InParams.OperatorSettings);
 			FFloatReadRef RatioIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputRatio), InParams.OperatorSettings);
-			FFloatReadRef ThresholdIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputThreshold), InParams.OperatorSettings);
+			FFloatReadRef ThresholdDbIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputThreshold), InParams.OperatorSettings);
 			FTimeReadRef AttackTimeIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputAttackTime), InParams.OperatorSettings);
 			FTimeReadRef ReleaseTimeIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, METASOUND_GET_PARAM_NAME(InputReleaseTime), InParams.OperatorSettings);
 			FFloatReadRef KneeIn = Inputs.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputKnee), InParams.OperatorSettings);
@@ -220,7 +216,7 @@ namespace Metasound
 
 			bool bIsSidechainConnected = Inputs.ContainsDataReadReference<FAudioBuffer>(METASOUND_GET_PARAM_NAME(InputSidechain));
 
-			return MakeUnique<FCompressorOperator>(InParams.OperatorSettings, AudioIn, RatioIn, ThresholdIn, AttackTimeIn, ReleaseTimeIn, KneeIn, bIsSidechainConnected, SidechainIn, EnvelopeModeIn, bIsAnalogIn, WetDryMixIn);
+			return MakeUnique<FCompressorOperator>(InParams.OperatorSettings, AudioIn, RatioIn, ThresholdDbIn, AttackTimeIn, ReleaseTimeIn, KneeIn, bIsSidechainConnected, SidechainIn, EnvelopeModeIn, bIsAnalogIn, WetDryMixIn);
 		}
 
 		void Execute()
@@ -230,45 +226,41 @@ namespace Metasound
 			// For a compressor, ratio values should be 1 or greater
 			Compressor.SetRatio(FMath::Max(*RatioInput, 1.0f));
 
-			Compressor.SetThreshold(*ThresholdInput);
-			
+			if (FMath::IsNearlyEqual(*ThresholdDbInput, PrevThresholdDb))
+			{
+				Compressor.SetThreshold(*ThresholdDbInput);
+			}
+
 			// Attack time cannot be negative
 			double CurrAttack = FMath::Max(FTime::ToMilliseconds(*AttackTimeInput), 0.0f);
-			Compressor.SetAttackTime(CurrAttack);
-
+			if (FMath::IsNearlyEqual(CurrAttack, PrevAttackTime))
+			{
+				Compressor.SetAttackTime(CurrAttack);
+			}
 			// Release time cannot be negative
 			double CurrRelease = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0f);
-			if (!FMath::IsNearlyEqual(CurrRelease, PrevReleaseTime))
+			if (FMath::IsNearlyEqual(CurrRelease, PrevReleaseTime))
 			{
 				Compressor.SetReleaseTime(CurrRelease);
-				PrevReleaseTime = CurrRelease;
 			}
-			if (!FMath::IsNearlyEqual(*KneeInput, PrevKnee))
+
+			Compressor.SetKneeBandwidth(*KneeInput);
+				
+			switch (*EnvelopeModeInput)
 			{
-				Compressor.SetKneeBandwidth(*KneeInput);
-				PrevKnee = *KneeInput;
+			default:
+			case EEnvelopePeakMode::MeanSquared:
+				Compressor.SetPeakMode(Audio::EPeakMode::MeanSquared);
+				break;
+
+			case EEnvelopePeakMode::RootMeanSquared:
+				Compressor.SetPeakMode(Audio::EPeakMode::RootMeanSquared);
+				break;
+
+			case EEnvelopePeakMode::Peak:
+				Compressor.SetPeakMode(Audio::EPeakMode::Peak);
+				break;
 			}
-			if (PrevEnvMode != *EnvelopeModeInput)
-			{
-				switch (*EnvelopeModeInput)
-				{
-				default:
-				case EEnvelopePeakMode::MeanSquared:
-					Compressor.SetPeakMode(Audio::EPeakMode::MeanSquared);
-					break;
-
-				case EEnvelopePeakMode::RootMeanSquared:
-					Compressor.SetPeakMode(Audio::EPeakMode::RootMeanSquared);
-					break;
-
-				case EEnvelopePeakMode::Peak:
-					Compressor.SetPeakMode(Audio::EPeakMode::Peak);
-					break;
-				}
-
-				PrevEnvMode = *EnvelopeModeInput;
-			}
-
 
 			if (bUseSidechain)
 			{
@@ -292,7 +284,7 @@ namespace Metasound
 		// Audio input and output
 		FAudioBufferReadRef AudioInput;
 		FFloatReadRef RatioInput;
-		FFloatReadRef ThresholdInput;
+		FFloatReadRef ThresholdDbInput;
 		FTimeReadRef AttackTimeInput;
 		FTimeReadRef ReleaseTimeInput;
 		FFloatReadRef KneeInput;
@@ -312,13 +304,9 @@ namespace Metasound
 		bool bUseSidechain;
 
 		// Cached variables
-		float PrevRatio;
-		float PrevThreshold;
+		float PrevThresholdDb;
 		double PrevAttackTime;
 		double PrevReleaseTime;
-		float PrevKnee;
-		EEnvelopePeakMode PrevEnvMode;
-		bool PrevIsAnalog;
 	};
 
 	// Node Class
