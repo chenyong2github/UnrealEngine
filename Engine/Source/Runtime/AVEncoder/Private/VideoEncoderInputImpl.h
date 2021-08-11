@@ -67,9 +67,6 @@ public:
 
 	// --- encoder input frames - managed by this object
 
-	// has an available frame gone unused for a long enough period to cull it
-	virtual bool IsFrameStale(FVideoEncoderInputFrame* InFrame) override;
-
 	// obtain a video frame that can be used as a buffer for input to a video encoder
 	FVideoEncoderInputFrame* ObtainInputFrame() override;
 

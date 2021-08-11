@@ -142,11 +142,6 @@ void FVideoEncoderInput::SetMaxNumBuffers(uint32 InMaxNumBuffers)
 	MaxNumBuffers = InMaxNumBuffers;
 }
 
-void FVideoEncoderInput::SetNumFramesUntilStale(uint32 InNumFramesUntilStale)
-{
-	NumFramesUntilStale = InNumFramesUntilStale;
-}
-
 // --- encoder input frames -----------------------------------------------------------------------
 
 
@@ -486,13 +481,6 @@ void FVideoEncoderInputImpl::DestroyBuffer(FVideoEncoderInputFrame* InBuffer)
 
 // --- encoder input frames -----------------------------------------------------------------------
 
-bool FVideoEncoderInputImpl::IsFrameStale(FVideoEncoderInputFrame* InFrame)
-{
-	return FGenericPlatformMath::Abs(((int64)InFrame->GetFrameID()) - ((int64)NextFrameID)) > NumFramesUntilStale;
-}
-
-uint32 FVideoEncoderInput::NextFrameID = 1;
-
 FVideoEncoderInputFrame* FVideoEncoderInputImpl::ObtainInputFrame()
 {
 	FVideoEncoderInputFrameImpl*	Frame = nullptr;
@@ -500,39 +488,26 @@ FVideoEncoderInputFrame* FVideoEncoderInputImpl::ObtainInputFrame()
 
 	if (!AvailableFrames.IsEmpty())
 	{
-		while(true)
-		{
-			AvailableFrames.Dequeue(Frame);
-			// cull any old frames we haven't used in a while but recycle at least one of them
-			if(AvailableFrames.IsEmpty() || !IsFrameStale(Frame))
-			{
-				break;
-			}
 
-			UE_LOG(LogVideoEncoder, Verbose, TEXT("Back buffer stale, deleted"))
-			ProtectFrames.Unlock();
-			delete Frame;
-			NumBuffers--;
-			ProtectFrames.Lock();
-		}
+		AvailableFrames.Dequeue(Frame);
 		
 	}
-	else if(MaxNumBuffers == 0 || NumBuffers < MaxNumBuffers)
+	else 
 	{
-		// create new frame if we haven't hit our configured number of maximum buffers
 		Frame = CreateFrame();
+		UE_LOG(LogVideoEncoder, Verbose, TEXT("Created new frame total frames: %d"), NumBuffers);
 	}
-	else {
-		UE_LOG(LogVideoEncoder, Verbose, TEXT("Maximum number of back buffers reached, frame dropped"))
-	}
-	if (Frame)
+
+	ActiveFrames.Push(Frame);
+	
+	Frame->SetFrameID(NextFrameID++);
+
+	if (NextFrameID == 0)
 	{
-		ActiveFrames.Push(Frame);
-		Frame->SetFrameID(NextFrameID++);
-		if (NextFrameID == 0) ++NextFrameID; // skip 0 id
-		return const_cast<FVideoEncoderInputFrame*>(Frame->Obtain());
-	}
-	return nullptr;
+		++NextFrameID; // skip 0 id
+	} 
+
+	return const_cast<FVideoEncoderInputFrame*>(Frame->Obtain());
 }
 
 FVideoEncoderInputFrameImpl* FVideoEncoderInputImpl::CreateFrame()
@@ -591,7 +566,7 @@ void FVideoEncoderInputImpl::ReleaseInputFrame(FVideoEncoderInputFrame* InFrame)
 			ProtectFrames.Unlock();
 			delete InFrameImpl;
 			NumBuffers--;
-			// ProtectFrames.Lock();
+			UE_LOG(LogVideoEncoder, Verbose, TEXT("Deleted buffer (format mismatch) total remaining: %d"), NumBuffers);
 			return;
 		}
 		
@@ -601,6 +576,16 @@ void FVideoEncoderInputImpl::ReleaseInputFrame(FVideoEncoderInputFrame* InFrame)
 			ProtectFrames.Unlock();
 			delete InFrameImpl;
 			NumBuffers--;
+			UE_LOG(LogVideoEncoder, Verbose, TEXT("Deleted buffer (size mismatch) total remaining: %d"), NumBuffers);
+			return;
+		}
+
+		if(!AvailableFrames.IsEmpty() && NumBuffers > MaxNumBuffers)
+		{
+			ProtectFrames.Unlock();
+			delete InFrameImpl;
+			NumBuffers--;
+			UE_LOG(LogVideoEncoder, Verbose, TEXT("Deleted buffer (too many) total frames: %d"), NumBuffers);
 			return;
 		}
 

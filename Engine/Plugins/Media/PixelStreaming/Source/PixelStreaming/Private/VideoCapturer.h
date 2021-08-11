@@ -23,10 +23,12 @@ public:
 
 	rtc::RefCountReleaseStatus Release() const override
 	{
-
-		return FPlatformAtomics::InterlockedDecrement(const_cast<volatile int32*>(&count)) == 0
-			? rtc::RefCountReleaseStatus::kDroppedLastRef
-			: rtc::RefCountReleaseStatus::kOtherRefsRemained;
+		if (FPlatformAtomics::InterlockedDecrement(const_cast<volatile int32*>(&count)) == 0)
+		{
+			return rtc::RefCountReleaseStatus::kDroppedLastRef;
+		}
+		
+		return rtc::RefCountReleaseStatus::kOtherRefsRemained;
 	}
 
 	virtual webrtc::MediaSourceInterface::SourceState state() const override

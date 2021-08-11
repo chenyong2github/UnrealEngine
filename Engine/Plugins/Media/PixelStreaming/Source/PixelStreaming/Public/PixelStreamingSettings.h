@@ -32,7 +32,6 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingUseBackBufferCaptureSize;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingCaptureSize;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers;
-	extern TAutoConsoleVariable<int32> CVarPixelStreamingNumFramesUntilBackBufferStale;
 // End Capturer CVars
 
 // Begin WebRTC CVars
@@ -47,6 +46,7 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableTransmitAudio;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableAudioSync;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCUseLegacyAudioDevice;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableResolutionChange;
 // End WebRTC CVars
 
 // Begin Pixel Streaming Plugin CVars

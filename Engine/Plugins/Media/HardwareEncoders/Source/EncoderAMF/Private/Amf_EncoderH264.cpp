@@ -8,9 +8,9 @@
 #include "AVEncoderDebug.h"
 #include "VulkanRHIBridge.h"
 
-#include "RHI.h"
+#include "VideoEncoderInput.h"
 
-// #include "VulkanContext.h"
+#include "RHI.h"
 
 #include <stdio.h>
 
@@ -265,6 +265,7 @@ namespace AVEncoder
 
 		AMFRate frameRate = { CurrentConfig.MaxFramerate, 1 };
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FRAMERATE, frameRate);
+		CurrentFrameRate = CurrentConfig.MaxFramerate;
 
 #if PLATFORM_WINDOWS
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD, ConvertRateControlModeAMF(CurrentConfig.RateControlMode));
@@ -287,50 +288,37 @@ namespace AVEncoder
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_IDR_PERIOD, 60);
 
 		Result = AmfEncoder->Init(AMF_SURFACE_BGRA, CurrentConfig.Width, CurrentConfig.Height);
+		CurrentWidth = CurrentConfig.Width;
+		CurrentHeight = CurrentConfig.Height;
 
 		return Result == AMF_OK;
 	}
 
-	void FVideoEncoderAmf_H264::FAMFLayer::MaybeReconfigure(TSharedPtr<FInputOutput> buffer)
+	void FVideoEncoderAmf_H264::FAMFLayer::MaybeReconfigure()
 	{
-		if (bForceNextKeyframe)
-		{
-			if (buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_IDR) != AMF_OK)
-			{
-				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force IDR picture type"));
-			}
-
-			if (buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_INSERT_SPS, true) != AMF_OK)
-			{				
-				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force SPS"));
-			}		
-				
-			if (buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_INSERT_PPS, true) != AMF_OK)
-			{				
-				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force PPS"));
-			}
-
-			bForceNextKeyframe = false;
-		}
-
 		FScopeLock lock(&ConfigMutex);
 		if (NeedsReconfigure)
-		{		
-#if PLATFORM_WINDOWS
-			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD, ConvertRateControlModeAMF(CurrentConfig.RateControlMode)) != AMF_OK)
+		{	
+			// Static properties - need ReInit
+			if (CurrentConfig.Width != CurrentWidth || CurrentConfig.Height != CurrentHeight || CurrentConfig.MaxFramerate != CurrentFrameRate)
 			{
-				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set rate control method"));
-			}
+				AMF_RESULT Result = AMF_OK;
 
-			if (CurrentConfig.RateControlMode == RateControlMode::CBR)
-			{
-				if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FILLER_DATA_ENABLE, CurrentConfig.FillData) != AMF_OK)
+				AMFRate frameRate = { CurrentConfig.MaxFramerate, 1 };
+				Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FRAMERATE, frameRate);
+				CurrentFrameRate = CurrentConfig.MaxFramerate;
+
+				Result = AmfEncoder->ReInit(CurrentConfig.Width, CurrentConfig.Height);
+				CurrentWidth = CurrentConfig.Width;
+				CurrentHeight = CurrentConfig.Height;
+
+				if (Result != AMF_OK)
 				{
-					UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to enable filler data to maintain CBR"));
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to ReInit for config change"));
 				}
 			}
-#endif
 
+			// Dynamic Properties
 			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, FMath::Clamp<amf_int64>(CurrentConfig.QPMin, 0, 51)) != AMF_OK)
 			{
 				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set min qp"));
@@ -345,13 +333,29 @@ namespace AVEncoder
 			{
 				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set target bitrate"));
 			}
-			
+
 #if PLATFORM_WINDOWS
+			// Properties in this macro block are supposed to be dynamic but error when used with Vulkan
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD, ConvertRateControlModeAMF(CurrentConfig.RateControlMode)) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set rate control method"));
+			}
+
+			if (CurrentConfig.RateControlMode == RateControlMode::CBR)
+			{
+				if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FILLER_DATA_ENABLE, CurrentConfig.FillData) != AMF_OK)
+				{
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to enable filler data to maintain CBR"));
+				}
+			}
+
 			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PEAK_BITRATE, CurrentConfig.MaxBitrate) != AMF_OK)
 			{
 				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set peak bitrate"));
 			}
 #endif
+
+			NeedsReconfigure = false;
 		}
 	}
 
@@ -362,6 +366,8 @@ namespace AVEncoder
 
 		if (Buffer)
 		{
+			MaybeReconfigure();
+
 			Buffer->Surface->SetPts(frame->GetTimestampRTP());
 			amf_int64 Start_ts = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks();
 			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_START_TS, Start_ts);
@@ -371,8 +377,23 @@ namespace AVEncoder
 			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_STATISTICS_FEEDBACK, true);
 #endif
 
-			bForceNextKeyframe = options.bForceKeyFrame;
-			MaybeReconfigure(Buffer);
+			if (options.bForceKeyFrame)
+			{
+				if (Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_IDR) != AMF_OK)
+				{
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force IDR picture type"));
+				}
+
+				if (Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_INSERT_SPS, true) != AMF_OK)
+				{				
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force SPS"));
+				}		
+					
+				if (Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_INSERT_PPS, true) != AMF_OK)
+				{				
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force PPS"));
+				}
+			}
 
 			if (Buffer.IsValid())
 			{

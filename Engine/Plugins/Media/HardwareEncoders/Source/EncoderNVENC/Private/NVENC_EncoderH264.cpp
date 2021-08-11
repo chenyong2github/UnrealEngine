@@ -10,6 +10,7 @@
 #include "HAL/Event.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
+
 #include "CudaModule.h"
 
 #include <stdio.h>
@@ -80,7 +81,7 @@ namespace AVEncoder
 {
 	static bool GetEncoderInfo(FNVENCCommon& NVENC, FVideoEncoderInfo& EncoderInfo);
 
-	bool FVideoEncoderNVENC_H264::GetIsAvailable(FVideoEncoderInputImpl& InInput, FVideoEncoderInfo& OutEncoderInfo)
+	bool FVideoEncoderNVENC_H264::GetIsAvailable(const FVideoEncoderInput& InVideoFrameFactory, FVideoEncoderInfo& OutEncoderInfo)
 	{
 		FNVENCCommon& NVENC = FNVENCCommon::Setup();
 		bool bIsAvailable = NVENC.GetIsAvailable();
@@ -108,7 +109,7 @@ namespace AVEncoder
 
 	FVideoEncoderNVENC_H264::~FVideoEncoderNVENC_H264() { Shutdown(); }
 
-	bool FVideoEncoderNVENC_H264::Setup(TSharedRef<FVideoEncoderInput> input, FLayerConfig const& config)
+	bool FVideoEncoderNVENC_H264::Setup(TSharedRef<FVideoEncoderInput> InputFrameFactory, const FLayerConfig& InitConfig)
 	{
 		if(!NVENC.GetIsAvailable())
 		{
@@ -116,19 +117,17 @@ namespace AVEncoder
 			return false;
 		}
 
-		TSharedRef<FVideoEncoderInputImpl> Input(StaticCastSharedRef<FVideoEncoderInputImpl>(input));
-
-		FrameFormat = input->GetFrameFormat();
+		FrameFormat = InputFrameFactory->GetFrameFormat();
 		switch(FrameFormat)
 		{
 #if PLATFORM_WINDOWS
 		case AVEncoder::EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
 		case AVEncoder::EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
-			EncoderDevice = Input->GetD3D11EncoderDevice();
+			EncoderDevice = InputFrameFactory->GetD3D11EncoderDevice();
 			break;
 #endif
 		case AVEncoder::EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
-			EncoderDevice = Input->GetCUDAEncoderContext();
+			EncoderDevice = InputFrameFactory->GetCUDAEncoderContext();
 			break;
 		case AVEncoder::EVideoFrameFormat::Undefined:
 		default:
@@ -142,7 +141,7 @@ namespace AVEncoder
 			return false;
 		}
 
-		auto mutableConfig = config;
+		FLayerConfig mutableConfig = InitConfig;
 		if(mutableConfig.MaxFramerate == 0)
 			mutableConfig.MaxFramerate = 60;
 
@@ -162,14 +161,15 @@ namespace AVEncoder
 
 	void FVideoEncoderNVENC_H264::DestroyLayer(FLayer* layer) { delete layer; }
 
-	void FVideoEncoderNVENC_H264::Encode(FVideoEncoderInputFrame const* frame, FEncodeOptions const& options)
+	void FVideoEncoderNVENC_H264::Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions)
 	{
+		// TODO check change is fine
 		// todo: reconfigure encoder
-		auto const nvencFrame = static_cast<FVideoEncoderInputFrameImpl const*>(frame);
+		// auto const nvencFrame = static_cast<FVideoFrame const*>(InFrame);
 		for(auto&& layer : Layers)
 		{
 			auto const nvencLayer = static_cast<FNVENCLayer*>(layer);
-			nvencLayer->Encode(nvencFrame, options);
+			nvencLayer->Encode(InFrame, EncodeOptions);
 		}
 	}
 
@@ -191,131 +191,6 @@ namespace AVEncoder
 			DestroyLayer(nvencLayer);
 		}
 		Layers.Reset();
-		StopEventThread();
-	}
-
-	void FVideoEncoderNVENC_H264::OnEvent(void* InEvent, TUniqueFunction<void()>&& InCallback)
-	{
-#if PLATFORM_WINDOWS
-		FScopeLock Guard(&ProtectEventThread);
-		StartEventThread();
-		EventThreadWaitingFor.Emplace(FWaitForEvent(InEvent, MoveTemp(InCallback)));
-		SetEvent(EventThreadCheckEvent);
-#else
-		UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::OnEvent should not be called as NVENC async mode only works on Windows!"))
-#endif
-	}
-
-	// TODO (M84FIX) de-windows this
-	void FVideoEncoderNVENC_H264::StartEventThread()
-	{
-#if PLATFORM_WINDOWS
-		bExitEventThread = false;
-		if(!EventThread)
-		{
-			if(!EventThreadCheckEvent)
-			{
-				EventThreadCheckEvent = CreateEvent(nullptr, false, false, nullptr);
-				// EventThreadCheckEvent = FPlatformProcess::GetSynchEventFromPool(false);
-			}
-			EventThread = MakeUnique<FThread>(TEXT("NVENC_EncoderCommon"), [this]() { EventLoop(); });
-		}
-#else
-		UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::StartEventThread should not be called as NVENC async mode only works on Windows!"))
-#endif
-	}
-
-	void FVideoEncoderNVENC_H264::StopEventThread()
-	{
-#if PLATFORM_WINDOWS
-		FScopeLock Guard(&ProtectEventThread);
-		TUniquePtr<FThread> StopThread = MoveTemp(EventThread);
-		if(StopThread)
-		{
-			bExitEventThread = true;
-			SetEvent(EventThreadCheckEvent);
-			Guard.Unlock();
-			StopThread->Join();
-		}
-#endif
-	}
-
-#if PLATFORM_WINDOWS
-	void WindowsError(const TCHAR* lpszFunction)
-	{
-		// Retrieve the system error message for the last-error code
-		LPVOID lpMsgBuf;
-		DWORD dw = GetLastError();
-
-		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dw, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&lpMsgBuf, 0, NULL);
-
-		UE_LOG(LogEncoderNVENC, Error, TEXT("%s failed with error %d: %s"), lpszFunction, dw, lpMsgBuf);
-
-		LocalFree(lpMsgBuf);
-	}
-#endif
-
-	void FVideoEncoderNVENC_H264::EventLoop()
-	{
-#if PLATFORM_WINDOWS
-		while(true)
-		{
-			// Make an empty array of events to wait for
-			void* EventsToWaitFor[MAXIMUM_WAIT_OBJECTS];
-			int NumEventsToWaitFor = 0;
-
-			{
-				// Guard the thread and see if we should terminate
-				FScopeLock Guard(&ProtectEventThread);
-				if(bExitEventThread)
-				{
-					break;
-				}
-
-				// collect events to wait for
-				EventsToWaitFor[NumEventsToWaitFor++] = EventThreadCheckEvent;
-				for(const FWaitForEvent& WaitFor : EventThreadWaitingFor)
-				{
-					check(NumEventsToWaitFor < MAXIMUM_WAIT_OBJECTS);
-					EventsToWaitFor[NumEventsToWaitFor++] = WaitFor.Key;
-				}
-			}
-			// wait for the events
-			DWORD WaitResult = WaitForMultipleObjects(NumEventsToWaitFor, EventsToWaitFor, false, INFINITE);
-			if(WaitResult >= WAIT_OBJECT_0 && WaitResult < (WAIT_OBJECT_0 + NumEventsToWaitFor))
-			{
-				// Guard the thread and get the event that was triggered
-				FScopeLock Guard(&ProtectEventThread);
-				void* EventTriggered = EventsToWaitFor[WaitResult - WAIT_OBJECT_0];
-
-				// loop through the the events then callback on the one that was triggered (could this be better as a)
-				for(int32 Index = 0; Index < EventThreadWaitingFor.Num(); ++Index)
-				{
-					if(EventThreadWaitingFor[Index].Key == EventTriggered)
-					{
-						TUniqueFunction<void()> Callback = MoveTemp(EventThreadWaitingFor[Index].Value);
-						EventThreadWaitingFor.RemoveAtSwap(Index);
-						Guard.Unlock();
-						Callback();
-						break;
-					}
-				}
-			}
-			else if(WaitResult >= WAIT_ABANDONED_0 && WaitResult < (WAIT_ABANDONED_0 + NumEventsToWaitFor))
-			{
-			}
-			else if(WaitResult == WAIT_TIMEOUT)
-			{
-			}
-			else if(WaitResult == WAIT_FAILED)
-			{
-				// HACK to fix warning in clang
-				WindowsError(TEXT("WaitForMultipleObjects"));
-			}
-		}
-#else
-		UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::EventLoop should not be called as NVENC async mode only works on Windows!"))
-#endif
 	}
 
 	// --- FVideoEncoderNVENC_H264::FLayer ------------------------------------------------------------
@@ -337,7 +212,10 @@ namespace AVEncoder
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to initialize NvEnc encoder (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 			}
 			else
+			{
+				EncoderThread = MakeUnique<FThread>(TEXT("NvencEncoderLayerThread"), [this]() { ProcessFramesFunc(); });
 				return true;
+			}
 		}
 
 		return false;
@@ -426,13 +304,6 @@ namespace AVEncoder
 		EncoderConfig.encodeCodecConfig.h264Config.sliceMode = 0;
 		EncoderConfig.encodeCodecConfig.h264Config.sliceModeData = 0;
 
-		// whether or not to use async mode
-		if(GetCapability(NV_ENC_CAPS_ASYNC_ENCODE_SUPPORT) != 0)
-		{
-			EncoderInitParams.enableEncodeAsync = true;
-			bAsyncMode = true;
-		}
-
 		// update config from CurrentConfig
 		UpdateConfig();
 
@@ -445,21 +316,11 @@ namespace AVEncoder
 		if(NeedsReconfigure)
 		{
 			UpdateConfig();
-
-			// Changing the framerate forces the generation of a new keyframe so we only do it when either:
-			// 1) we need a keyframe anyway
-			// 2) there is a big difference in framerate
-			// 3) the framerate has changed and we haven't sent a Keyframe recently
-			auto const CurrentMaxFramerate = EncoderInitParams.frameRateNum;
-			auto const ConfigMaxFramerate = CurrentConfig.MaxFramerate;
-			auto const FrameRateDiff = ConfigMaxFramerate > CurrentMaxFramerate ? ConfigMaxFramerate - CurrentMaxFramerate : CurrentMaxFramerate - ConfigMaxFramerate;
-			auto const LastKeyFrameDelta = (FDateTime::UtcNow() - LastKeyFrameTime).GetSeconds();
-
-			if(bForceNextKeyframe || FrameRateDiff > MAX_FRAMERATE_DIFF || (ConfigMaxFramerate != EncoderInitParams.frameRateNum && LastKeyFrameDelta > MIN_UPDATE_FRAMERATE_SECS))
+			
+			if(EncoderInitParams.frameRateNum != CurrentConfig.MaxFramerate)
 			{
 				EncoderInitParams.frameRateNum = CurrentConfig.MaxFramerate;
 			}
-			bForceNextKeyframe = false;
 
 			// `outputPictureTimingSEI` is used in CBR mode to fill video frame with data to match the requested bitrate.
 			if(CurrentConfig.RateControlMode == AVEncoder::FVideoEncoder::RateControlMode::CBR)
@@ -501,61 +362,38 @@ namespace AVEncoder
 		h264Config.enableFillerDataInsertion = CurrentConfig.FillData ? 1 : 0;
 	}
 
-	void FVideoEncoderNVENC_H264::FNVENCLayer::Encode(FVideoEncoderInputFrameImpl const* frame, FEncodeOptions const& options)
+	void FVideoEncoderNVENC_H264::FNVENCLayer::Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions)
 	{
-		FInputOutput* Buffer = GetOrCreateBuffer(frame);
+		FInputOutput* Buffer = GetOrCreateBuffer(static_cast<const FVideoEncoderInputFrameImpl*>(InFrame->Obtain()));
 
 		if(Buffer)
 		{
-			Buffer->EncodeStartTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
-
-			bForceNextKeyframe = options.bForceKeyFrame;
-			MaybeReconfigure();
+			Buffer->EncodeStartMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
 
 			if(MapInputTexture(*Buffer))
 			{
-				NVENCStruct(NV_ENC_PIC_PARAMS, PicParams);
-				PicParams.inputWidth = Buffer->Width;
-				PicParams.inputHeight = Buffer->Height;
-				PicParams.inputPitch = Buffer->Pitch;
-				PicParams.inputBuffer = Buffer->MappedInput;
-				PicParams.bufferFmt = Buffer->BufferFormat;
-				PicParams.encodePicFlags = 0;
-				if(options.bForceKeyFrame)
+				Buffer->PicParams = {};
+				Buffer->PicParams.version = NV_ENC_PIC_PARAMS_VER;
+				Buffer->PicParams.inputWidth = Buffer->Width;
+				Buffer->PicParams.inputHeight = Buffer->Height;
+				Buffer->PicParams.inputPitch = Buffer->Pitch ? Buffer->Pitch : Buffer->Width;
+				Buffer->PicParams.inputBuffer = Buffer->MappedInput;
+				Buffer->PicParams.bufferFmt = Buffer->BufferFormat;
+				Buffer->PicParams.encodePicFlags = 0;
+
+				if(EncodeOptions.bForceKeyFrame)
 				{
 					LastKeyFrameTime = FDateTime::UtcNow();
-					PicParams.encodePicFlags |= NV_ENC_PIC_FLAG_FORCEIDR;
+					Buffer->PicParams.encodePicFlags |= NV_ENC_PIC_FLAG_FORCEIDR;
 				}
-				PicParams.inputTimeStamp = Buffer->TimeStamp = frame->GetTimestampUs();
-				PicParams.outputBitstream = Buffer->OutputBitstream;
-				PicParams.completionEvent = Buffer->CompletionEvent;
-				PicParams.pictureStruct = NV_ENC_PIC_STRUCT_FRAME;
 
-				auto const result = NVENC.nvEncEncodePicture(NVEncoder, &PicParams);
-				if(result == NV_ENC_ERR_NEED_MORE_INPUT)
-				{
-					// queue to pending frames to be read on next success
-					PendingEncodes.Enqueue(Buffer);
-				}
-				else if(result == NV_ENC_SUCCESS)
-				{
-					PendingEncodes.Enqueue(Buffer);
-					WaitForNextPendingFrame();
-				}
-				else
-				{
-					UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncEncodePicture(NVEncoder, &PicParams); -> %s"), *NVENC.GetErrorString(NVEncoder, result));
-					// release input frame
-					if(Buffer->SourceFrame)
-					{
-						Buffer->SourceFrame->Release();
-						Buffer->SourceFrame = nullptr;
-					}
-				}
-			}
-			else
-			{
-				// todo: release source frame
+				Buffer->PicParams.inputTimeStamp = Buffer->TimeStamp = InFrame->GetTimestampUs();
+				Buffer->PicParams.outputBitstream = Buffer->OutputBitstream;
+				Buffer->PicParams.pictureStruct = NV_ENC_PIC_STRUCT_FRAME;
+				Buffer->PicParams.frameIdx = InFrame->GetFrameID();
+
+				PendingEncodes.Enqueue(Buffer);
+				FramesPending->Trigger();
 			}
 		}
 	}
@@ -563,37 +401,27 @@ namespace AVEncoder
 	void FVideoEncoderNVENC_H264::FNVENCLayer::Flush()
 	{
 		FInputOutput* EmptyBuffer = CreateBuffer();
+
 		if(!EmptyBuffer)
 		{
 			return;
 		}
-		NVENCStruct(NV_ENC_PIC_PARAMS, PicParams);
-		PicParams.encodePicFlags = NV_ENC_PIC_FLAG_EOS;
-		PicParams.completionEvent = EmptyBuffer->CompletionEvent;
-		auto const result = NVENC.nvEncEncodePicture(NVEncoder, &PicParams);
-		if(result != NV_ENC_SUCCESS)
-		{
-			UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to flush NVENC encoder (%s)"), *NVENC.GetErrorString(NVEncoder, result));
-		}
-		else
-		{
-			EmptyBuffer->TriggerOnCompletion = FPlatformProcess::GetSynchEventFromPool(true);
 
-			PendingEncodes.Enqueue(EmptyBuffer);
-			WaitForNextPendingFrame();
-			// wait for this buffer to be done
-			EmptyBuffer->TriggerOnCompletion->Wait();
+		EmptyBuffer->PicParams = {};
+		EmptyBuffer->PicParams.version = NV_ENC_PIC_PARAMS_VER;
+		EmptyBuffer->PicParams.encodePicFlags = NV_ENC_PIC_FLAG_EOS;
 
-			DestroyBuffer(EmptyBuffer);
-			for(FInputOutput* Buffer : CreatedBuffers)
-				DestroyBuffer(Buffer);
-			CreatedBuffers.Empty();
-		}
+		PendingEncodes.Enqueue(EmptyBuffer);
 	}
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::Shutdown()
 	{
 		Flush();
+
+		bShouldEncoderThreadRun = false;
+		FramesPending->Trigger();
+		EncoderThread->Join();
+
 		if(NVEncoder)
 		{
 			auto const result = NVENC.nvEncDestroyEncoder(NVEncoder);
@@ -602,90 +430,143 @@ namespace AVEncoder
 				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to destroy NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 			}
 			NVEncoder = nullptr;
-			bAsyncMode = false;
 		}
 	}
 
-	void FVideoEncoderNVENC_H264::FNVENCLayer::ProcessNextPendingFrame()
+// This function throws error in static analysis as the Buffer is never explicitly set
+// however dequeue will guarantee that it is never null and hence a false positive
+#pragma warning( push )
+#pragma warning( disable : 6011 )
+	void FVideoEncoderNVENC_H264::FNVENCLayer::ProcessFramesFunc()
 	{
-		FInputOutput* Buffer = nullptr;
-		if(PendingEncodes.Dequeue(Buffer))
+		TQueue<FInputOutput*> LiveBuffers;
+		FInputOutput* Buffer;
+		NVENCSTATUS result;
+
+		while(bShouldEncoderThreadRun)
 		{
-			// this could be a null buffer (for flush)
-			if(Buffer->Width > 0 && Buffer->Height > 0)
+			FramesPending->Wait();
+
+			while(bShouldEncoderThreadRun && PendingEncodes.Dequeue(Buffer))
 			{
-				// lock output buffers for CPU access
-				if(LockOutputBuffer(*Buffer))
+				MaybeReconfigure();
+
+				// check if we have not reconfigued the buffer size
+				if(Buffer->Width != EncoderInitParams.encodeWidth || Buffer->Height != EncoderInitParams.encodeHeight)
 				{
-					if(Encoder.OnEncodedPacket)
+					// clear all live buffers as they are now invalid
+					LiveBuffers.Enqueue(Buffer);
+
+					while(LiveBuffers.Dequeue(Buffer))
 					{
-						// create packet with buffer contents
-						FCodecPacketImpl Packet;
-
-						Packet.Data = static_cast<const uint8*>(Buffer->BitstreamData);
-						Packet.DataSize = Buffer->BitstreamDataSize;
-						if(Buffer->PictureType == NV_ENC_PIC_TYPE_IDR)
-						{
-							UE_LOG(LogEncoderNVENC, Verbose, TEXT("Generated IDR Frame"));
-							Packet.IsKeyFrame = true;
-						}
-						Packet.VideoQP = Buffer->FrameAvgQP;
-						Packet.Timings.StartTs = Buffer->EncodeStartTs;
-						Packet.Timings.FinishTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
-						Packet.Framerate = EncoderInitParams.frameRateNum;
-
-						Encoder.OnEncodedPacket(LayerIndex, Buffer->SourceFrame, Packet);
+						Buffer->SourceFrame->Release();
+						Buffer->SourceFrame = nullptr;
+						DestroyBuffer(Buffer);
 					}
 
-					UnlockOutputBuffer(*Buffer);
+					continue;
+				}
+
+				// Do synchronous encode
+				result = NVENC.nvEncEncodePicture(NVEncoder, &(Buffer->PicParams));
+
+				// Enqueue buffers until we get a success then Dequeue all the LiveBuffers
+				if(result == NV_ENC_ERR_NEED_MORE_INPUT)
+				{
+					LiveBuffers.Enqueue(Buffer);
+				}
+				else if(result == NV_ENC_SUCCESS)
+				{
+					LiveBuffers.Enqueue(Buffer);
+
+					while(bShouldEncoderThreadRun && LiveBuffers.Dequeue(Buffer))
+					{
+						// lock output buffers for CPU access
+						if(LockOutputBuffer(*Buffer))
+						{
+							if(Encoder.OnEncodedPacket)
+							{
+								// create packet with buffer contents
+								FCodecPacketImpl Packet;
+
+								Packet.Data = static_cast<const uint8*>(Buffer->BitstreamData);
+								Packet.DataSize = Buffer->BitstreamDataSize;
+								
+								if(Buffer->PictureType & NV_ENC_PIC_TYPE_IDR)
+								{
+									UE_LOG(LogEncoderNVENC, Verbose, TEXT("Generated IDR Frame"));
+									Packet.IsKeyFrame = true;
+								}
+								
+								Packet.VideoQP = Buffer->FrameAvgQP;
+								Packet.Timings.StartTs = Buffer->EncodeStartMs;
+								Packet.Timings.FinishTs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
+								Packet.Framerate = EncoderInitParams.frameRateNum;
+
+								// yeet it out
+								if(Encoder.OnEncodedPacket)
+								{
+									Encoder.OnEncodedPacket(LayerIndex, Buffer->SourceFrame, Packet);
+								}
+							}
+
+							UnlockOutputBuffer(*Buffer);
+						}
+
+						// we have kicked off a flush of the encoder clear all the buffers
+						if(Buffer->PicParams.encodePicFlags == NV_ENC_PIC_FLAG_EOS)
+						{
+							FInputOutput* EOSBuffer = Buffer;
+							DestroyBuffer(EOSBuffer);
+							delete EOSBuffer;
+
+							while(IdleBuffers.Dequeue(Buffer))
+							{
+								FInputOutput* OldBuffer = Buffer;
+								DestroyBuffer(OldBuffer);
+								delete OldBuffer;
+							}
+
+							// early out
+							return;
+						}
+
+						// We have consumed the encoded buffer we can now return it to the pool
+						if(Buffer->SourceFrame)
+						{
+							Buffer->SourceFrame->Release();
+							Buffer->SourceFrame = nullptr;
+						}
+
+						IdleBuffers.Enqueue(Buffer);
+					}
+				}
+				else
+				{
+					// Something went wrong
+					UE_LOG(LogEncoderNVENC, Error, TEXT("nvEncEncodePicture returned %s"), *NVENC.GetErrorString(NVEncoder, result));
+
+					if(Buffer->SourceFrame)
+					{
+						Buffer->SourceFrame->Release();
+						Buffer->SourceFrame = nullptr;
+						DestroyBuffer(Buffer);
+					}
 				}
 			}
+		}
 
-			// input is no longer required
-			if(Buffer->SourceFrame)
+		// We are exiting so clear all live buffers
+		while(LiveBuffers.Dequeue(Buffer))
+		{
+			if (Buffer->SourceFrame)
 			{
 				Buffer->SourceFrame->Release();
 				Buffer->SourceFrame = nullptr;
 			}
-
-			// optional event to be triggered
-			if(Buffer->TriggerOnCompletion)
-			{
-				Buffer->TriggerOnCompletion->Trigger();
-			}
-		}
-
-		if(bAsyncMode)
-		{
-			ProtectedWaitingForPending.Lock();
-			WaitingForPendingActive = false;
-			ProtectedWaitingForPending.Unlock();
-
-			WaitForNextPendingFrame();
 		}
 	}
-
-	void FVideoEncoderNVENC_H264::FNVENCLayer::WaitForNextPendingFrame()
-	{
-		ProtectedWaitingForPending.Lock();
-		if(!WaitingForPendingActive)
-		{
-			FInputOutput* NextBuffer = nullptr;
-			if(PendingEncodes.Peek(NextBuffer))
-			{
-				if(bAsyncMode)
-				{
-					Encoder.OnEvent(NextBuffer->CompletionEvent, [this]() { ProcessNextPendingFrame(); });
-					WaitingForPendingActive = true;
-				}
-				else
-				{
-					ProcessNextPendingFrame();
-				}
-			}
-		}
-		ProtectedWaitingForPending.Unlock();
-	}
+#pragma warning( pop )
 
 	int FVideoEncoderNVENC_H264::FNVENCLayer::GetCapability(NV_ENC_CAPS CapsToQuery) const
 	{
@@ -730,22 +611,33 @@ namespace AVEncoder
 		}
 
 		FInputOutput* Buffer = nullptr;
-		for(FInputOutput* SearchBuffer : CreatedBuffers)
+		FInputOutput* TempBuffer = nullptr;
+		TQueue<FInputOutput*> TempQueue;
+		while(!IdleBuffers.IsEmpty())
 		{
-			if(SearchBuffer->InputTexture == TextureToCompress)
+			IdleBuffers.Dequeue(TempBuffer);
+			if(TempBuffer->InputTexture == TextureToCompress)
 			{
-				Buffer = SearchBuffer;
+				Buffer = TempBuffer;
 				break;
 			}
+			else
+			{
+				TempQueue.Enqueue(TempBuffer);
+			}
+		}
+
+		while(!TempQueue.IsEmpty())
+		{
+			TempQueue.Dequeue(TempBuffer);
+			IdleBuffers.Enqueue(TempBuffer);
 		}
 
 		if(Buffer)
 		{
-			// Check for buffer and input texture resolution mismatch
+			// Check for buffer and InputFrameFactory texture resolution mismatch
 			if(InFrame->GetWidth() != Buffer->Width || InFrame->GetHeight() != Buffer->Height)
 			{
-				// Buffer is wrong resolution, destroy it and we will make a new buffer below
-				CreatedBuffers.Remove(Buffer);
 				DestroyBuffer(Buffer);
 				Buffer = nullptr;
 			}
@@ -754,7 +646,7 @@ namespace AVEncoder
 		if(!Buffer)
 		{
 			Buffer = CreateBuffer();
-			Buffer->SourceFrame = static_cast<const FVideoEncoderInputFrameImpl*>(static_cast<const FVideoEncoderInputFrame*>(InFrame)->Obtain());
+			Buffer->SourceFrame = InFrame;
 
 			if(Buffer && !RegisterInputTexture(*Buffer, TextureToCompress, FIntPoint(InFrame->GetWidth(), InFrame->GetHeight())))
 			{
@@ -762,14 +654,10 @@ namespace AVEncoder
 				DestroyBuffer(Buffer);
 				Buffer = nullptr;
 			}
-			else
-			{
-				CreatedBuffers.Push(Buffer);
-			}
 		}
 		else
 		{
-			Buffer->SourceFrame = static_cast<const FVideoEncoderInputFrameImpl*>(static_cast<const FVideoEncoderInputFrame*>(InFrame)->Obtain());
+			Buffer->SourceFrame = InFrame;
 		}
 
 		return Buffer;
@@ -793,26 +681,6 @@ namespace AVEncoder
 
 		Buffer->OutputBitstream = CreateParam.bitstreamBuffer;
 
-		if(bAsyncMode)
-		{
-#if PLATFORM_WINDOWS
-			// encode completion async event
-			Buffer->CompletionEvent = CreateEvent(nullptr, false, false, nullptr);
-
-			NVENCStruct(NV_ENC_EVENT_PARAMS, EventParams);
-			EventParams.completionEvent = Buffer->CompletionEvent;
-			auto const result = NVENC.nvEncRegisterAsyncEvent(NVEncoder, &EventParams);
-			if(result != NV_ENC_SUCCESS)
-			{
-				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to register completion event with NVENC (%s)."), *NVENC.GetErrorString(NVEncoder, result));
-				DestroyBuffer(Buffer);
-				return nullptr;
-			}
-#else
-			UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::FNVENCLayer::CreateBuffer should not have hit here as NVENC async mode only works on Windows!"))
-#endif
-		}
-
 		return Buffer;
 	}
 
@@ -833,39 +701,9 @@ namespace AVEncoder
 			InBuffer->OutputBitstream = nullptr;
 		}
 
-		// unregister/close completion event - if any
-		if(bAsyncMode && InBuffer->CompletionEvent)
-		{
-#if PLATFORM_WINDOWS
-			NVENCStruct(NV_ENC_EVENT_PARAMS, EventParams);
-			EventParams.completionEvent = InBuffer->CompletionEvent;
-			auto const result = NVENC.nvEncUnregisterAsyncEvent(NVEncoder, &EventParams);
-			if(result != NV_ENC_SUCCESS)
-			{
-				UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to unregister NVENC completions event (%s)."), *NVENC.GetErrorString(NVEncoder, result));
-			}
-			CloseHandle(InBuffer->CompletionEvent);
-			InBuffer->CompletionEvent = nullptr;
-#else
-			UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::FNVENCLayer::DestroyBuffer should not have hit here as NVENC async mode only works on Windows!"))
-#endif
-		}
-
 		// release source texture
 		InBuffer->InputTexture = nullptr;
 
-		if(InBuffer->SourceFrame)
-		{
-			InBuffer->SourceFrame->Release();
-			InBuffer->SourceFrame = nullptr;
-		}
-
-		// optional event
-		if(InBuffer->TriggerOnCompletion)
-		{
-			FPlatformProcess::ReturnSynchEventToPool(InBuffer->TriggerOnCompletion);
-			InBuffer->TriggerOnCompletion = nullptr;
-		}
 		delete InBuffer;
 	}
 

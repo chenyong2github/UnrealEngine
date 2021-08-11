@@ -75,13 +75,17 @@ namespace AVEncoder
 				AMFSurfacePtr Surface;
 			};
 
-			void MaybeReconfigure(TSharedPtr<FInputOutput> buffer);
+			void MaybeReconfigure();
 
 			TSharedPtr<FInputOutput> GetOrCreateSurface(const FVideoEncoderInputFrameImpl* InFrame);
 			bool CreateSurface(TSharedPtr<FInputOutput>& OutBuffer, const FVideoEncoderInputFrameImpl* SourceFrame, void* TextureToCompress);
 
 			TArray<TSharedPtr<FInputOutput>> CreatedSurfaces;
 			FThreadSafeBool bUpdateConfig = false;
+
+			uint32 CurrentWidth;
+			uint32 CurrentHeight;
+			uint32 CurrentFrameRate;
 		};
 
 		void ProcessFrameThreadFunc();

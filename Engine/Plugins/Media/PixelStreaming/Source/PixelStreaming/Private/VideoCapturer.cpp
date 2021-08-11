@@ -25,6 +25,15 @@ extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderTargetSize;
 
 FVideoCapturer::FVideoCapturer()
 {
+
+	if (GEngine && GEngine->GameViewport)
+    {
+		FVector2D Res;
+		GEngine->GameViewport->GetViewportSize(Res);
+		this->Width = Res.X;
+		this->Height = Res.Y;
+    }
+
 	CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
 
 	if(GDynamicRHI)
@@ -132,7 +141,6 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 {
 	VideoEncoderInput->SetMaxNumBuffers((uint32)PixelStreamingSettings::CVarPixelStreamingMaxNumBackBuffers.GetValueOnRenderThread());
-	VideoEncoderInput->SetNumFramesUntilStale((uint32)PixelStreamingSettings::CVarPixelStreamingNumFramesUntilBackBufferStale.GetValueOnRenderThread());
 	AVEncoder::FVideoEncoderInputFrame* InputFrame = VideoEncoderInput->ObtainInputFrame();
 	if(InputFrame == nullptr)
 		return nullptr;
@@ -293,8 +301,6 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 				BackBuffers.Add(InputFrame, Texture);
 			}
 		}
-
-		UE_LOG(PixelStreamer, Log, TEXT("%d backbuffers currently allocated"), BackBuffers.Num());
 	}
 
 	return InputFrame;
@@ -394,6 +400,12 @@ bool FVideoCapturer::AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolu
 
 void FVideoCapturer::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight)
 {
+	// Don't change resolution if user has indicated they do not want this behaviour.
+	if(PixelStreamingSettings::CVarPixelStreamingWebRTCDisableResolutionChange.GetValueOnAnyThread())
+	{
+		return;
+	}
+
 	// Check is requested resolution is same as current resolution, if so, do nothing.
 	if(Width == NewCaptureWidth && Height == NewCaptureHeight)
 		return;

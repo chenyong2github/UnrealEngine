@@ -58,7 +58,6 @@ namespace AVEncoder
 		// --- properties
 		virtual void SetResolution(uint32 InWidth, uint32 InHeight);
 		virtual void SetMaxNumBuffers(uint32 InMaxNumBuffers);
-		virtual void SetNumFramesUntilStale(uint32 InNumFramesUntilStale);
 
 		EVideoFrameFormat GetFrameFormat() const { return FrameFormat; }
 
@@ -81,9 +80,6 @@ namespace AVEncoder
 		virtual void DestroyBuffer(FVideoEncoderInputFrame* Buffer) = 0;
 
 		// --- encoder input frames - managed by this object
-
-		// has an available frame gone unused for a long enough period to cull it
-		virtual bool IsFrameStale(FVideoEncoderInputFrame* InFrame) = 0;
 
 		// obtain a video frame that can be used as a buffer for input to a video encoder
 		virtual FVideoEncoderInputFrame* ObtainInputFrame() = 0;
@@ -114,13 +110,12 @@ namespace AVEncoder
 		EVideoFrameFormat				FrameFormat = EVideoFrameFormat::Undefined;
 		uint32 Width;
 		uint32 Height;
-		uint32 MaxNumBuffers = 0;
+		uint32 MaxNumBuffers = 3;
 		uint32 NumBuffers = 0;
-		uint32 NumFramesUntilStale = 30;
 
 		bool bIsResizable = false;
 
-		static uint32 NextFrameID;
+		uint32 NextFrameID = 0;
 	};
 
 

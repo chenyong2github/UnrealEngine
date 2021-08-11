@@ -77,14 +77,8 @@ namespace PixelStreamingSettings
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers(
 		TEXT("PixelStreaming.Capturer.MaxNumBackBuffers"),
-		8,
+		3,
 		TEXT("Maximum number of back buffers to use. A value of 0 will not limit the number of back buffers."),
-		ECVF_Default);
-
-	TAutoConsoleVariable<int32> CVarPixelStreamingNumFramesUntilBackBufferStale(
-		TEXT("PixelStreaming.Capturer.NumFramesUntilBackBufferStale"),
-		1,
-		TEXT("Cull back buffers that haven't been used for this many frames."),
 		ECVF_Default);
 // End Capturer CVars
 
@@ -154,6 +148,13 @@ namespace PixelStreamingSettings
 		false,
 		TEXT("Whether put audio and video in the same stream (which will make WebRTC try to sync them)."),
 		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableResolutionChange(
+		TEXT("PixelStreaming.WebRTC.DisableResolutionChange"),
+		true,
+		TEXT("Disables whether WebRTC can trigger a resolution a change of the stream (regardless of it wants to)."),
+		ECVF_Default);
+
 // End WebRTC CVars
 
 // Begin Pixel Streaming Plugin CVars
@@ -320,7 +321,6 @@ UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& Objec
 	CommandLineParseValue(TEXT("PixelStreamingH264Profile="), PixelStreamingSettings::CVarPixelStreamingH264Profile);
 	CommandLineParseValue(TEXT("PixelStreamingCaptureSize="), PixelStreamingSettings::CVarPixelStreamingCaptureSize);
 	CommandLineParseValue(TEXT("PixelStreamingMaxNumBackBuffers="), PixelStreamingSettings::CVarPixelStreamingMaxNumBackBuffers);
-	CommandLineParseValue(TEXT("PixelStreamingMaxNumBackBuffers="), PixelStreamingSettings::CVarPixelStreamingNumFramesUntilBackBufferStale);
 	CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxFps="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCStartBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCStartBitrate);

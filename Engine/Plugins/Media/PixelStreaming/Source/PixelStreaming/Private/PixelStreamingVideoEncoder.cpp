@@ -171,6 +171,7 @@ void FPixelStreamingVideoEncoder::SetRates(RateControlParameters const& paramete
 	if (bControlsQuality && Context->Encoder)
 	{
 		Context->Encoder->UpdateLayerConfig(0, EncoderConfig);
+		UE_LOG(PixelStreamer, Verbose, TEXT("WebRTC changed rates - %d bps | %d fps "), EncoderConfig.TargetBitrate, EncoderConfig.MaxFramerate);
 	}
 }
 
