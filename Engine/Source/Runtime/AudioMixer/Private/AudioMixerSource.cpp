@@ -6,6 +6,7 @@
 #include "AudioMixerSourceBuffer.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
+#include "AudioMixerTrace.h"
 #include "ContentStreaming.h"
 #include "IAudioExtensionPlugin.h"
 #include "ProfilingDebugging/CsvProfiler.h"
@@ -294,6 +295,7 @@ namespace Audio
 
 	bool FMixerSource::Init(FWaveInstance* InWaveInstance)
 	{
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(AudioMixerSource::Init);
 		AUDIO_MIXER_CHECK(MixerBuffer);
 		AUDIO_MIXER_CHECK(MixerBuffer->IsRealTimeSourceReady());
 
@@ -777,6 +779,8 @@ namespace Audio
 		{
 			return false;
 		}
+
+		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(AudioMixerSource::PrepareForInitialization);
 
 		// We are not initialized yet. We won't be until the sound file finishes loading and parsing the header.
 		InitializationState = EMixerSourceInitializationState::Initializing;

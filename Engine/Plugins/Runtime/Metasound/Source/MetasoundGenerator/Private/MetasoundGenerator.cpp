@@ -7,8 +7,8 @@
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundOutputNode.h"
+#include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
-
 
 namespace Metasound
 {
@@ -22,6 +22,7 @@ namespace Metasound
 
 	void FAsyncMetaSoundBuilder::DoWork()
 	{
+		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(AsyncMetaSoundBuilder::DoWork);
 		// Create an instance of the new graph
 		FOperatorBuilder OperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings());
 		FBuildGraphParams BuildParams{*InitParams.Graph, InitParams.OperatorSettings, FDataReferenceCollection{}, InitParams.Environment};
@@ -39,11 +40,7 @@ namespace Metasound
 			}
 		}
 
-		if (!GraphOperator.IsValid())
-		{
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to build Metasound operator from graph in MetasoundSource [%s]"), *InitParams.MetaSoundName);
-		}
-		else
+		if (GraphOperator.IsValid())
 		{
 			TArray<FAudioBufferReadRef> OutputBuffers;
 			FDataReferenceCollection Outputs = GraphOperator->GetOutputs();
@@ -74,6 +71,13 @@ namespace Metasound
 
 			Generator->SetPendingGraph(MoveTemp(GeneratorData), bTriggerGenerator);
 		}
+		else 
+		{
+			UE_LOG(LogMetaSound, Error, TEXT("Failed to build Metasound operator from graph in MetasoundSource [%s]"), *InitParams.MetaSoundName);
+			// Set null generator data to inform that generator failed to build. 
+			// Otherwise, generator will continually wait for a new generator.
+			Generator->SetPendingGraphBuildFailed();
+		}
 	}
 
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
@@ -85,18 +89,20 @@ namespace Metasound
 		, OnPlayTriggerRef(FTriggerWriteRef::CreateNew(InParams.OperatorSettings))
 		, OnFinishedTriggerRef(FTriggerWriteRef::CreateNew(InParams.OperatorSettings))
 		, bPendingGraphTrigger(true)
-		, bIsNewGraphPending(true)
+		, bIsNewGraphPending(false)
+		, bIsWaitingForFirstGraph(true)
 	{
 		NumChannels = InParams.AudioOutputNames.Num();
 		NumFramesPerExecute = InParams.OperatorSettings.GetNumFramesPerBlock();
 		NumSamplesPerExecute = NumChannels * NumFramesPerExecute;
 
 		BuilderTask = MakeUnique<FBuilderTask>(this, MoveTemp(InParams), true /* bTriggerGenerator */);
-
+		
 		BuilderTask->StartSynchronousTask();
 		BuilderTask = nullptr;
 		UpdateGraphIfPending();
-
+		bIsWaitingForFirstGraph = false;
+		
 		//BuilderTask->StartBackgroundTask(GBackgroundPriorityThreadPool);
 	}
 
@@ -119,6 +125,16 @@ namespace Metasound
 		}
 	}
 
+	void FMetasoundGenerator::SetPendingGraphBuildFailed()
+	{
+		FScopeLock SetPendingGraphLock(&PendingGraphMutex);
+		{
+			PendingGraphData = TUniquePtr<FMetasoundGeneratorData>(nullptr);
+			bPendingGraphTrigger = false;
+			bIsNewGraphPending = true;
+		}
+	}
+
 	bool FMetasoundGenerator::UpdateGraphIfPending()
 	{
 		FScopeLock GraphLock(&PendingGraphMutex);
@@ -126,9 +142,10 @@ namespace Metasound
 		{
 			SetGraph(MoveTemp(PendingGraphData), bPendingGraphTrigger);
 			bIsNewGraphPending = false;
+			return true;
 		}
 
-		return bIsNewGraphPending;
+		return false;
 	}
 
 	void FMetasoundGenerator::SetGraph(TUniquePtr<FMetasoundGeneratorData>&& InData, bool bTriggerGraph)
@@ -198,6 +215,8 @@ namespace Metasound
 
 	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamplesRemaining)
 	{
+		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetasoundGenerator::OnGenerateAudio);
+
 		// Defer finishing the metasound generator one block
 		if (bIsFinishTriggered)
 		{
@@ -209,28 +228,23 @@ namespace Metasound
 			return 0;
 		}
 
-		const bool bPending = UpdateGraphIfPending();
+		const bool bDidUpdateGraph = UpdateGraphIfPending();
+		bIsWaitingForFirstGraph = bIsWaitingForFirstGraph && !bDidUpdateGraph;
 
 		// Output silent audio if we're still building a graph
-		if (bPending)
+		if (bIsWaitingForFirstGraph)
 		{
-			if (RootExecuter.IsNoOp() || NumSamplesPerExecute < 1)
-			{
-				FMemory::Memset(OutAudio, 0, sizeof(float)* NumSamplesRemaining);
-				return NumSamplesRemaining;
-			}
+			FMemory::Memset(OutAudio, 0, sizeof(float)* NumSamplesRemaining);
+			return NumSamplesRemaining;
 		}
 		// If no longer pending and executer is no-op, kill the MetaSound.
 		// Covers case where there was an error when building, resulting in
 		// Executer operator being assigned to NoOp.
-		else
+		else if (RootExecuter.IsNoOp() || NumSamplesPerExecute < 1)
 		{
-			if (RootExecuter.IsNoOp())
-			{
-				bIsFinished = true;
-				FMemory::Memset(OutAudio, 0, sizeof(float) * NumSamplesRemaining);
-				return NumSamplesRemaining;
-			}
+			bIsFinished = true;
+			FMemory::Memset(OutAudio, 0, sizeof(float) * NumSamplesRemaining);
+			return NumSamplesRemaining;
 		}
 
 		// If we have any audio left in the internal overflow buffer from 

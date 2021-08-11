@@ -141,9 +141,11 @@ namespace Metasound
 		 * @param bTriggerGraph - If true, "OnPlay" will be triggered on the new graph.
 		 */
 		void SetPendingGraph(FMetasoundGeneratorData&& InData, bool bTriggerGraph);
+		void SetPendingGraphBuildFailed();
 
 	private:
 		bool UpdateGraphIfPending();
+
 		// Internal set graph after checking compatibility.
 		void SetGraph(TUniquePtr<FMetasoundGeneratorData>&& InData, bool bTriggerGraph);
 
@@ -183,6 +185,7 @@ namespace Metasound
 		TUniquePtr<FMetasoundGeneratorData> PendingGraphData;
 		bool bPendingGraphTrigger;
 		bool bIsNewGraphPending;
+		bool bIsWaitingForFirstGraph;
 	};
 }
 

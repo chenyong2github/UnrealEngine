@@ -16,6 +16,7 @@
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSettings.h"
 #include "MetasoundSource.h"
+#include "MetasoundTrace.h"
 #include "UObject/Object.h"
 
 
@@ -93,6 +94,8 @@ void UMetaSoundAssetSubsystem::PostEngineInit()
 
 void UMetaSoundAssetSubsystem::PostInitAssetScan()
 {
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundAssetSubsystem::PostInitAssetScan);
+
 	UAssetManager& AssetManager = UAssetManager::Get();
 
 	FAssetManagerSearchRules Rules;
@@ -125,6 +128,8 @@ void UMetaSoundAssetSubsystem::AddOrUpdateAsset(UObject& InObject, bool bInRegis
 	using namespace Metasound::AssetSubsystemPrivate;
 	using namespace Metasound::Frontend;
 
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundAssetSubsystem::AddOrUpdateAsset);
+
 	FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InObject);
 	check(MetaSoundAsset);
 
@@ -146,6 +151,8 @@ void UMetaSoundAssetSubsystem::AddOrUpdateAsset(const FAssetData& InAssetData, b
 
 	// TODO: Set to false for builds once registering without loading asset is supported.
 	static const bool bLoadRequiredToRegisterAssetClasses = true;
+
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundAssetSubsystem::AddOrUpdateAsset);
 
 	FNodeClassInfo ClassInfo;
 	bool bClassInfoFound = GetAssetClassInfo(InAssetData, ClassInfo);

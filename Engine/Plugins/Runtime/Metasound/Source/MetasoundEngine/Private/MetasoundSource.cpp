@@ -20,6 +20,7 @@
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundReceiveNode.h"
+#include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundUObjectRegistry.h"
 #include "UObject/ObjectSaveContext.h"
@@ -226,6 +227,8 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 	using namespace Metasound::Engine;
+
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundSource::CreateSoundGenerator);
 
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
