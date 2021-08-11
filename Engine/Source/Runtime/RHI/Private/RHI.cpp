@@ -1444,7 +1444,8 @@ bool GTriggerGPUHitchProfile = false;
 
 bool GRHISupportsPixelShaderUAVs = true;
 
-bool GRHISupportsMeshShaders = false;
+bool GRHISupportsMeshShadersTier0 = false;
+bool GRHISupportsMeshShadersTier1 = false;
 
 bool GRHISupportsShaderTimestamp = false;
 
@@ -2249,7 +2250,9 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bRequiresRenderTargetDuringRaster);
 	GET_SECTION_BOOL_HELPER(bRequiresDisableForwardLocalLights);
 	GET_SECTION_BOOL_HELPER(bCompileSignalProcessingPipeline);
-	GET_SECTION_BOOL_HELPER(bSupportsMeshShaders);
+	GET_SECTION_BOOL_HELPER(bSupportsMeshShadersTier0);
+	GET_SECTION_BOOL_HELPER(bSupportsMeshShadersTier1);
+	GET_SECTION_INT_HELPER(MaxMeshShaderThreadGroupSize);
 	GET_SECTION_BOOL_HELPER(bSupportsPerPixelDBufferMask);
 	GET_SECTION_BOOL_HELPER(bIsHlslcc);
 	GET_SECTION_BOOL_HELPER(bSupportsVariableRateShading);

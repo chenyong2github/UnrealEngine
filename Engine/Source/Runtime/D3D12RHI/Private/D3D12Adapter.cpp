@@ -542,7 +542,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		{
 			bHeapNotZeroedSupported = true;
 
-			GRHISupportsMeshShaders = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM6 && (Features.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED);
+			GRHISupportsMeshShadersTier1 = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM6) && (Features.MeshShaderTier == D3D12_MESH_SHADER_TIER_1);
+			GRHISupportsMeshShadersTier0 = GRHISupportsMeshShadersTier1;
 		}
 	}
 #endif

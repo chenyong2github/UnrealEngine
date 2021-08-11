@@ -1824,9 +1824,14 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		KeyString += TEXT("_PPDBM");
 	}
 
-	if (RHISupportsMeshShaders(Platform))
+	if (RHISupportsMeshShadersTier0(Platform))
 	{
-		KeyString += TEXT("_MS");
+		KeyString += TEXT("_MS_T0");
+	}
+
+	if (RHISupportsMeshShadersTier1(Platform))
+	{
+		KeyString += TEXT("_MS_T1");
 	}
 
 	if (ShouldCompileRayTracingShadersForProject(Platform))

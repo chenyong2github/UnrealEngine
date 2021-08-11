@@ -161,14 +161,14 @@ public:
 	// FlushType: Wait RHI Thread
 	virtual FMeshShaderRHIRef RHICreateMeshShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 	{
-		check(RHISupportsMeshShaders(GMaxRHIShaderPlatform));
+		check(RHISupportsMeshShadersTier0(GMaxRHIShaderPlatform));
 		return RHI->RHICreateMeshShader(Code, Hash);
 	}
 
 	// FlushType: Wait RHI Thread
 	virtual FAmplificationShaderRHIRef RHICreateAmplificationShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 	{
-		check(RHISupportsMeshShaders(GMaxRHIShaderPlatform));
+		check(RHISupportsMeshShadersTier0(GMaxRHIShaderPlatform));
 		return RHI->RHICreateAmplificationShader(Code, Hash);
 	}
 
@@ -1437,13 +1437,13 @@ public:
 
 	virtual FMeshShaderRHIRef CreateMeshShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		check(RHISupportsMeshShaders(GMaxRHIShaderPlatform));
+		check(RHISupportsMeshShadersTier0(GMaxRHIShaderPlatform));
 		return RHI->CreateMeshShader_RenderThread(RHICmdList, Code, Hash);
 	}
 
 	virtual FAmplificationShaderRHIRef CreateAmplificationShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
-		check(RHISupportsMeshShaders(GMaxRHIShaderPlatform));
+		check(RHISupportsMeshShadersTier0(GMaxRHIShaderPlatform));
 		return RHI->CreateAmplificationShader_RenderThread(RHICmdList, Code, Hash);
 	}
 
