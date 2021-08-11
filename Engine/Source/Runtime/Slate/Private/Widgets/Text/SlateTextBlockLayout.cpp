@@ -334,14 +334,7 @@ void FSlateTextBlockLayout::UpdateTextHighlights(const FText& InHighlightText)
 bool FSlateTextBlockLayout::IsStyleUpToDate(const FTextBlockStyle& NewStyle) const
 {
 	const FTextBlockStyle& CurrentStyle = TextLayout->GetDefaultTextStyle();
-
-	return (CurrentStyle.Font.IsIdenticalTo(NewStyle.Font)) 
-		&& (CurrentStyle.ColorAndOpacity == NewStyle.ColorAndOpacity)
-		&& (CurrentStyle.ShadowOffset == NewStyle.ShadowOffset)
-		&& (CurrentStyle.ShadowColorAndOpacity == NewStyle.ShadowColorAndOpacity)
-		&& (CurrentStyle.SelectedBackgroundColor == NewStyle.SelectedBackgroundColor)
-		&& (CurrentStyle.HighlightColor == NewStyle.HighlightColor)
-		&& (CurrentStyle.HighlightShape == NewStyle.HighlightShape);
+	return CurrentStyle.IsIdenticalTo(NewStyle);
 }
 
 float FSlateTextBlockLayout::CalculateWrappingWidth() const
