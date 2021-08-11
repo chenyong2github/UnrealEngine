@@ -89,6 +89,7 @@ struct FPerSolverData
 	FDelegateHandle PreSolveHandle;
 	FDelegateHandle PreBufferHandle;
 	FDelegateHandle PostSolveHandle;
+	FDelegateHandle TeardownHandle;
 
 	/** List of the tick records for each playback index, tracks where the last tick was */
 	TArray<FPlaybackTickRecord> PlaybackTickRecords;
@@ -192,6 +193,9 @@ protected:
 
 	/** Handles physics thread post-solve (record data for components under record) */
 	void HandlePostSolve(Chaos::FReal InDt, Chaos::FPhysicsSolver* InSolver);
+
+	/** Handles solver teardown due to solver destruction / stream-out */
+	void HandleTeardown(Chaos::FPhysicsSolver* InSolver);
 
 	/** Evaluates and sets state for all observed components at the specified time. */
 	void OnStartFrameChanged(Chaos::FReal InT);

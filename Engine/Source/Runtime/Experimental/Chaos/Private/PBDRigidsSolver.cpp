@@ -1528,7 +1528,10 @@ namespace Chaos
 		SetUseContactGraph(InConfig.bGenerateContactGraph);
 	}
 
-	FPBDRigidsSolver::~FPBDRigidsSolver() = default;
+	FPBDRigidsSolver::~FPBDRigidsSolver()
+	{
+		EventTeardown.Broadcast();
+	}
 
 	void Chaos::FPBDRigidsSolver::FieldParameterUpdateCallback(
 		Chaos::FPBDPositionConstraints& PositionTarget,
