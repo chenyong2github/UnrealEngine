@@ -16,7 +16,9 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Serialization",
-					"SignalProcessing"
+					"SignalProcessing",
+					"MetasoundGraphCore"
+
 				}
 			);
 
@@ -24,7 +26,6 @@ namespace UnrealBuildTool.Rules
 			(
 				new string[]
 				{
-					"MetasoundGraphCore"
 				}
 			);
 
