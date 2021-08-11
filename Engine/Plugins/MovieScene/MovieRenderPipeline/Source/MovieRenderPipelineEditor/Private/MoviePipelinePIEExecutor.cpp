@@ -215,6 +215,11 @@ void UMoviePipelinePIEExecutor::OnTick()
 	{
 		if (RemainingInitializationFrames == 0)
 		{
+			if (CustomInitializationTime.IsSet())
+			{
+				ActiveMoviePipeline->SetInitializationTime(CustomInitializationTime.GetValue());
+			}
+
 			ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
 		}
 
@@ -254,6 +259,14 @@ void UMoviePipelinePIEExecutor::OnJobShotFinished(FMoviePipelineOutputData InOut
 	// Just re-broadcast the delegate to our listeners.
 	OnIndividualShotWorkFinishedDelegateNative.Broadcast(InOutputData);
 	OnIndividualShotWorkFinishedDelegate.Broadcast(InOutputData);
+}
+
+void UMoviePipelinePIEExecutor::BeginDestroy()
+{
+	// Ensure we're no longer gathering, otherwise it tries to call a callback on the now dead uobject.
+	ValidationMessageGatherer.StopGathering();
+
+	Super::BeginDestroy();
 }
 
 void UMoviePipelinePIEExecutor::OnPIEEnded(bool)

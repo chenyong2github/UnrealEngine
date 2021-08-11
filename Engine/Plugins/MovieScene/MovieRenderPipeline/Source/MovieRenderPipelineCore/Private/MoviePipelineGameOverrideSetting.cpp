@@ -108,30 +108,35 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 
 }
 
-void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const
+void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineArgsImpl(TArray<FString>& InOutUnrealURLParams, TArray<FString>& InOutCommandLineArgs, TArray<FString>& InOutDeviceProfileCvars, TArray<FString>& InOutExecCmds) const
 {
 	if (!IsEnabled())
 	{
 		return;
 	}
 
-	FString CVarCommandLineArgs;
-	FString CVarExecArgs;
-
 	// We don't provide the GameMode on the command line argument as we expect NewProcess to boot into an empty map and then it will
 	// transition into the correct map which will then use the GameModeOverride setting.
 	if (bCinematicQualitySettings)
 	{
-		CVarCommandLineArgs += TEXT("sg.ViewDistanceQuality=4,sg.AntiAliasingQuality=4,sg.ShadowQuality=4,sg.PostProcessQuality=4,sg.TextureQuality=4,sg.EffectsQuality=4,sg.FoliageQuality=4,sg.ShadingQuality=4,");
+		InOutDeviceProfileCvars.Add(TEXT("sg.ViewDistanceQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.AntiAliasingQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.ShadowQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.PostProcessQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.TextureQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.EffectsQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.FoliageQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.ShadingQuality=4"));
 	}
 
 	switch (TextureStreaming)
 	{
 	case EMoviePipelineTextureStreamingMethod::FullyLoad:
-		CVarCommandLineArgs += TEXT("r.Streaming.FramesForFullUpdate=0,r.Streaming.FullyLoadUsedTextures=1,");
+		InOutDeviceProfileCvars.Add(TEXT("r.Streaming.FramesForFullUpdate=0"));
+		InOutDeviceProfileCvars.Add(TEXT("r.Streaming.FullyLoadUsedTextures=1"));
 		break;
 	case EMoviePipelineTextureStreamingMethod::Disabled:
-		CVarCommandLineArgs += TEXT("r.TextureStreaming=0,");
+		InOutDeviceProfileCvars.Add(TEXT("r.TextureStreaming=0"));
 		break;
 	default:
 		// We don't change their texture streaming settings.
@@ -140,36 +145,39 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineImpl(FString& 
 
 	if (bUseLODZero)
 	{
-		CVarCommandLineArgs += TEXT("r.ForceLOD=0,r.SkeletalMeshLODBias=-10,r.ParticleLODBias=-10,foliage.DitheredLOD=0,foliage.ForceLOD=0");
+		InOutDeviceProfileCvars.Add(TEXT("r.ForceLOD=0"));
+		InOutDeviceProfileCvars.Add(TEXT("r.SkeletalMeshLODBias=-10"));
+		InOutDeviceProfileCvars.Add(TEXT("r.ParticleLODBias=-10"));
+		InOutDeviceProfileCvars.Add(TEXT("foliage.DitheredLOD=0"));
+		InOutDeviceProfileCvars.Add(TEXT("foliage.ForceLOD=0"));
 	}
 
 	if (bDisableHLODs)
 	{
 		// It's a command and not an integer cvar (despite taking 1/0)
-		CVarExecArgs += TEXT("r.HLOD 0,");
+		InOutExecCmds.Add(TEXT("r.HLOD 0"));
 	}
 
 	if (bUseHighQualityShadows)
 	{
-		CVarCommandLineArgs += FString::Printf(TEXT("r.Shadow.DistanceScale=%d,r.ShadowQuality=5,r.Shadow.RadiusThreshold=%f,"), ShadowDistanceScale, ShadowRadiusThreshold);
+		InOutDeviceProfileCvars.Add(FString::Printf(TEXT("r.Shadow.DistanceScale=%d"), ShadowDistanceScale));
+		InOutDeviceProfileCvars.Add(FString::Printf(TEXT("r.Shadow.RadiusThreshold=%f"), ShadowRadiusThreshold));
+		InOutDeviceProfileCvars.Add(TEXT("r.ShadowQuality=5"));
 	}
 
 	if (bOverrideViewDistanceScale)
 	{
-		CVarCommandLineArgs += FString::Printf(TEXT("r.ViewDistanceScale=%d,"), ViewDistanceScale);
+		InOutDeviceProfileCvars.Add(FString::Printf(TEXT("r.ViewDistanceScale=%d"), ViewDistanceScale));
 	}
 
 	if (bDisableGPUTimeout)
 	{
-		CVarCommandLineArgs += TEXT("r.D3D12.GPUTimeout=0,");
+		InOutDeviceProfileCvars.Add(TEXT("r.D3D12.GPUTimeout=0"));
 	}
 	
 	{
-		CVarCommandLineArgs += FString::Printf(TEXT("a.URO.Enable=%d,"), 0);
+		InOutDeviceProfileCvars.Add(FString::Printf(TEXT("a.URO.Enable=%d"), 0));
 	}
 
-	CVarCommandLineArgs += FString::Printf(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice=%d,"), 0);
-
-	// Apply the cvar very early on (device profile) time instead of after the map has loaded if possible
-	InOutCommandLineArgs += FString::Printf(TEXT(" -dpcvars=%s -execcmds=%s"), *CVarCommandLineArgs, *CVarExecArgs);
+	InOutDeviceProfileCvars.Add(FString::Printf(TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice=%d"), 0));
 }

@@ -24,7 +24,8 @@ protected:
 	virtual void BeginFinalizeImpl() override;
 	virtual bool HasFinishedProcessingImpl() override;
 	virtual void ValidateStateImpl() override;
-	virtual void BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const override;
+	virtual void BuildNewProcessCommandLineArgsImpl(TArray<FString>& InOutUnrealURLParams, TArray<FString>& InOutCommandLineArgs, TArray<FString>& InOutDeviceProfileCvars, TArray<FString>& InOutExecCmds) const override;
+
 public:
 	/* File name format string override. If specified it will override the FileNameFormat from the Output setting. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output")

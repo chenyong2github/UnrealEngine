@@ -85,13 +85,48 @@ void UMoviePipelineNewProcessExecutor::Execute_Implementation(UMoviePipelineQueu
 
 	// Loop through our settings in the job and let them modify the command line arguments/params. Because we could have multiple jobs,
 	// we go through all jobs and all settings and hope the user doesn't have conflicting settings.
+	TArray<FString> OutUrlParams;
+	TArray<FString> OutCommandLineArgs;
+	TArray<FString> OutDeviceProfileCVars;
+	TArray<FString> OutExecCmds;
 	for (const UMoviePipelineExecutorJob* Job : DuplicatedQueue->GetJobs())
 	{
 		Job->GetConfiguration()->InitializeTransientSettings();
 		for (const UMoviePipelineSetting* Setting : Job->GetConfiguration()->GetAllSettings())
 		{
-			Setting->BuildNewProcessCommandLine(UnrealURLParams, CommandLineArgs);
+			Setting->BuildNewProcessCommandLineArgs(OutUrlParams, OutCommandLineArgs, OutDeviceProfileCVars, OutExecCmds);
 		}
+	}
+
+	for (const FString& UrlParam : OutUrlParams)
+	{
+		UnrealURLParams += UrlParam;
+	}
+
+	CommandLineArgs += TEXT(" ");
+	for (const FString& Arg : OutCommandLineArgs)
+	{
+		CommandLineArgs += FString::Printf(TEXT("%s,"), *Arg);
+	}
+
+	if (OutDeviceProfileCVars.Num() > 0)
+	{
+		CommandLineArgs += TEXT(" -dpcvars=\"");
+		for (const FString& Cvar : OutDeviceProfileCVars)
+		{
+			CommandLineArgs += FString::Printf(TEXT("%s,"), *Cvar);
+		}
+		CommandLineArgs += TEXT("\"");
+	}
+
+	if (OutExecCmds.Num() > 0)
+	{
+		CommandLineArgs += TEXT(" -execcmds=\"");
+		for (const FString& Cmd : OutExecCmds)
+		{
+			CommandLineArgs += FString::Printf(TEXT("%s,"), *Cmd);
+		}
+		CommandLineArgs += TEXT("\"");
 	}
 
 	FString GameNameOrProjectFile;
