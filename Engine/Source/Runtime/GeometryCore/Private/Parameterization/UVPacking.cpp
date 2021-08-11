@@ -839,7 +839,7 @@ bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<voi
 
 
 	bool bPackingFound = Packer.FindBestPacking(AllCharts);
-	if (ensure(bPackingFound) == false)
+	if (bPackingFound == false)
 	{
 		return false;
 	}
