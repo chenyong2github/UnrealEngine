@@ -59,6 +59,7 @@ namespace Lumen
 	bool UseHardwareRayTracedReflections();
 	bool UseHardwareRayTracedScreenProbeGather();
 	bool UseHardwareRayTracedRadianceCache();
+	bool UseHardwareRayTracedRadiosity();
 
 	enum class EHardwareRayTracingLightingMode
 	{

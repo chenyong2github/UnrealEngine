@@ -1,0 +1,28 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenRadiosity.ush
+=============================================================================*/
+
+// CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE * THREADS_PER_RADIOSITY_TEXEL must be <= THREADGROUP_SIZE
+#define CARD_TRACE_BLOCK_SIZE 2
+
+// Must match LumenRadiosity constants in C++
+#define RAY_BUFFER_STRIDE_IN_TILES 512
+#define RAY_BUFFER_MICRO_TILE_SIZE 8
+
+uint RayCountPerTexel;
+
+uint2 GetRayBufferCoord(uint BlockIndex, uint2 TexelOffsetInBlock, uint RayIndex)
+{
+	uint RayBufferIndex = (BlockIndex * CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE + (TexelOffsetInBlock.y * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock.x)) * RayCountPerTexel + RayIndex;
+
+	uint IndexInRayBufferTile = RayBufferIndex % (RAY_BUFFER_MICRO_TILE_SIZE * RAY_BUFFER_MICRO_TILE_SIZE);
+	uint RayBufferTileIndex = RayBufferIndex / (RAY_BUFFER_MICRO_TILE_SIZE * RAY_BUFFER_MICRO_TILE_SIZE);
+
+	uint2 RayBufferCoord;
+	RayBufferCoord.x = (RayBufferTileIndex % RAY_BUFFER_STRIDE_IN_TILES) * RAY_BUFFER_MICRO_TILE_SIZE + (IndexInRayBufferTile % RAY_BUFFER_MICRO_TILE_SIZE);
+	RayBufferCoord.y = (RayBufferTileIndex / RAY_BUFFER_STRIDE_IN_TILES) * RAY_BUFFER_MICRO_TILE_SIZE + (IndexInRayBufferTile / RAY_BUFFER_MICRO_TILE_SIZE);
+
+	return RayBufferCoord;
+}
