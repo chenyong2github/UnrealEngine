@@ -2,7 +2,9 @@
 
 #include "SkeletalMeshExporterUSD.h"
 
+#include "EngineAnalytics.h"
 #include "SkeletalMeshExporterUSDOptions.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDMemory.h"
 #include "USDOptionsWindow.h"
@@ -16,6 +18,42 @@
 
 #include "AssetExportTask.h"
 #include "Engine/SkeletalMesh.h"
+
+namespace UE
+{
+	namespace SkeletalMeshExporterUSD
+	{
+		namespace Private
+		{
+			void SendAnalytics( UObject* Asset, USkeletalMeshExporterUSDOptions* Options, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
+			{
+				if ( !Asset )
+				{
+					return;
+				}
+
+				if ( FEngineAnalytics::IsAvailable() )
+				{
+					FString ClassName = Asset->GetClass()->GetName();
+
+					TArray<FAnalyticsEventAttribute> EventAttributes;
+
+					EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
+
+					if ( Options )
+					{
+						EventAttributes.Emplace( TEXT( "UsePayload" ), LexToString( Options->Inner.bUsePayload ) );
+						EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->Inner.PayloadFormat );
+						EventAttributes.Emplace( TEXT( "LowestMeshLOD" ), LexToString( Options->Inner.LowestMeshLOD ) );
+						EventAttributes.Emplace( TEXT( "HighestMeshLOD" ), LexToString( Options->Inner.HighestMeshLOD ) );
+					}
+
+					IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), FString::Printf( TEXT( "Export.%s" ), *ClassName ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
+				}
+			}
+		}
+	}
+}
 
 USkeletalMeshExporterUsd::USkeletalMeshExporterUsd()
 {
@@ -63,6 +101,8 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 			}
 		}
 	}
+
+	double StartTime = FPlatformTime::Cycles64();
 
 	// If bUsePayload is true, we'll intercept the filename so that we write the mesh data to
 	// "C:/MyFolder/file_payload.usda" and create an "asset" file "C:/MyFolder/file.usda" that uses it
@@ -143,6 +183,16 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 	}
 
 	UsdStage.GetRootLayer().Save();
+
+	// Analytics
+	{
+		bool bAutomated = ExportTask ? ExportTask->bAutomated : false;
+		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+		FString Extension = FPaths::GetExtension( UExporter::CurrentFilename );
+		double NumberOfFrames = UsdStage.GetEndTimeCode() - UsdStage.GetStartTimeCode();
+
+		UE::SkeletalMeshExporterUSD::Private::SendAnalytics( Object, Options, bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
+	}
 
 	return true;
 #else

@@ -4,7 +4,10 @@
 
 #include "USDLog.h"
 
+#include "AnalyticsEventAttribute.h"
+#include "EngineAnalytics.h"
 #include "HAL/FileManager.h"
+#include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -174,6 +177,26 @@ void IUsdClassesModule::UpdatePlugInfoFiles( const FString& PluginDirectory, con
 				UE_LOG( LogUsd, Warning, TEXT( "Failed to update LibraryPath for USD plugInfo.json file '%s'" ), *JsonFilePath );
 			}
 		}
+	}
+}
+
+void IUsdClassesModule::SendAnalytics( TArray<FAnalyticsEventAttribute>&& InAttributes, const FString& EventName, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
+{
+	if ( FEngineAnalytics::IsAvailable() )
+	{
+		TArray<FAnalyticsEventAttribute> Attributes( InAttributes );
+
+		Attributes.Emplace( TEXT( "Automated" ), LexToString( bAutomated ) );
+		Attributes.Emplace( TEXT( "FileExtension" ), Extension );
+		Attributes.Emplace( TEXT( "NumberOfFrames" ), LexToString( FMath::Abs( NumberOfFrames ) ) );
+		Attributes.Emplace( TEXT( "TimeTaken.Seconds" ), ElapsedSeconds );
+		Attributes.Emplace( TEXT( "Platform" ), FPlatformProperties::IniPlatformName() );
+		Attributes.Emplace( TEXT( "EngineVersion" ), FEngineVersion::Current().ToString() );
+		Attributes.Emplace( TEXT( "EngineMode" ), FPlatformMisc::GetEngineMode() );
+		Attributes.Emplace( TEXT( "EpicAccountId" ), FPlatformMisc::GetEpicAccountId() );
+
+		const FString EventText = FString::Printf( TEXT( "Engine.Usage.USD.%s" ), *EventName);
+		FEngineAnalytics::GetProvider().RecordEvent( EventText, Attributes );
 	}
 }
 

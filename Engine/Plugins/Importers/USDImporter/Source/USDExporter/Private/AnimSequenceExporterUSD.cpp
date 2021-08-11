@@ -3,7 +3,9 @@
 #include "AnimSequenceExporterUSD.h"
 
 #include "AnimSequenceExporterUSDOptions.h"
+#include "EngineAnalytics.h"
 #include "UnrealUSDWrapper.h"
+#include "USDClassesModule.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
 #include "USDOptionsWindow.h"
@@ -16,6 +18,46 @@
 
 #include "Animation/AnimSequence.h"
 #include "AssetExportTask.h"
+
+namespace UE
+{
+	namespace AnimSequenceExporterUSD
+	{
+		namespace Private
+		{
+			void SendAnalytics( UObject* Asset, UAnimSequenceExporterUSDOptions* Options, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
+			{
+				if ( !Asset )
+				{
+					return;
+				}
+
+				if ( FEngineAnalytics::IsAvailable() )
+				{
+					FString ClassName = Asset->GetClass()->GetName();
+
+					TArray<FAnalyticsEventAttribute> EventAttributes;
+
+					EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
+
+					if ( Options )
+					{
+						EventAttributes.Emplace( TEXT( "ExportPreviewMesh" ), LexToString( Options->bExportPreviewMesh ) );
+						if ( Options->bExportPreviewMesh )
+						{
+							EventAttributes.Emplace( TEXT( "UsePayload" ), LexToString( Options->PreviewMeshOptions.bUsePayload ) );
+							EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->PreviewMeshOptions.PayloadFormat );
+							EventAttributes.Emplace( TEXT( "LowestMeshLOD" ), LexToString( Options->PreviewMeshOptions.LowestMeshLOD ) );
+							EventAttributes.Emplace( TEXT( "HighestMeshLOD" ), LexToString( Options->PreviewMeshOptions.HighestMeshLOD ) );
+						}
+					}
+
+					IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), FString::Printf( TEXT( "Export.%s" ), *ClassName ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
+				}
+			}
+		}
+	}
+}
 
 UAnimSequenceExporterUSD::UAnimSequenceExporterUSD()
 {
@@ -65,6 +107,8 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 			}
 		}
 	}
+
+	double StartTime = FPlatformTime::Cycles64();
 
 	// If bUsePayload is true, we'll intercept the filename so that we write the mesh data to
 	// "C:/MyFolder/file_payload.usda" and create an "asset" file "C:/MyFolder/file.usda" that uses it
@@ -186,6 +230,15 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 	}
 
 	AssetStage.GetRootLayer().Save();
+
+	// Analytics
+	{
+		bool bAutomated = ExportTask ? ExportTask->bAutomated : false;
+		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+		FString Extension = FPaths::GetExtension( UExporter::CurrentFilename );
+
+		UE::AnimSequenceExporterUSD::Private::SendAnalytics( Object, Options, bAutomated, ElapsedSeconds, EndTimeCode - StartTimeCode, Extension );
+	}
 
 	return true;
 #else

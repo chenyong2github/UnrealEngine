@@ -5,6 +5,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshTranslator.h"
@@ -43,6 +44,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineAnalytics.h"
 #include "HAL/FileManager.h"
 #include "LevelSequence.h"
 #include "Materials/Material.h"
@@ -532,6 +534,26 @@ struct FUsdStageActorImpl
 		const bool bPropagateToChildren = true;
 		const bool bVisible = false;
 		PrimSceneComponent->SetVisibility( bVisible, bPropagateToChildren );
+	}
+
+	static void SendAnalytics( AUsdStageActor* StageActor, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
+	{
+		if ( !StageActor )
+		{
+			return;
+		}
+
+		if ( FEngineAnalytics::IsAvailable() )
+		{
+			TArray<FAnalyticsEventAttribute> EventAttributes;
+
+			EventAttributes.Emplace( TEXT( "InitialLoadSet" ), LexToString( (uint8)StageActor->InitialLoadSet ) );
+			EventAttributes.Emplace( TEXT( "PurposesToLoad" ), LexToString( StageActor->PurposesToLoad ) );
+			EventAttributes.Emplace( TEXT( "RenderContext" ), StageActor->RenderContext.ToString() );
+
+			const bool bAutomated = false;
+			IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), TEXT( "Open" ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
+		}
 	}
 };
 
@@ -1543,6 +1565,10 @@ void AUsdStageActor::LoadUsdStage()
 	ElapsedSeconds -= 60.0 * (double)ElapsedMin;
 
 	UE_LOG( LogUsd, Log, TEXT("%s %s in [%d min %.3f s]"), TEXT("Stage loaded"), *FPaths::GetBaseFilename( RootLayer.FilePath ), ElapsedMin, ElapsedSeconds );
+
+	double NumberOfFrames = UsdStage ? (UsdStage.GetEndTimeCode() - UsdStage.GetStartTimeCode()) : 0.0;
+
+	FUsdStageActorImpl::SendAnalytics( this, ElapsedSeconds, NumberOfFrames, FPaths::GetExtension( RootLayer.FilePath ) );
 }
 
 void AUsdStageActor::UnloadUsdStage()

@@ -2,12 +2,15 @@
 
 #include "USDExporterBlueprintLibrary.h"
 
+#include "AnalyticsBlueprintLibrary.h"
+#include "AnalyticsEventAttribute.h"
 #include "CoreMinimal.h"
 #include "Editor.h"
 #include "InstancedFoliageActor.h"
 #include "UObject/ObjectMacros.h"
+#include "USDClassesModule.h"
 
-AInstancedFoliageActor* USDExporterBlueprintLibrary::GetInstancedFoliageActorForLevel( bool bCreateIfNone /*= false */, ULevel* Level /*= nullptr */ )
+AInstancedFoliageActor* UUsdExporterBlueprintLibrary::GetInstancedFoliageActorForLevel( bool bCreateIfNone /*= false */, ULevel* Level /*= nullptr */ )
 {
 	if ( !Level )
 	{
@@ -28,7 +31,7 @@ AInstancedFoliageActor* USDExporterBlueprintLibrary::GetInstancedFoliageActorFor
 	return AInstancedFoliageActor::GetInstancedFoliageActorForLevel( Level, bCreateIfNone );
 }
 
-TArray<UFoliageType*> USDExporterBlueprintLibrary::GetUsedFoliageTypes( AInstancedFoliageActor* Actor )
+TArray<UFoliageType*> UUsdExporterBlueprintLibrary::GetUsedFoliageTypes( AInstancedFoliageActor* Actor )
 {
 	TArray<UFoliageType*> Result;
 	if ( !Actor )
@@ -44,7 +47,7 @@ TArray<UFoliageType*> USDExporterBlueprintLibrary::GetUsedFoliageTypes( AInstanc
 	return Result;
 }
 
-UObject* USDExporterBlueprintLibrary::GetSource( UFoliageType* FoliageType )
+UObject* UUsdExporterBlueprintLibrary::GetSource( UFoliageType* FoliageType )
 {
 	if ( FoliageType )
 	{
@@ -54,7 +57,7 @@ UObject* USDExporterBlueprintLibrary::GetSource( UFoliageType* FoliageType )
 	return nullptr;
 }
 
-TArray<FTransform> USDExporterBlueprintLibrary::GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel )
+TArray<FTransform> UUsdExporterBlueprintLibrary::GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel )
 {
 	TArray<FTransform> Result;
 	if ( !Actor || !FoliageType )
@@ -96,5 +99,17 @@ TArray<FTransform> USDExporterBlueprintLibrary::GetInstanceTransforms( AInstance
 	}
 
 	return Result;
+}
+
+void UUsdExporterBlueprintLibrary::SendAnalytics( const TArray<FAnalyticsEventAttr>& Attrs, const FString& EventName, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
+{
+	TArray<FAnalyticsEventAttribute> Converted;
+	Converted.Reserve( Attrs.Num() );
+	for ( const FAnalyticsEventAttr& Attr : Attrs )
+	{
+		Converted.Emplace( Attr.Name, Attr.Value );
+	}
+
+	IUsdClassesModule::SendAnalytics( MoveTemp( Converted ), EventName, bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
 }
 

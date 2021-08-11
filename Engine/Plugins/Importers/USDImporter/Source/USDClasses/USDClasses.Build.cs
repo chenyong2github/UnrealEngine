@@ -12,6 +12,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"Analytics",
 					"Core",
 					"CoreUObject",
 					"Engine",
