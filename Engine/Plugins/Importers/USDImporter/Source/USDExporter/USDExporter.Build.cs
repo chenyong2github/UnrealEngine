@@ -23,7 +23,9 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-                    "EditorStyle",
+					"Analytics",
+					"AnalyticsBlueprintLibrary",
+					"EditorStyle",
                     "GeometryCache",
                     "PropertyEditor",
                     "RawMesh",

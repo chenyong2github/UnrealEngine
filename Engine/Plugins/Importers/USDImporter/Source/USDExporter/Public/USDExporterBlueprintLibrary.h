@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "AnalyticsBlueprintLibrary.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/ObjectMacros.h"
 
 #include "USDExporterBlueprintLibrary.generated.h"
 
@@ -16,7 +17,7 @@ class ULevel;
  * Library of functions that can be used via Python scripting to help export Unreal scenes and assets to USD
  */
 UCLASS(meta=(ScriptName="USDExporterLibrary"))
-class USDEXPORTER_API USDExporterBlueprintLibrary : public UBlueprintFunctionLibrary
+class USDEXPORTER_API UUsdExporterBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -51,4 +52,8 @@ public:
 	 */
 	UFUNCTION( BlueprintCallable, meta = ( ScriptMethod ), Category = "USD Foliage Exporter" )
 	static TArray<FTransform> GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel = nullptr);
+
+	/** Defer to the USDClasses module to actually send analytics information */
+	UFUNCTION( BlueprintCallable, Category = "Analytics" )
+	static void SendAnalytics( const TArray<FAnalyticsEventAttr>& Attrs, const FString& EventName, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension );
 };

@@ -4,6 +4,7 @@
 
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -29,6 +30,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "Engine/World.h"
+#include "EngineAnalytics.h"
 #include "EngineUtils.h"
 #include "GeometryCache.h"
 #include "HAL/FileManager.h"
@@ -1201,6 +1203,96 @@ namespace UsdStageImporterImpl
 			}
 		}
 	}
+
+	void SendAnalytics( FUsdStageImportContext& ImportContext, UObject* Asset, const FString& Operation, const TSet<UObject*>& ImportedAssets, double ElapsedSeconds )
+	{
+		if ( FEngineAnalytics::IsAvailable() )
+		{
+			TArray<FAnalyticsEventAttribute> EventAttributes;
+
+			FString EventName = Operation;
+			if ( Asset )
+			{
+				FString ClassName = Asset->GetClass()->GetName();
+
+				// e.g. "Reimport.StaticMesh"
+				EventName = FString::Printf( TEXT( "%s.%s" ), *EventName, *ClassName );
+				EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
+			}
+
+			if ( ImportContext.ImportOptions )
+			{
+				EventAttributes.Emplace( TEXT( "ImportActors" ), LexToString( ImportContext.ImportOptions->bImportActors ) );
+				EventAttributes.Emplace( TEXT( "ImportGeometry" ), LexToString( ImportContext.ImportOptions->bImportGeometry ) );
+				EventAttributes.Emplace( TEXT( "ImportSkeletalAnimations" ), LexToString( ImportContext.ImportOptions->bImportSkeletalAnimations ) );
+				EventAttributes.Emplace( TEXT( "ImportMaterials" ), LexToString( ImportContext.ImportOptions->bImportMaterials ) );
+				EventAttributes.Emplace( TEXT( "PurposesToImport" ), LexToString( ImportContext.ImportOptions->PurposesToImport ) );
+				EventAttributes.Emplace( TEXT( "RenderContextToImport" ), ImportContext.ImportOptions->RenderContextToImport.ToString() );
+				EventAttributes.Emplace( TEXT( "ReuseIdenticalAssets" ), ImportContext.ImportOptions->bReuseIdenticalAssets );
+				EventAttributes.Emplace( TEXT( "ReplaceActorPolicy" ), LexToString( (uint8)ImportContext.ImportOptions->ExistingActorPolicy ) );
+				EventAttributes.Emplace( TEXT( "ReplaceAssetPolicy" ), LexToString( (uint8)ImportContext.ImportOptions->ExistingAssetPolicy ) );
+				EventAttributes.Emplace( TEXT( "PrimPathFolderStructure" ), LexToString( ImportContext.ImportOptions->bPrimPathFolderStructure ) );
+				EventAttributes.Emplace( TEXT( "Collapse" ), LexToString( ImportContext.ImportOptions->bCollapse ) );
+				EventAttributes.Emplace( TEXT( "InterpretLODs" ), LexToString( ImportContext.ImportOptions->bInterpretLODs ) );
+			}
+
+			int32 NumStaticMeshes = 0;
+			int32 NumSkeletalMeshes = 0;
+			int32 NumMaterials = 0;
+			int32 NumAnimSequences = 0;
+			int32 NumTextures = 0;
+			int32 NumGeometryCaches = 0;
+			for ( UObject* ImportedAsset : ImportedAssets )
+			{
+				if ( !ImportedAsset )
+				{
+					continue;
+				}
+
+				if ( ImportedAsset->IsA<UStaticMesh>() )
+				{
+					++NumStaticMeshes;
+				}
+				else if ( ImportedAsset->IsA<USkeletalMesh>() )
+				{
+					++NumSkeletalMeshes;
+				}
+				else if ( ImportedAsset->IsA<UMaterialInterface>() )
+				{
+					++NumMaterials;
+				}
+				else if ( ImportedAsset->IsA<UAnimSequence>() )
+				{
+					++NumAnimSequences;
+				}
+				else if ( ImportedAsset->IsA<UTexture>() )
+				{
+					++NumTextures;
+				}
+				else if ( ImportedAsset->IsA<UGeometryCache>() )
+				{
+					++NumGeometryCaches;
+				}
+			}
+			EventAttributes.Emplace( TEXT( "NumStaticMeshes" ), LexToString( NumStaticMeshes ) );
+			EventAttributes.Emplace( TEXT( "NumSkeletalMeshes" ), LexToString( NumSkeletalMeshes ) );
+			EventAttributes.Emplace( TEXT( "NumMaterials" ), LexToString( NumMaterials ) );
+			EventAttributes.Emplace( TEXT( "NumAnimSequences" ), LexToString( NumAnimSequences ) );
+			EventAttributes.Emplace( TEXT( "NumTextures" ), LexToString( NumTextures ) );
+			EventAttributes.Emplace( TEXT( "NumGeometryCaches" ), LexToString( NumGeometryCaches ) );
+
+			double NumberOfFrames = ImportContext.Stage.GetEndTimeCode() - ImportContext.Stage.GetStartTimeCode();
+
+			IUsdClassesModule::SendAnalytics(
+				MoveTemp( EventAttributes ),
+				EventName,
+				ImportContext.bIsAutomated,
+				ElapsedSeconds,
+				NumberOfFrames,
+				FPaths::GetExtension( ImportContext.FilePath )
+			);
+		}
+	}
 }
 
 void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
@@ -1211,6 +1303,8 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoWorldError", "Failed to import USD Stage because the target UWorld is invalid!" ) );
 		return;
 	}
+
+	double StartTime = FPlatformTime::Cycles64();
 
 	ImportContext.Stage = UsdStageImporterImpl::ReadUsdFile(ImportContext);
 	if (!ImportContext.Stage)
@@ -1278,6 +1372,13 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast( ImportContext.FilePath );
+
+	// Analytics
+	{
+		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+		UsdStageImporterImpl::SendAnalytics( ImportContext, nullptr, TEXT("Import"), UsedAssetsAndDependencies, ElapsedSeconds);
+	}
+
 #endif // #if USE_USD_SDK
 }
 
@@ -1287,12 +1388,15 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	bool bSuccess = false;
 
 #if USE_USD_SDK
+	double StartTime = FPlatformTime::Cycles64();
+
 	ImportContext.Stage = UsdStageImporterImpl::ReadUsdFile(ImportContext);
 	if (!ImportContext.Stage)
 	{
 		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoStageError", "Failed to open the USD Stage!" ) );
 		return bSuccess;
 	}
+
 
 	FUsdDelegates::OnPreUsdImport.Broadcast(ImportContext.FilePath);
 
@@ -1372,6 +1476,12 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast(ImportContext.FilePath);
+
+	// Analytics
+	{
+		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+		UsdStageImporterImpl::SendAnalytics( ImportContext, ReimportedObject, TEXT( "Reimport" ), { ReimportedObject }, ElapsedSeconds );
+	}
 
 #endif // #if USE_USD_SDK
 	return bSuccess;
