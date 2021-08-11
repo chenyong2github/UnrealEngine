@@ -46,15 +46,6 @@ namespace iPhonePackager
                 Directory.CreateDirectory(LocalProvisionFolder);
             }
 
-			// Delete any provisions that exist in the folder so we don't keep old files laying around.
-			if (Environment.GetEnvironmentVariable("IsBuildMachine") != null)
-			{
-				foreach (string Provision in Directory.GetFiles(LocalProvisionFolder))
-				{
-					File.Delete(Provision);
-				}
-			}
-
 			List<string> ProvisionCopySrcDirectories = new List<string>();
 
 			// Paths for provisions under game directory 
