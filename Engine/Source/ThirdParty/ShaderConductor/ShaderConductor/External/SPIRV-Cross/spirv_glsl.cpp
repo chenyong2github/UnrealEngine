@@ -1145,8 +1145,10 @@ string CompilerGLSL::to_interpolation_qualifiers(const Bitset &flags)
 	//    res += "smooth ";
 	if (flags.get(DecorationFlat))
 		res += "flat ";
-	if (flags.get(DecorationNoPerspective))
+	// UE Change Begin: OpenGLES does not support noperspective
+	if (flags.get(DecorationNoPerspective) && !options.es)
 		res += "noperspective ";
+	// UE Change End: OpenGLES does not support noperspective
 	if (flags.get(DecorationCentroid))
 		res += "centroid ";
 	if (flags.get(DecorationPatch))
@@ -1177,8 +1179,10 @@ string CompilerGLSL::to_interpolation_qualifiers(const Bitset &flags)
 
 string CompilerGLSL::layout_for_member(const SPIRType &type, uint32_t index)
 {
-	if (is_legacy())
+	// UE Change Begin: Member layouts not supported on ES
+	if (is_legacy() || options.es)
 		return "";
+	// UE Change End: OpenGLES does not support noperspective
 
 	bool is_block = has_decoration(type.self, DecorationBlock) || has_decoration(type.self, DecorationBufferBlock);
 	if (!is_block)
@@ -1954,10 +1958,12 @@ string CompilerGLSL::layout_for_variable(const SPIRVariable &var)
 		can_use_buffer_blocks = false;
 
 	bool can_use_binding;
+	// UE Change Begin: Bindings not fully supported on ES 3.1
 	if (options.es)
-		can_use_binding = options.version >= 310;
+		can_use_binding = options.version >= 320;
 	else
 		can_use_binding = options.enable_420pack_extension || (options.version >= 420);
+	// UE Change End: Bindings not fully supported on ES 3.1
 
 	// Make sure we don't emit binding layout for a classic uniform on GLSL 1.30.
 	if (!can_use_buffer_blocks && var.storage == StorageClassUniform)
@@ -1969,9 +1975,11 @@ string CompilerGLSL::layout_for_variable(const SPIRVariable &var)
 	if (can_use_binding && flags.get(DecorationBinding))
 		attr.push_back(join("binding = ", get_decoration(var.self, DecorationBinding)));
 
-	if (var.storage != StorageClassOutput && flags.get(DecorationOffset))
+	// UE Change Begin: Offsets not supported fully on gles
+	if (var.storage != StorageClassOutput && flags.get(DecorationOffset) && !options.es)
 		attr.push_back(join("offset = ", get_decoration(var.self, DecorationOffset)));
-
+	// UE Change End: Offsets not supported fully on gles
+	
 	// Instead of adding explicit offsets for every element here, just assume we're using std140 or std430.
 	// If SPIR-V does not comply with either layout, we cannot really work around it.
 	if (can_use_buffer_blocks && (ubo_block || emulated_ubo))
@@ -13340,7 +13348,11 @@ string CompilerGLSL::image_type_glsl(const SPIRType &type, uint32_t id)
 
 	case DimBuffer:
 		if (options.es && options.version < 320)
-			require_extension_internal("GL_OES_texture_buffer");
+		{
+			// UE Change Begin: Incorrect extension for opengles
+			require_extension_internal("GL_EXT_texture_buffer");
+			// UE Change End: Incorrect extension for opengles
+		}
 		else if (!options.es && options.version < 300)
 			require_extension_internal("GL_EXT_texture_buffer_object");
 		res += "Buffer";
