@@ -420,10 +420,6 @@ namespace UnrealBuildTool
 		{
 			yield return ProjectFileFormat.Make;
 			yield return ProjectFileFormat.VisualStudioCode;
-			yield return ProjectFileFormat.KDevelop;
-			yield return ProjectFileFormat.QMake;
-			yield return ProjectFileFormat.CMake;
-			yield return ProjectFileFormat.CodeLite;
 			#if __VPROJECT_AVAILABLE__
 				yield return ProjectFileFormat.VProject;
 			#endif
