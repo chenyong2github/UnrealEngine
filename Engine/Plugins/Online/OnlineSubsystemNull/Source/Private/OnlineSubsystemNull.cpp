@@ -12,6 +12,7 @@
 #include "OnlinePurchaseInterfaceNull.h"
 #include "OnlineMessageSanitizerNull.h"
 #include "Stats/Stats.h"
+#include "Misc/ConfigCacheIni.h"
 
 #if WITH_ENGINE
 #include "VoiceInterfaceNull.h"
