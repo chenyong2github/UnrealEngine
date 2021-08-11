@@ -26,15 +26,6 @@ public:
 
 
 
-UENUM()
-enum class EVolumeToMeshMode
-{
-	/** Convert based on Angle Tolerance between Face Normals */
-	TriangulatePolygons,
-	/** Create PolyGroups based on UV Islands */
-	MinimalPolygons
-};
-
 
 
 UCLASS()
