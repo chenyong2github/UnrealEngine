@@ -3431,6 +3431,13 @@ void UNiagaraDataInterfaceSkeletalMesh::SetSamplingRegionsFromBlueprints(const T
 	SamplingRegions = InSamplingRegions;
 }
 
+void UNiagaraDataInterfaceSkeletalMesh::SetWholeMeshLODFromBlueprints(int32 InWholeMeshLOD)
+{
+	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated.
+	++ChangeId;
+	WholeMeshLOD = InWholeMeshLOD;
+}
+
 ETickingGroup UNiagaraDataInterfaceSkeletalMesh::CalculateTickGroup(const void* PerInstanceData) const
 {
 	const FNDISkeletalMesh_InstanceData* InstData = static_cast<const FNDISkeletalMesh_InstanceData*>(PerInstanceData);
