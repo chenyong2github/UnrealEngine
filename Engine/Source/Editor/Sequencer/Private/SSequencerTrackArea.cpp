@@ -198,7 +198,7 @@ int32 SSequencerTrackArea::OnPaint(const FPaintArgs& Args, const FGeometry& Allo
 
 
 		// Draw drop target
-		if (DroppedNode.IsValid() && TrackSlots.Contains(DroppedNode.Pin()))
+		if (DroppedNode.IsValid() && DroppedNode.Pin()->GetType() != ESequencerNode::Spacer && TrackSlots.Contains(DroppedNode.Pin()))
 		{
 			TSharedPtr<SSequencerTrackLane> TrackLane = TrackSlots.FindRef(DroppedNode.Pin()).Pin();
 			
