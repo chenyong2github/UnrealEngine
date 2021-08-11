@@ -121,11 +121,11 @@ FAutoConsoleVariableRef CVarLumenSceneCardCaptureMargin(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneCardFixedDebugTexelDensity = -1;
-FAutoConsoleVariableRef CVarLumenSceneCardFixedTexelDensity(
-	TEXT("r.LumenScene.SurfaceCache.CardFixedDebugTexelDensity"),
-	GLumenSceneCardFixedDebugTexelDensity,
-	TEXT("Lumen card texels per world space distance"),
+float GLumenSceneCardFixedDebugResolution = -1;
+FAutoConsoleVariableRef CVarLumenSceneCardFixedDebugResolution(
+	TEXT("r.LumenScene.SurfaceCache.CardFixedDebugResolution"),
+	GLumenSceneCardFixedDebugResolution,
+	TEXT("Lumen card resolution"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
@@ -1123,9 +1123,9 @@ public:
 					float MaxExtent = FMath::Max(LumenCard.WorldOBB.Extent.X, LumenCard.WorldOBB.Extent.Y);
 					float MaxProjectedSize = FMath::Min(TexelDensityScale * MaxExtent * LumenCard.ResolutionScale / ViewerDistance, GLumenSceneCardMaxTexelDensity * MaxExtent);
 
-					if (GLumenSceneCardFixedDebugTexelDensity > 0)
+					if (GLumenSceneCardFixedDebugResolution > 0)
 					{
-						MaxProjectedSize = GLumenSceneCardFixedDebugTexelDensity * MaxExtent;
+						MaxProjectedSize = GLumenSceneCardFixedDebugResolution;
 					}
 
 					const int32 MaxSnappedRes = FMath::RoundUpToPowerOfTwo(FMath::Min(FMath::TruncToInt(MaxProjectedSize), GetCardMaxResolution()));
