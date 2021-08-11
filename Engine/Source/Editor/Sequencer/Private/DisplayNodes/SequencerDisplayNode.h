@@ -61,7 +61,9 @@ namespace ESequencerNode
 		/* Symbolic root node */
 		Root,
 		/* Folder node */
-		Folder
+		Folder,
+		/* Spacer node */
+		Spacer
 	};
 }
 

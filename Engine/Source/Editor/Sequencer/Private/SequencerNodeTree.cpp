@@ -53,7 +53,7 @@ public:
 	virtual FText GetDisplayName() const override { return FText(); }
 	virtual float GetNodeHeight() const override { return Size; }
 	virtual FNodePadding GetNodePadding() const override { return FNodePadding(0.f); }
-	virtual ESequencerNode::Type GetType() const override { return ESequencerNode::Object; }
+	virtual ESequencerNode::Type GetType() const override { return ESequencerNode::Spacer; }
 	virtual void SetDisplayName(const FText& NewDisplayName) override { }
 	virtual TSharedRef<SWidget> GenerateContainerWidgetForOutliner(const TSharedRef<SSequencerTreeViewRow>& InRow) override { return SNew(SBox).HeightOverride(Size); }
 	virtual bool IsSelectable() const override { return false; }
