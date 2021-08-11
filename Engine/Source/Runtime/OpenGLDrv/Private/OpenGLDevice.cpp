@@ -803,9 +803,7 @@ static void InitRHICapabilitiesForGL()
 		;
 	
 	// By default use emulated UBs on mobile
-	static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("OpenGL.UseEmulatedUBs"));
-	const bool bUseEmulatedUBs = (CVar && CVar->GetValueOnAnyThread() != 0);
-	GUseEmulatedUniformBuffers = (IsMobilePlatform(GMaxRHIShaderPlatform) && bUseEmulatedUBs);
+	GUseEmulatedUniformBuffers = IsUsingEmulatedUniformBuffers(GMaxRHIShaderPlatform);
 
 	FString FeatureLevelName;
 	GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelName);

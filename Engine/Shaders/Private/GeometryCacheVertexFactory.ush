@@ -54,7 +54,16 @@ struct FVertexFactoryInput
     
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
-	float2	TexCoords[NUM_MATERIAL_TEXCOORDS_VERTEX] : ATTRIBUTE5;
+	float2	TexCoords0 : ATTRIBUTE5;
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+		float2	TexCoords1 : ATTRIBUTE6;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
+		float2	TexCoords2 : ATTRIBUTE7;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+		float2	TexCoords3 : ATTRIBUTE8;
+	#endif
 
 	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
 		#error Too many texture coordinate sets defined on Geometry cache vertex input. Max: 4.
@@ -238,10 +247,16 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.PreSkinnedNormal = Input.TangentZ.xyz * 2.f - 1.f;
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
-	for(int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)
-	{
-		Result.TexCoords[CoordinateIndex] = Input.TexCoords[CoordinateIndex];
-	}
+	Result.TexCoords[0] = Input.TexCoords0;
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+		Result.TexCoords[1] = Input.TexCoords1;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
+		Result.TexCoords[2] = Input.TexCoords2;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+		Result.TexCoords[3] = Input.TexCoords3;
+	#endif
 #endif
 	return Result;
 }

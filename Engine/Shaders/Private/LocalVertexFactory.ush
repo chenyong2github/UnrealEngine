@@ -105,7 +105,16 @@ struct FVertexFactoryInput
 	#if !MANUAL_VERTEX_FETCH
 		#if GPUSKIN_PASS_THROUGH
 			// These must match GPUSkinVertexFactory.usf
-			float2	TexCoords[NUM_MATERIAL_TEXCOORDS_VERTEX] : ATTRIBUTE4;
+			float2	TexCoords0 : ATTRIBUTE4;
+			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+				float2	TexCoords1 : ATTRIBUTE5;
+			#endif
+			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
+				float2	TexCoords2 : ATTRIBUTE6;
+			#endif
+			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+				float2	TexCoords3 : ATTRIBUTE7;
+			#endif
 			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
 				#error Too many texture coordinate sets defined on GPUSkin vertex input. Max: 4.
 			#endif
@@ -137,7 +146,7 @@ struct FVertexFactoryInput
 		#endif
 	#endif
 #elif USE_PARTICLE_SUBUVS && !MANUAL_VERTEX_FETCH
-	float2	TexCoords[1] : ATTRIBUTE4;
+	float2	TexCoords0 : ATTRIBUTE4;
 #endif
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE13
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
@@ -567,11 +576,16 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 		}
 #elif NUM_MATERIAL_TEXCOORDS_VERTEX
 		#if GPUSKIN_PASS_THROUGH
-			UNROLL
-			for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)
-			{
-				Result.TexCoords[CoordinateIndex] = Input.TexCoords[CoordinateIndex].xy;
-			}
+			Result.TexCoords[0] = Input.TexCoords0.xy;
+			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+				Result.TexCoords[1] = Input.TexCoords1.xy;
+			#endif
+			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
+				Result.TexCoords[2] = Input.TexCoords2.xy;
+			#endif
+			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+				Result.TexCoords[3] = Input.TexCoords3.xy;
+			#endif
 		#else
 			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 0
 				Result.TexCoords[0] = Input.TexCoords0.xy;
@@ -988,7 +1002,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	#if MANUAL_VERTEX_FETCH
 		SetUV(Interpolants, 0, LocalVF.VertexFetch_TexCoordBuffer[LocalVF.VertexFetch_Parameters[VF_NumTexcoords_Index] * (LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId)]);
 	#else
-		SetUV(Interpolants, 0, Input.TexCoords[0]);
+		SetUV(Interpolants, 0, Input.TexCoords0);
 	#endif
 #endif
 

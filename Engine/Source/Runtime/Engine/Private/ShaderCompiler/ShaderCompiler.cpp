@@ -936,10 +936,10 @@ static TAutoConsoleVariable<int32> CVarD3DForceShaderConductorDXCRewrite(
 
 static TAutoConsoleVariable<int32> CVarOpenGLForceDXC(
 	TEXT("r.OpenGL.ForceDXC"),
-	0,
+	1,
 	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all OpenGL shaders instead of hlslcc.\n")
-	TEXT(" 0: Disable (default)\n")
-	TEXT(" 1: Force new compiler for all shaders"),
+	TEXT(" 0: Disable\n")
+	TEXT(" 1: Force new compiler for all shaders (default)"),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarVulkanForceDXC(
@@ -5107,13 +5107,9 @@ void GlobalBeginCompileShader(
 
 	if (bIsMobilePlatform)
 	{
-		if (IsOpenGLPlatform((EShaderPlatform)Target.Platform))
+		if (IsUsingEmulatedUniformBuffers((EShaderPlatform)Target.Platform))
 		{
-			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OpenGL.UseEmulatedUBs"));
-			if (CVar && CVar->GetInt() != 0)
-			{
-				Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
-			}
+			Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
 		}
 	}
 

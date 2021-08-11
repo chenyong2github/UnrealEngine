@@ -1316,6 +1316,24 @@ bool IsDxcEnabledForPlatform(EShaderPlatform Platform)
 	return false;
 }
 
+bool IsUsingEmulatedUniformBuffers(EShaderPlatform Platform)
+{
+	if (IsAndroidOpenGLESPlatform(Platform))
+	{
+		// Currently DXC only supports emulated uniform buffers on GLES
+		static const auto CForceDXCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.ForceDXC"));
+		if (CForceDXCVar && CForceDXCVar->GetInt() != 0)
+		{
+			return true;
+		}
+
+		static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("OpenGL.UseEmulatedUBs"));
+		return (CVar && CVar->GetValueOnAnyThread() != 0);
+	}
+
+	return false;
+}
+
 void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 {
 	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
@@ -1496,11 +1514,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_DLODT") : TEXT("");
 		}
 		
-		if (IsOpenGLPlatform(Platform))
-		{
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OpenGL.UseEmulatedUBs"));
-			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_NoUB") : TEXT("");
-		}
+		KeyString += IsUsingEmulatedUniformBuffers(Platform) ? TEXT("_NoUB") : TEXT("");
 
 		{
 			static FShaderPlatformCachedIniValue<bool> MobileEnableMovableSpotlightsIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.EnableMovableSpotlights"));
@@ -1549,11 +1563,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 	else
 	{
-		if (IsOpenGLPlatform(Platform))
-		{
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OpenGL.UseEmulatedUBs"));
-			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_NoUB") : TEXT("");
-		}
+		KeyString += IsUsingEmulatedUniformBuffers(Platform) ? TEXT("_NoUB") : TEXT("");
 	}
 
 	const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(ShaderFormatName);

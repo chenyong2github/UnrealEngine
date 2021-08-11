@@ -29,6 +29,9 @@
 #elif COMPILER_VULKAN
 	// Helps with iteration when changing Vulkan shader code generation backend.
 	#include "Platform/Vulkan/VulkanCommon.ush"
+#elif COMPILER_GLSL || COMPILER_GLSL_ES3_1
+	// Helps with iteration when changing Vulkan shader code generation backend.
+	#include "Platform/GL/GLCommon.ush"
 #elif SM6_PROFILE || SM5_PROFILE
 	#include "Platform/D3D/D3DCommon.ush"
 #endif

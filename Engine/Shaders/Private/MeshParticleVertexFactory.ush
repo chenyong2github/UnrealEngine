@@ -44,9 +44,18 @@ struct FVertexFactoryInput
 	HALF4_TYPE	VertexColor : ATTRIBUTE3;
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
-	float2	TexCoords[NUM_MATERIAL_TEXCOORDS_VERTEX] : ATTRIBUTE4;
+	float2	TexCoords0 : ATTRIBUTE4;
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+		float2	TexCoords1 : ATTRIBUTE5;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
+		float2	TexCoords2 : ATTRIBUTE6;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+		float2	TexCoords3 : ATTRIBUTE7;
+	#endif
 #elif USE_PARTICLE_SUBUVS
-	float2	TexCoords[1] : ATTRIBUTE4;
+	float2	TexCoords0 : ATTRIBUTE4;
 #endif
 
 #if PARTICLE_MESH_INSTANCED
@@ -411,20 +420,26 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #endif
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
-	for(int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX; CoordinateIndex++)
-	{
-		Intermediates.TexCoords[CoordinateIndex] = Input.TexCoords[CoordinateIndex].xy;
-	}
+	Intermediates.TexCoords[0] = Input.TexCoords0;
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+		Intermediates.TexCoords[1] = Input.TexCoords1;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
+		Intermediates.TexCoords[2] = Input.TexCoords2;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+		Intermediates.TexCoords[3] = Input.TexCoords3;
+	#endif
 #endif
 
 #if USE_PARTICLE_SUBUVS
 	#if PARTICLE_MESH_INSTANCED
-		Intermediates.SubUVCoords.xy = (float2( Input.SubUVParams.x, Input.SubUVParams.y ) + Input.TexCoords[0].xy) * MeshParticleVF.SubImageSize.xy;
-		Intermediates.SubUVCoords.zw = (float2( Input.SubUVParams.z, Input.SubUVParams.w ) + Input.TexCoords[0].xy) * MeshParticleVF.SubImageSize.xy;
+		Intermediates.SubUVCoords.xy = (float2( Input.SubUVParams.x, Input.SubUVParams.y ) + Input.TexCoords0.xy) * MeshParticleVF.SubImageSize.xy;
+		Intermediates.SubUVCoords.zw = (float2( Input.SubUVParams.z, Input.SubUVParams.w ) + Input.TexCoords0.xy) * MeshParticleVF.SubImageSize.xy;
 		Intermediates.SubUVLerp = Input.SubUVLerpAndRelTime.x;
 	#else
-		Intermediates.SubUVCoords.xy = (float2( SubUVParams.x, SubUVParams.y ) + Input.TexCoords[0].xy) * MeshParticleVF.SubImageSize.xy;
-		Intermediates.SubUVCoords.zw = (float2( SubUVParams.z, SubUVParams.w ) + Input.TexCoords[0].xy) * MeshParticleVF.SubImageSize.xy;
+		Intermediates.SubUVCoords.xy = (float2( SubUVParams.x, SubUVParams.y ) + Input.TexCoords0.xy) * MeshParticleVF.SubImageSize.xy;
+		Intermediates.SubUVCoords.zw = (float2( SubUVParams.z, SubUVParams.w ) + Input.TexCoords0.xy) * MeshParticleVF.SubImageSize.xy;
 		Intermediates.SubUVLerp = SubUVLerp.x;
 	#endif
 #endif 

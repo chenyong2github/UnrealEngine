@@ -9,6 +9,7 @@
 // Forward declaration from <spirv_reflect.h>
 struct SpvReflectInterfaceVariable;
 struct SpvReflectBlockVariable;
+struct SpvReflectTypeDescription;
 
 // Cross compiler support/common functionality
 namespace CrossCompiler
@@ -29,6 +30,9 @@ namespace CrossCompiler
 		void WritePackedGlobal(const SpvReflectBlockVariable& Variable);
 		void WritePackedUB(uint32 BindingIndex);
 		void WritePackedUBField(const TCHAR* ResourceName, uint32 ByteOffset, uint32 ByteSize);
+		void WritePackedUB(const FString& UBName, uint32 BindingIndex);
+		void WritePackedUBField(const FString& UBName, const TCHAR* ResourceName, uint32 ByteOffset, uint32 ByteSize);
+		void WritePackedUBCopy(uint32 SourceCB, uint32 SourceOffset, uint32 DestCBIndex, uint32 DestCBPrecision, uint32 DestOffset, uint32 Size, bool bGroupFlattenedUBs = false);
 		void WritePackedUBGlobalCopy(uint32 SourceCB, uint32 SourceOffset, uint32 DestCBIndex, uint32 DestCBPrecision, uint32 DestOffset, uint32 Size, bool bGroupFlattenedUBs = false);
 		void WriteSRV(const TCHAR* ResourceName, uint32 BindingIndex, uint32 Count = 1);
 		void WriteSRV(const TCHAR* ResourceName, uint32 BindingIndex, uint32 Count, const TArray<FString>& AssociatedResourceNames);
@@ -42,6 +46,7 @@ namespace CrossCompiler
 
 		/** Returns the finalized meta data. */
 		FString ToString() const;
+		static EPackedTypeName EncodePackedGlobalType(const SpvReflectTypeDescription& TypeDescription);
 
 	private:
 		void WriteIOAttribute(FString& OutMetaData, const TCHAR* AttributeName, const TCHAR* TypeSpecifier, int32 Location, bool bLocationPrefix, bool bLocationSuffix);
@@ -56,8 +61,9 @@ namespace CrossCompiler
 			FString OutputAttributes;
 			FString UniformBlocks;
 			FString PackedGlobals;
-			FString PackedUB;
-			FString PackedUBFields;
+			TMap<FString, FString> PackedUBs;
+			TMap<FString, FString> PackedUBFields;
+			FString PackedUBCopies;
 			FString PackedUBGlobalCopies;
 			FString SRVs; // Shader resource views (SRV) and samplers
 			FString UAVs; // Unordered access views (UAV)
