@@ -18,10 +18,7 @@
 		{
 			"Name": "NeuralNetworkInference",
 			"Type": "RuntimeAndProgram",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "NeuralNetworkInferenceBackEnd",

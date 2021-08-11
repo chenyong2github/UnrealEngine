@@ -2,19 +2,18 @@
 
 #include "NeuralTensors.h"
 #include "NeuralNetworkInferenceUtils.h"
-#include "RedirectCoutAndCerrToUeLog.h"
 
-#ifdef ONNXRUNTIME_USING_DLL_VERSION
 #include "ThirdPartyWarningDisabler.h"
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
-#endif
-#include <numeric> // std::accumulate
-#include "onnxruntime/core/session/onnxruntime_cxx_api.h"
-#ifdef ONNXRUNTIME_USING_DLL_VERSION
+#ifdef WITH_FULL_NNI_SUPPORT
+	#include "RedirectCoutAndCerrToUeLog.h"
+
+	#include <numeric> // std::accumulate
+	#include "onnxruntime/core/session/onnxruntime_cxx_api.h"
+#endif //WITH_FULL_NNI_SUPPORT
 NNI_THIRD_PARTY_INCLUDES_END
-#endif
 
 
 
@@ -23,6 +22,7 @@ NNI_THIRD_PARTY_INCLUDES_END
 
 struct FNeuralTensors::FImpl
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	/** Memory allocator information */
 	Ort::MemoryInfo AllocatorInfo;
 	/** Actual ONNXRuntime tensors */
@@ -34,6 +34,7 @@ struct FNeuralTensors::FImpl
 		: AllocatorInfo(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU))
 	{
 	}
+#endif //WITH_FULL_NNI_SUPPORT
 };
 
 
@@ -63,6 +64,7 @@ const FNeuralTensor& FNeuralTensors::GetTensor(const int32 InTensorIndex) const
 
 bool FNeuralTensors::Load()
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 #if WITH_EDITOR
 	try
 #endif //WITH_EDITOR
@@ -79,11 +81,18 @@ bool FNeuralTensors::Load()
 		bIsLoaded = false;
 	}
 #endif //WITH_EDITOR
+
+#else
+	bIsLoaded = false;
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::Load(): Platform or Operating System not supported yet."));
+#endif //WITH_FULL_NNI_SUPPORT
+
 	return bIsLoaded;
 }
 
 void* FNeuralTensors::GetData(const int32 InTensorIndex)
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	if (!bIsLoaded && !Load())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("bIsLoaded is false."));
@@ -114,6 +123,11 @@ void* FNeuralTensors::GetData(const int32 InTensorIndex)
 		return nullptr;
 	}
 #endif //WITH_EDITOR
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::GetData(): Platform or Operating System not supported yet."));
+	return nullptr;
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 int64 FNeuralTensors::GetNumberTensors() const
@@ -123,6 +137,7 @@ int64 FNeuralTensors::GetNumberTensors() const
 
 const void* const FNeuralTensors::GetData(const int32 InTensorIndex) const
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	if (!bIsLoaded)
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("bIsLoaded is false."));
@@ -153,11 +168,22 @@ const void* const FNeuralTensors::GetData(const int32 InTensorIndex) const
 		return nullptr;
 	}
 #endif //WITH_EDITOR
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::GetData(): Platform or Operating System not supported yet."));
+	return nullptr;
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 FString FNeuralTensors::GetTensorName(const int32 InTensorIndex) const
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	return FString(ANSI_TO_TCHAR(Impl->TensorNames[InTensorIndex]));
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::GetTensorName(): Platform or Operating System not supported yet."));
+	return TEXT("");
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 const TArray<int64>& FNeuralTensors::GetSizes(const int32 InTensorIndex) const
@@ -193,6 +219,7 @@ void* FNeuralTensors::GetDataPointerMutable(const int32 InTensorIndex)
 
 const char* const* FNeuralTensors::GetTensorNames() const
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	if (!bIsLoaded)
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("bIsLoaded is false."));
@@ -200,10 +227,16 @@ const char* const* FNeuralTensors::GetTensorNames() const
 	}
 
 	return Impl->TensorNames.GetData();
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::GetTensorNames(): Platform or Operating System not supported yet."));
+	return nullptr;
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 Ort::Value* FNeuralTensors::GetONNXRuntimeTensors()
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	if (!bIsLoaded && !Load())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("bIsLoaded is false."));
@@ -211,10 +244,16 @@ Ort::Value* FNeuralTensors::GetONNXRuntimeTensors()
 	}
 
 	return &Impl->OrtTensors[0];
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::GetONNXRuntimeTensors(): Platform or Operating System not supported yet."));
+	return nullptr;
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 const Ort::Value* const FNeuralTensors::GetONNXRuntimeTensors() const
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	if (!bIsLoaded)
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("bIsLoaded is false."));
@@ -222,6 +261,11 @@ const Ort::Value* const FNeuralTensors::GetONNXRuntimeTensors() const
 	}
 
 	return &Impl->OrtTensors[0];
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::GetONNXRuntimeTensors(): Platform or Operating System not supported yet."));
+	return nullptr;
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 
@@ -231,6 +275,7 @@ const Ort::Value* const FNeuralTensors::GetONNXRuntimeTensors() const
 
 void FNeuralTensors::LinkTensorToONNXRuntime(const int32 InTensorIndex)
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	if (!bIsLoaded && !Load())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("bIsLoaded is false."));
@@ -277,11 +322,16 @@ void FNeuralTensors::LinkTensorToONNXRuntime(const int32 InTensorIndex)
 		}
 #endif //WITH_EDITOR
 	}
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::LinkTensorToONNXRuntime(): Platform or Operating System not supported yet."));
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 void FNeuralTensors::SetFromNetwork(TArray<const char*>& InTensorNames, TArray<ENeuralDataType>& InTensorDataTypes,
 		TArray<TArray<int64>>& InSizes)
 {
+#ifdef WITH_FULL_NNI_SUPPORT
 	if (!bIsLoaded && !Load())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("bIsLoaded is false."));
@@ -314,4 +364,8 @@ void FNeuralTensors::SetFromNetwork(TArray<const char*>& InTensorNames, TArray<E
 		}
 		SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex], TensorIndex);
 	}
+
+#else
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensors::SetFromNetwork(): Platform or Operating System not supported yet."));
+#endif //WITH_FULL_NNI_SUPPORT
 }

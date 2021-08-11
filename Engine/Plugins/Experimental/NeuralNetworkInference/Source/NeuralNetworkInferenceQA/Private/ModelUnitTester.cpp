@@ -12,7 +12,7 @@
 
 void FModelUnitTester::GlobalTest(const FString& InModelsDirectory)
 {
-#ifdef PLATFORM_WIN64
+#ifdef WITH_FULL_NNI_SUPPORT
 	// Model load, accuracy, and speed test
 	const TArray<FString> ModelNames({ TEXT("MLRigDeformer"), TEXT("cloth_network"), TEXT("hyprsense"), TEXT("rocket_league") });
 	const TArray<float> InputArrayValues({ 1.f, 0.f, -1.f, 100.f, -100.f, 0.5f, -0.5f }); // This one can be shorter than CPU/GPUGroundTruths
@@ -24,16 +24,14 @@ void FModelUnitTester::GlobalTest(const FString& InModelsDirectory)
 	const TArray<int32> GPURepetitions({ 1000, 1000, 100, 1000 });
 	ModelLoadAccuracyAndSpeedTests(InModelsDirectory, ModelNames, InputArrayValues, CPUGroundTruths, GPUGroundTruths, CPURepetitions, GPURepetitions);
 #else
-	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- FModelUnitTester test skipped (only in Windows)."));
-#endif //PLATFORM_WIN64
+	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- FModelUnitTester test skipped (only if WITH_FULL_NNI_SUPPORT)."));
+#endif //WITH_FULL_NNI_SUPPORT
 }
 
 
 
 /* FModelUnitTester static private functions
  *****************************************************************************/
-
-#ifdef PLATFORM_WIN64
 
 void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InModelsDirectory, const TArray<FString>& InModelNames, const TArray<float>& InInputArrayValues,
 	const TArray<TArray<double>>& InCPUGroundTruths, const TArray<TArray<double>>& InGPUGroundTruths, const TArray<int32>& InCPURepetitions, const TArray<int32>& InGPURepetitions)
@@ -312,5 +310,3 @@ double FModelUnitTester::GetAveragedL1NormDiff(const TArray<float>& InArray1, co
 	AveragedL1NormDiff /= InArray1.Num();
 	return AveragedL1NormDiff;
 }
-
-#endif //PLATFORM_WIN64

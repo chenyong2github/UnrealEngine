@@ -3,16 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#ifdef PLATFORM_WIN64
 #include "NeuralNetwork.h"
-#endif //PLATFORM_WIN64
 
 class FModelUnitTester
 {
 public:
 	static void GlobalTest(const FString& InModelsDirectory);
 
-#ifdef PLATFORM_WIN64
 private:
 	/**
 	 * It runs a full model test on the desired model.
@@ -34,5 +31,4 @@ private:
 	static void ModelSpeedTest(const FString& InUAssetPath, const int32 InCPURepetitions, const int32 InGPURepetitions);
 	static double GetAveragedL1Norm(const TArray<float>& InArray);
 	static double GetAveragedL1NormDiff(const TArray<float>& InArray1, const TArray<float>& InArray2);
-#endif //PLATFORM_WIN64
 };

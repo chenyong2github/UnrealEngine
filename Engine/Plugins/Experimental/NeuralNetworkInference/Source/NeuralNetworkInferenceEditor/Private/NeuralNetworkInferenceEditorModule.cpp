@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetworkInferenceEditorModule.h"
-#if PLATFORM_WINDOWS
 #include "NeuralNetworkAssetTypeActions.h"
-#endif
 #include "NeuralNetworkLegacyAssetTypeActions.h"
 #include "IAssetTypeActions.h"
 #include "Interfaces/IPluginManager.h"
@@ -38,7 +36,7 @@ void FNeuralNetworkInferenceEditorModule::StartupModule()
 {
 	// UNeuralNetwork - Register asset types
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-#if PLATFORM_WINDOWS
+#ifdef WITH_FULL_NNI_SUPPORT
 	Actions.Emplace(MakeShared<FNeuralNetworkAssetTypeActions>());
 	AssetTools.RegisterAssetTypeActions(Actions.Last().ToSharedRef());
 #endif

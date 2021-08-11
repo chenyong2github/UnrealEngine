@@ -6,7 +6,14 @@ public class NeuralNetworkInference : ModuleRules
 {
 	public NeuralNetworkInference( ReadOnlyTargetRules Target ) : base( Target )
 	{
-        ShortName = "DeprecatedNNIWE"; // Could be removed when plugin moves to Experimental, NFL path is too long
+		// Define when ORT-based NNI is available
+		bool bIsORTSupported = (Target.Platform == UnrealTargetPlatform.Win64 /*|| Target.Platform == UnrealTargetPlatform.Linux*/);
+		if (bIsORTSupported)
+		{
+			PublicDefinitions.Add("WITH_FULL_NNI_SUPPORT");
+		}
+
+		ShortName = "DeprecatedNNIWE"; // Could be removed when plugin moves to Experimental, NFL path is too long
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
@@ -29,13 +36,23 @@ public class NeuralNetworkInference : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
-                "ONNXRuntime",				// Select this for open-source-based ONNX Runtime
-				//"ONNXRuntimeDLL",			// Select this for DLL-based ONNX Runtime
-				//"ONNXRuntimeDLLHelper",	// Select this for DLL-based ONNX Runtime
 				"Projects",
 				"ThirdPartyHelperAndDLLLoader"
 			}
 		);
+
+		if (bIsORTSupported)
+		{
+
+			PrivateDependencyModuleNames.AddRange
+				(
+				new string[] {
+				"ONNXRuntime"				// Select this for open-source-based ONNX Runtime
+				//"ONNXRuntimeDLL",			// Select this for DLL-based ONNX Runtime (Win64-only)
+				//"ONNXRuntimeDLLHelper"	// Select this for DLL-based ONNX Runtime (Win64-only)
+				}
+			);
+		}
 
 		// Win64-only
 		if (Target.Platform == UnrealTargetPlatform.Win64)
