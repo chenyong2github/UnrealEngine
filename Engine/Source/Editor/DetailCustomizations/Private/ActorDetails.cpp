@@ -55,6 +55,7 @@
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "Settings/EditorExperimentalSettings.h"
 
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "K2Node_AddDelegate.h"
@@ -659,41 +660,44 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 		];
 	}
 
-	// WorldSettings should not be packaged externally
-	if (SelectedActorInfo.SelectionClass != AWorldSettings::StaticClass())
+	if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
 	{
-		// Actor Packaging Mode
-		const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(SelectedActorInfo.SharedWorld);
+		// WorldSettings should not be packaged externally
+		if (SelectedActorInfo.SelectionClass != AWorldSettings::StaticClass())
+		{
+			// Actor Packaging Mode
+			const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(SelectedActorInfo.SharedWorld);
 
-		auto OnGetMenuContent = [=]() -> TSharedRef<SWidget> {
-			FMenuBuilder MenuBuilder(true, nullptr);
-			MenuBuilder.AddMenuEntry(ActorDetailsUtil::GetActorPackagingModeText(0), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FActorDetails::OnActorPackagingModeChanged, false));
-			MenuBuilder.AddMenuEntry(ActorDetailsUtil::GetActorPackagingModeText(1), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FActorDetails::OnActorPackagingModeChanged, true));
-			return MenuBuilder.MakeWidget();
-		};
+			auto OnGetMenuContent = [=]() -> TSharedRef<SWidget> {
+				FMenuBuilder MenuBuilder(true, nullptr);
+				MenuBuilder.AddMenuEntry(ActorDetailsUtil::GetActorPackagingModeText(0), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FActorDetails::OnActorPackagingModeChanged, false));
+				MenuBuilder.AddMenuEntry(ActorDetailsUtil::GetActorPackagingModeText(1), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FActorDetails::OnActorPackagingModeChanged, true));
+				return MenuBuilder.MakeWidget();
+			};
 
-		ActorCategory.AddCustomRow( LOCTEXT("ActorPackagingModeRow", "ActorPackagingMode"), true)
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ActorPackagingMode", "Packaging Mode"))
-				.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Change the actor packaging mode. This will indicate if the actor is packaged alongside its level or in an external package."))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			]
-			.ValueContent()
-			[
-				SNew(SComboButton)
-				.ContentPadding(2)
-				.OnGetMenuContent_Lambda(OnGetMenuContent)
-				.IsEnabled(this, &FActorDetails::IsActorPackagingModeEditable)
-				.ButtonContent()
+			ActorCategory.AddCustomRow( LOCTEXT("ActorPackagingModeRow", "ActorPackagingMode"), true)
+				.NameContent()
 				[
 					SNew(STextBlock)
-					.Text(this, &FActorDetails::GetCurrentActorPackagingMode)
+					.Text(LOCTEXT("ActorPackagingMode", "Packaging Mode"))
+					.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Change the actor packaging mode. This will indicate if the actor is packaged alongside its level or in an external package."))
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
-				.IsEnabled(!bIsPartitionedWorld)
-			];
+				.ValueContent()
+				[
+					SNew(SComboButton)
+					.ContentPadding(2)
+					.OnGetMenuContent_Lambda(OnGetMenuContent)
+					.IsEnabled(this, &FActorDetails::IsActorPackagingModeEditable)
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.Text(this, &FActorDetails::GetCurrentActorPackagingMode)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
+					.IsEnabled(!bIsPartitionedWorld)
+				];
+		}
 	}
 }
 
