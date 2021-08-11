@@ -194,17 +194,6 @@ public:
 		InStringKeys.Add(TEXT("MinimumOSVersion"));
 	}
 
-#if WITH_ENGINE
-	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override
-	{
-		if (bRequiresEncodedHDRReflectionCaptures)
-		{
-			OutFormats.Add(FName(TEXT("EncodedHDR")));
-		}
-
-		OutFormats.Add(FName(TEXT("FullHDR")));
-	}
-
 	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const override
 	{
 		// no shaders needed for dedicated server target
@@ -250,6 +239,18 @@ public:
 			OutFormats.AddUnique(FName(*ShaderFormat));
 		}
 	}
+
+#if WITH_ENGINE
+	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override
+	{
+		if (bRequiresEncodedHDRReflectionCaptures)
+		{
+			OutFormats.Add(FName(TEXT("EncodedHDR")));
+		}
+
+		OutFormats.Add(FName(TEXT("FullHDR")));
+	}
+
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings( ) const override
 	{
 		return StaticMeshLODSettings;

@@ -150,8 +150,6 @@ void FLuminTargetPlatform::InitializeDeviceDetection()
 
 }
 
-#if WITH_ENGINE
-
 void FLuminTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const
 {
 	// @todo Lumin: re-use Android version? Make sure Android has VULKAN_SM5
@@ -180,6 +178,7 @@ void FLuminTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormat
 	}
 }
 
+#if WITH_ENGINE
 
 static FName FormatRemap[][2] =
 {
@@ -192,7 +191,6 @@ static FName FormatRemap[][2] =
 	{ { FName(TEXT("BC7")) },{ FName(TEXT("ASTC_RGBAuto")) } },
 	{ { FName(TEXT("AutoDXT")) },{ FName(TEXT("ASTC_RGBAuto")) } },
 };
-
 
 void FLuminTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const
 {

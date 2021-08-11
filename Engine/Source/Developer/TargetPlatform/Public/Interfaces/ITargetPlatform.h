@@ -471,6 +471,20 @@ public:
 	 */
 	virtual bool UsesMobileAmbientOcclusion() const = 0;
 
+	/**
+	* Gets the shader formats this platform can use.
+	*
+	* @param OutFormats Will contain the shader formats.
+	*/
+	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const = 0;
+
+	/**
+	* Gets the shader formats that have been selected for this target platform
+	*
+	* @param OutFormats Will contain the shader formats.
+	*/
+	virtual void GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const = 0;
+
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.
@@ -485,20 +499,6 @@ public:
 	 * @param OutFormats Will contain the collection of formats.
 	 */
 	virtual void GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const = 0;
-
-	/**
-	 * Gets the shader formats this platform can use.
-	 *
-	 * @param OutFormats Will contain the shader formats.
-	 */
-	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const = 0;
-
-	/**
-	* Gets the shader formats that have been selected for this target platform
-	*
-	* @param OutFormats Will contain the shader formats.
-	*/
-	virtual void GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const = 0;
 
 	/**
 	 * Gets the format to use for a particular texture.

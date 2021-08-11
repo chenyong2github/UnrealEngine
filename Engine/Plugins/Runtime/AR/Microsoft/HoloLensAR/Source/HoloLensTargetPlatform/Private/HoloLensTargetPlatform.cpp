@@ -96,6 +96,21 @@ bool FHoloLensTargetPlatform::SupportsFeature(ETargetPlatformFeatures Feature) c
 	}
 }
 
+static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
+static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
+
+void FHoloLensTargetPlatform::GetAllPossibleShaderFormats(TArray<FName>& OutFormats) const
+{
+	OutFormats.AddUnique(NAME_PCD3D_ES3_1);
+	OutFormats.AddUnique(NAME_PCD3D_SM5);
+}
+
+void FHoloLensTargetPlatform::GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const
+{
+	OutFormats.AddUnique(NAME_PCD3D_ES3_1);
+	OutFormats.AddUnique(NAME_PCD3D_SM5);
+}
+
 #if WITH_ENGINE
 
 void FHoloLensTargetPlatform::GetReflectionCaptureFormats(TArray<FName>& OutFormats) const
@@ -112,21 +127,6 @@ void FHoloLensTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArra
 void FHoloLensTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
 	GetAllDefaultTextureFormats(this, OutFormats, false);
-}
-
-static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
-static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
-
-void FHoloLensTargetPlatform::GetAllPossibleShaderFormats(TArray<FName>& OutFormats) const
-{
-	OutFormats.AddUnique(NAME_PCD3D_ES3_1);
-	OutFormats.AddUnique(NAME_PCD3D_SM5);
-}
-
-void FHoloLensTargetPlatform::GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const
-{
-	OutFormats.AddUnique(NAME_PCD3D_ES3_1);
-	OutFormats.AddUnique(NAME_PCD3D_SM5);
 }
 
 #endif

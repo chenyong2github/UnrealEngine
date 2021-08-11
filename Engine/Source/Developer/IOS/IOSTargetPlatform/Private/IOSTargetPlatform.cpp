@@ -488,21 +488,6 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 }
 
 
-#if WITH_ENGINE
-
-void FIOSTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const
-{
-	static auto* MobileShadingPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ShadingPath"));
-	const bool bMobileDeferredShading = (MobileShadingPathCvar->GetValueOnAnyThread() == 1);
-
-	if (SupportsMetalMRT() || bMobileDeferredShading)
-	{
-		OutFormats.Add(FName(TEXT("FullHDR")));
-	}
-
-	OutFormats.Add(FName(TEXT("EncodedHDR")));
-}
-
 void FIOSTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const
 {
 	static FName NAME_SF_METAL(TEXT("SF_METAL"));
@@ -542,6 +527,23 @@ void FIOSTargetPlatform::GetAllTargetedShaderFormats( TArray<FName>& OutFormats 
 {
 	GetAllPossibleShaderFormats(OutFormats);
 }
+
+
+#if WITH_ENGINE
+
+void FIOSTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const
+{
+	static auto* MobileShadingPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ShadingPath"));
+	const bool bMobileDeferredShading = (MobileShadingPathCvar->GetValueOnAnyThread() == 1);
+
+	if (SupportsMetalMRT() || bMobileDeferredShading)
+	{
+		OutFormats.Add(FName(TEXT("FullHDR")));
+	}
+
+	OutFormats.Add(FName(TEXT("EncodedHDR")));
+}
+
 
 // we remap some of the defaults
 static FName FormatRemap[] =

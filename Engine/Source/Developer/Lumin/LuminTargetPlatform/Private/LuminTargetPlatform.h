@@ -52,9 +52,9 @@ public:
 
 	virtual int32 CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const override;
 
-#if WITH_ENGINE
-
 	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const override;
+
+#if WITH_ENGINE
 
 	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override;
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
