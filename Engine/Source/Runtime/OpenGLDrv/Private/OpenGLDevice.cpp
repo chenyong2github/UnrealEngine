@@ -16,6 +16,7 @@
 #include "Containers/List.h"
 #include "RenderResource.h"
 #include "ShaderCore.h"
+#include "Shader.h"
 #include "RenderUtils.h"
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
