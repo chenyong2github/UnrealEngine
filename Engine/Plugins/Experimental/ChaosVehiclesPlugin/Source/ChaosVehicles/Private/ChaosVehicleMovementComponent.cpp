@@ -1777,7 +1777,9 @@ void UChaosVehicleMovementComponent::ResetVehicleState()
 	OnDestroyPhysicsState();
 	OnCreatePhysicsState();
 
-	SetTargetGear(1, true);
+	// Shift into neutral, force the local copy of target gear to be correct
+	SetTargetGear(0, true);
+	TargetGear = 0;
 }
 
 void UChaosVehicleMovementComponent::FinalizeSimCallbackData(FChaosVehicleManagerAsyncInput& Input)
