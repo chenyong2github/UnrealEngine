@@ -70,7 +70,7 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 				FStringView ModuleName;
 				if (Context.EventData.GetString("Name", ModuleName))
 				{
-					const uint64 Base = GetRealBaseAddress(Context.EventData.GetValue<uint32>("Base"));
+					const uint64 Base = GetBaseAddress(Context.EventData);
 					const uint32 Size = Context.EventData.GetValue<uint32>("Size");
 					const TArrayReader<uint8>& ImageId = Context.EventData.GetArray<uint8>("ImageId");
 
@@ -82,7 +82,7 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 		case RouteId_ModuleUnload:
 			if (Provider != nullptr)
 			{
-				const uint32 Base = Context.EventData.GetValue<uint32>("Base");
+				const uint64 Base = GetBaseAddress(Context.EventData);
 				Provider->OnModuleUnload(Base);
 			}
 			break;
@@ -91,10 +91,19 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint64 FModuleAnalyzer::GetRealBaseAddress(uint32 EventBase) const
+uint64	FModuleAnalyzer::GetBaseAddress(const FEventData& EventData) const
 {
-	// Unshift base address according to capture alignment (e.g. Windows 4k aligned)
-	return uint64(EventBase) << ModuleBaseShift;
+	if (ModuleBaseShift == 0)
+	{
+		// With 0 base shift assume newer trace event is used with 64-bit base address
+		return EventData.GetValue<uint64>("Base");
+	}
+	else
+	{
+		// Unshift base address according to capture alignment (e.g. Windows 4k aligned)
+		uint64 Base = uint64(EventData.GetValue<uint32>("Base"));
+		return Base << ModuleBaseShift;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -43,6 +43,7 @@
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
 #include "ProfilingDebugging/PlatformEvents.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 #include "String/ParseTokens.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Trace.inl"
@@ -590,6 +591,10 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	{
 		AppName = GInternalProjectName;
 	}
+#endif
+
+#if UE_MEMORY_TRACE_ENABLED
+	MemoryTrace_InitializeLate();
 #endif
 
 	// Trace out information about this session. This is done before initialisation

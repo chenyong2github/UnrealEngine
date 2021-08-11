@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
+#include "ProfilingDebugging/ModuleDiagnostics.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #	include <winternl.h>
@@ -27,27 +28,6 @@ struct FNtDllFunction
 		return (Prototype((void*)Addr))(Args...);
 	}
 };
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_CHANNEL(ModuleChannel, "Module information needed for symbols resolution", true)
- 
-UE_TRACE_EVENT_BEGIN(Diagnostics, ModuleInit, NoSync|Important)
-	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, SymbolFormat)
-	UE_TRACE_EVENT_FIELD(uint8, ModuleBaseShift)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(Diagnostics, ModuleLoad, NoSync|Important)
-	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
-	UE_TRACE_EVENT_FIELD(uint32, Base)
-	UE_TRACE_EVENT_FIELD(uint32, Size)
-	UE_TRACE_EVENT_FIELD(uint8[], ImageId) // Platform specific id for this image, used to match debug files were available
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(Diagnostics, ModuleUnload, NoSync|Important)
-	UE_TRACE_EVENT_FIELD(uint32, Base)
-UE_TRACE_EVENT_END()
 
 ////////////////////////////////////////////////////////////////////////////////
 class FModuleTrace
@@ -100,7 +80,7 @@ void FModuleTrace::Initialize()
 
 	UE_TRACE_LOG(Diagnostics, ModuleInit, ModuleChannel, sizeof(char) * 3)
 		<< ModuleInit.SymbolFormat("pdb", 3)
-		<< ModuleInit.ModuleBaseShift(uint8(16));
+		<< ModuleInit.ModuleBaseShift(uint8(0));
 
 	// Register for DLL load/unload notifications.
 	auto Thunk = [] (ULONG Reason, const void* Data, void* Context)
@@ -208,7 +188,7 @@ void FModuleTrace::OnDllLoaded(const UNICODE_STRING& Name, UPTRINT Base)
 	// Note: UNICODE_STRING.Length is the size in bytes of the string buffer.
 	UE_TRACE_LOG(Diagnostics, ModuleLoad, ModuleChannel, Name.Length + ImageId.Num())
 		<< ModuleLoad.Name(Name.Buffer, Name.Length / 2)
-		<< ModuleLoad.Base(uint32(Base >> 16)) // Windows' DLLs are on 64K page boundaries
+		<< ModuleLoad.Base(uint64(Base))
 		<< ModuleLoad.Size(OptionalHeader.SizeOfImage)
 		<< ModuleLoad.ImageId(ImageId.GetData(), ImageId.Num());
 
@@ -222,7 +202,7 @@ void FModuleTrace::OnDllLoaded(const UNICODE_STRING& Name, UPTRINT Base)
 void FModuleTrace::OnDllUnloaded(UPTRINT Base)
 {
 	UE_TRACE_LOG(Diagnostics, ModuleUnload, ModuleChannel)
-		<< ModuleUnload.Base(uint32(Base >> 16));
+		<< ModuleUnload.Base(uint64(Base));
 
 	for (SubscribeFunc Subscriber : Subscribers)
 	{

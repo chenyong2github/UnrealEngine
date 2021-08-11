@@ -226,7 +226,7 @@ struct TSherwoodHashTable
 
 	FORCENOINLINE ValueType* Add(int8 Distance, FData& Data, uint32 Cursor, KeyType Key, HashType Hash, ValueType Value)
 	{
-		if (Distance == MaxLookups || NumElements + 1 > (NumSlotsMinusOne + 1) * MaxLoadFactor)
+		if (Distance == MaxLookups || NumElements + 1 > int32(float(NumSlotsMinusOne + 1) * MaxLoadFactor))
 		{
 			Grow();
 			return FindOrAddByHash(Key, Hash, Value);
@@ -286,7 +286,7 @@ struct TSherwoodHashTable
 
 	void Rehash(uint32 DesiredNumSlots)
 	{
-		DesiredNumSlots = FMath::Max(DesiredNumSlots, uint32(FMath::CeilToInt(NumElements / MaxLoadFactor)));
+		DesiredNumSlots = FMath::Max(DesiredNumSlots, uint32(FMath::CeilToInt(float(NumElements) / MaxLoadFactor)));
 		if (DesiredNumSlots == 0)
 		{
 			Empty();
@@ -338,7 +338,7 @@ struct TSherwoodHashTable
 
 	void Reserve(uint32 DesiredNumElements)
 	{
-		uint32 DesiredNumSlots = FMath::Max<uint32>(DesiredNumElements, uint32(FMath::CeilToInt(DesiredNumElements / MaxLoadFactor)));
+		uint32 DesiredNumSlots = FMath::Max<uint32>(DesiredNumElements, uint32(FMath::CeilToInt(float(DesiredNumElements) / MaxLoadFactor)));
 		if (DesiredNumSlots > NumSlots())
 		{
 			Rehash(DesiredNumSlots);
