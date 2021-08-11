@@ -62,45 +62,28 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 	}
 
 	/**
-	 * Tests whether a particular codepoint can be converted to the destination encoding.
+	 * Tests whether a particular character is a valid member of its encoding.
+	 *
+	 * @param Ch The character to test.
+	 * @return True if the character is a valid member of Encoding.
+	 */
+	template <typename Encoding>
+	static bool IsValidChar(Encoding Ch)
+	{
+		return true;
+	}
+
+
+	/**
+	 * Tests whether a particular character can be converted to the destination encoding.
 	 *
 	 * @param Ch The character to test.
 	 * @return True if Ch can be encoded as a DestEncoding.
 	 */
 	template <typename DestEncoding, typename SourceEncoding>
-	static constexpr bool CanConvertCodepoint(SourceEncoding Codepoint)
+	static bool CanConvertChar(SourceEncoding Ch)
 	{
-		// It is assumed that the incoming codepoint is already valid and we're only testing if it can be converted to DestEncoding.
-
-		static_assert(TIsCharType<SourceEncoding>::Value, "Source encoding is not a char type");
-		static_assert(TIsCharType<DestEncoding  >::Value, "Destination encoding is not a char type");
-
-		// This is only defined for fixed-width encodings, because codepoints cannot be represented in a single variable-width code unit.
-		static_assert(IsFixedWidthEncoding<SourceEncoding>(), "Source encoding is not fixed-width");
-
-		if constexpr (sizeof(DestEncoding) >= sizeof(SourceEncoding))
-		{
-			// Converting to a wider encoding, or same encoding, or ANSICHAR->UTF8CHAR or UCS2CHAR->UTF16CHAR,
-			// should always be possible.
-			return true;
-		}
-		else if constexpr (!IsFixedWidthEncoding<DestEncoding>())
-		{
-			// Converting all codepoints to a variable-width encoding should always be possible
-			return true;
-		}
-		else if constexpr (std::is_same_v<DestEncoding, ANSICHAR>)
-		{
-			return (uint32)Codepoint <= 0x7F;
-		}
-		else
-		{
-			// The logic above should hopefully mean this branch is only taken for UTF32CHAR->UCS2CHAR
-			static_assert(std::is_same_v<SourceEncoding, UTF32CHAR> && std::is_same_v<DestEncoding, UCS2CHAR>, "Unimplemented conversion");
-
-			// Can't encode more than 16-bit in UCS-2
-			return (uint32)Codepoint <= 0xFFFF;
-		}
+		return IsValidChar(Ch) && (SourceEncoding)(DestEncoding)Ch == Ch && IsValidChar((DestEncoding)Ch);
 	}
 
 
@@ -237,14 +220,14 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 			{
 				SourceEncoding SrcCh = Src[I];
 				Dest[I] = (DestEncoding)SrcCh;
-				bInvalidChars |= !CanConvertCodepoint<DestEncoding>(SrcCh);
+				bInvalidChars |= !CanConvertChar<DestEncoding>(SrcCh);
 			}
 
 			if (bInvalidChars)
 			{
 				for (int I = 0; I < Size; ++I)
 				{
-					if (!CanConvertCodepoint<DestEncoding>(Src[I]))
+					if (!CanConvertChar<DestEncoding>(Src[I]))
 					{
 						Dest[I] = UNICODE_BOGUS_CHAR_CODEPOINT;
 					}
@@ -314,3 +297,13 @@ private:
 	template <typename DestEncoding, typename SourceEncoding>
 	static CORE_API void LogBogusChars(const SourceEncoding* Src, int32 SrcSize);
 };
+
+
+/**
+ * Specialization of IsValidChar for ANSICHARs.
+ */
+template <>
+inline bool FGenericPlatformString::IsValidChar<ANSICHAR>(ANSICHAR Ch)
+{
+	return Ch >= 0x00 && Ch <= 0x7F;
+}

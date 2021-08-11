@@ -676,19 +676,17 @@ namespace UE::Core::Private
 template <typename DestEncoding, typename SourceEncoding>
 void FGenericPlatformString::LogBogusChars(const SourceEncoding* Src, int32 SrcSize)
 {
-	static_assert(IsFixedWidthEncoding<SourceEncoding>(), "Currently unimplemented for non-fixed-width source conversions");
-
 	FString SrcStr;
 	bool    bFoundBogusChars = false;
 	for (; SrcSize; --SrcSize)
 	{
 		SourceEncoding SrcCh = *Src++;
-		if (!CanConvertCodepoint<DestEncoding>(SrcCh))
+		if (!CanConvertChar<DestEncoding>(SrcCh))
 		{
 			SrcStr += FString::Printf(TEXT("[0x%X]"), (int32)SrcCh);
 			bFoundBogusChars = true;
 		}
-		else if (CanConvertCodepoint<TCHAR>(SrcCh))
+		else if (CanConvertChar<TCHAR>(SrcCh))
 		{
 			if (TChar<SourceEncoding>::IsLinebreak(SrcCh))
 			{
@@ -755,10 +753,13 @@ int32 FGenericPlatformString::Strncmp(const UTF8CHAR* Str1, const UTF8CHAR* Str2
 #if !UE_BUILD_DOCS
 template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, WIDECHAR>(const WIDECHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, UCS2CHAR>(const UCS2CHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, UTF8CHAR>(const UTF8CHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<WIDECHAR, ANSICHAR>(const ANSICHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<WIDECHAR, UCS2CHAR>(const UCS2CHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<WIDECHAR, UTF8CHAR>(const UTF8CHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<UCS2CHAR, ANSICHAR>(const ANSICHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<UCS2CHAR, WIDECHAR>(const WIDECHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<UCS2CHAR, UTF8CHAR>(const UTF8CHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, ANSICHAR>(const ANSICHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, WIDECHAR>(const WIDECHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, UCS2CHAR>(const UCS2CHAR* Src, int32 SrcSize);
