@@ -175,6 +175,7 @@
 			<graph title="StateTree Processor Costs" budget="0"/>
 			<graph title="StateTree Context Costs" budget="0"/>
 			<graph title="Ticked StateTree Count" budget="0"/>
+			<graph title="Mass Signals Count" budget="0"/>
 			<graph title="Deferred Commands Count" budget="0"/>
 			<graph title="Deferred Commands Costs" budget="0"/>
 		</reporttype>

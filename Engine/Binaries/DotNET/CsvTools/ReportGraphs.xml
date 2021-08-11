@@ -155,6 +155,10 @@
 		<graph title="Ticked StateTree Count" showAverages="1" hideStatPrefix="StateTreeProcessor/">
 			<statString>StateTreeProcessor/NumTickedStateTree</statString>
 		</graph>
+
+		<graph title="Mass Signals Count" showAverages="1" hideStatPrefix="MassSignalsCounters/">
+			<statString>MassSignalsCounters/*</statString>
+		</graph>
 		
 		<graph title="Deferred Commands Count" showAverages="1" hideStatPrefix="MassEntitiesCounters/">
 			<statString>MassEntitiesCounters/*</statString>
