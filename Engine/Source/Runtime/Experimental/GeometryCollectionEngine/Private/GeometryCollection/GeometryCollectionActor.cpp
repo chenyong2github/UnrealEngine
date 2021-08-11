@@ -49,6 +49,9 @@ AGeometryCollectionActor::AGeometryCollectionActor(const FObjectInitializer& Obj
 void AGeometryCollectionActor::Tick(float DeltaTime) 
 {
 	UE_LOG(AGeometryCollectionActorLogging, Verbose, TEXT("AGeometryCollectionActor::Tick()"));
+
+	Super::Tick(DeltaTime);
+
 	if (GeometryCollectionComponent)
 	{
 		GeometryCollectionComponent->SetRenderStateDirty();
