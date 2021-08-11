@@ -2,7 +2,6 @@
 
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "Experimental/Containers/SherwoodHashTable.h"
 #include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/MemoryBase.h"
@@ -19,6 +18,7 @@
 #include "HAL/Runnable.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CallstackTrace.h"
 
 #include <atomic>
 
@@ -98,52 +98,6 @@ enum
 	UWOP_SAVE_XMM128_FAR	= 9,	// 3 nodes
 	UWOP_PUSH_MACHFRAME		= 10,	// 1 node
 };
-
-////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_CHANNEL(CallstackChannel);
-
-UE_TRACE_EVENT_BEGIN(Memory, CallstackSpec, NoSync)
-	UE_TRACE_EVENT_FIELD(uint64, Id)
-	UE_TRACE_EVENT_FIELD(uint64[], Frames)
-UE_TRACE_EVENT_END()
-
-////////////////////////////////////////////////////////////////////////////////
-namespace {
-
-	class FCallstackTracer 
-	{
-	public:
-		struct FBacktraceEntry
-		{
-			enum {MaxStackDepth = 256};
-			uint64	Id = 0;
-			uint32	FrameCount = 0;
-			uint64	Frames[MaxStackDepth] = { 0 };
-		};
-
-		FCallstackTracer()
-		{
-			KnownSet.Reserve(1024 * 1024 * 2);
-		}
-		
-		void AddCallstack(const FBacktraceEntry& Entry)
-		{
-			FScopeLock _(&ProducerCs);
-			bool bAlreadyAdded = false;
-			KnownSet.Add(Entry.Id, &bAlreadyAdded);
-			if (!bAlreadyAdded)
-			{
-				UE_TRACE_LOG(Memory, CallstackSpec, CallstackChannel)
-					<< CallstackSpec.Id(Entry.Id)
-					<< CallstackSpec.Frames(Entry.Frames, Entry.FrameCount);
-			}
-		}
-	private:	
-		Experimental::TSherwoodSet<uint64> 	KnownSet;
-		FCriticalSection					ProducerCs;
-	};
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 class FBacktracer

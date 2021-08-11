@@ -299,6 +299,36 @@ void FSymslibResolver::LoadModuleTracked(FModuleEntry* Module)
 	}
 }
 
+FString FSymslibResolver::FindSymbolFile(const FString& Path)
+{
+	IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+
+	if (PlatformFile->FileExists(*Path))
+	{
+		return Path;
+	}
+
+	FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(L"UE_INSIGHTS_SYMBOL_PATH");
+
+	FString SymbolPathPart;
+	while (SymbolPath.Split(TEXT(";"), &SymbolPathPart, &SymbolPath))
+	{
+		FString Result = FPaths::Combine(SymbolPathPart, Path);
+		if (PlatformFile->FileExists(*Result))
+		{
+			return Result;
+		}
+	}
+
+	FString Result = FPaths::Combine(SymbolPath, Path);
+	if (PlatformFile->FileExists(*Result))
+	{
+		return Result;
+	}
+
+	return FString();
+}
+
 FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Module)
 {
 	IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
@@ -313,17 +343,18 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 		return EModuleStatus::Failed;
 	}
 
-	if (!PlatformFile->FileExists(Module->Path))
+	FString SymbolFilePath = FindSymbolFile(Module->Path);
+	if (SymbolFilePath.IsEmpty())
 	{
 		UE_LOG(LogSymslib, Warning, TEXT("File '%s' does not exist"), Module->Path);
 		return EModuleStatus::Failed;
 	}
 
 	// Map the image file to memory
-	IMappedFileHandle* ImageFileHandle = PlatformFile->OpenMapped(Module->Path);
+	IMappedFileHandle* ImageFileHandle = PlatformFile->OpenMapped(*SymbolFilePath);
 	if (ImageFileHandle == nullptr)
 	{
-		UE_LOG(LogSymslib, Warning, TEXT("Failed to open '%s'"), Module->Path);
+		UE_LOG(LogSymslib, Warning, TEXT("Failed to open '%s'"), *SymbolFilePath);
 		return EModuleStatus::Failed;
 	}
 	IMappedFileRegion* ImageFileRegion = ImageFileHandle->MapRegion(0, ImageFileHandle->GetFileSize());
@@ -337,7 +368,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 
 	if (SYMS_RESULT_FAIL(Result))
 	{
-		UE_LOG(LogSymslib, Warning, TEXT("Failed to load '%s'"), Module->Path);
+		UE_LOG(LogSymslib, Warning, TEXT("Failed to load '%s'"), *SymbolFilePath);
 		return EModuleStatus::Failed;
 	}
 
@@ -386,7 +417,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 
 	if (SYMS_RESULT_FAIL(Result))
 	{
-		UE_LOG(LogSymslib, Display, TEXT("No debug information for '%s'"), Module->Path);
+		UE_LOG(LogSymslib, Display, TEXT("No debug information for '%s'"), *SymbolFilePath);
 		return EModuleStatus::Failed;
 	}
 

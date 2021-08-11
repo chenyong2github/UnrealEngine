@@ -246,20 +246,18 @@ void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& C
 IModuleAnalysisProvider* CreateModuleProvider(IAnalysisSession& InSession, const FAnsiStringView& InSymbolFormat)
 {
 	IModuleAnalysisProvider* Provider(nullptr);
-#if PLATFORM_WINDOWS
-#if USE_SYMSLIB
-	if (!Provider && InSymbolFormat.Equals("pdb"))
+#if PLATFORM_WINDOWS && USE_SYMSLIB
+	if (!Provider && (InSymbolFormat.Equals("pdb") || InSymbolFormat.Equals("dwarf")))
 	{
 		Provider = new TModuleProvider<FSymslibResolver>(InSession);
 	}
-#endif // USE_SYMSLIB
-#if USE_DBGHELP
+#endif // PLATFORM_WINDOWS && USE_SYMSLIB
+#if PLATFORM_WINDOWS && USE_DBGHELP
 	if (!Provider && InSymbolFormat.Equals("pdb"))
 	{
 		Provider = new TModuleProvider<FDbgHelpResolver>(InSession);
 	}
-#endif // USE_DBGHELP
-#endif //PLATFORM_WINDOWS
+#endif // PLATFORM_WINDOWS && USE_DBGHELP
 	return Provider;
 }
 
