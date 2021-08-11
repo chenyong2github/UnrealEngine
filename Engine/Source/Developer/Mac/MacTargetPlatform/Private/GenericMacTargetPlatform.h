@@ -104,10 +104,9 @@ public:
 			return (HAS_EDITOR_DATA || !IS_DEDICATED_SERVER);
 		}
 
-return TSuper::SupportsFeature(Feature);
+		return TSuper::SupportsFeature(Feature);
 	}
 
-#if WITH_ENGINE
 	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const override
 	{
 		// no shaders needed for dedicated server target
@@ -146,6 +145,8 @@ return TSuper::SupportsFeature(Feature);
 			OutFormats.AddUnique(FName(*ShaderFormat));
 		}
 	}
+
+#if WITH_ENGINE
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings( ) const override
 	{
 		return StaticMeshLODSettings;
@@ -159,7 +160,6 @@ return TSuper::SupportsFeature(Feature);
 			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, true);
 		}
 	}
-
 
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override
 	{

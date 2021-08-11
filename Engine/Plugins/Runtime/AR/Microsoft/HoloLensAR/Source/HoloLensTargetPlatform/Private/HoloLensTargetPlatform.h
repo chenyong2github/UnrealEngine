@@ -63,6 +63,10 @@ public:
 
 	virtual bool SupportsBuildTarget(EBuildTargetType BuildTarget) const override;
 
+	virtual void GetAllPossibleShaderFormats(TArray<FName>& OutFormats) const override;
+
+	virtual void GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const override;	
+
 #if WITH_ENGINE
 	virtual void GetReflectionCaptureFormats(TArray<FName>& OutFormats) const override;
 
@@ -78,12 +82,6 @@ public:
 	{
 		TextureLODSettings = InTextureLODSettings;
 	}
-
-	virtual void GetAllPossibleShaderFormats(TArray<FName>& OutFormats) const override;
-
-	virtual void GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const override;
-	
-	//virtual void GetAllCachedShaderFormats( TArray<FName>& OutFormats ) const override {}
 
 	virtual FName GetWaveFormat( const class USoundWave* Wave ) const override
 	{

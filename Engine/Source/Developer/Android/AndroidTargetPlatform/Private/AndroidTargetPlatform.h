@@ -158,13 +158,13 @@ public:
 		return true;
 	}
 
-#if WITH_ENGINE
-	virtual void GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const override;
-
 	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const override;
 
 	virtual void GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const override;
 	
+#if WITH_ENGINE
+	virtual void GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const override;
+
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const override;
 
 	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override;

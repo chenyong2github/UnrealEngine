@@ -137,7 +137,6 @@ public:
 
 	virtual bool SupportsValueForType(FName SupportedType, FName RequiredSupportedValue) const override
 	{
-#if WITH_ENGINE
 		// check if the given shader format is returned by this TargetPlatform
 		if (SupportedType == TEXT("ShaderFormat"))
 		{
@@ -145,7 +144,7 @@ public:
 			GetAllPossibleShaderFormats(AllPossibleShaderFormats);
 			return AllPossibleShaderFormats.Contains(RequiredSupportedValue);
 		}
-#endif
+
 		return false;
 	}
 
