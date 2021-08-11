@@ -85,6 +85,8 @@ private:
 	void OnEditChangelist();
 	void OnSubmitChangelist();
 	bool CanSubmitChangelist();
+	void OnValidateChangelist();
+	bool CanValidateChangelist();
 
 	/** Changelist & File operations */
 	void OnRevertUnchanged();
