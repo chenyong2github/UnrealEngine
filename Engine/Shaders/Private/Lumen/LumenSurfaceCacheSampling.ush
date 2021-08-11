@@ -318,6 +318,15 @@ void SampleLumenCard(
 					float SampleWeight = CardWeight * VisibilityWeight;
 					if (SampleWeight > 0.0f)
 					{
+						#if SURFACE_CACHE_SAMPLING_REFERENCE_MODE
+						{
+							FSurfaceCacheSample SurfaceCacheSample = SampleSurfaceCache(CardSample, AtlasId);
+							CardSampleAccumulator.Reference.LightingSum += SurfaceCacheSample.Lighting * SampleWeight;
+							CardSampleAccumulator.Reference.OpacitySum += SurfaceCacheSample.Opacity * SampleWeight;
+							CardSampleAccumulator.Reference.SampleWeightSum += SampleWeight;
+						}
+						#endif
+
 						#if SURFACE_CACHE_SAMPLING_METHOD == SURFACE_CACHE_SAMPLING_METHOD_STOCHASTIC
 						{
 							// Reservoir Sampling
@@ -335,15 +344,6 @@ void SampleLumenCard(
 								CardSampleAccumulator.CardSample = CardSample;
 								CardSampleAccumulator.SampleWeightSum = SampleWeight;
 							}
-						}
-						#endif
-
-						#if SURFACE_CACHE_SAMPLING_REFERENCE_MODE
-						{
-							FSurfaceCacheSample SurfaceCacheSample = SampleSurfaceCache(CardSampleAccumulator.CardSample, AtlasId);
-							CardSampleAccumulator.Reference.LightingSum += SurfaceCacheSample.Lighting * SampleWeight;
-							CardSampleAccumulator.Reference.OpacitySum += SurfaceCacheSample.Opacity * SampleWeight;
-							CardSampleAccumulator.Reference.SampleWeightSum += SampleWeight;
 						}
 						#endif
 					}
