@@ -20,6 +20,7 @@
 #include "MetasoundJsonBackend.h"
 #include "MetasoundLog.h"
 #include "MetasoundReceiveNode.h"
+#include "MetasoundTrace.h"
 #include "StructSerializer.h"
 #include "UObject/MetaData.h"
 
@@ -70,6 +71,8 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
+
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::RegisterGraphWithFrontend);
 
 	FConstDocumentAccessPtr DocumentPtr = GetDocument();
 	FString AssetName;
@@ -182,6 +185,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 void FMetasoundAssetBase::UnregisterGraphWithFrontend()
 {
 	using namespace Metasound::Frontend;
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::UnregisterGraphWithFrontend);
 
 	if (!NodeRegistryKey::IsValid(RegistryKey))
 	{
@@ -292,6 +296,7 @@ void FMetasoundAssetBase::SetDocument(const FMetasoundFrontendDocument& InDocume
 
 void FMetasoundAssetBase::ConformDocumentToArchetype()
 {
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::ConformDocumentToArchetype);
 	FMetasoundFrontendDocument& Doc = GetDocumentChecked();
 
 	FMetasoundFrontendVersion PreferredArchetypeVersion = GetPreferredArchetypeVersion(Doc);
@@ -309,6 +314,7 @@ void FMetasoundAssetBase::ConformDocumentToArchetype()
 bool FMetasoundAssetBase::AutoUpdate(const IMetaSoundAssetInterface& InAssetInterface, bool bInMarkDirty, bool bInUpdateReferencedAssets)
 {
 	using namespace Metasound::Frontend;
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::AutoUpdate);
 
 	bool bDidEdit = false;
 
@@ -339,6 +345,7 @@ bool FMetasoundAssetBase::VersionAsset(const IMetaSoundAssetInterface& InAssetIn
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::VersionAsset);
 
 	FName AssetName;
 	FString AssetPath;
@@ -386,6 +393,8 @@ TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() cons
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::BuildMetasoundDocument);
+
 	const FMetasoundFrontendDocument* Doc = GetDocument().Get();
 	if (nullptr == Doc)
 	{
@@ -417,6 +426,8 @@ TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() cons
 void FMetasoundAssetBase::RebuildReferencedAssets(const IMetaSoundAssetInterface& InAssetInterface)
 {
 	using namespace Metasound::Frontend;
+
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::RebuildReferencedAssets);
 
 	TSet<FSoftObjectPath>& ReferencedAssets = GetReferencedAssets();
 	ReferencedAssets.Reset();
@@ -653,6 +664,8 @@ Metasound::Frontend::FConstGraphHandle FMetasoundAssetBase::GetRootGraphHandle()
 
 bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 {
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::ImportFromJSON);
+
 	FMetasoundFrontendDocument* Document = GetDocument().Get();
 	if (ensure(nullptr != Document))
 	{
@@ -670,6 +683,8 @@ bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 
 bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 {
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::ImportFromJSONAsset);
+
 	Metasound::Frontend::FDocumentAccessPtr DocumentPtr = GetDocument();
 	if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
 	{

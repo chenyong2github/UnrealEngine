@@ -18,7 +18,10 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 {
 	virtual void StartupModule() override
 	{
+		FModuleManager::Get().LoadModuleChecked("MetasoundGraphCore");
 		FModuleManager::Get().LoadModuleChecked("MetasoundFrontend");
+		FModuleManager::Get().LoadModuleChecked("MetasoundStandardNodes");
+		FModuleManager::Get().LoadModuleChecked("MetasoundGenerator");
 		FModuleManager::Get().LoadModuleChecked("AudioCodecEngine");
 
 		Metasound::Engine::RegisterArchetypes();
