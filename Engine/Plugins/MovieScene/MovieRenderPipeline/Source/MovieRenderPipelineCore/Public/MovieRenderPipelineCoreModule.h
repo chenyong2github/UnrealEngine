@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats2.h"
 #include "Modules/ModuleInterface.h"
+#include "Features/IModularFeature.h"
 
 // Forward Declare
 class UMoviePipelineExecutorBase;
@@ -53,6 +54,16 @@ private:
 	FString SequenceAssetValue;
 	FString SettingsAssetValue;
 };
+
+class MOVIERENDERPIPELINECORE_API IMoviePipelineBurnInExtension : public IModularFeature
+{
+public:
+	virtual ~IMoviePipelineBurnInExtension() {}
+	static FName ModularFeatureName;
+
+	virtual FText GetEngineChangelistLabel() const { return FText(); }
+};
+
 
 MOVIERENDERPIPELINECORE_API DECLARE_LOG_CATEGORY_EXTERN(LogMovieRenderPipeline, Log, All);
 MOVIERENDERPIPELINECORE_API DECLARE_LOG_CATEGORY_EXTERN(LogMovieRenderPipelineIO, Log, All);

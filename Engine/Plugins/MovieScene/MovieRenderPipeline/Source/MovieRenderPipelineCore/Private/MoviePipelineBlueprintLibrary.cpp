@@ -29,7 +29,9 @@
 #include "MovieSceneSequenceID.h"
 #include "MoviePipelineUtils.h"
 #include "UObject/UObjectHash.h"
-
+#include "MovieRenderPipelineCoreModule.h"
+#include "Features/IModularFeatures.h"
+#include "Misc/EngineVersion.h"
 
 // For camera settings
 #include "GameFramework/PlayerController.h"
@@ -961,4 +963,31 @@ UMoviePipelineExecutorShot* UMoviePipelineBlueprintLibrary::GetCurrentExecutorSh
 	}
 
 	return nullptr;
+}
+
+FText UMoviePipelineBlueprintLibrary::GetMoviePipelineEngineChangelistLabel(const UMoviePipeline*)
+{
+	// This is a modular feature so that you can write a plugin that provides the string. If you don't write a plugin
+	// then it falls back to the existing logic which pulls the engine build version.
+	if(IModularFeatures::Get().IsModularFeatureAvailable(IMoviePipelineBurnInExtension::ModularFeatureName))
+	{
+		IMoviePipelineBurnInExtension& Extension = IModularFeatures::Get().GetModularFeature<IMoviePipelineBurnInExtension>(IMoviePipelineBurnInExtension::ModularFeatureName);
+		const FText Label = Extension.GetEngineChangelistLabel();
+		if (!Label.IsEmpty())
+		{
+			return Label;
+		}
+	}
+
+	FString EngineVersion = FEngineVersion::Current().ToString();
+	int32 ChangeListIndexStart = EngineVersion.Find(TEXT("-"));
+	int32 ChangeListIndexEnd = EngineVersion.Find(TEXT("+"));
+
+	if (ChangeListIndexStart > 0 && ChangeListIndexEnd > 0)
+	{
+		FString Substr = EngineVersion.Mid(ChangeListIndexStart + 1, (ChangeListIndexEnd - ChangeListIndexStart) - 1);
+		return FText::FromString(Substr);
+	}
+
+	return FText();
 }

@@ -9,6 +9,8 @@
 #include "TimerManager.h"
 #include "MoviePipeline.h"
 
+FName IMoviePipelineBurnInExtension::ModularFeatureName = "ModularFeature_MoviePipelineBurnInExt";
+
 void FMovieRenderPipelineCoreModule::StartupModule()
 {
 #if WITH_EDITOR
