@@ -355,19 +355,39 @@ void TraceReflections(
 		FReflectionTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceScreenTexturesCS::FParameters>();
 
 		FRDGTextureRef CurrentSceneColor = SceneTextures.Color.Resolve;
+
 		FRDGTextureRef InputColor = CurrentSceneColor;
+		FIntPoint ViewportOffset = View.ViewRect.Min;
+		FIntPoint ViewportExtent = View.ViewRect.Size();
+		FIntPoint BufferSize = SceneTextures.Config.Extent;
 
 		if (View.PrevViewInfo.CustomSSRInput.IsValid())
 		{
 			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput.RT[0]);
+			ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
+			ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
+			BufferSize = InputColor->Desc.Extent;
 		}
 		else if (View.PrevViewInfo.TSRHistory.IsValid())
 		{
 			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TSRHistory.LowFrequency);
+			ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
+			ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
+			BufferSize = InputColor->Desc.Extent;
 		}
 		else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 		{
 			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
+			ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
+			ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
+			BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
+		}
+		else if (View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
+		{
+			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.ScreenSpaceRayTracingInput);
+			ViewportOffset = View.PrevViewInfo.ViewRect.Min;
+			ViewportExtent = View.PrevViewInfo.ViewRect.Size();
+			BufferSize = InputColor->Desc.Extent;
 		}
 
 		{
@@ -387,29 +407,6 @@ void TraceReflections(
 		}
 
 		{
-			FIntPoint ViewportOffset = View.ViewRect.Min;
-			FIntPoint ViewportExtent = View.ViewRect.Size();
-			FIntPoint BufferSize = SceneTextures.Config.Extent;
-
-			if (View.PrevViewInfo.CustomSSRInput.IsValid())
-			{
-				ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
-				ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
-				BufferSize = InputColor->Desc.Extent;
-			}
-			else if (View.PrevViewInfo.TSRHistory.IsValid())
-			{
-				ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
-				ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
-				BufferSize = InputColor->Desc.Extent;
-			}
-			else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
-			{
-				ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
-				ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
-				BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
-			}
-
 			FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
 
 			PassParameters->PrevScreenPositionScaleBias = FVector4(
