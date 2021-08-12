@@ -10,7 +10,6 @@ public class XmlParser : ModuleRules
 			new string[] 
 			{ 
 				"Core",
-				"CoreUObject",
 			}
 			);
 	}
