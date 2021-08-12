@@ -8,7 +8,6 @@
 #include "AssetPlacementSettings.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
-#include "InstancedFoliageActor.h"
 #include "Selection.h"
 #include "EngineUtils.h"
 
@@ -20,15 +19,13 @@
 #include "Tools/PlacementEraseTool.h"
 
 #include "Factories/AssetFactoryInterface.h"
-#include "Elements/Actor/ActorElementData.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementCommonActions.h"
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 
 #include "Settings/LevelEditorMiscSettings.h"
 #include "Modes/PlacementModeSubsystem.h"
-
-#include "InstancedFoliageActor.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementEdMode"
 
@@ -74,15 +71,6 @@ void UAssetPlacementEdMode::Enter()
 
 void UAssetPlacementEdMode::Exit()
 {
-	// Todo: remove with HISM element handles
-	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
-	{
-		AInstancedFoliageActor* IFA = *It;
-		// null component will clear all selection
-		constexpr bool bAppendSelection = false;
-		IFA->SelectInstance(nullptr, 0, bAppendSelection);
-	}
-
 	Super::Exit();
 
 	// Restore the selection to the original state after all the tools have shutdown in UEdMode::Exit()
@@ -163,13 +151,6 @@ void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInt
 	if (bRestoreSelectionState)
 	{
 		Owner->RestoreSelection(UPlacementModeSelectTool::ToolName);
-
-		// Todo: remove with HISM element handles
-		for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
-		{
-			AInstancedFoliageActor* IFA = *It;
-			IFA->ApplySelection(bIsInSelectionTool);
-		}
 	}
 	else if (!bIsInSelectionTool)
 	{
@@ -207,7 +188,7 @@ bool UAssetPlacementEdMode::ShouldDrawWidget() const
 
 bool UAssetPlacementEdMode::IsEnabled()
 {
-	return GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode;
+	return SMInstanceElementDataUtil::SMInstanceElementsEnabled() && GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode;
 }
 
 void UAssetPlacementEdMode::DeleteSelection()
@@ -219,19 +200,6 @@ void UAssetPlacementEdMode::DeleteSelection()
 		CommonActions->DeleteSelectedElements(Owner->GetEditorSelectionSet(), GetWorld(), FTypedElementDeletionOptions());
 	}
 
-	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
-	{
-		if (AInstancedFoliageActor* FoliageActor = *It)
-		{
-			FoliageActor->ForEachFoliageInfo([](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
-			{
-				TArray<int32> SelectedIndices = FoliageInfo.SelectedIndices.Array();
-				FoliageInfo.RemoveInstances(SelectedIndices, true);
-				return true; // continue iteration
-			});
-		}
-	}
-
 	GetToolManager()->EndUndoTransaction();
 }
 
@@ -241,19 +209,6 @@ void UAssetPlacementEdMode::ClearSelection()
 	if (UTypedElementSelectionSet* SelectionSet = Owner->GetEditorSelectionSet())
 	{
 		SelectionSet->ClearSelection(FTypedElementSelectionOptions());
-	}
-
-	// Todo - remove with instanced handles
-	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
-	{
-		if (AInstancedFoliageActor* FoliageActor = *It)
-		{
-			FoliageActor->ForEachFoliageInfo([](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
-			{
-				FoliageInfo.ClearSelection();
-				return true; // continue iteration
-			});
-		}
 	}
 	GetToolManager()->EndUndoTransaction();
 }
@@ -273,24 +228,6 @@ bool UAssetPlacementEdMode::HasActiveSelection() const
 	if (Owner->GetEditorSelectionSet()->HasSelectedElements())
 	{
 		return true;
-	}
-
-	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
-	{
-		if (AInstancedFoliageActor* FoliageActor = *It)
-		{
-			bool bHasSelectedFoliage = false;
-			FoliageActor->ForEachFoliageInfo([&bHasSelectedFoliage](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
-				{
-					bHasSelectedFoliage = (FoliageInfo.SelectedIndices.Num() > 0);
-					return !bHasSelectedFoliage;
-				});
-
-			if (bHasSelectedFoliage)
-			{
-				return true;
-			}
-		}
 	}
 
 	return false;

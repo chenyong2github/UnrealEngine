@@ -553,6 +553,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Foliage)
 	uint32 InstancedFoliageGridSize;
 
+	/** Default size of the grid for placed elements from the editor */
+	UPROPERTY(EditAnywhere, Category=Editor)
+	uint32 DefaultPlacementGridSize;
+
 	/** scale of 1uu to 1m in real world measurements, for HMD and other physically tracked devices (e.g. 1uu = 1cm would be 100.0) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=VR)
 	float WorldToMeters;

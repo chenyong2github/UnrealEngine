@@ -35,16 +35,27 @@ struct EDITORFRAMEWORK_API FAssetPlacementInfo
 	// If set, will use the given factory to place the asset, instead of allowing the placement subsystem to determine which factory to use.
 	UPROPERTY()
 	TScriptInterface<IAssetFactoryInterface> FactoryOverride;
+
+	/**
+	 * The Guid which corresponds to the item that should be placed.
+	 * If unset, the asset package's persistent guid will be used.
+	 * Factories should use this to tie any decomposed assets together. For example, the ItemGuid would correspond to the client in an AISMPartitionActor for tracking all static meshes which make up a decomposed actor.
+	 */
+	UPROPERTY()
+	FGuid ItemGuid;
 };
 
 USTRUCT()
 struct EDITORFRAMEWORK_API FPlacementOptions
 {
 	GENERATED_BODY()
-
-	// If true, asset factory implementations should defer to placing instanced items (i.e. instanced static mesh instead of individual static mesh actors).
+	
+	/**
+	 * The guid to use by factories for instanced placement. If unset, factories will not use instanced placement.
+	 * This is used to reduce contention within one file per actor within a partition.
+	 */
 	UPROPERTY()
-	bool bPreferInstancedPlacement = true;
+	FGuid InstancedPlacementGridGuid;
 
 	// If true, asset factory implementations should prefer a batch placement algorithm (like duplicating an object) over a single placement algorithm.
 	UPROPERTY()
@@ -73,7 +84,7 @@ public:
 	TArray<FTypedElementHandle> PlaceAsset(const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions);
 
 	/**
-	 * Places a multiple asset based on the given FAssetPlacementInfos and FPlacementOptions.
+	 * Places multiple assets based on the given FAssetPlacementInfos and FPlacementOptions.
 	 * @returns an array of FTypedElementHandles corresponding to any successfully placed elements.
 	 */
 	TArray<FTypedElementHandle> PlaceAssets(TArrayView<const FAssetPlacementInfo> InPlacementInfos, const FPlacementOptions& InPlacementOptions);
@@ -89,6 +100,11 @@ public:
 	 * @returns true if the current PlaceAssets call is creating preview elements.
 	 */
 	bool IsCreatingPreviewElements() const;
+
+	/**
+	 * Returns the guid which the placement system should use to tie instanced placement to the current user for partitions.
+	 */
+	static FGuid GetUserGridGuid();
 
 private:
 	void RegisterPlacementFactories();

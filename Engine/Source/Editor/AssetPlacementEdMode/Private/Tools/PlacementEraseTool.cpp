@@ -11,7 +11,6 @@
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Tools/AssetEditorContextInterface.h"
 #include "Editor.h"
-#include "InstancedFoliageActor.h"
 #include "AssetPlacementEdMode.h"
 #include "AssetPlacementSettings.h"
 #include "Modes/PlacementModeSubsystem.h"
@@ -67,31 +66,6 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 	}
 
 	FTypedElementListRef ElementsToDelete = GetElementsInBrushRadius(LastDeviceInputRay);
-	if (!FoliageElementUtil::FoliageInstanceElementsEnabled())
-	{
-		ElementsToDelete->RemoveAll<UTypedElementObjectInterface>([this](const TTypedElement<UTypedElementObjectInterface>& ObjectInterface)
-		{
-			// Since the foliage static mesh instances do not currently operate with element handles, we have to drill in manually here.
-			if (AInstancedFoliageActor* FoliageActor = ObjectInterface.GetObjectAs<AInstancedFoliageActor>())
-			{
-				FoliageActor->ForEachFoliageInfo([this](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
-				{
-					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageType->GetSource());
-					if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
-					{
-						TArray<int32> Instances;
-						FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
-						FoliageInfo.GetInstancesInsideSphere(SphereToCheck, Instances);
-						FoliageInfo.RemoveInstances(Instances, true);
-					}
-					return true; // continue iteration
-				});
-				return true; // Foliage - remove from the normal element delete
-			}
-			return false; // Not foliage - will be processed via the normal element delete
-		});
-	}
-
 	if (ElementsToDelete->HasElements())
 	{
 		FTypedElementListRef NormalizedElementsToDelete = SelectionSet->GetNormalizedElementList(ElementsToDelete, FTypedElementSelectionNormalizationOptions());

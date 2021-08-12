@@ -37,7 +37,7 @@ public:
 	int32 RegisterISMComponentDescriptor(const FISMComponentDescriptor& Descriptor);
 	const FISMComponentDescriptor& GetISMComponentDescriptor(int32 DescriptorIndex) const { return Descriptors[DescriptorIndex]; }
 
-	void AddISMInstance(const FISMClientHandle& Handle, const FTransform& InstanceTransform, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition);
+	TArray<FSMInstanceId> AddISMInstance(const FISMClientHandle& Handle, const FTransform& InstanceTransform, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition);
 	void RemoveISMInstance(const FISMClientHandle& Handle, int32 InstanceIndex, bool* bOutIsEmpty = nullptr);
 	void RemoveISMInstances(const FISMClientHandle& Handle);
 	void SelectISMInstances(const FISMClientHandle& Handle, bool bSelect, const TSet<int32>& Indices);
@@ -61,7 +61,7 @@ private:
 	void RemoveISMInstancesInternal(FISMComponentData& ComponentData, FISMClientData& OwnerData, int32 InstanceIndex);
 
 	void InvalidateComponentLightingCache(FISMComponentData& ComponentData);
-	void AddInstanceToComponent(FISMComponentData& ComponentData, const FTransform& WorldTransform);
+	int32 AddInstanceToComponent(FISMComponentData& ComponentData, const FTransform& WorldTransform);
 	void UpdateInstanceTransform(FISMComponentData& ComponentData, int32 ComponentInstanceIndex, const FTransform& WorldTransform, bool bTeleport);
 	void RemoveInstanceFromComponent(FISMComponentData& ComponentData, int32 ComponentInstanceIndex);
 	bool DestroyComponentIfEmpty(FISMComponentDescriptor& Descriptor, FISMComponentData& ComponentData);

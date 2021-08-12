@@ -19,7 +19,9 @@ AISMPartitionActor::AISMPartitionActor(const FObjectInitializer& ObjectInitializ
 	, bWasModifyCalled(false)
 #endif
 {
-
+#if WITH_EDITORONLY_DATA
+	bListedInSceneOutliner = false;
+#endif
 }
 
 #if WITH_EDITOR
@@ -200,13 +202,14 @@ void AISMPartitionActor::ReserveISMInstances(const FISMClientHandle& Handle, int
 	EndUpdate();
 }
 
-void AISMPartitionActor::AddISMInstance(const FISMClientHandle& Handle, const FTransform& InstanceTransform, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition)
+TArray<FSMInstanceId> AISMPartitionActor::AddISMInstance(const FISMClientHandle& Handle, const FTransform& InstanceTransform, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition)
 {
 	check(Handle.Guid == Clients[Handle.Index]);
 	// Create Descriptor entry
 	BeginUpdate();
 	ModifyActor();
 
+	TArray<FSMInstanceId> AddedInstances;
 	for (const auto& Pair : InstanceDefinition)
 	{
 		const int32 DescriptorIndex = Pair.Key;
@@ -236,11 +239,18 @@ void AISMPartitionActor::AddISMInstance(const FISMClientHandle& Handle, const FT
 			ClientInstance.ComponentIndices.Add(ComponentInstanceIndex);
 			
 			FTransform NewInstanceTransform = LocalTransform * InstanceTransform;
-			AddInstanceToComponent(ComponentData, NewInstanceTransform);
+
+			int32 NewInstanceIdx = AddInstanceToComponent(ComponentData, NewInstanceTransform);
+			if (NewInstanceIdx != INDEX_NONE)
+			{
+				AddedInstances.Emplace(FSMInstanceId{ ComponentData.Component, NewInstanceIdx });
+			}
 		}
 	}
 
 	EndUpdate();
+
+	return AddedInstances;
 }
 
 void AISMPartitionActor::RemoveISMInstances(const FISMClientHandle& Handle)
@@ -313,12 +323,13 @@ void AISMPartitionActor::RemoveInstanceFromComponent(FISMComponentData& Componen
 	}
 }
 
-void AISMPartitionActor::AddInstanceToComponent(FISMComponentData& ComponentData, const FTransform& WorldTransform)
+int32 AISMPartitionActor::AddInstanceToComponent(FISMComponentData& ComponentData, const FTransform& WorldTransform)
 {
 	check(ComponentData.Component);
 	ModifyComponent(ComponentData);
-	ComponentData.Component->AddInstance(WorldTransform, /*bWorldSpace*/true);
+	int32 NewInstanceIdx = ComponentData.Component->AddInstance(WorldTransform, /*bWorldSpace*/true);
 	InvalidateComponentLightingCache(ComponentData);
+	return NewInstanceIdx;
 }
 
 void AISMPartitionActor::UpdateInstanceTransform(FISMComponentData& ComponentData, int32 ComponentInstanceIndex, const FTransform& WorldTransform, bool bTeleport)
