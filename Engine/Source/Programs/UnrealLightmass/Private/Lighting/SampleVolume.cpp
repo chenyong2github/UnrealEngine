@@ -462,7 +462,7 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 		// Clamp the number of volume samples generated to DynamicObjectSettings.MaxVolumeSamples if necessary by resizing EffectiveVolumeSpacing
 		if (RequestedVolumeSamples > DynamicObjectSettings.MaxVolumeSamples)
 		{
-			EffectiveVolumeSpacing = FMath::Pow(8.0f * VolumeBounds.BoxExtent.X * VolumeBounds.BoxExtent.Y * VolumeBounds.BoxExtent.Z / DynamicObjectSettings.MaxVolumeSamples, .3333333f);
+			EffectiveVolumeSpacing = FMath::Pow(8.0f * float(VolumeBounds.BoxExtent.X * VolumeBounds.BoxExtent.Y * VolumeBounds.BoxExtent.Z / DynamicObjectSettings.MaxVolumeSamples), .3333333f);		// LWC_TODO: Precision loss - float cast
 		}
 			
 		int32 NumUniformVolumeSamples = 0;
