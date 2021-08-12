@@ -46,9 +46,6 @@ public:
 	virtual FText GetActiveToolMessage() const override;
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
-	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
-	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
-
 private:
 	/** The edit mode we are bound to */
 	FControlRigEditMode& EditMode;

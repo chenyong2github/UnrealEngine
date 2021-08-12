@@ -92,8 +92,6 @@ void UFractureEditorMode::Exit()
 	if (Toolkit.IsValid())
 	{
 		static_cast<FFractureEditorModeToolkit*>(Toolkit.Get())->Shutdown();
-		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
-		Toolkit.Reset();
 	}
 
 	FLevelEditorModule* LevelEditor = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");

@@ -45,14 +45,6 @@ namespace SteamAudio
 	{
 	}
 
-	void FSteamAudioEdModeToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager)
-	{
-	}
-
-	void FSteamAudioEdModeToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager)
-	{
-	}
-
 	void FSteamAudioEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 	{
 		SAssignNew(ToolkitWidget, SScrollBox)

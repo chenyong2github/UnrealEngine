@@ -12,6 +12,11 @@ void FLayoutExtender::ExtendArea(FName ExtensionId, const FAreaExtension& AreaEx
 	AreaExtensions.Add(ExtensionId, FExtendedArea(AreaExtension));
 }
 
+SLATE_API void FLayoutExtender::ExtendStack(FName ExtensionId, ELayoutExtensionPosition Position, FTabManager::FTab TabToAdd)
+{
+	StackExtensions.Add(ExtensionId, FExtendedTab(Position, TabToAdd));
+}
+
 void FLayoutExtender::ExtendAreaRecursive(const TSharedRef<FTabManager::FArea>& Area) const
 {
 	FName ExtensionId = Area->GetExtensionId();

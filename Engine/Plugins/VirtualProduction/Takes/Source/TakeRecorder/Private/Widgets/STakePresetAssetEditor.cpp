@@ -28,6 +28,7 @@
 STakePresetAssetEditor::~STakePresetAssetEditor()
 {
 	FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
+	Toolkit.Reset();
 }
 
 PRAGMA_DISABLE_OPTIMIZATION

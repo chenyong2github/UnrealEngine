@@ -85,9 +85,6 @@ public:
 	/** Sets the UI customization of the SCSEditor inside the level editor details panel. */
 	virtual void SetActorDetailsSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization) = 0;
 
-	/** Spawns a level editor ToolBox widget (aka. "Modes") */
-	virtual TSharedRef<SWidget> CreateToolBox() = 0;
-
 	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const = 0;
 };
 

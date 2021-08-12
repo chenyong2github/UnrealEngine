@@ -10,6 +10,7 @@ class FEdMode;
 class UEdMode;
 class IToolkitHost;
 class FEditorModeTools;
+class FAssetEditorModeUILayer;
 
 /** Some toolkits can be spawned as either standalone tools or within an existing level editing UI */
 namespace EToolkitMode
@@ -122,24 +123,6 @@ public:
 	/** Call this function to bring all of this toolkit's tabs to the foreground in their respective stacks.  Also causes the toolkit's host window to be foregrounded, too! */
 	virtual void BringToolkitToFront() = 0;
 
-	/* Gets the mode manager for this toolkit */
-	virtual FEditorModeTools& GetEditorModeManager() const = 0;
-
-	/** @returns the editor mode this toolkit is used for, or null if not relevant. */
-	virtual FEdMode* GetEditorMode() const = 0;
-
-	/** @returns the scriptable editor mode this toolkit is used for, or null if not relevant. */
-	virtual TWeakObjectPtr<UEdMode> GetScriptableEditorMode() const = 0;
-
-	/** @return the editor mode display name if there is an editor mode associated with this toolkit.  An empty FText is returned otherwise */
-	virtual FText GetEditorModeDisplayName() const = 0;
-
-	/** @return the editor mode icon if there is an editor mode associated with this toolkit.  An empty icon is returned otherwise */
-	virtual FSlateIcon GetEditorModeIcon() const = 0;
-
-	/** @returns the inline content that this toolkit returns if it is an editor mode */
-	virtual TSharedPtr<SWidget> GetInlineContent() const = 0;
-
 	/** Returns if this is a IBlueprintEditor derivation */
 	virtual bool IsBlueprintEditor() const = 0;
 
@@ -148,6 +131,15 @@ public:
 
 	/* Returns true if this is the default generic asset editor used by multiple classes */
 	virtual bool IsSimpleAssetEditor() const { return false; }
+
+	/* Gets the mode manager for this toolkit */
+	virtual FEditorModeTools& GetEditorModeManager() const = 0;
+
+	/** @returns the inline content that this toolkit returns */
+	virtual TSharedPtr<SWidget> GetInlineContent() const = 0;
+
+	virtual void SetModeUILayer(const TSharedPtr<FAssetEditorModeUILayer> InLayer) {};
 };
+
 
 

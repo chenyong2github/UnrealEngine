@@ -39,6 +39,7 @@
 #include "Insights/Widgets/STimerTreeView.h"
 #include "Insights/Widgets/STimingProfilerToolbar.h"
 #include "Insights/Widgets/STimingView.h"
+#include "Framework/Docking/TabManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -436,7 +437,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	}
 
 	// Register any new minor tabs.
-	for (const FInsightsMinorTabConfig& MinorTabConfig : Extension->GetMinorTabs())
+	for (const FMinorTabConfig& MinorTabConfig : Extension->GetMinorTabs())
 	{
 		FTabSpawnerEntry& TabSpawnerEntry = TabManager->RegisterTabSpawner(MinorTabConfig.TabId, MinorTabConfig.OnSpawnTab, MinorTabConfig.CanSpawnTab);
 

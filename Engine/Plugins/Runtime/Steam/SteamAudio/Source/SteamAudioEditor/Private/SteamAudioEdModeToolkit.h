@@ -21,9 +21,6 @@ namespace SteamAudio
 		FSteamAudioEdModeToolkit();
 		~FSteamAudioEdModeToolkit();
 
-		virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-		virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-
 		/** Initializes the geometry mode toolkit */
 		virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
 

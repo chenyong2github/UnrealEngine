@@ -553,6 +553,18 @@ void FTabManager::FLayout::ProcessExtensions(const FLayoutExtender& Extender)
 
 	for (FTabManager::FStack* Stack : AllTabs.AllStacks)
 	{
+		// First add to the front of the stack
+		Extender.FindStackExtensions(Stack->GetExtensionId(), ELayoutExtensionPosition::Before, ExtendedTabs);
+		int32 InsertedTabIndex = 0;
+		for (FTab& NewTab : ExtendedTabs)
+		{
+			if (!AllTabs.Contains(NewTab.TabId))
+			{
+				Stack->Tabs.Insert(NewTab, InsertedTabIndex++);
+			}
+		}
+
+		// This is the per-tab extension section
 		FSplitter* ParentSplitter = AllTabs.StackToParentSplitterMap.FindRef(Stack);
 		for (int32 TabIndex = 0; TabIndex < Stack->Tabs.Num();)
 		{
@@ -612,6 +624,17 @@ void FTabManager::FLayout::ProcessExtensions(const FLayoutExtender& Extender)
 						}
 					}
 				}
+			}
+		}
+
+		// Finally add to the end of the stack
+		Extender.FindStackExtensions(Stack->GetExtensionId(), ELayoutExtensionPosition::After, ExtendedTabs);
+		InsertedTabIndex = Stack->Tabs.Num();
+		for (FTab& NewTab : ExtendedTabs)
+		{
+			if (!AllTabs.Contains(NewTab.TabId))
+			{
+				Stack->Tabs.Insert(NewTab, InsertedTabIndex++);
 			}
 		}
 	}

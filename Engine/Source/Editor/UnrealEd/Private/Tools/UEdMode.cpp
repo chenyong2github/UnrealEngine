@@ -131,6 +131,7 @@ void UEdMode::Exit()
 		{
 			CommandList->UnmapAction(RegisteredTool.Key);
 		}
+		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
 	RegisteredTools.SetNum(0);

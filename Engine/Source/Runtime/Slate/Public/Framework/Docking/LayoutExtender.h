@@ -46,6 +46,16 @@ public:
 	 */
 	SLATE_API void ExtendArea(FName ExtensionId, const FAreaExtension& AreaExtension);
 
+	/**
+	 * Extend the tab stack identified by the specified extension ID
+	 *
+	 * @param ExtensionId			The ID of the area to extend (FTabManager::FStack::ExtensionId)
+	 * @param AreaExtensions		A callback to call with the default layout for the desired area
+	 * @param Position				Whether to place the new tab at the start or end of this stack. Above and below are not used for this case.
+	 * @param TabToAdd				The new tab definition
+	 */
+	SLATE_API void ExtendStack(FName ExtensionId, ELayoutExtensionPosition Position, FTabManager::FTab TabToAdd);
+
 
 	/**
 	 * Populate the specified container with the tabs that relate to the specified tab ID
@@ -61,6 +71,30 @@ public:
 
 		TArray<FExtendedTab, TInlineAllocator<2>> Extensions;
 		TabExtensions.MultiFind(TabId, Extensions, true);
+
+		for (FExtendedTab& Extension : Extensions)
+		{
+			if (Extension.Position == Position)
+			{
+				OutValues.Add(Extension.TabToAdd);
+			}
+		}
+	}
+
+	/**
+	 * Populate the specified container with the tabs that relate to the specified stack
+	 *
+	 * @param TabId					The existing tab that may be extended
+	 * @param Position				The position to acquire extensions for (before/after)
+	 * @param OutValues				The container to populate with extended tabs
+	 */
+	template<typename AllocatorType>
+	void FindStackExtensions(FName ExtensionID, ELayoutExtensionPosition Position, TArray<FTabManager::FTab, AllocatorType>& OutValues) const
+	{
+		OutValues.Reset();
+
+		TArray<FExtendedTab, TInlineAllocator<2>> Extensions;
+		StackExtensions.MultiFind(ExtensionID, Extensions, true);
 
 		for (FExtendedTab& Extension : Extensions)
 		{
@@ -104,6 +138,9 @@ private:
 
 	/** Map of extensions for tabs */
 	TMultiMap<FTabId, FExtendedTab> TabExtensions;
+
+	/** Map of extensions for stacks */
+	TMultiMap<FName, FExtendedTab> StackExtensions;
 
 	/** Map of extensions for areas */
 	TMultiMap<FName, FExtendedArea> AreaExtensions;

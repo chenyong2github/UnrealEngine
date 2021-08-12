@@ -370,6 +370,7 @@ void FControlRigEditMode::Exit()
 	if (Toolkit.IsValid())
 	{
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
+		Toolkit.Reset();
 	}
 
 	DestroyGizmosActors();

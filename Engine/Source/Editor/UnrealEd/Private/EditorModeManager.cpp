@@ -30,8 +30,6 @@
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Tools/UEdMode.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SExpandableArea.h"
-#include "Widgets/Layout/SScrollBox.h"
 #include "InputRouter.h"
 #include "InteractiveGizmoManager.h"
 #include "EdModeInteractiveToolsContext.h"
@@ -51,7 +49,7 @@
 	The master class that handles tracking of the current mode.
 ------------------------------------------------------------------------------*/
 
-const FName FEditorModeTools::EditorModeToolbarTabName = TEXT("EditorModeToolbar");
+
 
 FEditorModeTools::FEditorModeTools()
 	: PivotShown(false)
@@ -672,16 +670,6 @@ void FEditorModeTools::DeactivateScriptableModeAtIndex(int32 InIndex)
 	UEdMode* Mode = ActiveScriptableModes[InIndex];
 	ActiveScriptableModes.RemoveAt(InIndex);
 
-	// Remove the toolbar widget to remove any toolkit references that may get removed when the mode exits.
-	ActiveToolBarRows.RemoveAll(
-		[&Mode](FEdModeToolbarRow& Row)
-		{
-			return Row.ModeID == Mode->GetID();
-		}
-	);
-
-	RebuildModeToolBar();
-
 	Mode->Exit();
 
 	const bool bIsEnteringMode = false;
@@ -695,187 +683,8 @@ void FEditorModeTools::OnModeUnregistered(FEditorModeID ModeID)
 	DestroyMode(ModeID);
 }
 
-void FEditorModeTools::RebuildModeToolBar()
-{
-	// If the tab or box is not valid the toolbar has not been opened or has been closed by the user
-	TSharedPtr<SVerticalBox> ModeToolbarBoxPinned = ModeToolbarBox.Pin();
-	if (ModeToolbarTab.IsValid() && ModeToolbarBoxPinned.IsValid())
-	{
-		ModeToolbarBoxPinned->ClearChildren();
 
-		bool bExclusivePalettes = true;
-		TSharedRef<SVerticalBox> ToolBoxVBox = SNew(SVerticalBox);
 
-		TSharedRef< SUniformWrapPanel> PaletteTabBox = SNew(SUniformWrapPanel)
-			.SlotPadding(FMargin(1.f, 2.f))
-			.HAlign(HAlign_Left);
-		TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher);
-
-		int32 PaletteCount = ActiveToolBarRows.Num();
-		if(PaletteCount > 0)
-		{
-			for(int32 RowIdx = 0; RowIdx < PaletteCount; ++RowIdx)
-			{
-				const FEdModeToolbarRow& Row = ActiveToolBarRows[RowIdx];
-				if (ensure(Row.ToolbarWidget.IsValid()))
-				{
-					TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
-					
-					TSharedPtr<FModeToolkit> RowToolkit;
-					if (FEdMode* Mode = GetActiveMode(Row.ModeID))
-					{
-						RowToolkit = Mode->GetToolkit();
-					}
-					else if (UEdMode* ScriptableMode = GetActiveScriptableMode(Row.ModeID))
-					{
-						RowToolkit = ScriptableMode->GetToolkit().Pin();
-					}
-
-					bExclusivePalettes = RowToolkit->HasExclusiveToolPalettes();
-
-					if (!bExclusivePalettes)
-					{
-						ToolBoxVBox->AddSlot()
-						.AutoHeight()
-						.Padding(FMargin(2.0, 2.0))
-						[
-							SNew(SExpandableArea)
-							.AreaTitle(Row.DisplayName)
-							.AreaTitleFont(FAppStyle::Get().GetFontStyle("NormalFont"))
-							.BorderImage(FAppStyle::Get().GetBrush("PaletteToolbar.ExpandableAreaHeader"))
-							.BodyBorderImage(FAppStyle::Get().GetBrush("PaletteToolbar.ExpandableAreaBody"))
-							.HeaderPadding(FMargin(4.f))
-							.Padding(FMargin(4.0, 0.0))
-							.BodyContent()
-							[
-								PaletteWidget	
-							]
-						];
-					}
-					else 
-					{
-						// Don't show Palette Tabs if there is only one
-						if (PaletteCount > 1)
-						{
-							PaletteTabBox->AddSlot()
-							[
-								SNew(SCheckBox)
-								.Style( FEditorStyle::Get(),  "ToolPalette.DockingTab" )
-								.OnCheckStateChanged_Lambda( [PaletteSwitcher, Row, RowToolkit] (const ECheckBoxState) { 
-										PaletteSwitcher->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
-										RowToolkit->SetCurrentPalette(Row.PaletteName);
-									} 
-								)
-								.IsChecked_Lambda( [PaletteSwitcher, PaletteWidget] () -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-								[
-									SNew(STextBlock)
-									.Text(Row.DisplayName)
-								]
-							];
-						}
-
-						PaletteSwitcher->AddSlot()
-						[
-							PaletteWidget
-						]; 
-					}
-				}
-			}
-
-			ModeToolbarBoxPinned->AddSlot()
-			.AutoHeight()
-			[
-				SNew(SOverlay)
-				+SOverlay::Slot()
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("ToolPalette.DockingWell"))
-				]
-
-				+SOverlay::Slot()
-				[
-					PaletteTabBox
-				]
-			];
-
-			ModeToolbarBoxPinned->AddSlot()
-			.AutoHeight()
-			.Padding(1.f)
-			[
-				SNew(SBox)
-				.HeightOverride(PaletteSwitcher->GetNumWidgets() > 0 ? 45.f : 0.f)
-				[
-					PaletteSwitcher 
-				]
-			];
-
-			ModeToolbarBoxPinned->AddSlot()
-			[
-				SNew(SScrollBox)
-
-				+SScrollBox::Slot()
-				[
-					ToolBoxVBox	
-				]
-			];
-
-			ModeToolbarPaletteSwitcher = PaletteSwitcher;
-		}
-		else
-		{
-			ModeToolbarTab.Pin()->RequestCloseTab();
-		}
-	}
-}
-
-void FEditorModeTools::SpawnOrUpdateModeToolbar()
-{
-	if (ShouldShowModeToolbar())
-	{
-		if (ModeToolbarTab.IsValid())
-		{
-			RebuildModeToolBar();
-		}
-		else if (ToolkitHost.IsValid())
-		{
-			ToolkitHost.Pin()->GetTabManager()->TryInvokeTab(EditorModeToolbarTabName);
-		}
-	}
-}
-
-void FEditorModeTools::InvokeToolPaletteTab(FEditorModeID InModeID, FName InPaletteName)
-{
-	if (!ModeToolbarPaletteSwitcher.Pin()) 
-	{
-		return;
-	}
-
-	for (auto Row: ActiveToolBarRows)
-	{
-		if (Row.ModeID == InModeID && Row.PaletteName == InPaletteName)
-		{
-			TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
-
-			TSharedPtr<FModeToolkit> RowToolkit;
-			if (FEdMode* Mode = GetActiveMode(InModeID))
-			{
-				RowToolkit = Mode->GetToolkit();
-			}
-			else if (UEdMode* ScriptableMode = GetActiveScriptableMode(InModeID))
-			{
-				RowToolkit = ScriptableMode->GetToolkit().Pin();
-			}
-
-			TSharedPtr<SWidget> ActiveWidget = ModeToolbarPaletteSwitcher.Pin()->GetActiveWidget();
-			if (RowToolkit && ActiveWidget.Get() != Row.ToolbarWidget.Get())
-			{
-				ModeToolbarPaletteSwitcher.Pin()->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
-				RowToolkit->OnToolPaletteChanged(Row.PaletteName);
-			}
-			break;	
-		}
-	}	
-}
 
 void FEditorModeTools::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
 {
@@ -959,29 +768,7 @@ void FEditorModeTools::DestroyMode( FEditorModeID InID )
 	RecycledScriptableModes.Remove(InID);
 }
 
-TSharedRef<SDockTab> FEditorModeTools::MakeModeToolbarTab()
-{
-	TSharedRef<SDockTab> ToolbarTabRef = 	
-		SNew(SDockTab)
-		.Label(NSLOCTEXT("EditorModes", "EditorModesToolbarTitle", "Mode Toolbar"))
-		.ContentPadding(0.0f)
-		[
-			SAssignNew(ModeToolbarBox, SVerticalBox)	
-		];
 
-	ModeToolbarTab = ToolbarTabRef;
-
-	// Rebuild the toolbar with existing mode tools that may be active
-	RebuildModeToolBar();
-
-	return ToolbarTabRef;
-
-}
-
-bool FEditorModeTools::ShouldShowModeToolbar() const
-{
-	return ActiveToolBarRows.Num() > 0;
-}
 
 bool FEditorModeTools::ShouldShowModeToolbox() const
 {
@@ -1063,27 +850,6 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 
 	const bool bIsEnteringMode = true;
 	BroadcastEditorModeIDChanged(ScriptableMode->GetID(), bIsEnteringMode);
-
-	// Ask the mode to build the toolbar.
-	TSharedPtr<FUICommandList> CommandList;
-	const TSharedPtr<FModeToolkit> Toolkit = ScriptableMode->GetToolkit().Pin();
-	if (Toolkit && !Toolkit->HasIntegratedToolPalettes())
-	{
-		CommandList = Toolkit->GetToolkitCommands();
-
-		// Also build the toolkit here 
-		TArray<FName> PaletteNames;
-		Toolkit->GetToolPaletteNames(PaletteNames);
-		for (auto Palette : PaletteNames)
-		{
-			FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), false);
-			ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
-			Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
-			ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
-		}
-	}
-
-	SpawnOrUpdateModeToolbar();
 
 	RecycledScriptableModes.Remove(InID);
 

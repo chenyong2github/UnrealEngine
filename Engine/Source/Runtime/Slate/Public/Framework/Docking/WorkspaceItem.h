@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Textures/SlateIcon.h"
+#include "Misc/Attribute.h"
 
 struct FTabSpawnerEntry;
 
@@ -57,12 +58,12 @@ public:
 
 	const FText& GetDisplayName() const
 	{
-		return DisplayName;
+		return DisplayNameAttribute.Get();
 	}
 	
 	const FText& GetTooltipText() const
 	{
-		return TooltipText;
+		return TooltipTextAttribute.Get();
 	}
 
 	const FSlateIcon& GetIcon() const
@@ -139,28 +140,34 @@ public:
 		return bIsGroupPopulated;
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual ~FWorkspaceItem()
 	{
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 protected:
 	FWorkspaceItem( const FText& InDisplayName, const FSlateIcon& InIcon, const bool bInSortChildren )
 		: Icon(InIcon)
-		, DisplayName(InDisplayName)
+		, DisplayNameAttribute(InDisplayName)
 		, bSortChildren(bInSortChildren)
 	{
 	}
 
 	FWorkspaceItem( const FText& InDisplayName, const FText& InTooltipText, const FSlateIcon& InIcon, const bool bInSortChildren )
 		: Icon(InIcon)
-		, DisplayName(InDisplayName)
-		, TooltipText(InTooltipText)
+		, DisplayNameAttribute(InDisplayName)
+		, TooltipTextAttribute(InTooltipText)
 		, bSortChildren(bInSortChildren)
 	{
 	}
 
 	FSlateIcon Icon;
+	TAttribute<FText> DisplayNameAttribute;
+	TAttribute<FText> TooltipTextAttribute;
+	UE_DEPRECATED(5.0, "Use DisplayNameAttribute instead.")
 	FText DisplayName;
+	UE_DEPRECATED(5.0, "Use TooltipTextAttribute instead.")
 	FText TooltipText;
 	bool bSortChildren;
 
