@@ -263,6 +263,13 @@ public:
 	 */
 	FPrimitiveComponentId PrimitiveComponentId;
 
+	/**
+	 * Number assigned to this component when it was registered with the world.
+	 * This will only ever be updated if the object is re-registered.
+	 * Used by FPrimitiveArraySortKey for deterministic ordering.
+	 */
+	int32 RegistrationSerialNumber;
+
 	/** 
 	 * Pointer to the last render time variable on the primitive's owning actor (if owned), which is written to by the RT and read by the GT.
 	 * The value of LastRenderTime will therefore not be deterministic due to race conditions, but the GT uses it in a way that allows this.

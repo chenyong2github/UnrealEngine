@@ -695,14 +695,14 @@ FMeshDrawCommandSortKey CalculateDepthPassMeshStaticSortKey(EBlendMode BlendMode
 	FMeshDrawCommandSortKey SortKey;
 	if (GEarlyZSortMasked)
 	{
-		SortKey.BasePass.VertexShaderHash = PointerHash(VertexShader) & 0xFFFF;
-		SortKey.BasePass.PixelShaderHash = PointerHash(PixelShader);
+		SortKey.BasePass.VertexShaderHash = (VertexShader ? VertexShader->GetSortKey() : 0) & 0xFFFF;
+		SortKey.BasePass.PixelShaderHash = PixelShader ? PixelShader->GetSortKey() : 0;
 		SortKey.BasePass.Masked = BlendMode == EBlendMode::BLEND_Masked ? 1 : 0;
 	}
 	else
 	{
-		SortKey.Generic.VertexShaderHash = PointerHash(VertexShader);
-		SortKey.Generic.PixelShaderHash = PointerHash(PixelShader);
+		SortKey.Generic.VertexShaderHash = VertexShader ? VertexShader->GetSortKey() : 0;
+		SortKey.Generic.PixelShaderHash = PixelShader ? PixelShader->GetSortKey() : 0;
 	}
 	
 	return SortKey;

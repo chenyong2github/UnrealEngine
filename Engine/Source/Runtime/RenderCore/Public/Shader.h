@@ -715,6 +715,9 @@ public:
 	
 	const FSHAHash& GetOutputHash() const;
 
+	/** Returns an identifier suitable for deterministic sorting of shaders between sessions. */
+	uint32 GetSortKey() const { return SortKey; }
+
 	void Finalize(const FShaderMapResourceCode* Code);
 
 	// Accessors.
@@ -834,6 +837,9 @@ private:
 
 	/** The number of instructions the shader takes to execute. */
 	LAYOUT_FIELD(uint32, NumInstructions);
+
+	/** Truncated version of OutputHash, intended for sorting. Not suitable for unique shader identification. */
+	LAYOUT_FIELD(uint32, SortKey);
 
 	/** Number of texture samplers the shader uses. */
 	LAYOUT_FIELD_EDITORONLY(uint32, NumTextureSamplers);

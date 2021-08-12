@@ -3911,7 +3911,17 @@ struct FPrimitiveArraySortKey
 {
 	inline bool operator()(const FPrimitiveSceneInfo& A, const FPrimitiveSceneInfo& B) const
 	{
-		return A.Proxy->GetTypeHash() < B.Proxy->GetTypeHash();
+		uint32 AHash = A.Proxy->GetTypeHash();
+		uint32 BHash = B.Proxy->GetTypeHash();
+
+		if (AHash == BHash) 
+		{
+			return A.RegistrationSerialNumber < B.RegistrationSerialNumber;
+		}
+		else
+		{
+			return AHash < BHash;
+		}
 	}
 };
 

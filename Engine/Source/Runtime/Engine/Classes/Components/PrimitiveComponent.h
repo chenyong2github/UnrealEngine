@@ -750,6 +750,12 @@ public:
 	FPrimitiveComponentId ComponentId;
 
 	/**
+	* Identifier used to track the time that this component was registered with the world / renderer.
+	* Updated to unique incremental value each time OnRegister() is called. The value of 0 is unused.
+	* */
+	int32 RegistrationSerialNumber = -1;
+
+	/**
 	* Incremented by the main thread before being attached to the scene, decremented
 	* by the rendering thread after removal. This counter exists to assert that 
 	* operations are safe in order to help avoid race conditions.
@@ -783,6 +789,9 @@ protected:
 
 	/** Next id to be used by a component. */
 	static FThreadSafeCounter NextComponentId;
+
+	/** Next registration serial number to be assigned to a component when it is registered. */
+	static FThreadSafeCounter NextRegistrationSerialNumber;
 
 public:
 	/** 

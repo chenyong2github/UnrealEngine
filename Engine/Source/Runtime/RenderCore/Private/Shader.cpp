@@ -536,9 +536,13 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 	, CodeSize(Initializer.CodeSize)
 #endif // WITH_EDITORONLY_DATA
 {
-#if WITH_EDITORONLY_DATA
 	checkSlow(Initializer.OutputHash != FSHAHash());
-	
+
+	// Only store a truncated hash to minimize memory overhead
+	static_assert(sizeof(SortKey) <= sizeof(Initializer.OutputHash.Hash));
+	FMemory::Memcpy(&SortKey, Initializer.OutputHash.Hash, sizeof(SortKey));
+
+#if WITH_EDITORONLY_DATA
 	OutputHash = Initializer.OutputHash;
 
 	// Store off the source hash that this shader was compiled with
