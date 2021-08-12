@@ -47,6 +47,7 @@ public class UMGEditor : ModuleRules
 				"EditorFramework",
 				"UnrealEd", // for Asset Editor Subsystem
 				"KismetWidgets",
+				"EditorWidgets",
 				"KismetCompiler",
 				"BlueprintGraph",
 				"GraphEditor",
