@@ -21,6 +21,12 @@ bool FTraceProvider::ReadMotionMatchingStateTimeline(uint64 InAnimInstanceId, in
 	return MotionMatchingStateTimelineStorage.ReadTimeline(InAnimInstanceId, InNodeId, Callback);
 }
 
+bool FTraceProvider::EnumerateMotionMatchingStateTimelines(uint64 InAnimInstanceId, TFunctionRef<void(const FMotionMatchingStateTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+	return MotionMatchingStateTimelineStorage.EnumerateNodeTimelines(InAnimInstanceId, Callback);
+}
+
 
 void FTraceProvider::AppendMotionMatchingState(const FTraceMotionMatchingStateMessage& InMessage, double InTime)
 {

@@ -43,13 +43,18 @@ public:
 	/** Get all node ids of motion matching nodes appended to the object's timeline thus far */
 	TSet<int32> GetMotionMatchingNodeIds(uint64 InAnimInstanceId) const;
 
-	/** Read the object-relevant timeline info and provide it via callback */
 	using FMotionMatchingStateTimeline = TraceServices::ITimeline<FTraceMotionMatchingStateMessage>;
+	
+	/** Read the node-relative timeline info of the AnimInstance and provide it via callback */
 	bool ReadMotionMatchingStateTimeline(uint64 InAnimInstanceId, int32 InNodeId, TFunctionRef<void(const FMotionMatchingStateTimeline&)> Callback) const;
+	
+	/** Enumerate all node timelines on the AnimInstance and provide them via callback */
+	bool EnumerateMotionMatchingStateTimelines(uint64 InAnimInstanceId, TFunctionRef<void(const FMotionMatchingStateTimeline&)> Callback) const;
 
 	/** Append to the timeline on our object */
 	void AppendMotionMatchingState(const FTraceMotionMatchingStateMessage& InMessage, double InTime);
 
+	
 	static const FName ProviderName;
 
 private:
@@ -93,6 +98,18 @@ private:
 			return Timelines[*TimelineIndex];
 		}
 
+		bool ReadNodeTimeline(const FNodeToTimelineMap* NodeToTimelineMap, int32 InNodeId, TFunctionRef<void(const TraceServices::ITimeline<MessageType>&)> Callback) const
+		{
+			const uint32* TimelineIndex = NodeToTimelineMap->Find(InNodeId);
+			if (TimelineIndex == nullptr || !Timelines.IsValidIndex(*TimelineIndex))
+			{
+				return false;
+			}
+
+			Callback(*Timelines[*TimelineIndex]);
+			return true;
+		}
+
 		/** Retrieve a timeline from an anim instance + node and execute the callback */
 		bool ReadTimeline(uint64 InAnimInstanceId, int32 InNodeId, TFunctionRef<void(const TraceServices::ITimeline<MessageType>&)> Callback) const
 		{
@@ -102,14 +119,29 @@ private:
 				return false;
 			}
 
-			const uint32* TimelineIndex = NodeToTimelineMap->Find(InNodeId);
-			if (TimelineIndex == nullptr || !Timelines.IsValidIndex(*TimelineIndex))
+			return ReadNodeTimeline(NodeToTimelineMap, InNodeId, Callback);
+		}
+
+		/** Enumerates timelines of all nodes given an AnimInstance */
+		bool EnumerateNodeTimelines(uint64 InAnimInstanceId, TFunctionRef<void(const TraceServices::ITimeline<MessageType>&)> Callback) const
+		{
+			const FNodeToTimelineMap* NodeToTimelineMap = AnimInstanceIdToTimelines.Find(InAnimInstanceId);
+			if (NodeToTimelineMap == nullptr)
 			{
 				return false;
 			}
 
-			Callback(*Timelines[*TimelineIndex]);
-			return true;
+			bool bSuccess = true;
+			for (const TPair<int32, uint32>& Pair : *NodeToTimelineMap)
+			{
+				bSuccess &= ReadNodeTimeline(NodeToTimelineMap, Pair.Key, Callback);
+				if (!bSuccess)
+				{
+					break;
+				}
+			}
+
+			return bSuccess;
 		}
 
 		TSet<int32> GetNodeIds(uint64 InAnimInstanceId) const
