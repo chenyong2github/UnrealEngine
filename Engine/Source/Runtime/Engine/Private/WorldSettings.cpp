@@ -90,7 +90,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	KillZ = -HALF_WORLD_MAX1;
 	KillZDamageType = ConstructorStatics.DmgType_Environmental_Object.Object;
 
-	InstancedFoliageGridSize = 25600;
+	InstancedFoliageGridSize = DefaultPlacementGridSize = 25600;
 
 	WorldToMeters = 100.f;
 

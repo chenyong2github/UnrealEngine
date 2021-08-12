@@ -8,6 +8,7 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include "Misc/CoreDelegates.h"
 #include "UObject/UObjectIterator.h"
 
@@ -93,6 +94,13 @@ TScriptInterface<IAssetFactoryInterface> UPlacementSubsystem::FindAssetFactoryFr
 bool UPlacementSubsystem::IsCreatingPreviewElements() const
 {
 	return bIsCreatingPreviewElements;
+}
+
+FGuid UPlacementSubsystem::GetUserGridGuid()
+{
+	FGuid UserGridGuid;
+	FGuid::Parse(FPlatformMisc::GetLoginId(), UserGridGuid);
+	return UserGridGuid;
 }
 
 void UPlacementSubsystem::RegisterPlacementFactories()

@@ -2811,9 +2811,6 @@ AInstancedFoliageActor::AInstancedFoliageActor(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer)
 {
 	SetActorEnableCollision(true);
-#if WITH_EDITORONLY_DATA
-	bListedInSceneOutliner = false;
-#endif // WITH_EDITORONLY_DATA
 	PrimaryActorTick.bCanEverTick = false;
 }
 

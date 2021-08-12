@@ -72,7 +72,7 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 	// Place the Preview data if we managed to get to a valid handled click.
 	FPlacementOptions PlacementOptions;
 	PlacementOptions.bPreferBatchPlacement = true;
-	PlacementOptions.bPreferInstancedPlacement = SMInstanceElementDataUtil::SMInstanceElementsEnabled();
+	PlacementOptions.InstancedPlacementGridGuid = UPlacementSubsystem::GetUserGridGuid();
 
 	LastBrushStamp.Radius = 100.0f * LastBrushStampWorldToPixelScale;
 	

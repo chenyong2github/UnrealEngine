@@ -315,37 +315,5 @@ FTypedElementListRef UPlacementBrushToolBase::GetElementsInBrushRadius(const FIn
 		return true;
 	});
 
-	// Handle the IFA for the brush stroke level if needed for ISMs
-	if (!FoliageElementUtil::FoliageInstanceElementsEnabled())
-	{
-		if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(GEditor->GetEditorWorldContext().World()))
-		{
-			constexpr bool bCreatePartitionActorIfMissing = false;
-			FActorPartitionGetParams PartitionActorFindParams(AInstancedFoliageActor::StaticClass(), bCreatePartitionActorIfMissing, GEditor->GetEditorWorldContext().World()->GetCurrentLevel(), LastBrushStamp.WorldPosition);
-			if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(PartitionSubsystem->GetActor(PartitionActorFindParams)))
-			{
-				for (const auto& FoliageInfo : FoliageActor->GetFoliageInfos())
-				{
-					// The foliage info needs a valid component for ISM placement from our systems.
-					if (FoliageInfo.Value->GetComponent() != nullptr)
-					{
-						continue;
-					}
-
-					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageInfo.Key->GetSource());
-					TArray<int32> Instances;
-					FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
-					FoliageInfo.Value->GetInstancesInsideSphere(SphereToCheck, Instances);
-					if (Instances.Num())
-					{
-						// For now, return the whole foliage actor, and allow the calling code to drill down, since we do not have element handles at the instance level just yet
-						ElementHandles->Add(UEngineElementsLibrary::AcquireEditorActorElementHandle(FoliageActor));
-						break;
-					}
-				}
-			}
-		}
-	}
-
 	return ElementHandles;
 }
