@@ -6,8 +6,7 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/SingleThreadRunnable.h"
-
-#include <mutex>
+#include "Misc/ScopeLock.h"
 
 namespace grpc
 {
@@ -62,7 +61,7 @@ private:
 	bool Running;
 	TMap<void*, FQueuedItem> QueuedItems;
 	TUniquePtr<grpc::CompletionQueue> CompletionQueue;
-	std::mutex QueuedItemsMutex;
+	TUniquePtr<FCriticalSection> QueuedItemsCriticalSection;
 
 	void ProcessNext(void* Tag, bool Ok);
 

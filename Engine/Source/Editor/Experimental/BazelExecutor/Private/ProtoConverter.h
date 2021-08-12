@@ -118,7 +118,7 @@ private:
 
 	static void FromProto(const std::string& In, FString& Out);
 	static void FromProto(const std::string& In, FIoHash& Out);
-	static void FromProto(const std::string& In, TArray<char>& Out);
+	static void FromProto(const std::string& In, TArray<uint8>& Out);
 
 	static void FromProto(const google::protobuf::Timestamp& In, FDateTime& Out);
 
@@ -134,7 +134,7 @@ private:
 	static void FromProto(const build::bazel::remote::execution::v2::ExecutedActionMetadata& In, FExecutedActionMetadata& Out);
 	static void FromProto(const build::bazel::remote::execution::v2::ActionResult& In, FActionResult& Out);
 
-	static bool ToBlob(const google::protobuf::Message& InMessage, TArray<char>& OutData, FDigest& OutDigest);
+	static bool ToBlob(const google::protobuf::Message& InMessage, TArray<uint8>& OutData, FDigest& OutDigest);
 
 public:
 	static void ToProto(const FExecuteRequest& In, build::bazel::remote::execution::v2::ExecuteRequest& Out);
@@ -149,9 +149,9 @@ public:
 	static void FromProto(const build::bazel::remote::execution::v2::BatchReadBlobsResponse& In, FBatchReadBlobsResponse& Out);
 	static void FromProto(const build::bazel::remote::execution::v2::ExecuteResponse& In, FExecuteResponse& Out);
 
-	static bool ToDigest(const TArray<char>& InData, FDigest& OutDigest);
+	static bool ToDigest(const TArray<uint8>& InData, FDigest& OutDigest);
 
-	static bool ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest);
-	static bool ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest);
-	static bool ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest);
+	static bool ToBlob(const FDirectory& InDirectory, TArray<uint8>& OutData, FDigest& OutDigest);
+	static bool ToBlob(const FCommand& InCommand, TArray<uint8>& OutData, FDigest& OutDigest);
+	static bool ToBlob(const FAction& InAction, TArray<uint8>& OutData, FDigest& OutDigest);
 };

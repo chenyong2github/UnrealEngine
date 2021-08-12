@@ -35,9 +35,10 @@ bool FBazelCompletionQueueRunnable::AddAsyncResponse(
 	Item.Message.Reset(Response);
 	Item.ClientContext = MoveTemp(ClientContext);
 	Item.Finish = MoveTemp(OnFinishResponse);
-	QueuedItemsMutex.lock();
-	QueuedItems.Add(AsyncReader, MoveTemp(Item));
-	QueuedItemsMutex.unlock();
+	{
+		FScopeLock Lock(QueuedItemsCriticalSection.Get());
+		QueuedItems.Add(AsyncReader, MoveTemp(Item));
+	}
 	AsyncReader->StartCall();
 	AsyncReader->Finish(Response, Status, AsyncReader);
 	return true;

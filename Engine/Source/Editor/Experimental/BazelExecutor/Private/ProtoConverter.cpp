@@ -183,7 +183,7 @@ void ProtoConverter::FromProto(const std::string& In, FIoHash& Out)
 	Out = FIoHash(ByteArray);
 }
 
-void ProtoConverter::FromProto(const std::string& In, TArray<char>& Out)
+void ProtoConverter::FromProto(const std::string& In, TArray<uint8>& Out)
 {
 	Out.Empty();
 	if (In.size() > 0)
@@ -336,7 +336,7 @@ void ProtoConverter::ToProto(const FBatchUpdateBlobsRequest& In, build::bazel::r
 	{
 		build::bazel::remote::execution::v2::BatchUpdateBlobsRequest_Request* OutRequest = Out.add_requests();
 		ToProto(InRequest.Digest, *OutRequest->mutable_digest());
-		OutRequest->mutable_data()->assign(InRequest.Data.GetData(), InRequest.Data.Num());
+		OutRequest->mutable_data()->assign((const char *)InRequest.Data.GetData(), InRequest.Data.Num());
 	}
 }
 
@@ -393,7 +393,7 @@ void ProtoConverter::FromProto(const build::bazel::remote::execution::v2::BatchR
 		FBatchReadBlobsResponse::FResponse OutResponse;
 		FromProto(InResponse.digest(), OutResponse.Digest);
 		OutResponse.Data.Empty();
-		OutResponse.Data.Append(InResponse.data().c_str(), InResponse.data().size());
+		OutResponse.Data.Append((const uint8 *)InResponse.data().c_str(), InResponse.data().size());
 		FromProto(InResponse.status(), OutResponse.Status);
 		Out.Responses.Add(MoveTemp(OutResponse));
 	}
@@ -417,14 +417,14 @@ void ProtoConverter::FromProto(const build::bazel::remote::execution::v2::Execut
 	FromProto(In.message(), Out.Message);
 }
 
-bool ProtoConverter::ToDigest(const TArray<char>& ToData, FDigest& OutDigest)
+bool ProtoConverter::ToDigest(const TArray<uint8>& ToData, FDigest& OutDigest)
 {
 	OutDigest.Hash = FIoHash::HashBuffer(ToData.GetData(), ToData.Num());
 	OutDigest.SizeBytes = ToData.Num();
 	return true;
 }
 
-bool ProtoConverter::ToBlob(const google::protobuf::Message& InMessage, TArray<char>& OutData, FDigest& OutDigest)
+bool ProtoConverter::ToBlob(const google::protobuf::Message& InMessage, TArray<uint8>& OutData, FDigest& OutDigest)
 {
 	OutData.Empty();
 	OutData.AddUninitialized(InMessage.ByteSizeLong());
@@ -436,7 +436,7 @@ bool ProtoConverter::ToBlob(const google::protobuf::Message& InMessage, TArray<c
 	return ToDigest(OutData, OutDigest);
 }
 
-bool ProtoConverter::ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest)
+bool ProtoConverter::ToBlob(const FDirectory& InDirectory, TArray<uint8>& OutData, FDigest& OutDigest)
 {
 	// Convert to temporary proto Directory
 	build::bazel::remote::execution::v2::Directory OutDirectory;
@@ -444,7 +444,7 @@ bool ProtoConverter::ToBlob(const FDirectory& InDirectory, TArray<char>& OutData
 	return ToBlob(OutDirectory, OutData, OutDigest);
 }
 
-bool ProtoConverter::ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest)
+bool ProtoConverter::ToBlob(const FCommand& InCommand, TArray<uint8>& OutData, FDigest& OutDigest)
 {
 	// Convert to temporary proto Action
 	build::bazel::remote::execution::v2::Command OutCommand;
@@ -452,7 +452,7 @@ bool ProtoConverter::ToBlob(const FCommand& InCommand, TArray<char>& OutData, FD
 	return ToBlob(OutCommand, OutData, OutDigest);
 }
 
-bool ProtoConverter::ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest)
+bool ProtoConverter::ToBlob(const FAction& InAction, TArray<uint8>& OutData, FDigest& OutDigest)
 {
 	// Convert to temporary proto Action
 	build::bazel::remote::execution::v2::Action OutAction;

@@ -15,6 +15,7 @@ THIRD_PARTY_INCLUDES_END
 
 FBazelCompletionQueueRunnable::FBazelCompletionQueueRunnable()
 	: CompletionQueue(new grpc::CompletionQueue())
+	, QueuedItemsCriticalSection(new FCriticalSection())
 {
 }
 
@@ -24,9 +25,11 @@ FBazelCompletionQueueRunnable::~FBazelCompletionQueueRunnable()
 
 void FBazelCompletionQueueRunnable::ProcessNext(void* Tag, bool Ok)
 {
-	QueuedItemsMutex.lock();
-	FQueuedItem* Item = QueuedItems.Find(Tag);
-	QueuedItemsMutex.unlock();
+	FQueuedItem* Item;
+	{
+		FScopeLock Lock(QueuedItemsCriticalSection.Get());
+		Item = QueuedItems.Find(Tag);
+	}
 	if (!Item)
 	{
 		return;
@@ -80,9 +83,10 @@ void FBazelCompletionQueueRunnable::ProcessNext(void* Tag, bool Ok)
 			Item->Finish(Tag, Ok, *Item->Status.Get(), *Item->Message.Get());
 		}
 
-		QueuedItemsMutex.lock();
-		QueuedItems.Remove(Tag);
-		QueuedItemsMutex.unlock();
+		{
+			FScopeLock Lock(QueuedItemsCriticalSection.Get());
+			QueuedItems.Remove(Tag);
+		}
 		break;
 	}
 	}
@@ -125,8 +129,8 @@ void FBazelCompletionQueueRunnable::Exit()
 	bool Ok;
 	while (CompletionQueue->Next(&Tag, &Ok)) {}
 
-	QueuedItemsMutex.lock();
-	for (const TPair<void*,FQueuedItem>& Pair : QueuedItems)
+	FScopeLock Lock(QueuedItemsCriticalSection.Get());
+	for (const TPair<void*, FQueuedItem>& Pair : QueuedItems)
 	{
 		const FQueuedItem& Item = Pair.Value;
 		if (Item.Finish)
@@ -136,7 +140,6 @@ void FBazelCompletionQueueRunnable::Exit()
 	}
 
 	QueuedItems.Empty();
-	QueuedItemsMutex.unlock();
 }
 
 FSingleThreadRunnable* FBazelCompletionQueueRunnable::GetSingleThreadInterface()
@@ -189,9 +192,12 @@ bool FBazelCompletionQueueRunnable::AddAsyncOperation(
 	Item.StartCall = MoveTemp(OnStartCall);
 	Item.Read = MoveTemp(OnRead);
 	Item.Finish = MoveTemp(OnFinish);
-	QueuedItemsMutex.lock();
-	QueuedItems.Add(AsyncReader, MoveTemp(Item));
-	QueuedItemsMutex.unlock();
+	
+	{
+		FScopeLock Lock(QueuedItemsCriticalSection.Get());
+		QueuedItems.Add(AsyncReader, MoveTemp(Item));
+	}
+		
 	AsyncReader->StartCall(AsyncReader);
 	return true;
 }

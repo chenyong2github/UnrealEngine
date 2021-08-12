@@ -28,10 +28,10 @@ public:
 	FContentAddressableStorage(const std::shared_ptr<grpc::Channel>& Channel, TSharedPtr<FBazelCompletionQueueRunnable> CompletionQueueRunnable, const TMap<FString, FString>& Headers);
 	~FContentAddressableStorage();
 
-	bool ToDigest(const TArray<char>& InData, FDigest& OutDigest) override;
-	bool ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest) override;
-	bool ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest) override;
-	bool ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest) override;
+	bool ToDigest(const TArray<uint8>& InData, FDigest& OutDigest) override;
+	bool ToBlob(const FDirectory& InDirectory, TArray<uint8>& OutData, FDigest& OutDigest) override;
+	bool ToBlob(const FCommand& InCommand, TArray<uint8>& OutData, FDigest& OutDigest) override;
+	bool ToBlob(const FAction& InAction, TArray<uint8>& OutData, FDigest& OutDigest) override;
 
 	FStatus FindMissingBlobs(const FFindMissingBlobsRequest& Request, FFindMissingBlobsResponse& Response, int64 TimeoutMs = 0) override;
 	FStatus BatchUpdateBlobs(const FBatchUpdateBlobsRequest& Request, FBatchUpdateBlobsResponse& Response, int64 TimeoutMs = 0) override;

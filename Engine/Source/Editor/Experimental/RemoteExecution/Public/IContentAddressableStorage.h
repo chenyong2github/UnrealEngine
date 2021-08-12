@@ -24,10 +24,10 @@ public:
 	/** Virtual destructor */
 	virtual ~IContentAddressableStorage() {}
 
-	virtual bool ToDigest(const TArray<char>& InData, FDigest& OutDigest) = 0;
-	virtual bool ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest) = 0;
-	virtual bool ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest) = 0;
-	virtual bool ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest) = 0;
+	virtual bool ToDigest(const TArray<uint8>& InData, FDigest& OutDigest) = 0;
+	virtual bool ToBlob(const FDirectory& InDirectory, TArray<uint8>& OutData, FDigest& OutDigest) = 0;
+	virtual bool ToBlob(const FCommand& InCommand, TArray<uint8>& OutData, FDigest& OutDigest) = 0;
+	virtual bool ToBlob(const FAction& InAction, TArray<uint8>& OutData, FDigest& OutDigest) = 0;
 
 	virtual FStatus FindMissingBlobs(const FFindMissingBlobsRequest& Request, FFindMissingBlobsResponse& Response, int64 TimeoutMs = 0) = 0;
 	virtual FStatus BatchUpdateBlobs(const FBatchUpdateBlobsRequest& Request, FBatchUpdateBlobsResponse& Response, int64 TimeoutMs = 0) = 0;
