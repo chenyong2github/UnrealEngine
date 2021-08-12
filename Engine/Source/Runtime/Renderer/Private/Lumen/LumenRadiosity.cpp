@@ -361,7 +361,6 @@ class FPlaceProbeIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FPlaceProbeIndirectArgsCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "PlaceProbeIndirectArgsCS", SF_Compute);
 
-
 uint32 GSetupCardTraceBlocksGroupSize = 64;
 
 class FSetupCardTraceBlocksCS : public FGlobalShader
@@ -370,12 +369,11 @@ class FSetupCardTraceBlocksCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FSetupCardTraceBlocksCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>, RWCardTraceBlockData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, QuadAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, QuadData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
 		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
@@ -429,11 +427,10 @@ class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
 		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
@@ -460,8 +457,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentNormalAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
 	SHADER_PARAMETER_ARRAY(FVector4, RadiosityConeDirections, [LumenRadiosity::MaxRadiosityConeDirections])
 	SHADER_PARAMETER(uint32, NumCones)
 	SHADER_PARAMETER(float, SampleWeight)
@@ -488,9 +483,6 @@ void SetupTraceFromTexelParameters(
 	// Trace from this frame's cards
 	TraceFromTexelParameters.CurrentNormalAtlas  = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 	TraceFromTexelParameters.CurrentOpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
-
-	TraceFromTexelParameters.CardBuffer = LumenSceneData.CardBuffer.SRV;
-	TraceFromTexelParameters.CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
 	
 	int32 NumSampleDirections = 0;
 	const FVector4* SampleDirections = nullptr;
@@ -549,13 +541,12 @@ class FLumenRadiosityResolveRayBufferCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FLumenRadiosityResolveRayBufferCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWRadiosityAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, RayBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
 		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
 		SHADER_PARAMETER(uint32, RayCountPerTexel)
 		SHADER_PARAMETER(uint32, RayCountPerTexelShift)
@@ -602,8 +593,8 @@ class FLumenRadiosityHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(uint32, RayCountPerTexelShift)
 
 		// Radiosity-specific bindings
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RadiosityTraceTileAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, RadiosityTraceTileData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, RayDirections)
 
 		// Output
@@ -643,6 +634,7 @@ static void RadianceCacheMarkUsedProbes(
 	const FRDGBufferRef CardTraceBlockAllocator,
 	const FRDGBufferRef CardTraceBlockData,
 	const FRDGBufferRef TraceBlocksIndirectArgsBuffer,
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 {
 	FMarkRadianceProbesUsedByRadiosityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByRadiosityCS::FParameters>();
@@ -652,8 +644,7 @@ static void RadianceCacheMarkUsedProbes(
 	PassParameters->CurrentOpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
 	PassParameters->CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
-	PassParameters->CardBuffer = LumenSceneData.CardBuffer.SRV;
-	PassParameters->CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
+	PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->RadiosityAtlasSize = RadiosityAtlasSize;
 	PassParameters->IndirectArgs = TraceBlocksIndirectArgsBuffer;
 
@@ -682,6 +673,19 @@ void RenderRadiosityComputeScatter(
 {
 	const bool bUseIrradianceCache = GLumenRadiosityUseIrradianceCache != 0;
 
+	const int32 TraceBlockMaxSize = 2;
+	extern int32 GLumenSceneLightingForceFullUpdate;
+	const int32 Divisor = TraceBlockMaxSize * Lumen::GetRadiosityDownsampleFactor() * (GLumenSceneLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
+	const int32 NumTraceBlocksToAllocate = FMath::Max((LumenSceneData.GetPhysicalAtlasSize().X / Divisor) * (LumenSceneData.GetPhysicalAtlasSize().Y / Divisor), 1024);
+	const FIntPoint RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
+
+	FRDGBufferRef CardTraceBlockAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("CardTraceBlockAllocator"));
+	FRDGBufferRef CardTraceBlockData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntVector4), NumTraceBlocksToAllocate), TEXT("CardTraceBlockData"));
+	FRDGBufferUAVRef CardTraceBlockAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(CardTraceBlockAllocator, PF_R32_UINT));
+	FRDGBufferUAVRef CardTraceBlockDataUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
+
+	FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, CardTraceBlockAllocatorUAV, 0);
+
 	FRDGBufferRef SetupCardTraceBlocksIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("SetupCardTraceBlocksIndirectArgsBuffer"));
 	{
 		FRDGBufferUAVRef SetupCardTraceBlocksIndirectArgsBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(SetupCardTraceBlocksIndirectArgsBuffer));
@@ -703,27 +707,13 @@ void RenderRadiosityComputeScatter(
 			GroupSize);
 	}
 
-	const int32 TraceBlockMaxSize = 2;
-	extern int32 GLumenSceneLightingForceFullUpdate;
-	const int32 Divisor = TraceBlockMaxSize * Lumen::GetRadiosityDownsampleFactor() * (GLumenSceneLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
-	const int32 NumTraceBlocksToAllocate = FMath::Max((LumenSceneData.GetPhysicalAtlasSize().X / Divisor) * (LumenSceneData.GetPhysicalAtlasSize().Y / Divisor), 1024);
-	const FIntPoint RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
-
-	FRDGBufferRef CardTraceBlockAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("CardTraceBlockAllocator"));
-	FRDGBufferRef CardTraceBlockData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntVector4), NumTraceBlocksToAllocate), TEXT("CardTraceBlockData"));
-	FRDGBufferUAVRef CardTraceBlockAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(CardTraceBlockAllocator, PF_R32_UINT));
-	FRDGBufferUAVRef CardTraceBlockDataUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
-
-	FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, CardTraceBlockAllocatorUAV, 0);
-
 	{
 		FSetupCardTraceBlocksCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupCardTraceBlocksCS::FParameters>();
 		PassParameters->RWCardTraceBlockAllocator = CardTraceBlockAllocatorUAV;
 		PassParameters->RWCardTraceBlockData = CardTraceBlockDataUAV;
 		PassParameters->QuadAllocator = CardScatterParameters.QuadAllocator;
 		PassParameters->QuadData = CardScatterParameters.QuadData;
-		PassParameters->CardBuffer = LumenSceneData.CardBuffer.SRV;
-		PassParameters->CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
+		PassParameters->LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 		PassParameters->RadiosityAtlasSize = RadiosityAtlasSize;
 		PassParameters->IndirectArgs = SetupCardTraceBlocksIndirectArgsBuffer;
 
@@ -767,7 +757,7 @@ void RenderRadiosityComputeScatter(
 		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenRadiosity::SetupRadianceCacheInputs();
 
 		FMarkUsedRadianceCacheProbes Callback;
-		Callback.AddLambda([RadiosityAtlasSize, &LumenSceneData, &CardTraceBlockAllocator, &CardTraceBlockData, &TraceBlocksIndirectArgsBuffer](
+		Callback.AddLambda([RadiosityAtlasSize, &LumenSceneData, &CardTraceBlockAllocator, &CardTraceBlockData, &TraceBlocksIndirectArgsBuffer, &TracingInputs](
 			FRDGBuilder& GraphBuilder, 
 			const FViewInfo& View, 
 			const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
@@ -780,6 +770,7 @@ void RenderRadiosityComputeScatter(
 					CardTraceBlockAllocator,
 					CardTraceBlockData,
 					TraceBlocksIndirectArgsBuffer,
+					TracingInputs.LumenCardSceneUniformBuffer,
 					RadianceCacheMarkParameters);
 			});
 
@@ -838,8 +829,8 @@ void RenderRadiosityComputeScatter(
 				&PassParameters->SharedParameters
 			);
 
-			PassParameters->RadiosityTraceTileAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
-			PassParameters->RadiosityTraceTileData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
+			PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
+			PassParameters->CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
 
 			int GroupCount = CVarLumenRadiosityHardwareRayTracingGroupCount.GetValueOnRenderThread();
 			PassParameters->GroupCount = GroupCount;
@@ -881,12 +872,11 @@ void RenderRadiosityComputeScatter(
 		{
 			FLumenRadiosityResolveRayBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenRadiosityResolveRayBufferCS::FParameters>();
 			PassParameters->RWRadiosityAtlas = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadiosityAtlas));
+			PassParameters->LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 			PassParameters->RayBuffer = RayBuffer;
 			PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
 			PassParameters->CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
 			PassParameters->IndirectArgs = ResolveRayBufferIndirectArgs;
-			PassParameters->CardBuffer = LumenSceneData.CardBuffer.SRV;
-			PassParameters->CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
 			PassParameters->RadiosityAtlasSize = RadiosityAtlasSize;
 			PassParameters->RayCountPerTexel = RayCountPerTexel;
 
