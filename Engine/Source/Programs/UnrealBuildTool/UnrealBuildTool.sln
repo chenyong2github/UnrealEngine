@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.30517.126
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildTool", "UnrealBuildTool.csproj", "{241BABD5-53D3-4238-9E8E-5F649C10FB90}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildUtilities", "..\DotNETCommon\BuildUtilities\BuildUtilities.csproj", "{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Build", "..\Shared\EpicGames.Build\EpicGames.Build.csproj", "{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildToolTests", "..\UnrealBuildToolTests\UnrealBuildToolTests.csproj", "{3B158EAD-4D26-4608-B7AB-9AB7E028B489}"
 EndProject
@@ -49,6 +49,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{75882F88-8F4E-469A-B74A-8A7E0C0E1A88} = {46FDC727-E9B0-4447-952A-03AD8073600F}
 		{93A2C4B9-0DD2-477E-B7F2-E4FD87392E74} = {46FDC727-E9B0-4447-952A-03AD8073600F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
