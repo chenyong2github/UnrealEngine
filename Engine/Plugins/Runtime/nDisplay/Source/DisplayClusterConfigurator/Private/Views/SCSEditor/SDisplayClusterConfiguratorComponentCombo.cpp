@@ -31,7 +31,6 @@
 #include "EditorClassUtils.h"
 #include "SListViewSelectorDropdownMenu.h"
 #include "SComponentClassCombo.h"
-#include "SSCSEditor.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorComponentClassCombo"
 

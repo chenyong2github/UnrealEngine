@@ -4,7 +4,6 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "GameFramework/Actor.h"
 #include "SKismetInspector.h"
-#include "SSCSEditor.h"
 #include "SSubobjectEditor.h"
 #include "SSubobjectBlueprintEditor.h"
 #include "IDetailsView.h"
