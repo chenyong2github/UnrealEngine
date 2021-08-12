@@ -30,12 +30,12 @@ class FUniformExpressionSet;
 /** Called for every OpenColorIO shader to update the appropriate stats. */
 extern void UpdateOpenColorIOShaderCompilingStats(const FOpenColorIOTransformResource* InShader);
 
-struct FOpenColorIOShaderPermutationParameters : public FShaderPermutationParameters
+struct FOpenColorIOShaderPermutationParameters : public FGlobalShaderPermutationParameters
 {
 	const FOpenColorIOTransformResource* Transform;
 
-	FOpenColorIOShaderPermutationParameters(EShaderPlatform InPlatform, const FOpenColorIOTransformResource* InTransform)
-		: FShaderPermutationParameters(InPlatform)
+	FOpenColorIOShaderPermutationParameters(FName InGlobalShaderName, EShaderPlatform InPlatform, const FOpenColorIOTransformResource* InTransform)
+		: FGlobalShaderPermutationParameters(InGlobalShaderName, InPlatform)
 		, Transform(InTransform)
 	{}
 };
@@ -120,7 +120,7 @@ public:
 	 */
 	bool ShouldCache(EShaderPlatform InPlatform, const FOpenColorIOTransformResource* InColorTransform) const
 	{
-		return ShouldCompilePermutation(FOpenColorIOShaderPermutationParameters(InPlatform, InColorTransform));
+		return ShouldCompilePermutation(FOpenColorIOShaderPermutationParameters(GetFName(), InPlatform, InColorTransform));
 	}
 
 
@@ -132,6 +132,6 @@ protected:
 	 */
 	void SetupCompileEnvironment(EShaderPlatform InPlatform, const FOpenColorIOTransformResource* InColorTransform, FShaderCompilerEnvironment& OutEnvironment) const
 	{
-		ModifyCompilationEnvironment(FOpenColorIOShaderPermutationParameters(InPlatform, InColorTransform), OutEnvironment);
+		ModifyCompilationEnvironment(FOpenColorIOShaderPermutationParameters(GetFName(), InPlatform, InColorTransform), OutEnvironment);
 	}
 };

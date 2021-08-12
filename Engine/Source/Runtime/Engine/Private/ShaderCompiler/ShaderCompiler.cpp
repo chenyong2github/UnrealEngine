@@ -5872,7 +5872,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 		const FShaderPipelineType* Pipeline = *ShaderPipelineIt;
 		if (Pipeline->IsGlobalTypePipeline())
 		{
-			if (Pipeline->ShouldCompilePermutation(FGlobalShaderPermutationParameters(Platform, kUniqueShaderPermutationId, PermutationFlags))
+			if (FGlobalShaderType::ShouldCompilePipeline(Pipeline, Platform, PermutationFlags)
 				&& (!GlobalShaderMap->HasShaderPipeline(Pipeline) || (OutdatedShaderPipelineTypes && OutdatedShaderPipelineTypes->Contains(Pipeline))))
 			{
 				if (OutdatedShaderPipelineTypes)
