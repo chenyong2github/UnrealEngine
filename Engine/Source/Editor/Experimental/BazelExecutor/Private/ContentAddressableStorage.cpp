@@ -42,22 +42,22 @@ FContentAddressableStorage::~FContentAddressableStorage()
 {
 }
 
-bool FContentAddressableStorage::ToDigest(const TArray<char>& InData, FDigest& OutDigest)
+bool FContentAddressableStorage::ToDigest(const TArray<uint8>& InData, FDigest& OutDigest)
 {
 	return ProtoConverter::ToDigest(InData, OutDigest);
 }
 
-bool FContentAddressableStorage::ToBlob(const FDirectory& InDirectory, TArray<char>& OutData, FDigest& OutDigest)
+bool FContentAddressableStorage::ToBlob(const FDirectory& InDirectory, TArray<uint8>& OutData, FDigest& OutDigest)
 {
 	return ProtoConverter::ToBlob(InDirectory, OutData, OutDigest);
 }
 
-bool FContentAddressableStorage::ToBlob(const FCommand& InCommand, TArray<char>& OutData, FDigest& OutDigest)
+bool FContentAddressableStorage::ToBlob(const FCommand& InCommand, TArray<uint8>& OutData, FDigest& OutDigest)
 {
 	return ProtoConverter::ToBlob(InCommand, OutData, OutDigest);
 }
 
-bool FContentAddressableStorage::ToBlob(const FAction& InAction, TArray<char>& OutData, FDigest& OutDigest)
+bool FContentAddressableStorage::ToBlob(const FAction& InAction, TArray<uint8>& OutData, FDigest& OutDigest)
 {
 	return ProtoConverter::ToBlob(InAction, OutData, OutDigest);
 }

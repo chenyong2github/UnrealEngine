@@ -127,7 +127,7 @@ private:
 		FStringView Name;
 		FDirectory Directory;
 		TOptional<FDigest> Digest;
-		TArray<char> ContentBytes;
+		TArray<uint8> ContentBytes;
 		TArray<int32> SubDirIndices;
 	};
 
@@ -152,9 +152,9 @@ private:
 
 		// Unique items in the tree
 		FCommand Command;
-		TArray<char> CommandContentBytes;
+		TArray<uint8> CommandContentBytes;
 		FAction Action;
-		TArray<char> ActionContentBytes;
+		TArray<uint8> ActionContentBytes;
 		FDigest ActionDigest;
 		FCompositeBuffer BuildActionContentBytes {};
 		FDigest BuildActionDigest;
@@ -918,7 +918,7 @@ TFuture<TPair<FStatus, FBatchUpdateBlobsResponse>> FRemoteBuildExecutionRequest:
 					NewRequest.Data.Reserve(FileBuffer.GetSize());
 					for (const FSharedBuffer& Segment : State.Files[VariantIndex.Index].ContentBytes.GetSegments())
 					{
-						NewRequest.Data.Append((const char *)Segment.GetData(), Segment.GetSize());
+						NewRequest.Data.Append((const uint8 *)Segment.GetData(), Segment.GetSize());
 					}
 					FileBuffer.Reset();
 					UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Uploading file '%s' (hash: %s, type: %s) of upload size %d."), *State.Files[VariantIndex.Index].File.Name, *::LexToString(NewRequest.Digest.Hash), LexToString(State.Files[VariantIndex.Index].Type), NewRequest.Data.Num());

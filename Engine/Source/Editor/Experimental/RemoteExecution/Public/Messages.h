@@ -192,7 +192,7 @@ struct FBatchUpdateBlobsRequest
 	struct FRequest
 	{
 		FDigest Digest;
-		TArray<char> Data;
+		TArray<uint8> Data;
 	};
 
 	FString InstanceName;
@@ -223,7 +223,7 @@ struct FBatchReadBlobsResponse
 	struct FResponse
 	{
 		FDigest Digest;
-		TArray<char> Data;
+		TArray<uint8> Data;
 		FStatus Status;
 	};
 
@@ -235,7 +235,7 @@ struct FOutputFile
 	FString Path;
 	FDigest Digest;
 	bool IsExecutable;
-	TArray<char> Contents;
+	TArray<uint8> Contents;
 	FNodeProperties NodeProperties;
 };
 
@@ -279,9 +279,9 @@ struct FActionResult
 	TArray<FOutputSymlink> OutputSymlinks;
 	TArray<FOutputDirectory> OutputDirectories;
 	int32 ExitCode = 0;
-	TArray<char> StdoutRaw;
+	TArray<uint8> StdoutRaw;
 	FDigest StdoutDigest;
-	TArray<char> StderrRaw;
+	TArray<uint8> StderrRaw;
 	FDigest StderrDigest;
 	FExecutedActionMetadata ExecutionMetadata;
 };
