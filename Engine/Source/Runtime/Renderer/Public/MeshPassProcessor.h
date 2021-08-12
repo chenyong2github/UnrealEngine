@@ -1143,6 +1143,9 @@ public:
 		FRHIBuffer* IndirectArgsOverrideBuffer = nullptr,
 		uint32 IndirectArgsOverrideByteOffset = 0U);
 
+	/** Returns the pipeline state sort key, which can be used for sorting material draws to reduce context switches. */
+	uint64 GetPipelineStateSortingKey(FRHICommandList& RHICmdList) const;
+
 	FORCENOINLINE friend uint32 GetTypeHash( const FMeshDrawCommand& Other )
 	{
 		return Other.CachedPipelineId.GetId();
