@@ -18,47 +18,35 @@ FConversationEditorApplicationMode_GraphView::FConversationEditorApplicationMode
 	ConversationEditorTabFactories.RegisterFactory(MakeShareable(new FConversationTreeEditorSummoner(InConversationEditor)));
 	//ConversationEditorTabFactories.RegisterFactory(MakeShareable(new FBlackboardSummoner(InConversationEditor)));
 
-	TabLayout = FTabManager::NewLayout( "Standalone_ConversationEditor_GraphView_Layout_v1" )
+	TabLayout = FTabManager::NewLayout( "Standalone_ConversationEditor_GraphView_Layout_v2" )
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()
-		->SetOrientation(Orient_Vertical)
+		->SetOrientation(Orient_Horizontal)
 		->Split
 		(
 			FTabManager::NewStack()
-			->SetSizeCoefficient(0.1f)
-			->AddTab(InConversationEditor->GetToolbarTabId(), ETabState::OpenedTab)
-			->SetHideTabWell(true) 
+			->SetSizeCoefficient(0.7f)
+			->AddTab(FConversationEditorTabs::GraphEditorID, ETabState::ClosedTab)
 		)
 		->Split
 		(
 			FTabManager::NewSplitter()
-			->SetOrientation(Orient_Horizontal)
+			->SetOrientation(Orient_Vertical)
+			->SetSizeCoefficient(0.3f)
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(0.7f)
-				->AddTab(FConversationEditorTabs::GraphEditorID, ETabState::ClosedTab)
+				->SetSizeCoefficient(0.6f)
+				->AddTab(FConversationEditorTabs::GraphDetailsID, ETabState::OpenedTab)
+				->AddTab(FConversationEditorTabs::SearchID, ETabState::ClosedTab)
 			)
-			->Split
-			(
-				FTabManager::NewSplitter()
-				->SetOrientation(Orient_Vertical)
-				->SetSizeCoefficient(0.3f)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.6f)
-					->AddTab(FConversationEditorTabs::GraphDetailsID, ETabState::OpenedTab)
-					->AddTab(FConversationEditorTabs::SearchID, ETabState::ClosedTab)
-				)
- 				->Split
- 				(
- 					FTabManager::NewStack()
- 					->SetSizeCoefficient(0.4f)
- 					->AddTab(FConversationEditorTabs::TreeEditorID, ETabState::OpenedTab)
- 				)
-			)
+ 			->Split
+ 			(
+ 				FTabManager::NewStack()
+ 				->SetSizeCoefficient(0.4f)
+ 				->AddTab(FConversationEditorTabs::TreeEditorID, ETabState::OpenedTab)
+ 			)
 		)
 	);
 	

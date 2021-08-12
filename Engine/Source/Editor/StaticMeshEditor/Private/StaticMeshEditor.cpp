@@ -330,9 +330,6 @@ void FStaticMeshEditor::GenerateSecondaryToolbar()
 	{
 		Tab->SetLabel(SecondaryToolbarDisplayName);
 	}
-
-	// But have the focus on the default toolbar
-	TabManager->TryInvokeTab(GetToolbarTabId());
 }
 
 void FStaticMeshEditor::AddSecondaryToolbarExtender(TSharedPtr<FExtender> Extender)
