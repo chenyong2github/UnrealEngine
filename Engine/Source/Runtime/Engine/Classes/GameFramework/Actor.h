@@ -890,15 +890,34 @@ public:
 		return HasAnyFlags(RF_HasExternalPackage);
 	}
 
-#if WITH_EDITORONLY_DATA
 private:
+#if WITH_EDITORONLY_DATA
 	/**
 	 * The friendly name for this actor, displayed in the editor.  You should always use AActor::GetActorLabel() to access the actual label to display,
 	 * and call AActor::SetActorLabel() or FActorLabelUtilities::SetActorLabelUnique() to change the label.  Never set the label directly.
 	 */
 	UPROPERTY()
 	mutable FString ActorLabel;
+#endif
 
+#if !WITH_EDITOR && ACTOR_HAS_LABELS
+	FString ActorLabel;
+#endif
+
+public:
+	const FString GetActorNameOrLabel() const
+	{
+#if WITH_EDITORONLY_DATA || (!WITH_EDITOR && ACTOR_HAS_LABELS)
+		if (!ActorLabel.IsEmpty())
+		{
+			return ActorLabel;
+		}
+#endif
+		return GetName();
+	}
+
+#if WITH_EDITORONLY_DATA
+private:
 	/** The folder path of this actor in the world (empty=root, / separated)*/
 	UPROPERTY()
 	FName FolderPath;
@@ -2271,23 +2290,6 @@ public:
 		return bOptimizeBPComponentData;
 	}
 #endif		// WITH_EDITOR
-
-#if !WITH_EDITOR && ACTOR_HAS_LABELS
-private:
-	FString ActorLabel;
-
-public:
-	const FString& GetActorLabel() const { return ActorLabel; }
-#endif
-
-	const FString GetActorNameOrLabel() const
-	{
-#if WITH_EDITORONLY_DATA || (!WITH_EDITOR && ACTOR_HAS_LABELS)
-		return ActorLabel.IsEmpty() ? GetName() : ActorLabel;
-#else
-		return GetName();
-#endif
-	}
 
 	/**
 	 * Function used to prioritize actors when deciding which to replicate
