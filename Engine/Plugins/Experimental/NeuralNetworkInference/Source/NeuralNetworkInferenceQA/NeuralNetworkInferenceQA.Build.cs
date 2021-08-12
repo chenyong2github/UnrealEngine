@@ -21,7 +21,7 @@ public class NeuralNetworkInferenceQA : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"NeuralNetworkInferenceBackEnd"
+				"NeuralNetworkInference"
 			}
 		);
 
@@ -29,7 +29,6 @@ public class NeuralNetworkInferenceQA : ModuleRules
 			(
 			new string[] {
 				"ModelProto",
-				"NeuralNetworkInference",
 				"NeuralNetworkInferenceCore",
 				"NeuralNetworkInferenceLegacy"
 			}
