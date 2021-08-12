@@ -72,7 +72,9 @@ bool UNeuralNetworkLegacyFactory::CanCreateNew() const
 {
 	// If true --> It will always call FactoryCreateNew(), not allowing me to use FactoryCreateFile().
 	// If false --> It will ignore the FactoryCreateFile (thus the txt file) when creating a new UNeuralNetworkLegacy.
-	return CurrentFilename.IsEmpty();
+
+	// Keep false while in production, set to true only when trying to create a new one
+	return false; // CurrentFilename.IsEmpty();
 }
 
 bool UNeuralNetworkLegacyFactory::DoesSupportClass(UClass * Class)
