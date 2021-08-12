@@ -77,11 +77,13 @@ bool FOnlineSubsystemEOSPlus::Init()
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOSPlus(this));
 	StoreInterfacePtr = MakeShareable(new FOnlineStoreEOSPlus(this));
 	ExternalUIInterfacePtr = MakeShareable(new FOnlineExternalUIEOSPlus(this));
+	UserCloudInterfacePtr = MakeShareable(new FOnlineUserCloudEOSPlus(this));
 
 	UserInterfacePtr->Initialize();
 	LeaderboardsInterfacePtr->Initialize();
 	StoreInterfacePtr->Initialize();
 	ExternalUIInterfacePtr->Initialize();
+	UserCloudInterfacePtr->Initialize();
 
 	return true;
 }
@@ -104,6 +106,7 @@ void FOnlineSubsystemEOSPlus::PreUnload()
 	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
 	DESTRUCT_INTERFACE(StoreInterfacePtr);
 	DESTRUCT_INTERFACE(ExternalUIInterfacePtr);
+	DESTRUCT_INTERFACE(UserCloudInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 }
@@ -143,7 +146,7 @@ IOnlineSharedCloudPtr FOnlineSubsystemEOSPlus::GetSharedCloudInterface() const
 
 IOnlineUserCloudPtr FOnlineSubsystemEOSPlus::GetUserCloudInterface() const
 {
-	return nullptr;
+	return UserCloudInterfacePtr;
 }
 
 IOnlineEntitlementsPtr FOnlineSubsystemEOSPlus::GetEntitlementsInterface() const
