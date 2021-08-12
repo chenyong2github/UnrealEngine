@@ -49,7 +49,7 @@ FText UMovieSceneComposureExportTrack::GetDisplayName() const
 
 UMovieSceneSection* UMovieSceneComposureExportTrack::CreateNewSection()
 {
-	return NewObject<UMovieSceneComposureExportSection>(this);
+	return NewObject<UMovieSceneComposureExportSection>(this, NAME_None, RF_Transactional);
 }
 
 UMovieSceneComposureExportSection::UMovieSceneComposureExportSection(const FObjectInitializer& ObjectInitializer)
