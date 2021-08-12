@@ -27,6 +27,8 @@ public:
 	/** Should Vertex Colors of MeshDescription be updated, if available and relevant */
 	bool bUpdateVtxColors = false;
 
+	/** Should Vertex Colors of MeshDescription be transformed from SRGB to Linear */
+	bool bTransformVtxColorsSRGBToLinear = false;
 
 	//
 	// utility functions for common configuration cases

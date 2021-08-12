@@ -7,6 +7,7 @@
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
 #include "MeshDescriptionBuilder.h"
 #include "DynamicMesh/MeshTangents.h"
+#include "Util/ColorConstants.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -335,6 +336,26 @@ void FDynamicMeshToMeshDescription::UpdateVertexColors(const FDynamicMesh3* Mesh
 	
 		FVector4f TriColors[3];
 		ColorOverlay->GetTriElements(t, TriColors[0], TriColors[1], TriColors[2]);
+
+		// There is inconsistency in how vertex colors are intended to be consumed in
+		// our shaders. Some shaders consume it as linear (ex. MeshPaint), others as SRGB which
+		// manually convert to linear in the shader.
+		//
+		// All StaticMeshes store vertex colors as an 8-bit FColor. In order to ensure a good
+		// distribution of float values across the 8-bit range, the StaticMesh build always
+		// encodes FColors as SRGB.
+		//
+		// Until there is some defined gamma space convention for vertex colors in our shaders,
+		// we provide this option to pre-transform our linear float colors with an SRGBToLinear
+		// conversion to counteract the StaticMesh build LinearToSRGB conversion. This is how
+		// MeshPaint ensures linear vertex colors in the shaders.
+		if (ConversionOptions.bTransformVtxColorsSRGBToLinear)
+		{
+			LinearColors::SRGBToLinear(TriColors[0]);
+			LinearColors::SRGBToLinear(TriColors[1]);
+			LinearColors::SRGBToLinear(TriColors[2]);
+		}
+		
 		TArrayView<const FVertexInstanceID> InstanceIDs = MeshOut.GetTriangleVertexInstances(FTriangleID(t));
 		for (int32 i = 0; i < 3; ++i)
 		{

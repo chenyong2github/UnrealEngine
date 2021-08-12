@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Math/Color.h"
+#include "MathUtil.h"
 
 namespace UE
 {
@@ -17,6 +18,36 @@ namespace Geometry
  */
 namespace LinearColors
 {
+	/** Apply an sRGB to Linear color transformation on a given color vector. */
+	template <typename VectorType>
+	void SRGBToLinear(VectorType& Color)
+	{
+		// Sourced from MPCDIUtils.ush
+		auto SRGBToLinearFloat = [](const float Color) -> float
+		{
+			return (Color <= 0.04045f) ? Color / 12.92f : FMathf::Pow((Color + 0.055f) / 1.055f, 2.4f);
+		};
+		
+		Color.X = SRGBToLinearFloat(Color.X);
+		Color.Y = SRGBToLinearFloat(Color.Y);
+		Color.Z = SRGBToLinearFloat(Color.Z);
+	}
+
+	/** Apply a Linear to sRGB color transformation on a given color vector. */
+	template <typename VectorType>
+	void LinearToSRGB(VectorType& Color)
+	{
+		// Sourced from MPCDIUtils.ush
+		auto LinearToSRGBFloat = [](const float Color) -> float
+		{
+			return (Color <= 0.0031308f) ? Color * 12.92f : 1.055f * FMathf::Pow(Color, 1.0f / 2.4f) - 0.055f;
+		};
+
+		Color.X = LinearToSRGBFloat(Color.X);
+		Color.Y = LinearToSRGBFloat(Color.Y);
+		Color.Z = LinearToSRGBFloat(Color.Z);
+	}
+	
 	template <typename VectorType>
 	VectorType MakeColor3f(float R, float G, float B)
 	{

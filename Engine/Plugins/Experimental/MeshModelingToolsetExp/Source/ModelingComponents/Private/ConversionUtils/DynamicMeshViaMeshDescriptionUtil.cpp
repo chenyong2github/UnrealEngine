@@ -28,6 +28,7 @@ void UE::Geometry::CommitDynamicMeshViaMeshDescription(
 	ConversionOptions.bUpdateTangents = CommitInfo.bTangentsChanged;
 	ConversionOptions.bUpdateUVs = CommitInfo.bUVsChanged;
 	ConversionOptions.bUpdateVtxColors = CommitInfo.bVertexColorsChanged;
+	ConversionOptions.bTransformVtxColorsSRGBToLinear = CommitInfo.bTransformVertexColorsSRGBToLinear;
 
 	MeshDescriptionCommitter.CommitMeshDescription([&CommitInfo, &ConversionOptions, &Mesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 	{
