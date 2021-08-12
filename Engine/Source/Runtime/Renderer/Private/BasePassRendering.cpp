@@ -279,8 +279,8 @@ FMeshDrawCommandSortKey CalculateTranslucentMeshStaticSortKey(const FPrimitiveSc
 FMeshDrawCommandSortKey CalculateBasePassMeshStaticSortKey(EDepthDrawingMode EarlyZPassMode, EBlendMode BlendMode, const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
 {
 	FMeshDrawCommandSortKey SortKey;
-	SortKey.BasePass.VertexShaderHash = PointerHash(VertexShader) & 0xFFFF;
-	SortKey.BasePass.PixelShaderHash = PointerHash(PixelShader);
+	SortKey.BasePass.VertexShaderHash = (VertexShader ? VertexShader->GetSortKey() : 0) & 0xFFFF;
+	SortKey.BasePass.PixelShaderHash = PixelShader ? PixelShader->GetSortKey() : 0;
 	if (EarlyZPassMode != DDM_None)
 	{
 		SortKey.BasePass.Masked = BlendMode == EBlendMode::BLEND_Masked ? 0 : 1;

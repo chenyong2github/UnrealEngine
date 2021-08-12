@@ -285,6 +285,9 @@ FORCEINLINE_DEBUGGABLE static void GetPointersToArrayDataByPredicate(TArray<cons
 uint32 UPrimitiveComponent::GlobalOverlapEventsCounter = 0;
 
 // 0 is reserved to mean invalid
+FThreadSafeCounter UPrimitiveComponent::NextRegistrationSerialNumber;
+
+// 0 is reserved to mean invalid
 FThreadSafeCounter UPrimitiveComponent::NextComponentId;
 
 UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
@@ -627,6 +630,9 @@ void UPrimitiveComponent::SendRenderTransform_Concurrent()
 void UPrimitiveComponent::OnRegister()
 {
 	Super::OnRegister();
+
+	// Deterministically track primitives via registration sequence numbers.
+	RegistrationSerialNumber = NextRegistrationSerialNumber.Increment();
 
 	if (bCanEverAffectNavigation)
 	{

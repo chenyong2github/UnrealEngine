@@ -134,6 +134,7 @@ FPrimitiveSceneInfoCompact::FPrimitiveSceneInfoCompact(FPrimitiveSceneInfo* InPr
 FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene* InScene):
 	Proxy(InComponent->SceneProxy),
 	PrimitiveComponentId(InComponent->ComponentId),
+	RegistrationSerialNumber(InComponent->RegistrationSerialNumber),
 	OwnerLastRenderTime(FActorLastRenderTime::GetPtr(InComponent->GetOwner())),
 	IndirectLightingCacheAllocation(NULL),
 	CachedPlanarReflectionProxy(NULL),
