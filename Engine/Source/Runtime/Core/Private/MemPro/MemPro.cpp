@@ -4918,6 +4918,11 @@ namespace MemPro
 	// implemented in MemProPS4.cpp - contact slynch@puredevsoftware.com for this platform
 
 //------------------------------------------------------------------------
+#elif defined(MEMPRO_PLATFORM_PS5)
+
+// implemented in MemProPS5.cpp - contact slynch@puredevsoftware.com for this platform
+
+//------------------------------------------------------------------------
 #elif defined(MEMPRO_PLATFORM_UNIX)
 
 //------------------------------------------------------------------------
