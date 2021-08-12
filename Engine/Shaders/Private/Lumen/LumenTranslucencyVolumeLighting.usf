@@ -253,12 +253,10 @@ void TranslucencyVolumeIntegrateCS(
 				}
 			}
 
-			
-			Lighting.R.V *= PI / TotalWeight;
-			Lighting.G.V *= PI / TotalWeight;
-			Lighting.B.V *= PI / TotalWeight;
-
-
+			float NormalizeFactor = PI / TotalWeight;
+			Lighting.R.V *= NormalizeFactor;
+			Lighting.G.V *= NormalizeFactor;
+			Lighting.B.V *= NormalizeFactor;
 			bNewLightingValid = true;
 		}
 
@@ -275,9 +273,26 @@ void TranslucencyVolumeIntegrateCS(
 		Lighting.B.V.x = Debug.z * SHAmbientFunction();
 */
 
+		// Output for Volumetric Fog which has its own temporal filter
+		{
+			float3 AmbientLightingVector = float3(Lighting.R.V.x, Lighting.G.V.x, Lighting.B.V.x);
+			RWTranslucencyGI0[GridCoordinate] = float4(AmbientLightingVector, 0);
+
+			float3 LuminanceWeights = AmbientLightingVector.rgb / (dot(AmbientLightingVector, 1) + 0.00001f);
+			//float3 LuminanceWeights = float3(.3, .59, .11);
+			float3 Coefficient0 = float3(Lighting.R.V.y, Lighting.G.V.y, Lighting.B.V.y);
+			float3 Coefficient1 = float3(Lighting.R.V.z, Lighting.G.V.z, Lighting.B.V.z);
+			float3 Coefficient2 = float3(Lighting.R.V.w, Lighting.G.V.w, Lighting.B.V.w);
+			RWTranslucencyGI1[GridCoordinate] = float4(dot(Coefficient0, LuminanceWeights), dot(Coefficient1, LuminanceWeights), dot(Coefficient2, LuminanceWeights), 0);
+		}
+
+		float TranslucencyVolumeIntensityScale = 4;
+		Lighting.R.V *= TranslucencyVolumeIntensityScale;
+		Lighting.G.V *= TranslucencyVolumeIntensityScale;
+		Lighting.B.V *= TranslucencyVolumeIntensityScale;
 
 		FTwoBandSHVectorRGB NewHistoryLighting = Lighting;
-		
+
 	#if USE_TEMPORAL_REPROJECTION
 		float3 HistoryUV = ComputeTranslucencyGIVolumeUV(ComputeCellWorldPosition(GridCoordinate, .5f), UnjitteredPrevWorldToClip);
 		float HistoryAlpha = bNewLightingValid ? HistoryWeight : 1.0f;
@@ -307,16 +322,6 @@ void TranslucencyVolumeIntegrateCS(
 			NewHistoryLighting.B.V = lerp(Lighting.B.V, HistoryLighting.B.V, HistoryAlpha);
 		}
 	#endif
-	
-		{
-			RWTranslucencyGI0[GridCoordinate] = float4(Lighting.R.V.x, Lighting.G.V.x, Lighting.B.V.x, 0);
-
-			float3 LuminanceWeights = float3(.3, .59, .11);
-			float3 Coefficient0 = float3(Lighting.R.V.y, Lighting.G.V.y, Lighting.B.V.y);
-			float3 Coefficient1 = float3(Lighting.R.V.z, Lighting.G.V.z, Lighting.B.V.z);
-			float3 Coefficient2 = float3(Lighting.R.V.w, Lighting.G.V.w, Lighting.B.V.w);
-			RWTranslucencyGI1[GridCoordinate] = float4(dot(Coefficient0, LuminanceWeights), dot(Coefficient1, LuminanceWeights), dot(Coefficient2, LuminanceWeights), 0);
-		}
 
 		{
 			RWTranslucencyGINewHistory0[GridCoordinate] = float4(NewHistoryLighting.R.V.x, NewHistoryLighting.G.V.x, NewHistoryLighting.B.V.x, 0);
