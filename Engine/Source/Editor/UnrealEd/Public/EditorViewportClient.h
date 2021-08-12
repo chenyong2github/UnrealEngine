@@ -973,7 +973,6 @@ public:
 	 * Focuses the viewport to the center of the bounding box ensuring that the entire box is in view 
 	 *
 	 * @param BoundingBox			The box to focus
-	 * @param bUpdateLinkedOrthoViewports	Whether or not to updated linked viewports when this viewport changes
 	 * @param bInstant			Whether or not to focus the viewport instantly or over time
 	 */
 	void FocusViewportOnBox( const FBox& BoundingBox, bool bInstant = false );
