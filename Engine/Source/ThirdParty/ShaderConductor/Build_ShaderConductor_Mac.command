@@ -17,6 +17,7 @@ fi
 
 PATH="$CUR_DIR/ninja":"$PATH"
 export PATH="$CUR_DIR/ninja":"$PATH"
+export MACOSX_DEPLOYMENT_TARGET=10.14
 
 cd ShaderConductor
 
@@ -48,4 +49,3 @@ install_name_tool -rpath RPATH_DUMMY ../ThirdParty/ShaderConductor/Mac "$DST_DIR
 # Link DWARF debug symbols
 dsymutil "$DST_DIR/libdxcompiler.dylib"
 dsymutil "$DST_DIR/libShaderConductor.dylib"
-
