@@ -101,45 +101,34 @@ void FNiagaraParameterDefinitionsToolkit::Initialize(const EToolkitMode::Type Mo
 
 	ParameterPanelViewModel->Init(UIContext);
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_ParameterDefinitionsLayout_v1")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_ParameterDefinitionsLayout_v2")
 		->AddArea
 		(
-			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
+			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
 			->Split
 			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-				->SetHideTabWell(true)
-			)
-			->Split
-			(
-				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)->SetSizeCoefficient(0.9f)
+				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
+				->SetSizeCoefficient(0.15f)
 				->Split
 				(
-					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(0.15f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(.15f)
-						->AddTab(ParameterDefinitionsDetailsTabId, ETabState::OpenedTab)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(.85f)
-						->AddTab(ParameterPanelTabId, ETabState::OpenedTab)
-						->SetForegroundTab(ParameterPanelTabId)
-					)
-
+					FTabManager::NewStack()
+					->SetSizeCoefficient(.15f)
+					->AddTab(ParameterDefinitionsDetailsTabId, ETabState::OpenedTab)
 				)
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.5f)
-					->AddTab(SelectedDetailsTabId, ETabState::OpenedTab)
+					->SetSizeCoefficient(.85f)
+					->AddTab(ParameterPanelTabId, ETabState::OpenedTab)
+					->SetForegroundTab(ParameterPanelTabId)
 				)
+
+			)
+			->Split
+			(
+				FTabManager::NewStack()
+				->SetSizeCoefficient(0.5f)
+				->AddTab(SelectedDetailsTabId, ETabState::OpenedTab)
 			)
 		);
 

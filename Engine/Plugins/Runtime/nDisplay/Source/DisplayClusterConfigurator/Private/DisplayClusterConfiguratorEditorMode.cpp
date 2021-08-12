@@ -37,7 +37,7 @@ FDisplayClusterConfiguratorEditorConfigurationMode::FDisplayClusterConfiguratorE
 	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> EditorIn) : FDisplayClusterConfiguratorBlueprintModeBase(EditorIn,
 		FDisplayClusterEditorModes::DisplayClusterEditorConfigurationMode)
 {
-	TabLayout = BuildDefaultLayout(FString(TEXT("DisplayClusterConfigurator_v1.0")));
+	TabLayout = BuildDefaultLayout(FString(TEXT("DisplayClusterConfigurator_v1.1")));
 
 	EditorTabFactories.RegisterFactory(MakeShared<FDisplayClusterViewClusterSummoner>(EditorIn));
 	EditorTabFactories.RegisterFactory(MakeShared<FDisplayClusterViewOutputMappingSummoner>(EditorIn));
@@ -84,84 +84,70 @@ TSharedPtr<FTabManager::FLayout> FDisplayClusterConfiguratorEditorConfigurationM
 	return FTabManager::NewLayout(FName(LayoutName))
 		->AddArea
 		(
-			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
+			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
+			// Tree
 			->Split
 			(
-				// Toolbar
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.1f)
-				->AddTab(Editor.Pin()->GetToolbarTabId(), ETabState::OpenedTab)
-				->SetHideTabWell(true)
+				FTabManager::NewSplitter()
+				->SetSizeCoefficient(.2f)
+				->SetOrientation(Orient_Vertical)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(.5f)
+					->AddTab(TabID_Scene, ETabState::OpenedTab)
+					->AddTab(FBlueprintEditorTabs::MyBlueprintID, ETabState::OpenedTab)
+					->SetForegroundTab(TabID_Scene)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(.5f)
+					->AddTab(TabID_Cluster, ETabState::OpenedTab)
+					->SetHideTabWell(false)
+				)
 			)
+			// Viewport and OutputMapping
 			->Split
 			(
-				// Main canvas
-				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
-
-				// Tree
+				FTabManager::NewSplitter()
+				->SetOrientation(Orient_Vertical)
+				->SetSizeCoefficient(.6f)
 				->Split
 				(
-					FTabManager::NewSplitter()
-					->SetSizeCoefficient(.2f)
-					->SetOrientation(Orient_Vertical)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(.5f)
-						->AddTab(TabID_Scene, ETabState::OpenedTab)
-						->AddTab(FBlueprintEditorTabs::MyBlueprintID, ETabState::OpenedTab)
-						->SetForegroundTab(TabID_Scene)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(.5f)
-						->AddTab(TabID_Cluster, ETabState::OpenedTab)
-						->SetHideTabWell(false)
-					)
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.5f)
+					->AddTab(TabID_Viewport, ETabState::OpenedTab)
+					->AddTab("Document", ETabState::ClosedTab)
+					->SetForegroundTab(TabID_Viewport)
 				)
-				// Viewport and OutputMapping
 				->Split
 				(
-					FTabManager::NewSplitter()
-					->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(.6f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.5f)
-						->AddTab(TabID_Viewport, ETabState::OpenedTab)
-						->AddTab("Document", ETabState::ClosedTab)
-						->SetForegroundTab(TabID_Viewport)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->AddTab(TabID_OutputMapping, ETabState::OpenedTab)
-						->SetSizeCoefficient(0.5f)
-						->SetHideTabWell(false)
-					)
+					FTabManager::NewStack()
+					->AddTab(TabID_OutputMapping, ETabState::OpenedTab)
+					->SetSizeCoefficient(0.5f)
+					->SetHideTabWell(false)
 				)
-				// Details and Log
+			)
+			// Details and Log
+			->Split
+			(
+				FTabManager::NewSplitter()
+				->SetOrientation(Orient_Vertical)
+				->SetSizeCoefficient(.2f)
 				->Split
 				(
-					FTabManager::NewSplitter()
-					->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(.2f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(.7f)
-						->AddTab(FBlueprintEditorTabs::DetailsID, ETabState::OpenedTab)
-						->SetForegroundTab(FBlueprintEditorTabs::DetailsID)
-						->SetHideTabWell(false)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(.3f)
-						->AddTab(FBlueprintEditorTabs::CompilerResultsID, ETabState::OpenedTab)
-					)
+					FTabManager::NewStack()
+					->SetSizeCoefficient(.7f)
+					->AddTab(FBlueprintEditorTabs::DetailsID, ETabState::OpenedTab)
+					->SetForegroundTab(FBlueprintEditorTabs::DetailsID)
+					->SetHideTabWell(false)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(.3f)
+					->AddTab(FBlueprintEditorTabs::CompilerResultsID, ETabState::OpenedTab)
 				)
 			)
 		);
