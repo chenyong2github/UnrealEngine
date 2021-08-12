@@ -163,6 +163,14 @@ namespace iPhonePackager
 		}
 
 		/// <summary>
+		/// The engine directory
+		/// </summary>
+		public static string EngineDirectory
+		{
+			get { return Path.GetFullPath(RootRelativePath + @"Engine"); }
+		}
+
+		/// <summary>
 		/// The local directory that a payload (GameName.app) is assembled into before being copied to the Mac (on PC)
 		/// </summary>
 		//@TODO: Deprecate this directory
