@@ -467,6 +467,19 @@ EAutomationState FAutomationReport::GetState(const int32 ClusterIndex, const int
 	return EAutomationState::NotRun;
 }
 
+void FAutomationReport::SetState(const EAutomationState State)
+{
+	if (IsEnabled())
+	{
+		for (int32 ResultsIndex = 0; ResultsIndex < Results.Num(); ++ResultsIndex)
+		{
+			for (int32 PassIndex = 0; PassIndex < Results[ResultsIndex].Num(); ++PassIndex)
+			{
+				Results[ResultsIndex][PassIndex].State = State;
+			}
+		}
+	}
+}
 
 const FAutomationTestResults& FAutomationReport::GetResults( const int32 ClusterIndex, const int32 PassIndex ) 
 {

@@ -391,6 +391,13 @@ public:
 	virtual EAutomationState GetState(const int32 ClusterIndex, const int32 PassIndex) const = 0;
 
 	/**
+	 * Set the state of the test (not run, in process, success, failure).
+	 *
+	 * @param State EAutomationState state to set.
+	 */
+	virtual void SetState(const EAutomationState State) = 0;
+
+	/**
 	 * Gets a copy of errors and warnings that were found
 	 *
 	 * @param ClusterIndex Index of the platform we are requesting test results for.

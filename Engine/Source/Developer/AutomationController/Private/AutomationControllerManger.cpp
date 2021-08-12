@@ -45,6 +45,94 @@ DEFINE_LOG_CATEGORY_STATIC(LogAutomationController, Log, All)
 
 #define LOCTEXT_NAMESPACE "AutomationTesting"
 
+void FAutomatedTestPassResults::AddTestResult(const IAutomationReportPtr& TestReport)
+{
+	const FString& FullTestPath = TestReport->GetFullTestPath();
+	if (!TestsMapIndex.Contains(FullTestPath))
+	{
+		FAutomatedTestResult TestResult;
+		TestResult.Test = TestReport;
+		TestResult.TestDisplayName = TestReport->GetDisplayName();
+		TestResult.FullTestPath = FullTestPath;
+
+		TestsMapIndex.Add(FullTestPath, Tests.Num());
+		Tests.Add(TestResult);
+		NotRun++;
+	}
+}
+
+FAutomatedTestResult& FAutomatedTestPassResults::GetTestResult(const IAutomationReportPtr& TestReport)
+{
+	const FString& FullTestPath = TestReport->GetFullTestPath();
+	check(TestsMapIndex.Contains(FullTestPath));
+	return Tests[TestsMapIndex[FullTestPath]];
+}
+
+void FAutomatedTestPassResults::ReBuildTestsMapIndex()
+{
+	TestsMapIndex.Empty();
+	uint32 Index = 0;
+	for (const FAutomatedTestResult& TestResult : Tests)
+	{
+		TestsMapIndex.Add(TestResult.FullTestPath, Index++);
+	}
+}
+
+bool FAutomatedTestPassResults::ReflectResultStateToReport(IAutomationReportPtr& TestReport)
+{
+	const FString& FullTestPath = TestReport->GetFullTestPath();
+	if (TestsMapIndex.Contains(FullTestPath))
+	{
+		FAutomatedTestResult& TestResult = Tests[TestsMapIndex[FullTestPath]];
+		if (TestResult.State == EAutomationState::InProcess)
+		{
+			// Marking incomplete test from previous pass as failure.
+			TestResult.AddEvent(EAutomationEventType::Error, TEXT("Test did not run until completion. The test exited prematurely."));
+			TestResult.State = EAutomationState::Fail;
+			InProcess--;
+			Failed++;
+		}
+		TestReport->SetState(TestResult.State);
+		TestResult.Test = TestReport;
+		return true;
+	}
+	return false;
+}
+
+void FAutomatedTestPassResults::UpdateTestResultStatus(const IAutomationReportPtr& TestReport, EAutomationState State, bool bHasWarning)
+{
+	FAutomatedTestResult& TestResult = GetTestResult(TestReport);
+	TestResult.State = State;
+
+	// Book keeping
+	switch (State)
+	{
+	case EAutomationState::Success:
+		if (bHasWarning)
+		{
+			SucceededWithWarnings++;
+		}
+		else
+		{
+			Succeeded++;
+		}
+		InProcess--;
+		break;
+	case EAutomationState::Fail:
+		Failed++;
+		InProcess--;
+		break;
+	case EAutomationState::InProcess:
+		NotRun--;
+		InProcess++;
+		break;
+	default:
+		NotRun++;
+		InProcess--;
+		break;
+	}
+}
+
 FAutomationControllerManager::FAutomationControllerManager()
 {
 
@@ -94,6 +182,8 @@ FAutomationControllerManager::FAutomationControllerManager()
 	{
 		DeveloperReportUrl = ReportURLPath / TEXT("dev") / FString(FPlatformProcess::UserName()).ToLower() / TEXT("index.html");
 	}
+
+	bResumeRunTest = FParse::Param(FCommandLine::Get(), TEXT("ResumeRunTest"));
 }
 
 void FAutomationControllerManager::RequestAvailableWorkers(const FGuid& SessionId)
@@ -180,6 +270,17 @@ void FAutomationControllerManager::RunTests(const bool bInIsLocalSession)
 	{
 		JsonTestPassResults.IsRequired = true;
 		TArray<IAutomationReportPtr> TestsToRun = ReportManager.GetEnabledTestReports();
+
+		// Load previous test results
+		if (bResumeRunTest)
+		{
+			FString ReportFileName = FString::Printf(TEXT("%s/index.json"), *ReportExportPath);
+			if (FPaths::FileExists(ReportFileName))
+			{
+				LoadJsonTestPassSummary(ReportFileName, TestsToRun);
+			}
+		}
+
 		for (IAutomationReportPtr& TestReport : TestsToRun)
 		{
 			JsonTestPassResults.AddTestResult(TestReport);
@@ -508,6 +609,35 @@ bool FAutomationControllerManager::GenerateTestPassHtmlIndex()
 	}
 	
 	return false;
+}
+
+bool FAutomationControllerManager::LoadJsonTestPassSummary(FString& ReportFilePath, TArray<IAutomationReportPtr> TestReports)
+{
+	FString Json;
+	if (!FFileHelper::LoadFileToString(Json, *ReportFilePath))
+	{
+		UE_LOG(LogAutomationController, Error, TEXT("Failed to read json results file '%s'."), *ReportFilePath);
+		return false;
+	}
+	if (!FJsonObjectConverter::JsonObjectStringToUStruct(Json, &JsonTestPassResults))
+	{
+		UE_LOG(LogAutomationController, Error, TEXT("Failed to load json results file '%s'."), *ReportFilePath);
+		return false;
+	}
+	UE_LOG(LogAutomationController, Display, TEXT("Successfully loaded json results file."));
+
+	JsonTestPassResults.ReBuildTestsMapIndex();
+
+	// Reflect Test Result Status on Report Status
+	for (IAutomationReportPtr& TestReport : TestReports)
+	{
+		if (!JsonTestPassResults.ReflectResultStateToReport(TestReport))
+		{
+			UE_LOG(LogAutomationController, Warning, TEXT("No match to test '%s' in json results."), *TestReport->GetFullTestPath());
+		}
+	}
+
+	return true;
 }
 
 FString FAutomationControllerManager::SlugString(const FString& DisplayString) const

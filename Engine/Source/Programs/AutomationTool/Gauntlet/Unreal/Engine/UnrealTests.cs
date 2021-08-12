@@ -76,9 +76,9 @@ namespace Gauntlet
 					{
 						AutomationLogParser Parser = new AutomationLogParser(Role.LogSummary.FullLogContent);
 						AllErrors.AddRange(
-							Parser.GetResults().Where(R => !R.Passed)
-							.SelectMany(R => R.Events
-								.Where(E => E.ToLower().Contains("error")).Select(E => string.Format("[test={0}] {1}", R.DisplayName, E))
+							Parser.GetResults().Where(R => !R.HasSucceeded)
+							.SelectMany(R => R.Entries
+								.Where(E => E.Event.Type == EventType.Error).Select(E => string.Format("[test={0}] {1}", R.TestDisplayName, E))
 								)
 							);
 					}
@@ -219,8 +219,8 @@ namespace Gauntlet
 					{
 						AutomationLogParser Parser = new AutomationLogParser(InLog.FullLogContent);
 
-						IEnumerable<AutomationTestResult> TotalTests = Parser.GetResults();
-						IEnumerable<AutomationTestResult> FailedTests = TotalTests.Where(R => !R.Passed);
+						IEnumerable<UnrealAutomatedTestResult> TotalTests = Parser.GetResults();
+						IEnumerable<UnrealAutomatedTestResult> FailedTests = TotalTests.Where(R => !R.HasSucceeded);
 
 						// Tests failed so list that as our primary cause of failure
 						if (FailedTests.Any())
@@ -257,9 +257,9 @@ namespace Gauntlet
 				{
 					AutomationLogParser Parser = new AutomationLogParser(EditorRole.LogSummary.FullLogContent);
 
-					IEnumerable<AutomationTestResult> AllTests = Parser.GetResults();
-					IEnumerable<AutomationTestResult> FailedTests = AllTests.Where(R => R.Completed && !R.Passed);
-					IEnumerable<AutomationTestResult> IncompleteTests = AllTests.Where(R => !R.Completed);
+					IEnumerable<UnrealAutomatedTestResult> AllTests = Parser.GetResults();
+					IEnumerable<UnrealAutomatedTestResult> FailedTests = AllTests.Where(R => R.IsComplete && !R.HasSucceeded);
+					IEnumerable<UnrealAutomatedTestResult> IncompleteTests = AllTests.Where(R => !R.IsComplete);
 
 					if (AllTests.Count() == 0)
 					{
@@ -274,10 +274,10 @@ namespace Gauntlet
 						{
 							MB.H3("The following tests failed:");
 
-							foreach (AutomationTestResult Result in FailedTests)
+							foreach (UnrealAutomatedTestResult Result in FailedTests)
 							{
-								MB.H4(string.Format("{0}: {1}", Result.DisplayName, Result.TestName));
-								MB.UnorderedList(Result.Events);
+								MB.H4(string.Format("{0}: {1}", Result.TestDisplayName, Result.FullTestPath));
+								MB.UnorderedList(Result.ErrorEvents.Select(E => string.Format("Error: {0}",E.Message)));
 							}
 						}
 
@@ -285,10 +285,10 @@ namespace Gauntlet
 						{
 							MB.H3("The following tests timed out:");
 
-							foreach (AutomationTestResult Result in IncompleteTests)
+							foreach (UnrealAutomatedTestResult Result in IncompleteTests)
 							{
-								MB.H4(string.Format("{0}: {1}", Result.DisplayName, Result.TestName));
-								MB.UnorderedList(Result.Events);
+								MB.H4(string.Format("{0}: {1}", Result.TestDisplayName, Result.FullTestPath));
+								MB.UnorderedList(Result.ErrorEvents.Select(E => string.Format("Error: {0}", E.Message)));
 							}
 						}
 
@@ -321,7 +321,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Define a Config class for this test that contains the available options
 		/// </summary>
-		public class EngineTestConfig : UnrealTestConfiguration
+		public class EngineTestConfig : UE.AutomationTestConfig
 		{
 			/// <summary>
 			/// Set to true if the editor executes all these tests in is own process and PIE
@@ -330,87 +330,16 @@ namespace Gauntlet
 			public virtual bool UseEditor { get; set; } = false;
 
 			/// <summary>
-			/// Run with d3d12 RHI
-			/// </summary>
-			[AutoParam]
-			public virtual bool D3D12 { get; set; } = false;
-
-			/// <summary>
-			/// Run with Nvidia cards for raytracing support
-			/// </summary>
-			[AutoParam]
-			public virtual bool PreferNvidia { get; set; } = false;
-
-			/// <summary>
-			/// Run forcing raytracing 
-			/// </summary>
-			[AutoParam]
-			public virtual bool RayTracing { get; set; } = false;
-
-			/// <summary>
-			/// Use the StompMalloc memory allocator.
-			/// </summary>
-			[AutoParam]
-			public virtual bool StompMalloc { get; set; } = false;
-
-			/// <summary>
-			/// Enable the D3D debug layer.
-			/// </summary>
-			[AutoParam]
-			public virtual bool D3DDebug { get; set; } = false;
-
-			/// <summary>
 			/// Enable the RHI validation layer.
 			/// </summary>
 			[AutoParam]
 			public virtual bool RHIValidation { get; set; } = false;
 
 			/// <summary>
-			/// Disable capturing frame trace for image based tests
+			/// Filter or groups of tests to apply (alias for RunTest) 
 			/// </summary>
 			[AutoParam]
-			public virtual bool DisableFrameTraceCapture { get; set; } = true;
-
-			/// <summary>
-			/// Filter or groups of tests to apply
-			/// </summary>
-			[AutoParam]
-			public virtual string TestFilter { get; set; } = "Filter:Project+Filter:System";
-
-			/// <summary>
-			/// Path to write the automation report to
-			/// </summary>
-			[AutoParam]
-			public virtual string ReportExportPath { get; set; } = "";
-
-			/// <summary>
-			/// Path the report can be found at
-			/// </summary>
-			[AutoParam]
-			public virtual string ReportURL { get; set; } = "";
-
-			/// <summary>
-			/// Use Simple Horde Report instead of Unreal Automated Tests
-			/// </summary>
-			[AutoParam]
-			public virtual bool SimpleHordeReport { get; set; } = false;
-
-			/// <summary>
-			/// Validate DDC during tests
-			/// </summary>
-			[AutoParam]
-			public virtual bool VerifyDDC { get; set; } = false;
-
-			/// <summary>
-			/// Validate DDC during tests
-			/// </summary>
-			[AutoParam]
-			public virtual string DDC { get; set; } = "";
-
-			/// <summary>
-			/// Used for having the editor and any client communicate
-			/// </summary>
-			public string SessionID = Guid.NewGuid().ToString();
+			public virtual string TestFilter { get; set; } = "";
 
 			/// <summary>
 			/// Apply this config to the role that is passed in
@@ -420,100 +349,12 @@ namespace Gauntlet
 			/// <param name="OtherRoles"></param>
 			public override void ApplyToConfig(UnrealAppConfig AppConfig, UnrealSessionRole ConfigRole, IEnumerable<UnrealSessionRole> OtherRoles)
 			{
+				if (string.IsNullOrEmpty(RunTest))
+				{
+					RunTest = TestFilter;
+				}
+
 				base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
-
-				if (WriteTestResultsForHorde)
-				{
-					if (string.IsNullOrEmpty(ReportExportPath))
-					{
-						ReportExportPath = Path.Combine(Globals.TempDir, "TestReport");
-					}
-					if (string.IsNullOrEmpty(HordeTestDataPath))
-					{
-						HordeTestDataPath = HordeReport.DefaultTestDataDir;
-					}
-					if (string.IsNullOrEmpty(HordeArtifactPath))
-					{
-						HordeArtifactPath = HordeReport.DefaultArtifactsDir;
-					}
-				}
-
-				string ReportOutputArg = "";
-				if (!string.IsNullOrEmpty(ReportExportPath))
-				{
-					if (Directory.Exists(ReportExportPath))
-					{
-						// clean up previous run if any
-						DirectoryInfo ReportDirInfo = new DirectoryInfo(ReportExportPath);
-						ReportDirInfo.Delete(true);
-					}
-					ReportOutputArg = string.Format("-ReportExportPath=\"{0}\"", ReportExportPath);
-				}
-
-				if (UseEditor)
-				{
-					if (ConfigRole.RoleType == UnrealTargetRole.Editor)
-					{
-						AppConfig.CommandLine += string.Format(" -NoWatchdog -stdout -FORCELOGFLUSH -CrashForUAT -unattended -buildmachine {0} -ExecCmds=\"Automation RunTests {1}; Quit;\"", ReportOutputArg, TestFilter);
-					}
-
-					if (VerifyDDC)
-					{
-						AppConfig.CommandLine += " -VerifyDDC";
-					}
-
-					if (!string.IsNullOrEmpty(DDC))
-					{
-						AppConfig.CommandLine += string.Format(" -ddc={0}", DDC);
-					}
-				}
-				else
-				{
-					// If the test isnt using the editor for both roles then pass the IP of the editor (us) to the client
-					string HostIP = UnrealHelpers.GetHostIpAddress();
-
-					if (ConfigRole.RoleType.IsClient())
-					{
-						AppConfig.CommandLine += string.Format(" -sessionid={0} -messaging -log -TcpMessagingConnect={1}:6666", SessionID, HostIP);
-					}
-					else if (ConfigRole.RoleType.IsEditor())
-					{
-						AppConfig.CommandLine += string.Format(" -nullrhi -ExecCmds=\"Automation list;StartRemoteSession {0};RunTests {1}; Quit\" -TcpMessagingListen={2}:6666 -multihome={3} -log {4}", SessionID, TestFilter, HostIP, HostIP, ReportOutputArg);
-					}
-				}
-
-				if (DisableFrameTraceCapture || RayTracing)
-				{
-					AppConfig.CommandLine += " -DisableFrameTraceCapture";
-				}
-
-				if (RayTracing)
-				{
-					AppConfig.CommandLine += " -dpcvars=r.RayTracing=1,r.SkinCache.CompileShaders=1,AutomationAllowFrameTraceCapture=0 -noxgeshadercompile";
-				}
-
-				if (ConfigRole.Platform == UnrealTargetPlatform.Win64)
-				{
-					if (PreferNvidia)
-					{
-						AppConfig.CommandLine += " -preferNvidia";
-					}
-
-					if (D3D12)
-					{
-						AppConfig.CommandLine += " -d3d12";
-					}
-
-					if (D3DDebug)
-					{
-						AppConfig.CommandLine += " -d3ddebug";
-					}
-
-					if (StompMalloc)
-					{
-						AppConfig.CommandLine += " -stompmalloc";
-					}
-				}
 
 				if (RHIValidation)
 				{

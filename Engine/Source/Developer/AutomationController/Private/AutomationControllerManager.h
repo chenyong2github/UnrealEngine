@@ -50,6 +50,23 @@ public:
 		Errors = InErrors;
 	}
 
+	void AddEvent(EAutomationEventType EvenType, const FString& InMessage)
+	{
+		Entries.Add(FAutomationExecutionEntry(FAutomationEvent(EvenType, InMessage)));
+
+		switch (EvenType)
+		{
+		case EAutomationEventType::Warning:
+			Warnings++;
+			break;
+		case EAutomationEventType::Error:
+			Errors++;
+			break;
+		default:
+			break;
+		}
+	}
+
 	void SetArtifacts(const TArray<FAutomationArtifact>& InArtifacts)
 	{
 		Artifacts = InArtifacts;
@@ -152,58 +169,15 @@ public:
 		return Succeeded + SucceededWithWarnings + Failed + NotRun + InProcess;
 	}
 
-	void AddTestResult(const IAutomationReportPtr& TestReport)
-	{
-		FAutomatedTestResult TestResult;
-		TestResult.Test = TestReport;
-		TestResult.TestDisplayName = TestReport->GetDisplayName();
-		TestResult.FullTestPath = TestReport->GetFullTestPath();
+	void AddTestResult(const IAutomationReportPtr& TestReport);
 
-		TestsMapIndex.Add(TestReport->GetFullTestPath(), Tests.Num());
-		Tests.Add(TestResult);
-		NotRun++;
-	}
+	FAutomatedTestResult& GetTestResult(const IAutomationReportPtr& TestReport);
 
-	FAutomatedTestResult& GetTestResult(const IAutomationReportPtr& TestReport)
-	{
-		const FString& FullTestPath = TestReport->GetFullTestPath();
-		check(TestsMapIndex.Contains(FullTestPath));
-		return Tests[TestsMapIndex[FullTestPath]];
-	}
+	void ReBuildTestsMapIndex();
 
-	void UpdateTestResultStatus(const IAutomationReportPtr TestReport, EAutomationState State, bool bHasWarning = false)
-	{
-		FAutomatedTestResult& TestResult = GetTestResult(TestReport);
-		TestResult.State = State;
+	bool ReflectResultStateToReport(IAutomationReportPtr& TestReport);
 
-		// Book keeping
-		switch (State)
-		{
-		case EAutomationState::Success:
-			if (bHasWarning)
-			{
-				SucceededWithWarnings++;
-			}
-			else
-			{
-				Succeeded++;
-			}
-			InProcess--;
-			break;
-		case EAutomationState::Fail:
-			Failed++;
-			InProcess--;
-			break;
-		case EAutomationState::InProcess:
-			NotRun--;
-			InProcess++;
-			break;
-		default:
-			NotRun++;
-			InProcess--;
-			break;
-		}
-	}
+	void UpdateTestResultStatus(const IAutomationReportPtr& TestReport, EAutomationState State, bool bHasWarning = false);
 
 	void ClearAllEntries()
 	{
@@ -423,6 +397,11 @@ protected:
 	bool GenerateTestPassHtmlIndex();
 
 	/**
+	 * Load test results from previous json test pass summary file and reflect results on reports
+	 */
+	bool LoadJsonTestPassSummary(FString& ReportFilePath, TArray<IAutomationReportPtr> TestReports);
+
+	/**
 	* Gather all info, warning, and error lines generated over the course of a test.
 	*
 	* @param TestName The test that was just run.
@@ -620,6 +599,8 @@ private:
 	FString ReportURLPath;
 
 	FString DeveloperReportUrl;
+
+	bool bResumeRunTest;
 
 private:
 
