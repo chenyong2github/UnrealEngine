@@ -1315,26 +1315,26 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::GetWatchText(FStr
 	return Result;
 }
 
-FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::GetDebugInfo(FDebugInfo& OutDebugInfo, UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin)
+FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::GetDebugInfo(TSharedPtr<FPropertyInstanceInfo> &OutDebugInfo, UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin)
 {
-	FProperty* PropertyToDebug = nullptr;
 	void* DataPtr = nullptr;
 	void* DeltaPtr = nullptr;
 	UObject* ParentObj = nullptr;
 	TArray<UObject*> SeenObjects;
 	bool bIsDirectPtr = false;
-	FKismetDebugUtilities::EWatchTextResult Result = FindDebuggingData(Blueprint, ActiveObject, WatchPin, PropertyToDebug, DataPtr, DeltaPtr, ParentObj, SeenObjects, &bIsDirectPtr);
+	FProperty* Property = nullptr;
+	FKismetDebugUtilities::EWatchTextResult Result = FindDebuggingData(Blueprint, ActiveObject, WatchPin, Property, DataPtr, DeltaPtr, ParentObj, SeenObjects, &bIsDirectPtr);
 
 	if (Result == FKismetDebugUtilities::EWatchTextResult::EWTR_Valid)
 	{
 		// If this came from an out parameter it isn't in a property container, so must be accessed directly
 		if (bIsDirectPtr)
 		{
-			GetDebugInfoInternal(OutDebugInfo, PropertyToDebug, DataPtr);
+			GetDebugInfoInternal(OutDebugInfo, Property, DataPtr);
 		}
 		else
 		{
-			GetDebugInfo_InContainer(0, OutDebugInfo, PropertyToDebug, DataPtr);
+			GetDebugInfo_InContainer(0, OutDebugInfo, Property, DataPtr);
 		}
 	}
 
@@ -1549,34 +1549,40 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData
 	}
 }
 
-void FKismetDebugUtilities::GetDebugInfo_InContainer(int32 Index, FDebugInfo& DebugInfo, FProperty* Property, const void* Data)
+void FKismetDebugUtilities::GetDebugInfo_InContainer(int32 Index, TSharedPtr<FPropertyInstanceInfo> &DebugInfo, FProperty* Property, const void* Data)
 {
 	GetDebugInfoInternal(DebugInfo, Property, Property->ContainerPtrToValuePtr<void>(Data, Index));
 }
 
-void FKismetDebugUtilities::GetDebugInfoInternal(FDebugInfo& DebugInfo, FProperty* Property, const void* PropertyValue)
+void FKismetDebugUtilities::GetDebugInfoInternal(TSharedPtr<FPropertyInstanceInfo> &DebugInfo, FProperty* Property, const void* PropertyValue)
 {
-	if (Property == nullptr)
+	TMap<FPropertyInstanceInfo::FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>> VisitedNodes;
+	DebugInfo = FPropertyInstanceInfo::FindOrMake({Property, PropertyValue}, VisitedNodes);
+}
+
+FPropertyInstanceInfo::FPropertyInstanceInfo(FPropertyInstance PropertyInstance) :
+	DisplayName(PropertyInstance.Property->GetDisplayNameText()),
+	Type(UEdGraphSchema_K2::TypeToText(PropertyInstance.Property)),
+	Property(PropertyInstance.Property)
+{
+	check(PropertyInstance.Property);
+	if (PropertyInstance.Value == nullptr)
 	{
 		return;
 	}
 
-	DebugInfo.Type = UEdGraphSchema_K2::TypeToText(Property);
-	DebugInfo.DisplayName = Property->GetDisplayNameText();
-
-	FByteProperty* ByteProperty = CastField<FByteProperty>(Property);
-	if (ByteProperty)
+	if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property.Get()))
 	{
 		UEnum* Enum = ByteProperty->GetIntPropertyEnum();
 		if (Enum)
 		{
-			if (Enum->IsValidEnumValue(*(const uint8*)PropertyValue))
+			if (Enum->IsValidEnumValue(*(const uint8*)PropertyInstance.Value))
 			{
-				DebugInfo.Value = Enum->GetDisplayNameTextByValue(*(const uint8*)PropertyValue);
+				Value = Enum->GetDisplayNameTextByValue(*(const uint8*)PropertyInstance.Value);
 			}
 			else
 			{
-				DebugInfo.Value = FText::FromString(TEXT("(INVALID)"));
+				Value = FText::FromString(TEXT("(INVALID)"));
 			}
 
 			return;
@@ -1585,118 +1591,193 @@ void FKismetDebugUtilities::GetDebugInfoInternal(FDebugInfo& DebugInfo, FPropert
 		// if there is no Enum we need to fall through and treat this as a FNumericProperty
 	}
 
-	FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property);
-	if (NumericProperty)
+	if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property.Get()))
 	{
-		DebugInfo.Value = FText::FromString(NumericProperty->GetNumericPropertyValueToString(PropertyValue));
+		Value = FText::FromString(NumericProperty->GetNumericPropertyValueToString(PropertyInstance.Value));
 		return;
 	}
-
-	FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
-	if (BoolProperty)
+	else if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property.Get()))
 	{
 		const FCoreTexts& CoreTexts = FCoreTexts::Get();
 
-		DebugInfo.Value = BoolProperty->GetPropertyValue(PropertyValue) ? CoreTexts.True : CoreTexts.False;
+		Value = BoolProperty->GetPropertyValue(PropertyInstance.Value) ? CoreTexts.True : CoreTexts.False;
 		return;
 	}
-
-	FNameProperty* NameProperty = CastField<FNameProperty>(Property);
-	if (NameProperty)
+	else if (FNameProperty* NameProperty = CastField<FNameProperty>(Property.Get()))
 	{
-		DebugInfo.Value = FText::FromName(*(FName*)PropertyValue);
+		Value = FText::FromName(*(FName*)PropertyInstance.Value);
 		return;
 	}
-
-	FTextProperty* TextProperty = CastField<FTextProperty>(Property);
-	if (TextProperty)
+	else if (FTextProperty* TextProperty = CastField<FTextProperty>(Property.Get()))
 	{
-		DebugInfo.Value = TextProperty->GetPropertyValue(PropertyValue);
+		Value = TextProperty->GetPropertyValue(PropertyInstance.Value);
 		return;
 	}
-
-	FStrProperty* StringProperty = CastField<FStrProperty>(Property);
-	if (StringProperty)
+	else if (FStrProperty* StringProperty = CastField<FStrProperty>(Property.Get()))
 	{
-		DebugInfo.Value = FText::FromString(StringProperty->GetPropertyValue(PropertyValue));
+		Value = FText::FromString(StringProperty->GetPropertyValue(PropertyInstance.Value));
 		return;
 	}
-
-	FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
-	if (ArrayProperty)
+	else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property.Get()))
 	{
 		checkSlow(ArrayProperty->Inner);
 
-		FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyValue);
+		FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyInstance.Value);
 
-		DebugInfo.Value = FText::Format(LOCTEXT("ArraySize", "Num={0}"), FText::AsNumber(ArrayHelper.Num()));
-
-		for (int32 i = 0; i < ArrayHelper.Num(); i++)
-		{
-			FDebugInfo ArrayDebugInfo;
-
-			uint8* PropData = ArrayHelper.GetRawPtr(i);
-			GetDebugInfoInternal(ArrayDebugInfo, ArrayProperty->Inner, PropData);
-			// overwrite the display name with the array index for the current element
-			ArrayDebugInfo.DisplayName = FText::Format(LOCTEXT("ArrayIndexName", "[{0}]"), FText::AsNumber(i));
-			DebugInfo.Children.Add(ArrayDebugInfo);
-		}
-
+		Value = FText::Format(LOCTEXT("ArraySize", "Num={0}"), FText::AsNumber(ArrayHelper.Num()));
 		return;
 	}
-
-	FStructProperty* StructProperty = CastField<FStructProperty>(Property);
-	if (StructProperty)
+	else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property.Get()))
 	{
 		FString WatchText;
-		StructProperty->ExportTextItem(WatchText, PropertyValue, PropertyValue, nullptr, PPF_PropertyWindow | PPF_BlueprintDebugView, nullptr);
-		DebugInfo.Value = FText::FromString(WatchText);
-
-		for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
-		{
-			FDebugInfo StructDebugInfo;
-			GetDebugInfoInternal(StructDebugInfo, *It, It->ContainerPtrToValuePtr<void>(PropertyValue, 0));
-
-			DebugInfo.Children.Add(StructDebugInfo);
-		}
-
+		StructProperty->ExportTextItem(WatchText, PropertyInstance.Value, PropertyInstance.Value, nullptr, PPF_PropertyWindow | PPF_BlueprintDebugView, nullptr);
+		Value = FText::FromString(WatchText);
 		return;
 	}
-
-	FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property);
-	if (EnumProperty)
+	else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property.Get()))
 	{
 		FNumericProperty* LocalUnderlyingProp = EnumProperty->GetUnderlyingProperty();
 		UEnum* Enum = EnumProperty->GetEnum();
 
-		int64 Value = LocalUnderlyingProp->GetSignedIntPropertyValue(PropertyValue);
+		int64 NumValue = LocalUnderlyingProp->GetSignedIntPropertyValue(PropertyInstance.Value);
 
 		// if the value is the max value (the autogenerated *_MAX value), export as "INVALID", unless we're exporting text for copy/paste (for copy/paste,
 		// the property text value must actually match an entry in the enum's names array)
 		if (Enum)
 		{
-			if (Enum->IsValidEnumValue(Value))
+			if (Enum->IsValidEnumValue(NumValue))
 			{
-				DebugInfo.Value = Enum->GetDisplayNameTextByValue(Value);
+				Value = Enum->GetDisplayNameTextByValue(NumValue);
 			}
 			else
 			{
-				DebugInfo.Value = LOCTEXT("Invalid", "(INVALID)");
+				Value = LOCTEXT("Invalid", "(INVALID)");
 			}
 		}
 		else
 		{
-			DebugInfo.Value = FText::AsNumber(Value);
+			Value = FText::AsNumber(NumValue);
+		}
+
+		return;
+	}
+	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Property.Get()))
+	{
+		FScriptMapHelper MapHelper(MapProperty, PropertyInstance.Value);
+		Value = FText::Format(LOCTEXT("MapSize", "Num={0}"), FText::AsNumber(MapHelper.Num()));
+		return;
+	}
+	else if (FSetProperty* SetProperty = CastField<FSetProperty>(Property.Get()))
+	{
+		FScriptSetHelper SetHelper(SetProperty, PropertyInstance.Value);
+		Value = FText::Format(LOCTEXT("SetSize", "Num={0}"), FText::AsNumber(SetHelper.Num()));
+		return;
+	}
+	else if (FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(Property.Get()))
+	{
+		if (UObject* Obj = ObjectPropertyBase->GetObjectPropertyValue(PropertyInstance.Value))
+		{
+			Value = FText::FromString(Obj->GetFullName());
+		}
+		else
+		{
+			Value = FText::FromString(TEXT("None"));
+		}
+
+		return;
+	}
+	else if (FDelegateProperty* DelegateProperty = CastField<FDelegateProperty>(Property.Get()))
+	{
+		if (DelegateProperty->SignatureFunction)
+		{
+			Value = DelegateProperty->SignatureFunction->GetDisplayNameText();
+		}
+		else
+		{
+			Value = LOCTEXT("NoFunc", "(No bound function)");
+		}
+
+		return;
+	}
+	else if (FMulticastDelegateProperty* MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(Property.Get()))
+	{
+		if (MulticastDelegateProperty->SignatureFunction)
+		{
+			Value = MulticastDelegateProperty->SignatureFunction->GetDisplayNameText();
+		}
+		else
+		{
+			Value = LOCTEXT("NoFunc", "(No bound function)");
 		}
 
 		return;
 	}
 
-	FMapProperty* MapProperty = CastField<FMapProperty>(Property);
-	if (MapProperty)
+	ensureMsgf(false, TEXT("Failed to identify property type. This function may need to be exanded to include it"));
+}
+
+TSharedPtr<FPropertyInstanceInfo> FPropertyInstanceInfo::FindOrMake(FPropertyInstance PropertyInstance,
+	TMap<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>>& VisitedNodes)
+{
+	if(TSharedPtr<FPropertyInstanceInfo>* Found = VisitedNodes.Find(PropertyInstance))
 	{
-		FScriptMapHelper MapHelper(MapProperty, PropertyValue);
-		DebugInfo.Value = FText::Format(LOCTEXT("MapSize", "Num={0}"), FText::AsNumber(MapHelper.Num()));
+		return *Found;
+	}
+	
+	// wait to populate children until after inserting into VisitedNodes.
+	// this way we will catch circular references
+	TSharedPtr<FPropertyInstanceInfo> DebugInfo = VisitedNodes.Add(
+		PropertyInstance,
+		MakeShared<FPropertyInstanceInfo>(PropertyInstance)
+	);
+
+	DebugInfo->PopulateChildren(PropertyInstance, VisitedNodes);
+	return DebugInfo;
+}
+
+void FPropertyInstanceInfo::PopulateChildren(FPropertyInstance PropertyInstance,
+	TMap<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>>& VisitedNodes)
+{
+	check(PropertyInstance.Property);
+	if (PropertyInstance.Value == nullptr)
+	{
+		return;
+	}
+
+	if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property.Get()))
+	{
+		checkSlow(ArrayProperty->Inner);
+
+		FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyInstance.Value);
+		for (int32 i = 0; i < ArrayHelper.Num(); i++)
+		{
+			FPropertyInstance ChildProperty = {
+				ArrayProperty->Inner,
+				ArrayHelper.GetRawPtr(i)
+			};
+			const TSharedPtr<FPropertyInstanceInfo> ChildInfo = FindOrMake(ChildProperty, VisitedNodes);
+			
+			// overwrite the display name with the array index for the current element
+			ChildInfo->DisplayName = FText::Format(LOCTEXT("ArrayIndexName", "[{0}]"), FText::AsNumber(i));
+			Children.Add(ChildInfo);
+		}
+	}
+	else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property.Get()))
+	{
+		for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
+		{
+			FPropertyInstance ChildProperty = {
+				*It,
+				It->ContainerPtrToValuePtr<void>(PropertyInstance.Value, 0)
+			};
+			const TSharedPtr<FPropertyInstanceInfo> ChildInfo = FindOrMake(ChildProperty, VisitedNodes);
+			
+			Children.Add(ChildInfo);
+		}
+	}
+	else if (FMapProperty* MapProperty = CastField<FMapProperty>(Property.Get()))
+	{
+		FScriptMapHelper MapHelper(MapProperty, PropertyInstance.Value);
 		uint8* PropData = MapHelper.GetPairPtr(0);
 
 		int32 Index = 0;
@@ -1704,31 +1785,32 @@ void FKismetDebugUtilities::GetDebugInfoInternal(FDebugInfo& DebugInfo, FPropert
 		{
 			if (MapHelper.IsValidIndex(Index))
 			{
-				FDebugInfo ChildInfo;
-
-				GetDebugInfoInternal(ChildInfo, MapProperty->ValueProp, PropData + MapProperty->MapLayout.ValueOffset);
-
-				// use the info from the ValueProp and then overwrite the name with the KeyProp data
+				FPropertyInstance ChildProperty = {
+					MapProperty->ValueProp,
+					PropData + MapProperty->MapLayout.ValueOffset
+				};
+				const TSharedPtr<FPropertyInstanceInfo> ChildInfo = FindOrMake(ChildProperty, VisitedNodes);
+				
 				FString NameStr = TEXT("[");
-				MapProperty->KeyProp->ExportTextItem(NameStr, PropData, nullptr, nullptr, PPF_PropertyWindow | PPF_BlueprintDebugView | PPF_Delimited, nullptr);
+				MapProperty->KeyProp->ExportTextItem(
+					NameStr,
+					PropData,
+					nullptr,
+					nullptr,
+					PPF_PropertyWindow | PPF_BlueprintDebugView | PPF_Delimited,
+					nullptr
+				);
 				NameStr += TEXT("] ");
-
-				ChildInfo.DisplayName = FText::FromString(NameStr);
-
-				DebugInfo.Children.Add(ChildInfo);
-
+				ChildInfo->DisplayName = FText::FromString(NameStr);
+				
+				Children.Add(ChildInfo);
 				--Count;
 			}
 		}
-
-		return;
 	}
-
-	FSetProperty* SetProperty = CastField<FSetProperty>(Property);
-	if (SetProperty)
+	else if (FSetProperty* SetProperty = CastField<FSetProperty>(Property.Get()))
 	{
-		FScriptSetHelper SetHelper(SetProperty, PropertyValue);
-		DebugInfo.Value = FText::Format(LOCTEXT("SetSize", "Num={0}"), FText::AsNumber(SetHelper.Num()));
+		FScriptSetHelper SetHelper(SetProperty, PropertyInstance.Value);
 		uint8* PropData = SetHelper.GetElementPtr(0);
 
 		int32 Index = 0;
@@ -1736,68 +1818,39 @@ void FKismetDebugUtilities::GetDebugInfoInternal(FDebugInfo& DebugInfo, FPropert
 		{
 			if (SetHelper.IsValidIndex(Index))
 			{
-				FDebugInfo ChildInfo;
-				GetDebugInfoInternal(ChildInfo, SetProperty->ElementProp, PropData);
-
+				FPropertyInstance ChildProperty = {
+					SetProperty->ElementProp,
+					PropData
+				};
+				const TSharedPtr<FPropertyInstanceInfo> ChildInfo = FindOrMake(ChildProperty, VisitedNodes);
+				
 				// members of sets don't have their own names
-				ChildInfo.DisplayName = FText::GetEmpty();
+				ChildInfo->DisplayName = FText::GetEmpty();
 
-				DebugInfo.Children.Add(ChildInfo);
+				Children.Add(ChildInfo);
 
 				--Count;
 			}
 		}
-
-		return;
 	}
-
-	FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(Property);
-	if (ObjectPropertyBase)
+	else if (FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(Property.Get()))
 	{
-		UObject* Obj = ObjectPropertyBase->GetObjectPropertyValue(PropertyValue);
-		if (Obj != nullptr)
+		if (UObject* Obj = ObjectPropertyBase->GetObjectPropertyValue(PropertyInstance.Value))
 		{
-			DebugInfo.Value = FText::FromString(Obj->GetFullName());
+			for (TFieldIterator<FProperty> It(Obj->GetClass()); It; ++It)
+			{
+				if(It->HasAllPropertyFlags(CPF_BlueprintVisible))
+				{
+					FPropertyInstance ChildProperty = {
+						*It,
+						It->ContainerPtrToValuePtr<void*>(Obj)
+					};
+					const TSharedPtr<FPropertyInstanceInfo> ChildInfo = FindOrMake(ChildProperty, VisitedNodes);
+					Children.Add(ChildInfo);
+				}
+			}
 		}
-		else
-		{
-			DebugInfo.Value = FText::FromString(TEXT("None"));
-		}
-
-		return;
 	}
-
-	FDelegateProperty* DelegateProperty = CastField<FDelegateProperty>(Property);
-	if (DelegateProperty)
-	{
-		if (DelegateProperty->SignatureFunction)
-		{
-			DebugInfo.Value = DelegateProperty->SignatureFunction->GetDisplayNameText();
-		}
-		else
-		{
-			DebugInfo.Value = LOCTEXT("NoFunc", "(No bound function)");
-		}
-
-		return;
-	}
-
-	FMulticastDelegateProperty* MulticastDelegateProperty = CastField<FMulticastDelegateProperty>(Property);
-	if (MulticastDelegateProperty)
-	{
-		if (MulticastDelegateProperty->SignatureFunction)
-		{
-			DebugInfo.Value = MulticastDelegateProperty->SignatureFunction->GetDisplayNameText();
-		}
-		else
-		{
-			DebugInfo.Value = LOCTEXT("NoFunc", "(No bound function)");
-		}
-
-		return;
-	}
-
-	ensure(false);
 }
 
 FText FKismetDebugUtilities::GetAndClearLastExceptionMessage()

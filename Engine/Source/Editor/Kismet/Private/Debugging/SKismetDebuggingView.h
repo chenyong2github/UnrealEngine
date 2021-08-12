@@ -26,7 +26,7 @@ typedef TSharedPtr<class FDebugLineItem> FDebugTreeItemPtr;
 class FDebugLineItem : public TSharedFromThis<FDebugLineItem>
 {
 public:
-	friend class ILineItemWithChildren;
+	friend class FLineItemWithChildren; // used by FLineItemWithChildren::EnsureChildIsAdded
 	enum EDebugLineType
 	{
 		DLT_Message,
@@ -54,6 +54,9 @@ public:
 	// Gather all of the children
 	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren) {}
 
+	// returns whether this tree node has children (used by drop down arrows)
+	virtual bool HasChildren();
+
 	// @return The object that will act as a parent to more items in the tree, or NULL if this is a leaf node
 	virtual UObject* GetParentObject() { return NULL; }
 
@@ -61,6 +64,18 @@ public:
 	{
 		return Type;
 	}
+
+	// returns a widget that will go to the left of the Name Widget.
+	virtual TSharedRef<SWidget> GetNameIcon();
+
+	// returns a widget that will go to the left of the Value Widget.
+	virtual TSharedRef<SWidget> GetValueIcon();
+
+	// determines the margin between the Name/Value widgets and the boarder
+	virtual FMargin GetInnerMargin();
+	
+	// determines the space between multiple rows/colums
+	virtual FMargin GetOuterMargin();
 
 	// Helper function to try to get the blueprint for a given object;
 	//   Returns the blueprint that was used to create the instance if there was one
@@ -85,6 +100,10 @@ protected:
 
 	// Compare this item to another of the same type
 	virtual bool Compare(const FDebugLineItem* Other) const=0;
+
+	// Used to update the state of a line item rather than replace it.
+	// called after Compare returns true
+	virtual void UpdateData(const FDebugLineItem& NewerData) {}
 
 	// @return The text to display in the name column, unless GenerateNameWidget is overridden
 	virtual FText GetDisplayName() const;

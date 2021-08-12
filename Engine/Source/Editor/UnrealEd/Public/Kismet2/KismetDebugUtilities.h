@@ -30,13 +30,55 @@ struct FKismetTraceSample
 //////////////////////////////////////////////////////////////////////////
 // FDebugInfo
 
-struct FDebugInfo
+// call FKismetDebugUtilities::GetDebugInfo to construct
+struct FPropertyInstanceInfo
 {
+	/**
+	 * used to determine whether an object's property has
+	 * been visited yet when generating FDebugInfo
+	 */
+	struct FPropertyInstance
+	{
+		FProperty* Property;
+		const void* Value;
+	};
+	
+	/**
+	* Helper constructor. call FKismetDebugUtilities::GetDebugInfo or
+	* FKismetDebugUtilities::GetDebugInfoInternal instead
+	*/
+    FPropertyInstanceInfo(FPropertyInstance PropertyInstance);
+
+	/**
+	 * looks for an existing FPropertyInstance inside VisitedNodes
+	 * if one isn't found, it makes one, stores it in VisitedNodes, and returns it
+	 */
+	static TSharedPtr<FPropertyInstanceInfo> FindOrMake(FPropertyInstance PropertyInstance,
+		TMap<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>> &VisitedNodes);
+
+	/**
+	* populates a FDebugInfo::Children with sub-properties
+	*/
+	void PopulateChildren(FPropertyInstance PropertyInstance,
+		TMap<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>> &VisitedNodes);
+	
 	FText DisplayName;
 	FText Value;
 	FText Type;
-	TArray<FDebugInfo> Children;
+	TFieldPath<FProperty> Property;
+	TArray<TSharedPtr<FPropertyInstanceInfo>> Children;
 };
+
+inline uint32 GetTypeHash(const FPropertyInstanceInfo::FPropertyInstance& PropertyInstance)
+{
+	return HashCombine(GetTypeHash(PropertyInstance.Property), GetTypeHash(PropertyInstance.Value));
+}
+
+inline bool operator==(const FPropertyInstanceInfo::FPropertyInstance& A, const FPropertyInstanceInfo::FPropertyInstance& B)
+{
+	return A.Property == B.Property && A.Value == B.Value;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // FObjectsBeingDebuggedIterator
@@ -269,7 +311,10 @@ public:
 	static EWatchTextResult GetWatchText(FString& OutWatchText, UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin);
 
 	// Gets the debug info for a specified site
-	static EWatchTextResult GetDebugInfo(FDebugInfo& OutDebugInfo, UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin);
+	static EWatchTextResult GetDebugInfo(TSharedPtr<FPropertyInstanceInfo> &OutDebugInfo, UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin);
+
+	// Retrieves Debug info from a Property and a pointer to it's associated data
+	static void GetDebugInfoInternal(TSharedPtr<FPropertyInstanceInfo> &DebugInfo, FProperty* Property, const void* PropertyValue);
 
 	//@TODO: Pretty lame way to handle this messaging, ideally the entire Info object gets pushed into the editor when intraframe debugging is triggered!
 	// This doesn't work properly if there is more than one blueprint editor open at once either (one will consume it, the others will be left in the cold)
@@ -278,8 +323,7 @@ protected:
 	static void CheckBreakConditions(UEdGraphNode* NodeStoppedAt, bool bHitBreakpoint, int32 BreakpointOffset, bool& InOutBreakExecution);
 	static void AttemptToBreakExecution(UBlueprint* BlueprintObj, const UObject* ActiveObject, const FFrame& StackFrame, const FBlueprintExceptionInfo& Info, UEdGraphNode* NodeStoppedAt, int32 DebugOpcodeOffset);
 
-	static void GetDebugInfo_InContainer(int32 Index, FDebugInfo& DebugInfo, FProperty* Property, const void* Data);
-	static void GetDebugInfoInternal(FDebugInfo& DebugInfo, FProperty* Property, const void* PropertyValue);
+	static void GetDebugInfo_InContainer(int32 Index, TSharedPtr<FPropertyInstanceInfo> &DebugInfo, FProperty* Property, const void* Data);
 
 	/**
 	* @brief	Helper function for converting between blueprint and debuggable data
