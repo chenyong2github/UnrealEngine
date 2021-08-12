@@ -570,10 +570,11 @@ namespace VulkanRHI
 
 	FDeviceMemoryManager::FDeviceMemoryManager() :
 		DeviceHandle(VK_NULL_HANDLE),
-		bHasUnifiedMemory(false),
 		Device(nullptr),
 		NumAllocations(0),
-		PeakNumAllocations(0)
+		PeakNumAllocations(0),
+		bHasUnifiedMemory(false),
+		bSupportsMemoryless(false)
 	{
 		FMemory::Memzero(MemoryProperties);
 	}
@@ -652,6 +653,13 @@ namespace VulkanRHI
 		if(0 == NonLocalHeaps)
 		{
 			PrimaryHostHeap = -1; // if there are no non-local heaps, disable eviction and defragmentation
+		}
+
+		// Update bMemoryless support
+		bSupportsMemoryless = false;
+		for (uint32 i = 0; i < MemoryProperties.memoryTypeCount && !bSupportsMemoryless; ++i)
+		{
+			bSupportsMemoryless = ((MemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) == VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT);
 		}
 
 
