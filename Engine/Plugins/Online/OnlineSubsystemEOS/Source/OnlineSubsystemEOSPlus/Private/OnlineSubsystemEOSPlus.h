@@ -13,6 +13,7 @@
 #include "OnlineLeaderboardsEOSPlus.h"
 #include "OnlineStoreEOSPlus.h"
 #include "OnlineExternalUIEOSPlus.h"
+#include "OnlineTitleFileEOSPlus.h"
 #include "OnlineUserCloudEOSPlus.h"
 
 
@@ -85,6 +86,7 @@ PACKAGE_SCOPE:
 	FOnlineLeaderboardsEOSPlusPtr LeaderboardsInterfacePtr;
 	FOnlineStoreEOSPlusPtr StoreInterfacePtr;
 	FOnlineExternalUIEOSPlusPtr ExternalUIInterfacePtr;
+	FOnlineTitleFileEOSPlusPtr TitleFileInterfacePtr;
 	FOnlineUserCloudEOSPlusPtr UserCloudInterfacePtr;
 };
 
