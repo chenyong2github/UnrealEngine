@@ -137,6 +137,8 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 
 	TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>();
 
+	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
+
 	FIntPoint DispatchResolution = FIntPoint(Lumen::CardTileSize * Lumen::CardTileSize, PassParameters->GroupCount);
 	FString LightName;
 	GraphBuilder.AddPass(
