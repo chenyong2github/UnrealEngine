@@ -1133,6 +1133,30 @@ void USkeletalMeshComponent::SetAllBodiesBelowPhysicsDisabled(const FName& InBon
 	});
 }
 
+void USkeletalMeshComponent::SetAllBodiesBelowLinearVelocity(const FName& InBoneName, const FVector& LinearVelocity, bool bIncludeSelf)
+{
+	if (const FBodyInstance* ParentBodyInstance = GetBodyInstance(InBoneName))
+	{
+		ForEachBodyBelow(InBoneName, bIncludeSelf, /*bSkipCustomPhysicsType=*/ false, [LinearVelocity, this](FBodyInstance* BI)
+			{
+				BI->SetLinearVelocity(LinearVelocity, false);
+			});
+	}
+}
+
+FVector USkeletalMeshComponent::GetBoneLinearVelocity(const FName& InBoneName)
+{
+	FVector OutVelocity = FVector::ZeroVector;
+
+	if (const FBodyInstance* ParentBodyInstance = GetBodyInstance(InBoneName))
+	{
+		OutVelocity = ParentBodyInstance->GetUnrealWorldVelocity();
+	}
+
+	return OutVelocity;
+}
+
+
 void USkeletalMeshComponent::SetAllBodiesBelowSimulatePhysics( const FName& InBoneName, bool bNewSimulate, bool bIncludeSelf )
 {
 	int32 NumBodiesFound = ForEachBodyBelow(InBoneName, bIncludeSelf, /*bSkipCustomPhysicsType=*/ false, [bNewSimulate](FBodyInstance* BI)

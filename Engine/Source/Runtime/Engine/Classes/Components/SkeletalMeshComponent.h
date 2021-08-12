@@ -1986,6 +1986,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetAllBodiesBelowPhysicsDisabled(const FName& InBoneName, bool bDisabled, bool bIncludeSelf = true);
 
+	/** set the linear velocity of the child bodies to match that of the given parent bone */
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	void SetAllBodiesBelowLinearVelocity(const FName& InBoneName, const FVector& LinearVelocity, bool bIncludeSelf = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	FVector GetBoneLinearVelocity(const FName& InBoneName);
+
 	/** Set all of the bones below passed in bone to be simulated */
 	UFUNCTION(BlueprintCallable, Category="Physics")
 	void SetAllBodiesBelowSimulatePhysics(const FName& InBoneName, bool bNewSimulate, bool bIncludeSelf = true );
