@@ -3845,6 +3845,11 @@ void FLevelEditorViewportClient::MirrorSelectedElements(const FVector& InMirrorS
 	RedrawAllViewportsIntoThisScene();
 }
 
+bool FLevelEditorViewportClient::GetFocusBounds(FTypedElementListConstRef InElements, FBoxSphereBounds& OutBounds)
+{
+	return ViewportInteraction->GetFocusBounds(InElements, OutBounds);
+}
+
 FTransform FLevelEditorViewportClient::CachePreDragActorTransform(const AActor* InActor)
 {
 	if (const FTransform* PreDragTransform = PreDragActorTransforms.Find(InActor))

@@ -328,6 +328,8 @@ public:
 	void MirrorSelectedActors(const FVector& InMirrorScale);
 	void MirrorSelectedElements(const FVector& InMirrorScale);
 
+	bool GetFocusBounds(FTypedElementListConstRef InElements, FBoxSphereBounds& OutBounds);
+
 	/**
 	 * Get the elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo).
 	 */

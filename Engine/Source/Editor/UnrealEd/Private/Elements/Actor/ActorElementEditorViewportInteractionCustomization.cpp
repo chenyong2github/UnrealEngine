@@ -9,6 +9,10 @@
 #include "Toolkits/IToolkitHost.h"
 #include "AI/NavigationSystemBase.h"
 #include "Components/BrushComponent.h"
+#include "Engine/DocumentationActor.h"
+#include "Particles/Emitter.h"
+#include "Elements/Interfaces/TypedElementHierarchyInterface.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 
 bool FActorElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
 {
@@ -51,6 +55,45 @@ void FActorElementEditorViewportInteractionCustomization::MirrorElement(const TT
 	Actor->PostEditMove(true);
 
 	Actor->MarkPackageDirty();
+}
+
+bool FActorElementEditorViewportInteractionCustomization::GetFocusBounds( const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, FBoxSphereBounds& OutBounds)
+{
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementWorldHandle);
+	if (!Actor)
+	{
+		return false;
+	}
+
+	// open the documentation of documentation actors
+	if (ADocumentationActor* DocActor = Cast<ADocumentationActor>(Actor))
+	{
+		DocActor->OpenDocumentLink();
+	}
+
+	// Create a bounding volume of all of the sub-elements
+	FBox BoundingBox(ForceInit);
+
+	const bool bActorIsEmitter = (Cast<AEmitter>(Actor) != nullptr);
+
+	if (bActorIsEmitter && GEditor && GEditor->bCustomCameraAlignEmitter)
+	{
+		const float CustomCameraAlignEmitterDistance = GEditor->CustomCameraAlignEmitterDistance;
+		const FVector DefaultExtent(CustomCameraAlignEmitterDistance, CustomCameraAlignEmitterDistance,
+		                            CustomCameraAlignEmitterDistance);
+		const FBox DefaultSizeBox(Actor->GetActorLocation() - DefaultExtent, Actor->GetActorLocation() + DefaultExtent);
+		BoundingBox += DefaultSizeBox;
+	}
+
+	BoundingBox += Actor->GetComponentsBoundingBox(/*bNonColliding*/true, /*bIncludeFromChildActors*/true);
+	
+	if (USceneComponent* RootComponent = Actor->GetRootComponent())
+	{
+		BoundingBox += RootComponent->GetComponentLocation();
+	}
+	
+	OutBounds = BoundingBox;
+	return true;
 }
 
 void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AActor* InActor, const bool InIsDelta, const FVector* InDeltaTranslationPtr, const FRotator* InDeltaRotationPtr, const FVector* InDeltaScalePtr, const FVector& InPivotLocation, const FInputDeviceState& InInputState)

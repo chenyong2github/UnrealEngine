@@ -70,6 +70,7 @@ struct FAnalyticsEventAttribute;
 class UEditorWorldExtensionManager;
 class ITargetDevice;
 class ULevelEditorDragDropHandler;
+class UTypedElementSelectionSet;
 
 //
 // Things to set in mapSetBrush.
@@ -1002,6 +1003,13 @@ public:
 	* @param	bActiveViewportOnly		If true, move/reorient only the active viewport.
 	*/
 	void MoveViewportCamerasToComponent(const USceneComponent* Component, bool bActiveViewportOnly);
+
+	/**
+	* Moves all viewport cameras to focus on the provided set of elements.
+	* @param	SelectionSet			Target elements
+	* @param	bActiveViewportOnly		If true, move/reorient only the active viewport.
+	*/
+	void MoveViewportCamerasToElement(const UTypedElementSelectionSet* SelectionSet, bool bActiveViewportOnly) const;
 
 	/**
 	 * Moves all viewport cameras to focus on the provided bounding box.

@@ -130,6 +130,11 @@ void FTypedElementViewportInteractionCustomization::MirrorElement(const TTypedEl
 	}
 }
 
+bool FTypedElementViewportInteractionCustomization::GetFocusBounds(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, FBoxSphereBounds& OutBounds)
+{
+	return InElementWorldHandle.GetBounds(OutBounds);
+}
+
 
 void UTypedElementViewportInteraction::BeginGizmoManipulation(FTypedElementListConstRef InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode)
 {
@@ -216,6 +221,21 @@ void UTypedElementViewportInteraction::MirrorElement(const FTypedElementHandle& 
 		ViewportInteractionElement.GetGizmoPivotLocation(UE::Widget::WM_None, PivotLocation);
 		ViewportInteractionElement.MirrorElement(InMirrorScale, PivotLocation);
 	}
+}
+
+bool UTypedElementViewportInteraction::GetFocusBounds(FTypedElementListConstRef InElements, FBoxSphereBounds& OutBounds)
+{
+	bool bAnyHaveBounds = false;
+	InElements->ForEachElementHandle([this, &OutBounds, &bAnyHaveBounds](const FTypedElementHandle& InElementToMove)
+	{
+		FTypedElementViewportInteractionElement ViewportInteractionElement = ResolveViewportInteractionElement(InElementToMove);
+		if (ViewportInteractionElement)
+		{
+			bAnyHaveBounds = ViewportInteractionElement.GetFocusBounds(OutBounds) || bAnyHaveBounds;
+		}
+		return true;
+	});
+	return bAnyHaveBounds;
 }
 
 FTypedElementViewportInteractionElement UTypedElementViewportInteraction::ResolveViewportInteractionElement(const FTypedElementHandle& InElementHandle) const

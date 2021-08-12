@@ -48,6 +48,67 @@ void FComponentElementEditorViewportInteractionCustomization::GizmoManipulationD
 	}
 }
 
+namespace EditorEngineDefs
+{
+/** Limit the minimum size of the bounding box when centering cameras on individual components to avoid extreme zooming */
+static const float MinComponentBoundsForZoom = 50.0f;
+}
+
+bool FComponentElementEditorViewportInteractionCustomization::GetFocusBounds(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, FBoxSphereBounds& OutBounds)
+{
+	if (UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementWorldHandle))
+	{
+		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component))
+		{
+			if (!PrimitiveComponent->IsRegistered())
+			{
+				return false;
+			}
+
+			AActor* AlignActor = Component->GetOwner();
+			if (!AlignActor)
+			{
+				return false;
+			}
+
+			if (USceneComponent* RootComponent = AlignActor->GetRootComponent())
+			{
+				TArray<USceneComponent*> SceneComponents;
+				RootComponent->GetChildrenComponents(true, SceneComponents);
+				SceneComponents.Add(RootComponent);
+				// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
+				const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+
+				if (!bIgnore)
+				{
+					FBox LocalBox(ForceInit);
+					if (!GLevelEditorModeTools().ComputeBoundingBoxForViewportFocus(
+						AlignActor, PrimitiveComponent, LocalBox))
+					{
+						LocalBox = PrimitiveComponent->Bounds.GetBox();
+						FVector Center;
+						FVector Extents;
+						LocalBox.GetCenterAndExtents(Center, Extents);
+
+						// Apply a minimum size to the extents of the component's box to avoid the camera's zooming too close to small or zero-sized components
+						if (Extents.SizeSquared() < EditorEngineDefs::MinComponentBoundsForZoom *
+							EditorEngineDefs::MinComponentBoundsForZoom)
+						{
+							const FVector NewExtents(EditorEngineDefs::MinComponentBoundsForZoom, SMALL_NUMBER,
+							                         SMALL_NUMBER);
+							LocalBox = FBox(Center - NewExtents, Center + NewExtents);
+						}
+					}
+					OutBounds = LocalBox;
+
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 void FComponentElementEditorViewportInteractionCustomization::ApplyDeltaToComponent(USceneComponent* InComponent, const bool InIsDelta, const FVector* InDeltaTranslationPtr, const FRotator* InDeltaRotationPtr, const FVector* InDeltaScalePtr, const FVector& InPivotLocation, const FInputDeviceState& InInputState)
 {
 	if (GEditor->IsDeltaModificationEnabled())

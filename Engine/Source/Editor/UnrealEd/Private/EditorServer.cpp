@@ -166,6 +166,7 @@
 #include "EditorBuildUtils.h"
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "EdMode.h"
+#include "LevelEditorSubsystem.h"
 
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/Formatters/JsonArchiveInputFormatter.h"
@@ -4823,20 +4824,6 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 		}
 	}
 
-	struct ComponentTypeMatcher
-	{
-		ComponentTypeMatcher(UPrimitiveComponent* InComponentToMatch)
-			: ComponentToMatch(InComponentToMatch)
-		{}
-
-		bool operator()(const UClass* ComponentClass) const
-		{
-			return ComponentToMatch->IsA(ComponentClass);
-		}
-
-		UPrimitiveComponent* ComponentToMatch;
-	};
-
 	TArray<AActor*> InvisLevelActors;
 
 	// Create a bounding volume of all of the selected actors.
@@ -4981,6 +4968,48 @@ void UEditorEngine::MoveViewportCamerasToComponent(const USceneComponent* Compon
 			MoveViewportCamerasToBox(Box, bActiveViewportOnly);
 		}
 	}
+}
+
+void UEditorEngine::MoveViewportCamerasToElement(const UTypedElementSelectionSet* SelectionSet, bool bActiveViewportOnly) const
+{
+	if (!SelectionSet || !SelectionSet->HasSelectedElements(UTypedElementWorldInterface::StaticClass()))
+	{
+		return;
+	}
+
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+	if (!Registry)
+	{
+		return;
+	}
+	
+	// Create a bounding volume of all of the selected elements.
+	FBox BoundingBox(ForceInit);
+
+	FTypedElementListConstRef ElementsToView = SelectionSet->GetNormalizedElementList(SelectionSet->GetElementList(), FTypedElementSelectionNormalizationOptions());
+
+	if (bActiveViewportOnly)
+	{
+		FBoxSphereBounds Bounds(ForceInit);
+		if (GCurrentLevelEditingViewportClient->GetFocusBounds(ElementsToView, Bounds))
+		{
+			BoundingBox += Bounds.GetBox();
+		}
+	}
+	else
+	{
+		// Use all viewports.
+		for (FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
+		{
+			FBoxSphereBounds Bounds(ForceInit);
+			if (LinkedViewportClient->GetFocusBounds(ElementsToView, Bounds))
+			{
+				BoundingBox += Bounds.GetBox();
+			}
+		}
+	}
+
+	MoveViewportCamerasToBox(BoundingBox, bActiveViewportOnly);
 }
 
 void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const
@@ -5299,32 +5328,21 @@ bool UEditorEngine::Exec_Camera( const TCHAR* Str, FOutputDevice& Ar )
 			}
 			else
 			{
-				TArray<AActor*> Actors;
-				for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+				const UTypedElementSelectionSet* SelectionSet = GetSelectedActors()->GetElementSelectionSet();
+				if (SelectionSet && SelectionSet->HasSelectedElements())
 				{
-					AActor* Actor = static_cast<AActor*>(*It);
-					checkSlow(Actor->IsA(AActor::StaticClass()));
-					Actors.Add(Actor);
+					MoveViewportCamerasToElement(SelectionSet, bActiveViewportOnly);
 				}
-
-				TArray<UPrimitiveComponent*> SelectedComponents;
-				for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
-				{
-					UPrimitiveComponent* PrimitiveComp = Cast<UPrimitiveComponent>(*It);
-					if (PrimitiveComp)
-					{
-						SelectedComponents.Add(PrimitiveComp);
-					}
-				}
-
+				/*
 				if (Actors.Num() || SelectedComponents.Num())
 				{
 					MoveViewportCamerasToActor(Actors, SelectedComponents, bActiveViewportOnly);
 					return true;
 				}
+				*/
 				else
-				{
-					Ar.Log(TEXT("Can't find target actor or component."));
+				{					
+					Ar.Log(TEXT("Can't find target element."));
 					return false;
 				}
 			}
