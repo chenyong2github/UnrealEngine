@@ -35,6 +35,7 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
                     "UnrealEd",
+					"AssetTools"
                 }
             );
         }
