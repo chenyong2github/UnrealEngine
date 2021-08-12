@@ -33,7 +33,7 @@ public:
 	 */
 	struct MODELINGCOMPONENTS_API FDynamicMeshCommitInfo
 	{
-		/** Initializes everything to bInitValue */
+		/** Initializes each of the b*Changed members to bInitValue */
 		FDynamicMeshCommitInfo(bool bInitValue)
 		{
 			bPositionsChanged =
@@ -55,6 +55,13 @@ public:
 		bool bTangentsChanged = true;
 		bool bUVsChanged = true;
 		bool bVertexColorsChanged = true;
+
+		/**
+		 * Intentionally left out of the constructor. This is a different
+		 * parameter than the b*Changed members that augments how vertex
+		 * colors are transformed during the commit.
+		 */
+		bool bTransformVertexColorsSRGBToLinear = false;
 	};
 
 	virtual void CommitDynamicMesh(const UE::Geometry::FDynamicMesh3& Mesh)

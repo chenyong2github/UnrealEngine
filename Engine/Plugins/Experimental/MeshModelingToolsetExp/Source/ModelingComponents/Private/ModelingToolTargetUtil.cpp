@@ -271,6 +271,7 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 		CommitInfo.bTangentsChanged = ConversionOptions.bUpdateTangents;
 		CommitInfo.bUVsChanged = ConversionOptions.bUpdateUVs;
 		CommitInfo.bVertexColorsChanged = ConversionOptions.bUpdateVtxColors;
+		CommitInfo.bTransformVertexColorsSRGBToLinear = ConversionOptions.bTransformVtxColorsSRGBToLinear;
 
 		DynamicMeshCommitter->CommitDynamicMesh(UpdatedMesh, CommitInfo);
 

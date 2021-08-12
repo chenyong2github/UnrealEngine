@@ -401,6 +401,7 @@ void UBakeMeshAttributeVertexTool::Shutdown(EToolShutdownType ShutdownType)
 			                                               "Bake Mesh Attribute Vertex"));
 			FConversionToMeshDescriptionOptions ConvertOptions;
 			ConvertOptions.SetToVertexColorsOnly();
+			ConvertOptions.bTransformVtxColorsSRGBToLinear = true;
 			UE::ToolTarget::CommitDynamicMeshUpdate(
 				Targets[0],
 				*PreviewMesh->GetMesh(),
