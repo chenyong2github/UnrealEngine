@@ -16,3 +16,6 @@ template<>           struct TIsCharType<UTF16CHAR> { enum { Value = true  }; };
 template<>           struct TIsCharType<WIDECHAR>  { enum { Value = true  }; };
 template<>           struct TIsCharType<UTF8CHAR>  { enum { Value = true  }; };
 template<>           struct TIsCharType<UTF32CHAR> { enum { Value = true  }; };
+#if PLATFORM_TCHAR_IS_CHAR16
+template<>           struct TIsCharType<wchar_t>   { enum { Value = true  }; };
+#endif
