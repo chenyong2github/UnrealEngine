@@ -32,6 +32,7 @@ struct FRDGSystemTextures
 	FRDGTextureRef MidGrey{};
 	FRDGTextureRef VolumetricBlack{};
 	FRDGTextureRef VolumetricBlackAlphaOne{};
+	FRDGTextureRef VolumetricBlackUint{};
 
 	FRDGTextureSRVRef StencilDummySRV{};
 };
@@ -135,6 +136,7 @@ public:
 	/** float4(0,0,0,0) volumetric texture. */
 	TRefCountPtr<IPooledRenderTarget> VolumetricBlackDummy;
 	TRefCountPtr<IPooledRenderTarget> VolumetricBlackAlphaOneDummy;
+	TRefCountPtr<IPooledRenderTarget> VolumetricBlackUintDummy;
 	
 	// Dummy 0 Uint texture for RHIs that need explicit overloads
 	TRefCountPtr<IPooledRenderTarget> ZeroUIntDummy;
@@ -160,6 +162,7 @@ public:
 	FRDGTextureRef RENDERER_API GetDefaultNormal8Bit(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef RENDERER_API GetMidGreyDummy(FRDGBuilder& GraphBuilder) const;
 	FRDGTextureRef RENDERER_API GetVolumetricBlackDummy(FRDGBuilder& GraphBuilder) const;
+	FRDGTextureRef RENDERER_API GetVolumetricBlackUintDummy(FRDGBuilder& GraphBuilder) const;
 
 	// Create default 2D texture (1x1) with specific format and initialize value 
 	FRDGTextureRef RENDERER_API GetDefaultTexture2D(FRDGBuilder& GraphBuilder, EPixelFormat Format, float Value);
