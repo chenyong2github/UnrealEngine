@@ -17,6 +17,19 @@ namespace UE::Virtualization
 	
 constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
 
+/** Creates a buffer full of random data to make it easy to have something to test against. */
+TUniquePtr<uint8[]> CreateRandomData(int64 BufferSize)
+{
+	TUniquePtr<uint8[]> Buffer = MakeUnique<uint8[]>(BufferSize);
+
+	for (int64 Index = 0; Index < BufferSize; ++Index)
+	{
+		Buffer[Index] = (uint8)(FMath::Rand() % 255);
+	}
+
+	return Buffer;
+}
+
 /**
  * This test creates a very basic VirtualizedBulkData object with in memory payload and validates that we are able to retrieve the 
  * payload via both TFuture and callback methods. It then creates copies of the object and makes sure that we can get the payload from
@@ -26,13 +39,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestBasic, TEXT("System.C
 bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
 {
 	const int64 BufferSize = 1024;
-	TUniquePtr<uint8[]> SourceBuffer = MakeUnique<uint8[]>(BufferSize);
-
-	// Write some values to SourceBuffer
-	for (int64 Index = 0; Index < BufferSize; ++Index)
-	{
-		SourceBuffer[Index] = (uint8)(FMath::Rand() % 255);
-	}
+	TUniquePtr<uint8[]> SourceBuffer = CreateRandomData(BufferSize);
 
 	auto ValidateBulkData = [this, &SourceBuffer, BufferSize](const FVirtualizedUntypedBulkData& BulkDataToValidate, const TCHAR* Label)
 		{
@@ -87,6 +94,9 @@ bool FVirtualizationWrapperTestEmpty::RunTest(const FString& Parameters)
 	// Validate the payload accessors
 	FSharedBuffer Payload = BulkData.GetPayload().Get();
 	TestTrue(TEXT("The payload from the GetPayload TFuture is null"), Payload.IsNull());
+
+	FCompressedBuffer CompressedPayload = BulkData.GetCompressedPayload().Get();
+	TestTrue(TEXT("The payload from the GetCompressedPayload TFuture is null"), Payload.IsNull());
 
 	return true;
 }
@@ -175,14 +185,8 @@ bool FVirtualizationWrapperTestReaderWriter::RunTest(const FString& Parameters)
 {
 	const int64 BufferSize = 1024;
 
-	TUniquePtr<uint8[]> SourceBuffer = MakeUnique<uint8[]>(BufferSize);
+	TUniquePtr<uint8[]> SourceBuffer = CreateRandomData(BufferSize);
 	TUniquePtr<uint8[]> ReplicatedBuffer = MakeUnique<uint8[]>(BufferSize);
-
-	// Write some values to SourceBuffer
-	for (int64 Index = 0; Index < BufferSize; ++Index)
-	{
-		SourceBuffer[Index] = (uint8)(FMath::Rand() % 255);
-	}
 
 	FByteVirtualizedBulkData BulkData;
 
@@ -208,6 +212,60 @@ bool FVirtualizationWrapperTestReaderWriter::RunTest(const FString& Parameters)
 		FByteVirtualizedBulkData EmptyBulkData;
 		FVirtualizedBulkDataWriter WriterAr(EmptyBulkData);
 		FVirtualizedBulkDataReader ReaderAr(EmptyBulkData);
+	}
+	return true;
+}
+
+/** 
+ * This test will serialize a number of empty and valid bulkdata objects to a memory buffer and then serialize them back 
+ * as bulkdata objects again. This should help find problems where the data saved and loaded are mismatched.
+ * Note that this does not check the package saving code paths, only direct serialization to buffers.
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualizationWrapperTestSerializationToMemory, TEXT("System.Core.Virtualization.BulkData.SerializationToMemory"), TestFlags)
+bool FVirtualizationWrapperTestSerializationToMemory::RunTest(const FString& Parameters)
+{
+	const int64 BufferSize = 1024;
+
+	TUniquePtr<uint8[]> SourceBuffer = CreateRandomData(BufferSize);
+	
+	FByteVirtualizedBulkData EmptyBulkData;
+	FByteVirtualizedBulkData ValidBulkData;
+	ValidBulkData.UpdatePayload(FSharedBuffer::Clone(SourceBuffer.Get(), BufferSize));
+	
+	TArray<uint8> MemoryBuffer;
+	const bool bIsArPersistent = true;
+
+	// Write out
+	{
+		FMemoryWriter WriterAr(MemoryBuffer, bIsArPersistent);
+
+		ValidBulkData.Serialize(WriterAr, nullptr);
+		EmptyBulkData.Serialize(WriterAr, nullptr);
+		ValidBulkData.Serialize(WriterAr, nullptr);
+		EmptyBulkData.Serialize(WriterAr, nullptr);
+	}
+
+	// Read in
+	{
+		FByteVirtualizedBulkData SerializedBulkData;
+
+		FMemoryReader ReaderAr(MemoryBuffer, bIsArPersistent);
+
+		SerializedBulkData.Serialize(ReaderAr, nullptr);
+		TestEqual(TEXT("Bulkdata identifier should remain the same"), SerializedBulkData.GetIdentifier(), ValidBulkData.GetIdentifier());
+		TestTrue(TEXT("Bulkdata payload should remain the same"), FMemory::Memcmp(SourceBuffer.Get(), SerializedBulkData.GetPayload().Get().GetData(), BufferSize) == 0);
+
+		SerializedBulkData.Serialize(ReaderAr, nullptr);
+		TestEqual(TEXT("Bulkdata identifier should remain the same"), SerializedBulkData.GetIdentifier(), EmptyBulkData.GetIdentifier());
+		TestTrue(TEXT("Bulkdata should not have a payload"), SerializedBulkData.GetPayload().Get().IsNull());
+
+		SerializedBulkData.Serialize(ReaderAr, nullptr);
+		TestEqual(TEXT("Bulkdata identifier should remain the same"), SerializedBulkData.GetIdentifier(), ValidBulkData.GetIdentifier());
+		TestTrue(TEXT("Bulkdata payload should remain the same"), FMemory::Memcmp(SourceBuffer.Get(), SerializedBulkData.GetPayload().Get().GetData(), BufferSize) == 0);
+
+		SerializedBulkData.Serialize(ReaderAr, nullptr);
+		TestEqual(TEXT("Bulkdata identifier should remain the same"), SerializedBulkData.GetIdentifier(), EmptyBulkData.GetIdentifier());
+		TestTrue(TEXT("Bulkdata should not have a payload"), SerializedBulkData.GetPayload().Get().IsNull());
 	}
 	return true;
 }

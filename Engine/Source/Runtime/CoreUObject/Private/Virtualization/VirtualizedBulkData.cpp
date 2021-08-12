@@ -1100,10 +1100,10 @@ FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 TFuture<FSharedBuffer> FVirtualizedUntypedBulkData::GetPayload() const
 {
 	TPromise<FSharedBuffer> Promise;
-
-	if (Payload)
+	
+	// Avoid a unnecessary compression and decompression if we already have the uncompressed payload
+	if (Payload && GetPayloadSize() > 0)
 	{
-		// Avoid a unnecessary compression and decompression if we already have the uncompressed payload
 		Promise.SetValue(Payload);
 	}
 	else
@@ -1216,11 +1216,6 @@ void FVirtualizedUntypedBulkData::UpdateKeyIfNeeded()
 
 void FVirtualizedUntypedBulkData::RecompressForSerialization(FCompressedBuffer& InOutPayload, EFlags PayloadFlags) const
 {
-	if (!InOutPayload)
-	{
-		return; // Early out if we do not have a valid payload to operate on
-	}
-
 	Private::FCompressionSettings CurrentSettings(InOutPayload);
 	Private::FCompressionSettings TargetSettings;
 
