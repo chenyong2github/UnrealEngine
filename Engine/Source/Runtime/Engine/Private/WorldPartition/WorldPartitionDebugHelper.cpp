@@ -152,7 +152,7 @@ void FWorldPartitionDebugHelper::DrawText(UCanvas* Canvas, const FString& Text, 
 	}
 }
 
-void FWorldPartitionDebugHelper::DrawLegendItem(UCanvas* Canvas, const FString& Text, const UFont* Font, const FColor& Color, FVector2D& Pos, float* MaxItemWidth)
+void FWorldPartitionDebugHelper::DrawLegendItem(UCanvas* Canvas, const FString& Text, const UFont* Font, const FColor& Color, const FColor& TextColor, FVector2D& Pos, float* MaxItemWidth)
 {
 	static const FVector2D ItemSize(12, 12);
 	
@@ -163,7 +163,7 @@ void FWorldPartitionDebugHelper::DrawLegendItem(UCanvas* Canvas, const FString& 
 
 	FVector2D TextPos(Pos.X + ItemSize.X + 10, Pos.Y);
 	float TextWidth = 0.f;
-	FWorldPartitionDebugHelper::DrawText(Canvas, Text, Font, FColor::White, TextPos, &TextWidth);
+	FWorldPartitionDebugHelper::DrawText(Canvas, Text, Font, TextColor, TextPos, &TextWidth);
 	if (MaxItemWidth)
 	{
 		*MaxItemWidth = FMath::Max(*MaxItemWidth, TextWidth + ItemSize.X + 10);

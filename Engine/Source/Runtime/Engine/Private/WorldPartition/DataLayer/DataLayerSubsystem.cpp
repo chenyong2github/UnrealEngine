@@ -179,28 +179,46 @@ void UDataLayerSubsystem::DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offse
 	FVector2D Pos = Offset;
 	float MaxTextWidth = 0.f;
 
-	TMap<FName, FColor> ColorMapping;
-	GetDataLayerDebugColors(ColorMapping);
-
-	auto DrawLayerNames = [this, Canvas, &Pos, &MaxTextWidth, &ColorMapping](const FString& Title, FColor Color, const TSet<FName>& LayerNames)
+	auto DrawLayerNames = [this, Canvas, &Pos, &MaxTextWidth](const FString& Title, FColor HeaderColor, FColor TextColor, const TSet<FName>& LayerNames)
 	{
 		if (LayerNames.Num() > 0)
 		{
-			FWorldPartitionDebugHelper::DrawText(Canvas, Title, GEngine->GetSmallFont(), Color, Pos, &MaxTextWidth);
+			FWorldPartitionDebugHelper::DrawText(Canvas, Title, GEngine->GetSmallFont(), HeaderColor, Pos, &MaxTextWidth);
 
-			UFont* DataLayerFont = GEngine->GetTinyFont();
+			UFont* DataLayerFont = GEngine->GetSmallFont();
 			for (const FName& DataLayerName : LayerNames)
 			{
 				if (UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName))
 				{
-					FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *DataLayer->GetDataLayerLabel().ToString(), DataLayerFont, ColorMapping[DataLayerName], Pos, &MaxTextWidth);
+					FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *DataLayer->GetDataLayerLabel().ToString(), DataLayerFont, DataLayer->GetDebugColor(), TextColor, Pos, &MaxTextWidth);
 				}
 			}
 		}
 	};
 
-	DrawLayerNames(TEXT("Loaded Data Layers"), FColor::Cyan, GetLoadedDataLayerNames());
-	DrawLayerNames(TEXT("Active Data Layers"), FColor::Green, GetActiveDataLayerNames());
+	const TSet<FName> LoadedDataLayers = GetLoadedDataLayerNames();
+	const TSet<FName> ActiveDataLayers = GetActiveDataLayerNames();
+
+	DrawLayerNames(TEXT("Loaded Data Layers"), FColor::Cyan, FColor::White, LoadedDataLayers);
+	DrawLayerNames(TEXT("Active Data Layers"), FColor::Green, FColor::White, ActiveDataLayers);
+
+	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	{
+		TSet<FName> UnloadedDataLayers;
+		WorldDataLayers->ForEachDataLayer([&LoadedDataLayers, &ActiveDataLayers, &UnloadedDataLayers](UDataLayer* DataLayer)
+		{
+			if (DataLayer->IsDynamicallyLoaded())
+			{
+				const FName DataLayerName = DataLayer->GetFName();
+				if (!LoadedDataLayers.Contains(DataLayerName) && !ActiveDataLayers.Contains(DataLayerName))
+				{
+					UnloadedDataLayers.Add(DataLayerName);
+				}
+			}
+			return true;
+		});
+		DrawLayerNames(TEXT("Unloaded Data Layers"), FColor::Silver, FColor(192,192,192), UnloadedDataLayers);
+	}
 
 	Offset.X += MaxTextWidth + 10;
 }

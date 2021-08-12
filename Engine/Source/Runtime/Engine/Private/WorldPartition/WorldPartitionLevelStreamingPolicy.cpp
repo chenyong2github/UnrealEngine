@@ -270,7 +270,7 @@ void UWorldPartitionLevelStreamingPolicy::DrawStreamingStatusLegend(UCanvas* Can
 		{
 			DebugString += *FString::Printf(TEXT(" (%d)"), StatusCount[(int32)Status]);
 		}
-		FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *DebugString, GEngine->GetTinyFont(), StatusColor, Pos, &MaxTextWidth);
+		FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *DebugString, GEngine->GetSmallFont(), StatusColor, FColor::White, Pos, &MaxTextWidth);
 	}
 
 	Offset.X += MaxTextWidth + 10;
