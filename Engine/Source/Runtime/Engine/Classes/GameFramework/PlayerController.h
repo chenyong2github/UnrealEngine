@@ -438,16 +438,16 @@ public:
 	FRotator RotationInput;
 
 	/** Yaw input speed scaling */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category=PlayerController)
-	float InputYawScale;
+	UPROPERTY(config, meta = (DeprecatedProperty, DeprecationMessage = "Use the Enhanced Input plugin Scalar Modifier instead. See UInputSettings::bEnableLegacyInputScales to enable legacy behavior"))
+	float InputYawScale_DEPRECATED = 1.0f;
 
 	/** Pitch input speed scaling */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category=PlayerController)
-	float InputPitchScale;
+	UPROPERTY(config, meta = (DeprecatedProperty, DeprecationMessage = "Use the Enhanced Input plugin Scalar Modifier instead. See UInputSettings::bEnableLegacyInputScales to enable legacy behavior"))
+	float InputPitchScale_DEPRECATED = 1.0f;
 
 	/** Roll input speed scaling */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category=PlayerController)
-	float InputRollScale;
+	UPROPERTY(config, meta = (DeprecatedProperty, DeprecationMessage = "Use the Enhanced Input plugin Scalar Modifier instead. See UInputSettings::bEnableLegacyInputScales to enable legacy behavior"))
+	float InputRollScale_DEPRECATED = 1.0f;
 
 	/** Whether the mouse cursor should be displayed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MouseInterface)

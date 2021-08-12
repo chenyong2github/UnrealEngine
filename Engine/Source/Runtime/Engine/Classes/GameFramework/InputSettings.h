@@ -53,6 +53,10 @@ class ENGINE_API UInputSettings
 	UPROPERTY(config)
 	uint8 bDefaultViewportMouseLock_DEPRECATED:1;
 
+	/** Enable the use of legacy input scales on the player controller (InputYawScale, InputPitchScale, and InputRollScale) */
+	UPROPERTY(config, EditAnywhere, Category = "Input")
+	uint8 bEnableLegacyInputScales:1;
+	
 	/** Should the touch input interface be shown always, or only when the platform has a touch screen? */
 	UPROPERTY(config, EditAnywhere, Category="Mobile")
 	uint8 bAlwaysShowTouchInterface:1;
@@ -67,7 +71,7 @@ class ENGINE_API UInputSettings
 
 	/** If enabled, virtual keyboards will have autocorrect enabled. Currently only supported on mobile devices. */
 	UPROPERTY(config, EditAnywhere, Category = "Virtual Keyboard (Mobile)")
-	bool bUseAutocorrect;
+	uint8 bUseAutocorrect:1;
 
 	/** 
 	 * Disables autocorrect for these operating systems, even if autocorrect is enabled. Use the format "[platform] [osversion]"
