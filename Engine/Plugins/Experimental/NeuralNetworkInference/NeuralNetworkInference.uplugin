@@ -70,11 +70,6 @@
 			"WhitelistPlatforms": [
 				"Win64"
 			]
-		},
-		{
-			"Name": "NeuralNetworkInferenceLegacy",
-			"Type": "RuntimeAndProgram",
-			"LoadingPhase": "Default"
 		}
 	]
 }

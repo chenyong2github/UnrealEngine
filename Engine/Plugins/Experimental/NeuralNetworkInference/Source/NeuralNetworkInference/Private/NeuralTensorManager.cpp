@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralTensorManager.h"
-#include "NeuralNetworkInferenceLegacyUtils.h"
+#include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceVersion.h"
 
 

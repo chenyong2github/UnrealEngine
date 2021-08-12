@@ -2,7 +2,7 @@
 
 #include "NeuralNetworkFromONNXTranslator.h"
 #include "Misc/Paths.h"
-#include "NeuralNetworkInferenceLegacyUtils.h"
+#include "NeuralNetworkInferenceUtils.h"
 #include "NeuralOperator.h"
 #include "NeuralOperators.h"
 #include "NeuralTensorManager.h"

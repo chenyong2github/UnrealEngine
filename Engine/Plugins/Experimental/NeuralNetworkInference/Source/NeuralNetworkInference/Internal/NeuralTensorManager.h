@@ -14,7 +14,7 @@
  * Most functions are inlined (or templated) to avoid the performance overhead of a wrapper class.
  */
 USTRUCT()
-struct NEURALNETWORKINFERENCELEGACY_API FNeuralTensorManager
+struct NEURALNETWORKINFERENCE_API FNeuralTensorManager
 {
 	GENERATED_BODY()
 

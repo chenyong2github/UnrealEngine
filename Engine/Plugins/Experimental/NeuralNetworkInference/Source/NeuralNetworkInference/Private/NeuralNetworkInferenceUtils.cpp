@@ -2,6 +2,9 @@
 
 #include "NeuralNetworkInferenceUtils.h"
 #include "HAL/PlatformTime.h"
+#include "RenderingThread.h"
+#include "RHI.h"
+#include <atomic>
 
 
 
@@ -54,4 +57,19 @@ bool FNeuralNetworkInferenceUtils::SizeSanityChecks(const TArray<FNeuralTensor*>
 		}
 	}
 	return true;
+}
+
+void FNeuralNetworkInferenceUtils::WaitUntilRHIFinished()
+{
+	std::atomic<bool> bDidGPUFinish(false);
+	ENQUEUE_RENDER_COMMAND(ForwardGPU_Gemm_RenderThread)(
+		[&bDidGPUFinish](FRHICommandListImmediate& RHICmdList)
+		{
+			bDidGPUFinish = true;
+		}
+	);
+	while (!bDidGPUFinish)
+	{
+		FPlatformProcess::Sleep(0.1e-3);
+	}
 }

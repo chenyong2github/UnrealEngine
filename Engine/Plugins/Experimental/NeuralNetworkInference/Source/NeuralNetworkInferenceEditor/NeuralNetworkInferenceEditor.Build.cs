@@ -28,7 +28,6 @@ public class NeuralNetworkInferenceEditor : ModuleRules
 			(
 			new string[] {
 				"NeuralNetworkInference",
-				"NeuralNetworkInferenceLegacy",
 				"UnrealEd"
 			}
 		);
