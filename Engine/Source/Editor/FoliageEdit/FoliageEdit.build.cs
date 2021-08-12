@@ -27,6 +27,7 @@ public class FoliageEdit : ModuleRules
                 "AssetTools",
                 "Foliage",
 				"DataLayerEditor",
+				"EditorWidgets",
 			}
 		);
 

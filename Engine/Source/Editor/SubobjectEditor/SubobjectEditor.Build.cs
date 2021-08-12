@@ -31,6 +31,7 @@ public class SubobjectEditor : ModuleRules
 				"UnrealEd",
 				"InputCore",
 				"KismetWidgets",
+				"EditorWidgets",
 				"GameProjectGeneration",
 				"EditorFramework",
 				"GraphEditor",

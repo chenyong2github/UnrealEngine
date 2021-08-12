@@ -33,7 +33,8 @@ public class ClothPainter : ModuleRules
                 "SkeletalMeshEditor",
                 "AdvancedPreviewScene",
 				"ToolMenus",
-            }
+				"EditorWidgets",
+			}
 		);
     }
 }

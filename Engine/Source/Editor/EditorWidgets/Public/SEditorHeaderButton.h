@@ -7,7 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboButton.h"
 
-class UNREALED_API SEditorHeaderButton : public SCompoundWidget
+class EDITORWIDGETS_API SEditorHeaderButton : public SCompoundWidget
 {
 public:
 
