@@ -141,6 +141,13 @@ public:
 	/** Hash of all the job inputs */
 	FInputHash InputHash;
 
+	/** In-engine timestamp of being added to a pending queue. Not set for jobs that are satisfied from the jobs cache */
+	double TimeAddedToPendingQueue = 0.0;
+	/** In-engine timestamp of being assigned to a worker. Not set for jobs that are satisfied from the jobs cache */
+	double TimeAssignedToExecution = 0.0;
+	/** In-engine timestamp of job being completed. Encompasses the compile time. Not set for jobs that are satisfied from the jobs cache */
+	double TimeExecutionCompleted = 0.0;
+
 	uint32 AddRef() const
 	{
 		return uint32(NumRefs.Increment());
@@ -489,8 +496,8 @@ private:
 		return NewJob;
 	}
 
-	/** Handles the console command to log jobs cache stats */
-	void HandleLogJobsCacheStats();
+	/** Handles the console command to log shader compiler stats */
+	void HandlePrintStats();
 
 	/** Queue of tasks that haven't been assigned to a worker yet. */
 	FShaderCommonCompileJob* PendingJobs[NumShaderCompileJobPriorities];
@@ -515,7 +522,7 @@ private:
 	FShaderJobCache CompletedJobsCache;
 
 	/** Debugging - console command to print stats. */
-	class IConsoleObject* LogJobsCacheStatsCmd;
+	class IConsoleObject* PrintStatsCmd;
 };
 
 class FGlobalShaderTypeCompiler
@@ -719,6 +726,15 @@ public:
 	};
 	using ShaderCompilerStats = TMap<FString, FShaderStats>;
 
+	/** Structure used to describe compiling time of a shader type (for all the instances of it that we have seen). */
+	struct FShaderTimings
+	{
+		float MinCompileTime;
+		float MaxCompileTime;
+		float TotalCompileTime;
+		int32 NumCompiled;
+		float AverageCompileTime;	// stored explicitly as an optimization
+	};
 
 	ENGINE_API void RegisterCookedShaders(uint32 NumCooked, float CompileTime, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
 	ENGINE_API void RegisterCompiledShaders(uint32 NumPermutations, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
@@ -726,9 +742,54 @@ public:
 	ENGINE_API void WriteStats(class FOutputDevice* Ar = nullptr);
 	ENGINE_API void WriteStatSummary();
 
+	/** Informs statistics about a time a local ShaderCompileWorker spent idle. */
+	void RegisterLocalWorkerIdleTime(double IdleTime);
+
+	/** Lets the stats to know about a newly added job. Job will be modified to include the current timestamp. */
+	void RegisterNewPendingJob(FShaderCommonCompileJob& InOutJob);
+
+	/** Marks the job as given out to a worker for execution for the stats purpose. Job will be modified to include the current timestamp. */
+	void RegisterAssignedJob(FShaderCommonCompileJob& InOutJob);
+
+	/** Marks the job as finished for the stats purpose. Job will be modified to include the current timestamp. */
+	void RegisterFinishedJob(FShaderCommonCompileJob& InOutJob);
+
 private:
 	FCriticalSection CompileStatsLock;
 	TSparseArray<ShaderCompilerStats> CompileStats;
+
+	/** This tracks accumulated wait time from local workers during the lifetime of the stats.
+	 *
+	 * Wait time is only counted for local workers that are alive and not between their invocations
+	 */
+	double AccumulatedLocalWorkerIdleTime = 0.0;
+
+	/** How many times we registered idle time? */
+	double TimesLocalWorkersWereIdle = 0;
+
+	/** Number of jobs assigned to workers, no matter if they completed or not - used to average pending time. */
+	double JobsAssigned = 0;
+
+	/** Amount of time a job had to spent in pending queue (i.e. waiting to be assigned to a worker). */
+	double AccumulatedPendingTime = 0;
+
+	/** Total number jobs completed. */
+	double JobsCompleted = 0;
+
+	/** Amount of time job spent being processed by the worker. */
+	double AccumulatedJobExecutionTime = 0;
+
+	/** Amount of time job spent being processed by the worker. */
+	double AccumulatedJobLifeTime = 0;
+
+	/** Accumulates the job pending times without overlaps */
+	TArray<TInterval<double>> JobPendingTimeIntervals;
+
+	/** Accumulates the job lifetimes without overlaps */
+	TArray<TInterval<double>> JobLifeTimeIntervals;
+
+	/** Map of shader names to their compilation timings */
+	TMap<FString, FShaderTimings> ShaderTimings;
 };
 
 
