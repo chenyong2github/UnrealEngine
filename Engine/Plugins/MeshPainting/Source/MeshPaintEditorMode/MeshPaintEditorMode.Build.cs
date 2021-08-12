@@ -6,8 +6,9 @@ namespace UnrealBuildTool.Rules
 	{
         public MeshPaintEditorMode(ReadOnlyTargetRules Target) : base(Target)
 		{
-   
-            PublicDependencyModuleNames.AddRange(
+			OptimizeCode = CodeOptimization.Never;
+
+			PublicDependencyModuleNames.AddRange(
                 new string[] {
                     "Slate",
                     "SlateCore",
