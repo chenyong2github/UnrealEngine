@@ -83,7 +83,6 @@ public:
 	/** FModeToolkit interface */
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
-
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
@@ -174,6 +173,12 @@ public:
 	TSharedPtr<SWidget> ShowBoneColorsWidget;
 
 protected:
+	/** FModeToolkit interface */
+	virtual void RequestModeUITabs() override;
+	virtual void InvokeUI() override;
+
+	TSharedRef<SDockTab> CreateHierarchyTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> CreateStatisticsTab(const FSpawnTabArgs& Args);
 	static bool IsGeometryCollectionSelected();
 	static bool IsSelectedActorsInEditorWorld();	
 
@@ -195,5 +200,9 @@ private:
 	TSharedPtr<SWidget> ToolkitWidget;
 	TSharedPtr<SGeometryCollectionOutliner> OutlinerView;
 	TSharedPtr<SGeometryCollectionHistogram> HistogramView;
+	TWeakPtr<SDockTab> HierarchyTab;
+	FMinorTabConfig HierarchyTabInfo;
+	TWeakPtr<SDockTab> StatisticsTab;
+	FMinorTabConfig StatisticsTabInfo;
 
 };
