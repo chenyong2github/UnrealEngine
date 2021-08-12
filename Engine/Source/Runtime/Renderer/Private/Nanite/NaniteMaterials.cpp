@@ -909,13 +909,19 @@ struct FLumenMeshCaptureMaterialPassIndex
 
 struct FLumenMeshCaptureMaterialPass
 {
+	uint64 SortKey = 0;
 	int32 CommandStateBucketId = INDEX_NONE;
 	uint32 ViewIndexBufferOffset = 0;
-	TArray<uint16, TInlineAllocator<256>> ViewIndices;
+	TArray<uint16, TInlineAllocator<64>> ViewIndices;
 
 	inline float GetMaterialDepth() const
 	{
 		return FNaniteCommandInfo::GetDepthId(CommandStateBucketId);
+	}
+
+	bool operator<(const FLumenMeshCaptureMaterialPass& Other) const
+	{
+		return SortKey < Other.SortKey;
 	}
 };
 
@@ -1024,7 +1030,6 @@ void DrawLumenMeshCapturePass(
 	// Emit GBuffer Values
 	{
 		int32 NumMaterialQuads = 0;
-
 		TArray<FLumenMeshCaptureMaterialPass, SceneRenderingAllocator> MaterialPasses;
 		MaterialPasses.Reserve(CardPagesToRender.Num());
 
@@ -1042,7 +1047,12 @@ void DrawLumenMeshCapturePass(
 
 					if (PassIndex.Index >= MaterialPasses.Num())
 					{
+						const FNaniteMaterialCommands& LumenMaterialCommands = Scene.NaniteMaterials[ENaniteMeshPass::LumenCardCapture];
+						FNaniteMaterialCommands::FCommandId CommandId(CommandInfo.GetStateBucketId());
+						const FMeshDrawCommand& MeshDrawCommand = LumenMaterialCommands.GetCommand(CommandId);
+
 						FLumenMeshCaptureMaterialPass MaterialPass;
+						MaterialPass.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(GraphBuilder.RHICmdList);
 						MaterialPass.CommandStateBucketId = CommandInfo.GetStateBucketId();
 						MaterialPass.ViewIndexBufferOffset = 0;
 						MaterialPasses.Add(MaterialPass);
@@ -1053,6 +1063,12 @@ void DrawLumenMeshCapturePass(
 				}
 			}
 			ensure(MaterialPasses.Num() > 0);
+		}
+
+		if (MaterialPasses.Num() > 0)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Sort);
+			MaterialPasses.Sort();
 		}
 
 		TArray<uint32, SceneRenderingAllocator> ViewIndices;

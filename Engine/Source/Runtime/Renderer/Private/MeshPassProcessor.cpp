@@ -1209,6 +1209,34 @@ void FMeshDrawCommand::SubmitDraw(
 	SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList, IndirectArgsOverrideBuffer, IndirectArgsOverrideByteOffset);
 }
 
+uint64 FMeshDrawCommand::GetPipelineStateSortingKey(FRHICommandList& RHICmdList) const
+{
+	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+	const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
+	FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState.AsGraphicsPipelineStateInitializer();
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+	// Default fallback key
+	uint64 SortKey = MeshPipelineState.BoundShaderState.PixelShaderIndex;
+	SortKey = SortKey << 32llu;
+	SortKey |= MeshPipelineState.BoundShaderState.VertexShaderIndex;
+
+	if (GRHISupportsPipelineStateSortKey)
+	{
+		FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::DoNothing);
+		if (PipelineState)
+		{
+			const uint64 StateSortKey = PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(PipelineState);
+			if (StateSortKey != 0) // 0 on the first occurrence (prior to caching), so these commands will fall back on shader id for sorting.
+			{
+				SortKey = StateSortKey;
+			}
+		}
+	}
+
+	return SortKey;
+}
+
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory)
 {
