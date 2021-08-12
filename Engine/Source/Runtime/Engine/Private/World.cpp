@@ -12,7 +12,6 @@
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "Stats/StatsMisc.h"
 #include "Misc/ScopedSlowTask.h"
-#include "Misc/ScopeExit.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
@@ -401,6 +400,8 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 			SetAudioDevice(EmptyHandle);
 		}
 	});
+
+	IsInBlockTillLevelStreamingCompleted = 0;
 }
 
 UWorld::~UWorld()
@@ -3632,18 +3633,8 @@ void FStreamingLevelsToConsider::AddReferencedObjects(UObject* InThis, FReferenc
 
 void UWorld::BlockTillLevelStreamingCompleted()
 {
-	if (bIsInBlockTillLevelStreamingCompleted)
-	{
-		return;
-	}
-
-	bIsInBlockTillLevelStreamingCompleted = true;
-	ON_SCOPE_EXIT
-	{
-		bIsInBlockTillLevelStreamingCompleted = false;
-	};
-
 	const double StartTime = FPlatformTime::Seconds();
+	TScopeCounter<uint32> IsInBlockTillLevelStreamingCompletedCounter(IsInBlockTillLevelStreamingCompleted);
 	
 	bool bWorkToDo = false;
 	do
