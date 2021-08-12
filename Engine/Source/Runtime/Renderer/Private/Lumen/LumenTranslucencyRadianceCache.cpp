@@ -141,7 +141,10 @@ void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshB
 		if (bIsTranslucent
 			&& (TranslucencyLightingMode == TLM_Surface || TranslucencyLightingMode == TLM_SurfacePerPixelLighting)
 			&& PrimitiveSceneProxy && PrimitiveSceneProxy->ShouldRenderInMainPass()
-			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
+			// Workaround for order of operations bug, needs further investigation
+			// When FParallelMeshDrawCommandPass::DispatchPassSetup defers AddMeshBatch to a task, sometimes the resource recreations run before the task
+			&& MeshBatch.VertexFactory->IsInitialized())
 		{
 			const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 			FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
