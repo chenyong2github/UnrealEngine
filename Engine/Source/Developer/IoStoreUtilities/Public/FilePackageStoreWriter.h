@@ -98,6 +98,9 @@ public:
 	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages)
 	{ }
 
+	virtual FCbObject GetTargetDomainDependencies(FName PackageName) override
+	{ return FCbObject(); }
+
 	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove)
 	{ }
 

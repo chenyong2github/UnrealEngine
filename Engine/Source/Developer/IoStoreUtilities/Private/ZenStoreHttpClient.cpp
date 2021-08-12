@@ -1194,13 +1194,24 @@ TIoStatusOr<uint64> FZenStoreHttpClient::GetChunkSize(const FIoChunkId& Id)
 TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadChunk(const FIoChunkId& Id, uint64 Offset, uint64 Size)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenStoreHttp_ReadChunk);
+	TStringBuilder<128> ChunkUri;
+	ChunkUri << OplogPath << '/' << Id;
+	return ReadOpLogUri(ChunkUri, Offset, Size);
+}
 
+TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogAttachment(FStringView Id, uint64 Offset, uint64 Size)
+{
+	TStringBuilder<128> ChunkUri;
+	ChunkUri << OplogPath << '/' << Id;
+	return ReadOpLogUri(ChunkUri, Offset, Size);
+}
+
+TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogUri(FStringBuilderBase& ChunkUri, uint64 Offset, uint64 Size)
+{
 	check(bAllowRead);
 
 	UE::Zen::FScopedRequestPtr Request(RequestPool.Get());
 	TArray64<uint8> GetBuffer;
-	TStringBuilder<128> ChunkUri;
-	ChunkUri << OplogPath << '/' << Id;
 
 	bool bHaveQuery = false;
 
