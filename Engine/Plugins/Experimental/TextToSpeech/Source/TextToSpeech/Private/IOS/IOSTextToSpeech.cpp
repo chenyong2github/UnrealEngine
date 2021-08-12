@@ -4,6 +4,7 @@
  #include "IOS/IOSTextToSpeech.h"
 #include "TextToSpeechLog.h"
 #include "IOS/IOSAppDelegate.h"
+#include "Async/TaskGraphInterfaces.h"
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 
