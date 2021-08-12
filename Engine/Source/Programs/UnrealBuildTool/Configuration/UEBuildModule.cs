@@ -870,7 +870,7 @@ namespace UnrealBuildTool
 		/// <param name="bOnlyDirectDependencies">True to return only this module's direct dependencies</param>
 		public virtual void GetAllDependencyModules(List<UEBuildModule> ReferencedModules, HashSet<UEBuildModule> IgnoreReferencedModules, bool bIncludeDynamicallyLoaded, bool bForceCircular, bool bOnlyDirectDependencies)
 		{
-			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>();
+			List<UEBuildModule> AllDependencyModules = new List<UEBuildModule>(PrivateDependencyModules!.Count + PublicDependencyModules!.Count + (bIncludeDynamicallyLoaded ? DynamicallyLoadedModules!.Count : 0));
 			AllDependencyModules.AddRange(PrivateDependencyModules!);
 			AllDependencyModules.AddRange(PublicDependencyModules!);
 			if (bIncludeDynamicallyLoaded)
@@ -883,8 +883,7 @@ namespace UnrealBuildTool
 				if (!IgnoreReferencedModules.Contains(DependencyModule))
 				{
 					// Don't follow circular back-references!
-					bool bIsCircular = HasCircularDependencyOn(DependencyModule.Name);
-					if (bForceCircular || !bIsCircular)
+					if (bForceCircular || !HasCircularDependencyOn(DependencyModule.Name))
 					{
 						IgnoreReferencedModules.Add(DependencyModule);
 
