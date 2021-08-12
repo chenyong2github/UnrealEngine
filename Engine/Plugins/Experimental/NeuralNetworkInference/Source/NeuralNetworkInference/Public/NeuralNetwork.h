@@ -10,7 +10,50 @@
 class UAssetImportData;
 
 /**
- * First version of NNI, meant to work with any ONNX/ORT model, but only in the Editor in Windows
+ * UNeuralNetwork is UE's representation for deep learning and neural network models. It supports the industry standard ONNX model format.
+ * All major frameworks (PyTorch, TensorFlow, MXNet, Caffe2, etc.) provide converters to ONNX.
+ *
+ * See the following examples to learn how to read any ONNX model and run inference (i.e., a forward pass) on it.
+ * 1. Constructing a UNeuralNetwork from an ONNX file (Editor-only):
+ *	#if WITH_EDITOR
+ *		// Create the UNeuralNetwork object
+ *		UNeuralNetwork* Network = NewObject<UNeuralNetwork>((UObject*)GetTransientPackage(), UNeuralNetwork::StaticClass());
+ *		// Try to load the network and set the device (CPU/GPU)
+ *		const FString ONNXModelFilePath = TEXT("SOME_PARENT_FOLDER/SOME_ONNX_FILE_NAME.onnx");
+ *		if (Network->Load(ONNXModelFilePath)) 
+ *		{
+ *			Network->SetDeviceType(ENeuralDeviceType::CPU); // Set to CPU/GPU mode
+ *		}
+ *	#endif
+ *
+ * 2. Loading a UNeuralNetwork from a previously-created UAsset (in Editor or in Game):
+ *		// Create and load the UNeuralNetwork object from a UAsset
+ *		const FString NetworkUAssetFilePath = TEXT("ExampleNetwork'/Game/Models/ExampleNetwork/ExampleNetwork.ExampleNetwork'");
+ *		UNeuralNetwork* Network = LoadObject<UNeuralNetwork>((UObject*)GetTransientPackage(), *NetworkUAssetFilePath);
+ *		// Check that the network was successfully loaded
+ *		check(Network->IsLoaded());
+ *
+ * 3.1. Running inference (i.e., a forward pass):
+ *		// Fill input neural tensor
+ *		TArray<float> InArray;
+ *		Network->SetInputFromArrayCopy(InArray);
+ *		UE_LOG(LogNeuralNetworkInference, Display, TEXT("Input tensor: %s."), *Network->GetInputTensor().ToString());
+ *		// Run UNeuralNetwork
+ *		Network->Run();
+ *		// Read and print OutputTensor
+ *		const FNeuralTensor& OutputTensor = Network->GetOutputTensor();
+ *		UE_LOG(LogNeuralNetworkInference, Display, TEXT("Output tensor: %s."), *OutputTensor.ToString());
+ *
+ * 3.2. Alternative - Filling the input tensor without a TArray-to-FNeuralTensor copy:
+ *		// Obtain input tensor pointer
+ *		float* InputDataPointer = Network->GetInputDataPointerMutable<float>();
+ *		// Fill InputDataPointer
+ *		for (int64 Index = 0; Index < Network->GetInputTensor().Num(); ++Index)
+ *			InputDataPointer[Index] = ...;
+ *
+ * 3.3. Alternative - Networks with multiple input/output tensors:
+* - Multiple inputs: Add InTensorIndex to GetInputTensor(InTensorIndex) or GetInputDataPointerMutable(InTensorIndex) in the examples above, or use GetInputTensors() instead.
+* - Multiple outputs: Add InTensorIndex to GetOutputTensor(InTensorIndex) in the examples above or use GetOutputTensors() instead.
  */
 UCLASS(BlueprintType)
 class NEURALNETWORKINFERENCE_API UNeuralNetwork : public UObject

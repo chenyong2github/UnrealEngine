@@ -13,78 +13,8 @@
 class UAssetImportData;
 
 /**
- * UNeuralNetworkLegacy loads and runs a (deep) neural network.
- *
- * 1. Code example of UNeuralNetworkLegacy Configuration:
- *		// -------------------------------------------------- Step 1 - Option a (Editor-only) - UNeuralNetworkLegacy Configuration From ONNX File --------------------------------------------------
- *		#if WITH_EDITOR
- *			// Define the UNeuralNetworkLegacy
- *			UNeuralNetworkLegacy* Network = NewObject<UNeuralNetworkLegacy>((UObject*)GetTransientPackage(), UNeuralNetworkLegacy::StaticClass());
- *			// Try to load the network
- *			if (Network->Load(TEXT("SomeFilePath.onnx"))) // Alternative: Network->Load(...) + Network->IsLoaded()
- *			{
- *				// Set to CPU mode
- *				Network->SetDeviceType(ENeuralDeviceType::CPU);
- *				// Verbose example
- *				UE_LOG(LogNeuralNetworkInference, Display, TEXT("Network loaded:\n%s."), *Network->ToString());
- *			}
- *		#endif
- *
- *		// -------------------------------------------------- Step 1 - Option b - UNeuralNetworkLegacy Configuration From UAsset File --------------------------------------------------
- *		// Define the UNeuralNetworkLegacy
- *		UNeuralNetworkLegacy* Network = LoadObject<UNeuralNetworkLegacy>((UObject*)GetTransientPackage(), TEXT("ExampleNetwork'/Game/Models/ExampleNetwork/ExampleNetwork.ExampleNetwork'"));
- *		// Try to load the network
- *		if (Network->IsLoaded())
- *		{
- *			// Set to CPU mode
- *			Network->SetDeviceType(ENeuralDeviceType::CPU);
- *			// Verbose example
- *			UE_LOG(LogNeuralNetworkInference, Display, TEXT("Network loaded:\n%s."), *Network->ToString());
- *		}
- *
- * 2. Code example of the Forward Pass:
- *		// -------------------------------------------------- Step 2 - Forward Pass - Overview --------------------------------------------------
- *		// Input filling
- *		TArray<float> InArray;
- *		Network->SetInputFromArrayCopy(InArray);
- *		UE_LOG(LogNeuralNetworkInference, Display, TEXT("Input tensor: %s."), *Network->GetInputTensor().ToString());
- *		// Run UNeuralNetworkLegacy
- *		Network->Run();
- *		// Return OutputTensor
- *		const FNeuralTensor& OutputTensor = Network->GetOutputTensor();
- *		UE_LOG(LogNeuralNetworkInference, Display, TEXT("Output tensor: %s."), *OutputTensor.ToString());
- *
- *		// -------------------------------------------------- Step 2 - Forward Pass - Input - Simple vs. Efficient and Single vs. Multiple Filling --------------------------------------------------
- *		// Option a) Simple input filling
- *		TArray<float> InArray;
- *		Network->SetInputFromArrayCopy(InArray);
- *		// Option b) Efficient input filling (it avoids the TArray-FNeuralTensor copy)
- *		float* InputDataPointer = Network->GetInputDataPointerMutable<float>();
- *		for (int64 Index = 0; Index < Network->GetInputTensor().Num(); ++Index)
- *			InputDataPointer[Index] = ...;
- *		// Option c) Simple multiple input filling
- *		TMap<FString, FNeuralTensor> InTensorMap;
- *		Network->SetInputFromTensorMapCopy(InTensorMap);
- *		// Option d) Efficient multiple input filling
- *		TMap<FString, void*> InputDataPointer = Network->CreateInputDataPointersMutable();
- *		for (int64 Index = 0; Index < Network->GetInputTensor().Num(); ++Index)
- *			InputDataPointer[SomeFStringKey][Index] = ...;
- *
- *		// -------------------------------------------------- Step 2 - Forward Pass - Output - Single vs. Multiple Output --------------------------------------------------
- *		// Option a) Return OutputTensor
- *		const FNeuralTensor* OutputTensor = Network->GetOutputTensor();
- *		UE_LOG(LogNeuralNetworkInference, Display, TEXT("Output tensor: %s."), *OutputTensor.ToString());
- *		// Option b) Return OutputTensor
- *		const TArray<FNeuralTensor>& Tensors = GetTensors();
- *		const TMap<FString, int32>& OutputNameIndexMap = Network->GetOutputNameIndexMap();
- *		// Iterate and print on console all output tensors
- *		for (const auto& OutputNameIndexPair)
- *		{
- *			UE_LOG(LogNeuralNetworkInference, Display, TEXT("Output tensor %s: %s."), *OutputNameIndexPair.Key, *Tensors[OutputNameIndexPair.Key].ToString());
- *		}
+ * First version of NNI, meant as a proof of concept.
  */
-//UCLASS(BlueprintType, Deprecated)
-//class NEURALNETWORKINFERENCELEGACY_API UDEPRECATED_UNeuralNetworkLegacy : public UObject
 UCLASS(BlueprintType)
 class NEURALNETWORKINFERENCE_API UNeuralNetworkLegacy : public UObject
 {

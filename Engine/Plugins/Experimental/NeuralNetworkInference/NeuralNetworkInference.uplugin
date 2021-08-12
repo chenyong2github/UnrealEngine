@@ -3,7 +3,7 @@
 	"Version": 0.1,
 	"VersionName": "0.1.0-alpha",
 	"FriendlyName": "Neural Network Inference (NNI)",
-	"Description": "Neural Network Inference (NNI) is an experimetal plugin that allows deploying and running deep learning neural network models within Unreal Engine.",
+	"Description": "Cross-platform framework for running deep learning and neural network inference in Unreal Engine, supporting both CPU and GPU acceleration.",
 	"Category": "Experimental",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
