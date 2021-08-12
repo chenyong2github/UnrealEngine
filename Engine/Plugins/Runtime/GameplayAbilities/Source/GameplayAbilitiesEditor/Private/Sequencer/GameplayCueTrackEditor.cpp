@@ -205,7 +205,7 @@ void FGameplayCueTrackEditor::HandleAddSectionToTrack(UMovieSceneTrack* Track, U
 	Track->Modify();
 
 
-	UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(Track, SectionClass);
+	UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(Track, SectionClass, NAME_None, RF_Transactional);
 
 	if (SectionClass == UMovieSceneGameplayCueSection::StaticClass())
 	{
@@ -233,7 +233,7 @@ void FGameplayCueTrackEditor::HandleAddSectionToTrack(UMovieSceneTrack* Track, U
 
 void FGameplayCueTrackEditor::AddSectionToTrack(UMovieSceneTrack* Track, const TRange<FFrameNumber>& SectionTickRange, UClass* SectionClass)
 {
-	UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(Track, SectionClass);
+	UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(Track, SectionClass, NAME_None, RF_Transactional);
 	NewSection->SetRange(SectionTickRange);
 	Track->AddSection(*NewSection);
 }

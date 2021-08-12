@@ -317,7 +317,7 @@ void FEventTrackEditor::CreateNewSection(UMovieSceneTrack* Track, int32 RowIndex
 
 		FScopedTransaction Transaction(LOCTEXT("CreateNewSectionTransactionText", "Add Section"));
 
-		UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(Track, SectionType);
+		UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(Track, SectionType, NAME_None, RF_Transactional);
 		check(NewSection);
 
 		int32 OverlapPriority = 0;

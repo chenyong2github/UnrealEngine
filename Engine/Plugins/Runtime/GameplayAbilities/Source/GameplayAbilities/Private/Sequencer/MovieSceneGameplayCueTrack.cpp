@@ -23,7 +23,7 @@ bool UMovieSceneGameplayCueTrack::SupportsType(TSubclassOf<UMovieSceneSection> S
 
 UMovieSceneSection* UMovieSceneGameplayCueTrack::CreateNewSection()
 {
-	return NewObject<UMovieSceneGameplayCueSection>(this);
+	return NewObject<UMovieSceneGameplayCueSection>(this, NAME_None, RF_Transactional);
 }
 
 const TArray<UMovieSceneSection*>& UMovieSceneGameplayCueTrack::GetAllSections() const
