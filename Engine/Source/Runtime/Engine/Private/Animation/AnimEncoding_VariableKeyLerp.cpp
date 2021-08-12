@@ -9,6 +9,9 @@
 #include "Serialization/MemoryWriter.h"
 #if INTEL_ISPC
 #include "AnimEncoding_VariableKeyLerp.ispc.generated.h"
+
+static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
+static_assert(sizeof(ispc::BoneTrackPair) == sizeof(BoneTrackPair), "sizeof(ispc::BoneTrackPair) != sizeof(BoneTrackPair)");
 #endif
 
 /**

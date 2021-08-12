@@ -6,6 +6,8 @@
 #include "HAL/ThreadSingleton.h"
 #if INTEL_ISPC
 #include "BonePose.ispc.generated.h"
+
+static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
 #endif
 
 // Normalizes all rotations in this pose
