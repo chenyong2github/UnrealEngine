@@ -353,7 +353,7 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 	return SelectedLightmapPolicy;
 }
 
-void MobileBasePass::SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial& Material, bool bEnableReceiveDecalOutput, bool bUsesDeferredShading, bool bDisableDepthWrite)
+void MobileBasePass::SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial& Material, bool bEnableReceiveDecalOutput, bool bUsesDeferredShading)
 {
 	uint8 StencilValue = 0;
 	if (bEnableReceiveDecalOutput)
@@ -371,36 +371,18 @@ void MobileBasePass::SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRen
 		
 	if (bEnableReceiveDecalOutput || bUsesDeferredShading)
 	{
-		if (bDisableDepthWrite)
-		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
-				false, CF_Equal,
-				true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-				// don't use masking as it has significant performance hit on Mali GPUs (T860MP2)
-				0x00, 0xff >::GetRHI());
-		}
-		else
-		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
 				true, CF_DepthNearOrEqual,
 				true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
 				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 				// don't use masking as it has significant performance hit on Mali GPUs (T860MP2)
 				0x00, 0xff >::GetRHI());
-		}
-		
 
 		DrawRenderState.SetStencilRef(StencilValue); 
 	}
 	else
 	{
 		// default depth state should be already set
-		// disable DepthWrite if Prepass enabled
-		if (bDisableDepthWrite)
-		{
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
-		}
 	}
 
 	if (Material.GetBlendMode() == BLEND_Masked && Material.IsUsingAlphaToCoverage())
@@ -778,11 +760,14 @@ bool FMobileBasePassMeshProcessor::Process(
 		{
 			MobileBasePass::SetTranslucentRenderState(DrawRenderState, MaterialResource);
 		}
+		else if((MeshBatch.bUseForDepthPass && Scene->EarlyZPassMode == DDM_AllOpaque) || bMaskedInEarlyPass)
+		{
+			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
+		}
 		else
 		{
 			const bool bEnableReceiveDecalOutput = ((Flags & EFlags::CanUseDepthStencil) == EFlags::CanUseDepthStencil);
-			const bool bDisableDepthWrite = (MeshBatch.bUseForDepthPass && Scene->EarlyZPassMode == DDM_AllOpaque) || bMaskedInEarlyPass;
-			MobileBasePass::SetOpaqueRenderState(DrawRenderState, PrimitiveSceneProxy, MaterialResource, bEnableReceiveDecalOutput && IsMobileHDR(), bUsesDeferredShading, bDisableDepthWrite);
+			MobileBasePass::SetOpaqueRenderState(DrawRenderState, PrimitiveSceneProxy, MaterialResource, bEnableReceiveDecalOutput && IsMobileHDR(), bUsesDeferredShading);
 		}
 	}
 
