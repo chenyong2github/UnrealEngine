@@ -63,8 +63,8 @@ void AVisualLoggerCameraController::PostInitializeComponents()
 	MyHUD = GetWorld()->SpawnActor<AVisualLoggerHUD>(SpawnInfo);
 
 	/** TO DO: somehow this two configuration settings are set to zero for this controller, have to fix it later */
-	InputYawScale=2.5;
-	InputPitchScale=-1.75;
+	InputYawScale_DEPRECATED = 2.5f;
+	InputPitchScale_DEPRECATED = -1.75f;
 }
 
 

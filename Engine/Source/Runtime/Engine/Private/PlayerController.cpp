@@ -5149,18 +5149,18 @@ bool APlayerController::PopInputComponent(UInputComponent* InInputComponent)
 }
 
 void APlayerController::AddPitchInput(float Val)
-{
-	RotationInput.Pitch += !IsLookInputIgnored() ? Val * InputPitchScale : 0.f;
+{	
+	RotationInput.Pitch += !IsLookInputIgnored() ? Val * (GetDefault<UInputSettings>()->bEnableLegacyInputScales ? InputPitchScale_DEPRECATED : 1.0f) : 0.0f;
 }
 
 void APlayerController::AddYawInput(float Val)
 {
-	RotationInput.Yaw += !IsLookInputIgnored() ? Val * InputYawScale : 0.f;
+	RotationInput.Yaw += !IsLookInputIgnored() ? Val * (GetDefault<UInputSettings>()->bEnableLegacyInputScales ? InputYawScale_DEPRECATED : 1.0f) : 0.0f;
 }
 
 void APlayerController::AddRollInput(float Val)
 {
-	RotationInput.Roll += !IsLookInputIgnored() ? Val * InputRollScale : 0.f;
+	RotationInput.Roll += !IsLookInputIgnored() ? Val * (GetDefault<UInputSettings>()->bEnableLegacyInputScales ? InputRollScale_DEPRECATED : 1.0f) : 0.0f;
 }
 
 bool APlayerController::IsInputKeyDown(const FKey Key) const
