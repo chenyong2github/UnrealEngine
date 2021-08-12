@@ -323,6 +323,9 @@ namespace
 
 	#include "MemPro/MemProSwitch.h"
 
+#elif defined(MEMPRO_PLATFORM_PS5)
+
+	#include "MemPro/MemProPS5.h"
 //@EPIC END
 
 #elif defined(MEMPRO_PLATFORM_UNIX)
