@@ -4,6 +4,7 @@
 
 #include "Engine/StaticMesh.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -53,8 +54,15 @@ void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InH
 
 	for (UPrimitiveComponent* HLODPrimitive : HLODPrimitives)
 	{
-		DisableCollisions(HLODPrimitive);
+		// Disable collisions
+		HLODPrimitive->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+		HLODPrimitive->SetGenerateOverlapEvents(false);
+		HLODPrimitive->SetCanEverAffectNavigation(false);
+		HLODPrimitive->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+		HLODPrimitive->SetCanEverAffectNavigation(false);
+		HLODPrimitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
+		// Enable optimizations
 		HLODPrimitive->bComputeFastLocalBounds = true;
 		HLODPrimitive->bComputeBoundsOnceDuringCook = true;
 
@@ -62,7 +70,24 @@ void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InH
 		{
 			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(HLODPrimitive))
 			{
-				StaticMeshComponent->bRayTracingFarField = (StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->bSupportRayTracing);
+				if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+				{
+					// Set up ray tracing far fields
+					StaticMeshComponent->bRayTracingFarField = StaticMesh->bSupportRayTracing;
+
+					if (HLODPrimitive->GetPackage() == StaticMesh->GetPackage())
+					{
+						// Disable collisions on owned static mesh
+						if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+						{							
+							BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+							BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+						}
+						
+						// Rename owned static mesh
+						StaticMesh->Rename(*MakeUniqueObjectName(StaticMesh->GetOuter(), StaticMesh->GetClass(), *FString::Printf(TEXT("StaticMesh_%s"), *InHLODLayer->GetName())).ToString());
+					}
+				}
 			}
 		}
 	}
@@ -135,16 +160,6 @@ TArray<UPrimitiveComponent*> UHLODBuilder::GatherPrimitiveComponents(const TArra
 	}
 
 	return PrimitiveComponents;
-}
-
-void UHLODBuilder::DisableCollisions(UPrimitiveComponent* Component)
-{
-	Component->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-	Component->SetGenerateOverlapEvents(false);
-	Component->SetCanEverAffectNavigation(false);
-	Component->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-	Component->SetCanEverAffectNavigation(false);
-	Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 #endif // WITH_EDITOR

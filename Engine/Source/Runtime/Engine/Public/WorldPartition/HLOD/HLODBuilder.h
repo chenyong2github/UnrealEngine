@@ -43,7 +43,5 @@ public:
 	void Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<FWorldPartitionReference>& InSubActors);
 
 	static TArray<UPrimitiveComponent*> GatherPrimitiveComponents(const TArray<FWorldPartitionReference>& InActors);
-
-	static void DisableCollisions(UPrimitiveComponent* Component);
 #endif // WITH_EDITOR
 };
