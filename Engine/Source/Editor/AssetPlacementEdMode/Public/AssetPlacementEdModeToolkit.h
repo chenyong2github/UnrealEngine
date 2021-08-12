@@ -20,7 +20,13 @@ public:
 	// IToolkit interface 
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-
+	virtual void InvokeUI() override;
 protected:
 	virtual TSharedPtr<SWidget> GetInlineContent() const override;
+	virtual void RequestModeUITabs() override;
+	TSharedRef<SDockTab> CreateAssetPalette(const FSpawnTabArgs& Args);
+
+private:
+	TWeakPtr<SDockTab> AssetPaletteTab;
+	FMinorTabConfig AssetPaletteInfo;
 };
