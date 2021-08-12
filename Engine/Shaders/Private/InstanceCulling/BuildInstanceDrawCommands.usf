@@ -63,7 +63,7 @@ int bDrawOnlyVSMInvalidatingGeometry;
 
 
 RWStructuredBuffer<uint> InstanceIdsBufferOut;
-RWBuffer<float4> InstanceIdsBufferOutMobile;
+RWStructuredBuffer<float4> InstanceIdsBufferOutMobile;
 RWBuffer<uint> DrawIndirectArgsBufferOut;
 
 // this is just to avoid compiling packing code for unrelated shaders
