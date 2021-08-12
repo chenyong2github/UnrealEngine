@@ -1259,6 +1259,7 @@ class FDiaphragmDOFRecombineCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
 		SHADER_PARAMETER(FVector2D, DOFBufferUVMax)
 		SHADER_PARAMETER(FVector4, SeparateTranslucencyBilinearUVMinMax)
+		SHADER_PARAMETER(int32, SeparateTranslucencyUpscaling)
 		
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BokehLUT)
 
@@ -2632,11 +2633,12 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		PassParameters->DOFBufferUVMax = FVector2D(
 			(GatheringViewSize.X - 0.5f) / float(RefBufferSize.X),
 			(GatheringViewSize.Y - 0.5f) / float(RefBufferSize.Y));
-		
+
 		PassParameters->SeparateTranslucencyBilinearUVMinMax.X = (SeparateTranslucencyRect.Min.X + 0.5f) / float(SeparateTranslucencyDimensions.Extent.X);
 		PassParameters->SeparateTranslucencyBilinearUVMinMax.Y = (SeparateTranslucencyRect.Min.Y + 0.5f) / float(SeparateTranslucencyDimensions.Extent.Y);
 		PassParameters->SeparateTranslucencyBilinearUVMinMax.Z = (SeparateTranslucencyRect.Max.X - 0.5f) / float(SeparateTranslucencyDimensions.Extent.X);
 		PassParameters->SeparateTranslucencyBilinearUVMinMax.W = (SeparateTranslucencyRect.Max.Y - 0.5f) / float(SeparateTranslucencyDimensions.Extent.Y);
+		PassParameters->SeparateTranslucencyUpscaling = SeparateTranslucencyRect.Size() != FullResViewSize ? 1 : 0;
 
 		PassParameters->SceneColorInput = FullResGatherInputTextures.SceneColor;
 		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
