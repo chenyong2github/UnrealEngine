@@ -61,7 +61,7 @@ void FAssetTypeActions_DataAsset::GetActions(const TArray<UObject*>& InObjects, 
 
 	Section.AddMenuEntry(
 		"DataAsset_ChangeClass",
-		LOCTEXT("DataAsset_ChangeClass", "Change DataAsset Class"),
+		LOCTEXT("DataAsset_ChangeClass", "Convert to different DataAsset type"),
 		LOCTEXT("DataAsset_ChangeClassTip", "Change the class these Data Assets are subclassed from."),
 		FSlateIcon(),
 		FUIAction(
