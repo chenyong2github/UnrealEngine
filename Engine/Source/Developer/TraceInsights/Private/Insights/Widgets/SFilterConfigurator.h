@@ -59,13 +59,7 @@ public:
 private:
 	void InitCommandList();
 
-	FReply OK_OnClicked();
-
-	FReply Cancel_OnClicked();
-
 private:
-
-	TWeakPtr<class FFilterConfigurator> OriginalFilterConfiguratorViewModel;
 
 	TSharedPtr<class FFilterConfigurator> FilterConfiguratorViewModel;
 
@@ -82,8 +76,6 @@ private:
 	TArray<FFilterConfiguratorNodePtr> GroupNodes;
 
 	TWeakPtr<SDockTab> ParentTab;
-
-	FDelegateHandle OnViewModelDestroyedHandle;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

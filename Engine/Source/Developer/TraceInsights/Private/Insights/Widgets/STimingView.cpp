@@ -46,6 +46,7 @@
 #include "Insights/ViewModels/BaseTimingTrack.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/FileActivityTimingTrack.h"
+#include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/ViewModels/FrameTimingTrack.h"
 #include "Insights/ViewModels/GraphSeries.h"
 #include "Insights/ViewModels/GraphTrack.h"
@@ -56,10 +57,12 @@
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
+#include "Insights/ViewModels/QuickFind.h"
 #include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingViewTrackList.h"
+#include "Insights/Widgets/SQuickFind.h"
 
 #include <limits>
 
@@ -246,6 +249,7 @@ void STimingView::Construct(const FArguments& InArgs)
 		]
 	];
 
+	Insights::SQuickFind::RegisterQuickFindTab();
 	UpdateHorizontalScrollBar();
 	UpdateVerticalScrollBar();
 
@@ -2794,6 +2798,8 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		bHasAnyActions = true;
 	}
 
+	MenuBuilder.AddMenuEntry(Commands.QuickFind);
+
 	for (Insights::ITimingViewExtender* Extender : GetExtenders())
 	{
 		bHasAnyActions |= Extender->ExtendGlobalContextMenu(*this, MenuBuilder);
@@ -3019,7 +3025,10 @@ void STimingView::BindCommands()
 		FCanExecuteAction::CreateLambda([] { return true; }),
 		FIsActionChecked::CreateSP(this, &STimingView::ShowHideGraphTrack_IsChecked));
 
-	//TODO: let extenders to bind other commands
+	CommandList->MapAction(
+		Commands.QuickFind,
+		FExecuteAction::CreateSP(this, &STimingView::QuickFind_Execute),
+		FCanExecuteAction::CreateSP(this, &STimingView::QuickFind_CanExecute));
 
 	//CommandList->MapAction(
 	//	Commands.ShowAllGpuTracks,
@@ -4167,6 +4176,36 @@ void STimingView::ToggleTrackVisibility_Execute(uint64 InTrackId)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool STimingView::QuickFind_CanExecute() const
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::QuickFind_Execute()
+{
+	using namespace Insights;
+
+	if (!QuickFindVm.IsValid())
+	{
+		TSharedPtr<FFilterConfigurator> FilterConfigurator = MakeShared<FFilterConfigurator>();
+		TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
+
+		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::StartTime), LOCTEXT("StartTime", "Start Time"), LOCTEXT("StartTime", "Start Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
+		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EndTime), LOCTEXT("EndTime", "End Time"), LOCTEXT("EndTime", "End Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
+		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::Duration), LOCTEXT("Duration", "Duration"), LOCTEXT("Duration", "Duration"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
+		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EventType), LOCTEXT("Type", "Type"), LOCTEXT("Type", "Type"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
+
+		QuickFindVm = MakeShared<FQuickFind>(FilterConfigurator);
+		QuickFindVm->GetOnFindNextEvent().AddSP(this, &STimingView::FindNextEvent);
+	}
+
+	SQuickFind::CreateAndOpenQuickFilterWidget(QuickFindVm);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::OnTrackVisibilityChanged()
 {
 	if (HoveredTrack.IsValid())
@@ -4227,6 +4266,48 @@ TArray<Insights::ITimingViewExtender*> STimingView::GetExtenders() const
 void STimingView::ClearRelations()
 {
 	CurrentRelations.Empty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::FindNextEvent()
+{
+	TSharedPtr<const ITimingEvent> BestMatchEvent;
+	double StartTime = SelectedEvent.IsValid() ? SelectedEvent->GetStartTime() : std::numeric_limits<double>::lowest();
+
+	auto EventFilter = [StartTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
+	{
+		return EventStartTime > StartTime;
+	};
+	FTimingEventSearchParameters Params(StartTime, std::numeric_limits<double>::max(), ETimingEventSearchFlags::StopAtFirstMatch, EventFilter);
+	Params.FilterExecutor = QuickFindVm->GetFilterConfigurator();
+
+	for (auto& Entry : AllTracks)
+	{
+		if (!Entry.Value->IsVisible())
+		{
+			continue;
+		}
+
+		Params.EndTime = BestMatchEvent.IsValid() ? BestMatchEvent->GetStartTime() : std::numeric_limits<double>::max();
+
+		TSharedPtr<const ITimingEvent> FoundEvent = Entry.Value->SearchEvent(Params);
+		if (FoundEvent.IsValid())
+		{
+			if (BestMatchEvent.IsValid())
+			{
+				ensure(FoundEvent->GetStartTime() < BestMatchEvent->GetStartTime());
+			}
+			BestMatchEvent = FoundEvent;
+		}
+	}
+
+	if (BestMatchEvent)
+	{
+		SelectedEvent = BestMatchEvent;
+		BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
+		OnSelectedTimingEventChanged();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

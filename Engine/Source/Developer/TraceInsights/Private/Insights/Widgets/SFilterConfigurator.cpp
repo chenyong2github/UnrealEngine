@@ -105,38 +105,6 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 				]
 			]
 		]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 5.0f, 0.0f, 5.0f)
-			.HAlign(EHorizontalAlignment::HAlign_Right)
-			.VAlign(EVerticalAlignment::VAlign_Bottom)
-			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(1.0f)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("OK", "OK"))
-					.ToolTipText(LOCTEXT("OKDESC", "Apply the changes to the filters."))
-					.OnClicked(this, &SFilterConfigurator::OK_OnClicked)
-				]
-
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(1.0f)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("Cancel", "Cancel"))
-					.ToolTipText(LOCTEXT("CancelDesc", "Cancel the changes to the filter."))
-					.OnClicked(this, &SFilterConfigurator::Cancel_OnClicked)
-				]
-			]
 	];
 
 	SHeaderRow::FColumn::FArguments ColumnArgs;
@@ -161,9 +129,7 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 
 	TreeViewHeaderRow->InsertColumn(ColumnArgs, 0);
 
-	OnViewModelDestroyedHandle = InFilterConfiguratorViewModel->GetOnDestroyedEvent().AddSP(this, &SFilterConfigurator::RequestClose);
-	OriginalFilterConfiguratorViewModel = InFilterConfiguratorViewModel;
-	FilterConfiguratorViewModel = MakeShared<FFilterConfigurator>(*InFilterConfiguratorViewModel);
+	FilterConfiguratorViewModel = InFilterConfiguratorViewModel;
 
 	GroupNodes.Add(FilterConfiguratorViewModel->GetRootNode());
 }
@@ -191,48 +157,6 @@ TSharedRef<ITableRow> SFilterConfigurator::TreeView_OnGenerateRow(FFilterConfigu
 		.FilterConfiguratorNodePtr(TreeNode);
 
 	return TableRow;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SFilterConfigurator::OK_OnClicked()
-{
-	TSharedPtr<FFilterConfigurator> OriginalFilterVM = OriginalFilterConfiguratorViewModel.Pin();
-	if (OriginalFilterVM.IsValid())
-	{
-		*OriginalFilterVM = *FilterConfiguratorViewModel;
-	}
-
-	RequestClose();
-
-	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SFilterConfigurator::Cancel_OnClicked()
-{
-	RequestClose();
-
-	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SFilterConfigurator::RequestClose()
-{
-	TSharedPtr<SDockTab> ParentTabSharedPtr = ParentTab.Pin();
-	if (ParentTabSharedPtr.IsValid())
-	{
-		ParentTabSharedPtr->RequestCloseTab();
-		ParentTabSharedPtr.Reset();
-	}
-
-	TSharedPtr<FFilterConfigurator> OriginalFilterVM = OriginalFilterConfiguratorViewModel.Pin();
-	if (OriginalFilterVM.IsValid())
-	{
-		OriginalFilterVM->GetOnDestroyedEvent().Remove(OnViewModelDestroyedHandle);
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
