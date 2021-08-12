@@ -150,4 +150,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static UMoviePipelineExecutorShot* GetCurrentExecutorShot(const UMoviePipeline* InMoviePipeline);
+
+	/** Get a string to represent the Changelist Number for the burn in. This can be driven by a Modular Feature if you want to permanently replace it with different information. */
+	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
+	static FText GetMoviePipelineEngineChangelistLabel(const UMoviePipeline* InMoviePipeline);
+
 };
