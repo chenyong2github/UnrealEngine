@@ -75,7 +75,7 @@ void FSlateInsightsModule::RegisterTimingProfilerLayoutExtensions(FInsightsMajor
 	//TSharedRef<FWorkspaceItem> Category = InOutExtender.GetTabManager()->AddLocalWorkspaceMenuCategory(LOCTEXT("SlateCategoryLabel", "Slate"));
 	//TSharedRef<FWorkspaceItem> Category = ;
 
-	FInsightsMinorTabConfig& MinorTabConfig = InOutExtender.AddMinorTabConfig();
+	FMinorTabConfig& MinorTabConfig = InOutExtender.AddMinorTabConfig();
 	MinorTabConfig.TabId = Private::FrameViewTab;
 	MinorTabConfig.TabLabel = LOCTEXT("SlateTabTitle", "Slate Frame View");
 	MinorTabConfig.TabTooltip = LOCTEXT("SlateTabTitleTooltip", "Opens the Slate Frame View tab, allows for diagnostics  of a Slate frame.");

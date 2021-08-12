@@ -15,6 +15,7 @@
 #include "AssetThumbnail.h"
 #include "ILevelEditor.h"
 #include "LevelViewportTabContent.h"
+#include "SLevelEditorToolBox.h"
 
 class IAssetEditorInstance;
 class IDetailsView;
@@ -127,7 +128,6 @@ public:
 	virtual TSharedRef<SWidget> CreateActorDetails( const FName TabIdentifier ) override;
 	virtual void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> InActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> InActorDetailsRootCustomization) override;
 	virtual void SetActorDetailsSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> InActorDetailsSCSEditorUICustomization) override;
-	virtual TSharedRef<SWidget> CreateToolBox() override;
 	virtual FEditorModeTools& GetEditorModeManager() const override;
 	virtual UTypedElementCommonActions* GetCommonActions() const override;
 	virtual FOnActiveViewportChanged& OnActiveViewportChanged() { return OnActiveViewportChangedDelegate; }
@@ -154,10 +154,7 @@ public:
 private:
 	
 	TSharedRef<SDockTab> SpawnLevelEditorTab(const FSpawnTabArgs& Args, FName TabIdentifier, FString InitializationPayload);
-	bool CanSpawnEditorModeToolbarTab(const FSpawnTabArgs& Args) const;
-	bool CanSpawnEditorModeToolboxTab(const FSpawnTabArgs& Args) const;
-	bool HasAnyHostedEditorModeToolkit() const;
-
+	bool CanSpawnLevelEditorTab(const FSpawnTabArgs& Args, FName TabIdentifier);
 	//TSharedRef<SDockTab> SpawnLevelEditorModeTab(const FSpawnTabArgs& Args, FEdMode* EditorMode);
 	TSharedRef<SDockTab> SummonDetailsPanel( FName Identifier );
 
@@ -183,9 +180,6 @@ private:
 
 	/** Editor mode has been added or removed, clears cached command list so it will be rebuilt */
 	void EditorModeCommandsChanged();
-
-	/** Called when a level editor mode is toggled */
-	void OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, bool bIsEnteringMode);
 
 	/** Gets the tabId mapping to an editor mode */
 	static FName GetEditorModeTabId( FEditorModeID ModeID );
@@ -278,8 +272,6 @@ private:
 	// Weak reference to all toolbox panels this level editor has spawned.  May contain invalid entries for tabs that were closed.
 	TArray< TWeakPtr< class SLevelEditorToolBox > > ToolBoxTabs;
 
-	TArray< TWeakPtr< class SLevelEditorModeContent > > ModesTabs;
-
 	// List of all of the toolkits we're currently hosting.
 	TArray< TSharedPtr< class IToolkit > > HostedToolkits;
 
@@ -336,4 +328,7 @@ private:
 
 	/** If this flag is raised we will force refresh on next selection update. */
 	bool bNeedsRefresh : 1;
+
+	TSharedPtr<FLevelEditorModeUILayer> ModeUILayer;
+
 };

@@ -18,6 +18,7 @@
 #include "Insights/ViewModels/ThreadTrackEvent.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
+#include "Framework/Docking/TabManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -208,7 +209,7 @@ void FTaskGraphProfilerManager::RegisterTimingProfilerLayoutExtensions(FInsights
 {
 	TimingTabManager = InOutExtender.GetTabManager();
 
-	FInsightsMinorTabConfig& MinorTabConfig = InOutExtender.AddMinorTabConfig();
+	FMinorTabConfig& MinorTabConfig = InOutExtender.AddMinorTabConfig();
 	MinorTabConfig.TabId = FTaskGraphProfilerTabs::TaskTableTreeViewTabID;
 	MinorTabConfig.TabLabel = LOCTEXT("TaskTableTreeViewTabTitle", "Tasks");
 	MinorTabConfig.TabTooltip = LOCTEXT("TaskTableTreeViewTabTitleTooltip", "Opens the Task Table Tree View tab, that allows Task Graph profilling.");

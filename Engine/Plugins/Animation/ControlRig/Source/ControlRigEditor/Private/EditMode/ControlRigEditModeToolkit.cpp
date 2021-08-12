@@ -80,15 +80,5 @@ FText FControlRigEditModeToolkit::GetActiveToolMessage() const
 	return ModeTools->GetActiveToolMessage();
 }
 
-//todo may need these later
-void FControlRigEditModeToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
-{
-
-}
-
-void FControlRigEditModeToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
-{
-
-}
 
 #undef LOCTEXT_NAMESPACE

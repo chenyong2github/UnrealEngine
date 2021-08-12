@@ -18,16 +18,6 @@ namespace
 	const TArray<FName> FoliagePaletteNames = { FoliageName };
 }
 
-void FFoliageEdModeToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
-{
-
-}
-
-void FFoliageEdModeToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
-{
-
-}
-
 void FFoliageEdModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
 {
 	FoliageEdWidget = SNew(SFoliageEdit);

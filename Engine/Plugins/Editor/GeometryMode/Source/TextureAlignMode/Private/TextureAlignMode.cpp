@@ -8,15 +8,6 @@
 
 #define LOCTEXT_NAMESPACE "TextureAlignMode"
 
-void FTextureAlignMode::RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
-{
-
-}
-
-void FTextureAlignMode::UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
-{
-
-}
 
 FName FTextureAlignMode::GetToolkitFName() const
 {

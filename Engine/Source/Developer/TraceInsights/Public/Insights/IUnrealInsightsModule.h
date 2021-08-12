@@ -56,28 +56,6 @@ struct TRACEINSIGHTS_API FTimingProfilerTabs
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Configuration for an Insights minor tab. This is used to augment the standard supplied tabs from plugins. */
-struct TRACEINSIGHTS_API FInsightsMinorTabConfig
-{
-	FName TabId;
-
-	FText TabLabel;
-
-	FText TabTooltip;
-
-	FSlateIcon TabIcon;
-
-	FOnSpawnTab OnSpawnTab;
-
-	FCanSpawnTab CanSpawnTab;
-
-	FOnFindTabToReuse OnFindTabToReuse;
-
-	TSharedPtr<FWorkspaceItem> WorkspaceGroup;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /** Configuration for an Insights major tab */
 struct TRACEINSIGHTS_API FInsightsMajorTabConfig
 {
@@ -133,17 +111,17 @@ struct TRACEINSIGHTS_API FInsightsMajorTabExtender
 
 	TSharedPtr<FExtender>& GetMenuExtender() { return MenuExtender; }
 	FLayoutExtender& GetLayoutExtender() { return LayoutExtender; }
-	FInsightsMinorTabConfig& AddMinorTabConfig() { return MinorTabs.AddDefaulted_GetRef(); }
+	FMinorTabConfig& AddMinorTabConfig() { return MinorTabs.AddDefaulted_GetRef(); }
 	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
-	const TArray<FInsightsMinorTabConfig>& GetMinorTabs() const { return MinorTabs; }
 	TSharedRef<FWorkspaceItem> GetWorkspaceGroup() { return WorkspaceGroup; }
+	const TArray<FMinorTabConfig>& GetMinorTabs() const { return MinorTabs; }
 
 protected:
 	/** Extender used to add to the menu for this tab */
 	TSharedPtr<FExtender> MenuExtender;
 
 	/** Any additional minor tabs to add */
-	TArray<FInsightsMinorTabConfig> MinorTabs;
+	TArray<FMinorTabConfig> MinorTabs;
 
 	/** Extender used when creating the layout for this tab */
 	FLayoutExtender LayoutExtender;

@@ -68,13 +68,7 @@ void SLandscapeAssetThumbnail::SetAsset(UObject* Asset)
 
 //////////////////////////////////////////////////////////////////////////
 
-void FLandscapeToolKit::RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager)
-{
-}
 
-void FLandscapeToolKit::UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager)
-{
-}
 
 void FLandscapeToolKit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 {

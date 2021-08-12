@@ -28,13 +28,6 @@ FTileMapEdModeToolkit::FTileMapEdModeToolkit(class FEdModeTileMap* InOwningMode)
 	TileMapEditor = InOwningMode;
 }
 
-void FTileMapEdModeToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
-{
-}
-
-void FTileMapEdModeToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager)
-{
-}
 
 FName FTileMapEdModeToolkit::GetToolkitFName() const
 {

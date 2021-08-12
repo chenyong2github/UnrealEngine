@@ -134,10 +134,6 @@ public:
 	virtual FText GetTabSuffix() const override;
 	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override = 0;	// Must implement in derived class!
-	virtual class FEdMode* GetEditorMode() const override;
-	virtual TWeakObjectPtr<class UEdMode> GetScriptableEditorMode() const final;
-	virtual FText GetEditorModeDisplayName() const override;
-	virtual FSlateIcon GetEditorModeIcon() const override;
 	virtual FEditorModeTools& GetEditorModeManager() const final;
 
 	/** IAssetEditorInstance interface */

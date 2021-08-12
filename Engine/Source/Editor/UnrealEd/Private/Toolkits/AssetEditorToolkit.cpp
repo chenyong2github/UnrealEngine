@@ -414,26 +414,6 @@ FText FAssetEditorToolkit::GetToolTipTextForObject(const UObject* InObject)
 	return FText::FromString(ToolTipString);
 }
 
-class FEdMode* FAssetEditorToolkit::GetEditorMode() const
-{
-	return nullptr;
-}
-
-TWeakObjectPtr<UEdMode> FAssetEditorToolkit::GetScriptableEditorMode() const
-{
-	return nullptr;
-}
-
-FText FAssetEditorToolkit::GetEditorModeDisplayName() const
-{
-	return FText::GetEmpty();
-}
-
-FSlateIcon FAssetEditorToolkit::GetEditorModeIcon() const
-{
-	return FSlateIcon();
-}
-
 FEditorModeTools& FAssetEditorToolkit::GetEditorModeManager() const
 {
 	if (IsWorldCentricAssetEditor() && IsHosted())

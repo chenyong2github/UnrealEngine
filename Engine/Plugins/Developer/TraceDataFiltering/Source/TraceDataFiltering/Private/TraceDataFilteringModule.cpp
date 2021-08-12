@@ -76,7 +76,7 @@ void FTraceFilteringModule::RegisterTimingProfilerLayoutExtensions(FInsightsMajo
 {
 	TSharedRef<FWorkspaceItem> Category = InOutExtender.GetTabManager()->AddLocalWorkspaceMenuCategory(NSLOCTEXT("FTraceInsightsModule", "FilteringCategoryLabel", "Filtering"));
 
-	FInsightsMinorTabConfig& MinorTabConfig = InOutExtender.AddMinorTabConfig();
+	FMinorTabConfig& MinorTabConfig = InOutExtender.AddMinorTabConfig();
 	MinorTabConfig.TabId = FTraceFilteringModule::InsightsFilterTabName;
 	MinorTabConfig.TabLabel = NSLOCTEXT("FTraceInsightsModule", "FilteringTabTitle", "Trace Data Filtering");
 	MinorTabConfig.TabTooltip = NSLOCTEXT("FTraceInsightsModule", "FilteringTabTooltip", "Opens the Trace Data Filtering tab, allows for setting Trace Channel states");

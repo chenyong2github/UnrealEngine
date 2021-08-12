@@ -14,6 +14,7 @@
 #include "IDetailRootObjectCustomization.h"
 #include "ISettingsModule.h"
 #include "EditorModeManager.h"
+#include "Toolkits/AssetEditorModeUILayer.h"
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
@@ -408,16 +409,22 @@ void FModelingToolsEditorModeToolkit::PostNotification(const FText& Message)
 
 	ActiveToolMessage = Message;
 
-	const FName LevelEditorStatusBarName = "LevelEditor.StatusBar";
-	ActiveToolMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(LevelEditorStatusBarName, ActiveToolMessage);
+	if (ModeUILayer.IsValid())
+	{
+		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+		ActiveToolMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(ModeUILayerPtr->GetStatusBarName(), ActiveToolMessage);
+	}
 }
 
 void FModelingToolsEditorModeToolkit::ClearNotification()
 {
 	ActiveToolMessage = FText::GetEmpty();
 
-	const FName LevelEditorStatusBarName = "LevelEditor.StatusBar";
-	GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(LevelEditorStatusBarName, ActiveToolMessageHandle);
+	if (ModeUILayer.IsValid())
+	{
+		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(ModeUILayerPtr->GetStatusBarName(), ActiveToolMessageHandle);
+	}
 	ActiveToolMessageHandle.Reset();
 }
 

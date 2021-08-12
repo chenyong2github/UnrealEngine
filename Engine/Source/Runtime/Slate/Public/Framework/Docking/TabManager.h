@@ -161,6 +161,35 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FCanSpawnTab, const FSpawnTabArgs&);
  */
 DECLARE_DELEGATE_RetVal_OneParam( TSharedPtr<SDockTab>, FOnFindTabToReuse, const FTabId& )
 
+struct SLATE_API FMinorTabConfig
+{
+public:
+	FMinorTabConfig()
+	{
+	}
+
+	FMinorTabConfig(const FName& InTabID)
+		: TabId(InTabID)
+	{
+	}
+
+	FName TabId;
+
+	FText TabLabel;
+
+	FText TabTooltip;
+
+	FSlateIcon TabIcon;
+
+	FOnSpawnTab OnSpawnTab;
+
+	FCanSpawnTab CanSpawnTab;
+
+	FOnFindTabToReuse OnFindTabToReuse;
+
+	TSharedPtr<FWorkspaceItem> WorkspaceGroup;
+};
+
 /** An enum to describe how TabSpawnerEntries will be handled by menus. */
 namespace ETabSpawnerMenuType
 {
@@ -193,15 +222,27 @@ struct FTabSpawnerEntry : public FWorkspaceItem
 		return *this;
 	}
 
+	FTabSpawnerEntry& SetDisplayNameAttribute(const TAttribute<FText>& InLegibleName)
+	{
+		DisplayNameAttribute = InLegibleName;
+		return *this;
+	}
+
+	FTabSpawnerEntry& SetTooltipTextAttribute(const TAttribute<FText>& InTooltipText)
+	{
+		TooltipTextAttribute = InTooltipText;
+		return *this;
+	}
+
 	FTabSpawnerEntry& SetDisplayName( const FText& InLegibleName )
 	{
-		DisplayName = InLegibleName;
+		DisplayNameAttribute = InLegibleName;
 		return *this;
 	}
 
 	FTabSpawnerEntry& SetTooltipText( const FText& InTooltipText )
 	{
-		TooltipText = InTooltipText;
+		TooltipTextAttribute = InTooltipText;
 		return *this;
 	}
 
@@ -454,6 +495,17 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 				{
 				}
 
+				TSharedRef<FStack> SetExtensionId(FName InExtensionId)
+				{
+					ExtensionId = InExtensionId;
+					return SharedThis(this);
+				}
+
+				FName GetExtensionId() const
+				{
+					return ExtensionId;
+				}
+
 			protected:
 
 				FStack()
@@ -466,6 +518,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 				TArray<FTab> Tabs;
 				bool bHideTabWell;
 				FTabId ForegroundTabId;
+				FName ExtensionId;
 		};
 
 

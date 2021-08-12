@@ -99,26 +99,20 @@ void SSkeletalMeshEditorToolbox::UpdateInlineContent(const TSharedPtr<IToolkit>&
 		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(SkeletalMeshEditorStatusBarName, StatusBarMessageHandle);
 		StatusBarMessageHandle.Reset();
 	}
-
-	if (Toolkit.IsValid())
+	TWeakPtr<FModeToolkit> ModeToolkit = StaticCastSharedPtr<FModeToolkit>(Toolkit);
+	if (ModeToolkit.IsValid())
 	{
-		TabName = Toolkit->GetEditorModeDisplayName();
-		TabIcon = Toolkit->GetEditorModeIcon().GetSmallIcon();
+		TabName = ModeToolkit.Pin()->GetEditorModeDisplayName();
+		TabIcon = ModeToolkit.Pin()->GetEditorModeIcon().GetSmallIcon();
+		const TSharedRef<FModeToolkit> ModeToolkitPinned = ModeToolkit.Pin().ToSharedRef();
 
-		TWeakPtr<FModeToolkit> ModeToolkit = StaticCastSharedPtr<FModeToolkit>(Toolkit);
+		UpdatePalette(ModeToolkitPinned);
 
-		if (ModeToolkit.IsValid())
-		{
-			TSharedRef<FModeToolkit> ModeToolkitPinned = ModeToolkit.Pin().ToSharedRef();
-
-			UpdatePalette(ModeToolkitPinned);
-
-			// Show the name of the active tool in the statusbar.
-			// FIXME: We should also be showing Ctrl/Shift/Alt LMB/RMB shortcuts.
-			StatusBarMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(
-					SkeletalMeshEditorStatusBarName,
-					TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(ModeToolkitPinned, &FModeToolkit::GetActiveToolDisplayName)));
-		}
+		// Show the name of the active tool in the statusbar.
+		// FIXME: We should also be showing Ctrl/Shift/Alt LMB/RMB shortcuts.
+		StatusBarMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(
+			SkeletalMeshEditorStatusBarName,
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(ModeToolkitPinned, &FModeToolkit::GetActiveToolDisplayName)));
 	}
 	else
 	{
