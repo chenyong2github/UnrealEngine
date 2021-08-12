@@ -3054,6 +3054,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bShowShadowedLightOverflowWarning = Scene->OverflowingDynamicShadowedLights.Num() > 0;
 
 		bool bLumenEnabledButHasNoDataForTracing = false;
+		bool bLumenEnabledButDisabledForTheProject = false;
 
 		for (int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -3061,6 +3062,10 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 			bLumenEnabledButHasNoDataForTracing = bLumenEnabledButHasNoDataForTracing
 				|| (!ShouldRenderLumenDiffuseGI(Scene, View) && ShouldRenderLumenDiffuseGI(Scene, View, /*bSkipTracingDataCheck*/ true))
 				|| (!ShouldRenderLumenReflections(View) && ShouldRenderLumenReflections(View, /*bSkipTracingDataCheck*/ true));
+
+			bLumenEnabledButDisabledForTheProject = bLumenEnabledButDisabledForTheProject
+				|| (!ShouldRenderLumenDiffuseGI(Scene, View) && ShouldRenderLumenDiffuseGI(Scene, View, /*bSkipTracingDataCheck*/ false, /*bSkipProjectCheck*/ true))
+				|| (!ShouldRenderLumenReflections(View) && ShouldRenderLumenReflections(View, /*bSkipTracingDataCheck*/ false, /*bSkipProjectCheck*/ true));
 		}
 
 		bool bNaniteEnabledButNoAtomics = false;
@@ -3118,7 +3123,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowDemotedLocalMemoryWarning || bShowGlobalClipPlaneWarning || bShowSkylightWarning || bShowPointLightWarning
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
 			|| bMobileShowVertexFogWarning || bMobileMissingSkyMaterial || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
-			|| bLumenEnabledButHasNoDataForTracing || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture || bShowWaitingSkylight;
+			|| bLumenEnabledButHasNoDataForTracing || bLumenEnabledButDisabledForTheProject || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture || bShowWaitingSkylight;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -3141,7 +3146,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning, bMobileMissingSkyMaterial, 
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, 
-						bLumenEnabledButHasNoDataForTracing, bNaniteEnabledButNoAtomics, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight]
+						bLumenEnabledButHasNoDataForTracing, bLumenEnabledButDisabledForTheProject, bNaniteEnabledButNoAtomics, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -3286,6 +3291,14 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 								"Lumen is enabled, but has no ray tracing data and won't operate correctly.\n"
 								"Either configure Lumen to use software distance field ray tracing and enable 'Generate Mesh Distancefields' in project settings\n"
 								"or configure Lumen to use Hardware Ray Tracing and enable 'Support Hardware Ray Tracing' in project settings.");
+							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+							Y += 14;
+						}
+
+						if (bLumenEnabledButDisabledForTheProject)
+						{
+							static const FText Message = NSLOCTEXT("Renderer", "LumenDisabledForProject", 
+								"Lumen is enabled but cannot render, because the project has Lumen disabled in an ini (r.Lumen.Supported = 0)");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
