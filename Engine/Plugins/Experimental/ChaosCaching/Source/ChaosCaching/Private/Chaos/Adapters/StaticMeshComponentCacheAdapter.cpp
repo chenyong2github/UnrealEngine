@@ -179,7 +179,7 @@ namespace Chaos
 	{
 #if WITH_CHAOS
 
-		if(Cast<UStaticMeshComponent>(InComponent))
+		if(Cast<UStaticMeshComponent>(InComponent) && InComponent->GetBodyInstance() && InComponent->GetBodyInstance()->ActorHandle)
 		{
 			FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(InComponent->GetBodyInstance()->ActorHandle, true);
 		}
