@@ -75,6 +75,9 @@ public:
 	/** Toggles visibility for Main Graph track. */
 	TSharedPtr<FUICommandInfo> ShowMainGraphTrack;
 
+	/** Opens the quick find widget */
+	TSharedPtr<FUICommandInfo> QuickFind;
+
 	/** Toggles visibility for GPU thread track. */
 	//TSharedPtr<FUICommandInfo> ShowAllGpuTracks;
 

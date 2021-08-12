@@ -53,7 +53,7 @@ FTimingProfilerCommands::FTimingProfilerCommands()
 PRAGMA_DISABLE_OPTIMIZATION
 void FTimingProfilerCommands::RegisterCommands()
 {
-	UI_COMMAND(ToggleFramesTrackVisibility, "Frames", "Toggles the visibility of the Frames track", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::F));
+	UI_COMMAND(ToggleFramesTrackVisibility, "Frames", "Toggles the visibility of the Frames track", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleGraphTrackVisibility, "Graph", "Toggles the visibility of the Overview Graph track", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::G));
 	UI_COMMAND(ToggleTimingViewVisibility, "Timing", "Toggles the visibility of the main Timing view", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::T));
 	UI_COMMAND(ToggleTimersViewVisibility, "Timers", "Toggles the visibility of the Timers view", EUserInterfaceActionType::ToggleButton, FInputChord());
@@ -101,6 +101,12 @@ void FTimingViewCommands::RegisterCommands()
 		"Show/hide the main Graph track.",
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord(EKeys::G));
+
+	UI_COMMAND(QuickFind,
+		"Quick Find",
+		"Quick find or filter events in the timing view.",
+		EUserInterfaceActionType::Button,
+		FInputChord(EModifierKey::Control, EKeys::F));
 
 	//UI_COMMAND(ShowAllGpuTracks, "GPU Track(s)", "Show/hide the GPU track(s).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Y));
 	//UI_COMMAND(ShowAllCpuTracks, "CPU Thread Tracks", "Show/hide all CPU tracks (and all CPU thread groups).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::U));

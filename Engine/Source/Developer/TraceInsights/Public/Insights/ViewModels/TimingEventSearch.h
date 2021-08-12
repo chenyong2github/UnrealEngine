@@ -5,6 +5,11 @@
 #include "CoreMinimal.h"
 #include "Containers/Map.h"
 
+namespace Insights
+{
+	class IFilterExecutor;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Search behavior flags
 enum class ETimingEventSearchFlags : int32
@@ -88,6 +93,8 @@ public:
 
 	// Search behavior flags
 	ETimingEventSearchFlags Flags;
+
+	TSharedPtr<Insights::IFilterExecutor> FilterExecutor;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -4,7 +4,7 @@
 
 #include "Widgets/Docking/SDockTab.h"
 
-#include "Insights/Widgets/SFilterConfigurator.h"
+#include "Insights/Widgets/SAdvancedFilter.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
 
 #define LOCTEXT_NAMESPACE "SFilterService"
@@ -36,7 +36,7 @@ FFilterService::~FFilterService()
 
 TSharedPtr<SWidget> FFilterService::CreateFilterConfiguratorWidget(TSharedPtr<FFilterConfigurator> FilterConfiguratorViewModel)
 {
-	SAssignNew(PendingWidget, SFilterConfigurator, FilterConfiguratorViewModel);
+	SAssignNew(PendingWidget, SAdvancedFilter, FilterConfiguratorViewModel);
 
 	if (FGlobalTabmanager::Get()->HasTabSpawner(FilterConfiguratorTabId))
 	{

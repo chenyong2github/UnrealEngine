@@ -41,6 +41,7 @@ namespace Insights
 {
 	class ITimingViewExtender;
 	class FTimeMarker;
+	class FQuickFind;
 }
 
 /** A custom widget used to display timing events. */
@@ -79,6 +80,9 @@ public:
 
 	bool IsAutoHideEmptyTracksEnabled() const;
 	void ToggleAutoHideEmptyTracks();
+
+	bool QuickFind_CanExecute() const;
+	void QuickFind_Execute();
 
 	bool ToggleTrackVisibility_IsChecked(uint64 InTrackId) const;
 	void ToggleTrackVisibility_Execute(uint64 InTrackId);
@@ -440,6 +444,8 @@ protected:
 	bool ContextMenu_ShowTaskDependecies_IsChecked();
 
 	void SetTrackPosY(TSharedPtr<FBaseTimingTrack>& TrackPtr, float TopOffsetY) const;
+	
+	void FindNextEvent();
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
@@ -634,4 +640,6 @@ protected:
 	TSharedPtr<FUICommandList> CommandList;
 
 	TArray<TUniquePtr<ITimingEventRelation>> CurrentRelations;
+
+	TSharedPtr<Insights::FQuickFind> QuickFindVm;
 };

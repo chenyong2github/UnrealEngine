@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Insights/ViewModels/IFilterExecutor.h"
 #include "Insights/ViewModels/Filters.h"
 #include "Insights/ViewModels/FilterConfiguratorNode.h"
 
@@ -11,7 +12,7 @@ namespace Insights
  
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FFilterConfigurator
+class FFilterConfigurator : public IFilterExecutor
 {
 public:
 	FFilterConfigurator();
@@ -23,11 +24,11 @@ public:
 
 	bool operator!=(const FFilterConfigurator& Other) { return !(*this == Other); }
 
-	~FFilterConfigurator();
+	virtual ~FFilterConfigurator();
 
 	FFilterConfiguratorNodePtr GetRootNode() { return RootNode; }
 
-	bool ApplyFilters(const FFilterContext& Context) const;
+	virtual bool ApplyFilters(const FFilterContext& Context) const override;
 
 	TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& GetAvailableFilters() { return AvailableFilters; }
 

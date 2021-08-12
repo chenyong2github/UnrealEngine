@@ -201,7 +201,7 @@ private:
 	static TSharedPtr<FFilterService> Instance;
 	FFilterStorage FilterStorage;
 
-	TSharedPtr<class SFilterConfigurator> PendingWidget;
+	TSharedPtr<class SAdvancedFilter> PendingWidget;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
