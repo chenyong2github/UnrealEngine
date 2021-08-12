@@ -140,6 +140,7 @@ float2 DepthBlurParameters;
 float2 DOFBufferUVMax;
 
 float4 SeparateTranslucencyBilinearUVMinMax;
+uint SeparateTranslucencyUpscaling;
 
 Texture2D BokehLUT;
 
@@ -1085,9 +1086,19 @@ void RecombineMainCS(
 	// Compose separate translucency.
 	if (1)
 	{
-		float2 PixelPos = InputParameters.ViewportUV * View.ViewSizeAndInvSize.xy + View.ViewRectMin.xy;
-		float2 BufferUV = PixelPos * View.BufferSizeAndInvSize.zw;
-		NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(PixelPos, BufferUV, SeparateTranslucencyTextureLowResExtentInverse);
+		NearestDepthNeighborUpsamplingResult UpsampleResult;
+		if (SeparateTranslucencyUpscaling == 0)
+		{
+			UpsampleResult.bUsePointSampler = true;
+			UpsampleResult.UV = InputParameters.SceneBufferUV;
+		}
+		else
+		{
+			float2 PixelPos = (View.ViewRectMin.xy + DispatchThreadId) + 0.5;
+			UpsampleResult = NearestDepthNeighborUpsampling(PixelPos, InputParameters.SceneBufferUV, SeparateTranslucencyTextureLowResExtentInverse);
+		}
+		
+		UpsampleResult.UV = clamp(UpsampleResult.UV, SeparateTranslucencyBilinearUVMinMax.xy, SeparateTranslucencyBilinearUVMinMax.zw);
 
 		float4 SeparateTranslucencyColor = 0;
 		float4 SeparateTranslucencyModulateColor = 0;
