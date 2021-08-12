@@ -1055,7 +1055,7 @@ public:
 	void PopulateStreamingLevelsToConsider();
 
 	/** Whether the world is currently in a BlockTillLevelStreamingCompleted() call */
-	bool GetIsInBlockTillLevelStreamingCompleted() const { return bIsInBlockTillLevelStreamingCompleted; }
+	bool GetIsInBlockTillLevelStreamingCompleted() const { return IsInBlockTillLevelStreamingCompleted > 0; }
 
 	/** Prefix we used to rename streaming levels, non empty in PIE and standalone preview */
 	UPROPERTY()
@@ -1177,7 +1177,7 @@ public:
 	
 	/** Whether it was requested that the engine bring up a loading screen and block on async loading. */   
 	uint8 bRequestedBlockOnAsyncLoading:1;
-		
+
 	/** Whether actors have been initialized for play */
 	uint8 bActorsInitialized:1;
 
@@ -1224,9 +1224,6 @@ public:
 	uint8 bAreConstraintsDirty:1;
 
 private:
-	/** Whether the world is currently in a BlockTillLevelStreamingCompleted() call */
-	uint8 bIsInBlockTillLevelStreamingCompleted : 1;
-
 	/** Whether the render scene for this World should be created with HitProxies or not */
 	uint8 bRequiresHitProxies:1;
 
@@ -1247,6 +1244,9 @@ private:
 
 	/** Whether world object has been initialized via Init and has not yet had CleanupWorld called								*/
 	uint8 bInitializedAndNeedsCleanup : 1;
+
+	/** Whether the world is currently in a BlockTillLevelStreamingCompleted() call */
+	uint32 IsInBlockTillLevelStreamingCompleted;
 
 	/** The world's navigation data manager */
 	UPROPERTY(Transient)
