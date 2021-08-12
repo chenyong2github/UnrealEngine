@@ -13,6 +13,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/App.h"
+#include "Misc/StringBuilder.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/Paths.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -21,6 +22,16 @@
 DEFINE_LOG_CATEGORY_STATIC(LogZenStoreWriter, Log, All);
 
 using namespace UE;
+
+// Note that this is destructive - we yank out the buffer memory from the 
+// IoBuffer into the FSharedBuffer
+FSharedBuffer IoBufferToSharedBuffer(FIoBuffer& InBuffer)
+{
+	InBuffer.EnsureOwned();
+	const uint64 DataSize = InBuffer.DataSize();
+	uint8* DataPtr = InBuffer.Release().ValueOrDie();
+	return FSharedBuffer{ FSharedBuffer::TakeOwnership(DataPtr, DataSize, FMemory::Free) };
+};
 
 FCbObjectId ToObjectId(const FIoChunkId& ChunkId)
 {
@@ -289,11 +300,11 @@ FZenStoreWriter::FZenStoreWriter(
 						const int64	PkgDiskSize				= PackageObj["disksize"].AsUInt64();
 						FPackageStoreEntryResource Entry	= FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
 						const FName PackageName				= Entry.PackageName;
-
+						FIoHash DependenciesHash			= OplogObj["dependencies"].AsHash();
 						const int32 Index					= PackageStoreEntries.Num();
 
 						PackageStoreEntries.Add(MoveTemp(Entry));
-						CookedPackagesInfo.Add(FCookedPackageInfo { PackageName, IoHashToMD5(PkgHash), PkgGuid, PkgDiskSize });
+						CookedPackagesInfo.Add(FCookedPackageInfo { PackageName, IoHashToMD5(PkgHash), PkgGuid, PkgDiskSize, DependenciesHash });
 						PackageNameToIndex.Add(PackageName, Index);
 					}
 				}
@@ -582,25 +593,26 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 		{
 			check(PackageState->PackageData.IsValid);
 
-			// Note that this is destructive - we yank out the buffer memory from the 
-			// IoBuffer into the FSharedBuffer
-			auto IoBufferToSharedBuffer = [](FIoBuffer& InBuffer) -> FSharedBuffer {
-				InBuffer.EnsureOwned();
-				const uint64 DataSize = InBuffer.DataSize();
-				uint8* DataPtr = InBuffer.Release().ValueOrDie();
-				return FSharedBuffer{ FSharedBuffer::TakeOwnership(DataPtr, DataSize, FMemory::Free) };
-			};
-
 			FPackageDataEntry& PkgData = PackageState->PackageData;
 			
 			const int64 PkgDiskSize = PkgData.Payload.DataSize();
 			
 			FCbAttachment PkgDataAttachment(IoBufferToSharedBuffer(PkgData.Payload));
 			Pkg.AddAttachment(PkgDataAttachment);
-			
+
+			TOptional<FCbAttachment> DependenciesAttachment;
+			FIoHash DependenciesHash;
+			if (Info.TargetDomainDependencies)
+			{
+				DependenciesAttachment.Emplace(Info.TargetDomainDependencies);
+				Pkg.AddAttachment(*DependenciesAttachment);
+				DependenciesHash = DependenciesAttachment->GetHash();
+			}
+
 			CommitEventArgs.EntryIndex = PackageStoreEntries.Num();
 			PackageStoreEntries.Add(PkgData.PackageStoreEntry);
-			CookedPackagesInfo.Add(FCookedPackageInfo { Info.PackageName, IoHashToMD5(PkgDataAttachment.GetHash()), Info.PackageGuid, PkgDiskSize });
+			CookedPackagesInfo.Add(FCookedPackageInfo { Info.PackageName, IoHashToMD5(PkgDataAttachment.GetHash()), Info.PackageGuid, PkgDiskSize, DependenciesHash });
+			PackageNameToIndex.Add(Info.PackageName, CookedPackagesInfo.Num()-1);
 
 			FCbWriter PackageObj;
 			PackageObj.BeginObject();
@@ -662,11 +674,9 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 				PackageObj.EndArray();
 			}
 
-			if (Info.TargetDomainDependencies)
+			if (DependenciesAttachment)
 			{
-				FCbAttachment DependencyAttachment(Info.TargetDomainDependencies);
-				Pkg.AddAttachment(DependencyAttachment);
-				PackageObj << "dependencies" << DependencyAttachment;
+				PackageObj << "dependencies" << *DependenciesAttachment;
 			}
 
 			PackageObj.EndObject();
@@ -710,6 +720,30 @@ void FZenStoreWriter::Flush()
 void FZenStoreWriter::GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) 
 {
 	OutCookedPackages.Append(CookedPackagesInfo);
+}
+
+FCbObject FZenStoreWriter::GetTargetDomainDependencies(FName PackageName)
+{
+	const int32* Idx = PackageNameToIndex.Find(PackageName);
+	if (!Idx)
+	{
+		return FCbObject();
+	}
+
+	const IPackageStoreWriter::FCookedPackageInfo& Info = CookedPackagesInfo[*Idx];
+	TIoStatusOr<FIoBuffer> BufferResult = HttpClient->ReadOpLogAttachment(WriteToString<48>(Info.TargetDomainDependencies));
+	if (!BufferResult.IsOk())
+	{
+		return FCbObject();
+	}
+	FIoBuffer Buffer = BufferResult.ValueOrDie();
+	if (Buffer.DataSize() == 0)
+	{
+		return FCbObject();
+	}
+
+	FSharedBuffer SharedBuffer = IoBufferToSharedBuffer(Buffer);
+	return FCbObject(SharedBuffer);
 }
 
 void FZenStoreWriter::RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove)

@@ -518,6 +518,11 @@ public:
 	{
 		checkNoEntry();
 	}
+	virtual FCbObject GetTargetDomainDependencies(FName InPackageName) override
+	{
+		checkNoEntry();
+		return FCbObject();
+	}
 
 	// FMemoryPackageStoreWriter interface
 	uint64 GetHeaderSize() const { return HeaderSize; }
@@ -555,7 +560,8 @@ void FMemoryPackageStoreWriter::BeginPackage(const FBeginPackageInfo& Info)
 	SetPackageName(Info.PackageName);
 }
 
-auto IoBufferToSharedBuffer = [](const FIoBuffer& InBuffer) -> FSharedBuffer {
+FSharedBuffer IoBufferToSharedBuffer(const FIoBuffer& InBuffer)
+{
 	InBuffer.EnsureOwned();
 	const uint64 DataSize = InBuffer.DataSize();
 	FIoBuffer MutableBuffer(InBuffer);

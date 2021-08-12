@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/StringView.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/CompactBinary.h"
@@ -163,12 +164,19 @@ public:
 		FMD5Hash Hash;
 		FGuid PackageGuid;
 		int64 DiskSize = -1;
+		FIoHash TargetDomainDependencies;
 	};
 
 	/**
 	 * Returns a list of cooked package(s).
 	 */
 	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) = 0;
+
+	/**
+	 * Returns the TargetDomainDependencies that were previously commited for the given PackageName.
+	 * Returns an empty object if not found.
+	 */
+	virtual FCbObject GetTargetDomainDependencies(FName PackageName) = 0;
 
 	/**
 	 * Remove cooked package(s) that has been modified since the last cook.
