@@ -124,9 +124,9 @@ void FDatasmithFacadeActorBinding::AddRelativeTransformCapture(
 	FVector Location = Transform.GetTranslation();
 	FQuat Rotation = Transform.GetRotation();
 
-	AddRelativeScaleCapture(Scale.X, Scale.Y, Scale.Z);
-	AddRelativeLocationCapture(Location.X, Location.Y, Location.Z);
-	AddRelativeRotationCapture(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W);
+	AddRelativeScaleCapture((float)Scale.X, (float)Scale.Y, (float)Scale.Z);	// LWC_TODO: Precision loss
+	AddRelativeLocationCapture((float)Location.X, (float)Location.Y, (float)Location.Z);
+	AddRelativeRotationCapture((float)Rotation.X, (float)Rotation.Y, (float)Rotation.Z, (float)Rotation.W);
 }
 
 void FDatasmithFacadeActorBinding::AddVisibilityCapture(

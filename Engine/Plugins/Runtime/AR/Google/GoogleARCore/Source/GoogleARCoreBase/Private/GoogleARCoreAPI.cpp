@@ -75,7 +75,7 @@ namespace
 
 		FVector ArPosePosition = ARCorePoseMatrix.GetOrigin();
 		FQuat ArPoseRotation = ARCorePoseMatrix.ToQuat();
-		float ArPoseData[7] = { ArPoseRotation.X, ArPoseRotation.Y, ArPoseRotation.Z, ArPoseRotation.W, ArPosePosition.X, ArPosePosition.Y, ArPosePosition.Z };
+		float ArPoseData[7] = { (float)ArPoseRotation.X, (float)ArPoseRotation.Y, (float)ArPoseRotation.Z, (float)ArPoseRotation.W, (float)ArPosePosition.X, (float)ArPosePosition.Y, (float)ArPosePosition.Z };	// LWC_TODO: Precision loss.
 		ArPose_create(SessionHandle, ArPoseData, OutARPose);
 	}
 
@@ -160,7 +160,7 @@ EARTrackingState ToARTrackingState(ArTrackingState State)
 
 FTransform ARCorePoseToUnrealTransform(ArPose* ArPoseHandle, const ArSession* SessionHandle, float WorldToMeterScale)
 {
-	FMatrix ARCorePoseMatrix;
+	FMatrix44f ARCorePoseMatrix;
 	ArPose_getMatrix(SessionHandle, ArPoseHandle, ARCorePoseMatrix.M[0]);
 	FTransform Result = FTransform(ARCoreToUnrealTransform * ARCorePoseMatrix * ARCoreToUnrealTransformInverse);
 	Result.SetLocation(Result.GetLocation() * WorldToMeterScale);
@@ -1211,9 +1211,9 @@ void FGoogleARCoreFrame::ARLineTrace(const FVector& Start, const FVector& End, E
 	}
 
 	float WorldToMeterScale = Session->GetWorldToMeterScale();
-	FVector StartInARCore = UnrealPositionToARCorePosition(Start, WorldToMeterScale);
-	FVector EndInARCore = UnrealPositionToARCorePosition(End, WorldToMeterScale);
-	FVector DirectionInARCore = (EndInARCore - StartInARCore).GetSafeNormal();
+	FVector3f StartInARCore = (FVector3f)UnrealPositionToARCorePosition(Start, WorldToMeterScale);	// LWC_TODO: Precision loss
+	FVector3f EndInARCore = (FVector3f)UnrealPositionToARCorePosition(End, WorldToMeterScale);
+	FVector3f DirectionInARCore = (EndInARCore - StartInARCore).GetSafeNormal();
 	float RayOrigin[3] = { StartInARCore.X, StartInARCore.Y, StartInARCore.Z };
 	float RayDirection[3] = { DirectionInARCore.X, DirectionInARCore.Y, DirectionInARCore.Z };
 
@@ -1247,7 +1247,7 @@ bool FGoogleARCoreFrame::IsDisplayRotationChanged() const
 
 FMatrix FGoogleARCoreFrame::GetProjectionMatrix() const
 {
-	FMatrix ProjectionMatrix;
+	FMatrix44f ProjectionMatrix;
 
 #if PLATFORM_ANDROID
 	if (SessionHandle == nullptr)

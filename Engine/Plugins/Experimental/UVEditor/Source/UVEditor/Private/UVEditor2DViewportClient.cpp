@@ -104,7 +104,7 @@ void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInter
 	if (ZoomFactor < 100000 && ZoomFactor > 1)
 	{
 		// Setup and call grid calling function
-		UE::Geometry::FFrame3f LocalFrame(ViewLoc);
+		UE::Geometry::FFrame3f LocalFrame((FVector3f)ViewLoc);
 		FTransform Transform;
 		TArray<FColor> Colors;
 		Colors.Push(GridMajorColor.ToRGBE());

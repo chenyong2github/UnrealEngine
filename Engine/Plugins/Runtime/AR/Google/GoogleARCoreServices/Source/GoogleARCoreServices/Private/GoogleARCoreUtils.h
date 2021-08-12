@@ -41,7 +41,7 @@ const FMatrix ARCoreToUnrealTransformInverse = ARCoreToUnrealTransform.InverseFa
 
 FTransform ARCorePoseToUnrealTransform(ArPose* ArPoseHandle, const ArSession* SessionHandle, float WorldToMeterScale)
 {
-	FMatrix ARCorePoseMatrix;
+	FMatrix44f ARCorePoseMatrix;
 	ArPose_getMatrix(SessionHandle, ArPoseHandle, ARCorePoseMatrix.M[0]);
 	FTransform Result = FTransform(ARCoreToUnrealTransform * ARCorePoseMatrix * ARCoreToUnrealTransformInverse);
 	Result.SetLocation(Result.GetLocation() * WorldToMeterScale);
@@ -59,7 +59,7 @@ void UnrealTransformToARCorePose(const FTransform& UnrealTransform, const ArSess
 
 	FVector ArPosePosition = ARCorePoseMatrix.GetOrigin();
 	FQuat ArPoseRotation = ARCorePoseMatrix.ToQuat();
-	float ArPoseData[7] = { ArPoseRotation.X, ArPoseRotation.Y, ArPoseRotation.Z, ArPoseRotation.W, ArPosePosition.X, ArPosePosition.Y, ArPosePosition.Z };
+	float ArPoseData[7] = { (float)ArPoseRotation.X, (float)ArPoseRotation.Y, (float)ArPoseRotation.Z, (float)ArPoseRotation.W, (float)ArPosePosition.X, (float)ArPosePosition.Y, (float)ArPosePosition.Z };	// LWC_TODO: Precision loss
 	ArPose_create(SessionHandle, ArPoseData, OutARPose);
 }
 
