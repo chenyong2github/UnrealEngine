@@ -25,6 +25,14 @@
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
+int32 GLumenSupported = 1;
+FAutoConsoleVariableRef CVarLumenSupported(
+	TEXT("r.Lumen.Supported"),
+	GLumenSupported,
+	TEXT("Whether Lumen is supported at all for the project, regardless of platform.  This can be used to avoid compiling shaders and other load time overhead."),
+	ECVF_ReadOnly
+);
+
 int32 GLumenFastCameraMode = 0;
 FAutoConsoleVariableRef CVarLumenFastCameraMode(
 	TEXT("r.LumenScene.FastCameraMode"),
@@ -276,12 +284,12 @@ bool Lumen::ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& Vi
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
 }
 
-bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily)
+bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily, bool bSkipProjectCheck)
 {
 	return Scene
 		&& Scene->LumenSceneData
 		&& ViewFamily.Views.Num() == 1
-		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform());
+		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform(), bSkipProjectCheck);
 }
 
 bool Lumen::IsSoftwareRayTracingSupported()
@@ -289,10 +297,10 @@ bool Lumen::IsSoftwareRayTracingSupported()
 	return DoesProjectSupportDistanceFields();
 }
 
-bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck)
+bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck)
 {
 	return View.Family
-		&& ShouldRenderLumenForViewFamily(Scene, *View.Family)
+		&& ShouldRenderLumenForViewFamily(Scene, *View.Family, bSkipProjectCheck)
 		// Don't update scene lighting for secondary views
 		&& !View.bIsPlanarReflection
 		&& !View.bIsSceneCapture
