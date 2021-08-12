@@ -496,6 +496,14 @@ public:
 	static bool IsPackageExtension(const TCHAR* Ext);
 
 	/**
+	 * Returns whether the passed in extension is a valid binary package extension.
+	 *
+	 * @param	Extension to test.
+	 * @return	True if Ext is either a binary asset or a binary map extension, otherwise false
+	 */
+	static bool IsPackageExtension(EPackageExtension Extension);
+
+	/**
 	 * Returns whether the passed in extension is a valid binary asset package
 	 * extension. Extensions with and without trailing dots are supported.
 	 *

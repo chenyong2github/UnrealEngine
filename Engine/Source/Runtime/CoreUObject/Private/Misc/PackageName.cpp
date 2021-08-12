@@ -1897,6 +1897,11 @@ bool FPackageName::IsPackageExtension( const TCHAR* Ext )
 	return IsAssetPackageExtension(Ext) || IsMapPackageExtension(Ext);
 }
 
+bool FPackageName::IsPackageExtension(EPackageExtension Extension)
+{
+	return Extension == EPackageExtension::Asset || Extension == EPackageExtension::Map;
+}
+
 bool FPackageName::IsAssetPackageExtension(const TCHAR* Ext)
 {
 	FStringView AssetPackageExtension(LexToString(EPackageExtension::Asset));
