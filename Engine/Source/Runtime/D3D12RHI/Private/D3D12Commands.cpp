@@ -2294,13 +2294,6 @@ void FD3D12CommandContext::RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRa
  #endif
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void FD3D12CommandContext::RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner)
-{
-	checkf(false, TEXT("RHISetShadingRateImage API is deprecated. Use the ShadingRateImage attachment in the RHISetRenderTargetsInfo struct instead."));
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 void FD3D12CommandContext::RHISubmitCommandsHint()
 {
 	// Resolve any timestamp queries so far (if any).

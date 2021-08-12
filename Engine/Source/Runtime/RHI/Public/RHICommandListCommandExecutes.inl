@@ -355,12 +355,6 @@ void FRHICommandSetShadingRate::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHISetShadingRate)(ShadingRate, Combiner);
 }
 
-void FRHICommandSetShadingRateImage::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetShadingRateImage);
-	checkf(false, TEXT("RHISetShadingRateImage API is deprecated. Use the ShadingRateImage attachment in the RHISetRenderTargetsInfo struct instead."));
-}
-
 void FRHICommandSetDepthBounds::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(EnableDepthBoundsTest);

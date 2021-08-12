@@ -1502,19 +1502,6 @@ FRHICOMMAND_MACRO(FRHICommandSetShadingRate)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandSetShadingRateImage)
-{
-	FRHITexture* RateImageTexture;
-	EVRSRateCombiner  Combiner;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandSetShadingRateImage(FRHITexture* InRateImageTexture, EVRSRateCombiner InCombiner)
-		: RateImageTexture(InRateImageTexture),
-		Combiner(InCombiner)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandClearUAVFloat)
 {
 	FRHIUnorderedAccessView* UnorderedAccessViewRHI;
@@ -3514,12 +3501,6 @@ public:
 		}
 		ALLOC_COMMAND(FRHICommandSetShadingRate)(ShadingRate, Combiner);
 #endif
-	}
-
-	UE_DEPRECATED(4.27, "SetShadingRateImage is deprecated. Bind the shading rate image as part of the FRHIRenderPassInfo struct.")
-	FORCEINLINE_DEBUGGABLE void SetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner)
-	{
-		check(false);
 	}
 
 	FORCEINLINE_DEBUGGABLE void CopyToResolveTarget(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FResolveParams& ResolveParams)
