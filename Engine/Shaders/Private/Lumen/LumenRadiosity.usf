@@ -31,9 +31,6 @@ void PlaceProbeIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	RWIndirectArgs[2] = 1;
 }
 
-StructuredBuffer<float4> CardBuffer;
-StructuredBuffer<float4> CardPageBuffer;
-
 float StepFactor;
 float MaxTraceDistance;
 float VoxelStepFactor;
@@ -47,7 +44,6 @@ float TanDiffuseConeHalfAngle;
 
 RWBuffer<uint> RWCardTraceBlockAllocator;
 RWBuffer<uint4> RWCardTraceBlockData;
-uint2 RadiosityAtlasSize;
 
 #if IRRADIANCE_CACHE
 	#define THREADS_PER_RADIOSITY_TEXEL 1
@@ -71,7 +67,7 @@ void SetupCardTraceBlocksCS(
 	if (DispatchThreadId.x < QuadAllocator[0])
 	{
 		uint CardPageId = QuadData[DispatchThreadId.x];
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageId, CardPageBuffer);
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageId);
 
 		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
 		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
@@ -131,7 +127,6 @@ void SetupCardTraceBlocksCS(
 
 #endif
 
-Buffer<uint> CardTraceBlockAllocator;
 uint ThreadsPerTexel;
 
 [numthreads(1, 1, 1)]
@@ -141,9 +136,6 @@ void SetupTraceBlocksIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID
 	RWIndirectArgs[1] = 1;
 	RWIndirectArgs[2] = 1;
 }
-
-Texture2D CurrentOpacityAtlas;
-Buffer<uint4> CardTraceBlockData;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void MarkRadianceProbesUsedByRadiosityCS(
@@ -158,40 +150,19 @@ void MarkRadianceProbesUsedByRadiosityCS(
 		uint TexelIndexInBlock = ThreadIndex % (CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE);
 		uint2 TexelOffsetInBlock = uint2(TexelIndexInBlock % CARD_TRACE_BLOCK_SIZE, TexelIndexInBlock / CARD_TRACE_BLOCK_SIZE);
 
-		uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
-		uint CardPageIndex = TraceBlockData.x;
-		uint ProbeIndex = TraceBlockData.y;
-		uint BlockIndex = TraceBlockData.z;
+		FRadiosityTexel RadiosityTexel = GetRadiosityTexel(GlobalBlockIndex, TexelOffsetInBlock);
 
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex, CardPageBuffer);
-		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
-
-		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
-		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
-		uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
-		float2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
-
-		if (all(TexelCoord < (float2)CardPageSizeInTexels))
+		if (RadiosityTexel.bValid)
 		{
-			float2 CardPageUV = (TexelCoord + 0.5f) / (float2)CardPageSizeInTexels;
-			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
-			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
-
-			float Opacity = Texture2DSampleLevel(CurrentOpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-
 			float3 Lighting = 0;
 
-			if (Opacity > 0)
+			if (RadiosityTexel.Opacity > 0)
 			{
-				float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-
-				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-
-				uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition);
+				uint ClipmapIndex = GetRadianceProbeClipmapForMark(RadiosityTexel.WorldPosition);
 
 				if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 				{
-					MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
+					MarkPositionUsedInIndirectionTexture(RadiosityTexel.WorldPosition, ClipmapIndex);
 				}
 			}
 		}
@@ -202,20 +173,14 @@ uint NumCones;
 float SampleWeight;
 float4 RadiosityConeDirections[32];
 
-Texture2D CurrentNormalAtlas;
-
-float3 RadiosityTraceFromTexel(float2 AtlasUV, float2 CardUV, FLumenCardData Card, uint ConeStartIndex, uint ConeEndIndex)
+float3 RadiosityTraceFromTexel(FRadiosityTexel RadiosityTexel, uint ConeStartIndex, uint ConeEndIndex)
 {
-	float Opacity = Texture2DSampleLevel(CurrentOpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-
 	float3 Lighting = 0;
 
-	if (Opacity > 0)
+	if (RadiosityTexel.Opacity > 0)
 	{
-		float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-
-		float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-		float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(CurrentNormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
+		float3 WorldPosition = RadiosityTexel.WorldPosition;
+		float3 WorldNormal = RadiosityTexel.WorldNormal;
 
 		//@todo - derive bias from texel world size
 		WorldPosition += WorldNormal * SurfaceBias;
@@ -284,50 +249,28 @@ void LumenCardRadiosityTraceBlocksCS(
 		uint TexelIndexInBlock = ThreadIndex % (CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE);
 		uint2 TexelOffsetInBlock = uint2(TexelIndexInBlock % CARD_TRACE_BLOCK_SIZE, TexelIndexInBlock / CARD_TRACE_BLOCK_SIZE);
 
-		uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
-		uint CardPageIndex = TraceBlockData.x;
-		uint ProbeIndex = TraceBlockData.y;
-		uint BlockIndex = TraceBlockData.z;
+		FRadiosityTexel RadiosityTexel = GetRadiosityTexel(GlobalBlockIndex, TexelOffsetInBlock);
 
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex, CardPageBuffer);
-		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
-
-		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
-		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
-		uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
-		float2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
-
-		if (all(TexelCoord < (float2)CardPageSizeInTexels))
+		if (RadiosityTexel.bValid)
 		{
-			float2 CardPageUV = (TexelCoord + 0.5f) / (float2)CardPageSizeInTexels;
-			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
-			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
-
-			float Opacity = Texture2DSampleLevel(CurrentOpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-
 			float3 DiffuseLighting = 0;
 
-			if (Opacity > 0)
+			if (RadiosityTexel.Opacity > 0)
 			{
-				float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-
-				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(CurrentNormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
-				uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
+				uint ClipmapIndex = GetRadianceProbeClipmap(RadiosityTexel.WorldPosition);
 
 				if (ClipmapIndex < NumRadianceProbeClipmaps)
 				{
-					float3 BiasOffset = WorldNormal * ProbeOcclusionNormalBias;
-					DiffuseLighting = SampleIrradianceCacheInterpolated(WorldPosition, WorldNormal, BiasOffset, ClipmapIndex);
+					float3 BiasOffset = RadiosityTexel.WorldNormal * ProbeOcclusionNormalBias;
+					DiffuseLighting = SampleIrradianceCacheInterpolated(RadiosityTexel.WorldPosition, RadiosityTexel.WorldNormal, BiasOffset, ClipmapIndex);
 				}
 				else
 				{
-					DiffuseLighting = GetSkySHDiffuse(WorldNormal) * View.SkyLightColor.rgb;
+					DiffuseLighting = GetSkySHDiffuse(RadiosityTexel.WorldNormal) * View.SkyLightColor.rgb;
 				}
 			}
 
-			uint2 AtlasWriteCoord = uint2(AtlasUV * RadiosityAtlasSize);
-			RWRadiosityAtlas[AtlasWriteCoord] = float4(DiffuseLighting * PI, 0);
+			RWRadiosityAtlas[RadiosityTexel.AtlasCoord] = float4(DiffuseLighting * PI, 0);
 		}
 	}
 #else
@@ -342,31 +285,16 @@ void LumenCardRadiosityTraceBlocksCS(
 		uint TexelIndexInBlock = (ThreadIndex / THREADS_PER_RADIOSITY_TEXEL) % (CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE);
 		uint2 TexelOffsetInBlock = uint2(TexelIndexInBlock % CARD_TRACE_BLOCK_SIZE, TexelIndexInBlock / CARD_TRACE_BLOCK_SIZE);
 
-		uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
-		uint CardPageIndex = TraceBlockData.x;
-		uint ProbeIndex = TraceBlockData.y;
-		uint BlockIndex = TraceBlockData.z;
+		FRadiosityTexel RadiosityTexel = GetRadiosityTexel(GlobalBlockIndex, TexelOffsetInBlock);
 
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex, CardPageBuffer);
-		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
-
-		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
-		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
-		uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
-		float2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
-
-		if (all(TexelCoord < (float2)CardPageSizeInTexels))
+		if (RadiosityTexel.bValid)
 		{
 			uint TraceThreadIndex = ThreadIndex % THREADS_PER_RADIOSITY_TEXEL;
-
-			float2 CardPageUV = (TexelCoord + .5f) / (float2)CardPageSizeInTexels;
-			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
-			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
-			AtlasWriteCoord = int2(AtlasUV * RadiosityAtlasSize);
+			AtlasWriteCoord = RadiosityTexel.AtlasCoord;
 
 			uint NumTracesPerThread = NumCones / THREADS_PER_RADIOSITY_TEXEL;
 			uint ConeStartIndex = TraceThreadIndex * NumTracesPerThread;
-			float3 Lighting = RadiosityTraceFromTexel(AtlasUV, CardUV, Card, ConeStartIndex, ConeStartIndex + NumTracesPerThread);
+			float3 Lighting = RadiosityTraceFromTexel(RadiosityTexel, ConeStartIndex, ConeStartIndex + NumTracesPerThread);
 			ThreadLighting[GroupThreadId.x] = Lighting;
 		}
 	}
@@ -395,10 +323,9 @@ void LumenCardRadiosityPS(
 	FCardVSToPS CardInterpolants,
 	out float4 OutColor : SV_Target0)
 {
-	FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex, CardPageBuffer);
-	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
+	FRadiosityTexel RadiosityTexel = GetRadiosityTexel(CardInterpolants);
 
-	float3 Lighting = RadiosityTraceFromTexel(CardInterpolants.AtlasUV, CardInterpolants.CardUV, Card, 0, NumCones);
+	float3 Lighting = RadiosityTraceFromTexel(RadiosityTexel, 0, NumCones);
 
 	OutColor = float4(Lighting, 0);
 }
@@ -418,26 +345,10 @@ void LumenRadiosityResolveRayBufferCS(
 		uint TexelIndexInBlock = ThreadIndex % (CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE);
 		uint2 TexelOffsetInBlock = uint2(TexelIndexInBlock % CARD_TRACE_BLOCK_SIZE, TexelIndexInBlock / CARD_TRACE_BLOCK_SIZE);
 
-		uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
-		uint CardPageIndex = TraceBlockData.x;
-		uint ProbeIndex = TraceBlockData.y;
-		uint BlockIndex = TraceBlockData.z;
+		FRadiosityTexel RadiosityTexel = GetRadiosityTexel(GlobalBlockIndex, TexelOffsetInBlock);
 
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex, CardPageBuffer);
-		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
-
-		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
-		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
-		uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
-		float2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
-
-		if (all(TexelCoord < (float2)CardPageSizeInTexels))
+		if (RadiosityTexel.bValid)
 		{
-			float2 CardPageUV = (TexelCoord + .5f) / (float2)CardPageSizeInTexels;
-			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
-			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
-			uint2 AtlasWriteCoord = int2(AtlasUV * RadiosityAtlasSize);
-
 			float3 Lighting = 0.0f;
 
 			for (uint RayIndex = 0; RayIndex < RayCountPerTexel; ++RayIndex)
@@ -448,7 +359,7 @@ void LumenRadiosityResolveRayBufferCS(
 
 			Lighting *= (PI / (float)RayCountPerTexel);
 
-			RWRadiosityAtlas[AtlasWriteCoord] = float4(Lighting, 0);
+			RWRadiosityAtlas[RadiosityTexel.AtlasCoord] = float4(Lighting, 0);
 		}
 	}
 }

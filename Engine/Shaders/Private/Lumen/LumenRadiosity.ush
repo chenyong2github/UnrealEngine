@@ -11,6 +11,9 @@
 #define RAY_BUFFER_STRIDE_IN_TILES 512
 #define RAY_BUFFER_MICRO_TILE_SIZE 8
 
+Buffer<uint> CardTraceBlockAllocator;
+Buffer<uint4> CardTraceBlockData;
+uint2 RadiosityAtlasSize;
 uint RayCountPerTexel;
 
 uint2 GetRayBufferCoord(uint BlockIndex, uint2 TexelOffsetInBlock, uint RayIndex)
@@ -25,4 +28,77 @@ uint2 GetRayBufferCoord(uint BlockIndex, uint2 TexelOffsetInBlock, uint RayIndex
 	RayBufferCoord.y = (RayBufferTileIndex / RAY_BUFFER_STRIDE_IN_TILES) * RAY_BUFFER_MICRO_TILE_SIZE + (IndexInRayBufferTile / RAY_BUFFER_MICRO_TILE_SIZE);
 
 	return RayBufferCoord;
+}
+
+struct FRadiosityTexel
+{
+	bool bValid;
+
+	float Opacity;
+	float3 WorldPosition;
+	float3 WorldNormal;
+
+	uint2 AtlasCoord;
+};
+
+FRadiosityTexel GetRadiosityTexelEx(FLumenCardData Card, float2 CardUV, float2 AtlasUV)
+{
+	FRadiosityTexel RadiosityTexel = (FRadiosityTexel)0;
+	RadiosityTexel.Opacity = 0.0f;
+	RadiosityTexel.bValid = true;
+	RadiosityTexel.WorldPosition = float3(0.0f, 0.0f, 0.0f);
+	RadiosityTexel.WorldNormal = float3(0.0f, 0.0f, 0.0f);
+	RadiosityTexel.AtlasCoord = AtlasUV * RadiosityAtlasSize;
+
+	RadiosityTexel.Opacity = Texture2DSampleLevel(LumenCardScene.OpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+	if (RadiosityTexel.Opacity > 0.0f)
+	{
+		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
+		RadiosityTexel.WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
+		RadiosityTexel.WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
+	}
+
+	return RadiosityTexel;
+}
+
+FRadiosityTexel GetRadiosityTexel(FCardVSToPS CardInterpolants)
+{
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex);
+	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+
+	float2 CardUV = CardInterpolants.CardUV;
+	float2 AtlasUV = CardInterpolants.AtlasUV;
+
+	return GetRadiosityTexelEx(Card, CardUV, AtlasUV);
+}
+
+FRadiosityTexel GetRadiosityTexel(uint GlobalBlockIndex, uint2 TexelOffsetInBlock)
+{
+	FRadiosityTexel RadiosityTexel = (FRadiosityTexel)0;
+	RadiosityTexel.Opacity = 0.0f;
+	RadiosityTexel.bValid = false;
+
+	uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
+	uint CardPageIndex = TraceBlockData.x;
+	uint ProbeIndex = TraceBlockData.y;
+	uint BlockIndex = TraceBlockData.z;
+
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
+	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+
+	uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
+	uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+	uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
+	float2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
+
+	if (all(TexelCoord < (float2)CardPageSizeInTexels))
+	{
+		float2 CardPageUV = (TexelCoord + 0.5f) / (float2)CardPageSizeInTexels;
+		float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
+		float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
+
+		RadiosityTexel = GetRadiosityTexelEx(Card, CardUV, AtlasUV);
+	}
+
+	return RadiosityTexel;
 }

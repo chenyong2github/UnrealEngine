@@ -21,9 +21,6 @@
 
 RaytracingAccelerationStructure TLAS;
 
-Buffer<uint> RadiosityTraceTileAllocator;
-Buffer<uint4> RadiosityTraceTileData;
-
 uint GroupCount;
 
 float MinTraceDistance;
@@ -33,11 +30,10 @@ float SurfaceBias;
 uint RayCountPerTexelShift;
 StructuredBuffer<float4> RayDirections;
 
-uint2 RadiosityAtlasSize;
 RWTexture2D<float4> RWRadiosityAtlas;
 RWTexture2D<float3> RWRayBuffer;
 
-float3 CalculateWorldDirection(uint SampleIndex, uint SampleCount, float2 AtlasUV, uint2 AtlasSize, float3 WorldNormal)
+float3 CalculateWorldDirection(uint SampleIndex, uint SampleCount, float3 WorldNormal)
 {
 	float3 LocalDirection = RayDirections[SampleIndex].xyz;
 	float3x3 TangentBasis = GetTangentBasisFrisvad(WorldNormal);
@@ -51,43 +47,25 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 	uint ThreadIndex = DispatchRaysIndex().y;
 
 	uint2 TexelLocalCoord = uint2(ThreadIndex % RADIOSITY_TRACE_TILE_SIZE_2D, ThreadIndex / RADIOSITY_TRACE_TILE_SIZE_2D);
-	for (uint GroupIndex = DispatchRaysIndex().x; GroupIndex < RadiosityTraceTileAllocator[0] * RayCountPerTexel; GroupIndex += GroupCount)
+	for (uint GroupIndex = DispatchRaysIndex().x; GroupIndex < CardTraceBlockAllocator[0] * RayCountPerTexel; GroupIndex += GroupCount)
 	{
-		uint TraceTileIndex = GroupIndex / RayCountPerTexel;
-		uint RayIndex = GroupIndex % RayCountPerTexel;
+		//uint TraceTileIndex = GroupIndex / RayCountPerTexel;
+		//uint RayIndex = GroupIndex % RayCountPerTexel;
+		uint TraceTileIndex = GroupIndex >> RayCountPerTexelShift;
+		uint RayIndex = GroupIndex - TraceTileIndex * RayCountPerTexel;
 
-		TraceTileIndex = GroupIndex >> RayCountPerTexelShift;
-		RayIndex = GroupIndex - TraceTileIndex * RayCountPerTexel;
+		FRadiosityTexel RadiosityTexel = GetRadiosityTexel(TraceTileIndex, TexelLocalCoord);
 
-		uint4 TraceTileData = RadiosityTraceTileData[TraceTileIndex];
-		uint CardPageIndex = TraceTileData.x;
-		uint ProbeIndex = TraceTileData.y;
-		uint TileIndex = TraceTileData.z;
-
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
-		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
-		uint2 NumTilesXY = (CardPageSizeInTexels + RADIOSITY_TRACE_TILE_SIZE_2D - 1) / RADIOSITY_TRACE_TILE_SIZE_2D;
-		uint2 TileOffset = uint2(TileIndex % NumTilesXY.x, TileIndex / NumTilesXY.x);
-		float2 TexelCoord = TileOffset * RADIOSITY_TRACE_TILE_SIZE_2D + TexelLocalCoord;
-
-		if (all(TexelCoord < CardPageSizeInTexels))
+		if (RadiosityTexel.bValid)
 		{
-			float2 CardPageUV = float2(TexelCoord + 0.5) / CardPageSizeInTexels;
-			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
-			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
-			
 			FRayTracedLightingResult RayResult = (FRayTracedLightingResult)0;
 			RayResult.Radiance = float3(0.0f, 0.0f, 0.0f);
 
-			float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-			if (Opacity > 0.0f)
+			if (RadiosityTexel.Opacity > 0.0f)
 			{
-				FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-
-				float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
-				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
-				float3 WorldDirection = CalculateWorldDirection(RayIndex, RayCountPerTexel, AtlasUV, RadiosityAtlasSize, WorldNormal);
+				float3 WorldPosition = RadiosityTexel.WorldPosition;
+				float3 WorldNormal = RadiosityTexel.WorldNormal;
+				float3 WorldDirection = CalculateWorldDirection(RayIndex, RayCountPerTexel, WorldNormal);
 
 				RayDesc Ray;
 				Ray.Origin = WorldPosition + WorldNormal * SurfaceBias;
@@ -99,9 +77,9 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(RayCountPerTexel));
 				RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
-				const uint LinearCoord = TexelCoord.y * RADIOSITY_TRACE_TILE_SIZE_2D + TexelCoord.x;
+				const uint LinearCoord = TexelLocalCoord.y * RADIOSITY_TRACE_TILE_SIZE_2D + TexelLocalCoord.x;
 				const bool bCullBackFacingTriangles = true;
-				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TexelCoord, LinearCoord, bCullBackFacingTriangles);
+				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TexelLocalCoord, LinearCoord, bCullBackFacingTriangles);
 
 				if (DIM_USE_SURFACE_CACHE)
 				{
