@@ -21,11 +21,6 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "NeuralNetworkInferenceBackEnd",
-			"Type": "RuntimeAndProgram",
-			"LoadingPhase": "Default"
-		},
-		{
 			"Name": "NeuralNetworkInferenceCore",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default"

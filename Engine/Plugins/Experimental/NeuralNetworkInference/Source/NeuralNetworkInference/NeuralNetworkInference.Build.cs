@@ -13,7 +13,7 @@ public class NeuralNetworkInference : ModuleRules
 			PublicDefinitions.Add("WITH_FULL_NNI_SUPPORT");
 		}
 
-		ShortName = "DeprecatedNNIWE"; // Could be removed when plugin moves to Experimental, NFL path is too long
+		ShortName = "NNI"; // Could be removed when plugin moves to Experimental, NFL path is too long
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
@@ -28,7 +28,6 @@ public class NeuralNetworkInference : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"NeuralNetworkInferenceBackEnd",
 				"NeuralNetworkInferenceCore"
 			}
 		);
@@ -36,6 +35,12 @@ public class NeuralNetworkInference : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
+				// Backend-related
+				"ModelProto",
+				"NeuralNetworkInferenceShaders",
+				"RenderCore",
+				"RHI",
+				// ORT-related
 				"Projects",
 				"ThirdPartyHelperAndDLLLoader"
 			}

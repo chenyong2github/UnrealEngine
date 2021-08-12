@@ -22,7 +22,7 @@ public class NeuralNetworkInferenceLegacy : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"ModelProto",
-				"NeuralNetworkInferenceBackEnd",
+				"NeuralNetworkInference",
 				"NeuralNetworkInferenceCore"
 			}
 		);
