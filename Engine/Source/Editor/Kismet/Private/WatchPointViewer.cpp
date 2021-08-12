@@ -78,7 +78,7 @@ namespace
 			FText InBlueprintName,
 			FText InGraphName,
 			FText InNodeName,
-			FDebugInfo Info
+			FPropertyInstanceInfo Info
 		)
 			: BP(InBP)
 			, Node(InNode)
@@ -96,9 +96,9 @@ namespace
 			UPackage* Package = Cast<UPackage>(BP.IsValid() ? BP->GetOuter() : nullptr);
 			BlueprintPackageName = Package ? Package->GetFName() : FName();
 
-			for (FDebugInfo& ChildInfo : Info.Children)
+			for (TSharedPtr<FPropertyInstanceInfo>& ChildInfo : Info.Children)
 			{
-				Children.Add(MakeShared<FWatchRow>(InBP, InNode, InPin, InObjectBeingDebugged, BlueprintName, GraphName, NodeName, MoveTemp(ChildInfo)));
+				Children.Add(MakeShared<FWatchRow>(InBP, InNode, InPin, InObjectBeingDebugged, BlueprintName, GraphName, NodeName, MoveTemp(*ChildInfo)));
 			}
 		}
 
@@ -192,10 +192,10 @@ namespace
 
 					const UEdGraphSchema* Schema = Pin->GetOwningNode()->GetSchema();
 
-					FDebugInfo DebugInfo;
-					DebugInfo.DisplayName = Schema->GetPinDisplayName(Pin);
-					DebugInfo.Type = UEdGraphSchema_K2::TypeToText(Pin->PinType);
-					DebugInfo.Value = LOCTEXT("ExecutionNotPaused", "(execution not paused)");
+					TSharedPtr<FPropertyInstanceInfo> DebugInfo;
+					DebugInfo->DisplayName = Schema->GetPinDisplayName(Pin);
+					DebugInfo->Type = UEdGraphSchema_K2::TypeToText(Pin->PinType);
+					DebugInfo->Value = LOCTEXT("ExecutionNotPaused", "(execution not paused)");
 
 					Private_WatchSource.Add(
 						MakeShared<FWatchRow>(
@@ -206,7 +206,7 @@ namespace
 							BlueprintName,
 							MoveTemp(GraphName),
 							MoveTemp(NodeName),
-							MoveTemp(DebugInfo)
+							MoveTemp(*DebugInfo)
 						)
 					);
 				}
@@ -849,27 +849,27 @@ void WatchViewer::UpdateInstancedWatchDisplay()
 				FText GraphName = FText::FromString(Pin->GetOwningNode()->GetGraph()->GetName());
 				FText NodeName = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView);
 
-				FDebugInfo DebugInfo;
+				TSharedPtr<FPropertyInstanceInfo> DebugInfo;
 				const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, BlueprintObj, BlueprintInstance, Pin);
 
 				if (WatchStatus != FKismetDebugUtilities::EWTR_Valid)
 				{
 					const UEdGraphSchema* Schema = Pin->GetOwningNode()->GetSchema();
-					DebugInfo.DisplayName = Schema->GetPinDisplayName(Pin);
-					DebugInfo.Type = UEdGraphSchema_K2::TypeToText(Pin->PinType);
+					DebugInfo->DisplayName = Schema->GetPinDisplayName(Pin);
+					DebugInfo->Type = UEdGraphSchema_K2::TypeToText(Pin->PinType);
 
 					switch (WatchStatus)
 					{
 					case FKismetDebugUtilities::EWTR_NotInScope:
-						DebugInfo.Value = LOCTEXT("NotInScope", "(not in scope)");
+						DebugInfo->Value = LOCTEXT("NotInScope", "(not in scope)");
 						break;
 
 					case FKismetDebugUtilities::EWTR_NoProperty:
-						DebugInfo.Value = LOCTEXT("NoDebugData", "(no debug data)");
+						DebugInfo->Value = LOCTEXT("NoDebugData", "(no debug data)");
 						break;
 
 					case FKismetDebugUtilities::EWTR_NoDebugObject:
-						DebugInfo.Value = LOCTEXT("NoDebugObject", "(no debug object)");
+						DebugInfo->Value = LOCTEXT("NoDebugObject", "(no debug object)");
 						break;
 
 					default:
@@ -887,7 +887,7 @@ void WatchViewer::UpdateInstancedWatchDisplay()
 						BlueprintName,
 						GraphName,
 						NodeName,
-						DebugInfo
+						*DebugInfo
 						)
 				);
 			}

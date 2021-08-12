@@ -3,6 +3,7 @@
 
 #include "Debugging/SKismetDebuggingView.h"
 
+#include "BlueprintEditor.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
 #include "EdGraph/EdGraphPin.h"
@@ -19,6 +20,7 @@
 #include "EngineGlobals.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Editor.h"
+#include "GraphEditorSettings.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "K2Node.h"
 #include "Kismet2/Breakpoint.h"
@@ -30,6 +32,8 @@
 #include "PropertyEditor/Private/SDetailsView.h"
 #include "Styling/SlateIconFinder.h"
 #include "Styling/StyleColors.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "PropertyInfoViewStyle.h"
 
 #define LOCTEXT_NAMESPACE "DebugViewUI"
 
@@ -65,13 +69,42 @@ FText FDebugLineItem::GetDescription() const
 TSharedRef<SWidget> FDebugLineItem::GenerateNameWidget()
 {
 	return SNew(STextBlock)
+		.ToolTipText(this, &FDebugLineItem::GetDisplayName)
 		.Text(this, &FDebugLineItem::GetDisplayName);
 }
 
 TSharedRef<SWidget> FDebugLineItem::GenerateValueWidget()
 {
 	return SNew(STextBlock)
+		.ToolTipText(this, &FDebugLineItem::GetDescription)
 		.Text(this, &FDebugLineItem::GetDescription);
+}
+
+bool FDebugLineItem::HasChildren()
+{
+	return false;
+}
+
+TSharedRef<SWidget> FDebugLineItem::GetNameIcon()
+{
+	static const FSlateBrush* CachedBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));	
+	return SNew(SImage).Image(CachedBrush);
+}
+
+TSharedRef<SWidget> FDebugLineItem::GetValueIcon()
+{
+	static const FSlateBrush* CachedBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));	
+	return SNew(SImage).Image(CachedBrush);
+}
+
+FMargin FDebugLineItem::GetInnerMargin()
+{
+	return {0.f};
+}
+
+FMargin FDebugLineItem::GetOuterMargin()
+{
+	return {0.5f, 0.5f};
 }
 
 UBlueprint* FDebugLineItem::GetBlueprintForObject(UObject* ParentObject)
@@ -146,11 +179,20 @@ void FDebugLineItem::OnDebugLineTypeActiveChanged(ECheckBoxState CheckState, EDe
 //////////////////////////////////////////////////////////////////////////
 // ILineItemWithChildren
 
-class ILineItemWithChildren
+class FLineItemWithChildren : public FDebugLineItem
 {
 public:
-	virtual ~ILineItemWithChildren() = default;
+	FLineItemWithChildren(EDebugLineType InType) :
+		FDebugLineItem(InType)
+	{}
 	
+	virtual ~FLineItemWithChildren() override = default;
+
+	virtual bool HasChildren() override
+	{
+		return !ChildrenMirrors.IsEmpty();
+	}
+
 protected:
 	// List of children 
 	TArray<FDebugTreeItemPtr> ChildrenMirrors;
@@ -171,6 +213,7 @@ protected:
 			{
 				if (Item.Compare(MirrorItem.Get()))
 				{
+					MirrorItem->UpdateData(Item);
 					OutChildren.Add(MirrorItem);
 					return;
 				}
@@ -248,6 +291,7 @@ protected:
 	}
 protected:
 	virtual TSharedRef<SWidget> GenerateNameWidget() override;
+	virtual TSharedRef<SWidget> GetNameIcon() override;
 	virtual FText GetDescription() const override;
 	virtual FText GetDisplayName() const override;
 	void OnNavigateToLatentNode();
@@ -271,25 +315,17 @@ FText FLatentActionLineItem::GetDescription() const
 
 TSharedRef<SWidget> FLatentActionLineItem::GenerateNameWidget()
 {
-	return
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SImage)
-			. Image(FEditorStyle::GetBrush(TEXT("Kismet.LatentActionIcon")))
-		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
-		.AutoWidth()
-		[
-				SNew(SHyperlink)
-			.Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
-			.OnNavigate(this, &FLatentActionLineItem::OnNavigateToLatentNode)
-			.Text(this, &FLatentActionLineItem::GetDisplayName)
-			.ToolTipText( LOCTEXT("NavLatentActionLoc_Tooltip", "Navigate to the latent action location") )
-		];
+	return SNew(SHyperlink)
+		.Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
+		.OnNavigate(this, &FLatentActionLineItem::OnNavigateToLatentNode)
+		.Text(this, &FLatentActionLineItem::GetDisplayName)
+		.ToolTipText( LOCTEXT("NavLatentActionLoc_Tooltip", "Navigate to the latent action location") );
+}
+
+TSharedRef<SWidget> FLatentActionLineItem::GetNameIcon()
+{
+	return SNew(SImage)
+		.Image(FEditorStyle::GetBrush(TEXT("Kismet.LatentActionIcon")));
 }
 
 UEdGraphNode* FLatentActionLineItem::FindAssociatedNode() const
@@ -326,22 +362,31 @@ void FLatentActionLineItem::OnNavigateToLatentNode( )
 	}
 }
 
-struct FWatchChildLineItem : public FDebugLineItem, ILineItemWithChildren
+struct FWatchChildLineItem : public FLineItemWithChildren
 {
 protected:
-	FDebugInfo Data;
+	FPropertyInstanceInfo Data;
 public:
-	FWatchChildLineItem(FDebugInfo Child) :
-		FDebugLineItem(DLT_WatchChild),
+	FWatchChildLineItem(const FPropertyInstanceInfo& Child) :
+		FLineItemWithChildren(DLT_WatchChild),
 		Data(Child)
 	{}
 
 	virtual bool Compare(const FDebugLineItem* BaseOther) const override
 	{
 		FWatchChildLineItem* Other = (FWatchChildLineItem*)BaseOther;
-		return
-			Data.DisplayName.CompareTo(Other->Data.DisplayName) == 0 &&
-			Data.Value.CompareTo(Other->Data.Value) == 0;
+		
+		return Data.Property == Other->Data.Property &&
+			Data.DisplayName.CompareTo(Other->Data.DisplayName) == 0;
+	}
+
+	virtual void UpdateData(const FDebugLineItem& NewerData) override
+	{
+		// Compare returns true even if the value or children of this node
+		// is different. use this function to update the data without completely
+		// replacing the node
+		FWatchChildLineItem& Other = (FWatchChildLineItem&)NewerData;
+		Data = Other.Data;
 	}
 
 	virtual FDebugLineItem* Duplicate() const override
@@ -351,16 +396,8 @@ public:
 	
 	virtual FText GetDescription() const override
 	{
-		FString ValStr = Data.Value.ToString();
-		if(int32 idx; ValStr.FindChar('\n', idx))
-		{
-			if(ValStr.Len() < 60)
-			{
-				return FText::FromString(ValStr.Replace(TEXT("\n") ,TEXT("")));
-			}
-			return FText::Format(LOCTEXT("BracketedDatatype","[{0}]"), Data.Type);
-		}
-		return Data.Value;
+		const FString ValStr = Data.Value.ToString();
+		return FText::FromString(ValStr.Replace(TEXT("\n") ,TEXT(" ")));
 	}
 	
 	virtual FText GetDisplayName() const override
@@ -368,12 +405,85 @@ public:
 		return Data.DisplayName;
 	}
 
+	// uses the icon and color associated with the property type
+	virtual TSharedRef<SWidget> GetNameIcon() override
+	{
+		FSlateColor Color;
+		FSlateColor SecondaryColor;
+		FSlateBrush const* SecondaryIcon;
+		const FSlateBrush* Icon = FBlueprintEditor::GetVarIconAndColorFromProperty(
+			Data.Property.Get(),
+			Color,
+			SecondaryIcon,
+			SecondaryColor
+		);
+		return SNew(SImage)
+			.Image(Icon)
+			.ColorAndOpacity(Color);
+	}
+
 	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren) override
 	{
-		for (FDebugInfo& ChildData : Data.Children)
+		for (const TSharedPtr<FPropertyInstanceInfo> &ChildData : Data.Children)
 		{
-			EnsureChildIsAdded(OutChildren, FWatchChildLineItem(ChildData));
+			EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*ChildData));
 		}
+	}
+};
+
+//////////////////////////////////////////////////////////////////////////\
+// FSelfWatchLineItem
+struct FSelfWatchLineItem : public FLineItemWithChildren
+{
+protected:
+	// watches a UObject instead of a pin
+	TWeakObjectPtr<UObject> ObjectToWatch;
+public:
+	FSelfWatchLineItem(UObject* Object)	: 
+		FLineItemWithChildren(DLT_Watch),
+		ObjectToWatch(Object)
+	{}
+
+	virtual bool Compare(const FDebugLineItem* BaseOther) const override
+	{
+		FSelfWatchLineItem* Other = (FSelfWatchLineItem*)BaseOther;
+		return (ObjectToWatch.Get() == Other->ObjectToWatch.Get());
+	}
+
+	virtual FDebugLineItem* Duplicate() const override
+	{
+		return new FSelfWatchLineItem(ObjectToWatch.Get());
+	}
+	
+	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren) override
+	{
+		if (UObject* Object = ObjectToWatch.Get())
+		{
+			for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
+			{
+				TSharedPtr<FPropertyInstanceInfo> DebugInfo;
+				FProperty* Property = *It;
+				if(Property->HasAllPropertyFlags(CPF_BlueprintVisible))
+				{
+					void* Value = Property->ContainerPtrToValuePtr<void*>(Object);
+					FKismetDebugUtilities::GetDebugInfoInternal(DebugInfo, Property, Value);
+				
+					EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*DebugInfo));
+				}
+			}
+		}
+	}
+
+protected:
+	virtual FText GetDisplayName() const override
+	{
+		return LOCTEXT("SelfName", "Self");
+	}
+
+	virtual TSharedRef<SWidget> GetNameIcon() override
+	{
+		return SNew(SImage)
+			.Image(FEditorStyle::GetBrush(TEXT("Kismet.WatchIcon")));
 	}
 };
 
@@ -381,17 +491,14 @@ public:
 // FWatchLineItem 
 
 
-struct FWatchLineItem : public FDebugLineItem, ILineItemWithChildren
+struct FWatchLineItem : public FLineItemWithChildren
 {
 protected:
 	TWeakObjectPtr< UObject > ParentObjectRef;
 	FEdGraphPinReference ObjectRef;
-	
-	// List of children 
-	TArray<FDebugTreeItemPtr> ChildrenMirrors;
 public:
 	FWatchLineItem(UEdGraphPin* PinToWatch, UObject* ParentObject)
-		: FDebugLineItem(DLT_Watch)
+		: FLineItemWithChildren(DLT_Watch)
 	{
 		ObjectRef = PinToWatch;
 		ParentObjectRef = ParentObject;
@@ -400,8 +507,8 @@ public:
 	virtual bool Compare(const FDebugLineItem* BaseOther) const override
 	{
 		FWatchLineItem* Other = (FWatchLineItem*)BaseOther;
-		return (ParentObjectRef.Get() == Other->ParentObjectRef.Get()) &&
-			(ObjectRef.Get() == Other->ObjectRef.Get());
+		return (ParentObjectRef == Other->ParentObjectRef) &&
+			(ObjectRef == Other->ObjectRef);
 	}
 
 	virtual FDebugLineItem* Duplicate() const override
@@ -436,14 +543,15 @@ public:
 			UObject* ParentObject = ParentObjectRef.Get();
 			if ((ParentBlueprint != ParentObject) && (ParentBlueprint != nullptr))
 			{
-				FDebugInfo DebugInfo;
+				TSharedPtr<FPropertyInstanceInfo> DebugInfo;
 				const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, ParentBlueprint, ParentObject, PinToWatch);
 
 				if(WatchStatus == FKismetDebugUtilities::EWTR_Valid)
 				{
-					for (FDebugInfo& ChildData : DebugInfo.Children)
+					check(DebugInfo);
+					for (const TSharedPtr<FPropertyInstanceInfo> &ChildData : DebugInfo->Children)
 					{
-						EnsureChildIsAdded(OutChildren, FWatchChildLineItem(ChildData));
+						EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*ChildData));
 					}
 				}
 			}
@@ -455,6 +563,7 @@ protected:
 	virtual FText GetDescription() const override;
 	virtual FText GetDisplayName() const override;
 	virtual TSharedRef<SWidget> GenerateNameWidget() override;
+	virtual TSharedRef<SWidget> GetNameIcon() override;
 
 	void OnNavigateToWatchLocation();
 };
@@ -492,20 +601,16 @@ FText FWatchLineItem::GetDescription() const
 		UObject* ParentObject = ParentObjectRef.Get();
 		if ((ParentBlueprint != ParentObject) && (ParentBlueprint != nullptr))
 		{
-			
-			FDebugInfo DebugInfo;
+			TSharedPtr<FPropertyInstanceInfo> DebugInfo;
 			const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, ParentBlueprint, ParentObject, PinToWatch);
 
 			switch (WatchStatus)
 			{
 			case FKismetDebugUtilities::EWTR_Valid:
 			{
-				int32 Index = INDEX_NONE;
-				if(DebugInfo.Value.ToString().FindChar('\n', Index))
-				{
-					return DebugInfo.Type;
-				}
-				return DebugInfo.Value;
+				check(DebugInfo);
+				const FString ValStr = DebugInfo->Value.ToString();
+				return FText::FromString(ValStr.Replace(TEXT("\n") ,TEXT(" ")));
 			}
 
 			case FKismetDebugUtilities::EWTR_NotInScope:
@@ -526,23 +631,44 @@ FText FWatchLineItem::GetDescription() const
 
 TSharedRef<SWidget> FWatchLineItem::GenerateNameWidget()
 {
-	return SNew(SHorizontalBox)
+	return SNew(SHyperlink)
+		.Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
+		.OnNavigate(this, &FWatchLineItem::OnNavigateToWatchLocation)
+		.Text(this, &FWatchLineItem::GetDisplayName)
+		.ToolTipText( LOCTEXT("NavWatchLoc", "Navigate to the watch location") );
+}
+
+// overlays the watch icon on top of a faded icon associated with the pin type
+TSharedRef<SWidget> FWatchLineItem::GetNameIcon()
+{
+	const FSlateBrush* PinIcon;
+	FLinearColor PinIconColor;
+	if (UEdGraphPin* ObjectToFocus = ObjectRef.Get())
+	{
+		PinIcon = FBlueprintEditorUtils::GetIconFromPin(ObjectToFocus->PinType);
 		
-		+SHorizontalBox::Slot()
-		.AutoWidth()
+		const UEdGraphSchema* Schema = ObjectToFocus->GetSchema();
+		PinIconColor = Schema->GetPinTypeColor(ObjectToFocus->PinType);
+		PinIconColor.A = 0.3f;
+	}
+	else
+	{
+		PinIcon = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	}
+	
+	return SNew(SOverlay)
+		+ SOverlay::Slot()
+		.Padding(FMargin(10.f, 0.f, 0.f, 0.f))
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("Kismet.WatchIcon")))
+				.Image(PinIcon)
+				.ColorAndOpacity(PinIconColor)
 		]
-		+SHorizontalBox::Slot()
+		+ SOverlay::Slot()
 		.HAlign(HAlign_Left)
-		.AutoWidth()
 		[
-				SNew(SHyperlink)
-			.Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
-			.OnNavigate(this, &FWatchLineItem::OnNavigateToWatchLocation)
-			.Text(this, &FWatchLineItem::GetDisplayName)
-			.ToolTipText( LOCTEXT("NavWatchLoc", "Navigate to the watch location") )
+			SNew(SImage)
+				.Image(FEditorStyle::GetBrush(TEXT("Kismet.WatchIcon")))
 		];
 }
 
@@ -587,7 +713,7 @@ public:
 		FBlueprintBreakpoint* Breakpoint = GetBreakpoint();
 		const UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
 
-		// By default, we don't allow actions to execute when in debug mode. 
+		// By default, we don't allow actions to execute when in debug mode.
 		// Create an empty action to always allow execution for these commands (they are allowed in debug mode)
 		FCanExecuteAction AlwaysAllowExecute;
 
@@ -651,32 +777,24 @@ protected:
 	
 	virtual TSharedRef<SWidget> GenerateNameWidget() override
 	{
-		return SNew(SHorizontalBox)
+		return SNew(SHyperlink)
+			.Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
+			.Text(this, &FBreakpointLineItem::GetLocationDescription)
+			.ToolTipText( LOCTEXT("NavBreakpointLoc", "Navigate to the breakpoint location") )
+			.OnNavigate(this, &FBreakpointLineItem::OnNavigateToBreakpointLocation);
+	}
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+	virtual TSharedRef<SWidget> GetNameIcon() override
+	{
+		return SNew(SButton)
+			.OnClicked(this, &FBreakpointLineItem::OnUserToggledEnabled)
+			.ToolTipText(LOCTEXT("ToggleBreakpointButton_ToolTip", "Toggle this breakpoint"))
+			.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+			.ContentPadding(0.0f)
 			[
-				SNew(SButton)
-				. OnClicked(this, &FBreakpointLineItem::OnUserToggledEnabled)
-				. ToolTipText(LOCTEXT("ToggleBreakpointButton_ToolTip", "Toggle this breakpoint"))
-				. ButtonStyle( FEditorStyle::Get(), "NoBorder" )
-				. ContentPadding(0.0f)
-				[
-					SNew(SImage)
-					. Image(this, &FBreakpointLineItem::GetStatusImage)
-					. ToolTipText(this, &FBreakpointLineItem::GetStatusTooltip)
-				]
-			]
-
-		+ SHorizontalBox::Slot()
-			.AutoWidth()
-			. VAlign(VAlign_Center)
-			[
-				SNew(SHyperlink)
-				. Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
-				. Text(this, &FBreakpointLineItem::GetLocationDescription)
-				. ToolTipText( LOCTEXT("NavBreakpointLoc", "Navigate to the breakpoint location") )
-				. OnNavigate(this, &FBreakpointLineItem::OnNavigateToBreakpointLocation)
+				SNew(SImage)
+					.Image(this, &FBreakpointLineItem::GetStatusImage)
+					.ToolTipText(this, &FBreakpointLineItem::GetStatusTooltip)
 			];
 	}
 	
@@ -755,18 +873,14 @@ FText FBreakpointLineItem::GetStatusTooltip() const
 //////////////////////////////////////////////////////////////////////////
 // FTraceStackParentItem
 
-class FBreakpointParentItem : public FDebugLineItem, ILineItemWithChildren
+class FBreakpointParentItem : public FLineItemWithChildren
 {
-protected:
-
-	// List of children 
-	TArray<FDebugTreeItemPtr> ChildrenMirrors;
 public:
 	// The parent object
 	TWeakObjectPtr<UBlueprint> Blueprint;
 	
 	FBreakpointParentItem(TWeakObjectPtr<UBlueprint> Blueprint)
-		: FDebugLineItem(DLT_TraceStackParent),
+		: FLineItemWithChildren(DLT_TraceStackParent),
 		  Blueprint(Blueprint)
 	{
 	}
@@ -817,17 +931,14 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 // FParentLineItem
 
-class FParentLineItem : public FDebugLineItem, ILineItemWithChildren
+class FParentLineItem : public FLineItemWithChildren
 {
 protected:
 	// The parent object
 	TWeakObjectPtr<UObject> ObjectRef;
-
-	// List of children 
-	TArray<FDebugTreeItemPtr> ChildrenMirrors;
 public:
 	FParentLineItem(UObject* Object)
-		: FDebugLineItem(DLT_Parent)
+		: FLineItemWithChildren(DLT_Parent)
 	{
 		ObjectRef = Object;
 	}
@@ -841,35 +952,18 @@ public:
 	{
 		if (UObject* ParentObject = ObjectRef.Get())
 		{
+			// every instance should have an automatic watch for 'self'
+			EnsureChildIsAdded(OutChildren, FSelfWatchLineItem(ParentObject));
+			
 			UBlueprint* ParentBP = FDebugLineItem::GetBlueprintForObject(ParentObject);
-			if ((ParentBP != nullptr) && (ParentBP == ParentObject))
+			if (ParentBP != nullptr)
 			{
 				// Create children for each watch
 				if(IsDebugLineTypeActive(DLT_Watch))
 				{
 					for (FEdGraphPinReference WatchedPin : ParentBP->WatchedPins)
-                    {
-                    	EnsureChildIsAdded(OutChildren, FWatchLineItem(WatchedPin.Get(), ParentObject));
-                    }
-				}
-
-				// Make sure there is something there, to let the user know if there is nothing
-				if (OutChildren.Num() == 0)
-				{
-					EnsureChildIsAdded(OutChildren, FMessageLineItem( LOCTEXT("NoWatches", "No watches").ToString() ));
-				}
-			}
-			else
-			{
-				if (ParentBP != nullptr)
-				{
-					// Create children for each watch
-					if(IsDebugLineTypeActive(DLT_Watch))
 					{
-						for (FEdGraphPinReference WatchedPin : ParentBP->WatchedPins)
-						{
-							EnsureChildIsAdded(OutChildren, FWatchLineItem(WatchedPin.Get(), ParentObject));
-						}
+						EnsureChildIsAdded(OutChildren, FWatchLineItem(WatchedPin.Get(), ParentObject));
 					}
 				}
 
@@ -922,7 +1016,8 @@ public:
 		{
 			return FSlateColor(EStyleColor::AccentYellow);
 		}
-		return FSlateColor::UseForeground();
+		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+		return Settings->ObjectPinTypeColor;
 	}
 	
 	FText GetStatusTooltip() const
@@ -961,24 +1056,12 @@ protected:
 		}
 	}
 
-	virtual TSharedRef<SWidget> GenerateNameWidget() override
+	virtual TSharedRef<SWidget> GetNameIcon() override
 	{
-		return SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SImage)
-				.Image(this, &FParentLineItem::GetStatusImage)
-				.ColorAndOpacity_Raw(this, &FParentLineItem::GetStatusColor)
-				.ToolTipText(this, &FParentLineItem::GetStatusTooltip)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			. VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(this, &FParentLineItem::GetDisplayName)
-			];
+		return SNew(SImage)
+			.Image(this, &FParentLineItem::GetStatusImage)
+			.ColorAndOpacity_Raw(this, &FParentLineItem::GetStatusColor)
+			.ToolTipText(this, &FParentLineItem::GetStatusTooltip);
 	}
 
 	virtual void MakeMenu(class FMenuBuilder& MenuBuilder) override
@@ -1075,50 +1158,44 @@ protected:
 		}
 	}
 
-	// Index icon and node name
 	virtual TSharedRef<SWidget> GenerateNameWidget() override
 	{
-		return SNew(SHorizontalBox)
+		return SNew(SHyperlink)
+			.Text(this, &FTraceStackChildItem::GetDisplayName)
+			.Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
+			.ToolTipText(LOCTEXT("NavigateToDebugTraceLocationHyperlink_ToolTip", "Navigate to the trace location"))
+			.OnNavigate(this, &FTraceStackChildItem::OnNavigateToNode);
+	}
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SImage)
-				. Image( FEditorStyle::GetBrush((StackIndex > 0) ? TEXT("Kismet.Trace.PreviousIndex") : TEXT("Kismet.Trace.CurrentIndex")) )
-			]
-
-		+ SHorizontalBox::Slot()
-			.AutoWidth()
-			. VAlign(VAlign_Center)
-			[
-				SNew(SHyperlink)
-				. Text(this, &FTraceStackChildItem::GetDisplayName)
-				. Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
-				. ToolTipText(LOCTEXT("NavigateToDebugTraceLocationHyperlink_ToolTip", "Navigate to the trace location"))
-				. OnNavigate(this, &FTraceStackChildItem::OnNavigateToNode)
-			];
+	virtual TSharedRef<SWidget> GetNameIcon() override
+	{
+		return SNew(SImage)
+			.Image( FEditorStyle::GetBrush(
+				(StackIndex > 0) ?
+				TEXT("Kismet.Trace.PreviousIndex") :
+				TEXT("Kismet.Trace.CurrentIndex"))
+			);
 	}
 
 	// Visit time and actor name
 	virtual TSharedRef<SWidget> GenerateValueWidget() override
 	{
 		return SNew(SHorizontalBox)
-			
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				SNew(SHyperlink)
-				. Text(this, &FTraceStackChildItem::GetContextObjectName)
-				. Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
-				. ToolTipText( LOCTEXT("SelectActor_Tooltip", "Select this actor") )
-				. OnNavigate(this, &FTraceStackChildItem::OnSelectContextObject)
+					.Text(this, &FTraceStackChildItem::GetContextObjectName)
+					.Style(FEditorStyle::Get(), "HoverOnlyHyperlink")
+					.ToolTipText( LOCTEXT("SelectActor_Tooltip", "Select this actor") )
+					.OnNavigate(this, &FTraceStackChildItem::OnSelectContextObject)
 			]
 			
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(this, &FTraceStackChildItem::GetVisitTime)
+					.Text(this, &FTraceStackChildItem::GetVisitTime)
 			];
 	}
 
@@ -1175,14 +1252,11 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 // FTraceStackParentItem
 
-class FTraceStackParentItem : public FDebugLineItem
+class FTraceStackParentItem : public FLineItemWithChildren
 {
-protected:
-	// List of children 
-	TArray< TSharedPtr<FTraceStackChildItem> > ChildrenMirrors;
 public:
 	FTraceStackParentItem()
-		: FDebugLineItem(DLT_TraceStackParent)
+		: FLineItemWithChildren(DLT_TraceStackParent)
 	{
 	}
 
@@ -1239,32 +1313,78 @@ public:
 		TSharedPtr<SWidget> ColumnContent = nullptr;
 		if (ColumnName == KismetDebugViewConstants::ColumnId_Name)
 		{
-			ColumnContent = SNew(SHorizontalBox)
+			SAssignNew(ColumnContent, SHorizontalBox)
 				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew( SExpanderArrow, SharedThis(this) )
-				]
-			+SHorizontalBox::Slot()
-				. FillWidth(1.0f)
-				[
-					ItemToEdit->GenerateNameWidget()
-				];
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Fill)
+					.AutoWidth()
+					[
+						SNew( PropertyInfoViewStyle::SIndent, SharedThis(this) )
+					]
+				+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(PropertyInfoViewStyle::SExpanderArrow, SharedThis(this))
+							.HasChildren_Lambda([ItemToEdit = ItemToEdit]()
+							{
+								const bool HasChildren = ItemToEdit->HasChildren();
+								return HasChildren;
+							})
+					]
+	            + SHorizontalBox::Slot()
+	                .AutoWidth()
+	                .HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+	                [
+	                    ItemToEdit->GetNameIcon()
+	                ]
+	                + SHorizontalBox::Slot()
+	                .AutoWidth()
+	                .HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+	                .Padding(5.f,0.f,0.f,0.f)
+	                [
+	                    ItemToEdit->GenerateNameWidget()
+	                ];
 		}
 		else if (ColumnName == KismetDebugViewConstants::ColumnId_Value)
 		{
-			ColumnContent = ItemToEdit->GenerateValueWidget();
+			SAssignNew(ColumnContent, SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					ItemToEdit->GetValueIcon()
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.Padding(.5f, 1.f)
+				[
+					ItemToEdit->GenerateValueWidget()
+				];
 		}
 		else
 		{
-			ColumnContent = SNew(STextBlock)
-				. Text( LOCTEXT("Error", "Error") );
+			SAssignNew(ColumnContent, STextBlock)
+				.Text( LOCTEXT("Error", "Error") );
 		}
 		
-		return SNew(SBox).Padding(FMargin(0.0f, 5.0f))
-		[
-			ColumnContent.ToSharedRef()
-		];
+		return SNew(SBox)
+			.Padding(ItemToEdit->GetOuterMargin())
+			[
+				SNew(SBorder)
+					.Padding(ItemToEdit->GetInnerMargin())
+					.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+					.BorderBackgroundColor_Static(
+						PropertyInfoViewStyle::GetRowBackgroundColor,
+						static_cast<ITableRow*>(this)
+					)
+					[
+						ColumnContent.ToSharedRef()
+					]
+			];
 	}
 
 	void Construct(const FArguments& InArgs, TSharedRef<STableViewBase> OwnerTableView, FDebugTreeItemPtr InItemToEdit)
@@ -1293,21 +1413,21 @@ void SKismetDebuggingView::OnGetChildrenForWatchTree(FDebugTreeItemPtr InParent,
 TSharedRef<SHorizontalBox> SKismetDebuggingView::GetDebugLineTypeToggle(FDebugLineItem::EDebugLineType Type, const FText& Text)
 {
 	return SNew(SHorizontalBox)
-	+ SHorizontalBox::Slot()
-	.AutoWidth()
-	[
-		SNew(SCheckBox)
-			.IsChecked(true)
-			.OnCheckStateChanged_Static(&FDebugLineItem::OnDebugLineTypeActiveChanged, Type)
-	]
-	+ SHorizontalBox::Slot()
-	.AutoWidth()
-	.Padding(4.0f, 0.0f, 10.0f, 0.0f)
-	.VAlign(VAlign_Center)
-	[
-		SNew( STextBlock )
-			.Text(Text)
-	];
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SCheckBox)
+				.IsChecked(true)
+				.OnCheckStateChanged_Static(&FDebugLineItem::OnDebugLineTypeActiveChanged, Type)
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 10.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew( STextBlock )
+				.Text(Text)
+		];
 }
 
 TSharedPtr<SWidget> SKismetDebuggingView::OnMakeContextMenu()
@@ -1399,8 +1519,7 @@ TSharedRef<SWidget> SKismetDebuggingView::ConstructBlueprintClassPicker()
 
 	FOnClassPicked OnClassPicked;
 	OnClassPicked.BindRaw(this, &SKismetDebuggingView::OnBlueprintClassPicked);
-	return
-		SNew(SBox)
+	return SNew(SBox)
 		.HeightOverride(500.f)
 		[
 			ClassViewerModule.CreateClassViewer(Options, OnClassPicked)
@@ -1428,17 +1547,17 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 	
 	DebugClassComboButton =
 		SNew(SComboButton)
-		.OnGetMenuContent_Raw(this, &SKismetDebuggingView::ConstructBlueprintClassPicker)
-		.ButtonContent()
-		[
-			SNew(STextBlock)
-			.Text_Lambda([BlueprintToWatchPtr = BlueprintToWatchPtr]()
-			{
-				return BlueprintToWatchPtr.IsValid()?
-					FText::FromString(BlueprintToWatchPtr->GetName()) :
-					LOCTEXT("SelectBlueprint", "Select Blueprint");
-			})
-		];
+			.OnGetMenuContent_Raw(this, &SKismetDebuggingView::ConstructBlueprintClassPicker)
+			.ButtonContent()
+			[
+				SNew(STextBlock)
+					.Text_Lambda([&BlueprintToWatchPtr = BlueprintToWatchPtr]()
+					{
+						return BlueprintToWatchPtr.IsValid()?
+							FText::FromString(BlueprintToWatchPtr->GetName()) :
+							LOCTEXT("SelectBlueprint", "Select Blueprint");
+					})
+			];
 
 	FBlueprintContextTracker::OnEnterScriptContext.AddLambda(
 		[](const FBlueprintContextTracker& ContextTracker, const UObject* ContextObject, const UFunction* ContextFunction)
@@ -1458,101 +1577,115 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SBorder)
-			.BorderImage( FEditorStyle::GetBrush( TEXT("NoBorder") ) )
+			+ SVerticalBox::Slot()
+			.AutoHeight()
 			[
-				ToolbarWidget
+				SNew(SBorder)
+					.BorderImage( FEditorStyle::GetBrush( TEXT("NoBorder") ) )
+					[
+						ToolbarWidget
+					]
 			]
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			
-			SNew( SVerticalBox )
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SNew( STextBlock )
-					.Text( this, &SKismetDebuggingView::GetTopText )
+				
+				SNew( SVerticalBox )
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew( STextBlock )
+							.Text( this, &SKismetDebuggingView::GetTopText )
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew( SHorizontalBox )
+							+ SHorizontalBox::Slot()
+							.HAlign( HAlign_Left )
+							[
+								SNew(SBox)
+									.WidthOverride(400.f)
+									[
+										DebugClassComboButton.ToSharedRef()
+									]
+							]
+							+ SHorizontalBox::Slot()
+							.HAlign( HAlign_Right )
+							[
+								SNew( SButton )
+					                .IsEnabled( this, &SKismetDebuggingView::CanDisableAllBreakpoints )
+					                .Text( LOCTEXT( "DisableAllBreakPoints", "Disable All Breakpoints" ) )
+					                .OnClicked( this, &SKismetDebuggingView::OnDisableAllBreakpointsClicked )
+							]
+					]
+			]
+			+SVerticalBox::Slot()
+			[
+				SNew(SSplitter)
+					.Orientation(Orient_Vertical)
+					+SSplitter::Slot()
+					[
+						SAssignNew( DebugTreeView, STreeView< FDebugTreeItemPtr > )
+							.TreeItemsSource( &RootTreeItems )
+							.SelectionMode( ESelectionMode::Single )
+							.OnGetChildren( this, &SKismetDebuggingView::OnGetChildrenForWatchTree )
+							.OnGenerateRow( this, &SKismetDebuggingView::OnGenerateRowForWatchTree ) 
+							.OnContextMenuOpening( this, &SKismetDebuggingView::OnMakeContextMenu )
+							.TreeViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("PropertyTable.InViewport.ListView"))
+							.HeaderRow
+							(
+								SNew(SHeaderRow)
+									+ SHeaderRow::Column(KismetDebugViewConstants::ColumnId_Name)
+									.DefaultLabel(KismetDebugViewConstants::ColumnText_Name)
+									+ SHeaderRow::Column(KismetDebugViewConstants::ColumnId_Value)
+									.DefaultLabel(KismetDebugViewConstants::ColumnText_Value)
+							)
+					]
+					+SSplitter::Slot()
+					[
+						SAssignNew( OtherTreeView, STreeView< FDebugTreeItemPtr > )
+							.TreeItemsSource( &OtherTreeItems )
+							.SelectionMode( ESelectionMode::Single )
+							.OnGetChildren( this, &SKismetDebuggingView::OnGetChildrenForWatchTree )
+							.OnGenerateRow( this, &SKismetDebuggingView::OnGenerateRowForWatchTree ) 
+							.OnContextMenuOpening( this, &SKismetDebuggingView::OnMakeContextMenu )
+							.TreeViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("PropertyTable.InViewport.ListView"))
+							.HeaderRow
+							(
+								SNew(SHeaderRow)
+									+ SHeaderRow::Column(KismetDebugViewConstants::ColumnId_Name)
+									.DefaultLabel(KismetDebugViewConstants::ColumnText_DebugKey)
+									+ SHeaderRow::Column(KismetDebugViewConstants::ColumnId_Value)
+									.DefaultLabel(KismetDebugViewConstants::ColumnText_Info)
+							)
+					]
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SNew( SHorizontalBox )
-				+ SHorizontalBox::Slot()
-				.HAlign( HAlign_Left )
-				[
-					SNew(SBox)
-					.WidthOverride(400.f)
+				SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
 					[
-						DebugClassComboButton.ToSharedRef()
+						GetDebugLineTypeToggle(FDebugLineItem::DLT_Watch, LOCTEXT("Watchpoints", "Watchpoints"))
 					]
-				]
-				+ SHorizontalBox::Slot()
-				.HAlign( HAlign_Right )
-				[
-					SNew( SButton )
-		                .IsEnabled( this, &SKismetDebuggingView::CanDisableAllBreakpoints )
-		                .Text( LOCTEXT( "DisableAllBreakPoints", "Disable All Breakpoints" ) )
-		                .OnClicked( this, &SKismetDebuggingView::OnDisableAllBreakpointsClicked )
-				]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						GetDebugLineTypeToggle(FDebugLineItem::DLT_LatentAction, LOCTEXT("LatentActions", "Latent Actions"))
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						GetDebugLineTypeToggle(FDebugLineItem::DLT_BreakpointParent, LOCTEXT("Breakpoints", "Breakpoints"))
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						GetDebugLineTypeToggle(FDebugLineItem::DLT_TraceStackParent, LOCTEXT("ExecutionTrace", "Execution Trace"))
+					]
 			]
-		]
-		+SVerticalBox::Slot()
-		[
-			SNew(SSplitter)
-			.Orientation(Orient_Vertical)
-			+SSplitter::Slot()
-			[
-				SAssignNew( DebugTreeView, STreeView< FDebugTreeItemPtr > )
-				.TreeItemsSource( &RootTreeItems )
-				.SelectionMode( ESelectionMode::Single )
-				.OnGetChildren( this, &SKismetDebuggingView::OnGetChildrenForWatchTree )
-				.OnGenerateRow( this, &SKismetDebuggingView::OnGenerateRowForWatchTree ) 
-				.OnContextMenuOpening( this, &SKismetDebuggingView::OnMakeContextMenu )
-				. HeaderRow
-				(
-					SNew(SHeaderRow)
-					+ SHeaderRow::Column(KismetDebugViewConstants::ColumnId_Name)
-					.DefaultLabel(KismetDebugViewConstants::ColumnText_Name)
-					+ SHeaderRow::Column(KismetDebugViewConstants::ColumnId_Value)
-					.DefaultLabel(KismetDebugViewConstants::ColumnText_Value)
-				)
-			]
-			+SSplitter::Slot()
-			[
-				SAssignNew( OtherTreeView, STreeView< FDebugTreeItemPtr > )
-				.TreeItemsSource( &OtherTreeItems )
-				.SelectionMode( ESelectionMode::Single )
-				.OnGetChildren( this, &SKismetDebuggingView::OnGetChildrenForWatchTree )
-				.OnGenerateRow( this, &SKismetDebuggingView::OnGenerateRowForWatchTree ) 
-				.OnContextMenuOpening( this, &SKismetDebuggingView::OnMakeContextMenu )
-				. HeaderRow
-				(
-					SNew(SHeaderRow)
-					+ SHeaderRow::Column(KismetDebugViewConstants::ColumnId_Name)
-					.DefaultLabel(KismetDebugViewConstants::ColumnText_DebugKey)
-					+ SHeaderRow::Column(KismetDebugViewConstants::ColumnId_Value)
-					.DefaultLabel(KismetDebugViewConstants::ColumnText_Info)
-				)
-			]
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth()
-				[ GetDebugLineTypeToggle(FDebugLineItem::DLT_Watch, LOCTEXT("Watchpoints", "Watchpoints")) ]
-			+ SHorizontalBox::Slot().AutoWidth()
-				[ GetDebugLineTypeToggle(FDebugLineItem::DLT_LatentAction, LOCTEXT("LatentActions", "Latent Actions")) ]
-			+ SHorizontalBox::Slot().AutoWidth()
-				[ GetDebugLineTypeToggle(FDebugLineItem::DLT_BreakpointParent, LOCTEXT("Breakpoints", "Breakpoints")) ]
-			+ SHorizontalBox::Slot().AutoWidth()
-				[ GetDebugLineTypeToggle(FDebugLineItem::DLT_TraceStackParent, LOCTEXT("ExecutionTrace", "Execution Trace")) ]
-		]
 	];
 
 	TraceStackItem = MakeShareable(new FTraceStackParentItem);
