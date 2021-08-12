@@ -1118,10 +1118,20 @@ ECheckBoxState FColorGradingCustomBuilder::OnGetChangeColorMode(ColorModeType Mo
 
 void FColorGradingCustomBuilder::OnColorGradingPickerChanged(FVector4& NewValue, bool ShouldCommitValueChanges)
 {
-	FScopedTransaction Transaction(LOCTEXT("ColorGradingMainValue", "Color Grading Main Value"),ShouldCommitValueChanges);
+	FScopedTransaction Transaction(LOCTEXT("ColorGradingMainValue", "Color Grading Main Value"), ShouldCommitValueChanges);
+
 	if (ColorGradingPropertyHandle.IsValid())
 	{
-		ColorGradingPropertyHandle.Pin()->SetValue(NewValue, (ShouldCommitValueChanges || !bIsUsingSlider) ? EPropertyValueSetFlags::DefaultFlags : (EPropertyValueSetFlags::InteractiveChange | EPropertyValueSetFlags::NotTransactable));
+		// Always perform a purely interactive change. We do this because it won't invoke reconstruction, which may cause that only the first 
+		// element gets updated due to its change causing a component reconstruction and the remaining vector element property handles updating 
+		// the trashed component.
+		ColorGradingPropertyHandle.Pin()->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange | EPropertyValueSetFlags::NotTransactable);
+
+		// If not purely interactive, set the value with default flags.
+		if (ShouldCommitValueChanges || !bIsUsingSlider)
+		{
+			ColorGradingPropertyHandle.Pin()->SetValue(NewValue, EPropertyValueSetFlags::DefaultFlags);
+		}
 	}
 
 	FLinearColor NewHSVColor(NewValue.X, NewValue.Y, NewValue.Z);
