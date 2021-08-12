@@ -45,6 +45,7 @@
 
 #if INTEL_ISPC
 #include "SkeletalMeshComponent.ispc.generated.h"
+static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
 #endif
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponent"

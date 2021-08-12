@@ -11,6 +11,9 @@
 #include "AnimationCompression.h"
 #if INTEL_ISPC
 #include "AnimEncoding_PerTrackCompression.ispc.generated.h"
+
+static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
+static_assert(sizeof(ispc::BoneTrackPair) == sizeof(BoneTrackPair), "sizeof(ispc::BoneTrackPair) != sizeof(BoneTrackPair)");
 #endif
 
 // This define controls whether scalar or vector code is used to decompress keys.  Note that not all key decompression code
@@ -712,10 +715,6 @@ void AEFPerTrackCompressionCodec::GetBoneAtomScale(
 }
 
 #if USE_ANIMATION_CODEC_BATCH_SOLVER
-
-#if INTEL_ISPC
-static_assert(sizeof(ispc::BoneTrackPair) == sizeof(BoneTrackPair), "sizeof(ispc::BoneTrackPair) != sizeof(BoneTrackPair)");
-#endif
 
 /**
  * Decompress all requested rotation components from an Animation Sequence
