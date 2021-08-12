@@ -3,7 +3,7 @@
 #include "NeuralNetworkLegacy.h"
 #include "NeuralOperator.h"
 #include "NeuralNetworkFromONNXTranslator.h"
-#include "NeuralNetworkInferenceLegacyUtils.h"
+#include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceVersion.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
@@ -427,7 +427,7 @@ void UNeuralNetworkLegacy::Run(const EGPUSynchronousMode InGPUSynchronousMode, c
 			// Block thread until GPU has finished
 			if (InGPUSynchronousMode == EGPUSynchronousMode::Synchronous)
 			{
-				FNeuralNetworkInferenceLegacyUtils::WaitUntilRHIFinished();
+				FNeuralNetworkInferenceUtils::WaitUntilRHIFinished();
 			}
 		}
 		else

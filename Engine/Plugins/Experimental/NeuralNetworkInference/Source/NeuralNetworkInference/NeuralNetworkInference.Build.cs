@@ -28,7 +28,9 @@ public class NeuralNetworkInference : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"NeuralNetworkInferenceCore"
+				"NeuralNetworkInferenceCore",
+				// Internal (Backend-related)
+				"ModelProto"
 			}
 		);
 
@@ -36,7 +38,6 @@ public class NeuralNetworkInference : ModuleRules
 			(
 			new string[] {
 				// Backend-related
-				"ModelProto",
 				"NeuralNetworkInferenceShaders",
 				"RenderCore",
 				"RHI",
@@ -45,6 +46,21 @@ public class NeuralNetworkInference : ModuleRules
 				"ThirdPartyHelperAndDLLLoader"
 			}
 		);
+
+		// Editor-only
+		if (Target.bBuildEditor)
+		{
+			// Win64-only
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				PrivateDependencyModuleNames.AddRange
+					(
+					new string[] {
+						"ModelProtoFileReader"
+					}
+				);
+			}
+		}
 
 		if (bIsORTSupported)
 		{

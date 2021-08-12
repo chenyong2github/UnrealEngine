@@ -29,8 +29,7 @@ public class NeuralNetworkInferenceQA : ModuleRules
 			(
 			new string[] {
 				"ModelProto",
-				"NeuralNetworkInferenceCore",
-				"NeuralNetworkInferenceLegacy"
+				"NeuralNetworkInferenceCore"
 			}
 		);
 

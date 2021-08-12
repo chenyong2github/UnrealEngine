@@ -86,7 +86,7 @@ class UAssetImportData;
 //UCLASS(BlueprintType, Deprecated)
 //class NEURALNETWORKINFERENCELEGACY_API UDEPRECATED_UNeuralNetworkLegacy : public UObject
 UCLASS(BlueprintType)
-class NEURALNETWORKINFERENCELEGACY_API UNeuralNetworkLegacy : public UObject
+class NEURALNETWORKINFERENCE_API UNeuralNetworkLegacy : public UObject
 {
 	GENERATED_BODY()
 
