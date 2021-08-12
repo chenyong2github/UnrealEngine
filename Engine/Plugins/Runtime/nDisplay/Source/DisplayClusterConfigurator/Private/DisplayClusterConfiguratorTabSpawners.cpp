@@ -9,7 +9,6 @@
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 
 #include "BlueprintEditorTabs.h"
-#include "SSCSEditor.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorTabSpawners"
