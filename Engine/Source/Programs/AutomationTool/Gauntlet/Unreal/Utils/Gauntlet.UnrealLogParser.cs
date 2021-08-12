@@ -103,13 +103,11 @@ namespace Gauntlet
 			/// <returns>Formatted log string version of callstack.</returns>
 			public string FormatForLog()
 			{
-				string FormattedString = "";
-				FormattedString += string.Format("{0}", Message);
+				string FormattedString = string.Format("{0}\n", Message);
 				foreach (string StackLine in Callstack)
 				{
 					FormattedString += string.Format("\t{0}\n", StackLine);
 				}
-				FormattedString += "\n";
 				return FormattedString;
 			}
 		};

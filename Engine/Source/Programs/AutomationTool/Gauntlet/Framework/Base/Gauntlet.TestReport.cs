@@ -3,10 +3,40 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 
 namespace Gauntlet
 {
+	/// <summary>
+	/// Event Type
+	/// </summary>
+	/// 
+	[JsonConverter(typeof(JsonTryParseEnumConverter))]
+	public enum EventType
+	{
+		Unknown,
+		Info,
+		Warning,
+		Error
+	}
+
+	/// <summary>
+	/// Test State type
+	/// </summary>
+	/// 
+	[JsonConverter(typeof(JsonTryParseEnumConverter))]
+	public enum TestStateType
+	{
+		Unknown,
+		NotRun,
+		InProcess,
+		Fail,
+		Success,
+		NotEnoughParticipants
+	}
+
 	/// <summary>
 	/// Interface for test report
 	/// </summary>
@@ -32,7 +62,7 @@ namespace Gauntlet
 		/// <param name="Message"></param>
 		/// <param name="Context"></param>
 		/// <returns></returns>
-		void AddEvent(string Type, string Message, object Context = null);
+		void AddEvent(EventType Type, string Message, object Context = null);
 
 		/// <summary>
 		/// Attach an Artifact to the ITestReport
@@ -122,19 +152,19 @@ namespace Gauntlet
 		/// <param name="Message"></param>
 		/// <param name="Context"></param>
 		/// <returns></returns>
-		public abstract void AddEvent(string Type, string Message, object Context = null);
+		public abstract void AddEvent(EventType Type, string Message, object Context = null);
 
 		public void AddError(string Message, object Context = null)
 		{
-			AddEvent("Error", Message, Context);
+			AddEvent(EventType.Error, Message, Context);
 		}
 		public void AddWarning(string Message, object Context = null)
 		{
-			AddEvent("Warning", Message, Context);
+			AddEvent(EventType.Warning, Message, Context);
 		}
 		public void AddInfo(string Message, object Context = null)
 		{
-			AddEvent("Info", Message, Context);
+			AddEvent(EventType.Info, Message, Context);
 		}
 
 		/// <summary>
@@ -172,6 +202,61 @@ namespace Gauntlet
 		public virtual IEnumerable<TelemetryData> GetAllTelemetryData()
 		{
 			return TelemetryDataList;
+		}
+	}
+
+	class JsonTryParseEnumConverter : JsonConverterFactory
+	{
+		public override bool CanConvert(Type TypeToConvert)
+		{
+			return TypeToConvert.IsEnum;
+		}
+
+		public override JsonConverter CreateConverter(Type EnumType, JsonSerializerOptions Options)
+		{
+			JsonConverter Converter = (JsonConverter)Activator.CreateInstance(typeof(DefaultToFirstEnumConverterInner<>).MakeGenericType(EnumType));
+
+			return Converter;
+		}
+
+		private class DefaultToFirstEnumConverterInner<TEnum> :
+			JsonConverter<TEnum> where TEnum : struct, Enum
+		{
+			public override TEnum Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+			{
+				if (Reader.TokenType == JsonTokenType.String)
+				{
+					string PropertyName = Reader.GetString();
+					// Try to parse it, assigned it to the default(0) if not known.
+					TEnum EnumValue;
+					Enum.TryParse(PropertyName, true, out EnumValue);
+
+					return EnumValue;
+				}
+				else if (Reader.TokenType == JsonTokenType.Number)
+				{
+					int Value = Reader.GetInt32();
+					TEnum EnumValue;
+					// Out of bound value get assigned anyway, so instead of try parse, we check if the value is defined else we use default()
+					if(Enum.IsDefined(TypeToConvert, Value))
+					{
+						EnumValue = (TEnum)Enum.ToObject(TypeToConvert, Value);
+					}
+					else
+					{
+						EnumValue = default(TEnum);
+					}
+					return EnumValue;
+				}
+
+				throw new JsonException();
+			}
+
+			public override void Write(Utf8JsonWriter Writer, TEnum EnumValue, JsonSerializerOptions Options)
+			{
+				var PropertyName = EnumValue.ToString();
+				Writer.WriteStringValue(Options.PropertyNamingPolicy?.ConvertName(PropertyName) ?? PropertyName);
+			}
 		}
 	}
 }

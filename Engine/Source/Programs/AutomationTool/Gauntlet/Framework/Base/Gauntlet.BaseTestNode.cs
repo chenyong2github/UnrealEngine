@@ -113,6 +113,7 @@ namespace Gauntlet
 		protected void MarkTestStarted()
 		{
 			InnerStatus = TestStatus.InProgress;
+			SetTestResult(TestResult.Invalid);
 		}
 
 		/// <summary>

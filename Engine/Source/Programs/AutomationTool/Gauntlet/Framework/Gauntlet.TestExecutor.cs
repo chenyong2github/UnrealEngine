@@ -751,6 +751,12 @@ namespace Gauntlet
 							TestInfo.FinalResult = TestResult.Invalid;
 							bCanFinalizeTest = false;
 						}
+						else
+						{
+							TestInfo.CancellationReason = "Failed to restart during retry.";
+							Log.Error(TestInfo.CancellationReason);
+							TestInfo.FinalResult = TestResult.Failed;
+						}
 					}
 
 					if (bCanFinalizeTest)

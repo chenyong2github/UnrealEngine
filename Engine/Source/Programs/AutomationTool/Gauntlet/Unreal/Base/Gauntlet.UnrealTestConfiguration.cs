@@ -545,6 +545,18 @@ namespace Gauntlet
 		public float MaxDuration { get; set; }
 
 		/// <summary>
+		/// Resume test run on critical failure through pass retry
+		/// </summary>
+		[AutoParam]
+		public bool ResumeOnCriticalFailure = false;
+
+		/// <summary>
+		/// Max number of retries in case of critical failure
+		/// </summary>
+		[AutoParam(3)]
+		public int MaxRetries { get; set; }
+
+		/// <summary>
 		/// Produce test artifacts for Horde build system
 		/// </summary>
 		[AutoParam]
@@ -859,8 +871,8 @@ namespace Gauntlet
 					AppConfig.CommandLineParams.GameMap = MapChoice;
 				}
 			}
-			
-						// we write results to Horde test data if we run under Horde agent
+
+			// we write results to Horde test data if we run under Horde agent
 			if (HordeReport.IsUnderHordeAgent)
 			{
 				WriteTestResultsForHorde = true;

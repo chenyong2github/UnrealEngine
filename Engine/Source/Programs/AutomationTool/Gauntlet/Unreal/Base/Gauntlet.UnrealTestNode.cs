@@ -89,10 +89,10 @@ namespace Gauntlet
 		{
 			if (RoleResults == null)
 			{
-				return Warnings;
+				return Events.Where(E => E.IsWarning).Select(E => E.Message);
 			}
 
-			Warnings = RoleResults.SelectMany(R =>
+			IEnumerable<string> Warnings = RoleResults.SelectMany(R =>
 			{
 				return R.LogSummary.Ensures.Select(E => E.Message);
 			}).ToList(); 
@@ -113,12 +113,12 @@ namespace Gauntlet
 		{
 			if (RoleResults == null)
 			{
-				return Errors;
+				return Events.Where(E => E.IsError).Select(E => E.Message);
 			}
 
 			var FailedRoles = GetRolesThatFailed();
 
-			Errors = FailedRoles.Where(R => R.LogSummary.FatalError != null).Select(R => R.LogSummary.FatalError.Message).ToList();
+			IEnumerable<string> Errors = FailedRoles.Where(R => R.LogSummary.FatalError != null).Select(R => R.LogSummary.FatalError.Message).ToList();
 
 			// add all errors from from roles if desired
 			if (Flags.HasFlag(BehaviorFlags.PromoteErrors))
@@ -177,7 +177,7 @@ namespace Gauntlet
 		public virtual void ReportError(string Message, params object[] Args)
 		{
 			Message = string.Format(Message, Args);
-			Errors.Add(Message);
+			Events.Add(new UnrealAutomationEvent(EventType.Error, Message));
 			if (!LogWarningsAndErrorsAfterSummary) { Log.Error(Message); }
 			if (GetTestStatus() == TestStatus.Complete && GetTestResult() == TestResult.Passed)
 			{
@@ -192,7 +192,7 @@ namespace Gauntlet
 		public virtual void ReportWarning(string Message, params object[] Args)
 		{
 			Message = string.Format(Message, Args);
-			if (!LogWarningsAndErrorsAfterSummary) { Warnings.Add(Message); }
+			if (!LogWarningsAndErrorsAfterSummary) { Events.Add(new UnrealAutomationEvent(EventType.Warning, Message)); }
 			Log.Warning(Message);
 		}
 
@@ -263,14 +263,9 @@ namespace Gauntlet
 		public IEnumerable<UnrealRoleArtifacts> SessionArtifacts { get; private set; }
 
 		/// <summary>
-		/// Error collection.
+		/// Error and warning collection.
 		/// </summary>
-		protected List<string> Errors { get; private set; } = new List<string>();
-
-		/// <summary>
-		/// Warning collection.
-		/// </summary>
-		protected List<string> Warnings { get; private set; } = new List<string>();
+		protected List<UnrealAutomationEvent> Events { get; private set; } = new List<UnrealAutomationEvent>();
 
 		/// <summary>
 		/// Whether we submit to the dashboard
@@ -293,6 +288,9 @@ namespace Gauntlet
 
 		static protected DateTime SessionStartTime = DateTime.MinValue;
 
+		private int Retries = 0;
+		private int MaxRetries = 3;
+
 		/// <summary>
 		/// Standard semantic versioning for tests. Should be overwritten within individual tests, and individual test maintainers
 		/// are responsible for updating their own versions. See https://semver.org/ for more info on maintaining semantic versions.
@@ -311,11 +309,6 @@ namespace Gauntlet
 		private TestResult UnrealTestResult;
 
 		protected TConfigClass CachedConfig = null;
-
-		/// <summary>
-		/// If our test should exit suddenly, this is the process that caused it
-		/// </summary>
-		protected List<IAppInstance> MissingProcesses;
 
 		protected DateTime TimeOfFirstMissingProcess;
 
@@ -354,7 +347,6 @@ namespace Gauntlet
 			Context = InContext;
 
 			UnrealTestResult = TestResult.Invalid;
-			MissingProcesses = new List<IAppInstance>();
 			TimeToWaitForProcesses = 5;
 			LastLogCount = 0;
 			CurrentPass = 0;
@@ -646,31 +638,11 @@ namespace Gauntlet
 		}
 
 		/// <summary>
-		/// Called by the test executor to start our test running. After this
-		/// Test.Status should return InProgress or greater
+		/// Generate an unique path for the test artifacts and reserve it
 		/// </summary>
 		/// <returns></returns>
-		public override bool StartTest(int Pass, int InNumPasses)
+		protected String ReserveArtifactPath()
 		{
-			if (UnrealApp == null)
-			{
-				throw new AutomationException("Node already has a null UnrealApp, was PrepareUnrealSession or IsReadyToStart called?");
-			}
-
-			// ensure we reset things
-			SessionArtifacts = Enumerable.Empty<UnrealRoleArtifacts>();
-			RoleResults = Enumerable.Empty<UnrealRoleResult>();
-			UnrealTestResult = TestResult.Invalid;
-			MissingProcesses = new List<IAppInstance>();
-			CurrentPass = Pass;
-			NumPasses = InNumPasses;
-			LastLogCount = 0;
-			LastHeartbeatTime = DateTime.MinValue;
-			LastActiveHeartbeatTime = DateTime.MinValue;
-			
-
-			TConfigClass Config = GetCachedConfiguration();
-
 			// Either use the ArtifactName param or name of this test
 			string TestFolder = string.IsNullOrEmpty(Context.Options.ArtifactName) ? this.ToString() : Context.Options.ArtifactName;
 
@@ -685,11 +657,16 @@ namespace Gauntlet
 			TestFolder = TestFolder.Replace(",", "");
 
 			ArtifactPath = Path.Combine(Context.Options.LogDir, TestFolder);
-		
+
 			// if doing multiple passes, put each in a subdir
 			if (NumPasses > 1)
 			{
 				ArtifactPath = Path.Combine(ArtifactPath, string.Format("Pass_{0}_of_{1}", CurrentPass + 1, NumPasses));
+			}
+
+			if (Retries > 0)
+			{
+				ArtifactPath = Path.Combine(ArtifactPath, string.Format("Retry_{0}", Retries));
 			}
 
 			// When running with -parallel we could have several identical tests (same test, configurations) in flight so
@@ -724,6 +701,35 @@ namespace Gauntlet
 
 			ReservedArtifcactPaths.Add(ArtifactPath);
 
+			return ArtifactPath;
+		}
+
+		/// <summary>
+		/// Called by the test executor to start our test running. After this
+		/// Test.Status should return InProgress or greater
+		/// </summary>
+		/// <returns></returns>
+		public override bool StartTest(int Pass, int InNumPasses)
+		{
+			if (UnrealApp == null)
+			{
+				throw new AutomationException("Node already has a null UnrealApp, was PrepareUnrealSession or IsReadyToStart called?");
+			}
+
+			// ensure we reset things
+			SessionArtifacts = Enumerable.Empty<UnrealRoleArtifacts>();
+			RoleResults = Enumerable.Empty<UnrealRoleResult>();
+			UnrealTestResult = TestResult.Invalid;
+			CurrentPass = Pass;
+			NumPasses = InNumPasses;
+			LastLogCount = 0;
+			LastHeartbeatTime = DateTime.MinValue;
+			LastActiveHeartbeatTime = DateTime.MinValue;			
+
+			TConfigClass Config = GetCachedConfiguration();
+
+			ReserveArtifactPath();
+
 			// We need to create this directory at the start of the test rather than the end of the test - we are running into instances where multiple A/B tests
 			// on the same build are seeing the directory as non-existent and thinking it is safe to write to.
 			Log.Info("UnrealTestNode.StartTest Calling CreateDirectory for artifacts at {0}", ArtifactPath);
@@ -754,7 +760,7 @@ namespace Gauntlet
 				// Update these for the executor
 				MaxDuration = Config.MaxDuration;
 				MaxDurationReachedResult = Config.MaxDurationReachedResult;
-				UnrealTestResult = TestResult.Invalid;
+				MaxRetries = Config.MaxRetries;
 				MarkTestStarted();
 			}
 			
@@ -834,6 +840,19 @@ namespace Gauntlet
 		/// <returns></returns>
 		public override bool RestartTest()
 		{
+			//Reset/Increment artifact output
+			SessionArtifacts = Enumerable.Empty<UnrealRoleArtifacts>();
+			RoleResults = Enumerable.Empty<UnrealRoleResult>();
+
+			LastLogCount = 0;
+			LastHeartbeatTime = DateTime.MinValue;
+			LastActiveHeartbeatTime = DateTime.MinValue;
+
+			ReserveArtifactPath();
+			Log.Info("UnrealTestNode.ReStartTest Calling CreateDirectory for artifacts at {0}", ArtifactPath);
+			Directory.CreateDirectory(ArtifactPath);
+
+			// Relaunch the test
 			TestInstance = UnrealApp.RestartSession();
 
 			bool bWasRestarted = (TestInstance != null);
@@ -1151,7 +1170,7 @@ namespace Gauntlet
 			{
 				foreach (UnrealRoleResult RoleResult in RoleResults)
 				{
-					string LogName = Path.GetFullPath(RoleResult.Artifacts.LogPath).Replace(Path.GetFullPath(Path.Combine(ArtifactPath, "..")), "").TrimStart(Path.DirectorySeparatorChar);
+					string LogName = Path.GetFullPath(RoleResult.Artifacts.LogPath).Replace(Path.GetFullPath(Context.Options.LogDir), "").TrimStart(Path.DirectorySeparatorChar);
 					HordeTestReport.AttachArtifact(RoleResult.Artifacts.LogPath, LogName);
 
 					UnrealLog LogSummary = RoleResult.LogSummary;
@@ -1180,10 +1199,63 @@ namespace Gauntlet
 			string JsonReportPath = Path.Combine(UnrealAutomatedTestReportPath, "index.json");
 			if (File.Exists(JsonReportPath))
 			{
+				string HordeArtifactPath = GetConfiguration().HordeArtifactPath;
 				Log.Verbose("Reading json Unreal Automated test report from {0}", JsonReportPath);
 				UnrealAutomatedTestPassResults JsonTestPassResults = UnrealAutomatedTestPassResults.LoadFromJson(JsonReportPath);
+				if (JsonTestPassResults.InProcess > 0)
+				{
+					// The test pass did not run completely
+					Log.Verbose("Found Uncompleted tests: {0}", JsonTestPassResults.InProcess);
+					// Get any critical error and push it to json report and resave it.
+					if (RoleResults != null)
+					{
+						UnrealLog.CallstackMessage FatalError = null;
+						foreach (UnrealRoleResult Result in RoleResults)
+						{
+							if (Result.LogSummary.FatalError != null)
+							{
+								FatalError = Result.LogSummary.FatalError;
+								break;
+							}
+						}
+						if (FatalError != null)
+						{
+							var Test = JsonTestPassResults.Tests.FirstOrDefault((T => T.State == TestStateType.InProcess));
+							if (!String.IsNullOrEmpty(Test.TestDisplayName))
+							{
+								Test.AddError("Engine encountered a critical failure. \n" + FatalError.FormatForLog());
+								JsonTestPassResults.WriteToJson(JsonReportPath);
+							}
+						}
+					}
+					if (GetConfiguration().ResumeOnCriticalFailure)
+					{
+						if (Retries < MaxRetries)
+						{
+							Retries++;
+							// Reschedule test to resume from last 'in-process' test.
+							SetUnrealTestResult(TestResult.WantRetry);
+							// Attach current artifacts to Horde output
+							if (SessionArtifacts != null)
+							{
+								HordeReport.SimpleTestReport TempReport = new HordeReport.SimpleTestReport();
+								TempReport.SetOutputArtifactPath(HordeArtifactPath);
+								foreach (UnrealRoleArtifacts Artifact in SessionArtifacts)
+								{
+									string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Context.Options.LogDir), "").TrimStart(Path.DirectorySeparatorChar);
+									TempReport.AttachArtifact(Artifact.LogPath, LogName);
+								}
+							}
+							// Discard the report as we are going to do another pass.
+							return null;
+						}
+						else
+						{
+							Log.Error("Reach maximum of retries({0}) to resume on critical failure!", Retries);
+						}
+					}
+				}
 				// Convert test results for Horde
-				string HordeArtifactPath = GetConfiguration().HordeArtifactPath;
 				HordeReport.UnrealEngineTestPassResults HordeTestPassResults = HordeReport.UnrealEngineTestPassResults.FromUnrealAutomatedTests(JsonTestPassResults, UnrealAutomatedTestReportPath, ReportURL);
 				HordeTestPassResults.CopyTestResultsArtifacts(HordeArtifactPath);
 				// Attached test Artifacts
@@ -1191,7 +1263,7 @@ namespace Gauntlet
 				{
 					foreach (UnrealRoleArtifacts Artifact in SessionArtifacts)
 					{
-						string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Path.Combine(ArtifactPath, "..")), "").TrimStart(Path.DirectorySeparatorChar);
+						string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Context.Options.LogDir), "").TrimStart(Path.DirectorySeparatorChar);
 						HordeTestPassResults.AttachArtifact(Artifact.LogPath, LogName);
 					}
 				}

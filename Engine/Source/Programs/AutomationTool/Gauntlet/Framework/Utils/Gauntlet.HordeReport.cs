@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AutomationTool;
 
 namespace Gauntlet
@@ -159,7 +160,7 @@ namespace Gauntlet
 		/// </summary>
 		public class Event
 		{
-			public string Type { get; set; }
+			public EventType Type { get; set; }
 			public string Message { get; set; }
 			public string Context { get; set; }
 			public string Artifact { get; set; }
@@ -192,7 +193,7 @@ namespace Gauntlet
 
 			public string TestDisplayName { get; set; }
 			public string FullTestPath { get; set; }
-			public string State { get; set; }
+			public TestStateType State { get; set; }
 			public int Warnings { get; set; }
 			public int Errors { get; set; }
 			public List<Artifact> Artifacts { get; set; }
@@ -240,7 +241,7 @@ namespace Gauntlet
 				get { return TestDetailed.FullTestPath; }
 				set { TestDetailed.FullTestPath = value; }
 			}
-			public string State
+			public TestStateType State
 			{
 				get { return TestDetailed.State; }
 				set { TestDetailed.State = value; }
@@ -314,7 +315,7 @@ namespace Gauntlet
 				return NewTestResult;
 			}
 
-			public override void AddEvent(string Type, string Message, object Context = null)
+			public override void AddEvent(EventType Type, string Message, object Context = null)
 			{
 				throw new System.NotImplementedException("AddEvent not implemented");
 			}
@@ -407,7 +408,7 @@ namespace Gauntlet
 					string TestResultFilePath = Path.Combine(OutputArtifactPath, OutputTestResult.ArtifactName);
 					try
 					{
-						File.WriteAllText(TestResultFilePath, JsonSerializer.Serialize(OutputTestResultDetailed, new JsonSerializerOptions { WriteIndented = true }));
+						File.WriteAllText(TestResultFilePath, JsonSerializer.Serialize(OutputTestResultDetailed, GetDefaultJsonOptions()));
 						ArtifactsCount++;
 					}
 					catch (Exception Ex)
@@ -445,15 +446,16 @@ namespace Gauntlet
 			public List<String> Errors { get; set; }
 			public List<String> Warnings { get; set; }
 
-			public override void AddEvent(string Type, string Message, object Context = null)
+			public override void AddEvent(EventType Type, string Message, object Context = null)
 			{
-				if (Type.ToLower() == "error")
+				switch (Type)
 				{
-					Errors.Add(Message);
-				}
-				else if (Type.ToLower() == "warning")
-				{
-					Warnings.Add(Message);
+					case EventType.Error:
+						Errors.Add(Message);
+						break;
+					case EventType.Warning:
+						Warnings.Add(Message);
+						break;
 				}
 				// The rest is ignored with this report type.
 			}
@@ -526,13 +528,20 @@ namespace Gauntlet
 				Log.Verbose("Writing Test Data Collection for Horde at {0}", OutputTestDataFilePath);
 				try
 				{
-					File.WriteAllText(OutputTestDataFilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+					File.WriteAllText(OutputTestDataFilePath, JsonSerializer.Serialize(this, GetDefaultJsonOptions()));
 				}
 				catch (Exception Ex)
 				{
 					Log.Error("Failed to save Test Data Collection for Horde. {0}", Ex);
 				}
 			}
+		}
+		private static JsonSerializerOptions GetDefaultJsonOptions()
+		{
+			return new JsonSerializerOptions
+			{
+				WriteIndented = true
+			};
 		}
 	}
 }
