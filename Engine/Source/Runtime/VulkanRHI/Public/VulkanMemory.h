@@ -372,6 +372,11 @@ namespace VulkanRHI
 			return bHasUnifiedMemory;
 		}
 
+		inline bool SupportsMemoryless() const
+		{
+			return bSupportsMemoryless;
+		}
+
 		inline uint32 GetNumMemoryTypes() const
 		{
 			return MemoryProperties.memoryTypeCount;
@@ -408,10 +413,11 @@ namespace VulkanRHI
 		VkPhysicalDeviceMemoryBudgetPropertiesEXT MemoryBudget;
 		VkPhysicalDeviceMemoryProperties MemoryProperties;
 		VkDevice DeviceHandle;
-		bool bHasUnifiedMemory;
 		FVulkanDevice* Device;
 		uint32 NumAllocations;
 		uint32 PeakNumAllocations;
+		bool bHasUnifiedMemory;
+		bool bSupportsMemoryless;
 
 		struct FHeapInfo
 		{
