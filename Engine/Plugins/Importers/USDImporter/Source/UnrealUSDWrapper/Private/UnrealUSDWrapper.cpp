@@ -102,6 +102,7 @@ namespace UnrealIdentifiers
 	const TfToken Tangent = TfToken("tangent");
 	const TfToken SubsurfaceColor = TfToken("subsurfaceColor");
 	const TfToken AmbientOcclusion = TfToken("ambientOcclusion");
+	const TfToken Refraction = TfToken("ior");
 
 	const TfToken Surface = TfToken("surface");
 	const TfToken St = TfToken("st");

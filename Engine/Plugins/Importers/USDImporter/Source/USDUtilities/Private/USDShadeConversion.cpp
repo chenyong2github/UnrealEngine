@@ -1686,6 +1686,16 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		}
 	}
 
+	// Refraction
+	{
+		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Refraction, 1.5f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex, bForceVirtualTextures ) )
+		{
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Refraction" ), ParameterValue, bForUsdPreviewSurface );
+			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "RefractionTextureComponent" ) );
+			bHasMaterialInfo = true;
+		}
+	}
+
 	// Handle world space normals
 	pxr::UsdPrim UsdPrim = UsdShadeMaterial.GetPrim();
 	if ( pxr::UsdAttribute Attr = UsdPrim.GetAttribute( UnrealIdentifiers::WorldSpaceNormals ) )
@@ -1810,6 +1820,19 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 				bHasMaterialInfo = true;
 			}
+		}
+	}
+
+	// Refraction
+	const bool bHasRefractionValue = UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Refraction, 1.5f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex );
+	if ( bHasRefractionValue || Material.BlendMode == BLEND_Translucent ) // Force a 1.5 IOR if USD didn't specify a value, as it's USD's fallback value
+	{
+		if ( UMaterialExpression* Expression = UsdShadeConversionImpl::GetExpressionForValue( Material, ParameterValue ) )
+		{
+			Material.Refraction.Expression = Expression;
+			SetOutputIndex( ParameterValue, Material.Refraction.OutputIndex );
+
+			bHasMaterialInfo = true;
 		}
 	}
 
