@@ -269,6 +269,11 @@ namespace Lumen
 		{
 			return true;
 		}
+
+		if (Lumen::UseHardwareRayTracedRadiosity())
+		{
+			return true;
+		}
 #endif
 		return false;
 	}

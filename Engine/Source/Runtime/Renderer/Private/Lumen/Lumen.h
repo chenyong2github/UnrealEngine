@@ -55,6 +55,7 @@ namespace Lumen
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();
+	bool UseHardwareRayTracedSceneLighting();
 	bool UseHardwareRayTracedDirectLighting();
 	bool UseHardwareRayTracedReflections();
 	bool UseHardwareRayTracedScreenProbeGather();

@@ -1779,9 +1779,9 @@ enum class ERayTracingWorldUpdatesDispatchPoint
 	OverlapWithBasePass
 };
 
-ERayTracingWorldUpdatesDispatchPoint GetRayTracingWorldUpdatesDispatchPoint(bool bOcclusionBeforeBasePass, bool bLumenUseHardwareRayTracedShadows)
+ERayTracingWorldUpdatesDispatchPoint GetRayTracingWorldUpdatesDispatchPoint(bool bOcclusionBeforeBasePass)
 {
-	if (bOcclusionBeforeBasePass && bLumenUseHardwareRayTracedShadows)
+	if (bOcclusionBeforeBasePass && Lumen::UseHardwareRayTracedSceneLighting())
 	{
 		return ERayTracingWorldUpdatesDispatchPoint::BeforeLumenSceneLighting;
 	}
@@ -2459,7 +2459,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const bool bOcclusionBeforeBasePass = !bNaniteEnabled && !bAnyLumenEnabled && !bHairEnable && ((DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || bIsEarlyDepthComplete);
 
 #if RHI_RAYTRACING
-	ERayTracingWorldUpdatesDispatchPoint RayTracingWorldUpdatesDispatchPoint = GetRayTracingWorldUpdatesDispatchPoint(bOcclusionBeforeBasePass, Lumen::UseHardwareRayTracedDirectLighting());
+	ERayTracingWorldUpdatesDispatchPoint RayTracingWorldUpdatesDispatchPoint = GetRayTracingWorldUpdatesDispatchPoint(bOcclusionBeforeBasePass);
 	bool bRayTracingSceneReady = false;
 #endif
 
@@ -2535,7 +2535,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 
 		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
-		if (Lumen::UseHardwareRayTracedDirectLighting())
+		if (Lumen::UseHardwareRayTracedSceneLighting())
 		{
 			WaitForRayTracingScene(GraphBuilder);
 			bRayTracingSceneReady = true;
@@ -2683,7 +2683,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #if RHI_RAYTRACING
 		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
-		if (Lumen::UseHardwareRayTracedDirectLighting())
+		if (Lumen::UseHardwareRayTracedSceneLighting())
 		{
 			WaitForRayTracingScene(GraphBuilder);
 			bRayTracingSceneReady = true;
