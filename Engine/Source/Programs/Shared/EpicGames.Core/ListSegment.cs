@@ -133,7 +133,7 @@ namespace EpicGames.Core
 			public Enumerator(ListSegment<T> Segment)
 			{
 				this.List = Segment.List;
-				this.Index = Segment.Offset;
+				this.Index = Segment.Offset - 1;
 				this.MaxIndex = Segment.Offset + Segment.Count;
 			}
 
