@@ -445,6 +445,23 @@ struct FParticleOrderAsUint
 	FORCEINLINE operator uint32() const { return OrderAsUint; }
 };
 
+bool FNiagaraRenderer::IsRendererEnabled(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const
+{
+	if (InProperties->RendererEnabledBinding.GetParamMapBindableVariable().IsValid())
+	{
+		const FNiagaraParameterStore& BoundParamStore = Emitter->GetRendererBoundVariables();
+		if (const uint8* ParameterData = BoundParamStore.GetParameterData(InProperties->RendererEnabledBinding.GetParamMapBindableVariable()))
+		{
+			const FNiagaraBool RendererEnabled = *reinterpret_cast<const FNiagaraBool*>(ParameterData);
+			if (RendererEnabled.GetValue() == false)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 bool FNiagaraRenderer::UseLocalSpace(const FNiagaraSceneProxy* Proxy)const
 {
 	//Force local space if we're using a cull proxy. Cull proxies are simulated at the origin so their world space particles can be transformed to this system as though they were local space.
