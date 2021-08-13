@@ -74,20 +74,6 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingGroupCoun
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarLumenVisualizeHardwareRayTracingMaxTraceDistance(
-	TEXT("r.Lumen.Visualize.HardwareRayTracing.MaxTraceDistance"),
-	20000,
-	TEXT("Determines the active group count when dispatching raygen shader (default = 1000"),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<float> CVarLumenVisualizeHardwareRayTracingFarFieldTraceDistance(
-	TEXT("r.Lumen.Visualize.HardwareRayTracing.FarFieldTraceDistance"),
-	500000,
-	TEXT("Determines the active group count when dispatching raygen shader (default = 500000"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingRetraceHitLighting(
 	TEXT("r.Lumen.Visualize.HardwareRayTracing.Retrace.HitLighting"),
 	1,
@@ -113,13 +99,6 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingBucketMat
 	TEXT("r.Lumen.Visualize.HardwareRayTracing.BucketMaterials"),
 	1,
 	TEXT("Determines whether a secondary traces will be bucketed for coherent material access (default = 1"),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingDebugForceHitLighting(
-	TEXT("r.Lumen.Visualize.HardwareRayTracing.Debug.ForceHitLighting"),
-	0,
-	TEXT("Forces all surfaces to be lit by hit-lighting (default = 0"),
 	ECVF_RenderThreadSafe
 );
 
@@ -286,7 +265,7 @@ enum class ECompactMode
 	// Permutations for compaction modes
 	HitLightingRetrace,
 	FarFieldRetrace,
-	DebugForceHitLighting,
+	ForceHitLighting,
 
 	MAX
 };
@@ -432,6 +411,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 
 		SHADER_PARAMETER(int, ThreadCount)
 		SHADER_PARAMETER(int, GroupCount)
+		SHADER_PARAMETER(int, LightingMode)
 		SHADER_PARAMETER(int, VisualizeHiResSurface)
 		SHADER_PARAMETER(int, VisualizeMode)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
@@ -515,7 +495,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingVisualizeLumen
 	// Fixed-function lighting version
 	Lumen::FHardwareRayTracingPermutationSettings PermutationSettings = Lumen::GetVisualizeHardwareRayTracingPermutationSettings();
 
-	if (Lumen::ShouldVisualizeHardwareRayTracing() && PermutationSettings.bUseMinimalPayload)
+	if (Lumen::ShouldVisualizeHardwareRayTracing())
 	{
 		{
 			FLumenVisualizeHardwareRayTracingRGS::FPermutationDomain PermutationVector;
@@ -669,17 +649,18 @@ void VisualizeHardwareRayTracing(
 	FRDGBufferRef FarFieldTraceDataPackedBuffer = TraceDataPackedBuffer;
 
 	// Fire secondary rays for hit-lighting, resolving some of the screen and collecting miss rays
-	if (CVarLumenVisualizeHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0
-		&& GLumenVisualizeMode == 0)
+	bool bRetraceForHitLighting = CVarLumenVisualizeHardwareRayTracingRetraceHitLighting.GetValueOnRenderThread() != 0 && GLumenVisualizeMode == 0;
+	bool bForceHitLighting = CVarLumenVisualizeHardwareRayTracingLightingMode.GetValueOnRenderThread() != 0;
+	if (bRetraceForHitLighting || bForceHitLighting)
 	{
 		// Compact rays which need to be re-traced
-		if (CVarLumenVisualizeHardwareRayTracingCompact.GetValueOnRenderThread())
+		if ((CVarLumenVisualizeHardwareRayTracingCompact.GetValueOnRenderThread() != 0) || bForceHitLighting)
 		{
 			FRDGBufferRef CompactRaysIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Visualize.CompactTracingIndirectArgs"));
 			{
 				FLumenVisualizeCompactRaysIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeCompactRaysIndirectArgsCS::FParameters>();
 				{
-					PassParameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);;
+					PassParameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);
 					PassParameters->RWCompactRaysIndirectArgs = GraphBuilder.CreateUAV(CompactRaysIndirectArgsBuffer, PF_R32_UINT);
 				}
 
@@ -716,8 +697,7 @@ void VisualizeHardwareRayTracing(
 				}
 
 				FLumenVisualizeCompactRaysCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FLumenVisualizeCompactRaysCS::FCompactModeDim>(CVarLumenVisualizeHardwareRayTracingDebugForceHitLighting.GetValueOnRenderThread() == 0 ?
-					ECompactMode::HitLightingRetrace : ECompactMode::DebugForceHitLighting);
+				PermutationVector.Set<FLumenVisualizeCompactRaysCS::FCompactModeDim>(bForceHitLighting ? ECompactMode::ForceHitLighting : ECompactMode::HitLightingRetrace);
 				TShaderRef<FLumenVisualizeCompactRaysCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeCompactRaysCS>(PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -801,6 +781,7 @@ void VisualizeHardwareRayTracing(
 
 			PassParameters->ThreadCount = RayGenThreadCount;
 			PassParameters->GroupCount = RayGenGroupCount;
+			PassParameters->LightingMode = CVarLumenVisualizeHardwareRayTracingLightingMode.GetValueOnRenderThread();
 			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;;
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
@@ -916,6 +897,7 @@ void VisualizeHardwareRayTracing(
 
 			PassParameters->ThreadCount = RayGenThreadCount;
 			PassParameters->GroupCount = RayGenGroupCount;
+			PassParameters->LightingMode = CVarLumenVisualizeHardwareRayTracingLightingMode.GetValueOnRenderThread();
 			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;;
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
