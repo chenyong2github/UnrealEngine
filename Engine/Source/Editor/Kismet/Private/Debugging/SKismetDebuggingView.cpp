@@ -97,16 +97,6 @@ TSharedRef<SWidget> FDebugLineItem::GetValueIcon()
 	return SNew(SImage).Image(CachedBrush);
 }
 
-FMargin FDebugLineItem::GetInnerMargin()
-{
-	return {0.f};
-}
-
-FMargin FDebugLineItem::GetOuterMargin()
-{
-	return {0.5f, 0.5f};
-}
-
 UBlueprint* FDebugLineItem::GetBlueprintForObject(UObject* ParentObject)
 {
 	if(ParentObject == nullptr)
@@ -1372,10 +1362,9 @@ public:
 		}
 		
 		return SNew(SBox)
-			.Padding(ItemToEdit->GetOuterMargin())
+			.Padding(FMargin(0.5f, 0.5f))
 			[
 				SNew(SBorder)
-					.Padding(ItemToEdit->GetInnerMargin())
 					.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
 					.BorderBackgroundColor_Static(
 						PropertyInfoViewStyle::GetRowBackgroundColor,

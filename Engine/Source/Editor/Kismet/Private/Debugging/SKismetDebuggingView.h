@@ -71,12 +71,6 @@ public:
 	// returns a widget that will go to the left of the Value Widget.
 	virtual TSharedRef<SWidget> GetValueIcon();
 
-	// determines the margin between the Name/Value widgets and the boarder
-	virtual FMargin GetInnerMargin();
-	
-	// determines the space between multiple rows/colums
-	virtual FMargin GetOuterMargin();
-
 	// Helper function to try to get the blueprint for a given object;
 	//   Returns the blueprint that was used to create the instance if there was one
 	//   Returns the object itself if it is already a blueprint
@@ -103,7 +97,7 @@ protected:
 
 	// Used to update the state of a line item rather than replace it.
 	// called after Compare returns true
-	virtual void UpdateData(const FDebugLineItem& NewerData) {}
+	[[maybe_unused]] virtual void UpdateData(const FDebugLineItem& NewerData) {}
 
 	// @return The text to display in the name column, unless GenerateNameWidget is overridden
 	virtual FText GetDisplayName() const;

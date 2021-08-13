@@ -78,7 +78,7 @@ namespace
 			FText InBlueprintName,
 			FText InGraphName,
 			FText InNodeName,
-			FPropertyInstanceInfo Info
+			const FPropertyInstanceInfo& Info
 		)
 			: BP(InBP)
 			, Node(InNode)
@@ -87,16 +87,16 @@ namespace
 			, BlueprintName(MoveTemp(InBlueprintName))
 			, GraphName(MoveTemp(InGraphName))
 			, NodeName(MoveTemp(InNodeName))
-			, DisplayName(MoveTemp(Info.DisplayName))
-			, Value(MoveTemp(Info.Value))
-			, Type(MoveTemp(Info.Type))
+			, DisplayName(Info.DisplayName)
+			, Value(Info.Value)
+			, Type(Info.Type)
 		{
 			SetObjectBeingDebuggedName();
 
 			UPackage* Package = Cast<UPackage>(BP.IsValid() ? BP->GetOuter() : nullptr);
 			BlueprintPackageName = Package ? Package->GetFName() : FName();
 
-			for (TSharedPtr<FPropertyInstanceInfo>& ChildInfo : Info.Children)
+			for (const TSharedPtr<FPropertyInstanceInfo>& ChildInfo : Info.Children)
 			{
 				Children.Add(MakeShared<FWatchRow>(InBP, InNode, InPin, InObjectBeingDebugged, BlueprintName, GraphName, NodeName, MoveTemp(*ChildInfo)));
 			}
