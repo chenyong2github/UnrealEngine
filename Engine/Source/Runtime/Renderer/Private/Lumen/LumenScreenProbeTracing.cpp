@@ -39,10 +39,10 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherHierarchicalScreenTracesMaxIte
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold = .05f;
-FAutoConsoleVariableRef GVarLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold(
-	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.UncertainTraceRelativeDepthThreshold"),
-	GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold,
+float GLumenScreenProbeGatherRelativeDepthThickness = .02f;
+FAutoConsoleVariableRef GVarLumenScreenProbeGatherRelativeDepthThickness(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.RelativeDepthThickness"),
+	GLumenScreenProbeGatherRelativeDepthThickness,
 	TEXT("Determines depth thickness of objects hit by HZB tracing, as a relative depth threshold."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -124,7 +124,7 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER(FVector4, HZBUVToScreenUVScaleBias)
 		SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
-		SHADER_PARAMETER(float, UncertainTraceRelativeDepthThreshold)
+		SHADER_PARAMETER(float, RelativeDepthThickness)
 		SHADER_PARAMETER(float, NumThicknessStepsToDetermineCertainty)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
@@ -607,7 +607,7 @@ void TraceScreenProbes(
 		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
 		PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
-		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenScreenProbeGatherUncertainTraceRelativeDepthThreshold;
+		PassParameters->RelativeDepthThickness = GLumenScreenProbeGatherRelativeDepthThickness;
 		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;
 
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;

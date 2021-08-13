@@ -34,7 +34,7 @@ FAutoConsoleVariableRef CVarLumenReflectionHierarchicalScreenTracesMaxIterations
 
 float GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold = .01f;
 FAutoConsoleVariableRef GVarLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold(
-	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.UncertainTraceRelativeDepthThreshold"),
+	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.RelativeDepthThickness"),
 	GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold,
 	TEXT("Determines depth thickness of objects hit by HZB tracing, as a relative depth threshold."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -95,7 +95,7 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER(FVector2D, HZBBaseTexelSize)
 		SHADER_PARAMETER(FVector4, HZBUVToScreenUVScaleBias)
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
-		SHADER_PARAMETER(float, UncertainTraceRelativeDepthThreshold)
+		SHADER_PARAMETER(float, RelativeDepthThickness)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
@@ -430,7 +430,7 @@ void TraceReflections(
 		PassParameters->ClosestHZBTexture = View.ClosestHZB;
 		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenReflectionHierarchicalScreenTracesMaxIterations;
-		PassParameters->UncertainTraceRelativeDepthThreshold = GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold;
+		PassParameters->RelativeDepthThickness = GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold;
 
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;

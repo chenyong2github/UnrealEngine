@@ -41,7 +41,7 @@ float4 PrevScreenPositionScaleBias;
 float PrevSceneColorPreExposureCorrection;
 float4 HZBUvFactorAndInvFactor;
 float MaxHierarchicalScreenTraceIterations;
-float UncertainTraceRelativeDepthThreshold;
+float RelativeDepthThickness;
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionTraceScreenTexturesCS(
@@ -71,7 +71,7 @@ void ReflectionTraceScreenTexturesCS(
 				TraceDistance,
 				HZBUvFactorAndInvFactor,
 				MaxHierarchicalScreenTraceIterations, 
-				UncertainTraceRelativeDepthThreshold,
+				RelativeDepthThickness,
 				0,
 				bHit,
 				bUncertain,
@@ -90,7 +90,7 @@ void ReflectionTraceScreenTexturesCS(
 					TraceDistance,
 					HZBUvFactorAndInvFactor,
 					MaxHierarchicalScreenTraceIterations,
-					UncertainTraceRelativeDepthThreshold,
+					RelativeDepthThickness,
 					0,
 					Hair_bHit,
 					Hair_bUncertain,
