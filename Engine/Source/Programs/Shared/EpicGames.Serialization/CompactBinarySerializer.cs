@@ -79,7 +79,8 @@ namespace EpicGames.Serialization
 		{
 			new CbDefaultConverterFactory(),
 			new CbListConverterFactory(),
-			new CbDictionaryConverterFactory()
+			new CbDictionaryConverterFactory(),
+			new CbNullableConverterFactory()
 		};
 	
 		/// <summary>

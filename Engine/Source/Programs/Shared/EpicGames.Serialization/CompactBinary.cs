@@ -1113,11 +1113,20 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as a DateTime.
 		/// </summary>
+		/// <returns></returns>
+		public DateTime AsDateTime()
+		{
+			return AsDateTime(default);
+		}
+
+		/// <summary>
+		/// Access the field as a DateTime.
+		/// </summary>
 		/// <param name="Default"></param>
 		/// <returns></returns>
-		public DateTime AsDateTime(DateTime Default = default)
+		public DateTime AsDateTime(DateTime Default)
 		{
-			return new DateTime(AsDateTimeTicks(Default.Ticks));
+			return new DateTime(AsDateTimeTicks(Default.ToUniversalTime().Ticks), DateTimeKind.Utc);
 		}
 
 		/// <summary>
