@@ -1581,6 +1581,15 @@ bool UPrimitiveComponent::GetLevelInstanceEditingState() const
 	return false;
 }
 
+void UPrimitiveComponent::SetVisibleInRayTracing(bool bNewVisibleInRayTracing)
+{
+	if (bNewVisibleInRayTracing != bVisibleInRayTracing)
+	{
+		bVisibleInRayTracing = bNewVisibleInRayTracing;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
 {
 	if(NewCastShadow != CastShadow)
