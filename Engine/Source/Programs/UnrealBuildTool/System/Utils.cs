@@ -1425,6 +1425,18 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Writes a file if the contents have changed
 		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="ContentLines">New contents of the file</param>
+		/// <param name="Comparison">The type of string comparison to use</param>
+		internal static void WriteFileIfChanged(FileReference Location, IEnumerable<string> ContentLines, StringComparison Comparison)
+		{
+			FileItem FileItem = FileItem.GetItemByFileReference(Location);
+			WriteFileIfChanged(FileItem, ContentLines, Comparison);
+		}
+
+		/// <summary>
+		/// Writes a file if the contents have changed
+		/// </summary>
 		/// <param name="FileItem">Location of the file</param>
 		/// <param name="Contents">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
@@ -1462,7 +1474,49 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Writes a file if the contents have changed
+		/// </summary>
+		/// <param name="FileItem">Location of the file</param>
+		/// <param name="ContentLines">New contents of the file</param>
+		/// <param name="Comparison">The type of string comparison to use</param>
+		internal static void WriteFileIfChanged(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison Comparison)
+		{
+			// Only write the file if its contents have changed.
+			FileReference Location = FileItem.Location;
+			
+			if (!FileItem.Exists)
+			{
+				DirectoryReference.CreateDirectory(Location.Directory);
+				FileReference.WriteAllLines(Location, ContentLines, GetEncodingForStrings(ContentLines));
+				FileItem.ResetCachedInfo();
+			}
+			else
+			{
+				string[] CurrentContents = File.ReadAllLines(FileItem.FullName);
+				if (!CurrentContents.SequenceEqual(ContentLines, StringComparer.FromComparison(Comparison)))
+				{
+					FileReference BackupFile = new FileReference($"{FileItem.FullName}.old");
+					try
+					{
+						Log.TraceLog($"Updating {FileItem}: contents have changed. Saving previous version to {BackupFile}.");
+						FileReference.Delete(BackupFile);
+						FileReference.Move(Location, BackupFile);
+					}
+					catch (Exception Ex)
+					{
+						Log.TraceWarning($"Unable to rename {FileItem} to {BackupFile}");
+						Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
+					}
+					FileReference.WriteAllLines(Location, ContentLines, GetEncodingForStrings(ContentLines));
+					FileItem.ResetCachedInfo();
+				}
+			}
+		}
+
+		/// <summary>
 		/// Determines the appropriate encoding for a string: either ASCII or UTF-8.
+		/// If the string length is equivalent to the encoded length, then no non-ASCII characters were present in the string.
+		/// Don't write BOM as it messes with clang when loading response files.
 		/// </summary>
 		/// <param name="Str">The string to test.</param>
 		/// <returns>Either System.Text.Encoding.ASCII or System.Text.Encoding.UTF8, depending on whether or not the string contains non-ASCII characters.</returns>
@@ -1470,7 +1524,19 @@ namespace UnrealBuildTool
 		{
 			// If the string length is equivalent to the encoded length, then no non-ASCII characters were present in the string.
 			// Don't write BOM as it messes with clang when loading response files.
-			return (Encoding.UTF8.GetByteCount(Str) == Str.Length) ? Encoding.ASCII : new UTF8Encoding(false);
+			return (Encoding.UTF8.GetByteCount(Str) != Str.Length) ?  new UTF8Encoding(false) : Encoding.ASCII;
+		}
+		
+		/// <summary>
+		/// Determines the appropriate encoding for a list of strings: either ASCII or UTF-8.
+		/// If the string length is equivalent to the encoded length, then no non-ASCII characters were present in the string.
+		/// Don't write BOM as it messes with clang when loading response files.
+		/// </summary>
+		/// <param name="Strings">The string to test.</param>
+		/// <returns>Either System.Text.Encoding.ASCII or System.Text.Encoding.UTF8, depending on whether or not the strings contains non-ASCII characters.</returns>
+		private static Encoding GetEncodingForStrings(IEnumerable<string> Strings)
+		{
+			return Strings.Any(S => Encoding.UTF8.GetByteCount(S) != S.Length) ? new UTF8Encoding(false) : Encoding.ASCII;
 		}
 	}
 }
