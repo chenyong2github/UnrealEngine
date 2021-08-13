@@ -1546,6 +1546,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetOnlyOwnerSee(bool bNewOnlyOwnerSee);
 
+	/** Changes the value of bIsVisibleInRayTracing. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetVisibleInRayTracing(bool bNewVisibleInRayTracing);
+
 	/** Changes the value of CastShadow. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastShadow(bool NewCastShadow);
