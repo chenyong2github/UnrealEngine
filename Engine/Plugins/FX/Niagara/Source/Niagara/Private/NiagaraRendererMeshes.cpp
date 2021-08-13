@@ -1406,6 +1406,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 
 	const UNiagaraMeshRendererProperties* Properties = CastChecked<const UNiagaraMeshRendererProperties>(InProperties);
 	
+	if (!IsRendererEnabled(Properties, Emitter))
+	{
+		return nullptr;
+	}
+
 	if (Properties->bAllowInCullProxies == false)
 	{
 		check(Emitter);

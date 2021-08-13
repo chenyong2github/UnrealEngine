@@ -306,6 +306,15 @@ void UNiagaraRendererProperties::GetAssetTagsForContext(const UObject* InAsset, 
 	}
 }
 
+bool UNiagaraRendererProperties::PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)
+{
+	bool bAnyAdded = false;
+	if (RendererEnabledBinding.GetParamMapBindableVariable().IsValid())
+	{
+		bAnyAdded |= InParameterStore.AddParameter(RendererEnabledBinding.GetParamMapBindableVariable(), false);
+	}
+	return bAnyAdded;
+}
 
 bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const
 {
@@ -337,6 +346,9 @@ void UNiagaraRendererProperties::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
 		SetFlags(RF_Transactional);
+
+		FNiagaraVariableBase EnabledDefaultVariable(FNiagaraTypeDefinition::GetBoolDef(), NAME_None);
+		RendererEnabledBinding.Setup(EnabledDefaultVariable, EnabledDefaultVariable, ENiagaraRendererSourceDataMode::Emitter);
 	}
 #endif
 }

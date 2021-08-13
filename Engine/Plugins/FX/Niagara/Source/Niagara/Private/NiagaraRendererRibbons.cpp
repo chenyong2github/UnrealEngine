@@ -586,6 +586,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	FNiagaraDataSet& Data = Emitter->GetData();
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProperties);
 
+	if (!IsRendererEnabled(Properties, Emitter))
+	{
+		return nullptr;
+	}
+
 	if (Properties->bAllowInCullProxies == false)
 	{
 		check(Emitter);

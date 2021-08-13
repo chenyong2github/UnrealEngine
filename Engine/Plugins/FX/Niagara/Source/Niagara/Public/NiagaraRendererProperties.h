@@ -194,7 +194,7 @@ public:
 	virtual void GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraRendererProperties*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const;
 
 	/** In the case that we need parameters bound in that aren't Particle variables, these should be set up here so that the data is appropriately populated after the simulation.*/
-	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) { return false; }
+	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore);
 
 #if WITH_EDITORONLY_DATA
 
@@ -262,6 +262,10 @@ public:
 	/** Hint about how to generate motion (velocity) vectors for this renderer. */
 	UPROPERTY(EditAnywhere, Category = "Motion Blur")
 	ENiagaraRendererMotionVectorSetting MotionVectorSetting;
+
+	/** Optional bool binding to dynamically enable / disable the renderer. */
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding RendererEnabledBinding;
 
 	UPROPERTY()
 	bool bIsEnabled;

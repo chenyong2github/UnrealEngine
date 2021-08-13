@@ -1067,6 +1067,11 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 
 	if (Properties)
 	{
+		if ( !IsRendererEnabled(Properties, Emitter) )
+		{
+			return nullptr;
+		}
+
 		if (Properties->bAllowInCullProxies == false)
 		{
 			check(Emitter);
