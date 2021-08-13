@@ -20,7 +20,8 @@
  * RayTranslatedWorldOrigin must be a position on-screen
  * RayWorldDirection must be unit length
  * OutScreenUV gives either the hit screen UV or the screen UV of the furthest unoccluded position along the ray, which can be plugged into ComputeRayHitSqrDistance.  
- * OutScreenUV can sometimes be further than MaxWorldTraceDistance should have allowed.
+ * MaxIterations has a large impact on performance
+ * RelativeDepthThickness is how thick to treat each pixel as.  Larger values cause artifacts as the color value of the pixel gets stretched.
  */
 void InternalTraceScreen(
 	Texture2D InSceneDepthTexture,
@@ -32,7 +33,7 @@ void InternalTraceScreen(
 	float MaxWorldTraceDistance,
 	float4 HZBUvFactorAndInvFactor,
 	float MaxIterations,
-	float UncertainTraceRelativeDepthThreshold,
+	float RelativeDepthThickness,
 	float NumThicknessStepsToDetermineCertainty,
 	inout bool bHit,
 	inout bool bUncertain,
@@ -140,7 +141,7 @@ void InternalTraceScreen(
 				bHit = true;
 				float IntersectionDepth = ConvertFromDeviceZ(TileZ);
 				float RayTileEnterZ = RayStartScreenUV.z + (RayEndScreenUV.z - RayStartScreenUV.z) * TileIntersections.x;
-				bUncertain = (ConvertFromDeviceZ(RayTileEnterZ) - IntersectionDepth) / max(IntersectionDepth, .00001f) > UncertainTraceRelativeDepthThreshold;
+				bUncertain = (ConvertFromDeviceZ(RayTileEnterZ) - IntersectionDepth) / max(IntersectionDepth, .00001f) > RelativeDepthThickness;
 			}
 
 			MipLevel--;
@@ -193,7 +194,7 @@ void TraceScreen(
 	float MaxWorldTraceDistance,
 	float4 HZBUvFactorAndInvFactor,
 	float MaxIterations,
-	float UncertainTraceRelativeDepthThreshold,
+	float RelativeDepthThickness,
 	float NumThicknessStepsToDetermineCertainty,
 	inout bool bHit,
 	inout bool bUncertain,
@@ -209,7 +210,7 @@ void TraceScreen(
 		MaxWorldTraceDistance,
 		HZBUvFactorAndInvFactor,
 		MaxIterations,
-		UncertainTraceRelativeDepthThreshold,
+		RelativeDepthThickness,
 		NumThicknessStepsToDetermineCertainty,
 		bHit,
 		bUncertain,

@@ -47,7 +47,7 @@ float4 ColorBufferScaleBias;
 float2 ReducedColorUVMax;
 float PrevSceneColorPreExposureCorrection;
 float MaxHierarchicalScreenTraceIterations;
-float UncertainTraceRelativeDepthThreshold;
+float RelativeDepthThickness;
 float NumThicknessStepsToDetermineCertainty;
 
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
@@ -112,7 +112,7 @@ void ScreenProbeTraceScreenTexturesCS(
 					TraceDistance,
 					HZBUvFactorAndInvFactor,
 					MaxHierarchicalScreenTraceIterations, 
-					UncertainTraceRelativeDepthThreshold * DepthThresholdScale,
+					RelativeDepthThickness * DepthThresholdScale,
 					NumThicknessStepsToDetermineCertainty,
 					bHit,
 					bUncertain,
@@ -131,7 +131,7 @@ void ScreenProbeTraceScreenTexturesCS(
 						TraceDistance,
 						HZBUvFactorAndInvFactor,
 						MaxHierarchicalScreenTraceIterations,
-						UncertainTraceRelativeDepthThreshold * DepthThresholdScale,
+						RelativeDepthThickness * DepthThresholdScale,
 						NumThicknessStepsToDetermineCertainty,
 						Hair_bHit,
 						Hair_bUncertain,
