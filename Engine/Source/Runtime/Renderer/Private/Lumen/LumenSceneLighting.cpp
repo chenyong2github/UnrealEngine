@@ -39,6 +39,11 @@ FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
 	ECVF_RenderThreadSafe
 );
 
+bool Lumen::UseHardwareRayTracedSceneLighting()
+{
+	return Lumen::UseHardwareRayTracedDirectLighting() || Lumen::UseHardwareRayTracedRadiosity();
+}
+
 extern int32 GLumenSurfaceCacheForceUpdateFrame;
 
 IMPLEMENT_GLOBAL_SHADER(FClearLumenCardsPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "ClearLumenCardsPS", SF_Pixel);
