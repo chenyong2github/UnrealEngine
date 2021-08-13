@@ -10,7 +10,9 @@ public class ONNXRuntimeMlas : ModuleRules
 	{
 		Type = ModuleType.External;
 		// Win64
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.PS5)
 		{
 			// PublicSystemIncludePaths
 			string IncPath = Path.Combine(ModuleDirectory, "include/");
@@ -30,7 +32,7 @@ public class ONNXRuntimeMlas : ModuleRules
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
 				} 
-				else if(Target.Platform == UnrealTargetPlatform.Linux)
+				else if(Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.PS5)
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, "lib" + LibFileName + ".a"));
 				}
