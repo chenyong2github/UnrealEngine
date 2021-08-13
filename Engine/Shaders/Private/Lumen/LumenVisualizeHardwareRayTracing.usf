@@ -290,7 +290,7 @@ groupshared FTraceDataPacked SharedTraceDataPacked[THREADGROUP_SIZE_1D];
 
 #define COMPACT_MODE_HIT_LIGHTING_RETRACE 0
 #define COMPACT_MODE_FAR_FIELD_RETRACE 1
-#define COMPACT_MODE_DEBUG_FORCE_HIT_LIGHTING 2
+#define COMPACT_MODE_FORCE_HIT_LIGHTING 2
 
 
 [numthreads(THREADGROUP_SIZE_1D, 1, 1)]
@@ -305,7 +305,7 @@ void FLumenVisualizeCompactRaysCS(
 	FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 #if DIM_COMPACT_MODE == COMPACT_MODE_HIT_LIGHTING_RETRACE
 	bool bIsRayValid = TraceData.bIsHit && !TraceData.bIsValidMeshCardIndex;
-#elif DIM_COMPACT_MODE == COMPACT_MODE_DEBUG_FORCE_HIT_LIGHTING
+#elif DIM_COMPACT_MODE == COMPACT_MODE_FORCE_HIT_LIGHTING
 	bool bIsRayValid = TraceData.bIsHit;
 #else // DIM_COMPACT_MODE == COMPACT_MODE_FAR_FIELD_RETRACE
 	bool bIsRayValid = !TraceData.bIsHit;
@@ -431,6 +431,7 @@ RaytracingAccelerationStructure TLAS;
 
 uint ThreadCount;
 uint GroupCount;
+uint LightingMode;
 uint VisualizeHiResSurface;
 uint MaxTranslucentSkipCount;
 
@@ -455,13 +456,19 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		uint2 ScreenCoord = TraceCoord + View.ViewRectMin.xy;
 		float2 ScreenUV = (ScreenCoord + 0.5) * View.BufferSizeAndInvSize.zw;
 
+		int HitLightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING;
 		RayDesc Ray = CreatePrimaryRay(ScreenUV);
 		Ray.TMax = min(Ray.TMax, MaxTraceDistance);
 #if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
+		FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
+		if (TraceData.bIsValidMeshCardIndex)
+		{
+			HitLightingMode = LightingMode;
+		}
 		const float Epsilon = 0.5;
-		float TraceDistance = UnpackTraceData(TraceDataPacked[RayIndex]).TraceDistance;
-		Ray.TMin = TraceDistance - Epsilon;
-		Ray.TMax = TraceDistance + Epsilon;
+		//float TraceDistance = UnpackTraceData(TraceDataPacked[RayIndex]).TraceDistance;
+		Ray.TMin = TraceData.TraceDistance - Epsilon;
+		Ray.TMax = TraceData.TraceDistance + Epsilon;
 #elif DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
 		Ray.TMin = UnpackTraceData(TraceDataPacked[RayIndex]).TraceDistance;
 #endif // DIM_TRACE_MODE
@@ -488,7 +495,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 #if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 #else
-		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING);
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, HitLightingMode);
 #endif // DIM_TRACE_MODE
 
 		// Trace segmentation visualization
