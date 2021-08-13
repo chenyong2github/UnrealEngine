@@ -706,6 +706,17 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
+		public void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges)
+		{
+			// Write the file
+			Utils.WriteFileIfChanged(FileItem, ContentLines, ComparisonForContentChanges);
+
+			// Reset the file info, in case it already knows about the old file
+			InternalDependencies.Add(FileItem);
+			FileItem.ResetCachedInfo();
+		}
+
+		/// <inheritdoc/>
 		public void AddSourceDir(DirectoryItem SourceDir)
 		{
 			SourceDirectories.Add(SourceDir);

@@ -1020,7 +1020,7 @@ namespace UnrealBuildTool
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 			if (!ProjectFileGenerator.bGenerateProjectFiles)
 			{
-				FileItem ResponseFile = Graph.CreateIntermediateTextFile(ResponseFileName, String.Join(Environment.NewLine, Arguments), StringComparison.InvariantCultureIgnoreCase);
+				FileItem ResponseFile = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments, StringComparison.InvariantCultureIgnoreCase);
 				PrerequisiteItems.Add(ResponseFile);
 			}
 

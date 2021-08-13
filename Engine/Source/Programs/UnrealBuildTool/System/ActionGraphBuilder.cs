@@ -34,6 +34,15 @@ namespace UnrealBuildTool
 		void CreateIntermediateTextFile(FileItem Location, string Contents, StringComparison ComparisonForContentChanges);
 
 		/// <summary>
+		/// Creates a response file for use in the action graph, with a newline between each string in ContentLines
+		/// </summary>
+		/// <param name="Location">Location of the response file</param>
+		/// <param name="ContentLines">Contents of the file</param>
+		/// <param name="ComparisonForContentChanges">The StringComparison mode to use to determine if a file should be re-written</param>
+		/// <returns>New file item</returns>
+		void CreateIntermediateTextFile(FileItem Location, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges);
+
+		/// <summary>
 		/// Adds a file which is in the non-unity working set
 		/// </summary>
 		/// <param name="File">The file to add to the working set</param>
@@ -86,6 +95,12 @@ namespace UnrealBuildTool
 		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents, StringComparison ComparisonForContentChanges)
 		{
 			Utils.WriteFileIfChanged(FileItem, Contents, ComparisonForContentChanges);
+		}
+
+		/// <inheritdoc/>
+		public virtual void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges)
+		{
+			Utils.WriteFileIfChanged(FileItem, ContentLines, ComparisonForContentChanges);
 		}
 
 		/// <inheritdoc/>
@@ -148,6 +163,12 @@ namespace UnrealBuildTool
 		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents, StringComparison ComparisonForContentChanges)
 		{
 			Inner.CreateIntermediateTextFile(FileItem, Contents, ComparisonForContentChanges);
+		}
+
+		/// <inheritdoc/>
+		public virtual void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges)
+		{
+			Inner.CreateIntermediateTextFile(FileItem, ContentLines, ComparisonForContentChanges);
 		}
 
 		/// <inheritdoc/>
@@ -293,26 +314,15 @@ namespace UnrealBuildTool
 		/// the file to avoid causing an action to be considered outdated.
 		/// </summary>
 		/// <param name="Graph">The action graph</param>
-		/// <param name="FileItem">Path to the intermediate file to create</param>
-		/// <param name="Contents">Contents of the new file</param>
-		/// <param name="ComparisonForContentChanges">The StringComparison mode to use to determine if a file should be re-written</param>
-		public static void CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileItem FileItem, IEnumerable<string> Contents, StringComparison ComparisonForContentChanges)
-		{
-			Graph.CreateIntermediateTextFile(FileItem, string.Join(Environment.NewLine, Contents), ComparisonForContentChanges);
-		}
-
-		/// <summary>
-		/// Creates a text file with the given contents.  If the contents of the text file aren't changed, it won't write the new contents to
-		/// the file to avoid causing an action to be considered outdated.
-		/// </summary>
-		/// <param name="Graph">The action graph</param>
 		/// <param name="AbsolutePath">Path to the intermediate file to create</param>
-		/// <param name="Contents">Contents of the new file</param>
+		/// <param name="ContentLines">Contents of the new file</param>
 		/// <param name="ComparisonForContentChanges">The StringComparison mode to use to determine if a file should be re-written</param>
 		/// <returns>File item for the newly created file</returns>
-		public static FileItem CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileReference AbsolutePath, IEnumerable<string> Contents, StringComparison ComparisonForContentChanges)
+		public static FileItem CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileReference AbsolutePath, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges)
 		{
-			return Graph.CreateIntermediateTextFile(AbsolutePath, string.Join(Environment.NewLine, Contents), ComparisonForContentChanges);
+			FileItem FileItem = UnrealBuildBase.FileItem.GetItemByFileReference(AbsolutePath);
+			Graph.CreateIntermediateTextFile(FileItem, ContentLines, ComparisonForContentChanges);
+			return FileItem;
 		}
 	}
 }
