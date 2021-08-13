@@ -32,24 +32,6 @@ namespace PropertyInfoViewStyle
 	 */
 	UNREALED_API FSlateColor GetRowBackgroundColor(ITableRow* Row);
 
-	/** Helper class to force a widget to fill in a space. Copied from SDetailSingleItemRow.cpp */
-	class UNREALED_API SConstrainedBox : public SCompoundWidget
-	{
-	public:
-		SLATE_BEGIN_ARGS(SConstrainedBox){}
-			SLATE_DEFAULT_SLOT(FArguments, Content)
-			SLATE_ATTRIBUTE(TOptional<float>, MinWidth)
-			SLATE_ATTRIBUTE(TOptional<float>, MaxWidth)
-		SLATE_END_ARGS()
-
-		void Construct(const FArguments& InArgs);
-
-		virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
-
-	private:
-		TAttribute< TOptional<float> > MinWidth;
-		TAttribute< TOptional<float> > MaxWidth;
-	};
 
 	/**
 	 * SIndent is a widget used to indent trees in a layered
@@ -80,6 +62,7 @@ namespace PropertyInfoViewStyle
 
 	private:
 		TWeakPtr<ITableRow> Row;
+		float TabSize = 16.0f;
 	};
 
 	/**

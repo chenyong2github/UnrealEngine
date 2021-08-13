@@ -20,7 +20,7 @@ namespace PropertyInfoViewStyle
 		int32 ColorIndex = 0;
 		int32 Increment = 1;
 
-		for (int i = 0; i < IndentLevel; ++i)
+		for (int IndentCount = 0; IndentCount < IndentLevel; ++IndentCount)
 		{
 			ColorIndex += Increment;
 
@@ -51,46 +51,10 @@ namespace PropertyInfoViewStyle
 		return GetIndentBackgroundColor(Row->GetIndentLevel(), Row->AsWidget()->IsHovered());
 	}
 
-	void SConstrainedBox::Construct(const FArguments& InArgs)
-	{
-		MinWidth = InArgs._MinWidth;
-		MaxWidth = InArgs._MaxWidth;
-
-		ChildSlot
-		[
-			InArgs._Content.Widget
-		];
-	}
-
-	FVector2D SConstrainedBox::ComputeDesiredSize(float LayoutScaleMultiplier) const
-	{
-		const float MinWidthVal = MinWidth.Get().Get(0.0f);
-		const float MaxWidthVal = MaxWidth.Get().Get(0.0f);
-
-		if (MinWidthVal == 0.0f && MaxWidthVal == 0.0f)
-		{
-			return SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
-		}
-		else
-		{
-			FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
-
-			float XVal = FMath::Max(MinWidthVal, ChildSize.X);
-			if (MaxWidthVal >= MinWidthVal)
-			{
-				XVal = FMath::Min(MaxWidthVal, XVal);
-			}
-
-			return FVector2D(XVal, ChildSize.Y);
-		}
-	}
-
 	int32 SIndent::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
 							const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
 							int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 	{
-		constexpr int8 TabSize = 16;
-		
 		TSharedPtr<ITableRow> RowPtr = Row.Pin();
 		if (!RowPtr.IsValid())
 		{
@@ -101,14 +65,14 @@ namespace PropertyInfoViewStyle
 		const FSlateBrush* DropShadowBrush = FAppStyle::Get().GetBrush("DetailsView.ArrayDropShadow");
 
 		int32 IndentLevel = RowPtr->GetIndentLevel();
-		for (int32 i = 0; i < IndentLevel; ++i)
+		for (int32 IndentCount = 0; IndentCount < IndentLevel; ++IndentCount)
 		{
-			FSlateColor BackgroundColor = GetRowBackgroundColor(i);
+			FSlateColor BackgroundColor = GetRowBackgroundColor(IndentCount);
 
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId,
-				AllottedGeometry.ToPaintGeometry(FVector2D(TabSize * i, 0), FVector2D(TabSize, AllottedGeometry.GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(TabSize * IndentCount, 0), FVector2D(TabSize, AllottedGeometry.GetLocalSize().Y)),
 				BackgroundBrush,
 				ESlateDrawEffect::None,
 				BackgroundColor.GetColor(InWidgetStyle)
@@ -117,7 +81,7 @@ namespace PropertyInfoViewStyle
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				LayerId + 1,
-				AllottedGeometry.ToPaintGeometry(FVector2D(TabSize * i, 0), FVector2D(TabSize, AllottedGeometry.GetLocalSize().Y)),
+				AllottedGeometry.ToPaintGeometry(FVector2D(TabSize * IndentCount, 0), FVector2D(TabSize, AllottedGeometry.GetLocalSize().Y)),
 				DropShadowBrush
 			);
 		}
@@ -146,7 +110,7 @@ namespace PropertyInfoViewStyle
 		{
 			IndentLevel = RowPtr->GetIndentLevel();
 		}
-		return IndentLevel * 16.0f;
+		return IndentLevel * TabSize;
 	}
 
 	FSlateColor SIndent::GetRowBackgroundColor(int32 IndentLevel) const
