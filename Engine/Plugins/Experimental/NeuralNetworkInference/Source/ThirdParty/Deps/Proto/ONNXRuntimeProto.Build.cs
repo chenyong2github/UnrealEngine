@@ -10,7 +10,9 @@ public class ONNXRuntimeProto : ModuleRules
 	{
 		Type = ModuleType.External;
 		// Win64 or Linux
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.PS5)
 		{
 			// PublicSystemIncludePaths
 			string IncPath = Path.Combine(ModuleDirectory, "include");
@@ -31,6 +33,11 @@ public class ONNXRuntimeProto : ModuleRules
 				else if(Target.Platform == UnrealTargetPlatform.Linux)
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, "lib" + LibFileName + ".a"));
+				}
+				else if(Target.Platform == UnrealTargetPlatform.PS5)
+				{
+					string LibDirPathPS5 = Path.Combine(ModuleDirectory, "lib", "Playstation5");
+					PublicAdditionalLibraries.Add(Path.Combine(LibDirPathPS5, "lib" + LibFileName + ".a"));
 				}
 			}
 

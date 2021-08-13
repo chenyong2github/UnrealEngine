@@ -36,7 +36,7 @@ public class ONNXRuntimeMlas : ModuleRules
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, "lib" + LibFileName + ".a"));
 				}
-				else if (Target.Platform == UnrealTargetPlatform.PS5)
+				else if(Target.Platform == UnrealTargetPlatform.PS5)
 				{
 					string LibDirPathPS5 = Path.Combine(ModuleDirectory, "lib", "Playstation5");
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPathPS5, "lib" + LibFileName + ".a"));
