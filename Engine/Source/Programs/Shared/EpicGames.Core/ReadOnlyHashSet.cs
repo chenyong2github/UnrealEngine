@@ -91,5 +91,14 @@ namespace EpicGames.Core
 		{
 			return ((IEnumerable)Inner).GetEnumerator();
 		}
+
+		/// <summary>
+		/// Implicit conversion operator from hashsets
+		/// </summary>
+		/// <param name="HashSet"></param>
+		public static implicit operator ReadOnlyHashSet<T>(HashSet<T> HashSet)
+		{
+			return new ReadOnlyHashSet<T>(HashSet);
+		}
 	}
 }
