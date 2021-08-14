@@ -66,6 +66,20 @@ namespace EpicGames.Redis
 			return Database.ListLeftPushAsync(List.Key, Values, When, Flags);
 		}
 
+		/// <inheritdoc cref="IDatabaseAsync.ListLeftPopAsync(RedisKey, CommandFlags)">
+		public static async Task<T?> ListLeftPopAsync<T>(this IDatabase Database, RedisList<T> List, CommandFlags Flags = CommandFlags.None) where T : class
+		{
+			RedisValue Value = await Database.ListLeftPopAsync(List.Key, Flags);
+			return Value.IsNull ? null : RedisSerializer.Deserialize<T>(Value);
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.ListRangeAsync(RedisKey, CommandFlags)">
+		public static async Task<T[]> ListRangeAsync<T>(this IDatabase Database, RedisList<T> List, long Start = 0, long Stop = -1, CommandFlags Flags = CommandFlags.None) where T : class
+		{
+			RedisValue[] Values = await Database.ListRangeAsync(List.Key, Start, Stop, Flags);
+			return Array.ConvertAll(Values, x => RedisSerializer.Deserialize<T>(x));
+		}
+
 		/// <inheritdoc cref="IDatabaseAsync.ListRightPushAsync(RedisKey, RedisValue, When, CommandFlags)"/>
 		public static Task<long> ListRightPushAsync<T>(this IDatabase Database, RedisList<T> List, T Item, When When = When.Always, CommandFlags Flags = CommandFlags.None)
 		{
@@ -77,6 +91,12 @@ namespace EpicGames.Redis
 		{
 			RedisValue[] Values = Items.Select(x => RedisSerializer.Serialize(x)).ToArray();
 			return Database.ListRightPushAsync(List.Key, Values, When, Flags);
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.ListTrimAsync(RedisKey, long, long, CommandFlags)">
+		public static async Task ListTrimAsync<T>(this IDatabase Database, RedisList<T> List, long Start, long Stop, CommandFlags Flags = CommandFlags.None) where T : class
+		{
+			await Database.ListTrimAsync(List.Key, Start, Stop, Flags);
 		}
 	}
 }
