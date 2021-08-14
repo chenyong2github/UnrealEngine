@@ -10,7 +10,7 @@ namespace EpicGames.Serialization.Converters
 	/// <summary>
 	/// Attribute declaring the converter to use for a type
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Class)]
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
 	public class CbConverterAttribute : Attribute
 	{
 		/// <summary>

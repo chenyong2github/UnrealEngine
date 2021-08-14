@@ -139,7 +139,12 @@ namespace EpicGames.Serialization
 					CbConverterAttribute? ConverterAttribute = Type.GetCustomAttribute<CbConverterAttribute>();
 					if (ConverterAttribute != null)
 					{
-						Converter = (CbConverter?)Activator.CreateInstance(ConverterAttribute.ConverterType)!;
+						Type ConverterType = ConverterAttribute.ConverterType;
+						if (Type.IsGenericType && ConverterType.IsGenericTypeDefinition)
+						{
+							ConverterType = ConverterType.MakeGenericType(Type.GetGenericArguments());
+						}
+						Converter = (CbConverter?)Activator.CreateInstance(ConverterType)!;
 					}
 					else
 					{
