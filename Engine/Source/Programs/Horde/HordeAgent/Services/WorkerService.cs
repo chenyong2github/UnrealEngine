@@ -663,13 +663,13 @@ namespace HordeAgent.Services
 				{
 					LeaseInfo.Lease.State = LeaseState.Cancelled;
 					LeaseInfo.Lease.Outcome = LeaseOutcome.Failed;
-					LeaseInfo.Lease.Output = null;
+					LeaseInfo.Lease.Output = ByteString.Empty;
 				}
 				else
 				{
 					LeaseInfo.Lease.State = (Result.Outcome == LeaseOutcome.Cancelled) ? LeaseState.Cancelled : LeaseState.Completed;
 					LeaseInfo.Lease.Outcome = Result.Outcome;
-					LeaseInfo.Lease.Output = ByteString.CopyFrom(Result.Output);
+					LeaseInfo.Lease.Output = (Result.Output != null)? ByteString.CopyFrom(Result.Output) : ByteString.Empty;
 				}
 				Logger.LogInformation("Transitioning lease {LeaseId} to {State}, outcome={Outcome}", LeaseInfo.Lease.Id, LeaseInfo.Lease.State, LeaseInfo.Lease.Outcome);
 			}
@@ -693,6 +693,13 @@ namespace HordeAgent.Services
 				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Action");
 				Func<ILogger, Task<LeaseResult>> Handler = NewLogger => ActionAsync(RpcConnection, LeaseInfo.Lease.Id, ActionTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
 				return await HandleLeasePayloadWithLogAsync(RpcConnection, ActionTask.LogId, AgentId, null, null, Handler, LeaseInfo.CancellationTokenSource.Token);
+			}
+
+			ComputeTaskMessage ComputeTask;
+			if (LeaseInfo.Lease.Payload.TryUnpack(out ComputeTask))
+			{
+				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Compute");
+				return await ComputeAsync(RpcConnection, LeaseInfo.Lease.Id, ComputeTask, Logger, LeaseInfo.CancellationTokenSource.Token);
 			}
 
 			ConformTask ConformTask;
@@ -880,6 +887,53 @@ namespace HordeAgent.Services
 				}
 
 				return LeaseResult.Success;
+			}
+		}
+
+		/// <summary>
+		/// Execute a remote execution aciton
+		/// </summary>
+		/// <param name="RpcConnection">RPC client for communicating with the server</param>
+		/// <param name="LeaseId">The lease id</param>
+		/// <param name="ComputeTask">The action task parameters</param>
+		/// <param name="Logger">Logger for the task</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns></returns>
+		internal async Task<LeaseResult> ComputeAsync(IRpcConnection RpcConnection, string LeaseId, ComputeTaskMessage ComputeTask, ILogger Logger, CancellationToken CancellationToken)
+		{
+			DateTimeOffset ActionTaskStartTime = DateTimeOffset.UtcNow;
+			using (IRpcClientRef Client = await RpcConnection.GetClientRef(new RpcContext(), CancellationToken))
+			{
+				DirectoryReference LeaseDir = DirectoryReference.Combine(WorkingDir, "Compute", LeaseId);
+				DirectoryReference.CreateDirectory(LeaseDir);
+
+				ComputeTaskExecutor Executor = new ComputeTaskExecutor(Client.Channel, Logger);
+				try
+				{
+					ComputeTaskResultMessage Result = await Executor.ExecuteAsync(LeaseId, ComputeTask, LeaseDir, CancellationToken);
+					return new LeaseResult(Result.ToByteArray());
+				}
+				catch (Exception re)
+				{
+/*					Logger.LogError(re, "Unhandled exception during remote execution");
+					PostActionResultRequest PostResultRequest = new PostActionResultRequest();
+					PostResultRequest.LeaseId = LeaseId;
+					PostResultRequest.ActionDigest = ComputeTask.Digest;
+					PostResultRequest.Error = new RpcException(new Status(StatusCode.Unknown, "Unhandled exception during remote execution: " + re.Message), re.Message).Status;
+					await Executor.ActionRpc.PostActionResultAsync(PostResultRequest);
+*/
+					throw re;
+				}
+				finally
+				{
+					try
+					{
+						DirectoryReference.Delete(LeaseDir, true);
+					}
+					catch
+					{
+					}
+				}
 			}
 		}
 

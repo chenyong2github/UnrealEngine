@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Serialization;
+using EpicGames.Serialization.Converters;
 using HordeServer.Models;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
@@ -23,6 +25,7 @@ namespace HordeServer.Utilities
 	/// </summary>
 	[JsonSchemaString]
 	[TypeConverter(typeof(StringIdTypeConverter))]
+	[CbConverter(typeof(CbStringIdConverter<>))]
 	public struct StringId<T> : IEquatable<StringId<T>>
 	{
 		/// <summary>
@@ -273,6 +276,24 @@ namespace HordeServer.Utilities
 		}
 	}
 
+	sealed class CbStringIdConverter<T> : CbConverter<StringId<T>>
+	{
+		public override StringId<T> Read(CbField Field)
+		{
+			return new StringId<T>(Field.AsString().ToString());
+		}
+
+		public override void Write(CbWriter Writer, StringId<T> Value)
+		{
+			Writer.WriteStringValue(Value.ToString());
+		}
+
+		public override void WriteNamed(CbWriter Writer, Utf8String Name, StringId<T> Value)
+		{
+			Writer.WriteString(Name, Value.ToString());
+		}
+	}
+
 	/// <summary>
 	/// Type converter from strings to PropertyFilter objects
 	/// </summary>
@@ -304,6 +325,10 @@ namespace HordeServer.Utilities
 		/// <inheritdoc/>
 		public override bool CanConvertTo(ITypeDescriptorContext Context, Type DestinationType)
 		{
+			if (DestinationType == typeof(string))
+			{
+				return true;
+			}
 			if (DestinationType.IsGenericType)
 			{
 				Type GenericTypeDefinition = DestinationType.GetGenericTypeDefinition();
@@ -322,7 +347,14 @@ namespace HordeServer.Utilities
 		/// <inheritdoc/>
 		public override object? ConvertTo(ITypeDescriptorContext Context, CultureInfo Culture, object Value, Type DestinationType)
 		{
-			return Activator.CreateInstance(DestinationType, Value);
+			if (DestinationType == typeof(string))
+			{
+				return Value.ToString();
+			}
+			else
+			{
+				return Activator.CreateInstance(DestinationType, Value);
+			}
 		}
 	}
 }

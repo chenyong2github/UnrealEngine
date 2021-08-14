@@ -56,6 +56,13 @@ namespace EpicGames.Horde.Compute
 		public List<Utf8String> OutputPaths { get; set; } = new List<Utf8String>();
 
 		/// <summary>
+		/// Default constructor for serialization
+		/// </summary>
+		private ComputeTask()
+		{
+		}
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Executable">The executable to run</param>

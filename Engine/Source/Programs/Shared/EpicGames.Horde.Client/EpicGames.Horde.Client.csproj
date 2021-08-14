@@ -43,6 +43,9 @@
     <ProjectReference Include="..\EpicGames.Serialization\EpicGames.Serialization.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="..\EpicGames.Horde\Protos\horde\compute\compute_rpc.proto">
+      <Link>Protos\horde\compute\compute_rpc.proto</Link>
+    </Content>
     <Content Include="..\EpicGames.Horde\Protos\horde\storage\blob_store.proto">
       <Link>Protos\horde\storage\blob_store.proto</Link>
     </Content>
@@ -51,6 +54,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <Protobuf Include="..\EpicGames.Horde\Protos\horde\compute\compute_rpc.proto" ProtoRoot="..\EpicGames.Horde\Protos" GrpcServices="Client" />
     <Protobuf Include="..\EpicGames.Horde\Protos\horde\storage\blob_store.proto" ProtoRoot="..\EpicGames.Horde\Protos" GrpcServices="Client" />
     <Protobuf Include="..\EpicGames.Horde\Protos\horde\storage\ref_table.proto" ProtoRoot="..\EpicGames.Horde\Protos" GrpcServices="Client" />
   </ItemGroup>

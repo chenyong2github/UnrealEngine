@@ -44,6 +44,7 @@
   <ItemGroup>
     <Protobuf Include="Protos\horde\common\cbobject_wrapper.proto" ProtoRoot="Protos" />
     <Protobuf Include="Protos\horde\common\iohash_wrapper.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\compute\compute_rpc_messages.proto" ProtoRoot="Protos" />
     <Protobuf Include="Protos\horde\storage\blob_store_messages.proto" ProtoRoot="Protos" />
     <Protobuf Include="Protos\horde\storage\ref_table_messages.proto" ProtoRoot="Protos" />
   </ItemGroup>

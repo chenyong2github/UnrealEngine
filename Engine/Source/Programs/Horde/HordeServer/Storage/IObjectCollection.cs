@@ -58,6 +58,40 @@ namespace HordeServer.Storage
 	public static class ObjectCollectionExtensions
 	{
 		/// <summary>
+		/// Adds an object
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="ObjectCollection"></param>
+		/// <param name="NsId"></param>
+		/// <param name="Value"></param>
+		/// <returns></returns>
+		public static async Task<IoHash> AddAsync<T>(this IObjectCollection ObjectCollection, NamespaceId NsId, T Value) where T : class
+		{
+			CbObject ObjectValue = CbSerializer.Serialize<T>(Value);
+			IoHash Hash = ObjectValue.GetHash();
+			await ObjectCollection.AddAsync(NsId, Hash, ObjectValue);
+			return Hash;
+		}
+
+		/// <summary>
+		/// Gets a typed object from the store
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="ObjectCollection"></param>
+		/// <param name="NsId"></param>
+		/// <param name="Hash"></param>
+		/// <returns></returns>
+		public static async Task<T?> GetAsync<T>(this IObjectCollection ObjectCollection, NamespaceId NsId, IoHash Hash) where T : class
+		{
+			CbObject? Object = await ObjectCollection.GetAsync(NsId, Hash);
+			if (Object == null)
+			{
+				return null;
+			}
+			return CbSerializer.Deserialize<T>(Object.AsField());
+		}
+
+		/// <summary>
 		/// Test whether a single blob exists
 		/// </summary>
 		/// <param name="Collection"></param>
