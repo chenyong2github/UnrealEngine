@@ -66,6 +66,11 @@ namespace HordeServer.Storage.Collections
 		/// <returns></returns>
 		static string GetPath(NamespaceId NsId, IoHash Hash)
 		{
+			if (NsId.IsEmpty)
+			{
+				throw new InvalidOperationException("Namespace id may not be empty");
+			}
+
 			string HashText = Hash.ToString();
 			return $"blobs/{NsId}/{HashText[0..2]}/{HashText[2..4]}/{HashText}.blob";
 		}

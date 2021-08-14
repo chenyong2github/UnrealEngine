@@ -10,6 +10,7 @@ using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace HordeServer.Tasks
@@ -139,4 +140,120 @@ namespace HordeServer.Tasks
 			return Task.CompletedTask;
 		}
 	}
+
+	/// <summary>
+	/// Handler for a certain lease type
+	/// </summary>
+	public interface INewTaskSource
+	{
+		/// <summary>
+		/// Descriptor for this lease type
+		/// </summary>
+		MessageDescriptor Descriptor { get; }
+
+		/// <summary>
+		/// Waits for a lease to be availabe
+		/// </summary>
+		/// <param name="Agent">The agent to assign a lease to</param>
+		/// <param name="CancellationToken">Cancellation token for the wait</param>
+		/// <returns>New lease object</returns>
+		Task<AgentLease?> TryAssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken);
+
+		/// <summary>
+		/// Cancel a lease that was previously assigned to an agent, allowing it to be assigned out again
+		/// </summary>
+		/// <param name="Agent">The agent that was assigned the lease</param>
+		/// <param name="LeaseId">The lease id</param>
+		/// <param name="Payload">Payload for the lease</param>
+		/// <returns></returns>
+		Task CancelLeaseAsync(IAgent Agent, ObjectId LeaseId, Any Payload);
+
+		/// <summary>
+		/// Notification that a lease has been started
+		/// </summary>
+		/// <param name="Agent">The agent executing the lease</param>
+		/// <param name="LeaseId">The lease id</param>
+		/// <param name="Payload">Payload for the lease</param>
+		Task OnLeaseStartedAsync(IAgent Agent, ObjectId LeaseId, Any Payload);
+
+		/// <summary>
+		/// Notification that a task has completed
+		/// </summary>
+		/// <param name="Agent">The agent that was allocated to the lease</param>
+		/// <param name="LeaseId">The lease id</param>
+		/// <param name="Payload">The lease payload</param>
+		/// <param name="Outcome">Outcome of the lease</param>
+		/// <param name="Output">Output from the task</param>
+		Task OnLeaseFinishedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output);
+	}
+
+	class NewTaskSourceWrapper : ITaskSource
+	{
+		class TaskListener : ITaskListener
+		{
+			NewTaskSourceWrapper Outer;
+			IAgent Agent;
+			CancellationTokenSource CancellationTokenSource;
+
+			public Task<NewLeaseInfo?> LeaseTask { get; }
+
+			public bool Accepted { get; set; }
+
+			public TaskListener(NewTaskSourceWrapper Outer, IAgent Agent)
+			{
+				this.Outer = Outer;
+				this.Agent = Agent;
+				this.CancellationTokenSource = new CancellationTokenSource();
+				this.LeaseTask = GetLeaseAsync();
+			}
+
+			async Task<NewLeaseInfo?> GetLeaseAsync()
+			{
+				AgentLease? Lease = await Outer.TaskSource.TryAssignLeaseAsync(Agent, CancellationTokenSource.Token);
+				return (Lease == null)? null : new NewLeaseInfo(Lease);
+			}
+
+			public async ValueTask DisposeAsync()
+			{
+				CancellationTokenSource.Cancel();
+				NewLeaseInfo? NewLease = await LeaseTask;
+
+				if (NewLease != null)
+				{
+					if (Accepted)
+					{
+						Console.WriteLine("ACCEPTED");
+						await Outer.TaskSource.OnLeaseStartedAsync(Agent, NewLease.Lease.Id, Any.Parser.ParseFrom(NewLease.Lease.Payload));
+					}
+					else 
+					{
+						Console.WriteLine("CANCELLED");
+						await Outer.TaskSource.CancelLeaseAsync(Agent, NewLease.Lease.Id, Any.Parser.ParseFrom(NewLease.Lease.Payload));
+					}
+				}
+
+				CancellationTokenSource.Dispose();
+			}
+		}
+
+		INewTaskSource TaskSource;
+
+		public MessageDescriptor Descriptor => TaskSource.Descriptor;
+
+		public NewTaskSourceWrapper(INewTaskSource TaskSource)
+		{
+			this.TaskSource = TaskSource;
+		}
+
+		public Task<ITaskListener?> SubscribeAsync(IAgent Agent)
+		{
+			return Task.FromResult<ITaskListener?>(new TaskListener(this, Agent));
+		}
+
+		public Task OnLeaseCompletedAsync(IAgent Agent, ObjectId LeaseId, Any Payload, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output)
+		{
+			return TaskSource.OnLeaseFinishedAsync(Agent, LeaseId, Payload, Outcome, Output);
+		}
+	}
 }
+

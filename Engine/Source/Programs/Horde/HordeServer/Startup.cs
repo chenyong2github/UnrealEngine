@@ -79,6 +79,9 @@ using HordeServer.Commits.Impl;
 using HordeServer.Commits;
 using OpenTracing.Contrib.Grpc.Interceptors;
 using OpenTracing.Util;
+using EpicGames.Horde.Compute;
+using HordeServer.Compute.Impl;
+using HordeServer.Compute;
 
 namespace HordeServer
 {
@@ -533,6 +536,7 @@ namespace HordeServer
 			Services.AddSingleton<JobTaskSource>();
 			Services.AddSingleton<ActionTaskSource>();
 			Services.AddSingleton<ConformTaskSource>();
+			Services.AddSingleton<IComputeService, ComputeService>();
 
 			Services.AddSingleton<ITaskSource, UpgradeTaskSource>();
 			Services.AddSingleton<ITaskSource, ShutdownTaskSource>();
@@ -540,6 +544,7 @@ namespace HordeServer
 			Services.AddSingleton<ITaskSource, ConformTaskSource>(Provider => Provider.GetRequiredService<ConformTaskSource>());
 			Services.AddSingleton<ITaskSource, JobTaskSource>(Provider => Provider.GetRequiredService<JobTaskSource>());
 			Services.AddSingleton<ITaskSource, ActionTaskSource>(Provider => Provider.GetRequiredService<ActionTaskSource>());
+			Services.AddSingleton<ITaskSource>(Provider => new NewTaskSourceWrapper(Provider.GetRequiredService<IComputeService>()));
 
 			Services.AddHostedService(Provider => Provider.GetRequiredService<ConformTaskSource>());
 
@@ -772,6 +777,7 @@ namespace HordeServer
 				Endpoints.MapGrpcService<ContentStorageService>();
 				Endpoints.MapGrpcService<ExecutionService>();
 
+				Endpoints.MapGrpcService<ComputeRpcServer>();
 				Endpoints.MapGrpcService<BlobRpc>();
 				Endpoints.MapGrpcService<BlobStoreRpc>();
 				Endpoints.MapGrpcService<RefRpc>();

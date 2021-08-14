@@ -40,6 +40,13 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		private ComputeTaskResult()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		/// <param name="ExitCode">Exit code of the process</param>
 		public ComputeTaskResult(int ExitCode)
 		{

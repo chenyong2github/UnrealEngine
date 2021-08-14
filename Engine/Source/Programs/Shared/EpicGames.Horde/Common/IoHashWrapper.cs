@@ -4,6 +4,7 @@ using EpicGames.Core;
 using Google.Protobuf;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -29,7 +30,7 @@ namespace EpicGames.Horde.Common
 		/// <param name="Hash"></param>
 		public static implicit operator IoHash(IoHashWrapper Hash)
 		{
-			return new IoHash(Hash.ToByteArray());
+			return new IoHash(Hash.Hash.ToByteArray());
 		}
 
 		/// <summary>
