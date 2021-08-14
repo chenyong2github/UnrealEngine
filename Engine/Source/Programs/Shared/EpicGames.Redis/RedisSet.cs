@@ -57,5 +57,12 @@ namespace EpicGames.Redis
 		{
 			return Database.SetRemoveAsync(Set.Key, RedisSerializer.Serialize(Value), Flags);
 		}
+
+		/// <inheritdoc cref="IDatabaseAsync.SetRemoveAsync(RedisKey, RedisValue, CommandFlags)"/>
+		public static async Task<T[]> SetMembersAsync<T>(this IDatabaseAsync Database, RedisSet<T> Set, CommandFlags Flags = CommandFlags.None)
+		{
+			RedisValue[] Values = await Database.SetMembersAsync(Set.Key, Flags);
+			return Array.ConvertAll(Values, x => RedisSerializer.Deserialize<T>(x));
+		}
 	}
 }
