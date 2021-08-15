@@ -35,17 +35,17 @@ void FRequestCluster::AddClusters(UCookOnTheFlyServer& COTFS, TArray<FFilePlatfo
 	}
 
 	TArray<FRequestCluster, TInlineAllocator<1>> AddedClusters;
-	auto FindOrAddClusterForPlatforms = [&AddedClusters, &COTFS](TArray<const ITargetPlatform*>&& Platforms)
+	auto FindOrAddClusterForPlatforms = [&AddedClusters, &COTFS](TArray<const ITargetPlatform*>&& InPlatforms)
 	{
 		for (FRequestCluster& Existing : AddedClusters)
 		{
-			if (Existing.GetPlatforms() == Platforms)
+			if (Existing.GetPlatforms() == InPlatforms)
 			{
-				Platforms.Reset();
+				InPlatforms.Reset();
 				return &Existing;
 			}
 		}
-		return &AddedClusters.Emplace_GetRef(COTFS, MoveTemp(Platforms));
+		return &AddedClusters.Emplace_GetRef(COTFS, MoveTemp(InPlatforms));
 	};
 
 	UE::Cook::FRequestCluster* MRUCluster = FindOrAddClusterForPlatforms(MoveTemp(InRequests[0].GetPlatforms()));
