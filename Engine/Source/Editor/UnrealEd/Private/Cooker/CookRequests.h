@@ -97,15 +97,15 @@ namespace Cook
 
 		/**
 		 * If this FExternalRequests has any callbacks, dequeue them all into OutCallbacks and return EExternalRequestType::Callback; Callbacks take priority over cook requests.
-		 * Otherwise, if there are any cook requests, set OutToBuild to the front request and return EExternalRequestType::Cook.
+		 * Otherwise, if there are any cook requests, dequeue them all into OutBuildRequests and return EExternalRequestType::Cook.
 		 * Otherwise, return EExternalRequestType::None.
 		 */
-		EExternalRequestType DequeueRequest(TArray<FSchedulerCallback>& OutCallbacks, FFilePlatformRequest& OutToBuild);
+		EExternalRequestType DequeueNextCluster(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutBuildRequests);
 		/* Move any existing callbacks onto OutCallbacks, and return whether any were added. */
 		bool DequeueCallbacks(TArray<FSchedulerCallback>& OutCallbacks);
 		/** Eliminate all callbacks and cook requests and free memory */
 		void EmptyRequests();
-		/** Move all callbacks into OutCallbacks, and all cook requests into OutCookRequests. This is used when cancelling a cook session. */
+		/** Move all callbacks into OutCallbacks, and all cook requests into OutCookRequests. This is used when canceling a cook session. */
 		void DequeueAll(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutCookRequests);
 
 		/** Remove references to the given platform from all cook requests. */
