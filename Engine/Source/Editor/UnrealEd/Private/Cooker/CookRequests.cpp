@@ -212,7 +212,7 @@ namespace Cook
 		}
 	}
 
-	EExternalRequestType FExternalRequests::DequeueRequest(TArray<FSchedulerCallback>& OutCallbacks, FFilePlatformRequest& OutToBuild)
+	EExternalRequestType FExternalRequests::DequeueNextCluster(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutBuildRequests)
 	{
 		FScopeLock ScopeLock(&RequestLock);
 
@@ -222,9 +222,13 @@ namespace Cook
 		}
 		else if (Queue.Num())
 		{
-			FName Filename = Queue.PopFrontValue();
-			OutToBuild = RequestMap.FindAndRemoveChecked(Filename);
-			--RequestCount;
+			OutBuildRequests.Reserve(Queue.Num() + OutBuildRequests.Num());
+			while (Queue.Num())
+			{
+				FName Filename = Queue.PopFrontValue();
+				OutBuildRequests.Add(RequestMap.FindAndRemoveChecked(Filename));
+				--RequestCount;
+			}
 			return EExternalRequestType::Cook;
 		}
 		else

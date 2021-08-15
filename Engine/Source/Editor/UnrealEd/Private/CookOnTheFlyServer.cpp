@@ -21,6 +21,7 @@
 #include "Cooker/CookPackageData.h"
 #include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookProfiling.h"
+#include "Cooker/CookRequestCluster.h"
 #include "Cooker/CookRequests.h"
 #include "Cooker/CookTypes.h"
 #include "Cooker/IoStoreCookOnTheFlyRequestManager.h"
@@ -311,55 +312,6 @@ void LogCookerMessage( const FString& MessageText, EMessageSeverity::Type Severi
 
 	MessageLog.Notify(FText(), EMessageSeverity::Warning, false);
 }
-
-//////////////////////////////////////////////////////////////////////////
-// Cook by the book options
-
-struct UCookOnTheFlyServer::FCookByTheBookOptions
-{
-public:
-	/** Should we generate streaming install manifests (only valid option in cook by the book) */
-	bool							bGenerateStreamingInstallManifests = false;
-
-	/** Should we generate a seperate manifest for map dependencies */
-	bool							bGenerateDependenciesForMaps = false;
-
-	/** Is cook by the book currently running */
-	bool							bRunning = false;
-
-	/** Cancel has been queued will be processed next tick */
-	bool							bCancel = false;
-
-	/** DlcName setup if we are cooking dlc will be used as the directory to save cooked files to */
-	FString							DlcName;
-
-	/** Create a release from this manifest and store it in the releases directory for this cgame */
-	FString							CreateReleaseVersion;
-
-	/** Dependency graph of maps as root objects. */
-	TFastPointerMap<const ITargetPlatform*,TMap<FName,TSet<FName>>> MapDependencyGraphs;
-
-	/** If we are based on a release version of the game this is the set of packages which were cooked in that release. Map from platform name to list of uncooked package filenames */
-	TMap<FName, TArray<FName>>			BasedOnReleaseCookedPackages;
-
-	/** Timing information about cook by the book */
-	double							CookTime = 0.0;
-	double							CookStartTime = 0.0;
-
-	/** error when detecting engine content being used in this cook */
-	bool							bErrorOnEngineContentUse = false;
-	bool							bSkipHardReferences = false;
-	bool							bSkipSoftReferences = false;
-	bool							bFullLoadAndSave = false;
-	bool							bIoStore = false;
-	bool							bZenStore = false;
-	bool							bCookAgainstFixedBase = false;
-	bool							bDlcLoadMainAssetRegistry = false;
-	TArray<FName>					StartupPackages;
-
-	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
-	TMap<FName, TArray<FName>>		SourceToLocalizedPackageVariants;
-};
 
 //////////////////////////////////////////////////////////////////////////
 // Cook on the fly server interface adapter
@@ -1425,6 +1377,9 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 			bool bBusy;
 			switch (CookAction)
 			{
+			case ECookAction::RequestCluster:
+				PumpRequestClusters(StackData);
+				break;
 			case ECookAction::Request:
 				PumpRequests(StackData, NumPushed);
 				if (NumPushed > 0)
@@ -1748,6 +1703,11 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 		return ECookAction::YieldTick;
 	}
 
+	if (RequestClusters.Num())
+	{
+		return ECookAction::RequestCluster;
+	}
+
 	UE::Cook::FPackageDataMonitor& Monitor = PackageDatas->GetMonitor();
 	if (Monitor.GetNumUrgent() > 0)
 	{
@@ -1839,12 +1799,12 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 	}
 	UE_SCOPED_COOKTIMER(PumpExternalRequests);
 
-	UE::Cook::FFilePlatformRequest ToBuild;
+	TArray<UE::Cook::FFilePlatformRequest> BuildRequests;
 	TArray<UE::Cook::FSchedulerCallback> SchedulerCallbacks;
 	UE::Cook::EExternalRequestType RequestType;
 	while (!CookerTimer.IsTimeUp())
 	{
-		RequestType = ExternalRequests->DequeueRequest(SchedulerCallbacks, ToBuild);
+		RequestType = ExternalRequests->DequeueNextCluster(SchedulerCallbacks, BuildRequests);
 		if (RequestType == UE::Cook::EExternalRequestType::None)
 		{
 			// No more requests to process
@@ -1860,34 +1820,40 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 		}
 		else
 		{
-			check(RequestType == UE::Cook::EExternalRequestType::Cook && ToBuild.IsValid());
-			FName FileName = ToBuild.GetFilename();
+			check(RequestType == UE::Cook::EExternalRequestType::Cook && BuildRequests.Num() > 0);
 #if PROFILE_NETWORK
 			if (NetworkRequestEvent)
 			{
 				NetworkRequestEvent->Trigger();
 			}
 #endif
-#if DEBUG_COOKONTHEFLY
-			UE_LOG(LogCook, Display, TEXT("Processing request for package %s"), *FileName.ToString());
-#endif
+			bool bRequestsAreUrgent = IsCookOnTheFlyMode();
+			UE::Cook::FRequestCluster::AddClusters(*this, MoveTemp(BuildRequests), bRequestsAreUrgent,
+				RequestClusters);
+		}
+	}
+}
 
-			const FName* PackageName = GetPackageNameCache().GetCachedPackageNameFromStandardFileName(FileName, /* bExactMatchRequired */ false, &FileName);
-			if (!PackageName)
+void UCookOnTheFlyServer::PumpRequestClusters(UE::Cook::FTickStackData& StackData)
+{
+	using namespace UE::Cook;
+
+	const FCookerTimer& CookerTimer = StackData.Timer;
+	while (RequestClusters.Num() > 0 && !CookerTimer.IsTimeUp())
+	{
+		FRequestCluster& RequestCluster = RequestClusters.First();
+		bool bComplete = false;
+		RequestCluster.Process(CookerTimer, bComplete);
+		if (bComplete)
+		{
+			for (FRequestCluster::FRequest& Request : RequestCluster.GetRequests())
 			{
-				LogCookerMessage(FString::Printf(TEXT("Could not find package at file %s!"), *ToBuild.GetFilename().ToString()), EMessageSeverity::Error);
-				UE_LOG(LogCook, Error, TEXT("Could not find package at file %s!"), *ToBuild.GetFilename().ToString());
-				UE::Cook::FCompletionCallback CompletionCallback(MoveTemp(ToBuild.GetCompletionCallback()));
-				if (CompletionCallback)
-				{
-					CompletionCallback(nullptr);
-				}
-				continue;
+				FPackageData& PackageData(PackageDatas->FindOrAddPackageData(Request.PackageName, Request.FileName));
+				PackageData.UpdateRequestData(RequestCluster.GetPlatforms(), Request.bIsUrgent,
+					MoveTemp(Request.CompletionCallback));
 			}
 
-			UE::Cook::FPackageData& PackageData(PackageDatas->FindOrAddPackageData(*PackageName, FileName));
-			bool bIsUrgent = IsCookOnTheFlyMode();
-			PackageData.UpdateRequestData(ToBuild.GetPlatforms(), bIsUrgent, MoveTemp(ToBuild.GetCompletionCallback()));
+			RequestClusters.PopFront();
 		}
 	}
 }
@@ -1953,6 +1919,8 @@ void UCookOnTheFlyServer::ProcessRequest(UE::Cook::FPackageData& PackageData, UE
 
 	if (!PackageData.GetIsUrgent() && (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences))
 	{
+		// TODO: We need to AddDependenciesToLoadQueue only for requests that did not already do so
+		// because they were part of a CookRequestCluster
 		int32 NumPushed;
 		AddDependenciesToLoadQueue(PackageData, NumPushed);
 		OutNumPushed += NumPushed;
@@ -4953,6 +4921,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 		FLinkerLoad::SetPreloadingEnabled(true);
 	}
 	GConfig->GetBool(TEXT("CookSettings"), TEXT("TargetDomainEnabled"), bTargetDomainEnabled, GEditorIni);
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("ExploreSoftReferencesOnStart"), bExploreSoftReferencesOnStart, GEditorIni);
 
 	{
 		const FConfigSection* CacheSettings = GConfig->GetSectionPrivate(TEXT("CookPlatformDataCacheSettings"), false, true, GEditorIni);
@@ -8841,9 +8810,9 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 		UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_RequestedLoads);
 		while (ExternalRequests->HasRequests())
 		{
-			UE::Cook::FFilePlatformRequest ToBuild;
+			TArray<UE::Cook::FFilePlatformRequest> BuildRequests;
 			TArray<UE::Cook::FSchedulerCallback> SchedulerCallbacks;
-			UE::Cook::EExternalRequestType RequestType = ExternalRequests->DequeueRequest(SchedulerCallbacks, /* out */ ToBuild);
+			UE::Cook::EExternalRequestType RequestType = ExternalRequests->DequeueNextCluster(SchedulerCallbacks, BuildRequests);
 			if (RequestType == UE::Cook::EExternalRequestType::Callback)
 			{
 				for (UE::Cook::FSchedulerCallback& SchedulerCallback : SchedulerCallbacks)
@@ -8852,21 +8821,23 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 				}
 				continue;
 			}
-			check(RequestType == UE::Cook::EExternalRequestType::Cook && ToBuild.IsValid());
-
-			const FName BuildFilenameFName = ToBuild.GetFilename();
-			if (!PackageTracker->NeverCookPackageList.Contains(BuildFilenameFName))
+			check(RequestType == UE::Cook::EExternalRequestType::Cook && BuildRequests.Num() > 0);
+			for (UE::Cook::FFilePlatformRequest& ToBuild : BuildRequests)
 			{
-				const FString BuildFilename = BuildFilenameFName.ToString();
-				GIsCookerLoadingPackage = true;
-				UE_SCOPED_HIERARCHICAL_COOKTIMER(LoadPackage);
-				LoadPackage(nullptr, *BuildFilename, LOAD_None);
-				if (GShaderCompilingManager)
+				const FName BuildFilenameFName = ToBuild.GetFilename();
+				if (!PackageTracker->NeverCookPackageList.Contains(BuildFilenameFName))
 				{
-					GShaderCompilingManager->ProcessAsyncResults(true, false);
+					const FString BuildFilename = BuildFilenameFName.ToString();
+					GIsCookerLoadingPackage = true;
+					UE_SCOPED_HIERARCHICAL_COOKTIMER(LoadPackage);
+					LoadPackage(nullptr, *BuildFilename, LOAD_None);
+					if (GShaderCompilingManager)
+					{
+						GShaderCompilingManager->ProcessAsyncResults(true, false);
+					}
+					FAssetCompilingManager::Get().ProcessAsyncTasks(true);
+					GIsCookerLoadingPackage = false;
 				}
-				FAssetCompilingManager::Get().ProcessAsyncTasks(true);
-				GIsCookerLoadingPackage = false;
 			}
 		}
 	}

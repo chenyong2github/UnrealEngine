@@ -167,4 +167,53 @@ namespace Cook
 }
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Cook by the book options
+
+struct UCookOnTheFlyServer::FCookByTheBookOptions
+{
+public:
+	/** Should we generate streaming install manifests (only valid option in cook by the book) */
+	bool							bGenerateStreamingInstallManifests = false;
+
+	/** Should we generate a seperate manifest for map dependencies */
+	bool							bGenerateDependenciesForMaps = false;
+
+	/** Is cook by the book currently running */
+	bool							bRunning = false;
+
+	/** Cancel has been queued will be processed next tick */
+	bool							bCancel = false;
+
+	/** DlcName setup if we are cooking dlc will be used as the directory to save cooked files to */
+	FString							DlcName;
+
+	/** Create a release from this manifest and store it in the releases directory for this cgame */
+	FString							CreateReleaseVersion;
+
+	/** Dependency graph of maps as root objects. */
+	TFastPointerMap<const ITargetPlatform*, TMap<FName, TSet<FName>>> MapDependencyGraphs;
+
+	/** If we are based on a release version of the game this is the set of packages which were cooked in that release. Map from platform name to list of uncooked package filenames */
+	TMap<FName, TArray<FName>>			BasedOnReleaseCookedPackages;
+
+	/** Timing information about cook by the book */
+	double							CookTime = 0.0;
+	double							CookStartTime = 0.0;
+
+	/** error when detecting engine content being used in this cook */
+	bool							bErrorOnEngineContentUse = false;
+	bool							bSkipHardReferences = false;
+	bool							bSkipSoftReferences = false;
+	bool							bFullLoadAndSave = false;
+	bool							bIoStore = false;
+	bool							bZenStore = false;
+	bool							bCookAgainstFixedBase = false;
+	bool							bDlcLoadMainAssetRegistry = false;
+	TArray<FName>					StartupPackages;
+
+	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
+	TMap<FName, TArray<FName>>		SourceToLocalizedPackageVariants;
+};
+
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);

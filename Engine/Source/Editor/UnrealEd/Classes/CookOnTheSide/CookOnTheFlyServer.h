@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Containers/ArrayView.h"
+#include "Containers/RingBuffer.h"
 #include "CookOnTheSide/CookLog.h"
 #include "INetworkFileSystemModule.h"
 #include "IPlatformFileSandboxWrapper.h"
@@ -112,6 +113,7 @@ ENUM_CLASS_FLAGS(ECookTickFlags);
 namespace UE::Cook
 {
 	class FExternalRequests;
+	class FRequestCluster;
 	class FSaveCookedPackageContext;
 	class ICookOnTheFlyRequestManager;
 	struct FCookerTimer;
@@ -304,19 +306,22 @@ private:
 	void UpdateDisplay(ECookTickFlags CookFlags, bool bForceDisplay);
 	enum class ECookAction
 	{
-		Done,		// The cook is complete; no requests remain in any non-idle state
-		Request,    // Process the RequestQueue
-		Load,		// Process the LoadQueue
-		LoadLimited,// Process the LoadQueue, stopping when loadqueuelength reaches the desired population level
-		Save,       // Process the SaveQueue
-		SaveLimited,// Process the SaveQueue, stopping when savequeuelength reaches the desired population level
-		YieldTick,  // Progress is blocked by an async result. Temporarily exit TickCookOnTheSide.
-		Cancel,		// Cancel the current CookByTheBook
+		Done,			// The cook is complete; no requests remain in any non-idle state
+		RequestCluster,	// Process the RequestClusters
+		Request,		// Process the RequestQueue
+		Load,			// Process the LoadQueue
+		LoadLimited,	// Process the LoadQueue, stopping when loadqueuelength reaches the desired population level
+		Save,			// Process the SaveQueue
+		SaveLimited,	// Process the SaveQueue, stopping when savequeuelength reaches the desired population level
+		YieldTick,		// Progress is blocked by an async result. Temporarily exit TickCookOnTheSide.
+		Cancel,			// Cancel the current CookByTheBook
 	};
 	/** Inspect all tasks the scheduler could do and return which one it should do. */
 	ECookAction DecideNextCookAction(UE::Cook::FTickStackData& StackData);
-	/** Execute any existing external callbacks and push any existing external cook requests into the RequestQueue. */
+	/** Execute any existing external callbacks and push any existing external cook requests into new RequestClusters. */
 	void PumpExternalRequests(const UE::Cook::FCookerTimer& CookerTimer);
+	/** Pull off each RequestCluster and find all transitive dependencies and push them into the RequestQueue. */
+	void PumpRequestClusters(UE::Cook::FTickStackData& StackData);
 	/** Inspect the next package in the RequestQueue and push it on to its next state. Report the number of PackageDatas that were pushed to load. */
 	void PumpRequests(UE::Cook::FTickStackData& StackData, int32& OutNumPushed);
 	/** Handle the requested PackageData that has been peeled off of the RequestQueue, e.g. by sending it on to the LoadQueue. Report the number of PackageDatas that were pushed to load (includes dependencies, so may be more than 1). */
@@ -1120,6 +1125,11 @@ private:
 	bool bPreloadingEnabled = false;
 	/** If TargetDomain is enabled, we load/save TargetDomainKey hashes and use those to test whether packages have already been cooked in hybrid-iterative builds. */
 	bool bTargetDomainEnabled = true;
+	/**
+	 * Following soft dependencies in request clusters can cause editor-only packages to be cooked due to lack of robust editor-only reference detection.
+	 * Projects can disable it to prevent cooking those packages, at the cost of lower cook performance.
+	 */
+	bool bExploreSoftReferencesOnStart = true;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	float SaveBusyTimeLastRetry = 0.f;
@@ -1133,6 +1143,7 @@ private:
 	TUniquePtr<UE::Cook::FPackageTracker> PackageTracker;
 	TUniquePtr<UE::Cook::FPackageDatas> PackageDatas;
 	TUniquePtr<UE::Cook::FExternalRequests> ExternalRequests;
+	TRingBuffer<UE::Cook::FRequestCluster> RequestClusters;
 
 	TArray<FSavePackageContext*> SavePackageContexts;
 	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */
@@ -1141,10 +1152,8 @@ private:
 	/** Helper struct for running cooking in diagnostic modes */
 	TUniquePtr<FDiffModeCookServerUtils> DiffModeHelper;
 
-	// temporary -- should eliminate the need for this. Only required right now because FullLoadAndSave 
-	// accesses maps directly
-	friend FPackageNameCache;
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;
+	friend UE::Cook::FRequestCluster;
 };
