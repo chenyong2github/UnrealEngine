@@ -369,6 +369,8 @@ private:
 	void UpdateCPPTypeObjectIfRequired() const;
 	void SetNameFromIndex();
 
+	void GetExposedPinChainImpl(TArray<const URigVMPin*>& OutExposedPins, TArray<const URigVMPin*>& VisitedPins) const;
+
 	UPROPERTY()
 	FName DisplayName;
 
