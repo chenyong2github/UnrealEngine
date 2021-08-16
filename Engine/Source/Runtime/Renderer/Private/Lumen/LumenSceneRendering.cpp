@@ -302,7 +302,7 @@ bool Lumen::IsSoftwareRayTracingSupported()
 	return DoesProjectSupportDistanceFields();
 }
 
-bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck)
+bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck)
 {
 	return View.Family
 		&& ShouldRenderLumenForViewFamily(Scene, *View.Family, bSkipProjectCheck)
@@ -310,7 +310,7 @@ bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& V
 		&& !View.bIsPlanarReflection
 		&& !View.bIsSceneCapture
 		&& !View.bIsReflectionCapture
-		&& View.ViewState
+		&& View.State
 		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracing() || IsSoftwareRayTracingSupported());
 }
 
