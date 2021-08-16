@@ -18,6 +18,7 @@
 #include "EditorModes.h"
 #include "Dialogs/Dialogs.h"
 #include "BSPOps.h"
+#include "Engine/BrushBuilder.h"
 #include "GeometryEdMode.h"
 #include "EditorGeometry.h"
 #include "Engine/BrushShape.h"
@@ -1351,7 +1352,12 @@ void UGeomModifier_Pen::Apply()
 		}
 		else
 		{
-			ResultingBrush = FBSPOps::csgAddOperation( BuilderBrush, PF_DefaultFlags, Brush_Add );	
+			ResultingBrush = FBSPOps::csgAddOperation( BuilderBrush, PF_DefaultFlags, Brush_Add );
+
+			if (ResultingBrush && ResultingBrush->GetBrushBuilder())
+			{
+				FActorLabelUtilities::SetActorLabelUnique(ResultingBrush, FText::Format(NSLOCTEXT("BSPBrushOps", "BrushName", "{0} Brush"), FText::FromString(ResultingBrush->GetBrushBuilder()->GetClass()->GetDescription())).ToString());
+			}
 		}
 
 		// Make sure the graphics engine isn't busy rendering this geometry before we go and modify it

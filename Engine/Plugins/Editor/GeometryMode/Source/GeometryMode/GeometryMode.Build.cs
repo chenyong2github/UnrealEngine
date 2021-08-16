@@ -8,6 +8,7 @@ public class GeometryMode : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"BSPUtils",
 				"Core",
 				"CoreUObject",
 				"Engine",

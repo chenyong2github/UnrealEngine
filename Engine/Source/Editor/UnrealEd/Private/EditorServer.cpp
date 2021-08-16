@@ -105,6 +105,7 @@
 #include "ScopedTransaction.h"
 #include "SurfaceIterators.h"
 #include "LightMap.h"
+#include "Engine/BrushBuilder.h"
 #include "BSPOps.h"
 #include "EditorLevelUtils.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -755,6 +756,11 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 			NewBrush = FBSPOps::csgAddOperation( WorldBrush, DWord1, Brush_Add );
 			if( NewBrush )
 			{
+				if( NewBrush->GetBrushBuilder() )
+				{
+					FActorLabelUtilities::SetActorLabelUnique(NewBrush, FText::Format(NSLOCTEXT("UnrealEd", "BrushName", "{0} Brush"), FText::FromString(NewBrush->GetBrushBuilder()->GetClass()->GetDescription())).ToString());
+				}
+
 				// Materials selected in the Content Browser, but not actually loaded, will not be
 				// in the global selection set, which is expected by bspBrushCSG when it comes to
 				// applying the material to the surfaces. This goes through the set of objects selected
@@ -853,6 +859,11 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 			NewBrush = FBSPOps::csgAddOperation(WorldBrush,0,Brush_Subtract); // Layer
 			if( NewBrush )
 			{
+				if( NewBrush->GetBrushBuilder() )
+				{
+					FActorLabelUtilities::SetActorLabelUnique(NewBrush, FText::Format(NSLOCTEXT("UnrealEd", "BrushName", "{0} Brush"), FText::FromString(NewBrush->GetBrushBuilder()->GetClass()->GetDescription())).ToString());
+				}
+
 				NewBrush->Modify();
 				InWorld->GetModel()->Modify();
 				bspBrushCSG( NewBrush, InWorld->GetModel(), 0, Brush_Subtract, CSG_None, true, true, true );
