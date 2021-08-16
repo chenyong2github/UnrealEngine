@@ -288,7 +288,7 @@ float FAnimSingleNodeInstanceProxy::GetBlendSpaceLength() const
 	{
 		const FBlendSampleData& Data = BlendSampleData[Index];
 		float AnimLength = Data.Animation->GetPlayLength();
-		float Weight = Data.GetWeight();
+		float Weight = Data.GetClampedWeight();
 		TotalLength += AnimLength * Weight;
 		TotalWeight += Weight;
 	}

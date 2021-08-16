@@ -575,7 +575,7 @@ float SBlendSpaceGridWidget::GetSampleLookupWeight(int32 SampleIndex) const
 		{
 			if (LookedUpSample.SampleDataIndex == SampleIndex)
 			{
-				LookedUpSampleWeight += LookedUpSample.GetWeight();
+				LookedUpSampleWeight += LookedUpSample.GetClampedWeight();
 			}
 		}
 		return FMath::Clamp(LookedUpSampleWeight, 0.0f, 1.0f);

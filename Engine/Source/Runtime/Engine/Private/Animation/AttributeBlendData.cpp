@@ -345,7 +345,7 @@ namespace UE { namespace Anim {
 			}
 			else
 			{
-				return BlendSampleData.GetWeight();
+				return BlendSampleData.GetClampedWeight();
 			}
 		}
 

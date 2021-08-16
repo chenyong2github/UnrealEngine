@@ -895,7 +895,7 @@ void OutputTickRecords(const TArray<FAnimTickRecord>& Records, UCanvas* Canvas, 
 						FBlendSampleData& WeightedSample = SampleData[WeightedSampleIndex];
 						if (WeightedSample.SampleDataIndex == SampleIndex)
 						{
-							Weight += WeightedSample.GetWeight();
+							Weight += WeightedSample.GetClampedWeight();
 						}
 						else if (WeightedSample.SampleDataIndex > SampleIndex)
 						{

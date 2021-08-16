@@ -368,7 +368,7 @@ void Attributes::BlendAttributesPerBone(TArrayView<const FStackAttributeContaine
 		TArray<float> Weights;
 		for (const FBlendSampleData& SampleData : BlendSampleDataCache)
 		{
-			Weights.Add(SampleData.GetWeight());
+			Weights.Add(SampleData.GetClampedWeight());
 		}
 
 		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)
@@ -409,7 +409,7 @@ void Attributes::BlendAttributesPerBone(TArrayView<const FStackAttributeContaine
 		for (const int32& SampleIndex : BlendSampleDataCacheIndices)
 		{
 			const FBlendSampleData& SampleData = BlendSampleDataCache[SampleIndex];
-			Weights.Add(SampleData.GetWeight());
+			Weights.Add(SampleData.GetClampedWeight());
 		}
 
 		for (const TWeakObjectPtr<const UScriptStruct>& WeakScriptStruct : UniqueStructs)

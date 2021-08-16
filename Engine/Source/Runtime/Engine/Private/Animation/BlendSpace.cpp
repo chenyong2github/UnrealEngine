@@ -560,14 +560,14 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 
 							if (Context.RootMotionMode == ERootMotionMode::RootMotionFromEverything && Sample.Animation->bEnableRootMotion)
 							{
-								Context.RootMotionMovementParams.AccumulateWithBlend(Sample.Animation->ExtractRootMotion(PrevSampleDataTime, DeltaTimePosition, Instance.bLooping), SampleEntry.GetWeight());
+								Context.RootMotionMovementParams.AccumulateWithBlend(Sample.Animation->ExtractRootMotion(PrevSampleDataTime, DeltaTimePosition, Instance.bLooping), SampleEntry.GetClampedWeight());
 							}
 
 							// Capture the final adjusted delta time and previous frame time as an asset player record
 							SampleEntry.DeltaTimeRecord.Previous = PrevSampleDataTime;
 							SampleEntry.DeltaTimeRecord.Delta = DeltaTimePosition;
 
-							UE_LOG(LogAnimation, Verbose, TEXT("%d. Blending animation(%s) with %f weight at time %0.2f"), I + 1, *Sample.Animation->GetName(), SampleEntry.GetWeight(), CurrentSampleDataTime);
+							UE_LOG(LogAnimation, Verbose, TEXT("%d. Blending animation(%s) with %f weight at time %0.2f"), I + 1, *Sample.Animation->GetName(), SampleEntry.GetClampedWeight(), CurrentSampleDataTime);
 						}
 					}
 				}
@@ -827,7 +827,7 @@ void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampl
 		if (SampleData.IsValidIndex(BlendSampleDataCache[I].SampleDataIndex))
 		{
 			const FBlendSample& Sample = SampleData[BlendSampleDataCache[I].SampleDataIndex];
-			ChildrenWeights[I] = BlendSampleDataCache[I].GetWeight();
+			ChildrenWeights[I] = BlendSampleDataCache[I].GetClampedWeight();
 
 			if (bNested)
 			{
@@ -982,24 +982,24 @@ bool UBlendSpace::GetSamplesFromBlendInput(
 					(FirstSample->Animation != nullptr && FirstSample->Animation == SecondSample->Animation))
 				{
 					//Calc New Sample Playrate
-					const float TotalWeight = FirstSample->GetWeight() + SecondSample->GetWeight();
+					const float TotalWeight = FirstSample->GetClampedWeight() + SecondSample->GetClampedWeight();
 
 					// Only combine playrates if total weight > 0
 					if (!FMath::IsNearlyZero(TotalWeight))
 					{
-						if (FirstSample->GetWeight() < SecondSample->GetWeight())
+						if (FirstSample->GetClampedWeight() < SecondSample->GetClampedWeight())
 						{
 							// Not strictly necessary, but if we swap here then we keep the one that has a higher
 							// weight, which can make debugging/viewing the blend space more intuitive.
 							OutSampleDataList.Swap(Index1, Index2);
 						}
 
-						const float OriginalWeightedPlayRate = FirstSample->SamplePlayRate * (FirstSample->GetWeight() / TotalWeight);
-						const float SecondSampleWeightedPlayRate = SecondSample->SamplePlayRate * (SecondSample->GetWeight() / TotalWeight);
+						const float OriginalWeightedPlayRate = FirstSample->SamplePlayRate * (FirstSample->GetClampedWeight() / TotalWeight);
+						const float SecondSampleWeightedPlayRate = SecondSample->SamplePlayRate * (SecondSample->GetClampedWeight() / TotalWeight);
 						FirstSample->SamplePlayRate = OriginalWeightedPlayRate + SecondSampleWeightedPlayRate;
 
 						// add weight
-						FirstSample->AddWeight(SecondSample->GetWeight());
+						FirstSample->AddWeight(SecondSample->GetClampedWeight());
 					}
 
 					// as for time or previous time will be the master one(Index1)
@@ -1520,8 +1520,8 @@ float UBlendSpace::GetAnimationLengthFromSampleData(const TArray<FBlendSampleDat
 				//Multiple samples contribution which we would otherwise lose
 				const float MultipliedSampleRateScale = Sample.Animation->RateScale * SampleDataList[I].SamplePlayRate;
 				// apply rate scale to get actual playback time
-				BlendAnimLength += (Sample.Animation->GetPlayLength() / ((MultipliedSampleRateScale) != 0.0f ? FMath::Abs(MultipliedSampleRateScale) : 1.0f)) * SampleDataList[I].GetWeight();
-				UE_LOG(LogAnimation, Verbose, TEXT("[%d] - Sample Animation(%s) : Weight(%0.5f) "), I + 1, *Sample.Animation->GetName(), SampleDataList[I].GetWeight());
+				BlendAnimLength += (Sample.Animation->GetPlayLength() / ((MultipliedSampleRateScale) != 0.0f ? FMath::Abs(MultipliedSampleRateScale) : 1.0f)) * SampleDataList[I].GetClampedWeight();
+				UE_LOG(LogAnimation, Verbose, TEXT("[%d] - Sample Animation(%s) : Weight(%0.5f) "), I + 1, *Sample.Animation->GetName(), SampleDataList[I].GetClampedWeight());
 			}
 		}
 	}
@@ -1670,7 +1670,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 				if (InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH || TotalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH)
 				{
 					FinalSampleDataList.Add(InterpData);
-					TotalFinalWeight += InterpData.GetWeight();
+					TotalFinalWeight += InterpData.GetClampedWeight();
 					TotalFinalPerBoneWeight += TotalPerBoneWeight;
 					bTargetSampleExists = true;
 					break;
@@ -1698,7 +1698,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 			if (InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH || TotalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH)
 			{
 				FinalSampleDataList.Add(InterpData);
-				TotalFinalWeight += InterpData.GetWeight();
+				TotalFinalWeight += InterpData.GetClampedWeight();
 				TotalFinalPerBoneWeight += TotalPerBoneWeight;
 			}
 		}
@@ -1751,7 +1751,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 			if (InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH || TotalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH)
 			{
 				FinalSampleDataList.Add(InterpData);
-				TotalFinalWeight += InterpData.GetWeight();
+				TotalFinalWeight += InterpData.GetClampedWeight();
 				TotalFinalPerBoneWeight += TotalPerBoneWeight;
 			}
 		}

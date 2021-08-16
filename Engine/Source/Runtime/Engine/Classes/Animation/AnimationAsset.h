@@ -161,7 +161,14 @@ struct FBlendSampleData
 	{
 		TotalWeight += Weight;
 	}
+
+	UE_DEPRECATED(5.0, "GetWeight() was renamed to GetClampedWeight()")
 	float GetWeight() const
+	{
+		return GetClampedWeight();
+	}
+
+	float GetClampedWeight() const
 	{
 		return FMath::Clamp<float>(TotalWeight, 0.f, 1.f);
 	}
