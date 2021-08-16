@@ -93,7 +93,7 @@ if !BOOST_BUILD_LIBRARIES!==1 (
 	if not errorlevel 0 goto error
 		
 	:: Set tool set to current UE tool set.
-	set BOOST_TOOLSET=msvc-14.1
+	set BOOST_TOOLSET=msvc-14.2
 
 	:: Provide user config to provide tool set version and Python configuration.
 	set BOOST_PYTHON_PATH=%PATH_SCRIPT%\..\..\..\Python3\Win64
