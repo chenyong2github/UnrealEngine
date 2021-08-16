@@ -809,6 +809,156 @@ namespace UE { namespace TasksTests
 		return true;
 	}
 
+	// blocks all workers (except reserve workers) until given event is triggered. Returns blocking tasks.
+	TArray<FTask> BlockWorkers(FTaskEvent& ResumeEvent)
+	{
+		FPlatformProcess::Sleep(0.1f); // give workers time to fall asleep, to avoid any reserve worker messing around
+
+		uint32 NumWorkers = LowLevelTasks::FScheduler::Get().GetNumWorkers();
+
+		TArray<FTask> WorkerBlockers; // tasks that block worker threads
+		WorkerBlockers.Reserve(NumWorkers);
+
+		std::atomic<uint32> NumWorkersNotBlocked{ NumWorkers };
+
+		for (int i = 0; i != NumWorkers; ++i)
+		{
+			checkf(LowLevelTasks::FScheduler::Get().IsWorkerThread(), TEXT("No reserve workers are expected to get blocked"));
+			WorkerBlockers.Add(Launch(UE_SOURCE_LOCATION,
+				[&NumWorkersNotBlocked, &ResumeEvent]
+				{
+					--NumWorkersNotBlocked;
+					ResumeEvent.Wait();
+				}
+			));
+		}
+
+		UE::FTimeout Timeout{ FTimespan::FromSeconds(1) };
+		while (NumWorkersNotBlocked != 0)
+		{
+			check(!Timeout);
+			FPlatformProcess::Sleep(0.001f);
+		}
+
+		return WorkerBlockers;
+	}
+
+	// two levels of prerequisites and two levels of nested tasks
+	void TwoLevelsDeepRetractionTest()
+	{
+		FTask P11{ Launch(TEXT("P11"), [] {}) };
+		FTask P12{ Launch(TEXT("P12"), [] {}) };
+		FTask P21{ Launch(TEXT("P21"), [] {}, Prerequisites(P11, P12)) };
+		FTask P22{ Launch(TEXT("P22"), [] {}) };
+		FTask N11, N12, N21, N22;
+		Launch(UE_SOURCE_LOCATION,
+			[&N11, &N12, &N21, &N22]
+			{
+				AddNested(N11 = Launch(TEXT("N11"),
+					[&N21, &N22]
+					{
+						AddNested(N21 = Launch(TEXT("N21"), [] {}));
+						AddNested(N22 = Launch(TEXT("N22"), [] {}));
+					}
+				));
+				AddNested(N12 = Launch(TEXT("N12"), [] {}));
+			},
+			Prerequisites(P21, P22)
+		).Wait();
+		check(P11.IsCompleted() && P12.IsCompleted() && P21.IsCompleted() && P22.IsCompleted() &&
+			N11.IsCompleted() && N12.IsCompleted() && N21.IsCompleted() && N22.IsCompleted());
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionTest, "System.Core.Tasks.DeepRetraction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTasksDeepRetractionTest::RunTest(const FString& Parameters)
+	{
+		FTaskEvent ResumeEvent{ UE_SOURCE_LOCATION };
+		TArray<FTask> WorkerBlockers = BlockWorkers(ResumeEvent);
+
+		{	// basic retraction, no dependencies
+			bool bDone = false;
+			Launch(UE_SOURCE_LOCATION, [&bDone] { bDone = true; }).Wait();
+			check(bDone);
+		}
+
+		{	// basic deep retraction: single prerequisite
+			bool bPrerequisiteDone = false;
+			bool bTaskDone = false;
+			FTask Prerequisite{ Launch(UE_SOURCE_LOCATION, 
+				[&bPrerequisiteDone, &bTaskDone] 
+				{
+					check(!bPrerequisiteDone);
+					check(!bTaskDone);
+					bPrerequisiteDone = true;
+				}
+			)};
+			Launch(UE_SOURCE_LOCATION, 
+				[&bPrerequisiteDone, &bTaskDone] 
+				{ 
+					check(bPrerequisiteDone);
+					check(!bTaskDone);
+					bTaskDone = true; 
+				}
+			).Wait();
+			check(bPrerequisiteDone);
+			check(bTaskDone);
+		}
+
+		{	// basic deep retraction: single nested task
+			bool bParentDone = false;
+			bool bNestedDone = false;
+			FTask NestedTask;
+			Launch(UE_SOURCE_LOCATION,
+				[&bParentDone, &bNestedDone, &NestedTask]
+				{
+					check(!bParentDone);
+					check(!bNestedDone);
+					NestedTask = Launch(UE_SOURCE_LOCATION,
+						[&bParentDone, &bNestedDone]
+						{
+							check(bParentDone); // due to single-threaded execution (cos all workers are blocked), nested task can't be executed
+							// until the parent is
+							check(!bNestedDone);
+							bNestedDone = true;
+						}
+					);
+					AddNested(NestedTask);
+					check(!bNestedDone);
+					bParentDone = true;
+				}
+			).Wait();
+			check(bParentDone);
+			check(bNestedDone);
+			check(NestedTask.IsCompleted());
+		}
+
+		TwoLevelsDeepRetractionTest();
+
+		ResumeEvent.Trigger();
+		verify(Wait(WorkerBlockers, FTimespan::FromSeconds(1)));
+
+		return true;
+	}
+
+	template<uint32 Num>
+	void DeepRetractionStressTest()
+	{
+		for (uint32 i = 0; i != Num; ++i)
+		{
+			TwoLevelsDeepRetractionTest();
+		}
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionStressTest, "System.Core.Tasks.DeepRetraction.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTasksDeepRetractionStressTest::RunTest(const FString& Parameters)
+	{
+		UE_BENCHMARK(5, DeepRetractionStressTest<1000>);
+
+		return true;
+	}
+
 	template<int NumTasks>
 	void TestPerfBasic()
 	{
@@ -991,7 +1141,7 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPerfTest, "System.Core.Async.TaskGraph.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPerfTest, "System.Core.Tasks.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	bool FTasksPerfTest::RunTest(const FString& Parameters)
 	{

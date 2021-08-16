@@ -5,7 +5,7 @@
 
 namespace UE { namespace Tasks { namespace Private
 {
-	bool FTaskBase::PushIntoPipe()
+	FTaskBase* FTaskBase::PushIntoPipe()
 	{
 		return GetPipe()->PushIntoPipe(*this);
 	}
@@ -39,7 +39,12 @@ namespace UE { namespace Tasks { namespace Private
 				Subsequent->TryUnlock();
 			}
 		);
-	
+
+		while (TOptional<FTaskBase*> Prerequisite = Prerequisites.Dequeue())
+		{
+			Prerequisite.GetValue()->Release();
+		}
+
 		Release(); // release the reference accounted for nested tasks. the task can be destroyed as the result
 	}
 
