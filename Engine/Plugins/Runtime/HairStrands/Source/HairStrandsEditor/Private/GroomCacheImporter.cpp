@@ -117,7 +117,7 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 			SlowTask.EnterProgressFrame(1.f, TextBuilder.ToText());
 
 			FHairDescription FrameHairDescription;
-			if (Translator->Translate(FrameIndex, FrameHairDescription, HairImportContext.ImportOptions->ConversionSettings))
+			if (Translator->Translate(FrameIndex * AnimInfo.SecondsPerFrame, FrameHairDescription, HairImportContext.ImportOptions->ConversionSettings))
 			{
 				FHairDescriptionGroups HairDescriptionGroups;
 				if (!FGroomBuilder::BuildHairDescriptionGroups(FrameHairDescription, HairDescriptionGroups))

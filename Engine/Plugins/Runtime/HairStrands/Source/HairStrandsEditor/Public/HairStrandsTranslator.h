@@ -31,7 +31,11 @@ public:
 	virtual bool BeginTranslation(const FString& FilePath) { return false; }
 
 	/** Translate a given file into a HairDescription at the requested frame index; return true if successful */
+	UE_DEPRECATED(5.0, "Translate by frame index is deprecated. Use Translate by frame time instead.")
 	virtual bool Translate(uint32 FrameIndex, FHairDescription& OutHairDescription, const struct FGroomConversionSettings& ConversionSettings) { return false; }
+
+	/** Translate a given file into a HairDescription at the requested frame time (in seconds); return true if successful */
+	virtual bool Translate(float FrameTime, FHairDescription& OutHairDescription, const struct FGroomConversionSettings& ConversionSettings) { return false; }
 
 	/** Clean up after finishing translations */
 	virtual void EndTranslation() { }

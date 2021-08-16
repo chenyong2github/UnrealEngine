@@ -425,7 +425,7 @@ FMatrix ConvertAlembicMatrix(const Alembic::Abc::M44d& AbcMatrix)
 	return Matrix;
 }
 
-static void ParseObject(const Alembic::Abc::IObject& InObject, int32 FrameIndex, FHairDescription& HairDescription, const FMatrix& ParentMatrix, const FMatrix& ConversionMatrix, float Scale, bool bCheckGroomAttributes, FGroomAnimationInfo* AnimInfo)
+static void ParseObject(const Alembic::Abc::IObject& InObject, float FrameTime, FHairDescription& HairDescription, const FMatrix& ParentMatrix, const FMatrix& ConversionMatrix, float Scale, bool bCheckGroomAttributes, FGroomAnimationInfo* AnimInfo)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParseObject);
 
@@ -490,7 +490,7 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, int32 FrameIndex,
 			}
 		}
 
-		Alembic::Abc::ISampleSelector SampleSelector((Alembic::Abc::index_t) FrameIndex);
+		Alembic::Abc::ISampleSelector SampleSelector((Alembic::Abc::chrono_t) FrameTime);
 		Alembic::AbcGeom::ICurves::schema_type::Sample Sample = Curves.getSchema().getValue(SampleSelector);
 
 		Alembic::Abc::FloatArraySamplePtr Widths = Curves.getSchema().getWidthsParam() ? Curves.getSchema().getWidthsParam().getExpandedValue(SampleSelector).getVals() : nullptr;
@@ -641,7 +641,7 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, int32 FrameIndex,
 	{
 		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 		{
-			ParseObject(InObject.getChild(ChildIndex), FrameIndex, HairDescription, LocalMatrix, ConversionMatrix, Scale, bCheckGroomAttributes, AnimInfo);
+			ParseObject(InObject.getChild(ChildIndex), FrameTime, HairDescription, LocalMatrix, ConversionMatrix, Scale, bCheckGroomAttributes, AnimInfo);
 		}
 	}
 }
@@ -693,7 +693,7 @@ bool FAlembicHairTranslator::Translate(const FString& FileName, FHairDescription
 	FMatrix ConversionMatrix = FScaleMatrix::Make(ConversionSettings.Scale) * FRotationMatrix::Make(FQuat::MakeFromEuler(ConversionSettings.Rotation));
 	FMatrix ParentMatrix = FMatrix::Identity;
 	const float StrandsWidthScale = FMath::Abs(ConversionSettings.Scale.X); // Assume uniform scaling
-	ParseObject(TopObject, 0, HairDescription, ParentMatrix, ConversionMatrix, StrandsWidthScale, true, OutAnimInfo);
+	ParseObject(TopObject, 0.0f, HairDescription, ParentMatrix, ConversionMatrix, StrandsWidthScale, true, OutAnimInfo);
 
 	return HairDescription.IsValid();
 }
@@ -741,7 +741,7 @@ bool FAlembicHairTranslator::BeginTranslation(const FString& FileName)
 	return Abc->IsValid();
 }
 
-bool FAlembicHairTranslator::Translate(uint32 FrameIndex, FHairDescription& HairDescription, const struct FGroomConversionSettings& ConversionSettings)
+bool FAlembicHairTranslator::Translate(float FrameTime, FHairDescription& HairDescription, const struct FGroomConversionSettings& ConversionSettings)
 {
 	if (!Abc || !Abc->IsValid())
 	{
@@ -751,7 +751,7 @@ bool FAlembicHairTranslator::Translate(uint32 FrameIndex, FHairDescription& Hair
 	FMatrix ConversionMatrix = FScaleMatrix::Make(ConversionSettings.Scale) * FRotationMatrix::Make(FQuat::MakeFromEuler(ConversionSettings.Rotation));
 	FMatrix ParentMatrix = FMatrix::Identity;
 	const float StrandsWidthScale = FMath::Abs(ConversionSettings.Scale.X); // Assume uniform scaling
-	ParseObject(Abc->TopObject, FrameIndex, HairDescription, ParentMatrix, ConversionMatrix, StrandsWidthScale, true, nullptr);
+	ParseObject(Abc->TopObject, FrameTime, HairDescription, ParentMatrix, ConversionMatrix, StrandsWidthScale, true, nullptr);
 
 	return HairDescription.IsValid();
 }
