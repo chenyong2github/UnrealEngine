@@ -101,9 +101,9 @@ static TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
 	else
 	{
 		SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS, false);
-		SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Roughness, true);
-		SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Metallic, true);
-		SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Specular, true);
+		SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Roughness, bRoughness);
+		SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Metallic, bMetallic);
+		SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Specular, bSpecular);
 	}
 
 
