@@ -181,6 +181,10 @@ void MainCS(
 		
 		taa_half SampleInterferenceWeight = InterferenceWeightTexture[SampleInputPixelPos];
 		
+		#if CONFIG_SCENE_COLOR_OVERFLOW
+			InputSample = min(InputSample, LargestSceneColorRGB);
+		#endif
+
 		FLATTEN
 		if (!bEnableInterferenceHeuristic)
 		{
