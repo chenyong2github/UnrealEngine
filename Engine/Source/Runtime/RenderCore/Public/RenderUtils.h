@@ -636,16 +636,16 @@ RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntP
 RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel, const class ITargetPlatform* TargetPlatform = nullptr);
 
 
-RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform);
+RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCheckForProjectSetting = true);
 
 
 /**
  * Returns true if Nanite rendering should be used for the given shader platform.
  */
-inline bool UseNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport = true)
+inline bool UseNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport = true, bool bCheckForProjectSetting = true)
 {
 	// Does the platform support Nanite?
-	const bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);
+	const bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform, bCheckForProjectSetting);
 
 	// Is Nanite currently enabled?
 	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
