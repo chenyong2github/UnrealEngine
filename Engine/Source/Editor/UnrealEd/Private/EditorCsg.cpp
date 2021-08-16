@@ -15,6 +15,7 @@
 #include "EditorModeManager.h"
 #include "SurfaceIterators.h"
 #include "BSPOps.h"
+#include "BSPUtils.h"
 #include "ActorEditorUtils.h"
 #include "Misc/FeedbackContext.h"
 #include "EngineUtils.h"
@@ -115,11 +116,7 @@ protected:
 
 void UEditorEngine::bspRepartition( UWorld* InWorld, int32 iNode )
 {
-	bspBuildFPolys( InWorld->GetModel(), 1, iNode );
-	bspMergeCoplanars( InWorld->GetModel(), 0, 0 );
-	FBSPOps::bspBuild( InWorld->GetModel(), FBSPOps::BSP_Good, 12, 70, 2, iNode );
-	FBSPOps::bspRefresh( InWorld->GetModel(), 1 );
-
+	FBSPUtils::bspRepartition(InWorld, iNode);
 }
 
 //
@@ -325,40 +322,13 @@ void UEditorEngine::csgRebuild( UWorld* InWorld )
 
 void UEditorEngine::polySetAndClearPolyFlags(UModel *Model, uint32 SetBits, uint32 ClearBits,bool SelectedOnly, bool UpdateMaster)
 {
-	for( int32 i=0; i<Model->Surfs.Num(); i++ )
-	{
-		FBspSurf& Poly = Model->Surfs[i];
-		if( !SelectedOnly || (Poly.PolyFlags & PF_Selected) )
-		{
-			uint32 NewFlags = (Poly.PolyFlags & ~ClearBits) | SetBits;
-			if( NewFlags != Poly.PolyFlags )
-			{
-				Model->ModifySurf( i, UpdateMaster );
-				Poly.PolyFlags = NewFlags;
-				if (UpdateMaster)
-				{
-					const bool bUpdateTexCoords = false;
-					const bool bOnlyRefreshSurfaceMaterials = false;
-					polyUpdateMaster(Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
-				}
-			}
-		}
-	}
+	FBSPUtils::polySetAndClearPolyFlags(Model, SetBits, ClearBits, SelectedOnly, UpdateMaster);
 }
 
 
 bool UEditorEngine::polyFindMaster(UModel* InModel, int32 iSurf, FPoly &Poly)
 {
-	FBspSurf &Surf = InModel->Surfs[iSurf];
-	if( !Surf.Actor || !Surf.Actor->Brush->Polys->Element.IsValidIndex(Surf.iBrushPoly) )
-	{
-		return false;
-	}
-	else
-	{
-		Poly = Surf.Actor->Brush->Polys->Element[Surf.iBrushPoly];
-		return true;
-	}
+	return FBSPUtils::polyFindMaster(InModel, iSurf, Poly);
 }
 
 
@@ -370,60 +340,7 @@ void UEditorEngine::polyUpdateMaster
 	bool	bOnlyRefreshSurfaceMaterials
 )
 {
-	FBspSurf &Surf = Model->Surfs[iSurf];
-	ABrush* Actor = Surf.Actor;
-	if( !Actor )
-		return;
-
-	UModel* Brush = Actor->Brush;
-	check(Brush);
-
-	FVector ActorLocation;
-	FVector ActorPrePivot;
-	FVector ActorScale;
-	FRotator ActorRotation;
-
-	if (Brush->bCachedOwnerTransformValid)
-	{
-		// Use transform cached when the geometry was last built, in case the current Actor transform has changed since then
-		// (e.g. because Auto Update BSP is disabled)
-		ActorLocation = Brush->OwnerLocationWhenLastBuilt;
-		ActorScale = Brush->OwnerScaleWhenLastBuilt;
-		ActorRotation = Brush->OwnerRotationWhenLastBuilt;
-	}
-	else
-	{
-		// No cached owner transform, so use the current one
-		ActorLocation = Actor->GetActorLocation();
-		ActorScale = Actor->GetActorScale();
-		ActorRotation = Actor->GetActorRotation();
-	}
-
-	const FRotationMatrix RotationMatrix(ActorRotation);
-
-	for (int32 iEdPoly = Surf.iBrushPoly; iEdPoly < Brush->Polys->Element.Num(); iEdPoly++)
-	{
-		FPoly& MasterEdPoly = Brush->Polys->Element[iEdPoly];
-		if (iEdPoly == Surf.iBrushPoly || MasterEdPoly.iLink == Surf.iBrushPoly)
-		{
-			MasterEdPoly.Material = Surf.Material;
-			MasterEdPoly.PolyFlags = Surf.PolyFlags & ~(PF_NoEdit);
-
-			if (bUpdateTexCoords)
-			{
-				MasterEdPoly.Base = RotationMatrix.InverseTransformVector(Model->Points[Surf.pBase] - ActorLocation) / ActorScale;
-				MasterEdPoly.TextureU = RotationMatrix.InverseTransformVector(Model->Vectors[Surf.vTextureU]) * ActorScale;
-				MasterEdPoly.TextureV = RotationMatrix.InverseTransformVector(Model->Vectors[Surf.vTextureV]) * ActorScale;
-			}
-		}
-	}
-
-	Model->InvalidSurfaces = true;
-
-	if (bOnlyRefreshSurfaceMaterials)
-	{
-		Model->bOnlyRebuildMaterialIndexBuffers = true;
-	}
+	FBSPUtils::polyUpdateMaster(Model, iSurf, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
 }
 
 
@@ -434,77 +351,13 @@ void UEditorEngine::polyGetLinkedPolys
 	TArray<FPoly>* InPolyList
 )
 {
-	InPolyList->Empty();
-
-	if( InPoly->iLink == INDEX_NONE )
-	{
-		// If this poly has no links, just stick the one poly in the final list.
-		new(*InPolyList)FPoly( *InPoly );
-	}
-	else
-	{
-		// Find all polys that match the source polys link value.
-		for( int32 poly = 0 ; poly < InBrush->Brush->Polys->Element.Num() ; poly++ )
-			if( InBrush->Brush->Polys->Element[poly].iLink == InPoly->iLink )
-				new(*InPolyList)FPoly( InBrush->Brush->Polys->Element[poly] );
-	}
-
+	FBSPUtils::polyGetLinkedPolys(InBrush, InPoly, InPolyList);
 }
 
 
 void UEditorEngine::polySplitOverlappingEdges( TArray<FPoly>* InPolyList, TArray<FPoly>* InResult )
 {
-	InResult->Empty();
-
-	for( int32 poly = 0 ; poly < InPolyList->Num() ; poly++ )
-	{
-		FPoly* SrcPoly = &(*InPolyList)[poly];
-		FPoly NewPoly = *SrcPoly;
-
-		for( int32 edge = 0 ; edge < SrcPoly->Vertices.Num() ; edge++ )
-		{
-			FEdge SrcEdge = FEdge( SrcPoly->Vertices[edge], SrcPoly->Vertices[ edge+1 < SrcPoly->Vertices.Num() ? edge+1 : 0 ] );
-			FPlane SrcEdgePlane( SrcEdge.Vertex[0], SrcEdge.Vertex[1], SrcEdge.Vertex[0] + (SrcPoly->Normal * 16) );
-
-			for( int32 poly2 = 0 ; poly2 < InPolyList->Num() ; poly2++ )
-			{
-				FPoly* CmpPoly = &(*InPolyList)[poly2];
-
-				// We can't compare to ourselves.
-				if( CmpPoly == SrcPoly )
-					continue;
-
-				for( int32 edge2 = 0 ; edge2 < CmpPoly->Vertices.Num() ; edge2++ )
-				{
-					FEdge CmpEdge = FEdge( CmpPoly->Vertices[edge2], CmpPoly->Vertices[ edge2+1 < CmpPoly->Vertices.Num() ? edge2+1 : 0 ] );
-
-					// If both vertices on this edge lie on the same plane as the original edge, create
-					// a sphere around the original 2 vertices.  If either of this edges vertices are inside of
-					// that sphere, we need to split the original edge by adding a vertex to it's poly.
-					if( FMath::Abs( FVector::PointPlaneDist( CmpEdge.Vertex[0], SrcEdge.Vertex[0], SrcEdgePlane ) ) < THRESH_POINT_ON_PLANE
-							&& FMath::Abs( FVector::PointPlaneDist( CmpEdge.Vertex[1], SrcEdge.Vertex[0], SrcEdgePlane ) ) < THRESH_POINT_ON_PLANE )
-					{
-						//
-						// Check THIS edge against the SOURCE edge
-						//
-
-						FVector Dir = SrcEdge.Vertex[1] - SrcEdge.Vertex[0];
-						Dir.Normalize();
-						float Dist = FVector::Dist( SrcEdge.Vertex[1], SrcEdge.Vertex[0] );
-						FVector Origin = SrcEdge.Vertex[0] + (Dir * (Dist / 2.0f));
-						float Radius = Dist / 2.0f;
-
-						for( int32 vtx = 0 ; vtx < 2 ; vtx++ )
-							if( FVector::Dist( Origin, CmpEdge.Vertex[vtx] ) && FVector::Dist( Origin, CmpEdge.Vertex[vtx] ) < Radius )
-								NewPoly.InsertVertex( edge2+1, CmpEdge.Vertex[vtx] );
-					}
-				}
-			}
-		}
-
-		new(*InResult)FPoly( NewPoly );
-	}
-
+	FBSPUtils::polySplitOverlappingEdges(InPolyList, InResult);
 }
 
 
@@ -514,63 +367,7 @@ void UEditorEngine::polyGetOuterEdgeList
 	TArray<FEdge>* InEdgeList
 )
 {
-	TArray<FPoly> NewPolyList;
-	polySplitOverlappingEdges( InPolyList, &NewPolyList );
-
-	TArray<FEdge> TempEdges;
-
-	// Create a master list of edges.
-	for( int32 poly = 0 ; poly < NewPolyList.Num() ; poly++ )
-	{
-		FPoly* Poly = &NewPolyList[poly];
-		for( int32 vtx = 0 ; vtx < Poly->Vertices.Num() ; vtx++ )
-			new( TempEdges )FEdge( Poly->Vertices[vtx], Poly->Vertices[ vtx+1 < Poly->Vertices.Num() ? vtx+1 : 0] );
-	}
-
-	// Add all the unique edges into the final edge list.
-	TArray<FEdge> FinalEdges;
-
-	for( int32 tedge = 0 ; tedge < TempEdges.Num() ; tedge++ )
-	{
-		FEdge* TestEdge = &TempEdges[tedge];
-
-		int32 EdgeCount = 0;
-		for( int32 edge = 0 ; edge < TempEdges.Num() ; edge++ )
-		{
-			if( TempEdges[edge] == *TestEdge )
-				EdgeCount++;
-		}
-
-		if( EdgeCount == 1 )
-			new( FinalEdges )FEdge( *TestEdge );
-	}
-
-	// Reorder all the edges so that they line up, end to end.
-	InEdgeList->Empty();
-	if( !FinalEdges.Num() ) return;
-
-	new( *InEdgeList )FEdge( FinalEdges[0] );
-	FVector Comp = FinalEdges[0].Vertex[1];
-	FinalEdges.RemoveAt(0);
-
-	FEdge DebuG;
-	for( int32 x = 0 ; x < FinalEdges.Num() ; x++ )
-	{
-		DebuG = FinalEdges[x];
-
-		// If the edge is backwards, flip it
-		if( FinalEdges[x].Vertex[1] == Comp )
-			Exchange( FinalEdges[x].Vertex[0], FinalEdges[x].Vertex[1] );
-
-		if( FinalEdges[x].Vertex[0] == Comp )
-		{
-			new( *InEdgeList )FEdge( FinalEdges[x] );
-			Comp = FinalEdges[x].Vertex[1];
-			FinalEdges.RemoveAt(x);
-			x = -1;
-		}
-	}
-
+	FBSPUtils::polyGetOuterEdgeList(InPolyList, InEdgeList);
 }
 
 /*-----------------------------------------------------------------------------

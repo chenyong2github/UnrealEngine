@@ -46,6 +46,7 @@
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 #include "BusyCursor.h"
+#include "Engine/BrushBuilder.h"
 #include "BSPOps.h"
 #include "EditorLevelUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -1289,6 +1290,11 @@ void UUnrealEdEngine::edactReplaceSelectedBrush( UWorld* InWorld )
 		ABrush* NewBrush = FBSPOps::csgAddOperation( DefaultBrush, SrcBrush->PolyFlags, (EBrushType)SrcBrush->BrushType );
 		if( NewBrush )
 		{
+			if( NewBrush->GetBrushBuilder() )
+			{
+				FActorLabelUtilities::SetActorLabelUnique(NewBrush, FText::Format(NSLOCTEXT("UnrealEd", "BrushName", "{0} Brush"), FText::FromString(NewBrush->GetBrushBuilder()->GetClass()->GetDescription())).ToString());
+			}
+
 			SrcBrush->MarkPackageDirty();
 			NewBrush->MarkPackageDirty();
 

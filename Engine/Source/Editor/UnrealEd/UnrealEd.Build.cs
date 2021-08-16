@@ -29,6 +29,7 @@ public class UnrealEd : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[]
 			{
+				"BSPUtils",
 				"BehaviorTreeEditor",
 				"ClassViewer",
 				"StructViewer",
@@ -126,6 +127,7 @@ public class UnrealEd : ModuleRules
 			{
 				"AssetRegistry",
 				"AssetTagsEditor",
+				"BSPUtils",
 				"LevelSequence",
 				"AnimGraph",
 				"AppFramework",

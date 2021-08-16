@@ -44,6 +44,7 @@ public class ModelingComponentsEditorOnly : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"BSPUtils",
 				"CoreUObject",
 				"Engine",
 				"InputCore",

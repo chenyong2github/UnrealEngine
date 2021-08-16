@@ -20,7 +20,7 @@
 #include "Engine/Classes/Components/BrushComponent.h"
 #include "Engine/Classes/Engine/Polys.h"
 #include "Model.h"
-#include "BSPOps.h"		// in UnrealEd
+#include "BSPOps.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

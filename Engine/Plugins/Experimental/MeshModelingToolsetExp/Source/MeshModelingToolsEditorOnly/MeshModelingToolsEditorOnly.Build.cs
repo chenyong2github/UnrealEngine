@@ -49,6 +49,7 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"BSPUtils",
 				"CoreUObject",
 				"Engine",
                 "RenderCore",

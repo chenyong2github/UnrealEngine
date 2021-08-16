@@ -29,52 +29,49 @@ public:
 		NODE_Root		= 3, // Node is the Bsp root and has no parent -> Bsp[0].
 	};
 
-	UNREALED_API static void csgPrepMovingBrush( ABrush* Actor );
-	UNREALED_API static void csgCopyBrush( ABrush* Dest, ABrush* Src, uint32 PolyFlags, EObjectFlags ResFlags, bool bNeedsPrep, bool bCopyPosRotScale, bool bAllowEmpty = false );
-	UNREALED_API static ABrush*	csgAddOperation( ABrush* Actor, uint32 PolyFlags, EBrushType BrushType );
-
-	static int32 bspAddVector( UModel* Model, const FVector* V, bool Exact );
-	static int32 bspAddPoint( UModel* Model, const FVector* V, bool Exact );
-	UNREALED_API static void bspBuild( UModel* Model, enum EBspOptimization Opt, int32 Balance, int32 PortalBias, int32 RebuildSimplePolys, int32 iNode );
-	UNREALED_API static void bspRefresh( UModel* Model, bool NoRemapSurfs );
-
-	UNREALED_API static void bspBuildBounds( UModel* Model );
-
-	static void bspValidateBrush( UModel* Brush, bool ForceValidate, bool DoStatusUpdate );
-	UNREALED_API static void bspUnlinkPolys( UModel* Brush );
-	static int32 bspAddNode( UModel* Model, int32 iParent, enum ENodePlace ENodePlace, uint32 NodeFlags, FPoly* EdPoly );
+	BSPUTILS_API static void csgPrepMovingBrush( ABrush* Actor );
+	BSPUTILS_API static void csgCopyBrush( ABrush* Dest, ABrush* Src, uint32 PolyFlags, EObjectFlags ResFlags, bool bNeedsPrep, bool bCopyPosRotScale, bool bAllowEmpty = false );
+	BSPUTILS_API static ABrush*	csgAddOperation( ABrush* Actor, uint32 PolyFlags, EBrushType BrushType );
+	BSPUTILS_API static int32 bspAddVector( UModel* Model, const FVector* V, bool Exact );
+	BSPUTILS_API static int32 bspAddPoint( UModel* Model, const FVector* V, bool Exact );
+	BSPUTILS_API static void bspBuild( UModel* Model, enum EBspOptimization Opt, int32 Balance, int32 PortalBias, int32 RebuildSimplePolys, int32 iNode );
+	BSPUTILS_API static void bspRefresh( UModel* Model, bool NoRemapSurfs );
+	BSPUTILS_API static void bspBuildBounds( UModel* Model );
+	BSPUTILS_API static void bspValidateBrush( UModel* Brush, bool ForceValidate, bool DoStatusUpdate );
+	BSPUTILS_API static void bspUnlinkPolys( UModel* Brush );
+	BSPUTILS_API static int32 bspAddNode( UModel* Model, int32 iParent, enum ENodePlace ENodePlace, uint32 NodeFlags, FPoly* EdPoly );
 
 	/**
 	 * Rebuild some brush internals
 	 */
-	UNREALED_API static void RebuildBrush(UModel* Brush);
+	BSPUTILS_API static void RebuildBrush(UModel* Brush);
 
-	static FPoly BuildInfiniteFPoly( UModel* Model, int32 iNode );
+	BSPUTILS_API static FPoly BuildInfiniteFPoly( UModel* Model, int32 iNode );
 
+	/** Called when an AVolume shape is changed*/
+	BSPUTILS_API static void HandleVolumeShapeChanged(AVolume& Volume);
+
+	/** Errors encountered in Csg operation. */
+	BSPUTILS_API static int32 GErrors;
+	BSPUTILS_API static bool GFastRebuild;
+
+protected:
 	/**
 	 * Rotates the specified brush's vertices.
 	 */
 	static void RotateBrushVerts(ABrush* Brush, const FRotator& Rotation, bool bClearComponents);
 
-	/** Called when an AVolume shape is changed*/
-	static void HandleVolumeShapeChanged(AVolume& Volume);
-
-	/** Errors encountered in Csg operation. */
-	static int32 GErrors;
-	static bool GFastRebuild;
-
-protected:
 	static void SplitPolyList
 	(
 		UModel				*Model,
-		int32                 iParent,
+		int32               iParent,
 		ENodePlace			NodePlace,
-		int32                 NumPolys,
+		int32               NumPolys,
 		FPoly				**PolyList,
 		EBspOptimization	Opt,
-		int32					Balance,
-		int32					PortalBias,
-		int32					RebuildSimplePolys
+		int32				Balance,
+		int32				PortalBias,
+		int32				RebuildSimplePolys
 	);
 };
 
@@ -137,12 +134,12 @@ public:
 		Clear(InitialSize);
 	}
 
-	void Clear(int32 InitialSize = 0);
+	BSPUTILS_API void Clear(int32 InitialSize = 0);
 
-	int32 FindOrAddPoint(const FVector& Point, int32 Index, float Threshold);
+	BSPUTILS_API int32 FindOrAddPoint(const FVector& Point, int32 Index, float Threshold);
 
-	static FBspPointsGrid* GBspPoints;
-	static FBspPointsGrid* GBspVectors;
+	BSPUTILS_API static FBspPointsGrid* GBspPoints;
+	BSPUTILS_API static FBspPointsGrid* GBspVectors;
 
 private:
 	float OneOverGranularity;
