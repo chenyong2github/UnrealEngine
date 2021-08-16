@@ -61,7 +61,10 @@ void FOptimusEditorModule::ShutdownModule()
 	FOptimusEditorGraphExplorerCommands::Unregister();
 	FOptimusEditorCommands::Unregister();
 	
-	FComponentAssetBrokerage::UnregisterBroker(ComputeGraphComponentBroker);
+	if (UObjectInitialized())
+	{
+		FComponentAssetBrokerage::UnregisterBroker(ComputeGraphComponentBroker);
+	}
 
 	if (FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools"))
 	{
