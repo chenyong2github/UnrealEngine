@@ -18,6 +18,15 @@
 #include "RHIShaderFormatDefinitions.inl"
 #endif
 
+// This is a per-project master switch for Nanite, that influences the shader permutations compiled. Changing it will cause shaders to be recompiled.
+int32 GNaniteProjectEnabled = 1;
+FAutoConsoleVariableRef CVarAllowNanite(
+	TEXT("r.Nanite.ProjectEnabled"),
+	GNaniteProjectEnabled,
+	TEXT("This setting allows you to disable Nanite on platforms that support it to reduce the number of shaders. It cannot be used to force Nanite on on unsupported platforms.\n"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 FBufferWithRDG::FBufferWithRDG() = default;
 FBufferWithRDG::FBufferWithRDG(const FBufferWithRDG & Other) = default;
 FBufferWithRDG& FBufferWithRDG::operator=(const FBufferWithRDG & Other) = default;
@@ -1659,8 +1668,18 @@ RENDERCORE_API bool PlatformSupportsVelocityRendering(const FStaticShaderPlatfor
 	return true;
 }
 
-RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform)
+RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCheckForProjectSetting)
 {
+	// Nanite allowed for this project
+	if (bCheckForProjectSetting)
+	{
+		const bool bNaniteSupported = GNaniteProjectEnabled != 0;
+		if (UNLIKELY(!bNaniteSupported))
+		{
+			return false;
+		}
+	}
+
 	// Make sure the current platform has DDPI definitions.
 	const bool bValidPlatform = FDataDrivenShaderPlatformInfo::IsValid(Platform);
 

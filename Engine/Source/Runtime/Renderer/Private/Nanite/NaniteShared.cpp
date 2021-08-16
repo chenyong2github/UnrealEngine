@@ -141,6 +141,20 @@ bool ShouldRenderNanite(const FScene* Scene, const FViewInfo& View, bool bCheckF
 	return false;
 }
 
+bool WouldRenderNanite(const FScene* Scene, const FViewInfo& View, bool bCheckForAtomicSupport, bool bCheckForProjectSetting)
+{
+	// Does the platform support Nanite (with 64bit image atomics), and is it enabled?
+	if (Scene && UseNanite(Scene->GetShaderPlatform(), bCheckForAtomicSupport, bCheckForProjectSetting))
+	{
+		// Is the view family showing would-be Nanite meshes?
+		return View.Family->EngineShowFlags.NaniteMeshes;
+	}
+
+	// Nanite would not render for this view
+	return false;
+}
+
+
 bool UseComputeDepthExport()
 {
 	return (GRHISupportsDepthUAV && GRHISupportsExplicitHTile && GNaniteExportDepth != 0);
