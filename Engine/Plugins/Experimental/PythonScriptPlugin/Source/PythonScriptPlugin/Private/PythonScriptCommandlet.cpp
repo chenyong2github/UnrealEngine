@@ -36,7 +36,7 @@ int32 UPythonScriptCommandlet::Main(const FString& Params)
 #if WITH_PYTHON
 	{
 		// Tick once to ensure that any start-up scripts have been run
-		FTicker::GetCoreTicker().Tick(0.0f);
+		FTSTicker::GetCoreTicker().Tick(0.0f);
 
 		UE_LOG(LogPythonScriptCommandlet, Display, TEXT("Running Python script: %s"), *PythonScript);
 

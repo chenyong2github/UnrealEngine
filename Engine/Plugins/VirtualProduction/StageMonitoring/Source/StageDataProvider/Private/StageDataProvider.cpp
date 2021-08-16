@@ -85,7 +85,7 @@ void FStageDataProvider::Start()
 		if (ProviderEndpoint.IsValid())
 		{
 			ProviderEndpoint->Subscribe<FStageProviderDiscoveryMessage>();
-			TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FStageDataProvider::Tick), 0.0f);
+			TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FStageDataProvider::Tick), 0.0f);
 
 			bIsActive = true;
 		}
@@ -101,7 +101,7 @@ void FStageDataProvider::Stop()
 
 		if (TickerHandle.IsValid())
 		{
-			FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 		}
 
 		if (ProviderEndpoint.IsValid())

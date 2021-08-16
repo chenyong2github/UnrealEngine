@@ -574,7 +574,7 @@ namespace BuildPatchServices
 
 	private:
 		const FChunkDeltaOptimiserConfiguration Configuration;
-		FTicker& CoreTicker;
+		FTSTicker& CoreTicker;
 		FDownloadCompleteDelegate DownloadCompleteDelegate;
 		FDownloadProgressDelegate DownloadProgressDelegate;
 		TUniquePtr<IFileSystem> FileSystem;
@@ -601,7 +601,7 @@ namespace BuildPatchServices
 
 	FChunkDeltaOptimiser::FChunkDeltaOptimiser(const FChunkDeltaOptimiserConfiguration& InConfiguration)
 		: Configuration(InConfiguration)
-		, CoreTicker(FTicker::GetCoreTicker())
+		, CoreTicker(FTSTicker::GetCoreTicker())
 		, DownloadCompleteDelegate(FDownloadCompleteDelegate::CreateRaw(this, &FChunkDeltaOptimiser::HandleDownloadComplete))
 		, DownloadProgressDelegate()
 		, FileSystem(FFileSystemFactory::Create())
@@ -666,7 +666,7 @@ namespace BuildPatchServices
 
 			// Application tick.
 			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-			FTicker::GetCoreTicker().Tick(DeltaTime);
+			FTSTicker::GetCoreTicker().Tick(DeltaTime);
 
 			// Message pump.
 			MessagePump->PumpMessages(MessageHandlers);

@@ -49,7 +49,7 @@ FProfilerClientManager::FProfilerClientManager(const TSharedRef<IMessageBus, ESP
 	RetryTime = 5.f;
 
 	LoadConnection = nullptr;
-	MessageDelegateHandle = FTicker::GetCoreTicker().AddTicker(MessageDelegate, 0.1f);
+	MessageDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(MessageDelegate, 0.1f);
 #endif
 }
 
@@ -115,7 +115,7 @@ void FProfilerClientManager::Track(const FGuid& Instance)
 		MessageEndpoint->Publish(FMessageEndpoint::MakeMessage<FProfilerServiceSubscribe>(ActiveSessionId, Instance), EMessageScope::Network);
 
 		RetryTime = 5.f;
-		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, RetryTime);
+		TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate, RetryTime);
 
 		UE_LOG(LogProfilerClient, Verbose, TEXT("Track Session: %s, Instance: %s"), *ActiveSessionId.ToString(), *Instance.ToString());
 	}
@@ -315,7 +315,7 @@ void FProfilerClientManager::LoadCapture(const FString& DataFilepath, const FGui
 	LoadConnection->LoadCapture(DataFilepath, this);
 
 	RetryTime = 0.05f;
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, RetryTime);	
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate, RetryTime);	
 #endif
 }
 
@@ -837,8 +837,8 @@ void FProfilerClientManager::Shutdown()
 		UE_LOG(LogProfilerClient, Log, TEXT("File service-client transfer aborted: %s"), *It.Key());
 	}
 
-	FTicker::GetCoreTicker().RemoveTicker(MessageDelegateHandle);
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(MessageDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 }
 
 

@@ -4,6 +4,7 @@
 
 #include "OnlineSubsystem.h"
 #include "Interfaces/IMessageSanitizerInterface.h"
+#include "Containers/Ticker.h"
 
 /**
  * Implements a degenerate/dummy interface chat message sanitization system for testing
@@ -27,5 +28,5 @@ private:
 	int32 RequestId;
 
 	void PerformSanitize(const FString& RawString, FString& OutCleanString) const;
-	TMap<int32, FDelegateHandle> RequestIdHandleMap;
+	TMap<int32, FTSTicker::FDelegateHandle> RequestIdHandleMap;
 };

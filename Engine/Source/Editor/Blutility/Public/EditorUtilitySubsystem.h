@@ -8,6 +8,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Templates/SubclassOf.h"
 #include "Containers/Queue.h"
+#include "Containers/Ticker.h"
 
 #include "EditorUtilitySubsystem.generated.h"
 
@@ -113,7 +114,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UEditorUtilityTask>> ActiveTaskStack;
 
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	/** List of objects that are being kept alive by this subsystem. */
 	UPROPERTY()

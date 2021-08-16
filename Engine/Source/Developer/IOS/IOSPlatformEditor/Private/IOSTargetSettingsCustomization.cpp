@@ -102,7 +102,7 @@ FIOSTargetSettingsCustomization::~FIOSTargetSettingsCustomization()
 	if (IPPProcess.IsValid())
 	{
 		IPPProcess = NULL;
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
 	FIOSPlatformEditorModule::OnSelect.RemoveAll(this);
@@ -1189,7 +1189,7 @@ void FIOSTargetSettingsCustomization::FindRequiredFiles()
 	OutputMessage = TEXT("");
 	IPPProcess->OnOutput().BindStatic(&OnOutput);
 	IPPProcess->Launch();
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIOSTargetSettingsCustomization::UpdateStatusDelegate), 1.0f);
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIOSTargetSettingsCustomization::UpdateStatusDelegate), 1.0f);
 	if (ProvisionInfoSwitcher.IsValid())
 	{
 		ProvisionInfoSwitcher->SetActiveWidgetIndex(0);
@@ -1269,7 +1269,7 @@ FReply FIOSTargetSettingsCustomization::OnInstallProvisionClicked()
 		OutputMessage = TEXT("");
 		IPPProcess->OnOutput().BindStatic(&OnOutput);
 		IPPProcess->Launch();
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIOSTargetSettingsCustomization::UpdateStatusDelegate), 10.0f);
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIOSTargetSettingsCustomization::UpdateStatusDelegate), 10.0f);
 		if (ProvisionInfoSwitcher.IsValid())
 		{
 			ProvisionInfoSwitcher->SetActiveWidgetIndex(1);
@@ -1326,7 +1326,7 @@ FReply FIOSTargetSettingsCustomization::OnInstallCertificateClicked()
 		OutputMessage = TEXT("");
 		IPPProcess->OnOutput().BindStatic(&OnOutput);
 		IPPProcess->Launch();
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIOSTargetSettingsCustomization::UpdateStatusDelegate), 10.0f);
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIOSTargetSettingsCustomization::UpdateStatusDelegate), 10.0f);
 		if (CertificateInfoSwitcher.IsValid())
 		{
 			CertificateInfoSwitcher->SetActiveWidgetIndex(1);
@@ -1402,7 +1402,7 @@ FReply FIOSTargetSettingsCustomization::OnGenerateSSHKey()
 	OutputMessage = TEXT("");
 	IPPProcess = MakeShareable(new FMonitoredProcess(CmdExe, CommandLine, false, false));
 	IPPProcess->Launch();
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIOSTargetSettingsCustomization::UpdateStatusDelegate), 10.0f);
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIOSTargetSettingsCustomization::UpdateStatusDelegate), 10.0f);
 	RunningIPPProcess = true;
 
 	return FReply::Handled();

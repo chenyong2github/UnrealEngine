@@ -40,7 +40,7 @@ public:
 	// returns true if NativeToEmbedded delegate for subsystem exists
 	static bool IsEmbeddedSubsystemAvailable(FName SubsystemName);
 	
-	// FTicker-like delegate, to bind things to be ticked at a regular interval while the game thread is otherwise asleep.
+	// FTSTicker-like delegate, to bind things to be ticked at a regular interval while the game thread is otherwise asleep.
 	static FSimpleMulticastDelegate SleepTickDelegate;
 
 	// get/set an object by name, thread safe

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 
 template<typename TTask> class FAsyncTask;
 class IHttpRequest;
@@ -258,7 +259,7 @@ private:
 	bool bNeedsManifestSave = false;
 
 	// handle for the per-frame mount ticker in the main thread
-	FDelegateHandle MountTicker;
+	FTSTicker::FDelegateHandle MountTicker;
 
 	// manifest download request
 	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> ManifestRequest;

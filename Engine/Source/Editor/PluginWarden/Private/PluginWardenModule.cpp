@@ -99,7 +99,7 @@ bool FPluginWardenModule::RunAuthorizationPipeline(const FText& PluginFriendlyNa
 		LastTickTime = CurrentTickTime;
 
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-		FTicker::GetCoreTicker().Tick(DeltaTime);
+		FTSTicker::GetCoreTicker().Tick(DeltaTime);
 
 		PreviousState = AuthorizationState;
 		AuthorizationState = Authorizer.UpdateAuthorizationState(DeltaTime);

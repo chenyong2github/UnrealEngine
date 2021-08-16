@@ -6,6 +6,7 @@
 #include "IO/IoDispatcherBackend.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "Containers/Ticker.h"
 
 #define IO_DISPATCHER_FILE_STATS (COUNTERSTRACE_ENABLED || CSV_PROFILER)
 
@@ -861,7 +862,7 @@ struct FFileIoStats
 	static uint32 FileIoStoreThreadId;
 	static uint32 IoDispatcherThreadId;
 
-	static FDelegateHandle TickerHandle;
+	static FTSTicker::FDelegateHandle TickerHandle;
 #endif
 
 	static float BytesToApproxMB(uint64 Bytes) {

@@ -30,7 +30,7 @@ enum class EPresenceTestStatus : uint8
 
 ENUM_CLASS_FLAGS(EPresenceTestStatus);
 
-class FTestPresenceInterface : public FTickerObjectBase
+class FTestPresenceInterface : public FTSTickerObjectBase
 {
 public:
 	FTestPresenceInterface(const FString& InSubName) :
@@ -48,7 +48,7 @@ public:
 
 	virtual ~FTestPresenceInterface();
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	bool Tick(float DeltaTime) override;
 
 	void Test(class UWorld* InWorld, const FString& RandomUser);

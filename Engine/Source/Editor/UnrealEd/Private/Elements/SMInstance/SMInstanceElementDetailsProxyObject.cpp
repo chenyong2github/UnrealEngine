@@ -16,7 +16,7 @@ void USMInstanceElementDetailsProxyObject::Initialize(const FSMInstanceElementId
 	ISMComponent = InSMInstanceElementId.ISMComponent;
 	ISMInstanceId = InSMInstanceElementId.InstanceId;
 
-	TickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("USMInstanceElementDetailsProxyObject"), 0.1f, [this](float)
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("USMInstanceElementDetailsProxyObject"), 0.1f, [this](float)
 	{
 		SyncProxyStateFromInstance();
 		return true;
@@ -28,7 +28,7 @@ void USMInstanceElementDetailsProxyObject::Shutdown()
 {
 	if (TickHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 

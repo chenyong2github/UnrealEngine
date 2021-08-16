@@ -16,7 +16,7 @@
 #include "HAL/PlatformTime.h"
 
 /** Measures analytics bandwidth. Only active when -AnalyticsTrackPerf is specified on the command line. */
-struct FAnalyticsPerfTracker : FTickerObjectBase
+struct FAnalyticsPerfTracker : FTSTickerObjectBase
 {
 	FAnalyticsPerfTracker();
 

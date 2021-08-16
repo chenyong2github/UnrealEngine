@@ -86,7 +86,7 @@ void FEmbeddedCommunication::Init()
  	GSleepEvent = FPlatformProcess::GetSynchEventFromPool(false);
 	GTickWithoutSleepCount = 0;
 
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FEmbeddedCommunication::TickGameThread));
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FEmbeddedCommunication::TickGameThread));
 #endif
 }
 
@@ -139,7 +139,7 @@ void FEmbeddedCommunication::ForceTick(int ID, float MinTimeSlice, float MaxTime
 	{
 		UE_LOG(LogInit, Display, TEXT("###ForceTick %d: processing messages..."), ID);
 		//We have to manually tick everything as we are looping the main thread here
-		FTicker::GetCoreTicker().Tick(Now - LastTime);
+		FTSTicker::GetCoreTicker().Tick(Now - LastTime);
 		FThreadManager::Get().Tick();
 		
 		FPlatformProcess::Sleep(DeltaTime);

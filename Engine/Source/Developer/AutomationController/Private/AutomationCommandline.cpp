@@ -15,6 +15,7 @@
 #include "Misc/FileHelper.h"
 #include "AssetRegistryModule.h"
 #include "AutomationControllerSettings.h"
+#include "Containers/Ticker.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationCommandLine, Log, All);
 
@@ -75,7 +76,7 @@ public:
 			TestsRefreshedHandle = AutomationController->OnTestsRefreshed().AddRaw(this, &FAutomationExecCmd::HandleRefreshTestCallback);
 		}
 
-		TickHandler = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAutomationExecCmd::Tick));
+		TickHandler = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAutomationExecCmd::Tick));
 
 		int32 NumTestLoops = 1;
 		FParse::Value(FCommandLine::Get(), TEXT("TestLoops="), NumTestLoops);
@@ -103,7 +104,7 @@ public:
 			AutomationController->OnTestsRefreshed().RemoveAll(this);
 		}
 
-		FTicker::GetCoreTicker().RemoveTicker(TickHandler);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandler);
 	}
 
 	bool IsTestingComplete()
@@ -688,7 +689,7 @@ private:
 	FGuid SessionID;
 
 	//so we can release control of the app and just get ticked like all other systems
-	FDelegateHandle TickHandler;
+	FTSTicker::FDelegateHandle TickHandler;
 
 	//Extra commandline params
 	FString StringCommand;

@@ -342,7 +342,7 @@ void UAnimGraphNode_LinkedInputPose::PostPlacedNewNode()
 			return true;
 		});
 
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_LinkedInputPose>(this)](float InDeltaTime)
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis = TWeakObjectPtr<UAnimGraphNode_LinkedInputPose>(this)](float InDeltaTime)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_UAnimGraphNode_LinkedInputPose_PostPlacedNewNode);
 			if(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode = WeakThis.Get())

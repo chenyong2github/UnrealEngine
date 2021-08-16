@@ -220,7 +220,7 @@ bool FPartyPlatformSessionManager::FindSessionInternal(const FSessionId& Session
 					UE_LOG(LogParty, Warning, TEXT("PartyPlatformSessionMonitor adding artificial delay of %0.2fs to session find attempt"), DelaySeconds);
 
 					TWeakPtr<FPartyPlatformSessionManager> AsWeakPtr = SharedThis(this);
-					FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+					FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 						[AsWeakPtr, SessionId, SessionIdString, SessionOwnerId, LocalUserPlatformId, OnAttemptComplete, this](float)
 						{
 							QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_FindSessionAttempt);
@@ -515,7 +515,7 @@ void FPartyPlatformSessionMonitor::ShutdownInternal()
 
 	if (RetryTickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(RetryTickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(RetryTickerHandle);
 		RetryTickerHandle.Reset();
 	}
 
@@ -545,7 +545,7 @@ void FPartyPlatformSessionMonitor::CreateSession(const FUniqueNetIdRepl& LocalUs
 			UE_LOG(LogParty, Warning, TEXT("PartyPlatformSessionMonitor adding artificial delay of %0.2fs to session creation attempt"), DelaySeconds);
 
 			TWeakPtr<FPartyPlatformSessionMonitor> AsWeakPtr = SharedThis(this);
-			FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 				[AsWeakPtr, SessionSettings, LocalUserPlatformId, this] (float)
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_CreateSessionAttempt);
@@ -668,7 +668,7 @@ void FPartyPlatformSessionMonitor::JoinSession(const FOnlineSessionSearchResult&
 		UE_LOG(LogParty, Warning, TEXT("Adding artificial delay of %0.2fs to session join attempt"), DelaySeconds);
 
 		TWeakPtr<FPartyPlatformSessionMonitor> AsWeakPtr = SharedThis(this);
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 			[AsWeakPtr, SearchResultCopy, LocalUserPlatformId, this] (float)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_JoinSessionAttempt);
@@ -719,7 +719,7 @@ void FPartyPlatformSessionMonitor::QueuePlatformSessionUpdate()
 	{
 		UE_LOG(LogParty, Verbose, TEXT("PartyPlatformSessionMonitor queuing session update for party [%s]"), *MonitoredParty->ToDebugString())
 		bHasQueuedSessionUpdate = true;
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleQueuedSessionUpdate));
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleQueuedSessionUpdate));
 	}
 }
 
@@ -903,7 +903,7 @@ void FPartyPlatformSessionMonitor::HandleCreateSessionComplete(FName SessionName
 		if (AllowCreateSessionFailure == 0 && ensure(!RetryTickerHandle.IsValid()))
 		{
 			// Unsuccessful and we aren't trying to leave, so we'll try again here in a moment
-			RetryTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleRetryEstablishingSession), EstablishSessionRetryDelay);
+			RetryTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleRetryEstablishingSession), EstablishSessionRetryDelay);
 		}
 	}
 }
@@ -1137,7 +1137,7 @@ void FPartyPlatformSessionMonitor::ProcessJoinFailure()
 	else
 	{
 		TargetSessionId = FSessionId();
-		RetryTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleRetryEstablishingSession), EstablishSessionRetryDelay);
+		RetryTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleRetryEstablishingSession), EstablishSessionRetryDelay);
 	}
 }
 
@@ -1184,6 +1184,6 @@ void FPartyPlatformSessionMonitor::HandleSessionFailure(const FUniqueNetId& Loca
 	{
 		MonitoredParty->SetIsMissingPlatformSession(true);
 
-		RetryTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleRetryEstablishingSession), EstablishSessionRetryDelay);
+		RetryTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FPartyPlatformSessionMonitor::HandleRetryEstablishingSession), EstablishSessionRetryDelay);
 	}
 }

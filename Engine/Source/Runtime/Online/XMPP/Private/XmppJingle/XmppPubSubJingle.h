@@ -87,7 +87,7 @@ public:
  */
 class FXmppPubSubJingle
 	: public IXmppPubSub
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 
@@ -115,7 +115,7 @@ public:
 	virtual FOnXmppPubSubUnsubscribed& OnUnsubscribed() override { return OnXmppPubSubUnsubscribedDelegate; }
 	virtual FOnXmppPubSubMessageReceived& OnMessageReceived() override { return OnXmppPubSubMessageReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	
 	virtual bool Tick(float DeltaTime) override;
 

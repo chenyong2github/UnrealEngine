@@ -7,6 +7,7 @@
 #include "Containers/Ticker.h"
 #include "XmppJingle/XmppJingle.h"
 #include "XmppChat.h"
+#include "Containers/Ticker.h"
 
 #if WITH_XMPP_JINGLE
 
@@ -16,7 +17,7 @@
 class FXmppChatJingle
 	: public IXmppChat
 	, public sigslot::has_slots<>
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 
@@ -25,7 +26,7 @@ public:
 	virtual bool SendChat(const FXmppUserJid& RecipientId, const FString& Message) override;
 	virtual FOnXmppChatReceived& OnReceiveChat() override { return OnXmppChatReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	
 	virtual bool Tick(float DeltaTime) override;
 

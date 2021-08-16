@@ -66,7 +66,7 @@ void FContextSwitchesProfilerManager::Initialize(IUnrealInsightsModule& Insights
 
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FContextSwitchesProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FOnRegisterMajorTabExtensions* TimingProfilerLayoutExtension = InsightsModule.FindMajorTabLayoutExtension(FInsightsManagerTabs::TimingProfilerTabId);
 	if (TimingProfilerLayoutExtension)
@@ -91,7 +91,7 @@ void FContextSwitchesProfilerManager::Shutdown()
 	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 
 	// Unregister tick function.
-	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FContextSwitchesProfilerManager::Instance.Reset();
 }

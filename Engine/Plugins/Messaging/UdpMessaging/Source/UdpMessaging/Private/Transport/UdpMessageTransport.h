@@ -9,6 +9,7 @@
 #include "IMessageAttachment.h"
 #include "Templates/SharedPointer.h"
 #include "Async/Future.h"
+#include "Containers/Ticker.h"
 
 class FArrayReader;
 class FUdpReassembledMessage;
@@ -105,7 +106,7 @@ private:
 	TFuture<void> ErrorFuture;
 
 	/** Holds the delegate handle for the auto repair routine. */
-	FDelegateHandle AutoRepairHandle;
+	FTSTicker::FDelegateHandle AutoRepairHandle;
 
 	/** Holds the message processor. */
 	FUdpMessageProcessor* MessageProcessor;

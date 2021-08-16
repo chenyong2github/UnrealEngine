@@ -1057,7 +1057,7 @@ protected:
 	FTickerDelegate OnTick;
 
 	/** Handle to the registered OnTick. */
-	FDelegateHandle OnTickHandle;
+	FTSTicker::FDelegateHandle OnTickHandle;
 
 	/** The data provider which holds all the collected profiler samples. */
 	TSharedRef<IDataProvider> DataProvider;

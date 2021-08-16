@@ -52,7 +52,7 @@ public:
 
 		AutoConnectionNotification = MakeAutoConnectNotification();
 
-		AutoConnectionTickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("ConcertAutoConnect"), 1, [this](float)
+		AutoConnectionTickHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("ConcertAutoConnect"), 1, [this](float)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertAutoConnection_Tick);
 			Tick();
@@ -68,7 +68,7 @@ public:
 
 		if (AutoConnectionTickHandle.IsValid())
 		{
-			FTicker::GetCoreTicker().RemoveTicker(AutoConnectionTickHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(AutoConnectionTickHandle);
 			AutoConnectionTickHandle.Reset();
 		}
 
@@ -278,7 +278,7 @@ private:
 	}
 
 	TFuture<TSharedFuture<EConcertResponseCode>> OngoingConnectionRequest;
-	FDelegateHandle AutoConnectionTickHandle;
+	FTSTicker::FDelegateHandle AutoConnectionTickHandle;
 	FConcertClient* Client;
 	TWeakPtr<IConcertClientSession> CurrentSession;
 	const UConcertClientConfig* Settings;
@@ -309,7 +309,7 @@ public:
 	{
 		if (ConnectionTick.IsValid())
 		{
-			FTicker::GetCoreTicker().RemoveTicker(ConnectionTick);
+			FTSTicker::GetCoreTicker().RemoveTicker(ConnectionTick);
 		}
 
 		if (ConnectionTasks.Num() > 0)
@@ -348,7 +348,7 @@ public:
 
 		ConnectionTasks[0]->Execute();
 
-		ConnectionTick = FTicker::GetCoreTicker().AddTicker(TEXT("ConcertPendingConnection"), 0.1f, [this](float)
+		ConnectionTick = FTSTicker::GetCoreTicker().AddTicker(TEXT("ConcertPendingConnection"), 0.1f, [this](float)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertPendingConnection_Tick);
 			Tick();
@@ -483,7 +483,7 @@ private:
 
 	FConcertClient* Client;
 	FConfig Config;
-	FDelegateHandle ConnectionTick;
+	FTSTicker::FDelegateHandle ConnectionTick;
 	TPromise<EConcertResponseCode> ConnectionResult;
 	TUniquePtr<FAsyncTaskNotification> Notification;
 	TArray<TUniquePtr<IConcertClientConnectionTask>> ConnectionTasks;
@@ -754,7 +754,7 @@ void FConcertClient::StartDiscovery()
 	{
 		ClientAdminEndpoint->RegisterEventHandler<FConcertAdmin_ServerDiscoveredEvent>(this, &FConcertClient::HandleServerDiscoveryEvent);
 
-		DiscoveryTick = FTicker::GetCoreTicker().AddTicker(TEXT("Discovery"), 1, [this](float DeltaSeconds) {
+		DiscoveryTick = FTSTicker::GetCoreTicker().AddTicker(TEXT("Discovery"), 1, [this](float DeltaSeconds) {
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertClient_Discovery_Tick);
 			const FDateTime UtcNow = FDateTime::UtcNow();
 			SendDiscoverServersEvent();
@@ -779,7 +779,7 @@ void FConcertClient::StopDiscovery()
 	}
 	if (DiscoveryTick.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(DiscoveryTick);
+		FTSTicker::GetCoreTicker().RemoveTicker(DiscoveryTick);
 		DiscoveryTick.Reset();
 	}
 }

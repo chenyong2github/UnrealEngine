@@ -1548,7 +1548,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	SourceCodeAccessModule.GetAccessor().Tick(DeltaSeconds);
 
 	// tick the directory watcher
-	// @todo: Put me into an FTicker that is created when the DW module is loaded
+	// @todo: Put me into an FTSTicker that is created when the DW module is loaded
 	if( !FApp::IsProjectNameEmpty() )
 	{
 		static FName DirectoryWatcherName("DirectoryWatcher");

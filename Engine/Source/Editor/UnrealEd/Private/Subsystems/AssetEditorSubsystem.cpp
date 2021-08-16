@@ -48,7 +48,7 @@ UAssetEditorSubsystem::UAssetEditorSubsystem()
 void UAssetEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	TickDelegate = FTickerDelegate::CreateUObject(this, &UAssetEditorSubsystem::HandleTicker);
-	FTicker::GetCoreTicker().AddTicker(TickDelegate, 1.f);
+	FTSTicker::GetCoreTicker().AddTicker(TickDelegate, 1.f);
 
 	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &UAssetEditorSubsystem::HandlePackageReloaded);
 

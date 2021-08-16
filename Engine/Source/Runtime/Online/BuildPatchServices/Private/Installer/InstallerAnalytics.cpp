@@ -62,7 +62,7 @@ namespace BuildPatchServices
 		FThreadSafeCounter ConstructionErrors;
 		FCriticalSection AnalyticsEventQueueCS;
 		TArray<FAnalyticsEventInfo> AnalyticsEventQueue;
-		FDelegateHandle TickerHandle;
+		FTSTicker::FDelegateHandle TickerHandle;
 	};
 
 	FInstallerAnalytics::FInstallerAnalytics(IAnalyticsProvider* InAnalyticsProvider)
@@ -73,13 +73,13 @@ namespace BuildPatchServices
 		, AnalyticsEventQueueCS()
 		, AnalyticsEventQueue()
 	{
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FInstallerAnalytics::Tick));
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FInstallerAnalytics::Tick));
 	}
 
 	FInstallerAnalytics::~FInstallerAnalytics()
 	{
 		// Remove ticker.
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
 	void FInstallerAnalytics::RecordChunkDownloadError(const FString& ChunkUrl, int32 ResponseCode, const FString& ErrorString)

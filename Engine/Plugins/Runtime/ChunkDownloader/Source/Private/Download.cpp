@@ -30,7 +30,7 @@ void FDownload::Start()
 	if (!HasDeviceSpaceRequired())
 	{
 		TWeakPtr<FDownload> WeakThisPtr = AsShared();
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThisPtr](float Unused) {
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThisPtr](float Unused) {
 			TSharedPtr<FDownload> SharedThis = WeakThisPtr.Pin();
 			if (SharedThis.IsValid())
 			{
@@ -188,7 +188,7 @@ void FDownload::OnDownloadComplete(const FString& Url, int TryNumber, int32 Http
 	// set a ticker to delay
 	UE_LOG(LogChunkDownloader, Log, TEXT("Will re-attempt to download %s in %f seconds"), *PakFile->Entry.FileName, SecondsToDelay);
 	TWeakPtr<FDownload> WeakThisPtr = AsShared();
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThisPtr, TryNumber](float Unused) {
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThisPtr, TryNumber](float Unused) {
 		TSharedPtr<FDownload> SharedThis = WeakThisPtr.Pin();
 		if (SharedThis.IsValid() && !SharedThis->bHasCompleted)
 		{

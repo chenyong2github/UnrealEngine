@@ -13,12 +13,12 @@ void FMagicLeapNetworkingPlugin::StartupModule()
 {
 	IMagicLeapNetworkingPlugin::StartupModule();
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapNetworkingPlugin::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 }
 
 void FMagicLeapNetworkingPlugin::ShutdownModule()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IMagicLeapNetworkingPlugin::ShutdownModule();
 }
 

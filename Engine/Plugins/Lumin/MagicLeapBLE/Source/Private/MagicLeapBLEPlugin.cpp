@@ -20,7 +20,7 @@ void FMagicLeapBLEPlugin::StartupModule()
 	Runnable = new FBLERunnable();
 	ConnectionState = EMagicLeapBluetoothGattConnectionState::NotConnected;
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapBLEPlugin::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 }
 
 void FMagicLeapBLEPlugin::ShutdownModule()
@@ -39,7 +39,7 @@ void FMagicLeapBLEPlugin::ShutdownModule()
 		delete InRunnable;
 	}
 	
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IModuleInterface::ShutdownModule();
 }
 

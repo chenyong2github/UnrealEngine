@@ -99,7 +99,7 @@ private:
 	MLHandle Tracker;
 #endif //WITH_MLSDK
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 
 	/** The last serial number we assigned from this module */
 	uint64 LastAssignedSerialNumber;

@@ -6,6 +6,7 @@
 #include "HAL/MallocLeakDetection.h"
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
+#include "Containers/Ticker.h"
 
 
 /**
@@ -124,8 +125,8 @@ protected:
 
 	bool						Enabled;
 	int32						ReportCount;
-	FDelegateHandle				CheckpointTicker;
-	FDelegateHandle				ReportTicker;
+	FTSTicker::FDelegateHandle				CheckpointTicker;
+	FTSTicker::FDelegateHandle				ReportTicker;
 	FMallocLeakReportDelegate	ReportDelegate;
 
 	// Report vars

@@ -86,7 +86,7 @@ namespace BuildPatchServices
 
 	class FSpeedRecorder
 		: public ISpeedRecorder
-		, public FTickerObjectBase
+		, public FTSTickerObjectBase
 	{
 	public:
 		FSpeedRecorder();
@@ -98,9 +98,9 @@ namespace BuildPatchServices
 		virtual double GetPeakSpeed() const;
 		// ISpeedRecorder interface end.
 
-		// FTickerObjectBase interface begin.
+		// FTSTickerObjectBase interface begin.
 		virtual bool Tick(float DeltaTime);
-		// FTickerObjectBase interface end.
+		// FTSTickerObjectBase interface end.
 
 	private:
 		void PutRecordsInTemp(float OverSeconds) const;

@@ -135,7 +135,7 @@ bool FXmppPubSubJingle::GetLastMessages(const FXmppPubSubId& NodeId, int32 NumMe
 }
 
 FXmppPubSubJingle::FXmppPubSubJingle(class FXmppConnectionJingle& InConnection)
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, Connection(InConnection)
 {
 

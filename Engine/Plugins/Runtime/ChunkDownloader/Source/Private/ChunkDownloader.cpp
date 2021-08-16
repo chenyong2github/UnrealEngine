@@ -1014,7 +1014,7 @@ void FChunkDownloader::BeginLoadingMode(const FCallback& Callback)
 
 	// compute again next frame (if nothing's queued by then, we'll fire the callback
 	TWeakPtr<FChunkDownloader> WeakThisPtr = AsShared();
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThisPtr](float dts) {
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThisPtr](float dts) {
 		TSharedPtr<FChunkDownloader> SharedThis = WeakThisPtr.Pin();
 		if (!SharedThis.IsValid() || SharedThis->PostLoadCallbacks.Num() <= 0)
 		{
@@ -1103,7 +1103,7 @@ void FChunkDownloader::ExecuteNextTick(const FCallback& Callback, bool bSuccess)
 {
 	if (Callback)
 	{
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Callback, bSuccess](float dts) {
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Callback, bSuccess](float dts) {
 			Callback(bSuccess);
 			return false;
 		}));
@@ -1149,7 +1149,7 @@ void FChunkDownloader::TryLoadBuildManifest(int TryNumber)
 		// set a ticker to delay
 		UE_LOG(LogChunkDownloader, Log, TEXT("Will re-attempt manifest download in %f seconds"), SecondsToDelay);
 		TWeakPtr<FChunkDownloader> WeakThisPtr = AsShared();
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThisPtr, TryNumber](float Unused) {
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThisPtr, TryNumber](float Unused) {
 			TSharedPtr<FChunkDownloader> SharedThis = WeakThisPtr.Pin();
 			if (SharedThis.IsValid())
 			{
@@ -1509,7 +1509,7 @@ void FChunkDownloader::MountChunkInternal(FChunk& Chunk, const FCallback& Callba
 		// start a per-frame ticker until mounts are finished
 		if (!MountTicker.IsValid())
 		{
-			MountTicker = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FChunkDownloader::UpdateMountTasks));
+			MountTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FChunkDownloader::UpdateMountTasks));
 		}
 	}
 	else

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
+#include "Containers/Ticker.h"
 
 #if !UE_BUILD_SHIPPING && !WITH_EDITOR
 
@@ -28,7 +29,7 @@ public:
 	FTickerDelegate OnTick;
 
 	/** Handle to the registered OnTick. */
-	FDelegateHandle OnTickHandle;
+	FTSTicker::FDelegateHandle OnTickHandle;
 
 	bool Tick(float DeltaTime);
 

@@ -31,7 +31,7 @@ public:
 	{
 		if (bPendingHardwareSurveyResults)
 		{
-			FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 			bPendingHardwareSurveyResults = false;
 		}
 	}
@@ -53,7 +53,7 @@ public:
 		if (IsHardwareSurveyRequired())
 		{
 			bPendingHardwareSurveyResults = true;
-			TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FHardwareSurveyModule::TickHardwareSurvey));
+			TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FHardwareSurveyModule::TickHardwareSurvey));
 		}
 	}
 
@@ -378,7 +378,7 @@ private:
 	// Holds the analytics provider if available
 	IAnalyticsProvider* Analytics;
 
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 };
 
 

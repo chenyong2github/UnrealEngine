@@ -43,7 +43,7 @@ void FNetworkPredictionInsightsModule::StartupModule()
 	// (only SetUnrealInsightsLayoutIni which is extending the layouts of pre made individual tabs, not the the overall session layout)
 	if (!GIsEditor)
 	{
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("NetworkPredictionInsights"), 0.0f, [&UnrealInsightsModule](float DeltaTime)
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("NetworkPredictionInsights"), 0.0f, [&UnrealInsightsModule](float DeltaTime)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FNetworkPredictionInsightsModule_Tick);
 			auto SessionPtr = UnrealInsightsModule.GetAnalysisSession();
@@ -136,7 +136,7 @@ void FNetworkPredictionInsightsModule::ShutdownModule()
 		FCoreDelegates::OnFEngineLoopInitComplete.Remove(StoreServiceHandle);
 	}
 
-	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &NetworkPredictionTraceModule);
 }

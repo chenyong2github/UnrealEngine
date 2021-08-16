@@ -8,6 +8,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Components/PanelWidget.h"
+#include "Containers/Ticker.h"
 #include "ScrollBox.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUserScrolledEvent, float, CurrentOffset);
@@ -224,6 +225,6 @@ protected:
 	//~ End UWidget Interface
 
 #if WITH_EDITOR
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 #endif //WITH_EDITOR
 };

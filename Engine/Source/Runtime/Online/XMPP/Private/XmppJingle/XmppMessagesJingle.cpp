@@ -187,7 +187,7 @@ protected:
 };
 
 FXmppMessagesJingle::FXmppMessagesJingle(class FXmppConnectionJingle& InConnection)
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, MessageRcvTask(NULL)
 	, MessageSendTask(NULL)
 	, NumMessagesReceived(0)

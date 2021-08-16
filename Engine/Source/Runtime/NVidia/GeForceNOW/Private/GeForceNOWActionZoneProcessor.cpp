@@ -210,13 +210,13 @@ void GeForceNOWActionZoneProcessor::StartProcess()
 {
 	if (!ProcessDelegateHandle.IsValid())
 	{
-		ProcessDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &GeForceNOWActionZoneProcessor::ProcessGFNWidgetActionZones), GFNWidgetActionZonesProcessDelay);
+		ProcessDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &GeForceNOWActionZoneProcessor::ProcessGFNWidgetActionZones), GFNWidgetActionZonesProcessDelay);
 	}
 }
 
 void GeForceNOWActionZoneProcessor::StopProcess()
 {
-	FTicker::GetCoreTicker().RemoveTicker(ProcessDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(ProcessDelegateHandle);
 	ProcessDelegateHandle.Reset();
 }
 

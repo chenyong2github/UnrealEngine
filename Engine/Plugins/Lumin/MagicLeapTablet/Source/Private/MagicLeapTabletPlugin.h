@@ -30,7 +30,7 @@ public:
 
 private:
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	FMagicLeapTabletOnConnectedDelegateMulti OnConnected;
 	FMagicLeapTabletOnDisconnectedDelegateMulti OnDisconnected;
 	FMagicLeapTabletOnPenTouchDelegateMulti OnPenTouch;

@@ -49,7 +49,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		return ServerConfig;
 	};
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("CheckEditorHealth"), 1.0f, [&EditorProcessId](float)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("CheckEditorHealth"), 1.0f, [&EditorProcessId](float)
 	{
 		if (!FPlatformProcess::IsApplicationRunning(EditorProcessId))
 		{

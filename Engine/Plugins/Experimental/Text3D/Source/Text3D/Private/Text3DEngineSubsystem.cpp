@@ -49,14 +49,14 @@ UText3DEngineSubsystem::UText3DEngineSubsystem()
 void UText3DEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	CleanupTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UText3DEngineSubsystem::CleanupTimerCallback), 600.0f);
+	CleanupTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UText3DEngineSubsystem::CleanupTimerCallback), 600.0f);
 }
 
 void UText3DEngineSubsystem::Deinitialize()
 {
 	if (CleanupTickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(CleanupTickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(CleanupTickerHandle);
 		CleanupTickerHandle.Reset();
 	}
 

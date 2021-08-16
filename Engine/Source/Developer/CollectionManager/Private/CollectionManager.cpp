@@ -293,12 +293,12 @@ FCollectionManager::FCollectionManager()
 		CollectionFileCaches[CacheIdx] = MakeShareable(new DirectoryWatcher::FFileCache(FileCacheConfig));
 	}
 
-	TickFileCacheDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCollectionManager::TickFileCache), 1.0f);
+	TickFileCacheDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCollectionManager::TickFileCache), 1.0f);
 }
 
 FCollectionManager::~FCollectionManager()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickFileCacheDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickFileCacheDelegateHandle);
 }
 
 bool FCollectionManager::HasCollections() const

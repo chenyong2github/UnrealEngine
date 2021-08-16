@@ -4,6 +4,7 @@
 
 #include "Interfaces/OnlinePlayTimeLimit.h"
 #include "PlayTimeLimitUser.h"
+#include "Containers/Ticker.h"
 
 /**
  * Configuration
@@ -138,7 +139,7 @@ protected:
 	TArray<FOnlinePlayLimitConfigEntry> ConfigRates;
 
 	/** Delegate for callbacks to Tick */
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 
 private:
 	// Not copyable

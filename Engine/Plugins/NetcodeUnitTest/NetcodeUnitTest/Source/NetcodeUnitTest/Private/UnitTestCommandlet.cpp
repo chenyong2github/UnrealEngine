@@ -159,8 +159,7 @@ int32 UUnitTestCommandlet::Main(const FString& Params)
 			// Required for FTimerManager to function - as it blocks ticks, if the frame counter doesn't change
 			GFrameCounter++;
 
-			FTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
-
+			FTSTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
 
 			// Execute deferred commands
 			for (int32 DeferredCommandsIndex=0; DeferredCommandsIndex<GEngine->DeferredCommands.Num(); DeferredCommandsIndex++)

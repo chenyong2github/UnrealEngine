@@ -7,9 +7,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Containers/UnrealString.h"
-/**
- * 
- */
+#include "Containers/Ticker.h"
 
 class FPerformanceMonitorModule : public IModuleInterface, public FSelfRegisteringExec
 {
@@ -31,7 +29,7 @@ private:
 	TMap<FString, TArray<float>> GeneratedStats;
 	FArchive * FileToLogTo;
 	FString LogFileName;
-	FDelegateHandle TickHandler;
+	FTSTicker::FDelegateHandle TickHandler;
 
 	bool bRecording;
 	float TimeOfTestStart;

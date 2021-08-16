@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 #include "RHIDefinitions.h"
+#include "Containers/Ticker.h"
 
 class FODSCThread;
 
@@ -13,7 +14,7 @@ class FODSCThread;
  * Interface for submitting shader compile requests to the ODSC Thread.
  */
 class ENGINE_API FODSCManager
-	: public FTickerObjectBase
+	: public FTSTickerObjectBase
 {
 public:
 
@@ -29,10 +30,10 @@ public:
 	 */
 	virtual ~FODSCManager();
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 
 	/**
-	 * FTicker callback
+	 * FTSTicker callback
 	 *
 	 * @param DeltaSeconds - time in seconds since the last tick
 	 *

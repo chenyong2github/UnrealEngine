@@ -8,6 +8,7 @@
 #include "ConcertSettings.h"
 
 #include "UObject/StrongObjectPtr.h"
+#include "Containers/Ticker.h"
 
 class FConcertClientSession;
 class FConcertAutoConnection;
@@ -150,7 +151,7 @@ private:
 	uint32 DiscoveryCount;
 
 	/** Ticker for Discovering Concert Servers */
-	FDelegateHandle DiscoveryTick;
+	FTSTicker::FDelegateHandle DiscoveryTick;
 
 	struct FKnownServer
 	{

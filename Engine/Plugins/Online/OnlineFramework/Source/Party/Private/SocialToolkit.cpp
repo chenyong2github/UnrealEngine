@@ -1225,14 +1225,14 @@ void USocialToolkit::Debug_OnStartRandomizeUserPresence(uint8 NumRandomUser, flo
 {
 	if (Debug_PresenceTickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(Debug_PresenceTickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(Debug_PresenceTickerHandle);
 		Debug_PresenceTickerHandle.Reset();
 	}
 
 	if (ensure(TickerTimer > 0.f))
 	{
 		bDebug_IsRandomlyChangingUserPresence = true;
-		Debug_PresenceTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &USocialToolkit::Debug_HandleRandomizeUserPresenceTick, NumRandomUser), TickerTimer);
+		Debug_PresenceTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &USocialToolkit::Debug_HandleRandomizeUserPresenceTick, NumRandomUser), TickerTimer);
 	}
 }
 
@@ -1241,7 +1241,7 @@ void USocialToolkit::Debug_OnStopRandomizeUserPresence(bool bClearGeneratedPrese
 	bDebug_IsRandomlyChangingUserPresence = false;
 	if (Debug_PresenceTickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(Debug_PresenceTickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(Debug_PresenceTickerHandle);
 		Debug_PresenceTickerHandle.Reset();
 	}
 

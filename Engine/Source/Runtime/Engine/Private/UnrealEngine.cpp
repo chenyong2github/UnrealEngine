@@ -9945,7 +9945,7 @@ void UEngine::FErrorsAndWarningsCollector::Initialize()
 	if (DisplayTime > 0.0f)
 	{
 		SetVerbosity((GSupressWarningsInOnScreenDisplay != 0) ? ELogVerbosity::Error : ELogVerbosity::Warning);
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &UEngine::FErrorsAndWarningsCollector::Tick), DisplayTime);
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &UEngine::FErrorsAndWarningsCollector::Tick), DisplayTime);
 		FOutputDeviceRedirector::Get()->AddOutputDevice(this);
 	}
 }
@@ -9955,7 +9955,7 @@ UEngine::FErrorsAndWarningsCollector::~FErrorsAndWarningsCollector()
 	if (TickerHandle.IsValid())
 	{
 		FOutputDeviceRedirector::Get()->RemoveOutputDevice(this);
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 }
 
@@ -16197,7 +16197,7 @@ static void DoUAssetLoadTest(const TArray<FString>& Args)
 		UE_LOG(LogConsoleResponse, Display, TEXT("gc.TimeBetweenPurgingPendingKillObjects set to 10, you might want to adjust that or do gc.CollectGarbageEveryFrame 1"));
 
 		UE_LOG(LogConsoleResponse, Display, TEXT("Testing %d uasset files in %s"), AssetLoadTest_Filenames.Num(), *MountPoint);
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float Delta) -> bool { TickAssetLoadTest(); return true; }));
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float Delta) -> bool { TickAssetLoadTest(); return true; }));
 	}
 
 }

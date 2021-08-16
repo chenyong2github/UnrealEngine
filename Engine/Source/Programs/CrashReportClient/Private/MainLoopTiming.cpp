@@ -25,7 +25,6 @@ void FMainLoopTiming::Tick()
 
 	// Tick app logic
 	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-	FTicker::GetCoreTicker().Tick(ActualDeltaTime);
 	FTSTicker::GetCoreTicker().Tick(ActualDeltaTime);
 
 #if !CRASH_REPORT_UNATTENDED_ONLY

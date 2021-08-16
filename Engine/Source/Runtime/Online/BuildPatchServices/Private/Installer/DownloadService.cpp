@@ -11,6 +11,7 @@
 #include "Common/HttpManager.h"
 #include "Common/FileSystem.h"
 #include "Stats/Stats.h"
+#include "Containers/Ticker.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDownloadService, Warning, All);
 DEFINE_LOG_CATEGORY(LogDownloadService);
@@ -212,7 +213,7 @@ namespace BuildPatchServices
 		};
 
 	public:
-		FDownloadService(FTicker& Ticker, IHttpManager* HttpManager, IFileSystem* FileSystem, IDownloadServiceStat* DownloadServiceStat, IInstallerAnalytics* InstallerAnalytics);
+		FDownloadService(FTSTicker& Ticker, IHttpManager* HttpManager, IFileSystem* FileSystem, IDownloadServiceStat* DownloadServiceStat, IInstallerAnalytics* InstallerAnalytics);
 		~FDownloadService();
 
 		// IDownloadService interface begin.
@@ -242,7 +243,7 @@ namespace BuildPatchServices
 
 	private:
 		TSharedRef<FHttpDelegates, ESPMode::ThreadSafe> HttpDelegates;
-		FTicker& Ticker;
+		FTSTicker& Ticker;
 		IHttpManager* HttpManager;
 		IFileSystem* FileSystem;
 		IDownloadServiceStat* DownloadServiceStat;
@@ -269,7 +270,7 @@ namespace BuildPatchServices
 		FCriticalSection CompletedRequestsCS;
 		TMap<int32, FDownloadBaseRef> CompletedRequests;
 
-		FDelegateHandle TickerHandle;
+		FTSTicker::FDelegateHandle TickerHandle;
 	};
 
 	FDownloadService::FHttpDelegates::FHttpDelegates(FDownloadService& InDownloadService)
@@ -287,7 +288,7 @@ namespace BuildPatchServices
 		DownloadService.HttpRequestComplete(MoveTemp(Request), MoveTemp(Response), bSucceeded, MoveTemp(DownloadRecord));
 	}
 
-	FDownloadService::FDownloadService(FTicker& InTicker, IHttpManager* InHttpManager, IFileSystem* InFileSystem, IDownloadServiceStat* InDownloadServiceStat, IInstallerAnalytics* InInstallerAnalytics)
+	FDownloadService::FDownloadService(FTSTicker& InTicker, IHttpManager* InHttpManager, IFileSystem* InFileSystem, IDownloadServiceStat* InDownloadServiceStat, IInstallerAnalytics* InInstallerAnalytics)
 		: HttpDelegates(MakeShareable(new FHttpDelegates(*this)))
 		, Ticker(InTicker)
 		, HttpManager(InHttpManager)
@@ -633,7 +634,7 @@ namespace BuildPatchServices
 		CompletedRequests.Emplace(RequestId, MakeShareable(new FHttpDownload(MoveTemp(Response), bSuccess, MoveTemp(DownloadRecord))));
 	}
 
-	IDownloadService* FDownloadServiceFactory::Create(FTicker& Ticker, IHttpManager* HttpManager, IFileSystem* FileSystem, IDownloadServiceStat* DownloadServiceStat, IInstallerAnalytics* InstallerAnalytics)
+	IDownloadService* FDownloadServiceFactory::Create(FTSTicker& Ticker, IHttpManager* HttpManager, IFileSystem* FileSystem, IDownloadServiceStat* DownloadServiceStat, IInstallerAnalytics* InstallerAnalytics)
 	{
 		check(HttpManager != nullptr);
 		check(FileSystem != nullptr);

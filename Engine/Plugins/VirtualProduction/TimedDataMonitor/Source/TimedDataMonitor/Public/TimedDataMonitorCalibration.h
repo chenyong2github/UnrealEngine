@@ -8,6 +8,7 @@
 #include "ITimedDataInput.h"
 #include "TimedDataMonitorTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "Containers/Ticker.h"
 
 #include "TimedDataMonitorCalibration.generated.h"
 
@@ -174,6 +175,6 @@ private:
 
 	int32 NumberOfRetry = 0;
 	FTimedDataMonitorCalibrationParameters CalibrationParameters;
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 	FOnCalibrationCompletedSignature OnCalibrationCompleted;
 };

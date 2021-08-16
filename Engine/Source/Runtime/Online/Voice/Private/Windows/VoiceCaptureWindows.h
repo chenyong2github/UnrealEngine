@@ -104,7 +104,7 @@ public:
 /**
  * Windows implementation of voice capture using DirectSound
  */
-class FVoiceCaptureWindows : public IVoiceCapture, public FTickerObjectBase
+class FVoiceCaptureWindows : public IVoiceCapture, public FTSTickerObjectBase
 {
 public:
 
@@ -125,7 +125,7 @@ public:
 	virtual void DumpState() const override;
 	virtual float GetCurrentAmplitude() const override;
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 	
 private:

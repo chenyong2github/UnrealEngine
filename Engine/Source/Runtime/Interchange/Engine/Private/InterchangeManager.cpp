@@ -1038,7 +1038,7 @@ void UInterchangeManager::SetActiveMode(bool IsActive)
 	if (bIsActive)
 	{
 		ensure(!NotificationTickHandle.IsValid());
-		NotificationTickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("InterchangeManagerTickHandle"), 0.1f, [this](float)
+		NotificationTickHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("InterchangeManagerTickHandle"), 0.1f, [this](float)
 		{
 			if (Notification.IsValid() && Notification->GetPromptAction() == EAsyncTaskNotificationPromptAction::Cancel)
 			{
@@ -1060,7 +1060,7 @@ void UInterchangeManager::SetActiveMode(bool IsActive)
 	}
 	else
 	{
-		FTicker::GetCoreTicker().RemoveTicker(NotificationTickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(NotificationTickHandle);
 		NotificationTickHandle.Reset();
 
 		if (GcGuardThread.IsJoinable())

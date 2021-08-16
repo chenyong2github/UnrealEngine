@@ -44,7 +44,7 @@ public:
 
 	void ShutdownModule() override
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	}
 
 	bool Tick(float DeltaTime)
@@ -121,7 +121,7 @@ public:
 #if WITH_MLSDK
 		if (!TickDelegateHandle.IsValid())
 		{
-			TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+			TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 		}
 
 		OAuthMetadata.RedirectURI = RedirectURI;
@@ -222,7 +222,7 @@ public:
 
 private:
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 };
 
 IMPLEMENT_MODULE(FMagicLeapDispatchPlugin, MagicLeapDispatch);

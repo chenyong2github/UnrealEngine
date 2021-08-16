@@ -9,6 +9,7 @@
 #include "Misc/Timecode.h"
 #include "StageCriticalEventHandler.h"
 #include "UObject/ObjectMacros.h"
+#include "Containers/Ticker.h"
 
 class FMessageEndpoint;
 struct FStageDataBaseMessage;
@@ -108,7 +109,7 @@ private:
 	bool bIsActive = false;
 
 	/** Handle to our ticking delegate (Ticks only when bIsActive is true) */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	/** This monitor identifier */
 	FGuid Identifier;

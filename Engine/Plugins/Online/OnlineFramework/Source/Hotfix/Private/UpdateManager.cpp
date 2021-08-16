@@ -510,7 +510,7 @@ void UUpdateManager::StartInitialPreload()
 	SetUpdateState(EUpdateState::WaitingOnInitialLoad);
 
 	// Start ticking
-	FTicker& Ticker = FTicker::GetCoreTicker();
+	FTSTicker& Ticker = FTSTicker::GetCoreTicker();
 	FTickerDelegate TickDelegate = FTickerDelegate::CreateUObject(this, &ThisClass::Tick);
 	ensure(!TickerHandle.IsValid());
 	TickerHandle = Ticker.AddTicker(TickDelegate, 0.0f);

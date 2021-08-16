@@ -36,7 +36,7 @@ UE_TRACE_EVENT_END()
 
 namespace ObjectPropertyTrace
 {
-	static FDelegateHandle TickerHandle;
+	static FTSTicker::FDelegateHandle TickerHandle;
 	static TArray<TWeakObjectPtr<const UObject>> Objects;
 
 	static uint32 CurrentClassPropertyStringId = 0;
@@ -219,7 +219,7 @@ namespace ObjectPropertyTrace
 void FObjectPropertyTrace::Init()
 {
 	check(!ObjectPropertyTrace::TickerHandle.IsValid());
-	ObjectPropertyTrace::TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("ObjectPropertyTrace"), 0.0f, [](float InDelta)
+	ObjectPropertyTrace::TickerHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("ObjectPropertyTrace"), 0.0f, [](float InDelta)
 	{
 		if(UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectProperties))
 		{
@@ -233,7 +233,7 @@ void FObjectPropertyTrace::Init()
 void FObjectPropertyTrace::Destroy()
 {
 	check(ObjectPropertyTrace::TickerHandle.IsValid());
-	FTicker::GetCoreTicker().RemoveTicker(ObjectPropertyTrace::TickerHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(ObjectPropertyTrace::TickerHandle);
 }
 
 bool FObjectPropertyTrace::IsEnabled()

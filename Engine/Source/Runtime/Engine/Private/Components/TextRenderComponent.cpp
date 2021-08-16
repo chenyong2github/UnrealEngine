@@ -24,6 +24,7 @@
 #include "Engine/TextRenderActor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "StaticMeshResources.h"
+#include "Containers/Ticker.h"
 
 #define LOCTEXT_NAMESPACE "TextRenderComponent"
 
@@ -506,12 +507,12 @@ private:
 
 	FTextRenderComponentMIDCache()
 	{
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FTextRenderComponentMIDCache::PurgeUnreferencedMIDsTicker), 10.0f);
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FTextRenderComponentMIDCache::PurgeUnreferencedMIDsTicker), 10.0f);
 	}
 
 	~FTextRenderComponentMIDCache()
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
 	bool PurgeUnreferencedMIDsTicker(float)
@@ -560,7 +561,7 @@ private:
 		MIDsPendingPurge = MoveTemp(MIDsToPurgeLater);
 	}
 
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	TMap<FKey, FMIDDataPtr> CachedMIDs;
 

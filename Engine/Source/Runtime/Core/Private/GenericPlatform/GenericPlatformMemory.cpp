@@ -144,7 +144,7 @@ void FGenericPlatformMemory::Init()
 #if	STATS
 	// Stats are updated only once per second.
 	const float PollingInterval = 1.0f;
-	FTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateStatic( &FGenericStatsUpdater::EnqueueUpdateStats ), PollingInterval );
+	FTSTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateStatic( &FGenericStatsUpdater::EnqueueUpdateStats ), PollingInterval );
 
 	// Update for the first time.
 	FGenericStatsUpdater::DoUpdateStats();

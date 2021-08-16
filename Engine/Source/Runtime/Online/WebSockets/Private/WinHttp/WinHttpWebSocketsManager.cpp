@@ -15,7 +15,7 @@ void FWinHttpWebSocketsManager::InitWebSockets(TArrayView<const FString> Protoco
 
 	if (ensure(!TickHandle.IsValid()))
 	{
-		TickHandle = FBackgroundableTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FWinHttpWebSocketsManager::GameThreadTick), 0.0f);
+		TickHandle = FTSBackgroundableTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FWinHttpWebSocketsManager::GameThreadTick), 0.0f);
 	}
 }
 
@@ -32,7 +32,7 @@ void FWinHttpWebSocketsManager::ShutdownWebSockets()
 
 	if (ensure(TickHandle.IsValid()))
 	{
-		FBackgroundableTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSBackgroundableTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 }

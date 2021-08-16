@@ -19,6 +19,7 @@
 #include "RHI.h"
 #include "AudioDeviceManager.h"
 #include "Templates/UniqueObj.h"
+#include "Containers/Ticker.h"
 #include "Engine.generated.h"
 
 #define WITH_DYNAMIC_RESOLUTION (!UE_SERVER)
@@ -3428,7 +3429,7 @@ private:
 		bool Tick(float Seconds);
 
 		TMap<uint32, uint32>	MessagesToCountMap;
-		FDelegateHandle			TickerHandle;
+		FTSTicker::FDelegateHandle			TickerHandle;
 		float					DisplayTime;
 	};
 

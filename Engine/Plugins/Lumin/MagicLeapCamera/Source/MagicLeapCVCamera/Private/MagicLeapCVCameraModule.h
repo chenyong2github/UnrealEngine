@@ -36,7 +36,7 @@ private:
 	void OnAppPause();
 
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	float MinCameraRunTimer;
 	MagicLeap::IAppEventHandler AppEventHandler;
 	FCVCameraRunnable* Runnable;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ConcertSession.h"
 #include "ConcertMessages.h"
+#include "Containers/Ticker.h"
 
 class IConcertLocalEndpoint;
 struct FConcertClientSettings;
@@ -171,7 +172,7 @@ private:
 	uint8 SuspendedCount;
 
 	/** Ticker for the session */
-	FDelegateHandle SessionTick;
+	FTSTicker::FDelegateHandle SessionTick;
 
 	/** Last connection tick */
 	FDateTime LastConnectionTick;

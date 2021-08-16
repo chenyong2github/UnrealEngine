@@ -113,7 +113,7 @@ FCameraCalibrationStepsController::FCameraCalibrationStepsController(TWeakPtr<FC
 	check(CameraCalibrationToolkit.IsValid());
 	check(LensFile.IsValid());
 
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateRaw(this, &FCameraCalibrationStepsController::OnTick), 0.0f);
 }
 
@@ -121,7 +121,7 @@ FCameraCalibrationStepsController::~FCameraCalibrationStepsController()
 {
 	if (TickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
 	Cleanup();

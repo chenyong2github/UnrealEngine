@@ -68,7 +68,7 @@ FProfilerSession::FProfilerSession( const TSharedPtr<ISessionInstanceInfo>& InSe
 {
 	// Randomize creation time to test loading profiler captures with different creation time and different amount of data.
 	CreationTime = FDateTime::Now() += FTimespan( 0, 0, FMath::RandRange( 2, 8 ) );
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker( OnTick );
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker( OnTick );
 }
 
 FProfilerSession::FProfilerSession( const FString& InDataFilepath )
@@ -94,12 +94,12 @@ FProfilerSession::FProfilerSession( const FString& InDataFilepath )
 {
 	// Randomize creation time to test loading profiler captures with different creation time and different amount of data.
 	CreationTime = FDateTime::Now() += FTimespan( 0, 0, FMath::RandRange( 2, 8 ) );
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker( OnTick );
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker( OnTick );
 }
 
 FProfilerSession::~FProfilerSession()
 {
-	FTicker::GetCoreTicker().RemoveTicker( OnTickHandle );	
+	FTSTicker::GetCoreTicker().RemoveTicker( OnTickHandle );	
 }
 
 const TSharedRef<FEventGraphData, ESPMode::ThreadSafe> FProfilerSession::GetEventGraphDataTotal() const

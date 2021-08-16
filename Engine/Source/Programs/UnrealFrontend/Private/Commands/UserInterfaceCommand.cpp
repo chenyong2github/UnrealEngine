@@ -87,7 +87,7 @@ void FUserInterfaceCommand::Run(  )
 
 		FSlateApplication::Get().PumpMessages();
 		FSlateApplication::Get().Tick();
-		FTicker::GetCoreTicker().Tick(DeltaTime);
+		FTSTicker::GetCoreTicker().Tick(DeltaTime);
 		AutomationControllerModule.Tick();
 
 		// throttle frame rate

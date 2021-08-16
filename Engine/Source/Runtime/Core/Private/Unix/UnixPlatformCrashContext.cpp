@@ -423,7 +423,7 @@ namespace UnixCrashReporterTracker
 		UnixCrashReporterTracker::MaxProcessSlots = ActiveProcessSlots;
 
         // Register our Tick function
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&UnixCrashReporterTracker::Tick), 1.f);
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&UnixCrashReporterTracker::Tick), 1.f);
 	}
 
 	/**

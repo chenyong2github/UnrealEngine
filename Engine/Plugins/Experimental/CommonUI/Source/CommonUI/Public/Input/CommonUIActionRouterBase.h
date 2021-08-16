@@ -6,6 +6,7 @@
 #include "CommonUIInputTypes.h"
 #include "CommonInputBaseTypes.h"
 #include "Misc/Passkey.h"
+#include "Containers/Ticker.h"
 
 #include "CommonUIActionRouterBase.generated.h"
 
@@ -123,7 +124,7 @@ protected:
 	bool bIsActivatableTreeEnabled = true;
 
 	TSharedPtr<FCommonAnalogCursor> AnalogCursor;
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 
 private:
 	bool Tick(float DeltaTime);

@@ -8,6 +8,7 @@
 #include "ConcertRemoteEndpoint.h"
 #include "ConcertTransportSettings.h"
 #include "Containers/Queue.h"
+#include "Containers/Ticker.h"
 
 class FMessageEndpoint;
 struct FMessageBusNotification;
@@ -163,7 +164,7 @@ private:
 	TMap<FName, TSharedPtr<IConcertRequestHandler>> RequestHandlers;
 
 	/** Handle to the registered ticker for request and reliable message */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	/** Runnable thread used to send keep-alive messages even when the game thread is blocked */
 	TUniquePtr<FConcertLocalEndpointKeepAliveRunnable> KeepAliveRunnable;

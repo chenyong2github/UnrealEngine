@@ -4,6 +4,7 @@
 
 #include "Delegates/Delegate.h"
 #include "Logging/LogMacros.h"
+#include "Containers/Ticker.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(AsyncLoadingFlush, Log, All);
 
@@ -47,8 +48,8 @@ private:
 	double StartTime = 0;
 
 	/** Tick delegates. */
-	FDelegateHandle LoadingCompleteCheckDelegateHandle;
-	FDelegateHandle WaitingWarnDelegateHandle;
+	FTSTicker::FDelegateHandle LoadingCompleteCheckDelegateHandle;
+	FTSTicker::FDelegateHandle WaitingWarnDelegateHandle;
 
 	/** Increment ids so each instance has a unique id. */
 	static int32 NextId;

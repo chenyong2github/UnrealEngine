@@ -179,6 +179,8 @@ bool WillNeedAudioVisualData()
 
 //-----------------------------------------------------------------------------
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FCoreTicker : public FTicker {};
 
 FTicker& FTicker::GetCoreTicker()
@@ -190,6 +192,8 @@ void FTicker::TearDownCoreTicker()
 {
 	TLazySingleton<FCoreTicker>::TearDown();
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /*----------------------------------------------------------------------------
 	Runtime functions.

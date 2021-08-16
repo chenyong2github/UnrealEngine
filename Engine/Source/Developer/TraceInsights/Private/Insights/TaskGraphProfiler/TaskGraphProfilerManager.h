@@ -135,7 +135,7 @@ private:
 	FTickerDelegate OnTick;
 
 	/** Handle to the registered OnTick. */
-	FDelegateHandle OnTickHandle;
+	FTSTicker::FDelegateHandle OnTickHandle;
 
 	/** A shared pointer to the global instance of the Task Graph Profiler manager. */
 	static TSharedPtr<FTaskGraphProfilerManager> Instance;

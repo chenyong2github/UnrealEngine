@@ -68,7 +68,7 @@ private:
 	FTickerDelegate OnTick;
 
 	/** Handle to the registered OnTick. */
-	FDelegateHandle OnTickHandle;
+	FTSTicker::FDelegateHandle OnTickHandle;
 
 	/** A shared pointer to the global instance of the Context Switches Profiler manager. */
 	static TSharedPtr<FContextSwitchesProfilerManager> Instance;

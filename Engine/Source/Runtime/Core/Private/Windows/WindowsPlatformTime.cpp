@@ -21,7 +21,7 @@ double FWindowsPlatformTime::InitTiming(void)
 	static const float PollingInterval = 1.0f / 4.0f;
 
 	// Register a ticker delegate for updating the CPU utilization data.
-	FTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateStatic( &FPlatformTime::UpdateCPUTime ), PollingInterval );
+	FTSTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateStatic( &FPlatformTime::UpdateCPUTime ), PollingInterval );
 
 	return FPlatformTime::Seconds();
 }

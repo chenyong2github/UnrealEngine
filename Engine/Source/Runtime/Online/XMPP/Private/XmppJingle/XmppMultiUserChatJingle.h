@@ -107,7 +107,7 @@ typedef std::pair<std::string, std::string> FRoomFeatureValuePair;
 class FXmppMultiUserChatJingle
 	: public IXmppMultiUserChat
 	, public buzz::XmppChatroomHandler
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 	, public sigslot::has_slots < >
 {
 public:
@@ -151,7 +151,7 @@ public:
 	virtual void MemberChanged(buzz::XmppChatroomModule* RoomModule, const buzz::XmppChatroomMember* Member) override;
 	virtual void MessageReceived(buzz::XmppChatroomModule* RoomModule, const buzz::XmlElement& ChatXml) override;
 	
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	
 	virtual bool Tick(float DeltaTime) override;
 

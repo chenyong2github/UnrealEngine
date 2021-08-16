@@ -358,7 +358,7 @@ private:
 };
 
 FXmppPresenceJingle::FXmppPresenceJingle(class FXmppConnectionJingle& InConnection)
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, PresenceSendTask(NULL)
 	, PresenceRcvTask(NULL)
 	, NumPresenceIn(0)

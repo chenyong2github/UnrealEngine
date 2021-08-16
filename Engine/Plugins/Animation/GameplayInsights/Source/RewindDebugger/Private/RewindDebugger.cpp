@@ -59,7 +59,7 @@ FRewindDebugger::FRewindDebugger()  :
 
 	UnrealInsightsModule = &FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("RewindDebugger"), 0.0f, [this](float DeltaTime)
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(TEXT("RewindDebugger"), 0.0f, [this](float DeltaTime)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRewindDebuggerModule_Tick);
 
@@ -77,7 +77,7 @@ FRewindDebugger::~FRewindDebugger()
 	FEditorDelegates::EndPIE.RemoveAll(this);
 	FEditorDelegates::SingleStepPIE.RemoveAll(this);
 
-	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 
 }
 

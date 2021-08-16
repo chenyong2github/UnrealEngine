@@ -33,14 +33,14 @@ public:
 };
 
 class FXmppPingStrophe
-	: public FTickerObjectBase
+	: public FTSTickerObjectBase
 {
 public:
 	// FXmppPingStrophe
 	FXmppPingStrophe(FXmppConnectionStrophe& InConnectionManager);
 	virtual ~FXmppPingStrophe();
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 	/** Clear any caches on disconnect */

@@ -18,7 +18,7 @@ class FBackgroundHttpFileHashHelper;
  */
 class BACKGROUNDHTTP_API FBackgroundHttpManagerImpl 
 	: public IBackgroundHttpManager
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 	FBackgroundHttpManagerImpl();
@@ -40,7 +40,7 @@ public:
 	
 	virtual void CleanUpDataAfterCompletingRequest(const FBackgroundHttpRequestPtr Request) override;
 	
-	//FTickerObjectBase implementation
+	//FTSTickerObjectBase implementation
 	virtual bool Tick(float DeltaTime) override;
 	
 protected:

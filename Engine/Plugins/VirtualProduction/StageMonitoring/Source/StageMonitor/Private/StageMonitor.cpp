@@ -57,7 +57,7 @@ void FStageMonitor::Start()
 			MonitorEndpoint->Subscribe<FStageProviderDiscoveryResponseMessage>();
 		}
 
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FStageMonitor::Tick), 0.0f);
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FStageMonitor::Tick), 0.0f);
 
 		bIsActive = true;
 	}
@@ -75,7 +75,7 @@ void FStageMonitor::Stop()
 
 	if (TickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 		TickerHandle.Reset();
 	}
 

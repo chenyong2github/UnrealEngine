@@ -33,7 +33,7 @@ public:
 class FXmppPresenceJingle
 	: public IXmppPresence
 	, public sigslot::has_slots<>
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 
@@ -46,7 +46,7 @@ public:
 	virtual void GetRosterMembers(TArray<FXmppUserJid>& Members) override;
 	virtual FOnXmppPresenceReceived& OnReceivePresence() override { return OnXmppPresenceReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	
 	virtual bool Tick(float DeltaTime) override;
 

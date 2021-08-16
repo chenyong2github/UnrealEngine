@@ -79,6 +79,11 @@ public:
 	 */
 	void Tick(float DeltaTime);
 
+	/**
+	 * Resets the instance to its default state. Must be called from the ticking thread.
+	 */
+	void Reset();
+
 private:
 	/** Internal structure to store a ticker delegate and related data **/
 	struct FElement
@@ -162,7 +167,7 @@ private:
  * `FTicker` to `FTSTicker` and change the type of the delegate handle returned by `AddTicker` methods from `FDelegateHandle` to
  * `FTSTicker::DelegateHandle`
  */
-class FTicker
+class UE_DEPRECATED(5.0, "Please use thread-safe FTSTicker, see the migration guide in the code comment above") FTicker
 {
 public:
 
@@ -249,11 +254,10 @@ protected:
 	bool bCurrentElementRemoved;
 };
 
-
 /**
  * Base class for ticker objects
  */
-class FTickerObjectBase
+class UE_DEPRECATED(5.0, "Please use thread-safe FTSTickerObjectBase, see the migration guide in the code comment above FTSTicker") FTickerObjectBase
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // FTicker
 

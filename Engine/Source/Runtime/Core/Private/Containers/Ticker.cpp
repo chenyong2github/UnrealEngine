@@ -116,6 +116,15 @@ void FTSTicker::Tick(float DeltaTime)
 	}
 }
 
+void FTSTicker::Reset()
+{
+	while (AddedElements.Dequeue())
+	{
+	}
+	CurrentTime = 0.0;
+	Elements.Reset();
+}
+
 FTSTicker::FElement::FElement()
 	: FireTime(0.0)
 	, DelayTime(0.0f)

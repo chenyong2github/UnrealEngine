@@ -12,7 +12,7 @@
 /**
  * Class used to test the friends interface
  */
- class FTestLeaderboardInterface : public FTickerObjectBase
+ class FTestLeaderboardInterface : public FTSTickerObjectBase
  {
 	/** The subsystem that was requested to be tested or the default if empty */
 	const FString Subsystem;
@@ -121,7 +121,7 @@
 
 	virtual ~FTestLeaderboardInterface();
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 
 	bool Tick( float DeltaTime ) override;
 

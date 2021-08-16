@@ -32,7 +32,7 @@ FOculusAudioLibraryManager::FOculusAudioLibraryManager()
 
 FOculusAudioLibraryManager::~FOculusAudioLibraryManager()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 }
 
 void FOculusAudioLibraryManager::Initialize()
@@ -212,7 +212,7 @@ ovrAudioContext FOculusAudioLibraryManager::GetPluginContext()
 
 			// Tick the scene from here since there is no listener
 			auto TickDelegate = FTickerDelegate::CreateRaw(this, &FOculusAudioLibraryManager::UpdatePluginContext);
-			TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+			TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 		}
 	}
 	return CachedPluginContext;

@@ -9,6 +9,7 @@
 #include "Containers/StringView.h"
 #include "ContentBrowserItem.h"
 #include "ContentBrowserDataFilter.h"
+#include "Containers/Ticker.h"
 #include "ContentBrowserDataSubsystem.generated.h"
 
 UENUM(BlueprintType)
@@ -318,7 +319,7 @@ private:
 	/**
 	 * Handle for the Tick callback.
 	 */
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 
 	/**
 	 * Map of data sources that are currently active.

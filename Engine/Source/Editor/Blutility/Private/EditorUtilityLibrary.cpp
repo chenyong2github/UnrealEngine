@@ -55,7 +55,7 @@ void UAsyncEditorDelay::Start(float InMinimumSeconds, int32 InMinimumFrames)
 {
 	EndFrame = GFrameCounter + InMinimumFrames;
 	EndTime = FApp::GetCurrentTime() + InMinimumSeconds;
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorDelay::HandleComplete), 0);
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorDelay::HandleComplete), 0);
 }
 
 bool UAsyncEditorDelay::HandleComplete(float DeltaTime)
@@ -97,7 +97,7 @@ void UAsyncEditorWaitForGameWorld::Start(int32 InIndex, bool InServer)
 {
 	Index = InIndex;
 	Server = InServer;
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorWaitForGameWorld::OnTick), 0);
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorWaitForGameWorld::OnTick), 0);
 }
 
 bool UAsyncEditorWaitForGameWorld::OnTick(float DeltaTime)
@@ -176,7 +176,7 @@ void UAsyncEditorOpenMapAndFocusActor::Start(FSoftObjectPath InMap, FString InFo
 	UWorld* World = GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
 	UKismetSystemLibrary::ExecuteConsoleCommand(World, FString::Printf(TEXT("Automate.OpenMapAndFocusActor %s %s"), *InMap.ToString(), *InFocusActorName));
 
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorOpenMapAndFocusActor::OnTick), 0);
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAsyncEditorOpenMapAndFocusActor::OnTick), 0);
 }
 
 bool UAsyncEditorOpenMapAndFocusActor::OnTick(float DeltaTime)

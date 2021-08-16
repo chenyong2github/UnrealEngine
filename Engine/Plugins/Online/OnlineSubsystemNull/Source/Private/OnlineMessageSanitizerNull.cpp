@@ -11,9 +11,9 @@ FMessageSanitizerNull::FMessageSanitizerNull()
 
 FMessageSanitizerNull::~FMessageSanitizerNull()
 {
-	for (TPair<int32, FDelegateHandle>& Pair : RequestIdHandleMap)
+	for (TPair<int32, FTSTicker::FDelegateHandle>& Pair : RequestIdHandleMap)
 	{
-		FTicker::GetCoreTicker().RemoveTicker(Pair.Value);
+		FTSTicker::GetCoreTicker().RemoveTicker(Pair.Value);
 	}
 }
 
@@ -22,7 +22,7 @@ void FMessageSanitizerNull::SanitizeDisplayName(const FString& DisplayName, cons
 	float Delay = 3.0f;
 	int32 ThisRequest = RequestId++;
 
-	FDelegateHandle TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, DisplayName, CompletionDelegate, ThisRequest](float) -> bool
+	FTSTicker::FDelegateHandle TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, DisplayName, CompletionDelegate, ThisRequest](float) -> bool
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMessageSanitizerNull_SanitizeDisplayName);
 		FString CleanString;
@@ -41,7 +41,7 @@ void FMessageSanitizerNull::SanitizeDisplayNames(const TArray<FString>& DisplayN
 	float Delay = 3.0f;
 	int32 ThisRequest = RequestId++;
 
-	FDelegateHandle TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, DisplayNames, CompletionDelegate, ThisRequest](float) -> bool
+	FTSTicker::FDelegateHandle TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, DisplayNames, CompletionDelegate, ThisRequest](float) -> bool
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMessageSanitizerNull_SanitizeDisplayNames);
 		TArray<FString> OutStrings;

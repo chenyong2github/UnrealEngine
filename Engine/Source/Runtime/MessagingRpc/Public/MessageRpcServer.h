@@ -8,6 +8,7 @@
 #include "IMessageContext.h"
 #include "IMessageRpcServer.h"
 #include "Templates/SharedPointer.h"
+#include "Containers/Ticker.h"
 
 class FMessageEndpoint;
 class FMessagingRpcModule;
@@ -93,7 +94,7 @@ private:
 	TMap<FGuid, FReturnInfo> Returns;
 
 	/** Handle to the registered ticker. */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	/** If the server sends progress updates. */
 	bool bSendProgress = true;

@@ -156,14 +156,14 @@ public:
 			BatchAllocator.Trim();
 		});
 #if CSV_PROFILER
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIoDispatcherImpl::TickCsv));
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIoDispatcherImpl::TickCsv));
 #endif
 	}
 
 	~FIoDispatcherImpl()
 	{
 #if CSV_PROFILER
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 #endif
 		delete Thread;
 		FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
@@ -678,7 +678,7 @@ private:
 	uint64 PendingIoRequestsCount = 0;
 	int64 TotalLoaded = 0;
 #if CSV_PROFILER
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 #endif
 };
 

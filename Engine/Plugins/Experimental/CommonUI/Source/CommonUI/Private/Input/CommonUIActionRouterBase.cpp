@@ -201,8 +201,8 @@ void UCommonUIActionRouterBase::RegisterAnalogCursorTick()
 	FSlateApplication::Get().RegisterInputPreProcessor(AnalogCursor, UCommonUIInputSettings::Get().GetAnalogCursorSettings().PreprocessorPriority);
 	if (bIsActivatableTreeEnabled)
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
-		TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonUIActionRouterBase::Tick));
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonUIActionRouterBase::Tick));
 	}
 }
 
@@ -212,7 +212,7 @@ void UCommonUIActionRouterBase::Deinitialize()
 	
 	FSlateApplication::Get().OnFocusChanging().RemoveAll(this);
 	FSlateApplication::Get().UnregisterInputPreProcessor(AnalogCursor);
-	FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	SetActiveRoot(nullptr);
 	HeldKeys.Empty();
 }

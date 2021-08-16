@@ -23,7 +23,7 @@
 #define TickRequesterId FName("StropheMessages")
 
 FXmppMessagesStrophe::FXmppMessagesStrophe(FXmppConnectionStrophe& InConnectionManager)
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, ConnectionManager(InConnectionManager)
 {
 }

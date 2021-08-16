@@ -22,12 +22,12 @@ void FMagicLeapConnectionsPlugin::StartupModule()
 {
 	IMagicLeapConnectionsPlugin::StartupModule();
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapConnectionsPlugin::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 }
 
 void FMagicLeapConnectionsPlugin::ShutdownModule()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	DisableInvites();
 	IMagicLeapConnectionsPlugin::ShutdownModule();
 }

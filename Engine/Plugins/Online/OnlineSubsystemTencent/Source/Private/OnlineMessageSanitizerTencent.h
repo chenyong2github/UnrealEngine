@@ -150,7 +150,7 @@ public:
 	{
 		check(TencentSubsystem);
 		FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FMessageSanitizerTencent::HandleTicker);
-		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, 1.0f);
+		TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate, 1.0f);
 	}
 
 	virtual ~FMessageSanitizerTencent();
@@ -175,7 +175,7 @@ private:
 	TMap<FString, FString> WordMap;
 
 	/** Handle to the registered TickDelegate. */
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 
 	/** Reference to the main Tencent subsystem */
 	FOnlineSubsystemTencent* TencentSubsystem;

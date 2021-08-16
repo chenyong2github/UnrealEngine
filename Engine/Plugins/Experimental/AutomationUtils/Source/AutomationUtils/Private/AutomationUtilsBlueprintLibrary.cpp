@@ -231,7 +231,7 @@ FAutomationUtilsGameplayAutomationScreenshotInstance::FAutomationUtilsGameplayAu
 	}
 	else
 	{
-		FTicker::GetCoreTicker().AddTicker(TEXT("FAutomationUtilsGameplayScreenshotInstanceAutoCleanup"), 0.1f, [this](float)
+		FTSTicker::GetCoreTicker().AddTicker(TEXT("FAutomationUtilsGameplayScreenshotInstanceAutoCleanup"), 0.1f, [this](float)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FAutomationUtilsGameplayScreenshotInstanceAutoCleanup);
 			FAutomationUtilsGameplayAutomationScreenshotFactory::RequestDeleteScreenshotInstance(ScreenshotName);

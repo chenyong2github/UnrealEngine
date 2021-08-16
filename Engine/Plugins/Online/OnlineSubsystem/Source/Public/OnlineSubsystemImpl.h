@@ -23,7 +23,7 @@ namespace OSSConsoleVariables
  */
 class ONLINESUBSYSTEM_API FOnlineSubsystemImpl 
 	: public IOnlineSubsystem
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 private:
 
@@ -49,7 +49,7 @@ protected:
 	FOnlineSubsystemImpl() = delete;
 
 	FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName);
-	FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName, FTicker& Ticker);
+	FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName, FTSTicker& Ticker);
 
 	/** Name of the subsystem @see OnlineSubsystemNames.h */
 	FName SubsystemName;
@@ -133,7 +133,7 @@ public:
 	virtual void ReloadConfigs(const TSet<FString>& /*ConfigSections*/) override {};
 	virtual FText GetSocialPlatformName() const override;
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 	/**

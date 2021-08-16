@@ -186,8 +186,8 @@ struct FCPUTimeDump
 			FParse::Value(*Args[0], TEXT("delay="), Delay);
 		}
 
-		FTicker::GetCoreTicker().RemoveTicker( GetCPUTimeDelegateHandle );
-		FTicker::GetCoreTicker().RemoveTicker( CPUTimeDumpDelegateHandle );
+		FTSTicker::GetCoreTicker().RemoveTicker( GetCPUTimeDelegateHandle );
+		FTSTicker::GetCoreTicker().RemoveTicker( CPUTimeDumpDelegateHandle );
 		GetCPUTimeDelegateHandle .Reset();
 		CPUTimeDumpDelegateHandle.Reset();
 
@@ -200,8 +200,8 @@ struct FCPUTimeDump
 			Delay = FMath::Clamp( Delay, 10, 300 );
 			UE_LOG(LogGenericPlatformTime, Log, TEXT("Delay set to %i second(s), started printing the CPU usage"), Delay);
 
-			GetCPUTimeDelegateHandle   = FTicker::GetCoreTicker().AddTicker( GetCPUTimeDelegate );
-			CPUTimeDumpDelegateHandle  = FTicker::GetCoreTicker().AddTicker( CPUTimeDumpDelegate, (float)Delay );
+			GetCPUTimeDelegateHandle   = FTSTicker::GetCoreTicker().AddTicker( GetCPUTimeDelegate );
+			CPUTimeDumpDelegateHandle  = FTSTicker::GetCoreTicker().AddTicker( CPUTimeDumpDelegate, (float)Delay );
 		}
 	}
 
@@ -244,10 +244,10 @@ protected:
 	FTickerDelegate CPUTimeDumpDelegate;
 
 	/** Handle for the added GetCPUTimeDelegate delegate. */
-	FDelegateHandle GetCPUTimeDelegateHandle;
+	FTSTicker::FDelegateHandle GetCPUTimeDelegateHandle;
 
 	/** Handle for the added CPUTimeDumpDelegate delegate. */
-	FDelegateHandle CPUTimeDumpDelegateHandle;
+	FTSTicker::FDelegateHandle CPUTimeDumpDelegateHandle;
 };
 
 static FAutoConsoleCommand CPUTimeDumpCommand

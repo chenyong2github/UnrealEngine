@@ -28,7 +28,7 @@ public:
 	//~ End IGeometryCacheStreamer Interface
 
 private:
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 
 	typedef TMap<UGeometryCacheTrack*, IGeometryCacheStream*> FTracksToStreams;
 	FTracksToStreams TracksToStreams;
@@ -46,7 +46,7 @@ FGeometryCacheStreamer::FGeometryCacheStreamer()
 , CurrentIndex(0)
 
 {
-	TickHandle = FTicker::GetCoreTicker().AddTicker(
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateLambda([this](float Time)
 		{
 			this->Tick(Time);
@@ -59,7 +59,7 @@ FGeometryCacheStreamer::~FGeometryCacheStreamer()
 {
 	if (TickHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 }

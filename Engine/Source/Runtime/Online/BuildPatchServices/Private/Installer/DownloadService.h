@@ -99,7 +99,7 @@ namespace BuildPatchServices
 		 * @param InstallerAnalytics    The analytics implementation for tracking HTTP requests.
 		 * @return the new IDownloadService instance created.
 		 */
-		static IDownloadService* Create(FTicker& Ticker, IHttpManager* HttpManager, IFileSystem* FileSystem, IDownloadServiceStat* DownloadServiceStat, IInstallerAnalytics* InstallerAnalytics);
+		static IDownloadService* Create(FTSTicker& Ticker, IHttpManager* HttpManager, IFileSystem* FileSystem, IDownloadServiceStat* DownloadServiceStat, IInstallerAnalytics* InstallerAnalytics);
 	};
 
 	/**

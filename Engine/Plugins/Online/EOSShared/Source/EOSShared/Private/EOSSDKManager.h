@@ -13,6 +13,7 @@
 #include "eos_init.h"
 
 #include "IEOSSDKManager.h"
+#include "Containers/Ticker.h"
 
 struct FEOSPlatformHandle;
 
@@ -53,7 +54,7 @@ private:
 	/** Created platforms */
 	TArray<EOS_HPlatform> PlatformHandles;
 	/** Handle to ticker delegate for Tick(), valid whenever EosPlatformHandles is non-empty. */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 };
 
 struct FEOSPlatformHandle : public IEOSPlatformHandle

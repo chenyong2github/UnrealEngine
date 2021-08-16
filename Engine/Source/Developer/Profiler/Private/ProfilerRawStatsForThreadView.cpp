@@ -21,7 +21,7 @@ FRawProfilerSession::FRawProfilerSession( const FString& InRawStatsFileFileath )
 
 FRawProfilerSession::~FRawProfilerSession()
 {
-	FTicker::GetCoreTicker().RemoveTicker( OnTickHandle );
+	FTSTicker::GetCoreTicker().RemoveTicker( OnTickHandle );
 }
 
 bool FRawProfilerSession::HandleTicker( float DeltaTime )
@@ -351,7 +351,7 @@ void FRawProfilerSession::PrepareLoading()
 	const int64 AllocatedSize = ProfilerStream.GetAllocatedSize();
 
 	// We have the whole metadata and basic information about the raw stats file, start ticking the profiler session.
-	//OnTickHandle = FTicker::GetCoreTicker().AddTicker( OnTick, 0.25f );
+	//OnTickHandle = FTSTicker::GetCoreTicker().AddTicker( OnTick, 0.25f );
 
 #if	0
 	if( SessionType == EProfilerSessionTypes::OfflineRaw )

@@ -249,7 +249,7 @@ protected:
 	FTickerDelegate TickDelegate;
 
 	// Handle to the registered TickDelegate.
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 
 	// Pointer to the device detection handler that grabs device ids in another thread
 	IAndroidDeviceDetection* DeviceDetection;

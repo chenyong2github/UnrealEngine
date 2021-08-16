@@ -36,7 +36,7 @@ void FMagicLeapScreensPlugin::StartupModule()
 		Runnable = new FScreensRunnable();
 	}
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapScreensPlugin::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 
 	PixelDataMemPool.Reserve(MAX_TEXTURE_SIZE);
 }
@@ -54,7 +54,7 @@ void FMagicLeapScreensPlugin::ShutdownModule()
 	DefaultThumbnail.data = nullptr;
 	MLScreensReleaseWatchHistoryThumbnail(&DefaultThumbnail);
 #endif // WITH_MLSDK
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IModuleInterface::ShutdownModule();
 }
 

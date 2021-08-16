@@ -28,7 +28,7 @@ public:
 
 private:
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	FThreadSafeBool bEnabled;
 	FThreadSafeBool bEnabling;
 #if WITH_MLSDK

@@ -107,7 +107,7 @@ bool FPerformanceMonitorModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputD
 				if (!StringCommand.IsEmpty())
 				{
 					StartRecordingPerfTimers(StringCommand, DesiredStats);
-					TickHandler = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPerformanceMonitorModule::Tick));
+					TickHandler = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPerformanceMonitorModule::Tick));
 				}
 			}
 			else
@@ -119,7 +119,7 @@ bool FPerformanceMonitorModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputD
 		{
 			if (bRecording)
 			{
-				FTicker::GetCoreTicker().RemoveTicker(TickHandler);
+				FTSTicker::GetCoreTicker().RemoveTicker(TickHandler);
 				StopRecordingPerformanceTimers();
 			}
 			else

@@ -42,7 +42,7 @@ FCurveSequence::~FCurveSequence()
 
 	if (TickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 }
 
@@ -94,7 +94,7 @@ void FCurveSequence::Play(const FTickerDelegate& InDelegate, bool bPlayLooped, c
 	SetStartTime(FSlateApplicationBase::Get().GetCurrentTime() - StartAtTime);
 
 	// Register the core ticker so we can start giving callbacks
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCurveSequence::TickPlay, InDelegate));
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCurveSequence::TickPlay, InDelegate));
 }
 
 void FCurveSequence::Reverse( )

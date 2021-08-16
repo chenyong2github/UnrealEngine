@@ -41,10 +41,10 @@ public:
 class FSplash : public IXRLoadingScreen, public TSharedFromThis<FSplash>
 {
 protected:
-	class FTicker : public FTickableObjectRenderThread, public TSharedFromThis<FTicker>
+	class FTSTicker : public FTickableObjectRenderThread, public TSharedFromThis<FTSTicker>
 	{
 	public:
-		FTicker(FSplash* InSplash) : FTickableObjectRenderThread(false, true), pSplash(InSplash) {}
+		FTSTicker(FSplash* InSplash) : FTickableObjectRenderThread(false, true), pSplash(InSplash) {}
 
 		virtual void Tick(float DeltaTime) override { pSplash->Tick_RenderThread(DeltaTime); }
 		virtual TStatId GetStatId() const override  { RETURN_QUICK_DECLARE_CYCLE_STAT(FSplash, STATGROUP_Tickables); }
@@ -101,7 +101,7 @@ protected:
 protected:
 	FOculusHMD* OculusHMD;
 	FCustomPresent* CustomPresent;
-	TSharedPtr<FTicker> Ticker;
+	TSharedPtr<FTSTicker> Ticker;
 	int32 FramesOutstanding;
 	FCriticalSection RenderThreadLock;
 	FSettingsPtr Settings;

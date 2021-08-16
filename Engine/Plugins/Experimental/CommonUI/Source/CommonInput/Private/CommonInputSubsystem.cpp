@@ -320,7 +320,7 @@ void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	CommonInputPreprocessor = MakeShared<FCommonInputPreprocessor>(*this);
 	FSlateApplication::Get().RegisterInputPreProcessor(CommonInputPreprocessor, 0);
 
-	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonInputSubsystem::Tick), 0.1f);
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonInputSubsystem::Tick), 0.1f);
 
 	CVarInputKeysVisible->SetOnChangedCallback(FConsoleVariableDelegate::CreateUObject(this, &UCommonInputSubsystem::ShouldShowInputKeysChanged));
 }
@@ -331,7 +331,7 @@ void UCommonInputSubsystem::Deinitialize()
 	FSlateApplication::Get().UnregisterInputPreProcessor(CommonInputPreprocessor);
 	CommonInputPreprocessor.Reset();
 
-	FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 }
 
 FGamepadChangeDetectedEvent& UCommonInputSubsystem::GetOnGamepadChangeDetected()

@@ -6,6 +6,7 @@
 #include "Containers/Ticker.h"
 #include "XmppConnection.h"
 #include "XmppJingle/XmppChatJingle.h"
+#include "Containers/Ticker.h"
 
 class FXmppMessagesJingle;
 class FXmppMultiUserChatJingle;
@@ -19,7 +20,7 @@ class FXmppPresenceJingle;
  */
 class FXmppConnectionJingle
 	: public IXmppConnection
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 	, public sigslot::has_slots<>
 {
 public:
@@ -48,7 +49,7 @@ public:
 
 	virtual void DumpState() const override;
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 
 	virtual bool Tick(float DeltaTime) override;
 	

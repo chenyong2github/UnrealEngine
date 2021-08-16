@@ -42,7 +42,7 @@ class FModuleManager;
 class FScopeLock;
 class FStaticMeshLODSettings;
 class FTargetDeviceId;
-class FTicker;
+class FTSTicker;
 class IAndroidDeviceDetectionModule;
 class UTexture;
 class UTextureLODSettings;
@@ -203,13 +203,13 @@ FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient, const TCHAR* Fl
 #endif
 
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FAndroidTargetPlatform::HandleTicker);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, 4.0f);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate, 4.0f);
 }
 
 
 FAndroidTargetPlatform::~FAndroidTargetPlatform()
 {
-	 FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	 FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 }
 
 FAndroidTargetDevicePtr FAndroidTargetPlatform::CreateTargetDevice(const ITargetPlatform& InTargetPlatform, const FString& InSerialNumber, const FString& InAndroidVariant) const

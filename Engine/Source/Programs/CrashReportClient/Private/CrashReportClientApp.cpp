@@ -1154,7 +1154,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 			// Pump & Tick objects
 			const double DeltaTime = CurrLoopStartTime - PrevLoopStartTime;
-			FTicker::GetCoreTicker().Tick(DeltaTime);
+			FTSTicker::GetCoreTicker().Tick(DeltaTime);
 
 			GFrameCounter++;
 			FStats::AdvanceFrame(false);

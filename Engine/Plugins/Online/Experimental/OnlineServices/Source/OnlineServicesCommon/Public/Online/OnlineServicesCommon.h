@@ -18,7 +18,7 @@ namespace UE::Online {
 class ONLINESERVICESCOMMON_API FOnlineServicesCommon
 	: public IOnlineServices
 	, public TSharedFromThis<FOnlineServicesCommon>
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 	using Super = IOnlineServices;

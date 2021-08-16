@@ -6,6 +6,7 @@
 #include "Misc/Guid.h"
 #include "Interfaces/IBuildPatchServicesModule.h"
 #include "BuildPatchInstaller.h"
+#include "Containers/Ticker.h"
 
 class IAnalyticsProvider;
 
@@ -139,7 +140,7 @@ private:
 	TMultiMap<FString, FBuildPatchAppManifestRef> AvailableInstallations;
 
 	// Handle to the registered Tick delegate
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 
 	// Delegate to give to installers so we know when they have been started.
 	FBuildPatchInstallerDelegate InstallerStartDelegate;

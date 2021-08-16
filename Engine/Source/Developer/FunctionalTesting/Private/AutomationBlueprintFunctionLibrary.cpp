@@ -404,7 +404,7 @@ public:
 	{
 		if (!bDeleteQueued)
 		{
-			FTicker::GetCoreTicker().AddTicker(TEXT("ScreenshotCleanup"), 0.1, [this](float) {
+			FTSTicker::GetCoreTicker().AddTicker(TEXT("ScreenshotCleanup"), 0.1, [this](float) {
 				delete this;
 				return false;
 				});
@@ -1180,7 +1180,7 @@ UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreensho
 			Task->BindTask(MakeUnique<FScreenshotTakenState>());
 
 			// Delay taking the screenshot by a few frames			
-			FTicker::GetCoreTicker().AddTicker(TEXT("ScreenshotDelay"), Delay, [LevelViewport, ComparisonTolerance, ComparisonNotes, Filename, ResX, ResY, bMaskEnabled, bCaptureHDR](float) {
+			FTSTicker::GetCoreTicker().AddTicker(TEXT("ScreenshotDelay"), Delay, [LevelViewport, ComparisonTolerance, ComparisonNotes, Filename, ResX, ResY, bMaskEnabled, bCaptureHDR](float) {
 					FHighResScreenshotConfig& HighResScreenshotConfig = GetHighResScreenshotConfig();
 					HighResScreenshotConfig.SetResolution(ResX, ResY);
 					HighResScreenshotConfig.SetFilename(Filename);

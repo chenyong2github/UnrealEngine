@@ -12,7 +12,7 @@
 
 class FHoloLensWebSocket :
 	public IWebSocket,
-	public FTickerObjectBase,
+	public FTSTickerObjectBase,
 	public TSharedFromThis<FHoloLensWebSocket>
 {
 public:

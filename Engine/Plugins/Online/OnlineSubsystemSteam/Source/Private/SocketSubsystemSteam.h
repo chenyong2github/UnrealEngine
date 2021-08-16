@@ -16,7 +16,7 @@ class Error;
 /**
  * Windows specific socket subsystem implementation
  */
-class FSocketSubsystemSteam : public ISocketSubsystem, public FTickerObjectBase, public FSelfRegisteringExec
+class FSocketSubsystemSteam : public ISocketSubsystem, public FTSTickerObjectBase, public FSelfRegisteringExec
 {
 protected:
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ConcertSession.h"
 #include "ConcertMessages.h"
+#include "Containers/Ticker.h"
 
 class IConcertLocalEndpoint;
 struct FConcertServerSettings;
@@ -136,7 +137,7 @@ private:
 	IConcertLocalEndpointPtr ServerSessionEndpoint;
 
 	/** Ticker for the session */
-	FDelegateHandle SessionTick;
+	FTSTicker::FDelegateHandle SessionTick;
 
 	/** Callback for when a server session ticks */
 	FOnConcertServerSessionTick OnTickDelegate;

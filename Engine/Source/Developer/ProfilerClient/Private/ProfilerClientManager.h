@@ -269,7 +269,7 @@ private:
 	FTickerDelegate TickDelegate;
 
 	/** Handle to the registered TickDelegate. */
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 
 	/** Amount of time between connection retries */
 	float RetryTime;
@@ -281,7 +281,7 @@ private:
 	FTickerDelegate MessageDelegate;
 
 	/** Handle to the registered MessageDelegate. */
-	FDelegateHandle MessageDelegateHandle;
+	FTSTicker::FDelegateHandle MessageDelegateHandle;
 
 	/** Handle to the registered OnShutdown for Message Bus. */
 	FDelegateHandle OnShutdownMessageBusDelegateHandle;

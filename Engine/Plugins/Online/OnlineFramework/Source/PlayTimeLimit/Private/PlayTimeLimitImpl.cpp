@@ -43,7 +43,7 @@ void FPlayTimeLimitImpl::Initialize()
 	{
 		// Register delegate for ticker callback
 		FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FPlayTimeLimitImpl::Tick);
-		TickHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, 0.0f);
+		TickHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate, 0.0f);
 	}
 }
 
@@ -53,7 +53,7 @@ void FPlayTimeLimitImpl::Shutdown()
 
 	if (TickHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 

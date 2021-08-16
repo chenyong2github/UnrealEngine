@@ -35,7 +35,7 @@ void FMagicLeapCVCameraModule::ShutdownModule()
 	{
 		delete InRunnable;
 	});
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IModuleInterface::ShutdownModule();
 }
 
@@ -86,7 +86,7 @@ bool FMagicLeapCVCameraModule::EnableAsync(const FMagicLeapCVCameraEnableStatic&
 {
 	if (TryPushNewCaptureTask(FCVCameraTask::EType::Enable))
 	{
-		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+		TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 		static constexpr float MinCameraRunDuration = 2.0f;
 		MinCameraRunTimer = MinCameraRunDuration;
 		OnEnabledStatic = ResultDelegate;
@@ -100,7 +100,7 @@ bool FMagicLeapCVCameraModule::EnableAsync(const FMagicLeapCVCameraEnableMulti& 
 {
 	if (TryPushNewCaptureTask(FCVCameraTask::EType::Enable))
 	{
-		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+		TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 		static constexpr float MinCameraRunDuration = 2.0f;
 		MinCameraRunTimer = MinCameraRunDuration;
 		OnEnabled = ResultDelegate;
@@ -114,7 +114,7 @@ bool FMagicLeapCVCameraModule::DisableAsync(const FMagicLeapCVCameraDisableStati
 {
 	if (MinCameraRunTimer < 0.0f && TryPushNewCaptureTask(FCVCameraTask::EType::Disable))
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 		OnDisabledStatic = ResultDelegate;
 		return true;
 	}
@@ -126,7 +126,7 @@ bool FMagicLeapCVCameraModule::DisableAsync(const FMagicLeapCVCameraDisableMulti
 {
 	if (MinCameraRunTimer < 0.0f && TryPushNewCaptureTask(FCVCameraTask::EType::Disable))
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 		OnDisabled = ResultDelegate;
 		return true;
 	}

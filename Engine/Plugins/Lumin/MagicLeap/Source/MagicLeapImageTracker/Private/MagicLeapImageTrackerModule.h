@@ -37,7 +37,7 @@ public:
 
 private:
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	class FMagicLeapImageTrackerRunnable* Runnable;
 };
 

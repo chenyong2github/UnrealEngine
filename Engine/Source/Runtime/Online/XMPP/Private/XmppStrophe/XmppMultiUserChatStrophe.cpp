@@ -18,7 +18,7 @@
 #define TickRequesterId FName("StropheMultichat")
 
 FXmppMultiUserChatStrophe::FXmppMultiUserChatStrophe(FXmppConnectionStrophe& InConnectionManager)
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, ConnectionManager(InConnectionManager)
 {
 

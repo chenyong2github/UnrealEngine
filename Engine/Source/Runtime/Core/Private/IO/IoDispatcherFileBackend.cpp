@@ -1912,20 +1912,20 @@ uint64 FFileIoStats::LastOffset = 0;
 uint32 FFileIoStats::FileIoStoreThreadId = 0;
 uint32 FFileIoStats::IoDispatcherThreadId = 0;
 
-FDelegateHandle FFileIoStats::TickerHandle;
+FTSTicker::FDelegateHandle FFileIoStats::TickerHandle;
 #endif
 
 void FFileIoStats::Init()
 {
 #if CSV_PROFILER
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FFileIoStats::CsvTick));
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FFileIoStats::CsvTick));
 #endif
 }
 
 void FFileIoStats::Shutdown()
 {
 #if CSV_PROFILER
-	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 #endif
 }
 

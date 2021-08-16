@@ -140,7 +140,7 @@ enum class EConfigureRoomTypeStrophe : uint8
 
 class FXmppMultiUserChatStrophe
 	: public IXmppMultiUserChat
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 	// FXmppMultiUserChatStrophe
@@ -188,7 +188,7 @@ public:
 	virtual FOnXmppRoomMemberChanged& OnRoomMemberChanged() override { return OnXmppRoomMemberChangedDelegate; }
 	virtual FOnXmppRoomChatReceived& OnRoomChatReceived() override { return OnXmppRoomChatReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 protected:
