@@ -8,6 +8,7 @@
 #include "Cooker/PackageBuildDependencyTracker.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "IO/IoHash.h"
+#include "IO/PackageStoreWriter.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -15,12 +16,117 @@
 namespace UE::TargetDomain
 {
 
+bool TryCreateKey(FName PackageName, TArrayView<FName> SortedBuildDependencies, FIoHash* OutHash, FString* OutErrorMessage)
+{
+	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+	if (!AssetRegistry)
+	{
+		if (OutErrorMessage) *OutErrorMessage = TEXT("AssetRegistry is unavailable.");
+		return false;
+	}
+	FCbWriter KeyBuilder;
+	UE::EditorDomain::EPackageDigestResult Result;
+	FString ErrorMessage;
+	bool bBlacklisted;
+	Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, PackageName, KeyBuilder, bBlacklisted, ErrorMessage);
+	if (Result != UE::EditorDomain::EPackageDigestResult::Success)
+	{
+		if (OutErrorMessage) *OutErrorMessage = MoveTemp(ErrorMessage);
+		return false;
+	}
+
+	for (FName DependencyName : SortedBuildDependencies)
+	{
+		Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, DependencyName, KeyBuilder, bBlacklisted, ErrorMessage);
+		if (Result != UE::EditorDomain::EPackageDigestResult::Success)
+		{
+			if (OutErrorMessage)
+			{
+				*OutErrorMessage = FString::Printf(TEXT("Could not create PackageDigest for %s: %s"),
+					*DependencyName.ToString(), *ErrorMessage);
+			}
+			return false;
+		}
+	}
+
+	if (OutHash)
+	{
+		*OutHash = KeyBuilder.Save().GetRangeHash();
+	}
+	return true;
+}
+
 bool TryCollectKeyAndDependencies(UPackage* Package, const ITargetPlatform* TargetPlatform, FIoHash* OutHash, TArray<FName>* OutBuildDependencies,
 	TArray<FName>* OutRuntimeOnlyDependencies, FString* OutErrorMessage)
 {
-	// Implementation is coming in a separate changelist that mostly involves the PackageBuildDependencyTracker
-	if (OutErrorMessage) *OutErrorMessage = TEXT("Not yet implemented.");
-	return false;
+	if (!Package)
+	{
+		if (OutErrorMessage) *OutErrorMessage = TEXT("Invalid null package.");
+		return false;
+	}
+
+	FName PackageName = Package->GetFName();
+	TSet<FName> BuildDependencies;
+	TSet<FName> RuntimeOnlyDependencies;
+
+	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+	if (!AssetRegistry)
+	{
+		if (OutErrorMessage) *OutErrorMessage = TEXT("AssetRegistry is unavailable.");
+		return false;
+	}
+
+	TArray<FName> AssetDependencies;
+	AssetRegistry->GetDependencies(PackageName, AssetDependencies, UE::AssetRegistry::EDependencyCategory::Package,
+		UE::AssetRegistry::EDependencyQuery::Game);
+
+	FPackageBuildDependencyTracker& Tracker = FPackageBuildDependencyTracker::Get();
+	TArray<FBuildDependencyAccessData> AccessDatas = Tracker.GetAccessDatas(PackageName);
+
+	BuildDependencies.Reserve(AccessDatas.Num());
+	for (FBuildDependencyAccessData& AccessData : AccessDatas)
+	{
+		if (AccessData.TargetPlatform == TargetPlatform || AccessData.TargetPlatform == nullptr)
+		{
+			BuildDependencies.Add(AccessData.ReferencedPackage);
+		}
+	}
+
+	RuntimeOnlyDependencies.Reserve(AccessDatas.Num());
+	for (FName DependencyName : AssetDependencies)
+	{
+		if (!BuildDependencies.Contains(DependencyName))
+		{
+			RuntimeOnlyDependencies.Add(DependencyName);
+		}
+	}
+
+	TArray<FName> SortedBuild;
+	SortedBuild = BuildDependencies.Array();
+	SortedBuild.Sort(FNameLexicalLess());
+	TArray<FName> SortedRuntimeOnly;
+	SortedRuntimeOnly = RuntimeOnlyDependencies.Array();
+	SortedRuntimeOnly.Sort(FNameLexicalLess());
+
+	if (!TryCreateKey(PackageName, SortedBuild, OutHash, OutErrorMessage))
+	{
+		return false;
+	}
+
+	if (OutBuildDependencies)
+	{
+		*OutBuildDependencies = MoveTemp(SortedBuild);
+	}
+	if (OutRuntimeOnlyDependencies)
+	{
+		*OutRuntimeOnlyDependencies = MoveTemp(SortedRuntimeOnly);
+	}
+	if (OutErrorMessage)
+	{
+		OutErrorMessage->Reset();
+	}
+	
+	return true;
 }
 
 FCbObject CollectDependenciesObject(UPackage* Package, const ITargetPlatform* TargetPlatform, FString* ErrorMessage)
@@ -62,17 +168,65 @@ FCbObject CollectDependenciesObject(UPackage* Package, const ITargetPlatform* Ta
 }
 
 
-bool TryFetchKeyAndDependencies(FName PackageName, const ITargetPlatform* TargetPlatform, FIoHash* OutHash, TArray<FName>* OutDependencies)
+bool TryFetchKeyAndDependencies(IPackageStoreWriter* PackageStore, FName PackageName, const ITargetPlatform* TargetPlatform,
+	FIoHash* OutHash, TArray<FName>* OutBuildDependencies, TArray<FName>* OutRuntimeOnlyDependencies, FString* OutErrorMessage)
 {
-	// TODO: Read from oplog for the packagename, return true if and only if it has a targetdomainkey and the generated key from the collection of dependencies matches
-	return false;
-}
+	FCbObject DependenciesObj = PackageStore->GetTargetDomainDependencies(PackageName);
+	FIoHash StoredKey = DependenciesObj["targetdomainkey"].AsHash();
+	if (StoredKey.IsZero())
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("Dependencies not in oplog.");
+		}
+		return false;
+	}
 
-bool TryFetchDependencies(FName PackageName, const ITargetPlatform* TargetPlatform,
-	TArray<FName>& OutBuildDependencies, TArray<FName>& OutRuntimeOnlyDependencies)
-{
-	// TODO: Read from oplog for the packagename, return true if and only if it has a targetdomainkey and the generated key from the collection of dependencies matches
-	return false;
+	TArray<FName> BuildDependencies;
+	if (OutBuildDependencies)
+	{
+		OutBuildDependencies->Reset();
+	}
+	else
+	{
+		OutBuildDependencies = &BuildDependencies;
+	}
+
+	for (FCbFieldView DepObj : DependenciesObj["builddependencies"])
+	{
+		if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
+		{
+			OutBuildDependencies->Add(FName(*DependencyName));
+		}
+	}
+
+	FIoHash CurrentKey;
+	if (!TryCreateKey(PackageName, *OutBuildDependencies, &CurrentKey, OutErrorMessage))
+	{
+		return false;
+	}
+
+	if (StoredKey != CurrentKey)
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("Stored key does not match current key.");
+		}
+		return false;
+	}
+
+	if (OutRuntimeOnlyDependencies)
+	{
+		for (FCbFieldView DepObj : DependenciesObj["runtimeonlydependencies"])
+		{
+			if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
+			{
+				OutRuntimeOnlyDependencies->Add(FName(*DependencyName));
+			}
+		}
+	}
+
+	return true;
 }
 
 }
