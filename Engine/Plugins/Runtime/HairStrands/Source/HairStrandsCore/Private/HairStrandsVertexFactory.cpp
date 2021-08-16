@@ -67,6 +67,7 @@ inline bool  UseScatterSceneLighting(const FHairGroupPublicData::FVertexFactoryI
 inline float GetMaxStrandRadius(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairRadius; };
 inline float GetStrandRootScale(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairRootScale; };
 inline float GetStrandTipScale(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairTipScale; };
+inline float GetStrandLengthScale(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairLengthScale; };
 inline float GetMaxStrandLength(const FHairGroupPublicData::FVertexFactoryInput& VFInput)						{ return VFInput.Strands.HairLength; };
 inline float GetHairDensity(const FHairGroupPublicData::FVertexFactoryInput& VFInput)							{ return VFInput.Strands.HairDensity; };
 //inline float GetHasAttribute1(const FHairGroupPublicData::FVertexFactoryInput& VFInput)							{ return VFInput.Strands.HasAttribute1; };

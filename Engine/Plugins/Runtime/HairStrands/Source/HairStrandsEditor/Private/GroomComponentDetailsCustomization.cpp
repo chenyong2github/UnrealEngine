@@ -112,6 +112,7 @@ bool FGroomComponentDetailsCustomization::CommonResetToDefault(TSharedPtr<IPrope
 	HAIR_RESET_COMPONENT(HairWidth);
 	HAIR_RESET_COMPONENT(HairRootScale);
 	HAIR_RESET_COMPONENT(HairTipScale);
+	HAIR_RESET_COMPONENT(HairLengthScale);
 	HAIR_RESET_COMPONENT(HairShadowDensity);
 	HAIR_RESET_COMPONENT(HairRaytracingRadiusScale);
 	HAIR_RESET_COMPONENT(bUseHairRaytracingGeometry);

@@ -7,6 +7,13 @@
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 
+// Should be moved into HairStrandsVertexFactoryCommon
+float UnpackHairControlPointCoordU(uint InPackedDataW)
+{
+	const uint PackedAlpha = asuint(InPackedDataW);
+	return ((PackedAlpha & 0xFF00) >> 8) / 255.f;
+}
+
 #if COMPILER_METAL || COMPILER_VULKAN
 #define ALLOW_DEBUG_RENDERING 0
 #else
@@ -37,6 +44,7 @@
 uint VertexCount;
 uint DispatchCountX;
 uint HairDebugMode;
+float HairLengthScale;
 float3 InRenderHairPositionOffset;
 float3 InSimHairPositionOffset;
 float4x4 LocalToWorldMatrix;
@@ -178,6 +186,21 @@ float3 ComputeRotateGeometryOffset(uint GuideIndex, float GuideVertexWeight,
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
 }
 
+uint4 WriteOutput(float3 WorldPosition, float3 OutPositionOffset, uint PackedDataW)
+{
+	uint3 EncodedRelativePosition = f32tof16(WorldPosition - OutPositionOffset);
+	if (HairLengthScale < 1.0f)
+	{
+		const float CoordU = UnpackHairControlPointCoordU(PackedDataW);
+		if (HairLengthScale < CoordU)
+		{
+			EncodedRelativePosition = f32tof16(INFINITE_FLOAT).xxx;
+		}
+	}
+
+	return uint4(EncodedRelativePosition, PackedDataW);
+}
+
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -198,7 +221,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 #endif
 
-	uint4 OutPosition = 0;
 	if (VertexIndex < VertexCount)
 	{
 		uint3  GuideVertexIndices = 0;
@@ -264,8 +286,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			WorldVertexPosition = ControlPoint + CurrOffset;
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
-			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
+			OutRenderDeformedPositionBuffer[VertexIndex] = WriteOutput(WorldVertexPosition, OutRenHairPositionOffset, PackedRestPosition.w);
 		}
 		#endif	
 
@@ -344,8 +365,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			}
 			#endif
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
-			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
+			OutRenderDeformedPositionBuffer[VertexIndex] = WriteOutput(WorldVertexPosition, OutRenHairPositionOffset, PackedRestPosition.w);
 		}
 		#endif	
 
@@ -387,8 +407,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			WorldVertexPosition = ControlPoint + CurrOffset;
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
-			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
+			OutRenderDeformedPositionBuffer[VertexIndex] = WriteOutput(WorldVertexPosition, OutRenHairPositionOffset, PackedRestPosition.w);
 		}
 		#endif	
 
@@ -437,8 +456,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			WorldVertexPosition = ControlPoint + CurrOffset;
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
-			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
+			OutRenderDeformedPositionBuffer[VertexIndex] = WriteOutput(WorldVertexPosition, OutRenHairPositionOffset, PackedRestPosition.w);
 		}
 		#endif
 
@@ -484,8 +502,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 			WorldVertexPosition = CurrOffset;
 
-			OutPosition = uint4(f32tof16(WorldVertexPosition - OutRenHairPositionOffset), PackedRestPosition.w);
-			OutRenderDeformedPositionBuffer[VertexIndex] = OutPosition;
+			OutRenderDeformedPositionBuffer[VertexIndex] = WriteOutput(WorldVertexPosition, OutRenHairPositionOffset, PackedRestPosition.w);
 		}
 		#endif
 

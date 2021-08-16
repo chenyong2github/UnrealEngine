@@ -543,6 +543,7 @@ class FHairInterpolationCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(uint32, HairDebugMode)
+		SHADER_PARAMETER(float, HairLengthScale)
 		SHADER_PARAMETER(FVector3f, InRenderHairPositionOffset)
 		SHADER_PARAMETER(FVector3f, InSimHairPositionOffset)
 		SHADER_PARAMETER(uint32,  HairStrandsVF_bIsCullingEnable)
@@ -623,6 +624,7 @@ static void AddHairStrandsInterpolationPass(
 	const FHairGroupInstance* Instance,
 	const uint32 VertexCount,
 	const int32 MeshLODIndex,
+	const float HairLengthScale,
 	const bool bPatchedAttributeBuffer,
 	const EHairInterpolationType HairInterpolationType,
 	const EHairGeometryType InstanceGeometryType,
@@ -699,6 +701,7 @@ static void AddHairStrandsInterpolationPass(
 	Parameters->VertexToClusterIdBuffer = VertexToClusterIdBuffer;
 	
 	Parameters->LocalToWorldMatrix = Instance->LocalToWorld.ToMatrixWithScale();
+	Parameters->HairLengthScale = HairLengthScale;
 
 	// Debug rendering
 	// 1: Patch attributes for displaying guides influences onto the render strands
@@ -1747,6 +1750,7 @@ void ComputeHairStrandsInterpolation(
 						Instance,
 						Instance->Strands.RestResource->GetVertexCount(),
 						MeshLODIndex,
+						Instance->Strands.Modifier.HairLengthScale,
 						bDebugModePatchedAttributeBuffer,
 						Instance->Strands.HairInterpolationType,
 						InstanceGeometryType,
@@ -1953,6 +1957,7 @@ void ComputeHairStrandsInterpolation(
 						Instance,
 						LOD.Guides.RestResource->GetVertexCount(),
 						MeshLODIndex,
+						1.0f,
 						false,
 						LOD.Guides.HairInterpolationType,
 						InstanceGeometryType,
