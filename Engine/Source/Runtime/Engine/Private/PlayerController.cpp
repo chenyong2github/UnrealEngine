@@ -2889,6 +2889,81 @@ void APlayerController::ClientSetSpectatorWaiting_Implementation(bool bWaiting)
 	}
 }
 
+float APlayerController::GetDeprecatedInputYawScale() const
+{
+	if (GetDefault<UInputSettings>()->bEnableLegacyInputScales)
+	{
+		return InputYawScale_DEPRECATED;
+	}
+	else
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("Attempting to access legacy input scales without the setting enabled! See UInputSettings::bEnableLegacyInputScales."));
+		return 1.0f;
+	}
+}
+
+float APlayerController::GetDeprecatedInputPitchScale() const
+{
+	if (GetDefault<UInputSettings>()->bEnableLegacyInputScales)
+	{
+		return InputPitchScale_DEPRECATED;
+	}
+	else
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("Attempting to access legacy input scales without the setting enabled! See UInputSettings::bEnableLegacyInputScales."));
+		return 1.0f;
+	}
+}
+
+float APlayerController::GetDeprecatedInputRollScale() const
+{
+	if (GetDefault<UInputSettings>()->bEnableLegacyInputScales)
+	{
+		return InputRollScale_DEPRECATED;
+	}
+	else
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("Attempting to access legacy input scales without the setting enabled! See UInputSettings::bEnableLegacyInputScales."));
+		return 1.0f;
+	}
+}
+
+void APlayerController::SetDeprecatedInputYawScale(float NewValue)
+{
+	if (GetDefault<UInputSettings>()->bEnableLegacyInputScales)
+	{
+		InputYawScale_DEPRECATED = NewValue;
+	}
+	else
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("Attempting to access legacy input scales without the setting enabled! See UInputSettings::bEnableLegacyInputScales."));
+	}
+}
+
+void APlayerController::SetDeprecatedInputPitchScale(float NewValue)
+{
+	if (GetDefault<UInputSettings>()->bEnableLegacyInputScales)
+	{
+		InputPitchScale_DEPRECATED = NewValue;
+	}
+	else
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("Attempting to access legacy input scales without the setting enabled! See UInputSettings::bEnableLegacyInputScales."));
+	}
+}
+
+void APlayerController::SetDeprecatedInputRollScale(float NewValue)
+{
+	if (GetDefault<UInputSettings>()->bEnableLegacyInputScales)
+	{
+		InputRollScale_DEPRECATED = NewValue;
+	}
+	else
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("Attempting to access legacy input scales without the setting enabled! See UInputSettings::bEnableLegacyInputScales."));
+	}
+}
+
 bool APlayerController::ServerViewNextPlayer_Validate()
 {
 	return true;
