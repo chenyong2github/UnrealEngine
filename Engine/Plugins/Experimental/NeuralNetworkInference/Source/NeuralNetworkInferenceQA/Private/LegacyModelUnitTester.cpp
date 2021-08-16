@@ -214,7 +214,7 @@ void FLegacyModelUnitTester::ModelAccuracyTest(UNeuralNetworkLegacy* InOutNetwor
 		for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) \
 		{ \
 			InOutNetwork->SetInputFromArrayCopy(InputArray); \
-			InOutNetwork->Run(/*GPUSynchronousMode*/UNeuralNetworkLegacy::EGPUSynchronousMode::Synchronous, /*InInputDeviceType*/ENeuralDeviceType::CPU, /*InOutputDeviceType*/ENeuralDeviceType::CPU, /*bRunGPUEmptyOnlyForProfiling*/true); \
+			InOutNetwork->Run(/*GPUSynchronousMode*/ENeuralNetworkSynchronousMode ::Synchronous, /*InInputDeviceType*/ENeuralDeviceType::CPU, /*InOutputDeviceType*/ENeuralDeviceType::CPU, /*bRunGPUEmptyOnlyForProfiling*/true); \
 			OutputArrayGPU = InOutNetwork->GetOutputTensor().GetArrayCopy<float>(); \
 		} \
 	} \
