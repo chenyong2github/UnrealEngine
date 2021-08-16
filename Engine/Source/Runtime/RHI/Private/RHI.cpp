@@ -219,7 +219,8 @@ FString GetTextureCreateFlagsName(ETextureCreateFlags TextureCreateFlags)
 		case TexCreate_VideoDecode:						return TEXT("TexCreate_VideoDecode");
 		case TexCreate_Dynamic:							return TEXT("TexCreate_Dynamic");
 		case TexCreate_InputAttachmentRead:				return TEXT("TexCreate_InputAttachmentRead");
-		case TexCreate_Foveation:						return TEXT("(TexCreate_Foveation | TexCreate_3DTiling");
+		case TexCreate_Foveation:						return TEXT("TexCreate_Foveation");
+		case TexCreate_3DTiling:						return TEXT("TexCreate_3DTiling");
 		case TexCreate_Memoryless:						return TEXT("TexCreate_Memoryless");
 		case TexCreate_GenerateMipCapable:				return TEXT("TexCreate_GenerateMipCapable");
 		case TexCreate_FastVRAMPartialAlloc:			return TEXT("TexCreate_FastVRAMPartialAlloc");
@@ -2687,9 +2688,9 @@ void FRHIBufferViewCache::SetDebugName(const TCHAR* DebugName)
 
 #endif
 
-void FRHITransientTexture::Init(const TCHAR* InName, uint32 InAllocationIndex)
+void FRHITransientTexture::Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex)
 {
-	FRHITransientResource::Init(InName, InAllocationIndex);
+	FRHITransientResource::Init(InName, InAllocationIndex, InPassIndex);
 	ViewCache.SetDebugName(InName);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2697,9 +2698,9 @@ void FRHITransientTexture::Init(const TCHAR* InName, uint32 InAllocationIndex)
 #endif
 }
 
-void FRHITransientBuffer::Init(const TCHAR* InName, uint32 InAllocationIndex)
+void FRHITransientBuffer::Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex)
 {
-	FRHITransientResource::Init(InName, InAllocationIndex);
+	FRHITransientResource::Init(InName, InAllocationIndex, InPassIndex);
 	ViewCache.SetDebugName(InName);
 
 	// TODO: Add method to rename a buffer.

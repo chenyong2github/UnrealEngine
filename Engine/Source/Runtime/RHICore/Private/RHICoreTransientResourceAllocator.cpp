@@ -526,6 +526,7 @@ FRHITransientResourceAllocator::FRHITransientResourceAllocator(FRHITransientReso
 FRHITransientTexture* FRHITransientResourceAllocator::CreateTexture(
 	const FRHITextureCreateInfo& CreateInfo,
 	const TCHAR* DebugName,
+	uint32 PassIndex,
 	uint64 TextureSize,
 	uint32 TextureAlignment,
 	FCreateTextureFunction CreateTextureFunction)
@@ -550,7 +551,7 @@ FRHITransientTexture* FRHITransientResourceAllocator::CreateTexture(
 		return CreateTextureFunction(ResourceInitializer);
 	});
 
-	InitResource(TransientTexture, Allocation, DebugName);
+	InitResource(TransientTexture, PassIndex, Allocation, DebugName);
 
 #if RHICORE_TRANSIENT_ALLOCATOR_DEBUG
 	DebugTextures.Emplace(TransientTexture);
@@ -563,6 +564,7 @@ FRHITransientTexture* FRHITransientResourceAllocator::CreateTexture(
 FRHITransientBuffer* FRHITransientResourceAllocator::CreateBuffer(
 	const FRHIBufferCreateInfo& CreateInfo,
 	const TCHAR* DebugName,
+	uint32 PassIndex,
 	uint32 BufferSize,
 	uint32 BufferAlignment,
 	FCreateBufferFunction CreateBufferFunction)
@@ -582,7 +584,7 @@ FRHITransientBuffer* FRHITransientResourceAllocator::CreateBuffer(
 		return CreateBufferFunction(ResourceInitializer);
 	});
 
-	InitResource(TransientBuffer, Allocation, DebugName);
+	InitResource(TransientBuffer, PassIndex, Allocation, DebugName);
 
 #if RHICORE_TRANSIENT_ALLOCATOR_DEBUG
 	DebugBuffers.Emplace(TransientBuffer);
@@ -592,8 +594,10 @@ FRHITransientBuffer* FRHITransientResourceAllocator::CreateBuffer(
 	return TransientBuffer;
 }
 
-void FRHITransientResourceAllocator::DeallocateMemoryInternal(FRHITransientResource* InResource, FMemoryStats& StatsToUpdate)
+void FRHITransientResourceAllocator::DeallocateMemoryInternal(FRHITransientResource* InResource, uint32 PassIndex, FMemoryStats& StatsToUpdate)
 {
+	InResource->SetDiscardPass(PassIndex);
+
 	const FRHITransientHeapAllocation& Allocation = HeapAllocations[InResource->GetAllocationIndex()];
 
 	HeapAllocators[Allocation.HeapIndex].Deallocate(Allocation);
@@ -666,8 +670,8 @@ FRHITransientHeapAllocation FRHITransientResourceAllocator::Allocate(FMemoryStat
 	return Allocation;
 }
 
-void FRHITransientResourceAllocator::InitResource(FRHITransientResource* TransientResource, const FRHITransientHeapAllocation& Allocation, const TCHAR* Name)
+void FRHITransientResourceAllocator::InitResource(FRHITransientResource* TransientResource, uint32 PassIndex, const FRHITransientHeapAllocation& Allocation, const TCHAR* Name)
 {
-	TransientResource->Init(Name, HeapAllocations.Emplace(Allocation));
+	TransientResource->Init(Name, HeapAllocations.Emplace(Allocation), PassIndex);
 	HeapAllocators[Allocation.HeapIndex].TrackOverlap(TransientResource, Allocation);
 }

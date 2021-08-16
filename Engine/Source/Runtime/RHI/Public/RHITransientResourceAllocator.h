@@ -25,17 +25,25 @@ public:
 	virtual ~FRHITransientResource() = default;
 
 	// (Internal) Initializes the transient resource with a new allocation / name.
-	virtual void Init(const TCHAR* InName, uint32 InAllocationIndex)
+	virtual void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InAcquirePassIndex)
 	{
 		Name = InName;
 		AllocationIndex = InAllocationIndex;
+		AcquirePasses = TInterval<uint32>(0, InAcquirePassIndex);
+		DiscardPasses = TInterval<uint32>(0, TNumericLimits<uint32>::Max());
 		AliasingOverlaps.Reset();
 	}
+
+	// (Internal) Assigns the discard pass index.
+	FORCEINLINE void SetDiscardPass(uint32 PassIndex) { DiscardPasses.Min = PassIndex; }
 
 	// (Internal) Adds a new transient resource overlap.
 	FORCEINLINE void AddAliasingOverlap(FRHITransientResource* InResource)
 	{
 		AliasingOverlaps.Emplace(InResource->GetRHI(), InResource->IsTexture() ? FRHITransientAliasingOverlap::EType::Texture : FRHITransientAliasingOverlap::EType::Buffer);
+
+		InResource->DiscardPasses.Max = FMath::Min(InResource->DiscardPasses.Max,             AcquirePasses.Max);
+		            AcquirePasses.Min = FMath::Max(            AcquirePasses.Min, InResource->DiscardPasses.Min);
 	}
 
 	// Returns the underlying RHI resource.
@@ -49,6 +57,12 @@ public:
 
 	// (Internal) Returns the platform-specific allocation index.
 	FORCEINLINE uint32 GetAllocationIndex() const { return AllocationIndex; }
+
+	// Returns the pass index which may end acquiring this resource.
+	FORCEINLINE TInterval<uint32> GetAcquirePasses() const { return AcquirePasses; }
+
+	// Returns the pass index which discarded this resource.
+	FORCEINLINE TInterval<uint32> GetDiscardPasses() const { return DiscardPasses; }
 
 	// Returns the aliasing overlaps for this resource.
 	FORCEINLINE TConstArrayView<FRHITransientAliasingOverlap> GetAliasingOverlaps() const { return AliasingOverlaps; }
@@ -75,6 +89,8 @@ private:
 
 	// An index to the underlying allocation info on the internal platform allocator.
 	uint32 AllocationIndex = ~0u;
+	TInterval<uint32> AcquirePasses = TInterval<uint32>(0, 0);
+	TInterval<uint32> DiscardPasses = TInterval<uint32>(0, 0);
 };
 
 class RHI_API FRHITransientTexture final : public FRHITransientResource
@@ -85,7 +101,7 @@ public:
 		, CreateInfo(InCreateInfo)
 	{}
 
-	void Init(const TCHAR* InName, uint32 InAllocationIndex) override;
+	void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex) override;
 
 	// Returns the underlying RHI texture.
 	FRHITexture* GetRHI() const { return static_cast<FRHITexture*>(FRHITransientResource::GetRHI()); }
@@ -114,7 +130,7 @@ public:
 		, CreateInfo(InCreateInfo)
 	{}
 
-	void Init(const TCHAR* InName, uint32 InAllocationIndex) override;
+	void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex) override;
 
 	// Returns the underlying RHI buffer.
 	FORCEINLINE FRHIBuffer* GetRHI() const { return static_cast<FRHIBuffer*>(FRHITransientResource::GetRHI()); }
@@ -141,12 +157,12 @@ public:
 	virtual ~IRHITransientResourceAllocator() = default;
 
 	// Allocates a new transient resource with memory backed by the transient allocator.
-	virtual FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName) = 0;
-	virtual FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) = 0;
+	virtual FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex) = 0;
+	virtual FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex) = 0;
 
 	// Deallocates the underlying memory for use by a future resource creation call.
-	virtual void DeallocateMemory(FRHITransientTexture* InTexture) = 0;
-	virtual void DeallocateMemory(FRHITransientBuffer* InBuffer) = 0;
+	virtual void DeallocateMemory(FRHITransientTexture* InTexture, uint32 InPassIndex) = 0;
+	virtual void DeallocateMemory(FRHITransientBuffer* InBuffer, uint32 InPassIndex) = 0;
 
 	// Flushes any pending allocations in preparation for rendering. Resources are not required to be deallocated yet. Use when interleaving execution with allocation.
 	virtual void Flush(FRHICommandListImmediate& RHICmdList) {}

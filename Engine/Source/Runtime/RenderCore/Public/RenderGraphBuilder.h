@@ -409,20 +409,6 @@ private:
 		Pass->GetEpilogueBarriersToEnd(Allocator).AddDependency(&BarriersToBegin);
 	}
 
-	/** Utility function to add an immediate barrier dependency in either the prologue or epilogue of the provided pass, depending on BarrierLocation. */
-	template <typename FunctionType>
-	void AddToBarriers(FRDGPassHandle PassHandle, ERDGBarrierLocation BarrierLocation, FunctionType Function)
-	{
-		if (BarrierLocation == ERDGBarrierLocation::Prologue)
-		{
-			AddToPrologueBarriers(PassHandle, Function);
-		}
-		else
-		{
-			AddToEpilogueBarriers(PassHandle, Function);
-		}
-	}
-
 	/** Registry of graph objects. */
 	FRDGPassRegistry Passes;
 	FRDGTextureRegistry Textures;
@@ -654,30 +640,28 @@ private:
 	void AddTransition(
 		FRDGPassHandle PassHandle,
 		FRDGTextureRef Texture,
-		const FRDGTextureTransientSubresourceStateIndirect& StateAfter,
-		ERDGBarrierLocation BarrierLocation = ERDGBarrierLocation::Prologue);
+		const FRDGTextureTransientSubresourceStateIndirect& StateAfter);
 
 	void AddTransition(
 		FRDGPassHandle PassHandle,
 		FRDGBufferRef Buffer,
-		FRDGSubresourceState StateAfter,
-		ERDGBarrierLocation BarrierLocation = ERDGBarrierLocation::Prologue);
+		FRDGSubresourceState StateAfter);
 
 	void AddTransition(
 		FRDGParentResource* Resource,
 		FRDGSubresourceState StateBefore,
 		FRDGSubresourceState StateAfter,
-		const FRHITransitionInfo& TransitionInfo,
-		ERDGBarrierLocation BarrierLocation);
+		const FRHITransitionInfo& TransitionInfo);
+
+	void AddAliasingTransition(
+		FRDGPassHandle BeginPassHandle,
+		FRDGPassHandle EndPassHandle,
+		FRDGParentResourceRef Resource,
+		const FRHITransientAliasingInfo& Info);
 
 	bool IsTransient(FRDGTextureRef Texture) const;
 	bool IsTransient(FRDGBufferRef Buffer) const;
 	bool IsTransientInternal(FRDGParentResourceRef Resource) const;
-
-	void AddAcquireResourceRHI(FRDGTexture* Texture, FRDGPassHandle PassHandle);
-	void AddAcquireResourceRHI(FRDGBuffer* Buffer, FRDGPassHandle PassHandle);
-	void AddDiscardResourceRHI(FRDGTexture* Texture, FRDGPassHandle PassHandle);
-	void AddDiscardResourceRHI(FRDGBuffer* Buffer, FRDGPassHandle PassHandle);
 
 	FRHIRenderPassInfo GetRenderPassInfo(const FRDGPass* Pass) const;
 

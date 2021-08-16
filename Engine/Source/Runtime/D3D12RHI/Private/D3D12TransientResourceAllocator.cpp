@@ -135,14 +135,14 @@ FD3D12TransientResourceAllocator::FD3D12TransientResourceAllocator(FD3D12Transie
 	, AllocationInfoQueryDevice(GetParentAdapter()->GetDevice(0))
 {}
 
-FRHITransientTexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName)
+FRHITransientTexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex)
 {
 	FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
 
 	const D3D12_RESOURCE_DESC Desc = DynamicRHI->GetResourceDesc(InCreateInfo);
 	const D3D12_RESOURCE_ALLOCATION_INFO Info = AllocationInfoQueryDevice->GetResourceAllocationInfo(Desc);
 
-	return Allocator.CreateTexture(InCreateInfo, InDebugName, Info.SizeInBytes, Info.Alignment,
+	return Allocator.CreateTexture(InCreateInfo, InDebugName, InPassIndex, Info.SizeInBytes, Info.Alignment,
 		[&](const FRHITransientResourceAllocator::FResourceInitializer& Initializer)
 	{
 		ERHIAccess InitialState = ERHIAccess::UAVMask;
@@ -195,7 +195,7 @@ void FD3D12TransientResourceAllocator::FResourceAllocatorAdapter::AllocateResour
 #endif
 }
 
-FRHITransientBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName)
+FRHITransientBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex)
 {
 	D3D12_RESOURCE_DESC Desc;
 	uint32 Alignment;
@@ -205,7 +205,7 @@ FRHITransientBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBu
 	Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 	uint64 Size = Align(Desc.Width, Alignment);
 
-	return Allocator.CreateBuffer(InCreateInfo, InDebugName, Size, Alignment,
+	return Allocator.CreateBuffer(InCreateInfo, InDebugName, InPassIndex, Size, Alignment,
 		[&](const FRHITransientResourceAllocator::FResourceInitializer& Initializer)
 	{
 		ED3D12ResourceTransientMode TransientMode = ED3D12ResourceTransientMode::Transient;
@@ -215,14 +215,14 @@ FRHITransientBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBu
 	});
 }
 
-void FD3D12TransientResourceAllocator::DeallocateMemory(FRHITransientTexture* InTexture)
+void FD3D12TransientResourceAllocator::DeallocateMemory(FRHITransientTexture* InTexture, uint32 InPassIndex)
 {
-	Allocator.DeallocateMemory(InTexture);
+	Allocator.DeallocateMemory(InTexture, InPassIndex);
 }
 
-void FD3D12TransientResourceAllocator::DeallocateMemory(FRHITransientBuffer* InBuffer)
+void FD3D12TransientResourceAllocator::DeallocateMemory(FRHITransientBuffer* InBuffer, uint32 InPassIndex)
 {
-	Allocator.DeallocateMemory(InBuffer);
+	Allocator.DeallocateMemory(InBuffer, InPassIndex);
 }
 
 void FD3D12TransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList)
