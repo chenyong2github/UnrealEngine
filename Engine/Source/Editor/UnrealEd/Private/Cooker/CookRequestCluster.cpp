@@ -11,6 +11,7 @@
 #include "Cooker/PackageTracker.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "EditorDomain/EditorDomainUtils.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Misc/StringBuilder.h"
 #include "TargetDomain/TargetDomainUtils.h"
 
@@ -112,6 +113,12 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 	{
 		DLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
 		FPaths::MakeStandardFilename(DLCPath);
+	}
+
+	PackageStores.Reserve(Platforms.Num());
+	for (const ITargetPlatform* TargetPlatform : Platforms)
+	{
+		PackageStores.Add(COTFS.GetPackageStoreWriter(FName(*TargetPlatform->PlatformName())));
 	}
 }
 
@@ -395,10 +402,16 @@ void FRequestCluster::GetDependencies(FName PackageName, TArray<FName>& OutDepen
 		UE::AssetRegistry::EDependencyCategory::Package, DependencyQuery);
 	if (bTargetDomainEnabled)
 	{
-		for (const ITargetPlatform* TargetPlatform : Platforms)
+		for (int32 PlatIndex = 0; PlatIndex < Platforms.Num(); ++PlatIndex)
 		{
-			UE::TargetDomain::TryFetchDependencies(PackageName, TargetPlatform, BuildDependencies,
-				RuntimeDependencies);
+			const ITargetPlatform* TargetPlatform = Platforms[PlatIndex];
+			IPackageStoreWriter* PackageStore = PackageStores[PlatIndex];
+			if (!PackageStore)
+			{
+				continue;
+			}
+			UE::TargetDomain::TryFetchKeyAndDependencies(PackageStore, PackageName, TargetPlatform, nullptr /* OutHash */, &BuildDependencies,
+				&RuntimeDependencies, nullptr /* OutErrorMessage */);
 		}
 	}
 	if (bAllowSoftBuildDependencies)
