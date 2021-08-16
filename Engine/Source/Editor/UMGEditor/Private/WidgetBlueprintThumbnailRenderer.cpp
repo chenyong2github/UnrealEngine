@@ -24,7 +24,7 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 {
 #if !UE_SERVER
 
-	if (Width < SMALL_NUMBER || Height < SMALL_NUMBER)
+	if (Width < 1 || Height < 1)
 	{
 		return;
 	}
