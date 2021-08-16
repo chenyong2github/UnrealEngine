@@ -14,7 +14,7 @@
 #include "ContentBrowserDataMenuContexts.h"
 #include "CollectionManagerTypes.h"
 #include "IContentBrowserSingleton.h"
-#include "Editor/ContentBrowser/Private/HistoryManager.h"
+#include "HistoryManager.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "Textures/SlateIcon.h"
 

@@ -13,6 +13,7 @@ class FWidgetTemplate;
 class FWidgetBlueprintEditor;
 class UWidgetBlueprint;
 class SPaletteView;
+class FFavortiesViewModel;
 
 /** View model for the items in the widget template list */
 class FWidgetViewModel : public TSharedFromThis<FWidgetViewModel>
@@ -72,7 +73,7 @@ public:
 	virtual void SetFavorite() override { bIsFavorite = true; }
 
 	TSharedPtr<FWidgetTemplate> Template;
-	FPaletteViewModel* PaletteViewModel;
+	FFavortiesViewModel* FavortiesViewModel;
 private:
 	/** True is the widget is a favorite. It's keep as a state to prevent a search in the favorite list. */
 	bool bIsFavorite;
@@ -117,7 +118,25 @@ private:
 	bool bForceExpansion = false;
 };
 
-class FPaletteViewModel: public TSharedFromThis<FPaletteViewModel>
+class FFavortiesViewModel : public TSharedFromThis<FFavortiesViewModel>
+{
+public:
+	virtual ~FFavortiesViewModel() { }
+
+	/** Add the widget template to the list of favorites */
+	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
+
+	/** Remove the widget template to the list of favorites */
+	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
+
+	void SetSearchText(const FText& inSearchText) { SearchText = inSearchText; }
+	FText GetSearchText() const { return SearchText; }
+
+protected:
+	FText SearchText;
+};
+
+class FPaletteViewModel : public FFavortiesViewModel
 {
 public:
 
@@ -126,7 +145,7 @@ public:
 
 public:
 	FPaletteViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
-	~FPaletteViewModel();
+	virtual ~FPaletteViewModel();
 
 	/** Register the View Model to events that should trigger a update of the Palette*/
 	void RegisterToEvents();
@@ -145,9 +164,6 @@ public:
 
 	typedef TArray< TSharedPtr<FWidgetViewModel> > ViewModelsArray;
 	ViewModelsArray& GetWidgetViewModels() { return WidgetViewModels; }
-
-	void SetSearchText(const FText& inSearchText) { SearchText = inSearchText; }
-	FText GetSearchText() const { return SearchText; }
 
 	/** Fires before the view model is updated */
 	FOnUpdating OnUpdating;
@@ -192,8 +208,6 @@ private:
 	   
 	/** Controls rebuilding the list of spawnable widgets */
 	bool bRebuildRequested;
-
-	FText SearchText;
 
 	TSharedPtr<FWidgetHeaderViewModel> FavoriteHeader;
 };
