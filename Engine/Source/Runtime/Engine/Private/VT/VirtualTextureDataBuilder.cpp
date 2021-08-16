@@ -634,6 +634,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		TBSettings.MipGenSettings = TMGS_NoMipmaps;
 		TBSettings.bForceAlphaChannel = BuildSettingsForLayer.bForceAlphaChannel;
 		TBSettings.bVirtualStreamable = true;
+		TBSettings.bHasEditorOnlyData = BuildSettingsForLayer.bHasEditorOnlyData;
 
 		check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());
  
