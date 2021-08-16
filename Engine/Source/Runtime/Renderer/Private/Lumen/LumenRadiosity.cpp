@@ -542,6 +542,7 @@ class FLumenRadiosityResolveRayBufferCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FLumenRadiosityResolveRayBufferCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWRadiosityAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, RayBuffer)
@@ -872,6 +873,7 @@ void RenderRadiosityComputeScatter(
 		// Resolve the ray buffer
 		{
 			FLumenRadiosityResolveRayBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenRadiosityResolveRayBufferCS::FParameters>();
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->RWRadiosityAtlas = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadiosityAtlas));
 			PassParameters->LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 			PassParameters->RayBuffer = RayBuffer;
