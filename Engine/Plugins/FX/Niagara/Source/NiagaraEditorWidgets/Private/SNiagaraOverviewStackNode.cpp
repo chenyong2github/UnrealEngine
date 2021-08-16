@@ -432,6 +432,7 @@ void SNiagaraOverviewStackNode::FillTopContentBar()
 				RendererItem->GetRendererProperties()->GetRendererWidgets(InInstance, Widgets, UThumbnailManager::Get().GetSharedThumbnailPool());
 				TArray<TSharedPtr<SWidget>> TooltipWidgets;
 				RendererItem->GetRendererProperties()->GetRendererTooltipWidgets(InInstance, TooltipWidgets, UThumbnailManager::Get().GetSharedThumbnailPool());
+				check(Widgets.Num() == TooltipWidgets.Num());
 				for (int32 WidgetIndex = 0; WidgetIndex < Widgets.Num(); WidgetIndex++)
 				{
 					ToolBarBuilder.AddWidget(
