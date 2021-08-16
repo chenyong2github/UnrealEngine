@@ -17,8 +17,10 @@
 #include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/ViewModels/ThreadTrackEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
+#include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
 
 #define LOCTEXT_NAMESPACE "TaskTimingTrack"
@@ -73,7 +75,23 @@ void FTaskTimingSharedState::OnBeginSession(Insights::ITimingViewSession& InSess
 {
 	if (&InSession != TimingView)
 	{
-		return;
+		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Window.IsValid())
+		{
+			TSharedPtr<STimingView> WindowTimingView = Window->GetTimingView();
+			if (WindowTimingView.IsValid() && WindowTimingView.Get() == &InSession)
+			{
+				TimingView = WindowTimingView.Get();
+			}
+		}
+		else if (TimingView == nullptr && FTimingProfilerManager::Get()->IsTimingViewVisible())
+		{
+			TimingView = (STimingView*)&InSession;
+		}
+		else
+		{
+			return;
+		}
 	}
 
 	TaskTrack = nullptr;
@@ -90,6 +108,7 @@ void FTaskTimingSharedState::OnEndSession(Insights::ITimingViewSession& InSessio
 
 	FTaskGraphProfilerManager::Get()->ClearTaskRelations();
 	TaskTrack = nullptr;
+	TimingView = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

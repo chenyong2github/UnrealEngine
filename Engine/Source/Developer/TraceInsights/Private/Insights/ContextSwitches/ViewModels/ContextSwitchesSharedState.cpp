@@ -14,7 +14,9 @@
 #include "Insights/ContextSwitches/ViewModels/CpuCoreTimingTrack.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/ThreadTimingTrack.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
 
 #define LOCTEXT_NAMESPACE "ContextSwitches"
@@ -77,13 +79,31 @@ void FContextSwitchesSharedState::OnBeginSession(Insights::ITimingViewSession& I
 {
 	if (&InSession != TimingView)
 	{
-		return;
+		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Window.IsValid())
+		{
+			TSharedPtr<STimingView> WindowTimingView = Window->GetTimingView();
+			if (WindowTimingView.IsValid() && WindowTimingView.Get() == &InSession)
+			{
+				TimingView = WindowTimingView.Get();
+				AddCommands();
+			}
+		}
+		else if(TimingView == nullptr && FTimingProfilerManager::Get()->IsTimingViewVisible())
+		{
+			TimingView = (STimingView *)&InSession;
+			AddCommands();
+		}
+		else
+		{
+			return;
+		}
 	}
 
 	ThreadsSerial = 0;
 	CpuCoresSerial = 0;
 
-	bAreCoreTracksVisible = true;
+	bAreCoreTracksVisible = false;
 	bAreContextSwitchesVisible = true;
 	bAreOverlaysVisible = true;
 	bAreExtendedLinesVisible = true;
@@ -103,12 +123,13 @@ void FContextSwitchesSharedState::OnEndSession(Insights::ITimingViewSession& InS
 	ThreadsSerial = 0;
 	CpuCoresSerial = 0;
 
-	bAreCoreTracksVisible = true;
+	bAreCoreTracksVisible = false;
 	bAreContextSwitchesVisible = true;
 	bAreOverlaysVisible = true;
 	bAreExtendedLinesVisible = true;
 
 	bSyncWithProviders = false;
+	TimingView = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
