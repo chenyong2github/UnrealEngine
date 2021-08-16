@@ -19,7 +19,7 @@ public class Boost : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string BoostToolsetVersion = "vc141";
+			string BoostToolsetVersion = "vc142";
 
 			string BoostLibPath = Path.Combine(BoostPath, "lib", "Win64");
 			string BoostVersionShort = BoostVersion.Substring(BoostVersion.Length - 2) == "_0" ? BoostVersion.Substring(0, BoostVersion.Length - 2) : BoostVersion;
@@ -31,7 +31,7 @@ public class Boost : ModuleRules
 				RuntimeDependencies.Add("$(TargetOutputDir)/" + BoostLibName + ".dll", Path.Combine(BoostLibPath, BoostLibName + ".dll"));
 			}
 
-			PublicDefinitions.Add("BOOST_LIB_TOOLSET=\"vc141\"");
+			PublicDefinitions.Add("BOOST_LIB_TOOLSET=\"" + BoostToolsetVersion + "\"");
 			PublicDefinitions.Add("BOOST_ALL_NO_LIB");
 		}
 	}
