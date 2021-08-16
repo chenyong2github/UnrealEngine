@@ -17,7 +17,7 @@ public:
 
 	virtual bool Translate(const FString& FilePath, FHairDescription& OutHairDescription, const struct FGroomConversionSettings& ConversionSettings, FGroomAnimationInfo* OutAnimInfo) override;
 	virtual bool BeginTranslation(const FString& FilePath) override;
-	virtual bool Translate(uint32 FrameIndex, FHairDescription& OutHairDescription, const struct FGroomConversionSettings& ConversionSettings) override;
+	virtual bool Translate(float FrameTime, FHairDescription& OutHairDescription, const struct FGroomConversionSettings& ConversionSettings) override;
 	virtual void EndTranslation() override;
 
 private:
