@@ -449,6 +449,36 @@ public:
 	UPROPERTY(config, meta = (DeprecatedProperty, DeprecationMessage = "Use the Enhanced Input plugin Scalar Modifier instead. See UInputSettings::bEnableLegacyInputScales to enable legacy behavior"))
 	float InputRollScale_DEPRECATED = 1.0f;
 
+	/** A getter for the deprecated InputYawScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
+	UE_DEPRECATED(5.0, "GetDeprecatedInputYawScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.")
+	UFUNCTION(BlueprintCallable, Category = PlayerController)
+	float GetDeprecatedInputYawScale() const;
+	
+	/** A getter for the deprecated InputPitchScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
+	UE_DEPRECATED(5.0, "GetDeprecatedInputPitchScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.")
+	UFUNCTION(BlueprintCallable, Category = PlayerController)
+	float GetDeprecatedInputPitchScale() const;
+	
+	/** A getter for the deprecated InputRollScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
+	UE_DEPRECATED(5.0, "GetDeprecatedInputRollScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.)")
+	UFUNCTION(BlueprintCallable, Category = PlayerController)
+	float GetDeprecatedInputRollScale() const;
+
+	/** A getter for the deprecated InputYawScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
+	UE_DEPRECATED(5.0, "SetDeprecatedInputYawScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.")
+	UFUNCTION(BlueprintCallable, Category = PlayerController)
+	void SetDeprecatedInputYawScale(float NewValue);
+
+	/** A getter for the deprecated InputPitchScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
+	UE_DEPRECATED(5.0, "SetDeprecatedInputPitchScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.")
+	UFUNCTION(BlueprintCallable, Category = PlayerController)
+	void SetDeprecatedInputPitchScale(float NewValue);
+
+	/** A getter for the deprecated InputRollScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
+	UE_DEPRECATED(5.0, "SetDeprecatedInputRollScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.)")
+	UFUNCTION(BlueprintCallable, Category = PlayerController)
+	void SetDeprecatedInputRollScale(float NewValue);
+
 	/** Whether the mouse cursor should be displayed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MouseInterface)
 	uint32 bShowMouseCursor:1;
