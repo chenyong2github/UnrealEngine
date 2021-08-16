@@ -23,6 +23,7 @@ class UPanelSlot;
 class UWidgetAnimation;
 class UWidgetBlueprint;
 class FPaletteViewModel;
+class FLibraryViewModel;
 
 struct FNamedSlotSelection
 {
@@ -177,6 +178,7 @@ public:
 	void SetIsRespectingLocks(bool Value);
 
 	TSharedPtr<FPaletteViewModel> GetPaletteViewModel() { return PaletteViewModel; };
+	TSharedPtr<FLibraryViewModel> GetLibraryViewModel() { return LibraryViewModel; };
 
 public:
 	/** Fires whenever a new widget is being hovered over */
@@ -391,6 +393,9 @@ private:
 
 	/** ViewModel used by the Palette and Palette Favorite Views */
 	TSharedPtr<FPaletteViewModel> PaletteViewModel;
+
+	/** ViewModel used by the Library View */
+	TSharedPtr<FLibraryViewModel> LibraryViewModel;
 
 	/** When true the sequencer selection is being updated from changes to the external selection. */
 	bool bUpdatingSequencerSelection;

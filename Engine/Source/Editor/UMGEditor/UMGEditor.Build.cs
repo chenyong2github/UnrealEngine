@@ -17,6 +17,7 @@ public class UMGEditor : ModuleRules
 				"Editor/UMGEditor/Private/Designer",
 				"Editor/UMGEditor/Private/Hierarchy",
 				"Editor/UMGEditor/Private/Palette",
+				"Editor/UMGEditor/Private/Library",
 				"Editor/UMGEditor/Private/Details",
 				"Editor/UMGEditor/Private/DragDrop",
                 "Editor/UMGEditor/Private/Utility",
@@ -40,6 +41,7 @@ public class UMGEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"ContentBrowser",
 				"ApplicationCore",
 				"InputCore",
 				"Engine",

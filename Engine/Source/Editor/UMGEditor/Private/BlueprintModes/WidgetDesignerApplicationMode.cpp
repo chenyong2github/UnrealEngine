@@ -11,6 +11,7 @@
 #include "ToolMenus.h"
 
 #include "TabFactory/PaletteTabSummoner.h"
+#include "TabFactory/LibraryTabSummoner.h"
 #include "TabFactory/HierarchyTabSummoner.h"
 #include "TabFactory/BindWidgetTabSummoner.h"
 #include "TabFactory/DesignerTabSummoner.h"
@@ -31,7 +32,7 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	// Override the default created category here since "Designer Editor" sounds awkward
 	WorkspaceMenuCategory = FWorkspaceItem::NewGroup(LOCTEXT("WorkspaceMenu_WidgetDesigner", "Widget Designer"));
 
-	TabLayout = FTabManager::NewLayout( "WidgetBlueprintEditor_Designer_Layout_v4_2" )
+	TabLayout = FTabManager::NewLayout("WidgetBlueprintEditor_Designer_Layout_v4_3")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()
@@ -49,26 +50,18 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient( 0.5f )
-					->AddTab( FPaletteTabSummoner::TabID, ETabState::OpenedTab )
+					->SetSizeCoefficient(0.5f)
+					->SetForegroundTab(FPaletteTabSummoner::TabID)
+					->AddTab(FPaletteTabSummoner::TabID, ETabState::OpenedTab)
+					->AddTab(FLibraryTabSummoner::TabID, ETabState::ClosedTab)
 				)
 				->Split
 				(
-					FTabManager::NewSplitter()
-					->SetSizeCoefficient(0.15f)
-					->SetOrientation(Orient_Horizontal)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.5f)
-						->AddTab(FHierarchyTabSummoner::TabID, ETabState::OpenedTab)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.5f)
-						->AddTab(FBindWidgetTabSummoner::TabID, ETabState::OpenedTab)
-					)
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.5f)
+					->SetForegroundTab(FHierarchyTabSummoner::TabID)
+					->AddTab(FHierarchyTabSummoner::TabID, ETabState::OpenedTab)
+					->AddTab(FBindWidgetTabSummoner::TabID, ETabState::OpenedTab)
 				)
 			)
 			->Split
@@ -119,6 +112,7 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	TabFactories.RegisterFactory(MakeShareable(new FHierarchyTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FBindWidgetTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FPaletteTabSummoner(InWidgetEditor)));
+	TabFactories.RegisterFactory(MakeShareable(new FLibraryTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FSequencerTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FAnimationTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FCompilerResultsSummoner(InWidgetEditor)));

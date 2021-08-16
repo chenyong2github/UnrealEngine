@@ -2640,60 +2640,18 @@ void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets
 		return;
 	}
 
-	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
-	TSharedPtr<FAssetDragDropOp> AssetDragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();
+	UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, RootWidgetTree, DragDropOp);
 
-	if (TemplateDragDropOp.IsValid())
+	if (Widget)
 	{
-		UWidget* Widget = TemplateDragDropOp->Template->Create(RootWidgetTree);
-
-		if (Widget)
-		{
-			if ( Cast<UUserWidget>(Widget) == nullptr || Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)) )
-			{
-				OutWidgets.Add(Widget);
-			}
-		}
-	}
-	else if (AssetDragDropOp.IsValid())
-	{
-		for (const FAssetData& AssetData : AssetDragDropOp->GetAssets())
-		{
-			UWidget* Widget = nullptr;
-			UClass* AssetClass = FindObjectChecked<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
-
-			if (FWidgetTemplateBlueprintClass::Supports(AssetClass))
-			{
-				// Allows a UMG Widget Blueprint to be dragged from the Content Browser to another Widget Blueprint...as long as we're not trying to place a
-				// blueprint inside itself.
-				FString BlueprintPath = Blueprint->GetPathName();
-				if (BlueprintPath != AssetData.ObjectPath.ToString())
-				{
-					Widget = FWidgetTemplateBlueprintClass(AssetData).Create(RootWidgetTree);
-
-					// Check to make sure that this widget can be added to the current blueprint
-					if ( Cast<UUserWidget>(Widget) != nullptr && !Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)) )
-					{
-						Widget = nullptr;
-					}
-				}
-			}
-			else if (FWidgetTemplateImageClass::Supports(AssetClass))
-			{
-				Widget = FWidgetTemplateImageClass(AssetData).Create(RootWidgetTree);
-			}
-
-			if (Widget)
-			{
-				OutWidgets.Add(Widget);
-			}
-		}
+		OutWidgets.Add(Widget);
 	}
 
 	// Mark the widgets for design-time rendering
-	for (UWidget* Widget : OutWidgets)
+	for (UWidget* OutWidget : OutWidgets)
 	{
-		Widget->SetDesignerFlags(BlueprintEditor.Pin()->GetCurrentDesignerFlags());
+		OutWidget->SetDesignerFlags(BlueprintEditor.Pin()->GetCurrentDesignerFlags());
 	}
 }
 

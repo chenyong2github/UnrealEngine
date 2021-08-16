@@ -8,6 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/FileManager.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -57,6 +58,7 @@
 #include "GameProjectGenerationModule.h"
 
 #include "SPaletteViewModel.h"
+#include "SLibraryViewModel.h"
 
 #include "DesktopPlatformModule.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -124,6 +126,9 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 
 	PaletteViewModel = MakeShareable(new FPaletteViewModel(ThisPtr));
 	PaletteViewModel->RegisterToEvents();
+
+	LibraryViewModel = MakeShareable(new FLibraryViewModel(ThisPtr));
+	LibraryViewModel->RegisterToEvents();
 
 	WidgetToolbar = MakeShareable(new FWidgetBlueprintEditorToolbar(ThisPtr));
 
@@ -746,10 +751,15 @@ void FWidgetBlueprintEditor::Tick(float DeltaTime)
 		RefreshPreview();
 	}
 
-	// Updat the palette view model.
+	// Update the palette view model.
 	if (PaletteViewModel->NeedUpdate())
 	{
 		PaletteViewModel->Update();
+	}
+
+	if (LibraryViewModel->NeedUpdate())
+	{
+		LibraryViewModel->Update();
 	}
 }
 

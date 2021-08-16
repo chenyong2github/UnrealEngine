@@ -10,7 +10,7 @@
 #include "AssetData.h"
 #include "ARFilter.h"
 #include "IContentBrowserSingleton.h"
-#include "Editor/ContentBrowser/Private/SourcesData.h"
+#include "SourcesData.h"
 
 class FFrontendFilter_ShowOtherDevelopers;
 class FFrontendFilter_Text;

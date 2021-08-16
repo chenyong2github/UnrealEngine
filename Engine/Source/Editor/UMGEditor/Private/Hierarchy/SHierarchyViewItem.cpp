@@ -21,8 +21,10 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "WidgetTemplate.h"
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "DragAndDrop/ClassDragDropOp.h"
 #include "DragDrop/WidgetTemplateDragDropOp.h"
+#include "WidgetTemplate.h"
 
 
 
@@ -33,7 +35,6 @@
 #include "WidgetBlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "Styling/SlateIconFinder.h"
-#include "DragAndDrop/AssetDragDropOp.h"
 #include "WidgetTemplateBlueprintClass.h"
 #include "WidgetTemplateImageClass.h"
 
@@ -188,10 +189,15 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 	check( Blueprint != nullptr && Blueprint->WidgetTree != nullptr );
 
 	// Is this a drag/drop op to create a new widget in the tree?
-	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
-	if ( TemplateDragDropOp.IsValid() )
+	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();
+	if (DragDropOp.IsValid() )
 	{
-		TemplateDragDropOp->ResetToDefaultToolTip();
+		TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = nullptr;
+		if (DragDropOp->IsOfType<FDecoratedDragDropOp>())
+		{
+			DecoratedDragDropOp = StaticCastSharedPtr<FDecoratedDragDropOp>(DragDropOp);
+			DecoratedDragDropOp->ResetToDefaultToolTip();
+		}
 
 		// Are we adding to the root?
 		if ( !TargetItem.IsValid() && Blueprint->WidgetTree->RootWidget == nullptr )
@@ -204,11 +210,14 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 				Blueprint->WidgetTree->SetFlags(RF_Transactional);
 				Blueprint->WidgetTree->Modify();
 
-				Blueprint->WidgetTree->RootWidget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
+				Blueprint->WidgetTree->RootWidget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
 				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 			}
 
-			TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			if (DecoratedDragDropOp.IsValid())
+			{
+				DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+			}
 			return EItemDropZone::OntoItem;
 		}
 		// Are we adding to a panel?
@@ -216,7 +225,10 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 		{
 			if (!Parent->CanAddMoreChildren())
 			{
-				TemplateDragDropOp->CurrentHoverText = LOCTEXT("NoAdditionalChildren", "Widget can't accept additional children.");
+				if (DecoratedDragDropOp.IsValid())
+				{
+					DecoratedDragDropOp->CurrentHoverText = LOCTEXT("NoAdditionalChildren", "Widget can't accept additional children.");
+				}
 			}
 			else
 			{
@@ -230,7 +242,7 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 					
 					Parent->SetFlags(RF_Transactional);
 					Parent->Modify();
-					UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
+					UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
 
 					UPanelSlot* NewSlot = nullptr;
 					if (Index.IsSet())
@@ -246,16 +258,25 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 				}
 
-				TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				if (DecoratedDragDropOp.IsValid())
+				{
+					DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				}
 				return EItemDropZone::OntoItem;
 			}
 		}
 		else
 		{
-			TemplateDragDropOp->CurrentHoverText = LOCTEXT("CantHaveChildren", "Widget can't have children.");
+			if (DecoratedDragDropOp.IsValid())
+			{
+				DecoratedDragDropOp->CurrentHoverText = LOCTEXT("CantHaveChildren", "Widget can't have children.");
+			}
 		}
 
-		TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+		if (DecoratedDragDropOp.IsValid())
+		{
+			DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+		}
 		return TOptional<EItemDropZone>();
 	}
 
@@ -530,6 +551,28 @@ void FHierarchyModel::OnNameTextCommited(const FText& InText, ETextCommit::Type 
 
 }
 
+bool FHierarchyModel::HasCircularReferences(UWidgetBlueprint* Blueprint, UWidget* Widget, TSharedPtr<FDragDropOperation>& DragDropOp)
+{
+	bool bHasCircularReferences = false;
+	if (Widget)
+	{
+		if (!Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
+		{
+			if (DragDropOp->IsOfType<FDecoratedDragDropOp>())
+			{
+				TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = StaticCastSharedPtr<FDecoratedDragDropOp>(DragDropOp);
+				DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				DecoratedDragDropOp->CurrentHoverText = LOCTEXT("CircularReference", "This would cause a circular reference.");
+			}
+
+			bHasCircularReferences = true;
+		}
+
+		RemovePreviewWidget(Blueprint, Widget);
+	}
+
+	return bHasCircularReferences;
+}
 
 void FHierarchyModel::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent)
 {
@@ -541,60 +584,18 @@ void FHierarchyModel::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidge
 		return;
 	}
 
-	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
-	TSharedPtr<FAssetDragDropOp> AssetDragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
+	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();
+	UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
 
-	if (TemplateDragDropOp.IsValid())
+	if (Widget)
 	{
-		UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
-
-		if (Widget)
-		{
-			if (Cast<UUserWidget>(Widget) == nullptr || Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
-			{
-				OutWidgets.Add(Widget);
-			}
-		}
-	}
-	else if (AssetDragDropOp.IsValid())
-	{
-		for (const FAssetData& AssetData : AssetDragDropOp->GetAssets())
-		{
-			UWidget* Widget = nullptr;
-			UClass* AssetClass = FindObjectChecked<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
-
-			if (FWidgetTemplateBlueprintClass::Supports(AssetClass))
-			{
-				// Allows a UMG Widget Blueprint to be dragged from the Content Browser to another Widget Blueprint...as long as we're not trying to place a
-				// blueprint inside itself.
-				FString BlueprintPath = Blueprint->GetPathName();
-				if (BlueprintPath != AssetData.ObjectPath.ToString())
-				{
-					Widget = FWidgetTemplateBlueprintClass(AssetData).Create(Blueprint->WidgetTree);
-
-					// Check to make sure that this widget can be added to the current blueprint
-					if (Cast<UUserWidget>(Widget) != nullptr && !Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
-					{
-						Widget = nullptr;
-					}
-				}
-			}
-			else if (FWidgetTemplateImageClass::Supports(AssetClass))
-			{
-				Widget = FWidgetTemplateImageClass(AssetData).Create(Blueprint->WidgetTree);
-			}
-
-			if (Widget)
-			{
-				OutWidgets.Add(Widget);
-			}
-		}
+		OutWidgets.Add(Widget);
 	}
 
 	// Mark the widgets for design-time rendering
-	for (UWidget* Widget : OutWidgets)
+	for (UWidget* OutWidget : OutWidgets)
 	{
-		Widget->SetDesignerFlags(BlueprintEditor.Pin()->GetCurrentDesignerFlags());
+		OutWidget->SetDesignerFlags(BlueprintEditor.Pin()->GetCurrentDesignerFlags());
 	}
 }
 
@@ -745,25 +746,15 @@ bool FHierarchyRoot::DoesWidgetOverrideFlowDirection() const
 TOptional<EItemDropZone> FHierarchyRoot::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone)
 {
 	bool bIsFreeFromCircularReferences = true;
-	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
-	if (TemplateDragDropOp.IsValid())
+
+	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();
+	if (DragDropOp.IsValid())
 	{
 		UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
 		if(Blueprint)
 		{
-			UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
-	
-			if (Widget)
-			{
-				if (!Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
-				{
-					TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
-					TemplateDragDropOp->CurrentHoverText = LOCTEXT("CircularReference", "This would cause a circular reference.");
-					bIsFreeFromCircularReferences = false;
-				}
-
-				FHierarchyModel::RemovePreviewWidget(Blueprint, Widget);
-			}
+			UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
+			bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
 		}
 	}
 
@@ -895,36 +886,36 @@ TOptional<EItemDropZone> FNamedSlotModel::HandleCanAcceptDrop(const FDragDropEve
 {
 	UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
 
-	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
-	if (TemplateDragDropOp.IsValid())
+	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();
+	if (DragDropOp.IsValid())
 	{
-		TemplateDragDropOp->ResetToDefaultToolTip();
+		TSharedPtr<FDecoratedDragDropOp> DecoratedDragDropOp = nullptr;
+		if (DragDropOp->IsOfType<FDecoratedDragDropOp>())
+		{
+			DecoratedDragDropOp = StaticCastSharedPtr<FDecoratedDragDropOp>(DragDropOp);
+			DecoratedDragDropOp->ResetToDefaultToolTip();
+		}
 
-		if ( INamedSlotInterface* NamedSlotHost = Cast<INamedSlotInterface>(Item.GetTemplate()) )
+		if (INamedSlotInterface* NamedSlotHost = Cast<INamedSlotInterface>(Item.GetTemplate()))
 		{
 			// Only assign content to the named slot if it is null.
-			if ( NamedSlotHost->GetContentForSlot(SlotName) != nullptr )
+			if (NamedSlotHost->GetContentForSlot(SlotName) != nullptr)
 			{
-				TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
-				TemplateDragDropOp->CurrentHoverText = LOCTEXT("NamedSlotAlreadyFull", "Named Slot already has a child.");
+				if (DecoratedDragDropOp.IsValid())
+				{
+					DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+					DecoratedDragDropOp->CurrentHoverText = LOCTEXT("NamedSlotAlreadyFull", "Named Slot already has a child.");
+				}
 				return TOptional<EItemDropZone>();
 			}
 
-			UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
-			bool bIsFreeFromCircularReferences = true;
-			if (Widget)
+			UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
+			bool bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
+
+			if (DecoratedDragDropOp.IsValid())
 			{
-				if (!Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
-				{
-					TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
-					TemplateDragDropOp->CurrentHoverText = LOCTEXT("CircularReference", "This would cause a circular reference.");
-					bIsFreeFromCircularReferences = false;
-				}
-
-				FHierarchyModel::RemovePreviewWidget(Blueprint, Widget);
+				DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 			}
-
-			TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
 			return bIsFreeFromCircularReferences ? EItemDropZone::OntoItem : TOptional<EItemDropZone>();
 		}
 	}
@@ -983,8 +974,8 @@ FReply FNamedSlotModel::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EI
 		return FReply::Unhandled();
 	}
 
-	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
-	if (TemplateDragDropOp.IsValid())
+	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();
+	if (DragDropOp.IsValid())
 	{
 		FScopedTransaction Transaction(LOCTEXT("AddWidgetFromTemplate", "Add Widget"));
 
@@ -992,7 +983,7 @@ FReply FNamedSlotModel::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EI
 		Blueprint->WidgetTree->SetFlags(RF_Transactional);
 		Blueprint->WidgetTree->Modify();
 
-		UWidget* DroppingWidget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
+		UWidget* DroppingWidget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
 
 		DoDrop(SlotHostWidget, DroppingWidget);
 
@@ -1153,25 +1144,15 @@ FSlateFontInfo FHierarchyWidget::GetFont() const
 TOptional<EItemDropZone> FHierarchyWidget::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone)
 {
 	bool bIsFreeFromCircularReferences = true;
-	if (TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>())
+
+	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();
+	if (DragDropOp.IsValid())
 	{
 		UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
-		if(Blueprint)
+		if (Blueprint)
 		{
-			UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
-
-			if (Widget)
-			{
-				if (!Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
-				{
-					TemplateDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
-					TemplateDragDropOp->CurrentHoverText = LOCTEXT("CircularReference", "This would cause a circular reference.");
-					bIsFreeFromCircularReferences = false;
-				}
-
-				RemovePreviewWidget(Blueprint, Widget);
-
-			}
+			UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
+			bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
 		}
 	}
 	bool bIsDrop = false;

@@ -51,7 +51,7 @@ enum class EThumbnailSize : uint8;
 /**
  * A widget to display a list of filtered assets
  */
-class SAssetView : public SCompoundWidget
+class CONTENTBROWSER_API SAssetView : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SAssetView )

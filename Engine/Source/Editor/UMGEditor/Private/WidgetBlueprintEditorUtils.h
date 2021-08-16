@@ -7,6 +7,7 @@
 #include "WidgetBlueprint.h"
 #include "WidgetReference.h"
 
+class FDragDropOperation;
 class FHittestGrid;
 class FMenuBuilder;
 class UWidgetBlueprint;
@@ -42,6 +43,8 @@ public:
 	static void CutWidgets(UWidgetBlueprint* BP, TSet<FWidgetReference> Widgets);
 
 	static TArray<UWidget*> DuplicateWidgets(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, TSet<FWidgetReference> Widgets);
+
+	static UWidget* GetWidgetTemplateFromDragDrop(UWidgetBlueprint* Blueprint, UWidgetTree* RootWidgetTree, TSharedPtr<FDragDropOperation>& DragDropOp);
 
 	static bool IsBindWidgetProperty(FProperty* InProperty);
 	static bool IsBindWidgetProperty(FProperty* InProperty, bool& bIsOptional);

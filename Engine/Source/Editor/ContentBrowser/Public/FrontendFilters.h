@@ -16,7 +16,7 @@ class FMenuBuilder;
 struct FAssetCompileData;
 
 /** A filter for text search */
-class FFrontendFilter_Text : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_Text : public FFrontendFilter
 {
 public:
 	FFrontendFilter_Text();
@@ -85,7 +85,7 @@ private:
 };
 
 /** A filter that displays only checked out assets */
-class FFrontendFilter_CheckedOut : public FFrontendFilter, public TSharedFromThis<FFrontendFilter_CheckedOut>
+class CONTENTBROWSER_API FFrontendFilter_CheckedOut : public FFrontendFilter, public TSharedFromThis<FFrontendFilter_CheckedOut>
 {
 public:
 	FFrontendFilter_CheckedOut(TSharedPtr<FFrontendFilterCategory> InCategory);
@@ -112,7 +112,7 @@ private:
 };
 
 /** A filter that displays assets not tracked by source control */
-class FFrontendFilter_NotSourceControlled : public FFrontendFilter, public TSharedFromThis<FFrontendFilter_NotSourceControlled>
+class CONTENTBROWSER_API FFrontendFilter_NotSourceControlled : public FFrontendFilter, public TSharedFromThis<FFrontendFilter_NotSourceControlled>
 {
 public:
 	FFrontendFilter_NotSourceControlled(TSharedPtr<FFrontendFilterCategory> InCategory);
@@ -141,7 +141,7 @@ private:
 };
 
 /** A filter that displays only modified assets */
-class FFrontendFilter_Modified : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_Modified : public FFrontendFilter
 {
 public:
 	FFrontendFilter_Modified(TSharedPtr<FFrontendFilterCategory> InCategory);
@@ -165,7 +165,7 @@ private:
 };
 
 /** A filter that displays blueprints that have replicated properties */
-class FFrontendFilter_ReplicatedBlueprint : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_ReplicatedBlueprint : public FFrontendFilter
 {
 public:
 	FFrontendFilter_ReplicatedBlueprint(TSharedPtr<FFrontendFilterCategory> InCategory) : FFrontendFilter(InCategory) {}
@@ -180,7 +180,7 @@ public:
 };
 
 /** A filter that compares the value of an asset registry tag to a target value */
-class FFrontendFilter_ArbitraryComparisonOperation : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_ArbitraryComparisonOperation : public FFrontendFilter
 {
 public:
 	FFrontendFilter_ArbitraryComparisonOperation(TSharedPtr<FFrontendFilterCategory> InCategory);
@@ -214,7 +214,7 @@ public:
 };
 
 /** An inverse filter that allows display of content in developer folders that are not the current user's */
-class FFrontendFilter_ShowOtherDevelopers : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_ShowOtherDevelopers : public FFrontendFilter
 {
 public:
 	/** Constructor */
@@ -246,7 +246,7 @@ private:
 };
 
 /** An inverse filter that allows display of object redirectors */
-class FFrontendFilter_ShowRedirectors : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_ShowRedirectors : public FFrontendFilter
 {
 public:
 	/** Constructor */
@@ -268,7 +268,7 @@ private:
 };
 
 /** A filter that only displays assets used by loaded levels */
-class FFrontendFilter_InUseByLoadedLevels : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_InUseByLoadedLevels : public FFrontendFilter
 {
 public:
 	/** Constructor/Destructor */
@@ -302,9 +302,8 @@ private:
 	bool bIsCurrentlyActive = false;
 };
 
-
 /** A filter that only displays assets used by any level */
-class FFrontendFilter_UsedInAnyLevel: public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_UsedInAnyLevel: public FFrontendFilter
 {
 public:
 	/** Constructor/Destructor */
@@ -326,7 +325,7 @@ private:
 };
 
 /** A filter that only displays assets used by any level */
-class FFrontendFilter_NotUsedInAnyLevel : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_NotUsedInAnyLevel : public FFrontendFilter
 {
 public:
 	/** Constructor/Destructor */
@@ -348,7 +347,7 @@ private:
 };
 
 /** A filter that displays recently opened assets */
-class FFrontendFilter_Recent : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_Recent : public FFrontendFilter
 {
 public:
 	FFrontendFilter_Recent(TSharedPtr<FFrontendFilterCategory> InCategory);
@@ -374,7 +373,7 @@ private:
 };
 
 /** A filter that displays only assets that are not read only */
-class FFrontendFilter_Writable : public FFrontendFilter
+class CONTENTBROWSER_API FFrontendFilter_Writable : public FFrontendFilter
 {
 public:
 	FFrontendFilter_Writable(TSharedPtr<FFrontendFilterCategory> InCategory);

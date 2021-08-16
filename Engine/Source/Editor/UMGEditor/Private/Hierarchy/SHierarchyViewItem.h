@@ -106,6 +106,7 @@ protected:
 	virtual void GetChildren(TArray< TSharedPtr<FHierarchyModel> >& Children) = 0;
 	virtual void UpdateSelection() = 0;
 	virtual FWidgetReference AsDraggedWidgetReference() const { return FWidgetReference(); }
+	virtual bool HasCircularReferences(class UWidgetBlueprint* Blueprint, class UWidget* Widget, TSharedPtr<class FDragDropOperation>& DragDropOp);
 	void DetermineDragDropPreviewWidgets(TArray<class UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent);
 	void RemovePreviewWidget(class UWidgetBlueprint* Blueprint, class UWidget* Widget);
 

@@ -16,6 +16,10 @@
 #include "HAL/PlatformApplicationMisc.h"
 
 #include "Dialogs/Dialogs.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "DragAndDrop/ClassDragDropOp.h"
+#include "DragDrop/WidgetTemplateDragDropOp.h"
 #include "Exporters/Exporter.h"
 #include "ObjectEditorUtils.h"
 #include "Components/CanvasPanelSlot.h"
@@ -25,6 +29,7 @@
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Templates/WidgetTemplateClass.h"
+#include "Templates/WidgetTemplateImageClass.h"
 #include "Templates/WidgetTemplateBlueprintClass.h"
 #include "Factories.h"
 #include "UnrealExporter.h"
@@ -1346,6 +1351,61 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::DuplicateWidgets(TSharedRef<FWidge
 	}
 
 	return DuplicatedWidgets;
+}
+UWidget* FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(UWidgetBlueprint* Blueprint, UWidgetTree* RootWidgetTree, TSharedPtr<FDragDropOperation>& DragDropOp)
+{
+	UWidget* Widget = nullptr;
+
+	if (!DragDropOp.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (DragDropOp->IsOfType<FWidgetTemplateDragDropOp>())
+	{
+		TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = StaticCastSharedPtr<FWidgetTemplateDragDropOp>(DragDropOp);
+		Widget = TemplateDragDropOp->Template->Create(RootWidgetTree);
+	}
+	else if (DragDropOp->IsOfType<FAssetDragDropOp>())
+	{
+		TSharedPtr<FAssetDragDropOp> AssetDragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(DragDropOp);
+		if (AssetDragDropOp->GetAssets().Num() > 0)
+		{
+			// Only handle first valid dragged widget, multi widget drag drop is not practically useful
+			const FAssetData& AssetData = AssetDragDropOp->GetAssets()[0];
+
+			bool CodeClass = AssetData.AssetClass == "Class";
+			FName ClassName = CodeClass ? AssetData.ObjectPath : AssetData.AssetClass;
+			UClass* AssetClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ClassName.ToString());
+
+			if (FWidgetTemplateBlueprintClass::Supports(AssetClass))
+			{
+				// Allows a UMG Widget Blueprint to be dragged from the Content Browser to another Widget Blueprint...as long as we're not trying to place a
+				// blueprint inside itself.
+				FString BlueprintPath = Blueprint->GetPathName();
+				if (BlueprintPath != AssetData.ObjectPath.ToString())
+				{
+					Widget = FWidgetTemplateBlueprintClass(AssetData).Create(RootWidgetTree);
+				}
+			}
+			else if (CodeClass && AssetClass && AssetClass->IsChildOf(UWidget::StaticClass()))
+			{
+				Widget = FWidgetTemplateClass(AssetClass).Create(RootWidgetTree);
+			}
+			else if (FWidgetTemplateImageClass::Supports(AssetClass))
+			{
+				Widget = FWidgetTemplateImageClass(AssetData).Create(RootWidgetTree);
+			}
+		}
+	}
+
+	// Check to make sure that this widget can be added to the current blueprint
+	if (Cast<UUserWidget>(Widget) && !Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)))
+	{
+		Widget = nullptr;
+	}
+
+	return Widget;
 }
 
 void FWidgetBlueprintEditorUtils::ExportWidgetsToText(TArray<UWidget*> WidgetsToExport, /*out*/ FString& ExportedText)
