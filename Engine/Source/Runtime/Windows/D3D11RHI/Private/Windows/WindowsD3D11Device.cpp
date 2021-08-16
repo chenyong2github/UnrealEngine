@@ -837,6 +837,19 @@ static uint32 CountAdapterOutputs(TRefCountPtr<IDXGIAdapter>& Adapter)
 	return OutputCount;
 }
 
+static void LogDXGIAdapterDesc(const DXGI_ADAPTER_DESC& AdapterDesc)
+{
+	UE_LOG(LogD3D11RHI, Log, TEXT("    Description : %s"), AdapterDesc.Description);
+	UE_LOG(LogD3D11RHI, Log, TEXT("    VendorId    : %04x"), AdapterDesc.VendorId);
+	UE_LOG(LogD3D11RHI, Log, TEXT("    DeviceId    : %04x"), AdapterDesc.DeviceId);
+	UE_LOG(LogD3D11RHI, Log, TEXT("    SubSysId    : %04x"), AdapterDesc.SubSysId);
+	UE_LOG(LogD3D11RHI, Log, TEXT("    Revision    : %04x"), AdapterDesc.Revision);
+	UE_LOG(LogD3D11RHI, Log, TEXT("    DedicatedVideoMemory : %zu bytes"), AdapterDesc.DedicatedVideoMemory);
+	UE_LOG(LogD3D11RHI, Log, TEXT("    DedicatedSystemMemory : %zu bytes"), AdapterDesc.DedicatedSystemMemory);
+	UE_LOG(LogD3D11RHI, Log, TEXT("    SharedSystemMemory : %zu bytes"), AdapterDesc.SharedSystemMemory);
+	UE_LOG(LogD3D11RHI, Log, TEXT("    AdapterLuid : %lu %lu"), AdapterDesc.AdapterLuid.HighPart, AdapterDesc.AdapterLuid.LowPart);
+}
+
 void FD3D11DynamicRHIModule::FindAdapter()
 {
 	// Once we chosen one we don't need to do it again.
@@ -877,8 +890,6 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	FD3D11Adapter FirstWithoutIntegratedAdapter;
 	FD3D11Adapter FirstAdapter;
-	// indexed by AdapterIndex, we store it instead of query it later from the created device to prevent some Optimus bug reporting the data/name of the wrong adapter
-	TArray<DXGI_ADAPTER_DESC> AdapterDescription;
 
 	bool bIsAnyAMD = false;
 	bool bIsAnyIntel = false;
@@ -915,9 +926,6 @@ void FD3D11DynamicRHIModule::FindAdapter()
 	// Enumerate the DXGIFactory's adapters.
 	for(uint32 AdapterIndex = 0; LocalEnumAdapters(AdapterIndex,TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
 	{
-		// to make sure the array elements can be indexed with AdapterIndex
-		DXGI_ADAPTER_DESC& AdapterDesc = AdapterDescription[AdapterDescription.AddZeroed()];
-
 		// Check that if adapter supports D3D11.
 		if(TempAdapter)
 		{
@@ -925,6 +933,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 			if(SafeTestD3D11CreateDevice(TempAdapter,MinAllowedFeatureLevel,MaxAllowedFeatureLevel,&ActualFeatureLevel))
 			{
 				// Log some information about the available D3D11 adapters.
+				DXGI_ADAPTER_DESC AdapterDesc;
 				VERIFYD3D11RESULT(TempAdapter->GetDesc(&AdapterDesc));
 				uint32 OutputCount = CountAdapterOutputs(TempAdapter);
 
@@ -970,7 +979,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description,TEXT("NVIDIA PerfHUD"));
 
-				FD3D11Adapter CurrentAdapter(AdapterIndex, ActualFeatureLevel, bIsSoftware, bIsIntegrated);
+				FD3D11Adapter CurrentAdapter(TempAdapter, ActualFeatureLevel, bIsSoftware, bIsIntegrated);
 
 				// Add special check to support HMDs, which do not have associated outputs.
 				// To reject the software emulation, unless the cvar wants it.
@@ -1038,8 +1047,8 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	if(ChosenAdapter.IsValid())
 	{
-		ChosenDescription = AdapterDescription[ChosenAdapter.AdapterIndex];
-		UE_LOG(LogD3D11RHI, Log, TEXT("Chosen D3D11 Adapter: %u"), ChosenAdapter.AdapterIndex);
+		UE_LOG(LogD3D11RHI, Log, TEXT("Chosen D3D11 Adapter:"));
+		LogDXGIAdapterDesc(ChosenAdapter.DXGIAdapterDesc);
 	}
 	else
 	{
@@ -1083,7 +1092,7 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	GMaxRHIShaderPlatform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
 	check(GMaxRHIShaderPlatform != SP_NumPlatforms);
 
-	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription,ChosenAdapter.bSoftwareAdapter);
+	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1, ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter);
 	FDynamicRHI* FinalRHI = GD3D11RHI;
 
 #if ENABLE_RHI_VALIDATION
@@ -1667,9 +1676,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		// Clear shadowed shader resources.
 		ClearState();
 
-		// Determine the adapter and device type to use.
-		TRefCountPtr<IDXGIAdapter> Adapter;
-		
 		// In Direct3D 11, if you are trying to create a hardware or a software device, set pAdapter != NULL which constrains the other inputs to be:
 		//		DriverType must be D3D_DRIVER_TYPE_UNKNOWN 
 		//		Software must be NULL. 
@@ -1694,116 +1700,100 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 		GTexturePoolSize = 0;
 
-		TRefCountPtr<IDXGIAdapter> EnumAdapter;
+		GRHIAdapterName = Adapter.DXGIAdapterDesc.Description;
+		GRHIVendorId = Adapter.DXGIAdapterDesc.VendorId;
+		GRHIDeviceId = Adapter.DXGIAdapterDesc.DeviceId;
+		GRHIDeviceRevision = Adapter.DXGIAdapterDesc.Revision;
 
-		if(DXGIFactory1->EnumAdapters(ChosenAdapter,EnumAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND)
+		UE_LOG(LogD3D11RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"), 
+			Adapter.DXGIAdapterDesc.DeviceId);
+
+		// get driver version (todo: share with other RHIs)
 		{
-			if (EnumAdapter)// && EnumAdapter->CheckInterfaceSupport(__uuidof(ID3D11Device),NULL) == S_OK)
-			{
-				// we don't use AdapterDesc.Description as there is a bug with Optimus where it can report the wrong name
-				DXGI_ADAPTER_DESC AdapterDesc = ChosenDescription;
-				Adapter = EnumAdapter;
+			FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
 
-				GRHIAdapterName = AdapterDesc.Description;
-				GRHIVendorId = AdapterDesc.VendorId;
-				GRHIDeviceId = AdapterDesc.DeviceId;
-				GRHIDeviceRevision = AdapterDesc.Revision;
+			GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
+			GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
+			GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
 
-				UE_LOG(LogD3D11RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"), 
-					AdapterDesc.DeviceId);
+			UE_LOG(LogD3D11RHI, Log, TEXT("    Adapter Name: %s"), *GRHIAdapterName);
+			UE_LOG(LogD3D11RHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GRHIAdapterUserDriverVersion, *GRHIAdapterInternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
+			UE_LOG(LogD3D11RHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
+		}
 
-				// get driver version (todo: share with other RHIs)
-				{
-					FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
+		// Issue: 32bit windows doesn't report 64bit value, we take what we get.
+		FD3D11GlobalStats::GDedicatedVideoMemory = int64(Adapter.DXGIAdapterDesc.DedicatedVideoMemory);
+		FD3D11GlobalStats::GDedicatedSystemMemory = int64(Adapter.DXGIAdapterDesc.DedicatedSystemMemory);
+		FD3D11GlobalStats::GSharedSystemMemory = int64(Adapter.DXGIAdapterDesc.SharedSystemMemory);
 
-					GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
-					GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
-					GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
+		// Total amount of system memory, clamped to 8 GB
+		int64 TotalPhysicalMemory = FMath::Min(int64(FPlatformMemory::GetConstants().TotalPhysicalGB), 8ll) * (1024ll * 1024ll * 1024ll);
 
-					UE_LOG(LogD3D11RHI, Log, TEXT("    Adapter Name: %s"), *GRHIAdapterName);
-					UE_LOG(LogD3D11RHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GRHIAdapterUserDriverVersion, *GRHIAdapterInternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
-					UE_LOG(LogD3D11RHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
-				}
+		// Consider 50% of the shared memory but max 25% of total system memory.
+		int64 ConsideredSharedSystemMemory = FMath::Min( FD3D11GlobalStats::GSharedSystemMemory / 2ll, TotalPhysicalMemory / 4ll );
 
-				// Issue: 32bit windows doesn't report 64bit value, we take what we get.
-				FD3D11GlobalStats::GDedicatedVideoMemory = int64(AdapterDesc.DedicatedVideoMemory);
-				FD3D11GlobalStats::GDedicatedSystemMemory = int64(AdapterDesc.DedicatedSystemMemory);
-				FD3D11GlobalStats::GSharedSystemMemory = int64(AdapterDesc.SharedSystemMemory);
-
-				// Total amount of system memory, clamped to 8 GB
-				int64 TotalPhysicalMemory = FMath::Min(int64(FPlatformMemory::GetConstants().TotalPhysicalGB), 8ll) * (1024ll * 1024ll * 1024ll);
-
-				// Consider 50% of the shared memory but max 25% of total system memory.
-				int64 ConsideredSharedSystemMemory = FMath::Min( FD3D11GlobalStats::GSharedSystemMemory / 2ll, TotalPhysicalMemory / 4ll );
-
-				TRefCountPtr<IDXGIAdapter3> DxgiAdapter3;
-				DXGI_QUERY_VIDEO_MEMORY_INFO LocalVideoMemoryInfo;
-				FD3D11GlobalStats::GTotalGraphicsMemory = 0;
-				if ( IsRHIDeviceIntel() )
-				{
-					// It's all system memory.
-					FD3D11GlobalStats::GTotalGraphicsMemory = FD3D11GlobalStats::GDedicatedVideoMemory;
-					FD3D11GlobalStats::GTotalGraphicsMemory += FD3D11GlobalStats::GDedicatedSystemMemory;
-					FD3D11GlobalStats::GTotalGraphicsMemory += ConsideredSharedSystemMemory;
-				}
-				else if (IsRHIDeviceAMD() && SUCCEEDED(Adapter->QueryInterface(_uuidof(IDXGIAdapter3), (void**)DxgiAdapter3.GetInitReference())) &&
-					DxgiAdapter3.IsValid() && SUCCEEDED(DxgiAdapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &LocalVideoMemoryInfo)))
-				{
-					// use the entire budget for D3D11, in keeping with setting GTotalGraphicsMemory to all of AdapterDesc.DedicatedVideoMemory
-					// in the other method directly below
-					FD3D11GlobalStats::GTotalGraphicsMemory = LocalVideoMemoryInfo.Budget;
-				}
-				else if ( FD3D11GlobalStats::GDedicatedVideoMemory >= 200*1024*1024 )
-				{
-					// Use dedicated video memory, if it's more than 200 MB
-					FD3D11GlobalStats::GTotalGraphicsMemory = FD3D11GlobalStats::GDedicatedVideoMemory;
-				}
-				else if ( FD3D11GlobalStats::GDedicatedSystemMemory >= 200*1024*1024 )
-				{
-					// Use dedicated system memory, if it's more than 200 MB
-					FD3D11GlobalStats::GTotalGraphicsMemory = FD3D11GlobalStats::GDedicatedSystemMemory;
-				}
-				else if ( FD3D11GlobalStats::GSharedSystemMemory >= 400*1024*1024 )
-				{
-					// Use some shared system memory, if it's more than 400 MB
-					FD3D11GlobalStats::GTotalGraphicsMemory = ConsideredSharedSystemMemory;
-				}
-				else
-				{
-					// Otherwise consider 25% of total system memory for graphics.
-					FD3D11GlobalStats::GTotalGraphicsMemory = TotalPhysicalMemory / 4ll;
-				}
-
-				if ( sizeof(SIZE_T) < 8 )
-				{
-					// Clamp to 1 GB if we're less than 64-bit
-					FD3D11GlobalStats::GTotalGraphicsMemory = FMath::Min( FD3D11GlobalStats::GTotalGraphicsMemory, 1024ll * 1024ll * 1024ll );
-				}
-
-				if ( GPoolSizeVRAMPercentage > 0 )
-				{
-					float PoolSize = float(GPoolSizeVRAMPercentage) * 0.01f * float(FD3D11GlobalStats::GTotalGraphicsMemory);
-
-					// Truncate GTexturePoolSize to MB (but still counted in bytes)
-					GTexturePoolSize = int64(FGenericPlatformMath::TruncToFloat(PoolSize / 1024.0f / 1024.0f)) * 1024 * 1024;
-
-					UE_LOG(LogRHI,Log,TEXT("Texture pool is %llu MB (%d%% of %llu MB)"),
-						GTexturePoolSize / 1024 / 1024,
-						GPoolSizeVRAMPercentage,
-						FD3D11GlobalStats::GTotalGraphicsMemory / 1024 / 1024);
-				}
-
-				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description,TEXT("NVIDIA PerfHUD"));
-
-				if(bIsPerfHUD)
-				{
-					DriverType =  D3D_DRIVER_TYPE_REFERENCE;
-				}
-			}
+		TRefCountPtr<IDXGIAdapter3> DxgiAdapter3;
+		DXGI_QUERY_VIDEO_MEMORY_INFO LocalVideoMemoryInfo;
+		FD3D11GlobalStats::GTotalGraphicsMemory = 0;
+		if ( IsRHIDeviceIntel() )
+		{
+			// It's all system memory.
+			FD3D11GlobalStats::GTotalGraphicsMemory = FD3D11GlobalStats::GDedicatedVideoMemory;
+			FD3D11GlobalStats::GTotalGraphicsMemory += FD3D11GlobalStats::GDedicatedSystemMemory;
+			FD3D11GlobalStats::GTotalGraphicsMemory += ConsideredSharedSystemMemory;
+		}
+		else if (IsRHIDeviceAMD() && SUCCEEDED(Adapter.DXGIAdapter->QueryInterface(_uuidof(IDXGIAdapter3), (void**)DxgiAdapter3.GetInitReference())) &&
+			DxgiAdapter3.IsValid() && SUCCEEDED(DxgiAdapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &LocalVideoMemoryInfo)))
+		{
+			// use the entire budget for D3D11, in keeping with setting GTotalGraphicsMemory to all of AdapterDesc.DedicatedVideoMemory
+			// in the other method directly below
+			FD3D11GlobalStats::GTotalGraphicsMemory = LocalVideoMemoryInfo.Budget;
+		}
+		else if ( FD3D11GlobalStats::GDedicatedVideoMemory >= 200*1024*1024 )
+		{
+			// Use dedicated video memory, if it's more than 200 MB
+			FD3D11GlobalStats::GTotalGraphicsMemory = FD3D11GlobalStats::GDedicatedVideoMemory;
+		}
+		else if ( FD3D11GlobalStats::GDedicatedSystemMemory >= 200*1024*1024 )
+		{
+			// Use dedicated system memory, if it's more than 200 MB
+			FD3D11GlobalStats::GTotalGraphicsMemory = FD3D11GlobalStats::GDedicatedSystemMemory;
+		}
+		else if ( FD3D11GlobalStats::GSharedSystemMemory >= 400*1024*1024 )
+		{
+			// Use some shared system memory, if it's more than 400 MB
+			FD3D11GlobalStats::GTotalGraphicsMemory = ConsideredSharedSystemMemory;
 		}
 		else
 		{
-			check(!"Internal error, EnumAdapters() failed but before it worked")
+			// Otherwise consider 25% of total system memory for graphics.
+			FD3D11GlobalStats::GTotalGraphicsMemory = TotalPhysicalMemory / 4ll;
+		}
+
+		if ( sizeof(SIZE_T) < 8 )
+		{
+			// Clamp to 1 GB if we're less than 64-bit
+			FD3D11GlobalStats::GTotalGraphicsMemory = FMath::Min( FD3D11GlobalStats::GTotalGraphicsMemory, 1024ll * 1024ll * 1024ll );
+		}
+
+		if ( GPoolSizeVRAMPercentage > 0 )
+		{
+			float PoolSize = float(GPoolSizeVRAMPercentage) * 0.01f * float(FD3D11GlobalStats::GTotalGraphicsMemory);
+
+			// Truncate GTexturePoolSize to MB (but still counted in bytes)
+			GTexturePoolSize = int64(FGenericPlatformMath::TruncToFloat(PoolSize / 1024.0f / 1024.0f)) * 1024 * 1024;
+
+			UE_LOG(LogRHI,Log,TEXT("Texture pool is %llu MB (%d%% of %llu MB)"),
+				GTexturePoolSize / 1024 / 1024,
+				GPoolSizeVRAMPercentage,
+				FD3D11GlobalStats::GTotalGraphicsMemory / 1024 / 1024);
+		}
+
+		const bool bIsPerfHUD = !FCString::Stricmp(Adapter.DXGIAdapterDesc.Description,TEXT("NVIDIA PerfHUD"));
+
+		if(bIsPerfHUD)
+		{
+			DriverType =  D3D_DRIVER_TYPE_REFERENCE;
 		}
 
 #ifdef AMD_AGS_API
@@ -1820,8 +1810,8 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				for (int32 DeviceIndex = 0; DeviceIndex < AmdInfo.AmdGpuInfo.numDevices; DeviceIndex++)
 				{
 					const AGSDeviceInfo& DeviceInfo = AmdInfo.AmdGpuInfo.devices[DeviceIndex];
-					GRHIDeviceIsAMDPreGCNArchitecture |= (ChosenDescription.VendorId == DeviceInfo.vendorId) && (ChosenDescription.DeviceId == DeviceInfo.deviceId) && (DeviceInfo.asicFamily == AGSDeviceInfo::AsicFamily_PreGCN);
-					bFoundMatchingDevice |= (ChosenDescription.VendorId == DeviceInfo.vendorId) && (ChosenDescription.DeviceId == DeviceInfo.deviceId);
+					GRHIDeviceIsAMDPreGCNArchitecture |= (Adapter.DXGIAdapterDesc.VendorId == DeviceInfo.vendorId) && (Adapter.DXGIAdapterDesc.DeviceId == DeviceInfo.deviceId) && (DeviceInfo.asicFamily == AGSDeviceInfo::AsicFamily_PreGCN);
+					bFoundMatchingDevice |= (Adapter.DXGIAdapterDesc.VendorId == DeviceInfo.vendorId) && (Adapter.DXGIAdapterDesc.DeviceId == DeviceInfo.deviceId);
 				}
 				check(bFoundMatchingDevice);
 
@@ -1857,9 +1847,12 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		{
 			uint32 AmdSupportedExtensionFlags = 0;
 
+			UE_LOG(LogD3D11RHI, Log, TEXT("Creating D3DDevice with AMD AGS, using adapter:"));
+			LogDXGIAdapterDesc(Adapter.DXGIAdapterDesc);
+
 			AGSDX11DeviceCreationParams DeviceCreationParams = 
 			{
-				Adapter,
+				Adapter.DXGIAdapter,
 				DriverType,
 				NULL,
 				DeviceFlags,
@@ -1942,9 +1935,12 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 		if (!bDeviceCreated)
 		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("Creating D3DDevice using adapter:"));
+			LogDXGIAdapterDesc(Adapter.DXGIAdapterDesc);
+
 			// Creating the Direct3D device.
 			VERIFYD3D11RESULT(D3D11CreateDevice(
-				Adapter,
+				Adapter.DXGIAdapter,
 				DriverType,
 				NULL,
 				DeviceFlags,
@@ -2266,26 +2262,12 @@ bool FD3D11DynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& Resolu
 	}
 
 	HRESULT HResult = S_OK;
-	TRefCountPtr<IDXGIAdapter> Adapter;
-	HResult = DXGIFactory1->EnumAdapters(ChosenAdapter,Adapter.GetInitReference());
-
-	if( DXGI_ERROR_NOT_FOUND == HResult )
-		return false;
-	if( FAILED(HResult) )
-		return false;
-
-	// get the description of the adapter
-	DXGI_ADAPTER_DESC AdapterDesc;
-	if( FAILED(Adapter->GetDesc(&AdapterDesc)) )
-	{
-		return false;
-	}
 
 	int32 CurrentOutput = 0;
 	do 
 	{
 		TRefCountPtr<IDXGIOutput> Output;
-		HResult = Adapter->EnumOutputs(CurrentOutput,Output.GetInitReference());
+		HResult = Adapter.DXGIAdapter->EnumOutputs(CurrentOutput,Output.GetInitReference());
 		if(DXGI_ERROR_NOT_FOUND == HResult)
 			break;
 		if(FAILED(HResult))

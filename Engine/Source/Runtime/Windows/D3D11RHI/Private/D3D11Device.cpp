@@ -52,7 +52,7 @@ TAutoConsoleVariable<int32> CVarD3D11ZeroBufferSizeInMB(
 	);
 
 
-FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEVEL InFeatureLevel, int32 InChosenAdapter, const DXGI_ADAPTER_DESC& InChosenDescription, bool bInSoftwareAdapter) :
+FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1, D3D_FEATURE_LEVEL InFeatureLevel, const FD3D11Adapter& InAdapter) :
 	DXGIFactory1(InDXGIFactory1),
 #if NV_AFTERMATH
 	NVAftermathIMContextHandle(nullptr),
@@ -76,15 +76,13 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	CurrentDSVAccessType(FExclusiveDepthStencil::DepthWrite_StencilWrite),
 	bDiscardSharedConstants(false),	
 	GPUProfilingData(this),
-	ChosenAdapter(InChosenAdapter),
-	bSoftwareAdapter(bInSoftwareAdapter),
-	ChosenDescription(InChosenDescription),
+	Adapter(InAdapter),
 	bAllowVendorDevice(!FParse::Param(FCommandLine::Get(), TEXT("novendordevice")))
 {
 	// This should be called once at the start 
-	check(ChosenAdapter >= 0);
-	check( IsInGameThread() );
-	check( !GIsThreadedRendering );
+	check(Adapter.IsValid());
+	check(IsInGameThread());
+	check(!GIsThreadedRendering);
 
 	// Allocate a buffer of zeroes. This is used when we need to pass D3D memory
 	// that we don't care about and will overwrite with valid data in the future.
@@ -292,27 +290,13 @@ void FD3D11DynamicRHI::RHIGetSupportedResolution( uint32 &Width, uint32 &Height 
 
 	{
 		HRESULT HResult = S_OK;
-		TRefCountPtr<IDXGIAdapter> Adapter;
-		HResult = DXGIFactory1->EnumAdapters(ChosenAdapter,Adapter.GetInitReference());
-		if( DXGI_ERROR_NOT_FOUND == HResult )
-		{
-			return;
-		}
-		if( FAILED(HResult) )
-		{
-			return;
-		}
-
-		// get the description of the adapter
-		DXGI_ADAPTER_DESC AdapterDesc;
-		VERIFYD3D11RESULT(Adapter->GetDesc(&AdapterDesc));
 	  
 		// Enumerate outputs for this adapter
 		// TODO: Cap at 1 for default output
 		for(uint32 o = 0;o < 1; o++)
 		{
 			TRefCountPtr<IDXGIOutput> Output;
-			HResult = Adapter->EnumOutputs(o,Output.GetInitReference());
+			HResult = Adapter.DXGIAdapter->EnumOutputs(o, Output.GetInitReference());
 			if(DXGI_ERROR_NOT_FOUND == HResult)
 			{
 				break;
