@@ -1575,13 +1575,13 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 	{
 		// Only create a new variable if needed.
 		UNiagaraScriptVariable* FoundOldScriptVariable = *FoundOldScriptVariablePtr;
-			UNiagaraScriptVariable* NewScriptVariable = CastChecked<UNiagaraScriptVariable>(StaticDuplicateObject(FoundOldScriptVariable, this, FName()));
-			NewScriptVariable->SetFlags(RF_Transactional);
-			CopyScriptVariableDataForRename(*FoundOldScriptVariable, *NewScriptVariable);
-			NewScriptVariable->Variable.SetName(NewName);
+		UNiagaraScriptVariable* NewScriptVariable = CastChecked<UNiagaraScriptVariable>(StaticDuplicateObject(FoundOldScriptVariable, this, FName()));
+		NewScriptVariable->SetFlags(RF_Transactional);
+		CopyScriptVariableDataForRename(*FoundOldScriptVariable, *NewScriptVariable);
+		NewScriptVariable->Variable.SetName(NewName);
 		NewScriptVariable->Metadata.CreateNewGuid();
 		NewScriptVariable->SetIsSubscribedToParameterDefinitions(false);
-			VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
+		VariableToScriptVariable.Add(NewParameter, NewScriptVariable);
 		ParameterPanelViewModel->SubscribeParameterToLibraryIfMatchingDefinition(NewScriptVariable, NewName);
 
 		const FNiagaraGraphParameterReferenceCollection* ReferenceCollection = GetParameterReferenceMap().Find(Parameter);
@@ -1937,7 +1937,7 @@ void UNiagaraGraph::SynchronizeParametersWithParameterDefinitions(
 		{
 			if (const UNiagaraScriptVariable* TargetLibraryScriptVar = GetTargetDefinitionScriptVarWithSameId(TargetScriptVar))
 			{
-				bMarkRequiresSync |= SynchronizeScriptVariable(TargetLibraryScriptVar, TargetScriptVar, Args.bForceSynchronizeDefinitions);
+				bMarkRequiresSync |= SynchronizeScriptVariable(TargetLibraryScriptVar, TargetScriptVar, Args.bForceSynchronizeParameters);
 			}
 			else if(AllDefinitionsParameterIds.Contains(TargetScriptVar->Metadata.GetVariableGuid()) == false)
 			{ 

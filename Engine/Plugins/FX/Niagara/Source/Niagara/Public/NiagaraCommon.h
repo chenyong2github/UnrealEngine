@@ -1531,7 +1531,12 @@ struct NIAGARA_API FSynchronizeWithParameterDefinitionsArgs
 	 *  ignore the pending synchronization flag and gather via INiagaraParameterDefinitionsSubscriber::GetSubscribedParameterDefinitions().
 	 *  Note: If true, SpecificDefinitionsUniqueIds and SpecificDestScriptVarIds will still apply.
 	 */
-	bool bForceSynchronizeDefinitions;
+	bool bForceGatherDefinitions;
+
+	/** Default false; If true, instead of comparing parameter change IDs to check if a parameter needs to be synchronized, ignore the change IDs.
+	 *  Note: If true, SpecificDefinitionsUniqueIds and SpecificDestScriptVarIds will still apply.
+	 */
+	bool bForceSynchronizeParameters;
 
 	/** Default false; If true, search for parameters with the same name and type as definitions, and if there is a match, subscribe to the definition. 
 	 *  If the existing parameter default value does not match the definition default value, set the parameter to override the definition default value.
