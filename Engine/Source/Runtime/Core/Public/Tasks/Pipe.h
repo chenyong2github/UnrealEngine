@@ -88,8 +88,8 @@ namespace UE { namespace Tasks
 		friend class Private::FTaskBase;
 
 		// pushes given task into the pipe: adds the task as a subsequent to the last task if any and sets it as the new last task
-		// returns true if there wasn't any task in the pipe and the given task is free to be executed
-		bool PushIntoPipe(Private::FTaskBase& Task);
+		// returns the previous piped task if we managed to register the given task as its subsequent, otherwise nullptr
+		Private::FTaskBase* PushIntoPipe(Private::FTaskBase& Task);
 		// pipe holds a "weak" reference to a task. the task must be cleared from the pipe when its execution finished before its completion, 
 		// otherwise the next piped task can try to add itself as a subsequent to already destroyed task
 		void ClearTask(Private::FTaskBase& Task);

@@ -6,7 +6,7 @@
 
 namespace UE { namespace Tasks
 {
-	bool FPipe::PushIntoPipe(Private::FTaskBase& Task)
+	Private::FTaskBase* FPipe::PushIntoPipe(Private::FTaskBase& Task)
 	{
 		// critical section: between exchanging tasks and adding the previous LastTask to prerequisites.
 		// `LastTask` can be in the process of destruction. Before this it will try to clear itself from the pipe
@@ -17,7 +17,13 @@ namespace UE { namespace Tasks
 		Private::FTaskBase* LastTask_Local = LastTask.exchange(&Task, std::memory_order_release);
 		checkf(LastTask_Local != &Task, TEXT("Dependency cycle: adding itself as a prerequisite (or use after destruction)"));
 
-		return LastTask_Local == nullptr || !LastTask_Local->AddSubsequent(Task);
+		if (LastTask_Local == nullptr || !LastTask_Local->AddSubsequent(Task))
+		{
+			return nullptr;
+		}
+
+		LastTask_Local->AddRef(); // keep it alive, it's the caller's duty to release it
+		return LastTask_Local;
 	}
 
 	void FPipe::ClearTask(Private::FTaskBase& Task)
