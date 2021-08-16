@@ -19,7 +19,7 @@
 #include "Animation/CurveSequence.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "Editor/ContentBrowser/Private/AssetViewSortManager.h"
+#include "AssetViewSortManager.h"
 #include "AssetViewTypes.h"
 #include "HistoryManager.h"
 #include "Misc/BlacklistNames.h"
