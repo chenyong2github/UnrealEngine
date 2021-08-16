@@ -277,7 +277,7 @@ TMap<FString, FNeuralTensor> UNeuralNetworkLegacy::CreateOutputTensorMap() const
 	return TensorManager.CreateOutputTensorMap();
 }
 
-void UNeuralNetworkLegacy::Run(const EGPUSynchronousMode InGPUSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType, const bool bRunGPUEmptyOnlyForProfiling)
+void UNeuralNetworkLegacy::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType, const bool bRunGPUEmptyOnlyForProfiling)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetworkLegacy_Run"), STAT_UNeuralNetworkLegacy_Run, STATGROUP_MachineLearning);
 	// Sanity checks
@@ -316,7 +316,7 @@ void UNeuralNetworkLegacy::Run(const EGPUSynchronousMode InGPUSynchronousMode, c
 
 			// On RHI thread
 			ENQUEUE_RENDER_COMMAND(UNeuralNetworkLegacy_Run_RenderThread)(
-				[this, bRunGPUEmptyOnlyForProfiling, InGPUSynchronousMode, InInputDeviceType, InOutputDeviceType](FRHICommandListImmediate& RHICmdList)
+				[this, bRunGPUEmptyOnlyForProfiling, InSynchronousMode, InInputDeviceType, InOutputDeviceType](FRHICommandListImmediate& RHICmdList)
 				{
 					FMemMark Mark(FMemStack::Get());
 					FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("UNeuralNetworkLegacy::Run()"));
@@ -408,7 +408,7 @@ void UNeuralNetworkLegacy::Run(const EGPUSynchronousMode InGPUSynchronousMode, c
 					}
 
 					// Broadcast delegates (from the render thread)
-					if (InGPUSynchronousMode == EGPUSynchronousMode::Asynchronous)
+					if (InSynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
 					{
 						GraphBuilder.AddPass(
 							RDG_EVENT_NAME("Async delegate broadcast"),
@@ -425,7 +425,7 @@ void UNeuralNetworkLegacy::Run(const EGPUSynchronousMode InGPUSynchronousMode, c
 			);
 
 			// Block thread until GPU has finished
-			if (InGPUSynchronousMode == EGPUSynchronousMode::Synchronous)
+			if (InSynchronousMode == ENeuralNetworkSynchronousMode::Synchronous)
 			{
 				FNeuralNetworkInferenceUtils::WaitUntilRHIFinished();
 			}

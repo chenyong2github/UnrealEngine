@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ModelProto.h"
 #include "NeuralEnumClasses.h"
+#include "NeuralNetwork.h"
 #include "NeuralOperator.h"
 #include "NeuralTensor.h"
 #include "NeuralTensorManager.h"
@@ -25,15 +26,6 @@ public:
 	 * Callbacks when the asyn Run() is finished. It will happen from any thread.
 	 */
 	DECLARE_DELEGATE(FOnAsyncRunCompletedInAnyThread);
-
-	/**
-	 * This enum only applies to GPU mode, where Run() might block the thread until completed, or might run on a background thread.
-	 */
-	enum class EGPUSynchronousMode : uint8
-	{
-		Synchronous, /* Block the thread until the function (e.g., Run) has finished. */
-		Asynchronous /* Do not block the thread (the function will run in the background, e.g., Run). Delegates would let the user know when the function has finished. */
-	};
 
 	UNeuralNetworkLegacy();
 
@@ -158,7 +150,7 @@ public:
 	 * Its output results can be retrieved with GetOutputTensor() or GetOutputNameIndexMap().
 	 * @param GPUSynchronousMode Whether it should block the thread until the UNeuralNetworkLegacy has fully run.
 	 */
-	void Run(const EGPUSynchronousMode InGPUSynchronousMode = EGPUSynchronousMode::Synchronous, const ENeuralDeviceType InInputDeviceType = ENeuralDeviceType::CPU, const ENeuralDeviceType InOutputDeviceType = ENeuralDeviceType::CPU,
+	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode = ENeuralNetworkSynchronousMode::Synchronous, const ENeuralDeviceType InInputDeviceType = ENeuralDeviceType::CPU, const ENeuralDeviceType InOutputDeviceType = ENeuralDeviceType::CPU,
 		const bool bRunGPUEmptyOnlyForProfiling = false);
 
 	/**
