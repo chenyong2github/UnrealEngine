@@ -12,6 +12,7 @@
 #include "Materials/Material.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
@@ -106,12 +107,30 @@ void ULightComponentBase::SetAffectGlobalIllumination(bool bNewValue)
 	}
 }
 
+// Deprecated
 void ULightComponentBase::SetCastRaytracedShadow(bool bNewValue)
 {
-	if (AreDynamicDataChangesAllowed()
-		&& bCastRaytracedShadow != bNewValue)
+	if (AreDynamicDataChangesAllowed())
 	{
-		bCastRaytracedShadow = bNewValue;
+		if (bNewValue && CastRaytracedShadow == ECastRayTracedShadow::Disabled)
+		{
+			CastRaytracedShadow = ECastRayTracedShadow::UseProjectSetting;
+			MarkRenderStateDirty();
+		}
+		else if (!bNewValue && CastRaytracedShadow > ECastRayTracedShadow::Disabled)
+		{
+			CastRaytracedShadow = ECastRayTracedShadow::Disabled;
+			MarkRenderStateDirty();
+		}
+	}
+}
+
+void ULightComponentBase::SetCastRaytracedShadows(ECastRayTracedShadow::Type bNewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& CastRaytracedShadow != bNewValue)
+	{
+		CastRaytracedShadow = bNewValue;
 		MarkRenderStateDirty();
 	}
 }
@@ -133,6 +152,13 @@ void ULightComponentBase::Serialize(FArchive& Ar)
 	if (Ar.UEVer() < VER_UE4_INVERSE_SQUARED_LIGHTS_DEFAULT)
 	{
 		Intensity = Brightness_DEPRECATED;
+	}
+
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RayTracedShadowsType))
+	{
+		CastRaytracedShadow = bCastRaytracedShadow_DEPRECATED == 0? ECastRayTracedShadow::Disabled : ECastRayTracedShadow::UseProjectSetting;
 	}
 }
 
@@ -310,7 +336,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bCastHairStrandsDeepShadow(InLightComponent->bCastDeepShadow)
 	, bCastShadowsFromCinematicObjectsOnly(InLightComponent->bCastShadowsFromCinematicObjectsOnly)
 	, bForceCachedShadowsForMovablePrimitives(InLightComponent->bForceCachedShadowsForMovablePrimitives)
-	, bCastRaytracedShadow(InLightComponent->bCastRaytracedShadow)
+	, CastRaytracedShadow(InLightComponent->CastRaytracedShadow)
 	, bAffectReflection(InLightComponent->bAffectReflection)
 	, bAffectGlobalIllumination(InLightComponent->bAffectGlobalIllumination)
 	, bAffectTranslucentLighting(InLightComponent->bAffectTranslucentLighting)
@@ -432,7 +458,8 @@ ULightComponentBase::ULightComponentBase(const FObjectInitializer& ObjectInitial
 	CastShadows = true;
 	CastStaticShadows = true;
 	CastDynamicShadows = true;
-	bCastRaytracedShadow = true;
+	CastRaytracedShadow = ECastRayTracedShadow::UseProjectSetting;
+	bCastRaytracedShadow_DEPRECATED = true;
 	bAffectReflection = true;
 	bAffectGlobalIllumination = true;
 #if WITH_EDITORONLY_DATA
@@ -659,10 +686,9 @@ bool ULightComponent::CanEditChange(const FProperty* InProperty) const
 			return bCanEdit;
 		}
 
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastRaytracedShadow))
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, CastRaytracedShadow))
 		{
-			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Shadows"));
-			return CVar->GetValueOnGameThread() != 0;
+			return IsRayTracingEnabled();
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, LightFunctionScale)
@@ -739,7 +765,7 @@ void ULightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, VolumetricScatteringIntensity) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastVolumetricShadow) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastDeepShadow) &&
-		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bCastRaytracedShadow) &&
+		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, CastRaytracedShadow) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bAffectReflection) &&
 		PropertyName != GET_MEMBER_NAME_STRING_CHECKED(ULightComponent, bAffectGlobalIllumination) &&
 		// Point light properties that shouldn't unbuild lighting

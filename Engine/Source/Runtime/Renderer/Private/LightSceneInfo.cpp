@@ -39,7 +39,7 @@ void FLightSceneInfoCompact::Init(FLightSceneInfo* InLightSceneInfo)
 	bStaticLighting = InLightSceneInfo->Proxy->HasStaticLighting();
 	bAffectReflection = InLightSceneInfo->Proxy->AffectReflection();
 	bAffectGlobalIllumination = InLightSceneInfo->Proxy->AffectGlobalIllumination();
-	bCastRaytracedShadow = InLightSceneInfo->Proxy->CastsRaytracedShadow();
+	CastRaytracedShadow = InLightSceneInfo->Proxy->CastsRaytracedShadow();
 }
 
 FLightSceneInfo::FLightSceneInfo(FLightSceneProxy* InProxy, bool InbVisible)

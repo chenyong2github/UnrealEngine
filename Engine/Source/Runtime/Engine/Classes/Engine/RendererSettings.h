@@ -407,8 +407,8 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bEnableRayTracing : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
-		ConsoleVariable = "r.RayTracing.Shadows", DisplayName = "Ray Tracing Shadows",
-		ToolTip = "Enables hardware ray-traced shadows. Requires Hardware Ray Tracing to be enabled."))
+		ConsoleVariable = "r.RayTracing.Shadows", DisplayName = "Ray Traced Shadows",
+		ToolTip = "Controls whether Ray Traced Shadows are used by default. Lights can still override and force Ray Traced shadows on or off. Requires Hardware Ray Tracing to be enabled."))
 		uint32 bEnableRayTracingShadows : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (

@@ -432,6 +432,21 @@ namespace EShadowMapMethod
 	};
 }
 
+/** Ray Tracing Shadows type. */
+UENUM()
+namespace ECastRayTracedShadow 
+{
+	enum Type
+	{
+		/** Ray traced shadows disabled for this light */
+		Disabled,
+		/** Ray traced shadows follow Cast Ray Traced Shadows project setting */
+		UseProjectSetting,
+		/** Ray traced shadows enabled for this light */
+		Enabled,
+	};
+}
+
 /** Specifies which component of the scene rendering should be output to the final render target. */
 UENUM()
 enum ESceneCaptureSource 

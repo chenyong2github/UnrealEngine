@@ -134,8 +134,9 @@ bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProx
 		return false;
 	}
 
+	// SkyLightSceneProxy has a separate r.raytracing.skylight Cvar and does not check r.raytracing.shadows when CastRayTracedShadow == ECastRayTracedShadow::UseProjectSetting
 	bool bRayTracingSkyEnabled = GRayTracingSkyLight  < 0 
-		? SkyLightSceneProxy->bCastRayTracedShadow
+		? SkyLightSceneProxy->CastRayTracedShadow == ECastRayTracedShadow::Enabled
 		: GRayTracingSkyLight != 0;
 
 	bRayTracingSkyEnabled = bRayTracingSkyEnabled && (GetSkyLightSamplesPerPixel(SkyLightSceneProxy) > 0);
