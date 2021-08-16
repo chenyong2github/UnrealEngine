@@ -393,7 +393,7 @@ void FOnlinePurchaseIOS::OnTransactionDeferred(const FStoreKitTransactionData& T
 #if TEST_DEFERRED_TRANSACTIONS
 		// Existing transactions emulating deferment will trigger as success shortly
 		TWeakPtr<FOnlinePurchaseIOS, ESPMode::ThreadSafe> WeakThis(AsShared());
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis, TransactionData](float) -> bool
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis, TransactionData](float) -> bool
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlinePurchaseIOS_TestDeferredTransactions);
 			FOnlinePurchaseIOSPtr StrongThis = WeakThis.Pin();

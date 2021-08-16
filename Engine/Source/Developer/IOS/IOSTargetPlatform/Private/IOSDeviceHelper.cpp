@@ -349,7 +349,7 @@ void FIOSDeviceHelper::Initialize(bool bIsTVOS)
     {
         // add the message pump
         TickDelegate = FTickerDelegate::CreateStatic(MessageTickDelegate);
-        FTicker::GetCoreTicker().AddTicker(TickDelegate, 5.0f);
+        FTSTicker::GetCoreTicker().AddTicker(TickDelegate, 5.0f);
 
         // kick off a thread to query for connected devices
         QueryTask = new FDeviceQueryTask();

@@ -5413,7 +5413,7 @@ void FEngineLoop::Tick()
 			DeleteLoaders(); // destroy all linkers pending delete
 #endif
 
-			FTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
+			FTSTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
 			FThreadManager::Get().Tick();
 			GEngine->TickDeferredCommands();		
 		}

@@ -406,7 +406,7 @@ private:
 int32 FXmppConnectionPumpThread::ThreadInstanceIdx = 0;
 
 FXmppConnectionJingle::FXmppConnectionJingle()
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, LastLoginState(EXmppLoginStatus::NotStarted)
 	, LoginState(EXmppLoginStatus::NotStarted)
 	, StatUpdateFreq(1.0)

@@ -130,7 +130,7 @@ namespace BuildPatchServices
 		const FPackageChunksConfiguration Configuration;
 
 		// Dependencies.
-		FTicker& CoreTicker;
+		FTSTicker& CoreTicker;
 		FDownloadCompleteDelegate DownloadCompleteDelegate;
 		FDownloadProgressDelegate DownloadProgressDelegate;
 
@@ -183,7 +183,7 @@ namespace BuildPatchServices
 
 	FPackageChunks::FPackageChunks(const FPackageChunksConfiguration& InConfiguration)
 		: Configuration(InConfiguration)
-		, CoreTicker(FTicker::GetCoreTicker())
+		, CoreTicker(FTSTicker::GetCoreTicker())
 		, DownloadCompleteDelegate(FDownloadCompleteDelegate::CreateRaw(this, &FPackageChunks::HandleDownloadComplete))
 		, DownloadProgressDelegate()
 		, bManifestsProcessed(false)
@@ -250,7 +250,7 @@ namespace BuildPatchServices
 
 			// Application tick.
 			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-			FTicker::GetCoreTicker().Tick(DeltaTime);
+			FTSTicker::GetCoreTicker().Tick(DeltaTime);
 
 			// Message pump.
 			MessagePump->PumpMessages(MessageHandlers);

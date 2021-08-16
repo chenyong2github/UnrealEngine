@@ -216,5 +216,5 @@ void FMessageSanitizerTencent::HandleMessageArraySanitized(bool bSuccess,
 FMessageSanitizerTencent::~FMessageSanitizerTencent()
 {
 	ProcessList.Empty();
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 }

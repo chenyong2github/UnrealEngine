@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/EnumRange.h"
 #include "Containers/Union.h"
+#include "Containers/Ticker.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "GameFeaturePluginOperationResult.h"
@@ -318,7 +319,7 @@ struct FGameFeaturePluginState
 	void UpdateProgress(float Progress) const;
 
 private:
-	mutable FDelegateHandle TickHandle;
+	mutable FTSTicker::FDelegateHandle TickHandle;
 };
 
 /** Information about a given plugin state, used to expose information to external code */

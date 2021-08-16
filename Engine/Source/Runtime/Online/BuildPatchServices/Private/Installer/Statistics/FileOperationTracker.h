@@ -95,6 +95,6 @@ namespace BuildPatchServices
 		 * @param   Manifest    The manifest for the build being installed.
 		 * @return the new IFileOperationTracker instance created.
 		 */
-		static IFileOperationTracker* Create(FTicker& Ticker);
+		static IFileOperationTracker* Create(FTSTicker& Ticker);
 	};
 }

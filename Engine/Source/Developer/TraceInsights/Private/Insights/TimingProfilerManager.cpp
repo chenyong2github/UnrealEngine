@@ -90,7 +90,7 @@ void FTimingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FTimingProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FTimingProfilerCommands::Register();
 	BindCommands();
@@ -126,7 +126,7 @@ void FTimingProfilerManager::Shutdown()
 	FTimingProfilerCommands::Unregister();
 
 	// Unregister tick function.
-	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FTimingProfilerManager::Instance.Reset();
 

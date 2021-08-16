@@ -16,7 +16,7 @@ class FStropheStanza;
 
 class FXmppPrivateChatStrophe
 	: public IXmppChat
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 	friend FXmppConnectionStrophe;
 
@@ -36,7 +36,7 @@ public:
 	virtual bool SendChat(const FXmppUserJid& RecipientId, const FString& Message) override;
 	virtual FOnXmppChatReceived& OnReceiveChat() override { return OnChatReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 protected:

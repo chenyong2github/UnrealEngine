@@ -6,6 +6,8 @@
 #include "Text3DPrivate.h"
 #include "BevelType.h"
 #include "ContourNode.h"
+#include "Containers/Ticker.h"
+
 #include "Text3DEngineSubsystem.generated.h"
 
 
@@ -92,5 +94,5 @@ private:
 	UPROPERTY()
 	TMap<uint32, FCachedFontData> CachedFonts;
 
-	FDelegateHandle CleanupTickerHandle;
+	FTSTicker::FDelegateHandle CleanupTickerHandle;
 };

@@ -13,15 +13,15 @@
 class ALODActor;
 class UHLODProxy;
 
-class HIERARCHICALLODUTILITIES_API FHierarchicalLODProxyProcessor : public FTickerObjectBase
+class HIERARCHICALLODUTILITIES_API FHierarchicalLODProxyProcessor : public FTSTickerObjectBase
 {
 public:		
 	FHierarchicalLODProxyProcessor();
 	~FHierarchicalLODProxyProcessor();
 	
-	/** Begin FTickerObjectBase */
+	/** Begin FTSTickerObjectBase */
 	virtual bool Tick(float DeltaTime) override;
-	/** End FTickerObjectBase */
+	/** End FTSTickerObjectBase */
 
 	/**
 	* AddProxyJob

@@ -9,6 +9,7 @@
 #include "IMessageRpcClient.h"
 #include "Misc/Guid.h"
 #include "Templates/SharedPointer.h"
+#include "Containers/Ticker.h"
 
 class FMessageEndpoint;
 class IMessageBus;
@@ -89,5 +90,5 @@ private:
 	FMessageAddress ServerAddress;
 
 	/** Handle to the registered ticker. */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 };

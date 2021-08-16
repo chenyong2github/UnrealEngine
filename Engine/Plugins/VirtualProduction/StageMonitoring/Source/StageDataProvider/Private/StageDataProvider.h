@@ -5,6 +5,7 @@
 #include "IStageDataProvider.h"
 
 #include "IMessageContext.h"
+#include "Containers/Ticker.h"
 
 class FMessageEndpoint;
 struct FStageDataBaseMessage; 
@@ -66,7 +67,7 @@ private:
 	/** Used to easily convert to an array when sending to the attached monitors */
 	TArray<FMessageAddress> CachedMonitorAddresses;
 	bool bIsActive = false;
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	/** Used to keep track of monitors that were not compatible with us to avoid log spamming */
 	TArray<FGuid> InvalidMonitors;

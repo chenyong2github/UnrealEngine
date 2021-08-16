@@ -299,7 +299,7 @@ namespace BuildPatchServices
 
 	private:
 		const FDiffManifestsConfiguration Configuration;
-		FTicker& CoreTicker;
+		FTSTicker& CoreTicker;
 		FDownloadCompleteDelegate DownloadCompleteDelegate;
 		FDownloadProgressDelegate DownloadProgressDelegate;
 		TUniquePtr<IFileSystem> FileSystem;
@@ -323,7 +323,7 @@ namespace BuildPatchServices
 
 	FDiffManifests::FDiffManifests(const FDiffManifestsConfiguration& InConfiguration)
 		: Configuration(InConfiguration)
-		, CoreTicker(FTicker::GetCoreTicker())
+		, CoreTicker(FTSTicker::GetCoreTicker())
 		, DownloadCompleteDelegate(FDownloadCompleteDelegate::CreateRaw(this, &FDiffManifests::HandleDownloadComplete))
 		, DownloadProgressDelegate()
 		, FileSystem(FFileSystemFactory::Create())
@@ -376,7 +376,7 @@ namespace BuildPatchServices
 
 			// Application tick.
 			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-			FTicker::GetCoreTicker().Tick(DeltaTime);
+			FTSTicker::GetCoreTicker().Tick(DeltaTime);
 			GLog->FlushThreadedLogs();
 
 			// Control frame rate.

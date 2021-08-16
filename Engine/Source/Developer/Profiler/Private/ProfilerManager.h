@@ -11,6 +11,7 @@
 #include "ProfilerDataSource.h"
 #include "ProfilerSession.h"
 #include "ProfilerCommands.h"
+#include "Containers/Ticker.h"
 
 class SProfilerWindow;
 
@@ -457,7 +458,7 @@ protected:
 	FTickerDelegate OnTick;
 
 	/** Handle to the registered OnTick. */
-	FDelegateHandle OnTickHandle;
+	FTSTicker::FDelegateHandle OnTickHandle;
 
 	/** A weak pointer to the profiler window. */
 	TWeakPtr<class SProfilerWindow> ProfilerWindow;

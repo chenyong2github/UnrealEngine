@@ -148,7 +148,7 @@ private:
 	TMap<uint64, FMeshComponentResetData> MeshComponentsToReset;
 
 	mutable class IUnrealInsightsModule *UnrealInsightsModule;
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	bool bTargetActorPositionValid;
 	FVector TargetActorPosition;

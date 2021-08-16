@@ -277,7 +277,7 @@ private:
 	FTickerDelegate OnTick;
 
 	/** Handle to the registered OnTick. */
-	FDelegateHandle OnTickHandle;
+	FTSTicker::FDelegateHandle OnTickHandle;
 
 	TSharedRef<TraceServices::IAnalysisService> AnalysisService;
 	TSharedRef<TraceServices::IModuleService> ModuleService;

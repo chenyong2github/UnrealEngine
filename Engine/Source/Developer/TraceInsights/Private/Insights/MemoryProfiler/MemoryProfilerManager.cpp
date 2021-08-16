@@ -79,7 +79,7 @@ void FMemoryProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FMemoryProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FMemoryProfilerCommands::Register();
 	BindCommands();
@@ -113,7 +113,7 @@ void FMemoryProfilerManager::Shutdown()
 	FMemoryProfilerCommands::Unregister();
 
 	// Unregister tick function.
-	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FMemoryProfilerManager::Instance.Reset();
 

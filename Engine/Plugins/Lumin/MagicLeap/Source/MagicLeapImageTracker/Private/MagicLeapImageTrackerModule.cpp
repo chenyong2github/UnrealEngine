@@ -27,7 +27,7 @@ void FMagicLeapImageTrackerModule::ShutdownModule()
 {
 	if (TickDelegateHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	}
 	FMagicLeapImageTrackerRunnable* InRunnable = Runnable;
 	Runnable = nullptr;
@@ -86,7 +86,7 @@ void FMagicLeapImageTrackerModule::SetTargetAsync(const FMagicLeapImageTargetSet
 	Runnable->SetTargetAsync(ImageTarget, SucceededDelegate, FailedDelegate);
 	if (!TickDelegateHandle.IsValid())
 	{
-		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+		TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 	}
 }
 
@@ -95,7 +95,7 @@ void FMagicLeapImageTrackerModule::SetTargetAsync(const FMagicLeapImageTargetSet
 	Runnable->SetTargetAsync(ImageTarget, SucceededDelegate, FailedDelegate);
 	if (!TickDelegateHandle.IsValid())
 	{
-		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+		TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 	}
 }
 

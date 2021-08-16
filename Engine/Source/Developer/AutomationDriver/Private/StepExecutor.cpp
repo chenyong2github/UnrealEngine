@@ -69,7 +69,7 @@ public:
 				if (Executor.IsValid())
 				{
 					const int32 StepIndex = 0;
-					FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateThreadSafeSP(Executor.ToSharedRef(), &FStepExecutor::ExecuteStep, StepIndex), 0);
+					FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateThreadSafeSP(Executor.ToSharedRef(), &FStepExecutor::ExecuteStep, StepIndex), 0);
 				}
 			}
 		);
@@ -145,7 +145,7 @@ private:
 
 		StepTotalProcessTime += FTimespan::FromSeconds(Delay);
 		LastDelay = Delay;
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateThreadSafeSP(this, &FStepExecutor::ExecuteStep, StepIndex), Delay);
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateThreadSafeSP(this, &FStepExecutor::ExecuteStep, StepIndex), Delay);
 
 		return false;
 	}

@@ -52,7 +52,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		float DeltaSeconds = LastTime - Now;
 		LastTime = Now;
 
-		// @todo: Put me into an FTicker that is created when the DW module is loaded
+		// @todo: Put me into an FTSTicker that is created when the DW module is loaded
 		FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
 		DirectoryWatcherModule.Get()->Tick(Now - LastTime);
 

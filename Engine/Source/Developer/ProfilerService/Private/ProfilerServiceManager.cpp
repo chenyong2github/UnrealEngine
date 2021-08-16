@@ -355,7 +355,7 @@ void FProfilerServiceManager::HandleServiceSubscribeMessage( const FProfilerServ
 		// Initiate the ping callback
 		if (ClientData.Num() == 1)
 		{
-			PingDelegateHandle = FTicker::GetCoreTicker().AddTicker(PingDelegate, 5.0f);
+			PingDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(PingDelegate, 5.0f);
 		}
 	}
 #endif //STATS
@@ -383,7 +383,7 @@ void FProfilerServiceManager::HandleServiceUnsubscribeMessage( const FProfilerSe
 		// stop the ping messages if we have no clients
 		if (ClientData.Num() == 0)
 		{
-			FTicker::GetCoreTicker().RemoveTicker(PingDelegateHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(PingDelegateHandle);
 		}
 	}
 #endif //STATS

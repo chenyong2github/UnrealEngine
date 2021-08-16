@@ -38,7 +38,7 @@ namespace BuildPatchServices
 		: public FMockHttpManager
 	{
 	public:
-		FFakeHttpManager(FTicker& Ticker);
+		FFakeHttpManager(FTSTicker& Ticker);
 		virtual TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest() override;
 		virtual bool Tick(float Delta);
 		virtual bool OnProcessRequest(FFakeHttpRequest* FakeHttpRequest);
@@ -78,7 +78,7 @@ namespace BuildPatchServices
 		return Data.Num();
 	}
 
-	FFakeHttpManager::FFakeHttpManager(FTicker& Ticker)
+	FFakeHttpManager::FFakeHttpManager(FTSTicker& Ticker)
 	{
 		Ticker.AddTicker(FTickerDelegate::CreateRaw(this, &FFakeHttpManager::Tick));
 	}

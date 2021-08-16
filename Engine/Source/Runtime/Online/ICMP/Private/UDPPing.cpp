@@ -233,7 +233,7 @@ private:
 // ----------------------------------------------------------------------------
 
 class FUdpPingManyAsync
-	: public FTickerObjectBase
+	: public FTSTickerObjectBase
 {
 public:
 	FUdpPingManyAsync(ISocketSubsystem* const InSocketSub, const FIcmpEchoManyCompleteDelegate& InCompletionDelegate);
@@ -951,7 +951,7 @@ uint32 FUdpPingWorker::FProgressKey::CalcHash() const
 // ----------------------------------------------------------------------------
 
 FUdpPingManyAsync::FUdpPingManyAsync(ISocketSubsystem* const InSocketSub, const FIcmpEchoManyCompleteDelegate& InCompletionDelegate)
-	: FTickerObjectBase(0)
+	: FTSTickerObjectBase(0)
 	, SocketSub(InSocketSub)
 	, CompletionDelegate(InCompletionDelegate)
 	, bThreadCompleted(false)
@@ -1436,12 +1436,12 @@ FIcmpEchoResult UDPEchoImpl(ISocketSubsystem* SocketSub, const FString& TargetAd
 }
 
 class FUDPPingAsyncResult
-	: public FTickerObjectBase
+	: public FTSTickerObjectBase
 {
 public:
 
 	FUDPPingAsyncResult(ISocketSubsystem* InSocketSub, const FString& TargetAddress, float Timeout, uint32 StackSize, FIcmpEchoResultCallback InCallback)
-		: FTickerObjectBase(0)
+		: FTSTickerObjectBase(0)
 		, SocketSub(InSocketSub)
 		, Callback(InCallback)
 		, bThreadCompleted(false)

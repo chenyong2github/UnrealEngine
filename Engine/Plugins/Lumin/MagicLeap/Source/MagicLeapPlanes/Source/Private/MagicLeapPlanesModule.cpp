@@ -410,7 +410,7 @@ bool FMagicLeapPlanesModule::CreateTracker()
 
 		if (Result == MLResult_Ok)
 		{
-			TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+			TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 		}
 
 		return Result == MLResult_Ok;
@@ -435,7 +435,7 @@ bool FMagicLeapPlanesModule::DestroyTracker()
 		MLResult Result = MLPlanesDestroy(Tracker);
 		UE_CLOG(Result != MLResult_Ok, LogMagicLeapPlanes, Error, TEXT("MLPlanesDestroy failed with error '%s'."), UTF8_TO_TCHAR(MLGetResultString(Result)));
 		Tracker = ML_INVALID_HANDLE;
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 		return true;
 	}
 	else

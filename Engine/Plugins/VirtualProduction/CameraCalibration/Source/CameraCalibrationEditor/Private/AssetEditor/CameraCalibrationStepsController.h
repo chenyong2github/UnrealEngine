@@ -7,6 +7,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Containers/Ticker.h"
 
 
 class ACameraActor;
@@ -190,7 +191,7 @@ private:
 	TWeakObjectPtr<ACameraActor> Camera;
 
 	/** The delegate for the core ticker callback */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	/** Pointer to the LensFileEvalData used in the current frame. Only valid during the current frame. */
 	const FLensFileEvalData* LensFileEvalData;

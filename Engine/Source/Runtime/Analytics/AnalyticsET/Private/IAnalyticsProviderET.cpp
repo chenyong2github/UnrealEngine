@@ -45,13 +45,13 @@ namespace AnalyticsProviderETCvars
  */
 class FAnalyticsProviderET :
 	public IAnalyticsProviderET,
-	public FTickerObjectBase,
+	public FTSTickerObjectBase,
 	public TSharedFromThis<FAnalyticsProviderET>
 {
 public:
 	FAnalyticsProviderET(const FAnalyticsET::Config& ConfigValues);
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 
 	bool Tick(float DeltaSeconds) override;
 

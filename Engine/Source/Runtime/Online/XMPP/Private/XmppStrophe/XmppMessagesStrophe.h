@@ -15,7 +15,7 @@ class FStropheStanza;
 
 class FXmppMessagesStrophe
 	: public IXmppMessages
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 	// FXmppMessagesStrophe
@@ -36,7 +36,7 @@ public:
 	virtual bool SendMessage(const FXmppUserJid& RecipientId, const FString& Type, const TSharedRef<class FJsonObject>& Payload) override;
 	virtual FOnXmppMessageReceived& OnReceiveMessage() override { return OnMessageReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 protected:

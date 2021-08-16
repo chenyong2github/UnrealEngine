@@ -379,7 +379,7 @@ void FAppEntry::PlatformInit()
 #if BUILD_EMBEDDED_APP
 		// while embedded, the native app may be waiting on some processing to happen before showing the view, so we have to let
 		// processing occur here
-		FTicker::GetCoreTicker().Tick(0.005f);
+		FTSTicker::GetCoreTicker().Tick(0.005f);
 		FThreadManager::Get().Tick();
 #endif
 		FPlatformProcess::Sleep(0.005f);

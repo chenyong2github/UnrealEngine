@@ -74,14 +74,14 @@ void FInsightsTestRunner::Initialize(IUnrealInsightsModule& InsightsModule)
 
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FInsightsTestRunner::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FInsightsTestRunner::Shutdown()
 {
-	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

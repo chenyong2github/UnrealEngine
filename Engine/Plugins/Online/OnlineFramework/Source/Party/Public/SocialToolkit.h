@@ -268,7 +268,7 @@ private:	// Handlers
 	bool Debug_HandleRandomizeUserPresenceTick(float DeltaTime, uint8 NumRandomUser);
 	void Debug_ChangeRandomUserPresence(uint8 NumRandomUser);
 	bool bDebug_IsRandomlyChangingUserPresence = false;
-	FDelegateHandle Debug_PresenceTickerHandle;
+	FTSTicker::FDelegateHandle Debug_PresenceTickerHandle;
 #endif
 
 private:

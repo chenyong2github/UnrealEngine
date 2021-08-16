@@ -93,7 +93,7 @@ bool FRCWebSocketServer::Start(uint32 Port, TSharedPtr<FWebsocketMessageRouter> 
 	}
 
 	Router = MoveTemp(InRouter);
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FRCWebSocketServer::Tick));
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FRCWebSocketServer::Tick));
 
 	return true;
 }
@@ -122,7 +122,7 @@ void FRCWebSocketServer::Stop()
 {
 	if (TickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 	Router.Reset();
 	Server.Reset();

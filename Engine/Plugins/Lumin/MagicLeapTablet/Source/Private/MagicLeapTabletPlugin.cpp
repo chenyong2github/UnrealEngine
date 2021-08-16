@@ -32,7 +32,7 @@ void FMagicLeapTabletPlugin::CreateEntityTracker()
 	InputTracker = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->InputTracker;
 	MLInputTabletDeviceCallbacksInit(&Callbacks);
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapTabletPlugin::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 #endif // WITH_MLSDK
 }
 
@@ -46,7 +46,7 @@ void FMagicLeapTabletPlugin::DestroyEntityTracker()
 		InputTracker = ML_INVALID_HANDLE;
 	}
 
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 #endif // WITH_MLSDK
 }
 

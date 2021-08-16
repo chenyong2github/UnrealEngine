@@ -158,7 +158,7 @@ void FInsightsManager::Initialize(IUnrealInsightsModule& InsightsModule)
 
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FInsightsManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FInsightsCommands::Register();
 	BindCommands();
@@ -179,7 +179,7 @@ void FInsightsManager::Shutdown()
 	FInsightsCommands::Unregister();
 
 	// Unregister tick function.
-	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	// If the MessageLog module was already unloaded as part of the global Shutdown process, do not load it again.
 	if (FModuleManager::Get().IsModuleLoaded("MessageLog"))

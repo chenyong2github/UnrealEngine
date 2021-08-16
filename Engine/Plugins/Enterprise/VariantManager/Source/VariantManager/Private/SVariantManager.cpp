@@ -1852,7 +1852,7 @@ void SVariantManager::SwitchOnVariant(UVariant* Variant)
 	// Do this on next frame because there is some minor issue where if visibility changes are triggered
 	// on the same frame that is meant to be invalidated, sometimes the primitive's occlusion history doesn't
 	// refresh properly and we get some incorrectly hidden/visible objects (UE-100896)
-	FTicker::GetCoreTicker().AddTicker(
+	FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateLambda([](float Time)
 		{
 			const bool bInvalidateHitProxies = false;

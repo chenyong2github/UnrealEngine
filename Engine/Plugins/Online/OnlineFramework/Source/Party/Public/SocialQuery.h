@@ -147,7 +147,7 @@ private:
 		// If we aren't already registered to execute our queries next tick, do so now
 		if (!TickExecuteHandle.IsValid())
 		{
-			TickExecuteHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSocialQueryManager::HandleExecuteQueries), UserInfoQueryAggregationTime);
+			TickExecuteHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSocialQueryManager::HandleExecuteQueries), UserInfoQueryAggregationTime);
 		}
 
 		return NewQuery;
@@ -161,6 +161,6 @@ private:
 		}
 	}
 
-	FDelegateHandle TickExecuteHandle;
+	FTSTicker::FDelegateHandle TickExecuteHandle;
 	TMap<FName, TArray<TSharedRef<FSocialQueryBase>>> CurrentQueriesById;
 };

@@ -216,7 +216,7 @@ void FUserInterfaceCommand::Run()
 
 		FSlateApplication::Get().PumpMessages();
 		FSlateApplication::Get().Tick();
-		FTicker::GetCoreTicker().Tick(DeltaTime);
+		FTSTicker::GetCoreTicker().Tick(DeltaTime);
 
 		// Throttle frame rate.
 		const float FrameTime = UserInterfaceCommand::IsApplicationBackground() ? BackgroundFrameTime : IdealFrameTime;

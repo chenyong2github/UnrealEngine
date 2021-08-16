@@ -78,7 +78,7 @@ private:
 	FMessageAddress Connection;
 
 	FNiagaraOutlinerCaptureSettings OutlinerSettings;
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	uint32 OutlinerCountdown = 0;
 

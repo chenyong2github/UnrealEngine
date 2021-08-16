@@ -67,12 +67,12 @@ bool ResolveIp(ISocketSubsystem* SocketSub, const FString& HostName, FString& Ou
 }
 
 class FIcmpAsyncResult
-	: public FTickerObjectBase
+	: public FTSTickerObjectBase
 {
 public:
 
 	FIcmpAsyncResult(ISocketSubsystem* InSocketSub, const FString& TargetAddress, float Timeout, uint32 StackSize, FIcmpEchoResultCallback InCallback)
-		: FTickerObjectBase(0)
+		: FTSTickerObjectBase(0)
 		, SocketSub(InSocketSub)
 		, Callback(InCallback)
 		, bThreadCompleted(false)

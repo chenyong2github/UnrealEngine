@@ -193,7 +193,7 @@ bool RunSwitchboardListener(const FSwitchboardCommandLineOptions& Options)
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 
 		// Pump & Tick objects
-		FTicker::GetCoreTicker().Tick(DeltaTime);
+		FTSTicker::GetCoreTicker().Tick(DeltaTime);
 
 		bListenerIsRunning = Listener.Tick();
 

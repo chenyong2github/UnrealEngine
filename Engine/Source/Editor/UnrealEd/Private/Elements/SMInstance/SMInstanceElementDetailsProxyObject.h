@@ -7,6 +7,8 @@
 
 #include "IObjectNameEditSink.h"
 
+#include "Containers/Ticker.h"
+
 #include "SMInstanceElementDetailsProxyObject.generated.h"
 
 UCLASS(Transient)
@@ -32,7 +34,7 @@ private:
 	TWeakObjectPtr<UInstancedStaticMeshComponent> ISMComponent;
 	uint64 ISMInstanceId = 0;
 
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 	bool bIsWithinInteractiveTransformEdit = false;
 
 	friend class FSMInstanceElementDetailsProxyObjectNameEditSink;

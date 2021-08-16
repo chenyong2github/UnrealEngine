@@ -41,10 +41,10 @@ void FAsyncLoadingFlushContext::Flush(const FOnAsyncLoadingFlushComplete& OnFlus
 	OnFlushCompleteDelegate = OnFlushComplete;
 
 	// Check each frame whether async loading has completed.
-	LoadingCompleteCheckDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAsyncLoadingFlushContext::OnAsyncLoadingCheck));
+	LoadingCompleteCheckDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAsyncLoadingFlushContext::OnAsyncLoadingCheck));
 
 	// Periodically warn when waiting for async loading to complete.
-	WaitingWarnDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAsyncLoadingFlushContext::OnAsyncLoadingWarn), LoadingFlushWarnIntervalSeconds);
+	WaitingWarnDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAsyncLoadingFlushContext::OnAsyncLoadingWarn), LoadingFlushWarnIntervalSeconds);
 
 	StartTime = FPlatformTime::Seconds();
 	UE_LOG(AsyncLoadingFlush, Verbose, TEXT("Context[%s:%d] Flushing async loading."), *Context, Id);
@@ -54,13 +54,13 @@ void FAsyncLoadingFlushContext::CleanupTickers()
 {
 	if (LoadingCompleteCheckDelegateHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(LoadingCompleteCheckDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(LoadingCompleteCheckDelegateHandle);
 		LoadingCompleteCheckDelegateHandle.Reset();
 	}
 
 	if (WaitingWarnDelegateHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(WaitingWarnDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(WaitingWarnDelegateHandle);
 		WaitingWarnDelegateHandle.Reset();
 	}
 }

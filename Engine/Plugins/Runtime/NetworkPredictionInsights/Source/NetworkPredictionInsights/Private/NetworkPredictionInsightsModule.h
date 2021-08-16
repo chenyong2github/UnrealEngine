@@ -32,7 +32,7 @@ public:
 private:
 	FNetworkPredictionTraceModule NetworkPredictionTraceModule;
 
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 	FDelegateHandle StoreServiceHandle;
 
 #if WITH_TRACE_STORE

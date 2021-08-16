@@ -105,5 +105,5 @@ private:
 	FTickerDelegate TickDelegate;
 
 	/** Handle to the registered TickDelegate. */
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 };

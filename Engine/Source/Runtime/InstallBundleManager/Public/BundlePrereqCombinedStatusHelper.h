@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleUtils.h"
+#include "Containers/Ticker.h"
 
 //Handles calculating the bundle status by combining progress from all of its
 //Prerequisites. Allows you to display one progress percent that is weighted based on all
@@ -96,5 +97,5 @@ private:
 	FCombinedProgress CurrentCombinedProgress;
 	
 	TWeakPtr<IInstallBundleManager> InstallBundleManager;
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 };

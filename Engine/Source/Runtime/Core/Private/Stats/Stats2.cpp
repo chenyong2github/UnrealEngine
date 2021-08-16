@@ -241,7 +241,7 @@ void FStats::TickCommandletStats()
 		//check( ThreadStats->ScopeCount == 0 && TEXT( "FStats::TickCommandletStats must be called outside any scope counters" ) );
 
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle( ENamedThreads::GameThread );
-		FTicker::GetCoreTicker().Tick( 1 / 60.0f );
+		FTSTicker::GetCoreTicker().Tick( 1 / 60.0f );
 
 		FStats::AdvanceFrame( false );
 	}

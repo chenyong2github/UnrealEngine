@@ -35,7 +35,7 @@ private:
 	TArray<FPendingAsyncRequest> PendingAsyncRequests;
 #endif //WITH_MLSDK
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 
 	bool RequestPrivilegeAsync(EMagicLeapPrivilege Privilege, const FMagicLeapPrivilegeRequestStaticDelegate& StaticResultDelegate, const FMagicLeapPrivilegeRequestDelegate& DynamicResultDelegate);
 };

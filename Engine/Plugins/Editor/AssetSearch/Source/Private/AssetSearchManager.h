@@ -107,7 +107,7 @@ private:
 
 	TArray<FAssetDDCRequest> FailedDDCRequests;
 
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	TQueue<TFunction<void()>, EQueueMode::Mpsc> GT_Tasks;
 

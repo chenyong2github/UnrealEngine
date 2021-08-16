@@ -10,6 +10,7 @@
 #include "Containers/Ticker.h"
 #include "Templates/Sorting.h"
 #include "Stats/Stats.h"
+#include "Containers/Ticker.h"
 
 namespace GranularNetworkMemoryTrackingPrivate
 {
@@ -160,7 +161,7 @@ namespace GranularNetworkMemoryTrackingPrivate
 	private:
 
 		FNetworkMemoryTrackingScopeStack() :
-			TickHandle(FTicker::GetCoreTicker().AddTicker(TEXT("NetworkGranularMemoryLogging::FNetworkMemoryTrackingScopeStack"), 0, &FNetworkMemoryTrackingScopeStack::OnTick))
+			TickHandle(FTSTicker::GetCoreTicker().AddTicker(TEXT("NetworkGranularMemoryLogging::FNetworkMemoryTrackingScopeStack"), 0, &FNetworkMemoryTrackingScopeStack::OnTick))
 		{
 		}
 
@@ -187,12 +188,12 @@ namespace GranularNetworkMemoryTrackingPrivate
 			// TODO: Replace \r\n with some platform specific newline macro.
 			UE_LOG(LogNet, Warning, TEXT("\r\n%s"), *FString::Join(Rows, TEXT("\r\n\r\n")));
 
-			FTicker::GetCoreTicker().RemoveTicker(ScopeStack->TickHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(ScopeStack->TickHandle);
 			ScopeStack.Reset();
 			return true;
 		}
 
-		FDelegateHandle TickHandle;
+		FTSTicker::FDelegateHandle TickHandle;
 		TMap<FString, TUniquePtr<FNetworkMemoryTrackingScope>> TopLevelScopes;
 		FNetworkMemoryTrackingScope* CurrentScope = nullptr;
 		TArray<FNetworkMemoryTrackingScope*> ScopeStack;

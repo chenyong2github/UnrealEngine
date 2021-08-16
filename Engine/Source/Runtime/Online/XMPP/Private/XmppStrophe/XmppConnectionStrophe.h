@@ -24,7 +24,7 @@ class FStropheError;
 
 class FXmppConnectionStrophe
 	: public IXmppConnection
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 	friend FXmppStropheThread;
 
@@ -64,7 +64,7 @@ public:
 
 	virtual void DumpState() const override;
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 	bool SendStanza(FStropheStanza&& Stanza);

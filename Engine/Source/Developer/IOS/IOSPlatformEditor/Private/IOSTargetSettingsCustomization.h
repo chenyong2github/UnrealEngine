@@ -11,6 +11,7 @@
 #include "IDetailCustomization.h"
 #include "ShaderFormatsPropertyDetails.h"
 #include "TargetPlatformAudioCustomization.h"
+#include "Containers/Ticker.h"
 
 class FMonitoredProcess;
 class IDetailLayoutBuilder;
@@ -84,7 +85,7 @@ private:
 	bool bManuallySelected;
 
 	TSharedPtr<FMonitoredProcess> IPPProcess;
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 	TSharedPtr<TArray<ProvisionPtr>> ProvisionList;
 	TArray<ProvisionPtr> FilteredProvisionList;
 	TSharedPtr<SListView<ProvisionPtr> > ProvisionListView;

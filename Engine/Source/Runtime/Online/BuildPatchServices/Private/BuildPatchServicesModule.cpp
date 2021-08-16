@@ -80,7 +80,7 @@ void FBuildPatchServicesModule::StartupModule()
 	bForceSkipPrereqs = bForceSkipPrereqsCmdline || bForceSkipPrereqsConfig;
 
 	// Add our ticker
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateRaw( this, &FBuildPatchServicesModule::Tick ) );
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateRaw( this, &FBuildPatchServicesModule::Tick ) );
 
 	// Register core PreExit
 	FCoreDelegates::OnPreExit.AddRaw(this, &FBuildPatchServicesModule::PreExit);
@@ -108,7 +108,7 @@ void FBuildPatchServicesModule::ShutdownModule()
 
 	// Remove our ticker
 	GLog->Log(ELogVerbosity::VeryVerbose, TEXT( "BuildPatchServicesModule: Removing Ticker" ) );
-	FTicker::GetCoreTicker().RemoveTicker( TickDelegateHandle );
+	FTSTicker::GetCoreTicker().RemoveTicker( TickDelegateHandle );
 
 	GLog->Log(ELogVerbosity::VeryVerbose, TEXT( "BuildPatchServicesModule: Finished shutting down" ) );
 }

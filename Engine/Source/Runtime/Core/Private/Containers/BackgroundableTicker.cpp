@@ -38,6 +38,8 @@ FTSBackgroundableTicker::~FTSBackgroundableTicker()
 	FCoreDelegates::MobileBackgroundTickDelegate.Remove(BackgroundTickerHandle);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // deprecated non thread-safe version
 
@@ -74,3 +76,5 @@ FBackgroundableTicker::~FBackgroundableTicker()
 	FTicker::GetCoreTicker().RemoveTicker(CoreTickerHandle);
 	FCoreDelegates::MobileBackgroundTickDelegate.Remove(BackgroundTickerHandle);
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

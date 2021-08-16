@@ -31,12 +31,12 @@ namespace OSSConsoleVariables
 const FName FOnlineSubsystemImpl::DefaultInstanceName(TEXT("DefaultInstance"));
 
 FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName) :
-	FOnlineSubsystemImpl(InSubsystemName, InInstanceName, FTicker::GetCoreTicker())
+	FOnlineSubsystemImpl(InSubsystemName, InInstanceName, FTSTicker::GetCoreTicker())
 {
 }
 
-FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName, FTicker& Ticker) :
-	FTickerObjectBase(0.0f, Ticker),
+FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName, FTSTicker& Ticker) :
+	FTSTickerObjectBase(0.0f, Ticker),
 	SubsystemName(InSubsystemName),
 	InstanceName(InInstanceName),
 	bForceDedicated(false),

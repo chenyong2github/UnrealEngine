@@ -8,6 +8,7 @@
 #include "IAssetTools.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "FrontendFilterBase.h"
+#include "Containers/Ticker.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -296,7 +297,7 @@ private:
 	void Refresh();
 	void RegisterDelayedRefresh(float DelayInSeconds);
 	void UnregisterDelayedRefresh();
-	FDelegateHandle DelayedRefreshHandle;
+	FTSTicker::FDelegateHandle DelayedRefreshHandle;
 	bool bIsDirty = false;
 	bool bIsCurrentlyActive = false;
 };

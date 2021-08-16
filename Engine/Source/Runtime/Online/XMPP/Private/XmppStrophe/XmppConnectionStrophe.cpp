@@ -19,7 +19,7 @@
 #if WITH_XMPP_STROPHE
 
 FXmppConnectionStrophe::FXmppConnectionStrophe()
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, LoginStatus(EXmppLoginStatus::NotStarted)
 {
 	MessagesStrophe = MakeShared<FXmppMessagesStrophe, ESPMode::ThreadSafe>(*this);

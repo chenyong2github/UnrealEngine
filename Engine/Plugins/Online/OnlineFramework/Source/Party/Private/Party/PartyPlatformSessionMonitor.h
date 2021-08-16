@@ -138,6 +138,6 @@ private:
 		Complete
 	} ShutdownState = EMonitorShutdownState::None;
 	
-	FDelegateHandle RetryTickerHandle;
+	FTSTicker::FDelegateHandle RetryTickerHandle;
 	FDelegateHandle UpdateOssSessionHandle;
 };

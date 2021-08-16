@@ -199,7 +199,7 @@ protected:
 };
 
 FXmppChatJingle::FXmppChatJingle(class FXmppConnectionJingle& InConnection)
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, ChatRcvTask(NULL)
 	, ChatSendTask(NULL)
 	, Connection(InConnection)

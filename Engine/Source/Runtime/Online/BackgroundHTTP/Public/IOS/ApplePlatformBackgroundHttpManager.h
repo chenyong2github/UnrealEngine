@@ -38,7 +38,7 @@ public:
 	 */
 	virtual ~FApplePlatformBackgroundHttpManager();
 
-    //FTickerObjectBase implementation
+    //FTSTickerObjectBase implementation
     virtual bool Tick(float DeltaTime) override;
     
     //This is the identifier we expect to be associated with our NSURLDownloadSession for background downloads

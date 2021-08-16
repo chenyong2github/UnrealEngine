@@ -12,7 +12,7 @@
 #include "Lumin/CAPIShims/LuminAPIEyeTracking.h"
 #include "IMagicLeapTrackerEntity.h"
 
-class FMagicLeapVREyeTracker : public IMagicLeapVREyeTracker, public FTickerObjectBase, public IMagicLeapTrackerEntity
+class FMagicLeapVREyeTracker : public IMagicLeapVREyeTracker, public FTSTickerObjectBase, public IMagicLeapTrackerEntity
 {
 public:
 	FMagicLeapVREyeTracker();

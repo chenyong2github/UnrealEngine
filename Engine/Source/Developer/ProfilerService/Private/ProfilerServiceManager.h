@@ -239,7 +239,7 @@ private:
 	FTickerDelegate PingDelegate;
 
 	/** Handle to the registered PingDelegate */
-	FDelegateHandle PingDelegateHandle;
+	FTSTicker::FDelegateHandle PingDelegateHandle;
 
 	/** Handle to the registered HandleNewFrame delegate */
 	FDelegateHandle NewFrameDelegateHandle;

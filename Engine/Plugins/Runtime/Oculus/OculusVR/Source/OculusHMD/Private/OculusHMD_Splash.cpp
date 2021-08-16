@@ -214,7 +214,7 @@ void FSplash::StartTicker()
 
 	if (!Ticker.IsValid())
 	{
-		Ticker = MakeShareable(new FTicker(this));
+		Ticker = MakeShareable(new FTSTicker(this));
 
 		ExecuteOnRenderThread([this]()
 		{

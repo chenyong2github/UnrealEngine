@@ -65,7 +65,7 @@ public:
 		if (UpdateTickerHandle.IsValid())
 		{
 			// Running manually - unregister ticker.
-			FTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
 			UpdateTickerHandle.Reset();
 			DeferredHandleReplicateChanges(0.f);
 		}
@@ -110,7 +110,7 @@ PACKAGE_SCOPE:
 		}
 		if (UpdateTickerHandle.IsValid())
 		{
-			FTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
 			UpdateTickerHandle.Reset();
 		}
 	}
@@ -120,7 +120,7 @@ private:
 	{
 		if (!UpdateTickerHandle.IsValid())
 		{
-			UpdateTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &TPartyDataReplicator::DeferredHandleReplicateChanges));
+			UpdateTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &TPartyDataReplicator::DeferredHandleReplicateChanges));
 		}
 	}
 
@@ -154,5 +154,5 @@ private:
 	/** Scratch copy of child UStruct for handling replication comparisons */
 	RepDataT* RepDataCopy = nullptr;
 
-	FDelegateHandle UpdateTickerHandle;
+	FTSTicker::FDelegateHandle UpdateTickerHandle;
 };

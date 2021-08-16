@@ -9,6 +9,7 @@
 #include "Async/AsyncWork.h"
 #include "CrashReportClientApp.h"
 #include "CrashUpload.h"
+#include "Containers/Ticker.h"
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
 
@@ -201,7 +202,7 @@ private:
 	bool bIsUploadComplete;
 
 	/** To know if the ticker was started.*/
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 
 };
 

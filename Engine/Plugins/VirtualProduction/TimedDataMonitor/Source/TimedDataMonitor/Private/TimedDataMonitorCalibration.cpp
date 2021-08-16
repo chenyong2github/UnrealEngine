@@ -364,7 +364,7 @@ void FTimedDataMonitorCalibration::Reset()
 	NumberOfRetry = 0;
 	if (TickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
 	if (OnCalibrationCompleted.IsBound())
@@ -407,7 +407,7 @@ bool FTimedDataMonitorCalibration::RunCalibrateWithTimecode_CheckForReset(float)
 			
 		FTickerDelegate Delegate = FTickerDelegate::CreateRaw(this, &FTimedDataMonitorCalibration::RunCalibrateWithTimecode);
 		float Timer = CalibrationParameters.AmountOfSecondsToWaitAfterStatisticReset;
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(Delegate, Timer);
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(Delegate, Timer);
 	}
 	else
 	{
@@ -432,7 +432,7 @@ bool FTimedDataMonitorCalibration::RunCalibrateWithTimecode(float)
 			bCallcallback = false;
 			FTickerDelegate Delegate = FTickerDelegate::CreateRaw(this, &FTimedDataMonitorCalibration::RunCalibrateWithTimecode_CheckForReset);
 			float Timer = 1.f; // todo find a better way to handle this. how much time should we wait...
-			TickerHandle = FTicker::GetCoreTicker().AddTicker(Delegate, Timer);
+			TickerHandle = FTSTicker::GetCoreTicker().AddTicker(Delegate, Timer);
 		}
 
 	}

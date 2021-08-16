@@ -830,7 +830,7 @@ namespace InstallBundleUtil
 				//Only setup a tick function if we would use it
 				if ((bShouldAutoUpdateTimersInTick || bShouldSaveDirtyStatsOnTick) && !TickHandle.IsValid())
 				{
-					TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPersistentStatContainerBase::Tick));
+					TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPersistentStatContainerBase::Tick));
 				}
 
 				//Only setup Foreground/Background delegates if we should be using them to swap stats
@@ -852,7 +852,7 @@ namespace InstallBundleUtil
 		{
 			if (TickHandle.IsValid())
 			{
-				FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+				FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 				TickHandle.Reset();
 			}
 

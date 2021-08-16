@@ -51,6 +51,8 @@
 #include "Editor.h"
 #endif
 
+#include "Containers/Ticker.h"
+
 DEFINE_LOG_CATEGORY(LogHotReload);
 
 #define LOCTEXT_NAMESPACE "HotReload"
@@ -233,7 +235,7 @@ private:
 #endif
 
 	/**
-	 * Tick function for FTicker: checks for re-loaded modules and does hot-reload from IDE
+	 * Tick function for FTSTicker: checks for re-loaded modules and does hot-reload from IDE
 	 */
 	bool Tick(float DeltaTime);
 
@@ -310,11 +312,11 @@ private:
 	/** Callback registered with PluginManager to know if any new plugins have been created */
 	void PluginMountedCallback(IPlugin& Plugin);
 
-	/** FTicker delegate (hot-reload from IDE) */
+	/** FTSTicker delegate (hot-reload from IDE) */
 	FTickerDelegate TickerDelegate;
 
 	/** Handle to the registered TickerDelegate */
-	FDelegateHandle TickerDelegateHandle;
+	FTSTicker::FDelegateHandle TickerDelegateHandle;
 
 	/** Handle to the registered delegate above */
 	TMap<FString, FDelegateHandle> BinariesFolderChangedDelegateHandles;
@@ -549,7 +551,7 @@ void FHotReloadModule::StartupModule()
 
 	// Register hot-reload from IDE ticker
 	TickerDelegate = FTickerDelegate::CreateRaw(this, &FHotReloadModule::Tick);
-	TickerDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickerDelegate);
+	TickerDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickerDelegate);
 
 	FModuleManager::Get().OnModulesChanged().AddRaw(this, &FHotReloadModule::ModulesChangedCallback);
 
@@ -558,7 +560,7 @@ void FHotReloadModule::StartupModule()
 
 void FHotReloadModule::ShutdownModule()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickerDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickerDelegateHandle);
 	ShutdownHotReloadWatcher();
 
 	UEHotReload_Private::DeleteFileThatIndicatesEditorRunIfNeeded();

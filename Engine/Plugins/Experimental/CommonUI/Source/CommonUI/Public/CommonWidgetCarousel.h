@@ -88,7 +88,7 @@ protected:
 	// End of UWidget interface
 
 protected:
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	TSharedPtr< SWidgetCarousel<UPanelSlot*> > MyCommonWidgetCarousel;
 

@@ -123,7 +123,7 @@ EActiveTimerReturnType SAuthorizingPlugin::RefreshStatus(double InCurrentTime, f
 	// Engine tick isn't running when the modal window is open, so we need to tick any core tickers
 	// to as that's what the RPC system uses to update the current state of RPC calls.
 	FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-	FTicker::GetCoreTicker().Tick(InDeltaTime);
+	FTSTicker::GetCoreTicker().Tick(InDeltaTime);
 
 	PreviousAuthorizationState = AuthorizationState;
 	AuthorizationState = Authorizer->UpdateAuthorizationState(InDeltaTime);

@@ -201,7 +201,7 @@ private:
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 
 	/** Handle to the ticker based player. */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	/** All the curves in this sequence. */
 	TArray<FSlateCurve> Curves;

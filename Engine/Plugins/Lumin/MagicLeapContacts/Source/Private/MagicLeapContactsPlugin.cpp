@@ -25,12 +25,12 @@ void FMagicLeapContactsPlugin::StartupModule()
 {
 	IMagicLeapContactsPlugin::StartupModule();
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapContactsPlugin::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 }
 
 void FMagicLeapContactsPlugin::ShutdownModule()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IModuleInterface::ShutdownModule();
 }
 

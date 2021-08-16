@@ -10,6 +10,7 @@
 #include "BuildPatchManifest.h"
 #include "IBuildManifestSet.h"
 #include "Stats/Stats.h"
+#include "Containers/Ticker.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFileOperationTracker, Warning, All);
 DEFINE_LOG_CATEGORY(LogFileOperationTracker);
@@ -26,7 +27,7 @@ namespace BuildPatchServices
 		: public IFileOperationTracker
 	{
 	public:
-		FFileOperationTracker(FTicker& Ticker);
+		FFileOperationTracker(FTSTicker& Ticker);
 		~FFileOperationTracker();
 
 	public:
@@ -53,8 +54,8 @@ namespace BuildPatchServices
 		static FOperationInitialiser BuildOperationInitialiser(IBuildManifestSet* ManifestSet);
 
 	private:
-		FTicker& Ticker;
-		FDelegateHandle TickerHandle;
+		FTSTicker& Ticker;
+		FTSTicker::FDelegateHandle TickerHandle;
 		TArray<FFileOperation> FileOperationStates;
 		TArray<FFileOperation> DummyOperationStates;
 		TMap<FGuid, TArray<FFileOperation*>> FileOperationStatesDataIdLookup;
@@ -63,7 +64,7 @@ namespace BuildPatchServices
 		IBuildManifestSet* LastUsedManifestSet;
 	};
 
-	FFileOperationTracker::FFileOperationTracker(FTicker& InTicker)
+	FFileOperationTracker::FFileOperationTracker(FTSTicker& InTicker)
 		: Ticker(InTicker)
 		, LastUsedManifestSet(nullptr)
 	{
@@ -264,7 +265,7 @@ namespace BuildPatchServices
 		return Result;
 	}
 
-	IFileOperationTracker* FFileOperationTrackerFactory::Create(FTicker& Ticker)
+	IFileOperationTracker* FFileOperationTrackerFactory::Create(FTSTicker& Ticker)
 	{
 		return new FFileOperationTracker(Ticker);
 	}

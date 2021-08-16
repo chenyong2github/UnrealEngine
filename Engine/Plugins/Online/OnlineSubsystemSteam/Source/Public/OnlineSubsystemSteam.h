@@ -281,7 +281,7 @@ public:
 	virtual FString GetAppId() const override;
 	virtual FText GetOnlineServiceName() const override;
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 
 	virtual bool Tick(float DeltaTime) override;
 

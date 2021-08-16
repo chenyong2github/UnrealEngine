@@ -1759,7 +1759,7 @@ private:
 						//Schedule a refresh of the token ahead of expiry time (this will not work in commandlets)
 						if (!IsRunningCommandlet())
 						{
-							FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+							FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 								[this](float DeltaTime)
 								{
 									this->AcquireAccessToken();

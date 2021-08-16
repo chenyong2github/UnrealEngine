@@ -195,8 +195,8 @@ private:
 	FPythonCommandExecutor CmdExec;
 	FPythonREPLCommandExecutor CmdREPLExec;
 	IPythonCommandMenu* CmdMenu;
-	FDelegateHandle TickHandle;
-	FDelegateHandle ModuleDelayedHandle;
+	FTSTicker::FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle ModuleDelayedHandle;
 
 	PyUtil::FPyApiBuffer PyProgramName;
 	PyUtil::FPyApiBuffer PyHomePath;

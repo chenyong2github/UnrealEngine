@@ -106,12 +106,12 @@ void FSocialUserList::SetAllowAutoUpdate(bool bIsEnabled)
 
 	if (AutoUpdateRequests == 0 && UpdateTickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
 		UpdateTickerHandle.Reset();
 	}
 	else if (bIsEnabled && !UpdateTickerHandle.IsValid())
 	{
-		UpdateTickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FSocialUserList::HandleAutoUpdateList), AutoUpdatePeriod);
+		UpdateTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FSocialUserList::HandleAutoUpdateList), AutoUpdatePeriod);
 	}
 }
 

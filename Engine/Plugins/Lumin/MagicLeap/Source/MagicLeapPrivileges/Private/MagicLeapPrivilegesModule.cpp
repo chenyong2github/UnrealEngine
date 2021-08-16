@@ -16,7 +16,7 @@ void FMagicLeapPrivilegesModule::StartupModule()
 {
 	IMagicLeapPrivilegesModule::StartupModule();
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapPrivilegesModule::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 
 	// Until there is a dedicated Lumin OnlineSubsystem, request the LAN privilege on module startup if the command line is requesting connection to a specified IP.
 #if PLATFORM_LUMIN && !UE_SERVER
@@ -39,7 +39,7 @@ void FMagicLeapPrivilegesModule::StartupModule()
 
 void FMagicLeapPrivilegesModule::ShutdownModule()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IModuleInterface::ShutdownModule();
 }
 

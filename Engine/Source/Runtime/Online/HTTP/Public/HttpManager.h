@@ -8,6 +8,7 @@
 #include "Containers/Ticker.h"
 #include "Containers/Queue.h"
 #include "HttpPackage.h"
+#include "Containers/Ticker.h"
 
 class FHttpThread;
 
@@ -15,7 +16,7 @@ class FHttpThread;
  * Manages Http request that are currently being processed
  */
 class HTTP_API FHttpManager
-	: public FTickerObjectBase
+	: public FTSTickerObjectBase
 {
 public:
 
@@ -69,7 +70,7 @@ public:
 	void Flush(bool bShutdown);
 
 	/**
-	 * FTicker callback
+	 * FTSTicker callback
 	 *
 	 * @param DeltaSeconds - time in seconds since the last tick
 	 *

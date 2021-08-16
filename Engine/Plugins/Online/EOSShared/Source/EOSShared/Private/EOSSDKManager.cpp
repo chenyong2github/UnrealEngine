@@ -206,7 +206,7 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const EOS_Platform_Options&
 
 			if (!TickerHandle.IsValid())
 			{
-				TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FEOSSDKManager::Tick), 0.0f);
+				TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FEOSSDKManager::Tick), 0.0f);
 			}
 		}
 		else
@@ -270,7 +270,7 @@ void FEOSSDKManager::ReleasePlatform(EOS_HPlatform PlatformHandle)
 		if (ensure(TickerHandle.IsValid()) &&
 			PlatformHandles.Num() == 0)
 		{
-			FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 			TickerHandle.Reset();
 		}
 	}
@@ -295,7 +295,7 @@ void FEOSSDKManager::Shutdown()
 
 			if (ensure(TickerHandle.IsValid()))
 			{
-				FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+				FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 				TickerHandle.Reset();
 			}
 		}

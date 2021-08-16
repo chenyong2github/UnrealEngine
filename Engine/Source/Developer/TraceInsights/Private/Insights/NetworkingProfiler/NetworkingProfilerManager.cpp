@@ -69,7 +69,7 @@ void FNetworkingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModul
 
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FNetworkingProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
+	OnTickHandle = FTSTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FNetworkingProfilerCommands::Register();
 	BindCommands();
@@ -93,7 +93,7 @@ void FNetworkingProfilerManager::Shutdown()
 	FNetworkingProfilerCommands::Unregister();
 
 	// Unregister tick function.
-	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FNetworkingProfilerManager::Instance.Reset();
 

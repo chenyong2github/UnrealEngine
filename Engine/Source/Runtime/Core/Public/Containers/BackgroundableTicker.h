@@ -23,6 +23,8 @@ private:
 	bool bWasBackgrounded = false;
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
  * DEPRECATED not thread-safe version
  * For migration guide see `FTSTicker`
@@ -30,7 +32,7 @@ private:
  * This works the same as the core FTicker, but on supported mobile platforms 
  * it continues ticking while the app is running in the background.
  */
-class FBackgroundableTicker
+class UE_DEPRECATED(5.0, "Please use thread-safe FTSTickerObjectBase, see the migration guide in the code comment above FTSTicker") FBackgroundableTicker
 	: public FTicker
 {
 public:
@@ -46,3 +48,5 @@ private:
 	FDelegateHandle BackgroundTickerHandle;
 	bool bWasBackgrounded = false;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

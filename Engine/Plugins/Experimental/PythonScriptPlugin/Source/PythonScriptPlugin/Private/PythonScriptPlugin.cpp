@@ -816,7 +816,7 @@ void FPythonScriptPlugin::InitializePython()
 		FPyWrapperTypeRegistry::Get().GenerateWrappedTypes();
 
 		// Initialize the tick handler
-		TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float DeltaTime)
+		TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float DeltaTime)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FPythonScriptPlugin_Tick);
 			Tick(DeltaTime);
@@ -954,10 +954,10 @@ void FPythonScriptPlugin::ShutdownPython()
 	// Notify any external listeners
 	OnPythonShutdownDelegate.Broadcast();
 
-	FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	if (ModuleDelayedHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(ModuleDelayedHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(ModuleDelayedHandle);
 	}
 
 	FPyWrapperTypeRegistry::Get().OnModuleDirtied().RemoveAll(this);
@@ -1014,12 +1014,12 @@ void FPythonScriptPlugin::RequestStubCodeGeneration()
 	// If there is an existing pending notification, remove it so that it can be reset
 	if (ModuleDelayedHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(ModuleDelayedHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(ModuleDelayedHandle);
 		ModuleDelayedHandle.Reset();
 	}
 
 	// Set new tick
-	ModuleDelayedHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+	ModuleDelayedHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 		[this](float DeltaTime)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FPythonScriptPlugin_ModuleDelayed);

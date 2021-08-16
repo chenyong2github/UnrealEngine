@@ -7,6 +7,7 @@
 #include "INetworkingWebSocket.h"
 #include "IWebSocketServer.h"
 #include "RemoteControlRoute.h"
+#include "Containers/Ticker.h"
 
 /**
  * Router used to dispatch messages received by a WebSocketServer.
@@ -142,7 +143,7 @@ private:
 
 private:
 	/** Handle to the tick delegate. */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
  
 	/** Holds the LibWebSocket wrapper. */
 	TUniquePtr<IWebSocketServer> Server;

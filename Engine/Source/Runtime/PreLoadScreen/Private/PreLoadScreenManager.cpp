@@ -434,7 +434,7 @@ void FPreLoadScreenManager::GameLogicFrameTick()
 
         //We have to manually tick everything as we are looping the main thread here
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-        FTicker::GetCoreTicker().Tick(DeltaTime);
+        FTSTicker::GetCoreTicker().Tick(DeltaTime);
         FThreadManager::Get().Tick();
 
 		//Tick any platform specific things we need here

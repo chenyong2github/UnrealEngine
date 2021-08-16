@@ -14,6 +14,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTSTickerTest, "System.Core.Containers.TSTicker
 template<uint32 NumDelegates, uint32 NumTicks>
 void TickerPerfTest()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		
 	FTicker Ticker;
 
 	TArray<FDelegateHandle> DelegateHandles;
@@ -32,6 +34,8 @@ void TickerPerfTest()
 	{
 		Ticker.RemoveTicker(DelegateHandle);
 	}
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 template<uint32 NumDelegates, uint32 NumTicks>

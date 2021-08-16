@@ -16,7 +16,7 @@ BEGIN_DEFINE_SPEC(FDownloadServiceSpec, "BuildPatchServices.Unit", EAutomationTe
 // Unit.
 TUniquePtr<BuildPatchServices::IDownloadService> DownloadService;
 // Mock/Fake.
-FTicker Ticker;
+FTSTicker Ticker;
 TUniquePtr<BuildPatchServices::FFakeHttpManager> FakeHttpModule;
 TUniquePtr<BuildPatchServices::FMockFileSystem> MockFileSystem;
 TUniquePtr<BuildPatchServices::FMockDownloadServiceStat> MockDownloadServiceStat;
@@ -57,7 +57,7 @@ void FDownloadServiceSpec::Define()
 	// Specs.
 	BeforeEach([this]()
 	{
-		Ticker = FTicker();
+		Ticker.Reset();
 		FakeHttpModule.Reset(new FFakeHttpManager(Ticker));
 		MockFileSystem.Reset(new FMockFileSystem());
 		MockDownloadServiceStat.Reset(new FMockDownloadServiceStat());

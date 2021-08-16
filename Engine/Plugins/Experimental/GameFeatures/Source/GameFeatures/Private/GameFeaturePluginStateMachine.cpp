@@ -96,7 +96,7 @@ FGameFeaturePluginState::~FGameFeaturePluginState()
 {
 	if (TickHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 }
@@ -105,10 +105,10 @@ void FGameFeaturePluginState::UpdateStateMachineDeferred(float Delay /*= 0.0f*/)
 {
 	if (TickHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	}
 
-	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float dts) mutable
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float dts) mutable
 	{
 		StateProperties.OnRequestUpdateStateMachine.ExecuteIfBound();
 		TickHandle.Reset();
@@ -471,14 +471,14 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 	bool bPluginDownloaded = false;
 	TArray<FName> PendingBundleDownloads;
 	TUniquePtr<FInstallBundleCombinedProgressTracker> ProgressTracker;
-	FDelegateHandle ProgressUpdateHandle;
+	FTSTicker::FDelegateHandle ProgressUpdateHandle;
 	FDelegateHandle GotContentStateHandle;
 
 	void Cleanup()
 	{
 		if (ProgressUpdateHandle.IsValid())
 		{
-			FTicker::GetCoreTicker().RemoveTicker(ProgressUpdateHandle);
+			FTSTicker::GetCoreTicker().RemoveTicker(ProgressUpdateHandle);
 			ProgressUpdateHandle.Reset();
 		}
 
@@ -543,7 +543,7 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 			ProgressTracker = MakeUnique<FInstallBundleCombinedProgressTracker>(false);
 			ProgressTracker->SetBundlesToTrackFromContentState(BundleContentState, PendingBundleDownloads);
 
-			ProgressUpdateHandle = FTicker::GetCoreTicker().AddTicker(
+			ProgressUpdateHandle = FTSTicker::GetCoreTicker().AddTicker(
 				FTickerDelegate::CreateRaw(this, &FGameFeaturePluginState_Downloading::OnUpdateProgress)/*, 0.1f*/);
 		}
 	}

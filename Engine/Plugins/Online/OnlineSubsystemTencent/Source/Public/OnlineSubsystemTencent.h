@@ -93,7 +93,7 @@ public:
 	virtual FString GetAppId() const override;
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 
 	virtual bool Tick(float DeltaTime) override;
 

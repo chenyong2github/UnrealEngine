@@ -24,7 +24,7 @@ public:
 
 private:
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	struct FConnectionQuery
 	{
 		bool bConnected;

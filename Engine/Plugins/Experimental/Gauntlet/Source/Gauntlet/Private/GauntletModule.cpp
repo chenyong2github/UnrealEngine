@@ -73,7 +73,7 @@ protected:
 private:
 
 	/** Handle to our tick callback */
-	FDelegateHandle					TickHandle;
+	FTSTicker::FDelegateHandle					TickHandle;
 
 	/** Currently active controllers */
 	TArray<UGauntletTestController*>	Controllers;
@@ -146,7 +146,7 @@ void FGauntletModuleImpl::OnPostEngineInit()
 	FParse::Value(FCommandLine::Get(), TEXT("gauntlet.tickrate="), kTickRate);
 
 
-	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, kTickRate](float TimeDelta)
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, kTickRate](float TimeDelta)
 	{
 		// ticker passes in frame-delta, not tick delta...
 		InnerTick(kTickRate);
@@ -163,7 +163,7 @@ void FGauntletModuleImpl::ShutdownModule()
 
 	if (TickHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 

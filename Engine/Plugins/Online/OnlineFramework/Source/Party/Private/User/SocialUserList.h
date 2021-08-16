@@ -5,6 +5,7 @@
 #include "User/ISocialUserList.h"
 #include "UObject/GCObject.h"
 #include "PartyPackage.h"
+#include "Containers/Ticker.h"
 
 enum class EMemberExitedReason : uint8;
 typedef TSharedRef<const IOnlinePartyRequestToJoinInfo> IOnlinePartyRequestToJoinInfoConstRef;
@@ -103,7 +104,7 @@ private:
 	bool bNeedsSort = false;
 	int32 AutoUpdateRequests = 0;
 	float AutoUpdatePeriod = .5f;
-	FDelegateHandle UpdateTickerHandle;
+	FTSTicker::FDelegateHandle UpdateTickerHandle;
 
 	mutable FOnUserAdded OnUserAddedEvent;
 	mutable FOnUserRemoved OnUserRemovedEvent;

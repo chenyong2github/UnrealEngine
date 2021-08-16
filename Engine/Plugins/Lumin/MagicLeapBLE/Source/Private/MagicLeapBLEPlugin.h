@@ -42,7 +42,7 @@ private:
 	FBLETask::EType CurrAtomicTaskType;
 	FBLERunnable* Runnable;
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	FMagicLeapBLEOnLogDelegate OnLogDelegate;
 	FMagicLeapBLEOnFoundDeviceDelegate OnFoundDeviceDelegate;
 	FMagicLeapBLEOnConnStateChangedDelegate OnConnStateChangedDelegate;

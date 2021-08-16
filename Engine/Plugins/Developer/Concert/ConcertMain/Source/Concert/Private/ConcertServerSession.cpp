@@ -46,7 +46,7 @@ void FConcertServerSession::Startup()
 		ServerSessionEndpoint->RegisterRequestHandler<FConcertSession_CustomRequest, FConcertSession_CustomResponse>(this, &FConcertServerSession::HandleCustomRequest);
 
 		// Setup the session tick
-		SessionTick = FTicker::GetCoreTicker().AddTicker(TEXT("ServerSession"), 0, [this](float DeltaSeconds)
+		SessionTick = FTSTicker::GetCoreTicker().AddTicker(TEXT("ServerSession"), 0, [this](float DeltaSeconds)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertServerSession_Tick);
 			TickConnections(DeltaSeconds);
@@ -74,7 +74,7 @@ void FConcertServerSession::Shutdown()
 		ServerSessionEndpoint->UnregisterRequestHandler<FConcertSession_CustomRequest>();
 
 		// Unregister the session tick
-		FTicker::GetCoreTicker().RemoveTicker(SessionTick);
+		FTSTicker::GetCoreTicker().RemoveTicker(SessionTick);
 		SessionTick.Reset();
 
 		CommonShutdown();

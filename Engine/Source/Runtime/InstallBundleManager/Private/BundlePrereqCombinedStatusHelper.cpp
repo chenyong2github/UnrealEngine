@@ -75,7 +75,7 @@ void FInstallBundleCombinedProgressTracker::SetupDelegates(bool bAutoTick)
 	IInstallBundleManager::PausedBundleDelegate.AddRaw(this, &FInstallBundleCombinedProgressTracker::OnBundleInstallPauseChanged);
 	if (bAutoTick)
 	{
-		TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FInstallBundleCombinedProgressTracker::Tick));
+		TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FInstallBundleCombinedProgressTracker::Tick));
 	}
 }
 
@@ -85,7 +85,7 @@ void FInstallBundleCombinedProgressTracker::CleanUpDelegates()
 	IInstallBundleManager::PausedBundleDelegate.RemoveAll(this);
 	if (TickHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 }

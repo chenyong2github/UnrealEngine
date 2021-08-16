@@ -7,6 +7,7 @@
 #include "Async/AsyncWork.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Serialization/JsonSerializerMacros.h"
+#include "Containers/Ticker.h"
 
 namespace InstallBundleUtil
 {
@@ -521,7 +522,7 @@ namespace InstallBundleUtil
 			TMap<FName, FBundlePersistentStats> PerBundlePersistentStatMap;
 			TMap<FString, FSessionPersistentStats> SessionPersistentStatMap;
 
-			FDelegateHandle TickHandle;
+			FTSTicker::FDelegateHandle TickHandle;
 			FDelegateHandle OnApp_EnteringForegroundHandle;
 			FDelegateHandle OnApp_EnteringBackgroundHandle;
 

@@ -48,7 +48,7 @@ void OculusAudioSpatializationAudioMixer::Initialize(const FAudioPluginInitializ
 	const UOculusAudioSettings* Settings = GetDefault<UOculusAudioSettings>();
 	ApplyOculusAudioSettings(Settings);
 
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &OculusAudioSpatializationAudioMixer::Tick));
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &OculusAudioSpatializationAudioMixer::Tick));
 }
 
 void OculusAudioSpatializationAudioMixer::ApplyOculusAudioSettings(const UOculusAudioSettings* Settings)
@@ -83,7 +83,7 @@ void OculusAudioSpatializationAudioMixer::Shutdown()
 {
 	if (TickDelegateHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	}
 }
 

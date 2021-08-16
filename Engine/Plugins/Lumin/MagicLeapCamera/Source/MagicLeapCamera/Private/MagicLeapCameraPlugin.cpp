@@ -21,7 +21,7 @@ void FMagicLeapCameraPlugin::StartupModule()
 	IMagicLeapCameraPlugin::StartupModule();
 	Runnable = new FCameraRunnable();
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapCameraPlugin::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 
 	AppEventHandler.SetOnAppPauseHandler([this]()
 	{
@@ -37,7 +37,7 @@ void FMagicLeapCameraPlugin::ShutdownModule()
 	{
 		delete InRunnable;
 	});
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IModuleInterface::ShutdownModule();
 }
 

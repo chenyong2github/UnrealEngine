@@ -1180,7 +1180,7 @@ void FFrontendFilter_InUseByLoadedLevels::RegisterDelayedRefresh(float DelayInSe
 	// The Editor might be unresponsive during heavy asset compilation so we 
 	// not only need a delay, but also a minimum amount of frames
 	// to pass until we call the actual refresh.
-	DelayedRefreshHandle = FTicker::GetCoreTicker().AddTicker(
+	DelayedRefreshHandle = FTSTicker::GetCoreTicker().AddTicker(
 		TEXT("FFrontendFilter_InUseByLoadedLevels"),
 		0.0f,
 		[this, FireInTickCount = 16, DelayInSeconds](float DeltaTime) mutable
@@ -1201,7 +1201,7 @@ void FFrontendFilter_InUseByLoadedLevels::UnregisterDelayedRefresh()
 {
 	if (DelayedRefreshHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(DelayedRefreshHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(DelayedRefreshHandle);
 		DelayedRefreshHandle.Reset();
 	}
 }

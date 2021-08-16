@@ -11,6 +11,7 @@
 #include "ISessionInfo.h"
 #include "SessionLogMessage.h"
 #include "ISessionManager.h"
+#include "Containers/Ticker.h"
 
 class FSessionInfo;
 struct FEngineServicePong;
@@ -158,5 +159,5 @@ private:
 	FSimpleMulticastDelegate SessionInstanceUpdatedDelegate;
 
 	/** Holds a delegate to be invoked when the widget ticks. */
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 };

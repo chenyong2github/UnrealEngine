@@ -43,7 +43,7 @@ private:
 	};
 
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	uint32 UserCount;
 	ECaptureState CaptureState;
 	float MinVidCaptureTimer;

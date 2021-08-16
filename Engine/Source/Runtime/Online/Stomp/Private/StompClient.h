@@ -15,14 +15,14 @@ class Error;
 
 class FStompClient
 	: public IStompClient
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 	, public TSharedFromThis<FStompClient>
 {
 public:
 
 	virtual ~FStompClient();
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 	// IStompClient

@@ -68,7 +68,7 @@ static void TestNotifications()
 {
 	static const float Timeout = 15.0f;
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 0.0f, [](float DeltaTime)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 0.0f, [](float DeltaTime)
 		{
 			FNotificationInfo NotificationInfo(FText::FromString(TEXT("Test Notification 1")));
 			NotificationInfo.FadeInDuration = 2.0f;
@@ -81,7 +81,7 @@ static void TestNotifications()
 			return false;
 		});
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 2.0f, [](float DeltaTime)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 2.0f, [](float DeltaTime)
 		{
 			FNotificationInfo NotificationInfo(FText::FromString(TEXT("Test Notification 2")));
 			NotificationInfo.FadeInDuration = 2.0f;
@@ -96,7 +96,7 @@ static void TestNotifications()
 			return false;
 		});
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 3.0f, [](float DeltaTime)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 3.0f, [](float DeltaTime)
 		{
 			FNotificationInfo NotificationInfo(FText::FromString(TEXT("Test Notification 3")));
 			NotificationInfo.FadeInDuration = 2.0f;
@@ -111,7 +111,7 @@ static void TestNotifications()
 			return false;
 		});
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 4.0f, [](float DeltaTime)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 4.0f, [](float DeltaTime)
 		{
 			FNotificationInfo NotificationInfo(FText::FromString(TEXT("Test Notification 4")));
 			NotificationInfo.FadeInDuration = 2.0f;
@@ -126,7 +126,7 @@ static void TestNotifications()
 			return false;
 		});
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 5.0f, [](float DeltaTime)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 5.0f, [](float DeltaTime)
 		{
 			FNotificationInfo NotificationInfo(FText::FromString(TEXT("Test Notification 5")));
 			NotificationInfo.FadeInDuration = 2.0f;
@@ -144,7 +144,7 @@ static void TestNotifications()
 			return false;
 		});
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 6.0f, [](float DeltaTime)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 6.0f, [](float DeltaTime)
 		{
 			FNotificationInfo NotificationInfo(FText::FromString(TEXT("Test Notification 6")));
 			NotificationInfo.FadeInDuration = 2.0f;
@@ -161,7 +161,7 @@ static void TestNotifications()
 			return false;
 		});
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 7.0f, [](float DeltaTime)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 7.0f, [](float DeltaTime)
 		{
 			FNotificationInfo NotificationInfo(FText::FromString(TEXT("Test Notification 7")));
 			NotificationInfo.FadeInDuration = 2.0f;
@@ -180,7 +180,7 @@ static void TestNotifications()
 			return false;
 		});
 
-	FTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 8.0f, [](float DeltaTime)
+	FTSTicker::GetCoreTicker().AddTicker(TEXT("TestNotifications"), 8.0f, [](float DeltaTime)
 		{
 			FNotificationInfo NotificationInfo(FText::FromString(TEXT("Everything Under The Sun. This one also has a lot of text which should wrap to the next line")));
 			NotificationInfo.FadeInDuration = 2.0f;

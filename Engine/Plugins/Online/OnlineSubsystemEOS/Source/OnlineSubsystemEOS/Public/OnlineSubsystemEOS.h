@@ -100,7 +100,7 @@ public:
 	virtual bool Shutdown() override;
 	virtual FString GetAppId() const override;
 
-// FTickerObjectBase
+// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 	IVoiceChatUser* GetVoiceChatUserInterface(const FUniqueNetId& LocalUserId);

@@ -48,7 +48,7 @@ void FMallocLeakReporter::Start(int32 FilterSize/*=0*/, float ReportOnTime /*= 0
 	FMallocLeakDetection::Get().SetAllocationCollection(true, FilterSize);
 
 	// Create a ticker to issue checkpoints
-	CheckpointTicker = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](const float TimeDelta)
+	CheckpointTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](const float TimeDelta)
 	{
 		Checkpoint();
 		return Enabled;
@@ -57,7 +57,7 @@ void FMallocLeakReporter::Start(int32 FilterSize/*=0*/, float ReportOnTime /*= 0
 	// If specified, create a handler to generate reports periodically
 	if (ReportOnTime > 0.0f)
 	{
-		ReportTicker = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](const float TimeDelta)
+		ReportTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](const float TimeDelta)
 		{
 			WriteReports();
 			return true;
@@ -79,8 +79,8 @@ void FMallocLeakReporter::Stop()
 	UE_LOG(LogLeakDetector, Log, TEXT("Stopped tracking allocations"));
 	FMallocLeakDetection::Get().SetAllocationCollection(false);
 
-	FTicker::GetCoreTicker().RemoveTicker(CheckpointTicker);
-	FTicker::GetCoreTicker().RemoveTicker(ReportTicker);
+	FTSTicker::GetCoreTicker().RemoveTicker(CheckpointTicker);
+	FTSTicker::GetCoreTicker().RemoveTicker(ReportTicker);
 
 	CheckpointTicker.Reset();
 	ReportTicker.Reset();

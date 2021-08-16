@@ -14,7 +14,7 @@ DEFINE_LOG_CATEGORY(LogODSC);
 FODSCManager* GODSCManager = nullptr;
 
 FODSCManager::FODSCManager()
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, Thread(new FODSCThread())
 {
 	Thread->StartThread();

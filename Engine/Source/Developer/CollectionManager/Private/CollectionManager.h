@@ -231,7 +231,7 @@ private:
 	TSharedPtr<DirectoryWatcher::FFileCache> CollectionFileCaches[ECollectionShareType::CST_All];
 
 	/** Delegate handle for the TickFileCache function */
-	FDelegateHandle TickFileCacheDelegateHandle;
+	FTSTicker::FDelegateHandle TickFileCacheDelegateHandle;
 
 	/** A map of collection names to FCollection objects */
 	TMap<FCollectionNameType, TSharedRef<FCollection>> AvailableCollections;

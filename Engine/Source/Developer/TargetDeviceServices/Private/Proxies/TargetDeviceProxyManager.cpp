@@ -25,7 +25,7 @@ FTargetDeviceProxyManager::FTargetDeviceProxyManager()
 	if (MessageEndpoint.IsValid())
 	{
 		TickDelegate = FTickerDelegate::CreateRaw(this, &FTargetDeviceProxyManager::HandleTicker);
-		TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, TARGET_DEVICE_SERVICES_PING_INTERVAL);
+		TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate, TARGET_DEVICE_SERVICES_PING_INTERVAL);
 
 		SendPing();
 	}
@@ -34,7 +34,7 @@ FTargetDeviceProxyManager::FTargetDeviceProxyManager()
 
 FTargetDeviceProxyManager::~FTargetDeviceProxyManager()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	FMessageEndpoint::SafeRelease(MessageEndpoint);
 }
 

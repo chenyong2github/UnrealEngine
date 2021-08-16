@@ -20,7 +20,7 @@ public:
 
 	virtual ~FPortalRpcLocatorImpl()
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
 public:
@@ -83,7 +83,7 @@ private:
 		MessageEndpoint = FMessageEndpoint::Builder("FPortalRpcLocator")
 			.Handling<FPortalRpcServer>(this, &FPortalRpcLocatorImpl::HandleMessage);
 
-		TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPortalRpcLocatorImpl::HandleTicker), PORTAL_RPC_LOCATE_INTERVAL);
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPortalRpcLocatorImpl::HandleTicker), PORTAL_RPC_LOCATE_INTERVAL);
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -109,7 +109,7 @@ private:
 	FSimpleDelegate ServerLostDelegate;
 
 	/** Handle to the registered ticker. */
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	friend FPortalRpcLocatorFactory;
 };

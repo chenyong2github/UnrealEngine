@@ -49,7 +49,7 @@ private:
 
 	FGameplayTimingViewExtender GameplayTimingViewExtender;
 
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 
 #if WITH_EDITOR
 	FDelegateHandle CustomDebugObjectHandle;

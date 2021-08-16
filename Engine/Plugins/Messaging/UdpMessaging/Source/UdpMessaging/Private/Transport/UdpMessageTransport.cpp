@@ -316,7 +316,7 @@ void FUdpMessageTransport::StartAutoRepairRoutine(uint32 MaxRetryAttempt)
 	TWeakPtr<FUdpMessageTransport, ESPMode::ThreadSafe> WeakTransportPtr = AsShared();
 	FTimespan CheckDelay(0, 0, 1);
 	uint32 CheckNumber = 1;
-	AutoRepairHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakTransport = WeakTransportPtr, LastTime = FDateTime::UtcNow(), CheckDelay, CheckNumber, MaxRetryAttempt](float DeltaTime) mutable
+	AutoRepairHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakTransport = WeakTransportPtr, LastTime = FDateTime::UtcNow(), CheckDelay, CheckNumber, MaxRetryAttempt](float DeltaTime) mutable
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FUdpMessageTransport_AutoRepair);
 		bool bContinue = true;
@@ -347,7 +347,7 @@ void FUdpMessageTransport::StopAutoRepairRoutine()
 {
 	if (AutoRepairHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(AutoRepairHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(AutoRepairHandle);
 	}
 }
 

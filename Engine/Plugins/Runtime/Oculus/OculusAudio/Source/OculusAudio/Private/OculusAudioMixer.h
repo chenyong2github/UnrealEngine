@@ -7,6 +7,7 @@
 #include "OculusAudioSettings.h"
 #include "Containers/Ticker.h"
 #include "AudioMixerDevice.h"
+#include "Containers/Ticker.h"
 
 /************************************************************************/
 /* OculusAudioSpatializationAudioMixer									*/
@@ -60,5 +61,5 @@ private:
 	FCriticalSection ContextLock;
 
 	FAudioPluginInitializationParams InitParams;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 };

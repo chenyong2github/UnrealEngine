@@ -42,7 +42,7 @@ private:
 
 	MagicLeap::IAppEventHandler PrivilegesManager;
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	struct FContactRequest
 	{
 		enum class EType

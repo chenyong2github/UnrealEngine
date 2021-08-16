@@ -83,7 +83,7 @@ public:
 
 			// Update sub-systems.
 			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
-			FTicker::GetCoreTicker().Tick(DeltaTime);
+			FTSTicker::GetCoreTicker().Tick(DeltaTime);
 			AutomationWorkerModule.Tick();
 			AutomationControllerModule.Tick();
 

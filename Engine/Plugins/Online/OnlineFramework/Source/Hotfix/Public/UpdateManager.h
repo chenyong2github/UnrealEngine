@@ -10,6 +10,7 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "PatchCheck.h"
 #include "InstallBundleTypes.h"
+#include "Containers/Ticker.h"
 #include "UpdateManager.generated.h"
 
 class Error;
@@ -387,7 +388,7 @@ protected:
 	UPROPERTY()
 	EUpdateCompletionStatus LastCompletionResult[2];
 
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 	FTimerHandle StartCheckInternalTimerHandle;
 
 private:

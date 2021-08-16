@@ -19,7 +19,7 @@ class TestOnlineSearchSettings;
 /**
  * Class used to test the friends interface
  */
- class FTestSessionInterface : public FTickerObjectBase, public FSelfRegisteringExec
+ class FTestSessionInterface : public FTSTickerObjectBase, public FSelfRegisteringExec
  {
 	/** The subsystem that was requested to be tested or the default if empty */
 	const FString Subsystem;
@@ -342,7 +342,7 @@ class TestOnlineSearchSettings;
 		Friends = NULL;
 	}
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	bool Tick(float DeltaTime) override;
 
 	// FSelfRegisteringExec

@@ -11,12 +11,12 @@ void FMagicLeapHandMeshingModule::StartupModule()
 {
 	IMagicLeapHandMeshingModule::StartupModule();
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapHandMeshingModule::Tick);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 }
 
 void FMagicLeapHandMeshingModule::ShutdownModule()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IModuleInterface::ShutdownModule();
 }
 

@@ -16,7 +16,7 @@
 class FXmppMessagesJingle
 	: public IXmppMessages
 	, public sigslot::has_slots<>
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 
@@ -26,7 +26,7 @@ public:
 	virtual bool SendMessage(const FXmppUserJid& RecipientId, const FString& Type, const TSharedRef<class FJsonObject>& Payload) override;
 	virtual FOnXmppMessageReceived& OnReceiveMessage() override { return OnXmppMessageReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	
 	virtual bool Tick(float DeltaTime) override;
 

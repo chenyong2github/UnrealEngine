@@ -16,7 +16,7 @@ class FStropheStanza;
 
 class FXmppPresenceStrophe
 	: public IXmppPresence
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 	// FXmppPresenceStrophe
@@ -38,7 +38,7 @@ public:
 	virtual void GetRosterMembers(TArray<FXmppUserJid>& Members) override;
 	virtual FOnXmppPresenceReceived& OnReceivePresence() override { return OnXmppPresenceReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 protected:

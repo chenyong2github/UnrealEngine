@@ -24,7 +24,7 @@ public:
 
 private:
 	FTickerDelegate TickDelegate;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 
 	FCriticalSection Mutex;
 	FMagicLeapFilesPickedResultDelegate ResultDelegate;

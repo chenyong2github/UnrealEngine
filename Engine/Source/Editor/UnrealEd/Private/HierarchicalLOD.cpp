@@ -865,7 +865,7 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 				FHierarchicalLODProxyProcessor* Processor = Module.GetProxyProcessor();
 				while (Processor->IsProxyGenerationRunning())
 				{
-					FTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
+					FTSTicker::GetCoreTicker().Tick(FApp::GetDeltaTime());
 					FThreadManager::Get().Tick();
 					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 					FPlatformProcess::Sleep(0.1f);

@@ -17,7 +17,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogHttpServerModule, Log, All);
  */
 class FHttpServerModule : 
 	public IModuleInterface
-	,public FTickerObjectBase
+	,public FTSTickerObjectBase
 {
 
 public:
@@ -46,7 +46,7 @@ public:
 	HTTPSERVER_API TSharedPtr<IHttpRouter> GetHttpRouter(uint32 Port);
 
 	/**
-	 * FTicker callback
+	 * FTSTicker callback
 	 * 
 	 * @param DeltaTime  The time in seconds since the last tick
 	 * @return           false if no longer needs ticking, true otherwise

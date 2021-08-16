@@ -23,7 +23,7 @@ class USteamSocketsNetDriver;
  * This class can only be used with the SteamSocketsNetDriver and the SteamSocketsNetConnection classes.
  * This subsystem does not support mixing any other NetDriver/NetConnection format. Doing so will cause this protocol to not function.
  */
-class STEAMSOCKETS_API FSteamSocketsSubsystem : public ISocketSubsystem, public FTickerObjectBase, public FSelfRegisteringExec
+class STEAMSOCKETS_API FSteamSocketsSubsystem : public ISocketSubsystem, public FTSTickerObjectBase, public FSelfRegisteringExec
 {
 public:
 

@@ -49,7 +49,7 @@ void UEditorUtilitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		MainFrameModule.OnMainFrameCreationFinished().AddUObject(this, &UEditorUtilitySubsystem::MainFrameCreationFinished);
 	}
 
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UEditorUtilitySubsystem::Tick), 0);
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UEditorUtilitySubsystem::Tick), 0);
 }
 
 void UEditorUtilitySubsystem::Deinitialize()
@@ -59,7 +59,7 @@ void UEditorUtilitySubsystem::Deinitialize()
 		IMainFrameModule::Get().OnMainFrameCreationFinished().RemoveAll(this);
 	}
 
-	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 
 	IConsoleManager::Get().UnregisterConsoleObject(RunTaskCommandObject);
 }

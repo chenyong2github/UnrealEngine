@@ -72,6 +72,6 @@ private:
 	uint32 NumInstances;
 	bool bInitialized;
 	ovrAudioContext CachedPluginContext;
-	FDelegateHandle TickDelegateHandle;
+	FTSTicker::FDelegateHandle TickDelegateHandle;
 	uint32 ClientType;
 };

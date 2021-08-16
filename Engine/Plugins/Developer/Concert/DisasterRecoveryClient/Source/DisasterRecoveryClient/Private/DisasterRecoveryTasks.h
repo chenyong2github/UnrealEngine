@@ -56,7 +56,7 @@ private:
 
 private:
 	TArray<TPair<TSharedPtr<FDisasterRecoveryTask>, bool /*bStarted*/>> Tasks;
-	FDelegateHandle TickerHandle;
+	FTSTicker::FDelegateHandle TickerHandle;
 };
 
 /**

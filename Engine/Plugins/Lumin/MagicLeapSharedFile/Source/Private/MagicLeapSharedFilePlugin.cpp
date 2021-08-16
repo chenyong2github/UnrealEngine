@@ -67,7 +67,7 @@ void FMagicLeapSharedFilePlugin::StartupModule()
 
 void FMagicLeapSharedFilePlugin::ShutdownModule()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 	IMagicLeapSharedFilePlugin::ShutdownModule();
 }
 
@@ -119,14 +119,14 @@ bool FMagicLeapSharedFilePlugin::SharedFilePickAsync(const FMagicLeapFilesPicked
 		bWaitingForDelegateResult = true;
 	}
 
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+	TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(TickDelegate);
 
 	MLResult Result = MLSharedFilePick(onFilesPicked, this);
 	if (MLResult_Ok != Result)
 	{
 		FScopeLock Lock(&Mutex);
 		bWaitingForDelegateResult = true;
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 		UE_LOG(LogMagicLeapSharedFile, Error, TEXT("MLSharedFilePick failed with error '%s'"), UTF8_TO_TCHAR(MLSharedFileGetResultString(Result)));
 	}
 
@@ -151,7 +151,7 @@ bool FMagicLeapSharedFilePlugin::Tick(float DeltaTime)
 	
 	if (!bWaitingForDelegateResult_Cached)
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 		ResultDelegate_Cached.ExecuteIfBound(PickedFileList);
 	}
 

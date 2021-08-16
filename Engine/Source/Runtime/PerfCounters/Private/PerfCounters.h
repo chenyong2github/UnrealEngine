@@ -20,7 +20,7 @@ class FInternetAddr;
 DECLARE_LOG_CATEGORY_EXTERN(LogPerfCounters, Log, All);
 
 class FPerfCounters 
-	: public FTickerObjectBase
+	: public FTSTickerObjectBase
 	, public FSelfRegisteringExec
 	, public IPerfCounters
 	, public TSharedFromThis<FPerfCounters>
@@ -33,7 +33,7 @@ public:
 	/** Initializes this instance from JSON config. */
 	bool Initialize();
 
-	/** FTickerObjectBase */
+	/** FTSTickerObjectBase */
 	virtual bool Tick(float DeltaTime) override;
 
 	//~ Begin Exec Interface

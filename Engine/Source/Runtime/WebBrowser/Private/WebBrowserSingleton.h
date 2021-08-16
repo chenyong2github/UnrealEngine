@@ -49,7 +49,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
  */
 class FWebBrowserSingleton
 	: public IWebBrowserSingleton
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 
@@ -155,7 +155,7 @@ public:
 
 public:
 
-	// FTickerObjectBase Interface
+	// FTSTickerObjectBase Interface
 
 	virtual bool Tick(float DeltaTime) override;
 

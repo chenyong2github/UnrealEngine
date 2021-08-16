@@ -31,12 +31,12 @@ FText GetSystemErrorMessage(EConcertResponseCode Code)
 
 FDisasterRecoveryTaskExecutor::FDisasterRecoveryTaskExecutor()
 {
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDisasterRecoveryTaskExecutor::Tick), 0.0f);
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDisasterRecoveryTaskExecutor::Tick), 0.0f);
 }
 
 FDisasterRecoveryTaskExecutor::~FDisasterRecoveryTaskExecutor()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	Abort();
 }
 

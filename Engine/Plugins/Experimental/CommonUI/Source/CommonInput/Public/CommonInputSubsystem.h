@@ -111,7 +111,7 @@ private:
 
 	bool CheckForInputMethodThrashing(ECommonInputType NewInputType);
 
-	FDelegateHandle TickHandle;
+	FTSTicker::FDelegateHandle TickHandle;
 
 	UPROPERTY(BlueprintAssignable, Category = CommonInputSubsystem, meta = (AllowPrivateAccess))
 	FInputMethodChangedDelegate OnInputMethodChanged;

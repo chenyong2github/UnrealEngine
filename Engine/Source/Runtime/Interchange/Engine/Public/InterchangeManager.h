@@ -22,6 +22,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Containers/Ticker.h"
 
 #include "InterchangeManager.generated.h"
 
@@ -458,7 +459,7 @@ private:
 	TArray<TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> > ImportTasks;
 
 	TSharedPtr<FAsyncTaskNotification> Notification = nullptr;
-	FDelegateHandle NotificationTickHandle;
+	FTSTicker::FDelegateHandle NotificationTickHandle;
 
 	// Caching the registered translator classes to avoid double registration fast
 	UPROPERTY()

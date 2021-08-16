@@ -96,14 +96,14 @@ FConcertLocalEndpoint::FConcertLocalEndpoint(const FString& InEndpointFriendlyNa
 
 	KeepAliveRunnable = MakeUnique<FConcertLocalEndpointKeepAliveRunnable>(this, *MessageEndpointName);
 
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FConcertLocalEndpoint::HandleTick), 0.0f);
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FConcertLocalEndpoint::HandleTick), 0.0f);
 }
 
 FConcertLocalEndpoint::~FConcertLocalEndpoint()
 {
 	if (TickerHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 	}
 
 	KeepAliveRunnable.Reset();

@@ -385,7 +385,7 @@ void FAutomationDriverSpec::Define()
 						const TSharedPtr<int32, ESPMode::ThreadSafe> ExistenceChecker = WeakExistenceChecker.Pin();
 						if (ExistenceChecker.IsValid())
 						{
-							FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
+							FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
 								const TSharedPtr<int32, ESPMode::ThreadSafe> TickerExistenceChecker = WeakExistenceChecker.Pin();
 								if (TickerExistenceChecker.IsValid())
 								{
@@ -459,7 +459,7 @@ void FAutomationDriverSpec::Define()
 						const TSharedPtr<int32, ESPMode::ThreadSafe> ExistenceChecker = WeakExistenceChecker.Pin();
 						if (ExistenceChecker.IsValid())
 						{
-							FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
+							FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
 								const TSharedPtr<int32, ESPMode::ThreadSafe> TickerExistenceChecker = WeakExistenceChecker.Pin();
 								if (TickerExistenceChecker.IsValid())
 								{
@@ -1149,7 +1149,7 @@ void FAutomationDriverSpec::Define()
 							if (ExistenceChecker.IsValid())
 							{
 								SuiteWidget->RemoveContents();
-								FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
+								FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
 									const TSharedPtr<int32, ESPMode::ThreadSafe> TickerExistenceChecker = WeakExistenceChecker.Pin();
 									if (TickerExistenceChecker.IsValid())
 									{
@@ -1188,7 +1188,7 @@ void FAutomationDriverSpec::Define()
 							if (ExistenceChecker.IsValid())
 							{
 								SuiteWidget->RemoveContents();
-								FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta) {
+								FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta) {
 									const TSharedPtr<int32, ESPMode::ThreadSafe> TickerExistenceChecker = WeakExistenceChecker.Pin();
 									if (TickerExistenceChecker.IsValid())
 									{
@@ -1230,7 +1230,7 @@ void FAutomationDriverSpec::Define()
 							const TSharedPtr<int32, ESPMode::ThreadSafe> ExistenceChecker = WeakExistenceChecker.Pin();
 							if (ExistenceChecker.IsValid())
 							{
-								FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
+								FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
 									const TSharedPtr<int32, ESPMode::ThreadSafe> TickerExistenceChecker = WeakExistenceChecker.Pin();
 									if (TickerExistenceChecker.IsValid())
 									{
@@ -1269,7 +1269,7 @@ void FAutomationDriverSpec::Define()
 							const TSharedPtr<int32, ESPMode::ThreadSafe> ExistenceChecker = WeakExistenceChecker.Pin();
 							if (ExistenceChecker.IsValid())
 							{
-								FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta) {
+								FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta) {
 									const TSharedPtr<int32, ESPMode::ThreadSafe> TickerExistenceChecker = WeakExistenceChecker.Pin();
 									if (TickerExistenceChecker.IsValid())
 									{
@@ -1308,7 +1308,7 @@ void FAutomationDriverSpec::Define()
 							const TSharedPtr<int32, ESPMode::ThreadSafe> ExistenceChecker = WeakExistenceChecker.Pin();
 							if (ExistenceChecker.IsValid())
 							{
-								FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
+								FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta){
 									const TSharedPtr<int32, ESPMode::ThreadSafe> TickerExistenceChecker = WeakExistenceChecker.Pin();
 									if (TickerExistenceChecker.IsValid())
 									{
@@ -1346,7 +1346,7 @@ void FAutomationDriverSpec::Define()
 							const TSharedPtr<int32, ESPMode::ThreadSafe> ExistenceChecker = WeakExistenceChecker.Pin();
 							if (ExistenceChecker.IsValid())
 							{
-								FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta) {
+								FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, WeakExistenceChecker](float Delta) {
 									const TSharedPtr<int32, ESPMode::ThreadSafe> TickerExistenceChecker = WeakExistenceChecker.Pin();
 									if (TickerExistenceChecker.IsValid())
 									{

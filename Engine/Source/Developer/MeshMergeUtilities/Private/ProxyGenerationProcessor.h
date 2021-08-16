@@ -12,7 +12,7 @@ class FMeshMergeUtilities;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMeshMerging, Verbose, All);
 
-class FProxyGenerationProcessor : FTickerObjectBase
+class FProxyGenerationProcessor : FTSTickerObjectBase
 {
 public:
 	FProxyGenerationProcessor(const FMeshMergeUtilities* InOwner);

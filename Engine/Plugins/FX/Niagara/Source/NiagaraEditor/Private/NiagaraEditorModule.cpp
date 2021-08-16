@@ -1706,7 +1706,7 @@ void FNiagaraEditorModule::EnqueueObjectForDeferredDestructionInternal(FDeferred
 {
 	if (EnqueuedForDeferredDestruction.Num() == 0)
 	{
-		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FNiagaraEditorModule::DeferredDestructObjects));
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FNiagaraEditorModule::DeferredDestructObjects));
 	}
 	EnqueuedForDeferredDestruction.Add(MakeShareable<FDeferredDestructionContainerBase>(InObjectToDestruct));
 }

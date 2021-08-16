@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Layout/SlateRect.h"
+#include "Containers/Ticker.h"
 
 class SWidget;
 class SWindow;
@@ -85,7 +86,7 @@ private:
 
 	TArray<FWidgetGFNActionZone> GFNWidgetActionZones;
 
-	FDelegateHandle ProcessDelegateHandle;
+	FTSTicker::FDelegateHandle ProcessDelegateHandle;
 };
 
 #endif // NV_GEFORCENOW

@@ -15,7 +15,7 @@
 #define TickRequesterId FName("StrophePrivateChat")
 
 FXmppPrivateChatStrophe::FXmppPrivateChatStrophe(FXmppConnectionStrophe& InConnectionManager)
-	: FTickerObjectBase(0.0f, FBackgroundableTicker::GetCoreTicker())
+	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 	, ConnectionManager(InConnectionManager)
 {
 }

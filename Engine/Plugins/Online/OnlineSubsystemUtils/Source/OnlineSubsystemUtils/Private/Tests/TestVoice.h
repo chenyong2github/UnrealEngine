@@ -18,14 +18,14 @@ enum class EAudioEncodeHint : uint8;
 #define VOICE_MAX_COMPRESSED_BUFFER 20 * 1024
 #define VOICE_STARTING_REMAINDER_SIZE 1 * 1024
 
-class FTestVoice : public FTickerObjectBase, public FSelfRegisteringExec
+class FTestVoice : public FTSTickerObjectBase, public FSelfRegisteringExec
 {
 public:
 
 	FTestVoice();
 	virtual ~FTestVoice();
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 	// FSelfRegisteringExec

@@ -81,7 +81,7 @@ FCrashReportClient::~FCrashReportClient()
 {
 	if (TickHandle.IsValid())
 	{
-		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 	StopBackgroundThread();
@@ -237,7 +237,7 @@ void FCrashReportClient::StartTicker()
 {
 	if (!TickHandle.IsValid())
 	{
-		TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCrashReportClient::Tick), 1.f);
+		TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FCrashReportClient::Tick), 1.f);
 	}
 }
 

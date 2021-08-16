@@ -166,7 +166,7 @@ void FLwsWebSocketsManager::InitWebSockets(TArrayView<const FString> Protocols)
 
 	// Setup our game thread tick
 	FTickerDelegate TickDelegate = FTickerDelegate::CreateRaw(this, &FLwsWebSocketsManager::GameThreadTick);
-	TickHandle = FBackgroundableTicker::GetCoreTicker().AddTicker(TickDelegate, 0.0f);
+	TickHandle = FTSBackgroundableTicker::GetCoreTicker().AddTicker(TickDelegate, 0.0f);
 }
 
 void FLwsWebSocketsManager::ShutdownWebSockets()
@@ -174,7 +174,7 @@ void FLwsWebSocketsManager::ShutdownWebSockets()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FLwsWebSocketsManager_ShutdownWebSockets);
 	if (TickHandle.IsValid())
 	{
-		FBackgroundableTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSBackgroundableTicker::GetCoreTicker().RemoveTicker(TickHandle);
 		TickHandle.Reset();
 	}
 

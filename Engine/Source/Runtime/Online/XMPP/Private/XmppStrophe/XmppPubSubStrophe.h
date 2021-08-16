@@ -14,7 +14,7 @@ class FStropheStanza;
 
 class FXmppPubSubStrophe
 	: public IXmppPubSub
-	, public FTickerObjectBase
+	, public FTSTickerObjectBase
 {
 public:
 	// FXmppPubSubStrophe
@@ -51,7 +51,7 @@ public:
 	virtual FOnXmppPubSubUnsubscribed& OnUnsubscribed() override { return OnXmppPubSubUnsubscribedDelegate; }
 	virtual FOnXmppPubSubMessageReceived& OnMessageReceived() override { return OnXmppPubSubMessageReceivedDelegate; }
 
-	// FTickerObjectBase
+	// FTSTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
 
 protected:
