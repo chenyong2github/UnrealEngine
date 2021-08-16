@@ -492,10 +492,9 @@ public:
 			int32 MaterialIndex = GetStaticMeshMaterialIndexFromSlotName(StaticMeshIn, MaterialSlotName, true);
 
 			UMaterialInterface* MaterialInterface = GetStaticMeshMaterialFromSlotName(StaticMeshIn, MaterialSlotName, true);
-			bool bValidPolyGroup = (MaterialInterface != nullptr)
-				&& (MaterialInterface->GetMaterial() != nullptr)
-				&& (MaterialInterface->GetMaterial()->MaterialDomain == EMaterialDomain::MD_Surface);
+			const UMaterial* Material = MaterialInterface != nullptr ? MaterialInterface->GetMaterial_Concurrent() : nullptr;
 
+			bool bValidPolyGroup = Material != nullptr && Material->MaterialDomain == EMaterialDomain::MD_Surface;
 			if (bValidPolyGroup)
 			{
 				ValidPolyGroups.Add(PolygonGroupID);
