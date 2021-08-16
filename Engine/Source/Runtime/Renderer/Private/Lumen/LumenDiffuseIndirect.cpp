@@ -217,7 +217,7 @@ void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples
 	}
 }
 
-bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck) 
+bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck) 
 {
 	return Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck)
 		&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen

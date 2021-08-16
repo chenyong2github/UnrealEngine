@@ -124,7 +124,11 @@ void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshB
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	if (MeshBatch.bUseForMaterial && DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel)))
+	if (MeshBatch.bUseForMaterial 
+		&& DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel))
+		&& ViewIfDynamicMeshCommand
+		//@todo - this filter should be done at a higher level
+		&& ShouldRenderLumenDiffuseGI(Scene, *ViewIfDynamicMeshCommand))
 	{
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
@@ -141,10 +145,7 @@ void FLumenTranslucencyRadianceCacheMarkMeshProcessor::AddMeshBatch(const FMeshB
 		if (bIsTranslucent
 			&& (TranslucencyLightingMode == TLM_Surface || TranslucencyLightingMode == TLM_SurfacePerPixelLighting)
 			&& PrimitiveSceneProxy && PrimitiveSceneProxy->ShouldRenderInMainPass()
-			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
-			// Workaround for order of operations bug, needs further investigation
-			// When FParallelMeshDrawCommandPass::DispatchPassSetup defers AddMeshBatch to a task, sometimes the resource recreations run before the task
-			&& MeshBatch.VertexFactory->IsInitialized())
+			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
 		{
 			const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 			FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
@@ -282,7 +283,7 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 		RDG_EVENT_NAME("TranslucencyReflectionsRadianceCacheMark"),
 		PassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandList& RHICmdList)
+		[&View, &SceneRenderer, MeshPass, PassParameters, ViewportScale, DownsampledViewRect](FRHICommandListImmediate& RHICmdList)
 	{
 		FRHIRenderPassInfo RPInfo;
 		RPInfo.ResolveParameters.DestRect.X1 = DownsampledViewRect.Min.X;
